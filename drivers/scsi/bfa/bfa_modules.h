@@ -40,6 +40,7 @@ struct bfa_modules_s {
 	struct bfa_ablk_s	ablk;		/*  ASIC block config module */
 	struct bfa_cee_s	cee;		/*  CEE Module	*/
 	struct bfa_sfp_s	sfp;		/*  SFP module	*/
+	struct bfa_flash_s	flash;		/*  flash module */
 };
 
 /*

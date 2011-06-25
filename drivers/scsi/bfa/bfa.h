@@ -27,7 +27,6 @@
 struct bfa_s;
 
 typedef void (*bfa_isr_func_t) (struct bfa_s *bfa, struct bfi_msg_s *m);
-typedef void    (*bfa_cb_cbfn_t) (void *cbarg, bfa_boolean_t complete);
 
 /*
  * Interrupt message handlers
@@ -77,16 +76,6 @@ void bfa_isr_unhandled(struct bfa_s *bfa, struct bfi_msg_s *m);
 } while (0)
 
 /*
- * Queue element to wait for room in request queue. FIFO order is
- * maintained when fullfilling requests.
- */
-struct bfa_reqq_wait_s {
-	struct list_head	qe;
-	void		(*qresume) (void *cbarg);
-	void		*cbarg;
-};
-
-/*
  * Circular queue usage assignments
  */
 enum {
@@ -128,17 +117,6 @@ bfa_reqq_winit(struct bfa_reqq_wait_s *wqe, void (*qresume) (void *cbarg),
 	} while (0)
 
 #define bfa_reqq_wcancel(__wqe)	list_del(&(__wqe)->qe)
-
-
-/*
- * Generic BFA callback element.
- */
-struct bfa_cb_qe_s {
-	struct list_head         qe;
-	bfa_cb_cbfn_t  cbfn;
-	bfa_boolean_t   once;
-	void           *cbarg;
-};
 
 #define bfa_cb_queue(__bfa, __hcb_qe, __cbfn, __cbarg) do {	\
 		(__hcb_qe)->cbfn  = (__cbfn);      \

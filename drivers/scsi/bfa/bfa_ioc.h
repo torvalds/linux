@@ -348,6 +348,28 @@ struct bfa_ioc_hwif_s {
 };
 
 /*
+ * Queue element to wait for room in request queue. FIFO order is
+ * maintained when fullfilling requests.
+ */
+struct bfa_reqq_wait_s {
+	struct list_head	qe;
+	void	(*qresume) (void *cbarg);
+	void	*cbarg;
+};
+
+typedef void	(*bfa_cb_cbfn_t) (void *cbarg, bfa_boolean_t complete);
+
+/*
+ * Generic BFA callback element.
+ */
+struct bfa_cb_qe_s {
+	struct list_head	qe;
+	bfa_cb_cbfn_t	cbfn;
+	bfa_boolean_t	once;
+	void		*cbarg;
+};
+
+/*
  * ASIC block configurtion related
  */
 
@@ -418,6 +440,56 @@ bfa_status_t	bfa_sfp_media(struct bfa_sfp_s *sfp,
 bfa_status_t	bfa_sfp_speed(struct bfa_sfp_s *sfp,
 			enum bfa_port_speed portspeed,
 			bfa_cb_sfp_t cbfn, void *cbarg);
+
+/*
+ *	Flash module specific
+ */
+typedef void	(*bfa_cb_flash_t) (void *cbarg, bfa_status_t status);
+
+struct bfa_flash_s {
+	struct bfa_ioc_s *ioc;		/* back pointer to ioc */
+	struct bfa_trc_mod_s *trcmod;
+	u32		type;           /* partition type */
+	u8		instance;       /* partition instance */
+	u8		rsv[3];
+	u32		op_busy;        /*  operation busy flag */
+	u32		residue;        /*  residual length */
+	u32		offset;         /*  offset */
+	bfa_status_t	status;         /*  status */
+	u8		*dbuf_kva;      /*  dma buf virtual address */
+	u64		dbuf_pa;        /*  dma buf physical address */
+	struct bfa_reqq_wait_s	reqq_wait; /*  to wait for room in reqq */
+	bfa_cb_flash_t	cbfn;           /*  user callback function */
+	void		*cbarg;         /*  user callback arg */
+	u8		*ubuf;          /*  user supplied buffer */
+	struct bfa_cb_qe_s	hcb_qe; /*  comp: BFA callback qelem */
+	u32		addr_off;       /*  partition address offset */
+	struct bfa_mbox_cmd_s	mb;       /*  mailbox */
+	struct bfa_ioc_notify_s	ioc_notify; /*  ioc event notify */
+	struct bfa_mem_dma_s	flash_dma;
+};
+
+#define BFA_FLASH(__bfa)		(&(__bfa)->modules.flash)
+#define BFA_MEM_FLASH_DMA(__bfa)	(&(BFA_FLASH(__bfa)->flash_dma))
+
+bfa_status_t bfa_flash_get_attr(struct bfa_flash_s *flash,
+			struct bfa_flash_attr_s *attr,
+			bfa_cb_flash_t cbfn, void *cbarg);
+bfa_status_t bfa_flash_erase_part(struct bfa_flash_s *flash,
+			enum bfa_flash_part_type type, u8 instance,
+			bfa_cb_flash_t cbfn, void *cbarg);
+bfa_status_t bfa_flash_update_part(struct bfa_flash_s *flash,
+			enum bfa_flash_part_type type, u8 instance,
+			void *buf, u32 len, u32 offset,
+			bfa_cb_flash_t cbfn, void *cbarg);
+bfa_status_t bfa_flash_read_part(struct bfa_flash_s *flash,
+			enum bfa_flash_part_type type, u8 instance, void *buf,
+			u32 len, u32 offset, bfa_cb_flash_t cbfn, void *cbarg);
+u32	bfa_flash_meminfo(bfa_boolean_t mincfg);
+void bfa_flash_attach(struct bfa_flash_s *flash, struct bfa_ioc_s *ioc,
+		void *dev, struct bfa_trc_mod_s *trcmod, bfa_boolean_t mincfg);
+void bfa_flash_memclaim(struct bfa_flash_s *flash,
+		u8 *dm_kva, u64 dm_pa, bfa_boolean_t mincfg);
 
 #define bfa_ioc_pcifn(__ioc)		((__ioc)->pcidev.pci_func)
 #define bfa_ioc_devid(__ioc)		((__ioc)->pcidev.device_id)

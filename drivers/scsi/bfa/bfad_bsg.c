@@ -1109,6 +1109,111 @@ out:
 	return 0;
 }
 
+int
+bfad_iocmd_flash_get_attr(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_flash_attr_s *iocmd =
+			(struct bfa_bsg_flash_attr_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long	flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_flash_get_attr(BFA_FLASH(&bfad->bfa), &iocmd->attr,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_flash_erase_part(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_flash_s *iocmd = (struct bfa_bsg_flash_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long	flags;
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_flash_erase_part(BFA_FLASH(&bfad->bfa), iocmd->type,
+				iocmd->instance, bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_flash_update_part(struct bfad_s *bfad, void *cmd,
+			unsigned int payload_len)
+{
+	struct bfa_bsg_flash_s *iocmd = (struct bfa_bsg_flash_s *)cmd;
+	void	*iocmd_bufptr;
+	struct bfad_hal_comp fcomp;
+	unsigned long	flags;
+
+	if (bfad_chk_iocmd_sz(payload_len,
+			sizeof(struct bfa_bsg_flash_s),
+			iocmd->bufsz) != BFA_STATUS_OK) {
+		iocmd->status = BFA_STATUS_VERSION_FAIL;
+		return 0;
+	}
+
+	iocmd_bufptr = (char *)iocmd + sizeof(struct bfa_bsg_flash_s);
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_flash_update_part(BFA_FLASH(&bfad->bfa),
+				iocmd->type, iocmd->instance, iocmd_bufptr,
+				iocmd->bufsz, 0, bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_flash_read_part(struct bfad_s *bfad, void *cmd,
+			unsigned int payload_len)
+{
+	struct bfa_bsg_flash_s *iocmd = (struct bfa_bsg_flash_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	void	*iocmd_bufptr;
+	unsigned long	flags;
+
+	if (bfad_chk_iocmd_sz(payload_len,
+			sizeof(struct bfa_bsg_flash_s),
+			iocmd->bufsz) != BFA_STATUS_OK) {
+		iocmd->status = BFA_STATUS_VERSION_FAIL;
+		return 0;
+	}
+
+	iocmd_bufptr = (char *)iocmd + sizeof(struct bfa_bsg_flash_s);
+
+	init_completion(&fcomp.comp);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_flash_read_part(BFA_FLASH(&bfad->bfa), iocmd->type,
+				iocmd->instance, iocmd_bufptr, iocmd->bufsz, 0,
+				bfad_hcb_comp, &fcomp);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK)
+		goto out;
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -1242,6 +1347,18 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		 break;
 	case IOCMD_SFP_SPEED:
 		rc = bfad_iocmd_sfp_speed(bfad, iocmd);
+		break;
+	case IOCMD_FLASH_GET_ATTR:
+		rc = bfad_iocmd_flash_get_attr(bfad, iocmd);
+		break;
+	case IOCMD_FLASH_ERASE_PART:
+		rc = bfad_iocmd_flash_erase_part(bfad, iocmd);
+		break;
+	case IOCMD_FLASH_UPDATE_PART:
+		rc = bfad_iocmd_flash_update_part(bfad, iocmd, payload_len);
+		break;
+	case IOCMD_FLASH_READ_PART:
+		rc = bfad_iocmd_flash_read_part(bfad, iocmd, payload_len);
 		break;
 	default:
 		rc = EINVAL;

@@ -67,6 +67,10 @@ enum {
 	IOCMD_CEE_RESET_STATS,
 	IOCMD_SFP_MEDIA,
 	IOCMD_SFP_SPEED,
+	IOCMD_FLASH_GET_ATTR,
+	IOCMD_FLASH_ERASE_PART,
+	IOCMD_FLASH_UPDATE_PART,
+	IOCMD_FLASH_READ_PART,
 };
 
 struct bfa_bsg_gen_s {
@@ -334,6 +338,23 @@ struct bfa_bsg_sfp_speed_s {
 	u16		bfad_num;
 	u16		rsvd;
 	enum bfa_port_speed speed;
+};
+
+struct bfa_bsg_flash_attr_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_flash_attr_s attr;
+};
+
+struct bfa_bsg_flash_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u8		instance;
+	u8		rsvd;
+	enum  bfa_flash_part_type type;
+	int		bufsz;
+	u64		buf_ptr;
 };
 
 struct bfa_bsg_fcpt_s {

@@ -3821,3 +3821,497 @@ bfa_sfp_speed(struct bfa_sfp_s *sfp, enum bfa_port_speed portspeed,
 
 	return bfa_sfp_speed_valid(sfp, portspeed);
 }
+
+/*
+ *	Flash module specific
+ */
+
+/*
+ * FLASH DMA buffer should be big enough to hold both MFG block and
+ * asic block(64k) at the same time and also should be 2k aligned to
+ * avoid write segement to cross sector boundary.
+ */
+#define BFA_FLASH_SEG_SZ	2048
+#define BFA_FLASH_DMA_BUF_SZ	\
+	BFA_ROUNDUP(0x010000 + sizeof(struct bfa_mfg_block_s), BFA_FLASH_SEG_SZ)
+
+static void
+bfa_flash_cb(struct bfa_flash_s *flash)
+{
+	flash->op_busy = 0;
+	if (flash->cbfn)
+		flash->cbfn(flash->cbarg, flash->status);
+}
+
+static void
+bfa_flash_notify(void *cbarg, enum bfa_ioc_event_e event)
+{
+	struct bfa_flash_s	*flash = cbarg;
+
+	bfa_trc(flash, event);
+	switch (event) {
+	case BFA_IOC_E_DISABLED:
+	case BFA_IOC_E_FAILED:
+		if (flash->op_busy) {
+			flash->status = BFA_STATUS_IOC_FAILURE;
+			flash->cbfn(flash->cbarg, flash->status);
+			flash->op_busy = 0;
+		}
+		break;
+
+	default:
+		break;
+	}
+}
+
+/*
+ * Send flash attribute query request.
+ *
+ * @param[in] cbarg - callback argument
+ */
+static void
+bfa_flash_query_send(void *cbarg)
+{
+	struct bfa_flash_s *flash = cbarg;
+	struct bfi_flash_query_req_s *msg =
+			(struct bfi_flash_query_req_s *) flash->mb.msg;
+
+	bfi_h2i_set(msg->mh, BFI_MC_FLASH, BFI_FLASH_H2I_QUERY_REQ,
+		bfa_ioc_portid(flash->ioc));
+	bfa_alen_set(&msg->alen, sizeof(struct bfa_flash_attr_s),
+		flash->dbuf_pa);
+	bfa_ioc_mbox_queue(flash->ioc, &flash->mb);
+}
+
+/*
+ * Send flash write request.
+ *
+ * @param[in] cbarg - callback argument
+ */
+static void
+bfa_flash_write_send(struct bfa_flash_s *flash)
+{
+	struct bfi_flash_write_req_s *msg =
+			(struct bfi_flash_write_req_s *) flash->mb.msg;
+	u32	len;
+
+	msg->type = be32_to_cpu(flash->type);
+	msg->instance = flash->instance;
+	msg->offset = be32_to_cpu(flash->addr_off + flash->offset);
+	len = (flash->residue < BFA_FLASH_DMA_BUF_SZ) ?
+		flash->residue : BFA_FLASH_DMA_BUF_SZ;
+	msg->length = be32_to_cpu(len);
+
+	/* indicate if it's the last msg of the whole write operation */
+	msg->last = (len == flash->residue) ? 1 : 0;
+
+	bfi_h2i_set(msg->mh, BFI_MC_FLASH, BFI_FLASH_H2I_WRITE_REQ,
+			bfa_ioc_portid(flash->ioc));
+	bfa_alen_set(&msg->alen, len, flash->dbuf_pa);
+	memcpy(flash->dbuf_kva, flash->ubuf + flash->offset, len);
+	bfa_ioc_mbox_queue(flash->ioc, &flash->mb);
+
+	flash->residue -= len;
+	flash->offset += len;
+}
+
+/*
+ * Send flash read request.
+ *
+ * @param[in] cbarg - callback argument
+ */
+static void
+bfa_flash_read_send(void *cbarg)
+{
+	struct bfa_flash_s *flash = cbarg;
+	struct bfi_flash_read_req_s *msg =
+			(struct bfi_flash_read_req_s *) flash->mb.msg;
+	u32	len;
+
+	msg->type = be32_to_cpu(flash->type);
+	msg->instance = flash->instance;
+	msg->offset = be32_to_cpu(flash->addr_off + flash->offset);
+	len = (flash->residue < BFA_FLASH_DMA_BUF_SZ) ?
+			flash->residue : BFA_FLASH_DMA_BUF_SZ;
+	msg->length = be32_to_cpu(len);
+	bfi_h2i_set(msg->mh, BFI_MC_FLASH, BFI_FLASH_H2I_READ_REQ,
+		bfa_ioc_portid(flash->ioc));
+	bfa_alen_set(&msg->alen, len, flash->dbuf_pa);
+	bfa_ioc_mbox_queue(flash->ioc, &flash->mb);
+}
+
+/*
+ * Send flash erase request.
+ *
+ * @param[in] cbarg - callback argument
+ */
+static void
+bfa_flash_erase_send(void *cbarg)
+{
+	struct bfa_flash_s *flash = cbarg;
+	struct bfi_flash_erase_req_s *msg =
+			(struct bfi_flash_erase_req_s *) flash->mb.msg;
+
+	msg->type = be32_to_cpu(flash->type);
+	msg->instance = flash->instance;
+	bfi_h2i_set(msg->mh, BFI_MC_FLASH, BFI_FLASH_H2I_ERASE_REQ,
+			bfa_ioc_portid(flash->ioc));
+	bfa_ioc_mbox_queue(flash->ioc, &flash->mb);
+}
+
+/*
+ * Process flash response messages upon receiving interrupts.
+ *
+ * @param[in] flasharg - flash structure
+ * @param[in] msg - message structure
+ */
+static void
+bfa_flash_intr(void *flasharg, struct bfi_mbmsg_s *msg)
+{
+	struct bfa_flash_s *flash = flasharg;
+	u32	status;
+
+	union {
+		struct bfi_flash_query_rsp_s *query;
+		struct bfi_flash_erase_rsp_s *erase;
+		struct bfi_flash_write_rsp_s *write;
+		struct bfi_flash_read_rsp_s *read;
+		struct bfi_mbmsg_s   *msg;
+	} m;
+
+	m.msg = msg;
+	bfa_trc(flash, msg->mh.msg_id);
+
+	if (!flash->op_busy && msg->mh.msg_id != BFI_FLASH_I2H_EVENT) {
+		/* receiving response after ioc failure */
+		bfa_trc(flash, 0x9999);
+		return;
+	}
+
+	switch (msg->mh.msg_id) {
+	case BFI_FLASH_I2H_QUERY_RSP:
+		status = be32_to_cpu(m.query->status);
+		bfa_trc(flash, status);
+		if (status == BFA_STATUS_OK) {
+			u32	i;
+			struct bfa_flash_attr_s *attr, *f;
+
+			attr = (struct bfa_flash_attr_s *) flash->ubuf;
+			f = (struct bfa_flash_attr_s *) flash->dbuf_kva;
+			attr->status = be32_to_cpu(f->status);
+			attr->npart = be32_to_cpu(f->npart);
+			bfa_trc(flash, attr->status);
+			bfa_trc(flash, attr->npart);
+			for (i = 0; i < attr->npart; i++) {
+				attr->part[i].part_type =
+					be32_to_cpu(f->part[i].part_type);
+				attr->part[i].part_instance =
+					be32_to_cpu(f->part[i].part_instance);
+				attr->part[i].part_off =
+					be32_to_cpu(f->part[i].part_off);
+				attr->part[i].part_size =
+					be32_to_cpu(f->part[i].part_size);
+				attr->part[i].part_len =
+					be32_to_cpu(f->part[i].part_len);
+				attr->part[i].part_status =
+					be32_to_cpu(f->part[i].part_status);
+			}
+		}
+		flash->status = status;
+		bfa_flash_cb(flash);
+		break;
+	case BFI_FLASH_I2H_ERASE_RSP:
+		status = be32_to_cpu(m.erase->status);
+		bfa_trc(flash, status);
+		flash->status = status;
+		bfa_flash_cb(flash);
+		break;
+	case BFI_FLASH_I2H_WRITE_RSP:
+		status = be32_to_cpu(m.write->status);
+		bfa_trc(flash, status);
+		if (status != BFA_STATUS_OK || flash->residue == 0) {
+			flash->status = status;
+			bfa_flash_cb(flash);
+		} else {
+			bfa_trc(flash, flash->offset);
+			bfa_flash_write_send(flash);
+		}
+		break;
+	case BFI_FLASH_I2H_READ_RSP:
+		status = be32_to_cpu(m.read->status);
+		bfa_trc(flash, status);
+		if (status != BFA_STATUS_OK) {
+			flash->status = status;
+			bfa_flash_cb(flash);
+		} else {
+			u32 len = be32_to_cpu(m.read->length);
+			bfa_trc(flash, flash->offset);
+			bfa_trc(flash, len);
+			memcpy(flash->ubuf + flash->offset,
+				flash->dbuf_kva, len);
+			flash->residue -= len;
+			flash->offset += len;
+			if (flash->residue == 0) {
+				flash->status = status;
+				bfa_flash_cb(flash);
+			} else
+				bfa_flash_read_send(flash);
+		}
+		break;
+	case BFI_FLASH_I2H_BOOT_VER_RSP:
+	case BFI_FLASH_I2H_EVENT:
+		bfa_trc(flash, msg->mh.msg_id);
+		break;
+
+	default:
+		WARN_ON(1);
+	}
+}
+
+/*
+ * Flash memory info API.
+ *
+ * @param[in] mincfg - minimal cfg variable
+ */
+u32
+bfa_flash_meminfo(bfa_boolean_t mincfg)
+{
+	/* min driver doesn't need flash */
+	if (mincfg)
+		return 0;
+	return BFA_ROUNDUP(BFA_FLASH_DMA_BUF_SZ, BFA_DMA_ALIGN_SZ);
+}
+
+/*
+ * Flash attach API.
+ *
+ * @param[in] flash - flash structure
+ * @param[in] ioc  - ioc structure
+ * @param[in] dev  - device structure
+ * @param[in] trcmod - trace module
+ * @param[in] logmod - log module
+ */
+void
+bfa_flash_attach(struct bfa_flash_s *flash, struct bfa_ioc_s *ioc, void *dev,
+		struct bfa_trc_mod_s *trcmod, bfa_boolean_t mincfg)
+{
+	flash->ioc = ioc;
+	flash->trcmod = trcmod;
+	flash->cbfn = NULL;
+	flash->cbarg = NULL;
+	flash->op_busy = 0;
+
+	bfa_ioc_mbox_regisr(flash->ioc, BFI_MC_FLASH, bfa_flash_intr, flash);
+	bfa_q_qe_init(&flash->ioc_notify);
+	bfa_ioc_notify_init(&flash->ioc_notify, bfa_flash_notify, flash);
+	list_add_tail(&flash->ioc_notify.qe, &flash->ioc->notify_q);
+
+	/* min driver doesn't need flash */
+	if (mincfg) {
+		flash->dbuf_kva = NULL;
+		flash->dbuf_pa = 0;
+	}
+}
+
+/*
+ * Claim memory for flash
+ *
+ * @param[in] flash - flash structure
+ * @param[in] dm_kva - pointer to virtual memory address
+ * @param[in] dm_pa - physical memory address
+ * @param[in] mincfg - minimal cfg variable
+ */
+void
+bfa_flash_memclaim(struct bfa_flash_s *flash, u8 *dm_kva, u64 dm_pa,
+		bfa_boolean_t mincfg)
+{
+	if (mincfg)
+		return;
+
+	flash->dbuf_kva = dm_kva;
+	flash->dbuf_pa = dm_pa;
+	memset(flash->dbuf_kva, 0, BFA_FLASH_DMA_BUF_SZ);
+	dm_kva += BFA_ROUNDUP(BFA_FLASH_DMA_BUF_SZ, BFA_DMA_ALIGN_SZ);
+	dm_pa += BFA_ROUNDUP(BFA_FLASH_DMA_BUF_SZ, BFA_DMA_ALIGN_SZ);
+}
+
+/*
+ * Get flash attribute.
+ *
+ * @param[in] flash - flash structure
+ * @param[in] attr - flash attribute structure
+ * @param[in] cbfn - callback function
+ * @param[in] cbarg - callback argument
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_flash_get_attr(struct bfa_flash_s *flash, struct bfa_flash_attr_s *attr,
+		bfa_cb_flash_t cbfn, void *cbarg)
+{
+	bfa_trc(flash, BFI_FLASH_H2I_QUERY_REQ);
+
+	if (!bfa_ioc_is_operational(flash->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	if (flash->op_busy) {
+		bfa_trc(flash, flash->op_busy);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	flash->op_busy = 1;
+	flash->cbfn = cbfn;
+	flash->cbarg = cbarg;
+	flash->ubuf = (u8 *) attr;
+	bfa_flash_query_send(flash);
+
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Erase flash partition.
+ *
+ * @param[in] flash - flash structure
+ * @param[in] type - flash partition type
+ * @param[in] instance - flash partition instance
+ * @param[in] cbfn - callback function
+ * @param[in] cbarg - callback argument
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_flash_erase_part(struct bfa_flash_s *flash, enum bfa_flash_part_type type,
+		u8 instance, bfa_cb_flash_t cbfn, void *cbarg)
+{
+	bfa_trc(flash, BFI_FLASH_H2I_ERASE_REQ);
+	bfa_trc(flash, type);
+	bfa_trc(flash, instance);
+
+	if (!bfa_ioc_is_operational(flash->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	if (flash->op_busy) {
+		bfa_trc(flash, flash->op_busy);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	flash->op_busy = 1;
+	flash->cbfn = cbfn;
+	flash->cbarg = cbarg;
+	flash->type = type;
+	flash->instance = instance;
+
+	bfa_flash_erase_send(flash);
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Update flash partition.
+ *
+ * @param[in] flash - flash structure
+ * @param[in] type - flash partition type
+ * @param[in] instance - flash partition instance
+ * @param[in] buf - update data buffer
+ * @param[in] len - data buffer length
+ * @param[in] offset - offset relative to the partition starting address
+ * @param[in] cbfn - callback function
+ * @param[in] cbarg - callback argument
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_flash_update_part(struct bfa_flash_s *flash, enum bfa_flash_part_type type,
+		u8 instance, void *buf, u32 len, u32 offset,
+		bfa_cb_flash_t cbfn, void *cbarg)
+{
+	bfa_trc(flash, BFI_FLASH_H2I_WRITE_REQ);
+	bfa_trc(flash, type);
+	bfa_trc(flash, instance);
+	bfa_trc(flash, len);
+	bfa_trc(flash, offset);
+
+	if (!bfa_ioc_is_operational(flash->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	/*
+	 * 'len' must be in word (4-byte) boundary
+	 * 'offset' must be in sector (16kb) boundary
+	 */
+	if (!len || (len & 0x03) || (offset & 0x00003FFF))
+		return BFA_STATUS_FLASH_BAD_LEN;
+
+	if (type == BFA_FLASH_PART_MFG)
+		return BFA_STATUS_EINVAL;
+
+	if (flash->op_busy) {
+		bfa_trc(flash, flash->op_busy);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	flash->op_busy = 1;
+	flash->cbfn = cbfn;
+	flash->cbarg = cbarg;
+	flash->type = type;
+	flash->instance = instance;
+	flash->residue = len;
+	flash->offset = 0;
+	flash->addr_off = offset;
+	flash->ubuf = buf;
+
+	bfa_flash_write_send(flash);
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Read flash partition.
+ *
+ * @param[in] flash - flash structure
+ * @param[in] type - flash partition type
+ * @param[in] instance - flash partition instance
+ * @param[in] buf - read data buffer
+ * @param[in] len - data buffer length
+ * @param[in] offset - offset relative to the partition starting address
+ * @param[in] cbfn - callback function
+ * @param[in] cbarg - callback argument
+ *
+ * Return status.
+ */
+bfa_status_t
+bfa_flash_read_part(struct bfa_flash_s *flash, enum bfa_flash_part_type type,
+		u8 instance, void *buf, u32 len, u32 offset,
+		bfa_cb_flash_t cbfn, void *cbarg)
+{
+	bfa_trc(flash, BFI_FLASH_H2I_READ_REQ);
+	bfa_trc(flash, type);
+	bfa_trc(flash, instance);
+	bfa_trc(flash, len);
+	bfa_trc(flash, offset);
+
+	if (!bfa_ioc_is_operational(flash->ioc))
+		return BFA_STATUS_IOC_NON_OP;
+
+	/*
+	 * 'len' must be in word (4-byte) boundary
+	 * 'offset' must be in sector (16kb) boundary
+	 */
+	if (!len || (len & 0x03) || (offset & 0x00003FFF))
+		return BFA_STATUS_FLASH_BAD_LEN;
+
+	if (flash->op_busy) {
+		bfa_trc(flash, flash->op_busy);
+		return BFA_STATUS_DEVBUSY;
+	}
+
+	flash->op_busy = 1;
+	flash->cbfn = cbfn;
+	flash->cbarg = cbarg;
+	flash->type = type;
+	flash->instance = instance;
+	flash->residue = len;
+	flash->offset = 0;
+	flash->addr_off = offset;
+	flash->ubuf = buf;
+	bfa_flash_read_send(flash);
+
+	return BFA_STATUS_OK;
+}

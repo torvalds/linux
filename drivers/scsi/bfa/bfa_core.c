@@ -132,6 +132,17 @@ bfa_com_sfp_attach(struct bfa_s *bfa)
 	bfa_sfp_memclaim(sfp, sfp_dma->kva_curp, sfp_dma->dma_curp);
 }
 
+static void
+bfa_com_flash_attach(struct bfa_s *bfa, bfa_boolean_t mincfg)
+{
+	struct bfa_flash_s	*flash = BFA_FLASH(bfa);
+	struct bfa_mem_dma_s	*flash_dma = BFA_MEM_FLASH_DMA(bfa);
+
+	bfa_flash_attach(flash, &bfa->ioc, bfa, bfa->trcmod, mincfg);
+	bfa_flash_memclaim(flash, flash_dma->kva_curp,
+			   flash_dma->dma_curp, mincfg);
+}
+
 /*
  * BFA IOC FC related definitions
  */
@@ -1371,6 +1382,7 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 	struct bfa_mem_dma_s *ablk_dma = BFA_MEM_ABLK_DMA(bfa);
 	struct bfa_mem_dma_s *cee_dma = BFA_MEM_CEE_DMA(bfa);
 	struct bfa_mem_dma_s *sfp_dma = BFA_MEM_SFP_DMA(bfa);
+	struct bfa_mem_dma_s *flash_dma = BFA_MEM_FLASH_DMA(bfa);
 
 	WARN_ON((cfg == NULL) || (meminfo == NULL));
 
@@ -1390,6 +1402,8 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 	bfa_mem_dma_setup(meminfo, ablk_dma, bfa_ablk_meminfo());
 	bfa_mem_dma_setup(meminfo, cee_dma, bfa_cee_meminfo());
 	bfa_mem_dma_setup(meminfo, sfp_dma, bfa_sfp_meminfo());
+	bfa_mem_dma_setup(meminfo, flash_dma,
+			  bfa_flash_meminfo(cfg->drvcfg.min_cfg));
 }
 
 /*
@@ -1459,6 +1473,7 @@ bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	bfa_com_ablk_attach(bfa);
 	bfa_com_cee_attach(bfa);
 	bfa_com_sfp_attach(bfa);
+	bfa_com_flash_attach(bfa, cfg->drvcfg.min_cfg);
 }
 
 /*
