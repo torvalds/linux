@@ -251,7 +251,39 @@ bfa_isr_reqq(struct bfa_s *bfa, int qid)
 void
 bfa_msix_all(struct bfa_s *bfa, int vec)
 {
-	bfa_intx(bfa);
+	u32	intr, qintr;
+	int	queue;
+
+	intr = readl(bfa->iocfc.bfa_regs.intr_status);
+	if (!intr)
+		return;
+
+	/*
+	 * RME completion queue interrupt
+	 */
+	qintr = intr & __HFN_INT_RME_MASK;
+	if (qintr && bfa->queue_process) {
+		for (queue = 0; queue < BFI_IOC_MAX_CQS; queue++)
+			bfa_isr_rspq(bfa, queue);
+	}
+
+	intr &= ~qintr;
+	if (!intr)
+		return;
+
+	/*
+	 * CPE completion queue interrupt
+	 */
+	qintr = intr & __HFN_INT_CPE_MASK;
+	if (qintr && bfa->queue_process) {
+		for (queue = 0; queue < BFI_IOC_MAX_CQS; queue++)
+			bfa_isr_reqq(bfa, queue);
+	}
+	intr &= ~qintr;
+	if (!intr)
+		return;
+
+	bfa_msix_lpu_err(bfa, intr);
 }
 
 bfa_boolean_t
@@ -469,6 +501,9 @@ bfa_iocfc_send_cfg(void *bfa_arg)
 	/*
 	 * initialize IOC configuration info
 	 */
+	cfg_info->single_msix_vec = 0;
+	if (bfa->msix.nvecs == 1)
+		cfg_info->single_msix_vec = 1;
 	cfg_info->endian_sig = BFI_IOC_ENDIAN_SIG;
 	cfg_info->num_cqs = cfg->fwcfg.num_cqs;
 	cfg_info->num_ioim_reqs = cpu_to_be16(cfg->fwcfg.num_ioim_reqs);
@@ -1079,12 +1114,6 @@ bfa_iocfc_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 
 	ioc->trcmod = bfa->trcmod;
 	bfa_ioc_attach(&bfa->ioc, bfa, &bfa_iocfc_cbfn, &bfa->timer_mod);
-
-	/*
-	 * Set FC mode for BFA_PCI_DEVICE_ID_CT_FC.
-	 */
-	if (pcidev->device_id == BFA_PCI_DEVICE_ID_CT_FC)
-		bfa_ioc_set_fcmode(&bfa->ioc);
 
 	bfa_ioc_pci_init(&bfa->ioc, pcidev, BFI_PCIFN_CLASS_FC);
 	bfa_ioc_mbox_register(&bfa->ioc, bfa_mbox_isrs);

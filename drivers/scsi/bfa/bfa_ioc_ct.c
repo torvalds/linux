@@ -564,10 +564,12 @@ bfa_ioc_set_ct2_hwif(struct bfa_ioc_s *ioc)
  * Temporary workaround for MSI-X resource allocation for catapult-2.
  */
 #define HOSTFN_MSIX_DEFAULT		16
+#define HOSTFN_MSIX_VT_INDEX_MBOX_ERR	0x30138
 #define HOSTFN_MSIX_VT_OFST_NUMVT	0x3013c
 #define __MSIX_VT_NUMVT__MK		0x003ff800
 #define __MSIX_VT_NUMVT__SH		11
 #define __MSIX_VT_NUMVT_(_v)		((_v) << __MSIX_VT_NUMVT__SH)
+#define __MSIX_VT_OFST_			0x000007ff
 void
 bfa_ioc_ct2_poweron(struct bfa_ioc_s *ioc)
 {
@@ -575,12 +577,17 @@ bfa_ioc_ct2_poweron(struct bfa_ioc_s *ioc)
 	u32	r32;
 
 	r32 = readl(rb + HOSTFN_MSIX_VT_OFST_NUMVT);
-	if (r32 & __MSIX_VT_NUMVT__MK)
+	if (r32 & __MSIX_VT_NUMVT__MK) {
+		writel(r32 & __MSIX_VT_OFST_,
+			rb + HOSTFN_MSIX_VT_INDEX_MBOX_ERR);
 		return;
+	}
 
 	writel(__MSIX_VT_NUMVT_(HOSTFN_MSIX_DEFAULT - 1) |
 		HOSTFN_MSIX_DEFAULT * bfa_ioc_pcifn(ioc),
 		rb + HOSTFN_MSIX_VT_OFST_NUMVT);
+	writel(HOSTFN_MSIX_DEFAULT * bfa_ioc_pcifn(ioc),
+		rb + HOSTFN_MSIX_VT_INDEX_MBOX_ERR);
 }
 
 bfa_status_t
@@ -649,17 +656,8 @@ bfa_ioc_ct_pll_init(void __iomem *rb, enum bfi_asic_mode mode)
 	return BFA_STATUS_OK;
 }
 
-static struct { u32 sclk, speed, half_speed; } ct2_pll[] = {
-	{0},							/* unused */
-	{__APP_PLL_SCLK_CLK_DIV2, 0, 0},			/* FC 8G  */
-	{0, 0, 0},						/* FC 16G */
-	{__APP_PLL_SCLK_REFCLK_SEL | __APP_PLL_SCLK_CLK_DIV2, 0, /* ETH   */
-	__APP_LPUCLK_HALFSPEED},
-	{0, 0, 0},						/* COMBO  */
-};
-
 static void
-bfa_ioc_ct2_sclk_init(void __iomem *rb, enum bfi_asic_mode mode)
+bfa_ioc_ct2_sclk_init(void __iomem *rb)
 {
 	u32 r32;
 
@@ -673,11 +671,12 @@ bfa_ioc_ct2_sclk_init(void __iomem *rb, enum bfi_asic_mode mode)
 	writel(r32, (rb + CT2_APP_PLL_SCLK_CTL_REG));
 
 	/*
-	 * select clock speed based on mode
+	 * Ignore mode and program for the max clock (which is FC16)
+	 * Firmware/NFC will do the PLL init appropiately
 	 */
 	r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
 	r32 &= ~(__APP_PLL_SCLK_REFCLK_SEL | __APP_PLL_SCLK_CLK_DIV2);
-	writel(r32 | ct2_pll[mode].sclk, (rb + CT2_APP_PLL_SCLK_CTL_REG));
+	writel(r32, (rb + CT2_APP_PLL_SCLK_CTL_REG));
 
 	/*
 	 * while doing PLL init dont clock gate ethernet subsystem
@@ -700,30 +699,10 @@ bfa_ioc_ct2_sclk_init(void __iomem *rb, enum bfi_asic_mode mode)
 	 * poll for s_clk lock or delay 1ms
 	 */
 	udelay(1000);
-
-	/*
-	 * release soft reset on s_clk & l_clk
-	 */
-	r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
-	writel(r32 & ~__APP_PLL_SCLK_LOGIC_SOFT_RESET,
-		(rb + CT2_APP_PLL_SCLK_CTL_REG));
-
-	/*
-	 * clock gating for ethernet subsystem if not in ethernet mode
-	 */
-	if (mode != BFI_ASIC_MODE_ETH) {
-		r32 = readl((rb + CT2_CHIP_MISC_PRG));
-		writel(r32 & ~__ETH_CLK_ENABLE_PORT0,
-			(rb + CT2_CHIP_MISC_PRG));
-
-		r32 = readl((rb + CT2_PCIE_MISC_REG));
-		writel(r32 & ~__ETH_CLK_ENABLE_PORT1,
-			(rb + CT2_PCIE_MISC_REG));
-	}
 }
 
 static void
-bfa_ioc_ct2_lclk_init(void __iomem *rb, enum bfi_asic_mode mode)
+bfa_ioc_ct2_lclk_init(void __iomem *rb)
 {
 	u32 r32;
 
@@ -737,35 +716,60 @@ bfa_ioc_ct2_lclk_init(void __iomem *rb, enum bfi_asic_mode mode)
 	writel(r32, (rb + CT2_APP_PLL_LCLK_CTL_REG));
 
 	/*
-	 * set LPU speed
+	 * set LPU speed (set for FC16 which will work for other modes)
 	 */
 	r32 = readl((rb + CT2_CHIP_MISC_PRG));
-	writel(r32 | ct2_pll[mode].speed,
-		(rb + CT2_CHIP_MISC_PRG));
+	writel(r32, (rb + CT2_CHIP_MISC_PRG));
 
 	/*
-	 * set LPU half speed
+	 * set LPU half speed (set for FC16 which will work for other modes)
 	 */
 	r32 = readl((rb + CT2_APP_PLL_LCLK_CTL_REG));
-	writel(r32 | ct2_pll[mode].half_speed,
-		(rb + CT2_APP_PLL_LCLK_CTL_REG));
+	writel(r32, (rb + CT2_APP_PLL_LCLK_CTL_REG));
 
 	/*
-	 * set lclk for mode
+	 * set lclk for mode (set for FC16)
 	 */
 	r32 = readl((rb + CT2_APP_PLL_LCLK_CTL_REG));
 	r32 &= (__P_LCLK_PLL_LOCK | __APP_LPUCLK_HALFSPEED);
-	 if (mode == BFI_ASIC_MODE_FC || mode == BFI_ASIC_MODE_FC16 ||
-	     mode == BFI_ASIC_MODE_ETH)
-		r32 |= 0x20c1731b;
-	else
-		r32 |= 0x2081731b;
+	r32 |= 0x20c1731b;
 	writel(r32, (rb + CT2_APP_PLL_LCLK_CTL_REG));
 
 	/*
 	 * poll for s_clk lock or delay 1ms
 	 */
 	udelay(1000);
+}
+
+static void
+bfa_ioc_ct2_mem_init(void __iomem *rb)
+{
+	u32	r32;
+
+	r32 = readl((rb + PSS_CTL_REG));
+	r32 &= ~__PSS_LMEM_RESET;
+	writel(r32, (rb + PSS_CTL_REG));
+	udelay(1000);
+
+	writel(__EDRAM_BISTR_START, (rb + CT2_MBIST_CTL_REG));
+	udelay(1000);
+	writel(0, (rb + CT2_MBIST_CTL_REG));
+}
+
+void
+bfa_ioc_ct2_mac_reset(void __iomem *rb)
+{
+	u32	r32;
+
+	bfa_ioc_ct2_sclk_init(rb);
+	bfa_ioc_ct2_lclk_init(rb);
+
+	/*
+	 * release soft reset on s_clk & l_clk
+	 */
+	r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
+	writel(r32 & ~__APP_PLL_SCLK_LOGIC_SOFT_RESET,
+		(rb + CT2_APP_PLL_SCLK_CTL_REG));
 
 	/*
 	 * release soft reset on s_clk & l_clk
@@ -773,60 +777,82 @@ bfa_ioc_ct2_lclk_init(void __iomem *rb, enum bfi_asic_mode mode)
 	r32 = readl((rb + CT2_APP_PLL_LCLK_CTL_REG));
 	writel(r32 & ~__APP_PLL_LCLK_LOGIC_SOFT_RESET,
 		(rb + CT2_APP_PLL_LCLK_CTL_REG));
+
+	/* put port0, port1 MAC & AHB in reset */
+	writel((__CSI_MAC_RESET | __CSI_MAC_AHB_RESET),
+		rb + CT2_CSI_MAC_CONTROL_REG(0));
+	writel((__CSI_MAC_RESET | __CSI_MAC_AHB_RESET),
+		rb + CT2_CSI_MAC_CONTROL_REG(1));
 }
 
-static void
-bfa_ioc_ct2_mem_init(void __iomem *rb, enum bfi_asic_mode mode)
-{
-	bfa_boolean_t fcmode;
-	u32	r32;
-
-	fcmode = (mode == BFI_ASIC_MODE_FC) || (mode == BFI_ASIC_MODE_FC16);
-	if (!fcmode) {
-		writel(__PMM_1T_PNDB_P | __PMM_1T_RESET_P,
-			(rb + CT2_PMM_1T_CONTROL_REG_P0));
-		writel(__PMM_1T_PNDB_P | __PMM_1T_RESET_P,
-			(rb + CT2_PMM_1T_CONTROL_REG_P1));
-	}
-
-	r32 = readl((rb + PSS_CTL_REG));
-	r32 &= ~__PSS_LMEM_RESET;
-	writel(r32, (rb + PSS_CTL_REG));
-	udelay(1000);
-
-	if (!fcmode) {
-		writel(__PMM_1T_PNDB_P, (rb + CT2_PMM_1T_CONTROL_REG_P0));
-		writel(__PMM_1T_PNDB_P, (rb + CT2_PMM_1T_CONTROL_REG_P1));
-	}
-
-	writel(__EDRAM_BISTR_START, (rb + CT2_MBIST_CTL_REG));
-	udelay(1000);
-	writel(0, (rb + CT2_MBIST_CTL_REG));
-}
-
+#define CT2_NFC_MAX_DELAY	1000
 bfa_status_t
 bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode mode)
 {
-	u32	r32;
+	u32	wgn, r32;
+	int i;
 
 	/*
 	 * Initialize PLL if not already done by NFC
 	 */
-	r32 = readl((rb + CT2_WGN_STATUS));
+	wgn = readl(rb + CT2_WGN_STATUS);
+	if (!(wgn & __GLBL_PF_VF_CFG_RDY)) {
+		writel(__HALT_NFC_CONTROLLER, rb + CT2_NFC_CSR_SET_REG);
+		for (i = 0; i < CT2_NFC_MAX_DELAY; i++) {
+			r32 = readl(rb + CT2_NFC_CSR_SET_REG);
+			if (r32 & __NFC_CONTROLLER_HALTED)
+				break;
+			udelay(1000);
+		}
+	}
 
-	writel(__HALT_NFC_CONTROLLER, (rb + CT2_NFC_CSR_SET_REG));
+	/*
+	 * Mask the interrupts and clear any
+	 * pending interrupts.
+	 */
+	writel(1, (rb + CT2_LPU0_HOSTFN_MBOX0_MSK));
+	writel(1, (rb + CT2_LPU1_HOSTFN_MBOX0_MSK));
 
-	bfa_ioc_ct2_sclk_init(rb, mode);
-	bfa_ioc_ct2_lclk_init(rb, mode);
-	bfa_ioc_ct2_mem_init(rb, mode);
+	r32 = readl((rb + CT2_LPU0_HOSTFN_CMD_STAT));
+	if (r32 == 1) {
+		writel(1, (rb + CT2_LPU0_HOSTFN_CMD_STAT));
+		readl((rb + CT2_LPU0_HOSTFN_CMD_STAT));
+	}
+	r32 = readl((rb + CT2_LPU1_HOSTFN_CMD_STAT));
+	if (r32 == 1) {
+		writel(1, (rb + CT2_LPU1_HOSTFN_CMD_STAT));
+		readl((rb + CT2_LPU1_HOSTFN_CMD_STAT));
+	}
+
+	bfa_ioc_ct2_mac_reset(rb);
+	bfa_ioc_ct2_sclk_init(rb);
+	bfa_ioc_ct2_lclk_init(rb);
+
+	/*
+	 * release soft reset on s_clk & l_clk
+	 */
+	r32 = readl((rb + CT2_APP_PLL_SCLK_CTL_REG));
+	writel(r32 & ~__APP_PLL_SCLK_LOGIC_SOFT_RESET,
+		(rb + CT2_APP_PLL_SCLK_CTL_REG));
+
+	/*
+	 * release soft reset on s_clk & l_clk
+	 */
+	r32 = readl((rb + CT2_APP_PLL_LCLK_CTL_REG));
+	writel(r32 & ~__APP_PLL_LCLK_LOGIC_SOFT_RESET,
+		(rb + CT2_APP_PLL_LCLK_CTL_REG));
 
 	/*
 	 * Announce flash device presence, if flash was corrupted.
 	 */
-	if (r32 == (__WGN_READY | __GLBL_PF_VF_CFG_RDY)) {
-		writel(0, (rb + PSS_GPIO_OUT_REG));
-		writel(1, (rb + PSS_GPIO_OE_REG));
+	if (wgn == (__WGN_READY | __GLBL_PF_VF_CFG_RDY)) {
+		r32 = readl((rb + PSS_GPIO_OUT_REG));
+		writel(r32 & ~1, (rb + PSS_GPIO_OUT_REG));
+		r32 = readl((rb + PSS_GPIO_OE_REG));
+		writel(r32 | 1, (rb + PSS_GPIO_OE_REG));
 	}
+
+	bfa_ioc_ct2_mem_init(rb);
 
 	writel(BFI_IOC_UNINIT, (rb + CT2_BFA_IOC0_STATE_REG));
 	writel(BFI_IOC_UNINIT, (rb + CT2_BFA_IOC1_STATE_REG));

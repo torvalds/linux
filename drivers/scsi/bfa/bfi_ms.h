@@ -48,7 +48,8 @@ struct bfi_iocfc_cfg_s {
 	u32	endian_sig;	/*  endian signature of host     */
 	__be16	num_ioim_reqs;
 	__be16	num_fwtio_reqs;
-	u8	rsvd[4];
+	u8	single_msix_vec;
+	u8	rsvd[3];
 
 	/*
 	 * Request and response circular queue base addresses, size and

@@ -784,11 +784,14 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 	pci_set_master(pdev);
 
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0)
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) {
+	if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) ||
+	    (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) != 0)) {
+		if ((pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) ||
+		   (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)) != 0)) {
 			printk(KERN_ERR "pci_set_dma_mask fail %p\n", pdev);
 			goto out_release_region;
 		}
+	}
 
 	bfad->pci_bar0_kva = pci_iomap(pdev, 0, pci_resource_len(pdev, 0));
 	bfad->pci_bar2_kva = pci_iomap(pdev, 2, pci_resource_len(pdev, 2));
@@ -1291,6 +1294,7 @@ bfad_setup_intr(struct bfad_s *bfad)
 	u32 mask = 0, i, num_bit = 0, max_bit = 0;
 	struct msix_entry msix_entries[MAX_MSIX_ENTRY];
 	struct pci_dev *pdev = bfad->pcidev;
+	u16	reg;
 
 	/* Call BFA to get the msix map for this PCI function.  */
 	bfa_msix_getvecs(&bfad->bfa, &mask, &num_bit, &max_bit);
@@ -1319,6 +1323,13 @@ bfad_setup_intr(struct bfad_s *bfad)
 
 			goto line_based;
 		}
+
+		/* Disable INTX in MSI-X mode */
+		pci_read_config_word(pdev, PCI_COMMAND, &reg);
+
+		if (!(reg & PCI_COMMAND_INTX_DISABLE))
+			pci_write_config_word(pdev, PCI_COMMAND,
+				reg | PCI_COMMAND_INTX_DISABLE);
 
 		/* Save the vectors */
 		for (i = 0; i < bfad->nvec; i++) {

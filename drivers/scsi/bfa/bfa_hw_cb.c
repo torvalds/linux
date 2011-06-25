@@ -114,7 +114,7 @@ bfa_hwcb_msix_ctrl_install(struct bfa_s *bfa)
 		return;
 
 	if (bfa->msix.nvecs == 1) {
-		for (i = BFI_MSIX_RME_QMAX_CB+1; i < BFI_MSIX_CB_MAX; i++)
+		for (i = BFI_MSIX_CPE_QMIN_CB; i < BFI_MSIX_CB_MAX; i++)
 			bfa->msix.handler[i] = bfa_msix_all;
 		return;
 	}

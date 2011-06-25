@@ -2399,12 +2399,6 @@ bfa_ioc_error_isr(struct bfa_ioc_s *ioc)
 	bfa_fsm_send_event(ioc, IOC_E_HWERROR);
 }
 
-void
-bfa_ioc_set_fcmode(struct bfa_ioc_s *ioc)
-{
-	ioc->fcmode  = BFA_TRUE;
-}
-
 /*
  * return true if IOC is disabled
  */
@@ -2592,35 +2586,7 @@ bfa_ioc_get_adapter_model(struct bfa_ioc_s *ioc, char *model)
 
 	ioc_attr = ioc->attr;
 
-	/*
-	 * model name
-	 */
-	if (ioc->asic_gen == BFI_ASIC_GEN_CT2) {
-		int np = bfa_ioc_get_nports(ioc);
-		char c;
-		switch (ioc_attr->card_type) {
-		case BFA_MFG_TYPE_PROWLER_F:
-		case BFA_MFG_TYPE_PROWLER_N:
-		case BFA_MFG_TYPE_PROWLER_C:
-			snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN,
-				"%s-%u-%u",
-				BFA_MFG_NAME, ioc_attr->card_type, np);
-			break;
-		case BFA_MFG_TYPE_PROWLER_D:
-			if (ioc_attr->ic == BFA_MFG_IC_FC)
-				c = 'F';
-			else
-				c = 'P';
-
-			snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN,
-				"%s-%u-%u%c",
-				BFA_MFG_NAME, ioc_attr->card_type, np, c);
-			break;
-		default:
-			break;
-		}
-	} else
-		snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN, "%s-%u",
+	snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN, "%s-%u",
 			BFA_MFG_NAME, ioc_attr->card_type);
 }
 
@@ -2709,12 +2675,6 @@ bfa_ioc_get_mfg_mac(struct bfa_ioc_s *ioc)
 			bfa_ioc_pcifn(ioc));
 
 	return m;
-}
-
-bfa_boolean_t
-bfa_ioc_get_fcmode(struct bfa_ioc_s *ioc)
-{
-	return ioc->fcmode || bfa_asic_id_cb(ioc->pcidev.device_id);
 }
 
 /*

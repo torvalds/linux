@@ -362,6 +362,7 @@ bfa_status_t bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode mode);
 } while (0)
 #define	bfa_ioc_ownership_reset(__ioc)				\
 			((__ioc)->ioc_hwif->ioc_ownership_reset(__ioc))
+#define bfa_ioc_get_fcmode(__ioc)	((__ioc)->fcmode)
 #define bfa_ioc_lpu_read_stat(__ioc) do {			\
 	if ((__ioc)->ioc_hwif->ioc_lpu_read_stat)		\
 		((__ioc)->ioc_hwif->ioc_lpu_read_stat(__ioc));	\
@@ -414,8 +415,6 @@ bfa_status_t bfa_ioc_debug_fwtrc(struct bfa_ioc_s *ioc, void *trcdata,
 				 int *trclen);
 bfa_status_t bfa_ioc_debug_fwcore(struct bfa_ioc_s *ioc, void *buf,
 	u32 *offset, int *buflen);
-void bfa_ioc_set_fcmode(struct bfa_ioc_s *ioc);
-bfa_boolean_t bfa_ioc_get_fcmode(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_sem_get(void __iomem *sem_reg);
 void bfa_ioc_fwver_get(struct bfa_ioc_s *ioc,
 			struct bfi_ioc_image_hdr_s *fwhdr);
