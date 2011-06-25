@@ -757,7 +757,6 @@ static int ivtv_querycap(struct file *file, void *fh, struct v4l2_capability *vc
 	strlcpy(vcap->driver, IVTV_DRIVER_NAME, sizeof(vcap->driver));
 	strlcpy(vcap->card, itv->card_name, sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info), "PCI:%s", pci_name(itv->pdev));
-	vcap->version = IVTV_DRIVER_VERSION; 	    /* version */
 	vcap->capabilities = itv->v4l2_cap; 	    /* capabilities */
 	return 0;
 }
