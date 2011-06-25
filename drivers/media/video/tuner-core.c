@@ -1039,16 +1039,20 @@ static int tuner_s_radio(struct v4l2_subdev *sd)
 /**
  * tuner_s_power - controls the power state of the tuner
  * @sd: pointer to struct v4l2_subdev
- * @on: a zero value puts the tuner to sleep
+ * @on: a zero value puts the tuner to sleep, non-zero wakes it up
  */
 static int tuner_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct tuner *t = to_tuner(sd);
 	struct analog_demod_ops *analog_ops = &t->fe.ops.analog_ops;
 
-	/* FIXME: Why this function don't wake the tuner if on != 0 ? */
-	if (on)
+	if (on) {
+		if (t->standby && set_mode(t, t->mode) == 0) {
+			tuner_dbg("Waking up tuner\n");
+			set_freq(t, 0);
+		}
 		return 0;
+	}
 
 	tuner_dbg("Putting tuner to sleep\n");
 	t->standby = true;
