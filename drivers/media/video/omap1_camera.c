@@ -26,7 +26,6 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 
 #include <media/omap1_camera.h>
 #include <media/soc_camera.h>
@@ -38,7 +37,7 @@
 
 
 #define DRIVER_NAME		"omap1-camera"
-#define VERSION_CODE		KERNEL_VERSION(0, 0, 1)
+#define DRIVER_VERSION		"0.0.2"
 
 
 /*
@@ -1431,7 +1430,6 @@ static int omap1_cam_querycap(struct soc_camera_host *ici,
 {
 	/* cap->name is set by the friendly caller:-> */
 	strlcpy(cap->card, "OMAP1 Camera", sizeof(cap->card));
-	cap->version = VERSION_CODE;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 
 	return 0;
@@ -1718,4 +1716,5 @@ MODULE_PARM_DESC(sg_mode, "videobuf mode, 0: dma-contig (default), 1: dma-sg");
 MODULE_DESCRIPTION("OMAP1 Camera Interface driver");
 MODULE_AUTHOR("Janusz Krzysztofik <jkrzyszt@tis.icnet.pl>");
 MODULE_LICENSE("GPL v2");
+MODULE_LICENSE(DRIVER_VERSION);
 MODULE_ALIAS("platform:" DRIVER_NAME);

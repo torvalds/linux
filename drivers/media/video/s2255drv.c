@@ -42,7 +42,6 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
-#include <linux/version.h>
 #include <linux/mm.h>
 #include <media/videobuf-vmalloc.h>
 #include <media/v4l2-common.h>
@@ -51,12 +50,7 @@
 #include <linux/vmalloc.h>
 #include <linux/usb.h>
 
-#define S2255_MAJOR_VERSION	1
-#define S2255_MINOR_VERSION	22
-#define S2255_RELEASE		0
-#define S2255_VERSION		KERNEL_VERSION(S2255_MAJOR_VERSION, \
-					       S2255_MINOR_VERSION, \
-					       S2255_RELEASE)
+#define S2255_VERSION		"1.22.1"
 #define FIRMWARE_FILE_NAME "f2255usb.bin"
 
 /* default JPEG quality */
@@ -851,7 +845,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strlcpy(cap->driver, "s2255", sizeof(cap->driver));
 	strlcpy(cap->card, "s2255", sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->version = S2255_VERSION;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	return 0;
 }
@@ -1979,9 +1972,8 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 			  video_device_node_name(&channel->vdev));
 
 	}
-	printk(KERN_INFO "Sensoray 2255 V4L driver Revision: %d.%d\n",
-	       S2255_MAJOR_VERSION,
-	       S2255_MINOR_VERSION);
+	printk(KERN_INFO "Sensoray 2255 V4L driver Revision: %s\n",
+	       S2255_VERSION);
 	/* if no channels registered, return error and probe will fail*/
 	if (atomic_read(&dev->num_channels) == 0) {
 		v4l2_device_unregister(&dev->v4l2_dev);
@@ -2713,3 +2705,4 @@ module_exit(usb_s2255_exit);
 MODULE_DESCRIPTION("Sensoray 2255 Video for Linux driver");
 MODULE_AUTHOR("Dean Anderson (Sensoray Company Inc.)");
 MODULE_LICENSE("GPL");
+MODULE_VERSION(S2255_VERSION);

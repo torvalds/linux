@@ -31,7 +31,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/time.h>
-#include <linux/version.h>
 #include <linux/videodev2.h>
 
 #include <media/soc_camera.h>
@@ -73,7 +72,7 @@
 #define CSISR_SOF_INT		(1 << 16)
 #define CSISR_DRDY		(1 << 0)
 
-#define VERSION_CODE KERNEL_VERSION(0, 0, 1)
+#define DRIVER_VERSION "0.0.2"
 #define DRIVER_NAME "mx1-camera"
 
 #define CSI_IRQ_MASK	(CSISR_SFF_OR_INT | CSISR_RFF_OR_INT | \
@@ -676,7 +675,6 @@ static int mx1_camera_querycap(struct soc_camera_host *ici,
 {
 	/* cap->name is set by the friendly caller:-> */
 	strlcpy(cap->card, "i.MX1/i.MXL Camera", sizeof(cap->card));
-	cap->version = VERSION_CODE;
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 
 	return 0;
@@ -883,4 +881,5 @@ module_exit(mx1_camera_exit);
 MODULE_DESCRIPTION("i.MX1/i.MXL SoC Camera Host driver");
 MODULE_AUTHOR("Paulius Zaleckas <paulius.zaleckas@teltonika.lt>");
 MODULE_LICENSE("GPL v2");
+MODULE_VERSION(DRIVER_VERSION);
 MODULE_ALIAS("platform:" DRIVER_NAME);
