@@ -195,10 +195,6 @@ __dabt_svc:
 	@
 	disable_irq_notrace
 
-	@
-	@ restore SPSR and restart the instruction
-	@
-	ldr	r5, [sp, #S_PSR]
 #ifdef CONFIG_TRACE_IRQFLAGS
 	tst	r5, #PSR_I_BIT
 	bleq	trace_hardirqs_on
@@ -223,7 +219,7 @@ __irq_svc:
 	tst	r0, #_TIF_NEED_RESCHED
 	blne	svc_preempt
 #endif
-	ldr	r5, [sp, #S_PSR]
+
 #ifdef CONFIG_TRACE_IRQFLAGS
 	@ The parent context IRQs must have been enabled to get here in
 	@ the first place, so there's no point checking the PSR I bit.
@@ -308,10 +304,6 @@ __pabt_svc:
 	@
 	disable_irq_notrace
 
-	@
-	@ restore SPSR and restart the instruction
-	@
-	ldr	r5, [sp, #S_PSR]
 #ifdef CONFIG_TRACE_IRQFLAGS
 	tst	r5, #PSR_I_BIT
 	bleq	trace_hardirqs_on
