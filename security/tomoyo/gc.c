@@ -13,13 +13,30 @@
 
 struct tomoyo_gc {
 	struct list_head list;
-	int type;
+	enum tomoyo_policy_id type;
 	struct list_head *element;
 };
 static LIST_HEAD(tomoyo_gc_queue);
 static DEFINE_MUTEX(tomoyo_gc_mutex);
 
-/* Caller holds tomoyo_policy_lock mutex. */
+/**
+ * tomoyo_add_to_gc - Add an entry to to be deleted list.
+ *
+ * @type:    One of values in "enum tomoyo_policy_id".
+ * @element: Pointer to "struct list_head".
+ *
+ * Returns true on success, false otherwise.
+ *
+ * Caller holds tomoyo_policy_lock mutex.
+ *
+ * Adding an entry needs kmalloc(). Thus, if we try to add thousands of
+ * entries at once, it will take too long time. Thus, do not add more than 128
+ * entries per a scan. But to be able to handle worst case where all entries
+ * are in-use, we accept one more entry per a scan.
+ *
+ * If we use singly linked list using "struct list_head"->prev (which is
+ * LIST_POISON2), we can avoid kmalloc().
+ */
 static bool tomoyo_add_to_gc(const int type, struct list_head *element)
 {
 	struct tomoyo_gc *entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
@@ -32,6 +49,13 @@ static bool tomoyo_add_to_gc(const int type, struct list_head *element)
 	return true;
 }
 
+/**
+ * tomoyo_del_transition_control - Delete members in "struct tomoyo_transition_control".
+ *
+ * @element: Pointer to "struct list_head".
+ *
+ * Returns nothing.
+ */
 static void tomoyo_del_transition_control(struct list_head *element)
 {
 	struct tomoyo_transition_control *ptr =
@@ -40,6 +64,13 @@ static void tomoyo_del_transition_control(struct list_head *element)
 	tomoyo_put_name(ptr->program);
 }
 
+/**
+ * tomoyo_del_aggregator - Delete members in "struct tomoyo_aggregator".
+ *
+ * @element: Pointer to "struct list_head".
+ *
+ * Returns nothing.
+ */
 static void tomoyo_del_aggregator(struct list_head *element)
 {
 	struct tomoyo_aggregator *ptr =
@@ -48,6 +79,13 @@ static void tomoyo_del_aggregator(struct list_head *element)
 	tomoyo_put_name(ptr->aggregated_name);
 }
 
+/**
+ * tomoyo_del_manager - Delete members in "struct tomoyo_manager".
+ *
+ * @element: Pointer to "struct list_head".
+ *
+ * Returns nothing.
+ */
 static void tomoyo_del_manager(struct list_head *element)
 {
 	struct tomoyo_manager *ptr =
@@ -55,6 +93,13 @@ static void tomoyo_del_manager(struct list_head *element)
 	tomoyo_put_name(ptr->manager);
 }
 
+/**
+ * tomoyo_del_acl - Delete members in "struct tomoyo_acl_info".
+ *
+ * @element: Pointer to "struct list_head".
+ *
+ * Returns nothing.
+ */
 static void tomoyo_del_acl(struct list_head *element)
 {
 	struct tomoyo_acl_info *acl =
@@ -145,12 +190,26 @@ static bool tomoyo_del_domain(struct list_head *element)
 }
 
 
+/**
+ * tomoyo_del_name - Delete members in "struct tomoyo_name".
+ *
+ * @element: Pointer to "struct list_head".
+ *
+ * Returns nothing.
+ */
 static void tomoyo_del_name(struct list_head *element)
 {
 	const struct tomoyo_name *ptr =
-		container_of(element, typeof(*ptr), list);
+		container_of(element, typeof(*ptr), head.list);
 }
 
+/**
+ * tomoyo_del_path_group - Delete members in "struct tomoyo_path_group".
+ *
+ * @element: Pointer to "struct list_head".
+ *
+ * Returns nothing.
+ */
 static void tomoyo_del_path_group(struct list_head *element)
 {
 	struct tomoyo_path_group *member =
@@ -158,20 +217,43 @@ static void tomoyo_del_path_group(struct list_head *element)
 	tomoyo_put_name(member->member_name);
 }
 
+/**
+ * tomoyo_del_group - Delete "struct tomoyo_group".
+ *
+ * @element: Pointer to "struct list_head".
+ *
+ * Returns nothing.
+ */
 static void tomoyo_del_group(struct list_head *element)
 {
 	struct tomoyo_group *group =
-		container_of(element, typeof(*group), list);
+		container_of(element, typeof(*group), head.list);
 	tomoyo_put_name(group->group_name);
 }
 
+/**
+ * tomoyo_del_number_group - Delete members in "struct tomoyo_number_group".
+ *
+ * @element: Pointer to "struct list_head".
+ *
+ * Returns nothing.
+ */
 static void tomoyo_del_number_group(struct list_head *element)
 {
 	struct tomoyo_number_group *member =
 		container_of(element, typeof(*member), head.list);
 }
 
-static bool tomoyo_collect_member(struct list_head *member_list, int id)
+/**
+ * tomoyo_collect_member - Delete elements with "struct tomoyo_acl_head".
+ *
+ * @id:          One of values in "enum tomoyo_policy_id".
+ * @member_list: Pointer to "struct list_head".
+ *
+ * Returns true if some elements are deleted, false otherwise.
+ */
+static bool tomoyo_collect_member(const enum tomoyo_policy_id id,
+				  struct list_head *member_list)
 {
 	struct tomoyo_acl_head *member;
 	list_for_each_entry(member, member_list, list) {
@@ -195,13 +277,18 @@ static bool tomoyo_collect_acl(struct tomoyo_domain_info *domain)
 	return true;
 }
 
+/**
+ * tomoyo_collect_entry - Scan lists for deleted elements.
+ *
+ * Returns nothing.
+ */
 static void tomoyo_collect_entry(void)
 {
 	int i;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return;
 	for (i = 0; i < TOMOYO_MAX_POLICY; i++) {
-		if (!tomoyo_collect_member(&tomoyo_policy_list[i], i))
+		if (!tomoyo_collect_member(i, &tomoyo_policy_list[i]))
 			goto unlock;
 	}
 	{
@@ -222,10 +309,10 @@ static void tomoyo_collect_entry(void)
 	}
 	for (i = 0; i < TOMOYO_MAX_HASH; i++) {
 		struct tomoyo_name *ptr;
-		list_for_each_entry_rcu(ptr, &tomoyo_name_list[i], list) {
-			if (atomic_read(&ptr->users))
+		list_for_each_entry_rcu(ptr, &tomoyo_name_list[i], head.list) {
+			if (atomic_read(&ptr->head.users))
 				continue;
-			if (!tomoyo_add_to_gc(TOMOYO_ID_NAME, &ptr->list))
+			if (!tomoyo_add_to_gc(TOMOYO_ID_NAME, &ptr->head.list))
 				goto unlock;
 		}
 	}
@@ -241,13 +328,14 @@ static void tomoyo_collect_entry(void)
 			id = TOMOYO_ID_NUMBER_GROUP;
 			break;
 		}
-		list_for_each_entry(group, list, list) {
-			if (!tomoyo_collect_member(&group->member_list, id))
+		list_for_each_entry(group, list, head.list) {
+			if (!tomoyo_collect_member(id, &group->member_list))
 				goto unlock;
 			if (!list_empty(&group->member_list) ||
-			    atomic_read(&group->users))
+			    atomic_read(&group->head.users))
 				continue;
-			if (!tomoyo_add_to_gc(TOMOYO_ID_GROUP, &group->list))
+			if (!tomoyo_add_to_gc(TOMOYO_ID_GROUP,
+					      &group->head.list))
 				goto unlock;
 		}
 	}
@@ -291,6 +379,8 @@ static void tomoyo_kfree_entry(void)
 		case TOMOYO_ID_NUMBER_GROUP:
 			tomoyo_del_number_group(element);
 			break;
+		case TOMOYO_MAX_POLICY:
+			break;
 		}
 		tomoyo_memory_free(element);
 		list_del(&p->list);
@@ -298,6 +388,17 @@ static void tomoyo_kfree_entry(void)
 	}
 }
 
+/**
+ * tomoyo_gc_thread - Garbage collector thread function.
+ *
+ * @unused: Unused.
+ *
+ * In case OOM-killer choose this thread for termination, we create this thread
+ * as a short live thread whenever /sys/kernel/security/tomoyo/ interface was
+ * close()d.
+ *
+ * Returns 0.
+ */
 static int tomoyo_gc_thread(void *unused)
 {
 	daemonize("GC for TOMOYO");

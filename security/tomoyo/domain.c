@@ -59,6 +59,20 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 }
 
 /**
+ * tomoyo_same_acl_head - Check for duplicated "struct tomoyo_acl_info" entry.
+ *
+ * @a: Pointer to "struct tomoyo_acl_info".
+ * @b: Pointer to "struct tomoyo_acl_info".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
+static inline bool tomoyo_same_acl_head(const struct tomoyo_acl_info *a,
+					const struct tomoyo_acl_info *b)
+{
+	return a->type == b->type;
+}
+
+/**
  * tomoyo_update_domain - Update an entry for domain policy.
  *
  * @new_entry:       Pointer to "struct tomoyo_acl_info".
@@ -88,7 +102,8 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return error;
 	list_for_each_entry_rcu(entry, &domain->acl_info_list, list) {
-		if (!check_duplicate(entry, new_entry))
+		if (!tomoyo_same_acl_head(entry, new_entry) ||
+		    !check_duplicate(entry, new_entry))
 			continue;
 		if (merge_duplicate)
 			entry->is_deleted = merge_duplicate(entry, new_entry,

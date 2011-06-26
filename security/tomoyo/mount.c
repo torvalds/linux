@@ -52,16 +52,28 @@ static int tomoyo_audit_mount_log(struct tomoyo_request_info *r)
 				 r->param.mount.dir->name, type, flags);
 }
 
+/**
+ * tomoyo_check_mount_acl - Check permission for path path path number operation.
+ *
+ * @r:   Pointer to "struct tomoyo_request_info".
+ * @ptr: Pointer to "struct tomoyo_acl_info".
+ *
+ * Returns true if granted, false otherwise.
+ */
 static bool tomoyo_check_mount_acl(struct tomoyo_request_info *r,
 				   const struct tomoyo_acl_info *ptr)
 {
 	const struct tomoyo_mount_acl *acl =
 		container_of(ptr, typeof(*acl), head);
-	return tomoyo_compare_number_union(r->param.mount.flags, &acl->flags) &&
-		tomoyo_compare_name_union(r->param.mount.type, &acl->fs_type) &&
-		tomoyo_compare_name_union(r->param.mount.dir, &acl->dir_name) &&
+	return tomoyo_compare_number_union(r->param.mount.flags,
+					   &acl->flags) &&
+		tomoyo_compare_name_union(r->param.mount.type,
+					  &acl->fs_type) &&
+		tomoyo_compare_name_union(r->param.mount.dir,
+					  &acl->dir_name) &&
 		(!r->param.mount.need_dev ||
-		 tomoyo_compare_name_union(r->param.mount.dev, &acl->dev_name));
+		 tomoyo_compare_name_union(r->param.mount.dev,
+					   &acl->dev_name));
 }
 
 /**
@@ -232,13 +244,20 @@ int tomoyo_mount_permission(char *dev_name, struct path *path,
 	return error;
 }
 
+/**
+ * tomoyo_same_mount_acl - Check for duplicated "struct tomoyo_mount_acl" entry.
+ *
+ * @a: Pointer to "struct tomoyo_acl_info".
+ * @b: Pointer to "struct tomoyo_acl_info".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
 static bool tomoyo_same_mount_acl(const struct tomoyo_acl_info *a,
 				  const struct tomoyo_acl_info *b)
 {
 	const struct tomoyo_mount_acl *p1 = container_of(a, typeof(*p1), head);
 	const struct tomoyo_mount_acl *p2 = container_of(b, typeof(*p2), head);
-	return tomoyo_same_acl_head(&p1->head, &p2->head) &&
-		tomoyo_same_name_union(&p1->dev_name, &p2->dev_name) &&
+	return tomoyo_same_name_union(&p1->dev_name, &p2->dev_name) &&
 		tomoyo_same_name_union(&p1->dir_name, &p2->dir_name) &&
 		tomoyo_same_name_union(&p1->fs_type, &p2->fs_type) &&
 		tomoyo_same_number_union(&p1->flags, &p2->flags);

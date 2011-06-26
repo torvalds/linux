@@ -219,6 +219,12 @@ struct tomoyo_acl_head {
 	bool is_deleted;
 } __packed;
 
+/* Common header for shared entries. */
+struct tomoyo_shared_acl_head {
+	struct list_head list;
+	atomic_t users;
+} __packed;
+
 /* Structure for request info. */
 struct tomoyo_request_info {
 	struct tomoyo_domain_info *domain;
@@ -281,8 +287,7 @@ struct tomoyo_path_info {
 
 /* Structure for holding string data. */
 struct tomoyo_name {
-	struct list_head list;
-	atomic_t users;
+	struct tomoyo_shared_acl_head head;
 	struct tomoyo_path_info entry;
 };
 
@@ -291,8 +296,6 @@ struct tomoyo_name_union {
 	/* Either @filename or @group is NULL. */
 	const struct tomoyo_path_info *filename;
 	struct tomoyo_group *group;
-	/* True if @group != NULL, false if @filename != NULL. */
-	u8 is_group;
 };
 
 /* Structure for holding a number. */
@@ -300,18 +303,14 @@ struct tomoyo_number_union {
 	unsigned long values[2];
 	struct tomoyo_group *group; /* Maybe NULL. */
 	/* One of values in "enum tomoyo_value_type". */
-	u8 min_type;
-	u8 max_type;
-	/* True if @group != NULL, false otherwise. */
-	u8 is_group;
+	u8 value_type[2];
 };
 
 /* Structure for "path_group"/"number_group" directive. */
 struct tomoyo_group {
-	struct list_head list;
+	struct tomoyo_shared_acl_head head;
 	const struct tomoyo_path_info *group_name;
 	struct list_head member_list;
-	atomic_t users;
 };
 
 /* Structure for "path_group" directive. */
@@ -429,16 +428,18 @@ struct tomoyo_io_buffer {
 		bool print_execute_only;
 		const char *w[TOMOYO_MAX_IO_READ_QUEUE];
 	} r;
-	/* The position currently writing to.   */
-	struct tomoyo_domain_info *write_var1;
+	struct {
+		/* The position currently writing to.   */
+		struct tomoyo_domain_info *domain;
+		/* Bytes available for writing.         */
+		int avail;
+	} w;
 	/* Buffer for reading.                  */
 	char *read_buf;
 	/* Size of read buffer.                 */
 	int readbuf_size;
 	/* Buffer for writing.                  */
 	char *write_buf;
-	/* Bytes available for writing.         */
-	int write_avail;
 	/* Size of write buffer.                */
 	int writebuf_size;
 	/* Type of this interface.              */
@@ -500,12 +501,12 @@ void tomoyo_warn_log(struct tomoyo_request_info *r, const char *fmt, ...)
      __attribute__ ((format(printf, 2, 3)));
 void tomoyo_check_profile(void);
 int tomoyo_open_control(const u8 type, struct file *file);
-int tomoyo_close_control(struct file *file);
+int tomoyo_close_control(struct tomoyo_io_buffer *head);
 int tomoyo_poll_control(struct file *file, poll_table *wait);
-int tomoyo_read_control(struct file *file, char __user *buffer,
+int tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
 			const int buffer_len);
-int tomoyo_write_control(struct file *file, const char __user *buffer,
-			 const int buffer_len);
+int tomoyo_write_control(struct tomoyo_io_buffer *head,
+			 const char __user *buffer, const int buffer_len);
 bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r);
 void tomoyo_warn_oom(const char *function);
 const struct tomoyo_path_info *
@@ -672,30 +673,6 @@ static inline bool tomoyo_pathcmp(const struct tomoyo_path_info *a,
 }
 
 /**
- * tomoyo_valid - Check whether the character is a valid char.
- *
- * @c: The character to check.
- *
- * Returns true if @c is a valid character, false otherwise.
- */
-static inline bool tomoyo_valid(const unsigned char c)
-{
-	return c > ' ' && c < 127;
-}
-
-/**
- * tomoyo_invalid - Check whether the character is an invalid char.
- *
- * @c: The character to check.
- *
- * Returns true if @c is an invalid character, false otherwise.
- */
-static inline bool tomoyo_invalid(const unsigned char c)
-{
-	return c && (c <= ' ' || c >= 127);
-}
-
-/**
  * tomoyo_put_name - Drop reference on "struct tomoyo_name".
  *
  * @name: Pointer to "struct tomoyo_path_info". Maybe NULL.
@@ -707,7 +684,7 @@ static inline void tomoyo_put_name(const struct tomoyo_path_info *name)
 	if (name) {
 		struct tomoyo_name *ptr =
 			container_of(name, typeof(*ptr), entry);
-		atomic_dec(&ptr->users);
+		atomic_dec(&ptr->head.users);
 	}
 }
 
@@ -721,7 +698,7 @@ static inline void tomoyo_put_name(const struct tomoyo_path_info *name)
 static inline void tomoyo_put_group(struct tomoyo_group *group)
 {
 	if (group)
-		atomic_dec(&group->users);
+		atomic_dec(&group->head.users);
 }
 
 /**
@@ -747,12 +724,6 @@ static inline struct tomoyo_domain_info *tomoyo_real_domain(struct task_struct
 	return task_cred_xxx(task, security);
 }
 
-static inline bool tomoyo_same_acl_head(const struct tomoyo_acl_info *p1,
-					const struct tomoyo_acl_info *p2)
-{
-	return p1->type == p2->type;
-}
-
 /**
  * tomoyo_same_name_union - Check for duplicated "struct tomoyo_name_union" entry.
  *
@@ -764,8 +735,7 @@ static inline bool tomoyo_same_acl_head(const struct tomoyo_acl_info *p1,
 static inline bool tomoyo_same_name_union
 (const struct tomoyo_name_union *a, const struct tomoyo_name_union *b)
 {
-	return a->filename == b->filename && a->group == b->group &&
-		a->is_group == b->is_group;
+	return a->filename == b->filename && a->group == b->group;
 }
 
 /**
@@ -780,8 +750,8 @@ static inline bool tomoyo_same_number_union
 (const struct tomoyo_number_union *a, const struct tomoyo_number_union *b)
 {
 	return a->values[0] == b->values[0] && a->values[1] == b->values[1] &&
-		a->group == b->group && a->min_type == b->min_type &&
-		a->max_type == b->max_type && a->is_group == b->is_group;
+		a->group == b->group && a->value_type[0] == b->value_type[0] &&
+		a->value_type[1] == b->value_type[1];
 }
 
 /**

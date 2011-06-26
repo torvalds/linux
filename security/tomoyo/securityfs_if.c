@@ -34,7 +34,7 @@ static int tomoyo_open(struct inode *inode, struct file *file)
  */
 static int tomoyo_release(struct inode *inode, struct file *file)
 {
-	return tomoyo_close_control(file);
+	return tomoyo_close_control(file->private_data);
 }
 
 /**
@@ -63,7 +63,7 @@ static unsigned int tomoyo_poll(struct file *file, poll_table *wait)
 static ssize_t tomoyo_read(struct file *file, char __user *buf, size_t count,
 			   loff_t *ppos)
 {
-	return tomoyo_read_control(file, buf, count);
+	return tomoyo_read_control(file->private_data, buf, count);
 }
 
 /**
@@ -79,7 +79,7 @@ static ssize_t tomoyo_read(struct file *file, char __user *buf, size_t count,
 static ssize_t tomoyo_write(struct file *file, const char __user *buf,
 			    size_t count, loff_t *ppos)
 {
-	return tomoyo_write_control(file, buf, count);
+	return tomoyo_write_control(file->private_data, buf, count);
 }
 
 /*

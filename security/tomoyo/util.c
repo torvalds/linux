@@ -21,7 +21,7 @@ bool tomoyo_policy_loaded;
  * @result: Pointer to "unsigned long".
  * @str:    Pointer to string to parse.
  *
- * Returns value type on success, 0 otherwise.
+ * Returns one of values in "enum tomoyo_value_type".
  *
  * The @src is updated to point the first character after the value
  * on success.
@@ -43,7 +43,7 @@ static u8 tomoyo_parse_ulong(unsigned long *result, char **str)
 	}
 	*result = simple_strtoul(cp, &ep, base);
 	if (cp == ep)
-		return 0;
+		return TOMOYO_VALUE_TYPE_INVALID;
 	*str = ep;
 	switch (base) {
 	case 16:
@@ -93,11 +93,9 @@ bool tomoyo_parse_name_union(const char *filename,
 		return false;
 	if (filename[0] == '@') {
 		ptr->group = tomoyo_get_group(filename + 1, TOMOYO_PATH_GROUP);
-		ptr->is_group = true;
 		return ptr->group != NULL;
 	}
 	ptr->filename = tomoyo_get_name(filename);
-	ptr->is_group = false;
 	return ptr->filename != NULL;
 }
 
@@ -118,17 +116,16 @@ bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num)
 		if (!tomoyo_correct_word(data))
 			return false;
 		num->group = tomoyo_get_group(data + 1, TOMOYO_NUMBER_GROUP);
-		num->is_group = true;
 		return num->group != NULL;
 	}
 	type = tomoyo_parse_ulong(&v, &data);
 	if (!type)
 		return false;
 	num->values[0] = v;
-	num->min_type = type;
+	num->value_type[0] = type;
 	if (!*data) {
 		num->values[1] = v;
-		num->max_type = type;
+		num->value_type[1] = type;
 		return true;
 	}
 	if (*data++ != '-')
@@ -137,7 +134,7 @@ bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num)
 	if (!type || *data)
 		return false;
 	num->values[1] = v;
-	num->max_type = type;
+	num->value_type[1] = type;
 	return true;
 }
 
@@ -182,6 +179,30 @@ static inline bool tomoyo_alphabet_char(const char c)
 static inline u8 tomoyo_make_byte(const u8 c1, const u8 c2, const u8 c3)
 {
 	return ((c1 - '0') << 6) + ((c2 - '0') << 3) + (c3 - '0');
+}
+
+/**
+ * tomoyo_valid - Check whether the character is a valid char.
+ *
+ * @c: The character to check.
+ *
+ * Returns true if @c is a valid character, false otherwise.
+ */
+static inline bool tomoyo_valid(const unsigned char c)
+{
+	return c > ' ' && c < 127;
+}
+
+/**
+ * tomoyo_invalid - Check whether the character is an invalid char.
+ *
+ * @c: The character to check.
+ *
+ * Returns true if @c is an invalid character, false otherwise.
+ */
+static inline bool tomoyo_invalid(const unsigned char c)
+{
+	return c && (c <= ' ' || c >= 127);
 }
 
 /**

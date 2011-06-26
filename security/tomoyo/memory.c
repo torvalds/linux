@@ -110,10 +110,10 @@ struct tomoyo_group *tomoyo_get_group(const char *group_name, const u8 idx)
 		return NULL;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry(group, &tomoyo_group_list[idx], list) {
+	list_for_each_entry(group, &tomoyo_group_list[idx], head.list) {
 		if (e.group_name != group->group_name)
 			continue;
-		atomic_inc(&group->users);
+		atomic_inc(&group->head.users);
 		found = true;
 		break;
 	}
@@ -121,8 +121,8 @@ struct tomoyo_group *tomoyo_get_group(const char *group_name, const u8 idx)
 		struct tomoyo_group *entry = tomoyo_commit_ok(&e, sizeof(e));
 		if (entry) {
 			INIT_LIST_HEAD(&entry->member_list);
-			atomic_set(&entry->users, 1);
-			list_add_tail_rcu(&entry->list,
+			atomic_set(&entry->head.users, 1);
+			list_add_tail_rcu(&entry->head.list,
 					  &tomoyo_group_list[idx]);
 			group = entry;
 			found = true;
@@ -164,10 +164,10 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 	head = &tomoyo_name_list[hash_long(hash, TOMOYO_HASH_BITS)];
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return NULL;
-	list_for_each_entry(ptr, head, list) {
+	list_for_each_entry(ptr, head, head.list) {
 		if (hash != ptr->entry.hash || strcmp(name, ptr->entry.name))
 			continue;
-		atomic_inc(&ptr->users);
+		atomic_inc(&ptr->head.users);
 		goto out;
 	}
 	ptr = kzalloc(sizeof(*ptr) + len, GFP_NOFS);
@@ -183,9 +183,9 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 	atomic_add(allocated_len, &tomoyo_policy_memory_size);
 	ptr->entry.name = ((char *) ptr) + sizeof(*ptr);
 	memmove((char *) ptr->entry.name, name, len);
-	atomic_set(&ptr->users, 1);
+	atomic_set(&ptr->head.users, 1);
 	tomoyo_fill_path_info(&ptr->entry);
-	list_add_tail(&ptr->list, head);
+	list_add_tail(&ptr->head.list, head);
  out:
 	mutex_unlock(&tomoyo_policy_lock);
 	return ptr ? &ptr->entry : NULL;

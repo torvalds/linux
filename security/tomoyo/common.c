@@ -192,7 +192,7 @@ static void tomoyo_print_name_union(struct tomoyo_io_buffer *head,
 				    const struct tomoyo_name_union *ptr)
 {
 	tomoyo_set_space(head);
-	if (ptr->is_group) {
+	if (ptr->group) {
 		tomoyo_set_string(head, "@");
 		tomoyo_set_string(head, ptr->group->group_name->name);
 	} else {
@@ -210,15 +210,15 @@ static void tomoyo_print_number_union(struct tomoyo_io_buffer *head,
 				      const struct tomoyo_number_union *ptr)
 {
 	tomoyo_set_space(head);
-	if (ptr->is_group) {
+	if (ptr->group) {
 		tomoyo_set_string(head, "@");
 		tomoyo_set_string(head, ptr->group->group_name->name);
 	} else {
 		int i;
 		unsigned long min = ptr->values[0];
 		const unsigned long max = ptr->values[1];
-		u8 min_type = ptr->min_type;
-		const u8 max_type = ptr->max_type;
+		u8 min_type = ptr->value_type[0];
+		const u8 max_type = ptr->value_type[1];
 		char buffer[128];
 		buffer[0] = '\0';
 		for (i = 0; i < 2; i++) {
@@ -769,7 +769,7 @@ static bool tomoyo_select_one(struct tomoyo_io_buffer *head, const char *data)
 			domain = tomoyo_find_domain(data + 7);
 	} else
 		return false;
-	head->write_var1 = domain;
+	head->w.domain = domain;
 	/* Accessing read_buf is safe because head->io_sem is held. */
 	if (!head->read_buf)
 		return true; /* Do nothing if open(O_WRONLY). */
@@ -847,7 +847,7 @@ static int tomoyo_write_domain2(char *data, struct tomoyo_domain_info *domain,
 static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 {
 	char *data = head->write_buf;
-	struct tomoyo_domain_info *domain = head->write_var1;
+	struct tomoyo_domain_info *domain = head->w.domain;
 	bool is_delete = false;
 	bool is_select = false;
 	unsigned int profile;
@@ -869,7 +869,7 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 			domain = tomoyo_find_domain(data);
 		else
 			domain = tomoyo_assign_domain(data, 0);
-		head->write_var1 = domain;
+		head->w.domain = domain;
 		return 0;
 	}
 	if (!domain)
@@ -1250,7 +1250,7 @@ static bool tomoyo_read_group(struct tomoyo_io_buffer *head, const int idx)
 {
 	list_for_each_cookie(head->r.group, &tomoyo_group_list[idx]) {
 		struct tomoyo_group *group =
-			list_entry(head->r.group, typeof(*group), list);
+			list_entry(head->r.group, typeof(*group), head.list);
 		list_for_each_cookie(head->r.acl, &group->member_list) {
 			struct tomoyo_acl_head *ptr =
 				list_entry(head->r.acl, typeof(*ptr), list);
@@ -1874,7 +1874,7 @@ int tomoyo_poll_control(struct file *file, poll_table *wait)
 /**
  * tomoyo_read_control - read() for /sys/kernel/security/tomoyo/ interface.
  *
- * @file:       Pointer to "struct file".
+ * @head:       Pointer to "struct tomoyo_io_buffer".
  * @buffer:     Poiner to buffer to write to.
  * @buffer_len: Size of @buffer.
  *
@@ -1882,11 +1882,10 @@ int tomoyo_poll_control(struct file *file, poll_table *wait)
  *
  * Caller holds tomoyo_read_lock().
  */
-int tomoyo_read_control(struct file *file, char __user *buffer,
+int tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
 			const int buffer_len)
 {
 	int len;
-	struct tomoyo_io_buffer *head = file->private_data;
 
 	if (!head->read)
 		return -ENOSYS;
@@ -1906,7 +1905,7 @@ int tomoyo_read_control(struct file *file, char __user *buffer,
 /**
  * tomoyo_write_control - write() for /sys/kernel/security/tomoyo/ interface.
  *
- * @file:       Pointer to "struct file".
+ * @head:       Pointer to "struct tomoyo_io_buffer".
  * @buffer:     Pointer to buffer to read from.
  * @buffer_len: Size of @buffer.
  *
@@ -1914,10 +1913,9 @@ int tomoyo_read_control(struct file *file, char __user *buffer,
  *
  * Caller holds tomoyo_read_lock().
  */
-int tomoyo_write_control(struct file *file, const char __user *buffer,
-			 const int buffer_len)
+int tomoyo_write_control(struct tomoyo_io_buffer *head,
+			 const char __user *buffer, const int buffer_len)
 {
-	struct tomoyo_io_buffer *head = file->private_data;
 	int error = buffer_len;
 	int avail_len = buffer_len;
 	char *cp0 = head->write_buf;
@@ -1935,7 +1933,7 @@ int tomoyo_write_control(struct file *file, const char __user *buffer,
 	/* Read a line and dispatch it to the policy handler. */
 	while (avail_len > 0) {
 		char c;
-		if (head->write_avail >= head->writebuf_size - 1) {
+		if (head->w.avail >= head->writebuf_size - 1) {
 			error = -ENOMEM;
 			break;
 		} else if (get_user(c, buffer)) {
@@ -1944,11 +1942,11 @@ int tomoyo_write_control(struct file *file, const char __user *buffer,
 		}
 		buffer++;
 		avail_len--;
-		cp0[head->write_avail++] = c;
+		cp0[head->w.avail++] = c;
 		if (c != '\n')
 			continue;
-		cp0[head->write_avail - 1] = '\0';
-		head->write_avail = 0;
+		cp0[head->w.avail - 1] = '\0';
+		head->w.avail = 0;
 		tomoyo_normalize_line(cp0);
 		head->write(head);
 	}
@@ -1959,15 +1957,14 @@ int tomoyo_write_control(struct file *file, const char __user *buffer,
 /**
  * tomoyo_close_control - close() for /sys/kernel/security/tomoyo/ interface.
  *
- * @file: Pointer to "struct file".
+ * @head: Pointer to "struct tomoyo_io_buffer".
  *
  * Releases memory and returns 0.
  *
  * Caller looses tomoyo_read_lock().
  */
-int tomoyo_close_control(struct file *file)
+int tomoyo_close_control(struct tomoyo_io_buffer *head)
 {
-	struct tomoyo_io_buffer *head = file->private_data;
 	const bool is_write = !!head->write_buf;
 
 	/*
@@ -1984,8 +1981,6 @@ int tomoyo_close_control(struct file *file)
 	kfree(head->write_buf);
 	head->write_buf = NULL;
 	kfree(head);
-	head = NULL;
-	file->private_data = NULL;
 	if (is_write)
 		tomoyo_run_gc();
 	return 0;
