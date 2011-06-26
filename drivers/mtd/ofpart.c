@@ -174,3 +174,5 @@ out:
 module_init(ofpart_parser_init);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Parser for MTD partitioning information in device tree");
+MODULE_AUTHOR("Vitaly Wool, David Gibson");

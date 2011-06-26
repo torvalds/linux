@@ -137,7 +137,8 @@ config MTD_AFS_PARTS
 	  'physmap' map driver (CONFIG_MTD_PHYSMAP) does this, for example.
 
 config MTD_OF_PARTS
-	def_bool y
+	tristate "OpenFirmware partitioning information support"
+	default Y
 	depends on OF
 	help
 	  This provides a partition parsing function which derives
