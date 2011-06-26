@@ -589,15 +589,47 @@ static void init_object(struct kmem_cache *s, void *object, u8 val)
 		memset(p + s->objsize, val, s->inuse - s->objsize);
 }
 
-static u8 *check_bytes(u8 *start, unsigned int value, unsigned int bytes)
+static u8 *check_bytes8(u8 *start, u8 value, unsigned int bytes)
 {
 	while (bytes) {
-		if (*start != (u8)value)
+		if (*start != value)
 			return start;
 		start++;
 		bytes--;
 	}
 	return NULL;
+}
+
+static u8 *check_bytes(u8 *start, u8 value, unsigned int bytes)
+{
+	u64 value64;
+	unsigned int words, prefix;
+
+	if (bytes <= 16)
+		return check_bytes8(start, value, bytes);
+
+	value64 = value | value << 8 | value << 16 | value << 24;
+	value64 = value64 | value64 << 32;
+	prefix = 8 - ((unsigned long)start) % 8;
+
+	if (prefix) {
+		u8 *r = check_bytes8(start, value, prefix);
+		if (r)
+			return r;
+		start += prefix;
+		bytes -= prefix;
+	}
+
+	words = bytes / 8;
+
+	while (words) {
+		if (*(u64 *)start != value64)
+			return check_bytes8(start, value, 8);
+		start += 8;
+		words--;
+	}
+
+	return check_bytes8(start, value, bytes % 8);
 }
 
 static void restore_bytes(struct kmem_cache *s, char *message, u8 data,
