@@ -20,31 +20,31 @@ const char * const tomoyo_mode[TOMOYO_CONFIG_MAX_MODE] = {
 };
 
 /* String table for /sys/kernel/security/tomoyo/profile */
-static const char *tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
+const char * const tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
 				       + TOMOYO_MAX_MAC_CATEGORY_INDEX] = {
-	[TOMOYO_MAC_FILE_EXECUTE]    = "file::execute",
-	[TOMOYO_MAC_FILE_OPEN]       = "file::open",
-	[TOMOYO_MAC_FILE_CREATE]     = "file::create",
-	[TOMOYO_MAC_FILE_UNLINK]     = "file::unlink",
-	[TOMOYO_MAC_FILE_GETATTR]    = "file::getattr",
-	[TOMOYO_MAC_FILE_MKDIR]      = "file::mkdir",
-	[TOMOYO_MAC_FILE_RMDIR]      = "file::rmdir",
-	[TOMOYO_MAC_FILE_MKFIFO]     = "file::mkfifo",
-	[TOMOYO_MAC_FILE_MKSOCK]     = "file::mksock",
-	[TOMOYO_MAC_FILE_TRUNCATE]   = "file::truncate",
-	[TOMOYO_MAC_FILE_SYMLINK]    = "file::symlink",
-	[TOMOYO_MAC_FILE_MKBLOCK]    = "file::mkblock",
-	[TOMOYO_MAC_FILE_MKCHAR]     = "file::mkchar",
-	[TOMOYO_MAC_FILE_LINK]       = "file::link",
-	[TOMOYO_MAC_FILE_RENAME]     = "file::rename",
-	[TOMOYO_MAC_FILE_CHMOD]      = "file::chmod",
-	[TOMOYO_MAC_FILE_CHOWN]      = "file::chown",
-	[TOMOYO_MAC_FILE_CHGRP]      = "file::chgrp",
-	[TOMOYO_MAC_FILE_IOCTL]      = "file::ioctl",
-	[TOMOYO_MAC_FILE_CHROOT]     = "file::chroot",
-	[TOMOYO_MAC_FILE_MOUNT]      = "file::mount",
-	[TOMOYO_MAC_FILE_UMOUNT]     = "file::unmount",
-	[TOMOYO_MAC_FILE_PIVOT_ROOT] = "file::pivot_root",
+	[TOMOYO_MAC_FILE_EXECUTE]    = "execute",
+	[TOMOYO_MAC_FILE_OPEN]       = "open",
+	[TOMOYO_MAC_FILE_CREATE]     = "create",
+	[TOMOYO_MAC_FILE_UNLINK]     = "unlink",
+	[TOMOYO_MAC_FILE_GETATTR]    = "getattr",
+	[TOMOYO_MAC_FILE_MKDIR]      = "mkdir",
+	[TOMOYO_MAC_FILE_RMDIR]      = "rmdir",
+	[TOMOYO_MAC_FILE_MKFIFO]     = "mkfifo",
+	[TOMOYO_MAC_FILE_MKSOCK]     = "mksock",
+	[TOMOYO_MAC_FILE_TRUNCATE]   = "truncate",
+	[TOMOYO_MAC_FILE_SYMLINK]    = "symlink",
+	[TOMOYO_MAC_FILE_MKBLOCK]    = "mkblock",
+	[TOMOYO_MAC_FILE_MKCHAR]     = "mkchar",
+	[TOMOYO_MAC_FILE_LINK]       = "link",
+	[TOMOYO_MAC_FILE_RENAME]     = "rename",
+	[TOMOYO_MAC_FILE_CHMOD]      = "chmod",
+	[TOMOYO_MAC_FILE_CHOWN]      = "chown",
+	[TOMOYO_MAC_FILE_CHGRP]      = "chgrp",
+	[TOMOYO_MAC_FILE_IOCTL]      = "ioctl",
+	[TOMOYO_MAC_FILE_CHROOT]     = "chroot",
+	[TOMOYO_MAC_FILE_MOUNT]      = "mount",
+	[TOMOYO_MAC_FILE_UMOUNT]     = "unmount",
+	[TOMOYO_MAC_FILE_PIVOT_ROOT] = "pivot_root",
 	[TOMOYO_MAX_MAC_INDEX + TOMOYO_MAC_CATEGORY_FILE] = "file",
 };
 
@@ -52,6 +52,27 @@ static const char *tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
 static const char * const tomoyo_pref_keywords[TOMOYO_MAX_PREF] = {
 	[TOMOYO_PREF_MAX_AUDIT_LOG]      = "max_audit_log",
 	[TOMOYO_PREF_MAX_LEARNING_ENTRY] = "max_learning_entry",
+};
+
+/* String table for path operation. */
+const char * const tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION] = {
+	[TOMOYO_TYPE_EXECUTE]    = "execute",
+	[TOMOYO_TYPE_READ]       = "read",
+	[TOMOYO_TYPE_WRITE]      = "write",
+	[TOMOYO_TYPE_APPEND]     = "append",
+	[TOMOYO_TYPE_UNLINK]     = "unlink",
+	[TOMOYO_TYPE_GETATTR]    = "getattr",
+	[TOMOYO_TYPE_RMDIR]      = "rmdir",
+	[TOMOYO_TYPE_TRUNCATE]   = "truncate",
+	[TOMOYO_TYPE_SYMLINK]    = "symlink",
+	[TOMOYO_TYPE_CHROOT]     = "chroot",
+	[TOMOYO_TYPE_UMOUNT]     = "unmount",
+};
+
+/* String table for categories. */
+static const char * const tomoyo_category_keywords
+[TOMOYO_MAX_MAC_CATEGORY_INDEX] = {
+	[TOMOYO_MAC_CATEGORY_FILE]       = "file",
 };
 
 /* Permit policy management by non-root user? */
@@ -98,7 +119,7 @@ static bool tomoyo_flush(struct tomoyo_io_buffer *head)
 {
 	while (head->r.w_pos) {
 		const char *w = head->r.w[0];
-		int len = strlen(w);
+		size_t len = strlen(w);
 		if (len) {
 			if (len > head->read_user_buf_avail)
 				len = head->read_user_buf_avail;
@@ -157,8 +178,8 @@ static void tomoyo_set_string(struct tomoyo_io_buffer *head, const char *string)
 void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
 {
 	va_list args;
-	int len;
-	int pos = head->r.avail;
+	size_t len;
+	size_t pos = head->r.avail;
 	int size = head->readbuf_size - pos;
 	if (size <= 0)
 		return;
@@ -436,7 +457,17 @@ static int tomoyo_set_mode(char *name, const char *value,
 		config = 0;
 		for (i = 0; i < TOMOYO_MAX_MAC_INDEX
 			     + TOMOYO_MAX_MAC_CATEGORY_INDEX; i++) {
-			if (strcmp(name, tomoyo_mac_keywords[i]))
+			int len = 0;
+			if (i < TOMOYO_MAX_MAC_INDEX) {
+				const u8 c = tomoyo_index2category[i];
+				const char *category =
+					tomoyo_category_keywords[c];
+				len = strlen(category);
+				if (strncmp(name, category, len) ||
+				    name[len++] != ':' || name[len++] != ':')
+					continue;
+			}
+			if (strcmp(name + len, tomoyo_mac_keywords[i]))
 				continue;
 			config = profile->config[i];
 			break;
@@ -620,8 +651,15 @@ static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 			if (config == TOMOYO_CONFIG_USE_DEFAULT)
 				continue;
 			tomoyo_print_namespace(head);
-			tomoyo_io_printf(head, "%u-%s%s", index, "CONFIG::",
-					 tomoyo_mac_keywords[i]);
+			if (i < TOMOYO_MAX_MAC_INDEX)
+				tomoyo_io_printf(head, "%u-CONFIG::%s::%s",
+						 index,
+						 tomoyo_category_keywords
+						 [tomoyo_index2category[i]],
+						 tomoyo_mac_keywords[i]);
+			else
+				tomoyo_io_printf(head, "%u-CONFIG::%s", index,
+						 tomoyo_mac_keywords[i]);
 			tomoyo_print_config(head, config);
 			head->r.bit++;
 			break;
@@ -905,6 +943,12 @@ static int tomoyo_write_domain2(struct tomoyo_policy_namespace *ns,
 	return -EINVAL;
 }
 
+/* String table for domain flags. */
+const char * const tomoyo_dif[TOMOYO_MAX_DOMAIN_INFO_FLAGS] = {
+	[TOMOYO_DIF_QUOTA_WARNED]      = "quota_exceeded\n",
+	[TOMOYO_DIF_TRANSITION_FAILED] = "transition_failed\n",
+};
+
 /**
  * tomoyo_write_domain - Write domain policy.
  *
@@ -948,12 +992,11 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 			domain->group = (u8) profile;
 		return 0;
 	}
-	if (!strcmp(data, "quota_exceeded")) {
-		domain->quota_warned = !is_delete;
-		return 0;
-	}
-	if (!strcmp(data, "transition_failed")) {
-		domain->transition_failed = !is_delete;
+	for (profile = 0; profile < TOMOYO_MAX_DOMAIN_INFO_FLAGS; profile++) {
+		const char *cp = tomoyo_dif[profile];
+		if (strncmp(data, cp, strlen(cp) - 1))
+			continue;
+		domain->flags[profile] = !is_delete;
 		return 0;
 	}
 	return tomoyo_write_domain2(ns, &domain->acl_info_list, data,
@@ -1134,6 +1177,7 @@ static void tomoyo_read_domain(struct tomoyo_io_buffer *head)
 		struct tomoyo_domain_info *domain =
 			list_entry(head->r.domain, typeof(*domain), list);
 		switch (head->r.step) {
+			u8 i;
 		case 0:
 			if (domain->is_deleted &&
 			    !head->r.print_this_domain_only)
@@ -1145,10 +1189,9 @@ static void tomoyo_read_domain(struct tomoyo_io_buffer *head)
 					 domain->profile);
 			tomoyo_io_printf(head, "use_group %u\n",
 					 domain->group);
-			if (domain->quota_warned)
-				tomoyo_set_string(head, "quota_exceeded\n");
-			if (domain->transition_failed)
-				tomoyo_set_string(head, "transition_failed\n");
+			for (i = 0; i < TOMOYO_MAX_DOMAIN_INFO_FLAGS; i++)
+				if (domain->flags[i])
+					tomoyo_set_string(head, tomoyo_dif[i]);
 			head->r.step++;
 			tomoyo_set_lf(head);
 			/* fall through */
@@ -1691,8 +1734,8 @@ static int tomoyo_poll_query(struct file *file, poll_table *wait)
 static void tomoyo_read_query(struct tomoyo_io_buffer *head)
 {
 	struct list_head *tmp;
-	int pos = 0;
-	int len = 0;
+	unsigned int pos = 0;
+	size_t len = 0;
 	char *buf;
 	if (head->r.w_pos)
 		return;
@@ -1998,8 +2041,8 @@ static inline bool tomoyo_has_more_namespace(struct tomoyo_io_buffer *head)
  *
  * Returns bytes read on success, negative value otherwise.
  */
-int tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
-			const int buffer_len)
+ssize_t tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
+			    const int buffer_len)
 {
 	int len;
 	int idx;
@@ -2070,8 +2113,8 @@ static int tomoyo_parse_policy(struct tomoyo_io_buffer *head, char *line)
  *
  * Returns @buffer_len on success, negative value otherwise.
  */
-int tomoyo_write_control(struct tomoyo_io_buffer *head,
-			 const char __user *buffer, const int buffer_len)
+ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
+			     const char __user *buffer, const int buffer_len)
 {
 	int error = buffer_len;
 	size_t avail_len = buffer_len;

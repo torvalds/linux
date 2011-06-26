@@ -684,10 +684,11 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 		retval = -ENOMEM;
 	else {
 		retval = 0;
-		if (!old_domain->transition_failed) {
-			old_domain->transition_failed = true;
+		if (!old_domain->flags[TOMOYO_DIF_TRANSITION_FAILED]) {
+			old_domain->flags[TOMOYO_DIF_TRANSITION_FAILED] = true;
 			r.granted = false;
-			tomoyo_write_log(&r, "%s", "transition_failed\n");
+			tomoyo_write_log(&r, "%s", tomoyo_dif
+					 [TOMOYO_DIF_TRANSITION_FAILED]);
 			printk(KERN_WARNING
 			       "ERROR: Domain '%s' not defined.\n", tmp);
 		}

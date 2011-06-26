@@ -67,6 +67,20 @@ enum tomoyo_policy_id {
 	TOMOYO_MAX_POLICY
 };
 
+/* Index numbers for domain's attributes. */
+enum tomoyo_domain_info_flags_index {
+	/* Quota warnning flag.   */
+	TOMOYO_DIF_QUOTA_WARNED,
+	/*
+	 * This domain was unable to create a new domain at
+	 * tomoyo_find_next_domain() because the name of the domain to be
+	 * created was too long or it could not allocate memory.
+	 * More than one process continued execve() without domain transition.
+	 */
+	TOMOYO_DIF_TRANSITION_FAILED,
+	TOMOYO_MAX_DOMAIN_INFO_FLAGS
+};
+
 /* Index numbers for group entries. */
 enum tomoyo_group_id {
 	TOMOYO_PATH_GROUP,
@@ -364,8 +378,7 @@ struct tomoyo_domain_info {
 	u8 profile;        /* Profile number to use. */
 	u8 group;          /* Group number to use.   */
 	bool is_deleted;   /* Delete flag.           */
-	bool quota_warned; /* Quota warnning flag.   */
-	bool transition_failed; /* Domain transition failed flag. */
+	bool flags[TOMOYO_MAX_DOMAIN_INFO_FLAGS];
 	atomic_t users; /* Number of referring credentials. */
 };
 
@@ -442,15 +455,15 @@ struct tomoyo_io_buffer {
 	/* Exclusive lock for this structure.   */
 	struct mutex io_sem;
 	char __user *read_user_buf;
-	int read_user_buf_avail;
+	size_t read_user_buf_avail;
 	struct {
 		struct list_head *ns;
 		struct list_head *domain;
 		struct list_head *group;
 		struct list_head *acl;
-		int avail;
-		int step;
-		int query_index;
+		size_t avail;
+		unsigned int step;
+		unsigned int query_index;
 		u16 index;
 		u8 acl_group_index;
 		u8 bit;
@@ -465,19 +478,19 @@ struct tomoyo_io_buffer {
 		/* The position currently writing to.   */
 		struct tomoyo_domain_info *domain;
 		/* Bytes available for writing.         */
-		int avail;
+		size_t avail;
 		bool is_delete;
 	} w;
 	/* Buffer for reading.                  */
 	char *read_buf;
 	/* Size of read buffer.                 */
-	int readbuf_size;
+	size_t readbuf_size;
 	/* Buffer for writing.                  */
 	char *write_buf;
 	/* Size of write buffer.                */
-	int writebuf_size;
+	size_t writebuf_size;
 	/* Type of this interface.              */
-	u8 type;
+	enum tomoyo_securityfs_interface_index type;
 	/* Users counter protected by tomoyo_io_buffer_list_lock. */
 	u8 users;
 	/* List for telling GC not to kfree() elements. */
@@ -569,10 +582,10 @@ void tomoyo_check_profile(void);
 int tomoyo_open_control(const u8 type, struct file *file);
 int tomoyo_close_control(struct tomoyo_io_buffer *head);
 int tomoyo_poll_control(struct file *file, poll_table *wait);
-int tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
-			const int buffer_len);
-int tomoyo_write_control(struct tomoyo_io_buffer *head,
-			 const char __user *buffer, const int buffer_len);
+ssize_t tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
+			    const int buffer_len);
+ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
+			     const char __user *buffer, const int buffer_len);
 bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r);
 void tomoyo_warn_oom(const char *function);
 const struct tomoyo_path_info *
@@ -707,15 +720,17 @@ extern struct tomoyo_domain_info tomoyo_kernel_domain;
 extern struct tomoyo_policy_namespace tomoyo_kernel_namespace;
 extern struct list_head tomoyo_namespace_list;
 
-extern const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION];
-extern const char *tomoyo_mkdev_keyword[TOMOYO_MAX_MKDEV_OPERATION];
-extern const char *tomoyo_path2_keyword[TOMOYO_MAX_PATH2_OPERATION];
-extern const char *tomoyo_path_number_keyword[TOMOYO_MAX_PATH_NUMBER_OPERATION];
+extern const char * const tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX +
+					      TOMOYO_MAX_MAC_CATEGORY_INDEX];
+extern const char * const tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION];
+extern const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX];
+
 
 extern const u8 tomoyo_pnnn2mac[TOMOYO_MAX_MKDEV_OPERATION];
 extern const u8 tomoyo_pp2mac[TOMOYO_MAX_PATH2_OPERATION];
 extern const u8 tomoyo_pn2mac[TOMOYO_MAX_PATH_NUMBER_OPERATION];
 
+extern const char * const tomoyo_dif[TOMOYO_MAX_DOMAIN_INFO_FLAGS];
 extern const char * const tomoyo_mode[TOMOYO_CONFIG_MAX_MODE];
 extern unsigned int tomoyo_memory_quota[TOMOYO_MAX_MEMORY_STAT];
 extern unsigned int tomoyo_memory_used[TOMOYO_MAX_MEMORY_STAT];

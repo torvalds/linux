@@ -15,6 +15,37 @@ DEFINE_MUTEX(tomoyo_policy_lock);
 /* Has /sbin/init started? */
 bool tomoyo_policy_loaded;
 
+/*
+ * Mapping table from "enum tomoyo_mac_index" to
+ * "enum tomoyo_mac_category_index".
+ */
+const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX] = {
+	/* CONFIG::file group */
+	[TOMOYO_MAC_FILE_EXECUTE]    = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_OPEN]       = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_CREATE]     = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_UNLINK]     = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_GETATTR]    = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_MKDIR]      = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_RMDIR]      = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_MKFIFO]     = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_MKSOCK]     = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_TRUNCATE]   = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_SYMLINK]    = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_MKBLOCK]    = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_MKCHAR]     = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_LINK]       = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_RENAME]     = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_CHMOD]      = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_CHOWN]      = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_CHGRP]      = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_IOCTL]      = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_CHROOT]     = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_MOUNT]      = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_UMOUNT]     = TOMOYO_MAC_CATEGORY_FILE,
+	[TOMOYO_MAC_FILE_PIVOT_ROOT] = TOMOYO_MAC_CATEGORY_FILE,
+};
+
 /**
  * tomoyo_permstr - Find permission keywords.
  *
@@ -936,9 +967,11 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 	if (count < tomoyo_profile(domain->ns, domain->profile)->
 	    pref[TOMOYO_PREF_MAX_LEARNING_ENTRY])
 		return true;
-	if (!domain->quota_warned) {
-		domain->quota_warned = true;
-		printk(KERN_WARNING "TOMOYO-WARNING: "
+	if (!domain->flags[TOMOYO_DIF_QUOTA_WARNED]) {
+		domain->flags[TOMOYO_DIF_QUOTA_WARNED] = true;
+		/* r->granted = false; */
+		tomoyo_write_log(r, "%s", tomoyo_dif[TOMOYO_DIF_QUOTA_WARNED]);
+		printk(KERN_WARNING "WARNING: "
 		       "Domain '%s' has too many ACLs to hold. "
 		       "Stopped learning mode.\n", domain->domainname->name);
 	}

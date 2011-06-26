@@ -163,7 +163,8 @@ static bool tomoyo_get_audit(const struct tomoyo_policy_namespace *ns,
 			     const bool is_granted)
 {
 	u8 mode;
-	const u8 category = TOMOYO_MAC_CATEGORY_FILE + TOMOYO_MAX_MAC_INDEX;
+	const u8 category = tomoyo_index2category[index] +
+		TOMOYO_MAX_MAC_INDEX;
 	struct tomoyo_profile *p;
 	if (!tomoyo_policy_loaded)
 		return false;

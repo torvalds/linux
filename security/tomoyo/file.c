@@ -9,46 +9,6 @@
 #include "common.h"
 #include <linux/slab.h>
 
-/* Keyword array for operations with one pathname. */
-const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION] = {
-	[TOMOYO_TYPE_EXECUTE]    = "execute",
-	[TOMOYO_TYPE_READ]       = "read",
-	[TOMOYO_TYPE_WRITE]      = "write",
-	[TOMOYO_TYPE_APPEND]     = "append",
-	[TOMOYO_TYPE_UNLINK]     = "unlink",
-	[TOMOYO_TYPE_GETATTR]    = "getattr",
-	[TOMOYO_TYPE_RMDIR]      = "rmdir",
-	[TOMOYO_TYPE_TRUNCATE]   = "truncate",
-	[TOMOYO_TYPE_SYMLINK]    = "symlink",
-	[TOMOYO_TYPE_CHROOT]     = "chroot",
-	[TOMOYO_TYPE_UMOUNT]     = "unmount",
-};
-
-/* Keyword array for operations with one pathname and three numbers. */
-const char *tomoyo_mkdev_keyword[TOMOYO_MAX_MKDEV_OPERATION] = {
-	[TOMOYO_TYPE_MKBLOCK]    = "mkblock",
-	[TOMOYO_TYPE_MKCHAR]     = "mkchar",
-};
-
-/* Keyword array for operations with two pathnames. */
-const char *tomoyo_path2_keyword[TOMOYO_MAX_PATH2_OPERATION] = {
-	[TOMOYO_TYPE_LINK]       = "link",
-	[TOMOYO_TYPE_RENAME]     = "rename",
-	[TOMOYO_TYPE_PIVOT_ROOT] = "pivot_root",
-};
-
-/* Keyword array for operations with one pathname and one number. */
-const char *tomoyo_path_number_keyword[TOMOYO_MAX_PATH_NUMBER_OPERATION] = {
-	[TOMOYO_TYPE_CREATE]     = "create",
-	[TOMOYO_TYPE_MKDIR]      = "mkdir",
-	[TOMOYO_TYPE_MKFIFO]     = "mkfifo",
-	[TOMOYO_TYPE_MKSOCK]     = "mksock",
-	[TOMOYO_TYPE_IOCTL]      = "ioctl",
-	[TOMOYO_TYPE_CHMOD]      = "chmod",
-	[TOMOYO_TYPE_CHOWN]      = "chown",
-	[TOMOYO_TYPE_CHGRP]      = "chgrp",
-};
-
 /*
  * Mapping table from "enum tomoyo_path_acl_index" to "enum tomoyo_mac_index".
  */
@@ -220,8 +180,8 @@ static int tomoyo_audit_path_log(struct tomoyo_request_info *r)
  */
 static int tomoyo_audit_path2_log(struct tomoyo_request_info *r)
 {
-	return tomoyo_supervisor(r, "file %s %s %s\n", tomoyo_path2_keyword
-				 [r->param.path2.operation],
+	return tomoyo_supervisor(r, "file %s %s %s\n", tomoyo_mac_keywords
+				 [tomoyo_pp2mac[r->param.path2.operation]],
 				 r->param.path2.filename1->name,
 				 r->param.path2.filename2->name);
 }
@@ -236,8 +196,8 @@ static int tomoyo_audit_path2_log(struct tomoyo_request_info *r)
 static int tomoyo_audit_mkdev_log(struct tomoyo_request_info *r)
 {
 	return tomoyo_supervisor(r, "file %s %s 0%o %u %u\n",
-				 tomoyo_mkdev_keyword
-				 [r->param.mkdev.operation],
+				 tomoyo_mac_keywords
+				 [tomoyo_pnnn2mac[r->param.mkdev.operation]],
 				 r->param.mkdev.filename->name,
 				 r->param.mkdev.mode, r->param.mkdev.major,
 				 r->param.mkdev.minor);
@@ -272,8 +232,8 @@ static int tomoyo_audit_path_number_log(struct tomoyo_request_info *r)
 	}
 	tomoyo_print_ulong(buffer, sizeof(buffer), r->param.path_number.number,
 			   radix);
-	return tomoyo_supervisor(r, "file %s %s %s\n",
-				 tomoyo_path_number_keyword[type],
+	return tomoyo_supervisor(r, "file %s %s %s\n", tomoyo_mac_keywords
+				 [tomoyo_pn2mac[type]],
 				 r->param.path_number.filename->name, buffer);
 }
 
@@ -985,22 +945,25 @@ int tomoyo_write_file(struct tomoyo_acl_param *param)
 	if (perm)
 		return tomoyo_update_path_acl(perm, param);
 	for (type = 0; type < TOMOYO_MAX_PATH2_OPERATION; type++)
-		if (tomoyo_permstr(operation, tomoyo_path2_keyword[type]))
+		if (tomoyo_permstr(operation,
+				   tomoyo_mac_keywords[tomoyo_pp2mac[type]]))
 			perm |= 1 << type;
 	if (perm)
 		return tomoyo_update_path2_acl(perm, param);
 	for (type = 0; type < TOMOYO_MAX_PATH_NUMBER_OPERATION; type++)
 		if (tomoyo_permstr(operation,
-				   tomoyo_path_number_keyword[type]))
+				   tomoyo_mac_keywords[tomoyo_pn2mac[type]]))
 			perm |= 1 << type;
 	if (perm)
 		return tomoyo_update_path_number_acl(perm, param);
 	for (type = 0; type < TOMOYO_MAX_MKDEV_OPERATION; type++)
-		if (tomoyo_permstr(operation, tomoyo_mkdev_keyword[type]))
+		if (tomoyo_permstr(operation,
+				   tomoyo_mac_keywords[tomoyo_pnnn2mac[type]]))
 			perm |= 1 << type;
 	if (perm)
 		return tomoyo_update_mkdev_acl(perm, param);
-	if (tomoyo_permstr(operation, "mount"))
+	if (tomoyo_permstr(operation,
+			   tomoyo_mac_keywords[TOMOYO_MAC_FILE_MOUNT]))
 		return tomoyo_update_mount_acl(param);
 	return -EINVAL;
 }
