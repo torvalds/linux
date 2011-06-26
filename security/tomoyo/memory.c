@@ -93,15 +93,18 @@ void tomoyo_memory_free(void *ptr)
 /**
  * tomoyo_get_group - Allocate memory for "struct tomoyo_path_group"/"struct tomoyo_number_group".
  *
- * @group_name: The name of address group.
- * @idx:        Index number.
+ * @param: Pointer to "struct tomoyo_acl_param".
+ * @idx:   Index number.
  *
  * Returns pointer to "struct tomoyo_group" on success, NULL otherwise.
  */
-struct tomoyo_group *tomoyo_get_group(const char *group_name, const u8 idx)
+struct tomoyo_group *tomoyo_get_group(struct tomoyo_acl_param *param,
+				      const u8 idx)
 {
 	struct tomoyo_group e = { };
 	struct tomoyo_group *group = NULL;
+	struct list_head *list;
+	const char *group_name = tomoyo_read_token(param);
 	bool found = false;
 	if (!tomoyo_correct_word(group_name) || idx >= TOMOYO_MAX_GROUP)
 		return NULL;
@@ -110,7 +113,8 @@ struct tomoyo_group *tomoyo_get_group(const char *group_name, const u8 idx)
 		return NULL;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry(group, &tomoyo_group_list[idx], head.list) {
+	list = &tomoyo_group_list[idx];
+	list_for_each_entry(group, list, head.list) {
 		if (e.group_name != group->group_name)
 			continue;
 		atomic_inc(&group->head.users);
@@ -122,14 +126,13 @@ struct tomoyo_group *tomoyo_get_group(const char *group_name, const u8 idx)
 		if (entry) {
 			INIT_LIST_HEAD(&entry->member_list);
 			atomic_set(&entry->head.users, 1);
-			list_add_tail_rcu(&entry->head.list,
-					  &tomoyo_group_list[idx]);
+			list_add_tail_rcu(&entry->head.list, list);
 			group = entry;
 			found = true;
 		}
 	}
 	mutex_unlock(&tomoyo_policy_lock);
- out:
+out:
 	tomoyo_put_name(e.group_name);
 	return found ? group : NULL;
 }
@@ -210,6 +213,8 @@ void __init tomoyo_mm_init(void)
 	idx = tomoyo_read_lock();
 	if (tomoyo_find_domain(TOMOYO_ROOT_NAME) != &tomoyo_kernel_domain)
 		panic("Can't register tomoyo_kernel_domain");
+#if 0
+	/* Will be replaced with tomoyo_load_builtin_policy(). */
 	{
 		/* Load built-in policy. */
 		tomoyo_write_transition_control("/sbin/hotplug", false,
@@ -217,6 +222,7 @@ void __init tomoyo_mm_init(void)
 		tomoyo_write_transition_control("/sbin/modprobe", false,
 					TOMOYO_TRANSITION_CONTROL_INITIALIZE);
 	}
+#endif
 	tomoyo_read_unlock(idx);
 }
 

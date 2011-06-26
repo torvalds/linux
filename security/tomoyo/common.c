@@ -611,8 +611,11 @@ static int tomoyo_update_manager_entry(const char *manager,
 				       const bool is_delete)
 {
 	struct tomoyo_manager e = { };
-	int error;
-
+	struct tomoyo_acl_param param = {
+		.is_delete = is_delete,
+		.list = &tomoyo_policy_list[TOMOYO_ID_MANAGER],
+	};
+	int error = is_delete ? -ENOENT : -ENOMEM;
 	if (tomoyo_domain_def(manager)) {
 		if (!tomoyo_correct_domain(manager))
 			return -EINVAL;
@@ -622,12 +625,11 @@ static int tomoyo_update_manager_entry(const char *manager,
 			return -EINVAL;
 	}
 	e.manager = tomoyo_get_name(manager);
-	if (!e.manager)
-		return -ENOMEM;
-	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_policy_list[TOMOYO_ID_MANAGER],
-				     tomoyo_same_manager);
-	tomoyo_put_name(e.manager);
+	if (e.manager) {
+		error = tomoyo_update_policy(&e.head, sizeof(e), &param,
+					     tomoyo_same_manager);
+		tomoyo_put_name(e.manager);
+	}
 	return error;
 }
 
@@ -821,18 +823,36 @@ static int tomoyo_delete_domain(char *domainname)
 /**
  * tomoyo_write_domain2 - Write domain policy.
  *
- * @head: Pointer to "struct tomoyo_io_buffer".
+ * @list:      Pointer to "struct list_head".
+ * @data:      Policy to be interpreted.
+ * @is_delete: True if it is a delete request.
  *
  * Returns 0 on success, negative value otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_write_domain2(char *data, struct tomoyo_domain_info *domain,
+static int tomoyo_write_domain2(struct list_head *list, char *data,
 				const bool is_delete)
 {
-	if (tomoyo_str_starts(&data, "allow_mount "))
-		return tomoyo_write_mount(data, domain, is_delete);
-	return tomoyo_write_file(data, domain, is_delete);
+	struct tomoyo_acl_param param = {
+		.list = list,
+		.data = data,
+		.is_delete = is_delete,
+	};
+	static const struct {
+		const char *keyword;
+		int (*write) (struct tomoyo_acl_param *);
+	} tomoyo_callback[1] = {
+		{ "file ", tomoyo_write_file },
+	};
+	u8 i;
+	for (i = 0; i < 1; i++) {
+		if (!tomoyo_str_starts(&param.data,
+				       tomoyo_callback[i].keyword))
+			continue;
+		return tomoyo_callback[i].write(&param);
+	}
+	return -EINVAL;
 }
 
 /**
@@ -889,7 +909,7 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 		domain->transition_failed = !is_delete;
 		return 0;
 	}
-	return tomoyo_write_domain2(data, domain, is_delete);
+	return tomoyo_write_domain2(&domain->acl_info_list, data, is_delete);
 }
 
 /**
@@ -1213,26 +1233,19 @@ static const char *tomoyo_group_name[TOMOYO_MAX_GROUP] = {
  */
 static int tomoyo_write_exception(struct tomoyo_io_buffer *head)
 {
-	char *data = head->write_buf;
-	bool is_delete = tomoyo_str_starts(&data, "delete ");
-	u8 i;
-	static const struct {
-		const char *keyword;
-		int (*write) (char *, const bool);
-	} tomoyo_callback[1] = {
-		{ "aggregator ", tomoyo_write_aggregator },
+	struct tomoyo_acl_param param = {
+		.data = head->write_buf,
 	};
-
+	u8 i;
+	param.is_delete = tomoyo_str_starts(&param.data, "delete ");
+	if (tomoyo_str_starts(&param.data, "aggregator "))
+		return tomoyo_write_aggregator(&param);
 	for (i = 0; i < TOMOYO_MAX_TRANSITION_TYPE; i++)
-		if (tomoyo_str_starts(&data, tomoyo_transition_type[i]))
-			return tomoyo_write_transition_control(data, is_delete,
-							       i);
-	for (i = 0; i < 1; i++)
-		if (tomoyo_str_starts(&data, tomoyo_callback[i].keyword))
-			return tomoyo_callback[i].write(data, is_delete);
+		if (tomoyo_str_starts(&param.data, tomoyo_transition_type[i]))
+			return tomoyo_write_transition_control(&param, i);
 	for (i = 0; i < TOMOYO_MAX_GROUP; i++)
-		if (tomoyo_str_starts(&data, tomoyo_group_name[i]))
-			return tomoyo_write_group(data, is_delete, i);
+		if (tomoyo_str_starts(&param.data, tomoyo_group_name[i]))
+			return tomoyo_write_group(&param, i);
 	return -EINVAL;
 }
 
@@ -1490,7 +1503,7 @@ int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
 		vsnprintf(buffer, len - 1, fmt, args);
 		va_end(args);
 		tomoyo_normalize_line(buffer);
-		tomoyo_write_domain2(buffer, r->domain, false);
+		tomoyo_write_domain2(&r->domain->acl_info_list, buffer, false);
 		kfree(buffer);
 		/* fall through */
 	case TOMOYO_CONFIG_PERMISSIVE:

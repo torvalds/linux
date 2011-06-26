@@ -397,6 +397,13 @@ struct tomoyo_mount_acl {
 	struct tomoyo_number_union flags;
 };
 
+/* Structure for holding a line from /sys/kernel/security/tomoyo/ interface. */
+struct tomoyo_acl_param {
+	char *data;
+	struct list_head *list;
+	bool is_delete;
+};
+
 #define TOMOYO_MAX_IO_READ_QUEUE 32
 
 /*
@@ -521,7 +528,7 @@ bool tomoyo_correct_domain(const unsigned char *domainname);
 bool tomoyo_correct_path(const char *filename);
 bool tomoyo_correct_word(const char *string);
 bool tomoyo_domain_def(const unsigned char *buffer);
-bool tomoyo_parse_name_union(const char *filename,
+bool tomoyo_parse_name_union(struct tomoyo_acl_param *param,
 			     struct tomoyo_name_union *ptr);
 const struct tomoyo_path_info *
 tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
@@ -531,7 +538,8 @@ bool tomoyo_number_matches_group(const unsigned long min,
 				 const struct tomoyo_group *group);
 bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
 				 const struct tomoyo_path_info *pattern);
-bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num);
+bool tomoyo_parse_number_union(struct tomoyo_acl_param *param,
+			       struct tomoyo_number_union *ptr);
 bool tomoyo_tokenize(char *buffer, char *w[], size_t size);
 bool tomoyo_verbose_mode(const struct tomoyo_domain_info *domain);
 int tomoyo_init_request_info(struct tomoyo_request_info *r,
@@ -540,21 +548,19 @@ int tomoyo_init_request_info(struct tomoyo_request_info *r,
 int tomoyo_mount_permission(char *dev_name, struct path *path,
 			    const char *type, unsigned long flags,
 			    void *data_page);
-int tomoyo_write_aggregator(char *data, const bool is_delete);
-int tomoyo_write_transition_control(char *data, const bool is_delete,
+int tomoyo_write_aggregator(struct tomoyo_acl_param *param);
+int tomoyo_write_transition_control(struct tomoyo_acl_param *param,
 				    const u8 type);
-int tomoyo_write_file(char *data, struct tomoyo_domain_info *domain,
-		      const bool is_delete);
-int tomoyo_write_mount(char *data, struct tomoyo_domain_info *domain,
-		       const bool is_delete);
-int tomoyo_write_group(char *data, const bool is_delete, const u8 type);
+int tomoyo_write_file(struct tomoyo_acl_param *param);
+int tomoyo_write_group(struct tomoyo_acl_param *param, const u8 type);
 int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
      __attribute__ ((format(printf, 2, 3)));
 struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
 struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 						const u8 profile);
 struct tomoyo_profile *tomoyo_profile(const u8 profile);
-struct tomoyo_group *tomoyo_get_group(const char *group_name, const u8 type);
+struct tomoyo_group *tomoyo_get_group(struct tomoyo_acl_param *param,
+				      const u8 idx);
 unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
 				const u8 index);
 void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
@@ -587,7 +593,7 @@ void tomoyo_put_name_union(struct tomoyo_name_union *ptr);
 void tomoyo_run_gc(void);
 void tomoyo_memory_free(void *ptr);
 int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
-			 bool is_delete, struct tomoyo_domain_info *domain,
+			 struct tomoyo_acl_param *param,
 			 bool (*check_duplicate) (const struct tomoyo_acl_info
 						  *,
 						  const struct tomoyo_acl_info
@@ -596,7 +602,7 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 						  struct tomoyo_acl_info *,
 						  const bool));
 int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
-			 bool is_delete, struct list_head *list,
+			 struct tomoyo_acl_param *param,
 			 bool (*check_duplicate) (const struct tomoyo_acl_head
 						  *,
 						  const struct tomoyo_acl_head
@@ -604,6 +610,8 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 void tomoyo_check_acl(struct tomoyo_request_info *r,
 		      bool (*check_entry) (struct tomoyo_request_info *,
 					   const struct tomoyo_acl_info *));
+char *tomoyo_read_token(struct tomoyo_acl_param *param);
+bool tomoyo_permstr(const char *string, const char *keyword);
 
 /********** External variable definitions. **********/
 

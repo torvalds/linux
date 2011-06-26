@@ -428,29 +428,27 @@ static bool tomoyo_merge_path_acl(struct tomoyo_acl_info *a,
 /**
  * tomoyo_update_path_acl - Update "struct tomoyo_path_acl" list.
  *
- * @type:      Type of operation.
- * @filename:  Filename.
- * @domain:    Pointer to "struct tomoyo_domain_info".
- * @is_delete: True if it is a delete request.
+ * @perm:  Permission.
+ * @param: Pointer to "struct tomoyo_acl_param".
  *
  * Returns 0 on success, negative value otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_update_path_acl(const u8 type, const char *filename,
-				  struct tomoyo_domain_info * const domain,
-				  const bool is_delete)
+static int tomoyo_update_path_acl(const u16 perm,
+				  struct tomoyo_acl_param *param)
 {
 	struct tomoyo_path_acl e = {
 		.head.type = TOMOYO_TYPE_PATH_ACL,
-		.perm = 1 << type
+		.perm = perm
 	};
 	int error;
-	if (!tomoyo_parse_name_union(filename, &e.name))
-		return -EINVAL;
-	error = tomoyo_update_domain(&e.head, sizeof(e), is_delete, domain,
-				     tomoyo_same_path_acl,
-				     tomoyo_merge_path_acl);
+	if (!tomoyo_parse_name_union(param, &e.name))
+		error = -EINVAL;
+	else
+		error = tomoyo_update_domain(&e.head, sizeof(e), param,
+					     tomoyo_same_path_acl,
+					     tomoyo_merge_path_acl);
 	tomoyo_put_name_union(&e.name);
 	return error;
 }
@@ -503,37 +501,30 @@ static bool tomoyo_merge_mkdev_acl(struct tomoyo_acl_info *a,
 /**
  * tomoyo_update_mkdev_acl - Update "struct tomoyo_mkdev_acl" list.
  *
- * @type:      Type of operation.
- * @filename:  Filename.
- * @mode:      Create mode.
- * @major:     Device major number.
- * @minor:     Device minor number.
- * @domain:    Pointer to "struct tomoyo_domain_info".
- * @is_delete: True if it is a delete request.
+ * @perm:  Permission.
+ * @param: Pointer to "struct tomoyo_acl_param".
  *
  * Returns 0 on success, negative value otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_update_mkdev_acl(const u8 type, const char *filename,
-				   char *mode, char *major, char *minor,
-				   struct tomoyo_domain_info * const domain,
-				   const bool is_delete)
+static int tomoyo_update_mkdev_acl(const u8 perm,
+				   struct tomoyo_acl_param *param)
 {
 	struct tomoyo_mkdev_acl e = {
 		.head.type = TOMOYO_TYPE_MKDEV_ACL,
-		.perm = 1 << type
+		.perm = perm
 	};
-	int error = is_delete ? -ENOENT : -ENOMEM;
-	if (!tomoyo_parse_name_union(filename, &e.name) ||
-	    !tomoyo_parse_number_union(mode, &e.mode) ||
-	    !tomoyo_parse_number_union(major, &e.major) ||
-	    !tomoyo_parse_number_union(minor, &e.minor))
-		goto out;
-	error = tomoyo_update_domain(&e.head, sizeof(e), is_delete, domain,
-				     tomoyo_same_mkdev_acl,
-				     tomoyo_merge_mkdev_acl);
- out:
+	int error;
+	if (!tomoyo_parse_name_union(param, &e.name) ||
+	    !tomoyo_parse_number_union(param, &e.mode) ||
+	    !tomoyo_parse_number_union(param, &e.major) ||
+	    !tomoyo_parse_number_union(param, &e.minor))
+		error = -EINVAL;
+	else
+		error = tomoyo_update_domain(&e.head, sizeof(e), param,
+					     tomoyo_same_mkdev_acl,
+					     tomoyo_merge_mkdev_acl);
 	tomoyo_put_name_union(&e.name);
 	tomoyo_put_number_union(&e.mode);
 	tomoyo_put_number_union(&e.major);
@@ -586,33 +577,28 @@ static bool tomoyo_merge_path2_acl(struct tomoyo_acl_info *a,
 /**
  * tomoyo_update_path2_acl - Update "struct tomoyo_path2_acl" list.
  *
- * @type:      Type of operation.
- * @filename1: First filename.
- * @filename2: Second filename.
- * @domain:    Pointer to "struct tomoyo_domain_info".
- * @is_delete: True if it is a delete request.
+ * @perm:  Permission.
+ * @param: Pointer to "struct tomoyo_acl_param".
  *
  * Returns 0 on success, negative value otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
-				   const char *filename2,
-				   struct tomoyo_domain_info * const domain,
-				   const bool is_delete)
+static int tomoyo_update_path2_acl(const u8 perm,
+				   struct tomoyo_acl_param *param)
 {
 	struct tomoyo_path2_acl e = {
 		.head.type = TOMOYO_TYPE_PATH2_ACL,
-		.perm = 1 << type
+		.perm = perm
 	};
-	int error = is_delete ? -ENOENT : -ENOMEM;
-	if (!tomoyo_parse_name_union(filename1, &e.name1) ||
-	    !tomoyo_parse_name_union(filename2, &e.name2))
-		goto out;
-	error = tomoyo_update_domain(&e.head, sizeof(e), is_delete, domain,
-				     tomoyo_same_path2_acl,
-				     tomoyo_merge_path2_acl);
- out:
+	int error;
+	if (!tomoyo_parse_name_union(param, &e.name1) ||
+	    !tomoyo_parse_name_union(param, &e.name2))
+		error = -EINVAL;
+	else
+		error = tomoyo_update_domain(&e.head, sizeof(e), param,
+					     tomoyo_same_path2_acl,
+					     tomoyo_merge_path2_acl);
 	tomoyo_put_name_union(&e.name1);
 	tomoyo_put_name_union(&e.name2);
 	return error;
@@ -701,32 +687,26 @@ static bool tomoyo_merge_path_number_acl(struct tomoyo_acl_info *a,
 /**
  * tomoyo_update_path_number_acl - Update ioctl/chmod/chown/chgrp ACL.
  *
- * @type:      Type of operation.
- * @filename:  Filename.
- * @number:    Number.
- * @domain:    Pointer to "struct tomoyo_domain_info".
- * @is_delete: True if it is a delete request.
+ * @perm:  Permission.
+ * @param: Pointer to "struct tomoyo_acl_param".
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_update_path_number_acl(const u8 type, const char *filename,
-					 char *number,
-					 struct tomoyo_domain_info * const
-					 domain, const bool is_delete)
+static int tomoyo_update_path_number_acl(const u8 perm,
+					 struct tomoyo_acl_param *param)
 {
 	struct tomoyo_path_number_acl e = {
 		.head.type = TOMOYO_TYPE_PATH_NUMBER_ACL,
-		.perm = 1 << type
+		.perm = perm
 	};
-	int error = is_delete ? -ENOENT : -ENOMEM;
-	if (!tomoyo_parse_name_union(filename, &e.name))
-		return -EINVAL;
-	if (!tomoyo_parse_number_union(number, &e.number))
-		goto out;
-	error = tomoyo_update_domain(&e.head, sizeof(e), is_delete, domain,
-				     tomoyo_same_path_number_acl,
-				     tomoyo_merge_path_number_acl);
- out:
+	int error;
+	if (!tomoyo_parse_name_union(param, &e.name) ||
+	    !tomoyo_parse_number_union(param, &e.number))
+		error = -EINVAL;
+	else
+		error = tomoyo_update_domain(&e.head, sizeof(e), param,
+					     tomoyo_same_path_number_acl,
+					     tomoyo_merge_path_number_acl);
 	tomoyo_put_name_union(&e.name);
 	tomoyo_put_number_union(&e.number);
 	return error;
@@ -963,53 +943,88 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 }
 
 /**
- * tomoyo_write_file - Update file related list.
+ * tomoyo_same_mount_acl - Check for duplicated "struct tomoyo_mount_acl" entry.
  *
- * @data:      String to parse.
- * @domain:    Pointer to "struct tomoyo_domain_info".
- * @is_delete: True if it is a delete request.
+ * @a: Pointer to "struct tomoyo_acl_info".
+ * @b: Pointer to "struct tomoyo_acl_info".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
+static bool tomoyo_same_mount_acl(const struct tomoyo_acl_info *a,
+				  const struct tomoyo_acl_info *b)
+{
+	const struct tomoyo_mount_acl *p1 = container_of(a, typeof(*p1), head);
+	const struct tomoyo_mount_acl *p2 = container_of(b, typeof(*p2), head);
+	return tomoyo_same_name_union(&p1->dev_name, &p2->dev_name) &&
+		tomoyo_same_name_union(&p1->dir_name, &p2->dir_name) &&
+		tomoyo_same_name_union(&p1->fs_type, &p2->fs_type) &&
+		tomoyo_same_number_union(&p1->flags, &p2->flags);
+}
+
+/**
+ * tomoyo_update_mount_acl - Write "struct tomoyo_mount_acl" list.
+ *
+ * @param: Pointer to "struct tomoyo_acl_param".
  *
  * Returns 0 on success, negative value otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
-int tomoyo_write_file(char *data, struct tomoyo_domain_info *domain,
-		      const bool is_delete)
+static int tomoyo_update_mount_acl(struct tomoyo_acl_param *param)
 {
-	char *w[5];
+	struct tomoyo_mount_acl e = { .head.type = TOMOYO_TYPE_MOUNT_ACL };
+	int error;
+	if (!tomoyo_parse_name_union(param, &e.dev_name) ||
+	    !tomoyo_parse_name_union(param, &e.dir_name) ||
+	    !tomoyo_parse_name_union(param, &e.fs_type) ||
+	    !tomoyo_parse_number_union(param, &e.flags))
+		error = -EINVAL;
+	else
+		error = tomoyo_update_domain(&e.head, sizeof(e), param,
+					     tomoyo_same_mount_acl, NULL);
+	tomoyo_put_name_union(&e.dev_name);
+	tomoyo_put_name_union(&e.dir_name);
+	tomoyo_put_name_union(&e.fs_type);
+	tomoyo_put_number_union(&e.flags);
+	return error;
+}
+
+/**
+ * tomoyo_write_file - Update file related list.
+ *
+ * @param: Pointer to "struct tomoyo_acl_param".
+ *
+ * Returns 0 on success, negative value otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
+int tomoyo_write_file(struct tomoyo_acl_param *param)
+{
+	u16 perm = 0;
 	u8 type;
-	if (!tomoyo_tokenize(data, w, sizeof(w)) || !w[1][0])
-		return -EINVAL;
-	if (strncmp(w[0], "allow_", 6))
-		goto out;
-	w[0] += 6;
-	for (type = 0; type < TOMOYO_MAX_PATH_OPERATION; type++) {
-		if (strcmp(w[0], tomoyo_path_keyword[type]))
-			continue;
-		return tomoyo_update_path_acl(type, w[1], domain, is_delete);
-	}
-	if (!w[2][0])
-		goto out;
-	for (type = 0; type < TOMOYO_MAX_PATH2_OPERATION; type++) {
-		if (strcmp(w[0], tomoyo_path2_keyword[type]))
-			continue;
-		return tomoyo_update_path2_acl(type, w[1], w[2], domain,
-					       is_delete);
-	}
-	for (type = 0; type < TOMOYO_MAX_PATH_NUMBER_OPERATION; type++) {
-		if (strcmp(w[0], tomoyo_path_number_keyword[type]))
-			continue;
-		return tomoyo_update_path_number_acl(type, w[1], w[2], domain,
-						     is_delete);
-	}
-	if (!w[3][0] || !w[4][0])
-		goto out;
-	for (type = 0; type < TOMOYO_MAX_MKDEV_OPERATION; type++) {
-		if (strcmp(w[0], tomoyo_mkdev_keyword[type]))
-			continue;
-		return tomoyo_update_mkdev_acl(type, w[1], w[2], w[3],
-					       w[4], domain, is_delete);
-	}
- out:
+	const char *operation = tomoyo_read_token(param);
+	for (type = 0; type < TOMOYO_MAX_PATH_OPERATION; type++)
+		if (tomoyo_permstr(operation, tomoyo_path_keyword[type]))
+			perm |= 1 << type;
+	if (perm)
+		return tomoyo_update_path_acl(perm, param);
+	for (type = 0; type < TOMOYO_MAX_PATH2_OPERATION; type++)
+		if (tomoyo_permstr(operation, tomoyo_path2_keyword[type]))
+			perm |= 1 << type;
+	if (perm)
+		return tomoyo_update_path2_acl(perm, param);
+	for (type = 0; type < TOMOYO_MAX_PATH_NUMBER_OPERATION; type++)
+		if (tomoyo_permstr(operation,
+				   tomoyo_path_number_keyword[type]))
+			perm |= 1 << type;
+	if (perm)
+		return tomoyo_update_path_number_acl(perm, param);
+	for (type = 0; type < TOMOYO_MAX_MKDEV_OPERATION; type++)
+		if (tomoyo_permstr(operation, tomoyo_mkdev_keyword[type]))
+			perm |= 1 << type;
+	if (perm)
+		return tomoyo_update_mkdev_acl(perm, param);
+	if (tomoyo_permstr(operation, "mount"))
+		return tomoyo_update_mount_acl(param);
 	return -EINVAL;
 }

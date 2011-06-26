@@ -20,8 +20,7 @@ struct tomoyo_domain_info tomoyo_kernel_domain;
  *
  * @new_entry:       Pointer to "struct tomoyo_acl_info".
  * @size:            Size of @new_entry in bytes.
- * @is_delete:       True if it is a delete request.
- * @list:            Pointer to "struct list_head".
+ * @param:           Pointer to "struct tomoyo_acl_param".
  * @check_duplicate: Callback function to find duplicated entry.
  *
  * Returns 0 on success, negative value otherwise.
@@ -29,25 +28,26 @@ struct tomoyo_domain_info tomoyo_kernel_domain;
  * Caller holds tomoyo_read_lock().
  */
 int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
-			 bool is_delete, struct list_head *list,
+			 struct tomoyo_acl_param *param,
 			 bool (*check_duplicate) (const struct tomoyo_acl_head
 						  *,
 						  const struct tomoyo_acl_head
 						  *))
 {
-	int error = is_delete ? -ENOENT : -ENOMEM;
+	int error = param->is_delete ? -ENOENT : -ENOMEM;
 	struct tomoyo_acl_head *entry;
+	struct list_head *list = param->list;
 
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return -ENOMEM;
 	list_for_each_entry_rcu(entry, list, list) {
 		if (!check_duplicate(entry, new_entry))
 			continue;
-		entry->is_deleted = is_delete;
+		entry->is_deleted = param->is_delete;
 		error = 0;
 		break;
 	}
-	if (error && !is_delete) {
+	if (error && !param->is_delete) {
 		entry = tomoyo_commit_ok(new_entry, size);
 		if (entry) {
 			list_add_tail_rcu(&entry->list, list);
@@ -77,8 +77,7 @@ static inline bool tomoyo_same_acl_head(const struct tomoyo_acl_info *a,
  *
  * @new_entry:       Pointer to "struct tomoyo_acl_info".
  * @size:            Size of @new_entry in bytes.
- * @is_delete:       True if it is a delete request.
- * @domain:          Pointer to "struct tomoyo_domain_info".
+ * @param:           Pointer to "struct tomoyo_acl_param".
  * @check_duplicate: Callback function to find duplicated entry.
  * @merge_duplicate: Callback function to merge duplicated entry.
  *
@@ -87,7 +86,7 @@ static inline bool tomoyo_same_acl_head(const struct tomoyo_acl_info *a,
  * Caller holds tomoyo_read_lock().
  */
 int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
-			 bool is_delete, struct tomoyo_domain_info *domain,
+			 struct tomoyo_acl_param *param,
 			 bool (*check_duplicate) (const struct tomoyo_acl_info
 						  *,
 						  const struct tomoyo_acl_info
@@ -96,12 +95,14 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 						  struct tomoyo_acl_info *,
 						  const bool))
 {
+	const bool is_delete = param->is_delete;
 	int error = is_delete ? -ENOENT : -ENOMEM;
 	struct tomoyo_acl_info *entry;
+	struct list_head * const list = param->list;
 
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return error;
-	list_for_each_entry_rcu(entry, &domain->acl_info_list, list) {
+	list_for_each_entry_rcu(entry, list, list) {
 		if (!tomoyo_same_acl_head(entry, new_entry) ||
 		    !check_duplicate(entry, new_entry))
 			continue;
@@ -116,7 +117,7 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 	if (error && !is_delete) {
 		entry = tomoyo_commit_ok(new_entry, size);
 		if (entry) {
-			list_add_tail_rcu(&entry->list, &domain->acl_info_list);
+			list_add_tail_rcu(&entry->list, list);
 			error = 0;
 		}
 	}
@@ -163,6 +164,14 @@ static const char *tomoyo_last_word(const char *name)
         return name;
 }
 
+/**
+ * tomoyo_same_transition_control - Check for duplicated "struct tomoyo_transition_control" entry.
+ *
+ * @a: Pointer to "struct tomoyo_acl_head".
+ * @b: Pointer to "struct tomoyo_acl_head".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
 static bool tomoyo_same_transition_control(const struct tomoyo_acl_head *a,
 					   const struct tomoyo_acl_head *b)
 {
@@ -178,22 +187,28 @@ static bool tomoyo_same_transition_control(const struct tomoyo_acl_head *a,
 }
 
 /**
- * tomoyo_update_transition_control_entry - Update "struct tomoyo_transition_control" list.
+ * tomoyo_write_transition_control - Write "struct tomoyo_transition_control" list.
  *
- * @domainname: The name of domain. Maybe NULL.
- * @program:    The name of program. Maybe NULL.
- * @type:       Type of transition.
- * @is_delete:  True if it is a delete request.
+ * @param: Pointer to "struct tomoyo_acl_param".
+ * @type:  Type of this entry.
  *
  * Returns 0 on success, negative value otherwise.
  */
-static int tomoyo_update_transition_control_entry(const char *domainname,
-						  const char *program,
-						  const u8 type,
-						  const bool is_delete)
+int tomoyo_write_transition_control(struct tomoyo_acl_param *param,
+				    const u8 type)
 {
 	struct tomoyo_transition_control e = { .type = type };
-	int error = is_delete ? -ENOENT : -ENOMEM;
+	int error = param->is_delete ? -ENOENT : -ENOMEM;
+	char *program = param->data;
+	char *domainname = strstr(program, " from ");
+	if (domainname) {
+		*domainname = '\0';
+		domainname += 6;
+	} else if (type == TOMOYO_TRANSITION_CONTROL_NO_KEEP ||
+		   type == TOMOYO_TRANSITION_CONTROL_KEEP) {
+		domainname = program;
+		program = NULL;
+	}
 	if (program) {
 		if (!tomoyo_correct_path(program))
 			return -EINVAL;
@@ -211,39 +226,13 @@ static int tomoyo_update_transition_control_entry(const char *domainname,
 		if (!e.domainname)
 			goto out;
 	}
-	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_policy_list
-				     [TOMOYO_ID_TRANSITION_CONTROL],
+	param->list = &tomoyo_policy_list[TOMOYO_ID_TRANSITION_CONTROL];
+	error = tomoyo_update_policy(&e.head, sizeof(e), param,
 				     tomoyo_same_transition_control);
- out:
+out:
 	tomoyo_put_name(e.domainname);
 	tomoyo_put_name(e.program);
 	return error;
-}
-
-/**
- * tomoyo_write_transition_control - Write "struct tomoyo_transition_control" list.
- *
- * @data:      String to parse.
- * @is_delete: True if it is a delete request.
- * @type:      Type of this entry.
- *
- * Returns 0 on success, negative value otherwise.
- */
-int tomoyo_write_transition_control(char *data, const bool is_delete,
-				    const u8 type)
-{
-	char *domainname = strstr(data, " from ");
-	if (domainname) {
-		*domainname = '\0';
-		domainname += 6;
-	} else if (type == TOMOYO_TRANSITION_CONTROL_NO_KEEP ||
-		   type == TOMOYO_TRANSITION_CONTROL_KEEP) {
-		domainname = data;
-		data = NULL;
-	}
-	return tomoyo_update_transition_control_entry(domainname, data, type,
-						      is_delete);
 }
 
 /**
@@ -303,34 +292,41 @@ static u8 tomoyo_transition_type(const struct tomoyo_path_info *domainname,
 	return type;
 }
 
+/**
+ * tomoyo_same_aggregator - Check for duplicated "struct tomoyo_aggregator" entry.
+ *
+ * @a: Pointer to "struct tomoyo_acl_head".
+ * @b: Pointer to "struct tomoyo_acl_head".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
 static bool tomoyo_same_aggregator(const struct tomoyo_acl_head *a,
 				   const struct tomoyo_acl_head *b)
 {
-	const struct tomoyo_aggregator *p1 = container_of(a, typeof(*p1), head);
-	const struct tomoyo_aggregator *p2 = container_of(b, typeof(*p2), head);
+	const struct tomoyo_aggregator *p1 = container_of(a, typeof(*p1),
+							  head);
+	const struct tomoyo_aggregator *p2 = container_of(b, typeof(*p2),
+							  head);
 	return p1->original_name == p2->original_name &&
 		p1->aggregated_name == p2->aggregated_name;
 }
 
 /**
- * tomoyo_update_aggregator_entry - Update "struct tomoyo_aggregator" list.
+ * tomoyo_write_aggregator - Write "struct tomoyo_aggregator" list.
  *
- * @original_name:   The original program's name.
- * @aggregated_name: The program name to use.
- * @is_delete:       True if it is a delete request.
+ * @param: Pointer to "struct tomoyo_acl_param".
  *
  * Returns 0 on success, negative value otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_update_aggregator_entry(const char *original_name,
-					  const char *aggregated_name,
-					  const bool is_delete)
+int tomoyo_write_aggregator(struct tomoyo_acl_param *param)
 {
 	struct tomoyo_aggregator e = { };
-	int error = is_delete ? -ENOENT : -ENOMEM;
-
-	if (!tomoyo_correct_path(original_name) ||
+	int error = param->is_delete ? -ENOENT : -ENOMEM;
+	const char *original_name = tomoyo_read_token(param);
+	const char *aggregated_name = tomoyo_read_token(param);
+	if (!tomoyo_correct_word(original_name) ||
 	    !tomoyo_correct_path(aggregated_name))
 		return -EINVAL;
 	e.original_name = tomoyo_get_name(original_name);
@@ -338,33 +334,13 @@ static int tomoyo_update_aggregator_entry(const char *original_name,
 	if (!e.original_name || !e.aggregated_name ||
 	    e.aggregated_name->is_patterned) /* No patterns allowed. */
 		goto out;
-	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_policy_list[TOMOYO_ID_AGGREGATOR],
+	param->list = &tomoyo_policy_list[TOMOYO_ID_AGGREGATOR];
+	error = tomoyo_update_policy(&e.head, sizeof(e), param,
 				     tomoyo_same_aggregator);
- out:
+out:
 	tomoyo_put_name(e.original_name);
 	tomoyo_put_name(e.aggregated_name);
 	return error;
-}
-
-/**
- * tomoyo_write_aggregator - Write "struct tomoyo_aggregator" list.
- *
- * @data:      String to parse.
- * @is_delete: True if it is a delete request.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-int tomoyo_write_aggregator(char *data, const bool is_delete)
-{
-	char *cp = strchr(data, ' ');
-
-	if (!cp)
-		return -EINVAL;
-	*cp++ = '\0';
-	return tomoyo_update_aggregator_entry(data, cp, is_delete);
 }
 
 /**

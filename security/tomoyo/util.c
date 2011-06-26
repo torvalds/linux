@@ -16,6 +16,46 @@ DEFINE_MUTEX(tomoyo_policy_lock);
 bool tomoyo_policy_loaded;
 
 /**
+ * tomoyo_permstr - Find permission keywords.
+ *
+ * @string: String representation for permissions in foo/bar/buz format.
+ * @keyword: Keyword to find from @string/
+ *
+ * Returns ture if @keyword was found in @string, false otherwise.
+ *
+ * This function assumes that strncmp(w1, w2, strlen(w1)) != 0 if w1 != w2.
+ */
+bool tomoyo_permstr(const char *string, const char *keyword)
+{
+	const char *cp = strstr(string, keyword);
+	if (cp)
+		return cp == string || *(cp - 1) == '/';
+	return false;
+}
+
+/**
+ * tomoyo_read_token - Read a word from a line.
+ *
+ * @param: Pointer to "struct tomoyo_acl_param".
+ *
+ * Returns a word on success, "" otherwise.
+ *
+ * To allow the caller to skip NULL check, this function returns "" rather than
+ * NULL if there is no more words to read.
+ */
+char *tomoyo_read_token(struct tomoyo_acl_param *param)
+{
+	char *pos = param->data;
+	char *del = strchr(pos, ' ');
+	if (del)
+		*del++ = '\0';
+	else
+		del = pos + strlen(pos);
+	param->data = del;
+	return pos;
+}
+
+/**
  * tomoyo_parse_ulong - Parse an "unsigned long" value.
  *
  * @result: Pointer to "unsigned long".
@@ -81,20 +121,23 @@ void tomoyo_print_ulong(char *buffer, const int buffer_len,
 /**
  * tomoyo_parse_name_union - Parse a tomoyo_name_union.
  *
- * @filename: Name or name group.
- * @ptr:      Pointer to "struct tomoyo_name_union".
+ * @param: Pointer to "struct tomoyo_acl_param".
+ * @ptr:   Pointer to "struct tomoyo_name_union".
  *
  * Returns true on success, false otherwise.
  */
-bool tomoyo_parse_name_union(const char *filename,
+bool tomoyo_parse_name_union(struct tomoyo_acl_param *param,
 			     struct tomoyo_name_union *ptr)
 {
-	if (!tomoyo_correct_word(filename))
-		return false;
-	if (filename[0] == '@') {
-		ptr->group = tomoyo_get_group(filename + 1, TOMOYO_PATH_GROUP);
+	char *filename;
+	if (param->data[0] == '@') {
+		param->data++;
+		ptr->group = tomoyo_get_group(param, TOMOYO_PATH_GROUP);
 		return ptr->group != NULL;
 	}
+	filename = tomoyo_read_token(param);
+	if (!tomoyo_correct_word(filename))
+		return false;
 	ptr->filename = tomoyo_get_name(filename);
 	return ptr->filename != NULL;
 }
@@ -102,39 +145,41 @@ bool tomoyo_parse_name_union(const char *filename,
 /**
  * tomoyo_parse_number_union - Parse a tomoyo_number_union.
  *
- * @data: Number or number range or number group.
- * @ptr:  Pointer to "struct tomoyo_number_union".
+ * @param: Pointer to "struct tomoyo_acl_param".
+ * @ptr:   Pointer to "struct tomoyo_number_union".
  *
  * Returns true on success, false otherwise.
  */
-bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num)
+bool tomoyo_parse_number_union(struct tomoyo_acl_param *param,
+			       struct tomoyo_number_union *ptr)
 {
+	char *data;
 	u8 type;
 	unsigned long v;
-	memset(num, 0, sizeof(*num));
-	if (data[0] == '@') {
-		if (!tomoyo_correct_word(data))
-			return false;
-		num->group = tomoyo_get_group(data + 1, TOMOYO_NUMBER_GROUP);
-		return num->group != NULL;
+	memset(ptr, 0, sizeof(*ptr));
+	if (param->data[0] == '@') {
+		param->data++;
+		ptr->group = tomoyo_get_group(param, TOMOYO_NUMBER_GROUP);
+		return ptr->group != NULL;
 	}
+	data = tomoyo_read_token(param);
 	type = tomoyo_parse_ulong(&v, &data);
-	if (!type)
+	if (type == TOMOYO_VALUE_TYPE_INVALID)
 		return false;
-	num->values[0] = v;
-	num->value_type[0] = type;
+	ptr->values[0] = v;
+	ptr->value_type[0] = type;
 	if (!*data) {
-		num->values[1] = v;
-		num->value_type[1] = type;
+		ptr->values[1] = v;
+		ptr->value_type[1] = type;
 		return true;
 	}
 	if (*data++ != '-')
 		return false;
 	type = tomoyo_parse_ulong(&v, &data);
-	if (!type || *data)
+	if (type == TOMOYO_VALUE_TYPE_INVALID || *data || ptr->values[0] > v)
 		return false;
-	num->values[1] = v;
-	num->value_type[1] = type;
+	ptr->values[1] = v;
+	ptr->value_type[1] = type;
 	return true;
 }
 
@@ -256,33 +301,6 @@ void tomoyo_normalize_line(unsigned char *buffer)
 			sp++;
 	}
 	*dp = '\0';
-}
-
-/**
- * tomoyo_tokenize - Tokenize string.
- *
- * @buffer: The line to tokenize.
- * @w:      Pointer to "char *".
- * @size:   Sizeof @w .
- *
- * Returns true on success, false otherwise.
- */
-bool tomoyo_tokenize(char *buffer, char *w[], size_t size)
-{
-	int count = size / sizeof(char *);
-	int i;
-	for (i = 0; i < count; i++)
-		w[i] = "";
-	for (i = 0; i < count; i++) {
-		char *cp = strchr(buffer, ' ');
-		if (cp)
-			*cp = '\0';
-		w[i] = buffer;
-		if (!cp)
-			break;
-		buffer = cp + 1;
-	}
-	return i < count || !*buffer;
 }
 
 /**
