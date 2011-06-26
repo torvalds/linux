@@ -861,8 +861,10 @@ static void console_output(struct virtqueue *vq)
 	/* writev can return a partial write, so we loop here. */
 	while (!iov_empty(iov, out)) {
 		int len = writev(STDOUT_FILENO, iov, out);
-		if (len <= 0)
-			err(1, "Write to stdout gave %i", len);
+		if (len <= 0) {
+			warn("Write to stdout gave %i (%d)", len, errno);
+			break;
+		}
 		iov_consume(iov, out, len);
 	}
 
@@ -898,7 +900,7 @@ static void net_output(struct virtqueue *vq)
 	 * same format: what a coincidence!
 	 */
 	if (writev(net_info->tunfd, iov, out) < 0)
-		errx(1, "Write to tun failed?");
+		warnx("Write to tun failed (%d)?", errno);
 
 	/*
 	 * Done with that one; wait_for_vq_desc() will send the interrupt if
@@ -955,7 +957,7 @@ static void net_input(struct virtqueue *vq)
 	 */
 	len = readv(net_info->tunfd, iov, in);
 	if (len <= 0)
-		err(1, "Failed to read from tun.");
+		warn("Failed to read from tun (%d).", errno);
 
 	/*
 	 * Mark that packet buffer as used, but don't interrupt here.  We want
