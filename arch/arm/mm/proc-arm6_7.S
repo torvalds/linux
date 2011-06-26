@@ -87,12 +87,12 @@ ENTRY(cpu_arm6_data_abort)
 	mov	r7, #0x11
 	orr	r7, r7, #0x1100
 	and	r6, r8, r7
-	and	r2, r8, r7, lsl #1
-	add	r6, r6, r2, lsr #1
-	and	r2, r8, r7, lsl #2
-	add	r6, r6, r2, lsr #2
-	and	r2, r8, r7, lsl #3
-	add	r6, r6, r2, lsr #3
+	and	r9, r8, r7, lsl #1
+	add	r6, r6, r9, lsr #1
+	and	r9, r8, r7, lsl #2
+	add	r6, r6, r9, lsr #2
+	and	r9, r8, r7, lsl #3
+	add	r6, r6, r9, lsr #3
 	add	r6, r6, r6, lsr #8
 	add	r6, r6, r6, lsr #4
 	and	r6, r6, #15			@ r6 = no. of registers to transfer.
@@ -117,13 +117,13 @@ ENTRY(cpu_arm6_data_abort)
 	tst	r8, #1 << 21			@ check writeback bit
 	moveq	pc, lr				@ no writeback -> no fixup
 .data_arm_lateldrpostconst:
-	movs	r2, r8, lsl #20			@ Get offset
+	movs	r9, r8, lsl #20			@ Get offset
 	moveq	pc, lr				@ zero -> no fixup
 	and	r5, r8, #15 << 16		@ Extract 'n' from instruction
 	ldr	r7, [sp, r5, lsr #14]		@ Get register 'Rn'
 	tst	r8, #1 << 23			@ Check U bit
-	subne	r7, r7, r2, lsr #20		@ Undo increment
-	addeq	r7, r7, r2, lsr #20		@ Undo decrement
+	subne	r7, r7, r9, lsr #20		@ Undo increment
+	addeq	r7, r7, r9, lsr #20		@ Undo decrement
 	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
 	mov	pc, lr
 

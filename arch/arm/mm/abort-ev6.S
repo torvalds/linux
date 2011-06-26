@@ -40,7 +40,7 @@ ENTRY(v6_early_abort)
 #ifdef CONFIG_CPU_ENDIAN_BE8
 	reveq	r3, r3
 #endif
-	do_ldrd_abort tmp=r2, insn=r3
+	do_ldrd_abort tmp=ip, insn=r3
 	tst	r3, #1 << 20			@ L = 0 -> write
 	orreq	r1, r1, #1 << 11		@ yes.
 	mov	pc, lr

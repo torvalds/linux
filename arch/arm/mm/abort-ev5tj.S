@@ -27,7 +27,7 @@ ENTRY(v5tj_early_abort)
 	movne	pc, lr
 	do_thumb_abort fsr=r1, pc=r4, psr=r5, tmp=r3
 	ldreq	r3, [r4]			@ read aborted ARM instruction
-	do_ldrd_abort tmp=r2, insn=r3
+	do_ldrd_abort tmp=ip, insn=r3
 	tst	r3, #1 << 20			@ L = 0 -> write
 	orreq	r1, r1, #1 << 11		@ yes.
 	mov	pc, lr
