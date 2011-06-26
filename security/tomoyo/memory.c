@@ -215,14 +215,4 @@ void __init tomoyo_mm_init(void)
 	INIT_LIST_HEAD(&tomoyo_kernel_domain.acl_info_list);
 	tomoyo_kernel_domain.domainname = tomoyo_get_name("<kernel>");
 	list_add_tail_rcu(&tomoyo_kernel_domain.list, &tomoyo_domain_list);
-#if 0
-	/* Will be replaced with tomoyo_load_builtin_policy(). */
-	{
-		/* Load built-in policy. */
-		tomoyo_write_transition_control("/sbin/hotplug", false,
-					TOMOYO_TRANSITION_CONTROL_INITIALIZE);
-		tomoyo_write_transition_control("/sbin/modprobe", false,
-					TOMOYO_TRANSITION_CONTROL_INITIALIZE);
-	}
-#endif
 }

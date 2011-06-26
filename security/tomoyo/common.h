@@ -662,6 +662,7 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name);
 void tomoyo_convert_time(time_t time, struct tomoyo_time *stamp);
 void tomoyo_update_stat(const u8 index);
 void __init tomoyo_mm_init(void);
+void __init tomoyo_load_builtin_policy(void);
 int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 			   const struct tomoyo_path_info *filename);
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,

@@ -2361,3 +2361,63 @@ void tomoyo_check_profile(void)
 	tomoyo_read_unlock(idx);
 	printk(KERN_INFO "Mandatory Access Control activated.\n");
 }
+
+/**
+ * tomoyo_load_builtin_policy - Load built-in policy.
+ *
+ * Returns nothing.
+ */
+void __init tomoyo_load_builtin_policy(void)
+{
+	/*
+	 * This include file is manually created and contains built-in policy
+	 * named "tomoyo_builtin_profile", "tomoyo_builtin_exception_policy",
+	 * "tomoyo_builtin_domain_policy", "tomoyo_builtin_manager",
+	 * "tomoyo_builtin_stat" in the form of "static char [] __initdata".
+	 */
+#include "builtin-policy.h"
+	u8 i;
+	const int idx = tomoyo_read_lock();
+	for (i = 0; i < 5; i++) {
+		struct tomoyo_io_buffer head = { };
+		char *start = "";
+		switch (i) {
+		case 0:
+			start = tomoyo_builtin_profile;
+			head.type = TOMOYO_PROFILE;
+			head.write = tomoyo_write_profile;
+			break;
+		case 1:
+			start = tomoyo_builtin_exception_policy;
+			head.type = TOMOYO_EXCEPTIONPOLICY;
+			head.write = tomoyo_write_exception;
+			break;
+		case 2:
+			start = tomoyo_builtin_domain_policy;
+			head.type = TOMOYO_DOMAINPOLICY;
+			head.write = tomoyo_write_domain;
+			break;
+		case 3:
+			start = tomoyo_builtin_manager;
+			head.type = TOMOYO_MANAGER;
+			head.write = tomoyo_write_manager;
+			break;
+		case 4:
+			start = tomoyo_builtin_stat;
+			head.type = TOMOYO_STAT;
+			head.write = tomoyo_write_stat;
+			break;
+		}
+		while (1) {
+			char *end = strchr(start, '\n');
+			if (!end)
+				break;
+			*end = '\0';
+			tomoyo_normalize_line(start);
+			head.write_buf = start;
+			tomoyo_parse_policy(&head, start);
+			start = end + 1;
+		}
+	}
+	tomoyo_read_unlock(idx);
+}
