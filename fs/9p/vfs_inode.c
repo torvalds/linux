@@ -633,7 +633,7 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	fid = NULL;
 	v9ses = v9fs_inode2v9ses(dir);
 	perm = unixmode2p9mode(v9ses, mode);
-	if (nd && nd->flags & LOOKUP_OPEN)
+	if (nd)
 		flags = nd->intent.open.flags;
 	else
 		flags = O_RDWR;
@@ -649,7 +649,7 @@ v9fs_vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 
 	v9fs_invalidate_inode_attr(dir);
 	/* if we are opening a file, assign the open fid to the file */
-	if (nd && nd->flags & LOOKUP_OPEN) {
+	if (nd) {
 		v9inode = V9FS_I(dentry->d_inode);
 		mutex_lock(&v9inode->v_mutex);
 		if (v9ses->cache && !v9inode->writeback_fid &&
