@@ -29,8 +29,8 @@ ENTRY(cpu_arm7_dcache_clean_area)
 /*
  * Function: arm6_7_data_abort ()
  *
- * Params  : r2 = address of aborted instruction
- *	   : sp = pointer to registers
+ * Params  : r4 = aborted context pc
+ *	   : r5 = aborted context psr
  *
  * Purpose : obtain information about current aborted instruction
  *
@@ -41,7 +41,7 @@ ENTRY(cpu_arm7_dcache_clean_area)
 ENTRY(cpu_arm7_data_abort)
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
-	ldr	r8, [r2]			@ read arm instruction
+	ldr	r8, [r4]			@ read arm instruction
 	tst	r8, #1 << 20			@ L = 0 -> write?
 	orreq	r1, r1, #1 << 11		@ yes.
 	and	r7, r8, #15 << 24
@@ -65,7 +65,7 @@ ENTRY(cpu_arm7_data_abort)
 /* e */	b	.data_unknown
 /* f */
 .data_unknown:	@ Part of jumptable
-	mov	r0, r2
+	mov	r0, r4
 	mov	r1, r8
 	mov	r2, sp
 	bl	baddataabort
@@ -74,7 +74,7 @@ ENTRY(cpu_arm7_data_abort)
 ENTRY(cpu_arm6_data_abort)
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
-	ldr	r8, [r2]			@ read arm instruction
+	ldr	r8, [r4]			@ read arm instruction
 	tst	r8, #1 << 20			@ L = 0 -> write?
 	orreq	r1, r1, #1 << 11		@ yes.
 	and	r7, r8, #14 << 24

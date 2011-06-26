@@ -3,8 +3,8 @@
 /*
  * Function: nommu_early_abort
  *
- * Params  : r2 = address of aborted instruction
- *         : r3 = saved SPSR
+ * Params  : r4 = aborted context pc
+ *	   : r5 = aborted context psr
  *
  * Returns : r0 = 0 (abort address)
  *	   : r1 = 0 (FSR)

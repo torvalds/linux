@@ -56,14 +56,12 @@
 	.endm
 
 	.macro	dabt_helper
-	mov	r2, r4
-	mov	r3, r5
 
 	@
 	@ Call the processor-specific abort handler:
 	@
-	@  r2 - aborted context pc
-	@  r3 - aborted context cpsr
+	@  r4 - aborted context pc
+	@  r5 - aborted context psr
 	@
 	@ The abort handler must return the aborted address in r0, and
 	@ the fault status register in r1.  r9 must be preserved.

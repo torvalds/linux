@@ -4,8 +4,8 @@
 /*
  * Function: v5tj_early_abort
  *
- * Params  : r2 = address of aborted instruction
- *         : r3 = saved SPSR
+ * Params  : r4 = aborted context pc
+ *	   : r5 = aborted context psr
  *
  * Returns : r0 = address of abort
  *	   : r1 = FSR, bit 11 = write
@@ -23,13 +23,11 @@ ENTRY(v5tj_early_abort)
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
 	bic	r1, r1, #1 << 11 | 1 << 10	@ clear bits 11 and 10 of FSR
-	tst	r3, #PSR_J_BIT			@ Java?
+	tst	r5, #PSR_J_BIT			@ Java?
 	movne	pc, lr
-	do_thumb_abort fsr=r1, pc=r2, psr=r3, tmp=r3
-	ldreq	r3, [r2]			@ read aborted ARM instruction
+	do_thumb_abort fsr=r1, pc=r4, psr=r5, tmp=r3
+	ldreq	r3, [r4]			@ read aborted ARM instruction
 	do_ldrd_abort tmp=r2, insn=r3
 	tst	r3, #1 << 20			@ L = 0 -> write
 	orreq	r1, r1, #1 << 11		@ yes.
 	mov	pc, lr
-
-

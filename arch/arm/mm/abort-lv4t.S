@@ -3,8 +3,8 @@
 /*
  * Function: v4t_late_abort
  *
- * Params  : r2 = address of aborted instruction
- *         : r3 = saved SPSR
+ * Params  : r4 = aborted context pc
+ *	   : r5 = aborted context psr
  *
  * Returns : r0 = address of abort
  *	   : r1 = FSR, bit 11 = write
@@ -18,7 +18,7 @@
  * picture.  Unfortunately, this does happen.  We live with it.
  */
 ENTRY(v4t_late_abort)
-	tst	r3, #PSR_T_BIT			@ check for thumb mode
+	tst	r5, #PSR_T_BIT			@ check for thumb mode
 #ifdef CONFIG_CPU_CP15_MMU
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
@@ -28,7 +28,7 @@ ENTRY(v4t_late_abort)
 	mov	r1, #0
 #endif
 	bne	.data_thumb_abort
-	ldr	r8, [r2]			@ read arm instruction
+	ldr	r8, [r4]			@ read arm instruction
 	tst	r8, #1 << 20			@ L = 1 -> write?
 	orreq	r1, r1, #1 << 11		@ yes.
 	and	r7, r8, #15 << 24
@@ -52,7 +52,7 @@ ENTRY(v4t_late_abort)
 /* e */	b	.data_unknown
 /* f */
 .data_unknown:	@ Part of jumptable
-	mov	r0, r2
+	mov	r0, r4
 	mov	r1, r8
 	mov	r2, sp
 	bl	baddataabort
@@ -159,7 +159,7 @@ ENTRY(v4t_late_abort)
 	b	.data_unknown			@ F: MUL?
 
 .data_thumb_abort:
-	ldrh	r8, [r2]			@ read instruction
+	ldrh	r8, [r4]			@ read instruction
 	tst	r8, #1 << 11			@ L = 1 -> write?
 	orreq	r1, r1, #1 << 8			@ yes
 	and	r7, r8, #15 << 12
