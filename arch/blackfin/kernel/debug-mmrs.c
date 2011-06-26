@@ -1848,7 +1848,7 @@ static int __init bfin_debug_mmrs_init(void)
 			_buf = REGS_STR_PFX(buf, PINT, num);
 			__PINT(MASK_SET, mask_set);
 			__PINT(MASK_CLEAR, mask_clear);
-			__PINT(IRQ, irq);
+			__PINT(REQUEST, request);
 			__PINT(ASSIGN, assign);
 			__PINT(EDGE_SET, edge_set);
 			__PINT(EDGE_CLEAR, edge_clear);
