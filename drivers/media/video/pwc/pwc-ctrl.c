@@ -782,29 +782,32 @@ int pwc_get_shutter_speed(struct pwc_device *pdev, int *value)
 	return 0;
 }
 
-
 /* POWER */
-
-int pwc_camera_power(struct pwc_device *pdev, int power)
+void pwc_camera_power(struct pwc_device *pdev, int power)
 {
 	char buf;
+	int r;
+
+	if (!pdev->power_save)
+		return;
 
 	if (pdev->type < 675 || (pdev->type < 730 && pdev->release < 6))
-		return 0;	/* Not supported by Nala or Timon < release 6 */
+		return;	/* Not supported by Nala or Timon < release 6 */
 
 	if (power)
 		buf = 0x00; /* active */
 	else
 		buf = 0xFF; /* power save */
-	return send_control_msg(pdev,
+	r = send_control_msg(pdev,
 		SET_STATUS_CTL, SET_POWER_SAVE_MODE_FORMATTER,
 		&buf, sizeof(buf));
+
+	if (r < 0)
+		PWC_ERROR("Failed to power %s camera (%d)\n",
+			  power ? "on" : "off", r);
 }
 
-
-
 /* private calls */
-
 int pwc_restore_user(struct pwc_device *pdev)
 {
 	return send_control_msg(pdev,
@@ -1011,6 +1014,7 @@ static int pwc_get_wb_delay(struct pwc_device *pdev, int *value)
 int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value)
 {
 	unsigned char buf[2];
+	int r;
 
 	if (pdev->type < 730)
 		return 0;
@@ -1028,8 +1032,12 @@ int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value)
 	buf[0] = on_value;
 	buf[1] = off_value;
 
-	return send_control_msg(pdev,
+	r = send_control_msg(pdev,
 		SET_STATUS_CTL, LED_FORMATTER, &buf, sizeof(buf));
+	if (r < 0)
+		PWC_ERROR("Failed to set LED on/off time (%d)\n", r);
+
+	return r;
 }
 
 static int pwc_get_leds(struct pwc_device *pdev, int *on_value, int *off_value)

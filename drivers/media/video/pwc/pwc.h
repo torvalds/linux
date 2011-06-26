@@ -176,6 +176,7 @@ struct pwc_device
 	char vsnapshot;		/* snapshot mode */
 	char vsync;		/* used by isoc handler */
 	char vmirror;		/* for ToUCaM series */
+	char power_save;	/* Do powersaving for this cam */
 
 	int cmd_len;
 	unsigned char cmd_buf[13];
@@ -290,7 +291,7 @@ extern int pwc_set_dynamic_noise(struct pwc_device *pdev, int noise);
 extern int pwc_get_dynamic_noise(struct pwc_device *pdev, int *noise);
 
 /* Power down or up the camera; not supported by all models */
-extern int pwc_camera_power(struct pwc_device *pdev, int power);
+extern void pwc_camera_power(struct pwc_device *pdev, int power);
 
 /* Private ioctl()s; see pwc-ioctl.h */
 extern long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg);

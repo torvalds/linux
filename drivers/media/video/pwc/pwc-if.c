@@ -133,7 +133,7 @@ static int default_fps = 10;
 #ifdef CONFIG_USB_PWC_DEBUG
 	int pwc_trace = PWC_DEBUG_LEVEL;
 #endif
-static int power_save;
+static int power_save = -1;
 static int led_on = 100, led_off; /* defaults to LED that is on while in use */
 static int pwc_preferred_compression = 1; /* 0..3 = uncompressed..high */
 static struct {
@@ -720,7 +720,6 @@ static int pwc_video_open(struct file *file)
 		return -EBUSY;
 	}
 
-	pwc_construct(pdev); /* set min/max sizes correct */
 	if (!pdev->usb_init) {
 		PWC_DEBUG_OPEN("Doing first time initialization.\n");
 		pdev->usb_init = 1;
@@ -735,16 +734,9 @@ static int pwc_video_open(struct file *file)
 		}
 	}
 
-	/* Turn on camera */
-	if (power_save) {
-		i = pwc_camera_power(pdev, 1);
-		if (i < 0)
-			PWC_DEBUG_OPEN("Failed to restore power to the camera! (%d)\n", i);
-	}
-	/* Set LED on/off time */
-	if (pwc_set_leds(pdev, led_on, led_off) < 0)
-		PWC_DEBUG_OPEN("Failed to set LED on/off time.\n");
-
+	/* Turn on camera and set LEDS on */
+	pwc_camera_power(pdev, 1);
+	pwc_set_leds(pdev, led_on, led_off);
 
 	/* So far, so good. Allocate memory. */
 	i = pwc_allocate_buffers(pdev);
@@ -756,7 +748,6 @@ static int pwc_video_open(struct file *file)
 
 	/* Reset buffers & parameters */
 	pdev->visoc_errors = 0;
-	pwc_construct(pdev); /* set min/max sizes correct */
 
 	/* Set some defaults */
 	pdev->vsnapshot = 0;
@@ -815,7 +806,6 @@ static int pwc_video_close(struct file *file)
 {
 	struct video_device *vdev = file->private_data;
 	struct pwc_device *pdev;
-	int i;
 
 	PWC_DEBUG_OPEN(">> video_close called(vdev = 0x%p).\n", vdev);
 
@@ -833,14 +823,8 @@ static int pwc_video_close(struct file *file)
 
 	/* Turn off LEDS and power down camera, but only when not unplugged */
 	if (pdev->udev) {
-		/* Turn LEDs off */
-		if (pwc_set_leds(pdev, 0, 0) < 0)
-			PWC_DEBUG_MODULE("Failed to set LED on/off time.\n");
-		if (power_save) {
-			i = pwc_camera_power(pdev, 0);
-			if (i < 0)
-				PWC_ERROR("Failed to power down camera (%d)\n", i);
-		}
+		pwc_set_leds(pdev, 0, 0);
+		pwc_camera_power(pdev, 0);
 		pdev->vopen--;
 		PWC_DEBUG_OPEN("<< video_close() vopen=%d\n", pdev->vopen);
 	}
@@ -1016,6 +1000,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	int hint, rc;
 	int features = 0;
 	int video_nr = -1; /* default: use next available device */
+	int my_power_save = power_save;
 	char serial_number[30], *name;
 
 	vendor_id = le16_to_cpu(udev->descriptor.idVendor);
@@ -1133,7 +1118,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			PWC_INFO("Logitech QuickCam Zoom (new model) USB webcam detected.\n");
 			name = "Logitech QuickCam Zoom";
 			type_id = 740; /* CCD sensor */
-			power_save = 1;
+			if (my_power_save == -1)
+				my_power_save = 1;
 			break;
 		case 0x08b5:
 			PWC_INFO("Logitech QuickCam Orbit/Sphere USB webcam detected.\n");
@@ -1250,6 +1236,9 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	else
 		return -ENODEV; /* Not any of the know types; but the list keeps growing. */
 
+	if (my_power_save == -1)
+		my_power_save = 0;
+
 	memset(serial_number, 0, 30);
 	usb_string(udev, udev->descriptor.iSerialNumber, serial_number, 29);
 	PWC_DEBUG_PROBE("Device serial number is %s\n", serial_number);
@@ -1278,6 +1267,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		pdev->angle_range.tilt_min = -3000;
 		pdev->angle_range.tilt_max =  2500;
 	}
+	pwc_construct(pdev); /* set min/max sizes correct */
 
 	mutex_init(&pdev->modlock);
 	spin_lock_init(&pdev->queued_bufs_lock);
@@ -1285,6 +1275,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 
 	pdev->udev = udev;
 	pdev->vcompression = pwc_preferred_compression;
+	pdev->power_save = my_power_save;
 
 	/* Init videobuf2 queue structure */
 	memset(&pdev->vb_queue, 0, sizeof(pdev->vb_queue));
@@ -1424,7 +1415,7 @@ module_param(fps, int, 0444);
 #ifdef CONFIG_USB_PWC_DEBUG
 module_param_named(trace, pwc_trace, int, 0644);
 #endif
-module_param(power_save, int, 0444);
+module_param(power_save, int, 0644);
 module_param(compression, int, 0444);
 module_param_array(leds, int, &leds_nargs, 0444);
 module_param_array(dev_hint, charp, &dev_hint_nargs, 0444);
@@ -1434,7 +1425,7 @@ MODULE_PARM_DESC(fps, "Initial frames per second. Varies with model, useful rang
 #ifdef CONFIG_USB_PWC_DEBUG
 MODULE_PARM_DESC(trace, "For debugging purposes");
 #endif
-MODULE_PARM_DESC(power_save, "Turn power save feature in camera on or off");
+MODULE_PARM_DESC(power_save, "Turn power saving for new cameras on or off");
 MODULE_PARM_DESC(compression, "Preferred compression quality. Range 0 (uncompressed) to 3 (high compression)");
 MODULE_PARM_DESC(leds, "LED on,off time in milliseconds");
 MODULE_PARM_DESC(dev_hint, "Device node hints");
@@ -1491,8 +1482,6 @@ static int __init usb_pwc_init(void)
 		pwc_preferred_compression = compression;
 		PWC_DEBUG_MODULE("Preferred compression set to %d.\n", pwc_preferred_compression);
 	}
-	if (power_save)
-		PWC_DEBUG_MODULE("Enabling power save on open/close.\n");
 	if (leds[0] >= 0)
 		led_on = leds[0];
 	if (leds[1] >= 0)
