@@ -325,8 +325,16 @@ skip_l2en:
 ENDPROC(omap4_cpu_resume)
 #endif
 
+#ifndef CONFIG_OMAP4_ERRATA_I688
+ENTRY(omap_bus_sync)
+	mov	pc, lr
+ENDPROC(omap_bus_sync)
+#endif
+
 ENTRY(omap_do_wfi)
 	stmfd	sp!, {lr}
+	/* Drain interconnect write buffers. */
+	bl omap_bus_sync
 
 	/*
 	 * Execute an ISB instruction to ensure that all of the

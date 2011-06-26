@@ -15,11 +15,14 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/memblock.h>
 
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
+#include <asm/mach/map.h>
 
 #include <plat/irqs.h>
+#include <plat/sram.h>
 
 #include <mach/hardware.h>
 #include <mach/omap-wakeupgen.h>
@@ -32,6 +35,54 @@ static void __iomem *l2cache_base;
 #endif
 
 static void __iomem *sar_ram_base;
+
+#ifdef CONFIG_OMAP4_ERRATA_I688
+/* Used to implement memory barrier on DRAM path */
+#define OMAP4_DRAM_BARRIER_VA			0xfe600000
+
+void __iomem *dram_sync, *sram_sync;
+
+void omap_bus_sync(void)
+{
+	if (dram_sync && sram_sync) {
+		writel_relaxed(readl_relaxed(dram_sync), dram_sync);
+		writel_relaxed(readl_relaxed(sram_sync), sram_sync);
+		isb();
+	}
+}
+
+static int __init omap_barriers_init(void)
+{
+	struct map_desc dram_io_desc[1];
+	phys_addr_t paddr;
+	u32 size;
+
+	if (!cpu_is_omap44xx())
+		return -ENODEV;
+
+	size = ALIGN(PAGE_SIZE, SZ_1M);
+	paddr = memblock_alloc(size, SZ_1M);
+	if (!paddr) {
+		pr_err("%s: failed to reserve 4 Kbytes\n", __func__);
+		return -ENOMEM;
+	}
+	memblock_free(paddr, size);
+	memblock_remove(paddr, size);
+	dram_io_desc[0].virtual = OMAP4_DRAM_BARRIER_VA;
+	dram_io_desc[0].pfn = __phys_to_pfn(paddr);
+	dram_io_desc[0].length = size;
+	dram_io_desc[0].type = MT_MEMORY_SO;
+	iotable_init(dram_io_desc, ARRAY_SIZE(dram_io_desc));
+	dram_sync = (void __iomem *) dram_io_desc[0].virtual;
+	sram_sync = (void __iomem *) OMAP4_SRAM_VA;
+
+	pr_info("OMAP4: Map 0x%08llx to 0x%08lx for dram barrier\n",
+		(long long) paddr, dram_io_desc[0].virtual);
+
+	return 0;
+}
+core_initcall(omap_barriers_init);
+#endif
 
 void __init gic_init_irq(void)
 {
