@@ -239,21 +239,18 @@ ENDPROC(_unset_dram_srfs)
 
 ENTRY(_set_sic_iwr)
 #ifdef SIC_IWR0
-	P0.H = hi(SIC_IWR0);
-	P0.L = lo(SIC_IWR0);
-	P1.H = hi(SIC_IWR1);
-	P1.L = lo(SIC_IWR1);
-	[P1] = R1;
+	P0.H = hi(SYSMMR_BASE);
+	P0.L = lo(SYSMMR_BASE);
+	[P0 + (SIC_IWR0 - SYSMMR_BASE)] = R0;
+	[P0 + (SIC_IWR1 - SYSMMR_BASE)] = R1;
 # ifdef SIC_IWR2
-	P1.H = hi(SIC_IWR2);
-	P1.L = lo(SIC_IWR2);
-	[P1] = R2;
+	[P0 + (SIC_IWR2 - SYSMMR_BASE)] = R2;
 # endif
 #else
 	P0.H = hi(SIC_IWR);
 	P0.L = lo(SIC_IWR);
-#endif
 	[P0] = R0;
+#endif
 
 	SSYNC;
 	RTS;
