@@ -323,6 +323,29 @@ bfin_debug_mmrs_hmdma(struct dentry *parent, unsigned long base, int num)
 #define HMDMA(num) bfin_debug_mmrs_hmdma(parent, HMDMA##num##_CONTROL, num)
 
 /*
+ * Peripheral Interrupts (PINT/GPIO)
+ */
+#ifdef PINT0_MASK_SET
+#define __PINT(uname, lname) __REGS(pint, #uname, lname)
+static void __init __maybe_unused
+bfin_debug_mmrs_pint(struct dentry *parent, unsigned long base, int num)
+{
+	char buf[32], *_buf = REGS_STR_PFX(buf, PINT, num);
+	__PINT(MASK_SET, mask_set);
+	__PINT(MASK_CLEAR, mask_clear);
+	__PINT(REQUEST, request);
+	__PINT(ASSIGN, assign);
+	__PINT(EDGE_SET, edge_set);
+	__PINT(EDGE_CLEAR, edge_clear);
+	__PINT(INVERT_SET, invert_set);
+	__PINT(INVERT_CLEAR, invert_clear);
+	__PINT(PINSTATE, pinstate);
+	__PINT(LATCH, latch);
+}
+#define PINT(num) bfin_debug_mmrs_pint(parent, PINT##num##_MASK_SET, num)
+#endif
+
+/*
  * Port/GPIO
  */
 #define bfin_gpio_regs gpio_port_t
@@ -1270,6 +1293,14 @@ static int __init bfin_debug_mmrs_init(void)
 	D32(OTP_DATA3);
 #endif
 
+#ifdef PINT0_MASK_SET
+	parent = debugfs_create_dir("pint", top);
+	PINT(0);
+	PINT(1);
+	PINT(2);
+	PINT(3);
+#endif
+
 #ifdef PIXC_CTL
 	parent = debugfs_create_dir("pixc", top);
 	D16(PIXC_CTL);
@@ -1833,30 +1864,11 @@ static int __init bfin_debug_mmrs_init(void)
 	{
 		int num;
 		unsigned long base;
-		char *_buf, buf[32];
 
 		base = PORTA_FER;
 		for (num = 0; num < 10; ++num) {
 			PORT(base, num);
 			base += sizeof(struct bfin_gpio_regs);
-		}
-
-#define __PINT(uname, lname) __REGS(pint, #uname, lname)
-		parent = debugfs_create_dir("pint", top);
-		base = PINT0_MASK_SET;
-		for (num = 0; num < 4; ++num) {
-			_buf = REGS_STR_PFX(buf, PINT, num);
-			__PINT(MASK_SET, mask_set);
-			__PINT(MASK_CLEAR, mask_clear);
-			__PINT(REQUEST, request);
-			__PINT(ASSIGN, assign);
-			__PINT(EDGE_SET, edge_set);
-			__PINT(EDGE_CLEAR, edge_clear);
-			__PINT(INVERT_SET, invert_set);
-			__PINT(INVERT_CLEAR, invert_clear);
-			__PINT(PINSTATE, pinstate);
-			__PINT(LATCH, latch);
-			base += sizeof(struct bfin_pint_regs);
 		}
 
 	}
