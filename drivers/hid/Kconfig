@@ -172,6 +172,20 @@ config HID_EZKEY
 	---help---
 	Support for Ezkey BTC 8193 keyboard.
 
+config HID_HOLTEK
+	tristate "Holtek On Line Grip based game controller support"
+	depends on USB_HID
+	---help---
+	  Say Y here if you have a Holtek On Line Grip based game controller.
+
+config HOLTEK_FF
+	bool "Holtek On Line Grip force feedback support"
+	depends on HID_HOLTEK
+	select INPUT_FF_MEMLESS
+	---help---
+	  Say Y here if you have a Holtek On Line Grip based game controller
+	  and want to have force feedback support for it.
+
 config HID_KEYTOUCH
 	tristate "Keytouch HID devices"
 	depends on USB_HID
