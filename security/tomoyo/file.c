@@ -712,7 +712,7 @@ int tomoyo_path_number_perm(const u8 type, struct path *path,
 	int idx;
 
 	if (tomoyo_init_request_info(&r, NULL, tomoyo_pn2mac[type])
-	    == TOMOYO_CONFIG_DISABLED || !path->mnt || !path->dentry)
+	    == TOMOYO_CONFIG_DISABLED || !path->dentry)
 		return 0;
 	idx = tomoyo_read_lock();
 	if (!tomoyo_get_realpath(&buf, path))
@@ -753,8 +753,6 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 	struct tomoyo_request_info r;
 	int idx;
 
-	if (!path->mnt)
-		return 0;
 	buf.name = NULL;
 	r.mode = TOMOYO_CONFIG_DISABLED;
 	idx = tomoyo_read_lock();
@@ -798,8 +796,6 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
 	bool is_enforce;
 	int idx;
 
-	if (!path->mnt)
-		return 0;
 	if (tomoyo_init_request_info(&r, NULL, tomoyo_p2mac[operation])
 	    == TOMOYO_CONFIG_DISABLED)
 		return 0;
@@ -842,8 +838,7 @@ int tomoyo_mkdev_perm(const u8 operation, struct path *path,
 	struct tomoyo_path_info buf;
 	int idx;
 
-	if (!path->mnt ||
-	    tomoyo_init_request_info(&r, NULL, tomoyo_pnnn2mac[operation])
+	if (tomoyo_init_request_info(&r, NULL, tomoyo_pnnn2mac[operation])
 	    == TOMOYO_CONFIG_DISABLED)
 		return 0;
 	idx = tomoyo_read_lock();
@@ -884,8 +879,7 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 	struct tomoyo_request_info r;
 	int idx;
 
-	if (!path1->mnt || !path2->mnt ||
-	    tomoyo_init_request_info(&r, NULL, tomoyo_pp2mac[operation])
+	if (tomoyo_init_request_info(&r, NULL, tomoyo_pp2mac[operation])
 	    == TOMOYO_CONFIG_DISABLED)
 		return 0;
 	buf1.name = NULL;
