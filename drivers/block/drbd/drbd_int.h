@@ -938,7 +938,6 @@ struct drbd_backing_dev {
 };
 
 struct drbd_md_io {
-	struct drbd_conf *mdev;
 	struct completion event;
 	int error;
 };
@@ -1095,7 +1094,8 @@ struct drbd_conf {
 	wait_queue_head_t ee_wait;
 	struct page *md_io_page;	/* one page buffer for md_io */
 	struct page *md_io_tmpp;	/* for logical_block_size != 512 */
-	struct mutex md_io_mutex;	/* protects the md_io_buffer */
+	struct drbd_md_io md_io;
+	struct mutex md_io_mutex;	/* protects the md_io, md_io_page and md_io_tmpp */
 	spinlock_t al_lock;
 	wait_queue_head_t al_wait;
 	struct lru_cache *act_log;	/* activity log */

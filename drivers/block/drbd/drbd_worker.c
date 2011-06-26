@@ -70,8 +70,11 @@ rwlock_t global_state_lock;
 void drbd_md_io_complete(struct bio *bio, int error)
 {
 	struct drbd_md_io *md_io;
+	struct drbd_conf *mdev;
 
 	md_io = (struct drbd_md_io *)bio->bi_private;
+	mdev = container_of(md_io, struct drbd_conf, md_io);
+
 	md_io->error = error;
 
 	complete(&md_io->event);
