@@ -199,6 +199,7 @@ struct d40_chan {
 	struct dma_chan			 chan;
 	struct tasklet_struct		 tasklet;
 	struct list_head		 client;
+	struct list_head		 pending_queue;
 	struct list_head		 active;
 	struct list_head		 queue;
 	struct stedma40_chan_cfg	 dma_cfg;
@@ -644,7 +645,20 @@ static struct d40_desc *d40_first_active_get(struct d40_chan *d40c)
 
 static void d40_desc_queue(struct d40_chan *d40c, struct d40_desc *desc)
 {
-	list_add_tail(&desc->node, &d40c->queue);
+	list_add_tail(&desc->node, &d40c->pending_queue);
+}
+
+static struct d40_desc *d40_first_pending(struct d40_chan *d40c)
+{
+	struct d40_desc *d;
+
+	if (list_empty(&d40c->pending_queue))
+		return NULL;
+
+	d = list_first_entry(&d40c->pending_queue,
+			     struct d40_desc,
+			     node);
+	return d;
 }
 
 static struct d40_desc *d40_first_queued(struct d40_chan *d40c)
@@ -801,6 +815,11 @@ static void d40_term_all(struct d40_chan *d40c)
 		d40_desc_free(d40c, d40d);
 	}
 
+	/* Release pending descriptors */
+	while ((d40d = d40_first_pending(d40c))) {
+		d40_desc_remove(d40d);
+		d40_desc_free(d40c, d40d);
+	}
 
 	d40c->pending_tx = 0;
 	d40c->busy = false;
@@ -2151,7 +2170,9 @@ static void d40_issue_pending(struct dma_chan *chan)
 
 	spin_lock_irqsave(&d40c->lock, flags);
 
-	/* Busy means that pending jobs are already being processed */
+	list_splice_tail_init(&d40c->pending_queue, &d40c->queue);
+
+	/* Busy means that queued jobs are already being processed */
 	if (!d40c->busy)
 		(void) d40_queue_start(d40c);
 
@@ -2340,6 +2361,7 @@ static void __init d40_chan_init(struct d40_base *base, struct dma_device *dma,
 
 		INIT_LIST_HEAD(&d40c->active);
 		INIT_LIST_HEAD(&d40c->queue);
+		INIT_LIST_HEAD(&d40c->pending_queue);
 		INIT_LIST_HEAD(&d40c->client);
 
 		tasklet_init(&d40c->tasklet, dma_tasklet,
