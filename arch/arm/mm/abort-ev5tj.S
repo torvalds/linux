@@ -25,9 +25,9 @@ ENTRY(v5tj_early_abort)
 	bic	r1, r1, #1 << 11 | 1 << 10	@ clear bits 11 and 10 of FSR
 	tst	r3, #PSR_J_BIT			@ Java?
 	movne	pc, lr
-	do_thumb_abort
+	do_thumb_abort fsr=r1, pc=r2, psr=r3, tmp=r3
 	ldreq	r3, [r2]			@ read aborted ARM instruction
-	do_ldrd_abort
+	do_ldrd_abort tmp=r2, insn=r3
 	tst	r3, #1 << 20			@ L = 0 -> write
 	orreq	r1, r1, #1 << 11		@ yes.
 	mov	pc, lr
