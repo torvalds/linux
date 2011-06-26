@@ -441,8 +441,6 @@ struct tomoyo_io_buffer {
 	int (*poll) (struct file *file, poll_table *wait);
 	/* Exclusive lock for this structure.   */
 	struct mutex io_sem;
-	/* Index returned by tomoyo_read_lock(). */
-	int reader_idx;
 	char __user *read_user_buf;
 	int read_user_buf_avail;
 	struct {
@@ -480,6 +478,10 @@ struct tomoyo_io_buffer {
 	int writebuf_size;
 	/* Type of this interface.              */
 	u8 type;
+	/* Users counter protected by tomoyo_io_buffer_list_lock. */
+	u8 users;
+	/* List for telling GC not to kfree() elements. */
+	struct list_head list;
 };
 
 /*
@@ -651,7 +653,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm);
 void tomoyo_print_ulong(char *buffer, const int buffer_len,
 			const unsigned long value, const u8 type);
 void tomoyo_put_name_union(struct tomoyo_name_union *ptr);
-void tomoyo_run_gc(void);
+void tomoyo_notify_gc(struct tomoyo_io_buffer *head, const bool is_register);
 void tomoyo_memory_free(void *ptr);
 int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 			 struct tomoyo_acl_param *param,

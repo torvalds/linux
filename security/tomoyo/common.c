@@ -1820,9 +1820,7 @@ static void tomoyo_read_self_domain(struct tomoyo_io_buffer *head)
  * @type: Type of interface.
  * @file: Pointer to "struct file".
  *
- * Associates policy handler and returns 0 on success, -ENOMEM otherwise.
- *
- * Caller acquires tomoyo_read_lock().
+ * Returns 0 on success, negative value otherwise.
  */
 int tomoyo_open_control(const u8 type, struct file *file)
 {
@@ -1921,9 +1919,6 @@ int tomoyo_open_control(const u8 type, struct file *file)
 			return -ENOMEM;
 		}
 	}
-	if (type != TOMOYO_QUERY && type != TOMOYO_AUDIT)
-		head->reader_idx = tomoyo_read_lock();
-	file->private_data = head;
 	/*
 	 * If the file is /sys/kernel/security/tomoyo/query , increment the
 	 * observer counter.
@@ -1932,6 +1927,8 @@ int tomoyo_open_control(const u8 type, struct file *file)
 	 */
 	if (type == TOMOYO_QUERY)
 		atomic_inc(&tomoyo_query_observers);
+	file->private_data = head;
+	tomoyo_notify_gc(head, true);
 	return 0;
 }
 
@@ -2000,13 +1997,12 @@ static inline bool tomoyo_has_more_namespace(struct tomoyo_io_buffer *head)
  * @buffer_len: Size of @buffer.
  *
  * Returns bytes read on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
  */
 int tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
 			const int buffer_len)
 {
 	int len;
+	int idx;
 
 	if (!head->read)
 		return -ENOSYS;
@@ -2014,6 +2010,7 @@ int tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
 		return -EINTR;
 	head->read_user_buf = buffer;
 	head->read_user_buf_avail = buffer_len;
+	idx = tomoyo_read_lock();
 	if (tomoyo_flush(head))
 		/* Call the policy handler. */
 		do {
@@ -2021,6 +2018,7 @@ int tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
 			head->read(head);
 		} while (tomoyo_flush(head) &&
 			 tomoyo_has_more_namespace(head));
+	tomoyo_read_unlock(idx);
 	len = head->read_user_buf - buffer;
 	mutex_unlock(&head->io_sem);
 	return len;
@@ -2071,8 +2069,6 @@ static int tomoyo_parse_policy(struct tomoyo_io_buffer *head, char *line)
  * @buffer_len: Size of @buffer.
  *
  * Returns @buffer_len on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
  */
 int tomoyo_write_control(struct tomoyo_io_buffer *head,
 			 const char __user *buffer, const int buffer_len)
@@ -2080,12 +2076,14 @@ int tomoyo_write_control(struct tomoyo_io_buffer *head,
 	int error = buffer_len;
 	size_t avail_len = buffer_len;
 	char *cp0 = head->write_buf;
+	int idx;
 	if (!head->write)
 		return -ENOSYS;
 	if (!access_ok(VERIFY_READ, buffer, buffer_len))
 		return -EFAULT;
 	if (mutex_lock_interruptible(&head->io_sem))
 		return -EINTR;
+	idx = tomoyo_read_lock();
 	/* Read a line and dispatch it to the policy handler. */
 	while (avail_len > 0) {
 		char c;
@@ -2148,6 +2146,7 @@ int tomoyo_write_control(struct tomoyo_io_buffer *head,
 		}
 	}
 out:
+	tomoyo_read_unlock(idx);
 	mutex_unlock(&head->io_sem);
 	return error;
 }
@@ -2157,30 +2156,18 @@ out:
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Releases memory and returns 0.
- *
- * Caller looses tomoyo_read_lock().
+ * Returns 0.
  */
 int tomoyo_close_control(struct tomoyo_io_buffer *head)
 {
-	const bool is_write = !!head->write_buf;
-
 	/*
 	 * If the file is /sys/kernel/security/tomoyo/query , decrement the
 	 * observer counter.
 	 */
-	if (head->type == TOMOYO_QUERY)
-		atomic_dec(&tomoyo_query_observers);
-	else if (head->type != TOMOYO_AUDIT)
-		tomoyo_read_unlock(head->reader_idx);
-	/* Release memory used for policy I/O. */
-	kfree(head->read_buf);
-	head->read_buf = NULL;
-	kfree(head->write_buf);
-	head->write_buf = NULL;
-	kfree(head);
-	if (is_write)
-		tomoyo_run_gc();
+	if (head->type == TOMOYO_QUERY &&
+	    atomic_dec_and_test(&tomoyo_query_observers))
+		wake_up_all(&tomoyo_answer_wait);
+	tomoyo_notify_gc(head, false);
 	return 0;
 }
 
