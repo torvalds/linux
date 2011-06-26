@@ -134,32 +134,6 @@ struct bfin_dpmc_platform_data {
 	unsigned short vr_settling_time; /* in us */
 };
 
-#else
-
-#define PM_PUSH(x) \
-	R0 = [P0 + (x - SRAM_BASE_ADDRESS)];\
-	[--SP] =  R0;\
-
-#define PM_POP(x) \
-	R0 = [SP++];\
-	[P0 + (x - SRAM_BASE_ADDRESS)] = R0;\
-
-#define PM_SYS_PUSH(x) \
-	R0 = [P0 + (x - PLL_CTL)];\
-	[--SP] =  R0;\
-
-#define PM_SYS_POP(x) \
-	R0 = [SP++];\
-	[P0 + (x - PLL_CTL)] = R0;\
-
-#define PM_SYS_PUSH16(x) \
-	R0 = w[P0 + (x - PLL_CTL)];\
-	[--SP] =  R0;\
-
-#define PM_SYS_POP16(x) \
-	R0 = [SP++];\
-	w[P0 + (x - PLL_CTL)] = R0;\
-
 #endif
 
 #endif	/*_BLACKFIN_DPMC_H_*/

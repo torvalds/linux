@@ -268,6 +268,30 @@ ENDPROC(_test_pll_locked)
 
 .section .text
 
+#define PM_PUSH(x) \
+	R0 = [P0 + (x - SRAM_BASE_ADDRESS)];\
+	[--SP] =  R0;\
+
+#define PM_POP(x) \
+	R0 = [SP++];\
+	[P0 + (x - SRAM_BASE_ADDRESS)] = R0;\
+
+#define PM_SYS_PUSH(x) \
+	R0 = [P0 + (x - PLL_CTL)];\
+	[--SP] =  R0;\
+
+#define PM_SYS_POP(x) \
+	R0 = [SP++];\
+	[P0 + (x - PLL_CTL)] = R0;\
+
+#define PM_SYS_PUSH16(x) \
+	R0 = w[P0 + (x - PLL_CTL)];\
+	[--SP] =  R0;\
+
+#define PM_SYS_POP16(x) \
+	R0 = [SP++];\
+	w[P0 + (x - PLL_CTL)] = R0;\
+
 ENTRY(_do_hibernate)
 	[--SP] = ( R7:0, P5:0 );
 	[--SP] =  RETS;
