@@ -376,7 +376,6 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	int i, j, ret;
 	struct usb_interface *intf;
 	struct usb_host_interface *idesc = NULL;
-	void *kbuf;
 
 	if (pdev->iso_init)
 		return 0;
@@ -416,20 +415,7 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	/* Allocate Isochronuous pipe buffers */
-	for (i = 0; i < MAX_ISO_BUFS; i++) {
-		kbuf = kzalloc(ISO_BUFFER_SIZE, GFP_KERNEL);
-		if (kbuf == NULL) {
-			PWC_ERROR("Failed to allocate iso buffer %d.\n", i);
-			pdev->iso_init = 1;
-			pwc_isoc_cleanup(pdev);
-			return -ENOMEM;
-		}
-		PWC_DEBUG_MEMORY("Allocated iso buffer at %p.\n", kbuf);
-		pdev->sbuf[i].data = kbuf;
-	}
-
-	/* Allocate Isochronuous urbs */
+	/* Allocate and init Isochronuous urbs */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		urb = usb_alloc_urb(ISO_FRAMES_PER_DESC, GFP_KERNEL);
 		if (urb == NULL) {
@@ -438,19 +424,23 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 			pwc_isoc_cleanup(pdev);
 			return -ENOMEM;
 		}
-		pdev->sbuf[i].urb = urb;
+		pdev->urbs[i] = urb;
 		PWC_DEBUG_MEMORY("Allocated URB at 0x%p\n", urb);
-	}
-
-	/* init URB structure */
-	for (i = 0; i < MAX_ISO_BUFS; i++) {
-		urb = pdev->sbuf[i].urb;
 
 		urb->interval = 1; // devik
 		urb->dev = udev;
 		urb->pipe = usb_rcvisocpipe(udev, pdev->vendpoint);
-		urb->transfer_flags = URB_ISO_ASAP;
-		urb->transfer_buffer = pdev->sbuf[i].data;
+		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_buffer = usb_alloc_coherent(udev,
+							  ISO_BUFFER_SIZE,
+							  GFP_KERNEL,
+							  &urb->transfer_dma);
+		if (urb->transfer_buffer == NULL) {
+			PWC_ERROR("Failed to allocate urb buffer %d\n", i);
+			pdev->iso_init = 1;
+			pwc_isoc_cleanup(pdev);
+			return -ENOMEM;
+		}
 		urb->transfer_buffer_length = ISO_BUFFER_SIZE;
 		urb->complete = pwc_isoc_handler;
 		urb->context = pdev;
@@ -464,14 +454,14 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 
 	/* link */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
-		ret = usb_submit_urb(pdev->sbuf[i].urb, GFP_KERNEL);
+		ret = usb_submit_urb(pdev->urbs[i], GFP_KERNEL);
 		if (ret) {
 			PWC_ERROR("isoc_init() submit_urb %d failed with error %d\n", i, ret);
 			pdev->iso_init = 1;
 			pwc_isoc_cleanup(pdev);
 			return ret;
 		}
-		PWC_DEBUG_MEMORY("URB 0x%p submitted.\n", pdev->sbuf[i].urb);
+		PWC_DEBUG_MEMORY("URB 0x%p submitted.\n", pdev->urbs[i]);
 	}
 
 	/* All is done... */
@@ -486,12 +476,9 @@ static void pwc_iso_stop(struct pwc_device *pdev)
 
 	/* Unlinking ISOC buffers one by one */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
-		struct urb *urb;
-
-		urb = pdev->sbuf[i].urb;
-		if (urb) {
-			PWC_DEBUG_MEMORY("Unlinking URB %p\n", urb);
-			usb_kill_urb(urb);
+		if (pdev->urbs[i]) {
+			PWC_DEBUG_MEMORY("Unlinking URB %p\n", pdev->urbs[i]);
+			usb_kill_urb(pdev->urbs[i]);
 		}
 	}
 }
@@ -502,21 +489,22 @@ static void pwc_iso_free(struct pwc_device *pdev)
 
 	/* Freeing ISOC buffers one by one */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
-		struct urb *urb;
-
-		urb = pdev->sbuf[i].urb;
-		if (urb) {
+		if (pdev->urbs[i]) {
 			PWC_DEBUG_MEMORY("Freeing URB\n");
-			usb_free_urb(urb);
-			pdev->sbuf[i].urb = NULL;
+			if (pdev->urbs[i]->transfer_buffer) {
+				usb_free_coherent(pdev->udev,
+					pdev->urbs[i]->transfer_buffer_length,
+					pdev->urbs[i]->transfer_buffer,
+					pdev->urbs[i]->transfer_dma);
+			}
+			usb_free_urb(pdev->urbs[i]);
+			pdev->urbs[i] = NULL;
 		}
 	}
 }
 
 static void pwc_isoc_cleanup(struct pwc_device *pdev)
 {
-	int i;
-
 	PWC_DEBUG_OPEN(">> pwc_isoc_cleanup()\n");
 
 	if (pdev->iso_init == 0)
@@ -525,16 +513,6 @@ static void pwc_isoc_cleanup(struct pwc_device *pdev)
 	pwc_iso_stop(pdev);
 	pwc_iso_free(pdev);
 	usb_set_interface(pdev->udev, 0, 0);
-
-	/* Release Iso-pipe buffers */
-	for (i = 0; i < MAX_ISO_BUFS; i++) {
-		if (pdev->sbuf[i].data != NULL) {
-			PWC_DEBUG_MEMORY("Freeing ISO buffer at %p.\n",
-					 pdev->sbuf[i].data);
-			kfree(pdev->sbuf[i].data);
-			pdev->sbuf[i].data = NULL;
-		}
-	}
 
 	pdev->iso_init = 0;
 	PWC_DEBUG_OPEN("<< pwc_isoc_cleanup()\n");

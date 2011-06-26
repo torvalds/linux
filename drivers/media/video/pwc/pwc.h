@@ -128,15 +128,6 @@
 #define DEVICE_USE_CODEC3(x) ((x)>=700)
 #define DEVICE_USE_CODEC23(x) ((x)>=675)
 
-/* The following structures were based on cpia.h. Why reinvent the wheel? :-) */
-struct pwc_iso_buf
-{
-	void *data;
-	int  length;
-	int  read;
-	struct urb *urb;
-};
-
 /* intermediate buffers with raw data from the USB cam */
 struct pwc_frame_buf
 {
@@ -180,7 +171,7 @@ struct pwc_device
 	int cmd_len;
 	unsigned char cmd_buf[13];
 
-	struct pwc_iso_buf sbuf[MAX_ISO_BUFS];
+	struct urb *urbs[MAX_ISO_BUFS];
 	char iso_init;
 
 	/* videobuf2 queue and queued buffers list */
