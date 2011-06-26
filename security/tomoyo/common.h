@@ -211,6 +211,12 @@ enum tomoyo_mac_category_index {
  */
 #define TOMOYO_RETRY_REQUEST 1
 
+/* Index numbers for profile's PREFERENCE values. */
+enum tomoyo_pref_index {
+	TOMOYO_PREF_MAX_LEARNING_ENTRY,
+	TOMOYO_MAX_PREF
+};
+
 /********** Structure definitions. **********/
 
 /* Common header for holding ACL entries. */
@@ -497,6 +503,7 @@ struct tomoyo_profile {
 	struct tomoyo_preference preference;
 	u8 default_config;
 	u8 config[TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX];
+	unsigned int pref[TOMOYO_MAX_PREF];
 };
 
 /********** Function prototypes. **********/

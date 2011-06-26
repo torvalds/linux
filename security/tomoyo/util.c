@@ -899,35 +899,10 @@ const char *tomoyo_last_word(const char *name)
  */
 void tomoyo_warn_log(struct tomoyo_request_info *r, const char *fmt, ...)
 {
-	va_list args;
-	char *buffer;
-	const struct tomoyo_domain_info * const domain = r->domain;
-	const struct tomoyo_profile *profile = tomoyo_profile(domain->profile);
-	switch (r->mode) {
-	case TOMOYO_CONFIG_ENFORCING:
-		if (!profile->enforcing->enforcing_verbose)
-			return;
-		break;
-	case TOMOYO_CONFIG_PERMISSIVE:
-		if (!profile->permissive->permissive_verbose)
-			return;
-		break;
-	case TOMOYO_CONFIG_LEARNING:
-		if (!profile->learning->learning_verbose)
-			return;
-		break;
-	}
-	buffer = kmalloc(4096, GFP_NOFS);
-	if (!buffer)
-		return;
-	va_start(args, fmt);
-	vsnprintf(buffer, 4095, fmt, args);
-	va_end(args);
-	buffer[4095] = '\0';
-	printk(KERN_WARNING "%s: Access %s denied for %s\n",
-	       r->mode == TOMOYO_CONFIG_ENFORCING ? "ERROR" : "WARNING", buffer,
-	       tomoyo_last_word(domain->domainname->name));
-	kfree(buffer);
+	/*
+	 * Temporarily disabled.
+	 * Will be replaced with /sys/kernel/security/tomoyo/audit interface.
+	 */
 }
 
 /**
@@ -978,13 +953,13 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 			if (perm & (1 << i))
 				count++;
 	}
-	if (count < tomoyo_profile(domain->profile)->learning->
-	    learning_max_entry)
+	if (count < tomoyo_profile(domain->profile)->
+	    pref[TOMOYO_PREF_MAX_LEARNING_ENTRY])
 		return true;
 	if (!domain->quota_warned) {
 		domain->quota_warned = true;
 		printk(KERN_WARNING "TOMOYO-WARNING: "
-		       "Domain '%s' has so many ACLs to hold. "
+		       "Domain '%s' has too many ACLs to hold. "
 		       "Stopped learning mode.\n", domain->domainname->name);
 	}
 	return false;

@@ -11,16 +11,6 @@
 #include <linux/security.h>
 #include "common.h"
 
-static struct tomoyo_profile tomoyo_default_profile = {
-	.learning = &tomoyo_default_profile.preference,
-	.permissive = &tomoyo_default_profile.preference,
-	.enforcing = &tomoyo_default_profile.preference,
-	.preference.enforcing_verbose = true,
-	.preference.learning_max_entry = 2048,
-	.preference.learning_verbose = false,
-	.preference.permissive_verbose = true
-};
-
 /* Profile version. Currently only 20090903 is defined. */
 static unsigned int tomoyo_profile_version;
 
@@ -61,6 +51,11 @@ static const char *tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
 	[TOMOYO_MAX_MAC_INDEX + TOMOYO_MAC_CATEGORY_FILE] = "file",
 };
 
+/* String table for PREFERENCE keyword. */
+static const char * const tomoyo_pref_keywords[TOMOYO_MAX_PREF] = {
+	[TOMOYO_PREF_MAX_LEARNING_ENTRY] = "max_learning_entry",
+};
+
 /* Permit policy management by non-root user? */
 static bool tomoyo_manage_by_non_root;
 
@@ -71,11 +66,22 @@ static bool tomoyo_manage_by_non_root;
  *
  * @value: Bool value.
  */
+/*
 static const char *tomoyo_yesno(const unsigned int value)
 {
 	return value ? "yes" : "no";
 }
+*/
 
+/**
+ * tomoyo_addprintf - strncat()-like-snprintf().
+ *
+ * @buffer: Buffer to write to. Must be '\0'-terminated.
+ * @len:    Size of @buffer.
+ * @fmt:    The printf()'s format string, followed by parameters.
+ *
+ * Returns nothing.
+ */
 static void tomoyo_addprintf(char *buffer, int len, const char *fmt, ...)
 {
 	va_list args;
@@ -294,12 +300,10 @@ static struct tomoyo_profile *tomoyo_assign_profile(const unsigned int profile)
 	ptr = tomoyo_profile_ptr[profile];
 	if (!ptr && tomoyo_memory_ok(entry)) {
 		ptr = entry;
-		ptr->learning = &tomoyo_default_profile.preference;
-		ptr->permissive = &tomoyo_default_profile.preference;
-		ptr->enforcing = &tomoyo_default_profile.preference;
 		ptr->default_config = TOMOYO_CONFIG_DISABLED;
 		memset(ptr->config, TOMOYO_CONFIG_USE_DEFAULT,
 		       sizeof(ptr->config));
+		ptr->pref[TOMOYO_PREF_MAX_LEARNING_ENTRY] = 2048;
 		mb(); /* Avoid out-of-order execution. */
 		tomoyo_profile_ptr[profile] = ptr;
 		entry = NULL;
@@ -319,13 +323,22 @@ static struct tomoyo_profile *tomoyo_assign_profile(const unsigned int profile)
  */
 struct tomoyo_profile *tomoyo_profile(const u8 profile)
 {
+	static struct tomoyo_profile tomoyo_null_profile;
 	struct tomoyo_profile *ptr = tomoyo_profile_ptr[profile];
-	if (!tomoyo_policy_loaded)
-		return &tomoyo_default_profile;
-	BUG_ON(!ptr);
+	if (!ptr)
+		ptr = &tomoyo_null_profile;
 	return ptr;
 }
 
+/**
+ * tomoyo_find_yesno - Find values for specified keyword.
+ *
+ * @string: String to check.
+ * @find:   Name of keyword.
+ *
+ * Returns 1 if "@find=yes" was found, 0 if "@find=no" was found, -1 otherwise.
+ */
+/*
 static s8 tomoyo_find_yesno(const char *string, const char *find)
 {
 	const char *cp = strstr(string, find);
@@ -338,19 +351,17 @@ static s8 tomoyo_find_yesno(const char *string, const char *find)
 	}
 	return -1;
 }
+*/
 
-static void tomoyo_set_bool(bool *b, const char *string, const char *find)
-{
-	switch (tomoyo_find_yesno(string, find)) {
-	case 1:
-		*b = true;
-		break;
-	case 0:
-		*b = false;
-		break;
-	}
-}
-
+/**
+ * tomoyo_set_uint - Set value for specified preference.
+ *
+ * @i:      Pointer to "unsigned int".
+ * @string: String to check.
+ * @find:   Name of keyword.
+ *
+ * Returns nothing.
+ */
 static void tomoyo_set_uint(unsigned int *i, const char *string,
 			    const char *find)
 {
@@ -359,51 +370,16 @@ static void tomoyo_set_uint(unsigned int *i, const char *string,
 		sscanf(cp + strlen(find), "=%u", i);
 }
 
-static void tomoyo_set_pref(const char *name, const char *value,
-			    const bool use_default,
-			    struct tomoyo_profile *profile)
-{
-	struct tomoyo_preference **pref;
-	bool *verbose;
-	if (!strcmp(name, "enforcing")) {
-		if (use_default) {
-			pref = &profile->enforcing;
-			goto set_default;
-		}
-		profile->enforcing = &profile->preference;
-		verbose = &profile->preference.enforcing_verbose;
-		goto set_verbose;
-	}
-	if (!strcmp(name, "permissive")) {
-		if (use_default) {
-			pref = &profile->permissive;
-			goto set_default;
-		}
-		profile->permissive = &profile->preference;
-		verbose = &profile->preference.permissive_verbose;
-		goto set_verbose;
-	}
-	if (!strcmp(name, "learning")) {
-		if (use_default) {
-			pref = &profile->learning;
-			goto set_default;
-		}
-		profile->learning = &profile->preference;
-		tomoyo_set_uint(&profile->preference.learning_max_entry, value,
-			     "max_entry");
-		verbose = &profile->preference.learning_verbose;
-		goto set_verbose;
-	}
-	return;
- set_default:
-	*pref = &tomoyo_default_profile.preference;
-	return;
- set_verbose:
-	tomoyo_set_bool(verbose, value, "verbose");
-}
-
+/**
+ * tomoyo_set_mode - Set mode for specified profile.
+ *
+ * @name:    Name of functionality.
+ * @value:   Mode for @name.
+ * @profile: Pointer to "struct tomoyo_profile".
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
 static int tomoyo_set_mode(char *name, const char *value,
-			   const bool use_default,
 			   struct tomoyo_profile *profile)
 {
 	u8 i;
@@ -425,7 +401,7 @@ static int tomoyo_set_mode(char *name, const char *value,
 	} else {
 		return -EINVAL;
 	}
-	if (use_default) {
+	if (strstr(value, "use_default")) {
 		config = TOMOYO_CONFIG_USE_DEFAULT;
 	} else {
 		u8 mode;
@@ -455,34 +431,21 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
 {
 	char *data = head->write_buf;
 	unsigned int i;
-	bool use_default = false;
 	char *cp;
 	struct tomoyo_profile *profile;
 	if (sscanf(data, "PROFILE_VERSION=%u", &tomoyo_profile_version) == 1)
 		return 0;
 	i = simple_strtoul(data, &cp, 10);
-	if (data == cp) {
-		profile = &tomoyo_default_profile;
-	} else {
-		if (*cp != '-')
-			return -EINVAL;
-		data = cp + 1;
-		profile = tomoyo_assign_profile(i);
-		if (!profile)
-			return -EINVAL;
-	}
+	if (*cp != '-')
+		return -EINVAL;
+	data = cp + 1;
+	profile = tomoyo_assign_profile(i);
+	if (!profile)
+		return -EINVAL;
 	cp = strchr(data, '=');
 	if (!cp)
 		return -EINVAL;
 	*cp++ = '\0';
-	if (profile != &tomoyo_default_profile)
-		use_default = strstr(cp, "use_default") != NULL;
-	if (tomoyo_str_starts(&data, "PREFERENCE::")) {
-		tomoyo_set_pref(data, cp, use_default, profile);
-		return 0;
-	}
-	if (profile == &tomoyo_default_profile)
-		return -EINVAL;
 	if (!strcmp(data, "COMMENT")) {
 		static DEFINE_SPINLOCK(lock);
 		const struct tomoyo_path_info *new_comment
@@ -497,48 +460,13 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
 		tomoyo_put_name(old_comment);
 		return 0;
 	}
-	return tomoyo_set_mode(data, cp, use_default, profile);
-}
-
-static void tomoyo_print_preference(struct tomoyo_io_buffer *head,
-				    const int idx)
-{
-	struct tomoyo_preference *pref = &tomoyo_default_profile.preference;
-	const struct tomoyo_profile *profile = idx >= 0 ?
-		tomoyo_profile_ptr[idx] : NULL;
-	char buffer[16] = "";
-	if (profile) {
-		buffer[sizeof(buffer) - 1] = '\0';
-		snprintf(buffer, sizeof(buffer) - 1, "%u-", idx);
+	if (!strcmp(data, "PREFERENCE")) {
+		for (i = 0; i < TOMOYO_MAX_PREF; i++)
+			tomoyo_set_uint(&profile->pref[i], cp,
+					tomoyo_pref_keywords[i]);
+		return 0;
 	}
-	if (profile) {
-		pref = profile->learning;
-		if (pref == &tomoyo_default_profile.preference)
-			goto skip1;
-	}
-	tomoyo_io_printf(head, "%sPREFERENCE::%s={ "
-			 "verbose=%s max_entry=%u }\n",
-			 buffer, "learning",
-			 tomoyo_yesno(pref->learning_verbose),
-			 pref->learning_max_entry);
- skip1:
-	if (profile) {
-		pref = profile->permissive;
-		if (pref == &tomoyo_default_profile.preference)
-			goto skip2;
-	}
-	tomoyo_io_printf(head, "%sPREFERENCE::%s={ verbose=%s }\n",
-			 buffer, "permissive",
-			 tomoyo_yesno(pref->permissive_verbose));
- skip2:
-	if (profile) {
-		pref = profile->enforcing;
-		if (pref == &tomoyo_default_profile.preference)
-			return;
-	}
-	tomoyo_io_printf(head, "%sPREFERENCE::%s={ verbose=%s }\n",
-			 buffer, "enforcing",
-			 tomoyo_yesno(pref->enforcing_verbose));
+	return tomoyo_set_mode(data, cp, profile);
 }
 
 static void tomoyo_print_config(struct tomoyo_io_buffer *head, const u8 config)
@@ -561,7 +489,6 @@ static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 	switch (head->r.step) {
 	case 0:
 		tomoyo_io_printf(head, "PROFILE_VERSION=%s\n", "20090903");
-		tomoyo_print_preference(head, -1);
 		head->r.step++;
 		break;
 	case 1:
@@ -575,11 +502,18 @@ static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 		break;
 	case 2:
 		{
+			u8 i;
 			const struct tomoyo_path_info *comment =
 				profile->comment;
 			tomoyo_io_printf(head, "%u-COMMENT=", index);
 			tomoyo_set_string(head, comment ? comment->name : "");
 			tomoyo_set_lf(head);
+			tomoyo_io_printf(head, "%u-PREFERENCE={ ", index);
+			for (i = 0; i < TOMOYO_MAX_PREF; i++)
+				tomoyo_io_printf(head, "%s=%u ",
+						 tomoyo_pref_keywords[i],
+						 profile->pref[i]);
+			tomoyo_set_string(head, "}\n");
 			head->r.step++;
 		}
 		break;
@@ -606,7 +540,6 @@ static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 		}
 		if (head->r.bit == TOMOYO_MAX_MAC_INDEX
 		    + TOMOYO_MAX_MAC_CATEGORY_INDEX) {
-			tomoyo_print_preference(head, index);
 			head->r.index++;
 			head->r.step = 1;
 		}
@@ -1777,7 +1710,7 @@ static int tomoyo_write_answer(struct tomoyo_io_buffer *head)
 static void tomoyo_read_version(struct tomoyo_io_buffer *head)
 {
 	if (!head->r.eof) {
-		tomoyo_io_printf(head, "2.3.0");
+		tomoyo_io_printf(head, "2.4.0");
 		head->r.eof = true;
 	}
 }
