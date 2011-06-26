@@ -647,24 +647,11 @@ void bfin_demux_gpio_irq(unsigned int inta_irq,
 static unsigned char irq2pint_lut[NR_PINTS];
 static unsigned char pint2irq_lut[NR_PINT_SYS_IRQS * NR_PINT_BITS];
 
-struct pin_int_t {
-	unsigned int mask_set;
-	unsigned int mask_clear;
-	unsigned int request;
-	unsigned int assign;
-	unsigned int edge_set;
-	unsigned int edge_clear;
-	unsigned int invert_set;
-	unsigned int invert_clear;
-	unsigned int pinstate;
-	unsigned int latch;
-};
-
-static struct pin_int_t * const pint[NR_PINT_SYS_IRQS] = {
-	(struct pin_int_t *)PINT0_MASK_SET,
-	(struct pin_int_t *)PINT1_MASK_SET,
-	(struct pin_int_t *)PINT2_MASK_SET,
-	(struct pin_int_t *)PINT3_MASK_SET,
+static struct bfin_pint_regs * const pint[NR_PINT_SYS_IRQS] = {
+	(struct bfin_pint_regs *)PINT0_MASK_SET,
+	(struct bfin_pint_regs *)PINT1_MASK_SET,
+	(struct bfin_pint_regs *)PINT2_MASK_SET,
+	(struct bfin_pint_regs *)PINT3_MASK_SET,
 };
 
 inline unsigned int get_irq_base(u32 bank, u8 bmap)
