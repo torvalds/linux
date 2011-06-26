@@ -582,8 +582,8 @@ static void sca_dump_rings(struct net_device *dev)
 	       sca_in(DSR_RX(phy_node(port)), card), port->rxin,
 	       sca_in(DSR_RX(phy_node(port)), card) & DSR_DE ? "" : "in");
 	for (cnt = 0; cnt < port_to_card(port)->rx_ring_buffers; cnt++)
-		printk(" %02X", readb(&(desc_address(port, cnt, 0)->stat)));
-	printk(KERN_CONT "\n");
+		pr_cont(" %02X", readb(&(desc_address(port, cnt, 0)->stat)));
+	pr_cont("\n");
 
 	printk(KERN_DEBUG "TX ring: CDA=%u EDA=%u DSR=%02X in=%u "
 	       "last=%u %sactive",
@@ -593,8 +593,8 @@ static void sca_dump_rings(struct net_device *dev)
 	       sca_in(DSR_TX(phy_node(port)), card) & DSR_DE ? "" : "in");
 
 	for (cnt = 0; cnt < port_to_card(port)->tx_ring_buffers; cnt++)
-		printk(" %02X", readb(&(desc_address(port, cnt, 1)->stat)));
-	printk("\n");
+		pr_cont(" %02X", readb(&(desc_address(port, cnt, 1)->stat)));
+	pr_cont("\n");
 
 	printk(KERN_DEBUG "MSCI: MD: %02x %02x %02x, ST: %02x %02x %02x %02x,"
 	       " FST: %02x CST: %02x %02x\n",
