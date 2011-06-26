@@ -160,7 +160,7 @@ struct pwc_device
 	char serial[30];	/* serial number (string) */
 
 	/*** Video data ***/
-	int vopen;		/* flag */
+	struct file *capt_file;	/* file doing video capture */
 	int vendpoint;		/* video isoc endpoint */
 	int vcinterface;	/* video control interface */
 	int valternate;		/* alternate interface needed */

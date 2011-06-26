@@ -284,12 +284,20 @@ static int pwc_vidioc_try_fmt(struct pwc_device *pdev, struct v4l2_format *f)
 }
 
 /* ioctl(VIDIOC_SET_FMT) */
-static int pwc_vidioc_set_fmt(struct pwc_device *pdev, struct v4l2_format *f)
+
+static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
+	struct pwc_device *pdev = video_drvdata(file);
 	int ret, fps, snapshot, compression, pixelformat;
 
 	if (!pdev->udev)
 		return -ENODEV;
+
+	if (pdev->capt_file != NULL &&
+	    pdev->capt_file != file)
+		return -EBUSY;
+
+	pdev->capt_file = file;
 
 	ret = pwc_vidioc_try_fmt(pdev, f);
 	if (ret<0)
@@ -678,17 +686,16 @@ static int pwc_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *
 	return pwc_vidioc_try_fmt(pdev, f);
 }
 
-static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
-{
-	struct pwc_device *pdev = video_drvdata(file);
-
-	return pwc_vidioc_set_fmt(pdev, f);
-}
-
 static int pwc_reqbufs(struct file *file, void *fh,
 		       struct v4l2_requestbuffers *rb)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+
+	if (pdev->capt_file != NULL &&
+	    pdev->capt_file != file)
+		return -EBUSY;
+
+	pdev->capt_file = file;
 
 	return vb2_reqbufs(&pdev->vb_queue, rb);
 }
@@ -707,6 +714,9 @@ static int pwc_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	if (!pdev->udev)
 		return -ENODEV;
 
+	if (pdev->capt_file != file)
+		return -EBUSY;
+
 	return vb2_qbuf(&pdev->vb_queue, buf);
 }
 
@@ -716,6 +726,9 @@ static int pwc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 
 	if (!pdev->udev)
 		return -ENODEV;
+
+	if (pdev->capt_file != file)
+		return -EBUSY;
 
 	return vb2_dqbuf(&pdev->vb_queue, buf, file->f_flags & O_NONBLOCK);
 }
@@ -727,6 +740,9 @@ static int pwc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 	if (!pdev->udev)
 		return -ENODEV;
 
+	if (pdev->capt_file != file)
+		return -EBUSY;
+
 	return vb2_streamon(&pdev->vb_queue, i);
 }
 
@@ -736,6 +752,9 @@ static int pwc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 
 	if (!pdev->udev)
 		return -ENODEV;
+
+	if (pdev->capt_file != file)
+		return -EBUSY;
 
 	return vb2_streamoff(&pdev->vb_queue, i);
 }

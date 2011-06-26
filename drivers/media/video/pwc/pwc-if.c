@@ -678,12 +678,6 @@ static int pwc_video_open(struct file *file)
 	if (!pdev->udev)
 		return -ENODEV;
 
-	if (pdev->vopen) {
-		PWC_DEBUG_OPEN("I'm busy, someone is using the device.\n");
-		return -EBUSY;
-	}
-
-	pdev->vopen++;
 	file->private_data = vdev;
 	PWC_DEBUG_OPEN("<< video_open() returns 0.\n");
 	return 0;
@@ -718,10 +712,12 @@ static int pwc_video_close(struct file *file)
 	PWC_DEBUG_OPEN(">> video_close called(vdev = 0x%p).\n", vdev);
 
 	pdev = video_get_drvdata(vdev);
-	vb2_queue_release(&pdev->vb_queue);
-	pdev->vopen--;
+	if (pdev->capt_file == file) {
+		vb2_queue_release(&pdev->vb_queue);
+		pdev->capt_file = NULL;
+	}
 
-	PWC_DEBUG_OPEN("<< video_close() vopen=%d\n", pdev->vopen);
+	PWC_DEBUG_OPEN("<< video_close()\n");
 	return 0;
 }
 
@@ -733,6 +729,12 @@ static ssize_t pwc_video_read(struct file *file, char __user *buf,
 
 	if (!pdev->udev)
 		return -ENODEV;
+
+	if (pdev->capt_file != NULL &&
+	    pdev->capt_file != file)
+		return -EBUSY;
+
+	pdev->capt_file = file;
 
 	return vb2_read(&pdev->vb_queue, buf, count, ppos,
 			file->f_flags & O_NONBLOCK);
@@ -753,6 +755,9 @@ static int pwc_video_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct video_device *vdev = file->private_data;
 	struct pwc_device *pdev = video_get_drvdata(vdev);
+
+	if (pdev->capt_file != file)
+		return -EBUSY;
 
 	return vb2_mmap(&pdev->vb_queue, vma);
 }
