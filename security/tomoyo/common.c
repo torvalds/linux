@@ -2420,4 +2420,7 @@ void __init tomoyo_load_builtin_policy(void)
 		}
 	}
 	tomoyo_read_unlock(idx);
+#ifdef CONFIG_SECURITY_TOMOYO_OMIT_USERSPACE_LOADER
+	tomoyo_check_profile();
+#endif
 }
