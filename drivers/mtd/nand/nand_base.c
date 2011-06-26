@@ -2824,7 +2824,7 @@ static u16 onfi_crc16(u16 crc, u8 const *p, size_t len)
  * Check if the NAND chip is ONFI compliant, returns 1 if it is, 0 otherwise.
  */
 static int nand_flash_detect_onfi(struct mtd_info *mtd, struct nand_chip *chip,
-					int busw)
+					int *busw)
 {
 	struct nand_onfi_params *p = &chip->onfi_params;
 	int i;
@@ -2879,9 +2879,9 @@ static int nand_flash_detect_onfi(struct mtd_info *mtd, struct nand_chip *chip,
 	mtd->erasesize = le32_to_cpu(p->pages_per_block) * mtd->writesize;
 	mtd->oobsize = le16_to_cpu(p->spare_bytes_per_page);
 	chip->chipsize = (uint64_t)le32_to_cpu(p->blocks_per_lun) * mtd->erasesize;
-	busw = 0;
+	*busw = 0;
 	if (le16_to_cpu(p->features) & 1)
-		busw = NAND_BUSWIDTH_16;
+		*busw = NAND_BUSWIDTH_16;
 
 	chip->options &= ~NAND_CHIPOPTIONS_MSK;
 	chip->options |= (NAND_NO_READRDY |
@@ -2948,7 +2948,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	chip->onfi_version = 0;
 	if (!type->name || !type->pagesize) {
 		/* Check is chip is ONFI compliant */
-		ret = nand_flash_detect_onfi(mtd, chip, busw);
+		ret = nand_flash_detect_onfi(mtd, chip, &busw);
 		if (ret)
 			goto ident_done;
 	}
