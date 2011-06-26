@@ -3187,16 +3187,8 @@ static long sn9c102_ioctl_v4l2(struct file *filp,
 	case VIDIOC_S_AUDIO:
 		return sn9c102_vidioc_s_audio(cam, arg);
 
-	case VIDIOC_G_STD:
-	case VIDIOC_S_STD:
-	case VIDIOC_QUERYSTD:
-	case VIDIOC_ENUMSTD:
-	case VIDIOC_QUERYMENU:
-	case VIDIOC_ENUM_FRAMEINTERVALS:
-		return -EINVAL;
-
 	default:
-		return -EINVAL;
+		return -ENOTTY;
 
 	}
 }

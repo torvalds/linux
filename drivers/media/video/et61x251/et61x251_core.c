@@ -2480,16 +2480,8 @@ static long et61x251_ioctl_v4l2(struct file *filp,
 	case VIDIOC_S_PARM:
 		return et61x251_vidioc_s_parm(cam, arg);
 
-	case VIDIOC_G_STD:
-	case VIDIOC_S_STD:
-	case VIDIOC_QUERYSTD:
-	case VIDIOC_ENUMSTD:
-	case VIDIOC_QUERYMENU:
-	case VIDIOC_ENUM_FRAMEINTERVALS:
-		return -EINVAL;
-
 	default:
-		return -EINVAL;
+		return -ENOTTY;
 
 	}
 }
