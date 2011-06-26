@@ -1101,8 +1101,7 @@ static int tuner_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 
 	if (check_mode(t, f->type) == -EINVAL)
 		return 0;
-	f->type = t->mode;
-	if (fe_tuner_ops->get_frequency && !t->standby) {
+	if (f->type == t->mode && fe_tuner_ops->get_frequency && !t->standby) {
 		u32 abs_freq;
 
 		fe_tuner_ops->get_frequency(&t->fe, &abs_freq);
@@ -1110,7 +1109,7 @@ static int tuner_g_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
 			DIV_ROUND_CLOSEST(abs_freq * 2, 125) :
 			DIV_ROUND_CLOSEST(abs_freq, 62500);
 	} else {
-		f->frequency = (V4L2_TUNER_RADIO == t->mode) ?
+		f->frequency = (V4L2_TUNER_RADIO == f->type) ?
 			t->radio_freq : t->tv_freq;
 	}
 	return 0;
@@ -1134,32 +1133,33 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 
 	if (check_mode(t, vt->type) == -EINVAL)
 		return 0;
-	vt->type = t->mode;
-	if (analog_ops->get_afc)
+	if (vt->type == t->mode && analog_ops->get_afc)
 		vt->afc = analog_ops->get_afc(&t->fe);
-	if (t->mode == V4L2_TUNER_ANALOG_TV)
+	if (vt->type == V4L2_TUNER_ANALOG_TV)
 		vt->capability |= V4L2_TUNER_CAP_NORM;
-	if (t->mode != V4L2_TUNER_RADIO) {
+	if (vt->type != V4L2_TUNER_RADIO) {
 		vt->rangelow = tv_range[0] * 16;
 		vt->rangehigh = tv_range[1] * 16;
 		return 0;
 	}
 
 	/* radio mode */
-	vt->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
-	if (fe_tuner_ops->get_status) {
-		u32 tuner_status;
+	if (vt->type == t->mode) {
+		vt->rxsubchans = V4L2_TUNER_SUB_MONO | V4L2_TUNER_SUB_STEREO;
+		if (fe_tuner_ops->get_status) {
+			u32 tuner_status;
 
-		fe_tuner_ops->get_status(&t->fe, &tuner_status);
-		vt->rxsubchans =
-			(tuner_status & TUNER_STATUS_STEREO) ?
-			V4L2_TUNER_SUB_STEREO :
-			V4L2_TUNER_SUB_MONO;
+			fe_tuner_ops->get_status(&t->fe, &tuner_status);
+			vt->rxsubchans =
+				(tuner_status & TUNER_STATUS_STEREO) ?
+				V4L2_TUNER_SUB_STEREO :
+				V4L2_TUNER_SUB_MONO;
+		}
+		if (analog_ops->has_signal)
+			vt->signal = analog_ops->has_signal(&t->fe);
+		vt->audmode = t->audmode;
 	}
-	if (analog_ops->has_signal)
-		vt->signal = analog_ops->has_signal(&t->fe);
 	vt->capability |= V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
-	vt->audmode = t->audmode;
 	vt->rangelow = radio_range[0] * 16000;
 	vt->rangehigh = radio_range[1] * 16000;
 
