@@ -660,7 +660,7 @@ struct pin_int_t {
 	unsigned int latch;
 };
 
-static struct pin_int_t *pint[NR_PINT_SYS_IRQS] = {
+static struct pin_int_t * const pint[NR_PINT_SYS_IRQS] = {
 	(struct pin_int_t *)PINT0_MASK_SET,
 	(struct pin_int_t *)PINT1_MASK_SET,
 	(struct pin_int_t *)PINT2_MASK_SET,
