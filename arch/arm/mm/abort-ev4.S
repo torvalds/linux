@@ -3,14 +3,11 @@
 /*
  * Function: v4_early_abort
  *
- * Params  : r4 = aborted context pc
+ * Params  : r2 = pt_regs
+ *	   : r4 = aborted context pc
  *	   : r5 = aborted context psr
  *
- * Returns : r0 = address of abort
- *	   : r1 = FSR, bit 11 = write
- *	   : r2-r8 = corrupted
- *	   : r9 = preserved
- *	   : sp = pointer to registers
+ * Returns : r4 - r11, r13 preserved
  *
  * Purpose : obtain information about current aborted instruction.
  * Note: we read user space.  This means we might cause a data
@@ -25,4 +22,4 @@ ENTRY(v4_early_abort)
 	bic	r1, r1, #1 << 11 | 1 << 10	@ clear bits 11 and 10 of FSR
 	tst	r3, #1 << 20			@ L = 1 -> write?
 	orreq	r1, r1, #1 << 11		@ yes.
-	mov	pc, lr
+	b	do_DataAbort

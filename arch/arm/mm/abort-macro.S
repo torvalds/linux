@@ -18,7 +18,7 @@
 	orreq	\tmp, \tmp, #1 << 11		@ Set L-bit if yes
 	tst	\tmp, #1 << 11			@ L = 0 -> write
 	orreq	\psr, \psr, #1 << 11		@ yes.
-	mov	pc, lr
+	b	do_DataAbort
 not_thumb:
 	.endm
 
@@ -34,7 +34,7 @@ not_thumb:
 	bne	not_ldrd
 	and	\tmp, \insn, #0x000000f0	@ [7:4] == 1101
 	cmp	\tmp, #0x000000d0
-	moveq	pc, lr
+	beq	do_DataAbort
 not_ldrd:
 	.endm
 

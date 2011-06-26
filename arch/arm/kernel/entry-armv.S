@@ -60,6 +60,7 @@
 	@
 	@ Call the processor-specific abort handler:
 	@
+	@  r2 - pt_regs
 	@  r4 - aborted context pc
 	@  r5 - aborted context psr
 	@
@@ -186,13 +187,8 @@ ENDPROC(__und_invalid)
 	.align	5
 __dabt_svc:
 	svc_entry
-	dabt_helper
-
-	@
-	@ call main handler
-	@
 	mov	r2, sp
-	bl	do_DataAbort
+	dabt_helper
 
 	@
 	@ IRQs off again before pulling preserved data off the stack
@@ -407,11 +403,9 @@ ENDPROC(__pabt_svc)
 __dabt_usr:
 	usr_entry
 	kuser_cmpxchg_check
-	dabt_helper
-
 	mov	r2, sp
-	adr	lr, BSYM(ret_from_exception)
-	b	do_DataAbort
+	dabt_helper
+	b	ret_from_exception
  UNWIND(.fnend		)
 ENDPROC(__dabt_usr)
 

@@ -4,14 +4,11 @@
 /*
  * Function: v6_early_abort
  *
- * Params  : r4 = aborted context pc
+ * Params  : r2 = pt_regs
+ *	   : r4 = aborted context pc
  *	   : r5 = aborted context psr
  *
- * Returns : r0 = address of abort
- *	   : r1 = FSR, bit 11 = write
- *	   : r2-r8 = corrupted
- *	   : r9 = preserved
- *	   : sp = pointer to registers
+ * Returns : r4 - r11, r13 preserved
  *
  * Purpose : obtain information about current aborted instruction.
  * Note: we read user space.  This means we might cause a data
@@ -34,7 +31,7 @@ ENTRY(v6_early_abort)
  */
 	bic	r1, r1, #1 << 11		@ clear bit 11 of FSR
 	tst	r5, #PSR_J_BIT			@ Java?
-	movne	pc, lr
+	bne	do_DataAbort
 	do_thumb_abort fsr=r1, pc=r4, psr=r5, tmp=r3
 	ldreq	r3, [r4]			@ read aborted ARM instruction
 #ifdef CONFIG_CPU_ENDIAN_BE8
@@ -43,4 +40,4 @@ ENTRY(v6_early_abort)
 	do_ldrd_abort tmp=ip, insn=r3
 	tst	r3, #1 << 20			@ L = 0 -> write
 	orreq	r1, r1, #1 << 11		@ yes.
-	mov	pc, lr
+	b	do_DataAbort

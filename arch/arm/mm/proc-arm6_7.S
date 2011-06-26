@@ -29,7 +29,8 @@ ENTRY(cpu_arm7_dcache_clean_area)
 /*
  * Function: arm6_7_data_abort ()
  *
- * Params  : r4 = aborted context pc
+ * Params  : r2 = pt_regs
+ *	   : r4 = aborted context pc
  *	   : r5 = aborted context psr
  *
  * Purpose : obtain information about current aborted instruction
@@ -49,7 +50,7 @@ ENTRY(cpu_arm7_data_abort)
 	nop
 
 /* 0 */	b	.data_unknown
-/* 1 */	mov	pc, lr				@ swp
+/* 1 */	b	do_DataAbort			@ swp
 /* 2 */	b	.data_unknown
 /* 3 */	b	.data_unknown
 /* 4 */	b	.data_arm_lateldrpostconst	@ ldr	rd, [rn], #m
@@ -60,16 +61,14 @@ ENTRY(cpu_arm7_data_abort)
 /* 9 */	b	.data_arm_ldmstm		@ ldm*b	rn, <rlist>
 /* a */	b	.data_unknown
 /* b */	b	.data_unknown
-/* c */	mov	pc, lr				@ ldc	rd, [rn], #m	@ Same as ldr	rd, [rn], #m
-/* d */	mov	pc, lr				@ ldc	rd, [rn, #m]
+/* c */	b	do_DataAbort			@ ldc	rd, [rn], #m	@ Same as ldr	rd, [rn], #m
+/* d */	b	do_DataAbort			@ ldc	rd, [rn, #m]
 /* e */	b	.data_unknown
 /* f */
 .data_unknown:	@ Part of jumptable
 	mov	r0, r4
 	mov	r1, r8
-	mov	r2, sp
-	bl	baddataabort
-	b	ret_from_exception
+	b	baddataabort
 
 ENTRY(cpu_arm6_data_abort)
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
@@ -79,11 +78,11 @@ ENTRY(cpu_arm6_data_abort)
 	orreq	r1, r1, #1 << 11		@ yes.
 	and	r7, r8, #14 << 24
 	teq	r7, #8 << 24			@ was it ldm/stm
-	movne	pc, lr
+	bne	do_DataAbort
 
 .data_arm_ldmstm:
 	tst	r8, #1 << 21			@ check writeback bit
-	moveq	pc, lr				@ no writeback -> no fixup
+	beq	do_DataAbort			@ no writeback -> no fixup
 	mov	r7, #0x11
 	orr	r7, r7, #0x1100
 	and	r6, r8, r7
@@ -102,7 +101,7 @@ ENTRY(cpu_arm6_data_abort)
 	subne	r7, r7, r6, lsl #2		@ Undo increment
 	addeq	r7, r7, r6, lsl #2		@ Undo decrement
 	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
-	mov	pc, lr
+	b	do_DataAbort
 
 .data_arm_apply_r6_and_rn:
 	and	r5, r8, #15 << 16		@ Extract 'n' from instruction
@@ -111,25 +110,25 @@ ENTRY(cpu_arm6_data_abort)
 	subne	r7, r7, r6			@ Undo incrmenet
 	addeq	r7, r7, r6			@ Undo decrement
 	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
-	mov	pc, lr
+	b	do_DataAbort
 
 .data_arm_lateldrpreconst:
 	tst	r8, #1 << 21			@ check writeback bit
-	moveq	pc, lr				@ no writeback -> no fixup
+	beq	do_DataAbort			@ no writeback -> no fixup
 .data_arm_lateldrpostconst:
 	movs	r9, r8, lsl #20			@ Get offset
-	moveq	pc, lr				@ zero -> no fixup
+	beq	do_DataAbort			@ zero -> no fixup
 	and	r5, r8, #15 << 16		@ Extract 'n' from instruction
 	ldr	r7, [sp, r5, lsr #14]		@ Get register 'Rn'
 	tst	r8, #1 << 23			@ Check U bit
 	subne	r7, r7, r9, lsr #20		@ Undo increment
 	addeq	r7, r7, r9, lsr #20		@ Undo decrement
 	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
-	mov	pc, lr
+	b	do_DataAbort
 
 .data_arm_lateldrprereg:
 	tst	r8, #1 << 21			@ check writeback bit
-	moveq	pc, lr				@ no writeback -> no fixup
+	beq	do_DataAbort			@ no writeback -> no fixup
 .data_arm_lateldrpostreg:
 	and	r7, r8, #15			@ Extract 'm' from instruction
 	ldr	r6, [sp, r7, lsl #2]		@ Get register 'Rm'
