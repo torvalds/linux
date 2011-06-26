@@ -36,6 +36,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
 #include <media/videobuf2-vmalloc.h>
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 #include <linux/input.h>
@@ -127,6 +128,61 @@
 #define DEVICE_USE_CODEC2(x) ((x)>=675 && (x)<700)
 #define DEVICE_USE_CODEC3(x) ((x)>=700)
 #define DEVICE_USE_CODEC23(x) ((x)>=675)
+
+/* Request types: video */
+#define SET_LUM_CTL			0x01
+#define GET_LUM_CTL			0x02
+#define SET_CHROM_CTL			0x03
+#define GET_CHROM_CTL			0x04
+#define SET_STATUS_CTL			0x05
+#define GET_STATUS_CTL			0x06
+#define SET_EP_STREAM_CTL		0x07
+#define GET_EP_STREAM_CTL		0x08
+#define GET_XX_CTL			0x09
+#define SET_XX_CTL			0x0A
+#define GET_XY_CTL			0x0B
+#define SET_XY_CTL			0x0C
+#define SET_MPT_CTL			0x0D
+#define GET_MPT_CTL			0x0E
+
+/* Selectors for the Luminance controls [GS]ET_LUM_CTL */
+#define AGC_MODE_FORMATTER			0x2000
+#define PRESET_AGC_FORMATTER			0x2100
+#define SHUTTER_MODE_FORMATTER			0x2200
+#define PRESET_SHUTTER_FORMATTER		0x2300
+#define PRESET_CONTOUR_FORMATTER		0x2400
+#define AUTO_CONTOUR_FORMATTER			0x2500
+#define BACK_LIGHT_COMPENSATION_FORMATTER	0x2600
+#define CONTRAST_FORMATTER			0x2700
+#define DYNAMIC_NOISE_CONTROL_FORMATTER		0x2800
+#define FLICKERLESS_MODE_FORMATTER		0x2900
+#define AE_CONTROL_SPEED			0x2A00
+#define BRIGHTNESS_FORMATTER			0x2B00
+#define GAMMA_FORMATTER				0x2C00
+
+/* Selectors for the Chrominance controls [GS]ET_CHROM_CTL */
+#define WB_MODE_FORMATTER			0x1000
+#define AWB_CONTROL_SPEED_FORMATTER		0x1100
+#define AWB_CONTROL_DELAY_FORMATTER		0x1200
+#define PRESET_MANUAL_RED_GAIN_FORMATTER	0x1300
+#define PRESET_MANUAL_BLUE_GAIN_FORMATTER	0x1400
+#define COLOUR_MODE_FORMATTER			0x1500
+#define SATURATION_MODE_FORMATTER1		0x1600
+#define SATURATION_MODE_FORMATTER2		0x1700
+
+/* Selectors for the Status controls [GS]ET_STATUS_CTL */
+#define SAVE_USER_DEFAULTS_FORMATTER		0x0200
+#define RESTORE_USER_DEFAULTS_FORMATTER		0x0300
+#define RESTORE_FACTORY_DEFAULTS_FORMATTER	0x0400
+#define READ_AGC_FORMATTER			0x0500
+#define READ_SHUTTER_FORMATTER			0x0600
+#define READ_RED_GAIN_FORMATTER			0x0700
+#define READ_BLUE_GAIN_FORMATTER		0x0800
+
+/* Formatters for the motorized pan & tilt [GS]ET_MPT_CTL */
+#define PT_RELATIVE_CONTROL_FORMATTER		0x01
+#define PT_RESET_CONTROL_FORMATTER		0x02
+#define PT_STATUS_FORMATTER			0x03
 
 /* intermediate buffers with raw data from the USB cam */
 struct pwc_frame_buf
@@ -220,6 +276,55 @@ struct pwc_device
 	struct input_dev *button_dev;	/* webcam snapshot button input */
 	char button_phys[64];
 #endif
+
+	/* controls */
+	struct v4l2_ctrl_handler	ctrl_handler;
+	u16				saturation_fmt;
+	struct v4l2_ctrl		*brightness;
+	struct v4l2_ctrl		*contrast;
+	struct v4l2_ctrl		*saturation;
+	struct v4l2_ctrl		*gamma;
+	struct {
+		/* awb / red-blue balance cluster */
+		struct v4l2_ctrl	*auto_white_balance;
+		struct v4l2_ctrl	*red_balance;
+		struct v4l2_ctrl	*blue_balance;
+		/* usb ctrl transfers are slow, so we cache things */
+		int			color_bal_valid;
+		unsigned long		last_color_bal_update; /* In jiffies */
+		s32			last_red_balance;
+		s32			last_blue_balance;
+	};
+	struct {
+		/* autogain / gain cluster */
+		struct v4l2_ctrl	*autogain;
+		struct v4l2_ctrl	*gain;
+		int			gain_valid;
+		unsigned long		last_gain_update; /* In jiffies */
+		s32			last_gain;
+	};
+	struct {
+		/* exposure_auto / exposure cluster */
+		struct v4l2_ctrl	*exposure_auto;
+		struct v4l2_ctrl	*exposure;
+		int			exposure_valid;
+		unsigned long		last_exposure_update; /* In jiffies */
+		s32			last_exposure;
+	};
+	struct v4l2_ctrl		*colorfx;
+	struct {
+		/* autocontour/contour cluster */
+		struct v4l2_ctrl	*autocontour;
+		struct v4l2_ctrl	*contour;
+	};
+	struct v4l2_ctrl		*backlight;
+	struct v4l2_ctrl		*flicker;
+	struct v4l2_ctrl		*noise_reduction;
+	struct v4l2_ctrl		*save_user;
+	struct v4l2_ctrl		*restore_user;
+	struct v4l2_ctrl		*restore_factory;
+	/* CODEC3 models have both gain and exposure controlled by autogain */
+	struct v4l2_ctrl		*autogain_expo_cluster[3];
 };
 
 /* Global variables */
@@ -238,47 +343,20 @@ void pwc_construct(struct pwc_device *pdev);
 /* Request a certain video mode. Returns < 0 if not possible */
 extern int pwc_set_video_mode(struct pwc_device *pdev, int width, int height, int frames, int compression, int snapshot);
 extern unsigned int pwc_get_fps(struct pwc_device *pdev, unsigned int index, unsigned int size);
-/* Calculate the number of bytes per image (not frame) */
 extern int pwc_mpt_reset(struct pwc_device *pdev, int flags);
 extern int pwc_mpt_set_angle(struct pwc_device *pdev, int pan, int tilt);
-
-/* Various controls; should be obvious. Value 0..65535, or < 0 on error */
-extern int pwc_get_brightness(struct pwc_device *pdev);
-extern int pwc_set_brightness(struct pwc_device *pdev, int value);
-extern int pwc_get_contrast(struct pwc_device *pdev);
-extern int pwc_set_contrast(struct pwc_device *pdev, int value);
-extern int pwc_get_gamma(struct pwc_device *pdev);
-extern int pwc_set_gamma(struct pwc_device *pdev, int value);
-extern int pwc_get_saturation(struct pwc_device *pdev, int *value);
-extern int pwc_set_saturation(struct pwc_device *pdev, int value);
 extern int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value);
 extern int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor);
-extern int pwc_restore_user(struct pwc_device *pdev);
-extern int pwc_save_user(struct pwc_device *pdev);
-extern int pwc_restore_factory(struct pwc_device *pdev);
 
-/* exported for use by v4l2 controls */
-extern int pwc_get_red_gain(struct pwc_device *pdev, int *value);
-extern int pwc_set_red_gain(struct pwc_device *pdev, int value);
-extern int pwc_get_blue_gain(struct pwc_device *pdev, int *value);
-extern int pwc_set_blue_gain(struct pwc_device *pdev, int value);
-extern int pwc_get_awb(struct pwc_device *pdev);
-extern int pwc_set_awb(struct pwc_device *pdev, int mode);
-extern int pwc_set_agc(struct pwc_device *pdev, int mode, int value);
-extern int pwc_get_agc(struct pwc_device *pdev, int *value);
-extern int pwc_set_shutter_speed(struct pwc_device *pdev, int mode, int value);
-extern int pwc_get_shutter_speed(struct pwc_device *pdev, int *value);
-
-extern int pwc_set_colour_mode(struct pwc_device *pdev, int colour);
-extern int pwc_get_colour_mode(struct pwc_device *pdev, int *colour);
-extern int pwc_set_contour(struct pwc_device *pdev, int contour);
-extern int pwc_get_contour(struct pwc_device *pdev, int *contour);
-extern int pwc_set_backlight(struct pwc_device *pdev, int backlight);
-extern int pwc_get_backlight(struct pwc_device *pdev, int *backlight);
-extern int pwc_set_flicker(struct pwc_device *pdev, int flicker);
-extern int pwc_get_flicker(struct pwc_device *pdev, int *flicker);
-extern int pwc_set_dynamic_noise(struct pwc_device *pdev, int noise);
-extern int pwc_get_dynamic_noise(struct pwc_device *pdev, int *noise);
+/* Control get / set helpers */
+int pwc_get_u8_ctrl(struct pwc_device *pdev, u8 request, u16 value, int *data);
+int pwc_set_u8_ctrl(struct pwc_device *pdev, u8 request, u16 value, u8 data);
+int pwc_get_s8_ctrl(struct pwc_device *pdev, u8 request, u16 value, int *data);
+#define pwc_set_s8_ctrl pwc_set_u8_ctrl
+int pwc_get_u16_ctrl(struct pwc_device *pdev, u8 request, u16 value, int *dat);
+int pwc_set_u16_ctrl(struct pwc_device *pdev, u8 request, u16 value, u16 data);
+int pwc_button_ctrl(struct pwc_device *pdev, u16 value);
+int pwc_init_controls(struct pwc_device *pdev);
 
 /* Power down or up the camera; not supported by all models */
 extern void pwc_camera_power(struct pwc_device *pdev, int power);

@@ -679,6 +679,8 @@ static void pwc_video_release(struct video_device *vfd)
 		pdev->decompress_data = NULL;
 	}
 
+	v4l2_ctrl_handler_free(&pdev->ctrl_handler);
+
 	kfree(pdev);
 }
 
@@ -1224,9 +1226,14 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	if (rc)
 		goto err_free_mem;
 
-	/* Initialize the webcam to sane values */
-	pwc_set_brightness(pdev, 0x7fff);
-	pwc_set_agc(pdev, 1, 0);
+	/* Register controls (and read default values from camera */
+	rc = pwc_init_controls(pdev);
+	if (rc) {
+		PWC_ERROR("Failed to register v4l2 controls (%d).\n", rc);
+		goto err_free_mem;
+	}
+
+	pdev->vdev.ctrl_handler = &pdev->ctrl_handler;
 
 	/* And powerdown the camera until streaming starts */
 	pwc_camera_power(pdev, 0);
@@ -1234,7 +1241,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	rc = video_register_device(&pdev->vdev, VFL_TYPE_GRABBER, video_nr);
 	if (rc < 0) {
 		PWC_ERROR("Failed to register as video device (%d).\n", rc);
-		goto err_free_mem;
+		goto err_free_controls;
 	}
 	rc = pwc_create_sysfs_files(pdev);
 	if (rc)
@@ -1277,7 +1284,10 @@ err_video_unreg:
 	if (hint < MAX_DEV_HINTS)
 		device_hint[hint].pdev = NULL;
 	video_unregister_device(&pdev->vdev);
+err_free_controls:
+	v4l2_ctrl_handler_free(&pdev->ctrl_handler);
 err_free_mem:
+	usb_set_intfdata(intf, NULL);
 	kfree(pdev);
 	return rc;
 }
