@@ -32,27 +32,6 @@ static bool tomoyo_add_to_gc(const int type, struct list_head *element)
 	return true;
 }
 
-static void tomoyo_del_allow_read(struct list_head *element)
-{
-	struct tomoyo_readable_file *ptr =
-		container_of(element, typeof(*ptr), head.list);
-	tomoyo_put_name(ptr->filename);
-}
-
-static void tomoyo_del_file_pattern(struct list_head *element)
-{
-	struct tomoyo_no_pattern *ptr =
-		container_of(element, typeof(*ptr), head.list);
-	tomoyo_put_name(ptr->pattern);
-}
-
-static void tomoyo_del_no_rewrite(struct list_head *element)
-{
-	struct tomoyo_no_rewrite *ptr =
-		container_of(element, typeof(*ptr), head.list);
-	tomoyo_put_name(ptr->pattern);
-}
-
 static void tomoyo_del_transition_control(struct list_head *element)
 {
 	struct tomoyo_transition_control *ptr =
@@ -289,15 +268,6 @@ static void tomoyo_kfree_entry(void)
 			break;
 		case TOMOYO_ID_AGGREGATOR:
 			tomoyo_del_aggregator(element);
-			break;
-		case TOMOYO_ID_GLOBALLY_READABLE:
-			tomoyo_del_allow_read(element);
-			break;
-		case TOMOYO_ID_PATTERN:
-			tomoyo_del_file_pattern(element);
-			break;
-		case TOMOYO_ID_NO_REWRITE:
-			tomoyo_del_no_rewrite(element);
 			break;
 		case TOMOYO_ID_MANAGER:
 			tomoyo_del_manager(element);

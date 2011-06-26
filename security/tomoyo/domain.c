@@ -510,17 +510,8 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	if (domain || strlen(tmp) >= TOMOYO_EXEC_TMPSIZE - 10)
 		goto done;
 	domain = tomoyo_find_domain(tmp);
-	if (domain)
-		goto done;
-	if (is_enforce) {
-		int error = tomoyo_supervisor(&r, "# wants to create domain\n"
-					      "%s\n", tmp);
-		if (error == TOMOYO_RETRY_REQUEST)
-			goto retry;
-		if (error < 0)
-			goto done;
-	}
-	domain = tomoyo_assign_domain(tmp, old_domain->profile);
+	if (!domain)
+		domain = tomoyo_assign_domain(tmp, old_domain->profile);
  done:
 	if (domain)
 		goto out;

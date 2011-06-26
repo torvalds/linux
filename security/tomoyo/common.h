@@ -52,9 +52,6 @@ enum tomoyo_policy_id {
 	TOMOYO_ID_NUMBER_GROUP,
 	TOMOYO_ID_TRANSITION_CONTROL,
 	TOMOYO_ID_AGGREGATOR,
-	TOMOYO_ID_GLOBALLY_READABLE,
-	TOMOYO_ID_PATTERN,
-	TOMOYO_ID_NO_REWRITE,
 	TOMOYO_ID_MANAGER,
 	TOMOYO_ID_NAME,
 	TOMOYO_ID_ACL,
@@ -73,8 +70,6 @@ enum tomoyo_group_id {
 #define TOMOYO_KEYWORD_ALLOW_MOUNT               "allow_mount "
 #define TOMOYO_KEYWORD_ALLOW_READ                "allow_read "
 #define TOMOYO_KEYWORD_DELETE                    "delete "
-#define TOMOYO_KEYWORD_DENY_REWRITE              "deny_rewrite "
-#define TOMOYO_KEYWORD_FILE_PATTERN              "file_pattern "
 #define TOMOYO_KEYWORD_INITIALIZE_DOMAIN         "initialize_domain "
 #define TOMOYO_KEYWORD_KEEP_DOMAIN               "keep_domain "
 #define TOMOYO_KEYWORD_NO_INITIALIZE_DOMAIN      "no_initialize_domain "
@@ -83,7 +78,6 @@ enum tomoyo_group_id {
 #define TOMOYO_KEYWORD_NUMBER_GROUP              "number_group "
 #define TOMOYO_KEYWORD_SELECT                    "select "
 #define TOMOYO_KEYWORD_USE_PROFILE               "use_profile "
-#define TOMOYO_KEYWORD_IGNORE_GLOBAL_ALLOW_READ  "ignore_global_allow_read"
 #define TOMOYO_KEYWORD_QUOTA_EXCEEDED            "quota_exceeded"
 #define TOMOYO_KEYWORD_TRANSITION_FAILED         "transition_failed"
 /* A domain definition starts with <kernel>. */
@@ -115,34 +109,20 @@ enum tomoyo_acl_entry_type_index {
 };
 
 /* Index numbers for File Controls. */
-
-/*
- * TOMOYO_TYPE_READ_WRITE is special. TOMOYO_TYPE_READ_WRITE is automatically
- * set if both TOMOYO_TYPE_READ and TOMOYO_TYPE_WRITE are set.
- * Both TOMOYO_TYPE_READ and TOMOYO_TYPE_WRITE are automatically set if
- * TOMOYO_TYPE_READ_WRITE is set.
- * TOMOYO_TYPE_READ_WRITE is automatically cleared if either TOMOYO_TYPE_READ
- * or TOMOYO_TYPE_WRITE is cleared.
- * Both TOMOYO_TYPE_READ and TOMOYO_TYPE_WRITE are automatically cleared if
- * TOMOYO_TYPE_READ_WRITE is cleared.
- */
-
 enum tomoyo_path_acl_index {
-	TOMOYO_TYPE_READ_WRITE,
 	TOMOYO_TYPE_EXECUTE,
 	TOMOYO_TYPE_READ,
 	TOMOYO_TYPE_WRITE,
+	TOMOYO_TYPE_APPEND,
 	TOMOYO_TYPE_UNLINK,
+	TOMOYO_TYPE_GETATTR,
 	TOMOYO_TYPE_RMDIR,
 	TOMOYO_TYPE_TRUNCATE,
 	TOMOYO_TYPE_SYMLINK,
-	TOMOYO_TYPE_REWRITE,
 	TOMOYO_TYPE_CHROOT,
 	TOMOYO_TYPE_UMOUNT,
 	TOMOYO_MAX_PATH_OPERATION
 };
-
-#define TOMOYO_RW_MASK ((1 << TOMOYO_TYPE_READ) | (1 << TOMOYO_TYPE_WRITE))
 
 enum tomoyo_mkdev_acl_index {
 	TOMOYO_TYPE_MKBLOCK,
@@ -187,13 +167,13 @@ enum tomoyo_mac_index {
 	TOMOYO_MAC_FILE_OPEN,
 	TOMOYO_MAC_FILE_CREATE,
 	TOMOYO_MAC_FILE_UNLINK,
+	TOMOYO_MAC_FILE_GETATTR,
 	TOMOYO_MAC_FILE_MKDIR,
 	TOMOYO_MAC_FILE_RMDIR,
 	TOMOYO_MAC_FILE_MKFIFO,
 	TOMOYO_MAC_FILE_MKSOCK,
 	TOMOYO_MAC_FILE_TRUNCATE,
 	TOMOYO_MAC_FILE_SYMLINK,
-	TOMOYO_MAC_FILE_REWRITE,
 	TOMOYO_MAC_FILE_MKBLOCK,
 	TOMOYO_MAC_FILE_MKCHAR,
 	TOMOYO_MAC_FILE_LINK,
@@ -388,9 +368,7 @@ struct tomoyo_acl_info {
  *      "deleted", false otherwise.
  *  (6) "quota_warned" is a bool which is used for suppressing warning message
  *      when learning mode learned too much entries.
- *  (7) "ignore_global_allow_read" is a bool which is true if this domain
- *      should ignore "allow_read" directive in exception policy.
- *  (8) "transition_failed" is a bool which is set to true when this domain was
+ *  (7) "transition_failed" is a bool which is set to true when this domain was
  *      unable to create a new domain at tomoyo_find_next_domain() because the
  *      name of the domain to be created was too long or it could not allocate
  *      memory. If set to true, more than one process continued execve()
@@ -415,7 +393,6 @@ struct tomoyo_domain_info {
 	u8 profile;        /* Profile number to use. */
 	bool is_deleted;   /* Delete flag.           */
 	bool quota_warned; /* Quota warnning flag.   */
-	bool ignore_global_allow_read; /* Ignore "allow_read" flag. */
 	bool transition_failed; /* Domain transition failed flag. */
 	atomic_t users; /* Number of referring credentials. */
 };
@@ -429,10 +406,9 @@ struct tomoyo_domain_info {
  *  (2) "perm" which is a bitmask of permitted operations.
  *  (3) "name" is the pathname.
  *
- * Directives held by this structure are "allow_read/write", "allow_execute",
- * "allow_read", "allow_write", "allow_unlink", "allow_rmdir",
- * "allow_truncate", "allow_symlink", "allow_rewrite", "allow_chroot" and
- * "allow_unmount".
+ * Directives held by this structure are "allow_execute", "allow_read",
+ * "allow_write", "allow_append", "allow_unlink", "allow_rmdir",
+ * "allow_truncate", "allow_symlink", "allow_chroot" and "allow_unmount".
  */
 struct tomoyo_path_acl {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_PATH_ACL */
@@ -571,47 +547,6 @@ struct tomoyo_io_buffer {
 	int writebuf_size;
 	/* Type of this interface.              */
 	u8 type;
-};
-
-/*
- * tomoyo_readable_file is a structure which is used for holding
- * "allow_read" entries.
- * It has following fields.
- *
- *  (1) "head" is "struct tomoyo_acl_head".
- *  (2) "filename" is a pathname which is allowed to open(O_RDONLY).
- */
-struct tomoyo_readable_file {
-	struct tomoyo_acl_head head;
-	const struct tomoyo_path_info *filename;
-};
-
-/*
- * tomoyo_no_pattern is a structure which is used for holding
- * "file_pattern" entries.
- * It has following fields.
- *
- *  (1) "head" is "struct tomoyo_acl_head".
- *  (2) "pattern" is a pathname pattern which is used for converting pathnames
- *      to pathname patterns during learning mode.
- */
-struct tomoyo_no_pattern {
-	struct tomoyo_acl_head head;
-	const struct tomoyo_path_info *pattern;
-};
-
-/*
- * tomoyo_no_rewrite is a structure which is used for holding
- * "deny_rewrite" entries.
- * It has following fields.
- *
- *  (1) "head" is "struct tomoyo_acl_head".
- *  (2) "pattern" is a pathname which is by default not permitted to modify
- *      already existing content.
- */
-struct tomoyo_no_rewrite {
-	struct tomoyo_acl_head head;
-	const struct tomoyo_path_info *pattern;
 };
 
 /*
@@ -764,23 +699,17 @@ int tomoyo_write_aggregator(char *data, const bool is_delete);
 int tomoyo_write_transition_control(char *data, const bool is_delete,
 				    const u8 type);
 /*
- * Create "allow_read/write", "allow_execute", "allow_read", "allow_write",
+ * Create "allow_execute", "allow_read", "allow_write", "allow_append",
  * "allow_create", "allow_unlink", "allow_mkdir", "allow_rmdir",
  * "allow_mkfifo", "allow_mksock", "allow_mkblock", "allow_mkchar",
- * "allow_truncate", "allow_symlink", "allow_rewrite", "allow_rename" and
- * "allow_link" entry in domain policy.
+ * "allow_truncate", "allow_symlink", "allow_rename" and "allow_link" entry
+ * in domain policy.
  */
 int tomoyo_write_file(char *data, struct tomoyo_domain_info *domain,
 		      const bool is_delete);
-/* Create "allow_read" entry in exception policy. */
-int tomoyo_write_globally_readable(char *data, const bool is_delete);
 /* Create "allow_mount" entry in domain policy. */
 int tomoyo_write_mount(char *data, struct tomoyo_domain_info *domain,
 		       const bool is_delete);
-/* Create "deny_rewrite" entry in exception policy. */
-int tomoyo_write_no_rewrite(char *data, const bool is_delete);
-/* Create "file_pattern" entry in exception policy. */
-int tomoyo_write_pattern(char *data, const bool is_delete);
 /* Create "path_group"/"number_group" entry in exception policy. */
 int tomoyo_write_group(char *data, const bool is_delete, const u8 type);
 int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
@@ -819,8 +748,6 @@ char *tomoyo_realpath_nofollow(const char *pathname);
  * ignores chroot'ed root and the pathname is already solved.
  */
 char *tomoyo_realpath_from_path(struct path *path);
-/* Get patterned pathname. */
-const char *tomoyo_pattern(const struct tomoyo_path_info *filename);
 
 /* Check memory quota. */
 bool tomoyo_memory_ok(void *ptr);

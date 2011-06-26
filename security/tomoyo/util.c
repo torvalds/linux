@@ -911,44 +911,33 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 	if (!domain)
 		return true;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
+		u16 perm;
+		u8 i;
 		if (ptr->is_deleted)
 			continue;
 		switch (ptr->type) {
-			u16 perm;
-			u8 i;
 		case TOMOYO_TYPE_PATH_ACL:
 			perm = container_of(ptr, struct tomoyo_path_acl, head)
 				->perm;
-			for (i = 0; i < TOMOYO_MAX_PATH_OPERATION; i++)
-				if (perm & (1 << i))
-					count++;
-			if (perm & (1 << TOMOYO_TYPE_READ_WRITE))
-				count -= 2;
 			break;
 		case TOMOYO_TYPE_PATH2_ACL:
 			perm = container_of(ptr, struct tomoyo_path2_acl, head)
 				->perm;
-			for (i = 0; i < TOMOYO_MAX_PATH2_OPERATION; i++)
-				if (perm & (1 << i))
-					count++;
 			break;
 		case TOMOYO_TYPE_PATH_NUMBER_ACL:
 			perm = container_of(ptr, struct tomoyo_path_number_acl,
 					    head)->perm;
-			for (i = 0; i < TOMOYO_MAX_PATH_NUMBER_OPERATION; i++)
-				if (perm & (1 << i))
-					count++;
 			break;
 		case TOMOYO_TYPE_MKDEV_ACL:
 			perm = container_of(ptr, struct tomoyo_mkdev_acl,
 					    head)->perm;
-			for (i = 0; i < TOMOYO_MAX_MKDEV_OPERATION; i++)
-				if (perm & (1 << i))
-					count++;
 			break;
 		default:
-			count++;
+			perm = 1;
 		}
+		for (i = 0; i < 16; i++)
+			if (perm & (1 << i))
+				count++;
 	}
 	if (count < tomoyo_profile(domain->profile)->learning->
 	    learning_max_entry)

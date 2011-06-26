@@ -93,6 +93,12 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 	return tomoyo_check_open_permission(domain, &bprm->file->f_path, O_RDONLY);
 }
 
+static int tomoyo_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
+{
+	struct path path = { mnt, dentry };
+	return tomoyo_path_perm(TOMOYO_TYPE_GETATTR, &path);
+}
+
 static int tomoyo_path_truncate(struct path *path)
 {
 	return tomoyo_path_perm(TOMOYO_TYPE_TRUNCATE, path);
@@ -176,9 +182,10 @@ static int tomoyo_path_rename(struct path *old_parent,
 static int tomoyo_file_fcntl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
-	if (cmd == F_SETFL && ((arg ^ file->f_flags) & O_APPEND))
-		return tomoyo_path_perm(TOMOYO_TYPE_REWRITE, &file->f_path);
-	return 0;
+	if (!(cmd == F_SETFL && ((arg ^ file->f_flags) & O_APPEND)))
+		return 0;
+	return tomoyo_check_open_permission(tomoyo_domain(), &file->f_path,
+					    O_WRONLY | (arg & O_APPEND));
 }
 
 static int tomoyo_dentry_open(struct file *f, const struct cred *cred)
@@ -258,6 +265,7 @@ static struct security_operations tomoyo_security_ops = {
 	.path_mknod          = tomoyo_path_mknod,
 	.path_link           = tomoyo_path_link,
 	.path_rename         = tomoyo_path_rename,
+	.inode_getattr       = tomoyo_inode_getattr,
 	.file_ioctl          = tomoyo_file_ioctl,
 	.path_chmod          = tomoyo_path_chmod,
 	.path_chown          = tomoyo_path_chown,

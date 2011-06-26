@@ -55,9 +55,8 @@ static int tomoyo_audit_mount_log(struct tomoyo_request_info *r)
 				flags);
 	return tomoyo_supervisor(r,
 				 TOMOYO_KEYWORD_ALLOW_MOUNT "%s %s %s 0x%lX\n",
-				 tomoyo_pattern(r->param.mount.dev),
-				 tomoyo_pattern(r->param.mount.dir), type,
-				 flags);
+				 r->param.mount.dev->name,
+				 r->param.mount.dir->name, type, flags);
 }
 
 static bool tomoyo_check_mount_acl(struct tomoyo_request_info *r,

@@ -39,13 +39,13 @@ static const char *tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
 	[TOMOYO_MAC_FILE_OPEN]       = "file::open",
 	[TOMOYO_MAC_FILE_CREATE]     = "file::create",
 	[TOMOYO_MAC_FILE_UNLINK]     = "file::unlink",
+	[TOMOYO_MAC_FILE_GETATTR]    = "file::getattr",
 	[TOMOYO_MAC_FILE_MKDIR]      = "file::mkdir",
 	[TOMOYO_MAC_FILE_RMDIR]      = "file::rmdir",
 	[TOMOYO_MAC_FILE_MKFIFO]     = "file::mkfifo",
 	[TOMOYO_MAC_FILE_MKSOCK]     = "file::mksock",
 	[TOMOYO_MAC_FILE_TRUNCATE]   = "file::truncate",
 	[TOMOYO_MAC_FILE_SYMLINK]    = "file::symlink",
-	[TOMOYO_MAC_FILE_REWRITE]    = "file::rewrite",
 	[TOMOYO_MAC_FILE_MKBLOCK]    = "file::mkblock",
 	[TOMOYO_MAC_FILE_MKCHAR]     = "file::mkchar",
 	[TOMOYO_MAC_FILE_LINK]       = "file::link",
@@ -881,10 +881,6 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 			domain->profile = (u8) profile;
 		return 0;
 	}
-	if (!strcmp(data, TOMOYO_KEYWORD_IGNORE_GLOBAL_ALLOW_READ)) {
-		domain->ignore_global_allow_read = !is_delete;
-		return 0;
-	}
 	if (!strcmp(data, TOMOYO_KEYWORD_QUOTA_EXCEEDED)) {
 		domain->quota_warned = !is_delete;
 		return 0;
@@ -941,11 +937,6 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 				continue;
 			if (head->r.print_execute_only &&
 			    bit != TOMOYO_TYPE_EXECUTE)
-				continue;
-			/* Print "read/write" instead of "read" and "write". */
-			if ((bit == TOMOYO_TYPE_READ ||
-			     bit == TOMOYO_TYPE_WRITE)
-			    && (perm & (1 << TOMOYO_TYPE_READ_WRITE)))
 				continue;
 			break;
 		}
@@ -1055,10 +1046,6 @@ static void tomoyo_read_domain(struct tomoyo_io_buffer *head)
 				tomoyo_set_string(head, "quota_exceeded\n");
 			if (domain->transition_failed)
 				tomoyo_set_string(head, "transition_failed\n");
-			if (domain->ignore_global_allow_read)
-				tomoyo_set_string(head,
-				       TOMOYO_KEYWORD_IGNORE_GLOBAL_ALLOW_READ
-						  "\n");
 			head->r.step++;
 			tomoyo_set_lf(head);
 			/* fall through */
@@ -1235,18 +1222,15 @@ static int tomoyo_write_exception(struct tomoyo_io_buffer *head)
 	static const struct {
 		const char *keyword;
 		int (*write) (char *, const bool);
-	} tomoyo_callback[4] = {
+	} tomoyo_callback[1] = {
 		{ TOMOYO_KEYWORD_AGGREGATOR, tomoyo_write_aggregator },
-		{ TOMOYO_KEYWORD_FILE_PATTERN, tomoyo_write_pattern },
-		{ TOMOYO_KEYWORD_DENY_REWRITE, tomoyo_write_no_rewrite },
-		{ TOMOYO_KEYWORD_ALLOW_READ, tomoyo_write_globally_readable },
 	};
 
 	for (i = 0; i < TOMOYO_MAX_TRANSITION_TYPE; i++)
 		if (tomoyo_str_starts(&data, tomoyo_transition_type[i]))
 			return tomoyo_write_transition_control(data, is_delete,
 							       i);
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 1; i++)
 		if (tomoyo_str_starts(&data, tomoyo_callback[i].keyword))
 			return tomoyo_callback[i].write(data, is_delete);
 	for (i = 0; i < TOMOYO_MAX_GROUP; i++)
@@ -1336,15 +1320,6 @@ static bool tomoyo_read_policy(struct tomoyo_io_buffer *head, const int idx)
 							  name);
 			}
 			break;
-		case TOMOYO_ID_GLOBALLY_READABLE:
-			{
-				struct tomoyo_readable_file *ptr =
-					container_of(acl, typeof(*ptr), head);
-				tomoyo_set_string(head,
-						  TOMOYO_KEYWORD_ALLOW_READ);
-				tomoyo_set_string(head, ptr->filename->name);
-			}
-			break;
 		case TOMOYO_ID_AGGREGATOR:
 			{
 				struct tomoyo_aggregator *ptr =
@@ -1356,24 +1331,6 @@ static bool tomoyo_read_policy(struct tomoyo_io_buffer *head, const int idx)
 				tomoyo_set_space(head);
 				tomoyo_set_string(head,
 					       ptr->aggregated_name->name);
-			}
-			break;
-		case TOMOYO_ID_PATTERN:
-			{
-				struct tomoyo_no_pattern *ptr =
-					container_of(acl, typeof(*ptr), head);
-				tomoyo_set_string(head,
-						  TOMOYO_KEYWORD_FILE_PATTERN);
-				tomoyo_set_string(head, ptr->pattern->name);
-			}
-			break;
-		case TOMOYO_ID_NO_REWRITE:
-			{
-				struct tomoyo_no_rewrite *ptr =
-					container_of(acl, typeof(*ptr), head);
-				tomoyo_set_string(head,
-						  TOMOYO_KEYWORD_DENY_REWRITE);
-				tomoyo_set_string(head, ptr->pattern->name);
 			}
 			break;
 		default:
@@ -1891,21 +1848,12 @@ int tomoyo_open_control(const u8 type, struct file *file)
 		head->reader_idx = tomoyo_read_lock();
 	file->private_data = head;
 	/*
-	 * Call the handler now if the file is
-	 * /sys/kernel/security/tomoyo/self_domain
-	 * so that the user can use
-	 * cat < /sys/kernel/security/tomoyo/self_domain"
-	 * to know the current process's domainname.
-	 */
-	if (type == TOMOYO_SELFDOMAIN)
-		tomoyo_read_control(file, NULL, 0);
-	/*
 	 * If the file is /sys/kernel/security/tomoyo/query , increment the
 	 * observer counter.
 	 * The obserber counter is used by tomoyo_supervisor() to see if
 	 * there is some process monitoring /sys/kernel/security/tomoyo/query.
 	 */
-	else if (type == TOMOYO_QUERY)
+	if (type == TOMOYO_QUERY)
 		atomic_inc(&tomoyo_query_observers);
 	return 0;
 }

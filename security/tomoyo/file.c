@@ -11,15 +11,15 @@
 
 /* Keyword array for operations with one pathname. */
 const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION] = {
-	[TOMOYO_TYPE_READ_WRITE] = "read/write",
 	[TOMOYO_TYPE_EXECUTE]    = "execute",
 	[TOMOYO_TYPE_READ]       = "read",
 	[TOMOYO_TYPE_WRITE]      = "write",
+	[TOMOYO_TYPE_APPEND]     = "append",
 	[TOMOYO_TYPE_UNLINK]     = "unlink",
+	[TOMOYO_TYPE_GETATTR]    = "getattr",
 	[TOMOYO_TYPE_RMDIR]      = "rmdir",
 	[TOMOYO_TYPE_TRUNCATE]   = "truncate",
 	[TOMOYO_TYPE_SYMLINK]    = "symlink",
-	[TOMOYO_TYPE_REWRITE]    = "rewrite",
 	[TOMOYO_TYPE_CHROOT]     = "chroot",
 	[TOMOYO_TYPE_UMOUNT]     = "unmount",
 };
@@ -50,15 +50,15 @@ const char *tomoyo_path_number_keyword[TOMOYO_MAX_PATH_NUMBER_OPERATION] = {
 };
 
 static const u8 tomoyo_p2mac[TOMOYO_MAX_PATH_OPERATION] = {
-	[TOMOYO_TYPE_READ_WRITE] = TOMOYO_MAC_FILE_OPEN,
 	[TOMOYO_TYPE_EXECUTE]    = TOMOYO_MAC_FILE_EXECUTE,
 	[TOMOYO_TYPE_READ]       = TOMOYO_MAC_FILE_OPEN,
 	[TOMOYO_TYPE_WRITE]      = TOMOYO_MAC_FILE_OPEN,
+	[TOMOYO_TYPE_APPEND]     = TOMOYO_MAC_FILE_OPEN,
 	[TOMOYO_TYPE_UNLINK]     = TOMOYO_MAC_FILE_UNLINK,
+	[TOMOYO_TYPE_GETATTR]    = TOMOYO_MAC_FILE_GETATTR,
 	[TOMOYO_TYPE_RMDIR]      = TOMOYO_MAC_FILE_RMDIR,
 	[TOMOYO_TYPE_TRUNCATE]   = TOMOYO_MAC_FILE_TRUNCATE,
 	[TOMOYO_TYPE_SYMLINK]    = TOMOYO_MAC_FILE_SYMLINK,
-	[TOMOYO_TYPE_REWRITE]    = TOMOYO_MAC_FILE_REWRITE,
 	[TOMOYO_TYPE_CHROOT]     = TOMOYO_MAC_FILE_CHROOT,
 	[TOMOYO_TYPE_UMOUNT]     = TOMOYO_MAC_FILE_UMOUNT,
 };
@@ -132,24 +132,6 @@ static void tomoyo_add_slash(struct tomoyo_path_info *buf)
 }
 
 /**
- * tomoyo_strendswith - Check whether the token ends with the given token.
- *
- * @name: The token to check.
- * @tail: The token to find.
- *
- * Returns true if @name ends with @tail, false otherwise.
- */
-static bool tomoyo_strendswith(const char *name, const char *tail)
-{
-	int len;
-
-	if (!name || !tail)
-		return false;
-	len = strlen(name) - strlen(tail);
-	return len >= 0 && !strcmp(name + len, tail);
-}
-
-/**
  * tomoyo_get_realpath - Get realpath.
  *
  * @buf:  Pointer to "struct tomoyo_path_info".
@@ -182,7 +164,7 @@ static int tomoyo_audit_path_log(struct tomoyo_request_info *r)
 		return 0;
 	tomoyo_warn_log(r, "%s %s", operation, filename->name);
 	return tomoyo_supervisor(r, "allow_%s %s\n", operation,
-				 tomoyo_pattern(filename));
+				 filename->name);
 }
 
 /**
@@ -202,8 +184,7 @@ static int tomoyo_audit_path2_log(struct tomoyo_request_info *r)
 	tomoyo_warn_log(r, "%s %s %s", operation, filename1->name,
 			filename2->name);
 	return tomoyo_supervisor(r, "allow_%s %s %s\n", operation,
-				 tomoyo_pattern(filename1),
-				 tomoyo_pattern(filename2));
+				 filename1->name, filename2->name);
 }
 
 /**
@@ -225,7 +206,7 @@ static int tomoyo_audit_mkdev_log(struct tomoyo_request_info *r)
 	tomoyo_warn_log(r, "%s %s 0%o %u %u", operation, filename->name, mode,
 			major, minor);
 	return tomoyo_supervisor(r, "allow_%s %s 0%o %u %u\n", operation,
-				 tomoyo_pattern(filename), mode, major, minor);
+				 filename->name, mode, major, minor);
 }
 
 /**
@@ -264,247 +245,7 @@ static int tomoyo_audit_path_number_log(struct tomoyo_request_info *r)
 			   radix);
 	tomoyo_warn_log(r, "%s %s %s", operation, filename->name, buffer);
 	return tomoyo_supervisor(r, "allow_%s %s %s\n", operation,
-				 tomoyo_pattern(filename), buffer);
-}
-
-static bool tomoyo_same_globally_readable(const struct tomoyo_acl_head *a,
-					  const struct tomoyo_acl_head *b)
-{
-	return container_of(a, struct tomoyo_readable_file,
-			    head)->filename ==
-		container_of(b, struct tomoyo_readable_file,
-			     head)->filename;
-}
-
-/**
- * tomoyo_update_globally_readable_entry - Update "struct tomoyo_readable_file" list.
- *
- * @filename:  Filename unconditionally permitted to open() for reading.
- * @is_delete: True if it is a delete request.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_update_globally_readable_entry(const char *filename,
-						 const bool is_delete)
-{
-	struct tomoyo_readable_file e = { };
-	int error;
-
-	if (!tomoyo_correct_word(filename))
-		return -EINVAL;
-	e.filename = tomoyo_get_name(filename);
-	if (!e.filename)
-		return -ENOMEM;
-	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_policy_list
-				     [TOMOYO_ID_GLOBALLY_READABLE],
-				     tomoyo_same_globally_readable);
-	tomoyo_put_name(e.filename);
-	return error;
-}
-
-/**
- * tomoyo_globally_readable_file - Check if the file is unconditionnaly permitted to be open()ed for reading.
- *
- * @filename: The filename to check.
- *
- * Returns true if any domain can open @filename for reading, false otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static bool tomoyo_globally_readable_file(const struct tomoyo_path_info *
-					     filename)
-{
-	struct tomoyo_readable_file *ptr;
-	bool found = false;
-
-	list_for_each_entry_rcu(ptr, &tomoyo_policy_list
-				[TOMOYO_ID_GLOBALLY_READABLE], head.list) {
-		if (!ptr->head.is_deleted &&
-		    tomoyo_path_matches_pattern(filename, ptr->filename)) {
-			found = true;
-			break;
-		}
-	}
-	return found;
-}
-
-/**
- * tomoyo_write_globally_readable - Write "struct tomoyo_readable_file" list.
- *
- * @data:      String to parse.
- * @is_delete: True if it is a delete request.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-int tomoyo_write_globally_readable(char *data, const bool is_delete)
-{
-	return tomoyo_update_globally_readable_entry(data, is_delete);
-}
-
-static bool tomoyo_same_pattern(const struct tomoyo_acl_head *a,
-				const struct tomoyo_acl_head *b)
-{
-	return container_of(a, struct tomoyo_no_pattern, head)->pattern ==
-		container_of(b, struct tomoyo_no_pattern, head)->pattern;
-}
-
-/**
- * tomoyo_update_file_pattern_entry - Update "struct tomoyo_no_pattern" list.
- *
- * @pattern:   Pathname pattern.
- * @is_delete: True if it is a delete request.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_update_file_pattern_entry(const char *pattern,
-					    const bool is_delete)
-{
-	struct tomoyo_no_pattern e = { };
-	int error;
-
-	if (!tomoyo_correct_word(pattern))
-		return -EINVAL;
-	e.pattern = tomoyo_get_name(pattern);
-	if (!e.pattern)
-		return -ENOMEM;
-	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_policy_list[TOMOYO_ID_PATTERN],
-				     tomoyo_same_pattern);
-	tomoyo_put_name(e.pattern);
-	return error;
-}
-
-/**
- * tomoyo_pattern - Get patterned pathname.
- *
- * @filename: The filename to find patterned pathname.
- *
- * Returns pointer to pathname pattern if matched, @filename otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-const char *tomoyo_pattern(const struct tomoyo_path_info *filename)
-{
-	struct tomoyo_no_pattern *ptr;
-	const struct tomoyo_path_info *pattern = NULL;
-
-	list_for_each_entry_rcu(ptr, &tomoyo_policy_list[TOMOYO_ID_PATTERN],
-				head.list) {
-		if (ptr->head.is_deleted)
-			continue;
-		if (!tomoyo_path_matches_pattern(filename, ptr->pattern))
-			continue;
-		pattern = ptr->pattern;
-		if (tomoyo_strendswith(pattern->name, "/\\*")) {
-			/* Do nothing. Try to find the better match. */
-		} else {
-			/* This would be the better match. Use this. */
-			break;
-		}
-	}
-	if (pattern)
-		filename = pattern;
-	return filename->name;
-}
-
-/**
- * tomoyo_write_pattern - Write "struct tomoyo_no_pattern" list.
- *
- * @data:      String to parse.
- * @is_delete: True if it is a delete request.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-int tomoyo_write_pattern(char *data, const bool is_delete)
-{
-	return tomoyo_update_file_pattern_entry(data, is_delete);
-}
-
-static bool tomoyo_same_no_rewrite(const struct tomoyo_acl_head *a,
-				   const struct tomoyo_acl_head *b)
-{
-	return container_of(a, struct tomoyo_no_rewrite, head)->pattern
-		== container_of(b, struct tomoyo_no_rewrite, head)
-		->pattern;
-}
-
-/**
- * tomoyo_update_no_rewrite_entry - Update "struct tomoyo_no_rewrite" list.
- *
- * @pattern:   Pathname pattern that are not rewritable by default.
- * @is_delete: True if it is a delete request.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_update_no_rewrite_entry(const char *pattern,
-					  const bool is_delete)
-{
-	struct tomoyo_no_rewrite e = { };
-	int error;
-
-	if (!tomoyo_correct_word(pattern))
-		return -EINVAL;
-	e.pattern = tomoyo_get_name(pattern);
-	if (!e.pattern)
-		return -ENOMEM;
-	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_policy_list[TOMOYO_ID_NO_REWRITE],
-				     tomoyo_same_no_rewrite);
-	tomoyo_put_name(e.pattern);
-	return error;
-}
-
-/**
- * tomoyo_no_rewrite_file - Check if the given pathname is not permitted to be rewrited.
- *
- * @filename: Filename to check.
- *
- * Returns true if @filename is specified by "deny_rewrite" directive,
- * false otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static bool tomoyo_no_rewrite_file(const struct tomoyo_path_info *filename)
-{
-	struct tomoyo_no_rewrite *ptr;
-	bool found = false;
-
-	list_for_each_entry_rcu(ptr, &tomoyo_policy_list[TOMOYO_ID_NO_REWRITE],
-				head.list) {
-		if (ptr->head.is_deleted)
-			continue;
-		if (!tomoyo_path_matches_pattern(filename, ptr->pattern))
-			continue;
-		found = true;
-		break;
-	}
-	return found;
-}
-
-/**
- * tomoyo_write_no_rewrite - Write "struct tomoyo_no_rewrite" list.
- *
- * @data:      String to parse.
- * @is_delete: True if it is a delete request.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-int tomoyo_write_no_rewrite(char *data, const bool is_delete)
-{
-	return tomoyo_update_no_rewrite_entry(data, is_delete);
+				 filename->name, buffer);
 }
 
 static bool tomoyo_check_path_acl(struct tomoyo_request_info *r,
@@ -569,6 +310,15 @@ static bool tomoyo_same_path_acl(const struct tomoyo_acl_info *a,
 		tomoyo_same_name_union(&p1->name, &p2->name);
 }
 
+/**
+ * tomoyo_merge_path_acl - Merge duplicated "struct tomoyo_path_acl" entry.
+ *
+ * @a:         Pointer to "struct tomoyo_acl_info".
+ * @b:         Pointer to "struct tomoyo_acl_info".
+ * @is_delete: True for @a &= ~@b, false for @a |= @b.
+ *
+ * Returns true if @a is empty, false otherwise.
+ */
 static bool tomoyo_merge_path_acl(struct tomoyo_acl_info *a,
 				  struct tomoyo_acl_info *b,
 				  const bool is_delete)
@@ -577,19 +327,10 @@ static bool tomoyo_merge_path_acl(struct tomoyo_acl_info *a,
 		->perm;
 	u16 perm = *a_perm;
 	const u16 b_perm = container_of(b, struct tomoyo_path_acl, head)->perm;
-	if (is_delete) {
+	if (is_delete)
 		perm &= ~b_perm;
-		if ((perm & TOMOYO_RW_MASK) != TOMOYO_RW_MASK)
-			perm &= ~(1 << TOMOYO_TYPE_READ_WRITE);
-		else if (!(perm & (1 << TOMOYO_TYPE_READ_WRITE)))
-			perm &= ~TOMOYO_RW_MASK;
-	} else {
+	else
 		perm |= b_perm;
-		if ((perm & TOMOYO_RW_MASK) == TOMOYO_RW_MASK)
-			perm |= (1 << TOMOYO_TYPE_READ_WRITE);
-		else if (perm & (1 << TOMOYO_TYPE_READ_WRITE))
-			perm |= TOMOYO_RW_MASK;
-	}
 	*a_perm = perm;
 	return !perm;
 }
@@ -615,8 +356,6 @@ static int tomoyo_update_path_acl(const u8 type, const char *filename,
 		.perm = 1 << type
 	};
 	int error;
-	if (e.perm == (1 << TOMOYO_TYPE_READ_WRITE))
-		e.perm |= TOMOYO_RW_MASK;
 	if (!tomoyo_parse_name_union(filename, &e.name))
 		return -EINVAL;
 	error = tomoyo_update_domain(&e.head, sizeof(e), is_delete, domain,
@@ -775,7 +514,6 @@ int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 {
 	int error;
 
- next:
 	r->type = tomoyo_p2mac[operation];
 	r->mode = tomoyo_get_mode(r->profile, r->type);
 	if (r->mode == TOMOYO_CONFIG_DISABLED)
@@ -785,10 +523,6 @@ int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 	r->param.path.operation = operation;
 	do {
 		tomoyo_check_acl(r, tomoyo_check_path_acl);
-		if (!r->granted && operation == TOMOYO_TYPE_READ &&
-		    !r->domain->ignore_global_allow_read &&
-		    tomoyo_globally_readable_file(filename))
-			r->granted = true;
 		error = tomoyo_audit_path_log(r);
 		/*
 		 * Do not retry for execute request, for alias may have
@@ -796,16 +530,6 @@ int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 		 */
 	} while (error == TOMOYO_RETRY_REQUEST &&
 		 operation != TOMOYO_TYPE_EXECUTE);
-	/*
-	 * Since "allow_truncate" doesn't imply "allow_rewrite" permission,
-	 * we need to check "allow_rewrite" permission if the filename is
-	 * specified by "deny_rewrite" keyword.
-	 */
-	if (!error && operation == TOMOYO_TYPE_TRUNCATE &&
-	    tomoyo_no_rewrite_file(filename)) {
-		operation = TOMOYO_TYPE_REWRITE;
-		goto next;
-	}
 	return error;
 }
 
@@ -932,43 +656,26 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 	struct tomoyo_request_info r;
 	int idx;
 
-	if (!path->mnt ||
-	    (path->dentry->d_inode && S_ISDIR(path->dentry->d_inode->i_mode)))
+	if (!path->mnt)
 		return 0;
 	buf.name = NULL;
 	r.mode = TOMOYO_CONFIG_DISABLED;
 	idx = tomoyo_read_lock();
-	/*
-	 * If the filename is specified by "deny_rewrite" keyword,
-	 * we need to check "allow_rewrite" permission when the filename is not
-	 * opened for append mode or the filename is truncated at open time.
-	 */
-	if ((acc_mode & MAY_WRITE) && !(flag & O_APPEND)
-	    && tomoyo_init_request_info(&r, domain, TOMOYO_MAC_FILE_REWRITE)
+	if (acc_mode &&
+	    tomoyo_init_request_info(&r, domain, TOMOYO_MAC_FILE_OPEN)
 	    != TOMOYO_CONFIG_DISABLED) {
 		if (!tomoyo_get_realpath(&buf, path)) {
 			error = -ENOMEM;
 			goto out;
 		}
-		if (tomoyo_no_rewrite_file(&buf))
-			error = tomoyo_path_permission(&r, TOMOYO_TYPE_REWRITE,
+		if (acc_mode & MAY_READ)
+			error = tomoyo_path_permission(&r, TOMOYO_TYPE_READ,
 						       &buf);
-	}
-	if (!error && acc_mode &&
-	    tomoyo_init_request_info(&r, domain, TOMOYO_MAC_FILE_OPEN)
-	    != TOMOYO_CONFIG_DISABLED) {
-		u8 operation;
-		if (!buf.name && !tomoyo_get_realpath(&buf, path)) {
-			error = -ENOMEM;
-			goto out;
-		}
-		if (acc_mode == (MAY_READ | MAY_WRITE))
-			operation = TOMOYO_TYPE_READ_WRITE;
-		else if (acc_mode == MAY_READ)
-			operation = TOMOYO_TYPE_READ;
-		else
-			operation = TOMOYO_TYPE_WRITE;
-		error = tomoyo_path_permission(&r, operation, &buf);
+		if (!error && (acc_mode & MAY_WRITE))
+			error = tomoyo_path_permission(&r, (flag & O_APPEND) ?
+						       TOMOYO_TYPE_APPEND :
+						       TOMOYO_TYPE_WRITE,
+						       &buf);
 	}
  out:
 	kfree(buf.name);
@@ -979,7 +686,7 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 }
 
 /**
- * tomoyo_path_perm - Check permission for "unlink", "rmdir", "truncate", "symlink", "rewrite", "chroot" and "unmount".
+ * tomoyo_path_perm - Check permission for "unlink", "rmdir", "truncate", "symlink", "append", "chroot" and "unmount".
  *
  * @operation: Type of operation.
  * @path:      Pointer to "struct path".
@@ -988,9 +695,10 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
  */
 int tomoyo_path_perm(const u8 operation, struct path *path)
 {
-	int error = -ENOMEM;
-	struct tomoyo_path_info buf;
 	struct tomoyo_request_info r;
+	int error;
+	struct tomoyo_path_info buf;
+	bool is_enforce;
 	int idx;
 
 	if (!path->mnt)
@@ -998,17 +706,13 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
 	if (tomoyo_init_request_info(&r, NULL, tomoyo_p2mac[operation])
 	    == TOMOYO_CONFIG_DISABLED)
 		return 0;
+	is_enforce = (r.mode == TOMOYO_CONFIG_ENFORCING);
+	error = -ENOMEM;
 	buf.name = NULL;
 	idx = tomoyo_read_lock();
 	if (!tomoyo_get_realpath(&buf, path))
 		goto out;
 	switch (operation) {
-	case TOMOYO_TYPE_REWRITE:
-		if (!tomoyo_no_rewrite_file(&buf)) {
-			error = 0;
-			goto out;
-		}
-		break;
 	case TOMOYO_TYPE_RMDIR:
 	case TOMOYO_TYPE_CHROOT:
 		tomoyo_add_slash(&buf);
@@ -1018,7 +722,7 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
  out:
 	kfree(buf.name);
 	tomoyo_read_unlock(idx);
-	if (r.mode != TOMOYO_CONFIG_ENFORCING)
+	if (!is_enforce)
 		error = 0;
 	return error;
 }
