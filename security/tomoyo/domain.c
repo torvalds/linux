@@ -12,6 +12,9 @@
 
 /* Variables definitions.*/
 
+/* The global ACL referred by "use_group" keyword. */
+struct list_head tomoyo_acl_group[TOMOYO_MAX_ACL_GROUPS];
+
 /* The initial domain. */
 struct tomoyo_domain_info tomoyo_kernel_domain;
 
@@ -125,20 +128,38 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 	return error;
 }
 
+/**
+ * tomoyo_check_acl - Do permission check.
+ *
+ * @r:           Pointer to "struct tomoyo_request_info".
+ * @check_entry: Callback function to check type specific parameters.
+ *
+ * Returns 0 on success, negative value otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
 void tomoyo_check_acl(struct tomoyo_request_info *r,
 		      bool (*check_entry) (struct tomoyo_request_info *,
 					   const struct tomoyo_acl_info *))
 {
 	const struct tomoyo_domain_info *domain = r->domain;
 	struct tomoyo_acl_info *ptr;
+	bool retried = false;
+	const struct list_head *list = &domain->acl_info_list;
 
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
+retry:
+	list_for_each_entry_rcu(ptr, list, list) {
 		if (ptr->is_deleted || ptr->type != r->param_type)
 			continue;
 		if (check_entry(r, ptr)) {
 			r->granted = true;
 			return;
 		}
+	}
+	if (!retried) {
+		retried = true;
+		list = &tomoyo_acl_group[domain->group];
+		goto retry;
 	}
 	r->granted = false;
 }

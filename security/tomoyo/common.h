@@ -38,6 +38,9 @@ struct linux_binprm;
 /* Profile number is an integer between 0 and 255. */
 #define TOMOYO_MAX_PROFILES 256
 
+/* Group number is an integer between 0 and 255. */
+#define TOMOYO_MAX_ACL_GROUPS 256
+
 /* Index numbers for operation mode. */
 enum tomoyo_mode_index {
 	TOMOYO_CONFIG_DISABLED,
@@ -357,6 +360,7 @@ struct tomoyo_domain_info {
 	/* Name of this domain. Never NULL.          */
 	const struct tomoyo_path_info *domainname;
 	u8 profile;        /* Profile number to use. */
+	u8 group;          /* Group number to use.   */
 	bool is_deleted;   /* Delete flag.           */
 	bool quota_warned; /* Quota warnning flag.   */
 	bool transition_failed; /* Domain transition failed flag. */
@@ -446,6 +450,7 @@ struct tomoyo_io_buffer {
 		int step;
 		int query_index;
 		u16 index;
+		u8 acl_group_index;
 		u8 bit;
 		u8 w_pos;
 		bool eof;
@@ -665,6 +670,8 @@ extern struct mutex tomoyo_policy_lock;
 
 /* Has /sbin/init started? */
 extern bool tomoyo_policy_loaded;
+
+extern struct list_head tomoyo_acl_group[TOMOYO_MAX_ACL_GROUPS];
 
 /* The kernel's domain. */
 extern struct tomoyo_domain_info tomoyo_kernel_domain;

@@ -265,10 +265,17 @@ static bool tomoyo_collect_member(const enum tomoyo_policy_id id,
         return true;
 }
 
-static bool tomoyo_collect_acl(struct tomoyo_domain_info *domain)
+/**
+ * tomoyo_collect_acl - Delete elements in "struct tomoyo_domain_info".
+ *
+ * @list: Pointer to "struct list_head".
+ *
+ * Returns true if some elements are deleted, false otherwise.
+ */
+static bool tomoyo_collect_acl(struct list_head *list)
 {
 	struct tomoyo_acl_info *acl;
-	list_for_each_entry(acl, &domain->acl_info_list, list) {
+	list_for_each_entry(acl, list, list) {
 		if (!acl->is_deleted)
 			continue;
 		if (!tomoyo_add_to_gc(TOMOYO_ID_ACL, &acl->list))
@@ -291,10 +298,13 @@ static void tomoyo_collect_entry(void)
 		if (!tomoyo_collect_member(i, &tomoyo_policy_list[i]))
 			goto unlock;
 	}
+	for (i = 0; i < TOMOYO_MAX_ACL_GROUPS; i++)
+		if (!tomoyo_collect_acl(&tomoyo_acl_group[i]))
+			goto unlock;
 	{
 		struct tomoyo_domain_info *domain;
 		list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
-			if (!tomoyo_collect_acl(domain))
+			if (!tomoyo_collect_acl(&domain->acl_info_list))
 				goto unlock;
 			if (!domain->is_deleted || atomic_read(&domain->users))
 				continue;

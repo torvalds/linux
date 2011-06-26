@@ -213,6 +213,8 @@ void __init tomoyo_mm_init(void)
 	for (idx = 0; idx < TOMOYO_MAX_HASH; idx++)
 		INIT_LIST_HEAD(&tomoyo_name_list[idx]);
 	INIT_LIST_HEAD(&tomoyo_kernel_domain.acl_info_list);
+	for (idx = 0; idx < TOMOYO_MAX_ACL_GROUPS; idx++)
+		INIT_LIST_HEAD(&tomoyo_acl_group[idx]);
 	tomoyo_kernel_domain.domainname = tomoyo_get_name(TOMOYO_ROOT_NAME);
 	list_add_tail_rcu(&tomoyo_kernel_domain.list, &tomoyo_domain_list);
 	idx = tomoyo_read_lock();

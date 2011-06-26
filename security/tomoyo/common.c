@@ -896,6 +896,12 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 			domain->profile = (u8) profile;
 		return 0;
 	}
+	if (sscanf(data, "use_group %u\n", &profile) == 1
+	    && profile < TOMOYO_MAX_ACL_GROUPS) {
+		if (!is_delete)
+			domain->group = (u8) profile;
+		return 0;
+	}
 	if (!strcmp(data, "quota_exceeded")) {
 		domain->quota_warned = !is_delete;
 		return 0;
@@ -908,7 +914,7 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 }
 
 /**
- * tomoyo_set_group - Print category name.
+ * tomoyo_set_group - Print "acl_group " header keyword and category name.
  *
  * @head:     Pointer to "struct tomoyo_io_buffer".
  * @category: Category name.
@@ -918,6 +924,9 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 static void tomoyo_set_group(struct tomoyo_io_buffer *head,
 			     const char *category)
 {
+	if (head->type == TOMOYO_EXCEPTIONPOLICY)
+		tomoyo_io_printf(head, "acl_group %u ",
+				 head->r.acl_group_index);
 	tomoyo_set_string(head, category);
 }
 
@@ -1041,17 +1050,17 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 /**
  * tomoyo_read_domain2 - Read domain policy.
  *
- * @head:   Pointer to "struct tomoyo_io_buffer".
- * @domain: Pointer to "struct tomoyo_domain_info".
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ * @list: Pointer to "struct list_head".
  *
  * Caller holds tomoyo_read_lock().
  *
  * Returns true on success, false otherwise.
  */
 static bool tomoyo_read_domain2(struct tomoyo_io_buffer *head,
-				struct tomoyo_domain_info *domain)
+				struct list_head *list)
 {
-	list_for_each_cookie(head->r.acl, &domain->acl_info_list) {
+	list_for_each_cookie(head->r.acl, list) {
 		struct tomoyo_acl_info *ptr =
 			list_entry(head->r.acl, typeof(*ptr), list);
 		if (!tomoyo_print_entry(head, ptr))
@@ -1085,6 +1094,8 @@ static void tomoyo_read_domain(struct tomoyo_io_buffer *head)
 			tomoyo_set_lf(head);
 			tomoyo_io_printf(head, "use_profile %u\n",
 					 domain->profile);
+			tomoyo_io_printf(head, "use_group %u\n",
+					 domain->group);
 			if (domain->quota_warned)
 				tomoyo_set_string(head, "quota_exceeded\n");
 			if (domain->transition_failed)
@@ -1093,7 +1104,7 @@ static void tomoyo_read_domain(struct tomoyo_io_buffer *head)
 			tomoyo_set_lf(head);
 			/* fall through */
 		case 1:
-			if (!tomoyo_read_domain2(head, domain))
+			if (!tomoyo_read_domain2(head, &domain->acl_info_list))
 				return;
 			head->r.step++;
 			if (!tomoyo_set_lf(head))
@@ -1262,6 +1273,14 @@ static int tomoyo_write_exception(struct tomoyo_io_buffer *head)
 	};
 	u8 i;
 	param.is_delete = tomoyo_str_starts(&param.data, "delete ");
+	if (!param.is_delete && tomoyo_str_starts(&param.data, "select ") &&
+	    !strcmp(param.data, "execute_only")) {
+		head->r.print_execute_only = true;
+		return 0;
+	}
+	/* Don't allow updating policies by non manager programs. */
+	if (!tomoyo_manager())
+		return -EPERM;
 	if (tomoyo_str_starts(&param.data, "aggregator "))
 		return tomoyo_write_aggregator(&param);
 	for (i = 0; i < TOMOYO_MAX_TRANSITION_TYPE; i++)
@@ -1270,6 +1289,14 @@ static int tomoyo_write_exception(struct tomoyo_io_buffer *head)
 	for (i = 0; i < TOMOYO_MAX_GROUP; i++)
 		if (tomoyo_str_starts(&param.data, tomoyo_group_name[i]))
 			return tomoyo_write_group(&param, i);
+	if (tomoyo_str_starts(&param.data, "acl_group ")) {
+		unsigned int group;
+		char *data;
+		group = simple_strtoul(param.data, &data, 10);
+		if (group < TOMOYO_MAX_ACL_GROUPS && *data++ == ' ')
+			return tomoyo_write_domain2(&tomoyo_acl_group[group],
+						    data, param.is_delete);
+	}
 	return -EINVAL;
 }
 
@@ -1392,6 +1419,15 @@ static void tomoyo_read_exception(struct tomoyo_io_buffer *head)
 		head->r.step++;
 	if (head->r.step < TOMOYO_MAX_POLICY + TOMOYO_MAX_GROUP)
 		return;
+	while (head->r.step < TOMOYO_MAX_POLICY + TOMOYO_MAX_GROUP
+	       + TOMOYO_MAX_ACL_GROUPS) {
+		head->r.acl_group_index = head->r.step - TOMOYO_MAX_POLICY
+			- TOMOYO_MAX_GROUP;
+		if (!tomoyo_read_domain2(head, &tomoyo_acl_group
+					 [head->r.acl_group_index]))
+			return;
+		head->r.step++;
+	}
 	head->r.eof = true;
 }
 
@@ -1914,7 +1950,8 @@ int tomoyo_write_control(struct tomoyo_io_buffer *head,
 		return -EFAULT;
 	/* Don't allow updating policies by non manager programs. */
 	if (head->write != tomoyo_write_pid &&
-	    head->write != tomoyo_write_domain && !tomoyo_manager())
+	    head->write != tomoyo_write_domain &&
+	    head->write != tomoyo_write_exception && !tomoyo_manager())
 		return -EPERM;
 	if (mutex_lock_interruptible(&head->io_sem))
 		return -EINTR;
