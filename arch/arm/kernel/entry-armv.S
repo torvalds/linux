@@ -45,7 +45,7 @@
 	.endm
 
 	.macro	pabt_helper
-	@ PABORT handler takes fault address in r4
+	@ PABORT handler takes pt_regs in r2, fault address in r4 and psr in r5
 #ifdef MULTI_PABORT
 	ldr	ip, .LCprocfns
 	mov	lr, pc
@@ -306,9 +306,8 @@ ENDPROC(__und_svc)
 	.align	5
 __pabt_svc:
 	svc_entry
-	pabt_helper
 	mov	r2, sp				@ regs
-	bl	do_PrefetchAbort		@ call abort handler
+	pabt_helper
 
 	@
 	@ IRQs off again before pulling preserved data off the stack
@@ -653,9 +652,8 @@ ENDPROC(__und_usr_unknown)
 	.align	5
 __pabt_usr:
 	usr_entry
-	pabt_helper
 	mov	r2, sp				@ regs
-	bl	do_PrefetchAbort		@ call abort handler
+	pabt_helper
  UNWIND(.fnend		)
 	/* fall through */
 /*
