@@ -400,10 +400,6 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 
 	join->ctrl |= wl->session_counter << WL1271_JOIN_CMD_TX_SESSION_OFFSET;
 
-	/* reset TX security counters */
-	wl->tx_security_last_seq = 0;
-	wl->tx_security_seq = 0;
-
 	wl1271_debug(DEBUG_CMD, "cmd join: basic_rate_set=0x%x, rate_set=0x%x",
 		join->basic_rate_set, join->supported_rate_set);
 

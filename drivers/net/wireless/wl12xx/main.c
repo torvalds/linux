@@ -1227,6 +1227,15 @@ static void wl1271_recovery_work(struct work_struct *work)
 	wl1271_info("Hardware recovery in progress. FW ver: %s pc: 0x%x",
 		    wl->chip.fw_ver_str, wl1271_read32(wl, SCR_PAD4));
 
+	/*
+	 * Advance security sequence number to overcome potential progress
+	 * in the firmware during recovery. This doens't hurt if the network is
+	 * not encrypted.
+	 */
+	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) ||
+	    test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
+		wl->tx_security_seq += WL1271_TX_SQN_POST_RECOVERY_PADDING;
+
 	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
 		ieee80211_connection_loss(wl->vif);
 
@@ -1980,8 +1989,6 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	wl->tx_allocated_blocks = 0;
 	wl->tx_results_count = 0;
 	wl->tx_packets_count = 0;
-	wl->tx_security_last_seq = 0;
-	wl->tx_security_seq = 0;
 	wl->time_offset = 0;
 	wl->session_counter = 0;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
@@ -2153,6 +2160,10 @@ static int wl1271_unjoin(struct wl1271 *wl)
 
 	clear_bit(WL1271_FLAG_JOINED, &wl->flags);
 	memset(wl->bssid, 0, ETH_ALEN);
+
+	/* reset TX security counters on a clean disconnect */
+	wl->tx_security_last_seq_lsb = 0;
+	wl->tx_security_seq = 0;
 
 	/* stop filtering packets based on bssid */
 	wl1271_configure_filters(wl, FIF_OTHER_BSS);
@@ -4327,6 +4338,9 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->quirks = 0;
 	wl->platform_quirks = 0;
 	wl->sched_scanning = false;
+	wl->tx_security_seq = 0;
+	wl->tx_security_last_seq_lsb = 0;
+
 	setup_timer(&wl->rx_streaming_timer, wl1271_rx_streaming_timer,
 		    (unsigned long) wl);
 	wl->fwlog_size = 0;

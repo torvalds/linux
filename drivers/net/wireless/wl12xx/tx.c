@@ -704,10 +704,24 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 
 	wl->stats.retry_count += result->ack_failures;
 
-	/* update security sequence number */
-	wl->tx_security_seq += (result->lsb_security_sequence_number -
-				wl->tx_security_last_seq);
-	wl->tx_security_last_seq = result->lsb_security_sequence_number;
+	/*
+	 * update sequence number only when relevant, i.e. only in
+	 * sessions of TKIP, AES and GEM (not in open or WEP sessions)
+	 */
+	if (info->control.hw_key &&
+	    (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP ||
+	     info->control.hw_key->cipher == WLAN_CIPHER_SUITE_CCMP ||
+	     info->control.hw_key->cipher == WL1271_CIPHER_SUITE_GEM)) {
+		u8 fw_lsb = result->tx_security_sequence_number_lsb;
+		u8 cur_lsb = wl->tx_security_last_seq_lsb;
+
+		/*
+		 * update security sequence number, taking care of potential
+		 * wrap-around
+		 */
+		wl->tx_security_seq += (fw_lsb - cur_lsb + 256) % 256;
+		wl->tx_security_last_seq_lsb = fw_lsb;
+	}
 
 	/* remove private header from packet */
 	skb_pull(skb, sizeof(struct wl1271_tx_hw_descr));

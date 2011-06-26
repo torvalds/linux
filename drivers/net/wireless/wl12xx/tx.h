@@ -150,7 +150,7 @@ struct wl1271_tx_hw_res_descr {
 	   (from 1st EDCA AIFS counter until TX Complete). */
 	__le32 medium_delay;
 	/* LS-byte of last TKIP seq-num (saved per AC for recovery). */
-	u8 lsb_security_sequence_number;
+	u8 tx_security_sequence_number_lsb;
 	/* Retry count - number of transmissions without successful ACK.*/
 	u8 ack_failures;
 	/* The rate that succeeded getting ACK

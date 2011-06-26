@@ -144,6 +144,7 @@ extern u32 wl12xx_debug_level;
 
 #define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
 #define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
+#define WL1271_TX_SQN_POST_RECOVERY_PADDING 0xff
 
 #define WL1271_CIPHER_SUITE_GEM 0x00147201
 
@@ -454,9 +455,16 @@ struct wl1271 {
 	struct sk_buff *tx_frames[ACX_TX_DESCRIPTORS];
 	int tx_frames_cnt;
 
-	/* Security sequence number counters */
-	u8 tx_security_last_seq;
-	s64 tx_security_seq;
+	/*
+	 * Security sequence number
+	 *     bits 0-15: lower 16 bits part of sequence number
+	 *     bits 16-47: higher 32 bits part of sequence number
+	 *     bits 48-63: not in use
+	 */
+	u64 tx_security_seq;
+
+	/* 8 bits of the last sequence number in use */
+	u8 tx_security_last_seq_lsb;
 
 	/* FW Rx counter */
 	u32 rx_counter;
