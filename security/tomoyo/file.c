@@ -603,7 +603,7 @@ int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 	int error;
 
 	r->type = tomoyo_p2mac[operation];
-	r->mode = tomoyo_get_mode(r->profile, r->type);
+	r->mode = tomoyo_get_mode(r->domain->ns, r->profile, r->type);
 	if (r->mode == TOMOYO_CONFIG_DISABLED)
 		return 0;
 	r->param_type = TOMOYO_TYPE_PATH_ACL;

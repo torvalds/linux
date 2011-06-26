@@ -416,26 +416,21 @@ bool tomoyo_correct_path(const char *filename)
  */
 bool tomoyo_correct_domain(const unsigned char *domainname)
 {
-	if (!domainname || strncmp(domainname, TOMOYO_ROOT_NAME,
-				   TOMOYO_ROOT_NAME_LEN))
-		goto out;
-	domainname += TOMOYO_ROOT_NAME_LEN;
-	if (!*domainname)
+	if (!domainname || !tomoyo_domain_def(domainname))
+		return false;
+	domainname = strchr(domainname, ' ');
+	if (!domainname++)
 		return true;
-	if (*domainname++ != ' ')
-		goto out;
 	while (1) {
 		const unsigned char *cp = strchr(domainname, ' ');
 		if (!cp)
 			break;
 		if (*domainname != '/' ||
 		    !tomoyo_correct_word2(domainname, cp - domainname))
-			goto out;
+			return false;
 		domainname = cp + 1;
 	}
 	return tomoyo_correct_path(domainname);
- out:
-	return false;
 }
 
 /**
@@ -447,7 +442,19 @@ bool tomoyo_correct_domain(const unsigned char *domainname)
  */
 bool tomoyo_domain_def(const unsigned char *buffer)
 {
-	return !strncmp(buffer, TOMOYO_ROOT_NAME, TOMOYO_ROOT_NAME_LEN);
+	const unsigned char *cp;
+	int len;
+	if (*buffer != '<')
+		return false;
+	cp = strchr(buffer, ' ');
+	if (!cp)
+		len = strlen(buffer);
+	else
+		len = cp - buffer;
+	if (buffer[len - 1] != '>' ||
+	    !tomoyo_correct_word2(buffer + 1, len - 2))
+		return false;
+	return true;
 }
 
 /**
@@ -833,22 +840,24 @@ const char *tomoyo_get_exe(void)
 /**
  * tomoyo_get_mode - Get MAC mode.
  *
+ * @ns:      Pointer to "struct tomoyo_policy_namespace".
  * @profile: Profile number.
  * @index:   Index number of functionality.
  *
  * Returns mode.
  */
-int tomoyo_get_mode(const u8 profile, const u8 index)
+int tomoyo_get_mode(const struct tomoyo_policy_namespace *ns, const u8 profile,
+		    const u8 index)
 {
 	u8 mode;
 	const u8 category = TOMOYO_MAC_CATEGORY_FILE;
 	if (!tomoyo_policy_loaded)
 		return TOMOYO_CONFIG_DISABLED;
-	mode = tomoyo_profile(profile)->config[index];
+	mode = tomoyo_profile(ns, profile)->config[index];
 	if (mode == TOMOYO_CONFIG_USE_DEFAULT)
-		mode = tomoyo_profile(profile)->config[category];
+		mode = tomoyo_profile(ns, profile)->config[category];
 	if (mode == TOMOYO_CONFIG_USE_DEFAULT)
-		mode = tomoyo_profile(profile)->default_config;
+		mode = tomoyo_profile(ns, profile)->default_config;
 	return mode & 3;
 }
 
@@ -872,23 +881,8 @@ int tomoyo_init_request_info(struct tomoyo_request_info *r,
 	profile = domain->profile;
 	r->profile = profile;
 	r->type = index;
-	r->mode = tomoyo_get_mode(profile, index);
+	r->mode = tomoyo_get_mode(domain->ns, profile, index);
 	return r->mode;
-}
-
-/**
- * tomoyo_last_word - Get last component of a line.
- *
- * @line: A line.
- *
- * Returns the last word of a line.
- */
-const char *tomoyo_last_word(const char *name)
-{
-	const char *cp = strrchr(name, ' ');
-	if (cp)
-		return cp + 1;
-	return name;
 }
 
 /**
@@ -939,7 +933,7 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 			if (perm & (1 << i))
 				count++;
 	}
-	if (count < tomoyo_profile(domain->profile)->
+	if (count < tomoyo_profile(domain->ns, domain->profile)->
 	    pref[TOMOYO_PREF_MAX_LEARNING_ENTRY])
 		return true;
 	if (!domain->quota_warned) {

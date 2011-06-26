@@ -151,13 +151,15 @@ static unsigned int tomoyo_log_count;
 /**
  * tomoyo_get_audit - Get audit mode.
  *
+ * @ns:          Pointer to "struct tomoyo_policy_namespace".
  * @profile:     Profile number.
  * @index:       Index number of functionality.
  * @is_granted:  True if granted log, false otherwise.
  *
  * Returns true if this request should be audited, false otherwise.
  */
-static bool tomoyo_get_audit(const u8 profile, const u8 index,
+static bool tomoyo_get_audit(const struct tomoyo_policy_namespace *ns,
+			     const u8 profile, const u8 index,
 			     const bool is_granted)
 {
 	u8 mode;
@@ -165,7 +167,7 @@ static bool tomoyo_get_audit(const u8 profile, const u8 index,
 	struct tomoyo_profile *p;
 	if (!tomoyo_policy_loaded)
 		return false;
-	p = tomoyo_profile(profile);
+	p = tomoyo_profile(ns, profile);
 	if (tomoyo_log_count >= p->pref[TOMOYO_PREF_MAX_AUDIT_LOG])
 		return false;
 	mode = p->config[index];
@@ -194,7 +196,7 @@ void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
 	char *buf;
 	struct tomoyo_log *entry;
 	bool quota_exceeded = false;
-	if (!tomoyo_get_audit(r->profile, r->type, r->granted))
+	if (!tomoyo_get_audit(r->domain->ns, r->profile, r->type, r->granted))
 		goto out;
 	buf = tomoyo_init_log(r, len, fmt, args);
 	if (!buf)

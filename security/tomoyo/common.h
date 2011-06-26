@@ -74,10 +74,6 @@ enum tomoyo_group_id {
 	TOMOYO_MAX_GROUP
 };
 
-/* A domain definition starts with <kernel>. */
-#define TOMOYO_ROOT_NAME                         "<kernel>"
-#define TOMOYO_ROOT_NAME_LEN                     (sizeof(TOMOYO_ROOT_NAME) - 1)
-
 /* Index numbers for type of numeric values. */
 enum tomoyo_value_type {
 	TOMOYO_VALUE_TYPE_INVALID,
@@ -89,6 +85,8 @@ enum tomoyo_value_type {
 /* Index numbers for domain transition control keywords. */
 enum tomoyo_transition_type {
 	/* Do not change this order, */
+	TOMOYO_TRANSITION_CONTROL_NO_RESET,
+	TOMOYO_TRANSITION_CONTROL_RESET,
 	TOMOYO_TRANSITION_CONTROL_NO_INITIALIZE,
 	TOMOYO_TRANSITION_CONTROL_INITIALIZE,
 	TOMOYO_TRANSITION_CONTROL_NO_KEEP,
@@ -246,6 +244,8 @@ struct tomoyo_shared_acl_head {
 	atomic_t users;
 } __packed;
 
+struct tomoyo_policy_namespace;
+
 /* Structure for request info. */
 struct tomoyo_request_info {
 	struct tomoyo_domain_info *domain;
@@ -359,6 +359,8 @@ struct tomoyo_domain_info {
 	struct list_head acl_info_list;
 	/* Name of this domain. Never NULL.          */
 	const struct tomoyo_path_info *domainname;
+	/* Namespace for this domain. Never NULL. */
+	struct tomoyo_policy_namespace *ns;
 	u8 profile;        /* Profile number to use. */
 	u8 group;          /* Group number to use.   */
 	bool is_deleted;   /* Delete flag.           */
@@ -423,6 +425,7 @@ struct tomoyo_mount_acl {
 struct tomoyo_acl_param {
 	char *data;
 	struct list_head *list;
+	struct tomoyo_policy_namespace *ns;
 	bool is_delete;
 };
 
@@ -443,6 +446,7 @@ struct tomoyo_io_buffer {
 	char __user *read_user_buf;
 	int read_user_buf_avail;
 	struct {
+		struct list_head *ns;
 		struct list_head *domain;
 		struct list_head *group;
 		struct list_head *acl;
@@ -455,14 +459,16 @@ struct tomoyo_io_buffer {
 		u8 w_pos;
 		bool eof;
 		bool print_this_domain_only;
-		bool print_execute_only;
+		bool print_transition_related_only;
 		const char *w[TOMOYO_MAX_IO_READ_QUEUE];
 	} r;
 	struct {
+		struct tomoyo_policy_namespace *ns;
 		/* The position currently writing to.   */
 		struct tomoyo_domain_info *domain;
 		/* Bytes available for writing.         */
 		int avail;
+		bool is_delete;
 	} w;
 	/* Buffer for reading.                  */
 	char *read_buf;
@@ -533,8 +539,27 @@ struct tomoyo_time {
 	u8 sec;
 };
 
+/* Structure for policy namespace. */
+struct tomoyo_policy_namespace {
+	/* Profile table. Memory is allocated as needed. */
+	struct tomoyo_profile *profile_ptr[TOMOYO_MAX_PROFILES];
+	/* List of "struct tomoyo_group". */
+	struct list_head group_list[TOMOYO_MAX_GROUP];
+	/* List of policy. */
+	struct list_head policy_list[TOMOYO_MAX_POLICY];
+	/* The global ACL referred by "use_group" keyword. */
+	struct list_head acl_group[TOMOYO_MAX_ACL_GROUPS];
+	/* List for connecting to tomoyo_namespace_list list. */
+	struct list_head namespace_list;
+	/* Profile version. Currently only 20100903 is defined. */
+	unsigned int profile_version;
+	/* Name of this namespace (e.g. "<kernel>", "</usr/sbin/httpd>" ). */
+	const char *name;
+};
+
 /********** Function prototypes. **********/
 
+void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns);
 bool tomoyo_str_starts(char **src, const char *find);
 const char *tomoyo_get_exe(void);
 void tomoyo_normalize_line(unsigned char *buffer);
@@ -553,7 +578,8 @@ tomoyo_compare_name_union(const struct tomoyo_path_info *name,
 			  const struct tomoyo_name_union *ptr);
 bool tomoyo_compare_number_union(const unsigned long value,
 				 const struct tomoyo_number_union *ptr);
-int tomoyo_get_mode(const u8 profile, const u8 index);
+int tomoyo_get_mode(const struct tomoyo_policy_namespace *ns, const u8 profile,
+		    const u8 index);
 void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
 	__attribute__ ((format(printf, 2, 3)));
 bool tomoyo_correct_domain(const unsigned char *domainname);
@@ -589,8 +615,11 @@ int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
      __attribute__ ((format(printf, 2, 3)));
 struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
 struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
-						const u8 profile);
-struct tomoyo_profile *tomoyo_profile(const u8 profile);
+						const bool transit);
+struct tomoyo_profile *tomoyo_profile(const struct tomoyo_policy_namespace *ns,
+				      const u8 profile);
+struct tomoyo_policy_namespace *tomoyo_assign_namespace
+(const char *domainname);
 struct tomoyo_group *tomoyo_get_group(struct tomoyo_acl_param *param,
 				      const u8 idx);
 unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
@@ -646,6 +675,8 @@ char *tomoyo_read_token(struct tomoyo_acl_param *param);
 bool tomoyo_permstr(const char *string, const char *keyword);
 
 const char *tomoyo_yesno(const unsigned int value);
+void tomoyo_write_log(struct tomoyo_request_info *r, const char *fmt, ...)
+	__attribute__ ((format(printf, 2, 3)));
 void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
 		       va_list args);
 void tomoyo_read_log(struct tomoyo_io_buffer *head);
@@ -661,8 +692,6 @@ extern struct srcu_struct tomoyo_ss;
 /* The list for "struct tomoyo_domain_info". */
 extern struct list_head tomoyo_domain_list;
 
-extern struct list_head tomoyo_policy_list[TOMOYO_MAX_POLICY];
-extern struct list_head tomoyo_group_list[TOMOYO_MAX_GROUP];
 extern struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
 
 /* Lock for protecting policy. */
@@ -671,10 +700,10 @@ extern struct mutex tomoyo_policy_lock;
 /* Has /sbin/init started? */
 extern bool tomoyo_policy_loaded;
 
-extern struct list_head tomoyo_acl_group[TOMOYO_MAX_ACL_GROUPS];
-
 /* The kernel's domain. */
 extern struct tomoyo_domain_info tomoyo_kernel_domain;
+extern struct tomoyo_policy_namespace tomoyo_kernel_namespace;
+extern struct list_head tomoyo_namespace_list;
 
 extern const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION];
 extern const char *tomoyo_mkdev_keyword[TOMOYO_MAX_MKDEV_OPERATION];
@@ -807,6 +836,16 @@ static inline bool tomoyo_same_number_union
 	return a->values[0] == b->values[0] && a->values[1] == b->values[1] &&
 		a->group == b->group && a->value_type[0] == b->value_type[0] &&
 		a->value_type[1] == b->value_type[1];
+}
+
+/**
+ * tomoyo_current_namespace - Get "struct tomoyo_policy_namespace" for current thread.
+ *
+ * Returns pointer to "struct tomoyo_policy_namespace" for current thread.
+ */
+static inline struct tomoyo_policy_namespace *tomoyo_current_namespace(void)
+{
+	return tomoyo_domain()->ns;
 }
 
 #if defined(CONFIG_SLOB)

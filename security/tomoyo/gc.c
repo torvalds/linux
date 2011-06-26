@@ -292,15 +292,12 @@ static bool tomoyo_collect_acl(struct list_head *list)
 static void tomoyo_collect_entry(void)
 {
 	int i;
+	enum tomoyo_policy_id id;
+	struct tomoyo_policy_namespace *ns;
+	int idx;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return;
-	for (i = 0; i < TOMOYO_MAX_POLICY; i++) {
-		if (!tomoyo_collect_member(i, &tomoyo_policy_list[i]))
-			goto unlock;
-	}
-	for (i = 0; i < TOMOYO_MAX_ACL_GROUPS; i++)
-		if (!tomoyo_collect_acl(&tomoyo_acl_group[i]))
-			goto unlock;
+	idx = tomoyo_read_lock();
 	{
 		struct tomoyo_domain_info *domain;
 		list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
@@ -317,39 +314,49 @@ static void tomoyo_collect_entry(void)
 				goto unlock;
 		}
 	}
+	list_for_each_entry_rcu(ns, &tomoyo_namespace_list, namespace_list) {
+		for (id = 0; id < TOMOYO_MAX_POLICY; id++)
+			if (!tomoyo_collect_member(id, &ns->policy_list[id]))
+				goto unlock;
+		for (i = 0; i < TOMOYO_MAX_ACL_GROUPS; i++)
+			if (!tomoyo_collect_acl(&ns->acl_group[i]))
+				goto unlock;
+		for (i = 0; i < TOMOYO_MAX_GROUP; i++) {
+			struct list_head *list = &ns->group_list[i];
+			struct tomoyo_group *group;
+			switch (i) {
+			case 0:
+				id = TOMOYO_ID_PATH_GROUP;
+				break;
+			default:
+				id = TOMOYO_ID_NUMBER_GROUP;
+				break;
+			}
+			list_for_each_entry(group, list, head.list) {
+				if (!tomoyo_collect_member
+				    (id, &group->member_list))
+					goto unlock;
+				if (!list_empty(&group->member_list) ||
+				    atomic_read(&group->head.users))
+					continue;
+				if (!tomoyo_add_to_gc(TOMOYO_ID_GROUP,
+						      &group->head.list))
+					goto unlock;
+			}
+		}
+	}
 	for (i = 0; i < TOMOYO_MAX_HASH; i++) {
-		struct tomoyo_name *ptr;
-		list_for_each_entry_rcu(ptr, &tomoyo_name_list[i], head.list) {
-			if (atomic_read(&ptr->head.users))
+		struct list_head *list = &tomoyo_name_list[i];
+		struct tomoyo_shared_acl_head *ptr;
+		list_for_each_entry(ptr, list, list) {
+			if (atomic_read(&ptr->users))
 				continue;
-			if (!tomoyo_add_to_gc(TOMOYO_ID_NAME, &ptr->head.list))
+			if (!tomoyo_add_to_gc(TOMOYO_ID_NAME, &ptr->list))
 				goto unlock;
 		}
 	}
-	for (i = 0; i < TOMOYO_MAX_GROUP; i++) {
-		struct list_head *list = &tomoyo_group_list[i];
-		int id;
-		struct tomoyo_group *group;
-		switch (i) {
-		case 0:
-			id = TOMOYO_ID_PATH_GROUP;
-			break;
-		default:
-			id = TOMOYO_ID_NUMBER_GROUP;
-			break;
-		}
-		list_for_each_entry(group, list, head.list) {
-			if (!tomoyo_collect_member(id, &group->member_list))
-				goto unlock;
-			if (!list_empty(&group->member_list) ||
-			    atomic_read(&group->head.users))
-				continue;
-			if (!tomoyo_add_to_gc(TOMOYO_ID_GROUP,
-					      &group->head.list))
-				goto unlock;
-		}
-	}
- unlock:
+unlock:
+	tomoyo_read_unlock(idx);
 	mutex_unlock(&tomoyo_policy_lock);
 }
 

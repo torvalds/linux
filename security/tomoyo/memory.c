@@ -118,7 +118,7 @@ struct tomoyo_group *tomoyo_get_group(struct tomoyo_acl_param *param,
 		return NULL;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list = &tomoyo_group_list[idx];
+	list = &param->ns->group_list[idx];
 	list_for_each_entry(group, list, head.list) {
 		if (e.group_name != group->group_name)
 			continue;
@@ -199,27 +199,23 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 	return ptr ? &ptr->entry : NULL;
 }
 
+/* Initial namespace.*/
+struct tomoyo_policy_namespace tomoyo_kernel_namespace;
+
 /**
  * tomoyo_mm_init - Initialize mm related code.
  */
 void __init tomoyo_mm_init(void)
 {
 	int idx;
-
-	for (idx = 0; idx < TOMOYO_MAX_POLICY; idx++)
-		INIT_LIST_HEAD(&tomoyo_policy_list[idx]);
-	for (idx = 0; idx < TOMOYO_MAX_GROUP; idx++)
-		INIT_LIST_HEAD(&tomoyo_group_list[idx]);
 	for (idx = 0; idx < TOMOYO_MAX_HASH; idx++)
 		INIT_LIST_HEAD(&tomoyo_name_list[idx]);
+	tomoyo_kernel_namespace.name = "<kernel>";
+	tomoyo_init_policy_namespace(&tomoyo_kernel_namespace);
+	tomoyo_kernel_domain.ns = &tomoyo_kernel_namespace;
 	INIT_LIST_HEAD(&tomoyo_kernel_domain.acl_info_list);
-	for (idx = 0; idx < TOMOYO_MAX_ACL_GROUPS; idx++)
-		INIT_LIST_HEAD(&tomoyo_acl_group[idx]);
-	tomoyo_kernel_domain.domainname = tomoyo_get_name(TOMOYO_ROOT_NAME);
+	tomoyo_kernel_domain.domainname = tomoyo_get_name("<kernel>");
 	list_add_tail_rcu(&tomoyo_kernel_domain.list, &tomoyo_domain_list);
-	idx = tomoyo_read_lock();
-	if (tomoyo_find_domain(TOMOYO_ROOT_NAME) != &tomoyo_kernel_domain)
-		panic("Can't register tomoyo_kernel_domain");
 #if 0
 	/* Will be replaced with tomoyo_load_builtin_policy(). */
 	{
@@ -230,7 +226,6 @@ void __init tomoyo_mm_init(void)
 					TOMOYO_TRANSITION_CONTROL_INITIALIZE);
 	}
 #endif
-	tomoyo_read_unlock(idx);
 }
 
 
