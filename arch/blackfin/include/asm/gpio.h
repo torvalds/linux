@@ -19,6 +19,10 @@
 #define PERIPHERAL_USAGE 1
 #define GPIO_USAGE 0
 
+#ifndef BFIN_GPIO_PINT
+# define BFIN_GPIO_PINT 0
+#endif
+
 #ifndef __ASSEMBLY__
 
 #include <linux/compiler.h>
@@ -40,7 +44,7 @@
 * MODIFICATION HISTORY :
 **************************************************************/
 
-#ifndef CONFIG_BF54x
+#if !BFIN_GPIO_PINT
 void set_gpio_dir(unsigned, unsigned short);
 void set_gpio_inen(unsigned, unsigned short);
 void set_gpio_polar(unsigned, unsigned short);
@@ -133,7 +137,7 @@ static inline void bfin_pm_standby_restore(void)
 void bfin_gpio_pm_hibernate_restore(void);
 void bfin_gpio_pm_hibernate_suspend(void);
 
-#ifndef CONFIG_BF54x
+# if !BFIN_GPIO_PINT
 int gpio_pm_wakeup_ctrl(unsigned gpio, unsigned ctrl);
 
 struct gpio_port_s {
@@ -150,8 +154,9 @@ struct gpio_port_s {
 	unsigned short reserved;
 	unsigned short mux;
 };
-#endif /*CONFIG_BF54x*/
+# endif
 #endif /*CONFIG_PM*/
+
 /***********************************************************
 *
 * FUNCTIONS: Blackfin GPIO Driver

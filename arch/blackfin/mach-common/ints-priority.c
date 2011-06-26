@@ -444,7 +444,7 @@ static inline void bfin_set_irq_handler(unsigned irq, irq_flow_handler_t handle)
 static DECLARE_BITMAP(gpio_enabled, MAX_BLACKFIN_GPIOS);
 extern void bfin_gpio_irq_prepare(unsigned gpio);
 
-#if !defined(CONFIG_BF54x)
+#if !BFIN_GPIO_PINT
 
 static void bfin_gpio_ack_irq(struct irq_data *d)
 {
@@ -633,7 +633,7 @@ void bfin_demux_gpio_irq(unsigned int inta_irq,
 	bfin_demux_gpio_block(irq);
 }
 
-#else				/* CONFIG_BF54x */
+#else
 
 #define NR_PINT_SYS_IRQS	4
 #define NR_PINT_BITS		32
@@ -968,7 +968,7 @@ int __init init_arch_irq(void)
 
 	local_irq_disable();
 
-#ifdef CONFIG_BF54x
+#if BFIN_GPIO_PINT
 # ifdef CONFIG_PINTx_REASSIGN
 	pint[0]->assign = CONFIG_PINT0_ASSIGN;
 	pint[1]->assign = CONFIG_PINT1_ASSIGN;
@@ -986,16 +986,16 @@ int __init init_arch_irq(void)
 			irq_set_chip(irq, &bfin_internal_irqchip);
 
 		switch (irq) {
-#if defined(BF537_FAMILY)
-		case IRQ_PH_INTA_MAC_RX:
-		case IRQ_PF_INTA_PG_INTA:
-#elif defined(BF533_FAMILY)
-		case IRQ_PROG_INTA:
-#elif defined(CONFIG_BF54x)
+#if BFIN_GPIO_PINT
 		case IRQ_PINT0:
 		case IRQ_PINT1:
 		case IRQ_PINT2:
 		case IRQ_PINT3:
+#elif defined(BF537_FAMILY)
+		case IRQ_PH_INTA_MAC_RX:
+		case IRQ_PF_INTA_PG_INTA:
+#elif defined(BF533_FAMILY)
+		case IRQ_PROG_INTA:
 #elif defined(CONFIG_BF52x) || defined(CONFIG_BF51x)
 		case IRQ_PORTF_INTA:
 		case IRQ_PORTG_INTA:
