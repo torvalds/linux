@@ -1624,22 +1624,22 @@ out:
 	return ret;
 }
 
-int wl1271_acx_max_tx_retry(struct wl1271 *wl)
+int wl1271_acx_ap_max_tx_retry(struct wl1271 *wl)
 {
-	struct wl1271_acx_max_tx_retry *acx = NULL;
+	struct wl1271_acx_ap_max_tx_retry *acx = NULL;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx max tx retry");
+	wl1271_debug(DEBUG_ACX, "acx ap max tx retry");
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx)
 		return -ENOMEM;
 
-	acx->max_tx_retry = cpu_to_le16(wl->conf.tx.ap_max_tx_retries);
+	acx->max_tx_retry = cpu_to_le16(wl->conf.tx.max_tx_retries);
 
 	ret = wl1271_cmd_configure(wl, ACX_MAX_TX_FAILURE, acx, sizeof(*acx));
 	if (ret < 0) {
-		wl1271_warning("acx max tx retry failed: %d", ret);
+		wl1271_warning("acx ap max tx retry failed: %d", ret);
 		goto out;
 	}
 

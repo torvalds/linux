@@ -210,7 +210,8 @@ static struct conf_drv_settings default_conf = {
 				.tx_op_limit = 1504,
 			},
 		},
-		.ap_max_tx_retries = 100,
+		.max_tx_retries = 100,
+		.ap_aging_period = 300,
 		.tid_conf_count = 4,
 		.tid_conf = {
 			[CONF_TX_AC_BE] = {
@@ -3524,6 +3525,12 @@ static void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
 	wl1271_tx_reset_link_queues(wl, hlid);
 	__clear_bit(hlid, &wl->ap_ps_map);
 	__clear_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
+}
+
+bool wl1271_is_active_sta(struct wl1271 *wl, u8 hlid)
+{
+	int id = hlid - WL1271_AP_STA_HLID_START;
+	return test_bit(id, wl->ap_hlid_map);
 }
 
 static int wl1271_op_sta_add(struct ieee80211_hw *hw,
