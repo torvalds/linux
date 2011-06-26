@@ -133,6 +133,7 @@ enum tomoyo_path_acl_index {
 	TOMOYO_MAX_PATH_OPERATION
 };
 
+/* Index numbers for /sys/kernel/security/tomoyo/stat interface. */
 enum tomoyo_memory_stat_type {
 	TOMOYO_MEMORY_POLICY,
 	TOMOYO_MEMORY_AUDIT,
@@ -173,7 +174,7 @@ enum tomoyo_securityfs_interface_index {
 	TOMOYO_EXCEPTIONPOLICY,
 	TOMOYO_DOMAIN_STATUS,
 	TOMOYO_PROCESS_STATUS,
-	TOMOYO_MEMINFO,
+	TOMOYO_STAT,
 	TOMOYO_SELFDOMAIN,
 	TOMOYO_AUDIT,
 	TOMOYO_VERSION,
@@ -236,6 +237,16 @@ enum tomoyo_mac_category_index {
  * 0) and "rejected" (which is a negative value) and "retry".
  */
 #define TOMOYO_RETRY_REQUEST 1
+
+/* Index numbers for /sys/kernel/security/tomoyo/stat interface. */
+enum tomoyo_policy_stat_type {
+	/* Do not change this order. */
+	TOMOYO_STAT_POLICY_UPDATES,
+	TOMOYO_STAT_POLICY_LEARNING,   /* == TOMOYO_CONFIG_LEARNING */
+	TOMOYO_STAT_POLICY_PERMISSIVE, /* == TOMOYO_CONFIG_PERMISSIVE */
+	TOMOYO_STAT_POLICY_ENFORCING,  /* == TOMOYO_CONFIG_ENFORCING */
+	TOMOYO_MAX_POLICY_STAT
+};
 
 /* Index numbers for profile's PREFERENCE values. */
 enum tomoyo_pref_index {
@@ -648,8 +659,8 @@ char *tomoyo_realpath_from_path(struct path *path);
 bool tomoyo_memory_ok(void *ptr);
 void *tomoyo_commit_ok(void *data, const unsigned int size);
 const struct tomoyo_path_info *tomoyo_get_name(const char *name);
-void tomoyo_read_memory_counter(struct tomoyo_io_buffer *head);
-int tomoyo_write_memory_quota(struct tomoyo_io_buffer *head);
+void tomoyo_convert_time(time_t time, struct tomoyo_time *stamp);
+void tomoyo_update_stat(const u8 index);
 void __init tomoyo_mm_init(void);
 int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 			   const struct tomoyo_path_info *filename);

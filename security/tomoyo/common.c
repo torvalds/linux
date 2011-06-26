@@ -1584,8 +1584,9 @@ static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
 		return;
 	snprintf(buffer, len - 1, "%s", cp);
 	tomoyo_normalize_line(buffer);
-	tomoyo_write_domain2(domain->ns, &domain->acl_info_list, buffer,
-			     false);
+	if (!tomoyo_write_domain2(domain->ns, &domain->acl_info_list, buffer,
+				  false))
+		tomoyo_update_stat(TOMOYO_STAT_POLICY_UPDATES);
 	kfree(buffer);
 }
 
@@ -1618,6 +1619,8 @@ int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
 	/* Nothing more to do if granted. */
 	if (r->granted)
 		return 0;
+	if (r->mode)
+		tomoyo_update_stat(r->mode);
 	switch (r->mode) {
 	case TOMOYO_CONFIG_ENFORCING:
 		error = -EPERM;
@@ -1857,6 +1860,104 @@ static void tomoyo_read_self_domain(struct tomoyo_io_buffer *head)
 	}
 }
 
+/* String table for /sys/kernel/security/tomoyo/stat interface. */
+static const char * const tomoyo_policy_headers[TOMOYO_MAX_POLICY_STAT] = {
+	[TOMOYO_STAT_POLICY_UPDATES]    = "update:",
+	[TOMOYO_STAT_POLICY_LEARNING]   = "violation in learning mode:",
+	[TOMOYO_STAT_POLICY_PERMISSIVE] = "violation in permissive mode:",
+	[TOMOYO_STAT_POLICY_ENFORCING]  = "violation in enforcing mode:",
+};
+
+/* String table for /sys/kernel/security/tomoyo/stat interface. */
+static const char * const tomoyo_memory_headers[TOMOYO_MAX_MEMORY_STAT] = {
+	[TOMOYO_MEMORY_POLICY] = "policy:",
+	[TOMOYO_MEMORY_AUDIT]  = "audit log:",
+	[TOMOYO_MEMORY_QUERY]  = "query message:",
+};
+
+/* Timestamp counter for last updated. */
+static unsigned int tomoyo_stat_updated[TOMOYO_MAX_POLICY_STAT];
+/* Counter for number of updates. */
+static unsigned int tomoyo_stat_modified[TOMOYO_MAX_POLICY_STAT];
+
+/**
+ * tomoyo_update_stat - Update statistic counters.
+ *
+ * @index: Index for policy type.
+ *
+ * Returns nothing.
+ */
+void tomoyo_update_stat(const u8 index)
+{
+	struct timeval tv;
+	do_gettimeofday(&tv);
+	/*
+	 * I don't use atomic operations because race condition is not fatal.
+	 */
+	tomoyo_stat_updated[index]++;
+	tomoyo_stat_modified[index] = tv.tv_sec;
+}
+
+/**
+ * tomoyo_read_stat - Read statistic data.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ *
+ * Returns nothing.
+ */
+static void tomoyo_read_stat(struct tomoyo_io_buffer *head)
+{
+	u8 i;
+	unsigned int total = 0;
+	if (head->r.eof)
+		return;
+	for (i = 0; i < TOMOYO_MAX_POLICY_STAT; i++) {
+		tomoyo_io_printf(head, "Policy %-30s %10u",
+				 tomoyo_policy_headers[i],
+				 tomoyo_stat_updated[i]);
+		if (tomoyo_stat_modified[i]) {
+			struct tomoyo_time stamp;
+			tomoyo_convert_time(tomoyo_stat_modified[i], &stamp);
+			tomoyo_io_printf(head, " (Last: %04u/%02u/%02u "
+					 "%02u:%02u:%02u)",
+					 stamp.year, stamp.month, stamp.day,
+					 stamp.hour, stamp.min, stamp.sec);
+		}
+		tomoyo_set_lf(head);
+	}
+	for (i = 0; i < TOMOYO_MAX_MEMORY_STAT; i++) {
+		unsigned int used = tomoyo_memory_used[i];
+		total += used;
+		tomoyo_io_printf(head, "Memory used by %-22s %10u",
+				 tomoyo_memory_headers[i], used);
+		used = tomoyo_memory_quota[i];
+		if (used)
+			tomoyo_io_printf(head, " (Quota: %10u)", used);
+		tomoyo_set_lf(head);
+	}
+	tomoyo_io_printf(head, "Total memory used:                    %10u\n",
+			 total);
+	head->r.eof = true;
+}
+
+/**
+ * tomoyo_write_stat - Set memory quota.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ *
+ * Returns 0.
+ */
+static int tomoyo_write_stat(struct tomoyo_io_buffer *head)
+{
+	char *data = head->write_buf;
+	u8 i;
+	if (tomoyo_str_starts(&data, "Memory used by "))
+		for (i = 0; i < TOMOYO_MAX_MEMORY_STAT; i++)
+			if (tomoyo_str_starts(&data, tomoyo_memory_headers[i]))
+				sscanf(data, "%u", &tomoyo_memory_quota[i]);
+	return 0;
+}
+
 /**
  * tomoyo_open_control - open() for /sys/kernel/security/tomoyo/ interface.
  *
@@ -1908,11 +2009,11 @@ int tomoyo_open_control(const u8 type, struct file *file)
 		head->read = tomoyo_read_version;
 		head->readbuf_size = 128;
 		break;
-	case TOMOYO_MEMINFO:
-		/* /sys/kernel/security/tomoyo/meminfo */
-		head->write = tomoyo_write_memory_quota;
-		head->read = tomoyo_read_memory_counter;
-		head->readbuf_size = 512;
+	case TOMOYO_STAT:
+		/* /sys/kernel/security/tomoyo/stat */
+		head->write = tomoyo_write_stat;
+		head->read = tomoyo_read_stat;
+		head->readbuf_size = 1024;
 		break;
 	case TOMOYO_PROFILE:
 		/* /sys/kernel/security/tomoyo/profile */
@@ -2186,6 +2287,20 @@ ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 		case -EPERM:
 			error = -EPERM;
 			goto out;
+		case 0:
+			switch (head->type) {
+			case TOMOYO_DOMAINPOLICY:
+			case TOMOYO_EXCEPTIONPOLICY:
+			case TOMOYO_DOMAIN_STATUS:
+			case TOMOYO_STAT:
+			case TOMOYO_PROFILE:
+			case TOMOYO_MANAGER:
+				tomoyo_update_stat(TOMOYO_STAT_POLICY_UPDATES);
+				break;
+			default:
+				break;
+			}
+			break;
 		}
 	}
 out:

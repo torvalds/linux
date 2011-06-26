@@ -29,15 +29,12 @@ void tomoyo_warn_oom(const char *function)
 		panic("MAC Initialization failed.\n");
 }
 
+/* Lock for protecting tomoyo_memory_used. */
+static DEFINE_SPINLOCK(tomoyo_policy_memory_lock);
 /* Memoy currently used by policy/audit log/query. */
 unsigned int tomoyo_memory_used[TOMOYO_MAX_MEMORY_STAT];
 /* Memory quota for "policy"/"audit log"/"query". */
 unsigned int tomoyo_memory_quota[TOMOYO_MAX_MEMORY_STAT];
-
-/* Memory allocated for policy. */
-static atomic_t tomoyo_policy_memory_size;
-/* Quota for holding policy. */
-static unsigned int tomoyo_quota_for_policy;
 
 /**
  * tomoyo_memory_ok - Check memory quota.
@@ -50,15 +47,20 @@ static unsigned int tomoyo_quota_for_policy;
  */
 bool tomoyo_memory_ok(void *ptr)
 {
-	size_t s = ptr ? ksize(ptr) : 0;
-	atomic_add(s, &tomoyo_policy_memory_size);
-	if (ptr && (!tomoyo_quota_for_policy ||
-		    atomic_read(&tomoyo_policy_memory_size)
-		    <= tomoyo_quota_for_policy)) {
-		memset(ptr, 0, s);
-		return true;
+	if (ptr) {
+		const size_t s = ksize(ptr);
+		bool result;
+		spin_lock(&tomoyo_policy_memory_lock);
+		tomoyo_memory_used[TOMOYO_MEMORY_POLICY] += s;
+		result = !tomoyo_memory_quota[TOMOYO_MEMORY_POLICY] ||
+			tomoyo_memory_used[TOMOYO_MEMORY_POLICY] <=
+			tomoyo_memory_quota[TOMOYO_MEMORY_POLICY];
+		if (!result)
+			tomoyo_memory_used[TOMOYO_MEMORY_POLICY] -= s;
+		spin_unlock(&tomoyo_policy_memory_lock);
+		if (result)
+			return true;
 	}
-	atomic_sub(s, &tomoyo_policy_memory_size);
 	tomoyo_warn_oom(__func__);
 	return false;
 }
@@ -91,7 +93,10 @@ void *tomoyo_commit_ok(void *data, const unsigned int size)
  */
 void tomoyo_memory_free(void *ptr)
 {
-	atomic_sub(ksize(ptr), &tomoyo_policy_memory_size);
+	size_t s = ksize(ptr);
+	spin_lock(&tomoyo_policy_memory_lock);
+	tomoyo_memory_used[TOMOYO_MEMORY_POLICY] -= s;
+	spin_unlock(&tomoyo_policy_memory_lock);
 	kfree(ptr);
 }
 
@@ -162,7 +167,6 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 	struct tomoyo_name *ptr;
 	unsigned int hash;
 	int len;
-	int allocated_len;
 	struct list_head *head;
 
 	if (!name)
@@ -179,22 +183,17 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 		goto out;
 	}
 	ptr = kzalloc(sizeof(*ptr) + len, GFP_NOFS);
-	allocated_len = ptr ? ksize(ptr) : 0;
-	if (!ptr || (tomoyo_quota_for_policy &&
-		     atomic_read(&tomoyo_policy_memory_size) + allocated_len
-		     > tomoyo_quota_for_policy)) {
+	if (tomoyo_memory_ok(ptr)) {
+		ptr->entry.name = ((char *) ptr) + sizeof(*ptr);
+		memmove((char *) ptr->entry.name, name, len);
+		atomic_set(&ptr->head.users, 1);
+		tomoyo_fill_path_info(&ptr->entry);
+		list_add_tail(&ptr->head.list, head);
+	} else {
 		kfree(ptr);
 		ptr = NULL;
-		tomoyo_warn_oom(__func__);
-		goto out;
 	}
-	atomic_add(allocated_len, &tomoyo_policy_memory_size);
-	ptr->entry.name = ((char *) ptr) + sizeof(*ptr);
-	memmove((char *) ptr->entry.name, name, len);
-	atomic_set(&ptr->head.users, 1);
-	tomoyo_fill_path_info(&ptr->entry);
-	list_add_tail(&ptr->head.list, head);
- out:
+out:
 	mutex_unlock(&tomoyo_policy_lock);
 	return ptr ? &ptr->entry : NULL;
 }
@@ -226,66 +225,4 @@ void __init tomoyo_mm_init(void)
 					TOMOYO_TRANSITION_CONTROL_INITIALIZE);
 	}
 #endif
-}
-
-
-/* Memory allocated for query lists. */
-unsigned int tomoyo_query_memory_size;
-/* Quota for holding query lists. */
-unsigned int tomoyo_quota_for_query;
-
-/**
- * tomoyo_read_memory_counter - Check for memory usage in bytes.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns memory usage.
- */
-void tomoyo_read_memory_counter(struct tomoyo_io_buffer *head)
-{
-	if (!head->r.eof) {
-		const unsigned int policy
-			= atomic_read(&tomoyo_policy_memory_size);
-		const unsigned int query = tomoyo_query_memory_size;
-		char buffer[64];
-
-		memset(buffer, 0, sizeof(buffer));
-		if (tomoyo_quota_for_policy)
-			snprintf(buffer, sizeof(buffer) - 1,
-				 "   (Quota: %10u)",
-				 tomoyo_quota_for_policy);
-		else
-			buffer[0] = '\0';
-		tomoyo_io_printf(head, "Policy:       %10u%s\n", policy,
-				 buffer);
-		if (tomoyo_quota_for_query)
-			snprintf(buffer, sizeof(buffer) - 1,
-				 "   (Quota: %10u)",
-				 tomoyo_quota_for_query);
-		else
-			buffer[0] = '\0';
-		tomoyo_io_printf(head, "Query lists:  %10u%s\n", query,
-				 buffer);
-		tomoyo_io_printf(head, "Total:        %10u\n", policy + query);
-		head->r.eof = true;
-	}
-}
-
-/**
- * tomoyo_write_memory_quota - Set memory quota.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns 0.
- */
-int tomoyo_write_memory_quota(struct tomoyo_io_buffer *head)
-{
-	char *data = head->write_buf;
-	unsigned int size;
-
-	if (sscanf(data, "Policy: %u", &size) == 1)
-		tomoyo_quota_for_policy = size;
-	else if (sscanf(data, "Query lists: %u", &size) == 1)
-		tomoyo_quota_for_query = size;
-	return 0;
 }
