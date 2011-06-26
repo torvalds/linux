@@ -2554,6 +2554,9 @@ static int be_setup(struct be_adapter *adapter)
 	if (status != 0)
 		goto tx_qs_destroy;
 
+	/* Allow all priorities by default. A GRP5 evt may modify this */
+	adapter->vlan_prio_bmap = 0xff;
+
 	status = be_mcc_queues_create(adapter);
 	if (status != 0)
 		goto rx_qs_destroy;
@@ -3419,10 +3422,6 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	}
 
 	dev_info(&pdev->dev, "%s port %d\n", nic_name(pdev), adapter->port_num);
-	/* By default all priorities are enabled.
-	 * Needed in case of no GRP5 evt support
-	 */
-	adapter->vlan_prio_bmap = 0xff;
 
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(100));
 	return 0;
