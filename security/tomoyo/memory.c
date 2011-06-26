@@ -29,6 +29,11 @@ void tomoyo_warn_oom(const char *function)
 		panic("MAC Initialization failed.\n");
 }
 
+/* Memoy currently used by policy/audit log/query. */
+unsigned int tomoyo_memory_used[TOMOYO_MAX_MEMORY_STAT];
+/* Memory quota for "policy"/"audit log"/"query". */
+unsigned int tomoyo_memory_quota[TOMOYO_MAX_MEMORY_STAT];
+
 /* Memory allocated for policy. */
 static atomic_t tomoyo_policy_memory_size;
 /* Quota for holding policy. */

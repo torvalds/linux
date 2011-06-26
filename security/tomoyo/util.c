@@ -892,20 +892,6 @@ const char *tomoyo_last_word(const char *name)
 }
 
 /**
- * tomoyo_warn_log - Print warning or error message on console.
- *
- * @r:   Pointer to "struct tomoyo_request_info".
- * @fmt: The printf()'s format string, followed by parameters.
- */
-void tomoyo_warn_log(struct tomoyo_request_info *r, const char *fmt, ...)
-{
-	/*
-	 * Temporarily disabled.
-	 * Will be replaced with /sys/kernel/security/tomoyo/audit interface.
-	 */
-}
-
-/**
  * tomoyo_domain_quota_is_ok - Check for domain's quota.
  *
  * @r: Pointer to "struct tomoyo_request_info".

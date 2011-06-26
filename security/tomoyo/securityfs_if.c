@@ -135,6 +135,8 @@ static int __init tomoyo_initerface_init(void)
 			    TOMOYO_DOMAINPOLICY);
 	tomoyo_create_entry("exception_policy", 0600, tomoyo_dir,
 			    TOMOYO_EXCEPTIONPOLICY);
+	tomoyo_create_entry("audit",            0400, tomoyo_dir,
+			    TOMOYO_AUDIT);
 	tomoyo_create_entry("self_domain",      0400, tomoyo_dir,
 			    TOMOYO_SELFDOMAIN);
 	tomoyo_create_entry(".domain_status",   0600, tomoyo_dir,

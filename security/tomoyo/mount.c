@@ -27,29 +27,11 @@ static const char * const tomoyo_mounts[TOMOYO_MAX_SPECIAL_MOUNT] = {
  */
 static int tomoyo_audit_mount_log(struct tomoyo_request_info *r)
 {
-	const char *dev = r->param.mount.dev->name;
-	const char *dir = r->param.mount.dir->name;
-	const char *type = r->param.mount.type->name;
-	const unsigned long flags = r->param.mount.flags;
-	if (r->granted)
-		return 0;
-	if (type == tomoyo_mounts[TOMOYO_MOUNT_REMOUNT])
-		tomoyo_warn_log(r, "mount -o remount %s 0x%lX", dir, flags);
-	else if (type == tomoyo_mounts[TOMOYO_MOUNT_BIND]
-		 || type == tomoyo_mounts[TOMOYO_MOUNT_MOVE])
-		tomoyo_warn_log(r, "mount %s %s %s 0x%lX", type, dev, dir,
-				flags);
-	else if (type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_UNBINDABLE] ||
-		 type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_PRIVATE] ||
-		 type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_SLAVE] ||
-		 type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_SHARED])
-		tomoyo_warn_log(r, "mount %s %s 0x%lX", type, dir, flags);
-	else
-		tomoyo_warn_log(r, "mount -t %s %s %s 0x%lX", type, dev, dir,
-				flags);
-	return tomoyo_supervisor(r, "allow_mount %s %s %s 0x%lX\n",
+	return tomoyo_supervisor(r, "file mount %s %s %s 0x%lX\n",
 				 r->param.mount.dev->name,
-				 r->param.mount.dir->name, type, flags);
+				 r->param.mount.dir->name,
+				 r->param.mount.type->name,
+				 r->param.mount.flags);
 }
 
 /**

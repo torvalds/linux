@@ -206,12 +206,9 @@ static bool tomoyo_get_realpath(struct tomoyo_path_info *buf, struct path *path)
  */
 static int tomoyo_audit_path_log(struct tomoyo_request_info *r)
 {
-	const char *operation = tomoyo_path_keyword[r->param.path.operation];
-	const struct tomoyo_path_info *filename = r->param.path.filename;
-	if (r->granted)
-		return 0;
-	tomoyo_warn_log(r, "%s %s", operation, filename->name);
-	return tomoyo_supervisor(r, "file %s %s\n", operation, filename->name);
+	return tomoyo_supervisor(r, "file %s %s\n", tomoyo_path_keyword
+				 [r->param.path.operation],
+				 r->param.path.filename->name);
 }
 
 /**
@@ -223,15 +220,10 @@ static int tomoyo_audit_path_log(struct tomoyo_request_info *r)
  */
 static int tomoyo_audit_path2_log(struct tomoyo_request_info *r)
 {
-	const char *operation = tomoyo_path2_keyword[r->param.path2.operation];
-	const struct tomoyo_path_info *filename1 = r->param.path2.filename1;
-	const struct tomoyo_path_info *filename2 = r->param.path2.filename2;
-	if (r->granted)
-		return 0;
-	tomoyo_warn_log(r, "%s %s %s", operation, filename1->name,
-			filename2->name);
-	return tomoyo_supervisor(r, "file %s %s %s\n", operation,
-				 filename1->name, filename2->name);
+	return tomoyo_supervisor(r, "file %s %s %s\n", tomoyo_path2_keyword
+				 [r->param.path2.operation],
+				 r->param.path2.filename1->name,
+				 r->param.path2.filename2->name);
 }
 
 /**
@@ -243,17 +235,12 @@ static int tomoyo_audit_path2_log(struct tomoyo_request_info *r)
  */
 static int tomoyo_audit_mkdev_log(struct tomoyo_request_info *r)
 {
-	const char *operation = tomoyo_mkdev_keyword[r->param.mkdev.operation];
-	const struct tomoyo_path_info *filename = r->param.mkdev.filename;
-	const unsigned int major = r->param.mkdev.major;
-	const unsigned int minor = r->param.mkdev.minor;
-	const unsigned int mode = r->param.mkdev.mode;
-	if (r->granted)
-		return 0;
-	tomoyo_warn_log(r, "%s %s 0%o %u %u", operation, filename->name, mode,
-			major, minor);
-	return tomoyo_supervisor(r, "file %s %s 0%o %u %u\n", operation,
-				 filename->name, mode, major, minor);
+	return tomoyo_supervisor(r, "file %s %s 0%o %u %u\n",
+				 tomoyo_mkdev_keyword
+				 [r->param.mkdev.operation],
+				 r->param.mkdev.filename->name,
+				 r->param.mkdev.mode, r->param.mkdev.major,
+				 r->param.mkdev.minor);
 }
 
 /**
@@ -267,11 +254,7 @@ static int tomoyo_audit_path_number_log(struct tomoyo_request_info *r)
 {
 	const u8 type = r->param.path_number.operation;
 	u8 radix;
-	const struct tomoyo_path_info *filename = r->param.path_number.filename;
-	const char *operation = tomoyo_path_number_keyword[type];
 	char buffer[64];
-	if (r->granted)
-		return 0;
 	switch (type) {
 	case TOMOYO_TYPE_CREATE:
 	case TOMOYO_TYPE_MKDIR:
@@ -289,9 +272,9 @@ static int tomoyo_audit_path_number_log(struct tomoyo_request_info *r)
 	}
 	tomoyo_print_ulong(buffer, sizeof(buffer), r->param.path_number.number,
 			   radix);
-	tomoyo_warn_log(r, "%s %s %s", operation, filename->name, buffer);
-	return tomoyo_supervisor(r, "file %s %s %s\n", operation,
-				 filename->name, buffer);
+	return tomoyo_supervisor(r, "file %s %s %s\n",
+				 tomoyo_path_number_keyword[type],
+				 r->param.path_number.filename->name, buffer);
 }
 
 /**

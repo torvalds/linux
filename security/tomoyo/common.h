@@ -44,7 +44,10 @@ enum tomoyo_mode_index {
 	TOMOYO_CONFIG_LEARNING,
 	TOMOYO_CONFIG_PERMISSIVE,
 	TOMOYO_CONFIG_ENFORCING,
-	TOMOYO_CONFIG_USE_DEFAULT = 255
+	TOMOYO_CONFIG_MAX_MODE,
+	TOMOYO_CONFIG_WANT_REJECT_LOG =  64,
+	TOMOYO_CONFIG_WANT_GRANT_LOG  = 128,
+	TOMOYO_CONFIG_USE_DEFAULT     = 255,
 };
 
 /* Index numbers for entry type. */
@@ -115,6 +118,13 @@ enum tomoyo_path_acl_index {
 	TOMOYO_MAX_PATH_OPERATION
 };
 
+enum tomoyo_memory_stat_type {
+	TOMOYO_MEMORY_POLICY,
+	TOMOYO_MEMORY_AUDIT,
+	TOMOYO_MEMORY_QUERY,
+	TOMOYO_MAX_MEMORY_STAT
+};
+
 enum tomoyo_mkdev_acl_index {
 	TOMOYO_TYPE_MKBLOCK,
 	TOMOYO_TYPE_MKCHAR,
@@ -150,6 +160,7 @@ enum tomoyo_securityfs_interface_index {
 	TOMOYO_PROCESS_STATUS,
 	TOMOYO_MEMINFO,
 	TOMOYO_SELFDOMAIN,
+	TOMOYO_AUDIT,
 	TOMOYO_VERSION,
 	TOMOYO_PROFILE,
 	TOMOYO_QUERY,
@@ -213,6 +224,7 @@ enum tomoyo_mac_category_index {
 
 /* Index numbers for profile's PREFERENCE values. */
 enum tomoyo_pref_index {
+	TOMOYO_PREF_MAX_AUDIT_LOG,
 	TOMOYO_PREF_MAX_LEARNING_ENTRY,
 	TOMOYO_MAX_PREF
 };
@@ -506,13 +518,21 @@ struct tomoyo_profile {
 	unsigned int pref[TOMOYO_MAX_PREF];
 };
 
+/* Structure for representing YYYY/MM/DD hh/mm/ss. */
+struct tomoyo_time {
+	u16 year;
+	u8 month;
+	u8 day;
+	u8 hour;
+	u8 min;
+	u8 sec;
+};
+
 /********** Function prototypes. **********/
 
 bool tomoyo_str_starts(char **src, const char *find);
 const char *tomoyo_get_exe(void);
 void tomoyo_normalize_line(unsigned char *buffer);
-void tomoyo_warn_log(struct tomoyo_request_info *r, const char *fmt, ...)
-     __attribute__ ((format(printf, 2, 3)));
 void tomoyo_check_profile(void);
 int tomoyo_open_control(const u8 type, struct file *file);
 int tomoyo_close_control(struct tomoyo_io_buffer *head);
@@ -620,6 +640,14 @@ void tomoyo_check_acl(struct tomoyo_request_info *r,
 char *tomoyo_read_token(struct tomoyo_acl_param *param);
 bool tomoyo_permstr(const char *string, const char *keyword);
 
+const char *tomoyo_yesno(const unsigned int value);
+void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
+		       va_list args);
+void tomoyo_read_log(struct tomoyo_io_buffer *head);
+int tomoyo_poll_log(struct file *file, poll_table *wait);
+char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
+		      va_list args);
+
 /********** External variable definitions. **********/
 
 /* Lock for GC. */
@@ -650,8 +678,9 @@ extern const u8 tomoyo_pnnn2mac[TOMOYO_MAX_MKDEV_OPERATION];
 extern const u8 tomoyo_pp2mac[TOMOYO_MAX_PATH2_OPERATION];
 extern const u8 tomoyo_pn2mac[TOMOYO_MAX_PATH_NUMBER_OPERATION];
 
-extern unsigned int tomoyo_quota_for_query;
-extern unsigned int tomoyo_query_memory_size;
+extern const char * const tomoyo_mode[TOMOYO_CONFIG_MAX_MODE];
+extern unsigned int tomoyo_memory_quota[TOMOYO_MAX_MEMORY_STAT];
+extern unsigned int tomoyo_memory_used[TOMOYO_MAX_MEMORY_STAT];
 
 /********** Inlined functions. **********/
 
@@ -772,6 +801,50 @@ static inline bool tomoyo_same_number_union
 		a->group == b->group && a->value_type[0] == b->value_type[0] &&
 		a->value_type[1] == b->value_type[1];
 }
+
+#if defined(CONFIG_SLOB)
+
+/**
+ * tomoyo_round2 - Round up to power of 2 for calculating memory usage.
+ *
+ * @size: Size to be rounded up.
+ *
+ * Returns @size.
+ *
+ * Since SLOB does not round up, this function simply returns @size.
+ */
+static inline int tomoyo_round2(size_t size)
+{
+	return size;
+}
+
+#else
+
+/**
+ * tomoyo_round2 - Round up to power of 2 for calculating memory usage.
+ *
+ * @size: Size to be rounded up.
+ *
+ * Returns rounded size.
+ *
+ * Strictly speaking, SLAB may be able to allocate (e.g.) 96 bytes instead of
+ * (e.g.) 128 bytes.
+ */
+static inline int tomoyo_round2(size_t size)
+{
+#if PAGE_SIZE == 4096
+	size_t bsize = 32;
+#else
+	size_t bsize = 64;
+#endif
+	if (!size)
+		return 0;
+	while (size > bsize)
+		bsize <<= 1;
+	return bsize;
+}
+
+#endif
 
 /**
  * list_for_each_cookie - iterate over a list with cookie.
