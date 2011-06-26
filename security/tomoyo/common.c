@@ -643,7 +643,7 @@ static int tomoyo_update_manager_entry(const char *manager,
 static int tomoyo_write_manager(struct tomoyo_io_buffer *head)
 {
 	char *data = head->write_buf;
-	bool is_delete = tomoyo_str_starts(&data, TOMOYO_KEYWORD_DELETE);
+	bool is_delete = tomoyo_str_starts(&data, "delete ");
 
 	if (!strcmp(data, "manage_by_non_root")) {
 		tomoyo_manage_by_non_root = !is_delete;
@@ -830,7 +830,7 @@ static int tomoyo_delete_domain(char *domainname)
 static int tomoyo_write_domain2(char *data, struct tomoyo_domain_info *domain,
 				const bool is_delete)
 {
-	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_ALLOW_MOUNT))
+	if (tomoyo_str_starts(&data, "allow_mount "))
 		return tomoyo_write_mount(data, domain, is_delete);
 	return tomoyo_write_file(data, domain, is_delete);
 }
@@ -852,9 +852,9 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 	bool is_select = false;
 	unsigned int profile;
 
-	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_DELETE))
+	if (tomoyo_str_starts(&data, "delete "))
 		is_delete = true;
-	else if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_SELECT))
+	else if (tomoyo_str_starts(&data, "select "))
 		is_select = true;
 	if (is_select && tomoyo_select_one(head, data))
 		return 0;
@@ -875,17 +875,17 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 	if (!domain)
 		return -EINVAL;
 
-	if (sscanf(data, TOMOYO_KEYWORD_USE_PROFILE "%u", &profile) == 1
+	if (sscanf(data, "use_profile %u", &profile) == 1
 	    && profile < TOMOYO_MAX_PROFILES) {
 		if (tomoyo_profile_ptr[profile] || !tomoyo_policy_loaded)
 			domain->profile = (u8) profile;
 		return 0;
 	}
-	if (!strcmp(data, TOMOYO_KEYWORD_QUOTA_EXCEEDED)) {
+	if (!strcmp(data, "quota_exceeded")) {
 		domain->quota_warned = !is_delete;
 		return 0;
 	}
-	if (!strcmp(data, TOMOYO_KEYWORD_TRANSITION_FAILED)) {
+	if (!strcmp(data, "transition_failed")) {
 		domain->transition_failed = !is_delete;
 		return 0;
 	}
@@ -1039,8 +1039,7 @@ static void tomoyo_read_domain(struct tomoyo_io_buffer *head)
 			/* Print domainname and flags. */
 			tomoyo_set_string(head, domain->domainname->name);
 			tomoyo_set_lf(head);
-			tomoyo_io_printf(head,
-					 TOMOYO_KEYWORD_USE_PROFILE "%u\n",
+			tomoyo_io_printf(head, "use_profile %u\n",
 					 domain->profile);
 			if (domain->quota_warned)
 				tomoyo_set_string(head, "quota_exceeded\n");
@@ -1192,17 +1191,15 @@ static void tomoyo_read_pid(struct tomoyo_io_buffer *head)
 }
 
 static const char *tomoyo_transition_type[TOMOYO_MAX_TRANSITION_TYPE] = {
-	[TOMOYO_TRANSITION_CONTROL_NO_INITIALIZE]
-	= TOMOYO_KEYWORD_NO_INITIALIZE_DOMAIN,
-	[TOMOYO_TRANSITION_CONTROL_INITIALIZE]
-	= TOMOYO_KEYWORD_INITIALIZE_DOMAIN,
-	[TOMOYO_TRANSITION_CONTROL_NO_KEEP] = TOMOYO_KEYWORD_NO_KEEP_DOMAIN,
-	[TOMOYO_TRANSITION_CONTROL_KEEP] = TOMOYO_KEYWORD_KEEP_DOMAIN
+	[TOMOYO_TRANSITION_CONTROL_NO_INITIALIZE] = "no_initialize_domain",
+	[TOMOYO_TRANSITION_CONTROL_INITIALIZE]    = "initialize_domain",
+	[TOMOYO_TRANSITION_CONTROL_NO_KEEP]       = "no_keep_domain",
+	[TOMOYO_TRANSITION_CONTROL_KEEP]          = "keep_domain",
 };
 
 static const char *tomoyo_group_name[TOMOYO_MAX_GROUP] = {
-	[TOMOYO_PATH_GROUP] = TOMOYO_KEYWORD_PATH_GROUP,
-	[TOMOYO_NUMBER_GROUP] = TOMOYO_KEYWORD_NUMBER_GROUP
+	[TOMOYO_PATH_GROUP]   = "path_group ",
+	[TOMOYO_NUMBER_GROUP] = "number_group ",
 };
 
 /**
@@ -1217,13 +1214,13 @@ static const char *tomoyo_group_name[TOMOYO_MAX_GROUP] = {
 static int tomoyo_write_exception(struct tomoyo_io_buffer *head)
 {
 	char *data = head->write_buf;
-	bool is_delete = tomoyo_str_starts(&data, TOMOYO_KEYWORD_DELETE);
+	bool is_delete = tomoyo_str_starts(&data, "delete ");
 	u8 i;
 	static const struct {
 		const char *keyword;
 		int (*write) (char *, const bool);
 	} tomoyo_callback[1] = {
-		{ TOMOYO_KEYWORD_AGGREGATOR, tomoyo_write_aggregator },
+		{ "aggregator ", tomoyo_write_aggregator },
 	};
 
 	for (i = 0; i < TOMOYO_MAX_TRANSITION_TYPE; i++)
@@ -1324,8 +1321,7 @@ static bool tomoyo_read_policy(struct tomoyo_io_buffer *head, const int idx)
 			{
 				struct tomoyo_aggregator *ptr =
 					container_of(acl, typeof(*ptr), head);
-				tomoyo_set_string(head,
-						  TOMOYO_KEYWORD_AGGREGATOR);
+				tomoyo_set_string(head, "aggregator ");
 				tomoyo_set_string(head,
 						  ptr->original_name->name);
 				tomoyo_set_space(head);

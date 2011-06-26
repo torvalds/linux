@@ -7,22 +7,16 @@
 #include <linux/slab.h>
 #include "common.h"
 
-/* Keywords for mount restrictions. */
-
-/* Allow to call 'mount --bind /source_dir /dest_dir' */
-#define TOMOYO_MOUNT_BIND_KEYWORD                        "--bind"
-/* Allow to call 'mount --move /old_dir    /new_dir ' */
-#define TOMOYO_MOUNT_MOVE_KEYWORD                        "--move"
-/* Allow to call 'mount -o remount /dir             ' */
-#define TOMOYO_MOUNT_REMOUNT_KEYWORD                     "--remount"
-/* Allow to call 'mount --make-unbindable /dir'       */
-#define TOMOYO_MOUNT_MAKE_UNBINDABLE_KEYWORD             "--make-unbindable"
-/* Allow to call 'mount --make-private /dir'          */
-#define TOMOYO_MOUNT_MAKE_PRIVATE_KEYWORD                "--make-private"
-/* Allow to call 'mount --make-slave /dir'            */
-#define TOMOYO_MOUNT_MAKE_SLAVE_KEYWORD                  "--make-slave"
-/* Allow to call 'mount --make-shared /dir'           */
-#define TOMOYO_MOUNT_MAKE_SHARED_KEYWORD                 "--make-shared"
+/* String table for special mount operations. */
+static const char * const tomoyo_mounts[TOMOYO_MAX_SPECIAL_MOUNT] = {
+	[TOMOYO_MOUNT_BIND]            = "--bind",
+	[TOMOYO_MOUNT_MOVE]            = "--move",
+	[TOMOYO_MOUNT_REMOUNT]         = "--remount",
+	[TOMOYO_MOUNT_MAKE_UNBINDABLE] = "--make-unbindable",
+	[TOMOYO_MOUNT_MAKE_PRIVATE]    = "--make-private",
+	[TOMOYO_MOUNT_MAKE_SLAVE]      = "--make-slave",
+	[TOMOYO_MOUNT_MAKE_SHARED]     = "--make-shared",
+};
 
 /**
  * tomoyo_audit_mount_log - Audit mount log.
@@ -39,22 +33,21 @@ static int tomoyo_audit_mount_log(struct tomoyo_request_info *r)
 	const unsigned long flags = r->param.mount.flags;
 	if (r->granted)
 		return 0;
-	if (!strcmp(type, TOMOYO_MOUNT_REMOUNT_KEYWORD))
+	if (type == tomoyo_mounts[TOMOYO_MOUNT_REMOUNT])
 		tomoyo_warn_log(r, "mount -o remount %s 0x%lX", dir, flags);
-	else if (!strcmp(type, TOMOYO_MOUNT_BIND_KEYWORD)
-		 || !strcmp(type, TOMOYO_MOUNT_MOVE_KEYWORD))
+	else if (type == tomoyo_mounts[TOMOYO_MOUNT_BIND]
+		 || type == tomoyo_mounts[TOMOYO_MOUNT_MOVE])
 		tomoyo_warn_log(r, "mount %s %s %s 0x%lX", type, dev, dir,
 				flags);
-	else if (!strcmp(type, TOMOYO_MOUNT_MAKE_UNBINDABLE_KEYWORD) ||
-		 !strcmp(type, TOMOYO_MOUNT_MAKE_PRIVATE_KEYWORD) ||
-		 !strcmp(type, TOMOYO_MOUNT_MAKE_SLAVE_KEYWORD) ||
-		 !strcmp(type, TOMOYO_MOUNT_MAKE_SHARED_KEYWORD))
+	else if (type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_UNBINDABLE] ||
+		 type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_PRIVATE] ||
+		 type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_SLAVE] ||
+		 type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_SHARED])
 		tomoyo_warn_log(r, "mount %s %s 0x%lX", type, dir, flags);
 	else
 		tomoyo_warn_log(r, "mount -t %s %s %s 0x%lX", type, dev, dir,
 				flags);
-	return tomoyo_supervisor(r,
-				 TOMOYO_KEYWORD_ALLOW_MOUNT "%s %s %s 0x%lX\n",
+	return tomoyo_supervisor(r, "allow_mount %s %s %s 0x%lX\n",
 				 r->param.mount.dev->name,
 				 r->param.mount.dir->name, type, flags);
 }
@@ -85,7 +78,8 @@ static bool tomoyo_check_mount_acl(struct tomoyo_request_info *r,
  * Caller holds tomoyo_read_lock().
  */
 static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
-			    struct path *dir, char *type, unsigned long flags)
+			    struct path *dir, const char *type,
+			    unsigned long flags)
 {
 	struct path path;
 	struct file_system_type *fstype = NULL;
@@ -115,15 +109,15 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
 	tomoyo_fill_path_info(&rdir);
 
 	/* Compare fs name. */
-	if (!strcmp(type, TOMOYO_MOUNT_REMOUNT_KEYWORD)) {
+	if (type == tomoyo_mounts[TOMOYO_MOUNT_REMOUNT]) {
 		/* dev_name is ignored. */
-	} else if (!strcmp(type, TOMOYO_MOUNT_MAKE_UNBINDABLE_KEYWORD) ||
-		   !strcmp(type, TOMOYO_MOUNT_MAKE_PRIVATE_KEYWORD) ||
-		   !strcmp(type, TOMOYO_MOUNT_MAKE_SLAVE_KEYWORD) ||
-		   !strcmp(type, TOMOYO_MOUNT_MAKE_SHARED_KEYWORD)) {
+	} else if (type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_UNBINDABLE] ||
+		   type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_PRIVATE] ||
+		   type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_SLAVE] ||
+		   type == tomoyo_mounts[TOMOYO_MOUNT_MAKE_SHARED]) {
 		/* dev_name is ignored. */
-	} else if (!strcmp(type, TOMOYO_MOUNT_BIND_KEYWORD) ||
-		   !strcmp(type, TOMOYO_MOUNT_MOVE_KEYWORD)) {
+	} else if (type == tomoyo_mounts[TOMOYO_MOUNT_BIND] ||
+		   type == tomoyo_mounts[TOMOYO_MOUNT_MOVE]) {
 		need_dev = -1; /* dev_name is a directory */
 	} else {
 		fstype = get_fs_type(type);
@@ -189,8 +183,9 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_mount_permission(char *dev_name, struct path *path, char *type,
-			    unsigned long flags, void *data_page)
+int tomoyo_mount_permission(char *dev_name, struct path *path,
+			    const char *type, unsigned long flags,
+			    void *data_page)
 {
 	struct tomoyo_request_info r;
 	int error;
@@ -202,31 +197,31 @@ int tomoyo_mount_permission(char *dev_name, struct path *path, char *type,
 	if ((flags & MS_MGC_MSK) == MS_MGC_VAL)
 		flags &= ~MS_MGC_MSK;
 	if (flags & MS_REMOUNT) {
-		type = TOMOYO_MOUNT_REMOUNT_KEYWORD;
+		type = tomoyo_mounts[TOMOYO_MOUNT_REMOUNT];
 		flags &= ~MS_REMOUNT;
 	}
 	if (flags & MS_MOVE) {
-		type = TOMOYO_MOUNT_MOVE_KEYWORD;
+		type = tomoyo_mounts[TOMOYO_MOUNT_MOVE];
 		flags &= ~MS_MOVE;
 	}
 	if (flags & MS_BIND) {
-		type = TOMOYO_MOUNT_BIND_KEYWORD;
+		type = tomoyo_mounts[TOMOYO_MOUNT_BIND];
 		flags &= ~MS_BIND;
 	}
 	if (flags & MS_UNBINDABLE) {
-		type = TOMOYO_MOUNT_MAKE_UNBINDABLE_KEYWORD;
+		type = tomoyo_mounts[TOMOYO_MOUNT_MAKE_UNBINDABLE];
 		flags &= ~MS_UNBINDABLE;
 	}
 	if (flags & MS_PRIVATE) {
-		type = TOMOYO_MOUNT_MAKE_PRIVATE_KEYWORD;
+		type = tomoyo_mounts[TOMOYO_MOUNT_MAKE_PRIVATE];
 		flags &= ~MS_PRIVATE;
 	}
 	if (flags & MS_SLAVE) {
-		type = TOMOYO_MOUNT_MAKE_SLAVE_KEYWORD;
+		type = tomoyo_mounts[TOMOYO_MOUNT_MAKE_SLAVE];
 		flags &= ~MS_SLAVE;
 	}
 	if (flags & MS_SHARED) {
-		type = TOMOYO_MOUNT_MAKE_SHARED_KEYWORD;
+		type = tomoyo_mounts[TOMOYO_MOUNT_MAKE_SHARED];
 		flags &= ~MS_SHARED;
 	}
 	if (!type)

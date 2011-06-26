@@ -38,6 +38,7 @@ struct linux_binprm;
 /* Profile number is an integer between 0 and 255. */
 #define TOMOYO_MAX_PROFILES 256
 
+/* Index numbers for operation mode. */
 enum tomoyo_mode_index {
 	TOMOYO_CONFIG_DISABLED,
 	TOMOYO_CONFIG_LEARNING,
@@ -46,6 +47,7 @@ enum tomoyo_mode_index {
 	TOMOYO_CONFIG_USE_DEFAULT = 255
 };
 
+/* Index numbers for entry type. */
 enum tomoyo_policy_id {
 	TOMOYO_ID_GROUP,
 	TOMOYO_ID_PATH_GROUP,
@@ -59,37 +61,26 @@ enum tomoyo_policy_id {
 	TOMOYO_MAX_POLICY
 };
 
+/* Index numbers for group entries. */
 enum tomoyo_group_id {
 	TOMOYO_PATH_GROUP,
 	TOMOYO_NUMBER_GROUP,
 	TOMOYO_MAX_GROUP
 };
 
-/* Keywords for ACLs. */
-#define TOMOYO_KEYWORD_AGGREGATOR                "aggregator "
-#define TOMOYO_KEYWORD_ALLOW_MOUNT               "allow_mount "
-#define TOMOYO_KEYWORD_ALLOW_READ                "allow_read "
-#define TOMOYO_KEYWORD_DELETE                    "delete "
-#define TOMOYO_KEYWORD_INITIALIZE_DOMAIN         "initialize_domain "
-#define TOMOYO_KEYWORD_KEEP_DOMAIN               "keep_domain "
-#define TOMOYO_KEYWORD_NO_INITIALIZE_DOMAIN      "no_initialize_domain "
-#define TOMOYO_KEYWORD_NO_KEEP_DOMAIN            "no_keep_domain "
-#define TOMOYO_KEYWORD_PATH_GROUP                "path_group "
-#define TOMOYO_KEYWORD_NUMBER_GROUP              "number_group "
-#define TOMOYO_KEYWORD_SELECT                    "select "
-#define TOMOYO_KEYWORD_USE_PROFILE               "use_profile "
-#define TOMOYO_KEYWORD_QUOTA_EXCEEDED            "quota_exceeded"
-#define TOMOYO_KEYWORD_TRANSITION_FAILED         "transition_failed"
 /* A domain definition starts with <kernel>. */
 #define TOMOYO_ROOT_NAME                         "<kernel>"
 #define TOMOYO_ROOT_NAME_LEN                     (sizeof(TOMOYO_ROOT_NAME) - 1)
 
-/* Value type definition. */
-#define TOMOYO_VALUE_TYPE_INVALID     0
-#define TOMOYO_VALUE_TYPE_DECIMAL     1
-#define TOMOYO_VALUE_TYPE_OCTAL       2
-#define TOMOYO_VALUE_TYPE_HEXADECIMAL 3
+/* Index numbers for type of numeric values. */
+enum tomoyo_value_type {
+	TOMOYO_VALUE_TYPE_INVALID,
+	TOMOYO_VALUE_TYPE_DECIMAL,
+	TOMOYO_VALUE_TYPE_OCTAL,
+	TOMOYO_VALUE_TYPE_HEXADECIMAL,
+};
 
+/* Index numbers for domain transition control keywords. */
 enum tomoyo_transition_type {
 	/* Do not change this order, */
 	TOMOYO_TRANSITION_CONTROL_NO_INITIALIZE,
@@ -108,7 +99,7 @@ enum tomoyo_acl_entry_type_index {
 	TOMOYO_TYPE_MOUNT_ACL,
 };
 
-/* Index numbers for File Controls. */
+/* Index numbers for access controls with one pathname. */
 enum tomoyo_path_acl_index {
 	TOMOYO_TYPE_EXECUTE,
 	TOMOYO_TYPE_READ,
@@ -130,6 +121,7 @@ enum tomoyo_mkdev_acl_index {
 	TOMOYO_MAX_MKDEV_OPERATION
 };
 
+/* Index numbers for access controls with two pathnames. */
 enum tomoyo_path2_acl_index {
 	TOMOYO_TYPE_LINK,
 	TOMOYO_TYPE_RENAME,
@@ -137,6 +129,7 @@ enum tomoyo_path2_acl_index {
 	TOMOYO_MAX_PATH2_OPERATION
 };
 
+/* Index numbers for access controls with one pathname and one number. */
 enum tomoyo_path_number_acl_index {
 	TOMOYO_TYPE_CREATE,
 	TOMOYO_TYPE_MKDIR,
@@ -149,6 +142,7 @@ enum tomoyo_path_number_acl_index {
 	TOMOYO_MAX_PATH_NUMBER_OPERATION
 };
 
+/* Index numbers for /sys/kernel/security/tomoyo/ interfaces. */
 enum tomoyo_securityfs_interface_index {
 	TOMOYO_DOMAINPOLICY,
 	TOMOYO_EXCEPTIONPOLICY,
@@ -162,6 +156,19 @@ enum tomoyo_securityfs_interface_index {
 	TOMOYO_MANAGER
 };
 
+/* Index numbers for special mount operations. */
+enum tomoyo_special_mount {
+	TOMOYO_MOUNT_BIND,            /* mount --bind /source /dest   */
+	TOMOYO_MOUNT_MOVE,            /* mount --move /old /new       */
+	TOMOYO_MOUNT_REMOUNT,         /* mount -o remount /dir        */
+	TOMOYO_MOUNT_MAKE_UNBINDABLE, /* mount --make-unbindable /dir */
+	TOMOYO_MOUNT_MAKE_PRIVATE,    /* mount --make-private /dir    */
+	TOMOYO_MOUNT_MAKE_SLAVE,      /* mount --make-slave /dir      */
+	TOMOYO_MOUNT_MAKE_SHARED,     /* mount --make-shared /dir     */
+	TOMOYO_MAX_SPECIAL_MOUNT
+};
+
+/* Index numbers for functionality. */
 enum tomoyo_mac_index {
 	TOMOYO_MAC_FILE_EXECUTE,
 	TOMOYO_MAC_FILE_OPEN,
@@ -189,37 +196,30 @@ enum tomoyo_mac_index {
 	TOMOYO_MAX_MAC_INDEX
 };
 
+/* Index numbers for category of functionality. */
 enum tomoyo_mac_category_index {
 	TOMOYO_MAC_CATEGORY_FILE,
 	TOMOYO_MAX_MAC_CATEGORY_INDEX
 };
 
-#define TOMOYO_RETRY_REQUEST 1 /* Retry this request. */
+/*
+ * Retry this request. Returned by tomoyo_supervisor() if policy violation has
+ * occurred in enforcing mode and the userspace daemon decided to retry.
+ *
+ * We must choose a positive value in order to distinguish "granted" (which is
+ * 0) and "rejected" (which is a negative value) and "retry".
+ */
+#define TOMOYO_RETRY_REQUEST 1
 
 /********** Structure definitions. **********/
 
-/*
- * tomoyo_acl_head is a structure which is used for holding elements not in
- * domain policy.
- * It has following fields.
- *
- *  (1) "list" which is linked to tomoyo_policy_list[] .
- *  (2) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
- */
+/* Common header for holding ACL entries. */
 struct tomoyo_acl_head {
 	struct list_head list;
 	bool is_deleted;
 } __packed;
 
-/*
- * tomoyo_request_info is a structure which is used for holding
- *
- * (1) Domain information of current process.
- * (2) How many retries are made for this request.
- * (3) Profile number used for this request.
- * (4) Access control mode of the profile.
- */
+/* Structure for request info. */
 struct tomoyo_request_info {
 	struct tomoyo_domain_info *domain;
 	/* For holding parameters. */
@@ -228,11 +228,13 @@ struct tomoyo_request_info {
 			const struct tomoyo_path_info *filename;
 			/* For using wildcards at tomoyo_find_next_domain(). */
 			const struct tomoyo_path_info *matched_path;
+			/* One of values in "enum tomoyo_path_acl_index". */
 			u8 operation;
 		} path;
 		struct {
 			const struct tomoyo_path_info *filename1;
 			const struct tomoyo_path_info *filename2;
+			/* One of values in "enum tomoyo_path2_acl_index". */
 			u8 operation;
 		} path2;
 		struct {
@@ -240,11 +242,16 @@ struct tomoyo_request_info {
 			unsigned int mode;
 			unsigned int major;
 			unsigned int minor;
+			/* One of values in "enum tomoyo_mkdev_acl_index". */
 			u8 operation;
 		} mkdev;
 		struct {
 			const struct tomoyo_path_info *filename;
 			unsigned long number;
+			/*
+			 * One of values in
+			 * "enum tomoyo_path_number_acl_index".
+			 */
 			u8 operation;
 		} path_number;
 		struct {
@@ -263,26 +270,7 @@ struct tomoyo_request_info {
 	u8 type;
 };
 
-/*
- * tomoyo_path_info is a structure which is used for holding a string data
- * used by TOMOYO.
- * This structure has several fields for supporting pattern matching.
- *
- * (1) "name" is the '\0' terminated string data.
- * (2) "hash" is full_name_hash(name, strlen(name)).
- *     This allows tomoyo_pathcmp() to compare by hash before actually compare
- *     using strcmp().
- * (3) "const_len" is the length of the initial segment of "name" which
- *     consists entirely of non wildcard characters. In other words, the length
- *     which we can compare two strings using strncmp().
- * (4) "is_dir" is a bool which is true if "name" ends with "/",
- *     false otherwise.
- *     TOMOYO distinguishes directory and non-directory. A directory ends with
- *     "/" and non-directory does not end with "/".
- * (5) "is_patterned" is a bool which is true if "name" contains wildcard
- *     characters, false otherwise. This allows TOMOYO to use "hash" and
- *     strcmp() for string comparison if "is_patterned" is false.
- */
+/* Structure for holding a token. */
 struct tomoyo_path_info {
 	const char *name;
 	u32 hash;          /* = full_name_hash(name, strlen(name)) */
@@ -291,27 +279,30 @@ struct tomoyo_path_info {
 	bool is_patterned; /* = tomoyo_path_contains_pattern(name) */
 };
 
-/*
- * tomoyo_name is a structure which is used for linking
- * "struct tomoyo_path_info" into tomoyo_name_list .
- */
+/* Structure for holding string data. */
 struct tomoyo_name {
 	struct list_head list;
 	atomic_t users;
 	struct tomoyo_path_info entry;
 };
 
+/* Structure for holding a word. */
 struct tomoyo_name_union {
+	/* Either @filename or @group is NULL. */
 	const struct tomoyo_path_info *filename;
 	struct tomoyo_group *group;
+	/* True if @group != NULL, false if @filename != NULL. */
 	u8 is_group;
 };
 
+/* Structure for holding a number. */
 struct tomoyo_number_union {
 	unsigned long values[2];
-	struct tomoyo_group *group;
+	struct tomoyo_group *group; /* Maybe NULL. */
+	/* One of values in "enum tomoyo_value_type". */
 	u8 min_type;
 	u8 max_type;
+	/* True if @group != NULL, false otherwise. */
 	u8 is_group;
 };
 
@@ -335,56 +326,14 @@ struct tomoyo_number_group {
 	struct tomoyo_number_union number;
 };
 
-/*
- * tomoyo_acl_info is a structure which is used for holding
- *
- *  (1) "list" which is linked to the ->acl_info_list of
- *      "struct tomoyo_domain_info"
- *  (2) "is_deleted" is a bool which is true if this domain is marked as
- *      "deleted", false otherwise.
- *  (3) "type" which tells type of the entry.
- *
- * Packing "struct tomoyo_acl_info" allows
- * "struct tomoyo_path_acl" to embed "u16" and "struct tomoyo_path2_acl"
- * "struct tomoyo_path_number_acl" "struct tomoyo_mkdev_acl" to embed
- * "u8" without enlarging their structure size.
- */
+/* Common header for individual entries. */
 struct tomoyo_acl_info {
 	struct list_head list;
 	bool is_deleted;
-	u8 type; /* = one of values in "enum tomoyo_acl_entry_type_index". */
+	u8 type; /* One of values in "enum tomoyo_acl_entry_type_index". */
 } __packed;
 
-/*
- * tomoyo_domain_info is a structure which is used for holding permissions
- * (e.g. "allow_read /lib/libc-2.5.so") given to each domain.
- * It has following fields.
- *
- *  (1) "list" which is linked to tomoyo_domain_list .
- *  (2) "acl_info_list" which is linked to "struct tomoyo_acl_info".
- *  (3) "domainname" which holds the name of the domain.
- *  (4) "profile" which remembers profile number assigned to this domain.
- *  (5) "is_deleted" is a bool which is true if this domain is marked as
- *      "deleted", false otherwise.
- *  (6) "quota_warned" is a bool which is used for suppressing warning message
- *      when learning mode learned too much entries.
- *  (7) "transition_failed" is a bool which is set to true when this domain was
- *      unable to create a new domain at tomoyo_find_next_domain() because the
- *      name of the domain to be created was too long or it could not allocate
- *      memory. If set to true, more than one process continued execve()
- *      without domain transition.
- *  (9) "users" is an atomic_t that holds how many "struct cred"->security
- *      are referring this "struct tomoyo_domain_info". If is_deleted == true
- *      and users == 0, this struct will be kfree()d upon next garbage
- *      collection.
- *
- * A domain's lifecycle is an analogy of files on / directory.
- * Multiple domains with the same domainname cannot be created (as with
- * creating files with the same filename fails with -EEXIST).
- * If a process reached a domain, that process can reside in that domain after
- * that domain is marked as "deleted" (as with a process can access an already
- * open()ed file after that file was unlink()ed).
- */
+/* Structure for domain information. */
 struct tomoyo_domain_info {
 	struct list_head list;
 	struct list_head acl_info_list;
@@ -398,63 +347,32 @@ struct tomoyo_domain_info {
 };
 
 /*
- * tomoyo_path_acl is a structure which is used for holding an
- * entry with one pathname operation (e.g. open(), mkdir()).
- * It has following fields.
- *
- *  (1) "head" which is a "struct tomoyo_acl_info".
- *  (2) "perm" which is a bitmask of permitted operations.
- *  (3) "name" is the pathname.
- *
- * Directives held by this structure are "allow_execute", "allow_read",
- * "allow_write", "allow_append", "allow_unlink", "allow_rmdir",
- * "allow_truncate", "allow_symlink", "allow_chroot" and "allow_unmount".
+ * Structure for "file execute", "file read", "file write", "file append",
+ * "file unlink", "file getattr", "file rmdir", "file truncate",
+ * "file symlink", "file chroot" and "file unmount" directive.
  */
 struct tomoyo_path_acl {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_PATH_ACL */
-	u16 perm;
+	u16 perm; /* Bitmask of values in "enum tomoyo_path_acl_index". */
 	struct tomoyo_name_union name;
 };
 
 /*
- * tomoyo_path_number_acl is a structure which is used for holding an
- * entry with one pathname and one number operation.
- * It has following fields.
- *
- *  (1) "head" which is a "struct tomoyo_acl_info".
- *  (2) "perm" which is a bitmask of permitted operations.
- *  (3) "name" is the pathname.
- *  (4) "number" is the numeric value.
- *
- * Directives held by this structure are "allow_create", "allow_mkdir",
- * "allow_ioctl", "allow_mkfifo", "allow_mksock", "allow_chmod", "allow_chown"
- * and "allow_chgrp".
- *
+ * Structure for "file create", "file mkdir", "file mkfifo", "file mksock",
+ * "file ioctl", "file chmod", "file chown" and "file chgrp" directive.
  */
 struct tomoyo_path_number_acl {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_PATH_NUMBER_ACL */
+	/* Bitmask of values in "enum tomoyo_path_number_acl_index". */
 	u8 perm;
 	struct tomoyo_name_union name;
 	struct tomoyo_number_union number;
 };
 
-/*
- * tomoyo_mkdev_acl is a structure which is used for holding an
- * entry with one pathname and three numbers operation.
- * It has following fields.
- *
- *  (1) "head" which is a "struct tomoyo_acl_info".
- *  (2) "perm" which is a bitmask of permitted operations.
- *  (3) "mode" is the create mode.
- *  (4) "major" is the major number of device node.
- *  (5) "minor" is the minor number of device node.
- *
- * Directives held by this structure are "allow_mkchar", "allow_mkblock".
- *
- */
+/* Structure for "file mkblock" and "file mkchar" directive. */
 struct tomoyo_mkdev_acl {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_MKDEV_ACL */
-	u8 perm;
+	u8 perm; /* Bitmask of values in "enum tomoyo_mkdev_acl_index". */
 	struct tomoyo_name_union name;
 	struct tomoyo_number_union mode;
 	struct tomoyo_number_union major;
@@ -462,38 +380,16 @@ struct tomoyo_mkdev_acl {
 };
 
 /*
- * tomoyo_path2_acl is a structure which is used for holding an
- * entry with two pathnames operation (i.e. link(), rename() and pivot_root()).
- * It has following fields.
- *
- *  (1) "head" which is a "struct tomoyo_acl_info".
- *  (2) "perm" which is a bitmask of permitted operations.
- *  (3) "name1" is the source/old pathname.
- *  (4) "name2" is the destination/new pathname.
- *
- * Directives held by this structure are "allow_rename", "allow_link" and
- * "allow_pivot_root".
+ * Structure for "file rename", "file link" and "file pivot_root" directive.
  */
 struct tomoyo_path2_acl {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_PATH2_ACL */
-	u8 perm;
+	u8 perm; /* Bitmask of values in "enum tomoyo_path2_acl_index". */
 	struct tomoyo_name_union name1;
 	struct tomoyo_name_union name2;
 };
 
-/*
- * tomoyo_mount_acl is a structure which is used for holding an
- * entry for mount operation.
- * It has following fields.
- *
- *  (1) "head" which is a "struct tomoyo_acl_info".
- *  (2) "dev_name" is the device name.
- *  (3) "dir_name" is the mount point.
- *  (4) "fs_type" is the filesystem type.
- *  (5) "flags" is the mount flags.
- *
- * Directive held by this structure is "allow_mount".
- */
+/* Structure for "file mount" directive. */
 struct tomoyo_mount_acl {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_MOUNT_ACL */
 	struct tomoyo_name_union dev_name;
@@ -550,18 +446,8 @@ struct tomoyo_io_buffer {
 };
 
 /*
- * tomoyo_transition_control is a structure which is used for holding
- * "initialize_domain"/"no_initialize_domain"/"keep_domain"/"no_keep_domain"
- * entries.
- * It has following fields.
- *
- *  (1) "head" is "struct tomoyo_acl_head".
- *  (2) "type" is type of this entry.
- *  (3) "is_last_name" is a bool which is true if "domainname" is "the last
- *      component of a domainname", false otherwise.
- *  (4) "domainname" which is "a domainname" or "the last component of a
- *      domainname".
- *  (5) "program" which is a program's pathname.
+ * Structure for "initialize_domain"/"no_initialize_domain"/"keep_domain"/
+ * "no_keep_domain" keyword.
  */
 struct tomoyo_transition_control {
 	struct tomoyo_acl_head head;
@@ -572,32 +458,14 @@ struct tomoyo_transition_control {
 	const struct tomoyo_path_info *program;    /* Maybe NULL */
 };
 
-/*
- * tomoyo_aggregator is a structure which is used for holding
- * "aggregator" entries.
- * It has following fields.
- *
- *  (1) "head" is "struct tomoyo_acl_head".
- *  (2) "original_name" which is originally requested name.
- *  (3) "aggregated_name" which is name to rewrite.
- */
+/* Structure for "aggregator" keyword. */
 struct tomoyo_aggregator {
 	struct tomoyo_acl_head head;
 	const struct tomoyo_path_info *original_name;
 	const struct tomoyo_path_info *aggregated_name;
 };
 
-/*
- * tomoyo_manager is a structure which is used for holding list of
- * domainnames or programs which are permitted to modify configuration via
- * /sys/kernel/security/tomoyo/ interface.
- * It has following fields.
- *
- *  (1) "head" is "struct tomoyo_acl_head".
- *  (2) "is_domain" is a bool which is true if "manager" is a domainname, false
- *      otherwise.
- *  (3) "manager" is a domainname or a program's pathname.
- */
+/* Structure for policy manager. */
 struct tomoyo_manager {
 	struct tomoyo_acl_head head;
 	bool is_domain;  /* True if manager is a domainname. */
@@ -612,6 +480,7 @@ struct tomoyo_preference {
 	bool permissive_verbose;
 };
 
+/* Structure for /sys/kernel/security/tomnoyo/profile interface. */
 struct tomoyo_profile {
 	const struct tomoyo_path_info *comment;
 	struct tomoyo_preference *learning;
@@ -624,148 +493,80 @@ struct tomoyo_profile {
 
 /********** Function prototypes. **********/
 
-/* Check whether the given string starts with the given keyword. */
 bool tomoyo_str_starts(char **src, const char *find);
-/* Get tomoyo_realpath() of current process. */
 const char *tomoyo_get_exe(void);
-/* Format string. */
 void tomoyo_normalize_line(unsigned char *buffer);
-/* Print warning or error message on console. */
 void tomoyo_warn_log(struct tomoyo_request_info *r, const char *fmt, ...)
      __attribute__ ((format(printf, 2, 3)));
-/* Check all profiles currently assigned to domains are defined. */
 void tomoyo_check_profile(void);
-/* Open operation for /sys/kernel/security/tomoyo/ interface. */
 int tomoyo_open_control(const u8 type, struct file *file);
-/* Close /sys/kernel/security/tomoyo/ interface. */
 int tomoyo_close_control(struct file *file);
-/* Poll operation for /sys/kernel/security/tomoyo/ interface. */
 int tomoyo_poll_control(struct file *file, poll_table *wait);
-/* Read operation for /sys/kernel/security/tomoyo/ interface. */
 int tomoyo_read_control(struct file *file, char __user *buffer,
 			const int buffer_len);
-/* Write operation for /sys/kernel/security/tomoyo/ interface. */
 int tomoyo_write_control(struct file *file, const char __user *buffer,
 			 const int buffer_len);
-/* Check whether the domain has too many ACL entries to hold. */
 bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r);
-/* Print out of memory warning message. */
 void tomoyo_warn_oom(const char *function);
-/* Check whether the given name matches the given name_union. */
 const struct tomoyo_path_info *
 tomoyo_compare_name_union(const struct tomoyo_path_info *name,
 			  const struct tomoyo_name_union *ptr);
-/* Check whether the given number matches the given number_union. */
 bool tomoyo_compare_number_union(const unsigned long value,
 				 const struct tomoyo_number_union *ptr);
 int tomoyo_get_mode(const u8 profile, const u8 index);
 void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
 	__attribute__ ((format(printf, 2, 3)));
-/* Check whether the domainname is correct. */
 bool tomoyo_correct_domain(const unsigned char *domainname);
-/* Check whether the token is correct. */
 bool tomoyo_correct_path(const char *filename);
 bool tomoyo_correct_word(const char *string);
-/* Check whether the token can be a domainname. */
 bool tomoyo_domain_def(const unsigned char *buffer);
 bool tomoyo_parse_name_union(const char *filename,
 			     struct tomoyo_name_union *ptr);
-/* Check whether the given filename matches the given path_group. */
 const struct tomoyo_path_info *
 tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
 			  const struct tomoyo_group *group);
-/* Check whether the given value matches the given number_group. */
 bool tomoyo_number_matches_group(const unsigned long min,
 				 const unsigned long max,
 				 const struct tomoyo_group *group);
-/* Check whether the given filename matches the given pattern. */
 bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
 				 const struct tomoyo_path_info *pattern);
-
 bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num);
-/* Tokenize a line. */
 bool tomoyo_tokenize(char *buffer, char *w[], size_t size);
-/* Write domain policy violation warning message to console? */
 bool tomoyo_verbose_mode(const struct tomoyo_domain_info *domain);
-/* Fill "struct tomoyo_request_info". */
 int tomoyo_init_request_info(struct tomoyo_request_info *r,
 			     struct tomoyo_domain_info *domain,
 			     const u8 index);
-/* Check permission for mount operation. */
-int tomoyo_mount_permission(char *dev_name, struct path *path, char *type,
-			    unsigned long flags, void *data_page);
-/* Create "aggregator" entry in exception policy. */
+int tomoyo_mount_permission(char *dev_name, struct path *path,
+			    const char *type, unsigned long flags,
+			    void *data_page);
 int tomoyo_write_aggregator(char *data, const bool is_delete);
 int tomoyo_write_transition_control(char *data, const bool is_delete,
 				    const u8 type);
-/*
- * Create "allow_execute", "allow_read", "allow_write", "allow_append",
- * "allow_create", "allow_unlink", "allow_mkdir", "allow_rmdir",
- * "allow_mkfifo", "allow_mksock", "allow_mkblock", "allow_mkchar",
- * "allow_truncate", "allow_symlink", "allow_rename" and "allow_link" entry
- * in domain policy.
- */
 int tomoyo_write_file(char *data, struct tomoyo_domain_info *domain,
 		      const bool is_delete);
-/* Create "allow_mount" entry in domain policy. */
 int tomoyo_write_mount(char *data, struct tomoyo_domain_info *domain,
 		       const bool is_delete);
-/* Create "path_group"/"number_group" entry in exception policy. */
 int tomoyo_write_group(char *data, const bool is_delete, const u8 type);
 int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
      __attribute__ ((format(printf, 2, 3)));
-/* Find a domain by the given name. */
 struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
-/* Find or create a domain by the given name. */
 struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 						const u8 profile);
 struct tomoyo_profile *tomoyo_profile(const u8 profile);
-/*
- * Allocate memory for "struct tomoyo_path_group"/"struct tomoyo_number_group".
- */
 struct tomoyo_group *tomoyo_get_group(const char *group_name, const u8 type);
-
-/* Check mode for specified functionality. */
 unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
 				const u8 index);
-/* Fill in "struct tomoyo_path_info" members. */
 void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
-/* Run policy loader when /sbin/init starts. */
 void tomoyo_load_policy(const char *filename);
-
 void tomoyo_put_number_union(struct tomoyo_number_union *ptr);
-
-/* Convert binary string to ascii string. */
 char *tomoyo_encode(const char *str);
-
-/*
- * Returns realpath(3) of the given pathname except that
- * ignores chroot'ed root and does not follow the final symlink.
- */
 char *tomoyo_realpath_nofollow(const char *pathname);
-/*
- * Returns realpath(3) of the given pathname except that
- * ignores chroot'ed root and the pathname is already solved.
- */
 char *tomoyo_realpath_from_path(struct path *path);
-
-/* Check memory quota. */
 bool tomoyo_memory_ok(void *ptr);
 void *tomoyo_commit_ok(void *data, const unsigned int size);
-
-/*
- * Keep the given name on the RAM.
- * The RAM is shared, so NEVER try to modify or kfree() the returned name.
- */
 const struct tomoyo_path_info *tomoyo_get_name(const char *name);
-
-/* Check for memory usage. */
 void tomoyo_read_memory_counter(struct tomoyo_io_buffer *head);
-
-/* Set memory quota. */
 int tomoyo_write_memory_quota(struct tomoyo_io_buffer *head);
-
-/* Initialize mm related code. */
 void __init tomoyo_mm_init(void);
 int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 			   const struct tomoyo_path_info *filename);
@@ -779,18 +580,11 @@ int tomoyo_path_perm(const u8 operation, struct path *path);
 int tomoyo_path2_perm(const u8 operation, struct path *path1,
 		      struct path *path2);
 int tomoyo_find_next_domain(struct linux_binprm *bprm);
-
 void tomoyo_print_ulong(char *buffer, const int buffer_len,
 			const unsigned long value, const u8 type);
-
-/* Drop refcount on tomoyo_name_union. */
 void tomoyo_put_name_union(struct tomoyo_name_union *ptr);
-
-/* Run garbage collector. */
 void tomoyo_run_gc(void);
-
 void tomoyo_memory_free(void *ptr);
-
 int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 			 bool is_delete, struct tomoyo_domain_info *domain,
 			 bool (*check_duplicate) (const struct tomoyo_acl_info
@@ -841,17 +635,36 @@ extern unsigned int tomoyo_query_memory_size;
 
 /********** Inlined functions. **********/
 
+/**
+ * tomoyo_read_lock - Take lock for protecting policy.
+ *
+ * Returns index number for tomoyo_read_unlock().
+ */
 static inline int tomoyo_read_lock(void)
 {
 	return srcu_read_lock(&tomoyo_ss);
 }
 
+/**
+ * tomoyo_read_unlock - Release lock for protecting policy.
+ *
+ * @idx: Index number returned by tomoyo_read_lock().
+ *
+ * Returns nothing.
+ */
 static inline void tomoyo_read_unlock(int idx)
 {
 	srcu_read_unlock(&tomoyo_ss, idx);
 }
 
-/* strcmp() for "struct tomoyo_path_info" structure. */
+/**
+ * tomoyo_pathcmp - strcmp() for "struct tomoyo_path_info" structure.
+ *
+ * @a: Pointer to "struct tomoyo_path_info".
+ * @b: Pointer to "struct tomoyo_path_info".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
 static inline bool tomoyo_pathcmp(const struct tomoyo_path_info *a,
 				  const struct tomoyo_path_info *b)
 {
@@ -882,6 +695,13 @@ static inline bool tomoyo_invalid(const unsigned char c)
 	return c && (c <= ' ' || c >= 127);
 }
 
+/**
+ * tomoyo_put_name - Drop reference on "struct tomoyo_name".
+ *
+ * @name: Pointer to "struct tomoyo_path_info". Maybe NULL.
+ *
+ * Returns nothing.
+ */
 static inline void tomoyo_put_name(const struct tomoyo_path_info *name)
 {
 	if (name) {
@@ -891,17 +711,36 @@ static inline void tomoyo_put_name(const struct tomoyo_path_info *name)
 	}
 }
 
+/**
+ * tomoyo_put_group - Drop reference on "struct tomoyo_group".
+ *
+ * @group: Pointer to "struct tomoyo_group". Maybe NULL.
+ *
+ * Returns nothing.
+ */
 static inline void tomoyo_put_group(struct tomoyo_group *group)
 {
 	if (group)
 		atomic_dec(&group->users);
 }
 
+/**
+ * tomoyo_domain - Get "struct tomoyo_domain_info" for current thread.
+ *
+ * Returns pointer to "struct tomoyo_domain_info" for current thread.
+ */
 static inline struct tomoyo_domain_info *tomoyo_domain(void)
 {
 	return current_cred()->security;
 }
 
+/**
+ * tomoyo_real_domain - Get "struct tomoyo_domain_info" for specified thread.
+ *
+ * @task: Pointer to "struct task_struct".
+ *
+ * Returns pointer to "struct tomoyo_security" for specified thread.
+ */
 static inline struct tomoyo_domain_info *tomoyo_real_domain(struct task_struct
 							    *task)
 {
@@ -909,24 +748,40 @@ static inline struct tomoyo_domain_info *tomoyo_real_domain(struct task_struct
 }
 
 static inline bool tomoyo_same_acl_head(const struct tomoyo_acl_info *p1,
-					   const struct tomoyo_acl_info *p2)
+					const struct tomoyo_acl_info *p2)
 {
 	return p1->type == p2->type;
 }
 
+/**
+ * tomoyo_same_name_union - Check for duplicated "struct tomoyo_name_union" entry.
+ *
+ * @a: Pointer to "struct tomoyo_name_union".
+ * @b: Pointer to "struct tomoyo_name_union".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
 static inline bool tomoyo_same_name_union
-(const struct tomoyo_name_union *p1, const struct tomoyo_name_union *p2)
+(const struct tomoyo_name_union *a, const struct tomoyo_name_union *b)
 {
-	return p1->filename == p2->filename && p1->group == p2->group &&
-		p1->is_group == p2->is_group;
+	return a->filename == b->filename && a->group == b->group &&
+		a->is_group == b->is_group;
 }
 
+/**
+ * tomoyo_same_number_union - Check for duplicated "struct tomoyo_number_union" entry.
+ *
+ * @a: Pointer to "struct tomoyo_number_union".
+ * @b: Pointer to "struct tomoyo_number_union".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
 static inline bool tomoyo_same_number_union
-(const struct tomoyo_number_union *p1, const struct tomoyo_number_union *p2)
+(const struct tomoyo_number_union *a, const struct tomoyo_number_union *b)
 {
-	return p1->values[0] == p2->values[0] && p1->values[1] == p2->values[1]
-		&& p1->group == p2->group && p1->min_type == p2->min_type &&
-		p1->max_type == p2->max_type && p1->is_group == p2->is_group;
+	return a->values[0] == b->values[0] && a->values[1] == b->values[1] &&
+		a->group == b->group && a->min_type == b->min_type &&
+		a->max_type == b->max_type && a->is_group == b->is_group;
 }
 
 /**

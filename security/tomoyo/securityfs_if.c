@@ -38,7 +38,7 @@ static int tomoyo_release(struct inode *inode, struct file *file)
 }
 
 /**
- * tomoyo_poll - poll() for /proc/ccs/ interface.
+ * tomoyo_poll - poll() for /sys/kernel/security/tomoyo/ interface.
  *
  * @file: Pointer to "struct file".
  * @wait: Pointer to "poll_table".

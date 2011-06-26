@@ -212,8 +212,7 @@ static int tomoyo_audit_mkdev_log(struct tomoyo_request_info *r)
 /**
  * tomoyo_audit_path_number_log - Audit path/number request log.
  *
- * @r:     Pointer to "struct tomoyo_request_info".
- * @error: Error code.
+ * @r: Pointer to "struct tomoyo_request_info".
  *
  * Returns 0 on success, negative value otherwise.
  */
