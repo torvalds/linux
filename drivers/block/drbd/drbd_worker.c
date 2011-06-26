@@ -77,7 +77,8 @@ void drbd_md_io_complete(struct bio *bio, int error)
 
 	md_io->error = error;
 
-	complete(&md_io->event);
+	md_io->done = 1;
+	wake_up(&mdev->misc_wait);
 	drbd_md_put_buffer(mdev);
 }
 

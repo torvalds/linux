@@ -82,6 +82,17 @@ void drbd_md_put_buffer(struct drbd_conf *mdev)
 		wake_up(&mdev->misc_wait);
 }
 
+static bool md_io_allowed(struct drbd_conf *mdev)
+{
+	enum drbd_disk_state ds = mdev->state.disk;
+	return ds >= D_NEGOTIATING || ds == D_ATTACHING;
+}
+
+void wait_until_done_or_disk_failure(struct drbd_conf *mdev, unsigned int *done)
+{
+	wait_event(mdev->misc_wait, *done || !md_io_allowed(mdev));
+}
+
 static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 				 struct drbd_backing_dev *bdev,
 				 struct page *page, sector_t sector,
@@ -90,8 +101,8 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	struct bio *bio;
 	int ok;
 
-	init_completion(&mdev->md_io.event);
-	mdev->md_io.error = 0;
+	mdev->md_io.done = 0;
+	mdev->md_io.error = -ENODEV;
 
 	if ((rw & WRITE) && !test_bit(MD_NO_FUA, &mdev->flags))
 		rw |= REQ_FUA | REQ_FLUSH;
@@ -112,7 +123,7 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 		bio_endio(bio, -EIO);
 	else
 		submit_bio(rw, bio);
-	wait_for_completion(&mdev->md_io.event);
+	wait_until_done_or_disk_failure(mdev, &mdev->md_io.done);
 	ok = bio_flagged(bio, BIO_UPTODATE) && mdev->md_io.error == 0;
 
  out:

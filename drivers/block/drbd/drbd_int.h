@@ -938,7 +938,7 @@ struct drbd_backing_dev {
 };
 
 struct drbd_md_io {
-	struct completion event;
+	unsigned int done;
 	int error;
 };
 
@@ -1541,6 +1541,7 @@ extern void *drbd_md_get_buffer(struct drbd_conf *mdev);
 extern void drbd_md_put_buffer(struct drbd_conf *mdev);
 extern int drbd_md_sync_page_io(struct drbd_conf *mdev,
 				struct drbd_backing_dev *bdev, sector_t sector, int rw);
+extern void wait_until_done_or_disk_failure(struct drbd_conf *mdev, unsigned int *done);
 extern void drbd_ov_oos_found(struct drbd_conf*, sector_t, int);
 extern void drbd_rs_controller_reset(struct drbd_conf *mdev);
 
