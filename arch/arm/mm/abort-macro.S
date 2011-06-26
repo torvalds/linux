@@ -30,12 +30,10 @@ not_thumb:
  *    [20] == 0
  */
 	.macro	do_ldrd_abort, tmp, insn
-	tst	\insn, #0x0e000000		@ [27:25] == 0
+	tst	\insn, #0x0e100000		@ [27:25,20] == 0
 	bne	not_ldrd
 	and	\tmp, \insn, #0x000000f0	@ [7:4] == 1101
 	cmp	\tmp, #0x000000d0
-	bne	not_ldrd
-	tst	\insn, #1 << 20			@ [20] == 0
 	moveq	pc, lr
 not_ldrd:
 	.endm
