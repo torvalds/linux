@@ -158,7 +158,6 @@ struct pwc_device
 	int release;		/* release number */
 	int features;		/* feature bits */
 	char serial[30];	/* serial number (string) */
-	int usb_init;		/* set when the cam has been initialized */
 
 	/*** Video data ***/
 	int vopen;		/* flag */

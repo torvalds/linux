@@ -2,6 +2,7 @@
    USB and Video4Linux interface part.
    (C) 1999-2004 Nemosoft Unv.
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
+   (C) 2011 Hans de Goede <hdegoede@redhat.com>
 
    NOTE: this version of pwc is an unofficial (modified) release of pwc & pcwx
    driver and thus may have bugs that are not present in the original version.
@@ -128,7 +129,6 @@ static struct usb_driver pwc_driver = {
 #define MAX_DEV_HINTS	20
 #define MAX_ISOC_ERRORS	20
 
-static int default_size = PSZ_QCIF;
 static int default_fps = 10;
 #ifdef CONFIG_USB_PWC_DEBUG
 	int pwc_trace = PWC_DEBUG_LEVEL;
@@ -171,65 +171,6 @@ static struct video_device pwc_template = {
 
 /***************************************************************************/
 /* Private functions */
-
-static int pwc_allocate_buffers(struct pwc_device *pdev)
-{
-	int i, err;
-	void *kbuf;
-
-	PWC_DEBUG_MEMORY(">> pwc_allocate_buffers(pdev = 0x%p)\n", pdev);
-
-	/* Allocate Isochronuous pipe buffers */
-	for (i = 0; i < MAX_ISO_BUFS; i++) {
-		if (pdev->sbuf[i].data == NULL) {
-			kbuf = kzalloc(ISO_BUFFER_SIZE, GFP_KERNEL);
-			if (kbuf == NULL) {
-				PWC_ERROR("Failed to allocate iso buffer %d.\n", i);
-				return -ENOMEM;
-			}
-			PWC_DEBUG_MEMORY("Allocated iso buffer at %p.\n", kbuf);
-			pdev->sbuf[i].data = kbuf;
-		}
-	}
-
-	/* Allocate decompressor table space */
-	if (DEVICE_USE_CODEC1(pdev->type))
-		err = pwc_dec1_alloc(pdev);
-	else
-		err = pwc_dec23_alloc(pdev);
-
-	if (err) {
-		PWC_ERROR("Failed to allocate decompress table.\n");
-		return err;
-	}
-
-	PWC_DEBUG_MEMORY("<< pwc_allocate_buffers()\n");
-	return 0;
-}
-
-static void pwc_free_buffers(struct pwc_device *pdev)
-{
-	int i;
-
-	PWC_DEBUG_MEMORY("Entering free_buffers(%p).\n", pdev);
-
-	/* Release Iso-pipe buffers */
-	for (i = 0; i < MAX_ISO_BUFS; i++)
-		if (pdev->sbuf[i].data != NULL) {
-			PWC_DEBUG_MEMORY("Freeing ISO buffer at %p.\n", pdev->sbuf[i].data);
-			kfree(pdev->sbuf[i].data);
-			pdev->sbuf[i].data = NULL;
-		}
-
-	/* Intermediate decompression buffer & tables */
-	if (pdev->decompress_data != NULL) {
-		PWC_DEBUG_MEMORY("Freeing decompression buffer at %p.\n", pdev->decompress_data);
-		kfree(pdev->decompress_data);
-		pdev->decompress_data = NULL;
-	}
-
-	PWC_DEBUG_MEMORY("Leaving free_buffers().\n");
-}
 
 struct pwc_frame_buf *pwc_get_next_fill_buf(struct pwc_device *pdev)
 {
@@ -435,12 +376,16 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	int i, j, ret;
 	struct usb_interface *intf;
 	struct usb_host_interface *idesc = NULL;
+	void *kbuf;
 
 	if (pdev->iso_init)
 		return 0;
+
 	pdev->vsync = 0;
+	pdev->vlast_packet_size = 0;
 	pdev->fill_buf = NULL;
 	pdev->vframe_count = 0;
+	pdev->visoc_errors = 0;
 	udev = pdev->udev;
 
 	/* Get the current alternate interface, adjust packet size */
@@ -471,23 +416,30 @@ static int pwc_isoc_init(struct pwc_device *pdev)
 	if (ret < 0)
 		return ret;
 
+	/* Allocate Isochronuous pipe buffers */
+	for (i = 0; i < MAX_ISO_BUFS; i++) {
+		kbuf = kzalloc(ISO_BUFFER_SIZE, GFP_KERNEL);
+		if (kbuf == NULL) {
+			PWC_ERROR("Failed to allocate iso buffer %d.\n", i);
+			pdev->iso_init = 1;
+			pwc_isoc_cleanup(pdev);
+			return -ENOMEM;
+		}
+		PWC_DEBUG_MEMORY("Allocated iso buffer at %p.\n", kbuf);
+		pdev->sbuf[i].data = kbuf;
+	}
+
+	/* Allocate Isochronuous urbs */
 	for (i = 0; i < MAX_ISO_BUFS; i++) {
 		urb = usb_alloc_urb(ISO_FRAMES_PER_DESC, GFP_KERNEL);
 		if (urb == NULL) {
 			PWC_ERROR("Failed to allocate urb %d\n", i);
-			ret = -ENOMEM;
-			break;
+			pdev->iso_init = 1;
+			pwc_isoc_cleanup(pdev);
+			return -ENOMEM;
 		}
 		pdev->sbuf[i].urb = urb;
 		PWC_DEBUG_MEMORY("Allocated URB at 0x%p\n", urb);
-	}
-	if (ret) {
-		/* De-allocate in reverse order */
-		while (i--) {
-			usb_free_urb(pdev->sbuf[i].urb);
-			pdev->sbuf[i].urb = NULL;
-		}
-		return ret;
 	}
 
 	/* init URB structure */
@@ -563,6 +515,8 @@ static void pwc_iso_free(struct pwc_device *pdev)
 
 static void pwc_isoc_cleanup(struct pwc_device *pdev)
 {
+	int i;
+
 	PWC_DEBUG_OPEN(">> pwc_isoc_cleanup()\n");
 
 	if (pdev->iso_init == 0)
@@ -571,6 +525,16 @@ static void pwc_isoc_cleanup(struct pwc_device *pdev)
 	pwc_iso_stop(pdev);
 	pwc_iso_free(pdev);
 	usb_set_interface(pdev->udev, 0, 0);
+
+	/* Release Iso-pipe buffers */
+	for (i = 0; i < MAX_ISO_BUFS; i++) {
+		if (pdev->sbuf[i].data != NULL) {
+			PWC_DEBUG_MEMORY("Freeing ISO buffer at %p.\n",
+					 pdev->sbuf[i].data);
+			kfree(pdev->sbuf[i].data);
+			pdev->sbuf[i].data = NULL;
+		}
+	}
 
 	pdev->iso_init = 0;
 	PWC_DEBUG_OPEN("<< pwc_isoc_cleanup()\n");
@@ -705,7 +669,6 @@ static const char *pwc_sensor_type_to_string(unsigned int sensor_type)
 
 static int pwc_video_open(struct file *file)
 {
-	int i, ret;
 	struct video_device *vdev = video_devdata(file);
 	struct pwc_device *pdev;
 
@@ -719,68 +682,6 @@ static int pwc_video_open(struct file *file)
 		PWC_DEBUG_OPEN("I'm busy, someone is using the device.\n");
 		return -EBUSY;
 	}
-
-	if (!pdev->usb_init) {
-		PWC_DEBUG_OPEN("Doing first time initialization.\n");
-		pdev->usb_init = 1;
-
-		/* Query sensor type */
-		ret = pwc_get_cmos_sensor(pdev, &i);
-		if (ret >= 0)
-		{
-			PWC_DEBUG_OPEN("This %s camera is equipped with a %s (%d).\n",
-					pdev->vdev.name,
-					pwc_sensor_type_to_string(i), i);
-		}
-	}
-
-	/* Turn on camera and set LEDS on */
-	pwc_camera_power(pdev, 1);
-	pwc_set_leds(pdev, led_on, led_off);
-
-	/* So far, so good. Allocate memory. */
-	i = pwc_allocate_buffers(pdev);
-	if (i < 0) {
-		PWC_DEBUG_OPEN("Failed to allocate buffers memory.\n");
-		pwc_free_buffers(pdev);
-		return i;
-	}
-
-	/* Reset buffers & parameters */
-	pdev->visoc_errors = 0;
-
-	/* Set some defaults */
-	pdev->vsnapshot = 0;
-
-	/* Set video size, first try the last used video size
-	   (or the default one); if that fails try QCIF/10 or QSIF/10;
-	   it that fails too, give up.
-	 */
-	i = pwc_set_video_mode(pdev, pwc_image_sizes[pdev->vsize].x, pwc_image_sizes[pdev->vsize].y, pdev->vframes, pdev->vcompression, 0);
-	if (i)	{
-		unsigned int default_resolution;
-		PWC_DEBUG_OPEN("First attempt at set_video_mode failed.\n");
-		if (pdev->type>= 730)
-			default_resolution = PSZ_QSIF;
-		else
-			default_resolution = PSZ_QCIF;
-
-		i = pwc_set_video_mode(pdev,
-				       pwc_image_sizes[default_resolution].x,
-				       pwc_image_sizes[default_resolution].y,
-				       10,
-				       pdev->vcompression,
-				       0);
-	}
-	if (i) {
-		PWC_DEBUG_OPEN("Second attempt at set_video_mode failed.\n");
-		pwc_free_buffers(pdev);
-		return i;
-	}
-
-	/* Initialize the webcam to sane value */
-	pwc_set_brightness(pdev, 0x7fff);
-	pwc_set_agc(pdev, 1, 0);
 
 	pdev->vopen++;
 	file->private_data = vdev;
@@ -798,10 +699,17 @@ static void pwc_video_release(struct video_device *vfd)
 		if (device_hint[hint].pdev == pdev)
 			device_hint[hint].pdev = NULL;
 
+	/* Free intermediate decompression buffer & tables */
+	if (pdev->decompress_data != NULL) {
+		PWC_DEBUG_MEMORY("Freeing decompression buffer at %p.\n",
+				 pdev->decompress_data);
+		kfree(pdev->decompress_data);
+		pdev->decompress_data = NULL;
+	}
+
 	kfree(pdev);
 }
 
-/* Note that all cleanup is done in the reverse order as in _open */
 static int pwc_video_close(struct file *file)
 {
 	struct video_device *vdev = file->private_data;
@@ -810,25 +718,10 @@ static int pwc_video_close(struct file *file)
 	PWC_DEBUG_OPEN(">> video_close called(vdev = 0x%p).\n", vdev);
 
 	pdev = video_get_drvdata(vdev);
-	if (pdev->vopen == 0)
-		PWC_DEBUG_MODULE("video_close() called on closed device?\n");
-
-	if (DEVICE_USE_CODEC1(pdev->type))
-	    pwc_dec1_exit();
-	else
-	    pwc_dec23_exit();
-
 	vb2_queue_release(&pdev->vb_queue);
-	pwc_free_buffers(pdev);
+	pdev->vopen--;
 
-	/* Turn off LEDS and power down camera, but only when not unplugged */
-	if (pdev->udev) {
-		pwc_set_leds(pdev, 0, 0);
-		pwc_camera_power(pdev, 0);
-		pdev->vopen--;
-		PWC_DEBUG_OPEN("<< video_close() vopen=%d\n", pdev->vopen);
-	}
-
+	PWC_DEBUG_OPEN("<< video_close() vopen=%d\n", pdev->vopen);
 	return 0;
 }
 
@@ -946,6 +839,16 @@ static int start_streaming(struct vb2_queue *vq)
 	if (!pdev->udev)
 		return -ENODEV;
 
+	/* Turn on camera and set LEDS on */
+	pwc_camera_power(pdev, 1);
+	if (pdev->power_save) {
+		/* Restore video mode */
+		pwc_set_video_mode(pdev, pdev->view.x, pdev->view.y,
+				   pdev->vframes, pdev->vcompression,
+				   pdev->vsnapshot);
+	}
+	pwc_set_leds(pdev, led_on, led_off);
+
 	return pwc_isoc_init(pdev);
 }
 
@@ -953,8 +856,11 @@ static int stop_streaming(struct vb2_queue *vq)
 {
 	struct pwc_device *pdev = vb2_get_drv_priv(vq);
 
-	if (pdev->udev)
+	if (pdev->udev) {
+		pwc_set_leds(pdev, 0, 0);
+		pwc_camera_power(pdev, 0);
 		pwc_isoc_cleanup(pdev);
+	}
 	pwc_cleanup_queued_bufs(pdev);
 
 	return 0;
@@ -1253,7 +1159,6 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 		return -ENOMEM;
 	}
 	pdev->type = type_id;
-	pdev->vsize = default_size;
 	pdev->vframes = default_fps;
 	strcpy(pdev->serial, serial_number);
 	pdev->features = features;
@@ -1318,8 +1223,29 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	PWC_DEBUG_PROBE("probe() function returning struct at 0x%p.\n", pdev);
 	usb_set_intfdata(intf, pdev);
 
+#ifdef CONFIG_USB_PWC_DEBUG
+	/* Query sensor type */
+	if (pwc_get_cmos_sensor(pdev, &rc) >= 0) {
+		PWC_DEBUG_OPEN("This %s camera is equipped with a %s (%d).\n",
+				pdev->vdev.name,
+				pwc_sensor_type_to_string(rc), rc);
+	}
+#endif
+
 	/* Set the leds off */
 	pwc_set_leds(pdev, 0, 0);
+
+	/* Setup intial videomode */
+	rc = pwc_set_video_mode(pdev, pdev->view_max.x, pdev->view_max.y,
+				pdev->vframes, pdev->vcompression, 0);
+	if (rc)
+		goto err_free_mem;
+
+	/* Initialize the webcam to sane values */
+	pwc_set_brightness(pdev, 0x7fff);
+	pwc_set_agc(pdev, 1, 0);
+
+	/* And powerdown the camera until streaming starts */
 	pwc_camera_power(pdev, 0);
 
 	rc = video_register_device(&pdev->vdev, VFL_TYPE_GRABBER, video_nr);
@@ -1402,7 +1328,6 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
  * Initialization code & module stuff
  */
 
-static char *size;
 static int fps;
 static int compression = -1;
 static int leds[2] = { -1, -1 };
@@ -1410,7 +1335,6 @@ static unsigned int leds_nargs;
 static char *dev_hint[MAX_DEV_HINTS];
 static unsigned int dev_hint_nargs;
 
-module_param(size, charp, 0444);
 module_param(fps, int, 0444);
 #ifdef CONFIG_USB_PWC_DEBUG
 module_param_named(trace, pwc_trace, int, 0644);
@@ -1420,7 +1344,6 @@ module_param(compression, int, 0444);
 module_param_array(leds, int, &leds_nargs, 0444);
 module_param_array(dev_hint, charp, &dev_hint_nargs, 0444);
 
-MODULE_PARM_DESC(size, "Initial image size. One of sqcif, qsif, qcif, sif, cif, vga");
 MODULE_PARM_DESC(fps, "Initial frames per second. Varies with model, useful range 5-30");
 #ifdef CONFIG_USB_PWC_DEBUG
 MODULE_PARM_DESC(trace, "For debugging purposes");
@@ -1438,13 +1361,18 @@ MODULE_VERSION( PWC_VERSION );
 
 static int __init usb_pwc_init(void)
 {
-	int i, sz;
-	char *sizenames[PSZ_MAX] = { "sqcif", "qsif", "qcif", "sif", "cif", "vga" };
+	int i;
 
+#ifdef CONFIG_USB_PWC_DEBUG
 	PWC_INFO("Philips webcam module version " PWC_VERSION " loaded.\n");
 	PWC_INFO("Supports Philips PCA645/646, PCVC675/680/690, PCVC720[40]/730/740/750 & PCVC830/840.\n");
 	PWC_INFO("Also supports the Askey VC010, various Logitech Quickcams, Samsung MPC-C10 and MPC-C30,\n");
 	PWC_INFO("the Creative WebCam 5 & Pro Ex, SOTEC Afina Eye and Visionite VCS-UC300 and VCS-UM100.\n");
+
+	if (pwc_trace >= 0) {
+		PWC_DEBUG_MODULE("Trace options: 0x%04x\n", pwc_trace);
+	}
+#endif
 
 	if (fps) {
 		if (fps < 4 || fps > 30) {
@@ -1455,25 +1383,6 @@ static int __init usb_pwc_init(void)
 		PWC_DEBUG_MODULE("Default framerate set to %d.\n", default_fps);
 	}
 
-	if (size) {
-		/* string; try matching with array */
-		for (sz = 0; sz < PSZ_MAX; sz++) {
-			if (!strcmp(sizenames[sz], size)) { /* Found! */
-				default_size = sz;
-				break;
-			}
-		}
-		if (sz == PSZ_MAX) {
-			PWC_ERROR("Size not recognized; try size=[sqcif | qsif | qcif | sif | cif | vga].\n");
-			return -EINVAL;
-		}
-		PWC_DEBUG_MODULE("Default image size set to %s [%dx%d].\n", sizenames[default_size], pwc_image_sizes[default_size].x, pwc_image_sizes[default_size].y);
-	}
-#ifdef CONFIG_USB_PWC_DEBUG
-	if (pwc_trace >= 0) {
-		PWC_DEBUG_MODULE("Trace options: 0x%04x\n", pwc_trace);
-	}
-#endif
 	if (compression >= 0) {
 		if (compression > 3) {
 			PWC_ERROR("Invalid compression setting; use a number between 0 (uncompressed) and 3 (high).\n");

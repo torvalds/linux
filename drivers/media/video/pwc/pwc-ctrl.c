@@ -261,8 +261,11 @@ static int set_video_mode_Nala(struct pwc_device *pdev, int size, int frames)
 		PWC_DEBUG_MODULE("Failed to send video command... %d\n", ret);
 		return ret;
 	}
-	if (pEntry->compressed && pdev->pixfmt == V4L2_PIX_FMT_YUV420)
-		pwc_dec1_init(pdev->type, pdev->release, buf, pdev->decompress_data);
+	if (pEntry->compressed && pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
+		ret = pwc_dec1_init(pdev, pdev->type, pdev->release, buf);
+		if (ret < 0)
+			return ret;
+	}
 
 	pdev->cmd_len = 3;
 	memcpy(pdev->cmd_buf, buf, 3);
@@ -321,8 +324,11 @@ static int set_video_mode_Timon(struct pwc_device *pdev, int size, int frames, i
 	if (ret < 0)
 		return ret;
 
-	if (pChoose->bandlength > 0 && pdev->pixfmt == V4L2_PIX_FMT_YUV420)
-		pwc_dec23_init(pdev, pdev->type, buf);
+	if (pChoose->bandlength > 0 && pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
+		ret = pwc_dec23_init(pdev, pdev->type, buf);
+		if (ret < 0)
+			return ret;
+	}
 
 	pdev->cmd_len = 13;
 	memcpy(pdev->cmd_buf, buf, 13);
@@ -394,8 +400,11 @@ static int set_video_mode_Kiara(struct pwc_device *pdev, int size, int frames, i
 	if (ret < 0)
 		return ret;
 
-	if (pChoose->bandlength > 0 && pdev->pixfmt == V4L2_PIX_FMT_YUV420)
-		pwc_dec23_init(pdev, pdev->type, buf);
+	if (pChoose->bandlength > 0 && pdev->pixfmt == V4L2_PIX_FMT_YUV420) {
+		ret = pwc_dec23_init(pdev, pdev->type, buf);
+		if (ret < 0)
+			return ret;
+	}
 
 	pdev->cmd_len = 12;
 	memcpy(pdev->cmd_buf, buf, 12);
@@ -452,6 +461,7 @@ int pwc_set_video_mode(struct pwc_device *pdev, int width, int height, int frame
 	}
 	pdev->view.x = width;
 	pdev->view.y = height;
+	pdev->vcompression = compression;
 	pdev->frame_total_size = pdev->frame_size + pdev->frame_header_size + pdev->frame_trailer_size;
 	pwc_set_image_buffer_size(pdev);
 	PWC_DEBUG_SIZE("Set viewport to %dx%d, image size is %dx%d.\n", width, height, pwc_image_sizes[size].x, pwc_image_sizes[size].y);
@@ -1300,7 +1310,7 @@ static int pwc_mpt_get_status(struct pwc_device *pdev, struct pwc_mpt_status *st
 	return 0;
 }
 
-
+#ifdef CONFIG_USB_PWC_DEBUG
 int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor)
 {
 	unsigned char buf;
@@ -1323,7 +1333,7 @@ int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor)
 		*sensor = buf;
 	return 0;
 }
-
+#endif
 
  /* End of Add-Ons                                    */
  /* ************************************************* */
@@ -1387,8 +1397,6 @@ long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 			ret = -EINVAL;
 		else
 			ret = pwc_set_video_mode(pdev, pdev->view.x, pdev->view.y, pdev->vframes, ARGR(qual), pdev->vsnapshot);
-		if (ret >= 0)
-			pdev->vcompression = ARGR(qual);
 		break;
 	}
 
