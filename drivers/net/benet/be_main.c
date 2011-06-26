@@ -33,10 +33,6 @@ module_param(num_vfs, uint, S_IRUGO);
 MODULE_PARM_DESC(rx_frag_size, "Size of a fragment that holds rcvd data.");
 MODULE_PARM_DESC(num_vfs, "Number of PCI VFs to initialize");
 
-static bool multi_rxq = true;
-module_param(multi_rxq, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(multi_rxq, "Multi Rx Queue support. Enabled by default");
-
 static DEFINE_PCI_DEVICE_TABLE(be_dev_ids) = {
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID1) },
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID2) },
@@ -1785,7 +1781,7 @@ static void be_rx_queues_destroy(struct be_adapter *adapter)
 
 static u32 be_num_rxqs_want(struct be_adapter *adapter)
 {
-	if (multi_rxq && (adapter->function_caps & BE_FUNCTION_CAPS_RSS) &&
+	if ((adapter->function_caps & BE_FUNCTION_CAPS_RSS) &&
 		!adapter->sriov_enabled && !(adapter->function_mode & 0x400)) {
 		return 1 + MAX_RSS_QS; /* one default non-RSS queue */
 	} else {
