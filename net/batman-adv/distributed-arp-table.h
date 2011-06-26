@@ -27,6 +27,17 @@
 
 #define BATADV_DAT_ADDR_MAX ((batadv_dat_addr_t)~(batadv_dat_addr_t)0)
 
+bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
+					   struct sk_buff *skb);
+bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
+					   struct sk_buff *skb, int hdr_size);
+void batadv_dat_snoop_outgoing_arp_reply(struct batadv_priv *bat_priv,
+					 struct sk_buff *skb);
+bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
+					 struct sk_buff *skb, int hdr_size);
+bool batadv_dat_drop_broadcast_packet(struct batadv_priv *bat_priv,
+				      struct batadv_forw_packet *forw_packet);
+
 /**
  * batadv_dat_init_orig_node_addr - assign a DAT address to the orig_node
  * @orig_node: the node to assign the DAT address to

@@ -20,6 +20,7 @@
 #include "main.h"
 #include "soft-interface.h"
 #include "hard-interface.h"
+#include "distributed-arp-table.h"
 #include "routing.h"
 #include "send.h"
 #include "debugfs.h"
@@ -155,6 +156,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	short vid __maybe_unused = -1;
 	bool do_bcast = false;
 	uint32_t seqno;
+	unsigned long brd_delay = 1;
 
 	if (atomic_read(&bat_priv->mesh_state) != BATADV_MESH_ACTIVE)
 		goto dropped;
@@ -224,6 +226,13 @@ static int batadv_interface_tx(struct sk_buff *skb,
 		if (!primary_if)
 			goto dropped;
 
+		/* in case of ARP request, we do not immediately broadcasti the
+		 * packet, instead we first wait for DAT to try to retrieve the
+		 * correct ARP entry
+		 */
+		if (batadv_dat_snoop_outgoing_arp_request(bat_priv, skb))
+			brd_delay = msecs_to_jiffies(ARP_REQ_DELAY);
+
 		if (batadv_skb_head_push(skb, sizeof(*bcast_packet)) < 0)
 			goto dropped;
 
@@ -245,7 +254,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 		seqno = atomic_inc_return(&bat_priv->bcast_seqno);
 		bcast_packet->seqno = htonl(seqno);
 
-		batadv_add_bcast_packet_to_list(bat_priv, skb, 1);
+		batadv_add_bcast_packet_to_list(bat_priv, skb, brd_delay);
 
 		/* a copy is stored in the bcast list, therefore removing
 		 * the original skb.
@@ -259,6 +268,11 @@ static int batadv_interface_tx(struct sk_buff *skb,
 			if (ret)
 				goto dropped;
 		}
+
+		if (batadv_dat_snoop_outgoing_arp_request(bat_priv, skb))
+			goto dropped;
+
+		batadv_dat_snoop_outgoing_arp_reply(bat_priv, skb);
 
 		ret = batadv_unicast_send_skb(bat_priv, skb);
 		if (ret != 0)

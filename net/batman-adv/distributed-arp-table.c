@@ -19,6 +19,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>
+#include <net/arp.h>
 
 #include "main.h"
 #include "hash.h"
@@ -27,6 +28,7 @@
 #include "originator.h"
 #include "send.h"
 #include "types.h"
+#include "translation-table.h"
 #include "unicast.h"
 
 static void batadv_dat_purge(struct work_struct *work);
@@ -765,4 +767,267 @@ static uint16_t batadv_arp_get_type(struct batadv_priv *bat_priv,
 	type = ntohs(arphdr->ar_op);
 out:
 	return type;
+}
+
+/**
+ * batadv_dat_snoop_outgoing_arp_request - snoop the ARP request and try to
+ * answer using DAT
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: packet to check
+ *
+ * Returns true if the message has been sent to the dht candidates, false
+ * otherwise. In case of true the message has to be enqueued to permit the
+ * fallback
+ */
+bool batadv_dat_snoop_outgoing_arp_request(struct batadv_priv *bat_priv,
+					   struct sk_buff *skb)
+{
+	uint16_t type = 0;
+	__be32 ip_dst, ip_src;
+	uint8_t *hw_src;
+	bool ret = false;
+	struct batadv_dat_entry *dat_entry = NULL;
+	struct sk_buff *skb_new;
+	struct batadv_hard_iface *primary_if = NULL;
+
+	type = batadv_arp_get_type(bat_priv, skb, 0);
+	/* If the node gets an ARP_REQUEST it has to send a DHT_GET unicast
+	 * message to the selected DHT candidates
+	 */
+	if (type != ARPOP_REQUEST)
+		goto out;
+
+	batadv_dbg_arp(bat_priv, skb, type, 0, "Parsing outgoing ARP REQUEST");
+
+	ip_src = batadv_arp_ip_src(skb, 0);
+	hw_src = batadv_arp_hw_src(skb, 0);
+	ip_dst = batadv_arp_ip_dst(skb, 0);
+
+	batadv_dat_entry_add(bat_priv, ip_src, hw_src);
+
+	dat_entry = batadv_dat_entry_hash_find(bat_priv, ip_dst);
+	if (dat_entry) {
+		primary_if = batadv_primary_if_get_selected(bat_priv);
+		if (!primary_if)
+			goto out;
+
+		skb_new = arp_create(ARPOP_REPLY, ETH_P_ARP, ip_src,
+				     primary_if->soft_iface, ip_dst, hw_src,
+				     dat_entry->mac_addr, hw_src);
+		if (!skb_new)
+			goto out;
+
+		skb_reset_mac_header(skb_new);
+		skb_new->protocol = eth_type_trans(skb_new,
+						   primary_if->soft_iface);
+		bat_priv->stats.rx_packets++;
+		bat_priv->stats.rx_bytes += skb->len + ETH_HLEN;
+		primary_if->soft_iface->last_rx = jiffies;
+
+		netif_rx(skb_new);
+		batadv_dbg(BATADV_DBG_DAT, bat_priv, "ARP request replied locally\n");
+		ret = true;
+	} else {
+		/* Send the request on the DHT */
+		ret = batadv_dat_send_data(bat_priv, skb, ip_dst,
+					   BATADV_P_DAT_DHT_GET);
+	}
+out:
+	if (dat_entry)
+		batadv_dat_entry_free_ref(dat_entry);
+	if (primary_if)
+		batadv_hardif_free_ref(primary_if);
+	return ret;
+}
+
+/**
+ * batadv_dat_snoop_incoming_arp_request - snoop the ARP request and try to
+ * answer using the local DAT storage
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: packet to check
+ * @hdr_size: size of the encapsulation header
+ *
+ * Returns true if the request has been answered, false otherwise
+ */
+bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
+					   struct sk_buff *skb, int hdr_size)
+{
+	uint16_t type;
+	__be32 ip_src, ip_dst;
+	uint8_t *hw_src;
+	struct sk_buff *skb_new;
+	struct batadv_hard_iface *primary_if = NULL;
+	struct batadv_dat_entry *dat_entry = NULL;
+	bool ret = false;
+	int err;
+
+	type = batadv_arp_get_type(bat_priv, skb, hdr_size);
+	if (type != ARPOP_REQUEST)
+		goto out;
+
+	hw_src = batadv_arp_hw_src(skb, hdr_size);
+	ip_src = batadv_arp_ip_src(skb, hdr_size);
+	ip_dst = batadv_arp_ip_dst(skb, hdr_size);
+
+	batadv_dbg_arp(bat_priv, skb, type, hdr_size,
+		       "Parsing incoming ARP REQUEST");
+
+	batadv_dat_entry_add(bat_priv, ip_src, hw_src);
+
+	dat_entry = batadv_dat_entry_hash_find(bat_priv, ip_dst);
+	if (!dat_entry)
+		goto out;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		goto out;
+
+	skb_new = arp_create(ARPOP_REPLY, ETH_P_ARP, ip_src,
+			     primary_if->soft_iface, ip_dst, hw_src,
+			     dat_entry->mac_addr, hw_src);
+
+	if (!skb_new)
+		goto out;
+
+	/* to preserve backwards compatibility, here the node has to answer
+	 * using the same packet type it received for the request. This is due
+	 * to that if a node is not using the 4addr packet format it may not
+	 * support it.
+	 */
+	if (hdr_size == sizeof(struct batadv_unicast_4addr_packet))
+		err = batadv_unicast_4addr_send_skb(bat_priv, skb_new,
+						    BATADV_P_DAT_CACHE_REPLY);
+	else
+		err = batadv_unicast_send_skb(bat_priv, skb_new);
+
+	if (!err)
+		ret = true;
+out:
+	if (dat_entry)
+		batadv_dat_entry_free_ref(dat_entry);
+	if (primary_if)
+		batadv_hardif_free_ref(primary_if);
+	if (ret)
+		kfree_skb(skb);
+	return ret;
+}
+
+/**
+ * batadv_dat_snoop_outgoing_arp_reply - snoop the ARP reply and fill the DHT
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: packet to check
+ */
+void batadv_dat_snoop_outgoing_arp_reply(struct batadv_priv *bat_priv,
+					 struct sk_buff *skb)
+{
+	uint16_t type;
+	__be32 ip_src, ip_dst;
+	uint8_t *hw_src, *hw_dst;
+
+	type = batadv_arp_get_type(bat_priv, skb, 0);
+	if (type != ARPOP_REPLY)
+		return;
+
+	batadv_dbg_arp(bat_priv, skb, type, 0, "Parsing outgoing ARP REPLY");
+
+	hw_src = batadv_arp_hw_src(skb, 0);
+	ip_src = batadv_arp_ip_src(skb, 0);
+	hw_dst = batadv_arp_hw_dst(skb, 0);
+	ip_dst = batadv_arp_ip_dst(skb, 0);
+
+	batadv_dat_entry_add(bat_priv, ip_src, hw_src);
+	batadv_dat_entry_add(bat_priv, ip_dst, hw_dst);
+
+	/* Send the ARP reply to the candidates for both the IP addresses that
+	 * the node got within the ARP reply
+	 */
+	batadv_dat_send_data(bat_priv, skb, ip_src, BATADV_P_DAT_DHT_PUT);
+	batadv_dat_send_data(bat_priv, skb, ip_dst, BATADV_P_DAT_DHT_PUT);
+}
+/**
+ * batadv_dat_snoop_incoming_arp_reply - snoop the ARP reply and fill the local
+ * DAT storage only
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: packet to check
+ * @hdr_size: siaze of the encapsulation header
+ */
+bool batadv_dat_snoop_incoming_arp_reply(struct batadv_priv *bat_priv,
+					 struct sk_buff *skb, int hdr_size)
+{
+	uint16_t type;
+	__be32 ip_src, ip_dst;
+	uint8_t *hw_src, *hw_dst;
+	bool ret = false;
+
+	type = batadv_arp_get_type(bat_priv, skb, hdr_size);
+	if (type != ARPOP_REPLY)
+		goto out;
+
+	batadv_dbg_arp(bat_priv, skb, type, hdr_size,
+		       "Parsing incoming ARP REPLY");
+
+	hw_src = batadv_arp_hw_src(skb, hdr_size);
+	ip_src = batadv_arp_ip_src(skb, hdr_size);
+	hw_dst = batadv_arp_hw_dst(skb, hdr_size);
+	ip_dst = batadv_arp_ip_dst(skb, hdr_size);
+
+	/* Update our internal cache with both the IP addresses the node got
+	 * within the ARP reply
+	 */
+	batadv_dat_entry_add(bat_priv, ip_src, hw_src);
+	batadv_dat_entry_add(bat_priv, ip_dst, hw_dst);
+
+	/* if this REPLY is directed to a client of mine, let's deliver the
+	 * packet to the interface
+	 */
+	ret = !batadv_is_my_client(bat_priv, hw_dst);
+out:
+	/* if ret == false -> packet has to be delivered to the interface */
+	return ret;
+}
+
+/**
+ * batadv_dat_drop_broadcast_packet - check if an ARP request has to be dropped
+ * (because the node has already got the reply via DAT) or not
+ * @bat_priv: the bat priv with all the soft interface information
+ * @forw_packet: the broadcast packet
+ *
+ * Returns true if the node can drop the packet, false otherwise
+ */
+bool batadv_dat_drop_broadcast_packet(struct batadv_priv *bat_priv,
+				      struct batadv_forw_packet *forw_packet)
+{
+	uint16_t type;
+	__be32 ip_dst;
+	struct batadv_dat_entry *dat_entry = NULL;
+	bool ret = false;
+	const size_t bcast_len = sizeof(struct batadv_bcast_packet);
+
+	/* If this packet is an ARP_REQUEST and the node already has the
+	 * information that it is going to ask, then the packet can be dropped
+	 */
+	if (forw_packet->num_packets)
+		goto out;
+
+	type = batadv_arp_get_type(bat_priv, forw_packet->skb, bcast_len);
+	if (type != ARPOP_REQUEST)
+		goto out;
+
+	ip_dst = batadv_arp_ip_dst(forw_packet->skb, bcast_len);
+	dat_entry = batadv_dat_entry_hash_find(bat_priv, ip_dst);
+	/* check if the node already got this entry */
+	if (!dat_entry) {
+		batadv_dbg(BATADV_DBG_DAT, bat_priv,
+			   "ARP Request for %pI4: fallback\n", &ip_dst);
+		goto out;
+	}
+
+	batadv_dbg(BATADV_DBG_DAT, bat_priv,
+		   "ARP Request for %pI4: fallback prevented\n", &ip_dst);
+	ret = true;
+
+out:
+	if (dat_entry)
+		batadv_dat_entry_free_ref(dat_entry);
+	return ret;
 }
