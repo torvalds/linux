@@ -510,8 +510,6 @@ ENTRY(_do_hibernate)
 	r0 = RETI;
 	[--sp] = r0;
 	[--sp] = RETX;
-	[--sp] = RETN;
-	[--sp] = RETE;
 	[--sp] = SEQSTAT;
 
 	/* Save Magic, return address and Stack Pointer */
@@ -533,8 +531,6 @@ ENTRY(_do_hibernate)
 
 	/* Restore Core Registers */
 	SEQSTAT = [sp++];
-	RETE = [sp++];
-	RETN = [sp++];
 	RETX = [sp++];
 	r0 = [sp++];
 	RETI = r0;
