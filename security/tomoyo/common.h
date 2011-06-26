@@ -404,7 +404,7 @@ struct tomoyo_acl_param {
 	bool is_delete;
 };
 
-#define TOMOYO_MAX_IO_READ_QUEUE 32
+#define TOMOYO_MAX_IO_READ_QUEUE 64
 
 /*
  * Structure for reading/writing policy via /sys/kernel/security/tomoyo
@@ -638,6 +638,10 @@ extern const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION];
 extern const char *tomoyo_mkdev_keyword[TOMOYO_MAX_MKDEV_OPERATION];
 extern const char *tomoyo_path2_keyword[TOMOYO_MAX_PATH2_OPERATION];
 extern const char *tomoyo_path_number_keyword[TOMOYO_MAX_PATH_NUMBER_OPERATION];
+
+extern const u8 tomoyo_pnnn2mac[TOMOYO_MAX_MKDEV_OPERATION];
+extern const u8 tomoyo_pp2mac[TOMOYO_MAX_PATH2_OPERATION];
+extern const u8 tomoyo_pn2mac[TOMOYO_MAX_PATH_NUMBER_OPERATION];
 
 extern unsigned int tomoyo_quota_for_query;
 extern unsigned int tomoyo_query_memory_size;

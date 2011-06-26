@@ -209,14 +209,14 @@ int tomoyo_write_transition_control(struct tomoyo_acl_param *param,
 		domainname = program;
 		program = NULL;
 	}
-	if (program) {
+	if (program && strcmp(program, "any")) {
 		if (!tomoyo_correct_path(program))
 			return -EINVAL;
 		e.program = tomoyo_get_name(program);
 		if (!e.program)
 			goto out;
 	}
-	if (domainname) {
+	if (domainname && strcmp(domainname, "any")) {
 		if (!tomoyo_correct_domain(domainname)) {
 			if (!tomoyo_correct_path(domainname))
 				goto out;

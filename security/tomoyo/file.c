@@ -69,7 +69,7 @@ static const u8 tomoyo_p2mac[TOMOYO_MAX_PATH_OPERATION] = {
 /*
  * Mapping table from "enum tomoyo_mkdev_acl_index" to "enum tomoyo_mac_index".
  */
-static const u8 tomoyo_pnnn2mac[TOMOYO_MAX_MKDEV_OPERATION] = {
+const u8 tomoyo_pnnn2mac[TOMOYO_MAX_MKDEV_OPERATION] = {
 	[TOMOYO_TYPE_MKBLOCK] = TOMOYO_MAC_FILE_MKBLOCK,
 	[TOMOYO_TYPE_MKCHAR]  = TOMOYO_MAC_FILE_MKCHAR,
 };
@@ -77,7 +77,7 @@ static const u8 tomoyo_pnnn2mac[TOMOYO_MAX_MKDEV_OPERATION] = {
 /*
  * Mapping table from "enum tomoyo_path2_acl_index" to "enum tomoyo_mac_index".
  */
-static const u8 tomoyo_pp2mac[TOMOYO_MAX_PATH2_OPERATION] = {
+const u8 tomoyo_pp2mac[TOMOYO_MAX_PATH2_OPERATION] = {
 	[TOMOYO_TYPE_LINK]       = TOMOYO_MAC_FILE_LINK,
 	[TOMOYO_TYPE_RENAME]     = TOMOYO_MAC_FILE_RENAME,
 	[TOMOYO_TYPE_PIVOT_ROOT] = TOMOYO_MAC_FILE_PIVOT_ROOT,
@@ -87,7 +87,7 @@ static const u8 tomoyo_pp2mac[TOMOYO_MAX_PATH2_OPERATION] = {
  * Mapping table from "enum tomoyo_path_number_acl_index" to
  * "enum tomoyo_mac_index".
  */
-static const u8 tomoyo_pn2mac[TOMOYO_MAX_PATH_NUMBER_OPERATION] = {
+const u8 tomoyo_pn2mac[TOMOYO_MAX_PATH_NUMBER_OPERATION] = {
 	[TOMOYO_TYPE_CREATE] = TOMOYO_MAC_FILE_CREATE,
 	[TOMOYO_TYPE_MKDIR]  = TOMOYO_MAC_FILE_MKDIR,
 	[TOMOYO_TYPE_MKFIFO] = TOMOYO_MAC_FILE_MKFIFO,
@@ -211,8 +211,7 @@ static int tomoyo_audit_path_log(struct tomoyo_request_info *r)
 	if (r->granted)
 		return 0;
 	tomoyo_warn_log(r, "%s %s", operation, filename->name);
-	return tomoyo_supervisor(r, "allow_%s %s\n", operation,
-				 filename->name);
+	return tomoyo_supervisor(r, "file %s %s\n", operation, filename->name);
 }
 
 /**
@@ -231,7 +230,7 @@ static int tomoyo_audit_path2_log(struct tomoyo_request_info *r)
 		return 0;
 	tomoyo_warn_log(r, "%s %s %s", operation, filename1->name,
 			filename2->name);
-	return tomoyo_supervisor(r, "allow_%s %s %s\n", operation,
+	return tomoyo_supervisor(r, "file %s %s %s\n", operation,
 				 filename1->name, filename2->name);
 }
 
@@ -253,7 +252,7 @@ static int tomoyo_audit_mkdev_log(struct tomoyo_request_info *r)
 		return 0;
 	tomoyo_warn_log(r, "%s %s 0%o %u %u", operation, filename->name, mode,
 			major, minor);
-	return tomoyo_supervisor(r, "allow_%s %s 0%o %u %u\n", operation,
+	return tomoyo_supervisor(r, "file %s %s 0%o %u %u\n", operation,
 				 filename->name, mode, major, minor);
 }
 
@@ -291,7 +290,7 @@ static int tomoyo_audit_path_number_log(struct tomoyo_request_info *r)
 	tomoyo_print_ulong(buffer, sizeof(buffer), r->param.path_number.number,
 			   radix);
 	tomoyo_warn_log(r, "%s %s %s", operation, filename->name, buffer);
-	return tomoyo_supervisor(r, "allow_%s %s %s\n", operation,
+	return tomoyo_supervisor(r, "file %s %s %s\n", operation,
 				 filename->name, buffer);
 }
 
