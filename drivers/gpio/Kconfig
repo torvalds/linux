@@ -417,6 +417,14 @@ config GPIO_ML_IOH
 	  Hub) which is for IVI(In-Vehicle Infotainment) use.
 	  This driver can access the IOH's GPIO device.
 
+config GPIO_SODAVILLE
+	bool "Intel Sodaville GPIO support"
+	depends on X86 && PCI && OF
+	select GPIO_GENERIC
+	select GENERIC_IRQ_CHIP
+	help
+	  Say Y here to support Intel Sodaville GPIO.
+
 config GPIO_TIMBERDALE
 	bool "Support for timberdale GPIO IP"
 	depends on MFD_TIMBERDALE && HAS_IOMEM
