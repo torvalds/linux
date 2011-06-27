@@ -1760,6 +1760,15 @@ do_sku:
 	return 0;
 }
 
+static bool found_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
+{
+	int i;
+	for (i = 0; i < nums; i++)
+		if (list[i] == nid)
+			return true;
+	return false;
+}
+
 /* check subsystem ID and set up device-specific initialization;
  * return 1 if initialized, 0 if invalid SSID
  */
@@ -1869,9 +1878,9 @@ do_sku:
 			nid = porti;
 		else
 			return 1;
-		for (i = 0; i < spec->autocfg.line_outs; i++)
-			if (spec->autocfg.line_out_pins[i] == nid)
-				return 1;
+		if (found_in_nid_list(nid, spec->autocfg.line_out_pins,
+				      spec->autocfg.line_outs))
+			return 1;
 		spec->autocfg.hp_pins[0] = nid;
 	}
 	return 1;
@@ -15839,7 +15848,7 @@ static hda_nid_t alc861_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 {
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t mix, srcs[5];
-	int i, j, num;
+	int i, num;
 
 	if (snd_hda_get_connections(codec, pin, &mix, 1) != 1)
 		return 0;
@@ -15851,10 +15860,8 @@ static hda_nid_t alc861_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 		type = get_wcaps_type(get_wcaps(codec, srcs[i]));
 		if (type != AC_WID_AUD_OUT)
 			continue;
-		for (j = 0; j < spec->multiout.num_dacs; j++)
-			if (spec->multiout.dac_nids[j] == srcs[i])
-				break;
-		if (j >= spec->multiout.num_dacs)
+		if (!found_in_nid_list(srcs[i], spec->multiout.dac_nids,
+				       spec->multiout.num_dacs))
 			return srcs[i];
 	}
 	return 0;
@@ -18748,7 +18755,7 @@ static hda_nid_t alc_auto_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 {
 	struct alc_spec *spec = codec->spec;
 	hda_nid_t srcs[5];
-	int i, j, num;
+	int i, num;
 
 	pin = alc_go_down_to_selector(codec, pin);
 	num = snd_hda_get_connections(codec, pin, srcs, ARRAY_SIZE(srcs));
@@ -18756,12 +18763,24 @@ static hda_nid_t alc_auto_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 		hda_nid_t nid = alc_auto_mix_to_dac(codec, srcs[i]);
 		if (!nid)
 			continue;
-		for (j = 0; j < spec->multiout.num_dacs; j++)
-			if (spec->multiout.dac_nids[j] == nid)
-				break;
-		if (j >= spec->multiout.num_dacs)
-			return nid;
+		if (found_in_nid_list(nid, spec->multiout.dac_nids,
+				      spec->multiout.num_dacs))
+			continue;
+		if (spec->multiout.hp_nid == nid)
+			continue;
+		if (found_in_nid_list(nid, spec->multiout.extra_out_nid,
+				      ARRAY_SIZE(spec->multiout.extra_out_nid)))
+		    continue;
+		return nid;
 	}
+	return 0;
+}
+
+static hda_nid_t get_dac_if_single(struct hda_codec *codec, hda_nid_t pin)
+{
+	hda_nid_t sel = alc_go_down_to_selector(codec, pin);
+	if (snd_hda_get_conn_list(codec, sel, NULL) == 1)
+		return alc_auto_look_for_dac(codec, pin);
 	return 0;
 }
 
@@ -18770,17 +18789,52 @@ static int alc662_auto_fill_dac_nids(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	bool redone;
 	int i;
-	hda_nid_t dac;
 
-	spec->multiout.dac_nids = spec->private_dac_nids;
+ again:
 	spec->multiout.num_dacs = 0;
-	for (i = 0; i < cfg->line_outs; i++) {
-		dac = alc_auto_look_for_dac(codec, cfg->line_out_pins[i]);
-		if (!dac)
-			continue;
-		spec->private_dac_nids[spec->multiout.num_dacs++] = dac;
+	spec->multiout.hp_nid = 0;
+	spec->multiout.extra_out_nid[0] = 0;
+	memset(spec->private_dac_nids, 0, sizeof(spec->private_dac_nids));
+	spec->multiout.dac_nids = spec->private_dac_nids;
+
+	/* fill hard-wired DACs first */
+	if (!redone) {
+		for (i = 0; i < cfg->line_outs; i++)
+			spec->private_dac_nids[i] =
+				get_dac_if_single(codec, cfg->line_out_pins[i]);
+		if (cfg->hp_outs)
+			spec->multiout.hp_nid =
+				get_dac_if_single(codec, cfg->hp_pins[0]);
+		if (cfg->speaker_outs)
+			spec->multiout.extra_out_nid[0] =
+				get_dac_if_single(codec, cfg->speaker_pins[0]);
 	}
+
+	for (i = 0; i < cfg->line_outs; i++) {
+		hda_nid_t pin = cfg->line_out_pins[i];
+		if (spec->private_dac_nids[i])
+			continue;
+		spec->private_dac_nids[i] = alc_auto_look_for_dac(codec, pin);
+		if (!spec->private_dac_nids[i] && !redone) {
+			/* if we can't find primary DACs, re-probe without
+			 * checking the hard-wired DACs
+			 */
+			redone = true;
+			goto again;
+		}
+	}
+
+	for (i = 0; i < cfg->line_outs; i++) {
+		if (spec->private_dac_nids[i])
+			spec->multiout.num_dacs++;
+		else
+			memmove(spec->private_dac_nids + i,
+				spec->private_dac_nids + i + 1,
+				sizeof(hda_nid_t) * (cfg->line_outs - i - 1));
+	}
+
 	return 0;
 }
 
@@ -18860,18 +18914,16 @@ static int alc662_auto_create_multi_out_ctls(struct hda_codec *codec,
 }
 
 /* add playback controls for speaker and HP outputs */
-/* return DAC nid if any new DAC is assigned */
 static int alc662_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
-					const char *pfx)
+					hda_nid_t dac, const char *pfx)
 {
 	struct alc_spec *spec = codec->spec;
-	hda_nid_t nid, mix;
+	hda_nid_t mix;
 	int err;
 
 	if (!pin)
 		return 0;
-	nid = alc_auto_look_for_dac(codec, pin);
-	if (!nid) {
+	if (!dac) {
 		/* the corresponding DAC is already occupied */
 		if (!(get_wcaps(codec, pin) & AC_WCAP_OUT_AMP))
 			return 0; /* no way */
@@ -18880,16 +18932,16 @@ static int alc662_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 				   HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
 	}
 
-	mix = alc_auto_dac_to_mix(codec, pin, nid);
+	mix = alc_auto_dac_to_mix(codec, pin, dac);
 	if (!mix)
 		return 0;
-	err = alc662_add_vol_ctl(spec, pfx, nid, 3);
+	err = alc662_add_vol_ctl(spec, pfx, dac, 3);
 	if (err < 0)
 		return err;
 	err = alc662_add_sw_ctl(spec, pfx, mix, 3);
 	if (err < 0)
 		return err;
-	return nid;
+	return 0;
 }
 
 /* create playback/capture controls for input pins */
@@ -19146,17 +19198,15 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 		return err;
 	err = alc662_auto_create_extra_out(codec,
 					   spec->autocfg.speaker_pins[0],
+					   spec->multiout.extra_out_nid[0],
 					   "Speaker");
 	if (err < 0)
 		return err;
-	if (err)
-		spec->multiout.extra_out_nid[0] = err;
 	err = alc662_auto_create_extra_out(codec, spec->autocfg.hp_pins[0],
+					   spec->multiout.hp_nid,
 					   "Headphone");
 	if (err < 0)
 		return err;
-	if (err)
-		spec->multiout.hp_nid = err;
 	err = alc662_auto_create_input_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
