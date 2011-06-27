@@ -82,5 +82,6 @@ obj-$(CONFIG_KGDB_SERIAL_CONSOLE) += kgdboc.o
 obj-$(CONFIG_SERIAL_QE) += ucc_uart.o
 obj-$(CONFIG_SERIAL_RK2818) += rk2818_serial.o
 obj-$(CONFIG_SERIAL_RK29) += rk29_serial.o
+obj-$(CONFIG_SERIAL_RK29_STANDAR) += rk_serial.o
 obj-$(CONFIG_SERIAL_SC8800) += sc8800.o
 obj-$(CONFIG_SERIAL_TIMBERDALE)	+= timbuart.o
