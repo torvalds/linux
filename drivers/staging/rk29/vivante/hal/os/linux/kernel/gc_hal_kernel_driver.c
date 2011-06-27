@@ -1057,8 +1057,7 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 		goto gpu_probe_fail;
 	}
 	registerMemBase = res->start;
-    // dkm: 不能+1
-	registerMemSize = res->end - res->start;
+	registerMemSize = res->end - res->start + ((res->end & 1) ? 1 : 0);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gpu_mem");
 	if (!res) {
@@ -1066,8 +1065,7 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 		goto gpu_probe_fail;
 	}
 	contiguousBase  = res->start;
-    // dkm: 不能+1
-	contiguousSize  = res->end - res->start;
+	contiguousSize  = res->end - res->start + ((res->end & 1) ? 1 : 0);
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_IO, "gpu_clk");
 	if (!res) {
