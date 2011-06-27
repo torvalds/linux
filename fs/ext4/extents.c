@@ -808,8 +808,9 @@ static int ext4_ext_insert_index(handle_t *handle, struct inode *inode,
 	if (unlikely(le16_to_cpu(curp->p_hdr->eh_entries)
 			     > le16_to_cpu(curp->p_hdr->eh_max))) {
 		EXT4_ERROR_INODE(inode,
-				 "logical %d == ei_block %d!",
-				 logical, le32_to_cpu(curp->p_idx->ei_block));
+				 "eh_entries %d > eh_max %d!",
+				 le16_to_cpu(curp->p_hdr->eh_entries),
+				 le16_to_cpu(curp->p_hdr->eh_max));
 		return -EIO;
 	}
 	if (unlikely(ix > EXT_LAST_INDEX(curp->p_hdr))) {
