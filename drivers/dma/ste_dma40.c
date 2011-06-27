@@ -2112,7 +2112,7 @@ dma40_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 	struct scatterlist *sg;
 	int i;
 
-	sg = kcalloc(periods + 1, sizeof(struct scatterlist), GFP_KERNEL);
+	sg = kcalloc(periods + 1, sizeof(struct scatterlist), GFP_NOWAIT);
 	for (i = 0; i < periods; i++) {
 		sg_dma_address(&sg[i]) = dma_addr;
 		sg_dma_len(&sg[i]) = period_len;
