@@ -886,7 +886,7 @@ void drbd_bm_clear_all(struct drbd_conf *mdev)
 struct bm_aio_ctx {
 	struct drbd_conf *mdev;
 	atomic_t in_flight;
-	struct completion done;
+	unsigned int done;
 	unsigned flags;
 #define BM_AIO_COPY_PAGES	1
 	int error;
@@ -897,6 +897,7 @@ static void bm_aio_ctx_destroy(struct kref *kref)
 {
 	struct bm_aio_ctx *ctx = container_of(kref, struct bm_aio_ctx, kref);
 
+	put_ldev(ctx->mdev);
 	kfree(ctx);
 }
 
@@ -945,7 +946,8 @@ static void bm_async_io_complete(struct bio *bio, int error)
 	bio_put(bio);
 
 	if (atomic_dec_and_test(&ctx->in_flight)) {
-		complete(&ctx->done);
+		ctx->done = 1;
+		wake_up(&mdev->misc_wait);
 		kref_put(&ctx->kref, &bm_aio_ctx_destroy);
 	}
 }
@@ -1034,11 +1036,17 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 	*ctx = (struct bm_aio_ctx) {
 		.mdev = mdev,
 		.in_flight = ATOMIC_INIT(1),
-		.done = COMPLETION_INITIALIZER(ctx->done),
+		.done = 0,
 		.flags = lazy_writeout_upper_idx ? BM_AIO_COPY_PAGES : 0,
 		.error = 0,
 		.kref = { ATOMIC_INIT(2) },
 	};
+
+	if (!get_ldev_if_state(mdev, D_ATTACHING)) {  /* put is in bm_aio_ctx_destroy() */
+		dev_err(DEV, "ASSERT FAILED: get_ldev_if_state() == 1 in bm_rw()\n");
+		kfree(ctx);
+		return -ENODEV;
+	}
 
 	if (!ctx->flags)
 		WARN_ON(!(BM_LOCKED_MASK & b->bm_flags));
@@ -1073,11 +1081,16 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 
 	/*
 	 * We initialize ctx->in_flight to one to make sure bm_async_io_complete
-	 * will not complete() early, and decrement / test it here.  If there
+	 * will not set ctx->done early, and decrement / test it here.  If there
 	 * are still some bios in flight, we need to wait for them here.
+	 * If all IO is done already (or nothing had been submitted), there is
+	 * no need to wait.  Still, we need to put the kref associated with the
+	 * "in_flight reached zero, all done" event.
 	 */
 	if (!atomic_dec_and_test(&ctx->in_flight))
-		wait_for_completion(&ctx->done);
+		wait_until_done_or_disk_failure(mdev, &ctx->done);
+	else
+		kref_put(&ctx->kref, &bm_aio_ctx_destroy);
 
 	dev_info(DEV, "bitmap %s of %u pages took %lu jiffies\n",
 			rw == WRITE ? "WRITE" : "READ",
@@ -1088,6 +1101,9 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 		drbd_chk_io_error(mdev, 1, true);
 		err = -EIO; /* ctx->error ? */
 	}
+
+	if (atomic_read(&ctx->in_flight))
+		err = -EIO; /* Disk failed during IO... */
 
 	now = jiffies;
 	if (rw == WRITE) {
@@ -1103,7 +1119,6 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 	     ppsize(ppb, now << (BM_BLOCK_SHIFT-10)), now);
 
 	kref_put(&ctx->kref, &bm_aio_ctx_destroy);
-
 	return err;
 }
 
@@ -1167,14 +1182,20 @@ int drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(loc
 	*ctx = (struct bm_aio_ctx) {
 		.mdev = mdev,
 		.in_flight = ATOMIC_INIT(1),
-		.done = COMPLETION_INITIALIZER(ctx->done),
+		.done = 0,
 		.flags = BM_AIO_COPY_PAGES,
 		.error = 0,
 		.kref = { ATOMIC_INIT(2) },
 	};
 
+	if (!get_ldev_if_state(mdev, D_ATTACHING)) {  /* put is in bm_aio_ctx_destroy() */
+		dev_err(DEV, "ASSERT FAILED: get_ldev_if_state() == 1 in drbd_bm_write_page()\n");
+		kfree(ctx);
+		return -ENODEV;
+	}
+
 	bm_page_io_async(ctx, idx, WRITE_SYNC);
-	wait_for_completion(&ctx->done);
+	wait_until_done_or_disk_failure(mdev, &ctx->done);
 
 	if (ctx->error)
 		drbd_chk_io_error(mdev, 1, true);
@@ -1182,9 +1203,8 @@ int drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(loc
 		 * gone in a moment as well. */
 
 	mdev->bm_writ_cnt++;
-	err = ctx->error;
+	err = atomic_read(&ctx->in_flight) ? -EIO : ctx->error;
 	kref_put(&ctx->kref, &bm_aio_ctx_destroy);
-
 	return err;
 }
 
