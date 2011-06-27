@@ -29,11 +29,13 @@
 #include <linux/rcupdate.h>
 #include <linux/scatterlist.h>
 #include <linux/crypto.h>
+#include <linux/ctype.h>
 #include <crypto/hash.h>
 #include <crypto/sha.h>
 #include <crypto/aes.h>
 
 #include "encrypted.h"
+#include "ecryptfs_format.h"
 
 static const char KEY_TRUSTED_PREFIX[] = "trusted:";
 static const char KEY_USER_PREFIX[] = "user:";
@@ -41,11 +43,13 @@ static const char hash_alg[] = "sha256";
 static const char hmac_alg[] = "hmac(sha256)";
 static const char blkcipher_alg[] = "cbc(aes)";
 static const char key_format_default[] = "default";
+static const char key_format_ecryptfs[] = "ecryptfs";
 static unsigned int ivsize;
 static int blksize;
 
 #define KEY_TRUSTED_PREFIX_LEN (sizeof (KEY_TRUSTED_PREFIX) - 1)
 #define KEY_USER_PREFIX_LEN (sizeof (KEY_USER_PREFIX) - 1)
+#define KEY_ECRYPTFS_DESC_LEN 16
 #define HASH_SIZE SHA256_DIGEST_SIZE
 #define MAX_DATA_SIZE 4096
 #define MIN_DATA_SIZE  20
@@ -63,11 +67,12 @@ enum {
 };
 
 enum {
-	Opt_error = -1, Opt_default
+	Opt_error = -1, Opt_default, Opt_ecryptfs
 };
 
 static const match_table_t key_format_tokens = {
 	{Opt_default, "default"},
+	{Opt_ecryptfs, "ecryptfs"},
 	{Opt_error, NULL}
 };
 
@@ -91,6 +96,34 @@ static int aes_get_sizes(void)
 	ivsize = crypto_blkcipher_ivsize(tfm);
 	blksize = crypto_blkcipher_blocksize(tfm);
 	crypto_free_blkcipher(tfm);
+	return 0;
+}
+
+/*
+ * valid_ecryptfs_desc - verify the description of a new/loaded encrypted key
+ *
+ * The description of a encrypted key with format 'ecryptfs' must contain
+ * exactly 16 hexadecimal characters.
+ *
+ */
+static int valid_ecryptfs_desc(const char *ecryptfs_desc)
+{
+	int i;
+
+	if (strlen(ecryptfs_desc) != KEY_ECRYPTFS_DESC_LEN) {
+		pr_err("encrypted_key: key description must be %d hexadecimal "
+		       "characters long\n", KEY_ECRYPTFS_DESC_LEN);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < KEY_ECRYPTFS_DESC_LEN; i++) {
+		if (!isxdigit(ecryptfs_desc[i])) {
+			pr_err("encrypted_key: key description must contain "
+			       "only hexadecimal characters\n");
+			return -EINVAL;
+		}
+	}
+
 	return 0;
 }
 
@@ -158,7 +191,7 @@ static int datablob_parse(char *datablob, const char **format,
 	}
 	key_cmd = match_token(keyword, key_tokens, args);
 
-	/* Get optional format: default */
+	/* Get optional format: default | ecryptfs */
 	p = strsep(&datablob, " \t");
 	if (!p) {
 		pr_err("encrypted_key: insufficient parameters specified\n");
@@ -167,6 +200,7 @@ static int datablob_parse(char *datablob, const char **format,
 
 	key_format = match_token(p, key_format_tokens, args);
 	switch (key_format) {
+	case Opt_ecryptfs:
 	case Opt_default:
 		*format = p;
 		*master_desc = strsep(&datablob, " \t");
@@ -601,6 +635,17 @@ static struct encrypted_key_payload *encrypted_key_alloc(struct key *key,
 	format_len = (!format) ? strlen(key_format_default) : strlen(format);
 	decrypted_datalen = dlen;
 	payload_datalen = decrypted_datalen;
+	if (format && !strcmp(format, key_format_ecryptfs)) {
+		if (dlen != ECRYPTFS_MAX_KEY_BYTES) {
+			pr_err("encrypted_key: keylen for the ecryptfs format "
+			       "must be equal to %d bytes\n",
+			       ECRYPTFS_MAX_KEY_BYTES);
+			return ERR_PTR(-EINVAL);
+		}
+		decrypted_datalen = ECRYPTFS_MAX_KEY_BYTES;
+		payload_datalen = sizeof(struct ecryptfs_auth_tok);
+	}
+
 	encrypted_datalen = roundup(decrypted_datalen, blksize);
 
 	datablob_len = format_len + 1 + strlen(master_desc) + 1
@@ -686,8 +731,14 @@ static void __ekey_init(struct encrypted_key_payload *epayload,
 
 	if (!format)
 		memcpy(epayload->format, key_format_default, format_len);
-	else
+	else {
+		if (!strcmp(format, key_format_ecryptfs))
+			epayload->decrypted_data =
+				ecryptfs_get_auth_tok_key((struct ecryptfs_auth_tok *)epayload->payload_data);
+
 		memcpy(epayload->format, format, format_len);
+	}
+
 	memcpy(epayload->master_desc, master_desc, strlen(master_desc));
 	memcpy(epayload->datalen, datalen, strlen(datalen));
 }
@@ -699,10 +750,20 @@ static void __ekey_init(struct encrypted_key_payload *epayload,
  * itself.  For an old key, decrypt the hex encoded data.
  */
 static int encrypted_init(struct encrypted_key_payload *epayload,
-			  const char *format, const char *master_desc,
-			  const char *datalen, const char *hex_encoded_iv)
+			  const char *key_desc, const char *format,
+			  const char *master_desc, const char *datalen,
+			  const char *hex_encoded_iv)
 {
 	int ret = 0;
+
+	if (format && !strcmp(format, key_format_ecryptfs)) {
+		ret = valid_ecryptfs_desc(key_desc);
+		if (ret < 0)
+			return ret;
+
+		ecryptfs_fill_auth_tok((struct ecryptfs_auth_tok *)epayload->payload_data,
+				       key_desc);
+	}
 
 	__ekey_init(epayload, format, master_desc, datalen);
 	if (!hex_encoded_iv) {
@@ -753,8 +814,8 @@ static int encrypted_instantiate(struct key *key, const void *data,
 		ret = PTR_ERR(epayload);
 		goto out;
 	}
-	ret = encrypted_init(epayload, format, master_desc, decrypted_datalen,
-			     hex_encoded_iv);
+	ret = encrypted_init(epayload, key->description, format, master_desc,
+			     decrypted_datalen, hex_encoded_iv);
 	if (ret < 0) {
 		kfree(epayload);
 		goto out;
