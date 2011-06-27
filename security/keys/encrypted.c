@@ -378,11 +378,13 @@ static struct key *request_master_key(struct encrypted_key_payload *epayload,
 	} else
 		goto out;
 
-	if (IS_ERR(mkey))
+	if (IS_ERR(mkey)) {
 		pr_info("encrypted_key: key %s not found",
 			epayload->master_desc);
-	if (mkey)
-		dump_master_key(*master_key, *master_keylen);
+		goto out;
+	}
+
+	dump_master_key(*master_key, *master_keylen);
 out:
 	return mkey;
 }
