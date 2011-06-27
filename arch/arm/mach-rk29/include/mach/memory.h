@@ -19,10 +19,6 @@
 /* physical offset of RAM */
 #define PHYS_OFFSET		UL(0x60000000)
 
-/* bus address and physical addresses are identical */
-#define __virt_to_bus(x)	__virt_to_phys(x)
-#define __bus_to_virt(x)	__phys_to_virt(x)
-
 #define CONSISTENT_DMA_SIZE	SZ_8M
 
 /*
