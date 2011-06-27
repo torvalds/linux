@@ -6251,6 +6251,197 @@ void intel_prepare_page_flip(struct drm_device *dev, int plane)
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
+static int intel_gen2_queue_flip(struct drm_device *dev,
+				 struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	unsigned long offset;
+	u32 flip_mask;
+	int ret;
+
+	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
+	if (ret)
+		goto out;
+
+	/* Offset into the new buffer for cases of shared fbs between CRTCs */
+	offset = crtc->y * fb->pitch + crtc->x * fb->bits_per_pixel/8;
+
+	ret = BEGIN_LP_RING(6);
+	if (ret)
+		goto out;
+
+	/* Can't queue multiple flips, so wait for the previous
+	 * one to finish before executing the next.
+	 */
+	if (intel_crtc->plane)
+		flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
+	else
+		flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
+	OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_DISPLAY_FLIP |
+		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	OUT_RING(fb->pitch);
+	OUT_RING(obj->gtt_offset + offset);
+	OUT_RING(MI_NOOP);
+	ADVANCE_LP_RING();
+out:
+	return ret;
+}
+
+static int intel_gen3_queue_flip(struct drm_device *dev,
+				 struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	unsigned long offset;
+	u32 flip_mask;
+	int ret;
+
+	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
+	if (ret)
+		goto out;
+
+	/* Offset into the new buffer for cases of shared fbs between CRTCs */
+	offset = crtc->y * fb->pitch + crtc->x * fb->bits_per_pixel/8;
+
+	ret = BEGIN_LP_RING(6);
+	if (ret)
+		goto out;
+
+	if (intel_crtc->plane)
+		flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
+	else
+		flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
+	OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_DISPLAY_FLIP_I915 |
+		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	OUT_RING(fb->pitch);
+	OUT_RING(obj->gtt_offset + offset);
+	OUT_RING(MI_NOOP);
+
+	ADVANCE_LP_RING();
+out:
+	return ret;
+}
+
+static int intel_gen4_queue_flip(struct drm_device *dev,
+				 struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	uint32_t pf, pipesrc;
+	int ret;
+
+	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
+	if (ret)
+		goto out;
+
+	ret = BEGIN_LP_RING(4);
+	if (ret)
+		goto out;
+
+	/* i965+ uses the linear or tiled offsets from the
+	 * Display Registers (which do not change across a page-flip)
+	 * so we need only reprogram the base address.
+	 */
+	OUT_RING(MI_DISPLAY_FLIP |
+		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	OUT_RING(fb->pitch);
+	OUT_RING(obj->gtt_offset | obj->tiling_mode);
+
+	/* XXX Enabling the panel-fitter across page-flip is so far
+	 * untested on non-native modes, so ignore it for now.
+	 * pf = I915_READ(pipe == 0 ? PFA_CTL_1 : PFB_CTL_1) & PF_ENABLE;
+	 */
+	pf = 0;
+	pipesrc = I915_READ(PIPESRC(intel_crtc->pipe)) & 0x0fff0fff;
+	OUT_RING(pf | pipesrc);
+	ADVANCE_LP_RING();
+out:
+	return ret;
+}
+
+static int intel_gen6_queue_flip(struct drm_device *dev,
+				 struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	uint32_t pf, pipesrc;
+	int ret;
+
+	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
+	if (ret)
+		goto out;
+
+	ret = BEGIN_LP_RING(4);
+	if (ret)
+		goto out;
+
+	OUT_RING(MI_DISPLAY_FLIP |
+		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	OUT_RING(fb->pitch | obj->tiling_mode);
+	OUT_RING(obj->gtt_offset);
+
+	pf = I915_READ(PF_CTL(intel_crtc->pipe)) & PF_ENABLE;
+	pipesrc = I915_READ(PIPESRC(intel_crtc->pipe)) & 0x0fff0fff;
+	OUT_RING(pf | pipesrc);
+	ADVANCE_LP_RING();
+out:
+	return ret;
+}
+
+/*
+ * On gen7 we currently use the blit ring because (in early silicon at least)
+ * the render ring doesn't give us interrpts for page flip completion, which
+ * means clients will hang after the first flip is queued.  Fortunately the
+ * blit ring generates interrupts properly, so use it instead.
+ */
+static int intel_gen7_queue_flip(struct drm_device *dev,
+				 struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_ring_buffer *ring = &dev_priv->ring[BCS];
+	int ret;
+
+	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
+	if (ret)
+		goto out;
+
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		goto out;
+
+	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 | (intel_crtc->plane << 19));
+	intel_ring_emit(ring, (fb->pitch | obj->tiling_mode));
+	intel_ring_emit(ring, (obj->gtt_offset));
+	intel_ring_emit(ring, (MI_NOOP));
+	intel_ring_advance(ring);
+out:
+	return ret;
+}
+
+static int intel_default_queue_flip(struct drm_device *dev,
+				    struct drm_crtc *crtc,
+				    struct drm_framebuffer *fb,
+				    struct drm_i915_gem_object *obj)
+{
+	return -ENODEV;
+}
+
 static int intel_crtc_page_flip(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				struct drm_pending_vblank_event *event)
@@ -6261,9 +6452,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_i915_gem_object *obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
-	unsigned long flags, offset;
-	int pipe = intel_crtc->pipe;
-	u32 pf, pipesrc;
+	unsigned long flags;
 	int ret;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
@@ -6292,9 +6481,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	obj = intel_fb->obj;
 
 	mutex_lock(&dev->struct_mutex);
-	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
-	if (ret)
-		goto cleanup_work;
 
 	/* Reference the objects for the scheduled work. */
 	drm_gem_object_reference(&work->old_fb_obj->base);
@@ -6306,91 +6492,18 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (ret)
 		goto cleanup_objs;
 
-	if (IS_GEN3(dev) || IS_GEN2(dev)) {
-		u32 flip_mask;
-
-		/* Can't queue multiple flips, so wait for the previous
-		 * one to finish before executing the next.
-		 */
-		ret = BEGIN_LP_RING(2);
-		if (ret)
-			goto cleanup_objs;
-
-		if (intel_crtc->plane)
-			flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
-		else
-			flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
-		OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
-		OUT_RING(MI_NOOP);
-		ADVANCE_LP_RING();
-	}
-
 	work->pending_flip_obj = obj;
 
 	work->enable_stall_check = true;
-
-	/* Offset into the new buffer for cases of shared fbs between CRTCs */
-	offset = crtc->y * fb->pitch + crtc->x * fb->bits_per_pixel/8;
-
-	ret = BEGIN_LP_RING(4);
-	if (ret)
-		goto cleanup_objs;
 
 	/* Block clients from rendering to the new back buffer until
 	 * the flip occurs and the object is no longer visible.
 	 */
 	atomic_add(1 << intel_crtc->plane, &work->old_fb_obj->pending_flip);
 
-	switch (INTEL_INFO(dev)->gen) {
-	case 2:
-		OUT_RING(MI_DISPLAY_FLIP |
-			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-		OUT_RING(fb->pitch);
-		OUT_RING(obj->gtt_offset + offset);
-		OUT_RING(MI_NOOP);
-		break;
-
-	case 3:
-		OUT_RING(MI_DISPLAY_FLIP_I915 |
-			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-		OUT_RING(fb->pitch);
-		OUT_RING(obj->gtt_offset + offset);
-		OUT_RING(MI_NOOP);
-		break;
-
-	case 4:
-	case 5:
-		/* i965+ uses the linear or tiled offsets from the
-		 * Display Registers (which do not change across a page-flip)
-		 * so we need only reprogram the base address.
-		 */
-		OUT_RING(MI_DISPLAY_FLIP |
-			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-		OUT_RING(fb->pitch);
-		OUT_RING(obj->gtt_offset | obj->tiling_mode);
-
-		/* XXX Enabling the panel-fitter across page-flip is so far
-		 * untested on non-native modes, so ignore it for now.
-		 * pf = I915_READ(pipe == 0 ? PFA_CTL_1 : PFB_CTL_1) & PF_ENABLE;
-		 */
-		pf = 0;
-		pipesrc = I915_READ(PIPESRC(pipe)) & 0x0fff0fff;
-		OUT_RING(pf | pipesrc);
-		break;
-
-	case 6:
-	case 7:
-		OUT_RING(MI_DISPLAY_FLIP |
-			 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-		OUT_RING(fb->pitch | obj->tiling_mode);
-		OUT_RING(obj->gtt_offset);
-
-		pf = I915_READ(PF_CTL(pipe)) & PF_ENABLE;
-		pipesrc = I915_READ(PIPESRC(pipe)) & 0x0fff0fff;
-		OUT_RING(pf | pipesrc);
-		break;
-	}
-	ADVANCE_LP_RING();
+	ret = dev_priv->display.queue_flip(dev, crtc, fb, obj);
+	if (ret)
+		goto cleanup_pending;
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -6398,10 +6511,11 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	return 0;
 
+cleanup_pending:
+	atomic_sub(1 << intel_crtc->plane, &work->old_fb_obj->pending_flip);
 cleanup_objs:
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 	drm_gem_object_unreference(&obj->base);
-cleanup_work:
 	mutex_unlock(&dev->struct_mutex);
 
 	spin_lock_irqsave(&dev->event_lock, flags);
@@ -7645,6 +7759,31 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.get_fifo_size = i845_get_fifo_size;
 		else
 			dev_priv->display.get_fifo_size = i830_get_fifo_size;
+	}
+
+	/* Default just returns -ENODEV to indicate unsupported */
+	dev_priv->display.queue_flip = intel_default_queue_flip;
+
+	switch (INTEL_INFO(dev)->gen) {
+	case 2:
+		dev_priv->display.queue_flip = intel_gen2_queue_flip;
+		break;
+
+	case 3:
+		dev_priv->display.queue_flip = intel_gen3_queue_flip;
+		break;
+
+	case 4:
+	case 5:
+		dev_priv->display.queue_flip = intel_gen4_queue_flip;
+		break;
+
+	case 6:
+		dev_priv->display.queue_flip = intel_gen6_queue_flip;
+		break;
+	case 7:
+		dev_priv->display.queue_flip = intel_gen7_queue_flip;
+		break;
 	}
 }
 
