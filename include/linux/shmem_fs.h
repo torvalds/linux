@@ -3,14 +3,8 @@
 
 #include <linux/swap.h>
 #include <linux/mempolicy.h>
+#include <linux/pagemap.h>
 #include <linux/percpu_counter.h>
-
-struct page;
-struct file;
-struct inode;
-struct super_block;
-struct user_struct;
-struct vm_area_struct;
 
 /* inode in-kernel data */
 
@@ -61,9 +55,18 @@ extern struct file *shmem_file_setup(const char *name,
 					loff_t size, unsigned long flags);
 extern int shmem_zero_setup(struct vm_area_struct *);
 extern int shmem_lock(struct file *file, int lock, struct user_struct *user);
+extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
+					pgoff_t index, gfp_t gfp_mask);
 extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
 extern int shmem_unuse(swp_entry_t entry, struct page *page);
 extern void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
 					struct page **pagep, swp_entry_t *ent);
+
+static inline struct page *shmem_read_mapping_page(
+				struct address_space *mapping, pgoff_t index)
+{
+	return shmem_read_mapping_page_gfp(mapping, index,
+					mapping_gfp_mask(mapping));
+}
 
 #endif
