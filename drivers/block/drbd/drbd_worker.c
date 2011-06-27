@@ -78,6 +78,7 @@ void drbd_md_io_complete(struct bio *bio, int error)
 	md_io->error = error;
 
 	complete(&md_io->event);
+	drbd_md_put_buffer(mdev);
 }
 
 /* reads on behalf of the partner,
