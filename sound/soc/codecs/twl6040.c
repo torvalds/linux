@@ -80,6 +80,7 @@ struct twl6040_data {
 	int codec_powered;
 	int pll;
 	int non_lp;
+	int pll_power_mode;
 	int hs_power_mode;
 	int hs_power_mode_locked;
 	unsigned int clk_in;
@@ -208,6 +209,37 @@ static const int twl6040_vdd_reg[TWL6040_VDDREGNUM] = {
 	TWL6040_REG_VIBDATR,
 	TWL6040_REG_ALB,
 	TWL6040_REG_DLB,
+};
+
+/* set of rates for each pll: low-power and high-performance */
+static unsigned int lp_rates[] = {
+	8000,
+	11250,
+	16000,
+	22500,
+	32000,
+	44100,
+	48000,
+	88200,
+	96000,
+};
+
+static struct snd_pcm_hw_constraint_list lp_constraints = {
+	.count	= ARRAY_SIZE(lp_rates),
+	.list	= lp_rates,
+};
+
+static unsigned int hp_rates[] = {
+	8000,
+	16000,
+	32000,
+	48000,
+	96000,
+};
+
+static struct snd_pcm_hw_constraint_list hp_constraints = {
+	.count	= ARRAY_SIZE(hp_rates),
+	.list	= hp_rates,
 };
 
 /*
@@ -1049,6 +1081,43 @@ static int twl6040_headset_power_put_enum(struct snd_kcontrol *kcontrol,
 	return ret;
 }
 
+static int twl6040_pll_get_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
+
+	ucontrol->value.enumerated.item[0] = priv->pll_power_mode;
+
+	return 0;
+}
+
+static int twl6040_pll_put_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
+
+	priv->pll_power_mode = ucontrol->value.enumerated.item[0];
+	if (priv->pll_power_mode)
+		priv->sysclk_constraints = &hp_constraints;
+	else
+		priv->sysclk_constraints = &lp_constraints;
+
+	return 0;
+}
+
+int twl6040_get_clk_id(struct snd_soc_codec *codec)
+{
+	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
+
+	if (priv->pll_power_mode)
+		return TWL6040_SYSCLK_SEL_HPPLL;
+	else
+		return TWL6040_SYSCLK_SEL_LPPLL;
+}
+EXPORT_SYMBOL_GPL(twl6040_get_clk_id);
+
 static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 	/* Capture gains */
 	SOC_DOUBLE_TLV("Capture Preamplifier Volume",
@@ -1071,6 +1140,9 @@ static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 	SOC_ENUM_EXT("Headset Power Mode", twl6040_power_mode_enum,
 		twl6040_headset_power_get_enum,
 		twl6040_headset_power_put_enum),
+
+	SOC_ENUM_EXT("PLL Selection", twl6040_power_mode_enum,
+		twl6040_pll_get_enum, twl6040_pll_put_enum),
 };
 
 static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
@@ -1289,38 +1361,6 @@ static int twl6040_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-/* set of rates for each pll: low-power and high-performance */
-
-static unsigned int lp_rates[] = {
-	8000,
-	11250,
-	16000,
-	22500,
-	32000,
-	44100,
-	48000,
-	88200,
-	96000,
-};
-
-static struct snd_pcm_hw_constraint_list lp_constraints = {
-	.count	= ARRAY_SIZE(lp_rates),
-	.list	= lp_rates,
-};
-
-static unsigned int hp_rates[] = {
-	8000,
-	16000,
-	32000,
-	48000,
-	96000,
-};
-
-static struct snd_pcm_hw_constraint_list hp_constraints = {
-	.count	= ARRAY_SIZE(hp_rates),
-	.list	= hp_rates,
-};
-
 static int twl6040_startup(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
@@ -1427,16 +1467,12 @@ static int twl6040_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				      freq, priv->sysclk);
 		if (ret)
 			return ret;
-
-		priv->sysclk_constraints = &lp_constraints;
 		break;
 	case TWL6040_SYSCLK_SEL_HPPLL:
 		ret = twl6040_set_pll(twl6040, TWL6040_HPPLL_ID,
 				      freq, priv->sysclk);
 		if (ret)
 			return ret;
-
-		priv->sysclk_constraints = &hp_constraints;
 		break;
 	default:
 		dev_err(codec->dev, "unknown clk_id %d\n", clk_id);
@@ -1563,7 +1599,7 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 		goto work_err;
 	}
 
-	priv->sysclk_constraints = &hp_constraints;
+	priv->sysclk_constraints = &lp_constraints;
 	priv->workqueue = create_singlethread_workqueue("twl6040-codec");
 	if (!priv->workqueue) {
 		ret = -ENOMEM;
