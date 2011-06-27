@@ -11078,9 +11078,16 @@ static void alc882_auto_init_input_src(struct hda_codec *codec)
 		unsigned int wid_type;
 
 		/* mute ADC */
-		snd_hda_codec_write(codec, spec->adc_nids[c], 0,
+		if (query_amp_caps(codec, spec->adc_nids[c], HDA_INPUT) &
+		    AC_AMPCAP_MUTE)
+			snd_hda_codec_write(codec, spec->adc_nids[c], 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_MUTE(0));
+		else if (query_amp_caps(codec, nid, HDA_OUTPUT) &
+			 AC_AMPCAP_MUTE)
+			snd_hda_codec_write(codec, nid, 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_OUT_MUTE);
 
 		conns = snd_hda_get_conn_list(codec, nid, NULL);
 		if (conns <= 0)
@@ -13580,6 +13587,8 @@ static void alc268_auto_set_output_and_unmute(struct hda_codec *codec,
 	int idx;
 
 	alc_set_pin_output(codec, nid, pin_type);
+	if (snd_hda_get_conn_list(codec, nid, NULL) <= 1)
+		return;
 	if (nid == 0x14 || nid == 0x16)
 		idx = 0;
 	else
@@ -13721,10 +13730,11 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	if (spec->kctls.list)
 		add_mixer(spec, spec->kctls.list);
 
-	if (!spec->no_analog && spec->autocfg.speaker_pins[0] != 0x1d)
+	if (!spec->no_analog && spec->autocfg.speaker_pins[0] != 0x1d) {
 		add_mixer(spec, alc268_beep_mixer);
+		add_verb(spec, alc268_beep_init_verbs);
+	}
 
-	add_verb(spec, alc268_beep_init_verbs);
 	spec->num_mux_defs = 2;
 	spec->input_mux = &spec->private_imux[0];
 
