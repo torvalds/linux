@@ -56,7 +56,7 @@ s32 e1000e_get_bus_info_pcie(struct e1000_hw *hw)
 	struct e1000_adapter *adapter = hw->adapter;
 	u16 pcie_link_status, cap_offset;
 
-	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
+	cap_offset = adapter->pdev->pcie_cap;
 	if (!cap_offset) {
 		bus->width = e1000_bus_width_unknown;
 	} else {

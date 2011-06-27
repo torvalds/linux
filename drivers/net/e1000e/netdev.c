@@ -5318,7 +5318,7 @@ static void e1000_complete_shutdown(struct pci_dev *pdev, bool sleep,
 	 */
 	if (adapter->flags & FLAG_IS_QUAD_PORT) {
 		struct pci_dev *us_dev = pdev->bus->self;
-		int pos = pci_find_capability(us_dev, PCI_CAP_ID_EXP);
+		int pos = pci_pcie_cap(us_dev);
 		u16 devctl;
 
 		pci_read_config_word(us_dev, pos + PCI_EXP_DEVCTL, &devctl);
