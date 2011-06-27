@@ -116,13 +116,13 @@ ENTRY(cpu_arm6_data_abort)
 	tst	r8, #1 << 21			@ check writeback bit
 	beq	do_DataAbort			@ no writeback -> no fixup
 .data_arm_lateldrpostconst:
-	movs	r9, r8, lsl #20			@ Get offset
+	movs	r6, r8, lsl #20			@ Get offset
 	beq	do_DataAbort			@ zero -> no fixup
 	and	r5, r8, #15 << 16		@ Extract 'n' from instruction
 	ldr	r7, [r2, r5, lsr #14]		@ Get register 'Rn'
 	tst	r8, #1 << 23			@ Check U bit
-	subne	r7, r7, r9, lsr #20		@ Undo increment
-	addeq	r7, r7, r9, lsr #20		@ Undo decrement
+	subne	r7, r7, r6, lsr #20		@ Undo increment
+	addeq	r7, r7, r6, lsr #20		@ Undo decrement
 	str	r7, [r2, r5, lsr #14]		@ Put register 'Rn'
 	b	do_DataAbort
 
