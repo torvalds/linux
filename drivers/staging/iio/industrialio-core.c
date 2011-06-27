@@ -396,6 +396,11 @@ static ssize_t iio_read_channel_info(struct device *dev,
 			return sprintf(buf, "-%d.%06u\n", val, -val2);
 		else
 			return sprintf(buf, "%d.%06u\n", val, val2);
+	} else if (ret == IIO_VAL_INT_PLUS_NANO) {
+		if (val2 < 0)
+			return sprintf(buf, "-%d.%09u\n", val, -val2);
+		else
+			return sprintf(buf, "%d.%09u\n", val, val2);
 	} else
 		return 0;
 }

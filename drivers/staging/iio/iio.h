@@ -202,6 +202,7 @@ static inline s64 iio_get_time_ns(void)
  * call to iio_device_register. */
 #define IIO_VAL_INT 1
 #define IIO_VAL_INT_PLUS_MICRO 2
+#define IIO_VAL_INT_PLUS_NANO 3
 
 /**
  * struct iio_info - constant information about device
