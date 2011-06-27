@@ -339,7 +339,7 @@ static int lm95241_detect(struct i2c_client *new_client,
 	if ((i2c_smbus_read_byte_data(new_client, LM95241_REG_R_MAN_ID)
 	     == MANUFACTURER_ID)
 	    && (i2c_smbus_read_byte_data(new_client, LM95241_REG_R_CHIP_ID)
-		>= DEFAULT_REVISION)) {
+		== DEFAULT_REVISION)) {
 		name = DEVNAME;
 	} else {
 		dev_dbg(&adapter->dev, "LM95241 detection failed at 0x%02x\n",
