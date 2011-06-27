@@ -3306,6 +3306,8 @@ static void dispc_error_worker(struct work_struct *work)
 	dispc.error_irqs = 0;
 	spin_unlock_irqrestore(&dispc.irq_lock, flags);
 
+	dispc_runtime_get();
+
 	if (errors & DISPC_IRQ_GFX_FIFO_UNDERFLOW) {
 		DSSERR("GFX_FIFO_UNDERFLOW, disabling GFX\n");
 		for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
@@ -3492,6 +3494,8 @@ static void dispc_error_worker(struct work_struct *work)
 	dispc.irq_error_mask |= errors;
 	_omap_dispc_set_irqs();
 	spin_unlock_irqrestore(&dispc.irq_lock, flags);
+
+	dispc_runtime_put();
 }
 
 int omap_dispc_wait_for_irq_timeout(u32 irqmask, unsigned long timeout)
