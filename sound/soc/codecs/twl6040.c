@@ -1013,13 +1013,13 @@ static const struct snd_kcontrol_new ep_driver_switch_controls =
 	SOC_DAPM_SINGLE("Switch", TWL6040_REG_EARCTL, 0, 1, 0);
 
 /* Headset power mode */
-static const char *twl6040_headset_power_texts[] = {
+static const char *twl6040_power_mode_texts[] = {
 	"Low-Power", "High-Perfomance",
 };
 
-static const struct soc_enum twl6040_headset_power_enum =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(twl6040_headset_power_texts),
-			twl6040_headset_power_texts);
+static const struct soc_enum twl6040_power_mode_enum =
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(twl6040_power_mode_texts),
+			twl6040_power_mode_texts);
 
 static int twl6040_headset_power_get_enum(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
@@ -1068,7 +1068,7 @@ static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 	SOC_SINGLE_TLV("Earphone Playback Volume",
 		TWL6040_REG_EARCTL, 1, 0xF, 1, ep_tlv),
 
-	SOC_ENUM_EXT("Headset Power Mode", twl6040_headset_power_enum,
+	SOC_ENUM_EXT("Headset Power Mode", twl6040_power_mode_enum,
 		twl6040_headset_power_get_enum,
 		twl6040_headset_power_put_enum),
 };
