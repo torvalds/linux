@@ -2278,6 +2278,9 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			wl->channel = channel;
 		}
 
+		if ((changed & IEEE80211_CONF_CHANGE_POWER))
+			wl->power_level = conf->power_level;
+
 		goto out;
 	}
 

@@ -90,7 +90,7 @@ int wl1271_acx_tx_power(struct wl1271 *wl, int power)
 	struct acx_current_tx_power *acx;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx dot11_cur_tx_pwr");
+	wl1271_debug(DEBUG_ACX, "acx dot11_cur_tx_pwr %d", power);
 
 	if (power < 0 || power > 25)
 		return -EINVAL;
