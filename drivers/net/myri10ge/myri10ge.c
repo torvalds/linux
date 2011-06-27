@@ -1081,7 +1081,7 @@ static int myri10ge_toggle_relaxed(struct pci_dev *pdev, int on)
 	int ret, cap, err;
 	u16 ctl;
 
-	cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	cap = pci_pcie_cap(pdev);
 	if (!cap)
 		return 0;
 
@@ -3191,7 +3191,7 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 {
 	struct pci_dev *bridge = mgp->pdev->bus->self;
 	struct device *dev = &mgp->pdev->dev;
-	unsigned cap;
+	int cap;
 	unsigned err_cap;
 	u16 val;
 	u8 ext_type;
@@ -3201,7 +3201,7 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 		return;
 
 	/* check that the bridge is a root port */
-	cap = pci_find_capability(bridge, PCI_CAP_ID_EXP);
+	cap = pci_pcie_cap(bridge);
 	pci_read_config_word(bridge, cap + PCI_CAP_FLAGS, &val);
 	ext_type = (val & PCI_EXP_FLAGS_TYPE) >> 4;
 	if (ext_type != PCI_EXP_TYPE_ROOT_PORT) {
@@ -3219,8 +3219,7 @@ static void myri10ge_enable_ecrc(struct myri10ge_priv *mgp)
 						" to force ECRC\n");
 					return;
 				}
-				cap =
-				    pci_find_capability(bridge, PCI_CAP_ID_EXP);
+				cap = pci_pcie_cap(bridge);
 				pci_read_config_word(bridge,
 						     cap + PCI_CAP_FLAGS, &val);
 				ext_type = (val & PCI_EXP_FLAGS_TYPE) >> 4;
@@ -3341,7 +3340,7 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 		int link_width, exp_cap;
 		u16 lnk;
 
-		exp_cap = pci_find_capability(mgp->pdev, PCI_CAP_ID_EXP);
+		exp_cap = pci_pcie_cap(mgp->pdev);
 		pci_read_config_word(mgp->pdev, exp_cap + PCI_EXP_LNKSTA, &lnk);
 		link_width = (lnk >> 4) & 0x3f;
 
