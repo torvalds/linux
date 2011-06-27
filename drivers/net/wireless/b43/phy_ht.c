@@ -24,6 +24,7 @@
 
 #include "b43.h"
 #include "phy_ht.h"
+#include "tables_phy_ht.h"
 #include "radio_2059.h"
 #include "main.h"
 
@@ -83,6 +84,7 @@ static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
 				struct ieee80211_channel *new_channel)
 {
 	bool old_band_5ghz;
+	u8 i;
 
 	old_band_5ghz = b43_phy_read(dev, B43_PHY_HT_BANDCTL) & 0; /* FIXME */
 	if (new_channel->band == IEEE80211_BAND_5GHZ && !old_band_5ghz) {
@@ -97,6 +99,23 @@ static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
 	b43_phy_write(dev, B43_PHY_HT_BW4, e->bw4);
 	b43_phy_write(dev, B43_PHY_HT_BW5, e->bw5);
 	b43_phy_write(dev, B43_PHY_HT_BW6, e->bw6);
+
+	/* TODO: some ops on PHY regs 0x0B0 and 0xC0A */
+
+	/* TODO: separated function? */
+	for (i = 0; i < 3; i++) {
+		u32 tmp = b43_httab_read(dev, B43_HTTAB32(26, 0xE8));
+
+		/* TODO: some op on PHY reg 0x908 */
+
+		b43_httab_write(dev, B43_HTTAB16(7, 0x110 + i), tmp >> 16);
+		b43_httab_write(dev, B43_HTTAB8(13, 0x63 + (i * 4)),
+				tmp & 0xFF);
+		b43_httab_write(dev, B43_HTTAB8(13, 0x73 + (i * 4)),
+				tmp & 0xFF);
+	}
+
+	b43_phy_write(dev, 0x017e, 0x3830);
 }
 
 static int b43_phy_ht_set_channel(struct b43_wldev *dev,
