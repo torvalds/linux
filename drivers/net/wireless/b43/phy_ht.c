@@ -57,7 +57,7 @@ static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 	b43_radio_write(dev, 0x98, e->radio_syn98);
 
 	for (i = 0; i < 2; i++) {
-		routing = i ? 0x800 : 0x400;
+		routing = i ? R2059_RXRX1 : R2059_TXRX0;
 		b43_radio_write(dev, routing | 0x4a, e->radio_rxtx4a);
 		b43_radio_write(dev, routing | 0x58, e->radio_rxtx58);
 		b43_radio_write(dev, routing | 0x5a, e->radio_rxtx5a);
