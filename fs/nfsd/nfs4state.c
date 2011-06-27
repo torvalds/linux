@@ -385,14 +385,6 @@ static int nfs4_access_to_omode(u32 access)
 	BUG();
 }
 
-static int nfs4_access_bmap_to_omode(struct nfs4_stateid *stp)
-{
-	unsigned int access;
-
-	set_access(&access, stp->st_access_bmap);
-	return nfs4_access_to_omode(access);
-}
-
 static void unhash_generic_stateid(struct nfs4_stateid *stp)
 {
 	list_del(&stp->st_hash);
@@ -402,11 +394,14 @@ static void unhash_generic_stateid(struct nfs4_stateid *stp)
 
 static void free_generic_stateid(struct nfs4_stateid *stp)
 {
-	int oflag;
+	int i;
 
 	if (stp->st_access_bmap) {
-		oflag = nfs4_access_bmap_to_omode(stp);
-		nfs4_file_put_access(stp->st_file, oflag);
+		for (i = 1; i < 4; i++) {
+			if (test_bit(i, &stp->st_access_bmap))
+				nfs4_file_put_access(stp->st_file,
+						nfs4_access_to_omode(i));
+		}
 	}
 	put_nfs4_file(stp->st_file);
 	kmem_cache_free(stateid_slab, stp);
