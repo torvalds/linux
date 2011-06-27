@@ -82,7 +82,21 @@ static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
 				const struct b43_phy_ht_channeltab_e_phy *e,
 				struct ieee80211_channel *new_channel)
 {
-	/* TODO */
+	bool old_band_5ghz;
+
+	old_band_5ghz = b43_phy_read(dev, B43_PHY_HT_BANDCTL) & 0; /* FIXME */
+	if (new_channel->band == IEEE80211_BAND_5GHZ && !old_band_5ghz) {
+		/* TODO */
+	} else if (new_channel->band == IEEE80211_BAND_2GHZ && old_band_5ghz) {
+		/* TODO */
+	}
+
+	b43_phy_write(dev, B43_PHY_HT_BW1, e->bw1);
+	b43_phy_write(dev, B43_PHY_HT_BW2, e->bw2);
+	b43_phy_write(dev, B43_PHY_HT_BW3, e->bw3);
+	b43_phy_write(dev, B43_PHY_HT_BW4, e->bw4);
+	b43_phy_write(dev, B43_PHY_HT_BW5, e->bw5);
+	b43_phy_write(dev, B43_PHY_HT_BW6, e->bw6);
 }
 
 static int b43_phy_ht_set_channel(struct b43_wldev *dev,
