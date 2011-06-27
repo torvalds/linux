@@ -176,3 +176,9 @@ module_init(ofpart_parser_init);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Parser for MTD partitioning information in device tree");
 MODULE_AUTHOR("Vitaly Wool, David Gibson");
+/*
+ * When MTD core cannot find the requested parser, it tries to load the module
+ * with the same name. Since we provide the ofoldpart parser, we should have
+ * the corresponding alias.
+ */
+MODULE_ALIAS("ofoldpart");
