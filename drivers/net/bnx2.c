@@ -7911,9 +7911,8 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->chip_id = REG_RD(bp, BNX2_MISC_ID);
 
 	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
-		if (pci_find_capability(pdev, PCI_CAP_ID_EXP) == 0) {
-			dev_err(&pdev->dev,
-				"Cannot find PCIE capability, aborting\n");
+		if (!pci_is_pcie(pdev)) {
+			dev_err(&pdev->dev, "Not PCIE, aborting\n");
 			rc = -EIO;
 			goto err_out_unmap;
 		}
