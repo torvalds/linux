@@ -44,6 +44,7 @@
 #include <mach/vpu_mem.h>
 #include <mach/sram.h>
 #include <mach/ddr.h>
+#include <mach/cpufreq.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
@@ -58,6 +59,7 @@
 #include <linux/i2c-gpio.h>
 #include <linux/mpu.h>
 #include "devices.h"
+
 
 #if defined(CONFIG_MTK23D)
 #include <linux/mtk23d.h>
@@ -3042,10 +3044,20 @@ static void rk29_pm_power_off(void)
 	while (1);
 }
 
+static struct cpufreq_frequency_table freq_table[] = {
+
+	{ .index = 1050000, .frequency =  408000 },
+    { .index = 1100000, .frequency =  576000 },
+	{ .index = 1150000, .frequency =  816000 },
+	{ .frequency = CPUFREQ_TABLE_END },
+};
+
 static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
-
+    
+    board_update_cpufreq_table(freq_table);
+    
 	gpio_request(POWER_ON_PIN,"poweronpin");
 	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
