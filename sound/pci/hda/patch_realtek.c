@@ -1366,28 +1366,12 @@ static void set_eapd(struct hda_codec *codec, hda_nid_t nid, int on)
 static void alc_auto_setup_eapd(struct hda_codec *codec, bool on)
 {
 	/* We currently only handle front, HP */
-	switch (codec->vendor_id) {
-	case 0x10ec0260:
-		set_eapd(codec, 0x0f, on);
-		set_eapd(codec, 0x10, on);
-		break;
-	case 0x10ec0262:
-	case 0x10ec0267:
-	case 0x10ec0268:
-	case 0x10ec0269:
-	case 0x10ec0270:
-	case 0x10ec0272:
-	case 0x10ec0660:
-	case 0x10ec0662:
-	case 0x10ec0663:
-	case 0x10ec0665:
-	case 0x10ec0862:
-	case 0x10ec0889:
-	case 0x10ec0892:
-		set_eapd(codec, 0x14, on);
-		set_eapd(codec, 0x15, on);
-		break;
-	}
+	static hda_nid_t pins[] = {
+		0x0f, 0x10, 0x14, 0x15, 0
+	};
+	hda_nid_t *p;
+	for (p = pins; *p; p++)
+		set_eapd(codec, *p, on);
 }
 
 /* generic shutup callback;
@@ -1403,6 +1387,7 @@ static void alc_auto_init_amp(struct hda_codec *codec, int type)
 {
 	unsigned int tmp;
 
+	alc_auto_setup_eapd(codec, true);
 	switch (type) {
 	case ALC_INIT_GPIO1:
 		snd_hda_sequence_write(codec, alc_gpio1_init_verbs);
@@ -1414,7 +1399,6 @@ static void alc_auto_init_amp(struct hda_codec *codec, int type)
 		snd_hda_sequence_write(codec, alc_gpio3_init_verbs);
 		break;
 	case ALC_INIT_DEFAULT:
-		alc_auto_setup_eapd(codec, true);
 		switch (codec->vendor_id) {
 		case 0x10ec0260:
 			snd_hda_codec_write(codec, 0x1a, 0,
