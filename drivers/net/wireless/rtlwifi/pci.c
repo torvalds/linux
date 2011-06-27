@@ -390,7 +390,7 @@ static void rtl_pci_parse_configuration(struct pci_dev *pdev,
 	u8 linkctrl_reg;
 
 	/*Link Control Register */
-	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(pdev);
 	pci_read_config_byte(pdev, pos + PCI_EXP_LNKCTL, &linkctrl_reg);
 	pcipriv->ndis_adapter.linkctrl_reg = linkctrl_reg;
 
