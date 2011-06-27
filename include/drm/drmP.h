@@ -1674,13 +1674,6 @@ static __inline__ int drm_pci_device_is_agp(struct drm_device *dev)
 	return pci_find_capability(dev->pdev, PCI_CAP_ID_AGP);
 }
 
-
-static __inline__ int drm_pci_device_is_pcie(struct drm_device *dev)
-{
-	return pci_find_capability(dev->pdev, PCI_CAP_ID_EXP);
-}
-
-
 extern int drm_pci_init(struct drm_driver *driver, struct pci_driver *pdriver);
 extern void drm_pci_exit(struct drm_driver *driver, struct pci_driver *pdriver);
 extern int drm_get_pci_dev(struct pci_dev *pdev,

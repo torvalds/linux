@@ -1111,7 +1111,7 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 	case NOUVEAU_GETPARAM_BUS_TYPE:
 		if (drm_pci_device_is_agp(dev))
 			getparam->value = NV_AGP;
-		else if (drm_pci_device_is_pcie(dev))
+		else if (pci_is_pcie(dev->pdev))
 			getparam->value = NV_PCIE;
 		else
 			getparam->value = NV_PCI;

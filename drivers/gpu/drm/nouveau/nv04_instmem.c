@@ -42,7 +42,7 @@ int nv04_instmem_init(struct drm_device *dev)
 		rsvd *= dev_priv->engine.fifo.channels;
 
 		/* pciegart table */
-		if (drm_pci_device_is_pcie(dev))
+		if (pci_is_pcie(dev->pdev))
 			rsvd += 512 * 1024;
 
 		/* object storage */

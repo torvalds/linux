@@ -397,7 +397,7 @@ nouveau_mem_vram_init(struct drm_device *dev)
 		if (pci_dma_supported(dev->pdev, DMA_BIT_MASK(40)))
 			dma_bits = 40;
 	} else
-	if (0 && drm_pci_device_is_pcie(dev) &&
+	if (0 && pci_is_pcie(dev->pdev) &&
 	    dev_priv->chipset  > 0x40 &&
 	    dev_priv->chipset != 0x45) {
 		if (pci_dma_supported(dev->pdev, DMA_BIT_MASK(39)))
