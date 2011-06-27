@@ -12,8 +12,8 @@
 .section .l1.text
 
 ENTRY(_sleep_mode)
-	[--SP] = ( R7:0, P5:0 );
-	[--SP] =  RETS;
+	[--SP] = (R7:4, P5:3);
+	[--SP] = RETS;
 
 	call _set_sic_iwr;
 
@@ -46,7 +46,7 @@ ENTRY(_sleep_mode)
 	call _test_pll_locked;
 
 	RETS = [SP++];
-	( R7:0, P5:0 ) = [SP++];
+	(R7:4, P5:3) = [SP++];
 	RTS;
 ENDPROC(_sleep_mode)
 
@@ -81,8 +81,8 @@ ENTRY(_hibernate_mode)
 ENDPROC(_hibernate_mode)
 
 ENTRY(_sleep_deeper)
-	[--SP] = ( R7:0, P5:0 );
-	[--SP] =  RETS;
+	[--SP] = (R7:4, P5:3);
+	[--SP] = RETS;
 
 	CLI R4;
 
@@ -175,7 +175,7 @@ ENTRY(_sleep_deeper)
 	STI R4;
 
 	RETS = [SP++];
-	( R7:0, P5:0 ) = [SP++];
+	(R7:4, P5:3) = [SP++];
 	RTS;
 ENDPROC(_sleep_deeper)
 
