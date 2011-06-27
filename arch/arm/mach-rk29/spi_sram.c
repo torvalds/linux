@@ -1,11 +1,10 @@
-
 #include <mach/rk29_iomap.h>
 #include <mach/board.h>
 #include <mach/sram.h>
 #include <mach/iomux.h>
 #include <mach/cru.h>
 #include <asm/io.h>
-
+#include <mach/gpio.h>
 
 #define SPI_KHZ (1000)
 #define SPI_MHZ (1000*1000) 
@@ -31,74 +30,6 @@
 #define SRAM_SPI_DIV (SPI_SR_SPEED/SPI_SPEED)
 
 
-
-
-//#include <mach/spi_sram.h>
-
-#define SPIM_ENR	0x0008
-#define SPIM_SER	0x000C
-#define SPIM_CTRLR0	0x0000
-#define SPIM_BAUDR	0x0010
-#define SPIM_TXFTLR	0x0014
-#define SPIM_RXFLR	0x0020
-
-#define SPIM_SR		0x0024
-
-#define SPIM_IMR	0x002c
-#define SPIM_TXDR	0x400
-#define SPIM_RXDR	0x800
-/* Bit fields in rxflr, */
-#define RXFLR_MASK	(0x3f)
-/* Bit fields in SR, 7 bits */
-#define SR_MASK				0x7f		/* cover 7 bits */
-#define SR_BUSY				(1 << 0)
-#define SR_TF_FULL		    (1 << 1)
-#define SR_TF_EMPT			(1 << 2)
-#define SR_RF_EMPT		    (1 << 3)
-#define SR_RF_FULL			(1 << 4)
-
-
-#define spi_readl(offset) readl(SRAM_SPI_ADDRBASE + offset)
-#define spi_writel(v, offset) writel(v, SRAM_SPI_ADDRBASE + offset)
-
-enum
-{
-GRF_IOM50=0,
-GRF_IOM5c,
-CLKGATE1,
-CLKGATE2,	
-CLKSEL6,
-SPI_CTRLR0,
-SPI_BAUDR,
-SPI_SER,
-DATE_END,
-};
-
-/*unsigned int __sramdata spibase;
-unsigned int __sramdata sram_spi_cs;
-u32 __sramdata spi_base[2]={RK29_SPI0_BASE,RK29_SPI1_BASE};*/
-static u32 __sramdata spi_data[DATE_END]={};
-#define sram_spi_dis()  spi_writel(spi_readl(SPIM_ENR)&~(0x1<<0),SPIM_ENR)
-#define sram_spi_en()  spi_writel(spi_readl(SPIM_ENR)|(0x1<<0),SPIM_ENR)
-#define sram_spi_cs_dis()  spi_writel(spi_readl(SPIM_SER)&~0x3,SPIM_SER)
-#define sram_spi_cs_en()  spi_writel((spi_readl(SPIM_SER)&~0x3)|(0x1<<SRAM_SPI_CS),SPIM_SER);
-#define sram_spi_busy() (spi_readl(SPIM_SR)&SR_BUSY)
-
-#define wm831x_RD_MSK (0x1<<15)
-#define wm831x_RD_VOID (0x7FFF)
-#define spi_ctr0_mask 0x1fffc3
-
-
-
-#if 0
-void __sramfunc sram_printch(char byte);
-void __sramfunc sram_printHX(unsigned int hex);
-#else
-#define sram_printch(a)
-#define sram_printHX(a)
-#endif
-
-#define sram_udelay(usecs,a) LOOP((usecs)*LOOPS_PER_USEC)
 
 #define GRF_GPIO0_DIR     0x000
 #define GRF_GPIO1_DIR     0x004
@@ -136,8 +67,86 @@ void __sramfunc sram_printHX(unsigned int hex);
 #define GRF_GPIO5L_IOMUX  0x070
 #define GRF_GPIO5H_IOMUX  0x074
 
+//#include <mach/spi_sram.h>
+
+#define SPIM_ENR	0x0008
+#define SPIM_SER	0x000C
+#define SPIM_CTRLR0	0x0000
+#define SPIM_BAUDR	0x0010
+#define SPIM_TXFTLR	0x0014
+#define SPIM_RXFLR	0x0020
+
+#define SPIM_SR		0x0024
+
+#define SPIM_IMR	0x002c
+#define SPIM_TXDR	0x400
+#define SPIM_RXDR	0x800
+/* Bit fields in rxflr, */
+#define RXFLR_MASK	(0x3f)
+/* Bit fields in SR, 7 bits */
+#define SR_MASK				0x7f		/* cover 7 bits */
+#define SR_BUSY				(1 << 0)
+#define SR_TF_FULL		    (1 << 1)
+#define SR_TF_EMPT			(1 << 2)
+#define SR_RF_EMPT		    (1 << 3)
+#define SR_RF_FULL			(1 << 4)
+
+#define PM_GETGPIO_BASE(N) RK29_GPIO##N##_BASE
+#define PM_GPIO_DR 0
+#define PM_GPIO_DDR 0x4
+#define PM_GPIO_INTEN 0x30
+
+#define wm831x_RD_MSK (0x1<<15)
+#define wm831x_RD_VOID (0x7FFF)
+#define spi_ctr0_mask 0x1fffc3
+
+
+
+enum
+{
+GRF_IOM50=0,
+GRF_IOM5c,
+CLKGATE1,
+CLKGATE2,	
+CLKSEL6,
+SPI_CTRLR0,
+SPI_BAUDR,
+SPI_SER,
+DATE_END,
+};
+
+/*unsigned int __sramdata spibase;
+unsigned int __sramdata sram_spi_cs;
+u32 __sramdata spi_base[2]={RK29_SPI0_BASE,RK29_SPI1_BASE};*/
+static u32 __sramdata spi_data[DATE_END]={};
+#define sram_spi_dis()  spi_writel(spi_readl(SPIM_ENR)&~(0x1<<0),SPIM_ENR)
+#define sram_spi_en()  spi_writel(spi_readl(SPIM_ENR)|(0x1<<0),SPIM_ENR)
+#define sram_spi_cs_dis()  spi_writel(spi_readl(SPIM_SER)&~0x3,SPIM_SER)
+#define sram_spi_cs_en()  spi_writel((spi_readl(SPIM_SER)&~0x3)|(0x1<<SRAM_SPI_CS),SPIM_SER);
+#define sram_spi_busy() (spi_readl(SPIM_SR)&SR_BUSY)
+//RK29_PIN0_PA0
+#define pm_gpio_out_low(gpio) pm_gpio_set((gpio),GPIO_OUT,GPIO_LOW)
+#define pm_gpio_out_high(gpio) pm_gpio_set((gpio),GPIO_OUT,GPIO_HIGH)
+
+#define spi_readl(offset) readl(SRAM_SPI_ADDRBASE + offset)
+#define spi_writel(v, offset) writel(v, SRAM_SPI_ADDRBASE + offset)
+
 #define grf_readl(offset) readl(RK29_GRF_BASE + offset)
 #define grf_writel(v, offset) do { writel(v, RK29_GRF_BASE + offset); readl(RK29_GRF_BASE + offset); } while (0)
+
+
+
+#if 1
+void __sramfunc sram_printch(char byte);
+#define sram_printHX(a)
+#else
+#define sram_printch(a)
+#define sram_printHX(a)
+#endif
+
+#define sram_udelay(usecs,a) LOOP((usecs)*LOOPS_PER_USEC)
+
+
 
 typedef struct GPIO_IOMUX
 {
@@ -155,9 +164,22 @@ typedef  struct REG_FILE_GRF
    unsigned int GRF_GPIO_PULL[7];
 } GRF_REG_SAVE;
 
-static GRF_REG_SAVE __sramdata pm_grf;
+__sramdata u32 pm_gpio_base[7]=
+{
+RK29_GPIO0_BASE,
+RK29_GPIO1_BASE,
+RK29_GPIO2_BASE,
+RK29_GPIO3_BASE,
+RK29_GPIO4_BASE,
+RK29_GPIO5_BASE,
+RK29_GPIO6_BASE
+};
+static GRF_REG_SAVE  pm_grf;
+int __sramdata crumode;
 
-static void __sramfunc pm_spi_gpio_prepare(void)
+//static GRF_REG_SAVE __sramdata pm_grf;
+
+static void  pm_spi_gpio_prepare(void)
 {
 	pm_grf.GRF_GPIO_IOMUX[1].GPIOL_IOMUX = grf_readl(GRF_GPIO1L_IOMUX);
 	pm_grf.GRF_GPIO_IOMUX[2].GPIOH_IOMUX = grf_readl(GRF_GPIO2H_IOMUX);
@@ -169,7 +191,7 @@ static void __sramfunc pm_spi_gpio_prepare(void)
 	pm_grf.GRF_GPIO_EN[2] = grf_readl(GRF_GPIO2_EN);
 }
 
-static void __sramfunc pm_spi_gpio_suspend(void)
+ void  pm_spi_gpio_suspend(void)
 {
 	int io1L_iomux;
 	int io2H_iomux;
@@ -199,7 +221,7 @@ static void __sramfunc pm_spi_gpio_suspend(void)
 	grf_writel(io2_en|0x00ff0000,GRF_GPIO2_EN);
 }
 
-static void __sramfunc pm_spi_gpio_resume(void)
+ void  pm_spi_gpio_resume(void)
 {
 	grf_writel(pm_grf.GRF_GPIO_EN[1],GRF_GPIO1_EN);
 	grf_writel(pm_grf.GRF_GPIO_EN[2],GRF_GPIO2_EN);
@@ -209,6 +231,9 @@ static void __sramfunc pm_spi_gpio_resume(void)
 	grf_writel(pm_grf.GRF_GPIO_IOMUX[1].GPIOL_IOMUX, GRF_GPIO1L_IOMUX);
 	grf_writel(pm_grf.GRF_GPIO_IOMUX[2].GPIOH_IOMUX, GRF_GPIO2H_IOMUX);
 }
+
+
+#if defined(CONFIG_RK29_SPI_INSRAM)
 
 #define SPI_GATE1_MASK 0xCF
 
@@ -226,6 +251,14 @@ void interface_ctr_reg_pread(void)
 
     writel(temp2,RK29_CRU_BASE + CRU_CLKGATE2_CON);
     writel(temp,RK29_CRU_BASE + CRU_CLKGATE1_CON);
+	readl(RK29_GPIO0_BASE);
+	readl(RK29_GPIO1_BASE);
+	readl(RK29_GPIO2_BASE);
+	readl(RK29_GPIO3_BASE);
+	readl(RK29_GPIO4_BASE);
+	readl(RK29_GPIO5_BASE);
+	readl(RK29_GPIO6_BASE);
+
 
 }
 
@@ -286,7 +319,6 @@ static void __sramfunc sram_spi_init(void)
 	
 	spi_data[SPI_CTRLR0] = spi_readl(SPIM_CTRLR0); 
 	spi_data[SPI_BAUDR] = spi_readl(SPIM_BAUDR);
-	
 	spi_writel((spi_data[SPI_CTRLR0]&~0x1fffc3)|0x1<<11|(SRAM_SPI_DATA_BYTE),SPIM_CTRLR0);//spi setting
 	spi_writel((spi_data[SPI_BAUDR]&(~0xffff))|SRAM_SPI_DIV,SPIM_BAUDR);//setting spi speed
 	spi_data[SPI_SER]=spi_readl(SPIM_SER);//spi cs
@@ -430,7 +462,6 @@ unsigned int __sramfunc rk29_suspend_voltage_set(unsigned int vol)
 		sram_spi_deinit();
 	#endif
 
-	pm_spi_gpio_suspend();
 
 	return 0;
 }
@@ -441,8 +472,6 @@ void __sramfunc rk29_suspend_voltage_resume(unsigned int vol)
 	unsigned short addr_4003=0x4003;
 	unsigned short data_4003;
 
-	pm_spi_gpio_resume();
-
 	sram_spi_init();    //iomux  clk
 
 	data_4003=sram_spi_read(addr_4003|wm831x_RD_MSK,wm831x_RD_VOID);
@@ -451,15 +480,127 @@ void __sramfunc rk29_suspend_voltage_resume(unsigned int vol)
 	sram_printch('G');
 	data_4003&=~(0x1<<14);
 	sram_spi_write(addr_4003,data_4003);// sleep
-	
-	
+
 	data_4003=sram_spi_read(addr_4003|wm831x_RD_MSK,wm831x_RD_VOID);
 	sram_printHX(data_4003);//sleep ctr
 
 	
 	sram_spi_deinit();
-	
-	sram_udelay(100000,24);
+	sram_udelay(100000, 24);
 	
 }
+#endif
+
+
+
+
+void __sramfunc sram_delay_loop(unsigned long count)
+{
+	while (count--) {
+		nop();
+		nop();
+		nop();
+		barrier();
+	}
+}
+
+void __sramfunc pm_gpio_set(unsigned gpio,eGPIOPinDirection_t direction,eGPIOPinLevel_t level)
+{
+	unsigned group,pin,value;
+	group=gpio/32;
+	pin=gpio%32;
+	if(group>6||pin>31)
+		return;
+	
+	if(direction==GPIO_OUT)
+	{
+		value=readl(pm_gpio_base[group]+PM_GPIO_DDR);
+		value|=0x1<<pin;
+		writel(value,pm_gpio_base[group]+PM_GPIO_DDR);
+
+		value=readl(pm_gpio_base[group]+PM_GPIO_DR);
+		
+		if(level==GPIO_HIGH)
+			value|=0x1<<pin;
+		else
+			value&=~(0x1<<pin);
+		
+		writel(value,pm_gpio_base[group]+PM_GPIO_DR);
+
+		
+	}
+	else
+	{
+		value=readl(pm_gpio_base[group]+PM_GPIO_DDR);
+		value&=~(0x1<<pin);
+		writel(value,pm_gpio_base[group]+PM_GPIO_DDR);
+
+	}
+}
+/*
+*flag=0,mask
+*/
+
+
+#ifdef CONFIG_RK29_CLK_SWITCH_TO_32K
+
+void __sramfunc pm_clk_switch_32k(void)
+{
+	int vol;
+	sram_printch('7');
+	pm_gpio_out_high(RK29_PIN4_PC0);
+	sram_delay_loop(30);
+
+	crumode=cru_readl(CRU_MODE_CON); //24M to 27M
+	cru_writel((crumode&(~0x7fff))|0x2baa, CRU_MODE_CON);
+	sram_delay_loop(30);
+
+//	pm_gpio_iomux(RK29_PIN4_PC5,0x0);// disable 24
+	pm_gpio_out_high(RK29_PIN4_PC5);
+
+	sram_delay_loop(30);
+	dsb();
+	asm("wfi");
+	
+	pm_gpio_out_low(RK29_PIN4_PC5);//enable 24M 
+	sram_udelay(1000,24);
+	cru_writel(crumode, CRU_MODE_CON); //externel clk 24M
+	
+	pm_gpio_out_low(RK29_PIN4_PC0); //enable 27M
+	sram_udelay(1000,27);
+	sram_printch('7');
+
+
+}
+
+#else
+void __sramfunc pm_clk_switch(void)
+{
+
+}
+#endif
+
+
+
+#ifdef  CONFIG_RK29_GPIO_SUSPEND
+void pm_gpio_suspend(void)
+{
+	pm_spi_gpio_suspend(); // spi  pullup/pulldown  disable.....¡£
+
+}
+
+void pm_gpio_resume(void)
+{
+	pm_spi_gpio_resume(); // spi  pullup/pulldown  disable.....¡£
+
+}
+
+#else
+void pm_gpio_suspend(void)
+{}
+void pm_gpio_resume(void)
+{}
+#endif
+
+
 
