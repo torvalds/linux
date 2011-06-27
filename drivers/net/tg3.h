@@ -2857,7 +2857,7 @@ enum TG3_FLAGS {
 	TG3_FLAG_IS_5788,
 	TG3_FLAG_MAX_RXPEND_64,
 	TG3_FLAG_TSO_CAPABLE,
-	TG3_FLAG_PCI_EXPRESS,
+	TG3_FLAG_PCI_EXPRESS, /* BCM5785 + pci_is_pcie() */
 	TG3_FLAG_ASF_NEW_HANDSHAKE,
 	TG3_FLAG_HW_AUTONEG,
 	TG3_FLAG_IS_NIC,
@@ -3022,10 +3022,7 @@ struct tg3 {
 
 	int				pm_cap;
 	int				msi_cap;
-	union {
 	int				pcix_cap;
-	int				pcie_cap;
-	};
 	int				pcie_readrq;
 
 	struct mii_bus			*mdio_bus;

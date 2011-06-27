@@ -2679,11 +2679,11 @@ static int tg3_power_down_prepare(struct tg3 *tp)
 		u16 lnkctl;
 
 		pci_read_config_word(tp->pdev,
-				     tp->pcie_cap + PCI_EXP_LNKCTL,
+				     pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
 				     &lnkctl);
 		lnkctl |= PCI_EXP_LNKCTL_CLKREQ_EN;
 		pci_write_config_word(tp->pdev,
-				      tp->pcie_cap + PCI_EXP_LNKCTL,
+				      pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
 				      lnkctl);
 	}
 
@@ -3485,7 +3485,7 @@ relink:
 		u16 oldlnkctl, newlnkctl;
 
 		pci_read_config_word(tp->pdev,
-				     tp->pcie_cap + PCI_EXP_LNKCTL,
+				     pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
 				     &oldlnkctl);
 		if (tp->link_config.active_speed == SPEED_100 ||
 		    tp->link_config.active_speed == SPEED_10)
@@ -3494,7 +3494,7 @@ relink:
 			newlnkctl = oldlnkctl | PCI_EXP_LNKCTL_CLKREQ_EN;
 		if (newlnkctl != oldlnkctl)
 			pci_write_config_word(tp->pdev,
-					      tp->pcie_cap + PCI_EXP_LNKCTL,
+					      pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
 					      newlnkctl);
 	}
 
@@ -7226,7 +7226,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	udelay(120);
 
-	if (tg3_flag(tp, PCI_EXPRESS) && tp->pcie_cap) {
+	if (tg3_flag(tp, PCI_EXPRESS) && pci_pcie_cap(tp->pdev)) {
 		u16 val16;
 
 		if (tp->pci_chip_rev_id == CHIPREV_ID_5750_A0) {
@@ -7244,7 +7244,7 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 		/* Clear the "no snoop" and "relaxed ordering" bits. */
 		pci_read_config_word(tp->pdev,
-				     tp->pcie_cap + PCI_EXP_DEVCTL,
+				     pci_pcie_cap(tp->pdev) + PCI_EXP_DEVCTL,
 				     &val16);
 		val16 &= ~(PCI_EXP_DEVCTL_RELAX_EN |
 			   PCI_EXP_DEVCTL_NOSNOOP_EN);
@@ -7255,14 +7255,14 @@ static int tg3_chip_reset(struct tg3 *tp)
 		if (!tg3_flag(tp, CPMU_PRESENT))
 			val16 &= ~PCI_EXP_DEVCTL_PAYLOAD;
 		pci_write_config_word(tp->pdev,
-				      tp->pcie_cap + PCI_EXP_DEVCTL,
+				      pci_pcie_cap(tp->pdev) + PCI_EXP_DEVCTL,
 				      val16);
 
 		pcie_set_readrq(tp->pdev, tp->pcie_readrq);
 
 		/* Clear error status */
 		pci_write_config_word(tp->pdev,
-				      tp->pcie_cap + PCI_EXP_DEVSTA,
+				      pci_pcie_cap(tp->pdev) + PCI_EXP_DEVSTA,
 				      PCI_EXP_DEVSTA_CED |
 				      PCI_EXP_DEVSTA_NFED |
 				      PCI_EXP_DEVSTA_FED |
@@ -13777,8 +13777,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	pci_read_config_dword(tp->pdev, TG3PCI_PCISTATE,
 			      &pci_state_reg);
 
-	tp->pcie_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_EXP);
-	if (tp->pcie_cap != 0) {
+	if (pci_is_pcie(tp->pdev)) {
 		u16 lnkctl;
 
 		tg3_flag_set(tp, PCI_EXPRESS);
@@ -13791,7 +13790,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		pcie_set_readrq(tp->pdev, tp->pcie_readrq);
 
 		pci_read_config_word(tp->pdev,
-				     tp->pcie_cap + PCI_EXP_LNKCTL,
+				     pci_pcie_cap(tp->pdev) + PCI_EXP_LNKCTL,
 				     &lnkctl);
 		if (lnkctl & PCI_EXP_LNKCTL_CLKREQ_EN) {
 			if (GET_ASIC_REV(tp->pci_chip_rev_id) ==
@@ -13808,6 +13807,10 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 			tg3_flag_set(tp, L1PLLPD_EN);
 		}
 	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785) {
+		/* BCM5785 devices are effectively PCIe devices, and should
+		 * follow PCIe codepaths, but do not have a PCIe capabilities
+		 * section.
+		*/
 		tg3_flag_set(tp, PCI_EXPRESS);
 	} else if (!tg3_flag(tp, 5705_PLUS) ||
 		   tg3_flag(tp, 5780_CLASS)) {
