@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  *
  */
-#ifndef __ASM_MIPS_PROM_H
-#define __ASM_MIPS_PROM_H
+#ifndef __ASM_PROM_H
+#define __ASM_PROM_H
 
 #ifdef CONFIG_OF
 #include <asm/bootinfo.h>
@@ -25,4 +25,4 @@ extern void device_tree_init(void);
 static inline void device_tree_init(void) { }
 #endif /* CONFIG_OF */
 
-#endif /* _ASM_MIPS_PROM_H */
+#endif /* __ASM_PROM_H */
