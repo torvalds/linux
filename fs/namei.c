@@ -2258,35 +2258,29 @@ struct file *do_file_open_root(struct dentry *dentry, struct vfsmount *mnt,
 	return file;
 }
 
-/**
- * lookup_create - lookup a dentry, creating it if it doesn't exist
- * @nd: nameidata info
- * @is_dir: directory flag
- *
- * Simple function to lookup and return a dentry and create it
- * if it doesn't exist.  Is SMP-safe.
- *
- * Returns with nd->path.dentry->d_inode->i_mutex locked.
- */
-struct dentry *lookup_create(struct nameidata *nd, int is_dir)
+struct dentry *kern_path_create(int dfd, const char *pathname, struct path *path, int is_dir)
 {
 	struct dentry *dentry = ERR_PTR(-EEXIST);
+	struct nameidata nd;
+	int error = do_path_lookup(dfd, pathname, LOOKUP_PARENT, &nd);
+	if (error)
+		return ERR_PTR(error);
 
-	mutex_lock_nested(&nd->path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
 	/*
 	 * Yucky last component or no last component at all?
 	 * (foo/., foo/.., /////)
 	 */
-	if (nd->last_type != LAST_NORM)
-		goto fail;
-	nd->flags &= ~LOOKUP_PARENT;
-	nd->flags |= LOOKUP_CREATE | LOOKUP_EXCL;
-	nd->intent.open.flags = O_EXCL;
+	if (nd.last_type != LAST_NORM)
+		goto out;
+	nd.flags &= ~LOOKUP_PARENT;
+	nd.flags |= LOOKUP_CREATE | LOOKUP_EXCL;
+	nd.intent.open.flags = O_EXCL;
 
 	/*
 	 * Do the final lookup.
 	 */
-	dentry = lookup_hash(nd);
+	mutex_lock_nested(&nd.path.dentry->d_inode->i_mutex, I_MUTEX_PARENT);
+	dentry = lookup_hash(&nd);
 	if (IS_ERR(dentry))
 		goto fail;
 
@@ -2298,33 +2292,21 @@ struct dentry *lookup_create(struct nameidata *nd, int is_dir)
 	 * all is fine. Let's be bastards - you had / on the end, you've
 	 * been asking for (non-existent) directory. -ENOENT for you.
 	 */
-	if (unlikely(!is_dir && nd->last.name[nd->last.len])) {
+	if (unlikely(!is_dir && nd.last.name[nd.last.len])) {
 		dput(dentry);
 		dentry = ERR_PTR(-ENOENT);
+		goto fail;
 	}
+	*path = nd.path;
 	return dentry;
 eexist:
 	dput(dentry);
 	dentry = ERR_PTR(-EEXIST);
 fail:
+	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
+out:
+	path_put(&nd.path);
 	return dentry;
-}
-EXPORT_SYMBOL_GPL(lookup_create);
-
-struct dentry *kern_path_create(int dfd, const char *pathname, struct path *path, int is_dir)
-{
-	struct nameidata nd;
-	struct dentry *res;
-	int error = do_path_lookup(dfd, pathname, LOOKUP_PARENT, &nd);
-	if (error)
-		return ERR_PTR(error);
-	res = lookup_create(&nd, is_dir);
-	if (IS_ERR(res)) {
-		mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-		path_put(&nd.path);
-	}
-	*path = nd.path;
-	return res;
 }
 EXPORT_SYMBOL(kern_path_create);
 
