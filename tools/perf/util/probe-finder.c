@@ -435,7 +435,7 @@ static int die_get_data_member_location(Dwarf_Die *mb_die, Dwarf_Word *offs)
 
 /* Return values for die_find callbacks */
 enum {
-	DIE_FIND_CB_FOUND = 0,		/* End of Search */
+	DIE_FIND_CB_END = 0,		/* End of Search */
 	DIE_FIND_CB_CHILD = 1,		/* Search only children */
 	DIE_FIND_CB_SIBLING = 2,	/* Search only siblings */
 	DIE_FIND_CB_CONTINUE = 3,	/* Search children and siblings */
@@ -455,7 +455,7 @@ static Dwarf_Die *die_find_child(Dwarf_Die *rt_die,
 
 	do {
 		ret = callback(die_mem, data);
-		if (ret == DIE_FIND_CB_FOUND)
+		if (ret == DIE_FIND_CB_END)
 			return die_mem;
 
 		if ((ret & DIE_FIND_CB_CHILD) &&
@@ -507,7 +507,7 @@ static int __die_find_inline_cb(Dwarf_Die *die_mem, void *data)
 
 	if (dwarf_tag(die_mem) == DW_TAG_inlined_subroutine &&
 	    dwarf_haspc(die_mem, *addr))
-		return DIE_FIND_CB_FOUND;
+		return DIE_FIND_CB_END;
 
 	return DIE_FIND_CB_CONTINUE;
 }
@@ -555,7 +555,7 @@ static int __die_walk_funclines_cb(Dwarf_Die *in_die, void *data)
 			lw->retval = lw->handler(lw->fname, lineno, addr,
 						 lw->data);
 			if (lw->retval != 0)
-				return DIE_FIND_CB_FOUND;
+				return DIE_FIND_CB_END;
 		}
 	}
 	return DIE_FIND_CB_SIBLING;
@@ -691,7 +691,7 @@ static int __die_find_variable_cb(Dwarf_Die *die_mem, void *data)
 	if ((tag == DW_TAG_formal_parameter ||
 	     tag == DW_TAG_variable) &&
 	    die_compare_name(die_mem, fvp->name))
-		return DIE_FIND_CB_FOUND;
+		return DIE_FIND_CB_END;
 
 	if (dwarf_haspc(die_mem, fvp->addr))
 		return DIE_FIND_CB_CONTINUE;
@@ -715,7 +715,7 @@ static int __die_find_member_cb(Dwarf_Die *die_mem, void *data)
 
 	if ((dwarf_tag(die_mem) == DW_TAG_member) &&
 	    die_compare_name(die_mem, name))
-		return DIE_FIND_CB_FOUND;
+		return DIE_FIND_CB_END;
 
 	return DIE_FIND_CB_SIBLING;
 }
