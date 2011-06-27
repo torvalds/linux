@@ -5605,17 +5605,28 @@ static int get_pin_type(int line_out_type)
 		return PIN_OUT;
 }
 
-static void alc880_auto_init_dac(struct hda_codec *codec, hda_nid_t nid)
+static void alc880_auto_init_dac(struct hda_codec *codec, hda_nid_t dac)
 {
-	if (!nid)
+	hda_nid_t nid, mix;
+
+	if (!dac)
 		return;
-	nid = alc880_idx_to_mixer(alc880_dac_to_idx(nid));
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_OUT_ZERO);
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_IN_UNMUTE(0));
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_IN_UNMUTE(1));
+	mix = alc880_idx_to_mixer(alc880_dac_to_idx(dac));
+	if (query_amp_caps(codec, dac, HDA_OUTPUT) & AC_AMPCAP_NUM_STEPS)
+		nid = dac;
+	else if (query_amp_caps(codec, mix, HDA_OUTPUT) & AC_AMPCAP_NUM_STEPS)
+		nid = mix;
+	else
+		nid = 0;
+	if (nid)
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_OUT_ZERO);
+	if (query_amp_caps(codec, mix, HDA_INPUT) & AC_AMPCAP_MUTE) {
+		snd_hda_codec_write(codec, mix, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_IN_UNMUTE(0));
+		snd_hda_codec_write(codec, mix, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+				    AMP_IN_UNMUTE(1));
+	}
 }
 
 static void alc880_auto_init_multi_out(struct hda_codec *codec)
