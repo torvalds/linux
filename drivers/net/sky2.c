@@ -1449,7 +1449,7 @@ static void sky2_rx_start(struct sky2_port *sky2)
 	sky2_qset(hw, rxq);
 
 	/* On PCI express lowering the watermark gives better performance */
-	if (pci_find_capability(hw->pdev, PCI_CAP_ID_EXP))
+	if (pci_is_pcie(hw->pdev))
 		sky2_write32(hw, Q_ADDR(rxq, Q_WM), BMU_WM_PEX);
 
 	/* These chips have no ram buffer?
@@ -3072,7 +3072,7 @@ static void sky2_reset(struct sky2_hw *hw)
 {
 	struct pci_dev *pdev = hw->pdev;
 	u16 status;
-	int i, cap;
+	int i;
 	u32 hwe_mask = Y2_HWE_ALL_MASK;
 
 	/* disable ASF */
@@ -3108,8 +3108,7 @@ static void sky2_reset(struct sky2_hw *hw)
 
 	sky2_write8(hw, B0_CTST, CS_MRST_CLR);
 
-	cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	if (cap) {
+	if (pci_is_pcie(pdev)) {
 		sky2_write32(hw, Y2_CFG_AER + PCI_ERR_UNCOR_STATUS,
 			     0xfffffffful);
 
@@ -3171,11 +3170,11 @@ static void sky2_reset(struct sky2_hw *hw)
 
 		/* check if PSMv2 was running before */
 		reg = sky2_pci_read16(hw, PSM_CONFIG_REG3);
-		if (reg & PCI_EXP_LNKCTL_ASPMC) {
-			cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+		if (reg & PCI_EXP_LNKCTL_ASPMC)
 			/* restore the PCIe Link Control register */
-			sky2_pci_write16(hw, cap + PCI_EXP_LNKCTL, reg);
-		}
+			sky2_pci_write16(hw, pdev->pcie_cap + PCI_EXP_LNKCTL,
+					 reg);
+
 		sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 
 		/* re-enable PEX PM in PEX PHY debug reg. 8 (clear bit 12) */
