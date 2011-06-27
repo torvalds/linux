@@ -6267,7 +6267,7 @@ s32 igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
 	struct igb_adapter *adapter = hw->back;
 	u16 cap_offset;
 
-	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
+	cap_offset = adapter->pdev->pcie_cap;
 	if (!cap_offset)
 		return -E1000_ERR_CONFIG;
 
@@ -6281,7 +6281,7 @@ s32 igb_write_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value)
 	struct igb_adapter *adapter = hw->back;
 	u16 cap_offset;
 
-	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
+	cap_offset = adapter->pdev->pcie_cap;
 	if (!cap_offset)
 		return -E1000_ERR_CONFIG;
 
