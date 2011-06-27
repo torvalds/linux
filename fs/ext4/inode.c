@@ -4471,6 +4471,26 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
  */
 void ext4_truncate(struct inode *inode)
 {
+	trace_ext4_truncate_enter(inode);
+
+	if (!ext4_can_truncate(inode))
+		return;
+
+	ext4_clear_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
+
+	if (inode->i_size == 0 && !test_opt(inode->i_sb, NO_AUTO_DA_ALLOC))
+		ext4_set_inode_state(inode, EXT4_STATE_DA_ALLOC_CLOSE);
+
+	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
+		ext4_ext_truncate(inode);
+	else
+		ext4_ind_truncate(inode);
+
+	trace_ext4_truncate_exit(inode);
+}
+
+void ext4_ind_truncate(struct inode *inode)
+{
 	handle_t *handle;
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	__le32 *i_data = ei->i_data;
@@ -4483,22 +4503,6 @@ void ext4_truncate(struct inode *inode)
 	int n = 0;
 	ext4_lblk_t last_block, max_block;
 	unsigned blocksize = inode->i_sb->s_blocksize;
-
-	trace_ext4_truncate_enter(inode);
-
-	if (!ext4_can_truncate(inode))
-		return;
-
-	ext4_clear_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
-
-	if (inode->i_size == 0 && !test_opt(inode->i_sb, NO_AUTO_DA_ALLOC))
-		ext4_set_inode_state(inode, EXT4_STATE_DA_ALLOC_CLOSE);
-
-	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
-		ext4_ext_truncate(inode);
-		trace_ext4_truncate_exit(inode);
-		return;
-	}
 
 	handle = start_transaction(inode);
 	if (IS_ERR(handle))
