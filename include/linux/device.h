@@ -530,7 +530,6 @@ struct device_dma_parameters {
  * @dma_mem:	Internal for coherent mem override.
  * @archdata:	For arch-specific additions.
  * @of_node:	Associated device tree node.
- * @of_match:	Matching of_device_id from driver.
  * @devt:	For creating the sysfs "dev".
  * @devres_lock: Spinlock to protect the resource of the device.
  * @devres_head: The resources list of the device.
