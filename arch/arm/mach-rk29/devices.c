@@ -286,7 +286,7 @@ struct platform_device rk29_device_sdmmc1 = {
 /*
  * rk29 4 uarts device
  */
-#if defined(CONFIG_UART0_RK29) || defined(CONFIG_UART0_RK29_STANDAR)
+#ifdef CONFIG_UART0_RK29
 static struct resource resources_uart0[] = {
 	{
 		.start	= IRQ_UART0,
@@ -300,7 +300,7 @@ static struct resource resources_uart0[] = {
 	},
 };
 #endif
-#if defined(CONFIG_UART1_RK29) || defined(CONFIG_UART1_RK29_STANDAR)
+#ifdef CONFIG_UART1_RK29
 static struct resource resources_uart1[] = {
 	{
 		.start	= IRQ_UART1,
@@ -314,7 +314,7 @@ static struct resource resources_uart1[] = {
 	},
 };
 #endif
-#if defined(CONFIG_UART2_RK29) || defined(CONFIG_UART2_RK29_STANDAR)
+#ifdef CONFIG_UART2_RK29
 static struct resource resources_uart2[] = {
 	{
 		.start	= IRQ_UART2,
@@ -328,7 +328,7 @@ static struct resource resources_uart2[] = {
 	},
 };
 #endif
-#if defined(CONFIG_UART3_RK29) || defined(CONFIG_UART3_RK29_STANDAR)
+#ifdef CONFIG_UART3_RK29
 static struct resource resources_uart3[] = {
 	{
 		.start	= IRQ_UART3,
@@ -342,7 +342,7 @@ static struct resource resources_uart3[] = {
 	},
 };
 #endif
-#if defined(CONFIG_UART0_RK29) || defined(CONFIG_UART0_RK29_STANDAR)
+#ifdef CONFIG_UART0_RK29
 struct platform_device rk29_device_uart0 = {
 	.name	= "rk29_serial",
 	.id	= 0,
@@ -350,7 +350,7 @@ struct platform_device rk29_device_uart0 = {
 	.resource	= resources_uart0,
 };
 #endif
-#if defined(CONFIG_UART1_RK29) || defined(CONFIG_UART1_RK29_STANDAR)
+#ifdef CONFIG_UART1_RK29
 struct platform_device rk29_device_uart1 = {
 	.name	= "rk29_serial",
 	.id	= 1,
@@ -358,7 +358,7 @@ struct platform_device rk29_device_uart1 = {
 	.resource	= resources_uart1,
 };
 #endif
-#if defined(CONFIG_UART2_RK29) || defined(CONFIG_UART2_RK29_STANDAR)
+#ifdef CONFIG_UART2_RK29
 struct platform_device rk29_device_uart2 = {
 	.name	= "rk29_serial",
 	.id	= 2,
@@ -366,7 +366,7 @@ struct platform_device rk29_device_uart2 = {
 	.resource	= resources_uart2,
 };
 #endif
-#if defined(CONFIG_UART3_RK29) || defined(CONFIG_UART3_RK29_STANDAR)
+#ifdef CONFIG_UART3_RK29
 struct platform_device rk29_device_uart3 = {
 	.name	= "rk29_serial",
 	.id	= 3,

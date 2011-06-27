@@ -1511,6 +1511,7 @@ config SERIAL_RK29
 config UART0_RK29
 	bool "RockChip rk29 serial port 0 support"
 	depends on SERIAL_RK29
+	
 config UART0_CTS_RTS_RK29
 	bool "RockChip rk29 serial port 0 cts rts support"
 	depends on UART0_RK29	
@@ -1522,68 +1523,24 @@ config UART1_RK29
 config UART2_RK29
 	bool "RockChip rk29 serial port 2 support"
 	depends on SERIAL_RK29
+	
 config UART2_CTS_RTS_RK29
 	bool "RockChip rk29 serial port 2 cts rts support"
-	depends on UART2_RK29	
-	
+	depends on UART2_RK29
+		
 config UART3_RK29
 	bool "RockChip rk29 serial port 3 support"
 	depends on SERIAL_RK29
+	
 config UART3_CTS_RTS_RK29
 	bool "RockChip rk29 serial port 3 cts rts support"
 	depends on UART3_RK29
-
+	
 config SERIAL_RK29_CONSOLE
 	bool "Rockchip rk29 serial console support"
 	depends on SERIAL_RK29=y
 	select SERIAL_CORE_CONSOLE
-
-
-config SERIAL_RK29_STANDAR
-	bool "RockChip rk29 serial port support standar"
-	depends on ARM && ARCH_RK29
-	select SERIAL_CORE
 	
-config UART0_RK29_STANDAR
-	bool "RockChip rk29 serial port 0 support standar"
-	depends on SERIAL_RK29_STANDAR
-	
-config UART0_CTS_RTS_RK29_STANDAR
-	bool "RockChip rk29 serial port 0 cts rts support standar"
-	depends on UART0_RK29_STANDAR	
-config UART0_DMA_RK29
-	bool "RockChip rk29 serial port 0 DMA support standar"
-	depends on UART0_RK29_STANDAR	
-
-config UART1_RK29_STANDAR
-	bool "RockChip rk29 serial port 1 support standar"
-	depends on SERIAL_RK29_STANDAR
-	
-config UART2_RK29_STANDAR
-	bool "RockChip rk29 serial port 2 support standar"
-	depends on SERIAL_RK29_STANDAR
-config UART2_CTS_RTS_RK29_STANDAR
-	bool "RockChip rk29 serial port 2 cts rts support standar"
-	depends on UART2_RK29_STANDAR
-config UART2_DMA_RK29
-	bool "RockChip rk29 serial port 2 DMA support standar"
-	depends on UART2_RK29_STANDAR	
-		
-config UART3_RK29_STANDAR
-	bool "RockChip rk29 serial port 3 support standar"
-	depends on SERIAL_RK29_STANDAR
-config UART3_CTS_RTS_RK29_STANDAR
-	bool "RockChip rk29 serial port 3 cts rts support standar"
-	depends on UART3_RK29_STANDAR
-config UART3_DMA_RK29
-	bool "RockChip rk29 serial port 3 DMA support standar"
-	depends on UART3_RK29_STANDAR	
-	
-config SERIAL_RK29_CONSOLE_STANDAR
-	bool "Rockchip rk29 serial console support standar"
-	depends on SERIAL_RK29_STANDAR=y
-	select SERIAL_CORE_CONSOLE
-
 config SERIAL_SC8800
 	tristate "SC8800 support"
 	depends on SPI

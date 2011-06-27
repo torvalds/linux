@@ -2525,16 +2525,16 @@ static void __init rk29_board_iomux_init(void)
 }
 
 static struct platform_device *devices[] __initdata = {
-#if defined(CONFIG_UART1_RK29) || defined(CONFIG_UART1_RK29_STANDAR)
+#ifdef CONFIG_UART1_RK29
 	&rk29_device_uart1,
 #endif
-#if defined(CONFIG_UART0_RK29) || defined(CONFIG_UART0_RK29_STANDAR)
+#ifdef CONFIG_UART0_RK29
 	&rk29_device_uart0,
 #endif
-#if defined(CONFIG_UART2_RK29) || defined(CONFIG_UART2_RK29_STANDAR)
+#ifdef CONFIG_UART2_RK29
 	&rk29_device_uart2,
 #endif
-#if defined(CONFIG_UART3_RK29) || defined(CONFIG_UART3_RK29_STANDAR)
+#ifdef CONFIG_UART3_RK29
 	&rk29_device_uart3,
 #endif
 

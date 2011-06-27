@@ -95,7 +95,7 @@ static int i2c_read_bytes(struct i2c_client *client, u8 *buf, int len)
 	msgs[1].len = len-2;
 	msgs[1].buf = &buf[2];
 	msgs[1].scl_rate = GT818_I2C_SCL;
-	msgs[1].udelay = client->udelay;
+	//msgs[1].udelay = client->udelay;
 
 	ret = i2c_transfer(client->adapter, msgs, 2);
 	if(ret < 0)
@@ -114,7 +114,7 @@ static int i2c_write_bytes(struct i2c_client *client,u8 *data,int len)
 	msg.len = len;
 	msg.buf = data;
 	msg.scl_rate = GT818_I2C_SCL;
-	msg.udelay = client->udelay;
+	//msg.udelay = client->udelay;
 	ret = i2c_transfer(client->adapter, &msg, 1);
 	if(ret < 0)
 		printk("%s:i2c_transfer fail =%d\n",__func__, ret);
@@ -150,6 +150,7 @@ static int i2c_end_cmd(struct gt818_ts_data *ts)
 static int goodix_init_panel(struct gt818_ts_data *ts)
 {
 	int ret = -1;
+//	unsigned char i2c_control_buf[3] = {0x06,0x92,0x03};
 
 	#if 1
 	u8 config_info[] = {
@@ -191,6 +192,7 @@ static int goodix_init_panel(struct gt818_ts_data *ts)
 
 	};								
 	#endif
+//	ret = i2c_write_bytes(ts->client, i2c_control_buf, (sizeof(i2c_control_buf)/sizeof(i2c_control_buf[0])));
 	ret = i2c_write_bytes(ts->client, config_info, (sizeof(config_info)/sizeof(config_info[0])));
 	if (ret < 0) 
 		return ret;
