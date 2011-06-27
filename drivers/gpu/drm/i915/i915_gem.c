@@ -1696,13 +1696,10 @@ i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 	/* Our goal here is to return as much of the memory as
 	 * is possible back to the system as we are called from OOM.
 	 * To do this we must instruct the shmfs to drop all of its
-	 * backing pages, *now*. Here we mirror the actions taken
-	 * when by shmem_delete_inode() to release the backing store.
+	 * backing pages, *now*.
 	 */
 	inode = obj->base.filp->f_path.dentry->d_inode;
-	truncate_inode_pages(inode->i_mapping, 0);
-	if (inode->i_op->truncate_range)
-		inode->i_op->truncate_range(inode, 0, (loff_t)-1);
+	shmem_truncate_range(inode, 0, (loff_t)-1);
 
 	obj->madv = __I915_MADV_PURGED;
 }
