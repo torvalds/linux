@@ -163,23 +163,24 @@ static struct gpio_keys_button mx51_efikasb_keys[] = {
 	{
 		.code = KEY_POWER,
 		.gpio = EFIKASB_PWRKEY,
-		.type = EV_PWR,
+		.type = EV_KEY,
 		.desc = "Power Button",
 		.wakeup = 1,
-		.debounce_interval = 10, /* ms */
+		.active_low = 1,
 	},
 	{
 		.code = SW_LID,
 		.gpio = EFIKASB_LID,
 		.type = EV_SW,
 		.desc = "Lid Switch",
+		.active_low = 1,
 	},
 	{
-		/* SW_RFKILLALL vs KEY_RFKILL ? */
-		.code = SW_RFKILL_ALL,
+		.code = KEY_RFKILL,
 		.gpio = EFIKASB_RFKILL,
-		.type = EV_SW,
+		.type = EV_KEY,
 		.desc = "rfkill",
+		.active_low = 1,
 	},
 };
 
