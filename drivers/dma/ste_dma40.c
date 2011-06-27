@@ -185,6 +185,8 @@ struct d40_base;
  * @log_def: Default logical channel settings.
  * @lcla: Space for one dst src pair for logical channel transfers.
  * @lcpa: Pointer to dst and src lcpa settings.
+ * @runtime_addr: runtime configured address.
+ * @runtime_direction: runtime configured direction.
  *
  * This struct can either "be" a logical or a physical channel.
  */
