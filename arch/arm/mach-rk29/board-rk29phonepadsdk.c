@@ -113,7 +113,11 @@
 #else
 #define MEM_FBIPP_SIZE      0
 #endif
-#define PMEM_GPU_BASE       ((u32)RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
+#if SDRAM_SIZE > SZ_512M
+#define PMEM_GPU_BASE       (RK29_SDRAM_PHYS + SZ_512M - PMEM_GPU_SIZE)
+#else
+#define PMEM_GPU_BASE       (RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
+#endif
 #define PMEM_UI_BASE        (PMEM_GPU_BASE - PMEM_UI_SIZE)
 #define PMEM_VPU_BASE       (PMEM_UI_BASE - PMEM_VPU_SIZE)
 #define PMEM_CAM_BASE       (PMEM_VPU_BASE - PMEM_CAM_SIZE)
@@ -1334,13 +1338,13 @@ static struct resource resources_gpu[] = {
     [1] = {
 		.name = "gpu_base",
         .start  = RK29_GPU_PHYS,
-        .end    = RK29_GPU_PHYS + RK29_GPU_SIZE,
+        .end    = RK29_GPU_PHYS + RK29_GPU_SIZE - 1,
         .flags  = IORESOURCE_MEM,
     },
     [2] = {
 		.name = "gpu_mem",
         .start  = PMEM_GPU_BASE,
-        .end    = PMEM_GPU_BASE + PMEM_GPU_SIZE,
+        .end    = PMEM_GPU_BASE + PMEM_GPU_SIZE - 1,
         .flags  = IORESOURCE_MEM,
     },
 };
@@ -1776,6 +1780,11 @@ static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tag
 	mi->bank[0].start = RK29_SDRAM_PHYS;
 	mi->bank[0].node = PHYS_TO_NID(RK29_SDRAM_PHYS);
 	mi->bank[0].size = LINUX_SIZE;
+#if SDRAM_SIZE > SZ_512M
+	mi->nr_banks = 2;
+	mi->bank[1].start = RK29_SDRAM_PHYS + SZ_512M;
+	mi->bank[1].size = SDRAM_SIZE - SZ_512M;
+#endif
 }
 
 static void __init machine_rk29_mapio(void)
@@ -1790,7 +1799,7 @@ static void __init machine_rk29_mapio(void)
 
 MACHINE_START(RK29, "RK29board")
 	/* UART for LL DEBUG */
-	.phys_io	= RK29_UART1_PHYS,
+	.phys_io	= RK29_UART1_PHYS & 0xfff00000,
 	.io_pg_offst	= ((RK29_UART1_BASE) >> 18) & 0xfffc,
 	.boot_params	= RK29_SDRAM_PHYS + 0x88000,
 	.fixup		= machine_rk29_fixup,
