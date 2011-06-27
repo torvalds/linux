@@ -1490,6 +1490,9 @@ static struct clk_lookup mx53_lookups[] = {
 	_REGISTER_CLOCK("imx2-wdt.0", NULL, dummy_clk)
 	_REGISTER_CLOCK("imx2-wdt.1", NULL, dummy_clk)
 	_REGISTER_CLOCK("imx-sdma", NULL, sdma_clk)
+	_REGISTER_CLOCK("imx-ssi.0", NULL, ssi1_clk)
+	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
+	_REGISTER_CLOCK("imx-ssi.2", NULL, ssi3_clk)
 };
 
 static void clk_tree_init(void)
