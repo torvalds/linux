@@ -27,6 +27,19 @@ config SND_SOC_BFIN_EVAL_ADAU1701
 	  board connected to one of the Blackfin evaluation boards like the
 	  BF5XX-STAMP or BF5XX-EZKIT.
 
+config SND_SOC_BFIN_EVAL_ADAV80X
+	tristate "Support for the EVAL-ADAV80X boards on Blackfin eval boards"
+	depends on SND_BF5XX_I2S && (SPI_MASTER || I2C)
+	select SND_BF5XX_SOC_I2S
+	select SND_SOC_ADAV80X
+	help
+	  Say Y if you want to add support for the Analog Devices EVAL-ADAV801 or
+	  EVAL-ADAV803 board connected to one of the Blackfin evaluation boards
+	  like the BF5XX-STAMP or BF5XX-EZKIT.
+
+	  Note: This driver assumes that the ADAV80X digital record and playback
+	  interfaces are connected to the first SPORT port on the BF5XX board.
+
 config SND_BF5XX_SOC_AD73311
 	tristate "SoC AD73311 Audio support for Blackfin"
 	depends on SND_BF5XX_I2S
