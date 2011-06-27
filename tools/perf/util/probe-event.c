@@ -117,6 +117,10 @@ static struct map *kernel_get_module_map(const char *module)
 	struct rb_node *nd;
 	struct map_groups *grp = &machine.kmaps;
 
+	/* A file path -- this is an offline module */
+	if (module && strchr(module, '/'))
+		return machine__new_module(&machine, 0, module);
+
 	if (!module)
 		module = "kernel";
 
@@ -173,12 +177,19 @@ const char *kernel_get_module_path(const char *module)
 /* Open new debuginfo of given module */
 static struct debuginfo *open_debuginfo(const char *module)
 {
-	const char *path = kernel_get_module_path(module);
+	const char *path;
 
-	if (!path) {
-		pr_err("Failed to find path of %s module.\n",
-		       module ?: "kernel");
-		return NULL;
+	/* A file path -- this is an offline module */
+	if (module && strchr(module, '/'))
+		path = module;
+	else {
+		path = kernel_get_module_path(module);
+
+		if (!path) {
+			pr_err("Failed to find path of %s module.\n",
+			       module ?: "kernel");
+			return NULL;
+		}
 	}
 	return debuginfo__new(path);
 }
@@ -229,13 +240,36 @@ static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
 static int add_module_to_probe_trace_events(struct probe_trace_event *tevs,
 					    int ntevs, const char *module)
 {
-	int i;
+	int i, ret = 0;
+	char *tmp;
+
+	if (!module)
+		return 0;
+
+	tmp = strrchr(module, '/');
+	if (tmp) {
+		/* This is a module path -- get the module name */
+		module = strdup(tmp + 1);
+		if (!module)
+			return -ENOMEM;
+		tmp = strchr(module, '.');
+		if (tmp)
+			*tmp = '\0';
+		tmp = (char *)module;	/* For free() */
+	}
+
 	for (i = 0; i < ntevs; i++) {
 		tevs[i].point.module = strdup(module);
-		if (!tevs[i].point.module)
-			return -ENOMEM;
+		if (!tevs[i].point.module) {
+			ret = -ENOMEM;
+			break;
+		}
 	}
-	return 0;
+
+	if (tmp)
+		free(tmp);
+
+	return ret;
 }
 
 /* Try to find perf_probe_event with debuginfo */
