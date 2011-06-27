@@ -89,67 +89,25 @@ enum sci_request_protocol {
 	SCIC_STP_PROTOCOL
 }; /* XXX remove me, use sas_task.{dev|task_proto} instead */;
 
-struct scic_sds_stp_request {
-	union {
-		u32 ncq;
+/**
+ * isci_stp_request - extra request infrastructure to handle pio/atapi protocol
+ * @pio_len - number of bytes requested at PIO setup
+ * @status - pio setup ending status value to tell us if we need
+ *	     to wait for another fis or if the transfer is complete.  Upon 
+ *           receipt of a d2h fis this will be the status field of that fis.
+ * @sgl - track pio transfer progress as we iterate through the sgl
+ * @device_cdb_len - atapi device advertises it's transfer constraints at setup
+ */
+struct isci_stp_request {
+	u32 pio_len;
+	u8 status;
 
-		u32 udma;
-
-		struct scic_sds_stp_pio_request {
-			/*
-			 * Total transfer for the entire PIO request recorded
-			 * at request constuction time.
-			 *
-			 * @todo Should we just decrement this value for each
-			 * byte of data transitted or received to elemenate
-			 * the current_transfer_bytes field?
-			 */
-			u32 total_transfer_bytes;
-
-			/*
-			 * Total number of bytes received/transmitted in data
-			 * frames since the start of the IO request.  At the
-			 * end of the IO request this should equal the
-			 * total_transfer_bytes.
-			 */
-			u32 current_transfer_bytes;
-
-			/*
-			 * The number of bytes requested in the in the PIO
-			 * setup.
-			 */
-			u32 pio_transfer_bytes;
-
-			/*
-			 * PIO Setup ending status value to tell us if we need
-			 * to wait for another FIS or if the transfer is
-			 * complete. On the receipt of a D2H FIS this will be
-			 * the status field of that FIS.
-			 */
-			u8 ending_status;
-
-			/*
-			 * On receipt of a D2H FIS this will be the ending
-			 * error field if the ending_status has the
-			 * SATA_STATUS_ERR bit set.
-			 */
-			u8 ending_error;
-
-			struct scic_sds_request_pio_sgl {
-				int sgl_index;
-				u8 sgl_set;
-				u32 sgl_offset;
-			} request_current;
-		} pio;
-
-		struct {
-			/*
-			 * The number of bytes requested in the PIO setup
-			 * before CDB data frame.
-			 */
-			u32 device_preferred_cdb_length;
-		} packet;
-	} type;
+	struct isci_stp_pio_sgl {
+		int index;
+		u8 set;
+		u32 offset;
+	} sgl;
+	u32 device_cdb_len;
 };
 
 struct scic_sds_request {
@@ -235,14 +193,14 @@ struct scic_sds_request {
 		} smp;
 
 		struct {
-			struct scic_sds_stp_request req;
+			struct isci_stp_request req;
 			struct host_to_dev_fis cmd;
 			struct dev_to_host_fis rsp;
 		} stp;
 	};
 };
 
-static inline struct scic_sds_request *to_sci_req(struct scic_sds_stp_request *stp_req)
+static inline struct scic_sds_request *to_sci_req(struct isci_stp_request *stp_req)
 {
 	struct scic_sds_request *sci_req;
 

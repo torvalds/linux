@@ -433,24 +433,20 @@ static enum sci_status
 scic_sds_stp_pio_request_construct(struct scic_sds_request *sci_req,
 				   bool copy_rx_frame)
 {
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
-	struct scic_sds_stp_pio_request *pio = &stp_req->type.pio;
+	struct isci_stp_request *stp_req = &sci_req->stp.req;
 
 	scu_stp_raw_request_construct_task_context(sci_req);
 
-	pio->current_transfer_bytes = 0;
-	pio->ending_error = 0;
-	pio->ending_status = 0;
-
-	pio->request_current.sgl_offset = 0;
-	pio->request_current.sgl_set = SCU_SGL_ELEMENT_PAIR_A;
+	stp_req->status = 0;
+	stp_req->sgl.offset = 0;
+	stp_req->sgl.set = SCU_SGL_ELEMENT_PAIR_A;
 
 	if (copy_rx_frame) {
 		scic_sds_request_build_sgl(sci_req);
-		pio->request_current.sgl_index = 0;
+		stp_req->sgl.index = 0;
 	} else {
 		/* The user does not want the data copied to the SGL buffer location */
-		pio->request_current.sgl_index = -1;
+		stp_req->sgl.index = -1;
 	}
 
 	return SCI_SUCCESS;
@@ -1151,22 +1147,22 @@ void scic_stp_io_request_set_ncq_tag(struct scic_sds_request *req,
 	req->tc->type.stp.ncq_tag = ncq_tag;
 }
 
-static struct scu_sgl_element *pio_sgl_next(struct scic_sds_stp_request *stp_req)
+static struct scu_sgl_element *pio_sgl_next(struct isci_stp_request *stp_req)
 {
 	struct scu_sgl_element *sgl;
 	struct scu_sgl_element_pair *sgl_pair;
 	struct scic_sds_request *sci_req = to_sci_req(stp_req);
-	struct scic_sds_request_pio_sgl *pio_sgl = &stp_req->type.pio.request_current;
+	struct isci_stp_pio_sgl *pio_sgl = &stp_req->sgl;
 
-	sgl_pair = to_sgl_element_pair(sci_req, pio_sgl->sgl_index);
+	sgl_pair = to_sgl_element_pair(sci_req, pio_sgl->index);
 	if (!sgl_pair)
 		sgl = NULL;
-	else if (pio_sgl->sgl_set == SCU_SGL_ELEMENT_PAIR_A) {
+	else if (pio_sgl->set == SCU_SGL_ELEMENT_PAIR_A) {
 		if (sgl_pair->B.address_lower == 0 &&
 		    sgl_pair->B.address_upper == 0) {
 			sgl = NULL;
 		} else {
-			pio_sgl->sgl_set = SCU_SGL_ELEMENT_PAIR_B;
+			pio_sgl->set = SCU_SGL_ELEMENT_PAIR_B;
 			sgl = &sgl_pair->B;
 		}
 	} else {
@@ -1174,9 +1170,9 @@ static struct scu_sgl_element *pio_sgl_next(struct scic_sds_stp_request *stp_req
 		    sgl_pair->next_pair_upper == 0) {
 			sgl = NULL;
 		} else {
-			pio_sgl->sgl_index++;
-			pio_sgl->sgl_set = SCU_SGL_ELEMENT_PAIR_A;
-			sgl_pair = to_sgl_element_pair(sci_req, pio_sgl->sgl_index);
+			pio_sgl->index++;
+			pio_sgl->set = SCU_SGL_ELEMENT_PAIR_A;
+			sgl_pair = to_sgl_element_pair(sci_req, pio_sgl->index);
 			sgl = &sgl_pair->A;
 		}
 	}
@@ -1221,7 +1217,7 @@ static enum sci_status scic_sds_stp_request_pio_data_out_trasmit_data_frame(
 	struct scic_sds_request *sci_req,
 	u32 length)
 {
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
+	struct isci_stp_request *stp_req = &sci_req->stp.req;
 	struct scu_task_context *task_context = sci_req->tc;
 	struct scu_sgl_element_pair *sgl_pair;
 	struct scu_sgl_element *current_sgl;
@@ -1229,8 +1225,8 @@ static enum sci_status scic_sds_stp_request_pio_data_out_trasmit_data_frame(
 	/* Recycle the TC and reconstruct it for sending out DATA FIS containing
 	 * for the data from current_sgl+offset for the input length
 	 */
-	sgl_pair = to_sgl_element_pair(sci_req, stp_req->type.pio.request_current.sgl_index);
-	if (stp_req->type.pio.request_current.sgl_set == SCU_SGL_ELEMENT_PAIR_A)
+	sgl_pair = to_sgl_element_pair(sci_req, stp_req->sgl.index);
+	if (stp_req->sgl.set == SCU_SGL_ELEMENT_PAIR_A)
 		current_sgl = &sgl_pair->A;
 	else
 		current_sgl = &sgl_pair->B;
@@ -1247,54 +1243,48 @@ static enum sci_status scic_sds_stp_request_pio_data_out_trasmit_data_frame(
 
 static enum sci_status scic_sds_stp_request_pio_data_out_transmit_data(struct scic_sds_request *sci_req)
 {
-
-	struct scu_sgl_element *current_sgl;
-	u32 sgl_offset;
-	u32 remaining_bytes_in_current_sgl = 0;
-	enum sci_status status = SCI_SUCCESS;
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
+	struct isci_stp_request *stp_req = &sci_req->stp.req;
 	struct scu_sgl_element_pair *sgl_pair;
+	struct scu_sgl_element *sgl;
+	enum sci_status status;
+	u32 offset;
+	u32 len = 0;
 
-	sgl_offset = stp_req->type.pio.request_current.sgl_offset;
-	sgl_pair = to_sgl_element_pair(sci_req, stp_req->type.pio.request_current.sgl_index);
+	offset = stp_req->sgl.offset;
+	sgl_pair = to_sgl_element_pair(sci_req, stp_req->sgl.index);
 	if (WARN_ONCE(!sgl_pair, "%s: null sgl element", __func__))
 		return SCI_FAILURE;
 
-	if (stp_req->type.pio.request_current.sgl_set == SCU_SGL_ELEMENT_PAIR_A) {
-		current_sgl = &sgl_pair->A;
-		remaining_bytes_in_current_sgl = sgl_pair->A.length - sgl_offset;
+	if (stp_req->sgl.set == SCU_SGL_ELEMENT_PAIR_A) {
+		sgl = &sgl_pair->A;
+		len = sgl_pair->A.length - offset;
 	} else {
-		current_sgl = &sgl_pair->B;
-		remaining_bytes_in_current_sgl = sgl_pair->B.length - sgl_offset;
+		sgl = &sgl_pair->B;
+		len = sgl_pair->B.length - offset;
 	}
 
-	if (stp_req->type.pio.pio_transfer_bytes > 0) {
-		if (stp_req->type.pio.pio_transfer_bytes >= remaining_bytes_in_current_sgl) {
-			/* recycle the TC and send the H2D Data FIS from (current sgl + sgl_offset) and length = remaining_bytes_in_current_sgl */
-			status = scic_sds_stp_request_pio_data_out_trasmit_data_frame(sci_req, remaining_bytes_in_current_sgl);
-			if (status == SCI_SUCCESS) {
-				stp_req->type.pio.pio_transfer_bytes -= remaining_bytes_in_current_sgl;
+	if (stp_req->pio_len == 0)
+		return SCI_SUCCESS;
 
-				/* update the current sgl, sgl_offset and save for future */
-				current_sgl = pio_sgl_next(stp_req);
-				sgl_offset = 0;
-			}
-		} else if (stp_req->type.pio.pio_transfer_bytes < remaining_bytes_in_current_sgl) {
-			/* recycle the TC and send the H2D Data FIS from (current sgl + sgl_offset) and length = type.pio.pio_transfer_bytes */
-			scic_sds_stp_request_pio_data_out_trasmit_data_frame(sci_req, stp_req->type.pio.pio_transfer_bytes);
+	if (stp_req->pio_len >= len) {
+		status = scic_sds_stp_request_pio_data_out_trasmit_data_frame(sci_req, len);
+		if (status != SCI_SUCCESS)
+			return status;
+		stp_req->pio_len -= len;
 
-			if (status == SCI_SUCCESS) {
-				/* Sgl offset will be adjusted and saved for future */
-				sgl_offset += stp_req->type.pio.pio_transfer_bytes;
-				current_sgl->address_lower += stp_req->type.pio.pio_transfer_bytes;
-				stp_req->type.pio.pio_transfer_bytes = 0;
-			}
-		}
+		/* update the current sgl, offset and save for future */
+		sgl = pio_sgl_next(stp_req);
+		offset = 0;
+	} else if (stp_req->pio_len < len) {
+		scic_sds_stp_request_pio_data_out_trasmit_data_frame(sci_req, stp_req->pio_len);
+
+		/* Sgl offset will be adjusted and saved for future */
+		offset += stp_req->pio_len;
+		sgl->address_lower += stp_req->pio_len;
+		stp_req->pio_len = 0;
 	}
 
-	if (status == SCI_SUCCESS) {
-		stp_req->type.pio.request_current.sgl_offset = sgl_offset;
-	}
+	stp_req->sgl.offset = offset;
 
 	return status;
 }
@@ -1309,7 +1299,7 @@ static enum sci_status scic_sds_stp_request_pio_data_out_transmit_data(struct sc
  * specified data region. enum sci_status
  */
 static enum sci_status
-scic_sds_stp_request_pio_data_in_copy_data_buffer(struct scic_sds_stp_request *stp_req,
+scic_sds_stp_request_pio_data_in_copy_data_buffer(struct isci_stp_request *stp_req,
 						  u8 *data_buf, u32 len)
 {
 	struct scic_sds_request *sci_req;
@@ -1356,7 +1346,7 @@ scic_sds_stp_request_pio_data_in_copy_data_buffer(struct scic_sds_stp_request *s
  * Copy the data buffer to the io request data region. enum sci_status
  */
 static enum sci_status scic_sds_stp_request_pio_data_in_copy_data(
-	struct scic_sds_stp_request *sci_req,
+	struct isci_stp_request *stp_req,
 	u8 *data_buffer)
 {
 	enum sci_status status;
@@ -1364,19 +1354,19 @@ static enum sci_status scic_sds_stp_request_pio_data_in_copy_data(
 	/*
 	 * If there is less than 1K remaining in the transfer request
 	 * copy just the data for the transfer */
-	if (sci_req->type.pio.pio_transfer_bytes < SCU_MAX_FRAME_BUFFER_SIZE) {
+	if (stp_req->pio_len < SCU_MAX_FRAME_BUFFER_SIZE) {
 		status = scic_sds_stp_request_pio_data_in_copy_data_buffer(
-			sci_req, data_buffer, sci_req->type.pio.pio_transfer_bytes);
+			stp_req, data_buffer, stp_req->pio_len);
 
 		if (status == SCI_SUCCESS)
-			sci_req->type.pio.pio_transfer_bytes = 0;
+			stp_req->pio_len = 0;
 	} else {
 		/* We are transfering the whole frame so copy */
 		status = scic_sds_stp_request_pio_data_in_copy_data_buffer(
-			sci_req, data_buffer, SCU_MAX_FRAME_BUFFER_SIZE);
+			stp_req, data_buffer, SCU_MAX_FRAME_BUFFER_SIZE);
 
 		if (status == SCI_SUCCESS)
-			sci_req->type.pio.pio_transfer_bytes -= SCU_MAX_FRAME_BUFFER_SIZE;
+			stp_req->pio_len -= SCU_MAX_FRAME_BUFFER_SIZE;
 	}
 
 	return status;
@@ -1419,18 +1409,18 @@ pio_data_out_tx_done_tc_event(struct scic_sds_request *sci_req,
 {
 	enum sci_status status = SCI_SUCCESS;
 	bool all_frames_transferred = false;
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
+	struct isci_stp_request *stp_req = &sci_req->stp.req;
 
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
 		/* Transmit data */
-		if (stp_req->type.pio.pio_transfer_bytes != 0) {
+		if (stp_req->pio_len != 0) {
 			status = scic_sds_stp_request_pio_data_out_transmit_data(sci_req);
 			if (status == SCI_SUCCESS) {
-				if (stp_req->type.pio.pio_transfer_bytes == 0)
+				if (stp_req->pio_len == 0)
 					all_frames_transferred = true;
 			}
-		} else if (stp_req->type.pio.pio_transfer_bytes == 0) {
+		} else if (stp_req->pio_len == 0) {
 			/*
 			 * this will happen if the all data is written at the
 			 * first time after the pio setup fis is received
@@ -1507,7 +1497,7 @@ scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
 				  u32 frame_index)
 {
 	struct scic_sds_controller *scic = sci_req->owning_controller;
-	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
+	struct isci_stp_request *stp_req = &sci_req->stp.req;
 	enum sci_base_request_states state;
 	enum sci_status status;
 	ssize_t word_cnt;
@@ -1727,16 +1717,16 @@ scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
 			 */
 
 			/* transfer_count: first 16bits in the 4th dword */
-			stp_req->type.pio.pio_transfer_bytes = frame_buffer[3] & 0xffff;
+			stp_req->pio_len = frame_buffer[3] & 0xffff;
 
-			/* ending_status: 4th byte in the 3rd dword */
-			stp_req->type.pio.ending_status = (frame_buffer[2] >> 24) & 0xff;
+			/* status: 4th byte in the 3rd dword */
+			stp_req->status = (frame_buffer[2] >> 24) & 0xff;
 
 			scic_sds_controller_copy_sata_response(&sci_req->stp.rsp,
 							       frame_header,
 							       frame_buffer);
 
-			sci_req->stp.rsp.status = stp_req->type.pio.ending_status;
+			sci_req->stp.rsp.status = stp_req->status;
 
 			/* The next state is dependent on whether the
 			 * request was PIO Data-in or Data out
@@ -1839,9 +1829,9 @@ scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
 			return status;
 		}
 
-		if (stp_req->type.pio.request_current.sgl_index < 0) {
+		if (stp_req->sgl.index < 0) {
 			sci_req->saved_rx_frame_index = frame_index;
-			stp_req->type.pio.pio_transfer_bytes = 0;
+			stp_req->pio_len = 0;
 		} else {
 			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
 								      frame_index,
@@ -1857,11 +1847,10 @@ scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
 		/* Check for the end of the transfer, are there more
 		 * bytes remaining for this data transfer
 		 */
-		if (status != SCI_SUCCESS ||
-		    stp_req->type.pio.pio_transfer_bytes != 0)
+		if (status != SCI_SUCCESS || stp_req->pio_len != 0)
 			return status;
 
-		if ((stp_req->type.pio.ending_status & ATA_BUSY) == 0) {
+		if ((stp_req->status & ATA_BUSY) == 0) {
 			scic_sds_request_set_status(sci_req,
 						    SCU_TASK_DONE_CHECK_RESPONSE,
 						    SCI_FAILURE_IO_RESPONSE_VALID);
