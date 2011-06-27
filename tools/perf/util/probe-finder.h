@@ -32,11 +32,7 @@ extern int find_line_range(int fd, struct line_range *lr);
 extern int find_available_vars_at(int fd, struct perf_probe_event *pev,
 				  struct variable_list **vls, int max_points,
 				  bool externs);
-
-#include <dwarf.h>
-#include <elfutils/libdw.h>
-#include <elfutils/libdwfl.h>
-#include <elfutils/version.h>
+#include "dwarf-aux.h"
 
 struct probe_finder {
 	struct perf_probe_event	*pev;		/* Target probe event */
