@@ -65,6 +65,23 @@ static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 
 	port->irq = irq_of_parse_and_map(np, 0);
 	port->iotype = UPIO_MEM;
+	prop = of_get_property(np, "reg-io-width", &prop_size);
+	if (prop && (prop_size == sizeof(u32))) {
+		switch (be32_to_cpup(prop)) {
+		case 1:
+			port->iotype = UPIO_MEM;
+			break;
+		case 4:
+			port->iotype = UPIO_MEM32;
+			break;
+		default:
+			dev_warn(&ofdev->dev,
+				 "unsupported io width (%d bytes)\n",
+				 be32_to_cpup(prop));
+			return -EINVAL;
+		}
+	}
+
 	port->type = type;
 	port->uartclk = be32_to_cpup(clk);
 	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP

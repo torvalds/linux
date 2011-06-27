@@ -19,6 +19,9 @@ Optional properties:
 - current-speed : the current active speed of the UART.
 - reg-offset : offset to apply to the mapbase from the start of the registers.
 - reg-shift : quantity to shift the register offsets by.
+- reg-io-width : the size (in bytes) of the IO accesses that should be
+  performed on the device.  There are some systems that require 32-bit
+  accesses to the UART (e.g. TI davinci).
 - used-by-rtas : set to indicate that the port is in use by the OpenFirmware
   RTAS and should not be registered.
 
