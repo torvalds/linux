@@ -108,9 +108,9 @@ static void __init mx51_efikamx_board_id(void)
 	gpio_request(EFIKAMX_PCBID2, "pcbid2");
 	gpio_direction_input(EFIKAMX_PCBID2);
 
-	id = gpio_get_value(EFIKAMX_PCBID0);
-	id |= gpio_get_value(EFIKAMX_PCBID1) << 1;
-	id |= gpio_get_value(EFIKAMX_PCBID2) << 2;
+	id = gpio_get_value(EFIKAMX_PCBID0) ? 1 : 0;
+	id |= (gpio_get_value(EFIKAMX_PCBID1) ? 1 : 0) << 1;
+	id |= (gpio_get_value(EFIKAMX_PCBID2) ? 1 : 0) << 2;
 
 	switch (id) {
 	case 7:

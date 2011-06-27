@@ -232,8 +232,8 @@ static void __init mx51_efikasb_board_id(void)
 	gpio_request(EFIKASB_PCBID1, "pcb id1");
 	gpio_direction_input(EFIKASB_PCBID1);
 
-	id = gpio_get_value(EFIKASB_PCBID0);
-	id |= gpio_get_value(EFIKASB_PCBID1) << 1;
+	id = gpio_get_value(EFIKASB_PCBID0) ? 1 : 0;
+	id |= (gpio_get_value(EFIKASB_PCBID1) ? 1 : 0) << 1;
 
 	switch (id) {
 	default:
