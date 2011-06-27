@@ -5330,9 +5330,10 @@ static int add_control_with_pfx(struct alc_spec *spec, int type,
 #define ALC880_PIN_CD_NID		0x1c
 
 /* fill in the dac_nids table from the parsed pin configuration */
-static int alc880_auto_fill_dac_nids(struct alc_spec *spec,
-				     const struct auto_pin_cfg *cfg)
+static int alc880_auto_fill_dac_nids(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	hda_nid_t nid;
 	int assigned[4];
 	int i, j;
@@ -5706,7 +5707,8 @@ static void alc880_auto_init_input_src(struct hda_codec *codec)
 	}
 }
 
-static int alc_auto_add_multi_channel_mode(struct hda_codec *codec);
+static int alc_auto_add_multi_channel_mode(struct hda_codec *codec,
+					   int (*fill_dac)(struct hda_codec *));
 
 /* parse the BIOS configuration and set up the alc_spec */
 /* return 1 if successful, 0 if the proper config is not found,
@@ -5725,10 +5727,10 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 	if (!spec->autocfg.line_outs)
 		return 0; /* can't find valid BIOS pin config */
 
-	err = alc880_auto_fill_dac_nids(spec, &spec->autocfg);
+	err = alc880_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
-	err = alc_auto_add_multi_channel_mode(codec);
+	err = alc_auto_add_multi_channel_mode(codec, alc880_auto_fill_dac_nids);
 	if (err < 0)
 		return err;
 	err = alc880_auto_create_multi_out_ctls(spec, &spec->autocfg);
@@ -11165,10 +11167,10 @@ static int alc882_parse_auto_config(struct hda_codec *codec)
 	if (!spec->autocfg.line_outs)
 		return 0; /* can't find valid BIOS pin config */
 
-	err = alc880_auto_fill_dac_nids(spec, &spec->autocfg);
+	err = alc880_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
-	err = alc_auto_add_multi_channel_mode(codec);
+	err = alc_auto_add_multi_channel_mode(codec, alc880_auto_fill_dac_nids);
 	if (err < 0)
 		return err;
 	err = alc880_auto_create_multi_out_ctls(spec, &spec->autocfg);
@@ -15859,10 +15861,10 @@ static hda_nid_t alc861_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 }
 
 /* fill in the dac_nids table from the parsed pin configuration */
-static int alc861_auto_fill_dac_nids(struct hda_codec *codec,
-				     const struct auto_pin_cfg *cfg)
+static int alc861_auto_fill_dac_nids(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 	hda_nid_t nid, dac;
 
@@ -16027,10 +16029,10 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 	if (!spec->autocfg.line_outs)
 		return 0; /* can't find valid BIOS pin config */
 
-	err = alc861_auto_fill_dac_nids(codec, &spec->autocfg);
+	err = alc861_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
-	err = alc_auto_add_multi_channel_mode(codec);
+	err = alc_auto_add_multi_channel_mode(codec, alc861_auto_fill_dac_nids);
 	if (err < 0)
 		return err;
 	err = alc861_auto_create_multi_out_ctls(codec, &spec->autocfg);
@@ -17091,10 +17093,10 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 	if (!spec->autocfg.line_outs)
 		return 0; /* can't find valid BIOS pin config */
 
-	err = alc880_auto_fill_dac_nids(spec, &spec->autocfg);
+	err = alc880_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
-	err = alc_auto_add_multi_channel_mode(codec);
+	err = alc_auto_add_multi_channel_mode(codec, alc880_auto_fill_dac_nids);
 	if (err < 0)
 		return err;
 	err = alc861vd_auto_create_multi_out_ctls(spec, &spec->autocfg);
@@ -18764,10 +18766,10 @@ static hda_nid_t alc_auto_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
 }
 
 /* fill in the dac_nids table from the parsed pin configuration */
-static int alc662_auto_fill_dac_nids(struct hda_codec *codec,
-				     const struct auto_pin_cfg *cfg)
+static int alc662_auto_fill_dac_nids(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	int i;
 	hda_nid_t dac;
 
@@ -19073,7 +19075,8 @@ static const struct snd_kcontrol_new alc_auto_channel_mode_enum = {
 	.put = alc_auto_ch_mode_put,
 };
 
-static int alc_auto_add_multi_channel_mode(struct hda_codec *codec)
+static int alc_auto_add_multi_channel_mode(struct hda_codec *codec,
+					   int (*fill_dac)(struct hda_codec *))
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
@@ -19090,7 +19093,8 @@ static int alc_auto_add_multi_channel_mode(struct hda_codec *codec)
 		cfg->hp_outs = 0;
 		memset(cfg->hp_pins, 0, sizeof(cfg->hp_pins));
 		cfg->line_out_type = AUTO_PIN_HP_OUT;
-		alc662_auto_fill_dac_nids(codec, cfg);
+		if (fill_dac)
+			fill_dac(codec);
 	}
 	if (cfg->line_outs != 1 ||
 	    cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
@@ -19131,10 +19135,10 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 	if (!spec->autocfg.line_outs)
 		return 0; /* can't find valid BIOS pin config */
 
-	err = alc662_auto_fill_dac_nids(codec, &spec->autocfg);
+	err = alc662_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
-	err = alc_auto_add_multi_channel_mode(codec);
+	err = alc_auto_add_multi_channel_mode(codec, alc662_auto_fill_dac_nids);
 	if (err < 0)
 		return err;
 	err = alc662_auto_create_multi_out_ctls(codec, &spec->autocfg);
