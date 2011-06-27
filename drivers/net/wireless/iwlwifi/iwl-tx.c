@@ -126,7 +126,7 @@ static inline u8 iwl_tfd_get_num_tbs(struct iwl_tfd *tfd)
 }
 
 static void iwlagn_unmap_tfd(struct iwl_priv *priv, struct iwl_cmd_meta *meta,
-			     struct iwl_tfd *tfd, enum dma_data_direction dma_dir)
+			     struct iwl_tfd *tfd, int dma_dir)
 {
 	struct pci_dev *dev = priv->pci_dev;
 	int i;
@@ -168,7 +168,7 @@ void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	int index = txq->q.read_ptr;
 
 	iwlagn_unmap_tfd(priv, &txq->meta[index], &tfd_tmp[index],
-			 DMA_TO_DEVICE);
+			 PCI_DMA_TODEVICE);
 
 	/* free SKB */
 	if (txq->txb) {
@@ -312,7 +312,7 @@ void iwl_cmd_queue_unmap(struct iwl_priv *priv)
 
 		if (txq->meta[i].flags & CMD_MAPPED) {
 			iwlagn_unmap_tfd(priv, &txq->meta[i], &txq->tfds[i],
-					 DMA_BIDIRECTIONAL);
+					 PCI_DMA_BIDIRECTIONAL);
 			txq->meta[i].flags = 0;
 		}
 
@@ -694,11 +694,11 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		if (!(cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY))
 			continue;
 		phys_addr = pci_map_single(priv->pci_dev, (void *)cmd->data[i],
-					   cmd->len[i], DMA_BIDIRECTIONAL);
+					   cmd->len[i], PCI_DMA_BIDIRECTIONAL);
 		if (pci_dma_mapping_error(priv->pci_dev, phys_addr)) {
 			iwlagn_unmap_tfd(priv, out_meta,
 					 &txq->tfds[q->write_ptr],
-					 DMA_BIDIRECTIONAL);
+					 PCI_DMA_BIDIRECTIONAL);
 			idx = -ENOMEM;
 			goto out;
 		}
@@ -802,7 +802,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	cmd = txq->cmd[cmd_index];
 	meta = &txq->meta[cmd_index];
 
-	iwlagn_unmap_tfd(priv, meta, &txq->tfds[index], DMA_BIDIRECTIONAL);
+	iwlagn_unmap_tfd(priv, meta, &txq->tfds[index], PCI_DMA_BIDIRECTIONAL);
 
 	/* Input error checking is done when commands are added to queue. */
 	if (meta->flags & CMD_WANT_SKB) {
