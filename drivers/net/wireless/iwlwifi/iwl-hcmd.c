@@ -171,6 +171,8 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	int cmd_idx;
 	int ret;
 
+	lockdep_assert_held(&priv->mutex);
+
 	if (WARN_ON(cmd->flags & CMD_ASYNC))
 		return -EINVAL;
 
@@ -181,16 +183,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	IWL_DEBUG_INFO(priv, "Attempting to send sync command %s\n",
 			get_cmd_string(cmd->id));
 
-	if (test_and_set_bit(STATUS_HCMD_ACTIVE, &priv->status)) {
-		IWL_ERR(priv, "STATUS_HCMD_ACTIVE already set while sending %s"
-			      ". Previous SYNC cmdn is %s\n",
-			get_cmd_string(cmd->id),
-			get_cmd_string(priv->last_sync_cmd_id));
-		WARN_ON(1);
-	} else {
-		priv->last_sync_cmd_id = cmd->id;
-	}
-
+	set_bit(STATUS_HCMD_ACTIVE, &priv->status);
 	IWL_DEBUG_INFO(priv, "Setting HCMD_ACTIVE for command %s\n",
 			get_cmd_string(cmd->id));
 
