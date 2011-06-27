@@ -220,6 +220,9 @@ struct iio_trigger; /* forward declaration */
  *			contain the elements making up the returned value.
  * @write_raw:		function to write a value to the device.
  *			Parameters are the same as for read_raw.
+ * @write_raw_get_fmt:	callback function to query the expected
+ *			format/precision. If not set by the driver, write_raw
+ *			returns IIO_VAL_INT_PLUS_MICRO.
  * @read_event_config:	find out if the event is enabled.
  * @write_event_config:	set if the event is enabled.
  * @read_event_value:	read a value associated with the event. Meaning
@@ -245,6 +248,10 @@ struct iio_info {
 			 struct iio_chan_spec const *chan,
 			 int val,
 			 int val2,
+			 long mask);
+
+	int (*write_raw_get_fmt)(struct iio_dev *indio_dev,
+			 struct iio_chan_spec const *chan,
 			 long mask);
 
 	int (*read_event_config)(struct iio_dev *indio_dev,
