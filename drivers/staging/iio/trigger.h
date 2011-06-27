@@ -29,6 +29,8 @@ struct iio_subirq {
  * @set_trigger_state:	[DRIVER] switch on/off the trigger on demand
  * @try_reenable:	function to reenable the trigger when the
  *			use count is zero (may be NULL)
+ * @validate_device:	function to validate the device when the
+ *			current trigger gets changed.
  * @subirq_chip:	[INTERN] associate 'virtual' irq chip.
  * @subirq_base:	[INTERN] base number for irqs provided by trigger.
  * @subirqs:		[INTERN] information about the 'child' irqs.
@@ -48,6 +50,8 @@ struct iio_trigger {
 
 	int (*set_trigger_state)(struct iio_trigger *trig, bool state);
 	int (*try_reenable)(struct iio_trigger *trig);
+	int (*validate_device)(struct iio_trigger *trig,
+			       struct iio_dev *indio_dev);
 
 	struct irq_chip			subirq_chip;
 	int				subirq_base;

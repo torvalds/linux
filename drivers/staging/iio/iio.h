@@ -204,6 +204,8 @@ static inline s64 iio_get_time_ns(void)
 #define IIO_VAL_INT_PLUS_MICRO 2
 #define IIO_VAL_INT_PLUS_NANO 3
 
+struct iio_trigger; /* forward declaration */
+
 /**
  * struct iio_info - constant information about device
  * @driver_module:	module structure used to ensure correct
@@ -224,6 +226,8 @@ static inline s64 iio_get_time_ns(void)
  *			is event dependant. event_code specifies which event.
  * @write_event_value:	write the value associate with the event.
  *			Meaning is event dependent.
+ * @validate_trigger:	function to validate the trigger when the
+ *			current trigger gets changed.
  **/
 struct iio_info {
 	struct module			*driver_module;
@@ -256,6 +260,9 @@ struct iio_info {
 	int (*write_event_value)(struct iio_dev *indio_dev,
 				 int event_code,
 				 int val);
+	int (*validate_trigger)(struct iio_dev *indio_dev,
+				struct iio_trigger *trig);
+
 };
 
 /**
