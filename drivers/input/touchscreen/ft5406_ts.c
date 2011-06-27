@@ -88,7 +88,7 @@ static struct i2c_client *this_client;
 
 
 
-#define CONFIG_FT5X0X_MULTITOUCH  0
+#define CONFIG_FT5X0X_MULTITOUCH  1
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 
 struct ts_event {

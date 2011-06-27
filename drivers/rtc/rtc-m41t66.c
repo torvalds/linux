@@ -102,8 +102,8 @@
 
 #define DRV_VERSION "0.05"
 #define DRV_NAME  "rtc-M41T62"
-#if 0
-#define DBG(x...)	printk(KERN_INFO  "rtc-M41T62:" x)
+#if 1
+#define DBG   printk//(x...)	printk(KERN_INFO  "rtc-M41T62:" x)
 #else
 #define DBG(x...)
 #endif
@@ -663,7 +663,7 @@ static int m41t62_sysfs_register(struct device *dev)
  */
 static int __devinit m41t62_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	//DBG("%s>>>>>>>>>>>>>client->flags:%d\n",__func__,client->flags);
+	printk("%s>>>>>>>>>>>>>client->flags:%d\n",__func__,client->flags);
 	int rc = 0;
 	struct rock_rtc *rk_rtc = NULL;
 	struct rtc_device *rtc = NULL;
@@ -794,8 +794,12 @@ static struct i2c_driver m41t62_driver = {
 
 static int __init m41t62_rtc_init(void)
 {
-	DBG("%s>>>>>>>>>\n",__func__);
-	return i2c_add_driver(&m41t62_driver);
+	int ret;
+	
+	printk("%s\n",__func__);
+	ret = i2c_add_driver(&m41t62_driver);
+	printk("%s:return = %d\n",__func__,ret);
+	return ret;
 }
 
 static void __exit m41t62_rtc_exit(void)

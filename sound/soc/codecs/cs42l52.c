@@ -38,7 +38,7 @@
 #include "cs42l52.h"
 #include <mach/board.h>
 //#include "cs42L52_control.h"
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
 #define SOCDBG(fmt, arg...)	printk(KERN_ERR "%s: %s() " fmt, SOC_CS42L52_NAME, __FUNCTION__, ##arg)
 #else
