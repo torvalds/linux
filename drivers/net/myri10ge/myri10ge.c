@@ -3327,6 +3327,26 @@ static void myri10ge_select_firmware(struct myri10ge_priv *mgp)
 			 mgp->fw_name);
 }
 
+static void myri10ge_mask_surprise_down(struct pci_dev *pdev)
+{
+	struct pci_dev *bridge = pdev->bus->self;
+	int cap;
+	u32 mask;
+
+	if (bridge == NULL)
+		return;
+
+	cap = pci_find_ext_capability(bridge, PCI_EXT_CAP_ID_ERR);
+	if (cap) {
+		/* a sram parity error can cause a surprise link
+		 * down; since we expect and can recover from sram
+		 * parity errors, mask surprise link down events */
+		pci_read_config_dword(bridge, cap + PCI_ERR_UNCOR_MASK, &mask);
+		mask |= 0x20;
+		pci_write_config_dword(bridge, cap + PCI_ERR_UNCOR_MASK, mask);
+	}
+}
+
 #ifdef CONFIG_PM
 static int myri10ge_suspend(struct pci_dev *pdev, pm_message_t state)
 {
@@ -3845,6 +3865,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto abort_with_enabled;
 	}
 
+	myri10ge_mask_surprise_down(pdev);
 	pci_set_master(pdev);
 	dac_enabled = 1;
 	status = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
