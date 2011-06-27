@@ -343,6 +343,14 @@ DEFINE_BASIC_FETCH_FUNCS(deref)
 DEFINE_FETCH_deref(string)
 DEFINE_FETCH_deref(string_size)
 
+static __kprobes void update_deref_fetch_param(struct deref_fetch_param *data)
+{
+	if (CHECK_FETCH_FUNCS(deref, data->orig.fn))
+		update_deref_fetch_param(data->orig.data);
+	else if (CHECK_FETCH_FUNCS(symbol, data->orig.fn))
+		update_symbol_cache(data->orig.data);
+}
+
 static __kprobes void free_deref_fetch_param(struct deref_fetch_param *data)
 {
 	if (CHECK_FETCH_FUNCS(deref, data->orig.fn))
@@ -377,6 +385,19 @@ DEFINE_BASIC_FETCH_FUNCS(bitfield)
 #define fetch_bitfield_string_size NULL
 
 static __kprobes void
+update_bitfield_fetch_param(struct bitfield_fetch_param *data)
+{
+	/*
+	 * Don't check the bitfield itself, because this must be the
+	 * last fetch function.
+	 */
+	if (CHECK_FETCH_FUNCS(deref, data->orig.fn))
+		update_deref_fetch_param(data->orig.data);
+	else if (CHECK_FETCH_FUNCS(symbol, data->orig.fn))
+		update_symbol_cache(data->orig.data);
+}
+
+static __kprobes void
 free_bitfield_fetch_param(struct bitfield_fetch_param *data)
 {
 	/*
@@ -389,6 +410,7 @@ free_bitfield_fetch_param(struct bitfield_fetch_param *data)
 		free_symbol_cache(data->orig.data);
 	kfree(data);
 }
+
 /* Default (unsigned long) fetch type */
 #define __DEFAULT_FETCH_TYPE(t) u##t
 #define _DEFAULT_FETCH_TYPE(t) __DEFAULT_FETCH_TYPE(t)
@@ -680,6 +702,16 @@ error:
 	return ERR_PTR(ret);
 }
 
+static void update_probe_arg(struct probe_arg *arg)
+{
+	if (CHECK_FETCH_FUNCS(bitfield, arg->fetch.fn))
+		update_bitfield_fetch_param(arg->fetch.data);
+	else if (CHECK_FETCH_FUNCS(deref, arg->fetch.fn))
+		update_deref_fetch_param(arg->fetch.data);
+	else if (CHECK_FETCH_FUNCS(symbol, arg->fetch.fn))
+		update_symbol_cache(arg->fetch.data);
+}
+
 static void free_probe_arg(struct probe_arg *arg)
 {
 	if (CHECK_FETCH_FUNCS(bitfield, arg->fetch.fn))
@@ -749,10 +781,13 @@ static void disable_trace_probe(struct trace_probe *tp, int flag)
 /* Internal register function - just handle k*probes and flags */
 static int __register_trace_probe(struct trace_probe *tp)
 {
-	int ret;
+	int i, ret;
 
 	if (trace_probe_is_registered(tp))
 		return -EINVAL;
+
+	for (i = 0; i < tp->nr_args; i++)
+		update_probe_arg(&tp->args[i]);
 
 	/* Set/clear disabled flag according to tp->flag */
 	if (trace_probe_is_enabled(tp))
