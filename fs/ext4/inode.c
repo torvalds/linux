@@ -47,6 +47,7 @@
 #include "xattr.h"
 #include "acl.h"
 #include "ext4_extents.h"
+#include "truncate.h"
 
 #include <trace/events/ext4.h>
 
@@ -89,33 +90,6 @@ static int ext4_inode_is_fast_symlink(struct inode *inode)
 }
 
 /*
- * Work out how many blocks we need to proceed with the next chunk of a
- * truncate transaction.
- */
-static unsigned long blocks_for_truncate(struct inode *inode)
-{
-	ext4_lblk_t needed;
-
-	needed = inode->i_blocks >> (inode->i_sb->s_blocksize_bits - 9);
-
-	/* Give ourselves just enough room to cope with inodes in which
-	 * i_blocks is corrupt: we've seen disk corruptions in the past
-	 * which resulted in random data in an inode which looked enough
-	 * like a regular file for ext4 to try to delete it.  Things
-	 * will go a bit crazy if that happens, but at least we should
-	 * try not to panic the whole kernel. */
-	if (needed < 2)
-		needed = 2;
-
-	/* But we need to bound the transaction so we don't overflow the
-	 * journal. */
-	if (needed > EXT4_MAX_TRANS_DATA)
-		needed = EXT4_MAX_TRANS_DATA;
-
-	return EXT4_DATA_TRANS_BLOCKS(inode->i_sb) + needed;
-}
-
-/*
  * Truncate transactions can be complex and absolutely huge.  So we need to
  * be able to restart the transaction at a conventient checkpoint to make
  * sure we don't overflow the journal.
@@ -129,7 +103,7 @@ static handle_t *start_transaction(struct inode *inode)
 {
 	handle_t *result;
 
-	result = ext4_journal_start(inode, blocks_for_truncate(inode));
+	result = ext4_journal_start(inode, ext4_blocks_for_truncate(inode));
 	if (!IS_ERR(result))
 		return result;
 
@@ -149,7 +123,7 @@ static int try_to_extend_transaction(handle_t *handle, struct inode *inode)
 		return 0;
 	if (ext4_handle_has_enough_credits(handle, EXT4_RESERVE_TRANS_BLOCKS+1))
 		return 0;
-	if (!ext4_journal_extend(handle, blocks_for_truncate(inode)))
+	if (!ext4_journal_extend(handle, ext4_blocks_for_truncate(inode)))
 		return 0;
 	return 1;
 }
@@ -204,7 +178,7 @@ void ext4_evict_inode(struct inode *inode)
 	if (is_bad_inode(inode))
 		goto no_delete;
 
-	handle = ext4_journal_start(inode, blocks_for_truncate(inode)+3);
+	handle = ext4_journal_start(inode, ext4_blocks_for_truncate(inode)+3);
 	if (IS_ERR(handle)) {
 		ext4_std_error(inode->i_sb, PTR_ERR(handle));
 		/*
@@ -1553,16 +1527,6 @@ static int do_journal_get_write_access(handle_t *handle,
 	if (!ret && dirty)
 		ret = ext4_handle_dirty_metadata(handle, NULL, bh);
 	return ret;
-}
-
-/*
- * Truncate blocks that were not used by write. We have to truncate the
- * pagecache as well so that corresponding buffers get properly unmapped.
- */
-static void ext4_truncate_failed_write(struct inode *inode)
-{
-	truncate_inode_pages(inode->i_mapping, inode->i_size);
-	ext4_truncate(inode);
 }
 
 static int ext4_get_block_write(struct inode *inode, sector_t iblock,
@@ -4134,7 +4098,7 @@ static int ext4_clear_blocks(handle_t *handle, struct inode *inode,
 		if (unlikely(err))
 			goto out_err;
 		err = ext4_truncate_restart_trans(handle, inode,
-						  blocks_for_truncate(inode));
+					ext4_blocks_for_truncate(inode));
 		if (unlikely(err))
 			goto out_err;
 		if (bh) {
@@ -4329,7 +4293,7 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			if (try_to_extend_transaction(handle, inode)) {
 				ext4_mark_inode_dirty(handle, inode);
 				ext4_truncate_restart_trans(handle, inode,
-					    blocks_for_truncate(inode));
+					    ext4_blocks_for_truncate(inode));
 			}
 
 			/*
