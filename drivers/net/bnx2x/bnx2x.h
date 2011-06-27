@@ -1156,7 +1156,6 @@ struct bnx2x {
 #define NO_FCOE(bp)		((bp)->flags & NO_FCOE_FLAG)
 
 	int			pm_cap;
-	int			pcie_cap;
 	int			mrrs;
 
 	struct delayed_work	sp_task;

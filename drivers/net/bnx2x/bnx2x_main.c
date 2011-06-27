@@ -1222,7 +1222,7 @@ static inline u8 bnx2x_is_pcie_pending(struct pci_dev *dev)
 	int pos;
 	u16 status;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(dev);
 	if (!pos)
 		return false;
 
@@ -5498,7 +5498,7 @@ static void bnx2x_init_pxp(struct bnx2x *bp)
 	int r_order, w_order;
 
 	pci_read_config_word(bp->pdev,
-			     bp->pcie_cap + PCI_EXP_DEVCTL, &devctl);
+			     bp->pdev->pcie_cap + PCI_EXP_DEVCTL, &devctl);
 	DP(NETIF_MSG_HW, "read 0x%x from devctl\n", devctl);
 	w_order = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5);
 	if (bp->mrrs == -1)
@@ -9759,10 +9759,8 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 		goto err_out_release;
 	}
 
-	bp->pcie_cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	if (bp->pcie_cap == 0) {
-		dev_err(&bp->pdev->dev,
-			"Cannot find PCI Express capability, aborting\n");
+	if (!pci_is_pcie(pdev)) {
+		dev_err(&bp->pdev->dev,	"Not PCI Express, aborting\n");
 		rc = -EIO;
 		goto err_out_release;
 	}
