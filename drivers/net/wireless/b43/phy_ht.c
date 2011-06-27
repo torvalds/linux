@@ -104,9 +104,14 @@ static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
 
 	/* TODO: separated function? */
 	for (i = 0; i < 3; i++) {
+		u16 mask;
 		u32 tmp = b43_httab_read(dev, B43_HTTAB32(26, 0xE8));
 
-		/* TODO: some op on PHY reg 0x908 */
+		if (0) /* FIXME */
+			mask = 0x2 << (i * 4);
+		else
+			mask = 0;
+		b43_phy_mask(dev, B43_PHY_EXTG(0x108), mask);
 
 		b43_httab_write(dev, B43_HTTAB16(7, 0x110 + i), tmp >> 16);
 		b43_httab_write(dev, B43_HTTAB8(13, 0x63 + (i * 4)),
