@@ -62,12 +62,6 @@
 	.subdevice = PCI_ANY_ID,\
 	.driver_data = (kernel_ulong_t)&(cfg)
 
-#define INTEL_VENDOR_ID				0x8086
-#define SIS_VENDOR_ID				0x1039
-#define ATI_VENDOR_ID				0x1002
-#define ATI_DEVICE_ID				0x7914
-#define AMD_VENDOR_ID				0x1022
-
 #define PCI_MAX_BRIDGE_NUMBER			255
 #define PCI_MAX_DEVICES				32
 #define PCI_MAX_FUNCTION			8

@@ -35,10 +35,10 @@
 #include "efuse.h"
 
 static const u16 pcibridge_vendors[PCI_BRIDGE_VENDOR_MAX] = {
-	INTEL_VENDOR_ID,
-	ATI_VENDOR_ID,
-	AMD_VENDOR_ID,
-	SIS_VENDOR_ID
+	PCI_VENDOR_ID_INTEL,
+	PCI_VENDOR_ID_ATI,
+	PCI_VENDOR_ID_AMD,
+	PCI_VENDOR_ID_SI
 };
 
 static const u8 ac_to_hwq[] = {
