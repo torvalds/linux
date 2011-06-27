@@ -70,7 +70,7 @@
 struct host_to_dev_fis *isci_sata_task_to_fis_copy(struct sas_task *task)
 {
 	struct isci_request *ireq = task->lldd_task;
-	struct host_to_dev_fis *fis = &ireq->sci.stp.cmd;
+	struct host_to_dev_fis *fis = &ireq->stp.cmd;
 
 	memcpy(fis, &task->ata_task.fis, sizeof(struct host_to_dev_fis));
 
@@ -116,7 +116,7 @@ void isci_sata_set_ncq_tag(
 	struct isci_request *request = task->lldd_task;
 
 	register_fis->sector_count = qc->tag << 3;
-	scic_stp_io_request_set_ncq_tag(&request->sci, qc->tag);
+	scic_stp_io_request_set_ncq_tag(request, qc->tag);
 }
 
 /**
@@ -154,7 +154,6 @@ void isci_request_process_stp_response(struct sas_task *task,
 
 enum sci_status isci_sata_management_task_request_build(struct isci_request *ireq)
 {
-	struct scic_sds_request *sci_req = &ireq->sci;
 	struct isci_tmf *isci_tmf;
 	enum sci_status status;
 
@@ -167,7 +166,7 @@ enum sci_status isci_sata_management_task_request_build(struct isci_request *ire
 
 	case isci_tmf_sata_srst_high:
 	case isci_tmf_sata_srst_low: {
-		struct host_to_dev_fis *fis = &sci_req->stp.cmd;
+		struct host_to_dev_fis *fis = &ireq->stp.cmd;
 
 		memset(fis, 0, sizeof(*fis));
 
@@ -188,7 +187,7 @@ enum sci_status isci_sata_management_task_request_build(struct isci_request *ire
 	/* core builds the protocol specific request
 	 *  based on the h2d fis.
 	 */
-	status = scic_task_request_construct_sata(&ireq->sci);
+	status = scic_task_request_construct_sata(ireq);
 
 	return status;
 }

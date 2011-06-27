@@ -78,7 +78,7 @@
 #define SCU_HARDWARE_SUSPENSION  (0)
 #define SCI_SOFTWARE_SUSPENSION  (1)
 
-struct scic_sds_request;
+struct isci_request;
 struct scic_sds_remote_device;
 struct scic_sds_remote_node_context;
 
@@ -220,8 +220,8 @@ enum sci_status scic_sds_remote_node_context_resume(struct scic_sds_remote_node_
 						    scics_sds_remote_node_context_callback cb_fn,
 						    void *cb_p);
 enum sci_status scic_sds_remote_node_context_start_task(struct scic_sds_remote_node_context *sci_rnc,
-							struct scic_sds_request *sci_req);
+							struct isci_request *ireq);
 enum sci_status scic_sds_remote_node_context_start_io(struct scic_sds_remote_node_context *sci_rnc,
-						      struct scic_sds_request *sci_req);
+						      struct isci_request *ireq);
 
 #endif  /* _SCIC_SDS_REMOTE_NODE_CONTEXT_H_ */

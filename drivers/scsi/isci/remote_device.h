@@ -120,7 +120,7 @@ struct scic_sds_remote_device {
 	 * used only for SATA requests since the unsolicited frames we get from the
 	 * hardware have no Tag value to look up the io request object.
 	 */
-	struct scic_sds_request *working_request;
+	struct isci_request *working_request;
 
 	/**
 	 * This field contains the reason for the remote device going not_ready.  It is
@@ -466,17 +466,17 @@ enum sci_status scic_sds_remote_device_event_handler(
 enum sci_status scic_sds_remote_device_start_io(
 	struct scic_sds_controller *controller,
 	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *io_request);
+	struct isci_request *ireq);
 
 enum sci_status scic_sds_remote_device_start_task(
 	struct scic_sds_controller *controller,
 	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *io_request);
+	struct isci_request *ireq);
 
 enum sci_status scic_sds_remote_device_complete_io(
 	struct scic_sds_controller *controller,
 	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *io_request);
+	struct isci_request *ireq);
 
 enum sci_status scic_sds_remote_device_suspend(
 	struct scic_sds_remote_device *sci_dev,

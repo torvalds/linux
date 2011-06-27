@@ -354,17 +354,17 @@ enum sci_status scic_sds_port_link_up(struct scic_sds_port *sci_port,
 enum sci_status scic_sds_port_link_down(struct scic_sds_port *sci_port,
 					struct scic_sds_phy *sci_phy);
 
-struct scic_sds_request;
+struct isci_request;
 struct scic_sds_remote_device;
 enum sci_status scic_sds_port_start_io(
 	struct scic_sds_port *sci_port,
 	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *sci_req);
+	struct isci_request *ireq);
 
 enum sci_status scic_sds_port_complete_io(
 	struct scic_sds_port *sci_port,
 	struct scic_sds_remote_device *sci_dev,
-	struct scic_sds_request *sci_req);
+	struct isci_request *ireq);
 
 enum sas_linkrate scic_sds_port_get_max_allowed_speed(
 	struct scic_sds_port *sci_port);

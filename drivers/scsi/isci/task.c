@@ -258,7 +258,7 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 
 	/* let the core do it's construct. */
 	status = scic_task_request_construct(&ihost->sci, &idev->sci, tag,
-					     &ireq->sci);
+					     ireq);
 
 	if (status != SCI_SUCCESS) {
 		dev_warn(&ihost->pdev->dev,
@@ -272,7 +272,7 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 	/* XXX convert to get this from task->tproto like other drivers */
 	if (dev->dev_type == SAS_END_DEV) {
 		isci_tmf->proto = SAS_PROTOCOL_SSP;
-		status = scic_task_request_construct_ssp(&ireq->sci);
+		status = scic_task_request_construct_ssp(ireq);
 		if (status != SCI_SUCCESS)
 			return NULL;
 	}
@@ -337,7 +337,7 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 	/* start the TMF io. */
 	status = scic_controller_start_task(&ihost->sci,
 					    sci_device,
-					    &ireq->sci);
+					    ireq);
 
 	if (status != SCI_TASK_SUCCESS) {
 		dev_warn(&ihost->pdev->dev,
@@ -371,7 +371,7 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 
 		scic_controller_terminate_request(&ihost->sci,
 						  &isci_device->sci,
-						  &ireq->sci);
+						  ireq);
 
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
@@ -565,7 +565,7 @@ static void isci_terminate_request_core(
 		status = scic_controller_terminate_request(
 			&isci_host->sci,
 			&isci_device->sci,
-			&isci_request->sci);
+			isci_request);
 	}
 	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
 
@@ -1235,7 +1235,6 @@ isci_task_request_complete(struct isci_host *ihost,
 {
 	struct isci_tmf *tmf = isci_request_access_tmf(ireq);
 	struct completion *tmf_complete;
-	struct scic_sds_request *sci_req = &ireq->sci;
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: request = %p, status=%d\n",
@@ -1248,18 +1247,18 @@ isci_task_request_complete(struct isci_host *ihost,
 
 	if (tmf->proto == SAS_PROTOCOL_SSP) {
 		memcpy(&tmf->resp.resp_iu,
-		       &sci_req->ssp.rsp,
+		       &ireq->ssp.rsp,
 		       SSP_RESP_IU_MAX_SIZE);
 	} else if (tmf->proto == SAS_PROTOCOL_SATA) {
 		memcpy(&tmf->resp.d2h_fis,
-		       &sci_req->stp.rsp,
+		       &ireq->stp.rsp,
 		       sizeof(struct dev_to_host_fis));
 	}
 
 	/* PRINT_TMF( ((struct isci_tmf *)request->task)); */
 	tmf_complete = tmf->complete;
 
-	scic_controller_complete_io(&ihost->sci, ireq->sci.target_device, &ireq->sci);
+	scic_controller_complete_io(&ihost->sci, ireq->target_device, ireq);
 	/* set the 'terminated' flag handle to make sure it cannot be terminated
 	 *  or completed again.
 	 */

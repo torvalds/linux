@@ -598,7 +598,7 @@ enum sci_status scic_sds_remote_node_context_resume(struct scic_sds_remote_node_
 }
 
 enum sci_status scic_sds_remote_node_context_start_io(struct scic_sds_remote_node_context *sci_rnc,
-							     struct scic_sds_request *sci_req)
+							     struct isci_request *ireq)
 {
 	enum scis_sds_remote_node_context_states state;
 
@@ -623,7 +623,7 @@ enum sci_status scic_sds_remote_node_context_start_io(struct scic_sds_remote_nod
 }
 
 enum sci_status scic_sds_remote_node_context_start_task(struct scic_sds_remote_node_context *sci_rnc,
-							struct scic_sds_request *sci_req)
+							struct isci_request *ireq)
 {
 	enum scis_sds_remote_node_context_states state;
 

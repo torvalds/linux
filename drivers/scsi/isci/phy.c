@@ -983,7 +983,7 @@ enum sci_status scic_sds_phy_frame_handler(struct scic_sds_phy *sci_phy,
 			"%s: in wrong state: %d\n", __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
 	}
-	
+
 }
 
 static void scic_sds_phy_starting_initial_substate_enter(struct sci_base_state_machine *sm)

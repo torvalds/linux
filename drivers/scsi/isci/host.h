@@ -64,7 +64,7 @@
 #include "unsolicited_frame_control.h"
 #include "probe_roms.h"
 
-struct scic_sds_request;
+struct isci_request;
 struct scu_task_context;
 
 
@@ -601,7 +601,7 @@ union scu_remote_node_context *scic_sds_controller_get_remote_node_context_buffe
 	struct scic_sds_controller *scic,
 	u16 node_id);
 
-struct scic_sds_request *scic_request_by_tag(struct scic_sds_controller *scic,
+struct isci_request *scic_request_by_tag(struct scic_sds_controller *scic,
 					     u16 io_tag);
 
 void scic_sds_controller_power_control_queue_insert(
@@ -628,11 +628,11 @@ void scic_sds_controller_remote_device_stopped(
 
 void scic_sds_controller_copy_task_context(
 	struct scic_sds_controller *scic,
-	struct scic_sds_request *this_request);
+	struct isci_request *ireq);
 
 void scic_sds_controller_register_setup(struct scic_sds_controller *scic);
 
-enum sci_status scic_controller_continue_io(struct scic_sds_request *sci_req);
+enum sci_status scic_controller_continue_io(struct isci_request *ireq);
 int isci_host_scan_finished(struct Scsi_Host *, unsigned long);
 void isci_host_scan_start(struct Scsi_Host *);
 u16 isci_alloc_tag(struct isci_host *ihost);
@@ -665,22 +665,22 @@ void scic_controller_disable_interrupts(
 enum sci_status scic_controller_start_io(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
-	struct scic_sds_request *io_request);
+	struct isci_request *ireq);
 
 enum sci_task_status scic_controller_start_task(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
-	struct scic_sds_request *task_request);
+	struct isci_request *ireq);
 
 enum sci_status scic_controller_terminate_request(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
-	struct scic_sds_request *request);
+	struct isci_request *ireq);
 
 enum sci_status scic_controller_complete_io(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
-	struct scic_sds_request *io_request);
+	struct isci_request *ireq);
 
 void scic_sds_port_configuration_agent_construct(
 	struct scic_sds_port_configuration_agent *port_agent);

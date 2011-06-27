@@ -258,21 +258,20 @@ static void scic_sds_controller_task_completion(struct scic_sds_controller *scic
 	u32 index = SCU_GET_COMPLETION_INDEX(completion_entry);
 	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_request *ireq = ihost->reqs[index];
-	struct scic_sds_request *sci_req = &ireq->sci;
 
 	/* Make sure that we really want to process this IO request */
 	if (test_bit(IREQ_ACTIVE, &ireq->flags) &&
-	    sci_req->io_tag != SCI_CONTROLLER_INVALID_IO_TAG &&
-	    ISCI_TAG_SEQ(sci_req->io_tag) == scic->io_request_sequence[index])
+	    ireq->io_tag != SCI_CONTROLLER_INVALID_IO_TAG &&
+	    ISCI_TAG_SEQ(ireq->io_tag) == scic->io_request_sequence[index])
 		/* Yep this is a valid io request pass it along to the io request handler */
-		scic_sds_io_request_tc_completion(sci_req, completion_entry);
+		scic_sds_io_request_tc_completion(ireq, completion_entry);
 }
 
 static void scic_sds_controller_sdma_completion(struct scic_sds_controller *scic,
 						u32 completion_entry)
 {
 	u32 index;
-	struct scic_sds_request *io_request;
+	struct isci_request *ireq;
 	struct scic_sds_remote_device *device;
 
 	index = SCU_GET_COMPLETION_INDEX(completion_entry);
@@ -280,41 +279,27 @@ static void scic_sds_controller_sdma_completion(struct scic_sds_controller *scic
 	switch (scu_get_command_request_type(completion_entry)) {
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC:
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_DUMP_TC:
-		io_request = &scic_to_ihost(scic)->reqs[index]->sci;
-		dev_warn(scic_to_dev(scic),
-			 "%s: SCIC SDS Completion type SDMA %x for io request "
-			 "%p\n",
-			 __func__,
-			 completion_entry,
-			 io_request);
+		ireq = scic_to_ihost(scic)->reqs[index];
+		dev_warn(scic_to_dev(scic), "%s: %x for io request %p\n",
+			 __func__, completion_entry, ireq);
 		/* @todo For a post TC operation we need to fail the IO
 		 * request
 		 */
 		break;
-
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_DUMP_RNC:
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_OTHER_RNC:
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_RNC:
 		device = scic->device_table[index];
-		dev_warn(scic_to_dev(scic),
-			 "%s: SCIC SDS Completion type SDMA %x for remote "
-			 "device %p\n",
-			 __func__,
-			 completion_entry,
-			 device);
+		dev_warn(scic_to_dev(scic), "%s: %x for device %p\n",
+			 __func__, completion_entry, device);
 		/* @todo For a port RNC operation we need to fail the
 		 * device
 		 */
 		break;
-
 	default:
-		dev_warn(scic_to_dev(scic),
-			 "%s: SCIC SDS Completion unknown SDMA completion "
-			 "type %x\n",
-			 __func__,
-			 completion_entry);
+		dev_warn(scic_to_dev(scic), "%s: unknown completion type %x\n",
+			 __func__, completion_entry);
 		break;
-
 	}
 }
 
@@ -385,8 +370,8 @@ static void scic_sds_controller_event_completion(struct scic_sds_controller *sci
 						 u32 completion_entry)
 {
 	struct isci_host *ihost = scic_to_ihost(scic);
-	struct scic_sds_request *io_request;
 	struct scic_sds_remote_device *device;
+	struct isci_request *ireq;
 	struct scic_sds_phy *phy;
 	u32 index;
 
@@ -418,17 +403,17 @@ static void scic_sds_controller_event_completion(struct scic_sds_controller *sci
 		break;
 
 	case SCU_EVENT_TYPE_TRANSPORT_ERROR:
-		io_request = &ihost->reqs[index]->sci;
-		scic_sds_io_request_event_handler(io_request, completion_entry);
+		ireq = ihost->reqs[index];
+		scic_sds_io_request_event_handler(ireq, completion_entry);
 		break;
 
 	case SCU_EVENT_TYPE_PTX_SCHEDULE_EVENT:
 		switch (scu_get_event_specifier(completion_entry)) {
 		case SCU_EVENT_SPECIFIC_SMP_RESPONSE_NO_PE:
 		case SCU_EVENT_SPECIFIC_TASK_TIMEOUT:
-			io_request = &ihost->reqs[index]->sci;
-			if (io_request != NULL)
-				scic_sds_io_request_event_handler(io_request, completion_entry);
+			ireq = ihost->reqs[index];
+			if (ireq != NULL)
+				scic_sds_io_request_event_handler(ireq, completion_entry);
 			else
 				dev_warn(scic_to_dev(scic),
 					 "%s: SCIC Controller 0x%p received "
@@ -1185,7 +1170,7 @@ static void isci_host_completion_routine(unsigned long data)
 		}
 
 		spin_lock_irq(&isci_host->scic_lock);
-		isci_free_tag(isci_host, request->sci.io_tag);
+		isci_free_tag(isci_host, request->io_tag);
 		spin_unlock_irq(&isci_host->scic_lock);
 	}
 	list_for_each_entry_safe(request, next_request, &errored_request_list,
@@ -1222,7 +1207,7 @@ static void isci_host_completion_routine(unsigned long data)
 			* of pending requests.
 			*/
 			list_del_init(&request->dev_node);
-			isci_free_tag(isci_host, request->sci.io_tag);
+			isci_free_tag(isci_host, request->io_tag);
 			spin_unlock_irq(&isci_host->scic_lock);
 		}
 	}
@@ -2486,8 +2471,8 @@ int isci_host_init(struct isci_host *isci_host)
 		if (!ireq)
 			return -ENOMEM;
 
-		ireq->sci.tc = &isci_host->sci.task_context_table[i];
-		ireq->sci.owning_controller = &isci_host->sci;
+		ireq->tc = &isci_host->sci.task_context_table[i];
+		ireq->owning_controller = &isci_host->sci;
 		spin_lock_init(&ireq->state_lock);
 		ireq->request_daddr = dma;
 		ireq->isci_host = isci_host;
@@ -2600,7 +2585,7 @@ void scic_sds_controller_post_request(
 	writel(request, &scic->smu_registers->post_context_port);
 }
 
-struct scic_sds_request *scic_request_by_tag(struct scic_sds_controller *scic, u16 io_tag)
+struct isci_request *scic_request_by_tag(struct scic_sds_controller *scic, u16 io_tag)
 {
 	u16 task_index;
 	u16 task_sequence;
@@ -2614,7 +2599,7 @@ struct scic_sds_request *scic_request_by_tag(struct scic_sds_controller *scic, u
 			task_sequence = ISCI_TAG_SEQ(io_tag);
 
 			if (task_sequence == scic->io_request_sequence[task_index])
-				return &ireq->sci;
+				return ireq;
 		}
 	}
 
@@ -2814,7 +2799,7 @@ enum sci_status isci_free_tag(struct isci_host *ihost, u16 io_tag)
  */
 enum sci_status scic_controller_start_io(struct scic_sds_controller *scic,
 					 struct scic_sds_remote_device *rdev,
-					 struct scic_sds_request *req)
+					 struct isci_request *ireq)
 {
 	enum sci_status status;
 
@@ -2823,12 +2808,12 @@ enum sci_status scic_controller_start_io(struct scic_sds_controller *scic,
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	status = scic_sds_remote_device_start_io(scic, rdev, req);
+	status = scic_sds_remote_device_start_io(scic, rdev, ireq);
 	if (status != SCI_SUCCESS)
 		return status;
 
-	set_bit(IREQ_ACTIVE, &sci_req_to_ireq(req)->flags);
-	scic_sds_controller_post_request(scic, scic_sds_request_get_post_context(req));
+	set_bit(IREQ_ACTIVE, &ireq->flags);
+	scic_sds_controller_post_request(scic, scic_sds_request_get_post_context(ireq));
 	return SCI_SUCCESS;
 }
 
@@ -2851,7 +2836,7 @@ enum sci_status scic_controller_start_io(struct scic_sds_controller *scic,
 enum sci_status scic_controller_terminate_request(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *rdev,
-	struct scic_sds_request *req)
+	struct isci_request *ireq)
 {
 	enum sci_status status;
 
@@ -2861,7 +2846,7 @@ enum sci_status scic_controller_terminate_request(
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	status = scic_sds_io_request_terminate(req);
+	status = scic_sds_io_request_terminate(ireq);
 	if (status != SCI_SUCCESS)
 		return status;
 
@@ -2870,7 +2855,7 @@ enum sci_status scic_controller_terminate_request(
 	 * request sub-type.
 	 */
 	scic_sds_controller_post_request(scic,
-		scic_sds_request_get_post_context(req) |
+		scic_sds_request_get_post_context(ireq) |
 		SCU_CONTEXT_COMMAND_REQUEST_POST_TC_ABORT);
 	return SCI_SUCCESS;
 }
@@ -2889,7 +2874,7 @@ enum sci_status scic_controller_terminate_request(
 enum sci_status scic_controller_complete_io(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *rdev,
-	struct scic_sds_request *request)
+	struct isci_request *ireq)
 {
 	enum sci_status status;
 	u16 index;
@@ -2899,12 +2884,12 @@ enum sci_status scic_controller_complete_io(
 		/* XXX: Implement this function */
 		return SCI_FAILURE;
 	case SCIC_READY:
-		status = scic_sds_remote_device_complete_io(scic, rdev, request);
+		status = scic_sds_remote_device_complete_io(scic, rdev, ireq);
 		if (status != SCI_SUCCESS)
 			return status;
 
-		index = ISCI_TAG_TCI(request->io_tag);
-		clear_bit(IREQ_ACTIVE, &sci_req_to_ireq(request)->flags);
+		index = ISCI_TAG_TCI(ireq->io_tag);
+		clear_bit(IREQ_ACTIVE, &ireq->flags);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(scic_to_dev(scic), "invalid state to complete I/O");
@@ -2913,17 +2898,17 @@ enum sci_status scic_controller_complete_io(
 
 }
 
-enum sci_status scic_controller_continue_io(struct scic_sds_request *sci_req)
+enum sci_status scic_controller_continue_io(struct isci_request *ireq)
 {
-	struct scic_sds_controller *scic = sci_req->owning_controller;
+	struct scic_sds_controller *scic = ireq->owning_controller;
 
 	if (scic->sm.current_state_id != SCIC_READY) {
 		dev_warn(scic_to_dev(scic), "invalid state to continue I/O");
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	set_bit(IREQ_ACTIVE, &sci_req_to_ireq(sci_req)->flags);
-	scic_sds_controller_post_request(scic, scic_sds_request_get_post_context(sci_req));
+	set_bit(IREQ_ACTIVE, &ireq->flags);
+	scic_sds_controller_post_request(scic, scic_sds_request_get_post_context(ireq));
 	return SCI_SUCCESS;
 }
 
@@ -2939,9 +2924,8 @@ enum sci_status scic_controller_continue_io(struct scic_sds_request *sci_req)
 enum sci_task_status scic_controller_start_task(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *rdev,
-	struct scic_sds_request *req)
+	struct isci_request *ireq)
 {
-	struct isci_request *ireq = sci_req_to_ireq(req);
 	enum sci_status status;
 
 	if (scic->sm.current_state_id != SCIC_READY) {
@@ -2952,7 +2936,7 @@ enum sci_task_status scic_controller_start_task(
 		return SCI_TASK_FAILURE_INVALID_STATE;
 	}
 
-	status = scic_sds_remote_device_start_task(scic, rdev, req);
+	status = scic_sds_remote_device_start_task(scic, rdev, ireq);
 	switch (status) {
 	case SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS:
 		set_bit(IREQ_ACTIVE, &ireq->flags);
@@ -2967,7 +2951,7 @@ enum sci_task_status scic_controller_start_task(
 		set_bit(IREQ_ACTIVE, &ireq->flags);
 
 		scic_sds_controller_post_request(scic,
-			scic_sds_request_get_post_context(req));
+			scic_sds_request_get_post_context(ireq));
 		break;
 	default:
 		break;
