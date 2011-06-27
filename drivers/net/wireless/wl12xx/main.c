@@ -1610,9 +1610,12 @@ static struct notifier_block wl1271_dev_notifier = {
 #ifdef CONFIG_PM
 static int wl1271_configure_suspend_sta(struct wl1271 *wl)
 {
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&wl->mutex);
+
+	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+		goto out_unlock;
 
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
@@ -1658,9 +1661,12 @@ out:
 
 static int wl1271_configure_suspend_ap(struct wl1271 *wl)
 {
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&wl->mutex);
+
+	if (!test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
+		goto out_unlock;
 
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
