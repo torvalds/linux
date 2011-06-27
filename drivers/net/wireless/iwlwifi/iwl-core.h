@@ -409,13 +409,6 @@ void iwl_setup_watchdog(struct iwl_priv *priv);
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
 
 /*******************************************************************************
- * Rate
- ******************************************************************************/
-
-u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv,
-			    struct iwl_rxon_context *ctx);
-
-/*******************************************************************************
  * Scanning
  ******************************************************************************/
 void iwl_init_scan_params(struct iwl_priv *priv);
