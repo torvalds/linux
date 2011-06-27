@@ -28,6 +28,10 @@
 #include "radio_2059.h"
 #include "main.h"
 
+/**************************************************
+ * Radio 2059.
+ **************************************************/
+
 static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 			const struct b43_phy_ht_channeltab_e_radio2059 *e)
 {
@@ -78,6 +82,30 @@ static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 
 	udelay(300);
 }
+
+static void b43_radio_2059_init(struct b43_wldev *dev)
+{
+	const u16 routing[] = { R2059_SYN, R2059_TXRX0, R2059_RXRX1 };
+	u8 i;
+
+	b43_radio_write(dev, R2059_ALL | 0x51, 0x0070);
+	b43_radio_write(dev, R2059_ALL | 0x5a, 0x0003);
+
+	for (i = 0; i < ARRAY_SIZE(routing); i++)
+		b43_radio_set(dev, routing[i] | 0x146, 0x3);
+
+	b43_radio_set(dev, 0x2e, 0x0078);
+	b43_radio_set(dev, 0xc0, 0x0080);
+	msleep(2);
+	b43_radio_mask(dev, 0x2e, ~0x0078);
+	b43_radio_mask(dev, 0xc0, ~0x0080);
+
+	b43_radio_mask(dev, 0x11, 0x0008);
+}
+
+/**************************************************
+ * Channel switching ops.
+ **************************************************/
 
 static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
 				const struct b43_phy_ht_channeltab_e_phy *e,
@@ -200,6 +228,11 @@ static void b43_phy_ht_op_software_rfkill(struct b43_wldev *dev,
 		b43_phy_maskset(dev, B43_PHY_HT_RF_CTL1, ~0, 0x1);
 		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, ~0);
 		b43_phy_maskset(dev, B43_PHY_HT_RF_CTL1, ~0, 0x2);
+
+		if (dev->phy.radio_ver == 0x2059)
+			b43_radio_2059_init(dev);
+		else
+			B43_WARN_ON(1);
 	}
 }
 
