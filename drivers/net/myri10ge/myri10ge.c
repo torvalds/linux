@@ -1911,6 +1911,60 @@ static u32 myri10ge_get_msglevel(struct net_device *netdev)
 	return mgp->msg_enable;
 }
 
+/*
+ * Use a low-level command to change the LED behavior. Rather than
+ * blinking (which is the normal case), when identify is used, the
+ * yellow LED turns solid.
+ */
+static int myri10ge_led(struct myri10ge_priv *mgp, int on)
+{
+	struct mcp_gen_header *hdr;
+	struct device *dev = &mgp->pdev->dev;
+	size_t hdr_off, pattern_off, hdr_len;
+	u32 pattern = 0xfffffffe;
+
+	/* find running firmware header */
+	hdr_off = swab32(readl(mgp->sram + MCP_HEADER_PTR_OFFSET));
+	if ((hdr_off & 3) || hdr_off + sizeof(*hdr) > mgp->sram_size) {
+		dev_err(dev, "Running firmware has bad header offset (%d)\n",
+			(int)hdr_off);
+		return -EIO;
+	}
+	hdr_len = swab32(readl(mgp->sram + hdr_off +
+			       offsetof(struct mcp_gen_header, header_length)));
+	pattern_off = hdr_off + offsetof(struct mcp_gen_header, led_pattern);
+	if (pattern_off >= (hdr_len + hdr_off)) {
+		dev_info(dev, "Firmware does not support LED identification\n");
+		return -EINVAL;
+	}
+	if (!on)
+		pattern = swab32(readl(mgp->sram + pattern_off + 4));
+	writel(htonl(pattern), mgp->sram + pattern_off);
+	return 0;
+}
+
+static int
+myri10ge_phys_id(struct net_device *netdev, enum ethtool_phys_id_state state)
+{
+	struct myri10ge_priv *mgp = netdev_priv(netdev);
+	int rc;
+
+	switch (state) {
+	case ETHTOOL_ID_ACTIVE:
+		rc = myri10ge_led(mgp, 1);
+		break;
+
+	case ETHTOOL_ID_INACTIVE:
+		rc =  myri10ge_led(mgp, 0);
+		break;
+
+	default:
+		rc = -EINVAL;
+	}
+
+	return rc;
+}
+
 static const struct ethtool_ops myri10ge_ethtool_ops = {
 	.get_settings = myri10ge_get_settings,
 	.get_drvinfo = myri10ge_get_drvinfo,
@@ -1925,6 +1979,7 @@ static const struct ethtool_ops myri10ge_ethtool_ops = {
 	.get_ethtool_stats = myri10ge_get_ethtool_stats,
 	.set_msglevel = myri10ge_set_msglevel,
 	.get_msglevel = myri10ge_get_msglevel,
+	.set_phys_id = myri10ge_phys_id,
 };
 
 static int myri10ge_allocate_rings(struct myri10ge_slice_state *ss)
