@@ -96,20 +96,20 @@ ENTRY(cpu_arm6_data_abort)
 	add	r6, r6, r6, lsr #4
 	and	r6, r6, #15			@ r6 = no. of registers to transfer.
 	and	r5, r8, #15 << 16		@ Extract 'n' from instruction
-	ldr	r7, [sp, r5, lsr #14]		@ Get register 'Rn'
+	ldr	r7, [r2, r5, lsr #14]		@ Get register 'Rn'
 	tst	r8, #1 << 23			@ Check U bit
 	subne	r7, r7, r6, lsl #2		@ Undo increment
 	addeq	r7, r7, r6, lsl #2		@ Undo decrement
-	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
+	str	r7, [r2, r5, lsr #14]		@ Put register 'Rn'
 	b	do_DataAbort
 
 .data_arm_apply_r6_and_rn:
 	and	r5, r8, #15 << 16		@ Extract 'n' from instruction
-	ldr	r7, [sp, r5, lsr #14]		@ Get register 'Rn'
+	ldr	r7, [r2, r5, lsr #14]		@ Get register 'Rn'
 	tst	r8, #1 << 23			@ Check U bit
 	subne	r7, r7, r6			@ Undo incrmenet
 	addeq	r7, r7, r6			@ Undo decrement
-	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
+	str	r7, [r2, r5, lsr #14]		@ Put register 'Rn'
 	b	do_DataAbort
 
 .data_arm_lateldrpreconst:
@@ -119,11 +119,11 @@ ENTRY(cpu_arm6_data_abort)
 	movs	r9, r8, lsl #20			@ Get offset
 	beq	do_DataAbort			@ zero -> no fixup
 	and	r5, r8, #15 << 16		@ Extract 'n' from instruction
-	ldr	r7, [sp, r5, lsr #14]		@ Get register 'Rn'
+	ldr	r7, [r2, r5, lsr #14]		@ Get register 'Rn'
 	tst	r8, #1 << 23			@ Check U bit
 	subne	r7, r7, r9, lsr #20		@ Undo increment
 	addeq	r7, r7, r9, lsr #20		@ Undo decrement
-	str	r7, [sp, r5, lsr #14]		@ Put register 'Rn'
+	str	r7, [r2, r5, lsr #14]		@ Put register 'Rn'
 	b	do_DataAbort
 
 .data_arm_lateldrprereg:
@@ -131,7 +131,7 @@ ENTRY(cpu_arm6_data_abort)
 	beq	do_DataAbort			@ no writeback -> no fixup
 .data_arm_lateldrpostreg:
 	and	r7, r8, #15			@ Extract 'm' from instruction
-	ldr	r6, [sp, r7, lsl #2]		@ Get register 'Rm'
+	ldr	r6, [r2, r7, lsl #2]		@ Get register 'Rm'
 	mov	r5, r8, lsr #7			@ get shift count
 	ands	r5, r5, #31
 	and	r7, r8, #0x70			@ get shift type
