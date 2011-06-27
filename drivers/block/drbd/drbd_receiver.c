@@ -384,8 +384,8 @@ void __drbd_free_peer_req(struct drbd_device *device, struct drbd_peer_request *
 	if (peer_req->flags & EE_HAS_DIGEST)
 		kfree(peer_req->digest);
 	drbd_free_pages(device, peer_req->pages, is_net);
-	D_ASSERT(atomic_read(&peer_req->pending_bios) == 0);
-	D_ASSERT(drbd_interval_empty(&peer_req->i));
+	D_ASSERT(device, atomic_read(&peer_req->pending_bios) == 0);
+	D_ASSERT(device, drbd_interval_empty(&peer_req->i));
 	mempool_free(peer_req, drbd_ee_mempool);
 }
 
@@ -1369,8 +1369,8 @@ next_bio:
 		sector += len >> 9;
 		--nr_pages;
 	}
-	D_ASSERT(page == NULL);
-	D_ASSERT(ds == 0);
+	D_ASSERT(device, page == NULL);
+	D_ASSERT(device, ds == 0);
 
 	atomic_set(&peer_req->pending_bios, n_bios);
 	do {
@@ -1624,7 +1624,7 @@ static int recv_dless_read(struct drbd_device *device, struct drbd_request *req,
 	device->recv_cnt += data_size>>9;
 
 	bio = req->master_bio;
-	D_ASSERT(sector == bio->bi_iter.bi_sector);
+	D_ASSERT(device, sector == bio->bi_iter.bi_sector);
 
 	bio_for_each_segment(bvec, bio, iter) {
 		void *mapped = kmap(bvec.bv_page) + bvec.bv_offset;
@@ -1644,7 +1644,7 @@ static int recv_dless_read(struct drbd_device *device, struct drbd_request *req,
 		}
 	}
 
-	D_ASSERT(data_size == 0);
+	D_ASSERT(device, data_size == 0);
 	return 0;
 }
 
@@ -1660,7 +1660,7 @@ static int e_end_resync_block(struct drbd_work *w, int unused)
 	sector_t sector = peer_req->i.sector;
 	int err;
 
-	D_ASSERT(drbd_interval_empty(&peer_req->i));
+	D_ASSERT(device, drbd_interval_empty(&peer_req->i));
 
 	if (likely((peer_req->flags & EE_WAS_ERROR) == 0)) {
 		drbd_set_in_sync(device, sector, peer_req->i.size);
@@ -1774,7 +1774,7 @@ static int receive_RSDataReply(struct drbd_connection *connection, struct packet
 		return -EIO;
 
 	sector = be64_to_cpu(p->sector);
-	D_ASSERT(p->block_id == ID_SYNCER);
+	D_ASSERT(device, p->block_id == ID_SYNCER);
 
 	if (get_ldev(device)) {
 		/* data is submitted to disk within recv_resync_read.
@@ -1845,13 +1845,13 @@ static int e_end_block(struct drbd_work *w, int cancel)
 	 * P_WRITE_ACK / P_NEG_ACK, to get the sequence number right.  */
 	if (peer_req->flags & EE_IN_INTERVAL_TREE) {
 		spin_lock_irq(&first_peer_device(device)->connection->req_lock);
-		D_ASSERT(!drbd_interval_empty(&peer_req->i));
+		D_ASSERT(device, !drbd_interval_empty(&peer_req->i));
 		drbd_remove_epoch_entry_interval(device, peer_req);
 		if (peer_req->flags & EE_RESTART_REQUESTS)
 			restart_conflicting_writes(device, sector, peer_req->i.size);
 		spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
 	} else
-		D_ASSERT(drbd_interval_empty(&peer_req->i));
+		D_ASSERT(device, drbd_interval_empty(&peer_req->i));
 
 	drbd_may_finish_epoch(first_peer_device(device)->connection, peer_req->epoch, EV_PUT + (cancel ? EV_CLEANUP : 0));
 
@@ -2197,8 +2197,8 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 	dp_flags = be32_to_cpu(p->dp_flags);
 	rw |= wire_flags_to_bio(device, dp_flags);
 	if (peer_req->pages == NULL) {
-		D_ASSERT(peer_req->i.size == 0);
-		D_ASSERT(dp_flags & DP_FLUSH);
+		D_ASSERT(device, peer_req->i.size == 0);
+		D_ASSERT(device, dp_flags & DP_FLUSH);
 	}
 
 	if (dp_flags & DP_MAY_SET_IN_SYNC)
@@ -2461,7 +2461,7 @@ static int receive_DataRequest(struct drbd_connection *connection, struct packet
 			goto out_free_e;
 
 		if (pi->cmd == P_CSUM_RS_REQUEST) {
-			D_ASSERT(first_peer_device(device)->connection->agreed_pro_version >= 89);
+			D_ASSERT(device, first_peer_device(device)->connection->agreed_pro_version >= 89);
 			peer_req->w.cb = w_e_end_csum_rs_req;
 			/* used in the sector offset progress display */
 			device->bm_resync_fo = BM_SECT_TO_BIT(sector);
@@ -3357,11 +3357,11 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
 	} else if (apv <= 94) {
 		header_size = sizeof(struct p_rs_param_89);
 		data_size = pi->size - header_size;
-		D_ASSERT(data_size == 0);
+		D_ASSERT(device, data_size == 0);
 	} else {
 		header_size = sizeof(struct p_rs_param_95);
 		data_size = pi->size - header_size;
-		D_ASSERT(data_size == 0);
+		D_ASSERT(device, data_size == 0);
 	}
 
 	/* initialize verify_alg and csums_alg */
@@ -3404,14 +3404,14 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
 				goto reconnect;
 			/* we expect NUL terminated string */
 			/* but just in case someone tries to be evil */
-			D_ASSERT(p->verify_alg[data_size-1] == 0);
+			D_ASSERT(device, p->verify_alg[data_size-1] == 0);
 			p->verify_alg[data_size-1] = 0;
 
 		} else /* apv >= 89 */ {
 			/* we still expect NUL terminated strings */
 			/* but just in case someone tries to be evil */
-			D_ASSERT(p->verify_alg[SHARED_SECRET_MAX-1] == 0);
-			D_ASSERT(p->csums_alg[SHARED_SECRET_MAX-1] == 0);
+			D_ASSERT(device, p->verify_alg[SHARED_SECRET_MAX-1] == 0);
+			D_ASSERT(device, p->csums_alg[SHARED_SECRET_MAX-1] == 0);
 			p->verify_alg[SHARED_SECRET_MAX-1] = 0;
 			p->csums_alg[SHARED_SECRET_MAX-1] = 0;
 		}
@@ -3945,7 +3945,7 @@ static int receive_state(struct drbd_connection *connection, struct packet_info 
 			} else {
 				if (test_and_clear_bit(CONN_DRY_RUN, &first_peer_device(device)->connection->flags))
 					return -EIO;
-				D_ASSERT(os.conn == C_WF_REPORT_PARAMS);
+				D_ASSERT(device, os.conn == C_WF_REPORT_PARAMS);
 				conn_request_state(first_peer_device(device)->connection, NS(conn, C_DISCONNECTING), CS_HARD);
 				return -EIO;
 			}
@@ -4016,7 +4016,7 @@ static int receive_sync_uuid(struct drbd_connection *connection, struct packet_i
 		   device->state.conn < C_CONNECTED ||
 		   device->state.disk < D_NEGOTIATING);
 
-	/* D_ASSERT( device->state.conn == C_WF_SYNC_UUID ); */
+	/* D_ASSERT(device,  device->state.conn == C_WF_SYNC_UUID ); */
 
 	/* Here the _drbd_uuid_ functions are right, current should
 	   _not_ be rotated into the history */
@@ -4293,7 +4293,7 @@ static int receive_bitmap(struct drbd_connection *connection, struct packet_info
 			goto out;
 		/* Omit CS_ORDERED with this state transition to avoid deadlocks. */
 		rv = _drbd_request_state(device, NS(conn, C_WF_SYNC_UUID), CS_VERBOSE);
-		D_ASSERT(rv == SS_SUCCESS);
+		D_ASSERT(device, rv == SS_SUCCESS);
 	} else if (device->state.conn != C_WF_BITMAP_S) {
 		/* admin may have requested C_DISCONNECTING,
 		 * other threads may have noticed network errors */
@@ -4569,10 +4569,10 @@ static int drbd_disconnected(struct drbd_device *device)
 	if (i)
 		drbd_info(device, "pp_in_use = %d, expected 0\n", i);
 
-	D_ASSERT(list_empty(&device->read_ee));
-	D_ASSERT(list_empty(&device->active_ee));
-	D_ASSERT(list_empty(&device->sync_ee));
-	D_ASSERT(list_empty(&device->done_ee));
+	D_ASSERT(device, list_empty(&device->read_ee));
+	D_ASSERT(device, list_empty(&device->active_ee));
+	D_ASSERT(device, list_empty(&device->sync_ee));
+	D_ASSERT(device, list_empty(&device->done_ee));
 
 	return 0;
 }
@@ -4902,7 +4902,7 @@ static int got_RqSReply(struct drbd_connection *connection, struct packet_info *
 		return -EIO;
 
 	if (test_bit(CONN_WD_ST_CHG_REQ, &connection->flags)) {
-		D_ASSERT(connection->agreed_pro_version < 100);
+		D_ASSERT(device, connection->agreed_pro_version < 100);
 		return got_conn_RqSReply(connection, pi);
 	}
 
@@ -4945,7 +4945,7 @@ static int got_IsInSync(struct drbd_connection *connection, struct packet_info *
 	if (!device)
 		return -EIO;
 
-	D_ASSERT(first_peer_device(device)->connection->agreed_pro_version >= 89);
+	D_ASSERT(device, first_peer_device(device)->connection->agreed_pro_version >= 89);
 
 	update_peer_seq(device, be32_to_cpu(p->seq_num));
 

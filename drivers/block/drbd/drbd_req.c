@@ -307,7 +307,7 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 static int drbd_req_put_completion_ref(struct drbd_request *req, struct bio_and_error *m, int put)
 {
 	struct drbd_device *device = req->w.device;
-	D_ASSERT(m || (req->rq_state & RQ_POSTPONED));
+	D_ASSERT(device, m || (req->rq_state & RQ_POSTPONED));
 
 	if (!atomic_sub_and_test(put, &req->completion_ref))
 		return 0;
@@ -374,7 +374,7 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 		++c_put;
 
 	if (!(s & RQ_LOCAL_ABORTED) && (set & RQ_LOCAL_ABORTED)) {
-		D_ASSERT(req->rq_state & RQ_LOCAL_PENDING);
+		D_ASSERT(device, req->rq_state & RQ_LOCAL_PENDING);
 		/* local completion may still come in later,
 		 * we need to keep the req object around. */
 		kref_get(&req->kref);
@@ -475,7 +475,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 	case TO_BE_SENT: /* via network */
 		/* reached via __drbd_make_request
 		 * and from w_read_retry_remote */
-		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
+		D_ASSERT(device, !(req->rq_state & RQ_NET_MASK));
 		rcu_read_lock();
 		nc = rcu_dereference(first_peer_device(device)->connection->net_conf);
 		p = nc->wire_protocol;
@@ -488,7 +488,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 	case TO_BE_SUBMITTED: /* locally */
 		/* reached via __drbd_make_request */
-		D_ASSERT(!(req->rq_state & RQ_LOCAL_MASK));
+		D_ASSERT(device, !(req->rq_state & RQ_LOCAL_MASK));
 		mod_rq_state(req, m, 0, RQ_LOCAL_PENDING);
 		break;
 
@@ -533,13 +533,13 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		/* So we can verify the handle in the answer packet.
 		 * Corresponding drbd_remove_request_interval is in
 		 * drbd_req_complete() */
-		D_ASSERT(drbd_interval_empty(&req->i));
+		D_ASSERT(device, drbd_interval_empty(&req->i));
 		drbd_insert_interval(&device->read_requests, &req->i);
 
 		set_bit(UNPLUG_REMOTE, &device->flags);
 
-		D_ASSERT(req->rq_state & RQ_NET_PENDING);
-		D_ASSERT((req->rq_state & RQ_LOCAL_MASK) == 0);
+		D_ASSERT(device, req->rq_state & RQ_NET_PENDING);
+		D_ASSERT(device, (req->rq_state & RQ_LOCAL_MASK) == 0);
 		mod_rq_state(req, m, 0, RQ_NET_QUEUED);
 		req->w.cb = w_send_read_req;
 		drbd_queue_work(&first_peer_device(device)->connection->sender_work, &req->w);
@@ -551,7 +551,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		/* Corresponding drbd_remove_request_interval is in
 		 * drbd_req_complete() */
-		D_ASSERT(drbd_interval_empty(&req->i));
+		D_ASSERT(device, drbd_interval_empty(&req->i));
 		drbd_insert_interval(&device->write_requests, &req->i);
 
 		/* NOTE
@@ -574,7 +574,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		set_bit(UNPLUG_REMOTE, &device->flags);
 
 		/* queue work item to send data */
-		D_ASSERT(req->rq_state & RQ_NET_PENDING);
+		D_ASSERT(device, req->rq_state & RQ_NET_PENDING);
 		mod_rq_state(req, m, 0, RQ_NET_QUEUED|RQ_EXP_BARR_ACK);
 		req->w.cb =  w_send_dblock;
 		drbd_queue_work(&first_peer_device(device)->connection->sender_work, &req->w);
@@ -640,15 +640,15 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 * If this request had been marked as RQ_POSTPONED before,
 		 * it will actually not be completed, but "restarted",
 		 * resubmitted from the retry worker context. */
-		D_ASSERT(req->rq_state & RQ_NET_PENDING);
-		D_ASSERT(req->rq_state & RQ_EXP_WRITE_ACK);
+		D_ASSERT(device, req->rq_state & RQ_NET_PENDING);
+		D_ASSERT(device, req->rq_state & RQ_EXP_WRITE_ACK);
 		mod_rq_state(req, m, RQ_NET_PENDING, RQ_NET_DONE|RQ_NET_OK);
 		break;
 
 	case WRITE_ACKED_BY_PEER_AND_SIS:
 		req->rq_state |= RQ_NET_SIS;
 	case WRITE_ACKED_BY_PEER:
-		D_ASSERT(req->rq_state & RQ_EXP_WRITE_ACK);
+		D_ASSERT(device, req->rq_state & RQ_EXP_WRITE_ACK);
 		/* protocol C; successfully written on peer.
 		 * Nothing more to do here.
 		 * We want to keep the tl in place for all protocols, to cater
@@ -656,22 +656,22 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		goto ack_common;
 	case RECV_ACKED_BY_PEER:
-		D_ASSERT(req->rq_state & RQ_EXP_RECEIVE_ACK);
+		D_ASSERT(device, req->rq_state & RQ_EXP_RECEIVE_ACK);
 		/* protocol B; pretends to be successfully written on peer.
 		 * see also notes above in HANDED_OVER_TO_NETWORK about
 		 * protocol != C */
 	ack_common:
-		D_ASSERT(req->rq_state & RQ_NET_PENDING);
+		D_ASSERT(device, req->rq_state & RQ_NET_PENDING);
 		mod_rq_state(req, m, RQ_NET_PENDING, RQ_NET_OK);
 		break;
 
 	case POSTPONE_WRITE:
-		D_ASSERT(req->rq_state & RQ_EXP_WRITE_ACK);
+		D_ASSERT(device, req->rq_state & RQ_EXP_WRITE_ACK);
 		/* If this node has already detected the write conflict, the
 		 * worker will be waiting on misc_wait.  Wake it up once this
 		 * request has completed locally.
 		 */
-		D_ASSERT(req->rq_state & RQ_NET_PENDING);
+		D_ASSERT(device, req->rq_state & RQ_NET_PENDING);
 		req->rq_state |= RQ_POSTPONED;
 		if (req->i.waiting)
 			wake_up(&device->misc_wait);
@@ -752,7 +752,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case DATA_RECEIVED:
-		D_ASSERT(req->rq_state & RQ_NET_PENDING);
+		D_ASSERT(device, req->rq_state & RQ_NET_PENDING);
 		mod_rq_state(req, m, RQ_NET_PENDING, RQ_NET_OK|RQ_NET_DONE);
 		break;
 
@@ -783,8 +783,8 @@ static bool drbd_may_do_local_read(struct drbd_device *device, sector_t sector, 
 		return false;
 	esector = sector + (size >> 9) - 1;
 	nr_sectors = drbd_get_capacity(device->this_bdev);
-	D_ASSERT(sector  < nr_sectors);
-	D_ASSERT(esector < nr_sectors);
+	D_ASSERT(device, sector  < nr_sectors);
+	D_ASSERT(device, esector < nr_sectors);
 
 	sbnr = BM_SECT_TO_BIT(sector);
 	ebnr = BM_SECT_TO_BIT(esector);
@@ -974,7 +974,7 @@ static int drbd_process_write_request(struct drbd_request *req)
 	 * replicating, in which case there is no point. */
 	if (unlikely(req->i.size == 0)) {
 		/* The only size==0 bios we expect are empty flushes. */
-		D_ASSERT(req->master_bio->bi_rw & REQ_FLUSH);
+		D_ASSERT(device, req->master_bio->bi_rw & REQ_FLUSH);
 		if (remote)
 			_req_mod(req, QUEUE_AS_DRBD_BARRIER);
 		return remote;
@@ -983,7 +983,7 @@ static int drbd_process_write_request(struct drbd_request *req)
 	if (!remote && !send_oos)
 		return 0;
 
-	D_ASSERT(!(remote && send_oos));
+	D_ASSERT(device, !(remote && send_oos));
 
 	if (remote) {
 		_req_mod(req, TO_BE_SENT);
@@ -1281,7 +1281,7 @@ void drbd_make_request(struct request_queue *q, struct bio *bio)
 	/*
 	 * what we "blindly" assume:
 	 */
-	D_ASSERT(IS_ALIGNED(bio->bi_iter.bi_size, 512));
+	D_ASSERT(device, IS_ALIGNED(bio->bi_iter.bi_size, 512));
 
 	inc_ap_bio(device);
 	__drbd_make_request(device, bio, start_time);

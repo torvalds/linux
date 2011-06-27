@@ -198,7 +198,7 @@ int drbd_md_sync_page_io(struct drbd_device *device, struct drbd_backing_dev *bd
 	int err;
 	struct page *iop = device->md_io_page;
 
-	D_ASSERT(atomic_read(&device->md_io_in_use) == 1);
+	D_ASSERT(device, atomic_read(&device->md_io_in_use) == 1);
 
 	BUG_ON(!bdev->md_bdev);
 
@@ -264,8 +264,8 @@ bool drbd_al_begin_io_fastpath(struct drbd_device *device, struct drbd_interval 
 	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
 	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
 
-	D_ASSERT((unsigned)(last - first) <= 1);
-	D_ASSERT(atomic_read(&device->local_cnt) > 0);
+	D_ASSERT(device, (unsigned)(last - first) <= 1);
+	D_ASSERT(device, atomic_read(&device->local_cnt) > 0);
 
 	/* FIXME figure out a fast path for bios crossing AL extent boundaries */
 	if (first != last)
@@ -284,8 +284,8 @@ bool drbd_al_begin_io_prepare(struct drbd_device *device, struct drbd_interval *
 	unsigned enr;
 	bool need_transaction = false;
 
-	D_ASSERT(first <= last);
-	D_ASSERT(atomic_read(&device->local_cnt) > 0);
+	D_ASSERT(device, first <= last);
+	D_ASSERT(device, atomic_read(&device->local_cnt) > 0);
 
 	for (enr = first; enr <= last; enr++) {
 		struct lc_element *al_ext;
@@ -371,7 +371,7 @@ int drbd_al_begin_io_nonblock(struct drbd_device *device, struct drbd_interval *
 	unsigned available_update_slots;
 	unsigned enr;
 
-	D_ASSERT(first <= last);
+	D_ASSERT(device, first <= last);
 
 	nr_al_extents = 1 + last - first; /* worst case: all touched extends are cold. */
 	available_update_slots = min(al->nr_elements - al->used,
@@ -419,7 +419,7 @@ void drbd_al_complete_io(struct drbd_device *device, struct drbd_interval *i)
 	struct lc_element *extent;
 	unsigned long flags;
 
-	D_ASSERT(first <= last);
+	D_ASSERT(device, first <= last);
 	spin_lock_irqsave(&device->al_lock, flags);
 
 	for (enr = first; enr <= last; enr++) {
@@ -648,7 +648,7 @@ void drbd_al_shrink(struct drbd_device *device)
 	struct lc_element *al_ext;
 	int i;
 
-	D_ASSERT(test_bit(__LC_LOCKED, &device->act_log->flags));
+	D_ASSERT(device, test_bit(__LC_LOCKED, &device->act_log->flags));
 
 	for (i = 0; i < device->act_log->nr_elements; i++) {
 		al_ext = lc_element_by_index(device->act_log, i);
@@ -729,7 +729,7 @@ static void drbd_try_clear_on_disk_bm(struct drbd_device *device, sector_t secto
 
 	unsigned int enr;
 
-	D_ASSERT(atomic_read(&device->local_cnt));
+	D_ASSERT(device, atomic_read(&device->local_cnt));
 
 	/* I simply assume that a sector/size pair never crosses
 	 * a 16 MB extent border. (Currently this is true...) */
@@ -1093,8 +1093,8 @@ int drbd_try_rs_begin_io(struct drbd_device *device, sector_t sector)
 		e = lc_find(device->resync, device->resync_wenr);
 		bm_ext = e ? lc_entry(e, struct bm_extent, lce) : NULL;
 		if (bm_ext) {
-			D_ASSERT(!test_bit(BME_LOCKED, &bm_ext->flags));
-			D_ASSERT(test_bit(BME_NO_WRITES, &bm_ext->flags));
+			D_ASSERT(device, !test_bit(BME_LOCKED, &bm_ext->flags));
+			D_ASSERT(device, test_bit(BME_NO_WRITES, &bm_ext->flags));
 			clear_bit(BME_NO_WRITES, &bm_ext->flags);
 			device->resync_wenr = LC_FREE;
 			if (lc_put(device->resync, &bm_ext->lce) == 0)
@@ -1118,7 +1118,7 @@ int drbd_try_rs_begin_io(struct drbd_device *device, sector_t sector)
 			 * so we tried again.
 			 * drop the extra reference. */
 			bm_ext->lce.refcnt--;
-			D_ASSERT(bm_ext->lce.refcnt > 0);
+			D_ASSERT(device, bm_ext->lce.refcnt > 0);
 		}
 		goto check_al;
 	} else {
@@ -1141,10 +1141,10 @@ int drbd_try_rs_begin_io(struct drbd_device *device, sector_t sector)
 			bm_ext->rs_failed = 0;
 			lc_committed(device->resync);
 			wake_up(&device->al_wait);
-			D_ASSERT(test_bit(BME_LOCKED, &bm_ext->flags) == 0);
+			D_ASSERT(device, test_bit(BME_LOCKED, &bm_ext->flags) == 0);
 		}
 		set_bit(BME_NO_WRITES, &bm_ext->flags);
-		D_ASSERT(bm_ext->lce.refcnt == 1);
+		D_ASSERT(device, bm_ext->lce.refcnt == 1);
 		device->resync_locked++;
 		goto check_al;
 	}
@@ -1244,8 +1244,8 @@ int drbd_rs_del_all(struct drbd_device *device)
 				drbd_info(device, "dropping %u in drbd_rs_del_all, apparently"
 				     " got 'synced' by application io\n",
 				     device->resync_wenr);
-				D_ASSERT(!test_bit(BME_LOCKED, &bm_ext->flags));
-				D_ASSERT(test_bit(BME_NO_WRITES, &bm_ext->flags));
+				D_ASSERT(device, !test_bit(BME_LOCKED, &bm_ext->flags));
+				D_ASSERT(device, test_bit(BME_NO_WRITES, &bm_ext->flags));
 				clear_bit(BME_NO_WRITES, &bm_ext->flags);
 				device->resync_wenr = LC_FREE;
 				lc_put(device->resync, &bm_ext->lce);
@@ -1257,11 +1257,11 @@ int drbd_rs_del_all(struct drbd_device *device)
 				spin_unlock_irq(&device->al_lock);
 				return -EAGAIN;
 			}
-			D_ASSERT(!test_bit(BME_LOCKED, &bm_ext->flags));
-			D_ASSERT(!test_bit(BME_NO_WRITES, &bm_ext->flags));
+			D_ASSERT(device, !test_bit(BME_LOCKED, &bm_ext->flags));
+			D_ASSERT(device, !test_bit(BME_NO_WRITES, &bm_ext->flags));
 			lc_del(device->resync, &bm_ext->lce);
 		}
-		D_ASSERT(device->resync->used == 0);
+		D_ASSERT(device, device->resync->used == 0);
 		put_ldev(device);
 	}
 	spin_unlock_irq(&device->al_lock);

@@ -376,7 +376,7 @@ drbd_req_state(struct drbd_device *device, union drbd_state mask,
 	spin_unlock_irqrestore(&first_peer_device(device)->connection->req_lock, flags);
 
 	if (f & CS_WAIT_COMPLETE && rv == SS_SUCCESS) {
-		D_ASSERT(current != first_peer_device(device)->connection->worker.task);
+		D_ASSERT(device, current != first_peer_device(device)->connection->worker.task);
 		wait_for_completion(&done);
 	}
 
@@ -1163,7 +1163,7 @@ static int w_after_state_ch(struct drbd_work *w, int unused)
 
 	after_state_ch(device, ascw->os, ascw->ns, ascw->flags);
 	if (ascw->flags & CS_WAIT_COMPLETE) {
-		D_ASSERT(ascw->done != NULL);
+		D_ASSERT(device, ascw->done != NULL);
 		complete(ascw->done);
 	}
 	kfree(ascw);
@@ -1195,7 +1195,7 @@ int drbd_bitmap_io_from_worker(struct drbd_device *device,
 {
 	int rv;
 
-	D_ASSERT(current == first_peer_device(device)->connection->worker.task);
+	D_ASSERT(device, current == first_peer_device(device)->connection->worker.task);
 
 	/* open coded non-blocking drbd_suspend_io(device); */
 	set_bit(SUSPEND_IO, &device->flags);

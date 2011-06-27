@@ -590,7 +590,7 @@ drbd_set_role(struct drbd_device *device, enum drbd_role new_role, int force)
 
 		if (rv == SS_NO_UP_TO_DATE_DISK &&
 		    device->state.disk == D_CONSISTENT && mask.pdsk == 0) {
-			D_ASSERT(device->state.pdsk == D_UNKNOWN);
+			D_ASSERT(device, device->state.pdsk == D_UNKNOWN);
 
 			if (conn_try_outdate_peer(first_peer_device(device)->connection)) {
 				val.disk = D_UP_TO_DATE;
@@ -1644,7 +1644,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	 * Devices and memory are no longer released by error cleanup below.
 	 * now device takes over responsibility, and the state engine should
 	 * clean it up somewhere.  */
-	D_ASSERT(device->ldev == NULL);
+	D_ASSERT(device, device->ldev == NULL);
 	device->ldev = nbc;
 	device->resync = resync_lru;
 	device->rs_plan_s = new_plan;
@@ -3011,8 +3011,8 @@ next_resource:
 		}
 
 		device = peer_device->device;
-		D_ASSERT(device->vnr == volume);
-		D_ASSERT(first_peer_device(device)->connection == connection);
+		D_ASSERT(device, device->vnr == volume);
+		D_ASSERT(device, first_peer_device(device)->connection == connection);
 
 		dh->minor = device_to_minor(device);
 		dh->ret_code = NO_ERROR;

@@ -692,7 +692,7 @@ int drbd_bm_resize(struct drbd_device *device, sector_t capacity, int set_new_bi
 	want = ALIGN(words*sizeof(long), PAGE_SIZE) >> PAGE_SHIFT;
 	have = b->bm_number_of_pages;
 	if (want == have) {
-		D_ASSERT(b->bm_pages != NULL);
+		D_ASSERT(device, b->bm_pages != NULL);
 		npages = b->bm_pages;
 	} else {
 		if (drbd_insert_fault(device, DRBD_FAULT_BM_ALLOC))

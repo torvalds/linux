@@ -881,7 +881,7 @@ int drbd_resync_finished(struct drbd_device *device)
 			khelper_cmd = "out-of-sync";
 		}
 	} else {
-		D_ASSERT((n_oos - device->rs_failed) == 0);
+		D_ASSERT(device, (n_oos - device->rs_failed) == 0);
 
 		if (os.conn == C_SYNC_TARGET || os.conn == C_PAUSED_SYNC_T)
 			khelper_cmd = "after-resync-target";
@@ -1099,7 +1099,7 @@ int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 		 * introducing more locking mechanisms */
 		if (first_peer_device(device)->connection->csums_tfm) {
 			digest_size = crypto_hash_digestsize(first_peer_device(device)->connection->csums_tfm);
-			D_ASSERT(digest_size == di->digest_size);
+			D_ASSERT(device, digest_size == di->digest_size);
 			digest = kmalloc(digest_size, GFP_NOIO);
 		}
 		if (digest) {
@@ -1223,7 +1223,7 @@ int w_e_end_ov_reply(struct drbd_work *w, int cancel)
 		if (digest) {
 			drbd_csum_ee(device, first_peer_device(device)->connection->verify_tfm, peer_req, digest);
 
-			D_ASSERT(digest_size == di->digest_size);
+			D_ASSERT(device, digest_size == di->digest_size);
 			eq = !memcmp(digest, di->digest, digest_size);
 			kfree(digest);
 		}
@@ -1936,7 +1936,7 @@ int drbd_worker(struct drbd_thread *thi)
 	rcu_read_lock();
 	idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
 		struct drbd_device *device = peer_device->device;
-		D_ASSERT(device->state.disk == D_DISKLESS && device->state.conn == C_STANDALONE);
+		D_ASSERT(device, device->state.disk == D_DISKLESS && device->state.conn == C_STANDALONE);
 		kref_get(&device->kref);
 		rcu_read_unlock();
 		drbd_device_cleanup(device);
