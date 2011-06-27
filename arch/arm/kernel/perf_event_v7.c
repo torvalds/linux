@@ -787,7 +787,7 @@ static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
 		if (!armpmu_event_set_period(event, hwc, idx))
 			continue;
 
-		if (perf_event_overflow(event, 0, &data, regs))
+		if (perf_event_overflow(event, &data, regs))
 			armpmu->disable(hwc, idx);
 	}
 

@@ -63,7 +63,7 @@ static inline int put_stack_long(struct task_struct *task, int offset,
 	return 0;
 }
 
-void ptrace_triggered(struct perf_event *bp, int nmi,
+void ptrace_triggered(struct perf_event *bp,
 		      struct perf_sample_data *data, struct pt_regs *regs)
 {
 	struct perf_event_attr attr;

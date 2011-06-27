@@ -211,7 +211,7 @@ static struct perf_event_attr wd_hw_attr = {
 };
 
 /* Callback function for perf event subsystem */
-static void watchdog_overflow_callback(struct perf_event *event, int nmi,
+static void watchdog_overflow_callback(struct perf_event *event,
 		 struct perf_sample_data *data,
 		 struct pt_regs *regs)
 {
