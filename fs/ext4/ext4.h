@@ -2125,6 +2125,19 @@ static inline void ext4_mark_super_dirty(struct super_block *sb)
 }
 
 /*
+ * Block validity checking
+ */
+#define ext4_check_indirect_blockref(inode, bh)				\
+	ext4_check_blockref(__func__, __LINE__, inode,			\
+			    (__le32 *)(bh)->b_data,			\
+			    EXT4_ADDR_PER_BLOCK((inode)->i_sb))
+
+#define ext4_ind_check_inode(inode)					\
+	ext4_check_blockref(__func__, __LINE__, inode,			\
+			    EXT4_I(inode)->i_data,			\
+			    EXT4_NDIR_BLOCKS)
+
+/*
  * Inodes and files operations
  */
 
@@ -2153,6 +2166,8 @@ extern void ext4_exit_system_zone(void);
 extern int ext4_data_block_valid(struct ext4_sb_info *sbi,
 				 ext4_fsblk_t start_blk,
 				 unsigned int count);
+extern int ext4_check_blockref(const char *, unsigned int,
+			       struct inode *, __le32 *, unsigned int);
 
 /* extents.c */
 extern int ext4_ext_tree_init(handle_t *handle, struct inode *);

@@ -360,39 +360,6 @@ static int ext4_block_to_path(struct inode *inode,
 	return n;
 }
 
-static int __ext4_check_blockref(const char *function, unsigned int line,
-				 struct inode *inode,
-				 __le32 *p, unsigned int max)
-{
-	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
-	__le32 *bref = p;
-	unsigned int blk;
-
-	while (bref < p+max) {
-		blk = le32_to_cpu(*bref++);
-		if (blk &&
-		    unlikely(!ext4_data_block_valid(EXT4_SB(inode->i_sb),
-						    blk, 1))) {
-			es->s_last_error_block = cpu_to_le64(blk);
-			ext4_error_inode(inode, function, line, blk,
-					 "invalid block");
-			return -EIO;
-		}
-	}
-	return 0;
-}
-
-
-#define ext4_check_indirect_blockref(inode, bh)                         \
-	__ext4_check_blockref(__func__, __LINE__, inode,		\
-			      (__le32 *)(bh)->b_data,			\
-			      EXT4_ADDR_PER_BLOCK((inode)->i_sb))
-
-#define ext4_check_inode_blockref(inode)                                \
-	__ext4_check_blockref(__func__, __LINE__, inode,		\
-			      EXT4_I(inode)->i_data,			\
-			      EXT4_NDIR_BLOCKS)
-
 /**
  *	ext4_get_branch - read the chain of indirect blocks leading to data
  *	@inode: inode in question
@@ -5010,7 +4977,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 		   (S_ISLNK(inode->i_mode) &&
 		    !ext4_inode_is_fast_symlink(inode))) {
 		/* Validate block references which are part of inode */
-		ret = ext4_check_inode_blockref(inode);
+		ret = ext4_ind_check_inode(inode);
 	}
 	if (ret)
 		goto bad_inode;
