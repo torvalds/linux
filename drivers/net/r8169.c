@@ -659,7 +659,6 @@ struct rtl8169_private {
 	unsigned int (*phy_reset_pending)(struct rtl8169_private *tp);
 	unsigned int (*link_ok)(void __iomem *);
 	int (*do_ioctl)(struct rtl8169_private *tp, struct mii_ioctl_data *data, int cmd);
-	int pcie_cap;
 	struct delayed_work task;
 	unsigned features;
 
@@ -3444,9 +3443,8 @@ rtl8169_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	tp->mmio_addr = ioaddr;
 
-	tp->pcie_cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
-	if (!tp->pcie_cap)
-		netif_info(tp, probe, dev, "no PCI Express capability\n");
+	if (!pci_is_pcie(pdev))
+		netif_info(tp, probe, dev, "not PCI Express\n");
 
 	RTL_W16(IntrMask, 0x0000);
 
@@ -3898,9 +3896,7 @@ static void rtl_hw_start_8169(struct net_device *dev)
 
 static void rtl_tx_performance_tweak(struct pci_dev *pdev, u16 force)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
-	int cap = tp->pcie_cap;
+	int cap = pci_pcie_cap(pdev);
 
 	if (cap) {
 		u16 ctl;
@@ -3948,9 +3944,7 @@ static void rtl_ephy_init(void __iomem *ioaddr, const struct ephy_info *e, int l
 
 static void rtl_disable_clock_request(struct pci_dev *pdev)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
-	int cap = tp->pcie_cap;
+	int cap = pci_pcie_cap(pdev);
 
 	if (cap) {
 		u16 ctl;
@@ -3963,9 +3957,7 @@ static void rtl_disable_clock_request(struct pci_dev *pdev)
 
 static void rtl_enable_clock_request(struct pci_dev *pdev)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
-	int cap = tp->pcie_cap;
+	int cap = pci_pcie_cap(pdev);
 
 	if (cap) {
 		u16 ctl;
@@ -4395,7 +4387,7 @@ static void rtl_hw_start_8101(struct net_device *dev)
 
 	if (tp->mac_version == RTL_GIGA_MAC_VER_13 ||
 	    tp->mac_version == RTL_GIGA_MAC_VER_16) {
-		int cap = tp->pcie_cap;
+		int cap = pci_pcie_cap(pdev);
 
 		if (cap) {
 			pci_write_config_word(pdev, cap + PCI_EXP_DEVCTL,
