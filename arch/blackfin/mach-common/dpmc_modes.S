@@ -196,21 +196,20 @@ ENTRY(_set_dram_srfs)
 #else 				/* SDRAM */
 	P0.L = lo(EBIU_SDGCTL);
 	P0.H = hi(EBIU_SDGCTL);
+	P1.L = lo(EBIU_SDSTAT);
+	P1.H = hi(EBIU_SDSTAT);
+
 	R2 = [P0];
 	BITSET(R2, 24); /* SRFS enter self-refresh mode */
 	[P0] = R2;
 	SSYNC;
 
-	P0.L = lo(EBIU_SDSTAT);
-	P0.H = hi(EBIU_SDSTAT);
 1:
-	R2 = w[P0];
+	R2 = w[P1];
 	SSYNC;
 	cc = BITTST(R2, 1); /* SDSRA poll self-refresh status */
 	if !cc jump 1b;
 
-	P0.L = lo(EBIU_SDGCTL);
-	P0.H = hi(EBIU_SDGCTL);
 	R2 = [P0];
 	BITCLR(R2, 0); /* SCTLE disable CLKOUT */
 	[P0] = R2;
@@ -220,6 +219,7 @@ ENDPROC(_set_dram_srfs)
 
 ENTRY(_unset_dram_srfs)
 	/*  set the dram out of self refresh mode */
+
 #if defined(EBIU_RSTCTL)	/* DDR */
 	P0.H = hi(EBIU_RSTCTL);
 	P0.L = lo(EBIU_RSTCTL);
@@ -227,20 +227,21 @@ ENTRY(_unset_dram_srfs)
 	BITCLR(R2, 3); /* clear SRREQ bit */
 	[P0] = R2;
 #elif defined(EBIU_SDGCTL)	/* SDRAM */
-
-	P0.L = lo(EBIU_SDGCTL); /* release CLKOUT from self-refresh */
+	/* release CLKOUT from self-refresh */
+	P0.L = lo(EBIU_SDGCTL);
 	P0.H = hi(EBIU_SDGCTL);
+
 	R2 = [P0];
 	BITSET(R2, 0); /* SCTLE enable CLKOUT */
 	[P0] = R2
 	SSYNC;
 
-	P0.L = lo(EBIU_SDGCTL); /* release SDRAM from self-refresh */
-	P0.H = hi(EBIU_SDGCTL);
+	/* release SDRAM from self-refresh */
 	R2 = [P0];
 	BITCLR(R2, 24); /* clear SRFS bit */
 	[P0] = R2
 #endif
+
 	SSYNC;
 	RTS;
 ENDPROC(_unset_dram_srfs)
