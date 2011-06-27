@@ -81,6 +81,7 @@ void drbd_md_io_complete(struct bio *bio, int error)
 	wake_up(&mdev->misc_wait);
 	bio_put(bio);
 	drbd_md_put_buffer(mdev);
+	put_ldev(mdev);
 }
 
 /* reads on behalf of the partner,

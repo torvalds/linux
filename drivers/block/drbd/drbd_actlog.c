@@ -118,6 +118,12 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	bio->bi_end_io = drbd_md_io_complete;
 	bio->bi_rw = rw;
 
+	if (!get_ldev_if_state(mdev, D_ATTACHING)) {  /* Corresponding put_ldev in drbd_md_io_complete() */
+		dev_err(DEV, "ASSERT FAILED: get_ldev_if_state() == 1 in _drbd_md_sync_page_io()\n");
+		ok = 0;
+		goto out;
+	}
+
 	bio_get(bio); /* one bio_put() is in the completion handler */
 	atomic_inc(&mdev->md_io_in_use); /* drbd_md_put_buffer() is in the completion handler */
 	if (drbd_insert_fault(mdev, (rw & WRITE) ? DRBD_FAULT_MD_WR : DRBD_FAULT_MD_RD))
