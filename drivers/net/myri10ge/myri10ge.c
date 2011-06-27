@@ -193,6 +193,7 @@ struct myri10ge_slice_state {
 	int watchdog_tx_done;
 	int watchdog_tx_req;
 	int watchdog_rx_done;
+	int stuck;
 #ifdef CONFIG_MYRI10GE_DCA
 	int cached_dca_tag;
 	int cpu;
@@ -3442,6 +3443,42 @@ static u32 myri10ge_read_reboot(struct myri10ge_priv *mgp)
 	return reboot;
 }
 
+static void
+myri10ge_check_slice(struct myri10ge_slice_state *ss, int *reset_needed,
+		     int *busy_slice_cnt, u32 rx_pause_cnt)
+{
+	struct myri10ge_priv *mgp = ss->mgp;
+	int slice = ss - mgp->ss;
+
+	if (ss->tx.req != ss->tx.done &&
+	    ss->tx.done == ss->watchdog_tx_done &&
+	    ss->watchdog_tx_req != ss->watchdog_tx_done) {
+		/* nic seems like it might be stuck.. */
+		if (rx_pause_cnt != mgp->watchdog_pause) {
+			if (net_ratelimit())
+				netdev_warn(mgp->dev, "slice %d: TX paused, "
+					    "check link partner\n", slice);
+		} else {
+			netdev_warn(mgp->dev,
+				    "slice %d: TX stuck %d %d %d %d %d %d\n",
+				    slice, ss->tx.queue_active, ss->tx.req,
+				    ss->tx.done, ss->tx.pkt_start,
+				    ss->tx.pkt_done,
+				    (int)ntohl(mgp->ss[slice].fw_stats->
+					       send_done_count));
+			*reset_needed = 1;
+			ss->stuck = 1;
+		}
+	}
+	if (ss->watchdog_tx_done != ss->tx.done ||
+	    ss->watchdog_rx_done != ss->rx_done.cnt) {
+		*busy_slice_cnt += 1;
+	}
+	ss->watchdog_tx_done = ss->tx.done;
+	ss->watchdog_tx_req = ss->tx.req;
+	ss->watchdog_rx_done = ss->rx_done.cnt;
+}
+
 /*
  * This watchdog is used to check whether the board has suffered
  * from a parity error and needs to be recovered.
@@ -3450,10 +3487,12 @@ static void myri10ge_watchdog(struct work_struct *work)
 {
 	struct myri10ge_priv *mgp =
 	    container_of(work, struct myri10ge_priv, watchdog_work);
-	struct myri10ge_tx_buf *tx;
-	u32 reboot;
+	struct myri10ge_slice_state *ss;
+	u32 reboot, rx_pause_cnt;
 	int status, rebooted;
 	int i;
+	int reset_needed = 0;
+	int busy_slice_cnt = 0;
 	u16 cmd, vendor;
 
 	mgp->watchdog_resets++;
@@ -3465,8 +3504,7 @@ static void myri10ge_watchdog(struct work_struct *work)
 		 * For now, just report it */
 		reboot = myri10ge_read_reboot(mgp);
 		netdev_err(mgp->dev, "NIC rebooted (0x%x),%s resetting\n",
-			   reboot,
-			   myri10ge_reset_recover ? "" : " not");
+			   reboot, myri10ge_reset_recover ? "" : " not");
 		if (myri10ge_reset_recover == 0)
 			return;
 		rtnl_lock();
@@ -3498,23 +3536,24 @@ static void myri10ge_watchdog(struct work_struct *work)
 				return;
 			}
 		}
-		/* Perhaps it is a software error.  Try to reset */
+		/* Perhaps it is a software error. See if stuck slice
+		 * has recovered, reset if not */
+		rx_pause_cnt = ntohl(mgp->ss[0].fw_stats->dropped_pause);
+		for (i = 0; i < mgp->num_slices; i++) {
+			ss = mgp->ss;
+			if (ss->stuck) {
+				myri10ge_check_slice(ss, &reset_needed,
+						     &busy_slice_cnt,
+						     rx_pause_cnt);
+				ss->stuck = 0;
+			}
+		}
+		if (!reset_needed) {
+			netdev_dbg(mgp->dev, "not resetting\n");
+			return;
+		}
 
 		netdev_err(mgp->dev, "device timeout, resetting\n");
-		for (i = 0; i < mgp->num_slices; i++) {
-			tx = &mgp->ss[i].tx;
-			netdev_err(mgp->dev, "(%d): %d %d %d %d %d %d\n",
-				   i, tx->queue_active, tx->req,
-				   tx->done, tx->pkt_start, tx->pkt_done,
-				   (int)ntohl(mgp->ss[i].fw_stats->
-					      send_done_count));
-			msleep(2000);
-			netdev_info(mgp->dev, "(%d): %d %d %d %d %d %d\n",
-				    i, tx->queue_active, tx->req,
-				    tx->done, tx->pkt_start, tx->pkt_done,
-				    (int)ntohl(mgp->ss[i].fw_stats->
-					       send_done_count));
-		}
 	}
 
 	if (!rebooted) {
@@ -3567,27 +3606,8 @@ static void myri10ge_watchdog_timer(unsigned long arg)
 			    myri10ge_fill_thresh)
 				ss->rx_big.watchdog_needed = 0;
 		}
-
-		if (ss->tx.req != ss->tx.done &&
-		    ss->tx.done == ss->watchdog_tx_done &&
-		    ss->watchdog_tx_req != ss->watchdog_tx_done) {
-			/* nic seems like it might be stuck.. */
-			if (rx_pause_cnt != mgp->watchdog_pause) {
-				if (net_ratelimit())
-					netdev_err(mgp->dev, "slice %d: TX paused, check link partner\n",
-						   i);
-			} else {
-				netdev_warn(mgp->dev, "slice %d stuck:", i);
-				reset_needed = 1;
-			}
-		}
-		if (ss->watchdog_tx_done != ss->tx.done ||
-		    ss->watchdog_rx_done != ss->rx_done.cnt) {
-			busy_slice_cnt++;
-		}
-		ss->watchdog_tx_done = ss->tx.done;
-		ss->watchdog_tx_req = ss->tx.req;
-		ss->watchdog_rx_done = ss->rx_done.cnt;
+		myri10ge_check_slice(ss, &reset_needed, &busy_slice_cnt,
+				     rx_pause_cnt);
 	}
 	/* if we've sent or received no traffic, poll the NIC to
 	 * ensure it is still there.  Otherwise, we risk not noticing
