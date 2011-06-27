@@ -113,8 +113,10 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 
 	vma = nouveau_bo_vma_find(nvbo, fpriv->vm);
 	if (vma) {
-		if (--vma->refcount == 0)
+		if (--vma->refcount == 0) {
 			nouveau_bo_vma_del(nvbo, vma);
+			kfree(vma);
+		}
 	}
 	ttm_bo_unreserve(&nvbo->bo);
 }

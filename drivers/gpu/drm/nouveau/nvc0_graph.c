@@ -106,7 +106,8 @@ nvc0_graph_construct_context(struct nouveau_channel *chan)
 		if (!nv_wait(dev, 0x409800, 0x80000000, 0x80000000)) {
 			NV_ERROR(dev, "PGRAPH: HUB_SET_CHAN timeout\n");
 			nvc0_graph_ctxctl_debug(dev);
-			return -EBUSY;
+			ret = -EBUSY;
+			goto err;
 		}
 	} else {
 		nvc0_graph_load_context(chan);
@@ -119,10 +120,8 @@ nvc0_graph_construct_context(struct nouveau_channel *chan)
 	}
 
 	ret = nvc0_grctx_generate(chan);
-	if (ret) {
-		kfree(ctx);
-		return ret;
-	}
+	if (ret)
+		goto err;
 
 	if (!nouveau_ctxfw) {
 		nv_wr32(dev, 0x409840, 0x80000000);
@@ -131,14 +130,13 @@ nvc0_graph_construct_context(struct nouveau_channel *chan)
 		if (!nv_wait(dev, 0x409800, 0x80000000, 0x80000000)) {
 			NV_ERROR(dev, "PGRAPH: HUB_CTX_SAVE timeout\n");
 			nvc0_graph_ctxctl_debug(dev);
-			return -EBUSY;
+			ret = -EBUSY;
+			goto err;
 		}
 	} else {
 		ret = nvc0_graph_unload_context_to(dev, chan->ramin->vinst);
-		if (ret) {
-			kfree(ctx);
-			return ret;
-		}
+		if (ret)
+			goto err;
 	}
 
 	for (i = 0; i < priv->grctx_size; i += 4)
@@ -146,6 +144,10 @@ nvc0_graph_construct_context(struct nouveau_channel *chan)
 
 	priv->grctx_vals = ctx;
 	return 0;
+
+err:
+	kfree(ctx);
+	return ret;
 }
 
 static int
