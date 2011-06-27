@@ -3135,7 +3135,7 @@ jme_shutdown(struct pci_dev *pdev)
 	pci_pme_active(pdev, true);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int jme_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
