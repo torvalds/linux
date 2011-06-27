@@ -1288,22 +1288,21 @@ struct se_wwn *tcm_loop_make_scsi_hba(
 		goto check_len;
 	}
 	ptr = strstr(name, "iqn.");
-	if (ptr) {
-		tl_hba->tl_proto_id = SCSI_PROTOCOL_ISCSI;
-		goto check_len;
+	if (!ptr) {
+		printk(KERN_ERR "Unable to locate prefix for emulated Target "
+				"Port: %s\n", name);
+		ret = -EINVAL;
+		goto out;
 	}
-
-	printk(KERN_ERR "Unable to locate prefix for emulated Target Port:"
-			" %s\n", name);
-	return ERR_PTR(-EINVAL);
+	tl_hba->tl_proto_id = SCSI_PROTOCOL_ISCSI;
 
 check_len:
 	if (strlen(name) >= TL_WWN_ADDR_LEN) {
 		printk(KERN_ERR "Emulated NAA %s Address: %s, exceeds"
 			" max: %d\n", name, tcm_loop_dump_proto_id(tl_hba),
 			TL_WWN_ADDR_LEN);
-		kfree(tl_hba);
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		goto out;
 	}
 	snprintf(&tl_hba->tl_wwn_address[0], TL_WWN_ADDR_LEN, "%s", &name[off]);
 
