@@ -578,8 +578,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	if (!jffs2_is_writebuffered(c))
 		return 0;
 
-	if (mutex_trylock(&c->alloc_sem)) {
-		mutex_unlock(&c->alloc_sem);
+	if (!mutex_is_locked(&c->alloc_sem)) {
 		printk(KERN_CRIT "jffs2_flush_wbuf() called with alloc_sem not locked!\n");
 		BUG();
 	}
