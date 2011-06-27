@@ -310,10 +310,7 @@ void iwl_cmd_queue_unmap(struct iwl_priv *priv)
 		i = get_cmd_index(q, q->read_ptr);
 
 		if (txq->meta[i].flags & CMD_MAPPED) {
-			pci_unmap_single(priv->pci_dev,
-					 dma_unmap_addr(&txq->meta[i], mapping),
-					 dma_unmap_len(&txq->meta[i], len),
-					 PCI_DMA_BIDIRECTIONAL);
+			iwlagn_unmap_tfd(priv, &txq->meta[i], &txq->tfds[i]);
 			txq->meta[i].flags = 0;
 		}
 
