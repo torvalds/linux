@@ -1669,6 +1669,28 @@ static int ar6k_get_station(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+static int ar6k_set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
+			  struct cfg80211_pmksa *pmksa)
+{
+	struct ar6_softc *ar = ar6k_priv(netdev);
+	return wmi_setPmkid_cmd(ar->arWmi, pmksa->bssid, pmksa->pmkid, true);
+}
+
+static int ar6k_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
+			  struct cfg80211_pmksa *pmksa)
+{
+	struct ar6_softc *ar = ar6k_priv(netdev);
+	return wmi_setPmkid_cmd(ar->arWmi, pmksa->bssid, pmksa->pmkid, false);
+}
+
+static int ar6k_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
+{
+	struct ar6_softc *ar = ar6k_priv(netdev);
+	if (ar->arConnected)
+		return wmi_setPmkid_cmd(ar->arWmi, ar->arBssid, NULL, false);
+	return 0;
+}
+
 static struct
 cfg80211_ops ar6k_cfg80211_ops = {
     .change_virtual_intf = ar6k_cfg80211_change_iface,
@@ -1690,6 +1712,9 @@ cfg80211_ops ar6k_cfg80211_ops = {
     .join_ibss = ar6k_cfg80211_join_ibss,
     .leave_ibss = ar6k_cfg80211_leave_ibss,
     .get_station = ar6k_get_station,
+    .set_pmksa = ar6k_set_pmksa,
+    .del_pmksa = ar6k_del_pmksa,
+    .flush_pmksa = ar6k_flush_pmksa,
     CFG80211_TESTMODE_CMD(ar6k_testmode_cmd)
 };
 
