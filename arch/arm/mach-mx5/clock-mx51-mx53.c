@@ -1254,12 +1254,20 @@ DEFINE_CLOCK(uart2_ipg_clk, 1, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG5_OFFSET,
 	NULL,  NULL, &ipg_clk, &aips_tz1_clk);
 DEFINE_CLOCK(uart3_ipg_clk, 2, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG7_OFFSET,
 	NULL,  NULL, &ipg_clk, &spba_clk);
+DEFINE_CLOCK(uart4_ipg_clk, 3, MXC_CCM_CCGR7, MXC_CCM_CCGRx_CG4_OFFSET,
+	NULL,  NULL, &ipg_clk, &spba_clk);
+DEFINE_CLOCK(uart5_ipg_clk, 4, MXC_CCM_CCGR7, MXC_CCM_CCGRx_CG6_OFFSET,
+	NULL,  NULL, &ipg_clk, &spba_clk);
 DEFINE_CLOCK(uart1_clk, 0, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG4_OFFSET,
 	NULL,  NULL, &uart_root_clk, &uart1_ipg_clk);
 DEFINE_CLOCK(uart2_clk, 1, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG6_OFFSET,
 	NULL,  NULL, &uart_root_clk, &uart2_ipg_clk);
 DEFINE_CLOCK(uart3_clk, 2, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG8_OFFSET,
 	NULL,  NULL, &uart_root_clk, &uart3_ipg_clk);
+DEFINE_CLOCK(uart4_clk, 3, MXC_CCM_CCGR7, MXC_CCM_CCGRx_CG5_OFFSET,
+	NULL,  NULL, &uart_root_clk, &uart4_ipg_clk);
+DEFINE_CLOCK(uart5_clk, 4, MXC_CCM_CCGR7, MXC_CCM_CCGRx_CG7_OFFSET,
+	NULL,  NULL, &uart_root_clk, &uart5_ipg_clk);
 
 /* GPT */
 DEFINE_CLOCK(gpt_ipg_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG10_OFFSET,
@@ -1464,6 +1472,8 @@ static struct clk_lookup mx53_lookups[] = {
 	_REGISTER_CLOCK("imx-uart.0", NULL, uart1_clk)
 	_REGISTER_CLOCK("imx-uart.1", NULL, uart2_clk)
 	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
+	_REGISTER_CLOCK("imx-uart.3", NULL, uart4_clk)
+	_REGISTER_CLOCK("imx-uart.4", NULL, uart5_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
 	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK(NULL, "iim_clk", iim_clk)
