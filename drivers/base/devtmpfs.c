@@ -144,27 +144,21 @@ int devtmpfs_delete_node(struct device *dev)
 
 static int dev_mkdir(const char *name, mode_t mode)
 {
-	struct nameidata nd;
 	struct dentry *dentry;
+	struct path path;
 	int err;
 
-	err = kern_path_parent(name, &nd);
-	if (err)
-		return err;
+	dentry = kern_path_create(AT_FDCWD, name, &path, 1);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
 
-	dentry = lookup_create(&nd, 1);
-	if (!IS_ERR(dentry)) {
-		err = vfs_mkdir(nd.path.dentry->d_inode, dentry, mode);
-		if (!err)
-			/* mark as kernel-created inode */
-			dentry->d_inode->i_private = &thread;
-		dput(dentry);
-	} else {
-		err = PTR_ERR(dentry);
-	}
-
-	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-	path_put(&nd.path);
+	err = vfs_mkdir(path.dentry->d_inode, dentry, mode);
+	if (!err)
+		/* mark as kernel-created inode */
+		dentry->d_inode->i_private = &thread;
+	dput(dentry);
+	mutex_unlock(&path.dentry->d_inode->i_mutex);
+	path_put(&path);
 	return err;
 }
 
@@ -203,42 +197,37 @@ out:
 
 static int handle_create(const char *nodename, mode_t mode, struct device *dev)
 {
-	struct nameidata nd;
 	struct dentry *dentry;
+	struct path path;
 	int err;
 
-	err = kern_path_parent(nodename, &nd);
-	if (err == -ENOENT) {
+	dentry = kern_path_create(AT_FDCWD, nodename, &path, 0);
+	if (dentry == ERR_PTR(-ENOENT)) {
 		create_path(nodename);
-		err = kern_path_parent(nodename, &nd);
+		dentry = kern_path_create(AT_FDCWD, nodename, &path, 0);
 	}
-	if (err)
-		return err;
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
 
-	dentry = lookup_create(&nd, 0);
-	if (!IS_ERR(dentry)) {
-		err = vfs_mknod(nd.path.dentry->d_inode,
-				dentry, mode, dev->devt);
-		if (!err) {
-			struct iattr newattrs;
+	err = vfs_mknod(path.dentry->d_inode,
+			dentry, mode, dev->devt);
+	if (!err) {
+		struct iattr newattrs;
 
-			/* fixup possibly umasked mode */
-			newattrs.ia_mode = mode;
-			newattrs.ia_valid = ATTR_MODE;
-			mutex_lock(&dentry->d_inode->i_mutex);
-			notify_change(dentry, &newattrs);
-			mutex_unlock(&dentry->d_inode->i_mutex);
+		/* fixup possibly umasked mode */
+		newattrs.ia_mode = mode;
+		newattrs.ia_valid = ATTR_MODE;
+		mutex_lock(&dentry->d_inode->i_mutex);
+		notify_change(dentry, &newattrs);
+		mutex_unlock(&dentry->d_inode->i_mutex);
 
-			/* mark as kernel-created inode */
-			dentry->d_inode->i_private = &thread;
-		}
-		dput(dentry);
-	} else {
-		err = PTR_ERR(dentry);
+		/* mark as kernel-created inode */
+		dentry->d_inode->i_private = &thread;
 	}
+	dput(dentry);
 
-	mutex_unlock(&nd.path.dentry->d_inode->i_mutex);
-	path_put(&nd.path);
+	mutex_unlock(&path.dentry->d_inode->i_mutex);
+	path_put(&path);
 	return err;
 }
 
