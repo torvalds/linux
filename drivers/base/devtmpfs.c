@@ -164,34 +164,28 @@ static int dev_mkdir(const char *name, mode_t mode)
 
 static int create_path(const char *nodepath)
 {
+	char *path;
+	char *s;
 	int err;
 
-	err = dev_mkdir(nodepath, 0755);
-	if (err == -ENOENT) {
-		char *path;
-		char *s;
+	/* parent directories do not exist, create them */
+	path = kstrdup(nodepath, GFP_KERNEL);
+	if (!path)
+		return -ENOMEM;
 
-		/* parent directories do not exist, create them */
-		path = kstrdup(nodepath, GFP_KERNEL);
-		if (!path) {
-			err = -ENOMEM;
-			goto out;
-		}
-		s = path;
-		for (;;) {
-			s = strchr(s, '/');
-			if (!s)
-				break;
-			s[0] = '\0';
-			err = dev_mkdir(path, 0755);
-			if (err && err != -EEXIST)
-				break;
-			s[0] = '/';
-			s++;
-		}
-		kfree(path);
+	s = path;
+	for (;;) {
+		s = strchr(s, '/');
+		if (!s)
+			break;
+		s[0] = '\0';
+		err = dev_mkdir(path, 0755);
+		if (err && err != -EEXIST)
+			break;
+		s[0] = '/';
+		s++;
 	}
-out:
+	kfree(path);
 	return err;
 }
 
