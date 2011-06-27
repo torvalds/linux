@@ -170,16 +170,17 @@ const char *kernel_get_module_path(const char *module)
 }
 
 #ifdef DWARF_SUPPORT
-static int open_vmlinux(const char *module)
+/* Open new debuginfo of given module */
+static struct debuginfo *open_debuginfo(const char *module)
 {
 	const char *path = kernel_get_module_path(module);
+
 	if (!path) {
 		pr_err("Failed to find path of %s module.\n",
 		       module ?: "kernel");
-		return -ENOENT;
+		return NULL;
 	}
-	pr_debug("Try to open %s\n", path);
-	return open(path, O_RDONLY);
+	return debuginfo__new(path);
 }
 
 /*
@@ -193,13 +194,24 @@ static int kprobe_convert_to_perf_probe(struct probe_trace_point *tp,
 	struct map *map;
 	u64 addr;
 	int ret = -ENOENT;
+	struct debuginfo *dinfo;
 
 	sym = __find_kernel_function_by_name(tp->symbol, &map);
 	if (sym) {
 		addr = map->unmap_ip(map, sym->start + tp->offset);
 		pr_debug("try to find %s+%ld@%" PRIx64 "\n", tp->symbol,
 			 tp->offset, addr);
-		ret = find_perf_probe_point((unsigned long)addr, pp);
+
+		dinfo = debuginfo__new_online_kernel(addr);
+		if (dinfo) {
+			ret = debuginfo__find_probe_point(dinfo,
+						 (unsigned long)addr, pp);
+			debuginfo__delete(dinfo);
+		} else {
+			pr_debug("Failed to open debuginfo at 0x%" PRIx64 "\n",
+				 addr);
+			ret = -ENOENT;
+		}
 	}
 	if (ret <= 0) {
 		pr_debug("Failed to find corresponding probes from "
@@ -220,20 +232,22 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 					   int max_tevs, const char *module)
 {
 	bool need_dwarf = perf_probe_event_need_dwarf(pev);
-	int fd, ntevs;
+	struct debuginfo *dinfo = open_debuginfo(module);
+	int ntevs;
 
-	fd = open_vmlinux(module);
-	if (fd < 0) {
+	if (!dinfo) {
 		if (need_dwarf) {
 			pr_warning("Failed to open debuginfo file.\n");
-			return fd;
+			return -ENOENT;
 		}
-		pr_debug("Could not open vmlinux. Try to use symbols.\n");
+		pr_debug("Could not open debuginfo. Try to use symbols.\n");
 		return 0;
 	}
 
-	/* Searching trace events corresponding to probe event */
-	ntevs = find_probe_trace_events(fd, pev, tevs, max_tevs);
+	/* Searching trace events corresponding to a probe event */
+	ntevs = debuginfo__find_trace_events(dinfo, pev, tevs, max_tevs);
+
+	debuginfo__delete(dinfo);
 
 	if (ntevs > 0) {	/* Succeeded to find trace events */
 		pr_debug("find %d probe_trace_events.\n", ntevs);
@@ -371,8 +385,9 @@ int show_line_range(struct line_range *lr, const char *module)
 {
 	int l = 1;
 	struct line_node *ln;
+	struct debuginfo *dinfo;
 	FILE *fp;
-	int fd, ret;
+	int ret;
 	char *tmp;
 
 	/* Search a line range */
@@ -380,13 +395,14 @@ int show_line_range(struct line_range *lr, const char *module)
 	if (ret < 0)
 		return ret;
 
-	fd = open_vmlinux(module);
-	if (fd < 0) {
+	dinfo = open_debuginfo(module);
+	if (!dinfo) {
 		pr_warning("Failed to open debuginfo file.\n");
-		return fd;
+		return -ENOENT;
 	}
 
-	ret = find_line_range(fd, lr);
+	ret = debuginfo__find_line_range(dinfo, lr);
+	debuginfo__delete(dinfo);
 	if (ret == 0) {
 		pr_warning("Specified source line is not found.\n");
 		return -ENOENT;
@@ -448,7 +464,8 @@ end:
 	return ret;
 }
 
-static int show_available_vars_at(int fd, struct perf_probe_event *pev,
+static int show_available_vars_at(struct debuginfo *dinfo,
+				  struct perf_probe_event *pev,
 				  int max_vls, struct strfilter *_filter,
 				  bool externs)
 {
@@ -463,7 +480,8 @@ static int show_available_vars_at(int fd, struct perf_probe_event *pev,
 		return -EINVAL;
 	pr_debug("Searching variables at %s\n", buf);
 
-	ret = find_available_vars_at(fd, pev, &vls, max_vls, externs);
+	ret = debuginfo__find_available_vars_at(dinfo, pev, &vls,
+						max_vls, externs);
 	if (ret <= 0) {
 		pr_err("Failed to find variables at %s (%d)\n", buf, ret);
 		goto end;
@@ -504,24 +522,26 @@ int show_available_vars(struct perf_probe_event *pevs, int npevs,
 			int max_vls, const char *module,
 			struct strfilter *_filter, bool externs)
 {
-	int i, fd, ret = 0;
+	int i, ret = 0;
+	struct debuginfo *dinfo;
 
 	ret = init_vmlinux();
 	if (ret < 0)
 		return ret;
 
+	dinfo = open_debuginfo(module);
+	if (!dinfo) {
+		pr_warning("Failed to open debuginfo file.\n");
+		return -ENOENT;
+	}
+
 	setup_pager();
 
-	for (i = 0; i < npevs && ret >= 0; i++) {
-		fd = open_vmlinux(module);
-		if (fd < 0) {
-			pr_warning("Failed to open debug information file.\n");
-			ret = fd;
-			break;
-		}
-		ret = show_available_vars_at(fd, &pevs[i], max_vls, _filter,
+	for (i = 0; i < npevs && ret >= 0; i++)
+		ret = show_available_vars_at(dinfo, &pevs[i], max_vls, _filter,
 					     externs);
-	}
+
+	debuginfo__delete(dinfo);
 	return ret;
 }
 
