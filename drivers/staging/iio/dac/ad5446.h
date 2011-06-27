@@ -33,7 +33,6 @@
 
 /**
  * struct ad5446_state - driver instance specific data
- * @indio_dev:		the industrial I/O device
  * @spi:		spi_device
  * @chip_info:		chip model specific constants, available modes etc
  * @reg:		supply regulator
@@ -45,7 +44,6 @@
  */
 
 struct ad5446_state {
-	struct iio_dev			*indio_dev;
 	struct spi_device		*spi;
 	const struct ad5446_chip_info	*chip_info;
 	struct regulator		*reg;
