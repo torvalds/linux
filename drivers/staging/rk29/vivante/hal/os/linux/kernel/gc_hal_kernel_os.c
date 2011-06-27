@@ -494,7 +494,7 @@ gckOS_AllocateNonPagedMemoryFromSystem(
 #else
     size    = mdl->numPages * PAGE_SIZE;
     order   = get_order(size);
-    page    = alloc_pages(GFP_KERNEL , order);  // dkm modify 110330 将GFP_DMA去掉,避免分配不到DMA内存
+    page    = alloc_pages(GFP_KERNEL | GFP_DMA, order);
 
     if (page == gcvNULL)
     {
@@ -1883,10 +1883,10 @@ gckOS_AllocateNonPagedMemory(
 
     if (page == gcvNULL)
     {
-    	page    = alloc_pages(GFP_KERNEL, order);
+    	page    = alloc_pages(GFP_KERNEL | GFP_DMA, order);
     }
 #else
-    page    = alloc_pages(GFP_KERNEL , order);  // dkm modify 110330 将GFP_DMA去掉,避免分配不到DMA内存
+    page    = alloc_pages(GFP_KERNEL | GFP_DMA, order);
 #endif /* gcdkUSE_NON_PAGED_MEMORY_CACHE */
 
     if (page == gcvNULL)
