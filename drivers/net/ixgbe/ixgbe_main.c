@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
+#include <linux/sctp.h>
 #include <linux/pkt_sched.h>
 #include <linux/ipv6.h>
 #include <linux/slab.h>
@@ -771,15 +772,6 @@ static inline bool ixgbe_check_tx_hang(struct ixgbe_ring *tx_ring)
 	return ret;
 }
 
-#define IXGBE_MAX_TXD_PWR       14
-#define IXGBE_MAX_DATA_PER_TXD  (1 << IXGBE_MAX_TXD_PWR)
-
-/* Tx Descriptors needed, worst case */
-#define TXD_USE_COUNT(S) (((S) >> IXGBE_MAX_TXD_PWR) + \
-			 (((S) & (IXGBE_MAX_DATA_PER_TXD - 1)) ? 1 : 0))
-#define DESC_NEEDED (TXD_USE_COUNT(IXGBE_MAX_DATA_PER_TXD) /* skb->data */ + \
-	MAX_SKB_FRAGS * TXD_USE_COUNT(PAGE_SIZE) + 1) /* for context */
-
 /**
  * ixgbe_tx_timeout_reset - initiate reset due to Tx timeout
  * @adapter: driver private struct
@@ -882,7 +874,7 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 
 #define TX_WAKE_THRESHOLD (DESC_NEEDED * 2)
 	if (unlikely(count && netif_carrier_ok(tx_ring->netdev) &&
-		     (IXGBE_DESC_UNUSED(tx_ring) >= TX_WAKE_THRESHOLD))) {
+		     (ixgbe_desc_unused(tx_ring) >= TX_WAKE_THRESHOLD))) {
 		/* Make sure that anybody stopping the queue after this
 		 * sees the new next_to_clean.
 		 */
@@ -1474,7 +1466,7 @@ next_desc:
 	}
 
 	rx_ring->next_to_clean = i;
-	cleaned_count = IXGBE_DESC_UNUSED(rx_ring);
+	cleaned_count = ixgbe_desc_unused(rx_ring);
 
 	if (cleaned_count)
 		ixgbe_alloc_rx_buffers(rx_ring, cleaned_count);
@@ -1880,8 +1872,7 @@ static void ixgbe_check_lsc(struct ixgbe_adapter *adapter)
 
 static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 {
-	struct net_device *netdev = data;
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = data;
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 eicr;
 
@@ -2376,7 +2367,7 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 
 	sprintf(adapter->lsc_int_name, "%s:lsc", netdev->name);
 	err = request_irq(adapter->msix_entries[vector].vector,
-			  ixgbe_msix_lsc, 0, adapter->lsc_int_name, netdev);
+			  ixgbe_msix_lsc, 0, adapter->lsc_int_name, adapter);
 	if (err) {
 		e_err(probe, "request_irq for msix_lsc failed: %d\n", err);
 		goto free_queue_irqs;
@@ -2488,8 +2479,7 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
  **/
 static irqreturn_t ixgbe_intr(int irq, void *data)
 {
-	struct net_device *netdev = data;
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_adapter *adapter = data;
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_q_vector *q_vector = adapter->q_vector[0];
 	u32 eicr;
@@ -2586,10 +2576,10 @@ static int ixgbe_request_irq(struct ixgbe_adapter *adapter)
 		err = ixgbe_request_msix_irqs(adapter);
 	} else if (adapter->flags & IXGBE_FLAG_MSI_ENABLED) {
 		err = request_irq(adapter->pdev->irq, ixgbe_intr, 0,
-				  netdev->name, netdev);
+				  netdev->name, adapter);
 	} else {
 		err = request_irq(adapter->pdev->irq, ixgbe_intr, IRQF_SHARED,
-				  netdev->name, netdev);
+				  netdev->name, adapter);
 	}
 
 	if (err)
@@ -2600,15 +2590,13 @@ static int ixgbe_request_irq(struct ixgbe_adapter *adapter)
 
 static void ixgbe_free_irq(struct ixgbe_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
-
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
 		int i, q_vectors;
 
 		q_vectors = adapter->num_msix_vectors;
 
 		i = q_vectors - 1;
-		free_irq(adapter->msix_entries[i].vector, netdev);
+		free_irq(adapter->msix_entries[i].vector, adapter);
 
 		i--;
 		for (; i >= 0; i--) {
@@ -2623,7 +2611,7 @@ static void ixgbe_free_irq(struct ixgbe_adapter *adapter)
 
 		ixgbe_reset_q_vectors(adapter);
 	} else {
-		free_irq(adapter->pdev->irq, netdev);
+		free_irq(adapter->pdev->irq, adapter);
 	}
 }
 
@@ -3130,7 +3118,7 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(reg_idx), rxdctl);
 
 	ixgbe_rx_desc_queue_enable(adapter, ring);
-	ixgbe_alloc_rx_buffers(ring, IXGBE_DESC_UNUSED(ring));
+	ixgbe_alloc_rx_buffers(ring, ixgbe_desc_unused(ring));
 }
 
 static void ixgbe_setup_psrtype(struct ixgbe_adapter *adapter)
@@ -5181,7 +5169,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->ring_feature[RING_F_FCOE].indices = 0;
 #ifdef CONFIG_IXGBE_DCB
 		/* Default traffic class to use for FCoE */
-		adapter->fcoe.tc = IXGBE_FCOE_DEFTC;
 		adapter->fcoe.up = IXGBE_FCOE_DEFTC;
 #endif
 #endif /* IXGBE_FCOE */
@@ -6357,179 +6344,145 @@ static void ixgbe_service_task(struct work_struct *work)
 	ixgbe_service_event_complete(adapter);
 }
 
-static int ixgbe_tso(struct ixgbe_adapter *adapter,
-		     struct ixgbe_ring *tx_ring, struct sk_buff *skb,
-		     u32 tx_flags, u8 *hdr_len, __be16 protocol)
+void ixgbe_tx_ctxtdesc(struct ixgbe_ring *tx_ring, u32 vlan_macip_lens,
+		       u32 fcoe_sof_eof, u32 type_tucmd, u32 mss_l4len_idx)
 {
 	struct ixgbe_adv_tx_context_desc *context_desc;
-	unsigned int i;
+	u16 i = tx_ring->next_to_use;
+
+	context_desc = IXGBE_TX_CTXTDESC_ADV(tx_ring, i);
+
+	i++;
+	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
+
+	/* set bits to identify this as an advanced context descriptor */
+	type_tucmd |= IXGBE_TXD_CMD_DEXT | IXGBE_ADVTXD_DTYP_CTXT;
+
+	context_desc->vlan_macip_lens	= cpu_to_le32(vlan_macip_lens);
+	context_desc->seqnum_seed	= cpu_to_le32(fcoe_sof_eof);
+	context_desc->type_tucmd_mlhl	= cpu_to_le32(type_tucmd);
+	context_desc->mss_l4len_idx	= cpu_to_le32(mss_l4len_idx);
+}
+
+static int ixgbe_tso(struct ixgbe_ring *tx_ring, struct sk_buff *skb,
+		     u32 tx_flags, __be16 protocol, u8 *hdr_len)
+{
 	int err;
-	struct ixgbe_tx_buffer *tx_buffer_info;
-	u32 vlan_macip_lens = 0, type_tucmd_mlhl;
+	u32 vlan_macip_lens, type_tucmd;
 	u32 mss_l4len_idx, l4len;
 
-	if (skb_is_gso(skb)) {
-		if (skb_header_cloned(skb)) {
-			err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
-			if (err)
-				return err;
-		}
-		l4len = tcp_hdrlen(skb);
-		*hdr_len += l4len;
+	if (!skb_is_gso(skb))
+		return 0;
 
-		if (protocol == htons(ETH_P_IP)) {
-			struct iphdr *iph = ip_hdr(skb);
-			iph->tot_len = 0;
-			iph->check = 0;
-			tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
-								 iph->daddr, 0,
-								 IPPROTO_TCP,
-								 0);
-		} else if (skb_is_gso_v6(skb)) {
-			ipv6_hdr(skb)->payload_len = 0;
-			tcp_hdr(skb)->check =
-			    ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
-					     &ipv6_hdr(skb)->daddr,
-					     0, IPPROTO_TCP, 0);
-		}
-
-		i = tx_ring->next_to_use;
-
-		tx_buffer_info = &tx_ring->tx_buffer_info[i];
-		context_desc = IXGBE_TX_CTXTDESC_ADV(tx_ring, i);
-
-		/* VLAN MACLEN IPLEN */
-		if (tx_flags & IXGBE_TX_FLAGS_VLAN)
-			vlan_macip_lens |=
-			    (tx_flags & IXGBE_TX_FLAGS_VLAN_MASK);
-		vlan_macip_lens |= ((skb_network_offset(skb)) <<
-				    IXGBE_ADVTXD_MACLEN_SHIFT);
-		*hdr_len += skb_network_offset(skb);
-		vlan_macip_lens |=
-		    (skb_transport_header(skb) - skb_network_header(skb));
-		*hdr_len +=
-		    (skb_transport_header(skb) - skb_network_header(skb));
-		context_desc->vlan_macip_lens = cpu_to_le32(vlan_macip_lens);
-		context_desc->seqnum_seed = 0;
-
-		/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
-		type_tucmd_mlhl = (IXGBE_TXD_CMD_DEXT |
-				   IXGBE_ADVTXD_DTYP_CTXT);
-
-		if (protocol == htons(ETH_P_IP))
-			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV4;
-		type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
-		context_desc->type_tucmd_mlhl = cpu_to_le32(type_tucmd_mlhl);
-
-		/* MSS L4LEN IDX */
-		mss_l4len_idx =
-		    (skb_shinfo(skb)->gso_size << IXGBE_ADVTXD_MSS_SHIFT);
-		mss_l4len_idx |= (l4len << IXGBE_ADVTXD_L4LEN_SHIFT);
-		/* use index 1 for TSO */
-		mss_l4len_idx |= (1 << IXGBE_ADVTXD_IDX_SHIFT);
-		context_desc->mss_l4len_idx = cpu_to_le32(mss_l4len_idx);
-
-		tx_buffer_info->time_stamp = jiffies;
-		tx_buffer_info->next_to_watch = i;
-
-		i++;
-		if (i == tx_ring->count)
-			i = 0;
-		tx_ring->next_to_use = i;
-
-		return true;
-	}
-	return false;
-}
-
-static u32 ixgbe_psum(struct ixgbe_adapter *adapter, struct sk_buff *skb,
-		      __be16 protocol)
-{
-	u32 rtn = 0;
-
-	switch (protocol) {
-	case cpu_to_be16(ETH_P_IP):
-		rtn |= IXGBE_ADVTXD_TUCMD_IPV4;
-		switch (ip_hdr(skb)->protocol) {
-		case IPPROTO_TCP:
-			rtn |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
-			break;
-		case IPPROTO_SCTP:
-			rtn |= IXGBE_ADVTXD_TUCMD_L4T_SCTP;
-			break;
-		}
-		break;
-	case cpu_to_be16(ETH_P_IPV6):
-		/* XXX what about other V6 headers?? */
-		switch (ipv6_hdr(skb)->nexthdr) {
-		case IPPROTO_TCP:
-			rtn |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
-			break;
-		case IPPROTO_SCTP:
-			rtn |= IXGBE_ADVTXD_TUCMD_L4T_SCTP;
-			break;
-		}
-		break;
-	default:
-		if (unlikely(net_ratelimit()))
-			e_warn(probe, "partial checksum but proto=%x!\n",
-			       protocol);
-		break;
+	if (skb_header_cloned(skb)) {
+		err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC);
+		if (err)
+			return err;
 	}
 
-	return rtn;
+	/* ADV DTYP TUCMD MKRLOC/ISCSIHEDLEN */
+	type_tucmd = IXGBE_ADVTXD_TUCMD_L4T_TCP;
+
+	if (protocol == __constant_htons(ETH_P_IP)) {
+		struct iphdr *iph = ip_hdr(skb);
+		iph->tot_len = 0;
+		iph->check = 0;
+		tcp_hdr(skb)->check = ~csum_tcpudp_magic(iph->saddr,
+							 iph->daddr, 0,
+							 IPPROTO_TCP,
+							 0);
+		type_tucmd |= IXGBE_ADVTXD_TUCMD_IPV4;
+	} else if (skb_is_gso_v6(skb)) {
+		ipv6_hdr(skb)->payload_len = 0;
+		tcp_hdr(skb)->check =
+		    ~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
+				     &ipv6_hdr(skb)->daddr,
+				     0, IPPROTO_TCP, 0);
+	}
+
+	l4len = tcp_hdrlen(skb);
+	*hdr_len = skb_transport_offset(skb) + l4len;
+
+	/* mss_l4len_id: use 1 as index for TSO */
+	mss_l4len_idx = l4len << IXGBE_ADVTXD_L4LEN_SHIFT;
+	mss_l4len_idx |= skb_shinfo(skb)->gso_size << IXGBE_ADVTXD_MSS_SHIFT;
+	mss_l4len_idx |= 1 << IXGBE_ADVTXD_IDX_SHIFT;
+
+	/* vlan_macip_lens: HEADLEN, MACLEN, VLAN tag */
+	vlan_macip_lens = skb_network_header_len(skb);
+	vlan_macip_lens |= skb_network_offset(skb) << IXGBE_ADVTXD_MACLEN_SHIFT;
+	vlan_macip_lens |= tx_flags & IXGBE_TX_FLAGS_VLAN_MASK;
+
+	ixgbe_tx_ctxtdesc(tx_ring, vlan_macip_lens, 0, type_tucmd,
+	                  mss_l4len_idx);
+
+	return 1;
 }
 
-static bool ixgbe_tx_csum(struct ixgbe_adapter *adapter,
-			  struct ixgbe_ring *tx_ring,
+static bool ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 			  struct sk_buff *skb, u32 tx_flags,
 			  __be16 protocol)
 {
-	struct ixgbe_adv_tx_context_desc *context_desc;
-	unsigned int i;
-	struct ixgbe_tx_buffer *tx_buffer_info;
-	u32 vlan_macip_lens = 0, type_tucmd_mlhl = 0;
+	u32 vlan_macip_lens = 0;
+	u32 mss_l4len_idx = 0;
+	u32 type_tucmd = 0;
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL ||
-	    (tx_flags & IXGBE_TX_FLAGS_VLAN)) {
-		i = tx_ring->next_to_use;
-		tx_buffer_info = &tx_ring->tx_buffer_info[i];
-		context_desc = IXGBE_TX_CTXTDESC_ADV(tx_ring, i);
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+	    if (!(tx_flags & IXGBE_TX_FLAGS_VLAN))
+			return false;
+	} else {
+		u8 l4_hdr = 0;
+		switch (protocol) {
+		case __constant_htons(ETH_P_IP):
+			vlan_macip_lens |= skb_network_header_len(skb);
+			type_tucmd |= IXGBE_ADVTXD_TUCMD_IPV4;
+			l4_hdr = ip_hdr(skb)->protocol;
+			break;
+		case __constant_htons(ETH_P_IPV6):
+			vlan_macip_lens |= skb_network_header_len(skb);
+			l4_hdr = ipv6_hdr(skb)->nexthdr;
+			break;
+		default:
+			if (unlikely(net_ratelimit())) {
+				dev_warn(tx_ring->dev,
+				 "partial checksum but proto=%x!\n",
+				 skb->protocol);
+			}
+			break;
+		}
 
-		if (tx_flags & IXGBE_TX_FLAGS_VLAN)
-			vlan_macip_lens |=
-			    (tx_flags & IXGBE_TX_FLAGS_VLAN_MASK);
-		vlan_macip_lens |= (skb_network_offset(skb) <<
-				    IXGBE_ADVTXD_MACLEN_SHIFT);
-		if (skb->ip_summed == CHECKSUM_PARTIAL)
-			vlan_macip_lens |= (skb_transport_header(skb) -
-					    skb_network_header(skb));
-
-		context_desc->vlan_macip_lens = cpu_to_le32(vlan_macip_lens);
-		context_desc->seqnum_seed = 0;
-
-		type_tucmd_mlhl |= (IXGBE_TXD_CMD_DEXT |
-				    IXGBE_ADVTXD_DTYP_CTXT);
-
-		if (skb->ip_summed == CHECKSUM_PARTIAL)
-			type_tucmd_mlhl |= ixgbe_psum(adapter, skb, protocol);
-
-		context_desc->type_tucmd_mlhl = cpu_to_le32(type_tucmd_mlhl);
-		/* use index zero for tx checksum offload */
-		context_desc->mss_l4len_idx = 0;
-
-		tx_buffer_info->time_stamp = jiffies;
-		tx_buffer_info->next_to_watch = i;
-
-		i++;
-		if (i == tx_ring->count)
-			i = 0;
-		tx_ring->next_to_use = i;
-
-		return true;
+		switch (l4_hdr) {
+		case IPPROTO_TCP:
+			type_tucmd |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
+			mss_l4len_idx = tcp_hdrlen(skb) <<
+					IXGBE_ADVTXD_L4LEN_SHIFT;
+			break;
+		case IPPROTO_SCTP:
+			type_tucmd |= IXGBE_ADVTXD_TUCMD_L4T_SCTP;
+			mss_l4len_idx = sizeof(struct sctphdr) <<
+					IXGBE_ADVTXD_L4LEN_SHIFT;
+			break;
+		case IPPROTO_UDP:
+			mss_l4len_idx = sizeof(struct udphdr) <<
+					IXGBE_ADVTXD_L4LEN_SHIFT;
+			break;
+		default:
+			if (unlikely(net_ratelimit())) {
+				dev_warn(tx_ring->dev,
+				 "partial checksum but l4 proto=%x!\n",
+				 skb->protocol);
+			}
+			break;
+		}
 	}
 
-	return false;
+	vlan_macip_lens |= skb_network_offset(skb) << IXGBE_ADVTXD_MACLEN_SHIFT;
+	vlan_macip_lens |= tx_flags & IXGBE_TX_FLAGS_VLAN_MASK;
+
+	ixgbe_tx_ctxtdesc(tx_ring, vlan_macip_lens, 0,
+			  type_tucmd, mss_l4len_idx);
+
+	return (skb->ip_summed == CHECKSUM_PARTIAL);
 }
 
 static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
@@ -6541,11 +6494,12 @@ static int ixgbe_tx_map(struct ixgbe_adapter *adapter,
 	struct ixgbe_tx_buffer *tx_buffer_info;
 	unsigned int len;
 	unsigned int total = skb->len;
-	unsigned int offset = 0, size, count = 0, i;
+	unsigned int offset = 0, size, count = 0;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
 	unsigned int f;
 	unsigned int bytecount = skb->len;
 	u16 gso_segs = 1;
+	u16 i;
 
 	i = tx_ring->next_to_use;
 
@@ -6811,7 +6765,7 @@ static void ixgbe_atr(struct ixgbe_ring *ring, struct sk_buff *skb,
 					      input, common, ring->queue_index);
 }
 
-static int __ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, int size)
+static int __ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, u16 size)
 {
 	netif_stop_subqueue(tx_ring->netdev, tx_ring->queue_index);
 	/* Herbert's original patch had:
@@ -6821,7 +6775,7 @@ static int __ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, int size)
 
 	/* We need to check again in a case another CPU has just
 	 * made room available. */
-	if (likely(IXGBE_DESC_UNUSED(tx_ring) < size))
+	if (likely(ixgbe_desc_unused(tx_ring) < size))
 		return -EBUSY;
 
 	/* A reprieve! - use start_queue because it doesn't call schedule */
@@ -6830,9 +6784,9 @@ static int __ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, int size)
 	return 0;
 }
 
-static int ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, int size)
+static int ixgbe_maybe_stop_tx(struct ixgbe_ring *tx_ring, u16 size)
 {
-	if (likely(IXGBE_DESC_UNUSED(tx_ring) >= size))
+	if (likely(ixgbe_desc_unused(tx_ring) >= size))
 		return 0;
 	return __ixgbe_maybe_stop_tx(tx_ring, size);
 }
@@ -6868,13 +6822,33 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 			  struct ixgbe_adapter *adapter,
 			  struct ixgbe_ring *tx_ring)
 {
-	unsigned int first;
-	unsigned int tx_flags = 0;
-	u8 hdr_len = 0;
 	int tso;
-	int count = 0;
-	unsigned int f;
+	u32  tx_flags = 0;
+#if PAGE_SIZE > IXGBE_MAX_DATA_PER_TXD
+	unsigned short f;
+#endif
+	u16 first;
+	u16 count = TXD_USE_COUNT(skb_headlen(skb));
 	__be16 protocol;
+	u8 hdr_len = 0;
+
+	/*
+	 * need: 1 descriptor per page * PAGE_SIZE/IXGBE_MAX_DATA_PER_TXD,
+	 *       + 1 desc for skb_head_len/IXGBE_MAX_DATA_PER_TXD,
+	 *       + 2 desc gap to keep tail from touching head,
+	 *       + 1 desc for context descriptor,
+	 * otherwise try next time
+	 */
+#if PAGE_SIZE > IXGBE_MAX_DATA_PER_TXD
+	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
+		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
+#else
+	count += skb_shinfo(skb)->nr_frags;
+#endif
+	if (ixgbe_maybe_stop_tx(tx_ring, count + 3)) {
+		tx_ring->tx_stats.tx_busy++;
+		return NETDEV_TX_BUSY;
+	}
 
 	protocol = vlan_get_protocol(skb);
 
@@ -6899,51 +6873,29 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED &&
 	    (protocol == htons(ETH_P_FCOE)))
 		tx_flags |= IXGBE_TX_FLAGS_FCOE;
+
 #endif
-
-	/* four things can cause us to need a context descriptor */
-	if (skb_is_gso(skb) ||
-	    (skb->ip_summed == CHECKSUM_PARTIAL) ||
-	    (tx_flags & IXGBE_TX_FLAGS_VLAN) ||
-	    (tx_flags & IXGBE_TX_FLAGS_FCOE))
-		count++;
-
-	count += TXD_USE_COUNT(skb_headlen(skb));
-	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
-		count += TXD_USE_COUNT(skb_shinfo(skb)->frags[f].size);
-
-	if (ixgbe_maybe_stop_tx(tx_ring, count)) {
-		tx_ring->tx_stats.tx_busy++;
-		return NETDEV_TX_BUSY;
-	}
-
+	/* record the location of the first descriptor for this packet */
 	first = tx_ring->next_to_use;
+
 	if (tx_flags & IXGBE_TX_FLAGS_FCOE) {
 #ifdef IXGBE_FCOE
 		/* setup tx offload for FCoE */
-		tso = ixgbe_fso(adapter, tx_ring, skb, tx_flags, &hdr_len);
-		if (tso < 0) {
-			dev_kfree_skb_any(skb);
-			return NETDEV_TX_OK;
-		}
-		if (tso)
+		tso = ixgbe_fso(tx_ring, skb, tx_flags, &hdr_len);
+		if (tso < 0)
+			goto out_drop;
+		else if (tso)
 			tx_flags |= IXGBE_TX_FLAGS_FSO;
 #endif /* IXGBE_FCOE */
 	} else {
 		if (protocol == htons(ETH_P_IP))
 			tx_flags |= IXGBE_TX_FLAGS_IPV4;
-		tso = ixgbe_tso(adapter, tx_ring, skb, tx_flags, &hdr_len,
-				protocol);
-		if (tso < 0) {
-			dev_kfree_skb_any(skb);
-			return NETDEV_TX_OK;
-		}
-
-		if (tso)
+		tso = ixgbe_tso(tx_ring, skb, tx_flags, protocol, &hdr_len);
+		if (tso < 0)
+			goto out_drop;
+		else if (tso)
 			tx_flags |= IXGBE_TX_FLAGS_TSO;
-		else if (ixgbe_tx_csum(adapter, tx_ring, skb, tx_flags,
-				       protocol) &&
-			 (skb->ip_summed == CHECKSUM_PARTIAL))
+		else if (ixgbe_tx_csum(tx_ring, skb, tx_flags, protocol))
 			tx_flags |= IXGBE_TX_FLAGS_CSUM;
 	}
 
@@ -6956,11 +6908,15 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		ixgbe_maybe_stop_tx(tx_ring, DESC_NEEDED);
 
 	} else {
-		dev_kfree_skb_any(skb);
 		tx_ring->tx_buffer_info[first].time_stamp = 0;
 		tx_ring->next_to_use = first;
+		goto out_drop;
 	}
 
+	return NETDEV_TX_OK;
+
+out_drop:
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 

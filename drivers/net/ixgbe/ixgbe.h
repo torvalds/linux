@@ -131,6 +131,13 @@ struct vf_macvlans {
 	u8 vf_macvlan[ETH_ALEN];
 };
 
+#define IXGBE_MAX_TXD_PWR	14
+#define IXGBE_MAX_DATA_PER_TXD	(1 << IXGBE_MAX_TXD_PWR)
+
+/* Tx Descriptors needed, worst case */
+#define TXD_USE_COUNT(S) DIV_ROUND_UP((S), IXGBE_MAX_DATA_PER_TXD)
+#define DESC_NEEDED ((MAX_SKB_FRAGS * TXD_USE_COUNT(PAGE_SIZE)) + 4)
+
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
 struct ixgbe_tx_buffer {
@@ -306,9 +313,13 @@ struct ixgbe_q_vector {
 	((_eitr) ? (1000000000 / ((_eitr) * 256)) : 8)
 #define EITR_REG_TO_INTS_PER_SEC EITR_INTS_PER_SEC_TO_REG
 
-#define IXGBE_DESC_UNUSED(R) \
-	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
-	(R)->next_to_clean - (R)->next_to_use - 1)
+static inline u16 ixgbe_desc_unused(struct ixgbe_ring *ring)
+{
+	u16 ntc = ring->next_to_clean;
+	u16 ntu = ring->next_to_use;
+
+	return ((ntc > ntu) ? 0 : ring->count) + ntc - ntu - 1;
+}
 
 #define IXGBE_RX_DESC_ADV(R, i)	    \
 	(&(((union ixgbe_adv_rx_desc *)((R)->desc))[i]))
@@ -576,10 +587,10 @@ extern void ixgbe_clear_rscctl(struct ixgbe_adapter *adapter,
                                struct ixgbe_ring *ring);
 extern void ixgbe_set_rx_mode(struct net_device *netdev);
 extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
+extern void ixgbe_tx_ctxtdesc(struct ixgbe_ring *, u32, u32, u32, u32);
 #ifdef IXGBE_FCOE
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
-extern int ixgbe_fso(struct ixgbe_adapter *adapter,
-                     struct ixgbe_ring *tx_ring, struct sk_buff *skb,
+extern int ixgbe_fso(struct ixgbe_ring *tx_ring, struct sk_buff *skb,
                      u32 tx_flags, u8 *hdr_len);
 extern void ixgbe_cleanup_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
