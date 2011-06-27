@@ -1461,7 +1461,8 @@ myri10ge_tx_done(struct myri10ge_slice_state *ss, int mcp_index)
 
 	/* start the queue if we've stopped it */
 	if (netif_tx_queue_stopped(dev_queue) &&
-	    tx->req - tx->done < (tx->mask >> 1)) {
+	    tx->req - tx->done < (tx->mask >> 1) &&
+	    ss->mgp->running == MYRI10GE_ETH_RUNNING) {
 		tx->wake_queue++;
 		netif_tx_wake_queue(dev_queue);
 	}
