@@ -134,7 +134,6 @@ int iwl_rx_queue_space(const struct iwl_rx_queue *q)
 void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
 {
 	unsigned long flags;
-	u32 rx_wrt_ptr_reg = priv->hw_params.rx_wrt_ptr_reg;
 	u32 reg;
 
 	spin_lock_irqsave(&q->lock, flags);
@@ -146,7 +145,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q
 		/* shadow register enabled */
 		/* Device expects a multiple of 8 */
 		q->write_actual = (q->write & ~0x7);
-		iwl_write32(priv, rx_wrt_ptr_reg, q->write_actual);
+		iwl_write32(priv, FH_RSCSR_CHNL0_WPTR, q->write_actual);
 	} else {
 		/* If power-saving is in use, make sure device is awake */
 		if (test_bit(STATUS_POWER_PMI, &priv->status)) {
@@ -162,14 +161,14 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q
 			}
 
 			q->write_actual = (q->write & ~0x7);
-			iwl_write_direct32(priv, rx_wrt_ptr_reg,
+			iwl_write_direct32(priv, FH_RSCSR_CHNL0_WPTR,
 					q->write_actual);
 
 		/* Else device is assumed to be awake */
 		} else {
 			/* Device expects a multiple of 8 */
 			q->write_actual = (q->write & ~0x7);
-			iwl_write_direct32(priv, rx_wrt_ptr_reg,
+			iwl_write_direct32(priv, FH_RSCSR_CHNL0_WPTR,
 				q->write_actual);
 		}
 	}

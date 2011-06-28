@@ -665,7 +665,6 @@ struct iwl_hw_params {
 	u16 max_rxq_size;
 	u16 max_rxq_log;
 	u32 rx_page_order;
-	u32 rx_wrt_ptr_reg;
 	u8  max_stations;
 	u8  ht40_channel;
 	u8  max_beacon_itrvl;	/* in 1024 ms */
