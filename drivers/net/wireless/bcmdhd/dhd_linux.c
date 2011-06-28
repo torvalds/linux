@@ -1597,6 +1597,7 @@ dhd_watchdog_thread(void *data)
 
 	while (1)
 		if (down_interruptible (&tsk->sema) == 0) {
+			unsigned long flags;
 
 			SMP_RD_BARRIER_DEPENDS();
 			if (tsk->terminated) {
@@ -1610,12 +1611,14 @@ dhd_watchdog_thread(void *data)
 				/* Call the bus module watchdog */
 				dhd_bus_watchdog(&dhd->pub);
 
+				flags = dhd_os_spin_lock(&dhd->pub);
 				/* Count the tick for reference */
 				dhd->pub.tickcnt++;
 				/* Reschedule the watchdog */
 				if (dhd->wd_timer_valid)
 					mod_timer(&dhd->timer,
 					jiffies + dhd_watchdog_ms * HZ / 1000);
+				dhd_os_spin_unlock(&dhd->pub, flags);
 			}
 			dhd_os_sdunlock(&dhd->pub);
 			DHD_OS_WAKE_UNLOCK(&dhd->pub);
@@ -1630,6 +1633,7 @@ dhd_watchdog_thread(void *data)
 static void dhd_watchdog(ulong data)
 {
 	dhd_info_t *dhd = (dhd_info_t *)data;
+	unsigned long flags;
 
 	DHD_OS_WAKE_LOCK(&dhd->pub);
 	if (dhd->pub.dongle_reset) {
@@ -1648,12 +1652,14 @@ static void dhd_watchdog(ulong data)
 	/* Call the bus module watchdog */
 	dhd_bus_watchdog(&dhd->pub);
 
+	flags = dhd_os_spin_lock(&dhd->pub);
 	/* Count the tick for reference */
 	dhd->pub.tickcnt++;
 
 	/* Reschedule the watchdog */
 	if (dhd->wd_timer_valid)
 		mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
+	dhd_os_spin_unlock(&dhd->pub, flags);
 	dhd_os_sdunlock(&dhd->pub);
 	DHD_OS_WAKE_UNLOCK(&dhd->pub);
 }
@@ -2561,6 +2567,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 {
 	int ret = -1;
 	dhd_info_t *dhd = (dhd_info_t*)dhdp->info;
+	unsigned long flags;
 #ifdef EMBEDDED_PLATFORM
 	char iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" + '\0' + bitvec  */
 #endif /* EMBEDDED_PLATFORM */
@@ -2603,7 +2610,9 @@ dhd_bus_start(dhd_pub_t *dhdp)
 	/* Host registration for OOB interrupt */
 	if (bcmsdh_register_oob_intr(dhdp)) {
 		/* deactivate timer and wait for the handler to finish */
+		flags = dhd_os_spin_lock(&dhd->pub);
 		dhd->wd_timer_valid = FALSE;
+		dhd_os_spin_unlock(&dhd->pub, flags);
 		del_timer_sync(&dhd->timer);
 
 		DHD_ERROR(("%s Host failed to register for OOB\n", __FUNCTION__));
@@ -2617,8 +2626,10 @@ dhd_bus_start(dhd_pub_t *dhdp)
 
 	/* If bus is not ready, can't come up */
 	if (dhd->pub.busstate != DHD_BUS_DATA) {
-		del_timer_sync(&dhd->timer);
+		flags = dhd_os_spin_lock(&dhd->pub);
 		dhd->wd_timer_valid = FALSE;
+		dhd_os_spin_unlock(&dhd->pub, flags);
+		del_timer_sync(&dhd->timer);
 		DHD_ERROR(("%s failed bus is not ready\n", __FUNCTION__));
 		dhd_os_sdunlock(dhdp);
 		return -ENODEV;
@@ -2991,6 +3002,7 @@ dhd_bus_detach(dhd_pub_t *dhdp)
 void dhd_detach(dhd_pub_t *dhdp)
 {
 	dhd_info_t *dhd;
+	unsigned long flags;
 
 	if (!dhdp)
 		return;
@@ -3060,7 +3072,9 @@ void dhd_detach(dhd_pub_t *dhdp)
 	}
 
 	/* Clear the watchdog timer */
+	flags = dhd_os_spin_lock(&dhd->pub);
 	dhd->wd_timer_valid = FALSE;
+	dhd_os_spin_unlock(&dhd->pub, flags);
 	del_timer_sync(&dhd->timer);
 
 	if (dhd->dhd_state & DHD_ATTACH_STATE_THREADS_CREATED) {
