@@ -17,4 +17,6 @@ void b43_httab_write(struct b43_wldev *dev, u32 offset, u32 value);
 void b43_httab_write_bulk(struct b43_wldev *dev, u32 offset,
 			  unsigned int nr_elements, const void *_data);
 
+void b43_phy_ht_tables_init(struct b43_wldev *dev);
+
 #endif /* B43_TABLES_PHY_HT_H_ */

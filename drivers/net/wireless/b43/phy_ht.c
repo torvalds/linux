@@ -205,6 +205,13 @@ static void b43_phy_ht_op_prepare_structs(struct b43_wldev *dev)
 	memset(phy_ht, 0, sizeof(*phy_ht));
 }
 
+static int b43_phy_ht_op_init(struct b43_wldev *dev)
+{
+	b43_phy_ht_tables_init(dev);
+
+	return 0;
+}
+
 static void b43_phy_ht_op_free(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -326,9 +333,7 @@ const struct b43_phy_operations b43_phyops_ht = {
 	.allocate		= b43_phy_ht_op_allocate,
 	.free			= b43_phy_ht_op_free,
 	.prepare_structs	= b43_phy_ht_op_prepare_structs,
-	/*
 	.init			= b43_phy_ht_op_init,
-	*/
 	.phy_read		= b43_phy_ht_op_read,
 	.phy_write		= b43_phy_ht_op_write,
 	.phy_maskset		= b43_phy_ht_op_maskset,
