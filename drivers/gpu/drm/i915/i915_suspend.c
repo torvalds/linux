@@ -875,8 +875,10 @@ int i915_restore_state(struct drm_device *dev)
 		intel_init_emon(dev);
 	}
 
-	if (IS_GEN6(dev))
+	if (IS_GEN6(dev)) {
 		gen6_enable_rps(dev_priv);
+		gen6_update_ring_freq(dev_priv);
+	}
 
 	/* Cache mode state */
 	I915_WRITE (CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);

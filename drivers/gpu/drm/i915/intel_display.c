@@ -24,6 +24,7 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
+#include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
@@ -7273,6 +7274,59 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
+void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
+{
+	int min_freq = 15;
+	int gpu_freq, ia_freq, max_ia_freq;
+	int scaling_factor = 180;
+
+	max_ia_freq = cpufreq_quick_get_max(0);
+	/*
+	 * Default to measured freq if none found, PCU will ensure we don't go
+	 * over
+	 */
+	if (!max_ia_freq)
+		max_ia_freq = tsc_khz;
+
+	/* Convert from kHz to MHz */
+	max_ia_freq /= 1000;
+
+	mutex_lock(&dev_priv->dev->struct_mutex);
+
+	/*
+	 * For each potential GPU frequency, load a ring frequency we'd like
+	 * to use for memory access.  We do this by specifying the IA frequency
+	 * the PCU should use as a reference to determine the ring frequency.
+	 */
+	for (gpu_freq = dev_priv->max_delay; gpu_freq >= dev_priv->min_delay;
+	     gpu_freq--) {
+		int diff = dev_priv->max_delay - gpu_freq;
+
+		/*
+		 * For GPU frequencies less than 750MHz, just use the lowest
+		 * ring freq.
+		 */
+		if (gpu_freq < min_freq)
+			ia_freq = 800;
+		else
+			ia_freq = max_ia_freq - ((diff * scaling_factor) / 2);
+		ia_freq = DIV_ROUND_CLOSEST(ia_freq, 100);
+
+		I915_WRITE(GEN6_PCODE_DATA,
+			   (ia_freq << GEN6_PCODE_FREQ_IA_RATIO_SHIFT) |
+			   gpu_freq);
+		I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY |
+			   GEN6_PCODE_WRITE_MIN_FREQ_TABLE);
+		if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) &
+			      GEN6_PCODE_READY) == 0, 10)) {
+			DRM_ERROR("pcode write of freq table timed out\n");
+			continue;
+		}
+	}
+
+	mutex_unlock(&dev_priv->dev->struct_mutex);
+}
+
 static void ironlake_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7916,8 +7970,10 @@ void intel_modeset_init(struct drm_device *dev)
 		intel_init_emon(dev);
 	}
 
-	if (IS_GEN6(dev))
+	if (IS_GEN6(dev)) {
 		gen6_enable_rps(dev_priv);
+		gen6_update_ring_freq(dev_priv);
+	}
 
 	INIT_WORK(&dev_priv->idle_work, intel_idle_update);
 	setup_timer(&dev_priv->idle_timer, intel_gpu_idle_timer,

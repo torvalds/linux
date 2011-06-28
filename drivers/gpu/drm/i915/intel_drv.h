@@ -317,6 +317,7 @@ extern void intel_enable_clock_gating(struct drm_device *dev);
 extern void ironlake_enable_drps(struct drm_device *dev);
 extern void ironlake_disable_drps(struct drm_device *dev);
 extern void gen6_enable_rps(struct drm_i915_private *dev_priv);
+extern void gen6_update_ring_freq(struct drm_i915_private *dev_priv);
 extern void gen6_disable_rps(struct drm_device *dev);
 extern void intel_init_emon(struct drm_device *dev);
 
