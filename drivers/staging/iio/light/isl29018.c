@@ -56,6 +56,7 @@
 struct isl29018_chip {
 	struct i2c_client	*client;
 	struct mutex		lock;
+	unsigned int		lux_scale;
 	unsigned int		range;
 	unsigned int		adc_bit;
 	int			prox_scheme;
@@ -165,7 +166,7 @@ static int isl29018_read_lux(struct i2c_client *client, int *lux)
 	if (lux_data < 0)
 		return lux_data;
 
-	*lux = (lux_data * chip->range) >> chip->adc_bit;
+	*lux = (lux_data * chip->range * chip->lux_scale) >> chip->adc_bit;
 
 	return 0;
 }
@@ -263,6 +264,34 @@ static ssize_t get_sensor_data(struct device *dev, char *buf, int mode)
 }
 
 /* Sysfs interface */
+/* lux_scale */
+static ssize_t show_lux_scale(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct isl29018_chip *chip = indio_dev->dev_data;
+
+	return sprintf(buf, "%d\n", chip->lux_scale);
+}
+
+static ssize_t store_lux_scale(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct isl29018_chip *chip = indio_dev->dev_data;
+	unsigned long lval;
+
+	lval = simple_strtoul(buf, NULL, 10);
+	if (lval == 0)
+		return -EINVAL;
+
+	mutex_lock(&chip->lock);
+	chip->lux_scale = lval;
+	mutex_unlock(&chip->lock);
+
+	return count;
+}
+
 /* range */
 static ssize_t show_range(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -411,6 +440,8 @@ static IIO_DEVICE_ATTR(proximity_on_chip_ambient_infrared_supression,
 					show_prox_infrared_supression,
 					store_prox_infrared_supression, 0);
 static IIO_DEVICE_ATTR(illuminance0_input, S_IRUGO, show_lux, NULL, 0);
+static IIO_DEVICE_ATTR(illuminance0_calibscale, S_IRUGO | S_IWUSR,
+					show_lux_scale, store_lux_scale, 0);
 static IIO_DEVICE_ATTR(intensity_infrared_raw, S_IRUGO, show_ir, NULL, 0);
 static IIO_DEVICE_ATTR(proximity_raw, S_IRUGO, show_proxim_ir, NULL, 0);
 
@@ -423,6 +454,7 @@ static struct attribute *isl29018_attributes[] = {
 	ISL29018_CONST_ATTR(adc_resolution_available),
 	ISL29018_DEV_ATTR(proximity_on_chip_ambient_infrared_supression),
 	ISL29018_DEV_ATTR(illuminance0_input),
+	ISL29018_DEV_ATTR(illuminance0_calibscale),
 	ISL29018_DEV_ATTR(intensity_infrared_raw),
 	ISL29018_DEV_ATTR(proximity_raw),
 	NULL
@@ -479,6 +511,7 @@ static int __devinit isl29018_probe(struct i2c_client *client,
 
 	mutex_init(&chip->lock);
 
+	chip->lux_scale = 1;
 	chip->range = 1000;
 	chip->adc_bit = 16;
 
