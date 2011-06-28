@@ -429,12 +429,12 @@ static int pn_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		if (alt == 1) {
 			int i;
 
-			fp->out_ep->desc = ep_choose(gadget,
-					&pn_hs_sink_desc,
-					&pn_fs_sink_desc);
-			fp->in_ep->desc = ep_choose(gadget,
-					&pn_hs_source_desc,
-					&pn_fs_source_desc);
+			if (config_ep_by_speed(gadget, f, fp->in_ep) ||
+			    config_ep_by_speed(gadget, f, fp->out_ep)) {
+				fp->in_ep->desc = NULL;
+				fp->out_ep->desc = NULL;
+				return -EINVAL;
+			}
 			usb_ep_enable(fp->out_ep);
 			usb_ep_enable(fp->in_ep);
 

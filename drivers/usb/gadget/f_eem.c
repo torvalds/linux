@@ -35,17 +35,9 @@
  * Ethernet link.
  */
 
-struct eem_ep_descs {
-	struct usb_endpoint_descriptor	*in;
-	struct usb_endpoint_descriptor	*out;
-};
-
 struct f_eem {
 	struct gether			port;
 	u8				ctrl_id;
-
-	struct eem_ep_descs		fs;
-	struct eem_ep_descs		hs;
 };
 
 static inline struct f_eem *func_to_eem(struct usb_function *f)
@@ -176,12 +168,16 @@ static int eem_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			gether_disconnect(&eem->port);
 		}
 
-		if (!eem->port.in_ep->desc) {
+		if (!eem->port.in_ep->desc || !eem->port.out_ep->desc) {
 			DBG(cdev, "init eem\n");
-			eem->port.in_ep->desc = ep_choose(cdev->gadget,
-					eem->hs.in, eem->fs.in);
-			eem->port.out_ep->desc = ep_choose(cdev->gadget,
-					eem->hs.out, eem->fs.out);
+			if (config_ep_by_speed(cdev->gadget, f,
+					       eem->port.in_ep) ||
+			    config_ep_by_speed(cdev->gadget, f,
+					       eem->port.out_ep)) {
+				eem->port.in_ep->desc = NULL;
+				eem->port.out_ep->desc = NULL;
+				goto fail;
+			}
 		}
 
 		/* zlps should not occur because zero-length EEM packets
@@ -253,11 +249,6 @@ eem_bind(struct usb_configuration *c, struct usb_function *f)
 	if (!f->descriptors)
 		goto fail;
 
-	eem->fs.in = usb_find_endpoint(eem_fs_function,
-			f->descriptors, &eem_fs_in_desc);
-	eem->fs.out = usb_find_endpoint(eem_fs_function,
-			f->descriptors, &eem_fs_out_desc);
-
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
@@ -272,11 +263,6 @@ eem_bind(struct usb_configuration *c, struct usb_function *f)
 		f->hs_descriptors = usb_copy_descriptors(eem_hs_function);
 		if (!f->hs_descriptors)
 			goto fail;
-
-		eem->hs.in = usb_find_endpoint(eem_hs_function,
-				f->hs_descriptors, &eem_hs_in_desc);
-		eem->hs.out = usb_find_endpoint(eem_hs_function,
-				f->hs_descriptors, &eem_hs_out_desc);
 	}
 
 	DBG(cdev, "CDC Ethernet (EEM): %s speed IN/%s OUT/%s\n",

@@ -256,8 +256,9 @@ enable_loopback(struct usb_composite_dev *cdev, struct f_loopback *loop)
 
 	/* one endpoint writes data back IN to the host */
 	ep = loop->in_ep;
-	ep->desc = ep_choose(cdev->gadget,
-			&hs_loop_source_desc, &fs_loop_source_desc);
+	result = config_ep_by_speed(cdev->gadget, &(loop->function), ep);
+	if (result)
+		return result;
 	result = usb_ep_enable(ep);
 	if (result < 0)
 		return result;
@@ -265,8 +266,10 @@ enable_loopback(struct usb_composite_dev *cdev, struct f_loopback *loop)
 
 	/* one endpoint just reads OUT packets */
 	ep = loop->out_ep;
-	ep->desc = ep_choose(cdev->gadget,
-			&hs_loop_sink_desc, &fs_loop_sink_desc);
+	result = config_ep_by_speed(cdev->gadget, &(loop->function), ep);
+	if (result)
+		goto fail0;
+
 	result = usb_ep_enable(ep);
 	if (result < 0) {
 fail0:
