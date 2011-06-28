@@ -1704,6 +1704,7 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
 	struct iwl_rxon_context *bss_ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl_rxon_context *tmp;
+	enum nl80211_iftype newviftype = newtype;
 	u32 interface_modes;
 	int err;
 
@@ -1759,7 +1760,7 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	/* success */
 	iwl_teardown_interface(priv, vif, true);
-	vif->type = newtype;
+	vif->type = newviftype;
 	vif->p2p = newp2p;
 	err = iwl_setup_interface(priv, ctx);
 	WARN_ON(err);

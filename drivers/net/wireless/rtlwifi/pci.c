@@ -1615,6 +1615,16 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 	pci_read_config_byte(pdev, 0x8, &revisionid);
 	pci_read_config_word(pdev, 0x3C, &irqline);
 
+	/* PCI ID 0x10ec:0x8192 occurs for both RTL8192E, which uses
+	 * r8192e_pci, and RTL8192SE, which uses this driver. If the
+	 * revision ID is RTL_PCI_REVISION_ID_8192PCIE (0x01), then
+	 * the correct driver is r8192e_pci, thus this routine should
+	 * return false.
+	 */
+	if (deviceid == RTL_PCI_8192SE_DID &&
+	    revisionid == RTL_PCI_REVISION_ID_8192PCIE)
+		return false;
+
 	if (deviceid == RTL_PCI_8192_DID ||
 	    deviceid == RTL_PCI_0044_DID ||
 	    deviceid == RTL_PCI_0047_DID ||
@@ -1847,7 +1857,8 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 	pci_write_config_byte(pdev, 0x04, 0x07);
 
 	/* find adapter */
-	_rtl_pci_find_adapter(pdev, hw);
+	if (!_rtl_pci_find_adapter(pdev, hw))
+		goto fail3;
 
 	/* Init IO handler */
 	_rtl_pci_io_handler_init(&pdev->dev, hw);
