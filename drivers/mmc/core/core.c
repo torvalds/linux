@@ -1516,6 +1516,82 @@ int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
 }
 EXPORT_SYMBOL(mmc_erase_group_aligned);
 
+static unsigned int mmc_do_calc_max_discard(struct mmc_card *card,
+					    unsigned int arg)
+{
+	struct mmc_host *host = card->host;
+	unsigned int max_discard, x, y, qty = 0, max_qty, timeout;
+	unsigned int last_timeout = 0;
+
+	if (card->erase_shift)
+		max_qty = UINT_MAX >> card->erase_shift;
+	else if (mmc_card_sd(card))
+		max_qty = UINT_MAX;
+	else
+		max_qty = UINT_MAX / card->erase_size;
+
+	/* Find the largest qty with an OK timeout */
+	do {
+		y = 0;
+		for (x = 1; x && x <= max_qty && max_qty - x >= qty; x <<= 1) {
+			timeout = mmc_erase_timeout(card, arg, qty + x);
+			if (timeout > host->max_discard_to)
+				break;
+			if (timeout < last_timeout)
+				break;
+			last_timeout = timeout;
+			y = x;
+		}
+		qty += y;
+	} while (y);
+
+	if (!qty)
+		return 0;
+
+	if (qty == 1)
+		return 1;
+
+	/* Convert qty to sectors */
+	if (card->erase_shift)
+		max_discard = --qty << card->erase_shift;
+	else if (mmc_card_sd(card))
+		max_discard = qty;
+	else
+		max_discard = --qty * card->erase_size;
+
+	return max_discard;
+}
+
+unsigned int mmc_calc_max_discard(struct mmc_card *card)
+{
+	struct mmc_host *host = card->host;
+	unsigned int max_discard, max_trim;
+
+	if (!host->max_discard_to)
+		return UINT_MAX;
+
+	/*
+	 * Without erase_group_def set, MMC erase timeout depends on clock
+	 * frequence which can change.  In that case, the best choice is
+	 * just the preferred erase size.
+	 */
+	if (mmc_card_mmc(card) && !(card->ext_csd.erase_group_def & 1))
+		return card->pref_erase;
+
+	max_discard = mmc_do_calc_max_discard(card, MMC_ERASE_ARG);
+	if (mmc_can_trim(card)) {
+		max_trim = mmc_do_calc_max_discard(card, MMC_TRIM_ARG);
+		if (max_trim < max_discard)
+			max_discard = max_trim;
+	} else if (max_discard < card->erase_size) {
+		max_discard = 0;
+	}
+	pr_debug("%s: calculated max. discard sectors %u for timeout %u ms\n",
+		 mmc_hostname(host), max_discard, host->max_discard_to);
+	return max_discard;
+}
+EXPORT_SYMBOL(mmc_calc_max_discard);
+
 int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen)
 {
 	struct mmc_command cmd = {0};
