@@ -311,7 +311,7 @@ static void scic_sds_controller_unsolicited_frame(struct scic_sds_controller *sc
 
 	struct isci_host *ihost = scic_to_ihost(scic);
 	struct scu_unsolicited_frame_header *frame_header;
-	struct scic_sds_phy *phy;
+	struct isci_phy *iphy;
 	struct scic_sds_remote_device *device;
 
 	enum sci_status result = SCI_FAILURE;
@@ -332,8 +332,8 @@ static void scic_sds_controller_unsolicited_frame(struct scic_sds_controller *sc
 
 	if (frame_header->is_address_frame) {
 		index = SCU_GET_PROTOCOL_ENGINE_INDEX(completion_entry);
-		phy = &ihost->phys[index].sci;
-		result = scic_sds_phy_frame_handler(phy, frame_index);
+		iphy = &ihost->phys[index];
+		result = scic_sds_phy_frame_handler(iphy, frame_index);
 	} else {
 
 		index = SCU_GET_COMPLETION_INDEX(completion_entry);
@@ -344,8 +344,8 @@ static void scic_sds_controller_unsolicited_frame(struct scic_sds_controller *sc
 			 * device that has not yet been created.  In either case forwared
 			 * the frame to the PE and let it take care of the frame data. */
 			index = SCU_GET_PROTOCOL_ENGINE_INDEX(completion_entry);
-			phy = &ihost->phys[index].sci;
-			result = scic_sds_phy_frame_handler(phy, frame_index);
+			iphy = &ihost->phys[index];
+			result = scic_sds_phy_frame_handler(iphy, frame_index);
 		} else {
 			if (index < scic->remote_node_entries)
 				device = scic->device_table[index];
@@ -372,7 +372,7 @@ static void scic_sds_controller_event_completion(struct scic_sds_controller *sci
 	struct isci_host *ihost = scic_to_ihost(scic);
 	struct scic_sds_remote_device *device;
 	struct isci_request *ireq;
-	struct scic_sds_phy *phy;
+	struct isci_phy *iphy;
 	u32 index;
 
 	index = SCU_GET_COMPLETION_INDEX(completion_entry);
@@ -452,8 +452,8 @@ static void scic_sds_controller_event_completion(struct scic_sds_controller *sci
 	 * we get the event notification.  This is a type 4 event. */
 	case SCU_EVENT_TYPE_OSSP_EVENT:
 		index = SCU_GET_PROTOCOL_ENGINE_INDEX(completion_entry);
-		phy = &ihost->phys[index].sci;
-		scic_sds_phy_event_handler(phy, completion_entry);
+		iphy = &ihost->phys[index];
+		scic_sds_phy_event_handler(iphy, completion_entry);
 		break;
 
 	case SCU_EVENT_TYPE_RNC_SUSPEND_TX:
@@ -862,11 +862,11 @@ static void scic_sds_controller_transition_to_ready(
 	}
 }
 
-static bool is_phy_starting(struct scic_sds_phy *sci_phy)
+static bool is_phy_starting(struct isci_phy *iphy)
 {
 	enum scic_sds_phy_states state;
 
-	state = sci_phy->sm.current_state_id;
+	state = iphy->sm.current_state_id;
 	switch (state) {
 	case SCI_PHY_STARTING:
 	case SCI_PHY_SUB_INITIAL:
@@ -896,7 +896,7 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 {
 	struct isci_host *ihost = scic_to_ihost(scic);
 	struct scic_sds_oem_params *oem = &scic->oem_parameters.sds1;
-	struct scic_sds_phy *sci_phy;
+	struct isci_phy *iphy;
 	enum sci_status status;
 
 	status = SCI_SUCCESS;
@@ -910,10 +910,10 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 		u8 index;
 
 		for (index = 0; index < SCI_MAX_PHYS; index++) {
-			sci_phy = &ihost->phys[index].sci;
-			state = sci_phy->sm.current_state_id;
+			iphy = &ihost->phys[index];
+			state = iphy->sm.current_state_id;
 
-			if (!phy_get_non_dummy_port(sci_phy))
+			if (!phy_get_non_dummy_port(iphy))
 				continue;
 
 			/* The controller start operation is complete iff:
@@ -922,9 +922,9 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 			 * - have an indication of a connected device and it has
 			 *   finished the link training process.
 			 */
-			if ((sci_phy->is_in_link_training == false && state == SCI_PHY_INITIAL) ||
-			    (sci_phy->is_in_link_training == false && state == SCI_PHY_STOPPED) ||
-			    (sci_phy->is_in_link_training == true && is_phy_starting(sci_phy))) {
+			if ((iphy->is_in_link_training == false && state == SCI_PHY_INITIAL) ||
+			    (iphy->is_in_link_training == false && state == SCI_PHY_STOPPED) ||
+			    (iphy->is_in_link_training == true && is_phy_starting(iphy))) {
 				is_controller_start_complete = false;
 				break;
 			}
@@ -939,10 +939,10 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 			scic->phy_startup_timer_pending = false;
 		}
 	} else {
-		sci_phy = &ihost->phys[scic->next_phy_to_start].sci;
+		iphy = &ihost->phys[scic->next_phy_to_start];
 
 		if (oem->controller.mode_type == SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
-			if (phy_get_non_dummy_port(sci_phy) == NULL) {
+			if (phy_get_non_dummy_port(iphy) == NULL) {
 				scic->next_phy_to_start++;
 
 				/* Caution recursion ahead be forwarned
@@ -958,7 +958,7 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 			}
 		}
 
-		status = scic_sds_phy_start(sci_phy);
+		status = scic_sds_phy_start(iphy);
 
 		if (status == SCI_SUCCESS) {
 			sci_mod_timer(&scic->phy_timer,
@@ -970,7 +970,7 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 				 "to stop phy %d because of status "
 				 "%d.\n",
 				 __func__,
-				 ihost->phys[scic->next_phy_to_start].sci.phy_index,
+				 ihost->phys[scic->next_phy_to_start].phy_index,
 				 status);
 		}
 
@@ -1312,8 +1312,8 @@ void isci_host_deinit(struct isci_host *ihost)
 
 	/* Cancel any/all outstanding phy timers */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
-		struct scic_sds_phy *sci_phy = &ihost->phys[i].sci;
-		del_timer_sync(&sci_phy->sata_timer.timer);
+		struct isci_phy *iphy = &ihost->phys[i];
+		del_timer_sync(&iphy->sata_timer.timer);
 	}
 
 	del_timer_sync(&ihost->sci.port_agent.timer.timer);
@@ -1527,7 +1527,7 @@ static enum sci_status scic_sds_controller_stop_phys(struct scic_sds_controller 
 	status = SCI_SUCCESS;
 
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		phy_status = scic_sds_phy_stop(&ihost->phys[index].sci);
+		phy_status = scic_sds_phy_stop(&ihost->phys[index]);
 
 		if (phy_status != SCI_SUCCESS &&
 		    phy_status != SCI_FAILURE_INVALID_STATE) {
@@ -1537,7 +1537,7 @@ static enum sci_status scic_sds_controller_stop_phys(struct scic_sds_controller 
 				 "%s: Controller stop operation failed to stop "
 				 "phy %d because of status %d.\n",
 				 __func__,
-				 ihost->phys[index].sci.phy_index, phy_status);
+				 ihost->phys[index].phy_index, phy_status);
 		}
 	}
 
@@ -1786,7 +1786,7 @@ static enum sci_status scic_controller_construct(struct scic_sds_controller *sci
 	/* Construct the phys for this controller */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
 		/* Add all the PHYs to the dummy port */
-		scic_sds_phy_construct(&ihost->phys[i].sci,
+		scic_sds_phy_construct(&ihost->phys[i],
 				       &ihost->ports[SCI_MAX_PORTS].sci, i);
 	}
 
@@ -1865,7 +1865,7 @@ static void power_control_timeout(unsigned long data)
 	struct sci_timer *tmr = (struct sci_timer *)data;
 	struct scic_sds_controller *scic = container_of(tmr, typeof(*scic), power_control.timer);
 	struct isci_host *ihost = scic_to_ihost(scic);
-	struct scic_sds_phy *sci_phy;
+	struct isci_phy *iphy;
 	unsigned long flags;
 	u8 i;
 
@@ -1886,8 +1886,8 @@ static void power_control_timeout(unsigned long data)
 		if (scic->power_control.phys_waiting == 0)
 			break;
 
-		sci_phy = scic->power_control.requesters[i];
-		if (sci_phy == NULL)
+		iphy = scic->power_control.requesters[i];
+		if (iphy == NULL)
 			continue;
 
 		if (scic->power_control.phys_granted_power >=
@@ -1897,7 +1897,7 @@ static void power_control_timeout(unsigned long data)
 		scic->power_control.requesters[i] = NULL;
 		scic->power_control.phys_waiting--;
 		scic->power_control.phys_granted_power++;
-		scic_sds_phy_consume_power_handler(sci_phy);
+		scic_sds_phy_consume_power_handler(iphy);
 	}
 
 	/*
@@ -1919,14 +1919,14 @@ done:
  */
 void scic_sds_controller_power_control_queue_insert(
 	struct scic_sds_controller *scic,
-	struct scic_sds_phy *sci_phy)
+	struct isci_phy *iphy)
 {
-	BUG_ON(sci_phy == NULL);
+	BUG_ON(iphy == NULL);
 
 	if (scic->power_control.phys_granted_power <
 	    scic->oem_parameters.sds1.controller.max_concurrent_dev_spin_up) {
 		scic->power_control.phys_granted_power++;
-		scic_sds_phy_consume_power_handler(sci_phy);
+		scic_sds_phy_consume_power_handler(iphy);
 
 		/*
 		 * stop and start the power_control timer. When the timer fires, the
@@ -1941,7 +1941,7 @@ void scic_sds_controller_power_control_queue_insert(
 
 	} else {
 		/* Add the phy in the waiting list */
-		scic->power_control.requesters[sci_phy->phy_index] = sci_phy;
+		scic->power_control.requesters[iphy->phy_index] = iphy;
 		scic->power_control.phys_waiting++;
 	}
 }
@@ -1954,15 +1954,15 @@ void scic_sds_controller_power_control_queue_insert(
  */
 void scic_sds_controller_power_control_queue_remove(
 	struct scic_sds_controller *scic,
-	struct scic_sds_phy *sci_phy)
+	struct isci_phy *iphy)
 {
-	BUG_ON(sci_phy == NULL);
+	BUG_ON(iphy == NULL);
 
-	if (scic->power_control.requesters[sci_phy->phy_index] != NULL) {
+	if (scic->power_control.requesters[iphy->phy_index] != NULL) {
 		scic->power_control.phys_waiting--;
 	}
 
-	scic->power_control.requesters[sci_phy->phy_index] = NULL;
+	scic->power_control.requesters[iphy->phy_index] = NULL;
 }
 
 #define AFE_REGISTER_WRITE_DELAY 10
@@ -2225,7 +2225,7 @@ static enum sci_status scic_controller_initialize(struct scic_sds_controller *sc
 	 * are accessed during the port initialization.
 	 */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
-		result = scic_sds_phy_initialize(&ihost->phys[i].sci,
+		result = scic_sds_phy_initialize(&ihost->phys[i],
 						 &scic->scu_registers->peg0.pe[i].tl,
 						 &scic->scu_registers->peg0.pe[i].ll);
 		if (result != SCI_SUCCESS)
@@ -2484,43 +2484,43 @@ int isci_host_init(struct isci_host *isci_host)
 }
 
 void scic_sds_controller_link_up(struct scic_sds_controller *scic,
-		struct scic_sds_port *port, struct scic_sds_phy *phy)
+		struct scic_sds_port *port, struct isci_phy *iphy)
 {
 	switch (scic->sm.current_state_id) {
 	case SCIC_STARTING:
 		sci_del_timer(&scic->phy_timer);
 		scic->phy_startup_timer_pending = false;
 		scic->port_agent.link_up_handler(scic, &scic->port_agent,
-						 port, phy);
+						 port, iphy);
 		scic_sds_controller_start_next_phy(scic);
 		break;
 	case SCIC_READY:
 		scic->port_agent.link_up_handler(scic, &scic->port_agent,
-						 port, phy);
+						 port, iphy);
 		break;
 	default:
 		dev_dbg(scic_to_dev(scic),
 			"%s: SCIC Controller linkup event from phy %d in "
-			"unexpected state %d\n", __func__, phy->phy_index,
+			"unexpected state %d\n", __func__, iphy->phy_index,
 			scic->sm.current_state_id);
 	}
 }
 
 void scic_sds_controller_link_down(struct scic_sds_controller *scic,
-		struct scic_sds_port *port, struct scic_sds_phy *phy)
+		struct scic_sds_port *port, struct isci_phy *iphy)
 {
 	switch (scic->sm.current_state_id) {
 	case SCIC_STARTING:
 	case SCIC_READY:
 		scic->port_agent.link_down_handler(scic, &scic->port_agent,
-						   port, phy);
+						   port, iphy);
 		break;
 	default:
 		dev_dbg(scic_to_dev(scic),
 			"%s: SCIC Controller linkdown event from phy %d in "
 			"unexpected state %d\n",
 			__func__,
-			phy->phy_index,
+			iphy->phy_index,
 			scic->sm.current_state_id);
 	}
 }

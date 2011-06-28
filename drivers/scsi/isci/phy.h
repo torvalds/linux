@@ -84,98 +84,36 @@ enum scic_sds_phy_protocol {
 };
 
 /**
- * struct scic_sds_phy - This structure  contains or references all of the data
- *    necessary to represent the core phy object and SCU harware protocol
- *    engine.
- *
- *
+ * isci_phy - hba local phy infrastructure
+ * @sm:
+ * @protocol: attached device protocol
+ * @phy_index: physical index relative to the controller (0-3)
+ * @bcn_received_while_port_unassigned: bcn to report after port association
+ * @sata_timer: timeout SATA signature FIS arrival
  */
-struct scic_sds_phy {
-	/**
-	 * This field contains the information for the base phy state machine.
-	 */
-	struct sci_base_state_machine sm;
-
-	/**
-	 * This field specifies the port object that owns/contains this phy.
-	 */
-	struct scic_sds_port *owning_port;
-
-	/**
-	 * This field indicates whether the phy supports 1.5 Gb/s, 3.0 Gb/s,
-	 * or 6.0 Gb/s operation.
-	 */
-	enum sas_linkrate max_negotiated_speed;
-
-	/**
-	 * This member specifies the protocol being utilized on this phy.  This
-	 * field contains a legitamite value once the PHY has link trained with
-	 * a remote phy.
-	 */
-	enum scic_sds_phy_protocol protocol;
-
-	/**
-	 * This field specifies the index with which this phy is associated (0-3).
-	 */
-	u8 phy_index;
-
-	/**
-	 * This member indicates if this particular PHY has received a BCN while
-	 * it had no port assignement.  This BCN will be reported once the phy is
-	 * assigned to a port.
-	 */
-	bool bcn_received_while_port_unassigned;
-
-	/**
-	 * This field indicates if this PHY is currently in the process of
-	 * link training (i.e. it has started OOB, but has yet to perform
-	 * IAF exchange/Signature FIS reception).
-	 */
-	bool is_in_link_training;
-
-	/**
-	 * Timer to detect when a signature FIS timeout has occurred. The
-	 * signature FIS is the first FIS sent by an attached SATA device
-	 * after OOB/SN.
-	 */
-	struct sci_timer	sata_timer;
-
-	/**
-	 * This field is the pointer to the transport layer register for the SCU
-	 * hardware.
-	 */
-	struct scu_transport_layer_registers __iomem *transport_layer_registers;
-
-	/**
-	 * This field points to the link layer register set within the SCU.
-	 */
-	struct scu_link_layer_registers __iomem *link_layer_registers;
-
-};
-
-
 struct isci_phy {
-	struct scic_sds_phy sci;
+	struct sci_base_state_machine sm;
+	struct scic_sds_port *owning_port;
+	enum sas_linkrate max_negotiated_speed;
+	enum scic_sds_phy_protocol protocol;
+	u8 phy_index;
+	bool bcn_received_while_port_unassigned;
+	bool is_in_link_training;
+	struct sci_timer sata_timer;
+	struct scu_transport_layer_registers __iomem *transport_layer_registers;
+	struct scu_link_layer_registers __iomem *link_layer_registers;
 	struct asd_sas_phy sas_phy;
 	struct isci_port *isci_port;
 	u8 sas_addr[SAS_ADDR_SIZE];
-
 	union {
 		struct sas_identify_frame iaf;
 		struct dev_to_host_fis fis;
 	} frame_rcvd;
 };
 
-static inline struct isci_phy *to_isci_phy(struct asd_sas_phy *sas_phy)
+static inline struct isci_phy *to_iphy(struct asd_sas_phy *sas_phy)
 {
 	struct isci_phy *iphy = container_of(sas_phy, typeof(*iphy), sas_phy);
-
-	return iphy;
-}
-
-static inline struct isci_phy *sci_phy_to_iphy(struct scic_sds_phy *sci_phy)
-{
-	struct isci_phy *iphy = container_of(sci_phy, typeof(*iphy), sci);
 
 	return iphy;
 }
@@ -520,61 +458,61 @@ enum scic_sds_phy_states {
 	(scic_sds_port_get_controller((phy)->owning_port))
 
 void scic_sds_phy_construct(
-	struct scic_sds_phy *this_phy,
+	struct isci_phy *iphy,
 	struct scic_sds_port *owning_port,
 	u8 phy_index);
 
-struct scic_sds_port *phy_get_non_dummy_port(struct scic_sds_phy *sci_phy);
+struct scic_sds_port *phy_get_non_dummy_port(struct isci_phy *iphy);
 
 void scic_sds_phy_set_port(
-	struct scic_sds_phy *this_phy,
+	struct isci_phy *iphy,
 	struct scic_sds_port *owning_port);
 
 enum sci_status scic_sds_phy_initialize(
-	struct scic_sds_phy *this_phy,
+	struct isci_phy *iphy,
 	struct scu_transport_layer_registers __iomem *transport_layer_registers,
 	struct scu_link_layer_registers __iomem *link_layer_registers);
 
 enum sci_status scic_sds_phy_start(
-	struct scic_sds_phy *this_phy);
+	struct isci_phy *iphy);
 
 enum sci_status scic_sds_phy_stop(
-	struct scic_sds_phy *this_phy);
+	struct isci_phy *iphy);
 
 enum sci_status scic_sds_phy_reset(
-	struct scic_sds_phy *this_phy);
+	struct isci_phy *iphy);
 
 void scic_sds_phy_resume(
-	struct scic_sds_phy *this_phy);
+	struct isci_phy *iphy);
 
 void scic_sds_phy_setup_transport(
-	struct scic_sds_phy *this_phy,
+	struct isci_phy *iphy,
 	u32 device_id);
 
 enum sci_status scic_sds_phy_event_handler(
-	struct scic_sds_phy *this_phy,
+	struct isci_phy *iphy,
 	u32 event_code);
 
 enum sci_status scic_sds_phy_frame_handler(
-	struct scic_sds_phy *this_phy,
+	struct isci_phy *iphy,
 	u32 frame_index);
 
 enum sci_status scic_sds_phy_consume_power_handler(
-	struct scic_sds_phy *this_phy);
+	struct isci_phy *iphy);
 
 void scic_sds_phy_get_sas_address(
-	struct scic_sds_phy *this_phy,
+	struct isci_phy *iphy,
 	struct sci_sas_address *sas_address);
 
 void scic_sds_phy_get_attached_sas_address(
-	struct scic_sds_phy *this_phy,
+	struct isci_phy *iphy,
 	struct sci_sas_address *sas_address);
 
 struct scic_phy_proto;
 void scic_sds_phy_get_protocols(
-	struct scic_sds_phy *sci_phy,
+	struct isci_phy *iphy,
 	struct scic_phy_proto *protocols);
-enum sas_linkrate sci_phy_linkrate(struct scic_sds_phy *sci_phy);
+enum sas_linkrate sci_phy_linkrate(struct isci_phy *iphy);
 
 struct isci_host;
 void isci_phy_init(struct isci_phy *iphy, struct isci_host *ihost, int index);

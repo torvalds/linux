@@ -101,14 +101,14 @@ struct scic_power_control {
 	 * This field is an array of phys that we are waiting on. The phys are direct
 	 * mapped into requesters via struct scic_sds_phy.phy_index
 	 */
-	struct scic_sds_phy *requesters[SCI_MAX_PHYS];
+	struct isci_phy *requesters[SCI_MAX_PHYS];
 
 };
 
 struct scic_sds_port_configuration_agent;
 typedef void (*port_config_fn)(struct scic_sds_controller *,
 			       struct scic_sds_port_configuration_agent *,
-			       struct scic_sds_port *, struct scic_sds_phy *);
+			       struct scic_sds_port *, struct isci_phy *);
 
 struct scic_sds_port_configuration_agent {
 	u16 phy_configured_mask;
@@ -523,9 +523,8 @@ static inline struct device *scic_to_dev(struct scic_sds_controller *scic)
 	return &scic_to_ihost(scic)->pdev->dev;
 }
 
-static inline struct device *sciphy_to_dev(struct scic_sds_phy *sci_phy)
+static inline struct device *sciphy_to_dev(struct isci_phy *iphy)
 {
-	struct isci_phy *iphy = sci_phy_to_iphy(sci_phy);
 
 	if (!iphy || !iphy->isci_port || !iphy->isci_port->isci_host)
 		return NULL;
@@ -606,21 +605,21 @@ struct isci_request *scic_request_by_tag(struct scic_sds_controller *scic,
 
 void scic_sds_controller_power_control_queue_insert(
 	struct scic_sds_controller *scic,
-	struct scic_sds_phy *sci_phy);
+	struct isci_phy *iphy);
 
 void scic_sds_controller_power_control_queue_remove(
 	struct scic_sds_controller *scic,
-	struct scic_sds_phy *sci_phy);
+	struct isci_phy *iphy);
 
 void scic_sds_controller_link_up(
 	struct scic_sds_controller *scic,
 	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy);
+	struct isci_phy *iphy);
 
 void scic_sds_controller_link_down(
 	struct scic_sds_controller *scic,
 	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy);
+	struct isci_phy *iphy);
 
 void scic_sds_controller_remote_device_stopped(
 	struct scic_sds_controller *scic,
@@ -651,7 +650,7 @@ void isci_host_deinit(
 void isci_host_port_link_up(
 	struct isci_host *,
 	struct scic_sds_port *,
-	struct scic_sds_phy *);
+	struct isci_phy *);
 int isci_host_dev_found(struct domain_device *);
 
 void isci_host_remote_device_start_complete(

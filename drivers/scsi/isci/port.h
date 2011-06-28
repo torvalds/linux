@@ -131,7 +131,7 @@ struct scic_sds_port {
 	/**
 	 * This field is the table of phys assigned to the port.
 	 */
-	struct scic_sds_phy *phy_table[SCI_MAX_PHYS];
+	struct isci_phy *phy_table[SCI_MAX_PHYS];
 
 	/**
 	 * This field is a pointer back to the controller that owns this
@@ -328,11 +328,11 @@ enum sci_status scic_sds_port_stop(struct scic_sds_port *sci_port);
 
 enum sci_status scic_sds_port_add_phy(
 	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy);
+	struct isci_phy *iphy);
 
 enum sci_status scic_sds_port_remove_phy(
 	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy);
+	struct isci_phy *iphy);
 
 void scic_sds_port_setup_transports(
 	struct scic_sds_port *sci_port,
@@ -342,17 +342,17 @@ void isci_port_bcn_enable(struct isci_host *, struct isci_port *);
 
 void scic_sds_port_deactivate_phy(
 	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy,
+	struct isci_phy *iphy,
 	bool do_notify_user);
 
 bool scic_sds_port_link_detected(
 	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy);
+	struct isci_phy *iphy);
 
 enum sci_status scic_sds_port_link_up(struct scic_sds_port *sci_port,
-				      struct scic_sds_phy *sci_phy);
+				      struct isci_phy *iphy);
 enum sci_status scic_sds_port_link_down(struct scic_sds_port *sci_port,
-					struct scic_sds_phy *sci_phy);
+					struct isci_phy *iphy);
 
 struct isci_request;
 struct scic_sds_remote_device;
@@ -371,7 +371,7 @@ enum sas_linkrate scic_sds_port_get_max_allowed_speed(
 
 void scic_sds_port_broadcast_change_received(
 	struct scic_sds_port *sci_port,
-	struct scic_sds_phy *sci_phy);
+	struct isci_phy *iphy);
 
 bool scic_sds_port_is_valid_phy_assignment(
 	struct scic_sds_port *sci_port,

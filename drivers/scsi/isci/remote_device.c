@@ -1389,7 +1389,7 @@ int isci_remote_device_found(struct domain_device *domain_dev)
 	sas_port = domain_dev->port;
 	sas_phy = list_first_entry(&sas_port->phy_list, struct asd_sas_phy,
 				   port_phy_el);
-	isci_phy = to_isci_phy(sas_phy);
+	isci_phy = to_iphy(sas_phy);
 	isci_port = isci_phy->isci_port;
 
 	/* we are being called for a device on this port,
