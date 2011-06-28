@@ -702,7 +702,7 @@ static int bnx2fc_initiate_tmf(struct scsi_cmnd *sc_cmd, u8 tm_flags)
 	hba = port->priv;
 
 	if (rport == NULL) {
-		printk(KERN_ALERT PFX "device_reset: rport is NULL\n");
+		printk(KERN_ERR PFX "device_reset: rport is NULL\n");
 		rc = FAILED;
 		goto tmf_err;
 	}
@@ -806,10 +806,10 @@ retry_tmf:
 	spin_unlock_bh(&tgt->tgt_lock);
 
 	if (!rc) {
-		printk(KERN_ERR PFX "task mgmt command failed...\n");
+		BNX2FC_TGT_DBG(tgt, "task mgmt command failed...\n");
 		rc = FAILED;
 	} else {
-		printk(KERN_ERR PFX "task mgmt command success...\n");
+		BNX2FC_TGT_DBG(tgt, "task mgmt command success...\n");
 		rc = SUCCESS;
 	}
 tmf_err:
@@ -849,7 +849,7 @@ int bnx2fc_initiate_abts(struct bnx2fc_cmd *io_req)
 	}
 
 	if (rport == NULL) {
-		printk(KERN_ALERT PFX "initiate_abts: rport is NULL\n");
+		printk(KERN_ERR PFX "initiate_abts: rport is NULL\n");
 		rc = FAILED;
 		goto abts_err;
 	}
@@ -1031,7 +1031,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 
 	lport = shost_priv(sc_cmd->device->host);
 	if ((lport->state != LPORT_ST_READY) || !(lport->link_up)) {
-		printk(KERN_ALERT PFX "eh_abort: link not ready\n");
+		printk(KERN_ERR PFX "eh_abort: link not ready\n");
 		return rc;
 	}
 
@@ -1062,7 +1062,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	 * io_req is no longer in the active_q.
 	 */
 	if (tgt->flush_in_prog) {
-		printk(KERN_ALERT PFX "eh_abort: io_req (xid = 0x%x) "
+		printk(KERN_ERR PFX "eh_abort: io_req (xid = 0x%x) "
 			"flush in progress\n", io_req->xid);
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
 		spin_unlock_bh(&tgt->tgt_lock);
@@ -1070,7 +1070,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 	}
 
 	if (io_req->on_active_queue == 0) {
-		printk(KERN_ALERT PFX "eh_abort: io_req (xid = 0x%x) "
+		printk(KERN_ERR PFX "eh_abort: io_req (xid = 0x%x) "
 				"not on active_q\n", io_req->xid);
 		/*
 		 * This condition can happen only due to the FW bug,
@@ -1108,7 +1108,7 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 		set_bit(BNX2FC_FLAG_EH_ABORT, &io_req->req_flags);
 		rc = bnx2fc_initiate_abts(io_req);
 	} else {
-		printk(KERN_ALERT PFX "eh_abort: io_req (xid = 0x%x) "
+		printk(KERN_ERR PFX "eh_abort: io_req (xid = 0x%x) "
 				"already in abts processing\n", io_req->xid);
 		kref_put(&io_req->refcount, bnx2fc_cmd_release);
 		spin_unlock_bh(&tgt->tgt_lock);
@@ -1378,7 +1378,7 @@ void bnx2fc_process_tm_compl(struct bnx2fc_cmd *io_req,
 			fc_hdr->fh_r_ctl);
 	}
 	if (!sc_cmd->SCp.ptr) {
-		printk(KERN_ALERT PFX "tm_compl: SCp.ptr is NULL\n");
+		printk(KERN_ERR PFX "tm_compl: SCp.ptr is NULL\n");
 		return;
 	}
 	switch (io_req->fcp_status) {
@@ -1410,7 +1410,7 @@ void bnx2fc_process_tm_compl(struct bnx2fc_cmd *io_req,
 		io_req->on_tmf_queue = 0;
 	} else {
 
-		printk(KERN_ALERT PFX "Command not on active_cmd_queue!\n");
+		printk(KERN_ERR PFX "Command not on active_cmd_queue!\n");
 		return;
 	}
 
@@ -1597,7 +1597,7 @@ static void bnx2fc_parse_fcp_rsp(struct bnx2fc_cmd *io_req,
 
 		if (rq_buff_len > num_rq * BNX2FC_RQ_BUF_SZ) {
 			/* Invalid sense sense length. */
-			printk(KERN_ALERT PFX "invalid sns length %d\n",
+			printk(KERN_ERR PFX "invalid sns length %d\n",
 				rq_buff_len);
 			/* reset rq_buff_len */
 			rq_buff_len =  num_rq * BNX2FC_RQ_BUF_SZ;
@@ -1780,7 +1780,7 @@ void bnx2fc_process_scsi_cmd_compl(struct bnx2fc_cmd *io_req,
 			scsi_set_resid(sc_cmd, io_req->fcp_resid);
 		break;
 	default:
-		printk(KERN_ALERT PFX "scsi_cmd_compl: fcp_status = %d\n",
+		printk(KERN_ERR PFX "scsi_cmd_compl: fcp_status = %d\n",
 			io_req->fcp_status);
 		break;
 	}

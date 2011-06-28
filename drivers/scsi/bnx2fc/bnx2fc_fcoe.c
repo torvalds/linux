@@ -387,12 +387,12 @@ static int bnx2fc_rcv(struct sk_buff *skb, struct net_device *dev,
 	lport = hba->ctlr.lp;
 
 	if (unlikely(lport == NULL)) {
-		printk(KERN_ALERT PFX "bnx2fc_rcv: lport is NULL\n");
+		printk(KERN_ERR PFX "bnx2fc_rcv: lport is NULL\n");
 		goto err;
 	}
 
 	if (unlikely(eth_hdr(skb)->h_proto != htons(ETH_P_FCOE))) {
-		printk(KERN_ALERT PFX "bnx2fc_rcv: Wrong FC type frame\n");
+		printk(KERN_ERR PFX "bnx2fc_rcv: Wrong FC type frame\n");
 		goto err;
 	}
 
@@ -469,7 +469,7 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
 	fr = fcoe_dev_from_skb(skb);
 	lport = fr->fr_dev;
 	if (unlikely(lport == NULL)) {
-		printk(KERN_ALERT PFX "Invalid lport struct\n");
+		printk(KERN_ERR PFX "Invalid lport struct\n");
 		kfree_skb(skb);
 		return;
 	}
@@ -1782,7 +1782,7 @@ static void bnx2fc_ulp_init(struct cnic_dev *dev)
 	rc = dev->register_device(dev, CNIC_ULP_FCOE,
 						(void *) hba);
 	if (rc)
-		printk(KERN_ALERT PFX "register_device failed, rc = %d\n", rc);
+		printk(KERN_ERR PFX "register_device failed, rc = %d\n", rc);
 	else
 		set_bit(BNX2FC_CNIC_REGISTERED, &hba->reg_with_cnic);
 }

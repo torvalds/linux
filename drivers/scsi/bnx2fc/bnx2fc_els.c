@@ -274,12 +274,12 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 
 	rc = fc_remote_port_chkready(rport);
 	if (rc) {
-		printk(KERN_ALERT PFX "els 0x%x: rport not ready\n", op);
+		printk(KERN_ERR PFX "els 0x%x: rport not ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
 	}
 	if (lport->state != LPORT_ST_READY || !(lport->link_up)) {
-		printk(KERN_ALERT PFX "els 0x%x: link is not ready\n", op);
+		printk(KERN_ERR PFX "els 0x%x: link is not ready\n", op);
 		rc = -EINVAL;
 		goto els_err;
 	}
@@ -305,7 +305,7 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 	mp_req = (struct bnx2fc_mp_req *)&(els_req->mp_req);
 	rc = bnx2fc_init_mp_req(els_req);
 	if (rc == FAILED) {
-		printk(KERN_ALERT PFX "ELS MP request init failed\n");
+		printk(KERN_ERR PFX "ELS MP request init failed\n");
 		spin_lock_bh(&tgt->tgt_lock);
 		kref_put(&els_req->refcount, bnx2fc_cmd_release);
 		spin_unlock_bh(&tgt->tgt_lock);
@@ -324,7 +324,7 @@ static int bnx2fc_initiate_els(struct bnx2fc_rport *tgt, unsigned int op,
 	if ((op >= ELS_LS_RJT) && (op <= ELS_AUTH_ELS)) {
 		memcpy(mp_req->req_buf, data, data_len);
 	} else {
-		printk(KERN_ALERT PFX "Invalid ELS op 0x%x\n", op);
+		printk(KERN_ERR PFX "Invalid ELS op 0x%x\n", op);
 		els_req->cb_func = NULL;
 		els_req->cb_arg = NULL;
 		spin_lock_bh(&tgt->tgt_lock);

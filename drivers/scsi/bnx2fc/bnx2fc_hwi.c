@@ -781,7 +781,7 @@ void bnx2fc_process_cq_compl(struct bnx2fc_rport *tgt, u16 wqe)
 	spin_lock_bh(&tgt->tgt_lock);
 	xid = wqe & FCOE_PEND_WQ_CQE_TASK_ID;
 	if (xid >= BNX2FC_MAX_TASKS) {
-		printk(KERN_ALERT PFX "ERROR:xid out of range\n");
+		printk(KERN_ERR PFX "ERROR:xid out of range\n");
 		spin_unlock_bh(&tgt->tgt_lock);
 		return;
 	}
@@ -983,7 +983,7 @@ static void bnx2fc_fastpath_notification(struct bnx2fc_hba *hba,
 	struct bnx2fc_rport *tgt = hba->tgt_ofld_list[conn_id];
 
 	if (!tgt) {
-		printk(KERN_ALERT PFX "conn_id 0x%x not valid\n", conn_id);
+		printk(KERN_ERR PFX "conn_id 0x%x not valid\n", conn_id);
 		return;
 	}
 
@@ -1012,7 +1012,7 @@ static void bnx2fc_process_ofld_cmpl(struct bnx2fc_hba *hba,
 	context_id = ofld_kcqe->fcoe_conn_context_id;
 	tgt = hba->tgt_ofld_list[conn_id];
 	if (!tgt) {
-		printk(KERN_ALERT PFX "ERROR:ofld_cmpl: No pending ofld req\n");
+		printk(KERN_ERR PFX "ERROR:ofld_cmpl: No pending ofld req\n");
 		return;
 	}
 	BNX2FC_TGT_DBG(tgt, "Entered ofld compl - context_id = 0x%x\n",
@@ -1040,7 +1040,7 @@ static void bnx2fc_process_ofld_cmpl(struct bnx2fc_hba *hba,
 		/* now enable the session */
 		rc = bnx2fc_send_session_enable_req(port, tgt);
 		if (rc) {
-			printk(KERN_ALERT PFX "enable session failed\n");
+			printk(KERN_ERR PFX "enable session failed\n");
 			goto ofld_cmpl_err;
 		}
 	}
@@ -1070,7 +1070,7 @@ static void bnx2fc_process_enable_conn_cmpl(struct bnx2fc_hba *hba,
 	conn_id = ofld_kcqe->fcoe_conn_id;
 	tgt = hba->tgt_ofld_list[conn_id];
 	if (!tgt) {
-		printk(KERN_ALERT PFX "ERROR:enbl_cmpl: No pending ofld req\n");
+		printk(KERN_ERR PFX "ERROR:enbl_cmpl: No pending ofld req\n");
 		return;
 	}
 
@@ -1082,7 +1082,7 @@ static void bnx2fc_process_enable_conn_cmpl(struct bnx2fc_hba *hba,
 	 * and enable
 	 */
 	if (tgt->context_id != context_id) {
-		printk(KERN_ALERT PFX "context id mis-match\n");
+		printk(KERN_ERR PFX "context id mis-match\n");
 		return;
 	}
 	if (hba != tgt->port->priv) {
@@ -1114,14 +1114,14 @@ static void bnx2fc_process_conn_disable_cmpl(struct bnx2fc_hba *hba,
 	conn_id = disable_kcqe->fcoe_conn_id;
 	tgt = hba->tgt_ofld_list[conn_id];
 	if (!tgt) {
-		printk(KERN_ALERT PFX "ERROR: disable_cmpl: No disable req\n");
+		printk(KERN_ERR PFX "ERROR: disable_cmpl: No disable req\n");
 		return;
 	}
 
 	BNX2FC_TGT_DBG(tgt, PFX "disable_cmpl: conn_id %d\n", conn_id);
 
 	if (disable_kcqe->completion_status) {
-		printk(KERN_ALERT PFX "ERROR: Disable failed with cmpl status %d\n",
+		printk(KERN_ERR PFX "Disable failed with cmpl status %d\n",
 			disable_kcqe->completion_status);
 		return;
 	} else {
@@ -1143,14 +1143,14 @@ static void bnx2fc_process_conn_destroy_cmpl(struct bnx2fc_hba *hba,
 	conn_id = destroy_kcqe->fcoe_conn_id;
 	tgt = hba->tgt_ofld_list[conn_id];
 	if (!tgt) {
-		printk(KERN_ALERT PFX "destroy_cmpl: No destroy req\n");
+		printk(KERN_ERR PFX "destroy_cmpl: No destroy req\n");
 		return;
 	}
 
 	BNX2FC_TGT_DBG(tgt, "destroy_cmpl: conn_id %d\n", conn_id);
 
 	if (destroy_kcqe->completion_status) {
-		printk(KERN_ALERT PFX "Destroy conn failed, cmpl status %d\n",
+		printk(KERN_ERR PFX "Destroy conn failed, cmpl status %d\n",
 			destroy_kcqe->completion_status);
 		return;
 	} else {
@@ -1182,6 +1182,7 @@ static void bnx2fc_init_failure(struct bnx2fc_hba *hba, u32 err_code)
 		break;
 	case FCOE_KCQE_COMPLETION_STATUS_WRONG_HSI_VERSION:
 		printk(KERN_ERR PFX "init failure due to HSI mismatch\n");
+		break;
 	default:
 		printk(KERN_ERR PFX "Unknown Error code %d\n", err_code);
 	}
@@ -1262,7 +1263,7 @@ void bnx2fc_indicate_kcqe(void *context, struct kcqe *kcq[],
 		case FCOE_KCQE_OPCODE_FCOE_ERROR:
 			/* fall thru */
 		default:
-			printk(KERN_ALERT PFX "unknown opcode 0x%x\n",
+			printk(KERN_ERR PFX "unknown opcode 0x%x\n",
 								kcqe->op_code);
 		}
 	}

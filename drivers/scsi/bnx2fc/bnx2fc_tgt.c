@@ -403,7 +403,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 	switch (event) {
 	case RPORT_EV_READY:
 		if (!rport) {
-			printk(KERN_ALERT PFX "rport is NULL: ERROR!\n");
+			printk(KERN_ERR PFX "rport is NULL: ERROR!\n");
 			break;
 		}
 
@@ -415,7 +415,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 			 * We should not come here, as lport will
 			 * take care of fabric login
 			 */
-			printk(KERN_ALERT PFX "%x - rport_event_handler ERROR\n",
+			printk(KERN_ERR PFX "%x - rport_event_handler ERROR\n",
 				rdata->ids.port_id);
 			break;
 		}
@@ -483,7 +483,7 @@ void bnx2fc_rport_event_handler(struct fc_lport *lport,
 			break;
 
 		if (!rport) {
-			printk(KERN_ALERT PFX "%x - rport not created Yet!!\n",
+			printk(KERN_INFO PFX "%x - rport not created Yet!!\n",
 				port_id);
 			break;
 		}
@@ -633,7 +633,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->sq = dma_alloc_coherent(&hba->pcidev->dev, tgt->sq_mem_size,
 				     &tgt->sq_dma, GFP_KERNEL);
 	if (!tgt->sq) {
-		printk(KERN_ALERT PFX "unable to allocate SQ memory %d\n",
+		printk(KERN_ERR PFX "unable to allocate SQ memory %d\n",
 			tgt->sq_mem_size);
 		goto mem_alloc_failure;
 	}
@@ -646,7 +646,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->cq = dma_alloc_coherent(&hba->pcidev->dev, tgt->cq_mem_size,
 				     &tgt->cq_dma, GFP_KERNEL);
 	if (!tgt->cq) {
-		printk(KERN_ALERT PFX "unable to allocate CQ memory %d\n",
+		printk(KERN_ERR PFX "unable to allocate CQ memory %d\n",
 			tgt->cq_mem_size);
 		goto mem_alloc_failure;
 	}
@@ -659,7 +659,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->rq = dma_alloc_coherent(&hba->pcidev->dev, tgt->rq_mem_size,
 					&tgt->rq_dma, GFP_KERNEL);
 	if (!tgt->rq) {
-		printk(KERN_ALERT PFX "unable to allocate RQ memory %d\n",
+		printk(KERN_ERR PFX "unable to allocate RQ memory %d\n",
 			tgt->rq_mem_size);
 		goto mem_alloc_failure;
 	}
@@ -671,7 +671,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->rq_pbl = dma_alloc_coherent(&hba->pcidev->dev, tgt->rq_pbl_size,
 					 &tgt->rq_pbl_dma, GFP_KERNEL);
 	if (!tgt->rq_pbl) {
-		printk(KERN_ALERT PFX "unable to allocate RQ PBL %d\n",
+		printk(KERN_ERR PFX "unable to allocate RQ PBL %d\n",
 			tgt->rq_pbl_size);
 		goto mem_alloc_failure;
 	}
@@ -697,7 +697,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->xferq = dma_alloc_coherent(&hba->pcidev->dev, tgt->xferq_mem_size,
 					&tgt->xferq_dma, GFP_KERNEL);
 	if (!tgt->xferq) {
-		printk(KERN_ALERT PFX "unable to allocate XFERQ %d\n",
+		printk(KERN_ERR PFX "unable to allocate XFERQ %d\n",
 			tgt->xferq_mem_size);
 		goto mem_alloc_failure;
 	}
@@ -711,7 +711,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 	tgt->confq = dma_alloc_coherent(&hba->pcidev->dev, tgt->confq_mem_size,
 					&tgt->confq_dma, GFP_KERNEL);
 	if (!tgt->confq) {
-		printk(KERN_ALERT PFX "unable to allocate CONFQ %d\n",
+		printk(KERN_ERR PFX "unable to allocate CONFQ %d\n",
 			tgt->confq_mem_size);
 		goto mem_alloc_failure;
 	}
@@ -726,7 +726,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 					    tgt->confq_pbl_size,
 					    &tgt->confq_pbl_dma, GFP_KERNEL);
 	if (!tgt->confq_pbl) {
-		printk(KERN_ALERT PFX "unable to allocate CONFQ PBL %d\n",
+		printk(KERN_ERR PFX "unable to allocate CONFQ PBL %d\n",
 			tgt->confq_pbl_size);
 		goto mem_alloc_failure;
 	}
@@ -751,7 +751,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 					  tgt->conn_db_mem_size,
 					  &tgt->conn_db_dma, GFP_KERNEL);
 	if (!tgt->conn_db) {
-		printk(KERN_ALERT PFX "unable to allocate conn_db %d\n",
+		printk(KERN_ERR PFX "unable to allocate conn_db %d\n",
 						tgt->conn_db_mem_size);
 		goto mem_alloc_failure;
 	}
@@ -767,7 +767,7 @@ static int bnx2fc_alloc_session_resc(struct bnx2fc_hba *hba,
 				      &tgt->lcq_dma, GFP_KERNEL);
 
 	if (!tgt->lcq) {
-		printk(KERN_ALERT PFX "unable to allocate lcq %d\n",
+		printk(KERN_ERR PFX "unable to allocate lcq %d\n",
 		       tgt->lcq_mem_size);
 		goto mem_alloc_failure;
 	}
