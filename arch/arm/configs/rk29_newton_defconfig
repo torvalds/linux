@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.27
-# Tue Jun 28 10:17:07 2011
+# Tue Jun 28 16:05:41 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -228,6 +228,8 @@ CONFIG_MACH_RK29_newton=y
 # CONFIG_DDR_TYPE_DDR3_2133M is not set
 # CONFIG_DDR_TYPE_DDR3_2133N is not set
 CONFIG_DDR_TYPE_DDR3_DEFAULT=y
+CONFIG_RK29_MEM_SIZE_512M=y
+# CONFIG_RK29_MEM_SIZE_1G is not set
 CONFIG_RK29_MEM_SIZE_M=512
 CONFIG_DDR_SDRAM_FREQ=400
 
@@ -240,8 +242,10 @@ CONFIG_RK29_JTAG=y
 CONFIG_RK29_LAST_LOG=y
 
 #
-# The control interface support for RK29 suspend 
+# support for RK29 power manage 
 #
+# CONFIG_RK29_CLK_SWITCH_TO_32K is not set
+# CONFIG_RK29_GPIO_SUSPEND is not set
 CONFIG_RK29_PWM_INSRAM=y
 
 #
@@ -736,46 +740,7 @@ CONFIG_NETDEVICES=y
 # CONFIG_EQUALIZER is not set
 # CONFIG_TUN is not set
 # CONFIG_VETH is not set
-CONFIG_PHYLIB=y
-
-#
-# MII PHY device drivers
-#
-# CONFIG_MARVELL_PHY is not set
-# CONFIG_DAVICOM_PHY is not set
-# CONFIG_QSEMI_PHY is not set
-# CONFIG_LXT_PHY is not set
-# CONFIG_CICADA_PHY is not set
-# CONFIG_VITESSE_PHY is not set
-# CONFIG_SMSC_PHY is not set
-# CONFIG_BROADCOM_PHY is not set
-# CONFIG_ICPLUS_PHY is not set
-# CONFIG_REALTEK_PHY is not set
-# CONFIG_NATIONAL_PHY is not set
-# CONFIG_STE10XP is not set
-# CONFIG_LSI_ET1011C_PHY is not set
-# CONFIG_FIXED_PHY is not set
-# CONFIG_MDIO_BITBANG is not set
-CONFIG_NET_ETHERNET=y
-CONFIG_MII=y
-# CONFIG_AX88796 is not set
-CONFIG_RK29_VMAC=y
-# CONFIG_SMC91X is not set
-# CONFIG_DM9000 is not set
-# CONFIG_ETHOC is not set
-# CONFIG_SMC911X is not set
-# CONFIG_SMSC911X is not set
-# CONFIG_DNET is not set
-# CONFIG_IBM_NEW_EMAC_ZMII is not set
-# CONFIG_IBM_NEW_EMAC_RGMII is not set
-# CONFIG_IBM_NEW_EMAC_TAH is not set
-# CONFIG_IBM_NEW_EMAC_EMAC4 is not set
-# CONFIG_IBM_NEW_EMAC_NO_FLOW_CTRL is not set
-# CONFIG_IBM_NEW_EMAC_MAL_CLR_ICINTSTAT is not set
-# CONFIG_IBM_NEW_EMAC_MAL_COMMON_ERR is not set
-# CONFIG_B44 is not set
-# CONFIG_KS8842 is not set
-# CONFIG_KS8851_MLL is not set
+# CONFIG_NET_ETHERNET is not set
 # CONFIG_NETDEV_1000 is not set
 # CONFIG_NETDEV_10000 is not set
 CONFIG_WLAN=y
@@ -1324,7 +1289,12 @@ CONFIG_LCD_AT070TN93=y
 #
 # HDMI
 #
-# CONFIG_HDMI is not set
+CONFIG_HDMI=y
+CONFIG_HDMI_OLD=y
+CONFIG_ANX7150=y
+# CONFIG_ANX9030 is not set
+# CONFIG_HDMI_NEW is not set
+# CONFIG_HDMI_DEBUG is not set
 
 #
 # Console display driver support
