@@ -629,15 +629,6 @@ static int noon010_s_stream(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
-static int noon010_g_chip_ident(struct v4l2_subdev *sd,
-				struct v4l2_dbg_chip_ident *chip)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	return v4l2_chip_ident_i2c_client(client, chip,
-					  V4L2_IDENT_NOON010PC30, 0);
-}
-
 static int noon010_log_status(struct v4l2_subdev *sd)
 {
 	struct noon010_info *info = to_noon010(sd);
@@ -667,7 +658,6 @@ static const struct v4l2_ctrl_ops noon010_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_core_ops noon010_core_ops = {
-	.g_chip_ident	= noon010_g_chip_ident,
 	.s_power	= noon010_s_power,
 	.g_ctrl		= v4l2_subdev_g_ctrl,
 	.s_ctrl		= v4l2_subdev_s_ctrl,
