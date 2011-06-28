@@ -1031,33 +1031,12 @@ extern int i915_irq_emit(struct drm_device *dev, void *data,
 extern int i915_irq_wait(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 
-extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
-extern void i915_driver_irq_preinstall(struct drm_device * dev);
-extern int i915_driver_irq_postinstall(struct drm_device *dev);
-extern void i915_driver_irq_uninstall(struct drm_device * dev);
-
-extern irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS);
-extern void ironlake_irq_preinstall(struct drm_device *dev);
-extern int ironlake_irq_postinstall(struct drm_device *dev);
-extern void ironlake_irq_uninstall(struct drm_device *dev);
-
-extern irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS);
-extern void ivybridge_irq_preinstall(struct drm_device *dev);
-extern int ivybridge_irq_postinstall(struct drm_device *dev);
-extern void ivybridge_irq_uninstall(struct drm_device *dev);
+extern void intel_irq_init(struct drm_device *dev);
 
 extern int i915_vblank_pipe_set(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 extern int i915_vblank_pipe_get(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
-extern int i915_enable_vblank(struct drm_device *dev, int crtc);
-extern void i915_disable_vblank(struct drm_device *dev, int crtc);
-extern int ironlake_enable_vblank(struct drm_device *dev, int crtc);
-extern void ironlake_disable_vblank(struct drm_device *dev, int crtc);
-extern int ivybridge_enable_vblank(struct drm_device *dev, int crtc);
-extern void ivybridge_disable_vblank(struct drm_device *dev, int crtc);
-extern u32 i915_get_vblank_counter(struct drm_device *dev, int crtc);
-extern u32 gm45_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int i915_vblank_swap(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 
@@ -1068,13 +1047,6 @@ void
 i915_disable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
 
 void intel_enable_asle (struct drm_device *dev);
-int i915_get_vblank_timestamp(struct drm_device *dev, int crtc,
-			      int *max_error,
-			      struct timeval *vblank_time,
-			      unsigned flags);
-
-int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
-			     int *vpos, int *hpos);
 
 #ifdef CONFIG_DEBUG_FS
 extern void i915_destroy_error_state(struct drm_device *dev);
