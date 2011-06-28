@@ -317,7 +317,8 @@ EXPORT_SYMBOL_GPL(pti_request_masterchannel);
  *				a master, channel ID address
  *				used to write to PTI HW.
  *
- * @mc: master, channel apeture ID address to be released.
+ * @mc: master, channel apeture ID address to be released.  This
+ *      will de-allocate the structure via kfree().
  */
 void pti_release_masterchannel(struct pti_masterchannel *mc)
 {
@@ -475,8 +476,10 @@ static int pti_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 		else
 			pti_tty_data->mc = pti_request_masterchannel(2);
 
-		if (pti_tty_data->mc == NULL)
+		if (pti_tty_data->mc == NULL) {
+			kfree(pti_tty_data);
 			return -ENXIO;
+		}
 		tty->driver_data = pti_tty_data;
 	}
 
@@ -495,7 +498,7 @@ static void pti_tty_cleanup(struct tty_struct *tty)
 	if (pti_tty_data == NULL)
 		return;
 	pti_release_masterchannel(pti_tty_data->mc);
-	kfree(tty->driver_data);
+	kfree(pti_tty_data);
 	tty->driver_data = NULL;
 }
 
@@ -581,7 +584,7 @@ static int pti_char_open(struct inode *inode, struct file *filp)
 static int pti_char_release(struct inode *inode, struct file *filp)
 {
 	pti_release_masterchannel(filp->private_data);
-	kfree(filp->private_data);
+	filp->private_data = NULL;
 	return 0;
 }
 
