@@ -2310,12 +2310,12 @@ static inline int drbd_state_is_stable(struct drbd_conf *mdev)
 	case D_OUTDATED:
 	case D_CONSISTENT:
 	case D_UP_TO_DATE:
+	case D_FAILED:
 		/* disk state is stable as well. */
 		break;
 
 	/* no new io accepted during tansitional states */
 	case D_ATTACHING:
-	case D_FAILED:
 	case D_NEGOTIATING:
 	case D_UNKNOWN:
 	case D_MASK:
