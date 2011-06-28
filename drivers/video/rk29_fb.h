@@ -28,8 +28,8 @@
 #define OUT_S888            8
 #define OUT_S888DUMY        12
 #define OUT_P16BPP4         24  //模拟方式,控制器并不支持
-#define OUT_D888_P666       0x21  //666的屏, 接DATA2-7, DATA10-15, DATA17-22
-#define OUT_D888_P565       0x22  //565的屏, 接DATA3-7, DATA10-15, DATA18-22
+#define OUT_D888_P666       0x21  //666的屏, 接DATA2-7, DATA10-15, DATA18-23
+#define OUT_D888_P565       0x22  //565的屏, 接DATA3-7, DATA10-15, DATA19-23
 
 /* SYS_CONFIG */
 #define m_W2_FORMAT          (3<<0)
