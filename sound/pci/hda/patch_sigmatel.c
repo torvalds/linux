@@ -3408,30 +3408,9 @@ static hda_nid_t get_connected_node(struct hda_codec *codec, hda_nid_t mux,
 	return 0;
 }
 
-static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
-				hda_nid_t nid)
-{
-	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
-	int i, nums;
-
-	if (!(get_wcaps(codec, mux) & AC_WCAP_CONN_LIST))
-		return -1;
-
-	nums = snd_hda_get_connections(codec, mux, conn, ARRAY_SIZE(conn));
-	for (i = 0; i < nums; i++)
-		if (conn[i] == nid)
-			return i;
-
-	for (i = 0; i < nums; i++) {
-		unsigned int wid_caps = get_wcaps(codec, conn[i]);
-		unsigned int wid_type = get_wcaps_type(wid_caps);
-
-		if (wid_type != AC_WID_PIN && wid_type != AC_WID_AUD_MIX)
-			if (get_connection_index(codec, conn[i], nid) >= 0)
-				return i;
-	}
-	return -1;
-}
+/* look for NID recursively */
+#define get_connection_index(codec, mux, nid) \
+	snd_hda_get_conn_index(codec, mux, nid, 1)
 
 /* create a volume assigned to the given pin (only if supported) */
 /* return 1 if the volume control is created */

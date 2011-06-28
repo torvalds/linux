@@ -411,11 +411,8 @@ static int _hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 
 	wcaps = get_wcaps(codec, nid);
 	if (!(wcaps & AC_WCAP_CONN_LIST) &&
-	    get_wcaps_type(wcaps) != AC_WID_VOL_KNB) {
-		snd_printk(KERN_WARNING "hda_codec: "
-			   "connection list not available for 0x%x\n", nid);
-		return -EINVAL;
-	}
+	    get_wcaps_type(wcaps) != AC_WID_VOL_KNB)
+		return 0;
 
 	parm = snd_hda_param_read(codec, nid, AC_PAR_CONNLIST_LEN);
 	if (parm & AC_CLIST_LONG) {
@@ -504,6 +501,41 @@ static bool add_conn_list(struct snd_array *array, hda_nid_t nid)
 	*p = nid;
 	return true;
 }
+
+/**
+ * snd_hda_get_conn_index - get the connection index of the given NID
+ * @codec: the HDA codec
+ * @mux: NID containing the list
+ * @nid: NID to select
+ * @recursive: 1 when searching NID recursively, otherwise 0
+ *
+ * Parses the connection list of the widget @mux and checks whether the
+ * widget @nid is present.  If it is, return the connection index.
+ * Otherwise it returns -1.
+ */
+int snd_hda_get_conn_index(struct hda_codec *codec, hda_nid_t mux,
+			   hda_nid_t nid, int recursive)
+{
+	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
+	int i, nums;
+
+	nums = snd_hda_get_connections(codec, mux, conn, ARRAY_SIZE(conn));
+	for (i = 0; i < nums; i++)
+		if (conn[i] == nid)
+			return i;
+	if (!recursive)
+		return -1;
+	if (recursive > 5) {
+		snd_printd("hda_codec: too deep connection for 0x%x\n", nid);
+		return -1;
+	}
+	recursive++;
+	for (i = 0; i < nums; i++)
+		if (snd_hda_get_conn_index(codec, conn[i], nid, recursive) >= 0)
+			return i;
+	return -1;
+}
+EXPORT_SYMBOL_HDA(snd_hda_get_conn_index);
 
 /**
  * snd_hda_queue_unsol_event - add an unsolicited event to queue

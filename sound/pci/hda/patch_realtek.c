@@ -1195,18 +1195,8 @@ static void alc_line_automute(struct hda_codec *codec)
 	update_speakers(codec);
 }
 
-static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
-				hda_nid_t nid)
-{
-	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
-	int i, nums;
-
-	nums = snd_hda_get_connections(codec, mux, conn, ARRAY_SIZE(conn));
-	for (i = 0; i < nums; i++)
-		if (conn[i] == nid)
-			return i;
-	return -1;
-}
+#define get_connection_index(codec, mux, nid) \
+	snd_hda_get_conn_index(codec, mux, nid, 0)
 
 /* switch the current ADC according to the jack state */
 static void alc_dual_mic_adc_auto_switch(struct hda_codec *codec)

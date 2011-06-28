@@ -3308,19 +3308,8 @@ static const struct hda_pcm_stream cx_auto_pcm_analog_capture = {
 
 static const hda_nid_t cx_auto_adc_nids[] = { 0x14 };
 
-/* get the connection index of @nid in the widget @mux */
-static int get_connection_index(struct hda_codec *codec, hda_nid_t mux,
-				hda_nid_t nid)
-{
-	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
-	int i, nums;
-
-	nums = snd_hda_get_connections(codec, mux, conn, ARRAY_SIZE(conn));
-	for (i = 0; i < nums; i++)
-		if (conn[i] == nid)
-			return i;
-	return -1;
-}
+#define get_connection_index(codec, mux, nid)\
+	snd_hda_get_conn_index(codec, mux, nid, 0)
 
 /* get an unassigned DAC from the given list.
  * Return the nid if found and reduce the DAC list, or return zero if

@@ -403,7 +403,6 @@ static int cmi9880_fill_multi_init(struct hda_codec *codec, const struct auto_pi
 	/* clear the table, only one c-media dac assumed here */
 	memset(spec->multi_init, 0, sizeof(spec->multi_init));
 	for (j = 0, i = 0; i < cfg->line_outs; i++) {
-		hda_nid_t conn[4];
 		nid = cfg->line_out_pins[i];
 		/* set as output */
 		spec->multi_init[j].nid = nid;
@@ -416,12 +415,10 @@ static int cmi9880_fill_multi_init(struct hda_codec *codec, const struct auto_pi
 			spec->multi_init[j].verb = AC_VERB_SET_CONNECT_SEL;
 			spec->multi_init[j].param = 0;
 			/* find the index in connect list */
-			len = snd_hda_get_connections(codec, nid, conn, 4);
-			for (k = 0; k < len; k++)
-				if (conn[k] == spec->dac_nids[i]) {
-					spec->multi_init[j].param = k;
-					break;
-				}
+			k = snd_hda_get_conn_index(codec, nid,
+						   spec->dac_nids[i], 0);
+			if (k >= 0)
+				spec->multi_init[j].param = k;
 			j++;
 		}
 	}

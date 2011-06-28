@@ -346,21 +346,15 @@ static hda_nid_t get_adc(struct hda_codec *codec, hda_nid_t pin,
 
 	nid = codec->start_nid;
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
-		hda_nid_t pins[2];
 		unsigned int type;
-		int j, nums;
+		int idx;
 		type = get_wcaps_type(get_wcaps(codec, nid));
 		if (type != AC_WID_AUD_IN)
 			continue;
-		nums = snd_hda_get_connections(codec, nid, pins,
-					       ARRAY_SIZE(pins));
-		if (nums <= 0)
-			continue;
-		for (j = 0; j < nums; j++) {
-			if (pins[j] == pin) {
-				*idxp = j;
-				return nid;
-			}
+		idx = snd_hda_get_conn_index(codec, nid, pin, 0);
+		if (idx >= 0) {
+			*idxp = idx;
+			return nid;
 		}
 	}
 	return 0;

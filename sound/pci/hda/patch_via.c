@@ -410,27 +410,8 @@ static int via_new_analog_input(struct via_spec *spec, const char *ctlname,
 	return 0;
 }
 
-/* return the index of the given widget nid as the source of mux;
- * return -1 if not found;
- * if num_conns is non-NULL, set the total number of connections
- */
-static int __get_connection_index(struct hda_codec *codec, hda_nid_t mux,
-				  hda_nid_t nid, int *num_conns)
-{
-	hda_nid_t conn[HDA_MAX_NUM_INPUTS];
-	int i, nums;
-
-	nums = snd_hda_get_connections(codec, mux, conn, ARRAY_SIZE(conn));
-	if (num_conns)
-		*num_conns = nums;
-	for (i = 0; i < nums; i++)
-		if (conn[i] == nid)
-			return i;
-	return -1;
-}
-
 #define get_connection_index(codec, mux, nid) \
-	__get_connection_index(codec, mux, nid, NULL)
+	snd_hda_get_conn_index(codec, mux, nid, 0)
 
 static bool check_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 			   unsigned int mask)
@@ -2011,23 +1992,10 @@ static void add_loopback_list(struct via_spec *spec, hda_nid_t mix, int idx)
 	spec->loopback.amplist = spec->loopback_list;
 }
 
-/* check whether the path from src to dst is reachable */
 static bool is_reachable_nid(struct hda_codec *codec, hda_nid_t src,
-			     hda_nid_t dst, int depth)
+			     hda_nid_t dst)
 {
-	hda_nid_t conn[8];
-	int i, nums;
-
-	nums = snd_hda_get_connections(codec, src, conn, ARRAY_SIZE(conn));
-	for (i = 0; i < nums; i++)
-		if (conn[i] == dst)
-			return true;
-	if (++depth > MAX_NID_PATH_DEPTH)
-		return false;
-	for (i = 0; i < nums; i++)
-		if (is_reachable_nid(codec, conn[i], dst, depth))
-			return true;
-	return false;
+	return snd_hda_get_conn_index(codec, src, dst, 1) >= 0;
 }
 
 /* add the input-route to the given pin */
@@ -2046,7 +2014,7 @@ static bool add_input_route(struct hda_codec *codec, hda_nid_t pin)
 				continue;
 			spec->inputs[spec->num_inputs].mux_idx = idx;
 		} else {
-			if (!is_reachable_nid(codec, spec->adc_nids[c], pin, 0))
+			if (!is_reachable_nid(codec, spec->adc_nids[c], pin))
 				continue;
 		}
 		spec->inputs[spec->num_inputs].adc_idx = c;
