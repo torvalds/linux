@@ -1356,7 +1356,7 @@ static inline unsigned int hcd_index(struct usb_hcd *hcd)
 		return 1;
 }
 
-/* There is one ehci_hci structure per controller */
+/* There is one xhci_hcd structure per controller */
 struct xhci_hcd {
 	struct usb_hcd *main_hcd;
 	struct usb_hcd *shared_hcd;
