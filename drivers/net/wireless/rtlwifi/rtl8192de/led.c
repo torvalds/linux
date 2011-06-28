@@ -40,7 +40,7 @@ static void _rtl92ce_init_led(struct ieee80211_hw *hw,
 	pled->ledon = false;
 }
 
-void rtl92ce_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
+void rtl92de_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 {
 	u8 ledcfg;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -77,7 +77,7 @@ void rtl92ce_sw_led_on(struct ieee80211_hw *hw, struct rtl_led *pled)
 	pled->ledon = true;
 }
 
-void rtl92ce_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
+void rtl92de_sw_led_off(struct ieee80211_hw *hw, struct rtl_led *pled)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci_priv *pcipriv = rtl_pcipriv(hw);
@@ -128,10 +128,10 @@ static void _rtl92ce_sw_led_control(struct ieee80211_hw *hw,
 	case LED_CTL_POWER_ON:
 	case LED_CTL_LINK:
 	case LED_CTL_NO_LINK:
-		rtl92ce_sw_led_on(hw, pLed0);
+		rtl92de_sw_led_on(hw, pLed0);
 		break;
 	case LED_CTL_POWER_OFF:
-		rtl92ce_sw_led_off(hw, pLed0);
+		rtl92de_sw_led_off(hw, pLed0);
 		break;
 	default:
 		break;

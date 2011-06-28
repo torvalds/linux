@@ -3192,13 +3192,13 @@ static void rtl92d_phy_set_io(struct ieee80211_hw *hw)
 		 rtlphy->current_io_type, rtlphy->set_io_inprogress));
 	switch (rtlphy->current_io_type) {
 	case IO_CMD_RESUME_DM_BY_SCAN:
-		dm_digtable.cur_igvalue = rtlphy->initgain_backup.xaagccore1;
+		de_digtable.cur_igvalue = rtlphy->initgain_backup.xaagccore1;
 		rtl92d_dm_write_dig(hw);
 		rtl92d_phy_set_txpower_level(hw, rtlphy->current_channel);
 		break;
 	case IO_CMD_PAUSE_DM_BY_SCAN:
-		rtlphy->initgain_backup.xaagccore1 = dm_digtable.cur_igvalue;
-		dm_digtable.cur_igvalue = 0x17;
+		rtlphy->initgain_backup.xaagccore1 = de_digtable.cur_igvalue;
+		de_digtable.cur_igvalue = 0x17;
 		rtl92d_dm_write_dig(hw);
 		break;
 	default:
