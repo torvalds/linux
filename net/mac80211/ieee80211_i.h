@@ -544,6 +544,9 @@ struct ieee80211_sub_if_data {
 	/* keys */
 	struct list_head key_list;
 
+	/* count for keys needing tailroom space allocation */
+	int crypto_tx_tailroom_needed_cnt;
+
 	struct net_device *dev;
 	struct ieee80211_local *local;
 
