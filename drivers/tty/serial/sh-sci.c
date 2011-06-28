@@ -71,6 +71,8 @@ struct sci_port {
 	/* Function clock */
 	struct clk		*fclk;
 
+	char			*irqstr[SCIx_NR_IRQS];
+
 	struct dma_chan			*chan_tx;
 	struct dma_chan			*chan_rx;
 
@@ -954,53 +956,102 @@ static int sci_notifier(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
+static struct sci_irq_desc {
+	const char	*desc;
+	irq_handler_t	handler;
+} sci_irq_desc[] = {
+	/*
+	 * Split out handlers, the default case.
+	 */
+	[SCIx_ERI_IRQ] = {
+		.desc = "rx err",
+		.handler = sci_er_interrupt,
+	},
+
+	[SCIx_RXI_IRQ] = {
+		.desc = "rx full",
+		.handler = sci_rx_interrupt,
+	},
+
+	[SCIx_TXI_IRQ] = {
+		.desc = "tx empty",
+		.handler = sci_tx_interrupt,
+	},
+
+	[SCIx_BRI_IRQ] = {
+		.desc = "break",
+		.handler = sci_br_interrupt,
+	},
+
+	/*
+	 * Special muxed handler.
+	 */
+	[SCIx_MUX_IRQ] = {
+		.desc = "mux",
+		.handler = sci_mpxed_interrupt,
+	},
+};
+
 static int sci_request_irq(struct sci_port *port)
 {
-	int i;
-	irqreturn_t (*handlers[4])(int irq, void *ptr) = {
-		sci_er_interrupt, sci_rx_interrupt, sci_tx_interrupt,
-		sci_br_interrupt,
-	};
-	const char *desc[] = { "SCI Receive Error", "SCI Receive Data Full",
-			       "SCI Transmit Data Empty", "SCI Break" };
+	struct uart_port *up = &port->port;
+	int i, j, ret = 0;
 
-	if (port->cfg->irqs[0] == port->cfg->irqs[1]) {
-		if (unlikely(!port->cfg->irqs[0]))
-			return -ENODEV;
+	for (i = j = 0; i < SCIx_NR_IRQS; i++, j++) {
+		struct sci_irq_desc *desc;
+		unsigned int irq;
 
-		if (request_irq(port->cfg->irqs[0], sci_mpxed_interrupt,
-				IRQF_DISABLED, "sci", port)) {
-			dev_err(port->port.dev, "Can't allocate IRQ\n");
-			return -ENODEV;
+		if (SCIx_IRQ_IS_MUXED(port)) {
+			i = SCIx_MUX_IRQ;
+			irq = up->irq;
+		} else
+			irq = port->cfg->irqs[i];
+
+		desc = sci_irq_desc + i;
+		port->irqstr[j] = kasprintf(GFP_KERNEL, "%s:%s",
+					    dev_name(up->dev), desc->desc);
+		if (!port->irqstr[j]) {
+			dev_err(up->dev, "Failed to allocate %s IRQ string\n",
+				desc->desc);
+			goto out_nomem;
 		}
-	} else {
-		for (i = 0; i < ARRAY_SIZE(handlers); i++) {
-			if (unlikely(!port->cfg->irqs[i]))
-				continue;
 
-			if (request_irq(port->cfg->irqs[i], handlers[i],
-					IRQF_DISABLED, desc[i], port)) {
-				dev_err(port->port.dev, "Can't allocate IRQ\n");
-				return -ENODEV;
-			}
+		ret = request_irq(irq, desc->handler, up->irqflags,
+				  port->irqstr[j], port);
+		if (unlikely(ret)) {
+			dev_err(up->dev, "Can't allocate %s IRQ\n", desc->desc);
+			goto out_noirq;
 		}
 	}
 
 	return 0;
+
+out_noirq:
+	while (--i >= 0)
+		free_irq(port->cfg->irqs[i], port);
+
+out_nomem:
+	while (--j >= 0)
+		kfree(port->irqstr[j]);
+
+	return ret;
 }
 
 static void sci_free_irq(struct sci_port *port)
 {
 	int i;
 
-	if (port->cfg->irqs[0] == port->cfg->irqs[1])
-		free_irq(port->cfg->irqs[0], port);
-	else {
-		for (i = 0; i < ARRAY_SIZE(port->cfg->irqs); i++) {
-			if (!port->cfg->irqs[i])
-				continue;
+	/*
+	 * Intentionally in reverse order so we iterate over the muxed
+	 * IRQ first.
+	 */
+	for (i = 0; i < SCIx_NR_IRQS; i++) {
+		free_irq(port->cfg->irqs[i], port);
+		kfree(port->irqstr[i]);
 
-			free_irq(port->cfg->irqs[i], port);
+		if (SCIx_IRQ_IS_MUXED(port)) {
+			/* If there's only one IRQ, we're done. */
+			return;
 		}
 	}
 }
@@ -1910,6 +1961,7 @@ static int __devinit sci_init_single(struct platform_device *dev,
 	 * For the muxed case there's nothing more to do.
 	 */
 	port->irq		= p->irqs[SCIx_RXI_IRQ];
+	port->irqflags		= IRQF_DISABLED;
 
 	port->serial_in		= sci_serial_in;
 	port->serial_out	= sci_serial_out;
