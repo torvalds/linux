@@ -702,6 +702,15 @@ config SENSORS_LM95241
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm95241.
 
+config SENSORS_LM95245
+	tristate "National Semiconductor LM95245 sensor chip"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for LM95245 sensor chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called lm95245.
+
 config SENSORS_MAX1111
 	tristate "Maxim MAX1111 Multichannel, Serial 8-bit ADC chip"
 	depends on SPI_MASTER
