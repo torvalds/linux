@@ -334,7 +334,11 @@ static int rknand_probe(struct platform_device *pdev)
 
     gpNandInfo->bufSize = MAX_BUFFER_SIZE * 512;
     gpNandInfo->pbuf = grknand_buf;
-   
+
+#ifdef CONFIG_MTD_EMMC_CLK_POWER_SAVE
+    gpNandInfo->emmc_clk_power_save_en = 1;
+#endif
+
 	rknand_mtd.name = dev_name(&pdev->dev);
 	rknand_mtd.priv = &nand_info->rknand;
 	rknand_mtd.owner = THIS_MODULE;

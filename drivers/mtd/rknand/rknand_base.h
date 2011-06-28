@@ -66,6 +66,8 @@ struct rknand_info {
     int (*GetIdBlockSysData)(char * buf, int Sector);
     char (*GetSNSectorInfo)(char * pbuf);
     char (*GetChipSectorInfo)(char * pbuf);
+    int emmc_clk_power_save_en;
+    int reserved[20];
 };
 
 extern int rknand_queue_read(int Index, int nSec, void *buf);

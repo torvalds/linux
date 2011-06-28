@@ -22,6 +22,12 @@ config MTD_RKNAND_BUFFER
 	depends on MTD_RKNAND 
     default y 
 	help 
+	
+config MTD_EMMC_CLK_POWER_SAVE 
+	tristate "RK29 emmc clock power save" 
+	depends on MTD_RKNAND 
+    default n
+	help 
  
 config MTD_NAND_RK29XX_DEBUG 
 	tristate "RK29 Nand driver debug enables" 
