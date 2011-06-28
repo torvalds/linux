@@ -63,6 +63,7 @@
 #define CMD_BTCOEXSCAN_STOP	"BTCOEXSCAN-STOP"
 #define CMD_BTCOEXMODE		"BTCOEXMODE"
 #define CMD_SETSUSPENDOPT	"SETSUSPENDOPT"
+#define CMD_SETFWPATH		"SETFWPATH"
 
 typedef struct android_wifi_priv_cmd {
 	char *buf;
@@ -71,7 +72,7 @@ typedef struct android_wifi_priv_cmd {
 } android_wifi_priv_cmd;
 
 /**
- * Extern funciton declarations (TODO: move them to dhd_linux.h)
+ * Extern function declarations (TODO: move them to dhd_linux.h)
  */
 void dhd_customer_gpio_wlan_ctrl(int onoff);
 uint dhd_dev_reset(struct net_device *dev, uint8 flag);
@@ -79,6 +80,8 @@ void dhd_dev_init_ioctl(struct net_device *dev);
 int net_os_set_dtim_skip(struct net_device *dev, int val);
 int net_os_set_suspend_disable(struct net_device *dev, int val);
 int net_os_set_suspend(struct net_device *dev, int val);
+
+extern bool ap_fw_loaded;
 
 /**
  * Local (static) functions and variables
@@ -89,10 +92,6 @@ int net_os_set_suspend(struct net_device *dev, int val);
  * wl_android_wifi_on
  */
 static int g_wifi_on = 1;
-
-static int wl_android_get_link_speed(struct net_device *net, char *command, int total_len);
-static int wl_android_get_rssi(struct net_device *net, char *command, int total_len);
-static int wl_android_set_suspendopt(struct net_device *dev, char *command, int total_len);
 
 /**
  * Local (static) function definitions
@@ -209,6 +208,22 @@ int wl_android_wifi_off(struct net_device *dev)
 	return ret;
 }
 
+static int wl_android_set_fwpath(struct net_device *net, char *command, int total_len)
+{
+	if ((strlen(command) - strlen(CMD_SETFWPATH)) > MOD_PARAM_PATHLEN)
+		return -1;
+	bcm_strncpy_s(fw_path, sizeof(fw_path),
+		command + strlen(CMD_SETFWPATH) + 1, MOD_PARAM_PATHLEN - 1);
+	if (strstr(fw_path, "apsta") != NULL) {
+		DHD_INFO(("GOT APSTA FIRMWARE\n"));
+		ap_fw_loaded = TRUE;
+	} else {
+		DHD_INFO(("GOT STA FIRMWARE\n"));
+		ap_fw_loaded = FALSE;
+	}
+	return 0;
+}
+
 int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 {
 	int ret = 0;
@@ -277,6 +292,9 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	}
 	else if (strnicmp(command, CMD_SETSUSPENDOPT, strlen(CMD_SETSUSPENDOPT)) == 0) {
 		bytes_written = wl_android_set_suspendopt(net, command, priv_cmd->total_len);
+	}
+	else if (strnicmp(command, CMD_SETFWPATH, strlen(CMD_SETFWPATH)) == 0) {
+		bytes_written = wl_android_set_fwpath(net, command, priv_cmd->total_len);
 	} else {
 		DHD_ERROR(("Unknown PRIVATE command %s - ignored\n", command));
 		snprintf(command, 3, "OK");
