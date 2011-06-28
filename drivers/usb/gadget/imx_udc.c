@@ -1237,9 +1237,14 @@ irq_handler_t intr_handler(int i)
  *******************************************************************************
  */
 
+static int imx_udc_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int imx_udc_stop(struct usb_gadget_driver *driver);
 static const struct usb_gadget_ops imx_udc_ops = {
 	.get_frame	 = imx_udc_get_frame,
 	.wakeup		 = imx_udc_wakeup,
+	.start		= imx_udc_start,
+	.stop		= imx_udc_stop,
 };
 
 static struct imx_udc_struct controller = {
@@ -1324,7 +1329,7 @@ static struct imx_udc_struct controller = {
  * USB gadget driver functions
  *******************************************************************************
  */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int imx_udc_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct imx_udc_struct *imx_usb = &controller;
@@ -1368,9 +1373,8 @@ fail:
 	imx_usb->gadget.dev.driver = NULL;
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int imx_udc_stop(struct usb_gadget_driver *driver)
 {
 	struct imx_udc_struct *imx_usb = &controller;
 
@@ -1394,7 +1398,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /*******************************************************************************
  * Module functions
@@ -1504,8 +1507,14 @@ static int __init imx_udc_probe(struct platform_device *pdev)
 	imx_usb->timer.function = handle_config;
 	imx_usb->timer.data = (unsigned long)imx_usb;
 
-	return 0;
+	ret = usb_add_gadget_udc(&pdev->dev, &imx_usb->gadget);
+	if (ret)
+		goto fail4;
 
+	return 0;
+fail4:
+	for (i = 0; i < IMX_USB_NB_EP + 1; i++)
+		free_irq(imx_usb->usbd_int[i], imx_usb);
 fail3:
 	clk_put(clk);
 	clk_disable(clk);
@@ -1525,6 +1534,7 @@ static int __exit imx_udc_remove(struct platform_device *pdev)
 	struct imxusb_platform_data *pdata = pdev->dev.platform_data;
 	int i;
 
+	usb_del_gadget_udc(&imx_usb->gadget);
 	imx_udc_disable(imx_usb);
 	del_timer(&imx_usb->timer);
 

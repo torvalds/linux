@@ -1410,7 +1410,7 @@ static struct usb_ep_ops r8a66597_ep_ops = {
 /*-------------------------------------------------------------------------*/
 static struct r8a66597 *the_controller;
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int r8a66597_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct r8a66597 *r8a66597 = the_controller;
@@ -1462,9 +1462,8 @@ error:
 
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int r8a66597_stop(struct usb_gadget_driver *driver)
 {
 	struct r8a66597 *r8a66597 = the_controller;
 	unsigned long flags;
@@ -1488,7 +1487,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	r8a66597->driver = NULL;
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /*-------------------------------------------------------------------------*/
 static int r8a66597_get_frame(struct usb_gadget *_gadget)
@@ -1499,12 +1497,15 @@ static int r8a66597_get_frame(struct usb_gadget *_gadget)
 
 static struct usb_gadget_ops r8a66597_gadget_ops = {
 	.get_frame		= r8a66597_get_frame,
+	.start			= r8a66597_start,
+	.stop			= r8a66597_stop,
 };
 
 static int __exit r8a66597_remove(struct platform_device *pdev)
 {
 	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
 
+	usb_del_gadget_udc(&r8a66597->gadget);
 	del_timer_sync(&r8a66597->timer);
 	iounmap(r8a66597->reg);
 	free_irq(platform_get_irq(pdev, 0), r8a66597);
@@ -1647,9 +1648,15 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 
 	init_controller(r8a66597);
 
+	ret = usb_add_gadget_udc(&pdev->dev, &r8a66597->gadget);
+	if (ret)
+		goto err_add_udc;
+
 	dev_info(&pdev->dev, "version %s\n", DRIVER_VERSION);
 	return 0;
 
+err_add_udc:
+	r8a66597_free_request(&r8a66597->ep[0].ep, r8a66597->ep0_req);
 clean_up3:
 	free_irq(irq, r8a66597);
 clean_up2:

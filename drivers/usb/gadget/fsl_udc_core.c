@@ -1232,6 +1232,9 @@ static int fsl_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
+static int fsl_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int fsl_stop(struct usb_gadget_driver *driver);
 /* defined in gadget.h */
 static struct usb_gadget_ops fsl_gadget_ops = {
 	.get_frame = fsl_get_frame,
@@ -1240,6 +1243,8 @@ static struct usb_gadget_ops fsl_gadget_ops = {
 	.vbus_session = fsl_vbus_session,
 	.vbus_draw = fsl_vbus_draw,
 	.pullup = fsl_pullup,
+	.start = fsl_start,
+	.stop = fsl_stop,
 };
 
 /* Set protocol stall on ep0, protocol stall will automatically be cleared
@@ -1908,7 +1913,7 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
  * Hook to gadget drivers
  * Called by initialization code of gadget drivers
 *----------------------------------------------------------------*/
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int fsl_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	int retval = -ENODEV;
@@ -1976,10 +1981,9 @@ out:
 		       retval);
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
 /* Disconnect from gadget driver */
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int fsl_stop(struct usb_gadget_driver *driver)
 {
 	struct fsl_ep *loop_ep;
 	unsigned long flags;
@@ -2022,7 +2026,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	       driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /*-------------------------------------------------------------------------
 		PROC File System Support
@@ -2578,9 +2581,16 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_unregister;
 	}
+
+	ret = usb_add_gadget_udc(&pdev->dev, &udc_controller->gadget);
+	if (ret)
+		goto err_del_udc;
+
 	create_proc_file();
 	return 0;
 
+err_del_udc:
+	dma_pool_destroy(udc_controller->td_pool);
 err_unregister:
 	device_unregister(&udc_controller->gadget.dev);
 err_free_irq:
@@ -2612,6 +2622,8 @@ static int __exit fsl_udc_remove(struct platform_device *pdev)
 
 	if (!udc_controller)
 		return -ENODEV;
+
+	usb_del_gadget_udc(&udc_controller->gadget);
 	udc_controller->done = &done;
 
 	fsl_udc_clk_release();

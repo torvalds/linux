@@ -1454,7 +1454,7 @@ static struct usb_ep_ops m66592_ep_ops = {
 /*-------------------------------------------------------------------------*/
 static struct m66592 *the_controller;
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int m66592_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct m66592 *m66592 = the_controller;
@@ -1506,9 +1506,8 @@ error:
 
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int m66592_stop(struct usb_gadget_driver *driver)
 {
 	struct m66592 *m66592 = the_controller;
 	unsigned long flags;
@@ -1533,7 +1532,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	m66592->driver = NULL;
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /*-------------------------------------------------------------------------*/
 static int m66592_get_frame(struct usb_gadget *_gadget)
@@ -1544,11 +1542,15 @@ static int m66592_get_frame(struct usb_gadget *_gadget)
 
 static struct usb_gadget_ops m66592_gadget_ops = {
 	.get_frame		= m66592_get_frame,
+	.start			= m66592_start,
+	.stop			= m66592_stop,
 };
 
 static int __exit m66592_remove(struct platform_device *pdev)
 {
 	struct m66592		*m66592 = dev_get_drvdata(&pdev->dev);
+
+	usb_del_gadget_udc(&m66592->gadget);
 
 	del_timer_sync(&m66592->timer);
 	iounmap(m66592->reg);
@@ -1691,8 +1693,15 @@ static int __init m66592_probe(struct platform_device *pdev)
 
 	init_controller(m66592);
 
+	ret = usb_add_gadget_udc(&pdev->dev, &m66592->gadget);
+	if (ret)
+		goto err_add_udc;
+
 	dev_info(&pdev->dev, "version %s\n", DRIVER_VERSION);
 	return 0;
+
+err_add_udc:
+	m66592_free_request(&m66592->ep[0].ep, m66592->ep0_req);
 
 clean_up3:
 #ifdef CONFIG_HAVE_CLK

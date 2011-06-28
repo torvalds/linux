@@ -1375,6 +1375,10 @@ static int omap_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
+static int omap_udc_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int omap_udc_stop(struct usb_gadget_driver *driver);
+
 static struct usb_gadget_ops omap_gadget_ops = {
 	.get_frame		= omap_get_frame,
 	.wakeup			= omap_wakeup,
@@ -1382,6 +1386,8 @@ static struct usb_gadget_ops omap_gadget_ops = {
 	.vbus_session		= omap_vbus_session,
 	.vbus_draw		= omap_vbus_draw,
 	.pullup			= omap_pullup,
+	.start			= omap_udc_start,
+	.stop			= omap_udc_stop,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -2102,7 +2108,7 @@ static inline int machine_without_vbus_sense(void)
 		);
 }
 
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int omap_udc_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	int		status = -ENODEV;
@@ -2186,9 +2192,8 @@ done:
 		omap_udc_enable_clock(0);
 	return status;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
+static int omap_udc_stop(struct usb_gadget_driver *driver)
 {
 	unsigned long	flags;
 	int		status = -ENODEV;
@@ -2222,8 +2227,6 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 	DBG("unregistered driver '%s'\n", driver->driver.name);
 	return status;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
-
 
 /*-------------------------------------------------------------------------*/
 
@@ -2991,9 +2994,16 @@ known:
 
 	create_proc_file();
 	status = device_add(&udc->gadget.dev);
+	if (status)
+		goto cleanup4;
+
+	status = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 	if (!status)
 		return status;
 	/* If fail, fall through */
+cleanup4:
+	remove_proc_file();
+
 #ifdef	USE_ISO
 cleanup3:
 	free_irq(pdev->resource[2].start, udc);
@@ -3029,6 +3039,8 @@ static int __exit omap_udc_remove(struct platform_device *pdev)
 
 	if (!udc)
 		return -ENODEV;
+
+	usb_del_gadget_udc(&udc->gadget);
 	if (udc->driver)
 		return -EBUSY;
 

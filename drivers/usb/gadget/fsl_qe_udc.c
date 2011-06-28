@@ -1927,6 +1927,10 @@ static int qe_pullup(struct usb_gadget *gadget, int is_on)
 	return -ENOTSUPP;
 }
 
+static int fsl_qe_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int fsl_qe_stop(struct usb_gadget_driver *driver);
+
 /* defined in usb_gadget.h */
 static struct usb_gadget_ops qe_gadget_ops = {
 	.get_frame = qe_get_frame,
@@ -1935,6 +1939,8 @@ static struct usb_gadget_ops qe_gadget_ops = {
 	.vbus_session = qe_vbus_session,
 	.vbus_draw = qe_vbus_draw,
 	.pullup = qe_pullup,
+	.start = fsl_qe_start,
+	.stop = fsl_qe_stop,
 };
 
 /*-------------------------------------------------------------------------
@@ -2320,7 +2326,7 @@ static irqreturn_t qe_udc_irq(int irq, void *_udc)
 /*-------------------------------------------------------------------------
 	Gadget driver probe and unregister.
  --------------------------------------------------------------------------*/
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int fsl_qe_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	int retval;
@@ -2369,9 +2375,8 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 		udc_controller->gadget.name, driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int fsl_qe_stop(struct usb_gadget_driver *driver)
 {
 	struct qe_ep *loop_ep;
 	unsigned long flags;
@@ -2411,7 +2416,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 			driver->driver.name);
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /* udc structure's alloc and setup, include ep-param alloc */
 static struct qe_udc __devinit *qe_udc_config(struct platform_device *ofdev)
@@ -2662,11 +2666,17 @@ static int __devinit qe_udc_probe(struct platform_device *ofdev)
 	if (ret)
 		goto err6;
 
+	ret = usb_add_gadget_udc(&ofdev->dev, &udc_controller->gadget);
+	if (ret)
+		goto err7;
+
 	dev_info(udc_controller->dev,
 			"%s USB controller initialized as device\n",
 			(udc_controller->soc_type == PORT_QE) ? "QE" : "CPM");
 	return 0;
 
+err7:
+	device_unregister(&udc_controller->gadget.dev);
 err6:
 	free_irq(udc_controller->usb_irq, udc_controller);
 err5:
@@ -2720,6 +2730,8 @@ static int __devexit qe_udc_remove(struct platform_device *ofdev)
 
 	if (!udc_controller)
 		return -ENODEV;
+
+	usb_del_gadget_udc(&udc_controller->gadget);
 
 	udc_controller->done = &done;
 	tasklet_disable(&udc_controller->rx_tasklet);

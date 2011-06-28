@@ -725,7 +725,7 @@ static int usbhsg_try_stop(struct usbhs_priv *priv, u32 status)
  *
  */
 struct usbhsg_gpriv *the_controller;
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int usbhsg_gadget_start(struct usb_gadget_driver *driver,
 			    int (*bind)(struct usb_gadget *))
 {
 	struct usbhsg_gpriv *gpriv = the_controller;
@@ -775,9 +775,8 @@ add_fail:
 
 	return ret;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int usbhsg_gadget_stop(struct usb_gadget_driver *driver)
 {
 	struct usbhsg_gpriv *gpriv = the_controller;
 	struct usbhs_priv *priv;
@@ -806,7 +805,6 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	return 0;
 }
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 /*
  *		usb gadget ops
@@ -821,6 +819,8 @@ static int usbhsg_get_frame(struct usb_gadget *gadget)
 
 static struct usb_gadget_ops usbhsg_gadget_ops = {
 	.get_frame		= usbhsg_get_frame,
+	.start			= usbhsg_gadget_start,
+	.stop			= usbhsg_gadget_stop,
 };
 
 static int usbhsg_start(struct usbhs_priv *priv)
@@ -840,6 +840,7 @@ int __devinit usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	struct device *dev = usbhs_priv_to_dev(priv);
 	int pipe_size = usbhs_get_dparam(priv, pipe_size);
 	int i;
+	int ret;
 
 	gpriv = kzalloc(sizeof(struct usbhsg_gpriv), GFP_KERNEL);
 	if (!gpriv) {
@@ -850,6 +851,7 @@ int __devinit usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 	uep = kzalloc(sizeof(struct usbhsg_uep) * pipe_size, GFP_KERNEL);
 	if (!uep) {
 		dev_err(dev, "Could not allocate ep\n");
+		ret = -ENOMEM;
 		goto usbhs_mod_gadget_probe_err_gpriv;
 	}
 
@@ -911,20 +913,28 @@ int __devinit usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 
 	the_controller = gpriv;
 
+	ret = usb_add_gadget_udc(dev, &gpriv->gadget);
+	if (ret)
+		goto err_add_udc;
+
+
 	dev_info(dev, "gadget probed\n");
 
 	return 0;
+err_add_udc:
+	kfree(gpriv->uep);
 
 usbhs_mod_gadget_probe_err_gpriv:
 	kfree(gpriv);
 
-	return -ENOMEM;
+	return ret;
 }
 
 void __devexit usbhs_mod_gadget_remove(struct usbhs_priv *priv)
 {
 	struct usbhsg_gpriv *gpriv = usbhsg_priv_to_gpriv(priv);
 
+	usb_del_gadget_udc(&gpriv->gadget);
 	kfree(gpriv->uep);
 	kfree(gpriv);
 }

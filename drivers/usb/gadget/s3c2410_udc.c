@@ -1552,6 +1552,10 @@ static int s3c2410_vbus_draw(struct usb_gadget *_gadget, unsigned ma)
 	return -ENOTSUPP;
 }
 
+static int s3c2410_udc_start(struct usb_gadget_driver *driver,
+		int (*bind)(struct usb_gadget *));
+static int s3c2410_udc_stop(struct usb_gadget_driver *driver);
+
 static const struct usb_gadget_ops s3c2410_ops = {
 	.get_frame		= s3c2410_udc_get_frame,
 	.wakeup			= s3c2410_udc_wakeup,
@@ -1559,6 +1563,8 @@ static const struct usb_gadget_ops s3c2410_ops = {
 	.pullup			= s3c2410_udc_pullup,
 	.vbus_session		= s3c2410_udc_vbus_session,
 	.vbus_draw		= s3c2410_vbus_draw,
+	.start			= s3c2410_udc_start,
+	.stop			= s3c2410_udc_stop,
 };
 
 static void s3c2410_udc_command(enum s3c2410_udc_cmd_e cmd)
@@ -1672,10 +1678,7 @@ static void s3c2410_udc_enable(struct s3c2410_udc *dev)
 	s3c2410_udc_command(S3C2410_UDC_P_ENABLE);
 }
 
-/*
- *	usb_gadget_probe_driver
- */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
+static int s3c2410_udc_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
 	struct s3c2410_udc *udc = the_controller;
@@ -1730,12 +1733,8 @@ register_error:
 	udc->gadget.dev.driver = NULL;
 	return retval;
 }
-EXPORT_SYMBOL(usb_gadget_probe_driver);
 
-/*
- *	usb_gadget_unregister_driver
- */
-int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
+static int s3c2410_udc_stop(struct usb_gadget_driver *driver)
 {
 	struct s3c2410_udc *udc = the_controller;
 
@@ -1955,6 +1954,10 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 			goto err_vbus_irq;
 	}
 
+	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
+	if (retval)
+		goto err_add_udc;
+
 	if (s3c2410_udc_debugfs_root) {
 		udc->regs_info = debugfs_create_file("registers", S_IRUGO,
 				s3c2410_udc_debugfs_root,
@@ -1967,6 +1970,10 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_add_udc:
+	if (udc_info && !udc_info->udc_command &&
+			gpio_is_valid(udc_info->pullup_pin))
+		gpio_free(udc_info->pullup_pin);
 err_vbus_irq:
 	if (udc_info && udc_info->vbus_pin > 0)
 		free_irq(gpio_to_irq(udc_info->vbus_pin), udc);
@@ -1992,6 +1999,8 @@ static int s3c2410_udc_remove(struct platform_device *pdev)
 	unsigned int irq;
 
 	dev_dbg(&pdev->dev, "%s()\n", __func__);
+
+	usb_del_gadget_udc(&udc->gadget);
 	if (udc->driver)
 		return -EBUSY;
 
@@ -2104,8 +2113,6 @@ static void __exit udc_exit(void)
 	platform_driver_unregister(&udc_driver_2440);
 	debugfs_remove(s3c2410_udc_debugfs_root);
 }
-
-EXPORT_SYMBOL(usb_gadget_unregister_driver);
 
 module_init(udc_init);
 module_exit(udc_exit);
