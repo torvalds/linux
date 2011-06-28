@@ -398,7 +398,7 @@ static int cmi9880_fill_multi_init(struct hda_codec *codec, const struct auto_pi
 {
 	struct cmi_spec *spec = codec->spec;
 	hda_nid_t nid;
-	int i, j, k, len;
+	int i, j, k;
 
 	/* clear the table, only one c-media dac assumed here */
 	memset(spec->multi_init, 0, sizeof(spec->multi_init));
