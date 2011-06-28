@@ -386,11 +386,13 @@ static int iwlagn_alive_notify(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	priv->scd_base_addr = iwl_read_prph(priv, IWLAGN_SCD_SRAM_BASE_ADDR);
-	a = priv->scd_base_addr + IWLAGN_SCD_CONTEXT_DATA_OFFSET;
-	for (; a < priv->scd_base_addr + IWLAGN_SCD_TX_STTS_BITMAP_OFFSET;
+	a = priv->scd_base_addr + IWLAGN_SCD_CONTEXT_MEM_LOWER_BOUND;
+	/* reset conext data memory */
+	for (; a < priv->scd_base_addr + IWLAGN_SCD_CONTEXT_MEM_UPPER_BOUND;
 		a += 4)
 		iwl_write_targ_mem(priv, a, 0);
-	for (; a < priv->scd_base_addr + IWLAGN_SCD_TRANSLATE_TBL_OFFSET;
+	/* reset tx status memory */
+	for (; a < priv->scd_base_addr + IWLAGN_SCD_TX_STTS_MEM_UPPER_BOUND;
 		a += 4)
 		iwl_write_targ_mem(priv, a, 0);
 	for (; a < priv->scd_base_addr +
