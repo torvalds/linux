@@ -4728,8 +4728,7 @@ static u32 transport_allocate_tasks(
 		       scsi_command_size(cmd->t_task_cdb));
 
 		/* Update new cdb with updated lba/sectors */
-		cmd->transport_split_cdb(task->task_lba,
-					 &task->task_sectors, cdb);
+		cmd->transport_split_cdb(task->task_lba, task->task_sectors, cdb);
 
 		/*
 		 * Perform the SE OBJ plugin and/or Transport plugin specific
