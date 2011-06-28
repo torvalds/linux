@@ -136,7 +136,7 @@ struct scic_sds_stp_request {
 			u8 ending_error;
 
 			struct scic_sds_request_pio_sgl {
-				struct scu_sgl_element_pair *sgl_pair;
+				int sgl_index;
 				u8 sgl_set;
 				u32 sgl_offset;
 			} request_current;
@@ -172,12 +172,6 @@ struct scic_sds_request {
 	struct scic_sds_remote_device *target_device;
 
 	/*
-	 * This field is utilized to determine if the SCI user is managing
-	 * the IO tag for this request or if the core is managing it.
-	 */
-	bool was_tag_assigned_by_user;
-
-	/*
 	 * This field indicates the IO tag for this request.  The IO tag is
 	 * comprised of the task_index and a sequence count. The sequence count
 	 * is utilized to help identify tasks from one life to another.
@@ -209,8 +203,7 @@ struct scic_sds_request {
 	 */
 	u32 post_context;
 
-	struct scu_task_context *task_context_buffer;
-	struct scu_task_context tc ____cacheline_aligned;
+	struct scu_task_context *tc;
 
 	/* could be larger with sg chaining */
 	#define SCU_SGL_SIZE ((SCI_MAX_SCATTER_GATHER_ELEMENTS + 1) / 2)
@@ -465,35 +458,6 @@ enum sci_base_request_states {
 		(request)->sci_status = (sci_status_code); \
 	}
 
-/**
- * SCU_SGL_ZERO() -
- *
- * This macro zeros the hardware SGL element data
- */
-#define SCU_SGL_ZERO(scu_sge) \
-	{ \
-		(scu_sge).length = 0; \
-		(scu_sge).address_lower = 0; \
-		(scu_sge).address_upper = 0; \
-		(scu_sge).address_modifier = 0;	\
-	}
-
-/**
- * SCU_SGL_COPY() -
- *
- * This macro copys the SGL Element data from the host os to the hardware SGL
- * elment data
- */
-#define SCU_SGL_COPY(scu_sge, os_sge) \
-	{ \
-		(scu_sge).length = sg_dma_len(sg); \
-		(scu_sge).address_upper = \
-			upper_32_bits(sg_dma_address(sg)); \
-		(scu_sge).address_lower = \
-			lower_32_bits(sg_dma_address(sg)); \
-		(scu_sge).address_modifier = 0;	\
-	}
-
 enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req);
 enum sci_status scic_sds_io_request_terminate(struct scic_sds_request *sci_req);
 enum sci_status
@@ -508,22 +472,6 @@ extern enum sci_status
 scic_sds_request_complete(struct scic_sds_request *sci_req);
 extern enum sci_status
 scic_sds_io_request_tc_completion(struct scic_sds_request *sci_req, u32 code);
-
-/* XXX open code in caller */
-static inline void *scic_request_get_virt_addr(struct scic_sds_request *sci_req,
-					       dma_addr_t phys_addr)
-{
-	struct isci_request *ireq = sci_req_to_ireq(sci_req);
-	dma_addr_t offset;
-
-	BUG_ON(phys_addr < ireq->request_daddr);
-
-	offset = phys_addr - ireq->request_daddr;
-
-	BUG_ON(offset >= sizeof(*ireq));
-
-	return (char *)ireq + offset;
-}
 
 /* XXX open code in caller */
 static inline dma_addr_t
@@ -672,7 +620,7 @@ struct isci_request *isci_request_alloc_tmf(struct isci_host *ihost,
 					    struct isci_tmf *isci_tmf,
 					    gfp_t gfp_flags);
 int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *idev,
-			 struct sas_task *task, gfp_t gfp_flags);
+			 struct sas_task *task, u16 tag, gfp_t gfp_flags);
 void isci_terminate_pending_requests(struct isci_host *ihost,
 				     struct isci_remote_device *idev);
 enum sci_status

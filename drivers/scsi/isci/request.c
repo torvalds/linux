@@ -61,42 +61,50 @@
 #include "scu_event_codes.h"
 #include "sas.h"
 
-/**
- * This method returns the sgl element pair for the specificed sgl_pair index.
- * @sci_req: This parameter specifies the IO request for which to retrieve
- *    the Scatter-Gather List element pair.
- * @sgl_pair_index: This parameter specifies the index into the SGL element
- *    pair to be retrieved.
- *
- * This method returns a pointer to an struct scu_sgl_element_pair.
- */
-static struct scu_sgl_element_pair *scic_sds_request_get_sgl_element_pair(
-	struct scic_sds_request *sci_req,
-	u32 sgl_pair_index
-	) {
-	struct scu_task_context *task_context;
-
-	task_context = (struct scu_task_context *)sci_req->task_context_buffer;
-
-	if (sgl_pair_index == 0) {
-		return &task_context->sgl_pair_ab;
-	} else if (sgl_pair_index == 1) {
-		return &task_context->sgl_pair_cd;
-	}
-
-	return &sci_req->sg_table[sgl_pair_index - 2];
+static struct scu_sgl_element_pair *to_sgl_element_pair(struct scic_sds_request *sci_req,
+							int idx)
+{
+	if (idx == 0)
+		return &sci_req->tc->sgl_pair_ab;
+	else if (idx == 1)
+		return &sci_req->tc->sgl_pair_cd;
+	else if (idx < 0)
+		return NULL;
+	else
+		return &sci_req->sg_table[idx - 2];
 }
 
-/**
- * This function will build the SGL list for an IO request.
- * @sci_req: This parameter specifies the IO request for which to build
- *    the Scatter-Gather List.
- *
- */
+static dma_addr_t to_sgl_element_pair_dma(struct scic_sds_controller *scic,
+					  struct scic_sds_request *sci_req, u32 idx)
+{
+	u32 offset;
+
+	if (idx == 0) {
+		offset = (void *) &sci_req->tc->sgl_pair_ab -
+			 (void *) &scic->task_context_table[0];
+		return scic->task_context_dma + offset;
+	} else if (idx == 1) {
+		offset = (void *) &sci_req->tc->sgl_pair_cd -
+			 (void *) &scic->task_context_table[0];
+		return scic->task_context_dma + offset;
+	}
+
+	return scic_io_request_get_dma_addr(sci_req, &sci_req->sg_table[idx - 2]);
+}
+
+static void init_sgl_element(struct scu_sgl_element *e, struct scatterlist *sg)
+{
+	e->length = sg_dma_len(sg);
+	e->address_upper = upper_32_bits(sg_dma_address(sg));
+	e->address_lower = lower_32_bits(sg_dma_address(sg));
+	e->address_modifier = 0;
+}
+
 static void scic_sds_request_build_sgl(struct scic_sds_request *sds_request)
 {
 	struct isci_request *isci_request = sci_req_to_ireq(sds_request);
 	struct isci_host *isci_host = isci_request->isci_host;
+	struct scic_sds_controller *scic = &isci_host->sci;
 	struct sas_task *task = isci_request_access_task(isci_request);
 	struct scatterlist *sg = NULL;
 	dma_addr_t dma_addr;
@@ -108,25 +116,19 @@ static void scic_sds_request_build_sgl(struct scic_sds_request *sds_request)
 		sg = task->scatter;
 
 		while (sg) {
-			scu_sg = scic_sds_request_get_sgl_element_pair(
-					sds_request,
-					sg_idx);
-
-			SCU_SGL_COPY(scu_sg->A, sg);
-
+			scu_sg = to_sgl_element_pair(sds_request, sg_idx);
+			init_sgl_element(&scu_sg->A, sg);
 			sg = sg_next(sg);
-
 			if (sg) {
-				SCU_SGL_COPY(scu_sg->B, sg);
+				init_sgl_element(&scu_sg->B, sg);
 				sg = sg_next(sg);
 			} else
-				SCU_SGL_ZERO(scu_sg->B);
+				memset(&scu_sg->B, 0, sizeof(scu_sg->B));
 
 			if (prev_sg) {
-				dma_addr =
-					scic_io_request_get_dma_addr(
-							sds_request,
-							scu_sg);
+				dma_addr = to_sgl_element_pair_dma(scic,
+								   sds_request,
+								   sg_idx);
 
 				prev_sg->next_pair_upper =
 					upper_32_bits(dma_addr);
@@ -138,8 +140,7 @@ static void scic_sds_request_build_sgl(struct scic_sds_request *sds_request)
 			sg_idx++;
 		}
 	} else {	/* handle when no sg */
-		scu_sg = scic_sds_request_get_sgl_element_pair(sds_request,
-							       sg_idx);
+		scu_sg = to_sgl_element_pair(sds_request, sg_idx);
 
 		dma_addr = dma_map_single(&isci_host->pdev->dev,
 					  task->scatter,
@@ -246,35 +247,12 @@ static void scu_ssp_reqeust_construct_task_context(
 	/* task_context->type.ssp.tag = sci_req->io_tag; */
 	task_context->task_phase = 0x01;
 
-	if (sds_request->was_tag_assigned_by_user) {
-		/*
-		 * Build the task context now since we have already read
-		 * the data
-		 */
-		sds_request->post_context =
-			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-			 (scic_sds_controller_get_protocol_engine_group(
-							controller) <<
-			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-			 (scic_sds_port_get_index(target_port) <<
-			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
-			  ISCI_TAG_TCI(sds_request->io_tag));
-	} else {
-		/*
-		 * Build the task context now since we have already read
-		 * the data
-		 *
-		 * I/O tag index is not assigned because we have to wait
-		 * until we get a TCi
-		 */
-		sds_request->post_context =
-			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-			 (scic_sds_controller_get_protocol_engine_group(
-							owning_controller) <<
-			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-			 (scic_sds_port_get_index(target_port) <<
-			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT));
-	}
+	sds_request->post_context = (SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
+				     (scic_sds_controller_get_protocol_engine_group(controller) <<
+				      SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+				     (scic_sds_port_get_index(target_port) <<
+				      SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
+				     ISCI_TAG_TCI(sds_request->io_tag));
 
 	/*
 	 * Copy the physical address for the command buffer to the
@@ -302,14 +280,11 @@ static void scu_ssp_reqeust_construct_task_context(
  * @sci_req:
  *
  */
-static void scu_ssp_io_request_construct_task_context(
-	struct scic_sds_request *sci_req,
-	enum dma_data_direction dir,
-	u32 len)
+static void scu_ssp_io_request_construct_task_context(struct scic_sds_request *sci_req,
+						      enum dma_data_direction dir,
+						      u32 len)
 {
-	struct scu_task_context *task_context;
-
-	task_context = scic_sds_request_get_task_context(sci_req);
+	struct scu_task_context *task_context = sci_req->tc;
 
 	scu_ssp_reqeust_construct_task_context(sci_req, task_context);
 
@@ -347,12 +322,9 @@ static void scu_ssp_io_request_construct_task_context(
  *    constructed.
  *
  */
-static void scu_ssp_task_request_construct_task_context(
-	struct scic_sds_request *sci_req)
+static void scu_ssp_task_request_construct_task_context(struct scic_sds_request *sci_req)
 {
-	struct scu_task_context *task_context;
-
-	task_context = scic_sds_request_get_task_context(sci_req);
+	struct scu_task_context *task_context = sci_req->tc;
 
 	scu_ssp_reqeust_construct_task_context(sci_req, task_context);
 
@@ -421,35 +393,12 @@ static void scu_sata_reqeust_construct_task_context(
 	/* Set the first word of the H2D REG FIS */
 	task_context->type.words[0] = *(u32 *)&sci_req->stp.cmd;
 
-	if (sci_req->was_tag_assigned_by_user) {
-		/*
-		 * Build the task context now since we have already read
-		 * the data
-		 */
-		sci_req->post_context =
-			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-			 (scic_sds_controller_get_protocol_engine_group(
-							controller) <<
-			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-			 (scic_sds_port_get_index(target_port) <<
-			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
-			  ISCI_TAG_TCI(sci_req->io_tag));
-	} else {
-		/*
-		 * Build the task context now since we have already read
-		 * the data.
-		 * I/O tag index is not assigned because we have to wait
-		 * until we get a TCi.
-		 */
-		sci_req->post_context =
-			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-			 (scic_sds_controller_get_protocol_engine_group(
-							controller) <<
-			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-			 (scic_sds_port_get_index(target_port) <<
-			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT));
-	}
-
+	sci_req->post_context = (SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
+				 (scic_sds_controller_get_protocol_engine_group(controller) <<
+				  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+				 (scic_sds_port_get_index(target_port) <<
+				  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
+				 ISCI_TAG_TCI(sci_req->io_tag));
 	/*
 	 * Copy the physical address for the command buffer to the SCU Task
 	 * Context. We must offset the command buffer by 4 bytes because the
@@ -467,22 +416,9 @@ static void scu_sata_reqeust_construct_task_context(
 	task_context->response_iu_lower = 0;
 }
 
-
-
-/**
- * scu_stp_raw_request_construct_task_context -
- * @sci_req: This parameter specifies the STP request object for which to
- *    construct a RAW command frame task context.
- * @task_context: This parameter specifies the SCU specific task context buffer
- *    to construct.
- *
- * This method performs the operations common to all SATA/STP requests
- * utilizing the raw frame method. none
- */
-static void scu_stp_raw_request_construct_task_context(struct scic_sds_stp_request *stp_req,
-						       struct scu_task_context *task_context)
+static void scu_stp_raw_request_construct_task_context(struct scic_sds_request *sci_req)
 {
-	struct scic_sds_request *sci_req = to_sci_req(stp_req);
+	struct scu_task_context *task_context = sci_req->tc;
 
 	scu_sata_reqeust_construct_task_context(sci_req, task_context);
 
@@ -500,8 +436,7 @@ scic_sds_stp_pio_request_construct(struct scic_sds_request *sci_req,
 	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
 	struct scic_sds_stp_pio_request *pio = &stp_req->type.pio;
 
-	scu_stp_raw_request_construct_task_context(stp_req,
-						   sci_req->task_context_buffer);
+	scu_stp_raw_request_construct_task_context(sci_req);
 
 	pio->current_transfer_bytes = 0;
 	pio->ending_error = 0;
@@ -512,13 +447,10 @@ scic_sds_stp_pio_request_construct(struct scic_sds_request *sci_req,
 
 	if (copy_rx_frame) {
 		scic_sds_request_build_sgl(sci_req);
-		/* Since the IO request copy of the TC contains the same data as
-		 * the actual TC this pointer is vaild for either.
-		 */
-		pio->request_current.sgl_pair = &sci_req->task_context_buffer->sgl_pair_ab;
+		pio->request_current.sgl_index = 0;
 	} else {
 		/* The user does not want the data copied to the SGL buffer location */
-		pio->request_current.sgl_pair = NULL;
+		pio->request_current.sgl_index = -1;
 	}
 
 	return SCI_SUCCESS;
@@ -541,7 +473,7 @@ static void scic_sds_stp_optimized_request_construct(struct scic_sds_request *sc
 						     u32 len,
 						     enum dma_data_direction dir)
 {
-	struct scu_task_context *task_context = sci_req->task_context_buffer;
+	struct scu_task_context *task_context = sci_req->tc;
 
 	/* Build the STP task context structure */
 	scu_sata_reqeust_construct_task_context(sci_req, task_context);
@@ -587,8 +519,7 @@ scic_io_request_construct_sata(struct scic_sds_request *sci_req,
 
 		if (tmf->tmf_code == isci_tmf_sata_srst_high ||
 		    tmf->tmf_code == isci_tmf_sata_srst_low) {
-			scu_stp_raw_request_construct_task_context(&sci_req->stp.req,
-								   sci_req->task_context_buffer);
+			scu_stp_raw_request_construct_task_context(sci_req);
 			return SCI_SUCCESS;
 		} else {
 			dev_err(scic_to_dev(sci_req->owning_controller),
@@ -611,8 +542,7 @@ scic_io_request_construct_sata(struct scic_sds_request *sci_req,
 
 	/* non data */
 	if (task->data_dir == DMA_NONE) {
-		scu_stp_raw_request_construct_task_context(&sci_req->stp.req,
-							   sci_req->task_context_buffer);
+		scu_stp_raw_request_construct_task_context(sci_req);
 		return SCI_SUCCESS;
 	}
 
@@ -701,8 +631,7 @@ enum sci_status scic_task_request_construct_sata(struct scic_sds_request *sci_re
 
 		if (tmf->tmf_code == isci_tmf_sata_srst_high ||
 		    tmf->tmf_code == isci_tmf_sata_srst_low) {
-			scu_stp_raw_request_construct_task_context(&sci_req->stp.req,
-								   sci_req->task_context_buffer);
+			scu_stp_raw_request_construct_task_context(sci_req);
 		} else {
 			dev_err(scic_to_dev(sci_req->owning_controller),
 				"%s: Request 0x%p received un-handled SAT "
@@ -749,9 +678,9 @@ static u32 sci_req_tx_bytes(struct scic_sds_request *sci_req)
 
 enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req)
 {
-	struct scic_sds_controller *scic = sci_req->owning_controller;
-	struct scu_task_context *task_context;
 	enum sci_base_request_states state;
+	struct scu_task_context *tc = sci_req->tc;
+	struct scic_sds_controller *scic = sci_req->owning_controller;
 
 	state = sci_req->sm.current_state_id;
 	if (state != SCI_REQ_CONSTRUCTED) {
@@ -761,61 +690,39 @@ enum sci_status scic_sds_request_start(struct scic_sds_request *sci_req)
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	/* if necessary, allocate a TCi for the io request object and then will,
-	 * if necessary, copy the constructed TC data into the actual TC buffer.
-	 * If everything is successful the post context field is updated with
-	 * the TCi so the controller can post the request to the hardware.
-	 */
-	if (sci_req->io_tag == SCI_CONTROLLER_INVALID_IO_TAG)
-		sci_req->io_tag = scic_controller_allocate_io_tag(scic);
+	tc->task_index = ISCI_TAG_TCI(sci_req->io_tag);
 
-	/* Record the IO Tag in the request */
-	if (sci_req->io_tag != SCI_CONTROLLER_INVALID_IO_TAG) {
-		task_context = sci_req->task_context_buffer;
+	switch (tc->protocol_type) {
+	case SCU_TASK_CONTEXT_PROTOCOL_SMP:
+	case SCU_TASK_CONTEXT_PROTOCOL_SSP:
+		/* SSP/SMP Frame */
+		tc->type.ssp.tag = sci_req->io_tag;
+		tc->type.ssp.target_port_transfer_tag = 0xFFFF;
+		break;
 
-		task_context->task_index = ISCI_TAG_TCI(sci_req->io_tag);
+	case SCU_TASK_CONTEXT_PROTOCOL_STP:
+		/* STP/SATA Frame
+		 * tc->type.stp.ncq_tag = sci_req->ncq_tag;
+		 */
+		break;
 
-		switch (task_context->protocol_type) {
-		case SCU_TASK_CONTEXT_PROTOCOL_SMP:
-		case SCU_TASK_CONTEXT_PROTOCOL_SSP:
-			/* SSP/SMP Frame */
-			task_context->type.ssp.tag = sci_req->io_tag;
-			task_context->type.ssp.target_port_transfer_tag =
-				0xFFFF;
-			break;
+	case SCU_TASK_CONTEXT_PROTOCOL_NONE:
+		/* / @todo When do we set no protocol type? */
+		break;
 
-		case SCU_TASK_CONTEXT_PROTOCOL_STP:
-			/* STP/SATA Frame
-			 * task_context->type.stp.ncq_tag = sci_req->ncq_tag;
-			 */
-			break;
-
-		case SCU_TASK_CONTEXT_PROTOCOL_NONE:
-			/* / @todo When do we set no protocol type? */
-			break;
-
-		default:
-			/* This should never happen since we build the IO
-			 * requests */
-			break;
-		}
-
-		/*
-		 * Check to see if we need to copy the task context buffer
-		 * or have been building into the task context buffer */
-		if (sci_req->was_tag_assigned_by_user == false)
-			scic_sds_controller_copy_task_context(scic, sci_req);
-
-		/* Add to the post_context the io tag value */
-		sci_req->post_context |= ISCI_TAG_TCI(sci_req->io_tag);
-
-		/* Everything is good go ahead and change state */
-		sci_change_state(&sci_req->sm, SCI_REQ_STARTED);
-
-		return SCI_SUCCESS;
+	default:
+		/* This should never happen since we build the IO
+		 * requests */
+		break;
 	}
 
-	return SCI_FAILURE_INSUFFICIENT_RESOURCES;
+	/* Add to the post_context the io tag value */
+	sci_req->post_context |= ISCI_TAG_TCI(sci_req->io_tag);
+
+	/* Everything is good go ahead and change state */
+	sci_change_state(&sci_req->sm, SCI_REQ_STARTED);
+
+	return SCI_SUCCESS;
 }
 
 enum sci_status
@@ -879,9 +786,6 @@ enum sci_status scic_sds_request_complete(struct scic_sds_request *sci_req)
 	if (WARN_ONCE(state != SCI_REQ_COMPLETED,
 		      "isci: request completion from wrong state (%d)\n", state))
 		return SCI_FAILURE_INVALID_STATE;
-
-	if (!sci_req->was_tag_assigned_by_user)
-		scic_controller_free_io_tag(scic, sci_req->io_tag);
 
 	if (sci_req->saved_rx_frame_index != SCU_INVALID_FRAME_INDEX)
 		scic_sds_controller_release_frame(scic,
@@ -1244,51 +1148,40 @@ void scic_stp_io_request_set_ncq_tag(struct scic_sds_request *req,
 	 * @note This could be made to return an error to the user if the user
 	 *       attempts to set the NCQ tag in the wrong state.
 	 */
-	req->task_context_buffer->type.stp.ncq_tag = ncq_tag;
+	req->tc->type.stp.ncq_tag = ncq_tag;
 }
 
-/**
- *
- * @sci_req:
- *
- * Get the next SGL element from the request. - Check on which SGL element pair
- * we are working - if working on SLG pair element A - advance to element B -
- * else - check to see if there are more SGL element pairs for this IO request
- * - if there are more SGL element pairs - advance to the next pair and return
- * element A struct scu_sgl_element*
- */
-static struct scu_sgl_element *scic_sds_stp_request_pio_get_next_sgl(struct scic_sds_stp_request *stp_req)
+static struct scu_sgl_element *pio_sgl_next(struct scic_sds_stp_request *stp_req)
 {
-	struct scu_sgl_element *current_sgl;
+	struct scu_sgl_element *sgl;
+	struct scu_sgl_element_pair *sgl_pair;
 	struct scic_sds_request *sci_req = to_sci_req(stp_req);
 	struct scic_sds_request_pio_sgl *pio_sgl = &stp_req->type.pio.request_current;
 
-	if (pio_sgl->sgl_set == SCU_SGL_ELEMENT_PAIR_A) {
-		if (pio_sgl->sgl_pair->B.address_lower == 0 &&
-		    pio_sgl->sgl_pair->B.address_upper == 0) {
-			current_sgl = NULL;
+	sgl_pair = to_sgl_element_pair(sci_req, pio_sgl->sgl_index);
+	if (!sgl_pair)
+		sgl = NULL;
+	else if (pio_sgl->sgl_set == SCU_SGL_ELEMENT_PAIR_A) {
+		if (sgl_pair->B.address_lower == 0 &&
+		    sgl_pair->B.address_upper == 0) {
+			sgl = NULL;
 		} else {
 			pio_sgl->sgl_set = SCU_SGL_ELEMENT_PAIR_B;
-			current_sgl = &pio_sgl->sgl_pair->B;
+			sgl = &sgl_pair->B;
 		}
 	} else {
-		if (pio_sgl->sgl_pair->next_pair_lower == 0 &&
-		    pio_sgl->sgl_pair->next_pair_upper == 0) {
-			current_sgl = NULL;
+		if (sgl_pair->next_pair_lower == 0 &&
+		    sgl_pair->next_pair_upper == 0) {
+			sgl = NULL;
 		} else {
-			u64 phys_addr;
-
-			phys_addr = pio_sgl->sgl_pair->next_pair_upper;
-			phys_addr <<= 32;
-			phys_addr |= pio_sgl->sgl_pair->next_pair_lower;
-
-			pio_sgl->sgl_pair = scic_request_get_virt_addr(sci_req, phys_addr);
+			pio_sgl->sgl_index++;
 			pio_sgl->sgl_set = SCU_SGL_ELEMENT_PAIR_A;
-			current_sgl = &pio_sgl->sgl_pair->A;
+			sgl_pair = to_sgl_element_pair(sci_req, pio_sgl->sgl_index);
+			sgl = &sgl_pair->A;
 		}
 	}
 
-	return current_sgl;
+	return sgl;
 }
 
 static enum sci_status
@@ -1328,21 +1221,19 @@ static enum sci_status scic_sds_stp_request_pio_data_out_trasmit_data_frame(
 	struct scic_sds_request *sci_req,
 	u32 length)
 {
-	struct scic_sds_controller *scic = sci_req->owning_controller;
 	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
-	struct scu_task_context *task_context;
+	struct scu_task_context *task_context = sci_req->tc;
+	struct scu_sgl_element_pair *sgl_pair;
 	struct scu_sgl_element *current_sgl;
 
 	/* Recycle the TC and reconstruct it for sending out DATA FIS containing
 	 * for the data from current_sgl+offset for the input length
 	 */
-	task_context = scic_sds_controller_get_task_context_buffer(scic,
-								   sci_req->io_tag);
-
+	sgl_pair = to_sgl_element_pair(sci_req, stp_req->type.pio.request_current.sgl_index);
 	if (stp_req->type.pio.request_current.sgl_set == SCU_SGL_ELEMENT_PAIR_A)
-		current_sgl = &stp_req->type.pio.request_current.sgl_pair->A;
+		current_sgl = &sgl_pair->A;
 	else
-		current_sgl = &stp_req->type.pio.request_current.sgl_pair->B;
+		current_sgl = &sgl_pair->B;
 
 	/* update the TC */
 	task_context->command_iu_upper = current_sgl->address_upper;
@@ -1362,17 +1253,20 @@ static enum sci_status scic_sds_stp_request_pio_data_out_transmit_data(struct sc
 	u32 remaining_bytes_in_current_sgl = 0;
 	enum sci_status status = SCI_SUCCESS;
 	struct scic_sds_stp_request *stp_req = &sci_req->stp.req;
+	struct scu_sgl_element_pair *sgl_pair;
 
 	sgl_offset = stp_req->type.pio.request_current.sgl_offset;
+	sgl_pair = to_sgl_element_pair(sci_req, stp_req->type.pio.request_current.sgl_index);
+	if (WARN_ONCE(!sgl_pair, "%s: null sgl element", __func__))
+		return SCI_FAILURE;
 
 	if (stp_req->type.pio.request_current.sgl_set == SCU_SGL_ELEMENT_PAIR_A) {
-		current_sgl = &(stp_req->type.pio.request_current.sgl_pair->A);
-		remaining_bytes_in_current_sgl = stp_req->type.pio.request_current.sgl_pair->A.length - sgl_offset;
+		current_sgl = &sgl_pair->A;
+		remaining_bytes_in_current_sgl = sgl_pair->A.length - sgl_offset;
 	} else {
-		current_sgl = &(stp_req->type.pio.request_current.sgl_pair->B);
-		remaining_bytes_in_current_sgl = stp_req->type.pio.request_current.sgl_pair->B.length - sgl_offset;
+		current_sgl = &sgl_pair->B;
+		remaining_bytes_in_current_sgl = sgl_pair->B.length - sgl_offset;
 	}
-
 
 	if (stp_req->type.pio.pio_transfer_bytes > 0) {
 		if (stp_req->type.pio.pio_transfer_bytes >= remaining_bytes_in_current_sgl) {
@@ -1382,7 +1276,7 @@ static enum sci_status scic_sds_stp_request_pio_data_out_transmit_data(struct sc
 				stp_req->type.pio.pio_transfer_bytes -= remaining_bytes_in_current_sgl;
 
 				/* update the current sgl, sgl_offset and save for future */
-				current_sgl = scic_sds_stp_request_pio_get_next_sgl(stp_req);
+				current_sgl = pio_sgl_next(stp_req);
 				sgl_offset = 0;
 			}
 		} else if (stp_req->type.pio.pio_transfer_bytes < remaining_bytes_in_current_sgl) {
@@ -1945,7 +1839,7 @@ scic_sds_io_request_frame_handler(struct scic_sds_request *sci_req,
 			return status;
 		}
 
-		if (stp_req->type.pio.request_current.sgl_pair == NULL) {
+		if (stp_req->type.pio.request_current.sgl_index < 0) {
 			sci_req->saved_rx_frame_index = frame_index;
 			stp_req->type.pio.pio_transfer_bytes = 0;
 		} else {
@@ -2977,8 +2871,6 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 	 * task to recognize the already completed case.
 	 */
 	request->terminated = true;
-
-	isci_host_can_dequeue(isci_host, 1);
 }
 
 static void scic_sds_request_started_state_enter(struct sci_base_state_machine *sm)
@@ -3039,7 +2931,7 @@ static void scic_sds_request_aborting_state_enter(struct sci_base_state_machine 
 	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), sm);
 
 	/* Setting the abort bit in the Task Context is required by the silicon. */
-	sci_req->task_context_buffer->abort = 1;
+	sci_req->tc->abort = 1;
 }
 
 static void scic_sds_stp_request_started_non_data_await_h2d_completion_enter(struct sci_base_state_machine *sm)
@@ -3069,7 +2961,7 @@ static void scic_sds_stp_request_started_soft_reset_await_h2d_asserted_completio
 static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_completion_enter(struct sci_base_state_machine *sm)
 {
 	struct scic_sds_request *sci_req = container_of(sm, typeof(*sci_req), sm);
-	struct scu_task_context *task_context;
+	struct scu_task_context *tc = sci_req->tc;
 	struct host_to_dev_fis *h2d_fis;
 	enum sci_status status;
 
@@ -3078,9 +2970,7 @@ static void scic_sds_stp_request_started_soft_reset_await_h2d_diagnostic_complet
 	h2d_fis->control = 0;
 
 	/* Clear the TC control bit */
-	task_context = scic_sds_controller_get_task_context_buffer(
-		sci_req->owning_controller, sci_req->io_tag);
-	task_context->control_frame = 0;
+	tc->control_frame = 0;
 
 	status = scic_controller_continue_io(sci_req);
 	WARN_ONCE(status != SCI_SUCCESS, "isci: continue io failure\n");
@@ -3141,18 +3031,10 @@ scic_sds_general_request_construct(struct scic_sds_controller *scic,
 	sci_req->sci_status   = SCI_SUCCESS;
 	sci_req->scu_status   = 0;
 	sci_req->post_context = 0xFFFFFFFF;
+	sci_req->tc = &scic->task_context_table[ISCI_TAG_TCI(io_tag)];
 
 	sci_req->is_task_management_request = false;
-
-	if (io_tag == SCI_CONTROLLER_INVALID_IO_TAG) {
-		sci_req->was_tag_assigned_by_user = false;
-		sci_req->task_context_buffer = &sci_req->tc;
-	} else {
-		sci_req->was_tag_assigned_by_user = true;
-
-		sci_req->task_context_buffer =
-			scic_sds_controller_get_task_context_buffer(scic, io_tag);
-	}
+	WARN_ONCE(io_tag == SCI_CONTROLLER_INVALID_IO_TAG, "straggling invalid tag usage\n");
 }
 
 static enum sci_status
@@ -3178,8 +3060,7 @@ scic_io_request_construct(struct scic_sds_controller *scic,
 	else
 		return SCI_FAILURE_UNSUPPORTED_PROTOCOL;
 
-	memset(sci_req->task_context_buffer, 0,
-	       offsetof(struct scu_task_context, sgl_pair_ab));
+	memset(sci_req->tc, 0, offsetof(struct scu_task_context, sgl_pair_ab));
 
 	return status;
 }
@@ -3197,7 +3078,7 @@ enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
 	if (dev->dev_type == SAS_END_DEV ||
 	    dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
 		sci_req->is_task_management_request = true;
-		memset(sci_req->task_context_buffer, 0, sizeof(struct scu_task_context));
+		memset(sci_req->tc, 0, sizeof(struct scu_task_context));
 	} else
 		status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
 
@@ -3299,7 +3180,7 @@ scic_io_request_construct_smp(struct device *dev,
 
 	/* byte swap the smp request. */
 
-	task_context = scic_sds_request_get_task_context(sci_req);
+	task_context = sci_req->tc;
 
 	sci_dev = scic_sds_request_get_device(sci_req);
 	sci_port = scic_sds_request_get_port(sci_req);
@@ -3354,33 +3235,12 @@ scic_io_request_construct_smp(struct device *dev,
 	 */
 	task_context->task_phase = 0;
 
-	if (sci_req->was_tag_assigned_by_user) {
-		/*
-		 * Build the task context now since we have already read
-		 * the data
-		 */
-		sci_req->post_context =
-			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-			 (scic_sds_controller_get_protocol_engine_group(scic) <<
-			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-			 (scic_sds_port_get_index(sci_port) <<
-			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
-			  ISCI_TAG_TCI(sci_req->io_tag));
-	} else {
-		/*
-		 * Build the task context now since we have already read
-		 * the data.
-		 * I/O tag index is not assigned because we have to wait
-		 * until we get a TCi.
-		 */
-		sci_req->post_context =
-			(SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-			 (scic_sds_controller_get_protocol_engine_group(scic) <<
-			  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-			 (scic_sds_port_get_index(sci_port) <<
-			  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT));
-	}
-
+	sci_req->post_context = (SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
+				 (scic_sds_controller_get_protocol_engine_group(scic) <<
+				  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+				 (scic_sds_port_get_index(sci_port) <<
+				  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
+				 ISCI_TAG_TCI(sci_req->io_tag));
 	/*
 	 * Copy the physical address for the command buffer to the SCU Task
 	 * Context command buffer should not contain command header.
@@ -3431,10 +3291,10 @@ static enum sci_status isci_smp_request_build(struct isci_request *ireq)
  *
  * SCI_SUCCESS on successfull completion, or specific failure code.
  */
-static enum sci_status isci_io_request_build(
-	struct isci_host *isci_host,
-	struct isci_request *request,
-	struct isci_remote_device *isci_device)
+static enum sci_status isci_io_request_build(struct isci_host *isci_host,
+					     struct isci_request *request,
+					     struct isci_remote_device *isci_device,
+					     u16 tag)
 {
 	enum sci_status status = SCI_SUCCESS;
 	struct sas_task *task = isci_request_access_task(request);
@@ -3471,8 +3331,7 @@ static enum sci_status isci_io_request_build(
 	 * we will let the core allocate the IO tag.
 	 */
 	status = scic_io_request_construct(&isci_host->sci, sci_device,
-					   SCI_CONTROLLER_INVALID_IO_TAG,
-					   &request->sci);
+					   tag, &request->sci);
 
 	if (status != SCI_SUCCESS) {
 		dev_warn(&isci_host->pdev->dev,
@@ -3564,7 +3423,7 @@ struct isci_request *isci_request_alloc_tmf(struct isci_host *ihost,
 }
 
 int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *idev,
-			 struct sas_task *task, gfp_t gfp_flags)
+			 struct sas_task *task, u16 tag, gfp_t gfp_flags)
 {
 	enum sci_status status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
 	struct isci_request *ireq;
@@ -3576,7 +3435,7 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 	if (!ireq)
 		goto out;
 
-	status = isci_io_request_build(ihost, ireq, idev);
+	status = isci_io_request_build(ihost, ireq, idev, tag);
 	if (status != SCI_SUCCESS) {
 		dev_warn(&ihost->pdev->dev,
 			 "%s: request_construct failed - status = 0x%x\n",
@@ -3599,18 +3458,16 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 			 */
 			status = scic_controller_start_task(&ihost->sci,
 							    &idev->sci,
-							    &ireq->sci,
-							    SCI_CONTROLLER_INVALID_IO_TAG);
+							    &ireq->sci);
 		} else {
 			status = SCI_FAILURE;
 		}
 	} else {
-
 		/* send the request, let the core assign the IO TAG.	*/
 		status = scic_controller_start_io(&ihost->sci, &idev->sci,
-						  &ireq->sci,
-						  SCI_CONTROLLER_INVALID_IO_TAG);
+						  &ireq->sci);
 	}
+
 	if (status != SCI_SUCCESS &&
 	    status != SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
 		dev_warn(&ihost->pdev->dev,
@@ -3647,23 +3504,23 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 	if (status ==
 	    SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
 		/* Signal libsas that we need the SCSI error
-		* handler thread to work on this I/O and that
-		* we want a device reset.
-		*/
+		 * handler thread to work on this I/O and that
+		 * we want a device reset.
+		 */
 		spin_lock_irqsave(&task->task_state_lock, flags);
 		task->task_state_flags |= SAS_TASK_NEED_DEV_RESET;
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 		/* Cause this task to be scheduled in the SCSI error
-		* handler thread.
-		*/
+		 * handler thread.
+		 */
 		isci_execpath_callback(ihost, task,
 				       sas_task_abort);
 
 		/* Change the status, since we are holding
-		* the I/O until it is managed by the SCSI
-		* error handler.
-		*/
+		 * the I/O until it is managed by the SCSI
+		 * error handler.
+		 */
 		status = SCI_SUCCESS;
 	}
 

@@ -1018,31 +1018,9 @@ done:
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 }
 
-static void isci_tci_free(struct isci_host *ihost, u16 tci)
-{
-	u16 tail = ihost->tci_tail & (SCI_MAX_IO_REQUESTS-1);
-
-	ihost->tci_pool[tail] = tci;
-	ihost->tci_tail = tail + 1;
-}
-
-static u16 isci_tci_alloc(struct isci_host *ihost)
-{
-	u16 head = ihost->tci_head & (SCI_MAX_IO_REQUESTS-1);
-	u16 tci = ihost->tci_pool[head];
-
-	ihost->tci_head = head + 1;
-	return tci;
-}
-
 static u16 isci_tci_active(struct isci_host *ihost)
 {
 	return CIRC_CNT(ihost->tci_head, ihost->tci_tail, SCI_MAX_IO_REQUESTS);
-}
-
-static u16 isci_tci_space(struct isci_host *ihost)
-{
-	return CIRC_SPACE(ihost->tci_head, ihost->tci_tail, SCI_MAX_IO_REQUESTS);
 }
 
 static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
@@ -1205,6 +1183,11 @@ static void isci_host_completion_routine(unsigned long data)
 				task->task_done(task);
 			}
 		}
+
+		spin_lock_irq(&isci_host->scic_lock);
+		isci_free_tag(isci_host, request->sci.io_tag);
+		spin_unlock_irq(&isci_host->scic_lock);
+
 		/* Free the request object. */
 		isci_request_free(isci_host, request);
 	}
@@ -1242,6 +1225,7 @@ static void isci_host_completion_routine(unsigned long data)
 			* of pending requests.
 			*/
 			list_del_init(&request->dev_node);
+			isci_free_tag(isci_host, request->sci.io_tag);
 			spin_unlock_irq(&isci_host->scic_lock);
 
 			/* Free the request object. */
@@ -2375,6 +2359,7 @@ static int scic_controller_mem_init(struct scic_sds_controller *scic)
 	if (!scic->task_context_table)
 		return -ENOMEM;
 
+	scic->task_context_dma = dma;
 	writel(lower_32_bits(dma), &scic->smu_registers->host_task_table_lower);
 	writel(upper_32_bits(dma), &scic->smu_registers->host_task_table_upper);
 
@@ -2409,11 +2394,9 @@ int isci_host_init(struct isci_host *isci_host)
 
 	spin_lock_init(&isci_host->state_lock);
 	spin_lock_init(&isci_host->scic_lock);
-	spin_lock_init(&isci_host->queue_lock);
 	init_waitqueue_head(&isci_host->eventq);
 
 	isci_host_change_state(isci_host, isci_starting);
-	isci_host->can_queue = ISCI_CAN_QUEUE_VAL;
 
 	status = scic_controller_construct(&isci_host->sci, scu_base(isci_host),
 					   smu_base(isci_host));
@@ -2611,51 +2594,6 @@ void scic_sds_controller_post_request(
 	writel(request, &scic->smu_registers->post_context_port);
 }
 
-/**
- * This method will copy the soft copy of the task context into the physical
- *    memory accessible by the controller.
- * @scic: This parameter specifies the controller for which to copy
- *    the task context.
- * @sci_req: This parameter specifies the request for which the task
- *    context is being copied.
- *
- * After this call is made the SCIC_SDS_IO_REQUEST object will always point to
- * the physical memory version of the task context. Thus, all subsequent
- * updates to the task context are performed in the TC table (i.e. DMAable
- * memory). none
- */
-void scic_sds_controller_copy_task_context(
-	struct scic_sds_controller *scic,
-	struct scic_sds_request *sci_req)
-{
-	struct scu_task_context *task_context_buffer;
-
-	task_context_buffer = scic_sds_controller_get_task_context_buffer(
-		scic, sci_req->io_tag);
-
-	memcpy(task_context_buffer,
-	       sci_req->task_context_buffer,
-	       offsetof(struct scu_task_context, sgl_snapshot_ac));
-
-	/*
-	 * Now that the soft copy of the TC has been copied into the TC
-	 * table accessible by the silicon.  Thus, any further changes to
-	 * the TC (e.g. TC termination) occur in the appropriate location. */
-	sci_req->task_context_buffer = task_context_buffer;
-}
-
-struct scu_task_context *scic_sds_controller_get_task_context_buffer(struct scic_sds_controller *scic,
-								     u16 io_tag)
-{
-	u16 tci = ISCI_TAG_TCI(io_tag);
-
-	if (tci < scic->task_context_entries) {
-		return &scic->task_context_table[tci];
-	}
-
-	return NULL;
-}
-
 struct scic_sds_request *scic_request_by_tag(struct scic_sds_controller *scic, u16 io_tag)
 {
 	u16 task_index;
@@ -2801,6 +2739,60 @@ void scic_sds_controller_release_frame(
 			&scic->scu_registers->sdma.unsolicited_frame_get_pointer);
 }
 
+void isci_tci_free(struct isci_host *ihost, u16 tci)
+{
+	u16 tail = ihost->tci_tail & (SCI_MAX_IO_REQUESTS-1);
+
+	ihost->tci_pool[tail] = tci;
+	ihost->tci_tail = tail + 1;
+}
+
+static u16 isci_tci_alloc(struct isci_host *ihost)
+{
+	u16 head = ihost->tci_head & (SCI_MAX_IO_REQUESTS-1);
+	u16 tci = ihost->tci_pool[head];
+
+	ihost->tci_head = head + 1;
+	return tci;
+}
+
+static u16 isci_tci_space(struct isci_host *ihost)
+{
+	return CIRC_SPACE(ihost->tci_head, ihost->tci_tail, SCI_MAX_IO_REQUESTS);
+}
+
+u16 isci_alloc_tag(struct isci_host *ihost)
+{
+	if (isci_tci_space(ihost)) {
+		u16 tci = isci_tci_alloc(ihost);
+		u8 seq = ihost->sci.io_request_sequence[tci];
+
+		return ISCI_TAG(seq, tci);
+	}
+
+	return SCI_CONTROLLER_INVALID_IO_TAG;
+}
+
+enum sci_status isci_free_tag(struct isci_host *ihost, u16 io_tag)
+{
+	struct scic_sds_controller *scic = &ihost->sci;
+	u16 tci = ISCI_TAG_TCI(io_tag);
+	u16 seq = ISCI_TAG_SEQ(io_tag);
+
+	/* prevent tail from passing head */
+	if (isci_tci_active(ihost) == 0)
+		return SCI_FAILURE_INVALID_IO_TAG;
+
+	if (seq == scic->io_request_sequence[tci]) {
+		scic->io_request_sequence[tci] = (seq+1) & (SCI_MAX_SEQ-1);
+
+		isci_tci_free(ihost, tci);
+
+		return SCI_SUCCESS;
+	}
+	return SCI_FAILURE_INVALID_IO_TAG;
+}
+
 /**
  * scic_controller_start_io() - This method is called by the SCI user to
  *    send/start an IO request. If the method invocation is successful, then
@@ -2811,27 +2803,11 @@ void scic_sds_controller_release_frame(
  *    IO request.
  * @io_request: the handle to the io request object to start.
  * @io_tag: This parameter specifies a previously allocated IO tag that the
- *    user desires to be utilized for this request. This parameter is optional.
- *     The user is allowed to supply SCI_CONTROLLER_INVALID_IO_TAG as the value
- *    for this parameter.
- *
- * - IO tags are a protected resource.  It is incumbent upon the SCI Core user
- * to ensure that each of the methods that may allocate or free available IO
- * tags are handled in a mutually exclusive manner.  This method is one of said
- * methods requiring proper critical code section protection (e.g. semaphore,
- * spin-lock, etc.). - For SATA, the user is required to manage NCQ tags.  As a
- * result, it is expected the user will have set the NCQ tag field in the host
- * to device register FIS prior to calling this method.  There is also a
- * requirement for the user to call scic_stp_io_set_ncq_tag() prior to invoking
- * the scic_controller_start_io() method. scic_controller_allocate_tag() for
- * more information on allocating a tag. Indicate if the controller
- * successfully started the IO request. SCI_SUCCESS if the IO request was
- * successfully started. Determine the failure situations and return values.
+ *    user desires to be utilized for this request.
  */
 enum sci_status scic_controller_start_io(struct scic_sds_controller *scic,
 					 struct scic_sds_remote_device *rdev,
-					 struct scic_sds_request *req,
-					 u16 io_tag)
+					 struct scic_sds_request *req)
 {
 	enum sci_status status;
 
@@ -2902,17 +2878,6 @@ enum sci_status scic_controller_terminate_request(
  * @remote_device: The handle to the remote device object for which to complete
  *    the IO request.
  * @io_request: the handle to the io request object to complete.
- *
- * - IO tags are a protected resource.  It is incumbent upon the SCI Core user
- * to ensure that each of the methods that may allocate or free available IO
- * tags are handled in a mutually exclusive manner.  This method is one of said
- * methods requiring proper critical code section protection (e.g. semaphore,
- * spin-lock, etc.). - If the IO tag for a request was allocated, by the SCI
- * Core user, using the scic_controller_allocate_io_tag() method, then it is
- * the responsibility of the caller to invoke the scic_controller_free_io_tag()
- * method to free the tag (i.e. this method will not free the IO tag). Indicate
- * if the controller successfully completed the IO request. SCI_SUCCESS if the
- * completion process was successful.
  */
 enum sci_status scic_controller_complete_io(
 	struct scic_sds_controller *scic,
@@ -2963,31 +2928,11 @@ enum sci_status scic_controller_continue_io(struct scic_sds_request *sci_req)
  * @remote_device: the handle to the remote device object for which to start
  *    the task management request.
  * @task_request: the handle to the task request object to start.
- * @io_tag: This parameter specifies a previously allocated IO tag that the
- *    user desires to be utilized for this request.  Note this not the io_tag
- *    of the request being managed.  It is to be utilized for the task request
- *    itself. This parameter is optional.  The user is allowed to supply
- *    SCI_CONTROLLER_INVALID_IO_TAG as the value for this parameter.
- *
- * - IO tags are a protected resource.  It is incumbent upon the SCI Core user
- * to ensure that each of the methods that may allocate or free available IO
- * tags are handled in a mutually exclusive manner.  This method is one of said
- * methods requiring proper critical code section protection (e.g. semaphore,
- * spin-lock, etc.). - The user must synchronize this task with completion
- * queue processing.  If they are not synchronized then it is possible for the
- * io requests that are being managed by the task request can complete before
- * starting the task request. scic_controller_allocate_tag() for more
- * information on allocating a tag. Indicate if the controller successfully
- * started the IO request. SCI_TASK_SUCCESS if the task request was
- * successfully started. SCI_TASK_FAILURE_REQUIRES_SCSI_ABORT This value is
- * returned if there is/are task(s) outstanding that require termination or
- * completion before this request can succeed.
  */
 enum sci_task_status scic_controller_start_task(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *rdev,
-	struct scic_sds_request *req,
-	u16 task_tag)
+	struct scic_sds_request *req)
 {
 	enum sci_status status;
 
@@ -3021,86 +2966,4 @@ enum sci_task_status scic_controller_start_task(
 	}
 
 	return status;
-}
-
-/**
- * scic_controller_allocate_io_tag() - This method will allocate a tag from the
- *    pool of free IO tags. Direct allocation of IO tags by the SCI Core user
- *    is optional. The scic_controller_start_io() method will allocate an IO
- *    tag if this method is not utilized and the tag is not supplied to the IO
- *    construct routine.  Direct allocation of IO tags may provide additional
- *    performance improvements in environments capable of supporting this usage
- *    model.  Additionally, direct allocation of IO tags also provides
- *    additional flexibility to the SCI Core user.  Specifically, the user may
- *    retain IO tags across the lives of multiple IO requests.
- * @controller: the handle to the controller object for which to allocate the
- *    tag.
- *
- * IO tags are a protected resource.  It is incumbent upon the SCI Core user to
- * ensure that each of the methods that may allocate or free available IO tags
- * are handled in a mutually exclusive manner.  This method is one of said
- * methods requiring proper critical code section protection (e.g. semaphore,
- * spin-lock, etc.). An unsigned integer representing an available IO tag.
- * SCI_CONTROLLER_INVALID_IO_TAG This value is returned if there are no
- * currently available tags to be allocated. All return other values indicate a
- * legitimate tag.
- */
-u16 scic_controller_allocate_io_tag(struct scic_sds_controller *scic)
-{
-	struct isci_host *ihost = scic_to_ihost(scic);
-
-	if (isci_tci_space(ihost)) {
-		u16 tci = isci_tci_alloc(ihost);
-		u8 seq = scic->io_request_sequence[tci];
-
-		return ISCI_TAG(seq, tci);
-	}
-
-	return SCI_CONTROLLER_INVALID_IO_TAG;
-}
-
-/**
- * scic_controller_free_io_tag() - This method will free an IO tag to the pool
- *    of free IO tags. This method provides the SCI Core user more flexibility
- *    with regards to IO tags.  The user may desire to keep an IO tag after an
- *    IO request has completed, because they plan on re-using the tag for a
- *    subsequent IO request.  This method is only legal if the tag was
- *    allocated via scic_controller_allocate_io_tag().
- * @controller: This parameter specifies the handle to the controller object
- *    for which to free/return the tag.
- * @io_tag: This parameter represents the tag to be freed to the pool of
- *    available tags.
- *
- * - IO tags are a protected resource.  It is incumbent upon the SCI Core user
- * to ensure that each of the methods that may allocate or free available IO
- * tags are handled in a mutually exclusive manner.  This method is one of said
- * methods requiring proper critical code section protection (e.g. semaphore,
- * spin-lock, etc.). - If the IO tag for a request was allocated, by the SCI
- * Core user, using the scic_controller_allocate_io_tag() method, then it is
- * the responsibility of the caller to invoke this method to free the tag. This
- * method returns an indication of whether the tag was successfully put back
- * (freed) to the pool of available tags. SCI_SUCCESS This return value
- * indicates the tag was successfully placed into the pool of available IO
- * tags. SCI_FAILURE_INVALID_IO_TAG This value is returned if the supplied tag
- * is not a valid IO tag value.
- */
-enum sci_status scic_controller_free_io_tag(struct scic_sds_controller *scic,
-					    u16 io_tag)
-{
-	struct isci_host *ihost = scic_to_ihost(scic);
-	u16 tci = ISCI_TAG_TCI(io_tag);
-	u16 seq = ISCI_TAG_SEQ(io_tag);
-
-	/* prevent tail from passing head */
-	if (isci_tci_active(ihost) == 0)
-		return SCI_FAILURE_INVALID_IO_TAG;
-
-	if (seq == scic->io_request_sequence[tci]) {
-		scic->io_request_sequence[tci] = (seq+1) & (SCI_MAX_SEQ-1);
-
-		isci_tci_free(ihost, ISCI_TAG_TCI(io_tag));
-
-		return SCI_SUCCESS;
-	}
-	return SCI_FAILURE_INVALID_IO_TAG;
 }

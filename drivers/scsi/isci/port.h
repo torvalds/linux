@@ -108,7 +108,7 @@ struct scic_sds_port {
 	u8 active_phy_mask;
 
 	u16 reserved_rni;
-	u16 reserved_tci;
+	u16 reserved_tag;
 
 	/**
 	 * This field contains the count of the io requests started on this port

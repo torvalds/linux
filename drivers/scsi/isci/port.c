@@ -695,35 +695,21 @@ static void scic_sds_port_construct_dummy_rnc(struct scic_sds_port *sci_port, u1
  */
 static void scic_sds_port_construct_dummy_task(struct scic_sds_port *sci_port, u16 tag)
 {
+	struct scic_sds_controller *scic = sci_port->owning_controller;
 	struct scu_task_context *task_context;
 
-	task_context = scic_sds_controller_get_task_context_buffer(sci_port->owning_controller, tag);
-
+	task_context = &scic->task_context_table[ISCI_TAG_TCI(tag)];
 	memset(task_context, 0, sizeof(struct scu_task_context));
 
-	task_context->abort = 0;
-	task_context->priority = 0;
 	task_context->initiator_request = 1;
 	task_context->connection_rate = 1;
-	task_context->protocol_engine_index = 0;
 	task_context->logical_port_index = sci_port->physical_port_index;
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_SSP;
 	task_context->task_index = ISCI_TAG_TCI(tag);
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
-
 	task_context->remote_node_index = sci_port->reserved_rni;
-	task_context->command_code = 0;
-
-	task_context->link_layer_control = 0;
 	task_context->do_not_dma_ssp_good_response = 1;
-	task_context->strict_ordering = 0;
-	task_context->control_frame = 0;
-	task_context->timeout_enable = 0;
-	task_context->block_guard_enable = 0;
-
-	task_context->address_modifier = 0;
-
 	task_context->task_phase = 0x01;
 }
 
@@ -731,15 +717,15 @@ static void scic_sds_port_destroy_dummy_resources(struct scic_sds_port *sci_port
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
 
-	if (sci_port->reserved_tci != SCU_DUMMY_INDEX)
-		scic_controller_free_io_tag(scic, sci_port->reserved_tci);
+	if (sci_port->reserved_tag != SCI_CONTROLLER_INVALID_IO_TAG)
+		isci_free_tag(scic_to_ihost(scic), sci_port->reserved_tag);
 
 	if (sci_port->reserved_rni != SCU_DUMMY_INDEX)
 		scic_sds_remote_node_table_release_remote_node_index(&scic->available_remote_nodes,
 								     1, sci_port->reserved_rni);
 
 	sci_port->reserved_rni = SCU_DUMMY_INDEX;
-	sci_port->reserved_tci = SCU_DUMMY_INDEX;
+	sci_port->reserved_tag = SCI_CONTROLLER_INVALID_IO_TAG;
 }
 
 /**
@@ -1119,18 +1105,17 @@ scic_sds_port_suspend_port_task_scheduler(struct scic_sds_port *port)
  */
 static void scic_sds_port_post_dummy_request(struct scic_sds_port *sci_port)
 {
-	u32 command;
-	struct scu_task_context *task_context;
 	struct scic_sds_controller *scic = sci_port->owning_controller;
-	u16 tci = sci_port->reserved_tci;
+	u16 tag = sci_port->reserved_tag;
+	struct scu_task_context *tc;
+	u32 command;
 
-	task_context = scic_sds_controller_get_task_context_buffer(scic, tci);
-
-	task_context->abort = 0;
+	tc = &scic->task_context_table[ISCI_TAG_TCI(tag)];
+	tc->abort = 0;
 
 	command = SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
 		  sci_port->physical_port_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT |
-		  tci;
+		  ISCI_TAG_TCI(tag);
 
 	scic_sds_controller_post_request(scic, command);
 }
@@ -1145,17 +1130,16 @@ static void scic_sds_port_post_dummy_request(struct scic_sds_port *sci_port)
 static void scic_sds_port_abort_dummy_request(struct scic_sds_port *sci_port)
 {
 	struct scic_sds_controller *scic = sci_port->owning_controller;
-	u16 tci = sci_port->reserved_tci;
+	u16 tag = sci_port->reserved_tag;
 	struct scu_task_context *tc;
 	u32 command;
 
-	tc = scic_sds_controller_get_task_context_buffer(scic, tci);
-
+	tc = &scic->task_context_table[ISCI_TAG_TCI(tag)];
 	tc->abort = 1;
 
 	command = SCU_CONTEXT_COMMAND_REQUEST_POST_TC_ABORT |
 		  sci_port->physical_port_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT |
-		  tci;
+		  ISCI_TAG_TCI(tag);
 
 	scic_sds_controller_post_request(scic, command);
 }
@@ -1333,15 +1317,16 @@ enum sci_status scic_sds_port_start(struct scic_sds_port *sci_port)
 		sci_port->reserved_rni = rni;
 	}
 
-	if (sci_port->reserved_tci == SCU_DUMMY_INDEX) {
-		/* Allocate a TCI and remove the sequence nibble */
-		u16 tci = scic_controller_allocate_io_tag(scic);
+	if (sci_port->reserved_tag == SCI_CONTROLLER_INVALID_IO_TAG) {
+		struct isci_host *ihost = scic_to_ihost(scic);
+		u16 tag;
 
-		if (tci != SCU_DUMMY_INDEX)
-			scic_sds_port_construct_dummy_task(sci_port, tci);
-		else
+		tag = isci_alloc_tag(ihost);
+		if (tag == SCI_CONTROLLER_INVALID_IO_TAG)
 			status = SCI_FAILURE_INSUFFICIENT_RESOURCES;
-		sci_port->reserved_tci = tci;
+		else
+			scic_sds_port_construct_dummy_task(sci_port, tag);
+		sci_port->reserved_tag = tag;
 	}
 
 	if (status == SCI_SUCCESS) {
@@ -1859,7 +1844,7 @@ void scic_sds_port_construct(struct scic_sds_port *sci_port, u8 index,
 	sci_port->assigned_device_count = 0;
 
 	sci_port->reserved_rni = SCU_DUMMY_INDEX;
-	sci_port->reserved_tci = SCU_DUMMY_INDEX;
+	sci_port->reserved_tag = SCI_CONTROLLER_INVALID_IO_TAG;
 
 	sci_init_timer(&sci_port->timer, port_timeout);
 

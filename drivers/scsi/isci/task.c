@@ -63,6 +63,7 @@
 #include "request.h"
 #include "sata.h"
 #include "task.h"
+#include "host.h"
 
 /**
 * isci_task_refuse() - complete the request to the upper layer driver in
@@ -156,25 +157,19 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 {
 	struct isci_host *ihost = dev_to_ihost(task->dev);
 	struct isci_remote_device *idev;
-	enum sci_status status;
 	unsigned long flags;
 	bool io_ready;
-	int ret;
+	u16 tag;
 
 	dev_dbg(&ihost->pdev->dev, "%s: num=%d\n", __func__, num);
 
-	/* Check if we have room for more tasks */
-	ret = isci_host_can_queue(ihost, num);
-
-	if (ret) {
-		dev_warn(&ihost->pdev->dev, "%s: queue full\n", __func__);
-		return ret;
-	}
-
 	for_each_sas_task(num, task) {
+		enum sci_status status = SCI_FAILURE;
+
 		spin_lock_irqsave(&ihost->scic_lock, flags);
 		idev = isci_lookup_device(task->dev);
 		io_ready = isci_device_io_ready(idev, task);
+		tag = isci_alloc_tag(ihost);
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 		dev_dbg(&ihost->pdev->dev,
@@ -185,15 +180,12 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 		if (!idev) {
 			isci_task_refuse(ihost, task, SAS_TASK_UNDELIVERED,
 					 SAS_DEVICE_UNKNOWN);
-			isci_host_can_dequeue(ihost, 1);
-		} else if (!io_ready) {
-
+		} else if (!io_ready || tag == SCI_CONTROLLER_INVALID_IO_TAG) {
 			/* Indicate QUEUE_FULL so that the scsi midlayer
 			 * retries.
 			  */
 			isci_task_refuse(ihost, task, SAS_TASK_COMPLETE,
 					 SAS_QUEUE_FULL);
-			isci_host_can_dequeue(ihost, 1);
 		} else {
 			/* There is a device and it's ready for I/O. */
 			spin_lock_irqsave(&task->task_state_lock, flags);
@@ -206,13 +198,12 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 				isci_task_refuse(ihost, task,
 						 SAS_TASK_UNDELIVERED,
 						 SAM_STAT_TASK_ABORTED);
-				isci_host_can_dequeue(ihost, 1);
 			} else {
 				task->task_state_flags |= SAS_TASK_AT_INITIATOR;
 				spin_unlock_irqrestore(&task->task_state_lock, flags);
 
 				/* build and send the request. */
-				status = isci_request_execute(ihost, idev, task, gfp_flags);
+				status = isci_request_execute(ihost, idev, task, tag, gfp_flags);
 
 				if (status != SCI_SUCCESS) {
 
@@ -231,9 +222,16 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 					isci_task_refuse(ihost, task,
 							 SAS_TASK_COMPLETE,
 							 SAS_QUEUE_FULL);
-					isci_host_can_dequeue(ihost, 1);
 				}
 			}
+		}
+		if (status != SCI_SUCCESS && tag != SCI_CONTROLLER_INVALID_IO_TAG) {
+			spin_lock_irqsave(&ihost->scic_lock, flags);
+			/* command never hit the device, so just free
+			 * the tci and skip the sequence increment
+			 */
+			isci_tci_free(ihost, ISCI_TAG_TCI(tag));
+			spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		}
 		isci_put_device(idev);
 	}
@@ -242,7 +240,7 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 
 static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 						    struct isci_remote_device *idev,
-						    struct isci_tmf *isci_tmf)
+						    u16 tag, struct isci_tmf *isci_tmf)
 {
 	enum sci_status status = SCI_FAILURE;
 	struct isci_request *ireq = NULL;
@@ -259,8 +257,7 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 		return NULL;
 
 	/* let the core do it's construct. */
-	status = scic_task_request_construct(&ihost->sci, &idev->sci,
-					     SCI_CONTROLLER_INVALID_IO_TAG,
+	status = scic_task_request_construct(&ihost->sci, &idev->sci, tag,
 					     &ireq->sci);
 
 	if (status != SCI_SUCCESS) {
@@ -290,8 +287,7 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 	return ireq;
  errout:
 	isci_request_free(ihost, ireq);
-	ireq = NULL;
-	return ireq;
+	return NULL;
 }
 
 int isci_task_execute_tmf(struct isci_host *ihost,
@@ -305,6 +301,14 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 	int ret = TMF_RESP_FUNC_FAILED;
 	unsigned long flags;
 	unsigned long timeleft;
+	u16 tag;
+
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	tag = isci_alloc_tag(ihost);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
+
+	if (tag == SCI_CONTROLLER_INVALID_IO_TAG)
+		return ret;
 
 	/* sanity check, return TMF_RESP_FUNC_FAILED
 	 * if the device is not there and ready.
@@ -316,7 +320,7 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 			"%s: isci_device = %p not ready (%#lx)\n",
 			__func__,
 			isci_device, isci_device ? isci_device->flags : 0);
-		return TMF_RESP_FUNC_FAILED;
+		goto err_tci;
 	} else
 		dev_dbg(&ihost->pdev->dev,
 			"%s: isci_device = %p\n",
@@ -327,22 +331,16 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 	/* Assign the pointer to the TMF's completion kernel wait structure. */
 	tmf->complete = &completion;
 
-	ireq = isci_task_request_build(ihost, isci_device, tmf);
-	if (!ireq) {
-		dev_warn(&ihost->pdev->dev,
-			"%s: isci_task_request_build failed\n",
-			__func__);
-		return TMF_RESP_FUNC_FAILED;
-	}
+	ireq = isci_task_request_build(ihost, isci_device, tag, tmf);
+	if (!ireq)
+		goto err_tci;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 
 	/* start the TMF io. */
-	status = scic_controller_start_task(
-		&ihost->sci,
-		sci_device,
-		&ireq->sci,
-		SCI_CONTROLLER_INVALID_IO_TAG);
+	status = scic_controller_start_task(&ihost->sci,
+					    sci_device,
+					    &ireq->sci);
 
 	if (status != SCI_TASK_SUCCESS) {
 		dev_warn(&ihost->pdev->dev,
@@ -351,8 +349,7 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 			 status,
 			 ireq);
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
-		isci_request_free(ihost, ireq);
-		return ret;
+		goto err_ireq;
 	}
 
 	if (tmf->cb_state_func != NULL)
@@ -401,6 +398,15 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 		"%s: completed request = %p\n",
 		__func__,
 		ireq);
+
+	return ret;
+
+ err_ireq:
+	isci_request_free(ihost, ireq);
+ err_tci:
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	isci_tci_free(ihost, ISCI_TAG_TCI(tag));
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	return ret;
 }

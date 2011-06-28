@@ -192,6 +192,7 @@ struct scic_sds_controller {
 	 * context table.  This data is shared between the hardware and software.
 	 */
 	struct scu_task_context *task_context_table;
+	dma_addr_t task_context_dma;
 
 	/**
 	 * This field is a pointer to the memory allocated by the driver for the
@@ -302,12 +303,8 @@ struct isci_host {
 	struct isci_port ports[SCI_MAX_PORTS + 1]; /* includes dummy port */
 	struct sas_ha_struct sas_ha;
 
-	int can_queue;
-	spinlock_t queue_lock;
 	spinlock_t state_lock;
-
 	struct pci_dev *pdev;
-
 	enum isci_status status;
 	#define IHOST_START_PENDING 0
 	#define IHOST_STOP_PENDING 1
@@ -449,36 +446,6 @@ static inline void isci_host_change_state(struct isci_host *isci_host,
 	isci_host->status = status;
 	spin_unlock_irqrestore(&isci_host->state_lock, flags);
 
-}
-
-static inline int isci_host_can_queue(struct isci_host *isci_host, int num)
-{
-	int ret = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&isci_host->queue_lock, flags);
-	if ((isci_host->can_queue - num) < 0) {
-		dev_dbg(&isci_host->pdev->dev,
-			"%s: isci_host->can_queue = %d\n",
-			__func__,
-			isci_host->can_queue);
-		ret = -SAS_QUEUE_FULL;
-
-	} else
-		isci_host->can_queue -= num;
-
-	spin_unlock_irqrestore(&isci_host->queue_lock, flags);
-
-	return ret;
-}
-
-static inline void isci_host_can_dequeue(struct isci_host *isci_host, int num)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&isci_host->queue_lock, flags);
-	isci_host->can_queue += num;
-	spin_unlock_irqrestore(&isci_host->queue_lock, flags);
 }
 
 static inline void wait_for_start(struct isci_host *ihost)
@@ -646,10 +613,6 @@ union scu_remote_node_context *scic_sds_controller_get_remote_node_context_buffe
 struct scic_sds_request *scic_request_by_tag(struct scic_sds_controller *scic,
 					     u16 io_tag);
 
-struct scu_task_context *scic_sds_controller_get_task_context_buffer(
-	struct scic_sds_controller *scic,
-	u16 io_tag);
-
 void scic_sds_controller_power_control_queue_insert(
 	struct scic_sds_controller *scic,
 	struct scic_sds_phy *sci_phy);
@@ -681,6 +644,9 @@ void scic_sds_controller_register_setup(struct scic_sds_controller *scic);
 enum sci_status scic_controller_continue_io(struct scic_sds_request *sci_req);
 int isci_host_scan_finished(struct Scsi_Host *, unsigned long);
 void isci_host_scan_start(struct Scsi_Host *);
+u16 isci_alloc_tag(struct isci_host *ihost);
+enum sci_status isci_free_tag(struct isci_host *ihost, u16 io_tag);
+void isci_tci_free(struct isci_host *ihost, u16 tci);
 
 int isci_host_init(struct isci_host *);
 
@@ -708,14 +674,12 @@ void scic_controller_disable_interrupts(
 enum sci_status scic_controller_start_io(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
-	struct scic_sds_request *io_request,
-	u16 io_tag);
+	struct scic_sds_request *io_request);
 
 enum sci_task_status scic_controller_start_task(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
-	struct scic_sds_request *task_request,
-	u16 io_tag);
+	struct scic_sds_request *task_request);
 
 enum sci_status scic_controller_terminate_request(
 	struct scic_sds_controller *scic,
@@ -726,13 +690,6 @@ enum sci_status scic_controller_complete_io(
 	struct scic_sds_controller *scic,
 	struct scic_sds_remote_device *remote_device,
 	struct scic_sds_request *io_request);
-
-u16 scic_controller_allocate_io_tag(
-	struct scic_sds_controller *scic);
-
-enum sci_status scic_controller_free_io_tag(
-	struct scic_sds_controller *scic,
-	u16 io_tag);
 
 void scic_sds_port_configuration_agent_construct(
 	struct scic_sds_port_configuration_agent *port_agent);
