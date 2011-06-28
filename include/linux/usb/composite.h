@@ -145,6 +145,9 @@ int usb_function_activate(struct usb_function *);
 
 int usb_interface_id(struct usb_configuration *, struct usb_function *);
 
+int config_ep_by_speed(struct usb_gadget *g, struct usb_function *f,
+			struct usb_ep *_ep);
+
 /**
  * ep_choose - select descriptor endpoint at current device speed
  * @g: gadget, connected and running at some speed

@@ -191,6 +191,7 @@ ep_matches (
 			size = 64;
 		desc->wMaxPacketSize = cpu_to_le16(size);
 	}
+	ep->address = desc->bEndpointAddress;
 	return 1;
 }
 
