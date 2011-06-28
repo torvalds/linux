@@ -1372,20 +1372,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 
 }
 
-int iwl_alloc_txq_mem(struct iwl_priv *priv)
-{
-	if (!priv->txq)
-		priv->txq = kzalloc(
-			sizeof(struct iwl_tx_queue) *
-				priv->cfg->base_params->num_of_queues,
-			GFP_KERNEL);
-	if (!priv->txq) {
-		IWL_ERR(priv, "Not enough memory for txq\n");
-		return -ENOMEM;
-	}
-	return 0;
-}
-
 void iwl_free_txq_mem(struct iwl_priv *priv)
 {
 	kfree(priv->txq);

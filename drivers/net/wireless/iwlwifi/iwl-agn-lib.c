@@ -699,7 +699,6 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	struct iwl_rx_queue *rxq = &priv->rxq;
-	int ret;
 
 	/* nic_init */
 	spin_lock_irqsave(&priv->lock, flags);
@@ -729,12 +728,8 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Allocate or reset and init all Tx and Command queues */
-	if (!priv->txq) {
-		ret = iwlagn_txq_ctx_alloc(priv);
-		if (ret)
-			return ret;
-	} else
-		iwlagn_txq_ctx_reset(priv);
+	if (priv->trans.ops->tx_init(priv))
+		return -ENOMEM;
 
 	if (priv->cfg->base_params->shadow_reg_enable) {
 		/* enable shadow regs in HW */
