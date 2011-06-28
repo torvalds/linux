@@ -353,6 +353,15 @@ void __init mem_init(void)
 	}
 #endif /* CONFIG_HIGHMEM */
 
+#if defined(CONFIG_PPC_FSL_BOOK3E) && !defined(CONFIG_SMP)
+	/*
+	 * If smp is enabled, next_tlbcam_idx is initialized in the cpu up
+	 * functions.... do it here for the non-smp case.
+	 */
+	per_cpu(next_tlbcam_idx, smp_processor_id()) =
+		(mfspr(SPRN_TLB1CFG) & TLBnCFG_N_ENTRY) - 1;
+#endif
+
 	printk(KERN_INFO "Memory: %luk/%luk available (%luk kernel code, "
 	       "%luk reserved, %luk data, %luk bss, %luk init)\n",
 		nr_free_pages() << (PAGE_SHIFT-10),

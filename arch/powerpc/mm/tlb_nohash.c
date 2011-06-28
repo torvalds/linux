@@ -102,6 +102,12 @@ unsigned long linear_map_top;	/* Top of linear mapping */
 
 #endif /* CONFIG_PPC64 */
 
+#ifdef CONFIG_PPC_FSL_BOOK3E
+/* next_tlbcam_idx is used to round-robin tlbcam entry assignment */
+DEFINE_PER_CPU(int, next_tlbcam_idx);
+EXPORT_PER_CPU_SYMBOL(next_tlbcam_idx);
+#endif
+
 /*
  * Base TLB flushing operations:
  *
