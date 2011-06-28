@@ -121,6 +121,9 @@ struct ft5x0x_ts_data {
 	struct workqueue_struct *ts_workqueue;
 };
 
+static int fts_ctpm_fw_upgrade_with_i_file(void);
+
+
 
 //#define FT5X0X_I2C_ADDR   	0x70
 #define MAX_POINT 5
@@ -147,6 +150,7 @@ static struct i2c_driver ft5x0x_ts_driver = {
 	.id = FT5X0X_I2C_ADDR,
 	.attach_adapter = &ft5x0x_attach_adapter,
 };
+
 
 
 
@@ -625,6 +629,7 @@ int err = 0;
 
 }
 
+
 static int ft5x0x_ts_resume(struct early_suspend *h)
 {
 	//printk("==ft5x0x_ts_resume=\n");
@@ -652,6 +657,422 @@ static int ft5x0x_ts_resume(struct early_suspend *h)
 }
 #endif
 
+/***********************************************************************/
+
+#define    FTS_PACKET_LENGTH        128
+static bool  i2c_write_interface(u8* pbt_buf, int dw_lenth);
+
+
+static u8 CTPM_FW[]=
+{
+#include "ft_app.i"
+};
+
+typedef enum
+{
+    ERR_OK,
+    ERR_MODE,
+    ERR_READID,
+    ERR_ERASE,
+    ERR_STATUS,
+    ERR_ECC,
+    ERR_DL_ERASE_FAIL,
+    ERR_DL_PROGRAM_FAIL,
+    ERR_DL_VERIFY_FAIL
+}E_UPGRADE_ERR_TYPE;
+
+/***********************************************************************/
+
+/***********************************************************************
+    [function]: 
+		           callback:                send data to ctpm by i2c interface;
+    [parameters]:
+			    txdata[in]:              data buffer which is used to send data;
+			    length[in]:              the length of the data buffer;
+    [return]:
+			    FTS_TRUE:              success;
+			    FTS_FALSE:             fail;
+************************************************************************/
+static int fts_i2c_txdata(u8 *txdata, int length)
+{
+	int ret;
+
+	struct i2c_msg msg;
+
+      msg.addr = this_client->addr;
+      msg.flags = 0;
+      msg.len = length;
+      msg.buf = txdata;
+	ret = i2c_transfer(this_client->adapter, &msg, 1);
+	if (ret < 0)
+		pr_err("%s i2c write error: %d\n", __func__, ret);
+
+	return ret;
+}
+
+/***********************************************************************
+    [function]: 
+		           callback:               write data to ctpm by i2c interface;
+    [parameters]:
+			    buffer[in]:             data buffer;
+			    length[in]:            the length of the data buffer;
+    [return]:
+			    FTS_TRUE:            success;
+			    FTS_FALSE:           fail;
+************************************************************************/
+static bool  i2c_write_interface(u8* pbt_buf, int dw_lenth)
+{
+    int ret;
+    ret=i2c_master_send(this_client, pbt_buf, dw_lenth);
+    if(ret<=0)
+    {
+        printk("[TSP]i2c_write_interface error line = %d, ret = %d\n", __LINE__, ret);
+        return false;
+    }
+
+    return true;
+}
+
+/***********************************************************************
+    [function]: 
+		           callback:                read register value ftom ctpm by i2c interface;
+    [parameters]:
+                        reg_name[in]:         the register which you want to write;
+			    tx_buf[in]:              buffer which is contained of the writing value;
+    [return]:
+			    FTS_TRUE:              success;
+			    FTS_FALSE:             fail;
+************************************************************************/
+static bool fts_register_write(u8 reg_name, u8* tx_buf)
+{
+	u8 write_cmd[2] = {0};
+
+	write_cmd[0] = reg_name;
+	write_cmd[1] = *tx_buf;
+
+	/*call the write callback function*/
+	return i2c_write_interface(write_cmd, 2);
+}
+
+/***********************************************************************
+[function]: 
+                      callback:         send a command to ctpm.
+[parameters]:
+			  btcmd[in]:       command code;
+			  btPara1[in]:     parameter 1;    
+			  btPara2[in]:     parameter 2;    
+			  btPara3[in]:     parameter 3;    
+                      num[in]:         the valid input parameter numbers, 
+                                           if only command code needed and no 
+                                           parameters followed,then the num is 1;    
+[return]:
+			  FTS_TRUE:      success;
+			  FTS_FALSE:     io fail;
+************************************************************************/
+static bool cmd_write(u8 btcmd,u8 btPara1,u8 btPara2,u8 btPara3,u8 num)
+{
+    u8 write_cmd[4] = {0};
+
+    write_cmd[0] = btcmd;
+    write_cmd[1] = btPara1;
+    write_cmd[2] = btPara2;
+    write_cmd[3] = btPara3;
+    return i2c_write_interface(write_cmd, num);
+}
+
+/***********************************************************************
+    [function]: 
+		           callback:              read data from ctpm by i2c interface;
+    [parameters]:
+			    buffer[in]:            data buffer;
+			    length[in]:           the length of the data buffer;
+    [return]:
+			    FTS_TRUE:            success;
+			    FTS_FALSE:           fail;
+************************************************************************/
+static bool i2c_read_interface(u8* pbt_buf, int dw_lenth)
+{
+    int ret;
+    
+    ret=i2c_master_recv(this_client, pbt_buf, dw_lenth);
+
+    if(ret<=0)
+    {
+        printk("[TSP]i2c_read_interface error\n");
+        return false;
+    }
+  
+    return true;
+}
+
+
+/***********************************************************************
+[function]: 
+                      callback:         read a byte data  from ctpm;
+[parameters]:
+			  buffer[in]:       read buffer;
+			  length[in]:      the size of read data;    
+[return]:
+			  FTS_TRUE:      success;
+			  FTS_FALSE:     io fail;
+************************************************************************/
+static bool byte_read(u8* buffer, int length)
+{
+    return i2c_read_interface(buffer, length);
+}
+
+/***********************************************************************
+[function]: 
+                      callback:         write a byte data  to ctpm;
+[parameters]:
+			  buffer[in]:       write buffer;
+			  length[in]:      the size of write data;    
+[return]:
+			  FTS_TRUE:      success;
+			  FTS_FALSE:     io fail;
+************************************************************************/
+static bool byte_write(u8* buffer, int length)
+{
+    
+    return i2c_write_interface(buffer, length);
+}
+
+/***********************************************************************
+    [function]: 
+		           callback:                 read register value ftom ctpm by i2c interface;
+    [parameters]:
+                        reg_name[in]:         the register which you want to read;
+			    rx_buf[in]:              data buffer which is used to store register value;
+			    rx_length[in]:          the length of the data buffer;
+    [return]:
+			    FTS_TRUE:              success;
+			    FTS_FALSE:             fail;
+************************************************************************/
+static bool fts_register_read(u8 reg_name, u8* rx_buf, int rx_length)
+{
+	u8 read_cmd[2]= {0};
+	u8 cmd_len 	= 0;
+
+	read_cmd[0] = reg_name;
+	cmd_len = 1;	
+
+	/*send register addr*/
+	if(!i2c_write_interface(&read_cmd[0], cmd_len))
+	{
+		return false;
+	}
+
+	/*call the read callback function to get the register value*/		
+	if(!i2c_read_interface(rx_buf, rx_length))
+	{
+		return false;
+	}
+	return true;
+}
+
+
+
+/***********************************************************************
+[function]: 
+                        callback:          burn the FW to ctpm.
+[parameters]:
+			    pbt_buf[in]:     point to Head+FW ;
+			    dw_lenth[in]:   the length of the FW + 6(the Head length);    
+[return]:
+			    ERR_OK:          no error;
+			    ERR_MODE:      fail to switch to UPDATE mode;
+			    ERR_READID:   read id fail;
+			    ERR_ERASE:     erase chip fail;
+			    ERR_STATUS:   status error;
+			    ERR_ECC:        ecc error.
+************************************************************************/
+E_UPGRADE_ERR_TYPE  fts_ctpm_fw_upgrade(u8* pbt_buf, int dw_lenth)
+{
+    u8  cmd,reg_val[2] = {0};
+    u8  packet_buf[FTS_PACKET_LENGTH + 6];
+    u8  auc_i2c_write_buf[10];
+    u8  bt_ecc;
+	
+    int  j,temp,lenght,i_ret,packet_number, i = 0;
+    int  i_is_new_protocol = 0;
+	
+
+    /******write 0xaa to register 0xfc******/
+    cmd=0xaa;
+    fts_register_write(0xfc,&cmd);
+    mdelay(50);
+	
+     /******write 0x55 to register 0xfc******/
+    cmd=0x55;
+    fts_register_write(0xfc,&cmd);
+    printk("[TSP] Step 1: Reset CTPM test\n");
+   
+    mdelay(10);   
+
+
+    /*******Step 2:Enter upgrade mode ****/
+    printk("\n[TSP] Step 2:enter new update mode\n");
+    auc_i2c_write_buf[0] = 0x55;
+    auc_i2c_write_buf[1] = 0xaa;
+    do
+    {
+        i ++;
+        i_ret = fts_i2c_txdata(auc_i2c_write_buf, 2);
+        mdelay(5);
+    }while(i_ret <= 0 && i < 10 );
+
+    if (i > 1)
+    {
+        i_is_new_protocol = 1;
+    }
+
+    /********Step 3:check READ-ID********/        
+    cmd_write(0x90,0x00,0x00,0x00,4);
+    byte_read(reg_val,2);
+    if (reg_val[0] == 0x79 && reg_val[1] == 0x3)
+    {
+        printk("[TSP] Step 3: CTPM ID,ID1 = 0x%x,ID2 = 0x%x\n",reg_val[0],reg_val[1]);
+    }
+    else
+    {
+        return ERR_READID;
+        //i_is_new_protocol = 1;
+    }
+    
+
+     /*********Step 4:erase app**********/
+    if (i_is_new_protocol)
+    {
+        cmd_write(0x61,0x00,0x00,0x00,1);
+    }
+    else
+    {
+        cmd_write(0x60,0x00,0x00,0x00,1);
+    }
+    mdelay(1500);
+    printk("[TSP] Step 4: erase. \n");
+
+
+
+    /*Step 5:write firmware(FW) to ctpm flash*/
+    bt_ecc = 0;
+    printk("[TSP] Step 5: start upgrade. \n");
+    dw_lenth = dw_lenth - 8;
+    packet_number = (dw_lenth) / FTS_PACKET_LENGTH;
+    packet_buf[0] = 0xbf;
+    packet_buf[1] = 0x00;
+    for (j=0;j<packet_number;j++)
+    {
+        temp = j * FTS_PACKET_LENGTH;
+        packet_buf[2] = (u8)(temp>>8);
+        packet_buf[3] = (u8)temp;
+        lenght = FTS_PACKET_LENGTH;
+        packet_buf[4] = (u8)(lenght>>8);
+        packet_buf[5] = (u8)lenght;
+
+        for (i=0;i<FTS_PACKET_LENGTH;i++)
+        {
+            packet_buf[6+i] = pbt_buf[j*FTS_PACKET_LENGTH + i]; 
+            bt_ecc ^= packet_buf[6+i];
+        }
+        
+        byte_write(&packet_buf[0],FTS_PACKET_LENGTH + 6);
+        mdelay(FTS_PACKET_LENGTH/6 + 1);
+        if ((j * FTS_PACKET_LENGTH % 1024) == 0)
+        {
+              printk("[TSP] upgrade the 0x%x th byte.\n", ((unsigned int)j) * FTS_PACKET_LENGTH);
+        }
+    }
+
+    if ((dw_lenth) % FTS_PACKET_LENGTH > 0)
+    {
+        temp = packet_number * FTS_PACKET_LENGTH;
+        packet_buf[2] = (u8)(temp>>8);
+        packet_buf[3] = (u8)temp;
+
+        temp = (dw_lenth) % FTS_PACKET_LENGTH;
+        packet_buf[4] = (u8)(temp>>8);
+        packet_buf[5] = (u8)temp;
+
+        for (i=0;i<temp;i++)
+        {
+            packet_buf[6+i] = pbt_buf[ packet_number*FTS_PACKET_LENGTH + i]; 
+            bt_ecc ^= packet_buf[6+i];
+        }
+
+        byte_write(&packet_buf[0],temp+6);    
+        mdelay(20);
+    }
+
+    /***********send the last six byte**********/
+    for (i = 0; i<6; i++)
+    {
+        temp = 0x6ffa + i;
+        packet_buf[2] = (u8)(temp>>8);
+        packet_buf[3] = (u8)temp;
+        temp =1;
+        packet_buf[4] = (u8)(temp>>8);
+        packet_buf[5] = (u8)temp;
+        packet_buf[6] = pbt_buf[ dw_lenth + i]; 
+        bt_ecc ^= packet_buf[6];
+
+        byte_write(&packet_buf[0],7);  
+        mdelay(20);
+    }
+
+    /********send the opration head************/
+    cmd_write(0xcc,0x00,0x00,0x00,1);
+    byte_read(reg_val,1);
+    printk("[TSP] Step 6:  ecc read 0x%x, new firmware 0x%x. \n", reg_val[0], bt_ecc);
+    if(reg_val[0] != bt_ecc)
+    {
+        return ERR_ECC;
+    }
+
+    /*******Step 7: reset the new FW**********/
+    cmd_write(0x07,0x00,0x00,0x00,1);
+
+    return ERR_OK;
+}
+
+
+/***********************************************************************/
+
+int fts_ctpm_fw_upgrade_with_i_file(void)
+{
+   u8*     pbt_buf = 0;
+   int i_ret;
+    
+   pbt_buf = CTPM_FW;
+   i_ret =  fts_ctpm_fw_upgrade(pbt_buf,sizeof(CTPM_FW));
+   
+   return i_ret;
+}
+
+/***********************************************************************/
+
+unsigned char fts_ctpm_get_upg_ver(void)
+{
+    unsigned int ui_sz;
+	
+    ui_sz = sizeof(CTPM_FW);
+    if (ui_sz > 2)
+    {
+        return CTPM_FW[ui_sz - 2];
+    }
+    else
+        return 0xff; 
+ 
+}
+
+
+#define    FT5X0X_REG_THRES  0x80              /* Thresshold, the threshold be low, the sensitivy will be high */
+#define    FT5X0X_REG_REPORT_RATE 0x88  /* **************report rate, in unit of 10Hz **************/
+#define    FT5X0X_REG_PMODE    0xA5          /* Power Consume Mode 0 -- active, 1 -- monitor, 3 -- sleep */    
+#define    FT5X0X_REG_FIRMID   0xA6         /* ***************firmware version **********************/
+#define    FT5X0X_REG_NOISE_MODE 0xb2    /* to enable or disable power noise, 1 -- enable, 0 -- disable */
+
+
 static int  ft5406_probe(struct i2c_client *client ,const struct i2c_device_id *id)
 {
 	struct ft5x0x_ts_data *ft5x0x_ts;
@@ -662,6 +1083,9 @@ static int  ft5406_probe(struct i2c_client *client ,const struct i2c_device_id *
 	int ret = 0;
 	u8 buf_w[1];
 	u8 buf_r[1];
+	
+    unsigned char reg_value;
+    unsigned char reg_version;
 
 	//printk("==ft5x0x_ts_probe=\n");
 	
@@ -733,7 +1157,7 @@ static int  ft5406_probe(struct i2c_client *client ,const struct i2c_device_id *
 	set_bit(ABS_MT_WIDTH_MAJOR, input_dev->absbit);
 	
 	//input_dev->evbit[0] = BIT_MASK(EV_ABS)|BIT_MASK(EV_KEY)|BIT_MASK(EV_SYN);                  //harry 03.21
-	     #if  CONFIG_TOUCH_PANEL_KEY
+	     #ifdef  CONFIG_TOUCH_PANEL_KEY
 	     set_bit(KEY_HOME, input_dev->keybit);
             set_bit(KEY_MENU, input_dev->keybit);
             set_bit(KEY_BACK, input_dev->keybit);
@@ -791,6 +1215,40 @@ static int  ft5406_probe(struct i2c_client *client ,const struct i2c_device_id *
 		err = -ESRCH;
 		goto exit_create_singlethread;
 	}
+
+	/***wait CTP to bootup normally***/
+	 msleep(200); 
+	 
+	 fts_register_read(FT5X0X_REG_FIRMID, &reg_version,1);
+	 printk("[TSP] firmware version = 0x%2x\n", reg_version);
+	 fts_register_read(FT5X0X_REG_REPORT_RATE, &reg_value,1);
+	 printk("[TSP]firmware report rate = %dHz\n", reg_value*10);
+	 fts_register_read(FT5X0X_REG_THRES, &reg_value,1);
+	 printk("[TSP]firmware threshold = %d\n", reg_value * 4);
+	 fts_register_read(FT5X0X_REG_NOISE_MODE, &reg_value,1);
+	 printk("[TSP]nosie mode = 0x%2x\n", reg_value);
+
+#if 1
+	  if (fts_ctpm_get_upg_ver() != reg_version)  
+	  {
+		  printk("[TSP] start upgrade new verison 0x%2x\n", fts_ctpm_get_upg_ver());
+		  msleep(200);
+		  err =  fts_ctpm_fw_upgrade_with_i_file();
+		  if (err == 0)
+		  {
+			  printk("[TSP] ugrade successfuly.\n");
+			  msleep(300);
+			  fts_register_read(FT5X0X_REG_FIRMID, &reg_value,1);
+			  printk("FTS_DBG from old version 0x%2x to new version = 0x%2x\n", reg_version, reg_value);
+		  }
+		  else
+		  {
+			  printk("[TSP]  ugrade fail err=%d, line = %d.\n",
+				  err, __LINE__);
+		  }
+		  msleep(4000);
+	  }
+#endif
 
 
 
@@ -888,6 +1346,9 @@ static void __exit ft5x0x_ts_exit(void)
 {
 	i2c_del_driver(&ft5406_driver);
 }
+
+
+/***********************************************************************/
 
 module_init(ft5x0x_ts_init);
 module_exit(ft5x0x_ts_exit);
