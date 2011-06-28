@@ -27,7 +27,6 @@ struct rk29_ipp_req {
 	uint32_t timeout;
 	uint32_t flag; //rotate
 	
-	//chenli 0506
 	//deinterlace_enable 1:enable 0:disable
 	uint8_t deinterlace_enable;
 	//the sum of three paras should be 32,and single para should be less than 32
@@ -40,7 +39,7 @@ struct rk29_ipp_req {
 		
 };
 
-//uint32_t format √∂æŸ¿‡–Õ
+//format enum
 enum
 {
 	IPP_XRGB_8888 = 0,
@@ -118,7 +117,7 @@ typedef enum
 		     (img == IPP_XRGB_8888) ))
 #define HAS_ALPHA(img) (img == IPP_ARGB_8888)
 
-int ipp_do_blit(struct rk29_ipp_req *req);
+
 int ipp_blit_async(const struct rk29_ipp_req *req);
 int ipp_blit_sync(const struct rk29_ipp_req *req);
 #endif /*_RK29_IPP_DRIVER_H_*/
