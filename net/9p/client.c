@@ -1303,6 +1303,29 @@ error:
 }
 EXPORT_SYMBOL(p9_client_remove);
 
+int p9_client_unlinkat(struct p9_fid *dfid, const char *name, int flags)
+{
+	int err = 0;
+	struct p9_req_t *req;
+	struct p9_client *clnt;
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TUNLINKAT fid %d %s %d\n",
+		   dfid->fid, name, flags);
+
+	clnt = dfid->clnt;
+	req = p9_client_rpc(clnt, P9_TUNLINKAT, "dsd", dfid->fid, name, flags);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RUNLINKAT fid %d %s\n", dfid->fid, name);
+
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_unlinkat);
+
 int
 p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 								u32 count)
