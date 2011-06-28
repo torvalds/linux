@@ -532,9 +532,9 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	/* Finally, allocate buffers and video memory */
 	ret = __vb2_queue_alloc(q, req->memory, num_buffers, num_planes,
 				plane_sizes);
-	if (ret < 0) {
-		dprintk(1, "Memory allocation failed with error: %d\n", ret);
-		return ret;
+	if (ret == 0) {
+		dprintk(1, "Memory allocation failed\n");
+		return -ENOMEM;
 	}
 
 	/*
