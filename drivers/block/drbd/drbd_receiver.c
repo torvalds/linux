@@ -2836,7 +2836,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 	enum drbd_conns rv = C_MASK;
 	enum drbd_disk_state mydisk;
 	struct net_conf *nc;
-	int hg, rule_nr, rr_conflict, dry_run;
+	int hg, rule_nr, rr_conflict, tentative;
 
 	mydisk = mdev->state.disk;
 	if (mydisk == D_NEGOTIATING)
@@ -2916,7 +2916,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 			     (hg < 0) ? "peer" : "this");
 	}
 	rr_conflict = nc->rr_conflict;
-	dry_run = nc->dry_run;
+	tentative = nc->tentative;
 	rcu_read_unlock();
 
 	if (hg == -100) {
@@ -2949,7 +2949,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 		}
 	}
 
-	if (dry_run || test_bit(CONN_DRY_RUN, &mdev->tconn->flags)) {
+	if (tentative || test_bit(CONN_DRY_RUN, &mdev->tconn->flags)) {
 		if (hg == 0)
 			dev_info(DEV, "dry-run connect: No resync, would become Connected immediately.\n");
 		else
