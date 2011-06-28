@@ -565,7 +565,6 @@ int snd_hda_get_bool_hint(struct hda_codec *codec, const char *key)
  * power-management
  */
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 void snd_hda_schedule_power_save(struct hda_codec *codec);
 
 struct hda_amp_list {
@@ -582,7 +581,6 @@ struct hda_loopback_check {
 int snd_hda_check_amp_list_power(struct hda_codec *codec,
 				 struct hda_loopback_check *check,
 				 hda_nid_t nid);
-#endif /* CONFIG_SND_HDA_POWER_SAVE */
 
 /*
  * AMP control callbacks
