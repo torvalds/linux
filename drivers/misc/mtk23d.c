@@ -161,7 +161,8 @@ int modem_poweron_off(int on_off)
 			#endif
 			
 		  gpio_direction_input(pdata->bp_statue);
-		  gpio_direction_input(pdata->bp_ap_wakeup);
+		  if(pdata->bp_ap_wakeup) // SDK板中，该口没有引出
+		  	gpio_direction_input(pdata->bp_ap_wakeup);
 			
 			/* 初始化BP唤醒AP的功能 */
 			wakelock_inited = false;
