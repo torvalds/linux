@@ -1617,6 +1617,7 @@ struct rk_headset_pdata rk_headset_info = {
 	.Headset_gpio		= RK29_PIN4_PD2,
 	.headset_in_type= HEADSET_IN_HIGH,
 	.Hook_gpio = RK29_PIN4_PD1,//Detection Headset--Must be set
+	.hook_key_code = KEY_MEDIA,
 };
 
 struct platform_device rk_device_headset = {

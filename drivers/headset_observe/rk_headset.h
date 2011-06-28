@@ -7,7 +7,7 @@
 
 struct rk_headset_pdata{
 	unsigned int Hook_gpio;//Detection Headset--Must be set
-
+	int	hook_key_code;
 	unsigned int Headset_gpio;//Detection Headset--Must be set
 	unsigned int headset_in_type;//	Headphones into the state level--Must be set	
 };

@@ -136,6 +136,7 @@ unsigned short BT_vol_table[16]		={0x01DB,0x01DC,0x01DD,0x01DE,0x01DF,0x01E0,
 /* codec private data */
 struct wm8994_priv {
 	struct mutex io_lock;
+	struct mutex route_lock;
 	unsigned int sysclk;
 	struct snd_soc_codec codec;
 	struct snd_kcontrol *kcontrol;//The current working path
@@ -197,6 +198,31 @@ int reg_recv_data(struct i2c_client *client, unsigned short *reg, unsigned short
 
 	return ret;
 }
+
+int wm8994_set_status(void)
+{
+	struct wm8994_priv *wm8994 = wm8994_codec->private_data;	
+	int ret = 1;
+	mutex_lock(&wm8994->route_lock);
+	
+	switch(wm8994_current_mode)
+	{
+	case wm8994_AP_to_headset:
+	case wm8994_recorder_and_AP_to_headset:
+	case wm8994_handsetMIC_to_baseband_to_headset:
+	case wm8994_handsetMIC_to_baseband_to_headset_and_record:
+		ret = 1;
+		break;
+	default:
+		ret = -1;
+		break;
+	}
+
+	mutex_unlock(&wm8994->route_lock);	
+	return ret;
+}
+EXPORT_SYMBOL_GPL(wm8994_set_status);
+
 
 static int wm8994_read(unsigned short reg,unsigned short *value)
 {
@@ -937,10 +963,6 @@ void AP_to_speakers_and_headset(void)
 	msleep(WM8994_DELAY);
 //clk
 //	wm8994_write(0x701, 0x0000);//MCLK2
-	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	wm8994_write(0x300, 0xC010); // i2s 16 bits
 	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
 	{
 		wm8994_write(0x220, 0x0000); 
@@ -948,9 +970,17 @@ void AP_to_speakers_and_headset(void)
 		wm8994_write(0x222, 0); 
 		wm8994_write(0x223, 0x0400);		
 		wm8994_write(0x220, 0x0004); 
+		msleep(10);
 		wm8994_write(0x220, 0x0005); 			
-		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
+		msleep(5);
+		wm8994_write(0x200, 0x0010); // sysclk = MCLK1
 	}
+	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+	wm8994_write(0x300, 0xC010); // i2s 16 bits	
+	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
+		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
 	else 
 		wm8994_write(0x200, 0x0001); // sysclk = MCLK1
 //	wm8994_write(0x200, 0x0009); // sysclk = MCLK2
@@ -991,14 +1021,10 @@ void recorder_and_AP_to_headset(void)
 	wm8994_reset();
 	msleep(WM8994_DELAY);
 
-	wm8994_write(0x01,  0x0023);
+	wm8994_write(0x01,  0x0003);
 	wm8994_write(0x200, 0x0000);
 	msleep(WM8994_DELAY);
 //clk
-	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	wm8994_write(0x300, 0xC010); // i2s 16 bits
 	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
 	{
 		wm8994_write(0x220, 0x0000); 
@@ -1006,11 +1032,20 @@ void recorder_and_AP_to_headset(void)
 		wm8994_write(0x222, 0); 
 		wm8994_write(0x223, 0x0400);		
 		wm8994_write(0x220, 0x0004); 
+		msleep(10);
 		wm8994_write(0x220, 0x0005); 			
-		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
+		msleep(5);
+		wm8994_write(0x200, 0x0010); // sysclk = MCLK1
 	}
+	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+	wm8994_write(0x300, 0xC050); // i2s 16 bits	
+	msleep(10);
+	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
+		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
 	else 
-		wm8994_write(0x200, 0x0001); // sysclk = MCLK1
+		wm8994_write(0x200, 0x0001); // sysclk = MCLK1	
 //recorder
 	wm8994_write(0x28,  0x0003); // IN1RP_TO_IN1R=1, IN1RN_TO_IN1R=1
 	wm8994_write(0x606, 0x0002); // ADC1L_TO_AIF1ADC1L=1
@@ -1058,11 +1093,6 @@ void recorder_and_AP_to_speakers(void)
 	msleep(WM8994_DELAY);
 //clk
 //	wm8994_write(0x701, 0x0000);//MCLK2
-	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	wm8994_write(0x300, 0xC010); // i2s 16 bits
-
 	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
 	{
 		wm8994_write(0x220, 0x0000); 
@@ -1070,9 +1100,17 @@ void recorder_and_AP_to_speakers(void)
 		wm8994_write(0x222, 0); 
 		wm8994_write(0x223, 0x0400);		
 		wm8994_write(0x220, 0x0004); 
+		msleep(10);
 		wm8994_write(0x220, 0x0005); 			
-		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
+		msleep(5);
+		wm8994_write(0x200, 0x0010); // sysclk = MCLK1
 	}
+	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+	wm8994_write(0x300, 0xC010); // i2s 16 bits	
+	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
+		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
 	else 
 		wm8994_write(0x200, 0x0001); // sysclk = MCLK1
 	
@@ -1128,10 +1166,6 @@ void handsetMIC_to_baseband_to_headset(void)
 	wm8994_write(0x200, 0x0000);
 	msleep(WM8994_DELAY);
 //clk
-	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	wm8994_write(0x300, 0xC010); // i2s 16 bits
 	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
 	{
 		wm8994_write(0x220, 0x0000); 
@@ -1139,9 +1173,17 @@ void handsetMIC_to_baseband_to_headset(void)
 		wm8994_write(0x222, 0); 
 		wm8994_write(0x223, 0x0400);		
 		wm8994_write(0x220, 0x0004); 
+		msleep(10);
 		wm8994_write(0x220, 0x0005); 			
-		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
+		msleep(5);
+		wm8994_write(0x200, 0x0010); // sysclk = MCLK1
 	}
+	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+	wm8994_write(0x300, 0xC010); // i2s 16 bits	
+	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
+		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
 	else 
 		wm8994_write(0x200, 0x0001); // sysclk = MCLK1
 //path
@@ -1323,10 +1365,6 @@ void mainMIC_to_baseband_to_earpiece(void)
 	wm8994_write(0x200, 0x0000);
 	msleep(WM8994_DELAY);
 //clk
-	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	wm8994_write(0x300, 0x4010); // i2s 16 bits
 	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
 	{
 		wm8994_write(0x220, 0x0000); 
@@ -1334,9 +1372,17 @@ void mainMIC_to_baseband_to_earpiece(void)
 		wm8994_write(0x222, 0); 
 		wm8994_write(0x223, 0x0400);		
 		wm8994_write(0x220, 0x0004); 
+		msleep(10);
 		wm8994_write(0x220, 0x0005); 			
-		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
+		msleep(5);
+		wm8994_write(0x200, 0x0010); // sysclk = MCLK1
 	}
+	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+	wm8994_write(0x300, 0xC010); // i2s 16 bits	
+	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
+		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
 	else 
 		wm8994_write(0x200, 0x0001); // sysclk = MCLK1
 //path
@@ -1418,10 +1464,6 @@ void mainMIC_to_baseband_to_speakers(void)
 	wm8994_write(0x200, 0x0000);
 	msleep(WM8994_DELAY);
 //clk
-	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
-	wm8994_write(0x210, 0x0083); // SR=48KHz
-	wm8994_write(0x300, 0xC010); // i2s 16 bits
 	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
 	{
 		wm8994_write(0x220, 0x0000); 
@@ -1429,9 +1471,17 @@ void mainMIC_to_baseband_to_speakers(void)
 		wm8994_write(0x222, 0); 
 		wm8994_write(0x223, 0x0400);		
 		wm8994_write(0x220, 0x0004); 
+		msleep(10);
 		wm8994_write(0x220, 0x0005); 			
-		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
+		msleep(5);
+		wm8994_write(0x200, 0x0010); // sysclk = MCLK1
 	}
+	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+	wm8994_write(0x300, 0xC010); // i2s 16 bits	
+	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
+		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
 	else 
 		wm8994_write(0x200, 0x0001); // sysclk = MCLK1
 //path
@@ -1523,10 +1573,6 @@ void BT_baseband(void)
 	msleep(WM8994_DELAY);
 //CLK	
 	//AIF1CLK
-	wm8994_write(0x208, 0x0008);
-	wm8994_write(0x208, 0x000A);
-	wm8994_write(0x210, 0x0083);    // SMbus_16inx_16dat     Write  0x34      * SR=48KHz
-	wm8994_write(0x300, 0xC010);    //DSP/PCM; 16bits; ADC L channel = R channel;MODE A
 	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
 	{
 		wm8994_write(0x220, 0x0000); 
@@ -1534,9 +1580,17 @@ void BT_baseband(void)
 		wm8994_write(0x222, 0); 
 		wm8994_write(0x223, 0x0400);		
 		wm8994_write(0x220, 0x0004); 
+		msleep(10);
 		wm8994_write(0x220, 0x0005); 			
-		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
+		msleep(5);
+		wm8994_write(0x200, 0x0010); // sysclk = MCLK1
 	}
+	wm8994_write(0x208, 0x0008); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x208, 0x000A); //DSP_FS1CLK_ENA=1, DSP_FSINTCLK_ENA=1
+	wm8994_write(0x210, 0x0083); // SR=48KHz
+	wm8994_write(0x300, 0xC010); // i2s 16 bits	
+	if(wm8994_sysclk_config() == wm8994_SYSCLK_3072M)
+		wm8994_write(0x200, 0x0011); // sysclk = MCLK1
 	else 
 		wm8994_write(0x200, 0x0001); // sysclk = MCLK1
 	//AIF2CLK use FLL2
@@ -1564,15 +1618,14 @@ void BT_baseband(void)
 	wm8994_write(0x315, 0x0080);
 	wm8994_write(0x310, 0x0118);    //DSP/PCM; 16bits; ADC L channel = R channel;MODE A
 	wm8994_write(0x204, 0x0019);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Clocking (1)(204H): 0011  AIF2CLK_SRC=10, AIF2CLK_INV=0, AIF2CLK_DIV=0, AIF2CLK_ENA=1
-
 /*	
 	wm8994_write(0x310, 0x0118); 
 	wm8994_write(0x204, 0x0001); 	
 	wm8994_write(0x208, 0x000F); 	
 	wm8994_write(0x211, 0x0009); 	
 	wm8994_write(0x312, 0x7000); 	
-	wm8994_write(0x313, 0x00F0); */
-	
+	wm8994_write(0x313, 0x00F0); 
+*/	
 //GPIO
 	wm8994_write(0x702, 0x2100);
 	wm8994_write(0x703, 0x2100);
@@ -2548,15 +2601,15 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 {
 	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
 	char route = kcontrol->private_value & 0xff;
-
+	mutex_lock(&wm8994->route_lock);
 	wm8994->kcontrol = kcontrol;//save rount
 	
-	if(wm8994->First_Poweron == 1 &&
-		route == SPEAKER_NORMAL)
+	if(wm8994->First_Poweron == 1 && route == SPEAKER_NORMAL )
 	{//First start & Poweron  mast disable wm8994
 		PA_ctrl(GPIO_LOW);
 		wm8994_write(0,0);
-		return 0;
+		msleep(50);
+		goto out;
 	}	
 	//before set the route -- disable PA
 	switch(route)
@@ -2631,7 +2684,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 			break;		 			
 		default:
 			printk("wm8994 error route!!!\n");
-			return 0;
+			goto out;
 	}
 	//after set the route -- enable PA
 	switch(route)
@@ -2644,10 +2697,12 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 		case BLUETOOTH_SCO_NORMAL:		
 			break;
 		default:
+			msleep(50);
 			PA_ctrl(GPIO_HIGH);		
 			break;
 	}	
-
+out:	
+	mutex_unlock(&wm8994->route_lock);	
 	return 0;
 }
 
@@ -2768,7 +2823,7 @@ static int wm8994_trigger(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	struct wm8994_priv *wm8994 = codec->private_data;
 	
-	if(wm8994_current_mode > wm8994_handsetMIC_to_baseband_to_headset && wm8994_current_mode != null)
+	if(wm8994_current_mode >= wm8994_handsetMIC_to_baseband_to_headset && wm8994_current_mode != null)
 		return 0;
 //	DBG("%s::%d status = %d substream->stream '%s'\n",__FUNCTION__,__LINE__,
 //	    cmd, substream->stream == SNDRV_PCM_STREAM_PLAYBACK ? "PLAYBACK":"CAPTURE");
@@ -2798,13 +2853,16 @@ static int wm8994_trigger(struct snd_pcm_substream *substream,
 		!wm8994->capture_active )
 	{//suspend
 		DBG("It's going to power down wm8994\n");
+		cancel_delayed_work_sync(&wm8994->wm8994_delayed_work);		
 		wm8994->work_type = SNDRV_PCM_TRIGGER_STOP;
-		schedule_delayed_work(&wm8994->wm8994_delayed_work, msecs_to_jiffies(1000));
+		schedule_delayed_work(&wm8994->wm8994_delayed_work, msecs_to_jiffies(2000));
 	} 
 	else if (wm8994->playback_active 
 			|| wm8994->capture_active) 
 	{//resume
-		DBG("Power up wm8994\n");		
+		DBG("Power up wm8994\n");	
+		if(wm8994->work_type == SNDRV_PCM_TRIGGER_STOP)
+			cancel_delayed_work_sync(&wm8994->wm8994_delayed_work);
 		wm8994->work_type = SNDRV_PCM_TRIGGER_START;
 		schedule_delayed_work(&wm8994->wm8994_delayed_work, msecs_to_jiffies(0));		
 	}
@@ -2816,34 +2874,47 @@ static void wm8994_work_fun(struct work_struct *work)
 {	
 	struct snd_soc_codec *codec = wm8994_codec;
 	struct wm8994_priv *wm8994 = codec->private_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;
 	unsigned short value;
 	int error_count = 5;
-//	DBG("Enter %s---%d\n",__FUNCTION__,__LINE__);
+//	DBG("Enter %s---%d = %d\n",__FUNCTION__,__LINE__,wm8994_current_mode);
 
 	switch(wm8994->work_type)
 	{
 	case SNDRV_PCM_TRIGGER_STOP:
+		if(wm8994_current_mode > wm8994_FM_to_speakers_and_record)
+			return;	
 	//	DBG("wm8994 shutdown\n");
+		mutex_lock(&wm8994->route_lock);
 		PA_ctrl(GPIO_LOW);
+		msleep(50);
 		wm8994_write(0,0);
 		msleep(50);
-		wm8994_write(0x01, 0x0003);
-		msleep(50);
 		wm8994_write(0x01, 0x0023);	
-		wm8994_current_mode = null;//Automatically re-set the wake-up time		
+		wm8994_current_mode = null;//Automatically re-set the wake-up time	
+		mutex_unlock(&wm8994->route_lock);	
 		break;
 	case SNDRV_PCM_TRIGGER_START:
 		if(wm8994->First_Poweron == 1)
 		{
 			DBG("wm8994 First_Poweron shutup\n");
 			wm8994->First_Poweron = 0;
+			if(wm8994->kcontrol->private_value != SPEAKER_NORMAL)
+			{
+			//	DBG("wm8994->kcontrol->private_value != SPEAKER_NORMAL\n");
+				return;
+			}	
 			wm8994_current_mode = null;
 			snd_soc_put_route(wm8994->kcontrol,NULL);
 		}		
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:	
+		msleep(100);
 		while(error_count)
 		{
+			gpio_request(pdata->Power_EN_Pin, NULL);
+			gpio_direction_output(pdata->Power_EN_Pin,GPIO_HIGH);
+			gpio_free(pdata->Power_EN_Pin);
 			msleep(100);
 			wm8994_read(0x00,  &value);
 			if(value == 0x8994)
@@ -2923,12 +2994,10 @@ static int wm8994_resume(struct platform_device *pdev)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8994_priv *wm8994 = codec->private_data;
-	struct wm8994_pdata *pdata = wm8994->pdata;
+//	struct wm8994_pdata *pdata = wm8994->pdata;
 	
 	DBG("%s----%d\n",__FUNCTION__,__LINE__);
-	gpio_request(pdata->Power_EN_Pin, NULL);
-	gpio_direction_output(pdata->Power_EN_Pin,GPIO_HIGH);
-	gpio_free(pdata->Power_EN_Pin);
+
 
 	wm8994->work_type = SNDRV_PCM_TRIGGER_RESUME;
 	schedule_delayed_work(&wm8994->wm8994_delayed_work, msecs_to_jiffies(0));	
@@ -2945,6 +3014,8 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 	int reg;
 	int value;
 	struct snd_kcontrol kcontrol;
+//	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
+//	struct wm8994_pdata *pdata = wm8994->pdata;
 	
 	cookie_pot = (char *)vmalloc( len );
 	if (!cookie_pot) 
@@ -3080,7 +3151,7 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 
 				break;				
 		}		
-		break;
+		break;	
 	default:
 		DBG("Help for wm8994_ts .\n-->The Cmd list: \n");
 		DBG("-->'d&&D' Open or close the debug\n");
@@ -3131,6 +3202,8 @@ static int wm8994_probe(struct platform_device *pdev)
 	struct wm8994_priv *wm8994;
 	struct wm8994_pdata *pdata;
 	int ret = 0;
+	
+
 #ifdef WM8994_PROC
 	wm8994_proc_init();
 #endif
@@ -3144,6 +3217,10 @@ static int wm8994_probe(struct platform_device *pdev)
 	codec = wm8994_codec;
 	wm8994 = codec->private_data;
 	pdata = wm8994->pdata;
+	//disable power_EN
+	gpio_request(pdata->Power_EN_Pin, NULL);			 
+	gpio_direction_output(pdata->Power_EN_Pin,GPIO_LOW); 		
+	gpio_free(pdata->Power_EN_Pin);	
 	
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
@@ -3160,15 +3237,13 @@ static int wm8994_probe(struct platform_device *pdev)
 		dev_err(codec->dev, "failed to register card: %d\n", ret);
 		goto card_err;
 	}
-	
+
+	PA_ctrl(GPIO_LOW);
 	//enable power_EN
+	msleep(50);
 	gpio_request(pdata->Power_EN_Pin, NULL);			 
 	gpio_direction_output(pdata->Power_EN_Pin,GPIO_HIGH); 		
-	gpio_free(pdata->Power_EN_Pin);
-
-	gpio_request(pdata->PA_control_pin, NULL);		//AUDIO_PA_ON	 
-	gpio_direction_output(pdata->PA_control_pin,GPIO_LOW);		
-	gpio_free(pdata->PA_control_pin);		
+	gpio_free(pdata->Power_EN_Pin);	
 
 	return ret;
 
@@ -3300,7 +3375,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	wm8994->BT_call_vol = BT_call_maxvol;
 	INIT_DELAYED_WORK(&wm8994->wm8994_delayed_work, wm8994_work_fun);
 	mutex_init(&wm8994->io_lock);	
-	
+	mutex_init(&wm8994->route_lock);
 	return wm8994_register(wm8994, SND_SOC_I2C);
 }
 
@@ -3332,8 +3407,7 @@ static void wm8994_i2c_shutdown(struct i2c_client *client)
 	struct wm8994_pdata *pdata = wm8994->pdata;
 	DBG("%s----%d\n",__FUNCTION__,__LINE__);
 	//disable PA
-	PA_ctrl(GPIO_LOW);
-	wm8994_write(0x00, 0x00);	
+	PA_ctrl(GPIO_LOW);	
 	gpio_request(pdata->Power_EN_Pin, NULL);
 	gpio_direction_output(pdata->Power_EN_Pin,GPIO_LOW);
 	gpio_free(pdata->Power_EN_Pin);	
