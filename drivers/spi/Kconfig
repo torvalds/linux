@@ -313,16 +313,6 @@ config SPI_S3C24XX_FIQ
 	  no free DMA channels, or when doing transfers that required both
 	  TX and RX data paths.
 
-config SPI_S3C24XX_GPIO
-	tristate "Samsung S3C24XX series SPI by GPIO"
-	depends on ARCH_S3C2410 && EXPERIMENTAL
-	select SPI_BITBANG
-	help
-	  SPI driver for Samsung S3C24XX series ARM SoCs using
-	  GPIO lines to provide the SPI bus. This can be used where
-	  the inbuilt hardware cannot provide the transfer mode, or
-	  where the board is using non hardware connected pins.
-
 config SPI_S3C64XX
 	tristate "Samsung S3C64XX series type SPI"
 	depends on (ARCH_S3C64XX || ARCH_S5P64X0)
