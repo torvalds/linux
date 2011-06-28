@@ -284,7 +284,7 @@ static netdev_tx_t wanxl_xmit(struct sk_buff *skb, struct net_device *dev)
                 printk(KERN_DEBUG "%s: transmitter buffer full\n", dev->name);
 #endif
 		netif_stop_queue(dev);
-		spin_unlock_irq(&port->lock);
+		spin_unlock(&port->lock);
 		return NETDEV_TX_BUSY;       /* request packet to be queued */
 	}
 
