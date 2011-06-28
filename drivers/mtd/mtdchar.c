@@ -482,8 +482,9 @@ static int mtd_do_readoob(struct mtd_info *mtd, uint64_t start,
 	 * to signal the caller that a bitflip has occured and has
 	 * been corrected by the ECC algorithm.
 	 *
-	 * Note: most NAND ECC algorithms do not calculate ECC
-	 * for the OOB area.
+	 * Note: currently the standard NAND function, nand_read_oob_std,
+	 * does not calculate ECC for the OOB area, so do not rely on
+	 * this behavior unless you have replaced it with your own.
 	 */
 	if (ret == -EUCLEAN || ret == -EBADMSG)
 		return 0;
