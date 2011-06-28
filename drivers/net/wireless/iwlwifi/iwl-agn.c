@@ -260,7 +260,7 @@ static void iwl_bg_bt_runtime_config(struct work_struct *work)
 	/* dont send host command if rf-kill is on */
 	if (!iwl_is_ready_rf(priv))
 		return;
-	priv->cfg->ops->hcmd->send_bt_config(priv);
+	iwlagn_send_advance_bt_config(priv);
 }
 
 static void iwl_bg_bt_full_concurrency(struct work_struct *work)
@@ -292,7 +292,7 @@ static void iwl_bg_bt_full_concurrency(struct work_struct *work)
 		iwlagn_commit_rxon(priv, ctx);
 	}
 
-	priv->cfg->ops->hcmd->send_bt_config(priv);
+	iwlagn_send_advance_bt_config(priv);
 out:
 	mutex_unlock(&priv->mutex);
 }
@@ -2017,7 +2017,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 		priv->bt_valid = IWLAGN_BT_ALL_VALID_MSK;
 		priv->kill_ack_mask = IWLAGN_BT_KILL_ACK_MASK_DEFAULT;
 		priv->kill_cts_mask = IWLAGN_BT_KILL_CTS_MASK_DEFAULT;
-		priv->cfg->ops->hcmd->send_bt_config(priv);
+		iwlagn_send_advance_bt_config(priv);
 		priv->bt_valid = IWLAGN_BT_VALID_ENABLE_FLAGS;
 		iwlagn_send_prio_tbl(priv);
 
@@ -2030,7 +2030,13 @@ int iwl_alive_start(struct iwl_priv *priv)
 					 BT_COEX_PRIO_TBL_EVT_INIT_CALIB2);
 		if (ret)
 			return ret;
+	} else {
+		/*
+		 * default is 2-wire BT coexexistence support
+		 */
+		iwl_send_bt_config(priv);
 	}
+
 	if (priv->hw_params.calib_rt_cfg)
 		iwlagn_send_calib_cfg_rt(priv, priv->hw_params.calib_rt_cfg);
 
@@ -2056,14 +2062,6 @@ int iwl_alive_start(struct iwl_priv *priv)
 
 		if (priv->cfg->ops->hcmd->set_rxon_chain)
 			priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
-	}
-
-	if (!priv->cfg->bt_params || (priv->cfg->bt_params &&
-	    !priv->cfg->bt_params->advanced_bt_coexist)) {
-		/*
-		 * default is 2-wire BT coexexistence support
-		 */
-		priv->cfg->ops->hcmd->send_bt_config(priv);
 	}
 
 	iwl_reset_run_time_calib(priv);
