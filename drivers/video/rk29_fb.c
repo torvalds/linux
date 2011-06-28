@@ -38,6 +38,7 @@
 #include <asm/io.h>
 #include <asm/div64.h>
 #include <asm/uaccess.h>
+#include <asm/cacheflush.h>
 
 #include "rk29_fb.h"
 
@@ -794,19 +795,22 @@ int rk29_set_cursor_img_transform(char *data)
 
 int rk29_set_cursor_img(struct rk29fb_inf *inf, char *data)
 {
-	if(data)
-	{
-		rk29_set_cursor_img_transform(data);
+    if(data)
+    {
+        rk29_set_cursor_img_transform(data);
     }
-	else
-	{
-		rk29_set_cursor_img_transform(cursor_img);
-	}
-	LcdWrReg(inf, HWC_MST, __pa(rk29_cursor_buf));
-	LcdSetRegisterBit(inf, SYS_CONFIG,m_HWC_RELOAD_EN);
-	LcdWrReg(inf, REG_CFG_DONE, 0x01);
+    else
+    {
+        rk29_set_cursor_img_transform(cursor_img);
+    }
+    LcdWrReg(inf, HWC_MST, __pa(rk29_cursor_buf));
+    //LcdSetBit(inf, SYS_CONFIG,m_HWC_RELOAD_EN);
+    LcdSetBit(inf, SYS_CONFIG, m_HWC_RELOAD_EN |m_HWC_ENABLE);
+    flush_cache_all();
+    LcdWrReg(inf, REG_CFG_DONE, 0x01);
     return 0;
 }
+
 
 int rk29_set_cursor_test(struct fb_info *info)
 {
