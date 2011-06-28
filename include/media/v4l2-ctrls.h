@@ -118,7 +118,7 @@ struct v4l2_ctrl {
 	unsigned int is_private:1;
 	unsigned int is_volatile:1;
 	unsigned int is_auto:1;
-	unsigned int manual_mode_value:5;
+	unsigned int manual_mode_value:8;
 
 	const struct v4l2_ctrl_ops *ops;
 	u32 id;
