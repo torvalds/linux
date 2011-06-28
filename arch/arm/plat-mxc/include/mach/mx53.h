@@ -233,7 +233,7 @@
 #define MX53_INT_ESDHC2	2
 #define MX53_INT_ESDHC3	3
 #define MX53_INT_ESDHC4	4
-#define MX53_INT_RESV5	5
+#define MX53_INT_DAP	5
 #define MX53_INT_SDMA	6
 #define MX53_INT_IOMUX	7
 #define MX53_INT_NFC	8
@@ -262,8 +262,8 @@
 #define MX53_INT_UART1	31
 #define MX53_INT_UART2	32
 #define MX53_INT_UART3	33
-#define MX53_INT_RESV34	34
-#define MX53_INT_RESV35	35
+#define MX53_INT_RTC	34
+#define MX53_INT_PTP	35
 #define MX53_INT_ECSPI1	36
 #define MX53_INT_ECSPI2	37
 #define MX53_INT_CSPI	38
@@ -293,8 +293,8 @@
 #define MX53_INT_I2C1	62
 #define MX53_INT_I2C2	63
 #define MX53_INT_I2C3	64
-#define MX53_INT_RESV65	65
-#define MX53_INT_RESV66	66
+#define MX53_INT_MLB	65
+#define MX53_INT_ASRC	66
 #define MX53_INT_SPDIF	67
 #define MX53_INT_SIM_DAT	68
 #define MX53_INT_IIM	69
