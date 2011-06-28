@@ -906,42 +906,55 @@ ret_res:
 	return res;
 }
 
-/* TODO: Use Documentation/filesystems/seq_file.txt? */
-static int qtaguid_ctrl_proc_read(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
+/*
+ * Procfs reader to get all active socket tags using style "1)" as described in
+ * fs/proc/generic.c
+ */
+static int qtaguid_ctrl_proc_read(char *page, char **num_items_returned,
+				  off_t items_to_skip, int char_count, int *eof,
+				  void *data)
 {
-	char *out = page + off;
+	char *outp = page;
 	int len;
 	unsigned long flags;
 	uid_t uid;
 	struct sock_tag *sock_tag_entry;
 	struct rb_node *node;
-	pr_debug("xt_qtaguid:proc ctrl page=%p off=%ld count=%d eof=%p\n",
-		page, off, count, eof);
+	int item_index = 0;
 
-	*eof = 0;
+	pr_debug("xt_qtaguid:proc ctrl page=%p off=%ld char_count=%d *eof=%d\n",
+		page, items_to_skip, char_count, *eof);
+
+	if (*eof)
+		return 0;
+
 	spin_lock_irqsave(&sock_tag_list_lock, flags);
 	for (node = rb_first(&sock_tag_tree);
 	     node;
 	     node = rb_next(node)) {
+		if (item_index++ < items_to_skip)
+			continue;
 		sock_tag_entry =  rb_entry(node, struct sock_tag, node);
 		uid = get_uid_from_tag(sock_tag_entry->tag);
 		pr_debug("xt_qtaguid: proc_read(): sk=%p tag=0x%llx (uid=%d)\n",
 			sock_tag_entry->sk,
 			sock_tag_entry->tag,
 			uid);
-		len = snprintf(out, count, "sock=%p tag=0x%llx (uid=%u)\n",
-			sock_tag_entry->sk, sock_tag_entry->tag, uid);
-		out += len;
-		count -= len;
-		if (!count) {
+		len = snprintf(outp, char_count,
+			       "sock=%p tag=0x%llx (uid=%u)\n",
+			       sock_tag_entry->sk, sock_tag_entry->tag, uid);
+		if (len >= char_count) {
 			spin_unlock_irqrestore(&sock_tag_list_lock, flags);
-			return out - page;
+			*outp = '\0';
+			return outp - page;
 		}
+		outp += len;
+		char_count -= len;
+		(*num_items_returned)++;
 	}
-	*eof = 1;
 	spin_unlock_irqrestore(&sock_tag_list_lock, flags);
-	return out - page;
+	*eof = 1;
+	return outp - page;
 }
 
 static int qtaguid_ctrl_parse(const char *input, int count)
@@ -1146,7 +1159,7 @@ static int qtaguid_stats_proc_read(char *page, char **num_items_returned,
 			}
 			outp += len;
 			char_count -= len;
-			(*(int *)num_items_returned)++;
+			(*num_items_returned)++;
 		}
 		spin_unlock_irqrestore(&iface_entry->tag_stat_list_lock,
 				flags2);
