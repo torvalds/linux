@@ -38,6 +38,7 @@
 
 #include "psb_drv.h"
 #include "psb_reg.h"
+#include "psb_drv.h"
 #include "psb_fb.h"
 
 void psb_spank(struct drm_psb_private *dev_priv)

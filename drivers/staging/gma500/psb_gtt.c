@@ -80,7 +80,7 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 {
         struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 *gtt_slot, pte;
-	int numpages = resource_size(&r->resource) >> PAGE_SHIFT;
+	int numpages = (r->resource.end + 1 - r->resource.start) >> PAGE_SHIFT;
 	struct page **pages;
 	int i;
 
@@ -121,7 +121,7 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 *gtt_slot, pte;
-	int numpages = resource_size(&r->resource) >> PAGE_SHIFT;
+	int numpages = (r->resource.end + 1 - r->resource.start) >> PAGE_SHIFT;
 	int i;
 
 	WARN_ON(r->stolen);
@@ -149,7 +149,7 @@ static int psb_gtt_attach_pages(struct gtt_range *gt)
 	struct address_space *mapping;
 	int i;
 	struct page *p;
-	int pages = resource_size(&gt->resource) >> PAGE_SHIFT;
+	int pages = (gt->resource.end + 1 - gt->resource.start) >> PAGE_SHIFT;
 
 	WARN_ON(gt->pages);
 
@@ -191,7 +191,7 @@ err:
 static void psb_gtt_detach_pages(struct gtt_range *gt)
 {
 	int i;
-	int pages = resource_size(&gt->resource) >> PAGE_SHIFT;
+	int pages = (gt->resource.end + 1 - gt->resource.start) >> PAGE_SHIFT;
 
 	for (i = 0; i < pages; i++) {
 		/* FIXME: do we need to force dirty */
