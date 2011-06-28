@@ -904,9 +904,12 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	down_write(&v9ses->rename_sem);
 	if (v9fs_proto_dotl(v9ses)) {
-		retval = p9_client_rename(oldfid, newdirfid,
-					(char *) new_dentry->d_name.name);
-		if (retval != -ENOSYS)
+		retval = p9_client_renameat(olddirfid, old_dentry->d_name.name,
+					    newdirfid, new_dentry->d_name.name);
+		if (retval == -EOPNOTSUPP)
+			retval = p9_client_rename(oldfid, newdirfid,
+						  new_dentry->d_name.name);
+		if (retval != -EOPNOTSUPP)
 			goto clunk_newdir;
 	}
 	if (old_dentry->d_parent != new_dentry->d_parent) {

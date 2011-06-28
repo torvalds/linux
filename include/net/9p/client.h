@@ -211,7 +211,10 @@ struct p9_dirent {
 };
 
 int p9_client_statfs(struct p9_fid *fid, struct p9_rstatfs *sb);
-int p9_client_rename(struct p9_fid *fid, struct p9_fid *newdirfid, char *name);
+int p9_client_rename(struct p9_fid *fid, struct p9_fid *newdirfid,
+		     const char *name);
+int p9_client_renameat(struct p9_fid *olddirfid, const char *old_name,
+		       struct p9_fid *newdirfid, const char *new_name);
 struct p9_client *p9_client_create(const char *dev_name, char *options);
 void p9_client_destroy(struct p9_client *clnt);
 void p9_client_disconnect(struct p9_client *clnt);
