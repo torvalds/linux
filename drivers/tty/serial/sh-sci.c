@@ -1825,6 +1825,7 @@ static int __devinit sci_init_single(struct platform_device *dev,
 				     struct plat_sci_port *p)
 {
 	struct uart_port *port = &sci_port->port;
+	int ret;
 
 	port->ops	= &sci_uart_ops;
 	port->iotype	= UPIO_MEM;
@@ -1845,8 +1846,11 @@ static int __devinit sci_init_single(struct platform_device *dev,
 		break;
 	}
 
-	if (p->regtype == SCIx_PROBE_REGTYPE)
-		BUG_ON(sci_probe_regmap(p) != 0);
+	if (p->regtype == SCIx_PROBE_REGTYPE) {
+		ret = sci_probe_regmap(p);
+		if (unlikely(!ret))
+			return ret;
+	}
 
 	if (dev) {
 		sci_port->iclk = clk_get(&dev->dev, "sci_ick");
