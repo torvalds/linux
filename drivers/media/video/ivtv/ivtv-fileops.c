@@ -750,6 +750,7 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table * wait)
 	struct ivtv *itv = id->itv;
 	struct ivtv_stream *s = &itv->streams[id->type];
 	int eof = test_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
+	unsigned res = 0;
 
 	/* Start a capture if there is none */
 	if (!eof && !test_bit(IVTV_F_S_STREAMING, &s->s_flags)) {
@@ -769,12 +770,16 @@ unsigned int ivtv_v4l2_enc_poll(struct file *filp, poll_table * wait)
 	/* add stream's waitq to the poll list */
 	IVTV_DEBUG_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
+	if (v4l2_event_pending(&id->fh))
+		res |= POLLPRI;
+	else
+		poll_wait(filp, &id->fh.events->wait, wait);
 
 	if (s->q_full.length || s->q_io.length)
-		return POLLIN | POLLRDNORM;
+		return res | POLLIN | POLLRDNORM;
 	if (eof)
-		return POLLHUP;
-	return 0;
+		return res | POLLHUP;
+	return res;
 }
 
 void ivtv_stop_capture(struct ivtv_open_id *id, int gop_end)
