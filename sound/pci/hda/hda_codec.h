@@ -1011,17 +1011,15 @@ int snd_hda_suspend(struct hda_bus *bus);
 int snd_hda_resume(struct hda_bus *bus);
 #endif
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 static inline
 int hda_call_check_power_status(struct hda_codec *codec, hda_nid_t nid)
 {
+#ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (codec->patch_ops.check_power_status)
 		return codec->patch_ops.check_power_status(codec, nid);
+#endif
 	return 0;
 }
-#else	
-#define hda_call_check_power_status(codec, nid)		0
-#endif
 
 /*
  * get widget information
