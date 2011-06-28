@@ -271,9 +271,7 @@ jme_reset_mac_processor(struct jme_adapter *jme)
 static inline void
 jme_clear_pm(struct jme_adapter *jme)
 {
-	jwrite32(jme, JME_PMCS, 0xFFFF0000 | jme->reg_pmcs);
-	pci_set_power_state(jme->pdev, PCI_D0);
-	device_set_wakeup_enable(&jme->pdev->dev, false);
+	jwrite32(jme, JME_PMCS, PMCS_STMASK | jme->reg_pmcs);
 }
 
 static int
@@ -1817,11 +1815,9 @@ jme_powersave_phy(struct jme_adapter *jme)
 {
 	if (jme->reg_pmcs) {
 		jme_set_100m_half(jme);
-
 		if (jme->reg_pmcs & (PMCS_LFEN | PMCS_LREN))
 			jme_wait_link(jme);
-
-		jwrite32(jme, JME_PMCS, jme->reg_pmcs);
+		jme_clear_pm(jme);
 	} else {
 		jme_phy_off(jme);
 	}
@@ -2529,8 +2525,7 @@ jme_set_wol(struct net_device *netdev,
 		jme->reg_pmcs |= PMCS_MFEN;
 
 	jwrite32(jme, JME_PMCS, jme->reg_pmcs);
-
-	device_set_wakeup_enable(&jme->pdev->dev, jme->reg_pmcs);
+	device_set_wakeup_enable(&jme->pdev->dev, !!(jme->reg_pmcs));
 
 	return 0;
 }
@@ -3058,6 +3053,9 @@ jme_init_one(struct pci_dev *pdev,
 	jme->mii_if.mdio_write = jme_mdio_write;
 
 	jme_clear_pm(jme);
+	pci_set_power_state(jme->pdev, PCI_D0);
+	device_set_wakeup_enable(&pdev->dev, true);
+
 	jme_set_phyfifo_5level(jme);
 	jme->pcirev = pdev->revision;
 	if (!jme->fpgaver)
@@ -3136,7 +3134,8 @@ jme_shutdown(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int jme_suspend(struct device *dev)
+static int
+jme_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -3175,14 +3174,14 @@ static int jme_suspend(struct device *dev)
 	return 0;
 }
 
-static int jme_resume(struct device *dev)
+static int
+jme_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct jme_adapter *jme = netdev_priv(netdev);
 
-	jwrite32(jme, JME_PMCS, 0xFFFF0000 | jme->reg_pmcs);
-
+	jme_clear_pm(jme);
 	jme_phy_on(jme);
 	if (test_bit(JME_FLAG_SSET, &jme->flags))
 		jme_set_settings(netdev, &jme->old_ecmd);
