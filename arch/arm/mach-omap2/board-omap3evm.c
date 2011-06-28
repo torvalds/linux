@@ -510,7 +510,7 @@ static struct regulator_init_data omap3evm_vio = {
 #define OMAP3EVM_WLAN_IRQ_GPIO		(149)
 
 static struct regulator_consumer_supply omap3evm_vmmc2_supply[] = {
-	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
 
 /* VMMC2 for driving the WL12xx module */
@@ -518,7 +518,7 @@ static struct regulator_init_data omap3evm_vmmc2 = {
 	.constraints = {
 		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= ARRAY_SIZE(omap3evm_vmmc2_supply);,
+	.num_consumer_supplies	= ARRAY_SIZE(omap3evm_vmmc2_supply),
 	.consumer_supplies	= omap3evm_vmmc2_supply,
 };
 
