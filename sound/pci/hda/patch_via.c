@@ -2427,7 +2427,7 @@ static void via_auto_init_unsol_event(struct hda_codec *codec)
 	for (i = 0; i < cfg->line_outs; i++) {
 		if (cfg->line_out_pins[i] &&
 		    is_jack_detectable(codec, cfg->line_out_pins[i]))
-			snd_hda_codec_write(codec, cfg->line_out_pins[0], 0,
+			snd_hda_codec_write(codec, cfg->line_out_pins[i], 0,
 				AC_VERB_SET_UNSOLICITED_ENABLE,
 				AC_USRSP_EN | ev | VIA_JACK_EVENT);
 	}
