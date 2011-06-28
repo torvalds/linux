@@ -58,6 +58,7 @@ static struct pll_data pll0_data = {
 static struct clk ref_clk = {
 	.name		= "ref_clk",
 	.rate		= DA850_REF_FREQ,
+	.set_rate	= davinci_simple_set_rate,
 };
 
 static struct clk pll0_clk = {
