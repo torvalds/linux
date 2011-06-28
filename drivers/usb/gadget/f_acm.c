@@ -62,7 +62,6 @@ struct f_acm {
 	struct acm_ep_descs		hs;
 
 	struct usb_ep			*notify;
-	struct usb_endpoint_descriptor	*notify_desc;
 	struct usb_request		*notify_req;
 
 	struct usb_cdc_line_coding	port_line_coding;	/* 8-N-1 etc */
@@ -405,11 +404,11 @@ static int acm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			usb_ep_disable(acm->notify);
 		} else {
 			VDBG(cdev, "init acm ctrl interface %d\n", intf);
-			acm->notify_desc = ep_choose(cdev->gadget,
+			acm->notify->desc = ep_choose(cdev->gadget,
 					acm->hs.notify,
 					acm->fs.notify);
 		}
-		usb_ep_enable(acm->notify, acm->notify_desc);
+		usb_ep_enable(acm->notify);
 		acm->notify->driver_data = acm;
 
 	} else if (intf == acm->data_id) {
@@ -418,9 +417,9 @@ static int acm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			gserial_disconnect(&acm->port);
 		} else {
 			DBG(cdev, "activate acm ttyGS%d\n", acm->port_num);
-			acm->port.in_desc = ep_choose(cdev->gadget,
+			acm->port.in->desc = ep_choose(cdev->gadget,
 					acm->hs.in, acm->fs.in);
-			acm->port.out_desc = ep_choose(cdev->gadget,
+			acm->port.out->desc = ep_choose(cdev->gadget,
 					acm->hs.out, acm->fs.out);
 		}
 		gserial_connect(&acm->port, acm->port_num);

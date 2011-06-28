@@ -250,26 +250,24 @@ static int
 enable_loopback(struct usb_composite_dev *cdev, struct f_loopback *loop)
 {
 	int					result = 0;
-	const struct usb_endpoint_descriptor	*src, *sink;
 	struct usb_ep				*ep;
 	struct usb_request			*req;
 	unsigned				i;
 
-	src = ep_choose(cdev->gadget,
-			&hs_loop_source_desc, &fs_loop_source_desc);
-	sink = ep_choose(cdev->gadget,
-			&hs_loop_sink_desc, &fs_loop_sink_desc);
-
 	/* one endpoint writes data back IN to the host */
 	ep = loop->in_ep;
-	result = usb_ep_enable(ep, src);
+	ep->desc = ep_choose(cdev->gadget,
+			&hs_loop_source_desc, &fs_loop_source_desc);
+	result = usb_ep_enable(ep);
 	if (result < 0)
 		return result;
 	ep->driver_data = loop;
 
 	/* one endpoint just reads OUT packets */
 	ep = loop->out_ep;
-	result = usb_ep_enable(ep, sink);
+	ep->desc = ep_choose(cdev->gadget,
+			&hs_loop_sink_desc, &fs_loop_sink_desc);
+	result = usb_ep_enable(ep);
 	if (result < 0) {
 fail0:
 		ep = loop->in_ep;

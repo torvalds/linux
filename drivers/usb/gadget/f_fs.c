@@ -1544,7 +1544,8 @@ static int ffs_func_eps_enable(struct ffs_function *func)
 		ds = ep->descs[ep->descs[1] ? 1 : 0];
 
 		ep->ep->driver_data = ep;
-		ret = usb_ep_enable(ep->ep, ds);
+		ep->ep->desc = ds;
+		ret = usb_ep_enable(ep->ep);
 		if (likely(!ret)) {
 			epfile->ep = ep;
 			epfile->in = usb_endpoint_dir_in(ds);

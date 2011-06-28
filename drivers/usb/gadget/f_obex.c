@@ -227,11 +227,11 @@ static int obex_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			gserial_disconnect(&obex->port);
 		}
 
-		if (!obex->port.in_desc) {
+		if (!obex->port.in->desc) {
 			DBG(cdev, "init obex ttyGS%d\n", obex->port_num);
-			obex->port.in_desc = ep_choose(cdev->gadget,
+			obex->port.in->desc = ep_choose(cdev->gadget,
 					obex->hs.obex_in, obex->fs.obex_in);
-			obex->port.out_desc = ep_choose(cdev->gadget,
+			obex->port.out->desc = ep_choose(cdev->gadget,
 					obex->hs.obex_out, obex->fs.obex_out);
 		}
 

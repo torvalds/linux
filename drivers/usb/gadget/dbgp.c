@@ -173,7 +173,9 @@ fail_1:
 
 static int __enable_ep(struct usb_ep *ep, struct usb_endpoint_descriptor *desc)
 {
-	int err = usb_ep_enable(ep, desc);
+	int err;
+	ep->desc = desc;
+	err = usb_ep_enable(ep);
 	ep->driver_data = dbgp.gadget;
 	return err;
 }
@@ -268,8 +270,8 @@ static int __init dbgp_configure_endpoints(struct usb_gadget *gadget)
 	dbgp.serial->in = dbgp.i_ep;
 	dbgp.serial->out = dbgp.o_ep;
 
-	dbgp.serial->in_desc = &i_desc;
-	dbgp.serial->out_desc = &o_desc;
+	dbgp.serial->in->desc = &i_desc;
+	dbgp.serial->out->desc = &o_desc;
 
 	if (gserial_setup(gadget, 1) < 0) {
 		stp = 3;

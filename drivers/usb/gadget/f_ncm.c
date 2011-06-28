@@ -70,7 +70,6 @@ struct f_ncm {
 	struct ncm_ep_descs		hs;
 
 	struct usb_ep			*notify;
-	struct usb_endpoint_descriptor	*notify_desc;
 	struct usb_request		*notify_req;
 	u8				notify_state;
 	bool				is_open;
@@ -804,11 +803,11 @@ static int ncm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			usb_ep_disable(ncm->notify);
 		} else {
 			DBG(cdev, "init ncm ctrl %d\n", intf);
-			ncm->notify_desc = ep_choose(cdev->gadget,
+			ncm->notify->desc = ep_choose(cdev->gadget,
 					ncm->hs.notify,
 					ncm->fs.notify);
 		}
-		usb_ep_enable(ncm->notify, ncm->notify_desc);
+		usb_ep_enable(ncm->notify);
 		ncm->notify->driver_data = ncm;
 
 	/* Data interface has two altsettings, 0 and 1 */
@@ -829,12 +828,12 @@ static int ncm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		if (alt == 1) {
 			struct net_device	*net;
 
-			if (!ncm->port.in) {
+			if (!ncm->port.in_ep->desc) {
 				DBG(cdev, "init ncm\n");
-				ncm->port.in = ep_choose(cdev->gadget,
+				ncm->port.in_ep->desc = ep_choose(cdev->gadget,
 							 ncm->hs.in,
 							 ncm->fs.in);
-				ncm->port.out = ep_choose(cdev->gadget,
+				ncm->port.out_ep->desc = ep_choose(cdev->gadget,
 							  ncm->hs.out,
 							  ncm->fs.out);
 			}
@@ -1111,7 +1110,7 @@ static void ncm_disable(struct usb_function *f)
 	if (ncm->notify->driver_data) {
 		usb_ep_disable(ncm->notify);
 		ncm->notify->driver_data = NULL;
-		ncm->notify_desc = NULL;
+		ncm->notify->desc = NULL;
 	}
 }
 
@@ -1288,9 +1287,9 @@ fail:
 	/* we might as well release our claims on endpoints */
 	if (ncm->notify)
 		ncm->notify->driver_data = NULL;
-	if (ncm->port.out)
+	if (ncm->port.out_ep->desc)
 		ncm->port.out_ep->driver_data = NULL;
-	if (ncm->port.in)
+	if (ncm->port.in_ep->desc)
 		ncm->port.in_ep->driver_data = NULL;
 
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);

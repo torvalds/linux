@@ -832,14 +832,16 @@ ep_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	switch (data->dev->gadget->speed) {
 	case USB_SPEED_LOW:
 	case USB_SPEED_FULL:
-		value = usb_ep_enable (ep, &data->desc);
+		ep->desc = &data->desc;
+		value = usb_ep_enable(ep);
 		if (value == 0)
 			data->state = STATE_EP_ENABLED;
 		break;
 #ifdef	CONFIG_USB_GADGET_DUALSPEED
 	case USB_SPEED_HIGH:
 		/* fails if caller didn't provide that descriptor... */
-		value = usb_ep_enable (ep, &data->hs_desc);
+		ep->desc = &data->hs_desc;
+		value = usb_ep_enable(ep);
 		if (value == 0)
 			data->state = STATE_EP_ENABLED;
 		break;

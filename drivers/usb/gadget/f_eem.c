@@ -176,11 +176,11 @@ static int eem_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			gether_disconnect(&eem->port);
 		}
 
-		if (!eem->port.in) {
+		if (!eem->port.in_ep->desc) {
 			DBG(cdev, "init eem\n");
-			eem->port.in = ep_choose(cdev->gadget,
+			eem->port.in_ep->desc = ep_choose(cdev->gadget,
 					eem->hs.in, eem->fs.in);
-			eem->port.out = ep_choose(cdev->gadget,
+			eem->port.out_ep->desc = ep_choose(cdev->gadget,
 					eem->hs.out, eem->fs.out);
 		}
 
@@ -289,9 +289,9 @@ fail:
 		usb_free_descriptors(f->descriptors);
 
 	/* we might as well release our claims on endpoints */
-	if (eem->port.out)
+	if (eem->port.out_ep->desc)
 		eem->port.out_ep->driver_data = NULL;
-	if (eem->port.in)
+	if (eem->port.in_ep->desc)
 		eem->port.in_ep->driver_data = NULL;
 
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);

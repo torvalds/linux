@@ -138,9 +138,9 @@ static int gser_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		gserial_disconnect(&gser->port);
 	} else {
 		DBG(cdev, "activate generic ttyGS%d\n", gser->port_num);
-		gser->port.in_desc = ep_choose(cdev->gadget,
+		gser->port.in->desc = ep_choose(cdev->gadget,
 				gser->hs.in, gser->fs.in);
-		gser->port.out_desc = ep_choose(cdev->gadget,
+		gser->port.out->desc = ep_choose(cdev->gadget,
 				gser->hs.out, gser->fs.out);
 	}
 	gserial_connect(&gser->port, gser->port_num);

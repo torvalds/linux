@@ -343,15 +343,12 @@ static int
 enable_source_sink(struct usb_composite_dev *cdev, struct f_sourcesink *ss)
 {
 	int					result = 0;
-	const struct usb_endpoint_descriptor	*src, *sink;
 	struct usb_ep				*ep;
-
-	src = ep_choose(cdev->gadget, &hs_source_desc, &fs_source_desc);
-	sink = ep_choose(cdev->gadget, &hs_sink_desc, &fs_sink_desc);
 
 	/* one endpoint writes (sources) zeroes IN (to the host) */
 	ep = ss->in_ep;
-	result = usb_ep_enable(ep, src);
+	ep->desc = ep_choose(cdev->gadget, &hs_source_desc, &fs_source_desc);
+	result = usb_ep_enable(ep);
 	if (result < 0)
 		return result;
 	ep->driver_data = ss;
@@ -367,7 +364,8 @@ fail:
 
 	/* one endpoint reads (sinks) anything OUT (from the host) */
 	ep = ss->out_ep;
-	result = usb_ep_enable(ep, sink);
+	ep->desc = ep_choose(cdev->gadget, &hs_sink_desc, &fs_sink_desc);
+	result = usb_ep_enable(ep);
 	if (result < 0)
 		goto fail;
 	ep->driver_data = ss;

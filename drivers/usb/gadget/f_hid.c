@@ -416,7 +416,6 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 {
 	struct usb_composite_dev		*cdev = f->config->cdev;
 	struct f_hidg				*hidg = func_to_hidg(f);
-	const struct usb_endpoint_descriptor	*ep_desc;
 	int status = 0;
 
 	VDBG(cdev, "hidg_set_alt intf:%d alt:%d\n", intf, alt);
@@ -426,9 +425,9 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		if (hidg->in_ep->driver_data != NULL)
 			usb_ep_disable(hidg->in_ep);
 
-		ep_desc = ep_choose(f->config->cdev->gadget,
+		hidg->in_ep->desc = ep_choose(f->config->cdev->gadget,
 				hidg->hs_in_ep_desc, hidg->fs_in_ep_desc);
-		status = usb_ep_enable(hidg->in_ep, ep_desc);
+		status = usb_ep_enable(hidg->in_ep);
 		if (status < 0) {
 			ERROR(cdev, "Enable endpoint FAILED!\n");
 			goto fail;
