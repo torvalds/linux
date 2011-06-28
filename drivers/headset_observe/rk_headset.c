@@ -59,6 +59,7 @@
 #define disable 0
 
 extern int wm8994_set_status(void);
+
 /* headset private data */
 struct headset_priv {
 	struct input_dev *input_dev;
@@ -182,7 +183,7 @@ static void headsetobserve_work(struct work_struct *work)
 		//	enable_irq(headset_info->irq[HOOK]);
 			headset_info->cur_headset_status = BIT_HEADSET;
 			headset_change_irqtype(HEADSET,IRQF_TRIGGER_FALLING);//
-			del_timer(&headset_info->headset_timer);//启动定时器，等待切换到耳机通路
+			del_timer(&headset_info->headset_timer);//Start the timer, wait for switch to the headphone channel
 			headset_info->headset_timer.expires = jiffies + 500;
 			add_timer(&headset_info->headset_timer);
 		}
@@ -300,6 +301,7 @@ static void headset_timer_callback(unsigned long arg)
 		DBG("Headset is out\n");
 		goto out;
 	}
+	#ifdef CONFIG_SND_SOC_WM8994
 	if(wm8994_set_status() < 0)
 	{
 		DBG("wm8994 is not set on heatset channel\n");
@@ -307,7 +309,7 @@ static void headset_timer_callback(unsigned long arg)
 		add_timer(&headset_info->headset_timer);	
 		goto out;
 	}
-	
+	#endif
 	for(i=0; i<3; i++)
 	{
 		level = gpio_get_value(pdata->Hook_gpio);
@@ -326,7 +328,6 @@ static void headset_timer_callback(unsigned long arg)
 		goto out;
 	}
 
-//延迟一段时间耳机还是按下的话，那么应该是无按键耳机
 	if(level == 0)
 		headset->isMic= 0;//No microphone
 	else if(level > 0)	
