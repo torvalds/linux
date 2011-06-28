@@ -185,11 +185,23 @@ static inline u64 sched_rt_period(struct rt_rq *rt_rq)
 
 typedef struct task_group *rt_rq_iter_t;
 
-#define for_each_rt_rq(rt_rq, iter, rq) \
-	for (iter = list_entry_rcu(task_groups.next, typeof(*iter), list); \
-	     (&iter->list != &task_groups) && \
-	     (rt_rq = iter->rt_rq[cpu_of(rq)]); \
-	     iter = list_entry_rcu(iter->list.next, typeof(*iter), list))
+static inline struct task_group *next_task_group(struct task_group *tg)
+{
+	do {
+		tg = list_entry_rcu(tg->list.next,
+			typeof(struct task_group), list);
+	} while (&tg->list != &task_groups && task_group_is_autogroup(tg));
+
+	if (&tg->list == &task_groups)
+		tg = NULL;
+
+	return tg;
+}
+
+#define for_each_rt_rq(rt_rq, iter, rq)					\
+	for (iter = container_of(&task_groups, typeof(*iter), list);	\
+		(iter = next_task_group(iter)) &&			\
+		(rt_rq = iter->rt_rq[cpu_of(rq)]);)
 
 static inline void list_add_leaf_rt_rq(struct rt_rq *rt_rq)
 {
