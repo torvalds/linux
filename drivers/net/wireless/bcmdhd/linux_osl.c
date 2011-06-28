@@ -161,7 +161,8 @@ osl_error(int bcmerror)
 	return linuxbcmerrormap[-bcmerror];
 }
 
-void * dhd_os_prealloc(int section, unsigned long size);
+extern uint8* dhd_os_prealloc(void *osh, int section, int size);
+
 osl_t *
 osl_attach(void *pdev, uint bustype, bool pkttag)
 {
@@ -201,9 +202,9 @@ osl_attach(void *pdev, uint bustype, bool pkttag)
 			break;
 	}
 
-#ifdef DHD_USE_STATIC_BUF
+#if defined(DHD_USE_STATIC_BUF)
 	if (!bcm_static_buf) {
-		if (!(bcm_static_buf = (bcm_static_buf_t *)dhd_os_prealloc(3, STATIC_BUF_SIZE+
+		if (!(bcm_static_buf = (bcm_static_buf_t *)dhd_os_prealloc(osh, 3, STATIC_BUF_SIZE+
 			STATIC_BUF_TOTAL_LEN))) {
 			printk("can not alloc static buf!\n");
 		}
@@ -223,7 +224,7 @@ osl_attach(void *pdev, uint bustype, bool pkttag)
 		int i;
 		void *skb_buff_ptr = 0;
 		bcm_static_skb = (bcm_static_pkt_t *)((char *)bcm_static_buf + 2048);
-		skb_buff_ptr = dhd_os_prealloc(4, 0);
+		skb_buff_ptr = dhd_os_prealloc(osh, 4, 0);
 
 		bcopy(skb_buff_ptr, bcm_static_skb, sizeof(struct sk_buff *)*16);
 		for (i = 0; i < MAX_STATIC_PKT_NUM*2; i++)

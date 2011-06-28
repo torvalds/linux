@@ -26,6 +26,8 @@
 #ifndef __WLDEV_COMMON_H__
 #define __WLDEV_COMMON_H__
 
+#include <wlioctl.h>
+
 /** wl_dev_ioctl - get/set IOCTLs, will call net_device's do_ioctl (or 
  *  netdev_ops->ndo_do_ioctl in new kernels)
  *  @dev: the net_device handle
@@ -52,12 +54,6 @@ s32 wldev_iovar_setint(
 
 s32 wldev_iovar_getint(
 	struct net_device *dev, s8 *iovar, s32 *pval);
-
-
-s32 wldev_mkiovar(
-	s8 *iovar_name, s8 *param, s32 paramlen,
-	s8 *iovar_buf, u32 buflen);
-
 
 /** The following function can be implemented if there is a need for bsscfg
  *  indexed IOVARs

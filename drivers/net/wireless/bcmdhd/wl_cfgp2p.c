@@ -637,7 +637,7 @@ wl_cfgp2p_set_managment_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssi
 	}
 	/* Add if there is any extra IE */
 	if (p2p_ie && p2p_ie_len) {
-		CFGP2P_ERR(("Request has extra IE"));
+		CFGP2P_INFO(("Request has extra IE"));
 		if (p2p_ie_len > mgmt_ie_buf_len) {
 			CFGP2P_ERR(("extra IE size too big\n"));
 			ret = -ENOMEM;

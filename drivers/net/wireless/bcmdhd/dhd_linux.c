@@ -100,174 +100,8 @@ extern bool ap_cfg_running;
 #include <wlfc_proto.h>
 #include <dhd_wlfc.h>
 #endif
-#if defined(CONFIG_WIFI_CONTROL_FUNC)
-#include <linux/platform_device.h>
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
-#include <linux/wlan_plat.h>
-#else
-#include <linux/wifi_tiwlan.h>
-#endif
-
-struct semaphore wifi_control_sem;
-
-static struct wifi_platform_data *wifi_control_data = NULL;
-static struct resource *wifi_irqres = NULL;
-
-int wifi_get_irq_number(unsigned long *irq_flags_ptr)
-{
-	if (wifi_irqres) {
-		*irq_flags_ptr = wifi_irqres->flags & IRQF_TRIGGER_MASK;
-		return (int)wifi_irqres->start;
-	}
-#ifdef CUSTOM_OOB_GPIO_NUM
-	return CUSTOM_OOB_GPIO_NUM;
-#else
-	return -1;
-#endif
-}
-
-int wifi_set_carddetect(int on)
-{
-	DHD_ERROR(("%s = %d\n", __FUNCTION__, on));
-	if (wifi_control_data && wifi_control_data->set_carddetect) {
-		wifi_control_data->set_carddetect(on);
-	}
-	return 0;
-}
-
-int wifi_set_power(int on, unsigned long msec)
-{
-	DHD_ERROR(("%s = %d\n", __FUNCTION__, on));
-	if (wifi_control_data && wifi_control_data->set_power) {
-		wifi_control_data->set_power(on);
-	}
-	if (msec)
-		mdelay(msec);
-	return 0;
-}
-
-int wifi_set_reset(int on, unsigned long msec)
-{
-	DHD_ERROR(("%s = %d\n", __FUNCTION__, on));
-	if (wifi_control_data && wifi_control_data->set_reset) {
-		wifi_control_data->set_reset(on);
-	}
-	if (msec)
-		mdelay(msec);
-	return 0;
-}
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 35))
-int wifi_get_mac_addr(unsigned char *buf)
-{
-	DHD_ERROR(("%s\n", __FUNCTION__));
-	if (!buf)
-		return -EINVAL;
-	if (wifi_control_data && wifi_control_data->get_mac_addr) {
-		return wifi_control_data->get_mac_addr(buf);
-	}
-	return -EOPNOTSUPP;
-}
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39))
-void *wifi_get_country_code(char *ccode)
-{
-	DHD_TRACE(("%s\n", __FUNCTION__));
-	if (!ccode)
-		return NULL;
-	if (wifi_control_data && wifi_control_data->get_country_code) {
-		return wifi_control_data->get_country_code(ccode);
-	}
-	return NULL;
-}
-#endif
-
-static int wifi_probe(struct platform_device *pdev)
-{
-	struct wifi_platform_data *wifi_ctrl =
-		(struct wifi_platform_data *)(pdev->dev.platform_data);
-
-	DHD_ERROR(("## %s\n", __FUNCTION__));
-	wifi_irqres = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "bcmdhd_wlan_irq");
-	if (wifi_irqres == NULL)
-		wifi_irqres = platform_get_resource_byname(pdev,
-			IORESOURCE_IRQ, "bcm4329_wlan_irq");
-	wifi_control_data = wifi_ctrl;
-
-	wifi_set_power(1, 0);	/* Power On */
-	wifi_set_carddetect(1);	/* CardDetect (0->1) */
-
-	up(&wifi_control_sem);
-	return 0;
-}
-
-static int wifi_remove(struct platform_device *pdev)
-{
-	struct wifi_platform_data *wifi_ctrl =
-		(struct wifi_platform_data *)(pdev->dev.platform_data);
-
-	DHD_ERROR(("## %s\n", __FUNCTION__));
-	wifi_control_data = wifi_ctrl;
-
-	wifi_set_power(0, 0);	/* Power Off */
-	wifi_set_carddetect(0);	/* CardDetect (1->0) */
-
-	up(&wifi_control_sem);
-	return 0;
-}
-static int wifi_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	DHD_TRACE(("##> %s\n", __FUNCTION__));
-#if defined(OOB_INTR_ONLY)
-	bcmsdh_oob_intr_set(0);
-#endif /* (OOB_INTR_ONLY) */
-	return 0;
-}
-static int wifi_resume(struct platform_device *pdev)
-{
-	DHD_TRACE(("##> %s\n", __FUNCTION__));
-#if defined(OOB_INTR_ONLY)
-	bcmsdh_oob_intr_set(1);
-#endif /* (OOB_INTR_ONLY) */
-	return 0;
-}
-static struct platform_driver wifi_device = {
-	.probe          = wifi_probe,
-	.remove         = wifi_remove,
-	.suspend        = wifi_suspend,
-	.resume         = wifi_resume,
-	.driver         = {
-	.name   = "bcmdhd_wlan",
-	}
-};
-
-static struct platform_driver wifi_device_legacy = {
-	.probe          = wifi_probe,
-	.remove         = wifi_remove,
-	.suspend        = wifi_suspend,
-	.resume         = wifi_resume,
-	.driver         = {
-	.name   = "bcm4329_wlan",
-	}
-};
-
-int wifi_add_dev(void)
-{
-	DHD_TRACE(("## Calling platform_driver_register\n"));
-	platform_driver_register(&wifi_device);
-	platform_driver_register(&wifi_device_legacy);
-	return 0;
-}
-
-void wifi_del_dev(void)
-{
-	DHD_TRACE(("## Unregister platform_driver_register\n"));
-	platform_driver_unregister(&wifi_device);
-	platform_driver_unregister(&wifi_device_legacy);
-}
-#endif
+#include <wl_android.h>
 
 #ifdef ARP_OFFLOAD_SUPPORT
 static int dhd_device_event(struct notifier_block *this,
@@ -410,7 +244,10 @@ typedef struct dhd_info {
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
-	struct mutex wl_start_lock; /* mutex when START called to prevent any other Linux calls */
+	/* net_device interface lock, prevent race conditions among net_dev interface
+	 * calls and wifi_on or wifi_off
+	 */
+	struct mutex dhd_net_if_mutex;
 #endif
 	spinlock_t wakelock_spinlock;
 	int wakelock_counter;
@@ -439,7 +276,6 @@ char nvram_path[MOD_PARAM_PATHLEN];
 
 extern int wl_control_wl_start(struct net_device *dev);
 extern int net_os_send_hang_message(struct net_device *dev);
-extern int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 struct semaphore dhd_registration_sem;
 #define DHD_REGISTRATION_TIMEOUT  12000  /* msec : allowed time to finished dhd registration */
@@ -591,6 +427,8 @@ static char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR
 "\nCompiled in " SRCBASE " on " __DATE__ " at " __TIME__
 #endif
 ;
+static void dhd_net_if_lock_local(dhd_info_t *dhd);
+static void dhd_net_if_unlock_local(dhd_info_t *dhd);
 
 #ifdef WLMEDIA_HTSF
 void htsf_update(dhd_info_t *dhd, void *data);
@@ -1208,7 +1046,7 @@ _dhd_sysioc_thread(void *data)
 			break;
 		}
 
-		dhd_os_start_lock(&dhd->pub);
+		dhd_net_if_lock_local(dhd);
 		DHD_OS_WAKE_LOCK(&dhd->pub);
 
 		for (i = 0; i < DHD_MAX_IFS; i++) {
@@ -1254,7 +1092,7 @@ _dhd_sysioc_thread(void *data)
 		}
 
 		DHD_OS_WAKE_UNLOCK(&dhd->pub);
-		dhd_os_start_unlock(&dhd->pub);
+		dhd_net_if_unlock_local(dhd);
 	}
 	DHD_TRACE(("%s: stopped\n", __FUNCTION__));
 	complete_and_exit(&tsk->completed, 0);
@@ -2317,14 +2155,18 @@ done:
 static int
 dhd_stop(struct net_device *net)
 {
+	int ifidx;
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(net);
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 	if (dhd->pub.up == 0) {
 		return 0;
 	}
+	ifidx = dhd_net2idx(dhd, net);
+
 #ifdef WL_CFG80211
-	wl_cfg80211_down();
+	if (ifidx == 0)
+		wl_cfg80211_down();
 #endif
 
 #ifdef PROP_TXSTATUS
@@ -2336,6 +2178,11 @@ dhd_stop(struct net_device *net)
 
 	/* Stop the protocol module */
 	dhd_prot_stop(&dhd->pub);
+
+#if defined(WL_CFG80211)
+	if (ifidx == 0)
+		wl_android_wifi_off(net);
+#endif
 
 	OLD_MOD_DEC_USE_COUNT;
 	return 0;
@@ -2353,44 +2200,60 @@ dhd_open(struct net_device *net)
 	int32 ret = 0;
 
 #if !defined(WL_CFG80211)
-	/*  Force start if ifconfig_up gets called before START command */
+	/** Force start if ifconfig_up gets called before START command
+	 *  We keep WEXT's wl_control_wl_start to provide backward compatibility
+	 *  This should be removed in the future
+	 */
 	wl_control_wl_start(net);
 #endif
 
 	ifidx = dhd_net2idx(dhd, net);
 	DHD_TRACE(("%s: ifidx %d\n", __FUNCTION__, ifidx));
 
-	if ((dhd->iflist[ifidx]) && (dhd->iflist[ifidx]->state == WLC_E_IF_DEL)) {
+	if (!dhd->iflist[ifidx] || dhd->iflist[ifidx]->state == WLC_E_IF_DEL) {
 		DHD_ERROR(("%s: Error: called when IF already deleted\n", __FUNCTION__));
 		return -1;
 	}
 
+	if (ifidx == 0) {
+		atomic_set(&dhd->pend_8021x_cnt, 0);
+#if defined(WL_CFG80211)
+		wl_android_wifi_on(net);
+#endif
 
-	if (ifidx == 0) { /* do it only for primary eth0 */
+		if (dhd->pub.busstate != DHD_BUS_DATA) {
+			int ret;
 
+			/* try to bring up bus */
+			if ((ret = dhd_bus_start(&dhd->pub)) != 0) {
+				DHD_ERROR(("%s: failed with code %d\n", __FUNCTION__, ret));
+				return -1;
+			}
 
-	atomic_set(&dhd->pend_8021x_cnt, 0);
+		}
 
-
-	memcpy(net->dev_addr, dhd->pub.mac.octet, ETHER_ADDR_LEN);
+		/* dhd_prot_init has been called in dhd_bus_start or wl_android_wifi_on */
+		memcpy(net->dev_addr, dhd->pub.mac.octet, ETHER_ADDR_LEN);
 
 #ifdef TOE
-	/* Get current TOE mode from dongle */
-	if (dhd_toe_get(dhd, ifidx, &toe_ol) >= 0 && (toe_ol & TOE_TX_CSUM_OL) != 0)
-		dhd->iflist[ifidx]->net->features |= NETIF_F_IP_CSUM;
-	else
-		dhd->iflist[ifidx]->net->features &= ~NETIF_F_IP_CSUM;
-#endif
+		/* Get current TOE mode from dongle */
+		if (dhd_toe_get(dhd, ifidx, &toe_ol) >= 0 && (toe_ol & TOE_TX_CSUM_OL) != 0)
+			dhd->iflist[ifidx]->net->features |= NETIF_F_IP_CSUM;
+		else
+			dhd->iflist[ifidx]->net->features &= ~NETIF_F_IP_CSUM;
+#endif /* TOE */
+
+#if defined(WL_CFG80211)
+		if (unlikely(wl_cfg80211_up())) {
+			DHD_ERROR(("%s: failed to bring up cfg80211\n", __FUNCTION__));
+			return -1;
+		}
+#endif /* WL_CFG80211 */
 	}
+
 	/* Allow transmit calls */
 	netif_start_queue(net);
 	dhd->pub.up = 1;
-#ifdef WL_CFG80211
-	if (unlikely(wl_cfg80211_up())) {
-		DHD_ERROR(("%s: failed to bring up cfg80211\n", __FUNCTION__));
-		return -1;
-	}
-#endif /* WL_CFG80211 */
 
 #ifdef BCMDBGFS
 	dhd_dbg_init(&dhd->pub);
@@ -2578,7 +2441,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	wake_lock_init(&dhd->wl_rxwake, WAKE_LOCK_SUSPEND, "wlan_rx_wake");
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
-	mutex_init(&dhd->wl_start_lock);
+	mutex_init(&dhd->dhd_net_if_mutex);
 #endif
 	dhd_state |= DHD_ATTACH_STATE_WAKELOCKS_INIT;
 
@@ -3069,10 +2932,6 @@ dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 		DHD_ERROR(("couldn't register the net device, err %d\n", err));
 		goto fail;
 	}
-#if defined(WL_CFG80211)
-	if (ifidx == 0)
-		wl_cfg80211_attach_post(net);
-#endif
 
 	printf("%s: Broadcom Dongle Host Driver mac=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", net->name,
 	       dhd->pub.mac.octet[0], dhd->pub.mac.octet[1], dhd->pub.mac.octet[2],
@@ -3109,11 +2968,17 @@ dhd_bus_detach(dhd_pub_t *dhdp)
 	if (dhdp) {
 		dhd = (dhd_info_t *)dhdp->info;
 		if (dhd) {
-			/* Stop the protocol module */
-			dhd_prot_stop(&dhd->pub);
 
-			/* Stop the bus module */
-			dhd_bus_stop(dhd->pub.bus, TRUE);
+			/** In case of Android cfg80211 driver, the bus is down in dhd_stop,
+			 *  calling stop again will cuase SD read/write errors.
+			 */
+			if (dhd->pub.busstate != DHD_BUS_DOWN) {
+				/* Stop the protocol module */
+				dhd_prot_stop(&dhd->pub);
+
+				/* Stop the bus module */
+				dhd_bus_stop(dhd->pub.bus, TRUE);
+			}
 
 #if defined(OOB_INTR_ONLY)
 			bcmsdh_unregister_oob_intr();
@@ -3173,9 +3038,9 @@ void dhd_detach(dhd_pub_t *dhdp)
 
 		for (i = 1; i < DHD_MAX_IFS; i++)
 			if (dhd->iflist[i]) {
-					dhd->iflist[i]->state = WLC_E_IF_DEL;
-					dhd->iflist[i]->idx = i;
-					dhd_op_if(dhd->iflist[i]);
+				dhd->iflist[i]->state = WLC_E_IF_DEL;
+				dhd->iflist[i]->idx = i;
+				dhd_op_if(dhd->iflist[i]);
 			}
 
 		/*  delete primary interface 0 */
@@ -3188,7 +3053,6 @@ void dhd_detach(dhd_pub_t *dhdp)
 		if (ifp->net->netdev_ops == &dhd_ops_pri)
 #endif
 		{
-			dhd_stop(ifp->net);
 			unregister_netdev(ifp->net);
 			MFREE(dhd->pub.osh, ifp, sizeof(*ifp));
 
@@ -3218,6 +3082,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 		if (dhdp->prot)
 			dhd_prot_detach(dhdp);
 	}
+
 #ifdef WL_CFG80211
 	if (dhd->dhd_state & DHD_ATTACH_STATE_CFG80211)
 		wl_cfg80211_detach();
@@ -3256,9 +3121,12 @@ dhd_module_cleanup(void)
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
 	dhd_bus_unregister();
+
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
-	wifi_del_dev();
-#endif
+	wl_android_wifictrl_func_del();
+#endif /* CONFIG_WIFI_CONTROL_FUNC */
+	wl_android_exit();
+
 	/* Call customer gpio to turn off power with WL_REG_ON signal */
 	dhd_customer_gpio_wlan_ctrl(WLAN_POWER_OFF);
 }
@@ -3267,9 +3135,11 @@ dhd_module_cleanup(void)
 static int __init
 dhd_module_init(void)
 {
-	int error;
+	int error = 0;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
+
+	wl_android_init();
 
 #ifdef DHDTHREAD
 	/* Sanity check on the module parameters */
@@ -3291,21 +3161,8 @@ dhd_module_init(void)
 	dhd_customer_gpio_wlan_ctrl(WLAN_POWER_ON);
 
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
-	sema_init(&wifi_control_sem, 0);
-
-	/* Added fail_0, fail_1 to do the right clean-up for failure case */
-	error = wifi_add_dev();
-	if (error) {
-		DHD_ERROR(("%s: platform_driver_register failed\n", __FUNCTION__));
-		goto fail_0;
-	}
-
-	/* Waiting callback after platform_driver_register is done or exit with error */
-	if (down_timeout(&wifi_control_sem,  msecs_to_jiffies(1000)) != 0) {
-		error = -EINVAL;
-		DHD_ERROR(("%s: platform_driver_register timeout\n", __FUNCTION__));
+	if (wl_android_wifictrl_func_add() < 0)
 		goto fail_1;
-	}
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
@@ -3341,8 +3198,7 @@ fail_2:
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) */
 fail_1:
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
-	wifi_del_dev();
-fail_0:
+	wl_android_wifictrl_func_del();
 #endif 
 
 	/* Call customer gpio to turn off power with WL_REG_ON signal */
@@ -3598,29 +3454,17 @@ dhd_os_sdtxunlock(dhd_pub_t *pub)
 	dhd_os_sdunlock(pub);
 }
 
-#ifdef DHD_USE_STATIC_BUF
-void * dhd_os_prealloc(int section, unsigned long size)
+#if defined(DHD_USE_STATIC_BUF)
+uint8* dhd_os_prealloc(void *osh, int section, uint size)
 {
-#if defined(CONFIG_WIFI_CONTROL_FUNC)
-	void *alloc_ptr = NULL;
-	if (wifi_control_data && wifi_control_data->mem_prealloc)
-	{
-		alloc_ptr = wifi_control_data->mem_prealloc(section, size);
-		if (alloc_ptr)
-{
-			DHD_INFO(("success alloc section %d\n", section));
-			bzero(alloc_ptr, size);
-			return alloc_ptr;
-		}
+	return (uint8*)wl_android_prealloc(section, size);
 }
 
-	DHD_ERROR(("can't alloc section %d\n", section));
-	return 0;
-#else
-return MALLOC(0, size);
-#endif 
+void dhd_os_prefree(void *osh, void *addr, uint size)
+{
 }
-#endif /* DHD_USE_STATIC_BUF */
+#endif /* defined(CONFIG_WIFI_CONTROL_FUNC) */
+
 #if defined(CONFIG_WIRELESS_EXT)
 struct iw_statistics *
 dhd_get_wireless_stats(struct net_device *dev)
@@ -3826,7 +3670,6 @@ dhd_dev_reset(struct net_device *dev, uint8 flag)
 		DHD_ERROR(("%s: dhd_bus_devreset: %d\n", __FUNCTION__, ret));
 		return ret;
 	}
-	DHD_ERROR(("%s: WLAN %s DONE\n", __FUNCTION__, flag ? "OFF" : "ON"));
 
 	return ret;
 }
@@ -3961,23 +3804,31 @@ void dhd_bus_country_set(struct net_device *dev, wl_country_t *cspec)
 }
 
 
-void dhd_os_start_lock(dhd_pub_t *pub)
+void dhd_net_if_lock(struct net_device *dev)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+	dhd_net_if_lock_local(dhd);
+}
+
+void dhd_net_if_unlock(struct net_device *dev)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+	dhd_net_if_unlock_local(dhd);
+}
+
+static void dhd_net_if_lock_local(dhd_info_t *dhd)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
-
 	if (dhd)
-		mutex_lock(&dhd->wl_start_lock);
+		mutex_lock(&dhd->dhd_net_if_mutex);
 #endif
 }
 
-void dhd_os_start_unlock(dhd_pub_t *pub)
+static void dhd_net_if_unlock_local(dhd_info_t *dhd)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25))
-	dhd_info_t *dhd = (dhd_info_t *)(pub->info);
-
 	if (dhd)
-		mutex_unlock(&dhd->wl_start_lock);
+		mutex_unlock(&dhd->dhd_net_if_mutex);
 #endif
 }
 

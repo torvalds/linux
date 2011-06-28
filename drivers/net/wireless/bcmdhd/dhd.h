@@ -93,9 +93,21 @@ enum dhd_prealloc_index {
 	DHD_PREALLOC_DATABUF,
 	DHD_PREALLOC_OSL_BUF
 };
-#ifdef DHD_USE_STATIC_BUF
-extern void * dhd_os_prealloc(int section, unsigned long size);
-#endif
+
+#if defined(DHD_USE_STATIC_BUF)
+
+uint8* dhd_os_prealloc(void *osh, int section, uint size);
+void dhd_os_prefree(void *osh, void *addr, uint size);
+#define DHD_OS_PREALLOC(osh, section, size) dhd_os_prealloc(osh, section, size)
+#define DHD_OS_PREFREE(osh, addr, size) dhd_os_prefree(osh, addr, size)
+
+#else
+
+#define DHD_OS_PREALLOC(osh, section, size) MALLOC(osh, size)
+#define DHD_OS_PREFREE(osh, addr, size) MFREE(osh, addr, size)
+
+#endif /* defined(DHD_USE_STATIC_BUF) */
+
 /* Common structure for module and instance linkage */
 typedef struct dhd_pub {
 	/* Linkage ponters */
@@ -272,8 +284,11 @@ extern unsigned long dhd_os_spin_lock(dhd_pub_t *pub);
 extern void dhd_os_spin_unlock(dhd_pub_t *pub, unsigned long flags);
 
 
-extern void dhd_os_start_lock(dhd_pub_t *pub);
-extern void dhd_os_start_unlock(dhd_pub_t *pub);
+/* interface operations (register, remove) should be atomic, use this lock to prevent race
+ * condition among wifi on/off and interface operation functions
+ */
+void dhd_net_if_lock(struct net_device *dev);
+void dhd_net_if_unlock(struct net_device *dev);
 
 typedef struct dhd_if_event {
 	uint8 ifidx;
@@ -518,6 +533,9 @@ extern char nv_path[MOD_PARAM_PATHLEN];
 #ifdef SOFTAP
 extern char fw_path2[MOD_PARAM_PATHLEN];
 #endif
+
+/* Flag to indicate if we should download firmware on driver load */
+extern uint dhd_download_fw_on_driverload;
 
 /* For supporting multiple interfaces */
 #define DHD_MAX_IFS	16

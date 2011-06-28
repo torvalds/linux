@@ -24,7 +24,10 @@
  * $Id: wldev_common.c,v 1.1.4.1.2.14 2011-02-09 01:40:07 Exp $
  */
 
-#include <wlioctl.h>
+#include <linux/module.h>
+#include <linux/netdevice.h>
+
+#include <wldev_common.h>
 #include <bcmutils.h>
 #include <dhd_dbg.h>
 
@@ -68,7 +71,7 @@ s32 wldev_ioctl(
  * taken care of in dhd_ioctl_entry. Internal use only, not exposed to
  * wl_iw, wl_cfg80211 and wl_cfgp2p
  */
-s32 wldev_mkiovar(
+static s32 wldev_mkiovar(
 	s8 *iovar_name, s8 *param, s32 paramlen,
 	s8 *iovar_buf, u32 buflen)
 {

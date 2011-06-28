@@ -359,6 +359,9 @@ static const uint retry_limit = 2;
 /* Force even SD lengths (some host controllers mess up on odd bytes) */
 static bool forcealign;
 
+/* Flag to indicate if we should download firmware on driver load */
+uint dhd_download_fw_on_driverload = 1;
+
 #define ALIGNMENT  4
 
 #if defined(OOB_INTR_ONLY) && defined(HW_OOB)
@@ -5298,9 +5301,10 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 
 
 	/* if firmware path present try to download and bring up bus */
-	if ((ret = dhd_bus_start(bus->dhd)) != 0) {
-		DHD_ERROR(("%s: failed\n", __FUNCTION__));
-		goto fail;
+	if (dhd_download_fw_on_driverload && (ret = dhd_bus_start(bus->dhd)) != 0) {
+		DHD_ERROR(("%s: dhd_bus_start failed\n", __FUNCTION__));
+		if (ret == BCME_NOTUP)
+			goto fail;
 	}
 	/* Ok, have the per-port tell the stack we're open for business */
 	if (dhd_net_attach(bus->dhd, 0) != 0) {
@@ -5484,40 +5488,23 @@ dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh)
 {
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
-#ifndef DHD_USE_STATIC_BUF
 	if (bus->dhd->maxctl) {
 		bus->rxblen = ROUNDUP((bus->dhd->maxctl + SDPCM_HDRLEN), ALIGNMENT) + DHD_SDALIGN;
-		if (!(bus->rxbuf = MALLOC(osh, bus->rxblen))) {
+		if (!(bus->rxbuf = DHD_OS_PREALLOC(osh, DHD_PREALLOC_RXBUF, bus->rxblen))) {
 			DHD_ERROR(("%s: MALLOC of %d-byte rxbuf failed\n",
 			           __FUNCTION__, bus->rxblen));
 			goto fail;
 		}
 	}
-
 	/* Allocate buffer to receive glomed packet */
-	if (!(bus->databuf = MALLOC(osh, MAX_DATA_BUF))) {
+	if (!(bus->databuf = DHD_OS_PREALLOC(osh, DHD_PREALLOC_DATABUF, MAX_DATA_BUF))) {
 		DHD_ERROR(("%s: MALLOC of %d-byte databuf failed\n",
 			__FUNCTION__, MAX_DATA_BUF));
 		/* release rxbuf which was already located as above */
-		if (!bus->rxblen) MFREE(osh, bus->rxbuf, bus->rxblen);
+		if (!bus->rxblen)
+			DHD_OS_PREFREE(osh, bus->rxbuf, bus->rxblen);
 		goto fail;
 	}
-#else
-	if (bus->dhd->maxctl) {
-		bus->rxblen = ROUNDUP((bus->dhd->maxctl + SDPCM_HDRLEN), ALIGNMENT) + DHD_SDALIGN;
-		if (!(bus->rxbuf = dhd_os_prealloc(DHD_PREALLOC_RXBUF, bus->rxblen))) {
-			DHD_ERROR(("%s: MALLOC of %d-byte rxbuf failed\n",
-			           __FUNCTION__, bus->rxblen));
-			goto fail;
-		}
-	}
-	/* Allocate buffer to receive glomed packet */
-	if (!(bus->databuf = dhd_os_prealloc(DHD_PREALLOC_DATABUF, MAX_DATA_BUF))) {
-		DHD_ERROR(("%s: MALLOC of %d-byte databuf failed\n",
-			__FUNCTION__, MAX_DATA_BUF));
-		goto fail;
-	}
-#endif /* DHD_USE_STATIC_BUF */
 
 	/* Align the buffer */
 	if ((uintptr)bus->databuf % DHD_SDALIGN)

@@ -2183,17 +2183,11 @@ dhd_prot_attach(dhd_pub_t *dhd)
 {
 	dhd_prot_t *cdc;
 
-#ifndef DHD_USE_STATIC_BUF
-	if (!(cdc = (dhd_prot_t *)MALLOC(dhd->osh, sizeof(dhd_prot_t)))) {
+	if (!(cdc = (dhd_prot_t *)DHD_OS_PREALLOC(dhd->osh, DHD_PREALLOC_PROT,
+		sizeof(dhd_prot_t)))) {
 		DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
 		goto fail;
 	}
-#else
-	if (!(cdc = (dhd_prot_t *)dhd_os_prealloc(DHD_PREALLOC_PROT, sizeof(dhd_prot_t)))) {
-		DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
-		goto fail;
-	}
-#endif /* DHD_USE_STATIC_BUF */
 	memset(cdc, 0, sizeof(dhd_prot_t));
 
 	/* ensure that the msg buf directly follows the cdc msg struct */

@@ -87,10 +87,10 @@ extern int dhd_iscan_in_progress(void *h);
 void dhd_iscan_lock(void);
 void dhd_iscan_unlock(void);
 extern int dhd_change_mtu(dhd_pub_t *dhd, int new_mtu, int ifidx);
-#if defined(SOFTAP)
+
 bool ap_cfg_running = FALSE;
 bool ap_fw_loaded = FALSE;
-#endif 
+
 
 #if defined(KEEP_ALIVE)
 int dhd_keep_alive_onoff(dhd_pub_t *dhd, int ka_on);
@@ -194,7 +194,6 @@ dhd_common_init(osl_t *osh)
 	 * behavior since the value of the globals may be different on the
 	 * first time that the driver is initialized vs subsequent initializations.
 	 */
-	dhd_msg_level = DHD_ERROR_VAL;
 	/* Allocate private bus interface state */
 	if (!(cmn = MALLOC(osh, sizeof(dhd_cmn_t)))) {
 		DHD_ERROR(("%s: MALLOC failed\n", __FUNCTION__));
@@ -1574,13 +1573,14 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 			memcpy(dhd->mac.octet, (void *)&ea_addr, ETHER_ADDR_LEN);
 	} else {
 #endif /* GET_CUSTOM_MAC_ENABLE */
-	/* Get the default device MAC address directly from firmware */
-	strcpy(iovbuf, "cur_etheraddr");
-	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, iovbuf, sizeof(iovbuf), FALSE, 0)) < 0) {
-		DHD_ERROR(("%s: can't get MAC address , error=%d\n", __FUNCTION__, ret));
-		return BCME_NOTUP;
-	}
-	memcpy(dhd->mac.octet, iovbuf, ETHER_ADDR_LEN);
+		/* Get the default device MAC address directly from firmware */
+		strcpy(iovbuf, "cur_etheraddr");
+		if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, iovbuf, sizeof(iovbuf),
+			FALSE, 0)) < 0) {
+			DHD_ERROR(("%s: can't get MAC address , error=%d\n", __FUNCTION__, ret));
+			return BCME_NOTUP;
+		}
+		memcpy(dhd->mac.octet, iovbuf, ETHER_ADDR_LEN);
 #ifdef GET_CUSTOM_MAC_ENABLE
 	}
 #endif /* GET_CUSTOM_MAC_ENABLE */
@@ -1598,9 +1598,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		iovbuf[4] = (unsigned char)(rand_mac >> 8);
 		iovbuf[5] = (unsigned char)(rand_mac >> 16);
 
-		printk("Broadcom Dongle Host Driver mac=%02x:%02x:%02x:%02x:%02x:%02x\n",
-			iovbuf[0], iovbuf[1], iovbuf[2], iovbuf[3], iovbuf[4], iovbuf[5]);
-
 		bcm_mkiovar("cur_etheraddr", (void *)iovbuf, ETHER_ADDR_LEN, buf, sizeof(buf));
 		ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
 		if (ret < 0) {
@@ -1609,6 +1606,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 			memcpy(dhd->mac.octet, iovbuf, ETHER_ADDR_LEN);
 	}
 #endif /* SET_RANDOM_MAC_SOFTAP */
+
+	DHD_ERROR(("Broadcom Dongle Host Driver mac=%02x:%02x:%02x:%02x:%02x:%02x\n",
+		iovbuf[0], iovbuf[1], iovbuf[2], iovbuf[3], iovbuf[4], iovbuf[5]));
 
 	/* Set Country code  */
 	if (dhd->dhd_cspec.ccode[0] != 0) {
@@ -1675,7 +1675,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 			DHD_ERROR(("%s set keeplive failed %d\n",
 			__FUNCTION__, res));
 	}
-#endif
+#endif /* defined(KEEP_ALIVE) */
 
 	/* Force STA UP */
 	ret = dhd_wl_ioctl_cmd(dhd, WLC_UP, (char *)&up, sizeof(up), TRUE, 0);
@@ -1775,11 +1775,16 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	/* set mode to allow pattern */
 	bcm_mkiovar("pkt_filter_mode", (char *)&filter_mode, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+
 #ifdef ARP_OFFLOAD_SUPPORT
-	/* Set and enable ARP offload feature */
-	if (dhd_arp_enable)
+	/* Set and enable ARP offload feature for STA only  */
+	if (dhd_arp_enable && !ap_fw_loaded) {
 		dhd_arp_offload_set(dhd, dhd_arp_mode);
-	dhd_arp_offload_enable(dhd, dhd_arp_enable);
+		dhd_arp_offload_enable(dhd, dhd_arp_enable);
+	} else {
+		dhd_arp_offload_set(dhd, 0);
+		dhd_arp_offload_enable(dhd, FALSE);
+	}
 #endif /* ARP_OFFLOAD_SUPPORT */
 
 

@@ -1648,7 +1648,7 @@ wl_control_wl_start(struct net_device *dev)
 		return -1;
 	}
 
-	dhd_os_start_lock(iw->pub);
+	dhd_net_if_lock(dev);
 
 	if (g_onoff == G_WLAN_SET_OFF) {
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_ON);
@@ -1669,7 +1669,7 @@ wl_control_wl_start(struct net_device *dev)
 	}
 	WL_TRACE(("Exited %s\n", __FUNCTION__));
 
-	dhd_os_start_unlock(iw->pub);
+	dhd_net_if_unlock(dev);
 	return ret;
 }
 
@@ -1697,7 +1697,7 @@ wl_iw_control_wl_off(
 		return -1;
 	}
 
-	dhd_os_start_lock(iw->pub);
+	dhd_net_if_lock(dev);
 
 #ifdef SOFTAP
 	ap_cfg_running = FALSE;
@@ -1740,7 +1740,7 @@ wl_iw_control_wl_off(
 		wl_iw_send_priv_event(dev, "STOP");
 	}
 
-	dhd_os_start_unlock(iw->pub);
+	dhd_net_if_unlock(dev);
 
 	WL_TRACE(("Exited %s\n", __FUNCTION__));
 
