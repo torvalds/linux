@@ -1384,7 +1384,8 @@ static int fb0_set_par(struct fb_info *info)
             ipp_req.dst_vir_w = ipp_req.dst0.w;
             ipp_req.timeout = 100;
             ipp_req.flag = IPP_ROT_0;
-            ipp_do_blit(&ipp_req);
+            //ipp_do_blit(&ipp_req);
+            ipp_blit_sync(&ipp_req);
         }else
         #endif
         {
@@ -1477,7 +1478,8 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
             ipp_req.dst_vir_w = ipp_req.dst0.w;
             ipp_req.timeout = 100;
             ipp_req.flag = IPP_ROT_0;
-            ipp_do_blit(&ipp_req);
+            //ipp_do_blit(&ipp_req);
+            ipp_blit_sync(&ipp_req);
             win1_pan(info);
             return 0;
         }else
@@ -1904,7 +1906,8 @@ static int fb1_set_par(struct fb_info *info)
 				else if(var->rotate == 270)
 					ipp_req.flag = IPP_ROT_270;
 
-				ipp_do_blit(&ipp_req);
+				//ipp_do_blit(&ipp_req);
+				ipp_blit_sync(&ipp_req);
 				fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
 				yuv_phy[0] = ipp_req.dst0.YrgbMst;
 				yuv_phy[1] = ipp_req.dst0.CbrMst;	 
@@ -2096,7 +2099,8 @@ static int fb1_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
                     ipp_req.flag = IPP_ROT_90;
                 else if(var->rotate == 270)
                     ipp_req.flag = IPP_ROT_270;
-                ipp_do_blit(&ipp_req);
+                //ipp_do_blit(&ipp_req);
+                ipp_blit_sync(&ipp_req);
                 fbprintk("yaddr=0x%x,uvaddr=0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
                 yuv_phy[0] = ipp_req.dst0.YrgbMst;
                 yuv_phy[1] = ipp_req.dst0.CbrMst;    

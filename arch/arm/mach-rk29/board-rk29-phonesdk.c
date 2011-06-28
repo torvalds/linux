@@ -44,6 +44,7 @@
 #include <mach/vpu_mem.h>
 #include <mach/sram.h>
 #include <mach/ddr.h>
+#include <mach/cpufreq.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
@@ -58,6 +59,7 @@
 #include <linux/i2c-gpio.h>
 #include <linux/mpu.h>
 #include "devices.h"
+
 
 #if defined(CONFIG_MTK23D)
 #include <linux/mtk23d.h>
@@ -131,7 +133,11 @@
 #else
 #define MEM_FBIPP_SIZE      0
 #endif
-#define PMEM_GPU_BASE       ((u32)RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
+#if SDRAM_SIZE > SZ_512M
+#define PMEM_GPU_BASE       (RK29_SDRAM_PHYS + SZ_512M - PMEM_GPU_SIZE)
+#else
+#define PMEM_GPU_BASE       (RK29_SDRAM_PHYS + SDRAM_SIZE - PMEM_GPU_SIZE)
+#endif
 #define PMEM_UI_BASE        (PMEM_GPU_BASE - PMEM_UI_SIZE)
 #define PMEM_VPU_BASE       (PMEM_UI_BASE - PMEM_VPU_SIZE)
 #define PMEM_CAM_BASE       (PMEM_VPU_BASE - PMEM_CAM_SIZE)
@@ -701,7 +707,7 @@ int wm831x_post_init(struct wm831x *parm)
 	
 	dcdc = regulator_get(NULL, "dcdc3");		// 1th IO
 	regulator_set_voltage(dcdc,3000000,3000000);
-	regulator_set_suspend_voltage(dcdc, 3000000);
+	regulator_set_suspend_voltage(dcdc, 2800000);
 	regulator_enable(dcdc);			
 	printk("%s set dcdc3=%dmV end\n", __FUNCTION__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
@@ -1611,6 +1617,7 @@ struct rk_headset_pdata rk_headset_info = {
 	.Headset_gpio		= RK29_PIN4_PD2,
 	.headset_in_type= HEADSET_IN_HIGH,
 	.Hook_gpio = RK29_PIN4_PD1,//Detection Headset--Must be set
+	.hook_key_code = KEY_MEDIA,
 };
 
 struct platform_device rk_device_headset = {
@@ -2467,13 +2474,13 @@ static struct resource resources_gpu[] = {
     [1] = {
 		.name = "gpu_base",
         .start  = RK29_GPU_PHYS,
-        .end    = RK29_GPU_PHYS + RK29_GPU_SIZE,
+        .end    = RK29_GPU_PHYS + RK29_GPU_SIZE - 1,
         .flags  = IORESOURCE_MEM,
     },
     [2] = {
 		.name = "gpu_mem",
         .start  = PMEM_GPU_BASE,
-        .end    = PMEM_GPU_BASE + PMEM_GPU_SIZE,
+        .end    = PMEM_GPU_BASE + PMEM_GPU_SIZE - 1,
         .flags  = IORESOURCE_MEM,
     },
 };
@@ -2513,9 +2520,37 @@ static struct platform_device gpio_wave_device = {
 
 static void __init rk29_board_iomux_init(void)
 {
+	int err;
 	#ifdef CONFIG_RK29_PWM_REGULATOR
 	rk29_mux_api_set(REGULATOR_PWM_MUX_NAME,REGULATOR_PWM_MUX_MODE);
 	#endif
+	rk29_mux_api_set(GPIO4C0_RMIICLKOUT_RMIICLKIN_NAME,GPIO4H_GPIO4C0);
+
+/****************************clock change********************************************/
+	err = gpio_request(RK29_PIN4_PC0, "clk27M_control");
+	if (err) {
+		gpio_free(RK29_PIN4_PC0);
+		printk("-------request RK29_PIN4_PC0 fail--------\n");
+		return -1;
+	}
+	//phy power down
+	gpio_direction_output(RK29_PIN4_PC0, GPIO_LOW);// 27M  32K
+	gpio_set_value(RK29_PIN4_PC0, GPIO_LOW);
+
+	rk29_mux_api_set(GPIO4C5_RMIICSRDVALID_MIIRXDVALID_NAME,GPIO4H_GPIO4C5);
+
+	err = gpio_request(RK29_PIN4_PC5, "clk24M_control");
+	if (err) {
+		gpio_free(RK29_PIN4_PC5);
+		printk("-------request RK29_PIN4_PC5 fail--------\n");
+		return -1;
+	}
+	//phy power down
+	gpio_direction_output(RK29_PIN4_PC5, GPIO_LOW);// control 24M
+	gpio_set_value(RK29_PIN4_PC5, GPIO_LOW);
+/*******************************************************************/
+
+
 }
 
 static struct platform_device *devices[] __initdata = {
@@ -3038,10 +3073,20 @@ static void rk29_pm_power_off(void)
 	while (1);
 }
 
+static struct cpufreq_frequency_table freq_table[] = {
+
+	{ .index = 1050000, .frequency =  408000 },
+    { .index = 1100000, .frequency =  576000 },
+	{ .index = 1150000, .frequency =  816000 },
+	{ .frequency = CPUFREQ_TABLE_END },
+};
+
 static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
-
+    
+    board_update_cpufreq_table(freq_table);
+    
 	gpio_request(POWER_ON_PIN,"poweronpin");
 	gpio_set_value(POWER_ON_PIN, GPIO_HIGH);
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
@@ -3087,6 +3132,11 @@ static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tag
 	mi->bank[0].start = RK29_SDRAM_PHYS;
 	mi->bank[0].node = PHYS_TO_NID(RK29_SDRAM_PHYS);
 	mi->bank[0].size = LINUX_SIZE;
+#if SDRAM_SIZE > SZ_512M
+	mi->nr_banks = 2;
+	mi->bank[1].start = RK29_SDRAM_PHYS + SZ_512M;
+	mi->bank[1].size = SDRAM_SIZE - SZ_512M;
+#endif
 }
 
 static void __init machine_rk29_mapio(void)
@@ -3101,7 +3151,7 @@ static void __init machine_rk29_mapio(void)
 
 MACHINE_START(RK29, "RK29board")
 	/* UART for LL DEBUG */
-	.phys_io	= RK29_UART1_PHYS,
+	.phys_io	= RK29_UART1_PHYS & 0xfff00000,
 	.io_pg_offst	= ((RK29_UART1_BASE) >> 18) & 0xfffc,
 	.boot_params	= RK29_SDRAM_PHYS + 0x88000,
 	.fixup		= machine_rk29_fixup,

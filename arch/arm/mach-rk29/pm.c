@@ -42,7 +42,7 @@ static inline void delay_300us(void)
 }
 
 #ifdef DEBUG
-static void/* inline*/ __sramfunc printch(char byte)
+ void/* inline*/ __sramfunc sram_printch(char byte)
 {
 	unsigned long flags;
 	u32 gate1, gate2;
@@ -64,33 +64,33 @@ static void/* inline*/ __sramfunc printch(char byte)
 	cru_writel(gate1, CRU_CLKGATE1_CON);
 	local_irq_restore(flags);
 	if (byte == '\n')
-		printch('\r');
+		sram_printch('\r');
 }
 
-static void __sramfunc printascii(const char *s)
+ void __sramfunc sram_printascii(const char *s)
 {
 	while (*s) {
 		if (*s == '\n')
 		{
-		    printch('\r');
+		    sram_printch('\r');
 		}
-	    printch(*s);
+	    sram_printch(*s);
 	    s++;
 	}
 }
 void print(const char *s)
 {
-    printascii(s);
+    sram_printascii(s);
 }
 
 void __sramfunc print_Hex(unsigned int hex)
 {
 	int i = 8;
-	printch('0');
-	printch('x');
+	sram_printch('0');
+	sram_printch('x');
 	while (i--) {
 		unsigned char c = (hex & 0xF0000000) >> 28;
-		printch(c < 0xa ? c + '0' : c - 0xa + 'a');
+		sram_printch(c < 0xa ? c + '0' : c - 0xa + 'a');
 		hex <<= 4;
 	}
 }
@@ -102,7 +102,7 @@ void __sramfunc print_Dec (uint32_t n)
         print_Dec(n / 10);
         n %= 10;
     }
-    printch((char)(n + '0'));
+    sram_printch((char)(n + '0'));
 }
 
 void print_Dec_3(uint32_t value)
@@ -124,17 +124,17 @@ void print_Dec_3(uint32_t value)
 static void /* inline*/ __sramfunc printhex(unsigned int hex)
 {
 	int i = 8;
-	printch('0');
-	printch('x');
+	sram_printch('0');
+	sram_printch('x');
 	while (i--) {
 		unsigned char c = (hex & 0xF0000000) >> 28;
-		printch(c < 0xa ? c + '0' : c - 0xa + 'a');
+		sram_printch(c < 0xa ? c + '0' : c - 0xa + 'a');
 		hex <<= 4;
 	}
 }
 #else
-static void inline printch(char byte) {}
-static void inline printascii(const char *s) {}
+static void inline sram_printch(char byte) {}
+static void inline sram_printascii(const char *s) {}
 static void inline printhex(unsigned int hex) {}
 #endif /* DEBUG */
 
@@ -155,64 +155,64 @@ void __sramfunc ddr_testmode(void)
     {
         for (;;)
         {
-	        printch(' ');
-	        printch('8');
-	        printch('8');
-	        printch('8');
-	        printch(' ');
+	        sram_printch(' ');
+	        sram_printch('8');
+	        sram_printch('8');
+	        sram_printch('8');
+	        sram_printch(' ');
             g_crc1 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
             nMHz = 333 + (random32()>>25);
             if(nMHz > 402)
                 nMHz = 402;
 	        printhex(nMHz);
-	        printch(' ');
+	        sram_printch(' ');
 	        printhex(n++);
             //ddr_print("%s change freq to: %d MHz\n", __func__, nMHz);
             ddr_change_freq(nMHz);
             g_crc2 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
             if (g_crc1!=g_crc2)
             {
-	            printch(' ');
-	            printch('f');
-	            printch('a');
-	            printch('i');
-	            printch('l');
+	            sram_printch(' ');
+	            sram_printch('f');
+	            sram_printch('a');
+	            sram_printch('i');
+	            sram_printch('l');
 	        }
                //ddr_print("check image crc32 success--crc value = 0x%x!, count:%d\n",g_crc1, n++);
-           //     printascii("change freq success\n");
+           //     sram_printascii("change freq success\n");
         }
     }
     else if(ddr_debug == 2)
     {
         for (;;)
         {
-	        printch(' ');
-	        printch('9');
-	        printch('9');
-	        printch('9');
-	        printch(' ');
+	        sram_printch(' ');
+	        sram_printch('9');
+	        sram_printch('9');
+	        sram_printch('9');
+	        sram_printch(' ');
             g_crc1 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
             nMHz = (random32()>>13);// 16.7s max
             ddr_suspend();
             delayus(nMHz);
             ddr_resume();
 	        printhex(nMHz);
-	        printch(' ');
+	        sram_printch(' ');
 	        printhex(n++);
             g_crc2 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
             if (g_crc1!=g_crc2)
             {
-	            printch(' ');
-	            printch('f');
-	            printch('a');
-	            printch('i');
-	            printch('l');
+	            sram_printch(' ');
+	            sram_printch('f');
+	            sram_printch('a');
+	            sram_printch('i');
+	            sram_printch('l');
 	        }
               // ddr_print("check image crc32 fail!, count:%d\n", n++);
-            //    printascii("self refresh fail\n");
+            //    sram_printascii("self refresh fail\n");
             //else
                //ddr_print("check image crc32 success--crc value = 0x%x!, count:%d\n",g_crc1, n++);
-            //    printascii("self refresh success\n");
+            //    sram_printascii("self refresh success\n");
         }
     }
     else if(ddr_debug == 3)
@@ -225,41 +225,50 @@ void __sramfunc ddr_testmode(void)
 {}
 
 #endif 
-void __sramfunc pm_spi_gpio_suspend(void);
-void __sramfunc pm_spi_gpio_resume(void);
-static void __sramfunc rk29_sram_suspend(void)
+void __sramfunc pm_clk_switch_32k(void);
+
+void __sramfunc pm_wfi(void)
 {
 	u32 clksel0;
+	sram_printch('7');
+	clksel0 = cru_readl(CRU_CLKSEL0_CON);
+	/* set arm clk 24MHz/32 = 750KHz */
+	cru_writel(clksel0 | 0x1F, CRU_CLKSEL0_CON);
+
+	sram_printch('8');
+	dsb();
+	asm("wfi");
+	sram_printch('8');
+
+	/* resume arm clk */
+	cru_writel(clksel0, CRU_CLKSEL0_CON);
+	sram_printch('7');
+
+
+}
+
+static void __sramfunc rk29_sram_suspend(void)
+{
 	u32 vol;
 
 	if ((ddr_debug == 1) || (ddr_debug == 2))
 		ddr_testmode();
 
-	printch('5');
+	sram_printch('5');
 	ddr_suspend();
 
-	printch('6');
+	sram_printch('6');
 	vol=rk29_suspend_voltage_set(1000000);
-
-	printch('7');
-	clksel0 = cru_readl(CRU_CLKSEL0_CON);
-	/* set arm clk 24MHz/32 = 750KHz */
-	cru_writel(clksel0 | 0x1F, CRU_CLKSEL0_CON);
-
-	printch('8');
-	dsb();
-	asm("wfi");
-	printch('8');
-
-	/* resume arm clk */
-	cru_writel(clksel0, CRU_CLKSEL0_CON);
-	printch('7');
-	
+#ifdef CONFIG_RK29_CLK_SWITCH_TO_32K
+	pm_clk_switch_32k();
+#else
+	pm_wfi();
+#endif
 	rk29_suspend_voltage_resume(vol);
-	printch('6');
+	sram_printch('6');
 
 	ddr_resume();
-	printch('5');
+	sram_printch('5');
 }
 
 static void noinline rk29_suspend(void)
@@ -296,9 +305,9 @@ static void dump_irq(void)
 do { \
 	u32 en = readl(RK29_GPIO##ID##_BASE + GPIO_INTEN); \
 	if (en) { \
-		printascii("GPIO" #ID "_INTEN: "); \
+		sram_printascii("GPIO" #ID "_INTEN: "); \
 		printhex(en); \
-		printch('\n'); \
+		sram_printch('\n'); \
 	} \
 } while (0)
 
@@ -318,9 +327,9 @@ static void dump_inten(void)
 #define DUMP_GPIO_PULL(ID) \
 do { \
 	u32 state = readl(RK29_GRF_BASE + GRF_GPIO0_PULL + (ID<<2)); \
-	printascii("GPIO" #ID "_PULL: "); \
+	sram_printascii("GPIO" #ID "_PULL: "); \
 	printhex(state); \
-	printch('\n'); \
+	sram_printch('\n'); \
 } while (0)
 
 static void dump_io_pull(void)
@@ -333,6 +342,8 @@ static void dump_io_pull(void)
 	DUMP_GPIO_PULL(5);
 	DUMP_GPIO_PULL(6);
 }
+void pm_gpio_suspend(void);
+void pm_gpio_resume(void);
 
 static int rk29_pm_enter(suspend_state_t state)
 {
@@ -351,7 +362,7 @@ static int rk29_pm_enter(suspend_state_t state)
 	dump_io_pull();
 #endif
 
-	printch('0');
+	sram_printch('0');
 	flush_tlb_all();
 	interface_ctr_reg_pread();
 
@@ -393,7 +404,7 @@ static int rk29_pm_enter(suspend_state_t state)
 #endif
 		   ) | clkgate[2], CRU_CLKGATE2_CON);
 	cru_writel(~0, CRU_CLKGATE3_CON);
-	printch('1');
+	sram_printch('1');
 
 	mode = cru_readl(CRU_MODE_CON);
 	clksel0 = cru_readl(CRU_CLKSEL0_CON);
@@ -406,7 +417,7 @@ static int rk29_pm_enter(suspend_state_t state)
 	delay_500ns();
 	/* set core = aclk_cpu = hclk_cpu = pclk_cpu = 24MHz */
 	cru_writel(clksel0 & 0xFFFFF000, CRU_CLKSEL0_CON);
-	printch('2');
+	sram_printch('2');
 
 	/* suspend codec pll */
 	cpll = cru_readl(CRU_CPLL_CON);
@@ -414,7 +425,7 @@ static int rk29_pm_enter(suspend_state_t state)
 	cru_writel(cpll | PLL_BYPASS, CRU_CPLL_CON);
 	cru_writel(cpll | PLL_PD | PLL_BYPASS, CRU_CPLL_CON);
 	delay_500ns();
-	printch('3');
+	sram_printch('3');
 
 	/* suspend general pll */
 	gpll = cru_readl(CRU_GPLL_CON);
@@ -425,9 +436,11 @@ static int rk29_pm_enter(suspend_state_t state)
 	/* set aclk_periph = hclk_periph = pclk_periph = 24MHz */
 	cru_writel(clksel0 & ~0x7FC000, CRU_CLKSEL0_CON);
 
-	printch('4');
+	sram_printch('4');
+	pm_gpio_suspend();
 	rk29_suspend();
-	printch('4');
+	pm_gpio_resume();
+	sram_printch('4');
 	
 	/* resume general pll */
 	cru_writel(gpll, CRU_GPLL_CON);
@@ -435,13 +448,13 @@ static int rk29_pm_enter(suspend_state_t state)
 	/* restore aclk_periph/hclk_periph/pclk_periph */
 	cru_writel(cru_readl(CRU_CLKSEL0_CON) | (clksel0 & 0x7FC000), CRU_CLKSEL0_CON);
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_GENERAL_MODE_MASK) | (mode & CRU_GENERAL_MODE_MASK), CRU_MODE_CON);
-	printch('3');
+	sram_printch('3');
 
 	/* resume codec pll */
 	cru_writel(cpll, CRU_CPLL_CON);
 	delay_300us();
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CODEC_MODE_MASK) | (mode & CRU_CODEC_MODE_MASK), CRU_MODE_CON);
-	printch('2');
+	sram_printch('2');
 
 	/* resume arm pll */
 	cru_writel(apll, CRU_APLL_CON);
@@ -449,14 +462,14 @@ static int rk29_pm_enter(suspend_state_t state)
 	/* restore core/aclk_cpu/hclk_cpu/pclk_cpu */
 	cru_writel(cru_readl(CRU_CLKSEL0_CON) | (clksel0 & 0xFFF), CRU_CLKSEL0_CON);
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | (mode & CRU_CPU_MODE_MASK), CRU_MODE_CON);
-	printch('1');
+	sram_printch('1');
 
 	/* enable clock */
 	cru_writel(clkgate[0], CRU_CLKGATE0_CON);
 	cru_writel(clkgate[1], CRU_CLKGATE1_CON);
 	cru_writel(clkgate[2], CRU_CLKGATE2_CON);
 	cru_writel(clkgate[3], CRU_CLKGATE3_CON);
-	printascii("0\n");
+	sram_printascii("0\n");
 
 	dump_irq();
 	return 0;

@@ -40,23 +40,32 @@
 #include <linux/timer.h>
 #include <mach/rk29-ipp.h>
 #include <linux/time.h>
+#include <asm/cacheflush.h>
 
 //#define IPP_TEST
 #ifdef IPP_TEST
-#include <asm/cacheflush.h>
-struct delayed_work d_work;
 
+struct delayed_work d_work;
+static DECLARE_WAIT_QUEUE_HEAD(test_queue);
+int test_condition;
 static struct timeval hw_set;
 static struct timeval irq_ret;
 static struct timeval irq_done;
 static struct timeval wait_done;
+
+ktime_t hw_start; 
+ktime_t hw_end;
+ktime_t irq_start; 
+ktime_t irq_end;
+
 #endif
+
 
 struct ipp_drvdata {
   	struct miscdevice miscdev;
   	struct device dev;
-	void *ipp_base;
 	struct ipp_regs regs;
+	void *ipp_base;
 	int irq0;
 
 	struct clk *pd_display;
@@ -70,14 +79,25 @@ struct ipp_drvdata {
 	struct clk *ahb_clk;
 	
 	struct mutex	mutex;	// mutex
+	
+	struct delayed_work power_off_work;
+	wait_queue_head_t ipp_wait;                 
+	atomic_t ipp_event;
+	bool issync;         						//sync or async
+	bool enable;        						//clk enable or disable
+	int ipp_result;      						//0:success
+	void (*ipp_irq_callback)(int ipp_retval);   //callback function used by aync call
 };
 
 static struct ipp_drvdata *drvdata = NULL;
 
-static DECLARE_WAIT_QUEUE_HEAD(wait_queue);
-static volatile int wq_condition = 0;
+static DECLARE_WAIT_QUEUE_HEAD(hw_wait_queue);
+static volatile int wq_condition = 1;                //0:interact with hardware
+static DECLARE_WAIT_QUEUE_HEAD(blit_wait_queue);     
+static volatile int idle_condition = 1;              //1:idel, 0:busy
 
 /* Context data (unique) */
+
 struct ipp_context
 {
 	struct ipp_drvdata	*data;	// driver data
@@ -88,8 +108,7 @@ struct ipp_context
 };
 
 #define IPP_MAJOR		232
-#define RK_IPP_BLIT 	0x5017
-#define RK_IPP_SYNC   	0x5018
+
 
 #define RK29_IPP_PHYS	0x10110000
 #define RK29_IPP_SIZE	SZ_16K
@@ -114,10 +133,6 @@ struct ipp_context
 #define WARNING(format, args...)
 #define INFO(format, args...)
 #endif
-
-
-
-
 
 
 static inline void ipp_write( uint32_t b, uint32_t r)
@@ -150,68 +165,160 @@ static void ipp_soft_reset(void)
 		ERR("soft reset timeout.\n");
 }
 
-int ipp_do_blit(struct rk29_ipp_req *req)
+static void ipp_power_on(void)
 {
-	uint32_t rotate;
-	uint32_t pre_scale 	= 0;
-	uint32_t post_scale = 0;
-	uint32_t pre_scale_w, pre_scale_h;//pre_scale para
-	uint32_t post_scale_w = 0x1000;
-	uint32_t post_scale_h = 0x1000;
-	uint32_t pre_scale_output_w=0, pre_scale_output_h=0;//pre_scale的输出宽高
-	uint32_t post_scale_input_w, post_scale_input_h;//post_scale的输入宽高
-	uint32_t dst0_YrgbMst=0,dst0_CbrMst=0;
-	uint32_t ret = 0;
-	uint32_t deinterlace_config = 0;
-	int wait_ret;
+	//printk("ipp_power_on\n");
+	cancel_delayed_work_sync(&drvdata->power_off_work);
+	if (drvdata->enable)
+		return;
+	clk_enable(drvdata->pd_display);
+	clk_enable(drvdata->aclk_lcdc);
+	clk_enable(drvdata->hclk_lcdc);
+	clk_enable(drvdata->aclk_ddr_lcdc);
+	clk_enable(drvdata->hclk_cpu_display);
+	clk_enable(drvdata->aclk_disp_matrix);
+	clk_enable(drvdata->hclk_disp_matrix);
+	clk_enable(drvdata->axi_clk);
+	clk_enable(drvdata->ahb_clk);
 
-	mutex_lock(&drvdata->mutex);
+	drvdata->enable = true;
+}
+
+
+static void ipp_power_off(struct work_struct *work)
+{
+	//printk("ipp_power_off\n");
+	if(!drvdata->enable)
+		return;
+	clk_disable(drvdata->pd_display);
+	clk_disable(drvdata->aclk_lcdc);
+	clk_disable(drvdata->hclk_lcdc);
+	clk_disable(drvdata->aclk_ddr_lcdc);
+	clk_disable(drvdata->hclk_cpu_display);
+	clk_disable(drvdata->aclk_disp_matrix);
+	clk_disable(drvdata->hclk_disp_matrix);
+	clk_disable(drvdata->axi_clk);
+	clk_disable(drvdata->ahb_clk);
+
+	drvdata->enable = false;
+}
+
+static unsigned int ipp_poll(struct file *filep, poll_table *wait)
+{
+	//printk("ipp_poll\n");
 	
-	if (drvdata == NULL) {			/* ddl@rock-chips.com : check driver is normal or not */
-		//printk(KERN_ERR, "%s drvdata is NULL, IPP driver probe is fail!!\n", __FUNCTION__);
-		printk("%s drvdata is NULL, IPP driver probe is fail!!\n", __FUNCTION__);
-		return -EPERM;
+	poll_wait(filep, &drvdata->ipp_wait, wait);
+
+	if (atomic_read(&drvdata->ipp_event))
+	{
+		atomic_set(&drvdata->ipp_event, 0);
+		return POLLIN | POLLRDNORM;
 	}
+	return 0;
+}
 
+static void ipp_blit_complete(int retval)
+{
 
+	uint32_t event = IPP_BLIT_COMPLETE_EVENT;
+	//printk("ipp_blit_complete\n");
+
+	atomic_set(&drvdata->ipp_event, event);
+	wake_up_interruptible(&drvdata->ipp_wait);
+}
+
+static int ipp_get_result(unsigned long arg)
+{
+	//printk("ipp_get_result %d\n",drvdata->ipp_result);
+	int ret =0;
+	
+	if (unlikely(copy_to_user((void __user *)arg, &drvdata->ipp_result, sizeof(int)))) {
+			printk("copy_to_user failed\n");
+			ERR("copy_to_user failed\n");
+			ret =  -EFAULT;	
+		}
+	idle_condition = 1;
+	//dmac_clean_range((const void*)&idle_condition,(const void*)&idle_condition+4);
+	wake_up_interruptible_sync(&blit_wait_queue);
+	return ret;
+}
+
+int ipp_check_param(const struct rk29_ipp_req *req)
+{
 	/*IPP can support up to 8191*8191 resolution in RGB format,but we limit the image size to 8190*8190 here*/
 	//check src width and height
 	if (unlikely((req->src0.w <16) || (req->src0.w > 8190) || (req->src0.h < 16) || (req->src0.h > 8190))) {
 		ERR("invalid source resolution\n");
-		ret = -EINVAL;
-		goto erorr_input;
+		return  -EINVAL;
 	}
 
 	//check dst width and height
 	if (unlikely((req->dst0.w <16) || (req->dst0.w > 2047) || (req->dst0.h < 16) || (req->dst0.h > 2047))) {
 		ERR("invalid destination resolution\n");
-		ret = -EINVAL;
-		goto erorr_input;
+		return	-EINVAL;
 	}
 
 	//check src address
 	if (unlikely(req->src0.YrgbMst== 0) )
 	{
 		ERR("could not retrieve src image from memory\n");
-		ret = -EINVAL;
-		goto erorr_input;
+		return	-EINVAL;
 	}
 
 	//check src address
 	if (unlikely(req->dst0.YrgbMst== 0) )
 	{
 		ERR("could not retrieve dst image from memory\n");
-		ret = -EINVAL;
-		goto erorr_input;
+		return	-EINVAL;
 	}
+	
 	//check rotate degree
 	if(req->flag >= IPP_ROT_LIMIT)
 	{
-	    ERR("rk29_ipp is not surpport rot degree!!!!\n");
-		ret =  -EINVAL;
-		goto erorr_input;
+		ERR("rk29_ipp is not surpport rot degree!!!!\n");
+		return	-EINVAL;
+	}
+	return 0;
+}
+
+int ipp_blit(const struct rk29_ipp_req *req)
+{
+	
+	uint32_t rotate;
+	uint32_t pre_scale	= 0;
+	uint32_t post_scale = 0;
+	uint32_t pre_scale_w, pre_scale_h;//pre_scale para
+	uint32_t post_scale_w = 0x1000;
+	uint32_t post_scale_h = 0x1000;
+	uint32_t pre_scale_output_w=0, pre_scale_output_h=0;//pre_scale output with&height
+	uint32_t post_scale_input_w, post_scale_input_h;//post_scale input width&height
+	uint32_t dst0_YrgbMst=0,dst0_CbrMst=0;
+	uint32_t ret = 0;
+	uint32_t deinterlace_config = 0;
+
+	//printk("ipp_blit\n");
+	if (drvdata == NULL) {			/* ddl@rock-chips.com : check driver is normal or not */
+		printk("%s drvdata is NULL, IPP driver probe is fail!!\n", __FUNCTION__);
+		return -EPERM;
 	}
 
+	drvdata->ipp_result = -1;
+
+	//When ipp_blit_async is called in kernel space req->complete should NOt be NULL, otherwise req->complete should be NULL
+	if(req->complete)
+	{
+		drvdata->ipp_irq_callback = req->complete;
+	}
+	else
+	{
+		drvdata->ipp_irq_callback = ipp_blit_complete;
+	}
+
+	ret = ipp_check_param(req);
+	if(ret ==  -EINVAL)
+	{
+		goto erorr_input;
+	}
 	
 	rotate = req->flag;
 	switch (rotate) {
@@ -236,8 +343,8 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 			break;
 
 		case IPP_Y_CBCR_H2V1:
-			dst0_YrgbMst =  req->dst0.YrgbMst + req->dst0.w;
-			dst0_CbrMst  =  req->dst0.CbrMst + req->dst0.w*2;
+			dst0_YrgbMst =	req->dst0.YrgbMst + req->dst0.w;
+			dst0_CbrMst  =	req->dst0.CbrMst + req->dst0.w*2;
 			break;
 
 		case IPP_Y_CBCR_H2V2:
@@ -257,28 +364,28 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 		switch(req->src0.fmt)
 		{
 		case IPP_XRGB_8888:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w*4+req->dst0.w*4;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w*4+req->dst0.w*4;
 			dst0_CbrMst  = req->dst0.CbrMst;
 			break;
 
 		case IPP_RGB_565:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w*2+req->dst0.w*2;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w*2+req->dst0.w*2;
 			dst0_CbrMst  = req->dst0.CbrMst;
 			break;
 
 		case IPP_Y_CBCR_H1V1:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w+req->dst0.w;
-			dst0_CbrMst  =  req->dst0.CbrMst+(req->dst0.h-1)*req->dst_vir_w*2+req->dst0.w*2;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w+req->dst0.w;
+			dst0_CbrMst  =	req->dst0.CbrMst+(req->dst0.h-1)*req->dst_vir_w*2+req->dst0.w*2;
 			break;
 
 		case IPP_Y_CBCR_H2V1:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w+req->dst0.w;
-			dst0_CbrMst  =  req->dst0.CbrMst+(req->dst0.h-1)*req->dst_vir_w+req->dst0.w;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w+req->dst0.w;
+			dst0_CbrMst  =	req->dst0.CbrMst+(req->dst0.h-1)*req->dst_vir_w+req->dst0.w;
 			break;
 
 		case IPP_Y_CBCR_H2V2:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w+req->dst0.w;
-			dst0_CbrMst  =  req->dst0.CbrMst+((req->dst0.h/2)-1)*req->dst_vir_w+req->dst0.w;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w+req->dst0.w;
+			dst0_CbrMst  =	req->dst0.CbrMst+((req->dst0.h/2)-1)*req->dst_vir_w+req->dst0.w;
 			break;
 
 		default:
@@ -291,28 +398,28 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 		switch(req->src0.fmt)
 		{
 		case IPP_XRGB_8888:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w*4;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w*4;
 			dst0_CbrMst  = req->dst0.CbrMst;
 			break;
 
 		case IPP_RGB_565:
-			dst0_YrgbMst =  req->dst0.YrgbMst +(req->dst0.h-1)*req->dst_vir_w*2;
+			dst0_YrgbMst =	req->dst0.YrgbMst +(req->dst0.h-1)*req->dst_vir_w*2;
 			dst0_CbrMst  = req->dst0.CbrMst;
 			break;
 
 		case IPP_Y_CBCR_H1V1:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w;
-			dst0_CbrMst  =  req->dst0.CbrMst+(req->dst0.h-1)*req->dst_vir_w*2;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w;
+			dst0_CbrMst  =	req->dst0.CbrMst+(req->dst0.h-1)*req->dst_vir_w*2;
 			break;
 
 		case IPP_Y_CBCR_H2V1:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w;
-			dst0_CbrMst  =  req->dst0.CbrMst+(req->dst0.h-1)*req->dst_vir_w*2;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w;
+			dst0_CbrMst  =	req->dst0.CbrMst+(req->dst0.h-1)*req->dst_vir_w*2;
 			break;
 
 		case IPP_Y_CBCR_H2V2:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w;
-			dst0_CbrMst  =  req->dst0.CbrMst+((req->dst0.h/2)-1)*req->dst_vir_w;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w;
+			dst0_CbrMst  =	req->dst0.CbrMst+((req->dst0.h/2)-1)*req->dst_vir_w;
 			break;
 
 		default:
@@ -325,28 +432,28 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 		switch(req->src0.fmt)
 		{
 		case IPP_XRGB_8888:
-			dst0_YrgbMst =  req->dst0.YrgbMst+req->dst0.w*4;
+			dst0_YrgbMst =	req->dst0.YrgbMst+req->dst0.w*4;
 			dst0_CbrMst  = req->dst0.CbrMst;
 			break;
 
 		case IPP_RGB_565:
-			dst0_YrgbMst =  req->dst0.YrgbMst+req->dst0.w*2;
+			dst0_YrgbMst =	req->dst0.YrgbMst+req->dst0.w*2;
 			dst0_CbrMst  = req->dst0.CbrMst;
 			break;
 
 		case IPP_Y_CBCR_H1V1:
-			dst0_YrgbMst =  req->dst0.YrgbMst+req->dst0.w;
-			dst0_CbrMst  =  req->dst0.CbrMst+req->dst0.w*2;
+			dst0_YrgbMst =	req->dst0.YrgbMst+req->dst0.w;
+			dst0_CbrMst  =	req->dst0.CbrMst+req->dst0.w*2;
 			break;
 
 		case IPP_Y_CBCR_H2V1:
-			dst0_YrgbMst =  req->dst0.YrgbMst+req->dst0.w;
-			dst0_CbrMst  =  req->dst0.CbrMst+req->dst0.w;
+			dst0_YrgbMst =	req->dst0.YrgbMst+req->dst0.w;
+			dst0_CbrMst  =	req->dst0.CbrMst+req->dst0.w;
 			break;
 
 		case IPP_Y_CBCR_H2V2:
-			dst0_YrgbMst =  req->dst0.YrgbMst+req->dst0.w;
-			dst0_CbrMst  =  req->dst0.CbrMst+req->dst0.w;
+			dst0_YrgbMst =	req->dst0.YrgbMst+req->dst0.w;
+			dst0_CbrMst  =	req->dst0.CbrMst+req->dst0.w;
 			break;
 
 		default:
@@ -360,27 +467,27 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 		switch(req->src0.fmt)
 		{
 		case IPP_XRGB_8888:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w*4;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w*4;
 			dst0_CbrMst  = req->dst0.CbrMst;
 			break;
 
 		case IPP_RGB_565:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w*2;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w*2;
 			dst0_CbrMst  = req->dst0.CbrMst;
 			break;
 
 		case IPP_Y_CBCR_H1V1:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w;
 			dst0_CbrMst = req->dst0.CbrMst+(req->dst0.h-1)*req->dst_vir_w*2;
 			break;
 
 		case IPP_Y_CBCR_H2V1:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w;
 			dst0_CbrMst = req->dst0.CbrMst+(req->dst0.h-1)*req->dst_vir_w;
 			break;
 
 		case IPP_Y_CBCR_H2V2:
-			dst0_YrgbMst =  req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w;
+			dst0_YrgbMst =	req->dst0.YrgbMst+(req->dst0.h-1)*req->dst_vir_w;
 			dst0_CbrMst = req->dst0.CbrMst+((req->dst0.h/2)-1)*req->dst_vir_w;
 			break;
 
@@ -392,7 +499,7 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 	case IPP_ROT_0:
 		//for  0 degree
 		DBG("rotate %d, src0.fmt %d",rotate,req->src0.fmt);
-		dst0_YrgbMst =  req->dst0.YrgbMst;
+		dst0_YrgbMst =	req->dst0.YrgbMst;
 		dst0_CbrMst  = req->dst0.CbrMst;
 	break;
 
@@ -400,112 +507,17 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 		ERR("ipp is not surpport degree!!\n" );
 		break;
 	}
-
-	//enable clk
-	if(drvdata->pd_display)
-	{
-		clk_enable(drvdata->pd_display);
-	}
-	else
-	{
-		printk("pd_display is null \n");
-		ret =  -EINVAL;
-		goto error_pd_display;
-	}
 	
-	if(drvdata->aclk_lcdc)
-	{
-		clk_enable(drvdata->aclk_lcdc);
-	}
-	else
-	{
-		printk("aclk_lcdc is null \n");
-		ret =  -EINVAL;
-		goto error_aclk_lcdc;
-	}
+	//we start to interact with hw now
+	wq_condition = 0;
 
-	if(drvdata->hclk_lcdc)
-	{
-		clk_enable(drvdata->hclk_lcdc);
-	}
-	else
-	{
-		printk("hclk_lcdc is null \n");
-		ret =  -EINVAL;
-		goto error_hclk_lcdc;
-	}
-
-	if(drvdata->aclk_ddr_lcdc)
-	{
-		clk_enable(drvdata->aclk_ddr_lcdc);
-	}
-	else
-	{
-		printk("aclk_ddr_lcdc is null \n");
-		ret =  -EINVAL;
-		goto error_aclk_ddr_lcdc;
-	}
+	ipp_power_on();
 	
-	if(drvdata->hclk_cpu_display)
-	{
-		clk_enable(drvdata->hclk_cpu_display);
-	}
-	else
-	{
-		printk("hclk_cpu_display is null \n");
-		ret =  -EINVAL;
-		goto error_hclk_cpu_display;
-	}
 	
-	if(drvdata->aclk_disp_matrix)
-	{
-		clk_enable(drvdata->aclk_disp_matrix);
-	}
-	else
-	{
-		printk("aclk_disp_matrix is null \n");
-		ret =  -EINVAL;
-		goto error_aclk_disp_matrix;
-	}
-
-	if(drvdata->hclk_disp_matrix)
-	{
-		clk_enable(drvdata->hclk_disp_matrix);
-	}
-	else
-	{
-		printk("hclk_disp_matrix is null \n");
-		ret =  -EINVAL;
-		goto error_hclk_disp_matrix;
-	}
-	
-	if(drvdata->axi_clk)
-	{
-		clk_enable(drvdata->axi_clk);
-	}
-	else
-	{
-		printk("axi_clk is null \n");
-		ret =  -EINVAL;
-		goto error_axi_clk;
-	}
-
-	if(drvdata->ahb_clk)
-	{
-		clk_enable(drvdata->ahb_clk);
-	}
-	else
-	{
-		printk("ahb_clk is null \n");
-		ret = -EINVAL;
-		goto error_ahb_clk;
-	}
-	//enable clk end
-
 	//check if IPP is idle
 	if(((ipp_read(IPP_INT)>>6)&0x3) !=0)// idle
 	{
-		printk("IPP staus is not idle,can noe set register\n");
+		printk("IPP staus is not idle,can not set register\n");
 		goto error_status;
 	}
 
@@ -542,7 +554,7 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 	}
 	else //other degree
 	{
-	 	pre_scale = ((req->dst0.w < req->src0.w) ? 1 : 0)||((req->dst0.h < req->src0.h) ? 1 : 0);
+		pre_scale = ((req->dst0.w < req->src0.w) ? 1 : 0)||((req->dst0.h < req->src0.h) ? 1 : 0);
 	}
 
 	if(pre_scale)
@@ -618,7 +630,7 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 			}
 		}
 			
-		if((req->src0.w%pre_scale_w)!=0) //向上取整 ceil
+		if((req->src0.w%pre_scale_w)!=0) //ceil
 		{
 			pre_scale_output_w = req->src0.w/pre_scale_w+1;
 		}
@@ -627,9 +639,9 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 			pre_scale_output_w = req->src0.w/pre_scale_w;
 		}
 
-		if((req->src0.h%pre_scale_h)!=0)//向上取整 ceil
+		if((req->src0.h%pre_scale_h)!=0)//ceil
 		{
-			pre_scale_output_h  = req->src0.h/pre_scale_h +1;
+			pre_scale_output_h	= req->src0.h/pre_scale_h +1;
 		}
 		else
 		{
@@ -650,9 +662,9 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 	/*Configure Post_scale*/
 	if((IPP_ROT_90 == rotate) || (IPP_ROT_270 == rotate))
 	{
-		if (( (req->src0.h%req->dst0.w)!=0)||( (req->src0.w%req->dst0.h)!= 0)//小数倍缩小
-			||((req->src0.h/req->dst0.w)>8)||((req->src0.h%req->dst0.w)>8)	 //缩小系数大于8
-			||(req->dst0.w > req->src0.h)  ||(req->dst0.h > req->src0.w))    //放大
+		if (( (req->src0.h%req->dst0.w)!=0)||( (req->src0.w%req->dst0.h)!= 0)//non-interger down-scaling 
+			||((req->src0.h/req->dst0.w)>8)||((req->src0.h%req->dst0.w)>8)	 //down-scaling ratio > 8
+			||(req->dst0.w > req->src0.h)  ||(req->dst0.h > req->src0.w))	 //up-scaling
 							
 		{
 			post_scale = 1;
@@ -664,9 +676,9 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 	}
 	else  //0 180 x-flip y-flip
 	{
-		if (( (req->src0.w%req->dst0.w)!=0)||( (req->src0.h%req->dst0.h)!= 0)//小数倍缩小
-		    ||((req->src0.w/req->dst0.w)>8)||((req->src0.h%req->dst0.h)>8)	 //缩小系数大于8
-			||(req->dst0.w > req->src0.w)  ||(req->dst0.h > req->src0.h))    //放大
+		if (( (req->src0.w%req->dst0.w)!=0)||( (req->src0.h%req->dst0.h)!= 0)//non-interger down-scaling 
+			||((req->src0.w/req->dst0.w)>8)||((req->src0.h%req->dst0.h)>8)	 //down-scaling ratio > 8
+			||(req->dst0.w > req->src0.w)  ||(req->dst0.h > req->src0.h))	 //up-scaling
 		{
 			post_scale = 1;
 		}
@@ -700,31 +712,31 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 			case IPP_Y_CBCR_H1V1:
 				//In horiaontial scale case, the factor must be minus 1 if the result of the factor is integer
 				 if(((4096*(post_scale_input_w-1))%(req->dst0.h-1))==0)
-			 	 {
+				 {
 					post_scale_w = (uint32_t)(4096*(post_scale_input_w-1)/(req->dst0.h-1))-1;
-			 	 }
+				 }
 				 else
 				 {
-				 	 post_scale_w = (uint32_t)(4096*(post_scale_input_w-1)/(req->dst0.h-1));
+					 post_scale_w = (uint32_t)(4096*(post_scale_input_w-1)/(req->dst0.h-1));
 				 }
-	             break;
+				 break;
 
 			case IPP_Y_CBCR_H2V1:
 			case IPP_Y_CBCR_H2V2:
 				//In horiaontial scale case, the factor must be minus 1 if the result of the factor is integer
 				 if(((4096*(post_scale_input_w/2-1))%(req->dst0.h/2-1))==0)
-			 	 {
+				 {
 					post_scale_w = (uint32_t)(4096*(post_scale_input_w/2-1)/(req->dst0.h/2-1))-1;
-			 	 }
+				 }
 				 else
 				 {
-				 	 post_scale_w = (uint32_t)(4096*(post_scale_input_w/2-1)/(req->dst0.h/2-1));
+					 post_scale_w = (uint32_t)(4096*(post_scale_input_w/2-1)/(req->dst0.h/2-1));
 				 }
-	           	 break;
+				 break;
 
 			default:
 				break;
-	        }
+			}
 			post_scale_h = (uint32_t)(4096*(post_scale_input_h -1)/(req->dst0.w-1));
 
 			DBG("1111 post_scale_w %x,post_scale_h %x!!! \n",post_scale_w,post_scale_h);
@@ -738,36 +750,36 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 			case IPP_Y_CBCR_H1V1:
 				//In horiaontial scale case, the factor must be minus 1 if the result of the factor is integer
 				 if(((4096*(post_scale_input_w-1))%(req->dst0.w-1))==0)
-			 	 {
+				 {
 					post_scale_w = (uint32_t)(4096*(post_scale_input_w-1)/(req->dst0.w-1))-1;
-			 	 }
+				 }
 				 else
 				 {
-				 	 post_scale_w = (uint32_t)(4096*(post_scale_input_w-1)/(req->dst0.w-1));
+					 post_scale_w = (uint32_t)(4096*(post_scale_input_w-1)/(req->dst0.w-1));
 				 }
-	             break;
+				 break;
 
 			case IPP_Y_CBCR_H2V1:
 			case IPP_Y_CBCR_H2V2:
 				////In horiaontial scale case, the factor must be minus 1 if the result of the factor is integer
 				 if(((4096*(post_scale_input_w/2-1))%(req->dst0.w/2-1))==0)
-			 	 {
+				 {
 					post_scale_w = (uint32_t)(4096*(post_scale_input_w/2-1)/(req->dst0.w/2-1))-1;
-			 	 }
+				 }
 				 else
 				 {
-				 	 post_scale_w = (uint32_t)(4096*(post_scale_input_w/2-1)/(req->dst0.w/2-1));
+					 post_scale_w = (uint32_t)(4096*(post_scale_input_w/2-1)/(req->dst0.w/2-1));
 				 }
-	           	 break;
+				 break;
 
 			default:
 				break;
-	        }
+			}
 			post_scale_h = (uint32_t)(4096*(post_scale_input_h -1)/(req->dst0.h-1));
 
 		}
 
-		if(!((req->src0.fmt != IPP_Y_CBCR_H2V1)&&(req->src0.w == 176)&&(req->src0.h == 144)&&(req->dst0.w == 480)&&(req->src0.h == 800)))
+		if(!((req->src0.fmt != IPP_Y_CBCR_H2V1)&&(req->src0.w == 176)&&(req->src0.h == 144)&&(req->dst0.w == 480)&&(req->dst0.h == 800)))
 		{	
 			//only support 1/2 to 4 times scaling,but 176*144->480*800 can pass
 			if(post_scale_w<0x3ff || post_scale_w>0x1fff || post_scale_h<0x400 || post_scale_h>0x2000 )
@@ -795,7 +807,7 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 	else
 	{
 		ipp_write(ipp_read(IPP_CONFIG)|ROT_ENABLE, IPP_CONFIG);
-	 	ipp_write(ipp_read(IPP_CONFIG)|rotate<<5, IPP_CONFIG);
+		ipp_write(ipp_read(IPP_CONFIG)|rotate<<5, IPP_CONFIG);
 	}
 
 	/*Configure deinterlace*/
@@ -814,8 +826,7 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 					deinterlace_config = (req->deinterlace_enable<<24) | (req->deinterlace_para0<<19) | (req->deinterlace_para1<<14) | (req->deinterlace_para2<<9);
 					DBG("para0 %d, para1 %d, para2 %d,deinterlace_config  %x\n",req->deinterlace_para0,req->deinterlace_para1,req->deinterlace_para2,deinterlace_config);
 					ipp_write((ipp_read(IPP_CONFIG)&0xFE0001FF)|deinterlace_config, IPP_CONFIG);
-
-					printk("IPP_CONFIG2 = 0x%x\n",ipp_read(IPP_CONFIG));
+					//printk("IPP_CONFIG2 = 0x%x\n",ipp_read(IPP_CONFIG));
 				}
 				else
 				{
@@ -836,149 +847,160 @@ int ipp_do_blit(struct rk29_ipp_req *req)
 	ipp_write(ipp_read(IPP_CONFIG)|(1<<26), IPP_CONFIG);//store clip mode
 
 	/* Start the operation */
-
 	ipp_write(8, IPP_INT);//
-
-	//msleep(5000);//debug use
-
-	wq_condition = 0;
+	
 	dsb();
-#ifdef IPP_TEST
-	memset(&hw_set,0,sizeof(struct timeval));
-	memset(&irq_ret,0,sizeof(struct timeval));
-	memset(&irq_done,0,sizeof(struct timeval));
-	memset(&wait_done,0,sizeof(struct timeval));
-	do_gettimeofday(&hw_set);
-#endif
-
 	ipp_write(1, IPP_PROCESS_ST);
-	//Important!Without msleep,ipp driver may occupy too much CPU,this can lead the ipp interrupt to timeout
-	msleep(1);
-
-	wait_ret = wait_event_interruptible_timeout(wait_queue, wq_condition, msecs_to_jiffies(req->timeout));
-
-#ifdef IPP_TEST
-	do_gettimeofday(&wait_done);
-	if ((((irq_ret.tv_sec - hw_set.tv_sec) * 1000 + (irq_ret.tv_usec - hw_set.tv_usec) / 1000) > 10) ||
-		(((wait_done.tv_sec - irq_done.tv_sec) * 1000 + (wait_done.tv_usec - irq_done.tv_usec) / 1000) > 10)) {
-		printk("hw time: %8d irq time %8d\n",
-			((irq_ret.tv_sec - hw_set.tv_sec) * 1000 + (irq_ret.tv_usec - hw_set.tv_usec) / 1000),
-			((wait_done.tv_sec - irq_done.tv_sec) * 1000 + (wait_done.tv_usec - irq_done.tv_usec) / 1000));
-	}
-#endif
 	
-
-	if (wait_ret <= 0)
-	{
-		printk("%s wait_event_timeout \n",__FUNCTION__);
-
 #ifdef IPP_TEST
-		//print all register's value
-		printk("wait_ret: %d\n", wait_ret);
-		printk("wq_condition: %d\n", wq_condition);
-		printk("IPP_CONFIG: %x\n",ipp_read(IPP_CONFIG));
-		printk("IPP_SRC_IMG_INFO: %x\n",ipp_read(IPP_SRC_IMG_INFO));
-		printk("IPP_DST_IMG_INFO: %x\n",ipp_read(IPP_DST_IMG_INFO));
-		printk("IPP_IMG_VIR: %x\n",ipp_read(IPP_IMG_VIR));
-		printk("IPP_INT: %x\n",ipp_read(IPP_INT));
-		printk("IPP_SRC0_Y_MST: %x\n",ipp_read(IPP_SRC0_Y_MST));
-		printk("IPP_SRC0_CBR_MST: %x\n",ipp_read(IPP_SRC0_CBR_MST));
-		printk("IPP_SRC1_Y_MST: %x\n",ipp_read(IPP_SRC1_Y_MST));
-		printk("IPP_SRC1_CBR_MST: %x\n",ipp_read(IPP_SRC1_CBR_MST));
-		printk("IPP_DST0_Y_MST: %x\n",ipp_read(IPP_DST0_Y_MST));
-		printk("IPP_DST0_CBR_MST: %x\n",ipp_read(IPP_DST0_CBR_MST));
-		printk("IPP_DST1_Y_MST: %x\n",ipp_read(IPP_DST1_Y_MST));
-		printk("IPP_DST1_CBR_MST: %x\n",ipp_read(IPP_DST1_CBR_MST));
-		printk("IPP_PRE_SCL_PARA: %x\n",ipp_read(IPP_PRE_SCL_PARA));
-		printk("IPP_POST_SCL_PARA: %x\n",ipp_read(IPP_POST_SCL_PARA));
-		printk("IPP_SWAP_CTRL: %x\n",ipp_read(IPP_SWAP_CTRL));
-		printk("IPP_PRE_IMG_INFO: %x\n",ipp_read(IPP_PRE_IMG_INFO));
-		printk("IPP_AXI_ID: %x\n",ipp_read(IPP_AXI_ID));
-		printk("IPP_SRESET: %x\n",ipp_read(IPP_SRESET));
-		printk("IPP_PROCESS_ST: %x\n",ipp_read(IPP_PROCESS_ST));
+	hw_start = ktime_get(); 
+#endif	
 
-		while(1)
-		{
-
-		}
-#endif
-		
-		wq_condition = 0;
-		if(!drvdata)
-		{
-	        printk("close clk 0! \n");
-	        ret = -EINVAL;
-			goto error_null;
-	    }
-		ret =  -EAGAIN;
-		goto error_timeout;
-	}
+    goto error_noerror;
 
 
-	if(!drvdata)
-	{
-        printk("close clk! \n");
-        ret =  -EINVAL;
-		goto error_null;
-    }
-
-	if(((ipp_read(IPP_INT)>>6)&0x3) ==0)// idle
-	{
-		goto error_noerror;
-	}
-	else
-	{
-		printk("rk29 ipp status is error!!!\n");
-		ret =  -EINVAL;
-		goto error_timeout;
-	}
-	
 error_status:
 error_scale:
-error_null:
-error_timeout:
-	//soft rest
 	ipp_soft_reset();
-error_noerror:
-	clk_disable(drvdata->ahb_clk);
-error_ahb_clk:
-	clk_disable(drvdata->axi_clk);
-error_axi_clk:	
-	clk_disable(drvdata->hclk_disp_matrix);
-error_hclk_disp_matrix:
-	clk_disable(drvdata->aclk_disp_matrix);
-error_aclk_disp_matrix:
-	clk_disable(drvdata->hclk_cpu_display);
-error_hclk_cpu_display:
-    clk_disable(drvdata->aclk_ddr_lcdc);
-error_aclk_ddr_lcdc:
-	clk_disable(drvdata->hclk_lcdc);
-error_hclk_lcdc:
-	clk_disable(drvdata->aclk_lcdc);
-error_aclk_lcdc:	
-	clk_disable(drvdata->pd_display);
-error_pd_display:
+	ipp_power_off(NULL);
 erorr_input:
-	mutex_unlock(&drvdata->mutex);
+error_noerror:
+	drvdata->ipp_result = ret;
 	return ret;
 }
 
-static int stretch_blit(struct ipp_context *ctx,  unsigned long arg )
+int ipp_blit_async(const struct rk29_ipp_req *req)
 {
-	struct ipp_drvdata *data = ctx->data;
-	int ret = 0;
+	int ret = -1;
+	//printk("ipp_blit_async *******************\n");
+	
+	//If IPP is busy now,wait until it becomes idle
+	mutex_lock(&drvdata->mutex);
+	{
+		dmac_inv_range((const void*)&idle_condition,(const void*)&idle_condition+4);
+		//printk("idle_condition = %d\n",idle_condition);
+		wait_event_interruptible(blit_wait_queue, idle_condition);
+		idle_condition = 0;
+		dmac_clean_range((const void*)&idle_condition,(const void*)&idle_condition+4);
+	}
+	mutex_unlock(&drvdata->mutex);
+
+	drvdata->issync = false;	
+	ret = ipp_blit(req);
+	
+	//printk("ipp_blit_async done******************\n");
+	return ret;
+}
+
+int ipp_blit_sync(const struct rk29_ipp_req *req)
+{
+	int status;
+	int wait_ret;
+
+	//printk("ipp_blit_sync -------------------\n");
+
+
+	////If IPP is busy now,wait until it becomes idle
+	mutex_lock(&drvdata->mutex);
+	{
+		dmac_inv_range((const void*)&idle_condition,(const void*)&idle_condition+4);
+		//printk("idle_condition = %d\n",idle_condition);
+		wait_event_interruptible(blit_wait_queue, idle_condition);
+		idle_condition = 0;
+		dmac_clean_range((const void*)&idle_condition,(const void*)&idle_condition+4);
+	}
+	mutex_unlock(&drvdata->mutex);
+
+	
+  	drvdata->issync = true;
+	drvdata->ipp_result = ipp_blit(req);
+   
+	if(drvdata->ipp_result == 0)
+	{
+		wait_ret = wait_event_interruptible_timeout(hw_wait_queue, wq_condition, msecs_to_jiffies(req->timeout));
+#ifdef IPP_TEST
+		irq_end = ktime_get(); 
+		irq_end = ktime_sub(irq_end,irq_start);
+		hw_end = ktime_sub(hw_end,hw_start);
+		if((((int)ktime_to_us(hw_end)/1000)>10)||(((int)ktime_to_us(irq_end)/1000)>10))
+		{
+			printk("hw time: %d ms, irq time: %d ms\n",(int)ktime_to_us(hw_end)/1000,(int)ktime_to_us(irq_end)/1000);
+		}
+#endif				
+		if (wait_ret <= 0)
+		{
+			printk("%s wait_ret=%d,wait_event_timeout \n",__FUNCTION__,wait_ret);
+	
+#ifdef IPP_TEST
+			//print all register's value
+			printk("wait_ret: %d\n", wait_ret);
+			printk("wq_condition: %d\n", wq_condition);
+			printk("IPP_CONFIG: %x\n",ipp_read(IPP_CONFIG));
+			printk("IPP_SRC_IMG_INFO: %x\n",ipp_read(IPP_SRC_IMG_INFO));
+			printk("IPP_DST_IMG_INFO: %x\n",ipp_read(IPP_DST_IMG_INFO));
+			printk("IPP_IMG_VIR: %x\n",ipp_read(IPP_IMG_VIR));
+			printk("IPP_INT: %x\n",ipp_read(IPP_INT));
+			printk("IPP_SRC0_Y_MST: %x\n",ipp_read(IPP_SRC0_Y_MST));
+			printk("IPP_SRC0_CBR_MST: %x\n",ipp_read(IPP_SRC0_CBR_MST));
+			printk("IPP_SRC1_Y_MST: %x\n",ipp_read(IPP_SRC1_Y_MST));
+			printk("IPP_SRC1_CBR_MST: %x\n",ipp_read(IPP_SRC1_CBR_MST));
+			printk("IPP_DST0_Y_MST: %x\n",ipp_read(IPP_DST0_Y_MST));
+			printk("IPP_DST0_CBR_MST: %x\n",ipp_read(IPP_DST0_CBR_MST));
+			printk("IPP_DST1_Y_MST: %x\n",ipp_read(IPP_DST1_Y_MST));
+			printk("IPP_DST1_CBR_MST: %x\n",ipp_read(IPP_DST1_CBR_MST));
+			printk("IPP_PRE_SCL_PARA: %x\n",ipp_read(IPP_PRE_SCL_PARA));
+			printk("IPP_POST_SCL_PARA: %x\n",ipp_read(IPP_POST_SCL_PARA));
+			printk("IPP_SWAP_CTRL: %x\n",ipp_read(IPP_SWAP_CTRL));
+			printk("IPP_PRE_IMG_INFO: %x\n",ipp_read(IPP_PRE_IMG_INFO));
+			printk("IPP_AXI_ID: %x\n",ipp_read(IPP_AXI_ID));
+			printk("IPP_SRESET: %x\n",ipp_read(IPP_SRESET));
+			printk("IPP_PROCESS_ST: %x\n",ipp_read(IPP_PROCESS_ST));
+	
+			while(1)
+			{
+	
+			}
+#endif
+			
+			ipp_soft_reset();
+		}
+
+		ipp_power_off(NULL);
+	}
+	drvdata->issync = false;
+
+
+	//IPP is idle, wake up the wait queue
+	//printk("ipp_blit_sync done ----------------\n");
+	status = drvdata->ipp_result;
+	idle_condition = 1;
+	wake_up_interruptible_sync(&blit_wait_queue);
+	
+	return status;
+}
+
+static int stretch_blit(/*struct ipp_context *ctx,*/  unsigned long arg ,unsigned int cmd)
+{
 	struct rk29_ipp_req req;
-
-	mutex_lock(&data->mutex);
-
+	int ret = 0;
+	
 	if (unlikely(copy_from_user(&req, (struct rk29_ipp_req*)arg,
 					sizeof(struct rk29_ipp_req)))) {
 		ERR("copy_from_user failed\n");
 		ret = -EFAULT;
 		goto err_noput;
 	}
-
-	ret = ipp_do_blit(&req);
+	
+	
+	if(cmd == IPP_BLIT_SYNC)
+	{
+		ret = ipp_blit_sync(&req);
+	}
+	else
+	{
+		ret = ipp_blit_async(&req);
+	}
+	
 	if(ret != 0) {
 		ERR("Failed to start IPP operation (%d)\n", ret);
 		goto err_noput;
@@ -986,22 +1008,23 @@ static int stretch_blit(struct ipp_context *ctx,  unsigned long arg )
 
 err_noput:
 
-	mutex_unlock(&data->mutex);
-
 	return ret;
 }
 
-static int ipp_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long ipp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 
-	struct ipp_context *ctx = (struct ipp_context *)file->private_data;
+	//struct ipp_context *ctx = (struct ipp_context *)file->private_data;
 	int ret = 0;
 	switch (cmd)
 	{
-		case RK_IPP_BLIT:
-			ret = stretch_blit(ctx, arg);
+		case IPP_BLIT_SYNC:
+		case IPP_BLIT_ASYNC:
+			ret = stretch_blit(/*ctx, */arg, cmd);
 			break;
-
+		case IPP_GET_RESULT:
+			ret = ipp_get_result(arg);
+			break;
 		default:
 			ERR("unknown ioctl cmd!\n");
 			ret = -EINVAL;
@@ -1033,6 +1056,22 @@ static int rk29_ipp_open(struct inode *inode, struct file *file)
 static int ipp_release(struct inode *inode, struct file *file)
 {
     struct ipp_context *ctx = (struct ipp_context *)file->private_data;
+	//printk("ipp_release\n");
+
+	//clear event
+	if(atomic_read(&drvdata->ipp_event))
+	{
+		atomic_set(&drvdata->ipp_event, 0);
+	}
+
+	//If app has not got the result after sending the request,the situation of idle_condition equals 1 will block the next request.
+	//so we must set idle_condition 1 here.
+	idle_condition = 1;
+	wq_condition = 0;
+	
+	//delay 20ms to wait HW completed
+	schedule_delayed_work(&drvdata->power_off_work, msecs_to_jiffies(20));
+	
 	kfree(ctx);
 
 	DBG("device released\n");
@@ -1041,45 +1080,99 @@ static int ipp_release(struct inode *inode, struct file *file)
 
 static irqreturn_t rk29_ipp_irq(int irq,  void *dev_id)
 {
-#ifdef IPP_TEST
-	do_gettimeofday(&irq_ret);
-#endif
-	ipp_write(ipp_read(IPP_INT)|0x3c, IPP_INT);
-
+	//static int temp =0;
 	DBG("rk29_ipp_irq %d \n",irq);
+	//printk("rk29_ipp_irq %d \n",irq);
 
+#ifdef IPP_TEST
+	hw_end = ktime_get();
+#endif
+
+	ipp_write(ipp_read(IPP_INT)|0x3c, IPP_INT);
+	if(((ipp_read(IPP_INT)>>6)&0x3) !=0)// idle
+	{	
+		printk("IPP is not idle!\n");
+		ipp_soft_reset();
+		drvdata->ipp_result =  -EAGAIN;
+	}
+	
+	//interacting with hardware done
 	wq_condition = 1;
-	dsb();
+	
 	
 #ifdef IPP_TEST
-	do_gettimeofday(&irq_done);
+	irq_start = ktime_get();
 #endif
-	wake_up_interruptible_sync(&wait_queue);
 
+	if(drvdata->issync)//sync
+	{
+		wake_up_interruptible_sync(&hw_wait_queue);
+	}
+	else//async
+	{
+		//power off
+		schedule_delayed_work(&drvdata->power_off_work, msecs_to_jiffies(1000));
+			
+		drvdata->ipp_irq_callback(drvdata->ipp_result);
+		//drvdata->ipp_irq_callback(temp);
+		
+
+		//In the case of async call in kernel space,we wake up the wait queue here
+		//In the case of async call in user space, we will wake up the wait queue until app get the result
+		if(drvdata->ipp_irq_callback != ipp_blit_complete)
+		{
+			idle_condition = 1;
+			wake_up_interruptible_sync(&blit_wait_queue);
+		}
+		//temp++;
+	}
+	
+	
 	return IRQ_HANDLED;
 }
 
-struct file_operations ipp_fops = {
-	.owner		= THIS_MODULE,
-	.open		= rk29_ipp_open,
-	.release	= ipp_release,
-	.ioctl		= ipp_ioctl,
-};
+static int ipp_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	//printk("ipp_suspend\n");
+	//delay 20ms to wait hardware work completed
+	mdelay(20);
 
-static struct miscdevice ipp_dev ={
-    .minor = IPP_MAJOR,
-    .name  = "rk29-ipp",
-    .fops  = &ipp_fops,
-};
+	//cancel the delay work, power off right now
+	cancel_delayed_work_sync(&drvdata->power_off_work);
+	ipp_power_off(NULL);
+
+	return 0;
+}
+
+static int ipp_resume(struct platform_device *pdev)
+{
+	//printk("ipp_resume\n");
+	//If IPP is woring before suspending, we power it on now
+	if (!wq_condition) 
+	{
+		drvdata->enable = false;
+		ipp_power_on();
+	}
+	return 0;
+}
 
 #ifdef IPP_TEST
+void ipp_test_complete(int retval)
+{
+	printk("ipp_test_complete retval=%d\n",retval);
+	if(retval==0)
+	{
+		test_condition = 1;
+		wake_up_interruptible_sync(&test_queue);
+	}
+}
 
 static void ipp_test_work_handler(struct work_struct *work)
 {
 
 		 struct rk29_ipp_req ipp_req;
          int i=0,j;
-		 int ret = 0;
+		 int ret = 0,ret1=0,ret2=0;
 
 		 uint8_t *srcY ;
 		 uint8_t *dstY;
@@ -1088,6 +1181,7 @@ static void ipp_test_work_handler(struct work_struct *work)
 		  uint32_t src_addr;
 		 uint32_t dst_addr;
 		 uint8_t *p;
+		 pm_message_t pm;
 #if 0
 //test lzg's bug
 uint32_t size = 8*1024*1024;
@@ -1142,8 +1236,8 @@ uint32_t size = 8*1024*1024;
 		
 		ipp_req.src0.YrgbMst = src_addr;
 		ipp_req.src0.CbrMst = src_addr + size;
-		ipp_req.src0.w = 800;
-		ipp_req.src0.h = 480;
+		ipp_req.src0.w = 480;
+		ipp_req.src0.h = 320;
 		ipp_req.src0.fmt = IPP_Y_CBCR_H2V2;
 		
 		ipp_req.dst0.YrgbMst = dst_addr;
@@ -1151,21 +1245,122 @@ uint32_t size = 8*1024*1024;
 		ipp_req.dst0.w = 800;
 		ipp_req.dst0.h = 480;
 	
-		ipp_req.src_vir_w = 800;
+		ipp_req.src_vir_w = 480;
 		ipp_req.dst_vir_w = 800;
-		ipp_req.timeout = 50;
+		ipp_req.timeout = 100;
 		ipp_req.flag = IPP_ROT_0;
-
 		
+		ipp_req.deinterlace_enable =1;
+		ipp_req.deinterlace_para0 = 16;
+		ipp_req.deinterlace_para1 = 16;
+		ipp_req.deinterlace_para2 = 0;
+
+		ipp_req.complete = ipp_test_complete;
+		
+		/*1 test ipp_blit_sync*/
+		/*
 		while(!ret)
 		{
 			ipp_req.timeout = 50;
-			ret = ipp_do_blit(&ipp_req);
+			//ret = ipp_do_blit(&ipp_req);
+			ret = ipp_blit_sync(&ipp_req);
+		}*/
+		
+
+		/*2.test ipp_blit_async*/
+		/*
+		do
+		{
+			test_condition = 0;
+			ret = ipp_blit_async(&ipp_req);
+			if(ret == 0)
+				ret = wait_event_interruptible_timeout(test_queue, test_condition, msecs_to_jiffies(ipp_req.timeout));
+			
+			irq_end = ktime_get(); 
+			irq_end = ktime_sub(irq_end,irq_start);
+			hw_end = ktime_sub(hw_end,hw_start);
+			if((((int)ktime_to_us(hw_end)/1000)>10)||(((int)ktime_to_us(irq_end)/1000)>10))
+			{
+				printk("hw time: %d ms, irq time: %d ms\n",(int)ktime_to_us(hw_end)/1000,(int)ktime_to_us(irq_end)/1000);
+			}
+		}while(ret>0);
+		printk("test ipp_blit_async over!!!\n");
+		*/
+
+		/*3.two async req,get the rigt result respectively*/
+		
+		/*
+	[   10.253532] ipp_blit_async
+	[   10.256210] ipp_blit_async2
+	[   10.259000] ipp_blit_async
+	[   10.261700] ipp_test_complete retval=0
+	[   10.282832] ipp_blit_async2
+	[   10.284304] ipp_test_complete retval=1        
+		*/
+		/*
+		ret1 = ipp_blit_async(&ipp_req);
+		ret2 = ipp_blit_async(&ipp_req);
+		*/
+
+		/*4 two sync req,get the rigt result respectively*/
+		/*
+		[   10.703628] ipp_blit_async
+		[   10.711211] wait_event_interruptible waitret= 0
+		[   10.712878] ipp_blit_async2
+		[   10.720036] ipp_blit_sync done
+		[   10.720229] ipp_blit_async
+		[   10.722920] wait_event_interruptible waitret= 0
+		[   10.727422] ipp_blit_async2
+		[   10.790052] hw time: 1 ms, irq time: 48 ms
+		[   10.791294] ipp_blit_sync wait_ret=0,wait_event_timeout 
+		*/
+		/*
+		ret1 = ipp_blit_sync(&ipp_req);
+		ret2 = ipp_blit_sync(&ipp_req);*/
+
+		/*5*/
+		/*
+		ret1 = ipp_blit_async(&ipp_req);
+		ret2 = ipp_blit_sync(&ipp_req);	
+		ret1 = ipp_blit_sync(&ipp_req);
+		ret2 = ipp_blit_async(&ipp_req);
+		*/
+
+		/*6.call IPP driver in the kernel space and the user space at the same time*/
+		
+		do
+		{
+			 ret = ipp_blit_sync(&ipp_req);
+			 msleep(40);
 		}
+		while(ret==0);
+
+		printk("error! ret =%d\n",ret);
+
+		/*7.suspand and resume*/
+		/*
+		//do
+		{
+			 ret = ipp_blit_async(&ipp_req);
+			 ipp_suspend(NULL,pm);
+			 msleep(1000);
+			 ipp_resume(NULL);
+		}
+		//while(ret==0);*/
+	/*	
+		do
+		{
+			 ret = ipp_blit_async(&ipp_req);
+			 if(ret == 0)
+				ret = wait_event_interruptible_timeout(test_queue, test_condition, msecs_to_jiffies(ipp_req.timeout));
+			 msleep(100);
+
+		}
+		while(ret>0);
+*/
+
 		
 		free_pages(srcY, 9);
-
-
 //test deinterlace
 #if 0
 		uint32_t size = 16*16;
@@ -1264,6 +1459,20 @@ uint32_t size = 8*1024*1024;
 
 }
 #endif
+
+struct file_operations ipp_fops = {
+	.owner		= THIS_MODULE,
+	.open		= rk29_ipp_open,
+	.release	= ipp_release,
+	.unlocked_ioctl		= ipp_ioctl,
+	.poll		= ipp_poll,
+};
+
+static struct miscdevice ipp_dev ={
+    .minor = IPP_MAJOR,
+    .name  = "rk29-ipp",
+    .fops  = &ipp_fops,
+};
 
 static int __init ipp_drv_probe(struct platform_device *pdev)
 {
@@ -1380,7 +1589,18 @@ static int __init ipp_drv_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&data->mutex);
+	data->enable = false;
 
+
+	atomic_set(&data->ipp_event, 0);
+	init_waitqueue_head(&data->ipp_wait);
+	INIT_DELAYED_WORK(&data->power_off_work, ipp_power_off);
+	data->ipp_result = -1;
+	data->ipp_irq_callback = NULL;
+
+
+
+	
 	platform_set_drvdata(pdev, data);
 	drvdata = data;
 
@@ -1394,7 +1614,7 @@ static int __init ipp_drv_probe(struct platform_device *pdev)
 
 #ifdef IPP_TEST
 	INIT_DELAYED_WORK(&d_work, ipp_test_work_handler);
-	schedule_delayed_work(&d_work, msecs_to_jiffies(5000));
+	schedule_delayed_work(&d_work, msecs_to_jiffies(35000));
 #endif
 
 	return 0;
@@ -1457,9 +1677,13 @@ static int ipp_drv_remove(struct platform_device *pdev)
     return 0;
 }
 
+
+
 static struct platform_driver rk29_ipp_driver = {
 	.probe		= ipp_drv_probe,
 	.remove		= ipp_drv_remove,
+	.suspend    = ipp_suspend,
+	.resume     = ipp_resume,
 	.driver		= {
 		.owner  = THIS_MODULE,
 		.name	= "rk29-ipp",
@@ -1483,6 +1707,8 @@ static void __exit rk29_ipp_exit(void)
 {
 	platform_driver_unregister(&rk29_ipp_driver);
 }
+
+
 
 device_initcall_sync(rk29_ipp_init);
 module_exit(rk29_ipp_exit);

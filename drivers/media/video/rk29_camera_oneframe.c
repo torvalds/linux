@@ -479,7 +479,8 @@ static void rk29_camera_capture_process(struct work_struct *work)
     	ipp_req.timeout = 100;
     	ipp_req.flag = IPP_ROT_0;
 
-    	if (ipp_do_blit(&ipp_req)) {
+    	//if (ipp_do_blit(&ipp_req)) {
+    	if (ipp_blit_sync(&ipp_req)) {
     		spin_lock_irqsave(&pcdev->lock, flags);
     		vb->state = VIDEOBUF_ERROR;
     		spin_unlock_irqrestore(&pcdev->lock, flags);

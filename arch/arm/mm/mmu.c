@@ -664,7 +664,11 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 		create_mapping(io_desc + i);
 }
 
+#if defined(CONFIG_RK29_MEM_SIZE_M) && CONFIG_RK29_MEM_SIZE_M >= 1024
+static unsigned long __initdata vmalloc_reserve = SZ_128M + (0xFF000000 - VMALLOC_END);
+#else
 static unsigned long __initdata vmalloc_reserve = SZ_128M;
+#endif
 
 /*
  * vmalloc=size forces the vmalloc area to be exactly 'size'
