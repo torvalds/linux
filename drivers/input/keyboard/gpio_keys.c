@@ -569,6 +569,7 @@ static int __devexit gpio_keys_remove(struct platform_device *pdev)
 	}
 
 	input_unregister_device(input);
+	kfree(ddata);
 
 	return 0;
 }
