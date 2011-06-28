@@ -2542,6 +2542,8 @@ struct platform_device rk29_device_vibrator ={
 
 static void __init rk29_board_iomux_init(void)
 {
+		int err;
+
 	#if CONFIG_ANDROID_TIMED_GPIO
 	rk29_mux_api_set(GPIO1B5_PWM0_NAME, GPIO1L_GPIO1B5);//for timed gpio
 	#endif
@@ -2551,6 +2553,30 @@ static void __init rk29_board_iomux_init(void)
 	#ifdef CONFIG_RK_HEADSET_DET
 	rk29_mux_api_set(GPIO3A6_SMCADDR14_HOSTDATA14_NAME,GPIO3L_GPIO3A6);
 	#endif
+	
+	rk29_mux_api_set(GPIO4C0_RMIICLKOUT_RMIICLKIN_NAME,GPIO4H_GPIO4C0);
+
+	err = gpio_request(RK29_PIN4_PC0, "clk27M_control");
+	if (err) {
+		gpio_free(RK29_PIN4_PC0);
+		printk("-------request RK29_PIN4_PC0 fail--------\n");
+		return -1;
+	}
+	//phy power down
+	gpio_direction_output(RK29_PIN4_PC0, GPIO_LOW);
+	gpio_set_value(RK29_PIN4_PC0, GPIO_LOW);
+
+	rk29_mux_api_set(GPIO4C5_RMIICSRDVALID_MIIRXDVALID_NAME,GPIO4H_GPIO4C5);
+
+	err = gpio_request(RK29_PIN4_PC5, "clk24M_control");
+	if (err) {
+		gpio_free(RK29_PIN4_PC5);
+		printk("-------request RK29_PIN4_PC5 fail--------\n");
+		return -1;
+	}
+	//phy power down
+	gpio_direction_output(RK29_PIN4_PC5, GPIO_LOW);
+	gpio_set_value(RK29_PIN4_PC5, GPIO_LOW);	
 }
 
 static struct platform_device *devices[] __initdata = {
