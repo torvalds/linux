@@ -70,7 +70,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
-#define CONFIG_SENSOR_I2C_NOSCHED   1
+#define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   1
 
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\

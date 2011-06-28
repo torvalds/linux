@@ -242,6 +242,8 @@ struct rk29_gpio_expander_info {
 	unsigned int pin_type;//GPIO_IN or GPIO_OUT
 	unsigned int pin_value;//GPIO_HIGH or GPIO_LOW
 };
+struct rk29_newton_data {
+};
 
 struct tca6424_platform_data {
 	/*  the first extern gpio number in all of gpio groups */

@@ -491,8 +491,8 @@ static void ft5x0x_report_value(struct ft5x0x_ts_data *data )
 		input_report_abs(data->input_dev, ABS_Y, event->y1);
 		input_report_abs(data->input_dev, ABS_PRESSURE, event->pressure);
 	//}
-	//printk("x = %d,y = %d\n",event->x1,event->y1);
-	input_report_key(data->input_dev, BTN_TOUCH, 1);
+	printk("x = %d,y = %d\n",event->x1,event->y1);
+	//input_report_key(data->input_dev, BTN_TOUCH, 1);
 #endif	/* CONFIG_FT5X0X_MULTITOUCH*/
 	input_sync(data->input_dev);
 

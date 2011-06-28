@@ -101,7 +101,7 @@
 
 
 #define DRV_VERSION "0.05"
-#define DRV_NAME  "rtc-M41T62"
+#define DRV_NAME  "rtc-M41T66"
 #if 1
 #define DBG   printk//(x...)	printk(KERN_INFO  "rtc-M41T62:" x)
 #else
