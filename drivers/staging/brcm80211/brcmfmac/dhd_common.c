@@ -66,8 +66,6 @@ const char dhd_version[] =
 const char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR;
 #endif
 
-void dhd_set_timer(void *bus, uint wdtick);
-
 /* IOVar table */
 enum {
 	IOV_VERSION = 1,
