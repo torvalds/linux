@@ -1930,10 +1930,8 @@ int brcmf_bus_start(dhd_pub_t *dhdp)
 {
 	int ret = -1;
 	dhd_info_t *dhd = (dhd_info_t *) dhdp->info;
-#ifdef EMBEDDED_PLATFORM
 	char iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
 						 '\0' + bitvec  */
-#endif				/* EMBEDDED_PLATFORM */
 
 	ASSERT(dhd);
 
@@ -1981,7 +1979,7 @@ int brcmf_bus_start(dhd_pub_t *dhdp)
 		DHD_ERROR(("%s failed bus is not ready\n", __func__));
 		return -ENODEV;
 	}
-#ifdef EMBEDDED_PLATFORM
+
 	brcmu_mkiovar("event_msgs", dhdp->eventmask, WL_EVENTING_MASK_LEN,
 		      iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_query_ioctl(dhdp, 0, BRCMF_C_GET_VAR, iovbuf,
@@ -2015,7 +2013,6 @@ int brcmf_bus_start(dhd_pub_t *dhdp)
 	dhdp->pktfilter_count = 1;
 	/* Setup filter to allow only unicast */
 	dhdp->pktfilter[0] = "100 0 0 0 0x01 0x00";
-#endif				/* EMBEDDED_PLATFORM */
 
 	/* Bus is ready, do any protocol initialization */
 	ret = brcmf_proto_init(&dhd->pub);
