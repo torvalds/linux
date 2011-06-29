@@ -17,7 +17,6 @@
 #include <linux/kvm_host.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-#include "trace.h"
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
@@ -33,6 +32,8 @@
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
+
+#include "trace.h"
 
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
@@ -1191,8 +1192,8 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 	sregs->u.s.sdr1 = to_book3s(vcpu)->sdr1;
 	if (vcpu->arch.hflags & BOOK3S_HFLAG_SLB) {
 		for (i = 0; i < 64; i++) {
-			sregs->u.s.ppc64.slb[i].slbe = vcpu3s->slb[i].orige | i;
-			sregs->u.s.ppc64.slb[i].slbv = vcpu3s->slb[i].origv;
+			sregs->u.s.ppc64.slb[i].slbe = vcpu->arch.slb[i].orige | i;
+			sregs->u.s.ppc64.slb[i].slbv = vcpu->arch.slb[i].origv;
 		}
 	} else {
 		for (i = 0; i < 16; i++)
@@ -1340,7 +1341,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	vcpu->arch.pvr = 0x84202;
 #endif
 	kvmppc_set_pvr(vcpu, vcpu->arch.pvr);
-	vcpu_book3s->slb_nr = 64;
+	vcpu->arch.slb_nr = 64;
 
 	/* remember where some real-mode handlers are */
 	vcpu->arch.trampoline_lowmem = __pa(kvmppc_handler_lowmem_trampoline);

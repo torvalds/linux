@@ -163,16 +163,18 @@ struct kvmppc_mmu {
 	bool (*is_dcbz32)(struct kvm_vcpu *vcpu);
 };
 
-struct hpte_cache {
-	struct hlist_node list_pte;
-	struct hlist_node list_pte_long;
-	struct hlist_node list_vpte;
-	struct hlist_node list_vpte_long;
-	struct rcu_head rcu_head;
-	u64 host_va;
-	u64 pfn;
-	ulong slot;
-	struct kvmppc_pte pte;
+struct kvmppc_slb {
+	u64 esid;
+	u64 vsid;
+	u64 orige;
+	u64 origv;
+	bool valid	: 1;
+	bool Ks		: 1;
+	bool Kp		: 1;
+	bool nx		: 1;
+	bool large	: 1;	/* PTEs are 16MB */
+	bool tb		: 1;	/* 1TB segment */
+	bool class	: 1;
 };
 
 struct kvm_vcpu_arch {
@@ -187,6 +189,9 @@ struct kvm_vcpu_arch {
 	ulong highmem_handler;
 	ulong rmcall;
 	ulong host_paca_phys;
+	struct kvmppc_slb slb[64];
+	int slb_max;		/* # valid entries in slb[] */
+	int slb_nr;		/* total number of entries in SLB */
 	struct kvmppc_mmu mmu;
 #endif
 
@@ -305,15 +310,6 @@ struct kvm_vcpu_arch {
 	struct kvm_vcpu_arch_shared *shared;
 	unsigned long magic_page_pa; /* phys addr to map the magic page to */
 	unsigned long magic_page_ea; /* effect. addr to map the magic page to */
-
-#ifdef CONFIG_PPC_BOOK3S
-	struct hlist_head hpte_hash_pte[HPTEG_HASH_NUM_PTE];
-	struct hlist_head hpte_hash_pte_long[HPTEG_HASH_NUM_PTE_LONG];
-	struct hlist_head hpte_hash_vpte[HPTEG_HASH_NUM_VPTE];
-	struct hlist_head hpte_hash_vpte_long[HPTEG_HASH_NUM_VPTE_LONG];
-	int hpte_cache_count;
-	spinlock_t mmu_lock;
-#endif
 };
 
 #endif /* __POWERPC_KVM_HOST_H__ */

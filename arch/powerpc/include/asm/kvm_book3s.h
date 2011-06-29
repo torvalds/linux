@@ -24,20 +24,6 @@
 #include <linux/kvm_host.h>
 #include <asm/kvm_book3s_asm.h>
 
-struct kvmppc_slb {
-	u64 esid;
-	u64 vsid;
-	u64 orige;
-	u64 origv;
-	bool valid	: 1;
-	bool Ks		: 1;
-	bool Kp		: 1;
-	bool nx		: 1;
-	bool large	: 1;	/* PTEs are 16MB */
-	bool tb		: 1;	/* 1TB segment */
-	bool class	: 1;
-};
-
 struct kvmppc_bat {
 	u64 raw;
 	u32 bepi;
@@ -67,11 +53,22 @@ struct kvmppc_sid_map {
 #define VSID_POOL_SIZE	(SID_CONTEXTS * 16)
 #endif
 
+struct hpte_cache {
+	struct hlist_node list_pte;
+	struct hlist_node list_pte_long;
+	struct hlist_node list_vpte;
+	struct hlist_node list_vpte_long;
+	struct rcu_head rcu_head;
+	u64 host_va;
+	u64 pfn;
+	ulong slot;
+	struct kvmppc_pte pte;
+};
+
 struct kvmppc_vcpu_book3s {
 	struct kvm_vcpu vcpu;
 	struct kvmppc_book3s_shadow_vcpu *shadow_vcpu;
 	struct kvmppc_sid_map sid_map[SID_MAP_NUM];
-	struct kvmppc_slb slb[64];
 	struct {
 		u64 esid;
 		u64 vsid;
@@ -81,7 +78,6 @@ struct kvmppc_vcpu_book3s {
 	struct kvmppc_bat dbat[8];
 	u64 hid[6];
 	u64 gqr[8];
-	int slb_nr;
 	u64 sdr1;
 	u64 hior;
 	u64 msr_mask;
@@ -94,6 +90,13 @@ struct kvmppc_vcpu_book3s {
 #endif
 	int context_id[SID_CONTEXTS];
 	ulong prog_flags; /* flags to inject when giving a 700 trap */
+
+	struct hlist_head hpte_hash_pte[HPTEG_HASH_NUM_PTE];
+	struct hlist_head hpte_hash_pte_long[HPTEG_HASH_NUM_PTE_LONG];
+	struct hlist_head hpte_hash_vpte[HPTEG_HASH_NUM_VPTE];
+	struct hlist_head hpte_hash_vpte_long[HPTEG_HASH_NUM_VPTE_LONG];
+	int hpte_cache_count;
+	spinlock_t mmu_lock;
 };
 
 #define CONTEXT_HOST		0
