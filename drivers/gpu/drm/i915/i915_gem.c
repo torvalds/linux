@@ -1779,8 +1779,11 @@ i915_add_request(struct intel_ring_buffer *ring,
 	ring->outstanding_lazy_request = false;
 
 	if (!dev_priv->mm.suspended) {
-		mod_timer(&dev_priv->hangcheck_timer,
-			  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
+		if (i915_enable_hangcheck) {
+			mod_timer(&dev_priv->hangcheck_timer,
+				  jiffies +
+				  msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
+		}
 		if (was_empty)
 			queue_delayed_work(dev_priv->wq,
 					   &dev_priv->mm.retire_work, HZ);

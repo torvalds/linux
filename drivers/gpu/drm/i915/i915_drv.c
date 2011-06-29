@@ -70,6 +70,9 @@ module_param_named(vbt_sdvo_panel_type, i915_vbt_sdvo_panel_type, int, 0600);
 static bool i915_try_reset = true;
 module_param_named(reset, i915_try_reset, bool, 0600);
 
+bool i915_enable_hangcheck = true;
+module_param_named(enable_hangcheck, i915_enable_hangcheck, bool, 0644);
+
 static struct drm_driver driver;
 extern int intel_agp_enabled;
 
