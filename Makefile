@@ -183,8 +183,12 @@ export KBUILD_BUILDHOST := $(SUBARCH)
 #ARCH		?= $(SUBARCH)
 #CROSS_COMPILE	?=
 ARCH		?= arm
-#CROSS_COMPILE	:=/opt/android0320/mydroid/prebuilt/linux-x86/toolchain/arm-eabi-4.2.1/bin/arm-eabi-
-CROSS_COMPILE	?=../toolchain/arm-eabi-4.4.0/bin/arm-eabi-
+ifneq ($(wildcard ../toolchain/arm-eabi-4.4.0),)
+CROSS_COMPILE	?= ../toolchain/arm-eabi-4.4.0/bin/arm-eabi-
+endif
+ifneq ($(wildcard ../prebuilt/linux-x86/toolchain/arm-eabi-4.4.0),)
+CROSS_COMPILE	?= ../prebuilt/linux-x86/toolchain/arm-eabi-4.4.0/bin/arm-eabi-
+endif
 
 # Architecture as present in compile.h
 UTS_MACHINE 	:= $(ARCH)

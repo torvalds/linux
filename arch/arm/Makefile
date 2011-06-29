@@ -280,9 +280,29 @@ zkernel.img: zImage FORCE
 	$(Q)$(srctree)/mkkrnlimg $(obj)/arch/arm/boot/zImage $(obj)/kernel.img
 	@echo '  Image:  kernel.img is ready'
 
+checkandroid: FORCE
+	$(Q)test -n "$(OUT)" || (echo "Run 'cd .. && . build/envsetup.sh && setpaths && cd -' first to build boot.img"; /bin/false)
+	$(Q)test -x $(srctree)/../out/host/linux-x86/bin/mkbootimg || (echo "No $(srctree)/../out/host/linux-x86/bin/mkbootimg"; /bin/false)
+	$(Q)test -e $(OUT)/ramdisk.img || (echo "No $(OUT)/ramdisk.img"; /bin/false)
+
+PHONY += bootimg boot.img zbootimg zboot.img
+bootimg boot.img: Image checkandroid FORCE
+	$(Q)cp -a $(obj)/arch/arm/boot/Image $(OUT)/kernel
+	$(Q)mkbootimg --kernel $(OUT)/kernel --ramdisk $(OUT)/ramdisk.img --output $(OUT)/boot.img
+	@echo '  Image:  $(OUT)/boot.img is ready'
+
+zbootimg zboot.img: zImage checkandroid FORCE
+	$(Q)cp -a $(obj)/arch/arm/boot/zImage $(OUT)/kernel
+	$(Q)mkbootimg --kernel $(OUT)/kernel --ramdisk $(OUT)/ramdisk.img --output $(OUT)/boot.img
+	@echo '  Image:  $(OUT)/boot.img is ready'
+
 define archhelp
   echo  '  kernel.img    - Rockchip kernel image'
   echo  '  zkernel.img   - Compressed Rockchip kernel image'
+  echo  '  boot.img'
+  echo  '  bootimg       - Android boot image'
+  echo  '  zboot.img'
+  echo  '  zbootimg      - Compressed Android boot image'
   echo  '* zImage        - Compressed kernel image (arch/$(ARCH)/boot/zImage)'
   echo  '  Image         - Uncompressed kernel image (arch/$(ARCH)/boot/Image)'
   echo  '* xipImage      - XIP kernel image, if configured (arch/$(ARCH)/boot/xipImage)'
