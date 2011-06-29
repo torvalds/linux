@@ -1201,14 +1201,12 @@ static int brcmf_watchdog_thread(void *data)
 	/* This thread doesn't need any user-level access,
 	 * so get rid of all our resources
 	 */
-#ifdef DHD_SCHED
 	if (brcmf_watchdog_prio > 0) {
 		struct sched_param param;
 		param.sched_priority = (brcmf_watchdog_prio < MAX_RT_PRIO) ?
 		    brcmf_watchdog_prio : (MAX_RT_PRIO - 1);
 		sched_setscheduler(current, SCHED_FIFO, &param);
 	}
-#endif				/* DHD_SCHED */
 
 	allow_signal(SIGTERM);
 	/* Run until signal received */
@@ -1261,7 +1259,6 @@ static int brcmf_dpc_thread(void *data)
 	/* This thread doesn't need any user-level access,
 	 * so get rid of all our resources
 	 */
-#ifdef DHD_SCHED
 	if (brcmf_dpc_prio > 0) {
 		struct sched_param param;
 		param.sched_priority =
@@ -1269,7 +1266,6 @@ static int brcmf_dpc_thread(void *data)
 		     MAX_RT_PRIO) ? brcmf_dpc_prio : (MAX_RT_PRIO - 1);
 		sched_setscheduler(current, SCHED_FIFO, &param);
 	}
-#endif				/* DHD_SCHED */
 
 	allow_signal(SIGTERM);
 	/* Run until signal received */
