@@ -805,7 +805,7 @@ int rk29_set_cursor_img(struct rk29fb_inf *inf, char *data)
     }
     LcdWrReg(inf, HWC_MST, __pa(rk29_cursor_buf));
     //LcdSetBit(inf, SYS_CONFIG,m_HWC_RELOAD_EN);
-    LcdSetBit(inf, SYS_CONFIG, m_HWC_RELOAD_EN |m_HWC_ENABLE);
+    LcdSetBit(inf, SYS_CONFIG, m_HWC_RELOAD_EN);
     flush_cache_all();
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
     return 0;
