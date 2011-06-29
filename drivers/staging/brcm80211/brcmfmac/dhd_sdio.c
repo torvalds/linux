@@ -202,27 +202,19 @@ struct rte_console {
 #define MAX_DATA_BUF	(32 * 1024)	/* Must be large enough to hold
 				 biggest possible glom */
 
-/* Packet alignment for most efficient SDIO (can change based on platform) */
-#ifndef DHD_SDALIGN
-#define DHD_SDALIGN	32
+#ifndef BRCMF_FIRSTREAD
+#define BRCMF_FIRSTREAD	32
 #endif
-#if !ISPOWEROF2(DHD_SDALIGN)
-#error DHD_SDALIGN is not a power of 2!
-#endif
-
-#ifndef DHD_FIRSTREAD
-#define DHD_FIRSTREAD	32
-#endif
-#if !ISPOWEROF2(DHD_FIRSTREAD)
-#error DHD_FIRSTREAD is not a power of 2!
+#if !ISPOWEROF2(BRCMF_FIRSTREAD)
+#error BRCMF_FIRSTREAD is not a power of 2!
 #endif
 
 /* Total length of frame header for dongle protocol */
 #define SDPCM_HDRLEN	(SDPCM_FRAMETAG_LEN + SDPCM_SWHEADER_LEN)
 #ifdef SDTEST
-#define SDPCM_RESERVE	(SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + DHD_SDALIGN)
+#define SDPCM_RESERVE	(SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + BRCMF_SDALIGN)
 #else
-#define SDPCM_RESERVE	(SDPCM_HDRLEN + DHD_SDALIGN)
+#define SDPCM_RESERVE	(SDPCM_HDRLEN + BRCMF_SDALIGN)
 #endif
 
 /*
@@ -492,7 +484,7 @@ typedef struct dhd_bus {
 	u8 tx_seq;		/* Transmit sequence number (next) */
 	u8 tx_max;		/* Maximum transmit sequence allowed */
 
-	u8 hdrbuf[MAX_HDR_READ + DHD_SDALIGN];
+	u8 hdrbuf[MAX_HDR_READ + BRCMF_SDALIGN];
 	u8 *rxhdr;		/* Header of current rx frame (in hdrbuf) */
 	u16 nextlen;		/* Next Read Len from last header */
 	u8 rx_seq;		/* Receive sequence number (expected) */
@@ -669,7 +661,7 @@ static bool retrydata;
 #define RETRYCHAN(chan) (((chan) == SDPCM_EVENT_CHANNEL) || retrydata)
 
 static const uint watermark = 8;
-static const uint firstread = DHD_FIRSTREAD;
+static const uint firstread = BRCMF_FIRSTREAD;
 
 #define HDATLEN (firstread - (SDPCM_HDRLEN))
 
@@ -1193,22 +1185,22 @@ static int brcmf_sdbrcm_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 	frame = (u8 *) (pkt->data);
 
 	/* Add alignment padding, allocate new packet if needed */
-	pad = ((unsigned long)frame % DHD_SDALIGN);
+	pad = ((unsigned long)frame % BRCMF_SDALIGN);
 	if (pad) {
 		if (skb_headroom(pkt) < pad) {
 			DHD_INFO(("%s: insufficient headroom %d for %d pad\n",
 				  __func__, skb_headroom(pkt), pad));
 			bus->dhd->tx_realloc++;
-			new = brcmu_pkt_buf_get_skb(pkt->len + DHD_SDALIGN);
+			new = brcmu_pkt_buf_get_skb(pkt->len + BRCMF_SDALIGN);
 			if (!new) {
 				DHD_ERROR(("%s: couldn't allocate new %d-byte "
 					"packet\n",
-					__func__, pkt->len + DHD_SDALIGN));
+					__func__, pkt->len + BRCMF_SDALIGN));
 				ret = -ENOMEM;
 				goto done;
 			}
 
-			PKTALIGN(new, pkt->len, DHD_SDALIGN);
+			PKTALIGN(new, pkt->len, BRCMF_SDALIGN);
 			memcpy(new->data, pkt->data, pkt->len);
 			if (free_pkt)
 				brcmu_pkt_buf_free_skb(pkt);
@@ -1216,7 +1208,7 @@ static int brcmf_sdbrcm_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 			free_pkt = true;
 			pkt = new;
 			frame = (u8 *) (pkt->data);
-			ASSERT(((unsigned long)frame % DHD_SDALIGN) == 0);
+			ASSERT(((unsigned long)frame % BRCMF_SDALIGN) == 0);
 			pad = 0;
 		} else {
 			skb_push(pkt, pad);
@@ -1226,7 +1218,7 @@ static int brcmf_sdbrcm_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 			memset(frame, 0, pad + SDPCM_HDRLEN);
 		}
 	}
-	ASSERT(pad < DHD_SDALIGN);
+	ASSERT(pad < BRCMF_SDALIGN);
 
 	/* Hardware tag: 2 byte len followed by 2 byte ~len check (all LE) */
 	len = (u16) (pkt->len);
@@ -1264,8 +1256,8 @@ static int brcmf_sdbrcm_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 			if (pad <= skb_tailroom(pkt))
 #endif				/* NOTUSED */
 				len += pad;
-	} else if (len % DHD_SDALIGN) {
-		len += DHD_SDALIGN - (len % DHD_SDALIGN);
+	} else if (len % BRCMF_SDALIGN) {
+		len += BRCMF_SDALIGN - (len % BRCMF_SDALIGN);
 	}
 
 	/* Some controllers have trouble with odd bytes -- round to even */
@@ -1512,14 +1504,14 @@ brcmf_sdbrcm_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 
 	/* Add alignment padding (optional for ctl frames) */
 	if (dhd_alignctl) {
-		doff = ((unsigned long)frame % DHD_SDALIGN);
+		doff = ((unsigned long)frame % BRCMF_SDALIGN);
 		if (doff) {
 			frame -= doff;
 			len += doff;
 			msglen += doff;
 			memset(frame, 0, doff + SDPCM_HDRLEN);
 		}
-		ASSERT(doff < DHD_SDALIGN);
+		ASSERT(doff < BRCMF_SDALIGN);
 	}
 	doff += SDPCM_HDRLEN;
 
@@ -1528,8 +1520,8 @@ brcmf_sdbrcm_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 		u16 pad = bus->blocksize - (len % bus->blocksize);
 		if ((pad <= bus->roundup) && (pad < bus->blocksize))
 			len += pad;
-	} else if (len % DHD_SDALIGN) {
-		len += DHD_SDALIGN - (len % DHD_SDALIGN);
+	} else if (len % BRCMF_SDALIGN) {
+		len += BRCMF_SDALIGN - (len % BRCMF_SDALIGN);
 	}
 
 	/* Satisfy length-alignment requirements */
@@ -2592,7 +2584,7 @@ brcmf_sdbrcm_doiovar(dhd_bus_t *bus, const struct brcmu_iovar *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_SDALIGN):
-		int_val = DHD_SDALIGN;
+		int_val = BRCMF_SDALIGN;
 		memcpy(arg, &int_val, val_size);
 		break;
 
@@ -3279,9 +3271,9 @@ brcmf_sdbrcm_read_control(dhd_bus_t *bus, u8 *hdr, uint len, uint doff)
 	bus->rxctl = bus->rxbuf;
 	if (dhd_alignctl) {
 		bus->rxctl += firstread;
-		pad = ((unsigned long)bus->rxctl % DHD_SDALIGN);
+		pad = ((unsigned long)bus->rxctl % BRCMF_SDALIGN);
 		if (pad)
-			bus->rxctl += (DHD_SDALIGN - pad);
+			bus->rxctl += (BRCMF_SDALIGN - pad);
 		bus->rxctl -= firstread;
 	}
 	ASSERT(bus->rxctl >= bus->rxbuf);
@@ -3304,8 +3296,8 @@ brcmf_sdbrcm_read_control(dhd_bus_t *bus, u8 *hdr, uint len, uint doff)
 		if ((pad <= bus->roundup) && (pad < bus->blocksize) &&
 		    ((len + pad) < bus->dhd->maxctl))
 			rdlen += pad;
-	} else if (rdlen % DHD_SDALIGN) {
-		rdlen += DHD_SDALIGN - (rdlen % DHD_SDALIGN);
+	} else if (rdlen % BRCMF_SDALIGN) {
+		rdlen += BRCMF_SDALIGN - (rdlen % BRCMF_SDALIGN);
 	}
 
 	/* Satisfy length-alignment requirements */
@@ -3410,9 +3402,9 @@ static u8 brcmf_sdbrcm_rxglom(dhd_bus_t *bus, u8 rxseq)
 				pnext = NULL;
 				break;
 			}
-			if (sublen % DHD_SDALIGN) {
+			if (sublen % BRCMF_SDALIGN) {
 				DHD_ERROR(("%s: sublen %d not multiple of %d\n",
-				__func__, sublen, DHD_SDALIGN));
+				__func__, sublen, BRCMF_SDALIGN));
 				usechain = false;
 			}
 			totlen += sublen;
@@ -3426,7 +3418,7 @@ static u8 brcmf_sdbrcm_rxglom(dhd_bus_t *bus, u8 rxseq)
 			}
 
 			/* Allocate/chain packet for next subframe */
-			pnext = brcmu_pkt_buf_get_skb(sublen + DHD_SDALIGN);
+			pnext = brcmu_pkt_buf_get_skb(sublen + BRCMF_SDALIGN);
 			if (pnext == NULL) {
 				DHD_ERROR(("%s: bcm_pkt_buf_get_skb failed, "
 					"num %d len %d\n", __func__,
@@ -3444,7 +3436,7 @@ static u8 brcmf_sdbrcm_rxglom(dhd_bus_t *bus, u8 rxseq)
 			}
 
 			/* Adhere to start alignment requirements */
-			PKTALIGN(pnext, sublen, DHD_SDALIGN);
+			PKTALIGN(pnext, sublen, BRCMF_SDALIGN);
 		}
 
 		/* If all allocations succeeded, save packet chain
@@ -3846,9 +3838,9 @@ brcmf_sdbrcm_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 					    && ((rdlen + pad + firstread) <
 						MAX_RX_DATASZ))
 						rdlen += pad;
-				} else if (rdlen % DHD_SDALIGN) {
+				} else if (rdlen % BRCMF_SDALIGN) {
 					rdlen +=
-					    DHD_SDALIGN - (rdlen % DHD_SDALIGN);
+					    BRCMF_SDALIGN - (rdlen % BRCMF_SDALIGN);
 				}
 			}
 
@@ -3863,7 +3855,7 @@ brcmf_sdbrcm_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			 * or non-data frame.
 			 */
 			/* Allocate a packet buffer */
-			pkt = brcmu_pkt_buf_get_skb(rdlen + DHD_SDALIGN);
+			pkt = brcmu_pkt_buf_get_skb(rdlen + BRCMF_SDALIGN);
 			if (!pkt) {
 				if (bus->bus == SPI_BUS) {
 					bus->usebufpool = false;
@@ -3871,10 +3863,10 @@ brcmf_sdbrcm_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 					if (dhd_alignctl) {
 						bus->rxctl += firstread;
 						pad = ((unsigned long)bus->rxctl %
-						      DHD_SDALIGN);
+						      BRCMF_SDALIGN);
 						if (pad)
 							bus->rxctl +=
-							    (DHD_SDALIGN - pad);
+							    (BRCMF_SDALIGN - pad);
 						bus->rxctl -= firstread;
 					}
 					ASSERT(bus->rxctl >= bus->rxbuf);
@@ -3918,7 +3910,7 @@ brcmf_sdbrcm_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 					bus->usebufpool = true;
 
 				ASSERT(!(pkt->prev));
-				PKTALIGN(pkt, rdlen, DHD_SDALIGN);
+				PKTALIGN(pkt, rdlen, BRCMF_SDALIGN);
 				rxbuf = (u8 *) (pkt->data);
 				/* Read the entire frame */
 				sdret = brcmf_sdcard_recv_buf(sdh,
@@ -4225,8 +4217,8 @@ brcmf_sdbrcm_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			if ((pad <= bus->roundup) && (pad < bus->blocksize) &&
 			    ((rdlen + pad + firstread) < MAX_RX_DATASZ))
 				rdlen += pad;
-		} else if (rdlen % DHD_SDALIGN) {
-			rdlen += DHD_SDALIGN - (rdlen % DHD_SDALIGN);
+		} else if (rdlen % BRCMF_SDALIGN) {
+			rdlen += BRCMF_SDALIGN - (rdlen % BRCMF_SDALIGN);
 		}
 
 		/* Satisfy length-alignment requirements */
@@ -4243,7 +4235,7 @@ brcmf_sdbrcm_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			continue;
 		}
 
-		pkt = brcmu_pkt_buf_get_skb(rdlen + firstread + DHD_SDALIGN);
+		pkt = brcmu_pkt_buf_get_skb(rdlen + firstread + BRCMF_SDALIGN);
 		if (!pkt) {
 			/* Give up on data, request rtx of events */
 			DHD_ERROR(("%s: brcmu_pkt_buf_get_skb failed: rdlen %d"
@@ -4258,7 +4250,7 @@ brcmf_sdbrcm_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		/* Leave room for what we already read, and align remainder */
 		ASSERT(firstread < pkt->len);
 		skb_pull(pkt, firstread);
-		PKTALIGN(pkt, rdlen, DHD_SDALIGN);
+		PKTALIGN(pkt, rdlen, BRCMF_SDALIGN);
 
 		/* Read the remaining frame data */
 		sdret = brcmf_sdcard_recv_buf(sdh, brcmf_sdcard_cur_sbwad(sdh),
@@ -4809,7 +4801,7 @@ static void brcmf_sdbrcm_pktgen(dhd_bus_t *bus)
 		/* Allocate an appropriate-sized packet */
 		len = bus->pktgen_len;
 		pkt = brcmu_pkt_buf_get_skb(
-			(len + SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + DHD_SDALIGN),
+			(len + SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + BRCMF_SDALIGN),
 			true);
 		if (!pkt) {
 			DHD_ERROR(("%s: brcmu_pkt_buf_get_skb failed!\n",
@@ -4817,7 +4809,7 @@ static void brcmf_sdbrcm_pktgen(dhd_bus_t *bus)
 			break;
 		}
 		PKTALIGN(pkt, (len + SDPCM_HDRLEN + SDPCM_TEST_HDRLEN),
-			 DHD_SDALIGN);
+			 BRCMF_SDALIGN);
 		data = (u8 *) (pkt->data) + SDPCM_HDRLEN;
 
 		/* Write test header cmd and extra based on mode */
@@ -4890,12 +4882,12 @@ static void brcmf_sdbrcm_sdtest_set(dhd_bus_t *bus, bool start)
 
 	/* Allocate the packet */
 	pkt = brcmu_pkt_buf_get_skb(SDPCM_HDRLEN + SDPCM_TEST_HDRLEN +
-		DHD_SDALIGN, true);
+		BRCMF_SDALIGN, true);
 	if (!pkt) {
 		DHD_ERROR(("%s: brcmu_pkt_buf_get_skb failed!\n", __func__));
 		return;
 	}
-	PKTALIGN(pkt, (SDPCM_HDRLEN + SDPCM_TEST_HDRLEN), DHD_SDALIGN);
+	PKTALIGN(pkt, (SDPCM_HDRLEN + SDPCM_TEST_HDRLEN), BRCMF_SDALIGN);
 	data = (u8 *) (pkt->data) + SDPCM_HDRLEN;
 
 	/* Fill in the test header */
@@ -5417,7 +5409,7 @@ brcmf_sdbrcm_probe_attach(struct dhd_bus *bus, void *sdh, void *regsva,
 	brcmu_pktq_init(&bus->txq, (PRIOMASK + 1), TXQLEN);
 
 	/* Locate an appropriately-aligned portion of hdrbuf */
-	bus->rxhdr = (u8 *) roundup((unsigned long)&bus->hdrbuf[0], DHD_SDALIGN);
+	bus->rxhdr = (u8 *) roundup((unsigned long)&bus->hdrbuf[0], BRCMF_SDALIGN);
 
 	/* Set the poll and/or interrupt flags */
 	bus->intr = (bool) brcmf_intr;
@@ -5438,7 +5430,7 @@ static bool brcmf_sdbrcm_probe_malloc(dhd_bus_t *bus, void *sdh)
 	if (bus->dhd->maxctl) {
 		bus->rxblen =
 		    roundup((bus->dhd->maxctl + SDPCM_HDRLEN),
-			    ALIGNMENT) + DHD_SDALIGN;
+			    ALIGNMENT) + BRCMF_SDALIGN;
 		bus->rxbuf = kmalloc(bus->rxblen, GFP_ATOMIC);
 		if (!(bus->rxbuf)) {
 			DHD_ERROR(("%s: kmalloc of %d-byte rxbuf failed\n",
@@ -5459,10 +5451,10 @@ static bool brcmf_sdbrcm_probe_malloc(dhd_bus_t *bus, void *sdh)
 	}
 
 	/* Align the buffer */
-	if ((unsigned long)bus->databuf % DHD_SDALIGN)
+	if ((unsigned long)bus->databuf % BRCMF_SDALIGN)
 		bus->dataptr =
-		    bus->databuf + (DHD_SDALIGN -
-				    ((unsigned long)bus->databuf % DHD_SDALIGN));
+		    bus->databuf + (BRCMF_SDALIGN -
+				    ((unsigned long)bus->databuf % BRCMF_SDALIGN));
 	else
 		bus->dataptr = bus->databuf;
 
@@ -5665,15 +5657,15 @@ static int brcmf_sdbrcm_download_code_file(struct dhd_bus *bus, char *fw_path)
 	if (image == NULL)
 		goto err;
 
-	memptr = memblock = kmalloc(MEMBLOCK + DHD_SDALIGN, GFP_ATOMIC);
+	memptr = memblock = kmalloc(MEMBLOCK + BRCMF_SDALIGN, GFP_ATOMIC);
 	if (memblock == NULL) {
 		DHD_ERROR(("%s: Failed to allocate memory %d bytes\n",
 			   __func__, MEMBLOCK));
 		goto err;
 	}
-	if ((u32)(unsigned long)memblock % DHD_SDALIGN)
+	if ((u32)(unsigned long)memblock % BRCMF_SDALIGN)
 		memptr +=
-		    (DHD_SDALIGN - ((u32)(unsigned long)memblock % DHD_SDALIGN));
+		    (BRCMF_SDALIGN - ((u32)(unsigned long)memblock % BRCMF_SDALIGN));
 
 	/* Download image */
 	while ((len =

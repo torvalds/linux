@@ -84,16 +84,8 @@ struct brcmf_proto_bdc_header {
 int wifi_get_mac_addr(unsigned char *buf);
 #endif
 
-/* Packet alignment for most efficient SDIO (can change based on platform) */
-#ifndef DHD_SDALIGN
-#define DHD_SDALIGN	32
-#endif
-#if !ISPOWEROF2(DHD_SDALIGN)
-#error DHD_SDALIGN is not a power of 2!
-#endif
-
 #define RETRIES 2	/* # of retries to retrieve matching ioctl response */
-#define BUS_HEADER_LEN	(16+DHD_SDALIGN) /* Must be atleast SDPCM_RESERVE
+#define BUS_HEADER_LEN	(16+BRCMF_SDALIGN) /* Must be atleast SDPCM_RESERVE
 					 * defined in dhd_sdio.c
 					 * (amount of header tha might be added)
 					 * plus any space that might be needed

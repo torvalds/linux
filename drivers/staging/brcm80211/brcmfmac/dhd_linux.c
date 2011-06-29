@@ -173,7 +173,7 @@ void wifi_del_dev(void)
 
 #if defined(CONFIG_PM_SLEEP)
 #include <linux/suspend.h>
-atomic_t dhd_mmc_suspend;
+atomic_t brcmf_mmc_suspend;
 DECLARE_WAIT_QUEUE_HEAD(dhd_dpc_wait);
 #endif	/*  defined(CONFIG_PM_SLEEP) */
 
@@ -1910,7 +1910,7 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 	g_bus = bus;
 #endif
 #if defined(CONFIG_PM_SLEEP)
-	atomic_set(&dhd_mmc_suspend, false);
+	atomic_set(&brcmf_mmc_suspend, false);
 #endif	/* defined(CONFIG_PM_SLEEP) */
 	/* && defined(DHD_GPL) */
 	/* Init lock suspend to prevent kernel going to suspend */
@@ -2055,7 +2055,7 @@ int brcmf_iovar(dhd_pub_t *pub, int ifidx, char *name, char *cmd_buf,
 	return ret;
 }
 
-static struct net_device_ops dhd_ops_pri = {
+static struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_open = brcmf_netdev_open,
 	.ndo_stop = brcmf_netdev_stop,
 	.ndo_get_stats = brcmf_netdev_get_stats,
@@ -2080,7 +2080,7 @@ int brcmf_net_attach(dhd_pub_t *dhdp, int ifidx)
 	ASSERT(net);
 
 	ASSERT(!net->netdev_ops);
-	net->netdev_ops = &dhd_ops_pri;
+	net->netdev_ops = &brcmf_netdev_ops_pri;
 
 	/*
 	 * We have to use the primary MAC for virtual interfaces
@@ -2168,7 +2168,7 @@ void brcmf_detach(dhd_pub_t *dhdp)
 
 			ifp = dhd->iflist[0];
 			ASSERT(ifp);
-			if (ifp->net->netdev_ops == &dhd_ops_pri) {
+			if (ifp->net->netdev_ops == &brcmf_netdev_ops_pri) {
 				brcmf_netdev_stop(ifp->net);
 				unregister_netdev(ifp->net);
 			}

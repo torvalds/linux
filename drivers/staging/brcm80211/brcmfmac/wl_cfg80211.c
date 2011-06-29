@@ -2095,7 +2095,7 @@ static s32 wl_cfg80211_resume(struct wiphy *wiphy)
 	WL_TRACE("Enter\n");
 
 #if defined(CONFIG_PM_SLEEP)
-	atomic_set(&dhd_mmc_suspend, false);
+	atomic_set(&brcmf_mmc_suspend, false);
 #endif	/*  defined(CONFIG_PM_SLEEP) */
 
 	if (test_bit(WL_STATUS_READY, &wl->status)) {
@@ -2166,7 +2166,7 @@ static s32 wl_cfg80211_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wow)
 	}
 
 #if defined(CONFIG_PM_SLEEP)
-	atomic_set(&dhd_mmc_suspend, true);
+	atomic_set(&brcmf_mmc_suspend, true);
 #endif	/*  defined(CONFIG_PM_SLEEP) */
 
 	WL_TRACE("Exit\n");
@@ -4014,9 +4014,6 @@ dongle_scantime_out:
 
 s32 wl_config_dongle(struct wl_priv *wl, bool need_lock)
 {
-#ifndef DHD_SDALIGN
-#define DHD_SDALIGN	32
-#endif
 	struct net_device *ndev;
 	struct wireless_dev *wdev;
 	s32 err = 0;
@@ -4039,7 +4036,7 @@ s32 wl_config_dongle(struct wl_priv *wl, bool need_lock)
 	err = wl_dongle_power(ndev, PM_FAST);
 	if (unlikely(err))
 		goto default_conf_out;
-	err = wl_dongle_glom(ndev, 0, DHD_SDALIGN);
+	err = wl_dongle_glom(ndev, 0, BRCMF_SDALIGN);
 	if (unlikely(err))
 		goto default_conf_out;
 

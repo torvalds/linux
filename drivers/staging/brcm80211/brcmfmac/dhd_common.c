@@ -27,21 +27,14 @@
 #include "dhd_proto.h"
 #include "dhd_dbg.h"
 
-#define BRCM_OUI		"\x00\x10\x18"
+#define BRCM_OUI			"\x00\x10\x18"
 #define DOT11_OUI_LEN			3
-#define BCMILCP_BCM_SUBTYPE_EVENT		1
+#define BCMILCP_BCM_SUBTYPE_EVENT	1
+#define PKTFILTER_BUF_SIZE		2048
 
 int brcmf_msg_level;
 char brcmf_fw_path[MOD_PARAM_PATHLEN];
 char brcmf_nv_path[MOD_PARAM_PATHLEN];
-
-/* Packet alignment for most efficient SDIO (can change based on platform) */
-#ifndef DHD_SDALIGN
-#define DHD_SDALIGN	32
-#endif
-#if !ISPOWEROF2(DHD_SDALIGN)
-#error DHD_SDALIGN is not a power of 2!
-#endif
 
 #define EPI_VERSION_STR         "4.218.248.5"
 #define MSGTRACE_VERSION	1
@@ -1028,7 +1021,6 @@ void brcmf_c_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	char *argv[8], *buf = 0;
 	int i = 0;
 	char *arg_save = 0, *arg_org = 0;
-#define BUF_SIZE		2048
 
 	arg_save = kmalloc(strlen(arg) + 1, GFP_ATOMIC);
 	if (!arg_save) {
@@ -1038,7 +1030,7 @@ void brcmf_c_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 
 	arg_org = arg_save;
 
-	buf = kmalloc(BUF_SIZE, GFP_ATOMIC);
+	buf = kmalloc(PKTFILTER_BUF_SIZE, GFP_ATOMIC);
 	if (!buf) {
 		DHD_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
@@ -1046,7 +1038,7 @@ void brcmf_c_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 
 	memcpy(arg_save, arg, strlen(arg) + 1);
 
-	if (strlen(arg) > BUF_SIZE) {
+	if (strlen(arg) > PKTFILTER_BUF_SIZE) {
 		DHD_ERROR(("Not enough buffer %d < %d\n", (int)strlen(arg),
 			   (int)sizeof(buf)));
 		goto fail;
@@ -1193,7 +1185,7 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 	uint up = 0;
 	char buf[128], *ptr;
 	uint power_mode = PM_FAST;
-	u32 dongle_align = DHD_SDALIGN;
+	u32 dongle_align = BRCMF_SDALIGN;
 	u32 glom = 0;
 	uint bcn_timeout = 3;
 	int scan_assoc_time = 40;

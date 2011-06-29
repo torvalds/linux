@@ -17,6 +17,14 @@
 #ifndef _dhd_bus_h_
 #define _dhd_bus_h_
 
+/* Packet alignment for most efficient SDIO (can change based on platform) */
+#ifndef BRCMF_SDALIGN
+#define BRCMF_SDALIGN	32
+#endif
+#if !ISPOWEROF2(BRCMF_SDALIGN)
+#error BRCMF_SDALIGN is not a power of 2!
+#endif
+
 /*
  * Exported from dhd bus module (dhd_usb, dhd_sdio)
  */
