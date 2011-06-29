@@ -24564,7 +24564,8 @@ static void wlc_phy_calc_rx_iq_comp_nphy(phy_info_t *pi, u8 core_mask)
 	}
 
 	if (bcmerror != 0) {
-		printk("%s: Failed, cnt = %d\n", __func__, cal_retry);
+		printk(KERN_DEBUG "%s: Failed, cnt = %d\n", __func__,
+			cal_retry);
 
 		if (cal_retry < CAL_RETRY_CNT) {
 			cal_retry++;
