@@ -799,6 +799,7 @@ static int __devinit ad7291_probe(struct i2c_client *client,
 		ret = -ENOMEM;
 		goto error_ret;
 	}
+	chip = iio_priv(indio_dev);
 	/* this is only used for device removal purposes */
 	i2c_set_clientdata(client, indio_dev);
 

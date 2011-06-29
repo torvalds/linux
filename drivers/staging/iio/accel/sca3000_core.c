@@ -1133,6 +1133,7 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 		goto error_ret;
 	}
 
+	st = iio_priv(indio_dev);
 	spi_set_drvdata(spi, indio_dev);
 	st->us = spi;
 	mutex_init(&st->lock);
