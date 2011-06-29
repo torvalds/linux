@@ -908,7 +908,8 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
 	bool rtstatus = true;
-	u8 tmp_u1b, i;
+	u8 tmp_u1b;
+	int i;
 	int err;
 	unsigned long flags;
 
