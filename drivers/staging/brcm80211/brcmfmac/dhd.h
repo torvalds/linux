@@ -810,10 +810,6 @@ extern uint brcmf_sdiod_drive_strength;
 /* Override to force tx queueing all the time */
 extern uint brcmf_force_tx_queueing;
 
-/* thread priority for watchdog and dpc */
-extern int brcmf_watchdog_prio;
-extern int brcmf_dpc_prio;
-
 #ifdef SDTEST
 /* Echo packet generator (SDIO), pkts/s */
 extern uint brcmf_pktgen;
@@ -919,8 +915,6 @@ extern void brcmf_os_set_ioctl_resp_timeout(unsigned int timeout_msec);
 extern void *brcmf_os_open_image(char *filename);
 extern int brcmf_os_get_image_block(char *buf, int len, void *image);
 extern void brcmf_os_close_image(void *image);
-extern void brcmf_os_sdlock(dhd_pub_t *pub);
-extern void brcmf_os_sdunlock(dhd_pub_t *pub);
 extern void brcmf_os_sdlock_sndup_rxq(dhd_pub_t *pub);
 extern void brcmf_customer_gpio_wlan_ctrl(int onoff);
 extern int brcmf_custom_get_mac_address(unsigned char *buf);

@@ -597,6 +597,10 @@ typedef struct dhd_bus {
 	struct tasklet_struct tasklet;
 	struct task_struct *dpc_tsk;
 	struct completion dpc_wait;
+
+	bool threads_only;
+	struct semaphore sdsem;
+	spinlock_t sdlock;
 } dhd_bus_t;
 
 typedef volatile struct _sbconfig {
@@ -809,13 +813,15 @@ static void brcmf_sdbrcm_chip_resetcore(struct brcmf_sdio *sdh, u32 corebase);
 static void brcmf_sdbrcm_sdiod_drive_strength_init(struct dhd_bus *bus,
 					u32 drivestrength);
 static void brcmf_sdbrcm_chip_detach(struct dhd_bus *bus);
-static void brcmf_sdbrcm_wait_for_event(dhd_pub_t *dhd, bool *lockvar);
+static void brcmf_sdbrcm_wait_for_event(dhd_bus_t *bus, bool *lockvar);
 static void brcmf_sdbrcm_wait_event_wakeup(dhd_bus_t *bus);
 static void brcmf_sdbrcm_watchdog(unsigned long data);
 static int brcmf_sdbrcm_watchdog_thread(void *data);
 static int brcmf_sdbrcm_dpc_thread(void *data);
 static void brcmf_sdbrcm_dpc_tasklet(unsigned long data);
 static void brcmf_sdbrcm_sched_dpc(dhd_bus_t *bus);
+static void brcmf_sdbrcm_sdlock(dhd_bus_t *bus);
+static void brcmf_sdbrcm_sdunlock(dhd_bus_t *bus);
 
 /* Packet free applicable unconditionally for sdio and sdspi.
  * Conditional if bufpool was present for gspi bus.
@@ -1295,9 +1301,9 @@ static int brcmf_sdbrcm_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 done:
 	/* restore pkt buffer pointer before calling tx complete routine */
 	skb_pull(pkt, SDPCM_HDRLEN + pad);
-	brcmf_os_sdunlock(bus->dhd);
+	brcmf_sdbrcm_sdunlock(bus);
 	brcmf_txcomplete(bus->dhd, pkt, ret != 0);
-	brcmf_os_sdlock(bus->dhd);
+	brcmf_sdbrcm_sdlock(bus);
 
 	if (free_pkt)
 		brcmu_pkt_buf_free_skb(pkt);
@@ -1371,7 +1377,7 @@ int brcmf_sdbrcm_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 		}
 	} else {
 		/* Lock: we're about to use shared data/code (and SDIO) */
-		brcmf_os_sdlock(bus->dhd);
+		brcmf_sdbrcm_sdlock(bus);
 
 		/* Otherwise, send it now */
 		BUS_WAKE(bus);
@@ -1396,7 +1402,7 @@ int brcmf_sdbrcm_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 			brcmf_sdbrcm_clkctl(bus, CLK_NONE, true);
 		}
 
-		brcmf_os_sdunlock(bus->dhd);
+		brcmf_sdbrcm_sdunlock(bus);
 	}
 
 	return ret;
@@ -1512,7 +1518,7 @@ brcmf_sdbrcm_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 	ASSERT(IS_ALIGNED((unsigned long)frame, 2));
 
 	/* Need to lock here to protect txseq and SDIO tx calls */
-	brcmf_os_sdlock(bus->dhd);
+	brcmf_sdbrcm_sdlock(bus);
 
 	BUS_WAKE(bus);
 
@@ -1540,7 +1546,7 @@ brcmf_sdbrcm_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 		bus->ctrl_frame_buf = frame;
 		bus->ctrl_frame_len = len;
 
-		brcmf_sdbrcm_wait_for_event(bus->dhd, &bus->ctrl_frame_stat);
+		brcmf_sdbrcm_wait_for_event(bus, &bus->ctrl_frame_stat);
 
 		if (bus->ctrl_frame_stat == false) {
 			DHD_INFO(("%s: ctrl_frame_stat == false\n", __func__));
@@ -1614,7 +1620,7 @@ brcmf_sdbrcm_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, true);
 	}
 
-	brcmf_os_sdunlock(bus->dhd);
+	brcmf_sdbrcm_sdunlock(bus);
 
 	if (ret)
 		bus->dhd->tx_ctlerrs++;
@@ -1638,11 +1644,11 @@ int brcmf_sdbrcm_bus_rxctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 	/* Wait until control frame is available */
 	timeleft = brcmf_os_ioctl_resp_wait(bus->dhd, &bus->rxlen, &pending);
 
-	brcmf_os_sdlock(bus->dhd);
+	brcmf_sdbrcm_sdlock(bus);
 	rxlen = bus->rxlen;
 	memcpy(msg, bus->rxctl, min(msglen, rxlen));
 	bus->rxlen = 0;
-	brcmf_os_sdunlock(bus->dhd);
+	brcmf_sdbrcm_sdunlock(bus);
 
 	if (rxlen) {
 		DHD_CTL(("%s: resumed on rxctl frame, got %d expected %d\n",
@@ -1650,20 +1656,20 @@ int brcmf_sdbrcm_bus_rxctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 	} else if (timeleft == 0) {
 		DHD_ERROR(("%s: resumed on timeout\n", __func__));
 #ifdef BCMDBG
-		brcmf_os_sdlock(bus->dhd);
+		brcmf_sdbrcm_sdlock(bus);
 		brcmf_sdbrcm_checkdied(bus, NULL, 0);
-		brcmf_os_sdunlock(bus->dhd);
-#endif				/* BCMDBG */
+		brcmf_sdbrcm_sdunlock(bus);
+#endif				/* DHD_DEBUG */
 	} else if (pending == true) {
 		DHD_CTL(("%s: cancelled\n", __func__));
 		return -ERESTARTSYS;
 	} else {
 		DHD_CTL(("%s: resumed for unknown reason?\n", __func__));
 #ifdef BCMDBG
-		brcmf_os_sdlock(bus->dhd);
+		brcmf_sdbrcm_sdlock(bus);
 		brcmf_sdbrcm_checkdied(bus, NULL, 0);
-		brcmf_os_sdunlock(bus->dhd);
-#endif				/* BCMDBG */
+		brcmf_sdbrcm_sdunlock(bus);
+#endif				/* DHD_DEBUG */
 	}
 
 	if (rxlen)
@@ -2373,7 +2379,7 @@ brcmf_sdbrcm_doiovar(dhd_bus_t *bus, const struct brcmu_iovar *vi, u32 actionid,
 	bool_val = (int_val != 0) ? true : false;
 
 	/* Some ioctls use the bus */
-	brcmf_os_sdlock(bus->dhd);
+	brcmf_sdbrcm_sdlock(bus);
 
 	/* Check if dongle is in reset. If so, only allow DEVRESET iovars */
 	if (bus->dhd->dongle_reset && !(actionid == IOV_SVAL(IOV_DEVRESET) ||
@@ -2786,7 +2792,7 @@ exit:
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, true);
 	}
 
-	brcmf_os_sdunlock(bus->dhd);
+	brcmf_sdbrcm_sdunlock(bus);
 
 	if (actionid == IOV_SVAL(IOV_DEVRESET) && bool_val == false)
 		brcmf_c_preinit_ioctls((dhd_pub_t *) bus->dhd);
@@ -2958,7 +2964,7 @@ brcmf_sdbrcm_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 	/* Look up var locally; if not found pass to host driver */
 	vi = brcmu_iovar_lookup(dhdsdio_iovars, name);
 	if (vi == NULL) {
-		brcmf_os_sdlock(bus->dhd);
+		brcmf_sdbrcm_sdlock(bus);
 
 		BUS_WAKE(bus);
 
@@ -2991,7 +2997,7 @@ brcmf_sdbrcm_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 			brcmf_sdbrcm_clkctl(bus, CLK_NONE, true);
 		}
 
-		brcmf_os_sdunlock(bus->dhd);
+		brcmf_sdbrcm_sdunlock(bus);
 		goto exit;
 	}
 
@@ -3032,7 +3038,7 @@ void brcmf_sdbrcm_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 	DHD_TRACE(("%s: Enter\n", __func__));
 
 	if (enforce_mutex)
-		brcmf_os_sdlock(bus->dhd);
+		brcmf_sdbrcm_sdlock(bus);
 
 	BUS_WAKE(bus);
 
@@ -3106,7 +3112,7 @@ void brcmf_sdbrcm_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 	bus->tx_seq = bus->rx_seq = 0;
 
 	if (enforce_mutex)
-		brcmf_os_sdunlock(bus->dhd);
+		brcmf_sdbrcm_sdunlock(bus);
 
 #if defined(OOB_INTR_ONLY)
 	brcmf_sdio_unregister_oob_intr();
@@ -3133,7 +3139,7 @@ int brcmf_sdbrcm_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	brcmf_sdbrcm_wd_timer(bus, brcmf_watchdog_ms);
 
 	if (enforce_mutex)
-		brcmf_os_sdlock(bus->dhd);
+		brcmf_sdbrcm_sdlock(bus);
 
 	/* Make sure backplane clock is on, needed to generate F2 interrupt */
 	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
@@ -3233,7 +3239,7 @@ int brcmf_sdbrcm_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 
 exit:
 	if (enforce_mutex)
-		brcmf_os_sdunlock(bus->dhd);
+		brcmf_sdbrcm_sdunlock(bus);
 
 	return ret;
 }
@@ -3797,9 +3803,9 @@ static u8 brcmf_sdbrcm_rxglom(dhd_bus_t *bus, u8 rxseq)
 #endif				/* BCMDBG */
 		}
 		if (num) {
-			brcmf_os_sdunlock(bus->dhd);
+			brcmf_sdbrcm_sdunlock(bus);
 			brcmf_rx_frame(bus->dhd, ifidx, save_pfirst, num);
-			brcmf_os_sdlock(bus->dhd);
+			brcmf_sdbrcm_sdlock(bus);
 		}
 
 		bus->rxglomframes++;
@@ -4383,9 +4389,9 @@ deliver:
 		}
 
 		/* Unlock during rx call */
-		brcmf_os_sdunlock(bus->dhd);
+		brcmf_sdbrcm_sdunlock(bus);
 		brcmf_rx_frame(bus->dhd, ifidx, pkt, 1);
-		brcmf_os_sdlock(bus->dhd);
+		brcmf_sdbrcm_sdlock(bus);
 	}
 	rxcount = maxframes - rxleft;
 #ifdef BCMDBG
@@ -4495,7 +4501,7 @@ static bool brcmf_sdbrcm_dpc(dhd_bus_t *bus)
 	/* Start with leftover status bits */
 	intstatus = bus->intstatus;
 
-	brcmf_os_sdlock(bus->dhd);
+	brcmf_sdbrcm_sdlock(bus);
 
 	/* If waiting for HTAVAIL, check status */
 	if (bus->clkstate == CLK_PENDING) {
@@ -4725,7 +4731,7 @@ clkwait:
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
 	}
 
-	brcmf_os_sdunlock(bus->dhd);
+	brcmf_sdbrcm_sdunlock(bus);
 
 	return resched;
 }
@@ -5054,7 +5060,7 @@ extern bool brcmf_sdbrcm_bus_watchdog(dhd_pub_t *dhdp)
 	if (bus->sleeping)
 		return false;
 
-	brcmf_os_sdlock(bus->dhd);
+	brcmf_sdbrcm_sdlock(bus);
 
 	/* Poll period: check device if appropriate. */
 	if (bus->poll && (++bus->polltick >= bus->pollrate)) {
@@ -5131,7 +5137,7 @@ extern bool brcmf_sdbrcm_bus_watchdog(dhd_pub_t *dhdp)
 		}
 	}
 
-	brcmf_os_sdunlock(bus->dhd);
+	brcmf_sdbrcm_sdunlock(bus);
 
 	return bus->ipend;
 }
@@ -5150,11 +5156,11 @@ static int brcmf_sdbrcm_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg,
 		return -ENOTSUPP;
 
 	/* Exclusive bus access */
-	brcmf_os_sdlock(bus->dhd);
+	brcmf_sdbrcm_sdlock(bus);
 
 	/* Don't allow input if dongle is in reset */
 	if (bus->dhd->dongle_reset) {
-		brcmf_os_sdunlock(bus->dhd);
+		brcmf_sdbrcm_sdunlock(bus);
 		return -EPERM;
 	}
 
@@ -5196,7 +5202,7 @@ done:
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, true);
 	}
 
-	brcmf_os_sdunlock(bus->dhd);
+	brcmf_sdbrcm_sdunlock(bus);
 
 	return rv;
 }
@@ -5317,6 +5323,15 @@ static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 	init_timer(&bus->timer);
 	bus->timer.data = (unsigned long)bus;
 	bus->timer.function = brcmf_sdbrcm_watchdog;
+
+	/* Initialize thread based operation and lock */
+	if ((brcmf_watchdog_prio >= 0) && (brcmf_dpc_prio >= 0)) {
+		bus->threads_only = true;
+		sema_init(&bus->sdsem, 1);
+	} else {
+		bus->threads_only = false;
+		spin_lock_init(&bus->sdlock);
+	}
 
 	if (brcmf_dpc_prio >= 0) {
 		/* Initialize watchdog thread */
@@ -6470,12 +6485,12 @@ brcmf_sdbrcm_chip_detach(struct dhd_bus *bus)
 }
 
 static void
-brcmf_sdbrcm_wait_for_event(dhd_pub_t *dhd, bool *lockvar)
+brcmf_sdbrcm_wait_for_event(dhd_bus_t *bus, bool *lockvar)
 {
-	brcmf_os_sdunlock(dhd);
-	wait_event_interruptible_timeout(dhd->bus->ctrl_wait,
+	brcmf_sdbrcm_sdunlock(bus);
+	wait_event_interruptible_timeout(bus->ctrl_wait,
 					 (*lockvar == false), HZ * 2);
-	brcmf_os_sdlock(dhd);
+	brcmf_sdbrcm_sdlock(bus);
 	return;
 }
 
@@ -6637,4 +6652,20 @@ static void brcmf_sdbrcm_sched_dpc(dhd_bus_t *bus)
 	}
 
 	tasklet_schedule(&bus->tasklet);
+}
+
+static void brcmf_sdbrcm_sdlock(dhd_bus_t *bus)
+{
+	if (bus->threads_only)
+		down(&bus->sdsem);
+	else
+		spin_lock_bh(&bus->sdlock);
+}
+
+static void brcmf_sdbrcm_sdunlock(dhd_bus_t *bus)
+{
+	if (bus->threads_only)
+		up(&bus->sdsem);
+	else
+		spin_unlock_bh(&bus->sdlock);
 }

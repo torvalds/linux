@@ -82,10 +82,6 @@ typedef struct dhd_info {
 
 	struct semaphore proto_sem;
 	wait_queue_head_t ioctl_resp_wait;
-	spinlock_t sdlock;
-	/* Thread based operation */
-	bool threads_only;
-	struct semaphore sdsem;
 
 	/* Thread to issue ioctl for multicast */
 	struct task_struct *sysioc_tsk;
@@ -1489,9 +1485,6 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 	/* Initialize other structure content */
 	init_waitqueue_head(&dhd->ioctl_resp_wait);
 
-	/* Initialize the spinlocks */
-	spin_lock_init(&dhd->sdlock);
-
 	/* Link to info module */
 	dhd->pub.info = dhd;
 
@@ -1514,13 +1507,6 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 		strcpy(brcmf_fw_path, wl_cfg80211_get_fwname());
 		strcpy(brcmf_nv_path, wl_cfg80211_get_nvramname());
 	}
-
-	/* Initialize thread based operation and lock */
-	sema_init(&dhd->sdsem, 1);
-	if ((brcmf_watchdog_prio >= 0) && (brcmf_dpc_prio >= 0))
-		dhd->threads_only = true;
-	else
-		dhd->threads_only = false;
 
 	if (brcmf_sysioc) {
 		sema_init(&dhd->sysioc_sem, 0);
@@ -1939,30 +1925,6 @@ void brcmf_os_close_image(void *image)
 		return wl_cfg80211_release_fw();
 	if (image)
 		filp_close((struct file *)image, NULL);
-}
-
-void brcmf_os_sdlock(dhd_pub_t *pub)
-{
-	dhd_info_t *dhd;
-
-	dhd = (dhd_info_t *) (pub->info);
-
-	if (dhd->threads_only)
-		down(&dhd->sdsem);
-	else
-		spin_lock_bh(&dhd->sdlock);
-}
-
-void brcmf_os_sdunlock(dhd_pub_t *pub)
-{
-	dhd_info_t *dhd;
-
-	dhd = (dhd_info_t *) (pub->info);
-
-	if (dhd->threads_only)
-		up(&dhd->sdsem);
-	else
-		spin_unlock_bh(&dhd->sdlock);
 }
 
 static int brcmf_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
