@@ -38,9 +38,8 @@
  *                           in arch-dependent flush_dcache_mmap_lock,
  *                           within inode_wb_list_lock in __sync_single_inode)
  *
- * (code doesn't rely on that order so it could be switched around)
- * ->tasklist_lock
- *   anon_vma->mutex      (memory_failure, collect_procs_anon)
+ * anon_vma->mutex,mapping->i_mutex      (memory_failure, collect_procs_anon)
+ *   ->tasklist_lock
  *     pte map lock
  */
 

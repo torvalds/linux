@@ -27,18 +27,21 @@
 #include <linux/leds-lp5521.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
+#include <linux/delay.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #include <plat/i2c.h>
 #include <plat/ste_dma40.h>
+#include <plat/pincfg.h>
 
 #include <mach/hardware.h>
 #include <mach/setup.h>
 #include <mach/devices.h>
 #include <mach/irqs.h>
 
+#include "pins-db8500.h"
 #include "ste-dma40-db8500.h"
 #include "devices-db8500.h"
 #include "board-mop500.h"
@@ -393,12 +396,63 @@ static struct stedma40_chan_cfg uart2_dma_cfg_tx = {
 };
 #endif
 
+
+static pin_cfg_t mop500_pins_uart0[] = {
+	GPIO0_U0_CTSn   | PIN_INPUT_PULLUP,
+	GPIO1_U0_RTSn   | PIN_OUTPUT_HIGH,
+	GPIO2_U0_RXD    | PIN_INPUT_PULLUP,
+	GPIO3_U0_TXD    | PIN_OUTPUT_HIGH,
+};
+
+#define PRCC_K_SOFTRST_SET      0x18
+#define PRCC_K_SOFTRST_CLEAR    0x1C
+static void ux500_uart0_reset(void)
+{
+	void __iomem *prcc_rst_set, *prcc_rst_clr;
+
+	prcc_rst_set = (void __iomem *)IO_ADDRESS(U8500_CLKRST1_BASE +
+			PRCC_K_SOFTRST_SET);
+	prcc_rst_clr = (void __iomem *)IO_ADDRESS(U8500_CLKRST1_BASE +
+			PRCC_K_SOFTRST_CLEAR);
+
+	/* Activate soft reset PRCC_K_SOFTRST_CLEAR */
+	writel((readl(prcc_rst_clr) | 0x1), prcc_rst_clr);
+	udelay(1);
+
+	/* Release soft reset PRCC_K_SOFTRST_SET */
+	writel((readl(prcc_rst_set) | 0x1), prcc_rst_set);
+	udelay(1);
+}
+
+static void ux500_uart0_init(void)
+{
+	int ret;
+
+	ret = nmk_config_pins(mop500_pins_uart0,
+			ARRAY_SIZE(mop500_pins_uart0));
+	if (ret < 0)
+		pr_err("pl011: uart pins_enable failed\n");
+}
+
+static void ux500_uart0_exit(void)
+{
+	int ret;
+
+	ret = nmk_config_pins_sleep(mop500_pins_uart0,
+			ARRAY_SIZE(mop500_pins_uart0));
+	if (ret < 0)
+		pr_err("pl011: uart pins_disable failed\n");
+}
+
 static struct amba_pl011_data uart0_plat = {
 #ifdef CONFIG_STE_DMA40
 	.dma_filter = stedma40_filter,
 	.dma_rx_param = &uart0_dma_cfg_rx,
 	.dma_tx_param = &uart0_dma_cfg_tx,
 #endif
+	.init = ux500_uart0_init,
+	.exit = ux500_uart0_exit,
+	.reset = ux500_uart0_reset,
 };
 
 static struct amba_pl011_data uart1_plat = {

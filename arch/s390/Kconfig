@@ -579,6 +579,7 @@ config S390_GUEST
 	def_bool y
 	prompt "s390 guest support for KVM (EXPERIMENTAL)"
 	depends on 64BIT && EXPERIMENTAL
+	select VIRTUALIZATION
 	select VIRTIO
 	select VIRTIO_RING
 	select VIRTIO_CONSOLE

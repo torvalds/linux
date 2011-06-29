@@ -66,9 +66,9 @@ static int jfs_open(struct inode *inode, struct file *file)
 		struct jfs_inode_info *ji = JFS_IP(inode);
 		spin_lock_irq(&ji->ag_lock);
 		if (ji->active_ag == -1) {
-			ji->active_ag = ji->agno;
-			atomic_inc(
-			    &JFS_SBI(inode->i_sb)->bmap->db_active[ji->agno]);
+			struct jfs_sb_info *jfs_sb = JFS_SBI(inode->i_sb);
+			ji->active_ag = BLKTOAG(addressPXD(&ji->ixpxd), jfs_sb);
+			atomic_inc( &jfs_sb->bmap->db_active[ji->active_ag]);
 		}
 		spin_unlock_irq(&ji->ag_lock);
 	}

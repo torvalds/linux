@@ -745,12 +745,23 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 	struct via_spec *spec = codec->spec;
 	hda_nid_t nid = kcontrol->private_value;
 	unsigned int pinsel = ucontrol->value.enumerated.item[0];
+	unsigned int parm0, parm1;
 	/* Get Independent Mode index of headphone pin widget */
 	spec->hp_independent_mode = spec->hp_independent_mode_index == pinsel
 		? 1 : 0;
-	if (spec->codec_type == VT1718S)
+	if (spec->codec_type == VT1718S) {
 		snd_hda_codec_write(codec, nid, 0,
 				    AC_VERB_SET_CONNECT_SEL, pinsel ? 2 : 0);
+		/* Set correct mute switch for MW3 */
+		parm0 = spec->hp_independent_mode ?
+			       AMP_IN_UNMUTE(0) : AMP_IN_MUTE(0);
+		parm1 = spec->hp_independent_mode ?
+			       AMP_IN_MUTE(1) : AMP_IN_UNMUTE(1);
+		snd_hda_codec_write(codec, 0x1b, 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE, parm0);
+		snd_hda_codec_write(codec, 0x1b, 0,
+				    AC_VERB_SET_AMP_GAIN_MUTE, parm1);
+	}
 	else
 		snd_hda_codec_write(codec, nid, 0,
 				    AC_VERB_SET_CONNECT_SEL, pinsel);
@@ -4283,9 +4294,6 @@ static const struct hda_verb vt1718S_volume_init_verbs[] = {
 	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
 	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
 	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(5)},
-
-	/* Setup default input of Front HP to MW9 */
-	{0x28, AC_VERB_SET_CONNECT_SEL, 0x1},
 	/* PW9 PW10 Output enable */
 	{0x2d, AC_VERB_SET_PIN_WIDGET_CONTROL, AC_PINCTL_OUT_EN},
 	{0x2e, AC_VERB_SET_PIN_WIDGET_CONTROL, AC_PINCTL_OUT_EN},
@@ -4294,10 +4302,10 @@ static const struct hda_verb vt1718S_volume_init_verbs[] = {
 	/* Enable Boost Volume backdoor */
 	{0x1, 0xf88, 0x8},
 	/* MW0/1/2/3/4: un-mute index 0 (AOWx), mute index 1 (MW9) */
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
 	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
 	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
@@ -4307,8 +4315,6 @@ static const struct hda_verb vt1718S_volume_init_verbs[] = {
 	/* set MUX1 = 2 (AOW4), MUX2 = 1 (AOW3) */
 	{0x34, AC_VERB_SET_CONNECT_SEL, 0x2},
 	{0x35, AC_VERB_SET_CONNECT_SEL, 0x1},
-	/* Unmute MW4's index 0 */
-	{0x1c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{ }
 };
 
@@ -4456,6 +4462,19 @@ static int vt1718S_auto_create_multi_out_ctls(struct via_spec *spec,
 			if (err < 0)
 				return err;
 		} else if (i == AUTO_SEQ_FRONT) {
+			/* add control to mixer index 0 */
+			err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
+					      "Master Front Playback Volume",
+					      HDA_COMPOSE_AMP_VAL(0x21, 3, 5,
+								  HDA_INPUT));
+			if (err < 0)
+				return err;
+			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
+					      "Master Front Playback Switch",
+					      HDA_COMPOSE_AMP_VAL(0x21, 3, 5,
+								  HDA_INPUT));
+			if (err < 0)
+				return err;
 			/* Front */
 			sprintf(name, "%s Playback Volume", chname[i]);
 			err = via_add_control(
