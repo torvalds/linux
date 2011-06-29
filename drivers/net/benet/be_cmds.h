@@ -51,17 +51,12 @@ struct be_mcc_wrb {
 
 /* Completion Status */
 enum {
-	MCC_STATUS_SUCCESS = 0x0,
-/* The client does not have sufficient privileges to execute the command */
-	MCC_STATUS_INSUFFICIENT_PRIVILEGES = 0x1,
-/* A parameter in the command was invalid. */
-	MCC_STATUS_INVALID_PARAMETER = 0x2,
-/* There are insufficient chip resources to execute the command */
-	MCC_STATUS_INSUFFICIENT_RESOURCES = 0x3,
-/* The command is completing because the queue was getting flushed */
-	MCC_STATUS_QUEUE_FLUSHING = 0x4,
-/* The command is completing with a DMA error */
-	MCC_STATUS_DMA_FAILED = 0x5,
+	MCC_STATUS_SUCCESS = 0,
+	MCC_STATUS_FAILED = 1,
+	MCC_STATUS_ILLEGAL_REQUEST = 2,
+	MCC_STATUS_ILLEGAL_FIELD = 3,
+	MCC_STATUS_INSUFFICIENT_BUFFER = 4,
+	MCC_STATUS_UNAUTHORIZED_REQUEST = 5,
 	MCC_STATUS_NOT_SUPPORTED = 66
 };
 

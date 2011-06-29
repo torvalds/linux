@@ -106,14 +106,24 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 			netdev_stats_update(adapter);
 			adapter->stats_cmd_sent = false;
 		}
-	} else if ((compl_status != MCC_STATUS_NOT_SUPPORTED) &&
-		   (compl->tag0 != OPCODE_COMMON_NTWK_MAC_QUERY)) {
-		extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
-				CQE_STATUS_EXTD_MASK;
-		dev_warn(&adapter->pdev->dev,
-		"Error in cmd completion - opcode %d, compl %d, extd %d\n",
-			compl->tag0, compl_status, extd_status);
+	} else {
+		if (compl_status == MCC_STATUS_NOT_SUPPORTED ||
+			compl_status == MCC_STATUS_ILLEGAL_REQUEST)
+			goto done;
+
+		if (compl_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
+			dev_warn(&adapter->pdev->dev, "This domain(VM) is not "
+				"permitted to execute this cmd (opcode %d)\n",
+				compl->tag0);
+		} else {
+			extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
+					CQE_STATUS_EXTD_MASK;
+			dev_err(&adapter->pdev->dev, "Cmd (opcode %d) failed:"
+				"status %d, extd-status %d\n",
+				compl->tag0, compl_status, extd_status);
+		}
 	}
+done:
 	return compl_status;
 }
 
