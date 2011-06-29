@@ -204,7 +204,8 @@ retry:
 		goto retry;
 	if (id != prot->reqid) {
 		DHD_ERROR(("%s: %s: unexpected request id %d (expected %d)\n",
-			   dhd_ifname(dhd, ifidx), __func__, id, prot->reqid));
+			   brcmf_ifname(dhd, ifidx), __func__, id,
+			   prot->reqid));
 		ret = -EINVAL;
 		goto done;
 	}
@@ -264,7 +265,8 @@ int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 
 	if (id != prot->reqid) {
 		DHD_ERROR(("%s: %s: unexpected request id %d (expected %d)\n",
-			   dhd_ifname(dhd, ifidx), __func__, id, prot->reqid));
+			   brcmf_ifname(dhd, ifidx), __func__, id,
+			   prot->reqid));
 		ret = -EINVAL;
 		goto done;
 	}
@@ -292,7 +294,7 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 			   __func__));
 		return ret;
 	}
-	dhd_os_proto_block(dhd);
+	brcmf_os_proto_block(dhd);
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -346,7 +348,7 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 	prot->pending = false;
 
 done:
-	dhd_os_proto_unblock(dhd);
+	brcmf_os_proto_unblock(dhd);
 
 	return ret;
 }
@@ -427,14 +429,14 @@ int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
 	if (((h->flags & BDC_FLAG_VER_MASK) >> BDC_FLAG_VER_SHIFT) !=
 	    BDC_PROTO_VER) {
 		DHD_ERROR(("%s: non-BDC packet received, flags 0x%x\n",
-			   dhd_ifname(dhd, *ifidx), h->flags));
+			   brcmf_ifname(dhd, *ifidx), h->flags));
 		return -EBADE;
 	}
 
 	if (h->flags & BDC_FLAG_SUM_GOOD) {
 		DHD_INFO(("%s: BDC packet received with good rx-csum, "
 			"flags 0x%x\n",
-			dhd_ifname(dhd, *ifidx), h->flags));
+			brcmf_ifname(dhd, *ifidx), h->flags));
 		PKTSETSUMGOOD(pktbuf, true);
 	}
 
@@ -501,18 +503,18 @@ int dhd_prot_init(dhd_pub_t *dhd)
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
-	dhd_os_proto_block(dhd);
+	brcmf_os_proto_block(dhd);
 
 	/* Get the device MAC address */
 	strcpy(buf, "cur_etheraddr");
 	ret = dhdcdc_query_ioctl(dhd, 0, BRCMF_C_GET_VAR, buf, sizeof(buf));
 	if (ret < 0) {
-		dhd_os_proto_unblock(dhd);
+		brcmf_os_proto_unblock(dhd);
 		return ret;
 	}
 	memcpy(dhd->mac, buf, ETH_ALEN);
 
-	dhd_os_proto_unblock(dhd);
+	brcmf_os_proto_unblock(dhd);
 
 #ifdef EMBEDDED_PLATFORM
 	ret = brcmf_c_preinit_ioctls(dhd);

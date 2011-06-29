@@ -262,7 +262,7 @@ brcmf_c_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 			bcmerror = -ENOLINK;
 			break;
 		}
-		dhd_os_wd_timer(dhd_pub, (uint) int_val);
+		brcmf_os_wd_timer(dhd_pub, (uint) int_val);
 		break;
 
 	case IOV_GVAL(IOV_DUMP):
@@ -300,7 +300,7 @@ brcmf_c_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_IOCTLTIMEOUT):{
-			int_val = (s32) dhd_os_get_ioctl_resp_timeout();
+			int_val = (s32) brcmf_os_get_ioctl_resp_timeout();
 			memcpy(arg, &int_val, sizeof(int_val));
 			break;
 		}
@@ -309,7 +309,7 @@ brcmf_c_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 			if (int_val <= 0)
 				bcmerror = -EINVAL;
 			else
-				dhd_os_set_ioctl_resp_timeout((unsigned int)
+				brcmf_os_set_ioctl_resp_timeout((unsigned int)
 							      int_val);
 			break;
 		}
@@ -865,13 +865,13 @@ brcmf_c_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 			if (ifevent->ifidx > 0 &&
 				 ifevent->ifidx < DHD_MAX_IFS) {
 				if (ifevent->action == BRCMF_E_IF_ADD)
-					dhd_add_if(dhd, ifevent->ifidx,
+					brcmf_add_if(dhd, ifevent->ifidx,
 						   NULL, event->ifname,
 						   pvt_data->eth.h_dest,
 						   ifevent->flags,
 						   ifevent->bssidx);
 				else
-					dhd_del_if(dhd, ifevent->ifidx);
+					brcmf_del_if(dhd, ifevent->ifidx);
 			} else {
 				DHD_ERROR(("%s: Invalid ifidx %d for %s\n",
 					   __func__, ifevent->ifidx,
@@ -879,9 +879,9 @@ brcmf_c_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 			}
 		}
 		/* send up the if event: btamp user needs it */
-		*ifidx = dhd_ifname2idx(dhd, event->ifname);
+		*ifidx = brcmf_ifname2idx(dhd, event->ifname);
 		/* push up to external supp/auth */
-		dhd_event(dhd, (char *)pvt_data, evlen, *ifidx);
+		brcmf_event(dhd, (char *)pvt_data, evlen, *ifidx);
 		break;
 
 #ifdef P2P
@@ -898,9 +898,9 @@ brcmf_c_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 	default:
 		/* Fall through: this should get _everything_  */
 
-		*ifidx = dhd_ifname2idx(dhd, event->ifname);
+		*ifidx = brcmf_ifname2idx(dhd, event->ifname);
 		/* push up to external supp/auth */
-		dhd_event(dhd, (char *)pvt_data, evlen, *ifidx);
+		brcmf_event(dhd, (char *)pvt_data, evlen, *ifidx);
 		DHD_TRACE(("%s: MAC event %d, flags %x, status %x\n",
 			   __func__, type, flags, status));
 
@@ -1207,7 +1207,7 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 	u8 ea_addr[ETH_ALEN];
 #endif				/* GET_CUSTOM_MAC_ENABLE */
 
-	dhd_os_proto_block(dhd);
+	brcmf_os_proto_block(dhd);
 
 #ifdef GET_CUSTOM_MAC_ENABLE
 	/* Read MAC address from external customer place
@@ -1216,7 +1216,7 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 	 ** firmware but unique per board mac address maybe provided by
 	 ** customer code
 	 */
-	ret = dhd_custom_get_mac_address(ea_addr);
+	ret = brcmf_custom_get_mac_address(ea_addr);
 	if (!ret) {
 		brcmu_mkiovar("cur_etheraddr", (void *)ea_addr, ETH_ALEN,
 			    buf, sizeof(buf));
@@ -1313,7 +1313,7 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif				/* PKT_FILTER_SUPPORT */
 
-	dhd_os_proto_unblock(dhd);
+	brcmf_os_proto_unblock(dhd);
 
 	return 0;
 }

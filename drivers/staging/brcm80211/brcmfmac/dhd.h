@@ -881,96 +881,98 @@ static inline void MUTEX_UNLOCK_WL_SCAN_SET(void)
  * Returned structure should have bus and prot pointers filled in.
  * bus_hdrlen specifies required headroom for bus module header.
  */
-extern dhd_pub_t *dhd_attach(struct dhd_bus *bus,
+extern dhd_pub_t *brcmf_attach(struct dhd_bus *bus,
 				uint bus_hdrlen);
-extern int dhd_net_attach(dhd_pub_t *dhdp, int idx);
+extern int brcmf_net_attach(dhd_pub_t *dhdp, int idx);
 
 /* Indication from bus module regarding removal/absence of dongle */
-extern void dhd_detach(dhd_pub_t *dhdp);
+extern void brcmf_detach(dhd_pub_t *dhdp);
 
 /* Indication from bus module to change flow-control state */
-extern void dhd_txflowcontrol(dhd_pub_t *dhdp, int ifidx, bool on);
+extern void brcmf_txflowcontrol(dhd_pub_t *dhdp, int ifidx, bool on);
 
 extern bool brcmf_c_prec_enq(dhd_pub_t *dhdp, struct pktq *q,
 			 struct sk_buff *pkt, int prec);
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
-extern void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx,
+extern void brcmf_rx_frame(dhd_pub_t *dhdp, int ifidx,
 			 struct sk_buff *rxp, int numpkt);
 
 /* Return pointer to interface name */
-extern char *dhd_ifname(dhd_pub_t *dhdp, int idx);
+extern char *brcmf_ifname(dhd_pub_t *dhdp, int idx);
 
 /* Request scheduling of the bus dpc */
-extern void dhd_sched_dpc(dhd_pub_t *dhdp);
+extern void brcmf_sched_dpc(dhd_pub_t *dhdp);
 
 /* Notify tx completion */
-extern void dhd_txcomplete(dhd_pub_t *dhdp, struct sk_buff *txp, bool success);
+extern void brcmf_txcomplete(dhd_pub_t *dhdp, struct sk_buff *txp,
+			     bool success);
 
 /* Query ioctl */
 extern int dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
 			      uint len);
 
 /* OS independent layer functions */
-extern int dhd_os_proto_block(dhd_pub_t *pub);
-extern int dhd_os_proto_unblock(dhd_pub_t *pub);
-extern int dhd_os_ioctl_resp_wait(dhd_pub_t *pub, uint *condition,
+extern int brcmf_os_proto_block(dhd_pub_t *pub);
+extern int brcmf_os_proto_unblock(dhd_pub_t *pub);
+extern int brcmf_os_ioctl_resp_wait(dhd_pub_t *pub, uint *condition,
 				  bool *pending);
-extern int dhd_os_ioctl_resp_wake(dhd_pub_t *pub);
-extern unsigned int dhd_os_get_ioctl_resp_timeout(void);
-extern void dhd_os_set_ioctl_resp_timeout(unsigned int timeout_msec);
-extern void *dhd_os_open_image(char *filename);
-extern int dhd_os_get_image_block(char *buf, int len, void *image);
-extern void dhd_os_close_image(void *image);
-extern void dhd_os_wd_timer(void *bus, uint wdtick);
-extern void dhd_os_sdlock(dhd_pub_t *pub);
-extern void dhd_os_sdunlock(dhd_pub_t *pub);
-extern void dhd_os_sdlock_sndup_rxq(dhd_pub_t *pub);
-extern void dhd_customer_gpio_wlan_ctrl(int onoff);
-extern int dhd_custom_get_mac_address(unsigned char *buf);
-extern void dhd_os_sdunlock_sndup_rxq(dhd_pub_t *pub);
-extern void dhd_os_sdlock_eventq(dhd_pub_t *pub);
-extern void dhd_os_sdunlock_eventq(dhd_pub_t *pub);
+extern int brcmf_os_ioctl_resp_wake(dhd_pub_t *pub);
+extern unsigned int brcmf_os_get_ioctl_resp_timeout(void);
+extern void brcmf_os_set_ioctl_resp_timeout(unsigned int timeout_msec);
+extern void *brcmf_os_open_image(char *filename);
+extern int brcmf_os_get_image_block(char *buf, int len, void *image);
+extern void brcmf_os_close_image(void *image);
+extern void brcmf_os_wd_timer(void *bus, uint wdtick);
+extern void brcmf_os_sdlock(dhd_pub_t *pub);
+extern void brcmf_os_sdunlock(dhd_pub_t *pub);
+extern void brcmf_os_sdlock_sndup_rxq(dhd_pub_t *pub);
+extern void brcmf_customer_gpio_wlan_ctrl(int onoff);
+extern int brcmf_custom_get_mac_address(unsigned char *buf);
+extern void brcmf_os_sdunlock_sndup_rxq(dhd_pub_t *pub);
+extern void brcmf_os_sdlock_eventq(dhd_pub_t *pub);
+extern void brcmf_os_sdunlock_eventq(dhd_pub_t *pub);
 #ifdef DHD_DEBUG
-extern int write_to_file(dhd_pub_t *dhd, u8 *buf, int size);
+extern int brcmf_write_to_file(dhd_pub_t *dhd, u8 *buf, int size);
 #endif				/* DHD_DEBUG */
 #if defined(OOB_INTR_ONLY)
-extern int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr);
+extern int brcmf_customer_oob_irq_map(unsigned long *irq_flags_ptr);
 #endif				/* defined(OOB_INTR_ONLY) */
 
-extern void dhd_timeout_start(dhd_timeout_t *tmo, uint usec);
-extern int dhd_timeout_expired(dhd_timeout_t *tmo);
+extern void brcmf_timeout_start(dhd_timeout_t *tmo, uint usec);
+extern int brcmf_timeout_expired(dhd_timeout_t *tmo);
 
-extern int dhd_ifname2idx(struct dhd_info *dhd, char *name);
+extern int brcmf_ifname2idx(struct dhd_info *dhd, char *name);
 extern u8 *dhd_bssidx2bssid(dhd_pub_t *dhd, int idx);
 extern int brcmf_c_host_event(struct dhd_info *dhd, int *idx, void *pktdata,
 			 brcmf_event_msg_t *, void **data_ptr);
 
 extern void brcmf_c_init(void);
 
-extern int dhd_add_if(struct dhd_info *dhd, int ifidx, void *handle,
+extern int brcmf_add_if(struct dhd_info *dhd, int ifidx, void *handle,
 		      char *name, u8 *mac_addr, u32 flags, u8 bssidx);
-extern void dhd_del_if(struct dhd_info *dhd, int ifidx);
+extern void brcmf_del_if(struct dhd_info *dhd, int ifidx);
 
-extern void dhd_vif_add(struct dhd_info *dhd, int ifidx, char *name);
-extern void dhd_vif_del(struct dhd_info *dhd, int ifidx);
+extern void brcmf_vif_add(struct dhd_info *dhd, int ifidx, char *name);
+extern void brcmf_vif_del(struct dhd_info *dhd, int ifidx);
 
-extern void dhd_event(struct dhd_info *dhd, char *evpkt, int evlen, int ifidx);
-extern void dhd_vif_sendup(struct dhd_info *dhd, int ifidx, unsigned char * cp,
-			   int len);
+extern void brcmf_event(struct dhd_info *dhd, char *evpkt, int evlen,
+			int ifidx);
+extern void brcmf_vif_sendup(struct dhd_info *dhd, int ifidx,
+			     unsigned char *cp, int len);
 
 /* Send packet to dongle via data channel */
-extern int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pkt);
+extern int brcmf_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pkt);
 
 /* Send event to host */
 extern void dhd_sendup_event(dhd_pub_t *dhdp, brcmf_event_msg_t *event,
 			     void *data);
-extern int dhd_bus_devreset(dhd_pub_t *dhdp, u8 flag);
+extern int brcmf_bus_devreset(dhd_pub_t *dhdp, u8 flag);
 extern uint dhd_bus_status(dhd_pub_t *dhdp);
-extern int dhd_bus_start(dhd_pub_t *dhdp);
+extern int brcmf_bus_start(dhd_pub_t *dhdp);
 
-extern void dhd_wait_for_event(dhd_pub_t *dhd, bool * lockvar);
-extern void dhd_wait_event_wakeup(dhd_pub_t *dhd);
+extern void brcmf_wait_for_event(dhd_pub_t *dhd, bool * lockvar);
+extern void brcmf_wait_event_wakeup(dhd_pub_t *dhd);
 
 #ifdef PKT_FILTER_SUPPORT
 extern void brcmf_c_pktfilter_offload_set(dhd_pub_t *dhd, char *arg);

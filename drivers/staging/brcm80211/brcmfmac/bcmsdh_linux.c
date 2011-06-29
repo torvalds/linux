@@ -169,7 +169,7 @@ int brcmf_sdio_probe(struct device *dev)
 #else
 	irq_flags = IRQF_TRIGGER_FALLING;
 #endif				/* HW_OOB */
-	irq = dhd_customer_oob_irq_map(&irq_flags);
+	irq = brcmf_customer_oob_irq_map(&irq_flags);
 	if (irq < 0) {
 		SDLX_MSG(("%s: Host irq is not defined\n", __func__));
 		return 1;

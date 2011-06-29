@@ -52,7 +52,7 @@ static int dhd_oob_gpio_num = -1;	/* GG 19 */
 module_param(dhd_oob_gpio_num, int, 0644);
 MODULE_PARM_DESC(dhd_oob_gpio_num, "DHD oob gpio number");
 
-int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
+int brcmf_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 {
 	int host_oob_irq = 0;
 
@@ -88,7 +88,7 @@ int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr)
 #endif				/* defined(OOB_INTR_ONLY) */
 
 /* Customer function to control hw specific wlan gpios */
-void dhd_customer_gpio_wlan_ctrl(int onoff)
+void brcmf_customer_gpio_wlan_ctrl(int onoff)
 {
 	switch (onoff) {
 	case WLAN_RESET_OFF:
@@ -137,7 +137,7 @@ void dhd_customer_gpio_wlan_ctrl(int onoff)
 
 #ifdef GET_CUSTOM_MAC_ENABLE
 /* Function to get custom MAC address */
-int dhd_custom_get_mac_address(unsigned char *buf)
+int brcmf_custom_get_mac_address(unsigned char *buf)
 {
 	WL_TRACE("%s Enter\n", __func__);
 	if (!buf)
