@@ -225,7 +225,7 @@ static void l2cap_set_timer(struct l2cap_chan *chan, struct timer_list *timer, l
 {
 	BT_DBG("chan %p state %d timeout %ld", chan->sk, chan->state, timeout);
 
-	if (!mod_timer(timer, jiffies + timeout))
+	if (!mod_timer(timer, jiffies + msecs_to_jiffies(timeout)))
 		chan_hold(chan);
 }
 
