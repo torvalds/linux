@@ -3522,9 +3522,6 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 	chan->expected_ack_seq = req_seq;
 	l2cap_drop_acked_frames(chan);
 
-	if (tx_seq == chan->expected_tx_seq)
-		goto expected;
-
 	tx_seq_offset = (tx_seq - chan->buffer_seq) % 64;
 	if (tx_seq_offset < 0)
 		tx_seq_offset += 64;
@@ -3537,6 +3534,9 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 
 	if (test_bit(CONN_LOCAL_BUSY, &chan->conn_state))
 		goto drop;
+
+	if (tx_seq == chan->expected_tx_seq)
+		goto expected;
 
 	if (test_bit(CONN_SREJ_SENT, &chan->conn_state)) {
 		struct srej_list *first;
