@@ -988,7 +988,7 @@ int cfhsi_probe(struct platform_device *pdev)
 		goto err_alloc_rx;
 	}
 
-	/* Initialize recieve vaiables. */
+	/* Initialize receive variables. */
 	cfhsi->rx_ptr = cfhsi->rx_buf;
 	cfhsi->rx_len = CFHSI_DESC_SZ;
 
