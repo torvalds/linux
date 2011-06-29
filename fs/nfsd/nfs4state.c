@@ -2336,15 +2336,6 @@ out:
 	return ret;
 }
 
-static inline void
-nfs4_file_downgrade(struct nfs4_file *fp, unsigned int share_access)
-{
-	if (share_access & NFS4_SHARE_ACCESS_WRITE)
-		nfs4_file_put_access(fp, O_WRONLY);
-	if (share_access & NFS4_SHARE_ACCESS_READ)
-		nfs4_file_put_access(fp, O_RDONLY);
-}
-
 static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 {
 	/* We're assuming the state code never drops its reference
@@ -2625,7 +2616,7 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *c
 	status = nfsd4_truncate(rqstp, cur_fh, open);
 	if (status) {
 		if (new_access) {
-			int oflag = nfs4_access_to_omode(new_access);
+			int oflag = nfs4_access_to_omode(op_share_access);
 			nfs4_file_put_access(fp, oflag);
 		}
 		return status;
@@ -3489,18 +3480,15 @@ out:
 	return status;
 }
 
-
-/*
- * unset all bits in union bitmap (bmap) that
- * do not exist in share (from successful OPEN_DOWNGRADE)
- */
-static void
-reset_union_bmap_access(unsigned long access, unsigned long *bmap)
+static inline void nfs4_file_downgrade(struct nfs4_stateid *stp, unsigned int to_access)
 {
 	int i;
+
 	for (i = 1; i < 4; i++) {
-		if ((i & access) != i)
-			__clear_bit(i, bmap);
+		if (test_bit(i, &stp->st_access_bmap) && !(i & to_access)) {
+			nfs4_file_put_access(stp->st_file, i);
+			__clear_bit(i, &stp->st_access_bmap);
+		}
 	}
 }
 
@@ -3521,7 +3509,6 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 {
 	__be32 status;
 	struct nfs4_stateid *stp;
-	unsigned int share_access;
 
 	dprintk("NFSD: nfsd4_open_downgrade on file %.*s\n", 
 			(int)cstate->current_fh.fh_dentry->d_name.len,
@@ -3550,10 +3537,8 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 			stp->st_deny_bmap, od->od_share_deny);
 		goto out;
 	}
-	set_access(&share_access, stp->st_access_bmap);
-	nfs4_file_downgrade(stp->st_file, share_access & ~od->od_share_access);
+	nfs4_file_downgrade(stp, od->od_share_access);
 
-	reset_union_bmap_access(od->od_share_access, &stp->st_access_bmap);
 	reset_union_bmap_deny(od->od_share_deny, &stp->st_deny_bmap);
 
 	update_stateid(&stp->st_stateid);
