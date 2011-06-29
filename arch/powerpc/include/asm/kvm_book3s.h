@@ -298,14 +298,6 @@ static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
 static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
 			unsigned long pending_now, unsigned long old_pending)
 {
-	/* Recalculate LPCR:MER based on the presence of
-	 * a pending external interrupt
-	 */
-	if (test_bit(BOOK3S_IRQPRIO_EXTERNAL, &pending_now) ||
-	    test_bit(BOOK3S_IRQPRIO_EXTERNAL_LEVEL, &pending_now))
-		vcpu->arch.lpcr |= LPCR_MER;
-	else
-		vcpu->arch.lpcr &= ~((u64)LPCR_MER);
 }
 
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)

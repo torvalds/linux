@@ -79,103 +79,8 @@ long kvmppc_alloc_hpt(struct kvm *kvm)
 
 void kvmppc_free_hpt(struct kvm *kvm)
 {
-	unsigned long i;
-	struct kvmppc_pginfo *pginfo;
-
 	clear_bit(kvm->arch.lpid, lpid_inuse);
 	free_pages(kvm->arch.hpt_virt, HPT_ORDER - PAGE_SHIFT);
-
-	if (kvm->arch.ram_pginfo) {
-		pginfo = kvm->arch.ram_pginfo;
-		kvm->arch.ram_pginfo = NULL;
-		for (i = 0; i < kvm->arch.ram_npages; ++i)
-			put_page(pfn_to_page(pginfo[i].pfn));
-		kfree(pginfo);
-	}
-}
-
-static unsigned long user_page_size(unsigned long addr)
-{
-	struct vm_area_struct *vma;
-	unsigned long size = PAGE_SIZE;
-
-	down_read(&current->mm->mmap_sem);
-	vma = find_vma(current->mm, addr);
-	if (vma)
-		size = vma_kernel_pagesize(vma);
-	up_read(&current->mm->mmap_sem);
-	return size;
-}
-
-static pfn_t hva_to_pfn(unsigned long addr)
-{
-	struct page *page[1];
-	int npages;
-
-	might_sleep();
-
-	npages = get_user_pages_fast(addr, 1, 1, page);
-
-	if (unlikely(npages != 1))
-		return 0;
-
-	return page_to_pfn(page[0]);
-}
-
-long kvmppc_prepare_vrma(struct kvm *kvm,
-			 struct kvm_userspace_memory_region *mem)
-{
-	unsigned long psize, porder;
-	unsigned long i, npages;
-	struct kvmppc_pginfo *pginfo;
-	pfn_t pfn;
-	unsigned long hva;
-
-	/* First see what page size we have */
-	psize = user_page_size(mem->userspace_addr);
-	/* For now, only allow 16MB pages */
-	if (psize != 1ul << VRMA_PAGE_ORDER || (mem->memory_size & (psize - 1))) {
-		pr_err("bad psize=%lx memory_size=%llx @ %llx\n",
-		       psize, mem->memory_size, mem->userspace_addr);
-		return -EINVAL;
-	}
-	porder = __ilog2(psize);
-
-	npages = mem->memory_size >> porder;
-	pginfo = kzalloc(npages * sizeof(struct kvmppc_pginfo), GFP_KERNEL);
-	if (!pginfo) {
-		pr_err("kvmppc_prepare_vrma: couldn't alloc %lu bytes\n",
-		       npages * sizeof(struct kvmppc_pginfo));
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < npages; ++i) {
-		hva = mem->userspace_addr + (i << porder);
-		if (user_page_size(hva) != psize)
-			goto err;
-		pfn = hva_to_pfn(hva);
-		if (pfn == 0) {
-			pr_err("oops, no pfn for hva %lx\n", hva);
-			goto err;
-		}
-		if (pfn & ((1ul << (porder - PAGE_SHIFT)) - 1)) {
-			pr_err("oops, unaligned pfn %llx\n", pfn);
-			put_page(pfn_to_page(pfn));
-			goto err;
-		}
-		pginfo[i].pfn = pfn;
-	}
-
-	kvm->arch.ram_npages = npages;
-	kvm->arch.ram_psize = psize;
-	kvm->arch.ram_porder = porder;
-	kvm->arch.ram_pginfo = pginfo;
-
-	return 0;
-
- err:
-	kfree(pginfo);
-	return -EINVAL;
 }
 
 void kvmppc_map_vrma(struct kvm *kvm, struct kvm_userspace_memory_region *mem)
@@ -199,6 +104,8 @@ void kvmppc_map_vrma(struct kvm *kvm, struct kvm_userspace_memory_region *mem)
 
 	for (i = 0; i < npages; ++i) {
 		pfn = pginfo[i].pfn;
+		if (!pfn)
+			break;
 		/* can't use hpt_hash since va > 64 bits */
 		hash = (i ^ (VRMA_VSID ^ (VRMA_VSID << 25))) & HPT_HASH_MASK;
 		/*

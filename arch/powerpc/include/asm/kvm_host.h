@@ -28,6 +28,8 @@
 #include <linux/threads.h>
 #include <linux/spinlock.h>
 #include <linux/kvm_para.h>
+#include <linux/list.h>
+#include <linux/atomic.h>
 #include <asm/kvm_asm.h>
 #include <asm/processor.h>
 
@@ -156,6 +158,14 @@ struct kvmppc_spapr_tce_table {
 	struct page *pages[0];
 };
 
+struct kvmppc_rma_info {
+	void		*base_virt;
+	unsigned long	 base_pfn;
+	unsigned long	 npages;
+	struct list_head list;
+	atomic_t 	 use_count;
+};
+
 struct kvm_arch {
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	unsigned long hpt_virt;
@@ -169,6 +179,10 @@ struct kvm_arch {
 	unsigned long sdr1;
 	unsigned long host_sdr1;
 	int tlbie_lock;
+	int n_rma_pages;
+	unsigned long lpcr;
+	unsigned long rmor;
+	struct kvmppc_rma_info *rma;
 	struct list_head spapr_tce_tables;
 	unsigned short last_vcpu[NR_CPUS];
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
@@ -295,7 +309,6 @@ struct kvm_vcpu_arch {
 	ulong guest_owned_ext;
 	ulong purr;
 	ulong spurr;
-	ulong lpcr;
 	ulong dscr;
 	ulong amr;
 	ulong uamor;

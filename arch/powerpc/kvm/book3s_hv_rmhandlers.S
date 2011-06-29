@@ -235,10 +235,10 @@ kvmppc_hv_entry:
 	bne	21b
 
 	/* Primary thread switches to guest partition. */
+	ld	r9,VCPU_KVM(r4)		/* pointer to struct kvm */
 	lwz	r6,VCPU_PTID(r4)
 	cmpwi	r6,0
 	bne	20f
-	ld	r9,VCPU_KVM(r4)		/* pointer to struct kvm */
 	ld	r6,KVM_SDR1(r9)
 	lwz	r7,KVM_LPID(r9)
 	li	r0,LPID_RSVD		/* switch to reserved LPID */
@@ -255,8 +255,18 @@ kvmppc_hv_entry:
 20:	lbz	r0,VCORE_IN_GUEST(r5)
 	cmpwi	r0,0
 	beq	20b
-10:	ld	r8,VCPU_LPCR(r4)
-	mtspr	SPRN_LPCR,r8
+
+	/* Set LPCR.  Set the MER bit if there is a pending external irq. */
+10:	ld	r8,KVM_LPCR(r9)
+	ld	r0,VCPU_PENDING_EXC(r4)
+	li	r7,(1 << BOOK3S_IRQPRIO_EXTERNAL)
+	oris	r7,r7,(1 << BOOK3S_IRQPRIO_EXTERNAL_LEVEL)@h
+	and.	r0,r0,r7
+	beq	11f
+	ori	r8,r8,LPCR_MER
+11:	mtspr	SPRN_LPCR,r8
+	ld	r8,KVM_RMOR(r9)
+	mtspr	SPRN_RMOR,r8
 	isync
 
 	/* Check if HDEC expires soon */
@@ -464,7 +474,8 @@ hcall_real_cont:
 	/* Check for mediated interrupts (could be done earlier really ...) */
 	cmpwi	r12,BOOK3S_INTERRUPT_EXTERNAL
 	bne+	1f
-	ld	r5,VCPU_LPCR(r9)
+	ld	r5,VCPU_KVM(r9)
+	ld	r5,KVM_LPCR(r5)
 	andi.	r0,r11,MSR_EE
 	beq	1f
 	andi.	r0,r5,LPCR_MER

@@ -1398,6 +1398,38 @@ the entries written by kernel-handled H_PUT_TCE calls, and also lets
 userspace update the TCE table directly which is useful in some
 circumstances.
 
+4.63 KVM_ALLOCATE_RMA
+
+Capability: KVM_CAP_PPC_RMA
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_allocate_rma (out)
+Returns: file descriptor for mapping the allocated RMA
+
+This allocates a Real Mode Area (RMA) from the pool allocated at boot
+time by the kernel.  An RMA is a physically-contiguous, aligned region
+of memory used on older POWER processors to provide the memory which
+will be accessed by real-mode (MMU off) accesses in a KVM guest.
+POWER processors support a set of sizes for the RMA that usually
+includes 64MB, 128MB, 256MB and some larger powers of two.
+
+/* for KVM_ALLOCATE_RMA */
+struct kvm_allocate_rma {
+	__u64 rma_size;
+};
+
+The return value is a file descriptor which can be passed to mmap(2)
+to map the allocated RMA into userspace.  The mapped area can then be
+passed to the KVM_SET_USER_MEMORY_REGION ioctl to establish it as the
+RMA for a virtual machine.  The size of the RMA in bytes (which is
+fixed at host kernel boot time) is returned in the rma_size field of
+the argument structure.
+
+The KVM_CAP_PPC_RMA capability is 1 or 2 if the KVM_ALLOCATE_RMA ioctl
+is supported; 2 if the processor requires all virtual machines to have
+an RMA, or 1 if the processor can use an RMA but doesn't require it,
+because it supports the Virtual RMA (VRMA) facility.
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by

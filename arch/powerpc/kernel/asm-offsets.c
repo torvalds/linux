@@ -437,6 +437,8 @@ int main(void)
 	DEFINE(KVM_TLBIE_LOCK, offsetof(struct kvm, arch.tlbie_lock));
 	DEFINE(KVM_ONLINE_CPUS, offsetof(struct kvm, online_vcpus.counter));
 	DEFINE(KVM_LAST_VCPU, offsetof(struct kvm, arch.last_vcpu));
+	DEFINE(KVM_LPCR, offsetof(struct kvm, arch.lpcr));
+	DEFINE(KVM_RMOR, offsetof(struct kvm, arch.rmor));
 	DEFINE(VCPU_DSISR, offsetof(struct kvm_vcpu, arch.shregs.dsisr));
 	DEFINE(VCPU_DAR, offsetof(struct kvm_vcpu, arch.shregs.dar));
 #endif
@@ -459,7 +461,7 @@ int main(void)
 	DEFINE(VCPU_HFLAGS, offsetof(struct kvm_vcpu, arch.hflags));
 	DEFINE(VCPU_DEC, offsetof(struct kvm_vcpu, arch.dec));
 	DEFINE(VCPU_DEC_EXPIRES, offsetof(struct kvm_vcpu, arch.dec_expires));
-	DEFINE(VCPU_LPCR, offsetof(struct kvm_vcpu, arch.lpcr));
+	DEFINE(VCPU_PENDING_EXC, offsetof(struct kvm_vcpu, arch.pending_exceptions));
 	DEFINE(VCPU_VPA, offsetof(struct kvm_vcpu, arch.vpa));
 	DEFINE(VCPU_MMCR, offsetof(struct kvm_vcpu, arch.mmcr));
 	DEFINE(VCPU_PMC, offsetof(struct kvm_vcpu, arch.pmc));

@@ -282,4 +282,9 @@ struct kvm_create_spapr_tce {
 	__u32 window_size;
 };
 
+/* for KVM_ALLOCATE_RMA */
+struct kvm_allocate_rma {
+	__u64 rma_size;
+};
+
 #endif /* __LINUX_KVM_POWERPC_H */

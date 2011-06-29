@@ -242,6 +242,7 @@
 #define   LPCR_VRMA_LP1	(1ul << (63-16))
 #define   LPCR_VRMASD_SH (63-16)
 #define   LPCR_RMLS    0x1C000000      /* impl dependent rmo limit sel */
+#define	  LPCR_RMLS_SH	(63-37)
 #define   LPCR_ILE     0x02000000      /* !HV irqs set MSR:LE */
 #define   LPCR_PECE	0x00007000	/* powersave exit cause enable */
 #define     LPCR_PECE0	0x00004000	/* ext. exceptions can cause exit */

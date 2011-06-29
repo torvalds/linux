@@ -124,6 +124,10 @@ extern void kvmppc_map_vrma(struct kvm *kvm,
 extern int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu);
 extern long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 				struct kvm_create_spapr_tce *args);
+extern long kvm_vm_ioctl_allocate_rma(struct kvm *kvm,
+				struct kvm_allocate_rma *rma);
+extern struct kvmppc_rma_info *kvm_alloc_rma(void);
+extern void kvm_release_rma(struct kvmppc_rma_info *ri);
 extern int kvmppc_core_init_vm(struct kvm *kvm);
 extern void kvmppc_core_destroy_vm(struct kvm *kvm);
 extern int kvmppc_core_prepare_memory_region(struct kvm *kvm,
@@ -177,8 +181,14 @@ static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 {
 	paca[cpu].kvm_hstate.xics_phys = addr;
 }
+
+extern void kvm_rma_init(void);
+
 #else
 static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
+{}
+
+static inline void kvm_rma_init(void)
 {}
 #endif
 

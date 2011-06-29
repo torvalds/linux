@@ -211,6 +211,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_SMT:
 		r = threads_per_core;
 		break;
+	case KVM_CAP_PPC_RMA:
+		r = 1;
+		break;
 #endif
 	default:
 		r = 0;
@@ -672,6 +675,16 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 		r = kvm_vm_ioctl_create_spapr_tce(kvm, &create_tce);
 		goto out;
+	}
+
+	case KVM_ALLOCATE_RMA: {
+		struct kvm *kvm = filp->private_data;
+		struct kvm_allocate_rma rma;
+
+		r = kvm_vm_ioctl_allocate_rma(kvm, &rma);
+		if (r >= 0 && copy_to_user(argp, &rma, sizeof(rma)))
+			r = -EFAULT;
+		break;
 	}
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
 
