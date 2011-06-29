@@ -442,6 +442,6 @@ static void __exit atmel_wm97xx_exit(void)
 }
 module_exit(atmel_wm97xx_exit);
 
-MODULE_AUTHOR("Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>");
+MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
 MODULE_DESCRIPTION("wm97xx continuous touch driver for Atmel AT91 and AVR32");
 MODULE_LICENSE("GPL");
