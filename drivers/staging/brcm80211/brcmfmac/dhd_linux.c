@@ -376,7 +376,7 @@ static int dhd_toe_set(dhd_info_t *dhd, int idx, u32 toe_ol);
 #endif				/* TOE */
 
 static int dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
-			     wl_event_msg_t *event_ptr, void **data_ptr);
+			     brcmf_event_msg_t *event_ptr, void **data_ptr);
 
 static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
 {
@@ -791,10 +791,10 @@ static void dhd_op_if(dhd_if_t *ifp)
 	DHD_TRACE(("%s: idx %d, state %d\n", __func__, ifp->idx, ifp->state));
 
 	switch (ifp->state) {
-	case WLC_E_IF_ADD:
+	case BRCMF_E_IF_ADD:
 		/*
 		 * Delete the existing interface before overwriting it
-		 * in case we missed the WLC_E_IF_DEL event.
+		 * in case we missed the BRCMF_E_IF_DEL event.
 		 */
 		if (ifp->net != NULL) {
 			DHD_ERROR(("%s: ERROR: netdev:%s already exists, "
@@ -839,7 +839,7 @@ static void dhd_op_if(dhd_if_t *ifp)
 			}
 		}
 		break;
-	case WLC_E_IF_DEL:
+	case BRCMF_E_IF_DEL:
 		if (ifp->net != NULL) {
 			DHD_TRACE(("\n%s: got 'WLC_E_IF_DEL' state\n",
 				   __func__));
@@ -1100,7 +1100,7 @@ void dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf,
 	struct sk_buff *pnext, *save_pktbuf;
 	int i;
 	dhd_if_t *ifp;
-	wl_event_msg_t event;
+	brcmf_event_msg_t event;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -1773,7 +1773,7 @@ dhd_add_if(dhd_info_t *dhd, int ifidx, void *handle, char *name,
 		memcpy(&ifp->mac_addr, mac_addr, ETH_ALEN);
 
 	if (handle == NULL) {
-		ifp->state = WLC_E_IF_ADD;
+		ifp->state = BRCMF_E_IF_ADD;
 		ifp->idx = ifidx;
 		ASSERT(dhd->sysioc_tsk);
 		up(&dhd->sysioc_sem);
@@ -1796,7 +1796,7 @@ void dhd_del_if(dhd_info_t *dhd, int ifidx)
 		return;
 	}
 
-	ifp->state = WLC_E_IF_DEL;
+	ifp->state = BRCMF_E_IF_DEL;
 	ifp->idx = ifidx;
 	ASSERT(dhd->sysioc_tsk);
 	up(&dhd->sysioc_sem);
@@ -2027,26 +2027,26 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 	dhdcdc_query_ioctl(dhdp, 0, BRCMF_C_GET_VAR, iovbuf, sizeof(iovbuf));
 	memcpy(dhdp->eventmask, iovbuf, WL_EVENTING_MASK_LEN);
 
-	setbit(dhdp->eventmask, WLC_E_SET_SSID);
-	setbit(dhdp->eventmask, WLC_E_PRUNE);
-	setbit(dhdp->eventmask, WLC_E_AUTH);
-	setbit(dhdp->eventmask, WLC_E_REASSOC);
-	setbit(dhdp->eventmask, WLC_E_REASSOC_IND);
-	setbit(dhdp->eventmask, WLC_E_DEAUTH_IND);
-	setbit(dhdp->eventmask, WLC_E_DISASSOC_IND);
-	setbit(dhdp->eventmask, WLC_E_DISASSOC);
-	setbit(dhdp->eventmask, WLC_E_JOIN);
-	setbit(dhdp->eventmask, WLC_E_ASSOC_IND);
-	setbit(dhdp->eventmask, WLC_E_PSK_SUP);
-	setbit(dhdp->eventmask, WLC_E_LINK);
-	setbit(dhdp->eventmask, WLC_E_NDIS_LINK);
-	setbit(dhdp->eventmask, WLC_E_MIC_ERROR);
-	setbit(dhdp->eventmask, WLC_E_PMKID_CACHE);
-	setbit(dhdp->eventmask, WLC_E_TXFAIL);
-	setbit(dhdp->eventmask, WLC_E_JOIN_START);
-	setbit(dhdp->eventmask, WLC_E_SCAN_COMPLETE);
+	setbit(dhdp->eventmask, BRCMF_E_SET_SSID);
+	setbit(dhdp->eventmask, BRCMF_E_PRUNE);
+	setbit(dhdp->eventmask, BRCMF_E_AUTH);
+	setbit(dhdp->eventmask, BRCMF_E_REASSOC);
+	setbit(dhdp->eventmask, BRCMF_E_REASSOC_IND);
+	setbit(dhdp->eventmask, BRCMF_E_DEAUTH_IND);
+	setbit(dhdp->eventmask, BRCMF_E_DISASSOC_IND);
+	setbit(dhdp->eventmask, BRCMF_E_DISASSOC);
+	setbit(dhdp->eventmask, BRCMF_E_JOIN);
+	setbit(dhdp->eventmask, BRCMF_E_ASSOC_IND);
+	setbit(dhdp->eventmask, BRCMF_E_PSK_SUP);
+	setbit(dhdp->eventmask, BRCMF_E_LINK);
+	setbit(dhdp->eventmask, BRCMF_E_NDIS_LINK);
+	setbit(dhdp->eventmask, BRCMF_E_MIC_ERROR);
+	setbit(dhdp->eventmask, BRCMF_E_PMKID_CACHE);
+	setbit(dhdp->eventmask, BRCMF_E_TXFAIL);
+	setbit(dhdp->eventmask, BRCMF_E_JOIN_START);
+	setbit(dhdp->eventmask, BRCMF_E_SCAN_COMPLETE);
 #ifdef PNO_SUPPORT
-	setbit(dhdp->eventmask, WLC_E_PFN_NET_FOUND);
+	setbit(dhdp->eventmask, BRCMF_E_PFN_NET_FOUND);
 #endif				/* PNO_SUPPORT */
 
 /* enable dongle roaming event */
@@ -2501,7 +2501,7 @@ void dhd_os_sdunlock(dhd_pub_t *pub)
 
 static int
 dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
-		  wl_event_msg_t *event, void **data)
+		  brcmf_event_msg_t *event, void **data)
 {
 	int bcmerror = 0;
 
@@ -2520,7 +2520,7 @@ dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 }
 
 /* send up locally generated event */
-void dhd_sendup_event(dhd_pub_t *dhdp, wl_event_msg_t *event, void *data)
+void dhd_sendup_event(dhd_pub_t *dhdp, brcmf_event_msg_t *event, void *data)
 {
 	switch (be32_to_cpu(event->event_type)) {
 	default:

@@ -517,7 +517,7 @@ int brcmf_c_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 }
 
 #ifdef SHOW_EVENTS
-static void brcmf_c_show_host_event(wl_event_msg_t *event, void *event_data)
+static void brcmf_c_show_host_event(brcmf_event_msg_t *event, void *event_data)
 {
 	uint i, status, reason;
 	bool group = false, flush_txq = false, link = false;
@@ -529,62 +529,62 @@ static void brcmf_c_show_host_event(wl_event_msg_t *event, void *event_data)
 		char *event_name;
 	} event_names[] = {
 		{
-		WLC_E_SET_SSID, "SET_SSID"}, {
-		WLC_E_JOIN, "JOIN"}, {
-		WLC_E_START, "START"}, {
-		WLC_E_AUTH, "AUTH"}, {
-		WLC_E_AUTH_IND, "AUTH_IND"}, {
-		WLC_E_DEAUTH, "DEAUTH"}, {
-		WLC_E_DEAUTH_IND, "DEAUTH_IND"}, {
-		WLC_E_ASSOC, "ASSOC"}, {
-		WLC_E_ASSOC_IND, "ASSOC_IND"}, {
-		WLC_E_REASSOC, "REASSOC"}, {
-		WLC_E_REASSOC_IND, "REASSOC_IND"}, {
-		WLC_E_DISASSOC, "DISASSOC"}, {
-		WLC_E_DISASSOC_IND, "DISASSOC_IND"}, {
-		WLC_E_QUIET_START, "START_QUIET"}, {
-		WLC_E_QUIET_END, "END_QUIET"}, {
-		WLC_E_BEACON_RX, "BEACON_RX"}, {
-		WLC_E_LINK, "LINK"}, {
-		WLC_E_MIC_ERROR, "MIC_ERROR"}, {
-		WLC_E_NDIS_LINK, "NDIS_LINK"}, {
-		WLC_E_ROAM, "ROAM"}, {
-		WLC_E_TXFAIL, "TXFAIL"}, {
-		WLC_E_PMKID_CACHE, "PMKID_CACHE"}, {
-		WLC_E_RETROGRADE_TSF, "RETROGRADE_TSF"}, {
-		WLC_E_PRUNE, "PRUNE"}, {
-		WLC_E_AUTOAUTH, "AUTOAUTH"}, {
-		WLC_E_EAPOL_MSG, "EAPOL_MSG"}, {
-		WLC_E_SCAN_COMPLETE, "SCAN_COMPLETE"}, {
-		WLC_E_ADDTS_IND, "ADDTS_IND"}, {
-		WLC_E_DELTS_IND, "DELTS_IND"}, {
-		WLC_E_BCNSENT_IND, "BCNSENT_IND"}, {
-		WLC_E_BCNRX_MSG, "BCNRX_MSG"}, {
-		WLC_E_BCNLOST_MSG, "BCNLOST_MSG"}, {
-		WLC_E_ROAM_PREP, "ROAM_PREP"}, {
-		WLC_E_PFN_NET_FOUND, "PNO_NET_FOUND"}, {
-		WLC_E_PFN_NET_LOST, "PNO_NET_LOST"}, {
-		WLC_E_RESET_COMPLETE, "RESET_COMPLETE"}, {
-		WLC_E_JOIN_START, "JOIN_START"}, {
-		WLC_E_ROAM_START, "ROAM_START"}, {
-		WLC_E_ASSOC_START, "ASSOC_START"}, {
-		WLC_E_IBSS_ASSOC, "IBSS_ASSOC"}, {
-		WLC_E_RADIO, "RADIO"}, {
-		WLC_E_PSM_WATCHDOG, "PSM_WATCHDOG"}, {
-		WLC_E_PROBREQ_MSG, "PROBREQ_MSG"}, {
-		WLC_E_SCAN_CONFIRM_IND, "SCAN_CONFIRM_IND"}, {
-		WLC_E_PSK_SUP, "PSK_SUP"}, {
-		WLC_E_COUNTRY_CODE_CHANGED, "COUNTRY_CODE_CHANGED"}, {
-		WLC_E_EXCEEDED_MEDIUM_TIME, "EXCEEDED_MEDIUM_TIME"}, {
-		WLC_E_ICV_ERROR, "ICV_ERROR"}, {
-		WLC_E_UNICAST_DECODE_ERROR, "UNICAST_DECODE_ERROR"}, {
-		WLC_E_MULTICAST_DECODE_ERROR, "MULTICAST_DECODE_ERROR"}, {
-		WLC_E_TRACE, "TRACE"}, {
-		WLC_E_ACTION_FRAME, "ACTION FRAME"}, {
-		WLC_E_ACTION_FRAME_COMPLETE, "ACTION FRAME TX COMPLETE"}, {
-		WLC_E_IF, "IF"}, {
-		WLC_E_RSSI, "RSSI"}, {
-		WLC_E_PFN_SCAN_COMPLETE, "SCAN_COMPLETE"}
+		BRCMF_E_SET_SSID, "SET_SSID"}, {
+		BRCMF_E_JOIN, "JOIN"}, {
+		BRCMF_E_START, "START"}, {
+		BRCMF_E_AUTH, "AUTH"}, {
+		BRCMF_E_AUTH_IND, "AUTH_IND"}, {
+		BRCMF_E_DEAUTH, "DEAUTH"}, {
+		BRCMF_E_DEAUTH_IND, "DEAUTH_IND"}, {
+		BRCMF_E_ASSOC, "ASSOC"}, {
+		BRCMF_E_ASSOC_IND, "ASSOC_IND"}, {
+		BRCMF_E_REASSOC, "REASSOC"}, {
+		BRCMF_E_REASSOC_IND, "REASSOC_IND"}, {
+		BRCMF_E_DISASSOC, "DISASSOC"}, {
+		BRCMF_E_DISASSOC_IND, "DISASSOC_IND"}, {
+		BRCMF_E_QUIET_START, "START_QUIET"}, {
+		BRCMF_E_QUIET_END, "END_QUIET"}, {
+		BRCMF_E_BEACON_RX, "BEACON_RX"}, {
+		BRCMF_E_LINK, "LINK"}, {
+		BRCMF_E_MIC_ERROR, "MIC_ERROR"}, {
+		BRCMF_E_NDIS_LINK, "NDIS_LINK"}, {
+		BRCMF_E_ROAM, "ROAM"}, {
+		BRCMF_E_TXFAIL, "TXFAIL"}, {
+		BRCMF_E_PMKID_CACHE, "PMKID_CACHE"}, {
+		BRCMF_E_RETROGRADE_TSF, "RETROGRADE_TSF"}, {
+		BRCMF_E_PRUNE, "PRUNE"}, {
+		BRCMF_E_AUTOAUTH, "AUTOAUTH"}, {
+		BRCMF_E_EAPOL_MSG, "EAPOL_MSG"}, {
+		BRCMF_E_SCAN_COMPLETE, "SCAN_COMPLETE"}, {
+		BRCMF_E_ADDTS_IND, "ADDTS_IND"}, {
+		BRCMF_E_DELTS_IND, "DELTS_IND"}, {
+		BRCMF_E_BCNSENT_IND, "BCNSENT_IND"}, {
+		BRCMF_E_BCNRX_MSG, "BCNRX_MSG"}, {
+		BRCMF_E_BCNLOST_MSG, "BCNLOST_MSG"}, {
+		BRCMF_E_ROAM_PREP, "ROAM_PREP"}, {
+		BRCMF_E_PFN_NET_FOUND, "PNO_NET_FOUND"}, {
+		BRCMF_E_PFN_NET_LOST, "PNO_NET_LOST"}, {
+		BRCMF_E_RESET_COMPLETE, "RESET_COMPLETE"}, {
+		BRCMF_E_JOIN_START, "JOIN_START"}, {
+		BRCMF_E_ROAM_START, "ROAM_START"}, {
+		BRCMF_E_ASSOC_START, "ASSOC_START"}, {
+		BRCMF_E_IBSS_ASSOC, "IBSS_ASSOC"}, {
+		BRCMF_E_RADIO, "RADIO"}, {
+		BRCMF_E_PSM_WATCHDOG, "PSM_WATCHDOG"}, {
+		BRCMF_E_PROBREQ_MSG, "PROBREQ_MSG"}, {
+		BRCMF_E_SCAN_CONFIRM_IND, "SCAN_CONFIRM_IND"}, {
+		BRCMF_E_PSK_SUP, "PSK_SUP"}, {
+		BRCMF_E_COUNTRY_CODE_CHANGED, "COUNTRY_CODE_CHANGED"}, {
+		BRCMF_E_EXCEEDED_MEDIUM_TIME, "EXCEEDED_MEDIUM_TIME"}, {
+		BRCMF_E_ICV_ERROR, "ICV_ERROR"}, {
+		BRCMF_E_UNICAST_DECODE_ERROR, "UNICAST_DECODE_ERROR"}, {
+		BRCMF_E_MULTICAST_DECODE_ERROR, "MULTICAST_DECODE_ERROR"}, {
+		BRCMF_E_TRACE, "TRACE"}, {
+		BRCMF_E_ACTION_FRAME, "ACTION FRAME"}, {
+		BRCMF_E_ACTION_FRAME_COMPLETE, "ACTION FRAME TX COMPLETE"}, {
+		BRCMF_E_IF, "IF"}, {
+		BRCMF_E_RSSI, "RSSI"}, {
+		BRCMF_E_PFN_SCAN_COMPLETE, "SCAN_COMPLETE"}
 	};
 	uint event_type, flags, auth_type, datalen;
 	event_type = be32_to_cpu(event->event_type);
@@ -606,34 +606,34 @@ static void brcmf_c_show_host_event(wl_event_msg_t *event, void *event_data)
 	DHD_EVENT(("flags 0x%04x, status %d, reason %d, auth_type %d MAC %s\n",
 				flags, status, reason, auth_type, eabuf));
 
-	if (flags & WLC_EVENT_MSG_LINK)
+	if (flags & BRCMF_EVENT_MSG_LINK)
 		link = true;
-	if (flags & WLC_EVENT_MSG_GROUP)
+	if (flags & BRCMF_EVENT_MSG_GROUP)
 		group = true;
-	if (flags & WLC_EVENT_MSG_FLUSHTXQ)
+	if (flags & BRCMF_EVENT_MSG_FLUSHTXQ)
 		flush_txq = true;
 
 	switch (event_type) {
-	case WLC_E_START:
-	case WLC_E_DEAUTH:
-	case WLC_E_DISASSOC:
+	case BRCMF_E_START:
+	case BRCMF_E_DEAUTH:
+	case BRCMF_E_DISASSOC:
 		DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
 		break;
 
-	case WLC_E_ASSOC_IND:
-	case WLC_E_REASSOC_IND:
+	case BRCMF_E_ASSOC_IND:
+	case BRCMF_E_REASSOC_IND:
 		DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
 		break;
 
-	case WLC_E_ASSOC:
-	case WLC_E_REASSOC:
-		if (status == WLC_E_STATUS_SUCCESS) {
+	case BRCMF_E_ASSOC:
+	case BRCMF_E_REASSOC:
+		if (status == BRCMF_E_STATUS_SUCCESS) {
 			DHD_EVENT(("MACEVENT: %s, MAC %s, SUCCESS\n",
 				   event_name, eabuf));
-		} else if (status == WLC_E_STATUS_TIMEOUT) {
+		} else if (status == BRCMF_E_STATUS_TIMEOUT) {
 			DHD_EVENT(("MACEVENT: %s, MAC %s, TIMEOUT\n",
 				   event_name, eabuf));
-		} else if (status == WLC_E_STATUS_FAIL) {
+		} else if (status == BRCMF_E_STATUS_FAIL) {
 			DHD_EVENT(("MACEVENT: %s, MAC %s, FAILURE, reason %d\n",
 				   event_name, eabuf, (int)reason));
 		} else {
@@ -642,14 +642,14 @@ static void brcmf_c_show_host_event(wl_event_msg_t *event, void *event_data)
 		}
 		break;
 
-	case WLC_E_DEAUTH_IND:
-	case WLC_E_DISASSOC_IND:
+	case BRCMF_E_DEAUTH_IND:
+	case BRCMF_E_DISASSOC_IND:
 		DHD_EVENT(("MACEVENT: %s, MAC %s, reason %d\n", event_name,
 			   eabuf, (int)reason));
 		break;
 
-	case WLC_E_AUTH:
-	case WLC_E_AUTH_IND:
+	case BRCMF_E_AUTH:
+	case BRCMF_E_AUTH_IND:
 		if (auth_type == WLAN_AUTH_OPEN)
 			auth_str = "Open System";
 		else if (auth_type == WLAN_AUTH_SHARED_KEY)
@@ -658,16 +658,16 @@ static void brcmf_c_show_host_event(wl_event_msg_t *event, void *event_data)
 			sprintf(err_msg, "AUTH unknown: %d", (int)auth_type);
 			auth_str = err_msg;
 		}
-		if (event_type == WLC_E_AUTH_IND) {
+		if (event_type == BRCMF_E_AUTH_IND) {
 			DHD_EVENT(("MACEVENT: %s, MAC %s, %s\n", event_name,
 				   eabuf, auth_str));
-		} else if (status == WLC_E_STATUS_SUCCESS) {
+		} else if (status == BRCMF_E_STATUS_SUCCESS) {
 			DHD_EVENT(("MACEVENT: %s, MAC %s, %s, SUCCESS\n",
 				   event_name, eabuf, auth_str));
-		} else if (status == WLC_E_STATUS_TIMEOUT) {
+		} else if (status == BRCMF_E_STATUS_TIMEOUT) {
 			DHD_EVENT(("MACEVENT: %s, MAC %s, %s, TIMEOUT\n",
 				   event_name, eabuf, auth_str));
-		} else if (status == WLC_E_STATUS_FAIL) {
+		} else if (status == BRCMF_E_STATUS_FAIL) {
 			DHD_EVENT(("MACEVENT: %s, MAC %s, %s, FAILURE, "
 				"reason %d\n",
 				event_name, eabuf, auth_str, (int)reason));
@@ -675,15 +675,15 @@ static void brcmf_c_show_host_event(wl_event_msg_t *event, void *event_data)
 
 		break;
 
-	case WLC_E_JOIN:
-	case WLC_E_ROAM:
-	case WLC_E_SET_SSID:
-		if (status == WLC_E_STATUS_SUCCESS) {
+	case BRCMF_E_JOIN:
+	case BRCMF_E_ROAM:
+	case BRCMF_E_SET_SSID:
+		if (status == BRCMF_E_STATUS_SUCCESS) {
 			DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name,
 				   eabuf));
-		} else if (status == WLC_E_STATUS_FAIL) {
+		} else if (status == BRCMF_E_STATUS_FAIL) {
 			DHD_EVENT(("MACEVENT: %s, failed\n", event_name));
-		} else if (status == WLC_E_STATUS_NO_NETWORKS) {
+		} else if (status == BRCMF_E_STATUS_NO_NETWORKS) {
 			DHD_EVENT(("MACEVENT: %s, no networks found\n",
 				   event_name));
 		} else {
@@ -692,10 +692,10 @@ static void brcmf_c_show_host_event(wl_event_msg_t *event, void *event_data)
 		}
 		break;
 
-	case WLC_E_BEACON_RX:
-		if (status == WLC_E_STATUS_SUCCESS) {
+	case BRCMF_E_BEACON_RX:
+		if (status == BRCMF_E_STATUS_SUCCESS) {
 			DHD_EVENT(("MACEVENT: %s, SUCCESS\n", event_name));
-		} else if (status == WLC_E_STATUS_FAIL) {
+		} else if (status == BRCMF_E_STATUS_FAIL) {
 			DHD_EVENT(("MACEVENT: %s, FAIL\n", event_name));
 		} else {
 			DHD_EVENT(("MACEVENT: %s, status %d\n", event_name,
@@ -703,44 +703,44 @@ static void brcmf_c_show_host_event(wl_event_msg_t *event, void *event_data)
 		}
 		break;
 
-	case WLC_E_LINK:
+	case BRCMF_E_LINK:
 		DHD_EVENT(("MACEVENT: %s %s\n", event_name,
 			   link ? "UP" : "DOWN"));
 		break;
 
-	case WLC_E_MIC_ERROR:
+	case BRCMF_E_MIC_ERROR:
 		DHD_EVENT(("MACEVENT: %s, MAC %s, Group %d, Flush %d\n",
 			   event_name, eabuf, group, flush_txq));
 		break;
 
-	case WLC_E_ICV_ERROR:
-	case WLC_E_UNICAST_DECODE_ERROR:
-	case WLC_E_MULTICAST_DECODE_ERROR:
+	case BRCMF_E_ICV_ERROR:
+	case BRCMF_E_UNICAST_DECODE_ERROR:
+	case BRCMF_E_MULTICAST_DECODE_ERROR:
 		DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
 		break;
 
-	case WLC_E_TXFAIL:
+	case BRCMF_E_TXFAIL:
 		DHD_EVENT(("MACEVENT: %s, RA %s\n", event_name, eabuf));
 		break;
 
-	case WLC_E_SCAN_COMPLETE:
-	case WLC_E_PMKID_CACHE:
+	case BRCMF_E_SCAN_COMPLETE:
+	case BRCMF_E_PMKID_CACHE:
 		DHD_EVENT(("MACEVENT: %s\n", event_name));
 		break;
 
-	case WLC_E_PFN_NET_FOUND:
-	case WLC_E_PFN_NET_LOST:
-	case WLC_E_PFN_SCAN_COMPLETE:
+	case BRCMF_E_PFN_NET_FOUND:
+	case BRCMF_E_PFN_NET_LOST:
+	case BRCMF_E_PFN_SCAN_COMPLETE:
 		DHD_EVENT(("PNOEVENT: %s\n", event_name));
 		break;
 
-	case WLC_E_PSK_SUP:
-	case WLC_E_PRUNE:
+	case BRCMF_E_PSK_SUP:
+	case BRCMF_E_PRUNE:
 		DHD_EVENT(("MACEVENT: %s, status %d, reason %d\n",
 			   event_name, (int)status, (int)reason));
 		break;
 
-	case WLC_E_TRACE:
+	case BRCMF_E_TRACE:
 		{
 			static u32 seqnum_prev;
 			struct msgtrace_hdr hdr;
@@ -799,7 +799,7 @@ static void brcmf_c_show_host_event(wl_event_msg_t *event, void *event_data)
 		}
 		break;
 
-	case WLC_E_RSSI:
+	case BRCMF_E_RSSI:
 		DHD_EVENT(("MACEVENT: %s %d\n", event_name,
 			   be32_to_cpu(*((int *)event_data))));
 		break;
@@ -824,22 +824,22 @@ static void brcmf_c_show_host_event(wl_event_msg_t *event, void *event_data)
 
 int
 brcmf_c_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
-	      wl_event_msg_t *event, void **data_ptr)
+	      brcmf_event_msg_t *event, void **data_ptr)
 {
 	/* check whether packet is a BRCM event pkt */
-	bcm_event_t *pvt_data = (bcm_event_t *) pktdata;
+	brcmf_event_t *pvt_data = (brcmf_event_t *) pktdata;
 	char *event_data;
 	u32 type, status;
 	u16 flags;
 	int evlen;
 
-	if (memcmp(BRCM_OUI, &pvt_data->bcm_hdr.oui[0], DOT11_OUI_LEN)) {
+	if (memcmp(BRCM_OUI, &pvt_data->hdr.oui[0], DOT11_OUI_LEN)) {
 		DHD_ERROR(("%s: mismatched OUI, bailing\n", __func__));
 		return -EBADE;
 	}
 
 	/* BRCM event pkt may be unaligned - use xxx_ua to load user_subtype. */
-	if (get_unaligned_be16(&pvt_data->bcm_hdr.usr_subtype) !=
+	if (get_unaligned_be16(&pvt_data->hdr.usr_subtype) !=
 	    BCMILCP_BCM_SUBTYPE_EVENT) {
 		DHD_ERROR(("%s: mismatched subtype, bailing\n", __func__));
 		return -EBADE;
@@ -849,22 +849,22 @@ brcmf_c_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 	event_data = *data_ptr;
 
 	/* memcpy since BRCM event pkt may be unaligned. */
-	memcpy(event, &pvt_data->event, sizeof(wl_event_msg_t));
+	memcpy(event, &pvt_data->msg, sizeof(brcmf_event_msg_t));
 
 	type = get_unaligned_be32(&event->event_type);
 	flags = get_unaligned_be16(&event->flags);
 	status = get_unaligned_be32(&event->status);
-	evlen = get_unaligned_be32(&event->datalen) + sizeof(bcm_event_t);
+	evlen = get_unaligned_be32(&event->datalen) + sizeof(brcmf_event_t);
 
 	switch (type) {
-	case WLC_E_IF:
+	case BRCMF_E_IF:
 		{
 			dhd_if_event_t *ifevent = (dhd_if_event_t *) event_data;
 			DHD_TRACE(("%s: if event\n", __func__));
 
 			if (ifevent->ifidx > 0 &&
 				 ifevent->ifidx < DHD_MAX_IFS) {
-				if (ifevent->action == WLC_E_IF_ADD)
+				if (ifevent->action == BRCMF_E_IF_ADD)
 					dhd_add_if(dhd, ifevent->ifidx,
 						   NULL, event->ifname,
 						   pvt_data->eth.h_dest,
@@ -885,16 +885,16 @@ brcmf_c_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 		break;
 
 #ifdef P2P
-	case WLC_E_NDIS_LINK:
+	case BRCMF_E_NDIS_LINK:
 		break;
 #endif
 		/* fall through */
 		/* These are what external supplicant/authenticator wants */
-	case WLC_E_LINK:
-	case WLC_E_ASSOC_IND:
-	case WLC_E_REASSOC_IND:
-	case WLC_E_DISASSOC_IND:
-	case WLC_E_MIC_ERROR:
+	case BRCMF_E_LINK:
+	case BRCMF_E_ASSOC_IND:
+	case BRCMF_E_REASSOC_IND:
+	case BRCMF_E_DISASSOC_IND:
+	case BRCMF_E_MIC_ERROR:
 	default:
 		/* Fall through: this should get _everything_  */
 
@@ -904,16 +904,16 @@ brcmf_c_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 		DHD_TRACE(("%s: MAC event %d, flags %x, status %x\n",
 			   __func__, type, flags, status));
 
-		/* put it back to WLC_E_NDIS_LINK */
-		if (type == WLC_E_NDIS_LINK) {
+		/* put it back to BRCMF_E_NDIS_LINK */
+		if (type == BRCMF_E_NDIS_LINK) {
 			u32 temp;
 
 			temp = get_unaligned_be32(&event->event_type);
 			DHD_TRACE(("Converted to WLC_E_LINK type %d\n", temp));
 
-			temp = be32_to_cpu(WLC_E_NDIS_LINK);
-			memcpy((void *)(&pvt_data->event.event_type), &temp,
-			       sizeof(pvt_data->event.event_type));
+			temp = be32_to_cpu(BRCMF_E_NDIS_LINK);
+			memcpy((void *)(&pvt_data->msg.event_type), &temp,
+			       sizeof(pvt_data->msg.event_type));
 		}
 		break;
 	}
