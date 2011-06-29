@@ -509,8 +509,16 @@ static enum drbd_state_rv is_valid_state(struct drbd_conf *, union drbd_state);
 static enum drbd_state_rv is_valid_state_transition(struct drbd_conf *,
 						    union drbd_state,
 						    union drbd_state);
+enum sanitize_state_warnings {
+	NO_WARNING,
+	ABORTED_ONLINE_VERIFY,
+	ABORTED_RESYNC,
+	CONNECTION_LOST_NEGOTIATING,
+	IMPLICITLY_UPGRADED_DISK,
+	IMPLICITLY_UPGRADED_PDSK,
+};
 static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state os,
-				       union drbd_state ns, const char **warn_sync_abort);
+				       union drbd_state ns, enum sanitize_state_warnings *warn);
 int drbd_send_state_req(struct drbd_conf *,
 			union drbd_state, union drbd_state);
 
@@ -803,6 +811,21 @@ is_valid_state_transition(struct drbd_conf *mdev, union drbd_state ns,
 	return rv;
 }
 
+static void print_sanitize_warnings(struct drbd_conf *mdev, enum sanitize_state_warnings warn)
+{
+	static const char *msg_table[] = {
+		[NO_WARNING] = "",
+		[ABORTED_ONLINE_VERIFY] = "Online-verify aborted.",
+		[ABORTED_RESYNC] = "Resync aborted.",
+		[CONNECTION_LOST_NEGOTIATING] = "Connection lost while negotiating, no data!",
+		[IMPLICITLY_UPGRADED_DISK] = "Implicitly upgraded disk",
+		[IMPLICITLY_UPGRADED_PDSK] = "Implicitly upgraded pdsk",
+	};
+
+	if (warn != NO_WARNING)
+		dev_warn(DEV, "%s\n", msg_table[warn]);
+}
+
 /**
  * sanitize_state() - Resolves implicitly necessary additional changes to a state transition
  * @mdev:	DRBD device.
@@ -814,10 +837,13 @@ is_valid_state_transition(struct drbd_conf *mdev, union drbd_state ns,
  * to D_UNKNOWN. This rule and many more along those lines are in this function.
  */
 static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state os,
-				       union drbd_state ns, const char **warn_sync_abort)
+				       union drbd_state ns, enum sanitize_state_warnings *warn)
 {
 	enum drbd_fencing_p fp;
 	enum drbd_disk_state disk_min, disk_max, pdsk_min, pdsk_max;
+
+	if (warn)
+		*warn = NO_WARNING;
 
 	fp = FP_DONT_CARE;
 	if (get_ldev(mdev)) {
@@ -863,10 +889,9 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 	/* Abort resync if a disk fails/detaches */
 	if (os.conn > C_CONNECTED && ns.conn > C_CONNECTED &&
 	    (ns.disk <= D_FAILED || ns.pdsk <= D_FAILED)) {
-		if (warn_sync_abort)
-			*warn_sync_abort =
-				os.conn == C_VERIFY_S || os.conn == C_VERIFY_T ?
-				"Online-verify" : "Resync";
+		if (warn)
+			*warn =	os.conn == C_VERIFY_S || os.conn == C_VERIFY_T ?
+				ABORTED_ONLINE_VERIFY : ABORTED_RESYNC;
 		ns.conn = C_CONNECTED;
 	}
 
@@ -877,7 +902,8 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 			ns.disk = mdev->new_state_tmp.disk;
 			ns.pdsk = mdev->new_state_tmp.pdsk;
 		} else {
-			dev_alert(DEV, "Connection lost while negotiating, no data!\n");
+			if (warn)
+				*warn = CONNECTION_LOST_NEGOTIATING;
 			ns.disk = D_DISKLESS;
 			ns.pdsk = D_UNKNOWN;
 		}
@@ -959,16 +985,16 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 		ns.disk = disk_max;
 
 	if (ns.disk < disk_min) {
-		dev_warn(DEV, "Implicitly set disk from %s to %s\n",
-			 drbd_disk_str(ns.disk), drbd_disk_str(disk_min));
+		if (warn)
+			*warn = IMPLICITLY_UPGRADED_DISK;
 		ns.disk = disk_min;
 	}
 	if (ns.pdsk > pdsk_max)
 		ns.pdsk = pdsk_max;
 
 	if (ns.pdsk < pdsk_min) {
-		dev_warn(DEV, "Implicitly set pdsk from %s to %s\n",
-			 drbd_disk_str(ns.pdsk), drbd_disk_str(pdsk_min));
+		if (warn)
+			*warn = IMPLICITLY_UPGRADED_PDSK;
 		ns.pdsk = pdsk_min;
 	}
 
@@ -1045,12 +1071,12 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 {
 	union drbd_state os;
 	enum drbd_state_rv rv = SS_SUCCESS;
-	const char *warn_sync_abort = NULL;
+	enum sanitize_state_warnings ssw;
 	struct after_state_chg_work *ascw;
 
 	os = mdev->state;
 
-	ns = sanitize_state(mdev, os, ns, &warn_sync_abort);
+	ns = sanitize_state(mdev, os, ns, &ssw);
 
 	if (ns.i == os.i)
 		return SS_NOTHING_TO_DO;
@@ -1076,8 +1102,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 		return rv;
 	}
 
-	if (warn_sync_abort)
-		dev_warn(DEV, "%s aborted.\n", warn_sync_abort);
+	print_sanitize_warnings(mdev, ssw);
 
 	{
 	char *pbp, pb[300];
