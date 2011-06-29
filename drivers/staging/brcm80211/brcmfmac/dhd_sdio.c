@@ -3323,7 +3323,7 @@ dhdsdio_read_control(dhd_bus_t *bus, u8 *hdr, uint len, uint doff)
 	}
 
 	/* Read remainder of frame body into the rxctl buffer */
-	sdret = bcmsdh_recv_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2,
+	sdret = bcmsdh_recv_buf(sdh, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2,
 				F2SYNC, (bus->rxctl + firstread), rdlen,
 				NULL, NULL, NULL);
 	bus->f2rxdata++;
@@ -3485,12 +3485,12 @@ static u8 dhdsdio_rxglom(dhd_bus_t *bus, u8 rxseq)
 		 * packet and and copy into the chain.
 		 */
 		if (usechain) {
-			errcode = bcmsdh_recv_buf(bus,
+			errcode = bcmsdh_recv_buf(bus->sdh,
 					bcmsdh_cur_sbwad(bus->sdh), SDIO_FUNC_2,
 					F2SYNC, (u8 *) pfirst->data, dlen,
 					pfirst, NULL, NULL);
 		} else if (bus->dataptr) {
-			errcode = bcmsdh_recv_buf(bus,
+			errcode = bcmsdh_recv_buf(bus->sdh,
 					bcmsdh_cur_sbwad(bus->sdh), SDIO_FUNC_2,
 					F2SYNC, bus->dataptr, dlen,
 					NULL, NULL, NULL);
@@ -3867,7 +3867,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 					ASSERT(bus->rxctl >= bus->rxbuf);
 					rxbuf = bus->rxctl;
 					/* Read the entire frame */
-					sdret = bcmsdh_recv_buf(bus,
+					sdret = bcmsdh_recv_buf(sdh,
 						    bcmsdh_cur_sbwad(sdh),
 						    SDIO_FUNC_2, F2SYNC,
 						    rxbuf, rdlen,
@@ -3908,7 +3908,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 				PKTALIGN(pkt, rdlen, DHD_SDALIGN);
 				rxbuf = (u8 *) (pkt->data);
 				/* Read the entire frame */
-				sdret = bcmsdh_recv_buf(bus,
+				sdret = bcmsdh_recv_buf(sdh,
 						bcmsdh_cur_sbwad(sdh),
 						SDIO_FUNC_2, F2SYNC,
 						rxbuf, rdlen,
@@ -4086,7 +4086,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 			break;
 
 		/* Read frame header (hardware and software) */
-		sdret = bcmsdh_recv_buf(bus, bcmsdh_cur_sbwad(sdh),
+		sdret = bcmsdh_recv_buf(sdh, bcmsdh_cur_sbwad(sdh),
 				SDIO_FUNC_2, F2SYNC, bus->rxhdr, firstread,
 				NULL, NULL, NULL);
 		bus->f2rxhdrs++;
@@ -4247,7 +4247,7 @@ static uint dhdsdio_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 		PKTALIGN(pkt, rdlen, DHD_SDALIGN);
 
 		/* Read the remaining frame data */
-		sdret = bcmsdh_recv_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2,
+		sdret = bcmsdh_recv_buf(sdh, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2,
 					F2SYNC, ((u8 *) (pkt->data)), rdlen,
 					pkt, NULL, NULL);
 		bus->f2rxdata++;

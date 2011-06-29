@@ -150,7 +150,7 @@ typedef void (*bcmsdh_cmplt_fn_t) (void *handle, int status, bool sync_waiting);
 extern int bcmsdh_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 			   u8 *buf, uint nbytes, void *pkt,
 			   bcmsdh_cmplt_fn_t complete, void *handle);
-extern int bcmsdh_recv_buf(void *sdh, u32 addr, uint fn, uint flags,
+extern int bcmsdh_recv_buf(bcmsdh_info_t *sdh, u32 addr, uint fn, uint flags,
 			   u8 *buf, uint nbytes, struct sk_buff *pkt,
 			   bcmsdh_cmplt_fn_t complete, void *handle);
 
