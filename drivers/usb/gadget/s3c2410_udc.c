@@ -2057,26 +2057,22 @@ static int s3c2410_udc_resume(struct platform_device *pdev)
 #define s3c2410_udc_resume	NULL
 #endif
 
-static struct platform_driver udc_driver_2410 = {
-	.driver		= {
-		.name	= "s3c2410-usbgadget",
-		.owner	= THIS_MODULE,
-	},
-	.probe		= s3c2410_udc_probe,
-	.remove		= s3c2410_udc_remove,
-	.suspend	= s3c2410_udc_suspend,
-	.resume		= s3c2410_udc_resume,
+static const struct platform_device_id s3c_udc_ids[] = {
+	{ "s3c2410-usbgadget", },
+	{ "s3c2440-usbgadget", },
 };
+MODULE_DEVICE_TABLE(platform, s3c_udc_ids);
 
-static struct platform_driver udc_driver_2440 = {
+static struct platform_driver udc_driver_24x0 = {
 	.driver		= {
-		.name	= "s3c2440-usbgadget",
+		.name	= "s3c24x0-usbgadget",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= s3c2410_udc_probe,
 	.remove		= s3c2410_udc_remove,
 	.suspend	= s3c2410_udc_suspend,
 	.resume		= s3c2410_udc_resume,
+	.id_table	= s3c_udc_ids,
 };
 
 static int __init udc_init(void)
@@ -2092,11 +2088,7 @@ static int __init udc_init(void)
 		s3c2410_udc_debugfs_root = NULL;
 	}
 
-	retval = platform_driver_register(&udc_driver_2410);
-	if (retval)
-		goto err;
-
-	retval = platform_driver_register(&udc_driver_2440);
+	retval = platform_driver_register(&udc_driver_24x0);
 	if (retval)
 		goto err;
 
@@ -2109,8 +2101,7 @@ err:
 
 static void __exit udc_exit(void)
 {
-	platform_driver_unregister(&udc_driver_2410);
-	platform_driver_unregister(&udc_driver_2440);
+	platform_driver_unregister(&udc_driver_24x0);
 	debugfs_remove(s3c2410_udc_debugfs_root);
 }
 
@@ -2121,5 +2112,3 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:s3c2410-usbgadget");
-MODULE_ALIAS("platform:s3c2440-usbgadget");
