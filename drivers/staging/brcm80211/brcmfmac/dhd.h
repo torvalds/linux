@@ -524,14 +524,14 @@ struct brcmf_ioctl {
 /* Forward decls for struct dhd_pub (see below) */
 struct dhd_bus;		/* device bus info */
 struct brcmf_proto;	/* device communication protocol info */
-struct dhd_info;	/* device driver info */
+struct brcmf_info;	/* device driver info */
 
 /* Common structure for module and instance linkage */
 typedef struct dhd_pub {
 	/* Linkage ponters */
 	struct dhd_bus *bus;
 	struct brcmf_proto *prot;
-	struct dhd_info *info;
+	struct brcmf_info *info;
 
 	/* Internal dhd items */
 	bool up;		/* Driver up/down (to OS) */
@@ -806,22 +806,22 @@ extern int brcmf_write_to_file(dhd_pub_t *dhd, u8 *buf, int size);
 extern void brcmf_timeout_start(struct brcmf_timeout *tmo, uint usec);
 extern int brcmf_timeout_expired(struct brcmf_timeout *tmo);
 
-extern int brcmf_ifname2idx(struct dhd_info *dhd, char *name);
-extern int brcmf_c_host_event(struct dhd_info *dhd, int *idx, void *pktdata,
+extern int brcmf_ifname2idx(struct brcmf_info *dhd, char *name);
+extern int brcmf_c_host_event(struct brcmf_info *dhd, int *idx, void *pktdata,
 			 brcmf_event_msg_t *, void **data_ptr);
 
 extern void brcmf_c_init(void);
 
-extern int brcmf_add_if(struct dhd_info *dhd, int ifidx, void *handle,
+extern int brcmf_add_if(struct brcmf_info *dhd, int ifidx, void *handle,
 		      char *name, u8 *mac_addr, u32 flags, u8 bssidx);
-extern void brcmf_del_if(struct dhd_info *dhd, int ifidx);
+extern void brcmf_del_if(struct brcmf_info *dhd, int ifidx);
 
-extern void brcmf_vif_add(struct dhd_info *dhd, int ifidx, char *name);
-extern void brcmf_vif_del(struct dhd_info *dhd, int ifidx);
+extern void brcmf_vif_add(struct brcmf_info *dhd, int ifidx, char *name);
+extern void brcmf_vif_del(struct brcmf_info *dhd, int ifidx);
 
-extern void brcmf_event(struct dhd_info *dhd, char *evpkt, int evlen,
+extern void brcmf_event(struct brcmf_info *dhd, char *evpkt, int evlen,
 			int ifidx);
-extern void brcmf_vif_sendup(struct dhd_info *dhd, int ifidx,
+extern void brcmf_vif_sendup(struct brcmf_info *dhd, int ifidx,
 			     unsigned char *cp, int len);
 
 /* Send packet to dongle via data channel */

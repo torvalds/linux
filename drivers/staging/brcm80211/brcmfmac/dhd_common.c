@@ -755,8 +755,8 @@ static void brcmf_c_show_host_event(brcmf_event_msg_t *event, void *event_data)
 #endif				/* SHOW_EVENTS */
 
 int
-brcmf_c_host_event(struct dhd_info *drvr_priv, int *ifidx, void *pktdata,
-		   brcmf_event_msg_t *event, void **data_ptr)
+brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
+	      brcmf_event_msg_t *event, void **data_ptr)
 {
 	/* check whether packet is a BRCM event pkt */
 	brcmf_event_t *pvt_data = (brcmf_event_t *) pktdata;
