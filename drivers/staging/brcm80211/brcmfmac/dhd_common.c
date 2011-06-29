@@ -33,8 +33,6 @@
 #define PKTFILTER_BUF_SIZE		2048
 
 int brcmf_msg_level;
-char brcmf_fw_path[MOD_PARAM_PATHLEN];
-char brcmf_nv_path[MOD_PARAM_PATHLEN];
 
 #define MSGTRACE_VERSION	1
 
@@ -111,17 +109,6 @@ void brcmf_c_init(void)
 	 * initializations.
 	 */
 	brcmf_msg_level = DHD_ERROR_VAL;
-#ifdef CONFIG_BCM4329_FW_PATH
-	strncpy(brcmf_fw_path, CONFIG_BCM4329_FW_PATH, MOD_PARAM_PATHLEN - 1);
-#else
-	brcmf_fw_path[0] = '\0';
-#endif
-#ifdef CONFIG_BCM4329_NVRAM_PATH
-	strncpy(brcmf_nv_path,
-		CONFIG_BCM4329_NVRAM_PATH, MOD_PARAM_PATHLEN - 1);
-#else
-	brcmf_nv_path[0] = '\0';
-#endif
 }
 
 static int brcmf_c_dump(dhd_pub_t *dhdp, char *buf, int buflen)

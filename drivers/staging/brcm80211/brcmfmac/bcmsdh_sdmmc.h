@@ -133,4 +133,6 @@ typedef struct _BCMSDH_SDMMC_INSTANCE {
 	u32 host_claimed;
 } BCMSDH_SDMMC_INSTANCE, *PBCMSDH_SDMMC_INSTANCE;
 
+extern PBCMSDH_SDMMC_INSTANCE gInstance;
+
 #endif				/* __BCMSDH_SDMMC_H__ */

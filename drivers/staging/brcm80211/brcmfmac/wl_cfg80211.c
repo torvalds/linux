@@ -24,7 +24,6 @@
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
 #include <linux/mmc/sdio_func.h>
-#include <linux/firmware.h>
 #include <linux/uaccess.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
@@ -41,9 +40,6 @@ static struct wl_dev *wl_cfg80211_dev;
 static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
 
 u32 brcmf_dbg_level = WL_DBG_ERR;
-
-#define WL_4329_FW_FILE "brcm/bcm4329-fullmac-4.bin"
-#define WL_4329_NVRAM_FILE "brcm/bcm4329-fullmac-4.txt"
 
 /*
 ** cfg80211_ops api/callback list
@@ -281,11 +277,6 @@ static s32 wl_iscan_done(struct wl_priv *wl);
 static s32 wl_iscan_pending(struct wl_priv *wl);
 static s32 wl_iscan_inprogress(struct wl_priv *wl);
 static s32 wl_iscan_aborted(struct wl_priv *wl);
-
-/*
-** fw/nvram downloading handler
-*/
-static void wl_init_fw(struct wl_fw_ctrl *fw);
 
 /*
 * find most significant bit set
@@ -3061,11 +3052,6 @@ static s32 wl_init_priv_mem(struct wl_priv *wl)
 		WL_ERR("Iscan buf alloc failed\n");
 		goto init_priv_mem_out;
 	}
-	wl->fw = kzalloc(sizeof(*wl->fw), GFP_KERNEL);
-	if (unlikely(!wl->fw)) {
-		WL_ERR("fw object alloc failed\n");
-		goto init_priv_mem_out;
-	}
 	wl->pmk_list = kzalloc(sizeof(*wl->pmk_list), GFP_KERNEL);
 	if (unlikely(!wl->pmk_list)) {
 		WL_ERR("pmk list alloc failed\n");
@@ -3098,8 +3084,6 @@ static void wl_deinit_priv_mem(struct wl_priv *wl)
 	wl->extra_buf = NULL;
 	kfree(wl->iscan);
 	wl->iscan = NULL;
-	kfree(wl->fw);
-	wl->fw = NULL;
 	kfree(wl->pmk_list);
 	wl->pmk_list = NULL;
 }
@@ -3361,12 +3345,6 @@ static s32 wl_init_iscan(struct wl_priv *wl)
 	return err;
 }
 
-static void wl_init_fw(struct wl_fw_ctrl *fw)
-{
-	fw->status = 0;		/* init fw loading status.
-				 0 means nothing was loaded yet */
-}
-
 static s32 wl_init_priv(struct wl_priv *wl)
 {
 	struct wiphy *wiphy = wl_to_wiphy(wl);
@@ -3394,7 +3372,6 @@ static s32 wl_init_priv(struct wl_priv *wl)
 	err = wl_init_iscan(wl);
 	if (unlikely(err))
 		return err;
-	wl_init_fw(wl->fw);
 	wl_init_conf(wl->conf);
 	wl_init_prof(wl->profile);
 	wl_link_down(wl);
@@ -4064,98 +4041,6 @@ static void *wl_get_drvdata(struct wl_dev *dev)
 	if (dev)
 		data = dev->driver_data;
 	return data;
-}
-
-s32 wl_cfg80211_read_fw(s8 *buf, u32 size)
-{
-	const struct firmware *fw_entry;
-	struct wl_priv *wl;
-
-	wl = WL_PRIV_GET();
-
-	fw_entry = wl->fw->fw_entry;
-
-	if (fw_entry->size < wl->fw->ptr + size)
-		size = fw_entry->size - wl->fw->ptr;
-
-	memcpy(buf, &fw_entry->data[wl->fw->ptr], size);
-	wl->fw->ptr += size;
-	return size;
-}
-
-void wl_cfg80211_release_fw(void)
-{
-	struct wl_priv *wl;
-
-	wl = WL_PRIV_GET();
-	release_firmware(wl->fw->fw_entry);
-	wl->fw->ptr = 0;
-}
-
-void *wl_cfg80211_request_fw(s8 *file_name)
-{
-	struct wl_priv *wl;
-	const struct firmware *fw_entry = NULL;
-	s32 err = 0;
-
-	WL_INFO("file name : \"%s\"\n", file_name);
-	wl = WL_PRIV_GET();
-
-	if (!test_bit(WL_FW_LOADING_DONE, &wl->fw->status)) {
-		err = request_firmware(&wl->fw->fw_entry, file_name,
-				&wl_cfg80211_get_sdio_func()->dev);
-		if (unlikely(err)) {
-			WL_ERR("Could not download fw (%d)\n", err);
-			goto req_fw_out;
-		}
-		set_bit(WL_FW_LOADING_DONE, &wl->fw->status);
-		fw_entry = wl->fw->fw_entry;
-		if (fw_entry) {
-			WL_INFO("fw size (%zd), data (%p)\n",
-			       fw_entry->size, fw_entry->data);
-		}
-	} else if (!test_bit(WL_NVRAM_LOADING_DONE, &wl->fw->status)) {
-		err = request_firmware(&wl->fw->fw_entry, file_name,
-				&wl_cfg80211_get_sdio_func()->dev);
-		if (unlikely(err)) {
-			WL_ERR("Could not download nvram (%d)\n", err);
-			goto req_fw_out;
-		}
-		set_bit(WL_NVRAM_LOADING_DONE, &wl->fw->status);
-		fw_entry = wl->fw->fw_entry;
-		if (fw_entry) {
-			WL_INFO("nvram size (%zd), data (%p)\n",
-			       fw_entry->size, fw_entry->data);
-		}
-	} else {
-		WL_INFO("Downloading already done. Nothing to do more\n");
-		err = -EPERM;
-	}
-
-req_fw_out:
-	if (unlikely(err)) {
-		return NULL;
-	}
-	wl->fw->ptr = 0;
-	return (void *)fw_entry->data;
-}
-
-s8 *wl_cfg80211_get_fwname(void)
-{
-	struct wl_priv *wl;
-
-	wl = WL_PRIV_GET();
-	strcpy(wl->fw->fw_name, WL_4329_FW_FILE);
-	return wl->fw->fw_name;
-}
-
-s8 *wl_cfg80211_get_nvramname(void)
-{
-	struct wl_priv *wl;
-
-	wl = WL_PRIV_GET();
-	strcpy(wl->fw->nvram_name, WL_4329_NVRAM_FILE);
-	return wl->fw->nvram_name;
 }
 
 static void wl_set_mpc(struct net_device *ndev, int mpc)

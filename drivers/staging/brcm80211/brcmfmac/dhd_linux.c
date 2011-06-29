@@ -42,6 +42,7 @@
 #include "dhd_proto.h"
 #include "dhd_dbg.h"
 #include "wl_cfg80211.h"
+#include "bcmchip.h"
 
 /* Global ASSERT type flag */
 u32 g_assert_type;
@@ -95,20 +96,6 @@ typedef struct dhd_info {
 	struct early_suspend early_suspend;
 #endif				/* CONFIG_HAS_EARLYSUSPEND */
 } dhd_info_t;
-
-/* Definitions to provide path to the firmware and nvram
- * example nvram_path[MOD_PARAM_PATHLEN]="/projects/wlan/nvram.txt"
- */
-char firmware_path[MOD_PARAM_PATHLEN];
-char nvram_path[MOD_PARAM_PATHLEN];
-
-/* load firmware and/or nvram values from the filesystem */
-module_param_string(firmware_path, firmware_path, MOD_PARAM_PATHLEN, 0);
-module_param_string(nvram_path, nvram_path, MOD_PARAM_PATHLEN, 0);
-
-/* No firmware required */
-bool brcmf_no_fw_req;
-module_param(brcmf_no_fw_req, bool, 0);
 
 /* Error bits */
 module_param(brcmf_msg_level, int, 0);
@@ -1080,7 +1067,7 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *net,
 
 	sprintf(info->driver, KBUILD_MODNAME);
 	sprintf(info->version, "%lu", dhd->pub.drv_version);
-	sprintf(info->fw_version, "%s", wl_cfg80211_get_fwname());
+	sprintf(info->fw_version, "%s", BCM4329_FW_NAME);
 	sprintf(info->bus_info, "%s", dev_name(&wl_cfg80211_get_sdio_func()->dev));
 }
 
@@ -1438,12 +1425,6 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 	struct net_device *net;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
-	/* updates firmware nvram path if it was provided as module
-		 paramters */
-	if ((firmware_path != NULL) && (firmware_path[0] != '\0'))
-		strcpy(brcmf_fw_path, firmware_path);
-	if ((nvram_path != NULL) && (nvram_path[0] != '\0'))
-		strcpy(brcmf_nv_path, nvram_path);
 
 	/* Allocate etherdev, including space for private structure */
 	net = alloc_etherdev(sizeof(dhd));
@@ -1503,10 +1484,6 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 		DHD_ERROR(("wl_cfg80211_attach failed\n"));
 		goto fail;
 	}
-	if (!brcmf_no_fw_req) {
-		strcpy(brcmf_fw_path, wl_cfg80211_get_fwname());
-		strcpy(brcmf_nv_path, wl_cfg80211_get_nvramname());
-	}
 
 	if (brcmf_sysioc) {
 		sema_init(&dhd->sysioc_sem, 0);
@@ -1561,17 +1538,6 @@ int brcmf_bus_start(dhd_pub_t *dhdp)
 	ASSERT(dhd);
 
 	DHD_TRACE(("%s:\n", __func__));
-
-	/* try to download image and nvram to the dongle */
-	if (dhd->pub.busstate == DHD_BUS_DOWN) {
-		if (!(dhd_bus_download_firmware(dhd->pub.bus, brcmf_fw_path,
-						brcmf_nv_path))) {
-			DHD_ERROR(("%s: dhd_bus_download_firmware failed. "
-				"firmware = %s nvram = %s\n",
-				__func__, brcmf_fw_path, brcmf_nv_path));
-			return -1;
-		}
-	}
 
 	/* Bring up the bus */
 	ret = brcmf_sdbrcm_bus_init(&dhd->pub, true);
@@ -1879,52 +1845,6 @@ int brcmf_os_ioctl_resp_wake(dhd_pub_t *pub)
 		wake_up_interruptible(&dhd->ioctl_resp_wait);
 
 	return 0;
-}
-
-void *brcmf_os_open_image(char *filename)
-{
-	struct file *fp;
-
-	if (!brcmf_no_fw_req)
-		return wl_cfg80211_request_fw(filename);
-
-	fp = filp_open(filename, O_RDONLY, 0);
-	/*
-	 * 2.6.11 (FC4) supports filp_open() but later revs don't?
-	 * Alternative:
-	 * fp = open_namei(AT_FDCWD, filename, O_RD, 0);
-	 * ???
-	 */
-	if (IS_ERR(fp))
-		fp = NULL;
-
-	return fp;
-}
-
-int brcmf_os_get_image_block(char *buf, int len, void *image)
-{
-	struct file *fp = (struct file *)image;
-	int rdlen;
-
-	if (!brcmf_no_fw_req)
-		return wl_cfg80211_read_fw(buf, len);
-
-	if (!image)
-		return 0;
-
-	rdlen = kernel_read(fp, fp->f_pos, buf, len);
-	if (rdlen > 0)
-		fp->f_pos += rdlen;
-
-	return rdlen;
-}
-
-void brcmf_os_close_image(void *image)
-{
-	if (!brcmf_no_fw_req)
-		return wl_cfg80211_release_fw();
-	if (image)
-		filp_close((struct file *)image, NULL);
 }
 
 static int brcmf_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,

@@ -116,7 +116,6 @@ do {								\
 #define WL_AP_MAX	256	/* virtually unlimitted as long
 				 * as kernel memory allows
 				 */
-#define WL_FILE_NAME_MAX		256
 
 #define WL_ROAM_TRIGGER_LEVEL		-75
 #define WL_ROAM_DELTA			20
@@ -159,12 +158,6 @@ enum wl_prof_list {
 enum wl_iscan_state {
 	WL_ISCAN_STATE_IDLE,
 	WL_ISCAN_STATE_SCANING
-};
-
-/* fw downloading status */
-enum wl_fw_status {
-	WL_FW_LOADING_DONE,
-	WL_NVRAM_LOADING_DONE
 };
 
 /* beacon / probe_response */
@@ -288,15 +281,6 @@ struct wl_connect_info {
 	s32 resp_ie_len;
 };
 
-/* firmware /nvram downloading controller */
-struct wl_fw_ctrl {
-	const struct firmware *fw_entry;
-	unsigned long status;
-	u32 ptr;
-	s8 fw_name[WL_FILE_NAME_MAX];
-	s8 nvram_name[WL_FILE_NAME_MAX];
-};
-
 /* assoc ie length */
 struct wl_assoc_ielen {
 	u32 req_len;
@@ -334,8 +318,6 @@ struct wl_priv {
 	struct wl_iscan_ctrl *iscan;	/* iscan controller */
 	struct wl_connect_info conn_info;	/* association information
 						 container */
-	struct wl_fw_ctrl *fw;	/* control firwmare / nvram paramter
-				 downloading */
 	struct wl_pmk_list *pmk_list;	/* wpa2 pmk list */
 	struct task_struct *event_tsk;	/* task of main event handler thread */
 	unsigned long status;		/* current dongle status */
@@ -395,13 +377,4 @@ extern s32 wl_cfg80211_up(void);	/* dongle up */
 extern s32 wl_cfg80211_down(void);	/* dongle down */
 extern void wl_cfg80211_dbg_level(u32 level);	/* set dongle
 							 debugging level */
-extern void *wl_cfg80211_request_fw(s8 *file_name);	/* request fw /nvram
-							 downloading */
-extern s32 wl_cfg80211_read_fw(s8 *buf, u32 size);	/* read fw
-								 image */
-extern void wl_cfg80211_release_fw(void);	/* release fw */
-extern s8 *wl_cfg80211_get_fwname(void);	/* get firmware name for
-						 the dongle */
-extern s8 *wl_cfg80211_get_nvramname(void);	/* get nvram name for
-						 the dongle */
 #endif				/* _wl_cfg80211_h_ */

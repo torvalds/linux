@@ -22,6 +22,8 @@
 #include <linux/netdevice.h>
 #include <linux/sched.h>
 #include <linux/mmc/sdio.h>
+#include <linux/mmc/sdio_func.h>
+#include <linux/firmware.h>
 #include <asm/unaligned.h>
 #include <defs.h>
 #include <brcmu_wifi.h>
@@ -29,6 +31,8 @@
 #include <brcm_hw_ids.h>
 #include <soc.h>
 #include "sdio_host.h"
+#include "bcmsdbus.h"
+#include "bcmsdh_sdmmc.h"
 
 /* register access macros */
 #ifndef __BIG_ENDIAN
@@ -473,9 +477,6 @@ typedef struct dhd_bus {
 	bool fcstate;		/* State of dongle flow-control */
 
 	u16 cl_devid;	/* cached devid for brcmf_sdio_probe_attach() */
-	char *fw_path;		/* module_param: path to firmware image */
-	char *nv_path;		/* module_param: path to nvram vars file */
-	const char *nvram_params;	/* user specified nvram params. */
 
 	uint blocksize;		/* Block size of SDIO transfers */
 	uint roundup;		/* Max roundup limit */
@@ -601,6 +602,11 @@ typedef struct dhd_bus {
 	bool threads_only;
 	struct semaphore sdsem;
 	spinlock_t sdlock;
+
+	const char *fw_name;
+	const struct firmware *firmware;
+	const char *nv_name;
+	u32 fw_ptr;
 } dhd_bus_t;
 
 typedef volatile struct _sbconfig {
@@ -804,8 +810,7 @@ static int brcmf_sdbrcm_send_buf(dhd_bus_t *bus, u32 addr, uint fn,
 static bool brcmf_sdbrcm_download_firmware(struct dhd_bus *bus, void *sdh);
 static int  _brcmf_sdbrcm_download_firmware(struct dhd_bus *bus);
 
-static int
-brcmf_sdbrcm_download_code_file(struct dhd_bus *bus, char *image_path);
+static int brcmf_sdbrcm_download_code_file(struct dhd_bus *bus);
 static int brcmf_sdbrcm_download_nvram(struct dhd_bus *bus);
 static void brcmf_sdbrcm_chip_disablecore(struct brcmf_sdio *sdh, u32 corebase);
 static int brcmf_sdbrcm_chip_attach(struct dhd_bus *bus, void *regs);
@@ -822,6 +827,7 @@ static void brcmf_sdbrcm_dpc_tasklet(unsigned long data);
 static void brcmf_sdbrcm_sched_dpc(dhd_bus_t *bus);
 static void brcmf_sdbrcm_sdlock(dhd_bus_t *bus);
 static void brcmf_sdbrcm_sdunlock(dhd_bus_t *bus);
+static int brcmf_sdbrcm_get_image(char *buf, int len, struct dhd_bus *bus);
 
 /* Packet free applicable unconditionally for sdio and sdspi.
  * Conditional if bufpool was present for gspi bus.
@@ -3129,6 +3135,12 @@ int brcmf_sdbrcm_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	u8 saveclk;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
+
+	/* try to download image and nvram to the dongle */
+	if (dhdp->busstate == DHD_BUS_DOWN) {
+		if (!(brcmf_sdbrcm_download_firmware(bus, bus->sdh)))
+			return -1;
+	}
 
 	ASSERT(bus->dhd);
 	if (!bus->dhd)
@@ -5606,18 +5618,6 @@ static bool brcmf_sdbrcm_probe_init(dhd_bus_t *bus, void *sdh)
 	return true;
 }
 
-bool
-dhd_bus_download_firmware(struct dhd_bus *bus, char *fw_path, char *nv_path)
-{
-	bool ret;
-	bus->fw_path = fw_path;
-	bus->nv_path = nv_path;
-
-	ret = brcmf_sdbrcm_download_firmware(bus, bus->sdh);
-
-	return ret;
-}
-
 static bool
 brcmf_sdbrcm_download_firmware(struct dhd_bus *bus, void *sdh)
 {
@@ -5744,24 +5744,29 @@ void dhd_bus_unregister(void)
 	brcmf_sdio_unregister();
 }
 
-static int brcmf_sdbrcm_download_code_file(struct dhd_bus *bus, char *fw_path)
+static int brcmf_sdbrcm_download_code_file(struct dhd_bus *bus)
 {
-	int bcmerror = -1;
 	int offset = 0;
 	uint len;
-	void *image = NULL;
 	u8 *memblock = NULL, *memptr;
+	int ret;
 
-	DHD_INFO(("%s: download firmware %s\n", __func__, brcmf_fw_path));
+	DHD_INFO(("%s: Enter\n", __func__));
 
-	image = brcmf_os_open_image(fw_path);
-	if (image == NULL)
-		goto err;
+	bus->fw_name = BCM4329_FW_NAME;
+	ret = request_firmware(&bus->firmware, bus->fw_name,
+			       &gInstance->func[2]->dev);
+	if (ret) {
+		DHD_ERROR(("%s: Fail to request firmware %d\n", __func__, ret));
+		return ret;
+	}
+	bus->fw_ptr = 0;
 
 	memptr = memblock = kmalloc(MEMBLOCK + BRCMF_SDALIGN, GFP_ATOMIC);
 	if (memblock == NULL) {
 		DHD_ERROR(("%s: Failed to allocate memory %d bytes\n",
 			   __func__, MEMBLOCK));
+		ret = -ENOMEM;
 		goto err;
 	}
 	if ((u32)(unsigned long)memblock % BRCMF_SDALIGN)
@@ -5770,12 +5775,11 @@ static int brcmf_sdbrcm_download_code_file(struct dhd_bus *bus, char *fw_path)
 
 	/* Download image */
 	while ((len =
-		brcmf_os_get_image_block((char *)memptr, MEMBLOCK, image))) {
-		bcmerror = brcmf_sdbrcm_membytes(bus, true, offset, memptr,
-						 len);
-		if (bcmerror) {
+		brcmf_sdbrcm_get_image((char *)memptr, MEMBLOCK, bus))) {
+		ret = brcmf_sdbrcm_membytes(bus, true, offset, memptr, len);
+		if (ret) {
 			DHD_ERROR(("%s: error %d on writing %d membytes at "
-			"0x%08x\n", __func__, bcmerror, MEMBLOCK, offset));
+			"0x%08x\n", __func__, ret, MEMBLOCK, offset));
 			goto err;
 		}
 
@@ -5785,10 +5789,10 @@ static int brcmf_sdbrcm_download_code_file(struct dhd_bus *bus, char *fw_path)
 err:
 	kfree(memblock);
 
-	if (image)
-		brcmf_os_close_image(image);
+	release_firmware(bus->firmware);
+	bus->fw_ptr = 0;
 
-	return bcmerror;
+	return ret;
 }
 
 /*
@@ -5842,66 +5846,31 @@ static uint brcmf_process_nvram_vars(char *varbuf, uint len)
 	return buf_len;
 }
 
-/*
-	EXAMPLE: nvram_array
-	nvram_arry format:
-	name=value
-	Use carriage return at the end of each assignment,
-	 and an empty string with
-	carriage return at the end of array.
-
-	For example:
-	unsigned char  nvram_array[] = {"name1=value1\n",
-	"name2=value2\n", "\n"};
-	Hex values start with 0x, and mac addr format: xx:xx:xx:xx:xx:xx.
-
-	Search "EXAMPLE: nvram_array" to see how the array is activated.
-*/
-
-void dhd_bus_set_nvram_params(struct dhd_bus *bus, const char *nvram_params)
-{
-	bus->nvram_params = nvram_params;
-}
-
 static int brcmf_sdbrcm_download_nvram(struct dhd_bus *bus)
 {
-	int bcmerror = -1;
 	uint len;
-	void *image = NULL;
 	char *memblock = NULL;
 	char *bufp;
-	char *nv_path;
-	bool nvram_file_exists;
+	int ret;
 
-	nv_path = bus->nv_path;
-
-	nvram_file_exists = ((nv_path != NULL) && (nv_path[0] != '\0'));
-	if (!nvram_file_exists && (bus->nvram_params == NULL))
-		return 0;
-
-	if (nvram_file_exists) {
-		image = brcmf_os_open_image(nv_path);
-		if (image == NULL)
-			goto err;
+	bus->nv_name = BCM4329_NV_NAME;
+	ret = request_firmware(&bus->firmware, bus->nv_name,
+			       &gInstance->func[2]->dev);
+	if (ret) {
+		DHD_ERROR(("%s: Fail to request nvram %d\n", __func__, ret));
+		return ret;
 	}
+	bus->fw_ptr = 0;
 
 	memblock = kmalloc(MEMBLOCK, GFP_ATOMIC);
 	if (memblock == NULL) {
 		DHD_ERROR(("%s: Failed to allocate memory %d bytes\n",
 			   __func__, MEMBLOCK));
+		ret = -ENOMEM;
 		goto err;
 	}
 
-	/* Download variables */
-	if (nvram_file_exists) {
-		len = brcmf_os_get_image_block(memblock, MEMBLOCK, image);
-	} else {
-		len = strlen(bus->nvram_params);
-		ASSERT(len <= MEMBLOCK);
-		if (len > MEMBLOCK)
-			len = MEMBLOCK;
-		memcpy(memblock, bus->nvram_params, len);
-	}
+	len = brcmf_sdbrcm_get_image(memblock, MEMBLOCK, bus);
 
 	if (len > 0 && len < MEMBLOCK) {
 		bufp = (char *)memblock;
@@ -5910,37 +5879,28 @@ static int brcmf_sdbrcm_download_nvram(struct dhd_bus *bus)
 		bufp += len;
 		*bufp++ = 0;
 		if (len)
-			bcmerror = brcmf_sdbrcm_downloadvars(bus, memblock,
-							   len + 1);
-		if (bcmerror) {
+			ret = brcmf_sdbrcm_downloadvars(bus, memblock, len + 1);
+		if (ret)
 			DHD_ERROR(("%s: error downloading vars: %d\n",
-				   __func__, bcmerror));
-		}
+				   __func__, ret));
 	} else {
 		DHD_ERROR(("%s: error reading nvram file: %d\n",
 			   __func__, len));
-		bcmerror = -EIO;
+		ret = -EIO;
 	}
 
 err:
 	kfree(memblock);
 
-	if (image)
-		brcmf_os_close_image(image);
+	release_firmware(bus->firmware);
+	bus->fw_ptr = 0;
 
-	return bcmerror;
+	return ret;
 }
 
 static int _brcmf_sdbrcm_download_firmware(struct dhd_bus *bus)
 {
 	int bcmerror = -1;
-
-	bool embed = false;	/* download embedded firmware */
-	bool dlok = false;	/* download firmware succeeded */
-
-	/* Out immediately if no image to download */
-	if ((bus->fw_path == NULL) || (bus->fw_path[0] == '\0'))
-		return bcmerror;
 
 	/* Keep arm in reset */
 	if (brcmf_sdbrcm_download_state(bus, true)) {
@@ -5949,18 +5909,9 @@ static int _brcmf_sdbrcm_download_firmware(struct dhd_bus *bus)
 	}
 
 	/* External image takes precedence if specified */
-	if ((bus->fw_path != NULL) && (bus->fw_path[0] != '\0')) {
-		if (brcmf_sdbrcm_download_code_file(bus, bus->fw_path)) {
-			DHD_ERROR(("%s: dongle image file download failed\n",
-				   __func__));
-			goto err;
-		} else {
-			embed = false;
-			dlok = true;
-		}
-	}
-	if (!dlok) {
-		DHD_ERROR(("%s: dongle image download failed\n", __func__));
+	if (brcmf_sdbrcm_download_code_file(bus)) {
+		DHD_ERROR(("%s: dongle image file download failed\n",
+			  __func__));
 		goto err;
 	}
 
@@ -6061,11 +6012,7 @@ int brcmf_bus_devreset(dhd_pub_t *dhdp, u8 flag)
 						 (u32 *) SI_ENUM_BASE,
 						 bus->cl_devid)) {
 				/* Attempt to download binary to the dongle */
-				if (brcmf_sdbrcm_probe_init
-				    (bus, bus->sdh)
-				    && brcmf_sdbrcm_download_firmware(bus,
-								 bus->sdh)) {
-
+				if (brcmf_sdbrcm_probe_init(bus, bus->sdh)) {
 					/* Re-init bus, enable F2 transfer */
 					brcmf_sdbrcm_bus_init(
 						(dhd_pub_t *) bus->dhd, false);
@@ -6669,3 +6616,16 @@ static void brcmf_sdbrcm_sdunlock(dhd_bus_t *bus)
 	else
 		spin_unlock_bh(&bus->sdlock);
 }
+
+static int brcmf_sdbrcm_get_image(char *buf, int len, struct dhd_bus *bus)
+{
+	if (bus->firmware->size < bus->fw_ptr + len)
+		len = bus->firmware->size - bus->fw_ptr;
+
+	memcpy(buf, &bus->firmware->data[bus->fw_ptr], len);
+	bus->fw_ptr += len;
+	return len;
+}
+
+MODULE_FIRMWARE(BCM4329_FW_NAME);
+MODULE_FIRMWARE(BCM4329_NV_NAME);

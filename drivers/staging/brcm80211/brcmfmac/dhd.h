@@ -122,9 +122,6 @@
 #define WL_KF_RES_5	(1 << 5)	/* Reserved for backward compat */
 #define WL_IBSS_PEER_GROUP_KEY	(1 << 6)	/* Indicates a group key for a IBSS PEER */
 
-/* optionally set by a module_param_string() */
-#define MOD_PARAM_PATHLEN	2048
-
 /* For supporting multiple interfaces */
 #define DHD_MAX_IFS	16
 #define DHD_DEL_IF	-0xe
@@ -819,9 +816,6 @@ extern uint brcmf_pktgen_len;
 #define BRCMF_MAX_PKTGEN_LEN 1800
 #endif
 
-extern char brcmf_fw_path[MOD_PARAM_PATHLEN];
-extern char brcmf_nv_path[MOD_PARAM_PATHLEN];
-
 extern u32 g_assert_type;
 extern const bcmevent_name_t bcmevent_names[];
 extern const int bcmevent_names_size;
@@ -912,9 +906,6 @@ extern int brcmf_os_ioctl_resp_wait(dhd_pub_t *pub, uint *condition,
 extern int brcmf_os_ioctl_resp_wake(dhd_pub_t *pub);
 extern unsigned int brcmf_os_get_ioctl_resp_timeout(void);
 extern void brcmf_os_set_ioctl_resp_timeout(unsigned int timeout_msec);
-extern void *brcmf_os_open_image(char *filename);
-extern int brcmf_os_get_image_block(char *buf, int len, void *image);
-extern void brcmf_os_close_image(void *image);
 extern void brcmf_os_sdlock_sndup_rxq(dhd_pub_t *pub);
 extern void brcmf_customer_gpio_wlan_ctrl(int onoff);
 extern int brcmf_custom_get_mac_address(unsigned char *buf);

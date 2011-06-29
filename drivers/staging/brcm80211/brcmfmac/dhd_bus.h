@@ -36,10 +36,6 @@ extern uint brcmf_watchdog_ms;
 extern int dhd_bus_register(void);
 extern void dhd_bus_unregister(void);
 
-/* Download firmware image and nvram image */
-extern bool dhd_bus_download_firmware(struct dhd_bus *bus,
-				      char *fw_path, char *nv_path);
-
 /* Stop bus module: clear pending frames, disable data flow */
 extern void brcmf_sdbrcm_bus_stop(struct dhd_bus *bus, bool enforce_mutex);
 
@@ -74,10 +70,6 @@ extern void dhd_bus_clearcounts(dhd_pub_t *dhdp);
 
 /* return the dongle chipid */
 extern uint dhd_bus_chip(struct dhd_bus *bus);
-
-/* Set user-specified nvram parameters. */
-extern void dhd_bus_set_nvram_params(struct dhd_bus *bus,
-				     const char *nvram_params);
 
 extern void *dhd_bus_pub(struct dhd_bus *bus);
 extern void *dhd_bus_txq(struct dhd_bus *bus);

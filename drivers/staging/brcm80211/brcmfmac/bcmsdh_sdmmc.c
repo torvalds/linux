@@ -40,8 +40,6 @@ static void brcmf_sdioh_irqhandler_f2(struct sdio_func *func);
 static int brcmf_sdioh_get_cisaddr(struct sdioh_info *sd, u32 regaddr);
 extern int brcmf_sdioh_reset_comm(struct mmc_card *card);
 
-extern PBCMSDH_SDMMC_INSTANCE gInstance;
-
 uint sd_f2_blocksize = 512;	/* Default blocksize */
 
 uint sd_msglevel = 0x01;
