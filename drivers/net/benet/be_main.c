@@ -3417,6 +3417,12 @@ static int __devinit be_probe(struct pci_dev *pdev,
 	if (status)
 		goto stats_clean;
 
+	/* The INTR bit may be set in the card when probed by a kdump kernel
+	 * after a crash.
+	 */
+	if (!lancer_chip(adapter))
+		be_intr_set(adapter, false);
+
 	be_msix_enable(adapter);
 
 	INIT_DELAYED_WORK(&adapter->work, be_worker);
