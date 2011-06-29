@@ -17,11 +17,11 @@
 #ifndef _sdiovar_h_
 #define _sdiovar_h_
 
-typedef struct sdreg {
+struct brcmf_sdreg {
 	int func;
 	int offset;
 	int value;
-} sdreg_t;
+};
 
 /* Common msglevel constants */
 #define SDH_ERROR_VAL		0x0001	/* Error */

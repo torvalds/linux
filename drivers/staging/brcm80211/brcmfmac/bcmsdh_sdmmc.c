@@ -359,7 +359,7 @@ const struct brcmu_iovar sdioh_iovars[] = {
 								 size) */
 	{"sd_ints", IOV_USEINTS, 0, IOVT_BOOL, 0},
 	{"sd_numints", IOV_NUMINTS, 0, IOVT_UINT32, 0},
-	{"sd_devreg", IOV_DEVREG, 0, IOVT_BUFFER, sizeof(sdreg_t)}
+	{"sd_devreg", IOV_DEVREG, 0, IOVT_BUFFER, sizeof(struct brcmf_sdreg)}
 	,
 	{"sd_rxchain", IOV_RXCHAIN, 0, IOVT_BOOL, 0}
 	,
@@ -498,7 +498,8 @@ brcmf_sdioh_iovar_op(struct sdioh_info *si, const char *name,
 
 	case IOV_GVAL(IOV_DEVREG):
 		{
-			sdreg_t *sd_ptr = (sdreg_t *) params;
+			struct brcmf_sdreg *sd_ptr =
+					(struct brcmf_sdreg *) params;
 			u8 data = 0;
 
 			if (brcmf_sdioh_cfg_read
@@ -514,7 +515,8 @@ brcmf_sdioh_iovar_op(struct sdioh_info *si, const char *name,
 
 	case IOV_SVAL(IOV_DEVREG):
 		{
-			sdreg_t *sd_ptr = (sdreg_t *) params;
+			struct brcmf_sdreg *sd_ptr =
+					(struct brcmf_sdreg *) params;
 			u8 data = (u8) sd_ptr->value;
 
 			if (brcmf_sdioh_cfg_write
