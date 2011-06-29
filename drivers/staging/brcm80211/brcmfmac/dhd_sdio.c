@@ -586,6 +586,7 @@ typedef struct dhd_bus {
 	bool ctrl_frame_stat;
 
 	spinlock_t txqlock;
+	wait_queue_head_t ctrl_wait;
 } dhd_bus_t;
 
 typedef volatile struct _sbconfig {
@@ -777,6 +778,8 @@ static void brcmf_sdbrcm_chip_resetcore(struct brcmf_sdio *sdh, u32 corebase);
 static void brcmf_sdbrcm_sdiod_drive_strength_init(struct dhd_bus *bus,
 					u32 drivestrength);
 static void brcmf_sdbrcm_chip_detach(struct dhd_bus *bus);
+static void brcmf_sdbrcm_wait_for_event(dhd_pub_t *dhd, bool *lockvar);
+static void brcmf_sdbrcm_wait_event_wakeup(dhd_bus_t *bus);
 
 /* Packet free applicable unconditionally for sdio and sdspi.
  * Conditional if bufpool was present for gspi bus.
@@ -1501,7 +1504,7 @@ brcmf_sdbrcm_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 		bus->ctrl_frame_buf = frame;
 		bus->ctrl_frame_len = len;
 
-		brcmf_wait_for_event(bus->dhd, &bus->ctrl_frame_stat);
+		brcmf_sdbrcm_wait_for_event(bus->dhd, &bus->ctrl_frame_stat);
 
 		if (bus->ctrl_frame_stat == false) {
 			DHD_INFO(("%s: ctrl_frame_stat == false\n", __func__));
@@ -4577,7 +4580,7 @@ clkwait:
 
 		DHD_INFO(("Return_dpc value is : %d\n", ret));
 		bus->ctrl_frame_stat = false;
-		brcmf_wait_event_wakeup(bus->dhd);
+		brcmf_sdbrcm_wait_event_wakeup(bus);
 	}
 	/* Send queued frames (limit 1 if rx may still be pending) */
 	else if ((bus->clkstate == CLK_AVAIL) && !bus->fcstate &&
@@ -5213,6 +5216,7 @@ static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 	}
 
 	spin_lock_init(&bus->txqlock);
+	init_waitqueue_head(&bus->ctrl_wait);
 
 	/* Attach to the dhd/OS/network interface */
 	bus->dhd = brcmf_attach(bus, SDPCM_RESERVE);
@@ -6316,4 +6320,22 @@ brcmf_sdbrcm_chip_detach(struct dhd_bus *bus)
 
 	kfree(bus->ci);
 	bus->ci = NULL;
+}
+
+static void
+brcmf_sdbrcm_wait_for_event(dhd_pub_t *dhd, bool *lockvar)
+{
+	brcmf_os_sdunlock(dhd);
+	wait_event_interruptible_timeout(dhd->bus->ctrl_wait,
+					 (*lockvar == false), HZ * 2);
+	brcmf_os_sdlock(dhd);
+	return;
+}
+
+static void
+brcmf_sdbrcm_wait_event_wakeup(dhd_bus_t *bus)
+{
+	if (waitqueue_active(&bus->ctrl_wait))
+		wake_up_interruptible(&bus->ctrl_wait);
+	return;
 }

@@ -100,7 +100,6 @@ typedef struct dhd_info {
 	bool set_multicast;
 	bool set_macaddress;
 	u8 macvalue[ETH_ALEN];
-	wait_queue_head_t ctrl_wait;
 	atomic_t pend_8021x_cnt;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -1641,7 +1640,6 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 	sema_init(&dhd->proto_sem, 1);
 	/* Initialize other structure content */
 	init_waitqueue_head(&dhd->ioctl_resp_wait);
-	init_waitqueue_head(&dhd->ctrl_wait);
 
 	/* Initialize the spinlocks */
 	spin_lock_init(&dhd->sdlock);
@@ -2253,24 +2251,6 @@ static int brcmf_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 		wl_cfg80211_event(dhd->iflist[*ifidx]->net, event, *data);
 
 	return bcmerror;
-}
-
-void brcmf_wait_for_event(dhd_pub_t *dhd, bool *lockvar)
-{
-	struct dhd_info *dhdinfo = dhd->info;
-	brcmf_os_sdunlock(dhd);
-	wait_event_interruptible_timeout(dhdinfo->ctrl_wait,
-					 (*lockvar == false), HZ * 2);
-	brcmf_os_sdlock(dhd);
-	return;
-}
-
-void brcmf_wait_event_wakeup(dhd_pub_t *dhd)
-{
-	struct dhd_info *dhdinfo = dhd->info;
-	if (waitqueue_active(&dhdinfo->ctrl_wait))
-		wake_up_interruptible(&dhdinfo->ctrl_wait);
-	return;
 }
 
 int brcmf_netdev_reset(struct net_device *dev, u8 flag)
