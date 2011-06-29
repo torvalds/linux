@@ -1245,13 +1245,17 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	seq_printf(m, "power context ");
-	describe_obj(m, dev_priv->pwrctx);
-	seq_printf(m, "\n");
+	if (dev_priv->pwrctx) {
+		seq_printf(m, "power context ");
+		describe_obj(m, dev_priv->pwrctx);
+		seq_printf(m, "\n");
+	}
 
-	seq_printf(m, "render context ");
-	describe_obj(m, dev_priv->renderctx);
-	seq_printf(m, "\n");
+	if (dev_priv->renderctx) {
+		seq_printf(m, "render context ");
+		describe_obj(m, dev_priv->renderctx);
+		seq_printf(m, "\n");
+	}
 
 	mutex_unlock(&dev->mode_config.mutex);
 
