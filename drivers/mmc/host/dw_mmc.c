@@ -849,7 +849,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 	struct mmc_command *cmd;
 	enum dw_mci_state state;
 	enum dw_mci_state prev_state;
-	u32 status;
+	u32 status, ctrl;
 
 	spin_lock(&host->lock);
 
@@ -929,6 +929,16 @@ static void dw_mci_tasklet_func(unsigned long priv)
 						status);
 					data->error = -EIO;
 				}
+				/*
+				 * After an error, there may be data lingering
+				 * in the FIFO, so reset it - doing so
+				 * generates a block interrupt, hence setting
+				 * the scatter-gather pointer to NULL.
+				 */
+				host->sg = NULL;
+				ctrl = mci_readl(host, CTRL);
+				ctrl |= SDMMC_CTRL_FIFO_RESET;
+				mci_writel(host, CTRL, ctrl);
 			} else {
 				data->bytes_xfered = data->blocks * data->blksz;
 				data->error = 0;
