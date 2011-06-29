@@ -1341,6 +1341,7 @@ static struct platform_driver s3c_hsudc_driver = {
 	},
 	.probe		= s3c_hsudc_probe,
 };
+MODULE_ALIAS("platform:s3c-hsudc");
 
 static int __init s3c_hsudc_modinit(void)
 {

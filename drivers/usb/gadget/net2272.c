@@ -2720,6 +2720,7 @@ static struct platform_driver net2272_plat_driver = {
 	},
 	/* FIXME .suspend, .resume */
 };
+MODULE_ALIAS("platform:net2272");
 
 static int __init net2272_init(void)
 {

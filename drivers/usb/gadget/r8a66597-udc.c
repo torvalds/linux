@@ -1686,6 +1686,7 @@ static struct platform_driver r8a66597_driver = {
 		.name =	(char *) udc_name,
 	},
 };
+MODULE_ALIAS("platform:r8a66597_udc");
 
 static int __init r8a66597_udc_init(void)
 {
