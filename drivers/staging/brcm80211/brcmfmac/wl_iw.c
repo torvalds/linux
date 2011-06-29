@@ -130,9 +130,6 @@ typedef enum sup_auth_status {
 
 static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
 
-/* Global ASSERT type flag */
-u32 g_assert_type;
-
 static void wl_iw_timerfunc(unsigned long data);
 static void wl_iw_set_event_mask(struct net_device *dev);
 static int wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, u16 action);
@@ -3659,53 +3656,5 @@ void wl_iw_detach(void)
 #endif				/* WL_IW_USE_ISCAN */
 
 	kfree(g_scan);
-
 	g_scan = NULL;
 }
-
-#if defined(BCMDBG)
-void osl_assert(char *exp, char *file, int line)
-{
-	char tempbuf[256];
-	char *basename;
-
-	basename = strrchr(file, '/');
-	/* skip the '/' */
-	if (basename)
-		basename++;
-
-	if (!basename)
-		basename = file;
-
-	snprintf(tempbuf, 256,
-		 "assertion \"%s\" failed: file \"%s\", line %d\n", exp,
-		 basename, line);
-
-	/*
-	 * Print assert message and give it time to
-	 * be written to /var/log/messages
-	 */
-	if (!in_interrupt()) {
-		const int delay = 3;
-		printk(KERN_ERR "%s", tempbuf);
-		printk(KERN_ERR "panic in %d seconds\n", delay);
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(delay * HZ);
-	}
-
-	switch (g_assert_type) {
-	case 0:
-		panic(KERN_ERR "%s", tempbuf);
-		break;
-	case 1:
-		printk(KERN_ERR "%s", tempbuf);
-		BUG();
-		break;
-	case 2:
-		printk(KERN_ERR "%s", tempbuf);
-		break;
-	default:
-		break;
-	}
-}
-#endif				/* defined(BCMDBG) */
