@@ -127,7 +127,8 @@ nouveau_perf_timing(struct drm_device *dev, struct bit_entry *P,
 
 	entry += ramcfg * recordlen;
 	if (entry[1] >= pm->memtimings.nr_timing) {
-		NV_WARN(dev, "timingset %d does not exist\n", entry[1]);
+		if (entry[1] != 0xff)
+			NV_WARN(dev, "timingset %d does not exist\n", entry[1]);
 		return NULL;
 	}
 
