@@ -252,12 +252,6 @@ const u8 wlc_prio2prec_map[] = {
 #define BSSCFG_STA(cfg)		(1)
 #define BSSCFG_IBSS(cfg)	(!(cfg)->BSS)
 
-/* Iterator for "associated" STA bss configs:
-   (struct brcms_c_info *wlc, int idx, struct brcms_c_bsscfg *cfg) */
-#define FOREACH_AS_STA(wlc, idx, cfg) \
-	for (idx = 0; (int) idx < WLC_MAXBSSCFG; idx++) \
-		if ((cfg = (wlc)->bsscfg[idx]) && BSSCFG_STA(cfg) && cfg->associated)
-
 /* As above for all non-NULL BSS configs */
 #define FOREACH_BSS(wlc, idx, cfg) \
 	for (idx = 0; (int) idx < WLC_MAXBSSCFG; idx++) \
@@ -396,13 +390,19 @@ bool brcms_c_ps_allowed(struct brcms_c_info *wlc)
 	if (AP_ACTIVE(wlc) || wlc->monitor)
 		return false;
 
-	FOREACH_AS_STA(wlc, idx, cfg) {
-		/* disallow PS when one of the following bsscfg specific conditions meets */
-		if (!cfg->BSS || !WLC_PORTOPEN(cfg))
-			return false;
+	for (idx = 0; idx < WLC_MAXBSSCFG; idx++) {
+		cfg = wlc->bsscfg[idx];
+		if (cfg && BSSCFG_STA(cfg) && cfg->associated) {
+			/*
+			 * disallow PS when one of the following
+			 * bsscfg specific conditions meets
+			 */
+			if (!cfg->BSS || !WLC_PORTOPEN(cfg))
+				return false;
 
-		if (!cfg->dtim_programmed)
-			return false;
+			if (!cfg->dtim_programmed)
+				return false;
+		}
 	}
 
 	return true;
@@ -1060,8 +1060,11 @@ static void WLBANDINITFN(brcms_c_setband) (struct brcms_c_info *wlc,
 		return;
 
 	/* wait for at least one beacon before entering sleeping state */
-	FOREACH_AS_STA(wlc, idx, cfg)
-	    cfg->PMawakebcn = true;
+	for (idx = 0; idx < WLC_MAXBSSCFG; idx++) {
+		cfg = wlc->bsscfg[idx];
+		if (cfg && BSSCFG_STA(cfg) && cfg->associated)
+			cfg->PMawakebcn = true;
+	}
 	brcms_c_set_ps_ctrl(wlc);
 
 	/* band-specific initializations */
