@@ -320,20 +320,26 @@ static int rk29_charger_display(struct wm831x_chg *wm831x_chg)
 				wm831x_chg->flag_chg = wm831x_read_chg_status(wm831x_chg);
 				if(!wm831x_chg->flag_chg)
 				kernel_power_off();
-
+				if(wm831x_chg->flag_bl != 0)
 				ret = charger_logo_display(chargerlogo[i]);
 
 				DBG("%s:i=%d\n",__FUNCTION__,i);
 
-				mdelay(300);	
+				msleep(200);	
 				wm831x_check_on_pin(wm831x_chg);
+				msleep(200);
+				wm831x_check_on_pin(wm831x_chg);
+
 			}
 					
 		}
 		else if(status == BAT_DISCHARGING)
 		{
+			if(wm831x_chg->flag_bl != 0)
 			charger_logo_display(chargerlogo[7]);
-			mdelay(300);
+			msleep(200);
+			wm831x_check_on_pin(wm831x_chg);
+			msleep(200);
 			wm831x_check_on_pin(wm831x_chg);
 		}
 		
