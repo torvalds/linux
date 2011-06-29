@@ -310,9 +310,21 @@ struct ethtool_sset_info {
 				   __u32's, etc. */
 };
 
+/**
+ * enum ethtool_test_flags - flags definition of ethtool_test
+ * @ETH_TEST_FL_OFFLINE: if set perform online and offline tests, otherwise
+ *	only online tests.
+ * @ETH_TEST_FL_FAILED: Driver set this flag if test fails.
+ * @ETH_TEST_FL_EXTERNAL_LB: Application request to perform external loopback
+ *	test.
+ * @ETH_TEST_FL_EXTERNAL_LB_DONE: Driver performed the external loopback test
+ */
+
 enum ethtool_test_flags {
-	ETH_TEST_FL_OFFLINE	= (1 << 0),	/* online / offline */
-	ETH_TEST_FL_FAILED	= (1 << 1),	/* test passed / failed */
+	ETH_TEST_FL_OFFLINE	= (1 << 0),
+	ETH_TEST_FL_FAILED	= (1 << 1),
+	ETH_TEST_FL_EXTERNAL_LB	= (1 << 2),
+	ETH_TEST_FL_EXTERNAL_LB_DONE	= (1 << 3),
 };
 
 /* for requesting NIC test and getting results*/
