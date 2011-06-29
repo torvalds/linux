@@ -148,12 +148,20 @@ kvmppc_hv_entry:
 	lwz	r7, VCPU_PMC + 12(r4)
 	lwz	r8, VCPU_PMC + 16(r4)
 	lwz	r9, VCPU_PMC + 20(r4)
+BEGIN_FTR_SECTION
+	lwz	r10, VCPU_PMC + 24(r4)
+	lwz	r11, VCPU_PMC + 28(r4)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	mtspr	SPRN_PMC1, r3
 	mtspr	SPRN_PMC2, r5
 	mtspr	SPRN_PMC3, r6
 	mtspr	SPRN_PMC4, r7
 	mtspr	SPRN_PMC5, r8
 	mtspr	SPRN_PMC6, r9
+BEGIN_FTR_SECTION
+	mtspr	SPRN_PMC7, r10
+	mtspr	SPRN_PMC8, r11
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	ld	r3, VCPU_MMCR(r4)
 	ld	r5, VCPU_MMCR + 8(r4)
 	ld	r6, VCPU_MMCR + 16(r4)
@@ -165,9 +173,11 @@ kvmppc_hv_entry:
 	/* Load up FP, VMX and VSX registers */
 	bl	kvmppc_load_fp
 
+BEGIN_FTR_SECTION
 	/* Switch DSCR to guest value */
 	ld	r5, VCPU_DSCR(r4)
 	mtspr	SPRN_DSCR, r5
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 	/*
 	 * Set the decrementer to the guest decrementer.
@@ -210,6 +220,7 @@ kvmppc_hv_entry:
 	mtspr	SPRN_DABRX,r5
 	mtspr	SPRN_DABR,r6
 
+BEGIN_FTR_SECTION
 	/* Restore AMR and UAMOR, set AMOR to all 1s */
 	ld	r5,VCPU_AMR(r4)
 	ld	r6,VCPU_UAMOR(r4)
@@ -217,6 +228,7 @@ kvmppc_hv_entry:
 	mtspr	SPRN_AMR,r5
 	mtspr	SPRN_UAMOR,r6
 	mtspr	SPRN_AMOR,r7
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 	/* Clear out SLB */
 	li	r6,0
@@ -224,6 +236,14 @@ kvmppc_hv_entry:
 	slbia
 	ptesync
 
+BEGIN_FTR_SECTION
+	b	30f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
+	/*
+	 * POWER7 host -> guest partition switch code.
+	 * We don't have to lock against concurrent tlbies,
+	 * but we do have to coordinate across hardware threads.
+	 */
 	/* Increment entry count iff exit count is zero. */
 	ld	r5,HSTATE_KVM_VCORE(r13)
 	addi	r9,r5,VCORE_ENTRY_EXIT
@@ -315,9 +335,94 @@ kvmppc_hv_entry:
 	ld	r8,VCPU_SPURR(r4)
 	mtspr	SPRN_PURR,r7
 	mtspr	SPRN_SPURR,r8
+	b	31f
+
+	/*
+	 * PPC970 host -> guest partition switch code.
+	 * We have to lock against concurrent tlbies,
+	 * using native_tlbie_lock to lock against host tlbies
+	 * and kvm->arch.tlbie_lock to lock against guest tlbies.
+	 * We also have to invalidate the TLB since its
+	 * entries aren't tagged with the LPID.
+	 */
+30:	ld	r9,VCPU_KVM(r4)		/* pointer to struct kvm */
+
+	/* first take native_tlbie_lock */
+	.section ".toc","aw"
+toc_tlbie_lock:
+	.tc	native_tlbie_lock[TC],native_tlbie_lock
+	.previous
+	ld	r3,toc_tlbie_lock@toc(2)
+	lwz	r8,PACA_LOCK_TOKEN(r13)
+24:	lwarx	r0,0,r3
+	cmpwi	r0,0
+	bne	24b
+	stwcx.	r8,0,r3
+	bne	24b
+	isync
+
+	ld	r7,KVM_LPCR(r9)		/* use kvm->arch.lpcr to store HID4 */
+	li	r0,0x18f
+	rotldi	r0,r0,HID4_LPID5_SH	/* all lpid bits in HID4 = 1 */
+	or	r0,r7,r0
+	ptesync
+	sync
+	mtspr	SPRN_HID4,r0		/* switch to reserved LPID */
+	isync
+	li	r0,0
+	stw	r0,0(r3)		/* drop native_tlbie_lock */
+
+	/* invalidate the whole TLB */
+	li	r0,256
+	mtctr	r0
+	li	r6,0
+25:	tlbiel	r6
+	addi	r6,r6,0x1000
+	bdnz	25b
+	ptesync
+
+	/* Take the guest's tlbie_lock */
+	addi	r3,r9,KVM_TLBIE_LOCK
+24:	lwarx	r0,0,r3
+	cmpwi	r0,0
+	bne	24b
+	stwcx.	r8,0,r3
+	bne	24b
+	isync
+	ld	r6,KVM_SDR1(r9)
+	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
+
+	/* Set up HID4 with the guest's LPID etc. */
+	sync
+	mtspr	SPRN_HID4,r7
+	isync
+
+	/* drop the guest's tlbie_lock */
+	li	r0,0
+	stw	r0,0(r3)
+
+	/* Check if HDEC expires soon */
+	mfspr	r3,SPRN_HDEC
+	cmpwi	r3,10
+	li	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
+	mr	r9,r4
+	blt	hdec_soon
+
+	/* Enable HDEC interrupts */
+	mfspr	r0,SPRN_HID0
+	li	r3,1
+	rldimi	r0,r3, HID0_HDICE_SH, 64-HID0_HDICE_SH-1
+	sync
+	mtspr	SPRN_HID0,r0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
 
 	/* Load up guest SLB entries */
-	lwz	r5,VCPU_SLB_MAX(r4)
+31:	lwz	r5,VCPU_SLB_MAX(r4)
 	cmpwi	r5,0
 	beq	9f
 	mtctr	r5
@@ -472,6 +577,7 @@ kvmppc_interrupt:
 hcall_real_cont:
 
 	/* Check for mediated interrupts (could be done earlier really ...) */
+BEGIN_FTR_SECTION
 	cmpwi	r12,BOOK3S_INTERRUPT_EXTERNAL
 	bne+	1f
 	ld	r5,VCPU_KVM(r9)
@@ -481,6 +587,7 @@ hcall_real_cont:
 	andi.	r0,r5,LPCR_MER
 	bne	bounce_ext_interrupt
 1:
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 	/* Save DEC */
 	mfspr	r5,SPRN_DEC
@@ -492,9 +599,11 @@ hcall_real_cont:
 	/* Save HEIR (HV emulation assist reg) in last_inst
 	   if this is an HEI (HV emulation interrupt, e40) */
 	li	r3,-1
+BEGIN_FTR_SECTION
 	cmpwi	r12,BOOK3S_INTERRUPT_H_EMUL_ASSIST
 	bne	11f
 	mfspr	r3,SPRN_HEIR
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 11:	stw	r3,VCPU_LAST_INST(r9)
 
 	/* Save more register state  */
@@ -508,8 +617,10 @@ hcall_real_cont:
 	stw	r7, VCPU_DSISR(r9)
 	std	r8, VCPU_CTR(r9)
 	/* grab HDAR & HDSISR if HV data storage interrupt (HDSI) */
+BEGIN_FTR_SECTION
 	cmpwi	r12,BOOK3S_INTERRUPT_H_DATA_STORAGE
 	beq	6f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 7:	std	r6, VCPU_FAULT_DAR(r9)
 	stw	r7, VCPU_FAULT_DSISR(r9)
 
@@ -543,6 +654,7 @@ hcall_real_cont:
 	/*
 	 * Save the guest PURR/SPURR
 	 */
+BEGIN_FTR_SECTION
 	mfspr	r5,SPRN_PURR
 	mfspr	r6,SPRN_SPURR
 	ld	r7,VCPU_PURR(r9)
@@ -562,6 +674,7 @@ hcall_real_cont:
 	add	r4,r4,r6
 	mtspr	SPRN_PURR,r3
 	mtspr	SPRN_SPURR,r4
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_201)
 
 	/* Clear out SLB */
 	li	r5,0
@@ -570,6 +683,14 @@ hcall_real_cont:
 	ptesync
 
 hdec_soon:
+BEGIN_FTR_SECTION
+	b	32f
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
+	/*
+	 * POWER7 guest -> host partition switch code.
+	 * We don't have to lock against tlbies but we do
+	 * have to coordinate the hardware threads.
+	 */
 	/* Increment the threads-exiting-guest count in the 0xff00
 	   bits of vcore->entry_exit_count */
 	lwsync
@@ -640,9 +761,82 @@ hdec_soon:
 16:	ld	r8,KVM_HOST_LPCR(r4)
 	mtspr	SPRN_LPCR,r8
 	isync
+	b	33f
+
+	/*
+	 * PPC970 guest -> host partition switch code.
+	 * We have to lock against concurrent tlbies, and
+	 * we have to flush the whole TLB.
+	 */
+32:	ld	r4,VCPU_KVM(r9)		/* pointer to struct kvm */
+
+	/* Take the guest's tlbie_lock */
+	lwz	r8,PACA_LOCK_TOKEN(r13)
+	addi	r3,r4,KVM_TLBIE_LOCK
+24:	lwarx	r0,0,r3
+	cmpwi	r0,0
+	bne	24b
+	stwcx.	r8,0,r3
+	bne	24b
+	isync
+
+	ld	r7,KVM_HOST_LPCR(r4)	/* use kvm->arch.host_lpcr for HID4 */
+	li	r0,0x18f
+	rotldi	r0,r0,HID4_LPID5_SH	/* all lpid bits in HID4 = 1 */
+	or	r0,r7,r0
+	ptesync
+	sync
+	mtspr	SPRN_HID4,r0		/* switch to reserved LPID */
+	isync
+	li	r0,0
+	stw	r0,0(r3)		/* drop guest tlbie_lock */
+
+	/* invalidate the whole TLB */
+	li	r0,256
+	mtctr	r0
+	li	r6,0
+25:	tlbiel	r6
+	addi	r6,r6,0x1000
+	bdnz	25b
+	ptesync
+
+	/* take native_tlbie_lock */
+	ld	r3,toc_tlbie_lock@toc(2)
+24:	lwarx	r0,0,r3
+	cmpwi	r0,0
+	bne	24b
+	stwcx.	r8,0,r3
+	bne	24b
+	isync
+
+	ld	r6,KVM_HOST_SDR1(r4)
+	mtspr	SPRN_SDR1,r6		/* switch to host page table */
+
+	/* Set up host HID4 value */
+	sync
+	mtspr	SPRN_HID4,r7
+	isync
+	li	r0,0
+	stw	r0,0(r3)		/* drop native_tlbie_lock */
+
+	lis	r8,0x7fff		/* MAX_INT@h */
+	mtspr	SPRN_HDEC,r8
+
+	/* Disable HDEC interrupts */
+	mfspr	r0,SPRN_HID0
+	li	r3,0
+	rldimi	r0,r3, HID0_HDICE_SH, 64-HID0_HDICE_SH-1
+	sync
+	mtspr	SPRN_HID0,r0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
+	mfspr	r0,SPRN_HID0
 
 	/* load host SLB entries */
-	ld	r8,PACA_SLBSHADOWPTR(r13)
+33:	ld	r8,PACA_SLBSHADOWPTR(r13)
 
 	.rept	SLB_NUM_BOLTED
 	ld	r5,SLBSHADOW_SAVEAREA(r8)
@@ -654,12 +848,14 @@ hdec_soon:
 	.endr
 
 	/* Save and reset AMR and UAMOR before turning on the MMU */
+BEGIN_FTR_SECTION
 	mfspr	r5,SPRN_AMR
 	mfspr	r6,SPRN_UAMOR
 	std	r5,VCPU_AMR(r9)
 	std	r6,VCPU_UAMOR(r9)
 	li	r6,0
 	mtspr	SPRN_AMR,r6
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 	/* Restore host DABR and DABRX */
 	ld	r5,HSTATE_DABR(r13)
@@ -668,10 +864,12 @@ hdec_soon:
 	mtspr	SPRN_DABRX,r6
 
 	/* Switch DSCR back to host value */
+BEGIN_FTR_SECTION
 	mfspr	r8, SPRN_DSCR
 	ld	r7, HSTATE_DSCR(r13)
 	std	r8, VCPU_DSCR(r7)
 	mtspr	SPRN_DSCR, r7
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 	/* Save non-volatile GPRs */
 	std	r14, VCPU_GPR(r14)(r9)
@@ -735,21 +933,31 @@ hdec_soon:
 	mfspr	r6, SPRN_PMC4
 	mfspr	r7, SPRN_PMC5
 	mfspr	r8, SPRN_PMC6
+BEGIN_FTR_SECTION
+	mfspr	r10, SPRN_PMC7
+	mfspr	r11, SPRN_PMC8
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	stw	r3, VCPU_PMC(r9)
 	stw	r4, VCPU_PMC + 4(r9)
 	stw	r5, VCPU_PMC + 8(r9)
 	stw	r6, VCPU_PMC + 12(r9)
 	stw	r7, VCPU_PMC + 16(r9)
 	stw	r8, VCPU_PMC + 20(r9)
+BEGIN_FTR_SECTION
+	stw	r10, VCPU_PMC + 24(r9)
+	stw	r11, VCPU_PMC + 28(r9)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 22:
 	/* save FP state */
 	mr	r3, r9
 	bl	.kvmppc_save_fp
 
-	/* Secondary threads go off to take a nap */
+	/* Secondary threads go off to take a nap on POWER7 */
+BEGIN_FTR_SECTION
 	lwz	r0,VCPU_PTID(r3)
 	cmpwi	r0,0
 	bne	secondary_nap
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 	/*
 	 * Reload DEC.  HDEC interrupts were disabled when
@@ -771,12 +979,20 @@ hdec_soon:
 	lwz	r6, HSTATE_PMC + 12(r13)
 	lwz	r8, HSTATE_PMC + 16(r13)
 	lwz	r9, HSTATE_PMC + 20(r13)
+BEGIN_FTR_SECTION
+	lwz	r10, HSTATE_PMC + 24(r13)
+	lwz	r11, HSTATE_PMC + 28(r13)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	mtspr	SPRN_PMC1, r3
 	mtspr	SPRN_PMC2, r4
 	mtspr	SPRN_PMC3, r5
 	mtspr	SPRN_PMC4, r6
 	mtspr	SPRN_PMC5, r8
 	mtspr	SPRN_PMC6, r9
+BEGIN_FTR_SECTION
+	mtspr	SPRN_PMC7, r10
+	mtspr	SPRN_PMC8, r11
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	ld	r3, HSTATE_MMCR(r13)
 	ld	r4, HSTATE_MMCR + 8(r13)
 	ld	r5, HSTATE_MMCR + 16(r13)
@@ -802,7 +1018,7 @@ hdec_soon:
 	cmpwi	r12, BOOK3S_INTERRUPT_MACHINE_CHECK
 
 	/* RFI into the highmem handler, or branch to interrupt handler */
-	mfmsr	r6
+12:	mfmsr	r6
 	mtctr	r12
 	li	r0, MSR_RI
 	andc	r6, r6, r0
@@ -812,7 +1028,11 @@ hdec_soon:
 	beqctr
 	RFI
 
-11:	mtspr	SPRN_HSRR0, r8
+11:
+BEGIN_FTR_SECTION
+	b	12b
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
+	mtspr	SPRN_HSRR0, r8
 	mtspr	SPRN_HSRR1, r7
 	ba	0x500
 

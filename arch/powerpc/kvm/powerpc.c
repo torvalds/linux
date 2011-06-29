@@ -213,6 +213,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 		break;
 	case KVM_CAP_PPC_RMA:
 		r = 1;
+		/* PPC970 requires an RMA */
+		if (cpu_has_feature(CPU_FTR_ARCH_201))
+			r = 2;
 		break;
 #endif
 	default:

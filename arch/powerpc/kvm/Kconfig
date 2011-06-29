@@ -67,23 +67,20 @@ config KVM_BOOK3S_64
 	  If unsure, say N.
 
 config KVM_BOOK3S_64_HV
-	bool "KVM support for POWER7 using hypervisor mode in host"
+	bool "KVM support for POWER7 and PPC970 using hypervisor mode in host"
 	depends on KVM_BOOK3S_64
 	---help---
 	  Support running unmodified book3s_64 guest kernels in
-	  virtual machines on POWER7 processors that have hypervisor
-	  mode available to the host.
+	  virtual machines on POWER7 and PPC970 processors that have
+	  hypervisor mode available to the host.
 
 	  If you say Y here, KVM will use the hardware virtualization
 	  facilities of POWER7 (and later) processors, meaning that
 	  guest operating systems will run at full hardware speed
 	  using supervisor and user modes.  However, this also means
 	  that KVM is not usable under PowerVM (pHyp), is only usable
-	  on POWER7 (or later) processors, and can only emulate
-	  POWER5+, POWER6 and POWER7 processors.
-
-	  This module provides access to the hardware capabilities through
-	  a character device node named /dev/kvm.
+	  on POWER7 (or later) processors and PPC970-family processors,
+	  and cannot emulate a different processor from the host processor.
 
 	  If unsure, say N.
 

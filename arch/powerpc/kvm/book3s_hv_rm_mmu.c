@@ -56,7 +56,8 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	/* only handle 4k, 64k and 16M pages for now */
 	porder = 12;
 	if (pteh & HPTE_V_LARGE) {
-		if ((ptel & 0xf000) == 0x1000) {
+		if (cpu_has_feature(CPU_FTR_ARCH_206) &&
+		    (ptel & 0xf000) == 0x1000) {
 			/* 64k page */
 			porder = 16;
 		} else if ((ptel & 0xff000) == 0) {
@@ -126,7 +127,8 @@ static unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 	va_low &= 0x7ff;
 	if (v & HPTE_V_LARGE) {
 		rb |= 1;			/* L field */
-		if (r & 0xff000) {
+		if (cpu_has_feature(CPU_FTR_ARCH_206) &&
+		    (r & 0xff000)) {
 			/* non-16MB large page, must be 64k */
 			/* (masks depend on page size) */
 			rb |= 0x1000;		/* page encoding in LP field */

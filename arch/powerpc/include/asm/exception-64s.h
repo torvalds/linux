@@ -246,6 +246,10 @@ label##_hv:						\
 	KVMTEST(vec);							\
 	_SOFTEN_TEST(EXC_HV)
 
+#define SOFTEN_TEST_HV_201(vec)						\
+	KVMTEST(vec);							\
+	_SOFTEN_TEST(EXC_STD)
+
 #define __MASKABLE_EXCEPTION_PSERIES(vec, label, h, extra)		\
 	HMT_MEDIUM;							\
 	SET_SCRATCH0(r13);    /* save r13 */				\

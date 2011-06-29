@@ -82,7 +82,7 @@ struct kvmppc_host_state {
 	unsigned long xics_phys;
 	u64 dabr;
 	u64 host_mmcr[3];
-	u32 host_pmc[6];
+	u32 host_pmc[8];
 	u64 host_purr;
 	u64 host_spurr;
 	u64 host_dscr;

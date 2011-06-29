@@ -50,8 +50,10 @@ _GLOBAL(__kvmppc_vcore_entry)
 	SAVE_NVGPRS(r1)
 
 	/* Save host DSCR */
+BEGIN_FTR_SECTION
 	mfspr	r3, SPRN_DSCR
 	std	r3, HSTATE_DSCR(r13)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
 	/* Save host DABR */
 	mfspr	r3, SPRN_DABR
@@ -86,12 +88,20 @@ _GLOBAL(__kvmppc_vcore_entry)
 	mfspr	r7, SPRN_PMC4
 	mfspr	r8, SPRN_PMC5
 	mfspr	r9, SPRN_PMC6
+BEGIN_FTR_SECTION
+	mfspr	r10, SPRN_PMC7
+	mfspr	r11, SPRN_PMC8
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	stw	r3, HSTATE_PMC(r13)
 	stw	r5, HSTATE_PMC + 4(r13)
 	stw	r6, HSTATE_PMC + 8(r13)
 	stw	r7, HSTATE_PMC + 12(r13)
 	stw	r8, HSTATE_PMC + 16(r13)
 	stw	r9, HSTATE_PMC + 20(r13)
+BEGIN_FTR_SECTION
+	stw	r10, HSTATE_PMC + 24(r13)
+	stw	r11, HSTATE_PMC + 28(r13)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 31:
 
 	/*
@@ -104,6 +114,26 @@ _GLOBAL(__kvmppc_vcore_entry)
 	extsw	r8,r8
 	add	r8,r8,r7
 	std	r8,HSTATE_DECEXP(r13)
+
+	/*
+	 * On PPC970, if the guest vcpu has an external interrupt pending,
+	 * send ourselves an IPI so as to interrupt the guest once it
+	 * enables interrupts.  (It must have interrupts disabled,
+	 * otherwise we would already have delivered the interrupt.)
+	 */
+BEGIN_FTR_SECTION
+	ld	r0, VCPU_PENDING_EXC(r4)
+	li	r7, (1 << BOOK3S_IRQPRIO_EXTERNAL)
+	oris	r7, r7, (1 << BOOK3S_IRQPRIO_EXTERNAL_LEVEL)@h
+	and.	r0, r0, r7
+	beq	32f
+	mr	r31, r4
+	lhz	r3, PACAPACAINDEX(r13)
+	bl	smp_send_reschedule
+	nop
+	mr	r4, r31
+32:
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 
 	/* Jump to partition switch code */
 	bl	.kvmppc_hv_entry_trampoline

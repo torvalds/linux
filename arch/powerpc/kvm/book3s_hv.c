@@ -443,8 +443,7 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 int kvmppc_core_check_processor_compat(void)
 {
-	if (cpu_has_feature(CPU_FTR_HVMODE) &&
-	    cpu_has_feature(CPU_FTR_ARCH_206))
+	if (cpu_has_feature(CPU_FTR_HVMODE))
 		return 0;
 	return -EIO;
 }
@@ -731,6 +730,10 @@ static int kvmppc_run_vcpu(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		return -EINTR;
 	}
 
+	/* On PPC970, check that we have an RMA region */
+	if (!vcpu->kvm->arch.rma && cpu_has_feature(CPU_FTR_ARCH_201))
+		return -EPERM;
+
 	kvm_run->exit_reason = 0;
 	vcpu->arch.ret = RESUME_GUEST;
 	vcpu->arch.trap = 0;
@@ -920,12 +923,14 @@ fail:
 }
 
 /* Work out RMLS (real mode limit selector) field value for a given RMA size.
-   Assumes POWER7. */
+   Assumes POWER7 or PPC970. */
 static inline int lpcr_rmls(unsigned long rma_size)
 {
 	switch (rma_size) {
 	case 32ul << 20:	/* 32 MB */
-		return 8;
+		if (cpu_has_feature(CPU_FTR_ARCH_206))
+			return 8;	/* only supported on POWER7 */
+		return -1;
 	case 64ul << 20:	/* 64 MB */
 		return 3;
 	case 128ul << 20:	/* 128 MB */
@@ -1059,6 +1064,10 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 		    mem->userspace_addr == vma->vm_start)
 			ri = vma->vm_file->private_data;
 		up_read(&current->mm->mmap_sem);
+		if (!ri && cpu_has_feature(CPU_FTR_ARCH_201)) {
+			pr_err("CPU requires an RMO\n");
+			return -EINVAL;
+		}
 	}
 
 	if (ri) {
@@ -1077,10 +1086,25 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 		atomic_inc(&ri->use_count);
 		kvm->arch.rma = ri;
 		kvm->arch.n_rma_pages = rma_size >> porder;
-		lpcr = kvm->arch.lpcr & ~(LPCR_VPM0 | LPCR_VRMA_L);
-		lpcr |= rmls << LPCR_RMLS_SH;
+
+		/* Update LPCR and RMOR */
+		lpcr = kvm->arch.lpcr;
+		if (cpu_has_feature(CPU_FTR_ARCH_201)) {
+			/* PPC970; insert RMLS value (split field) in HID4 */
+			lpcr &= ~((1ul << HID4_RMLS0_SH) |
+				  (3ul << HID4_RMLS2_SH));
+			lpcr |= ((rmls >> 2) << HID4_RMLS0_SH) |
+				((rmls & 3) << HID4_RMLS2_SH);
+			/* RMOR is also in HID4 */
+			lpcr |= ((ri->base_pfn >> (26 - PAGE_SHIFT)) & 0xffff)
+				<< HID4_RMOR_SH;
+		} else {
+			/* POWER7 */
+			lpcr &= ~(LPCR_VPM0 | LPCR_VRMA_L);
+			lpcr |= rmls << LPCR_RMLS_SH;
+			kvm->arch.rmor = kvm->arch.rma->base_pfn << PAGE_SHIFT;
+		}
 		kvm->arch.lpcr = lpcr;
-		kvm->arch.rmor = kvm->arch.rma->base_pfn << PAGE_SHIFT;
 		pr_info("Using RMO at %lx size %lx (LPCR = %lx)\n",
 			ri->base_pfn << PAGE_SHIFT, rma_size, lpcr);
 	}
@@ -1151,11 +1175,25 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 	kvm->arch.rma = NULL;
 	kvm->arch.n_rma_pages = 0;
 
-	lpcr = kvm->arch.host_lpcr & (LPCR_PECE | LPCR_LPES);
-	lpcr |= (4UL << LPCR_DPFD_SH) | LPCR_HDICE |
-		LPCR_VPM0 | LPCR_VRMA_L;
-	kvm->arch.lpcr = lpcr;
+	kvm->arch.host_sdr1 = mfspr(SPRN_SDR1);
 
+	if (cpu_has_feature(CPU_FTR_ARCH_201)) {
+		/* PPC970; HID4 is effectively the LPCR */
+		unsigned long lpid = kvm->arch.lpid;
+		kvm->arch.host_lpid = 0;
+		kvm->arch.host_lpcr = lpcr = mfspr(SPRN_HID4);
+		lpcr &= ~((3 << HID4_LPID1_SH) | (0xful << HID4_LPID5_SH));
+		lpcr |= ((lpid >> 4) << HID4_LPID1_SH) |
+			((lpid & 0xf) << HID4_LPID5_SH);
+	} else {
+		/* POWER7; init LPCR for virtual RMA mode */
+		kvm->arch.host_lpid = mfspr(SPRN_LPID);
+		kvm->arch.host_lpcr = lpcr = mfspr(SPRN_LPCR);
+		lpcr &= LPCR_PECE | LPCR_LPES;
+		lpcr |= (4UL << LPCR_DPFD_SH) | LPCR_HDICE |
+			LPCR_VPM0 | LPCR_VRMA_L;
+	}
+	kvm->arch.lpcr = lpcr;
 
 	return 0;
 

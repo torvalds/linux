@@ -42,6 +42,8 @@
 #define VRMA_PAGE_ORDER	24
 #define VRMA_VSID	0x1ffffffUL	/* 1TB VSID reserved for VRMA */
 
+/* POWER7 has 10-bit LPIDs, PPC970 has 6-bit LPIDs */
+#define MAX_LPID_970	63
 #define NR_LPIDS	(LPID_RSVD + 1)
 unsigned long lpid_inuse[BITS_TO_LONGS(NR_LPIDS)];
 
@@ -69,9 +71,6 @@ long kvmppc_alloc_hpt(struct kvm *kvm)
 
 	kvm->arch.sdr1 = __pa(hpt) | (HPT_ORDER - 18);
 	kvm->arch.lpid = lpid;
-	kvm->arch.host_sdr1 = mfspr(SPRN_SDR1);
-	kvm->arch.host_lpid = mfspr(SPRN_LPID);
-	kvm->arch.host_lpcr = mfspr(SPRN_LPCR);
 
 	pr_info("KVM guest htab at %lx, LPID %lx\n", hpt, lpid);
 	return 0;
@@ -128,12 +127,24 @@ void kvmppc_map_vrma(struct kvm *kvm, struct kvm_userspace_memory_region *mem)
 
 int kvmppc_mmu_hv_init(void)
 {
-	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
-	    !cpu_has_feature(CPU_FTR_ARCH_206))
+	unsigned long host_lpid, rsvd_lpid;
+
+	if (!cpu_has_feature(CPU_FTR_HVMODE))
 		return -EINVAL;
+
 	memset(lpid_inuse, 0, sizeof(lpid_inuse));
-	set_bit(mfspr(SPRN_LPID), lpid_inuse);
-	set_bit(LPID_RSVD, lpid_inuse);
+
+	if (cpu_has_feature(CPU_FTR_ARCH_206)) {
+		host_lpid = mfspr(SPRN_LPID);	/* POWER7 */
+		rsvd_lpid = LPID_RSVD;
+	} else {
+		host_lpid = 0;			/* PPC970 */
+		rsvd_lpid = MAX_LPID_970;
+	}
+
+	set_bit(host_lpid, lpid_inuse);
+	/* rsvd_lpid is reserved for use in partition switching */
+	set_bit(rsvd_lpid, lpid_inuse);
 
 	return 0;
 }
@@ -157,7 +168,10 @@ void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu)
 {
 	struct kvmppc_mmu *mmu = &vcpu->arch.mmu;
 
-	vcpu->arch.slb_nr = 32;		/* Assume POWER7 for now */
+	if (cpu_has_feature(CPU_FTR_ARCH_206))
+		vcpu->arch.slb_nr = 32;		/* POWER7 */
+	else
+		vcpu->arch.slb_nr = 64;
 
 	mmu->xlate = kvmppc_mmu_book3s_64_hv_xlate;
 	mmu->reset_msr = kvmppc_mmu_book3s_64_hv_reset_msr;

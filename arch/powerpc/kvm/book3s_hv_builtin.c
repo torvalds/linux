@@ -55,12 +55,14 @@ static LIST_HEAD(free_rmas);
 static DEFINE_SPINLOCK(rma_lock);
 
 /* Work out RMLS (real mode limit selector) field value for a given RMA size.
-   Assumes POWER7. */
+   Assumes POWER7 or PPC970. */
 static inline int lpcr_rmls(unsigned long rma_size)
 {
 	switch (rma_size) {
 	case 32ul << 20:	/* 32 MB */
-		return 8;
+		if (cpu_has_feature(CPU_FTR_ARCH_206))
+			return 8;	/* only supported on POWER7 */
+		return -1;
 	case 64ul << 20:	/* 64 MB */
 		return 3;
 	case 128ul << 20:	/* 128 MB */
@@ -90,8 +92,9 @@ void kvm_rma_init(void)
 	void *rma;
 	struct page *pg;
 
-	/* Only do this in HV mode */
-	if (!cpu_has_feature(CPU_FTR_HVMODE))
+	/* Only do this on PPC970 in HV mode */
+	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
+	    !cpu_has_feature(CPU_FTR_ARCH_201))
 		return;
 
 	if (!kvm_rma_size || !kvm_rma_count)
