@@ -585,165 +585,144 @@ struct tomoyo_policy_namespace {
 
 /********** Function prototypes. **********/
 
-void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns);
-bool tomoyo_str_starts(char **src, const char *find);
-const char *tomoyo_get_exe(void);
-void tomoyo_normalize_line(unsigned char *buffer);
-void tomoyo_check_profile(void);
-int tomoyo_open_control(const u8 type, struct file *file);
-int tomoyo_close_control(struct tomoyo_io_buffer *head);
-int tomoyo_poll_control(struct file *file, poll_table *wait);
-ssize_t tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
-			    const int buffer_len);
-ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
-			     const char __user *buffer, const int buffer_len);
-bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r);
-void tomoyo_warn_oom(const char *function);
-const struct tomoyo_path_info *
-tomoyo_compare_name_union(const struct tomoyo_path_info *name,
-			  const struct tomoyo_name_union *ptr);
 bool tomoyo_compare_number_union(const unsigned long value,
 				 const struct tomoyo_number_union *ptr);
-int tomoyo_get_mode(const struct tomoyo_policy_namespace *ns, const u8 profile,
-		    const u8 index);
-void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
-	__attribute__ ((format(printf, 2, 3)));
 bool tomoyo_correct_domain(const unsigned char *domainname);
 bool tomoyo_correct_path(const char *filename);
 bool tomoyo_correct_word(const char *string);
 bool tomoyo_domain_def(const unsigned char *buffer);
-bool tomoyo_parse_name_union(struct tomoyo_acl_param *param,
-			     struct tomoyo_name_union *ptr);
-const struct tomoyo_path_info *
-tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
-			  const struct tomoyo_group *group);
+bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r);
+bool tomoyo_memory_ok(void *ptr);
 bool tomoyo_number_matches_group(const unsigned long min,
 				 const unsigned long max,
 				 const struct tomoyo_group *group);
-bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
-				 const struct tomoyo_path_info *pattern);
+bool tomoyo_parse_name_union(struct tomoyo_acl_param *param,
+			     struct tomoyo_name_union *ptr);
 bool tomoyo_parse_number_union(struct tomoyo_acl_param *param,
 			       struct tomoyo_number_union *ptr);
-bool tomoyo_tokenize(char *buffer, char *w[], size_t size);
-bool tomoyo_verbose_mode(const struct tomoyo_domain_info *domain);
+bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
+				 const struct tomoyo_path_info *pattern);
+bool tomoyo_permstr(const char *string, const char *keyword);
+bool tomoyo_str_starts(char **src, const char *find);
+char *tomoyo_encode(const char *str);
+char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
+		      va_list args);
+char *tomoyo_read_token(struct tomoyo_acl_param *param);
+char *tomoyo_realpath_from_path(struct path *path);
+char *tomoyo_realpath_nofollow(const char *pathname);
+const char *tomoyo_get_exe(void);
+const char *tomoyo_yesno(const unsigned int value);
+const struct tomoyo_path_info *tomoyo_compare_name_union
+(const struct tomoyo_path_info *name, const struct tomoyo_name_union *ptr);
+const struct tomoyo_path_info *tomoyo_get_name(const char *name);
+const struct tomoyo_path_info *tomoyo_path_matches_group
+(const struct tomoyo_path_info *pathname, const struct tomoyo_group *group);
+int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
+				 struct path *path, const int flag);
+int tomoyo_close_control(struct tomoyo_io_buffer *head);
+int tomoyo_find_next_domain(struct linux_binprm *bprm);
+int tomoyo_get_mode(const struct tomoyo_policy_namespace *ns, const u8 profile,
+		    const u8 index);
 int tomoyo_init_request_info(struct tomoyo_request_info *r,
 			     struct tomoyo_domain_info *domain,
 			     const u8 index);
+int tomoyo_mkdev_perm(const u8 operation, struct path *path,
+		      const unsigned int mode, unsigned int dev);
 int tomoyo_mount_permission(char *dev_name, struct path *path,
 			    const char *type, unsigned long flags,
 			    void *data_page);
-int tomoyo_write_aggregator(struct tomoyo_acl_param *param);
-int tomoyo_write_transition_control(struct tomoyo_acl_param *param,
-				    const u8 type);
-int tomoyo_write_file(struct tomoyo_acl_param *param);
-int tomoyo_write_group(struct tomoyo_acl_param *param, const u8 type);
-int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
-     __attribute__ ((format(printf, 2, 3)));
-struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
-struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
-						const bool transit);
-struct tomoyo_profile *tomoyo_profile(const struct tomoyo_policy_namespace *ns,
-				      const u8 profile);
-struct tomoyo_policy_namespace *tomoyo_assign_namespace
-(const char *domainname);
-struct tomoyo_group *tomoyo_get_group(struct tomoyo_acl_param *param,
-				      const u8 idx);
-unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
-				const u8 index);
-void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
-void tomoyo_load_policy(const char *filename);
-void tomoyo_put_number_union(struct tomoyo_number_union *ptr);
-char *tomoyo_encode(const char *str);
-char *tomoyo_realpath_nofollow(const char *pathname);
-char *tomoyo_realpath_from_path(struct path *path);
-bool tomoyo_memory_ok(void *ptr);
-void *tomoyo_commit_ok(void *data, const unsigned int size);
-const struct tomoyo_path_info *tomoyo_get_name(const char *name);
-void tomoyo_convert_time(time_t time, struct tomoyo_time *stamp);
-void tomoyo_update_stat(const u8 index);
-void __init tomoyo_mm_init(void);
-void __init tomoyo_load_builtin_policy(void);
-int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
-			   const struct tomoyo_path_info *filename);
-int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
-				 struct path *path, const int flag);
-int tomoyo_path_number_perm(const u8 operation, struct path *path,
-			    unsigned long number);
-int tomoyo_mkdev_perm(const u8 operation, struct path *path,
-		      const unsigned int mode, unsigned int dev);
-int tomoyo_path_perm(const u8 operation, struct path *path);
+int tomoyo_open_control(const u8 type, struct file *file);
 int tomoyo_path2_perm(const u8 operation, struct path *path1,
 		      struct path *path2);
-int tomoyo_find_next_domain(struct linux_binprm *bprm);
-void tomoyo_print_ulong(char *buffer, const int buffer_len,
-			const unsigned long value, const u8 type);
-void tomoyo_put_name_union(struct tomoyo_name_union *ptr);
-void tomoyo_notify_gc(struct tomoyo_io_buffer *head, const bool is_register);
-void tomoyo_memory_free(void *ptr);
+int tomoyo_path_number_perm(const u8 operation, struct path *path,
+			    unsigned long number);
+int tomoyo_path_perm(const u8 operation, struct path *path);
+int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
+			   const struct tomoyo_path_info *filename);
+int tomoyo_poll_control(struct file *file, poll_table *wait);
+int tomoyo_poll_log(struct file *file, poll_table *wait);
+int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
+	__printf(2, 3);
 int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 			 struct tomoyo_acl_param *param,
-			 bool (*check_duplicate) (const struct tomoyo_acl_info
-						  *,
-						  const struct tomoyo_acl_info
-						  *),
-			 bool (*merge_duplicate) (struct tomoyo_acl_info *,
-						  struct tomoyo_acl_info *,
-						  const bool));
+			 bool (*check_duplicate)
+			 (const struct tomoyo_acl_info *,
+			  const struct tomoyo_acl_info *),
+			 bool (*merge_duplicate)
+			 (struct tomoyo_acl_info *, struct tomoyo_acl_info *,
+			  const bool));
 int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 			 struct tomoyo_acl_param *param,
-			 bool (*check_duplicate) (const struct tomoyo_acl_head
-						  *,
-						  const struct tomoyo_acl_head
-						  *));
+			 bool (*check_duplicate)
+			 (const struct tomoyo_acl_head *,
+			  const struct tomoyo_acl_head *));
+int tomoyo_write_aggregator(struct tomoyo_acl_param *param);
+int tomoyo_write_file(struct tomoyo_acl_param *param);
+int tomoyo_write_group(struct tomoyo_acl_param *param, const u8 type);
+int tomoyo_write_transition_control(struct tomoyo_acl_param *param,
+				    const u8 type);
+ssize_t tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
+			    const int buffer_len);
+ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
+			     const char __user *buffer, const int buffer_len);
+struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
+						const bool transit);
+struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
+struct tomoyo_group *tomoyo_get_group(struct tomoyo_acl_param *param,
+				      const u8 idx);
+struct tomoyo_policy_namespace *tomoyo_assign_namespace
+(const char *domainname);
+struct tomoyo_profile *tomoyo_profile(const struct tomoyo_policy_namespace *ns,
+				      const u8 profile);
+unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
+				const u8 index);
+void *tomoyo_commit_ok(void *data, const unsigned int size);
+void __init tomoyo_load_builtin_policy(void);
+void __init tomoyo_mm_init(void);
 void tomoyo_check_acl(struct tomoyo_request_info *r,
 		      bool (*check_entry) (struct tomoyo_request_info *,
 					   const struct tomoyo_acl_info *));
-char *tomoyo_read_token(struct tomoyo_acl_param *param);
-bool tomoyo_permstr(const char *string, const char *keyword);
-
-const char *tomoyo_yesno(const unsigned int value);
+void tomoyo_check_profile(void);
+void tomoyo_convert_time(time_t time, struct tomoyo_time *stamp);
+void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
+void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns);
+void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
+	 __printf(2, 3);
+void tomoyo_load_policy(const char *filename);
+void tomoyo_memory_free(void *ptr);
+void tomoyo_normalize_line(unsigned char *buffer);
+void tomoyo_notify_gc(struct tomoyo_io_buffer *head, const bool is_register);
+void tomoyo_print_ulong(char *buffer, const int buffer_len,
+			const unsigned long value, const u8 type);
+void tomoyo_put_name_union(struct tomoyo_name_union *ptr);
+void tomoyo_put_number_union(struct tomoyo_number_union *ptr);
+void tomoyo_read_log(struct tomoyo_io_buffer *head);
+void tomoyo_update_stat(const u8 index);
+void tomoyo_warn_oom(const char *function);
 void tomoyo_write_log(struct tomoyo_request_info *r, const char *fmt, ...)
-	__attribute__ ((format(printf, 2, 3)));
+	__printf(2, 3);
 void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
 		       va_list args);
-void tomoyo_read_log(struct tomoyo_io_buffer *head);
-int tomoyo_poll_log(struct file *file, poll_table *wait);
-char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
-		      va_list args);
 
 /********** External variable definitions. **********/
 
-/* Lock for GC. */
-extern struct srcu_struct tomoyo_ss;
-
-/* The list for "struct tomoyo_domain_info". */
-extern struct list_head tomoyo_domain_list;
-
-extern struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
-
-/* Lock for protecting policy. */
-extern struct mutex tomoyo_policy_lock;
-
-/* Has /sbin/init started? */
 extern bool tomoyo_policy_loaded;
-
-/* The kernel's domain. */
-extern struct tomoyo_domain_info tomoyo_kernel_domain;
-extern struct tomoyo_policy_namespace tomoyo_kernel_namespace;
-extern struct list_head tomoyo_namespace_list;
-
-extern const char * const tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX +
-					      TOMOYO_MAX_MAC_CATEGORY_INDEX];
+extern const char * const tomoyo_dif[TOMOYO_MAX_DOMAIN_INFO_FLAGS];
+extern const char * const tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
+					      + TOMOYO_MAX_MAC_CATEGORY_INDEX];
+extern const char * const tomoyo_mode[TOMOYO_CONFIG_MAX_MODE];
 extern const char * const tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION];
 extern const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX];
-
-
+extern const u8 tomoyo_pn2mac[TOMOYO_MAX_PATH_NUMBER_OPERATION];
 extern const u8 tomoyo_pnnn2mac[TOMOYO_MAX_MKDEV_OPERATION];
 extern const u8 tomoyo_pp2mac[TOMOYO_MAX_PATH2_OPERATION];
-extern const u8 tomoyo_pn2mac[TOMOYO_MAX_PATH_NUMBER_OPERATION];
-
-extern const char * const tomoyo_dif[TOMOYO_MAX_DOMAIN_INFO_FLAGS];
-extern const char * const tomoyo_mode[TOMOYO_CONFIG_MAX_MODE];
+extern struct list_head tomoyo_domain_list;
+extern struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
+extern struct list_head tomoyo_namespace_list;
+extern struct mutex tomoyo_policy_lock;
+extern struct srcu_struct tomoyo_ss;
+extern struct tomoyo_domain_info tomoyo_kernel_domain;
+extern struct tomoyo_policy_namespace tomoyo_kernel_namespace;
 extern unsigned int tomoyo_memory_quota[TOMOYO_MAX_MEMORY_STAT];
 extern unsigned int tomoyo_memory_used[TOMOYO_MAX_MEMORY_STAT];
 
