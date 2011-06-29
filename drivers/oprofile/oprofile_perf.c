@@ -79,7 +79,7 @@ static int op_create_counter(int cpu, int event)
 
 	pevent = perf_event_create_kernel_counter(&counter_config[event].attr,
 						  cpu, NULL,
-						  op_overflow_handler);
+						  op_overflow_handler, NULL);
 
 	if (IS_ERR(pevent))
 		return PTR_ERR(pevent);

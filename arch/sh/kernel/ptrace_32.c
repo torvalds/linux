@@ -91,7 +91,8 @@ static int set_single_step(struct task_struct *tsk, unsigned long addr)
 		attr.bp_len = HW_BREAKPOINT_LEN_2;
 		attr.bp_type = HW_BREAKPOINT_R;
 
-		bp = register_user_hw_breakpoint(&attr, ptrace_triggered, tsk);
+		bp = register_user_hw_breakpoint(&attr, ptrace_triggered,
+						 NULL, tsk);
 		if (IS_ERR(bp))
 			return PTR_ERR(bp);
 

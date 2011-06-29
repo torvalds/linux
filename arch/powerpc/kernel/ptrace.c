@@ -973,7 +973,7 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 								&attr.bp_type);
 
 	thread->ptrace_bps[0] = bp = register_user_hw_breakpoint(&attr,
-							ptrace_triggered, task);
+					       ptrace_triggered, NULL, task);
 	if (IS_ERR(bp)) {
 		thread->ptrace_bps[0] = NULL;
 		ptrace_put_breakpoints(task);
