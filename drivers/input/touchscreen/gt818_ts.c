@@ -95,7 +95,7 @@ static int i2c_read_bytes(struct i2c_client *client, u8 *buf, int len)
 	msgs[1].len = len-2;
 	msgs[1].buf = &buf[2];
 	msgs[1].scl_rate = GT818_I2C_SCL;
-	//msgs[1].udelay = client->udelay;
+	msgs[1].udelay = client->udelay;
 
 	ret = i2c_transfer(client->adapter, msgs, 2);
 	if(ret < 0)
@@ -114,7 +114,7 @@ static int i2c_write_bytes(struct i2c_client *client,u8 *data,int len)
 	msg.len = len;
 	msg.buf = data;
 	msg.scl_rate = GT818_I2C_SCL;
-	//msg.udelay = client->udelay;
+	msg.udelay = client->udelay;
 	ret = i2c_transfer(client->adapter, &msg, 1);
 	if(ret < 0)
 		printk("%s:i2c_transfer fail =%d\n",__func__, ret);
@@ -150,7 +150,6 @@ static int i2c_end_cmd(struct gt818_ts_data *ts)
 static int goodix_init_panel(struct gt818_ts_data *ts)
 {
 	int ret = -1;
-//	unsigned char i2c_control_buf[3] = {0x06,0x92,0x03};
 
 	#if 1
 	u8 config_info[] = {
@@ -192,7 +191,6 @@ static int goodix_init_panel(struct gt818_ts_data *ts)
 
 	};								
 	#endif
-//	ret = i2c_write_bytes(ts->client, i2c_control_buf, (sizeof(i2c_control_buf)/sizeof(i2c_control_buf[0])));
 	ret = i2c_write_bytes(ts->client, config_info, (sizeof(config_info)/sizeof(config_info[0])));
 	if (ret < 0) 
 		return ret;
@@ -433,12 +431,8 @@ static int goodix_ts_power(struct gt818_ts_data * ts, int on)
 	int ret = -1;
 	struct gt818_platform_data	*pdata = ts->client->dev.platform_data;
 	unsigned char i2c_control_buf[3] = {0x06,0x92,0x01};		//suspend cmd
-	unsigned char i2c_config_buf[3] = {0x06,0x92,0x01};
-	
-	#ifdef INT_PORT	
 	if(ts != NULL && !ts->use_irq)
 		return -2;
-#endif		
 	switch(on)
 	{
 		case 0:
@@ -461,6 +455,12 @@ static int goodix_ts_power(struct gt818_ts_data * ts, int on)
 			return ret;
 			
 		case 1:
+
+			gpio_pull_updown(pdata->gpio_pendown, 1);
+			gpio_direction_output(pdata->gpio_pendown, 0);
+			msleep(1);
+			gpio_direction_output(pdata->gpio_pendown, 1);
+			msleep(1);
 			gpio_direction_input(pdata->gpio_pendown);
 			gpio_pull_updown(pdata->gpio_pendown, 0);
 			msleep(2);
@@ -518,16 +518,14 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	i2c_set_clientdata(client, ts);
 
 	//init int and reset ports
-#ifdef INT_PORT
-	ret = gpio_request(INT_PORT, "TS_INT");	//Request IO
+	ret = gpio_request(pdata->gpio_pendown, "TS_INT");	//Request IO
 	if (ret){
-		dev_err(&client->dev, "Failed to request GPIO:%d, ERRNO:%d\n",(int)INT_PORT, ret);
+		dev_err(&client->dev, "Failed to request GPIO:%d, ERRNO:%d\n",(int)pdata->gpio_pendown, ret);
 		goto err_gpio_request_failed;
 	}
 	rk29_mux_api_set(pdata->pendown_iomux_name, pdata->pendown_iomux_mode);
-	gpio_direction_input(INT_PORT);
-	gpio_pull_updown(INT_PORT, 0);
-#endif
+	gpio_direction_input(pdata->gpio_pendown);
+	gpio_pull_updown(pdata->gpio_pendown, 0);
 
 	ret = gpio_request(pdata->gpio_reset, "gt818_resetPin");
 	if(ret){
@@ -538,6 +536,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 #if 1
 	for(retry = 0; retry < 4; retry++)
 	{
+		gpio_pull_updown(pdata->gpio_reset, 1);
 		gpio_direction_output(pdata->gpio_reset, 0);
 		msleep(2);
 		gpio_direction_input(pdata->gpio_reset);
@@ -583,8 +582,8 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 
 	ts->input_dev->evbit[0] = BIT_MASK(EV_SYN) | BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS) ;
 	ts->input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
-//	ts->input_dev->absbit[0] = BIT(ABS_MT_POSITION_X) | BIT(ABS_MT_POSITION_Y) |
-//			BIT(ABS_MT_TOUCH_MAJOR) | BIT(ABS_MT_WIDTH_MAJOR);  // for android
+	ts->input_dev->absbit[0] = BIT_MASK(ABS_MT_POSITION_X) | BIT_MASK(ABS_MT_POSITION_Y) |
+			BIT_MASK(ABS_MT_TOUCH_MAJOR) | BIT_MASK(ABS_MT_WIDTH_MAJOR);  // for android
 
 
 #ifdef HAVE_TOUCH_KEY
@@ -626,9 +625,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	ts->bad_data = 0;
 //	finger_list.length = 0;
 
-#ifdef INT_PORT	
-
-	client->irq = TS_INT;		//If not defined in client
+	client->irq = gpio_to_irq(pdata->gpio_pendown);		//If not defined in client
 	if (client->irq)
 	{
 
@@ -646,18 +643,17 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 			client->name, ts);
 		if (ret != 0) {
 			dev_err(&client->dev,"Cannot allocate ts INT!ERRNO:%d\n", ret);
-			gpio_direction_input(INT_PORT);
-			gpio_free(INT_PORT);
+			gpio_direction_input(pdata->gpio_pendown);
+			gpio_free(pdata->gpio_pendown);
 			goto err_gpio_request_failed;
 		}
 		else 
 		{	
 			disable_irq(client->irq);
 			ts->use_irq = 1;
-			dev_dbg(&client->dev,"Reques EIRQ %d succesd on GPIO:%d\n",TS_INT,INT_PORT);
+			dev_dbg(&client->dev,"Reques EIRQ %d succesd on GPIO:%d\n", client->irq, pdata->gpio_pendown);
 		}	
 	}
-#endif	
 
 err_gpio_request_failed:
 	ts->power = goodix_ts_power;
@@ -688,10 +684,8 @@ err_init_godix_ts:
 	{
 		ts->use_irq = 0;
 		free_irq(client->irq,ts);
-	#ifdef INT_PORT	
-		gpio_direction_input(INT_PORT);
-		gpio_free(INT_PORT);
-	#endif	
+		gpio_direction_input(pdata->gpio_pendown);
+		gpio_free(pdata->gpio_pendown);
 	}
 	else 
 		hrtimer_cancel(&ts->timer);
@@ -723,10 +717,8 @@ static int goodix_ts_remove(struct i2c_client *client)
 #endif
 	if (ts && ts->use_irq) 
 	{
-	#ifdef INT_PORT
-		gpio_direction_input(INT_PORT);
-		gpio_free(INT_PORT);
-	#endif	
+		gpio_direction_input(pdata->gpio_pendown);
+		gpio_free(pdata->gpio_pendown);
 		free_irq(client->irq, ts);
 	}	
 	else if(ts)
