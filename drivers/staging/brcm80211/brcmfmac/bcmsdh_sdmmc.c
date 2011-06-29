@@ -55,13 +55,6 @@ DHD_PM_RESUME_WAIT_INIT(sdioh_request_buffer_wait);
 int brcmf_sdioh_card_regread(struct sdioh_info *sd, int func, u32 regaddr,
 			     int regsize, u32 *data);
 
-void brcmf_sdioh_set_host_pm_flags(int flag)
-{
-	if (sdio_set_host_pm_flags(gInstance->func[1], flag))
-		printk(KERN_ERR "%s: Failed to set pm_flags 0x%08x\n",\
-			 __func__, (unsigned int)flag);
-}
-
 static int brcmf_sdioh_enablefuncs(struct sdioh_info *sd)
 {
 	int err_ret;

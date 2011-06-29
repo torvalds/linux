@@ -218,3 +218,11 @@ module_param(sd_msglevel, uint, 0);
 
 extern uint sd_f2_blocksize;
 module_param(sd_f2_blocksize, int, 0);
+
+void brcmf_sdio_wdtmr_enable(bool enable)
+{
+	if (enable)
+		brcmf_os_wd_timer(sdhcinfo->ch, brcmf_watchdog_ms);
+	else
+		brcmf_os_wd_timer(sdhcinfo->ch, 0);
+}

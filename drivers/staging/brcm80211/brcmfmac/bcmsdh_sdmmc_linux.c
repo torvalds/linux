@@ -136,11 +136,53 @@ static const struct sdio_device_id bcmsdh_sdmmc_ids[] = {
 
 MODULE_DEVICE_TABLE(sdio, bcmsdh_sdmmc_ids);
 
+#ifdef CONFIG_PM
+static int brcmf_sdio_suspend(struct device *dev)
+{
+	mmc_pm_flag_t sdio_flags;
+	int ret = 0;
+
+	sd_trace(("%s\n", __func__));
+
+	sdio_flags = sdio_get_host_pm_caps(gInstance->func[1]);
+	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
+		sd_err(("Host can't keep power while suspended\n"));
+		return -EINVAL;
+	}
+
+	ret = sdio_set_host_pm_flags(gInstance->func[1], MMC_PM_KEEP_POWER);
+	if (ret) {
+		sd_err(("Failed to set pm_flags\n"));
+		return ret;
+	}
+
+	brcmf_sdio_wdtmr_enable(false);
+
+	return ret;
+}
+
+static int brcmf_sdio_resume(struct device *dev)
+{
+	brcmf_sdio_wdtmr_enable(true);
+	return 0;
+}
+
+static const struct dev_pm_ops brcmf_sdio_pm_ops = {
+	.suspend	= brcmf_sdio_suspend,
+	.resume		= brcmf_sdio_resume,
+};
+#endif		/* CONFIG_PM */
+
 static struct sdio_driver bcmsdh_sdmmc_driver = {
 	.probe = brcmf_ops_sdio_probe,
 	.remove = brcmf_ops_sdio_remove,
 	.name = "brcmfmac",
 	.id_table = bcmsdh_sdmmc_ids,
+#ifdef CONFIG_PM
+	.drv = {
+		.pm = &brcmf_sdio_pm_ops,
+	},
+#endif		/* CONFIG_PM */
 };
 
 struct sdos_info {

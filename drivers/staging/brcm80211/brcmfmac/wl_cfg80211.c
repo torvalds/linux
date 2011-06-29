@@ -36,8 +36,6 @@
 #include "dhd.h"
 #include "wl_cfg80211.h"
 
-void brcmf_sdioh_set_host_pm_flags(int flag);
-
 static struct sdio_func *cfg80211_sdio_func;
 static struct wl_dev *wl_cfg80211_dev;
 static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
@@ -2071,7 +2069,6 @@ done:
 static s32 wl_cfg80211_resume(struct wiphy *wiphy)
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
-	struct net_device *ndev = wl_to_ndev(wl);
 
 	/*
 	 * Check for WL_STATUS_READY before any function call which
@@ -2084,11 +2081,8 @@ static s32 wl_cfg80211_resume(struct wiphy *wiphy)
 	atomic_set(&brcmf_mmc_suspend, false);
 #endif	/*  defined(CONFIG_PM_SLEEP) */
 
-	if (test_bit(WL_STATUS_READY, &wl->status)) {
-		/* Turn on Watchdog timer */
-		brcmf_netdev_os_wd_timer(ndev, brcmf_watchdog_ms);
+	if (test_bit(WL_STATUS_READY, &wl->status))
 		wl_invoke_iscan(wiphy_to_wl(wiphy));
-	}
 
 	WL_TRACE("Exit\n");
 	return 0;
@@ -2141,14 +2135,10 @@ static s32 wl_cfg80211_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wow)
 	clear_bit(WL_STATUS_SCANNING, &wl->status);
 	clear_bit(WL_STATUS_SCAN_ABORTING, &wl->status);
 
-	/* Inform SDIO stack not to switch off power to the chip */
-	brcmf_sdioh_set_host_pm_flags(MMC_PM_KEEP_POWER);
-
 	/* Turn off watchdog timer */
 	if (test_bit(WL_STATUS_READY, &wl->status)) {
-		WL_INFO("Terminate watchdog timer and enable MPC\n");
+		WL_INFO("Enable MPC\n");
 		wl_set_mpc(ndev, 1);
-		brcmf_netdev_os_wd_timer(ndev, 0);
 	}
 
 #if defined(CONFIG_PM_SLEEP)

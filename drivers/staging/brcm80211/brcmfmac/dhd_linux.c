@@ -2382,13 +2382,6 @@ int brcmf_netdev_wait_pend8021x(struct net_device *dev)
 	return pend;
 }
 
-void brcmf_netdev_os_wd_timer(struct net_device *ndev, uint wdtick)
-{
-	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(ndev);
-
-	brcmf_os_wd_timer(&dhd->pub, wdtick);
-}
-
 #ifdef BCMDBG
 int brcmf_write_to_file(dhd_pub_t *dhd, u8 *buf, int size)
 {
