@@ -1905,28 +1905,33 @@ static bool brcms_c_isgoodchip(struct brcms_c_hw_info *wlc_hw)
 	return true;
 }
 
+/* Validate some board info parameters */
 static bool brcms_c_validboardtype(struct brcms_c_hw_info *wlc_hw)
 {
-	bool goodboard = true;
 	uint boardrev = wlc_hw->boardrev;
 
-	if (boardrev == 0)
-		goodboard = false;
-	else if (boardrev > 0xff) {
-		uint brt = (boardrev & 0xf000) >> 12;
-		uint b0 = (boardrev & 0xf00) >> 8;
-		uint b1 = (boardrev & 0xf0) >> 4;
-		uint b2 = boardrev & 0xf;
+	/* 4 bits each for board type, major, minor, and tiny version */
+	uint brt = (boardrev & 0xf000) >> 12;
+	uint b0 = (boardrev & 0xf00) >> 8;
+	uint b1 = (boardrev & 0xf0) >> 4;
+	uint b2 = boardrev & 0xf;
 
-		if ((brt > 2) || (brt == 0) || (b0 > 9) || (b0 == 0) || (b1 > 9)
-		    || (b2 > 9))
-			goodboard = false;
-	}
-
+	/* voards from other vendors are always considered valid */
 	if (wlc_hw->sih->boardvendor != PCI_VENDOR_ID_BROADCOM)
-		return goodboard;
+		return true;
 
-	return goodboard;
+	/* do some boardrev sanity checks when boardvendor is Broadcom */
+	if (boardrev == 0)
+		return false;
+
+	if (boardrev <= 0xff)
+		return true;
+
+	if ((brt > 2) || (brt == 0) || (b0 > 9) || (b0 == 0) || (b1 > 9)
+		|| (b2 > 9))
+		return false;
+
+	return true;
 }
 
 static char *brcms_c_get_macaddr(struct brcms_c_hw_info *wlc_hw)
