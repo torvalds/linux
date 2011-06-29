@@ -870,7 +870,7 @@ int srom_var_init(struct si_pub *sih, uint bustype, void *curmap,
 	if (curmap != NULL && bustype == PCI_BUS)
 		return initvars_srom_pci(sih, curmap, vars, count);
 
-	return -1;
+	return -EINVAL;
 }
 
 /* In chips with chipcommon rev 32 and later, the srom is in chipcommon,
@@ -935,7 +935,7 @@ sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
 		if (sih->ccrev > 31 && ISSIM_ENAB(sih)) {
 			/* use indirect since direct is too slow on QT */
 			if ((sih->cccaps & CC_CAP_SROM) == 0)
-				return 1;
+				return -ENODEV;
 
 			ccregs = (void *)((u8 *) sprom - CC_SROM_OTP);
 			buf[i] =
@@ -953,7 +953,7 @@ sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
 
 	/* bypass crc checking for simulation to allow srom hack */
 	if (ISSIM_ENAB(sih))
-		return err;
+		return 0;
 
 	if (check_crc) {
 
@@ -962,7 +962,7 @@ sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
 			 * is blank, regardless of the rest of the content, so declare
 			 * it bad.
 			 */
-			return 1;
+			return -ENODATA;
 		}
 
 		/* fixup the endianness so crc8 will pass */
@@ -970,7 +970,7 @@ sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
 		if (brcmu_crc8((u8 *) buf, nwords * 2, CRC8_INIT_VALUE) !=
 		    CRC8_GOOD_VALUE) {
 			/* DBG only pci always read srom4 first, then srom8/9 */
-			err = 1;
+			err = -EIO;
 		}
 		/* now correct the endianness of the byte array */
 		ltoh16_buf(buf, nwords * 2);
@@ -987,7 +987,7 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 
 	otp = kzalloc(OTP_SZ_MAX, GFP_ATOMIC);
 	if (otp == NULL) {
-		return -EBADE;
+		return -ENOMEM;
 	}
 
 	err = otp_read_region(sih, OTP_HW_RGN, (u16 *) otp, &sz);
@@ -1002,14 +1002,14 @@ static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz)
 		 * is blank, regardless of the rest of the content, so declare
 		 * it bad.
 		 */
-		return 1;
+		return -ENODATA;
 	}
 
 	/* fixup the endianness so crc8 will pass */
 	htol16_buf(buf, bufsz);
 	if (brcmu_crc8((u8 *) buf, SROM4_WORDS * 2, CRC8_INIT_VALUE) !=
 	    CRC8_GOOD_VALUE) {
-		err = 1;
+		err = -EIO;
 	}
 	/* now correct the endianness of the byte array */
 	ltoh16_buf(buf, bufsz);
@@ -1219,13 +1219,12 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 	 */
 	srom = kmalloc(SROM_MAX, GFP_ATOMIC);
 	if (!srom)
-		return -2;
+		return -ENOMEM;
 
 	sromwindow = (u16 *) SROM_OFFSET(sih);
 	if (ai_is_sprom_available(sih)) {
-		err =
-		    sprom_read_pci(sih, sromwindow, 0, srom, SROM_WORDS,
-				   true);
+		err = sprom_read_pci(sih, sromwindow, 0, srom, SROM_WORDS,
+				     true);
 
 		if ((srom[SROM4_SIGN] == SROM4_SIGNATURE) ||
 		    (((sih->buscoretype == PCIE_CORE_ID)
@@ -1233,9 +1232,8 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 		     || ((sih->buscoretype == PCI_CORE_ID)
 			 && (sih->buscorerev >= 0xe)))) {
 			/* sromrev >= 4, read more */
-			err =
-			    sprom_read_pci(sih, sromwindow, 0, srom,
-					   SROM4_WORDS, true);
+			err = sprom_read_pci(sih, sromwindow, 0, srom,
+					     SROM4_WORDS, true);
 			sromrev = srom[SROM4_CRCREV] & 0xff;
 		} else if (err == 0) {
 			/* srom is good and is rev < 4 */
@@ -1253,12 +1251,10 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 		if (err == 0)
 			/* OTP only contain SROM rev8/rev9 for now */
 			sromrev = srom[SROM4_CRCREV] & 0xff;
-		else
-			err = 1;
 	}
 #else
 	else
-		err = 1;
+		err = -ENODEV;
 #endif
 
 	if (!err) {
@@ -1267,13 +1263,13 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 
 		/* srom version check: Current valid versions: 1, 2, 3, 4, 5, 8, 9 */
 		if ((sr & 0x33e) == 0) {
-			err = -2;
+			err = -EINVAL;
 			goto errout;
 		}
 
 		base = kmalloc(MAXSZ_NVRAM_VARS, GFP_ATOMIC);
 		if (!base) {
-			err = -2;
+			err = -ENOMEM;
 			goto errout;
 		}
 
