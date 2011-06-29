@@ -220,9 +220,9 @@ static void brcms_c_scb_ampdu_update_config(struct ampdu_info *ampdu,
 
 	scb_ampdu->release = min_t(u8, scb_ampdu->max_pdu, AMPDU_SCB_MAX_RELEASE);
 
-	if (scb_ampdu->max_rxlen)
-		scb_ampdu->release =
-		    min_t(u8, scb_ampdu->release, scb_ampdu->max_rxlen / 1600);
+	if (scb_ampdu->max_rx_ampdu_bytes)
+		scb_ampdu->release = min_t(u8, scb_ampdu->release,
+			scb_ampdu->max_rx_ampdu_bytes / 1600);
 
 	scb_ampdu->release = min(scb_ampdu->release,
 				 ampdu->fifo_tb[TX_AC_BE_FIFO].
@@ -410,7 +410,8 @@ static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 
 void
 brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
-		  u8 ba_wsize)		/* negotiated ba window size (in pdu) */
+	u8 ba_wsize,		/* negotiated ba window size (in pdu) */
+	uint max_rx_ampdu_bytes) /* from ht_cap in beacon */
 {
 	scb_ampdu_t *scb_ampdu;
 	scb_ampdu_tid_ini_t *ini;
@@ -428,6 +429,7 @@ brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
 	ini->tid = tid;
 	ini->scb = scb_ampdu->scb;
 	ini->ba_wsize = ba_wsize;
+	scb_ampdu->max_rx_ampdu_bytes = max_rx_ampdu_bytes;
 }
 
 int
@@ -446,7 +448,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 	bool rr = true, fbr = false;
 	uint i, count = 0, fifo, seg_cnt = 0;
 	u16 plen, len, seq = 0, mcl, mch, index, frameid, dma_len = 0;
-	u32 ampdu_len, maxlen = 0;
+	u32 ampdu_len, max_ampdu_bytes = 0;
 	d11txh_t *txh = NULL;
 	u8 *plcp;
 	struct ieee80211_hdr *h;
@@ -611,14 +613,9 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 			is40 = (plcp0 & MIMO_PLCP_40MHZ) ? 1 : 0;
 			sgi = PLCP3_ISSGI(plcp3) ? 1 : 0;
 			mcs = plcp0 & ~MIMO_PLCP_40MHZ;
-			maxlen =
-			    min(scb_ampdu->max_rxlen,
+			max_ampdu_bytes =
+			    min(scb_ampdu->max_rx_ampdu_bytes,
 				ampdu->max_txlen[mcs][is40][sgi]);
-
-			/* XXX Fix me to honor real max_rxlen */
-			/* can fix this as soon as ampdu_action() in mac80211.h
-			 * gets extra u8buf_size par */
-			maxlen = 64 * 1024;
 
 			if (is40)
 				mimo_ctlchbw =
@@ -681,10 +678,8 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 				       AMPDU_MAX_MPDU_OVERHEAD;
 				plen = max(scb_ampdu->min_len, plen);
 
-				if ((plen + ampdu_len) > maxlen) {
+				if ((plen + ampdu_len) > max_ampdu_bytes) {
 					p = NULL;
-					wiphy_err(wiphy, "%s: Bogus plen #1\n",
-						__func__);
 					continue;
 				}
 

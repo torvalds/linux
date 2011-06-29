@@ -659,10 +659,13 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		/*
 		 * BA window size from ADDBA response ('buf_size') defines how
 		 * many outstanding MPDUs are allowed for the BA stream by
-		 * recipient and traffic class.
+		 * recipient and traffic class. 'ampdu_factor' gives maximum
+		 * AMPDU size.
 		 */
 		LOCK(wl);
-		brcms_c_ampdu_tx_operational(wl->wlc, tid, buf_size);
+		brcms_c_ampdu_tx_operational(wl->wlc, tid, buf_size,
+			(1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
+			 sta->ht_cap.ampdu_factor)) - 1);
 		UNLOCK(wl);
 		/* Power save wakeup */
 		break;

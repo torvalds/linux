@@ -627,7 +627,7 @@ extern void brcms_default_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs);
 extern void brcms_c_ampdu_flush(struct brcms_c_info *wlc,
 			    struct ieee80211_sta *sta, u16 tid);
 extern void brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
-					 u8 ba_wsize);
+					 u8 ba_wsize, uint max_rx_ampdu_bytes);
 extern int brcms_c_set_par(struct brcms_c_info *wlc, enum wlc_par_id par_id,
 			   int val);
 extern int brcms_c_get_par(struct brcms_c_info *wlc, enum wlc_par_id par_id,

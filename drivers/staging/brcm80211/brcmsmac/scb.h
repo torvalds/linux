@@ -40,7 +40,7 @@ struct scb_ampdu {
 	u8 max_pdu;		/* max pdus allowed in ampdu */
 	u8 release;		/* # of mpdus released at a time */
 	u16 min_len;		/* min mpdu len to support the density */
-	u32 max_rxlen;	/* max ampdu rcv length; 8k, 16k, 32k, 64k */
+	u32 max_rx_ampdu_bytes;	/* max ampdu rcv length; 8k, 16k, 32k, 64k */
 	struct pktq txq;	/* sdu transmit queue pending aggregation */
 
 	/* This could easily be a ini[] pointer and we keep this info in wl itself instead
