@@ -84,8 +84,6 @@ struct bdc_header {
 int wifi_get_mac_addr(unsigned char *buf);
 #endif
 
-extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
-
 /* Packet alignment for most efficient SDIO (can change based on platform) */
 #ifndef DHD_SDALIGN
 #define DHD_SDALIGN	32

@@ -654,9 +654,6 @@ static int tx_packets[NUMPRIO];
 /* Deferred transmit */
 const uint dhd_deferred_tx = 1;
 
-extern uint dhd_watchdog_ms;
-extern void dhd_os_wd_timer(void *bus, uint wdtick);
-
 /* Tx/Rx bounds */
 uint dhd_txbound;
 uint dhd_rxbound;

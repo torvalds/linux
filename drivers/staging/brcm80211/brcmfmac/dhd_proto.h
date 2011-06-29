@@ -71,6 +71,11 @@ extern int dhd_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf,
 
 extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
 
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
+			    uint len);
+#endif		/* defined(CONFIG_HAS_EARLYSUSPEND) */
+
 /********************************
  * For version-string expansion *
  */

@@ -1021,6 +1021,12 @@ extern int dhd_bus_start(dhd_pub_t *dhdp);
 extern void dhd_wait_for_event(dhd_pub_t *dhd, bool * lockvar);
 extern void dhd_wait_event_wakeup(dhd_pub_t *dhd);
 
+#ifdef PKT_FILTER_SUPPORT
+extern void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg);
+extern void dhd_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
+					 int master_mode);
+#endif
+
 #ifdef BCMDBG
 #define ASSERT(exp) \
 	  do { if (!(exp)) osl_assert(#exp, __FILE__, __LINE__); } while (0)

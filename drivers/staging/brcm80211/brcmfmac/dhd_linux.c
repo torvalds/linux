@@ -32,6 +32,9 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <net/cfg80211.h>
+#if defined(CONFIG_HAS_EARLYSUSPEND)
+#include <linux/earlysuspend.h>
+#endif
 #include <defs.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
@@ -183,17 +186,6 @@ MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN fullmac driver.");
 MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN fullmac cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-#include <linux/earlysuspend.h>
-extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
-			    uint len);
-#endif		/* defined(CONFIG_HAS_EARLYSUSPEND) */
-
-#ifdef PKT_FILTER_SUPPORT
-extern void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg);
-extern void dhd_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
-					 int master_mode);
-#endif
 
 /* Interface control information */
 typedef struct dhd_if {
