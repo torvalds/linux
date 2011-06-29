@@ -109,7 +109,7 @@ brcmf_sdcard_iovar_op(void *sdh, const char *name,
 bool brcmf_sdcard_intr_query(void *sdh)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 	bool on;
 
 	ASSERT(bcmsdh);
@@ -123,7 +123,7 @@ bool brcmf_sdcard_intr_query(void *sdh)
 int brcmf_sdcard_intr_enable(void *sdh)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 	ASSERT(bcmsdh);
 
 	status = brcmf_sdioh_interrupt_set(bcmsdh->sdioh, true);
@@ -133,7 +133,7 @@ int brcmf_sdcard_intr_enable(void *sdh)
 int brcmf_sdcard_intr_disable(void *sdh)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 	ASSERT(bcmsdh);
 
 	status = brcmf_sdioh_interrupt_set(bcmsdh->sdioh, false);
@@ -143,7 +143,7 @@ int brcmf_sdcard_intr_disable(void *sdh)
 int brcmf_sdcard_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 	ASSERT(bcmsdh);
 
 	status = brcmf_sdioh_interrupt_register(bcmsdh->sdioh, fn, argh);
@@ -153,7 +153,7 @@ int brcmf_sdcard_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 int brcmf_sdcard_intr_dereg(void *sdh)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 	ASSERT(bcmsdh);
 
 	status = brcmf_sdioh_interrupt_deregister(bcmsdh->sdioh);
@@ -181,7 +181,7 @@ int brcmf_sdcard_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 u8 brcmf_sdcard_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	s32 retry = 0;
 #endif
@@ -217,7 +217,7 @@ void
 brcmf_sdcard_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	s32 retry = 0;
 #endif
@@ -249,7 +249,7 @@ brcmf_sdcard_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
 u32 brcmf_sdcard_cfg_read_word(void *sdh, uint fnc_num, u32 addr, int *err)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 	u32 data = 0;
 
 	if (!bcmsdh)
@@ -274,7 +274,7 @@ brcmf_sdcard_cfg_write_word(void *sdh, uint fnc_num, u32 addr, u32 data,
 		      int *err)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 
 	if (!bcmsdh)
 		bcmsdh = l_bcmsdh;
@@ -295,7 +295,7 @@ brcmf_sdcard_cfg_write_word(void *sdh, uint fnc_num, u32 addr, u32 data,
 int brcmf_sdcard_cis_read(void *sdh, uint func, u8 * cis, uint length)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 
 	u8 *tmp_buf, *tmp_ptr;
 	u8 *ptr;
@@ -355,7 +355,7 @@ static int brcmf_sdcard_set_sbaddr_window(void *sdh, u32 address)
 u32 brcmf_sdcard_reg_read(void *sdh, u32 addr, uint size)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 	u32 word = 0;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 
@@ -408,7 +408,7 @@ u32 brcmf_sdcard_reg_read(void *sdh, u32 addr, uint size)
 u32 brcmf_sdcard_reg_write(void *sdh, u32 addr, uint size, u32 data)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
@@ -454,7 +454,7 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio *bcmsdh, u32 addr, uint fn, uint flags,
 		u8 *buf, uint nbytes, struct sk_buff *pkt,
 		bcmsdh_cmplt_fn_t complete, void *handle)
 {
-	SDIOH_API_RC status;
+	int status;
 	uint incr_fix;
 	uint width;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
@@ -498,7 +498,7 @@ brcmf_sdcard_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 		bcmsdh_cmplt_fn_t complete, void *handle)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 	uint incr_fix;
 	uint width;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
@@ -539,7 +539,7 @@ brcmf_sdcard_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 int brcmf_sdcard_rwdata(void *sdh, uint rw, u32 addr, u8 *buf, uint nbytes)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	SDIOH_API_RC status;
+	int status;
 
 	ASSERT(bcmsdh);
 	ASSERT(bcmsdh->init_success);

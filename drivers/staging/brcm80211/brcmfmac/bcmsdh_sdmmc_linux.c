@@ -172,7 +172,7 @@ void brcmf_sdioh_osfree(struct sdioh_info *sd)
 }
 
 /* Interrupt enable/disable */
-SDIOH_API_RC brcmf_sdioh_interrupt_set(struct sdioh_info *sd, bool enable)
+int brcmf_sdioh_interrupt_set(struct sdioh_info *sd, bool enable)
 {
 	unsigned long flags;
 	struct sdos_info *sdos;

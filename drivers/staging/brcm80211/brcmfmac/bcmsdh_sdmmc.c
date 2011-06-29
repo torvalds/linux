@@ -167,7 +167,7 @@ struct sdioh_info *brcmf_sdioh_attach(void *bar0, uint irq)
 	return sd;
 }
 
-extern SDIOH_API_RC brcmf_sdioh_detach(struct sdioh_info *sd)
+extern int brcmf_sdioh_detach(struct sdioh_info *sd)
 {
 	sd_trace(("%s\n", __func__));
 
@@ -193,7 +193,7 @@ extern SDIOH_API_RC brcmf_sdioh_detach(struct sdioh_info *sd)
 
 #if defined(OOB_INTR_ONLY) && defined(HW_OOB)
 
-extern SDIOH_API_RC brcmf_sdioh_enable_func_intr(void)
+extern int brcmf_sdioh_enable_func_intr(void)
 {
 	u8 reg;
 	int err;
@@ -227,7 +227,7 @@ extern SDIOH_API_RC brcmf_sdioh_enable_func_intr(void)
 	return SDIOH_API_RC_SUCCESS;
 }
 
-extern SDIOH_API_RC brcmf_sdioh_disable_func_intr(void)
+extern int brcmf_sdioh_disable_func_intr(void)
 {
 	u8 reg;
 	int err;
@@ -260,7 +260,7 @@ extern SDIOH_API_RC brcmf_sdioh_disable_func_intr(void)
 #endif				/* defined(OOB_INTR_ONLY) && defined(HW_OOB) */
 
 /* Configure callback to client when we receive client interrupt */
-extern SDIOH_API_RC
+extern int
 brcmf_sdioh_interrupt_register(struct sdioh_info *sd, sdioh_cb_fn_t fn,
 			       void *argh)
 {
@@ -293,7 +293,7 @@ brcmf_sdioh_interrupt_register(struct sdioh_info *sd, sdioh_cb_fn_t fn,
 	return SDIOH_API_RC_SUCCESS;
 }
 
-extern SDIOH_API_RC brcmf_sdioh_interrupt_deregister(struct sdioh_info *sd)
+extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *sd)
 {
 	sd_trace(("%s: Entering\n", __func__));
 
@@ -322,7 +322,7 @@ extern SDIOH_API_RC brcmf_sdioh_interrupt_deregister(struct sdioh_info *sd)
 	return SDIOH_API_RC_SUCCESS;
 }
 
-extern SDIOH_API_RC
+extern int
 brcmf_sdioh_interrupt_query(struct sdioh_info *sd, bool *onoff)
 {
 	sd_trace(("%s: Entering\n", __func__));
@@ -536,9 +536,9 @@ exit:
 
 #if defined(OOB_INTR_ONLY) && defined(HW_OOB)
 
-SDIOH_API_RC brcmf_sdioh_enable_hw_oob_intr(struct sdioh_info *sd, bool enable)
+int brcmf_sdioh_enable_hw_oob_intr(struct sdioh_info *sd, bool enable)
 {
-	SDIOH_API_RC status;
+	int status;
 	u8 data;
 
 	if (enable)
@@ -552,20 +552,20 @@ SDIOH_API_RC brcmf_sdioh_enable_hw_oob_intr(struct sdioh_info *sd, bool enable)
 }
 #endif				/* defined(OOB_INTR_ONLY) && defined(HW_OOB) */
 
-extern SDIOH_API_RC
+extern int
 brcmf_sdioh_cfg_read(struct sdioh_info *sd, uint fnc_num, u32 addr, u8 *data)
 {
-	SDIOH_API_RC status;
+	int status;
 	/* No lock needed since brcmf_sdioh_request_byte does locking */
 	status = brcmf_sdioh_request_byte(sd, SDIOH_READ, fnc_num, addr, data);
 	return status;
 }
 
-extern SDIOH_API_RC
+extern int
 brcmf_sdioh_cfg_write(struct sdioh_info *sd, uint fnc_num, u32 addr, u8 *data)
 {
 	/* No lock needed since brcmf_sdioh_request_byte does locking */
-	SDIOH_API_RC status;
+	int status;
 	status = brcmf_sdioh_request_byte(sd, SDIOH_WRITE, fnc_num, addr, data);
 	return status;
 }
@@ -591,7 +591,7 @@ static int brcmf_sdioh_get_cisaddr(struct sdioh_info *sd, u32 regaddr)
 	return scratch;
 }
 
-extern SDIOH_API_RC
+extern int
 brcmf_sdioh_cis_read(struct sdioh_info *sd, uint func, u8 *cisd, u32 length)
 {
 	u32 count;
@@ -625,7 +625,7 @@ brcmf_sdioh_cis_read(struct sdioh_info *sd, uint func, u8 *cisd, u32 length)
 	return SDIOH_API_RC_SUCCESS;
 }
 
-extern SDIOH_API_RC
+extern int
 brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 			 uint regaddr, u8 *byte)
 {
@@ -724,7 +724,7 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
 }
 
-extern SDIOH_API_RC
+extern int
 brcmf_sdioh_request_word(struct sdioh_info *sd, uint cmd_type, uint rw,
 			 uint func, uint addr, u32 *word, uint nbytes)
 {
@@ -777,7 +777,7 @@ brcmf_sdioh_request_word(struct sdioh_info *sd, uint cmd_type, uint rw,
 	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
 }
 
-static SDIOH_API_RC
+static int
 brcmf_sdioh_request_packet(struct sdioh_info *sd, uint fix_inc, uint write,
 			   uint func, uint addr, struct sk_buff *pkt)
 {
@@ -873,12 +873,12 @@ brcmf_sdioh_request_packet(struct sdioh_info *sd, uint fix_inc, uint write,
  * aligned packet.
  *
  */
-extern SDIOH_API_RC
+extern int
 brcmf_sdioh_request_buffer(struct sdioh_info *sd, uint pio_dma, uint fix_inc,
 			   uint write, uint func, uint addr, uint reg_width,
 			   uint buflen_u, u8 *buffer, struct sk_buff *pkt)
 {
-	SDIOH_API_RC Status;
+	int Status;
 	struct sk_buff *mypkt = NULL;
 
 	sd_trace(("%s: Enter\n", __func__));
