@@ -984,7 +984,7 @@ int be_cmd_txq_create(struct be_adapter *adapter,
 	return status;
 }
 
-/* Uses mbox */
+/* Uses MCC */
 int be_cmd_rxq_create(struct be_adapter *adapter,
 		struct be_queue_info *rxq, u16 cq_id, u16 frag_size,
 		u16 max_frame_size, u32 if_id, u32 rss, u8 *rss_id)
@@ -994,10 +994,13 @@ int be_cmd_rxq_create(struct be_adapter *adapter,
 	struct be_dma_mem *q_mem = &rxq->dma_mem;
 	int status;
 
-	if (mutex_lock_interruptible(&adapter->mbox_lock))
-		return -1;
+	spin_lock_bh(&adapter->mcc_lock);
 
-	wrb = wrb_from_mbox(adapter);
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
 	req = embedded_payload(wrb);
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0,
@@ -1014,7 +1017,7 @@ int be_cmd_rxq_create(struct be_adapter *adapter,
 	req->max_frame_size = cpu_to_le16(max_frame_size);
 	req->rss_queue = cpu_to_le32(rss);
 
-	status = be_mbox_notify_wait(adapter);
+	status = be_mcc_notify_wait(adapter);
 	if (!status) {
 		struct be_cmd_resp_eth_rx_create *resp = embedded_payload(wrb);
 		rxq->id = le16_to_cpu(resp->id);
@@ -1022,8 +1025,8 @@ int be_cmd_rxq_create(struct be_adapter *adapter,
 		*rss_id = resp->rss_id;
 	}
 
-	mutex_unlock(&adapter->mbox_lock);
-
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 
@@ -1078,9 +1081,40 @@ int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 	req->id = cpu_to_le16(q->id);
 
 	status = be_mbox_notify_wait(adapter);
+	if (!status)
+		q->created = false;
 
 	mutex_unlock(&adapter->mbox_lock);
+	return status;
+}
 
+/* Uses MCC */
+int be_cmd_rxq_destroy(struct be_adapter *adapter, struct be_queue_info *q)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_q_destroy *req;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+	req = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0, OPCODE_ETH_RX_DESTROY);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH, OPCODE_ETH_RX_DESTROY,
+		sizeof(*req));
+	req->id = cpu_to_le16(q->id);
+
+	status = be_mcc_notify_wait(adapter);
+	if (!status)
+		q->created = false;
+
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 

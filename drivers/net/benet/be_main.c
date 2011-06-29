@@ -1572,6 +1572,7 @@ static void be_rx_q_clean(struct be_adapter *adapter, struct be_rx_obj *rxo)
 		memset(page_info, 0, sizeof(*page_info));
 	}
 	BUG_ON(atomic_read(&rxq->used));
+	rxq->tail = rxq->head = 0;
 }
 
 static void be_tx_compl_clean(struct be_adapter *adapter,
@@ -1752,29 +1753,16 @@ static void be_rx_queues_destroy(struct be_adapter *adapter)
 	int i;
 
 	for_all_rx_queues(adapter, rxo, i) {
-		q = &rxo->q;
-		if (q->created) {
-			be_cmd_q_destroy(adapter, q, QTYPE_RXQ);
-			/* After the rxq is invalidated, wait for a grace time
-			 * of 1ms for all dma to end and the flush compl to
-			 * arrive
-			 */
-			mdelay(1);
-			be_rx_q_clean(adapter, rxo);
-		}
-		be_queue_free(adapter, q);
+		be_queue_free(adapter, &rxo->q);
 
 		q = &rxo->cq;
 		if (q->created)
 			be_cmd_q_destroy(adapter, q, QTYPE_CQ);
 		be_queue_free(adapter, q);
 
-		/* Clear any residual events */
 		q = &rxo->rx_eq.q;
-		if (q->created) {
-			be_eq_clean(adapter, &rxo->rx_eq);
+		if (q->created)
 			be_cmd_q_destroy(adapter, q, QTYPE_EQ);
-		}
 		be_queue_free(adapter, q);
 	}
 }
@@ -1833,30 +1821,14 @@ static int be_rx_queues_create(struct be_adapter *adapter)
 		rc = be_cmd_cq_create(adapter, cq, eq, false, false, 3);
 		if (rc)
 			goto err;
-		/* Rx Q */
+
+		/* Rx Q - will be created in be_open() */
 		q = &rxo->q;
 		rc = be_queue_alloc(adapter, q, RX_Q_LEN,
 				sizeof(struct be_eth_rx_d));
 		if (rc)
 			goto err;
 
-		rc = be_cmd_rxq_create(adapter, q, cq->id, rx_frag_size,
-			BE_MAX_JUMBO_FRAME_SIZE, adapter->if_handle,
-			(i > 0) ? 1 : 0/* rss enable */, &rxo->rss_id);
-		if (rc)
-			goto err;
-	}
-
-	if (be_multi_rxq(adapter)) {
-		u8 rsstable[MAX_RSS_QS];
-
-		for_all_rss_queues(adapter, rxo, i)
-			rsstable[i] = rxo->rss_id;
-
-		rc = be_cmd_rss_config(adapter, rsstable,
-			adapter->num_rx_qs - 1);
-		if (rc)
-			goto err;
 	}
 
 	return 0;
@@ -2302,6 +2274,31 @@ done:
 	adapter->isr_registered = false;
 }
 
+static void be_rx_queues_clear(struct be_adapter *adapter)
+{
+	struct be_queue_info *q;
+	struct be_rx_obj *rxo;
+	int i;
+
+	for_all_rx_queues(adapter, rxo, i) {
+		q = &rxo->q;
+		if (q->created) {
+			be_cmd_rxq_destroy(adapter, q);
+			/* After the rxq is invalidated, wait for a grace time
+			 * of 1ms for all dma to end and the flush compl to
+			 * arrive
+			 */
+			mdelay(1);
+			be_rx_q_clean(adapter, rxo);
+		}
+
+		/* Clear any residual events */
+		q = &rxo->rx_eq.q;
+		if (q->created)
+			be_eq_clean(adapter, &rxo->rx_eq);
+	}
+}
+
 static int be_close(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
@@ -2350,6 +2347,40 @@ static int be_close(struct net_device *netdev)
 	for_all_tx_queues(adapter, txo, i)
 		be_tx_compl_clean(adapter, txo);
 
+	be_rx_queues_clear(adapter);
+	return 0;
+}
+
+static int be_rx_queues_setup(struct be_adapter *adapter)
+{
+	struct be_rx_obj *rxo;
+	int rc, i;
+	u8 rsstable[MAX_RSS_QS];
+
+	for_all_rx_queues(adapter, rxo, i) {
+		rc = be_cmd_rxq_create(adapter, &rxo->q, rxo->cq.id,
+			rx_frag_size, BE_MAX_JUMBO_FRAME_SIZE,
+			adapter->if_handle,
+			(i > 0) ? 1 : 0/* rss enable */, &rxo->rss_id);
+		if (rc)
+			return rc;
+	}
+
+	if (be_multi_rxq(adapter)) {
+		for_all_rss_queues(adapter, rxo, i)
+			rsstable[i] = rxo->rss_id;
+
+		rc = be_cmd_rss_config(adapter, rsstable,
+			adapter->num_rx_qs - 1);
+		if (rc)
+			return rc;
+	}
+
+	/* First time posting */
+	for_all_rx_queues(adapter, rxo, i) {
+		be_post_rx_frags(rxo, GFP_KERNEL);
+		napi_enable(&rxo->rx_eq.napi);
+	}
 	return 0;
 }
 
@@ -2363,10 +2394,10 @@ static int be_open(struct net_device *netdev)
 	u8 mac_speed;
 	u16 link_speed;
 
-	for_all_rx_queues(adapter, rxo, i) {
-		be_post_rx_frags(rxo, GFP_KERNEL);
-		napi_enable(&rxo->rx_eq.napi);
-	}
+	status = be_rx_queues_setup(adapter);
+	if (status)
+		goto err;
+
 	napi_enable(&tx_eq->napi);
 
 	be_irq_register(adapter);
