@@ -773,11 +773,6 @@ extern atomic_t brcmf_mmc_suspend;
  * Insmod parameters for debug/test
  */
 
-#if defined(BCMDBG)
-/* Console output poll interval */
-extern uint brcmf_console_ms;
-#endif				/* defined(BCMDBG) */
-
 /* Use interrupts */
 extern uint brcmf_intr;
 

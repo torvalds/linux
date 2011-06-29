@@ -53,10 +53,6 @@ enum {
 	IOV_BCMERRORSTR,
 	IOV_BCMERROR,
 	IOV_DUMP,
-#ifdef BCMDBG
-	IOV_CONS,
-	IOV_DCONSOLE_POLL,
-#endif
 	IOV_CLEARCOUNTS,
 	IOV_LOGDUMP,
 	IOV_LOGCAL,
@@ -79,12 +75,6 @@ const struct brcmu_iovar brcmf_iovars[] = {
 	,
 	{"dump", IOV_DUMP, 0, IOVT_BUFFER, DHD_IOCTL_MAXLEN}
 	,
-#ifdef BCMDBG
-	{"dconpoll", IOV_DCONSOLE_POLL, 0, IOVT_UINT32, 0}
-	,
-	{"cons", IOV_CONS, 0, IOVT_BUFFER, 0}
-	,
-#endif
 	{"clearcounts", IOV_CLEARCOUNTS, 0, IOVT_VOID, 0}
 	,
 	{"gpioob", IOV_GPIOOB, 0, IOVT_UINT32, 0}
@@ -237,23 +227,6 @@ brcmf_c_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 	case IOV_GVAL(IOV_DUMP):
 		bcmerror = brcmf_c_dump(dhd_pub, arg, len);
 		break;
-
-#ifdef BCMDBG
-	case IOV_GVAL(IOV_DCONSOLE_POLL):
-		int_val = (s32) brcmf_console_ms;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_DCONSOLE_POLL):
-		brcmf_console_ms = (uint) int_val;
-		break;
-
-	case IOV_SVAL(IOV_CONS):
-		if (len > 0)
-			bcmerror = brcmf_sdbrcm_bus_console_in(dhd_pub, arg,
-							       len - 1);
-		break;
-#endif
 
 	case IOV_SVAL(IOV_CLEARCOUNTS):
 		dhd_pub->tx_packets = dhd_pub->rx_packets = 0;

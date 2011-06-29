@@ -659,6 +659,12 @@ module_param(brcmf_watchdog_prio, int, 0);
 uint brcmf_watchdog_ms = 10;
 module_param(brcmf_watchdog_ms, uint, 0);
 
+#ifdef BCMDBG
+/* Console poll interval */
+uint brcmf_console_ms;
+module_param(brcmf_console_ms, uint, 0);
+#endif		/* DHD_DEBUG */
+
 /* Tx/Rx bounds */
 uint brcmf_txbound;
 uint brcmf_rxbound;
@@ -757,6 +763,8 @@ static void brcmf_sdbrcm_sdtest_set(dhd_bus_t *bus, bool start);
 #endif
 
 #ifdef BCMDBG
+static int brcmf_sdbrcm_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg,
+				       uint msglen);
 static int brcmf_sdbrcm_checkdied(dhd_bus_t *bus, u8 *data, uint size);
 static int brcmf_sdbrcm_mem_dump(dhd_bus_t *bus);
 #endif				/* BCMDBG  */
@@ -1665,6 +1673,8 @@ enum {
 	IOV_MEMSIZE,
 #ifdef BCMDBG
 	IOV_CHECKDIED,
+	IOV_CONS,
+	IOV_DCONSOLE_POLL,
 #endif
 	IOV_DOWNLOAD,
 	IOV_FORCEEVEN,
@@ -1710,6 +1720,10 @@ const struct brcmu_iovar dhdsdio_iovars[] = {
 	{"devreset", IOV_DEVRESET, 0, IOVT_BOOL, 0},
 	{"wdtick", IOV_WDTICK, 0, IOVT_UINT32, 0},
 #ifdef BCMDBG
+	{"cons", IOV_CONS, 0, IOVT_BUFFER, 0}
+	,
+	{"dconpoll", IOV_DCONSOLE_POLL, 0, IOVT_UINT32, 0}
+	,
 	{"sdreg", IOV_SDREG, 0, IOVT_BUFFER, sizeof(struct brcmf_sdreg)}
 	,
 	{"sbreg", IOV_SBREG, 0, IOVT_BUFFER, sizeof(struct brcmf_sdreg)}
@@ -2559,6 +2573,21 @@ brcmf_sdbrcm_doiovar(dhd_bus_t *bus, const struct brcmu_iovar *vi, u32 actionid,
 #endif				/* BCMDBG */
 
 #ifdef BCMDBG
+	case IOV_GVAL(IOV_DCONSOLE_POLL):
+		int_val = (s32) brcmf_console_ms;
+		memcpy(arg, &int_val, val_size);
+		break;
+
+	case IOV_SVAL(IOV_DCONSOLE_POLL):
+		brcmf_console_ms = (uint) int_val;
+		break;
+
+	case IOV_SVAL(IOV_CONS):
+		if (len > 0)
+			bcmerror = brcmf_sdbrcm_bus_console_in(bus->dhd,
+							       arg, len - 1);
+		break;
+
 	case IOV_GVAL(IOV_SDREG):
 		{
 			struct brcmf_sdreg *sd_ptr;
@@ -5100,7 +5129,7 @@ extern bool brcmf_sdbrcm_bus_watchdog(dhd_pub_t *dhdp)
 }
 
 #ifdef BCMDBG
-extern int brcmf_sdbrcm_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg,
+static int brcmf_sdbrcm_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg,
 				       uint msglen)
 {
 	dhd_bus_t *bus = dhdp->bus;

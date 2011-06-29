@@ -124,12 +124,6 @@ module_param(brcmf_msg_level, int, 0);
 uint brcmf_sysioc = true;
 module_param(brcmf_sysioc, uint, 0);
 
-#ifdef BCMDBG
-/* Console poll interval */
-uint brcmf_console_ms;
-module_param(brcmf_console_ms, uint, 0);
-#endif				/* BCMDBG */
-
 /* ARP offload agent mode : Enable ARP Host Auto-Reply
 and ARP Peer Auto-Reply */
 uint brcmf_arp_mode = 0xb;
