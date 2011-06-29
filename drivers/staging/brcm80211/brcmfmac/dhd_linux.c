@@ -43,8 +43,6 @@
 #include "dhd_dbg.h"
 #include "wl_cfg80211.h"
 
-#define ETH_P_BRCM			0x886c
-
 /* Global ASSERT type flag */
 u32 g_assert_type;
 
@@ -947,7 +945,7 @@ void brcmf_rx_frame(dhd_pub_t *dhdp, int ifidx, struct sk_buff *skb,
 		skb_pull(skb, ETH_HLEN);
 
 		/* Process special event packets and then discard them */
-		if (ntohs(skb->protocol) == ETH_P_BRCM)
+		if (ntohs(skb->protocol) == ETH_P_LINK_CTL)
 			brcmf_host_event(dhd, &ifidx,
 					  skb_mac_header(skb),
 					  &event, &data);
