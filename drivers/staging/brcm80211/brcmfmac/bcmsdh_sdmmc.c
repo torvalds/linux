@@ -32,13 +32,9 @@
 #include "dhd.h"
 #include "bcmsdh_sdmmc.h"
 
-extern int brcmf_sdio_function_init(void);
-extern void brcmf_sdio_function_cleanup(void);
-
 static void brcmf_sdioh_irqhandler(struct sdio_func *func);
 static void brcmf_sdioh_irqhandler_f2(struct sdio_func *func);
 static int brcmf_sdioh_get_cisaddr(struct sdioh_info *sd, u32 regaddr);
-extern int brcmf_sdioh_reset_comm(struct mmc_card *card);
 
 uint sd_f2_blocksize = 512;	/* Default blocksize */
 
@@ -50,8 +46,9 @@ BRCMF_PM_RESUME_WAIT_INIT(sdioh_request_buffer_wait);
 
 #define DMA_ALIGN_MASK	0x03
 
-int brcmf_sdioh_card_regread(struct sdioh_info *sd, int func, u32 regaddr,
-			     int regsize, u32 *data);
+static int
+brcmf_sdioh_card_regread(struct sdioh_info *sd, int func, u32 regaddr,
+			 int regsize, u32 *data);
 
 static int brcmf_sdioh_enablefuncs(struct sdioh_info *sd)
 {

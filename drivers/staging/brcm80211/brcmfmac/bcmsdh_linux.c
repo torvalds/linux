@@ -31,8 +31,6 @@
 #include <brcmu_wifi.h>
 #include "sdio_host.h"
 
-extern void brcmf_sdbrcm_isr(void *args);
-
 #include "dngl_stats.h"
 #include "dhd.h"
 #include "dhd_bus.h"
@@ -195,8 +193,6 @@ int brcmf_sdio_remove(struct device *dev)
 	return 0;
 }
 
-extern int brcmf_sdio_function_init(void);
-
 int brcmf_sdio_register(struct brcmf_sdioh_driver *driver)
 {
 	drvinfo = *driver;
@@ -204,8 +200,6 @@ int brcmf_sdio_register(struct brcmf_sdioh_driver *driver)
 	SDLX_MSG(("Linux Kernel SDIO/MMC Driver\n"));
 	return brcmf_sdio_function_init();
 }
-
-extern void brcmf_sdio_function_cleanup(void);
 
 void brcmf_sdio_unregister(void)
 {

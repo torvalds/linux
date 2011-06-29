@@ -273,7 +273,6 @@ done:
 	return ret;
 }
 
-extern int dhd_bus_interface(struct dhd_bus *bus, uint arg, void *arg2);
 int
 brcmf_proto_ioctl(struct brcmf_pub *dhd, int ifidx, struct brcmf_ioctl *ioc,
 		  void *buf, int len)

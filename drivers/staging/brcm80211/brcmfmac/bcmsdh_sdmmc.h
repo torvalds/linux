@@ -61,10 +61,6 @@
 #define sd_ctrl(x)
 #endif
 
-/* Allocate/init/free per-OS private data */
-extern int brcmf_sdioh_osinit(struct sdioh_info *sd);
-extern void brcmf_sdioh_osfree(struct sdioh_info *sd);
-
 #define BLOCK_SIZE_64 64
 #define BLOCK_SIZE_512 512
 #define BLOCK_SIZE_4318 64
@@ -108,6 +104,10 @@ struct sdioh_info {
 /* Global message bits */
 extern uint sd_msglevel;
 
+/* Allocate/init/free per-OS private data */
+extern int  brcmf_sdioh_osinit(struct sdioh_info *sd);
+extern void brcmf_sdioh_osfree(struct sdioh_info *sd);
+
 /* OS-independent interrupt handler */
 extern bool brcmf_sdioh_check_client_intr(struct sdioh_info *sd);
 
@@ -124,7 +124,7 @@ extern u32 *brcmf_sdioh_reg_map(s32 addr, int size);
 extern void brcmf_sdioh_reg_unmap(s32 addr, int size);
 
 /* Interrupt (de)registration routines */
-extern int brcmf_sdioh_register_irq(struct sdioh_info *sd, uint irq);
+extern int  brcmf_sdioh_register_irq(struct sdioh_info *sd, uint irq);
 extern void brcmf_sdioh_free_irq(uint irq, struct sdioh_info *sd);
 
 typedef struct _BCMSDH_SDMMC_INSTANCE {

@@ -209,11 +209,20 @@ struct brcmf_sdioh_driver {
 	void (*detach) (void *ch);
 };
 
+struct sdioh_info;
+
 /* platform specific/high level functions */
+extern int brcmf_sdio_function_init(void);
 extern int brcmf_sdio_register(struct brcmf_sdioh_driver *driver);
 extern void brcmf_sdio_unregister(void);
 extern bool brcmf_sdio_chipmatch(u16 vendor, u16 device);
 extern void brcmf_sdio_device_remove(void *sdh);
+extern void brcmf_sdio_function_cleanup(void);
+
+extern void brcmf_sdioh_dev_intr_off(struct sdioh_info *sd);
+extern void brcmf_sdioh_dev_intr_on(struct sdioh_info *sd);
+extern int brcmf_sdio_probe(struct device *dev);
+extern int brcmf_sdio_remove(struct device *dev);
 
 /* Function to pass device-status bits to DHD. */
 extern u32 brcmf_sdcard_get_dstatus(void *sdh);
