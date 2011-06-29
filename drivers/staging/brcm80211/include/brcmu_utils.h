@@ -246,9 +246,9 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 
 /* modulo add/sub - assumes x, y E [0, bound - 1] */
 #define MODADD(x, y, bound) \
-    MUX((x) + (y) >= (bound), (x) + (y) - (bound), (x) + (y))
+	MUX((x) + (y) >= (bound), (x) + (y) - (bound), (x) + (y))
 #define MODSUB(x, y, bound) \
-    MUX(((int)(x)) - ((int)(y)) < 0, (x) - (y) + (bound), (x) - (y))
+	MUX(((int)(x)) - ((int)(y)) < 0, (x) - (y) + (bound), (x) - (y))
 
 /* module add/sub, bound = 2^k */
 #define MODADD_POW2(x, y, bound) (((x) + (y)) & ((bound) - 1))

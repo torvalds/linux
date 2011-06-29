@@ -34,7 +34,7 @@
 #define	D64MAXRINGSZ		(1 << D64RINGALIGN_BITS)
 #define	D64RINGALIGN		(1 << D64RINGALIGN_BITS)
 
-#define	D64MAXDD	(D64MAXRINGSZ / sizeof (dma64dd_t))
+#define	D64MAXDD	(D64MAXRINGSZ / sizeof(dma64dd_t))
 
 /* transmit channel control */
 #define	D64_XC_XE		0x00000001	/* transmit enable */

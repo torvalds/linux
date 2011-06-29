@@ -4535,10 +4535,10 @@ const mimophytbl_info_t mimophytbl_info_rev0[] = {
 };
 
 const u32 mimophytbl_info_sz_rev0 =
-    sizeof(mimophytbl_info_rev0) / sizeof(mimophytbl_info_rev0[0]);
+	sizeof(mimophytbl_info_rev0) / sizeof(mimophytbl_info_rev0[0]);
 const u32 mimophytbl_info_sz_rev0_volatile =
-    sizeof(mimophytbl_info_rev0_volatile) /
-    sizeof(mimophytbl_info_rev0_volatile[0]);
+	sizeof(mimophytbl_info_rev0_volatile) /
+	sizeof(mimophytbl_info_rev0_volatile[0]);
 
 const u16 ant_swctrl_tbl_rev3[] = {
 	0x0082,
@@ -9475,19 +9475,19 @@ const mimophytbl_info_t mimophytbl_info_rev3[] = {
 };
 
 const u32 mimophytbl_info_sz_rev3 =
-    sizeof(mimophytbl_info_rev3) / sizeof(mimophytbl_info_rev3[0]);
+	sizeof(mimophytbl_info_rev3) / sizeof(mimophytbl_info_rev3[0]);
 const u32 mimophytbl_info_sz_rev3_volatile =
-    sizeof(mimophytbl_info_rev3_volatile) /
-    sizeof(mimophytbl_info_rev3_volatile[0]);
+	sizeof(mimophytbl_info_rev3_volatile) /
+	sizeof(mimophytbl_info_rev3_volatile[0]);
 const u32 mimophytbl_info_sz_rev3_volatile1 =
-    sizeof(mimophytbl_info_rev3_volatile1) /
-    sizeof(mimophytbl_info_rev3_volatile1[0]);
+	sizeof(mimophytbl_info_rev3_volatile1) /
+	sizeof(mimophytbl_info_rev3_volatile1[0]);
 const u32 mimophytbl_info_sz_rev3_volatile2 =
-    sizeof(mimophytbl_info_rev3_volatile2) /
-    sizeof(mimophytbl_info_rev3_volatile2[0]);
+	sizeof(mimophytbl_info_rev3_volatile2) /
+	sizeof(mimophytbl_info_rev3_volatile2[0]);
 const u32 mimophytbl_info_sz_rev3_volatile3 =
-    sizeof(mimophytbl_info_rev3_volatile3) /
-    sizeof(mimophytbl_info_rev3_volatile3[0]);
+	sizeof(mimophytbl_info_rev3_volatile3) /
+	sizeof(mimophytbl_info_rev3_volatile3[0]);
 
 const u32 tmap_tbl_rev7[] = {
 	0x8a88aa80,
@@ -10579,7 +10579,7 @@ const mimophytbl_info_t mimophytbl_info_rev7[] = {
 };
 
 const u32 mimophytbl_info_sz_rev7 =
-    sizeof(mimophytbl_info_rev7) / sizeof(mimophytbl_info_rev7[0]);
+	sizeof(mimophytbl_info_rev7) / sizeof(mimophytbl_info_rev7[0]);
 
 const mimophytbl_info_t mimophytbl_info_rev16[] = {
 	{&noise_var_tbl_rev7,
@@ -10626,4 +10626,4 @@ const mimophytbl_info_t mimophytbl_info_rev16[] = {
 };
 
 const u32 mimophytbl_info_sz_rev16 =
-    sizeof(mimophytbl_info_rev16) / sizeof(mimophytbl_info_rev16[0]);
+	sizeof(mimophytbl_info_rev16) / sizeof(mimophytbl_info_rev16[0]);

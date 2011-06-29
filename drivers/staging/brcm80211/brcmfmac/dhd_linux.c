@@ -916,14 +916,14 @@ static int _dhd_sysioc_thread(void *data)
 
 				if (in_ap && dhd->set_macaddress) {
 					DHD_TRACE(("attempt to set MAC for %s "
-						"in AP Mode," "blocked. \n",
+						"in AP Mode," "blocked.\n",
 						dhd->iflist[i]->net->name));
 					dhd->set_macaddress = false;
 					continue;
 				}
 
 				if (in_ap && dhd->set_multicast) {
-					DHD_TRACE(("attempt to set MULTICAST list for %s" "in AP Mode, blocked. \n",
+					DHD_TRACE(("attempt to set MULTICAST list for %s" "in AP Mode, blocked.\n",
 						dhd->iflist[i]->net->name));
 					dhd->set_multicast = false;
 					continue;
@@ -2157,7 +2157,7 @@ int dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 	}
 
 	if (ifidx == 1) {
-		DHD_TRACE(("%s ACCESS POINT MAC: \n", __func__));
+		DHD_TRACE(("%s ACCESS POINT MAC:\n", __func__));
 		/*  ACCESSPOINT INTERFACE CASE */
 		temp_addr[0] |= 0X02;	/* set bit 2 ,
 			 - Locally Administered address  */

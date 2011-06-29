@@ -31,8 +31,8 @@
 #define RADAR_TYPE_ITU_K	5	/* ITU K Radar type */
 #define RADAR_TYPE_UNCLASSIFIED	6	/* Unclassified Radar type  */
 #define RADAR_TYPE_BIN5		7	/* long pulse radar type */
-#define RADAR_TYPE_STG2 	8	/* staggered-2 radar */
-#define RADAR_TYPE_STG3 	9	/* staggered-3 radar */
+#define RADAR_TYPE_STG2		8	/* staggered-2 radar */
+#define RADAR_TYPE_STG3		9	/* staggered-3 radar */
 #define RADAR_TYPE_FRA		10	/* French radar */
 
 /* French radar pulse widths */

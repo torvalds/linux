@@ -966,16 +966,16 @@ struct lcnphy_radio_regs {
 extern lcnphy_radio_regs_t lcnphy_radio_regs_2064[];
 extern lcnphy_radio_regs_t lcnphy_radio_regs_2066[];
 extern radio_regs_t regs_2055[], regs_SYN_2056[], regs_TX_2056[],
-    regs_RX_2056[];
+	regs_RX_2056[];
 extern radio_regs_t regs_SYN_2056_A1[], regs_TX_2056_A1[], regs_RX_2056_A1[];
 extern radio_regs_t regs_SYN_2056_rev5[], regs_TX_2056_rev5[],
-    regs_RX_2056_rev5[];
+	regs_RX_2056_rev5[];
 extern radio_regs_t regs_SYN_2056_rev6[], regs_TX_2056_rev6[],
-    regs_RX_2056_rev6[];
+	regs_RX_2056_rev6[];
 extern radio_regs_t regs_SYN_2056_rev7[], regs_TX_2056_rev7[],
-    regs_RX_2056_rev7[];
+	regs_RX_2056_rev7[];
 extern radio_regs_t regs_SYN_2056_rev8[], regs_TX_2056_rev8[],
-    regs_RX_2056_rev8[];
+	regs_RX_2056_rev8[];
 extern radio_20xx_regs_t regs_2057_rev4[], regs_2057_rev5[], regs_2057_rev5v1[];
 extern radio_20xx_regs_t regs_2057_rev7[], regs_2057_rev8[];
 

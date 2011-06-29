@@ -510,7 +510,7 @@ static const u8 crc8_table[256] = {
 u8 brcmu_crc8(u8 *pdata,	/* pointer to array of data to process */
 			 uint nbytes,	/* number of input data bytes to process */
 			 u8 crc	/* either CRC8_INIT_VALUE or previous return value */
-    ) {
+	) {
 	/* loop over the buffer data */
 	while (nbytes-- > 0)
 		crc = crc8_table[(crc ^ *pdata++) & 0xff];
