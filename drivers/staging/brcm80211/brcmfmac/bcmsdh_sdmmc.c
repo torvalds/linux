@@ -667,7 +667,6 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 					sdio_release_host(gInstance->func[2]);
 				}
 			}
-#if defined(MMC_SDIO_ABORT)
 			/* to allow abort command through F1 */
 			else if (regaddr == SDIO_CCCR_ABORT) {
 				sdio_claim_host(gInstance->func[func]);
@@ -681,7 +680,6 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 					    regaddr, &err_ret);
 				sdio_release_host(gInstance->func[func]);
 			}
-#endif				/* MMC_SDIO_ABORT */
 			else if (regaddr < 0xF0) {
 				sd_err(("bcmsdh_sdmmc: F0 Wr:0x%02x: write "
 					"disallowed\n", regaddr));
@@ -951,16 +949,12 @@ brcmf_sdioh_request_buffer(struct sdioh_info *sd, uint pio_dma, uint fix_inc,
 /* this function performs "abort" for both of host & device */
 extern int brcmf_sdioh_abort(struct sdioh_info *sd, uint func)
 {
-#if defined(MMC_SDIO_ABORT)
 	char t_func = (char)func;
-#endif				/* defined(MMC_SDIO_ABORT) */
 	sd_trace(("%s: Enter\n", __func__));
 
-#if defined(MMC_SDIO_ABORT)
 	/* issue abort cmd52 command through F0 */
 	brcmf_sdioh_request_byte(sd, SDIOH_WRITE, SDIO_FUNC_0, SDIO_CCCR_ABORT,
 			   &t_func);
-#endif				/* defined(MMC_SDIO_ABORT) */
 
 	sd_trace(("%s: Exit\n", __func__));
 	return SDIOH_API_RC_SUCCESS;
