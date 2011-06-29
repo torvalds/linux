@@ -136,6 +136,8 @@ struct usb_ep_ops {
  *      the endpoint descriptor used to configure the endpoint.
  * @max_streams: The maximum number of streams supported
  *	by this EP (0 - 16, actual number is 2^n)
+ * @mult: multiplier, 'mult' value for SS Isoc EPs
+ * @maxburst: the maximum number of bursts supported by this EP (for usb3)
  * @driver_data:for use by the gadget driver.
  * @address: used to identify the endpoint when finding descriptor that
  *	matches connection speed
@@ -156,6 +158,8 @@ struct usb_ep {
 	struct list_head	ep_list;
 	unsigned		maxpacket:16;
 	unsigned		max_streams:16;
+	unsigned		mult:2;
+	unsigned		maxburst:4;
 	u8			address;
 	const struct usb_endpoint_descriptor	*desc;
 	const struct usb_ss_ep_comp_descriptor	*comp_desc;
@@ -426,6 +430,14 @@ static inline void usb_ep_fifo_flush(struct usb_ep *ep)
 
 /*-------------------------------------------------------------------------*/
 
+struct usb_dcd_config_params {
+	__u8  bU1devExitLat;	/* U1 Device exit Latency */
+#define USB_DEFULT_U1_DEV_EXIT_LAT	0x01	/* Less then 1 microsec */
+	__le16 bU2DevExitLat;	/* U2 Device exit Latency */
+#define USB_DEFULT_U2_DEV_EXIT_LAT	0x1F4	/* Less then 500 microsec */
+};
+
+
 struct usb_gadget;
 struct usb_gadget_driver;
 
@@ -441,6 +453,7 @@ struct usb_gadget_ops {
 	int	(*pullup) (struct usb_gadget *, int is_on);
 	int	(*ioctl)(struct usb_gadget *,
 				unsigned code, unsigned long param);
+	void	(*get_config_params)(struct usb_dcd_config_params *);
 	int	(*start)(struct usb_gadget_driver *,
 			int (*bind)(struct usb_gadget *));
 	int	(*stop)(struct usb_gadget_driver *);
@@ -526,6 +539,24 @@ static inline int gadget_is_dualspeed(struct usb_gadget *g)
 {
 #ifdef CONFIG_USB_GADGET_DUALSPEED
 	/* runtime test would check "g->is_dualspeed" ... that might be
+	 * useful to work around hardware bugs, but is mostly pointless
+	 */
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+/**
+ * gadget_is_superspeed() - return true if the hardware handles
+ * supperspeed
+ * @g: controller that might support supper speed
+ */
+static inline int gadget_is_superspeed(struct usb_gadget *g)
+{
+#ifdef CONFIG_USB_GADGET_SUPERSPEED
+	/*
+	 * runtime test would check "g->is_superspeed" ... that might be
 	 * useful to work around hardware bugs, but is mostly pointless
 	 */
 	return 1;

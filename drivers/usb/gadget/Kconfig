@@ -666,6 +666,12 @@ config USB_GADGET_DUALSPEED
 	bool
 	depends on USB_GADGET
 
+# Selected by UDC drivers that support super-speed opperation
+config USB_GADGET_SUPERSPEED
+	bool
+	depends on USB_GADGET
+	depends on USB_GADGET_DUALSPEED
+
 #
 # USB Gadget Drivers
 #

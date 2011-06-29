@@ -161,13 +161,13 @@ ep_matches (
 	max = 0x7ff & le16_to_cpu(desc->wMaxPacketSize);
 	switch (type) {
 	case USB_ENDPOINT_XFER_INT:
-		/* INT:  limit 64 bytes full speed, 1024 high speed */
+		/* INT:  limit 64 bytes full speed, 1024 high/super speed */
 		if (!gadget->is_dualspeed && max > 64)
 			return 0;
 		/* FALLTHROUGH */
 
 	case USB_ENDPOINT_XFER_ISOC:
-		/* ISO:  limit 1023 bytes full speed, 1024 high speed */
+		/* ISO:  limit 1023 bytes full speed, 1024 high/super speed */
 		if (ep->maxpacket < max)
 			return 0;
 		if (!gadget->is_dualspeed && max > 1023)
@@ -202,7 +202,7 @@ ep_matches (
 	}
 
 	/* report (variable) full speed bulk maxpacket */
-	if (USB_ENDPOINT_XFER_BULK == type) {
+	if ((USB_ENDPOINT_XFER_BULK == type) && !ep_comp) {
 		int size = ep->maxpacket;
 
 		/* min() doesn't work on bitfields with gcc-3.5 */
