@@ -246,6 +246,8 @@ struct v4l2_subdev_audio_ops {
    s_dv_preset: set dv (Digital Video) preset in the sub device. Similar to
 	s_std()
 
+   g_dv_preset: get current dv (Digital Video) preset in the sub device.
+
    query_dv_preset: query dv preset in the sub device. This is similar to
 	querystd()
 
@@ -285,6 +287,8 @@ struct v4l2_subdev_video_ops {
 	int (*enum_dv_presets) (struct v4l2_subdev *sd,
 			struct v4l2_dv_enum_preset *preset);
 	int (*s_dv_preset)(struct v4l2_subdev *sd,
+			struct v4l2_dv_preset *preset);
+	int (*g_dv_preset)(struct v4l2_subdev *sd,
 			struct v4l2_dv_preset *preset);
 	int (*query_dv_preset)(struct v4l2_subdev *sd,
 			struct v4l2_dv_preset *preset);
