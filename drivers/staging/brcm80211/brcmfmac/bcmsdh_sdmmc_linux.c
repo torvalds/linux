@@ -257,7 +257,6 @@ int brcmf_sdio_function_init(void)
 /*
  * module cleanup
 */
-extern int brcmf_sdio_remove(struct device *dev);
 void brcmf_sdio_function_cleanup(void)
 {
 	sd_trace(("%s Enter\n", __func__));
