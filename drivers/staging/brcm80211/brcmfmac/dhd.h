@@ -875,8 +875,8 @@ extern uint dhd_pktgen_len;
 #define MAX_PKTGEN_LEN 1800
 #endif
 
-extern char fw_path[MOD_PARAM_PATHLEN];
-extern char nv_path[MOD_PARAM_PATHLEN];
+extern char brcmf_fw_path[MOD_PARAM_PATHLEN];
+extern char brcmf_nv_path[MOD_PARAM_PATHLEN];
 
 extern u32 g_assert_type;
 extern const bcmevent_name_t bcmevent_names[];
@@ -938,7 +938,7 @@ extern void dhd_detach(dhd_pub_t *dhdp);
 /* Indication from bus module to change flow-control state */
 extern void dhd_txflowcontrol(dhd_pub_t *dhdp, int ifidx, bool on);
 
-extern bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q,
+extern bool brcmf_c_prec_enq(dhd_pub_t *dhdp, struct pktq *q,
 			 struct sk_buff *pkt, int prec);
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
@@ -992,10 +992,10 @@ extern int dhd_timeout_expired(dhd_timeout_t *tmo);
 
 extern int dhd_ifname2idx(struct dhd_info *dhd, char *name);
 extern u8 *dhd_bssidx2bssid(dhd_pub_t *dhd, int idx);
-extern int wl_host_event(struct dhd_info *dhd, int *idx, void *pktdata,
+extern int brcmf_c_host_event(struct dhd_info *dhd, int *idx, void *pktdata,
 			 wl_event_msg_t *, void **data_ptr);
 
-extern void dhd_common_init(void);
+extern void brcmf_c_init(void);
 
 extern int dhd_add_if(struct dhd_info *dhd, int ifidx, void *handle,
 		      char *name, u8 *mac_addr, u32 flags, u8 bssidx);
@@ -1022,9 +1022,9 @@ extern void dhd_wait_for_event(dhd_pub_t *dhd, bool * lockvar);
 extern void dhd_wait_event_wakeup(dhd_pub_t *dhd);
 
 #ifdef PKT_FILTER_SUPPORT
-extern void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg);
-extern void dhd_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
-					 int master_mode);
+extern void brcmf_c_pktfilter_offload_set(dhd_pub_t *dhd, char *arg);
+extern void brcmf_c_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg,
+					     int enable, int master_mode);
 #endif
 
 #ifdef BCMDBG

@@ -66,10 +66,10 @@ extern void dhd_prot_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf);
 /* Update local copy of dongle statistics */
 extern void dhd_prot_dstats(dhd_pub_t *dhdp);
 
-extern int dhd_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf,
+extern int brcmf_c_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf,
 		     uint buflen);
 
-extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
+extern int brcmf_c_preinit_ioctls(dhd_pub_t *dhd);
 
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,

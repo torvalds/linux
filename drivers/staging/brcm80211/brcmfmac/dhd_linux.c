@@ -252,7 +252,7 @@ bool dhd_no_fw_req;
 module_param(dhd_no_fw_req, bool, 0);
 
 /* Error bits */
-module_param(dhd_msg_level, int, 0);
+module_param(brcmf_msg_level, int, 0);
 
 /* Spawn a thread for system ioctls (set mac, set mcast) */
 uint dhd_sysioc = true;
@@ -388,8 +388,8 @@ static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
 		int i;
 
 		for (i = 0; i < dhd->pktfilter_count; i++) {
-			dhd_pktfilter_offload_set(dhd, dhd->pktfilter[i]);
-			dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
+			brcmf_c_pktfilter_offload_set(dhd, dhd->pktfilter[i]);
+			brcmf_c_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
 						     value, dhd_master_mode);
 		}
 	}
@@ -1634,7 +1634,7 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	/* check for local dhd ioctl and handle it */
 	if (driver == DHD_IOCTL_MAGIC) {
-		bcmerror = dhd_ioctl((void *)&dhd->pub, &ioc, buf, buflen);
+		bcmerror = brcmf_c_ioctl((void *)&dhd->pub, &ioc, buf, buflen);
 		if (bcmerror)
 			dhd->pub.bcmerror = bcmerror;
 		goto done;
@@ -1810,9 +1810,9 @@ dhd_pub_t *dhd_attach(struct dhd_bus *bus, uint bus_hdrlen)
 	/* updates firmware nvram path if it was provided as module
 		 paramters */
 	if ((firmware_path != NULL) && (firmware_path[0] != '\0'))
-		strcpy(fw_path, firmware_path);
+		strcpy(brcmf_fw_path, firmware_path);
 	if ((nvram_path != NULL) && (nvram_path[0] != '\0'))
-		strcpy(nv_path, nvram_path);
+		strcpy(brcmf_nv_path, nvram_path);
 
 	/* Allocate etherdev, including space for private structure */
 	net = alloc_etherdev(sizeof(dhd));
@@ -1877,8 +1877,8 @@ dhd_pub_t *dhd_attach(struct dhd_bus *bus, uint bus_hdrlen)
 		goto fail;
 	}
 	if (!dhd_no_fw_req) {
-		strcpy(fw_path, wl_cfg80211_get_fwname());
-		strcpy(nv_path, wl_cfg80211_get_nvramname());
+		strcpy(brcmf_fw_path, wl_cfg80211_get_fwname());
+		strcpy(brcmf_nv_path, wl_cfg80211_get_nvramname());
 	}
 
 	/* Set up the watchdog timer */
@@ -1980,11 +1980,11 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 
 	/* try to download image and nvram to the dongle */
 	if (dhd->pub.busstate == DHD_BUS_DOWN) {
-		if (!(dhd_bus_download_firmware(dhd->pub.bus,
-						fw_path, nv_path))) {
+		if (!(dhd_bus_download_firmware(dhd->pub.bus, brcmf_fw_path,
+						brcmf_nv_path))) {
 			DHD_ERROR(("%s: dhd_bus_download_firmware failed. "
 				"firmware = %s nvram = %s\n",
-				__func__, fw_path, nv_path));
+				__func__, brcmf_fw_path, brcmf_nv_path));
 			return -1;
 		}
 	}
@@ -2506,7 +2506,7 @@ dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 
 	ASSERT(dhd != NULL);
 
-	bcmerror = wl_host_event(dhd, ifidx, pktdata, event, data);
+	bcmerror = brcmf_c_host_event(dhd, ifidx, pktdata, event, data);
 	if (bcmerror != 0)
 		return bcmerror;
 
@@ -2625,7 +2625,7 @@ void dhd_dev_init_ioctl(struct net_device *dev)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 
-	dhd_preinit_ioctls(&dhd->pub);
+	brcmf_c_preinit_ioctls(&dhd->pub);
 }
 
 #ifdef PNO_SUPPORT

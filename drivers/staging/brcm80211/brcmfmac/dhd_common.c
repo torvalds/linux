@@ -31,9 +31,9 @@
 #define DOT11_OUI_LEN			3
 #define BCMILCP_BCM_SUBTYPE_EVENT		1
 
-int dhd_msg_level;
-char fw_path[MOD_PARAM_PATHLEN];
-char nv_path[MOD_PARAM_PATHLEN];
+int brcmf_msg_level;
+char brcmf_fw_path[MOD_PARAM_PATHLEN];
+char brcmf_nv_path[MOD_PARAM_PATHLEN];
 
 extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
 			    uint len);
@@ -54,11 +54,11 @@ void dhd_iscan_unlock(void);
 #define MSGTRACE_VERSION	1
 
 #ifdef DHD_DEBUG
-const char dhd_version[] =
+const char brcmf_version[] =
 "Dongle Host Driver, version " EPI_VERSION_STR "\nCompiled on " __DATE__
 " at " __TIME__;
 #else
-const char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR;
+const char brcmf_version[] = "Dongle Host Driver, version " EPI_VERSION_STR;
 #endif
 
 /* IOVar table */
@@ -82,8 +82,8 @@ enum {
 	IOV_LAST
 };
 
-const struct brcmu_iovar dhd_iovars[] = {
-	{"version", IOV_VERSION, 0, IOVT_BUFFER, sizeof(dhd_version)}
+const struct brcmu_iovar brcmf_iovars[] = {
+	{"version", IOV_VERSION, 0, IOVT_BUFFER, sizeof(brcmf_version)}
 	,
 #ifdef DHD_DEBUG
 	{"msglevel", IOV_MSGLEVEL, 0, IOVT_UINT32, 0}
@@ -128,7 +128,7 @@ struct msgtrace_hdr {
 				 because of trace overflow */
 } __packed;
 
-void dhd_common_init(void)
+void brcmf_c_init(void)
 {
 	/* Init global variables at run-time, not as part of the declaration.
 	 * This is required to support init/de-init of the driver.
@@ -138,20 +138,21 @@ void dhd_common_init(void)
 	 * first time that the driver is initialized vs subsequent
 	 * initializations.
 	 */
-	dhd_msg_level = DHD_ERROR_VAL;
+	brcmf_msg_level = DHD_ERROR_VAL;
 #ifdef CONFIG_BCM4329_FW_PATH
-	strncpy(fw_path, CONFIG_BCM4329_FW_PATH, MOD_PARAM_PATHLEN - 1);
+	strncpy(brcmf_fw_path, CONFIG_BCM4329_FW_PATH, MOD_PARAM_PATHLEN - 1);
 #else
-	fw_path[0] = '\0';
+	brcmf_fw_path[0] = '\0';
 #endif
 #ifdef CONFIG_BCM4329_NVRAM_PATH
-	strncpy(nv_path, CONFIG_BCM4329_NVRAM_PATH, MOD_PARAM_PATHLEN - 1);
+	strncpy(brcmf_nv_path,
+		CONFIG_BCM4329_NVRAM_PATH, MOD_PARAM_PATHLEN - 1);
 #else
-	nv_path[0] = '\0';
+	brcmf_nv_path[0] = '\0';
 #endif
 }
 
-static int dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
+static int brcmf_c_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 {
 	struct brcmu_strbuf b;
 	struct brcmu_strbuf *strbuf = &b;
@@ -159,7 +160,7 @@ static int dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 	brcmu_binit(strbuf, buf, buflen);
 
 	/* Base DHD info */
-	brcmu_bprintf(strbuf, "%s\n", dhd_version);
+	brcmu_bprintf(strbuf, "%s\n", brcmf_version);
 	brcmu_bprintf(strbuf, "\n");
 	brcmu_bprintf(strbuf, "pub.up %d pub.txoff %d pub.busstate %d\n",
 		    dhdp->up, dhdp->txoff, dhdp->busstate);
@@ -209,7 +210,7 @@ static int dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 }
 
 static int
-dhd_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
+brcmf_c_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 	    const char *name, void *params, int plen, void *arg, int len,
 	    int val_size)
 {
@@ -228,16 +229,16 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 	switch (actionid) {
 	case IOV_GVAL(IOV_VERSION):
 		/* Need to have checked buffer length */
-		strncpy((char *)arg, dhd_version, len);
+		strncpy((char *)arg, brcmf_version, len);
 		break;
 
 	case IOV_GVAL(IOV_MSGLEVEL):
-		int_val = (s32) dhd_msg_level;
+		int_val = (s32) brcmf_msg_level;
 		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_MSGLEVEL):
-		dhd_msg_level = int_val;
+		brcmf_msg_level = int_val;
 		break;
 
 	case IOV_GVAL(IOV_BCMERRORSTR):
@@ -265,7 +266,7 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_DUMP):
-		bcmerror = dhd_dump(dhd_pub, arg, len);
+		bcmerror = brcmf_c_dump(dhd_pub, arg, len);
 		break;
 
 #ifdef DHD_DEBUG
@@ -322,7 +323,7 @@ exit:
 	return bcmerror;
 }
 
-bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
+bool brcmf_c_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
 		  int prec)
 {
 	struct sk_buff *p;
@@ -377,7 +378,7 @@ bool dhd_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
 }
 
 static int
-dhd_iovar_op(dhd_pub_t *dhd_pub, const char *name,
+brcmf_c_iovar_op(dhd_pub_t *dhd_pub, const char *name,
 	     void *params, int plen, void *arg, int len, bool set)
 {
 	int bcmerror = 0;
@@ -396,7 +397,7 @@ dhd_iovar_op(dhd_pub_t *dhd_pub, const char *name,
 	/* Set does NOT take qualifiers */
 	ASSERT(!set || (!params && !plen));
 
-	vi = brcmu_iovar_lookup(dhd_iovars, name);
+	vi = brcmu_iovar_lookup(brcmf_iovars, name);
 	if (vi == NULL) {
 		bcmerror = -ENOTSUPP;
 		goto exit;
@@ -423,14 +424,14 @@ dhd_iovar_op(dhd_pub_t *dhd_pub, const char *name,
 
 	actionid = set ? IOV_SVAL(vi->varid) : IOV_GVAL(vi->varid);
 	bcmerror =
-	    dhd_doiovar(dhd_pub, vi, actionid, name, params, plen, arg, len,
+	    brcmf_c_doiovar(dhd_pub, vi, actionid, name, params, plen, arg, len,
 			val_size);
 
 exit:
 	return bcmerror;
 }
 
-int dhd_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
+int brcmf_c_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 {
 	int bcmerror = 0;
 
@@ -474,13 +475,12 @@ int dhd_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 
 			/* call with the appropriate arguments */
 			if (ioc->cmd == DHD_GET_VAR)
-				bcmerror =
-				    dhd_iovar_op(dhd_pub, buf, arg, arglen, buf,
-						 buflen, IOV_GET);
+				bcmerror = brcmf_c_iovar_op(dhd_pub, buf, arg,
+						arglen, buf, buflen, IOV_GET);
 			else
 				bcmerror =
-				    dhd_iovar_op(dhd_pub, buf, NULL, 0, arg,
-						 arglen, IOV_SET);
+				    brcmf_c_iovar_op(dhd_pub, buf, NULL, 0, arg,
+						     arglen, IOV_SET);
 			if (bcmerror != -ENOTSUPP)
 				break;
 
@@ -517,7 +517,7 @@ int dhd_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 }
 
 #ifdef SHOW_EVENTS
-static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
+static void brcmf_c_show_host_event(wl_event_msg_t *event, void *event_data)
 {
 	uint i, status, reason;
 	bool group = false, flush_txq = false, link = false;
@@ -823,7 +823,7 @@ static void wl_show_host_event(wl_event_msg_t *event, void *event_data)
 #endif				/* SHOW_EVENTS */
 
 int
-wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
+brcmf_c_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 	      wl_event_msg_t *event, void **data_ptr)
 {
 	/* check whether packet is a BRCM event pkt */
@@ -919,14 +919,14 @@ wl_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 	}
 
 #ifdef SHOW_EVENTS
-	wl_show_host_event(event, event_data);
+	brcmf_c_show_host_event(event, event_data);
 #endif				/* SHOW_EVENTS */
 
 	return 0;
 }
 
 /* Convert user's input in hex pattern to byte-size mask */
-static int wl_pattern_atoh(char *src, char *dst)
+static int brcmf_c_pattern_atoh(char *src, char *dst)
 {
 	int i;
 	if (strncmp(src, "0x", 2) != 0 && strncmp(src, "0X", 2) != 0) {
@@ -949,7 +949,7 @@ static int wl_pattern_atoh(char *src, char *dst)
 }
 
 void
-dhd_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
+brcmf_c_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 			     int master_mode)
 {
 	char *argv[8];
@@ -1019,7 +1019,7 @@ fail:
 	kfree(arg_org);
 }
 
-void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
+void brcmf_c_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 {
 	const char *str;
 	wl_pkt_filter_t pkt_filter;
@@ -1108,7 +1108,7 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 
 	/* Parse pattern filter mask. */
 	mask_size =
-	    wl_pattern_atoh
+	    brcmf_c_pattern_atoh
 		   (argv[i], (char *)pkt_filterp->u.pattern.mask_and_pattern);
 
 	if (NULL == argv[++i]) {
@@ -1118,7 +1118,7 @@ void dhd_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 
 	/* Parse pattern filter pattern. */
 	pattern_size =
-	    wl_pattern_atoh(argv[i],
+	    brcmf_c_pattern_atoh(argv[i],
 				   (char *)&pkt_filterp->u.pattern.
 				   mask_and_pattern[mask_size]);
 
@@ -1156,7 +1156,7 @@ fail:
 	kfree(buf);
 }
 
-void dhd_arp_offload_set(dhd_pub_t *dhd, int arp_mode)
+void brcmf_c_arp_offload_set(dhd_pub_t *dhd, int arp_mode)
 {
 	char iovbuf[32];
 	int retcode;
@@ -1173,7 +1173,7 @@ void dhd_arp_offload_set(dhd_pub_t *dhd, int arp_mode)
 			   __func__, arp_mode));
 }
 
-void dhd_arp_offload_enable(dhd_pub_t *dhd, int arp_enable)
+void brcmf_c_arp_offload_enable(dhd_pub_t *dhd, int arp_enable)
 {
 	char iovbuf[32];
 	int retcode;
@@ -1190,7 +1190,7 @@ void dhd_arp_offload_enable(dhd_pub_t *dhd, int arp_enable)
 			   __func__, arp_enable));
 }
 
-int dhd_preinit_ioctls(dhd_pub_t *dhd)
+int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 {
 	char iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for
 				 "event_msgs" + '\0' + bitvec  */
@@ -1291,8 +1291,8 @@ int dhd_preinit_ioctls(dhd_pub_t *dhd)
 #ifdef ARP_OFFLOAD_SUPPORT
 	/* Set and enable ARP offload feature */
 	if (dhd_arp_enable)
-		dhd_arp_offload_set(dhd, dhd_arp_mode);
-	dhd_arp_offload_enable(dhd, dhd_arp_enable);
+		brcmf_c_arp_offload_set(dhd, dhd_arp_mode);
+	brcmf_c_arp_offload_enable(dhd, dhd_arp_enable);
 #endif				/* ARP_OFFLOAD_SUPPORT */
 
 #ifdef PKT_FILTER_SUPPORT
@@ -1301,9 +1301,9 @@ int dhd_preinit_ioctls(dhd_pub_t *dhd)
 		/* Set up pkt filter */
 		if (dhd_pkt_filter_enable) {
 			for (i = 0; i < dhd->pktfilter_count; i++) {
-				dhd_pktfilter_offload_set(dhd,
+				brcmf_c_pktfilter_offload_set(dhd,
 							  dhd->pktfilter[i]);
-				dhd_pktfilter_offload_enable(dhd,
+				brcmf_c_pktfilter_offload_enable(dhd,
 				     dhd->pktfilter[i],
 				     dhd_pkt_filter_init,
 				     dhd_master_mode);

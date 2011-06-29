@@ -1375,7 +1375,7 @@ int brcmf_sdbrcm_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 
 		/* Priority based enq */
 		spin_lock_bh(&bus->txqlock);
-		if (dhd_prec_enq(bus->dhd, &bus->txq, pkt, prec) == false) {
+		if (brcmf_c_prec_enq(bus->dhd, &bus->txq, pkt, prec) == false) {
 			skb_pull(pkt, SDPCM_HDRLEN);
 			dhd_txcomplete(bus->dhd, pkt, false);
 			brcmu_pkt_buf_free_skb(pkt);
@@ -2784,7 +2784,7 @@ exit:
 	dhd_os_sdunlock(bus->dhd);
 
 	if (actionid == IOV_SVAL(IOV_DEVRESET) && bool_val == false)
-		dhd_preinit_ioctls((dhd_pub_t *) bus->dhd);
+		brcmf_c_preinit_ioctls((dhd_pub_t *) bus->dhd);
 
 	return bcmerror;
 }
@@ -5213,7 +5213,7 @@ static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 
 	forcealign = true;
 
-	dhd_common_init();
+	brcmf_c_init();
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 	DHD_INFO(("%s: venid 0x%04x devid 0x%04x\n", __func__, venid, devid));
@@ -5660,7 +5660,7 @@ static int brcmf_sdbrcm_download_code_file(struct dhd_bus *bus, char *fw_path)
 	void *image = NULL;
 	u8 *memblock = NULL, *memptr;
 
-	DHD_INFO(("%s: download firmware %s\n", __func__, fw_path));
+	DHD_INFO(("%s: download firmware %s\n", __func__, brcmf_fw_path));
 
 	image = dhd_os_open_image(fw_path);
 	if (image == NULL)
