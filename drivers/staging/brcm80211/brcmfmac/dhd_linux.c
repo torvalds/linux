@@ -417,7 +417,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			DHD_TRACE(("%s: force extra Suspend setting\n",
 				   __func__));
 
-			dhdcdc_set_ioctl(dhd, 0, WLC_SET_PM,
+			dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_PM,
 					 (char *)&power_mode,
 					 sizeof(power_mode));
 
@@ -437,7 +437,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				bcn_li_dtim = dhd->dtim_skip;
 			brcmu_mkiovar("bcn_li_dtim", (char *)&bcn_li_dtim,
 				    4, iovbuf, sizeof(iovbuf));
-			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
+			dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
 					 sizeof(iovbuf));
 #ifdef CUSTOMER_HW2
 			/* Disable build-in roaming to allowed \
@@ -445,7 +445,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			 */
 			brcmu_mkiovar("roam_off", (char *)&roamvar, 4,
 				    iovbuf, sizeof(iovbuf));
-			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
+			dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
 					 sizeof(iovbuf));
 #endif				/* CUSTOMER_HW2 */
 		} else {
@@ -455,7 +455,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				   __func__));
 
 			power_mode = PM_FAST;
-			dhdcdc_set_ioctl(dhd, 0, WLC_SET_PM,
+			dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_PM,
 					 (char *)&power_mode,
 					 sizeof(power_mode));
 
@@ -466,13 +466,13 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			brcmu_mkiovar("bcn_li_dtim", (char *)&dhd->dtim_skip,
 				    4, iovbuf, sizeof(iovbuf));
 
-			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
+			dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
 					 sizeof(iovbuf));
 #ifdef CUSTOMER_HW2
 			roamvar = 0;
 			brcmu_mkiovar("roam_off", (char *)&roamvar, 4, iovbuf,
 				    sizeof(iovbuf));
-			dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
+			dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
 					 sizeof(iovbuf));
 #endif				/* CUSTOMER_HW2 */
 		}
@@ -672,7 +672,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	}
 
 	memset(&ioc, 0, sizeof(ioc));
-	ioc.cmd = WLC_SET_VAR;
+	ioc.cmd = BRCMF_C_SET_VAR;
 	ioc.buf = buf;
 	ioc.len = buflen;
 	ioc.set = true;
@@ -710,7 +710,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	}
 
 	memset(&ioc, 0, sizeof(ioc));
-	ioc.cmd = WLC_SET_VAR;
+	ioc.cmd = BRCMF_C_SET_VAR;
 	ioc.buf = buf;
 	ioc.len = buflen;
 	ioc.set = true;
@@ -731,7 +731,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	allmulti = cpu_to_le32(allmulti);
 
 	memset(&ioc, 0, sizeof(ioc));
-	ioc.cmd = WLC_SET_PROMISC;
+	ioc.cmd = BRCMF_C_SET_PROMISC;
 	ioc.buf = &allmulti;
 	ioc.len = sizeof(allmulti);
 	ioc.set = true;
@@ -759,7 +759,7 @@ _dhd_set_mac_address(dhd_info_t *dhd, int ifidx, u8 *addr)
 		return -1;
 	}
 	memset(&ioc, 0, sizeof(ioc));
-	ioc.cmd = WLC_SET_VAR;
+	ioc.cmd = BRCMF_C_SET_VAR;
 	ioc.buf = buf;
 	ioc.len = 32;
 	ioc.set = true;
@@ -1368,7 +1368,7 @@ static int dhd_toe_get(dhd_info_t *dhd, int ifidx, u32 *toe_ol)
 
 	memset(&ioc, 0, sizeof(ioc));
 
-	ioc.cmd = WLC_GET_VAR;
+	ioc.cmd = BRCMF_C_GET_VAR;
 	ioc.buf = buf;
 	ioc.len = (uint) sizeof(buf);
 	ioc.set = false;
@@ -1402,7 +1402,7 @@ static int dhd_toe_set(dhd_info_t *dhd, int ifidx, u32 toe_ol)
 
 	memset(&ioc, 0, sizeof(ioc));
 
-	ioc.cmd = WLC_SET_VAR;
+	ioc.cmd = BRCMF_C_SET_VAR;
 	ioc.buf = buf;
 	ioc.len = (uint) sizeof(buf);
 	ioc.set = true;
@@ -1652,13 +1652,14 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 		goto done;
 	}
 
-	/* Intercept WLC_SET_KEY IOCTL - serialize M4 send and set key IOCTL to
-	 * prevent M4 encryption.
+	/*
+	 * Intercept BRCMF_C_SET_KEY IOCTL - serialize M4 send and
+	 * set key IOCTL to prevent M4 encryption.
 	 */
-	is_set_key_cmd = ((ioc.cmd == WLC_SET_KEY) ||
-			  ((ioc.cmd == WLC_SET_VAR) &&
+	is_set_key_cmd = ((ioc.cmd == BRCMF_C_SET_KEY) ||
+			  ((ioc.cmd == BRCMF_C_SET_VAR) &&
 			   !(strncmp("wsec_key", ioc.buf, 9))) ||
-			  ((ioc.cmd == WLC_SET_VAR) &&
+			  ((ioc.cmd == BRCMF_C_SET_VAR) &&
 			   !(strncmp("bsscfg:wsec_key", ioc.buf, 15))));
 	if (is_set_key_cmd)
 		dhd_wait_pend8021x(net);
@@ -2023,7 +2024,7 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 #ifdef EMBEDDED_PLATFORM
 	brcmu_mkiovar("event_msgs", dhdp->eventmask, WL_EVENTING_MASK_LEN,
 		      iovbuf, sizeof(iovbuf));
-	dhdcdc_query_ioctl(dhdp, 0, WLC_GET_VAR, iovbuf, sizeof(iovbuf));
+	dhdcdc_query_ioctl(dhdp, 0, BRCMF_C_GET_VAR, iovbuf, sizeof(iovbuf));
 	memcpy(dhdp->eventmask, iovbuf, WL_EVENTING_MASK_LEN);
 
 	setbit(dhdp->eventmask, WLC_E_SET_SSID);
@@ -2076,7 +2077,7 @@ dhd_iovar(dhd_pub_t *pub, int ifidx, char *name, char *cmd_buf, uint cmd_len,
 
 	memset(&ioc, 0, sizeof(ioc));
 
-	ioc.cmd = set ? WLC_SET_VAR : WLC_GET_VAR;
+	ioc.cmd = set ? BRCMF_C_SET_VAR : BRCMF_C_GET_VAR;
 	ioc.buf = buf;
 	ioc.len = len;
 	ioc.set = set;

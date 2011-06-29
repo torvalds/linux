@@ -108,7 +108,7 @@ do {								\
 #define WL_IOCTL_LEN_MAX	1024
 #define WL_EXTRA_BUF_MAX	2048
 #define WL_ISCAN_BUF_MAX	2048	/*
-				 * the buf lengh can be WLC_IOCTL_MAXLEN (8K)
+				 * the buf length can be BRCMF_C_IOCTL_MAXLEN
 				 * to reduce iteration
 				 */
 #define WL_ISCAN_TIMER_INTERVAL_MS	3000
@@ -276,7 +276,7 @@ struct wl_iscan_ctrl {
 	struct semaphore sync;
 	struct wl_iscan_eloop el;
 	void *data;
-	s8 ioctl_buf[WLC_IOCTL_SMLEN];
+	s8 ioctl_buf[BRCMF_C_IOCTL_SMLEN];
 	s8 scan_buf[WL_ISCAN_BUF_MAX];
 };
 

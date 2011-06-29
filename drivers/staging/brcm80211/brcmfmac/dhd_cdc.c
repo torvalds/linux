@@ -109,7 +109,7 @@ typedef struct dhd_prot {
 	u32 lastcmd;
 	u8 bus_header[BUS_HEADER_LEN];
 	struct cdc_ioctl msg;
-	unsigned char buf[WLC_IOCTL_MAXLEN + ROUND_UP_MARGIN];
+	unsigned char buf[BRCMF_C_IOCTL_MAXLEN + ROUND_UP_MARGIN];
 } dhd_prot_t;
 
 static int dhdcdc_msg(dhd_pub_t *dhd)
@@ -162,7 +162,7 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 	DHD_CTL(("%s: cmd %d len %d\n", __func__, cmd, len));
 
 	/* Respond "bcmerror" and "bcmerrorstr" with local cache */
-	if (cmd == WLC_GET_VAR && buf) {
+	if (cmd == BRCMF_C_GET_VAR && buf) {
 		if (!strcmp((char *)buf, "bcmerrorstr")) {
 			strncpy((char *)buf, "bcm_error",
 				BCME_STRLEN);
@@ -296,9 +296,9 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
-	ASSERT(len <= WLC_IOCTL_MAXLEN);
+	ASSERT(len <= BRCMF_C_IOCTL_MAXLEN);
 
-	if (len > WLC_IOCTL_MAXLEN)
+	if (len > BRCMF_C_IOCTL_MAXLEN)
 		goto done;
 
 	if (prot->pending == true) {
@@ -306,7 +306,8 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 			"lastcmd=0x%x (%lu)\n",
 			ioc->cmd, (unsigned long)ioc->cmd, prot->lastcmd,
 			(unsigned long)prot->lastcmd));
-		if ((ioc->cmd == WLC_SET_VAR) || (ioc->cmd == WLC_GET_VAR))
+		if ((ioc->cmd == BRCMF_C_SET_VAR) ||
+		    (ioc->cmd == BRCMF_C_GET_VAR))
 			DHD_TRACE(("iovar cmd=%s\n", (char *)buf));
 
 		goto done;
@@ -332,7 +333,8 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 	}
 
 	/* Intercept the wme_dp ioctl here */
-	if ((!ret) && (ioc->cmd == WLC_SET_VAR) && (!strcmp(buf, "wme_dp"))) {
+	if (!ret && ioc->cmd == BRCMF_C_SET_VAR &&
+	    !strcmp(buf, "wme_dp")) {
 		int slen, val = 0;
 
 		slen = strlen("wme_dp") + 1;
@@ -464,8 +466,8 @@ int dhd_prot_attach(dhd_pub_t *dhd)
 #ifdef BDC
 	dhd->hdrlen += BDC_HEADER_LEN;
 #endif
-	dhd->maxctl =
-		WLC_IOCTL_MAXLEN + sizeof(struct cdc_ioctl) + ROUND_UP_MARGIN;
+	dhd->maxctl = BRCMF_C_IOCTL_MAXLEN +
+				sizeof(struct cdc_ioctl) + ROUND_UP_MARGIN;
 	return 0;
 
 fail:
@@ -503,7 +505,7 @@ int dhd_prot_init(dhd_pub_t *dhd)
 
 	/* Get the device MAC address */
 	strcpy(buf, "cur_etheraddr");
-	ret = dhdcdc_query_ioctl(dhd, 0, WLC_GET_VAR, buf, sizeof(buf));
+	ret = dhdcdc_query_ioctl(dhd, 0, BRCMF_C_GET_VAR, buf, sizeof(buf));
 	if (ret < 0) {
 		dhd_os_proto_unblock(dhd);
 		return ret;

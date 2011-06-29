@@ -596,7 +596,7 @@ wl_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	infra = cpu_to_le32(infra);
-	err = wl_dev_ioctl(ndev, WLC_SET_INFRA, &infra, sizeof(infra));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_INFRA, &infra, sizeof(infra));
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_INFRA error (%d)\n", err);
 		err = -EAGAIN;
@@ -643,7 +643,7 @@ wl_dev_iovar_setbuf(struct net_device *dev, s8 * iovar, void *param,
 	iolen = brcmu_mkiovar(iovar, param, paramlen, bufptr, buflen);
 	BUG_ON(!iolen);
 
-	return wl_dev_ioctl(dev, WLC_SET_VAR, bufptr, iolen);
+	return wl_dev_ioctl(dev, BRCMF_C_SET_VAR, bufptr, iolen);
 }
 
 static s32
@@ -655,7 +655,7 @@ wl_dev_iovar_getbuf(struct net_device *dev, s8 * iovar, void *param,
 	iolen = brcmu_mkiovar(iovar, param, paramlen, bufptr, buflen);
 	BUG_ON(!iolen);
 
-	return wl_dev_ioctl(dev, WLC_GET_VAR, bufptr, buflen);
+	return wl_dev_ioctl(dev, BRCMF_C_GET_VAR, bufptr, buflen);
 }
 
 static s32
@@ -671,7 +671,7 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, u16 action)
 	params = kzalloc(params_size, GFP_KERNEL);
 	if (unlikely(!params))
 		return -ENOMEM;
-	BUG_ON(params_size >= WLC_IOCTL_SMLEN);
+	BUG_ON(params_size >= BRCMF_C_IOCTL_SMLEN);
 
 	wl_iscan_prep(&params->params, ssid);
 
@@ -681,7 +681,7 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, u16 action)
 
 	/* params_size += offsetof(wl_iscan_params_t, params); */
 	err = wl_dev_iovar_setbuf(iscan->dev, "iscan", params, params_size,
-				iscan->ioctl_buf, WLC_IOCTL_SMLEN);
+				iscan->ioctl_buf, BRCMF_C_IOCTL_SMLEN);
 	if (unlikely(err)) {
 		if (err == -EBUSY) {
 			WL_INFO("system busy : iscan canceled\n");
@@ -707,7 +707,7 @@ static s32 wl_do_iscan(struct wl_priv *wl)
 	iscan->state = WL_ISCAN_STATE_SCANING;
 
 	passive_scan = wl->active_scan ? 0 : 1;
-	err = wl_dev_ioctl(wl_to_ndev(wl), WLC_SET_PASSIVE_SCAN,
+	err = wl_dev_ioctl(wl_to_ndev(wl), BRCMF_C_SET_PASSIVE_SCAN,
 			&passive_scan, sizeof(passive_scan));
 	if (unlikely(err)) {
 		WL_ERR("error (%d)\n", err);
@@ -786,14 +786,14 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 		}
 
 		passive_scan = wl->active_scan ? 0 : 1;
-		err = wl_dev_ioctl(ndev, WLC_SET_PASSIVE_SCAN,
+		err = wl_dev_ioctl(ndev, BRCMF_C_SET_PASSIVE_SCAN,
 				&passive_scan, sizeof(passive_scan));
 		if (unlikely(err)) {
 			WL_ERR("WLC_SET_PASSIVE_SCAN error (%d)\n", err);
 			goto scan_out;
 		}
 		wl_set_mpc(ndev, 0);
-		err = wl_dev_ioctl(ndev, WLC_SCAN, &sr->ssid,
+		err = wl_dev_ioctl(ndev, BRCMF_C_SCAN, &sr->ssid,
 				sizeof(sr->ssid));
 		if (err) {
 			if (err == -EBUSY) {
@@ -835,7 +835,7 @@ wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 
 static s32 wl_dev_intvar_set(struct net_device *dev, s8 *name, s32 val)
 {
-	s8 buf[WLC_IOCTL_SMLEN];
+	s8 buf[BRCMF_C_IOCTL_SMLEN];
 	u32 len;
 	s32 err = 0;
 
@@ -844,7 +844,7 @@ static s32 wl_dev_intvar_set(struct net_device *dev, s8 *name, s32 val)
 			    sizeof(buf));
 	BUG_ON(!len);
 
-	err = wl_dev_ioctl(dev, WLC_SET_VAR, buf, len);
+	err = wl_dev_ioctl(dev, BRCMF_C_SET_VAR, buf, len);
 	if (unlikely(err))
 		WL_ERR("error (%d)\n", err);
 
@@ -855,7 +855,7 @@ static s32
 wl_dev_intvar_get(struct net_device *dev, s8 *name, s32 *retval)
 {
 	union {
-		s8 buf[WLC_IOCTL_SMLEN];
+		s8 buf[BRCMF_C_IOCTL_SMLEN];
 		s32 val;
 	} var;
 	u32 len;
@@ -866,7 +866,7 @@ wl_dev_intvar_get(struct net_device *dev, s8 *name, s32 *retval)
 	    brcmu_mkiovar(name, (char *)(&data_null), 0, (char *)(&var),
 			sizeof(var.buf));
 	BUG_ON(!len);
-	err = wl_dev_ioctl(dev, WLC_GET_VAR, &var, len);
+	err = wl_dev_ioctl(dev, BRCMF_C_GET_VAR, &var, len);
 	if (unlikely(err))
 		WL_ERR("error (%d)\n", err);
 
@@ -1084,7 +1084,8 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	wl->ibss_starter = false;
 
 
-	err = wl_dev_ioctl(dev, WLC_SET_SSID, &join_params, join_params_size);
+	err = wl_dev_ioctl(dev, BRCMF_C_SET_SSID,
+			   &join_params, join_params_size);
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_SSID failed (%d)\n", err);
 		goto done;
@@ -1343,7 +1344,7 @@ wl_set_set_sharedkey(struct net_device *dev,
 			       key.len, key.index, key.algo);
 			WL_CONN("key \"%s\"\n", key.data);
 			swap_key_from_BE(&key);
-			err = wl_dev_ioctl(dev, WLC_SET_KEY, &key,
+			err = wl_dev_ioctl(dev, BRCMF_C_SET_KEY, &key,
 					sizeof(key));
 			if (unlikely(err)) {
 				WL_ERR("WLC_SET_KEY error (%d)\n", err);
@@ -1448,7 +1449,8 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	wl_ch_to_chanspec(wl->channel, &join_params, &join_params_size);
-	err = wl_dev_ioctl(dev, WLC_SET_SSID, &join_params, join_params_size);
+	err = wl_dev_ioctl(dev, BRCMF_C_SET_SSID,
+			   &join_params, join_params_size);
 	if (err)
 		WL_ERR("WLC_SET_SSID failed (%d)\n", err);
 
@@ -1475,7 +1477,7 @@ wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	scbval.val = reason_code;
 	memcpy(&scbval.ea, wl_read_prof(wl, WL_PROF_BSSID), ETH_ALEN);
 	scbval.val = cpu_to_le32(scbval.val);
-	err = wl_dev_ioctl(dev, WLC_DISASSOC, &scbval,
+	err = wl_dev_ioctl(dev, BRCMF_C_DISASSOC, &scbval,
 			sizeof(scb_val_t));
 	if (unlikely(err))
 		WL_ERR("error (%d)\n", err);
@@ -1521,7 +1523,7 @@ wl_cfg80211_set_tx_power(struct wiphy *wiphy,
 	/* Make sure radio is off or on as far as software is concerned */
 	disable = WL_RADIO_SW_DISABLE << 16;
 	disable = cpu_to_le32(disable);
-	err = wl_dev_ioctl(ndev, WLC_SET_RADIO, &disable, sizeof(disable));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_RADIO, &disable, sizeof(disable));
 	if (unlikely(err))
 		WL_ERR("WLC_SET_RADIO error (%d)\n", err);
 
@@ -1577,7 +1579,7 @@ wl_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *dev,
 	WL_CONN("key index (%d)\n", key_idx);
 	CHECK_SYS_UP();
 
-	err = wl_dev_ioctl(dev, WLC_GET_WSEC, &wsec, sizeof(wsec));
+	err = wl_dev_ioctl(dev, BRCMF_C_GET_WSEC, &wsec, sizeof(wsec));
 	if (unlikely(err)) {
 		WL_ERR("WLC_GET_WSEC error (%d)\n", err);
 		goto done;
@@ -1588,7 +1590,7 @@ wl_cfg80211_config_default_key(struct wiphy *wiphy, struct net_device *dev,
 		/* Just select a new current key */
 		index = (u32) key_idx;
 		index = cpu_to_le32(index);
-		err = wl_dev_ioctl(dev, WLC_SET_KEY_PRIMARY, &index,
+		err = wl_dev_ioctl(dev, BRCMF_C_SET_KEY_PRIMARY, &index,
 				sizeof(index));
 		if (unlikely(err))
 			WL_ERR("error (%d)\n", err);
@@ -1616,7 +1618,7 @@ wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 	if (key.len == 0) {
 		/* key delete */
 		swap_key_from_BE(&key);
-		err = wl_dev_ioctl(dev, WLC_SET_KEY, &key, sizeof(key));
+		err = wl_dev_ioctl(dev, BRCMF_C_SET_KEY, &key, sizeof(key));
 		if (unlikely(err)) {
 			WL_ERR("key delete error (%d)\n", err);
 			return err;
@@ -1676,7 +1678,7 @@ wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 		swap_key_from_BE(&key);
 
 		dhd_wait_pend8021x(dev);
-		err = wl_dev_ioctl(dev, WLC_SET_KEY, &key, sizeof(key));
+		err = wl_dev_ioctl(dev, BRCMF_C_SET_KEY, &key, sizeof(key));
 		if (unlikely(err)) {
 			WL_ERR("WLC_SET_KEY error (%d)\n", err);
 			return err;
@@ -1749,7 +1751,7 @@ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 
 	/* Set the new key/index */
 	swap_key_from_BE(&key);
-	err = wl_dev_ioctl(dev, WLC_SET_KEY, &key, sizeof(key));
+	err = wl_dev_ioctl(dev, BRCMF_C_SET_KEY, &key, sizeof(key));
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_KEY error (%d)\n", err);
 		goto done;
@@ -1771,7 +1773,7 @@ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 
 	val = 1;		/* assume shared key. otherwise 0 */
 	val = cpu_to_le32(val);
-	err = wl_dev_ioctl(dev, WLC_SET_AUTH, &val, sizeof(val));
+	err = wl_dev_ioctl(dev, BRCMF_C_SET_AUTH, &val, sizeof(val));
 	if (unlikely(err))
 		WL_ERR("WLC_SET_AUTH error (%d)\n", err);
 done:
@@ -1799,7 +1801,7 @@ wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	WL_CONN("key index (%d)\n", key_idx);
 	/* Set the new key/index */
 	swap_key_from_BE(&key);
-	err = wl_dev_ioctl(dev, WLC_SET_KEY, &key, sizeof(key));
+	err = wl_dev_ioctl(dev, BRCMF_C_SET_KEY, &key, sizeof(key));
 	if (unlikely(err)) {
 		if (err == -EINVAL) {
 			if (key.index >= DOT11_MAX_DEFAULT_KEYS)
@@ -1833,7 +1835,7 @@ wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 
 	val = 0;		/* assume open key. otherwise 1 */
 	val = cpu_to_le32(val);
-	err = wl_dev_ioctl(dev, WLC_SET_AUTH, &val, sizeof(val));
+	err = wl_dev_ioctl(dev, BRCMF_C_SET_AUTH, &val, sizeof(val));
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_AUTH error (%d)\n", err);
 		/* Ignore this error, may happen during DISASSOC */
@@ -1867,7 +1869,7 @@ wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 	params.key_len = (u8) min_t(u8, WLAN_MAX_KEY_LEN, key.len);
 	memcpy(params.key, key.data, params.key_len);
 
-	err = wl_dev_ioctl(dev, WLC_GET_WSEC, &wsec, sizeof(wsec));
+	err = wl_dev_ioctl(dev, BRCMF_C_GET_WSEC, &wsec, sizeof(wsec));
 	if (unlikely(err)) {
 		WL_ERR("WLC_GET_WSEC error (%d)\n", err);
 		/* Ignore this error, may happen during DISASSOC */
@@ -1942,7 +1944,7 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	/* Report the current tx rate */
-	err = wl_dev_ioctl(dev, WLC_GET_RATE, &rate, sizeof(rate));
+	err = wl_dev_ioctl(dev, BRCMF_C_GET_RATE, &rate, sizeof(rate));
 	if (err) {
 		WL_ERR("Could not get rate (%d)\n", err);
 	} else {
@@ -1954,7 +1956,7 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	if (test_bit(WL_STATUS_CONNECTED, &wl->status)) {
 		scb_val.val = 0;
-		err = wl_dev_ioctl(dev, WLC_GET_RSSI, &scb_val,
+		err = wl_dev_ioctl(dev, BRCMF_C_GET_RSSI, &scb_val,
 				sizeof(scb_val_t));
 		if (unlikely(err)) {
 			WL_ERR("Could not get rssi (%d)\n", err);
@@ -1984,7 +1986,7 @@ wl_cfg80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	pm = cpu_to_le32(pm);
 	WL_INFO("power save %s\n", (pm ? "enabled" : "disabled"));
 
-	err = wl_dev_ioctl(dev, WLC_SET_PM, &pm, sizeof(pm));
+	err = wl_dev_ioctl(dev, BRCMF_C_SET_PM, &pm, sizeof(pm));
 	if (unlikely(err)) {
 		if (err == -ENODEV)
 			WL_ERR("net_device is not ready yet\n");
@@ -2522,7 +2524,7 @@ wl_inform_ibss(struct wl_priv *wl, struct net_device *dev, const u8 *bssid)
 
 	*(u32 *)buf = cpu_to_le32(WL_BSS_INFO_MAX);
 
-	err = wl_dev_ioctl(dev, WLC_GET_BSS_INFO, buf, WL_BSS_INFO_MAX);
+	err = wl_dev_ioctl(dev, BRCMF_C_GET_BSS_INFO, buf, WL_BSS_INFO_MAX);
 	if (unlikely(err)) {
 		WL_ERR("WLC_GET_BSS_INFO failed: %d\n", err);
 		goto CleanUp;
@@ -2684,7 +2686,7 @@ wl_dev_bufvar_set(struct net_device *dev, s8 *name, s8 *buf, s32 len)
 	buflen = brcmu_mkiovar(name, buf, len, wl->ioctl_buf, WL_IOCTL_LEN_MAX);
 	BUG_ON(!buflen);
 
-	return wl_dev_ioctl(dev, WLC_SET_VAR, wl->ioctl_buf, buflen);
+	return wl_dev_ioctl(dev, BRCMF_C_SET_VAR, wl->ioctl_buf, buflen);
 }
 
 static s32
@@ -2697,7 +2699,7 @@ wl_dev_bufvar_get(struct net_device *dev, s8 *name, s8 *buf,
 
 	len = brcmu_mkiovar(name, NULL, 0, wl->ioctl_buf, WL_IOCTL_LEN_MAX);
 	BUG_ON(!len);
-	err = wl_dev_ioctl(dev, WLC_GET_VAR, (void *)wl->ioctl_buf,
+	err = wl_dev_ioctl(dev, BRCMF_C_GET_VAR, (void *)wl->ioctl_buf,
 			WL_IOCTL_LEN_MAX);
 	if (unlikely(err)) {
 		WL_ERR("error (%d)\n", err);
@@ -2827,7 +2829,7 @@ static s32 wl_update_bss_info(struct wl_priv *wl)
 	ssid = (struct wlc_ssid *)wl_read_prof(wl, WL_PROF_SSID);
 
 	*(u32 *)wl->extra_buf = cpu_to_le32(WL_EXTRA_BUF_MAX);
-	err = wl_dev_ioctl(wl_to_ndev(wl), WLC_GET_BSS_INFO,
+	err = wl_dev_ioctl(wl_to_ndev(wl), BRCMF_C_GET_BSS_INFO,
 			wl->extra_buf, WL_EXTRA_BUF_MAX);
 	if (unlikely(err)) {
 		WL_ERR("Could not get bss info %d\n", err);
@@ -2969,7 +2971,7 @@ wl_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
 		goto scan_done_out;
 	}
 
-	err = wl_dev_ioctl(ndev, WLC_GET_CHANNEL, &channel_inform,
+	err = wl_dev_ioctl(ndev, BRCMF_C_GET_CHANNEL, &channel_inform,
 			sizeof(channel_inform));
 	if (unlikely(err)) {
 		WL_ERR("scan busy (%d)\n", err);
@@ -2987,7 +2989,7 @@ wl_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
 	memset(bss_list, 0, len);
 	bss_list->buflen = cpu_to_le32(len);
 
-	err = wl_dev_ioctl(ndev, WLC_SCAN_RESULTS, bss_list, len);
+	err = wl_dev_ioctl(ndev, BRCMF_C_SCAN_RESULTS, bss_list, len);
 	if (unlikely(err)) {
 		WL_ERR("%s Scan_results error (%d)\n", ndev->name, err);
 		err = -EINVAL;
@@ -3646,7 +3648,7 @@ static s32 wl_dongle_mode(struct net_device *ndev, s32 iftype)
 		return err;
 	}
 	infra = cpu_to_le32(infra);
-	err = wl_dev_ioctl(ndev, WLC_SET_INFRA, &infra, sizeof(infra));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_INFRA, &infra, sizeof(infra));
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_INFRA error (%d)\n", err);
 		return err;
@@ -3668,7 +3670,7 @@ static s32 wl_dongle_up(struct net_device *ndev, u32 up)
 {
 	s32 err = 0;
 
-	err = wl_dev_ioctl(ndev, WLC_UP, &up, sizeof(up));
+	err = wl_dev_ioctl(ndev, BRCMF_C_UP, &up, sizeof(up));
 	if (unlikely(err)) {
 		WL_ERR("WLC_UP error (%d)\n", err);
 	}
@@ -3679,7 +3681,8 @@ static s32 wl_dongle_power(struct net_device *ndev, u32 power_mode)
 {
 	s32 err = 0;
 
-	err = wl_dev_ioctl(ndev, WLC_SET_PM, &power_mode, sizeof(power_mode));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_PM,
+			   &power_mode, sizeof(power_mode));
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_PM error (%d)\n", err);
 	}
@@ -3696,14 +3699,14 @@ wl_dongle_glom(struct net_device *ndev, u32 glom, u32 dongle_align)
 	/* Match Host and Dongle rx alignment */
 	brcmu_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf,
 		    sizeof(iovbuf));
-	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (unlikely(err)) {
 		WL_ERR("txglomalign error (%d)\n", err);
 		goto dongle_glom_out;
 	}
 	/* disable glom option per default */
 	brcmu_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
-	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (unlikely(err)) {
 		WL_ERR("txglom error (%d)\n", err);
 		goto dongle_glom_out;
@@ -3721,7 +3724,7 @@ wl_dongle_offload(struct net_device *ndev, s32 arpoe, s32 arp_ol)
 
 	/* Set ARP offload */
 	brcmu_mkiovar("arpoe", (char *)&arpoe, 4, iovbuf, sizeof(iovbuf));
-	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			WL_INFO("arpoe is not supported\n");
@@ -3731,7 +3734,7 @@ wl_dongle_offload(struct net_device *ndev, s32 arpoe, s32 arp_ol)
 		goto dongle_offload_out;
 	}
 	brcmu_mkiovar("arp_ol", (char *)&arp_ol, 4, iovbuf, sizeof(iovbuf));
-	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			WL_INFO("arp_ol is not supported\n");
@@ -3832,7 +3835,7 @@ static s32 wl_dongle_filter(struct net_device *ndev, u32 filter_mode)
 	memcpy((char *)pkt_filterp, &pkt_filter,
 	       WL_PKT_FILTER_FIXED_LEN + WL_PKT_FILTER_PATTERN_FIXED_LEN);
 
-	err = wl_dev_ioctl(ndev, WLC_SET_VAR, buf, buf_len);
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_VAR, buf, buf_len);
 	if (err) {
 		if (err == -EOPNOTSUPP) {
 			WL_INFO("filter not supported\n");
@@ -3845,7 +3848,7 @@ static s32 wl_dongle_filter(struct net_device *ndev, u32 filter_mode)
 	/* set mode to allow pattern */
 	brcmu_mkiovar("pkt_filter_mode", (char *)&filter_mode, 4, iovbuf,
 		    sizeof(iovbuf));
-	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (err) {
 		if (err == -EOPNOTSUPP) {
 			WL_INFO("filter_mode not supported\n");
@@ -3872,7 +3875,7 @@ static s32 wl_dongle_eventmsg(struct net_device *ndev)
 	/* Setup event_msgs */
 	brcmu_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf,
 		    sizeof(iovbuf));
-	err = wl_dev_ioctl(ndev, WLC_GET_VAR, iovbuf, sizeof(iovbuf));
+	err = wl_dev_ioctl(ndev, BRCMF_C_GET_VAR, iovbuf, sizeof(iovbuf));
 	if (unlikely(err)) {
 		WL_ERR("Get event_msgs error (%d)\n", err);
 		goto dongle_eventmsg_out;
@@ -3901,7 +3904,7 @@ static s32 wl_dongle_eventmsg(struct net_device *ndev)
 
 	brcmu_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf,
 		    sizeof(iovbuf));
-	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (unlikely(err)) {
 		WL_ERR("Set event_msgs error (%d)\n", err);
 		goto dongle_eventmsg_out;
@@ -3927,7 +3930,8 @@ wl_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
 	if (roamvar) {
 		brcmu_mkiovar("bcn_timeout", (char *)&bcn_timeout,
 			sizeof(bcn_timeout), iovbuf, sizeof(iovbuf));
-		err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+		err = wl_dev_ioctl(ndev, BRCMF_C_SET_VAR,
+				   iovbuf, sizeof(iovbuf));
 		if (unlikely(err)) {
 			WL_ERR("bcn_timeout error (%d)\n", err);
 			goto dongle_rom_out;
@@ -3941,7 +3945,7 @@ wl_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
 	WL_INFO("Internal Roaming = %s\n", roamvar ? "Off" : "On");
 	brcmu_mkiovar("roam_off", (char *)&roamvar,
 				sizeof(roamvar), iovbuf, sizeof(iovbuf));
-	err = wl_dev_ioctl(ndev, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (unlikely(err)) {
 		WL_ERR("roam_off error (%d)\n", err);
 		goto dongle_rom_out;
@@ -3949,7 +3953,7 @@ wl_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
 
 	roamtrigger[0] = WL_ROAM_TRIGGER_LEVEL;
 	roamtrigger[1] = WLC_BAND_ALL;
-	err = wl_dev_ioctl(ndev, WLC_SET_ROAM_TRIGGER,
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_ROAM_TRIGGER,
 			(void *)roamtrigger, sizeof(roamtrigger));
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_ROAM_TRIGGER error (%d)\n", err);
@@ -3958,7 +3962,7 @@ wl_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
 
 	roam_delta[0] = WL_ROAM_DELTA;
 	roam_delta[1] = WLC_BAND_ALL;
-	err = wl_dev_ioctl(ndev, WLC_SET_ROAM_DELTA,
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_ROAM_DELTA,
 				(void *)roam_delta, sizeof(roam_delta));
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_ROAM_DELTA error (%d)\n", err);
@@ -3975,8 +3979,8 @@ wl_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
 {
 	s32 err = 0;
 
-	err = wl_dev_ioctl(ndev, WLC_SET_SCAN_CHANNEL_TIME, &scan_assoc_time,
-			sizeof(scan_assoc_time));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_SCAN_CHANNEL_TIME,
+			   &scan_assoc_time, sizeof(scan_assoc_time));
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			WL_INFO("Scan assoc time is not supported\n");
@@ -3984,8 +3988,8 @@ wl_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
 			WL_ERR("Scan assoc time error (%d)\n", err);
 		goto dongle_scantime_out;
 	}
-	err = wl_dev_ioctl(ndev, WLC_SET_SCAN_UNASSOC_TIME, &scan_unassoc_time,
-			sizeof(scan_unassoc_time));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_SCAN_UNASSOC_TIME,
+			   &scan_unassoc_time, sizeof(scan_unassoc_time));
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			WL_INFO("Scan unassoc time is not supported\n");
@@ -3994,8 +3998,8 @@ wl_dongle_scantime(struct net_device *ndev, s32 scan_assoc_time,
 		goto dongle_scantime_out;
 	}
 
-	err = wl_dev_ioctl(ndev, WLC_SET_SCAN_PASSIVE_TIME, &scan_passive_time,
-			sizeof(scan_passive_time));
+	err = wl_dev_ioctl(ndev, BRCMF_C_SET_SCAN_PASSIVE_TIME,
+			   &scan_passive_time, sizeof(scan_passive_time));
 	if (err) {
 		if (err == -EOPNOTSUPP)
 			WL_INFO("Scan passive time is not supported\n");
@@ -4266,7 +4270,7 @@ static void wl_link_down(struct wl_priv *wl)
 	if (wl->link_up) {
 		dev = wl_to_ndev(wl);
 		WL_INFO("Call WLC_DISASSOC to stop excess roaming\n ");
-		err = wl_dev_ioctl(dev, WLC_DISASSOC, NULL, 0);
+		err = wl_dev_ioctl(dev, BRCMF_C_DISASSOC, NULL, 0);
 		if (unlikely(err))
 			WL_ERR("WLC_DISASSOC failed (%d)\n", err);
 		wl->link_up = false;

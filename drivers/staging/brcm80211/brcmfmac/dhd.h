@@ -26,50 +26,54 @@ struct dhd_bus;
 struct dhd_prot;
 struct dhd_info;
 
-#define WLC_UP					2
-#define WLC_SET_PROMISC				10
-#define WLC_GET_RATE				12
-#define WLC_GET_INFRA				19
-#define WLC_SET_INFRA				20
-#define WLC_GET_AUTH				21
-#define WLC_SET_AUTH				22
-#define WLC_GET_BSSID				23
-#define WLC_GET_SSID				25
-#define WLC_SET_SSID				26
-#define WLC_GET_CHANNEL				29
-#define WLC_GET_SRL				31
-#define WLC_GET_LRL				33
-#define WLC_GET_RADIO				37
-#define WLC_SET_RADIO				38
-#define WLC_GET_PHYTYPE				39
-#define WLC_SET_KEY				45
-#define WLC_SET_PASSIVE_SCAN			49
-#define WLC_SCAN				50
-#define WLC_SCAN_RESULTS			51
-#define WLC_DISASSOC				52
-#define WLC_REASSOC				53
-#define WLC_SET_ROAM_TRIGGER			55
-#define WLC_SET_ROAM_DELTA			57
-#define WLC_GET_DTIMPRD				77
-#define WLC_SET_COUNTRY				84
-#define WLC_GET_PM				85
-#define WLC_SET_PM				86
-#define WLC_GET_AP				117
-#define WLC_SET_AP				118
-#define WLC_GET_RSSI				127
-#define WLC_GET_WSEC				133
-#define WLC_SET_WSEC				134
-#define WLC_GET_PHY_NOISE			135
-#define WLC_GET_BSS_INFO			136
-#define WLC_SET_SCAN_CHANNEL_TIME		185
-#define WLC_SET_SCAN_UNASSOC_TIME		187
-#define WLC_SCB_DEAUTHENTICATE_FOR_REASON	201
-#define WLC_GET_VALID_CHANNELS			217
-#define WLC_GET_KEY_PRIMARY			235
-#define WLC_SET_KEY_PRIMARY			236
-#define WLC_SET_SCAN_PASSIVE_TIME		258
-#define WLC_GET_VAR				262	/* get value of named variable */
-#define WLC_SET_VAR				263	/* set named variable to value */
+#define	BRCMF_C_IOCTL_SMLEN	256	/* "small" ioctl buffer required */
+#define BRCMF_C_IOCTL_MEDLEN	1536	/* "med" ioctl buffer required */
+#define	BRCMF_C_IOCTL_MAXLEN	8192
+
+#define BRCMF_C_UP				2
+#define BRCMF_C_SET_PROMISC			10
+#define BRCMF_C_GET_RATE			12
+#define BRCMF_C_GET_INFRA			19
+#define BRCMF_C_SET_INFRA			20
+#define BRCMF_C_GET_AUTH			21
+#define BRCMF_C_SET_AUTH			22
+#define BRCMF_C_GET_BSSID			23
+#define BRCMF_C_GET_SSID			25
+#define BRCMF_C_SET_SSID			26
+#define BRCMF_C_GET_CHANNEL			29
+#define BRCMF_C_GET_SRL				31
+#define BRCMF_C_GET_LRL				33
+#define BRCMF_C_GET_RADIO			37
+#define BRCMF_C_SET_RADIO			38
+#define BRCMF_C_GET_PHYTYPE			39
+#define BRCMF_C_SET_KEY				45
+#define BRCMF_C_SET_PASSIVE_SCAN		49
+#define BRCMF_C_SCAN				50
+#define BRCMF_C_SCAN_RESULTS			51
+#define BRCMF_C_DISASSOC			52
+#define BRCMF_C_REASSOC				53
+#define BRCMF_C_SET_ROAM_TRIGGER		55
+#define BRCMF_C_SET_ROAM_DELTA			57
+#define BRCMF_C_GET_DTIMPRD			77
+#define BRCMF_C_SET_COUNTRY			84
+#define BRCMF_C_GET_PM				85
+#define BRCMF_C_SET_PM				86
+#define BRCMF_C_GET_AP				117
+#define BRCMF_C_SET_AP				118
+#define BRCMF_C_GET_RSSI			127
+#define BRCMF_C_GET_WSEC			133
+#define BRCMF_C_SET_WSEC			134
+#define BRCMF_C_GET_PHY_NOISE			135
+#define BRCMF_C_GET_BSS_INFO			136
+#define BRCMF_C_SET_SCAN_CHANNEL_TIME		185
+#define BRCMF_C_SET_SCAN_UNASSOC_TIME		187
+#define BRCMF_C_SCB_DEAUTHENTICATE_FOR_REASON	201
+#define BRCMF_C_GET_VALID_CHANNELS		217
+#define BRCMF_C_GET_KEY_PRIMARY			235
+#define BRCMF_C_SET_KEY_PRIMARY			236
+#define BRCMF_C_SET_SCAN_PASSIVE_TIME		258
+#define BRCMF_C_GET_VAR				262
+#define BRCMF_C_SET_VAR				263
 
 /* phy types (returned by WLC_GET_PHYTPE) */
 #define	WLC_PHY_TYPE_A		0
@@ -153,10 +157,6 @@ struct dhd_info;
 #define WL_KF_RES_4	(1 << 4)	/* Reserved for backward compat */
 #define WL_KF_RES_5	(1 << 5)	/* Reserved for backward compat */
 #define WL_IBSS_PEER_GROUP_KEY	(1 << 6)	/* Indicates a group key for a IBSS PEER */
-
-#define	WLC_IOCTL_SMLEN			256	/* "small" length ioctl buffer required */
-#define WLC_IOCTL_MEDLEN		1536	/* "med" length ioctl buffer required */
-#define	WLC_IOCTL_MAXLEN	8192
 
 #define DHD_IF_VIF	0x01	/* Virtual IF (Hidden from user) */
 
