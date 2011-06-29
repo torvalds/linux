@@ -45,12 +45,12 @@ _GLOBAL(__restore_cpu_power7)
 	blr
 
 __init_hvmode_206:
-	/* Disable CPU_FTR_HVMODE_206 and exit if MSR:HV is not set */
+	/* Disable CPU_FTR_HVMODE and exit if MSR:HV is not set */
 	mfmsr	r3
 	rldicl.	r0,r3,4,63
 	bnelr
 	ld	r5,CPU_SPEC_FEATURES(r4)
-	LOAD_REG_IMMEDIATE(r6,CPU_FTR_HVMODE_206)
+	LOAD_REG_IMMEDIATE(r6,CPU_FTR_HVMODE)
 	xor	r5,r5,r6
 	std	r5,CPU_SPEC_FEATURES(r4)
 	blr

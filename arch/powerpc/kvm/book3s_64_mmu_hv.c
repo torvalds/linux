@@ -128,7 +128,8 @@ void kvmppc_map_vrma(struct kvm *kvm, struct kvm_userspace_memory_region *mem)
 
 int kvmppc_mmu_hv_init(void)
 {
-	if (!cpu_has_feature(CPU_FTR_HVMODE_206))
+	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
+	    !cpu_has_feature(CPU_FTR_ARCH_206))
 		return -EINVAL;
 	memset(lpid_inuse, 0, sizeof(lpid_inuse));
 	set_bit(mfspr(SPRN_LPID), lpid_inuse);

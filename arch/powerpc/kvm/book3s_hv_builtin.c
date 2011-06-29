@@ -90,8 +90,8 @@ void kvm_rma_init(void)
 	void *rma;
 	struct page *pg;
 
-	/* Only do this on POWER7 in HV mode */
-	if (!cpu_has_feature(CPU_FTR_HVMODE_206))
+	/* Only do this in HV mode */
+	if (!cpu_has_feature(CPU_FTR_HVMODE))
 		return;
 
 	if (!kvm_rma_size || !kvm_rma_count)

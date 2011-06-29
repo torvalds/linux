@@ -443,7 +443,8 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 int kvmppc_core_check_processor_compat(void)
 {
-	if (cpu_has_feature(CPU_FTR_HVMODE_206))
+	if (cpu_has_feature(CPU_FTR_HVMODE) &&
+	    cpu_has_feature(CPU_FTR_ARCH_206))
 		return 0;
 	return -EIO;
 }

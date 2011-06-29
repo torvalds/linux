@@ -307,6 +307,7 @@
 #define SPRN_HASH1	0x3D2		/* Primary Hash Address Register */
 #define SPRN_HASH2	0x3D3		/* Secondary Hash Address Resgister */
 #define SPRN_HID0	0x3F0		/* Hardware Implementation Register 0 */
+#define HID0_HDICE_SH	(63 - 23)	/* 970 HDEC interrupt enable */
 #define HID0_EMCP	(1<<31)		/* Enable Machine Check pin */
 #define HID0_EBA	(1<<29)		/* Enable Bus Address Parity */
 #define HID0_EBD	(1<<28)		/* Enable Bus Data Parity */
@@ -362,6 +363,13 @@
 #define SPRN_IABR2	0x3FA		/* 83xx */
 #define SPRN_IBCR	0x135		/* 83xx Insn Breakpoint Control Reg */
 #define SPRN_HID4	0x3F4		/* 970 HID4 */
+#define  HID4_LPES0	 (1ul << (63-0)) /* LPAR env. sel. bit 0 */
+#define	 HID4_RMLS2_SH	 (63 - 2)	/* Real mode limit bottom 2 bits */
+#define	 HID4_LPID5_SH	 (63 - 6)	/* partition ID bottom 4 bits */
+#define	 HID4_RMOR_SH	 (63 - 22)	/* real mode offset (16 bits) */
+#define  HID4_LPES1	 (1 << (63-57))	/* LPAR env. sel. bit 1 */
+#define  HID4_RMLS0_SH	 (63 - 58)	/* Real mode limit top bit */
+#define	 HID4_LPID1_SH	 0		/* partition ID top 2 bits */
 #define SPRN_HID4_GEKKO	0x3F3		/* Gekko HID4 */
 #define SPRN_HID5	0x3F6		/* 970 HID5 */
 #define SPRN_HID6	0x3F9	/* BE HID 6 */
@@ -811,28 +819,28 @@
 	mfspr	rX,SPRN_SPRG_PACA;			\
 	FTR_SECTION_ELSE_NESTED(66);			\
 	mfspr	rX,SPRN_SPRG_HPACA;			\
-	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE_206, 66)
+	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE, 66)
 
 #define SET_PACA(rX)					\
 	BEGIN_FTR_SECTION_NESTED(66);			\
 	mtspr	SPRN_SPRG_PACA,rX;			\
 	FTR_SECTION_ELSE_NESTED(66);			\
 	mtspr	SPRN_SPRG_HPACA,rX;			\
-	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE_206, 66)
+	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE, 66)
 
 #define GET_SCRATCH0(rX)				\
 	BEGIN_FTR_SECTION_NESTED(66);			\
 	mfspr	rX,SPRN_SPRG_SCRATCH0;			\
 	FTR_SECTION_ELSE_NESTED(66);			\
 	mfspr	rX,SPRN_SPRG_HSCRATCH0;			\
-	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE_206, 66)
+	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE, 66)
 
 #define SET_SCRATCH0(rX)				\
 	BEGIN_FTR_SECTION_NESTED(66);			\
 	mtspr	SPRN_SPRG_SCRATCH0,rX;			\
 	FTR_SECTION_ELSE_NESTED(66);			\
 	mtspr	SPRN_SPRG_HSCRATCH0,rX;			\
-	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE_206, 66)
+	ALT_FTR_SECTION_END_NESTED_IFCLR(CPU_FTR_HVMODE, 66)
 
 #else /* CONFIG_PPC_BOOK3S_64 */
 #define GET_SCRATCH0(rX)	mfspr	rX,SPRN_SPRG_SCRATCH0
