@@ -253,7 +253,7 @@ brcmf_c_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_WDTICK):
-		int_val = (s32) dhd_watchdog_ms;
+		int_val = (s32) brcmf_watchdog_ms;
 		memcpy(arg, &int_val, val_size);
 		break;
 
@@ -271,12 +271,12 @@ brcmf_c_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 
 #ifdef DHD_DEBUG
 	case IOV_GVAL(IOV_DCONSOLE_POLL):
-		int_val = (s32) dhd_console_ms;
+		int_val = (s32) brcmf_console_ms;
 		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_DCONSOLE_POLL):
-		dhd_console_ms = (uint) int_val;
+		brcmf_console_ms = (uint) int_val;
 		break;
 
 	case IOV_SVAL(IOV_CONS):
@@ -1271,11 +1271,12 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 
 	/* Enable/Disable build-in roaming to allowed ext supplicant to take
 		 of romaing */
-	brcmu_mkiovar("roam_off", (char *)&dhd_roam, 4, iovbuf, sizeof(iovbuf));
+	brcmu_mkiovar("roam_off", (char *)&brcmf_roam, 4,
+		      iovbuf, sizeof(iovbuf));
 	dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
 
 	/* Force STA UP */
-	if (dhd_radio_up)
+	if (brcmf_radio_up)
 		dhdcdc_set_ioctl(dhd, 0, BRCMF_C_UP, (char *)&up, sizeof(up));
 
 	/* Setup event_msgs */
@@ -1290,23 +1291,23 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 
 #ifdef ARP_OFFLOAD_SUPPORT
 	/* Set and enable ARP offload feature */
-	if (dhd_arp_enable)
-		brcmf_c_arp_offload_set(dhd, dhd_arp_mode);
-	brcmf_c_arp_offload_enable(dhd, dhd_arp_enable);
+	if (brcmf_arp_enable)
+		brcmf_c_arp_offload_set(dhd, brcmf_arp_mode);
+	brcmf_c_arp_offload_enable(dhd, brcmf_arp_enable);
 #endif				/* ARP_OFFLOAD_SUPPORT */
 
 #ifdef PKT_FILTER_SUPPORT
 	{
 		int i;
 		/* Set up pkt filter */
-		if (dhd_pkt_filter_enable) {
+		if (brcmf_pkt_filter_enable) {
 			for (i = 0; i < dhd->pktfilter_count; i++) {
 				brcmf_c_pktfilter_offload_set(dhd,
 							  dhd->pktfilter[i]);
 				brcmf_c_pktfilter_offload_enable(dhd,
 				     dhd->pktfilter[i],
-				     dhd_pkt_filter_init,
-				     dhd_master_mode);
+				     brcmf_pkt_filter_init,
+				     brcmf_master_mode);
 			}
 		}
 	}

@@ -259,35 +259,35 @@ uint dhd_sysioc = true;
 module_param(dhd_sysioc, uint, 0);
 
 /* Watchdog interval */
-uint dhd_watchdog_ms = 10;
-module_param(dhd_watchdog_ms, uint, 0);
+uint brcmf_watchdog_ms = 10;
+module_param(brcmf_watchdog_ms, uint, 0);
 
 #ifdef DHD_DEBUG
 /* Console poll interval */
-uint dhd_console_ms;
-module_param(dhd_console_ms, uint, 0);
+uint brcmf_console_ms;
+module_param(brcmf_console_ms, uint, 0);
 #endif				/* DHD_DEBUG */
 
 /* ARP offload agent mode : Enable ARP Host Auto-Reply
 and ARP Peer Auto-Reply */
-uint dhd_arp_mode = 0xb;
-module_param(dhd_arp_mode, uint, 0);
+uint brcmf_arp_mode = 0xb;
+module_param(brcmf_arp_mode, uint, 0);
 
 /* ARP offload enable */
-uint dhd_arp_enable = true;
-module_param(dhd_arp_enable, uint, 0);
+uint brcmf_arp_enable = true;
+module_param(brcmf_arp_enable, uint, 0);
 
 /* Global Pkt filter enable control */
-uint dhd_pkt_filter_enable = true;
-module_param(dhd_pkt_filter_enable, uint, 0);
+uint brcmf_pkt_filter_enable = true;
+module_param(brcmf_pkt_filter_enable, uint, 0);
 
 /*  Pkt filter init setup */
-uint dhd_pkt_filter_init;
-module_param(dhd_pkt_filter_init, uint, 0);
+uint brcmf_pkt_filter_init;
+module_param(brcmf_pkt_filter_init, uint, 0);
 
 /* Pkt filter mode control */
-uint dhd_master_mode = true;
-module_param(dhd_master_mode, uint, 1);
+uint brcmf_master_mode = true;
+module_param(brcmf_master_mode, uint, 1);
 
 /* Watchdog thread priority, -1 to use kernel timer */
 int dhd_watchdog_prio = 97;
@@ -303,13 +303,13 @@ module_param(dhd_dongle_memsize, int, 0);
 
 /* Contorl fw roaming */
 #ifdef CUSTOMER_HW2
-uint dhd_roam;
+uint brcmf_roam;
 #else
-uint dhd_roam = 1;
+uint brcmf_roam = 1;
 #endif
 
 /* Control radio state */
-uint dhd_radio_up = 1;
+uint brcmf_radio_up = 1;
 
 /* Network inteface name */
 char iface_name[IFNAMSIZ] = "wlan";
@@ -321,20 +321,20 @@ module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
 int dhd_ioctl_timeout_msec = IOCTL_RESP_TIMEOUT;
 
 /* Idle timeout for backplane clock */
-int dhd_idletime = DHD_IDLETIME_TICKS;
-module_param(dhd_idletime, int, 0);
+int brcmf_idletime = BRCMF_IDLETIME_TICKS;
+module_param(brcmf_idletime, int, 0);
 
 /* Use polling */
-uint dhd_poll;
-module_param(dhd_poll, uint, 0);
+uint brcmf_poll;
+module_param(brcmf_poll, uint, 0);
 
 /* Use interrupts */
-uint dhd_intr = true;
-module_param(dhd_intr, uint, 0);
+uint brcmf_intr = true;
+module_param(brcmf_intr, uint, 0);
 
 /* SDIO Drive Strength (in milliamps) */
-uint dhd_sdiod_drive_strength = 6;
-module_param(dhd_sdiod_drive_strength, uint, 0);
+uint brcmf_sdiod_drive_strength = 6;
+module_param(brcmf_sdiod_drive_strength, uint, 0);
 
 /* Tx/Rx bounds */
 extern uint dhd_txbound;
@@ -348,12 +348,12 @@ module_param(dhd_deferred_tx, uint, 0);
 
 #ifdef SDTEST
 /* Echo packet generator (pkts/s) */
-uint dhd_pktgen;
-module_param(dhd_pktgen, uint, 0);
+uint brcmf_pktgen;
+module_param(brcmf_pktgen, uint, 0);
 
 /* Echo packet len (0 => sawtooth, max 2040) */
-uint dhd_pktgen_len;
-module_param(dhd_pktgen_len, uint, 0);
+uint brcmf_pktgen_len;
+module_param(brcmf_pktgen_len, uint, 0);
 #endif
 
 /* Version string to report */
@@ -384,13 +384,13 @@ static void dhd_set_packet_filter(int value, dhd_pub_t *dhd)
 	DHD_TRACE(("%s: %d\n", __func__, value));
 	/* 1 - Enable packet filter, only allow unicast packet to send up */
 	/* 0 - Disable packet filter */
-	if (dhd_pkt_filter_enable) {
+	if (brcmf_pkt_filter_enable) {
 		int i;
 
 		for (i = 0; i < dhd->pktfilter_count; i++) {
 			brcmf_c_pktfilter_offload_set(dhd, dhd->pktfilter[i]);
 			brcmf_c_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
-						     value, dhd_master_mode);
+						     value, brcmf_master_mode);
 		}
 	}
 #endif
@@ -1276,7 +1276,7 @@ static void dhd_watchdog(unsigned long data)
 		/* Reschedule the watchdog */
 		if (dhd->wd_timer_valid) {
 			mod_timer(&dhd->timer,
-				  jiffies + dhd_watchdog_ms * HZ / 1000);
+				  jiffies + brcmf_watchdog_ms * HZ / 1000);
 		}
 		return;
 	}
@@ -1289,7 +1289,7 @@ static void dhd_watchdog(unsigned long data)
 
 	/* Reschedule the watchdog */
 	if (dhd->wd_timer_valid)
-		mod_timer(&dhd->timer, jiffies + dhd_watchdog_ms * HZ / 1000);
+		mod_timer(&dhd->timer, jiffies + brcmf_watchdog_ms * HZ / 1000);
 }
 
 static int dhd_dpc_thread(void *data)
@@ -1992,7 +1992,7 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 
 	/* Start the watchdog timer */
 	dhd->pub.tickcnt = 0;
-	dhd_os_wd_timer(&dhd->pub, dhd_watchdog_ms);
+	dhd_os_wd_timer(&dhd->pub, brcmf_watchdog_ms);
 
 	/* Bring up the bus */
 	ret = brcmf_sdbrcm_bus_init(&dhd->pub, true);
@@ -2403,9 +2403,9 @@ void dhd_os_wd_timer(void *bus, uint wdtick)
 	}
 
 	if (wdtick) {
-		dhd_watchdog_ms = (uint) wdtick;
+		brcmf_watchdog_ms = (uint) wdtick;
 
-		if (save_dhd_watchdog_ms != dhd_watchdog_ms) {
+		if (save_dhd_watchdog_ms != brcmf_watchdog_ms) {
 
 			if (dhd->wd_timer_valid == true)
 				/* Stop timer and restart at new value */
@@ -2415,13 +2415,13 @@ void dhd_os_wd_timer(void *bus, uint wdtick)
 			   dynamically changed or in the first instance
 			 */
 			dhd->timer.expires =
-			    jiffies + dhd_watchdog_ms * HZ / 1000;
+			    jiffies + brcmf_watchdog_ms * HZ / 1000;
 			add_timer(&dhd->timer);
 
 		} else {
 			/* Re arm the timer, at last watchdog period */
 			mod_timer(&dhd->timer,
-				  jiffies + dhd_watchdog_ms * HZ / 1000);
+				  jiffies + brcmf_watchdog_ms * HZ / 1000);
 		}
 
 		dhd->wd_timer_valid = true;
@@ -2558,7 +2558,7 @@ int dhd_dev_reset(struct net_device *dev, u8 flag)
 
 	/* Turning on watchdog back */
 	if (!flag)
-		dhd_os_wd_timer(&dhd->pub, dhd_watchdog_ms);
+		dhd_os_wd_timer(&dhd->pub, brcmf_watchdog_ms);
 	DHD_ERROR(("%s:  WLAN OFF DONE\n", __func__));
 
 	return 1;

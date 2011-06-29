@@ -775,57 +775,57 @@ extern atomic_t dhd_mmc_suspend;
  */
 
 /* Watchdog timer interval */
-extern uint dhd_watchdog_ms;
+extern uint brcmf_watchdog_ms;
 
 #if defined(DHD_DEBUG)
 /* Console output poll interval */
-extern uint dhd_console_ms;
+extern uint brcmf_console_ms;
 #endif				/* defined(DHD_DEBUG) */
 
 /* Use interrupts */
-extern uint dhd_intr;
+extern uint brcmf_intr;
 
 /* Use polling */
-extern uint dhd_poll;
+extern uint brcmf_poll;
 
 /* ARP offload agent mode */
-extern uint dhd_arp_mode;
+extern uint brcmf_arp_mode;
 
 /* ARP offload enable */
-extern uint dhd_arp_enable;
+extern uint brcmf_arp_enable;
 
 /* Pkt filte enable control */
-extern uint dhd_pkt_filter_enable;
+extern uint brcmf_pkt_filter_enable;
 
 /*  Pkt filter init setup */
-extern uint dhd_pkt_filter_init;
+extern uint brcmf_pkt_filter_init;
 
 /* Pkt filter mode control */
-extern uint dhd_master_mode;
+extern uint brcmf_master_mode;
 
 /* Roaming mode control */
-extern uint dhd_roam;
+extern uint brcmf_roam;
 
 /* Roaming mode control */
-extern uint dhd_radio_up;
+extern uint brcmf_radio_up;
 
 /* Initial idletime ticks (may be -1 for immediate idle, 0 for no idle) */
-extern int dhd_idletime;
-#define DHD_IDLETIME_TICKS 1
+extern int brcmf_idletime;
+#define BRCMF_IDLETIME_TICKS 1
 
 /* SDIO Drive Strength */
-extern uint dhd_sdiod_drive_strength;
+extern uint brcmf_sdiod_drive_strength;
 
 /* Override to force tx queueing all the time */
-extern uint dhd_force_tx_queueing;
+extern uint brcmf_force_tx_queueing;
 
 #ifdef SDTEST
 /* Echo packet generator (SDIO), pkts/s */
-extern uint dhd_pktgen;
+extern uint brcmf_pktgen;
 
 /* Echo packet len (0 => sawtooth, max 1800) */
-extern uint dhd_pktgen_len;
-#define MAX_PKTGEN_LEN 1800
+extern uint brcmf_pktgen_len;
+#define BRCMF_MAX_PKTGEN_LEN 1800
 #endif
 
 extern char brcmf_fw_path[MOD_PARAM_PATHLEN];
@@ -1032,7 +1032,7 @@ typedef struct dhd_ioctl {
 
 #ifdef SDTEST
 /* For pktgen iovar */
-typedef struct dhd_pktgen {
+typedef struct brcmf_pktgen {
 	uint version;		/* To allow structure change tracking */
 	uint freq;		/* Max ticks between tx/rx attempts */
 	uint count;		/* Test packets to send/rcv each attempt */
@@ -1045,7 +1045,7 @@ typedef struct dhd_pktgen {
 	uint numfail;		/* Count of test send failures */
 	uint mode;		/* Test mode (type of test packets) */
 	uint stop;		/* Stop after this many tx failures */
-} dhd_pktgen_t;
+} brcmf_pktgen_t;
 
 /* Version in case structure changes */
 #define DHD_PKTGEN_VERSION 2

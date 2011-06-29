@@ -999,7 +999,7 @@ static int brcmf_sdbrcm_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 	/* Early exit if we're already there */
 	if (bus->clkstate == target) {
 		if (target == CLK_AVAIL) {
-			dhd_os_wd_timer(bus->dhd, dhd_watchdog_ms);
+			dhd_os_wd_timer(bus->dhd, brcmf_watchdog_ms);
 			bus->activity = true;
 		}
 		return 0;
@@ -1012,7 +1012,7 @@ static int brcmf_sdbrcm_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 			brcmf_sdbrcm_sdclk(bus, true);
 		/* Now request HT Avail on the backplane */
 		brcmf_sdbrcm_htclk(bus, true, pendok);
-		dhd_os_wd_timer(bus->dhd, dhd_watchdog_ms);
+		dhd_os_wd_timer(bus->dhd, brcmf_watchdog_ms);
 		bus->activity = true;
 		break;
 
@@ -1025,7 +1025,7 @@ static int brcmf_sdbrcm_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 		else
 			DHD_ERROR(("brcmf_sdbrcm_clkctl: request for %d -> %d"
 				   "\n", bus->clkstate, target));
-		dhd_os_wd_timer(bus->dhd, dhd_watchdog_ms);
+		dhd_os_wd_timer(bus->dhd, brcmf_watchdog_ms);
 		break;
 
 	case CLK_NONE:
@@ -1781,7 +1781,7 @@ const struct brcmu_iovar dhdsdio_iovars[] = {
 #ifdef SDTEST
 	{"extloop", IOV_EXTLOOP, 0, IOVT_BOOL, 0}
 	,
-	{"pktgen", IOV_PKTGEN, 0, IOVT_BUFFER, sizeof(dhd_pktgen_t)}
+	{"pktgen", IOV_PKTGEN, 0, IOVT_BUFFER, sizeof(brcmf_pktgen_t)}
 	,
 #endif				/* SDTEST */
 
@@ -1918,7 +1918,7 @@ void dhd_bus_clearcounts(dhd_pub_t *dhdp)
 #ifdef SDTEST
 static int brcmf_sdbrcm_pktgen_get(dhd_bus_t *bus, u8 *arg)
 {
-	dhd_pktgen_t pktgen;
+	brcmf_pktgen_t pktgen;
 
 	pktgen.version = DHD_PKTGEN_VERSION;
 	pktgen.freq = bus->pktgen_freq;
@@ -1940,7 +1940,7 @@ static int brcmf_sdbrcm_pktgen_get(dhd_bus_t *bus, u8 *arg)
 
 static int brcmf_sdbrcm_pktgen_set(dhd_bus_t *bus, u8 *arg)
 {
-	dhd_pktgen_t pktgen;
+	brcmf_pktgen_t pktgen;
 	uint oldcnt, oldmode;
 
 	memcpy(&pktgen, arg, sizeof(pktgen));
@@ -2544,14 +2544,14 @@ brcmf_sdbrcm_doiovar(dhd_bus_t *bus, const struct brcmu_iovar *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_SDIOD_DRIVE):
-		int_val = (s32) dhd_sdiod_drive_strength;
+		int_val = (s32) brcmf_sdiod_drive_strength;
 		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_SDIOD_DRIVE):
-		dhd_sdiod_drive_strength = int_val;
+		brcmf_sdiod_drive_strength = int_val;
 		brcmf_sdbrcm_sdiod_drive_strength_init(bus,
-					     dhd_sdiod_drive_strength);
+					     brcmf_sdiod_drive_strength);
 		break;
 
 	case IOV_SVAL(IOV_DOWNLOAD):
@@ -4757,19 +4757,20 @@ void brcmf_sdbrcm_isr(void *arg)
 static void brcmf_sdbrcm_pktgen_init(dhd_bus_t *bus)
 {
 	/* Default to specified length, or full range */
-	if (dhd_pktgen_len) {
-		bus->pktgen_maxlen = min(dhd_pktgen_len, MAX_PKTGEN_LEN);
+	if (brcmf_pktgen_len) {
+		bus->pktgen_maxlen = min(brcmf_pktgen_len,
+					 BRCMF_MAX_PKTGEN_LEN);
 		bus->pktgen_minlen = bus->pktgen_maxlen;
 	} else {
-		bus->pktgen_maxlen = MAX_PKTGEN_LEN;
+		bus->pktgen_maxlen = BRCMF_MAX_PKTGEN_LEN;
 		bus->pktgen_minlen = 0;
 	}
 	bus->pktgen_len = (u16) bus->pktgen_minlen;
 
 	/* Default to per-watchdog burst with 10s print time */
 	bus->pktgen_freq = 1;
-	bus->pktgen_print = 10000 / dhd_watchdog_ms;
-	bus->pktgen_count = (dhd_pktgen * dhd_watchdog_ms + 999) / 1000;
+	bus->pktgen_print = 10000 / brcmf_watchdog_ms;
+	bus->pktgen_count = (brcmf_pktgen * brcmf_watchdog_ms + 999) / 1000;
 
 	/* Default to echo mode */
 	bus->pktgen_mode = DHD_PKTGEN_ECHO;
@@ -5069,14 +5070,14 @@ extern bool brcmf_sdbrcm_bus_watchdog(dhd_pub_t *dhdp)
 	}
 #ifdef DHD_DEBUG
 	/* Poll for console output periodically */
-	if (dhdp->busstate == DHD_BUS_DATA && dhd_console_ms != 0) {
-		bus->console.count += dhd_watchdog_ms;
-		if (bus->console.count >= dhd_console_ms) {
-			bus->console.count -= dhd_console_ms;
+	if (dhdp->busstate == DHD_BUS_DATA && brcmf_console_ms != 0) {
+		bus->console.count += brcmf_watchdog_ms;
+		if (bus->console.count >= brcmf_console_ms) {
+			bus->console.count -= brcmf_console_ms;
 			/* Make sure backplane clock is on */
 			brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
 			if (brcmf_sdbrcm_readconsole(bus) < 0)
-				dhd_console_ms = 0;	/* On error,
+				brcmf_console_ms = 0;	/* On error,
 							 stop trying */
 		}
 	}
@@ -5098,7 +5099,7 @@ extern bool brcmf_sdbrcm_bus_watchdog(dhd_pub_t *dhdp)
 			bus->idlecount = 0;
 			if (bus->activity) {
 				bus->activity = false;
-				dhd_os_wd_timer(bus->dhd, dhd_watchdog_ms);
+				dhd_os_wd_timer(bus->dhd, brcmf_watchdog_ms);
 			} else {
 				brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
 			}
@@ -5390,7 +5391,7 @@ brcmf_sdbrcm_probe_attach(struct dhd_bus *bus, void *sdh, void *regsva,
 		goto fail;
 	}
 
-	brcmf_sdbrcm_sdiod_drive_strength_init(bus, dhd_sdiod_drive_strength);
+	brcmf_sdbrcm_sdiod_drive_strength_init(bus, brcmf_sdiod_drive_strength);
 
 	/* Get info on the ARM and SOCRAM cores... */
 	if (!DHD_NOPMU(bus)) {
@@ -5421,8 +5422,8 @@ brcmf_sdbrcm_probe_attach(struct dhd_bus *bus, void *sdh, void *regsva,
 	bus->rxhdr = (u8 *) roundup((unsigned long)&bus->hdrbuf[0], DHD_SDALIGN);
 
 	/* Set the poll and/or interrupt flags */
-	bus->intr = (bool) dhd_intr;
-	bus->poll = (bool) dhd_poll;
+	bus->intr = (bool) brcmf_intr;
+	bus->poll = (bool) brcmf_poll;
 	if (bus->poll)
 		bus->pollrate = 1;
 
@@ -5498,7 +5499,7 @@ static bool brcmf_sdbrcm_probe_init(dhd_bus_t *bus, void *sdh)
 
 	/* ...and initialize clock/power states */
 	bus->clkstate = CLK_SDONLY;
-	bus->idletime = (s32) dhd_idletime;
+	bus->idletime = (s32) brcmf_idletime;
 	bus->idleclock = DHD_IDLE_ACTIVE;
 
 	/* Query the F2 block size, set roundup accordingly */

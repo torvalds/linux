@@ -2101,7 +2101,7 @@ static s32 wl_cfg80211_resume(struct wiphy *wiphy)
 
 	if (test_bit(WL_STATUS_READY, &wl->status)) {
 		/* Turn on Watchdog timer */
-		wl_os_wd_timer(ndev, dhd_watchdog_ms);
+		wl_os_wd_timer(ndev, brcmf_watchdog_ms);
 		wl_invoke_iscan(wiphy_to_wl(wiphy));
 	}
 
