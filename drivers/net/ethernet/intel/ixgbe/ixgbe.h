@@ -91,14 +91,16 @@
 #define IXGBE_RX_BUFFER_WRITE	16	/* Must be power of 2 */
 
 #define IXGBE_TX_FLAGS_CSUM		(u32)(1)
-#define IXGBE_TX_FLAGS_VLAN		(u32)(1 << 1)
-#define IXGBE_TX_FLAGS_TSO		(u32)(1 << 2)
-#define IXGBE_TX_FLAGS_IPV4		(u32)(1 << 3)
-#define IXGBE_TX_FLAGS_FCOE		(u32)(1 << 4)
-#define IXGBE_TX_FLAGS_FSO		(u32)(1 << 5)
-#define IXGBE_TX_FLAGS_MAPPED_AS_PAGE	(u32)(1 << 6)
+#define IXGBE_TX_FLAGS_HW_VLAN		(u32)(1 << 1)
+#define IXGBE_TX_FLAGS_SW_VLAN		(u32)(1 << 2)
+#define IXGBE_TX_FLAGS_TSO		(u32)(1 << 3)
+#define IXGBE_TX_FLAGS_IPV4		(u32)(1 << 4)
+#define IXGBE_TX_FLAGS_FCOE		(u32)(1 << 5)
+#define IXGBE_TX_FLAGS_FSO		(u32)(1 << 6)
+#define IXGBE_TX_FLAGS_MAPPED_AS_PAGE	(u32)(1 << 7)
 #define IXGBE_TX_FLAGS_VLAN_MASK	0xffff0000
-#define IXGBE_TX_FLAGS_VLAN_PRIO_MASK   0x0000e000
+#define IXGBE_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
+#define IXGBE_TX_FLAGS_VLAN_PRIO_SHIFT  29
 #define IXGBE_TX_FLAGS_VLAN_SHIFT	16
 
 #define IXGBE_MAX_RSC_INT_RATE          162760
