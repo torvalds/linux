@@ -33,6 +33,9 @@
 #else
 #include <asm/kvm_booke.h>
 #endif
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+#include <asm/paca.h>
+#endif
 
 enum emulation_result {
 	EMULATE_DONE,         /* no further processing */
@@ -168,5 +171,15 @@ void kvmppc_get_sregs_ivor(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 int kvmppc_set_sregs_ivor(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 
 void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid);
+
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
+{
+	paca[cpu].kvm_hstate.xics_phys = addr;
+}
+#else
+static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
+{}
+#endif
 
 #endif /* __POWERPC_KVM_PPC_H__ */

@@ -78,6 +78,8 @@ struct kvmppc_host_state {
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	struct kvm_vcpu *kvm_vcpu;
+	struct kvmppc_vcore *kvm_vcore;
+	unsigned long xics_phys;
 	u64 dabr;
 	u64 host_mmcr[3];
 	u32 host_pmc[6];

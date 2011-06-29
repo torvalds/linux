@@ -30,8 +30,6 @@
  *                                                                           *
  ****************************************************************************/
 
-#define SHADOW_VCPU_OFF		PACA_KVM_SVCPU
-
 	.globl	kvmppc_skip_interrupt
 kvmppc_skip_interrupt:
 	mfspr	r13,SPRN_SRR0
@@ -78,6 +76,32 @@ _GLOBAL(kvmppc_hv_entry_trampoline)
  *                               Entry code                                   *
  *                                                                            *
  *****************************************************************************/
+
+#define XICS_XIRR		4
+#define XICS_QIRR		0xc
+
+/*
+ * We come in here when wakened from nap mode on a secondary hw thread.
+ * Relocation is off and most register values are lost.
+ * r13 points to the PACA.
+ */
+	.globl	kvm_start_guest
+kvm_start_guest:
+	ld	r1,PACAEMERGSP(r13)
+	subi	r1,r1,STACK_FRAME_OVERHEAD
+
+	/* get vcpu pointer */
+	ld	r4, HSTATE_KVM_VCPU(r13)
+
+	/* We got here with an IPI; clear it */
+	ld	r5, HSTATE_XICS_PHYS(r13)
+	li	r0, 0xff
+	li	r6, XICS_QIRR
+	li	r7, XICS_XIRR
+	lwzcix	r8, r5, r7		/* ack the interrupt */
+	sync
+	stbcix	r0, r5, r6		/* clear it */
+	stwcix	r8, r5, r7		/* EOI it */
 
 .global kvmppc_hv_entry
 kvmppc_hv_entry:
@@ -200,7 +224,20 @@ kvmppc_hv_entry:
 	slbia
 	ptesync
 
-	/* Switch to guest partition. */
+	/* Increment entry count iff exit count is zero. */
+	ld	r5,HSTATE_KVM_VCORE(r13)
+	addi	r9,r5,VCORE_ENTRY_EXIT
+21:	lwarx	r3,0,r9
+	cmpwi	r3,0x100		/* any threads starting to exit? */
+	bge	secondary_too_late	/* if so we're too late to the party */
+	addi	r3,r3,1
+	stwcx.	r3,0,r9
+	bne	21b
+
+	/* Primary thread switches to guest partition. */
+	lwz	r6,VCPU_PTID(r4)
+	cmpwi	r6,0
+	bne	20f
 	ld	r9,VCPU_KVM(r4)		/* pointer to struct kvm */
 	ld	r6,KVM_SDR1(r9)
 	lwz	r7,KVM_LPID(r9)
@@ -210,7 +247,15 @@ kvmppc_hv_entry:
 	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
 	mtspr	SPRN_LPID,r7
 	isync
-	ld	r8,VCPU_LPCR(r4)
+	li	r0,1
+	stb	r0,VCORE_IN_GUEST(r5)	/* signal secondaries to continue */
+	b	10f
+
+	/* Secondary threads wait for primary to have done partition switch */
+20:	lbz	r0,VCORE_IN_GUEST(r5)
+	cmpwi	r0,0
+	beq	20b
+10:	ld	r8,VCPU_LPCR(r4)
 	mtspr	SPRN_LPCR,r8
 	isync
 
@@ -225,10 +270,12 @@ kvmppc_hv_entry:
 	 * Invalidate the TLB if we could possibly have stale TLB
 	 * entries for this partition on this core due to the use
 	 * of tlbiel.
+	 * XXX maybe only need this on primary thread?
 	 */
 	ld	r9,VCPU_KVM(r4)		/* pointer to struct kvm */
 	lwz	r5,VCPU_VCPUID(r4)
 	lhz	r6,PACAPACAINDEX(r13)
+	rldimi	r6,r5,0,62		/* XXX map as if threads 1:1 p:v */
 	lhz	r8,VCPU_LAST_CPU(r4)
 	sldi	r7,r6,1			/* see if this is the same vcpu */
 	add	r7,r7,r9		/* as last ran on this pcpu */
@@ -512,8 +559,60 @@ hcall_real_cont:
 	ptesync
 
 hdec_soon:
-	/* Switch back to host partition */
+	/* Increment the threads-exiting-guest count in the 0xff00
+	   bits of vcore->entry_exit_count */
+	lwsync
+	ld	r5,HSTATE_KVM_VCORE(r13)
+	addi	r6,r5,VCORE_ENTRY_EXIT
+41:	lwarx	r3,0,r6
+	addi	r0,r3,0x100
+	stwcx.	r0,0,r6
+	bne	41b
+
+	/*
+	 * At this point we have an interrupt that we have to pass
+	 * up to the kernel or qemu; we can't handle it in real mode.
+	 * Thus we have to do a partition switch, so we have to
+	 * collect the other threads, if we are the first thread
+	 * to take an interrupt.  To do this, we set the HDEC to 0,
+	 * which causes an HDEC interrupt in all threads within 2ns
+	 * because the HDEC register is shared between all 4 threads.
+	 * However, we don't need to bother if this is an HDEC
+	 * interrupt, since the other threads will already be on their
+	 * way here in that case.
+	 */
+	cmpwi	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
+	beq	40f
+	cmpwi	r3,0x100	/* Are we the first here? */
+	bge	40f
+	cmpwi	r3,1
+	ble	40f
+	li	r0,0
+	mtspr	SPRN_HDEC,r0
+40:
+
+	/* Secondary threads wait for primary to do partition switch */
 	ld	r4,VCPU_KVM(r9)		/* pointer to struct kvm */
+	ld	r5,HSTATE_KVM_VCORE(r13)
+	lwz	r3,VCPU_PTID(r9)
+	cmpwi	r3,0
+	beq	15f
+	HMT_LOW
+13:	lbz	r3,VCORE_IN_GUEST(r5)
+	cmpwi	r3,0
+	bne	13b
+	HMT_MEDIUM
+	b	16f
+
+	/* Primary thread waits for all the secondaries to exit guest */
+15:	lwz	r3,VCORE_ENTRY_EXIT(r5)
+	srwi	r0,r3,8
+	clrldi	r3,r3,56
+	cmpw	r3,r0
+	bne	15b
+	isync
+
+	/* Primary thread switches back to host partition */
 	ld	r6,KVM_HOST_SDR1(r4)
 	lwz	r7,KVM_HOST_LPID(r4)
 	li	r8,LPID_RSVD		/* switch to reserved LPID */
@@ -522,10 +621,12 @@ hdec_soon:
 	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
 	mtspr	SPRN_LPID,r7
 	isync
+	li	r0,0
+	stb	r0,VCORE_IN_GUEST(r5)
 	lis	r8,0x7fff		/* MAX_INT@h */
 	mtspr	SPRN_HDEC,r8
 
-	ld	r8,KVM_HOST_LPCR(r4)
+16:	ld	r8,KVM_HOST_LPCR(r4)
 	mtspr	SPRN_LPCR,r8
 	isync
 
@@ -633,6 +734,11 @@ hdec_soon:
 	/* save FP state */
 	mr	r3, r9
 	bl	.kvmppc_save_fp
+
+	/* Secondary threads go off to take a nap */
+	lwz	r0,VCPU_PTID(r3)
+	cmpwi	r0,0
+	bne	secondary_nap
 
 	/*
 	 * Reload DEC.  HDEC interrupts were disabled when
@@ -839,6 +945,56 @@ _GLOBAL(kvmppc_h_set_dabr)
 	mtspr	SPRN_DABR,r4
 	li	r3,0
 	blr
+
+secondary_too_late:
+	ld	r5,HSTATE_KVM_VCORE(r13)
+	HMT_LOW
+13:	lbz	r3,VCORE_IN_GUEST(r5)
+	cmpwi	r3,0
+	bne	13b
+	HMT_MEDIUM
+	ld	r11,PACA_SLBSHADOWPTR(r13)
+
+	.rept	SLB_NUM_BOLTED
+	ld	r5,SLBSHADOW_SAVEAREA(r11)
+	ld	r6,SLBSHADOW_SAVEAREA+8(r11)
+	andis.	r7,r5,SLB_ESID_V@h
+	beq	1f
+	slbmte	r6,r5
+1:	addi	r11,r11,16
+	.endr
+	b	50f
+
+secondary_nap:
+	/* Clear any pending IPI */
+50:	ld	r5, HSTATE_XICS_PHYS(r13)
+	li	r0, 0xff
+	li	r6, XICS_QIRR
+	stbcix	r0, r5, r6
+
+	/* increment the nap count and then go to nap mode */
+	ld	r4, HSTATE_KVM_VCORE(r13)
+	addi	r4, r4, VCORE_NAP_COUNT
+	lwsync				/* make previous updates visible */
+51:	lwarx	r3, 0, r4
+	addi	r3, r3, 1
+	stwcx.	r3, 0, r4
+	bne	51b
+	isync
+
+	mfspr	r4, SPRN_LPCR
+	li	r0, LPCR_PECE
+	andc	r4, r4, r0
+	ori	r4, r4, LPCR_PECE0	/* exit nap on interrupt */
+	mtspr	SPRN_LPCR, r4
+	li	r0, 0
+	std	r0, HSTATE_SCRATCH0(r13)
+	ptesync
+	ld	r0, HSTATE_SCRATCH0(r13)
+1:	cmpd	r0, r0
+	bne	1b
+	nap
+	b	.
 
 /*
  * Save away FP, VMX and VSX registers.

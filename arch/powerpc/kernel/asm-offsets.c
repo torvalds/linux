@@ -471,6 +471,10 @@ int main(void)
 	DEFINE(VCPU_FAULT_DAR, offsetof(struct kvm_vcpu, arch.fault_dar));
 	DEFINE(VCPU_LAST_INST, offsetof(struct kvm_vcpu, arch.last_inst));
 	DEFINE(VCPU_TRAP, offsetof(struct kvm_vcpu, arch.trap));
+	DEFINE(VCPU_PTID, offsetof(struct kvm_vcpu, arch.ptid));
+	DEFINE(VCORE_ENTRY_EXIT, offsetof(struct kvmppc_vcore, entry_exit_count));
+	DEFINE(VCORE_NAP_COUNT, offsetof(struct kvmppc_vcore, nap_count));
+	DEFINE(VCORE_IN_GUEST, offsetof(struct kvmppc_vcore, in_guest));
 	DEFINE(VCPU_SVCPU, offsetof(struct kvmppc_vcpu_book3s, shadow_vcpu) -
 			   offsetof(struct kvmppc_vcpu_book3s, vcpu));
 	DEFINE(VCPU_SLB_E, offsetof(struct kvmppc_slb, orige));
@@ -530,6 +534,8 @@ int main(void)
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	HSTATE_FIELD(HSTATE_KVM_VCPU, kvm_vcpu);
+	HSTATE_FIELD(HSTATE_KVM_VCORE, kvm_vcore);
+	HSTATE_FIELD(HSTATE_XICS_PHYS, xics_phys);
 	HSTATE_FIELD(HSTATE_MMCR, host_mmcr);
 	HSTATE_FIELD(HSTATE_PMC, host_pmc);
 	HSTATE_FIELD(HSTATE_PURR, host_purr);

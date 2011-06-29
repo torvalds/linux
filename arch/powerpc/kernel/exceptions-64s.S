@@ -49,19 +49,32 @@ BEGIN_FTR_SECTION
 	 * state loss at this time.
 	 */
 	mfspr	r13,SPRN_SRR1
-	rlwinm	r13,r13,47-31,30,31
-	cmpwi	cr0,r13,1
-	bne	1f
-	b	.power7_wakeup_noloss
-1:	cmpwi	cr0,r13,2
-	bne	1f
-	b	.power7_wakeup_loss
+	rlwinm.	r13,r13,47-31,30,31
+	beq	9f
+
+	/* waking up from powersave (nap) state */
+	cmpwi	cr1,r13,2
 	/* Total loss of HV state is fatal, we could try to use the
 	 * PIR to locate a PACA, then use an emergency stack etc...
 	 * but for now, let's just stay stuck here
 	 */
-1:	cmpwi	cr0,r13,3
-	beq	.
+	bgt	cr1,.
+	GET_PACA(r13)
+
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	lbz	r0,PACAPROCSTART(r13)
+	cmpwi	r0,0x80
+	bne	1f
+	li	r0,0
+	stb	r0,PACAPROCSTART(r13)
+	b	kvm_start_guest
+1:
+#endif
+
+	beq	cr1,2f
+	b	.power7_wakeup_noloss
+2:	b	.power7_wakeup_loss
+9:
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE_206)
 #endif /* CONFIG_PPC_P7_NAP */
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,

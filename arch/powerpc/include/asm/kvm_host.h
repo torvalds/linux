@@ -25,10 +25,14 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/kvm_types.h>
+#include <linux/threads.h>
+#include <linux/spinlock.h>
 #include <linux/kvm_para.h>
 #include <asm/kvm_asm.h>
+#include <asm/processor.h>
 
-#define KVM_MAX_VCPUS 1
+#define KVM_MAX_VCPUS		NR_CPUS
+#define KVM_MAX_VCORES		NR_CPUS
 #define KVM_MEMORY_SLOTS 32
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
@@ -167,8 +171,33 @@ struct kvm_arch {
 	int tlbie_lock;
 	struct list_head spapr_tce_tables;
 	unsigned short last_vcpu[NR_CPUS];
+	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
 };
+
+/*
+ * Struct for a virtual core.
+ * Note: entry_exit_count combines an entry count in the bottom 8 bits
+ * and an exit count in the next 8 bits.  This is so that we can
+ * atomically increment the entry count iff the exit count is 0
+ * without taking the lock.
+ */
+struct kvmppc_vcore {
+	int n_runnable;
+	int n_blocked;
+	int num_threads;
+	int entry_exit_count;
+	int n_woken;
+	int nap_count;
+	u16 pcpu;
+	u8 vcore_running;
+	u8 in_guest;
+	struct list_head runnable_threads;
+	spinlock_t lock;
+};
+
+#define VCORE_ENTRY_COUNT(vc)	((vc)->entry_exit_count & 0xff)
+#define VCORE_EXIT_COUNT(vc)	((vc)->entry_exit_count >> 8)
 
 struct kvmppc_pte {
 	ulong eaddr;
@@ -365,14 +394,29 @@ struct kvm_vcpu_arch {
 	struct slb_shadow *slb_shadow;
 	struct dtl *dtl;
 	struct dtl *dtl_end;
+
+	struct kvmppc_vcore *vcore;
+	int ret;
 	int trap;
+	int state;
+	int ptid;
+	wait_queue_head_t cpu_run;
+
 	struct kvm_vcpu_arch_shared *shared;
 	unsigned long magic_page_pa; /* phys addr to map the magic page to */
 	unsigned long magic_page_ea; /* effect. addr to map the magic page to */
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	struct kvm_vcpu_arch_shared shregs;
+
+	struct list_head run_list;
+	struct task_struct *run_task;
+	struct kvm_run *kvm_run;
 #endif
 };
+
+#define KVMPPC_VCPU_BUSY_IN_HOST	0
+#define KVMPPC_VCPU_BLOCKED		1
+#define KVMPPC_VCPU_RUNNABLE		2
 
 #endif /* __POWERPC_KVM_HOST_H__ */

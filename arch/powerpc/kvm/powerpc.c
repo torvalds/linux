@@ -30,6 +30,7 @@
 #include <asm/uaccess.h>
 #include <asm/kvm_ppc.h>
 #include <asm/tlbflush.h>
+#include <asm/cputhreads.h>
 #include "timing.h"
 #include "../mm/mmu_decl.h"
 
@@ -206,6 +207,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	case KVM_CAP_SPAPR_TCE:
 		r = 1;
+		break;
+	case KVM_CAP_PPC_SMT:
+		r = threads_per_core;
 		break;
 #endif
 	default:
