@@ -107,6 +107,9 @@ static int xenbus_uevent_backend(struct device *dev,
 	if (xdev == NULL)
 		return -ENODEV;
 
+	if (add_uevent_var(env, "MODALIAS=xen-backend:%s", xdev->devicetype))
+		return -ENOMEM;
+
 	/* stuff we want to pass to /sbin/hotplug */
 	if (add_uevent_var(env, "XENBUS_TYPE=%s", xdev->devicetype))
 		return -ENOMEM;

@@ -393,7 +393,8 @@ static ssize_t devtype_show(struct device *dev,
 static ssize_t modalias_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "xen:%s\n", to_xenbus_device(dev)->devicetype);
+	return sprintf(buf, "%s:%s\n", dev->bus->name,
+		       to_xenbus_device(dev)->devicetype);
 }
 
 struct device_attribute xenbus_dev_attrs[] = {
