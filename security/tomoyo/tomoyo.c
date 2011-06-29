@@ -51,12 +51,14 @@ static int tomoyo_bprm_set_creds(struct linux_binprm *bprm)
 	 */
 	if (bprm->cred_prepared)
 		return 0;
+#ifndef CONFIG_SECURITY_TOMOYO_OMIT_USERSPACE_LOADER
 	/*
 	 * Load policy if /sbin/tomoyo-init exists and /sbin/init is requested
 	 * for the first time.
 	 */
 	if (!tomoyo_policy_loaded)
 		tomoyo_load_policy(bprm->filename);
+#endif
 	/*
 	 * Release reference to "struct tomoyo_domain_info" stored inside
 	 * "bprm->cred->security". New reference to "struct tomoyo_domain_info"
