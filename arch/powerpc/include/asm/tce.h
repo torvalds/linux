@@ -26,10 +26,12 @@
 
 /*
  * Tces come in two formats, one for the virtual bus and a different
- * format for PCI
+ * format for PCI.  PCI TCEs can have hardware or software maintianed
+ * coherency.
  */
-#define TCE_VB  0
-#define TCE_PCI 1
+#define TCE_VB			0
+#define TCE_PCI			1
+#define TCE_PCI_SW_INVAL	2
 
 /* TCE page size is 4096 bytes (1 << 12) */
 
