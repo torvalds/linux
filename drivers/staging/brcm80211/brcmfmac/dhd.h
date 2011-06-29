@@ -21,11 +21,6 @@
 #ifndef _dhd_h_
 #define _dhd_h_
 
-/* Forward decls */
-struct dhd_bus;
-struct dhd_prot;
-struct dhd_info;
-
 #define	BRCMF_C_IOCTL_SMLEN	256	/* "small" ioctl buffer required */
 #define BRCMF_C_IOCTL_MEDLEN	1536	/* "med" ioctl buffer required */
 #define	BRCMF_C_IOCTL_MAXLEN	8192
@@ -633,12 +628,17 @@ typedef struct wl_ioctl {
 	uint needed;		/* bytes needed (optional) */
 } wl_ioctl_t;
 
+/* Forward decls for struct dhd_pub (see below) */
+struct dhd_bus;		/* device bus info */
+struct brcmf_proto;	/* device communication protocol info */
+struct dhd_info;	/* device driver info */
+
 /* Common structure for module and instance linkage */
 typedef struct dhd_pub {
 	/* Linkage ponters */
-	struct dhd_bus *bus;	/* Bus module handle */
-	struct dhd_prot *prot;	/* Protocol module handle */
-	struct dhd_info *info;	/* Info module handle */
+	struct dhd_bus *bus;
+	struct brcmf_proto *prot;
+	struct dhd_info *info;
 
 	/* Internal dhd items */
 	bool up;		/* Driver up/down (to OS) */
