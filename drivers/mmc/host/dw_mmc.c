@@ -287,7 +287,7 @@ static void send_stop_cmd(struct dw_mci *host, struct mmc_data *data)
 /* DMA interface functions */
 static void dw_mci_stop_dma(struct dw_mci *host)
 {
-	if (host->use_dma) {
+	if (host->using_dma) {
 		host->dma_ops->stop(host);
 		host->dma_ops->cleanup(host);
 	} else {
@@ -435,6 +435,8 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 	unsigned int i, direction, sg_len;
 	u32 temp;
 
+	host->using_dma = 0;
+
 	/* If we don't have a channel, we can't do DMA */
 	if (!host->use_dma)
 		return -ENODEV;
@@ -453,6 +455,8 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 		if (sg->offset & 3 || sg->length & 3)
 			return -EINVAL;
 	}
+
+	host->using_dma = 1;
 
 	if (data->flags & MMC_DATA_READ)
 		direction = DMA_FROM_DEVICE;

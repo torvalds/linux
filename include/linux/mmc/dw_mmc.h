@@ -48,6 +48,7 @@ struct mmc_data;
  * @data: The data currently being transferred, or NULL if no data
  *	transfer is in progress.
  * @use_dma: Whether DMA channel is initialized or not.
+ * @using_dma: Whether DMA is in use for the current transfer.
  * @sg_dma: Bus address of DMA buffer.
  * @sg_cpu: Virtual address of DMA buffer.
  * @dma_ops: Pointer to platform-specific DMA callbacks.
@@ -121,6 +122,7 @@ struct dw_mci {
 
 	/* DMA interface members*/
 	int			use_dma;
+	int			using_dma;
 
 	dma_addr_t		sg_dma;
 	void			*sg_cpu;
