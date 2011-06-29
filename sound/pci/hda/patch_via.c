@@ -2338,7 +2338,6 @@ static int via_parse_auto_config(struct hda_codec *codec)
 	if (spec->kctls.list)
 		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
-	spec->init_verbs[spec->num_iverbs++] = vt1708_init_verbs;
 
 	if (spec->hp_dac_nid && spec->hp_dep_path.depth) {
 		err = via_hp_build(codec);
@@ -2503,6 +2502,8 @@ static int patch_vt1708(struct hda_codec *codec)
 	/* disable 32bit format on VT1708 */
 	if (codec->vendor_id == 0x11061708)
 		spec->stream_analog_playback = &vt1708_pcm_analog_s16_playback;
+
+	spec->init_verbs[spec->num_iverbs++] = vt1708_init_verbs;
 
 	codec->patch_ops = via_patch_ops;
 
