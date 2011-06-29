@@ -113,6 +113,7 @@ extern void kvmppc_mmu_pte_flush(struct kvm_vcpu *vcpu, ulong ea, ulong ea_mask)
 extern void kvmppc_mmu_pte_vflush(struct kvm_vcpu *vcpu, u64 vp, u64 vp_mask);
 extern void kvmppc_mmu_pte_pflush(struct kvm_vcpu *vcpu, ulong pa_start, ulong pa_end);
 extern void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 new_msr);
+extern void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr);
 extern void kvmppc_mmu_book3s_64_init(struct kvm_vcpu *vcpu);
 extern void kvmppc_mmu_book3s_32_init(struct kvm_vcpu *vcpu);
 extern int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte);
@@ -148,6 +149,20 @@ extern ulong kvmppc_alignment_dar(struct kvm_vcpu *vcpu, unsigned int inst);
 static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct kvmppc_vcpu_book3s, vcpu);
+}
+
+static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
+{
+	return to_book3s(vcpu)->hior;
+}
+
+static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
+			unsigned long pending_now, unsigned long old_pending)
+{
+	if (pending_now)
+		vcpu->arch.shared->int_pending = 1;
+	else if (old_pending)
+		vcpu->arch.shared->int_pending = 0;
 }
 
 static inline ulong dsisr(void)
@@ -245,6 +260,26 @@ static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
 static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
 {
 	return to_svcpu(vcpu)->fault_dar;
+}
+
+static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)
+{
+	ulong crit_raw = vcpu->arch.shared->critical;
+	ulong crit_r1 = kvmppc_get_gpr(vcpu, 1);
+	bool crit;
+
+	/* Truncate crit indicators in 32 bit mode */
+	if (!(vcpu->arch.shared->msr & MSR_SF)) {
+		crit_raw &= 0xffffffff;
+		crit_r1 &= 0xffffffff;
+	}
+
+	/* Critical section when crit == r1 */
+	crit = (crit_raw == crit_r1);
+	/* ... and we're in supervisor mode */
+	crit = crit && !(vcpu->arch.shared->msr & MSR_PR);
+
+	return crit;
 }
 
 /* Magic register values loaded into r3 and r4 before the 'sc' assembly

@@ -43,6 +43,7 @@ kvm-book3s_64-objs := \
 	fpu.o \
 	book3s_paired_singles.o \
 	book3s.o \
+	book3s_pr.o \
 	book3s_emulate.o \
 	book3s_interrupts.o \
 	book3s_mmu_hpte.o \
@@ -56,6 +57,7 @@ kvm-book3s_32-objs := \
 	fpu.o \
 	book3s_paired_singles.o \
 	book3s.o \
+	book3s_pr.o \
 	book3s_emulate.o \
 	book3s_interrupts.o \
 	book3s_mmu_hpte.o \
