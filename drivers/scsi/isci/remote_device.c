@@ -137,10 +137,10 @@ static enum sci_status scic_sds_remote_device_terminate_requests(struct scic_sds
 {
 	struct scic_sds_controller *scic = sci_dev->owning_port->owning_controller;
 	struct isci_host *ihost = scic_to_ihost(scic);
-	u32 i, request_count = sci_dev->started_request_count;
 	enum sci_status status  = SCI_SUCCESS;
+	u32 i;
 
-	for (i = 0; i < SCI_MAX_IO_REQUESTS && i < request_count; i++) {
+	for (i = 0; i < SCI_MAX_IO_REQUESTS; i++) {
 		struct isci_request *ireq = ihost->reqs[i];
 		enum sci_status s;
 
