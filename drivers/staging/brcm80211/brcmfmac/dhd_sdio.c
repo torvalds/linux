@@ -23,6 +23,7 @@
 #include <linux/sched.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/semaphore.h>
 #include <linux/firmware.h>
 #include <asm/unaligned.h>
 #include <defs.h>
@@ -455,7 +456,7 @@ struct chip_info {
 
 /* Private data for SDIO bus interaction */
 typedef struct dhd_bus {
-	dhd_pub_t *dhd;
+	struct brcmf_pub *dhd;
 
 	struct brcmf_sdio *sdh;	/* Handle for BCMSDH calls */
 	struct chip_info *ci;	/* Chip info struct */
@@ -782,8 +783,8 @@ static void brcmf_sdbrcm_sdtest_set(dhd_bus_t *bus, bool start);
 #endif
 
 #ifdef BCMDBG
-static int brcmf_sdbrcm_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg,
-				       uint msglen);
+static int brcmf_sdbrcm_bus_console_in(struct brcmf_pub *drvr,
+				       unsigned char *msg, uint msglen);
 static int brcmf_sdbrcm_checkdied(dhd_bus_t *bus, u8 *data, uint size);
 static int brcmf_sdbrcm_mem_dump(dhd_bus_t *bus);
 #endif				/* BCMDBG  */
@@ -1425,7 +1426,7 @@ static uint brcmf_sdbrcm_sendfromq(dhd_bus_t *bus, uint maxframes)
 	uint datalen;
 	u8 tx_prec_map;
 
-	dhd_pub_t *dhd = bus->dhd;
+	struct brcmf_pub *dhd = bus->dhd;
 	struct sdpcmd_regs *regs = bus->regs;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
@@ -1792,7 +1793,7 @@ dhd_dump_pct(struct brcmu_strbuf *strbuf, char *desc, uint num, uint div)
 	}
 }
 
-void brcmf_sdbrcm_bus_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf)
+void brcmf_sdbrcm_bus_dump(struct brcmf_pub *dhdp, struct brcmu_strbuf *strbuf)
 {
 	dhd_bus_t *bus = dhdp->bus;
 
@@ -1893,7 +1894,7 @@ void brcmf_sdbrcm_bus_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf)
 		    bus->sleeping);
 }
 
-void dhd_bus_clearcounts(dhd_pub_t *dhdp)
+void dhd_bus_clearcounts(struct brcmf_pub *dhdp)
 {
 	dhd_bus_t *bus = (dhd_bus_t *) dhdp->bus;
 
@@ -2802,7 +2803,7 @@ exit:
 	brcmf_sdbrcm_sdunlock(bus);
 
 	if (actionid == IOV_SVAL(IOV_DEVRESET) && bool_val == false)
-		brcmf_c_preinit_ioctls((dhd_pub_t *) bus->dhd);
+		brcmf_c_preinit_ioctls((struct brcmf_pub *) bus->dhd);
 
 	return bcmerror;
 }
@@ -2948,7 +2949,7 @@ fail:
 }
 
 int
-brcmf_sdbrcm_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
+brcmf_sdbrcm_bus_iovar_op(struct brcmf_pub *dhdp, const char *name,
 			  void *params, int plen, void *arg, int len, bool set)
 {
 	dhd_bus_t *bus = dhdp->bus;
@@ -3127,7 +3128,7 @@ void brcmf_sdbrcm_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 #endif		/* defined(OOB_INTR_ONLY) */
 }
 
-int brcmf_sdbrcm_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
+int brcmf_sdbrcm_bus_init(struct brcmf_pub *dhdp, bool enforce_mutex)
 {
 	dhd_bus_t *bus = dhdp->bus;
 	struct brcmf_timeout tmo;
@@ -5059,7 +5060,7 @@ brcmf_sdbrcm_checkdied(dhd_bus_t *bus, struct sk_buff *pkt, uint seq)
 }
 #endif				/* SDTEST */
 
-extern bool brcmf_sdbrcm_bus_watchdog(dhd_pub_t *dhdp)
+extern bool brcmf_sdbrcm_bus_watchdog(struct brcmf_pub *dhdp)
 {
 	dhd_bus_t *bus;
 
@@ -5157,10 +5158,10 @@ extern bool brcmf_sdbrcm_bus_watchdog(dhd_pub_t *dhdp)
 }
 
 #ifdef BCMDBG
-static int brcmf_sdbrcm_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg,
-				       uint msglen)
+static int brcmf_sdbrcm_bus_console_in(struct brcmf_pub *drvr,
+				       unsigned char *msg, uint msglen)
 {
-	dhd_bus_t *bus = dhdp->bus;
+	dhd_bus_t *bus = drvr->bus;
 	u32 addr, val;
 	int rv;
 	struct sk_buff *pkt;
@@ -5973,7 +5974,7 @@ uint dhd_bus_hdrlen(struct dhd_bus *bus)
 	return SDPCM_HDRLEN;
 }
 
-int brcmf_bus_devreset(dhd_pub_t *dhdp, u8 flag)
+int brcmf_bus_devreset(struct brcmf_pub *dhdp, u8 flag)
 {
 	int bcmerror = 0;
 	dhd_bus_t *bus;
@@ -6017,7 +6018,8 @@ int brcmf_bus_devreset(dhd_pub_t *dhdp, u8 flag)
 				if (brcmf_sdbrcm_probe_init(bus, bus->sdh)) {
 					/* Re-init bus, enable F2 transfer */
 					brcmf_sdbrcm_bus_init(
-						(dhd_pub_t *) bus->dhd, false);
+						(struct brcmf_pub *) bus->dhd,
+						false);
 
 					bus->dhd->dongle_reset = false;
 					bus->dhd->up = true;

@@ -111,7 +111,7 @@ void brcmf_c_init(void)
 	brcmf_msg_level = BRCMF_ERROR_VAL;
 }
 
-static int brcmf_c_dump(dhd_pub_t *drvr, char *buf, int buflen)
+static int brcmf_c_dump(struct brcmf_pub *drvr, char *buf, int buflen)
 {
 	struct brcmu_strbuf b;
 	struct brcmu_strbuf *strbuf = &b;
@@ -169,9 +169,9 @@ static int brcmf_c_dump(dhd_pub_t *drvr, char *buf, int buflen)
 }
 
 static int
-brcmf_c_doiovar(dhd_pub_t *drvr, const struct brcmu_iovar *vi, u32 actionid,
-	    const char *name, void *params, int plen, void *arg, int len,
-	    int val_size)
+brcmf_c_doiovar(struct brcmf_pub *drvr, const struct brcmu_iovar *vi,
+		u32 actionid, const char *name, void *params, int plen,
+		void *arg, int len, int val_size)
 {
 	int bcmerror = 0;
 	s32 int_val = 0;
@@ -252,8 +252,8 @@ exit:
 	return bcmerror;
 }
 
-bool brcmf_c_prec_enq(dhd_pub_t *drvr, struct pktq *q, struct sk_buff *pkt,
-		  int prec)
+bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
+		      struct sk_buff *pkt, int prec)
 {
 	struct sk_buff *p;
 	int eprec = -1;		/* precedence to evict from */
@@ -307,7 +307,7 @@ bool brcmf_c_prec_enq(dhd_pub_t *drvr, struct pktq *q, struct sk_buff *pkt,
 }
 
 static int
-brcmf_c_iovar_op(dhd_pub_t *drvr, const char *name,
+brcmf_c_iovar_op(struct brcmf_pub *drvr, const char *name,
 	     void *params, int plen, void *arg, int len, bool set)
 {
 	int bcmerror = 0;
@@ -360,7 +360,7 @@ exit:
 	return bcmerror;
 }
 
-int brcmf_c_ioctl(dhd_pub_t *drvr, struct brcmf_c_ioctl *ioc, void *buf,
+int brcmf_c_ioctl(struct brcmf_pub *drvr, struct brcmf_c_ioctl *ioc, void *buf,
 		  uint buflen)
 {
 	int bcmerror = 0;
@@ -877,7 +877,7 @@ static int brcmf_c_pattern_atoh(char *src, char *dst)
 }
 
 void
-brcmf_c_pktfilter_offload_enable(dhd_pub_t *drvr, char *arg, int enable,
+brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg, int enable,
 			     int master_mode)
 {
 	char *argv[8];
@@ -948,7 +948,7 @@ fail:
 	kfree(arg_org);
 }
 
-void brcmf_c_pktfilter_offload_set(dhd_pub_t *drvr, char *arg)
+void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 {
 	const char *str;
 	struct brcmf_pkt_filter pkt_filter;
@@ -1084,7 +1084,7 @@ fail:
 	kfree(buf);
 }
 
-void brcmf_c_arp_offload_set(dhd_pub_t *drvr, int arp_mode)
+void brcmf_c_arp_offload_set(struct brcmf_pub *drvr, int arp_mode)
 {
 	char iovbuf[32];
 	int retcode;
@@ -1101,7 +1101,7 @@ void brcmf_c_arp_offload_set(dhd_pub_t *drvr, int arp_mode)
 			   __func__, arp_mode));
 }
 
-void brcmf_c_arp_offload_enable(dhd_pub_t *drvr, int arp_enable)
+void brcmf_c_arp_offload_enable(struct brcmf_pub *drvr, int arp_enable)
 {
 	char iovbuf[32];
 	int retcode;
@@ -1118,7 +1118,7 @@ void brcmf_c_arp_offload_enable(dhd_pub_t *drvr, int arp_enable)
 			   __func__, arp_enable));
 }
 
-int brcmf_c_preinit_ioctls(dhd_pub_t *drvr)
+int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
 {
 	char iovbuf[BRCMF_EVENTING_MASK_LEN + 12];	/*  Room for
 				 "event_msgs" + '\0' + bitvec  */

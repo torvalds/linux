@@ -76,7 +76,7 @@ struct brcmf_if {
 
 /* Local private structure (extension of pub) */
 struct brcmf_info {
-	dhd_pub_t pub;
+	struct brcmf_pub pub;
 
 	/* OS/stack specifics */
 	struct brcmf_if *iflist[BRCMF_MAX_IFS];
@@ -187,7 +187,7 @@ static int brcmf_toe_set(struct brcmf_info *drvr_priv, int idx, u32 toe_ol);
 static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 			     brcmf_event_msg_t *event_ptr, void **data_ptr);
 
-static void brcmf_set_packet_filter(int value, dhd_pub_t *drvr)
+static void brcmf_set_packet_filter(int value, struct brcmf_pub *drvr)
 {
 	DHD_TRACE(("%s: %d\n", __func__, value));
 	/* 1 - Enable packet filter, only allow unicast packet to send up */
@@ -206,7 +206,7 @@ static void brcmf_set_packet_filter(int value, dhd_pub_t *drvr)
 }
 
 #if defined(CONFIG_HAS_EARLYSUSPEND)
-static int brcmf_set_suspend(int value, dhd_pub_t *drvr)
+static int brcmf_set_suspend(int value, struct brcmf_pub *drvr)
 {
 	int power_mode = PM_MAX;
 	/* struct wl_pkt_filter_enable       enable_parm; */
@@ -273,7 +273,7 @@ static int brcmf_set_suspend(int value, dhd_pub_t *drvr)
 
 static void brcmf_suspend_resume_helper(struct brcmf_info *drvr_priv, int val)
 {
-	dhd_pub_t *drvr = &drvr_priv->pub;
+	struct brcmf_pub *drvr = &drvr_priv->pub;
 
 	brcmf_os_proto_block(drvr);
 	/* Set flag when early suspend was called */
@@ -398,7 +398,7 @@ int brcmf_ifname2idx(struct brcmf_info *drvr_priv, char *name)
 	return i;		/* default - the primary interface */
 }
 
-char *brcmf_ifname(dhd_pub_t *drvr, int ifidx)
+char *brcmf_ifname(struct brcmf_pub *drvr, int ifidx)
 {
 	struct brcmf_info *drvr_priv = drvr->info;
 
@@ -753,7 +753,7 @@ static void brcmf_netdev_set_multicast_list(struct net_device *dev)
 	up(&drvr_priv->sysioc_sem);
 }
 
-int brcmf_sendpkt(dhd_pub_t *drvr, int ifidx, struct sk_buff *pktbuf)
+int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx, struct sk_buff *pktbuf)
 {
 	struct brcmf_info *drvr_priv = drvr->info;
 
@@ -832,7 +832,7 @@ done:
 	return 0;
 }
 
-void brcmf_txflowcontrol(dhd_pub_t *drvr, int ifidx, bool state)
+void brcmf_txflowcontrol(struct brcmf_pub *drvr, int ifidx, bool state)
 {
 	struct net_device *net;
 	struct brcmf_info *drvr_priv = drvr->info;
@@ -848,7 +848,7 @@ void brcmf_txflowcontrol(dhd_pub_t *drvr, int ifidx, bool state)
 		netif_wake_queue(net);
 }
 
-void brcmf_rx_frame(dhd_pub_t *drvr, int ifidx, struct sk_buff *skb,
+void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx, struct sk_buff *skb,
 		  int numpkt)
 {
 	struct brcmf_info *drvr_priv = drvr->info;
@@ -938,7 +938,7 @@ void brcmf_event(struct brcmf_info *drvr_priv, char *evpkt, int evlen, int ifidx
 	return;
 }
 
-void brcmf_txcomplete(dhd_pub_t *drvr, struct sk_buff *txp, bool success)
+void brcmf_txcomplete(struct brcmf_pub *drvr, struct sk_buff *txp, bool success)
 {
 	uint ifidx;
 	struct brcmf_info *drvr_priv = drvr->info;
@@ -1426,7 +1426,7 @@ void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx)
 	up(&drvr_priv->sysioc_sem);
 }
 
-dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
+struct brcmf_pub *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 {
 	struct brcmf_info *drvr_priv = NULL;
 	struct net_device *net;
@@ -1535,7 +1535,7 @@ fail:
 	return NULL;
 }
 
-int brcmf_bus_start(dhd_pub_t *drvr)
+int brcmf_bus_start(struct brcmf_pub *drvr)
 {
 	int ret = -1;
 	struct brcmf_info *drvr_priv = drvr->info;
@@ -1599,7 +1599,7 @@ int brcmf_bus_start(dhd_pub_t *drvr)
 	return 0;
 }
 
-int brcmf_iovar(dhd_pub_t *drvr, int ifidx, char *name, char *cmd_buf,
+int brcmf_iovar(struct brcmf_pub *drvr, int ifidx, char *name, char *cmd_buf,
 	  uint cmd_len, int set)
 {
 	char buf[strlen(name) + 1 + cmd_len];
@@ -1633,7 +1633,7 @@ static struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_set_multicast_list = brcmf_netdev_set_multicast_list
 };
 
-int brcmf_net_attach(dhd_pub_t *drvr, int ifidx)
+int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)
 {
 	struct brcmf_info *drvr_priv = drvr->info;
 	struct net_device *net;
@@ -1689,7 +1689,7 @@ fail:
 	return -EBADE;
 }
 
-static void brcmf_bus_detach(dhd_pub_t *drvr)
+static void brcmf_bus_detach(struct brcmf_pub *drvr)
 {
 	struct brcmf_info *drvr_priv;
 
@@ -1707,7 +1707,7 @@ static void brcmf_bus_detach(dhd_pub_t *drvr)
 	}
 }
 
-void brcmf_detach(dhd_pub_t *drvr)
+void brcmf_detach(struct brcmf_pub *drvr)
 {
 	struct brcmf_info *drvr_priv;
 
@@ -1788,7 +1788,7 @@ module_exit(brcmf_module_cleanup);
 /*
  * OS specific functions required to implement DHD driver in OS independent way
  */
-int brcmf_os_proto_block(dhd_pub_t *drvr)
+int brcmf_os_proto_block(struct brcmf_pub *drvr)
 {
 	struct brcmf_info *drvr_priv = drvr->info;
 
@@ -1799,7 +1799,7 @@ int brcmf_os_proto_block(dhd_pub_t *drvr)
 	return 0;
 }
 
-int brcmf_os_proto_unblock(dhd_pub_t *drvr)
+int brcmf_os_proto_unblock(struct brcmf_pub *drvr)
 {
 	struct brcmf_info *drvr_priv = drvr->info;
 
@@ -1821,7 +1821,8 @@ void brcmf_os_set_ioctl_resp_timeout(unsigned int timeout_msec)
 	brcmf_ioctl_timeout_msec = (int)timeout_msec;
 }
 
-int brcmf_os_ioctl_resp_wait(dhd_pub_t *drvr, uint *condition, bool *pending)
+int brcmf_os_ioctl_resp_wait(struct brcmf_pub *drvr, uint *condition,
+			     bool *pending)
 {
 	struct brcmf_info *drvr_priv = drvr->info;
 	DECLARE_WAITQUEUE(wait, current);
@@ -1846,7 +1847,7 @@ int brcmf_os_ioctl_resp_wait(dhd_pub_t *drvr, uint *condition, bool *pending)
 	return timeout;
 }
 
-int brcmf_os_ioctl_resp_wake(dhd_pub_t *drvr)
+int brcmf_os_ioctl_resp_wake(struct brcmf_pub *drvr)
 {
 	struct brcmf_info *drvr_priv = drvr->info;
 
@@ -1976,7 +1977,7 @@ int brcmf_netdev_wait_pend8021x(struct net_device *dev)
 }
 
 #ifdef BCMDBG
-int brcmf_write_to_file(dhd_pub_t *drvr, u8 *buf, int size)
+int brcmf_write_to_file(struct brcmf_pub *drvr, u8 *buf, int size)
 {
 	int ret = 0;
 	struct file *fp;

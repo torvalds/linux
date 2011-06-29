@@ -40,7 +40,7 @@ extern void dhd_bus_unregister(void);
 extern void brcmf_sdbrcm_bus_stop(struct dhd_bus *bus, bool enforce_mutex);
 
 /* Initialize bus module: prepare for communication w/dongle */
-extern int brcmf_sdbrcm_bus_init(dhd_pub_t *dhdp, bool enforce_mutex);
+extern int brcmf_sdbrcm_bus_init(struct brcmf_pub *dhdp, bool enforce_mutex);
 
 /* Send a data frame to the dongle.  Callee disposes of txp. */
 extern int brcmf_sdbrcm_bus_txdata(struct dhd_bus *bus, struct sk_buff *txp);
@@ -58,15 +58,16 @@ extern void dhd_bus_isr(bool *InterruptRecognized,
 			bool *QueueMiniportHandleInterrupt, void *arg);
 
 /* Check for and handle local prot-specific iovar commands */
-extern int brcmf_sdbrcm_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
+extern int brcmf_sdbrcm_bus_iovar_op(struct brcmf_pub *dhdp, const char *name,
 			    void *params, int plen, void *arg, int len,
 			    bool set);
 
 /* Add bus dump output to a buffer */
-extern void brcmf_sdbrcm_bus_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf);
+extern void brcmf_sdbrcm_bus_dump(struct brcmf_pub *dhdp,
+				  struct brcmu_strbuf *strbuf);
 
 /* Clear any bus counters */
-extern void dhd_bus_clearcounts(dhd_pub_t *dhdp);
+extern void dhd_bus_clearcounts(struct brcmf_pub *dhdp);
 
 /* return the dongle chipid */
 extern uint dhd_bus_chip(struct dhd_bus *bus);

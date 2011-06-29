@@ -521,13 +521,13 @@ struct brcmf_ioctl {
 	uint needed;		/* bytes needed (optional) */
 };
 
-/* Forward decls for struct dhd_pub (see below) */
+/* Forward decls for struct brcmf_pub (see below) */
 struct dhd_bus;		/* device bus info */
 struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_info;	/* device driver info */
 
 /* Common structure for module and instance linkage */
-typedef struct dhd_pub {
+struct brcmf_pub {
 	/* Linkage ponters */
 	struct dhd_bus *bus;
 	struct brcmf_proto *prot;
@@ -593,7 +593,7 @@ typedef struct dhd_pub {
 	u8 country_code[WLC_CNTRY_BUF_SZ];
 	char eventmask[BRCMF_EVENTING_MASK_LEN];
 
-} dhd_pub_t;
+};
 
 struct brcmf_if_event {
 	u8 ifidx;
@@ -708,27 +708,27 @@ extern const bcmevent_name_t bcmevent_names[];
 extern const int bcmevent_names_size;
 
 
-static inline void MUTEX_LOCK_INIT(dhd_pub_t *dhdp)
+static inline void MUTEX_LOCK_INIT(struct brcmf_pub *dhdp)
 {
 }
 
-static inline void MUTEX_LOCK(dhd_pub_t *dhdp)
+static inline void MUTEX_LOCK(struct brcmf_pub *dhdp)
 {
 }
 
-static inline void MUTEX_UNLOCK(dhd_pub_t *dhdp)
+static inline void MUTEX_UNLOCK(struct brcmf_pub *dhdp)
 {
 }
 
-static inline void MUTEX_LOCK_SOFTAP_SET_INIT(dhd_pub_t *dhdp)
+static inline void MUTEX_LOCK_SOFTAP_SET_INIT(struct brcmf_pub *dhdp)
 {
 }
 
-static inline void MUTEX_LOCK_SOFTAP_SET(dhd_pub_t *dhdp)
+static inline void MUTEX_LOCK_SOFTAP_SET(struct brcmf_pub *dhdp)
 {
 }
 
-static inline void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t *dhdp)
+static inline void MUTEX_UNLOCK_SOFTAP_SET(struct brcmf_pub *dhdp)
 {
 }
 
@@ -749,58 +749,58 @@ static inline void MUTEX_UNLOCK_WL_SCAN_SET(void)
  */
 
 /* Indication from bus module regarding presence/insertion of dongle.
- * Return dhd_pub_t pointer, used as handle to OS module in later calls.
+ * Return struct brcmf_pub pointer, used as handle to OS module in later calls.
  * Returned structure should have bus and prot pointers filled in.
  * bus_hdrlen specifies required headroom for bus module header.
  */
-extern dhd_pub_t *brcmf_attach(struct dhd_bus *bus,
+extern struct brcmf_pub *brcmf_attach(struct dhd_bus *bus,
 				uint bus_hdrlen);
-extern int brcmf_net_attach(dhd_pub_t *dhdp, int idx);
+extern int brcmf_net_attach(struct brcmf_pub *dhdp, int idx);
 extern int brcmf_netdev_wait_pend8021x(struct net_device *dev);
 
 /* Indication from bus module regarding removal/absence of dongle */
-extern void brcmf_detach(dhd_pub_t *dhdp);
+extern void brcmf_detach(struct brcmf_pub *dhdp);
 
 /* Indication from bus module to change flow-control state */
-extern void brcmf_txflowcontrol(dhd_pub_t *dhdp, int ifidx, bool on);
+extern void brcmf_txflowcontrol(struct brcmf_pub *dhdp, int ifidx, bool on);
 
-extern bool brcmf_c_prec_enq(dhd_pub_t *dhdp, struct pktq *q,
+extern bool brcmf_c_prec_enq(struct brcmf_pub *dhdp, struct pktq *q,
 			 struct sk_buff *pkt, int prec);
 
 /* Receive frame for delivery to OS.  Callee disposes of rxp. */
-extern void brcmf_rx_frame(dhd_pub_t *dhdp, int ifidx,
+extern void brcmf_rx_frame(struct brcmf_pub *dhdp, int ifidx,
 			 struct sk_buff *rxp, int numpkt);
 
 /* Return pointer to interface name */
-extern char *brcmf_ifname(dhd_pub_t *dhdp, int idx);
+extern char *brcmf_ifname(struct brcmf_pub *dhdp, int idx);
 
 /* Request scheduling of the bus dpc */
-extern void brcmf_sched_dpc(dhd_pub_t *dhdp);
+extern void brcmf_sched_dpc(struct brcmf_pub *dhdp);
 
 /* Notify tx completion */
-extern void brcmf_txcomplete(dhd_pub_t *dhdp, struct sk_buff *txp,
+extern void brcmf_txcomplete(struct brcmf_pub *dhdp, struct sk_buff *txp,
 			     bool success);
 
 /* Query ioctl */
-extern int brcmf_proto_cdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd,
-				       void *buf, uint len);
+extern int brcmf_proto_cdc_query_ioctl(struct brcmf_pub *dhd, int ifidx,
+				       uint cmd, void *buf, uint len);
 
 /* OS independent layer functions */
-extern int brcmf_os_proto_block(dhd_pub_t *pub);
-extern int brcmf_os_proto_unblock(dhd_pub_t *pub);
-extern int brcmf_os_ioctl_resp_wait(dhd_pub_t *pub, uint *condition,
+extern int brcmf_os_proto_block(struct brcmf_pub *pub);
+extern int brcmf_os_proto_unblock(struct brcmf_pub *pub);
+extern int brcmf_os_ioctl_resp_wait(struct brcmf_pub *pub, uint *condition,
 				  bool *pending);
-extern int brcmf_os_ioctl_resp_wake(dhd_pub_t *pub);
+extern int brcmf_os_ioctl_resp_wake(struct brcmf_pub *pub);
 extern unsigned int brcmf_os_get_ioctl_resp_timeout(void);
 extern void brcmf_os_set_ioctl_resp_timeout(unsigned int timeout_msec);
-extern void brcmf_os_sdlock_sndup_rxq(dhd_pub_t *pub);
+extern void brcmf_os_sdlock_sndup_rxq(struct brcmf_pub *pub);
 extern void brcmf_customer_gpio_wlan_ctrl(int onoff);
 extern int brcmf_custom_get_mac_address(unsigned char *buf);
-extern void brcmf_os_sdunlock_sndup_rxq(dhd_pub_t *pub);
-extern void brcmf_os_sdlock_eventq(dhd_pub_t *pub);
-extern void brcmf_os_sdunlock_eventq(dhd_pub_t *pub);
+extern void brcmf_os_sdunlock_sndup_rxq(struct brcmf_pub *pub);
+extern void brcmf_os_sdlock_eventq(struct brcmf_pub *pub);
+extern void brcmf_os_sdunlock_eventq(struct brcmf_pub *pub);
 #ifdef BCMDBG
-extern int brcmf_write_to_file(dhd_pub_t *dhd, u8 *buf, int size);
+extern int brcmf_write_to_file(struct brcmf_pub *dhd, u8 *buf, int size);
 #endif				/* BCMDBG */
 
 extern void brcmf_timeout_start(struct brcmf_timeout *tmo, uint usec);
@@ -825,13 +825,14 @@ extern void brcmf_vif_sendup(struct brcmf_info *dhd, int ifidx,
 			     unsigned char *cp, int len);
 
 /* Send packet to dongle via data channel */
-extern int brcmf_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pkt);
+extern int brcmf_sendpkt(struct brcmf_pub *dhdp, int ifidx,\
+			 struct sk_buff *pkt);
 
-extern int brcmf_bus_devreset(dhd_pub_t *dhdp, u8 flag);
-extern int brcmf_bus_start(dhd_pub_t *dhdp);
+extern int brcmf_bus_devreset(struct brcmf_pub *dhdp, u8 flag);
+extern int brcmf_bus_start(struct brcmf_pub *dhdp);
 
-extern void brcmf_c_pktfilter_offload_set(dhd_pub_t *dhd, char *arg);
-extern void brcmf_c_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg,
+extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *dhd, char *arg);
+extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *dhd, char *arg,
 					     int enable, int master_mode);
 
 #ifdef BCMDBG

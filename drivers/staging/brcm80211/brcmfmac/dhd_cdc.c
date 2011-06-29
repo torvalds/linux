@@ -100,7 +100,7 @@ struct brcmf_proto {
 	unsigned char buf[BRCMF_C_IOCTL_MAXLEN + ROUND_UP_MARGIN];
 };
 
-static int brcmf_proto_cdc_msg(dhd_pub_t *dhd)
+static int brcmf_proto_cdc_msg(struct brcmf_pub *dhd)
 {
 	struct brcmf_proto *prot = dhd->prot;
 	int len = le32_to_cpu(prot->msg.len) +
@@ -120,7 +120,7 @@ static int brcmf_proto_cdc_msg(dhd_pub_t *dhd)
 				      len);
 }
 
-static int brcmf_proto_cdc_cmplt(dhd_pub_t *dhd, u32 id, u32 len)
+static int brcmf_proto_cdc_cmplt(struct brcmf_pub *dhd, u32 id, u32 len)
 {
 	int ret;
 	struct brcmf_proto *prot = dhd->prot;
@@ -139,8 +139,8 @@ static int brcmf_proto_cdc_cmplt(dhd_pub_t *dhd, u32 id, u32 len)
 }
 
 int
-brcmf_proto_cdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
-			    uint len)
+brcmf_proto_cdc_query_ioctl(struct brcmf_pub *dhd, int ifidx, uint cmd,
+			    void *buf, uint len)
 {
 	struct brcmf_proto *prot = dhd->prot;
 	struct brcmf_proto_cdc_ioctl *msg = &prot->msg;
@@ -221,7 +221,7 @@ done:
 	return ret;
 }
 
-int brcmf_proto_cdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd,
+int brcmf_proto_cdc_set_ioctl(struct brcmf_pub *dhd, int ifidx, uint cmd,
 			      void *buf, uint len)
 {
 	struct brcmf_proto *prot = dhd->prot;
@@ -275,8 +275,8 @@ done:
 
 extern int dhd_bus_interface(struct dhd_bus *bus, uint arg, void *arg2);
 int
-brcmf_proto_ioctl(dhd_pub_t *dhd, int ifidx, struct brcmf_ioctl *ioc, void *buf,
-		  int len)
+brcmf_proto_ioctl(struct brcmf_pub *dhd, int ifidx, struct brcmf_ioctl *ioc,
+		  void *buf, int len)
 {
 	struct brcmf_proto *prot = dhd->prot;
 	int ret = -1;
@@ -356,18 +356,19 @@ done:
 	skb->ip_summed is overloaded */
 
 int
-brcmf_proto_iovar_op(dhd_pub_t *dhdp, const char *name,
+brcmf_proto_iovar_op(struct brcmf_pub *dhdp, const char *name,
 		  void *params, int plen, void *arg, int len, bool set)
 {
 	return -ENOTSUPP;
 }
 
-void brcmf_proto_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf)
+void brcmf_proto_dump(struct brcmf_pub *dhdp, struct brcmu_strbuf *strbuf)
 {
 	brcmu_bprintf(strbuf, "Protocol CDC: reqid %d\n", dhdp->prot->reqid);
 }
 
-void brcmf_proto_hdrpush(dhd_pub_t *dhd, int ifidx, struct sk_buff *pktbuf)
+void brcmf_proto_hdrpush(struct brcmf_pub *dhd, int ifidx,
+			 struct sk_buff *pktbuf)
 {
 	struct brcmf_proto_bdc_header *h;
 
@@ -389,7 +390,8 @@ void brcmf_proto_hdrpush(dhd_pub_t *dhd, int ifidx, struct sk_buff *pktbuf)
 	BDC_SET_IF_IDX(h, ifidx);
 }
 
-int brcmf_proto_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
+int brcmf_proto_hdrpull(struct brcmf_pub *dhd, int *ifidx,
+			struct sk_buff *pktbuf)
 {
 	struct brcmf_proto_bdc_header *h;
 
@@ -433,7 +435,7 @@ int brcmf_proto_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
 	return 0;
 }
 
-int brcmf_proto_attach(dhd_pub_t *dhd)
+int brcmf_proto_attach(struct brcmf_pub *dhd)
 {
 	struct brcmf_proto *cdc;
 
@@ -461,13 +463,13 @@ fail:
 }
 
 /* ~NOTE~ What if another thread is waiting on the semaphore?  Holding it? */
-void brcmf_proto_detach(dhd_pub_t *dhd)
+void brcmf_proto_detach(struct brcmf_pub *dhd)
 {
 	kfree(dhd->prot);
 	dhd->prot = NULL;
 }
 
-void brcmf_proto_dstats(dhd_pub_t *dhd)
+void brcmf_proto_dstats(struct brcmf_pub *dhd)
 {
 	/* No stats from dongle added yet, copy bus stats */
 	dhd->dstats.tx_packets = dhd->tx_packets;
@@ -479,7 +481,7 @@ void brcmf_proto_dstats(dhd_pub_t *dhd)
 	return;
 }
 
-int brcmf_proto_init(dhd_pub_t *dhd)
+int brcmf_proto_init(struct brcmf_pub *dhd)
 {
 	int ret = 0;
 	char buf[128];
@@ -508,7 +510,7 @@ int brcmf_proto_init(dhd_pub_t *dhd)
 	return ret;
 }
 
-void brcmf_proto_stop(dhd_pub_t *dhd)
+void brcmf_proto_stop(struct brcmf_pub *dhd)
 {
 	/* Nothing to do for CDC */
 }
