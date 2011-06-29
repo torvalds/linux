@@ -3130,7 +3130,7 @@ void brcmf_sdbrcm_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 int brcmf_sdbrcm_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 {
 	dhd_bus_t *bus = dhdp->bus;
-	dhd_timeout_t tmo;
+	struct brcmf_timeout tmo;
 	uint retries = 0;
 	u8 ready, enable;
 	int err, ret = 0;

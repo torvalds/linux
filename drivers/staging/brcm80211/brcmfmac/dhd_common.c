@@ -360,7 +360,8 @@ exit:
 	return bcmerror;
 }
 
-int brcmf_c_ioctl(dhd_pub_t *drvr, dhd_ioctl_t *ioc, void *buf, uint buflen)
+int brcmf_c_ioctl(dhd_pub_t *drvr, struct brcmf_c_ioctl *ioc, void *buf,
+		  uint buflen)
 {
 	int bcmerror = 0;
 
@@ -790,7 +791,8 @@ brcmf_c_host_event(struct dhd_info *drvr_priv, int *ifidx, void *pktdata,
 	switch (type) {
 	case BRCMF_E_IF:
 		{
-			dhd_if_event_t *ifevent = (dhd_if_event_t *) event_data;
+			struct brcmf_if_event *ifevent =
+					(struct brcmf_if_event *) event_data;
 			DHD_TRACE(("%s: if event\n", __func__));
 
 			if (ifevent->ifidx > 0 &&

@@ -320,7 +320,7 @@ static void brcmf_late_resume(struct early_suspend *h)
  *              fatal();
  */
 
-void brcmf_timeout_start(dhd_timeout_t *tmo, uint usec)
+void brcmf_timeout_start(struct brcmf_timeout *tmo, uint usec)
 {
 	tmo->limit = usec;
 	tmo->increment = 0;
@@ -328,7 +328,7 @@ void brcmf_timeout_start(dhd_timeout_t *tmo, uint usec)
 	tmo->tick = 1000000 / HZ;
 }
 
-int brcmf_timeout_expired(dhd_timeout_t *tmo)
+int brcmf_timeout_expired(struct brcmf_timeout *tmo)
 {
 	/* Does nothing the first call */
 	if (tmo->increment == 0) {
@@ -1197,7 +1197,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 				    int cmd)
 {
 	dhd_info_t *drvr_priv = *(dhd_info_t **) netdev_priv(net);
-	dhd_ioctl_t ioc;
+	struct brcmf_c_ioctl ioc;
 	int bcmerror = 0;
 	int buflen = 0;
 	void *buf = NULL;

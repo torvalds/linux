@@ -595,19 +595,19 @@ typedef struct dhd_pub {
 
 } dhd_pub_t;
 
-typedef struct dhd_if_event {
+struct brcmf_if_event {
 	u8 ifidx;
 	u8 action;
 	u8 flags;
 	u8 bssidx;
-} dhd_if_event_t;
+};
 
-typedef struct {
+struct brcmf_timeout {
 	u32 limit;		/* Expiration time (usec) */
 	u32 increment;	/* Current expiration increment (usec) */
 	u32 elapsed;		/* Current elapsed time (usec) */
 	u32 tick;		/* O/S tick time (usec) */
-} dhd_timeout_t;
+};
 
 typedef struct {
 	uint event;
@@ -803,8 +803,8 @@ extern void brcmf_os_sdunlock_eventq(dhd_pub_t *pub);
 extern int brcmf_write_to_file(dhd_pub_t *dhd, u8 *buf, int size);
 #endif				/* BCMDBG */
 
-extern void brcmf_timeout_start(dhd_timeout_t *tmo, uint usec);
-extern int brcmf_timeout_expired(dhd_timeout_t *tmo);
+extern void brcmf_timeout_start(struct brcmf_timeout *tmo, uint usec);
+extern int brcmf_timeout_expired(struct brcmf_timeout *tmo);
 
 extern int brcmf_ifname2idx(struct dhd_info *dhd, char *name);
 extern int brcmf_c_host_event(struct dhd_info *dhd, int *idx, void *pktdata,
@@ -843,7 +843,7 @@ extern void osl_assert(char *exp, char *file, int line);
 #endif  /* defined(BCMDBG) */
 
 /* Linux network driver ioctl encoding */
-typedef struct dhd_ioctl {
+struct brcmf_c_ioctl {
 	uint cmd;		/* common ioctl definition */
 	void *buf;		/* pointer to user buffer */
 	uint len;		/* length of user buffer */
@@ -851,7 +851,7 @@ typedef struct dhd_ioctl {
 	uint used;		/* bytes read or written (optional) */
 	uint needed;		/* bytes needed (optional) */
 	uint driver;		/* to identify target driver */
-} dhd_ioctl_t;
+};
 
 /* per-driver magic numbers */
 #define BRCMF_IOCTL_MAGIC		0x00444944
