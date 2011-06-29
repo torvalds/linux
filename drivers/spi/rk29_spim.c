@@ -93,16 +93,28 @@ struct chip_data {
 #ifdef CONFIG_LCD_USE_SPIM_CONTROL
 void rk29_lcd_spim_spin_lock(void)
 {
+#ifdef CONFIG_LCD_USE_SPI0
 	disable_irq(IRQ_SPI0);
+#endif
+
+#ifdef CONFIG_LCD_USE_SPI1
 	disable_irq(IRQ_SPI1);
+#endif
+
 	preempt_disable();
 }
 
 void rk29_lcd_spim_spin_unlock(void)
 {
 	preempt_enable();
-	enable_irq(IRQ_SPI1);
+	
+#ifdef CONFIG_LCD_USE_SPI0
 	enable_irq(IRQ_SPI0);
+#endif
+
+#ifdef CONFIG_LCD_USE_SPI1
+	enable_irq(IRQ_SPI1);
+#endif
 }
 #else
 void rk29_lcd_spim_spin_lock(void)
