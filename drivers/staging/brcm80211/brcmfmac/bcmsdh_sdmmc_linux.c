@@ -55,8 +55,8 @@
 #include "dhd_dbg.h"
 #include "wl_cfg80211.h"
 
-extern void brcmf_sdioh_dev_intr_off(sdioh_info_t *sd);
-extern void brcmf_sdioh_dev_intr_on(sdioh_info_t *sd);
+extern void brcmf_sdioh_dev_intr_off(struct sdioh_info *sd);
+extern void brcmf_sdioh_dev_intr_on(struct sdioh_info *sd);
 
 int brcmf_sdio_function_init(void);
 void brcmf_sdio_function_cleanup(void);
@@ -144,11 +144,11 @@ static struct sdio_driver bcmsdh_sdmmc_driver = {
 };
 
 struct sdos_info {
-	sdioh_info_t *sd;
+	struct sdioh_info *sd;
 	spinlock_t lock;
 };
 
-int brcmf_sdioh_osinit(sdioh_info_t *sd)
+int brcmf_sdioh_osinit(struct sdioh_info *sd)
 {
 	struct sdos_info *sdos;
 
@@ -162,7 +162,7 @@ int brcmf_sdioh_osinit(sdioh_info_t *sd)
 	return 0;
 }
 
-void brcmf_sdioh_osfree(sdioh_info_t *sd)
+void brcmf_sdioh_osfree(struct sdioh_info *sd)
 {
 	struct sdos_info *sdos;
 	ASSERT(sd && sd->sdos_info);
@@ -172,7 +172,7 @@ void brcmf_sdioh_osfree(sdioh_info_t *sd)
 }
 
 /* Interrupt enable/disable */
-SDIOH_API_RC brcmf_sdioh_interrupt_set(sdioh_info_t *sd, bool enable)
+SDIOH_API_RC brcmf_sdioh_interrupt_set(struct sdioh_info *sd, bool enable)
 {
 	unsigned long flags;
 	struct sdos_info *sdos;

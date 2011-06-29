@@ -38,9 +38,6 @@
 
 typedef int SDIOH_API_RC;
 
-/* SDio Host structure */
-typedef struct sdioh_info sdioh_info_t;
-
 /* callback function, taking one arg */
 typedef void (*sdioh_cb_fn_t) (void *);
 
@@ -48,68 +45,70 @@ typedef void (*sdioh_cb_fn_t) (void *);
  *  The handler shall be provided by all subsequent calls. No local cache
  *  cfghdl points to the starting address of pci device mapped memory
  */
-extern sdioh_info_t *brcmf_sdioh_attach(void *cfghdl, uint irq);
-extern SDIOH_API_RC brcmf_sdioh_detach(sdioh_info_t *si);
-extern SDIOH_API_RC brcmf_sdioh_interrupt_register(sdioh_info_t *si,
+extern struct sdioh_info *brcmf_sdioh_attach(void *cfghdl, uint irq);
+extern SDIOH_API_RC brcmf_sdioh_detach(struct sdioh_info *si);
+extern SDIOH_API_RC brcmf_sdioh_interrupt_register(struct sdioh_info *si,
 					     sdioh_cb_fn_t fn, void *argh);
-extern SDIOH_API_RC brcmf_sdioh_interrupt_deregister(sdioh_info_t *si);
+extern SDIOH_API_RC brcmf_sdioh_interrupt_deregister(struct sdioh_info *si);
 
 /* query whether SD interrupt is enabled or not */
-extern SDIOH_API_RC brcmf_sdioh_interrupt_query(sdioh_info_t *si, bool *onoff);
+extern SDIOH_API_RC
+brcmf_sdioh_interrupt_query(struct sdioh_info *si, bool *onoff);
 
 /* enable or disable SD interrupt */
 extern SDIOH_API_RC
-brcmf_sdioh_interrupt_set(sdioh_info_t *si, bool enable_disable);
+brcmf_sdioh_interrupt_set(struct sdioh_info *si, bool enable_disable);
 
 #if defined(DHD_DEBUG)
-extern bool brcmf_sdioh_interrupt_pending(sdioh_info_t *si);
+extern bool brcmf_sdioh_interrupt_pending(struct sdioh_info *si);
 #endif
 
-extern int brcmf_sdioh_claim_host_and_lock(sdioh_info_t *si);
-extern int brcmf_sdioh_release_host_and_unlock(sdioh_info_t *si);
+extern int brcmf_sdioh_claim_host_and_lock(struct sdioh_info *si);
+extern int brcmf_sdioh_release_host_and_unlock(struct sdioh_info *si);
 
 /* read or write one byte using cmd52 */
 extern SDIOH_API_RC
-brcmf_sdioh_request_byte(sdioh_info_t *si, uint rw, uint fnc, uint addr,
+brcmf_sdioh_request_byte(struct sdioh_info *si, uint rw, uint fnc, uint addr,
 			 u8 *byte);
 
 /* read or write 2/4 bytes using cmd53 */
-extern SDIOH_API_RC brcmf_sdioh_request_word(sdioh_info_t *si, uint cmd_type,
-				       uint rw, uint fnc, uint addr,
-				       u32 *word, uint nbyte);
+extern SDIOH_API_RC
+brcmf_sdioh_request_word(struct sdioh_info *si, uint cmd_type,
+			 uint rw, uint fnc, uint addr,
+			 u32 *word, uint nbyte);
 
 /* read or write any buffer using cmd53 */
-extern SDIOH_API_RC brcmf_sdioh_request_buffer(sdioh_info_t *si, uint pio_dma,
-					 uint fix_inc, uint rw, uint fnc_num,
-					 u32 addr, uint regwidth,
-					 u32 buflen, u8 *buffer,
-					 struct sk_buff *pkt);
+extern SDIOH_API_RC
+brcmf_sdioh_request_buffer(struct sdioh_info *si, uint pio_dma,
+			   uint fix_inc, uint rw, uint fnc_num,
+			   u32 addr, uint regwidth,
+			   u32 buflen, u8 *buffer, struct sk_buff *pkt);
 
 /* get cis data */
-extern SDIOH_API_RC brcmf_sdioh_cis_read(sdioh_info_t *si, uint fuc, u8 *cis,
-				   u32 length);
+extern SDIOH_API_RC
+brcmf_sdioh_cis_read(struct sdioh_info *si, uint fuc, u8 *cis, u32 length);
 
-extern SDIOH_API_RC brcmf_sdioh_cfg_read(sdioh_info_t *si, uint fuc, u32 addr,
-				   u8 *data);
-extern SDIOH_API_RC brcmf_sdioh_cfg_write(sdioh_info_t *si, uint fuc, u32 addr,
-				    u8 *data);
+extern SDIOH_API_RC
+brcmf_sdioh_cfg_read(struct sdioh_info *si, uint fuc, u32 addr, u8 *data);
+extern SDIOH_API_RC
+brcmf_sdioh_cfg_write(struct sdioh_info *si, uint fuc, u32 addr, u8 *data);
 
 /* query number of io functions */
-extern uint brcmf_sdioh_query_iofnum(sdioh_info_t *si);
+extern uint brcmf_sdioh_query_iofnum(struct sdioh_info *si);
 
 /* handle iovars */
-extern int brcmf_sdioh_iovar_op(sdioh_info_t *si, const char *name,
+extern int brcmf_sdioh_iovar_op(struct sdioh_info *si, const char *name,
 			  void *params, int plen, void *arg, int len, bool set);
 
 /* Issue abort to the specified function and clear controller as needed */
-extern int brcmf_sdioh_abort(sdioh_info_t *si, uint fnc);
+extern int brcmf_sdioh_abort(struct sdioh_info *si, uint fnc);
 
 /* Start and Stop SDIO without re-enumerating the SD card. */
-extern int brcmf_sdioh_start(sdioh_info_t *si, int stage);
-extern int brcmf_sdioh_stop(sdioh_info_t *si);
+extern int brcmf_sdioh_start(struct sdioh_info *si, int stage);
+extern int brcmf_sdioh_stop(struct sdioh_info *si);
 
 /* Reset and re-initialize the device */
-extern int brcmf_sdioh_reset(sdioh_info_t *si);
+extern int brcmf_sdioh_reset(struct sdioh_info *si);
 
 /* Helper function */
 void *brcmf_sdcard_get_sdioh(bcmsdh_info_t *sdh);
