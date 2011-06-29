@@ -103,12 +103,6 @@ extern struct sort_entry sort_thread;
 extern struct list_head hist_entry__sort_list;
 
 void setup_sorting(const char * const usagestr[], const struct option *opts);
-
-extern size_t sort__thread_print(FILE *, struct hist_entry *, unsigned int);
-extern size_t sort__comm_print(FILE *, struct hist_entry *, unsigned int);
-extern size_t sort__dso_print(FILE *, struct hist_entry *, unsigned int);
-extern size_t sort__sym_print(FILE *, struct hist_entry *, unsigned int __used);
-extern size_t sort__parent_print(FILE *, struct hist_entry *, unsigned int);
 extern int sort_dimension__add(const char *);
 void sort_entry__setup_elide(struct sort_entry *self, struct strlist *list,
 			     const char *list_name, FILE *fp);
