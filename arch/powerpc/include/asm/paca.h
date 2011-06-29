@@ -149,6 +149,7 @@ struct paca_struct {
 #ifdef CONFIG_KVM_BOOK3S_HANDLER
 	/* We use this to store guest state in */
 	struct kvmppc_book3s_shadow_vcpu shadow_vcpu;
+	struct kvmppc_host_state kvm_hstate;
 #endif
 };
 

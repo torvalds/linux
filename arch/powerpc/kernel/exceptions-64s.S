@@ -298,7 +298,7 @@ data_access_check_stab:
 	srdi	r10,r10,60
 	rlwimi	r10,r9,16,0x20
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
-	lbz	r9,PACA_KVM_SVCPU+SVCPU_IN_GUEST(r13)
+	lbz	r9,HSTATE_IN_GUEST(r13)
 	rlwimi	r10,r9,8,0x300
 #endif
 	mfcr	r9

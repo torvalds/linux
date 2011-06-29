@@ -96,16 +96,16 @@
 	EXCEPTION_PROLOG_PSERIES_1(label, h);
 
 #define __KVMTEST(n)							\
-	lbz	r10,PACA_KVM_SVCPU+SVCPU_IN_GUEST(r13);			\
+	lbz	r10,HSTATE_IN_GUEST(r13);			\
 	cmpwi	r10,0;							\
 	bne	do_kvm_##n
 
 #define __KVM_HANDLER(area, h, n)					\
 do_kvm_##n:								\
 	ld	r10,area+EX_R10(r13);					\
-	stw	r9,PACA_KVM_SVCPU+SVCPU_SCRATCH1(r13);			\
+	stw	r9,HSTATE_SCRATCH1(r13);			\
 	ld	r9,area+EX_R9(r13);					\
-	std	r12,PACA_KVM_SVCPU+SVCPU_SCRATCH0(r13);			\
+	std	r12,HSTATE_SCRATCH0(r13);			\
 	li	r12,n;							\
 	b	kvmppc_interrupt
 
@@ -114,9 +114,9 @@ do_kvm_##n:								\
 	cmpwi	r10,KVM_GUEST_MODE_SKIP;				\
 	ld	r10,area+EX_R10(r13);					\
 	beq	89f;							\
-	stw	r9,PACA_KVM_SVCPU+SVCPU_SCRATCH1(r13);			\
+	stw	r9,HSTATE_SCRATCH1(r13);			\
 	ld	r9,area+EX_R9(r13);					\
-	std	r12,PACA_KVM_SVCPU+SVCPU_SCRATCH0(r13);			\
+	std	r12,HSTATE_SCRATCH0(r13);			\
 	li	r12,n;							\
 	b	kvmppc_interrupt;					\
 89:	mtocrf	0x80,r9;						\

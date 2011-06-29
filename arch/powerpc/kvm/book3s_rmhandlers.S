@@ -36,7 +36,6 @@
 #if defined(CONFIG_PPC_BOOK3S_64)
 
 #define LOAD_SHADOW_VCPU(reg)	GET_PACA(reg)					
-#define SHADOW_VCPU_OFF		PACA_KVM_SVCPU
 #define MSR_NOIRQ		MSR_KERNEL & ~(MSR_IR | MSR_DR)
 #define FUNC(name) 		GLUE(.,name)
 
@@ -66,7 +65,6 @@ kvmppc_skip_Hinterrupt:
 
 #elif defined(CONFIG_PPC_BOOK3S_32)
 
-#define SHADOW_VCPU_OFF		0
 #define MSR_NOIRQ		MSR_KERNEL
 #define FUNC(name)		name
 
@@ -96,14 +94,14 @@ kvmppc_trampoline_\intno:
 	b	kvmppc_resume_\intno		/* Get back original handler */
 
 1:	tophys(r13, r13)
-	stw	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
+	stw	r12, HSTATE_SCRATCH1(r13)
 	mfspr	r12, SPRN_SPRG_SCRATCH1
-	stw	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
-	lbz	r12, (SHADOW_VCPU_OFF + SVCPU_IN_GUEST)(r13)
+	stw	r12, HSTATE_SCRATCH0(r13)
+	lbz	r12, HSTATE_IN_GUEST(r13)
 	cmpwi	r12, KVM_GUEST_MODE_NONE
 	bne	..kvmppc_handler_hasmagic_\intno
 	/* No KVM guest? Then jump back to the Linux handler! */
-	lwz	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
+	lwz	r12, HSTATE_SCRATCH1(r13)
 	b	2b
 
 	/* Now we know we're handling a KVM guest */
@@ -146,8 +144,8 @@ INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_ALTIVEC
  *
  * R12            = free
  * R13            = Shadow VCPU (PACA)
- * SVCPU.SCRATCH0 = guest R12
- * SVCPU.SCRATCH1 = guest CR
+ * HSTATE.SCRATCH0 = guest R12
+ * HSTATE.SCRATCH1 = guest CR
  * SPRG_SCRATCH0  = guest R13
  *
  */
@@ -159,9 +157,9 @@ kvmppc_handler_skip_ins:
 	mtsrr0	r12
 
 	/* Clean up all state */
-	lwz	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
+	lwz	r12, HSTATE_SCRATCH1(r13)
 	mtcr	r12
-	PPC_LL	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
+	PPC_LL	r12, HSTATE_SCRATCH0(r13)
 	GET_SCRATCH0(r13)
 
 	/* And get back into the code */
