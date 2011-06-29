@@ -31,14 +31,7 @@
 #include <brcmu_wifi.h>
 #include "sdio_host.h"
 
-#if defined(OOB_INTR_ONLY)
-#include <linux/irq.h>
 extern void brcmf_sdbrcm_isr(void *args);
-#endif				/* defined(OOB_INTR_ONLY) */
-#if defined(CONFIG_MACH_SANDGATE2G) || defined(CONFIG_MACH_LOGICPD_PXA270)
-
-#include <linux/platform_device.h>
-#endif				/* CONFIG_MACH_SANDGATE2G */
 
 #include "dngl_stats.h"
 #include "dhd.h"
@@ -56,9 +49,6 @@ struct bcmsdh_hc {
 	unsigned long oob_flags;	/* OOB Host specifiction
 					as edge and etc */
 	bool oob_irq_registered;
-#if defined(OOB_INTR_ONLY)
-	spinlock_t irq_lock;
-#endif
 };
 static struct bcmsdh_hc *sdhcinfo;
 
@@ -129,20 +119,6 @@ int brcmf_sdio_probe(struct device *dev)
 	u32 vendevid;
 	unsigned long irq_flags = 0;
 
-#if defined(OOB_INTR_ONLY)
-#ifdef HW_OOB
-	irq_flags =
-	    IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL |
-	    IORESOURCE_IRQ_SHAREABLE;
-#else
-	irq_flags = IRQF_TRIGGER_FALLING;
-#endif				/* HW_OOB */
-	irq = brcmf_customer_oob_irq_map(&irq_flags);
-	if (irq < 0) {
-		SDLX_MSG(("%s: Host irq is not defined\n", __func__));
-		return 1;
-	}
-#endif				/* defined(OOB_INTR_ONLY) */
 	/* allocate SDIO Host Controller state info */
 	sdhc = kzalloc(sizeof(struct bcmsdh_hc), GFP_ATOMIC);
 	if (!sdhc) {
@@ -161,9 +137,6 @@ int brcmf_sdio_probe(struct device *dev)
 	sdhc->oob_irq = irq;
 	sdhc->oob_flags = irq_flags;
 	sdhc->oob_irq_registered = false;	/* to make sure.. */
-#if defined(OOB_INTR_ONLY)
-	spin_lock_init(&sdhc->irq_lock);
-#endif
 
 	/* chain SDIO Host Controller info together */
 	sdhc->next = sdhcinfo;
@@ -238,80 +211,6 @@ void brcmf_sdio_unregister(void)
 	brcmf_sdio_function_cleanup();
 }
 
-#if defined(OOB_INTR_ONLY)
-void brcmf_sdio_oob_intr_set(bool enable)
-{
-	static bool curstate = 1;
-	unsigned long flags;
-
-	spin_lock_irqsave(&sdhcinfo->irq_lock, flags);
-	if (curstate != enable) {
-		if (enable)
-			enable_irq(sdhcinfo->oob_irq);
-		else
-			disable_irq_nosync(sdhcinfo->oob_irq);
-		curstate = enable;
-	}
-	spin_unlock_irqrestore(&sdhcinfo->irq_lock, flags);
-}
-
-static irqreturn_t brcmf_sdio_oob_irq(int irq, void *dev_id)
-{
-	dhd_pub_t *dhdp;
-
-	dhdp = (dhd_pub_t *) dev_get_drvdata(sdhcinfo->dev);
-
-	brcmf_sdio_oob_intr_set(0);
-
-	if (dhdp == NULL) {
-		SDLX_MSG(("Out of band GPIO interrupt fired way too early\n"));
-		return IRQ_HANDLED;
-	}
-
-	brcmf_sdbrcm_isr((void *)dhdp->bus);
-
-	return IRQ_HANDLED;
-}
-
-int brcmf_sdio_register_oob_intr(void *dhdp)
-{
-	int error = 0;
-
-	SDLX_MSG(("%s Enter\n", __func__));
-
-	sdhcinfo->oob_flags =
-	    IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL |
-	    IORESOURCE_IRQ_SHAREABLE;
-	dev_set_drvdata(sdhcinfo->dev, dhdp);
-
-	if (!sdhcinfo->oob_irq_registered) {
-		SDLX_MSG(("%s IRQ=%d Type=%X\n", __func__,
-			  (int)sdhcinfo->oob_irq, (int)sdhcinfo->oob_flags));
-		/* Refer to customer Host IRQ docs about
-			 proper irqflags definition */
-		error =
-		    request_irq(sdhcinfo->oob_irq, brcmf_sdio_oob_irq,
-				sdhcinfo->oob_flags, "bcmsdh_sdmmc", NULL);
-		if (error)
-			return -ENODEV;
-
-		irq_set_irq_wake(sdhcinfo->oob_irq, 1);
-		sdhcinfo->oob_irq_registered = true;
-	}
-
-	return 0;
-}
-
-void brcmf_sdio_unregister_oob_intr(void)
-{
-	SDLX_MSG(("%s: Enter\n", __func__));
-
-	irq_set_irq_wake(sdhcinfo->oob_irq, 0);
-	disable_irq(sdhcinfo->oob_irq);	/* just in case.. */
-	free_irq(sdhcinfo->oob_irq, NULL);
-	sdhcinfo->oob_irq_registered = false;
-}
-#endif				/* defined(OOB_INTR_ONLY) */
 /* Module parameters specific to each host-controller driver */
 
 extern uint sd_msglevel;	/* Debug message level */

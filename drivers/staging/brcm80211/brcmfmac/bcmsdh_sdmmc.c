@@ -35,10 +35,8 @@
 extern int brcmf_sdio_function_init(void);
 extern void brcmf_sdio_function_cleanup(void);
 
-#if !defined(OOB_INTR_ONLY)
 static void brcmf_sdioh_irqhandler(struct sdio_func *func);
 static void brcmf_sdioh_irqhandler_f2(struct sdio_func *func);
-#endif				/* !defined(OOB_INTR_ONLY) */
 static int brcmf_sdioh_get_cisaddr(struct sdioh_info *sd, u32 regaddr);
 extern int brcmf_sdioh_reset_comm(struct mmc_card *card);
 
@@ -191,74 +189,6 @@ extern int brcmf_sdioh_detach(struct sdioh_info *sd)
 	return SDIOH_API_RC_SUCCESS;
 }
 
-#if defined(OOB_INTR_ONLY) && defined(HW_OOB)
-
-extern int brcmf_sdioh_enable_func_intr(void)
-{
-	u8 reg;
-	int err;
-
-	if (gInstance->func[0]) {
-		sdio_claim_host(gInstance->func[0]);
-
-		reg = sdio_readb(gInstance->func[0], SDIOD_CCCR_INTEN, &err);
-		if (err) {
-			sd_err(("%s: error for read SDIO_CCCR_IENx : 0x%x\n",
-				__func__, err));
-			sdio_release_host(gInstance->func[0]);
-			return SDIOH_API_RC_FAIL;
-		}
-
-		/* Enable F1 and F2 interrupts, set master enable */
-		reg |=
-		    (INTR_CTL_FUNC1_EN | INTR_CTL_FUNC2_EN |
-		     INTR_CTL_MASTER_EN);
-
-		sdio_writeb(gInstance->func[0], reg, SDIOD_CCCR_INTEN, &err);
-		sdio_release_host(gInstance->func[0]);
-
-		if (err) {
-			sd_err(("%s: error for write SDIO_CCCR_IENx : 0x%x\n",
-				__func__, err));
-			return SDIOH_API_RC_FAIL;
-		}
-	}
-
-	return SDIOH_API_RC_SUCCESS;
-}
-
-extern int brcmf_sdioh_disable_func_intr(void)
-{
-	u8 reg;
-	int err;
-
-	if (gInstance->func[0]) {
-		sdio_claim_host(gInstance->func[0]);
-		reg = sdio_readb(gInstance->func[0], SDIOD_CCCR_INTEN, &err);
-		if (err) {
-			sd_err(("%s: error for read SDIO_CCCR_IENx : 0x%x\n",
-				__func__, err));
-			sdio_release_host(gInstance->func[0]);
-			return SDIOH_API_RC_FAIL;
-		}
-
-		reg &= ~(INTR_CTL_FUNC1_EN | INTR_CTL_FUNC2_EN);
-		/* Disable master interrupt with the last function interrupt */
-		if (!(reg & 0xFE))
-			reg = 0;
-		sdio_writeb(gInstance->func[0], reg, SDIOD_CCCR_INTEN, &err);
-
-		sdio_release_host(gInstance->func[0]);
-		if (err) {
-			sd_err(("%s: error for write SDIO_CCCR_IENx : 0x%x\n",
-				__func__, err));
-			return SDIOH_API_RC_FAIL;
-		}
-	}
-	return SDIOH_API_RC_SUCCESS;
-}
-#endif				/* defined(OOB_INTR_ONLY) && defined(HW_OOB) */
-
 /* Configure callback to client when we receive client interrupt */
 extern int
 brcmf_sdioh_interrupt_register(struct sdioh_info *sd, sdioh_cb_fn_t fn,
@@ -270,7 +200,7 @@ brcmf_sdioh_interrupt_register(struct sdioh_info *sd, sdioh_cb_fn_t fn,
 			__func__));
 		return SDIOH_API_RC_FAIL;
 	}
-#if !defined(OOB_INTR_ONLY)
+
 	sd->intr_handler = fn;
 	sd->intr_handler_arg = argh;
 	sd->intr_handler_valid = true;
@@ -287,9 +217,7 @@ brcmf_sdioh_interrupt_register(struct sdioh_info *sd, sdioh_cb_fn_t fn,
 		sdio_claim_irq(gInstance->func[1], brcmf_sdioh_irqhandler);
 		sdio_release_host(gInstance->func[1]);
 	}
-#elif defined(HW_OOB)
-	brcmf_sdioh_enable_func_intr();
-#endif				/* defined(OOB_INTR_ONLY) */
+
 	return SDIOH_API_RC_SUCCESS;
 }
 
@@ -297,7 +225,6 @@ extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *sd)
 {
 	sd_trace(("%s: Entering\n", __func__));
 
-#if !defined(OOB_INTR_ONLY)
 	if (gInstance->func[1]) {
 		/* register and unmask irq */
 		sdio_claim_host(gInstance->func[1]);
@@ -316,9 +243,7 @@ extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *sd)
 	sd->intr_handler_valid = false;
 	sd->intr_handler = NULL;
 	sd->intr_handler_arg = NULL;
-#elif defined(HW_OOB)
-	brcmf_sdioh_disable_func_intr();
-#endif				/*  !defined(OOB_INTR_ONLY) */
+
 	return SDIOH_API_RC_SUCCESS;
 }
 
@@ -535,24 +460,6 @@ exit:
 
 	return bcmerror;
 }
-
-#if defined(OOB_INTR_ONLY) && defined(HW_OOB)
-
-int brcmf_sdioh_enable_hw_oob_intr(struct sdioh_info *sd, bool enable)
-{
-	int status;
-	u8 data;
-
-	if (enable)
-		data = 3;	/* enable hw oob interrupt */
-	else
-		data = 4;	/* disable hw oob interrupt */
-	data |= 4;		/* Active HIGH */
-
-	status = brcmf_sdioh_request_byte(sd, SDIOH_WRITE, 0, 0xf2, &data);
-	return status;
-}
-#endif				/* defined(OOB_INTR_ONLY) && defined(HW_OOB) */
 
 extern int
 brcmf_sdioh_cfg_read(struct sdioh_info *sd, uint fnc_num, u32 addr, u8 *data)
@@ -800,13 +707,6 @@ brcmf_sdioh_request_packet(struct sdioh_info *sd, uint fix_inc, uint write,
 		pkt_len += 3;
 		pkt_len &= 0xFFFFFFFC;
 
-#ifdef CONFIG_MMC_MSM7X00A
-		if ((pkt_len % 64) == 32) {
-			sd_trace(("%s: Rounding up TX packet +=32\n",
-				  __func__));
-			pkt_len += 32;
-		}
-#endif				/* CONFIG_MMC_MSM7X00A */
 		/* Make sure the packet is aligned properly.
 		 * If it isn't, then this
 		 * is the fault of brcmf_sdioh_request_buffer() which
@@ -1007,7 +907,6 @@ brcmf_sdioh_card_regread(struct sdioh_info *sd, int func, u32 regaddr,
 	return SUCCESS;
 }
 
-#if !defined(OOB_INTR_ONLY)
 /* bcmsdh_sdmmc interrupt handler */
 static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 {
@@ -1045,34 +944,6 @@ static void brcmf_sdioh_irqhandler_f2(struct sdio_func *func)
 
 	ASSERT(sd != NULL);
 }
-#endif				/* !defined(OOB_INTR_ONLY) */
-
-#ifdef NOTUSED
-/* Write client card reg */
-static int
-brcmf_sdioh_card_regwrite(struct sdioh_info *sd, int func, u32 regaddr,
-			  int regsize, u32 data)
-{
-
-	if ((func == 0) || (regsize == 1)) {
-		u8 temp;
-
-		temp = data & 0xff;
-		brcmf_sdioh_request_byte(sd, SDIOH_READ, func, regaddr, &temp);
-		sd_data(("%s: byte write data=0x%02x\n", __func__, data));
-	} else {
-		if (regsize == 2)
-			data &= 0xffff;
-
-		brcmf_sdioh_request_word(sd, 0, SDIOH_READ, func, regaddr,
-					 &data, regsize);
-
-		sd_data(("%s: word write data=0x%08x\n", __func__, data));
-	}
-
-	return SUCCESS;
-}
-#endif				/* NOTUSED */
 
 int brcmf_sdioh_start(struct sdioh_info *si, int stage)
 {

@@ -182,13 +182,11 @@ int brcmf_sdioh_interrupt_set(struct sdioh_info *sd, bool enable)
 	sdos = (struct sdos_info *)sd->sdos_info;
 	ASSERT(sdos);
 
-#if !defined(OOB_INTR_ONLY)
 	if (enable && !(sd->intr_handler && sd->intr_handler_arg)) {
 		sd_err(("%s: no handler registered, will not enable\n",
 			__func__));
 		return SDIOH_API_RC_FAIL;
 	}
-#endif				/* !defined(OOB_INTR_ONLY) */
 
 	/* Ensure atomicity for enable/disable calls */
 	spin_lock_irqsave(&sdos->lock, flags);

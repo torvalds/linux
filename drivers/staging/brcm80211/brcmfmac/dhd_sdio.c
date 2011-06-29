@@ -673,13 +673,6 @@ static bool forcealign;
 
 #define ALIGNMENT  4
 
-#if defined(OOB_INTR_ONLY) && defined(HW_OOB)
-extern void brcmf_sdcard_enable_hw_oob_intr(void *sdh, bool enable);
-#endif
-
-#if defined(OOB_INTR_ONLY) && defined(SDIO_ISR_THREAD)
-#error OOB_INTR_ONLY is NOT working with SDIO_ISR_THREAD
-#endif	/* defined(OOB_INTR_ONLY) && defined(SDIO_ISR_THREAD) */
 #define PKTALIGN(_p, _len, _align)				\
 	do {								\
 		uint datalign;						\
@@ -831,9 +824,6 @@ static int brcmf_sdbrcm_htclk(dhd_bus_t *bus, bool on, bool pendok)
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
-#if defined(OOB_INTR_ONLY)
-	pendok = false;
-#endif
 	clkctl = 0;
 	sdh = bus->sdh;
 
@@ -1116,36 +1106,6 @@ int brcmf_sdbrcm_bussleep(dhd_bus_t *bus, bool sleep)
 	return 0;
 }
 
-#if defined(OOB_INTR_ONLY)
-void brcmf_sdbrcm_enable_oob_intr(struct dhd_bus *bus, bool enable)
-{
-#if defined(HW_OOB)
-	brcmf_sdcard_enable_hw_oob_intr(bus->sdh, enable);
-#else
-	sdpcmd_regs_t *regs = bus->regs;
-	uint retries = 0;
-
-	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
-	if (enable == true) {
-
-		/* Tell device to start using OOB wakeup */
-		W_SDREG(SMB_USE_OOB, &regs->tosbmailbox, retries);
-		if (retries > retry_limit)
-			DHD_ERROR(("CANNOT SIGNAL CHIP, WILL NOT WAKE UP!!\n"));
-
-	} else {
-		/* Send misc interrupt to indicate OOB not needed */
-		W_SDREG(0, &regs->tosbmailboxdata, retries);
-		if (retries <= retry_limit)
-			W_SDREG(SMB_DEV_INT, &regs->tosbmailbox, retries);
-	}
-
-	/* Turn off our contribution to the HT clock request */
-	brcmf_sdbrcm_clkctl(bus, CLK_SDONLY, false);
-#endif				/* !defined(HW_OOB) */
-}
-#endif				/* defined(OOB_INTR_ONLY) */
-
 #define BUS_WAKE(bus) \
 	do { \
 		if ((bus)->sleeping) \
@@ -1245,9 +1205,6 @@ static int brcmf_sdbrcm_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 	if (bus->roundup && bus->blocksize && (len > bus->blocksize)) {
 		u16 pad = bus->blocksize - (len % bus->blocksize);
 		if ((pad <= bus->roundup) && (pad < bus->blocksize))
-#ifdef NOTUSED
-			if (pad <= skb_tailroom(pkt))
-#endif				/* NOTUSED */
 				len += pad;
 	} else if (len % BRCMF_SDALIGN) {
 		len += BRCMF_SDALIGN - (len % BRCMF_SDALIGN);
@@ -1255,15 +1212,7 @@ static int brcmf_sdbrcm_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 
 	/* Some controllers have trouble with odd bytes -- round to even */
 	if (forcealign && (len & (ALIGNMENT - 1))) {
-#ifdef NOTUSED
-		if (skb_tailroom(pkt))
-#endif
 			len = roundup(len, ALIGNMENT);
-#ifdef NOTUSED
-		else
-			DHD_ERROR(("%s: sending unrounded %d-byte packet\n",
-				   __func__, len));
-#endif
 	}
 
 	do {
@@ -4575,9 +4524,6 @@ bool brcmf_sdbrcm_dpc(dhd_bus_t *bus)
 	bus->intstatus = intstatus;
 
 clkwait:
-#if defined(OOB_INTR_ONLY)
-	brcmf_sdio_oob_intr_set(1);
-#endif				/* (OOB_INTR_ONLY) */
 	/* Re-enable interrupts to detect new device events (mailbox, rx frame)
 	 * or clock availability.  (Allows tx loop to check ipend if desired.)
 	 * (Unless register access seems hosed, as we may not be able to ACK...)
@@ -5958,10 +5904,6 @@ int brcmf_bus_devreset(dhd_pub_t *dhdp, u8 flag)
 					/* Re-init bus, enable F2 transfer */
 					brcmf_sdbrcm_bus_init(
 						(dhd_pub_t *) bus->dhd, false);
-
-#if defined(OOB_INTR_ONLY)
-					brcmf_sdbrcm_enable_oob_intr(bus, true);
-#endif				/* defined(OOB_INTR_ONLY) */
 
 					bus->dhd->dongle_reset = false;
 					bus->dhd->up = true;

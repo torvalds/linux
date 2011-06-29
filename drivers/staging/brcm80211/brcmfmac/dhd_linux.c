@@ -14,9 +14,6 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-#include <linux/platform_device.h>
-#endif
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -52,134 +49,11 @@
 /* Global ASSERT type flag */
 u32 g_assert_type;
 
-#if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
-#include <linux/wifi_tiwlan.h>
-
-struct semaphore wifi_control_sem;
-
-struct dhd_bus *g_bus;
-
-static struct wifi_platform_data *wifi_control_data;
-static struct resource *wifi_irqres;
-
-int wifi_get_irq_number(unsigned long *irq_flags_ptr)
-{
-	if (wifi_irqres) {
-		*irq_flags_ptr = wifi_irqres->flags & IRQF_TRIGGER_MASK;
-		return (int)wifi_irqres->start;
-	}
-#ifdef CUSTOM_OOB_GPIO_NUM
-	return CUSTOM_OOB_GPIO_NUM;
-#else
-	return -1;
-#endif
-}
-
-int wifi_set_carddetect(int on)
-{
-	printk(KERN_ERR "%s = %d\n", __func__, on);
-	if (wifi_control_data && wifi_control_data->set_carddetect)
-		wifi_control_data->set_carddetect(on);
-	return 0;
-}
-
-int wifi_set_power(int on, unsigned long msec)
-{
-	printk(KERN_ERR "%s = %d\n", __func__, on);
-	if (wifi_control_data && wifi_control_data->set_power)
-		wifi_control_data->set_power(on);
-	if (msec)
-		mdelay(msec);
-	return 0;
-}
-
-int wifi_set_reset(int on, unsigned long msec)
-{
-	printk(KERN_ERR "%s = %d\n", __func__, on);
-	if (wifi_control_data && wifi_control_data->set_reset)
-		wifi_control_data->set_reset(on);
-	if (msec)
-		mdelay(msec);
-	return 0;
-}
-
-static int wifi_probe(struct platform_device *pdev)
-{
-	struct wifi_platform_data *wifi_ctrl =
-	    (struct wifi_platform_data *)(pdev->dev.platform_data);
-
-	printk(KERN_ERR "## %s\n", __func__);
-	wifi_irqres =
-	    platform_get_resource_byname(pdev, IORESOURCE_IRQ,
-					 "bcm4329_wlan_irq");
-	wifi_control_data = wifi_ctrl;
-
-	wifi_set_power(1, 0);	/* Power On */
-	wifi_set_carddetect(1);	/* CardDetect (0->1) */
-
-	up(&wifi_control_sem);
-	return 0;
-}
-
-static int wifi_remove(struct platform_device *pdev)
-{
-	struct wifi_platform_data *wifi_ctrl =
-	    (struct wifi_platform_data *)(pdev->dev.platform_data);
-
-	printk(KERN_ERR "## %s\n", __func__);
-	wifi_control_data = wifi_ctrl;
-
-	wifi_set_carddetect(0);	/* CardDetect (1->0) */
-	wifi_set_power(0, 0);	/* Power Off */
-
-	up(&wifi_control_sem);
-	return 0;
-}
-
-static int wifi_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	DHD_TRACE(("##> %s\n", __func__));
-	return 0;
-}
-
-static int wifi_resume(struct platform_device *pdev)
-{
-	DHD_TRACE(("##> %s\n", __func__));
-	return 0;
-}
-
-static struct platform_driver wifi_device = {
-	.probe = wifi_probe,
-	.remove = wifi_remove,
-	.suspend = wifi_suspend,
-	.resume = wifi_resume,
-	.driver = {
-		   .name = KBUILD_MODNAME,
-		   }
-};
-
-int wifi_add_dev(void)
-{
-	DHD_TRACE(("## Calling platform_driver_register\n"));
-	return platform_driver_register(&wifi_device);
-}
-
-void wifi_del_dev(void)
-{
-	DHD_TRACE(("## Unregister platform_driver_register\n"));
-	platform_driver_unregister(&wifi_device);
-}
-#endif	/* defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC) */
-
 #if defined(CONFIG_PM_SLEEP)
 #include <linux/suspend.h>
 atomic_t brcmf_mmc_suspend;
 DECLARE_WAIT_QUEUE_HEAD(dhd_dpc_wait);
 #endif	/*  defined(CONFIG_PM_SLEEP) */
-
-#if defined(OOB_INTR_ONLY)
-extern void brcmf_sdbrcm_enable_oob_intr(struct dhd_bus *bus, bool enable);
-#endif	/* defined(OOB_INTR_ONLY) */
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN fullmac driver.");
@@ -302,11 +176,7 @@ extern int brcmf_dongle_memsize;
 module_param(brcmf_dongle_memsize, int, 0);
 
 /* Contorl fw roaming */
-#ifdef CUSTOMER_HW2
-uint brcmf_roam;
-#else
 uint brcmf_roam = 1;
-#endif
 
 /* Control radio state */
 uint brcmf_radio_up = 1;
@@ -392,9 +262,6 @@ static int brcmf_set_suspend(int value, dhd_pub_t *dhd)
 	/* wl_pkt_filter_enable_t       enable_parm; */
 	char iovbuf[32];
 	int bcn_li_dtim = 3;
-#ifdef CUSTOMER_HW2
-	uint roamvar = 1;
-#endif				/* CUSTOMER_HW2 */
 
 	DHD_TRACE(("%s: enter, value = %d in_suspend=%d\n",
 		   __func__, value, dhd->in_suspend));
@@ -428,15 +295,6 @@ static int brcmf_set_suspend(int value, dhd_pub_t *dhd)
 				    4, iovbuf, sizeof(iovbuf));
 			brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
 						  iovbuf, sizeof(iovbuf));
-#ifdef CUSTOMER_HW2
-			/* Disable build-in roaming to allowed \
-			 * supplicant to take of romaing
-			 */
-			brcmu_mkiovar("roam_off", (char *)&roamvar, 4,
-				    iovbuf, sizeof(iovbuf));
-			brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
-						  iovbuf, sizeof(iovbuf));
-#endif				/* CUSTOMER_HW2 */
 		} else {
 
 			/* Kernel resumed  */
@@ -457,13 +315,6 @@ static int brcmf_set_suspend(int value, dhd_pub_t *dhd)
 
 			brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
 						  iovbuf, sizeof(iovbuf));
-#ifdef CUSTOMER_HW2
-			roamvar = 0;
-			brcmu_mkiovar("roam_off", (char *)&roamvar, 4, iovbuf,
-				    sizeof(iovbuf));
-			brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
-						  iovbuf, sizeof(iovbuf));
-#endif				/* CUSTOMER_HW2 */
 		}
 	}
 
@@ -950,7 +801,6 @@ static void brcmf_netdev_set_multicast_list(struct net_device *dev)
 
 int brcmf_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 {
-	int ret;
 	dhd_info_t *dhd = (dhd_info_t *) (dhdp->info);
 
 	/* Reject if down */
@@ -972,13 +822,7 @@ int brcmf_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 	brcmf_proto_hdrpush(dhdp, ifidx, pktbuf);
 
 	/* Use bus module to send data frame */
-#ifdef BCMDBUS
-	ret = dbus_send_pkt(dhdp->dbus, pktbuf, NULL /* pktinfo */);
-#else
-	ret = brcmf_sdbrcm_bus_txdata(dhdp->bus, pktbuf);
-#endif				/* BCMDBUS */
-
-	return ret;
+	return brcmf_sdbrcm_bus_txdata(dhdp->bus, pktbuf);
 }
 
 static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *net)
@@ -1945,18 +1789,6 @@ int brcmf_bus_start(dhd_pub_t *dhdp)
 			   ret));
 		return ret;
 	}
-#if defined(OOB_INTR_ONLY)
-	/* Host registration for OOB interrupt */
-	if (brcmf_sdio_register_oob_intr(dhdp)) {
-		del_timer_sync(&dhd->timer);
-		dhd->wd_timer_valid = false;
-		DHD_ERROR(("%s Host failed to resgister for OOB\n", __func__));
-		return -ENODEV;
-	}
-
-	/* Enable oob at firmware */
-	brcmf_sdbrcm_enable_oob_intr(dhd->pub.bus, true);
-#endif				/* defined(OOB_INTR_ONLY) */
 
 	/* If bus is not ready, can't come up */
 	if (dhd->pub.busstate != DHD_BUS_DATA) {
@@ -1990,9 +1822,6 @@ int brcmf_bus_start(dhd_pub_t *dhdp)
 	setbit(dhdp->eventmask, BRCMF_E_TXFAIL);
 	setbit(dhdp->eventmask, BRCMF_E_JOIN_START);
 	setbit(dhdp->eventmask, BRCMF_E_SCAN_COMPLETE);
-#ifdef PNO_SUPPORT
-	setbit(dhdp->eventmask, BRCMF_E_PFN_NET_FOUND);
-#endif				/* PNO_SUPPORT */
 
 /* enable dongle roaming event */
 
@@ -2111,9 +1940,6 @@ static void brcmf_bus_detach(dhd_pub_t *dhdp)
 
 			/* Stop the bus module */
 			brcmf_sdbrcm_bus_stop(dhd->pub.bus, true);
-#if defined(OOB_INTR_ONLY)
-			brcmf_sdio_unregister_oob_intr();
-#endif				/* defined(OOB_INTR_ONLY) */
 
 			/* Clear the watchdog timer */
 			del_timer_sync(&dhd->timer);
@@ -2189,9 +2015,6 @@ static void __exit brcmf_module_cleanup(void)
 	DHD_TRACE(("%s: Enter\n", __func__));
 
 	dhd_bus_unregister();
-#if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
-	wifi_del_dev();
-#endif
 }
 
 static int __init brcmf_module_init(void)
@@ -2214,26 +2037,6 @@ static int __init brcmf_module_init(void)
 		DHD_ERROR(("Invalid module parameters.\n"));
 		return -EINVAL;
 	} while (0);
-
-#if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
-	sema_init(&wifi_control_sem, 0);
-
-	error = wifi_add_dev();
-	if (error) {
-		DHD_ERROR(("%s: platform_driver_register failed\n", __func__));
-		goto failed;
-	}
-
-	/* Waiting callback after platform_driver_register is done or
-		 exit with error */
-	if (down_timeout(&wifi_control_sem, msecs_to_jiffies(1000)) != 0) {
-		printk(KERN_ERR "%s: platform_driver_register timeout\n",
-			__func__);
-		/* remove device */
-		wifi_del_dev();
-		goto failed;
-	}
-#endif	/* #if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC) */
 
 	error = dhd_bus_register();
 
@@ -2555,43 +2358,6 @@ void brcmf_netdev_init_ioctl(struct net_device *dev)
 
 	brcmf_c_preinit_ioctls(&dhd->pub);
 }
-
-#ifdef PNO_SUPPORT
-/* Linux wrapper to call common dhd_pno_clean */
-int brcmf_netdev_pno_reset(struct net_device *dev)
-{
-	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
-
-	return dhd_pno_clean(&dhd->pub);
-}
-
-/* Linux wrapper to call common dhd_pno_enable */
-int brcmf_netdev_pno_enable(struct net_device *dev, int pfn_enabled)
-{
-	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
-
-	return dhd_pno_enable(&dhd->pub, pfn_enabled);
-}
-
-/* Linux wrapper to call common dhd_pno_set */
-int
-brcmf_netdev_pno_set(struct net_device *dev, wlc_ssid_t *ssids_local, int nssid,
-		unsigned char scan_fr)
-{
-	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
-
-	return dhd_pno_set(&dhd->pub, ssids_local, nssid, scan_fr);
-}
-
-/* Linux wrapper to get  pno status */
-int brcmf_netdev_get_pno_status(struct net_device *dev)
-{
-	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
-
-	return dhd_pno_get_status(&dhd->pub);
-}
-
-#endif				/* PNO_SUPPORT */
 
 static int brcmf_get_pend_8021x_cnt(dhd_info_t *dhd)
 {

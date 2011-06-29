@@ -44,15 +44,6 @@ struct brcmf_sdio {
 /* local copy of bcm sd handler */
 struct brcmf_sdio *l_bcmsdh;
 
-#if defined(OOB_INTR_ONLY) && defined(HW_OOB)
-extern int brcmf_sdioh_enable_hw_oob_intr(void *sdioh, bool enable);
-
-void brcmf_sdcard_enable_hw_oob_intr(struct brcmf_sdio *sdh, bool enable)
-{
-	brcmf_sdioh_enable_hw_oob_intr(sdh->sdioh, enable);
-}
-#endif
-
 struct brcmf_sdio *brcmf_sdcard_attach(void *cfghdl, void **regsva, uint irq)
 {
 	struct brcmf_sdio *bcmsdh;

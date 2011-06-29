@@ -80,10 +80,6 @@ struct brcmf_proto_bdc_header {
 };
 
 
-#ifdef CUSTOMER_HW2
-int wifi_get_mac_addr(unsigned char *buf);
-#endif
-
 #define RETRIES 2	/* # of retries to retrieve matching ioctl response */
 #define BUS_HEADER_LEN	(16+BRCMF_SDALIGN) /* Must be atleast SDPCM_RESERVE
 					 * defined in dhd_sdio.c

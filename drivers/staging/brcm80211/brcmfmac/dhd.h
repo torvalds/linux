@@ -691,9 +691,6 @@ typedef struct dhd_pub {
 	int suspend_disable_flag;	/* "1" to disable all extra powersaving
 					 during suspend */
 	int in_suspend;		/* flag set to 1 when early suspend called */
-#ifdef PNO_SUPPORT
-	int pno_enable;		/* pno status : "1" is pno enable */
-#endif				/* PNO_SUPPORT */
 	int dtim_skip;		/* dtim skip , default 0 means wake each dtim */
 
 	/* Pkt filter defination */
@@ -936,9 +933,6 @@ extern void brcmf_os_sdunlock_eventq(dhd_pub_t *pub);
 #ifdef BCMDBG
 extern int brcmf_write_to_file(dhd_pub_t *dhd, u8 *buf, int size);
 #endif				/* BCMDBG */
-#if defined(OOB_INTR_ONLY)
-extern int brcmf_customer_oob_irq_map(unsigned long *irq_flags_ptr);
-#endif				/* defined(OOB_INTR_ONLY) */
 
 extern void brcmf_timeout_start(dhd_timeout_t *tmo, uint usec);
 extern int brcmf_timeout_expired(dhd_timeout_t *tmo);
