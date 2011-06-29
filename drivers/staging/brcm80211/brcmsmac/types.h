@@ -257,9 +257,9 @@ do {						\
 #define R_REG(r) \
 	({\
 		sizeof(*(r)) == sizeof(u8) ? \
-		readb((volatile u8*)(r)) : \
-		sizeof(*(r)) == sizeof(u16) ? readw((volatile u16*)(r)) : \
-		readl((volatile u32*)(r)); \
+		readb((u8 *)(r)) : \
+		sizeof(*(r)) == sizeof(u16) ? readw((u16 *)(r)) : \
+		readl((u32 *)(r)); \
 	})
 #else				/* __mips__ */
 #define R_REG(r) \
@@ -268,14 +268,14 @@ do {						\
 		__asm__ __volatile__("sync"); \
 		switch (sizeof(*(r))) { \
 		case sizeof(u8): \
-			__osl_v = readb((volatile u8*)(r)); \
+			__osl_v = readb((u8 *)(r)); \
 			break; \
 		case sizeof(u16): \
-			__osl_v = readw((volatile u16*)(r)); \
+			__osl_v = readw((u16 *)(r)); \
 			break; \
 		case sizeof(u32): \
 			__osl_v = \
-			readl((volatile u32*)(r)); \
+			readl((u32 *)(r)); \
 			break; \
 		} \
 		__asm__ __volatile__("sync"); \
@@ -286,11 +286,11 @@ do {						\
 #define W_REG(r, v) do { \
 		switch (sizeof(*(r))) { \
 		case sizeof(u8): \
-			writeb((u8)(v), (volatile u8*)(r)); break; \
+			writeb((u8)(v), (u8 *)(r)); break; \
 		case sizeof(u16): \
-			writew((u16)(v), (volatile u16*)(r)); break; \
+			writew((u16)(v), (u16 *)(r)); break; \
 		case sizeof(u32): \
-			writel((u32)(v), (volatile u32*)(r)); break; \
+			writel((u32)(v), (u32 *)(r)); break; \
 		}; \
 	} while (0)
 #else				/* __BIG_ENDIAN */
@@ -300,14 +300,14 @@ do {						\
 		switch (sizeof(*(r))) { \
 		case sizeof(u8): \
 			__osl_v = \
-			readb((volatile u8*)((r)^3)); \
+			readb((u8 *)((r)^3)); \
 			break; \
 		case sizeof(u16): \
 			__osl_v = \
-			readw((volatile u16*)((r)^2)); \
+			readw((u16 *)((r)^2)); \
 			break; \
 		case sizeof(u32): \
-			__osl_v = readl((volatile u32*)(r)); \
+			__osl_v = readl((u32 *)(r)); \
 			break; \
 		} \
 		__osl_v; \
@@ -317,13 +317,13 @@ do {						\
 		switch (sizeof(*(r))) { \
 		case sizeof(u8):	\
 			writeb((u8)(v), \
-			(volatile u8*)((r)^3)); break; \
+			(u8 *)((r)^3)); break; \
 		case sizeof(u16):	\
 			writew((u16)(v), \
-			(volatile u16*)((r)^2)); break; \
+			(u16 *)((r)^2)); break; \
 		case sizeof(u32):	\
 			writel((u32)(v), \
-			(volatile u32*)(r)); break; \
+			(u32 *)(r)); break; \
 		} \
 	} while (0)
 #endif				/* __BIG_ENDIAN */
