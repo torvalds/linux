@@ -183,12 +183,6 @@ MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN fullmac driver.");
 MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN fullmac cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
-/* Linux wireless extension support */
-#if defined(CONFIG_WIRELESS_EXT)
-#include <wl_iw.h>
-extern wl_iw_extra_params_t g_wl_iw_params;
-#endif		/* defined(CONFIG_WIRELESS_EXT) */
-
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 #include <linux/earlysuspend.h>
 extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
@@ -218,10 +212,6 @@ typedef struct dhd_if {
 
 /* Local private structure (extension of pub) */
 typedef struct dhd_info {
-#if defined(CONFIG_WIRELESS_EXT)
-	wl_iw_t iw;		/* wireless extensions state (must be first) */
-#endif				/* defined(CONFIG_WIRELESS_EXT) */
-
 	dhd_pub_t pub;
 
 	/* OS/stack specifics */
@@ -1602,14 +1592,6 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 	if (ifidx == DHD_BAD_IF)
 		return -1;
 
-#if defined(CONFIG_WIRELESS_EXT)
-	/* linux wireless extensions */
-	if ((cmd >= SIOCIWFIRST) && (cmd <= SIOCIWLAST)) {
-		/* may recurse, do NOT lock */
-		return wl_iw_ioctl(net, ifr, cmd);
-	}
-#endif				/* defined(CONFIG_WIRELESS_EXT) */
-
 	if (cmd == SIOCETHTOOL)
 		return dhd_ethtool(dhd, (void *)ifr->ifr_data);
 
@@ -1896,13 +1878,6 @@ dhd_pub_t *dhd_attach(struct dhd_bus *bus, uint bus_hdrlen)
 		DHD_ERROR(("dhd_prot_attach failed\n"));
 		goto fail;
 	}
-#if defined(CONFIG_WIRELESS_EXT)
-	/* Attach and link in the iw */
-	if (wl_iw_attach(net, (void *)&dhd->pub) != 0) {
-		DHD_ERROR(("wl_iw_attach failed\n"));
-		goto fail;
-	}
-#endif	/* defined(CONFIG_WIRELESS_EXT) */
 
 	/* Attach and link in the cfg80211 */
 	if (unlikely(wl_cfg80211_attach(net, &dhd->pub))) {
@@ -2261,10 +2236,6 @@ void dhd_detach(dhd_pub_t *dhdp)
 
 			if (dhdp->prot)
 				dhd_prot_detach(dhdp);
-
-#if defined(CONFIG_WIRELESS_EXT)
-			wl_iw_detach();
-#endif				/* (CONFIG_WIRELESS_EXT) */
 
 			wl_cfg80211_detach();
 

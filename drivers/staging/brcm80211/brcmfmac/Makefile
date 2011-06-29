@@ -40,7 +40,6 @@ ccflags-y += \
 
 DHDOFILES = \
 	wl_cfg80211.o \
-	wl_iw.o \
 	dhd_cdc.o \
 	dhd_common.o \
 	dhd_custom_gpio.o \
