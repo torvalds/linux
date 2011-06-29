@@ -36,15 +36,14 @@ int brcmf_msg_level;
 char brcmf_fw_path[MOD_PARAM_PATHLEN];
 char brcmf_nv_path[MOD_PARAM_PATHLEN];
 
-#define EPI_VERSION_STR         "4.218.248.5"
 #define MSGTRACE_VERSION	1
 
 #ifdef BCMDBG
 const char brcmf_version[] =
-"Dongle Host Driver, version " EPI_VERSION_STR "\nCompiled on " __DATE__
+"Dongle Host Driver, version " BRCMF_VERSION_STR "\nCompiled on " __DATE__
 " at " __TIME__;
 #else
-const char brcmf_version[] = "Dongle Host Driver, version " EPI_VERSION_STR;
+const char brcmf_version[] = "Dongle Host Driver, version " BRCMF_VERSION_STR;
 #endif
 
 /* IOVar table */

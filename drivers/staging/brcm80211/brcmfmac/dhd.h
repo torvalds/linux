@@ -21,6 +21,8 @@
 #ifndef _dhd_h_
 #define _dhd_h_
 
+#define BRCMF_VERSION_STR		"4.218.248.5"
+
 #define	BRCMF_C_IOCTL_SMLEN	256	/* "small" ioctl buffer required */
 #define BRCMF_C_IOCTL_MEDLEN	1536	/* "med" ioctl buffer required */
 #define	BRCMF_C_IOCTL_MAXLEN	8192

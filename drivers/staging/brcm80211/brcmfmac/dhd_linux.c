@@ -43,7 +43,6 @@
 #include "dhd_dbg.h"
 #include "wl_cfg80211.h"
 
-#define EPI_VERSION_STR		"4.218.248.5"
 #define ETH_P_BRCM			0x886c
 
 /* Global ASSERT type flag */
@@ -1278,7 +1277,7 @@ static int brcmf_ethtool(dhd_info_t *dhd, void *uaddr)
 		/* if dhd requested, identify ourselves */
 		if (strcmp(drvname, "?dhd") == 0) {
 			sprintf(info.driver, "dhd");
-			strcpy(info.version, EPI_VERSION_STR);
+			strcpy(info.version, BRCMF_VERSION_STR);
 		}
 
 		/* otherwise, require dongle to be up */
