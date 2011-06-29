@@ -364,12 +364,8 @@ module_param(brcmf_pktgen_len, uint, 0);
 #endif
 
 static void brcmf_dpc(unsigned long data);
-
-#ifdef TOE
 static int brcmf_toe_get(dhd_info_t *dhd, int idx, u32 *toe_ol);
 static int brcmf_toe_set(dhd_info_t *dhd, int idx, u32 toe_ol);
-#endif				/* TOE */
-
 static int brcmf_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 			     brcmf_event_msg_t *event_ptr, void **data_ptr);
 
@@ -1315,7 +1311,6 @@ void brcmf_sched_dpc(dhd_pub_t *dhdp)
 	tasklet_schedule(&dhd->tasklet);
 }
 
-#ifdef TOE
 /* Retrieve current toe component enables, which are kept
 	 as a bitmap in toe_ol iovar */
 static int brcmf_toe_get(dhd_info_t *dhd, int ifidx, u32 *toe_ol)
@@ -1393,7 +1388,6 @@ static int brcmf_toe_set(dhd_info_t *dhd, int ifidx, u32 toe_ol)
 
 	return 0;
 }
-#endif				/* TOE */
 
 static void brcmf_ethtool_get_drvinfo(struct net_device *net,
 				    struct ethtool_drvinfo *info)
@@ -1415,11 +1409,9 @@ static int brcmf_ethtool(dhd_info_t *dhd, void *uaddr)
 	struct ethtool_drvinfo info;
 	char drvname[sizeof(info.driver)];
 	u32 cmd;
-#ifdef TOE
 	struct ethtool_value edata;
 	u32 toe_cmpnt, csum_dir;
 	int ret;
-#endif
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -1464,7 +1456,6 @@ static int brcmf_ethtool(dhd_info_t *dhd, void *uaddr)
 			 (int)sizeof(drvname), drvname, info.driver));
 		break;
 
-#ifdef TOE
 		/* Get toe offload components from dongle */
 	case ETHTOOL_GRXCSUM:
 	case ETHTOOL_GTXCSUM:
@@ -1516,7 +1507,6 @@ static int brcmf_ethtool(dhd_info_t *dhd, void *uaddr)
 		}
 
 		break;
-#endif				/* TOE */
 
 	default:
 		return -EOPNOTSUPP;
@@ -1665,9 +1655,7 @@ static int brcmf_netdev_stop(struct net_device *net)
 static int brcmf_netdev_open(struct net_device *net)
 {
 	dhd_info_t *dhd = *(dhd_info_t **) netdev_priv(net);
-#ifdef TOE
 	u32 toe_ol;
-#endif
 	int ifidx = brcmf_net2idx(dhd, net);
 	s32 ret = 0;
 
@@ -1685,14 +1673,12 @@ static int brcmf_netdev_open(struct net_device *net)
 
 		memcpy(net->dev_addr, dhd->pub.mac, ETH_ALEN);
 
-#ifdef TOE
 		/* Get current TOE mode from dongle */
 		if (brcmf_toe_get(dhd, ifidx, &toe_ol) >= 0
 		    && (toe_ol & TOE_TX_CSUM_OL) != 0)
 			dhd->iflist[ifidx]->net->features |= NETIF_F_IP_CSUM;
 		else
 			dhd->iflist[ifidx]->net->features &= ~NETIF_F_IP_CSUM;
-#endif
 	}
 	/* Allow transmit calls */
 	netif_start_queue(net);
