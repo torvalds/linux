@@ -17,7 +17,7 @@
 
 # common flags
 subdir-ccflags-y					:= -DBCMDMA32
-subdir-ccflags-$(CONFIG_BRCMDBG)	+= -DBCMDBG -DBCMDBG_ASSERT
+subdir-ccflags-$(CONFIG_BRCMDBG)	+= -DBCMDBG
 
 obj-$(CONFIG_BRCMUTIL)	+= brcmutil/
 obj-$(CONFIG_BRCMFMAC)	+= brcmfmac/
