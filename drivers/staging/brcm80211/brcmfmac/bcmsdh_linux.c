@@ -35,6 +35,7 @@ extern void brcmf_sdbrcm_isr(void *args);
 
 #include "dngl_stats.h"
 #include "dhd.h"
+#include "dhd_bus.h"
 
 /**
  * SDIO Host Controller info
@@ -222,7 +223,7 @@ module_param(sd_f2_blocksize, int, 0);
 void brcmf_sdio_wdtmr_enable(bool enable)
 {
 	if (enable)
-		brcmf_os_wd_timer(sdhcinfo->ch, brcmf_watchdog_ms);
+		brcmf_sdbrcm_wd_timer(sdhcinfo->ch, brcmf_watchdog_ms);
 	else
-		brcmf_os_wd_timer(sdhcinfo->ch, 0);
+		brcmf_sdbrcm_wd_timer(sdhcinfo->ch, 0);
 }

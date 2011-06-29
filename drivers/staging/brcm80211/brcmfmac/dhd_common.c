@@ -52,7 +52,6 @@ enum {
 	IOV_MSGLEVEL,
 	IOV_BCMERRORSTR,
 	IOV_BCMERROR,
-	IOV_WDTICK,
 	IOV_DUMP,
 #ifdef BCMDBG
 	IOV_CONS,
@@ -77,8 +76,6 @@ const struct brcmu_iovar brcmf_iovars[] = {
 	{"bcmerrorstr", IOV_BCMERRORSTR, 0, IOVT_BUFFER, BCME_STRLEN}
 	,
 	{"bcmerror", IOV_BCMERROR, 0, IOVT_INT8, 0}
-	,
-	{"wdtick", IOV_WDTICK, 0, IOVT_UINT32, 0}
 	,
 	{"dump", IOV_DUMP, 0, IOVT_BUFFER, DHD_IOCTL_MAXLEN}
 	,
@@ -235,19 +232,6 @@ brcmf_c_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 	case IOV_GVAL(IOV_BCMERROR):
 		int_val = (s32) dhd_pub->bcmerror;
 		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_GVAL(IOV_WDTICK):
-		int_val = (s32) brcmf_watchdog_ms;
-		memcpy(arg, &int_val, val_size);
-		break;
-
-	case IOV_SVAL(IOV_WDTICK):
-		if (!dhd_pub->up) {
-			bcmerror = -ENOLINK;
-			break;
-		}
-		brcmf_os_wd_timer(dhd_pub, (uint) int_val);
 		break;
 
 	case IOV_GVAL(IOV_DUMP):

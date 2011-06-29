@@ -82,15 +82,11 @@ typedef struct dhd_info {
 
 	struct semaphore proto_sem;
 	wait_queue_head_t ioctl_resp_wait;
-	struct timer_list timer;
-	bool wd_timer_valid;
 	struct tasklet_struct tasklet;
 	spinlock_t sdlock;
 	/* Thread based operation */
 	bool threads_only;
 	struct semaphore sdsem;
-	struct task_struct *watchdog_tsk;
-	struct semaphore watchdog_sem;
 	struct task_struct *dpc_tsk;
 	struct semaphore dpc_sem;
 
@@ -128,10 +124,6 @@ module_param(brcmf_msg_level, int, 0);
 uint brcmf_sysioc = true;
 module_param(brcmf_sysioc, uint, 0);
 
-/* Watchdog interval */
-uint brcmf_watchdog_ms = 10;
-module_param(brcmf_watchdog_ms, uint, 0);
-
 #ifdef BCMDBG
 /* Console poll interval */
 uint brcmf_console_ms;
@@ -158,10 +150,6 @@ module_param(brcmf_pkt_filter_init, uint, 0);
 /* Pkt filter mode control */
 uint brcmf_master_mode = true;
 module_param(brcmf_master_mode, uint, 1);
-
-/* Watchdog thread priority, -1 to use kernel timer */
-int brcmf_watchdog_prio = 97;
-module_param(brcmf_watchdog_prio, int, 0);
 
 /* DPC thread priority, -1 to use tasklet */
 int brcmf_dpc_prio = 98;
@@ -1030,64 +1018,6 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *net)
 	return &ifp->stats;
 }
 
-static int brcmf_watchdog_thread(void *data)
-{
-	dhd_info_t *dhd = (dhd_info_t *) data;
-
-	/* This thread doesn't need any user-level access,
-	 * so get rid of all our resources
-	 */
-	if (brcmf_watchdog_prio > 0) {
-		struct sched_param param;
-		param.sched_priority = (brcmf_watchdog_prio < MAX_RT_PRIO) ?
-		    brcmf_watchdog_prio : (MAX_RT_PRIO - 1);
-		sched_setscheduler(current, SCHED_FIFO, &param);
-	}
-
-	allow_signal(SIGTERM);
-	/* Run until signal received */
-	while (1) {
-		if (kthread_should_stop())
-			break;
-		if (down_interruptible(&dhd->watchdog_sem) == 0) {
-			if (dhd->pub.dongle_reset == false) {
-				/* Call the bus module watchdog */
-				brcmf_sdbrcm_bus_watchdog(&dhd->pub);
-			}
-			/* Count the tick for reference */
-			dhd->pub.tickcnt++;
-		} else
-			break;
-	}
-	return 0;
-}
-
-static void brcmf_watchdog(unsigned long data)
-{
-	dhd_info_t *dhd = (dhd_info_t *) data;
-
-	if (dhd->watchdog_tsk) {
-		up(&dhd->watchdog_sem);
-
-		/* Reschedule the watchdog */
-		if (dhd->wd_timer_valid) {
-			mod_timer(&dhd->timer,
-				  jiffies + brcmf_watchdog_ms * HZ / 1000);
-		}
-		return;
-	}
-
-	/* Call the bus module watchdog */
-	brcmf_sdbrcm_bus_watchdog(&dhd->pub);
-
-	/* Count the tick for reference */
-	dhd->pub.tickcnt++;
-
-	/* Reschedule the watchdog */
-	if (dhd->wd_timer_valid)
-		mod_timer(&dhd->timer, jiffies + brcmf_watchdog_ms * HZ / 1000);
-}
-
 static int brcmf_dpc_thread(void *data)
 {
 	dhd_info_t *dhd = (dhd_info_t *) data;
@@ -1667,31 +1597,12 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 		strcpy(brcmf_nv_path, wl_cfg80211_get_nvramname());
 	}
 
-	/* Set up the watchdog timer */
-	init_timer(&dhd->timer);
-	dhd->timer.data = (unsigned long) dhd;
-	dhd->timer.function = brcmf_watchdog;
-
 	/* Initialize thread based operation and lock */
 	sema_init(&dhd->sdsem, 1);
 	if ((brcmf_watchdog_prio >= 0) && (brcmf_dpc_prio >= 0))
 		dhd->threads_only = true;
 	else
 		dhd->threads_only = false;
-
-	if (brcmf_dpc_prio >= 0) {
-		/* Initialize watchdog thread */
-		sema_init(&dhd->watchdog_sem, 0);
-		dhd->watchdog_tsk = kthread_run(brcmf_watchdog_thread, dhd,
-						"dhd_watchdog");
-		if (IS_ERR(dhd->watchdog_tsk)) {
-			printk(KERN_WARNING
-				"dhd_watchdog thread failed to start\n");
-			dhd->watchdog_tsk = NULL;
-		}
-	} else {
-		dhd->watchdog_tsk = NULL;
-	}
 
 	/* Set up the bottom half handler */
 	if (brcmf_dpc_prio >= 0) {
@@ -1773,10 +1684,6 @@ int brcmf_bus_start(dhd_pub_t *dhdp)
 		}
 	}
 
-	/* Start the watchdog timer */
-	dhd->pub.tickcnt = 0;
-	brcmf_os_wd_timer(&dhd->pub, brcmf_watchdog_ms);
-
 	/* Bring up the bus */
 	ret = brcmf_sdbrcm_bus_init(&dhd->pub, true);
 	if (ret != 0) {
@@ -1787,8 +1694,6 @@ int brcmf_bus_start(dhd_pub_t *dhdp)
 
 	/* If bus is not ready, can't come up */
 	if (dhd->pub.busstate != DHD_BUS_DATA) {
-		del_timer_sync(&dhd->timer);
-		dhd->wd_timer_valid = false;
 		DHD_ERROR(("%s failed bus is not ready\n", __func__));
 		return -ENODEV;
 	}
@@ -1935,10 +1840,6 @@ static void brcmf_bus_detach(dhd_pub_t *dhdp)
 
 			/* Stop the bus module */
 			brcmf_sdbrcm_bus_stop(dhd->pub.bus, true);
-
-			/* Clear the watchdog timer */
-			del_timer_sync(&dhd->timer);
-			dhd->wd_timer_valid = false;
 		}
 	}
 }
@@ -1969,12 +1870,6 @@ void brcmf_detach(dhd_pub_t *dhdp)
 			if (ifp->net->netdev_ops == &brcmf_netdev_ops_pri) {
 				brcmf_netdev_stop(ifp->net);
 				unregister_netdev(ifp->net);
-			}
-
-			if (dhd->watchdog_tsk) {
-				send_sig(SIGTERM, dhd->watchdog_tsk, 1);
-				kthread_stop(dhd->watchdog_tsk);
-				dhd->watchdog_tsk = NULL;
 			}
 
 			if (dhd->dpc_tsk) {
@@ -2119,51 +2014,6 @@ int brcmf_os_ioctl_resp_wake(dhd_pub_t *pub)
 	return 0;
 }
 
-void brcmf_os_wd_timer(void *bus, uint wdtick)
-{
-	dhd_pub_t *pub = bus;
-	static uint save_dhd_watchdog_ms;
-	dhd_info_t *dhd = (dhd_info_t *) pub->info;
-
-	/* don't start the wd until fw is loaded */
-	if (pub->busstate == DHD_BUS_DOWN)
-		return;
-
-	/* Totally stop the timer */
-	if (!wdtick && dhd->wd_timer_valid == true) {
-		del_timer_sync(&dhd->timer);
-		dhd->wd_timer_valid = false;
-		save_dhd_watchdog_ms = wdtick;
-		return;
-	}
-
-	if (wdtick) {
-		brcmf_watchdog_ms = (uint) wdtick;
-
-		if (save_dhd_watchdog_ms != brcmf_watchdog_ms) {
-
-			if (dhd->wd_timer_valid == true)
-				/* Stop timer and restart at new value */
-				del_timer_sync(&dhd->timer);
-
-			/* Create timer again when watchdog period is
-			   dynamically changed or in the first instance
-			 */
-			dhd->timer.expires =
-			    jiffies + brcmf_watchdog_ms * HZ / 1000;
-			add_timer(&dhd->timer);
-
-		} else {
-			/* Re arm the timer, at last watchdog period */
-			mod_timer(&dhd->timer,
-				  jiffies + brcmf_watchdog_ms * HZ / 1000);
-		}
-
-		dhd->wd_timer_valid = true;
-		save_dhd_watchdog_ms = wdtick;
-	}
-}
-
 void *brcmf_os_open_image(char *filename)
 {
 	struct file *fp;
@@ -2257,16 +2107,7 @@ int brcmf_netdev_reset(struct net_device *dev, u8 flag)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
 
-	/* Turning off watchdog */
-	if (flag)
-		brcmf_os_wd_timer(&dhd->pub, 0);
-
 	brcmf_bus_devreset(&dhd->pub, flag);
-
-	/* Turning on watchdog back */
-	if (!flag)
-		brcmf_os_wd_timer(&dhd->pub, brcmf_watchdog_ms);
-	DHD_ERROR(("%s:  WLAN OFF DONE\n", __func__));
 
 	return 1;
 }

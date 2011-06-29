@@ -29,6 +29,9 @@
  * Exported from dhd bus module (dhd_usb, dhd_sdio)
  */
 
+/* Watchdog timer interval */
+extern uint brcmf_watchdog_ms;
+
 /* Indicate (dis)interest in finding dongles. */
 extern int dhd_bus_register(void);
 extern void dhd_bus_unregister(void);
@@ -54,9 +57,6 @@ brcmf_sdbrcm_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen);
 
 extern int
 brcmf_sdbrcm_bus_rxctl(struct dhd_bus *bus, unsigned char *msg, uint msglen);
-
-/* Watchdog timer function */
-extern bool brcmf_sdbrcm_bus_watchdog(dhd_pub_t *dhd);
 
 #ifdef BCMDBG
 /* Device console input function */
@@ -90,5 +90,7 @@ extern void dhd_bus_set_nvram_params(struct dhd_bus *bus,
 extern void *dhd_bus_pub(struct dhd_bus *bus);
 extern void *dhd_bus_txq(struct dhd_bus *bus);
 extern uint dhd_bus_hdrlen(struct dhd_bus *bus);
+
+extern void brcmf_sdbrcm_wd_timer(struct dhd_bus *bus, uint wdtick);
 
 #endif				/* _dhd_bus_h_ */

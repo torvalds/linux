@@ -16,6 +16,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/kthread.h>
 #include <linux/printk.h>
 #include <linux/pci_ids.h>
 #include <linux/netdevice.h>
@@ -587,6 +588,11 @@ typedef struct dhd_bus {
 
 	spinlock_t txqlock;
 	wait_queue_head_t ctrl_wait;
+
+	struct timer_list timer;
+	struct completion watchdog_wait;
+	struct task_struct *watchdog_tsk;
+	bool wd_timer_valid;
 } dhd_bus_t;
 
 typedef volatile struct _sbconfig {
@@ -644,6 +650,14 @@ static int tx_packets[NUMPRIO];
 
 /* Deferred transmit */
 const uint brcmf_deferred_tx = 1;
+
+/* Watchdog thread priority, -1 to use kernel timer */
+int brcmf_watchdog_prio = 97;
+module_param(brcmf_watchdog_prio, int, 0);
+
+/* Watchdog interval */
+uint brcmf_watchdog_ms = 10;
+module_param(brcmf_watchdog_ms, uint, 0);
 
 /* Tx/Rx bounds */
 uint brcmf_txbound;
@@ -780,6 +794,8 @@ static void brcmf_sdbrcm_sdiod_drive_strength_init(struct dhd_bus *bus,
 static void brcmf_sdbrcm_chip_detach(struct dhd_bus *bus);
 static void brcmf_sdbrcm_wait_for_event(dhd_pub_t *dhd, bool *lockvar);
 static void brcmf_sdbrcm_wait_event_wakeup(dhd_bus_t *bus);
+static void brcmf_sdbrcm_watchdog(unsigned long data);
+static int brcmf_sdbrcm_watchdog_thread(void *data);
 
 /* Packet free applicable unconditionally for sdio and sdspi.
  * Conditional if bufpool was present for gspi bus.
@@ -975,7 +991,7 @@ static int brcmf_sdbrcm_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 	/* Early exit if we're already there */
 	if (bus->clkstate == target) {
 		if (target == CLK_AVAIL) {
-			brcmf_os_wd_timer(bus->dhd, brcmf_watchdog_ms);
+			brcmf_sdbrcm_wd_timer(bus, brcmf_watchdog_ms);
 			bus->activity = true;
 		}
 		return 0;
@@ -988,7 +1004,7 @@ static int brcmf_sdbrcm_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 			brcmf_sdbrcm_sdclk(bus, true);
 		/* Now request HT Avail on the backplane */
 		brcmf_sdbrcm_htclk(bus, true, pendok);
-		brcmf_os_wd_timer(bus->dhd, brcmf_watchdog_ms);
+		brcmf_sdbrcm_wd_timer(bus, brcmf_watchdog_ms);
 		bus->activity = true;
 		break;
 
@@ -1001,7 +1017,7 @@ static int brcmf_sdbrcm_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 		else
 			DHD_ERROR(("brcmf_sdbrcm_clkctl: request for %d -> %d"
 				   "\n", bus->clkstate, target));
-		brcmf_os_wd_timer(bus->dhd, brcmf_watchdog_ms);
+		brcmf_sdbrcm_wd_timer(bus, brcmf_watchdog_ms);
 		break;
 
 	case CLK_NONE:
@@ -1010,7 +1026,7 @@ static int brcmf_sdbrcm_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 			brcmf_sdbrcm_htclk(bus, false, false);
 		/* Now remove the SD clock */
 		brcmf_sdbrcm_sdclk(bus, false);
-		brcmf_os_wd_timer(bus->dhd, 0);
+		brcmf_sdbrcm_wd_timer(bus, 0);
 		break;
 	}
 #ifdef BCMDBG
@@ -1671,6 +1687,7 @@ enum {
 	IOV_IDLECLOCK,
 	IOV_SD1IDLE,
 	IOV_SLEEP,
+	IOV_WDTICK,
 	IOV_VARS
 };
 
@@ -1691,6 +1708,7 @@ const struct brcmu_iovar dhdsdio_iovars[] = {
 	{"alignctl", IOV_ALIGNCTL, 0, IOVT_BOOL, 0},
 	{"sdalign", IOV_SDALIGN, 0, IOVT_BOOL, 0},
 	{"devreset", IOV_DEVRESET, 0, IOVT_BOOL, 0},
+	{"wdtick", IOV_WDTICK, 0, IOVT_UINT32, 0},
 #ifdef BCMDBG
 	{"sdreg", IOV_SDREG, 0, IOVT_BUFFER, sizeof(struct brcmf_sdreg)}
 	,
@@ -2703,6 +2721,19 @@ brcmf_sdbrcm_doiovar(dhd_bus_t *bus, const struct brcmu_iovar *vi, u32 actionid,
 
 		break;
 
+	case IOV_GVAL(IOV_WDTICK):
+		int_val = (s32) brcmf_watchdog_ms;
+		memcpy(arg, &int_val, val_size);
+		break;
+
+	case IOV_SVAL(IOV_WDTICK):
+		if (!bus->dhd->up) {
+			bcmerror = -ENOLINK;
+			break;
+		}
+		brcmf_sdbrcm_wd_timer(bus, (uint) int_val);
+		break;
+
 	default:
 		bcmerror = -ENOTSUPP;
 		break;
@@ -2967,6 +2998,12 @@ void brcmf_sdbrcm_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 	/* Enable clock for device interrupts */
 	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
 
+	if (bus->watchdog_tsk) {
+		send_sig(SIGTERM, bus->watchdog_tsk, 1);
+		kthread_stop(bus->watchdog_tsk);
+		bus->watchdog_tsk = NULL;
+	}
+
 	/* Disable and clear interrupts at the chip level also */
 	W_SDREG(0, &bus->regs->hostintmask, retries);
 	local_hostintmask = bus->hostintmask;
@@ -3022,6 +3059,10 @@ void brcmf_sdbrcm_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 
 	if (enforce_mutex)
 		brcmf_os_sdunlock(bus->dhd);
+
+#if defined(OOB_INTR_ONLY)
+	brcmf_sdio_unregister_oob_intr();
+#endif		/* defined(OOB_INTR_ONLY) */
 }
 
 int brcmf_sdbrcm_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
@@ -3038,6 +3079,10 @@ int brcmf_sdbrcm_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	ASSERT(bus->dhd);
 	if (!bus->dhd)
 		return 0;
+
+	/* Start the watchdog timer */
+	bus->dhd->tickcnt = 0;
+	brcmf_sdbrcm_wd_timer(bus, brcmf_watchdog_ms);
 
 	if (enforce_mutex)
 		brcmf_os_sdlock(bus->dhd);
@@ -3120,6 +3165,19 @@ int brcmf_sdbrcm_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 	/* Restore previous clock setting */
 	brcmf_sdcard_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR,
 			 saveclk, &err);
+
+#if defined(OOB_INTR_ONLY)
+	/* Host registration for OOB interrupt */
+	if (brcmf_sdio_register_oob_intr(bus->dhd)) {
+		brcmf_sdbrcm_wd_timer(bus, 0);
+		DHD_ERROR(("%s Host failed to resgister for OOB\n", __func__));
+		ret = -ENODEV;
+		goto exit;
+	}
+
+	/* Enable oob at firmware */
+	brcmf_sdbrcm_enable_oob_intr(bus, true);
+#endif		/* defined(OOB_INTR_ONLY) */
 
 	/* If we didn't come up, turn off backplane clock */
 	if (dhdp->busstate != DHD_BUS_DATA)
@@ -5029,7 +5087,7 @@ extern bool brcmf_sdbrcm_bus_watchdog(dhd_pub_t *dhdp)
 			bus->idlecount = 0;
 			if (bus->activity) {
 				bus->activity = false;
-				brcmf_os_wd_timer(bus->dhd, brcmf_watchdog_ms);
+				brcmf_sdbrcm_wd_timer(bus, brcmf_watchdog_ms);
 			} else {
 				brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
 			}
@@ -5217,6 +5275,24 @@ static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 
 	spin_lock_init(&bus->txqlock);
 	init_waitqueue_head(&bus->ctrl_wait);
+
+	/* Set up the watchdog timer */
+	init_timer(&bus->timer);
+	bus->timer.data = (unsigned long)bus;
+	bus->timer.function = brcmf_sdbrcm_watchdog;
+
+	if (brcmf_dpc_prio >= 0) {
+		/* Initialize watchdog thread */
+		init_completion(&bus->watchdog_wait);
+		bus->watchdog_tsk = kthread_run(brcmf_sdbrcm_watchdog_thread,
+						bus, "brcmf_watchdog");
+		if (IS_ERR(bus->watchdog_tsk)) {
+			printk(KERN_WARNING
+			       "brcmf_watchdog thread failed to start\n");
+			bus->watchdog_tsk = NULL;
+		}
+	} else
+		bus->watchdog_tsk = NULL;
 
 	/* Attach to the dhd/OS/network interface */
 	bus->dhd = brcmf_attach(bus, SDPCM_RESERVE);
@@ -5868,6 +5944,7 @@ int brcmf_bus_devreset(dhd_pub_t *dhdp, u8 flag)
 	bus = dhdp->bus;
 
 	if (flag == true) {
+		brcmf_sdbrcm_wd_timer(bus, 0);
 		if (!bus->dhd->dongle_reset) {
 			/* Expect app to have torn down any
 			 connection before calling */
@@ -5924,6 +6001,7 @@ int brcmf_bus_devreset(dhd_pub_t *dhdp, u8 flag)
 				"is on\n", __func__));
 			bcmerror = -EIO;
 		}
+		brcmf_sdbrcm_wd_timer(bus, brcmf_watchdog_ms);
 	}
 	return bcmerror;
 }
@@ -6338,4 +6416,100 @@ brcmf_sdbrcm_wait_event_wakeup(dhd_bus_t *bus)
 	if (waitqueue_active(&bus->ctrl_wait))
 		wake_up_interruptible(&bus->ctrl_wait);
 	return;
+}
+
+static int
+brcmf_sdbrcm_watchdog_thread(void *data)
+{
+	dhd_bus_t *bus = (dhd_bus_t *)data;
+
+	/* This thread doesn't need any user-level access,
+	* so get rid of all our resources
+	*/
+	if (brcmf_watchdog_prio > 0) {
+		struct sched_param param;
+		param.sched_priority = (brcmf_watchdog_prio < MAX_RT_PRIO) ?
+				       brcmf_watchdog_prio : (MAX_RT_PRIO - 1);
+		sched_setscheduler(current, SCHED_FIFO, &param);
+	}
+
+	allow_signal(SIGTERM);
+	/* Run until signal received */
+	while (1) {
+		if (kthread_should_stop())
+			break;
+		if (!wait_for_completion_interruptible(&bus->watchdog_wait)) {
+			if (bus->dhd->dongle_reset == false)
+				brcmf_sdbrcm_bus_watchdog(bus->dhd);
+			/* Count the tick for reference */
+			bus->dhd->tickcnt++;
+		} else
+			break;
+	}
+	return 0;
+}
+
+static void
+brcmf_sdbrcm_watchdog(unsigned long data)
+{
+	dhd_bus_t *bus = (dhd_bus_t *)data;
+
+	if (brcmf_watchdog_prio >= 0) {
+		if (bus->watchdog_tsk)
+			complete(&bus->watchdog_wait);
+		else
+			return;
+	} else {
+		brcmf_sdbrcm_bus_watchdog(bus->dhd);
+
+		/* Count the tick for reference */
+		bus->dhd->tickcnt++;
+	}
+
+	/* Reschedule the watchdog */
+	if (bus->wd_timer_valid)
+		mod_timer(&bus->timer, jiffies + brcmf_watchdog_ms * HZ / 1000);
+}
+
+void
+brcmf_sdbrcm_wd_timer(struct dhd_bus *bus, uint wdtick)
+{
+	static uint save_ms;
+
+	/* don't start the wd until fw is loaded */
+	if (bus->dhd->busstate == DHD_BUS_DOWN)
+		return;
+
+	/* Totally stop the timer */
+	if (!wdtick && bus->wd_timer_valid == true) {
+		del_timer_sync(&bus->timer);
+		bus->wd_timer_valid = false;
+		save_ms = wdtick;
+		return;
+	}
+
+	if (wdtick) {
+		brcmf_watchdog_ms = (uint) wdtick;
+
+		if (save_ms != brcmf_watchdog_ms) {
+			if (bus->wd_timer_valid == true)
+				/* Stop timer and restart at new value */
+				del_timer_sync(&bus->timer);
+
+			/* Create timer again when watchdog period is
+			   dynamically changed or in the first instance
+			 */
+			bus->timer.expires =
+				jiffies + brcmf_watchdog_ms * HZ / 1000;
+			add_timer(&bus->timer);
+
+		} else {
+			/* Re arm the timer, at last watchdog period */
+			mod_timer(&bus->timer,
+				jiffies + brcmf_watchdog_ms * HZ / 1000);
+		}
+
+		bus->wd_timer_valid = true;
+		save_ms = wdtick;
+	}
 }
