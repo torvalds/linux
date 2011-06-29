@@ -982,7 +982,7 @@ int brcms_b_detach(struct brcms_c_info *wlc)
 	}
 
 	/* Free shared phy state */
-	wlc_phy_shared_detach(wlc_hw->phy_sh);
+	kfree(wlc_hw->phy_sh);
 
 	wlc_phy_shim_detach(wlc_hw->physhim);
 

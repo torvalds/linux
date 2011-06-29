@@ -506,13 +506,6 @@ shared_phy_t *wlc_phy_shared_attach(shared_phy_params_t *shp)
 	return sh;
 }
 
-void wlc_phy_shared_detach(shared_phy_t *phy_sh)
-{
-	if (phy_sh) {
-		kfree(phy_sh);
-	}
-}
-
 wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype,
 			  char *vars, struct wiphy *wiphy)
 {
