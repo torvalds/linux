@@ -1118,8 +1118,6 @@ static int soc_camera_probe(struct device *dev)
 
 	icd->field = V4L2_FIELD_ANY;
 
-	icd->vdev->lock = &icd->video_lock;
-
 	/*
 	 * ..._video_start() will create a device node, video_register_device()
 	 * itself is protected against concurrent open() calls, but we also have
@@ -1468,6 +1466,7 @@ static int video_dev_create(struct soc_camera_device *icd)
 	vdev->ioctl_ops		= &soc_camera_ioctl_ops;
 	vdev->release		= video_device_release;
 	vdev->tvnorms		= V4L2_STD_UNKNOWN;
+	vdev->lock		= &icd->video_lock;
 
 	icd->vdev = vdev;
 
