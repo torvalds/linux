@@ -56,6 +56,8 @@ enum {
 	SCIx_TXI_IRQ,
 	SCIx_BRI_IRQ,
 	SCIx_NR_IRQS,
+
+	SCIx_MUX_IRQ = SCIx_NR_IRQS,	/* special case */
 };
 
 enum {
@@ -82,6 +84,11 @@ enum {
 	[SCIx_BRI_IRQ]	= (irq),	\
 }
 
+#define SCIx_IRQ_IS_MUXED(port)			\
+	((port)->cfg->irqs[SCIx_ERI_IRQ] ==	\
+	 (port)->cfg->irqs[SCIx_RXI_IRQ]) ||	\
+	((port)->cfg->irqs[SCIx_ERI_IRQ] &&	\
+	 !(port)->cfg->irqs[SCIx_RXI_IRQ])
 /*
  * SCI register subset common for all port types.
  * Not all registers will exist on all parts.
