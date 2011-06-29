@@ -11,7 +11,4 @@
 
 #include "mv78xx0.h"
 
-#define PCIMEM_BASE			MV78XX0_PCIE_MEM_PHYS_BASE /* mem base for VGA */
-
-
 #endif

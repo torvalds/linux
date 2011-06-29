@@ -12,7 +12,5 @@
 
 #define UNCACHEABLE_ADDR        0xdf010000
 
-#define PCIMEM_BASE		0xe8000000
-
 #endif
 

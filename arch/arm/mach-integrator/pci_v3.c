@@ -27,6 +27,7 @@
 #include <linux/spinlock.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <video/vga.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -504,6 +505,7 @@ void __init pci_v3_preinit(void)
 
 	pcibios_min_io = 0x6000;
 	pcibios_min_mem = 0x00100000;
+	vga_base = PCI_MEMORY_VADDR;
 
 	/*
 	 * Hook in our fault handler for PCI errors

@@ -11,7 +11,4 @@
 
 #include "orion5x.h"
 
-#define PCIMEM_BASE		ORION5X_PCIE_MEM_PHYS_BASE
-
-
 #endif

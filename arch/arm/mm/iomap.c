@@ -9,6 +9,9 @@
 #include <linux/ioport.h>
 #include <linux/io.h>
 
+unsigned long vga_base;
+EXPORT_SYMBOL(vga_base);
+
 #ifdef __io
 void __iomem *ioport_map(unsigned long port, unsigned int nr)
 {
