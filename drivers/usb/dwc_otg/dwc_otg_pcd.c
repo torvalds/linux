@@ -1826,6 +1826,7 @@ int dwc_otg_pcd_init(struct device *dev)
 	
 	pcd->gadget.dev.parent = dev;
 	pcd->gadget.dev.release = dwc_otg_pcd_gadget_release;
+	pcd->gadget.dev.init_name= "gadget";
 	pcd->gadget.ops = &dwc_otg_pcd_ops;
 	
 	pcd->gadget.is_dualspeed = 0;
