@@ -783,8 +783,6 @@ static int sprom_read_pci(struct si_pub *sih, u16 *sprom,
 #if defined(BCMNVRAMR)
 static int otp_read_pci(struct si_pub *sih, u16 *buf, uint bufsz);
 #endif
-static u16 srom_cc_cmd(struct si_pub *sih, void *ccregs, u32 cmd,
-			  uint wordoff, u16 data);
 
 static int initvars_table(char *start, char *end,
 			  char **vars, uint *count);
@@ -873,38 +871,6 @@ int srom_var_init(struct si_pub *sih, uint bustype, void *curmap,
 	return -EINVAL;
 }
 
-/* In chips with chipcommon rev 32 and later, the srom is in chipcommon,
- * not in the bus cores.
- */
-static u16
-srom_cc_cmd(struct si_pub *sih, void *ccregs, u32 cmd,
-	    uint wordoff, u16 data)
-{
-	chipcregs_t *cc = (chipcregs_t *) ccregs;
-	uint wait_cnt = 1000;
-
-	if ((cmd == SRC_OP_READ) || (cmd == SRC_OP_WRITE)) {
-		W_REG(&cc->sromaddress, wordoff * 2);
-		if (cmd == SRC_OP_WRITE)
-			W_REG(&cc->sromdata, data);
-	}
-
-	W_REG(&cc->sromcontrol, SRC_START | cmd);
-
-	while (wait_cnt--) {
-		if ((R_REG(&cc->sromcontrol) & SRC_BUSY) == 0)
-			break;
-	}
-
-	if (!wait_cnt) {
-		return 0xffff;
-	}
-	if (cmd == SRC_OP_READ)
-		return (u16) R_REG(&cc->sromdata);
-	else
-		return 0xffff;
-}
-
 static inline void ltoh16_buf(u16 *buf, unsigned int size)
 {
 	for (size /= 2; size; size--)
@@ -927,33 +893,10 @@ sprom_read_pci(struct si_pub *sih, u16 *sprom, uint wordoff,
 {
 	int err = 0;
 	uint i;
-	void *ccregs = NULL;
 
 	/* read the sprom */
-	for (i = 0; i < nwords; i++) {
-
-		if (sih->ccrev > 31 && ISSIM_ENAB(sih)) {
-			/* use indirect since direct is too slow on QT */
-			if ((sih->cccaps & CC_CAP_SROM) == 0)
-				return -ENODEV;
-
-			ccregs = (void *)((u8 *) sprom - CC_SROM_OTP);
-			buf[i] =
-			    srom_cc_cmd(sih, ccregs, SRC_OP_READ,
-					wordoff + i, 0);
-
-		} else {
-			if (ISSIM_ENAB(sih))
-				buf[i] = R_REG(&sprom[wordoff + i]);
-
-			buf[i] = R_REG(&sprom[wordoff + i]);
-		}
-
-	}
-
-	/* bypass crc checking for simulation to allow srom hack */
-	if (ISSIM_ENAB(sih))
-		return 0;
+	for (i = 0; i < nwords; i++)
+		buf[i] = R_REG(&sprom[wordoff + i]);
 
 	if (check_crc) {
 

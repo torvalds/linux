@@ -519,6 +519,7 @@ wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype,
 	phy_info_t *pi;
 	u32 sflags = 0;
 	uint phyversion;
+	u32 idcode;
 	int i;
 
 	if (D11REV_IS(sh->corerev, 4))
@@ -589,27 +590,19 @@ wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype,
 		}
 	}
 
-	if (ISSIM_ENAB(pi->sh->sih)) {
-		pi->pubpi.radioid = NORADIO_ID;
-		pi->pubpi.radiorev = 5;
-	} else {
-		u32 idcode;
+	wlc_phy_anacore((wlc_phy_t *) pi, ON);
 
-		wlc_phy_anacore((wlc_phy_t *) pi, ON);
+	idcode = wlc_phy_get_radio_ver(pi);
+	pi->pubpi.radioid =
+	    (idcode & IDCODE_ID_MASK) >> IDCODE_ID_SHIFT;
+	pi->pubpi.radiorev =
+	    (idcode & IDCODE_REV_MASK) >> IDCODE_REV_SHIFT;
+	pi->pubpi.radiover =
+	    (idcode & IDCODE_VER_MASK) >> IDCODE_VER_SHIFT;
+	if (!VALID_RADIO(pi, pi->pubpi.radioid))
+		goto err;
 
-		idcode = wlc_phy_get_radio_ver(pi);
-		pi->pubpi.radioid =
-		    (idcode & IDCODE_ID_MASK) >> IDCODE_ID_SHIFT;
-		pi->pubpi.radiorev =
-		    (idcode & IDCODE_REV_MASK) >> IDCODE_REV_SHIFT;
-		pi->pubpi.radiover =
-		    (idcode & IDCODE_VER_MASK) >> IDCODE_VER_SHIFT;
-		if (!VALID_RADIO(pi, pi->pubpi.radioid)) {
-			goto err;
-		}
-
-		wlc_phy_switch_radio((wlc_phy_t *) pi, OFF);
-	}
+	wlc_phy_switch_radio((wlc_phy_t *) pi, OFF);
 
 	wlc_set_phy_uninitted(pi);
 
@@ -1195,11 +1188,6 @@ void wlc_phy_do_dummy_tx(phy_info_t *pi, bool ofdm, bool pa_on)
 
 	i = 0;
 	count = ofdm ? 30 : 250;
-
-	if (ISSIM_ENAB(pi->sh->sih)) {
-		count *= 100;
-	}
-
 	while ((i++ < count)
 	       && (R_REG(&regs->txe_status) & (1 << 7))) {
 		udelay(10);

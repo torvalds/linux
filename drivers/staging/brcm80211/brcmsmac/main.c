@@ -5480,10 +5480,8 @@ static void brcms_c_bss_default_init(struct brcms_c_info *wlc)
 
 	/* init default and target BSS with some sane initial values */
 	memset((char *)(bi), 0, sizeof(wlc_bss_info_t));
-	bi->beacon_period = ISSIM_ENAB(wlc->pub->sih) ? BEACON_INTERVAL_DEF_QT :
-	    BEACON_INTERVAL_DEFAULT;
-	bi->dtim_period = ISSIM_ENAB(wlc->pub->sih) ? DTIM_INTERVAL_DEF_QT :
-	    DTIM_INTERVAL_DEFAULT;
+	bi->beacon_period = BEACON_INTERVAL_DEFAULT;
+	bi->dtim_period = DTIM_INTERVAL_DEFAULT;
 
 	/* fill the default channel as the first valid channel
 	 * starting from the 2G channels

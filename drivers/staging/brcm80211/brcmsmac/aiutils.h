@@ -409,8 +409,6 @@ struct si_pub {
 #define SI_PCIDOWN	2
 #define SI_PCIUP	3
 
-#define	ISSIM_ENAB(sih)	0
-
 /* PMU clock/power control */
 #if defined(BCMPMUCTL)
 #define PMUCTL_ENAB(sih)	(BCMPMUCTL)

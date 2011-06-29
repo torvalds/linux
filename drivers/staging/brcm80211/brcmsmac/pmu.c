@@ -203,7 +203,7 @@ u32 si_pmu_ilp_clock(struct si_pub *sih)
 {
 	static u32 ilpcycles_per_sec;
 
-	if (ISSIM_ENAB(sih) || !PMUCTL_ENAB(sih))
+	if (!PMUCTL_ENAB(sih))
 		return ILP_CLOCK;
 
 	if (ilpcycles_per_sec == 0) {
@@ -225,21 +225,15 @@ u16 si_pmu_fast_pwrup_delay(struct si_pub *sih)
 {
 	uint delay = PMU_MAX_TRANSITION_DLY;
 
-	/* Remember original core before switch to chipc */
-	origidx = ai_coreidx(sih);
-	cc = ai_setcoreidx(sih, SI_CC_IDX);
-
 	switch (sih->chip) {
 	case BCM43224_CHIP_ID:
 	case BCM43225_CHIP_ID:
 	case BCM4313_CHIP_ID:
-		delay = ISSIM_ENAB(sih) ? 70 : 3700;
+		delay = 3700;
 		break;
 	default:
 		break;
 	}
-	/* Return to original core */
-	ai_setcoreidx(sih, origidx);
 
 	return (u16) delay;
 }

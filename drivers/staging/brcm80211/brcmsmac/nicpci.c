@@ -596,28 +596,23 @@ static void pcie_war_aspm_clkreq(pcicore_info_t *pi)
 		return;
 
 	/* bypass this on QT or VSIM */
-	if (!ISSIM_ENAB(sih)) {
+	reg16 = &pcieregs->sprom[SRSH_ASPM_OFFSET];
+	val16 = R_REG(reg16);
 
-		reg16 = &pcieregs->sprom[SRSH_ASPM_OFFSET];
-		val16 = R_REG(reg16);
+	val16 &= ~SRSH_ASPM_ENB;
+	if (pi->pcie_war_aspm_ovr == PCIE_ASPM_ENAB)
+		val16 |= SRSH_ASPM_ENB;
+	else if (pi->pcie_war_aspm_ovr == PCIE_ASPM_L1_ENAB)
+		val16 |= SRSH_ASPM_L1_ENB;
+	else if (pi->pcie_war_aspm_ovr == PCIE_ASPM_L0s_ENAB)
+		val16 |= SRSH_ASPM_L0s_ENB;
 
-		val16 &= ~SRSH_ASPM_ENB;
-		if (pi->pcie_war_aspm_ovr == PCIE_ASPM_ENAB)
-			val16 |= SRSH_ASPM_ENB;
-		else if (pi->pcie_war_aspm_ovr == PCIE_ASPM_L1_ENAB)
-			val16 |= SRSH_ASPM_L1_ENB;
-		else if (pi->pcie_war_aspm_ovr == PCIE_ASPM_L0s_ENAB)
-			val16 |= SRSH_ASPM_L0s_ENB;
+	W_REG(reg16, val16);
 
-		W_REG(reg16, val16);
-
-		pci_read_config_dword(pi->dev, pi->pciecap_lcreg_offset,
-					&w);
-		w &= ~PCIE_ASPM_ENAB;
-		w |= pi->pcie_war_aspm_ovr;
-		pci_write_config_dword(pi->dev,
-					pi->pciecap_lcreg_offset, w);
-	}
+	pci_read_config_dword(pi->dev, pi->pciecap_lcreg_offset, &w);
+	w &= ~PCIE_ASPM_ENAB;
+	w |= pi->pcie_war_aspm_ovr;
+	pci_write_config_dword(pi->dev, pi->pciecap_lcreg_offset, w);
 
 	reg16 = &pcieregs->sprom[SRSH_CLKREQ_OFFSET_REV5];
 	val16 = R_REG(reg16);

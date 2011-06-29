@@ -15369,9 +15369,7 @@ static void wlc_phy_workarounds_nphy(phy_info_t *pi)
 	if (pi->phyhang_avoid)
 		wlc_phy_stay_in_carriersearch_nphy(pi, true);
 
-	if (!ISSIM_ENAB(pi->sh->sih)) {
-		or_phy_reg(pi, 0xb1, NPHY_IQFlip_ADC1 | NPHY_IQFlip_ADC2);
-	}
+	or_phy_reg(pi, 0xb1, NPHY_IQFlip_ADC1 | NPHY_IQFlip_ADC2);
 
 	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
 
