@@ -89,7 +89,6 @@ struct twl6040_data {
 	u16 hs_right_step;
 	u16 hf_left_step;
 	u16 hf_right_step;
-	struct snd_pcm_hw_constraint_list *sysclk_constraints;
 	struct twl6040_jack_data hs_jack;
 	struct snd_soc_codec *codec;
 	struct workqueue_struct *workqueue;
@@ -224,11 +223,6 @@ static unsigned int lp_rates[] = {
 	96000,
 };
 
-static struct snd_pcm_hw_constraint_list lp_constraints = {
-	.count	= ARRAY_SIZE(lp_rates),
-	.list	= lp_rates,
-};
-
 static unsigned int hp_rates[] = {
 	8000,
 	16000,
@@ -237,9 +231,9 @@ static unsigned int hp_rates[] = {
 	96000,
 };
 
-static struct snd_pcm_hw_constraint_list hp_constraints = {
-	.count	= ARRAY_SIZE(hp_rates),
-	.list	= hp_rates,
+static struct snd_pcm_hw_constraint_list sysclk_constraints[] = {
+	{ .count = ARRAY_SIZE(lp_rates), .list = lp_rates, },
+	{ .count = ARRAY_SIZE(hp_rates), .list = hp_rates, },
 };
 
 /*
@@ -1099,10 +1093,6 @@ static int twl6040_pll_put_enum(struct snd_kcontrol *kcontrol,
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 
 	priv->pll_power_mode = ucontrol->value.enumerated.item[0];
-	if (priv->pll_power_mode)
-		priv->sysclk_constraints = &hp_constraints;
-	else
-		priv->sysclk_constraints = &lp_constraints;
 
 	return 0;
 }
@@ -1370,7 +1360,7 @@ static int twl6040_startup(struct snd_pcm_substream *substream,
 
 	snd_pcm_hw_constraint_list(substream->runtime, 0,
 				SNDRV_PCM_HW_PARAM_RATE,
-				priv->sysclk_constraints);
+				&sysclk_constraints[priv->pll_power_mode]);
 
 	return 0;
 }
@@ -1599,7 +1589,6 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 		goto work_err;
 	}
 
-	priv->sysclk_constraints = &lp_constraints;
 	priv->workqueue = create_singlethread_workqueue("twl6040-codec");
 	if (!priv->workqueue) {
 		ret = -ENOMEM;
