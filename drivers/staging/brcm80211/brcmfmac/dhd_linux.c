@@ -375,7 +375,6 @@ static int brcmf_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 
 static void brcmf_set_packet_filter(int value, dhd_pub_t *dhd)
 {
-#ifdef PKT_FILTER_SUPPORT
 	DHD_TRACE(("%s: %d\n", __func__, value));
 	/* 1 - Enable packet filter, only allow unicast packet to send up */
 	/* 0 - Disable packet filter */
@@ -388,7 +387,6 @@ static void brcmf_set_packet_filter(int value, dhd_pub_t *dhd)
 						     value, brcmf_master_mode);
 		}
 	}
-#endif
 }
 
 #if defined(CONFIG_HAS_EARLYSUSPEND)

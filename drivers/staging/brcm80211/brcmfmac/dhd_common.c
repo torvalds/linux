@@ -1190,6 +1190,7 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 	uint bcn_timeout = 3;
 	int scan_assoc_time = 40;
 	int scan_unassoc_time = 40;
+	int i;
 #ifdef GET_CUSTOM_MAC_ENABLE
 	int ret = 0;
 	u8 ea_addr[ETH_ALEN];
@@ -1288,22 +1289,17 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 		brcmf_c_arp_offload_set(dhd, brcmf_arp_mode);
 	brcmf_c_arp_offload_enable(dhd, brcmf_arp_enable);
 
-#ifdef PKT_FILTER_SUPPORT
-	{
-		int i;
-		/* Set up pkt filter */
-		if (brcmf_pkt_filter_enable) {
-			for (i = 0; i < dhd->pktfilter_count; i++) {
-				brcmf_c_pktfilter_offload_set(dhd,
-							  dhd->pktfilter[i]);
-				brcmf_c_pktfilter_offload_enable(dhd,
-				     dhd->pktfilter[i],
-				     brcmf_pkt_filter_init,
-				     brcmf_master_mode);
-			}
+	/* Set up pkt filter */
+	if (brcmf_pkt_filter_enable) {
+		for (i = 0; i < dhd->pktfilter_count; i++) {
+			brcmf_c_pktfilter_offload_set(dhd,
+						  dhd->pktfilter[i]);
+			brcmf_c_pktfilter_offload_enable(dhd,
+			     dhd->pktfilter[i],
+			     brcmf_pkt_filter_init,
+			     brcmf_master_mode);
 		}
 	}
-#endif				/* PKT_FILTER_SUPPORT */
 
 	brcmf_os_proto_unblock(dhd);
 
