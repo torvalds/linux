@@ -847,6 +847,9 @@ print_entries:
 	for (nd = rb_first(&self->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 
+		if (h->filtered)
+			continue;
+
 		if (show_displacement) {
 			if (h->pair != NULL)
 				displacement = ((long)h->pair->position -
