@@ -124,6 +124,158 @@ void kvmppc_dump_regs(struct kvm_vcpu *vcpu)
 	       vcpu->arch.last_inst);
 }
 
+struct kvm_vcpu *kvmppc_find_vcpu(struct kvm *kvm, int id)
+{
+	int r;
+	struct kvm_vcpu *v, *ret = NULL;
+
+	mutex_lock(&kvm->lock);
+	kvm_for_each_vcpu(r, v, kvm) {
+		if (v->vcpu_id == id) {
+			ret = v;
+			break;
+		}
+	}
+	mutex_unlock(&kvm->lock);
+	return ret;
+}
+
+static void init_vpa(struct kvm_vcpu *vcpu, struct lppaca *vpa)
+{
+	vpa->shared_proc = 1;
+	vpa->yield_count = 1;
+}
+
+static unsigned long do_h_register_vpa(struct kvm_vcpu *vcpu,
+				       unsigned long flags,
+				       unsigned long vcpuid, unsigned long vpa)
+{
+	struct kvm *kvm = vcpu->kvm;
+	unsigned long pg_index, ra, len;
+	unsigned long pg_offset;
+	void *va;
+	struct kvm_vcpu *tvcpu;
+
+	tvcpu = kvmppc_find_vcpu(kvm, vcpuid);
+	if (!tvcpu)
+		return H_PARAMETER;
+
+	flags >>= 63 - 18;
+	flags &= 7;
+	if (flags == 0 || flags == 4)
+		return H_PARAMETER;
+	if (flags < 4) {
+		if (vpa & 0x7f)
+			return H_PARAMETER;
+		/* registering new area; convert logical addr to real */
+		pg_index = vpa >> kvm->arch.ram_porder;
+		pg_offset = vpa & (kvm->arch.ram_psize - 1);
+		if (pg_index >= kvm->arch.ram_npages)
+			return H_PARAMETER;
+		if (kvm->arch.ram_pginfo[pg_index].pfn == 0)
+			return H_PARAMETER;
+		ra = kvm->arch.ram_pginfo[pg_index].pfn << PAGE_SHIFT;
+		ra |= pg_offset;
+		va = __va(ra);
+		if (flags <= 1)
+			len = *(unsigned short *)(va + 4);
+		else
+			len = *(unsigned int *)(va + 4);
+		if (pg_offset + len > kvm->arch.ram_psize)
+			return H_PARAMETER;
+		switch (flags) {
+		case 1:		/* register VPA */
+			if (len < 640)
+				return H_PARAMETER;
+			tvcpu->arch.vpa = va;
+			init_vpa(vcpu, va);
+			break;
+		case 2:		/* register DTL */
+			if (len < 48)
+				return H_PARAMETER;
+			if (!tvcpu->arch.vpa)
+				return H_RESOURCE;
+			len -= len % 48;
+			tvcpu->arch.dtl = va;
+			tvcpu->arch.dtl_end = va + len;
+			break;
+		case 3:		/* register SLB shadow buffer */
+			if (len < 8)
+				return H_PARAMETER;
+			if (!tvcpu->arch.vpa)
+				return H_RESOURCE;
+			tvcpu->arch.slb_shadow = va;
+			len = (len - 16) / 16;
+			tvcpu->arch.slb_shadow = va;
+			break;
+		}
+	} else {
+		switch (flags) {
+		case 5:		/* unregister VPA */
+			if (tvcpu->arch.slb_shadow || tvcpu->arch.dtl)
+				return H_RESOURCE;
+			tvcpu->arch.vpa = NULL;
+			break;
+		case 6:		/* unregister DTL */
+			tvcpu->arch.dtl = NULL;
+			break;
+		case 7:		/* unregister SLB shadow buffer */
+			tvcpu->arch.slb_shadow = NULL;
+			break;
+		}
+	}
+	return H_SUCCESS;
+}
+
+int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
+{
+	unsigned long req = kvmppc_get_gpr(vcpu, 3);
+	unsigned long target, ret = H_SUCCESS;
+	struct kvm_vcpu *tvcpu;
+
+	switch (req) {
+	case H_CEDE:
+		vcpu->arch.shregs.msr |= MSR_EE;
+		vcpu->arch.ceded = 1;
+		smp_mb();
+		if (!vcpu->arch.prodded)
+			kvmppc_vcpu_block(vcpu);
+		else
+			vcpu->arch.prodded = 0;
+		smp_mb();
+		vcpu->arch.ceded = 0;
+		break;
+	case H_PROD:
+		target = kvmppc_get_gpr(vcpu, 4);
+		tvcpu = kvmppc_find_vcpu(vcpu->kvm, target);
+		if (!tvcpu) {
+			ret = H_PARAMETER;
+			break;
+		}
+		tvcpu->arch.prodded = 1;
+		smp_mb();
+		if (vcpu->arch.ceded) {
+			if (waitqueue_active(&vcpu->wq)) {
+				wake_up_interruptible(&vcpu->wq);
+				vcpu->stat.halt_wakeup++;
+			}
+		}
+		break;
+	case H_CONFER:
+		break;
+	case H_REGISTER_VPA:
+		ret = do_h_register_vpa(vcpu, kvmppc_get_gpr(vcpu, 4),
+					kvmppc_get_gpr(vcpu, 5),
+					kvmppc_get_gpr(vcpu, 6));
+		break;
+	default:
+		return RESUME_HOST;
+	}
+	kvmppc_set_gpr(vcpu, 3, ret);
+	vcpu->arch.hcall_needed = 0;
+	return RESUME_GUEST;
+}
+
 static int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			      struct task_struct *tsk)
 {
@@ -318,7 +470,7 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 
 extern int __kvmppc_vcore_entry(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
 
-int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
+static int kvmppc_run_vcpu(struct kvm_run *run, struct kvm_vcpu *vcpu)
 {
 	u64 now;
 
@@ -368,6 +520,22 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
  out:
 	preempt_enable();
 	return -EBUSY;
+}
+
+int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
+{
+	int r;
+
+	do {
+		r = kvmppc_run_vcpu(run, vcpu);
+
+		if (run->exit_reason == KVM_EXIT_PAPR_HCALL &&
+		    !(vcpu->arch.shregs.msr & MSR_PR)) {
+			r = kvmppc_pseries_do_hcall(vcpu);
+			kvmppc_core_deliver_interrupts(vcpu);
+		}
+	} while (r == RESUME_GUEST);
+	return r;
 }
 
 int kvmppc_core_prepare_memory_region(struct kvm *kvm,

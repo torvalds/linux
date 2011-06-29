@@ -166,6 +166,14 @@ kvmppc_hv_entry:
 	/* Save R1 in the PACA */
 	std	r1, HSTATE_HOST_R1(r13)
 
+	/* Increment yield count if they have a VPA */
+	ld	r3, VCPU_VPA(r4)
+	cmpdi	r3, 0
+	beq	25f
+	lwz	r5, LPPACA_YIELDCOUNT(r3)
+	addi	r5, r5, 1
+	stw	r5, LPPACA_YIELDCOUNT(r3)
+25:
 	/* Load up DAR and DSISR */
 	ld	r5, VCPU_DAR(r4)
 	lwz	r6, VCPU_DSISR(r4)
@@ -401,6 +409,10 @@ kvmppc_interrupt:
 	cmpwi	r3,0
 	bge	ignore_hdec
 2:
+	/* See if this is something we can handle in real mode */
+	cmpwi	r12,BOOK3S_INTERRUPT_SYSCALL
+	beq	hcall_try_real_mode
+hcall_real_cont:
 
 	/* Check for mediated interrupts (could be done earlier really ...) */
 	cmpwi	r12,BOOK3S_INTERRUPT_EXTERNAL
@@ -579,13 +591,28 @@ hdec_soon:
 	std	r5, VCPU_SPRG2(r9)
 	std	r6, VCPU_SPRG3(r9)
 
-	/* Save PMU registers */
+	/* Increment yield count if they have a VPA */
+	ld	r8, VCPU_VPA(r9)	/* do they have a VPA? */
+	cmpdi	r8, 0
+	beq	25f
+	lwz	r3, LPPACA_YIELDCOUNT(r8)
+	addi	r3, r3, 1
+	stw	r3, LPPACA_YIELDCOUNT(r8)
+25:
+	/* Save PMU registers if requested */
+	/* r8 and cr0.eq are live here */
 	li	r3, 1
 	sldi	r3, r3, 31		/* MMCR0_FC (freeze counters) bit */
 	mfspr	r4, SPRN_MMCR0		/* save MMCR0 */
 	mtspr	SPRN_MMCR0, r3		/* freeze all counters, disable ints */
 	isync
-	mfspr	r5, SPRN_MMCR1
+	beq	21f			/* if no VPA, save PMU stuff anyway */
+	lbz	r7, LPPACA_PMCINUSE(r8)
+	cmpwi	r7, 0			/* did they ask for PMU stuff to be saved? */
+	bne	21f
+	std	r3, VCPU_MMCR(r9)	/* if not, set saved MMCR0 to FC */
+	b	22f
+21:	mfspr	r5, SPRN_MMCR1
 	mfspr	r6, SPRN_MMCRA
 	std	r4, VCPU_MMCR(r9)
 	std	r5, VCPU_MMCR + 8(r9)
@@ -676,6 +703,125 @@ hdec_soon:
 	mfspr	r7,SPRN_HDSISR
 	b	7b
 
+/*
+ * Try to handle an hcall in real mode.
+ * Returns to the guest if we handle it, or continues on up to
+ * the kernel if we can't (i.e. if we don't have a handler for
+ * it, or if the handler returns H_TOO_HARD).
+ */
+	.globl	hcall_try_real_mode
+hcall_try_real_mode:
+	ld	r3,VCPU_GPR(r3)(r9)
+	andi.	r0,r11,MSR_PR
+	bne	hcall_real_cont
+	clrrdi	r3,r3,2
+	cmpldi	r3,hcall_real_table_end - hcall_real_table
+	bge	hcall_real_cont
+	LOAD_REG_ADDR(r4, hcall_real_table)
+	lwzx	r3,r3,r4
+	cmpwi	r3,0
+	beq	hcall_real_cont
+	add	r3,r3,r4
+	mtctr	r3
+	mr	r3,r9		/* get vcpu pointer */
+	ld	r4,VCPU_GPR(r4)(r9)
+	bctrl
+	cmpdi	r3,H_TOO_HARD
+	beq	hcall_real_fallback
+	ld	r4,HSTATE_KVM_VCPU(r13)
+	std	r3,VCPU_GPR(r3)(r4)
+	ld	r10,VCPU_PC(r4)
+	ld	r11,VCPU_MSR(r4)
+	b	fast_guest_return
+
+	/* We've attempted a real mode hcall, but it's punted it back
+	 * to userspace.  We need to restore some clobbered volatiles
+	 * before resuming the pass-it-to-qemu path */
+hcall_real_fallback:
+	li	r12,BOOK3S_INTERRUPT_SYSCALL
+	ld	r9, HSTATE_KVM_VCPU(r13)
+	ld	r11, VCPU_MSR(r9)
+
+	b	hcall_real_cont
+
+	.globl	hcall_real_table
+hcall_real_table:
+	.long	0		/* 0 - unused */
+	.long	.kvmppc_h_remove - hcall_real_table
+	.long	.kvmppc_h_enter - hcall_real_table
+	.long	.kvmppc_h_read - hcall_real_table
+	.long	0		/* 0x10 - H_CLEAR_MOD */
+	.long	0		/* 0x14 - H_CLEAR_REF */
+	.long	.kvmppc_h_protect - hcall_real_table
+	.long	0		/* 0x1c - H_GET_TCE */
+	.long	0		/* 0x20 - H_SET_TCE */
+	.long	0		/* 0x24 - H_SET_SPRG0 */
+	.long	.kvmppc_h_set_dabr - hcall_real_table
+	.long	0		/* 0x2c */
+	.long	0		/* 0x30 */
+	.long	0		/* 0x34 */
+	.long	0		/* 0x38 */
+	.long	0		/* 0x3c */
+	.long	0		/* 0x40 */
+	.long	0		/* 0x44 */
+	.long	0		/* 0x48 */
+	.long	0		/* 0x4c */
+	.long	0		/* 0x50 */
+	.long	0		/* 0x54 */
+	.long	0		/* 0x58 */
+	.long	0		/* 0x5c */
+	.long	0		/* 0x60 */
+	.long	0		/* 0x64 */
+	.long	0		/* 0x68 */
+	.long	0		/* 0x6c */
+	.long	0		/* 0x70 */
+	.long	0		/* 0x74 */
+	.long	0		/* 0x78 */
+	.long	0		/* 0x7c */
+	.long	0		/* 0x80 */
+	.long	0		/* 0x84 */
+	.long	0		/* 0x88 */
+	.long	0		/* 0x8c */
+	.long	0		/* 0x90 */
+	.long	0		/* 0x94 */
+	.long	0		/* 0x98 */
+	.long	0		/* 0x9c */
+	.long	0		/* 0xa0 */
+	.long	0		/* 0xa4 */
+	.long	0		/* 0xa8 */
+	.long	0		/* 0xac */
+	.long	0		/* 0xb0 */
+	.long	0		/* 0xb4 */
+	.long	0		/* 0xb8 */
+	.long	0		/* 0xbc */
+	.long	0		/* 0xc0 */
+	.long	0		/* 0xc4 */
+	.long	0		/* 0xc8 */
+	.long	0		/* 0xcc */
+	.long	0		/* 0xd0 */
+	.long	0		/* 0xd4 */
+	.long	0		/* 0xd8 */
+	.long	0		/* 0xdc */
+	.long	0		/* 0xe0 */
+	.long	0		/* 0xe4 */
+	.long	0		/* 0xe8 */
+	.long	0		/* 0xec */
+	.long	0		/* 0xf0 */
+	.long	0		/* 0xf4 */
+	.long	0		/* 0xf8 */
+	.long	0		/* 0xfc */
+	.long	0		/* 0x100 */
+	.long	0		/* 0x104 */
+	.long	0		/* 0x108 */
+	.long	0		/* 0x10c */
+	.long	0		/* 0x110 */
+	.long	0		/* 0x114 */
+	.long	0		/* 0x118 */
+	.long	0		/* 0x11c */
+	.long	0		/* 0x120 */
+	.long	.kvmppc_h_bulk_remove - hcall_real_table
+hcall_real_table_end:
+
 ignore_hdec:
 	mr	r4,r9
 	b	fast_guest_return
@@ -688,10 +834,16 @@ bounce_ext_interrupt:
 	LOAD_REG_IMMEDIATE(r11,MSR_SF | MSR_ME);
 	b	fast_guest_return
 
+_GLOBAL(kvmppc_h_set_dabr)
+	std	r4,VCPU_DABR(r3)
+	mtspr	SPRN_DABR,r4
+	li	r3,0
+	blr
+
 /*
  * Save away FP, VMX and VSX registers.
  * r3 = vcpu pointer
-*/
+ */
 _GLOBAL(kvmppc_save_fp)
 	mfmsr	r9
 	ori	r8,r9,MSR_FP

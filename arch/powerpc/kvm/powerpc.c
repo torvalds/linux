@@ -42,7 +42,7 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 	return !(v->arch.shared->msr & MSR_WE) ||
 	       !!(v->arch.pending_exceptions);
 #else
-	return 1;
+	return !(v->arch.ceded) || !!(v->arch.pending_exceptions);
 #endif
 }
 

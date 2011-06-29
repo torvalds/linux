@@ -59,6 +59,10 @@ struct kvm;
 struct kvm_run;
 struct kvm_vcpu;
 
+struct lppaca;
+struct slb_shadow;
+struct dtl;
+
 struct kvm_vm_stat {
 	u32 remote_tlb_flush;
 };
@@ -344,7 +348,14 @@ struct kvm_vcpu_arch {
 	u64 dec_expires;
 	unsigned long pending_exceptions;
 	u16 last_cpu;
+	u8 ceded;
+	u8 prodded;
 	u32 last_inst;
+
+	struct lppaca *vpa;
+	struct slb_shadow *slb_shadow;
+	struct dtl *dtl;
+	struct dtl *dtl_end;
 	int trap;
 	struct kvm_vcpu_arch_shared *shared;
 	unsigned long magic_page_pa; /* phys addr to map the magic page to */
