@@ -1577,9 +1577,9 @@ static int pxa_camera_querycap(struct soc_camera_host *ici,
 	return 0;
 }
 
-static int pxa_camera_suspend(struct soc_camera_device *icd, pm_message_t state)
+static int pxa_camera_suspend(struct device *dev)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct pxa_camera_dev *pcdev = ici->priv;
 	int i = 0, ret = 0;
 
@@ -1590,7 +1590,7 @@ static int pxa_camera_suspend(struct soc_camera_device *icd, pm_message_t state)
 	pcdev->save_cicr[i++] = __raw_readl(pcdev->base + CICR4);
 
 	if (pcdev->icd) {
-		struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+		struct v4l2_subdev *sd = soc_camera_to_subdev(pcdev->icd);
 		ret = v4l2_subdev_call(sd, core, s_power, 0);
 		if (ret == -ENOIOCTLCMD)
 			ret = 0;
@@ -1599,9 +1599,9 @@ static int pxa_camera_suspend(struct soc_camera_device *icd, pm_message_t state)
 	return ret;
 }
 
-static int pxa_camera_resume(struct soc_camera_device *icd)
+static int pxa_camera_resume(struct device *dev)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct pxa_camera_dev *pcdev = ici->priv;
 	int i = 0, ret = 0;
 
@@ -1616,7 +1616,7 @@ static int pxa_camera_resume(struct soc_camera_device *icd)
 	__raw_writel(pcdev->save_cicr[i++], pcdev->base + CICR4);
 
 	if (pcdev->icd) {
-		struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+		struct v4l2_subdev *sd = soc_camera_to_subdev(pcdev->icd);
 		ret = v4l2_subdev_call(sd, core, s_power, 1);
 		if (ret == -ENOIOCTLCMD)
 			ret = 0;
@@ -1633,8 +1633,6 @@ static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= pxa_camera_add_device,
 	.remove		= pxa_camera_remove_device,
-	.suspend	= pxa_camera_suspend,
-	.resume		= pxa_camera_resume,
 	.set_crop	= pxa_camera_set_crop,
 	.get_formats	= pxa_camera_get_formats,
 	.put_formats	= pxa_camera_put_formats,
@@ -1819,9 +1817,15 @@ static int __devexit pxa_camera_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct dev_pm_ops pxa_camera_pm = {
+	.suspend	= pxa_camera_suspend,
+	.resume		= pxa_camera_resume,
+};
+
 static struct platform_driver pxa_camera_driver = {
 	.driver 	= {
 		.name	= PXA_CAM_DRV_NAME,
+		.pm	= &pxa_camera_pm,
 	},
 	.probe		= pxa_camera_probe,
 	.remove		= __devexit_p(pxa_camera_remove),
