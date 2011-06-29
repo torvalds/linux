@@ -35,8 +35,6 @@ int brcmf_msg_level;
 char brcmf_fw_path[MOD_PARAM_PATHLEN];
 char brcmf_nv_path[MOD_PARAM_PATHLEN];
 
-extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
-			    uint len);
 extern void dhd_ind_scan_confirm(void *h, bool status);
 extern int dhd_wl_ioctl(dhd_pub_t *dhd, uint cmd, char *buf, uint buflen);
 void dhd_iscan_lock(void);
@@ -200,7 +198,7 @@ static int brcmf_c_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 	brcmu_bprintf(strbuf, "\n");
 
 	/* Add any prot info */
-	dhd_prot_dump(dhdp, strbuf);
+	brcmf_proto_dump(dhdp, strbuf);
 	brcmu_bprintf(strbuf, "\n");
 
 	/* Add any bus info */
@@ -486,13 +484,15 @@ int brcmf_c_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 
 			/* not in generic table, try protocol module */
 			if (ioc->cmd == DHD_GET_VAR)
-				bcmerror = dhd_prot_iovar_op(dhd_pub, buf, arg,
-							     arglen, buf,
-							     buflen, IOV_GET);
+				bcmerror = brcmf_proto_iovar_op(dhd_pub, buf,
+								arg, arglen,
+								buf, buflen,
+								IOV_GET);
 			else
-				bcmerror = dhd_prot_iovar_op(dhd_pub, buf,
-							     NULL, 0, arg,
-							     arglen, IOV_SET);
+				bcmerror = brcmf_proto_iovar_op(dhd_pub, buf,
+								NULL, 0, arg,
+								arglen,
+								IOV_SET);
 			if (bcmerror != -ENOTSUPP)
 				break;
 
@@ -997,7 +997,7 @@ brcmf_c_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 	memcpy((char *)pkt_filterp, &enable_parm, sizeof(enable_parm));
 
 	/* Enable/disable the specified filter. */
-	rc = dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, buf, buf_len);
+	rc = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, buf, buf_len);
 	rc = rc >= 0 ? 0 : rc;
 	if (rc)
 		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
@@ -1009,7 +1009,8 @@ brcmf_c_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 	/* Contorl the master mode */
 	brcmu_mkiovar("pkt_filter_mode", (char *)&master_mode, 4, buf,
 		    sizeof(buf));
-	rc = dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, buf, sizeof(buf));
+	rc = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, buf,
+				       sizeof(buf));
 	rc = rc >= 0 ? 0 : rc;
 	if (rc)
 		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
@@ -1140,7 +1141,7 @@ void brcmf_c_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	       &pkt_filter,
 	       WL_PKT_FILTER_FIXED_LEN + WL_PKT_FILTER_PATTERN_FIXED_LEN);
 
-	rc = dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, buf, buf_len);
+	rc = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, buf, buf_len);
 	rc = rc >= 0 ? 0 : rc;
 
 	if (rc)
@@ -1162,7 +1163,7 @@ void brcmf_c_arp_offload_set(dhd_pub_t *dhd, int arp_mode)
 	int retcode;
 
 	brcmu_mkiovar("arp_ol", (char *)&arp_mode, 4, iovbuf, sizeof(iovbuf));
-	retcode = dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
+	retcode = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
 				   iovbuf, sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
@@ -1179,7 +1180,7 @@ void brcmf_c_arp_offload_enable(dhd_pub_t *dhd, int arp_enable)
 	int retcode;
 
 	brcmu_mkiovar("arpoe", (char *)&arp_enable, 4, iovbuf, sizeof(iovbuf));
-	retcode = dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
+	retcode = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
 				   iovbuf, sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
@@ -1220,7 +1221,7 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 	if (!ret) {
 		brcmu_mkiovar("cur_etheraddr", (void *)ea_addr, ETH_ALEN,
 			    buf, sizeof(buf));
-		ret = dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
+		ret = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
 				       buf, sizeof(buf));
 		if (ret < 0) {
 			DHD_ERROR(("%s: can't set MAC address , error=%d\n",
@@ -1233,7 +1234,7 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 
 	/* Set Country code */
 	if (dhd->country_code[0] != 0) {
-		if (dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_COUNTRY,
+		if (brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_COUNTRY,
 				     dhd->country_code,
 				     sizeof(dhd->country_code)) < 0) {
 			DHD_ERROR(("%s: country code setting failed\n",
@@ -1245,48 +1246,54 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 	memset(buf, 0, sizeof(buf));
 	ptr = buf;
 	brcmu_mkiovar("ver", 0, 0, buf, sizeof(buf));
-	dhdcdc_query_ioctl(dhd, 0, BRCMF_C_GET_VAR, buf, sizeof(buf));
+	brcmf_proto_cdc_query_ioctl(dhd, 0, BRCMF_C_GET_VAR, buf, sizeof(buf));
 	strsep(&ptr, "\n");
 	/* Print fw version info */
 	DHD_ERROR(("Firmware version = %s\n", buf));
 
 	/* Set PowerSave mode */
-	dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_PM, (char *)&power_mode,
+	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_PM, (char *)&power_mode,
 			 sizeof(power_mode));
 
 	/* Match Host and Dongle rx alignment */
 	brcmu_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf,
 		    sizeof(iovbuf));
-	dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
+	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+				  sizeof(iovbuf));
 
 	/* disable glom option per default */
 	brcmu_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
-	dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
+	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+				  sizeof(iovbuf));
 
 	/* Setup timeout if Beacons are lost and roam is off to report
 		 link down */
 	brcmu_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf,
 		    sizeof(iovbuf));
-	dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
+	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+				  sizeof(iovbuf));
 
 	/* Enable/Disable build-in roaming to allowed ext supplicant to take
 		 of romaing */
 	brcmu_mkiovar("roam_off", (char *)&brcmf_roam, 4,
 		      iovbuf, sizeof(iovbuf));
-	dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
+	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+				  sizeof(iovbuf));
 
 	/* Force STA UP */
 	if (brcmf_radio_up)
-		dhdcdc_set_ioctl(dhd, 0, BRCMF_C_UP, (char *)&up, sizeof(up));
+		brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_UP, (char *)&up,
+					  sizeof(up));
 
 	/* Setup event_msgs */
 	brcmu_mkiovar("event_msgs", dhd->eventmask, WL_EVENTING_MASK_LEN,
 		      iovbuf, sizeof(iovbuf));
-	dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
+	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+				  sizeof(iovbuf));
 
-	dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_SCAN_CHANNEL_TIME,
+	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_SCAN_CHANNEL_TIME,
 			 (char *)&scan_assoc_time, sizeof(scan_assoc_time));
-	dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_SCAN_UNASSOC_TIME,
+	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_SCAN_UNASSOC_TIME,
 			 (char *)&scan_unassoc_time, sizeof(scan_unassoc_time));
 
 #ifdef ARP_OFFLOAD_SUPPORT
@@ -1715,14 +1722,15 @@ int dhd_pno_clean(dhd_pub_t *dhd)
 	/* Disable pfn */
 	iov_len = brcmu_mkiovar("pfn", (char *)&pfn_enabled, 4, iovbuf,
 				sizeof(iovbuf));
-	ret = dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
+	ret = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+					sizeof(iovbuf));
 	if (ret >= 0) {
 		/* clear pfn */
 		iov_len = brcmu_mkiovar("pfnclear", 0, 0, iovbuf,
 					sizeof(iovbuf));
 		if (iov_len) {
-			ret = dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
-					iov_len);
+			ret = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
+							iovbuf, iov_len);
 			if (ret < 0) {
 				DHD_ERROR(("%s failed code %d\n", __func__,
 					   ret));
@@ -1751,7 +1759,7 @@ int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 	ret = brcmu_mkiovar("pfn", (char *)&pfn_enabled, 4, iovbuf,
 			sizeof(iovbuf));
 	if (ret > 0) {
-		ret = dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+		ret = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
 				sizeof(iovbuf));
 		if (ret < 0) {
 			DHD_ERROR(("%s failed for error=%d\n", __func__, ret));
@@ -1823,7 +1831,8 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t *ssids_local, int nssid, unsigned char sc
 
 	brcmu_mkiovar("pfn_set", (char *)&pfn_param, sizeof(pfn_param), iovbuf,
 		    sizeof(iovbuf));
-	dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
+	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+				  sizeof(iovbuf));
 
 	/* set all pfn ssid */
 	for (i = 0; i < nssid; i++) {
@@ -1841,8 +1850,8 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t *ssids_local, int nssid, unsigned char sc
 		err = brcmu_mkiovar("pfn_add", (char *)&pfn_element,
 				sizeof(pfn_element), iovbuf, sizeof(iovbuf));
 		if (err > 0) {
-			err = dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
-					sizeof(iovbuf));
+			err = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
+							iovbuf, sizeof(iovbuf));
 			if (err < 0) {
 				DHD_ERROR(("%s failed for i=%d error=%d\n",
 					   __func__, i, err));

@@ -909,8 +909,8 @@ extern void brcmf_txcomplete(dhd_pub_t *dhdp, struct sk_buff *txp,
 			     bool success);
 
 /* Query ioctl */
-extern int dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
-			      uint len);
+extern int brcmf_proto_cdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd,
+				       void *buf, uint len);
 
 /* OS independent layer functions */
 extern int brcmf_os_proto_block(dhd_pub_t *pub);

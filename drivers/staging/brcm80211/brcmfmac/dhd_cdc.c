@@ -53,7 +53,7 @@ struct cdc_ioctl {
 	((idx) << CDCF_IOC_IF_SHIFT)))
 
 /*
- * BDC header
+ * BDC header - Broadcom specific extension of CDC.
  * Used on data packets to convey priority across USB.
  */
 #define	BDC_HEADER_LEN		4
@@ -112,7 +112,7 @@ typedef struct dhd_prot {
 	unsigned char buf[BRCMF_C_IOCTL_MAXLEN + ROUND_UP_MARGIN];
 } dhd_prot_t;
 
-static int dhdcdc_msg(dhd_pub_t *dhd)
+static int brcmf_proto_cdc_msg(dhd_pub_t *dhd)
 {
 	dhd_prot_t *prot = dhd->prot;
 	int len = le32_to_cpu(prot->msg.len) + sizeof(struct cdc_ioctl);
@@ -131,7 +131,7 @@ static int dhdcdc_msg(dhd_pub_t *dhd)
 				      len);
 }
 
-static int dhdcdc_cmplt(dhd_pub_t *dhd, u32 id, u32 len)
+static int brcmf_proto_cdc_cmplt(dhd_pub_t *dhd, u32 id, u32 len)
 {
 	int ret;
 	dhd_prot_t *prot = dhd->prot;
@@ -150,7 +150,8 @@ static int dhdcdc_cmplt(dhd_pub_t *dhd, u32 id, u32 len)
 }
 
 int
-dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
+brcmf_proto_cdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
+			    uint len)
 {
 	dhd_prot_t *prot = dhd->prot;
 	struct cdc_ioctl *msg = &prot->msg;
@@ -184,7 +185,7 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 	if (buf)
 		memcpy(prot->buf, buf, len);
 
-	ret = dhdcdc_msg(dhd);
+	ret = brcmf_proto_cdc_msg(dhd);
 	if (ret < 0) {
 		DHD_ERROR(("dhdcdc_query_ioctl: dhdcdc_msg failed w/status "
 			"%d\n", ret));
@@ -193,7 +194,7 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 
 retry:
 	/* wait for interrupt and get first fragment */
-	ret = dhdcdc_cmplt(dhd, prot->reqid, len);
+	ret = brcmf_proto_cdc_cmplt(dhd, prot->reqid, len);
 	if (ret < 0)
 		goto done;
 
@@ -231,7 +232,8 @@ done:
 	return ret;
 }
 
-int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
+int brcmf_proto_cdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd,
+			      void *buf, uint len)
 {
 	dhd_prot_t *prot = dhd->prot;
 	struct cdc_ioctl *msg = &prot->msg;
@@ -252,11 +254,11 @@ int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len)
 	if (buf)
 		memcpy(prot->buf, buf, len);
 
-	ret = dhdcdc_msg(dhd);
+	ret = brcmf_proto_cdc_msg(dhd);
 	if (ret < 0)
 		goto done;
 
-	ret = dhdcdc_cmplt(dhd, prot->reqid, len);
+	ret = brcmf_proto_cdc_cmplt(dhd, prot->reqid, len);
 	if (ret < 0)
 		goto done;
 
@@ -284,7 +286,8 @@ done:
 
 extern int dhd_bus_interface(struct dhd_bus *bus, uint arg, void *arg2);
 int
-dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
+brcmf_proto_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf,
+		  int len)
 {
 	dhd_prot_t *prot = dhd->prot;
 	int ret = -1;
@@ -318,9 +321,10 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 	prot->pending = true;
 	prot->lastcmd = ioc->cmd;
 	if (ioc->set)
-		ret = dhdcdc_set_ioctl(dhd, ifidx, ioc->cmd, buf, len);
+		ret = brcmf_proto_cdc_set_ioctl(dhd, ifidx, ioc->cmd, buf, len);
 	else {
-		ret = dhdcdc_query_ioctl(dhd, ifidx, ioc->cmd, buf, len);
+		ret = brcmf_proto_cdc_query_ioctl(dhd, ifidx, ioc->cmd,
+						  buf, len);
 		if (ret > 0)
 			ioc->used = ret - sizeof(struct cdc_ioctl);
 	}
@@ -363,18 +367,18 @@ done:
 	skb->ip_summed is overloaded */
 
 int
-dhd_prot_iovar_op(dhd_pub_t *dhdp, const char *name,
+brcmf_proto_iovar_op(dhd_pub_t *dhdp, const char *name,
 		  void *params, int plen, void *arg, int len, bool set)
 {
 	return -ENOTSUPP;
 }
 
-void dhd_prot_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf)
+void brcmf_proto_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf)
 {
 	brcmu_bprintf(strbuf, "Protocol CDC: reqid %d\n", dhdp->prot->reqid);
 }
 
-void dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, struct sk_buff *pktbuf)
+void brcmf_proto_hdrpush(dhd_pub_t *dhd, int ifidx, struct sk_buff *pktbuf)
 {
 	struct bdc_header *h;
 
@@ -396,7 +400,7 @@ void dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, struct sk_buff *pktbuf)
 	BDC_SET_IF_IDX(h, ifidx);
 }
 
-int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
+int brcmf_proto_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
 {
 	struct bdc_header *h;
 
@@ -440,7 +444,7 @@ int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
 	return 0;
 }
 
-int dhd_prot_attach(dhd_pub_t *dhd)
+int brcmf_proto_attach(dhd_pub_t *dhd)
 {
 	dhd_prot_t *cdc;
 
@@ -468,13 +472,13 @@ fail:
 }
 
 /* ~NOTE~ What if another thread is waiting on the semaphore?  Holding it? */
-void dhd_prot_detach(dhd_pub_t *dhd)
+void brcmf_proto_detach(dhd_pub_t *dhd)
 {
 	kfree(dhd->prot);
 	dhd->prot = NULL;
 }
 
-void dhd_prot_dstats(dhd_pub_t *dhd)
+void brcmf_proto_dstats(dhd_pub_t *dhd)
 {
 	/* No stats from dongle added yet, copy bus stats */
 	dhd->dstats.tx_packets = dhd->tx_packets;
@@ -486,7 +490,7 @@ void dhd_prot_dstats(dhd_pub_t *dhd)
 	return;
 }
 
-int dhd_prot_init(dhd_pub_t *dhd)
+int brcmf_proto_init(dhd_pub_t *dhd)
 {
 	int ret = 0;
 	char buf[128];
@@ -497,7 +501,8 @@ int dhd_prot_init(dhd_pub_t *dhd)
 
 	/* Get the device MAC address */
 	strcpy(buf, "cur_etheraddr");
-	ret = dhdcdc_query_ioctl(dhd, 0, BRCMF_C_GET_VAR, buf, sizeof(buf));
+	ret = brcmf_proto_cdc_query_ioctl(dhd, 0, BRCMF_C_GET_VAR,
+					  buf, sizeof(buf));
 	if (ret < 0) {
 		brcmf_os_proto_unblock(dhd);
 		return ret;
@@ -516,7 +521,7 @@ int dhd_prot_init(dhd_pub_t *dhd)
 	return ret;
 }
 
-void dhd_prot_stop(dhd_pub_t *dhd)
+void brcmf_proto_stop(dhd_pub_t *dhd)
 {
 	/* Nothing to do for CDC */
 }

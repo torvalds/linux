@@ -408,8 +408,6 @@ typedef struct {
 	((prio^2)) : (prio))
 
 DHD_SPINWAIT_SLEEP_INIT(sdioh_spinwait_sleep);
-extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
-			    uint len);
 
 /* Core reg address translation */
 #define CORE_CC_REG(base, field)	(base + offsetof(chipcregs_t, field))
@@ -3723,8 +3721,8 @@ static u8 brcmf_sdbrcm_rxglom(dhd_bus_t *bus, u8 rxseq)
 					save_pfirst = pnext;
 				}
 				continue;
-			} else if (dhd_prot_hdrpull(bus->dhd, &ifidx, pfirst) !=
-				   0) {
+			} else if (brcmf_proto_hdrpull(bus->dhd, &ifidx, pfirst)
+					!= 0) {
 				DHD_ERROR(("%s: rx protocol error\n",
 					   __func__));
 				bus->dhd->rx_errors++;
@@ -4336,7 +4334,7 @@ deliver:
 		if (pkt->len == 0) {
 			brcmu_pkt_buf_free_skb(pkt);
 			continue;
-		} else if (dhd_prot_hdrpull(bus->dhd, &ifidx, pkt) != 0) {
+		} else if (brcmf_proto_hdrpull(bus->dhd, &ifidx, pkt) != 0) {
 			DHD_ERROR(("%s: rx protocol error\n", __func__));
 			brcmu_pkt_buf_free_skb(pkt);
 			bus->dhd->rx_errors++;

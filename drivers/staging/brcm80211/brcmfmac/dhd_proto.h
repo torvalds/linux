@@ -30,50 +30,48 @@
  */
 
 /* Linkage, sets prot link and updates hdrlen in pub */
-extern int dhd_prot_attach(dhd_pub_t *dhdp);
+extern int brcmf_proto_attach(dhd_pub_t *dhdp);
 
 /* Unlink, frees allocated protocol memory (including dhd_prot) */
-extern void dhd_prot_detach(dhd_pub_t *dhdp);
+extern void brcmf_proto_detach(dhd_pub_t *dhdp);
 
 /* Initialize protocol: sync w/dongle state.
  * Sets dongle media info (iswl, drv_version, mac address).
  */
-extern int dhd_prot_init(dhd_pub_t *dhdp);
+extern int brcmf_proto_init(dhd_pub_t *dhdp);
 
 /* Stop protocol: sync w/dongle state. */
-extern void dhd_prot_stop(dhd_pub_t *dhdp);
+extern void brcmf_proto_stop(dhd_pub_t *dhdp);
 
 /* Add any protocol-specific data header.
  * Caller must reserve prot_hdrlen prepend space.
  */
-extern void dhd_prot_hdrpush(dhd_pub_t *, int ifidx, struct sk_buff *txp);
+extern void brcmf_proto_hdrpush(dhd_pub_t *, int ifidx, struct sk_buff *txp);
 
 /* Remove any protocol-specific data header. */
-extern int dhd_prot_hdrpull(dhd_pub_t *, int *ifidx, struct sk_buff *rxp);
+extern int brcmf_proto_hdrpull(dhd_pub_t *, int *ifidx, struct sk_buff *rxp);
 
 /* Use protocol to issue ioctl to dongle */
-extern int dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc,
+extern int brcmf_proto_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc,
 			  void *buf, int len);
 
 /* Check for and handle local prot-specific iovar commands */
-extern int dhd_prot_iovar_op(dhd_pub_t *dhdp, const char *name,
+extern int brcmf_proto_iovar_op(dhd_pub_t *dhdp, const char *name,
 			     void *params, int plen, void *arg, int len,
 			     bool set);
 
 /* Add prot dump output to a buffer */
-extern void dhd_prot_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf);
+extern void brcmf_proto_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf);
 
 /* Update local copy of dongle statistics */
-extern void dhd_prot_dstats(dhd_pub_t *dhdp);
+extern void brcmf_proto_dstats(dhd_pub_t *dhdp);
 
 extern int brcmf_c_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf,
 		     uint buflen);
 
 extern int brcmf_c_preinit_ioctls(dhd_pub_t *dhd);
 
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
-			    uint len);
-#endif		/* defined(CONFIG_HAS_EARLYSUSPEND) */
+extern int brcmf_proto_cdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd,
+				     void *buf, uint len);
 
 #endif				/* _dhd_proto_h_ */

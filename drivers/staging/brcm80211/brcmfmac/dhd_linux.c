@@ -414,7 +414,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			DHD_TRACE(("%s: force extra Suspend setting\n",
 				   __func__));
 
-			dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_PM,
+			brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_PM,
 					 (char *)&power_mode,
 					 sizeof(power_mode));
 
@@ -434,16 +434,16 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				bcn_li_dtim = dhd->dtim_skip;
 			brcmu_mkiovar("bcn_li_dtim", (char *)&bcn_li_dtim,
 				    4, iovbuf, sizeof(iovbuf));
-			dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
-					 sizeof(iovbuf));
+			brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
+						  iovbuf, sizeof(iovbuf));
 #ifdef CUSTOMER_HW2
 			/* Disable build-in roaming to allowed \
 			 * supplicant to take of romaing
 			 */
 			brcmu_mkiovar("roam_off", (char *)&roamvar, 4,
 				    iovbuf, sizeof(iovbuf));
-			dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
-					 sizeof(iovbuf));
+			brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
+						  iovbuf, sizeof(iovbuf));
 #endif				/* CUSTOMER_HW2 */
 		} else {
 
@@ -452,7 +452,7 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 				   __func__));
 
 			power_mode = PM_FAST;
-			dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_PM,
+			brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_PM,
 					 (char *)&power_mode,
 					 sizeof(power_mode));
 
@@ -463,14 +463,14 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 			brcmu_mkiovar("bcn_li_dtim", (char *)&dhd->dtim_skip,
 				    4, iovbuf, sizeof(iovbuf));
 
-			dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
-					 sizeof(iovbuf));
+			brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
+						  iovbuf, sizeof(iovbuf));
 #ifdef CUSTOMER_HW2
 			roamvar = 0;
 			brcmu_mkiovar("roam_off", (char *)&roamvar, 4, iovbuf,
 				    sizeof(iovbuf));
-			dhdcdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
-					 sizeof(iovbuf));
+			brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
+						  iovbuf, sizeof(iovbuf));
 #endif				/* CUSTOMER_HW2 */
 		}
 	}
@@ -674,7 +674,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	ioc.len = buflen;
 	ioc.set = true;
 
-	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
 		DHD_ERROR(("%s: set mcast_list failed, cnt %d\n",
 			   brcmf_ifname(&dhd->pub, ifidx), cnt));
@@ -712,7 +712,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	ioc.len = buflen;
 	ioc.set = true;
 
-	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
 		DHD_ERROR(("%s: set allmulti %d failed\n",
 			   brcmf_ifname(&dhd->pub, ifidx),
@@ -733,7 +733,7 @@ static void _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 	ioc.len = sizeof(allmulti);
 	ioc.set = true;
 
-	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
 		DHD_ERROR(("%s: set promisc %d failed\n",
 			   brcmf_ifname(&dhd->pub, ifidx),
@@ -761,7 +761,7 @@ _dhd_set_mac_address(dhd_info_t *dhd, int ifidx, u8 *addr)
 	ioc.len = 32;
 	ioc.set = true;
 
-	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
 		DHD_ERROR(("%s: set cur_etheraddr failed\n",
 			   brcmf_ifname(&dhd->pub, ifidx)));
@@ -978,7 +978,7 @@ int brcmf_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 	}
 
 	/* If the protocol uses a data header, apply it */
-	dhd_prot_hdrpush(dhdp, ifidx, pktbuf);
+	brcmf_proto_hdrpush(dhdp, ifidx, pktbuf);
 
 	/* Use bus module to send data frame */
 #ifdef BCMDBUS
@@ -1185,7 +1185,7 @@ void brcmf_txcomplete(dhd_pub_t *dhdp, struct sk_buff *txp, bool success)
 	struct ethhdr *eh;
 	u16 type;
 
-	dhd_prot_hdrpull(dhdp, &ifidx, txp);
+	brcmf_proto_hdrpull(dhdp, &ifidx, txp);
 
 	eh = (struct ethhdr *)(txp->data);
 	type = ntohs(eh->h_proto);
@@ -1212,7 +1212,7 @@ static struct net_device_stats *dhd_get_stats(struct net_device *net)
 
 	if (dhd->pub.up) {
 		/* Use the protocol to get dongle stats */
-		dhd_prot_dstats(&dhd->pub);
+		brcmf_proto_dstats(&dhd->pub);
 	}
 
 	/* Copy dongle stats to net device stats */
@@ -1371,7 +1371,7 @@ static int dhd_toe_get(dhd_info_t *dhd, int ifidx, u32 *toe_ol)
 	ioc.set = false;
 
 	strcpy(buf, "toe_ol");
-	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
 		/* Check for older dongle image that doesn't support toe_ol */
 		if (ret == -EIO) {
@@ -1409,7 +1409,7 @@ static int dhd_toe_set(dhd_info_t *dhd, int ifidx, u32 toe_ol)
 	strcpy(buf, "toe_ol");
 	memcpy(&buf[sizeof("toe_ol")], &toe_ol, sizeof(u32));
 
-	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
 		DHD_ERROR(("%s: could not set toe_ol: ret=%d\n",
 			   brcmf_ifname(&dhd->pub, ifidx), ret));
@@ -1423,7 +1423,7 @@ static int dhd_toe_set(dhd_info_t *dhd, int ifidx, u32 toe_ol)
 	strcpy(buf, "toe");
 	memcpy(&buf[sizeof("toe")], &toe, sizeof(u32));
 
-	ret = dhd_prot_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(&dhd->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
 		DHD_ERROR(("%s: could not set toe: ret=%d\n",
 			   brcmf_ifname(&dhd->pub, ifidx), ret));
@@ -1662,7 +1662,8 @@ static int dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 		dhd_wait_pend8021x(net);
 
 	bcmerror =
-	    dhd_prot_ioctl(&dhd->pub, ifidx, (wl_ioctl_t *)&ioc, buf, buflen);
+	    brcmf_proto_ioctl(&dhd->pub, ifidx, (wl_ioctl_t *)&ioc, buf,
+			      buflen);
 
 done:
 	if (!bcmerror && buf && ioc.buf) {
@@ -1864,7 +1865,7 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 	dhd->pub.hdrlen = bus_hdrlen;
 
 	/* Attach and link in the protocol */
-	if (dhd_prot_attach(&dhd->pub) != 0) {
+	if (brcmf_proto_attach(&dhd->pub) != 0) {
 		DHD_ERROR(("dhd_prot_attach failed\n"));
 		goto fail;
 	}
@@ -2021,7 +2022,8 @@ int brcmf_bus_start(dhd_pub_t *dhdp)
 #ifdef EMBEDDED_PLATFORM
 	brcmu_mkiovar("event_msgs", dhdp->eventmask, WL_EVENTING_MASK_LEN,
 		      iovbuf, sizeof(iovbuf));
-	dhdcdc_query_ioctl(dhdp, 0, BRCMF_C_GET_VAR, iovbuf, sizeof(iovbuf));
+	brcmf_proto_cdc_query_ioctl(dhdp, 0, BRCMF_C_GET_VAR, iovbuf,
+				    sizeof(iovbuf));
 	memcpy(dhdp->eventmask, iovbuf, WL_EVENTING_MASK_LEN);
 
 	setbit(dhdp->eventmask, BRCMF_E_SET_SSID);
@@ -2054,7 +2056,7 @@ int brcmf_bus_start(dhd_pub_t *dhdp)
 #endif				/* EMBEDDED_PLATFORM */
 
 	/* Bus is ready, do any protocol initialization */
-	ret = dhd_prot_init(&dhd->pub);
+	ret = brcmf_proto_init(&dhd->pub);
 	if (ret < 0)
 		return ret;
 
@@ -2079,7 +2081,7 @@ dhd_iovar(dhd_pub_t *pub, int ifidx, char *name, char *cmd_buf, uint cmd_len,
 	ioc.len = len;
 	ioc.set = set;
 
-	ret = dhd_prot_ioctl(pub, ifidx, &ioc, ioc.buf, ioc.len);
+	ret = brcmf_proto_ioctl(pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (!set && ret >= 0)
 		memcpy(cmd_buf, buf, cmd_len);
 
@@ -2161,7 +2163,7 @@ void dhd_bus_detach(dhd_pub_t *dhdp)
 		dhd = (dhd_info_t *) dhdp->info;
 		if (dhd) {
 			/* Stop the protocol module */
-			dhd_prot_stop(&dhd->pub);
+			brcmf_proto_stop(&dhd->pub);
 
 			/* Stop the bus module */
 			brcmf_sdbrcm_bus_stop(dhd->pub.bus, true);
@@ -2226,7 +2228,7 @@ void brcmf_detach(dhd_pub_t *dhdp)
 			dhd_bus_detach(dhdp);
 
 			if (dhdp->prot)
-				dhd_prot_detach(dhdp);
+				brcmf_proto_detach(dhdp);
 
 			wl_cfg80211_detach();
 
