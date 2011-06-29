@@ -1303,7 +1303,8 @@ qlcnic_handle_linkevent(struct qlcnic_adapter *adapter,
 		dev_info(&netdev->dev, "unsupported cable length %d\n",
 				cable_len);
 
-	if (!link_status && (lb_status == 1))
+	if (!link_status && (lb_status == QLCNIC_ILB_MODE ||
+	    lb_status == QLCNIC_ELB_MODE))
 		adapter->ahw->loopback_state |= QLCNIC_LINKEVENT;
 
 	qlcnic_advert_link_change(adapter, link_status);
