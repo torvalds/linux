@@ -2192,8 +2192,6 @@ static void __exit brcmf_module_cleanup(void)
 #if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
 	wifi_del_dev();
 #endif
-	/* Call customer gpio to turn off power with WL_REG_ON signal */
-	brcmf_customer_gpio_wlan_ctrl(WLAN_POWER_OFF);
 }
 
 static int __init brcmf_module_init(void)
@@ -2216,8 +2214,6 @@ static int __init brcmf_module_init(void)
 		DHD_ERROR(("Invalid module parameters.\n"));
 		return -EINVAL;
 	} while (0);
-	/* Call customer gpio to turn on power with WL_REG_ON signal */
-	brcmf_customer_gpio_wlan_ctrl(WLAN_POWER_ON);
 
 #if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
 	sema_init(&wifi_control_sem, 0);
@@ -2245,11 +2241,9 @@ static int __init brcmf_module_init(void)
 		DHD_ERROR(("%s: dhd_bus_register failed\n", __func__));
 		goto failed;
 	}
-	return error;
+	return 0;
 
 failed:
-	/* turn off power and exit */
-	brcmf_customer_gpio_wlan_ctrl(WLAN_POWER_OFF);
 	return -EINVAL;
 }
 

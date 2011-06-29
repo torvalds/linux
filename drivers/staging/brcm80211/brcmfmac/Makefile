@@ -30,7 +30,6 @@ DHDOFILES = \
 	wl_cfg80211.o \
 	dhd_cdc.o \
 	dhd_common.o \
-	dhd_custom_gpio.o \
 	dhd_sdio.o	\
 	dhd_linux.o \
 	bcmsdh.o \
