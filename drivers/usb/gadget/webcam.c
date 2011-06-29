@@ -373,6 +373,7 @@ static struct usb_composite_driver webcam_driver = {
 	.name		= "g_webcam",
 	.dev		= &webcam_device_descriptor,
 	.strings	= webcam_device_strings,
+	.max_speed	= USB_SPEED_HIGH,
 	.unbind		= webcam_unbind,
 };
 
