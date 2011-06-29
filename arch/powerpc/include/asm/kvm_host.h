@@ -33,7 +33,9 @@
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
 
+#ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+#endif
 
 /* We don't currently support large pages. */
 #define KVM_HPAGE_GFN_SHIFT(x)	0
@@ -133,7 +135,26 @@ struct kvmppc_exit_timing {
 	};
 };
 
+struct kvmppc_pginfo {
+	unsigned long pfn;
+	atomic_t refcnt;
+};
+
 struct kvm_arch {
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	unsigned long hpt_virt;
+	unsigned long ram_npages;
+	unsigned long ram_psize;
+	unsigned long ram_porder;
+	struct kvmppc_pginfo *ram_pginfo;
+	unsigned int lpid;
+	unsigned int host_lpid;
+	unsigned long host_lpcr;
+	unsigned long sdr1;
+	unsigned long host_sdr1;
+	int tlbie_lock;
+	unsigned short last_vcpu[NR_CPUS];
+#endif /* CONFIG_KVM_BOOK3S_64_HV */
 };
 
 struct kvmppc_pte {
@@ -190,7 +211,7 @@ struct kvm_vcpu_arch {
 	ulong rmcall;
 	ulong host_paca_phys;
 	struct kvmppc_slb slb[64];
-	int slb_max;		/* # valid entries in slb[] */
+	int slb_max;		/* 1 + index of last valid entry in slb[] */
 	int slb_nr;		/* total number of entries in SLB */
 	struct kvmppc_mmu mmu;
 #endif
@@ -212,7 +233,7 @@ struct kvm_vcpu_arch {
 #endif
 
 #ifdef CONFIG_VSX
-	u64 vsr[32];
+	u64 vsr[64];
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S
@@ -220,18 +241,24 @@ struct kvm_vcpu_arch {
 	u32 qpr[32];
 #endif
 
-#ifdef CONFIG_BOOKE
 	ulong pc;
 	ulong ctr;
 	ulong lr;
 
 	ulong xer;
 	u32 cr;
-#endif
 
 #ifdef CONFIG_PPC_BOOK3S
 	ulong hflags;
 	ulong guest_owned_ext;
+	ulong purr;
+	ulong spurr;
+	ulong lpcr;
+	ulong dscr;
+	ulong amr;
+	ulong uamor;
+	u32 ctrl;
+	ulong dabr;
 #endif
 	u32 vrsave; /* also USPRG0 */
 	u32 mmucr;
@@ -270,6 +297,9 @@ struct kvm_vcpu_arch {
 	u32 dbcr1;
 	u32 dbsr;
 
+	u64 mmcr[3];
+	u32 pmc[6];
+
 #ifdef CONFIG_KVM_EXIT_TIMING
 	struct mutex exit_timing_lock;
 	struct kvmppc_exit_timing timing_exit;
@@ -284,8 +314,12 @@ struct kvm_vcpu_arch {
 	struct dentry *debugfs_exit_timing;
 #endif
 
+#ifdef CONFIG_PPC_BOOK3S
+	ulong fault_dar;
+	u32 fault_dsisr;
+#endif
+
 #ifdef CONFIG_BOOKE
-	u32 last_inst;
 	ulong fault_dear;
 	ulong fault_esr;
 	ulong queued_dear;
@@ -300,16 +334,25 @@ struct kvm_vcpu_arch {
 	u8 dcr_is_write;
 	u8 osi_needed;
 	u8 osi_enabled;
+	u8 hcall_needed;
 
 	u32 cpr0_cfgaddr; /* holds the last set cpr0_cfgaddr */
 
 	struct hrtimer dec_timer;
 	struct tasklet_struct tasklet;
 	u64 dec_jiffies;
+	u64 dec_expires;
 	unsigned long pending_exceptions;
+	u16 last_cpu;
+	u32 last_inst;
+	int trap;
 	struct kvm_vcpu_arch_shared *shared;
 	unsigned long magic_page_pa; /* phys addr to map the magic page to */
 	unsigned long magic_page_ea; /* effect. addr to map the magic page to */
+
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	struct kvm_vcpu_arch_shared shregs;
+#endif
 };
 
 #endif /* __POWERPC_KVM_HOST_H__ */

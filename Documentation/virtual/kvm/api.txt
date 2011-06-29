@@ -1532,6 +1532,23 @@ Userspace can now handle the hypercall and when it's done modify the gprs as
 necessary. Upon guest entry all guest GPRs will then be replaced by the values
 in this struct.
 
+		/* KVM_EXIT_PAPR_HCALL */
+		struct {
+			__u64 nr;
+			__u64 ret;
+			__u64 args[9];
+		} papr_hcall;
+
+This is used on 64-bit PowerPC when emulating a pSeries partition,
+e.g. with the 'pseries' machine type in qemu.  It occurs when the
+guest does a hypercall using the 'sc 1' instruction.  The 'nr' field
+contains the hypercall number (from the guest R3), and 'args' contains
+the arguments (from the guest R4 - R12).  Userspace should put the
+return code in 'ret' and any extra returned values in args[].
+The possible hypercalls are defined in the Power Architecture Platform
+Requirements (PAPR) document available from www.power.org (free
+developer registration required to access it).
+
 		/* Fix the size of the union. */
 		char padding[256];
 	};

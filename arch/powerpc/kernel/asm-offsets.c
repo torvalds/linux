@@ -187,6 +187,7 @@ int main(void)
 	DEFINE(LPPACASRR1, offsetof(struct lppaca, saved_srr1));
 	DEFINE(LPPACAANYINT, offsetof(struct lppaca, int_dword.any_int));
 	DEFINE(LPPACADECRINT, offsetof(struct lppaca, int_dword.fields.decr_int));
+	DEFINE(LPPACA_PMCINUSE, offsetof(struct lppaca, pmcregs_in_use));
 	DEFINE(LPPACA_DTLIDX, offsetof(struct lppaca, dtl_idx));
 	DEFINE(PACA_DTL_RIDX, offsetof(struct paca_struct, dtl_ridx));
 #endif /* CONFIG_PPC_STD_MMU_64 */
@@ -392,6 +393,29 @@ int main(void)
 	DEFINE(VCPU_HOST_PID, offsetof(struct kvm_vcpu, arch.host_pid));
 	DEFINE(VCPU_GPRS, offsetof(struct kvm_vcpu, arch.gpr));
 	DEFINE(VCPU_VRSAVE, offsetof(struct kvm_vcpu, arch.vrsave));
+	DEFINE(VCPU_FPRS, offsetof(struct kvm_vcpu, arch.fpr));
+	DEFINE(VCPU_FPSCR, offsetof(struct kvm_vcpu, arch.fpscr));
+#ifdef CONFIG_ALTIVEC
+	DEFINE(VCPU_VRS, offsetof(struct kvm_vcpu, arch.vr));
+	DEFINE(VCPU_VSCR, offsetof(struct kvm_vcpu, arch.vscr));
+#endif
+#ifdef CONFIG_VSX
+	DEFINE(VCPU_VSRS, offsetof(struct kvm_vcpu, arch.vsr));
+#endif
+	DEFINE(VCPU_XER, offsetof(struct kvm_vcpu, arch.xer));
+	DEFINE(VCPU_CTR, offsetof(struct kvm_vcpu, arch.ctr));
+	DEFINE(VCPU_LR, offsetof(struct kvm_vcpu, arch.lr));
+	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));
+	DEFINE(VCPU_PC, offsetof(struct kvm_vcpu, arch.pc));
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	DEFINE(VCPU_MSR, offsetof(struct kvm_vcpu, arch.shregs.msr));
+	DEFINE(VCPU_SRR0, offsetof(struct kvm_vcpu, arch.shregs.srr0));
+	DEFINE(VCPU_SRR1, offsetof(struct kvm_vcpu, arch.shregs.srr1));
+	DEFINE(VCPU_SPRG0, offsetof(struct kvm_vcpu, arch.shregs.sprg0));
+	DEFINE(VCPU_SPRG1, offsetof(struct kvm_vcpu, arch.shregs.sprg1));
+	DEFINE(VCPU_SPRG2, offsetof(struct kvm_vcpu, arch.shregs.sprg2));
+	DEFINE(VCPU_SPRG3, offsetof(struct kvm_vcpu, arch.shregs.sprg3));
+#endif
 	DEFINE(VCPU_SPRG4, offsetof(struct kvm_vcpu, arch.sprg4));
 	DEFINE(VCPU_SPRG5, offsetof(struct kvm_vcpu, arch.sprg5));
 	DEFINE(VCPU_SPRG6, offsetof(struct kvm_vcpu, arch.sprg6));
@@ -403,17 +427,60 @@ int main(void)
 	DEFINE(VCPU_SHADOW_MSR, offsetof(struct kvm_vcpu, arch.shadow_msr));
 
 	/* book3s */
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	DEFINE(KVM_LPID, offsetof(struct kvm, arch.lpid));
+	DEFINE(KVM_SDR1, offsetof(struct kvm, arch.sdr1));
+	DEFINE(KVM_HOST_LPID, offsetof(struct kvm, arch.host_lpid));
+	DEFINE(KVM_HOST_LPCR, offsetof(struct kvm, arch.host_lpcr));
+	DEFINE(KVM_HOST_SDR1, offsetof(struct kvm, arch.host_sdr1));
+	DEFINE(KVM_TLBIE_LOCK, offsetof(struct kvm, arch.tlbie_lock));
+	DEFINE(KVM_ONLINE_CPUS, offsetof(struct kvm, online_vcpus.counter));
+	DEFINE(KVM_LAST_VCPU, offsetof(struct kvm, arch.last_vcpu));
+	DEFINE(VCPU_DSISR, offsetof(struct kvm_vcpu, arch.shregs.dsisr));
+	DEFINE(VCPU_DAR, offsetof(struct kvm_vcpu, arch.shregs.dar));
+#endif
 #ifdef CONFIG_PPC_BOOK3S
+	DEFINE(VCPU_KVM, offsetof(struct kvm_vcpu, kvm));
+	DEFINE(VCPU_VCPUID, offsetof(struct kvm_vcpu, vcpu_id));
 	DEFINE(VCPU_HOST_RETIP, offsetof(struct kvm_vcpu, arch.host_retip));
 	DEFINE(VCPU_HOST_MSR, offsetof(struct kvm_vcpu, arch.host_msr));
+	DEFINE(VCPU_PURR, offsetof(struct kvm_vcpu, arch.purr));
+	DEFINE(VCPU_SPURR, offsetof(struct kvm_vcpu, arch.spurr));
+	DEFINE(VCPU_DSCR, offsetof(struct kvm_vcpu, arch.dscr));
+	DEFINE(VCPU_AMR, offsetof(struct kvm_vcpu, arch.amr));
+	DEFINE(VCPU_UAMOR, offsetof(struct kvm_vcpu, arch.uamor));
+	DEFINE(VCPU_CTRL, offsetof(struct kvm_vcpu, arch.ctrl));
+	DEFINE(VCPU_DABR, offsetof(struct kvm_vcpu, arch.dabr));
 	DEFINE(VCPU_TRAMPOLINE_LOWMEM, offsetof(struct kvm_vcpu, arch.trampoline_lowmem));
 	DEFINE(VCPU_TRAMPOLINE_ENTER, offsetof(struct kvm_vcpu, arch.trampoline_enter));
 	DEFINE(VCPU_HIGHMEM_HANDLER, offsetof(struct kvm_vcpu, arch.highmem_handler));
 	DEFINE(VCPU_RMCALL, offsetof(struct kvm_vcpu, arch.rmcall));
 	DEFINE(VCPU_HFLAGS, offsetof(struct kvm_vcpu, arch.hflags));
+	DEFINE(VCPU_DEC, offsetof(struct kvm_vcpu, arch.dec));
+	DEFINE(VCPU_DEC_EXPIRES, offsetof(struct kvm_vcpu, arch.dec_expires));
+	DEFINE(VCPU_LPCR, offsetof(struct kvm_vcpu, arch.lpcr));
+	DEFINE(VCPU_MMCR, offsetof(struct kvm_vcpu, arch.mmcr));
+	DEFINE(VCPU_PMC, offsetof(struct kvm_vcpu, arch.pmc));
+	DEFINE(VCPU_SLB, offsetof(struct kvm_vcpu, arch.slb));
+	DEFINE(VCPU_SLB_MAX, offsetof(struct kvm_vcpu, arch.slb_max));
+	DEFINE(VCPU_SLB_NR, offsetof(struct kvm_vcpu, arch.slb_nr));
+	DEFINE(VCPU_LAST_CPU, offsetof(struct kvm_vcpu, arch.last_cpu));
+	DEFINE(VCPU_FAULT_DSISR, offsetof(struct kvm_vcpu, arch.fault_dsisr));
+	DEFINE(VCPU_FAULT_DAR, offsetof(struct kvm_vcpu, arch.fault_dar));
+	DEFINE(VCPU_LAST_INST, offsetof(struct kvm_vcpu, arch.last_inst));
+	DEFINE(VCPU_TRAP, offsetof(struct kvm_vcpu, arch.trap));
+	DEFINE(VCPU_SVCPU, offsetof(struct kvmppc_vcpu_book3s, shadow_vcpu) -
+			   offsetof(struct kvmppc_vcpu_book3s, vcpu));
+	DEFINE(VCPU_SLB_E, offsetof(struct kvmppc_slb, orige));
+	DEFINE(VCPU_SLB_V, offsetof(struct kvmppc_slb, origv));
+	DEFINE(VCPU_SLB_SIZE, sizeof(struct kvmppc_slb));
 
 #ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_KVM_BOOK3S_PR
 # define SVCPU_FIELD(x, f)	DEFINE(x, offsetof(struct paca_struct, shadow_vcpu.f))
+#else
+# define SVCPU_FIELD(x, f)
+#endif
 # define HSTATE_FIELD(x, f)	DEFINE(x, offsetof(struct paca_struct, kvm_hstate.f))
 #else	/* 32-bit */
 # define SVCPU_FIELD(x, f)	DEFINE(x, offsetof(struct kvmppc_book3s_shadow_vcpu, f))
@@ -453,10 +520,22 @@ int main(void)
 
 	HSTATE_FIELD(HSTATE_HOST_R1, host_r1);
 	HSTATE_FIELD(HSTATE_HOST_R2, host_r2);
+	HSTATE_FIELD(HSTATE_HOST_MSR, host_msr);
 	HSTATE_FIELD(HSTATE_VMHANDLER, vmhandler);
 	HSTATE_FIELD(HSTATE_SCRATCH0, scratch0);
 	HSTATE_FIELD(HSTATE_SCRATCH1, scratch1);
 	HSTATE_FIELD(HSTATE_IN_GUEST, in_guest);
+
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	HSTATE_FIELD(HSTATE_KVM_VCPU, kvm_vcpu);
+	HSTATE_FIELD(HSTATE_MMCR, host_mmcr);
+	HSTATE_FIELD(HSTATE_PMC, host_pmc);
+	HSTATE_FIELD(HSTATE_PURR, host_purr);
+	HSTATE_FIELD(HSTATE_SPURR, host_spurr);
+	HSTATE_FIELD(HSTATE_DSCR, host_dscr);
+	HSTATE_FIELD(HSTATE_DABR, dabr);
+	HSTATE_FIELD(HSTATE_DECEXP, dec_expires);
+#endif /* CONFIG_KVM_BOOK3S_64_HV */
 
 #else /* CONFIG_PPC_BOOK3S */
 	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));

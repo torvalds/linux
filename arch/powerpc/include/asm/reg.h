@@ -189,6 +189,9 @@
 #define SPRN_CTR	0x009	/* Count Register */
 #define SPRN_DSCR	0x11
 #define SPRN_CFAR	0x1c	/* Come From Address Register */
+#define SPRN_AMR	0x1d	/* Authority Mask Register */
+#define SPRN_UAMOR	0x9d	/* User Authority Mask Override Register */
+#define SPRN_AMOR	0x15d	/* Authority Mask Override Register */
 #define SPRN_ACOP	0x1F	/* Available Coprocessor Register */
 #define SPRN_CTRLF	0x088
 #define SPRN_CTRLT	0x098
@@ -252,6 +255,7 @@
 #define   LPCR_RMI     0x00000002      /* real mode is cache inhibit */
 #define   LPCR_HDICE   0x00000001      /* Hyp Decr enable (HV,PR,EE) */
 #define SPRN_LPID	0x13F	/* Logical Partition Identifier */
+#define   LPID_RSVD	0x3ff		/* Reserved LPID for partn switching */
 #define	SPRN_HMER	0x150	/* Hardware m? error recovery */
 #define	SPRN_HMEER	0x151	/* Hardware m? enable error recovery */
 #define	SPRN_HEIR	0x153	/* Hypervisor Emulated Instruction Register */

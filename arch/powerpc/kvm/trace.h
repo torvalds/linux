@@ -103,7 +103,7 @@ TRACE_EVENT(kvm_gtlb_write,
  *                         Book3S trace points                           *
  *************************************************************************/
 
-#ifdef CONFIG_PPC_BOOK3S
+#ifdef CONFIG_KVM_BOOK3S_PR
 
 TRACE_EVENT(kvm_book3s_exit,
 	TP_PROTO(unsigned int exit_nr, struct kvm_vcpu *vcpu),

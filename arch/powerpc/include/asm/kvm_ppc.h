@@ -112,6 +112,12 @@ extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
 extern int kvmppc_kvm_pv(struct kvm_vcpu *vcpu);
 extern void kvmppc_map_magic(struct kvm_vcpu *vcpu);
 
+extern long kvmppc_alloc_hpt(struct kvm *kvm);
+extern void kvmppc_free_hpt(struct kvm *kvm);
+extern long kvmppc_prepare_vrma(struct kvm *kvm,
+				struct kvm_userspace_memory_region *mem);
+extern void kvmppc_map_vrma(struct kvm *kvm,
+			    struct kvm_userspace_memory_region *mem);
 extern int kvmppc_core_init_vm(struct kvm *kvm);
 extern void kvmppc_core_destroy_vm(struct kvm *kvm);
 extern int kvmppc_core_prepare_memory_region(struct kvm *kvm,

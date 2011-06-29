@@ -70,10 +70,22 @@ kvmppc_resume_\intno:
 struct kvmppc_host_state {
 	ulong host_r1;
 	ulong host_r2;
+	ulong host_msr;
 	ulong vmhandler;
 	ulong scratch0;
 	ulong scratch1;
 	u8 in_guest;
+
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	struct kvm_vcpu *kvm_vcpu;
+	u64 dabr;
+	u64 host_mmcr[3];
+	u32 host_pmc[6];
+	u64 host_purr;
+	u64 host_spurr;
+	u64 host_dscr;
+	u64 dec_expires;
+#endif
 };
 
 struct kvmppc_book3s_shadow_vcpu {

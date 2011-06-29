@@ -161,6 +161,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_NMI              16
 #define KVM_EXIT_INTERNAL_ERROR   17
 #define KVM_EXIT_OSI              18
+#define KVM_EXIT_PAPR_HCALL	  19
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 #define KVM_INTERNAL_ERROR_EMULATION 1
@@ -264,6 +265,11 @@ struct kvm_run {
 		struct {
 			__u64 gprs[32];
 		} osi;
+		struct {
+			__u64 nr;
+			__u64 ret;
+			__u64 args[9];
+		} papr_hcall;
 		/* Fix the size of the union. */
 		char padding[256];
 	};

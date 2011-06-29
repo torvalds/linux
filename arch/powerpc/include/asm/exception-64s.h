@@ -134,6 +134,17 @@ do_kvm_##n:								\
 #define KVM_HANDLER_SKIP(area, h, n)
 #endif
 
+#ifdef CONFIG_KVM_BOOK3S_PR
+#define KVMTEST_PR(n)			__KVMTEST(n)
+#define KVM_HANDLER_PR(area, h, n)	__KVM_HANDLER(area, h, n)
+#define KVM_HANDLER_PR_SKIP(area, h, n)	__KVM_HANDLER_SKIP(area, h, n)
+
+#else
+#define KVMTEST_PR(n)
+#define KVM_HANDLER_PR(area, h, n)
+#define KVM_HANDLER_PR_SKIP(area, h, n)
+#endif
+
 #define NOTEST(n)
 
 /*
@@ -210,7 +221,7 @@ label##_pSeries:					\
 	HMT_MEDIUM;					\
 	SET_SCRATCH0(r13);		/* save r13 */		\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common,	\
-				 EXC_STD, KVMTEST, vec)
+				 EXC_STD, KVMTEST_PR, vec)
 
 #define STD_EXCEPTION_HV(loc, vec, label)		\
 	. = loc;					\
@@ -227,8 +238,8 @@ label##_hv:						\
 	beq	masked_##h##interrupt
 #define _SOFTEN_TEST(h)	__SOFTEN_TEST(h)
 
-#define SOFTEN_TEST(vec)						\
-	KVMTEST(vec);							\
+#define SOFTEN_TEST_PR(vec)						\
+	KVMTEST_PR(vec);						\
 	_SOFTEN_TEST(EXC_STD)
 
 #define SOFTEN_TEST_HV(vec)						\
@@ -248,7 +259,7 @@ label##_hv:						\
 	.globl label##_pSeries;						\
 label##_pSeries:							\
 	_MASKABLE_EXCEPTION_PSERIES(vec, label,				\
-				    EXC_STD, SOFTEN_TEST)
+				    EXC_STD, SOFTEN_TEST_PR)
 
 #define MASKABLE_EXCEPTION_HV(loc, vec, label)				\
 	. = loc;							\

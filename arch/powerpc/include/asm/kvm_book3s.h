@@ -116,6 +116,7 @@ extern void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 new_msr);
 extern void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr);
 extern void kvmppc_mmu_book3s_64_init(struct kvm_vcpu *vcpu);
 extern void kvmppc_mmu_book3s_32_init(struct kvm_vcpu *vcpu);
+extern void kvmppc_mmu_book3s_hv_init(struct kvm_vcpu *vcpu);
 extern int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte);
 extern int kvmppc_mmu_map_segment(struct kvm_vcpu *vcpu, ulong eaddr);
 extern void kvmppc_mmu_flush_segments(struct kvm_vcpu *vcpu);
@@ -127,10 +128,12 @@ extern int kvmppc_mmu_hpte_init(struct kvm_vcpu *vcpu);
 extern void kvmppc_mmu_invalidate_pte(struct kvm_vcpu *vcpu, struct hpte_cache *pte);
 extern int kvmppc_mmu_hpte_sysinit(void);
 extern void kvmppc_mmu_hpte_sysexit(void);
+extern int kvmppc_mmu_hv_init(void);
 
 extern int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr, bool data);
 extern int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr, bool data);
 extern void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec);
+extern void kvmppc_inject_interrupt(struct kvm_vcpu *vcpu, int vec, u64 flags);
 extern void kvmppc_set_bat(struct kvm_vcpu *vcpu, struct kvmppc_bat *bat,
 			   bool upper, u32 val);
 extern void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr);
@@ -140,6 +143,7 @@ extern pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn);
 extern void kvmppc_handler_lowmem_trampoline(void);
 extern void kvmppc_handler_trampoline_enter(void);
 extern void kvmppc_rmcall(ulong srr0, ulong srr1);
+extern void kvmppc_hv_entry_trampoline(void);
 extern void kvmppc_load_up_fpu(void);
 extern void kvmppc_load_up_altivec(void);
 extern void kvmppc_load_up_vsx(void);
@@ -150,6 +154,19 @@ static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)
 {
 	return container_of(vcpu, struct kvmppc_vcpu_book3s, vcpu);
 }
+
+extern void kvm_return_point(void);
+
+/* Also add subarch specific defines */
+
+#ifdef CONFIG_KVM_BOOK3S_32_HANDLER
+#include <asm/kvm_book3s_32.h>
+#endif
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+#include <asm/kvm_book3s_64.h>
+#endif
+
+#ifdef CONFIG_KVM_BOOK3S_PR
 
 static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
 {
@@ -164,16 +181,6 @@ static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
 	else if (old_pending)
 		vcpu->arch.shared->int_pending = 0;
 }
-
-static inline ulong dsisr(void)
-{
-	ulong r;
-	asm ( "mfdsisr %0 " : "=r" (r) );
-	return r;
-}
-
-extern void kvm_return_point(void);
-static inline struct kvmppc_book3s_shadow_vcpu *to_svcpu(struct kvm_vcpu *vcpu);
 
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 {
@@ -281,6 +288,108 @@ static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)
 
 	return crit;
 }
+#else /* CONFIG_KVM_BOOK3S_PR */
+
+static inline unsigned long kvmppc_interrupt_offset(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+
+static inline void kvmppc_update_int_pending(struct kvm_vcpu *vcpu,
+			unsigned long pending_now, unsigned long old_pending)
+{
+	/* Recalculate LPCR:MER based on the presence of
+	 * a pending external interrupt
+	 */
+	if (test_bit(BOOK3S_IRQPRIO_EXTERNAL, &pending_now) ||
+	    test_bit(BOOK3S_IRQPRIO_EXTERNAL_LEVEL, &pending_now))
+		vcpu->arch.lpcr |= LPCR_MER;
+	else
+		vcpu->arch.lpcr &= ~((u64)LPCR_MER);
+}
+
+static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
+{
+	vcpu->arch.gpr[num] = val;
+}
+
+static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
+{
+	return vcpu->arch.gpr[num];
+}
+
+static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
+{
+	vcpu->arch.cr = val;
+}
+
+static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.cr;
+}
+
+static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, u32 val)
+{
+	vcpu->arch.xer = val;
+}
+
+static inline u32 kvmppc_get_xer(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.xer;
+}
+
+static inline void kvmppc_set_ctr(struct kvm_vcpu *vcpu, ulong val)
+{
+	vcpu->arch.ctr = val;
+}
+
+static inline ulong kvmppc_get_ctr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.ctr;
+}
+
+static inline void kvmppc_set_lr(struct kvm_vcpu *vcpu, ulong val)
+{
+	vcpu->arch.lr = val;
+}
+
+static inline ulong kvmppc_get_lr(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.lr;
+}
+
+static inline void kvmppc_set_pc(struct kvm_vcpu *vcpu, ulong val)
+{
+	vcpu->arch.pc = val;
+}
+
+static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.pc;
+}
+
+static inline u32 kvmppc_get_last_inst(struct kvm_vcpu *vcpu)
+{
+	ulong pc = kvmppc_get_pc(vcpu);
+
+	/* Load the instruction manually if it failed to do so in the
+	 * exit path */
+	if (vcpu->arch.last_inst == KVM_INST_FETCH_FAILED)
+		kvmppc_ld(vcpu, &pc, sizeof(u32), &vcpu->arch.last_inst, false);
+
+	return vcpu->arch.last_inst;
+}
+
+static inline ulong kvmppc_get_fault_dar(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.fault_dar;
+}
+
+static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
+#endif
 
 /* Magic register values loaded into r3 and r4 before the 'sc' assembly
  * instruction for the OSI hypercalls */
@@ -288,13 +397,5 @@ static inline bool kvmppc_critical_section(struct kvm_vcpu *vcpu)
 #define OSI_SC_MAGIC_R4			0x77810F9B
 
 #define INS_DCBZ			0x7c0007ec
-
-/* Also add subarch specific defines */
-
-#ifdef CONFIG_PPC_BOOK3S_32
-#include <asm/kvm_book3s_32.h>
-#else
-#include <asm/kvm_book3s_64.h>
-#endif
 
 #endif /* __ASM_KVM_BOOK3S_H__ */
