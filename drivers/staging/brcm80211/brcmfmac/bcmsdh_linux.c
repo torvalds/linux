@@ -33,7 +33,7 @@
 
 #if defined(OOB_INTR_ONLY)
 #include <linux/irq.h>
-extern void dhdsdio_isr(void *args);
+extern void brcmf_sdbrcm_isr(void *args);
 #endif				/* defined(OOB_INTR_ONLY) */
 #if defined(CONFIG_MACH_SANDGATE2G) || defined(CONFIG_MACH_LOGICPD_PXA270)
 #if !defined(BCMPLATFORM_BUS)
@@ -71,7 +71,7 @@ struct bcmsdh_hc {
 };
 static bcmsdh_hc_t *sdhcinfo;
 
-/* driver info, initialized when bcmsdh_register is called */
+/* driver info, initialized when brcmf_sdio_register is called */
 static bcmsdh_driver_t drvinfo = { NULL, NULL };
 
 /* debugging macros */
@@ -80,7 +80,7 @@ static bcmsdh_driver_t drvinfo = { NULL, NULL };
 /**
  * Checks to see if vendor and device IDs match a supported SDIO Host Controller.
  */
-bool bcmsdh_chipmatch(u16 vendor, u16 device)
+bool brcmf_sdio_chipmatch(u16 vendor, u16 device)
 {
 	/* Add other vendors and devices as required */
 
@@ -125,22 +125,22 @@ bool bcmsdh_chipmatch(u16 vendor, u16 device)
 #if defined(BCMPLATFORM_BUS)
 #if defined(BCMLXSDMMC)
 /* forward declarations */
-int bcmsdh_probe(struct device *dev);
-EXPORT_SYMBOL(bcmsdh_probe);
+int brcmf_sdio_probe(struct device *dev);
+EXPORT_SYMBOL(brcmf_sdio_probe);
 
-int bcmsdh_remove(struct device *dev);
-EXPORT_SYMBOL(bcmsdh_remove);
+int brcmf_sdio_remove(struct device *dev);
+EXPORT_SYMBOL(brcmf_sdio_remove);
 
 #else
 /* forward declarations */
-static int __devinit bcmsdh_probe(struct device *dev);
-static int __devexit bcmsdh_remove(struct device *dev);
+static int __devinit brcmf_sdio_probe(struct device *dev);
+static int __devexit brcmf_sdio_remove(struct device *dev);
 #endif				/* BCMLXSDMMC */
 
 #ifndef BCMLXSDMMC
 static
 #endif				/* BCMLXSDMMC */
-int bcmsdh_probe(struct device *dev)
+int brcmf_sdio_probe(struct device *dev)
 {
 	bcmsdh_hc_t *sdhc = NULL;
 	unsigned long regs = 0;
@@ -184,13 +184,13 @@ int bcmsdh_probe(struct device *dev)
 	sdhc->dev = (void *)dev;
 
 #ifdef BCMLXSDMMC
-	sdh = bcmsdh_attach((void *)0, (void **)&regs, irq);
+	sdh = brcmf_sdcard_attach((void *)0, (void **)&regs, irq);
 	if (!sdh) {
 		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));
 		goto err;
 	}
 #else
-	sdh = bcmsdh_attach((void *)r->start, (void **)&regs, irq);
+	sdh = brcmf_sdcard_attach((void *)r->start, (void **)&regs, irq);
 	if (!sdh) {
 		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));
 		goto err;
@@ -208,7 +208,7 @@ int bcmsdh_probe(struct device *dev)
 	sdhc->next = sdhcinfo;
 	sdhcinfo = sdhc;
 	/* Read the vendor/device ID from the CIS */
-	vendevid = bcmsdh_query_device(sdh);
+	vendevid = brcmf_sdcard_query_device(sdh);
 
 	/* try to attach to the target device */
 	sdhc->ch = drvinfo.attach((vendevid >> 16), (vendevid & 0xFFFF),
@@ -224,7 +224,7 @@ int bcmsdh_probe(struct device *dev)
 err:
 	if (sdhc) {
 		if (sdhc->sdh)
-			bcmsdh_detach(sdhc->sdh);
+			brcmf_sdcard_detach(sdhc->sdh);
 		kfree(sdhc);
 	}
 
@@ -234,13 +234,13 @@ err:
 #ifndef BCMLXSDMMC
 static
 #endif				/* BCMLXSDMMC */
-int bcmsdh_remove(struct device *dev)
+int brcmf_sdio_remove(struct device *dev)
 {
 	bcmsdh_hc_t *sdhc, *prev;
 
 	sdhc = sdhcinfo;
 	drvinfo.detach(sdhc->ch);
-	bcmsdh_detach(sdhc->sdh);
+	brcmf_sdcard_detach(sdhc->sdh);
 	/* find the SDIO Host Controller state for this pdev
 		 and take it out from the list */
 	for (sdhc = sdhcinfo, prev = NULL; sdhc; sdhc = sdhc->next) {
@@ -269,25 +269,25 @@ int bcmsdh_remove(struct device *dev)
 }
 #endif				/* BCMPLATFORM_BUS */
 
-extern int sdio_function_init(void);
+extern int brcmf_sdio_function_init(void);
 
-int bcmsdh_register(bcmsdh_driver_t *driver)
+int brcmf_sdio_register(bcmsdh_driver_t *driver)
 {
 	drvinfo = *driver;
 
 	SDLX_MSG(("Linux Kernel SDIO/MMC Driver\n"));
-	return sdio_function_init();
+	return brcmf_sdio_function_init();
 }
 
-extern void sdio_function_cleanup(void);
+extern void brcmf_sdio_function_cleanup(void);
 
-void bcmsdh_unregister(void)
+void brcmf_sdio_unregister(void)
 {
-	sdio_function_cleanup();
+	brcmf_sdio_function_cleanup();
 }
 
 #if defined(OOB_INTR_ONLY)
-void bcmsdh_oob_intr_set(bool enable)
+void brcmf_sdio_oob_intr_set(bool enable)
 {
 	static bool curstate = 1;
 	unsigned long flags;
@@ -303,25 +303,25 @@ void bcmsdh_oob_intr_set(bool enable)
 	spin_unlock_irqrestore(&sdhcinfo->irq_lock, flags);
 }
 
-static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
+static irqreturn_t brcmf_sdio_oob_irq(int irq, void *dev_id)
 {
 	dhd_pub_t *dhdp;
 
 	dhdp = (dhd_pub_t *) dev_get_drvdata(sdhcinfo->dev);
 
-	bcmsdh_oob_intr_set(0);
+	brcmf_sdio_oob_intr_set(0);
 
 	if (dhdp == NULL) {
 		SDLX_MSG(("Out of band GPIO interrupt fired way too early\n"));
 		return IRQ_HANDLED;
 	}
 
-	dhdsdio_isr((void *)dhdp->bus);
+	brcmf_sdbrcm_isr((void *)dhdp->bus);
 
 	return IRQ_HANDLED;
 }
 
-int bcmsdh_register_oob_intr(void *dhdp)
+int brcmf_sdio_register_oob_intr(void *dhdp)
 {
 	int error = 0;
 
@@ -338,7 +338,7 @@ int bcmsdh_register_oob_intr(void *dhdp)
 		/* Refer to customer Host IRQ docs about
 			 proper irqflags definition */
 		error =
-		    request_irq(sdhcinfo->oob_irq, wlan_oob_irq,
+		    request_irq(sdhcinfo->oob_irq, brcmf_sdio_oob_irq,
 				sdhcinfo->oob_flags, "bcmsdh_sdmmc", NULL);
 		if (error)
 			return -ENODEV;
@@ -350,7 +350,7 @@ int bcmsdh_register_oob_intr(void *dhdp)
 	return 0;
 }
 
-void bcmsdh_unregister_oob_intr(void)
+void brcmf_sdio_unregister_oob_intr(void)
 {
 	SDLX_MSG(("%s: Enter\n", __func__));
 

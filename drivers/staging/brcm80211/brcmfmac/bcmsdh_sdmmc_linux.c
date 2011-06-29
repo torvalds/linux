@@ -55,11 +55,11 @@
 #include "dhd_dbg.h"
 #include "wl_cfg80211.h"
 
-extern void sdioh_sdmmc_devintr_off(sdioh_info_t *sd);
-extern void sdioh_sdmmc_devintr_on(sdioh_info_t *sd);
+extern void brcmf_sdioh_dev_intr_off(sdioh_info_t *sd);
+extern void brcmf_sdioh_dev_intr_on(sdioh_info_t *sd);
 
-int sdio_function_init(void);
-void sdio_function_cleanup(void);
+int brcmf_sdio_function_init(void);
+void brcmf_sdio_function_cleanup(void);
 
 /* module param defaults */
 static int clockoverride;
@@ -72,11 +72,11 @@ PBCMSDH_SDMMC_INSTANCE gInstance;
 /* Maximum number of bcmsdh_sdmmc devices supported by driver */
 #define BCMSDH_SDMMC_MAX_DEVICES 1
 
-extern int bcmsdh_probe(struct device *dev);
-extern int bcmsdh_remove(struct device *dev);
+extern int brcmf_sdio_probe(struct device *dev);
+extern int brcmf_sdio_remove(struct device *dev);
 struct device sdmmc_dev;
 
-static int bcmsdh_sdmmc_probe(struct sdio_func *func,
+static int brcmf_ops_sdio_probe(struct sdio_func *func,
 			      const struct sdio_device_id *id)
 {
 	int ret = 0;
@@ -93,8 +93,8 @@ static int bcmsdh_sdmmc_probe(struct sdio_func *func,
 		gInstance->func[0] = &sdio_func_0;
 		if (func->device == 0x4) {	/* 4318 */
 			gInstance->func[2] = NULL;
-			sd_trace(("NIC found, calling bcmsdh_probe...\n"));
-			ret = bcmsdh_probe(&sdmmc_dev);
+			sd_trace(("NIC found, calling brcmf_sdio_probe...\n"));
+			ret = brcmf_sdio_probe(&sdmmc_dev);
 		}
 	}
 
@@ -102,24 +102,24 @@ static int bcmsdh_sdmmc_probe(struct sdio_func *func,
 
 	if (func->num == 2) {
 		wl_cfg80211_sdio_func(func);
-		sd_trace(("F2 found, calling bcmsdh_probe...\n"));
-		ret = bcmsdh_probe(&sdmmc_dev);
+		sd_trace(("F2 found, calling brcmf_sdio_probe...\n"));
+		ret = brcmf_sdio_probe(&sdmmc_dev);
 	}
 
 	return ret;
 }
 
-static void bcmsdh_sdmmc_remove(struct sdio_func *func)
+static void brcmf_ops_sdio_remove(struct sdio_func *func)
 {
-	sd_trace(("bcmsdh_sdmmc: %s Enter\n", __func__));
-	sd_info(("sdio_bcmsdh: func->class=%x\n", func->class));
+	sd_trace(("%s Enter\n", __func__));
+	sd_info(("func->class=%x\n", func->class));
 	sd_info(("sdio_vendor: 0x%04x\n", func->vendor));
 	sd_info(("sdio_device: 0x%04x\n", func->device));
 	sd_info(("Function#: 0x%04x\n", func->num));
 
 	if (func->num == 2) {
-		sd_trace(("F2 found, calling bcmsdh_remove...\n"));
-		bcmsdh_remove(&sdmmc_dev);
+		sd_trace(("F2 found, calling brcmf_sdio_remove...\n"));
+		brcmf_sdio_remove(&sdmmc_dev);
 	}
 }
 
@@ -137,8 +137,8 @@ static const struct sdio_device_id bcmsdh_sdmmc_ids[] = {
 MODULE_DEVICE_TABLE(sdio, bcmsdh_sdmmc_ids);
 
 static struct sdio_driver bcmsdh_sdmmc_driver = {
-	.probe = bcmsdh_sdmmc_probe,
-	.remove = bcmsdh_sdmmc_remove,
+	.probe = brcmf_ops_sdio_probe,
+	.remove = brcmf_ops_sdio_remove,
 	.name = "brcmfmac",
 	.id_table = bcmsdh_sdmmc_ids,
 };
@@ -148,7 +148,7 @@ struct sdos_info {
 	spinlock_t lock;
 };
 
-int sdioh_sdmmc_osinit(sdioh_info_t *sd)
+int brcmf_sdioh_osinit(sdioh_info_t *sd)
 {
 	struct sdos_info *sdos;
 
@@ -162,7 +162,7 @@ int sdioh_sdmmc_osinit(sdioh_info_t *sd)
 	return 0;
 }
 
-void sdioh_sdmmc_osfree(sdioh_info_t *sd)
+void brcmf_sdioh_osfree(sdioh_info_t *sd)
 {
 	struct sdos_info *sdos;
 	ASSERT(sd && sd->sdos_info);
@@ -172,7 +172,7 @@ void sdioh_sdmmc_osfree(sdioh_info_t *sd)
 }
 
 /* Interrupt enable/disable */
-SDIOH_API_RC sdioh_interrupt_set(sdioh_info_t *sd, bool enable)
+SDIOH_API_RC brcmf_sdioh_interrupt_set(sdioh_info_t *sd, bool enable)
 {
 	unsigned long flags;
 	struct sdos_info *sdos;
@@ -195,9 +195,9 @@ SDIOH_API_RC sdioh_interrupt_set(sdioh_info_t *sd, bool enable)
 
 	sd->client_intr_enabled = enable;
 	if (enable)
-		sdioh_sdmmc_devintr_on(sd);
+		brcmf_sdioh_dev_intr_on(sd);
 	else
-		sdioh_sdmmc_devintr_off(sd);
+		brcmf_sdioh_dev_intr_off(sd);
 
 	spin_unlock_irqrestore(&sdos->lock, flags);
 
@@ -207,7 +207,7 @@ SDIOH_API_RC sdioh_interrupt_set(sdioh_info_t *sd, bool enable)
 /*
  * module init
 */
-int sdio_function_init(void)
+int brcmf_sdio_function_init(void)
 {
 	int error = 0;
 	sd_trace(("bcmsdh_sdmmc: %s Enter\n", __func__));
@@ -225,8 +225,8 @@ int sdio_function_init(void)
 /*
  * module cleanup
 */
-extern int bcmsdh_remove(struct device *dev);
-void sdio_function_cleanup(void)
+extern int brcmf_sdio_remove(struct device *dev);
+void brcmf_sdio_function_cleanup(void)
 {
 	sd_trace(("%s Enter\n", __func__));
 

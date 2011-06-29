@@ -70,25 +70,26 @@ typedef void (*bcmsdh_cb_fn_t) (void *);
  *    implementation may maintain a single "default" handle (e.g. the first or
  *    most recent one) to enable single-instance implementations to pass NULL.
  */
-extern bcmsdh_info_t *bcmsdh_attach(void *cfghdl, void **regsva, uint irq);
+extern bcmsdh_info_t *brcmf_sdcard_attach(void *cfghdl, void **regsva,
+					  uint irq);
 
 /* Detach - freeup resources allocated in attach */
-extern int bcmsdh_detach(void *sdh);
+extern int brcmf_sdcard_detach(void *sdh);
 
 /* Query if SD device interrupts are enabled */
-extern bool bcmsdh_intr_query(void *sdh);
+extern bool brcmf_sdcard_intr_query(void *sdh);
 
 /* Enable/disable SD interrupt */
-extern int bcmsdh_intr_enable(void *sdh);
-extern int bcmsdh_intr_disable(void *sdh);
+extern int brcmf_sdcard_intr_enable(void *sdh);
+extern int brcmf_sdcard_intr_disable(void *sdh);
 
 /* Register/deregister device interrupt handler. */
-extern int bcmsdh_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
-extern int bcmsdh_intr_dereg(void *sdh);
+extern int brcmf_sdcard_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
+extern int brcmf_sdcard_intr_dereg(void *sdh);
 
 #if defined(DHD_DEBUG)
 /* Query pending interrupt status from the host controller */
-extern bool bcmsdh_intr_pending(void *sdh);
+extern bool brcmf_sdcard_intr_pending(void *sdh);
 #endif
 extern int bcmsdh_claim_host_and_lock(void *sdh);
 extern int bcmsdh_release_host_and_unlock(void *sdh);
@@ -96,7 +97,7 @@ extern int bcmsdh_release_host_and_unlock(void *sdh);
 /* Register a callback to be called if and when bcmsdh detects
  * device removal. No-op in the case of non-removable/hardwired devices.
  */
-extern int bcmsdh_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
+extern int brcmf_sdcard_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
 
 /* Access SDIO address space (e.g. CCCR) using CMD52 (single-byte interface).
  *   fn:   function number
@@ -104,14 +105,14 @@ extern int bcmsdh_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
  *   data: data byte to write
  *   err:  pointer to error code (or NULL)
  */
-extern u8 bcmsdh_cfg_read(void *sdh, uint func, u32 addr, int *err);
-extern void bcmsdh_cfg_write(void *sdh, uint func, u32 addr, u8 data,
+extern u8 brcmf_sdcard_cfg_read(void *sdh, uint func, u32 addr, int *err);
+extern void brcmf_sdcard_cfg_write(void *sdh, uint func, u32 addr, u8 data,
 			     int *err);
 
 /* Read/Write 4bytes from/to cfg space */
-extern u32 bcmsdh_cfg_read_word(void *sdh, uint fnc_num, u32 addr,
+extern u32 brcmf_sdcard_cfg_read_word(void *sdh, uint fnc_num, u32 addr,
 				   int *err);
-extern void bcmsdh_cfg_write_word(void *sdh, uint fnc_num, u32 addr,
+extern void brcmf_sdcard_cfg_write_word(void *sdh, uint fnc_num, u32 addr,
 				  u32 data, int *err);
 
 /* Read CIS content for specified function.
@@ -121,18 +122,18 @@ extern void bcmsdh_cfg_write_word(void *sdh, uint fnc_num, u32 addr,
  * Internally, this routine uses the values from the cis base regs (0x9-0xB)
  * to form an SDIO-space address to read the data from.
  */
-extern int bcmsdh_cis_read(void *sdh, uint func, u8 *cis, uint length);
+extern int brcmf_sdcard_cis_read(void *sdh, uint func, u8 *cis, uint length);
 
 /* Synchronous access to device (client) core registers via CMD53 to F1.
  *   addr: backplane address (i.e. >= regsva from attach)
  *   size: register width in bytes (2 or 4)
  *   data: data for register write
  */
-extern u32 bcmsdh_reg_read(void *sdh, u32 addr, uint size);
-extern u32 bcmsdh_reg_write(void *sdh, u32 addr, uint size, u32 data);
+extern u32 brcmf_sdcard_reg_read(void *sdh, u32 addr, uint size);
+extern u32 brcmf_sdcard_reg_write(void *sdh, u32 addr, uint size, u32 data);
 
 /* Indicate if last reg read/write failed */
-extern bool bcmsdh_regfail(void *sdh);
+extern bool brcmf_sdcard_regfail(void *sdh);
 
 /* Buffer transfer to/from device (client) core via cmd53.
  *   fn:       function number
@@ -147,12 +148,12 @@ extern bool bcmsdh_regfail(void *sdh);
  * NOTE: Async operation is not currently supported.
  */
 typedef void (*bcmsdh_cmplt_fn_t) (void *handle, int status, bool sync_waiting);
-extern int bcmsdh_send_buf(void *sdh, u32 addr, uint fn, uint flags,
-			   u8 *buf, uint nbytes, void *pkt,
-			   bcmsdh_cmplt_fn_t complete, void *handle);
-extern int bcmsdh_recv_buf(bcmsdh_info_t *sdh, u32 addr, uint fn, uint flags,
-			   u8 *buf, uint nbytes, struct sk_buff *pkt,
-			   bcmsdh_cmplt_fn_t complete, void *handle);
+extern int brcmf_sdcard_send_buf(void *sdh, u32 addr, uint fn, uint flags,
+		u8 *buf, uint nbytes, void *pkt,
+		bcmsdh_cmplt_fn_t complete, void *handle);
+extern int brcmf_sdcard_recv_buf(bcmsdh_info_t *sdh, u32 addr, uint fn,
+		uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt,
+		bcmsdh_cmplt_fn_t complete, void *handle);
 
 /* Flags bits */
 #define SDIO_REQ_4BYTE	0x1	/* Four-byte target (backplane) width (vs. two-byte) */
@@ -169,35 +170,35 @@ extern int bcmsdh_recv_buf(bcmsdh_info_t *sdh, u32 addr, uint fn, uint flags,
  *   nbytes:   number of bytes to transfer to/from buf
  * Returns 0 or error code.
  */
-extern int bcmsdh_rwdata(void *sdh, uint rw, u32 addr, u8 *buf,
+extern int brcmf_sdcard_rwdata(void *sdh, uint rw, u32 addr, u8 *buf,
 			 uint nbytes);
 
 /* Issue an abort to the specified function */
-extern int bcmsdh_abort(void *sdh, uint fn);
+extern int brcmf_sdcard_abort(void *sdh, uint fn);
 
 /* Start SDIO Host Controller communication */
-extern int bcmsdh_start(void *sdh, int stage);
+extern int brcmf_sdcard_start(void *sdh, int stage);
 
 /* Stop SDIO Host Controller communication */
-extern int bcmsdh_stop(void *sdh);
+extern int brcmf_sdcard_stop(void *sdh);
 
 /* Returns the "Device ID" of target device on the SDIO bus. */
-extern int bcmsdh_query_device(void *sdh);
+extern int brcmf_sdcard_query_device(void *sdh);
 
 /* Returns the number of IO functions reported by the device */
-extern uint bcmsdh_query_iofnum(void *sdh);
+extern uint brcmf_sdcard_query_iofnum(void *sdh);
 
 /* Miscellaneous knob tweaker. */
-extern int bcmsdh_iovar_op(void *sdh, const char *name,
+extern int brcmf_sdcard_iovar_op(void *sdh, const char *name,
 			   void *params, int plen, void *arg, int len,
 			   bool set);
 
 /* Reset and reinitialize the device */
-extern int bcmsdh_reset(bcmsdh_info_t *sdh);
+extern int brcmf_sdcard_reset(bcmsdh_info_t *sdh);
 
 /* helper functions */
 
-extern void *bcmsdh_get_sdioh(bcmsdh_info_t *sdh);
+extern void *brcmf_sdcard_get_sdioh(bcmsdh_info_t *sdh);
 
 /* callback functions */
 typedef struct {
@@ -209,18 +210,18 @@ typedef struct {
 } bcmsdh_driver_t;
 
 /* platform specific/high level functions */
-extern int bcmsdh_register(bcmsdh_driver_t *driver);
-extern void bcmsdh_unregister(void);
-extern bool bcmsdh_chipmatch(u16 vendor, u16 device);
-extern void bcmsdh_device_remove(void *sdh);
+extern int brcmf_sdio_register(bcmsdh_driver_t *driver);
+extern void brcmf_sdio_unregister(void);
+extern bool brcmf_sdio_chipmatch(u16 vendor, u16 device);
+extern void brcmf_sdio_device_remove(void *sdh);
 
 /* Function to pass device-status bits to DHD. */
-extern u32 bcmsdh_get_dstatus(void *sdh);
+extern u32 brcmf_sdcard_get_dstatus(void *sdh);
 
 /* Function to return current window addr */
-extern u32 bcmsdh_cur_sbwad(void *sdh);
+extern u32 brcmf_sdcard_cur_sbwad(void *sdh);
 
 /* Function to pass chipid and rev to lower layers for controlling pr's */
-extern void bcmsdh_chipinfo(void *sdh, u32 chip, u32 chiprev);
+extern void brcmf_sdcard_chipinfo(void *sdh, u32 chip, u32 chiprev);
 
 #endif				/* _BRCM_SDH_H_ */

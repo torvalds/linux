@@ -210,7 +210,7 @@ static int dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 	brcmu_bprintf(strbuf, "\n");
 
 	/* Add any bus info */
-	dhd_bus_dump(dhdp, strbuf);
+	brcmf_sdbrcm_bus_dump(dhdp, strbuf);
 
 	return !strbuf->size ? -EOVERFLOW : 0;
 }
@@ -287,7 +287,8 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 
 	case IOV_SVAL(IOV_CONS):
 		if (len > 0)
-			bcmerror = dhd_bus_console_in(dhd_pub, arg, len - 1);
+			bcmerror = brcmf_sdbrcm_bus_console_in(dhd_pub, arg,
+							       len - 1);
 		break;
 #endif
 
@@ -504,13 +505,13 @@ int dhd_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 
 			/* if still not found, try bus module */
 			if (ioc->cmd == DHD_GET_VAR)
-				bcmerror = dhd_bus_iovar_op(dhd_pub, buf,
-							    arg, arglen, buf,
-							    buflen, IOV_GET);
+				bcmerror = brcmf_sdbrcm_bus_iovar_op(dhd_pub,
+						buf, arg, arglen, buf, buflen,
+						IOV_GET);
 			else
-				bcmerror = dhd_bus_iovar_op(dhd_pub, buf,
-							    NULL, 0, arg,
-							    arglen, IOV_SET);
+				bcmerror = brcmf_sdbrcm_bus_iovar_op(dhd_pub,
+						buf, NULL, 0, arg, arglen,
+						IOV_SET);
 
 			break;
 		}
@@ -1168,7 +1169,8 @@ void dhd_arp_offload_set(dhd_pub_t *dhd, int arp_mode)
 	int retcode;
 
 	brcmu_mkiovar("arp_ol", (char *)&arp_mode, 4, iovbuf, sizeof(iovbuf));
-	retcode = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	retcode = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
+				       sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
 		DHD_TRACE(("%s: failed to set ARP offload mode to 0x%x, "
@@ -1184,7 +1186,8 @@ void dhd_arp_offload_enable(dhd_pub_t *dhd, int arp_enable)
 	int retcode;
 
 	brcmu_mkiovar("arpoe", (char *)&arp_enable, 4, iovbuf, sizeof(iovbuf));
-	retcode = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	retcode = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf,
+				       sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
 		DHD_TRACE(("%s: failed to enabe ARP offload to %d, "
@@ -1224,7 +1227,8 @@ int dhd_preinit_ioctls(dhd_pub_t *dhd)
 	if (!ret) {
 		brcmu_mkiovar("cur_etheraddr", (void *)ea_addr, ETH_ALEN,
 			    buf, sizeof(buf));
-		ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+		ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf,
+					   sizeof(buf));
 		if (ret < 0) {
 			DHD_ERROR(("%s: can't set MAC address , error=%d\n",
 				   __func__, ret));

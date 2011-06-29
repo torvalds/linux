@@ -30,26 +30,30 @@ extern bool dhd_bus_download_firmware(struct dhd_bus *bus,
 				      char *fw_path, char *nv_path);
 
 /* Stop bus module: clear pending frames, disable data flow */
-extern void dhd_bus_stop(struct dhd_bus *bus, bool enforce_mutex);
+extern void brcmf_sdbrcm_bus_stop(struct dhd_bus *bus, bool enforce_mutex);
 
 /* Initialize bus module: prepare for communication w/dongle */
-extern int dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex);
+extern int brcmf_sdbrcm_bus_init(dhd_pub_t *dhdp, bool enforce_mutex);
 
 /* Send a data frame to the dongle.  Callee disposes of txp. */
-extern int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *txp);
+extern int brcmf_sdbrcm_bus_txdata(struct dhd_bus *bus, struct sk_buff *txp);
 
 /* Send/receive a control message to/from the dongle.
  * Expects caller to enforce a single outstanding transaction.
  */
-extern int dhd_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen);
-extern int dhd_bus_rxctl(struct dhd_bus *bus, unsigned char *msg, uint msglen);
+extern int
+brcmf_sdbrcm_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen);
+
+extern int
+brcmf_sdbrcm_bus_rxctl(struct dhd_bus *bus, unsigned char *msg, uint msglen);
 
 /* Watchdog timer function */
-extern bool dhd_bus_watchdog(dhd_pub_t *dhd);
+extern bool brcmf_sdbrcm_bus_watchdog(dhd_pub_t *dhd);
 
 #ifdef DHD_DEBUG
 /* Device console input function */
-extern int dhd_bus_console_in(dhd_pub_t *dhd, unsigned char *msg, uint msglen);
+extern int
+brcmf_sdbrcm_bus_console_in(dhd_pub_t *dhd, unsigned char *msg, uint msglen);
 #endif				/* DHD_DEBUG */
 
 /* Deferred processing for the bus, return true requests reschedule */
@@ -58,12 +62,12 @@ extern void dhd_bus_isr(bool *InterruptRecognized,
 			bool *QueueMiniportHandleInterrupt, void *arg);
 
 /* Check for and handle local prot-specific iovar commands */
-extern int dhd_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
+extern int brcmf_sdbrcm_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 			    void *params, int plen, void *arg, int len,
 			    bool set);
 
 /* Add bus dump output to a buffer */
-extern void dhd_bus_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf);
+extern void brcmf_sdbrcm_bus_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf);
 
 /* Clear any bus counters */
 extern void dhd_bus_clearcounts(dhd_pub_t *dhdp);

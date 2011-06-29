@@ -129,7 +129,8 @@ static int dhdcdc_msg(dhd_pub_t *dhd)
 		len = CDC_MAX_MSG_SIZE;
 
 	/* Send request */
-	return dhd_bus_txctl(dhd->bus, (unsigned char *)&prot->msg, len);
+	return brcmf_sdbrcm_bus_txctl(dhd->bus, (unsigned char *)&prot->msg,
+				      len);
 }
 
 static int dhdcdc_cmplt(dhd_pub_t *dhd, u32 id, u32 len)
@@ -140,9 +141,9 @@ static int dhdcdc_cmplt(dhd_pub_t *dhd, u32 id, u32 len)
 	DHD_TRACE(("%s: Enter\n", __func__));
 
 	do {
-		ret =
-		    dhd_bus_rxctl(dhd->bus, (unsigned char *)&prot->msg,
-				  len + sizeof(struct cdc_ioctl));
+		ret = brcmf_sdbrcm_bus_rxctl(dhd->bus,
+					     (unsigned char *)&prot->msg,
+					     len + sizeof(struct cdc_ioctl));
 		if (ret < 0)
 			break;
 	} while (CDC_IOC_ID(le32_to_cpu(prot->msg.flags)) != id);

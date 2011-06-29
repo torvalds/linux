@@ -175,7 +175,7 @@ DECLARE_WAIT_QUEUE_HEAD(dhd_dpc_wait);
 #endif	/*  defined(CONFIG_PM_SLEEP) */
 
 #if defined(OOB_INTR_ONLY)
-extern void dhd_enable_oob_intr(struct dhd_bus *bus, bool enable);
+extern void brcmf_sdbrcm_enable_oob_intr(struct dhd_bus *bus, bool enable);
 #endif	/* defined(OOB_INTR_ONLY) */
 
 MODULE_AUTHOR("Broadcom Corporation");
@@ -995,7 +995,7 @@ int dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 #ifdef BCMDBUS
 	ret = dbus_send_pkt(dhdp->dbus, pktbuf, NULL /* pktinfo */);
 #else
-	ret = dhd_bus_txdata(dhdp->bus, pktbuf);
+	ret = brcmf_sdbrcm_bus_txdata(dhdp->bus, pktbuf);
 #endif				/* BCMDBUS */
 
 	return ret;
@@ -1264,7 +1264,7 @@ static int dhd_watchdog_thread(void *data)
 		if (down_interruptible(&dhd->watchdog_sem) == 0) {
 			if (dhd->pub.dongle_reset == false) {
 				/* Call the bus module watchdog */
-				dhd_bus_watchdog(&dhd->pub);
+				brcmf_sdbrcm_bus_watchdog(&dhd->pub);
 			}
 			/* Count the tick for reference */
 			dhd->pub.tickcnt++;
@@ -1290,7 +1290,7 @@ static void dhd_watchdog(unsigned long data)
 	}
 
 	/* Call the bus module watchdog */
-	dhd_bus_watchdog(&dhd->pub);
+	brcmf_sdbrcm_bus_watchdog(&dhd->pub);
 
 	/* Count the tick for reference */
 	dhd->pub.tickcnt++;
@@ -1330,7 +1330,7 @@ static int dhd_dpc_thread(void *data)
 					up(&dhd->dpc_sem);
 				}
 			} else {
-				dhd_bus_stop(dhd->pub.bus, true);
+				brcmf_sdbrcm_bus_stop(dhd->pub.bus, true);
 			}
 		} else
 			break;
@@ -1349,7 +1349,7 @@ static void dhd_dpc(unsigned long data)
 		if (dhd_bus_dpc(dhd->pub.bus))
 			tasklet_schedule(&dhd->tasklet);
 	} else {
-		dhd_bus_stop(dhd->pub.bus, true);
+		brcmf_sdbrcm_bus_stop(dhd->pub.bus, true);
 	}
 }
 
@@ -1990,7 +1990,7 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 	if (dhd->pub.busstate == DHD_BUS_DOWN) {
 		if (!(dhd_bus_download_firmware(dhd->pub.bus,
 						fw_path, nv_path))) {
-			DHD_ERROR(("%s: dhdsdio_probe_download failed. "
+			DHD_ERROR(("%s: dhd_bus_download_firmware failed. "
 				"firmware = %s nvram = %s\n",
 				__func__, fw_path, nv_path));
 			return -1;
@@ -2002,14 +2002,15 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 	dhd_os_wd_timer(&dhd->pub, dhd_watchdog_ms);
 
 	/* Bring up the bus */
-	ret = dhd_bus_init(&dhd->pub, true);
+	ret = brcmf_sdbrcm_bus_init(&dhd->pub, true);
 	if (ret != 0) {
-		DHD_ERROR(("%s, dhd_bus_init failed %d\n", __func__, ret));
+		DHD_ERROR(("%s, brcmf_sdbrcm_bus_init failed %d\n", __func__,
+			   ret));
 		return ret;
 	}
 #if defined(OOB_INTR_ONLY)
 	/* Host registration for OOB interrupt */
-	if (bcmsdh_register_oob_intr(dhdp)) {
+	if (brcmf_sdio_register_oob_intr(dhdp)) {
 		del_timer_sync(&dhd->timer);
 		dhd->wd_timer_valid = false;
 		DHD_ERROR(("%s Host failed to resgister for OOB\n", __func__));
@@ -2017,7 +2018,7 @@ int dhd_bus_start(dhd_pub_t *dhdp)
 	}
 
 	/* Enable oob at firmware */
-	dhd_enable_oob_intr(dhd->pub.bus, true);
+	brcmf_sdbrcm_enable_oob_intr(dhd->pub.bus, true);
 #endif				/* defined(OOB_INTR_ONLY) */
 
 	/* If bus is not ready, can't come up */
@@ -2173,9 +2174,9 @@ void dhd_bus_detach(dhd_pub_t *dhdp)
 			dhd_prot_stop(&dhd->pub);
 
 			/* Stop the bus module */
-			dhd_bus_stop(dhd->pub.bus, true);
+			brcmf_sdbrcm_bus_stop(dhd->pub.bus, true);
 #if defined(OOB_INTR_ONLY)
-			bcmsdh_unregister_oob_intr();
+			brcmf_sdio_unregister_oob_intr();
 #endif				/* defined(OOB_INTR_ONLY) */
 
 			/* Clear the watchdog timer */
@@ -2305,7 +2306,7 @@ static int __init dhd_module_init(void)
 	error = dhd_bus_register();
 
 	if (error) {
-		DHD_ERROR(("%s: sdio_register_driver failed\n", __func__));
+		DHD_ERROR(("%s: dhd_bus_register failed\n", __func__));
 		goto failed;
 	}
 	return error;

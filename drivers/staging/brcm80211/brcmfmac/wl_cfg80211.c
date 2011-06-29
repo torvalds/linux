@@ -36,7 +36,7 @@
 #include "dhd.h"
 #include "wl_cfg80211.h"
 
-void sdioh_sdio_set_host_pm_flags(int flag);
+void brcmf_sdioh_set_host_pm_flags(int flag);
 
 static struct sdio_func *cfg80211_sdio_func;
 static struct wl_dev *wl_cfg80211_dev;
@@ -2155,7 +2155,7 @@ static s32 wl_cfg80211_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wow)
 	clear_bit(WL_STATUS_SCAN_ABORTING, &wl->status);
 
 	/* Inform SDIO stack not to switch off power to the chip */
-	sdioh_sdio_set_host_pm_flags(MMC_PM_KEEP_POWER);
+	brcmf_sdioh_set_host_pm_flags(MMC_PM_KEEP_POWER);
 
 	/* Turn off watchdog timer */
 	if (test_bit(WL_STATUS_READY, &wl->status)) {

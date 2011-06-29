@@ -45,15 +45,15 @@ struct bcmsdh_info {
 bcmsdh_info_t *l_bcmsdh;
 
 #if defined(OOB_INTR_ONLY) && defined(HW_OOB)
-extern int sdioh_enable_hw_oob_intr(void *sdioh, bool enable);
+extern int brcmf_sdioh_enable_hw_oob_intr(void *sdioh, bool enable);
 
-void bcmsdh_enable_hw_oob_intr(bcmsdh_info_t *sdh, bool enable)
+void brcmf_sdcard_enable_hw_oob_intr(bcmsdh_info_t *sdh, bool enable)
 {
-	sdioh_enable_hw_oob_intr(sdh->sdioh, enable);
+	brcmf_sdioh_enable_hw_oob_intr(sdh->sdioh, enable);
 }
 #endif
 
-bcmsdh_info_t *bcmsdh_attach(void *cfghdl, void **regsva, uint irq)
+bcmsdh_info_t *brcmf_sdcard_attach(void *cfghdl, void **regsva, uint irq)
 {
 	bcmsdh_info_t *bcmsdh;
 
@@ -66,9 +66,9 @@ bcmsdh_info_t *bcmsdh_attach(void *cfghdl, void **regsva, uint irq)
 	/* save the handler locally */
 	l_bcmsdh = bcmsdh;
 
-	bcmsdh->sdioh = sdioh_attach(cfghdl, irq);
+	bcmsdh->sdioh = brcmf_sdioh_attach(cfghdl, irq);
 	if (!bcmsdh->sdioh) {
-		bcmsdh_detach(bcmsdh);
+		brcmf_sdcard_detach(bcmsdh);
 		return NULL;
 	}
 
@@ -81,13 +81,13 @@ bcmsdh_info_t *bcmsdh_attach(void *cfghdl, void **regsva, uint irq)
 	return bcmsdh;
 }
 
-int bcmsdh_detach(void *sdh)
+int brcmf_sdcard_detach(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 
 	if (bcmsdh != NULL) {
 		if (bcmsdh->sdioh) {
-			sdioh_detach(bcmsdh->sdioh);
+			brcmf_sdioh_detach(bcmsdh->sdioh);
 			bcmsdh->sdioh = NULL;
 		}
 		kfree(bcmsdh);
@@ -98,78 +98,79 @@ int bcmsdh_detach(void *sdh)
 }
 
 int
-bcmsdh_iovar_op(void *sdh, const char *name,
+brcmf_sdcard_iovar_op(void *sdh, const char *name,
 		void *params, int plen, void *arg, int len, bool set)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
-	return sdioh_iovar_op(bcmsdh->sdioh, name, params, plen, arg, len, set);
+	return brcmf_sdioh_iovar_op(bcmsdh->sdioh, name, params, plen, arg,
+				    len, set);
 }
 
-bool bcmsdh_intr_query(void *sdh)
+bool brcmf_sdcard_intr_query(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
 	bool on;
 
 	ASSERT(bcmsdh);
-	status = sdioh_interrupt_query(bcmsdh->sdioh, &on);
+	status = brcmf_sdioh_interrupt_query(bcmsdh->sdioh, &on);
 	if (SDIOH_API_SUCCESS(status))
 		return false;
 	else
 		return on;
 }
 
-int bcmsdh_intr_enable(void *sdh)
+int brcmf_sdcard_intr_enable(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
 	ASSERT(bcmsdh);
 
-	status = sdioh_interrupt_set(bcmsdh->sdioh, true);
+	status = brcmf_sdioh_interrupt_set(bcmsdh->sdioh, true);
 	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 }
 
-int bcmsdh_intr_disable(void *sdh)
+int brcmf_sdcard_intr_disable(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
 	ASSERT(bcmsdh);
 
-	status = sdioh_interrupt_set(bcmsdh->sdioh, false);
+	status = brcmf_sdioh_interrupt_set(bcmsdh->sdioh, false);
 	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 }
 
-int bcmsdh_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
+int brcmf_sdcard_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
 	ASSERT(bcmsdh);
 
-	status = sdioh_interrupt_register(bcmsdh->sdioh, fn, argh);
+	status = brcmf_sdioh_interrupt_register(bcmsdh->sdioh, fn, argh);
 	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 }
 
-int bcmsdh_intr_dereg(void *sdh)
+int brcmf_sdcard_intr_dereg(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
 	ASSERT(bcmsdh);
 
-	status = sdioh_interrupt_deregister(bcmsdh->sdioh);
+	status = brcmf_sdioh_interrupt_deregister(bcmsdh->sdioh);
 	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 }
 
 #if defined(DHD_DEBUG)
-bool bcmsdh_intr_pending(void *sdh)
+bool brcmf_sdcard_intr_pending(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 
 	ASSERT(sdh);
-	return sdioh_interrupt_pending(bcmsdh->sdioh);
+	return brcmf_sdioh_interrupt_pending(bcmsdh->sdioh);
 }
 #endif
 
-int bcmsdh_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
+int brcmf_sdcard_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 {
 	ASSERT(sdh);
 
@@ -177,7 +178,7 @@ int bcmsdh_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 	return -ENOTSUPP;
 }
 
-u8 bcmsdh_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
+u8 brcmf_sdcard_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
@@ -197,7 +198,7 @@ u8 bcmsdh_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
 			udelay(1000);
 #endif
 		status =
-		    sdioh_cfg_read(bcmsdh->sdioh, fnc_num, addr,
+		    brcmf_sdioh_cfg_read(bcmsdh->sdioh, fnc_num, addr,
 				   (u8 *) &data);
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	} while (!SDIOH_API_SUCCESS(status)
@@ -213,7 +214,7 @@ u8 bcmsdh_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
 }
 
 void
-bcmsdh_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
+brcmf_sdcard_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
@@ -232,7 +233,7 @@ bcmsdh_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
 			udelay(1000);
 #endif
 		status =
-		    sdioh_cfg_write(bcmsdh->sdioh, fnc_num, addr,
+		    brcmf_sdioh_cfg_write(bcmsdh->sdioh, fnc_num, addr,
 				    (u8 *) &data);
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	} while (!SDIOH_API_SUCCESS(status)
@@ -245,7 +246,7 @@ bcmsdh_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
 		     __func__, fnc_num, addr, data));
 }
 
-u32 bcmsdh_cfg_read_word(void *sdh, uint fnc_num, u32 addr, int *err)
+u32 brcmf_sdcard_cfg_read_word(void *sdh, uint fnc_num, u32 addr, int *err)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
@@ -256,9 +257,8 @@ u32 bcmsdh_cfg_read_word(void *sdh, uint fnc_num, u32 addr, int *err)
 
 	ASSERT(bcmsdh->init_success);
 
-	status =
-	    sdioh_request_word(bcmsdh->sdioh, SDIOH_CMD_TYPE_NORMAL, SDIOH_READ,
-			       fnc_num, addr, &data, 4);
+	status = brcmf_sdioh_request_word(bcmsdh->sdioh, SDIOH_CMD_TYPE_NORMAL,
+		SDIOH_READ, fnc_num, addr, &data, 4);
 
 	if (err)
 		*err = (SDIOH_API_SUCCESS(status) ? 0 : -EIO);
@@ -270,7 +270,7 @@ u32 bcmsdh_cfg_read_word(void *sdh, uint fnc_num, u32 addr, int *err)
 }
 
 void
-bcmsdh_cfg_write_word(void *sdh, uint fnc_num, u32 addr, u32 data,
+brcmf_sdcard_cfg_write_word(void *sdh, uint fnc_num, u32 addr, u32 data,
 		      int *err)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
@@ -282,7 +282,7 @@ bcmsdh_cfg_write_word(void *sdh, uint fnc_num, u32 addr, u32 data,
 	ASSERT(bcmsdh->init_success);
 
 	status =
-	    sdioh_request_word(bcmsdh->sdioh, SDIOH_CMD_TYPE_NORMAL,
+	    brcmf_sdioh_request_word(bcmsdh->sdioh, SDIOH_CMD_TYPE_NORMAL,
 			       SDIOH_WRITE, fnc_num, addr, &data, 4);
 
 	if (err)
@@ -292,7 +292,7 @@ bcmsdh_cfg_write_word(void *sdh, uint fnc_num, u32 addr, u32 data,
 		     __func__, fnc_num, addr, data));
 }
 
-int bcmsdh_cis_read(void *sdh, uint func, u8 * cis, uint length)
+int brcmf_sdcard_cis_read(void *sdh, uint func, u8 * cis, uint length)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
@@ -309,7 +309,7 @@ int bcmsdh_cis_read(void *sdh, uint func, u8 * cis, uint length)
 	ASSERT(cis);
 	ASSERT(length <= SBSDIO_CIS_SIZE_LIMIT);
 
-	status = sdioh_cis_read(bcmsdh->sdioh, func, cis, length);
+	status = brcmf_sdioh_cis_read(bcmsdh->sdioh, func, cis, length);
 
 	if (ascii) {
 		/* Move binary bits to tmp and format them
@@ -332,24 +332,27 @@ int bcmsdh_cis_read(void *sdh, uint func, u8 * cis, uint length)
 	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 }
 
-static int bcmsdhsdio_set_sbaddr_window(void *sdh, u32 address)
+static int brcmf_sdcard_set_sbaddr_window(void *sdh, u32 address)
 {
 	int err = 0;
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
-	bcmsdh_cfg_write(bcmsdh, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRLOW,
+	brcmf_sdcard_cfg_write(bcmsdh, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRLOW,
 			 (address >> 8) & SBSDIO_SBADDRLOW_MASK, &err);
 	if (!err)
-		bcmsdh_cfg_write(bcmsdh, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRMID,
-				 (address >> 16) & SBSDIO_SBADDRMID_MASK, &err);
+		brcmf_sdcard_cfg_write(bcmsdh, SDIO_FUNC_1,
+				       SBSDIO_FUNC1_SBADDRMID,
+				       (address >> 16) & SBSDIO_SBADDRMID_MASK,
+				       &err);
 	if (!err)
-		bcmsdh_cfg_write(bcmsdh, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRHIGH,
-				 (address >> 24) & SBSDIO_SBADDRHIGH_MASK,
-				 &err);
+		brcmf_sdcard_cfg_write(bcmsdh, SDIO_FUNC_1,
+				       SBSDIO_FUNC1_SBADDRHIGH,
+				       (address >> 24) & SBSDIO_SBADDRHIGH_MASK,
+				       &err);
 
 	return err;
 }
 
-u32 bcmsdh_reg_read(void *sdh, u32 addr, uint size)
+u32 brcmf_sdcard_reg_read(void *sdh, u32 addr, uint size)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
@@ -364,7 +367,7 @@ u32 bcmsdh_reg_read(void *sdh, u32 addr, uint size)
 	ASSERT(bcmsdh->init_success);
 
 	if (bar0 != bcmsdh->sbwad) {
-		if (bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0))
+		if (brcmf_sdcard_set_sbaddr_window(bcmsdh, bar0))
 			return 0xFFFFFFFF;
 
 		bcmsdh->sbwad = bar0;
@@ -374,7 +377,7 @@ u32 bcmsdh_reg_read(void *sdh, u32 addr, uint size)
 	if (size == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	status = sdioh_request_word(bcmsdh->sdioh, SDIOH_CMD_TYPE_NORMAL,
+	status = brcmf_sdioh_request_word(bcmsdh->sdioh, SDIOH_CMD_TYPE_NORMAL,
 				    SDIOH_READ, SDIO_FUNC_1, addr, &word, size);
 
 	bcmsdh->regfail = !(SDIOH_API_SUCCESS(status));
@@ -402,7 +405,7 @@ u32 bcmsdh_reg_read(void *sdh, u32 addr, uint size)
 	return 0xFFFFFFFF;
 }
 
-u32 bcmsdh_reg_write(void *sdh, u32 addr, uint size, u32 data)
+u32 brcmf_sdcard_reg_write(void *sdh, u32 addr, uint size, u32 data)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
@@ -418,7 +421,7 @@ u32 bcmsdh_reg_write(void *sdh, u32 addr, uint size, u32 data)
 	ASSERT(bcmsdh->init_success);
 
 	if (bar0 != bcmsdh->sbwad) {
-		err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0);
+		err = brcmf_sdcard_set_sbaddr_window(bcmsdh, bar0);
 		if (err)
 			return err;
 
@@ -429,7 +432,7 @@ u32 bcmsdh_reg_write(void *sdh, u32 addr, uint size, u32 data)
 	if (size == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 	status =
-	    sdioh_request_word(bcmsdh->sdioh, SDIOH_CMD_TYPE_NORMAL,
+	    brcmf_sdioh_request_word(bcmsdh->sdioh, SDIOH_CMD_TYPE_NORMAL,
 			       SDIOH_WRITE, SDIO_FUNC_1, addr, &data, size);
 	bcmsdh->regfail = !(SDIOH_API_SUCCESS(status));
 
@@ -441,13 +444,13 @@ u32 bcmsdh_reg_write(void *sdh, u32 addr, uint size, u32 data)
 	return 0xFFFFFFFF;
 }
 
-bool bcmsdh_regfail(void *sdh)
+bool brcmf_sdcard_regfail(void *sdh)
 {
 	return ((bcmsdh_info_t *) sdh)->regfail;
 }
 
 int
-bcmsdh_recv_buf(bcmsdh_info_t *bcmsdh, u32 addr, uint fn, uint flags,
+brcmf_sdcard_recv_buf(bcmsdh_info_t *bcmsdh, u32 addr, uint fn, uint flags,
 		u8 *buf, uint nbytes, struct sk_buff *pkt,
 		bcmsdh_cmplt_fn_t complete, void *handle)
 {
@@ -469,7 +472,7 @@ bcmsdh_recv_buf(bcmsdh_info_t *bcmsdh, u32 addr, uint fn, uint flags,
 		return -ENOTSUPP;
 
 	if (bar0 != bcmsdh->sbwad) {
-		err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0);
+		err = brcmf_sdcard_set_sbaddr_window(bcmsdh, bar0);
 		if (err)
 			return err;
 
@@ -483,15 +486,14 @@ bcmsdh_recv_buf(bcmsdh_info_t *bcmsdh, u32 addr, uint fn, uint flags,
 	if (width == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	status = sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO, incr_fix,
-				      SDIOH_READ, fn, addr, width, nbytes, buf,
-				      pkt);
+	status = brcmf_sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO,
+		incr_fix, SDIOH_READ, fn, addr, width, nbytes, buf, pkt);
 
 	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 }
 
 int
-bcmsdh_send_buf(void *sdh, u32 addr, uint fn, uint flags,
+brcmf_sdcard_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 		u8 *buf, uint nbytes, void *pkt,
 		bcmsdh_cmplt_fn_t complete, void *handle)
 {
@@ -514,7 +516,7 @@ bcmsdh_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 		return -ENOTSUPP;
 
 	if (bar0 != bcmsdh->sbwad) {
-		err = bcmsdhsdio_set_sbaddr_window(bcmsdh, bar0);
+		err = brcmf_sdcard_set_sbaddr_window(bcmsdh, bar0);
 		if (err)
 			return err;
 
@@ -528,14 +530,13 @@ bcmsdh_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 	if (width == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	status = sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO, incr_fix,
-				      SDIOH_WRITE, fn, addr, width, nbytes, buf,
-				      pkt);
+	status = brcmf_sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO,
+		incr_fix, SDIOH_WRITE, fn, addr, width, nbytes, buf, pkt);
 
 	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 }
 
-int bcmsdh_rwdata(void *sdh, uint rw, u32 addr, u8 *buf, uint nbytes)
+int brcmf_sdcard_rwdata(void *sdh, uint rw, u32 addr, u8 *buf, uint nbytes)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	SDIOH_API_RC status;
@@ -547,72 +548,71 @@ int bcmsdh_rwdata(void *sdh, uint rw, u32 addr, u8 *buf, uint nbytes)
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	status =
-	    sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO, SDIOH_DATA_INC,
-				 (rw ? SDIOH_WRITE : SDIOH_READ), SDIO_FUNC_1,
-				 addr, 4, nbytes, buf, NULL);
+	status = brcmf_sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO,
+		SDIOH_DATA_INC, (rw ? SDIOH_WRITE : SDIOH_READ), SDIO_FUNC_1,
+		addr, 4, nbytes, buf, NULL);
 
 	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 }
 
-int bcmsdh_abort(void *sdh, uint fn)
+int brcmf_sdcard_abort(void *sdh, uint fn)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 
-	return sdioh_abort(bcmsdh->sdioh, fn);
+	return brcmf_sdioh_abort(bcmsdh->sdioh, fn);
 }
 
-int bcmsdh_start(void *sdh, int stage)
+int brcmf_sdcard_start(void *sdh, int stage)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 
-	return sdioh_start(bcmsdh->sdioh, stage);
+	return brcmf_sdioh_start(bcmsdh->sdioh, stage);
 }
 
-int bcmsdh_stop(void *sdh)
+int brcmf_sdcard_stop(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 
-	return sdioh_stop(bcmsdh->sdioh);
+	return brcmf_sdioh_stop(bcmsdh->sdioh);
 }
 
-int bcmsdh_query_device(void *sdh)
+int brcmf_sdcard_query_device(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 	bcmsdh->vendevid = (PCI_VENDOR_ID_BROADCOM << 16) | 0;
 	return bcmsdh->vendevid;
 }
 
-uint bcmsdh_query_iofnum(void *sdh)
+uint brcmf_sdcard_query_iofnum(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 
 	if (!bcmsdh)
 		bcmsdh = l_bcmsdh;
 
-	return sdioh_query_iofnum(bcmsdh->sdioh);
+	return brcmf_sdioh_query_iofnum(bcmsdh->sdioh);
 }
 
-int bcmsdh_reset(bcmsdh_info_t *sdh)
+int brcmf_sdcard_reset(bcmsdh_info_t *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 
-	return sdioh_sdio_reset(bcmsdh->sdioh);
+	return brcmf_sdioh_reset(bcmsdh->sdioh);
 }
 
-void *bcmsdh_get_sdioh(bcmsdh_info_t *sdh)
+void *brcmf_sdcard_get_sdioh(bcmsdh_info_t *sdh)
 {
 	ASSERT(sdh);
 	return sdh->sdioh;
 }
 
 /* Function to pass device-status bits to DHD. */
-u32 bcmsdh_get_dstatus(void *sdh)
+u32 brcmf_sdcard_get_dstatus(void *sdh)
 {
 	return 0;
 }
 
-u32 bcmsdh_cur_sbwad(void *sdh)
+u32 brcmf_sdcard_cur_sbwad(void *sdh)
 {
 	bcmsdh_info_t *bcmsdh = (bcmsdh_info_t *) sdh;
 
@@ -622,7 +622,7 @@ u32 bcmsdh_cur_sbwad(void *sdh)
 	return bcmsdh->sbwad;
 }
 
-void bcmsdh_chipinfo(void *sdh, u32 chip, u32 chiprev)
+void brcmf_sdcard_chipinfo(void *sdh, u32 chip, u32 chiprev)
 {
 	return;
 }
