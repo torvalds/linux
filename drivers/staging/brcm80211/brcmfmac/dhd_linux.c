@@ -232,7 +232,6 @@ typedef struct dhd_info {
 	bool wd_timer_valid;
 	struct tasklet_struct tasklet;
 	spinlock_t sdlock;
-	spinlock_t txqlock;
 	/* Thread based operation */
 	bool threads_only;
 	struct semaphore sdsem;
@@ -1918,7 +1917,6 @@ dhd_pub_t *dhd_attach(struct dhd_bus *bus, uint bus_hdrlen)
 
 	/* Initialize the spinlocks */
 	spin_lock_init(&dhd->sdlock);
-	spin_lock_init(&dhd->txqlock);
 
 	/* Link to info module */
 	dhd->pub.info = dhd;
@@ -2577,22 +2575,6 @@ void dhd_os_sdunlock(dhd_pub_t *pub)
 		up(&dhd->sdsem);
 	else
 		spin_unlock_bh(&dhd->sdlock);
-}
-
-void dhd_os_sdlock_txq(dhd_pub_t *pub)
-{
-	dhd_info_t *dhd;
-
-	dhd = (dhd_info_t *) (pub->info);
-	spin_lock_bh(&dhd->txqlock);
-}
-
-void dhd_os_sdunlock_txq(dhd_pub_t *pub)
-{
-	dhd_info_t *dhd;
-
-	dhd = (dhd_info_t *) (pub->info);
-	spin_unlock_bh(&dhd->txqlock);
 }
 
 static int

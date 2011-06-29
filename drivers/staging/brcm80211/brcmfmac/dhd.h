@@ -972,8 +972,6 @@ extern void dhd_os_close_image(void *image);
 extern void dhd_os_wd_timer(void *bus, uint wdtick);
 extern void dhd_os_sdlock(dhd_pub_t *pub);
 extern void dhd_os_sdunlock(dhd_pub_t *pub);
-extern void dhd_os_sdlock_txq(dhd_pub_t *pub);
-extern void dhd_os_sdunlock_txq(dhd_pub_t *pub);
 extern void dhd_os_sdlock_sndup_rxq(dhd_pub_t *pub);
 extern void dhd_customer_gpio_wlan_ctrl(int onoff);
 extern int dhd_custom_get_mac_address(unsigned char *buf);

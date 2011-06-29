@@ -592,6 +592,8 @@ typedef struct dhd_bus {
 	u8 *ctrl_frame_buf;
 	u32 ctrl_frame_len;
 	bool ctrl_frame_stat;
+
+	spinlock_t txqlock;
 } dhd_bus_t;
 
 typedef volatile struct _sbconfig {
@@ -1370,7 +1372,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 		bus->fcqueued++;
 
 		/* Priority based enq */
-		dhd_os_sdlock_txq(bus->dhd);
+		spin_lock_bh(&bus->txqlock);
 		if (dhd_prec_enq(bus->dhd, &bus->txq, pkt, prec) == false) {
 			skb_pull(pkt, SDPCM_HDRLEN);
 			dhd_txcomplete(bus->dhd, pkt, false);
@@ -1380,7 +1382,7 @@ int dhd_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 		} else {
 			ret = 0;
 		}
-		dhd_os_sdunlock_txq(bus->dhd);
+		spin_unlock_bh(&bus->txqlock);
 
 		if (pktq_len(&bus->txq) >= TXHI)
 			dhd_txflowcontrol(bus->dhd, 0, ON);
@@ -1446,13 +1448,13 @@ static uint dhdsdio_sendfromq(dhd_bus_t *bus, uint maxframes)
 
 	/* Send frames until the limit or some other event */
 	for (cnt = 0; (cnt < maxframes) && DATAOK(bus); cnt++) {
-		dhd_os_sdlock_txq(bus->dhd);
+		spin_lock_bh(&bus->txqlock);
 		pkt = brcmu_pktq_mdeq(&bus->txq, tx_prec_map, &prec_out);
 		if (pkt == NULL) {
-			dhd_os_sdunlock_txq(bus->dhd);
+			spin_unlock_bh(&bus->txqlock);
 			break;
 		}
-		dhd_os_sdunlock_txq(bus->dhd);
+		spin_unlock_bh(&bus->txqlock);
 		datalen = pkt->len - SDPCM_HDRLEN;
 
 #ifndef SDTEST
@@ -5263,6 +5265,8 @@ static void *dhdsdio_probe(u16 venid, u16 devid, u16 bus_no,
 		DHD_ERROR(("%s: dhdsdio_probe_attach failed\n", __func__));
 		goto fail;
 	}
+
+	spin_lock_init(&bus->txqlock);
 
 	/* Attach to the dhd/OS/network interface */
 	bus->dhd = dhd_attach(bus, SDPCM_RESERVE);
