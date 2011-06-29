@@ -2595,14 +2595,6 @@ void dhd_os_sdunlock_txq(dhd_pub_t *pub)
 	spin_unlock_bh(&dhd->txqlock);
 }
 
-void dhd_os_sdlock_rxq(dhd_pub_t *pub)
-{
-}
-
-void dhd_os_sdunlock_rxq(dhd_pub_t *pub)
-{
-}
-
 static int
 dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 		  wl_event_msg_t *event, void **data)
