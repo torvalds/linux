@@ -1209,36 +1209,10 @@ static int soc_camera_remove(struct device *dev)
 	return 0;
 }
 
-static int soc_camera_suspend(struct device *dev, pm_message_t state)
-{
-	struct soc_camera_device *icd = to_soc_camera_dev(dev);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	int ret = 0;
-
-	if (ici->ops->suspend)
-		ret = ici->ops->suspend(icd, state);
-
-	return ret;
-}
-
-static int soc_camera_resume(struct device *dev)
-{
-	struct soc_camera_device *icd = to_soc_camera_dev(dev);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	int ret = 0;
-
-	if (ici->ops->resume)
-		ret = ici->ops->resume(icd);
-
-	return ret;
-}
-
 struct bus_type soc_camera_bus_type = {
 	.name		= "soc-camera",
 	.probe		= soc_camera_probe,
 	.remove		= soc_camera_remove,
-	.suspend	= soc_camera_suspend,
-	.resume		= soc_camera_resume,
 };
 EXPORT_SYMBOL_GPL(soc_camera_bus_type);
 

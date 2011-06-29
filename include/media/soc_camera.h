@@ -66,8 +66,6 @@ struct soc_camera_host_ops {
 	struct module *owner;
 	int (*add)(struct soc_camera_device *);
 	void (*remove)(struct soc_camera_device *);
-	int (*suspend)(struct soc_camera_device *, pm_message_t);
-	int (*resume)(struct soc_camera_device *);
 	/*
 	 * .get_formats() is called for each client device format, but
 	 * .put_formats() is only called once. Further, if any of the calls to
