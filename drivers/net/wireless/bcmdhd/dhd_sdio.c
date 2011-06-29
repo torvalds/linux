@@ -5309,10 +5309,6 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 	ret = dhd_custom_get_mac_address(ea_addr.octet);
 	if (!ret) {
 		memcpy(bus->dhd->mac.octet, (void *)&ea_addr, ETHER_ADDR_LEN);
-	} else {
-		/* MAC address must be present when Driver insmod */
-		DHD_ERROR(("%s unable to get MAC address\n", __FUNCTION__));
-		goto fail;
 	}
 #endif /* GET_CUSTOM_MAC_ENABLE */
 

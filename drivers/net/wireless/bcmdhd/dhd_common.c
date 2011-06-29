@@ -1551,27 +1551,34 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint32 mpc = 0; /* Turn MPC off for AP/APSTA mode */
 	uint32 apsta = 1; /* Enable APSTA mode */
 #endif
+#ifdef GET_CUSTOM_MAC_ENABLE
+	struct ether_addr ea_addr;
+#endif /* GET_CUSTOM_MAC_ENABLE */
 
 #ifdef GET_CUSTOM_MAC_ENABLE
-	/* MAC address already defined in dhd->mac.octet */
-	memset(buf, 0, sizeof(buf));
-	bcm_mkiovar("cur_etheraddr", dhd->mac.octet, ETHER_ADDR_LEN, buf, sizeof(buf));
+	ret = dhd_custom_get_mac_address(ea_addr.octet);
+	if (!ret) {
+		memset(buf, 0, sizeof(buf));
+		bcm_mkiovar("cur_etheraddr", (void *)&ea_addr, ETHER_ADDR_LEN, buf, sizeof(buf));
 		ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
 		if (ret < 0) {
 			DHD_ERROR(("%s: can't set MAC address , error=%d\n", __FUNCTION__, ret));
-		return BCME_NOTUP;
-	}
-#else /* GET_CUSTOM_MAC_ENABLE */
+			return BCME_NOTUP;
+		}
+	} else {
+#endif /* GET_CUSTOM_MAC_ENABLE */
 		/* Get the default device MAC address directly from firmware */
-	memset(buf, 0, sizeof(buf));
-	bcm_mkiovar("cur_etheraddr", 0, 0, buf, sizeof(buf));
-	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf),
+		memset(buf, 0, sizeof(buf));
+		bcm_mkiovar("cur_etheraddr", 0, 0, buf, sizeof(buf));
+		if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf),
 			FALSE, 0)) < 0) {
 			DHD_ERROR(("%s: can't get MAC address , error=%d\n", __FUNCTION__, ret));
 			return BCME_NOTUP;
 		}
-	/* Update public MAC address after reading from Firmware */
-	memcpy(dhd->mac.octet, buf, ETHER_ADDR_LEN);
+		/* Update public MAC address after reading from Firmware */
+		memcpy(dhd->mac.octet, buf, ETHER_ADDR_LEN);
+#ifdef GET_CUSTOM_MAC_ENABLE
+	}
 #endif /* GET_CUSTOM_MAC_ENABLE */
 
 #ifdef SET_RANDOM_MAC_SOFTAP

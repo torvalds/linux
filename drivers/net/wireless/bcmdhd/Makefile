@@ -7,7 +7,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Werror -Dlinux -DBCMDRIVER             \
 	-DMMC_SDIO_ABORT -DBCMSDIO -DBCMLXSDMMC -DBCMPLATFORM_BUS -DWLP2P     \
 	-DNEW_COMPAT_WIRELESS -DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT          \
 	-DKEEP_ALIVE -DCSCAN -DGET_CUSTOM_MAC_ENABLE -DPKT_FILTER_SUPPORT     \
-	-DEMBEDDED_PLATFORM                                                   \
+	-DEMBEDDED_PLATFORM -DENABLE_INSMOD_NO_FW_LOAD                        \
 	-Idrivers/net/wireless/bcmdhd -Idrivers/net/wireless/bcmdhd/include
 
 DHDOFILES = aiutils.o bcmsdh_sdmmc_linux.o dhd_linux.o siutils.o bcmutils.o   \

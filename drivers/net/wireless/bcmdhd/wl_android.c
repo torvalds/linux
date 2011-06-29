@@ -326,11 +326,7 @@ int wl_android_init(void)
 
 	dhd_msg_level = DHD_ERROR_VAL;
 #ifdef ENABLE_INSMOD_NO_FW_LOAD
-#ifdef GET_CUSTOM_MAC_ENABLE
 	dhd_download_fw_on_driverload = FALSE;
-#else
-#error  GET_CUSTOM_MAC_ENABLE must be defined to isnmod Driver with no FW load
-#endif /* GET_CUSTOM_MAC_ENABLE */
 #endif /* ENABLE_INSMOD_NO_FW_LOAD */
 	return ret;
 }
