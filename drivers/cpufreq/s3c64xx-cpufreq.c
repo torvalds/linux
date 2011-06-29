@@ -36,7 +36,9 @@ static struct s3c64xx_dvfs s3c64xx_dvfs_table[] = {
 
 static struct cpufreq_frequency_table s3c64xx_freq_table[] = {
 	{ 0,  66000 },
+	{ 0, 100000 },
 	{ 0, 133000 },
+	{ 1, 200000 },
 	{ 1, 222000 },
 	{ 1, 266000 },
 	{ 2, 333000 },
