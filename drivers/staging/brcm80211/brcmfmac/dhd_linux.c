@@ -209,7 +209,7 @@ static void brcmf_set_packet_filter(int value, dhd_pub_t *drvr)
 static int brcmf_set_suspend(int value, dhd_pub_t *drvr)
 {
 	int power_mode = PM_MAX;
-	/* wl_pkt_filter_enable_t       enable_parm; */
+	/* struct wl_pkt_filter_enable       enable_parm; */
 	char iovbuf[32];
 	int bcn_li_dtim = 3;
 
@@ -426,7 +426,7 @@ static void _brcmf_set_multicast_list(dhd_info_t *drvr_priv, int ifidx)
 	struct netdev_hw_addr *ha;
 	u32 allmulti, cnt;
 
-	wl_ioctl_t ioc;
+	struct brcmf_ioctl ioc;
 	char *buf, *bufp;
 	uint buflen;
 	int ret;
@@ -539,7 +539,7 @@ static void _brcmf_set_multicast_list(dhd_info_t *drvr_priv, int ifidx)
 static int _brcmf_set_mac_address(dhd_info_t *drvr_priv, int ifidx, u8 *addr)
 {
 	char buf[32];
-	wl_ioctl_t ioc;
+	struct brcmf_ioctl ioc;
 	int ret;
 
 	DHD_TRACE(("%s enter\n", __func__));
@@ -993,7 +993,7 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *net)
 	 as a bitmap in toe_ol iovar */
 static int brcmf_toe_get(dhd_info_t *drvr_priv, int ifidx, u32 *toe_ol)
 {
-	wl_ioctl_t ioc;
+	struct brcmf_ioctl ioc;
 	char buf[32];
 	int ret;
 
@@ -1027,7 +1027,7 @@ static int brcmf_toe_get(dhd_info_t *drvr_priv, int ifidx, u32 *toe_ol)
 	 and set toe global enable iovar */
 static int brcmf_toe_set(dhd_info_t *drvr_priv, int ifidx, u32 toe_ol)
 {
-	wl_ioctl_t ioc;
+	struct brcmf_ioctl ioc;
 	char buf[32];
 	int toe, ret;
 
@@ -1220,7 +1220,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 	memset(&ioc, 0, sizeof(ioc));
 
 	/* Copy the ioc control structure part of ioctl request */
-	if (copy_from_user(&ioc, ifr->ifr_data, sizeof(wl_ioctl_t))) {
+	if (copy_from_user(&ioc, ifr->ifr_data, sizeof(struct brcmf_ioctl))) {
 		bcmerror = -EINVAL;
 		goto done;
 	}
@@ -1248,8 +1248,8 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 	}
 
 	/* To differentiate between wl and dhd read 4 more byes */
-	if ((copy_from_user(&driver, (char *)ifr->ifr_data + sizeof(wl_ioctl_t),
-			    sizeof(uint)) != 0)) {
+	if ((copy_from_user(&driver, (char *)ifr->ifr_data +
+			    sizeof(struct brcmf_ioctl), sizeof(uint)) != 0)) {
 		bcmerror = -EINVAL;
 		goto done;
 	}
@@ -1292,8 +1292,8 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 		brcmf_netdev_wait_pend8021x(net);
 
 	bcmerror =
-	    brcmf_proto_ioctl(&drvr_priv->pub, ifidx, (wl_ioctl_t *)&ioc, buf,
-			      buflen);
+	    brcmf_proto_ioctl(&drvr_priv->pub, ifidx, (struct brcmf_ioctl *)&ioc,
+			      buf, buflen);
 
 done:
 	if (!bcmerror && buf && ioc.buf) {
@@ -1604,7 +1604,7 @@ int brcmf_iovar(dhd_pub_t *drvr, int ifidx, char *name, char *cmd_buf,
 {
 	char buf[strlen(name) + 1 + cmd_len];
 	int len = sizeof(buf);
-	wl_ioctl_t ioc;
+	struct brcmf_ioctl ioc;
 	int ret;
 
 	len = brcmu_mkiovar(name, cmd_buf, cmd_len, buf, len);

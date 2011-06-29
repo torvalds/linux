@@ -83,8 +83,9 @@
 #define	WLC_PHY_TYPE_LCN	8
 #define	WLC_PHY_TYPE_NULL	0xf
 
-#define WL_PKT_FILTER_FIXED_LEN		  offsetof(wl_pkt_filter_t, u)
-#define WL_PKT_FILTER_PATTERN_FIXED_LEN	  offsetof(wl_pkt_filter_pattern_t, mask_and_pattern)
+#define WL_PKT_FILTER_FIXED_LEN		  offsetof(struct brcmf_pkt_filter, u)
+#define WL_PKT_FILTER_PATTERN_FIXED_LEN	\
+	offsetof(struct brcmf_pkt_filter_pattern, mask_and_pattern)
 
 #define WL_EVENTING_MASK_LEN	16
 
@@ -94,9 +95,9 @@
 /* maximum channels returned by the get valid channels iovar */
 #define WL_NUMCHANNELS		64
 
-#define	WL_BSS_INFO_VERSION	108	/* current ver of wl_bss_info struct */
+#define	WL_BSS_INFO_VERSION	108 /* current ver of brcmf_bss_info struct */
 
-/* size of wl_scan_params not including variable length array */
+/* size of brcmf_scan_params not including variable length array */
 #define WL_SCAN_PARAMS_FIXED_SIZE 64
 
 /* masks for channel and ssid count */
@@ -109,7 +110,7 @@
 
 #define ISCAN_REQ_VERSION 1
 
-/* wl_iscan_results status values */
+/* brcmf_iscan_results status values */
 #define WL_SCAN_RESULTS_SUCCESS	0
 #define WL_SCAN_RESULTS_PARTIAL	1
 #define WL_SCAN_RESULTS_PENDING	2
@@ -319,7 +320,7 @@ enum dhd_bus_state {
  * start matching, the pattern to match, the size of the pattern, and a bitmask
  * that indicates which bits within the pattern should be matched.
  */
-typedef struct wl_pkt_filter_pattern {
+struct brcmf_pkt_filter_pattern {
 	u32 offset;		/* Offset within received packet to start pattern matching.
 				 * Offset '0' is the first byte of the ethernet header.
 				 */
@@ -327,29 +328,29 @@ typedef struct wl_pkt_filter_pattern {
 	u8 mask_and_pattern[1];	/* Variable length mask and pattern data.  mask starts
 					 * at offset 0.  Pattern immediately follows mask.
 					 */
-} wl_pkt_filter_pattern_t;
+};
 
 /* IOVAR "pkt_filter_add" parameter. Used to install packet filters. */
-typedef struct wl_pkt_filter {
+struct brcmf_pkt_filter {
 	u32 id;		/* Unique filter id, specified by app. */
 	u32 type;		/* Filter type (WL_PKT_FILTER_TYPE_xxx). */
 	u32 negate_match;	/* Negate the result of filter matches */
 	union {			/* Filter definitions */
-		wl_pkt_filter_pattern_t pattern;	/* Pattern matching filter */
+		struct brcmf_pkt_filter_pattern pattern; /* Filter pattern */
 	} u;
-} wl_pkt_filter_t;
+};
 
 /* IOVAR "pkt_filter_enable" parameter. */
-typedef struct wl_pkt_filter_enable {
+struct brcmf_pkt_filter_enable {
 	u32 id;		/* Unique filter id */
 	u32 enable;		/* Enable/disable bool */
-} wl_pkt_filter_enable_t;
+};
 
 /* BSS info structure
  * Applications MUST CHECK ie_offset field and length field to access IEs and
- * next bss_info structure in a vector (in wl_scan_results_t)
+ * next bss_info structure in a vector (in struct brcmf_scan_results)
  */
-typedef struct wl_bss_info {
+struct brcmf_bss_info {
 	u32 version;		/* version field */
 	u32 length;		/* byte length of data in this record,
 				 * starting at version and including IEs
@@ -382,15 +383,15 @@ typedef struct wl_bss_info {
 	s16 SNR;		/* average SNR of during frame reception */
 	/* Add new fields here */
 	/* variable length Information Elements */
-} wl_bss_info_t;
+};
 
-typedef struct wlc_ssid {
+struct brcmf_ssid {
 	u32 SSID_len;
 	unsigned char SSID[32];
-} wlc_ssid_t;
+};
 
-typedef struct wl_scan_params {
-	wlc_ssid_t ssid;	/* default: {0, ""} */
+struct brcmf_scan_params {
+	struct brcmf_ssid ssid;	/* default: {0, ""} */
 	u8 bssid[ETH_ALEN];	/* default: bcast */
 	s8 bss_type;		/* default: any,
 				 * DOT11_BSSTYPE_ANY/INFRASTRUCTURE/INDEPENDENT
@@ -408,71 +409,76 @@ typedef struct wl_scan_params {
 				 */
 	s32 channel_num;	/* count of channels and ssids that follow
 				 *
-				 * low half is count of channels in channel_list, 0
-				 * means default (use all available channels)
+				 * low half is count of channels in
+				 * channel_list, 0 means default (use all
+				 * available channels)
 				 *
-				 * high half is entries in wlc_ssid_t array that
-				 * follows channel_list, aligned for s32 (4 bytes)
-				 * meaning an odd channel count implies a 2-byte pad
-				 * between end of channel_list and first ssid
+				 * high half is entries in struct brcmf_ssid
+				 * array that follows channel_list, aligned for
+				 * s32 (4 bytes) meaning an odd channel count
+				 * implies a 2-byte pad between end of
+				 * channel_list and first ssid
 				 *
-				 * if ssid count is zero, single ssid in the fixed
-				 * parameter portion is assumed, otherwise ssid in
-				 * the fixed portion is ignored
+				 * if ssid count is zero, single ssid in the
+				 * fixed parameter portion is assumed, otherwise
+				 * ssid in the fixed portion is ignored
 				 */
 	u16 channel_list[1];	/* list of chanspecs */
-} wl_scan_params_t;
+};
 
 /* incremental scan struct */
-typedef struct wl_iscan_params {
+struct brcmf_iscan_params {
 	u32 version;
 	u16 action;
 	u16 scan_duration;
-	wl_scan_params_t params;
-} wl_iscan_params_t;
+	struct brcmf_scan_params params;
+};
 
-/* 3 fields + size of wl_scan_params, not including variable length array */
-#define WL_ISCAN_PARAMS_FIXED_SIZE (offsetof(wl_iscan_params_t, params) + sizeof(wlc_ssid_t))
+/* 3 fields + size of brcmf_scan_params, not including variable length array */
+#define BRCMF_ISCAN_PARAMS_FIXED_SIZE \
+	(offsetof(struct brcmf_iscan_params, params) + \
+	 sizeof(struct brcmf_ssid))
 
-typedef struct wl_scan_results {
+struct brcmf_scan_results {
 	u32 buflen;
 	u32 version;
 	u32 count;
-	wl_bss_info_t bss_info[1];
-} wl_scan_results_t;
+	struct brcmf_bss_info bss_info[1];
+};
 
 /* used for association with a specific BSSID and chanspec list */
-typedef struct wl_assoc_params {
+struct brcmf_assoc_params {
 	u8 bssid[ETH_ALEN];	/* 00:00:00:00:00:00: broadcast scan */
 	s32 chanspec_num;	/* 0: all available channels,
 				 * otherwise count of chanspecs in chanspec_list
 				 */
 	chanspec_t chanspec_list[1];	/* list of chanspecs */
-} wl_assoc_params_t;
-#define WL_ASSOC_PARAMS_FIXED_SIZE	(sizeof(wl_assoc_params_t) - sizeof(chanspec_t))
+};
+#define WL_ASSOC_PARAMS_FIXED_SIZE \
+	(sizeof(struct brcmf_assoc_params) - sizeof(chanspec_t))
 
 /* used for join with or without a specific bssid and channel list */
-typedef struct wl_join_params {
-	wlc_ssid_t ssid;
-	wl_assoc_params_t params;	/* optional field, but it must include the fixed portion
-					 * of the wl_assoc_params_t struct when it does present.
-					 */
-} wl_join_params_t;
+struct brcmf_join_params {
+	struct brcmf_ssid ssid;
+	struct brcmf_assoc_params params;
+};
 
-/* size of wl_scan_results not including variable length array */
-#define WL_SCAN_RESULTS_FIXED_SIZE (sizeof(wl_scan_results_t) - sizeof(wl_bss_info_t))
+/* size of brcmf_scan_results not including variable length array */
+#define BRCMF_SCAN_RESULTS_FIXED_SIZE \
+	(sizeof(struct brcmf_scan_results) - sizeof(struct brcmf_bss_info))
 
 /* incremental scan results struct */
-typedef struct wl_iscan_results {
+struct brcmf_iscan_results {
 	u32 status;
-	wl_scan_results_t results;
-} wl_iscan_results_t;
+	struct brcmf_scan_results results;
+};
 
-/* size of wl_iscan_results not including variable length array */
-#define WL_ISCAN_RESULTS_FIXED_SIZE \
-	(WL_SCAN_RESULTS_FIXED_SIZE + offsetof(wl_iscan_results_t, results))
+/* size of brcmf_iscan_results not including variable length array */
+#define BRCMF_ISCAN_RESULTS_FIXED_SIZE \
+	(BRCMF_SCAN_RESULTS_FIXED_SIZE + \
+	 offsetof(struct brcmf_iscan_results, results))
 
-typedef struct wl_wsec_key {
+struct brcmf_wsec_key {
 	u32 index;		/* key index */
 	u32 len;		/* key length */
 	u8 data[WLAN_MAX_KEY_LEN];	/* key data */
@@ -490,30 +496,30 @@ typedef struct wl_wsec_key {
 	} rxiv;
 	u32 pad_5[2];
 	u8 ea[ETH_ALEN];	/* per station */
-} wl_wsec_key_t;
+};
 
 /* Used to get specific STA parameters */
-typedef struct {
+struct brcmf_scb_val {
 	u32 val;
 	u8 ea[ETH_ALEN];
-} scb_val_t;
+};
 
 /* channel encoding */
-typedef struct channel_info {
+struct brcmf_channel_info {
 	int hw_channel;
 	int target_channel;
 	int scan_channel;
-} channel_info_t;
+};
 
 /* Linux network driver ioctl encoding */
-typedef struct wl_ioctl {
+struct brcmf_ioctl {
 	uint cmd;		/* common ioctl definition */
 	void *buf;		/* pointer to user buffer */
 	uint len;		/* length of user buffer */
 	u8 set;		/* get or set request (optional) */
 	uint used;		/* bytes read or written (optional) */
 	uint needed;		/* bytes needed (optional) */
-} wl_ioctl_t;
+};
 
 /* Forward decls for struct dhd_pub (see below) */
 struct dhd_bus;		/* device bus info */

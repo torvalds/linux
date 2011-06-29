@@ -186,7 +186,7 @@ static s32 wl_set_set_sharedkey(struct net_device *dev,
 static s32 wl_get_assoc_ies(struct wl_priv *wl);
 static void wl_clear_assoc_ies(struct wl_priv *wl);
 static void wl_ch_to_chanspec(int ch,
-	struct wl_join_params *join_params, size_t *join_params_size);
+	struct brcmf_join_params *join_params, size_t *join_params_size);
 
 /*
 ** information element utilities
@@ -197,7 +197,7 @@ static struct wireless_dev *wl_alloc_wdev(s32 sizeof_iface,
 			struct device *dev);
 static void wl_free_wdev(struct wl_priv *wl);
 static s32 wl_inform_bss(struct wl_priv *wl);
-static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi);
+static s32 wl_inform_single_bss(struct wl_priv *wl, struct brcmf_bss_info *bi);
 static s32 wl_update_bss_info(struct wl_priv *wl);
 static s32 wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 			u8 key_idx, const u8 *mac_addr,
@@ -206,8 +206,8 @@ static s32 wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 /*
 ** key indianess swap utilities
 */
-static void swap_key_from_BE(struct wl_wsec_key *key);
-static void swap_key_to_BE(struct wl_wsec_key *key);
+static void swap_key_from_BE(struct brcmf_wsec_key *key);
+static void swap_key_to_BE(struct brcmf_wsec_key *key);
 
 /*
 ** wl_priv memory init/deinit utilities
@@ -264,13 +264,13 @@ static s32 wl_dev_iovar_setbuf(struct net_device *dev, s8 *iovar,
 static s32 wl_dev_iovar_getbuf(struct net_device *dev, s8 *iovar,
 				 void *param, s32 paramlen, void *bufptr,
 				 s32 buflen);
-static s32 wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid,
+static s32 wl_run_iscan(struct wl_iscan_ctrl *iscan, struct brcmf_ssid *ssid,
 			  u16 action);
 static s32 wl_do_iscan(struct wl_priv *wl);
 static s32 wl_wakeup_iscan(struct wl_iscan_ctrl *iscan);
 static s32 wl_invoke_iscan(struct wl_priv *wl);
 static s32 wl_get_iscan_results(struct wl_iscan_ctrl *iscan, u32 *status,
-				  struct wl_scan_results **bss_list);
+				  struct brcmf_scan_results **bss_list);
 static void wl_notify_iscan_complete(struct wl_iscan_ctrl *iscan, bool aborted);
 static void wl_init_iscan_eloop(struct wl_iscan_eloop *el);
 static s32 wl_iscan_done(struct wl_priv *wl);
@@ -492,7 +492,7 @@ static const u32 __wl_cipher_suites[] = {
 	WLAN_CIPHER_SUITE_AES_CMAC,
 };
 
-static void swap_key_from_BE(struct wl_wsec_key *key)
+static void swap_key_from_BE(struct brcmf_wsec_key *key)
 {
 	key->index = cpu_to_le32(key->index);
 	key->len = cpu_to_le32(key->len);
@@ -503,7 +503,7 @@ static void swap_key_from_BE(struct wl_wsec_key *key)
 	key->iv_initialized = cpu_to_le32(key->iv_initialized);
 }
 
-static void swap_key_to_BE(struct wl_wsec_key *key)
+static void swap_key_to_BE(struct brcmf_wsec_key *key)
 {
 	key->index = le32_to_cpu(key->index);
 	key->len = le32_to_cpu(key->len);
@@ -518,7 +518,7 @@ static s32
 wl_dev_ioctl(struct net_device *dev, u32 cmd, void *arg, u32 len)
 {
 	struct ifreq ifr;
-	struct wl_ioctl ioc;
+	struct brcmf_ioctl ioc;
 	mm_segment_t fs;
 	s32 err = 0;
 
@@ -588,7 +588,8 @@ done:
 	return err;
 }
 
-static void wl_iscan_prep(struct wl_scan_params *params, struct wlc_ssid *ssid)
+static void wl_iscan_prep(struct brcmf_scan_params *params,
+			  struct brcmf_ssid *ssid)
 {
 	memcpy(params->bssid, ether_bcast, ETH_ALEN);
 	params->bss_type = DOT11_BSSTYPE_ANY;
@@ -604,7 +605,7 @@ static void wl_iscan_prep(struct wl_scan_params *params, struct wlc_ssid *ssid)
 	params->passive_time = cpu_to_le32(params->passive_time);
 	params->home_time = cpu_to_le32(params->home_time);
 	if (ssid && ssid->SSID_len)
-		memcpy(&params->ssid, ssid, sizeof(wlc_ssid_t));
+		memcpy(&params->ssid, ssid, sizeof(struct brcmf_ssid));
 
 }
 
@@ -633,15 +634,15 @@ wl_dev_iovar_getbuf(struct net_device *dev, s8 * iovar, void *param,
 }
 
 static s32
-wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, u16 action)
+wl_run_iscan(struct wl_iscan_ctrl *iscan, struct brcmf_ssid *ssid, u16 action)
 {
-	s32 params_size =
-	    (WL_SCAN_PARAMS_FIXED_SIZE + offsetof(wl_iscan_params_t, params));
-	struct wl_iscan_params *params;
+	s32 params_size = (WL_SCAN_PARAMS_FIXED_SIZE +
+				offsetof(struct brcmf_iscan_params, params));
+	struct brcmf_iscan_params *params;
 	s32 err = 0;
 
 	if (ssid && ssid->SSID_len)
-		params_size += sizeof(struct wlc_ssid);
+		params_size += sizeof(struct brcmf_ssid);
 	params = kzalloc(params_size, GFP_KERNEL);
 	if (unlikely(!params))
 		return -ENOMEM;
@@ -653,7 +654,7 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct wlc_ssid *ssid, u16 action)
 	params->action = cpu_to_le16(action);
 	params->scan_duration = cpu_to_le16(0);
 
-	/* params_size += offsetof(wl_iscan_params_t, params); */
+	/* params_size += offsetof(struct brcmf_iscan_params, params); */
 	err = wl_dev_iovar_setbuf(iscan->dev, "iscan", params, params_size,
 				iscan->ioctl_buf, BRCMF_C_IOCTL_SMLEN);
 	if (unlikely(err)) {
@@ -671,7 +672,7 @@ static s32 wl_do_iscan(struct wl_priv *wl)
 {
 	struct wl_iscan_ctrl *iscan = wl_to_iscan(wl);
 	struct net_device *ndev = wl_to_ndev(wl);
-	struct wlc_ssid ssid;
+	struct brcmf_ssid ssid;
 	s32 passive_scan;
 	s32 err = 0;
 
@@ -933,7 +934,7 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 		      struct cfg80211_ibss_params *params)
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
-	struct wl_join_params join_params;
+	struct brcmf_join_params join_params;
 	size_t join_params_size = 0;
 	s32 err = 0;
 	s32 wsec = 0;
@@ -1011,7 +1012,7 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	/* Configure required join parameter */
-	memset(&join_params, 0, sizeof(wl_join_params_t));
+	memset(&join_params, 0, sizeof(struct brcmf_join_params));
 
 	/* SSID */
 	join_params.ssid.SSID_len =
@@ -1278,7 +1279,7 @@ wl_set_set_sharedkey(struct net_device *dev,
 {
 	struct wl_priv *wl = ndev_to_wl(dev);
 	struct wl_security *sec;
-	struct wl_wsec_key key;
+	struct brcmf_wsec_key key;
 	s32 val;
 	s32 err = 0;
 
@@ -1344,7 +1345,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
 	struct ieee80211_channel *chan = sme->channel;
-	struct wl_join_params join_params;
+	struct brcmf_join_params join_params;
 	size_t join_params_size;
 
 	s32 err = 0;
@@ -1440,7 +1441,7 @@ wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		       u16 reason_code)
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
-	scb_val_t scbval;
+	struct brcmf_scb_val scbval;
 	s32 err = 0;
 
 	WL_TRACE("Enter. Reason code = %d\n", reason_code);
@@ -1452,7 +1453,7 @@ wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	memcpy(&scbval.ea, wl_read_prof(wl, WL_PROF_BSSID), ETH_ALEN);
 	scbval.val = cpu_to_le32(scbval.val);
 	err = wl_dev_ioctl(dev, BRCMF_C_DISASSOC, &scbval,
-			sizeof(scb_val_t));
+			sizeof(struct brcmf_scb_val));
 	if (unlikely(err))
 		WL_ERR("error (%d)\n", err);
 
@@ -1578,7 +1579,7 @@ static s32
 wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 	      u8 key_idx, const u8 *mac_addr, struct key_params *params)
 {
-	struct wl_wsec_key key;
+	struct brcmf_wsec_key key;
 	s32 err = 0;
 
 	memset(&key, 0, sizeof(key));
@@ -1666,7 +1667,7 @@ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		    u8 key_idx, bool pairwise, const u8 *mac_addr,
 		    struct key_params *params)
 {
-	struct wl_wsec_key key;
+	struct brcmf_wsec_key key;
 	s32 val;
 	s32 wsec;
 	s32 err = 0;
@@ -1759,7 +1760,7 @@ static s32
 wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 		    u8 key_idx, bool pairwise, const u8 *mac_addr)
 {
-	struct wl_wsec_key key;
+	struct brcmf_wsec_key key;
 	s32 err = 0;
 	s32 val;
 	s32 wsec;
@@ -1826,7 +1827,7 @@ wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 		    void (*callback) (void *cookie, struct key_params * params))
 {
 	struct key_params params;
-	struct wl_wsec_key key;
+	struct brcmf_wsec_key key;
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
 	struct wl_security *sec;
 	s32 wsec;
@@ -1897,7 +1898,7 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 			u8 *mac, struct station_info *sinfo)
 {
 	struct wl_priv *wl = wiphy_to_wl(wiphy);
-	scb_val_t scb_val;
+	struct brcmf_scb_val scb_val;
 	int rssi;
 	s32 rate;
 	s32 err = 0;
@@ -1931,7 +1932,7 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	if (test_bit(WL_STATUS_CONNECTED, &wl->status)) {
 		scb_val.val = 0;
 		err = wl_dev_ioctl(dev, BRCMF_C_GET_RSSI, &scb_val,
-				sizeof(scb_val_t));
+				sizeof(struct brcmf_scb_val));
 		if (unlikely(err)) {
 			WL_ERR("Could not get rssi (%d)\n", err);
 		}
@@ -2379,8 +2380,8 @@ static void wl_free_wdev(struct wl_priv *wl)
 
 static s32 wl_inform_bss(struct wl_priv *wl)
 {
-	struct wl_scan_results *bss_list;
-	struct wl_bss_info *bi = NULL;	/* must be initialized */
+	struct brcmf_scan_results *bss_list;
+	struct brcmf_bss_info *bi = NULL;	/* must be initialized */
 	s32 err = 0;
 	int i;
 
@@ -2401,7 +2402,7 @@ static s32 wl_inform_bss(struct wl_priv *wl)
 }
 
 
-static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
+static s32 wl_inform_single_bss(struct wl_priv *wl, struct brcmf_bss_info *bi)
 {
 	struct wiphy *wiphy = wl_to_wiphy(wl);
 	struct ieee80211_channel *notify_channel;
@@ -2466,7 +2467,7 @@ wl_inform_ibss(struct wl_priv *wl, struct net_device *dev, const u8 *bssid)
 {
 	struct wiphy *wiphy = wl_to_wiphy(wl);
 	struct ieee80211_channel *notify_channel;
-	struct wl_bss_info *bi = NULL;
+	struct brcmf_bss_info *bi = NULL;
 	struct ieee80211_supported_band *band;
 	u8 *buf = NULL;
 	s32 err = 0;
@@ -2496,7 +2497,7 @@ wl_inform_ibss(struct wl_priv *wl, struct net_device *dev, const u8 *bssid)
 		goto CleanUp;
 	}
 
-	bi = (wl_bss_info_t *)(buf + 4);
+	bi = (struct brcmf_bss_info *)(buf + 4);
 
 	channel = bi->ctl_ch ? bi->ctl_ch :
 				CHSPEC_CHANNEL(le16_to_cpu(bi->chanspec));
@@ -2743,7 +2744,7 @@ static void wl_clear_assoc_ies(struct wl_priv *wl)
 }
 
 
-static void wl_ch_to_chanspec(int ch, struct wl_join_params *join_params,
+static void wl_ch_to_chanspec(int ch, struct brcmf_join_params *join_params,
 	size_t *join_params_size)
 {
 	chanspec_t chanspec = 0;
@@ -2779,8 +2780,8 @@ static void wl_ch_to_chanspec(int ch, struct wl_join_params *join_params,
 
 static s32 wl_update_bss_info(struct wl_priv *wl)
 {
-	struct wl_bss_info *bi;
-	struct wlc_ssid *ssid;
+	struct brcmf_bss_info *bi;
+	struct brcmf_ssid *ssid;
 	struct brcmu_tlv *tim;
 	u16 beacon_interval;
 	u8 dtim_period;
@@ -2792,7 +2793,7 @@ static s32 wl_update_bss_info(struct wl_priv *wl)
 	if (wl_is_ibssmode(wl))
 		return err;
 
-	ssid = (struct wlc_ssid *)wl_read_prof(wl, WL_PROF_SSID);
+	ssid = (struct brcmf_ssid *)wl_read_prof(wl, WL_PROF_SSID);
 
 	*(u32 *)wl->extra_buf = cpu_to_le32(WL_EXTRA_BUF_MAX);
 	err = wl_dev_ioctl(wl_to_ndev(wl), BRCMF_C_GET_BSS_INFO,
@@ -2802,7 +2803,7 @@ static s32 wl_update_bss_info(struct wl_priv *wl)
 		goto update_bss_info_out;
 	}
 
-	bi = (struct wl_bss_info *)(wl->extra_buf + 4);
+	bi = (struct brcmf_bss_info *)(wl->extra_buf + 4);
 	err = wl_inform_single_bss(wl, bi);
 	if (unlikely(err))
 		goto update_bss_info_out;
@@ -2917,8 +2918,8 @@ static s32
 wl_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
 		      const brcmf_event_msg_t *e, void *data)
 {
-	struct channel_info channel_inform;
-	struct wl_scan_results *bss_list;
+	struct brcmf_channel_info channel_inform;
+	struct brcmf_scan_results *bss_list;
 	u32 len = WL_SCAN_BUF_MAX;
 	s32 err = 0;
 	bool scan_abort = false;
@@ -3153,24 +3154,24 @@ static s32 wl_wakeup_iscan(struct wl_iscan_ctrl *iscan)
 
 static s32
 wl_get_iscan_results(struct wl_iscan_ctrl *iscan, u32 *status,
-		     struct wl_scan_results **bss_list)
+		     struct brcmf_scan_results **bss_list)
 {
-	struct wl_iscan_results list;
-	struct wl_scan_results *results;
-	struct wl_iscan_results *list_buf;
+	struct brcmf_iscan_results list;
+	struct brcmf_scan_results *results;
+	struct brcmf_iscan_results *list_buf;
 	s32 err = 0;
 
 	memset(iscan->scan_buf, 0, WL_ISCAN_BUF_MAX);
-	list_buf = (struct wl_iscan_results *)iscan->scan_buf;
+	list_buf = (struct brcmf_iscan_results *)iscan->scan_buf;
 	results = &list_buf->results;
-	results->buflen = WL_ISCAN_RESULTS_FIXED_SIZE;
+	results->buflen = BRCMF_ISCAN_RESULTS_FIXED_SIZE;
 	results->version = 0;
 	results->count = 0;
 
 	memset(&list, 0, sizeof(list));
 	list.results.buflen = cpu_to_le32(WL_ISCAN_BUF_MAX);
 	err = wl_dev_iovar_getbuf(iscan->dev, "iscanresults", &list,
-				WL_ISCAN_RESULTS_FIXED_SIZE, iscan->scan_buf,
+				BRCMF_ISCAN_RESULTS_FIXED_SIZE, iscan->scan_buf,
 				WL_ISCAN_BUF_MAX);
 	if (unlikely(err)) {
 		WL_ERR("error (%d)\n", err);
@@ -3930,11 +3931,11 @@ wl_update_prof(struct wl_priv *wl, const brcmf_event_msg_t *e, void *data,
 	       s32 item)
 {
 	s32 err = 0;
-	struct wlc_ssid *ssid;
+	struct brcmf_ssid *ssid;
 
 	switch (item) {
 	case WL_PROF_SSID:
-		ssid = (wlc_ssid_t *) data;
+		ssid = (struct brcmf_ssid *) data;
 		memset(wl->profile->ssid.SSID, 0,
 		       sizeof(wl->profile->ssid.SSID));
 		memcpy(wl->profile->ssid.SSID, ssid->SSID, ssid->SSID_len);

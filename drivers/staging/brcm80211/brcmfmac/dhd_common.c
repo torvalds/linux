@@ -886,8 +886,8 @@ brcmf_c_pktfilter_offload_enable(dhd_pub_t *drvr, char *arg, int enable,
 	char *arg_save = 0, *arg_org = 0;
 	int rc;
 	char buf[128];
-	wl_pkt_filter_enable_t enable_parm;
-	wl_pkt_filter_enable_t *pkt_filterp;
+	struct brcmf_pkt_filter_enable enable_parm;
+	struct brcmf_pkt_filter_enable *pkt_filterp;
 
 	arg_save = kmalloc(strlen(arg) + 1, GFP_ATOMIC);
 	if (!arg_save) {
@@ -911,7 +911,7 @@ brcmf_c_pktfilter_offload_enable(dhd_pub_t *drvr, char *arg, int enable,
 	buf[str_len] = '\0';
 	buf_len = str_len + 1;
 
-	pkt_filterp = (wl_pkt_filter_enable_t *) (buf + str_len + 1);
+	pkt_filterp = (struct brcmf_pkt_filter_enable *) (buf + str_len + 1);
 
 	/* Parse packet filter id. */
 	enable_parm.id = simple_strtoul(argv[i], NULL, 0);
@@ -949,8 +949,8 @@ fail:
 void brcmf_c_pktfilter_offload_set(dhd_pub_t *drvr, char *arg)
 {
 	const char *str;
-	wl_pkt_filter_t pkt_filter;
-	wl_pkt_filter_t *pkt_filterp;
+	struct brcmf_pkt_filter pkt_filter;
+	struct brcmf_pkt_filter *pkt_filterp;
 	int buf_len;
 	int str_len;
 	int rc;
@@ -998,7 +998,7 @@ void brcmf_c_pktfilter_offload_set(dhd_pub_t *drvr, char *arg)
 	buf[str_len] = '\0';
 	buf_len = str_len + 1;
 
-	pkt_filterp = (wl_pkt_filter_t *) (buf + str_len + 1);
+	pkt_filterp = (struct brcmf_pkt_filter *) (buf + str_len + 1);
 
 	/* Parse packet filter id. */
 	pkt_filter.id = simple_strtoul(argv[i], NULL, 0);

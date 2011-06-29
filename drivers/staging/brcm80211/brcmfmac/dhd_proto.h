@@ -52,7 +52,7 @@ extern void brcmf_proto_hdrpush(dhd_pub_t *, int ifidx, struct sk_buff *txp);
 extern int brcmf_proto_hdrpull(dhd_pub_t *, int *ifidx, struct sk_buff *rxp);
 
 /* Use protocol to issue ioctl to dongle */
-extern int brcmf_proto_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t *ioc,
+extern int brcmf_proto_ioctl(dhd_pub_t *dhd, int ifidx, struct brcmf_ioctl *ioc,
 			  void *buf, int len);
 
 /* Check for and handle local prot-specific iovar commands */

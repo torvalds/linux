@@ -206,7 +206,7 @@ struct wl_cfg80211_bss_info {
 
 /* basic structure of scan request */
 struct wl_scan_req {
-	struct wlc_ssid ssid;
+	struct brcmf_ssid ssid;
 };
 
 /* basic structure of information element */
@@ -244,7 +244,7 @@ struct wl_ibss {
 /* dongle profile */
 struct wl_profile {
 	u32 mode;
-	struct wlc_ssid ssid;
+	struct brcmf_ssid ssid;
 	u8 bssid[ETH_ALEN];
 	u16 beacon_interval;
 	u8 dtim_period;
@@ -303,9 +303,9 @@ struct wl_priv {
 	struct list_head eq_list;	/* used for event queue */
 	spinlock_t eq_lock;	/* for event queue synchronization */
 	struct mutex usr_sync;	/* maily for dongle up/down synchronization */
-	struct wl_scan_results *bss_list;	/* bss_list holding scanned
+	struct brcmf_scan_results *bss_list;	/* bss_list holding scanned
 						 ap information */
-	struct wl_scan_results *scan_results;
+	struct brcmf_scan_results *scan_results;
 	struct wl_scan_req *scan_req_int;	/* scan request object for
 						 internal purpose */
 	struct wl_cfg80211_bss_info *bss_info;	/* bss information for
@@ -354,11 +354,11 @@ struct wl_priv {
 #define wl_to_iscan(w) (w->iscan)
 #define wl_to_conn(w) (&w->conn_info)
 
-static inline struct wl_bss_info *next_bss(struct wl_scan_results *list,
-					   struct wl_bss_info *bss)
+static inline struct brcmf_bss_info *next_bss(struct brcmf_scan_results *list,
+					   struct brcmf_bss_info *bss)
 {
 	return bss = bss ?
-		(struct wl_bss_info *)((unsigned long)bss +
+		(struct brcmf_bss_info *)((unsigned long)bss +
 				       le32_to_cpu(bss->length)) :
 		list->bss_info;
 }
