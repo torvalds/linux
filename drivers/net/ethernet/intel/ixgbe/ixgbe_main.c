@@ -6295,7 +6295,8 @@ static bool ixgbe_tx_csum(struct ixgbe_ring *tx_ring,
 	u32 type_tucmd = 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-	    if (!(tx_flags & IXGBE_TX_FLAGS_HW_VLAN))
+	    if (!(tx_flags & IXGBE_TX_FLAGS_HW_VLAN) &&
+		!(tx_flags & IXGBE_TX_FLAGS_TXSW))
 			return false;
 	} else {
 		u8 l4_hdr = 0;
@@ -6398,6 +6399,13 @@ static __le32 ixgbe_tx_olinfo_status(u32 tx_flags, unsigned int paylen)
 					    (1 << IXGBE_ADVTXD_IDX_SHIFT));
 
 #endif
+	/*
+	 * Check Context must be set if Tx switch is enabled, which it
+	 * always is for case where virtual functions are running
+	 */
+	if (tx_flags & IXGBE_TX_FLAGS_TXSW)
+		olinfo_status |= cpu_to_le32(IXGBE_ADVTXD_CC);
+
 	return olinfo_status;
 }
 
@@ -6732,6 +6740,11 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		return NETDEV_TX_BUSY;
 	}
 
+#ifdef CONFIG_PCI_IOV
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
+		tx_flags |= IXGBE_TX_FLAGS_TXSW;
+
+#endif
 	/* if we have a HW VLAN tag being added default to the HW one */
 	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= vlan_tx_tag_get(skb) << IXGBE_TX_FLAGS_VLAN_SHIFT;
