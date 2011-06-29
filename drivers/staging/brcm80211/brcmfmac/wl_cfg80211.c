@@ -975,6 +975,8 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 
+	set_bit(WL_STATUS_CONNECTING, &wl->status);
+
 	if (params->bssid)
 		WL_CONN("BSSID: %02X %02X %02X %02X %02X %02X\n",
 		params->bssid[0], params->bssid[1], params->bssid[2],
@@ -1088,9 +1090,9 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 		goto done;
 	}
 
-	set_bit(WL_STATUS_CONNECTING, &wl->status);
-
 done:
+	if (err)
+		clear_bit(WL_STATUS_CONNECTING, &wl->status);
 	WL_TRACE("Exit\n");
 	return err;
 }
@@ -1380,6 +1382,8 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 
+	set_bit(WL_STATUS_CONNECTING, &wl->status);
+
 	if (chan) {
 		wl->channel =
 			ieee80211_frequency_to_channel(chan->center_freq);
@@ -1391,24 +1395,34 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	WL_INFO("ie (%p), ie_len (%zd)\n", sme->ie, sme->ie_len);
 
 	err = wl_set_wpa_version(dev, sme);
-	if (unlikely(err))
-		return err;
+	if (err) {
+		WL_ERR("wl_set_wpa_version failed (%d)\n", err);
+		goto done;
+	}
 
 	err = wl_set_auth_type(dev, sme);
-	if (unlikely(err))
-		return err;
+	if (err) {
+		WL_ERR("wl_set_auth_type failed (%d)\n", err);
+		goto done;
+	}
 
 	err = wl_set_set_cipher(dev, sme);
-	if (unlikely(err))
-		return err;
+	if (err) {
+		WL_ERR("wl_set_set_cipher failed (%d)\n", err);
+		goto done;
+	}
 
 	err = wl_set_key_mgmt(dev, sme);
-	if (unlikely(err))
-		return err;
+	if (err) {
+		WL_ERR("wl_set_key_mgmt failed (%d)\n", err);
+		goto done;
+	}
 
 	err = wl_set_set_sharedkey(dev, sme);
-	if (unlikely(err))
-		return err;
+	if (err) {
+		WL_ERR("wl_set_set_sharedkey failed (%d)\n", err);
+		goto done;
+	}
 
 	wl_update_prof(wl, NULL, sme->bssid, WL_PROF_BSSID);
 	/*
@@ -1435,12 +1449,12 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 
 	wl_ch_to_chanspec(wl->channel, &join_params, &join_params_size);
 	err = wl_dev_ioctl(dev, WLC_SET_SSID, &join_params, join_params_size);
-	if (unlikely(err)) {
-		WL_ERR("error (%d)\n", err);
-		return err;
-	}
-	set_bit(WL_STATUS_CONNECTING, &wl->status);
+	if (err)
+		WL_ERR("WLC_SET_SSID failed (%d)\n", err);
 
+done:
+	if (err)
+		clear_bit(WL_STATUS_CONNECTING, &wl->status);
 	WL_TRACE("Exit\n");
 	return err;
 }
