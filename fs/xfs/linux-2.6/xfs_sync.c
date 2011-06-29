@@ -434,7 +434,7 @@ xfs_quiesce_attr(
 	WARN_ON(atomic_read(&mp->m_active_trans) != 0);
 
 	/* Push the superblock and write an unmount record */
-	error = xfs_log_sbcount(mp, 1);
+	error = xfs_log_sbcount(mp);
 	if (error)
 		xfs_warn(mp, "xfs_attr_quiesce: failed to log sb changes. "
 				"Frozen image may not be consistent.");
