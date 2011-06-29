@@ -72,13 +72,17 @@ MODULE_LICENSE ("GPL");
 
 struct dummy_hcd_module_parameters {
 	bool is_super_speed;
+	bool is_high_speed;
 };
 
 static struct dummy_hcd_module_parameters mod_data = {
-	.is_super_speed = false
+	.is_super_speed = false,
+	.is_high_speed = true,
 };
 module_param_named(is_super_speed, mod_data.is_super_speed, bool, S_IRUGO);
 MODULE_PARM_DESC(is_super_speed, "true to simulate SuperSpeed connection");
+module_param_named(is_high_speed, mod_data.is_high_speed, bool, S_IRUGO);
+MODULE_PARM_DESC(is_high_speed, "true to simulate HighSpeed connection");
 /*-------------------------------------------------------------------------*/
 
 /* gadget side driver data structres */
@@ -909,12 +913,15 @@ static int dummy_udc_start(struct usb_gadget_driver *driver,
 	dum->gadget.ep0 = &dum->ep [0].ep;
 	if (mod_data.is_super_speed)
 		dum->gadget.speed = driver->speed;
+	else if (mod_data.is_high_speed)
+		dum->gadget.speed = min_t(u8, USB_SPEED_HIGH, driver->speed);
 	else
-		dum->gadget.speed = min((u8)USB_SPEED_HIGH, (u8)driver->speed);
+		dum->gadget.speed = USB_SPEED_FULL;
 	if (dum->gadget.speed < driver->speed)
-		dev_dbg(udc_dev(dum), "This device can perform faster if"
-				      " you connect it to a "
-				      "SupeSpeed port...\n");
+		dev_dbg(udc_dev(dum), "This device can perform faster"
+				" if you connect it to a %s port...\n",
+			(driver->speed == USB_SPEED_SUPER ?
+			 "SuperSpeed" : "HighSpeed"));
 
 	if (dum->gadget.speed == USB_SPEED_SUPER) {
 		for (i = 0; i < DUMMY_ENDPOINTS; i++)
@@ -2434,6 +2441,9 @@ static int __init init (void)
 
 	if (usb_disabled ())
 		return -ENODEV;
+
+	if (!mod_data.is_high_speed && mod_data.is_super_speed)
+		return -EINVAL;
 
 	the_hcd_pdev = platform_device_alloc(driver_name, -1);
 	if (!the_hcd_pdev)
