@@ -650,16 +650,16 @@ static int tx_packets[NUMPRIO];
 #endif				/* DHD_DEBUG */
 
 /* Deferred transmit */
-const uint dhd_deferred_tx = 1;
+const uint brcmf_deferred_tx = 1;
 
 /* Tx/Rx bounds */
-uint dhd_txbound;
-uint dhd_rxbound;
+uint brcmf_txbound;
+uint brcmf_rxbound;
 uint dhd_txminmax;
 
 /* override the RAM size if possible */
 #define DONGLE_MIN_MEMSIZE (128 * 1024)
-int dhd_dongle_memsize;
+int brcmf_dongle_memsize;
 
 static bool dhd_alignctl;
 
@@ -807,10 +807,10 @@ static void brcmf_sdbrcm_setmemsize(struct dhd_bus *bus, int mem_size)
 	s32 min_size = DONGLE_MIN_MEMSIZE;
 	/* Restrict the memsize to user specified limit */
 	DHD_ERROR(("user: Restrict the dongle ram size to %d, min %d\n",
-		dhd_dongle_memsize, min_size));
-	if ((dhd_dongle_memsize > min_size) &&
-	    (dhd_dongle_memsize < (s32) bus->orig_ramsize))
-		bus->ramsize = dhd_dongle_memsize;
+		brcmf_dongle_memsize, min_size));
+	if ((brcmf_dongle_memsize > min_size) &&
+	    (brcmf_dongle_memsize < (s32) bus->orig_ramsize))
+		bus->ramsize = brcmf_dongle_memsize;
 }
 
 static int brcmf_sdbrcm_set_siaddr_window(dhd_bus_t *bus, u32 address)
@@ -1363,7 +1363,7 @@ int brcmf_sdbrcm_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 
 	/* Check for existing queue, current flow-control,
 			 pending event, or pending clock */
-	if (dhd_deferred_tx || bus->fcstate || pktq_len(&bus->txq)
+	if (brcmf_deferred_tx || bus->fcstate || pktq_len(&bus->txq)
 	    || bus->dpc_sched || (!DATAOK(bus))
 	    || (bus->flowcontrol & NBITVAL(prec))
 	    || (bus->clkstate != CLK_AVAIL)) {
@@ -1392,7 +1392,7 @@ int brcmf_sdbrcm_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 			qcount[prec] = pktq_plen(&bus->txq, prec);
 #endif
 		/* Schedule DPC if needed to send queued packet(s) */
-		if (dhd_deferred_tx && !bus->dpc_sched) {
+		if (brcmf_deferred_tx && !bus->dpc_sched) {
 			bus->dpc_sched = true;
 			brcmf_sched_dpc(bus->dhd);
 		}
@@ -2703,21 +2703,21 @@ brcmf_sdbrcm_doiovar(dhd_bus_t *bus, const struct brcmu_iovar *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_TXBOUND):
-		int_val = (s32) dhd_txbound;
+		int_val = (s32) brcmf_txbound;
 		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_TXBOUND):
-		dhd_txbound = (uint) int_val;
+		brcmf_txbound = (uint) int_val;
 		break;
 
 	case IOV_GVAL(IOV_RXBOUND):
-		int_val = (s32) dhd_rxbound;
+		int_val = (s32) brcmf_rxbound;
 		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_SVAL(IOV_RXBOUND):
-		dhd_rxbound = (uint) int_val;
+		brcmf_rxbound = (uint) int_val;
 		break;
 
 	case IOV_GVAL(IOV_TXMINMAX):
@@ -4443,8 +4443,8 @@ bool brcmf_sdbrcm_dpc(dhd_bus_t *bus)
 	struct sdpcmd_regs *regs = bus->regs;
 	u32 intstatus, newstatus = 0;
 	uint retries = 0;
-	uint rxlimit = dhd_rxbound;	/* Rx frames to read before resched */
-	uint txlimit = dhd_txbound;	/* Tx frames to send before resched */
+	uint rxlimit = brcmf_rxbound;	/* Rx frames to read before resched */
+	uint txlimit = brcmf_txbound;	/* Tx frames to send before resched */
 	uint framecnt = 0;	/* Temporary counter of tx/rx frames */
 	bool rxdone = true;	/* Flag for no more read data */
 	bool resched = false;	/* Flag indicating resched wanted */
@@ -5201,13 +5201,13 @@ static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 	 * first time that the driver is initialized vs subsequent
 	 * initializations.
 	 */
-	dhd_txbound = DHD_TXBOUND;
-	dhd_rxbound = DHD_RXBOUND;
+	brcmf_txbound = DHD_TXBOUND;
+	brcmf_rxbound = DHD_RXBOUND;
 	dhd_alignctl = true;
 	sd1idle = true;
 	dhd_readahead = true;
 	retrydata = false;
-	dhd_dongle_memsize = 0;
+	brcmf_dongle_memsize = 0;
 	dhd_txminmax = DHD_TXMINMAX;
 
 	forcealign = true;
@@ -5402,8 +5402,8 @@ brcmf_sdbrcm_probe_attach(struct dhd_bus *bus, void *sdh, void *regsva,
 			goto fail;
 		}
 		bus->ramsize = bus->orig_ramsize;
-		if (dhd_dongle_memsize)
-			brcmf_sdbrcm_setmemsize(bus, dhd_dongle_memsize);
+		if (brcmf_dongle_memsize)
+			brcmf_sdbrcm_setmemsize(bus, brcmf_dongle_memsize);
 
 		DHD_ERROR(("DHD: dongle ram size is set to %d(orig %d)\n",
 			   bus->ramsize, bus->orig_ramsize));

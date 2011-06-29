@@ -248,15 +248,15 @@ module_param_string(firmware_path, firmware_path, MOD_PARAM_PATHLEN, 0);
 module_param_string(nvram_path, nvram_path, MOD_PARAM_PATHLEN, 0);
 
 /* No firmware required */
-bool dhd_no_fw_req;
-module_param(dhd_no_fw_req, bool, 0);
+bool brcmf_no_fw_req;
+module_param(brcmf_no_fw_req, bool, 0);
 
 /* Error bits */
 module_param(brcmf_msg_level, int, 0);
 
 /* Spawn a thread for system ioctls (set mac, set mcast) */
-uint dhd_sysioc = true;
-module_param(dhd_sysioc, uint, 0);
+uint brcmf_sysioc = true;
+module_param(brcmf_sysioc, uint, 0);
 
 /* Watchdog interval */
 uint brcmf_watchdog_ms = 10;
@@ -290,16 +290,16 @@ uint brcmf_master_mode = true;
 module_param(brcmf_master_mode, uint, 1);
 
 /* Watchdog thread priority, -1 to use kernel timer */
-int dhd_watchdog_prio = 97;
-module_param(dhd_watchdog_prio, int, 0);
+int brcmf_watchdog_prio = 97;
+module_param(brcmf_watchdog_prio, int, 0);
 
 /* DPC thread priority, -1 to use tasklet */
-int dhd_dpc_prio = 98;
-module_param(dhd_dpc_prio, int, 0);
+int brcmf_dpc_prio = 98;
+module_param(brcmf_dpc_prio, int, 0);
 
 /* DPC thread priority, -1 to use tasklet */
-extern int dhd_dongle_memsize;
-module_param(dhd_dongle_memsize, int, 0);
+extern int brcmf_dongle_memsize;
+module_param(brcmf_dongle_memsize, int, 0);
 
 /* Contorl fw roaming */
 #ifdef CUSTOMER_HW2
@@ -318,7 +318,7 @@ module_param_string(iface_name, iface_name, IFNAMSIZ, 0);
 /* The following are specific to the SDIO dongle */
 
 /* IOCTL response timeout */
-int dhd_ioctl_timeout_msec = IOCTL_RESP_TIMEOUT;
+int brcmf_ioctl_timeout_msec = IOCTL_RESP_TIMEOUT;
 
 /* Idle timeout for backplane clock */
 int brcmf_idletime = BRCMF_IDLETIME_TICKS;
@@ -337,14 +337,14 @@ uint brcmf_sdiod_drive_strength = 6;
 module_param(brcmf_sdiod_drive_strength, uint, 0);
 
 /* Tx/Rx bounds */
-extern uint dhd_txbound;
-extern uint dhd_rxbound;
-module_param(dhd_txbound, uint, 0);
-module_param(dhd_rxbound, uint, 0);
+extern uint brcmf_txbound;
+extern uint brcmf_rxbound;
+module_param(brcmf_txbound, uint, 0);
+module_param(brcmf_rxbound, uint, 0);
 
 /* Deferred transmits */
-extern uint dhd_deferred_tx;
-module_param(dhd_deferred_tx, uint, 0);
+extern uint brcmf_deferred_tx;
+module_param(brcmf_deferred_tx, uint, 0);
 
 #ifdef SDTEST
 /* Echo packet generator (pkts/s) */
@@ -1204,10 +1204,10 @@ static int brcmf_watchdog_thread(void *data)
 	 * so get rid of all our resources
 	 */
 #ifdef DHD_SCHED
-	if (dhd_watchdog_prio > 0) {
+	if (brcmf_watchdog_prio > 0) {
 		struct sched_param param;
-		param.sched_priority = (dhd_watchdog_prio < MAX_RT_PRIO) ?
-		    dhd_watchdog_prio : (MAX_RT_PRIO - 1);
+		param.sched_priority = (brcmf_watchdog_prio < MAX_RT_PRIO) ?
+		    brcmf_watchdog_prio : (MAX_RT_PRIO - 1);
 		sched_setscheduler(current, SCHED_FIFO, &param);
 	}
 #endif				/* DHD_SCHED */
@@ -1264,11 +1264,11 @@ static int brcmf_dpc_thread(void *data)
 	 * so get rid of all our resources
 	 */
 #ifdef DHD_SCHED
-	if (dhd_dpc_prio > 0) {
+	if (brcmf_dpc_prio > 0) {
 		struct sched_param param;
 		param.sched_priority =
-		    (dhd_dpc_prio <
-		     MAX_RT_PRIO) ? dhd_dpc_prio : (MAX_RT_PRIO - 1);
+		    (brcmf_dpc_prio <
+		     MAX_RT_PRIO) ? brcmf_dpc_prio : (MAX_RT_PRIO - 1);
 		sched_setscheduler(current, SCHED_FIFO, &param);
 	}
 #endif				/* DHD_SCHED */
@@ -1843,7 +1843,7 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 		DHD_ERROR(("wl_cfg80211_attach failed\n"));
 		goto fail;
 	}
-	if (!dhd_no_fw_req) {
+	if (!brcmf_no_fw_req) {
 		strcpy(brcmf_fw_path, wl_cfg80211_get_fwname());
 		strcpy(brcmf_nv_path, wl_cfg80211_get_nvramname());
 	}
@@ -1855,12 +1855,12 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 
 	/* Initialize thread based operation and lock */
 	sema_init(&dhd->sdsem, 1);
-	if ((dhd_watchdog_prio >= 0) && (dhd_dpc_prio >= 0))
+	if ((brcmf_watchdog_prio >= 0) && (brcmf_dpc_prio >= 0))
 		dhd->threads_only = true;
 	else
 		dhd->threads_only = false;
 
-	if (dhd_dpc_prio >= 0) {
+	if (brcmf_dpc_prio >= 0) {
 		/* Initialize watchdog thread */
 		sema_init(&dhd->watchdog_sem, 0);
 		dhd->watchdog_tsk = kthread_run(brcmf_watchdog_thread, dhd,
@@ -1875,7 +1875,7 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 	}
 
 	/* Set up the bottom half handler */
-	if (dhd_dpc_prio >= 0) {
+	if (brcmf_dpc_prio >= 0) {
 		/* Initialize DPC thread */
 		sema_init(&dhd->dpc_sem, 0);
 		dhd->dpc_tsk = kthread_run(brcmf_dpc_thread, dhd, "dhd_dpc");
@@ -1889,7 +1889,7 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 		dhd->dpc_tsk = NULL;
 	}
 
-	if (dhd_sysioc) {
+	if (brcmf_sysioc) {
 		sema_init(&dhd->sysioc_sem, 0);
 		dhd->sysioc_tsk = kthread_run(_brcmf_sysioc_thread, dhd,
 						"_dhd_sysioc");
@@ -2228,12 +2228,12 @@ static int __init brcmf_module_init(void)
 	/* Sanity check on the module parameters */
 	do {
 		/* Both watchdog and DPC as tasklets are ok */
-		if ((dhd_watchdog_prio < 0) && (dhd_dpc_prio < 0))
+		if ((brcmf_watchdog_prio < 0) && (brcmf_dpc_prio < 0))
 			break;
 
 		/* If both watchdog and DPC are threads, TX must be deferred */
-		if ((dhd_watchdog_prio >= 0) && (dhd_dpc_prio >= 0)
-		    && dhd_deferred_tx)
+		if ((brcmf_watchdog_prio >= 0) && (brcmf_dpc_prio >= 0)
+		    && brcmf_deferred_tx)
 			break;
 
 		DHD_ERROR(("Invalid module parameters.\n"));
@@ -2307,19 +2307,19 @@ int brcmf_os_proto_unblock(dhd_pub_t *pub)
 
 unsigned int brcmf_os_get_ioctl_resp_timeout(void)
 {
-	return (unsigned int)dhd_ioctl_timeout_msec;
+	return (unsigned int)brcmf_ioctl_timeout_msec;
 }
 
 void brcmf_os_set_ioctl_resp_timeout(unsigned int timeout_msec)
 {
-	dhd_ioctl_timeout_msec = (int)timeout_msec;
+	brcmf_ioctl_timeout_msec = (int)timeout_msec;
 }
 
 int brcmf_os_ioctl_resp_wait(dhd_pub_t *pub, uint *condition, bool *pending)
 {
 	dhd_info_t *dhd = (dhd_info_t *) (pub->info);
 	DECLARE_WAITQUEUE(wait, current);
-	int timeout = dhd_ioctl_timeout_msec;
+	int timeout = brcmf_ioctl_timeout_msec;
 
 	/* Convert timeout in millsecond to jiffies */
 	timeout = timeout * HZ / 1000;
@@ -2399,7 +2399,7 @@ void *brcmf_os_open_image(char *filename)
 {
 	struct file *fp;
 
-	if (!dhd_no_fw_req)
+	if (!brcmf_no_fw_req)
 		return wl_cfg80211_request_fw(filename);
 
 	fp = filp_open(filename, O_RDONLY, 0);
@@ -2420,7 +2420,7 @@ int brcmf_os_get_image_block(char *buf, int len, void *image)
 	struct file *fp = (struct file *)image;
 	int rdlen;
 
-	if (!dhd_no_fw_req)
+	if (!brcmf_no_fw_req)
 		return wl_cfg80211_read_fw(buf, len);
 
 	if (!image)
@@ -2435,7 +2435,7 @@ int brcmf_os_get_image_block(char *buf, int len, void *image)
 
 void brcmf_os_close_image(void *image)
 {
-	if (!dhd_no_fw_req)
+	if (!brcmf_no_fw_req)
 		return wl_cfg80211_release_fw();
 	if (image)
 		filp_close((struct file *)image, NULL);
