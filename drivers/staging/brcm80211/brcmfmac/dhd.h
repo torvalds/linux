@@ -938,8 +938,6 @@ extern int write_to_file(dhd_pub_t *dhd, u8 *buf, int size);
 extern int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr);
 #endif				/* defined(OOB_INTR_ONLY) */
 
-int setScheduler(struct task_struct *p, int policy, struct sched_param *param);
-
 extern void dhd_timeout_start(dhd_timeout_t *tmo, uint usec);
 extern int dhd_timeout_expired(dhd_timeout_t *tmo);
 

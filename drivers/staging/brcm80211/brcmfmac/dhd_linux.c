@@ -1244,7 +1244,7 @@ static int dhd_watchdog_thread(void *data)
 		struct sched_param param;
 		param.sched_priority = (dhd_watchdog_prio < MAX_RT_PRIO) ?
 		    dhd_watchdog_prio : (MAX_RT_PRIO - 1);
-		setScheduler(current, SCHED_FIFO, &param);
+		sched_setscheduler(current, SCHED_FIFO, &param);
 	}
 #endif				/* DHD_SCHED */
 
@@ -1305,7 +1305,7 @@ static int dhd_dpc_thread(void *data)
 		param.sched_priority =
 		    (dhd_dpc_prio <
 		     MAX_RT_PRIO) ? dhd_dpc_prio : (MAX_RT_PRIO - 1);
-		setScheduler(current, SCHED_FIFO, &param);
+		sched_setscheduler(current, SCHED_FIFO, &param);
 	}
 #endif				/* DHD_SCHED */
 

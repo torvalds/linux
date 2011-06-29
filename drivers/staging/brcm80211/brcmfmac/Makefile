@@ -45,7 +45,6 @@ DHDOFILES = \
 	dhd_custom_gpio.o \
 	dhd_sdio.o	\
 	dhd_linux.o \
-	dhd_linux_sched.o \
 	bcmsdh.o \
 	bcmsdh_linux.o	\
 	bcmsdh_sdmmc.o \
