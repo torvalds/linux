@@ -22,6 +22,9 @@
 
 #include <linux/types.h>
 
+/* Select powerpc specific features in <linux/kvm.h> */
+#define __KVM_HAVE_SPAPR_TCE
+
 struct kvm_regs {
 	__u64 pc;
 	__u64 cr;
@@ -271,5 +274,11 @@ struct kvm_guest_debug_arch {
 #define KVM_INTERRUPT_SET	-1U
 #define KVM_INTERRUPT_UNSET	-2U
 #define KVM_INTERRUPT_SET_LEVEL	-3U
+
+/* for KVM_CAP_SPAPR_TCE */
+struct kvm_create_spapr_tce {
+	__u64 liobn;
+	__u32 window_size;
+};
 
 #endif /* __LINUX_KVM_POWERPC_H */

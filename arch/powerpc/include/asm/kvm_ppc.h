@@ -119,6 +119,8 @@ extern long kvmppc_prepare_vrma(struct kvm *kvm,
 extern void kvmppc_map_vrma(struct kvm *kvm,
 			    struct kvm_userspace_memory_region *mem);
 extern int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu);
+extern long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
+				struct kvm_create_spapr_tce *args);
 extern int kvmppc_core_init_vm(struct kvm *kvm);
 extern void kvmppc_core_destroy_vm(struct kvm *kvm);
 extern int kvmppc_core_prepare_memory_region(struct kvm *kvm,

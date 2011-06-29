@@ -1350,6 +1350,41 @@ The following flags are defined:
 If datamatch flag is set, the event will be signaled only if the written value
 to the registered address is equal to datamatch in struct kvm_ioeventfd.
 
+4.62 KVM_CREATE_SPAPR_TCE
+
+Capability: KVM_CAP_SPAPR_TCE
+Architectures: powerpc
+Type: vm ioctl
+Parameters: struct kvm_create_spapr_tce (in)
+Returns: file descriptor for manipulating the created TCE table
+
+This creates a virtual TCE (translation control entry) table, which
+is an IOMMU for PAPR-style virtual I/O.  It is used to translate
+logical addresses used in virtual I/O into guest physical addresses,
+and provides a scatter/gather capability for PAPR virtual I/O.
+
+/* for KVM_CAP_SPAPR_TCE */
+struct kvm_create_spapr_tce {
+	__u64 liobn;
+	__u32 window_size;
+};
+
+The liobn field gives the logical IO bus number for which to create a
+TCE table.  The window_size field specifies the size of the DMA window
+which this TCE table will translate - the table will contain one 64
+bit TCE entry for every 4kiB of the DMA window.
+
+When the guest issues an H_PUT_TCE hcall on a liobn for which a TCE
+table has been created using this ioctl(), the kernel will handle it
+in real mode, updating the TCE table.  H_PUT_TCE calls for other
+liobns will cause a vm exit and must be handled by userspace.
+
+The return value is a file descriptor which can be passed to mmap(2)
+to map the created TCE table into userspace.  This lets userspace read
+the entries written by kernel-handled H_PUT_TCE calls, and also lets
+userspace update the TCE table directly which is useful in some
+circumstances.
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by

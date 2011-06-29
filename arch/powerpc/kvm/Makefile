@@ -55,7 +55,8 @@ kvm-book3s_64-objs-$(CONFIG_KVM_BOOK3S_64_HV) := \
 	book3s_hv_interrupts.o \
 	book3s_64_mmu_hv.o
 kvm-book3s_64-builtin-objs-$(CONFIG_KVM_BOOK3S_64_HV) := \
-	book3s_hv_rm_mmu.o
+	book3s_hv_rm_mmu.o \
+	book3s_64_vio_hv.o
 
 kvm-book3s_64-module-objs := \
 	../../../virt/kvm/kvm_main.o \

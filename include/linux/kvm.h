@@ -550,6 +550,7 @@ struct kvm_ppc_pvinfo {
 #define KVM_CAP_TSC_CONTROL 60
 #define KVM_CAP_GET_TSC_KHZ 61
 #define KVM_CAP_PPC_BOOKE_SREGS 62
+#define KVM_CAP_SPAPR_TCE 63
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -752,6 +753,7 @@ struct kvm_clock_data {
 /* Available with KVM_CAP_XCRS */
 #define KVM_GET_XCRS		  _IOR(KVMIO,  0xa6, struct kvm_xcrs)
 #define KVM_SET_XCRS		  _IOW(KVMIO,  0xa7, struct kvm_xcrs)
+#define KVM_CREATE_SPAPR_TCE	  _IOW(KVMIO,  0xa8, struct kvm_create_spapr_tce)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 

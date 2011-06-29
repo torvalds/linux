@@ -203,6 +203,11 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
 		break;
 #endif
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	case KVM_CAP_SPAPR_TCE:
+		r = 1;
+		break;
+#endif
 	default:
 		r = 0;
 		break;
@@ -653,6 +658,19 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 		break;
 	}
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	case KVM_CREATE_SPAPR_TCE: {
+		struct kvm_create_spapr_tce create_tce;
+		struct kvm *kvm = filp->private_data;
+
+		r = -EFAULT;
+		if (copy_from_user(&create_tce, argp, sizeof(create_tce)))
+			goto out;
+		r = kvm_vm_ioctl_create_spapr_tce(kvm, &create_tce);
+		goto out;
+	}
+#endif /* CONFIG_KVM_BOOK3S_64_HV */
+
 	default:
 		r = -ENOTTY;
 	}

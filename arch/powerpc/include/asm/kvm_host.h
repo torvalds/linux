@@ -144,6 +144,14 @@ struct kvmppc_pginfo {
 	atomic_t refcnt;
 };
 
+struct kvmppc_spapr_tce_table {
+	struct list_head list;
+	struct kvm *kvm;
+	u64 liobn;
+	u32 window_size;
+	struct page *pages[0];
+};
+
 struct kvm_arch {
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	unsigned long hpt_virt;
@@ -157,6 +165,7 @@ struct kvm_arch {
 	unsigned long sdr1;
 	unsigned long host_sdr1;
 	int tlbie_lock;
+	struct list_head spapr_tce_tables;
 	unsigned short last_vcpu[NR_CPUS];
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
 };

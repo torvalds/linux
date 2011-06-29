@@ -754,7 +754,7 @@ hcall_real_table:
 	.long	0		/* 0x14 - H_CLEAR_REF */
 	.long	.kvmppc_h_protect - hcall_real_table
 	.long	0		/* 0x1c - H_GET_TCE */
-	.long	0		/* 0x20 - H_SET_TCE */
+	.long	.kvmppc_h_put_tce - hcall_real_table
 	.long	0		/* 0x24 - H_SET_SPRG0 */
 	.long	.kvmppc_h_set_dabr - hcall_real_table
 	.long	0		/* 0x2c */
