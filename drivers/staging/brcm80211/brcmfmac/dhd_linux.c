@@ -82,13 +82,10 @@ typedef struct dhd_info {
 
 	struct semaphore proto_sem;
 	wait_queue_head_t ioctl_resp_wait;
-	struct tasklet_struct tasklet;
 	spinlock_t sdlock;
 	/* Thread based operation */
 	bool threads_only;
 	struct semaphore sdsem;
-	struct task_struct *dpc_tsk;
-	struct semaphore dpc_sem;
 
 	/* Thread to issue ioctl for multicast */
 	struct task_struct *sysioc_tsk;
@@ -145,11 +142,6 @@ module_param(brcmf_pkt_filter_init, uint, 0);
 uint brcmf_master_mode = true;
 module_param(brcmf_master_mode, uint, 1);
 
-/* DPC thread priority, -1 to use tasklet */
-int brcmf_dpc_prio = 98;
-module_param(brcmf_dpc_prio, int, 0);
-
-/* DPC thread priority, -1 to use tasklet */
 extern int brcmf_dongle_memsize;
 module_param(brcmf_dongle_memsize, int, 0);
 
@@ -190,10 +182,6 @@ extern uint brcmf_rxbound;
 module_param(brcmf_txbound, uint, 0);
 module_param(brcmf_rxbound, uint, 0);
 
-/* Deferred transmits */
-extern uint brcmf_deferred_tx;
-module_param(brcmf_deferred_tx, uint, 0);
-
 #ifdef SDTEST
 /* Echo packet generator (pkts/s) */
 uint brcmf_pktgen;
@@ -211,7 +199,6 @@ module_param(brcmf_pktgen_len, uint, 0);
 #define DHD_COMPILED
 #endif
 
-static void brcmf_dpc(unsigned long data);
 static int brcmf_toe_get(dhd_info_t *dhd, int idx, u32 *toe_ol);
 static int brcmf_toe_set(dhd_info_t *dhd, int idx, u32 toe_ol);
 static int brcmf_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
@@ -1012,69 +999,6 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *net)
 	return &ifp->stats;
 }
 
-static int brcmf_dpc_thread(void *data)
-{
-	dhd_info_t *dhd = (dhd_info_t *) data;
-
-	/* This thread doesn't need any user-level access,
-	 * so get rid of all our resources
-	 */
-	if (brcmf_dpc_prio > 0) {
-		struct sched_param param;
-		param.sched_priority =
-		    (brcmf_dpc_prio <
-		     MAX_RT_PRIO) ? brcmf_dpc_prio : (MAX_RT_PRIO - 1);
-		sched_setscheduler(current, SCHED_FIFO, &param);
-	}
-
-	allow_signal(SIGTERM);
-	/* Run until signal received */
-	while (1) {
-		if (kthread_should_stop())
-			break;
-		if (down_interruptible(&dhd->dpc_sem) == 0) {
-			/* Call bus dpc unless it indicated down
-				 (then clean stop) */
-			if (dhd->pub.busstate != DHD_BUS_DOWN) {
-				if (dhd_bus_dpc(dhd->pub.bus)) {
-					up(&dhd->dpc_sem);
-				}
-			} else {
-				brcmf_sdbrcm_bus_stop(dhd->pub.bus, true);
-			}
-		} else
-			break;
-	}
-	return 0;
-}
-
-static void brcmf_dpc(unsigned long data)
-{
-	dhd_info_t *dhd;
-
-	dhd = (dhd_info_t *) data;
-
-	/* Call bus dpc unless it indicated down (then clean stop) */
-	if (dhd->pub.busstate != DHD_BUS_DOWN) {
-		if (dhd_bus_dpc(dhd->pub.bus))
-			tasklet_schedule(&dhd->tasklet);
-	} else {
-		brcmf_sdbrcm_bus_stop(dhd->pub.bus, true);
-	}
-}
-
-void brcmf_sched_dpc(dhd_pub_t *dhdp)
-{
-	dhd_info_t *dhd = (dhd_info_t *) dhdp->info;
-
-	if (dhd->dpc_tsk) {
-		up(&dhd->dpc_sem);
-		return;
-	}
-
-	tasklet_schedule(&dhd->tasklet);
-}
-
 /* Retrieve current toe component enables, which are kept
 	 as a bitmap in toe_ol iovar */
 static int brcmf_toe_get(dhd_info_t *dhd, int ifidx, u32 *toe_ol)
@@ -1598,21 +1522,6 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 	else
 		dhd->threads_only = false;
 
-	/* Set up the bottom half handler */
-	if (brcmf_dpc_prio >= 0) {
-		/* Initialize DPC thread */
-		sema_init(&dhd->dpc_sem, 0);
-		dhd->dpc_tsk = kthread_run(brcmf_dpc_thread, dhd, "dhd_dpc");
-		if (IS_ERR(dhd->dpc_tsk)) {
-			printk(KERN_WARNING
-				"dhd_dpc thread failed to start\n");
-			dhd->dpc_tsk = NULL;
-		}
-	} else {
-		tasklet_init(&dhd->tasklet, brcmf_dpc, (unsigned long) dhd);
-		dhd->dpc_tsk = NULL;
-	}
-
 	if (brcmf_sysioc) {
 		sema_init(&dhd->sysioc_sem, 0);
 		dhd->sysioc_tsk = kthread_run(_brcmf_sysioc_thread, dhd,
@@ -1866,13 +1775,6 @@ void brcmf_detach(dhd_pub_t *dhdp)
 				unregister_netdev(ifp->net);
 			}
 
-			if (dhd->dpc_tsk) {
-				send_sig(SIGTERM, dhd->dpc_tsk, 1);
-				kthread_stop(dhd->dpc_tsk);
-				dhd->dpc_tsk = NULL;
-			} else
-				tasklet_kill(&dhd->tasklet);
-
 			if (dhd->sysioc_tsk) {
 				send_sig(SIGTERM, dhd->sysioc_tsk, 1);
 				kthread_stop(dhd->sysioc_tsk);
@@ -1906,21 +1808,6 @@ static int __init brcmf_module_init(void)
 	int error;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
-
-	/* Sanity check on the module parameters */
-	do {
-		/* Both watchdog and DPC as tasklets are ok */
-		if ((brcmf_watchdog_prio < 0) && (brcmf_dpc_prio < 0))
-			break;
-
-		/* If both watchdog and DPC are threads, TX must be deferred */
-		if ((brcmf_watchdog_prio >= 0) && (brcmf_dpc_prio >= 0)
-		    && brcmf_deferred_tx)
-			break;
-
-		DHD_ERROR(("Invalid module parameters.\n"));
-		return -EINVAL;
-	} while (0);
 
 	error = dhd_bus_register();
 

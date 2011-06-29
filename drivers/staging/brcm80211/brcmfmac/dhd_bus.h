@@ -58,8 +58,6 @@ brcmf_sdbrcm_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen);
 extern int
 brcmf_sdbrcm_bus_rxctl(struct dhd_bus *bus, unsigned char *msg, uint msglen);
 
-/* Deferred processing for the bus, return true requests reschedule */
-extern bool dhd_bus_dpc(struct dhd_bus *bus);
 extern void dhd_bus_isr(bool *InterruptRecognized,
 			bool *QueueMiniportHandleInterrupt, void *arg);
 

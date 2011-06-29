@@ -593,6 +593,10 @@ typedef struct dhd_bus {
 	struct completion watchdog_wait;
 	struct task_struct *watchdog_tsk;
 	bool wd_timer_valid;
+
+	struct tasklet_struct tasklet;
+	struct task_struct *dpc_tsk;
+	struct completion dpc_wait;
 } dhd_bus_t;
 
 typedef volatile struct _sbconfig {
@@ -649,7 +653,8 @@ static int tx_packets[NUMPRIO];
 #endif				/* BCMDBG */
 
 /* Deferred transmit */
-const uint brcmf_deferred_tx = 1;
+uint brcmf_deferred_tx = 1;
+module_param(brcmf_deferred_tx, uint, 0);
 
 /* Watchdog thread priority, -1 to use kernel timer */
 int brcmf_watchdog_prio = 97;
@@ -658,6 +663,10 @@ module_param(brcmf_watchdog_prio, int, 0);
 /* Watchdog interval */
 uint brcmf_watchdog_ms = 10;
 module_param(brcmf_watchdog_ms, uint, 0);
+
+/* DPC thread priority, -1 to use tasklet */
+int brcmf_dpc_prio = 98;
+module_param(brcmf_dpc_prio, int, 0);
 
 #ifdef BCMDBG
 /* Console poll interval */
@@ -804,6 +813,9 @@ static void brcmf_sdbrcm_wait_for_event(dhd_pub_t *dhd, bool *lockvar);
 static void brcmf_sdbrcm_wait_event_wakeup(dhd_bus_t *bus);
 static void brcmf_sdbrcm_watchdog(unsigned long data);
 static int brcmf_sdbrcm_watchdog_thread(void *data);
+static int brcmf_sdbrcm_dpc_thread(void *data);
+static void brcmf_sdbrcm_dpc_tasklet(unsigned long data);
+static void brcmf_sdbrcm_sched_dpc(dhd_bus_t *bus);
 
 /* Packet free applicable unconditionally for sdio and sdspi.
  * Conditional if bufpool was present for gspi bus.
@@ -1355,7 +1367,7 @@ int brcmf_sdbrcm_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 		/* Schedule DPC if needed to send queued packet(s) */
 		if (brcmf_deferred_tx && !bus->dpc_sched) {
 			bus->dpc_sched = true;
-			brcmf_sched_dpc(bus->dhd);
+			brcmf_sdbrcm_sched_dpc(bus);
 		}
 	} else {
 		/* Lock: we're about to use shared data/code (and SDIO) */
@@ -3033,6 +3045,13 @@ void brcmf_sdbrcm_bus_stop(struct dhd_bus *bus, bool enforce_mutex)
 		bus->watchdog_tsk = NULL;
 	}
 
+	if (bus->dpc_tsk) {
+		send_sig(SIGTERM, bus->dpc_tsk, 1);
+		kthread_stop(bus->dpc_tsk);
+		bus->dpc_tsk = NULL;
+	} else
+		tasklet_kill(&bus->tasklet);
+
 	/* Disable and clear interrupts at the chip level also */
 	W_SDREG(0, &bus->regs->hostintmask, retries);
 	local_hostintmask = bus->hostintmask;
@@ -4459,7 +4478,7 @@ static u32 brcmf_sdbrcm_hostmail(dhd_bus_t *bus)
 	return intstatus;
 }
 
-bool brcmf_sdbrcm_dpc(dhd_bus_t *bus)
+static bool brcmf_sdbrcm_dpc(dhd_bus_t *bus)
 {
 	struct brcmf_sdio *sdh = bus->sdh;
 	struct sdpcmd_regs *regs = bus->regs;
@@ -4711,17 +4730,6 @@ clkwait:
 	return resched;
 }
 
-bool dhd_bus_dpc(struct dhd_bus *bus)
-{
-	bool resched;
-
-	/* Call the DPC directly. */
-	DHD_TRACE(("Calling brcmf_sdbrcm_dpc() from %s\n", __func__));
-	resched = brcmf_sdbrcm_dpc(bus);
-
-	return resched;
-}
-
 void brcmf_sdbrcm_isr(void *arg)
 {
 	dhd_bus_t *bus = (dhd_bus_t *) arg;
@@ -4765,7 +4773,7 @@ void brcmf_sdbrcm_isr(void *arg)
 		;
 #else
 	bus->dpc_sched = true;
-	brcmf_sched_dpc(bus->dhd);
+	brcmf_sdbrcm_sched_dpc(bus);
 #endif
 
 }
@@ -5077,7 +5085,7 @@ extern bool brcmf_sdbrcm_bus_watchdog(dhd_pub_t *dhdp)
 					brcmf_sdcard_intr_disable(bus->sdh);
 
 				bus->dpc_sched = true;
-				brcmf_sched_dpc(bus->dhd);
+				brcmf_sdbrcm_sched_dpc(bus);
 
 			}
 		}
@@ -5322,6 +5330,23 @@ static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 		}
 	} else
 		bus->watchdog_tsk = NULL;
+
+	/* Set up the bottom half handler */
+	if (brcmf_dpc_prio >= 0) {
+		/* Initialize DPC thread */
+		init_completion(&bus->dpc_wait);
+		bus->dpc_tsk = kthread_run(brcmf_sdbrcm_dpc_thread,
+					   bus, "dhd_dpc");
+		if (IS_ERR(bus->dpc_tsk)) {
+			printk(KERN_WARNING
+			       "dhd_dpc thread failed to start\n");
+			bus->dpc_tsk = NULL;
+		}
+	} else {
+		tasklet_init(&bus->tasklet, brcmf_sdbrcm_dpc_tasklet,
+			     (unsigned long)bus);
+		bus->dpc_tsk = NULL;
+	}
 
 	/* Attach to the dhd/OS/network interface */
 	bus->dhd = brcmf_attach(bus, SDPCM_RESERVE);
@@ -5678,6 +5703,21 @@ static struct brcmf_sdioh_driver dhd_sdio = {
 int dhd_bus_register(void)
 {
 	DHD_TRACE(("%s: Enter\n", __func__));
+
+	/* Sanity check on the module parameters */
+	do {
+		/* Both watchdog and DPC as tasklets are ok */
+		if ((brcmf_watchdog_prio < 0) && (brcmf_dpc_prio < 0))
+			break;
+
+		/* If both watchdog and DPC are threads, TX must be deferred */
+		if ((brcmf_watchdog_prio >= 0) && (brcmf_dpc_prio >= 0)
+		    && brcmf_deferred_tx)
+			break;
+
+		DHD_ERROR(("Invalid module parameters.\n"));
+		return -EINVAL;
+	} while (0);
 
 	return brcmf_sdio_register(&dhd_sdio);
 }
@@ -6541,4 +6581,60 @@ brcmf_sdbrcm_wd_timer(struct dhd_bus *bus, uint wdtick)
 		bus->wd_timer_valid = true;
 		save_ms = wdtick;
 	}
+}
+
+static int brcmf_sdbrcm_dpc_thread(void *data)
+{
+	dhd_bus_t *bus = (dhd_bus_t *) data;
+
+	/* This thread doesn't need any user-level access,
+	 * so get rid of all our resources
+	 */
+	if (brcmf_dpc_prio > 0) {
+		struct sched_param param;
+		param.sched_priority = (brcmf_dpc_prio < MAX_RT_PRIO) ?
+				       brcmf_dpc_prio : (MAX_RT_PRIO - 1);
+		sched_setscheduler(current, SCHED_FIFO, &param);
+	}
+
+	allow_signal(SIGTERM);
+	/* Run until signal received */
+	while (1) {
+		if (kthread_should_stop())
+			break;
+		if (!wait_for_completion_interruptible(&bus->dpc_wait)) {
+			/* Call bus dpc unless it indicated down
+			(then clean stop) */
+			if (bus->dhd->busstate != DHD_BUS_DOWN) {
+				if (brcmf_sdbrcm_dpc(bus))
+					complete(&bus->dpc_wait);
+			} else {
+				brcmf_sdbrcm_bus_stop(bus, true);
+			}
+		} else
+			break;
+	}
+	return 0;
+}
+
+static void brcmf_sdbrcm_dpc_tasklet(unsigned long data)
+{
+	dhd_bus_t *bus = (dhd_bus_t *) data;
+
+	/* Call bus dpc unless it indicated down (then clean stop) */
+	if (bus->dhd->busstate != DHD_BUS_DOWN) {
+		if (brcmf_sdbrcm_dpc(bus))
+			tasklet_schedule(&bus->tasklet);
+	} else
+		brcmf_sdbrcm_bus_stop(bus, true);
+}
+
+static void brcmf_sdbrcm_sched_dpc(dhd_bus_t *bus)
+{
+	if (bus->dpc_tsk) {
+		complete(&bus->dpc_wait);
+		return;
+	}
+
+	tasklet_schedule(&bus->tasklet);
 }
