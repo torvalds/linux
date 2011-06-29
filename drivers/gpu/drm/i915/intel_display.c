@@ -7970,7 +7970,7 @@ void intel_modeset_init(struct drm_device *dev)
 		intel_init_emon(dev);
 	}
 
-	if (IS_GEN6(dev)) {
+	if (IS_GEN6(dev) || IS_GEN7(dev)) {
 		gen6_enable_rps(dev_priv);
 		gen6_update_ring_freq(dev_priv);
 	}
@@ -8014,7 +8014,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	if (IS_IRONLAKE_M(dev))
 		ironlake_disable_drps(dev);
-	if (IS_GEN6(dev))
+	if (IS_GEN6(dev) || IS_GEN7(dev))
 		gen6_disable_rps(dev);
 
 	if (IS_IRONLAKE_M(dev))
