@@ -31,6 +31,7 @@ NL_PACKET(disk_conf, 3,
 	NL_INTEGER(	56,	T_MAY_IGNORE,	max_bio_bvecs)
 	NL_BIT(		57,	T_MAY_IGNORE,	no_disk_barrier)
 	NL_BIT(		58,	T_MAY_IGNORE,	no_disk_drain)
+	NL_INTEGER(	89,	T_MAY_IGNORE,	disk_timeout)
 )
 
 NL_PACKET(detach, 4,

@@ -1404,6 +1404,9 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	/* Here we have the actions that are performed after a
 	   state change. This function might sleep */
 
+	if (os.disk <= D_NEGOTIATING && ns.disk > D_NEGOTIATING)
+		mod_timer(&mdev->request_timer, jiffies + HZ);
+
 	nsm.i = -1;
 	if (ns.susp_nod) {
 		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
@@ -3317,6 +3320,8 @@ static void drbd_delete_device(unsigned int minor)
 
 	if (!mdev)
 		return;
+
+	del_timer_sync(&mdev->request_timer);
 
 	/* paranoia asserts */
 	if (mdev->open_cnt != 0)

@@ -1208,13 +1208,19 @@ void request_timer_fn(unsigned long data)
 	struct drbd_conf *mdev = (struct drbd_conf *) data;
 	struct drbd_request *req; /* oldest request */
 	struct list_head *le;
-	unsigned long et = 0; /* effective timeout = ko_count * timeout */
+	unsigned long ent = 0, dt = 0, et, nt; /* effective timeout = ko_count * timeout */
 
 	if (get_net_conf(mdev)) {
-		et = mdev->net_conf->timeout*HZ/10 * mdev->net_conf->ko_count;
+		ent = mdev->net_conf->timeout*HZ/10 * mdev->net_conf->ko_count;
 		put_net_conf(mdev);
 	}
-	if (!et || mdev->state.conn < C_WF_REPORT_PARAMS)
+	if (get_ldev(mdev)) {
+		dt = mdev->ldev->dc.disk_timeout * HZ / 10;
+		put_ldev(mdev);
+	}
+	et = min_not_zero(dt, ent);
+
+	if (!et || (mdev->state.conn < C_WF_REPORT_PARAMS && mdev->state.disk <= D_FAILED))
 		return; /* Recurring timer stopped */
 
 	spin_lock_irq(&mdev->req_lock);
@@ -1227,17 +1233,19 @@ void request_timer_fn(unsigned long data)
 
 	le = le->prev;
 	req = list_entry(le, struct drbd_request, tl_requests);
-	if (time_is_before_eq_jiffies(req->start_time + et)) {
-		if (req->rq_state & RQ_NET_PENDING) {
+	if (ent && req->rq_state & RQ_NET_PENDING) {
+		if (time_is_before_eq_jiffies(req->start_time + ent)) {
 			dev_warn(DEV, "Remote failed to finish a request within ko-count * timeout\n");
-			_drbd_set_state(_NS(mdev, conn, C_TIMEOUT), CS_VERBOSE, NULL);
-		} else {
-			dev_warn(DEV, "Local backing block device frozen?\n");
-			mod_timer(&mdev->request_timer, jiffies + et);
+			_drbd_set_state(_NS(mdev, conn, C_TIMEOUT), CS_VERBOSE | CS_HARD, NULL);
 		}
-	} else {
-		mod_timer(&mdev->request_timer, req->start_time + et);
 	}
-
+	if (dt && req->rq_state & RQ_LOCAL_PENDING) {
+		if (time_is_before_eq_jiffies(req->start_time + dt)) {
+			dev_warn(DEV, "Local backing device failed to meet the disk-timeout\n");
+			__drbd_chk_io_error(mdev, 1);
+		}
+	}
+	nt = (time_is_before_eq_jiffies(req->start_time + et) ? jiffies : req->start_time) + et;
 	spin_unlock_irq(&mdev->req_lock);
+	mod_timer(&mdev->request_timer, nt);
 }

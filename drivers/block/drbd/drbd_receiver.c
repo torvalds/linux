@@ -3803,8 +3803,6 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	atomic_set(&mdev->rs_pending_cnt, 0);
 	wake_up(&mdev->misc_wait);
 
-	del_timer(&mdev->request_timer);
-
 	/* make sure syncer is stopped and w_resume_next_sg queued */
 	del_timer_sync(&mdev->resync_timer);
 	resync_timer_fn((unsigned long)mdev);

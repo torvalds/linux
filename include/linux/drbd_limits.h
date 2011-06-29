@@ -48,6 +48,11 @@
 #define DRBD_TIMEOUT_MAX 600
 #define DRBD_TIMEOUT_DEF 60       /* 6 seconds */
 
+ /* If backing disk takes longer than disk_timeout, mark the disk as failed */
+#define DRBD_DISK_TIMEOUT_MIN 0    /* 0 = disabled */
+#define DRBD_DISK_TIMEOUT_MAX 6000 /* 10 Minutes */
+#define DRBD_DISK_TIMEOUT_DEF 0    /* disabled */
+
   /* active connection retries when C_WF_CONNECTION */
 #define DRBD_CONNECT_INT_MIN 1
 #define DRBD_CONNECT_INT_MAX 120
