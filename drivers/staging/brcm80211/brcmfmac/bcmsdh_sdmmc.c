@@ -43,10 +43,10 @@ extern int brcmf_sdioh_reset_comm(struct mmc_card *card);
 uint sd_f2_blocksize = 512;	/* Default blocksize */
 
 uint sd_msglevel = 0x01;
-DHD_PM_RESUME_WAIT_INIT(sdioh_request_byte_wait);
-DHD_PM_RESUME_WAIT_INIT(sdioh_request_word_wait);
-DHD_PM_RESUME_WAIT_INIT(sdioh_request_packet_wait);
-DHD_PM_RESUME_WAIT_INIT(sdioh_request_buffer_wait);
+BRCMF_PM_RESUME_WAIT_INIT(sdioh_request_byte_wait);
+BRCMF_PM_RESUME_WAIT_INIT(sdioh_request_word_wait);
+BRCMF_PM_RESUME_WAIT_INIT(sdioh_request_packet_wait);
+BRCMF_PM_RESUME_WAIT_INIT(sdioh_request_buffer_wait);
 
 #define DMA_ALIGN_MASK	0x03
 
@@ -534,8 +534,8 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 	sd_info(("%s: rw=%d, func=%d, addr=0x%05x\n", __func__, rw, func,
 		 regaddr));
 
-	DHD_PM_RESUME_WAIT(sdioh_request_byte_wait);
-	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
+	BRCMF_PM_RESUME_WAIT(sdioh_request_byte_wait);
+	BRCMF_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
 	if (rw) {		/* CMD52 Write */
 		if (func == 0) {
 			/* Can only directly write to some F0 registers.
@@ -636,8 +636,8 @@ brcmf_sdioh_request_word(struct sdioh_info *sd, uint cmd_type, uint rw,
 	sd_info(("%s: cmd_type=%d, rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
 		 __func__, cmd_type, rw, func, addr, nbytes));
 
-	DHD_PM_RESUME_WAIT(sdioh_request_word_wait);
-	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
+	BRCMF_PM_RESUME_WAIT(sdioh_request_word_wait);
+	BRCMF_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
 	/* Claim host controller */
 	sdio_claim_host(gInstance->func[func]);
 
@@ -688,8 +688,8 @@ brcmf_sdioh_request_packet(struct sdioh_info *sd, uint fix_inc, uint write,
 	sd_trace(("%s: Enter\n", __func__));
 
 	ASSERT(pkt);
-	DHD_PM_RESUME_WAIT(sdioh_request_packet_wait);
-	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
+	BRCMF_PM_RESUME_WAIT(sdioh_request_packet_wait);
+	BRCMF_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
 
 	/* Claim host controller */
 	sdio_claim_host(gInstance->func[func]);
@@ -774,8 +774,8 @@ brcmf_sdioh_request_buffer(struct sdioh_info *sd, uint pio_dma, uint fix_inc,
 
 	sd_trace(("%s: Enter\n", __func__));
 
-	DHD_PM_RESUME_WAIT(sdioh_request_buffer_wait);
-	DHD_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
+	BRCMF_PM_RESUME_WAIT(sdioh_request_buffer_wait);
+	BRCMF_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
 	/* Case 1: we don't have a packet. */
 	if (pkt == NULL) {
 		sd_data(("%s: Creating new %s Packet, len=%d\n",

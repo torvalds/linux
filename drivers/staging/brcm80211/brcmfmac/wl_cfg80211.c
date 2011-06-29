@@ -636,7 +636,7 @@ wl_dev_iovar_getbuf(struct net_device *dev, s8 * iovar, void *param,
 static s32
 wl_run_iscan(struct wl_iscan_ctrl *iscan, struct brcmf_ssid *ssid, u16 action)
 {
-	s32 params_size = (WL_SCAN_PARAMS_FIXED_SIZE +
+	s32 params_size = (BRCMF_SCAN_PARAMS_FIXED_SIZE +
 				offsetof(struct brcmf_iscan_params, params));
 	struct brcmf_iscan_params *params;
 	s32 err = 0;
@@ -650,7 +650,7 @@ wl_run_iscan(struct wl_iscan_ctrl *iscan, struct brcmf_ssid *ssid, u16 action)
 
 	wl_iscan_prep(&params->params, ssid);
 
-	params->version = cpu_to_le32(ISCAN_REQ_VERSION);
+	params->version = cpu_to_le32(BRCMF_ISCAN_REQ_VERSION);
 	params->action = cpu_to_le16(action);
 	params->scan_duration = cpu_to_le16(0);
 
@@ -690,7 +690,7 @@ static s32 wl_do_iscan(struct wl_priv *wl)
 	}
 	wl_set_mpc(ndev, 0);
 	wl->iscan_kickstart = true;
-	wl_run_iscan(iscan, &ssid, WL_SCAN_ACTION_START);
+	wl_run_iscan(iscan, &ssid, BRCMF_SCAN_ACTION_START);
 	mod_timer(&iscan->timer, jiffies + iscan->timer_ms * HZ / 1000);
 	iscan->timer_on = 1;
 
@@ -1025,8 +1025,8 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	/* BSSID */
 	if (params->bssid) {
 		memcpy(join_params.params.bssid, params->bssid, ETH_ALEN);
-		join_params_size =
-			sizeof(join_params.ssid) + WL_ASSOC_PARAMS_FIXED_SIZE;
+		join_params_size = sizeof(join_params.ssid) +
+					BRCMF_ASSOC_PARAMS_FIXED_SIZE;
 	} else {
 		memcpy(join_params.params.bssid, ether_bcast, ETH_ALEN);
 	}
@@ -1301,7 +1301,7 @@ wl_set_set_sharedkey(struct net_device *dev,
 				return -EINVAL;
 			}
 			memcpy(key.data, sme->key, key.len);
-			key.flags = WL_PRIMARY_KEY;
+			key.flags = BRCMF_PRIMARY_KEY;
 			switch (sec->cipher_pairwise) {
 			case WLAN_CIPHER_SUITE_WEP40:
 				key.algo = CRYPTO_ALGO_WEP1;
@@ -1693,7 +1693,7 @@ wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	}
 	memcpy(key.data, params->key, key.len);
 
-	key.flags = WL_PRIMARY_KEY;
+	key.flags = BRCMF_PRIMARY_KEY;
 	switch (params->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 		key.algo = CRYPTO_ALGO_WEP1;
@@ -1770,7 +1770,7 @@ wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	memset(&key, 0, sizeof(key));
 
 	key.index = (u32) key_idx;
-	key.flags = WL_PRIMARY_KEY;
+	key.flags = BRCMF_PRIMARY_KEY;
 	key.algo = CRYPTO_ALGO_OFF;
 
 	WL_CONN("key index (%d)\n", key_idx);
@@ -2386,7 +2386,7 @@ static s32 wl_inform_bss(struct wl_priv *wl)
 	int i;
 
 	bss_list = wl->bss_list;
-	if (unlikely(bss_list->version != WL_BSS_INFO_VERSION)) {
+	if (unlikely(bss_list->version != BRCMF_BSS_INFO_VERSION)) {
 		WL_ERR("Version %d != WL_BSS_INFO_VERSION\n",
 		       bss_list->version);
 		return -EOPNOTSUPP;
@@ -2761,7 +2761,7 @@ static void wl_ch_to_chanspec(int ch, struct brcmf_join_params *join_params,
 		chanspec |= WL_CHANSPEC_BW_20;
 		chanspec |= WL_CHANSPEC_CTL_SB_NONE;
 
-		*join_params_size += WL_ASSOC_PARAMS_FIXED_SIZE +
+		*join_params_size += BRCMF_ASSOC_PARAMS_FIXED_SIZE +
 			join_params->params.chanspec_num * sizeof(chanspec_t);
 
 		join_params->params.chanspec_list[0] &= WL_CHANSPEC_CHAN_MASK;
@@ -3221,7 +3221,7 @@ static s32 wl_iscan_inprogress(struct wl_priv *wl)
 
 	rtnl_lock();
 	wl_inform_bss(wl);
-	wl_run_iscan(iscan, NULL, WL_SCAN_ACTION_CONTINUE);
+	wl_run_iscan(iscan, NULL, BRCMF_SCAN_ACTION_CONTINUE);
 	rtnl_unlock();
 	/* Reschedule the timer */
 	mod_timer(&iscan->timer, jiffies + iscan->timer_ms * HZ / 1000);
@@ -3254,7 +3254,7 @@ static s32 wl_iscan_thread(void *data)
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
-	status = WL_SCAN_RESULTS_PARTIAL;
+	status = BRCMF_SCAN_RESULTS_PARTIAL;
 	while (likely(!down_interruptible(&iscan->sync))) {
 		if (kthread_should_stop())
 			break;
@@ -3265,7 +3265,7 @@ static s32 wl_iscan_thread(void *data)
 		rtnl_lock();
 		err = wl_get_iscan_results(iscan, &status, &wl->bss_list);
 		if (unlikely(err)) {
-			status = WL_SCAN_RESULTS_ABORTED;
+			status = BRCMF_SCAN_RESULTS_ABORTED;
 			WL_ERR("Abort iscan\n");
 		}
 		rtnl_unlock();
@@ -3313,11 +3313,11 @@ static s32 wl_invoke_iscan(struct wl_priv *wl)
 static void wl_init_iscan_eloop(struct wl_iscan_eloop *el)
 {
 	memset(el, 0, sizeof(*el));
-	el->handler[WL_SCAN_RESULTS_SUCCESS] = wl_iscan_done;
-	el->handler[WL_SCAN_RESULTS_PARTIAL] = wl_iscan_inprogress;
-	el->handler[WL_SCAN_RESULTS_PENDING] = wl_iscan_pending;
-	el->handler[WL_SCAN_RESULTS_ABORTED] = wl_iscan_aborted;
-	el->handler[WL_SCAN_RESULTS_NO_MEM] = wl_iscan_aborted;
+	el->handler[BRCMF_SCAN_RESULTS_SUCCESS] = wl_iscan_done;
+	el->handler[BRCMF_SCAN_RESULTS_PARTIAL] = wl_iscan_inprogress;
+	el->handler[BRCMF_SCAN_RESULTS_PENDING] = wl_iscan_pending;
+	el->handler[BRCMF_SCAN_RESULTS_ABORTED] = wl_iscan_aborted;
+	el->handler[BRCMF_SCAN_RESULTS_NO_MEM] = wl_iscan_aborted;
 }
 
 static s32 wl_init_iscan(struct wl_priv *wl)
@@ -3613,22 +3613,22 @@ static s32 wl_dongle_mode(struct net_device *ndev, s32 iftype)
 
 static s32 wl_dongle_eventmsg(struct net_device *ndev)
 {
-	s8 iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
-						 '\0' + bitvec  */
-	s8 eventmask[WL_EVENTING_MASK_LEN];
+	/* Room for "event_msgs" + '\0' + bitvec */
+	s8 iovbuf[BRCMF_EVENTING_MASK_LEN + 12];
+	s8 eventmask[BRCMF_EVENTING_MASK_LEN];
 	s32 err = 0;
 
 	WL_TRACE("Enter\n");
 
 	/* Setup event_msgs */
-	brcmu_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf,
+	brcmu_mkiovar("event_msgs", eventmask, BRCMF_EVENTING_MASK_LEN, iovbuf,
 		    sizeof(iovbuf));
 	err = wl_dev_ioctl(ndev, BRCMF_C_GET_VAR, iovbuf, sizeof(iovbuf));
 	if (unlikely(err)) {
 		WL_ERR("Get event_msgs error (%d)\n", err);
 		goto dongle_eventmsg_out;
 	}
-	memcpy(eventmask, iovbuf, WL_EVENTING_MASK_LEN);
+	memcpy(eventmask, iovbuf, BRCMF_EVENTING_MASK_LEN);
 
 	setbit(eventmask, BRCMF_E_SET_SSID);
 	setbit(eventmask, BRCMF_E_ROAM);
@@ -3650,7 +3650,7 @@ static s32 wl_dongle_eventmsg(struct net_device *ndev)
 	setbit(eventmask, BRCMF_E_JOIN_START);
 	setbit(eventmask, BRCMF_E_SCAN_COMPLETE);
 
-	brcmu_mkiovar("event_msgs", eventmask, WL_EVENTING_MASK_LEN, iovbuf,
+	brcmu_mkiovar("event_msgs", eventmask, BRCMF_EVENTING_MASK_LEN, iovbuf,
 		    sizeof(iovbuf));
 	err = wl_dev_ioctl(ndev, BRCMF_C_SET_VAR, iovbuf, sizeof(iovbuf));
 	if (unlikely(err)) {

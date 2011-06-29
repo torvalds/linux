@@ -20,46 +20,46 @@
 #if defined(BCMDBG)
 
 #define DHD_ERROR(args) \
-	do {if ((brcmf_msg_level & DHD_ERROR_VAL) && (net_ratelimit())) \
+	do {if ((brcmf_msg_level & BRCMF_ERROR_VAL) && (net_ratelimit())) \
 		printk args; } while (0)
-#define DHD_TRACE(args)		do {if (brcmf_msg_level & DHD_TRACE_VAL) \
+#define DHD_TRACE(args)		do {if (brcmf_msg_level & BRCMF_TRACE_VAL) \
 					printk args; } while (0)
-#define DHD_INFO(args)		do {if (brcmf_msg_level & DHD_INFO_VAL) \
+#define DHD_INFO(args)		do {if (brcmf_msg_level & BRCMF_INFO_VAL) \
 					printk args; } while (0)
-#define DHD_DATA(args)		do {if (brcmf_msg_level & DHD_DATA_VAL) \
+#define DHD_DATA(args)		do {if (brcmf_msg_level & BRCMF_DATA_VAL) \
 					printk args; } while (0)
-#define DHD_CTL(args)		do {if (brcmf_msg_level & DHD_CTL_VAL) \
+#define DHD_CTL(args)		do {if (brcmf_msg_level & BRCMF_CTL_VAL) \
 					printk args; } while (0)
-#define DHD_TIMER(args)		do {if (brcmf_msg_level & DHD_TIMER_VAL) \
+#define DHD_TIMER(args)		do {if (brcmf_msg_level & BRCMF_TIMER_VAL) \
 					printk args; } while (0)
-#define DHD_HDRS(args)		do {if (brcmf_msg_level & DHD_HDRS_VAL) \
+#define DHD_HDRS(args)		do {if (brcmf_msg_level & BRCMF_HDRS_VAL) \
 					printk args; } while (0)
-#define DHD_BYTES(args)		do {if (brcmf_msg_level & DHD_BYTES_VAL) \
+#define DHD_BYTES(args)		do {if (brcmf_msg_level & BRCMF_BYTES_VAL) \
 					printk args; } while (0)
-#define DHD_INTR(args)		do {if (brcmf_msg_level & DHD_INTR_VAL)	\
+#define DHD_INTR(args)		do {if (brcmf_msg_level & BRCMF_INTR_VAL) \
 					printk args; } while (0)
-#define DHD_GLOM(args)		do {if (brcmf_msg_level & DHD_GLOM_VAL) \
+#define DHD_GLOM(args)		do {if (brcmf_msg_level & BRCMF_GLOM_VAL) \
 					printk args; } while (0)
-#define DHD_EVENT(args)		do {if (brcmf_msg_level & DHD_EVENT_VAL) \
+#define DHD_EVENT(args)		do {if (brcmf_msg_level & BRCMF_EVENT_VAL) \
 					printk args; } while (0)
-#define DHD_BTA(args)		do {if (brcmf_msg_level & DHD_BTA_VAL) \
+#define DHD_BTA(args)		do {if (brcmf_msg_level & BRCMF_BTA_VAL) \
 					printk args; } while (0)
-#define DHD_ISCAN(args)		do {if (brcmf_msg_level & DHD_ISCAN_VAL) \
+#define DHD_ISCAN(args)		do {if (brcmf_msg_level & BRCMF_ISCAN_VAL) \
 					printk args; } while (0)
 
-#define DHD_ERROR_ON()		(brcmf_msg_level & DHD_ERROR_VAL)
-#define DHD_TRACE_ON()		(brcmf_msg_level & DHD_TRACE_VAL)
-#define DHD_INFO_ON()		(brcmf_msg_level & DHD_INFO_VAL)
-#define DHD_DATA_ON()		(brcmf_msg_level & DHD_DATA_VAL)
-#define DHD_CTL_ON()		(brcmf_msg_level & DHD_CTL_VAL)
-#define DHD_TIMER_ON()		(brcmf_msg_level & DHD_TIMER_VAL)
-#define DHD_HDRS_ON()		(brcmf_msg_level & DHD_HDRS_VAL)
-#define DHD_BYTES_ON()		(brcmf_msg_level & DHD_BYTES_VAL)
-#define DHD_INTR_ON()		(brcmf_msg_level & DHD_INTR_VAL)
-#define DHD_GLOM_ON()		(brcmf_msg_level & DHD_GLOM_VAL)
-#define DHD_EVENT_ON()		(brcmf_msg_level & DHD_EVENT_VAL)
-#define DHD_BTA_ON()		(brcmf_msg_level & DHD_BTA_VAL)
-#define DHD_ISCAN_ON()		(brcmf_msg_level & DHD_ISCAN_VAL)
+#define DHD_ERROR_ON()		(brcmf_msg_level & BRCMF_ERROR_VAL)
+#define DHD_TRACE_ON()		(brcmf_msg_level & BRCMF_TRACE_VAL)
+#define DHD_INFO_ON()		(brcmf_msg_level & BRCMF_INFO_VAL)
+#define DHD_DATA_ON()		(brcmf_msg_level & BRCMF_DATA_VAL)
+#define DHD_CTL_ON()		(brcmf_msg_level & BRCMF_CTL_VAL)
+#define DHD_TIMER_ON()		(brcmf_msg_level & BRCMF_TIMER_VAL)
+#define DHD_HDRS_ON()		(brcmf_msg_level & BRCMF_HDRS_VAL)
+#define DHD_BYTES_ON()		(brcmf_msg_level & BRCMF_BYTES_VAL)
+#define DHD_INTR_ON()		(brcmf_msg_level & BRCMF_INTR_VAL)
+#define DHD_GLOM_ON()		(brcmf_msg_level & BRCMF_GLOM_VAL)
+#define DHD_EVENT_ON()		(brcmf_msg_level & BRCMF_EVENT_VAL)
+#define DHD_BTA_ON()		(brcmf_msg_level & BRCMF_BTA_VAL)
+#define DHD_ISCAN_ON()		(brcmf_msg_level & BRCMF_ISCAN_VAL)
 
 #else	/* (defined BCMDBG) || (defined BCMDBG) */
 

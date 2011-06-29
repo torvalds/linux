@@ -79,7 +79,7 @@ typedef struct dhd_info {
 	dhd_pub_t pub;
 
 	/* OS/stack specifics */
-	dhd_if_t *iflist[DHD_MAX_IFS];
+	dhd_if_t *iflist[BRCMF_MAX_IFS];
 
 	struct semaphore proto_sem;
 	wait_queue_head_t ioctl_resp_wait;
@@ -370,18 +370,18 @@ static int brcmf_net2idx(dhd_info_t *drvr_priv, struct net_device *net)
 	int i = 0;
 
 	ASSERT(drvr_priv);
-	while (i < DHD_MAX_IFS) {
+	while (i < BRCMF_MAX_IFS) {
 		if (drvr_priv->iflist[i] && (drvr_priv->iflist[i]->net == net))
 			return i;
 		i++;
 	}
 
-	return DHD_BAD_IF;
+	return BRCMF_BAD_IF;
 }
 
 int brcmf_ifname2idx(dhd_info_t *drvr_priv, char *name)
 {
-	int i = DHD_MAX_IFS;
+	int i = BRCMF_MAX_IFS;
 
 	ASSERT(drvr_priv);
 
@@ -404,7 +404,7 @@ char *brcmf_ifname(dhd_pub_t *drvr, int ifidx)
 
 	ASSERT(drvr_priv);
 
-	if (ifidx < 0 || ifidx >= DHD_MAX_IFS) {
+	if (ifidx < 0 || ifidx >= BRCMF_MAX_IFS) {
 		DHD_ERROR(("%s: ifidx %d out of range\n", __func__, ifidx));
 		return "<if_bad>";
 	}
@@ -636,7 +636,7 @@ static void brcmf_op_if(dhd_if_t *ifp)
 				   __func__));
 			netif_stop_queue(ifp->net);
 			unregister_netdev(ifp->net);
-			ret = DHD_DEL_IF;	/* Make sure the free_netdev()
+			ret = BRCMF_DEL_IF;	/* Make sure the free_netdev()
 							 is called */
 		}
 		break;
@@ -673,7 +673,7 @@ static int _brcmf_sysioc_thread(void *data)
 	while (down_interruptible(&drvr_priv->sysioc_sem) == 0) {
 		if (kthread_should_stop())
 			break;
-		for (i = 0; i < DHD_MAX_IFS; i++) {
+		for (i = 0; i < BRCMF_MAX_IFS; i++) {
 			if (drvr_priv->iflist[i]) {
 #ifdef SOFTAP
 				in_ap = (ap_net_dev != NULL);
@@ -728,7 +728,7 @@ static int brcmf_netdev_set_mac_address(struct net_device *dev, void *addr)
 	int ifidx;
 
 	ifidx = brcmf_net2idx(drvr_priv, dev);
-	if (ifidx == DHD_BAD_IF)
+	if (ifidx == BRCMF_BAD_IF)
 		return -1;
 
 	ASSERT(drvr_priv->sysioc_tsk);
@@ -745,7 +745,7 @@ static void brcmf_netdev_set_multicast_list(struct net_device *dev)
 	int ifidx;
 
 	ifidx = brcmf_net2idx(drvr_priv, dev);
-	if (ifidx == DHD_BAD_IF)
+	if (ifidx == BRCMF_BAD_IF)
 		return;
 
 	ASSERT(drvr_priv->sysioc_tsk);
@@ -796,7 +796,7 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *net)
 	}
 
 	ifidx = brcmf_net2idx(drvr_priv, net);
-	if (ifidx == DHD_BAD_IF) {
+	if (ifidx == BRCMF_BAD_IF) {
 		DHD_ERROR(("%s: bad ifidx %d\n", __func__, ifidx));
 		netif_stop_queue(net);
 		return -ENODEV;
@@ -907,7 +907,7 @@ void brcmf_rx_frame(dhd_pub_t *drvr, int ifidx, struct sk_buff *skb,
 					  skb_mac_header(skb),
 					  &event, &data);
 
-		ASSERT(ifidx < DHD_MAX_IFS && drvr_priv->iflist[ifidx]);
+		ASSERT(ifidx < BRCMF_MAX_IFS && drvr_priv->iflist[ifidx]);
 		if (drvr_priv->iflist[ifidx] &&
 		    !drvr_priv->iflist[ifidx]->state)
 			ifp = drvr_priv->iflist[ifidx];
@@ -964,7 +964,7 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *net)
 	DHD_TRACE(("%s: Enter\n", __func__));
 
 	ifidx = brcmf_net2idx(drvr_priv, net);
-	if (ifidx == DHD_BAD_IF)
+	if (ifidx == BRCMF_BAD_IF)
 		return NULL;
 
 	ifp = drvr_priv->iflist[ifidx];
@@ -1208,7 +1208,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 	ifidx = brcmf_net2idx(drvr_priv, net);
 	DHD_TRACE(("%s: ifidx %d, cmd 0x%04x\n", __func__, ifidx, cmd));
 
-	if (ifidx == DHD_BAD_IF)
+	if (ifidx == BRCMF_BAD_IF)
 		return -1;
 
 	if (cmd == SIOCETHTOOL)
@@ -1227,7 +1227,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 
 	/* Copy out any buffer passed */
 	if (ioc.buf) {
-		buflen = min_t(int, ioc.len, DHD_IOCTL_MAXLEN);
+		buflen = min_t(int, ioc.len, BRCMF_IOCTL_MAXLEN);
 		/* optimization for direct ioctl calls from kernel */
 		/*
 		   if (segment_eq(get_fs(), KERNEL_DS)) {
@@ -1260,7 +1260,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 	}
 
 	/* check for local dhd ioctl and handle it */
-	if (driver == DHD_IOCTL_MAGIC) {
+	if (driver == BRCMF_IOCTL_MAGIC) {
 		bcmerror = brcmf_c_ioctl((void *)&drvr_priv->pub, &ioc, buf, buflen);
 		if (bcmerror)
 			drvr_priv->pub.bcmerror = bcmerror;
@@ -1378,7 +1378,7 @@ brcmf_add_if(dhd_info_t *drvr_priv, int ifidx, void *handle, char *name,
 
 	DHD_TRACE(("%s: idx %d, handle->%p\n", __func__, ifidx, handle));
 
-	ASSERT(drvr_priv && (ifidx < DHD_MAX_IFS));
+	ASSERT(drvr_priv && (ifidx < BRCMF_MAX_IFS));
 
 	ifp = drvr_priv->iflist[ifidx];
 	if (!ifp) {
@@ -1413,7 +1413,7 @@ void brcmf_del_if(dhd_info_t *drvr_priv, int ifidx)
 
 	DHD_TRACE(("%s: idx %d\n", __func__, ifidx));
 
-	ASSERT(drvr_priv && ifidx && (ifidx < DHD_MAX_IFS));
+	ASSERT(drvr_priv && ifidx && (ifidx < BRCMF_MAX_IFS));
 	ifp = drvr_priv->iflist[ifidx];
 	if (!ifp) {
 		DHD_ERROR(("%s: Null interface\n", __func__));
@@ -1465,7 +1465,7 @@ dhd_pub_t *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
 	}
 
 	if (brcmf_add_if(drvr_priv, 0, (void *)net, net->name, NULL, 0, 0) ==
-	    DHD_BAD_IF)
+	    BRCMF_BAD_IF)
 		goto fail;
 
 	net->netdev_ops = NULL;
@@ -1539,8 +1539,8 @@ int brcmf_bus_start(dhd_pub_t *drvr)
 {
 	int ret = -1;
 	dhd_info_t *drvr_priv = drvr->info;
-	char iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" +
-						 '\0' + bitvec  */
+	/* Room for "event_msgs" + '\0' + bitvec */
+	char iovbuf[BRCMF_EVENTING_MASK_LEN + 12];
 
 	ASSERT(drvr_priv);
 
@@ -1560,11 +1560,11 @@ int brcmf_bus_start(dhd_pub_t *drvr)
 		return -ENODEV;
 	}
 
-	brcmu_mkiovar("event_msgs", drvr->eventmask, WL_EVENTING_MASK_LEN,
+	brcmu_mkiovar("event_msgs", drvr->eventmask, BRCMF_EVENTING_MASK_LEN,
 		      iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_query_ioctl(drvr, 0, BRCMF_C_GET_VAR, iovbuf,
 				    sizeof(iovbuf));
-	memcpy(drvr->eventmask, iovbuf, WL_EVENTING_MASK_LEN);
+	memcpy(drvr->eventmask, iovbuf, BRCMF_EVENTING_MASK_LEN);
 
 	setbit(drvr->eventmask, BRCMF_E_SET_SSID);
 	setbit(drvr->eventmask, BRCMF_E_PRUNE);
@@ -1725,7 +1725,7 @@ void brcmf_detach(dhd_pub_t *drvr)
 					&drvr_priv->early_suspend);
 #endif				/* defined(CONFIG_HAS_EARLYSUSPEND) */
 
-			for (i = 1; i < DHD_MAX_IFS; i++)
+			for (i = 1; i < BRCMF_MAX_IFS; i++)
 				if (drvr_priv->iflist[i])
 					brcmf_del_if(drvr_priv, i);
 

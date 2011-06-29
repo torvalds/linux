@@ -71,7 +71,7 @@ const struct brcmu_iovar brcmf_iovars[] = {
 	,
 	{"bcmerror", IOV_BCMERROR, 0, IOVT_INT8, 0}
 	,
-	{"dump", IOV_DUMP, 0, IOVT_BUFFER, DHD_IOCTL_MAXLEN}
+	{"dump", IOV_DUMP, 0, IOVT_BUFFER, BRCMF_IOCTL_MAXLEN}
 	,
 	{"clearcounts", IOV_CLEARCOUNTS, 0, IOVT_VOID, 0}
 	,
@@ -108,7 +108,7 @@ void brcmf_c_init(void)
 	 * first time that the driver is initialized vs subsequent
 	 * initializations.
 	 */
-	brcmf_msg_level = DHD_ERROR_VAL;
+	brcmf_msg_level = BRCMF_ERROR_VAL;
 }
 
 static int brcmf_c_dump(dhd_pub_t *drvr, char *buf, int buflen)
@@ -370,22 +370,22 @@ int brcmf_c_ioctl(dhd_pub_t *drvr, dhd_ioctl_t *ioc, void *buf, uint buflen)
 		return -EINVAL;
 
 	switch (ioc->cmd) {
-	case DHD_GET_MAGIC:
+	case BRCMF_GET_MAGIC:
 		if (buflen < sizeof(int))
 			bcmerror = -EOVERFLOW;
 		else
-			*(int *)buf = DHD_IOCTL_MAGIC;
+			*(int *)buf = BRCMF_IOCTL_MAGIC;
 		break;
 
-	case DHD_GET_VERSION:
+	case BRCMF_GET_VERSION:
 		if (buflen < sizeof(int))
 			bcmerror = -EOVERFLOW;
 		else
-			*(int *)buf = DHD_IOCTL_VERSION;
+			*(int *)buf = BRCMF_IOCTL_VERSION;
 		break;
 
-	case DHD_GET_VAR:
-	case DHD_SET_VAR:{
+	case BRCMF_GET_VAR:
+	case BRCMF_SET_VAR:{
 			char *arg;
 			uint arglen;
 
@@ -403,7 +403,7 @@ int brcmf_c_ioctl(dhd_pub_t *drvr, dhd_ioctl_t *ioc, void *buf, uint buflen)
 			arg++, arglen--;
 
 			/* call with the appropriate arguments */
-			if (ioc->cmd == DHD_GET_VAR)
+			if (ioc->cmd == BRCMF_GET_VAR)
 				bcmerror = brcmf_c_iovar_op(drvr, buf, arg,
 						arglen, buf, buflen, IOV_GET);
 			else
@@ -414,7 +414,7 @@ int brcmf_c_ioctl(dhd_pub_t *drvr, dhd_ioctl_t *ioc, void *buf, uint buflen)
 				break;
 
 			/* not in generic table, try protocol module */
-			if (ioc->cmd == DHD_GET_VAR)
+			if (ioc->cmd == BRCMF_GET_VAR)
 				bcmerror = brcmf_proto_iovar_op(drvr, buf,
 								arg, arglen,
 								buf, buflen,
@@ -428,7 +428,7 @@ int brcmf_c_ioctl(dhd_pub_t *drvr, dhd_ioctl_t *ioc, void *buf, uint buflen)
 				break;
 
 			/* if still not found, try bus module */
-			if (ioc->cmd == DHD_GET_VAR)
+			if (ioc->cmd == BRCMF_GET_VAR)
 				bcmerror = brcmf_sdbrcm_bus_iovar_op(drvr,
 						buf, arg, arglen, buf, buflen,
 						IOV_GET);
@@ -794,7 +794,7 @@ brcmf_c_host_event(struct dhd_info *drvr_priv, int *ifidx, void *pktdata,
 			DHD_TRACE(("%s: if event\n", __func__));
 
 			if (ifevent->ifidx > 0 &&
-				 ifevent->ifidx < DHD_MAX_IFS) {
+				 ifevent->ifidx < BRCMF_MAX_IFS) {
 				if (ifevent->action == BRCMF_E_IF_ADD)
 					brcmf_add_if(drvr_priv, ifevent->ifidx,
 						   NULL, event->ifname,
@@ -1054,8 +1054,8 @@ void brcmf_c_pktfilter_offload_set(dhd_pub_t *drvr, char *arg)
 	}
 
 	pkt_filter.u.pattern.size_bytes = mask_size;
-	buf_len += WL_PKT_FILTER_FIXED_LEN;
-	buf_len += (WL_PKT_FILTER_PATTERN_FIXED_LEN + 2 * mask_size);
+	buf_len += BRCMF_PKT_FILTER_FIXED_LEN;
+	buf_len += (BRCMF_PKT_FILTER_PATTERN_FIXED_LEN + 2 * mask_size);
 
 	/* Keep-alive attributes are set in local
 	 * variable (keep_alive_pkt), and
@@ -1064,7 +1064,7 @@ void brcmf_c_pktfilter_offload_set(dhd_pub_t *drvr, char *arg)
 	 */
 	memcpy((char *)pkt_filterp,
 	       &pkt_filter,
-	       WL_PKT_FILTER_FIXED_LEN + WL_PKT_FILTER_PATTERN_FIXED_LEN);
+	       BRCMF_PKT_FILTER_FIXED_LEN + BRCMF_PKT_FILTER_PATTERN_FIXED_LEN);
 
 	rc = brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR, buf, buf_len);
 	rc = rc >= 0 ? 0 : rc;
@@ -1118,7 +1118,7 @@ void brcmf_c_arp_offload_enable(dhd_pub_t *drvr, int arp_enable)
 
 int brcmf_c_preinit_ioctls(dhd_pub_t *drvr)
 {
-	char iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for
+	char iovbuf[BRCMF_EVENTING_MASK_LEN + 12];	/*  Room for
 				 "event_msgs" + '\0' + bitvec  */
 	uint up = 0;
 	char buf[128], *ptr;
@@ -1186,7 +1186,7 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *drvr)
 					  sizeof(up));
 
 	/* Setup event_msgs */
-	brcmu_mkiovar("event_msgs", drvr->eventmask, WL_EVENTING_MASK_LEN,
+	brcmu_mkiovar("event_msgs", drvr->eventmask, BRCMF_EVENTING_MASK_LEN,
 		      iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));

@@ -404,7 +404,7 @@ struct rte_console {
 	(((prio) == PRIO_8021D_NONE || (prio) == PRIO_8021D_BE) ? \
 	((prio^2)) : (prio))
 
-DHD_SPINWAIT_SLEEP_INIT(sdioh_spinwait_sleep);
+BRCMF_SPINWAIT_SLEEP_INIT(sdioh_spinwait_sleep);
 
 /* Core reg address translation */
 #define CORE_CC_REG(base, field)	(base + offsetof(chipcregs_t, field))
@@ -940,7 +940,7 @@ static int brcmf_sdbrcm_htclk(dhd_bus_t *bus, bool on, bool pendok)
 
 		/* Otherwise, wait here (polling) for HT Avail */
 		if (!SBSDIO_CLKAV(clkctl, bus->alp_only)) {
-			SPINWAIT_SLEEP(sdioh_spinwait_sleep,
+			BRCMF_SPINWAIT_SLEEP(sdioh_spinwait_sleep,
 				       ((clkctl =
 					 brcmf_sdcard_cfg_read(sdh, SDIO_FUNC_1,
 						 SBSDIO_FUNC1_CHIPCLKCSR,
@@ -1403,7 +1403,8 @@ int brcmf_sdbrcm_bus_txdata(struct dhd_bus *bus, struct sk_buff *pkt)
 		else
 			bus->dhd->dstats.tx_bytes += datalen;
 
-		if ((bus->idletime == DHD_IDLE_IMMEDIATE) && !bus->dpc_sched) {
+		if (bus->idletime == BRCMF_IDLE_IMMEDIATE &&
+		    !bus->dpc_sched) {
 			bus->activity = false;
 			brcmf_sdbrcm_clkctl(bus, CLK_NONE, true);
 		}
@@ -1621,7 +1622,7 @@ brcmf_sdbrcm_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 		} while ((ret < 0) && retries++ < TXRETRIES);
 	}
 
-	if ((bus->idletime == DHD_IDLE_IMMEDIATE) && !bus->dpc_sched) {
+	if ((bus->idletime == BRCMF_IDLE_IMMEDIATE) && !bus->dpc_sched) {
 		bus->activity = false;
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, true);
 	}
@@ -1752,7 +1753,7 @@ const struct brcmu_iovar dhdsdio_iovars[] = {
 	,
 	{"sbreg", IOV_SBREG, 0, IOVT_BUFFER, sizeof(struct brcmf_sdreg)}
 	,
-	{"sd_cis", IOV_SDCIS, 0, IOVT_BUFFER, DHD_IOCTL_MAXLEN}
+	{"sd_cis", IOV_SDCIS, 0, IOVT_BUFFER, BRCMF_IOCTL_MAXLEN}
 	,
 	{"forcealign", IOV_FORCEEVEN, 0, IOVT_BOOL, 0}
 	,
@@ -1909,7 +1910,7 @@ static int brcmf_sdbrcm_pktgen_get(dhd_bus_t *bus, u8 *arg)
 {
 	brcmf_pktgen_t pktgen;
 
-	pktgen.version = DHD_PKTGEN_VERSION;
+	pktgen.version = BRCMF_PKTGEN_VERSION;
 	pktgen.freq = bus->pktgen_freq;
 	pktgen.count = bus->pktgen_count;
 	pktgen.print = bus->pktgen_print;
@@ -1933,7 +1934,7 @@ static int brcmf_sdbrcm_pktgen_set(dhd_bus_t *bus, u8 *arg)
 	uint oldcnt, oldmode;
 
 	memcpy(&pktgen, arg, sizeof(pktgen));
-	if (pktgen.version != DHD_PKTGEN_VERSION)
+	if (pktgen.version != BRCMF_PKTGEN_VERSION)
 		return -EINVAL;
 
 	oldcnt = bus->pktgen_count;
@@ -2449,7 +2450,7 @@ brcmf_sdbrcm_doiovar(dhd_bus_t *bus, const struct brcmu_iovar *vi, u32 actionid,
 		break;
 
 	case IOV_SVAL(IOV_IDLETIME):
-		if ((int_val < 0) && (int_val != DHD_IDLE_IMMEDIATE))
+		if ((int_val < 0) && (int_val != BRCMF_IDLE_IMMEDIATE))
 			bcmerror = -EINVAL;
 		else
 			bus->idletime = int_val;
@@ -2793,7 +2794,7 @@ brcmf_sdbrcm_doiovar(dhd_bus_t *bus, const struct brcmu_iovar *vi, u32 actionid,
 	}
 
 exit:
-	if ((bus->idletime == DHD_IDLE_IMMEDIATE) && !bus->dpc_sched) {
+	if ((bus->idletime == BRCMF_IDLE_IMMEDIATE) && !bus->dpc_sched) {
 		bus->activity = false;
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, true);
 	}
@@ -2998,7 +2999,8 @@ brcmf_sdbrcm_bus_iovar_op(dhd_pub_t *dhdp, const char *name,
 		}
 		bus->roundup = min(max_roundup, bus->blocksize);
 
-		if ((bus->idletime == DHD_IDLE_IMMEDIATE) && !bus->dpc_sched) {
+		if (bus->idletime == BRCMF_IDLE_IMMEDIATE &&
+		    !bus->dpc_sched) {
 			bus->activity = false;
 			brcmf_sdbrcm_clkctl(bus, CLK_NONE, true);
 		}
@@ -3859,7 +3861,7 @@ brcmf_sdbrcm_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 
 #ifdef SDTEST
 	/* Allow pktgen to override maxframes */
-	if (bus->pktgen_count && (bus->pktgen_mode == DHD_PKTGEN_RECV)) {
+	if (bus->pktgen_count && (bus->pktgen_mode == BRCMF_PKTGEN_RECV)) {
 		maxframes = bus->pktgen_count;
 		sdtest = true;
 	}
@@ -4738,7 +4740,7 @@ clkwait:
 
 	/* If we're done for now, turn off clock request. */
 	if ((bus->clkstate != CLK_PENDING)
-	    && bus->idletime == DHD_IDLE_IMMEDIATE) {
+	    && bus->idletime == BRCMF_IDLE_IMMEDIATE) {
 		bus->activity = false;
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
 	}
@@ -4816,7 +4818,7 @@ static void brcmf_sdbrcm_pktgen_init(dhd_bus_t *bus)
 	bus->pktgen_count = (brcmf_pktgen * brcmf_watchdog_ms + 999) / 1000;
 
 	/* Default to echo mode */
-	bus->pktgen_mode = DHD_PKTGEN_ECHO;
+	bus->pktgen_mode = BRCMF_PKTGEN_ECHO;
 	bus->pktgen_stop = 1;
 }
 
@@ -4836,7 +4838,7 @@ static void brcmf_sdbrcm_pktgen(dhd_bus_t *bus)
 	}
 
 	/* For recv mode, just make sure dongle has started sending */
-	if (bus->pktgen_mode == DHD_PKTGEN_RECV) {
+	if (bus->pktgen_mode == BRCMF_PKTGEN_RECV) {
 		if (!bus->pktgen_rcvd)
 			brcmf_sdbrcm_sdtest_set(bus, true);
 		return;
@@ -4867,17 +4869,17 @@ static void brcmf_sdbrcm_pktgen(dhd_bus_t *bus)
 
 		/* Write test header cmd and extra based on mode */
 		switch (bus->pktgen_mode) {
-		case DHD_PKTGEN_ECHO:
+		case BRCMF_PKTGEN_ECHO:
 			*data++ = SDPCM_TEST_ECHOREQ;
 			*data++ = (u8) bus->pktgen_sent;
 			break;
 
-		case DHD_PKTGEN_SEND:
+		case BRCMF_PKTGEN_SEND:
 			*data++ = SDPCM_TEST_DISCARD;
 			*data++ = (u8) bus->pktgen_sent;
 			break;
 
-		case DHD_PKTGEN_RXBURST:
+		case BRCMF_PKTGEN_RXBURST:
 			*data++ = SDPCM_TEST_BURST;
 			*data++ = (u8) bus->pktgen_count;
 			break;
@@ -4923,7 +4925,7 @@ static void brcmf_sdbrcm_pktgen(dhd_bus_t *bus)
 			bus->pktgen_len = (u16) bus->pktgen_minlen;
 
 		/* Special case for burst mode: just send one request! */
-		if (bus->pktgen_mode == DHD_PKTGEN_RXBURST)
+		if (bus->pktgen_mode == BRCMF_PKTGEN_RXBURST)
 			break;
 	}
 }
@@ -5047,7 +5049,7 @@ brcmf_sdbrcm_checkdied(dhd_bus_t *bus, struct sk_buff *pkt, uint seq)
 	}
 
 	/* For recv mode, stop at limie (and tell dongle to stop sending) */
-	if (bus->pktgen_mode == DHD_PKTGEN_RECV) {
+	if (bus->pktgen_mode == BRCMF_PKTGEN_RECV) {
 		if (bus->pktgen_total
 		    && (bus->pktgen_rcvd >= bus->pktgen_total)) {
 			bus->pktgen_count = 0;
@@ -5209,7 +5211,7 @@ static int brcmf_sdbrcm_bus_console_in(dhd_pub_t *dhdp, unsigned char *msg,
 		brcmf_sdbrcm_txpkt(bus, pkt, SDPCM_EVENT_CHANNEL, true);
 
 done:
-	if ((bus->idletime == DHD_IDLE_IMMEDIATE) && !bus->dpc_sched) {
+	if ((bus->idletime == BRCMF_IDLE_IMMEDIATE) && !bus->dpc_sched) {
 		bus->activity = false;
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, true);
 	}
@@ -5588,7 +5590,7 @@ static bool brcmf_sdbrcm_probe_init(dhd_bus_t *bus, void *sdh)
 	/* ...and initialize clock/power states */
 	bus->clkstate = CLK_SDONLY;
 	bus->idletime = (s32) brcmf_idletime;
-	bus->idleclock = DHD_IDLE_ACTIVE;
+	bus->idleclock = BRCMF_IDLE_ACTIVE;
 
 	/* Query the F2 block size, set roundup accordingly */
 	fnum = 2;

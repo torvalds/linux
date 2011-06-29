@@ -406,7 +406,7 @@ int brcmf_proto_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
 	h = (struct brcmf_proto_bdc_header *)(pktbuf->data);
 
 	*ifidx = BDC_GET_IF_IDX(h);
-	if (*ifidx >= DHD_MAX_IFS) {
+	if (*ifidx >= BRCMF_MAX_IFS) {
 		DHD_ERROR(("%s: rx data ifnum out of range (%d)\n",
 			   __func__, *ifidx));
 		return -EBADE;

@@ -83,11 +83,11 @@
 #define	WLC_PHY_TYPE_LCN	8
 #define	WLC_PHY_TYPE_NULL	0xf
 
-#define WL_PKT_FILTER_FIXED_LEN		  offsetof(struct brcmf_pkt_filter, u)
-#define WL_PKT_FILTER_PATTERN_FIXED_LEN	\
+#define BRCMF_PKT_FILTER_FIXED_LEN	offsetof(struct brcmf_pkt_filter, u)
+#define BRCMF_PKT_FILTER_PATTERN_FIXED_LEN	\
 	offsetof(struct brcmf_pkt_filter_pattern, mask_and_pattern)
 
-#define WL_EVENTING_MASK_LEN	16
+#define BRCMF_EVENTING_MASK_LEN	16
 
 #define TOE_TX_CSUM_OL		0x00000001
 #define TOE_RX_CSUM_OL		0x00000002
@@ -95,38 +95,38 @@
 /* maximum channels returned by the get valid channels iovar */
 #define WL_NUMCHANNELS		64
 
-#define	WL_BSS_INFO_VERSION	108 /* current ver of brcmf_bss_info struct */
+#define	BRCMF_BSS_INFO_VERSION	108 /* current ver of brcmf_bss_info struct */
 
 /* size of brcmf_scan_params not including variable length array */
-#define WL_SCAN_PARAMS_FIXED_SIZE 64
+#define BRCMF_SCAN_PARAMS_FIXED_SIZE 64
 
 /* masks for channel and ssid count */
-#define WL_SCAN_PARAMS_COUNT_MASK 0x0000ffff
-#define WL_SCAN_PARAMS_NSSID_SHIFT 16
+#define BRCMF_SCAN_PARAMS_COUNT_MASK 0x0000ffff
+#define BRCMF_SCAN_PARAMS_NSSID_SHIFT 16
 
-#define WL_SCAN_ACTION_START      1
-#define WL_SCAN_ACTION_CONTINUE   2
+#define BRCMF_SCAN_ACTION_START      1
+#define BRCMF_SCAN_ACTION_CONTINUE   2
 #define WL_SCAN_ACTION_ABORT      3
 
-#define ISCAN_REQ_VERSION 1
+#define BRCMF_ISCAN_REQ_VERSION 1
 
 /* brcmf_iscan_results status values */
-#define WL_SCAN_RESULTS_SUCCESS	0
-#define WL_SCAN_RESULTS_PARTIAL	1
-#define WL_SCAN_RESULTS_PENDING	2
-#define WL_SCAN_RESULTS_ABORTED	3
-#define WL_SCAN_RESULTS_NO_MEM	4
+#define BRCMF_SCAN_RESULTS_SUCCESS	0
+#define BRCMF_SCAN_RESULTS_PARTIAL	1
+#define BRCMF_SCAN_RESULTS_PENDING	2
+#define BRCMF_SCAN_RESULTS_ABORTED	3
+#define BRCMF_SCAN_RESULTS_NO_MEM	4
 
 #define WL_SOFT_KEY	(1 << 0)	/* Indicates this key is using soft encrypt */
-#define WL_PRIMARY_KEY	(1 << 1)	/* Indicates this key is the primary (ie tx) key */
+#define BRCMF_PRIMARY_KEY	(1 << 1)	/* primary (ie tx) key */
 #define WL_KF_RES_4	(1 << 4)	/* Reserved for backward compat */
 #define WL_KF_RES_5	(1 << 5)	/* Reserved for backward compat */
 #define WL_IBSS_PEER_GROUP_KEY	(1 << 6)	/* Indicates a group key for a IBSS PEER */
 
 /* For supporting multiple interfaces */
-#define DHD_MAX_IFS	16
-#define DHD_DEL_IF	-0xe
-#define DHD_BAD_IF	-0xf
+#define BRCMF_MAX_IFS	16
+#define BRCMF_DEL_IF	-0xe
+#define BRCMF_BAD_IF	-0xf
 
 #define DOT11_BSSTYPE_ANY			2
 #define DOT11_MAX_DEFAULT_KEYS	4
@@ -454,7 +454,7 @@ struct brcmf_assoc_params {
 				 */
 	chanspec_t chanspec_list[1];	/* list of chanspecs */
 };
-#define WL_ASSOC_PARAMS_FIXED_SIZE \
+#define BRCMF_ASSOC_PARAMS_FIXED_SIZE \
 	(sizeof(struct brcmf_assoc_params) - sizeof(chanspec_t))
 
 /* used for join with or without a specific bssid and channel list */
@@ -591,7 +591,7 @@ typedef struct dhd_pub {
 	int pktfilter_count;
 
 	u8 country_code[WLC_CNTRY_BUF_SZ];
-	char eventmask[WL_EVENTING_MASK_LEN];
+	char eventmask[BRCMF_EVENTING_MASK_LEN];
 
 } dhd_pub_t;
 
@@ -616,24 +616,24 @@ typedef struct {
 
 #if defined(CONFIG_PM_SLEEP)
 extern atomic_t brcmf_mmc_suspend;
-#define DHD_PM_RESUME_WAIT_INIT(a) DECLARE_WAIT_QUEUE_HEAD(a);
-#define _DHD_PM_RESUME_WAIT(a, b) do { \
+#define BRCMF_PM_RESUME_WAIT_INIT(a) DECLARE_WAIT_QUEUE_HEAD(a);
+#define _BRCMF_PM_RESUME_WAIT(a, b) do { \
 		int retry = 0; \
 		while (atomic_read(&brcmf_mmc_suspend) && retry++ != b) { \
 			wait_event_timeout(a, false, HZ/100); \
 		} \
 	}	while (0)
-#define DHD_PM_RESUME_WAIT(a)	_DHD_PM_RESUME_WAIT(a, 30)
-#define DHD_PM_RESUME_WAIT_FOREVER(a)	_DHD_PM_RESUME_WAIT(a, ~0)
-#define DHD_PM_RESUME_RETURN_ERROR(a)	\
+#define BRCMF_PM_RESUME_WAIT(a)	_BRCMF_PM_RESUME_WAIT(a, 30)
+#define DHD_PM_RESUME_WAIT_FOREVER(a)	_BRCMF_PM_RESUME_WAIT(a, ~0)
+#define BRCMF_PM_RESUME_RETURN_ERROR(a)	\
 	do { if (atomic_read(&brcmf_mmc_suspend)) return a; } while (0)
 #define DHD_PM_RESUME_RETURN	do { \
 	if (atomic_read(&brcmf_mmc_suspend)) \
 		return; \
 	} while (0)
 
-#define DHD_SPINWAIT_SLEEP_INIT(a) DECLARE_WAIT_QUEUE_HEAD(a);
-#define SPINWAIT_SLEEP(a, exp, us) do { \
+#define BRCMF_SPINWAIT_SLEEP_INIT(a) DECLARE_WAIT_QUEUE_HEAD(a);
+#define BRCMF_SPINWAIT_SLEEP(a, exp, us) do { \
 		uint countdown = (us) + 9999; \
 		while ((exp) && (countdown >= 10000)) { \
 			wait_event_timeout(a, false, HZ/100); \
@@ -643,14 +643,14 @@ extern atomic_t brcmf_mmc_suspend;
 
 #else
 
-#define DHD_PM_RESUME_WAIT_INIT(a)
-#define DHD_PM_RESUME_WAIT(a)
+#define BRCMF_PM_RESUME_WAIT_INIT(a)
+#define BRCMF_PM_RESUME_WAIT(a)
 #define DHD_PM_RESUME_WAIT_FOREVER(a)
-#define DHD_PM_RESUME_RETURN_ERROR(a)
+#define BRCMF_PM_RESUME_RETURN_ERROR(a)
 #define DHD_PM_RESUME_RETURN
 
-#define DHD_SPINWAIT_SLEEP_INIT(a)
-#define SPINWAIT_SLEEP(a, exp, us)  do { \
+#define BRCMF_SPINWAIT_SLEEP_INIT(a)
+#define BRCMF_SPINWAIT_SLEEP(a, exp, us)  do { \
 		uint countdown = (us) + 9; \
 		while ((exp) && (countdown >= 10)) { \
 			udelay(10);  \
@@ -861,35 +861,35 @@ typedef struct dhd_ioctl {
 } dhd_ioctl_t;
 
 /* per-driver magic numbers */
-#define DHD_IOCTL_MAGIC		0x00444944
+#define BRCMF_IOCTL_MAGIC		0x00444944
 
 /* bump this number if you change the ioctl interface */
-#define DHD_IOCTL_VERSION	1
+#define BRCMF_IOCTL_VERSION	1
 
-#define	DHD_IOCTL_MAXLEN	8192	/* max length ioctl buffer required */
+#define	BRCMF_IOCTL_MAXLEN	8192	/* max length ioctl buffer required */
 #define	DHD_IOCTL_SMLEN	256	/* "small" length ioctl buffer required */
 
 /* common ioctl definitions */
-#define DHD_GET_MAGIC				0
-#define DHD_GET_VERSION				1
-#define DHD_GET_VAR				2
-#define DHD_SET_VAR				3
+#define BRCMF_GET_MAGIC				0
+#define BRCMF_GET_VERSION				1
+#define BRCMF_GET_VAR				2
+#define BRCMF_SET_VAR				3
 
 /* message levels */
-#define DHD_ERROR_VAL	0x0001
-#define DHD_TRACE_VAL	0x0002
-#define DHD_INFO_VAL	0x0004
-#define DHD_DATA_VAL	0x0008
-#define DHD_CTL_VAL	0x0010
-#define DHD_TIMER_VAL	0x0020
-#define DHD_HDRS_VAL	0x0040
-#define DHD_BYTES_VAL	0x0080
-#define DHD_INTR_VAL	0x0100
+#define BRCMF_ERROR_VAL	0x0001
+#define BRCMF_TRACE_VAL	0x0002
+#define BRCMF_INFO_VAL	0x0004
+#define BRCMF_DATA_VAL	0x0008
+#define BRCMF_CTL_VAL	0x0010
+#define BRCMF_TIMER_VAL	0x0020
+#define BRCMF_HDRS_VAL	0x0040
+#define BRCMF_BYTES_VAL	0x0080
+#define BRCMF_INTR_VAL	0x0100
 #define DHD_LOG_VAL	0x0200
-#define DHD_GLOM_VAL	0x0400
-#define DHD_EVENT_VAL	0x0800
-#define DHD_BTA_VAL	0x1000
-#define DHD_ISCAN_VAL 0x2000
+#define BRCMF_GLOM_VAL	0x0400
+#define BRCMF_EVENT_VAL	0x0800
+#define BRCMF_BTA_VAL	0x1000
+#define BRCMF_ISCAN_VAL 0x2000
 
 #ifdef SDTEST
 /* For pktgen iovar */
@@ -909,22 +909,22 @@ typedef struct brcmf_pktgen {
 } brcmf_pktgen_t;
 
 /* Version in case structure changes */
-#define DHD_PKTGEN_VERSION 2
+#define BRCMF_PKTGEN_VERSION	2
 
 /* Type of test packets to use */
-#define DHD_PKTGEN_ECHO		1	/* Send echo requests */
-#define DHD_PKTGEN_SEND		2	/* Send discard packets */
-#define DHD_PKTGEN_RXBURST	3	/* Request dongle send N packets */
-#define DHD_PKTGEN_RECV		4	/* Continuous rx from continuous
+#define BRCMF_PKTGEN_ECHO	1	/* Send echo requests */
+#define BRCMF_PKTGEN_SEND	2	/* Send discard packets */
+#define BRCMF_PKTGEN_RXBURST	3	/* Request dongle send N packets */
+#define BRCMF_PKTGEN_RECV		4	/* Continuous rx from continuous
 					 tx dongle */
 #endif				/* SDTEST */
 
 /* Enter idle immediately (no timeout) */
-#define DHD_IDLE_IMMEDIATE	(-1)
+#define BRCMF_IDLE_IMMEDIATE	(-1)
 
 /* Values for idleclock iovar: other values are the sd_divisor to use
 	 when idle */
-#define DHD_IDLE_ACTIVE	0	/* Do not request any SD clock change
+#define BRCMF_IDLE_ACTIVE	0	/* Do not request any SD clock change
 				 when idle */
 #define DHD_IDLE_STOP   (-1)	/* Request SD clock be stopped
 				 (and use SD1 mode) */
