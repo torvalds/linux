@@ -38,9 +38,7 @@ int wifi_get_irq_number(unsigned long *irq_flags_ptr);
 
 #if defined(OOB_INTR_ONLY)
 
-#if defined(BCMLXSDMMC)
 extern int sdioh_mmc_irq(int irq);
-#endif				/* (BCMLXSDMMC)  */
 
 #ifdef CUSTOMER_HW3
 #include <mach/gpio.h>

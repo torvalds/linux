@@ -923,14 +923,7 @@ static int brcmf_sdbrcm_htclk(dhd_bus_t *bus, bool on, bool pendok)
 		DHD_INFO(("CLKCTL: turned ON\n"));
 
 #if defined(DHD_DEBUG)
-		if (bus->alp_only == true) {
-#if !defined(BCMLXSDMMC)
-			if (!SBSDIO_ALPONLY(clkctl)) {
-				DHD_ERROR(("%s: HT Clock, when ALP Only\n",
-					   __func__));
-			}
-#endif				/* !defined(BCMLXSDMMC) */
-		} else {
+		if (bus->alp_only != true) {
 			if (SBSDIO_ALPONLY(clkctl)) {
 				DHD_ERROR(("%s: HT Clock should be on.\n",
 					   __func__));

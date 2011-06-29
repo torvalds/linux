@@ -121,7 +121,6 @@ bool brcmf_sdio_chipmatch(u16 vendor, u16 device)
 }
 
 #if defined(BCMPLATFORM_BUS)
-#if defined(BCMLXSDMMC)
 /* forward declarations */
 int brcmf_sdio_probe(struct device *dev);
 EXPORT_SYMBOL(brcmf_sdio_probe);
@@ -129,35 +128,14 @@ EXPORT_SYMBOL(brcmf_sdio_probe);
 int brcmf_sdio_remove(struct device *dev);
 EXPORT_SYMBOL(brcmf_sdio_remove);
 
-#else
-/* forward declarations */
-static int __devinit brcmf_sdio_probe(struct device *dev);
-static int __devexit brcmf_sdio_remove(struct device *dev);
-#endif				/* BCMLXSDMMC */
-
-#ifndef BCMLXSDMMC
-static
-#endif				/* BCMLXSDMMC */
 int brcmf_sdio_probe(struct device *dev)
 {
 	struct bcmsdh_hc *sdhc = NULL;
 	unsigned long regs = 0;
 	struct brcmf_sdio *sdh = NULL;
-#if !defined(BCMLXSDMMC) && defined(BCMPLATFORM_BUS)
-	struct platform_device *pdev;
-	struct resource *r;
-#endif				/* BCMLXSDMMC */
 	int irq = 0;
 	u32 vendevid;
 	unsigned long irq_flags = 0;
-
-#if !defined(BCMLXSDMMC) && defined(BCMPLATFORM_BUS)
-	pdev = to_platform_device(dev);
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	irq = platform_get_irq(pdev, 0);
-	if (!r || irq == NO_IRQ)
-		return -ENXIO;
-#endif				/* BCMLXSDMMC */
 
 #if defined(OOB_INTR_ONLY)
 #ifdef HW_OOB
@@ -181,19 +159,12 @@ int brcmf_sdio_probe(struct device *dev)
 	}
 	sdhc->dev = (void *)dev;
 
-#ifdef BCMLXSDMMC
 	sdh = brcmf_sdcard_attach((void *)0, (void **)&regs, irq);
 	if (!sdh) {
 		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));
 		goto err;
 	}
-#else
-	sdh = brcmf_sdcard_attach((void *)r->start, (void **)&regs, irq);
-	if (!sdh) {
-		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));
-		goto err;
-	}
-#endif				/* BCMLXSDMMC */
+
 	sdhc->sdh = sdh;
 	sdhc->oob_irq = irq;
 	sdhc->oob_flags = irq_flags;
@@ -229,9 +200,6 @@ err:
 	return -ENODEV;
 }
 
-#ifndef BCMLXSDMMC
-static
-#endif				/* BCMLXSDMMC */
 int brcmf_sdio_remove(struct device *dev)
 {
 	struct bcmsdh_hc *sdhc, *prev;
@@ -258,11 +226,6 @@ int brcmf_sdio_remove(struct device *dev)
 
 	/* release SDIO Host Controller info */
 	kfree(sdhc);
-
-#if !defined(BCMLXSDMMC)
-	dev_set_drvdata(dev, NULL);
-#endif				/* !defined(BCMLXSDMMC) */
-
 	return 0;
 }
 #endif				/* BCMPLATFORM_BUS */
