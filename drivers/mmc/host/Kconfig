@@ -298,13 +298,12 @@ config MMC_ATMELMCI
 endchoice
 
 config MMC_ATMELMCI_DMA
-	bool "Atmel MCI DMA support (EXPERIMENTAL)"
-	depends on MMC_ATMELMCI && (AVR32 || ARCH_AT91SAM9G45) && DMA_ENGINE && EXPERIMENTAL
+	bool "Atmel MCI DMA support"
+	depends on MMC_ATMELMCI && (AVR32 || ARCH_AT91SAM9G45) && DMA_ENGINE
 	help
 	  Say Y here to have the Atmel MCI driver use a DMA engine to
 	  do data transfers and thus increase the throughput and
-	  reduce the CPU utilization. Note that this is highly
-	  experimental and may cause the driver to lock up.
+	  reduce the CPU utilization.
 
 	  If unsure, say N.
 
