@@ -33,11 +33,6 @@ static void __init ti8168_init_early(void)
 	omap2_init_common_devices(NULL, NULL);
 }
 
-static void __init ti8168_evm_init_irq(void)
-{
-	omap_init_irq();
-}
-
 static void __init ti8168_evm_init(void)
 {
 	omap_serial_init();
@@ -56,7 +51,7 @@ MACHINE_START(TI8168EVM, "ti8168evm")
 	.boot_params	= 0x80000100,
 	.map_io		= ti8168_evm_map_io,
 	.init_early	= ti8168_init_early,
-	.init_irq	= ti8168_evm_init_irq,
-	.timer		= &omap_timer,
+	.init_irq	= ti816x_init_irq,
+	.timer		= &omap3_timer,
 	.init_machine	= ti8168_evm_init,
 MACHINE_END

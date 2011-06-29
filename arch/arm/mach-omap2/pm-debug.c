@@ -31,7 +31,6 @@
 #include <plat/board.h>
 #include "powerdomain.h"
 #include "clockdomain.h"
-#include <plat/dmtimer.h>
 #include <plat/omap-pm.h>
 
 #include "cm2xxx_3xxx.h"
@@ -41,8 +40,6 @@
 int omap2_pm_debug;
 u32 enable_off_mode;
 u32 sleep_while_idle;
-u32 wakeup_timer_seconds;
-u32 wakeup_timer_milliseconds;
 
 #define DUMP_PRM_MOD_REG(mod, reg)    \
 	regs[reg_count].name = #mod "." #reg; \
@@ -160,23 +157,6 @@ void omap2_pm_dump(int mode, int resume, unsigned int us)
 
 	for (i = 0; i < reg_count; i++)
 		printk(KERN_INFO "%-20s: 0x%08x\n", regs[i].name, regs[i].val);
-}
-
-void omap2_pm_wakeup_on_timer(u32 seconds, u32 milliseconds)
-{
-	u32 tick_rate, cycles;
-
-	if (!seconds && !milliseconds)
-		return;
-
-	tick_rate = clk_get_rate(omap_dm_timer_get_fclk(gptimer_wakeup));
-	cycles = tick_rate * seconds + tick_rate * milliseconds / 1000;
-	omap_dm_timer_stop(gptimer_wakeup);
-	omap_dm_timer_set_load_start(gptimer_wakeup, 0, 0xffffffff - cycles);
-
-	pr_info("PM: Resume timer in %u.%03u secs"
-		" (%d ticks at %d ticks/sec.)\n",
-		seconds, milliseconds, cycles, tick_rate);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -576,9 +556,6 @@ static int option_set(void *data, u64 val)
 {
 	u32 *option = data;
 
-	if (option == &wakeup_timer_milliseconds && val >= 1000)
-		return -EINVAL;
-
 	*option = val;
 
 	if (option == &enable_off_mode) {
@@ -641,11 +618,6 @@ static int __init pm_dbg_init(void)
 				   &enable_off_mode, &pm_dbg_option_fops);
 	(void) debugfs_create_file("sleep_while_idle", S_IRUGO | S_IWUSR, d,
 				   &sleep_while_idle, &pm_dbg_option_fops);
-	(void) debugfs_create_file("wakeup_timer_seconds", S_IRUGO | S_IWUSR, d,
-				   &wakeup_timer_seconds, &pm_dbg_option_fops);
-	(void) debugfs_create_file("wakeup_timer_milliseconds",
-			S_IRUGO | S_IWUSR, d, &wakeup_timer_milliseconds,
-			&pm_dbg_option_fops);
 	pm_dbg_init_done = 1;
 
 	return 0;

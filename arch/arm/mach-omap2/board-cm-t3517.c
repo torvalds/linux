@@ -303,7 +303,7 @@ MACHINE_START(CM_T3517, "Compulab CM-T3517")
 	.reserve        = omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= cm_t3517_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= cm_t3517_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

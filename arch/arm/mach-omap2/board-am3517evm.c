@@ -494,7 +494,7 @@ MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= am3517_evm_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= am3517_evm_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

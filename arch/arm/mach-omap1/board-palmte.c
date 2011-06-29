@@ -62,7 +62,7 @@
 static void __init omap_palmte_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 static const unsigned int palmte_keymap[] = {
@@ -280,5 +280,5 @@ MACHINE_START(OMAP_PALMTE, "OMAP310 based Palm Tungsten E")
 	.reserve	= omap_reserve,
 	.init_irq	= omap_palmte_init_irq,
 	.init_machine	= omap_palmte_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END
