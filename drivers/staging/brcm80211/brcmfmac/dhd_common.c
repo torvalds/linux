@@ -1283,12 +1283,10 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_SCAN_UNASSOC_TIME,
 			 (char *)&scan_unassoc_time, sizeof(scan_unassoc_time));
 
-#ifdef ARP_OFFLOAD_SUPPORT
 	/* Set and enable ARP offload feature */
 	if (brcmf_arp_enable)
 		brcmf_c_arp_offload_set(dhd, brcmf_arp_mode);
 	brcmf_c_arp_offload_enable(dhd, brcmf_arp_enable);
-#endif				/* ARP_OFFLOAD_SUPPORT */
 
 #ifdef PKT_FILTER_SUPPORT
 	{
