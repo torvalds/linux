@@ -2,8 +2,6 @@
 #define __ASM_ARCH_HARDWARE_H
 #include <asm/types.h>
 
-#define pcibios_assign_all_busses() 1
-
 #ifndef __ASSEMBLY__
 extern unsigned long iop13xx_pcibios_min_io;
 extern unsigned long iop13xx_pcibios_min_mem;

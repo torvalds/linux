@@ -27,8 +27,6 @@
 
 #include "ixp2000-regs.h"	/* Chipset Registers */
 
-#define pcibios_assign_all_busses() 0
-
 /*
  * Platform helper functions
  */

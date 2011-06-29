@@ -34,8 +34,6 @@
 
 #define PCIMEM_BASE		PCI_MEMORY_VADDR
 
-#define pcibios_assign_all_busses()	1
-
 #define PCIBIOS_MIN_IO		0x6000
 #define PCIBIOS_MIN_MEM 	0x00100000
 

@@ -20,8 +20,6 @@
 
 #include "ixp23xx.h"
 
-#define pcibios_assign_all_busses()	0
-
 /*
  * Platform helper functions
  */

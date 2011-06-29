@@ -227,6 +227,8 @@ static void __init ixp23xx_pci_common_init(void)
 
 void __init ixp23xx_pci_preinit(void)
 {
+	pci_set_flags(0);
+
 	ixp23xx_pci_common_init();
 
 	hook_fault_code(16+6, ixp23xx_pci_abort_handler, SIGBUS, 0,

@@ -28,8 +28,6 @@
 
 #define ARCH_HAS_DMA_SET_COHERENT_MASK
 
-#define pcibios_assign_all_busses()	1
-
 /* Register locations and bits */
 #include "ixp4xx-regs.h"
 
