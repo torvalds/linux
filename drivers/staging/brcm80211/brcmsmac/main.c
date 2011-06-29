@@ -3165,7 +3165,7 @@ void brcms_c_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 				  "\n", wlc->pub->unit);
 
 		/*
-		 * XXX we might hit this condtion in case
+		 * we might hit this condtion in case
 		 * packet flooding from mac80211 stack
 		 */
 		brcmu_pkt_buf_free_skb(sdu);

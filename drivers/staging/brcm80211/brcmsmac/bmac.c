@@ -3567,7 +3567,6 @@ u16 brcms_b_rate_shm_offset(struct brcms_c_hw_info *wlc_hw, u8 rate)
 	u8 phy_rate, index;
 
 	/* get the phy specific rate encoding for the PLCP SIGNAL field */
-	/* XXX4321 fixup needed ? */
 	if (IS_OFDM(rate))
 		table_ptr = M_RT_DIRMAP_A;
 	else

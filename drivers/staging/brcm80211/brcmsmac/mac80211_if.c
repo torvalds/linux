@@ -644,7 +644,7 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 				  tid);
 			return -EINVAL;
 		}
-		/* XXX: Use the starting sequence number provided ... */
+		/* Future improvement: Use the starting sequence number provided ... */
 		*ssn = 0;
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
@@ -1089,11 +1089,6 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 
 	hw->extra_tx_headroom = brcms_c_get_header_len();
 	hw->queues = N_TX_QUEUES;
-	/* FIXME: this doesn't seem to be used properly in minstrel_ht.
-	 * mac80211/status.c:ieee80211_tx_status() checks this value,
-	 * but mac80211/rc80211_minstrel_ht.c:minstrel_ht_get_rate()
-	 * appears to always set 3 rates
-	 */
 	hw->max_rates = 2;	/* Primary rate and 1 fallback rate */
 
 	hw->channel_change_time = 7 * 1000;	/* channel change time is dependent on chip and band  */
