@@ -484,7 +484,7 @@ static struct power_pmu ppc970_pmu = {
 	.cache_events		= &ppc970_cache_events,
 };
 
-static int init_ppc970_pmu(void)
+static int __init init_ppc970_pmu(void)
 {
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    (strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/970")

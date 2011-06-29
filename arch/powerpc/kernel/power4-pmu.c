@@ -604,7 +604,7 @@ static struct power_pmu power4_pmu = {
 	.cache_events		= &power4_cache_events,
 };
 
-static int init_power4_pmu(void)
+static int __init init_power4_pmu(void)
 {
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power4"))
