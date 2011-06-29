@@ -624,13 +624,8 @@ extern atomic_t brcmf_mmc_suspend;
 		} \
 	}	while (0)
 #define BRCMF_PM_RESUME_WAIT(a)	_BRCMF_PM_RESUME_WAIT(a, 30)
-#define DHD_PM_RESUME_WAIT_FOREVER(a)	_BRCMF_PM_RESUME_WAIT(a, ~0)
 #define BRCMF_PM_RESUME_RETURN_ERROR(a)	\
 	do { if (atomic_read(&brcmf_mmc_suspend)) return a; } while (0)
-#define DHD_PM_RESUME_RETURN	do { \
-	if (atomic_read(&brcmf_mmc_suspend)) \
-		return; \
-	} while (0)
 
 #define BRCMF_SPINWAIT_SLEEP_INIT(a) DECLARE_WAIT_QUEUE_HEAD(a);
 #define BRCMF_SPINWAIT_SLEEP(a, exp, us) do { \
@@ -645,9 +640,7 @@ extern atomic_t brcmf_mmc_suspend;
 
 #define BRCMF_PM_RESUME_WAIT_INIT(a)
 #define BRCMF_PM_RESUME_WAIT(a)
-#define DHD_PM_RESUME_WAIT_FOREVER(a)
 #define BRCMF_PM_RESUME_RETURN_ERROR(a)
-#define DHD_PM_RESUME_RETURN
 
 #define BRCMF_SPINWAIT_SLEEP_INIT(a)
 #define BRCMF_SPINWAIT_SLEEP(a, exp, us)  do { \
@@ -865,9 +858,7 @@ typedef struct dhd_ioctl {
 
 /* bump this number if you change the ioctl interface */
 #define BRCMF_IOCTL_VERSION	1
-
 #define	BRCMF_IOCTL_MAXLEN	8192	/* max length ioctl buffer required */
-#define	DHD_IOCTL_SMLEN	256	/* "small" length ioctl buffer required */
 
 /* common ioctl definitions */
 #define BRCMF_GET_MAGIC				0
@@ -885,7 +876,6 @@ typedef struct dhd_ioctl {
 #define BRCMF_HDRS_VAL	0x0040
 #define BRCMF_BYTES_VAL	0x0080
 #define BRCMF_INTR_VAL	0x0100
-#define DHD_LOG_VAL	0x0200
 #define BRCMF_GLOM_VAL	0x0400
 #define BRCMF_EVENT_VAL	0x0800
 #define BRCMF_BTA_VAL	0x1000
@@ -926,7 +916,5 @@ typedef struct brcmf_pktgen {
 	 when idle */
 #define BRCMF_IDLE_ACTIVE	0	/* Do not request any SD clock change
 				 when idle */
-#define DHD_IDLE_STOP   (-1)	/* Request SD clock be stopped
-				 (and use SD1 mode) */
 
 #endif				/* _dhd_h_ */
