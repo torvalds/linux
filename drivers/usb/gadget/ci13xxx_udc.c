@@ -2620,10 +2620,13 @@ static int ci13xxx_start(struct usb_gadget_driver *driver,
 	if (retval)
 		goto done;
 	spin_unlock_irqrestore(udc->lock, flags);
-	retval = usb_ep_enable(&udc->ep0out.ep, &ctrl_endpt_out_desc);
+	udc->ep0out.ep.desc = &ctrl_endpt_out_desc;
+	retval = usb_ep_enable(&udc->ep0out.ep);
 	if (retval)
 		return retval;
-	retval = usb_ep_enable(&udc->ep0in.ep, &ctrl_endpt_in_desc);
+
+	udc->ep0in.ep.desc = &ctrl_endpt_in_desc;
+	retval = usb_ep_enable(&udc->ep0in.ep);
 	if (retval)
 		return retval;
 	spin_lock_irqsave(udc->lock, flags);
