@@ -360,7 +360,7 @@ static const uint retry_limit = 2;
 static bool forcealign;
 
 /* Flag to indicate if we should download firmware on driver load */
-uint dhd_download_fw_on_driverload = 1;
+uint dhd_download_fw_on_driverload = TRUE;
 
 #define ALIGNMENT  4
 
@@ -482,7 +482,8 @@ static bool dhdsdio_probe_attach(dhd_bus_t *bus, osl_t *osh, void *sdh,
                                  void * regsva, uint16  devid);
 static bool dhdsdio_probe_malloc(dhd_bus_t *bus, osl_t *osh, void *sdh);
 static bool dhdsdio_probe_init(dhd_bus_t *bus, osl_t *osh, void *sdh);
-static void dhdsdio_release_dongle(dhd_bus_t *bus, osl_t *osh, bool dongle_isolation, bool reset_flag);
+static void dhdsdio_release_dongle(dhd_bus_t *bus, osl_t *osh, bool dongle_isolation,
+	bool reset_flag);
 
 static void dhd_dongle_setmemsize(struct dhd_bus *bus, int mem_size);
 static int dhd_bcmsdh_recv_buf(dhd_bus_t *bus, uint32 addr, uint fn, uint flags,
@@ -5159,6 +5160,9 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 	int ret;
 	dhd_bus_t *bus;
 	dhd_cmn_t *cmn;
+#ifdef GET_CUSTOM_MAC_ENABLE
+	struct ether_addr ea_addr;
+#endif /* GET_CUSTOM_MAC_ENABLE */
 
 	/* Init global variables at run-time, not as part of the declaration.
 	 * This is required to support init/de-init of the driver. Initialization
@@ -5299,6 +5303,18 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 
 	DHD_INFO(("%s: completed!!\n", __FUNCTION__));
 
+#ifdef GET_CUSTOM_MAC_ENABLE
+	/* Read MAC address from external customer place 	*/
+	memset(&ea_addr, 0, sizeof(ea_addr));
+	ret = dhd_custom_get_mac_address(ea_addr.octet);
+	if (!ret) {
+		memcpy(bus->dhd->mac.octet, (void *)&ea_addr, ETHER_ADDR_LEN);
+	} else {
+		/* MAC address must be present when Driver insmod */
+		DHD_ERROR(("%s unable to get MAC address\n", __FUNCTION__));
+		goto fail;
+	}
+#endif /* GET_CUSTOM_MAC_ENABLE */
 
 	/* if firmware path present try to download and bring up bus */
 	if (dhd_download_fw_on_driverload && (ret = dhd_bus_start(bus->dhd)) != 0) {
@@ -5774,7 +5790,8 @@ dhdsdio_download_code_array(struct dhd_bus *bus)
 
 	/* Download image */
 	while ((offset + MEMBLOCK) < sizeof(dlarray)) {
-		bcmerror = dhdsdio_membytes(bus, TRUE, offset, (uint8 *) (dlarray + offset), MEMBLOCK);
+		bcmerror = dhdsdio_membytes(bus, TRUE, offset,
+			(uint8 *) (dlarray + offset), MEMBLOCK);
 		if (bcmerror) {
 			DHD_ERROR(("%s: error %d on writing %d membytes at 0x%08x\n",
 			        __FUNCTION__, bcmerror, MEMBLOCK, offset));
@@ -6170,7 +6187,8 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 					DHD_TRACE(("%s: WLAN ON DONE\n", __FUNCTION__));
 					} else {
 						dhd_bus_stop(bus, FALSE);
-						dhdsdio_release_dongle(bus, bus->dhd->osh, TRUE, FALSE);
+						dhdsdio_release_dongle(bus, bus->dhd->osh,
+							TRUE, FALSE);
 					}
 				} else
 					bcmerror = BCME_SDIO_ERROR;

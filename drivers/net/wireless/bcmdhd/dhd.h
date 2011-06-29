@@ -248,6 +248,9 @@ typedef struct dhd_cmn {
 #endif /* DHDTHREAD */
 #define DHD_IF_VIF	0x01	/* Virtual IF (Hidden from user) */
 
+unsigned long dhd_os_spin_lock(dhd_pub_t *pub);
+void dhd_os_spin_unlock(dhd_pub_t *pub, unsigned long flags);
+
 /*  Wakelock Functions */
 extern int dhd_os_wake_lock(dhd_pub_t *pub);
 extern int dhd_os_wake_unlock(dhd_pub_t *pub);
@@ -279,9 +282,6 @@ inline static void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t * dhdp)
 #define DHD_OS_WAKE_UNLOCK(pub) 		dhd_os_wake_unlock(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT(pub)		dhd_os_wake_lock_timeout(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(pub)	dhd_os_wake_lock_timeout_enable(pub)
-
-extern unsigned long dhd_os_spin_lock(dhd_pub_t *pub);
-extern void dhd_os_spin_unlock(dhd_pub_t *pub, unsigned long flags);
 
 
 /* interface operations (register, remove) should be atomic, use this lock to prevent race

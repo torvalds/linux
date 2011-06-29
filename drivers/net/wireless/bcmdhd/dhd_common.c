@@ -91,7 +91,6 @@ extern int dhd_change_mtu(dhd_pub_t *dhd, int new_mtu, int ifidx);
 bool ap_cfg_running = FALSE;
 bool ap_fw_loaded = FALSE;
 
-
 #if defined(KEEP_ALIVE)
 int dhd_keep_alive_onoff(dhd_pub_t *dhd, int ka_on);
 #endif /* KEEP_ALIVE */
@@ -1552,37 +1551,27 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint32 mpc = 0; /* Turn MPC off for AP/APSTA mode */
 	uint32 apsta = 1; /* Enable APSTA mode */
 #endif
-#ifdef GET_CUSTOM_MAC_ENABLE
-	struct ether_addr ea_addr;
-#endif /* GET_CUSTOM_MAC_ENABLE */
 
 #ifdef GET_CUSTOM_MAC_ENABLE
-	/*
-	** Read MAC address from external customer place
-	** NOTE that default mac address has to be present in otp or nvram file
-	** to bring up firmware but unique per board mac address maybe provided
-	** by customer code
-	*/
-	ret = dhd_custom_get_mac_address(ea_addr.octet);
-	if (!ret) {
-		bcm_mkiovar("cur_etheraddr", (void *)&ea_addr, ETHER_ADDR_LEN, buf, sizeof(buf));
+	/* MAC address already defined in dhd->mac.octet */
+	memset(buf, 0, sizeof(buf));
+	bcm_mkiovar("cur_etheraddr", dhd->mac.octet, ETHER_ADDR_LEN, buf, sizeof(buf));
 		ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
 		if (ret < 0) {
 			DHD_ERROR(("%s: can't set MAC address , error=%d\n", __FUNCTION__, ret));
-		} else
-			memcpy(dhd->mac.octet, (void *)&ea_addr, ETHER_ADDR_LEN);
-	} else {
-#endif /* GET_CUSTOM_MAC_ENABLE */
+		return BCME_NOTUP;
+	}
+#else /* GET_CUSTOM_MAC_ENABLE */
 		/* Get the default device MAC address directly from firmware */
-		strcpy(iovbuf, "cur_etheraddr");
-		if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, iovbuf, sizeof(iovbuf),
+	memset(buf, 0, sizeof(buf));
+	bcm_mkiovar("cur_etheraddr", 0, 0, buf, sizeof(buf));
+	if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf),
 			FALSE, 0)) < 0) {
 			DHD_ERROR(("%s: can't get MAC address , error=%d\n", __FUNCTION__, ret));
 			return BCME_NOTUP;
 		}
-		memcpy(dhd->mac.octet, iovbuf, ETHER_ADDR_LEN);
-#ifdef GET_CUSTOM_MAC_ENABLE
-	}
+	/* Update public MAC address after reading from Firmware */
+	memcpy(dhd->mac.octet, buf, ETHER_ADDR_LEN);
 #endif /* GET_CUSTOM_MAC_ENABLE */
 
 #ifdef SET_RANDOM_MAC_SOFTAP
@@ -1607,8 +1596,9 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif /* SET_RANDOM_MAC_SOFTAP */
 
-	DHD_ERROR(("Broadcom Dongle Host Driver mac=%02x:%02x:%02x:%02x:%02x:%02x\n",
-		iovbuf[0], iovbuf[1], iovbuf[2], iovbuf[3], iovbuf[4], iovbuf[5]));
+	DHD_ERROR(("Firmware up: Broadcom Dongle Host Driver mac=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+	       dhd->mac.octet[0], dhd->mac.octet[1], dhd->mac.octet[2],
+	       dhd->mac.octet[3], dhd->mac.octet[4], dhd->mac.octet[5]));
 
 	/* Set Country code  */
 	if (dhd->dhd_cspec.ccode[0] != 0) {
@@ -1786,6 +1776,16 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		dhd_arp_offload_enable(dhd, FALSE);
 	}
 #endif /* ARP_OFFLOAD_SUPPORT */
+
+#ifdef PKT_FILTER_SUPPORT
+	if (ap_fw_loaded) {
+		int i;
+		for (i = 0; i < dhd->pktfilter_count; i++) {
+			dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
+				0, dhd_master_mode);
+		}
+	}
+#endif /* PKT_FILTER_SUPPORT */
 
 
 done:

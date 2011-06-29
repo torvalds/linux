@@ -3455,11 +3455,13 @@ static s32 wl_inform_bss(struct wl_priv *wl)
 	s32 i;
 
 	bss_list = wl->bss_list;
+	/*
 	if (unlikely(bss_list->version != WL_BSS_INFO_VERSION)) {
-		WL_ERR(("Version %d != WL_BSS_INFO_VERSION\n",
-			bss_list->version));
+		WL_ERR(("Version %d != %d\n",
+			bss_list->version, WL_BSS_INFO_VERSION));
 		return -EOPNOTSUPP;
 	}
+	*/
 	WL_DBG(("scanned AP count (%d)\n", bss_list->count));
 	bi = next_bss(bss_list, bi);
 	for_each_bss(bss_list, bi, i) {
@@ -3712,7 +3714,7 @@ wl_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 			if (test_bit(WL_STATUS_CONNECTING, &wl->status))
 				wl_bss_connect_done(wl, ndev, e, data, false);
 		} else {
-			printk("nothing");
+			printk("%s nothing\n", __FUNCTION__);
 		}
 		printk("\n");
 	}
