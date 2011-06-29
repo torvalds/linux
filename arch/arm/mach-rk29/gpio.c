@@ -361,7 +361,7 @@ static void gpio_ack_irq(u32 irq)
 
 static int GPIOPullUpDown(struct gpio_chip *chip, unsigned int offset, unsigned enable)
 {
-	unsigned char temp=0;
+	unsigned int temp = 0;
 	struct rk29_gpio_chip *rk29_gpio = to_rk29_gpio_chip(chip);
 	unsigned char  __iomem *pGrfRegBase = (unsigned char  __iomem *)RK29_GRF_BASE;
 	unsigned long flags;
@@ -382,6 +382,7 @@ static int GPIOPullUpDown(struct gpio_chip *chip, unsigned int offset, unsigned 
 		temp |= 1<<offset;
 	else
 		temp &= ~(1<<offset);
+
 	__raw_writel(temp,pGrfRegBase + 0x78 +(rk29_gpio->id)*4);
 	local_irq_restore(flags);
 
