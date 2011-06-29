@@ -260,14 +260,8 @@ int sort_dimension__add(const char *tok)
 	for (i = 0; i < ARRAY_SIZE(sort_dimensions); i++) {
 		struct sort_dimension *sd = &sort_dimensions[i];
 
-		if (sd->taken)
-			continue;
-
 		if (strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
-
-		if (sd->entry->se_collapse)
-			sort__need_collapse = 1;
 
 		if (sd->entry == &sort_parent) {
 			int ret = regcomp(&parent_regex, parent_pattern, REG_EXTENDED);
@@ -280,6 +274,12 @@ int sort_dimension__add(const char *tok)
 			}
 			sort__has_parent = 1;
 		}
+
+		if (sd->taken)
+			return 0;
+
+		if (sd->entry->se_collapse)
+			sort__need_collapse = 1;
 
 		if (list_empty(&hist_entry__sort_list)) {
 			if (!strcmp(sd->name, "pid"))
