@@ -988,8 +988,6 @@ extern int write_to_file(dhd_pub_t *dhd, u8 *buf, int size);
 #if defined(OOB_INTR_ONLY)
 extern int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr);
 #endif				/* defined(OOB_INTR_ONLY) */
-extern void dhd_os_sdtxlock(dhd_pub_t *pub);
-extern void dhd_os_sdtxunlock(dhd_pub_t *pub);
 
 int setScheduler(struct task_struct *p, int policy, struct sched_param *param);
 

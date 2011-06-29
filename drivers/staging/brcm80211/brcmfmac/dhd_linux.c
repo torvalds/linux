@@ -2603,16 +2603,6 @@ void dhd_os_sdunlock_rxq(dhd_pub_t *pub)
 {
 }
 
-void dhd_os_sdtxlock(dhd_pub_t *pub)
-{
-	dhd_os_sdlock(pub);
-}
-
-void dhd_os_sdtxunlock(dhd_pub_t *pub)
-{
-	dhd_os_sdunlock(pub);
-}
-
 static int
 dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 		  wl_event_msg_t *event, void **data)
