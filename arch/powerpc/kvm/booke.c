@@ -312,6 +312,19 @@ void kvmppc_core_deliver_interrupts(struct kvm_vcpu *vcpu)
 		vcpu->arch.shared->int_pending = 0;
 }
 
+int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
+{
+	int ret;
+
+	local_irq_disable();
+	kvm_guest_enter();
+	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
+	kvm_guest_exit();
+	local_irq_enable();
+
+	return ret;
+}
+
 /**
  * kvmppc_handle_exit
  *

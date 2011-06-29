@@ -891,8 +891,7 @@ void kvmppc_core_vcpu_free(struct kvm_vcpu *vcpu)
 	vfree(vcpu_book3s);
 }
 
-extern int __kvmppc_vcpu_entry(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
-int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
+int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	int ret;
 	double fpr[32][TS_FPRWIDTH];
@@ -944,14 +943,15 @@ int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	/* Remember the MSR with disabled extensions */
 	ext_msr = current->thread.regs->msr;
 
-	/* XXX we get called with irq disabled - change that! */
-	local_irq_enable();
-
 	/* Preload FPU if it's enabled */
 	if (vcpu->arch.shared->msr & MSR_FP)
 		kvmppc_handle_ext(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, MSR_FP);
 
-	ret = __kvmppc_vcpu_entry(kvm_run, vcpu);
+	kvm_guest_enter();
+
+	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
+
+	kvm_guest_exit();
 
 	local_irq_disable();
 

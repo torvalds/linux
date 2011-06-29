@@ -500,11 +500,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 	kvmppc_core_deliver_interrupts(vcpu);
 
-	local_irq_disable();
-	kvm_guest_enter();
-	r = __kvmppc_vcpu_run(run, vcpu);
-	kvm_guest_exit();
-	local_irq_enable();
+	r = kvmppc_vcpu_run(run, vcpu);
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);

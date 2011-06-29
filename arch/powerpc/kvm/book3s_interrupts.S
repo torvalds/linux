@@ -85,7 +85,7 @@
  *  r3: kvm_run pointer
  *  r4: vcpu pointer
  */
-_GLOBAL(__kvmppc_vcpu_entry)
+_GLOBAL(__kvmppc_vcpu_run)
 
 kvm_start_entry:
 	/* Write correct stack frame */
