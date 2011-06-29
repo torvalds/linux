@@ -36,9 +36,6 @@
 extern void brcmf_sdbrcm_isr(void *args);
 #endif				/* defined(OOB_INTR_ONLY) */
 #if defined(CONFIG_MACH_SANDGATE2G) || defined(CONFIG_MACH_LOGICPD_PXA270)
-#if !defined(BCMPLATFORM_BUS)
-#define BCMPLATFORM_BUS
-#endif				/* !defined(BCMPLATFORM_BUS) */
 
 #include <linux/platform_device.h>
 #endif				/* CONFIG_MACH_SANDGATE2G */
@@ -51,11 +48,7 @@ extern void brcmf_sdbrcm_isr(void *args);
  */
 struct bcmsdh_hc {
 	struct bcmsdh_hc *next;
-#ifdef BCMPLATFORM_BUS
 	struct device *dev;	/* platform device handle */
-#else
-	struct pci_dev *dev;	/* pci device handle */
-#endif				/* BCMPLATFORM_BUS */
 	void *regs;		/* SDIO Host Controller address */
 	struct brcmf_sdio *sdh;	/* SDIO Host Controller handle */
 	void *ch;
@@ -120,7 +113,6 @@ bool brcmf_sdio_chipmatch(u16 vendor, u16 device)
 	return false;
 }
 
-#if defined(BCMPLATFORM_BUS)
 /* forward declarations */
 int brcmf_sdio_probe(struct device *dev);
 EXPORT_SYMBOL(brcmf_sdio_probe);
@@ -228,7 +220,6 @@ int brcmf_sdio_remove(struct device *dev)
 	kfree(sdhc);
 	return 0;
 }
-#endif				/* BCMPLATFORM_BUS */
 
 extern int brcmf_sdio_function_init(void);
 
