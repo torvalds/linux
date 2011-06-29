@@ -223,18 +223,18 @@ static u16 l2cap_alloc_cid(struct l2cap_conn *conn)
 
 static void l2cap_set_timer(struct l2cap_chan *chan, struct timer_list *timer, long timeout)
 {
-       BT_DBG("chan %p state %d timeout %ld", chan->sk, chan->state, timeout);
+	BT_DBG("chan %p state %d timeout %ld", chan->sk, chan->state, timeout);
 
-       if (!mod_timer(timer, jiffies + timeout))
-	       chan_hold(chan);
+	if (!mod_timer(timer, jiffies + timeout))
+		chan_hold(chan);
 }
 
 static void l2cap_clear_timer(struct l2cap_chan *chan, struct timer_list *timer)
 {
-       BT_DBG("chan %p state %d", chan, chan->state);
+	BT_DBG("chan %p state %d", chan, chan->state);
 
-       if (timer_pending(timer) && del_timer(timer))
-	       chan_put(chan);
+	if (timer_pending(timer) && del_timer(timer))
+		chan_put(chan);
 }
 
 static void l2cap_state_change(struct l2cap_chan *chan, int state)
