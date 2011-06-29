@@ -298,7 +298,7 @@ static void davinci_init_wdt(void)
 
 /*-------------------------------------------------------------------------*/
 
-struct platform_device davinci_pcm_device = {
+static struct platform_device davinci_pcm_device = {
 	.name		= "davinci-pcm-audio",
 	.id		= -1,
 };

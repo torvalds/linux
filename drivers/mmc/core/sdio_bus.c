@@ -193,7 +193,7 @@ static int sdio_bus_remove(struct device *dev)
 
 	/* Then undo the runtime PM settings in sdio_bus_probe() */
 	if (func->card->host->caps & MMC_CAP_POWER_OFF_CARD)
-		pm_runtime_put_noidle(dev);
+		pm_runtime_put_sync(dev);
 
 out:
 	return ret;

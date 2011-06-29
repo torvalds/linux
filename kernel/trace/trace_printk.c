@@ -240,13 +240,10 @@ static const char **find_next(void *v, loff_t *pos)
 	const char **fmt = v;
 	int start_index;
 
-	if (!fmt)
-		fmt = __start___trace_bprintk_fmt + *pos;
-
 	start_index = __stop___trace_bprintk_fmt - __start___trace_bprintk_fmt;
 
 	if (*pos < start_index)
-		return fmt;
+		return __start___trace_bprintk_fmt + *pos;
 
 	return find_next_mod_format(start_index, v, fmt, pos);
 }

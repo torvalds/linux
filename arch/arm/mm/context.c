@@ -24,7 +24,9 @@ DEFINE_PER_CPU(struct mm_struct *, current_mm);
 
 /*
  * We fork()ed a process, and we need a new context for the child
- * to run in.
+ * to run in.  We reserve version 0 for initial tasks so we will
+ * always allocate an ASID. The ASID 0 is reserved for the TTBR
+ * register changing sequence.
  */
 void __init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
@@ -34,11 +36,8 @@ void __init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 
 static void flush_context(void)
 {
-	u32 ttb;
-	/* Copy TTBR1 into TTBR0 */
-	asm volatile("mrc	p15, 0, %0, c2, c0, 1\n"
-		     "mcr	p15, 0, %0, c2, c0, 0"
-		     : "=r" (ttb));
+	/* set the reserved ASID before flushing the TLB */
+	asm("mcr	p15, 0, %0, c13, c0, 1\n" : : "r" (0));
 	isb();
 	local_flush_tlb_all();
 	if (icache_is_vivt_asid_tagged()) {
@@ -94,7 +93,7 @@ static void reset_context(void *info)
 		return;
 
 	smp_rmb();
-	asid = cpu_last_asid + cpu;
+	asid = cpu_last_asid + cpu + 1;
 
 	flush_context();
 	set_mm_context(mm, asid);
@@ -144,13 +143,13 @@ void __new_context(struct mm_struct *mm)
 	 * to start a new version and flush the TLB.
 	 */
 	if (unlikely((asid & ~ASID_MASK) == 0)) {
-		asid = cpu_last_asid + smp_processor_id();
+		asid = cpu_last_asid + smp_processor_id() + 1;
 		flush_context();
 #ifdef CONFIG_SMP
 		smp_wmb();
 		smp_call_function(reset_context, NULL, 1);
 #endif
-		cpu_last_asid += NR_CPUS - 1;
+		cpu_last_asid += NR_CPUS;
 	}
 
 	set_mm_context(mm, asid);
