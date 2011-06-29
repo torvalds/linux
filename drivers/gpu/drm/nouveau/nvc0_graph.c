@@ -390,7 +390,7 @@ nvc0_graph_init_gpc_0(struct drm_device *dev)
 	}
 
 	nv_wr32(dev, GPC_BCAST(0x1bd4), magicgpc918);
-	nv_wr32(dev, GPC_BCAST(0x08ac), priv->rop_nr);
+	nv_wr32(dev, GPC_BCAST(0x08ac), nv_rd32(dev, 0x100800));
 }
 
 static void
