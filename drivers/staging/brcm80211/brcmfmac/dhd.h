@@ -136,8 +136,6 @@ struct dhd_info;
 #define DOT11_BSSTYPE_ANY			2
 #define DOT11_MAX_DEFAULT_KEYS	4
 
-#define BCM_MSG_IFNAME_MAX		16
-
 #define WLC_EVENT_MSG_LINK		0x01
 #define WLC_EVENT_MSG_FLUSHTXQ		0x02
 #define WLC_EVENT_MSG_GROUP		0x04
@@ -151,7 +149,7 @@ typedef struct {
 	u32 auth_type;
 	u32 datalen;
 	u8 addr[ETH_ALEN];
-	char ifname[BCM_MSG_IFNAME_MAX];
+	char ifname[IFNAMSIZ];
 } __attribute__((packed)) wl_event_msg_t;
 
 typedef  struct bcmeth_hdr {
