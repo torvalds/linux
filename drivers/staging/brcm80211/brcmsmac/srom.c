@@ -1212,14 +1212,10 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 	u32 sr;
 	varbuf_t b;
 	char *vp, *base = NULL;
-	bool flash = false;
 	int err = 0;
 
 	/*
-	 * Apply CRC over SROM content regardless SROM is present or not,
-	 * and use variable <devpath>sromrev's existence in flash to decide
-	 * if we should return an error when CRC fails or read SROM variables
-	 * from flash.
+	 * Apply CRC over SROM content regardless SROM is present or not.
 	 */
 	srom = kmalloc(SROM_MAX, GFP_ATOMIC);
 	if (!srom)
@@ -1265,60 +1261,33 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 		err = 1;
 #endif
 
-	/*
-	 * We want internal/wltest driver to come up with default
-	 * sromvars so we can program a blank SPROM/OTP.
-	 */
-	if (err) {
-		char *value;
-		u32 val;
-		val = 0;
+	if (!err) {
+		/* Bitmask for the sromrev */
+		sr = 1 << sromrev;
 
-		value = ai_getdevpathvar(sih, "sromrev");
-		if (value) {
-			sromrev = (u8) simple_strtoul(value, NULL, 0);
-			flash = true;
-			goto varscont;
-		}
-
-		value = ai_getnvramflvar(sih, "sromrev");
-		if (value) {
-			err = 0;
+		/* srom version check: Current valid versions: 1, 2, 3, 4, 5, 8, 9 */
+		if ((sr & 0x33e) == 0) {
+			err = -2;
 			goto errout;
 		}
 
-		{
-			err = -1;
+		base = kmalloc(MAXSZ_NVRAM_VARS, GFP_ATOMIC);
+		if (!base) {
+			err = -2;
 			goto errout;
 		}
+
+		varbuf_init(&b, base, MAXSZ_NVRAM_VARS);
+
+		/* parse SROM into name=value pairs. */
+		_initvars_srom_pci(sromrev, srom, 0, &b);
+
+		/* final nullbyte terminator */
+		vp = b.buf;
+		*vp++ = '\0';
+
+		err = initvars_table(base, vp, vars, count);
 	}
-
- varscont:
-	/* Bitmask for the sromrev */
-	sr = 1 << sromrev;
-
-	/* srom version check: Current valid versions: 1, 2, 3, 4, 5, 8, 9 */
-	if ((sr & 0x33e) == 0) {
-		err = -2;
-		goto errout;
-	}
-
-	base = kmalloc(MAXSZ_NVRAM_VARS, GFP_ATOMIC);
-	if (!base) {
-		err = -2;
-		goto errout;
-	}
-
-	varbuf_init(&b, base, MAXSZ_NVRAM_VARS);
-
-	/* parse SROM into name=value pairs. */
-	_initvars_srom_pci(sromrev, srom, 0, &b);
-
-	/* final nullbyte terminator */
-	vp = b.buf;
-	*vp++ = '\0';
-
-	err = initvars_table(base, vp, vars, count);
 
 errout:
 	if (base)
