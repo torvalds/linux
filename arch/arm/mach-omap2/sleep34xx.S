@@ -139,8 +139,10 @@ ENTRY(save_secure_ram_context_sz)
  *
  *
  * Notes:
- * - this code gets copied to internal SRAM at boot and after wake-up
- *   from OFF mode. The execution pointer in SRAM is _omap_sram_idle.
+ * - only the minimum set of functions gets copied to internal SRAM at boot
+ *   and after wake-up from OFF mode, cf. omap_push_sram_idle. The function
+ *   pointers in SDRAM or SRAM are called depending on the desired low power
+ *   target state.
  * - when the OMAP wakes up it continues at different execution points
  *   depending on the low power mode (non-OFF vs OFF modes),
  *   cf. 'Resume path for xxx mode' comments.
@@ -158,9 +160,15 @@ ENTRY(omap34xx_cpu_suspend)
 	 *   3 - Both L1 and L2 lost and logic lost
 	 */
 
-	/* Directly jump to WFI is the context save is not required */
-	cmp	r1, #0x0
-	beq	omap3_do_wfi
+	/*
+	 * For OFF mode: save context and jump to WFI in SDRAM (omap3_do_wfi)
+	 * For non-OFF modes: jump to the WFI code in SRAM (omap3_do_wfi_sram)
+	 */
+	ldr	r4, omap3_do_wfi_sram_addr
+	ldr	r5, [r4]
+	cmp	r1, #0x0		@ If no context save required,
+	bxeq	r5			@  jump to the WFI code in SRAM
+
 
 	/* Otherwise fall through to the save context code */
 save_context_wfi:
@@ -213,7 +221,32 @@ save_context_wfi:
  THUMB(	nop		)
 	.arm
 
-omap3_do_wfi:
+	b	omap3_do_wfi
+
+/*
+ * Local variables
+ */
+omap3_do_wfi_sram_addr:
+	.word omap3_do_wfi_sram
+kernel_flush:
+	.word v7_flush_dcache_all
+
+/* ===================================
+ * == WFI instruction => Enter idle ==
+ * ===================================
+ */
+
+/*
+ * Do WFI instruction
+ * Includes the resume path for non-OFF modes
+ *
+ * This code gets copied to internal SRAM and is accessible
+ * from both SDRAM and SRAM:
+ * - executed from SRAM for non-off modes (omap3_do_wfi_sram),
+ * - executed from SDRAM for OFF mode (omap3_do_wfi).
+ */
+	.align	3
+ENTRY(omap3_do_wfi)
 	ldr	r4, sdrc_power		@ read the SDRC_POWER register
 	ldr	r5, [r4]		@ read the contents of SDRC_POWER
 	orr	r5, r5, #0x40		@ enable self refresh on idle req
@@ -245,8 +278,86 @@ omap3_do_wfi:
 	nop
 	nop
 	nop
-	bl wait_sdrc_ok
 
+/*
+ * This function implements the erratum ID i581 WA:
+ *  SDRC state restore before accessing the SDRAM
+ *
+ * Only used at return from non-OFF mode. For OFF
+ * mode the ROM code configures the SDRC and
+ * the DPLL before calling the restore code directly
+ * from DDR.
+ */
+
+/* Make sure SDRC accesses are ok */
+wait_sdrc_ok:
+
+/* DPLL3 must be locked before accessing the SDRC. Maybe the HW ensures this */
+	ldr	r4, cm_idlest_ckgen
+wait_dpll3_lock:
+	ldr	r5, [r4]
+	tst	r5, #1
+	beq	wait_dpll3_lock
+
+	ldr	r4, cm_idlest1_core
+wait_sdrc_ready:
+	ldr	r5, [r4]
+	tst	r5, #0x2
+	bne	wait_sdrc_ready
+	/* allow DLL powerdown upon hw idle req */
+	ldr	r4, sdrc_power
+	ldr	r5, [r4]
+	bic	r5, r5, #0x40
+	str	r5, [r4]
+
+/*
+ * PC-relative stores lead to undefined behaviour in Thumb-2: use a r7 as a
+ * base instead.
+ * Be careful not to clobber r7 when maintaing this code.
+ */
+
+is_dll_in_lock_mode:
+	/* Is dll in lock mode? */
+	ldr	r4, sdrc_dlla_ctrl
+	ldr	r5, [r4]
+	tst	r5, #0x4
+	bne	exit_nonoff_modes	@ Return if locked
+	/* wait till dll locks */
+	adr	r7, kick_counter
+wait_dll_lock_timed:
+	ldr	r4, wait_dll_lock_counter
+	add	r4, r4, #1
+	str	r4, [r7, #wait_dll_lock_counter - kick_counter]
+	ldr	r4, sdrc_dlla_status
+	/* Wait 20uS for lock */
+	mov	r6, #8
+wait_dll_lock:
+	subs	r6, r6, #0x1
+	beq	kick_dll
+	ldr	r5, [r4]
+	and	r5, r5, #0x4
+	cmp	r5, #0x4
+	bne	wait_dll_lock
+	b	exit_nonoff_modes	@ Return when locked
+
+	/* disable/reenable DLL if not locked */
+kick_dll:
+	ldr	r4, sdrc_dlla_ctrl
+	ldr	r5, [r4]
+	mov	r6, r5
+	bic	r6, #(1<<3)		@ disable dll
+	str	r6, [r4]
+	dsb
+	orr	r6, r6, #(1<<3)		@ enable dll
+	str	r6, [r4]
+	dsb
+	ldr	r4, kick_counter
+	add	r4, r4, #1
+	str	r4, [r7]		@ kick_counter
+	b	wait_dll_lock_timed
+
+exit_nonoff_modes:
+	/* Re-enable C-bit if needed */
 	mrc	p15, 0, r0, c1, c0, 0
 	tst	r0, #(1 << 2)		@ Check C bit enabled?
 	orreq	r0, r0, #(1 << 2)	@ Enable the C bit if cleared
@@ -259,6 +370,31 @@ omap3_do_wfi:
  * ===================================
  */
 	ldmfd	sp!, {r4 - r11, pc}	@ restore regs and return
+
+/*
+ * Local variables
+ */
+sdrc_power:
+	.word	SDRC_POWER_V
+cm_idlest1_core:
+	.word	CM_IDLEST1_CORE_V
+cm_idlest_ckgen:
+	.word	CM_IDLEST_CKGEN_V
+sdrc_dlla_status:
+	.word	SDRC_DLLA_STATUS_V
+sdrc_dlla_ctrl:
+	.word	SDRC_DLLA_CTRL_V
+	/*
+	 * When exporting to userspace while the counters are in SRAM,
+	 * these 2 words need to be at the end to facilitate retrival!
+	 */
+kick_counter:
+	.word	0
+wait_dll_lock_counter:
+	.word	0
+
+ENTRY(omap3_do_wfi_sz)
+	.word	. - omap3_do_wfi
 
 
 /*
@@ -275,13 +411,17 @@ omap3_do_wfi:
  *  restore_es3: applies to 34xx >= ES3.0
  *  restore_3630: applies to 36xx
  *  restore: common code for 3xxx
+ *
+ * Note: when back from CORE and MPU OFF mode we are running
+ *  from SDRAM, without MMU, without the caches and prediction.
+ *  Also the SRAM content has been cleared.
  */
 ENTRY(omap3_restore_es3)
 	ldr	r5, pm_prepwstst_core_p
 	ldr	r4, [r5]
 	and	r4, r4, #0x3
 	cmp	r4, #0x0	@ Check if previous power state of CORE is OFF
-	bne	omap3_restore
+	bne	omap3_restore	@ Fall through to OMAP3 common code
 	adr	r0, es3_sdrc_fix
 	ldr	r1, sram_base
 	ldr	r2, es3_sdrc_fix_sz
@@ -293,7 +433,7 @@ copy_to_sram:
 	bne	copy_to_sram
 	ldr	r1, sram_base
 	blx	r1
-	b	omap3_restore
+	b	omap3_restore	@ Fall through to OMAP3 common code
 ENDPROC(omap3_restore_es3)
 
 ENTRY(omap3_restore_3630)
@@ -301,7 +441,7 @@ ENTRY(omap3_restore_3630)
 	ldr	r2, [r1]
 	and	r2, r2, #0x3
 	cmp	r2, #0x0	@ Check if previous power state of CORE is OFF
-	bne	omap3_restore
+	bne	omap3_restore	@ Fall through to OMAP3 common code
 	/* Disable RTA before giving control */
 	ldr	r1, control_mem_rta
 	mov	r2, #OMAP36XX_RTA_DISABLE
@@ -405,10 +545,31 @@ ENDPROC(omap3_restore)
 	.ltorg
 
 /*
+ * Local variables
+ */
+pm_prepwstst_core_p:
+	.word	PM_PREPWSTST_CORE_P
+pm_pwstctrl_mpu:
+	.word	PM_PWSTCTRL_MPU_P
+scratchpad_base:
+	.word	SCRATCHPAD_BASE_P
+sram_base:
+	.word	SRAM_BASE_P + 0x8000
+control_stat:
+	.word	CONTROL_STAT
+control_mem_rta:
+	.word	CONTROL_MEM_RTA_CTRL
+l2dis_3630:
+	.word	0
+
+/*
  * Internal functions
  */
 
-/* This function implements the erratum ID i443 WA, applies to 34xx >= ES3.0 */
+/*
+ * This function implements the erratum ID i443 WA, applies to 34xx >= ES3.0
+ * Copied to and run from SRAM in order to reconfigure the SDRC parameters.
+ */
 	.text
 	.align	3
 ENTRY(es3_sdrc_fix)
@@ -438,6 +599,9 @@ ENTRY(es3_sdrc_fix)
 	str	r5, [r4]		@ kick off refreshes
 	bx	lr
 
+/*
+ * Local variables
+ */
 	.align
 sdrc_syscfg:
 	.word	SDRC_SYSCONFIG_P
@@ -456,120 +620,3 @@ sdrc_manual_1:
 ENDPROC(es3_sdrc_fix)
 ENTRY(es3_sdrc_fix_sz)
 	.word	. - es3_sdrc_fix
-
-/*
- * This function implements the erratum ID i581 WA:
- *  SDRC state restore before accessing the SDRAM
- *
- * Only used at return from non-OFF mode. For OFF
- * mode the ROM code configures the SDRC and
- * the DPLL before calling the restore code directly
- * from DDR.
- */
-
-/* Make sure SDRC accesses are ok */
-wait_sdrc_ok:
-
-/* DPLL3 must be locked before accessing the SDRC. Maybe the HW ensures this */
-	ldr	r4, cm_idlest_ckgen
-wait_dpll3_lock:
-	ldr	r5, [r4]
-	tst	r5, #1
-	beq	wait_dpll3_lock
-
-	ldr	r4, cm_idlest1_core
-wait_sdrc_ready:
-	ldr	r5, [r4]
-	tst	r5, #0x2
-	bne	wait_sdrc_ready
-	/* allow DLL powerdown upon hw idle req */
-	ldr	r4, sdrc_power
-	ldr	r5, [r4]
-	bic	r5, r5, #0x40
-	str	r5, [r4]
-
-/*
- * PC-relative stores lead to undefined behaviour in Thumb-2: use a r7 as a
- * base instead.
- * Be careful not to clobber r7 when maintaing this code.
- */
-
-is_dll_in_lock_mode:
-	/* Is dll in lock mode? */
-	ldr	r4, sdrc_dlla_ctrl
-	ldr	r5, [r4]
-	tst	r5, #0x4
-	bxne	lr			@ Return if locked
-	/* wait till dll locks */
-	adr	r7, kick_counter
-wait_dll_lock_timed:
-	ldr	r4, wait_dll_lock_counter
-	add	r4, r4, #1
-	str	r4, [r7, #wait_dll_lock_counter - kick_counter]
-	ldr	r4, sdrc_dlla_status
-	/* Wait 20uS for lock */
-	mov	r6, #8
-wait_dll_lock:
-	subs	r6, r6, #0x1
-	beq	kick_dll
-	ldr	r5, [r4]
-	and	r5, r5, #0x4
-	cmp	r5, #0x4
-	bne	wait_dll_lock
-	bx	lr			@ Return when locked
-
-	/* disable/reenable DLL if not locked */
-kick_dll:
-	ldr	r4, sdrc_dlla_ctrl
-	ldr	r5, [r4]
-	mov	r6, r5
-	bic	r6, #(1<<3)		@ disable dll
-	str	r6, [r4]
-	dsb
-	orr	r6, r6, #(1<<3)		@ enable dll
-	str	r6, [r4]
-	dsb
-	ldr	r4, kick_counter
-	add	r4, r4, #1
-	str	r4, [r7]		@ kick_counter
-	b	wait_dll_lock_timed
-
-	.align
-cm_idlest1_core:
-	.word	CM_IDLEST1_CORE_V
-cm_idlest_ckgen:
-	.word	CM_IDLEST_CKGEN_V
-sdrc_dlla_status:
-	.word	SDRC_DLLA_STATUS_V
-sdrc_dlla_ctrl:
-	.word	SDRC_DLLA_CTRL_V
-pm_prepwstst_core_p:
-	.word	PM_PREPWSTST_CORE_P
-pm_pwstctrl_mpu:
-	.word	PM_PWSTCTRL_MPU_P
-scratchpad_base:
-	.word	SCRATCHPAD_BASE_P
-sram_base:
-	.word	SRAM_BASE_P + 0x8000
-sdrc_power:
-	.word	SDRC_POWER_V
-control_stat:
-	.word	CONTROL_STAT
-control_mem_rta:
-	.word	CONTROL_MEM_RTA_CTRL
-kernel_flush:
-	.word	v7_flush_dcache_all
-l2dis_3630:
-	.word	0
-	/*
-	 * When exporting to userspace while the counters are in SRAM,
-	 * these 2 words need to be at the end to facilitate retrival!
-	 */
-kick_counter:
-	.word	0
-wait_dll_lock_counter:
-	.word	0
-ENDPROC(omap34xx_cpu_suspend)
-
-ENTRY(omap34xx_cpu_suspend_sz)
-	.word	. - omap34xx_cpu_suspend
