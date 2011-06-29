@@ -148,7 +148,7 @@ void kvm_arch_check_processor_compat(void *rtn)
 
 int kvm_arch_init_vm(struct kvm *kvm)
 {
-	return 0;
+	return kvmppc_core_init_vm(kvm);
 }
 
 void kvm_arch_destroy_vm(struct kvm *kvm)
@@ -164,6 +164,9 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		kvm->vcpus[i] = NULL;
 
 	atomic_set(&kvm->online_vcpus, 0);
+
+	kvmppc_core_destroy_vm(kvm);
+
 	mutex_unlock(&kvm->lock);
 }
 
@@ -212,7 +215,7 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
                                    struct kvm_userspace_memory_region *mem,
                                    int user_alloc)
 {
-	return 0;
+	return kvmppc_core_prepare_memory_region(kvm, mem);
 }
 
 void kvm_arch_commit_memory_region(struct kvm *kvm,
@@ -220,7 +223,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
                struct kvm_memory_slot old,
                int user_alloc)
 {
-       return;
+	kvmppc_core_commit_memory_region(kvm, mem);
 }
 
 

@@ -111,6 +111,13 @@ extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
 extern int kvmppc_kvm_pv(struct kvm_vcpu *vcpu);
 extern void kvmppc_map_magic(struct kvm_vcpu *vcpu);
 
+extern int kvmppc_core_init_vm(struct kvm *kvm);
+extern void kvmppc_core_destroy_vm(struct kvm *kvm);
+extern int kvmppc_core_prepare_memory_region(struct kvm *kvm,
+				struct kvm_userspace_memory_region *mem);
+extern void kvmppc_core_commit_memory_region(struct kvm *kvm,
+				struct kvm_userspace_memory_region *mem);
+
 /*
  * Cuts out inst bits with ordering according to spec.
  * That means the leftmost bit is zero. All given bits are included.

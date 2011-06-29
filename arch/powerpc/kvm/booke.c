@@ -865,6 +865,26 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
 	return -ENOTSUPP;
 }
 
+int kvmppc_core_prepare_memory_region(struct kvm *kvm,
+				      struct kvm_userspace_memory_region *mem)
+{
+	return 0;
+}
+
+void kvmppc_core_commit_memory_region(struct kvm *kvm,
+				struct kvm_userspace_memory_region *mem)
+{
+}
+
+int kvmppc_core_init_vm(struct kvm *kvm)
+{
+	return 0;
+}
+
+void kvmppc_core_destroy_vm(struct kvm *kvm)
+{
+}
+
 int __init kvmppc_booke_init(void)
 {
 	unsigned long ivor[16];
