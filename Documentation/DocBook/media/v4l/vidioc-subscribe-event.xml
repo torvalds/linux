@@ -114,25 +114,28 @@
 	  <row>
 	    <entry><constant>V4L2_EVENT_CTRL</constant></entry>
 	    <entry>3</entry>
-	    <entry>This event requires that the <structfield>id</structfield>
+	    <entry><para>This event requires that the <structfield>id</structfield>
 		matches the control ID from which you want to receive events.
 		This event is triggered if the control's value changes, if a
 		button control is pressed or if the control's flags change.
 	    	This event has a &v4l2-event-ctrl; associated with it. This struct
 		contains much of the same information as &v4l2-queryctrl; and
-		&v4l2-control;.
+		&v4l2-control;.</para>
 
-		If the event is generated due to a call to &VIDIOC-S-CTRL; or
-		&VIDIOC-S-EXT-CTRLS;, then the event will not be sent to
+		<para>If the event is generated due to a call to &VIDIOC-S-CTRL; or
+		&VIDIOC-S-EXT-CTRLS;, then the event will <emphasis>not</emphasis> be sent to
 		the file handle that called the ioctl function. This prevents
-		nasty feedback loops.
+		nasty feedback loops. If you <emphasis>do</emphasis> want to get the
+		event, then set the <constant>V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK</constant>
+		flag.
+		</para>
 
-		This event type will ensure that no information is lost when
+		<para>This event type will ensure that no information is lost when
 		more events are raised than there is room internally. In that
 		case the &v4l2-event-ctrl; of the second-oldest event is kept,
 		but the <structfield>changes</structfield> field of the
 		second-oldest event is ORed with the <structfield>changes</structfield>
-		field of the oldest event.
+		field of the oldest event.</para>
 	    </entry>
 	  </row>
 	  <row>
@@ -156,6 +159,25 @@
 		containing the current status. This only makes sense for events
 		that are triggered by a status change such as <constant>V4L2_EVENT_CTRL</constant>.
 		Other events will ignore this flag.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK</constant></entry>
+	    <entry>0x0002</entry>
+	    <entry><para>If set, then events directly caused by an ioctl will also be sent to
+		the filehandle that called that ioctl. For example, changing a control using
+		&VIDIOC-S-CTRL; will cause a V4L2_EVENT_CTRL to be sent back to that same
+		filehandle. Normally such events are suppressed to prevent feedback loops
+		where an application changes a control to a one value and then another, and
+		then receives an event telling it that that control has changed to the first
+		value.</para>
+
+		<para>Since it can't tell whether that event was caused by another application
+		or by the &VIDIOC-S-CTRL; call it is hard to decide whether to set the
+		control to the value in the event, or ignore it.</para>
+
+		<para>Think carefully when you set this flag so you won't get into situations
+		like that.</para>
+	    </entry>
 	  </row>
 	</tbody>
       </tgroup>

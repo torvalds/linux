@@ -590,7 +590,8 @@ static void send_event(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 changes)
 	fill_event(&ev, ctrl, changes);
 
 	list_for_each_entry(sev, &ctrl->ev_subs, node)
-		if (sev->fh && sev->fh != fh)
+		if (sev->fh && (sev->fh != fh ||
+				(sev->flags & V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK)))
 			v4l2_event_queue_fh(sev->fh, &ev);
 }
 
