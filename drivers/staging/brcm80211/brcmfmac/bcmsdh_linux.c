@@ -49,10 +49,8 @@ extern void brcmf_sdbrcm_isr(void *args);
 /**
  * SDIO Host Controller info
  */
-typedef struct bcmsdh_hc bcmsdh_hc_t;
-
 struct bcmsdh_hc {
-	bcmsdh_hc_t *next;
+	struct bcmsdh_hc *next;
 #ifdef BCMPLATFORM_BUS
 	struct device *dev;	/* platform device handle */
 #else
@@ -69,10 +67,10 @@ struct bcmsdh_hc {
 	spinlock_t irq_lock;
 #endif
 };
-static bcmsdh_hc_t *sdhcinfo;
+static struct bcmsdh_hc *sdhcinfo;
 
 /* driver info, initialized when brcmf_sdio_register is called */
-static bcmsdh_driver_t drvinfo = { NULL, NULL };
+static struct brcmf_sdioh_driver drvinfo = { NULL, NULL };
 
 /* debugging macros */
 #define SDLX_MSG(x)
@@ -142,7 +140,7 @@ static
 #endif				/* BCMLXSDMMC */
 int brcmf_sdio_probe(struct device *dev)
 {
-	bcmsdh_hc_t *sdhc = NULL;
+	struct bcmsdh_hc *sdhc = NULL;
 	unsigned long regs = 0;
 	struct brcmf_sdio *sdh = NULL;
 #if !defined(BCMLXSDMMC) && defined(BCMPLATFORM_BUS)
@@ -176,7 +174,7 @@ int brcmf_sdio_probe(struct device *dev)
 	}
 #endif				/* defined(OOB_INTR_ONLY) */
 	/* allocate SDIO Host Controller state info */
-	sdhc = kzalloc(sizeof(bcmsdh_hc_t), GFP_ATOMIC);
+	sdhc = kzalloc(sizeof(struct bcmsdh_hc), GFP_ATOMIC);
 	if (!sdhc) {
 		SDLX_MSG(("%s: out of memory\n", __func__));
 		goto err;
@@ -236,7 +234,7 @@ static
 #endif				/* BCMLXSDMMC */
 int brcmf_sdio_remove(struct device *dev)
 {
-	bcmsdh_hc_t *sdhc, *prev;
+	struct bcmsdh_hc *sdhc, *prev;
 
 	sdhc = sdhcinfo;
 	drvinfo.detach(sdhc->ch);
@@ -271,7 +269,7 @@ int brcmf_sdio_remove(struct device *dev)
 
 extern int brcmf_sdio_function_init(void);
 
-int brcmf_sdio_register(bcmsdh_driver_t *driver)
+int brcmf_sdio_register(struct brcmf_sdioh_driver *driver)
 {
 	drvinfo = *driver;
 

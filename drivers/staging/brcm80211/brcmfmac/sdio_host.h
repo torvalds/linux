@@ -201,16 +201,16 @@ extern int brcmf_sdcard_reset(struct brcmf_sdio *sdh);
 extern void *brcmf_sdcard_get_sdioh(struct brcmf_sdio *sdh);
 
 /* callback functions */
-typedef struct {
+struct brcmf_sdioh_driver {
 	/* attach to device */
 	void *(*attach) (u16 vend_id, u16 dev_id, u16 bus, u16 slot,
 			 u16 func, uint bustype, void *regsva, void *param);
 	/* detach from device */
 	void (*detach) (void *ch);
-} bcmsdh_driver_t;
+};
 
 /* platform specific/high level functions */
-extern int brcmf_sdio_register(bcmsdh_driver_t *driver);
+extern int brcmf_sdio_register(struct brcmf_sdioh_driver *driver);
 extern void brcmf_sdio_unregister(void);
 extern bool brcmf_sdio_chipmatch(u16 vendor, u16 device);
 extern void brcmf_sdio_device_remove(void *sdh);

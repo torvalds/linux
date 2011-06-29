@@ -5632,7 +5632,7 @@ static void brcmf_sdbrcm_disconnect(void *ptr)
  * order to look for or await the device.
  */
 
-static bcmsdh_driver_t dhd_sdio = {
+static struct brcmf_sdioh_driver dhd_sdio = {
 	brcmf_sdbrcm_probe,
 	brcmf_sdbrcm_disconnect
 };
