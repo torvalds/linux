@@ -943,7 +943,6 @@ extern void brcmf_timeout_start(dhd_timeout_t *tmo, uint usec);
 extern int brcmf_timeout_expired(dhd_timeout_t *tmo);
 
 extern int brcmf_ifname2idx(struct dhd_info *dhd, char *name);
-extern u8 *dhd_bssidx2bssid(dhd_pub_t *dhd, int idx);
 extern int brcmf_c_host_event(struct dhd_info *dhd, int *idx, void *pktdata,
 			 brcmf_event_msg_t *, void **data_ptr);
 
@@ -964,11 +963,7 @@ extern void brcmf_vif_sendup(struct dhd_info *dhd, int ifidx,
 /* Send packet to dongle via data channel */
 extern int brcmf_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pkt);
 
-/* Send event to host */
-extern void dhd_sendup_event(dhd_pub_t *dhdp, brcmf_event_msg_t *event,
-			     void *data);
 extern int brcmf_bus_devreset(dhd_pub_t *dhdp, u8 flag);
-extern uint dhd_bus_status(dhd_pub_t *dhdp);
 extern int brcmf_bus_start(dhd_pub_t *dhdp);
 
 extern void brcmf_wait_for_event(dhd_pub_t *dhd, bool * lockvar);

@@ -2519,15 +2519,6 @@ dhd_wl_host_event(dhd_info_t *dhd, int *ifidx, void *pktdata,
 	return bcmerror;
 }
 
-/* send up locally generated event */
-void dhd_sendup_event(dhd_pub_t *dhdp, brcmf_event_msg_t *event, void *data)
-{
-	switch (be32_to_cpu(event->event_type)) {
-	default:
-		break;
-	}
-}
-
 void brcmf_wait_for_event(dhd_pub_t *dhd, bool *lockvar)
 {
 	struct dhd_info *dhdinfo = dhd->info;
