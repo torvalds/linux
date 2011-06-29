@@ -2611,9 +2611,19 @@ static struct pci_driver net2272_pci_driver = {
 	.remove   = __devexit_p(net2272_pci_remove),
 };
 
+static int net2272_pci_register(void)
+{
+	return pci_register_driver(&net2272_pci_driver);
+}
+
+static void net2272_pci_unregister(void)
+{
+	pci_unregister_driver(&net2272_pci_driver);
+}
+
 #else
-# define pci_register_driver(x) 1
-# define pci_unregister_driver(x) 1
+static inline int net2272_pci_register(void) { return 0; }
+static inline void net2272_pci_unregister(void) { }
 #endif
 
 /*---------------------------------------------------------------------------*/
@@ -2713,14 +2723,25 @@ static struct platform_driver net2272_plat_driver = {
 
 static int __init net2272_init(void)
 {
-	return pci_register_driver(&net2272_pci_driver) &
-		platform_driver_register(&net2272_plat_driver);
+	int ret;
+
+	ret = net2272_pci_register();
+	if (ret)
+		return ret;
+	ret = platform_driver_register(&net2272_plat_driver);
+	if (ret)
+		goto err_pci;
+	return ret;
+
+err_pci:
+	net2272_pci_unregister();
+	return ret;
 }
 module_init(net2272_init);
 
 static void __exit net2272_cleanup(void)
 {
-	pci_unregister_driver(&net2272_pci_driver);
+	net2272_pci_unregister();
 	platform_driver_unregister(&net2272_plat_driver);
 }
 module_exit(net2272_cleanup);
