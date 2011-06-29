@@ -129,8 +129,8 @@ void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec)
 
 void kvmppc_core_queue_program(struct kvm_vcpu *vcpu, ulong flags)
 {
-	to_book3s(vcpu)->prog_flags = flags;
-	kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_PROGRAM);
+	/* might as well deliver this straight away */
+	kvmppc_inject_interrupt(vcpu, BOOK3S_INTERRUPT_PROGRAM, flags);
 }
 
 void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu)
@@ -170,7 +170,6 @@ int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu, unsigned int priority)
 {
 	int deliver = 1;
 	int vec = 0;
-	ulong flags = 0ULL;
 	bool crit = kvmppc_critical_section(vcpu);
 
 	switch (priority) {
@@ -206,7 +205,6 @@ int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu, unsigned int priority)
 		break;
 	case BOOK3S_IRQPRIO_PROGRAM:
 		vec = BOOK3S_INTERRUPT_PROGRAM;
-		flags = to_book3s(vcpu)->prog_flags;
 		break;
 	case BOOK3S_IRQPRIO_VSX:
 		vec = BOOK3S_INTERRUPT_VSX;
@@ -237,7 +235,7 @@ int kvmppc_book3s_irqprio_deliver(struct kvm_vcpu *vcpu, unsigned int priority)
 #endif
 
 	if (deliver)
-		kvmppc_inject_interrupt(vcpu, vec, flags);
+		kvmppc_inject_interrupt(vcpu, vec, 0);
 
 	return deliver;
 }
