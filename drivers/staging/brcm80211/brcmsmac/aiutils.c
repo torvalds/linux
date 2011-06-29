@@ -2277,17 +2277,3 @@ bool ai_is_otp_disabled(struct si_pub *sih)
 		return false;
 	}
 }
-
-bool ai_is_otp_powered(struct si_pub *sih)
-{
-	if (PMUCTL_ENAB(sih))
-		return si_pmu_is_otp_powered(sih);
-	return true;
-}
-
-void ai_otp_power(struct si_pub *sih, bool on)
-{
-	if (PMUCTL_ENAB(sih))
-		si_pmu_otp_power(sih, on);
-	udelay(1000);
-}

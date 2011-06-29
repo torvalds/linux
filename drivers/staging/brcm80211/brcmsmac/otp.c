@@ -310,10 +310,7 @@ static void *ipxotp_init(struct si_pub *sih)
 	if (ai_is_otp_disabled(sih))
 		return NULL;
 
-	/* Make sure OTP is powered up */
-	if (!ai_is_otp_powered(sih))
-		return NULL;
-
+	/* OTP is always powered */
 	oi = &otpinfo;
 
 	/* Check for otp size */
@@ -518,15 +515,10 @@ void *otp_init(struct si_pub *sih)
 int
 otp_read_region(struct si_pub *sih, int region, u16 *data,
 				 uint *wlen) {
-	bool wasup = false;
 	void *oh;
 	int err = 0;
 
-	wasup = ai_is_otp_powered(sih);
-	if (!wasup)
-		ai_otp_power(sih, true);
-
-	if (!ai_is_otp_powered(sih) || ai_is_otp_disabled(sih)) {
+	if (ai_is_otp_disabled(sih)) {
 		err = -EPERM;
 		goto out;
 	}
@@ -540,9 +532,6 @@ otp_read_region(struct si_pub *sih, int region, u16 *data,
 	err = (((otpinfo_t *) oh)->fn->read_region) (oh, region, data, wlen);
 
  out:
-	if (!wasup)
-		ai_otp_power(sih, false);
-
 	return err;
 }
 

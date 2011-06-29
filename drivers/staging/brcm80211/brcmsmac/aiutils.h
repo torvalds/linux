@@ -558,8 +558,6 @@ extern u32 ai_gpiocontrol(struct si_pub *sih, u32 mask, u32 val,
 
 /* OTP status */
 extern bool ai_is_otp_disabled(struct si_pub *sih);
-extern bool ai_is_otp_powered(struct si_pub *sih);
-extern void ai_otp_power(struct si_pub *sih, bool on);
 
 /* SPROM availability */
 extern bool ai_is_sprom_available(struct si_pub *sih);
