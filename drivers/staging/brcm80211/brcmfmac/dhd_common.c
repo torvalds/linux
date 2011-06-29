@@ -35,11 +35,6 @@ int dhd_msg_level;
 char fw_path[MOD_PARAM_PATHLEN];
 char nv_path[MOD_PARAM_PATHLEN];
 
-/* Last connection success/failure status */
-u32 dhd_conn_event;
-u32 dhd_conn_status;
-u32 dhd_conn_reason;
-
 extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
 			    uint len);
 extern void dhd_ind_scan_confirm(void *h, bool status);
