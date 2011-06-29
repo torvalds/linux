@@ -37,8 +37,14 @@ static struct hw_pci shark_pci __initdata = {
 
 static int __init shark_pci_init(void)
 {
-	if (machine_is_shark())
-		pci_common_init(&shark_pci);
+	if (!machine_is_shark())
+		return;
+
+	pcibios_min_io = 0x6000;
+	pcibios_min_mem = 0x50000000;
+
+	pci_common_init(&shark_pci);
+
 	return 0;
 }
 

@@ -227,6 +227,9 @@ static void __init ixp23xx_pci_common_init(void)
 
 void __init ixp23xx_pci_preinit(void)
 {
+	pcibios_min_io = 0;
+	pcibios_min_mem = 0xe0000000;
+
 	pci_set_flags(0);
 
 	ixp23xx_pci_common_init();

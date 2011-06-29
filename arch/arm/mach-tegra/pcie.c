@@ -912,6 +912,8 @@ int __init tegra_pcie_init(bool init_port0, bool init_port1)
 	if (!(init_port0 || init_port1))
 		return -ENODEV;
 
+	pcibios_min_mem = 0;
+
 	err = tegra_pcie_get_resources();
 	if (err)
 		return err;
