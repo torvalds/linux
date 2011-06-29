@@ -20,6 +20,7 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/suspend.h>
+#include <linux/errno.h>
 
 #include <defs.h>
 #include <brcm_hw_ids.h>
@@ -174,7 +175,7 @@ extern int brcmf_sdioh_detach(struct sdioh_info *sd)
 
 		kfree(sd);
 	}
-	return SDIOH_API_RC_SUCCESS;
+	return 0;
 }
 
 /* Configure callback to client when we receive client interrupt */
@@ -186,7 +187,7 @@ brcmf_sdioh_interrupt_register(struct sdioh_info *sd, sdioh_cb_fn_t fn,
 	if (fn == NULL) {
 		sd_err(("%s: interrupt handler is NULL, not registering\n",
 			__func__));
-		return SDIOH_API_RC_FAIL;
+		return -EINVAL;
 	}
 
 	sd->intr_handler = fn;
@@ -206,7 +207,7 @@ brcmf_sdioh_interrupt_register(struct sdioh_info *sd, sdioh_cb_fn_t fn,
 		sdio_release_host(gInstance->func[1]);
 	}
 
-	return SDIOH_API_RC_SUCCESS;
+	return 0;
 }
 
 extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *sd)
@@ -232,7 +233,7 @@ extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *sd)
 	sd->intr_handler = NULL;
 	sd->intr_handler_arg = NULL;
 
-	return SDIOH_API_RC_SUCCESS;
+	return 0;
 }
 
 extern int
@@ -240,7 +241,7 @@ brcmf_sdioh_interrupt_query(struct sdioh_info *sd, bool *onoff)
 {
 	sd_trace(("%s: Entering\n", __func__));
 	*onoff = sd->client_intr_enabled;
-	return SDIOH_API_RC_SUCCESS;
+	return 0;
 }
 
 #if defined(BCMDBG)
@@ -501,7 +502,7 @@ brcmf_sdioh_cis_read(struct sdioh_info *sd, uint func, u8 *cisd, u32 length)
 	if (!sd->func_cis_ptr[func]) {
 		memset(cis, 0, length);
 		sd_err(("%s: no func_cis_ptr[%d]\n", __func__, func));
-		return SDIOH_API_RC_FAIL;
+		return -ENOTSUPP;
 	}
 
 	sd_err(("%s: func_cis_ptr[%d]=0x%04x\n", __func__, func,
@@ -512,14 +513,14 @@ brcmf_sdioh_cis_read(struct sdioh_info *sd, uint func, u8 *cisd, u32 length)
 		if (brcmf_sdioh_card_regread(sd, 0, offset, 1, &foo) < 0) {
 			sd_err(("%s: regread failed: Can't read CIS\n",
 				__func__));
-			return SDIOH_API_RC_FAIL;
+			return -EIO;
 		}
 
 		*cis = (u8) (foo & 0xff);
 		cis++;
 	}
 
-	return SDIOH_API_RC_SUCCESS;
+	return 0;
 }
 
 extern int
@@ -532,7 +533,7 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 		 regaddr));
 
 	BRCMF_PM_RESUME_WAIT(sdioh_request_byte_wait);
-	BRCMF_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
+	BRCMF_PM_RESUME_RETURN_ERROR(-EIO);
 	if (rw) {		/* CMD52 Write */
 		if (func == 0) {
 			/* Can only directly write to some F0 registers.
@@ -616,25 +617,25 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 			"Err: %d\n", rw ? "Write" : "Read", func, regaddr,
 			*byte, err_ret));
 
-	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
+	return err_ret;
 }
 
 extern int
 brcmf_sdioh_request_word(struct sdioh_info *sd, uint cmd_type, uint rw,
 			 uint func, uint addr, u32 *word, uint nbytes)
 {
-	int err_ret = SDIOH_API_RC_FAIL;
+	int err_ret = -EIO;
 
 	if (func == 0) {
 		sd_err(("%s: Only CMD52 allowed to F0.\n", __func__));
-		return SDIOH_API_RC_FAIL;
+		return -EINVAL;
 	}
 
 	sd_info(("%s: cmd_type=%d, rw=%d, func=%d, addr=0x%05x, nbytes=%d\n",
 		 __func__, cmd_type, rw, func, addr, nbytes));
 
 	BRCMF_PM_RESUME_WAIT(sdioh_request_word_wait);
-	BRCMF_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
+	BRCMF_PM_RESUME_RETURN_ERROR(-EIO);
 	/* Claim host controller */
 	sdio_claim_host(gInstance->func[func]);
 
@@ -669,7 +670,7 @@ brcmf_sdioh_request_word(struct sdioh_info *sd, uint cmd_type, uint rw,
 			rw ? "Write" : "Read", err_ret));
 	}
 
-	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
+	return err_ret;
 }
 
 static int
@@ -686,7 +687,7 @@ brcmf_sdioh_request_packet(struct sdioh_info *sd, uint fix_inc, uint write,
 
 	ASSERT(pkt);
 	BRCMF_PM_RESUME_WAIT(sdioh_request_packet_wait);
-	BRCMF_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
+	BRCMF_PM_RESUME_RETURN_ERROR(-EIO);
 
 	/* Claim host controller */
 	sdio_claim_host(gInstance->func[func]);
@@ -743,7 +744,7 @@ brcmf_sdioh_request_packet(struct sdioh_info *sd, uint fix_inc, uint write,
 	sdio_release_host(gInstance->func[func]);
 
 	sd_trace(("%s: Exit\n", __func__));
-	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
+	return err_ret;
 }
 
 /*
@@ -772,7 +773,7 @@ brcmf_sdioh_request_buffer(struct sdioh_info *sd, uint pio_dma, uint fix_inc,
 	sd_trace(("%s: Enter\n", __func__));
 
 	BRCMF_PM_RESUME_WAIT(sdioh_request_buffer_wait);
-	BRCMF_PM_RESUME_RETURN_ERROR(SDIOH_API_RC_FAIL);
+	BRCMF_PM_RESUME_RETURN_ERROR(-EIO);
 	/* Case 1: we don't have a packet. */
 	if (pkt == NULL) {
 		sd_data(("%s: Creating new %s Packet, len=%d\n",
@@ -781,7 +782,7 @@ brcmf_sdioh_request_buffer(struct sdioh_info *sd, uint pio_dma, uint fix_inc,
 		if (!mypkt) {
 			sd_err(("%s: brcmu_pkt_buf_get_skb failed: len %d\n",
 				__func__, buflen_u));
-			return SDIOH_API_RC_FAIL;
+			return -EIO;
 		}
 
 		/* For a write, copy the buffer data into the packet. */
@@ -808,7 +809,7 @@ brcmf_sdioh_request_buffer(struct sdioh_info *sd, uint pio_dma, uint fix_inc,
 		if (!mypkt) {
 			sd_err(("%s: brcmu_pkt_buf_get_skb failed: len %d\n",
 				__func__, pkt->len));
-			return SDIOH_API_RC_FAIL;
+			return -EIO;
 		}
 
 		/* For a write, copy the buffer data into the packet. */
@@ -845,7 +846,7 @@ extern int brcmf_sdioh_abort(struct sdioh_info *sd, uint func)
 			   &t_func);
 
 	sd_trace(("%s: Exit\n", __func__));
-	return SDIOH_API_RC_SUCCESS;
+	return 0;
 }
 
 /* Reset and re-initialize the device */
@@ -853,7 +854,7 @@ int brcmf_sdioh_reset(struct sdioh_info *si)
 {
 	sd_trace(("%s: Enter\n", __func__));
 	sd_trace(("%s: Exit\n", __func__));
-	return SDIOH_API_RC_SUCCESS;
+	return 0;
 }
 
 /* Disable device interrupt */

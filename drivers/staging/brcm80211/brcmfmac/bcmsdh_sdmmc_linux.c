@@ -20,6 +20,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
+#include <linux/errno.h>
 #include <net/cfg80211.h>
 
 #include <defs.h>
@@ -219,7 +220,7 @@ int brcmf_sdioh_interrupt_set(struct sdioh_info *sd, bool enable)
 	if (enable && !(sd->intr_handler && sd->intr_handler_arg)) {
 		sd_err(("%s: no handler registered, will not enable\n",
 			__func__));
-		return SDIOH_API_RC_FAIL;
+		return -EINVAL;
 	}
 
 	/* Ensure atomicity for enable/disable calls */
@@ -233,7 +234,7 @@ int brcmf_sdioh_interrupt_set(struct sdioh_info *sd, bool enable)
 
 	spin_unlock_irqrestore(&sdos->lock, flags);
 
-	return SDIOH_API_RC_SUCCESS;
+	return 0;
 }
 
 /*

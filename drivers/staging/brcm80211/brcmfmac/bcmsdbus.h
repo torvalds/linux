@@ -19,10 +19,6 @@
 
 #include "sdio_host.h"
 
-#define SDIOH_API_RC_SUCCESS                          (0x00)
-#define SDIOH_API_RC_FAIL	                      (0x01)
-#define SDIOH_API_SUCCESS(status) (status == 0)
-
 #define SDIOH_READ              0	/* Read request */
 #define SDIOH_WRITE             1	/* Write request */
 

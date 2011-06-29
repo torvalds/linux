@@ -105,7 +105,7 @@ bool brcmf_sdcard_intr_query(void *sdh)
 
 	ASSERT(bcmsdh);
 	status = brcmf_sdioh_interrupt_query(bcmsdh->sdioh, &on);
-	if (SDIOH_API_SUCCESS(status))
+	if (status == 0)
 		return false;
 	else
 		return on;
@@ -114,41 +114,33 @@ bool brcmf_sdcard_intr_query(void *sdh)
 int brcmf_sdcard_intr_enable(void *sdh)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	int status;
 	ASSERT(bcmsdh);
 
-	status = brcmf_sdioh_interrupt_set(bcmsdh->sdioh, true);
-	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
+	return brcmf_sdioh_interrupt_set(bcmsdh->sdioh, true);
 }
 
 int brcmf_sdcard_intr_disable(void *sdh)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	int status;
 	ASSERT(bcmsdh);
 
-	status = brcmf_sdioh_interrupt_set(bcmsdh->sdioh, false);
-	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
+	return brcmf_sdioh_interrupt_set(bcmsdh->sdioh, false);
 }
 
 int brcmf_sdcard_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	int status;
 	ASSERT(bcmsdh);
 
-	status = brcmf_sdioh_interrupt_register(bcmsdh->sdioh, fn, argh);
-	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
+	return brcmf_sdioh_interrupt_register(bcmsdh->sdioh, fn, argh);
 }
 
 int brcmf_sdcard_intr_dereg(void *sdh)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	int status;
 	ASSERT(bcmsdh);
 
-	status = brcmf_sdioh_interrupt_deregister(bcmsdh->sdioh);
-	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
+	return brcmf_sdioh_interrupt_deregister(bcmsdh->sdioh);
 }
 
 #if defined(BCMDBG)
@@ -192,11 +184,11 @@ u8 brcmf_sdcard_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
 		    brcmf_sdioh_cfg_read(bcmsdh->sdioh, fnc_num, addr,
 				   (u8 *) &data);
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
-	} while (!SDIOH_API_SUCCESS(status)
+	} while (status != 0
 		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
 #endif
 	if (err)
-		*err = (SDIOH_API_SUCCESS(status) ? 0 : -EIO);
+		*err = status;
 
 	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, u8data = 0x%x\n",
 		     __func__, fnc_num, addr, data));
@@ -227,11 +219,11 @@ brcmf_sdcard_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
 		    brcmf_sdioh_cfg_write(bcmsdh->sdioh, fnc_num, addr,
 				    (u8 *) &data);
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
-	} while (!SDIOH_API_SUCCESS(status)
+	} while (status != 0
 		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
 #endif
 	if (err)
-		*err = SDIOH_API_SUCCESS(status) ? 0 : -EIO;
+		*err = status;
 
 	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, u8data = 0x%x\n",
 		     __func__, fnc_num, addr, data));
@@ -252,7 +244,7 @@ u32 brcmf_sdcard_cfg_read_word(void *sdh, uint fnc_num, u32 addr, int *err)
 		SDIOH_READ, fnc_num, addr, &data, 4);
 
 	if (err)
-		*err = (SDIOH_API_SUCCESS(status) ? 0 : -EIO);
+		*err = status;
 
 	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, u32data = 0x%x\n",
 		     __func__, fnc_num, addr, data));
@@ -277,7 +269,7 @@ brcmf_sdcard_cfg_write_word(void *sdh, uint fnc_num, u32 addr, u32 data,
 			       SDIOH_WRITE, fnc_num, addr, &data, 4);
 
 	if (err)
-		*err = (SDIOH_API_SUCCESS(status) ? 0 : -EIO);
+		*err = status;
 
 	BCMSDH_INFO(("%s:fun = %d, addr = 0x%x, u32data = 0x%x\n",
 		     __func__, fnc_num, addr, data));
@@ -320,7 +312,7 @@ int brcmf_sdcard_cis_read(void *sdh, uint func, u8 * cis, uint length)
 		kfree(tmp_buf);
 	}
 
-	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
+	return status;
 }
 
 static int brcmf_sdcard_set_sbaddr_window(void *sdh, u32 address)
@@ -371,12 +363,12 @@ u32 brcmf_sdcard_reg_read(void *sdh, u32 addr, uint size)
 	status = brcmf_sdioh_request_word(bcmsdh->sdioh, SDIOH_CMD_TYPE_NORMAL,
 				    SDIOH_READ, SDIO_FUNC_1, addr, &word, size);
 
-	bcmsdh->regfail = !(SDIOH_API_SUCCESS(status));
+	bcmsdh->regfail = (status != 0);
 
 	BCMSDH_INFO(("u32data = 0x%x\n", word));
 
 	/* if ok, return appropriately masked word */
-	if (SDIOH_API_SUCCESS(status)) {
+	if (status == 0) {
 		switch (size) {
 		case sizeof(u8):
 			return word & 0xff;
@@ -425,9 +417,9 @@ u32 brcmf_sdcard_reg_write(void *sdh, u32 addr, uint size, u32 data)
 	status =
 	    brcmf_sdioh_request_word(bcmsdh->sdioh, SDIOH_CMD_TYPE_NORMAL,
 			       SDIOH_WRITE, SDIO_FUNC_1, addr, &data, size);
-	bcmsdh->regfail = !(SDIOH_API_SUCCESS(status));
+	bcmsdh->regfail = (status != 0);
 
-	if (SDIOH_API_SUCCESS(status))
+	if (status == 0)
 		return 0;
 
 	BCMSDH_ERROR(("%s: error writing 0x%08x to addr 0x%04x size %d\n",
@@ -480,7 +472,7 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio *bcmsdh, u32 addr, uint fn, uint flags,
 	status = brcmf_sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO,
 		incr_fix, SDIOH_READ, fn, addr, width, nbytes, buf, pkt);
 
-	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
+	return status;
 }
 
 int
@@ -489,7 +481,6 @@ brcmf_sdcard_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 		bcmsdh_cmplt_fn_t complete, void *handle)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	int status;
 	uint incr_fix;
 	uint width;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
@@ -521,16 +512,13 @@ brcmf_sdcard_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 	if (width == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	status = brcmf_sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO,
+	return brcmf_sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO,
 		incr_fix, SDIOH_WRITE, fn, addr, width, nbytes, buf, pkt);
-
-	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 }
 
 int brcmf_sdcard_rwdata(void *sdh, uint rw, u32 addr, u8 *buf, uint nbytes)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;
-	int status;
 
 	ASSERT(bcmsdh);
 	ASSERT(bcmsdh->init_success);
@@ -539,11 +527,9 @@ int brcmf_sdcard_rwdata(void *sdh, uint rw, u32 addr, u8 *buf, uint nbytes)
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	status = brcmf_sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO,
+	return brcmf_sdioh_request_buffer(bcmsdh->sdioh, SDIOH_DATA_PIO,
 		SDIOH_DATA_INC, (rw ? SDIOH_WRITE : SDIOH_READ), SDIO_FUNC_1,
 		addr, 4, nbytes, buf, NULL);
-
-	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 }
 
 int brcmf_sdcard_abort(void *sdh, uint fn)
