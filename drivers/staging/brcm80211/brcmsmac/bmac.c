@@ -349,7 +349,7 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 
 	/* TX FIFO suspend/flush completion */
 	if (macintstatus & MI_TXSTOP)
-		if (brcms_b_tx_fifo_suspended(wlc_hw, TX_DATA_FIFO));
+		brcms_b_tx_fifo_suspended(wlc_hw, TX_DATA_FIFO);
 
 	/* noise sample collected */
 	if (macintstatus & MI_BG_NOISE) {
