@@ -40,37 +40,42 @@
 #define MSR_NOIRQ		MSR_KERNEL & ~(MSR_IR | MSR_DR)
 #define FUNC(name) 		GLUE(.,name)
 
-#elif defined(CONFIG_PPC_BOOK3S_32)
+kvmppc_skip_interrupt:
+	/*
+	 * Here all GPRs are unchanged from when the interrupt happened
+	 * except for r13, which is saved in SPRG_SCRATCH0.
+	 */
+	mfspr	r13, SPRN_SRR0
+	addi	r13, r13, 4
+	mtspr	SPRN_SRR0, r13
+	GET_SCRATCH0(r13)
+	rfid
+	b	.
 
-#define LOAD_SHADOW_VCPU(reg)						\
-	mfspr	reg, SPRN_SPRG_THREAD;					\
-	lwz	reg, THREAD_KVM_SVCPU(reg);				\
-	/* PPC32 can have a NULL pointer - let's check for that */	\
-	mtspr   SPRN_SPRG_SCRATCH1, r12;	/* Save r12 */		\
-	mfcr	r12;							\
-	cmpwi	reg, 0;							\
-	bne	1f;							\
-	mfspr	reg, SPRN_SPRG_SCRATCH0;				\
-	mtcr	r12;							\
-	mfspr	r12, SPRN_SPRG_SCRATCH1;				\
-	b	kvmppc_resume_\intno;					\
-1:;									\
-	mtcr	r12;							\
-	mfspr	r12, SPRN_SPRG_SCRATCH1;				\
-	tophys(reg, reg)
+kvmppc_skip_Hinterrupt:
+	/*
+	 * Here all GPRs are unchanged from when the interrupt happened
+	 * except for r13, which is saved in SPRG_SCRATCH0.
+	 */
+	mfspr	r13, SPRN_HSRR0
+	addi	r13, r13, 4
+	mtspr	SPRN_HSRR0, r13
+	GET_SCRATCH0(r13)
+	hrfid
+	b	.
+
+#elif defined(CONFIG_PPC_BOOK3S_32)
 
 #define SHADOW_VCPU_OFF		0
 #define MSR_NOIRQ		MSR_KERNEL
 #define FUNC(name)		name
-
-#endif
 
 .macro INTERRUPT_TRAMPOLINE intno
 
 .global kvmppc_trampoline_\intno
 kvmppc_trampoline_\intno:
 
-	SET_SCRATCH0(r13)		/* Save r13 */
+	mtspr	SPRN_SPRG_SCRATCH0, r13		/* Save r13 */
 
 	/*
 	 * First thing to do is to find out if we're coming
@@ -78,19 +83,28 @@ kvmppc_trampoline_\intno:
 	 *
 	 * To distinguish, we check a magic byte in the PACA/current
 	 */
-	LOAD_SHADOW_VCPU(r13)
-	PPC_STL	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
+	mfspr	r13, SPRN_SPRG_THREAD
+	lwz	r13, THREAD_KVM_SVCPU(r13)
+	/* PPC32 can have a NULL pointer - let's check for that */
+	mtspr   SPRN_SPRG_SCRATCH1, r12		/* Save r12 */
 	mfcr	r12
+	cmpwi	r13, 0
+	bne	1f
+2:	mtcr	r12
+	mfspr	r12, SPRN_SPRG_SCRATCH1
+	mfspr	r13, SPRN_SPRG_SCRATCH0		/* r13 = original r13 */
+	b	kvmppc_resume_\intno		/* Get back original handler */
+
+1:	tophys(r13, r13)
 	stw	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
+	mfspr	r12, SPRN_SPRG_SCRATCH1
+	stw	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
 	lbz	r12, (SHADOW_VCPU_OFF + SVCPU_IN_GUEST)(r13)
 	cmpwi	r12, KVM_GUEST_MODE_NONE
 	bne	..kvmppc_handler_hasmagic_\intno
 	/* No KVM guest? Then jump back to the Linux handler! */
 	lwz	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
-	mtcr	r12
-	PPC_LL	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
-	GET_SCRATCH0(r13)			/* r13 = original r13 */
-	b	kvmppc_resume_\intno		/* Get back original handler */
+	b	2b
 
 	/* Now we know we're handling a KVM guest */
 ..kvmppc_handler_hasmagic_\intno:
@@ -112,9 +126,6 @@ INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_MACHINE_CHECK
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_DATA_STORAGE
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_INST_STORAGE
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_EXTERNAL
-#ifdef CONFIG_PPC_BOOK3S_64
-INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_EXTERNAL_HV
-#endif
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_ALIGNMENT
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_PROGRAM
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_FP_UNAVAIL
@@ -123,14 +134,6 @@ INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_SYSCALL
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_TRACE
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_PERFMON
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_ALTIVEC
-
-/* Those are only available on 64 bit machines */
-
-#ifdef CONFIG_PPC_BOOK3S_64
-INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_DATA_SEGMENT
-INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_INST_SEGMENT
-INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_VSX
-#endif
 
 /*
  * Bring us back to the faulting code, but skip the
@@ -163,6 +166,7 @@ kvmppc_handler_skip_ins:
 
 	/* And get back into the code */
 	RFI
+#endif
 
 /*
  * This trampoline brings us back to a real mode handler

@@ -125,6 +125,9 @@ kvmppc_handler_trampoline_enter_end:
 .global kvmppc_handler_trampoline_exit
 kvmppc_handler_trampoline_exit:
 
+.global kvmppc_interrupt
+kvmppc_interrupt:
+
 	/* Register usage at this point:
 	 *
 	 * SPRG_SCRATCH0  = guest R13
@@ -155,12 +158,16 @@ kvmppc_handler_trampoline_exit:
 	PPC_LL	r2, (SHADOW_VCPU_OFF + SVCPU_HOST_R2)(r13)
 
 	/* Save guest PC and MSR */
+#ifdef CONFIG_PPC64
+BEGIN_FTR_SECTION
 	andi.	r0,r12,0x2
 	beq	1f
 	mfspr	r3,SPRN_HSRR0
 	mfspr	r4,SPRN_HSRR1
 	andi.	r12,r12,0x3ffd
 	b	2f
+END_FTR_SECTION_IFSET(CPU_FTR_HVMODE_206)
+#endif
 1:	mfsrr0	r3
 	mfsrr1	r4
 2:
