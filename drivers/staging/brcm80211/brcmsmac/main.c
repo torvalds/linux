@@ -224,7 +224,7 @@ const u8 prio2fifo[NUMPRIO] = {
 #define	_WLC_PREC_NC		14	/* NC - Network Control */
 
 #define MAXMACLIST		64	/* max # source MAC matches */
-#define BCN_TEMPLATE_COUNT 	2
+#define BCN_TEMPLATE_COUNT	2
 
 #define WLC_BSSCFG_HW_BCN	0x20	/* The BSS is generating beacons in HW */
 
@@ -856,7 +856,7 @@ ratespec_t brcms_c_lowest_basic_rspec(struct brcms_c_info *wlc,
 /* This function changes the phytxctl for beacon based on current beacon ratespec AND txant
  * setting as per this table:
  *  ratespec     CCK		ant = wlc->stf->txant
- *  		OFDM		ant = 3
+ *		OFDM		ant = 3
  */
 void brcms_c_beacon_phytxctl_txant_upd(struct brcms_c_info *wlc,
 				       ratespec_t bcn_rspec)
@@ -1356,7 +1356,7 @@ struct wlc_pub *brcms_c_pub(void *wlc)
 	return ((struct brcms_c_info *) wlc)->pub;
 }
 
-#define CHIP_SUPPORTS_11N(wlc) 	1
+#define CHIP_SUPPORTS_11N(wlc)	1
 
 /*
  * The common driver entry routine. Error codes should be unique

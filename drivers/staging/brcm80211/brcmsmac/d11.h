@@ -1148,25 +1148,25 @@ struct tx_status {
 #define M_TX_IDLE_BUSY_RATIO_X_16_OFDM (0x5A * 2)
 
 /* CW RSSI for LCNPHY */
-#define M_LCN_RSSI_0 		0x1332
-#define M_LCN_RSSI_1 		0x1338
-#define M_LCN_RSSI_2 		0x133e
-#define M_LCN_RSSI_3 		0x1344
+#define M_LCN_RSSI_0		0x1332
+#define M_LCN_RSSI_1		0x1338
+#define M_LCN_RSSI_2		0x133e
+#define M_LCN_RSSI_3		0x1344
 
 /* SNR for LCNPHY */
-#define M_LCN_SNR_A_0 	0x1334
-#define M_LCN_SNR_B_0 	0x1336
+#define M_LCN_SNR_A_0	0x1334
+#define M_LCN_SNR_B_0	0x1336
 
-#define M_LCN_SNR_A_1 	0x133a
-#define M_LCN_SNR_B_1 	0x133c
+#define M_LCN_SNR_A_1	0x133a
+#define M_LCN_SNR_B_1	0x133c
 
-#define M_LCN_SNR_A_2 	0x1340
-#define M_LCN_SNR_B_2 	0x1342
+#define M_LCN_SNR_A_2	0x1340
+#define M_LCN_SNR_B_2	0x1342
 
-#define M_LCN_SNR_A_3 	0x1346
-#define M_LCN_SNR_B_3 	0x1348
+#define M_LCN_SNR_A_3	0x1346
+#define M_LCN_SNR_B_3	0x1348
 
-#define M_LCN_LAST_RESET 	(81*2)
+#define M_LCN_LAST_RESET	(81*2)
 #define M_LCN_LAST_LOC	(63*2)
 #define M_LCNPHY_RESET_STATUS (4902)
 #define M_LCNPHY_DSC_TIME	(0x98d*2)
@@ -1279,7 +1279,7 @@ struct shm_acparams {
 
 /* Flags in M_HOST_FLAGS4 */
 #define MHF4_BPHY_TXCORE0	0x0080	/* force bphy Tx on core 0 (board level WAR) */
-#define MHF4_EXTPA_ENABLE  	0x4000	/* for 4313A0 FEM boards */
+#define MHF4_EXTPA_ENABLE	0x4000	/* for 4313A0 FEM boards */
 
 /* Flags in M_HOST_FLAGS5 */
 #define MHF5_4313_GPIOCTRL	0x0001
@@ -1673,7 +1673,7 @@ struct macstat {
 #define	BPHY_PEAK_ENERGY_HI	0x34
 #define	BPHY_SYNC_CTL		0x35
 #define	BPHY_TX_PWR_CTRL	0x36
-#define BPHY_TX_EST_PWR 	0x37
+#define BPHY_TX_EST_PWR		0x37
 #define	BPHY_STEP		0x38
 #define	BPHY_WARMUP		0x39
 #define	BPHY_LMS_CFF_READ	0x3a

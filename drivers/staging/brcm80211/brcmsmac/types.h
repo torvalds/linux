@@ -96,7 +96,7 @@
 					 *      2       4330a0
 					 */
 
-#define SSLPNCONF 	0x0000000f	/* Supported sslpnphy revs:
+#define SSLPNCONF	0x0000000f	/* Supported sslpnphy revs:
 					 *      0       4329a0/k0
 					 *      1       4329b0/4329C0
 					 *      2       4319a0

@@ -80,9 +80,9 @@
 #define PHY_MUTE_FOR_PREISM	1
 #define PHY_MUTE_ALL		0xffffffff
 
-#define PHY_NOISE_FIXED_VAL 		(-95)
-#define PHY_NOISE_FIXED_VAL_NPHY       	(-92)
-#define PHY_NOISE_FIXED_VAL_LCNPHY     	(-92)
+#define PHY_NOISE_FIXED_VAL		(-95)
+#define PHY_NOISE_FIXED_VAL_NPHY	(-92)
+#define PHY_NOISE_FIXED_VAL_LCNPHY	(-92)
 
 #define PHY_MODE_CAL		0x0002
 #define PHY_MODE_NOISEM		0x0004

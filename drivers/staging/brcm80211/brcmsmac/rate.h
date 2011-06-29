@@ -84,7 +84,7 @@ extern const mcs_info_t mcs_table[];
 #define WLC_HTPHY		127	/* HT PHY Membership */
 
 #define RSPEC_ACTIVE(rspec)	(rspec & (RSPEC_RATE_MASK | RSPEC_MIMORATE))
-#define RSPEC2RATE(rspec)      	((rspec & RSPEC_MIMORATE) ? \
+#define RSPEC2RATE(rspec)	((rspec & RSPEC_MIMORATE) ? \
 	MCS_RATE((rspec & RSPEC_RATE_MASK), RSPEC_IS40MHZ(rspec), RSPEC_ISSGI(rspec)) : \
 	(rspec & RSPEC_RATE_MASK))
 /* return rate in unit of 500Kbps -- for internal use in wlc_rate_sel.c */
@@ -111,8 +111,8 @@ extern const mcs_info_t mcs_table[];
 #define PLCP3_STC_SHIFT         4
 
 /* Rate info table; takes a legacy rate or ratespec_t */
-#define	IS_MCS(r)     	(r & RSPEC_MIMORATE)
-#define	IS_OFDM(r)     	(!IS_MCS(r) && (rate_info[(r) & RSPEC_RATE_MASK] & WLC_RATE_FLAG))
+#define	IS_MCS(r)	(r & RSPEC_MIMORATE)
+#define	IS_OFDM(r)	(!IS_MCS(r) && (rate_info[(r) & RSPEC_RATE_MASK] & WLC_RATE_FLAG))
 #define	IS_CCK(r)	(!IS_MCS(r) && ( \
 			 ((r) & WLC_RATE_MASK) == WLC_RATE_1M || \
 			 ((r) & WLC_RATE_MASK) == WLC_RATE_2M || \

@@ -129,9 +129,9 @@ struct dhd_info;
 #define  CCA_FLAG_5G_ONLY		0x02	/* Return a channel from 2.4 Ghz band */
 #define  CCA_FLAG_IGNORE_DURATION	0x04	/* Ignore dwell time for each channel */
 #define  CCA_FLAGS_PREFER_1_6_11	0x10
-#define  CCA_FLAG_IGNORE_INTERFER 	0x20	/* do not exlude channel based on interfer level */
+#define  CCA_FLAG_IGNORE_INTERFER	0x20	/* do not exlude channel based on interfer level */
 
-#define CCA_ERRNO_BAND 		1	/* After filtering for band pref, no choices left */
+#define CCA_ERRNO_BAND		1	/* After filtering for band pref, no choices left */
 #define CCA_ERRNO_DURATION	2	/* After filtering for duration, no choices left */
 #define CCA_ERRNO_PREF_CHAN	3	/* After filtering for chan pref, no choices left */
 #define CCA_ERRNO_INTERFER	4	/* After filtering for interference, no choices left */
@@ -273,8 +273,8 @@ typedef struct bcm_event {
 #define WLC_E_DFS_AP_RESUME	66
 #define WLC_E_RESERVED1		67
 #define WLC_E_RESERVED2		68
-#define WLC_E_ESCAN_RESULT 	69
-#define WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE 	70
+#define WLC_E_ESCAN_RESULT	69
+#define WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE	70
 #define WLC_E_DCS_REQUEST 73
 
 #define WLC_E_FIFO_CREDIT_MAP	74
@@ -518,7 +518,7 @@ typedef struct wl_assoc_params {
 				 */
 	chanspec_t chanspec_list[1];	/* list of chanspecs */
 } wl_assoc_params_t;
-#define WL_ASSOC_PARAMS_FIXED_SIZE 	(sizeof(wl_assoc_params_t) - sizeof(chanspec_t))
+#define WL_ASSOC_PARAMS_FIXED_SIZE	(sizeof(wl_assoc_params_t) - sizeof(chanspec_t))
 
 /* used for reassociation/roam to a specific BSSID and channel */
 typedef wl_assoc_params_t wl_reassoc_params_t;
@@ -531,7 +531,7 @@ typedef struct wl_join_params {
 					 * of the wl_assoc_params_t struct when it does present.
 					 */
 } wl_join_params_t;
-#define WL_JOIN_PARAMS_FIXED_SIZE 	(sizeof(wl_join_params_t) - sizeof(chanspec_t))
+#define WL_JOIN_PARAMS_FIXED_SIZE	(sizeof(wl_join_params_t) - sizeof(chanspec_t))
 
 /* size of wl_scan_results not including variable length array */
 #define WL_SCAN_RESULTS_FIXED_SIZE (sizeof(wl_scan_results_t) - sizeof(wl_bss_info_t))

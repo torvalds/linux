@@ -322,13 +322,13 @@ static void wl_set_mpc(struct net_device *ndev, int mpc);
 static int wl_debugfs_add_netdev_params(struct wl_priv *wl);
 static void wl_debugfs_remove_netdev(struct wl_priv *wl);
 
-#define WL_PRIV_GET() 							\
+#define WL_PRIV_GET()							\
 	({								\
 	struct wl_iface *ci = wl_get_drvdata(wl_cfg80211_dev);		\
 	if (unlikely(!ci)) {						\
 		WL_ERR("wl_cfg80211_dev is unavailable\n");		\
 		BUG();							\
-	} 								\
+	}								\
 	ci_to_wl(ci);							\
 })
 

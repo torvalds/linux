@@ -20,7 +20,7 @@
 #ifdef SI_ENUM_BASE_VARIABLE
 #define SI_ENUM_BASE		(sii->pub.si_enum_base)
 #else
-#define SI_ENUM_BASE    	0x18000000	/* Enumeration space base */
+#define SI_ENUM_BASE		0x18000000	/* Enumeration space base */
 #endif				/* SI_ENUM_BASE_VARIABLE */
 
 /* core codes */

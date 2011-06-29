@@ -42,7 +42,7 @@ extern const uint bcmsdh_msglevel;
 #define SDIO_FUNC_1		1
 #define SDIO_FUNC_2		2
 
-#define SDIOD_FBR_SIZE  	0x100
+#define SDIOD_FBR_SIZE		0x100
 
 /* io_en */
 #define SDIO_FUNC_ENABLE_1	0x02

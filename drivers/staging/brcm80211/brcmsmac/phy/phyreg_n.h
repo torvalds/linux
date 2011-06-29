@@ -123,13 +123,13 @@
 #define NPHY_REV3_RFSEQ_CMD_CLR_RXRX_BIAS	0xf
 #define NPHY_REV3_RFSEQ_CMD_END		0x1f
 
-#define NPHY_RSSI_SEL_W1 		0x0
-#define NPHY_RSSI_SEL_W2 		0x1
-#define NPHY_RSSI_SEL_NB 		0x2
-#define NPHY_RSSI_SEL_IQ 		0x3
-#define NPHY_RSSI_SEL_TSSI_2G 		0x4
-#define NPHY_RSSI_SEL_TSSI_5G 		0x5
-#define NPHY_RSSI_SEL_TBD 		0x6
+#define NPHY_RSSI_SEL_W1		0x0
+#define NPHY_RSSI_SEL_W2		0x1
+#define NPHY_RSSI_SEL_NB		0x2
+#define NPHY_RSSI_SEL_IQ		0x3
+#define NPHY_RSSI_SEL_TSSI_2G		0x4
+#define NPHY_RSSI_SEL_TSSI_5G		0x5
+#define NPHY_RSSI_SEL_TBD		0x6
 
 #define NPHY_RAIL_I			0x0
 #define NPHY_RAIL_Q			0x1

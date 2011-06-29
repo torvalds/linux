@@ -195,7 +195,7 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 
 /* ** driver/apps-shared section ** */
 
-#define BCME_STRLEN 		64	/* Max string length for BCM errors */
+#define BCME_STRLEN		64	/* Max string length for BCM errors */
 
 #ifndef ABS
 #define	ABS(a)			(((a) < 0) ? -(a) : (a))

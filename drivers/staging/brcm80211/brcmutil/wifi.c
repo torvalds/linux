@@ -129,4 +129,3 @@ int brcmu_mhz2channel(uint freq, uint start_factor)
 	return ch;
 }
 EXPORT_SYMBOL(brcmu_mhz2channel);
-

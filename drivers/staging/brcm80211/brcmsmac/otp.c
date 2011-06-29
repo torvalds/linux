@@ -460,8 +460,8 @@ static otp_fn_t ipxotp_fn = {
  *	otp_size()
  *	otp_read_bit()
  *	otp_init()
- * 	otp_read_region()
- * 	otp_nvread()
+ *	otp_read_region()
+ *	otp_nvread()
  */
 
 int otp_status(void *oh)

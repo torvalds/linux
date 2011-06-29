@@ -72,7 +72,7 @@ extern void sdioh_sdmmc_osfree(sdioh_info_t *sd);
 
 /* private bus modes */
 #define SDIOH_MODE_SD4		2
-#define CLIENT_INTR 		0x100	/* Get rid of this! */
+#define CLIENT_INTR		0x100	/* Get rid of this! */
 
 struct sdioh_info {
 	struct osl_info *osh;		/* osh handler */

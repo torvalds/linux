@@ -65,9 +65,9 @@
 #define	MDIODATA_BLK_ADDR		0x1F	/* blk address for serdes */
 
 /* serdes regs (rev < 10) */
-#define MDIODATA_DEV_PLL       		0x1d	/* SERDES PLL Dev */
-#define MDIODATA_DEV_TX        		0x1e	/* SERDES TX Dev */
-#define MDIODATA_DEV_RX        		0x1f	/* SERDES RX Dev */
+#define MDIODATA_DEV_PLL		0x1d	/* SERDES PLL Dev */
+#define MDIODATA_DEV_TX			0x1e	/* SERDES TX Dev */
+#define MDIODATA_DEV_RX			0x1f	/* SERDES RX Dev */
 
 	/* SERDES RX registers */
 #define SERDES_RX_CTRL			1	/* Rx cntrl */
@@ -100,8 +100,8 @@
 #define PCIE_ASPMTIMER_EXTEND		0x01000000	/* > rev7: enable extend ASPM timer */
 
 /* different register spaces to access thr'u pcie indirect access */
-#define PCIE_CONFIGREGS 	1	/* Access to config space */
-#define PCIE_PCIEREGS 		2	/* Access to pcie registers */
+#define PCIE_CONFIGREGS		1	/* Access to config space */
+#define PCIE_PCIEREGS		2	/* Access to pcie registers */
 
 /* PCIE protocol PHY diagnostic registers */
 #define	PCIE_PLP_STATUSREG		0x204	/* Status */

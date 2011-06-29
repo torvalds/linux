@@ -97,8 +97,8 @@ do {								\
 						 * for 2.6.33 kernel
 						 * or later
 						 */
-#define WL_SCAN_BUF_MAX 		(1024 * 8)
-#define WL_TLV_INFO_MAX 		1024
+#define WL_SCAN_BUF_MAX			(1024 * 8)
+#define WL_TLV_INFO_MAX			1024
 #define WL_BSS_INFO_MAX			2048
 #define WL_ASSOC_INFO_MAX	512	/*
 				 * needs to grab assoc info from dongle to
@@ -112,7 +112,7 @@ do {								\
 				 * to reduce iteration
 				 */
 #define WL_ISCAN_TIMER_INTERVAL_MS	3000
-#define WL_SCAN_ERSULTS_LAST 	(WL_SCAN_RESULTS_NO_MEM+1)
+#define WL_SCAN_ERSULTS_LAST	(WL_SCAN_RESULTS_NO_MEM+1)
 #define WL_AP_MAX	256	/* virtually unlimitted as long
 				 * as kernel memory allows
 				 */

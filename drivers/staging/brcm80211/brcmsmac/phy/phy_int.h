@@ -63,7 +63,7 @@ typedef void (*detachfn_t) (phy_info_t *);
 #undef ISNPHY
 #undef ISLCNPHY
 #define ISNPHY(pi)	PHYTYPE_IS((pi)->pubpi.phy_type, PHY_TYPE_N)
-#define ISLCNPHY(pi)  	PHYTYPE_IS((pi)->pubpi.phy_type, PHY_TYPE_LCN)
+#define ISLCNPHY(pi)	PHYTYPE_IS((pi)->pubpi.phy_type, PHY_TYPE_LCN)
 
 #define ISPHY_11N_CAP(pi)	(ISNPHY(pi) || ISLCNPHY(pi))
 
@@ -1092,7 +1092,7 @@ extern void wlc_phy_txpower_recalc_target(phy_info_t *pi);
 #define LCNPHY_TBL_ID_PAPDCOMPDELTATBL	0x18
 #define LCNPHY_TX_POWER_TABLE_SIZE	128
 #define LCNPHY_MAX_TX_POWER_INDEX	(LCNPHY_TX_POWER_TABLE_SIZE - 1)
-#define LCNPHY_TBL_ID_TXPWRCTL 	0x07
+#define LCNPHY_TBL_ID_TXPWRCTL	0x07
 #define LCNPHY_TX_PWR_CTRL_OFF	0
 #define LCNPHY_TX_PWR_CTRL_SW		(0x1 << 15)
 #define LCNPHY_TX_PWR_CTRL_HW         ((0x1 << 15) | \

@@ -50,7 +50,7 @@ struct scb_ampdu {
 	scb_ampdu_tid_ini_t ini[AMPDU_MAX_SCB_TID];	/* initiator info - per tid (NUMPRIO) */
 };
 
-#define SCB_MAGIC 	0xbeefcafe
+#define SCB_MAGIC	0xbeefcafe
 
 /* station control block - one per remote MAC address */
 struct scb {
