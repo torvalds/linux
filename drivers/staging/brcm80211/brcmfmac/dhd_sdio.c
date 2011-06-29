@@ -5567,11 +5567,9 @@ static void dhdsdio_release_malloc(dhd_bus_t *bus)
 	if (bus->dhd && bus->dhd->dongle_reset)
 		return;
 
-	if (bus->rxbuf) {
-		kfree(bus->rxbuf);
-		bus->rxctl = bus->rxbuf = NULL;
-		bus->rxlen = 0;
-	}
+	kfree(bus->rxbuf);
+	bus->rxctl = bus->rxbuf = NULL;
+	bus->rxlen = 0;
 
 	kfree(bus->databuf);
 	bus->databuf = NULL;
