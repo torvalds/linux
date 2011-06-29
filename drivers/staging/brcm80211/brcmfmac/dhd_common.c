@@ -111,7 +111,7 @@ void brcmf_c_init(void)
 	brcmf_msg_level = DHD_ERROR_VAL;
 }
 
-static int brcmf_c_dump(dhd_pub_t *dhdp, char *buf, int buflen)
+static int brcmf_c_dump(dhd_pub_t *drvr, char *buf, int buflen)
 {
 	struct brcmu_strbuf b;
 	struct brcmu_strbuf *strbuf = &b;
@@ -122,54 +122,54 @@ static int brcmf_c_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 	brcmu_bprintf(strbuf, "%s\n", brcmf_version);
 	brcmu_bprintf(strbuf, "\n");
 	brcmu_bprintf(strbuf, "pub.up %d pub.txoff %d pub.busstate %d\n",
-		    dhdp->up, dhdp->txoff, dhdp->busstate);
+		    drvr->up, drvr->txoff, drvr->busstate);
 	brcmu_bprintf(strbuf, "pub.hdrlen %d pub.maxctl %d pub.rxsz %d\n",
-		    dhdp->hdrlen, dhdp->maxctl, dhdp->rxsz);
+		    drvr->hdrlen, drvr->maxctl, drvr->rxsz);
 	brcmu_bprintf(strbuf, "pub.iswl %d pub.drv_version %ld pub.mac %pM\n",
-		    dhdp->iswl, dhdp->drv_version, &dhdp->mac);
-	brcmu_bprintf(strbuf, "pub.bcmerror %d tickcnt %d\n", dhdp->bcmerror,
-		    dhdp->tickcnt);
+		    drvr->iswl, drvr->drv_version, &drvr->mac);
+	brcmu_bprintf(strbuf, "pub.bcmerror %d tickcnt %d\n", drvr->bcmerror,
+		    drvr->tickcnt);
 
 	brcmu_bprintf(strbuf, "dongle stats:\n");
 	brcmu_bprintf(strbuf,
 		    "tx_packets %ld tx_bytes %ld tx_errors %ld tx_dropped %ld\n",
-		    dhdp->dstats.tx_packets, dhdp->dstats.tx_bytes,
-		    dhdp->dstats.tx_errors, dhdp->dstats.tx_dropped);
+		    drvr->dstats.tx_packets, drvr->dstats.tx_bytes,
+		    drvr->dstats.tx_errors, drvr->dstats.tx_dropped);
 	brcmu_bprintf(strbuf,
 		    "rx_packets %ld rx_bytes %ld rx_errors %ld rx_dropped %ld\n",
-		    dhdp->dstats.rx_packets, dhdp->dstats.rx_bytes,
-		    dhdp->dstats.rx_errors, dhdp->dstats.rx_dropped);
-	brcmu_bprintf(strbuf, "multicast %ld\n", dhdp->dstats.multicast);
+		    drvr->dstats.rx_packets, drvr->dstats.rx_bytes,
+		    drvr->dstats.rx_errors, drvr->dstats.rx_dropped);
+	brcmu_bprintf(strbuf, "multicast %ld\n", drvr->dstats.multicast);
 
 	brcmu_bprintf(strbuf, "bus stats:\n");
 	brcmu_bprintf(strbuf, "tx_packets %ld tx_multicast %ld tx_errors %ld\n",
-		    dhdp->tx_packets, dhdp->tx_multicast, dhdp->tx_errors);
+		    drvr->tx_packets, drvr->tx_multicast, drvr->tx_errors);
 	brcmu_bprintf(strbuf, "tx_ctlpkts %ld tx_ctlerrs %ld\n",
-		    dhdp->tx_ctlpkts, dhdp->tx_ctlerrs);
+		    drvr->tx_ctlpkts, drvr->tx_ctlerrs);
 	brcmu_bprintf(strbuf, "rx_packets %ld rx_multicast %ld rx_errors %ld\n",
-		    dhdp->rx_packets, dhdp->rx_multicast, dhdp->rx_errors);
+		    drvr->rx_packets, drvr->rx_multicast, drvr->rx_errors);
 	brcmu_bprintf(strbuf,
 		    "rx_ctlpkts %ld rx_ctlerrs %ld rx_dropped %ld rx_flushed %ld\n",
-		    dhdp->rx_ctlpkts, dhdp->rx_ctlerrs, dhdp->rx_dropped,
-		    dhdp->rx_flushed);
+		    drvr->rx_ctlpkts, drvr->rx_ctlerrs, drvr->rx_dropped,
+		    drvr->rx_flushed);
 	brcmu_bprintf(strbuf,
 		    "rx_readahead_cnt %ld tx_realloc %ld fc_packets %ld\n",
-		    dhdp->rx_readahead_cnt, dhdp->tx_realloc, dhdp->fc_packets);
-	brcmu_bprintf(strbuf, "wd_dpc_sched %ld\n", dhdp->wd_dpc_sched);
+		    drvr->rx_readahead_cnt, drvr->tx_realloc, drvr->fc_packets);
+	brcmu_bprintf(strbuf, "wd_dpc_sched %ld\n", drvr->wd_dpc_sched);
 	brcmu_bprintf(strbuf, "\n");
 
 	/* Add any prot info */
-	brcmf_proto_dump(dhdp, strbuf);
+	brcmf_proto_dump(drvr, strbuf);
 	brcmu_bprintf(strbuf, "\n");
 
 	/* Add any bus info */
-	brcmf_sdbrcm_bus_dump(dhdp, strbuf);
+	brcmf_sdbrcm_bus_dump(drvr, strbuf);
 
 	return !strbuf->size ? -EOVERFLOW : 0;
 }
 
 static int
-brcmf_c_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
+brcmf_c_doiovar(dhd_pub_t *drvr, const struct brcmu_iovar *vi, u32 actionid,
 	    const char *name, void *params, int plen, void *arg, int len,
 	    int val_size)
 {
@@ -207,25 +207,25 @@ brcmf_c_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 		break;
 
 	case IOV_GVAL(IOV_BCMERROR):
-		int_val = (s32) dhd_pub->bcmerror;
+		int_val = (s32) drvr->bcmerror;
 		memcpy(arg, &int_val, val_size);
 		break;
 
 	case IOV_GVAL(IOV_DUMP):
-		bcmerror = brcmf_c_dump(dhd_pub, arg, len);
+		bcmerror = brcmf_c_dump(drvr, arg, len);
 		break;
 
 	case IOV_SVAL(IOV_CLEARCOUNTS):
-		dhd_pub->tx_packets = dhd_pub->rx_packets = 0;
-		dhd_pub->tx_errors = dhd_pub->rx_errors = 0;
-		dhd_pub->tx_ctlpkts = dhd_pub->rx_ctlpkts = 0;
-		dhd_pub->tx_ctlerrs = dhd_pub->rx_ctlerrs = 0;
-		dhd_pub->rx_dropped = 0;
-		dhd_pub->rx_readahead_cnt = 0;
-		dhd_pub->tx_realloc = 0;
-		dhd_pub->wd_dpc_sched = 0;
-		memset(&dhd_pub->dstats, 0, sizeof(dhd_pub->dstats));
-		dhd_bus_clearcounts(dhd_pub);
+		drvr->tx_packets = drvr->rx_packets = 0;
+		drvr->tx_errors = drvr->rx_errors = 0;
+		drvr->tx_ctlpkts = drvr->rx_ctlpkts = 0;
+		drvr->tx_ctlerrs = drvr->rx_ctlerrs = 0;
+		drvr->rx_dropped = 0;
+		drvr->rx_readahead_cnt = 0;
+		drvr->tx_realloc = 0;
+		drvr->wd_dpc_sched = 0;
+		memset(&drvr->dstats, 0, sizeof(drvr->dstats));
+		dhd_bus_clearcounts(drvr);
 		break;
 
 	case IOV_GVAL(IOV_IOCTLTIMEOUT):{
@@ -252,7 +252,7 @@ exit:
 	return bcmerror;
 }
 
-bool brcmf_c_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
+bool brcmf_c_prec_enq(dhd_pub_t *drvr, struct pktq *q, struct sk_buff *pkt,
 		  int prec)
 {
 	struct sk_buff *p;
@@ -281,7 +281,7 @@ bool brcmf_c_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
 	if (eprec >= 0) {
 		/* Detect queueing to unconfigured precedence */
 		ASSERT(!pktq_pempty(q, eprec));
-		discard_oldest = AC_BITMAP_TST(dhdp->wme_dp, eprec);
+		discard_oldest = AC_BITMAP_TST(drvr->wme_dp, eprec);
 		if (eprec == prec && !discard_oldest)
 			return false;	/* refuse newer (incoming) packet */
 		/* Evict packet according to discard policy */
@@ -307,7 +307,7 @@ bool brcmf_c_prec_enq(dhd_pub_t *dhdp, struct pktq *q, struct sk_buff *pkt,
 }
 
 static int
-brcmf_c_iovar_op(dhd_pub_t *dhd_pub, const char *name,
+brcmf_c_iovar_op(dhd_pub_t *drvr, const char *name,
 	     void *params, int plen, void *arg, int len, bool set)
 {
 	int bcmerror = 0;
@@ -353,14 +353,14 @@ brcmf_c_iovar_op(dhd_pub_t *dhd_pub, const char *name,
 
 	actionid = set ? IOV_SVAL(vi->varid) : IOV_GVAL(vi->varid);
 	bcmerror =
-	    brcmf_c_doiovar(dhd_pub, vi, actionid, name, params, plen, arg, len,
+	    brcmf_c_doiovar(drvr, vi, actionid, name, params, plen, arg, len,
 			val_size);
 
 exit:
 	return bcmerror;
 }
 
-int brcmf_c_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
+int brcmf_c_ioctl(dhd_pub_t *drvr, dhd_ioctl_t *ioc, void *buf, uint buflen)
 {
 	int bcmerror = 0;
 
@@ -404,23 +404,23 @@ int brcmf_c_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 
 			/* call with the appropriate arguments */
 			if (ioc->cmd == DHD_GET_VAR)
-				bcmerror = brcmf_c_iovar_op(dhd_pub, buf, arg,
+				bcmerror = brcmf_c_iovar_op(drvr, buf, arg,
 						arglen, buf, buflen, IOV_GET);
 			else
 				bcmerror =
-				    brcmf_c_iovar_op(dhd_pub, buf, NULL, 0, arg,
+				    brcmf_c_iovar_op(drvr, buf, NULL, 0, arg,
 						     arglen, IOV_SET);
 			if (bcmerror != -ENOTSUPP)
 				break;
 
 			/* not in generic table, try protocol module */
 			if (ioc->cmd == DHD_GET_VAR)
-				bcmerror = brcmf_proto_iovar_op(dhd_pub, buf,
+				bcmerror = brcmf_proto_iovar_op(drvr, buf,
 								arg, arglen,
 								buf, buflen,
 								IOV_GET);
 			else
-				bcmerror = brcmf_proto_iovar_op(dhd_pub, buf,
+				bcmerror = brcmf_proto_iovar_op(drvr, buf,
 								NULL, 0, arg,
 								arglen,
 								IOV_SET);
@@ -429,11 +429,11 @@ int brcmf_c_ioctl(dhd_pub_t *dhd_pub, dhd_ioctl_t *ioc, void *buf, uint buflen)
 
 			/* if still not found, try bus module */
 			if (ioc->cmd == DHD_GET_VAR)
-				bcmerror = brcmf_sdbrcm_bus_iovar_op(dhd_pub,
+				bcmerror = brcmf_sdbrcm_bus_iovar_op(drvr,
 						buf, arg, arglen, buf, buflen,
 						IOV_GET);
 			else
-				bcmerror = brcmf_sdbrcm_bus_iovar_op(dhd_pub,
+				bcmerror = brcmf_sdbrcm_bus_iovar_op(drvr,
 						buf, NULL, 0, arg, arglen,
 						IOV_SET);
 
@@ -754,8 +754,8 @@ static void brcmf_c_show_host_event(brcmf_event_msg_t *event, void *event_data)
 #endif				/* SHOW_EVENTS */
 
 int
-brcmf_c_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
-	      brcmf_event_msg_t *event, void **data_ptr)
+brcmf_c_host_event(struct dhd_info *drvr_priv, int *ifidx, void *pktdata,
+		   brcmf_event_msg_t *event, void **data_ptr)
 {
 	/* check whether packet is a BRCM event pkt */
 	brcmf_event_t *pvt_data = (brcmf_event_t *) pktdata;
@@ -796,13 +796,13 @@ brcmf_c_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 			if (ifevent->ifidx > 0 &&
 				 ifevent->ifidx < DHD_MAX_IFS) {
 				if (ifevent->action == BRCMF_E_IF_ADD)
-					brcmf_add_if(dhd, ifevent->ifidx,
+					brcmf_add_if(drvr_priv, ifevent->ifidx,
 						   NULL, event->ifname,
 						   pvt_data->eth.h_dest,
 						   ifevent->flags,
 						   ifevent->bssidx);
 				else
-					brcmf_del_if(dhd, ifevent->ifidx);
+					brcmf_del_if(drvr_priv, ifevent->ifidx);
 			} else {
 				DHD_ERROR(("%s: Invalid ifidx %d for %s\n",
 					   __func__, ifevent->ifidx,
@@ -810,9 +810,9 @@ brcmf_c_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 			}
 		}
 		/* send up the if event: btamp user needs it */
-		*ifidx = brcmf_ifname2idx(dhd, event->ifname);
+		*ifidx = brcmf_ifname2idx(drvr_priv, event->ifname);
 		/* push up to external supp/auth */
-		brcmf_event(dhd, (char *)pvt_data, evlen, *ifidx);
+		brcmf_event(drvr_priv, (char *)pvt_data, evlen, *ifidx);
 		break;
 
 		/* These are what external supplicant/authenticator wants */
@@ -824,9 +824,9 @@ brcmf_c_host_event(struct dhd_info *dhd, int *ifidx, void *pktdata,
 	default:
 		/* Fall through: this should get _everything_  */
 
-		*ifidx = brcmf_ifname2idx(dhd, event->ifname);
+		*ifidx = brcmf_ifname2idx(drvr_priv, event->ifname);
 		/* push up to external supp/auth */
-		brcmf_event(dhd, (char *)pvt_data, evlen, *ifidx);
+		brcmf_event(drvr_priv, (char *)pvt_data, evlen, *ifidx);
 		DHD_TRACE(("%s: MAC event %d, flags %x, status %x\n",
 			   __func__, type, flags, status));
 
@@ -875,7 +875,7 @@ static int brcmf_c_pattern_atoh(char *src, char *dst)
 }
 
 void
-brcmf_c_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
+brcmf_c_pktfilter_offload_enable(dhd_pub_t *drvr, char *arg, int enable,
 			     int master_mode)
 {
 	char *argv[8];
@@ -923,7 +923,7 @@ brcmf_c_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 	memcpy((char *)pkt_filterp, &enable_parm, sizeof(enable_parm));
 
 	/* Enable/disable the specified filter. */
-	rc = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, buf, buf_len);
+	rc = brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR, buf, buf_len);
 	rc = rc >= 0 ? 0 : rc;
 	if (rc)
 		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
@@ -935,7 +935,7 @@ brcmf_c_pktfilter_offload_enable(dhd_pub_t *dhd, char *arg, int enable,
 	/* Contorl the master mode */
 	brcmu_mkiovar("pkt_filter_mode", (char *)&master_mode, 4, buf,
 		    sizeof(buf));
-	rc = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, buf,
+	rc = brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR, buf,
 				       sizeof(buf));
 	rc = rc >= 0 ? 0 : rc;
 	if (rc)
@@ -946,7 +946,7 @@ fail:
 	kfree(arg_org);
 }
 
-void brcmf_c_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
+void brcmf_c_pktfilter_offload_set(dhd_pub_t *drvr, char *arg)
 {
 	const char *str;
 	wl_pkt_filter_t pkt_filter;
@@ -1066,7 +1066,7 @@ void brcmf_c_pktfilter_offload_set(dhd_pub_t *dhd, char *arg)
 	       &pkt_filter,
 	       WL_PKT_FILTER_FIXED_LEN + WL_PKT_FILTER_PATTERN_FIXED_LEN);
 
-	rc = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, buf, buf_len);
+	rc = brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR, buf, buf_len);
 	rc = rc >= 0 ? 0 : rc;
 
 	if (rc)
@@ -1082,13 +1082,13 @@ fail:
 	kfree(buf);
 }
 
-void brcmf_c_arp_offload_set(dhd_pub_t *dhd, int arp_mode)
+void brcmf_c_arp_offload_set(dhd_pub_t *drvr, int arp_mode)
 {
 	char iovbuf[32];
 	int retcode;
 
 	brcmu_mkiovar("arp_ol", (char *)&arp_mode, 4, iovbuf, sizeof(iovbuf));
-	retcode = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
+	retcode = brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR,
 				   iovbuf, sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
@@ -1099,13 +1099,13 @@ void brcmf_c_arp_offload_set(dhd_pub_t *dhd, int arp_mode)
 			   __func__, arp_mode));
 }
 
-void brcmf_c_arp_offload_enable(dhd_pub_t *dhd, int arp_enable)
+void brcmf_c_arp_offload_enable(dhd_pub_t *drvr, int arp_enable)
 {
 	char iovbuf[32];
 	int retcode;
 
 	brcmu_mkiovar("arpoe", (char *)&arp_enable, 4, iovbuf, sizeof(iovbuf));
-	retcode = brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR,
+	retcode = brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR,
 				   iovbuf, sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
@@ -1116,7 +1116,7 @@ void brcmf_c_arp_offload_enable(dhd_pub_t *dhd, int arp_enable)
 			   __func__, arp_enable));
 }
 
-int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
+int brcmf_c_preinit_ioctls(dhd_pub_t *drvr)
 {
 	char iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for
 				 "event_msgs" + '\0' + bitvec  */
@@ -1130,13 +1130,13 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 	int scan_unassoc_time = 40;
 	int i;
 
-	brcmf_os_proto_block(dhd);
+	brcmf_os_proto_block(drvr);
 
 	/* Set Country code */
-	if (dhd->country_code[0] != 0) {
-		if (brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_COUNTRY,
-				     dhd->country_code,
-				     sizeof(dhd->country_code)) < 0) {
+	if (drvr->country_code[0] != 0) {
+		if (brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_COUNTRY,
+				     drvr->country_code,
+				     sizeof(drvr->country_code)) < 0) {
 			DHD_ERROR(("%s: country code setting failed\n",
 				   __func__));
 		}
@@ -1146,74 +1146,74 @@ int brcmf_c_preinit_ioctls(dhd_pub_t *dhd)
 	memset(buf, 0, sizeof(buf));
 	ptr = buf;
 	brcmu_mkiovar("ver", 0, 0, buf, sizeof(buf));
-	brcmf_proto_cdc_query_ioctl(dhd, 0, BRCMF_C_GET_VAR, buf, sizeof(buf));
+	brcmf_proto_cdc_query_ioctl(drvr, 0, BRCMF_C_GET_VAR, buf, sizeof(buf));
 	strsep(&ptr, "\n");
 	/* Print fw version info */
 	DHD_ERROR(("Firmware version = %s\n", buf));
 
 	/* Set PowerSave mode */
-	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_PM, (char *)&power_mode,
+	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_PM, (char *)&power_mode,
 			 sizeof(power_mode));
 
 	/* Match Host and Dongle rx alignment */
 	brcmu_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf,
 		    sizeof(iovbuf));
-	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
 
 	/* disable glom option per default */
 	brcmu_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
-	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
 
 	/* Setup timeout if Beacons are lost and roam is off to report
 		 link down */
 	brcmu_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf,
 		    sizeof(iovbuf));
-	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
 
 	/* Enable/Disable build-in roaming to allowed ext supplicant to take
 		 of romaing */
 	brcmu_mkiovar("roam_off", (char *)&brcmf_roam, 4,
 		      iovbuf, sizeof(iovbuf));
-	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
 
 	/* Force STA UP */
 	if (brcmf_radio_up)
-		brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_UP, (char *)&up,
+		brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_UP, (char *)&up,
 					  sizeof(up));
 
 	/* Setup event_msgs */
-	brcmu_mkiovar("event_msgs", dhd->eventmask, WL_EVENTING_MASK_LEN,
+	brcmu_mkiovar("event_msgs", drvr->eventmask, WL_EVENTING_MASK_LEN,
 		      iovbuf, sizeof(iovbuf));
-	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_VAR, iovbuf,
+	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR, iovbuf,
 				  sizeof(iovbuf));
 
-	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_SCAN_CHANNEL_TIME,
+	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_SCAN_CHANNEL_TIME,
 			 (char *)&scan_assoc_time, sizeof(scan_assoc_time));
-	brcmf_proto_cdc_set_ioctl(dhd, 0, BRCMF_C_SET_SCAN_UNASSOC_TIME,
+	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_SCAN_UNASSOC_TIME,
 			 (char *)&scan_unassoc_time, sizeof(scan_unassoc_time));
 
 	/* Set and enable ARP offload feature */
 	if (brcmf_arp_enable)
-		brcmf_c_arp_offload_set(dhd, brcmf_arp_mode);
-	brcmf_c_arp_offload_enable(dhd, brcmf_arp_enable);
+		brcmf_c_arp_offload_set(drvr, brcmf_arp_mode);
+	brcmf_c_arp_offload_enable(drvr, brcmf_arp_enable);
 
 	/* Set up pkt filter */
 	if (brcmf_pkt_filter_enable) {
-		for (i = 0; i < dhd->pktfilter_count; i++) {
-			brcmf_c_pktfilter_offload_set(dhd,
-						  dhd->pktfilter[i]);
-			brcmf_c_pktfilter_offload_enable(dhd,
-			     dhd->pktfilter[i],
+		for (i = 0; i < drvr->pktfilter_count; i++) {
+			brcmf_c_pktfilter_offload_set(drvr,
+						  drvr->pktfilter[i]);
+			brcmf_c_pktfilter_offload_enable(drvr,
+			     drvr->pktfilter[i],
 			     brcmf_pkt_filter_init,
 			     brcmf_master_mode);
 		}
 	}
 
-	brcmf_os_proto_unblock(dhd);
+	brcmf_os_proto_unblock(drvr);
 
 	return 0;
 }
