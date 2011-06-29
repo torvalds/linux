@@ -1287,12 +1287,10 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 		*vp++ = '\0';
 
 		err = initvars_table(base, vp, vars, count);
+		kfree(base);
 	}
 
 errout:
-	if (base)
-		kfree(base);
-
 	kfree(srom);
 	return err;
 }
