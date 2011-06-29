@@ -57,7 +57,7 @@ brcmf_sdioh_interrupt_query(struct sdioh_info *si, bool *onoff);
 extern int
 brcmf_sdioh_interrupt_set(struct sdioh_info *si, bool enable_disable);
 
-#if defined(DHD_DEBUG)
+#if defined(BCMDBG)
 extern bool brcmf_sdioh_interrupt_pending(struct sdioh_info *si);
 #endif
 

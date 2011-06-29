@@ -160,7 +160,7 @@ int brcmf_sdcard_intr_dereg(void *sdh)
 	return SDIOH_API_SUCCESS(status) ? 0 : -EIO;
 }
 
-#if defined(DHD_DEBUG)
+#if defined(BCMDBG)
 bool brcmf_sdcard_intr_pending(void *sdh)
 {
 	struct brcmf_sdio *bcmsdh = (struct brcmf_sdio *) sdh;

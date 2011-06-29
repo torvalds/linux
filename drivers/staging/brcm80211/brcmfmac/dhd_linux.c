@@ -262,11 +262,11 @@ module_param(brcmf_sysioc, uint, 0);
 uint brcmf_watchdog_ms = 10;
 module_param(brcmf_watchdog_ms, uint, 0);
 
-#ifdef DHD_DEBUG
+#ifdef BCMDBG
 /* Console poll interval */
 uint brcmf_console_ms;
 module_param(brcmf_console_ms, uint, 0);
-#endif				/* DHD_DEBUG */
+#endif				/* BCMDBG */
 
 /* ARP offload agent mode : Enable ARP Host Auto-Reply
 and ARP Peer Auto-Reply */
@@ -357,7 +357,7 @@ module_param(brcmf_pktgen_len, uint, 0);
 #endif
 
 /* Version string to report */
-#ifdef DHD_DEBUG
+#ifdef BCMDBG
 #define DHD_COMPILED "\nCompiled in " SRCBASE
 #else
 #define DHD_COMPILED
@@ -2632,7 +2632,7 @@ void brcmf_netdev_os_wd_timer(struct net_device *ndev, uint wdtick)
 	brcmf_os_wd_timer(&dhd->pub, wdtick);
 }
 
-#ifdef DHD_DEBUG
+#ifdef BCMDBG
 int brcmf_write_to_file(dhd_pub_t *dhd, u8 *buf, int size)
 {
 	int ret = 0;
@@ -2666,7 +2666,7 @@ exit:
 
 	return ret;
 }
-#endif				/* DHD_DEBUG */
+#endif				/* BCMDBG */
 
 #if defined(BCMDBG)
 void osl_assert(char *exp, char *file, int line)

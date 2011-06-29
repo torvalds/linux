@@ -87,7 +87,7 @@ extern int brcmf_sdcard_intr_disable(void *sdh);
 extern int brcmf_sdcard_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
 extern int brcmf_sdcard_intr_dereg(void *sdh);
 
-#if defined(DHD_DEBUG)
+#if defined(BCMDBG)
 /* Query pending interrupt status from the host controller */
 extern bool brcmf_sdcard_intr_pending(void *sdh);
 #endif

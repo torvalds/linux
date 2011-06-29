@@ -777,10 +777,10 @@ extern atomic_t brcmf_mmc_suspend;
 /* Watchdog timer interval */
 extern uint brcmf_watchdog_ms;
 
-#if defined(DHD_DEBUG)
+#if defined(BCMDBG)
 /* Console output poll interval */
 extern uint brcmf_console_ms;
-#endif				/* defined(DHD_DEBUG) */
+#endif				/* defined(BCMDBG) */
 
 /* Use interrupts */
 extern uint brcmf_intr;
@@ -933,9 +933,9 @@ extern int brcmf_custom_get_mac_address(unsigned char *buf);
 extern void brcmf_os_sdunlock_sndup_rxq(dhd_pub_t *pub);
 extern void brcmf_os_sdlock_eventq(dhd_pub_t *pub);
 extern void brcmf_os_sdunlock_eventq(dhd_pub_t *pub);
-#ifdef DHD_DEBUG
+#ifdef BCMDBG
 extern int brcmf_write_to_file(dhd_pub_t *dhd, u8 *buf, int size);
-#endif				/* DHD_DEBUG */
+#endif				/* BCMDBG */
 #if defined(OOB_INTR_ONLY)
 extern int brcmf_customer_oob_irq_map(unsigned long *irq_flags_ptr);
 #endif				/* defined(OOB_INTR_ONLY) */

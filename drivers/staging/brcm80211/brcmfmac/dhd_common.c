@@ -39,7 +39,7 @@ char brcmf_nv_path[MOD_PARAM_PATHLEN];
 #define EPI_VERSION_STR         "4.218.248.5"
 #define MSGTRACE_VERSION	1
 
-#ifdef DHD_DEBUG
+#ifdef BCMDBG
 const char brcmf_version[] =
 "Dongle Host Driver, version " EPI_VERSION_STR "\nCompiled on " __DATE__
 " at " __TIME__;
@@ -55,7 +55,7 @@ enum {
 	IOV_BCMERROR,
 	IOV_WDTICK,
 	IOV_DUMP,
-#ifdef DHD_DEBUG
+#ifdef BCMDBG
 	IOV_CONS,
 	IOV_DCONSOLE_POLL,
 #endif
@@ -71,10 +71,10 @@ enum {
 const struct brcmu_iovar brcmf_iovars[] = {
 	{"version", IOV_VERSION, 0, IOVT_BUFFER, sizeof(brcmf_version)}
 	,
-#ifdef DHD_DEBUG
+#ifdef BCMDBG
 	{"msglevel", IOV_MSGLEVEL, 0, IOVT_UINT32, 0}
 	,
-#endif				/* DHD_DEBUG */
+#endif				/* BCMDBG */
 	{"bcmerrorstr", IOV_BCMERRORSTR, 0, IOVT_BUFFER, BCME_STRLEN}
 	,
 	{"bcmerror", IOV_BCMERROR, 0, IOVT_INT8, 0}
@@ -83,7 +83,7 @@ const struct brcmu_iovar brcmf_iovars[] = {
 	,
 	{"dump", IOV_DUMP, 0, IOVT_BUFFER, DHD_IOCTL_MAXLEN}
 	,
-#ifdef DHD_DEBUG
+#ifdef BCMDBG
 	{"dconpoll", IOV_DCONSOLE_POLL, 0, IOVT_UINT32, 0}
 	,
 	{"cons", IOV_CONS, 0, IOVT_BUFFER, 0}
@@ -255,7 +255,7 @@ brcmf_c_doiovar(dhd_pub_t *dhd_pub, const struct brcmu_iovar *vi, u32 actionid,
 		bcmerror = brcmf_c_dump(dhd_pub, arg, len);
 		break;
 
-#ifdef DHD_DEBUG
+#ifdef BCMDBG
 	case IOV_GVAL(IOV_DCONSOLE_POLL):
 		int_val = (s32) brcmf_console_ms;
 		memcpy(arg, &int_val, val_size);

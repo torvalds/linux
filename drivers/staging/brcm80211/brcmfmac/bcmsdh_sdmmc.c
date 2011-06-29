@@ -330,7 +330,7 @@ brcmf_sdioh_interrupt_query(struct sdioh_info *sd, bool *onoff)
 	return SDIOH_API_RC_SUCCESS;
 }
 
-#if defined(DHD_DEBUG)
+#if defined(BCMDBG)
 extern bool brcmf_sdioh_interrupt_pending(struct sdioh_info *sd)
 {
 	return 0;

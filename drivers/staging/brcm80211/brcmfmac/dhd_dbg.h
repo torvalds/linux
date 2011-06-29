@@ -17,7 +17,7 @@
 #ifndef _dhd_dbg_
 #define _dhd_dbg_
 
-#if defined(DHD_DEBUG)
+#if defined(BCMDBG)
 
 #define DHD_ERROR(args) \
 	do {if ((brcmf_msg_level & DHD_ERROR_VAL) && (net_ratelimit())) \
@@ -61,7 +61,7 @@
 #define DHD_BTA_ON()		(brcmf_msg_level & DHD_BTA_VAL)
 #define DHD_ISCAN_ON()		(brcmf_msg_level & DHD_ISCAN_VAL)
 
-#else	/* (defined BCMDBG) || (defined DHD_DEBUG) */
+#else	/* (defined BCMDBG) || (defined BCMDBG) */
 
 #define DHD_ERROR(args)  do {if (net_ratelimit()) printk args; } while (0)
 #define DHD_TRACE(args)
@@ -90,7 +90,7 @@
 #define DHD_EVENT_ON()		0
 #define DHD_BTA_ON()		0
 #define DHD_ISCAN_ON()		0
-#endif				/* defined(DHD_DEBUG) */
+#endif				/* defined(BCMDBG) */
 
 #define DHD_LOG(args)
 

@@ -22,7 +22,7 @@ ccflags-y :=			\
 	-DBRCMF_SDALIGN=64	\
 	-DMAX_HDR_READ=64
 
-ccflags-$(CONFIG_BRCMDBG)	+= -DDHD_DEBUG -DSHOW_EVENTS
+ccflags-$(CONFIG_BRCMDBG)	+= -DSHOW_EVENTS
 
 ccflags-y += \
 	-Idrivers/staging/brcm80211/brcmfmac	\
