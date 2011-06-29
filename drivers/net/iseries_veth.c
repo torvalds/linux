@@ -964,11 +964,9 @@ static void veth_set_multicast_list(struct net_device *dev)
 			u8 *addr = ha->addr;
 			u64 xaddr = 0;
 
-			if (addr[0] & 0x01) {/* multicast address? */
-				memcpy(&xaddr, addr, ETH_ALEN);
-				port->mcast_addr[port->num_mcast] = xaddr;
-				port->num_mcast++;
-			}
+			memcpy(&xaddr, addr, ETH_ALEN);
+			port->mcast_addr[port->num_mcast] = xaddr;
+			port->num_mcast++;
 		}
 	}
 
