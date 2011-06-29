@@ -1586,15 +1586,7 @@ void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 
 	/* initialize radio_mpc_disable according to wlc->mpc */
 	brcms_c_radio_mpc_upd(wlc);
-
-	if ((wlc->pub->sih->chip) == BCM43235_CHIP_ID) {
-		if ((getintvar(wlc->pub->vars, "aa2g") == 7) ||
-		    (getintvar(wlc->pub->vars, "aa5g") == 7)) {
-			brcms_b_antsel_set(wlc->hw, 1);
-		}
-	} else {
-		brcms_b_antsel_set(wlc->hw, wlc->asi->antsel_avail);
-	}
+	brcms_b_antsel_set(wlc->hw, wlc->asi->antsel_avail);
 
 	if (perr)
 		*perr = 0;

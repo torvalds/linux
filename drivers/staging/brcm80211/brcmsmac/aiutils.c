@@ -1157,25 +1157,6 @@ static si_info_t *ai_doattach(si_info_t *sii,
 		goto exit;
 	}
 
-	/* assume current core is CC */
-	if ((sii->pub.ccrev == 0x25)
-	    &&
-	    ((sih->chip == BCM43236_CHIP_ID
-	      || sih->chip == BCM43235_CHIP_ID
-	      || sih->chip == BCM43238_CHIP_ID)
-	     && (sii->pub.chiprev <= 2))) {
-
-		if ((cc->chipstatus & CST43236_BP_CLK) != 0) {
-			uint clkdiv;
-			clkdiv = R_REG(&cc->clkdiv);
-			/* otp_clk_div is even number, 120/14 < 9mhz */
-			clkdiv = (clkdiv & ~CLKD_OTP) | (14 << CLKD_OTP_SHIFT);
-			W_REG(&cc->clkdiv, clkdiv);
-			SI_ERROR(("%s: set clkdiv to %x\n", __func__, clkdiv));
-		}
-		udelay(10);
-	}
-
 	/* Init nvram from sprom/otp if they exist */
 	if (srom_var_init
 	    (&sii->pub, bustype, regs, vars, varsz)) {
@@ -1215,8 +1196,7 @@ static si_info_t *ai_doattach(si_info_t *sii,
 		pcicore_attach(sii->pch, pvars, SI_DOATTACH);
 	}
 
-	if ((sih->chip == BCM43224_CHIP_ID) ||
-	    (sih->chip == BCM43421_CHIP_ID)) {
+	if (sih->chip == BCM43224_CHIP_ID) {
 		/*
 		 * enable 12 mA drive strenth for 43224 and
 		 * set chipControl register bit 15
@@ -1245,11 +1225,6 @@ static si_info_t *ai_doattach(si_info_t *sii,
 		SI_MSG(("Applying 4313 WARs\n"));
 		si_pmu_chipcontrol(sih, 0, CCTRL_4313_12MA_LED_DRIVE,
 				   CCTRL_4313_12MA_LED_DRIVE);
-	}
-
-	if (sih->chip == BCM4331_CHIP_ID) {
-		/* Enable Ext PA lines depending on chip package option */
-		ai_chipcontrl_epa4331(sih, true);
 	}
 
 	return sii;
@@ -2283,18 +2258,8 @@ bool ai_is_sprom_available(struct si_pub *sih)
 	}
 
 	switch (sih->chip) {
-	case BCM4329_CHIP_ID:
-		return (sih->chipst & CST4329_SPROM_SEL) != 0;
-	case BCM4319_CHIP_ID:
-		return (sih->chipst & CST4319_SPROM_SEL) != 0;
-	case BCM4336_CHIP_ID:
-		return (sih->chipst & CST4336_SPROM_PRESENT) != 0;
-	case BCM4330_CHIP_ID:
-		return (sih->chipst & CST4330_SPROM_PRESENT) != 0;
 	case BCM4313_CHIP_ID:
 		return (sih->chipst & CST4313_SPROM_PRESENT) != 0;
-	case BCM4331_CHIP_ID:
-		return (sih->chipst & CST4331_SPROM_PRESENT) != 0;
 	default:
 		return true;
 	}
@@ -2303,26 +2268,11 @@ bool ai_is_sprom_available(struct si_pub *sih)
 bool ai_is_otp_disabled(struct si_pub *sih)
 {
 	switch (sih->chip) {
-	case BCM4329_CHIP_ID:
-		return (sih->chipst & CST4329_SPROM_OTP_SEL_MASK) ==
-		    CST4329_OTP_PWRDN;
-	case BCM4319_CHIP_ID:
-		return (sih->chipst & CST4319_SPROM_OTP_SEL_MASK) ==
-		    CST4319_OTP_PWRDN;
-	case BCM4336_CHIP_ID:
-		return (sih->chipst & CST4336_OTP_PRESENT) == 0;
-	case BCM4330_CHIP_ID:
-		return (sih->chipst & CST4330_OTP_PRESENT) == 0;
 	case BCM4313_CHIP_ID:
 		return (sih->chipst & CST4313_OTP_PRESENT) == 0;
 		/* These chips always have their OTP on */
 	case BCM43224_CHIP_ID:
 	case BCM43225_CHIP_ID:
-	case BCM43421_CHIP_ID:
-	case BCM43235_CHIP_ID:
-	case BCM43236_CHIP_ID:
-	case BCM43238_CHIP_ID:
-	case BCM4331_CHIP_ID:
 	default:
 		return false;
 	}

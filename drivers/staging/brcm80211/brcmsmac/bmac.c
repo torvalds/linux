@@ -1980,8 +1980,7 @@ bool brcms_b_radio_read_hwdisabled(struct brcms_c_hw_info *wlc_hw)
 
 		/* AI chip doesn't restore bar0win2 on hibernation/resume, need sw fixup */
 		if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
-		    (wlc_hw->sih->chip == BCM43225_CHIP_ID) ||
-		    (wlc_hw->sih->chip == BCM43421_CHIP_ID))
+		    (wlc_hw->sih->chip == BCM43225_CHIP_ID))
 			wlc_hw->regs =
 			    (d11regs_t *) ai_setcore(wlc_hw->sih, D11_CORE_ID,
 						     0);
@@ -2022,8 +2021,7 @@ void brcms_b_hw_up(struct brcms_c_hw_info *wlc_hw)
 
 		/* AI chip doesn't restore bar0win2 on hibernation/resume, need sw fixup */
 		if ((wlc_hw->sih->chip == BCM43224_CHIP_ID) ||
-		    (wlc_hw->sih->chip == BCM43225_CHIP_ID) ||
-		    (wlc_hw->sih->chip == BCM43421_CHIP_ID))
+		    (wlc_hw->sih->chip == BCM43225_CHIP_ID))
 			wlc_hw->regs =
 			    (d11regs_t *) ai_setcore(wlc_hw->sih, D11_CORE_ID,
 						     0);
