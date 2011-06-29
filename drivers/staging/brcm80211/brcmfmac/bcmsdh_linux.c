@@ -59,7 +59,7 @@ struct bcmsdh_hc {
 	struct pci_dev *dev;	/* pci device handle */
 #endif				/* BCMPLATFORM_BUS */
 	void *regs;		/* SDIO Host Controller address */
-	bcmsdh_info_t *sdh;	/* SDIO Host Controller handle */
+	struct brcmf_sdio *sdh;	/* SDIO Host Controller handle */
 	void *ch;
 	unsigned int oob_irq;
 	unsigned long oob_flags;	/* OOB Host specifiction
@@ -144,7 +144,7 @@ int brcmf_sdio_probe(struct device *dev)
 {
 	bcmsdh_hc_t *sdhc = NULL;
 	unsigned long regs = 0;
-	bcmsdh_info_t *sdh = NULL;
+	struct brcmf_sdio *sdh = NULL;
 #if !defined(BCMLXSDMMC) && defined(BCMPLATFORM_BUS)
 	struct platform_device *pdev;
 	struct resource *r;

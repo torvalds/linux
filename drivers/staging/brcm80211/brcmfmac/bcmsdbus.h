@@ -111,6 +111,6 @@ extern int brcmf_sdioh_stop(struct sdioh_info *si);
 extern int brcmf_sdioh_reset(struct sdioh_info *si);
 
 /* Helper function */
-void *brcmf_sdcard_get_sdioh(bcmsdh_info_t *sdh);
+void *brcmf_sdcard_get_sdioh(struct brcmf_sdio *sdh);
 
 #endif				/* _sdio_api_h_ */

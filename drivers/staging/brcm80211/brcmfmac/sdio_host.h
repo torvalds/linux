@@ -60,7 +60,7 @@ extern const uint bcmsdh_msglevel;
 #define SDIOD_MAX_IOFUNCS	7
 
 /* forward declarations */
-typedef struct bcmsdh_info bcmsdh_info_t;
+struct brcmf_sdio;
 typedef void (*bcmsdh_cb_fn_t) (void *);
 
 /* Attach and build an interface to the underlying SD host driver.
@@ -70,7 +70,7 @@ typedef void (*bcmsdh_cb_fn_t) (void *);
  *    implementation may maintain a single "default" handle (e.g. the first or
  *    most recent one) to enable single-instance implementations to pass NULL.
  */
-extern bcmsdh_info_t *brcmf_sdcard_attach(void *cfghdl, void **regsva,
+extern struct brcmf_sdio *brcmf_sdcard_attach(void *cfghdl, void **regsva,
 					  uint irq);
 
 /* Detach - freeup resources allocated in attach */
@@ -151,7 +151,7 @@ typedef void (*bcmsdh_cmplt_fn_t) (void *handle, int status, bool sync_waiting);
 extern int brcmf_sdcard_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 		u8 *buf, uint nbytes, void *pkt,
 		bcmsdh_cmplt_fn_t complete, void *handle);
-extern int brcmf_sdcard_recv_buf(bcmsdh_info_t *sdh, u32 addr, uint fn,
+extern int brcmf_sdcard_recv_buf(struct brcmf_sdio *sdh, u32 addr, uint fn,
 		uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt,
 		bcmsdh_cmplt_fn_t complete, void *handle);
 
@@ -194,11 +194,11 @@ extern int brcmf_sdcard_iovar_op(void *sdh, const char *name,
 			   bool set);
 
 /* Reset and reinitialize the device */
-extern int brcmf_sdcard_reset(bcmsdh_info_t *sdh);
+extern int brcmf_sdcard_reset(struct brcmf_sdio *sdh);
 
 /* helper functions */
 
-extern void *brcmf_sdcard_get_sdioh(bcmsdh_info_t *sdh);
+extern void *brcmf_sdcard_get_sdioh(struct brcmf_sdio *sdh);
 
 /* callback functions */
 typedef struct {

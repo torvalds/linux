@@ -460,7 +460,7 @@ struct chip_info {
 typedef struct dhd_bus {
 	dhd_pub_t *dhd;
 
-	bcmsdh_info_t *sdh;	/* Handle for BCMSDH calls */
+	struct brcmf_sdio *sdh;	/* Handle for BCMSDH calls */
 	struct chip_info *ci;	/* Chip info struct */
 	char *vars;		/* Variables (from CIS and/or other) */
 	uint varsz;		/* Size of variables buffer */
@@ -786,9 +786,9 @@ static int  _brcmf_sdbrcm_download_firmware(struct dhd_bus *bus);
 static int
 brcmf_sdbrcm_download_code_file(struct dhd_bus *bus, char *image_path);
 static int brcmf_sdbrcm_download_nvram(struct dhd_bus *bus);
-static void brcmf_sdbrcm_chip_disablecore(bcmsdh_info_t *sdh, u32 corebase);
+static void brcmf_sdbrcm_chip_disablecore(struct brcmf_sdio *sdh, u32 corebase);
 static int brcmf_sdbrcm_chip_attach(struct dhd_bus *bus, void *regs);
-static void brcmf_sdbrcm_chip_resetcore(bcmsdh_info_t *sdh, u32 corebase);
+static void brcmf_sdbrcm_chip_resetcore(struct brcmf_sdio *sdh, u32 corebase);
 static void brcmf_sdbrcm_sdiod_drive_strength_init(struct dhd_bus *bus,
 					u32 drivestrength);
 static void brcmf_sdbrcm_chip_detach(struct dhd_bus *bus);
@@ -835,7 +835,7 @@ static int brcmf_sdbrcm_htclk(dhd_bus_t *bus, bool on, bool pendok)
 {
 	int err;
 	u8 clkctl, clkreq, devctl;
-	bcmsdh_info_t *sdh;
+	struct brcmf_sdio *sdh;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -1044,7 +1044,7 @@ static int brcmf_sdbrcm_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 
 int brcmf_sdbrcm_bussleep(dhd_bus_t *bus, bool sleep)
 {
-	bcmsdh_info_t *sdh = bus->sdh;
+	struct brcmf_sdio *sdh = bus->sdh;
 	struct sdpcmd_regs *regs = bus->regs;
 	uint retries = 0;
 
@@ -1177,7 +1177,7 @@ static int brcmf_sdbrcm_txpkt(dhd_bus_t *bus, struct sk_buff *pkt, uint chan,
 	u16 len, pad = 0;
 	u32 swheader;
 	uint retries = 0;
-	bcmsdh_info_t *sdh;
+	struct brcmf_sdio *sdh;
 	struct sk_buff *new;
 	int i;
 
@@ -1496,7 +1496,7 @@ brcmf_sdbrcm_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen)
 	u16 len;
 	u32 swheader;
 	uint retries = 0;
-	bcmsdh_info_t *sdh = bus->sdh;
+	struct brcmf_sdio *sdh = bus->sdh;
 	u8 doff = 0;
 	int ret = -1;
 	int i;
@@ -3199,7 +3199,7 @@ exit:
 
 static void brcmf_sdbrcm_rxfail(dhd_bus_t *bus, bool abort, bool rtx)
 {
-	bcmsdh_info_t *sdh = bus->sdh;
+	struct brcmf_sdio *sdh = bus->sdh;
 	struct sdpcmd_regs *regs = bus->regs;
 	uint retries = 0;
 	u16 lastrbc;
@@ -3263,7 +3263,7 @@ static void brcmf_sdbrcm_rxfail(dhd_bus_t *bus, bool abort, bool rtx)
 static void
 brcmf_sdbrcm_read_control(dhd_bus_t *bus, u8 *hdr, uint len, uint doff)
 {
-	bcmsdh_info_t *sdh = bus->sdh;
+	struct brcmf_sdio *sdh = bus->sdh;
 	uint rdlen, pad;
 
 	int sdret;
@@ -3771,7 +3771,7 @@ static u8 brcmf_sdbrcm_rxglom(dhd_bus_t *bus, u8 rxseq)
 static uint
 brcmf_sdbrcm_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 {
-	bcmsdh_info_t *sdh = bus->sdh;
+	struct brcmf_sdio *sdh = bus->sdh;
 
 	u16 len, check;	/* Extracted hardware header fields */
 	u8 chan, seq, doff;	/* Extracted software header fields */
@@ -4439,7 +4439,7 @@ static u32 brcmf_sdbrcm_hostmail(dhd_bus_t *bus)
 
 bool brcmf_sdbrcm_dpc(dhd_bus_t *bus)
 {
-	bcmsdh_info_t *sdh = bus->sdh;
+	struct brcmf_sdio *sdh = bus->sdh;
 	struct sdpcmd_regs *regs = bus->regs;
 	u32 intstatus, newstatus = 0;
 	uint retries = 0;
@@ -4706,7 +4706,7 @@ bool dhd_bus_dpc(struct dhd_bus *bus)
 void brcmf_sdbrcm_isr(void *arg)
 {
 	dhd_bus_t *bus = (dhd_bus_t *) arg;
-	bcmsdh_info_t *sdh;
+	struct brcmf_sdio *sdh;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -6000,7 +6000,7 @@ int brcmf_bus_devreset(dhd_pub_t *dhdp, u8 flag)
 }
 
 static int
-brcmf_sdbrcm_chip_recognition(bcmsdh_info_t *sdh, struct chip_info *ci,
+brcmf_sdbrcm_chip_recognition(struct brcmf_sdio *sdh, struct chip_info *ci,
 			    void *regs)
 {
 	u32 regdata;
@@ -6059,7 +6059,7 @@ brcmf_sdbrcm_chip_recognition(bcmsdh_info_t *sdh, struct chip_info *ci,
 }
 
 static void
-brcmf_sdbrcm_chip_disablecore(bcmsdh_info_t *sdh, u32 corebase)
+brcmf_sdbrcm_chip_disablecore(struct brcmf_sdio *sdh, u32 corebase)
 {
 	u32 regdata;
 
@@ -6235,7 +6235,7 @@ fail:
 }
 
 static void
-brcmf_sdbrcm_chip_resetcore(bcmsdh_info_t *sdh, u32 corebase)
+brcmf_sdbrcm_chip_resetcore(struct brcmf_sdio *sdh, u32 corebase)
 {
 	u32 regdata;
 
