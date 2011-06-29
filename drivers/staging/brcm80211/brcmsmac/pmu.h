@@ -33,7 +33,6 @@
 #define SET_LDO_VOLTAGE_LNLDO1	9
 #define SET_LDO_VOLTAGE_LNLDO2_SEL	10
 
-extern void si_pmu_set_ldo_voltage(struct si_pub *sih, u8 ldo, u8 voltage);
 extern u16 si_pmu_fast_pwrup_delay(struct si_pub *sih);
 extern void si_pmu_sprom_enable(struct si_pub *sih, bool enable);
 extern u32 si_pmu_chipcontrol(struct si_pub *sih, uint reg, u32 mask, u32 val);
@@ -49,7 +48,5 @@ extern void si_pmu_pll_init(struct si_pub *sih, u32 xtalfreq);
 extern void si_pmu_res_init(struct si_pub *sih);
 extern void si_pmu_swreg_init(struct si_pub *sih);
 extern u32 si_pmu_measure_alpclk(struct si_pub *sih);
-extern bool si_pmu_is_otp_powered(struct si_pub *sih);
-extern void si_pmu_otp_power(struct si_pub *sih, bool on);
 
 #endif /* _BRCM_PMU_H_ */
