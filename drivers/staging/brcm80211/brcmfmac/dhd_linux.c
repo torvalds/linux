@@ -990,26 +990,9 @@ int brcmf_sendpkt(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf)
 	return ret;
 }
 
-static inline void *
-osl_pkt_frmnative(struct sk_buff *skb)
-{
-	return (void *)skb;
-}
-#define PKTFRMNATIVE(osh, skb)	\
-	osl_pkt_frmnative((struct sk_buff *)(skb))
-
-static inline struct sk_buff *
-osl_pkt_tonative(void *pkt)
-{
-	return (struct sk_buff *)pkt;
-}
-#define PKTTONATIVE(osh, pkt)	\
-	osl_pkt_tonative((pkt))
-
 static int dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 {
 	int ret;
-	void *pktbuf;
 	dhd_info_t *dhd = *(dhd_info_t **) netdev_priv(net);
 	int ifidx;
 
@@ -1048,17 +1031,7 @@ static int dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 		}
 	}
 
-	/* Convert to packet */
-	pktbuf = PKTFRMNATIVE(dhd->pub.osh, skb);
-	if (!pktbuf) {
-		DHD_ERROR(("%s: PKTFRMNATIVE failed\n",
-			   brcmf_ifname(&dhd->pub, ifidx)));
-		dev_kfree_skb_any(skb);
-		ret = -ENOMEM;
-		goto done;
-	}
-
-	ret = brcmf_sendpkt(&dhd->pub, ifidx, pktbuf);
+	ret = brcmf_sendpkt(&dhd->pub, ifidx, skb);
 
 done:
 	if (ret)
@@ -1086,11 +1059,10 @@ void brcmf_txflowcontrol(dhd_pub_t *dhdp, int ifidx, bool state)
 		netif_wake_queue(net);
 }
 
-void brcmf_rx_frame(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf,
+void brcmf_rx_frame(dhd_pub_t *dhdp, int ifidx, struct sk_buff *skb,
 		  int numpkt)
 {
 	dhd_info_t *dhd = (dhd_info_t *) dhdp->info;
-	struct sk_buff *skb;
 	unsigned char *eth;
 	uint len;
 	void *data;
@@ -1101,14 +1073,12 @@ void brcmf_rx_frame(dhd_pub_t *dhdp, int ifidx, struct sk_buff *pktbuf,
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
-	save_pktbuf = pktbuf;
+	save_pktbuf = skb;
 
-	for (i = 0; pktbuf && i < numpkt; i++, pktbuf = pnext) {
+	for (i = 0; skb && i < numpkt; i++, skb = pnext) {
 
-		pnext = pktbuf->next;
-		pktbuf->next = NULL;
-
-		skb = PKTTONATIVE(dhdp->osh, pktbuf);
+		pnext = skb->next;
+		skb->next = NULL;
 
 		/* Get the protocol, maintain skb around eth_type_trans()
 		 * The main reason for this hack is for the limitation of
