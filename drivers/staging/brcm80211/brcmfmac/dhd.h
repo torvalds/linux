@@ -884,6 +884,7 @@ static inline void MUTEX_UNLOCK_WL_SCAN_SET(void)
 extern dhd_pub_t *brcmf_attach(struct dhd_bus *bus,
 				uint bus_hdrlen);
 extern int brcmf_net_attach(dhd_pub_t *dhdp, int idx);
+extern int brcmf_netdev_wait_pend8021x(struct net_device *dev);
 
 /* Indication from bus module regarding removal/absence of dongle */
 extern void brcmf_detach(dhd_pub_t *dhdp);

@@ -342,7 +342,6 @@ do {									\
 	}								\
 } while (0)
 
-extern int dhd_wait_pend8021x(struct net_device *dev);
 #define CHAN2G(_channel, _freq, _flags) {			\
 	.band			= IEEE80211_BAND_2GHZ,		\
 	.center_freq		= (_freq),			\
@@ -1677,7 +1676,7 @@ wl_add_keyext(struct wiphy *wiphy, struct net_device *dev,
 		}
 		swap_key_from_BE(&key);
 
-		dhd_wait_pend8021x(dev);
+		brcmf_netdev_wait_pend8021x(dev);
 		err = wl_dev_ioctl(dev, BRCMF_C_SET_KEY, &key, sizeof(key));
 		if (unlikely(err)) {
 			WL_ERR("WLC_SET_KEY error (%d)\n", err);
@@ -2101,7 +2100,7 @@ static s32 wl_cfg80211_resume(struct wiphy *wiphy)
 
 	if (test_bit(WL_STATUS_READY, &wl->status)) {
 		/* Turn on Watchdog timer */
-		wl_os_wd_timer(ndev, brcmf_watchdog_ms);
+		brcmf_netdev_os_wd_timer(ndev, brcmf_watchdog_ms);
 		wl_invoke_iscan(wiphy_to_wl(wiphy));
 	}
 
@@ -2163,7 +2162,7 @@ static s32 wl_cfg80211_suspend(struct wiphy *wiphy, struct cfg80211_wowlan *wow)
 	if (test_bit(WL_STATUS_READY, &wl->status)) {
 		WL_INFO("Terminate watchdog timer and enable MPC\n");
 		wl_set_mpc(ndev, 1);
-		wl_os_wd_timer(ndev, 0);
+		brcmf_netdev_os_wd_timer(ndev, 0);
 	}
 
 #if defined(CONFIG_PM_SLEEP)
