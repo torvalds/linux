@@ -210,10 +210,10 @@ static void scu_ssp_reqeust_construct_task_context(
 {
 	dma_addr_t dma_addr;
 	struct scic_sds_remote_device *target_device;
-	struct scic_sds_port *target_port;
+	struct isci_port *iport;
 
 	target_device = scic_sds_request_get_device(ireq);
-	target_port = scic_sds_request_get_port(ireq);
+	iport = scic_sds_request_get_port(ireq);
 
 	/* Fill in the TC with the its required data */
 	task_context->abort = 0;
@@ -222,8 +222,7 @@ static void scu_ssp_reqeust_construct_task_context(
 	task_context->connection_rate = target_device->connection_rate;
 	task_context->protocol_engine_index =
 		scic_sds_controller_get_protocol_engine_group(controller);
-	task_context->logical_port_index =
-		scic_sds_port_get_index(target_port);
+	task_context->logical_port_index = scic_sds_port_get_index(iport);
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_SSP;
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
@@ -245,11 +244,11 @@ static void scu_ssp_reqeust_construct_task_context(
 	task_context->task_phase = 0x01;
 
 	ireq->post_context = (SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-				     (scic_sds_controller_get_protocol_engine_group(controller) <<
-				      SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-				     (scic_sds_port_get_index(target_port) <<
-				      SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
-				     ISCI_TAG_TCI(ireq->io_tag));
+			      (scic_sds_controller_get_protocol_engine_group(controller) <<
+			       SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+			      (scic_sds_port_get_index(iport) <<
+			       SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
+			      ISCI_TAG_TCI(ireq->io_tag));
 
 	/*
 	 * Copy the physical address for the command buffer to the
@@ -350,10 +349,10 @@ static void scu_sata_reqeust_construct_task_context(
 {
 	dma_addr_t dma_addr;
 	struct scic_sds_remote_device *target_device;
-	struct scic_sds_port *target_port;
+	struct isci_port *iport;
 
 	target_device = scic_sds_request_get_device(ireq);
-	target_port = scic_sds_request_get_port(ireq);
+	iport = scic_sds_request_get_port(ireq);
 
 	/* Fill in the TC with the its required data */
 	task_context->abort = 0;
@@ -363,7 +362,7 @@ static void scu_sata_reqeust_construct_task_context(
 	task_context->protocol_engine_index =
 		scic_sds_controller_get_protocol_engine_group(controller);
 	task_context->logical_port_index =
-		scic_sds_port_get_index(target_port);
+		scic_sds_port_get_index(iport);
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_STP;
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
@@ -391,7 +390,7 @@ static void scu_sata_reqeust_construct_task_context(
 	ireq->post_context = (SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
 				 (scic_sds_controller_get_protocol_engine_group(controller) <<
 				  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-				 (scic_sds_port_get_index(target_port) <<
+				 (scic_sds_port_get_index(iport) <<
 				  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
 				 ISCI_TAG_TCI(ireq->io_tag));
 	/*
@@ -3105,7 +3104,7 @@ scic_io_request_construct_smp(struct device *dev,
 	struct scatterlist *sg = &task->smp_task.smp_req;
 	struct scic_sds_remote_device *sci_dev;
 	struct scu_task_context *task_context;
-	struct scic_sds_port *sci_port;
+	struct isci_port *iport;
 	struct smp_req *smp_req;
 	void *kaddr;
 	u8 req_len;
@@ -3149,7 +3148,7 @@ scic_io_request_construct_smp(struct device *dev,
 	task_context = ireq->tc;
 
 	sci_dev = scic_sds_request_get_device(ireq);
-	sci_port = scic_sds_request_get_port(ireq);
+	iport = scic_sds_request_get_port(ireq);
 
 	/*
 	 * Fill in the TC with the its required data
@@ -3160,7 +3159,7 @@ scic_io_request_construct_smp(struct device *dev,
 	task_context->connection_rate = sci_dev->connection_rate;
 	task_context->protocol_engine_index =
 		scic_sds_controller_get_protocol_engine_group(scic);
-	task_context->logical_port_index = scic_sds_port_get_index(sci_port);
+	task_context->logical_port_index = scic_sds_port_get_index(iport);
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_SMP;
 	task_context->abort = 0;
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
@@ -3204,7 +3203,7 @@ scic_io_request_construct_smp(struct device *dev,
 	ireq->post_context = (SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
 				 (scic_sds_controller_get_protocol_engine_group(scic) <<
 				  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-				 (scic_sds_port_get_index(sci_port) <<
+				 (scic_sds_port_get_index(iport) <<
 				  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
 				 ISCI_TAG_TCI(ireq->io_tag));
 	/*

@@ -286,7 +286,7 @@ done:
  * port (i.e. it's contained in the dummy port). !NULL All other
  * values indicate a handle/pointer to the port containing the phy.
  */
-struct scic_sds_port *phy_get_non_dummy_port(
+struct isci_port *phy_get_non_dummy_port(
 	struct isci_phy *iphy)
 {
 	if (scic_sds_port_get_index(iphy->owning_port) == SCIC_SDS_DUMMY_PORT)
@@ -304,9 +304,9 @@ struct scic_sds_port *phy_get_non_dummy_port(
  */
 void scic_sds_phy_set_port(
 	struct isci_phy *iphy,
-	struct scic_sds_port *sci_port)
+	struct isci_port *iport)
 {
-	iphy->owning_port = sci_port;
+	iphy->owning_port = iport;
 
 	if (iphy->bcn_received_while_port_unassigned) {
 		iphy->bcn_received_while_port_unassigned = false;
@@ -1291,12 +1291,12 @@ static const struct sci_base_state scic_sds_phy_state_table[] = {
 };
 
 void scic_sds_phy_construct(struct isci_phy *iphy,
-			    struct scic_sds_port *owning_port, u8 phy_index)
+			    struct isci_port *iport, u8 phy_index)
 {
 	sci_init_sm(&iphy->sm, scic_sds_phy_state_table, SCI_PHY_INITIAL);
 
 	/* Copy the rest of the input data to our locals */
-	iphy->owning_port = owning_port;
+	iphy->owning_port = iport;
 	iphy->phy_index = phy_index;
 	iphy->bcn_received_while_port_unassigned = false;
 	iphy->protocol = SCIC_SDS_PHY_PROTOCOL_UNKNOWN;

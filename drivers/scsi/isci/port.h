@@ -76,100 +76,19 @@ enum isci_status {
 };
 
 /**
- * struct scic_sds_port
- *
- * The core port object provides the the abstraction for an SCU port.
- */
-struct scic_sds_port {
-	/**
-	 * This field contains the information for the base port state machine.
-	 */
-	struct sci_base_state_machine sm;
-
-	bool ready_exit;
-
-	/**
-	 * This field is the port index that is reported to the SCI USER.
-	 * This allows the actual hardware physical port to change without
-	 * the SCI USER getting a different answer for the get port index.
-	 */
-	u8 logical_port_index;
-
-	/**
-	 * This field is the port index used to program the SCU hardware.
-	 */
-	u8 physical_port_index;
-
-	/**
-	 * This field contains the active phy mask for the port.
-	 * This mask is used in conjunction with the phy state to determine
-	 * which phy to select for some port operations.
-	 */
-	u8 active_phy_mask;
-
-	u16 reserved_rni;
-	u16 reserved_tag;
-
-	/**
-	 * This field contains the count of the io requests started on this port
-	 * object.  It is used to control controller shutdown.
-	 */
-	u32 started_request_count;
-
-	/**
-	 * This field contains the number of devices assigned to this port.
-	 * It is used to control port start requests.
-	 */
-	u32 assigned_device_count;
-
-	/**
-	 * This field contains the reason for the port not going ready.  It is
-	 * assigned in the state handlers and used in the state transition.
-	 */
-	u32 not_ready_reason;
-
-	/**
-	 * This field is the table of phys assigned to the port.
-	 */
-	struct isci_phy *phy_table[SCI_MAX_PHYS];
-
-	/**
-	 * This field is a pointer back to the controller that owns this
-	 * port object.
-	 */
-	struct scic_sds_controller *owning_controller;
-
-	/* timer used for port start/stop operations */
-	struct sci_timer	timer;
-
-	/**
-	 * This field is the pointer to the port task scheduler registers
-	 * for the SCU hardware.
-	 */
-	struct scu_port_task_scheduler_registers __iomem
-		*port_task_scheduler_registers;
-
-	/**
-	 * This field is identical for all port objects and points to the port
-	 * task scheduler group PE configuration registers.
-	 * It is used to assign PEs to a port.
-	 */
-	u32 __iomem *port_pe_configuration_register;
-
-	/**
-	 * This field is the VIIT register space for ths port object.
-	 */
-	struct scu_viit_entry __iomem *viit_registers;
-};
-
-
-
-/**
- * struct isci_port - This class represents the port object used to internally
- *    represent libsas port objects. It also keeps a list of remote device
- *    objects.
- *
- *
+ * struct isci_port - isci direct attached sas port object
+ * @event: counts bcns and port stop events (for bcn filtering)
+ * @ready_exit: several states constitute 'ready'. When exiting ready we
+ *              need to take extra port-teardown actions that are
+ *              skipped when exiting to another 'ready' state.
+ * @logical_port_index: software port index
+ * @physical_port_index: hardware port index
+ * @active_phy_mask: identifies phy members
+ * @reserved_tag:
+ * @reserved_rni: reserver for port task scheduler workaround
+ * @started_request_count: reference count for outstanding commands
+ * @not_ready_reason: set during state transitions and notified
+ * @timer: timeout start/stop operations
  */
 struct isci_port {
 	enum isci_status status;
@@ -185,15 +104,24 @@ struct isci_port {
 	struct completion start_complete;
 	struct completion hard_reset_complete;
 	enum sci_status hard_reset_status;
-	struct scic_sds_port sci;
+	struct sci_base_state_machine sm;
+	bool ready_exit;
+	u8 logical_port_index;
+	u8 physical_port_index;
+	u8 active_phy_mask;
+	u16 reserved_rni;
+	u16 reserved_tag;
+	u32 started_request_count;
+	u32 assigned_device_count;
+	u32 not_ready_reason;
+	struct isci_phy *phy_table[SCI_MAX_PHYS];
+	struct scic_sds_controller *owning_controller;
+	struct sci_timer timer;
+	struct scu_port_task_scheduler_registers __iomem *port_task_scheduler_registers;
+	/* XXX rework: only one register, no need to replicate per-port */
+	u32 __iomem *port_pe_configuration_register;
+	struct scu_viit_entry __iomem *viit_registers;
 };
-
-static inline struct isci_port *sci_port_to_iport(struct scic_sds_port *sci_port)
-{
-	struct isci_port *iport = container_of(sci_port, typeof(*iport), sci);
-
-	return iport;
-}
 
 enum scic_port_not_ready_reason_code {
 	SCIC_PORT_NOT_READY_NO_ACTIVE_PHYS,
@@ -299,90 +227,90 @@ enum scic_sds_port_states {
 	((this_port)->physical_port_index)
 
 
-static inline void scic_sds_port_decrement_request_count(struct scic_sds_port *sci_port)
+static inline void scic_sds_port_decrement_request_count(struct isci_port *iport)
 {
-	if (WARN_ONCE(sci_port->started_request_count == 0,
+	if (WARN_ONCE(iport->started_request_count == 0,
 		       "%s: tried to decrement started_request_count past 0!?",
 			__func__))
 		/* pass */;
 	else
-		sci_port->started_request_count--;
+		iport->started_request_count--;
 }
 
 #define scic_sds_port_active_phy(port, phy) \
 	(((port)->active_phy_mask & (1 << (phy)->phy_index)) != 0)
 
 void scic_sds_port_construct(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	u8 port_index,
 	struct scic_sds_controller *scic);
 
 enum sci_status scic_sds_port_initialize(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	void __iomem *port_task_scheduler_registers,
 	void __iomem *port_configuration_regsiter,
 	void __iomem *viit_registers);
 
-enum sci_status scic_sds_port_start(struct scic_sds_port *sci_port);
-enum sci_status scic_sds_port_stop(struct scic_sds_port *sci_port);
+enum sci_status scic_sds_port_start(struct isci_port *iport);
+enum sci_status scic_sds_port_stop(struct isci_port *iport);
 
 enum sci_status scic_sds_port_add_phy(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	struct isci_phy *iphy);
 
 enum sci_status scic_sds_port_remove_phy(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	struct isci_phy *iphy);
 
 void scic_sds_port_setup_transports(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	u32 device_id);
 
 void isci_port_bcn_enable(struct isci_host *, struct isci_port *);
 
 void scic_sds_port_deactivate_phy(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	struct isci_phy *iphy,
 	bool do_notify_user);
 
 bool scic_sds_port_link_detected(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	struct isci_phy *iphy);
 
-enum sci_status scic_sds_port_link_up(struct scic_sds_port *sci_port,
+enum sci_status scic_sds_port_link_up(struct isci_port *iport,
 				      struct isci_phy *iphy);
-enum sci_status scic_sds_port_link_down(struct scic_sds_port *sci_port,
+enum sci_status scic_sds_port_link_down(struct isci_port *iport,
 					struct isci_phy *iphy);
 
 struct isci_request;
 struct scic_sds_remote_device;
 enum sci_status scic_sds_port_start_io(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	struct scic_sds_remote_device *sci_dev,
 	struct isci_request *ireq);
 
 enum sci_status scic_sds_port_complete_io(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	struct scic_sds_remote_device *sci_dev,
 	struct isci_request *ireq);
 
 enum sas_linkrate scic_sds_port_get_max_allowed_speed(
-	struct scic_sds_port *sci_port);
+	struct isci_port *iport);
 
 void scic_sds_port_broadcast_change_received(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	struct isci_phy *iphy);
 
 bool scic_sds_port_is_valid_phy_assignment(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	u32 phy_index);
 
 void scic_sds_port_get_sas_address(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	struct sci_sas_address *sas_address);
 
 void scic_sds_port_get_attached_sas_address(
-	struct scic_sds_port *sci_port,
+	struct isci_port *iport,
 	struct sci_sas_address *sas_address);
 
 enum isci_status isci_port_get_state(

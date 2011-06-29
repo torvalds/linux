@@ -450,11 +450,11 @@ static void scic_sds_remote_device_start_request(struct scic_sds_remote_device *
 						 struct isci_request *ireq,
 						 enum sci_status status)
 {
-	struct scic_sds_port *sci_port = sci_dev->owning_port;
+	struct isci_port *iport = sci_dev->owning_port;
 
 	/* cleanup requests that failed after starting on the port */
 	if (status != SCI_SUCCESS)
-		scic_sds_port_complete_io(sci_port, sci_dev, ireq);
+		scic_sds_port_complete_io(iport, sci_dev, ireq);
 	else {
 		kref_get(&sci_dev_to_idev(sci_dev)->kref);
 		scic_sds_remote_device_increment_request_count(sci_dev);
@@ -467,7 +467,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 {
 	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
-	struct scic_sds_port *sci_port = sci_dev->owning_port;
+	struct isci_port *iport = sci_dev->owning_port;
 	enum sci_status status;
 
 	switch (state) {
@@ -489,7 +489,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 		 * successful it will start the request for the port object then
 		 * increment its own request count.
 		 */
-		status = scic_sds_port_start_io(sci_port, sci_dev, ireq);
+		status = scic_sds_port_start_io(iport, sci_dev, ireq);
 		if (status != SCI_SUCCESS)
 			return status;
 
@@ -511,7 +511,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 		enum scic_sds_remote_device_states new_state;
 		struct sas_task *task = isci_request_access_task(ireq);
 
-		status = scic_sds_port_start_io(sci_port, sci_dev, ireq);
+		status = scic_sds_port_start_io(iport, sci_dev, ireq);
 		if (status != SCI_SUCCESS)
 			return status;
 
@@ -536,7 +536,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 		struct sas_task *task = isci_request_access_task(ireq);
 
 		if (task->ata_task.use_ncq) {
-			status = scic_sds_port_start_io(sci_port, sci_dev, ireq);
+			status = scic_sds_port_start_io(iport, sci_dev, ireq);
 			if (status != SCI_SUCCESS)
 				return status;
 
@@ -552,7 +552,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 	case SCI_STP_DEV_AWAIT_RESET:
 		return SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED;
 	case SCI_SMP_DEV_IDLE:
-		status = scic_sds_port_start_io(sci_port, sci_dev, ireq);
+		status = scic_sds_port_start_io(iport, sci_dev, ireq);
 		if (status != SCI_SUCCESS)
 			return status;
 
@@ -579,7 +579,7 @@ enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic
 	return status;
 }
 
-static enum sci_status common_complete_io(struct scic_sds_port *sci_port,
+static enum sci_status common_complete_io(struct isci_port *iport,
 					  struct scic_sds_remote_device *sci_dev,
 					  struct isci_request *ireq)
 {
@@ -589,7 +589,7 @@ static enum sci_status common_complete_io(struct scic_sds_port *sci_port,
 	if (status != SCI_SUCCESS)
 		return status;
 
-	status = scic_sds_port_complete_io(sci_port, sci_dev, ireq);
+	status = scic_sds_port_complete_io(iport, sci_dev, ireq);
 	if (status != SCI_SUCCESS)
 		return status;
 
@@ -603,7 +603,7 @@ enum sci_status scic_sds_remote_device_complete_io(struct scic_sds_controller *s
 {
 	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
-	struct scic_sds_port *sci_port = sci_dev->owning_port;
+	struct isci_port *iport = sci_dev->owning_port;
 	enum sci_status status;
 
 	switch (state) {
@@ -621,12 +621,12 @@ enum sci_status scic_sds_remote_device_complete_io(struct scic_sds_controller *s
 	case SCI_DEV_READY:
 	case SCI_STP_DEV_AWAIT_RESET:
 	case SCI_DEV_RESETTING:
-		status = common_complete_io(sci_port, sci_dev, ireq);
+		status = common_complete_io(iport, sci_dev, ireq);
 		break;
 	case SCI_STP_DEV_CMD:
 	case SCI_STP_DEV_NCQ:
 	case SCI_STP_DEV_NCQ_ERROR:
-		status = common_complete_io(sci_port, sci_dev, ireq);
+		status = common_complete_io(iport, sci_dev, ireq);
 		if (status != SCI_SUCCESS)
 			break;
 
@@ -641,13 +641,13 @@ enum sci_status scic_sds_remote_device_complete_io(struct scic_sds_controller *s
 			sci_change_state(sm, SCI_STP_DEV_IDLE);
 		break;
 	case SCI_SMP_DEV_CMD:
-		status = common_complete_io(sci_port, sci_dev, ireq);
+		status = common_complete_io(iport, sci_dev, ireq);
 		if (status != SCI_SUCCESS)
 			break;
 		sci_change_state(sm, SCI_SMP_DEV_IDLE);
 		break;
 	case SCI_DEV_STOPPING:
-		status = common_complete_io(sci_port, sci_dev, ireq);
+		status = common_complete_io(iport, sci_dev, ireq);
 		if (status != SCI_SUCCESS)
 			break;
 
@@ -661,7 +661,7 @@ enum sci_status scic_sds_remote_device_complete_io(struct scic_sds_controller *s
 	if (status != SCI_SUCCESS)
 		dev_err(scirdev_to_dev(sci_dev),
 			"%s: Port:0x%p Device:0x%p Request:0x%p Status:0x%x "
-			"could not complete\n", __func__, sci_port,
+			"could not complete\n", __func__, iport,
 			sci_dev, ireq, status);
 	else
 		isci_put_device(sci_dev_to_idev(sci_dev));
@@ -684,7 +684,7 @@ enum sci_status scic_sds_remote_device_start_task(struct scic_sds_controller *sc
 {
 	struct sci_base_state_machine *sm = &sci_dev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
-	struct scic_sds_port *sci_port = sci_dev->owning_port;
+	struct isci_port *iport = sci_dev->owning_port;
 	enum sci_status status;
 
 	switch (state) {
@@ -706,7 +706,7 @@ enum sci_status scic_sds_remote_device_start_task(struct scic_sds_controller *sc
 	case SCI_STP_DEV_NCQ:
 	case SCI_STP_DEV_NCQ_ERROR:
 	case SCI_STP_DEV_AWAIT_RESET:
-		status = scic_sds_port_start_io(sci_port, sci_dev, ireq);
+		status = scic_sds_port_start_io(iport, sci_dev, ireq);
 		if (status != SCI_SUCCESS)
 			return status;
 
@@ -746,7 +746,7 @@ enum sci_status scic_sds_remote_device_start_task(struct scic_sds_controller *sc
 		 */
 		return SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS;
 	case SCI_DEV_READY:
-		status = scic_sds_port_start_io(sci_port, sci_dev, ireq);
+		status = scic_sds_port_start_io(iport, sci_dev, ireq);
 		if (status != SCI_SUCCESS)
 			return status;
 
@@ -1064,10 +1064,10 @@ static const struct sci_base_state scic_sds_remote_device_state_table[] = {
  * scic_remote_device_[de]a_construct().  scic_remote_device_destruct()
  * frees the remote_node_context(s) for the device.
  */
-static void scic_remote_device_construct(struct scic_sds_port *sci_port,
+static void scic_remote_device_construct(struct isci_port *iport,
 				  struct scic_sds_remote_device *sci_dev)
 {
-	sci_dev->owning_port = sci_port;
+	sci_dev->owning_port = iport;
 	sci_dev->started_request_count = 0;
 
 	sci_init_sm(&sci_dev->sm, scic_sds_remote_device_state_table, SCI_DEV_INITIAL);
@@ -1090,20 +1090,20 @@ static void scic_remote_device_construct(struct scic_sds_port *sci_port,
  * sata-only controller instance.
  * SCI_FAILURE_INSUFFICIENT_RESOURCES - remote node contexts exhausted.
  */
-static enum sci_status scic_remote_device_da_construct(struct scic_sds_port *sci_port,
+static enum sci_status scic_remote_device_da_construct(struct isci_port *iport,
 						       struct scic_sds_remote_device *sci_dev)
 {
 	enum sci_status status;
 	struct domain_device *dev = sci_dev_to_domain(sci_dev);
 
-	scic_remote_device_construct(sci_port, sci_dev);
+	scic_remote_device_construct(iport, sci_dev);
 
 	/*
 	 * This information is request to determine how many remote node context
 	 * entries will be needed to store the remote node.
 	 */
 	sci_dev->is_direct_attached = true;
-	status = scic_sds_controller_allocate_remote_node_context(sci_port->owning_controller,
+	status = scic_sds_controller_allocate_remote_node_context(iport->owning_controller,
 								  sci_dev,
 								  &sci_dev->rnc.remote_node_index);
 
@@ -1116,7 +1116,7 @@ static enum sci_status scic_remote_device_da_construct(struct scic_sds_port *sci
 	else
 		return SCI_FAILURE_UNSUPPORTED_PROTOCOL;
 
-	sci_dev->connection_rate = scic_sds_port_get_max_allowed_speed(sci_port);
+	sci_dev->connection_rate = scic_sds_port_get_max_allowed_speed(iport);
 
 	/* / @todo Should I assign the port width by reading all of the phys on the port? */
 	sci_dev->device_port_width = 1;
@@ -1136,15 +1136,15 @@ static enum sci_status scic_remote_device_da_construct(struct scic_sds_port *sci
  * sata-only controller instance.
  * SCI_FAILURE_INSUFFICIENT_RESOURCES - remote node contexts exhausted.
  */
-static enum sci_status scic_remote_device_ea_construct(struct scic_sds_port *sci_port,
+static enum sci_status scic_remote_device_ea_construct(struct isci_port *iport,
 						       struct scic_sds_remote_device *sci_dev)
 {
 	struct domain_device *dev = sci_dev_to_domain(sci_dev);
 	enum sci_status status;
 
-	scic_remote_device_construct(sci_port, sci_dev);
+	scic_remote_device_construct(iport, sci_dev);
 
-	status = scic_sds_controller_allocate_remote_node_context(sci_port->owning_controller,
+	status = scic_sds_controller_allocate_remote_node_context(iport->owning_controller,
 								  sci_dev,
 								  &sci_dev->rnc.remote_node_index);
 	if (status != SCI_SUCCESS)
@@ -1163,7 +1163,7 @@ static enum sci_status scic_remote_device_ea_construct(struct scic_sds_port *sci
 	 * connection the logical link rate is that same as the
 	 * physical.  Furthermore, the SAS-2 and SAS-1.1 fields overlay
 	 * one another, so this code works for both situations. */
-	sci_dev->connection_rate = min_t(u16, scic_sds_port_get_max_allowed_speed(sci_port),
+	sci_dev->connection_rate = min_t(u16, scic_sds_port_get_max_allowed_speed(iport),
 					 dev->linkrate);
 
 	/* / @todo Should I assign the port width by reading all of the phys on the port? */
@@ -1212,15 +1212,14 @@ static enum sci_status scic_remote_device_start(struct scic_sds_remote_device *s
 static enum sci_status isci_remote_device_construct(struct isci_port *iport,
 						    struct isci_remote_device *idev)
 {
-	struct scic_sds_port *sci_port = &iport->sci;
 	struct isci_host *ihost = iport->isci_host;
 	struct domain_device *dev = idev->domain_dev;
 	enum sci_status status;
 
 	if (dev->parent && dev_is_expander(dev->parent))
-		status = scic_remote_device_ea_construct(sci_port, &idev->sci);
+		status = scic_remote_device_ea_construct(iport, &idev->sci);
 	else
-		status = scic_remote_device_da_construct(sci_port, &idev->sci);
+		status = scic_remote_device_da_construct(iport, &idev->sci);
 
 	if (status != SCI_SUCCESS) {
 		dev_dbg(&ihost->pdev->dev, "%s: construct failed: %d\n",

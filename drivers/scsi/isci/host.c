@@ -1054,9 +1054,9 @@ static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 
 	/* Start all of the ports on this controller */
 	for (index = 0; index < scic->logical_port_entries; index++) {
-		struct scic_sds_port *sci_port = &ihost->ports[index].sci;
+		struct isci_port *iport = &ihost->ports[index];
 
-		result = scic_sds_port_start(sci_port);
+		result = scic_sds_port_start(iport);
 		if (result)
 			return result;
 	}
@@ -1306,8 +1306,8 @@ void isci_host_deinit(struct isci_host *ihost)
 
 	/* Cancel any/all outstanding port timers */
 	for (i = 0; i < ihost->sci.logical_port_entries; i++) {
-		struct scic_sds_port *sci_port = &ihost->ports[i].sci;
-		del_timer_sync(&sci_port->timer.timer);
+		struct isci_port *iport = &ihost->ports[i];
+		del_timer_sync(&iport->timer.timer);
 	}
 
 	/* Cancel any/all outstanding phy timers */
@@ -1552,9 +1552,9 @@ static enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller
 	struct isci_host *ihost = scic_to_ihost(scic);
 
 	for (index = 0; index < scic->logical_port_entries; index++) {
-		struct scic_sds_port *sci_port = &ihost->ports[index].sci;
+		struct isci_port *iport = &ihost->ports[index];
 
-		port_status = scic_sds_port_stop(sci_port);
+		port_status = scic_sds_port_stop(iport);
 
 		if ((port_status != SCI_SUCCESS) &&
 		    (port_status != SCI_FAILURE_INVALID_STATE)) {
@@ -1564,7 +1564,7 @@ static enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller
 				 "%s: Controller stop operation failed to "
 				 "stop port %d because of status %d.\n",
 				 __func__,
-				 sci_port->logical_port_index,
+				 iport->logical_port_index,
 				 port_status);
 		}
 	}
@@ -1780,14 +1780,14 @@ static enum sci_status scic_controller_construct(struct scic_sds_controller *sci
 
 	/* Construct the ports for this controller */
 	for (i = 0; i < SCI_MAX_PORTS; i++)
-		scic_sds_port_construct(&ihost->ports[i].sci, i, scic);
-	scic_sds_port_construct(&ihost->ports[i].sci, SCIC_SDS_DUMMY_PORT, scic);
+		scic_sds_port_construct(&ihost->ports[i], i, scic);
+	scic_sds_port_construct(&ihost->ports[i], SCIC_SDS_DUMMY_PORT, scic);
 
 	/* Construct the phys for this controller */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
 		/* Add all the PHYs to the dummy port */
 		scic_sds_phy_construct(&ihost->phys[i],
-				       &ihost->ports[SCI_MAX_PORTS].sci, i);
+				       &ihost->ports[SCI_MAX_PORTS], i);
 	}
 
 	scic->invalid_phy_mask = 0;
@@ -2233,7 +2233,7 @@ static enum sci_status scic_controller_initialize(struct scic_sds_controller *sc
 	}
 
 	for (i = 0; i < scic->logical_port_entries; i++) {
-		result = scic_sds_port_initialize(&ihost->ports[i].sci,
+		result = scic_sds_port_initialize(&ihost->ports[i],
 						  &scic->scu_registers->peg0.ptsg.port[i],
 						  &scic->scu_registers->peg0.ptsg.protocol_engine,
 						  &scic->scu_registers->peg0.viit[i]);
@@ -2484,19 +2484,19 @@ int isci_host_init(struct isci_host *isci_host)
 }
 
 void scic_sds_controller_link_up(struct scic_sds_controller *scic,
-		struct scic_sds_port *port, struct isci_phy *iphy)
+		struct isci_port *iport, struct isci_phy *iphy)
 {
 	switch (scic->sm.current_state_id) {
 	case SCIC_STARTING:
 		sci_del_timer(&scic->phy_timer);
 		scic->phy_startup_timer_pending = false;
 		scic->port_agent.link_up_handler(scic, &scic->port_agent,
-						 port, iphy);
+						 iport, iphy);
 		scic_sds_controller_start_next_phy(scic);
 		break;
 	case SCIC_READY:
 		scic->port_agent.link_up_handler(scic, &scic->port_agent,
-						 port, iphy);
+						 iport, iphy);
 		break;
 	default:
 		dev_dbg(scic_to_dev(scic),
@@ -2507,13 +2507,13 @@ void scic_sds_controller_link_up(struct scic_sds_controller *scic,
 }
 
 void scic_sds_controller_link_down(struct scic_sds_controller *scic,
-		struct scic_sds_port *port, struct isci_phy *iphy)
+		struct isci_port *iport, struct isci_phy *iphy)
 {
 	switch (scic->sm.current_state_id) {
 	case SCIC_STARTING:
 	case SCIC_READY:
 		scic->port_agent.link_down_handler(scic, &scic->port_agent,
-						   port, iphy);
+						   iport, iphy);
 		break;
 	default:
 		dev_dbg(scic_to_dev(scic),

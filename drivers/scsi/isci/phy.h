@@ -93,7 +93,7 @@ enum scic_sds_phy_protocol {
  */
 struct isci_phy {
 	struct sci_base_state_machine sm;
-	struct scic_sds_port *owning_port;
+	struct isci_port *owning_port;
 	enum sas_linkrate max_negotiated_speed;
 	enum scic_sds_phy_protocol protocol;
 	u8 phy_index;
@@ -178,7 +178,7 @@ struct scic_phy_properties {
 	 * supplied phy.  This field may be set to NULL
 	 * if the phy is not currently contained in a port.
 	 */
-	struct scic_sds_port *owning_port;
+	struct isci_port *iport;
 
 	/**
 	 * This field specifies the link rate at which the phy is
@@ -459,14 +459,14 @@ enum scic_sds_phy_states {
 
 void scic_sds_phy_construct(
 	struct isci_phy *iphy,
-	struct scic_sds_port *owning_port,
+	struct isci_port *iport,
 	u8 phy_index);
 
-struct scic_sds_port *phy_get_non_dummy_port(struct isci_phy *iphy);
+struct isci_port *phy_get_non_dummy_port(struct isci_phy *iphy);
 
 void scic_sds_phy_set_port(
 	struct isci_phy *iphy,
-	struct scic_sds_port *owning_port);
+	struct isci_port *iport);
 
 enum sci_status scic_sds_phy_initialize(
 	struct isci_phy *iphy,

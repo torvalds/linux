@@ -100,7 +100,7 @@ struct scic_sds_remote_device {
 	 * This filed contains a pointer back to the port to which this device
 	 * is assigned.
 	 */
-	struct scic_sds_port *owning_port;
+	struct isci_port *owning_port;
 
 	/**
 	 * This field contains the SCU silicon remote node context specific
@@ -386,14 +386,6 @@ static inline bool dev_is_expander(struct domain_device *dev)
  */
 #define scic_sds_remote_device_get_request_count(sci_dev) \
 	((sci_dev)->started_request_count)
-
-/**
- * scic_sds_remote_device_get_port() -
- *
- * This macro returns the owning port of this remote device obejct.
- */
-#define scic_sds_remote_device_get_port(sci_dev) \
-	((sci_dev)->owning_port)
 
 /**
  * scic_sds_remote_device_get_controller() -
