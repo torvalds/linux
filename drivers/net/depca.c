@@ -1270,7 +1270,6 @@ static void SetMulticastFilter(struct net_device *dev)
 {
 	struct depca_private *lp = netdev_priv(dev);
 	struct netdev_hw_addr *ha;
-	char *addrs;
 	int i, j, bit, byte;
 	u16 hashcode;
 	u32 crc;
@@ -1285,19 +1284,15 @@ static void SetMulticastFilter(struct net_device *dev)
 		}
 		/* Add multicast addresses */
 		netdev_for_each_mc_addr(ha, dev) {
-			addrs = ha->addr;
-			if ((*addrs & 0x01) == 1) {	/* multicast address? */
-				crc = ether_crc(ETH_ALEN, addrs);
-				hashcode = (crc & 1);	/* hashcode is 6 LSb of CRC ... */
-				for (j = 0; j < 5; j++) {	/* ... in reverse order. */
-					hashcode = (hashcode << 1) | ((crc >>= 1) & 1);
-				}
-
-
-				byte = hashcode >> 3;	/* bit[3-5] -> byte in filter */
-				bit = 1 << (hashcode & 0x07);	/* bit[0-2] -> bit in byte */
-				lp->init_block.mcast_table[byte] |= bit;
+			crc = ether_crc(ETH_ALEN, ha->addr);
+			hashcode = (crc & 1);	/* hashcode is 6 LSb of CRC ... */
+			for (j = 0; j < 5; j++) {	/* ... in reverse order. */
+				hashcode = (hashcode << 1) | ((crc >>= 1) & 1);
 			}
+
+			byte = hashcode >> 3;	/* bit[3-5] -> byte in filter */
+			bit = 1 << (hashcode & 0x07);	/* bit[0-2] -> bit in byte */
+			lp->init_block.mcast_table[byte] |= bit;
 		}
 	}
 }
