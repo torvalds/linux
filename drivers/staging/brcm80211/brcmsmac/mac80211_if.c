@@ -656,7 +656,14 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		/* Not sure what to do here */
+		/*
+		 * BA window size from ADDBA response ('buf_size') defines how
+		 * many outstanding MPDUs are allowed for the BA stream by
+		 * recipient and traffic class.
+		 */
+		LOCK(wl);
+		brcms_c_ampdu_tx_operational(wl->wlc, tid, buf_size);
+		UNLOCK(wl);
 		/* Power save wakeup */
 		break;
 	default:

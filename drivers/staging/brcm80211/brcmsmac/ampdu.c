@@ -114,9 +114,6 @@ static void brcms_c_ffpld_init(struct ampdu_info *ampdu);
 static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int f);
 static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f);
 
-static scb_ampdu_tid_ini_t *brcms_c_ampdu_init_tid_ini(struct ampdu_info *ampdu,
-						   scb_ampdu_t *scb_ampdu,
-						   u8 tid, bool override);
 static void brcms_c_scb_ampdu_update_max_txlen(struct ampdu_info *ampdu,
 					       u8 dur);
 static void brcms_c_scb_ampdu_update_config(struct ampdu_info *ampdu,
@@ -411,22 +408,26 @@ static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 	}
 }
 
-static void
-brcms_c_ampdu_agg(struct ampdu_info *ampdu, struct scb *scb, struct sk_buff *p,
-	      uint prec)
+void
+brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
+		  u8 ba_wsize)		/* negotiated ba window size (in pdu) */
 {
 	scb_ampdu_t *scb_ampdu;
 	scb_ampdu_tid_ini_t *ini;
-	u8 tid = (u8) (p->priority);
-
+	struct ampdu_info *ampdu = wlc->ampdu;
+	struct scb *scb = wlc->pub->global_scb;
 	scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
 
-	/* initialize initiator on first packet; sends addba req */
-	ini = SCB_AMPDU_INI(scb_ampdu, tid);
-	if (ini->magic != INI_MAGIC) {
-		ini = brcms_c_ampdu_init_tid_ini(ampdu, scb_ampdu, tid, false);
+	if (!ampdu->ini_enable[tid]) {
+		wiphy_err(ampdu->wlc->wiphy, "%s: Rejecting tid %d\n",
+			  __func__, tid);
+		return;
 	}
-	return;
+
+	ini = SCB_AMPDU_INI(scb_ampdu, tid);
+	ini->tid = tid;
+	ini->scb = scb_ampdu->scb;
+	ini->ba_wsize = ba_wsize;
 }
 
 int
@@ -479,12 +480,13 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 
 	/* Let pressure continue to build ... */
 	qlen = pktq_plen(&qi->q, prec);
-	if (ini->tx_in_transit > 0 && qlen < scb_ampdu->max_pdu) {
+	if (ini->tx_in_transit > 0 &&
+	    qlen < min(scb_ampdu->max_pdu, ini->ba_wsize)) {
+		/* Collect multiple MPDU's to be sent in the next AMPDU */
 		return -EBUSY;
 	}
 
-	brcms_c_ampdu_agg(ampdu, scb, p, tid);
-
+	/* at this point we intend to transmit an AMPDU */
 	rr_retry_limit = ampdu->rr_retry_limit_tid[tid];
 	ampdu_len = 0;
 	dma_len = 0;
@@ -1081,27 +1083,6 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	antselid = brcms_c_antsel_antsel2id(wlc->asi, mimoantsel);
 
 	brcms_c_txfifo_complete(wlc, queue, ampdu->txpkt_weight);
-}
-
-/* initialize the initiator code for tid */
-static scb_ampdu_tid_ini_t *brcms_c_ampdu_init_tid_ini(struct ampdu_info *ampdu,
-						   scb_ampdu_t *scb_ampdu,
-						   u8 tid, bool override)
-{
-	scb_ampdu_tid_ini_t *ini;
-
-	/* check for per-tid control of ampdu */
-	if (!ampdu->ini_enable[tid]) {
-		wiphy_err(ampdu->wlc->wiphy, "%s: Rejecting tid %d\n",
-			  __func__, tid);
-		return NULL;
-	}
-
-	ini = SCB_AMPDU_INI(scb_ampdu, tid);
-	ini->tid = tid;
-	ini->scb = scb_ampdu->scb;
-	ini->magic = INI_MAGIC;
-	return ini;
 }
 
 static int brcms_c_ampdu_set(struct ampdu_info *ampdu, bool on)
