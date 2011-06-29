@@ -30,14 +30,16 @@ static int speyside_wm8962_set_bias_level(struct snd_soc_card *card,
 						  WM8962_FLL_MCLK, 32768,
 						  44100 * 256);
 			if (ret < 0)
-				pr_err("Failed to start FLL\n");
+				pr_err("Failed to start FLL: %d\n", ret);
 
 			ret = snd_soc_dai_set_sysclk(codec_dai,
 						     WM8962_SYSCLK_FLL,
 						     44100 * 256,
 						     SND_SOC_CLOCK_IN);
-			if (ret < 0)
+			if (ret < 0) {
+				pr_err("Failed to set SYSCLK: %d\n");
 				return ret;
+			}
 		}
 		break;
 
@@ -59,13 +61,15 @@ static int speyside_wm8962_set_bias_level_post(struct snd_soc_card *card,
 	case SND_SOC_BIAS_STANDBY:
 		ret = snd_soc_dai_set_sysclk(codec_dai, WM8962_SYSCLK_MCLK,
 					     32768, SND_SOC_CLOCK_IN);
-		if (ret < 0)
+		if (ret < 0) {
+			pr_err("Failed to switch away from FLL: %d\n", ret);
 			return ret;
+		}
 
 		ret = snd_soc_dai_set_pll(codec_dai, WM8962_FLL,
 					  0, 0, 0);
 		if (ret < 0) {
-			pr_err("Failed to stop FLL\n");
+			pr_err("Failed to stop FLL: %d\n", ret);
 			return ret;
 		}
 		break;
