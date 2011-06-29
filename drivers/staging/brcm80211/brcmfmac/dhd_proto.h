@@ -76,17 +76,4 @@ extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf,
 			    uint len);
 #endif		/* defined(CONFIG_HAS_EARLYSUSPEND) */
 
-/********************************
- * For version-string expansion *
- */
-#if defined(BDC)
-#define DHD_PROTOCOL "bdc"
-#elif defined(CDC)
-#define DHD_PROTOCOL "cdc"
-#elif defined(RNDIS)
-#define DHD_PROTOCOL "rndis"
-#else
-#define DHD_PROTOCOL "unknown"
-#endif				/* proto */
-
 #endif				/* _dhd_proto_h_ */

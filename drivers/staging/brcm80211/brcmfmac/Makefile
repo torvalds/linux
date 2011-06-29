@@ -20,7 +20,6 @@ ccflags-y :=			\
 	-DBCMLXSDMMC		\
 	-DBCMPLATFORM_BUS	\
 	-DBCMSDIO		\
-	-DBDC			\
 	-DBRCM_FULLMAC		\
 	-DDHD_FIRSTREAD=64	\
 	-DDHD_SCHED		\

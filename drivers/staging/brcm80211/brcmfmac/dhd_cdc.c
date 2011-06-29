@@ -376,13 +376,10 @@ void dhd_prot_dump(dhd_pub_t *dhdp, struct brcmu_strbuf *strbuf)
 
 void dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, struct sk_buff *pktbuf)
 {
-#ifdef BDC
 	struct bdc_header *h;
-#endif				/* BDC */
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
-#ifdef BDC
 	/* Push BDC header used to convey priority for buses that don't */
 
 	skb_push(pktbuf, BDC_HEADER_LEN);
@@ -396,19 +393,15 @@ void dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, struct sk_buff *pktbuf)
 	h->priority = (pktbuf->priority & BDC_PRIORITY_MASK);
 	h->flags2 = 0;
 	h->rssi = 0;
-#endif				/* BDC */
 	BDC_SET_IF_IDX(h, ifidx);
 }
 
 int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
 {
-#ifdef BDC
 	struct bdc_header *h;
-#endif
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
-#ifdef BDC
 	/* Pop BDC header used to convey priority for buses that don't */
 
 	if (pktbuf->len < BDC_HEADER_LEN) {
@@ -443,7 +436,6 @@ int dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, struct sk_buff *pktbuf)
 	pktbuf->priority = h->priority & BDC_PRIORITY_MASK;
 
 	skb_pull(pktbuf, BDC_HEADER_LEN);
-#endif				/* BDC */
 
 	return 0;
 }
@@ -465,9 +457,7 @@ int dhd_prot_attach(dhd_pub_t *dhd)
 	}
 
 	dhd->prot = cdc;
-#ifdef BDC
 	dhd->hdrlen += BDC_HEADER_LEN;
-#endif
 	dhd->maxctl = BRCMF_C_IOCTL_MAXLEN +
 				sizeof(struct cdc_ioctl) + ROUND_UP_MARGIN;
 	return 0;

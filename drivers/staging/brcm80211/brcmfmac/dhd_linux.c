@@ -368,9 +368,6 @@ static void dhd_dpc(unsigned long data);
 extern int dhd_wait_pend8021x(struct net_device *dev);
 
 #ifdef TOE
-#ifndef BDC
-#error TOE requires BDC
-#endif				/* !BDC */
 static int dhd_toe_get(dhd_info_t *dhd, int idx, u32 *toe_ol);
 static int dhd_toe_set(dhd_info_t *dhd, int idx, u32 toe_ol);
 #endif				/* TOE */
