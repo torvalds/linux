@@ -1768,7 +1768,6 @@ static int serial_rk_suspend(struct platform_device *dev, pm_message_t state)
 
 	if (up)
 		uart_suspend_port(&serial_rk_reg, &up->port);
-	printk("%s:%s\n", __func__, dev->name);
 	return 0;
 }
 
@@ -1778,7 +1777,6 @@ static int serial_rk_resume(struct platform_device *dev)
 
 	if (up)
 		uart_resume_port(&serial_rk_reg, &up->port);
-	printk("%s:%s\n", __func__, dev->name);
 	return 0;
 }
 
