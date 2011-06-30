@@ -38,6 +38,7 @@
 #define CFG_BT_BIT	(16)
 #define CFG_3G_BIT	(17)
 #define CFG_WIFI_BIT	(18)
+#define CFG_CAMERA_BIT	(19)
 
 struct ideapad_private {
 	struct rfkill *rfk[IDEAPAD_RFKILL_DEV_NUM];
@@ -208,7 +209,24 @@ static struct attribute *ideapad_attributes[] = {
 	NULL
 };
 
+static mode_t ideapad_is_visible(struct kobject *kobj,
+				 struct attribute *attr,
+				 int idx)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	bool supported;
+
+	if (attr == &dev_attr_camera_power.attr)
+		supported = test_bit(CFG_CAMERA_BIT, &(priv->cfg));
+	else
+		supported = true;
+
+	return supported ? attr->mode : 0;
+}
+
 static struct attribute_group ideapad_attribute_group = {
+	.is_visible = ideapad_is_visible,
 	.attrs = ideapad_attributes
 };
 
