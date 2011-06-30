@@ -20,6 +20,9 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sdio.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <mach/esdhc.h>
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
@@ -73,6 +76,15 @@ static struct platform_device_id imx_esdhc_devtype[] = {
 	}
 };
 MODULE_DEVICE_TABLE(platform, imx_esdhc_devtype);
+
+static const struct of_device_id imx_esdhc_dt_ids[] = {
+	{ .compatible = "fsl,imx25-esdhc", .data = &imx_esdhc_devtype[IMX25_ESDHC], },
+	{ .compatible = "fsl,imx35-esdhc", .data = &imx_esdhc_devtype[IMX35_ESDHC], },
+	{ .compatible = "fsl,imx51-esdhc", .data = &imx_esdhc_devtype[IMX51_ESDHC], },
+	{ .compatible = "fsl,imx53-esdhc", .data = &imx_esdhc_devtype[IMX53_ESDHC], },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, imx_esdhc_dt_ids);
 
 static inline int is_imx25_esdhc(struct pltfm_imx_data *data)
 {
@@ -290,8 +302,48 @@ static irqreturn_t cd_irq(int irq, void *data)
 	return IRQ_HANDLED;
 };
 
+#ifdef CONFIG_OF
+static int __devinit
+sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
+			 struct esdhc_platform_data *boarddata)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	if (!np)
+		return -ENODEV;
+
+	if (of_get_property(np, "fsl,card-wired", NULL))
+		boarddata->cd_type = ESDHC_CD_PERMANENT;
+
+	if (of_get_property(np, "fsl,cd-controller", NULL))
+		boarddata->cd_type = ESDHC_CD_CONTROLLER;
+
+	if (of_get_property(np, "fsl,wp-controller", NULL))
+		boarddata->wp_type = ESDHC_WP_CONTROLLER;
+
+	boarddata->cd_gpio = of_get_named_gpio(np, "cd-gpios", 0);
+	if (gpio_is_valid(boarddata->cd_gpio))
+		boarddata->cd_type = ESDHC_CD_GPIO;
+
+	boarddata->wp_gpio = of_get_named_gpio(np, "wp-gpios", 0);
+	if (gpio_is_valid(boarddata->wp_gpio))
+		boarddata->wp_type = ESDHC_WP_GPIO;
+
+	return 0;
+}
+#else
+static inline int
+sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
+			 struct esdhc_platform_data *boarddata)
+{
+	return -ENODEV;
+}
+#endif
+
 static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id =
+			of_match_device(imx_esdhc_dt_ids, &pdev->dev);
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_host *host;
 	struct esdhc_platform_data *boarddata;
@@ -306,9 +358,13 @@ static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 
 	imx_data = kzalloc(sizeof(struct pltfm_imx_data), GFP_KERNEL);
-	if (!imx_data)
-		return -ENOMEM;
+	if (!imx_data) {
+		err = -ENOMEM;
+		goto err_imx_data;
+	}
 
+	if (of_id)
+		pdev->id_entry = of_id->data;
 	imx_data->devtype = pdev->id_entry->driver_data;
 	pltfm_host->priv = imx_data;
 
@@ -331,14 +387,16 @@ static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	if (is_imx53_esdhc(imx_data))
 		imx_data->flags |= ESDHC_FLAG_MULTIBLK_NO_INT;
 
-	if (!host->mmc->parent->platform_data) {
-		dev_err(mmc_dev(host->mmc), "no board data!\n");
-		err = -EINVAL;
-		goto no_board_data;
-	}
-	imx_data->boarddata = *((struct esdhc_platform_data *)
-				host->mmc->parent->platform_data);
 	boarddata = &imx_data->boarddata;
+	if (sdhci_esdhc_imx_probe_dt(pdev, boarddata) < 0) {
+		if (!host->mmc->parent->platform_data) {
+			dev_err(mmc_dev(host->mmc), "no board data!\n");
+			err = -EINVAL;
+			goto no_board_data;
+		}
+		imx_data->boarddata = *((struct esdhc_platform_data *)
+					host->mmc->parent->platform_data);
+	}
 
 	/* write_protect */
 	if (boarddata->wp_type == ESDHC_WP_GPIO) {
@@ -407,6 +465,7 @@ no_board_data:
 	clk_put(pltfm_host->clk);
 err_clk_get:
 	kfree(imx_data);
+err_imx_data:
 	sdhci_pltfm_free(pdev);
 	return err;
 }
@@ -442,6 +501,7 @@ static struct platform_driver sdhci_esdhc_imx_driver = {
 	.driver		= {
 		.name	= "sdhci-esdhc-imx",
 		.owner	= THIS_MODULE,
+		.of_match_table = imx_esdhc_dt_ids,
 	},
 	.id_table	= imx_esdhc_devtype,
 	.probe		= sdhci_esdhc_imx_probe,
