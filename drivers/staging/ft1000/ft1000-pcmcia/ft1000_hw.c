@@ -54,7 +54,6 @@
 #endif
 
 #include <linux/delay.h>
-#include "ft1000_dev.h"
 #include "ft1000.h"
 
 int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength);

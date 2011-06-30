@@ -406,4 +406,14 @@ extern u16 ft1000_read_dpram_mag_16 (struct net_device *dev, int offset, int Ind
 extern u32 ft1000_read_dpram_mag_32 (struct net_device *dev, int offset);
 void ft1000_write_dpram_mag_32 (struct net_device *dev, int offset, u32 value);
 
+/* Read the value of a given ASIC register. */
+static inline u16 ft1000_read_reg (struct net_device *dev, u16 offset) {
+    return inw(dev->base_addr + offset);
+}
+
+/* Set the value of a given ASIC register. */
+static inline void ft1000_write_reg (struct net_device *dev, u16 offset, u16 value) {
+    outw(value, dev->base_addr + offset);
+}
+
 #endif // _FT1000H_

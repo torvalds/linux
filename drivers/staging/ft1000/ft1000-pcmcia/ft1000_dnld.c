@@ -34,7 +34,6 @@
 #include <asm/uaccess.h>
 #include <linux/vmalloc.h>
 
-#include "ft1000_dev.h"
 #include "ft1000.h"
 #include "boot.h"
 
