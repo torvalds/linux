@@ -295,9 +295,7 @@ MODULE_DEVICE_TABLE(pcmcia, ft1000_ids);
 
 static struct pcmcia_driver ft1000_cs_driver = {
 	.owner = THIS_MODULE,
-	.drv = {
-		.name = "ft1000_cs",
-		},
+	.name = "ft1000_cs",
 	.probe      = ft1000_attach,
 	.remove     = ft1000_detach,
 	.id_table	= ft1000_ids,
