@@ -367,7 +367,7 @@ req_retry_pinned:
 		in += inp;
 	} else {
 		in = pack_sg_list(chan->sg, out, VIRTQUEUE_NUM, rdata,
-				client->msize);
+				req->rc->capacity);
 	}
 
 	err = virtqueue_add_buf(chan->vq, chan->sg, out, in, req->tc);
