@@ -2972,7 +2972,7 @@ static int usb_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
-        #ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+        #ifndef CONFIG_DWC_OTG_HOST_ONLY
 	    val->intval = get_msc_connect_flag();
 	    #else
 	    val->intval = 0;

@@ -2253,7 +2253,7 @@ static void __exit dwc_otg_driver_cleanup(void)
 #ifndef CONFIG_DWC_OTG_HOST_ONLY
     driver_remove_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_conn_en);
 #endif
-#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
     driver_remove_file(&dwc_otg_driver.driver, &driver_attr_vbus_status);
 #endif
 
