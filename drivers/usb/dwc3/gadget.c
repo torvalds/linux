@@ -1496,6 +1496,7 @@ static void dwc3_gadget_disable_irq(struct dwc3 *dwc)
 }
 
 static irqreturn_t dwc3_interrupt(int irq, void *_dwc);
+static irqreturn_t dwc3_thread_interrupt(int irq, void *_dwc);
 
 static int dwc3_gadget_start(struct usb_gadget *g,
 		struct usb_gadget_driver *driver)
@@ -1566,8 +1567,8 @@ static int dwc3_gadget_start(struct usb_gadget *g,
 	dwc3_ep0_out_start(dwc);
 
 	irq = platform_get_irq(to_platform_device(dwc->dev), 0);
-	ret = request_irq(irq, dwc3_interrupt, IRQF_SHARED,
-			"dwc3", dwc);
+	ret = request_threaded_irq(irq, dwc3_interrupt, dwc3_thread_interrupt,
+			IRQF_SHARED | IRQF_ONESHOT, "dwc3", dwc);
 	if (ret) {
 		dev_err(dwc->dev, "failed to request irq #%d --> %d\n",
 				irq, ret);
@@ -2432,40 +2433,73 @@ static void dwc3_process_event_entry(struct dwc3 *dwc,
 	}
 }
 
+static irqreturn_t dwc3_thread_interrupt(int irq, void *_dwc)
+{
+	struct dwc3 *dwc = _dwc;
+	unsigned long flags;
+	irqreturn_t ret = IRQ_NONE;
+	int i;
+
+	spin_lock_irqsave(&dwc->lock, flags);
+
+	for (i = 0; i < dwc->num_event_buffers; i++) {
+		struct dwc3_event_buffer *evt;
+		int			left;
+
+		evt = dwc->ev_buffs[i];
+		left = evt->count;
+
+		if (!(evt->flags & DWC3_EVENT_PENDING))
+			continue;
+
+		while (left > 0) {
+			union dwc3_event event;
+
+			event.raw = *(u32 *) (evt->buf + evt->lpos);
+
+			dwc3_process_event_entry(dwc, &event);
+
+			/*
+			 * FIXME we wrap around correctly to the next entry as
+			 * almost all entries are 4 bytes in size. There is one
+			 * entry which has 12 bytes which is a regular entry
+			 * followed by 8 bytes data. ATM I don't know how
+			 * things are organized if we get next to the a
+			 * boundary so I worry about that once we try to handle
+			 * that.
+			 */
+			evt->lpos = (evt->lpos + 4) % DWC3_EVENT_BUFFERS_SIZE;
+			left -= 4;
+
+			dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(i), 4);
+		}
+
+		evt->count = 0;
+		evt->flags &= ~DWC3_EVENT_PENDING;
+		ret = IRQ_HANDLED;
+	}
+
+	spin_unlock_irqrestore(&dwc->lock, flags);
+
+	return ret;
+}
+
 static irqreturn_t dwc3_process_event_buf(struct dwc3 *dwc, u32 buf)
 {
 	struct dwc3_event_buffer *evt;
-	int left;
 	u32 count;
+
+	evt = dwc->ev_buffs[buf];
 
 	count = dwc3_readl(dwc->regs, DWC3_GEVNTCOUNT(buf));
 	count &= DWC3_GEVNTCOUNT_MASK;
 	if (!count)
 		return IRQ_NONE;
 
-	evt = dwc->ev_buffs[buf];
-	left = count;
+	evt->count = count;
+	evt->flags |= DWC3_EVENT_PENDING;
 
-	while (left > 0) {
-		union dwc3_event event;
-
-		event.raw = *(u32 *) (evt->buf + evt->lpos);
-
-		dwc3_process_event_entry(dwc, &event);
-		/*
-		 * XXX we wrap around correctly to the next entry as almost all
-		 * entries are 4 bytes in size. There is one entry which has 12
-		 * bytes which is a regular entry followed by 8 bytes data. ATM
-		 * I don't know how things are organized if were get next to the
-		 * a boundary so I worry about that once we try to handle that.
-		 */
-		evt->lpos = (evt->lpos + 4) % DWC3_EVENT_BUFFERS_SIZE;
-		left -= 4;
-
-		dwc3_writel(dwc->regs, DWC3_GEVNTCOUNT(buf), 4);
-	}
-
-	return IRQ_HANDLED;
+	return IRQ_WAKE_THREAD;
 }
 
 static irqreturn_t dwc3_interrupt(int irq, void *_dwc)
@@ -2480,7 +2514,7 @@ static irqreturn_t dwc3_interrupt(int irq, void *_dwc)
 		irqreturn_t status;
 
 		status = dwc3_process_event_buf(dwc, i);
-		if (status == IRQ_HANDLED)
+		if (status == IRQ_WAKE_THREAD)
 			ret = status;
 	}
 
