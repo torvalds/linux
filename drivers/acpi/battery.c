@@ -55,6 +55,9 @@
 #define ACPI_BATTERY_NOTIFY_INFO	0x81
 #define ACPI_BATTERY_NOTIFY_THRESHOLD   0x82
 
+/* Battery power unit: 0 means mW, 1 means mA */
+#define ACPI_BATTERY_POWER_UNIT_MA	1
+
 #define _COMPONENT		ACPI_BATTERY_COMPONENT
 
 ACPI_MODULE_NAME("battery");
@@ -301,7 +304,8 @@ static enum power_supply_property energy_battery_props[] = {
 #ifdef CONFIG_ACPI_PROCFS_POWER
 inline char *acpi_battery_units(struct acpi_battery *battery)
 {
-	return (battery->power_unit)?"mA":"mW";
+	return (battery->power_unit == ACPI_BATTERY_POWER_UNIT_MA) ?
+		"mA" : "mW";
 }
 #endif
 
@@ -544,7 +548,7 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 {
 	int result;
 
-	if (battery->power_unit) {
+	if (battery->power_unit == ACPI_BATTERY_POWER_UNIT_MA) {
 		battery->bat.properties = charge_battery_props;
 		battery->bat.num_properties =
 			ARRAY_SIZE(charge_battery_props);
@@ -575,7 +579,8 @@ static void sysfs_remove_battery(struct acpi_battery *battery)
 
 static void acpi_battery_quirks(struct acpi_battery *battery)
 {
-	if (dmi_name_in_vendors("Acer") && battery->power_unit) {
+	if (dmi_name_in_vendors("Acer") &&
+		battery->power_unit == ACPI_BATTERY_POWER_UNIT_MA) {
 		set_bit(ACPI_BATTERY_QUIRK_SIGNED16_CURRENT, &battery->flags);
 	}
 }
