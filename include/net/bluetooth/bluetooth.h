@@ -204,7 +204,7 @@ out:
 	return NULL;
 }
 
-int bt_err(__u16 code);
+int bt_to_errno(__u16 code);
 
 extern int hci_sock_init(void);
 extern void hci_sock_cleanup(void);
