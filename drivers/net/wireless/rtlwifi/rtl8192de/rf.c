@@ -87,7 +87,7 @@ void rtl92d_phy_rf6052_set_cck_txpower(struct ieee80211_hw *hw,
 
 	if (rtlefuse->eeprom_regulatory != 0)
 		turbo_scanoff = true;
-	if (mac->act_scanning == true) {
+	if (mac->act_scanning) {
 		tx_agc[RF90_PATH_A] = 0x3f3f3f3f;
 		tx_agc[RF90_PATH_B] = 0x3f3f3f3f;
 		if (turbo_scanoff) {
@@ -416,9 +416,9 @@ bool rtl92d_phy_enable_anotherphy(struct ieee80211_hw *hw, bool bmac0)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = &(rtlpriv->rtlhal);
 	u8 u1btmp;
-	u8 direct = bmac0 == true ? BIT(3) | BIT(2) : BIT(3);
-	u8 mac_reg = bmac0 == true ? REG_MAC1 : REG_MAC0;
-	u8 mac_on_bit = bmac0 == true ? MAC1_ON : MAC0_ON;
+	u8 direct = bmac0 ? BIT(3) | BIT(2) : BIT(3);
+	u8 mac_reg = bmac0 ? REG_MAC1 : REG_MAC0;
+	u8 mac_on_bit = bmac0 ? MAC1_ON : MAC0_ON;
 	bool bresult = true; /* true: need to enable BB/RF power */
 
 	rtlhal->during_mac0init_radiob = false;
@@ -447,9 +447,9 @@ void rtl92d_phy_powerdown_anotherphy(struct ieee80211_hw *hw, bool bmac0)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = &(rtlpriv->rtlhal);
 	u8 u1btmp;
-	u8 direct = bmac0 == true ? BIT(3) | BIT(2) : BIT(3);
-	u8 mac_reg = bmac0 == true ? REG_MAC1 : REG_MAC0;
-	u8 mac_on_bit = bmac0 == true ? MAC1_ON : MAC0_ON;
+	u8 direct = bmac0 ? BIT(3) | BIT(2) : BIT(3);
+	u8 mac_reg = bmac0 ? REG_MAC1 : REG_MAC0;
+	u8 mac_on_bit = bmac0 ? MAC1_ON : MAC0_ON;
 
 	rtlhal->during_mac0init_radiob = false;
 	rtlhal->during_mac1init_radioa = false;
@@ -573,7 +573,7 @@ bool rtl92d_phy_rf6052_config(struct ieee80211_hw *hw)
 		udelay(1);
 		switch (rfpath) {
 		case RF90_PATH_A:
-			if (true_bpath == true)
+			if (true_bpath)
 				rtstatus = rtl92d_phy_config_rf_with_headerfile(
 						hw, radiob_txt,
 						(enum radio_path)rfpath);

@@ -449,7 +449,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_CORRECT_TSF: {
 		u8 btype_ibss = ((u8 *) (val))[0];
 
-		if (btype_ibss == true)
+		if (btype_ibss)
 			_rtl92de_stop_tx_beacon(hw);
 		_rtl92de_set_bcn_ctrl_reg(hw, 0, BIT(3));
 		rtl_write_dword(rtlpriv, REG_TSFTR,
@@ -457,7 +457,7 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		rtl_write_dword(rtlpriv, REG_TSFTR + 4,
 				(u32) ((mac->tsf >> 32) & 0xffffffff));
 		_rtl92de_set_bcn_ctrl_reg(hw, BIT(3), 0);
-		if (btype_ibss == true)
+		if (btype_ibss)
 			_rtl92de_resume_tx_beacon(hw);
 
 		break;
@@ -1142,7 +1142,7 @@ void rtl92de_set_check_bssid(struct ieee80211_hw *hw, bool check_bssid)
 
 	if (rtlpriv->psc.rfpwr_state != ERFON)
 		return;
-	if (check_bssid == true) {
+	if (check_bssid) {
 		reg_rcr |= (RCR_CBSSID_DATA | RCR_CBSSID_BCN);
 		rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_RCR, (u8 *)(&reg_rcr));
 		_rtl92de_set_bcn_ctrl_reg(hw, 0, BIT(4));
@@ -1785,7 +1785,7 @@ static void _rtl92de_read_adapter_info(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, ("Autoload OK\n"));
 		rtlefuse->autoload_failflag = false;
 	}
-	if (rtlefuse->autoload_failflag == true) {
+	if (rtlefuse->autoload_failflag) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 ("RTL819X Not boot from eeprom, check it !!"));
 		return;
@@ -2147,7 +2147,7 @@ bool rtl92de_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 			  REG_MAC_PINMUX_CFG) & ~(BIT(3)));
 	u1tmp = rtl_read_byte(rtlpriv, REG_GPIO_IO_SEL);
 	e_rfpowerstate_toset = (u1tmp & BIT(3)) ? ERFON : ERFOFF;
-	if ((ppsc->hwradiooff == true) && (e_rfpowerstate_toset == ERFON)) {
+	if (ppsc->hwradiooff && (e_rfpowerstate_toset == ERFON)) {
 		RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
 			 ("GPIOChangeRF  - HW Radio ON, RF ON\n"));
 		e_rfpowerstate_toset = ERFON;
