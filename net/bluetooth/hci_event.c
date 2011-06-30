@@ -915,6 +915,21 @@ static void hci_cc_le_ltk_neg_reply(struct hci_dev *hdev, struct sk_buff *skb)
 	hci_req_complete(hdev, HCI_OP_LE_LTK_NEG_REPLY, rp->status);
 }
 
+static inline void hci_cc_write_le_host_supported(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	struct hci_cp_read_local_ext_features cp;
+	__u8 status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%x", hdev->name, status);
+
+	if (status)
+		return;
+
+	cp.page = 0x01;
+	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_EXT_FEATURES, sizeof(cp), &cp);
+}
+
 static inline void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 {
 	BT_DBG("%s status 0x%x", hdev->name, status);
@@ -1919,6 +1934,10 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 
 	case HCI_OP_LE_LTK_NEG_REPLY:
 		hci_cc_le_ltk_neg_reply(hdev, skb);
+		break;
+
+	case HCI_OP_WRITE_LE_HOST_SUPPORTED:
+		hci_cc_write_le_host_supported(hdev, skb);
 		break;
 
 	default:

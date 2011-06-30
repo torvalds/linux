@@ -654,6 +654,12 @@ struct hci_rp_read_local_oob_data {
 
 #define HCI_OP_READ_INQ_RSP_TX_POWER	0x0c58
 
+#define HCI_OP_WRITE_LE_HOST_SUPPORTED	0x0c6d
+struct hci_cp_write_le_host_supported {
+	__u8 le;
+	__u8 simul;
+} __packed;
+
 #define HCI_OP_READ_LOCAL_VERSION	0x1001
 struct hci_rp_read_local_version {
 	__u8     status;
