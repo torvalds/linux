@@ -320,12 +320,12 @@ static u64 add_new_free_space(struct btrfs_block_group_cache *block_group,
 	return total_added;
 }
 
-static int caching_kthread(void *data)
+static noinline void caching_thread(struct btrfs_work *work)
 {
-	struct btrfs_block_group_cache *block_group = data;
-	struct btrfs_fs_info *fs_info = block_group->fs_info;
-	struct btrfs_caching_control *caching_ctl = block_group->caching_ctl;
-	struct btrfs_root *extent_root = fs_info->extent_root;
+	struct btrfs_block_group_cache *block_group;
+	struct btrfs_fs_info *fs_info;
+	struct btrfs_caching_control *caching_ctl;
+	struct btrfs_root *extent_root;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_key key;
@@ -334,9 +334,14 @@ static int caching_kthread(void *data)
 	u32 nritems;
 	int ret = 0;
 
+	caching_ctl = container_of(work, struct btrfs_caching_control, work);
+	block_group = caching_ctl->block_group;
+	fs_info = block_group->fs_info;
+	extent_root = fs_info->extent_root;
+
 	path = btrfs_alloc_path();
 	if (!path)
-		return -ENOMEM;
+		goto out;
 
 	last = max_t(u64, block_group->key.objectid, BTRFS_SUPER_INFO_OFFSET);
 
@@ -433,13 +438,11 @@ err:
 	free_excluded_extents(extent_root, block_group);
 
 	mutex_unlock(&caching_ctl->mutex);
+out:
 	wake_up(&caching_ctl->wait);
 
 	put_caching_control(caching_ctl);
-	atomic_dec(&block_group->space_info->caching_threads);
 	btrfs_put_block_group(block_group);
-
-	return 0;
 }
 
 static int cache_block_group(struct btrfs_block_group_cache *cache,
@@ -449,7 +452,6 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 {
 	struct btrfs_fs_info *fs_info = cache->fs_info;
 	struct btrfs_caching_control *caching_ctl;
-	struct task_struct *tsk;
 	int ret = 0;
 
 	smp_mb();
@@ -501,6 +503,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	caching_ctl->progress = cache->key.objectid;
 	/* one for caching kthread, one for caching block group list */
 	atomic_set(&caching_ctl->count, 2);
+	caching_ctl->work.func = caching_thread;
 
 	spin_lock(&cache->lock);
 	if (cache->cached != BTRFS_CACHE_NO) {
@@ -516,16 +519,9 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	list_add_tail(&caching_ctl->list, &fs_info->caching_block_groups);
 	up_write(&fs_info->extent_commit_sem);
 
-	atomic_inc(&cache->space_info->caching_threads);
 	btrfs_get_block_group(cache);
 
-	tsk = kthread_run(caching_kthread, cache, "btrfs-cache-%llu\n",
-			  cache->key.objectid);
-	if (IS_ERR(tsk)) {
-		ret = PTR_ERR(tsk);
-		printk(KERN_ERR "error running thread %d\n", ret);
-		BUG();
-	}
+	btrfs_queue_worker(&fs_info->caching_workers, &caching_ctl->work);
 
 	return ret;
 }
@@ -2936,7 +2932,6 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	init_waitqueue_head(&found->wait);
 	*space_info = found;
 	list_add_rcu(&found->list, &info->space_info);
-	atomic_set(&found->caching_threads, 0);
 	return 0;
 }
 
@@ -4997,14 +4992,10 @@ have_block_group:
 			}
 
 			/*
-			 * We only want to start kthread caching if we are at
-			 * the point where we will wait for caching to make
-			 * progress, or if our ideal search is over and we've
-			 * found somebody to start caching.
+			 * The caching workers are limited to 2 threads, so we
+			 * can queue as much work as we care to.
 			 */
-			if (loop > LOOP_CACHING_NOWAIT ||
-			    (loop > LOOP_FIND_IDEAL &&
-			     atomic_read(&space_info->caching_threads) < 2)) {
+			if (loop > LOOP_FIND_IDEAL) {
 				ret = cache_block_group(block_group, trans,
 							orig_root, 0);
 				BUG_ON(ret);
@@ -5226,8 +5217,7 @@ loop:
 		if (loop == LOOP_FIND_IDEAL && found_uncached_bg) {
 			found_uncached_bg = false;
 			loop++;
-			if (!ideal_cache_percent &&
-			    atomic_read(&space_info->caching_threads))
+			if (!ideal_cache_percent)
 				goto search;
 
 			/*
