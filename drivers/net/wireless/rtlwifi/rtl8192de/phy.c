@@ -1684,7 +1684,7 @@ static u8 _rtl92d_phy_patha_iqk(struct ieee80211_hw *hw, bool configpathb)
 	RTPRINT(rtlpriv, FINIT, INIT_IQK,
 		("Delay %d ms for One shot, path A LOK & IQK.\n",
 		IQK_DELAY_TIME));
-	udelay(IQK_DELAY_TIME * 1000);
+	mdelay(IQK_DELAY_TIME);
 	/* Check failed */
 	regeac = rtl_get_bbreg(hw, 0xeac, BMASKDWORD);
 	RTPRINT(rtlpriv, FINIT, INIT_IQK, ("0xeac = 0x%x\n", regeac));
@@ -1755,7 +1755,7 @@ static u8 _rtl92d_phy_patha_iqk_5g_normal(struct ieee80211_hw *hw,
 		RTPRINT(rtlpriv, FINIT, INIT_IQK,
 			("Delay %d ms for One shot, path A LOK & IQK.\n",
 			IQK_DELAY_TIME));
-		udelay(IQK_DELAY_TIME * 1000 * 10);
+		mdelay(IQK_DELAY_TIME * 10);
 		/* Check failed */
 		regeac = rtl_get_bbreg(hw, 0xeac, BMASKDWORD);
 		RTPRINT(rtlpriv, FINIT, INIT_IQK, ("0xeac = 0x%x\n", regeac));
@@ -1808,7 +1808,7 @@ static u8 _rtl92d_phy_pathb_iqk(struct ieee80211_hw *hw)
 	RTPRINT(rtlpriv, FINIT, INIT_IQK,
 		("Delay %d ms for One shot, path B LOK & IQK.\n",
 		IQK_DELAY_TIME));
-	udelay(IQK_DELAY_TIME * 1000);
+	mdelay(IQK_DELAY_TIME);
 	/* Check failed */
 	regeac = rtl_get_bbreg(hw, 0xeac, BMASKDWORD);
 	RTPRINT(rtlpriv, FINIT, INIT_IQK, ("0xeac = 0x%x\n", regeac));
@@ -1875,7 +1875,7 @@ static u8 _rtl92d_phy_pathb_iqk_5g_normal(struct ieee80211_hw *hw)
 		/* delay x ms */
 		RTPRINT(rtlpriv, FINIT, INIT_IQK,
 			("Delay %d ms for One shot, path B LOK & IQK.\n", 10));
-		udelay(IQK_DELAY_TIME * 1000 * 10);
+		mdelay(IQK_DELAY_TIME * 10);
 
 		/* Check failed */
 		regeac = rtl_get_bbreg(hw, 0xeac, BMASKDWORD);
@@ -2206,7 +2206,7 @@ static void _rtl92d_phy_iq_calibrate_5g_normal(struct ieee80211_hw *hw,
 	 * PHY_REG.txt , and radio_a, radio_b.txt */
 
 	RTPRINT(rtlpriv, FINIT, INIT_IQK, ("IQK for 5G NORMAL:Start!!!\n"));
-	udelay(IQK_DELAY_TIME * 1000 * 20);
+	mdelay(IQK_DELAY_TIME * 20);
 	if (t == 0) {
 		bbvalue = rtl_get_bbreg(hw, RFPGA0_RFMOD, BMASKDWORD);
 		RTPRINT(rtlpriv, FINIT, INIT_IQK, ("==>0x%08x\n", bbvalue));
