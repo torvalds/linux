@@ -277,6 +277,7 @@ struct platform_device *__init imx_add_mxc_w1(
 
 #include <mach/esdhc.h>
 struct imx_sdhci_esdhc_imx_data {
+	const char *devid;
 	int id;
 	resource_size_t iobase;
 	resource_size_t irq;

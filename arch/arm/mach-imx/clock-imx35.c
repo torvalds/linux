@@ -458,9 +458,9 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("imx-epit.0", NULL, epit1_clk)
 	_REGISTER_CLOCK("imx-epit.1", NULL, epit2_clk)
 	_REGISTER_CLOCK(NULL, "esai", esai_clk)
-	_REGISTER_CLOCK("sdhci-esdhc-imx.0", NULL, esdhc1_clk)
-	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_clk)
-	_REGISTER_CLOCK("sdhci-esdhc-imx.2", NULL, esdhc3_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx35.0", NULL, esdhc1_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx35.1", NULL, esdhc2_clk)
+	_REGISTER_CLOCK("sdhci-esdhc-imx35.2", NULL, esdhc3_clk)
 	/* i.mx35 has the i.mx27 type fec */
 	_REGISTER_CLOCK("imx27-fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK(NULL, "gpio", gpio1_clk)

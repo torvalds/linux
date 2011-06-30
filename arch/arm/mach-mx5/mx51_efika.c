@@ -260,8 +260,8 @@ static struct regulator_consumer_supply vvideo_consumers[] = {
 };
 
 static struct regulator_consumer_supply vsd_consumers[] = {
-	REGULATOR_SUPPLY("vmmc", "sdhci-esdhc-imx.0"),
-	REGULATOR_SUPPLY("vmmc", "sdhci-esdhc-imx.1"),
+	REGULATOR_SUPPLY("vmmc", "sdhci-esdhc-imx51.0"),
+	REGULATOR_SUPPLY("vmmc", "sdhci-esdhc-imx51.1"),
 };
 
 static struct regulator_consumer_supply pwgt1_consumer[] = {

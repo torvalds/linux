@@ -20,7 +20,6 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/mmc.h>
 #include <linux/mmc/sdio.h>
-#include <mach/hardware.h>
 #include <mach/esdhc.h>
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
@@ -42,11 +41,58 @@
  */
 #define ESDHC_FLAG_MULTIBLK_NO_INT	(1 << 1)
 
+enum imx_esdhc_type {
+	IMX25_ESDHC,
+	IMX35_ESDHC,
+	IMX51_ESDHC,
+	IMX53_ESDHC,
+};
+
 struct pltfm_imx_data {
 	int flags;
 	u32 scratchpad;
+	enum imx_esdhc_type devtype;
 	struct esdhc_platform_data boarddata;
 };
+
+static struct platform_device_id imx_esdhc_devtype[] = {
+	{
+		.name = "sdhci-esdhc-imx25",
+		.driver_data = IMX25_ESDHC,
+	}, {
+		.name = "sdhci-esdhc-imx35",
+		.driver_data = IMX35_ESDHC,
+	}, {
+		.name = "sdhci-esdhc-imx51",
+		.driver_data = IMX51_ESDHC,
+	}, {
+		.name = "sdhci-esdhc-imx53",
+		.driver_data = IMX53_ESDHC,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, imx_esdhc_devtype);
+
+static inline int is_imx25_esdhc(struct pltfm_imx_data *data)
+{
+	return data->devtype == IMX25_ESDHC;
+}
+
+static inline int is_imx35_esdhc(struct pltfm_imx_data *data)
+{
+	return data->devtype == IMX35_ESDHC;
+}
+
+static inline int is_imx51_esdhc(struct pltfm_imx_data *data)
+{
+	return data->devtype == IMX51_ESDHC;
+}
+
+static inline int is_imx53_esdhc(struct pltfm_imx_data *data)
+{
+	return data->devtype == IMX53_ESDHC;
+}
 
 static inline void esdhc_clrset_le(struct sdhci_host *host, u32 mask, u32 val, int reg)
 {
@@ -262,6 +308,8 @@ static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	imx_data = kzalloc(sizeof(struct pltfm_imx_data), GFP_KERNEL);
 	if (!imx_data)
 		return -ENOMEM;
+
+	imx_data->devtype = pdev->id_entry->driver_data;
 	pltfm_host->priv = imx_data;
 
 	clk = clk_get(mmc_dev(host->mmc), NULL);
@@ -273,14 +321,14 @@ static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	clk_enable(clk);
 	pltfm_host->clk = clk;
 
-	if (!cpu_is_mx25())
+	if (!is_imx25_esdhc(imx_data))
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 
-	if (cpu_is_mx25() || cpu_is_mx35())
+	if (is_imx25_esdhc(imx_data) || is_imx35_esdhc(imx_data))
 		/* Fix errata ENGcm07207 present on i.MX25 and i.MX35 */
 		host->quirks |= SDHCI_QUIRK_NO_MULTIBLOCK;
 
-	if (!(cpu_is_mx25() || cpu_is_mx35() || cpu_is_mx51()))
+	if (is_imx53_esdhc(imx_data))
 		imx_data->flags |= ESDHC_FLAG_MULTIBLK_NO_INT;
 
 	if (!host->mmc->parent->platform_data) {
@@ -395,6 +443,7 @@ static struct platform_driver sdhci_esdhc_imx_driver = {
 		.name	= "sdhci-esdhc-imx",
 		.owner	= THIS_MODULE,
 	},
+	.id_table	= imx_esdhc_devtype,
 	.probe		= sdhci_esdhc_imx_probe,
 	.remove		= __devexit_p(sdhci_esdhc_imx_remove),
 #ifdef CONFIG_PM
