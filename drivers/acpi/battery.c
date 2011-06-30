@@ -592,7 +592,7 @@ static void sysfs_remove_battery(struct acpi_battery *battery)
  *
  * Handle this correctly so that they won't break userspace.
  */
-static void acpi_battery_quirks2(struct acpi_battery *battery)
+static void acpi_battery_quirks(struct acpi_battery *battery)
 {
 	if (test_bit(ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY, &battery->flags))
 		return ;
@@ -628,7 +628,7 @@ static int acpi_battery_update(struct acpi_battery *battery)
 	if (!battery->bat.dev)
 		sysfs_add_battery(battery);
 	result = acpi_battery_get_state(battery);
-	acpi_battery_quirks2(battery);
+	acpi_battery_quirks(battery);
 	return result;
 }
 
