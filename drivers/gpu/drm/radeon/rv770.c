@@ -575,6 +575,12 @@ static void rv770_program_channel_remap(struct radeon_device *rdev)
 	else
 		tcp_chan_steer = 0x00fac688;
 
+	/* RV770 CE has special chremap setup */
+	if (rdev->pdev->device == 0x944e) {
+		tcp_chan_steer = 0x00b08b08;
+		mc_shared_chremap = 0x00b08b08;
+	}
+
 	WREG32(TCP_CHAN_STEER, tcp_chan_steer);
 	WREG32(MC_SHARED_CHREMAP, mc_shared_chremap);
 }
