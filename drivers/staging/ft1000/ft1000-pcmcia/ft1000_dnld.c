@@ -328,7 +328,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength)
 	PDSP_IMAGE_INFO_V6 pDspImageInfoV6 = NULL;
 	long requested_version;
 	BOOLEAN bGoodVersion = 0;
-	PDRVMSG pMailBoxData;
+	struct drv_msg *pMailBoxData;
 	USHORT *pUsData = NULL;
 	USHORT *pUsFile = NULL;
 	UCHAR *pUcFile = NULL;
@@ -605,7 +605,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength)
 						(long)(info->DSPInfoBlklen + 1) / 2;
 					put_request_value(dev, word_length);
 					pMailBoxData =
-						(PDRVMSG) & info->DSPInfoBlk[0];
+						(struct drv_msg *) & info->DSPInfoBlk[0];
 					pUsData =
 						(USHORT *) & pMailBoxData->data[0];
 					// Provide mutual exclusive access while reading ASIC registers.

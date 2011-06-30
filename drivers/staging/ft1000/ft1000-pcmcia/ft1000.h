@@ -285,12 +285,12 @@ struct pseudo_hdr
 
 #define MAXIMUM_ASIC_HB_CNT      15
 
-typedef struct _DRVMSG {
+struct drv_msg {
 	struct pseudo_hdr pseudo;
 	u16 type;
 	u16 length;
 	u8  data[0];
-} __attribute__ ((packed)) DRVMSG, *PDRVMSG;
+} __attribute__ ((packed));
 
 typedef struct _MEDIAMSG {
 	struct pseudo_hdr pseudo;

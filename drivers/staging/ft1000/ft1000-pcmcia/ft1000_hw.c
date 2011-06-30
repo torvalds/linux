@@ -1017,7 +1017,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 	u16 tempword;
 	PMEDIAMSG pmediamsg;
 	PDSPINITMSG pdspinitmsg;
-	PDRVMSG pdrvmsg;
+	struct drv_msg *pdrvmsg;
 	u16 len;
 	u16 i;
 	PPROV_RECORD ptr;
@@ -1038,7 +1038,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
     if ( ft1000_receive_cmd(dev, &cmdbuffer[0], MAX_CMD_SQSIZE, &tempword) ) {
 
 		// Get the message type which is total_len + PSEUDO header + msgtype + message body
-		pdrvmsg = (PDRVMSG) & cmdbuffer[0];
+		pdrvmsg = (struct drv_msg *) & cmdbuffer[0];
 		msgtype = ntohs(pdrvmsg->type);
 		DEBUG(1, "Command message type = 0x%x\n", msgtype);
 		switch (msgtype) {
