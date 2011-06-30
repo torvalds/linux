@@ -63,11 +63,11 @@ void stop_ft1000_card(struct net_device *);
 static int ft1000_config(struct pcmcia_device *link);
 static void ft1000_release(struct pcmcia_device *link);
 static void ft1000_detach(struct pcmcia_device *link);
-static int  ft1000_attach(struct pcmcia_device *link);
+static int ft1000_attach(struct pcmcia_device *link);
 
 /*====================================================================*/
 
-static void ft1000_reset(struct pcmcia_device * link)
+static void ft1000_reset(struct pcmcia_device *link)
 {
 	pcmcia_reset_card(link->socket);
 }
@@ -78,21 +78,17 @@ static int ft1000_attach(struct pcmcia_device *link)
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
 	return ft1000_config(link);
-
 }
 
 static void ft1000_detach(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
 
-	if (dev) {
+	if (dev)
 		stop_ft1000_card(dev);
-	}
 
 	pcmcia_disable_device(link);
-
 	free_netdev(dev);
-
 }
 
 int ft1000_confcheck(struct pcmcia_device *link, void *priv_data)
@@ -110,7 +106,7 @@ int ft1000_confcheck(struct pcmcia_device *link, void *priv_data)
 
 static int ft1000_config(struct pcmcia_device *link)
 {
-	int  ret;
+	int ret;
 
 	dev_dbg(&link->dev, "ft1000_cs: ft1000_config(0x%p)\n", link);
 
@@ -129,7 +125,7 @@ static int ft1000_config(struct pcmcia_device *link)
 	}
 
 	link->priv = init_ft1000_card(link, &ft1000_reset);
-	if (link->priv == NULL) {
+	if (!link->priv) {
 		printk(KERN_INFO "ft1000: Could not register as network device\n");
 		goto failed;
 	}
@@ -140,7 +136,6 @@ static int ft1000_config(struct pcmcia_device *link)
 failed:
 	ft1000_release(link);
 	return -ENODEV;
-
 }
 
 /*======================================================================
@@ -151,7 +146,7 @@ failed:
 
 ======================================================================*/
 
-static void ft1000_release(struct pcmcia_device * link)
+static void ft1000_release(struct pcmcia_device *link)
 {
 	 pcmcia_disable_device(link);
 }
@@ -182,13 +177,13 @@ static const struct pcmcia_device_id ft1000_ids[] = {
 MODULE_DEVICE_TABLE(pcmcia, ft1000_ids);
 
 static struct pcmcia_driver ft1000_cs_driver = {
-	.owner = THIS_MODULE,
-	.name = "ft1000_cs",
-	.probe      = ft1000_attach,
-	.remove     = ft1000_detach,
+	.owner		= THIS_MODULE,
+	.name		= "ft1000_cs",
+	.probe		= ft1000_attach,
+	.remove		= ft1000_detach,
 	.id_table	= ft1000_ids,
-	.suspend    = ft1000_suspend,
-	.resume     = ft1000_resume,
+	.suspend	= ft1000_suspend,
+	.resume		= ft1000_resume,
 };
 
 static int __init init_ft1000_cs(void)
