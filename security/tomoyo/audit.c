@@ -69,7 +69,7 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 	char *buf = NULL;
 	const char *header = NULL;
 	int pos;
-	const char *domainname = tomoyo_domain()->domainname->name;
+	const char *domainname = r->domain->domainname->name;
 	header = tomoyo_print_header(r);
 	if (!header)
 		return NULL;
