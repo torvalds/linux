@@ -573,11 +573,16 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 
 static void sysfs_remove_battery(struct acpi_battery *battery)
 {
-	if (!battery->bat.dev)
+	mutex_lock(&battery->lock);
+	if (!battery->bat.dev) {
+		mutex_unlock(&battery->lock);
 		return;
+	}
+
 	device_remove_file(battery->bat.dev, &alarm_attr);
 	power_supply_unregister(&battery->bat);
 	battery->bat.dev = NULL;
+	mutex_unlock(&battery->lock);
 }
 
 /*
