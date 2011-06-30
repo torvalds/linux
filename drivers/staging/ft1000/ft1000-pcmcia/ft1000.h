@@ -317,14 +317,6 @@ struct dsp_init_msg {
     u8 RfCalDate[CALDATESZ];    // Rf Calibration date
 } __attribute__ ((packed));
 
-typedef struct _DSPHIBERNATE {
-	struct pseudo_hdr pseudo;
-	u16 type;
-	u16 length;
-	u32 timeout;
-    u16 sess_info[0];
-} DSPHIBERNATE, *PDSPHIBERNATE;
-
 typedef struct _APP_INFO_BLOCK
 {
     u32 fileobject;                // Application's file object
