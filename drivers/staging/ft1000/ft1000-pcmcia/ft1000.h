@@ -292,7 +292,7 @@ struct drv_msg {
 	u8  data[0];
 } __attribute__ ((packed));
 
-typedef struct _MEDIAMSG {
+struct media_msg {
 	struct pseudo_hdr pseudo;
 	u16 type;
 	u16 length;
@@ -302,7 +302,7 @@ typedef struct _MEDIAMSG {
 	u32 gateway;
 	u32 dns_1;
 	u32 dns_2;
-} __attribute__ ((packed)) MEDIAMSG, *PMEDIAMSG;
+} __attribute__ ((packed));
 
 typedef struct _TIMEMSG {
 	struct pseudo_hdr pseudo;

@@ -1015,7 +1015,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 	FT1000_INFO *info = netdev_priv(dev);
 	u16 msgtype;
 	u16 tempword;
-	PMEDIAMSG pmediamsg;
+	struct media_msg *pmediamsg;
 	PDSPINITMSG pdspinitmsg;
 	struct drv_msg *pdrvmsg;
 	u16 len;
@@ -1090,7 +1090,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 			info->CardReady = 1;
 			break;
 		case MEDIA_STATE:
-			pmediamsg = (PMEDIAMSG) & cmdbuffer[0];
+			pmediamsg = (struct media_msg *) & cmdbuffer[0];
 			if (info->ProgConStat != 0xFF) {
 			if (pmediamsg->state) {
 				DEBUG(1, "Media is up\n");
