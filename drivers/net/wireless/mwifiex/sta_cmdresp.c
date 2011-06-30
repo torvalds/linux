@@ -183,30 +183,32 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
  */
 static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
 				       struct host_cmd_ds_command *resp,
-				       u32 *ul_temp)
+				       u32 *data_buf)
 {
 	struct host_cmd_ds_802_11_snmp_mib *smib = &resp->params.smib;
 	u16 oid = le16_to_cpu(smib->oid);
 	u16 query_type = le16_to_cpu(smib->query_type);
+	u32 ul_temp;
 
 	dev_dbg(priv->adapter->dev, "info: SNMP_RESP: oid value = %#x,"
 			" query_type = %#x, buf size = %#x\n",
 			oid, query_type, le16_to_cpu(smib->buf_size));
 	if (query_type == HostCmd_ACT_GEN_GET) {
-		if (ul_temp)
-			*ul_temp = le16_to_cpu(*((__le16 *) (smib->value)));
+		ul_temp = le16_to_cpu(*((__le16 *) (smib->value)));
+		if (data_buf)
+			*data_buf = ul_temp;
 		switch (oid) {
 		case FRAG_THRESH_I:
 			dev_dbg(priv->adapter->dev,
-				"info: SNMP_RESP: FragThsd =%u\n", *ul_temp);
+				"info: SNMP_RESP: FragThsd =%u\n", ul_temp);
 			break;
 		case RTS_THRESH_I:
 			dev_dbg(priv->adapter->dev,
-				"info: SNMP_RESP: RTSThsd =%u\n", *ul_temp);
+				"info: SNMP_RESP: RTSThsd =%u\n", ul_temp);
 			break;
 		case SHORT_RETRY_LIM_I:
 			dev_dbg(priv->adapter->dev,
-				"info: SNMP_RESP: TxRetryCount=%u\n", *ul_temp);
+				"info: SNMP_RESP: TxRetryCount=%u\n", ul_temp);
 			break;
 		default:
 			break;
@@ -622,21 +624,22 @@ static int mwifiex_ret_802_11d_domain_info(struct mwifiex_private *priv,
  */
 static int mwifiex_ret_802_11_rf_channel(struct mwifiex_private *priv,
 					 struct host_cmd_ds_command *resp,
-					 u16 *new_channel)
+					 u16 *data_buf)
 {
 	struct host_cmd_ds_802_11_rf_channel *rf_channel =
 		&resp->params.rf_channel;
+	u16 new_channel = le16_to_cpu(rf_channel->current_channel);
 
-	if (new_channel)
-		*new_channel = le16_to_cpu(rf_channel->current_channel);
-
-	if (priv->curr_bss_params.bss_descriptor.channel != *new_channel) {
+	if (priv->curr_bss_params.bss_descriptor.channel != new_channel) {
 		dev_dbg(priv->adapter->dev, "cmd: Channel Switch: %d to %d\n",
 		       priv->curr_bss_params.bss_descriptor.channel,
-		       *new_channel);
+		       new_channel);
 		/* Update the channel again */
-		priv->curr_bss_params.bss_descriptor.channel = *new_channel;
+		priv->curr_bss_params.bss_descriptor.channel = new_channel;
 	}
+
+	if (data_buf)
+		*data_buf = new_channel;
 
 	return 0;
 }

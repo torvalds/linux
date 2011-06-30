@@ -54,7 +54,7 @@
  * @QID_RX: RX queue
  * @QID_OTHER: None of the above (don't use, only present for completeness)
  * @QID_BEACON: Beacon queue (value unspecified, don't send it to device)
- * @QID_ATIM: Atim queue (value unspeficied, don't send it to device)
+ * @QID_ATIM: Atim queue (value unspecified, don't send it to device)
  */
 enum data_queue_qid {
 	QID_AC_VO = 0,

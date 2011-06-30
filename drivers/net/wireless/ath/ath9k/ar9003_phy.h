@@ -1121,6 +1121,9 @@
 #define AR_PHY_POWERTX_RATE8_POWERTXHT40_5	0x3F00
 #define AR_PHY_POWERTX_RATE8_POWERTXHT40_5_S	8
 
+#define AR_PHY_CL_TAB_CL_GAIN_MOD		0x1f
+#define AR_PHY_CL_TAB_CL_GAIN_MOD_S		0
+
 void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx);
 
 #endif  /* AR9003_PHY_H */

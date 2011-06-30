@@ -35,7 +35,7 @@
 #include "iwl-agn.h"
 
 static struct iwl_link_quality_cmd *
-iwl_sta_alloc_lq(struct iwl_priv *priv, u8 sta_id)
+iwl_sta_alloc_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx, u8 sta_id)
 {
 	int i, r;
 	struct iwl_link_quality_cmd *link_cmd;
@@ -47,9 +47,14 @@ iwl_sta_alloc_lq(struct iwl_priv *priv, u8 sta_id)
 		IWL_ERR(priv, "Unable to allocate memory for LQ cmd.\n");
 		return NULL;
 	}
+
+	lockdep_assert_held(&priv->mutex);
+
 	/* Set up the rate scaling to start at selected rate, fall back
 	 * all the way down to 1M in IEEE order, and then spin on 1M */
 	if (priv->band == IEEE80211_BAND_5GHZ)
+		r = IWL_RATE_6M_INDEX;
+	else if (ctx && ctx->vif && ctx->vif->p2p)
 		r = IWL_RATE_6M_INDEX;
 	else
 		r = IWL_RATE_1M_INDEX;
@@ -115,7 +120,7 @@ int iwlagn_add_bssid_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	/* Set up default rate scaling table in device's station table */
-	link_cmd = iwl_sta_alloc_lq(priv, sta_id);
+	link_cmd = iwl_sta_alloc_lq(priv, ctx, sta_id);
 	if (!link_cmd) {
 		IWL_ERR(priv, "Unable to initialize rate scaling for station %pM.\n",
 			addr);
@@ -554,7 +559,7 @@ int iwlagn_alloc_bcast_station(struct iwl_priv *priv,
 	priv->stations[sta_id].used |= IWL_STA_BCAST;
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	link_cmd = iwl_sta_alloc_lq(priv, sta_id);
+	link_cmd = iwl_sta_alloc_lq(priv, ctx, sta_id);
 	if (!link_cmd) {
 		IWL_ERR(priv,
 			"Unable to initialize rate scaling for bcast station.\n");
@@ -574,14 +579,14 @@ int iwlagn_alloc_bcast_station(struct iwl_priv *priv,
  * Only used by iwlagn. Placed here to have all bcast station management
  * code together.
  */
-static int iwl_update_bcast_station(struct iwl_priv *priv,
-				    struct iwl_rxon_context *ctx)
+int iwl_update_bcast_station(struct iwl_priv *priv,
+			     struct iwl_rxon_context *ctx)
 {
 	unsigned long flags;
 	struct iwl_link_quality_cmd *link_cmd;
 	u8 sta_id = ctx->bcast_sta_id;
 
-	link_cmd = iwl_sta_alloc_lq(priv, sta_id);
+	link_cmd = iwl_sta_alloc_lq(priv, ctx, sta_id);
 	if (!link_cmd) {
 		IWL_ERR(priv, "Unable to initialize rate scaling for bcast station.\n");
 		return -ENOMEM;

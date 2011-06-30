@@ -526,19 +526,6 @@ int iwl_full_rxon_required(struct iwl_priv *priv,
 	return 0;
 }
 
-u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv,
-			    struct iwl_rxon_context *ctx)
-{
-	/*
-	 * Assign the lowest rate -- should really get this from
-	 * the beacon skb from mac80211.
-	 */
-	if (ctx->staging.flags & RXON_FLG_BAND_24G_MSK)
-		return IWL_RATE_1M_PLCP;
-	else
-		return IWL_RATE_6M_PLCP;
-}
-
 static void _iwl_set_rxon_ht(struct iwl_priv *priv,
 			     struct iwl_ht_config *ht_conf,
 			     struct iwl_rxon_context *ctx)
@@ -1717,6 +1704,7 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
 	struct iwl_rxon_context *bss_ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwl_rxon_context *tmp;
+	enum nl80211_iftype newviftype = newtype;
 	u32 interface_modes;
 	int err;
 
@@ -1772,7 +1760,7 @@ int iwl_mac_change_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	/* success */
 	iwl_teardown_interface(priv, vif, true);
-	vif->type = newtype;
+	vif->type = newviftype;
 	vif->p2p = newp2p;
 	err = iwl_setup_interface(priv, ctx);
 	WARN_ON(err);

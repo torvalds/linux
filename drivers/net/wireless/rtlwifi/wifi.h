@@ -302,9 +302,6 @@ enum hw_variables {
 	HW_VAR_DATA_FILTER,
 };
 
-#define HWSET_MAX_SIZE				128
-#define EFUSE_MAX_SECTION			16
-
 enum _RT_MEDIA_STATUS {
 	RT_MEDIA_DISCONNECT = 0,
 	RT_MEDIA_CONNECT = 1
