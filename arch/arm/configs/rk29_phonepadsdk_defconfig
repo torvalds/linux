@@ -1154,7 +1154,7 @@ CONFIG_ADC_RK29=y
 #
 # Headset device support
 #
-CONFIG_RK_HEADSET_DET=y
+# CONFIG_RK_HEADSET_DET is not set
 
 #
 # PPS support

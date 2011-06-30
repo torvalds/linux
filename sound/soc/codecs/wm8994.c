@@ -231,7 +231,7 @@ static int wm8994_read(unsigned short reg,unsigned short *value)
 	unsigned short regs=((reg>>8)&0x00FF)|((reg<<8)&0xFF00),values;
 	char i = 2;
 	mutex_lock(&wm8994->io_lock);
-//	if(wm8994->RW_status == ERROR)return -EIO;
+	if(wm8994->RW_status == ERROR) goto out;
 
 	while(i > 0)
 	{
@@ -250,6 +250,7 @@ static int wm8994_read(unsigned short reg,unsigned short *value)
 	
 	wm8994->RW_status = ERROR;	
 	printk("%s---line->%d:Codec read error! reg = 0x%x , value = 0x%x\n",__FUNCTION__,__LINE__,reg,*value);
+out:	
 	mutex_unlock(&wm8994->io_lock);
 	return -EIO;
 }
@@ -263,7 +264,8 @@ static int wm8994_write(unsigned short reg,unsigned short value)
 	
 	mutex_lock(&wm8994->io_lock);
 
-//	if(wm8994->RW_status == ERROR)return -EIO;
+	if(wm8994->RW_status == ERROR) goto out;
+
 #ifdef WM8994_PROC	
 	if(debug_write_read != 0)
 		DBG("%s:0x%04x = 0x%04x\n",__FUNCTION__,reg,value);
@@ -280,6 +282,8 @@ static int wm8994_write(unsigned short reg,unsigned short value)
 	
 	wm8994->RW_status = ERROR;
 	printk("%s---line->%d:Codec write error! reg = 0x%x , value = 0x%x\n",__FUNCTION__,__LINE__,reg,value);
+
+out:	
 	mutex_unlock(&wm8994->io_lock);
 	return -EIO;
 }
@@ -402,7 +406,7 @@ static int wm8994_sysclk_config(void)
 
 	if(wm8994->sysclk == 12288000)
 		return wm8994_SYSCLK_12288M;
-	else if(wm8994->sysclk == 3072000)
+	else
 		return wm8994_SYSCLK_3072M;
 
 	printk("wm8994_sysclk_config error\n");	
@@ -419,6 +423,38 @@ static void wm8994_set_AIF1DAC_EQ(void)
 		((bank_vol[5]+12)<<6));
 }
 
+static int wm8994_reset_ldo(void)
+{
+	struct wm8994_priv *wm8994 = wm8994_codec->private_data;	
+	struct wm8994_pdata *pdata = wm8994->pdata;
+	unsigned short value;
+	
+	if(wm8994->RW_status == TRUE)
+		return 0;
+		
+	gpio_request(pdata->Power_EN_Pin, NULL);
+	gpio_direction_output(pdata->Power_EN_Pin,GPIO_LOW);
+	gpio_free(pdata->Power_EN_Pin);	
+	msleep(50);
+	gpio_request(pdata->Power_EN_Pin, NULL);
+	gpio_direction_output(pdata->Power_EN_Pin,GPIO_HIGH);
+	gpio_free(pdata->Power_EN_Pin);		
+	msleep(50);
+	
+	wm8994->RW_status = TRUE;
+	wm8994_read(0x00,  &value);
+
+	if(value == 0x8994)
+		DBG("wm8994_reset_ldo Read ID = 0x%x\n",value);
+	else
+	{
+		wm8994->RW_status = ERROR;
+		printk("wm8994_reset_ldo Read ID error value = 0x%x\n",value);
+		return -1;
+	}	
+		
+	return 0;	
+}
 //Set the volume of each channel (including recording)
 static void wm8994_set_channel_vol(void)
 {
@@ -607,8 +643,7 @@ static void wm8994_set_channel_vol(void)
 }
 
 #define wm8994_reset()	wm8994_set_all_mute();\
-						wm8994_write(WM8994_RESET, 0)
-						
+						wm8994_write(WM8994_RESET, 0)					
 
 void AP_to_headset(void)
 {
@@ -954,7 +989,7 @@ void AP_to_speakers_and_headset(void)
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 	if(wm8994_current_mode==wm8994_AP_to_speakers_and_headset)return;
 	wm8994_current_mode=wm8994_AP_to_speakers_and_headset;
-	wm8994_reset();
+	wm8994_write(WM8994_RESET, 0);
 	msleep(WM8994_DELAY);
 
 	wm8994_write(0x39,  0x006C);
@@ -1018,10 +1053,23 @@ void recorder_and_AP_to_headset(void)
 
 	if(wm8994_current_mode==wm8994_recorder_and_AP_to_headset)return;
 	wm8994_current_mode=wm8994_recorder_and_AP_to_headset;
-	wm8994_reset();
+	wm8994_write(WM8994_RESET, 0);
 	msleep(WM8994_DELAY);
+	
+	wm8994_write(0x39, 0x006C);
 
-	wm8994_write(0x01,  0x0003);
+	wm8994_write(0x01, 0x0003);
+	msleep(35);	
+	wm8994_write(0xFF, 0x0000);
+	msleep(5);
+	wm8994_write(0x4C, 0x9F25);
+	msleep(5);
+	wm8994_write(0x01, 0x0303);
+	wm8994_write(0x60, 0x0022);
+	msleep(5);	
+	wm8994_write(0x54, 0x0033);//
+	
+//	wm8994_write(0x01,  0x0003);	
 	wm8994_write(0x200, 0x0000);
 	msleep(WM8994_DELAY);
 //clk
@@ -1069,14 +1117,14 @@ void recorder_and_AP_to_headset(void)
 	wm8994_write(0x611, 0x01A0); // DAC1_VU=1, DAC1R_VOL=1100_0000
 	wm8994_set_channel_vol();	
 //other
-	wm8994_write(0x4C,  0x9F25);		
+//	wm8994_write(0x4C,  0x9F25);		
 //power
 	wm8994_write(0x01,  0x0333);
 	wm8994_write(0x02,  0x6110); // TSHUT_ENA=1, TSHUT_OPDIS=1, MIXINR_ENA=1,IN1R_ENA=1
 	wm8994_write(0x03,  0x3030);
 	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1
 	wm8994_write(0x05,  0x0303); // AIF1DAC1L_ENA=1, AIF1DAC1R_ENA=1, DAC1L_ENA=1, DAC1R_ENA=1
-	
+
 }
 
 void recorder_and_AP_to_speakers(void)
@@ -1085,7 +1133,7 @@ void recorder_and_AP_to_speakers(void)
 
 	if(wm8994_current_mode==wm8994_recorder_and_AP_to_speakers)return;
 	wm8994_current_mode=wm8994_recorder_and_AP_to_speakers;
-	wm8994_reset();
+	wm8994_write(WM8994_RESET, 0);
 	msleep(WM8994_DELAY);
 
 	wm8994_write(0x39,  0x006C);
@@ -1148,7 +1196,7 @@ void recorder_and_AP_to_speakers(void)
 	wm8994_write(0x03,  0x0330); // SPKRVOL_ENA=1, SPKLVOL_ENA=1, MIXOUTL_ENA=1, MIXOUTR_ENA=1  
 	wm8994_write(0x05,  0x0303); // AIF1DAC1L_ENA=1, AIF1DAC1R_ENA=1, DAC1L_ENA=1, DAC1R_ENA=1	
 	wm8994_write(0x01,  0x3003);
-	msleep(20);
+	msleep(50);
 	wm8994_write(0x01,  0x3033);
 }
 
@@ -2610,7 +2658,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 		wm8994_write(0,0);
 		msleep(50);
 		goto out;
-	}	
+	}
 	//before set the route -- disable PA
 	switch(route)
 	{
@@ -2685,6 +2733,14 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 		default:
 			printk("wm8994 error route!!!\n");
 			goto out;
+	}
+
+	if(wm8994->RW_status == ERROR)
+	{//Failure to read or write, will re-power on wm8994
+		cancel_delayed_work_sync(&wm8994->wm8994_delayed_work);
+		wm8994->work_type = SNDRV_PCM_TRIGGER_PAUSE_PUSH;
+		schedule_delayed_work(&wm8994->wm8994_delayed_work, msecs_to_jiffies(10));
+		goto out;
 	}
 	//after set the route -- enable PA
 	switch(route)
@@ -2875,7 +2931,6 @@ static void wm8994_work_fun(struct work_struct *work)
 	struct snd_soc_codec *codec = wm8994_codec;
 	struct wm8994_priv *wm8994 = codec->private_data;
 	struct wm8994_pdata *pdata = wm8994->pdata;
-	unsigned short value;
 	int error_count = 5;
 //	DBG("Enter %s---%d = %d\n",__FUNCTION__,__LINE__,wm8994_current_mode);
 
@@ -2903,23 +2958,25 @@ static void wm8994_work_fun(struct work_struct *work)
 			{
 			//	DBG("wm8994->kcontrol->private_value != SPEAKER_NORMAL\n");
 				return;
-			}	
+			}
 			wm8994_current_mode = null;
 			snd_soc_put_route(wm8994->kcontrol,NULL);
 		}		
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:	
 		msleep(100);
+		gpio_request(pdata->Power_EN_Pin, NULL);
+		gpio_direction_output(pdata->Power_EN_Pin,GPIO_HIGH);
+		gpio_free(pdata->Power_EN_Pin);		
+		msleep(100);
+		wm8994_current_mode = null;
+		snd_soc_put_route(wm8994->kcontrol,NULL);
+		break;
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:	
 		while(error_count)
 		{
-			gpio_request(pdata->Power_EN_Pin, NULL);
-			gpio_direction_output(pdata->Power_EN_Pin,GPIO_HIGH);
-			gpio_free(pdata->Power_EN_Pin);
-			msleep(100);
-			wm8994_read(0x00,  &value);
-			if(value == 0x8994)
+			if( wm8994_reset_ldo() ==  0)
 			{
-				DBG("wm8994 Resume Read ID = 0x%x\n",value);
 				wm8994_current_mode = null;
 				snd_soc_put_route(wm8994->kcontrol,NULL);
 				break;
@@ -2927,8 +2984,12 @@ static void wm8994_work_fun(struct work_struct *work)
 			error_count --;
 		}
 		if(error_count == 0)
-			printk("wm8994 resume power on error value = %d\n",value);
+		{
+			PA_ctrl(GPIO_LOW);
+			printk("wm8994 Major problems, give me log,tks, -- qjb\n");
+		}	
 		break;
+
 	default:
 		break;
 	}
@@ -2978,6 +3039,8 @@ static int wm8994_suspend(struct platform_device *pdev, pm_message_t state)
 	struct wm8994_pdata *pdata = wm8994->pdata;
 	
 	DBG("%s----%d\n",__FUNCTION__,__LINE__);
+
+	cancel_delayed_work_sync(&wm8994->wm8994_delayed_work);	
 	PA_ctrl(GPIO_LOW);
 	wm8994_write(0x00, 0x00);
 	
@@ -2998,7 +3061,7 @@ static int wm8994_resume(struct platform_device *pdev)
 	
 	DBG("%s----%d\n",__FUNCTION__,__LINE__);
 
-
+	cancel_delayed_work_sync(&wm8994->wm8994_delayed_work);	
 	wm8994->work_type = SNDRV_PCM_TRIGGER_RESUME;
 	schedule_delayed_work(&wm8994->wm8994_delayed_work, msecs_to_jiffies(0));	
 
@@ -3014,8 +3077,8 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 	int reg;
 	int value;
 	struct snd_kcontrol kcontrol;
-//	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
-//	struct wm8994_pdata *pdata = wm8994->pdata;
+	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
+	struct wm8994_pdata *pdata = wm8994->pdata;
 	
 	cookie_pot = (char *)vmalloc( len );
 	if (!cookie_pot) 
@@ -3152,6 +3215,16 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 				break;				
 		}		
 		break;	
+	case '1':
+		gpio_request(pdata->Power_EN_Pin, NULL);
+		gpio_direction_output(pdata->Power_EN_Pin,GPIO_LOW);
+		gpio_free(pdata->Power_EN_Pin);	
+		break;
+	case '2':	
+		gpio_request(pdata->Power_EN_Pin, NULL);
+		gpio_direction_output(pdata->Power_EN_Pin,GPIO_HIGH);
+		gpio_free(pdata->Power_EN_Pin);			
+		break;
 	default:
 		DBG("Help for wm8994_ts .\n-->The Cmd list: \n");
 		DBG("-->'d&&D' Open or close the debug\n");

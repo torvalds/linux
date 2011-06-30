@@ -128,7 +128,7 @@ static void headsetobserve_work(struct work_struct *work)
 	int i,level = 0;
 	struct rk_headset_pdata *pdata = headset_info->pdata;
 	static unsigned int old_status = 0;
-	DBG("---headsetobserve_work---\n");
+//	DBG("---headsetobserve_work---\n");
 	mutex_lock(&headset_info->mutex_lock[HEADSET]);
 
 	for(i=0; i<3; i++)
@@ -179,7 +179,7 @@ static void headsetobserve_work(struct work_struct *work)
 	case HEADSET_IN_HIGH:
 		if(level > 0)
 		{//in--High level
-			DBG("--- HEADSET_IN_HIGH headset in HIGH---\n");
+		//	DBG("--- HEADSET_IN_HIGH headset in HIGH---\n");
 		//	enable_irq(headset_info->irq[HOOK]);
 			headset_info->cur_headset_status = BIT_HEADSET;
 			headset_change_irqtype(HEADSET,IRQF_TRIGGER_FALLING);//
@@ -189,10 +189,10 @@ static void headsetobserve_work(struct work_struct *work)
 		}
 		else if(level == 0)
 		{//out--Low level
-			DBG("---HEADSET_IN_HIGH headset out HIGH---\n");	
+		//	DBG("---HEADSET_IN_HIGH headset out HIGH---\n");	
 			if(headset_info->isHook_irq == enable)
 			{
-				DBG("disable_irq\n");
+			//	DBG("disable_irq\n");
 				headset_info->isHook_irq = disable;
 				disable_irq(headset_info->irq[HOOK]);		
 			}	
@@ -203,14 +203,23 @@ static void headsetobserve_work(struct work_struct *work)
 	case HEADSET_IN_LOW:
 		if(level == 0)
 		{//in--High level
-			DBG("---HEADSET_IN_LOW headset in LOW ---\n");
+		//	DBG("---HEADSET_IN_LOW headset in LOW ---\n");
 			headset_info->cur_headset_status = BIT_HEADSET;
 			headset_change_irqtype(HEADSET,IRQF_TRIGGER_RISING);//
 			enable_irq(headset_info->irq[HOOK]);
+			del_timer(&headset_info->headset_timer);//Start the timer, wait for switch to the headphone channel
+			headset_info->headset_timer.expires = jiffies + 500;
+			add_timer(&headset_info->headset_timer);			
 		}
 		else if(level > 0)
 		{//out--High level
-			DBG("---HEADSET_IN_LOW headset out LOW ---\n");
+		//	DBG("---HEADSET_IN_LOW headset out LOW ---\n");
+			if(headset_info->isHook_irq == enable)
+			{
+			//	DBG("disable_irq\n");
+				headset_info->isHook_irq = disable;
+				disable_irq(headset_info->irq[HOOK]);		
+			}				
 			headset_info->cur_headset_status = ~(BIT_HEADSET|BIT_HEADSET_NO_MIC);
 			headset_change_irqtype(HEADSET,IRQF_TRIGGER_FALLING);//
 			disable_irq(headset_info->irq[HOOK]);
@@ -233,14 +242,20 @@ static void Hook_work(struct work_struct *work)
 	struct rk_headset_pdata *pdata = headset_info->pdata;
 	static unsigned int old_status = 0;
 
-	DBG("---Hook_work---\n");
+//	DBG("---Hook_work---\n");
 	mutex_lock(&headset_info->mutex_lock[HOOK]);
 	if(headset_info->headset_status == HEADSET_OUT)
 	{
 		DBG("Headset is out\n");
 		goto RE_ERROR;
 	}	
-	
+	#ifdef CONFIG_SND_SOC_WM8994
+	if(wm8994_set_status() < 0)
+	{
+		DBG("wm8994 is not set on heatset channel\n");
+		goto RE_ERROR;
+	}
+	#endif		
 	for(i=0; i<3; i++)
 	{
 		level = gpio_get_value(pdata->Hook_gpio);
@@ -294,7 +309,7 @@ static void headset_timer_callback(unsigned long arg)
 	struct rk_headset_pdata *pdata = headset->pdata;
 	int i,level = 0;
 	
-	DBG("headset_timer_callback\n");	
+//	DBG("headset_timer_callback\n");	
 
 	if(headset->headset_status == HEADSET_OUT)
 	{
@@ -333,7 +348,7 @@ static void headset_timer_callback(unsigned long arg)
 	else if(level > 0)	
 	{	
 		headset->isMic = 1;//have mic
-		DBG("enable_irq\n");	
+	//	DBG("enable_irq\n");	
 		enable_irq(headset_info->irq[HOOK]);
 		headset->isHook_irq = enable;
 	}	
