@@ -442,7 +442,6 @@ struct ar9170 {
 enum carl9170_ps_off_override_reasons {
 	PS_OFF_VIF	= BIT(0),
 	PS_OFF_BCN	= BIT(1),
-	PS_OFF_5GHZ	= BIT(2),
 };
 
 struct carl9170_ba_stats {
