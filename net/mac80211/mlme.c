@@ -749,13 +749,15 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		container_of(work, struct ieee80211_local,
 			     dynamic_ps_enable_work);
 	struct ieee80211_sub_if_data *sdata = local->ps_sdata;
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_if_managed *ifmgd;
 	unsigned long flags;
 	int q;
 
 	/* can only happen when PS was just disabled anyway */
 	if (!sdata)
 		return;
+
+	ifmgd = &sdata->u.mgd;
 
 	if (local->hw.conf.flags & IEEE80211_CONF_PS)
 		return;
