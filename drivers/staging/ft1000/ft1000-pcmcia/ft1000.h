@@ -320,7 +320,7 @@ struct prov_record {
     u8 *pprov_data;
 };
 
-typedef struct _FT1000_INFO {
+struct ft1000_info {
     struct net_device_stats stats;
     u16 DrvErrNum;
     u16 AsicID;
@@ -368,7 +368,7 @@ typedef struct _FT1000_INFO {
     } DSPSess;
 	struct proc_dir_entry *proc_ft1000;
 	char netdevname[IFNAMSIZ];
-} FT1000_INFO, *PFT1000_INFO;
+};
 
 typedef struct _DPRAM_BLK {
     struct list_head list;

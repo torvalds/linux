@@ -135,7 +135,7 @@ inline void ft1000_asic_write(struct net_device *dev, u16 offset, u16 value)
 //---------------------------------------------------------------------------
 static inline u16 ft1000_read_fifo_len(struct net_device *dev)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 
 	if (info->AsicID == ELECTRABUZZ_ID) {
 		return (ft1000_read_reg(dev, FT1000_REG_UFIFO_STAT) - 16);
@@ -158,7 +158,7 @@ static inline u16 ft1000_read_fifo_len(struct net_device *dev)
 //---------------------------------------------------------------------------
 u16 ft1000_read_dpram(struct net_device * dev, int offset)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	unsigned long flags;
 	u16 data;
 
@@ -187,7 +187,7 @@ u16 ft1000_read_dpram(struct net_device * dev, int offset)
 static inline void ft1000_write_dpram(struct net_device *dev,
 					  int offset, u16 value)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	unsigned long flags;
 
 	// Provide mutual exclusive access while reading ASIC registers.
@@ -211,7 +211,7 @@ static inline void ft1000_write_dpram(struct net_device *dev,
 //---------------------------------------------------------------------------
 u16 ft1000_read_dpram_mag_16(struct net_device *dev, int offset, int Index)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	unsigned long flags;
 	u16 data;
 
@@ -245,7 +245,7 @@ u16 ft1000_read_dpram_mag_16(struct net_device *dev, int offset, int Index)
 static inline void ft1000_write_dpram_mag_16(struct net_device *dev,
 						 int offset, u16 value, int Index)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	unsigned long flags;
 
 	// Provide mutual exclusive access while reading ASIC registers.
@@ -273,7 +273,7 @@ static inline void ft1000_write_dpram_mag_16(struct net_device *dev,
 //---------------------------------------------------------------------------
 u32 ft1000_read_dpram_mag_32(struct net_device *dev, int offset)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	unsigned long flags;
 	u32 data;
 
@@ -301,7 +301,7 @@ u32 ft1000_read_dpram_mag_32(struct net_device *dev, int offset)
 //---------------------------------------------------------------------------
 void ft1000_write_dpram_mag_32(struct net_device *dev, int offset, u32 value)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	unsigned long flags;
 
 	// Provide mutual exclusive access while reading ASIC registers.
@@ -323,7 +323,7 @@ void ft1000_write_dpram_mag_32(struct net_device *dev, int offset, u32 value)
 //---------------------------------------------------------------------------
 static void ft1000_enable_interrupts(struct net_device *dev)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 tempword;
 
 	DEBUG(1, "ft1000_hw:ft1000_enable_interrupts()\n");
@@ -348,7 +348,7 @@ static void ft1000_enable_interrupts(struct net_device *dev)
 //---------------------------------------------------------------------------
 static void ft1000_disable_interrupts(struct net_device *dev)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 tempword;
 
 	DEBUG(1, "ft1000_hw: ft1000_disable_interrupts()\n");
@@ -373,7 +373,7 @@ static void ft1000_disable_interrupts(struct net_device *dev)
 //---------------------------------------------------------------------------
 static void ft1000_reset_asic(struct net_device *dev)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 tempword;
 
 	DEBUG(1, "ft1000_hw:ft1000_reset_asic called\n");
@@ -417,7 +417,7 @@ static void ft1000_reset_asic(struct net_device *dev)
 //---------------------------------------------------------------------------
 static int ft1000_reset_card(struct net_device *dev)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 tempword;
 	int i;
 	unsigned long flags;
@@ -618,7 +618,7 @@ static void ft1000_hbchk(u_long data)
 {
 	struct net_device *dev = (struct net_device *)data;
 
-	FT1000_INFO *info;
+	struct ft1000_info *info;
 	USHORT tempword;
 
 	info = netdev_priv(dev);
@@ -834,7 +834,7 @@ static void ft1000_hbchk(u_long data)
 //---------------------------------------------------------------------------
 void ft1000_send_cmd (struct net_device *dev, u16 *ptempbuffer, int size, u16 qtype)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	int i;
 	u16 tempword;
 	unsigned long flags;
@@ -919,7 +919,7 @@ void ft1000_send_cmd (struct net_device *dev, u16 *ptempbuffer, int size, u16 qt
 //---------------------------------------------------------------------------
 BOOLEAN ft1000_receive_cmd(struct net_device *dev, u16 * pbuffer, int maxsz, u16 *pnxtph)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 size;
 	u16 *ppseudohdr;
 	int i;
@@ -1012,7 +1012,7 @@ BOOLEAN ft1000_receive_cmd(struct net_device *dev, u16 * pbuffer, int maxsz, u16
 //---------------------------------------------------------------------------
 void ft1000_proc_drvmsg(struct net_device *dev)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 msgtype;
 	u16 tempword;
 	struct media_msg *pmediamsg;
@@ -1295,7 +1295,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 //---------------------------------------------------------------------------
 int ft1000_parse_dpram_msg(struct net_device *dev)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 doorbell;
 	u16 portid;
 	u16 nxtph;
@@ -1452,7 +1452,7 @@ int ft1000_parse_dpram_msg(struct net_device *dev)
 //---------------------------------------------------------------------------
 static void ft1000_flush_fifo(struct net_device *dev, u16 DrvErrNum)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 i;
 	u32 templong;
 	u16 tempword;
@@ -1599,7 +1599,7 @@ static void ft1000_flush_fifo(struct net_device *dev, u16 DrvErrNum)
 int ft1000_copy_up_pkt(struct net_device *dev)
 {
 	u16 tempword;
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 len;
 	struct sk_buff *skb;
 	u16 i;
@@ -1786,7 +1786,7 @@ int ft1000_copy_up_pkt(struct net_device *dev)
 //---------------------------------------------------------------------------
 int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	union {
 		struct pseudo_hdr blk;
 		u16 buff[sizeof(struct pseudo_hdr) >> 1];
@@ -1946,7 +1946,7 @@ int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
 
 static struct net_device_stats *ft1000_stats(struct net_device *dev)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	return (&info->stats);
 }
 
@@ -1970,7 +1970,7 @@ static int ft1000_open(struct net_device *dev)
 
 static int ft1000_close(struct net_device *dev)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 
 	DEBUG(0, "ft1000_hw: ft1000_close()\n");
 
@@ -1992,7 +1992,7 @@ static int ft1000_close(struct net_device *dev)
 
 static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u8 *pdata;
 
 	DEBUG(1, "ft1000_hw: ft1000_start_xmit()\n");
@@ -2029,7 +2029,7 @@ static int ft1000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static irqreturn_t ft1000_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = (struct net_device *)dev_id;
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	u16 tempword;
 	u16 inttype;
 	int cnt;
@@ -2094,7 +2094,7 @@ static irqreturn_t ft1000_interrupt(int irq, void *dev_id)
 
 void stop_ft1000_card(struct net_device *dev)
 {
-	FT1000_INFO *info = netdev_priv(dev);
+	struct ft1000_info *info = netdev_priv(dev);
 	struct prov_record *ptr;
 //	int cnt;
 
@@ -2129,7 +2129,7 @@ void stop_ft1000_card(struct net_device *dev)
 static void ft1000_get_drvinfo(struct net_device *dev,
 				   struct ethtool_drvinfo *info)
 {
-	FT1000_INFO *ft_info;
+	struct ft1000_info *ft_info;
 	ft_info = netdev_priv(dev);
 
 	snprintf(info->driver, 32, "ft1000");
@@ -2141,7 +2141,7 @@ static void ft1000_get_drvinfo(struct net_device *dev,
 
 static u32 ft1000_get_link(struct net_device *dev)
 {
-	FT1000_INFO *info;
+	struct ft1000_info *info;
 	info = netdev_priv(dev);
 	return info->mediastate;
 }
@@ -2154,7 +2154,7 @@ static const struct ethtool_ops ops = {
 struct net_device *init_ft1000_card(struct pcmcia_device *link,
 					void *ft1000_reset)
 {
-	FT1000_INFO *info;
+	struct ft1000_info *info;
 	struct net_device *dev;
 
 	static const struct net_device_ops ft1000ops =		// Slavius 21.10.2009 due to kernel changes
@@ -2179,7 +2179,7 @@ struct net_device *init_ft1000_card(struct pcmcia_device *link,
 		return NULL;
 	}
 
-	dev = alloc_etherdev(sizeof(FT1000_INFO));
+	dev = alloc_etherdev(sizeof(struct ft1000_info));
 	if (!dev) {
 		printk(KERN_ERR "ft1000: failed to allocate etherdev\n");
 		return NULL;
@@ -2188,7 +2188,7 @@ struct net_device *init_ft1000_card(struct pcmcia_device *link,
 	SET_NETDEV_DEV(dev, &link->dev);
 	info = netdev_priv(dev);
 
-	memset(info, 0, sizeof(FT1000_INFO));
+	memset(info, 0, sizeof(struct ft1000_info));
 
 	DEBUG(1, "address of dev = 0x%8x\n", (u32) dev);
 	DEBUG(1, "address of dev info = 0x%8x\n", (u32) info);

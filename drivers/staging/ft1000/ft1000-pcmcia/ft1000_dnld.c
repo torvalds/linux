@@ -141,7 +141,7 @@ typedef struct _DSP_IMAGE_INFO_V6 {
 
 void card_bootload(struct net_device *dev)
 {
-	FT1000_INFO *info = (PFT1000_INFO) netdev_priv(dev);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev);
 	unsigned long flags;
 	PULONG pdata;
 	UINT size;
@@ -173,7 +173,7 @@ void card_bootload(struct net_device *dev)
 
 USHORT get_handshake(struct net_device *dev, USHORT expected_value)
 {
-	FT1000_INFO *info = (PFT1000_INFO) netdev_priv(dev);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev);
 	USHORT handshake;
 	ULONG tempx;
 	int loopcnt;
@@ -208,7 +208,7 @@ USHORT get_handshake(struct net_device *dev, USHORT expected_value)
 
 void put_handshake(struct net_device *dev, USHORT handshake_value)
 {
-	FT1000_INFO *info = (PFT1000_INFO) netdev_priv(dev);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev);
 	ULONG tempx;
 
 	if (info->AsicID == ELECTRABUZZ_ID) {
@@ -224,7 +224,7 @@ void put_handshake(struct net_device *dev, USHORT handshake_value)
 
 USHORT get_request_type(struct net_device *dev)
 {
-	FT1000_INFO *info = (PFT1000_INFO) netdev_priv(dev);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev);
 	USHORT request_type;
 	ULONG tempx;
 
@@ -243,7 +243,7 @@ USHORT get_request_type(struct net_device *dev)
 
 long get_request_value(struct net_device *dev)
 {
-	FT1000_INFO *info = (PFT1000_INFO) netdev_priv(dev);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev);
 	long value;
 	USHORT w_val;
 
@@ -272,7 +272,7 @@ long get_request_value(struct net_device *dev)
 
 void put_request_value(struct net_device *dev, long lvalue)
 {
-	FT1000_INFO *info = (PFT1000_INFO) netdev_priv(dev);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev);
 	USHORT size;
 	ULONG tempx;
 
@@ -310,7 +310,7 @@ USHORT hdr_checksum(struct pseudo_hdr *pHdr)
 
 int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength)
 {
-	FT1000_INFO *info = (PFT1000_INFO) netdev_priv(dev);
+	struct ft1000_info *info = (struct ft1000_info *) netdev_priv(dev);
 	int Status = SUCCESS;
 	USHORT DspWordCnt = 0;
 	UINT uiState;
