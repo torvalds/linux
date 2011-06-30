@@ -324,25 +324,13 @@ struct ft1000_info {
     struct net_device_stats stats;
     u16 DrvErrNum;
     u16 AsicID;
-    int ASICResetNum;
-    int DspAsicReset;
     int PktIntfErr;
-    int DSPResetNum;
-    int NumIOCTLBufs;
-    int IOCTLBufLvl;
-    int DeviceCreated;
     int CardReady;
-    int DspHibernateFlag;
-    int DSPReady;
-    u8 DeviceName[15];
-    int DeviceMajor;
     int registered;
     int mediastate;
     u16 packetseqnum;
     u8 squeseqnum;                 // sequence number on slow queue
     spinlock_t dpram_lock;
-    u16 CurrentInterruptEnableMask;
-    int InterruptsEnabled;
     u16 fifo_cnt;
     u8 DspVer[DSPVERSZ];        // DSP version number
     u8 HwSerNum[HWSERNUMSZ];    // Hardware Serial Number
@@ -358,7 +346,6 @@ struct ft1000_info {
     u16 DSP_TIME[4];
     struct list_head prov_list;
     u16 DSPInfoBlklen;
-    u16 DrvMsgPend;
 	int (*ft1000_reset)(void *);
     void *link;
     u16 DSPInfoBlk[MAX_DSP_SESS_REC];

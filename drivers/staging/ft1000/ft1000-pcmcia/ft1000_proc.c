@@ -75,16 +75,14 @@ int ft1000ReadProc(char *page, char **start, off_t off,
 	/* Wrap-around */
 
 	if (info->AsicID == ELECTRABUZZ_ID) {
-		if (info->DspHibernateFlag == 0) {
-			if (info->ProgConStat != 0xFF) {
-				info->LedStat =
-					ft1000_read_dpram(dev, FT1000_DSP_LED);
-				info->ConStat =
-					ft1000_read_dpram(dev,
-							  FT1000_DSP_CON_STATE);
-			} else {
-				info->ConStat = 0xf;
-			}
+		if (info->ProgConStat != 0xFF) {
+			info->LedStat =
+				ft1000_read_dpram(dev, FT1000_DSP_LED);
+			info->ConStat =
+				ft1000_read_dpram(dev,
+						  FT1000_DSP_CON_STATE);
+		} else {
+			info->ConStat = 0xf;
 		}
 	} else {
 		if (info->ProgConStat != 0xFF) {

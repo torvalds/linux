@@ -323,17 +323,14 @@ void ft1000_write_dpram_mag_32(struct net_device *dev, int offset, u32 value)
 //---------------------------------------------------------------------------
 static void ft1000_enable_interrupts(struct net_device *dev)
 {
-	struct ft1000_info *info = netdev_priv(dev);
 	u16 tempword;
 
 	DEBUG(1, "ft1000_hw:ft1000_enable_interrupts()\n");
-	ft1000_write_reg(dev, FT1000_REG_SUP_IMASK,
-			 info->CurrentInterruptEnableMask);
+	ft1000_write_reg(dev, FT1000_REG_SUP_IMASK, ISR_DEFAULT_MASK);
 	tempword = ft1000_read_reg(dev, FT1000_REG_SUP_IMASK);
 	DEBUG(1,
 		  "ft1000_hw:ft1000_enable_interrupts:current interrupt enable mask = 0x%x\n",
 		  tempword);
-	info->InterruptsEnabled = TRUE;
 }
 
 //---------------------------------------------------------------------------
@@ -348,7 +345,6 @@ static void ft1000_enable_interrupts(struct net_device *dev)
 //---------------------------------------------------------------------------
 static void ft1000_disable_interrupts(struct net_device *dev)
 {
-	struct ft1000_info *info = netdev_priv(dev);
 	u16 tempword;
 
 	DEBUG(1, "ft1000_hw: ft1000_disable_interrupts()\n");
@@ -357,7 +353,6 @@ static void ft1000_disable_interrupts(struct net_device *dev)
 	DEBUG(1,
 		  "ft1000_hw:ft1000_disable_interrupts:current interrupt enable mask = 0x%x\n",
 		  tempword);
-	info->InterruptsEnabled = FALSE;
 }
 
 //---------------------------------------------------------------------------
@@ -379,7 +374,6 @@ static void ft1000_reset_asic(struct net_device *dev)
 	DEBUG(1, "ft1000_hw:ft1000_reset_asic called\n");
 
 	(*info->ft1000_reset) (info->link);
-	info->ASICResetNum++;
 
 	// Let's use the register provided by the Magnemite ASIC to reset the
 	// ASIC and DSP.
@@ -456,14 +450,12 @@ static int ft1000_reset_card(struct net_device *dev)
 	if (ft1000_card_present == 1) {
 		spin_lock_irqsave(&info->dpram_lock, flags);
 		if (info->AsicID == ELECTRABUZZ_ID) {
-			if (info->DspHibernateFlag == 0) {
-				ft1000_write_reg(dev, FT1000_REG_DPRAM_ADDR,
-						 FT1000_DPRAM_RX_BASE);
-				for (i = 0; i < MAX_DSP_SESS_REC; i++) {
-					info->DSPSess.Rec[i] =
-						ft1000_read_reg(dev,
-								FT1000_REG_DPRAM_DATA);
-				}
+			ft1000_write_reg(dev, FT1000_REG_DPRAM_ADDR,
+					 FT1000_DPRAM_RX_BASE);
+			for (i = 0; i < MAX_DSP_SESS_REC; i++) {
+				info->DSPSess.Rec[i] =
+					ft1000_read_reg(dev,
+							FT1000_REG_DPRAM_DATA);
 			}
 		} else {
 			ft1000_write_reg(dev, FT1000_REG_DPRAM_ADDR,
@@ -480,8 +472,6 @@ static int ft1000_reset_card(struct net_device *dev)
 	mdelay(10);
 	//reset ASIC
 	ft1000_reset_asic(dev);
-
-	info->DSPResetNum++;
 
 	DEBUG(1, "ft1000_hw:ft1000_reset_card:downloading dsp image\n");
 
@@ -1168,7 +1158,6 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 		case DSP_GET_INFO:
 			DEBUG(1, "FT1000:drivermsg:Got DSP_GET_INFO\n");
 			// copy dsp info block to dsp
-			info->DrvMsgPend = 1;
 			// allow any outstanding ioctl to finish
 			mdelay(10);
 			tempword = ft1000_read_reg(dev, FT1000_REG_DOORBELL);
@@ -1211,13 +1200,11 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 					htons(info->DSPInfoBlklen);
 				ft1000_send_cmd (dev, (PUSHORT)info->DSPInfoBlk, (USHORT)(info->DSPInfoBlklen+4), 0);
 			}
-			info->DrvMsgPend = 0;
 
 			break;
 		case GET_DRV_ERR_RPT_MSG:
 			DEBUG(1, "FT1000:drivermsg:Got GET_DRV_ERR_RPT_MSG\n");
 			// copy driver error message to dsp
-			info->DrvMsgPend = 1;
 			// allow any outstanding ioctl to finish
 			mdelay(10);
 			tempword = ft1000_read_reg(dev, FT1000_REG_DOORBELL);
@@ -1272,7 +1259,6 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 				ft1000_send_cmd (dev, (PUSHORT)&tempbuffer[0], (USHORT)(0x0012), 0);
 				info->DrvErrNum = 0;
 			}
-			info->DrvMsgPend = 0;
 
 			break;
 		default:
@@ -1339,13 +1325,11 @@ int ft1000_parse_dpram_msg(struct net_device *dev)
 			ft1000_write_reg(dev, FT1000_REG_SUP_CTRL,
 					 HOST_INTF_BE);
 		}
-		info->DspAsicReset = 0;
 	}
 
 	if (doorbell & FT1000_DSP_ASIC_RESET) {
 		DEBUG(0,
 			  "FT1000:ft1000_parse_dpram_msg: Got a dsp ASIC reset message\n");
-		info->DspAsicReset = 1;
 		ft1000_write_reg(dev, FT1000_REG_DOORBELL,
 				 FT1000_DSP_ASIC_RESET);
 		udelay(200);
@@ -2198,16 +2182,11 @@ struct net_device *init_ft1000_card(struct pcmcia_device *link,
 
 	spin_lock_init(&info->dpram_lock);
 	info->DrvErrNum = 0;
-	info->ASICResetNum = 0;
 	info->registered = 1;
 	info->link = link;
 	info->ft1000_reset = ft1000_reset;
 	info->mediastate = 0;
 	info->fifo_cnt = 0;
-	info->DeviceCreated = FALSE;
-	info->DeviceMajor = 0;
-	info->CurrentInterruptEnableMask = ISR_DEFAULT_MASK;
-	info->InterruptsEnabled = FALSE;
 	info->CardReady = 0;
 	info->DSP_TIME[0] = 0;
 	info->DSP_TIME[1] = 0;
