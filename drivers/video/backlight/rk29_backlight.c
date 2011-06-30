@@ -172,7 +172,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	}
 
 	if (!rk29_bl_info->delay_ms)
-		rk29_bl_info->delay_ms = 30;
+		rk29_bl_info->delay_ms = 100;
 
 	if (rk29_bl_info->min_brightness < 0 || rk29_bl_info->min_brightness > BL_STEP)
 		rk29_bl_info->min_brightness = 52;
