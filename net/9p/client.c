@@ -841,8 +841,8 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 	if (err)
 		goto destroy_fidpool;
 
-	if ((clnt->msize+P9_IOHDRSZ) > clnt->trans_mod->maxsize)
-		clnt->msize = clnt->trans_mod->maxsize-P9_IOHDRSZ;
+	if (clnt->msize > clnt->trans_mod->maxsize)
+		clnt->msize = clnt->trans_mod->maxsize;
 
 	err = p9_client_version(clnt);
 	if (err)
