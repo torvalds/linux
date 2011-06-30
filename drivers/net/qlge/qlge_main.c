@@ -2170,23 +2170,20 @@ static void ql_process_chip_ae_intr(struct ql_adapter *qdev,
 		return;
 
 	case CAM_LOOKUP_ERR_EVENT:
-		netif_err(qdev, link, qdev->ndev,
-			  "Multiple CAM hits lookup occurred.\n");
-		netif_err(qdev, drv, qdev->ndev,
-			  "This event shouldn't occur.\n");
+		netdev_err(qdev->ndev, "Multiple CAM hits lookup occurred.\n");
+		netdev_err(qdev->ndev, "This event shouldn't occur.\n");
 		ql_queue_asic_error(qdev);
 		return;
 
 	case SOFT_ECC_ERROR_EVENT:
-		netif_err(qdev, rx_err, qdev->ndev,
-			  "Soft ECC error detected.\n");
+		netdev_err(qdev->ndev, "Soft ECC error detected.\n");
 		ql_queue_asic_error(qdev);
 		break;
 
 	case PCI_ERR_ANON_BUF_RD:
-		netif_err(qdev, rx_err, qdev->ndev,
-			  "PCI error occurred when reading anonymous buffers from rx_ring %d.\n",
-			  ib_ae_rsp->q_id);
+		netdev_err(qdev->ndev, "PCI error occurred when reading "
+					"anonymous buffers from rx_ring %d.\n",
+					ib_ae_rsp->q_id);
 		ql_queue_asic_error(qdev);
 		break;
 
@@ -2441,11 +2438,10 @@ static irqreturn_t qlge_isr(int irq, void *dev_id)
 	 */
 	if (var & STS_FE) {
 		ql_queue_asic_error(qdev);
-		netif_err(qdev, intr, qdev->ndev,
-			  "Got fatal error, STS = %x.\n", var);
+		netdev_err(qdev->ndev, "Got fatal error, STS = %x.\n", var);
 		var = ql_read32(qdev, ERR_STS);
-		netif_err(qdev, intr, qdev->ndev,
-			  "Resetting chip. Error Status Register = 0x%x\n", var);
+		netdev_err(qdev->ndev, "Resetting chip. "
+					"Error Status Register = 0x%x\n", var);
 		return IRQ_HANDLED;
 	}
 
