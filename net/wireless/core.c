@@ -366,6 +366,7 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 
 	mutex_init(&rdev->mtx);
 	mutex_init(&rdev->devlist_mtx);
+	mutex_init(&rdev->sched_scan_mtx);
 	INIT_LIST_HEAD(&rdev->netdev_list);
 	spin_lock_init(&rdev->bss_lock);
 	INIT_LIST_HEAD(&rdev->bss_list);
@@ -701,6 +702,7 @@ void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 	rfkill_destroy(rdev->rfkill);
 	mutex_destroy(&rdev->mtx);
 	mutex_destroy(&rdev->devlist_mtx);
+	mutex_destroy(&rdev->sched_scan_mtx);
 	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
 		cfg80211_put_bss(&scan->pub);
 	cfg80211_rdev_free_wowlan(rdev);
@@ -737,12 +739,16 @@ static void wdev_cleanup_work(struct work_struct *work)
 		___cfg80211_scan_done(rdev, true);
 	}
 
+	cfg80211_unlock_rdev(rdev);
+
+	mutex_lock(&rdev->sched_scan_mtx);
+
 	if (WARN_ON(rdev->sched_scan_req &&
 		    rdev->sched_scan_req->dev == wdev->netdev)) {
 		__cfg80211_stop_sched_scan(rdev, false);
 	}
 
-	cfg80211_unlock_rdev(rdev);
+	mutex_unlock(&rdev->sched_scan_mtx);
 
 	mutex_lock(&rdev->devlist_mtx);
 	rdev->opencount--;
@@ -830,9 +836,9 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 			break;
 		case NL80211_IFTYPE_P2P_CLIENT:
 		case NL80211_IFTYPE_STATION:
-			cfg80211_lock_rdev(rdev);
+			mutex_lock(&rdev->sched_scan_mtx);
 			__cfg80211_stop_sched_scan(rdev, false);
-			cfg80211_unlock_rdev(rdev);
+			mutex_unlock(&rdev->sched_scan_mtx);
 
 			wdev_lock(wdev);
 #ifdef CONFIG_CFG80211_WEXT
