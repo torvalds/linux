@@ -38,7 +38,8 @@ enum mcam_state {
  */
 enum mcam_buffer_mode {
 	B_vmalloc = 0,
-	B_DMA_contig
+	B_DMA_contig,
+	B_DMA_sg
 };
 
 /*
@@ -250,8 +251,11 @@ int mccic_resume(struct mcam_camera *cam);
 #define	  C0_SIF_HVSYNC	  0x00000000	/* Use H/VSYNC */
 #define	  CO_SOF_NOSYNC	  0x40000000	/* Use inband active signaling */
 
-
+/* Bits below C1_444ALPHA are not present in Cafe */
 #define REG_CTRL1	0x40	/* Control 1 */
+#define	  C1_CLKGATE	  0x00000001	/* Sensor clock gate */
+#define   C1_DESC_ENA	  0x00000100	/* DMA descriptor enable */
+#define   C1_DESC_3WORD   0x00000200	/* Three-word descriptors used */
 #define	  C1_444ALPHA	  0x00f00000	/* Alpha field in RGB444 */
 #define	  C1_ALPHA_SHFT	  20
 #define	  C1_DMAB32	  0x00000000	/* 32-byte DMA burst */
@@ -266,6 +270,14 @@ int mccic_resume(struct mcam_camera *cam);
 
 /* This appears to be a Cafe-only register */
 #define REG_UBAR	0xc4	/* Upper base address register */
+
+/* Armada 610 DMA descriptor registers */
+#define	REG_DMA_DESC_Y	0x200
+#define	REG_DMA_DESC_U	0x204
+#define	REG_DMA_DESC_V	0x208
+#define REG_DESC_LEN_Y	0x20c	/* Lengths are in bytes */
+#define	REG_DESC_LEN_U	0x210
+#define REG_DESC_LEN_V	0x214
 
 /*
  * Useful stuff that probably belongs somewhere global.
