@@ -795,7 +795,7 @@ void ft1000_send_cmd (struct net_device *dev, u16 *ptempbuffer, int size, u16 qt
 	u16 tempword;
 	unsigned long flags;
 
-	size += PSEUDOSZ;
+	size += sizeof(struct pseudo_hdr);
 	// check for odd byte and increment to 16-bit word align value
 	if ((size & 0x0001)) {
 		size++;
@@ -883,12 +883,12 @@ bool ft1000_receive_cmd(struct net_device *dev, u16 * pbuffer, int maxsz, u16 *p
 	unsigned long flags;
 
 	if (info->AsicID == ELECTRABUZZ_ID) {
-		size = ( ft1000_read_dpram(dev, *pnxtph) ) + PSEUDOSZ;
+		size = ( ft1000_read_dpram(dev, *pnxtph) ) + sizeof(struct pseudo_hdr);
 	} else {
 		size =
 			ntohs(ft1000_read_dpram_mag_16
 			  (dev, FT1000_MAG_PH_LEN,
-			   FT1000_MAG_PH_LEN_INDX)) + PSEUDOSZ;
+			   FT1000_MAG_PH_LEN_INDX)) + sizeof(struct pseudo_hdr);
 	}
 	if (size > maxsz) {
 		DEBUG(1,
@@ -1317,7 +1317,7 @@ int ft1000_parse_dpram_msg(struct net_device *dev)
 		}
 		DEBUG(1, "FT1000:ft1000_parse_dpram_msg:total length = %d\n",
 			  total_len);
-		if ((total_len < MAX_CMD_SQSIZE) && (total_len > PSEUDOSZ)) {
+		if ((total_len < MAX_CMD_SQSIZE) && (total_len > sizeof(struct pseudo_hdr))) {
             total_len += nxtph;
             cnt = 0;
             // ft1000_read_reg will return a value that needs to be byteswap

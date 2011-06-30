@@ -202,8 +202,6 @@ struct pseudo_hdr {
 #define MAX_DSP_SESS_REC	1024
 
 #define DSP_QID_OFFSET	4
-#define PSEUDOSZ	16
-#define PSEUDOSZWRD	8
 
 /* Maximum number of occurrence of pseudo header errors before resetting PC Card. */
 #define MAX_PH_ERR	300
