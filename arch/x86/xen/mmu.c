@@ -1232,7 +1232,11 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 {
 	struct {
 		struct mmuext_op op;
+#ifdef CONFIG_SMP
 		DECLARE_BITMAP(mask, num_processors);
+#else
+		DECLARE_BITMAP(mask, NR_CPUS);
+#endif
 	} *args;
 	struct multicall_space mcs;
 
