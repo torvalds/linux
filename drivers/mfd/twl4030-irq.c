@@ -304,7 +304,7 @@ static irqreturn_t handle_twl4030_pih(int irq, void *devid)
 			pih_isr;
 			pih_isr >>= 1, module_irq++) {
 		if (pih_isr & 0x1)
-			generic_handle_irq(module_irq);
+			handle_nested_irq(module_irq);
 	}
 
 	return IRQ_HANDLED;
@@ -596,9 +596,7 @@ static void handle_twl4030_sih(unsigned irq, struct irq_desc *desc)
 	int isr;
 
 	/* reading ISR acks the IRQs, using clear-on-read mode */
-	local_irq_enable();
 	isr = sih_read_isr(sih);
-	local_irq_disable();
 
 	if (isr < 0) {
 		pr_err("twl4030: %s SIH, read ISR error %d\n",
@@ -613,7 +611,7 @@ static void handle_twl4030_sih(unsigned irq, struct irq_desc *desc)
 		isr &= ~BIT(irq);
 
 		if (irq < sih->bits)
-			generic_handle_irq(agent->irq_base + irq);
+			handle_nested_irq(agent->irq_base + irq);
 		else
 			pr_err("twl4030: %s SIH, invalid ISR bit %d\n",
 				sih->name, irq);
@@ -720,6 +718,7 @@ int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 	for (i = irq_base; i < irq_end; i++) {
 		irq_set_chip_and_handler(i, &twl4030_irq_chip,
 					 handle_simple_irq);
+		irq_set_nested_thread(i, 1);
 		activate_irq(i);
 	}
 	twl4030_irq_next = i;
@@ -745,8 +744,10 @@ int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 fail_rqirq:
 	/* clean up twl4030_sih_setup */
 fail:
-	for (i = irq_base; i < irq_end; i++)
+	for (i = irq_base; i < irq_end; i++) {
+		irq_set_nested_thread(i, 0);
 		irq_set_chip_and_handler(i, NULL, NULL);
+	}
 
 	return status;
 }
