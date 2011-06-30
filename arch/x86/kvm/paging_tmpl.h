@@ -134,7 +134,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 
 	trace_kvm_mmu_pagetable_walk(addr, write_fault, user_fault,
 				     fetch_fault);
-walk:
+retry_walk:
 	eperm = false;
 	walker->level = mmu->root_level;
 	pte           = mmu->get_cr3(vcpu);
@@ -211,7 +211,7 @@ walk:
 			if (unlikely(ret < 0))
 				goto error;
 			else if (ret)
-				goto walk;
+				goto retry_walk;
 
 			mark_page_dirty(vcpu->kvm, table_gfn);
 			pte |= PT_ACCESSED_MASK;
@@ -277,7 +277,7 @@ walk:
 		if (unlikely(ret < 0))
 			goto error;
 		else if (ret)
-			goto walk;
+			goto retry_walk;
 
 		mark_page_dirty(vcpu->kvm, table_gfn);
 		pte |= PT_DIRTY_MASK;
