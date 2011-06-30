@@ -28,7 +28,8 @@
  * /config/dlm/<cluster>/spaces/<space>/nodes/<node>/weight
  * /config/dlm/<cluster>/comms/<comm>/nodeid
  * /config/dlm/<cluster>/comms/<comm>/local
- * /config/dlm/<cluster>/comms/<comm>/addr
+ * /config/dlm/<cluster>/comms/<comm>/addr      (write only)
+ * /config/dlm/<cluster>/comms/<comm>/addr_list (read only)
  * The <cluster> level is useless, but I haven't figured out how to avoid it.
  */
 
@@ -80,6 +81,7 @@ static ssize_t comm_local_write(struct dlm_comm *cm, const char *buf,
 				size_t len);
 static ssize_t comm_addr_write(struct dlm_comm *cm, const char *buf,
 				size_t len);
+static ssize_t comm_addr_list_read(struct dlm_comm *cm, char *buf);
 static ssize_t node_nodeid_read(struct dlm_node *nd, char *buf);
 static ssize_t node_nodeid_write(struct dlm_node *nd, const char *buf,
 				size_t len);
@@ -190,6 +192,7 @@ enum {
 	COMM_ATTR_NODEID = 0,
 	COMM_ATTR_LOCAL,
 	COMM_ATTR_ADDR,
+	COMM_ATTR_ADDR_LIST,
 };
 
 struct comm_attribute {
@@ -217,14 +220,22 @@ static struct comm_attribute comm_attr_local = {
 static struct comm_attribute comm_attr_addr = {
 	.attr   = { .ca_owner = THIS_MODULE,
                     .ca_name = "addr",
-                    .ca_mode = S_IRUGO | S_IWUSR },
+                    .ca_mode = S_IWUSR },
 	.store  = comm_addr_write,
+};
+
+static struct comm_attribute comm_attr_addr_list = {
+	.attr   = { .ca_owner = THIS_MODULE,
+                    .ca_name = "addr_list",
+                    .ca_mode = S_IRUGO },
+	.show   = comm_addr_list_read,
 };
 
 static struct configfs_attribute *comm_attrs[] = {
 	[COMM_ATTR_NODEID] = &comm_attr_nodeid.attr,
 	[COMM_ATTR_LOCAL] = &comm_attr_local.attr,
 	[COMM_ATTR_ADDR] = &comm_attr_addr.attr,
+	[COMM_ATTR_ADDR_LIST] = &comm_attr_addr_list.attr,
 	NULL,
 };
 
@@ -718,6 +729,50 @@ static ssize_t comm_addr_write(struct dlm_comm *cm, const char *buf, size_t len)
 	memcpy(addr, buf, len);
 	cm->addr[cm->addr_count++] = addr;
 	return len;
+}
+
+static ssize_t comm_addr_list_read(struct dlm_comm *cm, char *buf)
+{
+	ssize_t s;
+	ssize_t allowance;
+	int i;
+	struct sockaddr_storage *addr;
+	struct sockaddr_in *addr_in;
+	struct sockaddr_in6 *addr_in6;
+	
+	/* Taken from ip6_addr_string() defined in lib/vsprintf.c */
+	char buf0[sizeof("AF_INET6	xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:255.255.255.255\n")];
+	
+
+	/* Derived from SIMPLE_ATTR_SIZE of fs/configfs/file.c */
+	allowance = 4096;
+	buf[0] = '\0';
+
+	for (i = 0; i < cm->addr_count; i++) {
+		addr = cm->addr[i];
+
+		switch(addr->ss_family) {
+		case AF_INET:
+			addr_in = (struct sockaddr_in *)addr;
+			s = sprintf(buf0, "AF_INET	%pI4\n", &addr_in->sin_addr.s_addr);
+			break;
+		case AF_INET6:
+			addr_in6 = (struct sockaddr_in6 *)addr;
+			s = sprintf(buf0, "AF_INET6	%pI6\n", &addr_in6->sin6_addr);
+			break;
+		default:
+			s = sprintf(buf0, "%s\n", "<UNKNOWN>");
+			break;
+		}
+		allowance -= s;
+		if (allowance >= 0)
+			strcat(buf, buf0);
+		else {
+			allowance += s;
+			break;
+		}
+	}
+	return 4096 - allowance;
 }
 
 static ssize_t show_node(struct config_item *i, struct configfs_attribute *a,
