@@ -113,6 +113,7 @@ struct hci_dev {
 	__u8		major_class;
 	__u8		minor_class;
 	__u8		features[8];
+	__u8		extfeatures[8];
 	__u8		commands[64];
 	__u8		ssp_mode;
 	__u8		hci_ver;

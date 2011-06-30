@@ -216,6 +216,7 @@ enum {
 
 #define LMP_LSTO	0x01
 #define LMP_INQ_TX_PWR	0x02
+#define LMP_EXTFEATURES	0x80
 
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
@@ -676,6 +677,9 @@ struct hci_rp_read_local_features {
 } __packed;
 
 #define HCI_OP_READ_LOCAL_EXT_FEATURES	0x1004
+struct hci_cp_read_local_ext_features {
+	__u8     page;
+} __packed;
 struct hci_rp_read_local_ext_features {
 	__u8     status;
 	__u8     page;

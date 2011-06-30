@@ -542,6 +542,14 @@ static void hci_setup(struct hci_dev *hdev)
 
 	if (hdev->features[7] & LMP_INQ_TX_PWR)
 		hci_send_cmd(hdev, HCI_OP_READ_INQ_RSP_TX_POWER, 0, NULL);
+
+	if (hdev->features[7] & LMP_EXTFEATURES) {
+		struct hci_cp_read_local_ext_features cp;
+
+		cp.page = 0x01;
+		hci_send_cmd(hdev, HCI_OP_READ_LOCAL_EXT_FEATURES,
+							sizeof(cp), &cp);
+	}
 }
 
 static void hci_cc_read_local_version(struct hci_dev *hdev, struct sk_buff *skb)
@@ -656,6 +664,21 @@ static void hci_cc_read_local_features(struct hci_dev *hdev, struct sk_buff *skb
 					hdev->features[2], hdev->features[3],
 					hdev->features[4], hdev->features[5],
 					hdev->features[6], hdev->features[7]);
+}
+
+static void hci_cc_read_local_ext_features(struct hci_dev *hdev,
+							struct sk_buff *skb)
+{
+	struct hci_rp_read_local_ext_features *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
+
+	if (rp->status)
+		return;
+
+	memcpy(hdev->extfeatures, rp->features, 8);
+
+	hci_req_complete(hdev, HCI_OP_READ_LOCAL_EXT_FEATURES, rp->status);
 }
 
 static void hci_cc_read_buffer_size(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1824,6 +1847,10 @@ static inline void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *sk
 
 	case HCI_OP_READ_LOCAL_FEATURES:
 		hci_cc_read_local_features(hdev, skb);
+		break;
+
+	case HCI_OP_READ_LOCAL_EXT_FEATURES:
+		hci_cc_read_local_ext_features(hdev, skb);
 		break;
 
 	case HCI_OP_READ_BUFFER_SIZE:
