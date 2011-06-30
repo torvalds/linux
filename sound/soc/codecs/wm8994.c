@@ -989,7 +989,7 @@ void AP_to_speakers_and_headset(void)
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 	if(wm8994_current_mode==wm8994_AP_to_speakers_and_headset)return;
 	wm8994_current_mode=wm8994_AP_to_speakers_and_headset;
-	wm8994_write(WM8994_RESET, 0);
+	wm8994_reset();
 	msleep(WM8994_DELAY);
 
 	wm8994_write(0x39,  0x006C);
@@ -1053,7 +1053,7 @@ void recorder_and_AP_to_headset(void)
 
 	if(wm8994_current_mode==wm8994_recorder_and_AP_to_headset)return;
 	wm8994_current_mode=wm8994_recorder_and_AP_to_headset;
-	wm8994_write(WM8994_RESET, 0);
+	wm8994_reset();
 	msleep(WM8994_DELAY);
 	
 	wm8994_write(0x39, 0x006C);
@@ -1133,7 +1133,7 @@ void recorder_and_AP_to_speakers(void)
 
 	if(wm8994_current_mode==wm8994_recorder_and_AP_to_speakers)return;
 	wm8994_current_mode=wm8994_recorder_and_AP_to_speakers;
-	wm8994_write(WM8994_RESET, 0);
+	wm8994_reset();
 	msleep(WM8994_DELAY);
 
 	wm8994_write(0x39,  0x006C);
