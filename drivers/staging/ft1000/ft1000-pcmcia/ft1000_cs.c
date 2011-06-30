@@ -50,10 +50,6 @@
 
 /*====================================================================*/
 
-/* Module parameters */
-
-#define INT_MODULE_PARM(n, v) static int n = v; MODULE_PARM(n, "i")
-
 MODULE_AUTHOR("Wai Chan");
 MODULE_DESCRIPTION("FT1000 PCMCIA driver");
 MODULE_LICENSE("GPL");
@@ -92,9 +88,6 @@ static void ft1000_release(struct pcmcia_device *link);
 
 static void ft1000_detach(struct pcmcia_device *link);
 static int  ft1000_attach(struct pcmcia_device *link);
-
-#define MAX_ASIC_RESET_CNT     10
-#define COR_DEFAULT            0x55
 
 /*====================================================================*/
 
