@@ -333,6 +333,7 @@ static int xen_register_pirq(u32 gsi, int triggering)
 	struct physdev_map_pirq map_irq;
 	int shareable = 0;
 	char *name;
+	bool gsi_override = false;
 
 	if (!xen_pv_domain())
 		return -1;
@@ -349,11 +350,32 @@ static int xen_register_pirq(u32 gsi, int triggering)
 	if (pirq < 0)
 		goto out;
 
-	irq = xen_bind_pirq_gsi_to_irq(gsi, pirq, shareable, name);
+	/* Before we bind the GSI to a Linux IRQ, check whether
+	 * we need to override it with bus_irq (IRQ) value. Usually for
+	 * IRQs below IRQ_LEGACY_IRQ this holds IRQ == GSI, as so:
+	 *  ACPI: INT_SRC_OVR (bus 0 bus_irq 9 global_irq 9 low level)
+	 * but there are oddballs where the IRQ != GSI:
+	 *  ACPI: INT_SRC_OVR (bus 0 bus_irq 9 global_irq 20 low level)
+	 * which ends up being: gsi_to_irq[9] == 20
+	 * (which is what acpi_gsi_to_irq ends up calling when starting the
+	 * the ACPI interpreter and keels over since IRQ 9 has not been
+	 * setup as we had setup IRQ 20 for it).
+	 */
+	if (gsi == acpi_sci_override_gsi) {
+		/* Check whether the GSI != IRQ */
+		acpi_gsi_to_irq(gsi, &irq);
+		if (irq != gsi)
+			/* Bugger, we MUST have that IRQ. */
+			gsi_override = true;
+	}
+	if (gsi_override)
+		irq = xen_bind_pirq_gsi_to_irq(irq, pirq, shareable, name);
+	else
+		irq = xen_bind_pirq_gsi_to_irq(gsi, pirq, shareable, name);
 	if (irq < 0)
 		goto out;
 
-	printk(KERN_DEBUG "xen: --> pirq=%d -> irq=%d\n", pirq, irq);
+	printk(KERN_DEBUG "xen: --> pirq=%d -> irq=%d (gsi=%d)\n", pirq, irq, gsi);
 
 	map_irq.domid = DOMID_SELF;
 	map_irq.type = MAP_PIRQ_TYPE_GSI;
