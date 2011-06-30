@@ -255,13 +255,21 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	if (strnicmp(command, CMD_START, strlen(CMD_START)) == 0) {
 		DHD_INFO(("%s, Received regular START command\n", __FUNCTION__));
-		g_wifi_on = 1;
+		bytes_written = wl_android_wifi_on(net);
 	}
-	if (!g_wifi_on) {
+	else if (strnicmp(command, CMD_SETFWPATH, strlen(CMD_SETFWPATH)) == 0) {
+		bytes_written = wl_android_set_fwpath(net, command, priv_cmd->total_len);
+	}
 
+	if (!g_wifi_on) {
+		DHD_ERROR(("%s: Ignore private cmd \"%s\" - iface %s is down\n",
+				__FUNCTION__, command, ifr->ifr_name));
+		ret = 0;
+		goto exit;
 	}
+
 	if (strnicmp(command, CMD_STOP, strlen(CMD_STOP)) == 0) {
-		/* TBD: STOP */
+		bytes_written = wl_android_wifi_off(net);
 	}
 	else if (strnicmp(command, CMD_SCAN_ACTIVE, strlen(CMD_SCAN_ACTIVE)) == 0) {
 		/* TBD: SCAN-ACTIVE */
@@ -292,9 +300,6 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	}
 	else if (strnicmp(command, CMD_SETSUSPENDOPT, strlen(CMD_SETSUSPENDOPT)) == 0) {
 		bytes_written = wl_android_set_suspendopt(net, command, priv_cmd->total_len);
-	}
-	else if (strnicmp(command, CMD_SETFWPATH, strlen(CMD_SETFWPATH)) == 0) {
-		bytes_written = wl_android_set_fwpath(net, command, priv_cmd->total_len);
 	} else {
 		DHD_ERROR(("Unknown PRIVATE command %s - ignored\n", command));
 		snprintf(command, 3, "OK");
