@@ -54,18 +54,6 @@ MODULE_AUTHOR("Wai Chan");
 MODULE_DESCRIPTION("FT1000 PCMCIA driver");
 MODULE_LICENSE("GPL");
 
-/* Newer, simpler way of listing specific interrupts */
-
-/* The old way: bit map of interrupts to choose from */
-/* This means pick from 15, 14, 12, 11, 10, 9, 7, 5, 4, and 3 */
-
-/*
-   All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
-   you do not define PCMCIA_DEBUG at all, all the debug code will be
-   left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
-   be present but disabled.
-*/
-
 /*====================================================================*/
 
 struct net_device *init_ft1000_card(struct pcmcia_device *link,
@@ -74,13 +62,6 @@ void stop_ft1000_card(struct net_device *);
 
 static int ft1000_config(struct pcmcia_device *link);
 static void ft1000_release(struct pcmcia_device *link);
-
-/*
-   The attach() and detach() entry points are used to create and destroy
-   "instances" of the driver, where each instance represents everything
-   needed to manage one actual PCMCIA card.
-*/
-
 static void ft1000_detach(struct pcmcia_device *link);
 static int  ft1000_attach(struct pcmcia_device *link);
 
@@ -91,11 +72,6 @@ static void ft1000_reset(struct pcmcia_device * link)
 	pcmcia_reset_card(link->socket);
 }
 
-/*======================================================================
-
-
-======================================================================*/
-
 static int ft1000_attach(struct pcmcia_device *link)
 {
 	link->priv = NULL;
@@ -103,16 +79,7 @@ static int ft1000_attach(struct pcmcia_device *link)
 
 	return ft1000_config(link);
 
-}				/* ft1000_attach */
-
-/*======================================================================
-
-    This deletes a driver "instance".  The device is de-registered
-    with Card Services.  If it has been released, all local data
-    structures are freed.  Otherwise, the structures will be freed
-    when the device is released.
-
-======================================================================*/
+}
 
 static void ft1000_detach(struct pcmcia_device *link)
 {
@@ -126,18 +93,12 @@ static void ft1000_detach(struct pcmcia_device *link)
 
 	free_netdev(dev);
 
-}				/* ft1000_detach */
+}
 
-/*======================================================================
-
-   Check if the io window is configured
-
-======================================================================*/
 int ft1000_confcheck(struct pcmcia_device *link, void *priv_data)
 {
-
 	return pcmcia_request_io(link);
-}				/* ft1000_confcheck */
+}
 
 /*======================================================================
 
@@ -180,7 +141,7 @@ failed:
 	ft1000_release(link);
 	return -ENODEV;
 
-}				/* ft1000_config */
+}
 
 /*======================================================================
 
@@ -192,33 +153,8 @@ failed:
 
 static void ft1000_release(struct pcmcia_device * link)
 {
-
-	/*
-	   If the device is currently in use, we won't release until it
-	   is actually closed, because until then, we can't be sure that
-	   no one will try to access the device or its data structures.
-	 */
-
-	/*
-	   In a normal driver, additional code may be needed to release
-	   other kernel data structures associated with this device.
-	 */
-	/* Don't bother checking to see if these succeed or not */
-
 	 pcmcia_disable_device(link);
-}				/* ft1000_release */
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.
-
-    When a CARD_REMOVAL event is received, we immediately set a
-    private flag to block future accesses to this device.  All the
-    functions that actually access the device should check this flag
-    to make sure the card is still present.
-
-======================================================================*/
+}
 
 static int ft1000_suspend(struct pcmcia_device *link)
 {
@@ -231,12 +167,8 @@ static int ft1000_suspend(struct pcmcia_device *link)
 
 static int ft1000_resume(struct pcmcia_device *link)
 {
-/*	struct net_device *dev = link->priv;
- */
 	return 0;
 }
-
-
 
 /*====================================================================*/
 
