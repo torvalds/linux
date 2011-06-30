@@ -1614,7 +1614,7 @@ extern void rk29_lcd_spim_spin_lock(void);
 extern void rk29_lcd_spim_spin_unlock(void);
 int standby(u8 enable)	//***enable =1 means suspend, 0 means resume 
 {
-	//rk29_lcd_spim_spin_lock();
+	rk29_lcd_spim_spin_lock();
 	if(gLcd_info)
         gLcd_info->io_init();
 
