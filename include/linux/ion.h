@@ -24,6 +24,9 @@ struct ion_handle;
  * enum ion_heap_types - list of all possible types of heaps
  * @ION_HEAP_SYSTEM:		memory allocated via vmalloc
  * @ION_HEAP_SYSTEM_CONTIG:	memory allocated via kmalloc
+ * @ION_HEAP_CARVEOUT:		memory allocated from a prereserved
+ * 				carveout heap, allocations are physically
+ * 				contiguous
  * @ION_HEAP_END:		helper for iterating over heaps
  */
 enum ion_heap_type {
@@ -32,7 +35,7 @@ enum ion_heap_type {
 	ION_HEAP_TYPE_CARVEOUT,
 	ION_HEAP_TYPE_CUSTOM, /* must be last so device specific heaps always
 				 are at the end of this enum */
-	ION_HEAP_END,
+	ION_NUM_HEAPS,
 };
 
 #define ION_HEAP_SYSTEM_MASK		(1 << ION_HEAP_SYSTEM)
@@ -52,13 +55,11 @@ struct ion_buffer;
    do not accept phys_addr_t's that would have to */
 #define ion_phys_addr_t unsigned long
 
-#define ION_NUM_HEAPS ION_HEAP_END
-
 /**
  * struct ion_platform_heap - defines a heap in the given platform
  * @type:	type of the heap from ion_heap_type enum
- * @prio:	priority of the heap when allocating (lower numbers will be
- *		allocated from first), MUST be unique
+ * @id:		unique identifier for heap.  When allocating (lower numbers 
+ * 		will be allocated from first)
  * @name:	used for debug purposes
  * @base:	base address of heap in physical memory if applicable
  * @size:	size of the heap in bytes if applicable
@@ -67,7 +68,7 @@ struct ion_buffer;
  */
 struct ion_platform_heap {
 	enum ion_heap_type type;
-	unsigned int prio;
+	unsigned int id;
 	const char *name;
 	ion_phys_addr_t base;
 	size_t size;
@@ -75,8 +76,8 @@ struct ion_platform_heap {
 
 /**
  * struct ion_platform_data - array of platform heaps passed from board file
- * @heaps:	array of platform_heap structions
  * @nr:		number of structures in the array
+ * @heaps:	array of platform_heap structions
  *
  * Provided by the board file in the form of platform data to a platform device.
  */
@@ -109,7 +110,8 @@ void ion_client_destroy(struct ion_client *client);
  * @len:	size of the allocation
  * @align:	requested allocation alignment, lots of hardware blocks have
  *		alignment requirements of some kind
- * @flags:	flags to pass along to heaps
+ * @flags:	mask of heaps to allocate from, if multiple bits are set
+ *		heaps will be tried in order from lowest to highest order bit
  *
  * Allocate memory in one of the heaps provided in heap mask and return
  * an opaque handle to it.
@@ -265,6 +267,14 @@ struct ion_handle_data {
 	struct ion_handle *handle;
 };
 
+/**
+ * struct ion_custom_data - metadata passed to/from userspace for a custom ioctl
+ * @cmd:	the custom ioctl function to call
+ * @arg:	additional data to pass to the custom ioctl, typically a user
+ *		pointer to a predefined structure
+ *
+ * This works just like the regular cmd and arg fields of an ioctl.
+ */
 struct ion_custom_data {
 	unsigned int cmd;
 	unsigned long arg;

@@ -34,8 +34,8 @@ struct ion_carveout_heap {
 };
 
 ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
-				  unsigned long size,
-				  unsigned long align)
+				      unsigned long size,
+				      unsigned long align)
 {
 	struct ion_carveout_heap *carveout_heap =
 		container_of(heap, struct ion_carveout_heap, heap);
@@ -53,6 +53,8 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
 	struct ion_carveout_heap *carveout_heap =
 		container_of(heap, struct ion_carveout_heap, heap);
 
+	if (addr == ION_CARVEOUT_ALLOCATE_FAIL)
+		return;
 	gen_pool_free(carveout_heap->pool, addr, size);
 }
 
@@ -130,6 +132,7 @@ static struct ion_heap_ops carveout_heap_ops = {
 struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data)
 {
 	struct ion_carveout_heap *carveout_heap;
+
 	carveout_heap = kzalloc(sizeof(struct ion_carveout_heap), GFP_KERNEL);
 	if (!carveout_heap)
 		return ERR_PTR(-ENOMEM);

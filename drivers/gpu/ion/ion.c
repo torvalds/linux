@@ -82,14 +82,14 @@ struct ion_client {
 };
 
 /**
- * ion_handle - a client local reference to an buffer
+ * ion_handle - a client local reference to a buffer
  * @ref:		reference count
  * @client:		back pointer to the client the buffer resides in
  * @buffer:		pointer to the buffer
  * @node:		node in the client's handle rbtree
- * @map_cnt:		count of times this client has mapped this buffer
- * @addr:		return from map
- * @vaddr:		return from map_kernel
+ * @kmap_cnt:		count of times this client has mapped to kernel
+ * @dmap_cnt:		count of times this client has mapped for dma
+ * @usermap_cnt:	count of times this client has mapped for userspace
  *
  * Modifications to node, map_cnt or mapping should be protected by the
  * lock in the client.  Other fields are never changed after initialization.
@@ -121,7 +121,8 @@ static void ion_buffer_add(struct ion_device *dev,
 		else if (buffer > entry)
 			p = &(*p)->rb_right;
 		else
-			WARN(1, "%s: buffer already found.", __func__);
+			pr_err("%s: buffer already found.", __func__);
+			BUG();
 	}
 
 	rb_link_node(&buffer->node, parent, p);
@@ -146,8 +147,10 @@ struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	kref_init(&buffer->ref);
 
 	ret = heap->ops->allocate(heap, buffer, len, align, flags);
-	if (ret)
+	if (ret) {
+		kfree(buffer);
 		return ERR_PTR(ret);
+	}
 	buffer->dev = dev;
 	buffer->size = len;
 	mutex_init(&buffer->lock);
@@ -295,7 +298,7 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 		if (!((1 << heap->type) & client->heap_mask))
 			continue;
 		/* if the caller didn't specify this heap type */
-		if (!((1 << heap->prio) & flags))
+		if (!((1 << heap->id) & flags))
 			continue;
 		buffer = ion_buffer_create(heap, dev, len, align, flags);
 		if (!IS_ERR_OR_NULL(buffer))
@@ -374,6 +377,7 @@ int ion_phys(struct ion_client *client, struct ion_handle *handle,
 	if (!ion_handle_validate(client, handle)) {
 		pr_err("%s: invalid handle passed to map_kernel.\n",
 		       __func__);
+		mutex_unlock(&client->lock);
 		return -EINVAL;
 	}
 
@@ -382,6 +386,7 @@ int ion_phys(struct ion_client *client, struct ion_handle *handle,
 	if (!buffer->heap->ops->phys) {
 		pr_err("%s: ion_phys is not implemented by this heap.\n",
 		       __func__);
+		mutex_unlock(&client->lock);
 		return -ENODEV;
 	}
 	mutex_unlock(&client->lock);
@@ -398,6 +403,7 @@ void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle)
 	if (!ion_handle_validate(client, handle)) {
 		pr_err("%s: invalid handle passed to map_kernel.\n",
 		       __func__);
+		mutex_unlock(&client->lock);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -407,6 +413,8 @@ void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle)
 	if (!handle->buffer->heap->ops->map_kernel) {
 		pr_err("%s: map_kernel is not implemented by this heap.\n",
 		       __func__);
+		mutex_unlock(&buffer->lock);
+		mutex_unlock(&client->lock);
 		return ERR_PTR(-ENODEV);
 	}
 
@@ -433,6 +441,7 @@ struct scatterlist *ion_map_dma(struct ion_client *client,
 	if (!ion_handle_validate(client, handle)) {
 		pr_err("%s: invalid handle passed to map_dma.\n",
 		       __func__);
+		mutex_unlock(&client->lock);
 		return ERR_PTR(-EINVAL);
 	}
 	buffer = handle->buffer;
@@ -441,6 +450,8 @@ struct scatterlist *ion_map_dma(struct ion_client *client,
 	if (!handle->buffer->heap->ops->map_dma) {
 		pr_err("%s: map_kernel is not implemented by this heap.\n",
 		       __func__);
+		mutex_unlock(&buffer->lock);
+		mutex_unlock(&client->lock);
 		return ERR_PTR(-ENODEV);
 	}
 	if (_ion_map(&buffer->dmap_cnt, &handle->dmap_cnt)) {
@@ -778,21 +789,6 @@ static void ion_vma_close(struct vm_area_struct *vma)
 		 atomic_read(&buffer->ref.refcount));
 }
 
-#if 0
-static int ion_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-	struct ion_handle *handle = vma->vm_private_data;
-	struct ion_buffer *buffer = vma->vm_file->private_data;
-	struct ion_client *client;
-
-	pr_debug("%s: %d\n", __func__, __LINE__);
-	/* this indicates the client is gone, nothing to do here */
-	if (!handle)
-		return;
-	client = handle->client;
-}
-#endif
-
 static struct vm_operations_struct ion_vm_ops = {
 	.open = ion_vma_open,
 	.close = ion_vma_close,
@@ -842,12 +838,12 @@ static int ion_share_mmap(struct file *file, struct vm_area_struct *vma)
 	mutex_lock(&buffer->lock);
 	/* now map it to userspace */
 	ret = buffer->heap->ops->map_user(buffer->heap, buffer, vma);
+	mutex_unlock(&buffer->lock);
 	if (ret) {
 		pr_err("%s: failure mapping buffer to userspace\n",
 		       __func__);
 		goto err1;
 	}
-	mutex_unlock(&buffer->lock);
 
 	vma->vm_ops = &ion_vm_ops;
 	/* move the handle into the vm_private_data so we can access it from
@@ -918,14 +914,16 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case ION_IOC_FREE:
 	{
 		struct ion_handle_data data;
+		bool valid;
 
 		if (copy_from_user(&data, (void __user *)arg,
 				   sizeof(struct ion_handle_data)))
 			return -EFAULT;
 		mutex_lock(&client->lock);
-		if (!ion_handle_validate(client, data.handle))
-			return -EINVAL;
+		valid = ion_handle_validate(client, data.handle);
 		mutex_unlock(&client->lock);
+		if (!valid)
+			return -EINVAL;
 		ion_free(client, data.handle);
 		break;
 	}
@@ -940,6 +938,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (!ion_handle_validate(client, data.handle)) {
 			pr_err("%s: invalid handle passed to share ioctl.\n",
 			       __func__);
+			mutex_unlock(&client->lock);
 			return -EINVAL;
 		}
 		data.fd = ion_ioctl_share(filp, client, data.handle);
@@ -1090,13 +1089,13 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 		parent = *p;
 		entry = rb_entry(parent, struct ion_heap, node);
 
-		if (heap->prio < entry->prio) {
+		if (heap->id < entry->id) {
 			p = &(*p)->rb_left;
-		} else if (heap->prio > entry->prio) {
+		} else if (heap->id > entry->id ) {
 			p = &(*p)->rb_right;
 		} else {
 			pr_err("%s: can not insert multiple heaps with "
-				"priority %d\n", __func__, heap->prio);
+				"id %d\n", __func__, heap->id);
 			goto end;
 		}
 	}

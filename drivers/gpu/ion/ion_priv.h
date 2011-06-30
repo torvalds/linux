@@ -45,6 +45,15 @@ struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
  * @heap:		back pointer to the heap the buffer came from
  * @flags:		buffer specific flags
  * @size:		size of the buffer
+ * @priv_virt:		private data to the buffer representable as
+ *			a void *
+ * @priv_phys:		private data to the buffer representable as
+ *			an ion_phys_addr_t (and someday a phys_addr_t)
+ * @lock:		protects the buffers cnt fields
+ * @kmap_cnt:		number of times the buffer is mapped to the kernel
+ * @vaddr:		the kenrel mapping if kmap_cnt is not zero
+ * @dmap_cnt:		number of times the buffer is mapped for dma
+ * @sglist:		the scatterlist for the buffer is dmap_cnt is not zero
 */
 struct ion_buffer {
 	struct kref ref;
@@ -71,7 +80,9 @@ struct ion_buffer {
  * @phys		get physical address of a buffer (only define on
  *			physically contiguous heaps)
  * @map_dma		map the memory for dma to a scatterlist
+ * @unmap_dma		unmap the memory for dma
  * @map_kernel		map memory to the kernel
+ * @unmap_kernel	unmap memory to the kernel
  * @map_user		map memory to userspace
  */
 struct ion_heap_ops {
@@ -96,10 +107,10 @@ struct ion_heap_ops {
  * @dev:		back pointer to the ion_device
  * @type:		type of heap
  * @ops:		ops struct as above
- * @prio:		priority (lower numbers first) of this heap when
+ * @id:			id of heap, also indicates priority of this heap when
  *			allocating.  These are specified by platform data and
  *			MUST be unique
- * @priv:		private data used by the heap implementation
+ * @name:		used for debugging
  *
  * Represents a pool of memory from which buffers can be made.  In some
  * systems the only heap is regular system memory allocated via vmalloc.
@@ -111,12 +122,13 @@ struct ion_heap {
 	struct ion_device *dev;
 	enum ion_heap_type type;
 	struct ion_heap_ops *ops;
-	int prio;
+	int id;
 	const char *name;
 };
 
 /**
  * ion_device_create - allocates and returns an ion device
+ * @custom_ioctl:	arch specific ioctl function if applicable
  *
  * returns a valid device or -PTR_ERR
  */
@@ -138,7 +150,12 @@ void ion_device_destroy(struct ion_device *dev);
  */
 void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap);
 
-/* CREATE HEAPS */
+/**
+ * functions for creating and destroying the built in ion heaps.
+ * architectures can add their own custom architecture specific
+ * heaps as appropriate.
+ */
+
 struct ion_heap *ion_heap_create(struct ion_platform_heap *);
 void ion_heap_destroy(struct ion_heap *);
 
@@ -150,11 +167,18 @@ void ion_system_contig_heap_destroy(struct ion_heap *);
 
 struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *);
 void ion_carveout_heap_destroy(struct ion_heap *);
+/**
+ * kernel api to allocate/free from carveout -- used when carveout is
+ * used to back an architecture specific custom heap
+ */
 ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap, unsigned long size,
 				      unsigned long align);
 void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
 		       unsigned long size);
-
+/**
+ * The carveout heap returns physical addresses, since 0 may be a valid
+ * physical address, this is used to indicate allocation failed
+ */
 #define ION_CARVEOUT_ALLOCATE_FAIL -1
 
 #endif /* _ION_PRIV_H */
