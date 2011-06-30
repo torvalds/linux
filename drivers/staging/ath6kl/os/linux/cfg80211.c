@@ -1472,6 +1472,7 @@ enum ar6k_testmode_attr {
 
 enum ar6k_testmode_cmd {
 	AR6K_TM_CMD_TCMD		= 0,
+	AR6K_TM_CMD_RX_REPORT		= 1,
 };
 
 #define AR6K_TM_DATA_MAX_LEN 5000
@@ -1482,11 +1483,88 @@ static const struct nla_policy ar6k_testmode_policy[AR6K_TM_ATTR_MAX + 1] = {
 				.len = AR6K_TM_DATA_MAX_LEN },
 };
 
+void ar6000_testmode_rx_report_event(struct ar6_softc *ar, void *buf,
+				     int buf_len)
+{
+	if (down_interruptible(&ar->arSem))
+		return;
+
+	kfree(ar->tcmd_rx_report);
+
+	ar->tcmd_rx_report = kmemdup(buf, buf_len, GFP_KERNEL);
+	ar->tcmd_rx_report_len = buf_len;
+
+	up(&ar->arSem);
+
+	wake_up(&arEvent);
+}
+
+static int ar6000_testmode_rx_report(struct ar6_softc *ar, void *buf,
+				     int buf_len, struct sk_buff *skb)
+{
+	int ret = 0;
+	long left;
+
+	if (down_interruptible(&ar->arSem))
+		return -ERESTARTSYS;
+
+	if (ar->arWmiReady == false) {
+		ret = -EIO;
+		goto out;
+	}
+
+	if (ar->bIsDestroyProgress) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	WARN_ON(ar->tcmd_rx_report != NULL);
+	WARN_ON(ar->tcmd_rx_report_len > 0);
+
+	if (wmi_test_cmd(ar->arWmi, buf, buf_len) < 0) {
+		up(&ar->arSem);
+		return -EIO;
+	}
+
+	left = wait_event_interruptible_timeout(arEvent,
+					       ar->tcmd_rx_report != NULL,
+					       wmitimeout * HZ);
+
+	if (left == 0) {
+		ret = -ETIMEDOUT;
+		goto out;
+	} else if (left < 0) {
+		ret = left;
+		goto out;
+	}
+
+	if (ar->tcmd_rx_report == NULL || ar->tcmd_rx_report_len == 0) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	NLA_PUT(skb, AR6K_TM_ATTR_DATA, ar->tcmd_rx_report_len,
+		ar->tcmd_rx_report);
+
+	kfree(ar->tcmd_rx_report);
+	ar->tcmd_rx_report = NULL;
+
+out:
+	up(&ar->arSem);
+
+	return ret;
+
+nla_put_failure:
+	ret = -ENOBUFS;
+	goto out;
+}
+
 static int ar6k_testmode_cmd(struct wiphy *wiphy, void *data, int len)
 {
 	struct ar6_softc *ar = wiphy_priv(wiphy);
 	struct nlattr *tb[AR6K_TM_ATTR_MAX + 1];
-	int err, buf_len;
+	int err, buf_len, reply_len;
+	struct sk_buff *skb;
 	void *buf;
 
 	err = nla_parse(tb, AR6K_TM_ATTR_MAX, data, len,
@@ -1510,6 +1588,25 @@ static int ar6k_testmode_cmd(struct wiphy *wiphy, void *data, int len)
 		return 0;
 
 		break;
+	case AR6K_TM_CMD_RX_REPORT:
+		if (!tb[AR6K_TM_ATTR_DATA])
+			return -EINVAL;
+
+		buf = nla_data(tb[AR6K_TM_ATTR_DATA]);
+		buf_len = nla_len(tb[AR6K_TM_ATTR_DATA]);
+
+		reply_len = nla_total_size(AR6K_TM_DATA_MAX_LEN);
+		skb = cfg80211_testmode_alloc_reply_skb(wiphy, reply_len);
+		if (!skb)
+			return -ENOMEM;
+
+		err = ar6000_testmode_rx_report(ar, buf, buf_len, skb);
+		if (err < 0) {
+			kfree_skb(skb);
+			return err;
+		}
+
+		return cfg80211_testmode_reply(skb);
 	default:
 		return -EOPNOTSUPP;
 	}
