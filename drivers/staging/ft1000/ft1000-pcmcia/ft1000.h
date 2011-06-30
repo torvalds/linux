@@ -67,17 +67,6 @@ struct pseudo_hdr
    unsigned short    checksum;      // pseudo header checksum
 } __attribute__ ((packed));
 
-// Definitions to maintain compatibility between other platforms
-#define UCHAR                u8
-#define USHORT               u16
-#define ULONG                u32
-#define BOOLEAN              u8
-#define PULONG               u32 *
-#define PUSHORT              u16 *
-#define PUCHAR               u8 *
-#define PCHAR                u8 *
-#define UINT                 u32
-
 #define ELECTRABUZZ_ID       0          // ASIC ID for Electrabuzz
 #define MAGNEMITE_ID         0x1a01     // ASIC ID for Magnemite
 
@@ -278,8 +267,6 @@ struct pseudo_hdr
 
 #define  SUCCESS                0x00
 #define  FAILURE                0x01
-#define  TRUE                   0x1
-#define  FALSE                  0x0
 
 #define MAXIMUM_ASIC_HB_CNT      15
 

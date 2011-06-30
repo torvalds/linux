@@ -56,7 +56,7 @@
 #include <linux/delay.h>
 #include "ft1000.h"
 
-int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength);
+int card_download(struct net_device *dev, const u8 *pFileStart, u32 FileLength);
 
 void ft1000InitProc(struct net_device *dev);
 void ft1000CleanupProc(struct net_device *dev);
@@ -405,8 +405,8 @@ static void ft1000_reset_asic(struct net_device *dev)
 // Input:
 //     dev    - device structure
 // Output:
-//     status - FALSE (card reset fail)
-//              TRUE  (card reset successful)
+//     status - false (card reset fail)
+//              true  (card reset successful)
 //
 //---------------------------------------------------------------------------
 static int ft1000_reset_card(struct net_device *dev)
@@ -506,7 +506,7 @@ static int ft1000_reset_card(struct net_device *dev)
 		if (i == 50) {
 			DEBUG(0,
 				  "ft1000_hw:ft1000_reset_card:No FEFE detected from DSP\n");
-			return FALSE;
+			return false;
 		}
 
 	} else {
@@ -517,7 +517,7 @@ static int ft1000_reset_card(struct net_device *dev)
 
 	if (card_download(dev, fw_entry->data, fw_entry->size)) {
 		DEBUG(1, "card download unsuccessful\n");
-		return FALSE;
+		return false;
 	} else {
 		DEBUG(1, "card download successful\n");
 	}
@@ -553,7 +553,7 @@ static int ft1000_reset_card(struct net_device *dev)
 //	poll_timer.data = (u_long)dev;
 //	add_timer(&poll_timer);
 
-	return TRUE;
+	return true;
 
 }
 
@@ -565,8 +565,8 @@ static int ft1000_reset_card(struct net_device *dev)
 // Input:
 //     dev    - device structure
 // Output:
-//     status - FALSE (device is not present)
-//              TRUE  (device is present)
+//     status - false (device is not present)
+//              true  (device is present)
 //
 //---------------------------------------------------------------------------
 static int ft1000_chkcard(struct net_device *dev)
@@ -579,7 +579,7 @@ static int ft1000_chkcard(struct net_device *dev)
 	if (tempword == 0) {
 		DEBUG(1,
 			  "ft1000_hw:ft1000_chkcard: IMASK = 0 Card not detected\n");
-		return FALSE;
+		return false;
 	}
 	// The system will return the value of 0xffff for the version register
 	// if the device is not present.
@@ -587,9 +587,9 @@ static int ft1000_chkcard(struct net_device *dev)
 	if (tempword == 0xffff) {
 		DEBUG(1,
 			  "ft1000_hw:ft1000_chkcard: Version = 0xffff Card not detected\n");
-		return FALSE;
+		return false;
 	}
-	return TRUE;
+	return true;
 }
 
 
@@ -609,7 +609,7 @@ static void ft1000_hbchk(u_long data)
 	struct net_device *dev = (struct net_device *)data;
 
 	struct ft1000_info *info;
-	USHORT tempword;
+	u16 tempword;
 
 	info = netdev_priv(dev);
 
@@ -907,7 +907,7 @@ void ft1000_send_cmd (struct net_device *dev, u16 *ptempbuffer, int size, u16 qt
 //          = 1 (successful)
 //
 //---------------------------------------------------------------------------
-BOOLEAN ft1000_receive_cmd(struct net_device *dev, u16 * pbuffer, int maxsz, u16 *pnxtph)
+bool ft1000_receive_cmd(struct net_device *dev, u16 * pbuffer, int maxsz, u16 *pnxtph)
 {
 	struct ft1000_info *info = netdev_priv(dev);
 	u16 size;
@@ -928,7 +928,7 @@ BOOLEAN ft1000_receive_cmd(struct net_device *dev, u16 * pbuffer, int maxsz, u16
 		DEBUG(1,
 			  "FT1000:ft1000_receive_cmd:Invalid command length = %d\n",
 			  size);
-		return FALSE;
+		return false;
 	} else {
 		ppseudohdr = (u16 *) pbuffer;
 		spin_lock_irqsave(&info->dpram_lock, flags);
@@ -983,9 +983,9 @@ BOOLEAN ft1000_receive_cmd(struct net_device *dev, u16 * pbuffer, int maxsz, u16
 			DEBUG(1,
 				  "FT1000:ft1000_receive_cmd:Pseudo header checksum mismatch\n");
 			// Drop this message
-			return FALSE;
+			return false;
 		}
-		return TRUE;
+		return true;
 	}
 }
 
@@ -1012,7 +1012,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 	u16 i;
 	struct prov_record *ptr;
 	struct pseudo_hdr *ppseudo_hdr;
-	PUSHORT pmsg;
+	u16 *pmsg;
 	struct timeval tv;
 	union {
 		u8 byte[2];
@@ -1055,7 +1055,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 				len = *(u16 *) ptr->pprov_data;
 				len = htons(len);
 
-				pmsg = (PUSHORT) ptr->pprov_data;
+				pmsg = (u16 *) ptr->pprov_data;
 				ppseudo_hdr = (struct pseudo_hdr *) pmsg;
 				// Insert slow queue sequence number
 				ppseudo_hdr->seq_num = info->squeseqnum++;
@@ -1146,7 +1146,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 			tempword = ntohs(pdrvmsg->length);
 			info->DSPInfoBlklen = tempword;
 			if (tempword < (MAX_DSP_SESS_REC - 4)) {
-				pmsg = (PUSHORT) & pdrvmsg->data[0];
+				pmsg = (u16 *) & pdrvmsg->data[0];
 				for (i = 0; i < ((tempword + 1) / 2); i++) {
 					DEBUG(1,
 						  "FT1000:drivermsg:dsp info data = 0x%x\n",
@@ -1173,7 +1173,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 			if ((tempword & FT1000_DB_DPRAM_TX) == 0) {
 				// Put message into Slow Queue
 				// Form Pseudo header
-				pmsg = (PUSHORT) info->DSPInfoBlk;
+				pmsg = (u16 *) info->DSPInfoBlk;
 				ppseudo_hdr = (struct pseudo_hdr *) pmsg;
 				ppseudo_hdr->length =
 					htons(info->DSPInfoBlklen + 4);
@@ -1198,7 +1198,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 				info->DSPInfoBlk[8] = 0x7200;
 				info->DSPInfoBlk[9] =
 					htons(info->DSPInfoBlklen);
-				ft1000_send_cmd (dev, (PUSHORT)info->DSPInfoBlk, (USHORT)(info->DSPInfoBlklen+4), 0);
+				ft1000_send_cmd (dev, (u16 *)info->DSPInfoBlk, (u16)(info->DSPInfoBlklen+4), 0);
 			}
 
 			break;
@@ -1220,7 +1220,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 			if ((tempword & FT1000_DB_DPRAM_TX) == 0) {
 				// Put message into Slow Queue
 				// Form Pseudo header
-				pmsg = (PUSHORT) & tempbuffer[0];
+				pmsg = (u16 *) & tempbuffer[0];
 				ppseudo_hdr = (struct pseudo_hdr *) pmsg;
 				ppseudo_hdr->length = htons(0x0012);
 				ppseudo_hdr->source = 0x10;
@@ -1241,7 +1241,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
                 for (i=1; i<7; i++) {
                     ppseudo_hdr->checksum ^= *pmsg++;
                 }
-				pmsg = (PUSHORT) & tempbuffer[16];
+				pmsg = (u16 *) & tempbuffer[16];
 				*pmsg++ = htons(RSP_DRV_ERR_RPT_MSG);
 				*pmsg++ = htons(0x000e);
 				*pmsg++ = htons(info->DSP_TIME[0]);
@@ -1256,7 +1256,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 				*pmsg++ = convert.wrd;
 				*pmsg++ = htons(info->DrvErrNum);
 
-				ft1000_send_cmd (dev, (PUSHORT)&tempbuffer[0], (USHORT)(0x0012), 0);
+				ft1000_send_cmd (dev, (u16 *)&tempbuffer[0], (u16)(0x0012), 0);
 				info->DrvErrNum = 0;
 			}
 
@@ -1698,7 +1698,7 @@ int ft1000_copy_up_pkt(struct net_device *dev)
 			tempword = ft1000_read_reg(dev, FT1000_REG_DFIFO);
 			*pbuffer++ = (u8) (tempword >> 8);
 			*pbuffer++ = (u8) tempword;
-			if (ft1000_chkcard(dev) == FALSE) {
+			if (ft1000_chkcard(dev) == false) {
 				kfree_skb(skb);
 				return FAILURE;
 			}
@@ -2025,7 +2025,7 @@ static irqreturn_t ft1000_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
-	if (ft1000_chkcard(dev) == FALSE) {
+	if (ft1000_chkcard(dev) == false) {
 		ft1000_disable_interrupts(dev);
 		return IRQ_HANDLED;
 	}
