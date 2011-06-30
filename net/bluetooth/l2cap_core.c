@@ -4107,7 +4107,7 @@ static int l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 		if (conn)
 			l2cap_conn_ready(conn);
 	} else
-		l2cap_conn_del(hcon, bt_err(status));
+		l2cap_conn_del(hcon, bt_to_errno(status));
 
 	return 0;
 }
@@ -4131,7 +4131,7 @@ static int l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
 	if (!(hcon->type == ACL_LINK || hcon->type == LE_LINK))
 		return -EINVAL;
 
-	l2cap_conn_del(hcon, bt_err(reason));
+	l2cap_conn_del(hcon, bt_to_errno(reason));
 
 	return 0;
 }
