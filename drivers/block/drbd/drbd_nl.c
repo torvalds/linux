@@ -1062,10 +1062,13 @@ void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
 	   BIOs for a single peer_request */
 	if (mdev->state.conn >= C_CONNECTED) {
 		if (mdev->tconn->agreed_pro_version < 94)
-			peer = mdev->peer_max_bio_size;
+			peer = min_t(int, mdev->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
+			/* Correct old drbd (up to 8.3.7) if it believes it can do more than 32KiB */
 		else if (mdev->tconn->agreed_pro_version == 94)
 			peer = DRBD_MAX_SIZE_H80_PACKET;
-		else /* drbd 8.3.8 onwards */
+		else if (mdev->tconn->agreed_pro_version < 100)
+			peer = DRBD_MAX_BIO_SIZE_P95;  /* drbd 8.3.8 onwards, before 8.4.0 */
+		else
 			peer = DRBD_MAX_BIO_SIZE;
 	}
 
