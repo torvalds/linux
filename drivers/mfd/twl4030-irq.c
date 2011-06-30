@@ -430,44 +430,12 @@ struct sih_agent {
 
 	u32			imr;
 	bool			imr_change_pending;
-	struct work_struct	mask_work;
 
 	u32			edge_change;
 	struct work_struct	edge_work;
 
 	struct mutex		irq_lock;
 };
-
-static void twl4030_sih_do_mask(struct work_struct *work)
-{
-	struct sih_agent	*agent;
-	const struct sih	*sih;
-	union {
-		u8	bytes[4];
-		u32	word;
-	}			imr;
-	int			status;
-
-	agent = container_of(work, struct sih_agent, mask_work);
-
-	/* see what work we have */
-	if (agent->imr_change_pending) {
-		sih = agent->sih;
-		/* byte[0] gets overwritten as we write ... */
-		imr.word = cpu_to_le32(agent->imr << 8);
-		agent->imr_change_pending = false;
-	} else
-		sih = NULL;
-	if (!sih)
-		return;
-
-	/* write the whole mask ... simpler than subsetting it */
-	status = twl_i2c_write(sih->module, imr.bytes,
-			sih->mask[irq_line].imr_offset, sih->bytes_ixr);
-	if (status)
-		pr_err("twl4030: %s, %s --> %d\n", __func__,
-				"write", status);
-}
 
 static void twl4030_sih_do_edge(struct work_struct *work)
 {
@@ -537,32 +505,30 @@ static void twl4030_sih_do_edge(struct work_struct *work)
 
 static void twl4030_sih_mask(struct irq_data *data)
 {
-	struct sih_agent *sih = irq_data_get_irq_chip_data(data);
+	struct sih_agent *agent = irq_data_get_irq_chip_data(data);
 
-	sih->imr |= BIT(data->irq - sih->irq_base);
-	sih->imr_change_pending = true;
-	queue_work(wq, &sih->mask_work);
+	agent->imr |= BIT(data->irq - agent->irq_base);
+	agent->imr_change_pending = true;
 }
 
 static void twl4030_sih_unmask(struct irq_data *data)
 {
-	struct sih_agent *sih = irq_data_get_irq_chip_data(data);
+	struct sih_agent *agent = irq_data_get_irq_chip_data(data);
 
-	sih->imr &= ~BIT(data->irq - sih->irq_base);
-	sih->imr_change_pending = true;
-	queue_work(wq, &sih->mask_work);
+	agent->imr &= ~BIT(data->irq - agent->irq_base);
+	agent->imr_change_pending = true;
 }
 
 static int twl4030_sih_set_type(struct irq_data *data, unsigned trigger)
 {
-	struct sih_agent *sih = irq_data_get_irq_chip_data(data);
+	struct sih_agent *agent = irq_data_get_irq_chip_data(data);
 
 	if (trigger & ~(IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
 		return -EINVAL;
 
 	if (irqd_get_trigger_type(data) != trigger) {
-		sih->edge_change |= BIT(data->irq - sih->irq_base);
-		queue_work(wq, &sih->edge_work);
+		agent->edge_change |= BIT(data->irq - agent->irq_base);
+		queue_work(wq, &agent->edge_work);
 	}
 
 	return 0;
@@ -570,16 +536,37 @@ static int twl4030_sih_set_type(struct irq_data *data, unsigned trigger)
 
 static void twl4030_sih_bus_lock(struct irq_data *data)
 {
-	struct sih_agent *sih = irq_data_get_irq_chip_data(data);
+	struct sih_agent	*agent = irq_data_get_irq_chip_data(data);
 
-	mutex_lock(&sih->irq_lock);
+	mutex_lock(&agent->irq_lock);
 }
 
 static void twl4030_sih_bus_sync_unlock(struct irq_data *data)
 {
-	struct sih_agent *sih = irq_data_get_irq_chip_data(data);
+	struct sih_agent	*agent = irq_data_get_irq_chip_data(data);
+	const struct sih	*sih = agent->sih;
+	int			status;
 
-	mutex_unlock(&sih->irq_lock);
+	if (agent->imr_change_pending) {
+		union {
+			u32	word;
+			u8	bytes[4];
+		} imr;
+
+		/* byte[0] gets overwriten as we write ... */
+		imr.word = cpu_to_le32(agent->imr << 8);
+		agent->imr_change_pending = false;
+
+		/* write the whole mask ... simpler than subsetting it */
+		status = twl_i2c_write(sih->module, imr.bytes,
+				sih->mask[irq_line].imr_offset,
+				sih->bytes_ixr);
+		if (status)
+			pr_err("twl4030: %s, %s --> %d\n", __func__,
+					"write", status);
+	}
+
+	mutex_unlock(&agent->irq_lock);
 }
 
 static struct irq_chip twl4030_sih_irq_chip = {
@@ -685,7 +672,6 @@ int twl4030_sih_setup(int module)
 	agent->sih = sih;
 	agent->imr = ~0;
 	mutex_init(&agent->irq_lock);
-	INIT_WORK(&agent->mask_work, twl4030_sih_do_mask);
 	INIT_WORK(&agent->edge_work, twl4030_sih_do_edge);
 
 	for (i = 0; i < sih->bits; i++) {
