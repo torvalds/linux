@@ -524,9 +524,28 @@ static void stub_disconnect(struct usb_interface *interface)
 	}
 }
 
+/* 
+ * Presence of pre_reset and post_reset prevents the driver from being unbound
+ * when the device is being reset
+ */
+ 
+int stub_pre_reset(struct usb_interface *interface)
+{
+	dev_dbg(&interface->dev, "pre_reset\n");
+	return 0;
+}
+
+int stub_post_reset(struct usb_interface *interface)
+{
+	dev_dbg(&interface->dev, "post_reset\n");
+	return 0;
+}
+
 struct usb_driver stub_driver = {
 	.name		= "usbip-host",
 	.probe		= stub_probe,
 	.disconnect	= stub_disconnect,
 	.id_table	= stub_table,
-};
+	.pre_reset	= stub_pre_reset,
+	.post_reset	= stub_post_reset,
+ };
