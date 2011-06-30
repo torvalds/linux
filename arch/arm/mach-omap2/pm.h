@@ -97,7 +97,7 @@ extern void omap24xx_cpu_suspend(u32 dll_ctrl, void __iomem *sdrc_dlla_ctrl,
 extern unsigned int omap24xx_cpu_suspend_sz;
 
 /* 3xxx */
-extern void omap34xx_cpu_suspend(u32 *addr, int save_state);
+extern void omap34xx_cpu_suspend(int save_state);
 
 /* omap3_do_wfi function pointer and size, for copy to SRAM */
 extern void omap3_do_wfi(void);

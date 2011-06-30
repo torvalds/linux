@@ -306,9 +306,24 @@ static irqreturn_t prcm_interrupt_handler (int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static void omap34xx_save_context(u32 *save)
+{
+	u32 val;
+
+	/* Read Auxiliary Control Register */
+	asm("mrc p15, 0, %0, c1, c0, 1" : "=r" (val));
+	*save++ = 1;
+	*save++ = val;
+
+	/* Read L2 AUX ctrl register */
+	asm("mrc p15, 1, %0, c9, c0, 2" : "=r" (val));
+	*save++ = 1;
+	*save++ = val;
+}
+
 static void omap34xx_do_sram_idle(unsigned long save_state)
 {
-	omap34xx_cpu_suspend(omap3_arm_context, save_state);
+	omap34xx_cpu_suspend(save_state);
 }
 
 void omap_sram_idle(void)
@@ -408,6 +423,8 @@ void omap_sram_idle(void)
 	 * get saved. The rest is placed on the stack, and restored
 	 * from there before resuming.
 	 */
+	if (save_state)
+		omap34xx_save_context(omap3_arm_context);
 	if (save_state == 1 || save_state == 3)
 		cpu_suspend(save_state, omap34xx_do_sram_idle);
 	else

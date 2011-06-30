@@ -152,8 +152,7 @@ ENTRY(omap34xx_cpu_suspend)
 	stmfd	sp!, {r4 - r11, lr}	@ save registers on stack
 
 	/*
-	 * r0 contains CPU context save/restore pointer in sdram
-	 * r1 contains information about saving context:
+	 * r0 contains information about saving context:
 	 *   0 - No context lost
 	 *   1 - Only L1 and logic lost
 	 *   2 - Only L2 lost (Even L1 is retained we clean it along with L2)
@@ -166,19 +165,12 @@ ENTRY(omap34xx_cpu_suspend)
 	 */
 	ldr	r4, omap3_do_wfi_sram_addr
 	ldr	r5, [r4]
-	cmp	r1, #0x0		@ If no context save required,
+	cmp	r0, #0x0		@ If no context save required,
 	bxeq	r5			@  jump to the WFI code in SRAM
 
 
 	/* Otherwise fall through to the save context code */
 save_context_wfi:
-	mov	r8, r0			@ Store SDRAM address in r8
-	mrc	p15, 0, r5, c1, c0, 1	@ Read Auxiliary Control Register
-	mov	r4, #0x1		@ Number of parameters for restore call
-	stmia	r8!, {r4-r5}		@ Push parameters for restore call
-	mrc	p15, 1, r5, c9, c0, 2	@ Read L2 AUX ctrl register
-	stmia	r8!, {r4-r5}		@ Push parameters for restore call
-
 	/*
 	 * jump out to kernel flush routine
 	 *  - reuse that code is better
