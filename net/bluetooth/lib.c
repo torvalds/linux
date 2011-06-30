@@ -150,3 +150,22 @@ int bt_to_errno(__u16 code)
 	}
 }
 EXPORT_SYMBOL(bt_to_errno);
+
+int bt_printk(const char *level, const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	int r;
+
+	va_start(args, format);
+
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	r = printk("%sBluetooth: %pV\n", level, &vaf);
+
+	va_end(args);
+
+	return r;
+}
+EXPORT_SYMBOL(bt_printk);
