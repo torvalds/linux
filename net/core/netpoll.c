@@ -177,7 +177,7 @@ static void service_arp_queue(struct netpoll_info *npi)
 	}
 }
 
-void netpoll_poll_dev(struct net_device *dev)
+static void netpoll_poll_dev(struct net_device *dev)
 {
 	const struct net_device_ops *ops;
 
@@ -208,13 +208,11 @@ void netpoll_poll_dev(struct net_device *dev)
 
 	zap_completion_queue();
 }
-EXPORT_SYMBOL(netpoll_poll_dev);
 
-void netpoll_poll(struct netpoll *np)
+static void netpoll_poll(struct netpoll *np)
 {
 	netpoll_poll_dev(np->dev);
 }
-EXPORT_SYMBOL(netpoll_poll);
 
 static void refill_skbs(void)
 {
