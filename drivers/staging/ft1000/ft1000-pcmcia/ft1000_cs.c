@@ -29,24 +29,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/ptrace.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/timer.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
-
 #include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-
 #include <pcmcia/cistpl.h>
-#include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
-
-#include <asm/io.h>
-#include <asm/system.h>
-#include <asm/byteorder.h>
-#include <asm/uaccess.h>
 
 /*====================================================================*/
 
