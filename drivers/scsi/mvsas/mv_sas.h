@@ -420,6 +420,7 @@ struct mvs_prv_info{
 	u8 scan_finished;
 	u8 reserve;
 	struct mvs_info *mvi[2];
+	struct tasklet_struct mv_tasklet;
 };
 
 struct mvs_wq {

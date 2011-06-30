@@ -170,11 +170,9 @@ static void mvs_free(struct mvs_info *mvi)
 	kfree(mvi);
 }
 
-#ifdef MVS_USE_TASKLET
-struct tasklet_struct	mv_tasklet;
+#ifdef CONFIG_SCSI_MVSAS_TASKLET
 static void mvs_tasklet(unsigned long opaque)
 {
-	unsigned long flags;
 	u32 stat;
 	u16 core_nr, i = 0;
 
@@ -187,35 +185,49 @@ static void mvs_tasklet(unsigned long opaque)
 	if (unlikely(!mvi))
 		BUG_ON(1);
 
+	stat = MVS_CHIP_DISP->isr_status(mvi, mvi->pdev->irq);
+	if (!stat)
+		goto out;
+
 	for (i = 0; i < core_nr; i++) {
 		mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[i];
-		stat = MVS_CHIP_DISP->isr_status(mvi, mvi->irq);
-		if (stat)
-			MVS_CHIP_DISP->isr(mvi, mvi->irq, stat);
+		MVS_CHIP_DISP->isr(mvi, mvi->pdev->irq, stat);
 	}
+out:
+	MVS_CHIP_DISP->interrupt_enable(mvi);
 
 }
 #endif
 
 static irqreturn_t mvs_interrupt(int irq, void *opaque)
 {
-	u32 core_nr, i = 0;
+	u32 core_nr;
 	u32 stat;
 	struct mvs_info *mvi;
 	struct sas_ha_struct *sha = opaque;
+#ifndef CONFIG_SCSI_MVSAS_TASKLET
+	u32 i;
+#endif
 
 	core_nr = ((struct mvs_prv_info *)sha->lldd_ha)->n_host;
 	mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[0];
 
 	if (unlikely(!mvi))
 		return IRQ_NONE;
+#ifdef CONFIG_SCSI_MVSAS_TASKLET
+	MVS_CHIP_DISP->interrupt_disable(mvi);
+#endif
 
 	stat = MVS_CHIP_DISP->isr_status(mvi, irq);
-	if (!stat)
+	if (!stat) {
+	#ifdef CONFIG_SCSI_MVSAS_TASKLET
+		MVS_CHIP_DISP->interrupt_enable(mvi);
+	#endif
 		return IRQ_NONE;
+	}
 
-#ifdef MVS_USE_TASKLET
-	tasklet_schedule(&mv_tasklet);
+#ifdef CONFIG_SCSI_MVSAS_TASKLET
+	tasklet_schedule(&((struct mvs_prv_info *)sha->lldd_ha)->mv_tasklet);
 #else
 	for (i = 0; i < core_nr; i++) {
 		mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[i];
@@ -388,9 +400,6 @@ static struct mvs_info *__devinit mvs_pci_alloc(struct pci_dev *pdev,
 	mvi->id = id;
 	mvi->sas = sha;
 	mvi->shost = shost;
-#ifdef MVS_USE_TASKLET
-	tasklet_init(&mv_tasklet, mvs_tasklet, (unsigned long)sha);
-#endif
 
 	mvi->tags = kzalloc(MVS_CHIP_SLOT_SZ>>3, GFP_KERNEL);
 	if (!mvi->tags)
@@ -535,6 +544,7 @@ static int __devinit mvs_pci_init(struct pci_dev *pdev,
 {
 	unsigned int rc, nhost = 0;
 	struct mvs_info *mvi;
+	struct mvs_prv_info *mpi;
 	irq_handler_t irq_handler = mvs_interrupt;
 	struct Scsi_Host *shost = NULL;
 	const struct mvs_chip_info *chip;
@@ -599,8 +609,9 @@ static int __devinit mvs_pci_init(struct pci_dev *pdev,
 		}
 		nhost++;
 	} while (nhost < chip->n_host);
-#ifdef MVS_USE_TASKLET
-	tasklet_init(&mv_tasklet, mvs_tasklet,
+	mpi = (struct mvs_prv_info *)(SHOST_TO_SAS_HA(shost)->lldd_ha);
+#ifdef CONFIG_SCSI_MVSAS_TASKLET
+	tasklet_init(&(mpi->mv_tasklet), mvs_tasklet,
 		     (unsigned long)SHOST_TO_SAS_HA(shost));
 #endif
 
@@ -645,8 +656,8 @@ static void __devexit mvs_pci_remove(struct pci_dev *pdev)
 	core_nr = ((struct mvs_prv_info *)sha->lldd_ha)->n_host;
 	mvi = ((struct mvs_prv_info *)sha->lldd_ha)->mvi[0];
 
-#ifdef MVS_USE_TASKLET
-	tasklet_kill(&mv_tasklet);
+#ifdef CONFIG_SCSI_MVSAS_TASKLET
+	tasklet_kill(&((struct mvs_prv_info *)sha->lldd_ha)->mv_tasklet);
 #endif
 
 	pci_set_drvdata(pdev, NULL);

@@ -471,13 +471,11 @@ static irqreturn_t mvs_64xx_isr(struct mvs_info *mvi, int irq, u32 stat)
 
 	/* clear CMD_CMPLT ASAP */
 	mw32_f(MVS_INT_STAT, CINT_DONE);
-#ifndef MVS_USE_TASKLET
+
 	spin_lock(&mvi->lock);
-#endif
 	mvs_int_full(mvi);
-#ifndef MVS_USE_TASKLET
 	spin_unlock(&mvi->lock);
-#endif
+
 	return IRQ_HANDLED;
 }
 

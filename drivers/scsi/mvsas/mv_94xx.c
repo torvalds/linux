@@ -579,13 +579,10 @@ static irqreturn_t mvs_94xx_isr(struct mvs_info *mvi, int irq, u32 stat)
 	if (((stat & IRQ_SAS_A) && mvi->id == 0) ||
 			((stat & IRQ_SAS_B) && mvi->id == 1)) {
 		mw32_f(MVS_INT_STAT, CINT_DONE);
-	#ifndef MVS_USE_TASKLET
+
 		spin_lock(&mvi->lock);
-	#endif
 		mvs_int_full(mvi);
-	#ifndef MVS_USE_TASKLET
 		spin_unlock(&mvi->lock);
-	#endif
 	}
 	return IRQ_HANDLED;
 }
