@@ -42,7 +42,7 @@
 #define CALDATESZ               6
 
 // Pseudo Header structure
-typedef struct _PSEUDO_HDR
+struct pseudo_hdr
 {
    unsigned short    length;        // length of msg body
    unsigned char     source;        // hardware source id
@@ -65,7 +65,7 @@ typedef struct _PSEUDO_HDR
    unsigned char     rsvd2;
    unsigned short    qos_class;     // not used
    unsigned short    checksum;      // pseudo header checksum
-} __attribute__ ((packed)) PSEUDO_HDR, *PPSEUDO_HDR;
+} __attribute__ ((packed));
 
 // Definitions to maintain compatibility between other platforms
 #define UCHAR                u8
@@ -286,14 +286,14 @@ typedef struct _PSEUDO_HDR
 #define MAXIMUM_ASIC_HB_CNT      15
 
 typedef struct _DRVMSG {
-	PSEUDO_HDR pseudo;
+	struct pseudo_hdr pseudo;
 	u16 type;
 	u16 length;
 	u8  data[0];
 } __attribute__ ((packed)) DRVMSG, *PDRVMSG;
 
 typedef struct _MEDIAMSG {
-	PSEUDO_HDR pseudo;
+	struct pseudo_hdr pseudo;
 	u16 type;
 	u16 length;
 	u16 state;
@@ -305,14 +305,14 @@ typedef struct _MEDIAMSG {
 } __attribute__ ((packed)) MEDIAMSG, *PMEDIAMSG;
 
 typedef struct _TIMEMSG {
-	PSEUDO_HDR pseudo;
+	struct pseudo_hdr pseudo;
 	u16 type;
 	u16 length;
 	u8  timeval[8];
 } __attribute__ ((packed)) TIMEMSG, *PTIMEMSG;
 
 typedef struct _DSPINITMSG {
-    PSEUDO_HDR pseudo;
+    struct pseudo_hdr pseudo;
     u16 type;
     u16 length;
     u8 DspVer[DSPVERSZ];        // DSP version number
@@ -325,7 +325,7 @@ typedef struct _DSPINITMSG {
 } __attribute__ ((packed)) DSPINITMSG, *PDSPINITMSG;
 
 typedef struct _DSPHIBERNATE {
-	PSEUDO_HDR pseudo;
+	struct pseudo_hdr pseudo;
 	u16 type;
 	u16 length;
 	u32 timeout;

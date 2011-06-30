@@ -1021,7 +1021,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 	u16 len;
 	u16 i;
 	PPROV_RECORD ptr;
-	PPSEUDO_HDR ppseudo_hdr;
+	struct pseudo_hdr *ppseudo_hdr;
 	PUSHORT pmsg;
 	struct timeval tv;
 	union {
@@ -1066,7 +1066,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 				len = htons(len);
 
 				pmsg = (PUSHORT) ptr->pprov_data;
-				ppseudo_hdr = (PPSEUDO_HDR) pmsg;
+				ppseudo_hdr = (struct pseudo_hdr *) pmsg;
 				// Insert slow queue sequence number
 				ppseudo_hdr->seq_num = info->squeseqnum++;
 				ppseudo_hdr->portsrc = 0;
@@ -1185,7 +1185,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 				// Put message into Slow Queue
 				// Form Pseudo header
 				pmsg = (PUSHORT) info->DSPInfoBlk;
-				ppseudo_hdr = (PPSEUDO_HDR) pmsg;
+				ppseudo_hdr = (struct pseudo_hdr *) pmsg;
 				ppseudo_hdr->length =
 					htons(info->DSPInfoBlklen + 4);
 				ppseudo_hdr->source = 0x10;
@@ -1234,7 +1234,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 				// Put message into Slow Queue
 				// Form Pseudo header
 				pmsg = (PUSHORT) & tempbuffer[0];
-				ppseudo_hdr = (PPSEUDO_HDR) pmsg;
+				ppseudo_hdr = (struct pseudo_hdr *) pmsg;
 				ppseudo_hdr->length = htons(0x0012);
 				ppseudo_hdr->source = 0x10;
 				ppseudo_hdr->destination = 0x20;
@@ -1788,9 +1788,9 @@ int ft1000_copy_down_pkt(struct net_device *dev, u16 * packet, u16 len)
 {
 	FT1000_INFO *info = netdev_priv(dev);
 	union {
-		PSEUDO_HDR blk;
-		u16 buff[sizeof(PSEUDO_HDR) >> 1];
-		u8 buffc[sizeof(PSEUDO_HDR)];
+		struct pseudo_hdr blk;
+		u16 buff[sizeof(struct pseudo_hdr) >> 1];
+		u8 buffc[sizeof(struct pseudo_hdr)];
 	} pseudo;
 	int i;
 	u32 *plong;

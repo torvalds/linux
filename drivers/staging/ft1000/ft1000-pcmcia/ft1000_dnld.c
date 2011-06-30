@@ -91,7 +91,7 @@ void put_handshake(struct net_device *dev, USHORT handshake_value);
 USHORT get_request_type(struct net_device *dev);
 long get_request_value(struct net_device *dev);
 void put_request_value(struct net_device *dev, long lvalue);
-USHORT hdr_checksum(PPSEUDO_HDR pHdr);
+USHORT hdr_checksum(struct pseudo_hdr *pHdr);
 
 typedef struct _DSP_FILE_HDR {
 	u32  build_date;
@@ -297,7 +297,7 @@ void put_request_value(struct net_device *dev, long lvalue)
 
 }
 
-USHORT hdr_checksum(PPSEUDO_HDR pHdr)
+USHORT hdr_checksum(struct pseudo_hdr *pHdr)
 {
 	USHORT *usPtr = (USHORT *) pHdr;
 	USHORT chksum;
@@ -315,7 +315,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength)
 	USHORT DspWordCnt = 0;
 	UINT uiState;
 	USHORT handshake;
-	PPSEUDO_HDR pHdr;
+	struct pseudo_hdr *pHdr;
 	USHORT usHdrLength;
 	PDSP_FILE_HDR pFileHdr;
 	long word_length;
@@ -851,7 +851,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength)
 				break;
 			}
 
-			pHdr = (PPSEUDO_HDR) pUsFile;
+			pHdr = (struct pseudo_hdr *) pUsFile;
 
 			if (pHdr->portdest == 0x80	/* DspOAM */
 				&& (pHdr->portsrc == 0x00	/* Driver */
@@ -871,7 +871,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength)
 
 		case STATE_SECTION_PROV:
 
-			pHdr = (PPSEUDO_HDR) pUcFile;
+			pHdr = (struct pseudo_hdr *) pUcFile;
 
 			if (pHdr->checksum == hdr_checksum(pHdr)) {
 				if (pHdr->portdest != 0x80 /* Dsp OAM */ ) {
@@ -882,12 +882,12 @@ int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength)
 
 				// Get buffer for provisioning data
 				pbuffer =
-					kmalloc((usHdrLength + sizeof(PSEUDO_HDR)),
+					kmalloc((usHdrLength + sizeof(struct pseudo_hdr)),
 						GFP_ATOMIC);
 				if (pbuffer) {
 					memcpy(pbuffer, (void *)pUcFile,
 						   (UINT) (usHdrLength +
-							   sizeof(PSEUDO_HDR)));
+							   sizeof(struct pseudo_hdr)));
 					// link provisioning data
 					pprov_record =
 						kmalloc(sizeof(PROV_RECORD),
@@ -901,7 +901,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength)
 						// Move to next entry if available
 						pUcFile =
 							(UCHAR *) ((unsigned long) pUcFile +
-								   (unsigned long) ((usHdrLength + 1) & 0xFFFFFFFE) + sizeof(PSEUDO_HDR));
+								   (unsigned long) ((usHdrLength + 1) & 0xFFFFFFFE) + sizeof(struct pseudo_hdr));
 						if ((unsigned long) (pUcFile) -
 							(unsigned long) (pFileStart) >=
 							(unsigned long) FileLength) {
