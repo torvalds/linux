@@ -58,26 +58,6 @@ static const char *sanity_file_name(const char *path)
 	else
 		return path;
 }
-
-/* print file and line with a certain printk prefix */
-static int print_snd_pfx(unsigned int level, const char *path, int line,
-			 const char *format)
-{
-	const char *file = sanity_file_name(path);
-	char tmp[] = "<0>";
-	const char *pfx = level ? KERN_DEBUG : KERN_DEFAULT;
-	int ret = 0;
-
-	if (format[0] == '<' && format[2] == '>') {
-		tmp[1] = format[1];
-		pfx = tmp;
-		ret = 1;
-	}
-	printk("%sALSA %s:%d: ", pfx, file, line);
-	return ret;
-}
-#else
-#define print_snd_pfx(level, path, line, format)	0
 #endif
 
 #if defined(CONFIG_SND_DEBUG) || defined(CONFIG_SND_VERBOSE_PRINTK)
@@ -85,15 +65,29 @@ void __snd_printk(unsigned int level, const char *path, int line,
 		  const char *format, ...)
 {
 	va_list args;
-	
+#ifdef CONFIG_SND_VERBOSE_PRINTK
+	struct va_format vaf;
+	char verbose_fmt[] = KERN_DEFAULT "ALSA %s:%d %pV";
+#endif
+
 #ifdef CONFIG_SND_DEBUG	
 	if (debug < level)
 		return;
 #endif
+
 	va_start(args, format);
-	if (print_snd_pfx(level, path, line, format))
-		format += 3; /* skip the printk level-prefix */
+#ifdef CONFIG_SND_VERBOSE_PRINTK
+	vaf.fmt = format;
+	vaf.va = &args;
+	if (format[0] == '<' && format[2] == '>') {
+		memcpy(verbose_fmt, format, 3);
+		vaf.fmt = format + 3;
+	} else if (level)
+		memcpy(verbose_fmt, KERN_DEBUG, 3);
+	printk(verbose_fmt, sanity_file_name(path), line, &vaf);
+#else
 	vprintk(format, args);
+#endif
 	va_end(args);
 }
 EXPORT_SYMBOL_GPL(__snd_printk);

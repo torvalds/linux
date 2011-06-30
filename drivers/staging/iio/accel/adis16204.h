@@ -84,7 +84,6 @@ struct adis16204_state {
 
 int adis16204_set_irq(struct iio_dev *indio_dev, bool enable);
 
-#ifdef CONFIG_IIO_RING_BUFFER
 enum adis16204_scan {
 	ADIS16204_SCAN_SUPPLY,
 	ADIS16204_SCAN_ACC_X,
@@ -93,6 +92,7 @@ enum adis16204_scan {
 	ADIS16204_SCAN_TEMP,
 };
 
+#ifdef CONFIG_IIO_RING_BUFFER
 void adis16204_remove_trigger(struct iio_dev *indio_dev);
 int adis16204_probe_trigger(struct iio_dev *indio_dev);
 

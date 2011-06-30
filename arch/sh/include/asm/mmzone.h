@@ -9,10 +9,6 @@
 extern struct pglist_data *node_data[];
 #define NODE_DATA(nid)		(node_data[nid])
 
-#define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
-#define node_end_pfn(nid)	(NODE_DATA(nid)->node_start_pfn + \
-				 NODE_DATA(nid)->node_spanned_pages)
-
 static inline int pfn_to_nid(unsigned long pfn)
 {
 	int nid;
