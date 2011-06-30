@@ -94,11 +94,6 @@ MODULE_DEVICE_TABLE(acpi, battery_device_ids);
 enum {
 	ACPI_BATTERY_ALARM_PRESENT,
 	ACPI_BATTERY_XINFO_PRESENT,
-	/* For buggy DSDTs that report negative 16-bit values for either
-	 * charging or discharging current and/or report 0 as 65536
-	 * due to bad math.
-	 */
-	ACPI_BATTERY_QUIRK_SIGNED16_CURRENT,
 	ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY,
 };
 
@@ -465,9 +460,17 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 	battery->update_time = jiffies;
 	kfree(buffer.pointer);
 
-	if (test_bit(ACPI_BATTERY_QUIRK_SIGNED16_CURRENT, &battery->flags) &&
-	    battery->rate_now != -1)
+	/* For buggy DSDTs that report negative 16-bit values for either
+	 * charging or discharging current and/or report 0 as 65536
+	 * due to bad math.
+	 */
+	if (battery->power_unit == ACPI_BATTERY_POWER_UNIT_MA &&
+		battery->rate_now != ACPI_BATTERY_VALUE_UNKNOWN &&
+		(s16)(battery->rate_now) < 0) {
 		battery->rate_now = abs((s16)battery->rate_now);
+		printk_once(KERN_WARNING FW_BUG "battery: (dis)charge rate"
+			" invalid.\n");
+	}
 
 	if (test_bit(ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY, &battery->flags)
 	    && battery->capacity_now >= 0 && battery->capacity_now <= 100)
@@ -577,14 +580,6 @@ static void sysfs_remove_battery(struct acpi_battery *battery)
 	battery->bat.dev = NULL;
 }
 
-static void acpi_battery_quirks(struct acpi_battery *battery)
-{
-	if (dmi_name_in_vendors("Acer") &&
-		battery->power_unit == ACPI_BATTERY_POWER_UNIT_MA) {
-		set_bit(ACPI_BATTERY_QUIRK_SIGNED16_CURRENT, &battery->flags);
-	}
-}
-
 /*
  * According to the ACPI spec, some kinds of primary batteries can
  * report percentage battery remaining capacity directly to OS.
@@ -628,7 +623,6 @@ static int acpi_battery_update(struct acpi_battery *battery)
 		result = acpi_battery_get_info(battery);
 		if (result)
 			return result;
-		acpi_battery_quirks(battery);
 		acpi_battery_init_alarm(battery);
 	}
 	if (!battery->bat.dev)
