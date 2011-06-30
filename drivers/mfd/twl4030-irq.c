@@ -422,8 +422,6 @@ static inline void activate_irq(int irq)
 
 /*----------------------------------------------------------------------*/
 
-static struct workqueue_struct *wq;
-
 struct sih_agent {
 	int			irq_base;
 	const struct sih	*sih;
@@ -432,67 +430,9 @@ struct sih_agent {
 	bool			imr_change_pending;
 
 	u32			edge_change;
-	struct work_struct	edge_work;
 
 	struct mutex		irq_lock;
 };
-
-static void twl4030_sih_do_edge(struct work_struct *work)
-{
-	struct sih_agent	*agent;
-	const struct sih	*sih;
-	u8			bytes[6];
-	u32			edge_change;
-	int			status;
-
-	agent = container_of(work, struct sih_agent, edge_work);
-
-	/* see what work we have */
-	edge_change = agent->edge_change;
-	agent->edge_change = 0;
-	sih = edge_change ? agent->sih : NULL;
-	if (!sih)
-		return;
-
-	/* Read, reserving first byte for write scratch.  Yes, this
-	 * could be cached for some speedup ... but be careful about
-	 * any processor on the other IRQ line, EDR registers are
-	 * shared.
-	 */
-	status = twl_i2c_read(sih->module, bytes + 1,
-			sih->edr_offset, sih->bytes_edr);
-	if (status) {
-		pr_err("twl4030: %s, %s --> %d\n", __func__,
-				"read", status);
-		return;
-	}
-
-	/* Modify only the bits we know must change */
-	while (edge_change) {
-		int		i = fls(edge_change) - 1;
-		struct irq_data	*idata = irq_get_irq_data(i + agent->irq_base);
-		int		byte = 1 + (i >> 2);
-		int		off = (i & 0x3) * 2;
-		unsigned int	type;
-
-		bytes[byte] &= ~(0x03 << off);
-
-		type = irqd_get_trigger_type(idata);
-		if (type & IRQ_TYPE_EDGE_RISING)
-			bytes[byte] |= BIT(off + 1);
-		if (type & IRQ_TYPE_EDGE_FALLING)
-			bytes[byte] |= BIT(off + 0);
-
-		edge_change &= ~BIT(i);
-	}
-
-	/* Write */
-	status = twl_i2c_write(sih->module, bytes,
-			sih->edr_offset, sih->bytes_edr);
-	if (status)
-		pr_err("twl4030: %s, %s --> %d\n", __func__,
-				"write", status);
-}
 
 /*----------------------------------------------------------------------*/
 
@@ -526,10 +466,8 @@ static int twl4030_sih_set_type(struct irq_data *data, unsigned trigger)
 	if (trigger & ~(IRQ_TYPE_EDGE_FALLING | IRQ_TYPE_EDGE_RISING))
 		return -EINVAL;
 
-	if (irqd_get_trigger_type(data) != trigger) {
+	if (irqd_get_trigger_type(data) != trigger)
 		agent->edge_change |= BIT(data->irq - agent->irq_base);
-		queue_work(wq, &agent->edge_work);
-	}
 
 	return 0;
 }
@@ -561,6 +499,56 @@ static void twl4030_sih_bus_sync_unlock(struct irq_data *data)
 		status = twl_i2c_write(sih->module, imr.bytes,
 				sih->mask[irq_line].imr_offset,
 				sih->bytes_ixr);
+		if (status)
+			pr_err("twl4030: %s, %s --> %d\n", __func__,
+					"write", status);
+	}
+
+	if (agent->edge_change) {
+		u32		edge_change;
+		u8		bytes[6];
+
+		edge_change = agent->edge_change;
+		agent->edge_change = 0;
+
+		/*
+		 * Read, reserving first byte for write scratch.  Yes, this
+		 * could be cached for some speedup ... but be careful about
+		 * any processor on the other IRQ line, EDR registers are
+		 * shared.
+		 */
+		status = twl_i2c_read(sih->module, bytes + 1,
+				sih->edr_offset, sih->bytes_edr);
+		if (status) {
+			pr_err("twl4030: %s, %s --> %d\n", __func__,
+					"read", status);
+			return;
+		}
+
+		/* Modify only the bits we know must change */
+		while (edge_change) {
+			int		i = fls(edge_change) - 1;
+			struct irq_data	*idata;
+			int		byte = 1 + (i >> 2);
+			int		off = (i & 0x3) * 2;
+			unsigned int	type;
+
+			idata = irq_get_irq_data(i + agent->irq_base);
+
+			bytes[byte] &= ~(0x03 << off);
+
+			type = irqd_get_trigger_type(idata);
+			if (type & IRQ_TYPE_EDGE_RISING)
+				bytes[byte] |= BIT(off + 1);
+			if (type & IRQ_TYPE_EDGE_FALLING)
+				bytes[byte] |= BIT(off + 0);
+
+			edge_change &= ~BIT(i);
+		}
+
+		/* Write */
+		status = twl_i2c_write(sih->module, bytes,
+				sih->edr_offset, sih->bytes_edr);
 		if (status)
 			pr_err("twl4030: %s, %s --> %d\n", __func__,
 					"write", status);
@@ -672,7 +660,6 @@ int twl4030_sih_setup(int module)
 	agent->sih = sih;
 	agent->imr = ~0;
 	mutex_init(&agent->irq_lock);
-	INIT_WORK(&agent->edge_work, twl4030_sih_do_edge);
 
 	for (i = 0; i < sih->bits; i++) {
 		irq = irq_base + i;
@@ -720,12 +707,6 @@ int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 	if (status < 0)
 		return status;
 
-	wq = create_singlethread_workqueue("twl4030-irqchip");
-	if (!wq) {
-		pr_err("twl4030: workqueue FAIL\n");
-		return -ESRCH;
-	}
-
 	twl4030_irq_base = irq_base;
 
 	/* install an irq handler for each of the SIH modules;
@@ -766,8 +747,7 @@ fail_rqirq:
 fail:
 	for (i = irq_base; i < irq_end; i++)
 		irq_set_chip_and_handler(i, NULL, NULL);
-	destroy_workqueue(wq);
-	wq = NULL;
+
 	return status;
 }
 
