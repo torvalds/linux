@@ -266,8 +266,6 @@ static int ft1000_suspend(struct pcmcia_device *link)
 {
 	struct net_device *dev = ((local_info_t *) link->priv)->dev;
 
-	DEBUG(1, "ft1000_cs: ft1000_event(0x%06x)\n", event);
-
 	if (link->open)
 		netif_device_detach(dev);
 	return 0;
