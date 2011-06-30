@@ -65,11 +65,6 @@ MODULE_LICENSE("GPL");
    left out.  If you compile with PCMCIA_DEBUG=0, the debug code will
    be present but disabled.
 */
-#ifdef FT_DEBUG
-#define DEBUG(n, args...) printk(KERN_DEBUG args)
-#else
-#define DEBUG(n, args...)
-#endif
 
 /*====================================================================*/
 
@@ -103,8 +98,6 @@ static void ft1000_reset(struct pcmcia_device * link)
 
 static int ft1000_attach(struct pcmcia_device *link)
 {
-	DEBUG(0, "ft1000_cs: ft1000_attach()\n");
-
 	link->priv = NULL;
 	link->config_flags |= CONF_ENABLE_IRQ | CONF_AUTO_SET_IO;
 
@@ -124,13 +117,6 @@ static int ft1000_attach(struct pcmcia_device *link)
 static void ft1000_detach(struct pcmcia_device *link)
 {
 	struct net_device *dev = link->priv;
-
-	DEBUG(0, "ft1000_cs: ft1000_detach(0x%p)\n", link);
-
-	if (link == NULL) {
-		DEBUG(0,"ft1000_cs:ft1000_detach: Got a NULL pointer\n");
-		return;
-	}
 
 	if (dev) {
 		stop_ft1000_card(dev);
@@ -207,8 +193,6 @@ failed:
 static void ft1000_release(struct pcmcia_device * link)
 {
 
-	DEBUG(0, "ft1000_cs: ft1000_release(0x%p)\n", link);
-
 	/*
 	   If the device is currently in use, we won't release until it
 	   is actually closed, because until then, we can't be sure that
@@ -277,13 +261,11 @@ static struct pcmcia_driver ft1000_cs_driver = {
 
 static int __init init_ft1000_cs(void)
 {
-	DEBUG(0, "ft1000_cs: loading\n");
 	return pcmcia_register_driver(&ft1000_cs_driver);
 }
 
 static void __exit exit_ft1000_cs(void)
 {
-	DEBUG(0, "ft1000_cs: unloading\n");
 	pcmcia_unregister_driver(&ft1000_cs_driver);
 }
 
