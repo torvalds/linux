@@ -3037,7 +3037,6 @@ void dhd_detach(dhd_pub_t *dhdp)
 	}
 #endif /* defined(CONFIG_HAS_EARLYSUSPEND) */
 
-
 #if defined(CONFIG_WIRELESS_EXT)
 	if (dhd->dhd_state & DHD_ATTACH_STATE_WL_ATTACH) {
 		/* Detatch and unlink in the iw */
@@ -3108,12 +3107,11 @@ void dhd_detach(dhd_pub_t *dhdp)
 		wl_cfg80211_detach();
 #endif
 
-	if (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT) {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP)
-		unregister_pm_notifier(&dhd_sleep_pm_notifier);
-#endif 
-	/* && defined(CONFIG_PM_SLEEP) */
+	unregister_pm_notifier(&dhd_sleep_pm_notifier);
+#endif
 
+	if (dhd->dhd_state & DHD_ATTACH_STATE_WAKELOCKS_INIT) {
 #ifdef CONFIG_HAS_WAKELOCK
 		wake_lock_destroy(&dhd->wl_wifi);
 		wake_lock_destroy(&dhd->wl_rxwake);
