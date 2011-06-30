@@ -304,13 +304,6 @@ struct media_msg {
 	u32 dns_2;
 } __attribute__ ((packed));
 
-typedef struct _TIMEMSG {
-	struct pseudo_hdr pseudo;
-	u16 type;
-	u16 length;
-	u8  timeval[8];
-} __attribute__ ((packed)) TIMEMSG, *PTIMEMSG;
-
 typedef struct _DSPINITMSG {
     struct pseudo_hdr pseudo;
     u16 type;
