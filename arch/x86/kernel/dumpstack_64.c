@@ -155,9 +155,12 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		task = current;
 
 	if (!stack) {
-		stack = &dummy;
-		if (task && task != current)
+		if (regs)
+			stack = (unsigned long *)regs->sp;
+		else if (task && task != current)
 			stack = (unsigned long *)task->thread.sp;
+		else
+			stack = &dummy;
 	}
 
 	if (!bp)
