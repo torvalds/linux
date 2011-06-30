@@ -47,12 +47,14 @@ static void pmbus_find_sensor_groups(struct i2c_client *client,
 	if (info->func[0]
 	    && pmbus_check_byte_register(client, 0, PMBUS_STATUS_INPUT))
 		info->func[0] |= PMBUS_HAVE_STATUS_INPUT;
-	if (pmbus_check_word_register(client, 0, PMBUS_READ_FAN_SPEED_1)) {
+	if (pmbus_check_byte_register(client, 0, PMBUS_FAN_CONFIG_12) &&
+	    pmbus_check_word_register(client, 0, PMBUS_READ_FAN_SPEED_1)) {
 		info->func[0] |= PMBUS_HAVE_FAN12;
 		if (pmbus_check_byte_register(client, 0, PMBUS_STATUS_FAN_12))
 			info->func[0] |= PMBUS_HAVE_STATUS_FAN12;
 	}
-	if (pmbus_check_word_register(client, 0, PMBUS_READ_FAN_SPEED_3)) {
+	if (pmbus_check_byte_register(client, 0, PMBUS_FAN_CONFIG_34) &&
+	    pmbus_check_word_register(client, 0, PMBUS_READ_FAN_SPEED_3)) {
 		info->func[0] |= PMBUS_HAVE_FAN34;
 		if (pmbus_check_byte_register(client, 0, PMBUS_STATUS_FAN_34))
 			info->func[0] |= PMBUS_HAVE_STATUS_FAN34;
