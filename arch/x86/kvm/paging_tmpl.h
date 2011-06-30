@@ -125,18 +125,17 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,
 	gfn_t table_gfn;
 	unsigned index, pt_access, uninitialized_var(pte_access);
 	gpa_t pte_gpa;
-	bool eperm, present, rsvd_fault;
-	int offset, write_fault, user_fault, fetch_fault;
-
-	write_fault = access & PFERR_WRITE_MASK;
-	user_fault = access & PFERR_USER_MASK;
-	fetch_fault = access & PFERR_FETCH_MASK;
+	bool eperm;
+	int offset;
+	const int write_fault = access & PFERR_WRITE_MASK;
+	const int user_fault  = access & PFERR_USER_MASK;
+	const int fetch_fault = access & PFERR_FETCH_MASK;
+	u16 errcode = 0;
 
 	trace_kvm_mmu_pagetable_walk(addr, write_fault, user_fault,
 				     fetch_fault);
 walk:
-	present = true;
-	eperm = rsvd_fault = false;
+	eperm = false;
 	walker->level = mmu->root_level;
 	pte           = mmu->get_cr3(vcpu);
 
@@ -144,10 +143,8 @@ walk:
 	if (walker->level == PT32E_ROOT_LEVEL) {
 		pte = kvm_pdptr_read_mmu(vcpu, mmu, (addr >> 30) & 3);
 		trace_kvm_mmu_paging_element(pte, walker->level);
-		if (!is_present_gpte(pte)) {
-			present = false;
+		if (!is_present_gpte(pte))
 			goto error;
-		}
 		--walker->level;
 	}
 #endif
@@ -170,35 +167,27 @@ walk:
 
 		real_gfn = mmu->translate_gpa(vcpu, gfn_to_gpa(table_gfn),
 					      PFERR_USER_MASK|PFERR_WRITE_MASK);
-		if (unlikely(real_gfn == UNMAPPED_GVA)) {
-			present = false;
-			break;
-		}
+		if (unlikely(real_gfn == UNMAPPED_GVA))
+			goto error;
 		real_gfn = gpa_to_gfn(real_gfn);
 
 		host_addr = gfn_to_hva(vcpu->kvm, real_gfn);
-		if (unlikely(kvm_is_error_hva(host_addr))) {
-			present = false;
-			break;
-		}
+		if (unlikely(kvm_is_error_hva(host_addr)))
+			goto error;
 
 		ptep_user = (pt_element_t __user *)((void *)host_addr + offset);
-		if (unlikely(__copy_from_user(&pte, ptep_user, sizeof(pte)))) {
-			present = false;
-			break;
-		}
+		if (unlikely(__copy_from_user(&pte, ptep_user, sizeof(pte))))
+			goto error;
 
 		trace_kvm_mmu_paging_element(pte, walker->level);
 
-		if (unlikely(!is_present_gpte(pte))) {
-			present = false;
-			break;
-		}
+		if (unlikely(!is_present_gpte(pte)))
+			goto error;
 
 		if (unlikely(is_rsvd_bits_set(&vcpu->arch.mmu, pte,
 					      walker->level))) {
-			rsvd_fault = true;
-			break;
+			errcode |= PFERR_RSVD_MASK | PFERR_PRESENT_MASK;
+			goto error;
 		}
 
 		if (unlikely(write_fault && !is_writable_pte(pte)
@@ -213,17 +202,15 @@ walk:
 			eperm = true;
 #endif
 
-		if (!eperm && !rsvd_fault
-		    && unlikely(!(pte & PT_ACCESSED_MASK))) {
+		if (!eperm && unlikely(!(pte & PT_ACCESSED_MASK))) {
 			int ret;
 			trace_kvm_mmu_set_accessed_bit(table_gfn, index,
 						       sizeof(pte));
 			ret = FNAME(cmpxchg_gpte)(vcpu, mmu, ptep_user, index,
 						  pte, pte|PT_ACCESSED_MASK);
-			if (unlikely(ret < 0)) {
-				present = false;
-				break;
-			} else if (ret)
+			if (unlikely(ret < 0))
+				goto error;
+			else if (ret)
 				goto walk;
 
 			mark_page_dirty(vcpu->kvm, table_gfn);
@@ -276,8 +263,10 @@ walk:
 		--walker->level;
 	}
 
-	if (unlikely(!present || eperm || rsvd_fault))
+	if (unlikely(eperm)) {
+		errcode |= PFERR_PRESENT_MASK;
 		goto error;
+	}
 
 	if (write_fault && unlikely(!is_dirty_gpte(pte))) {
 		int ret;
@@ -285,10 +274,9 @@ walk:
 		trace_kvm_mmu_set_dirty_bit(table_gfn, index, sizeof(pte));
 		ret = FNAME(cmpxchg_gpte)(vcpu, mmu, ptep_user, index,
 					  pte, pte|PT_DIRTY_MASK);
-		if (unlikely(ret < 0)) {
-			present = false;
+		if (unlikely(ret < 0))
 			goto error;
-		} else if (ret)
+		else if (ret)
 			goto walk;
 
 		mark_page_dirty(vcpu->kvm, table_gfn);
@@ -303,20 +291,14 @@ walk:
 	return 1;
 
 error:
-	walker->fault.vector = PF_VECTOR;
-	walker->fault.error_code_valid = true;
-	walker->fault.error_code = 0;
-	if (present)
-		walker->fault.error_code |= PFERR_PRESENT_MASK;
-
-	walker->fault.error_code |= write_fault | user_fault;
-
+	errcode |= write_fault | user_fault;
 	if (fetch_fault && (mmu->nx ||
 			    kvm_read_cr4_bits(vcpu, X86_CR4_SMEP)))
-		walker->fault.error_code |= PFERR_FETCH_MASK;
-	if (rsvd_fault)
-		walker->fault.error_code |= PFERR_RSVD_MASK;
+		errcode |= PFERR_FETCH_MASK;
 
+	walker->fault.vector = PF_VECTOR;
+	walker->fault.error_code_valid = true;
+	walker->fault.error_code = errcode;
 	walker->fault.address = addr;
 	walker->fault.nested_page_fault = mmu != vcpu->arch.walk_mmu;
 
