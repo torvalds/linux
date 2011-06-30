@@ -33,7 +33,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/ethtool.h>
-#include <asm/cacheflush.h>
 
 #include "sh_eth.h"
 
@@ -864,6 +863,8 @@ static int sh_eth_txfree(struct net_device *ndev)
 			break;
 		/* Free the original skb. */
 		if (mdp->tx_skbuff[entry]) {
+			dma_unmap_single(&ndev->dev, txdesc->addr,
+					 txdesc->buffer_length, DMA_TO_DEVICE);
 			dev_kfree_skb_irq(mdp->tx_skbuff[entry]);
 			mdp->tx_skbuff[entry] = NULL;
 			freeNum++;
@@ -1487,13 +1488,12 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	entry = mdp->cur_tx % TX_RING_SIZE;
 	mdp->tx_skbuff[entry] = skb;
 	txdesc = &mdp->tx_ring[entry];
-	txdesc->addr = virt_to_phys(skb->data);
 	/* soft swap. */
 	if (!mdp->cd->hw_swap)
 		sh_eth_soft_swap(phys_to_virt(ALIGN(txdesc->addr, 4)),
 				 skb->len + 2);
-	/* write back */
-	__flush_purge_region(skb->data, skb->len);
+	txdesc->addr = dma_map_single(&ndev->dev, skb->data, skb->len,
+				      DMA_TO_DEVICE);
 	if (skb->len < ETHERSMALL)
 		txdesc->buffer_length = ETHERSMALL;
 	else
