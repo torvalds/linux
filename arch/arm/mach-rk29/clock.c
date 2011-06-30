@@ -1879,6 +1879,7 @@ static struct clk pd_vcodec = {
 
 static int pd_display_mode(struct clk *clk, int on)
 {
+#if 0	/* display power domain is buggy, always keep it on.  */
 	if (on) {
 		u32 gate, gate2;
 
@@ -1911,6 +1912,7 @@ static int pd_display_mode(struct clk *clk, int on)
 	} else {
 		pmu_set_power_domain(PD_DISPLAY, false);
 	}
+#endif
 
 	return 0;
 }
@@ -2606,7 +2608,7 @@ void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate
 
 	rk29_clock_common_init(ppll_rate, cpll_rate);
 
-	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz (20110617)\n",
+	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz (20110630)\n",
 	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
 	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
 }
