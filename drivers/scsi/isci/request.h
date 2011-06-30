@@ -146,7 +146,7 @@ struct isci_request {
 	struct completion *io_request_completion;
 	struct sci_base_state_machine sm;
 	struct scic_sds_controller *owning_controller;
-	struct scic_sds_remote_device *target_device;
+	struct isci_remote_device *target_device;
 	u16 io_tag;
 	enum sci_request_protocol protocol;
 	u32 scu_status; /* hardware result */
@@ -501,7 +501,7 @@ void isci_terminate_pending_requests(struct isci_host *ihost,
 				     struct isci_remote_device *idev);
 enum sci_status
 scic_task_request_construct(struct scic_sds_controller *scic,
-			    struct scic_sds_remote_device *sci_dev,
+			    struct isci_remote_device *idev,
 			    u16 io_tag,
 			    struct isci_request *ireq);
 enum sci_status

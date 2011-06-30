@@ -257,7 +257,7 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 		return NULL;
 
 	/* let the core do it's construct. */
-	status = scic_task_request_construct(&ihost->sci, &idev->sci, tag,
+	status = scic_task_request_construct(&ihost->sci, idev, tag,
 					     ireq);
 
 	if (status != SCI_SUCCESS) {
@@ -288,12 +288,11 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 }
 
 int isci_task_execute_tmf(struct isci_host *ihost,
-			  struct isci_remote_device *isci_device,
+			  struct isci_remote_device *idev,
 			  struct isci_tmf *tmf, unsigned long timeout_ms)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
 	enum sci_task_status status = SCI_TASK_FAILURE;
-	struct scic_sds_remote_device *sci_device;
 	struct isci_request *ireq;
 	int ret = TMF_RESP_FUNC_FAILED;
 	unsigned long flags;
@@ -310,34 +309,30 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 	/* sanity check, return TMF_RESP_FUNC_FAILED
 	 * if the device is not there and ready.
 	 */
-	if (!isci_device ||
-	    (!test_bit(IDEV_IO_READY, &isci_device->flags) &&
-	     !test_bit(IDEV_IO_NCQERROR, &isci_device->flags))) {
+	if (!idev ||
+	    (!test_bit(IDEV_IO_READY, &idev->flags) &&
+	     !test_bit(IDEV_IO_NCQERROR, &idev->flags))) {
 		dev_dbg(&ihost->pdev->dev,
-			"%s: isci_device = %p not ready (%#lx)\n",
+			"%s: idev = %p not ready (%#lx)\n",
 			__func__,
-			isci_device, isci_device ? isci_device->flags : 0);
+			idev, idev ? idev->flags : 0);
 		goto err_tci;
 	} else
 		dev_dbg(&ihost->pdev->dev,
-			"%s: isci_device = %p\n",
-			__func__, isci_device);
-
-	sci_device = &isci_device->sci;
+			"%s: idev = %p\n",
+			__func__, idev);
 
 	/* Assign the pointer to the TMF's completion kernel wait structure. */
 	tmf->complete = &completion;
 
-	ireq = isci_task_request_build(ihost, isci_device, tag, tmf);
+	ireq = isci_task_request_build(ihost, idev, tag, tmf);
 	if (!ireq)
 		goto err_tci;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 
 	/* start the TMF io. */
-	status = scic_controller_start_task(&ihost->sci,
-					    sci_device,
-					    ireq);
+	status = scic_controller_start_task(&ihost->sci, idev, ireq);
 
 	if (status != SCI_TASK_SUCCESS) {
 		dev_warn(&ihost->pdev->dev,
@@ -355,7 +350,7 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 	isci_request_change_state(ireq, started);
 
 	/* add the request to the remote device request list. */
-	list_add(&ireq->dev_node, &isci_device->reqs_in_process);
+	list_add(&ireq->dev_node, &idev->reqs_in_process);
 
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
@@ -370,7 +365,7 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 			tmf->cb_state_func(isci_tmf_timed_out, tmf, tmf->cb_data);
 
 		scic_controller_terminate_request(&ihost->sci,
-						  &isci_device->sci,
+						  idev,
 						  ireq);
 
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
@@ -520,13 +515,13 @@ static void isci_request_cleanup_completed_loiterer(
  *    from a thread that can wait.  Note that the request is terminated and
  *    completed (back to the host, if started there).
  * @isci_host: This SCU.
- * @isci_device: The target.
+ * @idev: The target.
  * @isci_request: The I/O request to be terminated.
  *
  */
 static void isci_terminate_request_core(
 	struct isci_host *isci_host,
-	struct isci_remote_device *isci_device,
+	struct isci_remote_device *idev,
 	struct isci_request *isci_request)
 {
 	enum sci_status status      = SCI_SUCCESS;
@@ -540,7 +535,7 @@ static void isci_terminate_request_core(
 
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: device = %p; request = %p\n",
-		__func__, isci_device, isci_request);
+		__func__, idev, isci_request);
 
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
 
@@ -564,7 +559,7 @@ static void isci_terminate_request_core(
 		needs_cleanup_handling = true;
 		status = scic_controller_terminate_request(
 			&isci_host->sci,
-			&isci_device->sci,
+			idev,
 			isci_request);
 	}
 	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
@@ -683,7 +678,7 @@ static void isci_terminate_request_core(
 		}
 		if (needs_cleanup_handling)
 			isci_request_cleanup_completed_loiterer(
-				isci_host, isci_device, isci_request, task);
+				isci_host, idev, isci_request, task);
 	}
 }
 
@@ -694,7 +689,7 @@ static void isci_terminate_request_core(
  *    called from a thread that can wait.  Note that the requests are all
  *    terminated and completed (back to the host, if started there).
  * @isci_host: This parameter specifies SCU.
- * @isci_device: This parameter specifies the target.
+ * @idev: This parameter specifies the target.
  *
  */
 void isci_terminate_pending_requests(struct isci_host *ihost,
@@ -1521,7 +1516,7 @@ static int isci_reset_device(struct isci_host *ihost,
 	dev_dbg(&ihost->pdev->dev, "%s: idev %p\n", __func__, idev);
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
-	status = scic_remote_device_reset(&idev->sci);
+	status = scic_remote_device_reset(idev);
 	if (status != SCI_SUCCESS) {
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
@@ -1547,7 +1542,7 @@ static int isci_reset_device(struct isci_host *ihost,
 
 	/* Since all pending TCs have been cleaned, resume the RNC. */
 	spin_lock_irqsave(&ihost->scic_lock, flags);
-	status = scic_remote_device_reset_complete(&idev->sci);
+	status = scic_remote_device_reset_complete(idev);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	/* If this is a device on an expander, bring the phy back up. */

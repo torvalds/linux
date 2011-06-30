@@ -70,65 +70,14 @@ enum scic_remote_device_not_ready_reason_code {
 	SCIC_REMOTE_DEVICE_NOT_READY_REASON_CODE_MAX
 };
 
-struct scic_sds_remote_device {
-	/**
-	 * This field contains the information for the base remote device state
-	 * machine.
-	 */
-	struct sci_base_state_machine sm;
-
-	/**
-	 * This field is the programmed device port width.  This value is
-	 * written to the RCN data structure to tell the SCU how many open
-	 * connections this device can have.
-	 */
-	u32 device_port_width;
-
-	/**
-	 * This field is the programmed connection rate for this remote device.  It is
-	 * used to program the TC with the maximum allowed connection rate.
-	 */
-	enum sas_linkrate connection_rate;
-
-	/**
-	 * This filed is assinged the value of true if the device is directly
-	 * attached to the port.
-	 */
-	bool is_direct_attached;
-
-	/**
-	 * This filed contains a pointer back to the port to which this device
-	 * is assigned.
-	 */
-	struct isci_port *owning_port;
-
-	/**
-	 * This field contains the SCU silicon remote node context specific
-	 * information.
-	 */
-	struct scic_sds_remote_node_context rnc;
-
-	/**
-	 * This field contains the stated request count for the remote device.  The
-	 * device can not reach the SCI_DEV_STOPPED until all
-	 * requests are complete and the rnc_posted value is false.
-	 */
-	u32 started_request_count;
-
-	/**
-	 * This field contains a pointer to the working request object.  It is only
-	 * used only for SATA requests since the unsolicited frames we get from the
-	 * hardware have no Tag value to look up the io request object.
-	 */
-	struct isci_request *working_request;
-
-	/**
-	 * This field contains the reason for the remote device going not_ready.  It is
-	 * assigned in the state handlers and used in the state transition.
-	 */
-	u32 not_ready_reason;
-};
-
+/**
+ * isci_remote_device - isci representation of a sas expander / end point
+ * @device_port_width: hw setting for number of simultaneous connections
+ * @connection_rate: per-taskcontext connection rate for this device
+ * @working_request: SATA requests have no tag we for unaccelerated
+ *                   protocols we need a method to associate unsolicited
+ *                   frames with a pending request
+ */
 struct isci_remote_device {
 	#define IDEV_START_PENDING 0
 	#define IDEV_STOP_PENDING 1
@@ -143,7 +92,16 @@ struct isci_remote_device {
 	struct domain_device *domain_dev;
 	struct list_head node;
 	struct list_head reqs_in_process;
-	struct scic_sds_remote_device sci;
+	struct sci_base_state_machine sm;
+	u32 device_port_width;
+	enum sas_linkrate connection_rate;
+	bool is_direct_attached;
+	struct isci_port *owning_port;
+	struct scic_sds_remote_node_context rnc;
+	/* XXX unify with device reference counting and delete */
+	u32 started_request_count;
+	struct isci_request *working_request;
+	u32 not_ready_reason;
 };
 
 #define ISCI_REMOTE_DEVICE_START_TIMEOUT 5000
@@ -191,7 +149,7 @@ void isci_device_clear_reset_pending(struct isci_host *ihost,
  * successfully stopped.
  */
 enum sci_status scic_remote_device_stop(
-	struct scic_sds_remote_device *remote_device,
+	struct isci_remote_device *idev,
 	u32 timeout);
 
 /**
@@ -207,7 +165,7 @@ enum sci_status scic_remote_device_stop(
  * started.
  */
 enum sci_status scic_remote_device_reset(
-	struct scic_sds_remote_device *remote_device);
+	struct isci_remote_device *idev);
 
 /**
  * scic_remote_device_reset_complete() - This method informs the device object
@@ -220,7 +178,7 @@ enum sci_status scic_remote_device_reset(
  * is resuming operation.
  */
 enum sci_status scic_remote_device_reset_complete(
-	struct scic_sds_remote_device *remote_device);
+	struct isci_remote_device *idev);
 
 #define scic_remote_device_is_atapi(device_handle) false
 
@@ -335,25 +293,13 @@ enum scic_sds_remote_device_states {
 	SCI_DEV_FINAL,
 };
 
-static inline struct scic_sds_remote_device *rnc_to_dev(struct scic_sds_remote_node_context *rnc)
+static inline struct isci_remote_device *rnc_to_dev(struct scic_sds_remote_node_context *rnc)
 {
-	struct scic_sds_remote_device *sci_dev;
+	struct isci_remote_device *idev;
 
-	sci_dev = container_of(rnc, typeof(*sci_dev), rnc);
-
-	return sci_dev;
-}
-
-static inline struct isci_remote_device *sci_dev_to_idev(struct scic_sds_remote_device *sci_dev)
-{
-	struct isci_remote_device *idev = container_of(sci_dev, typeof(*idev), sci);
+	idev = container_of(rnc, typeof(*idev), rnc);
 
 	return idev;
-}
-
-static inline struct domain_device *sci_dev_to_domain(struct scic_sds_remote_device *sci_dev)
-{
-	return sci_dev_to_idev(sci_dev)->domain_dev;
 }
 
 static inline bool dev_is_expander(struct domain_device *dev)
@@ -366,8 +312,8 @@ static inline bool dev_is_expander(struct domain_device *dev)
  *
  * This macro incrments the request count for this device
  */
-#define scic_sds_remote_device_increment_request_count(sci_dev) \
-	((sci_dev)->started_request_count++)
+#define scic_sds_remote_device_increment_request_count(idev) \
+	((idev)->started_request_count++)
 
 /**
  * scic_sds_remote_device_decrement_request_count() -
@@ -375,44 +321,44 @@ static inline bool dev_is_expander(struct domain_device *dev)
  * This macro decrements the request count for this device.  This count will
  * never decrment past 0.
  */
-#define scic_sds_remote_device_decrement_request_count(sci_dev) \
-	((sci_dev)->started_request_count > 0 ? \
-	 (sci_dev)->started_request_count-- : 0)
+#define scic_sds_remote_device_decrement_request_count(idev) \
+	((idev)->started_request_count > 0 ? \
+	 (idev)->started_request_count-- : 0)
 
 /**
  * scic_sds_remote_device_get_request_count() -
  *
  * This is a helper macro to return the current device request count.
  */
-#define scic_sds_remote_device_get_request_count(sci_dev) \
-	((sci_dev)->started_request_count)
+#define scic_sds_remote_device_get_request_count(idev) \
+	((idev)->started_request_count)
 
 /**
  * scic_sds_remote_device_get_controller() -
  *
  * This macro returns the controller object that contains this device object
  */
-#define scic_sds_remote_device_get_controller(sci_dev) \
-	scic_sds_port_get_controller(scic_sds_remote_device_get_port(sci_dev))
+#define scic_sds_remote_device_get_controller(idev) \
+	scic_sds_port_get_controller(scic_sds_remote_device_get_port(idev))
 
 /**
  * scic_sds_remote_device_get_port() -
  *
  * This macro returns the owning port of this device
  */
-#define scic_sds_remote_device_get_port(sci_dev) \
-	((sci_dev)->owning_port)
+#define scic_sds_remote_device_get_port(idev) \
+	((idev)->owning_port)
 
 /**
  * scic_sds_remote_device_get_controller_peg() -
  *
  * This macro returns the controllers protocol engine group
  */
-#define scic_sds_remote_device_get_controller_peg(sci_dev) \
+#define scic_sds_remote_device_get_controller_peg(idev) \
 	(\
 		scic_sds_controller_get_protocol_engine_group(\
 			scic_sds_port_get_controller(\
-				scic_sds_remote_device_get_port(sci_dev) \
+				scic_sds_remote_device_get_port(idev) \
 				) \
 			) \
 	)
@@ -422,8 +368,8 @@ static inline bool dev_is_expander(struct domain_device *dev)
  *
  * This macro returns the remote node index for this device object
  */
-#define scic_sds_remote_device_get_index(sci_dev) \
-	((sci_dev)->rnc.remote_node_index)
+#define scic_sds_remote_device_get_index(idev) \
+	((idev)->rnc.remote_node_index)
 
 /**
  * scic_sds_remote_device_build_command_context() -
@@ -448,36 +394,36 @@ static inline bool dev_is_expander(struct domain_device *dev)
 	((device)->working_request = (request))
 
 enum sci_status scic_sds_remote_device_frame_handler(
-	struct scic_sds_remote_device *sci_dev,
+	struct isci_remote_device *idev,
 	u32 frame_index);
 
 enum sci_status scic_sds_remote_device_event_handler(
-	struct scic_sds_remote_device *sci_dev,
+	struct isci_remote_device *idev,
 	u32 event_code);
 
 enum sci_status scic_sds_remote_device_start_io(
 	struct scic_sds_controller *controller,
-	struct scic_sds_remote_device *sci_dev,
+	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
 enum sci_status scic_sds_remote_device_start_task(
 	struct scic_sds_controller *controller,
-	struct scic_sds_remote_device *sci_dev,
+	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
 enum sci_status scic_sds_remote_device_complete_io(
 	struct scic_sds_controller *controller,
-	struct scic_sds_remote_device *sci_dev,
+	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
 enum sci_status scic_sds_remote_device_suspend(
-	struct scic_sds_remote_device *sci_dev,
+	struct isci_remote_device *idev,
 	u32 suspend_type);
 
 void scic_sds_remote_device_post_request(
-	struct scic_sds_remote_device *sci_dev,
+	struct isci_remote_device *idev,
 	u32 request);
 
-#define scic_sds_remote_device_is_atapi(sci_dev) false
+#define scic_sds_remote_device_is_atapi(idev) false
 
 #endif /* !defined(_ISCI_REMOTE_DEVICE_H_) */

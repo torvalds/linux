@@ -103,22 +103,22 @@ bool scic_sds_remote_node_context_is_ready(
 static void scic_sds_remote_node_context_construct_buffer(
 	struct scic_sds_remote_node_context *sci_rnc)
 {
-	struct scic_sds_remote_device *sci_dev = rnc_to_dev(sci_rnc);
-	struct domain_device *dev = sci_dev_to_domain(sci_dev);
+	struct isci_remote_device *idev = rnc_to_dev(sci_rnc);
+	struct domain_device *dev = idev->domain_dev;
 	int rni = sci_rnc->remote_node_index;
 	union scu_remote_node_context *rnc;
 	struct scic_sds_controller *scic;
 	__le64 sas_addr;
 
-	scic = scic_sds_remote_device_get_controller(sci_dev);
+	scic = scic_sds_remote_device_get_controller(idev);
 	rnc = scic_sds_controller_get_remote_node_context_buffer(scic, rni);
 
 	memset(rnc, 0, sizeof(union scu_remote_node_context)
-		* scic_sds_remote_device_node_count(sci_dev));
+		* scic_sds_remote_device_node_count(idev));
 
 	rnc->ssp.remote_node_index = rni;
-	rnc->ssp.remote_node_port_width = sci_dev->device_port_width;
-	rnc->ssp.logical_port_index = sci_dev->owning_port->physical_port_index;
+	rnc->ssp.remote_node_port_width = idev->device_port_width;
+	rnc->ssp.logical_port_index = idev->owning_port->physical_port_index;
 
 	/* sas address is __be64, context ram format is __le64 */
 	sas_addr = cpu_to_le64(SAS_ADDR(dev->sas_addr));
@@ -148,7 +148,7 @@ static void scic_sds_remote_node_context_construct_buffer(
 	rnc->ssp.initial_arbitration_wait_time = 0;
 
 	/* Open Address Frame Parameters */
-	rnc->ssp.oaf_connection_rate = sci_dev->connection_rate;
+	rnc->ssp.oaf_connection_rate = idev->connection_rate;
 	rnc->ssp.oaf_features = 0;
 	rnc->ssp.oaf_source_zone_group = 0;
 	rnc->ssp.oaf_more_compatibility_features = 0;
@@ -220,26 +220,26 @@ static void scic_sds_remote_node_context_continue_state_transitions(struct scic_
 static void scic_sds_remote_node_context_validate_context_buffer(
 	struct scic_sds_remote_node_context *sci_rnc)
 {
-	struct scic_sds_remote_device *sci_dev = rnc_to_dev(sci_rnc);
-	struct domain_device *dev = sci_dev_to_domain(sci_dev);
+	struct isci_remote_device *idev = rnc_to_dev(sci_rnc);
+	struct domain_device *dev = idev->domain_dev;
 	union scu_remote_node_context *rnc_buffer;
 
 	rnc_buffer = scic_sds_controller_get_remote_node_context_buffer(
-		scic_sds_remote_device_get_controller(sci_dev),
+		scic_sds_remote_device_get_controller(idev),
 		sci_rnc->remote_node_index
 		);
 
 	rnc_buffer->ssp.is_valid = true;
 
-	if (!sci_dev->is_direct_attached &&
+	if (!idev->is_direct_attached &&
 	    (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))) {
-		scic_sds_remote_device_post_request(sci_dev,
+		scic_sds_remote_device_post_request(idev,
 						    SCU_CONTEXT_COMMAND_POST_RNC_96);
 	} else {
-		scic_sds_remote_device_post_request(sci_dev, SCU_CONTEXT_COMMAND_POST_RNC_32);
+		scic_sds_remote_device_post_request(idev, SCU_CONTEXT_COMMAND_POST_RNC_32);
 
-		if (sci_dev->is_direct_attached) {
-			scic_sds_port_setup_transports(sci_dev->owning_port,
+		if (idev->is_direct_attached) {
+			scic_sds_port_setup_transports(idev->owning_port,
 						       sci_rnc->remote_node_index);
 		}
 	}
@@ -296,11 +296,11 @@ static void scic_sds_remote_node_context_invalidating_state_enter(struct sci_bas
 static void scic_sds_remote_node_context_resuming_state_enter(struct sci_base_state_machine *sm)
 {
 	struct scic_sds_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
-	struct scic_sds_remote_device *sci_dev;
+	struct isci_remote_device *idev;
 	struct domain_device *dev;
 
-	sci_dev = rnc_to_dev(rnc);
-	dev = sci_dev_to_domain(sci_dev);
+	idev = rnc_to_dev(rnc);
+	dev = idev->domain_dev;
 
 	/*
 	 * For direct attached SATA devices we need to clear the TLCR
@@ -309,11 +309,11 @@ static void scic_sds_remote_node_context_resuming_state_enter(struct sci_base_st
 	 * the STPTLDARNI register with the RNi of the device
 	 */
 	if ((dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) &&
-	    sci_dev->is_direct_attached)
-		scic_sds_port_setup_transports(sci_dev->owning_port,
+	    idev->is_direct_attached)
+		scic_sds_port_setup_transports(idev->owning_port,
 					       rnc->remote_node_index);
 
-	scic_sds_remote_device_post_request(sci_dev, SCU_CONTEXT_COMMAND_POST_RNC_RESUME);
+	scic_sds_remote_device_post_request(idev, SCU_CONTEXT_COMMAND_POST_RNC_RESUME);
 }
 
 static void scic_sds_remote_node_context_ready_state_enter(struct sci_base_state_machine *sm)
@@ -564,8 +564,8 @@ enum sci_status scic_sds_remote_node_context_resume(struct scic_sds_remote_node_
 		sci_rnc->user_cookie   = cb_p;
 		return SCI_SUCCESS;
 	case SCI_RNC_TX_SUSPENDED: {
-		struct scic_sds_remote_device *sci_dev = rnc_to_dev(sci_rnc);
-		struct domain_device *dev = sci_dev_to_domain(sci_dev);
+		struct isci_remote_device *idev = rnc_to_dev(sci_rnc);
+		struct domain_device *dev = idev->domain_dev;
 
 		scic_sds_remote_node_context_setup_to_resume(sci_rnc, cb_fn, cb_p);
 
@@ -573,7 +573,7 @@ enum sci_status scic_sds_remote_node_context_resume(struct scic_sds_remote_node_
 		if (dev->dev_type == SAS_END_DEV || dev_is_expander(dev))
 			sci_change_state(&sci_rnc->sm, SCI_RNC_RESUMING);
 		else if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
-			if (sci_dev->is_direct_attached) {
+			if (idev->is_direct_attached) {
 				/* @todo Fix this since I am being silly in writing to the STPTLDARNI register. */
 				sci_change_state(&sci_rnc->sm, SCI_RNC_RESUMING);
 			} else {

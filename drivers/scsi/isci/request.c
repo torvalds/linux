@@ -209,17 +209,17 @@ static void scu_ssp_reqeust_construct_task_context(
 	struct scu_task_context *task_context)
 {
 	dma_addr_t dma_addr;
-	struct scic_sds_remote_device *target_device;
+	struct isci_remote_device *idev;
 	struct isci_port *iport;
 
-	target_device = scic_sds_request_get_device(ireq);
+	idev = scic_sds_request_get_device(ireq);
 	iport = scic_sds_request_get_port(ireq);
 
 	/* Fill in the TC with the its required data */
 	task_context->abort = 0;
 	task_context->priority = 0;
 	task_context->initiator_request = 1;
-	task_context->connection_rate = target_device->connection_rate;
+	task_context->connection_rate = idev->connection_rate;
 	task_context->protocol_engine_index =
 		scic_sds_controller_get_protocol_engine_group(controller);
 	task_context->logical_port_index = scic_sds_port_get_index(iport);
@@ -227,8 +227,7 @@ static void scu_ssp_reqeust_construct_task_context(
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
-	task_context->remote_node_index =
-		scic_sds_remote_device_get_index(ireq->target_device);
+	task_context->remote_node_index = scic_sds_remote_device_get_index(idev);
 	task_context->command_code = 0;
 
 	task_context->link_layer_control = 0;
@@ -348,17 +347,17 @@ static void scu_sata_reqeust_construct_task_context(
 	struct scu_task_context *task_context)
 {
 	dma_addr_t dma_addr;
-	struct scic_sds_remote_device *target_device;
+	struct isci_remote_device *idev;
 	struct isci_port *iport;
 
-	target_device = scic_sds_request_get_device(ireq);
+	idev = scic_sds_request_get_device(ireq);
 	iport = scic_sds_request_get_port(ireq);
 
 	/* Fill in the TC with the its required data */
 	task_context->abort = 0;
 	task_context->priority = SCU_TASK_PRIORITY_NORMAL;
 	task_context->initiator_request = 1;
-	task_context->connection_rate = target_device->connection_rate;
+	task_context->connection_rate = idev->connection_rate;
 	task_context->protocol_engine_index =
 		scic_sds_controller_get_protocol_engine_group(controller);
 	task_context->logical_port_index =
@@ -367,8 +366,7 @@ static void scu_sata_reqeust_construct_task_context(
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
-	task_context->remote_node_index =
-		scic_sds_remote_device_get_index(ireq->target_device);
+	task_context->remote_node_index = scic_sds_remote_device_get_index(idev);
 	task_context->command_code = 0;
 
 	task_context->link_layer_control = 0;
@@ -2850,7 +2848,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 static void scic_sds_request_started_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_request *ireq = container_of(sm, typeof(*ireq), sm);
-	struct domain_device *dev = sci_dev_to_domain(ireq->target_device);
+	struct domain_device *dev = ireq->target_device->domain_dev;
 	struct sas_task *task;
 
 	/* XXX as hch said always creating an internal sas_task for tmf
@@ -2988,12 +2986,12 @@ static const struct sci_base_state scic_sds_request_state_table[] = {
 
 static void
 scic_sds_general_request_construct(struct scic_sds_controller *scic,
-				   struct scic_sds_remote_device *sci_dev,
+				   struct isci_remote_device *idev,
 				   struct isci_request *ireq)
 {
 	sci_init_sm(&ireq->sm, scic_sds_request_state_table, SCI_REQ_INIT);
 
-	ireq->target_device = sci_dev;
+	ireq->target_device = idev;
 	ireq->protocol = SCIC_NO_PROTOCOL;
 	ireq->saved_rx_frame_index = SCU_INVALID_FRAME_INDEX;
 
@@ -3004,16 +3002,16 @@ scic_sds_general_request_construct(struct scic_sds_controller *scic,
 
 static enum sci_status
 scic_io_request_construct(struct scic_sds_controller *scic,
-			  struct scic_sds_remote_device *sci_dev,
+			  struct isci_remote_device *idev,
 			  struct isci_request *ireq)
 {
-	struct domain_device *dev = sci_dev_to_domain(sci_dev);
+	struct domain_device *dev = idev->domain_dev;
 	enum sci_status status = SCI_SUCCESS;
 
 	/* Build the common part of the request */
-	scic_sds_general_request_construct(scic, sci_dev, ireq);
+	scic_sds_general_request_construct(scic, idev, ireq);
 
-	if (sci_dev->rnc.remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
+	if (idev->rnc.remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
 		return SCI_FAILURE_INVALID_REMOTE_DEVICE;
 
 	if (dev->dev_type == SAS_END_DEV)
@@ -3031,14 +3029,14 @@ scic_io_request_construct(struct scic_sds_controller *scic,
 }
 
 enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
-					    struct scic_sds_remote_device *sci_dev,
+					    struct isci_remote_device *idev,
 					    u16 io_tag, struct isci_request *ireq)
 {
-	struct domain_device *dev = sci_dev_to_domain(sci_dev);
+	struct domain_device *dev = idev->domain_dev;
 	enum sci_status status = SCI_SUCCESS;
 
 	/* Build the common part of the request */
-	scic_sds_general_request_construct(scic, sci_dev, ireq);
+	scic_sds_general_request_construct(scic, idev, ireq);
 
 	if (dev->dev_type == SAS_END_DEV ||
 	    dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
@@ -3102,7 +3100,7 @@ scic_io_request_construct_smp(struct device *dev,
 			      struct sas_task *task)
 {
 	struct scatterlist *sg = &task->smp_task.smp_req;
-	struct scic_sds_remote_device *sci_dev;
+	struct isci_remote_device *idev;
 	struct scu_task_context *task_context;
 	struct isci_port *iport;
 	struct smp_req *smp_req;
@@ -3147,7 +3145,7 @@ scic_io_request_construct_smp(struct device *dev,
 
 	task_context = ireq->tc;
 
-	sci_dev = scic_sds_request_get_device(ireq);
+	idev = scic_sds_request_get_device(ireq);
 	iport = scic_sds_request_get_port(ireq);
 
 	/*
@@ -3156,7 +3154,7 @@ scic_io_request_construct_smp(struct device *dev,
 	 */
 	task_context->priority = 0;
 	task_context->initiator_request = 1;
-	task_context->connection_rate = sci_dev->connection_rate;
+	task_context->connection_rate = idev->connection_rate;
 	task_context->protocol_engine_index =
 		scic_sds_controller_get_protocol_engine_group(scic);
 	task_context->logical_port_index = scic_sds_port_get_index(iport);
@@ -3166,7 +3164,7 @@ scic_io_request_construct_smp(struct device *dev,
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
 	/* 04h */
-	task_context->remote_node_index = sci_dev->rnc.remote_node_index;
+	task_context->remote_node_index = idev->rnc.remote_node_index;
 	task_context->command_code = 0;
 	task_context->task_type = SCU_TASK_TYPE_SMP_REQUEST;
 
@@ -3257,17 +3255,16 @@ static enum sci_status isci_smp_request_build(struct isci_request *ireq)
  */
 static enum sci_status isci_io_request_build(struct isci_host *isci_host,
 					     struct isci_request *request,
-					     struct isci_remote_device *isci_device)
+					     struct isci_remote_device *idev)
 {
 	enum sci_status status = SCI_SUCCESS;
 	struct sas_task *task = isci_request_access_task(request);
-	struct scic_sds_remote_device *sci_device = &isci_device->sci;
 
 	dev_dbg(&isci_host->pdev->dev,
-		"%s: isci_device = 0x%p; request = %p, "
+		"%s: idev = 0x%p; request = %p, "
 		"num_scatter = %d\n",
 		__func__,
-		isci_device,
+		idev,
 		request,
 		task->num_scatter);
 
@@ -3290,8 +3287,7 @@ static enum sci_status isci_io_request_build(struct isci_host *isci_host,
 			return SCI_FAILURE_INSUFFICIENT_RESOURCES;
 	}
 
-	status = scic_io_request_construct(&isci_host->sci, sci_device,
-					   request);
+	status = scic_io_request_construct(&isci_host->sci, idev, request);
 
 	if (status != SCI_SUCCESS) {
 		dev_warn(&isci_host->pdev->dev,
@@ -3397,14 +3393,14 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 			 * ireq->is_task_management_request is false).
 			 */
 			status = scic_controller_start_task(&ihost->sci,
-							    &idev->sci,
+							    idev,
 							    ireq);
 		} else {
 			status = SCI_FAILURE;
 		}
 	} else {
 		/* send the request, let the core assign the IO TAG.	*/
-		status = scic_controller_start_io(&ihost->sci, &idev->sci,
+		status = scic_controller_start_io(&ihost->sci, idev,
 						  ireq);
 	}
 

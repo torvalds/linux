@@ -163,7 +163,7 @@ struct scic_sds_controller {
 	 * objects that need to handle device completion notifications from the
 	 * hardware. The table is RNi based.
 	 */
-	struct scic_sds_remote_device *device_table[SCI_MAX_REMOTE_DEVICES];
+	struct isci_remote_device *device_table[SCI_MAX_REMOTE_DEVICES];
 
 	/**
 	 * This field is the free RNi data structure
@@ -488,12 +488,12 @@ static inline struct isci_host *scic_to_ihost(struct scic_sds_controller *scic)
 #define ISCI_TAG_TCI(tag) ((tag) & (SCI_MAX_IO_REQUESTS-1))
 
 /* expander attached sata devices require 3 rnc slots */
-static inline int scic_sds_remote_device_node_count(struct scic_sds_remote_device *sci_dev)
+static inline int scic_sds_remote_device_node_count(struct isci_remote_device *idev)
 {
-	struct domain_device *dev = sci_dev_to_domain(sci_dev);
+	struct domain_device *dev = idev->domain_dev;
 
 	if ((dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) &&
-	    !sci_dev->is_direct_attached)
+	    !idev->is_direct_attached)
 		return SCU_STP_REMOTE_NODE_COUNT;
 	return SCU_SSP_REMOTE_NODE_COUNT;
 }
@@ -541,11 +541,8 @@ static inline struct device *sciport_to_dev(struct isci_port *iport)
 	return &iport->isci_host->pdev->dev;
 }
 
-static inline struct device *scirdev_to_dev(struct scic_sds_remote_device *sci_dev)
+static inline struct device *scirdev_to_dev(struct isci_remote_device *idev)
 {
-	struct isci_remote_device *idev =
-			container_of(sci_dev, typeof(*idev), sci);
-
 	if (!idev || !idev->isci_port || !idev->isci_port->isci_host)
 		return NULL;
 
@@ -589,11 +586,11 @@ void scic_sds_controller_copy_sata_response(void *response_buffer,
 					    void *frame_header,
 					    void *frame_buffer);
 enum sci_status scic_sds_controller_allocate_remote_node_context(struct scic_sds_controller *scic,
-								 struct scic_sds_remote_device *sci_dev,
+								 struct isci_remote_device *idev,
 								 u16 *node_id);
 void scic_sds_controller_free_remote_node_context(
 	struct scic_sds_controller *scic,
-	struct scic_sds_remote_device *sci_dev,
+	struct isci_remote_device *idev,
 	u16 node_id);
 union scu_remote_node_context *scic_sds_controller_get_remote_node_context_buffer(
 	struct scic_sds_controller *scic,
@@ -622,7 +619,7 @@ void scic_sds_controller_link_down(
 
 void scic_sds_controller_remote_device_stopped(
 	struct scic_sds_controller *scic,
-	struct scic_sds_remote_device *sci_dev);
+	struct isci_remote_device *idev);
 
 void scic_sds_controller_copy_task_context(
 	struct scic_sds_controller *scic,
@@ -662,22 +659,22 @@ void scic_controller_disable_interrupts(
 
 enum sci_status scic_controller_start_io(
 	struct scic_sds_controller *scic,
-	struct scic_sds_remote_device *remote_device,
+	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
 enum sci_task_status scic_controller_start_task(
 	struct scic_sds_controller *scic,
-	struct scic_sds_remote_device *remote_device,
+	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
 enum sci_status scic_controller_terminate_request(
 	struct scic_sds_controller *scic,
-	struct scic_sds_remote_device *remote_device,
+	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
 enum sci_status scic_controller_complete_io(
 	struct scic_sds_controller *scic,
-	struct scic_sds_remote_device *remote_device,
+	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
 void scic_sds_port_configuration_agent_construct(

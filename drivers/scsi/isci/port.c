@@ -1541,7 +1541,7 @@ enum sci_status scic_sds_port_link_down(struct isci_port *iport,
 }
 
 enum sci_status scic_sds_port_start_io(struct isci_port *iport,
-				       struct scic_sds_remote_device *sci_dev,
+				       struct isci_remote_device *idev,
 				       struct isci_request *ireq)
 {
 	enum scic_sds_port_states state;
@@ -1561,7 +1561,7 @@ enum sci_status scic_sds_port_start_io(struct isci_port *iport,
 }
 
 enum sci_status scic_sds_port_complete_io(struct isci_port *iport,
-					  struct scic_sds_remote_device *sci_dev,
+					  struct isci_remote_device *idev,
 					  struct isci_request *ireq)
 {
 	enum scic_sds_port_states state;

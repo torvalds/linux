@@ -79,7 +79,7 @@
 #define SCI_SOFTWARE_SUSPENSION  (1)
 
 struct isci_request;
-struct scic_sds_remote_device;
+struct isci_remote_device;
 struct scic_sds_remote_node_context;
 
 typedef void (*scics_sds_remote_node_context_callback)(void *);
