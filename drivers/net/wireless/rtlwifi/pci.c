@@ -788,14 +788,10 @@ static irqreturn_t _rtl_pci_interrupt(int irq, void *dev_id)
 {
 	struct ieee80211_hw *hw = dev_id;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	unsigned long flags;
 	u32 inta = 0;
 	u32 intb = 0;
-
-	if (rtlpci->irq_enabled == 0)
-		return IRQ_HANDLED;
 
 	spin_lock_irqsave(&rtlpriv->locks.irq_th_lock, flags);
 
