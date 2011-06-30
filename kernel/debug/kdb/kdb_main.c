@@ -145,10 +145,10 @@ static char *__env[] = {
 #endif
  "RADIX=16",
  "MDCOUNT=8",			/* lines of md output */
- "BTARGS=9",			/* 9 possible args in bt */
  KDB_PLATFORM_ENV,
  "DTABCOUNT=30",
  "NOSECT=1",
+ (char *)0,
  (char *)0,
  (char *)0,
  (char *)0,
