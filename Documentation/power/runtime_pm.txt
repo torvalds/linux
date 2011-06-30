@@ -506,7 +506,7 @@ pm_runtime_suspend() or pm_runtime_idle() or their asynchronous counterparts,
 they will fail returning -EAGAIN, because the device's usage counter is
 incremented by the core before executing ->probe() and ->remove().  Still, it
 may be desirable to suspend the device as soon as ->probe() or ->remove() has
-finished, so the PM core uses pm_runtime_idle_sync() to invoke the
+finished, so the PM core uses pm_runtime_put_sync() to invoke the
 subsystem-level idle callback for the device at that time.
 
 The user space can effectively disallow the driver of the device to power manage
