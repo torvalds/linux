@@ -1141,6 +1141,13 @@ static void update_speakers(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	int on;
 
+	/* Control HP pins/amps depending on master_mute state;
+	 * in general, HP pins/amps control should be enabled in all cases,
+	 * but currently set only for master_mute, just to be safe
+	 */
+	do_automute(codec, ARRAY_SIZE(spec->autocfg.hp_pins),
+		    spec->autocfg.hp_pins, spec->master_mute, true);
+
 	if (!spec->automute)
 		on = 0;
 	else
@@ -4876,7 +4883,6 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0xe309, "ULI", ALC880_3ST_DIG),
 	SND_PCI_QUIRK(0x1025, 0xe310, "ULI", ALC880_3ST),
 	SND_PCI_QUIRK(0x1039, 0x1234, NULL, ALC880_6ST_DIG),
-	SND_PCI_QUIRK(0x103c, 0x2a09, "HP", ALC880_5ST),
 	SND_PCI_QUIRK(0x1043, 0x10b3, "ASUS W1V", ALC880_ASUS_W1V),
 	SND_PCI_QUIRK(0x1043, 0x10c2, "ASUS W6A", ALC880_ASUS_DIG),
 	SND_PCI_QUIRK(0x1043, 0x10c3, "ASUS Wxx", ALC880_ASUS_DIG),
@@ -6201,11 +6207,6 @@ static const struct snd_kcontrol_new alc260_input_mixer[] = {
 /* update HP, line and mono out pins according to the master switch */
 static void alc260_hp_master_update(struct hda_codec *codec)
 {
-	struct alc_spec *spec = codec->spec;
-
-	/* change HP pins */
-	do_automute(codec, ARRAY_SIZE(spec->autocfg.hp_pins),
-		    spec->autocfg.hp_pins, spec->master_mute, true);
 	update_speakers(codec);
 }
 
@@ -11924,7 +11925,7 @@ static const struct hda_verb alc262_nec_verbs[] = {
  *  0x1b = port replicator headphone out
  */
 
-#define ALC_HP_EVENT	0x37
+#define ALC_HP_EVENT	ALC880_HP_EVENT
 
 static const struct hda_verb alc262_fujitsu_unsol_verbs[] = {
 	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
@@ -12598,6 +12599,7 @@ static const struct hda_verb alc262_toshiba_rx1_unsol_verbs[] = {
  */
 enum {
 	PINFIX_FSC_H270,
+	PINFIX_HP_Z200,
 };
 
 static const struct alc_fixup alc262_fixups[] = {
@@ -12610,9 +12612,17 @@ static const struct alc_fixup alc262_fixups[] = {
 			{ }
 		}
 	},
+	[PINFIX_HP_Z200] = {
+		.type = ALC_FIXUP_PINS,
+		.v.pins = (const struct alc_pincfg[]) {
+			{ 0x16, 0x99130120 }, /* internal speaker */
+			{ }
+		}
+	},
 };
 
 static const struct snd_pci_quirk alc262_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x103c, 0x170b, "HP Z200", PINFIX_HP_Z200),
 	SND_PCI_QUIRK(0x1734, 0x1147, "FSC Celsius H270", PINFIX_FSC_H270),
 	{}
 };
@@ -12729,6 +12739,8 @@ static const struct snd_pci_quirk alc262_cfg_tbl[] = {
 			   ALC262_HP_BPC),
 	SND_PCI_QUIRK_MASK(0x103c, 0xff00, 0x1500, "HP z series",
 			   ALC262_HP_BPC),
+	SND_PCI_QUIRK(0x103c, 0x170b, "HP Z200",
+			   ALC262_AUTO),
 	SND_PCI_QUIRK_MASK(0x103c, 0xff00, 0x1700, "HP xw series",
 			   ALC262_HP_BPC),
 	SND_PCI_QUIRK(0x103c, 0x2800, "HP D7000", ALC262_HP_BPC_D7000_WL),
@@ -13314,9 +13326,8 @@ static void alc268_acer_lc_setup(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	spec->autocfg.hp_pins[0] = 0x15;
 	spec->autocfg.speaker_pins[0] = 0x14;
-	spec->automute_mixer_nid[0] = 0x0f;
 	spec->automute = 1;
-	spec->automute_mode = ALC_AUTOMUTE_MIXER;
+	spec->automute_mode = ALC_AUTOMUTE_AMP;
 	spec->ext_mic.pin = 0x18;
 	spec->ext_mic.mux_idx = 0;
 	spec->int_mic.pin = 0x12;
@@ -13860,6 +13871,7 @@ static const struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x015b, "Acer Aspire One",
 						ALC268_ACER_ASPIRE_ONE),
 	SND_PCI_QUIRK(0x1028, 0x0253, "Dell OEM", ALC268_DELL),
+	SND_PCI_QUIRK(0x1028, 0x02b0, "Dell Inspiron 910", ALC268_AUTO),
 	SND_PCI_QUIRK_MASK(0x1028, 0xfff0, 0x02b0,
 			"Dell Inspiron Mini9/Vostro A90", ALC268_DELL),
 	/* almost compatible with toshiba but with optional digital outs;
@@ -13870,7 +13882,6 @@ static const struct snd_pci_quirk alc268_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x1205, "ASUS W7J", ALC268_3ST),
 	SND_PCI_QUIRK(0x1170, 0x0040, "ZEPTO", ALC268_ZEPTO),
 	SND_PCI_QUIRK(0x14c0, 0x0025, "COMPAL IFL90/JFL-92", ALC268_TOSHIBA),
-	SND_PCI_QUIRK(0x152d, 0x0763, "Diverse (CPR2000)", ALC268_ACER),
 	SND_PCI_QUIRK(0x152d, 0x0771, "Quanta IL1", ALC267_QUANTA_IL1),
 	{}
 };

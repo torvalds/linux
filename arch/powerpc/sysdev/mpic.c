@@ -29,6 +29,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/syscore_ops.h>
+#include <linux/ratelimit.h>
 
 #include <asm/ptrace.h>
 #include <asm/signal.h>
@@ -1612,9 +1613,8 @@ static unsigned int _mpic_get_one_irq(struct mpic *mpic, int reg)
 		return NO_IRQ;
 	}
 	if (unlikely(mpic->protected && test_bit(src, mpic->protected))) {
-		if (printk_ratelimit())
-			printk(KERN_WARNING "%s: Got protected source %d !\n",
-			       mpic->name, (int)src);
+		printk_ratelimited(KERN_WARNING "%s: Got protected source %d !\n",
+				   mpic->name, (int)src);
 		mpic_eoi(mpic);
 		return NO_IRQ;
 	}
@@ -1652,9 +1652,8 @@ unsigned int mpic_get_coreint_irq(void)
 		return NO_IRQ;
 	}
 	if (unlikely(mpic->protected && test_bit(src, mpic->protected))) {
-		if (printk_ratelimit())
-			printk(KERN_WARNING "%s: Got protected source %d !\n",
-			       mpic->name, (int)src);
+		printk_ratelimited(KERN_WARNING "%s: Got protected source %d !\n",
+				   mpic->name, (int)src);
 		return NO_IRQ;
 	}
 

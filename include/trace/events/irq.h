@@ -20,7 +20,8 @@ struct softirq_action;
 			 softirq_name(BLOCK_IOPOLL),	\
 			 softirq_name(TASKLET),		\
 			 softirq_name(SCHED),		\
-			 softirq_name(HRTIMER))
+			 softirq_name(HRTIMER),		\
+			 softirq_name(RCU))
 
 /**
  * irq_handler_entry - called immediately before the irq action handler

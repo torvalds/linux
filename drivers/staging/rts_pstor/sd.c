@@ -2328,7 +2328,7 @@ Switch_Fail:
 
 			retval = sd_send_cmd_get_rsp(chip, IO_SEND_OP_COND, 0, SD_RSP_TYPE_R4, rsp, 5);
 			if (retval == STATUS_SUCCESS) {
-				int func_num = (rsp[1] >> 4) && 0x07;
+				int func_num = (rsp[1] >> 4) & 0x07;
 				if (func_num) {
 					RTSX_DEBUGP("SD_IO card (Function number: %d)!\n", func_num);
 					chip->sd_io = 1;

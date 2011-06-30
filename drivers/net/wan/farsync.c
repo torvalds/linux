@@ -2203,8 +2203,10 @@ fst_open(struct net_device *dev)
 
 	if (port->mode != FST_RAW) {
 		err = hdlc_open(dev);
-		if (err)
+		if (err) {
+			module_put(THIS_MODULE);
 			return err;
+		}
 	}
 
 	fst_openport(port);

@@ -1,5 +1,7 @@
 /*
- * OHCI HCD (Host Controller Driver) for USB.
+ * Open Host Controller Interface (OHCI) driver for USB.
+ *
+ * Maintainer: Alan Stern <stern@rowland.harvard.edu>
  *
  * (C) Copyright 1999 Roman Weissgaerber <weissg@vienna.at>
  * (C) Copyright 2000-2004 David Brownell <dbrownell@users.sourceforge.net>

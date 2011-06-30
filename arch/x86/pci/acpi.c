@@ -188,7 +188,7 @@ static bool resource_contains(struct resource *res, resource_size_t point)
 	return false;
 }
 
-static void coalesce_windows(struct pci_root_info *info, int type)
+static void coalesce_windows(struct pci_root_info *info, unsigned long type)
 {
 	int i, j;
 	struct resource *res1, *res2;
