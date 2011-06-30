@@ -2112,6 +2112,10 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags fl
 		max_bio_size = DRBD_MAX_BIO_SIZE; /* ... multiple BIOs per peer_request */
 	}
 
+	/* Never allow old drbd (up to 8.3.7) to see more than 32KiB */
+	if (mdev->agreed_pro_version <= 94)
+		max_bio_size = min_t(int, max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
+
 	p.d_size = cpu_to_be64(d_size);
 	p.u_size = cpu_to_be64(u_size);
 	p.c_size = cpu_to_be64(trigger_reply ? 0 : drbd_get_capacity(mdev->this_bdev));

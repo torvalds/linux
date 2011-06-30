@@ -845,9 +845,10 @@ void drbd_reconsider_max_bio_size(struct drbd_conf *mdev)
 	   Because new from 8.3.8 onwards the peer can use multiple
 	   BIOs for a single peer_request */
 	if (mdev->state.conn >= C_CONNECTED) {
-		if (mdev->agreed_pro_version < 94)
-			peer = mdev->peer_max_bio_size;
-		else if (mdev->agreed_pro_version == 94)
+		if (mdev->agreed_pro_version < 94) {
+			peer = min_t(int, mdev->peer_max_bio_size, DRBD_MAX_SIZE_H80_PACKET);
+			/* Correct old drbd (up to 8.3.7) if it believes it can do more than 32KiB */
+		} else if (mdev->agreed_pro_version == 94)
 			peer = DRBD_MAX_SIZE_H80_PACKET;
 		else /* drbd 8.3.8 onwards */
 			peer = DRBD_MAX_BIO_SIZE;
