@@ -2152,6 +2152,10 @@ void ql_queue_asic_error(struct ql_adapter *qdev)
 	 * thread
 	 */
 	clear_bit(QL_ADAPTER_UP, &qdev->flags);
+	/* Set asic recovery bit to indicate reset process that we are
+	 * in fatal error recovery process rather than normal close
+	 */
+	set_bit(QL_ASIC_RECOVERY, &qdev->flags);
 	queue_delayed_work(qdev->workqueue, &qdev->asic_reset_work, 0);
 }
 
@@ -3818,11 +3822,17 @@ static int ql_adapter_reset(struct ql_adapter *qdev)
 	end_jiffies = jiffies +
 		max((unsigned long)1, usecs_to_jiffies(30));
 
-	/* Stop management traffic. */
-	ql_mb_set_mgmnt_traffic_ctl(qdev, MB_SET_MPI_TFK_STOP);
+	/* Check if bit is set then skip the mailbox command and
+	 * clear the bit, else we are in normal reset process.
+	 */
+	if (!test_bit(QL_ASIC_RECOVERY, &qdev->flags)) {
+		/* Stop management traffic. */
+		ql_mb_set_mgmnt_traffic_ctl(qdev, MB_SET_MPI_TFK_STOP);
 
-	/* Wait for the NIC and MGMNT FIFOs to empty. */
-	ql_wait_fifo_empty(qdev);
+		/* Wait for the NIC and MGMNT FIFOs to empty. */
+		ql_wait_fifo_empty(qdev);
+	} else
+		clear_bit(QL_ASIC_RECOVERY, &qdev->flags);
 
 	ql_write32(qdev, RST_FO, (RST_FO_FR << 16) | RST_FO_FR);
 
