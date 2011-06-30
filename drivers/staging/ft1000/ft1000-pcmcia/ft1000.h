@@ -370,11 +370,6 @@ struct ft1000_info {
 	char netdevname[IFNAMSIZ];
 };
 
-typedef struct _DPRAM_BLK {
-    struct list_head list;
-    u16 *pbuffer;
-} __attribute__ ((packed)) DPRAM_BLK, *PDPRAM_BLK;
-
 extern u16 ft1000_read_dpram (struct net_device *dev, int offset);
 extern void card_bootload(struct net_device *dev);
 extern u16 ft1000_read_dpram_mag_16 (struct net_device *dev, int offset, int Index);
