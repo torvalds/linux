@@ -896,11 +896,11 @@ struct hdspm {
 	unsigned char max_channels_in;
 	unsigned char max_channels_out;
 
-	char *channel_map_in;
-	char *channel_map_out;
+	signed char *channel_map_in;
+	signed char *channel_map_out;
 
-	char *channel_map_in_ss, *channel_map_in_ds, *channel_map_in_qs;
-	char *channel_map_out_ss, *channel_map_out_ds, *channel_map_out_qs;
+	signed char *channel_map_in_ss, *channel_map_in_ds, *channel_map_in_qs;
+	signed char *channel_map_out_ss, *channel_map_out_ds, *channel_map_out_qs;
 
 	char **port_names_in;
 	char **port_names_out;
