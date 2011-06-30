@@ -620,7 +620,7 @@ static int twl4030_sih_set_type(struct irq_data *data, unsigned trigger)
 
 static struct irq_chip twl4030_sih_irq_chip = {
 	.name		= "twl4030",
-	.irq_mask      	= twl4030_sih_mask,
+	.irq_mask	= twl4030_sih_mask,
 	.irq_unmask	= twl4030_sih_unmask,
 	.irq_set_type	= twl4030_sih_set_type,
 };
