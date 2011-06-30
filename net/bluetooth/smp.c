@@ -434,6 +434,9 @@ int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 
 	BT_DBG("conn %p hcon %p level 0x%2.2x", conn, hcon, sec_level);
 
+	if (!lmp_host_le_capable(hcon->hdev))
+		return 1;
+
 	if (IS_ERR(hcon->hdev->tfm))
 		return 1;
 
@@ -476,6 +479,12 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 	__u8 code = skb->data[0];
 	__u8 reason;
 	int err = 0;
+
+	if (!lmp_host_le_capable(conn->hcon->hdev)) {
+		err = -ENOTSUPP;
+		reason = SMP_PAIRING_NOTSUPP;
+		goto done;
+	}
 
 	if (IS_ERR(conn->hcon->hdev->tfm)) {
 		err = PTR_ERR(conn->hcon->hdev->tfm);
