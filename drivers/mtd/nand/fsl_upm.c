@@ -196,6 +196,8 @@ static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
 	ret = mtd_device_parse_register(&fun->mtd, NULL, &ppdata, NULL, 0);
 err:
 	of_node_put(flash_np);
+	if (ret)
+		kfree(fun->mtd.name);
 	return ret;
 }
 
