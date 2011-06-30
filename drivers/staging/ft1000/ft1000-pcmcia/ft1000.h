@@ -304,7 +304,7 @@ struct media_msg {
 	u32 dns_2;
 } __attribute__ ((packed));
 
-typedef struct _DSPINITMSG {
+struct dsp_init_msg {
     struct pseudo_hdr pseudo;
     u16 type;
     u16 length;
@@ -315,7 +315,7 @@ typedef struct _DSPINITMSG {
     u8 ProductMode[MODESZ];     // Product Mode (Market/Production)
     u8 RfCalVer[CALVERSZ];      // Rf Calibration version
     u8 RfCalDate[CALDATESZ];    // Rf Calibration date
-} __attribute__ ((packed)) DSPINITMSG, *PDSPINITMSG;
+} __attribute__ ((packed));
 
 typedef struct _DSPHIBERNATE {
 	struct pseudo_hdr pseudo;

@@ -1016,7 +1016,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 	u16 msgtype;
 	u16 tempword;
 	struct media_msg *pmediamsg;
-	PDSPINITMSG pdspinitmsg;
+	struct dsp_init_msg *pdspinitmsg;
 	struct drv_msg *pdrvmsg;
 	u16 len;
 	u16 i;
@@ -1122,7 +1122,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
             }
 			break;
 		case DSP_INIT_MSG:
-			pdspinitmsg = (PDSPINITMSG) & cmdbuffer[0];
+			pdspinitmsg = (struct dsp_init_msg *) & cmdbuffer[0];
 			memcpy(info->DspVer, pdspinitmsg->DspVer, DSPVERSZ);
 			DEBUG(1, "DSPVER = 0x%2x 0x%2x 0x%2x 0x%2x\n",
 				  info->DspVer[0], info->DspVer[1], info->DspVer[2],
@@ -1139,7 +1139,7 @@ void ft1000_proc_drvmsg(struct net_device *dev)
 			dev->dev_addr[5] = info->eui64[7];
 
 			if (ntohs(pdspinitmsg->length) ==
-				(sizeof(DSPINITMSG) - 20)) {
+				(sizeof(struct dsp_init_msg) - 20)) {
 				memcpy(info->ProductMode,
 					   pdspinitmsg->ProductMode, MODESZ);
 				memcpy(info->RfCalVer, pdspinitmsg->RfCalVer,
