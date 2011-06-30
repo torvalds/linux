@@ -26,8 +26,8 @@ static int  ts_dbg_enable = 0;
 		
 #define TOUCH_NUMBER 2
 
-static int touch_state[TOUCH_NUMBER] = {TOUCH_UP,TOUCH_UP};
-static unsigned int g_x[TOUCH_NUMBER] =  {0},g_y[TOUCH_NUMBER] = {0};
+static volatile int touch_state[TOUCH_NUMBER] = {TOUCH_UP,TOUCH_UP};
+static volatile unsigned int g_x[TOUCH_NUMBER] =  {0},g_y[TOUCH_NUMBER] = {0};
 
 struct ili2102_ts_data {
 	u16		model;			/* 801. */	
@@ -316,7 +316,7 @@ static int ili2102_init_panel(struct ili2102_ts_data *ts)
 
 static void ili2102_ts_work_func(struct work_struct *work)
 {
-	int i,ret;
+	int i,ret,num=1;
 	int syn_flag = 0;
 	unsigned int x, y;
 	struct i2c_msg msg[2];
@@ -349,8 +349,12 @@ static void ili2102_ts_work_func(struct work_struct *work)
 		printk("%s:i2c_transfer fail, ret=%d\n",__FUNCTION__,ret);
 		goto out;
 	}
-
-	for(i=0; i<TOUCH_NUMBER; i++)
+	if(buf[0]&0x02 == 0x02)
+		num = 2;
+	else
+		num = 1;
+	
+	for(i=0; i<num; i++)
 	{
 
 		if(!((buf[0]>>i)&0x01))
@@ -404,10 +408,10 @@ static void ili2102_ts_work_func(struct work_struct *work)
 	if(syn_flag)
 	input_sync(ts->input_dev);
 out:   
-#if 0
+#if 1
 	if(ts->pendown)
 	{
-		schedule_delayed_work(&ts->work, msecs_to_jiffies(10));
+		schedule_delayed_work(&ts->work, msecs_to_jiffies(12));
 		ts->pendown = 0;
 	}
 	else

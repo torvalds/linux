@@ -343,8 +343,8 @@ static int rk29_charger_display(struct wm831x_chg *wm831x_chg)
 			wm831x_check_on_pin(wm831x_chg);
 		}
 		
-		//suspend when timeout(100*200ms)
-		if(wm831x_chg->cnt_disp++ > 100)
+		//suspend when timeout(about 50*200ms)
+		if(wm831x_chg->cnt_disp++ > 50)
 		{
 			if(wm831x_chg->flag_suspend == 0)
 			{
