@@ -315,10 +315,10 @@ struct dsp_init_msg {
     u8 RfCalDate[CALDATESZ];    // Rf Calibration date
 } __attribute__ ((packed));
 
-typedef struct _PROV_RECORD {
+struct prov_record {
     struct list_head list;
     u8 *pprov_data;
-} PROV_RECORD, *PPROV_RECORD;
+};
 
 typedef struct _FT1000_INFO {
     struct net_device_stats stats;

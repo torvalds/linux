@@ -321,7 +321,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength)
 	long word_length;
 	USHORT request;
 	USHORT temp;
-	PPROV_RECORD pprov_record;
+	struct prov_record *pprov_record;
 	PUCHAR pbuffer;
 	PDSP_FILE_HDR_5 pFileHdr5;
 	PDSP_IMAGE_INFO pDspImageInfo = NULL;
@@ -890,7 +890,7 @@ int card_download(struct net_device *dev, const u8 *pFileStart, UINT FileLength)
 							   sizeof(struct pseudo_hdr)));
 					// link provisioning data
 					pprov_record =
-						kmalloc(sizeof(PROV_RECORD),
+						kmalloc(sizeof(struct prov_record),
 							GFP_ATOMIC);
 					if (pprov_record) {
 						pprov_record->pprov_data =
