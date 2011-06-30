@@ -113,6 +113,24 @@ static unsigned FNAME(gpte_access)(struct kvm_vcpu *vcpu, pt_element_t gpte)
 	return access;
 }
 
+static bool FNAME(is_last_gpte)(struct guest_walker *walker,
+				struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+				pt_element_t gpte)
+{
+	if (walker->level == PT_PAGE_TABLE_LEVEL)
+		return true;
+
+	if ((walker->level == PT_DIRECTORY_LEVEL) && is_large_pte(gpte) &&
+	    (PTTYPE == 64 || is_pse(vcpu)))
+		return true;
+
+	if ((walker->level == PT_PDPE_LEVEL) && is_large_pte(gpte) &&
+	    (mmu->root_level == PT64_ROOT_LEVEL))
+		return true;
+
+	return false;
+}
+
 /*
  * Fetch a guest pte for a guest virtual address
  */
@@ -221,13 +239,7 @@ retry_walk:
 
 		walker->ptes[walker->level - 1] = pte;
 
-		if ((walker->level == PT_PAGE_TABLE_LEVEL) ||
-		    ((walker->level == PT_DIRECTORY_LEVEL) &&
-				is_large_pte(pte) &&
-				(PTTYPE == 64 || is_pse(vcpu))) ||
-		    ((walker->level == PT_PDPE_LEVEL) &&
-				is_large_pte(pte) &&
-				mmu->root_level == PT64_ROOT_LEVEL)) {
+		if (FNAME(is_last_gpte)(walker, vcpu, mmu, pte)) {
 			int lvl = walker->level;
 			gpa_t real_gpa;
 			gfn_t gfn;
