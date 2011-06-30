@@ -46,7 +46,6 @@ struct net_device *init_ft1000_card(struct pcmcia_device *link,
 void stop_ft1000_card(struct net_device *);
 
 static int ft1000_config(struct pcmcia_device *link);
-static void ft1000_release(struct pcmcia_device *link);
 static void ft1000_detach(struct pcmcia_device *link);
 static int ft1000_attach(struct pcmcia_device *link);
 
@@ -119,21 +118,8 @@ static int ft1000_config(struct pcmcia_device *link)
 
 	return 0;
 failed:
-	ft1000_release(link);
+	pcmcia_disable_device(link);
 	return -ENODEV;
-}
-
-/*======================================================================
-
-    After a card is removed, ft1000_release() will unregister the
-    device, and release the PCMCIA configuration.  If the device is
-    still open, this will be postponed until it is closed.
-
-======================================================================*/
-
-static void ft1000_release(struct pcmcia_device *link)
-{
-	 pcmcia_disable_device(link);
 }
 
 static int ft1000_suspend(struct pcmcia_device *link)
