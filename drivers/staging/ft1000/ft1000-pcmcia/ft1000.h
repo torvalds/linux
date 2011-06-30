@@ -281,8 +281,6 @@ struct pseudo_hdr
 #define  TRUE                   0x1
 #define  FALSE                  0x0
 
-#define  MAX_NUM_APP            6
-
 #define MAXIMUM_ASIC_HB_CNT      15
 
 struct drv_msg {
@@ -316,12 +314,6 @@ struct dsp_init_msg {
     u8 RfCalVer[CALVERSZ];      // Rf Calibration version
     u8 RfCalDate[CALDATESZ];    // Rf Calibration date
 } __attribute__ ((packed));
-
-typedef struct _APP_INFO_BLOCK
-{
-    u32 fileobject;                // Application's file object
-    u16 app_id;                    // Application id
-} APP_INFO_BLOCK, *PAPP_INFO_BLOCK;
 
 typedef struct _PROV_RECORD {
     struct list_head list;
@@ -365,8 +357,6 @@ typedef struct _FT1000_INFO {
     u8 RfCalDate[CALDATESZ];
     u16 DSP_TIME[4];
     struct list_head prov_list;
-    int appcnt;
-    APP_INFO_BLOCK app_info[MAX_NUM_APP];
     u16 DSPInfoBlklen;
     u16 DrvMsgPend;
 	int (*ft1000_reset)(void *);
