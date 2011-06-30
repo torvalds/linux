@@ -219,6 +219,9 @@ enum {
 #define LMP_INQ_TX_PWR	0x02
 #define LMP_EXTFEATURES	0x80
 
+/* Extended LMP features */
+#define LMP_HOST_LE	0x02
+
 /* Connection modes */
 #define HCI_CM_ACTIVE	0x0000
 #define HCI_CM_HOLD	0x0001
