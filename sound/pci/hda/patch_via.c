@@ -128,6 +128,7 @@ struct via_spec {
 	struct hda_multi_out multiout;
 	hda_nid_t slave_dig_outs[2];
 	hda_nid_t hp_dac_nid;
+	bool hp_indep_shared;	/* indep HP-DAC is shared with side ch */
 	int num_active_streams;
 
 	struct nid_path out_path[4];
@@ -714,19 +715,33 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct via_spec *spec = codec->spec;
+	int cur;
 
-	spec->hp_independent_mode = !!ucontrol->value.enumerated.item[0];
-	if (spec->hp_independent_mode) {
+	/* no independent-hp status change during PCM playback is running */
+	if (spec->num_active_streams)
+		return -EBUSY;
+
+	cur = !!ucontrol->value.enumerated.item[0];
+	if (spec->hp_independent_mode == cur)
+		return 0;
+	spec->hp_independent_mode = cur;
+	if (cur) {
 		activate_output_path(codec, &spec->hp_dep_path, false, false);
 		activate_output_path(codec, &spec->hp_path, true, false);
+		if (spec->hp_indep_shared)
+			activate_output_path(codec, &spec->out_path[HDA_SIDE],
+					     false, false);
 	} else {
 		activate_output_path(codec, &spec->hp_path, false, false);
 		activate_output_path(codec, &spec->hp_dep_path, true, false);
+		if (spec->hp_indep_shared)
+			activate_output_path(codec, &spec->out_path[HDA_SIDE],
+					     true, false);
 	}
 
 	/* update jack power state */
 	set_widgets_power_state(codec);
-	return 0;
+	return 1;
 }
 
 static const struct snd_kcontrol_new via_hp_mixer = {
@@ -942,10 +957,19 @@ static int via_playback_multi_pcm_open(struct hda_pcm_stream *hinfo,
 				 struct snd_pcm_substream *substream)
 {
 	struct via_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	int err;
 
-	if (!spec->hp_independent_mode)
-		spec->multiout.hp_nid = spec->hp_dac_nid;
+	spec->multiout.hp_nid = 0;
+	spec->multiout.num_dacs = cfg->line_outs + spec->smart51_nums;
+	if (!spec->hp_independent_mode) {
+		if (!spec->hp_indep_shared)
+			spec->multiout.hp_nid = spec->hp_dac_nid;
+	} else {
+		if (spec->hp_indep_shared)
+			spec->multiout.num_dacs = cfg->line_outs - 1;
+	}
+	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
 	set_stream_active(codec, true);
 	err = snd_hda_multi_out_analog_open(codec, &spec->multiout, substream,
 					    hinfo);
@@ -1815,13 +1839,20 @@ static int via_auto_create_hp_ctls(struct hda_codec *codec, hda_nid_t pin)
 
 	if (parse_output_path(codec, pin, 0, &spec->hp_path))
 		spec->hp_dac_nid = spec->hp_path.path[0];
+	else if (spec->multiout.dac_nids[HDA_SIDE] &&
+		 parse_output_path(codec, pin,
+				   spec->multiout.dac_nids[HDA_SIDE],
+				   &spec->hp_path)) {
+		spec->hp_dac_nid = spec->hp_path.path[0];
+		spec->hp_indep_shared = true;
+	}
 
 	if (!parse_output_path(codec, pin, spec->multiout.dac_nids[HDA_FRONT],
 			       &spec->hp_dep_path) &&
 	    !spec->hp_dac_nid)
 		return 0;
 
-	if (spec->hp_dac_nid)
+	if (spec->hp_dac_nid && !spec->hp_indep_shared)
 		path = &spec->hp_path;
 	else
 		path = &spec->hp_dep_path;
