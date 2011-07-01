@@ -30,6 +30,7 @@ static inline struct platform_device *imx_add_platform_device(
 
 #include <linux/fec.h>
 struct imx_fec_data {
+	const char *devid;
 	resource_size_t iobase;
 	resource_size_t irq;
 };

@@ -1427,7 +1427,8 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("imx21-uart.1", NULL, uart2_clk)
 	_REGISTER_CLOCK("imx21-uart.2", NULL, uart3_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
-	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
+	/* i.mx51 has the i.mx27 type fec */
+	_REGISTER_CLOCK("imx27-fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK("mxc_pwm.0", "pwm", pwm1_clk)
 	_REGISTER_CLOCK("mxc_pwm.1", "pwm", pwm2_clk)
 	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c1_clk)
@@ -1478,7 +1479,8 @@ static struct clk_lookup mx53_lookups[] = {
 	_REGISTER_CLOCK("imx21-uart.3", NULL, uart4_clk)
 	_REGISTER_CLOCK("imx21-uart.4", NULL, uart5_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
-	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
+	/* i.mx53 has the i.mx25 type fec */
+	_REGISTER_CLOCK("imx25-fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK(NULL, "iim_clk", iim_clk)
 	_REGISTER_CLOCK("imx-i2c.0", NULL, i2c1_clk)
 	_REGISTER_CLOCK("imx-i2c.1", NULL, i2c2_clk)

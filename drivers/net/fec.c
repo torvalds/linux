@@ -66,17 +66,28 @@
 #define FEC_QUIRK_ENET_MAC		(1 << 0)
 /* Controller needs driver to swap frame */
 #define FEC_QUIRK_SWAP_FRAME		(1 << 1)
+/* Controller uses gasket */
+#define FEC_QUIRK_USE_GASKET		(1 << 2)
 
 static struct platform_device_id fec_devtype[] = {
 	{
+		/* keep it for coldfire */
 		.name = DRIVER_NAME,
+		.driver_data = 0,
+	}, {
+		.name = "imx25-fec",
+		.driver_data = FEC_QUIRK_USE_GASKET,
+	}, {
+		.name = "imx27-fec",
 		.driver_data = 0,
 	}, {
 		.name = "imx28-fec",
 		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_SWAP_FRAME,
-	},
-	{ }
+	}, {
+		/* sentinel */
+	}
 };
+MODULE_DEVICE_TABLE(platform, fec_devtype);
 
 static unsigned char macaddr[ETH_ALEN];
 module_param_array(macaddr, byte, NULL, 0);
@@ -427,7 +438,7 @@ fec_restart(struct net_device *ndev, int duplex)
 
 	} else {
 #ifdef FEC_MIIGSK_ENR
-		if (fep->phy_interface == PHY_INTERFACE_MODE_RMII) {
+		if (id_entry->driver_data & FEC_QUIRK_USE_GASKET) {
 			/* disable the gasket and wait */
 			writel(0, fep->hwp + FEC_MIIGSK_ENR);
 			while (readl(fep->hwp + FEC_MIIGSK_ENR) & 4)
@@ -436,8 +447,11 @@ fec_restart(struct net_device *ndev, int duplex)
 			/*
 			 * configure the gasket:
 			 *   RMII, 50 MHz, no loopback, no echo
+			 *   MII, 25 MHz, no loopback, no echo
 			 */
-			writel(1, fep->hwp + FEC_MIIGSK_CFGR);
+			writel((fep->phy_interface == PHY_INTERFACE_MODE_RMII) ?
+					1 : 0, fep->hwp + FEC_MIIGSK_CFGR);
+
 
 			/* re-enable the gasket */
 			writel(2, fep->hwp + FEC_MIIGSK_ENR);
