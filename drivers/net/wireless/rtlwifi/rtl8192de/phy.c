@@ -932,7 +932,7 @@ bool rtl92d_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 					  enum rf_content content,
 					  enum radio_path rfpath)
 {
-	int i, j;
+	int i;
 	u32 *radioa_array_table;
 	u32 *radiob_array_table;
 	u16 radioa_arraylen, radiob_arraylen;
@@ -974,13 +974,10 @@ bool rtl92d_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 				mdelay(50);
 			} else if (radioa_array_table[i] == 0xfd) {
 				/* delay_ms(5); */
-				for (j = 0; j < 100; j++)
-					udelay(MAX_STALL_TIME);
+				mdelay(5);
 			} else if (radioa_array_table[i] == 0xfc) {
 				/* delay_ms(1); */
-				for (j = 0; j < 20; j++)
-					udelay(MAX_STALL_TIME);
-
+				mdelay(1);
 			} else if (radioa_array_table[i] == 0xfb) {
 				udelay(50);
 			} else if (radioa_array_table[i] == 0xfa) {
@@ -1004,12 +1001,10 @@ bool rtl92d_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 				mdelay(50);
 			} else if (radiob_array_table[i] == 0xfd) {
 				/* delay_ms(5); */
-				for (j = 0; j < 100; j++)
-					udelay(MAX_STALL_TIME);
+				mdelay(5);
 			} else if (radiob_array_table[i] == 0xfc) {
 				/* delay_ms(1); */
-				for (j = 0; j < 20; j++)
-					udelay(MAX_STALL_TIME);
+				mdelay(1);
 			} else if (radiob_array_table[i] == 0xfb) {
 				udelay(50);
 			} else if (radiob_array_table[i] == 0xfa) {
@@ -1276,7 +1271,7 @@ static void rtl92d_phy_switch_wirelessband(struct ieee80211_hw *hw, u8 band)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	u8 i, value8;
+	u8 value8;
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, ("==>\n"));
 	rtlhal->bandset = band;
@@ -1321,8 +1316,7 @@ static void rtl92d_phy_switch_wirelessband(struct ieee80211_hw *hw, u8 band)
 		rtl_write_byte(rtlpriv, (rtlhal->interfaceindex ==
 			0 ? REG_MAC0 : REG_MAC1), value8);
 	}
-	for (i = 0; i < 20; i++)
-		udelay(MAX_STALL_TIME);
+	mdelay(1);
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, ("<==Switch Band OK.\n"));
 }
 
