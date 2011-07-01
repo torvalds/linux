@@ -130,6 +130,9 @@ struct acpi_sbs {
 
 #define to_acpi_sbs(x) container_of(x, struct acpi_sbs, charger)
 
+static int acpi_sbs_remove(struct acpi_device *device, int type);
+static int acpi_battery_get_state(struct acpi_battery *battery);
+
 static inline int battery_scale(int log)
 {
 	int scale = 1;
@@ -195,6 +198,8 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 
 	if ((!battery->present) && psp != POWER_SUPPLY_PROP_PRESENT)
 		return -ENODEV;
+
+	acpi_battery_get_state(battery);
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (battery->rate_now < 0)
@@ -902,8 +907,6 @@ static void acpi_sbs_callback(void *context)
 		}
 	}
 }
-
-static int acpi_sbs_remove(struct acpi_device *device, int type);
 
 static int acpi_sbs_add(struct acpi_device *device)
 {
