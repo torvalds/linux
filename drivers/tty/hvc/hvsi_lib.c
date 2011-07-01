@@ -178,7 +178,7 @@ static int hvsi_get_packet(struct hvsi_priv *pv)
 	return 0;
 }
 
-int hvsi_get_chars(struct hvsi_priv *pv, char *buf, int count)
+int hvsilib_get_chars(struct hvsi_priv *pv, char *buf, int count)
 {
 	unsigned int tries, read = 0;
 
@@ -228,7 +228,7 @@ int hvsi_get_chars(struct hvsi_priv *pv, char *buf, int count)
 	return read;
 }
 
-int hvsi_put_chars(struct hvsi_priv *pv, const char *buf, int count)
+int hvsilib_put_chars(struct hvsi_priv *pv, const char *buf, int count)
 {
 	struct hvsi_data dp;
 	int rc, adjcount = min(count, HVSI_MAX_OUTGOING_DATA);
@@ -254,7 +254,7 @@ static void maybe_msleep(unsigned long ms)
 		msleep(ms);
 }
 
-int hvsi_read_mctrl(struct hvsi_priv *pv)
+int hvsilib_read_mctrl(struct hvsi_priv *pv)
 {
 	struct hvsi_query q;
 	int rc, timeout;
@@ -285,7 +285,7 @@ int hvsi_read_mctrl(struct hvsi_priv *pv)
 	return -EIO;
 }
 
-int hvsi_write_mctrl(struct hvsi_priv *pv, int dtr)
+int hvsilib_write_mctrl(struct hvsi_priv *pv, int dtr)
 {
 	struct hvsi_control ctrl;
 	unsigned short mctrl;
@@ -310,7 +310,7 @@ int hvsi_write_mctrl(struct hvsi_priv *pv, int dtr)
 	return hvsi_send_packet(pv, &ctrl.hdr);
 }
 
-void hvsi_establish(struct hvsi_priv *pv)
+void hvsilib_establish(struct hvsi_priv *pv)
 {
 	int timeout;
 
@@ -359,32 +359,32 @@ void hvsi_establish(struct hvsi_priv *pv)
 
 	pr_devel("HVSI@%x:   ... established, reading mctrl\n", pv->termno);
 
-	hvsi_read_mctrl(pv);
+	hvsilib_read_mctrl(pv);
 
 	/* Set our own DTR */
 
 	pr_devel("HVSI@%x:   ... setting mctrl\n", pv->termno);
 
-	hvsi_write_mctrl(pv, 1);
+	hvsilib_write_mctrl(pv, 1);
 
 	/* Set the opened flag so reads are allowed */
 	wmb();
 	pv->opened = 1;
 }
 
-int hvsi_open(struct hvsi_priv *pv, struct hvc_struct *hp)
+int hvsilib_open(struct hvsi_priv *pv, struct hvc_struct *hp)
 {
 	pr_devel("HVSI@%x: open !\n", pv->termno);
 
 	/* Keep track of the tty data structure */
 	pv->tty = tty_kref_get(hp->tty);
 
-	hvsi_establish(pv);
+	hvsilib_establish(pv);
 
 	return 0;
 }
 
-void hvsi_close(struct hvsi_priv *pv, struct hvc_struct *hp)
+void hvsilib_close(struct hvsi_priv *pv, struct hvc_struct *hp)
 {
 	unsigned long flags;
 
@@ -401,7 +401,7 @@ void hvsi_close(struct hvsi_priv *pv, struct hvc_struct *hp)
 
 		/* Clear our own DTR */
 		if (!pv->tty || (pv->tty->termios->c_cflag & HUPCL))
-			hvsi_write_mctrl(pv, 0);
+			hvsilib_write_mctrl(pv, 0);
 
 		/* Tear down the connection */
 		hvsi_send_close(pv);
@@ -412,11 +412,11 @@ void hvsi_close(struct hvsi_priv *pv, struct hvc_struct *hp)
 	pv->tty = NULL;
 }
 
-void hvsi_init(struct hvsi_priv *pv,
-	       int (*get_chars)(uint32_t termno, char *buf, int count),
-	       int (*put_chars)(uint32_t termno, const char *buf,
-				int count),
-	       int termno, int is_console)
+void hvsilib_init(struct hvsi_priv *pv,
+		  int (*get_chars)(uint32_t termno, char *buf, int count),
+		  int (*put_chars)(uint32_t termno, const char *buf,
+				   int count),
+		  int termno, int is_console)
 {
 	memset(pv, 0, sizeof(*pv));
 	pv->get_chars = get_chars;

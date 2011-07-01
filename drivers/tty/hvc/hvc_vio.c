@@ -134,7 +134,7 @@ static int hvterm_hvsi_get_chars(uint32_t vtermno, char *buf, int count)
 	if (WARN_ON(!pv))
 		return 0;
 
-	return hvsi_get_chars(&pv->hvsi, buf, count);
+	return hvsilib_get_chars(&pv->hvsi, buf, count);
 }
 
 static int hvterm_hvsi_put_chars(uint32_t vtermno, const char *buf, int count)
@@ -144,7 +144,7 @@ static int hvterm_hvsi_put_chars(uint32_t vtermno, const char *buf, int count)
 	if (WARN_ON(!pv))
 		return 0;
 
-	return hvsi_put_chars(&pv->hvsi, buf, count);
+	return hvsilib_put_chars(&pv->hvsi, buf, count);
 }
 
 static int hvterm_hvsi_open(struct hvc_struct *hp, int data)
@@ -158,7 +158,7 @@ static int hvterm_hvsi_open(struct hvc_struct *hp, int data)
 	if (rc)
 		return rc;
 
-	return hvsi_open(&pv->hvsi, hp);
+	return hvsilib_open(&pv->hvsi, hp);
 }
 
 static void hvterm_hvsi_close(struct hvc_struct *hp, int data)
@@ -167,7 +167,7 @@ static void hvterm_hvsi_close(struct hvc_struct *hp, int data)
 
 	pr_devel("HVSI@%x: do close !\n", pv->termno);
 
-	hvsi_close(&pv->hvsi, hp);
+	hvsilib_close(&pv->hvsi, hp);
 
 	notifier_del_irq(hp, data);
 }
@@ -178,7 +178,7 @@ void hvterm_hvsi_hangup(struct hvc_struct *hp, int data)
 
 	pr_devel("HVSI@%x: do hangup !\n", pv->termno);
 
-	hvsi_close(&pv->hvsi, hp);
+	hvsilib_close(&pv->hvsi, hp);
 
 	notifier_hangup_irq(hp, data);
 }
@@ -201,9 +201,9 @@ static int hvterm_hvsi_tiocmset(struct hvc_struct *hp, unsigned int set,
 		 pv->termno, set, clear);
 
 	if (set & TIOCM_DTR)
-		hvsi_write_mctrl(&pv->hvsi, 1);
+		hvsilib_write_mctrl(&pv->hvsi, 1);
 	else if (clear & TIOCM_DTR)
-		hvsi_write_mctrl(&pv->hvsi, 0);
+		hvsilib_write_mctrl(&pv->hvsi, 0);
 
 	return 0;
 }
@@ -267,8 +267,8 @@ static int __devinit hvc_vio_probe(struct vio_dev *vdev,
 		pv->termno = vdev->unit_address;
 		pv->proto = proto;
 		hvterm_privs[termno] = pv;
-		hvsi_init(&pv->hvsi, hvc_get_chars, hvc_put_chars,
-			  pv->termno, 0);
+		hvsilib_init(&pv->hvsi, hvc_get_chars, hvc_put_chars,
+			     pv->termno, 0);
 	}
 
 	hp = hvc_alloc(termno, vdev->irq, ops, MAX_VIO_PUT_CHARS);
@@ -416,10 +416,10 @@ void __init hvc_vio_init_early(void)
 	else if (of_device_is_compatible(stdout_node, "hvterm-protocol")) {
 		hvterm_priv0.proto = HV_PROTOCOL_HVSI;
 		ops = &hvterm_hvsi_ops;
-		hvsi_init(&hvterm_priv0.hvsi, hvc_get_chars, hvc_put_chars,
-			  hvterm_priv0.termno, 1);
+		hvsilib_init(&hvterm_priv0.hvsi, hvc_get_chars, hvc_put_chars,
+			     hvterm_priv0.termno, 1);
 		/* HVSI, perform the handshake now */
-		hvsi_establish(&hvterm_priv0.hvsi);
+		hvsilib_establish(&hvterm_priv0.hvsi);
 	} else
 		goto out;
 	udbg_putc = udbg_hvc_putc;
@@ -462,8 +462,8 @@ void __init udbg_init_debug_lpar_hvsi(void)
 	udbg_putc = udbg_hvc_putc;
 	udbg_getc = udbg_hvc_getc;
 	udbg_getc_poll = udbg_hvc_getc_poll;
-	hvsi_init(&hvterm_priv0.hvsi, hvc_get_chars, hvc_put_chars,
-		  hvterm_priv0.termno, 1);
-	hvsi_establish(&hvterm_priv0.hvsi);
+	hvsilib_init(&hvterm_priv0.hvsi, hvc_get_chars, hvc_put_chars,
+		     hvterm_priv0.termno, 1);
+	hvsilib_establish(&hvterm_priv0.hvsi);
 }
 #endif /* CONFIG_PPC_EARLY_DEBUG_LPAR_HVSI */
