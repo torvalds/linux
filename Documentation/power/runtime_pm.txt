@@ -553,9 +553,9 @@ suspend routine).  It may be necessary to resume the device and suspend it again
 in order to do so.  The same is true if the driver uses different power levels
 or other settings for run-time suspend and system sleep.
 
-During system resume, devices generally should be brought back to full power,
-even if they were suspended before the system sleep began.  There are several
-reasons for this, including:
+During system resume, the simplest approach is to bring all devices back to full
+power, even if they had been suspended before the system suspend began.  There
+are several reasons for this, including:
 
   * The device might need to switch power levels, wake-up settings, etc.
 
@@ -572,15 +572,26 @@ reasons for this, including:
   * Even though the device was suspended, if its usage counter was > 0 then most
     likely it would need a run-time resume in the near future anyway.
 
-  * Always going back to full power is simplest.
-
-If the device was suspended before the sleep began, then its run-time PM status
-will have to be updated to reflect the actual post-system sleep status.  The way
-to do this is:
+If the device had been suspended before the system suspend began and it's
+brought back to full power during resume, then its run-time PM status will have
+to be updated to reflect the actual post-system sleep status.  The way to do
+this is:
 
 	pm_runtime_disable(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
+
+On some systems, however, system sleep is not entered through a global firmware
+or hardware operation.  Instead, all hardware components are put into low-power
+states directly by the kernel in a coordinated way.  Then, the system sleep
+state effectively follows from the states the hardware components end up in
+and the system is woken up from that state by a hardware interrupt or a similar
+mechanism entirely under the kernel's control.  As a result, the kernel never
+gives control away and the states of all devices during resume are precisely
+known to it.  If that is the case and none of the situations listed above takes
+place (in particular, if the system is not waking up from hibernation), it may
+be more efficient to leave the devices that had been suspended before the system
+suspend began in the suspended state.
 
 7. Generic subsystem callbacks
 
