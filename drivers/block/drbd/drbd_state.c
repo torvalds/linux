@@ -655,13 +655,6 @@ is_valid_transition(union drbd_state os, union drbd_state ns)
 	if (ns.disk == D_FAILED && os.disk == D_DISKLESS)
 		rv = SS_IS_DISKLESS;
 
-	/* if we are only D_ATTACHING yet,
-	 * we can (and should) go directly to D_DISKLESS. */
-	if (ns.disk == D_FAILED && os.disk == D_ATTACHING) {
-		printk("TODO: FIX ME\n");
-		rv = SS_IS_DISKLESS;
-	}
-
 	return rv;
 }
 

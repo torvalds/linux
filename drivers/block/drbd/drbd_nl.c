@@ -1645,7 +1645,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
  force_diskless_dec:
 	put_ldev(mdev);
  force_diskless:
-	drbd_force_state(mdev, NS(disk, D_FAILED));
+	drbd_force_state(mdev, NS(disk, D_DISKLESS));
 	drbd_md_sync(mdev);
  fail:
 	conn_reconfig_done(mdev->tconn);
