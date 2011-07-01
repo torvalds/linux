@@ -227,3 +227,7 @@ config PM_OPP
 config PM_RUNTIME_CLK
 	def_bool y
 	depends on PM_RUNTIME && HAVE_CLK
+
+config PM_GENERIC_DOMAINS
+	bool
+	depends on PM
