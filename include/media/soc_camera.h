@@ -20,12 +20,10 @@
 #include <media/videobuf2-core.h>
 #include <media/v4l2-device.h>
 
-extern struct bus_type soc_camera_bus_type;
-
 struct file;
 
 struct soc_camera_device {
-	struct list_head list;
+	struct list_head list;		/* list of all registered devices */
 	struct device dev;
 	struct device *pdev;		/* Platform device */
 	s32 user_width;
@@ -126,8 +124,8 @@ struct soc_camera_link {
 	int num_regulators;
 
 	/*
-	 * For non-I2C devices platform platform has to provide methods to
-	 * add a device to the system and to remove
+	 * For non-I2C devices platform has to provide methods to add a device
+	 * to the system and to remove it
 	 */
 	int (*add_device)(struct soc_camera_link *, struct device *);
 	void (*del_device)(struct soc_camera_link *);

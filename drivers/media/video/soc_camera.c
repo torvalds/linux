@@ -1207,12 +1207,11 @@ static int soc_camera_remove(struct device *dev)
 	return 0;
 }
 
-struct bus_type soc_camera_bus_type = {
+static struct bus_type soc_camera_bus_type = {
 	.name		= "soc-camera",
 	.probe		= soc_camera_probe,
 	.remove		= soc_camera_remove,
 };
-EXPORT_SYMBOL_GPL(soc_camera_bus_type);
 
 static struct device_driver ic_drv = {
 	.name	= "camera",
