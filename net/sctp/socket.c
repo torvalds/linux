@@ -3257,11 +3257,11 @@ static int sctp_setsockopt_auth_chunk(struct sock *sk,
 		return -EFAULT;
 
 	switch (val.sauth_chunk) {
-		case SCTP_CID_INIT:
-		case SCTP_CID_INIT_ACK:
-		case SCTP_CID_SHUTDOWN_COMPLETE:
-		case SCTP_CID_AUTH:
-			return -EINVAL;
+	case SCTP_CID_INIT:
+	case SCTP_CID_INIT_ACK:
+	case SCTP_CID_SHUTDOWN_COMPLETE:
+	case SCTP_CID_AUTH:
+		return -EINVAL;
 	}
 
 	/* add this chunk id to the endpoint */
