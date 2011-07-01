@@ -967,7 +967,7 @@ static struct attribute *hwmon_attributes[] = {
 };
 
 static mode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
-				    struct attribute *attr, int idx)
+					  struct attribute *attr, int idx)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct platform_device *pdev = to_platform_device(dev->parent);
@@ -978,6 +978,8 @@ static mode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
 
 	if (attr == &sensor_dev_attr_pwm1.dev_attr.attr)
 		dev_id = ASUS_WMI_DEVID_FAN_CTRL;
+	else if (attr == &sensor_dev_attr_temp1_input.dev_attr.attr)
+		dev_id = ASUS_WMI_DEVID_THERMAL_CTRL;
 
 	if (dev_id != -1) {
 		int err = asus_wmi_get_devstate(asus, dev_id, &value);
@@ -997,6 +999,10 @@ static mode_t asus_hwmon_sysfs_is_visible(struct kobject *kobj,
 		 */
 		if (value == ASUS_WMI_UNSUPPORTED_METHOD || value & 0xFFF80000
 		    || (!asus->sfun && !(value & ASUS_WMI_DSTS_PRESENCE_BIT)))
+			ok = false;
+	} else if (dev_id == ASUS_WMI_DEVID_THERMAL_CTRL) {
+		/* If value is zero, something is clearly wrong */
+		if (value == 0)
 			ok = false;
 	}
 
