@@ -615,7 +615,7 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 		}
 	else
 		indio_dev->channels = adis16260_channels_x;
-
+	indio_dev->num_channels = ARRAY_SIZE(adis16260_channels_x);
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = adis16260_configure_ring(indio_dev);
