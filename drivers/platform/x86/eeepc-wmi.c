@@ -166,6 +166,7 @@ static void eeepc_dmi_check(struct asus_wmi_driver *driver)
 static void eeepc_wmi_quirks(struct asus_wmi_driver *driver)
 {
 	driver->hotplug_wireless = hotplug_wireless;
+	driver->wapf = -1;
 	eeepc_dmi_check(driver);
 }
 

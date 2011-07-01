@@ -37,6 +37,7 @@ struct asus_wmi;
 
 struct asus_wmi_driver {
 	bool			hotplug_wireless;
+	int			wapf;
 
 	const char		*name;
 	struct module		*owner;

@@ -1413,6 +1413,12 @@ static int asus_wmi_platform_init(struct asus_wmi *asus)
 		return -ENODEV;
 	}
 
+	/* CWAP allow to define the behavior of the Fn+F2 key,
+	 * this method doesn't seems to be present on Eee PCs */
+	if (asus->driver->wapf >= 0)
+		asus_wmi_set_devstate(ASUS_WMI_DEVID_CWAP,
+				      asus->driver->wapf, NULL);
+
 	return asus_wmi_sysfs_init(asus->platform_device);
 }
 
