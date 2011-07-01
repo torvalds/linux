@@ -734,10 +734,8 @@ out_free:
 static void ssb_pci_get_boardinfo(struct ssb_bus *bus,
 				  struct ssb_boardinfo *bi)
 {
-	pci_read_config_word(bus->host_pci, PCI_SUBSYSTEM_VENDOR_ID,
-			     &bi->vendor);
-	pci_read_config_word(bus->host_pci, PCI_SUBSYSTEM_ID,
-			     &bi->type);
+	bi->vendor = bus->host_pci->subsystem_vendor;
+	bi->type = bus->host_pci->subsystem_device;
 	bi->rev = bus->host_pci->revision;
 }
 
