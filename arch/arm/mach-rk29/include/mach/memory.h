@@ -24,10 +24,10 @@
 /*
  * SRAM memory whereabouts
  */
-#define SRAM_CODE_OFFSET	0xff400000
-#define SRAM_CODE_END		0xff401fff
-#define SRAM_DATA_OFFSET	0xff402000
-#define SRAM_DATA_END		0xff403fff
+#define SRAM_CODE_OFFSET	0xFEF00000
+#define SRAM_CODE_END		0xFEF01FFF
+#define SRAM_DATA_OFFSET	0xFEF02000
+#define SRAM_DATA_END		0xFEF03FFF
 
 #endif
 
