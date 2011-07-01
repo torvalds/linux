@@ -25,15 +25,55 @@
 #endif
 
 
+#define NEWTON_GPIO_R     RK29_PIN4_PB0
+#define NEWTON_GPIO_G     RK29_PIN4_PB1
+#define NEWTON_GPIO_B     RK29_PIN4_PB2
+#define NEWTON_GET_UID    0x6001
+typedef struct{
+uint16_t SN_Size;		//0-1
+char SN[30];			//2-31
+char Reserved[419];		//32-450
+char IMEI_Size;			//451
+char IMEI_Data[15];		//452-466
+char UID_Size;			//467
+char UID_Data[30];		//468-497
+char BT_Size;			//498
+char BlueTooth[6];		//499-504
+char Mac_Size;			//505
+char Mac_Data[6];		//506-511
+}IdbSector3;
+static int led_state = 0;
+char GetSNSectorInfo(char * pbuf);
 
+int newton_print_buf(char *buf,int size)
+{
+	int i,j,mo=size%16,line = size/16;
+	char *pbuf = buf;
 
-
+	if(line>0)
+	{
+		for(i=0;i<line;i++)
+		{
+			for(j=0;j<16;j++)
+			{
+				printk("0x%02x ",*pbuf);
+				pbuf++;
+			}
+			printk("\n");
+		}
+	}
+	
+	for(j=0;j<mo;j++)
+	{
+		printk("0x%02x ",*pbuf);
+		pbuf++;
+	}
+}
 
 int rk29_newton_open(struct inode *inode, struct file *filp)
 {
     DBG("%s\n",__FUNCTION__);
-
-	return 0;
+    return 0;
 }
 
 ssize_t rk29_newton_read(struct file *filp, char __user *ptr, size_t size, loff_t *pos)
@@ -42,12 +82,32 @@ ssize_t rk29_newton_read(struct file *filp, char __user *ptr, size_t size, loff_
 	return sizeof(int);
 }
 
+ssize_t rk29_newton_write(struct file *filp, char __user *ptr, size_t size, loff_t *pos)
+{
+    return sizeof(int);
+}
+
 int rk29_newton_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
-	struct rk29_newton_data *pdata ;//= pgps;
+    void __user *argp = (void __user *)arg;
     DBG("%s\n",__FUNCTION__);
-	return ret;
+	
+    switch(cmd)
+    {
+    case NEWTON_GET_UID:
+		{
+			IdbSector3 sn;
+			memset(&sn,0,sizeof(IdbSector3));
+			GetSNSectorInfo(&sn);
+			//newton_print_buf(&sn.UID_Data, sizeof(sn.UID_Data));
+            if(copy_to_user(argp, &sn.UID_Data, sizeof(sn.UID_Data)))  return -EFAULT;
+    	}
+		break;
+	default:
+		break;
+	}
+	return 0;
 }
 
 
@@ -62,9 +122,10 @@ int rk29_newton_release(struct inode *inode, struct file *filp)
 static struct file_operations rk29_newton_fops = {
 	.owner   = THIS_MODULE,
 	.open    = rk29_newton_open,
-	.read    = rk29_newton_read,
+	//.read    = rk29_newton_read,
+	//.write	 = rk29_newton_write,
 	.ioctl   = rk29_newton_ioctl,
-	.release = rk29_newton_release,
+	//.release = rk29_newton_release,
 };
 
 
@@ -88,22 +149,32 @@ static int rk29_newton_probe(struct platform_device *pdev)
 		printk("rk29 newton register err!\n");
 		return ret;
 	}
-	#if 0
-	init_MUTEX(&pdata->power_sem);
-	pdata->wq = create_freezeable_workqueue("rk29_gps");
-	INIT_WORK(&pdata->work, rk29_gps_delay_power_downup);
-	pdata->power_flag = 0;
-
-	//gps power down
-	rk29_gps_uart_to_gpio(pdata->uart_id);
-	if (pdata->power_down)
-		pdata->power_down();
-	if (pdata->reset)
-		pdata->reset(GPIO_LOW);
-
-	pgps = pdata;
+#if 0
+    if(gpio_request(NEWTON_GPIO_R,NULL) != 0){
+      gpio_free(NEWTON_GPIO_R);
+      printk("rk29_newton_probe gpio_request NEWTON_GPIO_R error\n");
+      return -EIO;
+    }
+	
+    if(gpio_request(NEWTON_GPIO_G,NULL) != 0){
+      gpio_free(NEWTON_GPIO_G);
+      printk("rk29_newton_probe gpio_request NEWTON_GPIO_G error\n");
+      return -EIO;
+    }
+	
+    if(gpio_request(NEWTON_GPIO_B,NULL) != 0){
+      gpio_free(NEWTON_GPIO_B);
+      printk("rk29_newton_probe gpio_request NEWTON_GPIO_B error\n");
+      return -EIO;
+    }
+	
+    gpio_direction_output(NEWTON_GPIO_R, 0);
+	gpio_set_value(NEWTON_GPIO_R,GPIO_LOW);
+	gpio_direction_output(NEWTON_GPIO_G, 0);
+	gpio_set_value(NEWTON_GPIO_G,GPIO_LOW);
+	gpio_direction_output(NEWTON_GPIO_B, 0);
+	gpio_set_value(NEWTON_GPIO_B,GPIO_LOW);
 #endif
-
 	DBG("%s:rk29 newton initialized\n",__FUNCTION__);
 
 	return ret;
