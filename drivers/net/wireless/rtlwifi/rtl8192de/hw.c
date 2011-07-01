@@ -932,8 +932,8 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
 			 ("Failed to download FW. Init HW "
 			 "without FW..\n"));
-		err = 1;
 		rtlhal->fw_ready = false;
+		return 1;
 	} else {
 		rtlhal->fw_ready = true;
 	}
@@ -1043,6 +1043,11 @@ int rtl92de_hw_init(struct ieee80211_hw *hw)
 
 				if (((tmp_rega & BIT(11)) == BIT(11)))
 					break;
+			}
+			/* check that loop was successful. If not, exit now */
+			if (i == 10000) {
+				rtlpci->init_ready = false;
+				return 1;
 			}
 		}
 	}
