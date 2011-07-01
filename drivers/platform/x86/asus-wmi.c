@@ -1246,7 +1246,7 @@ static int asus_wmi_platform_init(struct asus_wmi *asus)
 
 	/* We don't know yet what to do with this version... */
 	if (!asus_wmi_evaluate_method(ASUS_WMI_METHODID_SPEC, 0, 0x9, &rv)) {
-		pr_info("BIOS WMI version: %d.%d", rv >> 8, rv & 0xFF);
+		pr_info("BIOS WMI version: %d.%d", rv >> 16, rv & 0xFF);
 		asus->spec = rv;
 	}
 
