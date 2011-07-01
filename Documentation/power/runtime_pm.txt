@@ -291,7 +291,8 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
     - execute the subsystem-level suspend callback for the device; returns 0 on
       success, 1 if the device's run-time PM status was already 'suspended', or
       error code on failure, where -EAGAIN or -EBUSY means it is safe to attempt
-      to suspend the device again in future
+      to suspend the device again in future and -EACCES means that
+      'power.disable_depth' is different from 0
 
   int pm_runtime_autosuspend(struct device *dev);
     - same as pm_runtime_suspend() except that the autosuspend delay is taken
@@ -304,7 +305,8 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       success, 1 if the device's run-time PM status was already 'active' or
       error code on failure, where -EAGAIN means it may be safe to attempt to
       resume the device again in future, but 'power.runtime_error' should be
-      checked additionally
+      checked additionally, and -EACCES means that 'power.disable_depth' is
+      different from 0
 
   int pm_request_idle(struct device *dev);
     - submit a request to execute the subsystem-level idle callback for the
