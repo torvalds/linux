@@ -30,8 +30,8 @@ static int default_platform_runtime_idle(struct device *dev)
 
 static struct dev_pm_domain default_pm_domain = {
 	.ops = {
-		.runtime_suspend = pm_runtime_clk_suspend,
-		.runtime_resume = pm_runtime_clk_resume,
+		.runtime_suspend = pm_clk_suspend,
+		.runtime_resume = pm_clk_resume,
 		.runtime_idle = default_platform_runtime_idle,
 		USE_PLATFORM_PM_SLEEP_OPS
 	},
@@ -52,7 +52,7 @@ static struct pm_clk_notifier_block platform_bus_notifier = {
 
 static int __init sh_pm_runtime_init(void)
 {
-	pm_runtime_clk_add_notifier(&platform_bus_type, &platform_bus_notifier);
+	pm_clk_add_notifier(&platform_bus_type, &platform_bus_notifier);
 	return 0;
 }
 core_initcall(sh_pm_runtime_init);
