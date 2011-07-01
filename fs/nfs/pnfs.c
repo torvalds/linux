@@ -29,6 +29,7 @@
 
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
+#include <linux/module.h>
 #include "internal.h"
 #include "pnfs.h"
 #include "iostat.h"

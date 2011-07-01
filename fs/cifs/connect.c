@@ -37,6 +37,7 @@
 #include <asm/uaccess.h>
 #include <asm/processor.h>
 #include <linux/inet.h>
+#include <linux/module.h>
 #include <net/ipv6.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
