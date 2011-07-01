@@ -2854,7 +2854,7 @@ void sched_fork(struct task_struct *p)
 #if defined(CONFIG_SMP)
 	p->on_cpu = 0;
 #endif
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPT_COUNT
 	/* Want to start with kernel preemption disabled. */
 	task_thread_info(p)->preempt_count = 1;
 #endif
@@ -8022,7 +8022,7 @@ void __init sched_init(void)
 	scheduler_running = 1;
 }
 
-#ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
+#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 static inline int preempt_count_equals(int preempt_offset)
 {
 	int nested = (preempt_count() & ~PREEMPT_ACTIVE) + rcu_preempt_depth();
@@ -8032,7 +8032,6 @@ static inline int preempt_count_equals(int preempt_offset)
 
 void __might_sleep(const char *file, int line, int preempt_offset)
 {
-#ifdef in_atomic
 	static unsigned long prev_jiffy;	/* ratelimiting */
 
 	if ((preempt_count_equals(preempt_offset) && !irqs_disabled()) ||
@@ -8054,7 +8053,6 @@ void __might_sleep(const char *file, int line, int preempt_offset)
 	if (irqs_disabled())
 		print_irqtrace_events(current);
 	dump_stack();
-#endif
 }
 EXPORT_SYMBOL(__might_sleep);
 #endif
