@@ -738,8 +738,7 @@ static void ssb_pci_get_boardinfo(struct ssb_bus *bus,
 			     &bi->vendor);
 	pci_read_config_word(bus->host_pci, PCI_SUBSYSTEM_ID,
 			     &bi->type);
-	pci_read_config_byte(bus->host_pci, PCI_REVISION_ID,
-			     &bi->rev);
+	bi->rev = bus->host_pci->revision;
 }
 
 int ssb_pci_get_invariants(struct ssb_bus *bus,
