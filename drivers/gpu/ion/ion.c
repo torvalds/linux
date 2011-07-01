@@ -376,8 +376,6 @@ int ion_phys(struct ion_client *client, struct ion_handle *handle,
 
 	mutex_lock(&client->lock);
 	if (!ion_handle_validate(client, handle)) {
-		pr_err("%s: invalid handle passed to map_kernel.\n",
-		       __func__);
 		mutex_unlock(&client->lock);
 		return -EINVAL;
 	}
