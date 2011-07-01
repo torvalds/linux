@@ -1500,30 +1500,32 @@ void disk_unblock_events(struct gendisk *disk)
 }
 
 /**
- * disk_check_events - schedule immediate event checking
- * @disk: disk to check events for
+ * disk_flush_events - schedule immediate event checking and flushing
+ * @disk: disk to check and flush events for
+ * @mask: events to flush
  *
- * Schedule immediate event checking on @disk if not blocked.
+ * Schedule immediate event checking on @disk if not blocked.  Events in
+ * @mask are scheduled to be cleared from the driver.  Note that this
+ * doesn't clear the events from @disk->ev.
  *
  * CONTEXT:
- * Don't care.  Safe to call from irq context.
+ * If @mask is non-zero must be called with bdev->bd_mutex held.
  */
-void disk_check_events(struct gendisk *disk)
+void disk_flush_events(struct gendisk *disk, unsigned int mask)
 {
 	struct disk_events *ev = disk->ev;
-	unsigned long flags;
 
 	if (!ev)
 		return;
 
-	spin_lock_irqsave(&ev->lock, flags);
+	spin_lock_irq(&ev->lock);
+	ev->clearing |= mask;
 	if (!ev->block) {
 		cancel_delayed_work(&ev->dwork);
 		queue_delayed_work(system_nrt_wq, &ev->dwork, 0);
 	}
-	spin_unlock_irqrestore(&ev->lock, flags);
+	spin_unlock_irq(&ev->lock);
 }
-EXPORT_SYMBOL_GPL(disk_check_events);
 
 /**
  * disk_clear_events - synchronously check, clear and return pending events
@@ -1713,7 +1715,7 @@ static int disk_events_set_dfl_poll_msecs(const char *val,
 	mutex_lock(&disk_events_mutex);
 
 	list_for_each_entry(ev, &disk_events, node)
-		disk_check_events(ev->disk);
+		disk_flush_events(ev->disk, 0);
 
 	mutex_unlock(&disk_events_mutex);
 
