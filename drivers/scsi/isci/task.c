@@ -1563,7 +1563,7 @@ static void isci_wait_for_smp_phy_reset(struct isci_remote_device *idev, int phy
 }
 
 static int isci_reset_device(struct isci_host *ihost,
-			     struct isci_remote_device *idev, int hard_reset)
+			     struct isci_remote_device *idev)
 {
 	struct sas_phy *phy = sas_find_local_phy(idev->domain_dev);
 	struct isci_port *iport = idev->isci_port;
@@ -1593,7 +1593,7 @@ static int isci_reset_device(struct isci_host *ihost,
 	if (!scsi_is_sas_phy_local(phy))
 		set_bit(IPORT_BCN_BLOCKED, &iport->flags);
 
-	rc = sas_phy_reset(phy, hard_reset);
+	rc = sas_phy_reset(phy, true);
 
 	/* Terminate in-progress I/O now. */
 	isci_remote_device_nuke_requests(ihost, idev);
@@ -1633,8 +1633,8 @@ int isci_task_I_T_nexus_reset(struct domain_device *dev)
 {
 	struct isci_host *ihost = dev_to_ihost(dev);
 	struct isci_remote_device *idev;
-	int ret, hard_reset = 1;
 	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 	idev = isci_lookup_device(dev);
@@ -1645,10 +1645,7 @@ int isci_task_I_T_nexus_reset(struct domain_device *dev)
 		goto out;
 	}
 
-	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))
-		hard_reset = 0;
-
-	ret = isci_reset_device(ihost, idev, hard_reset);
+	ret = isci_reset_device(ihost, idev);
  out:
 	isci_put_device(idev);
 	return ret;
@@ -1659,11 +1656,8 @@ int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 	struct domain_device *dev = sdev_to_domain_dev(cmd->device);
 	struct isci_host *ihost = dev_to_ihost(dev);
 	struct isci_remote_device *idev;
-	int ret, hard_reset = 1;
 	unsigned long flags;
-
-	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP))
-		hard_reset = 0;
+	int ret;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 	idev = isci_lookup_device(dev);
@@ -1674,7 +1668,7 @@ int isci_bus_reset_handler(struct scsi_cmnd *cmd)
 		goto out;
 	}
 
-	ret = isci_reset_device(ihost, idev, hard_reset);
+	ret = isci_reset_device(ihost, idev);
  out:
 	isci_put_device(idev);
 	return ret;
