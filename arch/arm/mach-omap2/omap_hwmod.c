@@ -1704,9 +1704,6 @@ static int __init _populate_mpu_rt_base(struct omap_hwmod *oh, void *data)
 		return 0;
 
 	oh->_mpu_rt_va = _find_mpu_rt_base(oh, oh->_mpu_port_index);
-	if (!oh->_mpu_rt_va)
-		pr_warning("omap_hwmod: %s found no _mpu_rt_va for %s\n",
-				__func__, oh->name);
 
 	return 0;
 }
