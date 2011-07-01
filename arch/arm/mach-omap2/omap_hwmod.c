@@ -944,6 +944,8 @@ static int _init_clocks(struct omap_hwmod *oh, void *data)
 
 	if (!ret)
 		oh->_state = _HWMOD_STATE_CLKS_INITED;
+	else
+		pr_warning("omap_hwmod: %s: cannot _init_clocks\n", oh->name);
 
 	return ret;
 }
