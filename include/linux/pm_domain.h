@@ -11,6 +11,9 @@
 
 #include <linux/device.h>
 
+#define GPD_IN_SUSPEND	1
+#define GPD_POWER_OFF	2
+
 struct dev_power_governor {
 	bool (*power_down_ok)(struct dev_pm_domain *domain);
 };
@@ -27,11 +30,20 @@ struct generic_pm_domain {
 	unsigned int in_progress;	/* Number of devices being suspended now */
 	unsigned int sd_count;	/* Number of subdomains with power "on" */
 	bool power_is_off;	/* Whether or not power has been removed */
+	unsigned int device_count;	/* Number of devices */
+	unsigned int suspended_count;	/* System suspend device counter */
+	unsigned int prepared_count;	/* Suspend counter of prepared devices */
+	bool suspend_power_off;	/* Power status before system suspend */
 	int (*power_off)(struct generic_pm_domain *domain);
 	int (*power_on)(struct generic_pm_domain *domain);
 	int (*start_device)(struct device *dev);
 	int (*stop_device)(struct device *dev);
 };
+
+static inline struct generic_pm_domain *pd_to_genpd(struct dev_pm_domain *pd)
+{
+	return container_of(pd, struct generic_pm_domain, domain);
+}
 
 struct dev_list_entry {
 	struct list_head node;
