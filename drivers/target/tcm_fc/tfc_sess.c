@@ -229,7 +229,7 @@ static struct ft_sess *ft_sess_create(struct ft_tport *tport, u32 port_id,
 		return NULL;
 
 	sess->se_sess = transport_init_session();
-	if (!sess->se_sess) {
+	if (IS_ERR(sess->se_sess)) {
 		kfree(sess);
 		return NULL;
 	}
@@ -332,7 +332,7 @@ void ft_sess_close(struct se_session *se_sess)
 	lport = sess->tport->lport;
 	port_id = sess->port_id;
 	if (port_id == -1) {
-		mutex_lock(&ft_lport_lock);
+		mutex_unlock(&ft_lport_lock);
 		return;
 	}
 	FT_SESS_DBG("port_id %x\n", port_id);

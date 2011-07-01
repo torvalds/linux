@@ -177,7 +177,7 @@ icmpv6_error_message(struct net *net, struct nf_conn *tmpl,
 	/* Update skb to refer to this connection */
 	skb->nfct = &nf_ct_tuplehash_to_ctrack(h)->ct_general;
 	skb->nfctinfo = *ctinfo;
-	return -NF_ACCEPT;
+	return NF_ACCEPT;
 }
 
 static int

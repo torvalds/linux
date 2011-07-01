@@ -222,19 +222,19 @@ static void smsc_ircc_set_transceiver_for_speed(struct smsc_ircc_cb *self, u32 s
 static void smsc_ircc_sir_wait_hw_transmitter_finish(struct smsc_ircc_cb *self);
 
 /* Probing */
-static int smsc_ircc_look_for_chips(void);
-static const struct smsc_chip * smsc_ircc_probe(unsigned short cfg_base, u8 reg, const struct smsc_chip *chip, char *type);
-static int smsc_superio_flat(const struct smsc_chip *chips, unsigned short cfg_base, char *type);
-static int smsc_superio_paged(const struct smsc_chip *chips, unsigned short cfg_base, char *type);
-static int smsc_superio_fdc(unsigned short cfg_base);
-static int smsc_superio_lpc(unsigned short cfg_base);
+static int __init smsc_ircc_look_for_chips(void);
+static const struct smsc_chip * __init smsc_ircc_probe(unsigned short cfg_base, u8 reg, const struct smsc_chip *chip, char *type);
+static int __init smsc_superio_flat(const struct smsc_chip *chips, unsigned short cfg_base, char *type);
+static int __init smsc_superio_paged(const struct smsc_chip *chips, unsigned short cfg_base, char *type);
+static int __init smsc_superio_fdc(unsigned short cfg_base);
+static int __init smsc_superio_lpc(unsigned short cfg_base);
 #ifdef CONFIG_PCI
-static int preconfigure_smsc_chip(struct smsc_ircc_subsystem_configuration *conf);
-static int preconfigure_through_82801(struct pci_dev *dev, struct smsc_ircc_subsystem_configuration *conf);
-static void preconfigure_ali_port(struct pci_dev *dev,
+static int __init preconfigure_smsc_chip(struct smsc_ircc_subsystem_configuration *conf);
+static int __init preconfigure_through_82801(struct pci_dev *dev, struct smsc_ircc_subsystem_configuration *conf);
+static void __init preconfigure_ali_port(struct pci_dev *dev,
 					 unsigned short port);
-static int preconfigure_through_ali(struct pci_dev *dev, struct smsc_ircc_subsystem_configuration *conf);
-static int smsc_ircc_preconfigure_subsystems(unsigned short ircc_cfg,
+static int __init preconfigure_through_ali(struct pci_dev *dev, struct smsc_ircc_subsystem_configuration *conf);
+static int __init smsc_ircc_preconfigure_subsystems(unsigned short ircc_cfg,
 						    unsigned short ircc_fir,
 						    unsigned short ircc_sir,
 						    unsigned char ircc_dma,
@@ -366,7 +366,7 @@ static inline void register_bank(int iobase, int bank)
 }
 
 /* PNP hotplug support */
-static const struct pnp_device_id smsc_ircc_pnp_table[] __devinitconst = {
+static const struct pnp_device_id smsc_ircc_pnp_table[] = {
 	{ .id = "SMCf010", .driver_data = 0 },
 	/* and presumably others */
 	{ }
@@ -515,7 +515,7 @@ static const struct net_device_ops smsc_ircc_netdev_ops = {
  *    Try to open driver instance
  *
  */
-static int __devinit smsc_ircc_open(unsigned int fir_base, unsigned int sir_base, u8 dma, u8 irq)
+static int __init smsc_ircc_open(unsigned int fir_base, unsigned int sir_base, u8 dma, u8 irq)
 {
 	struct smsc_ircc_cb *self;
 	struct net_device *dev;
@@ -2273,7 +2273,7 @@ static int __init smsc_superio_paged(const struct smsc_chip *chips, unsigned sho
 }
 
 
-static int __devinit smsc_access(unsigned short cfg_base, unsigned char reg)
+static int __init smsc_access(unsigned short cfg_base, unsigned char reg)
 {
 	IRDA_DEBUG(1, "%s\n", __func__);
 
@@ -2281,7 +2281,7 @@ static int __devinit smsc_access(unsigned short cfg_base, unsigned char reg)
 	return inb(cfg_base) != reg ? -1 : 0;
 }
 
-static const struct smsc_chip * __devinit smsc_ircc_probe(unsigned short cfg_base, u8 reg, const struct smsc_chip *chip, char *type)
+static const struct smsc_chip * __init smsc_ircc_probe(unsigned short cfg_base, u8 reg, const struct smsc_chip *chip, char *type)
 {
 	u8 devid, xdevid, rev;
 
@@ -2406,7 +2406,7 @@ static int __init smsc_superio_lpc(unsigned short cfg_base)
 #ifdef CONFIG_PCI
 #define PCIID_VENDOR_INTEL 0x8086
 #define PCIID_VENDOR_ALI 0x10b9
-static const struct smsc_ircc_subsystem_configuration subsystem_configurations[] __devinitconst = {
+static struct smsc_ircc_subsystem_configuration subsystem_configurations[] __initdata = {
 	/*
 	 * Subsystems needing entries:
 	 * 0x10b9:0x1533 0x103c:0x0850 HP nx9010 family
@@ -2532,7 +2532,7 @@ static const struct smsc_ircc_subsystem_configuration subsystem_configurations[]
  * (FIR port, SIR port, FIR DMA, FIR IRQ)
  * through the chip configuration port.
  */
-static int __devinit preconfigure_smsc_chip(struct
+static int __init preconfigure_smsc_chip(struct
 					 smsc_ircc_subsystem_configuration
 					 *conf)
 {
@@ -2633,7 +2633,7 @@ static int __devinit preconfigure_smsc_chip(struct
  * or Intel 82801DB/DBL (ICH4/ICH4-L) LPC Interface Bridge.
  * They all work the same way!
  */
-static int __devinit preconfigure_through_82801(struct pci_dev *dev,
+static int __init preconfigure_through_82801(struct pci_dev *dev,
 					     struct
 					     smsc_ircc_subsystem_configuration
 					     *conf)
@@ -2786,7 +2786,7 @@ static int __devinit preconfigure_through_82801(struct pci_dev *dev,
  * This is based on reverse-engineering since ALi does not
  * provide any data sheet for the 1533 chip.
  */
-static void __devinit preconfigure_ali_port(struct pci_dev *dev,
+static void __init preconfigure_ali_port(struct pci_dev *dev,
 					 unsigned short port)
 {
 	unsigned char reg;
@@ -2824,7 +2824,7 @@ static void __devinit preconfigure_ali_port(struct pci_dev *dev,
 	IRDA_MESSAGE("Activated ALi 1533 ISA bridge port 0x%04x.\n", port);
 }
 
-static int __devinit preconfigure_through_ali(struct pci_dev *dev,
+static int __init preconfigure_through_ali(struct pci_dev *dev,
 					   struct
 					   smsc_ircc_subsystem_configuration
 					   *conf)
@@ -2837,7 +2837,7 @@ static int __devinit preconfigure_through_ali(struct pci_dev *dev,
 	return preconfigure_smsc_chip(conf);
 }
 
-static int __devinit smsc_ircc_preconfigure_subsystems(unsigned short ircc_cfg,
+static int __init smsc_ircc_preconfigure_subsystems(unsigned short ircc_cfg,
 						    unsigned short ircc_fir,
 						    unsigned short ircc_sir,
 						    unsigned char ircc_dma,
@@ -2849,7 +2849,7 @@ static int __devinit smsc_ircc_preconfigure_subsystems(unsigned short ircc_cfg,
 	int ret = 0;
 
 	for_each_pci_dev(dev) {
-		const struct smsc_ircc_subsystem_configuration *conf;
+		struct smsc_ircc_subsystem_configuration *conf;
 
 		/*
 		 * Cache the subsystem vendor/device:

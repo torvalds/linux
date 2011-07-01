@@ -474,16 +474,10 @@ struct cgroup_subsys devices_subsys = {
 	.subsys_id = devices_subsys_id,
 };
 
-int devcgroup_inode_permission(struct inode *inode, int mask)
+int __devcgroup_inode_permission(struct inode *inode, int mask)
 {
 	struct dev_cgroup *dev_cgroup;
 	struct dev_whitelist_item *wh;
-
-	dev_t device = inode->i_rdev;
-	if (!device)
-		return 0;
-	if (!S_ISBLK(inode->i_mode) && !S_ISCHR(inode->i_mode))
-		return 0;
 
 	rcu_read_lock();
 

@@ -185,7 +185,7 @@ struct cfq_group {
 	int nr_cfqq;
 
 	/*
-	 * Per group busy queus average. Useful for workload slice calc. We
+	 * Per group busy queues average. Useful for workload slice calc. We
 	 * create the array for each prio class but at run time it is used
 	 * only for RT and BE class and slot for IDLE class remains unused.
 	 * This is primarily done to avoid confusion and a gcc warning.
@@ -369,16 +369,16 @@ CFQ_CFQQ_FNS(wait_busy);
 #define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	\
 	blk_add_trace_msg((cfqd)->queue, "cfq%d%c %s " fmt, (cfqq)->pid, \
 			cfq_cfqq_sync((cfqq)) ? 'S' : 'A', \
-			blkg_path(&(cfqq)->cfqg->blkg), ##args);
+			blkg_path(&(cfqq)->cfqg->blkg), ##args)
 
 #define cfq_log_cfqg(cfqd, cfqg, fmt, args...)				\
 	blk_add_trace_msg((cfqd)->queue, "%s " fmt,			\
-				blkg_path(&(cfqg)->blkg), ##args);      \
+				blkg_path(&(cfqg)->blkg), ##args)       \
 
 #else
 #define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	\
 	blk_add_trace_msg((cfqd)->queue, "cfq%d " fmt, (cfqq)->pid, ##args)
-#define cfq_log_cfqg(cfqd, cfqg, fmt, args...)		do {} while (0);
+#define cfq_log_cfqg(cfqd, cfqg, fmt, args...)		do {} while (0)
 #endif
 #define cfq_log(cfqd, fmt, args...)	\
 	blk_add_trace_msg((cfqd)->queue, "cfq " fmt, ##args)
@@ -2768,11 +2768,14 @@ static void __cfq_exit_single_io_context(struct cfq_data *cfqd,
 	smp_wmb();
 	cic->key = cfqd_dead_key(cfqd);
 
+	rcu_read_lock();
 	if (rcu_dereference(ioc->ioc_data) == cic) {
+		rcu_read_unlock();
 		spin_lock(&ioc->lock);
 		rcu_assign_pointer(ioc->ioc_data, NULL);
 		spin_unlock(&ioc->lock);
-	}
+	} else
+		rcu_read_unlock();
 
 	if (cic->cfqq[BLK_RW_ASYNC]) {
 		cfq_exit_cfqq(cfqd, cic->cfqq[BLK_RW_ASYNC]);
@@ -3079,7 +3082,8 @@ cfq_drop_dead_cic(struct cfq_data *cfqd, struct io_context *ioc,
 
 	spin_lock_irqsave(&ioc->lock, flags);
 
-	BUG_ON(ioc->ioc_data == cic);
+	BUG_ON(rcu_dereference_check(ioc->ioc_data,
+		lockdep_is_held(&ioc->lock)) == cic);
 
 	radix_tree_delete(&ioc->radix_root, cfqd->cic_index);
 	hlist_del_rcu(&cic->cic_list);
@@ -3785,9 +3789,6 @@ new_queue:
 	return 0;
 
 queue_fail:
-	if (cic)
-		put_io_context(cic->ioc);
-
 	cfq_schedule_dispatch(cfqd);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 	cfq_log(cfqd, "set_request fail");

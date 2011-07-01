@@ -536,12 +536,7 @@ static int w_make_resync_request(struct drbd_conf *mdev,
 		return 1;
 	}
 
-	/* starting with drbd 8.3.8, we can handle multi-bio EEs,
-	 * if it should be necessary */
-	max_bio_size =
-		mdev->agreed_pro_version < 94 ? queue_max_hw_sectors(mdev->rq_queue) << 9 :
-		mdev->agreed_pro_version < 95 ?	DRBD_MAX_SIZE_H80_PACKET : DRBD_MAX_BIO_SIZE;
-
+	max_bio_size = queue_max_hw_sectors(mdev->rq_queue) << 9;
 	number = drbd_rs_number_requests(mdev);
 	if (number == 0)
 		goto requeue;

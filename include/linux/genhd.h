@@ -100,6 +100,7 @@ struct hd_struct {
 	sector_t start_sect;
 	sector_t nr_sects;
 	sector_t alignment_offset;
+	unsigned int discard_alignment;
 	struct device __dev;
 	struct kobject *holder_dir;
 	int policy, partno;

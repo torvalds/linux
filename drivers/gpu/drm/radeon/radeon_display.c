@@ -264,6 +264,8 @@ static void radeon_unpin_work_func(struct work_struct *__work)
 		radeon_bo_unreserve(work->old_rbo);
 	} else
 		DRM_ERROR("failed to reserve buffer after flip\n");
+
+	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
 	kfree(work);
 }
 
@@ -371,6 +373,8 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	new_radeon_fb = to_radeon_framebuffer(fb);
 	/* schedule unpin of the old buffer */
 	obj = old_radeon_fb->obj;
+	/* take a reference to the old object */
+	drm_gem_object_reference(obj);
 	rbo = gem_to_radeon_bo(obj);
 	work->old_rbo = rbo;
 	INIT_WORK(&work->work, radeon_unpin_work_func);
@@ -378,12 +382,9 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	/* We borrow the event spin lock for protecting unpin_work */
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (radeon_crtc->unpin_work) {
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-		kfree(work);
-		radeon_fence_unref(&fence);
-
 		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
-		return -EBUSY;
+		r = -EBUSY;
+		goto unlock_free;
 	}
 	radeon_crtc->unpin_work = work;
 	radeon_crtc->deferred_flip_completion = 0;
@@ -497,6 +498,8 @@ pflip_cleanup1:
 pflip_cleanup:
 	spin_lock_irqsave(&dev->event_lock, flags);
 	radeon_crtc->unpin_work = NULL;
+unlock_free:
+	drm_gem_object_unreference_unlocked(old_radeon_fb->obj);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 	radeon_fence_unref(&fence);
 	kfree(work);

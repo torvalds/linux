@@ -79,7 +79,7 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	md_io.error = 0;
 
 	if ((rw & WRITE) && !test_bit(MD_NO_FUA, &mdev->flags))
-		rw |= REQ_FUA;
+		rw |= REQ_FUA | REQ_FLUSH;
 	rw |= REQ_SYNC;
 
 	bio = bio_alloc(GFP_NOIO, 1);

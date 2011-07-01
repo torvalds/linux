@@ -191,7 +191,7 @@ static inline bool tx_active(struct i2s_dai *i2s)
 	if (!i2s)
 		return false;
 
-	active = readl(i2s->addr + I2SMOD);
+	active = readl(i2s->addr + I2SCON);
 
 	if (is_secondary(i2s))
 		active &= CON_TXSDMA_ACTIVE;
@@ -223,7 +223,7 @@ static inline bool rx_active(struct i2s_dai *i2s)
 	if (!i2s)
 		return false;
 
-	active = readl(i2s->addr + I2SMOD) & CON_RXDMA_ACTIVE;
+	active = readl(i2s->addr + I2SCON) & CON_RXDMA_ACTIVE;
 
 	return active ? true : false;
 }

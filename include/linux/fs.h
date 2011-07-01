@@ -208,6 +208,7 @@ struct inodes_stat_t {
 #define MS_KERNMOUNT	(1<<22) /* this is a kern_mount call */
 #define MS_I_VERSION	(1<<23) /* Update inode I_version field */
 #define MS_STRICTATIME	(1<<24) /* Always perform atime updates */
+#define MS_NOSEC	(1<<28)
 #define MS_BORN		(1<<29)
 #define MS_ACTIVE	(1<<30)
 #define MS_NOUSER	(1<<31)
@@ -743,9 +744,13 @@ struct inode {
 
 	spinlock_t		i_lock;	/* i_blocks, i_bytes, maybe i_size */
 	unsigned int		i_flags;
+	unsigned long		i_state;
+#ifdef CONFIG_SECURITY
+	void			*i_security;
+#endif
 	struct mutex		i_mutex;
 
-	unsigned long		i_state;
+
 	unsigned long		dirtied_when;	/* jiffies of first dirtying */
 
 	struct hlist_node	i_hash;
@@ -797,9 +802,6 @@ struct inode {
 	atomic_t		i_readcount; /* struct files open RO */
 #endif
 	atomic_t		i_writecount;
-#ifdef CONFIG_SECURITY
-	void			*i_security;
-#endif
 #ifdef CONFIG_FS_POSIX_ACL
 	struct posix_acl	*i_acl;
 	struct posix_acl	*i_default_acl;
@@ -2591,7 +2593,7 @@ static inline int is_sxid(mode_t mode)
 
 static inline void inode_has_no_xattr(struct inode *inode)
 {
-	if (!is_sxid(inode->i_mode))
+	if (!is_sxid(inode->i_mode) && (inode->i_sb->s_flags & MS_NOSEC))
 		inode->i_flags |= S_NOSEC;
 }
 

@@ -856,10 +856,10 @@ failed_platform_init:
 		dma_free_writecombine(&pdev->dev,fbi->map_size,fbi->map_cpu,
 			fbi->map_dma);
 failed_map:
-	clk_put(fbi->clk);
-failed_getclock:
 	iounmap(fbi->regs);
 failed_ioremap:
+	clk_put(fbi->clk);
+failed_getclock:
 	release_mem_region(res->start, resource_size(res));
 failed_req:
 	kfree(info->pseudo_palette);

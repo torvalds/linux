@@ -112,9 +112,9 @@ static inline void anon_vma_free(struct anon_vma *anon_vma)
 	kmem_cache_free(anon_vma_cachep, anon_vma);
 }
 
-static inline struct anon_vma_chain *anon_vma_chain_alloc(void)
+static inline struct anon_vma_chain *anon_vma_chain_alloc(gfp_t gfp)
 {
-	return kmem_cache_alloc(anon_vma_chain_cachep, GFP_KERNEL);
+	return kmem_cache_alloc(anon_vma_chain_cachep, gfp);
 }
 
 static void anon_vma_chain_free(struct anon_vma_chain *anon_vma_chain)
@@ -159,7 +159,7 @@ int anon_vma_prepare(struct vm_area_struct *vma)
 		struct mm_struct *mm = vma->vm_mm;
 		struct anon_vma *allocated;
 
-		avc = anon_vma_chain_alloc();
+		avc = anon_vma_chain_alloc(GFP_KERNEL);
 		if (!avc)
 			goto out_enomem;
 
@@ -200,6 +200,32 @@ int anon_vma_prepare(struct vm_area_struct *vma)
 	return -ENOMEM;
 }
 
+/*
+ * This is a useful helper function for locking the anon_vma root as
+ * we traverse the vma->anon_vma_chain, looping over anon_vma's that
+ * have the same vma.
+ *
+ * Such anon_vma's should have the same root, so you'd expect to see
+ * just a single mutex_lock for the whole traversal.
+ */
+static inline struct anon_vma *lock_anon_vma_root(struct anon_vma *root, struct anon_vma *anon_vma)
+{
+	struct anon_vma *new_root = anon_vma->root;
+	if (new_root != root) {
+		if (WARN_ON_ONCE(root))
+			mutex_unlock(&root->mutex);
+		root = new_root;
+		mutex_lock(&root->mutex);
+	}
+	return root;
+}
+
+static inline void unlock_anon_vma_root(struct anon_vma *root)
+{
+	if (root)
+		mutex_unlock(&root->mutex);
+}
+
 static void anon_vma_chain_link(struct vm_area_struct *vma,
 				struct anon_vma_chain *avc,
 				struct anon_vma *anon_vma)
@@ -208,13 +234,11 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
 	avc->anon_vma = anon_vma;
 	list_add(&avc->same_vma, &vma->anon_vma_chain);
 
-	anon_vma_lock(anon_vma);
 	/*
 	 * It's critical to add new vmas to the tail of the anon_vma,
 	 * see comment in huge_memory.c:__split_huge_page().
 	 */
 	list_add_tail(&avc->same_anon_vma, &anon_vma->head);
-	anon_vma_unlock(anon_vma);
 }
 
 /*
@@ -224,13 +248,24 @@ static void anon_vma_chain_link(struct vm_area_struct *vma,
 int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
 {
 	struct anon_vma_chain *avc, *pavc;
+	struct anon_vma *root = NULL;
 
 	list_for_each_entry_reverse(pavc, &src->anon_vma_chain, same_vma) {
-		avc = anon_vma_chain_alloc();
-		if (!avc)
-			goto enomem_failure;
-		anon_vma_chain_link(dst, avc, pavc->anon_vma);
+		struct anon_vma *anon_vma;
+
+		avc = anon_vma_chain_alloc(GFP_NOWAIT | __GFP_NOWARN);
+		if (unlikely(!avc)) {
+			unlock_anon_vma_root(root);
+			root = NULL;
+			avc = anon_vma_chain_alloc(GFP_KERNEL);
+			if (!avc)
+				goto enomem_failure;
+		}
+		anon_vma = pavc->anon_vma;
+		root = lock_anon_vma_root(root, anon_vma);
+		anon_vma_chain_link(dst, avc, anon_vma);
 	}
+	unlock_anon_vma_root(root);
 	return 0;
 
  enomem_failure:
@@ -263,7 +298,7 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 	anon_vma = anon_vma_alloc();
 	if (!anon_vma)
 		goto out_error;
-	avc = anon_vma_chain_alloc();
+	avc = anon_vma_chain_alloc(GFP_KERNEL);
 	if (!avc)
 		goto out_error_free_anon_vma;
 
@@ -280,7 +315,9 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 	get_anon_vma(anon_vma->root);
 	/* Mark this anon_vma as the one where our new (COWed) pages go. */
 	vma->anon_vma = anon_vma;
+	anon_vma_lock(anon_vma);
 	anon_vma_chain_link(vma, avc, anon_vma);
+	anon_vma_unlock(anon_vma);
 
 	return 0;
 
@@ -291,36 +328,43 @@ int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 	return -ENOMEM;
 }
 
-static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
-{
-	struct anon_vma *anon_vma = anon_vma_chain->anon_vma;
-	int empty;
-
-	/* If anon_vma_fork fails, we can get an empty anon_vma_chain. */
-	if (!anon_vma)
-		return;
-
-	anon_vma_lock(anon_vma);
-	list_del(&anon_vma_chain->same_anon_vma);
-
-	/* We must garbage collect the anon_vma if it's empty */
-	empty = list_empty(&anon_vma->head);
-	anon_vma_unlock(anon_vma);
-
-	if (empty)
-		put_anon_vma(anon_vma);
-}
-
 void unlink_anon_vmas(struct vm_area_struct *vma)
 {
 	struct anon_vma_chain *avc, *next;
+	struct anon_vma *root = NULL;
 
 	/*
 	 * Unlink each anon_vma chained to the VMA.  This list is ordered
 	 * from newest to oldest, ensuring the root anon_vma gets freed last.
 	 */
 	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
-		anon_vma_unlink(avc);
+		struct anon_vma *anon_vma = avc->anon_vma;
+
+		root = lock_anon_vma_root(root, anon_vma);
+		list_del(&avc->same_anon_vma);
+
+		/*
+		 * Leave empty anon_vmas on the list - we'll need
+		 * to free them outside the lock.
+		 */
+		if (list_empty(&anon_vma->head))
+			continue;
+
+		list_del(&avc->same_vma);
+		anon_vma_chain_free(avc);
+	}
+	unlock_anon_vma_root(root);
+
+	/*
+	 * Iterate the list once more, it now only contains empty and unlinked
+	 * anon_vmas, destroy them. Could not do before due to __put_anon_vma()
+	 * needing to acquire the anon_vma->root->mutex.
+	 */
+	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
+		struct anon_vma *anon_vma = avc->anon_vma;
+
+		put_anon_vma(anon_vma);
+
 		list_del(&avc->same_vma);
 		anon_vma_chain_free(avc);
 	}

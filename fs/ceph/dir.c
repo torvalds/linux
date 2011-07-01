@@ -308,7 +308,8 @@ more:
 		req = ceph_mdsc_create_request(mdsc, op, USE_AUTH_MDS);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
-		req->r_inode = igrab(inode);
+		req->r_inode = inode;
+		ihold(inode);
 		req->r_dentry = dget(filp->f_dentry);
 		/* hints to request -> mds selection code */
 		req->r_direct_mode = USE_AUTH_MDS;
@@ -787,10 +788,12 @@ static int ceph_link(struct dentry *old_dentry, struct inode *dir,
 	req->r_dentry_drop = CEPH_CAP_FILE_SHARED;
 	req->r_dentry_unless = CEPH_CAP_FILE_EXCL;
 	err = ceph_mdsc_do_request(mdsc, dir, req);
-	if (err)
+	if (err) {
 		d_drop(dentry);
-	else if (!req->r_reply_info.head->is_dentry)
-		d_instantiate(dentry, igrab(old_dentry->d_inode));
+	} else if (!req->r_reply_info.head->is_dentry) {
+		ihold(old_dentry->d_inode);
+		d_instantiate(dentry, old_dentry->d_inode);
+	}
 	ceph_mdsc_put_request(req);
 	return err;
 }

@@ -26,67 +26,60 @@
 #include <linux/swap.h>
 #include <asm/processor.h>
 #include <asm/pgalloc.h>
-#include <asm/smp.h>
 #include <asm/tlbflush.h>
 
 struct mmu_gather {
 	struct mm_struct *mm;
+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+	struct mmu_table_batch *batch;
+#endif
 	unsigned int fullmm;
-	unsigned int nr_ptes;
-	unsigned int nr_pxds;
-	unsigned int max;
-	void **array;
-	void *local[8];
+	unsigned int need_flush;
 };
 
-static inline void __tlb_alloc_page(struct mmu_gather *tlb)
-{
-	unsigned long addr = __get_free_pages(GFP_NOWAIT | __GFP_NOWARN, 0);
+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+struct mmu_table_batch {
+	struct rcu_head		rcu;
+	unsigned int		nr;
+	void			*tables[0];
+};
 
-	if (addr) {
-		tlb->array = (void *) addr;
-		tlb->max = PAGE_SIZE / sizeof(void *);
-	}
-}
+#define MAX_TABLE_BATCH		\
+	((PAGE_SIZE - sizeof(struct mmu_table_batch)) / sizeof(void *))
+
+extern void tlb_table_flush(struct mmu_gather *tlb);
+extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
+#endif
 
 static inline void tlb_gather_mmu(struct mmu_gather *tlb,
 				  struct mm_struct *mm,
 				  unsigned int full_mm_flush)
 {
 	tlb->mm = mm;
-	tlb->max = ARRAY_SIZE(tlb->local);
-	tlb->array = tlb->local;
 	tlb->fullmm = full_mm_flush;
+	tlb->need_flush = 0;
+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+	tlb->batch = NULL;
+#endif
 	if (tlb->fullmm)
 		__tlb_flush_mm(mm);
-	else
-		__tlb_alloc_page(tlb);
-	tlb->nr_ptes = 0;
-	tlb->nr_pxds = tlb->max;
 }
 
 static inline void tlb_flush_mmu(struct mmu_gather *tlb)
 {
-	if (!tlb->fullmm && (tlb->nr_ptes > 0 || tlb->nr_pxds < tlb->max))
-		__tlb_flush_mm(tlb->mm);
-	while (tlb->nr_ptes > 0)
-		page_table_free_rcu(tlb->mm, tlb->array[--tlb->nr_ptes]);
-	while (tlb->nr_pxds < tlb->max)
-		crst_table_free_rcu(tlb->mm, tlb->array[tlb->nr_pxds++]);
+	if (!tlb->need_flush)
+		return;
+	tlb->need_flush = 0;
+	__tlb_flush_mm(tlb->mm);
+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+	tlb_table_flush(tlb);
+#endif
 }
 
 static inline void tlb_finish_mmu(struct mmu_gather *tlb,
 				  unsigned long start, unsigned long end)
 {
 	tlb_flush_mmu(tlb);
-
-	rcu_table_freelist_finish();
-
-	/* keep the page table cache within bounds */
-	check_pgt_cache();
-
-	if (tlb->array != tlb->local)
-		free_pages((unsigned long) tlb->array, 0);
 }
 
 /*
@@ -112,12 +105,11 @@ static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 static inline void pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 				unsigned long address)
 {
-	if (!tlb->fullmm) {
-		tlb->array[tlb->nr_ptes++] = pte;
-		if (tlb->nr_ptes >= tlb->nr_pxds)
-			tlb_flush_mmu(tlb);
-	} else
-		page_table_free(tlb->mm, (unsigned long *) pte);
+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+	if (!tlb->fullmm)
+		return page_table_free_rcu(tlb, (unsigned long *) pte);
+#endif
+	page_table_free(tlb->mm, (unsigned long *) pte);
 }
 
 /*
@@ -133,12 +125,11 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
 #ifdef __s390x__
 	if (tlb->mm->context.asce_limit <= (1UL << 31))
 		return;
-	if (!tlb->fullmm) {
-		tlb->array[--tlb->nr_pxds] = pmd;
-		if (tlb->nr_ptes >= tlb->nr_pxds)
-			tlb_flush_mmu(tlb);
-	} else
-		crst_table_free(tlb->mm, (unsigned long *) pmd);
+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+	if (!tlb->fullmm)
+		return tlb_remove_table(tlb, pmd);
+#endif
+	crst_table_free(tlb->mm, (unsigned long *) pmd);
 #endif
 }
 
@@ -155,12 +146,11 @@ static inline void pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
 #ifdef __s390x__
 	if (tlb->mm->context.asce_limit <= (1UL << 42))
 		return;
-	if (!tlb->fullmm) {
-		tlb->array[--tlb->nr_pxds] = pud;
-		if (tlb->nr_ptes >= tlb->nr_pxds)
-			tlb_flush_mmu(tlb);
-	} else
-		crst_table_free(tlb->mm, (unsigned long *) pud);
+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+	if (!tlb->fullmm)
+		return tlb_remove_table(tlb, pud);
+#endif
+	crst_table_free(tlb->mm, (unsigned long *) pud);
 #endif
 }
 

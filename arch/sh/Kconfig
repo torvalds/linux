@@ -161,7 +161,7 @@ config ARCH_HAS_CPU_IDLE_WAIT
 
 config NO_IOPORT
 	def_bool !PCI
-	depends on !SH_CAYMAN && !SH_SH4202_MICRODEV
+	depends on !SH_CAYMAN && !SH_SH4202_MICRODEV && !SH_SHMIN
 
 config IO_TRAPPED
 	bool

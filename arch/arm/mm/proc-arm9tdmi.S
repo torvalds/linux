@@ -116,7 +116,7 @@ __arm9tdmi_proc_info:
 		.long	0
 		.long	0
 		.long	v4_cache_fns
-		.size	__arm9tdmi_proc_info, . - __arm9dmi_proc_info
+		.size	__arm9tdmi_proc_info, . - __arm9tdmi_proc_info
 
 		.type	__p2001_proc_info, #object
 __p2001_proc_info:
