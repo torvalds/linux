@@ -720,23 +720,20 @@ static int econet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg
 	struct sock *sk = sock->sk;
 	void __user *argp = (void __user *)arg;
 
-	switch(cmd) {
-		case SIOCGSTAMP:
-			return sock_get_timestamp(sk, argp);
+	switch (cmd) {
+	case SIOCGSTAMP:
+		return sock_get_timestamp(sk, argp);
 
-		case SIOCGSTAMPNS:
-			return sock_get_timestampns(sk, argp);
+	case SIOCGSTAMPNS:
+		return sock_get_timestampns(sk, argp);
 
-		case SIOCSIFADDR:
-		case SIOCGIFADDR:
-			return ec_dev_ioctl(sock, cmd, argp);
-			break;
+	case SIOCSIFADDR:
+	case SIOCGIFADDR:
+		return ec_dev_ioctl(sock, cmd, argp);
 
-		default:
-			return -ENOIOCTLCMD;
 	}
-	/*NOTREACHED*/
-	return 0;
+
+	return -ENOIOCTLCMD;
 }
 
 static const struct net_proto_family econet_family_ops = {
