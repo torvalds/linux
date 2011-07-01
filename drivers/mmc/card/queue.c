@@ -52,6 +52,7 @@ static int mmc_queue_thread(void *d)
 	down(&mq->thread_sem);
 	do {
 		struct request *req = NULL;
+		struct mmc_queue_req *tmp;
 
 		spin_lock_irq(q->queue_lock);
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -59,7 +60,10 @@ static int mmc_queue_thread(void *d)
 		mq->mqrq_cur->req = req;
 		spin_unlock_irq(q->queue_lock);
 
-		if (!req) {
+		if (req || mq->mqrq_prev->req) {
+			set_current_state(TASK_RUNNING);
+			mq->issue_fn(mq, req);
+		} else {
 			if (kthread_should_stop()) {
 				set_current_state(TASK_RUNNING);
 				break;
@@ -67,11 +71,14 @@ static int mmc_queue_thread(void *d)
 			up(&mq->thread_sem);
 			schedule();
 			down(&mq->thread_sem);
-			continue;
 		}
-		set_current_state(TASK_RUNNING);
 
-		mq->issue_fn(mq, req);
+		/* Current request becomes previous request and vice versa. */
+		mq->mqrq_prev->brq.mrq.data = NULL;
+		mq->mqrq_prev->req = NULL;
+		tmp = mq->mqrq_prev;
+		mq->mqrq_prev = mq->mqrq_cur;
+		mq->mqrq_cur = tmp;
 	} while (1);
 	up(&mq->thread_sem);
 
@@ -97,7 +104,7 @@ static void mmc_request(struct request_queue *q)
 		return;
 	}
 
-	if (!mq->mqrq_cur->req)
+	if (!mq->mqrq_cur->req && !mq->mqrq_prev->req)
 		wake_up_process(mq->thread);
 }
 

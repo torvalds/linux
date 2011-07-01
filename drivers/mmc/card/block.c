@@ -822,12 +822,14 @@ static inline void mmc_apply_rel_rw(struct mmc_blk_request *brq,
 	 R1_CC_ERROR |		/* Card controller error */		\
 	 R1_ERROR)		/* General/unknown error */
 
-int mmc_blk_err_check(struct mmc_blk_request *brq,
-		      struct request *req,
-		      struct mmc_card *card,
-		      struct mmc_blk_data *md)
+static int mmc_blk_err_check(struct mmc_card *card,
+			     struct mmc_async_req *areq)
 {
-	int ret = MMC_BLK_SUCCESS;
+	enum mmc_blk_status ret = MMC_BLK_SUCCESS;
+	struct mmc_queue_req *mq_mrq = container_of(areq, struct mmc_queue_req,
+						    mmc_active);
+	struct mmc_blk_request *brq = &mq_mrq->brq;
+	struct request *req = mq_mrq->req;
 
 	/*
 	 * sbc.error indicates a problem with the set block count
@@ -1038,24 +1040,41 @@ static void mmc_blk_rw_rq_prep(struct mmc_queue_req *mqrq,
 		brq->data.sg_len = i;
 	}
 
+	mqrq->mmc_active.mrq = &brq->mrq;
+	mqrq->mmc_active.err_check = mmc_blk_err_check;
+
 	mmc_queue_bounce_pre(mqrq);
 }
 
-static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
+static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 {
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
 	struct mmc_blk_request *brq = &mq->mqrq_cur->brq;
 	int ret = 1, disable_multi = 0, retry = 0;
 	enum mmc_blk_status status;
+	struct mmc_queue_req *mq_rq;
+	struct request *req;
+	struct mmc_async_req *areq;
+
+	if (!rqc && !mq->mqrq_prev->req)
+		return 0;
 
 	do {
-		mmc_blk_rw_rq_prep(mq->mqrq_cur, card, disable_multi, mq);
-		mmc_wait_for_req(card->host, &brq->mrq);
+		if (rqc) {
+			mmc_blk_rw_rq_prep(mq->mqrq_cur, card, 0, mq);
+			areq = &mq->mqrq_cur->mmc_active;
+		} else
+			areq = NULL;
+		areq = mmc_start_req(card->host, areq, (int *) &status);
+		if (!areq)
+			return 0;
 
-		mmc_queue_bounce_post(mq->mqrq_cur);
+		mq_rq = container_of(areq, struct mmc_queue_req, mmc_active);
+		brq = &mq_rq->brq;
+		req = mq_rq->req;
+		mmc_queue_bounce_post(mq_rq);
 
-		status = mmc_blk_err_check(brq, req, card, md);
 		switch (status) {
 		case MMC_BLK_SUCCESS:
 		case MMC_BLK_PARTIAL:
@@ -1066,6 +1085,19 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 			ret = __blk_end_request(req, 0,
 						brq->data.bytes_xfered);
 			spin_unlock_irq(&md->lock);
+			if (status == MMC_BLK_SUCCESS && ret) {
+				/*
+				 * The blk_end_request has returned non zero
+				 * even though all data is transfered and no
+				 * erros returned by host.
+				 * If this happen it's a bug.
+				 */
+				printk(KERN_ERR "%s BUG rq_tot %d d_xfer %d\n",
+				       __func__, blk_rq_bytes(req),
+				       brq->data.bytes_xfered);
+				rqc = NULL;
+				goto cmd_abort;
+			}
 			break;
 		case MMC_BLK_CMD_ERR:
 			goto cmd_err;
@@ -1087,9 +1119,19 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 			ret = __blk_end_request(req, -EIO,
 						brq->data.blksz);
 			spin_unlock_irq(&md->lock);
+			if (!ret)
+				goto start_new_req;
 			break;
 		}
 
+		if (ret) {
+			/*
+			 * In case of a none complete request
+			 * prepare it again and resend.
+			 */
+			mmc_blk_rw_rq_prep(mq_rq, card, disable_multi, mq);
+			mmc_start_req(card->host, &mq_rq->mmc_active, NULL);
+		}
 	} while (ret);
 
 	return 1;
@@ -1124,6 +1166,12 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *req)
 		ret = __blk_end_request(req, -EIO, blk_rq_cur_bytes(req));
 	spin_unlock_irq(&md->lock);
 
+ start_new_req:
+	if (rqc) {
+		mmc_blk_rw_rq_prep(mq->mqrq_cur, card, 0, mq);
+		mmc_start_req(card->host, &mq->mqrq_cur->mmc_active, NULL);
+	}
+
 	return 0;
 }
 
@@ -1133,26 +1181,34 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	struct mmc_blk_data *md = mq->data;
 	struct mmc_card *card = md->queue.card;
 
-	mmc_claim_host(card->host);
+	if (req && !mq->mqrq_prev->req)
+		/* claim host only for the first request */
+		mmc_claim_host(card->host);
+
 	ret = mmc_blk_part_switch(card, md);
 	if (ret) {
 		ret = 0;
 		goto out;
 	}
 
-	if (req->cmd_flags & REQ_DISCARD) {
+	if (req && req->cmd_flags & REQ_DISCARD) {
+		/* complete ongoing async transfer before issuing discard */
+		if (card->host->areq)
+			mmc_blk_issue_rw_rq(mq, NULL);
 		if (req->cmd_flags & REQ_SECURE)
 			ret = mmc_blk_issue_secdiscard_rq(mq, req);
 		else
 			ret = mmc_blk_issue_discard_rq(mq, req);
-	} else if (req->cmd_flags & REQ_FLUSH) {
+	} else if (req && req->cmd_flags & REQ_FLUSH) {
 		ret = mmc_blk_issue_flush(mq, req);
 	} else {
 		ret = mmc_blk_issue_rw_rq(mq, req);
 	}
 
 out:
-	mmc_release_host(card->host);
+	if (!req)
+		/* release host only when there are no more requests */
+		mmc_release_host(card->host);
 	return ret;
 }
 
