@@ -211,18 +211,6 @@ int isci_queuecommand(
 
 int isci_bus_reset_handler(struct scsi_cmnd *cmd);
 
-void isci_task_build_tmf(
-	struct isci_tmf *tmf,
-	enum isci_tmf_function_codes code,
-	void (*tmf_sent_cb)(enum isci_tmf_cb_state,
-			    struct isci_tmf *,
-			    void *),
-	void *cb_data);
-
-int isci_task_execute_tmf(struct isci_host *isci_host,
-			  struct isci_remote_device *idev,
-			  struct isci_tmf *tmf, unsigned long timeout_ms);
-
 /**
  * enum isci_completion_selection - This enum defines the possible actions to
  *    take with respect to a given request's notification back to libsas.

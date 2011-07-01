@@ -1,5 +1,5 @@
 obj-$(CONFIG_SCSI_ISCI) += isci.o
-isci-objs := init.o phy.o request.o sata.o \
+isci-objs := init.o phy.o request.o \
 	     remote_device.o port.o \
 	     host.o task.o probe_roms.o \
 	     remote_node_context.o \

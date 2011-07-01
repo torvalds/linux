@@ -61,7 +61,6 @@
 #include "remote_node_context.h"
 #include "isci.h"
 #include "request.h"
-#include "sata.h"
 #include "task.h"
 #include "host.h"
 
@@ -238,6 +237,46 @@ int isci_task_execute_task(struct sas_task *task, int num, gfp_t gfp_flags)
 	return 0;
 }
 
+static enum sci_status isci_sata_management_task_request_build(struct isci_request *ireq)
+{
+	struct isci_tmf *isci_tmf;
+	enum sci_status status;
+
+	if (tmf_task != ireq->ttype)
+		return SCI_FAILURE;
+
+	isci_tmf = isci_request_access_tmf(ireq);
+
+	switch (isci_tmf->tmf_code) {
+
+	case isci_tmf_sata_srst_high:
+	case isci_tmf_sata_srst_low: {
+		struct host_to_dev_fis *fis = &ireq->stp.cmd;
+
+		memset(fis, 0, sizeof(*fis));
+
+		fis->fis_type  =  0x27;
+		fis->flags     &= ~0x80;
+		fis->flags     &= 0xF0;
+		if (isci_tmf->tmf_code == isci_tmf_sata_srst_high)
+			fis->control |= ATA_SRST;
+		else
+			fis->control &= ~ATA_SRST;
+		break;
+	}
+	/* other management commnd go here... */
+	default:
+		return SCI_FAILURE;
+	}
+
+	/* core builds the protocol specific request
+	 *  based on the h2d fis.
+	 */
+	status = sci_task_request_construct_sata(ireq);
+
+	return status;
+}
+
 static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 						    struct isci_remote_device *idev,
 						    u16 tag, struct isci_tmf *isci_tmf)
@@ -287,9 +326,9 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 	return ireq;
 }
 
-int isci_task_execute_tmf(struct isci_host *ihost,
-			  struct isci_remote_device *idev,
-			  struct isci_tmf *tmf, unsigned long timeout_ms)
+static int isci_task_execute_tmf(struct isci_host *ihost,
+				 struct isci_remote_device *idev,
+				 struct isci_tmf *tmf, unsigned long timeout_ms)
 {
 	DECLARE_COMPLETION_ONSTACK(completion);
 	enum sci_task_status status = SCI_TASK_FAILURE;
@@ -401,13 +440,12 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 	return ret;
 }
 
-void isci_task_build_tmf(
-	struct isci_tmf *tmf,
-	enum isci_tmf_function_codes code,
-	void (*tmf_sent_cb)(enum isci_tmf_cb_state,
-			    struct isci_tmf *,
-			    void *),
-	void *cb_data)
+static void isci_task_build_tmf(struct isci_tmf *tmf,
+				enum isci_tmf_function_codes code,
+				void (*tmf_sent_cb)(enum isci_tmf_cb_state,
+						    struct isci_tmf *,
+						    void *),
+				void *cb_data)
 {
 	memset(tmf, 0, sizeof(*tmf));
 
@@ -416,16 +454,14 @@ void isci_task_build_tmf(
 	tmf->cb_data       = cb_data;
 }
 
-static void isci_task_build_abort_task_tmf(
-	struct isci_tmf *tmf,
-	enum isci_tmf_function_codes code,
-	void (*tmf_sent_cb)(enum isci_tmf_cb_state,
-			    struct isci_tmf *,
-			    void *),
-	struct isci_request *old_request)
+static void isci_task_build_abort_task_tmf(struct isci_tmf *tmf,
+					   enum isci_tmf_function_codes code,
+					   void (*tmf_sent_cb)(enum isci_tmf_cb_state,
+							       struct isci_tmf *,
+							       void *),
+					   struct isci_request *old_request)
 {
-	isci_task_build_tmf(tmf, code, tmf_sent_cb,
-			    (void *)old_request);
+	isci_task_build_tmf(tmf, code, tmf_sent_cb, old_request);
 	tmf->io_tag = old_request->io_tag;
 }
 
@@ -801,6 +837,30 @@ static int isci_task_send_lu_reset_sas(
 			"%s: %p: TMF_LU_RESET failed (%x)\n",
 			__func__, isci_device, ret);
 
+	return ret;
+}
+
+static int isci_task_send_lu_reset_sata(struct isci_host *ihost,
+				 struct isci_remote_device *idev, u8 *lun)
+{
+	int ret = TMF_RESP_FUNC_FAILED;
+	struct isci_tmf tmf;
+
+	/* Send the soft reset to the target */
+	#define ISCI_SRST_TIMEOUT_MS 25000 /* 25 second timeout. */
+	isci_task_build_tmf(&tmf, isci_tmf_sata_srst_high, NULL, NULL);
+
+	ret = isci_task_execute_tmf(ihost, idev, &tmf, ISCI_SRST_TIMEOUT_MS);
+
+	if (ret != TMF_RESP_FUNC_COMPLETE) {
+		dev_warn(&ihost->pdev->dev,
+			 "%s: Assert SRST failed (%p) = %x",
+			 __func__, idev, ret);
+
+		/* Return the failure so that the LUN reset is escalated
+		 * to a target reset.
+		 */
+	}
 	return ret;
 }
 

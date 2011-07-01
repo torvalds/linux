@@ -56,7 +56,6 @@
 #include "isci.h"
 #include "task.h"
 #include "request.h"
-#include "sata.h"
 #include "scu_completion_codes.h"
 #include "scu_event_codes.h"
 #include "sas.h"
@@ -1090,16 +1089,6 @@ smp_request_await_tc_event(struct isci_request *ireq,
 	}
 
 	return SCI_SUCCESS;
-}
-
-void sci_stp_io_request_set_ncq_tag(struct isci_request *ireq,
-				     u16 ncq_tag)
-{
-	/**
-	 * @note This could be made to return an error to the user if the user
-	 *       attempts to set the NCQ tag in the wrong state.
-	 */
-	ireq->tc->type.stp.ncq_tag = ncq_tag;
 }
 
 static struct scu_sgl_element *pio_sgl_next(struct isci_stp_request *stp_req)
@@ -2410,6 +2399,29 @@ static void isci_task_save_for_upper_layer_completion(
 	}
 }
 
+static void isci_request_process_stp_response(struct sas_task *task,
+					      void *response_buffer)
+{
+	struct dev_to_host_fis *d2h_reg_fis = response_buffer;
+	struct task_status_struct *ts = &task->task_status;
+	struct ata_task_resp *resp = (void *)&ts->buf[0];
+
+	resp->frame_len = le16_to_cpu(*(__le16 *)(response_buffer + 6));
+	memcpy(&resp->ending_fis[0], response_buffer + 16, 24);
+	ts->buf_valid_size = sizeof(*resp);
+
+	/**
+	 * If the device fault bit is set in the status register, then
+	 * set the sense data and return.
+	 */
+	if (d2h_reg_fis->status & ATA_DF)
+		ts->stat = SAS_PROTO_RESPONSE;
+	else
+		ts->stat = SAM_STAT_GOOD;
+
+	ts->resp = SAS_TASK_COMPLETE;
+}
+
 static void isci_request_io_request_complete(struct isci_host *ihost,
 					     struct isci_request *request,
 					     enum sci_io_status completion_status)
@@ -2985,34 +2997,29 @@ static enum sci_status isci_request_ssp_request_construct(
 	return status;
 }
 
-static enum sci_status isci_request_stp_request_construct(
-	struct isci_request *request)
+static enum sci_status isci_request_stp_request_construct(struct isci_request *ireq)
 {
-	struct sas_task *task = isci_request_access_task(request);
+	struct sas_task *task = isci_request_access_task(ireq);
+	struct host_to_dev_fis *fis = &ireq->stp.cmd;
+	struct ata_queued_cmd *qc = task->uldd_task;
 	enum sci_status status;
-	struct host_to_dev_fis *register_fis;
 
-	dev_dbg(&request->isci_host->pdev->dev,
-		"%s: request = %p\n",
+	dev_dbg(&ireq->isci_host->pdev->dev,
+		"%s: ireq = %p\n",
 		__func__,
-		request);
+		ireq);
 
-	/* Get the host_to_dev_fis from the core and copy
-	 * the fis from the task into it.
-	 */
-	register_fis = isci_sata_task_to_fis_copy(task);
+	memcpy(fis, &task->ata_task.fis, sizeof(struct host_to_dev_fis));
+	if (!task->ata_task.device_control_reg_update)
+		fis->flags |= 0x80;
+	fis->flags &= 0xF0;
 
-	status = sci_io_request_construct_basic_sata(request);
+	status = sci_io_request_construct_basic_sata(ireq);
 
-	/* Set the ncq tag in the fis, from the queue
-	 * command in the task.
-	 */
-	if (isci_sata_is_task_ncq(task)) {
-
-		isci_sata_set_ncq_tag(
-			register_fis,
-			task
-			);
+	if (qc && (qc->tf.command == ATA_CMD_FPDMA_WRITE ||
+		   qc->tf.command == ATA_CMD_FPDMA_READ)) {
+		fis->sector_count = qc->tag << 3;
+		ireq->tc->type.stp.ncq_tag = qc->tag;
 	}
 
 	return status;

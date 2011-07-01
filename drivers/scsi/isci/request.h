@@ -435,8 +435,6 @@ enum sci_status
 sci_task_request_construct_ssp(struct isci_request *ireq);
 enum sci_status
 sci_task_request_construct_sata(struct isci_request *ireq);
-void
-sci_stp_io_request_set_ncq_tag(struct isci_request *ireq, u16 ncq_tag);
 void sci_smp_request_copy_response(struct isci_request *ireq);
 
 static inline int isci_task_is_ncq_recovery(struct sas_task *task)
