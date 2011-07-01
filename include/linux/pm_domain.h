@@ -38,6 +38,7 @@ struct generic_pm_domain {
 	int (*power_on)(struct generic_pm_domain *domain);
 	int (*start_device)(struct device *dev);
 	int (*stop_device)(struct device *dev);
+	bool (*active_wakeup)(struct device *dev);
 };
 
 static inline struct generic_pm_domain *pd_to_genpd(struct dev_pm_domain *pd)
