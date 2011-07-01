@@ -402,17 +402,17 @@ enum sci_status scic_sds_remote_device_event_handler(
 	u32 event_code);
 
 enum sci_status scic_sds_remote_device_start_io(
-	struct scic_sds_controller *controller,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
 enum sci_status scic_sds_remote_device_start_task(
-	struct scic_sds_controller *controller,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
 enum sci_status scic_sds_remote_device_complete_io(
-	struct scic_sds_controller *controller,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 

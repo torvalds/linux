@@ -112,13 +112,13 @@ static enum sci_status
 scic_sds_phy_link_layer_initialization(struct isci_phy *iphy,
 				       struct scu_link_layer_registers __iomem *link_layer_registers)
 {
-	struct scic_sds_controller *scic =
+	struct isci_host *ihost =
 		iphy->owning_port->owning_controller;
 	int phy_idx = iphy->phy_index;
 	struct sci_phy_user_params *phy_user =
-		&scic->user_parameters.sds1.phys[phy_idx];
+		&ihost->user_parameters.sds1.phys[phy_idx];
 	struct sci_phy_oem_params *phy_oem =
-		&scic->oem_parameters.sds1.phys[phy_idx];
+		&ihost->oem_parameters.sds1.phys[phy_idx];
 	u32 phy_configuration;
 	struct scic_phy_cap phy_cap;
 	u32 parity_check = 0;
@@ -169,7 +169,7 @@ scic_sds_phy_link_layer_initialization(struct isci_phy *iphy,
 	phy_cap.gen3_no_ssc = 1;
 	phy_cap.gen2_no_ssc = 1;
 	phy_cap.gen1_no_ssc = 1;
-	if (scic->oem_parameters.sds1.controller.do_enable_ssc == true) {
+	if (ihost->oem_parameters.sds1.controller.do_enable_ssc == true) {
 		phy_cap.gen3_ssc = 1;
 		phy_cap.gen2_ssc = 1;
 		phy_cap.gen1_ssc = 1;
@@ -216,7 +216,7 @@ scic_sds_phy_link_layer_initialization(struct isci_phy *iphy,
 		&iphy->link_layer_registers->afe_lookup_table_control);
 
 	llctl = SCU_SAS_LLCTL_GEN_VAL(NO_OUTBOUND_TASK_TIMEOUT,
-		(u8)scic->user_parameters.sds1.no_outbound_task_timeout);
+		(u8)ihost->user_parameters.sds1.no_outbound_task_timeout);
 
 	switch(phy_user->max_speed_generation) {
 	case SCIC_SDS_PARM_GEN3_SPEED:
@@ -255,7 +255,7 @@ static void phy_sata_timeout(unsigned long data)
 {
 	struct sci_timer *tmr = (struct sci_timer *)data;
 	struct isci_phy *iphy = container_of(tmr, typeof(*iphy), sata_timer);
-	struct isci_host *ihost = scic_to_ihost(iphy->owning_port->owning_controller);
+	struct isci_host *ihost = iphy->owning_port->owning_controller;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
@@ -890,7 +890,7 @@ enum sci_status scic_sds_phy_frame_handler(struct isci_phy *iphy,
 					   u32 frame_index)
 {
 	enum scic_sds_phy_states state = iphy->sm.current_state_id;
-	struct scic_sds_controller *scic = iphy->owning_port->owning_controller;
+	struct isci_host *ihost = iphy->owning_port->owning_controller;
 	enum sci_status result;
 	unsigned long flags;
 
@@ -899,7 +899,7 @@ enum sci_status scic_sds_phy_frame_handler(struct isci_phy *iphy,
 		u32 *frame_words;
 		struct sas_identify_frame iaf;
 
-		result = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+		result = scic_sds_unsolicited_frame_control_get_header(&ihost->uf_control,
 								       frame_index,
 								       (void **)&frame_words);
 
@@ -933,7 +933,7 @@ enum sci_status scic_sds_phy_frame_handler(struct isci_phy *iphy,
 				"unexpected frame id %x\n",
 				__func__, frame_index);
 
-		scic_sds_controller_release_frame(scic, frame_index);
+		scic_sds_controller_release_frame(ihost, frame_index);
 		return result;
 	}
 	case SCI_PHY_SUB_AWAIT_SIG_FIS_UF: {
@@ -950,7 +950,7 @@ enum sci_status scic_sds_phy_frame_handler(struct isci_phy *iphy,
 
 		if ((frame_header->fis_type == FIS_REGD2H) &&
 		    !(frame_header->status & ATA_BUSY)) {
-			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+			scic_sds_unsolicited_frame_control_get_buffer(&ihost->uf_control,
 								      frame_index,
 								      (void **)&fis_frame_data);
 
@@ -971,7 +971,7 @@ enum sci_status scic_sds_phy_frame_handler(struct isci_phy *iphy,
 				 __func__, frame_index);
 
 		/* Regardless of the result we are done with this frame with it */
-		scic_sds_controller_release_frame(scic, frame_index);
+		scic_sds_controller_release_frame(ihost, frame_index);
 
 		return result;
 	}
@@ -994,33 +994,33 @@ static void scic_sds_phy_starting_initial_substate_enter(struct sci_base_state_m
 static void scic_sds_phy_starting_await_sas_power_substate_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_phy *iphy = container_of(sm, typeof(*iphy), sm);
-	struct scic_sds_controller *scic = iphy->owning_port->owning_controller;
+	struct isci_host *ihost = iphy->owning_port->owning_controller;
 
-	scic_sds_controller_power_control_queue_insert(scic, iphy);
+	scic_sds_controller_power_control_queue_insert(ihost, iphy);
 }
 
 static void scic_sds_phy_starting_await_sas_power_substate_exit(struct sci_base_state_machine *sm)
 {
 	struct isci_phy *iphy = container_of(sm, typeof(*iphy), sm);
-	struct scic_sds_controller *scic = iphy->owning_port->owning_controller;
+	struct isci_host *ihost = iphy->owning_port->owning_controller;
 
-	scic_sds_controller_power_control_queue_remove(scic, iphy);
+	scic_sds_controller_power_control_queue_remove(ihost, iphy);
 }
 
 static void scic_sds_phy_starting_await_sata_power_substate_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_phy *iphy = container_of(sm, typeof(*iphy), sm);
-	struct scic_sds_controller *scic = iphy->owning_port->owning_controller;
+	struct isci_host *ihost = iphy->owning_port->owning_controller;
 
-	scic_sds_controller_power_control_queue_insert(scic, iphy);
+	scic_sds_controller_power_control_queue_insert(ihost, iphy);
 }
 
 static void scic_sds_phy_starting_await_sata_power_substate_exit(struct sci_base_state_machine *sm)
 {
 	struct isci_phy *iphy = container_of(sm, typeof(*iphy), sm);
-	struct scic_sds_controller *scic = iphy->owning_port->owning_controller;
+	struct isci_host *ihost = iphy->owning_port->owning_controller;
 
-	scic_sds_controller_power_control_queue_remove(scic, iphy);
+	scic_sds_controller_power_control_queue_remove(ihost, iphy);
 }
 
 static void scic_sds_phy_starting_await_sata_phy_substate_enter(struct sci_base_state_machine *sm)
@@ -1313,7 +1313,7 @@ void isci_phy_init(struct isci_phy *iphy, struct isci_host *ihost, int index)
 	u64 sci_sas_addr;
 	__be64 sas_addr;
 
-	scic_oem_parameters_get(&ihost->sci, &oem);
+	scic_oem_parameters_get(ihost, &oem);
 	sci_sas_addr = oem.sds1.phys[index].sas_address.high;
 	sci_sas_addr <<= 32;
 	sci_sas_addr |= oem.sds1.phys[index].sas_address.low;

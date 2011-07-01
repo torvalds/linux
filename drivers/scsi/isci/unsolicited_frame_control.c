@@ -57,9 +57,9 @@
 #include "unsolicited_frame_control.h"
 #include "registers.h"
 
-int scic_sds_unsolicited_frame_control_construct(struct scic_sds_controller *scic)
+int scic_sds_unsolicited_frame_control_construct(struct isci_host *ihost)
 {
-	struct scic_sds_unsolicited_frame_control *uf_control = &scic->uf_control;
+	struct scic_sds_unsolicited_frame_control *uf_control = &ihost->uf_control;
 	struct scic_sds_unsolicited_frame *uf;
 	u32 buf_len, header_len, i;
 	dma_addr_t dma;
@@ -79,7 +79,7 @@ int scic_sds_unsolicited_frame_control_construct(struct scic_sds_controller *sci
 	 * memory descriptor entry. The headers and address table will be
 	 * placed after the buffers.
 	 */
-	virt = dmam_alloc_coherent(scic_to_dev(scic), size, &dma, GFP_KERNEL);
+	virt = dmam_alloc_coherent(&ihost->pdev->dev, size, &dma, GFP_KERNEL);
 	if (!virt)
 		return -ENOMEM;
 

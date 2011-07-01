@@ -74,19 +74,19 @@ static struct scu_sgl_element_pair *to_sgl_element_pair(struct isci_request *ire
 		return &ireq->sg_table[idx - 2];
 }
 
-static dma_addr_t to_sgl_element_pair_dma(struct scic_sds_controller *scic,
+static dma_addr_t to_sgl_element_pair_dma(struct isci_host *ihost,
 					  struct isci_request *ireq, u32 idx)
 {
 	u32 offset;
 
 	if (idx == 0) {
 		offset = (void *) &ireq->tc->sgl_pair_ab -
-			 (void *) &scic->task_context_table[0];
-		return scic->task_context_dma + offset;
+			 (void *) &ihost->task_context_table[0];
+		return ihost->task_context_dma + offset;
 	} else if (idx == 1) {
 		offset = (void *) &ireq->tc->sgl_pair_cd -
-			 (void *) &scic->task_context_table[0];
-		return scic->task_context_dma + offset;
+			 (void *) &ihost->task_context_table[0];
+		return ihost->task_context_dma + offset;
 	}
 
 	return scic_io_request_get_dma_addr(ireq, &ireq->sg_table[idx - 2]);
@@ -102,8 +102,7 @@ static void init_sgl_element(struct scu_sgl_element *e, struct scatterlist *sg)
 
 static void scic_sds_request_build_sgl(struct isci_request *ireq)
 {
-	struct isci_host *isci_host = ireq->isci_host;
-	struct scic_sds_controller *scic = &isci_host->sci;
+	struct isci_host *ihost = ireq->isci_host;
 	struct sas_task *task = isci_request_access_task(ireq);
 	struct scatterlist *sg = NULL;
 	dma_addr_t dma_addr;
@@ -125,7 +124,7 @@ static void scic_sds_request_build_sgl(struct isci_request *ireq)
 				memset(&scu_sg->B, 0, sizeof(scu_sg->B));
 
 			if (prev_sg) {
-				dma_addr = to_sgl_element_pair_dma(scic,
+				dma_addr = to_sgl_element_pair_dma(ihost,
 								   ireq,
 								   sg_idx);
 
@@ -141,7 +140,7 @@ static void scic_sds_request_build_sgl(struct isci_request *ireq)
 	} else {	/* handle when no sg */
 		scu_sg = to_sgl_element_pair(ireq, sg_idx);
 
-		dma_addr = dma_map_single(&isci_host->pdev->dev,
+		dma_addr = dma_map_single(&ihost->pdev->dev,
 					  task->scatter,
 					  task->total_xfer_len,
 					  task->data_dir);
@@ -508,7 +507,7 @@ scic_io_request_construct_sata(struct isci_request *ireq,
 			scu_stp_raw_request_construct_task_context(ireq);
 			return SCI_SUCCESS;
 		} else {
-			dev_err(scic_to_dev(ireq->owning_controller),
+			dev_err(&ireq->owning_controller->pdev->dev,
 				"%s: Request 0x%p received un-handled SAT "
 				"management protocol 0x%x.\n",
 				__func__, ireq, tmf->tmf_code);
@@ -518,7 +517,7 @@ scic_io_request_construct_sata(struct isci_request *ireq,
 	}
 
 	if (!sas_protocol_ata(task->task_proto)) {
-		dev_err(scic_to_dev(ireq->owning_controller),
+		dev_err(&ireq->owning_controller->pdev->dev,
 			"%s: Non-ATA protocol in SATA path: 0x%x\n",
 			__func__,
 			task->task_proto);
@@ -616,7 +615,7 @@ enum sci_status scic_task_request_construct_sata(struct isci_request *ireq)
 		    tmf->tmf_code == isci_tmf_sata_srst_low) {
 			scu_stp_raw_request_construct_task_context(ireq);
 		} else {
-			dev_err(scic_to_dev(ireq->owning_controller),
+			dev_err(&ireq->owning_controller->pdev->dev,
 				"%s: Request 0x%p received un-handled SAT "
 				"Protocol 0x%x.\n",
 				__func__, ireq, tmf->tmf_code);
@@ -639,11 +638,11 @@ enum sci_status scic_task_request_construct_sata(struct isci_request *ireq)
 #define SCU_TASK_CONTEXT_SRAM 0x200000
 static u32 sci_req_tx_bytes(struct isci_request *ireq)
 {
-	struct scic_sds_controller *scic = ireq->owning_controller;
+	struct isci_host *ihost = ireq->owning_controller;
 	u32 ret_val = 0;
 
-	if (readl(&scic->smu_registers->address_modifier) == 0) {
-		void __iomem *scu_reg_base = scic->scu_registers;
+	if (readl(&ihost->smu_registers->address_modifier) == 0) {
+		void __iomem *scu_reg_base = ihost->scu_registers;
 
 		/* get the bytes of data from the Address == BAR1 + 20002Ch + (256*TCi) where
 		 *   BAR1 is the scu_registers
@@ -663,11 +662,11 @@ enum sci_status scic_sds_request_start(struct isci_request *ireq)
 {
 	enum sci_base_request_states state;
 	struct scu_task_context *tc = ireq->tc;
-	struct scic_sds_controller *scic = ireq->owning_controller;
+	struct isci_host *ihost = ireq->owning_controller;
 
 	state = ireq->sm.current_state_id;
 	if (state != SCI_REQ_CONSTRUCTED) {
-		dev_warn(scic_to_dev(scic),
+		dev_warn(&ihost->pdev->dev,
 			"%s: SCIC IO Request requested to start while in wrong "
 			 "state %d\n", __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
@@ -749,7 +748,7 @@ scic_sds_io_request_terminate(struct isci_request *ireq)
 		return SCI_SUCCESS;
 	case SCI_REQ_COMPLETED:
 	default:
-		dev_warn(scic_to_dev(ireq->owning_controller),
+		dev_warn(&ireq->owning_controller->pdev->dev,
 			 "%s: SCIC IO Request requested to abort while in wrong "
 			 "state %d\n",
 			 __func__,
@@ -763,7 +762,7 @@ scic_sds_io_request_terminate(struct isci_request *ireq)
 enum sci_status scic_sds_request_complete(struct isci_request *ireq)
 {
 	enum sci_base_request_states state;
-	struct scic_sds_controller *scic = ireq->owning_controller;
+	struct isci_host *ihost = ireq->owning_controller;
 
 	state = ireq->sm.current_state_id;
 	if (WARN_ONCE(state != SCI_REQ_COMPLETED,
@@ -771,7 +770,7 @@ enum sci_status scic_sds_request_complete(struct isci_request *ireq)
 		return SCI_FAILURE_INVALID_STATE;
 
 	if (ireq->saved_rx_frame_index != SCU_INVALID_FRAME_INDEX)
-		scic_sds_controller_release_frame(scic,
+		scic_sds_controller_release_frame(ihost,
 						  ireq->saved_rx_frame_index);
 
 	/* XXX can we just stop the machine and remove the 'final' state? */
@@ -783,12 +782,12 @@ enum sci_status scic_sds_io_request_event_handler(struct isci_request *ireq,
 						  u32 event_code)
 {
 	enum sci_base_request_states state;
-	struct scic_sds_controller *scic = ireq->owning_controller;
+	struct isci_host *ihost = ireq->owning_controller;
 
 	state = ireq->sm.current_state_id;
 
 	if (state != SCI_REQ_STP_PIO_DATA_IN) {
-		dev_warn(scic_to_dev(scic), "%s: (%x) in wrong state %d\n",
+		dev_warn(&ihost->pdev->dev, "%s: (%x) in wrong state %d\n",
 			 __func__, event_code, state);
 
 		return SCI_FAILURE_INVALID_STATE;
@@ -802,7 +801,7 @@ enum sci_status scic_sds_io_request_event_handler(struct isci_request *ireq,
 		sci_change_state(&ireq->sm, SCI_REQ_STP_PIO_WAIT_FRAME);
 		return SCI_SUCCESS;
 	default:
-		dev_err(scic_to_dev(scic),
+		dev_err(&ihost->pdev->dev,
 			"%s: pio request unexpected event %#x\n",
 			__func__, event_code);
 
@@ -1024,7 +1023,7 @@ static enum sci_status ssp_task_request_await_tc_event(struct isci_request *ireq
 		 * There is a potential for receiving multiple task responses if
 		 * we decide to send the task IU again.
 		 */
-		dev_warn(scic_to_dev(ireq->owning_controller),
+		dev_warn(&ireq->owning_controller->pdev->dev,
 			 "%s: TaskRequest:0x%p CompletionCode:%x - "
 			 "ACK/NAK timeout\n", __func__, ireq,
 			 completion_code);
@@ -1073,7 +1072,7 @@ smp_request_await_response_tc_event(struct isci_request *ireq,
 		 * response within 2 ms. This causes our hardware break
 		 * the connection and set TC completion with one of
 		 * these SMP_XXX_XX_ERR status. For these type of error,
-		 * we ask scic user to retry the request.
+		 * we ask ihost user to retry the request.
 		 */
 		scic_sds_request_set_status(ireq, SCU_TASK_DONE_SMP_RESP_TO_ERR,
 					    SCI_FAILURE_RETRY_REQUIRED);
@@ -1451,18 +1450,18 @@ static void scic_sds_stp_request_udma_complete_request(
 static enum sci_status scic_sds_stp_request_udma_general_frame_handler(struct isci_request *ireq,
 								       u32 frame_index)
 {
-	struct scic_sds_controller *scic = ireq->owning_controller;
+	struct isci_host *ihost = ireq->owning_controller;
 	struct dev_to_host_fis *frame_header;
 	enum sci_status status;
 	u32 *frame_buffer;
 
-	status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+	status = scic_sds_unsolicited_frame_control_get_header(&ihost->uf_control,
 							       frame_index,
 							       (void **)&frame_header);
 
 	if ((status == SCI_SUCCESS) &&
 	    (frame_header->fis_type == FIS_REGD2H)) {
-		scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+		scic_sds_unsolicited_frame_control_get_buffer(&ihost->uf_control,
 							      frame_index,
 							      (void **)&frame_buffer);
 
@@ -1471,7 +1470,7 @@ static enum sci_status scic_sds_stp_request_udma_general_frame_handler(struct is
 						       frame_buffer);
 	}
 
-	scic_sds_controller_release_frame(scic, frame_index);
+	scic_sds_controller_release_frame(ihost, frame_index);
 
 	return status;
 }
@@ -1480,7 +1479,7 @@ enum sci_status
 scic_sds_io_request_frame_handler(struct isci_request *ireq,
 				  u32 frame_index)
 {
-	struct scic_sds_controller *scic = ireq->owning_controller;
+	struct isci_host *ihost = ireq->owning_controller;
 	struct isci_stp_request *stp_req = &ireq->stp.req;
 	enum sci_base_request_states state;
 	enum sci_status status;
@@ -1492,7 +1491,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		struct ssp_frame_hdr ssp_hdr;
 		void *frame_header;
 
-		scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+		scic_sds_unsolicited_frame_control_get_header(&ihost->uf_control,
 							      frame_index,
 							      &frame_header);
 
@@ -1503,7 +1502,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 			struct ssp_response_iu *resp_iu;
 			ssize_t word_cnt = SSP_RESP_IU_MAX_SIZE / sizeof(u32);
 
-			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+			scic_sds_unsolicited_frame_control_get_buffer(&ihost->uf_control,
 								      frame_index,
 								      (void **)&resp_iu);
 
@@ -1522,7 +1521,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 							    SCI_SUCCESS);
 		} else {
 			/* not a response frame, why did it get forwarded? */
-			dev_err(scic_to_dev(scic),
+			dev_err(&ihost->pdev->dev,
 				"%s: SCIC IO Request 0x%p received unexpected "
 				"frame %d type 0x%02x\n", __func__, ireq,
 				frame_index, ssp_hdr.frame_type);
@@ -1532,7 +1531,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		 * In any case we are done with this frame buffer return it to
 		 * the controller
 		 */
-		scic_sds_controller_release_frame(scic, frame_index);
+		scic_sds_controller_release_frame(ihost, frame_index);
 
 		return SCI_SUCCESS;
 	}
@@ -1540,14 +1539,14 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 	case SCI_REQ_TASK_WAIT_TC_RESP:
 		scic_sds_io_request_copy_response(ireq);
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
-		scic_sds_controller_release_frame(scic,frame_index);
+		scic_sds_controller_release_frame(ihost,frame_index);
 		return SCI_SUCCESS;
 
 	case SCI_REQ_SMP_WAIT_RESP: {
 		struct smp_resp *rsp_hdr = &ireq->smp.rsp;
 		void *frame_header;
 
-		scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+		scic_sds_unsolicited_frame_control_get_header(&ihost->uf_control,
 							      frame_index,
 							      &frame_header);
 
@@ -1558,7 +1557,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		if (rsp_hdr->frame_type == SMP_RESPONSE) {
 			void *smp_resp;
 
-			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+			scic_sds_unsolicited_frame_control_get_buffer(&ihost->uf_control,
 								      frame_index,
 								      &smp_resp);
 
@@ -1577,7 +1576,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 			 * This was not a response frame why did it get
 			 * forwarded?
 			 */
-			dev_err(scic_to_dev(scic),
+			dev_err(&ihost->pdev->dev,
 				"%s: SCIC SMP Request 0x%p received unexpected "
 				"frame %d type 0x%02x\n",
 				__func__,
@@ -1592,7 +1591,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 			sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		}
 
-		scic_sds_controller_release_frame(scic, frame_index);
+		scic_sds_controller_release_frame(ihost, frame_index);
 
 		return SCI_SUCCESS;
 	}
@@ -1619,12 +1618,12 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		struct dev_to_host_fis *frame_header;
 		u32 *frame_buffer;
 
-		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+		status = scic_sds_unsolicited_frame_control_get_header(&ihost->uf_control,
 								       frame_index,
 								       (void **)&frame_header);
 
 		if (status != SCI_SUCCESS) {
-			dev_err(scic_to_dev(scic),
+			dev_err(&ihost->pdev->dev,
 				"%s: SCIC IO Request 0x%p could not get frame "
 				"header for frame index %d, status %x\n",
 				__func__,
@@ -1637,7 +1636,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 
 		switch (frame_header->fis_type) {
 		case FIS_REGD2H:
-			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+			scic_sds_unsolicited_frame_control_get_buffer(&ihost->uf_control,
 								      frame_index,
 								      (void **)&frame_buffer);
 
@@ -1651,7 +1650,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 			break;
 
 		default:
-			dev_warn(scic_to_dev(scic),
+			dev_warn(&ihost->pdev->dev,
 				 "%s: IO Request:0x%p Frame Id:%d protocol "
 				  "violation occurred\n", __func__, stp_req,
 				  frame_index);
@@ -1664,7 +1663,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 
 		/* Frame has been decoded return it to the controller */
-		scic_sds_controller_release_frame(scic, frame_index);
+		scic_sds_controller_release_frame(ihost, frame_index);
 
 		return status;
 	}
@@ -1674,12 +1673,12 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		struct dev_to_host_fis *frame_header;
 		u32 *frame_buffer;
 
-		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+		status = scic_sds_unsolicited_frame_control_get_header(&ihost->uf_control,
 								       frame_index,
 								       (void **)&frame_header);
 
 		if (status != SCI_SUCCESS) {
-			dev_err(scic_to_dev(scic),
+			dev_err(&ihost->pdev->dev,
 				"%s: SCIC IO Request 0x%p could not get frame "
 				"header for frame index %d, status %x\n",
 				__func__, stp_req, frame_index, status);
@@ -1689,7 +1688,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		switch (frame_header->fis_type) {
 		case FIS_PIO_SETUP:
 			/* Get from the frame buffer the PIO Setup Data */
-			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+			scic_sds_unsolicited_frame_control_get_buffer(&ihost->uf_control,
 								      frame_index,
 								      (void **)&frame_buffer);
 
@@ -1736,7 +1735,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 				 * FIS when it is still busy?  Do nothing since
 				 * we are still in the right state.
 				 */
-				dev_dbg(scic_to_dev(scic),
+				dev_dbg(&ihost->pdev->dev,
 					"%s: SCIC PIO Request 0x%p received "
 					"D2H Register FIS with BSY status "
 					"0x%x\n",
@@ -1746,7 +1745,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 				break;
 			}
 
-			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+			scic_sds_unsolicited_frame_control_get_buffer(&ihost->uf_control,
 								      frame_index,
 								      (void **)&frame_buffer);
 
@@ -1767,7 +1766,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		}
 
 		/* Frame is decoded return it to the controller */
-		scic_sds_controller_release_frame(scic, frame_index);
+		scic_sds_controller_release_frame(ihost, frame_index);
 
 		return status;
 	}
@@ -1776,12 +1775,12 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		struct dev_to_host_fis *frame_header;
 		struct sata_fis_data *frame_buffer;
 
-		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+		status = scic_sds_unsolicited_frame_control_get_header(&ihost->uf_control,
 								       frame_index,
 								       (void **)&frame_header);
 
 		if (status != SCI_SUCCESS) {
-			dev_err(scic_to_dev(scic),
+			dev_err(&ihost->pdev->dev,
 				"%s: SCIC IO Request 0x%p could not get frame "
 				"header for frame index %d, status %x\n",
 				__func__,
@@ -1792,7 +1791,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		}
 
 		if (frame_header->fis_type != FIS_DATA) {
-			dev_err(scic_to_dev(scic),
+			dev_err(&ihost->pdev->dev,
 				"%s: SCIC PIO Request 0x%p received frame %d "
 				"with fis type 0x%02x when expecting a data "
 				"fis.\n",
@@ -1808,7 +1807,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 			sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 
 			/* Frame is decoded return it to the controller */
-			scic_sds_controller_release_frame(scic, frame_index);
+			scic_sds_controller_release_frame(ihost, frame_index);
 			return status;
 		}
 
@@ -1816,7 +1815,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 			ireq->saved_rx_frame_index = frame_index;
 			stp_req->pio_len = 0;
 		} else {
-			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+			scic_sds_unsolicited_frame_control_get_buffer(&ihost->uf_control,
 								      frame_index,
 								      (void **)&frame_buffer);
 
@@ -1824,7 +1823,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 									    (u8 *)frame_buffer);
 
 			/* Frame is decoded return it to the controller */
-			scic_sds_controller_release_frame(scic, frame_index);
+			scic_sds_controller_release_frame(ihost, frame_index);
 		}
 
 		/* Check for the end of the transfer, are there more
@@ -1849,11 +1848,11 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		struct dev_to_host_fis *frame_header;
 		u32 *frame_buffer;
 
-		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+		status = scic_sds_unsolicited_frame_control_get_header(&ihost->uf_control,
 								       frame_index,
 								       (void **)&frame_header);
 		if (status != SCI_SUCCESS) {
-			dev_err(scic_to_dev(scic),
+			dev_err(&ihost->pdev->dev,
 				"%s: SCIC IO Request 0x%p could not get frame "
 				"header for frame index %d, status %x\n",
 				__func__,
@@ -1865,7 +1864,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 
 		switch (frame_header->fis_type) {
 		case FIS_REGD2H:
-			scic_sds_unsolicited_frame_control_get_buffer(&scic->uf_control,
+			scic_sds_unsolicited_frame_control_get_buffer(&ihost->uf_control,
 								      frame_index,
 								      (void **)&frame_buffer);
 
@@ -1880,7 +1879,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 			break;
 
 		default:
-			dev_warn(scic_to_dev(scic),
+			dev_warn(&ihost->pdev->dev,
 				 "%s: IO Request:0x%p Frame Id:%d protocol "
 				 "violation occurred\n",
 				 __func__,
@@ -1896,7 +1895,7 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 
 		/* Frame has been decoded return it to the controller */
-		scic_sds_controller_release_frame(scic, frame_index);
+		scic_sds_controller_release_frame(ihost, frame_index);
 
 		return status;
 	}
@@ -1905,18 +1904,18 @@ scic_sds_io_request_frame_handler(struct isci_request *ireq,
 		 * TODO: Is it even possible to get an unsolicited frame in the
 		 * aborting state?
 		 */
-		scic_sds_controller_release_frame(scic, frame_index);
+		scic_sds_controller_release_frame(ihost, frame_index);
 		return SCI_SUCCESS;
 
 	default:
-		dev_warn(scic_to_dev(scic),
+		dev_warn(&ihost->pdev->dev,
 			 "%s: SCIC IO Request given unexpected frame %x while "
 			 "in state %d\n",
 			 __func__,
 			 frame_index,
 			 state);
 
-		scic_sds_controller_release_frame(scic, frame_index);
+		scic_sds_controller_release_frame(ihost, frame_index);
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -2042,7 +2041,7 @@ scic_sds_io_request_tc_completion(struct isci_request *ireq,
 				  u32 completion_code)
 {
 	enum sci_base_request_states state;
-	struct scic_sds_controller *scic = ireq->owning_controller;
+	struct isci_host *ihost = ireq->owning_controller;
 
 	state = ireq->sm.current_state_id;
 
@@ -2089,7 +2088,7 @@ scic_sds_io_request_tc_completion(struct isci_request *ireq,
 						       completion_code);
 
 	default:
-		dev_warn(scic_to_dev(scic),
+		dev_warn(&ihost->pdev->dev,
 			 "%s: SCIC IO Request given task completion "
 			 "notification %x while in wrong state %d\n",
 			 __func__,
@@ -2480,7 +2479,7 @@ static void isci_task_save_for_upper_layer_completion(
 	}
 }
 
-static void isci_request_io_request_complete(struct isci_host *isci_host,
+static void isci_request_io_request_complete(struct isci_host *ihost,
 					     struct isci_request *request,
 					     enum sci_io_status completion_status)
 {
@@ -2495,7 +2494,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 	enum isci_completion_selection complete_to_host
 		= isci_perform_normal_io_completion;
 
-	dev_dbg(&isci_host->pdev->dev,
+	dev_dbg(&ihost->pdev->dev,
 		"%s: request = %p, task = %p,\n"
 		"task->data_dir = %d completion_status = 0x%x\n",
 		__func__,
@@ -2616,7 +2615,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 		switch (completion_status) {
 
 		case SCI_IO_FAILURE_RESPONSE_VALID:
-			dev_dbg(&isci_host->pdev->dev,
+			dev_dbg(&ihost->pdev->dev,
 				"%s: SCI_IO_FAILURE_RESPONSE_VALID (%p/%p)\n",
 				__func__,
 				request,
@@ -2631,17 +2630,17 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 				/* crack the iu response buffer. */
 				resp_iu = &request->ssp.rsp;
 				isci_request_process_response_iu(task, resp_iu,
-								 &isci_host->pdev->dev);
+								 &ihost->pdev->dev);
 
 			} else if (SAS_PROTOCOL_SMP == task->task_proto) {
 
-				dev_err(&isci_host->pdev->dev,
+				dev_err(&ihost->pdev->dev,
 					"%s: SCI_IO_FAILURE_RESPONSE_VALID: "
 					"SAS_PROTOCOL_SMP protocol\n",
 					__func__);
 
 			} else
-				dev_err(&isci_host->pdev->dev,
+				dev_err(&ihost->pdev->dev,
 					"%s: unknown protocol\n", __func__);
 
 			/* use the task status set in the task struct by the
@@ -2662,7 +2661,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 			if (task->task_proto == SAS_PROTOCOL_SMP) {
 				void *rsp = &request->smp.rsp;
 
-				dev_dbg(&isci_host->pdev->dev,
+				dev_dbg(&ihost->pdev->dev,
 					"%s: SMP protocol completion\n",
 					__func__);
 
@@ -2687,20 +2686,20 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 				if (task->task_status.residual != 0)
 					status = SAS_DATA_UNDERRUN;
 
-				dev_dbg(&isci_host->pdev->dev,
+				dev_dbg(&ihost->pdev->dev,
 					"%s: SCI_IO_SUCCESS_IO_DONE_EARLY %d\n",
 					__func__,
 					status);
 
 			} else
-				dev_dbg(&isci_host->pdev->dev,
+				dev_dbg(&ihost->pdev->dev,
 					"%s: SCI_IO_SUCCESS\n",
 					__func__);
 
 			break;
 
 		case SCI_IO_FAILURE_TERMINATED:
-			dev_dbg(&isci_host->pdev->dev,
+			dev_dbg(&ihost->pdev->dev,
 				"%s: SCI_IO_FAILURE_TERMINATED (%p/%p)\n",
 				__func__,
 				request,
@@ -2768,7 +2767,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 
 		default:
 			/* Catch any otherwise unhandled error codes here. */
-			dev_warn(&isci_host->pdev->dev,
+			dev_warn(&ihost->pdev->dev,
 				 "%s: invalid completion code: 0x%x - "
 				 "isci_request = %p\n",
 				 __func__, completion_status, request);
@@ -2802,11 +2801,11 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 			break;
 		if (task->num_scatter == 0)
 			/* 0 indicates a single dma address */
-			dma_unmap_single(&isci_host->pdev->dev,
+			dma_unmap_single(&ihost->pdev->dev,
 					 request->zero_scatter_daddr,
 					 task->total_xfer_len, task->data_dir);
 		else  /* unmap the sgl dma addresses */
-			dma_unmap_sg(&isci_host->pdev->dev, task->scatter,
+			dma_unmap_sg(&ihost->pdev->dev, task->scatter,
 				     request->num_sg_entries, task->data_dir);
 		break;
 	case SAS_PROTOCOL_SMP: {
@@ -2814,7 +2813,7 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 		struct smp_req *smp_req;
 		void *kaddr;
 
-		dma_unmap_sg(&isci_host->pdev->dev, sg, 1, DMA_TO_DEVICE);
+		dma_unmap_sg(&ihost->pdev->dev, sg, 1, DMA_TO_DEVICE);
 
 		/* need to swab it back in case the command buffer is re-used */
 		kaddr = kmap_atomic(sg_page(sg), KM_IRQ0);
@@ -2828,14 +2827,12 @@ static void isci_request_io_request_complete(struct isci_host *isci_host,
 	}
 
 	/* Put the completed request on the correct list */
-	isci_task_save_for_upper_layer_completion(isci_host, request, response,
+	isci_task_save_for_upper_layer_completion(ihost, request, response,
 						  status, complete_to_host
 						  );
 
 	/* complete the io request to the core. */
-	scic_controller_complete_io(&isci_host->sci,
-				    request->target_device,
-				    request);
+	scic_controller_complete_io(ihost, request->target_device, request);
 	isci_put_device(idev);
 
 	/* set terminated handle so it cannot be completed or
@@ -2885,8 +2882,7 @@ static void scic_sds_request_started_state_enter(struct sci_base_state_machine *
 static void scic_sds_request_completed_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_request *ireq = container_of(sm, typeof(*ireq), sm);
-	struct scic_sds_controller *scic = ireq->owning_controller;
-	struct isci_host *ihost = scic_to_ihost(scic);
+	struct isci_host *ihost = ireq->owning_controller;
 
 	/* Tell the SCI_USER that the IO request is complete */
 	if (!test_bit(IREQ_TMF, &ireq->flags))
@@ -2985,7 +2981,7 @@ static const struct sci_base_state scic_sds_request_state_table[] = {
 };
 
 static void
-scic_sds_general_request_construct(struct scic_sds_controller *scic,
+scic_sds_general_request_construct(struct isci_host *ihost,
 				   struct isci_remote_device *idev,
 				   struct isci_request *ireq)
 {
@@ -3001,7 +2997,7 @@ scic_sds_general_request_construct(struct scic_sds_controller *scic,
 }
 
 static enum sci_status
-scic_io_request_construct(struct scic_sds_controller *scic,
+scic_io_request_construct(struct isci_host *ihost,
 			  struct isci_remote_device *idev,
 			  struct isci_request *ireq)
 {
@@ -3009,7 +3005,7 @@ scic_io_request_construct(struct scic_sds_controller *scic,
 	enum sci_status status = SCI_SUCCESS;
 
 	/* Build the common part of the request */
-	scic_sds_general_request_construct(scic, idev, ireq);
+	scic_sds_general_request_construct(ihost, idev, ireq);
 
 	if (idev->rnc.remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)
 		return SCI_FAILURE_INVALID_REMOTE_DEVICE;
@@ -3028,7 +3024,7 @@ scic_io_request_construct(struct scic_sds_controller *scic,
 	return status;
 }
 
-enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
+enum sci_status scic_task_request_construct(struct isci_host *ihost,
 					    struct isci_remote_device *idev,
 					    u16 io_tag, struct isci_request *ireq)
 {
@@ -3036,7 +3032,7 @@ enum sci_status scic_task_request_construct(struct scic_sds_controller *scic,
 	enum sci_status status = SCI_SUCCESS;
 
 	/* Build the common part of the request */
-	scic_sds_general_request_construct(scic, idev, ireq);
+	scic_sds_general_request_construct(ihost, idev, ireq);
 
 	if (dev->dev_type == SAS_END_DEV ||
 	    dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
@@ -3156,7 +3152,7 @@ scic_io_request_construct_smp(struct device *dev,
 	task_context->initiator_request = 1;
 	task_context->connection_rate = idev->connection_rate;
 	task_context->protocol_engine_index =
-		scic_sds_controller_get_protocol_engine_group(scic);
+		scic_sds_controller_get_protocol_engine_group(ihost);
 	task_context->logical_port_index = scic_sds_port_get_index(iport);
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_SMP;
 	task_context->abort = 0;
@@ -3199,7 +3195,7 @@ scic_io_request_construct_smp(struct device *dev,
 	task_context->task_phase = 0;
 
 	ireq->post_context = (SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-				 (scic_sds_controller_get_protocol_engine_group(scic) <<
+				 (scic_sds_controller_get_protocol_engine_group(ihost) <<
 				  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
 				 (scic_sds_port_get_index(iport) <<
 				  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
@@ -3245,7 +3241,7 @@ static enum sci_status isci_smp_request_build(struct isci_request *ireq)
 
 /**
  * isci_io_request_build() - This function builds the io request object.
- * @isci_host: This parameter specifies the ISCI host object
+ * @ihost: This parameter specifies the ISCI host object
  * @request: This parameter points to the isci_request object allocated in the
  *    request construct function.
  * @sci_device: This parameter is the handle for the sci core's remote device
@@ -3253,14 +3249,14 @@ static enum sci_status isci_smp_request_build(struct isci_request *ireq)
  *
  * SCI_SUCCESS on successfull completion, or specific failure code.
  */
-static enum sci_status isci_io_request_build(struct isci_host *isci_host,
+static enum sci_status isci_io_request_build(struct isci_host *ihost,
 					     struct isci_request *request,
 					     struct isci_remote_device *idev)
 {
 	enum sci_status status = SCI_SUCCESS;
 	struct sas_task *task = isci_request_access_task(request);
 
-	dev_dbg(&isci_host->pdev->dev,
+	dev_dbg(&ihost->pdev->dev,
 		"%s: idev = 0x%p; request = %p, "
 		"num_scatter = %d\n",
 		__func__,
@@ -3277,7 +3273,7 @@ static enum sci_status isci_io_request_build(struct isci_host *isci_host,
 	    !(SAS_PROTOCOL_SMP & task->task_proto)) {
 
 		request->num_sg_entries = dma_map_sg(
-			&isci_host->pdev->dev,
+			&ihost->pdev->dev,
 			task->scatter,
 			task->num_scatter,
 			task->data_dir
@@ -3287,10 +3283,10 @@ static enum sci_status isci_io_request_build(struct isci_host *isci_host,
 			return SCI_FAILURE_INSUFFICIENT_RESOURCES;
 	}
 
-	status = scic_io_request_construct(&isci_host->sci, idev, request);
+	status = scic_io_request_construct(ihost, idev, request);
 
 	if (status != SCI_SUCCESS) {
-		dev_warn(&isci_host->pdev->dev,
+		dev_warn(&ihost->pdev->dev,
 			 "%s: failed request construct\n",
 			 __func__);
 		return SCI_FAILURE;
@@ -3309,7 +3305,7 @@ static enum sci_status isci_io_request_build(struct isci_host *isci_host,
 		status = isci_request_stp_request_construct(request);
 		break;
 	default:
-		dev_warn(&isci_host->pdev->dev,
+		dev_warn(&ihost->pdev->dev,
 			 "%s: unknown protocol\n", __func__);
 		return SCI_FAILURE;
 	}
@@ -3392,7 +3388,7 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 			 * request was built that way (ie.
 			 * ireq->is_task_management_request is false).
 			 */
-			status = scic_controller_start_task(&ihost->sci,
+			status = scic_controller_start_task(ihost,
 							    idev,
 							    ireq);
 		} else {
@@ -3400,7 +3396,7 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 		}
 	} else {
 		/* send the request, let the core assign the IO TAG.	*/
-		status = scic_controller_start_io(&ihost->sci, idev,
+		status = scic_controller_start_io(ihost, idev,
 						  ireq);
 	}
 

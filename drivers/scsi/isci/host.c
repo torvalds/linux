@@ -181,35 +181,35 @@ void sci_change_state(struct sci_base_state_machine *sm, u32 next_state)
 }
 
 static bool scic_sds_controller_completion_queue_has_entries(
-	struct scic_sds_controller *scic)
+	struct isci_host *ihost)
 {
-	u32 get_value = scic->completion_queue_get;
+	u32 get_value = ihost->completion_queue_get;
 	u32 get_index = get_value & SMU_COMPLETION_QUEUE_GET_POINTER_MASK;
 
 	if (NORMALIZE_GET_POINTER_CYCLE_BIT(get_value) ==
-	    COMPLETION_QUEUE_CYCLE_BIT(scic->completion_queue[get_index]))
+	    COMPLETION_QUEUE_CYCLE_BIT(ihost->completion_queue[get_index]))
 		return true;
 
 	return false;
 }
 
-static bool scic_sds_controller_isr(struct scic_sds_controller *scic)
+static bool scic_sds_controller_isr(struct isci_host *ihost)
 {
-	if (scic_sds_controller_completion_queue_has_entries(scic)) {
+	if (scic_sds_controller_completion_queue_has_entries(ihost)) {
 		return true;
 	} else {
 		/*
 		 * we have a spurious interrupt it could be that we have already
 		 * emptied the completion queue from a previous interrupt */
-		writel(SMU_ISR_COMPLETION, &scic->smu_registers->interrupt_status);
+		writel(SMU_ISR_COMPLETION, &ihost->smu_registers->interrupt_status);
 
 		/*
 		 * There is a race in the hardware that could cause us not to be notified
 		 * of an interrupt completion if we do not take this step.  We will mask
 		 * then unmask the interrupts so if there is another interrupt pending
 		 * the clearing of the interrupt source we get the next interrupt message. */
-		writel(0xFF000000, &scic->smu_registers->interrupt_mask);
-		writel(0, &scic->smu_registers->interrupt_mask);
+		writel(0xFF000000, &ihost->smu_registers->interrupt_mask);
+		writel(0, &ihost->smu_registers->interrupt_mask);
 	}
 
 	return false;
@@ -219,18 +219,18 @@ irqreturn_t isci_msix_isr(int vec, void *data)
 {
 	struct isci_host *ihost = data;
 
-	if (scic_sds_controller_isr(&ihost->sci))
+	if (scic_sds_controller_isr(ihost))
 		tasklet_schedule(&ihost->completion_tasklet);
 
 	return IRQ_HANDLED;
 }
 
-static bool scic_sds_controller_error_isr(struct scic_sds_controller *scic)
+static bool scic_sds_controller_error_isr(struct isci_host *ihost)
 {
 	u32 interrupt_status;
 
 	interrupt_status =
-		readl(&scic->smu_registers->interrupt_status);
+		readl(&ihost->smu_registers->interrupt_status);
 	interrupt_status &= (SMU_ISR_QUEUE_ERROR | SMU_ISR_QUEUE_SUSPEND);
 
 	if (interrupt_status != 0) {
@@ -246,28 +246,27 @@ static bool scic_sds_controller_error_isr(struct scic_sds_controller *scic)
 	 * then unmask the error interrupts so if there was another interrupt
 	 * pending we will be notified.
 	 * Could we write the value of (SMU_ISR_QUEUE_ERROR | SMU_ISR_QUEUE_SUSPEND)? */
-	writel(0xff, &scic->smu_registers->interrupt_mask);
-	writel(0, &scic->smu_registers->interrupt_mask);
+	writel(0xff, &ihost->smu_registers->interrupt_mask);
+	writel(0, &ihost->smu_registers->interrupt_mask);
 
 	return false;
 }
 
-static void scic_sds_controller_task_completion(struct scic_sds_controller *scic,
+static void scic_sds_controller_task_completion(struct isci_host *ihost,
 						u32 completion_entry)
 {
 	u32 index = SCU_GET_COMPLETION_INDEX(completion_entry);
-	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_request *ireq = ihost->reqs[index];
 
 	/* Make sure that we really want to process this IO request */
 	if (test_bit(IREQ_ACTIVE, &ireq->flags) &&
 	    ireq->io_tag != SCI_CONTROLLER_INVALID_IO_TAG &&
-	    ISCI_TAG_SEQ(ireq->io_tag) == scic->io_request_sequence[index])
+	    ISCI_TAG_SEQ(ireq->io_tag) == ihost->io_request_sequence[index])
 		/* Yep this is a valid io request pass it along to the io request handler */
 		scic_sds_io_request_tc_completion(ireq, completion_entry);
 }
 
-static void scic_sds_controller_sdma_completion(struct scic_sds_controller *scic,
+static void scic_sds_controller_sdma_completion(struct isci_host *ihost,
 						u32 completion_entry)
 {
 	u32 index;
@@ -279,8 +278,8 @@ static void scic_sds_controller_sdma_completion(struct scic_sds_controller *scic
 	switch (scu_get_command_request_type(completion_entry)) {
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC:
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_DUMP_TC:
-		ireq = scic_to_ihost(scic)->reqs[index];
-		dev_warn(scic_to_dev(scic), "%s: %x for io request %p\n",
+		ireq = ihost->reqs[index];
+		dev_warn(&ihost->pdev->dev, "%s: %x for io request %p\n",
 			 __func__, completion_entry, ireq);
 		/* @todo For a post TC operation we need to fail the IO
 		 * request
@@ -289,27 +288,26 @@ static void scic_sds_controller_sdma_completion(struct scic_sds_controller *scic
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_DUMP_RNC:
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_OTHER_RNC:
 	case SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_RNC:
-		idev = scic->device_table[index];
-		dev_warn(scic_to_dev(scic), "%s: %x for device %p\n",
+		idev = ihost->device_table[index];
+		dev_warn(&ihost->pdev->dev, "%s: %x for device %p\n",
 			 __func__, completion_entry, idev);
 		/* @todo For a port RNC operation we need to fail the
 		 * device
 		 */
 		break;
 	default:
-		dev_warn(scic_to_dev(scic), "%s: unknown completion type %x\n",
+		dev_warn(&ihost->pdev->dev, "%s: unknown completion type %x\n",
 			 __func__, completion_entry);
 		break;
 	}
 }
 
-static void scic_sds_controller_unsolicited_frame(struct scic_sds_controller *scic,
+static void scic_sds_controller_unsolicited_frame(struct isci_host *ihost,
 						  u32 completion_entry)
 {
 	u32 index;
 	u32 frame_index;
 
-	struct isci_host *ihost = scic_to_ihost(scic);
 	struct scu_unsolicited_frame_header *frame_header;
 	struct isci_phy *iphy;
 	struct isci_remote_device *idev;
@@ -318,15 +316,15 @@ static void scic_sds_controller_unsolicited_frame(struct scic_sds_controller *sc
 
 	frame_index = SCU_GET_FRAME_INDEX(completion_entry);
 
-	frame_header = scic->uf_control.buffers.array[frame_index].header;
-	scic->uf_control.buffers.array[frame_index].state = UNSOLICITED_FRAME_IN_USE;
+	frame_header = ihost->uf_control.buffers.array[frame_index].header;
+	ihost->uf_control.buffers.array[frame_index].state = UNSOLICITED_FRAME_IN_USE;
 
 	if (SCU_GET_FRAME_ERROR(completion_entry)) {
 		/*
 		 * / @todo If the IAF frame or SIGNATURE FIS frame has an error will
 		 * /       this cause a problem? We expect the phy initialization will
 		 * /       fail if there is an error in the frame. */
-		scic_sds_controller_release_frame(scic, frame_index);
+		scic_sds_controller_release_frame(ihost, frame_index);
 		return;
 	}
 
@@ -347,15 +345,15 @@ static void scic_sds_controller_unsolicited_frame(struct scic_sds_controller *sc
 			iphy = &ihost->phys[index];
 			result = scic_sds_phy_frame_handler(iphy, frame_index);
 		} else {
-			if (index < scic->remote_node_entries)
-				idev = scic->device_table[index];
+			if (index < ihost->remote_node_entries)
+				idev = ihost->device_table[index];
 			else
 				idev = NULL;
 
 			if (idev != NULL)
 				result = scic_sds_remote_device_frame_handler(idev, frame_index);
 			else
-				scic_sds_controller_release_frame(scic, frame_index);
+				scic_sds_controller_release_frame(ihost, frame_index);
 		}
 	}
 
@@ -366,10 +364,9 @@ static void scic_sds_controller_unsolicited_frame(struct scic_sds_controller *sc
 	}
 }
 
-static void scic_sds_controller_event_completion(struct scic_sds_controller *scic,
+static void scic_sds_controller_event_completion(struct isci_host *ihost,
 						 u32 completion_entry)
 {
-	struct isci_host *ihost = scic_to_ihost(scic);
 	struct isci_remote_device *idev;
 	struct isci_request *ireq;
 	struct isci_phy *iphy;
@@ -380,11 +377,11 @@ static void scic_sds_controller_event_completion(struct scic_sds_controller *sci
 	switch (scu_get_event_type(completion_entry)) {
 	case SCU_EVENT_TYPE_SMU_COMMAND_ERROR:
 		/* / @todo The driver did something wrong and we need to fix the condtion. */
-		dev_err(scic_to_dev(scic),
+		dev_err(&ihost->pdev->dev,
 			"%s: SCIC Controller 0x%p received SMU command error "
 			"0x%x\n",
 			__func__,
-			scic,
+			ihost,
 			completion_entry);
 		break;
 
@@ -394,11 +391,11 @@ static void scic_sds_controller_event_completion(struct scic_sds_controller *sci
 		/*
 		 * / @todo This is a hardware failure and its likely that we want to
 		 * /       reset the controller. */
-		dev_err(scic_to_dev(scic),
+		dev_err(&ihost->pdev->dev,
 			"%s: SCIC Controller 0x%p received fatal controller "
 			"event  0x%x\n",
 			__func__,
-			scic,
+			ihost,
 			completion_entry);
 		break;
 
@@ -415,27 +412,27 @@ static void scic_sds_controller_event_completion(struct scic_sds_controller *sci
 			if (ireq != NULL)
 				scic_sds_io_request_event_handler(ireq, completion_entry);
 			else
-				dev_warn(scic_to_dev(scic),
+				dev_warn(&ihost->pdev->dev,
 					 "%s: SCIC Controller 0x%p received "
 					 "event 0x%x for io request object "
 					 "that doesnt exist.\n",
 					 __func__,
-					 scic,
+					 ihost,
 					 completion_entry);
 
 			break;
 
 		case SCU_EVENT_SPECIFIC_IT_NEXUS_TIMEOUT:
-			idev = scic->device_table[index];
+			idev = ihost->device_table[index];
 			if (idev != NULL)
 				scic_sds_remote_device_event_handler(idev, completion_entry);
 			else
-				dev_warn(scic_to_dev(scic),
+				dev_warn(&ihost->pdev->dev,
 					 "%s: SCIC Controller 0x%p received "
 					 "event 0x%x for remote device object "
 					 "that doesnt exist.\n",
 					 __func__,
-					 scic,
+					 ihost,
 					 completion_entry);
 
 			break;
@@ -459,25 +456,25 @@ static void scic_sds_controller_event_completion(struct scic_sds_controller *sci
 	case SCU_EVENT_TYPE_RNC_SUSPEND_TX:
 	case SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX:
 	case SCU_EVENT_TYPE_RNC_OPS_MISC:
-		if (index < scic->remote_node_entries) {
-			idev = scic->device_table[index];
+		if (index < ihost->remote_node_entries) {
+			idev = ihost->device_table[index];
 
 			if (idev != NULL)
 				scic_sds_remote_device_event_handler(idev, completion_entry);
 		} else
-			dev_err(scic_to_dev(scic),
+			dev_err(&ihost->pdev->dev,
 				"%s: SCIC Controller 0x%p received event 0x%x "
 				"for remote device object 0x%0x that doesnt "
 				"exist.\n",
 				__func__,
-				scic,
+				ihost,
 				completion_entry,
 				index);
 
 		break;
 
 	default:
-		dev_warn(scic_to_dev(scic),
+		dev_warn(&ihost->pdev->dev,
 			 "%s: SCIC Controller received unknown event code %x\n",
 			 __func__,
 			 completion_entry);
@@ -485,7 +482,7 @@ static void scic_sds_controller_event_completion(struct scic_sds_controller *sci
 	}
 }
 
-static void scic_sds_controller_process_completions(struct scic_sds_controller *scic)
+static void scic_sds_controller_process_completions(struct isci_host *ihost)
 {
 	u32 completion_count = 0;
 	u32 completion_entry;
@@ -494,47 +491,47 @@ static void scic_sds_controller_process_completions(struct scic_sds_controller *
 	u32 event_get;
 	u32 event_cycle;
 
-	dev_dbg(scic_to_dev(scic),
+	dev_dbg(&ihost->pdev->dev,
 		"%s: completion queue begining get:0x%08x\n",
 		__func__,
-		scic->completion_queue_get);
+		ihost->completion_queue_get);
 
 	/* Get the component parts of the completion queue */
-	get_index = NORMALIZE_GET_POINTER(scic->completion_queue_get);
-	get_cycle = SMU_CQGR_CYCLE_BIT & scic->completion_queue_get;
+	get_index = NORMALIZE_GET_POINTER(ihost->completion_queue_get);
+	get_cycle = SMU_CQGR_CYCLE_BIT & ihost->completion_queue_get;
 
-	event_get = NORMALIZE_EVENT_POINTER(scic->completion_queue_get);
-	event_cycle = SMU_CQGR_EVENT_CYCLE_BIT & scic->completion_queue_get;
+	event_get = NORMALIZE_EVENT_POINTER(ihost->completion_queue_get);
+	event_cycle = SMU_CQGR_EVENT_CYCLE_BIT & ihost->completion_queue_get;
 
 	while (
 		NORMALIZE_GET_POINTER_CYCLE_BIT(get_cycle)
-		== COMPLETION_QUEUE_CYCLE_BIT(scic->completion_queue[get_index])
+		== COMPLETION_QUEUE_CYCLE_BIT(ihost->completion_queue[get_index])
 		) {
 		completion_count++;
 
-		completion_entry = scic->completion_queue[get_index];
+		completion_entry = ihost->completion_queue[get_index];
 
 		/* increment the get pointer and check for rollover to toggle the cycle bit */
 		get_cycle ^= ((get_index+1) & SCU_MAX_COMPLETION_QUEUE_ENTRIES) <<
 			     (SMU_COMPLETION_QUEUE_GET_CYCLE_BIT_SHIFT - SCU_MAX_COMPLETION_QUEUE_SHIFT);
 		get_index = (get_index+1) & (SCU_MAX_COMPLETION_QUEUE_ENTRIES-1);
 
-		dev_dbg(scic_to_dev(scic),
+		dev_dbg(&ihost->pdev->dev,
 			"%s: completion queue entry:0x%08x\n",
 			__func__,
 			completion_entry);
 
 		switch (SCU_GET_COMPLETION_TYPE(completion_entry)) {
 		case SCU_COMPLETION_TYPE_TASK:
-			scic_sds_controller_task_completion(scic, completion_entry);
+			scic_sds_controller_task_completion(ihost, completion_entry);
 			break;
 
 		case SCU_COMPLETION_TYPE_SDMA:
-			scic_sds_controller_sdma_completion(scic, completion_entry);
+			scic_sds_controller_sdma_completion(ihost, completion_entry);
 			break;
 
 		case SCU_COMPLETION_TYPE_UFI:
-			scic_sds_controller_unsolicited_frame(scic, completion_entry);
+			scic_sds_controller_unsolicited_frame(ihost, completion_entry);
 			break;
 
 		case SCU_COMPLETION_TYPE_EVENT:
@@ -543,11 +540,11 @@ static void scic_sds_controller_process_completions(struct scic_sds_controller *
 				       (SMU_COMPLETION_QUEUE_GET_EVENT_CYCLE_BIT_SHIFT - SCU_MAX_EVENTS_SHIFT);
 			event_get = (event_get+1) & (SCU_MAX_EVENTS-1);
 
-			scic_sds_controller_event_completion(scic, completion_entry);
+			scic_sds_controller_event_completion(ihost, completion_entry);
 			break;
 		}
 		default:
-			dev_warn(scic_to_dev(scic),
+			dev_warn(&ihost->pdev->dev,
 				 "%s: SCIC Controller received unknown "
 				 "completion type %x\n",
 				 __func__,
@@ -558,7 +555,7 @@ static void scic_sds_controller_process_completions(struct scic_sds_controller *
 
 	/* Update the get register if we completed one or more entries */
 	if (completion_count > 0) {
-		scic->completion_queue_get =
+		ihost->completion_queue_get =
 			SMU_CQGR_GEN_BIT(ENABLE) |
 			SMU_CQGR_GEN_BIT(EVENT_ENABLE) |
 			event_cycle |
@@ -566,35 +563,35 @@ static void scic_sds_controller_process_completions(struct scic_sds_controller *
 			get_cycle |
 			SMU_CQGR_GEN_VAL(POINTER, get_index);
 
-		writel(scic->completion_queue_get,
-		       &scic->smu_registers->completion_queue_get);
+		writel(ihost->completion_queue_get,
+		       &ihost->smu_registers->completion_queue_get);
 
 	}
 
-	dev_dbg(scic_to_dev(scic),
+	dev_dbg(&ihost->pdev->dev,
 		"%s: completion queue ending get:0x%08x\n",
 		__func__,
-		scic->completion_queue_get);
+		ihost->completion_queue_get);
 
 }
 
-static void scic_sds_controller_error_handler(struct scic_sds_controller *scic)
+static void scic_sds_controller_error_handler(struct isci_host *ihost)
 {
 	u32 interrupt_status;
 
 	interrupt_status =
-		readl(&scic->smu_registers->interrupt_status);
+		readl(&ihost->smu_registers->interrupt_status);
 
 	if ((interrupt_status & SMU_ISR_QUEUE_SUSPEND) &&
-	    scic_sds_controller_completion_queue_has_entries(scic)) {
+	    scic_sds_controller_completion_queue_has_entries(ihost)) {
 
-		scic_sds_controller_process_completions(scic);
-		writel(SMU_ISR_QUEUE_SUSPEND, &scic->smu_registers->interrupt_status);
+		scic_sds_controller_process_completions(ihost);
+		writel(SMU_ISR_QUEUE_SUSPEND, &ihost->smu_registers->interrupt_status);
 	} else {
-		dev_err(scic_to_dev(scic), "%s: status: %#x\n", __func__,
+		dev_err(&ihost->pdev->dev, "%s: status: %#x\n", __func__,
 			interrupt_status);
 
-		sci_change_state(&scic->sm, SCIC_FAILED);
+		sci_change_state(&ihost->sm, SCIC_FAILED);
 
 		return;
 	}
@@ -602,22 +599,21 @@ static void scic_sds_controller_error_handler(struct scic_sds_controller *scic)
 	/* If we dont process any completions I am not sure that we want to do this.
 	 * We are in the middle of a hardware fault and should probably be reset.
 	 */
-	writel(0, &scic->smu_registers->interrupt_mask);
+	writel(0, &ihost->smu_registers->interrupt_mask);
 }
 
 irqreturn_t isci_intx_isr(int vec, void *data)
 {
 	irqreturn_t ret = IRQ_NONE;
 	struct isci_host *ihost = data;
-	struct scic_sds_controller *scic = &ihost->sci;
 
-	if (scic_sds_controller_isr(scic)) {
-		writel(SMU_ISR_COMPLETION, &scic->smu_registers->interrupt_status);
+	if (scic_sds_controller_isr(ihost)) {
+		writel(SMU_ISR_COMPLETION, &ihost->smu_registers->interrupt_status);
 		tasklet_schedule(&ihost->completion_tasklet);
 		ret = IRQ_HANDLED;
-	} else if (scic_sds_controller_error_isr(scic)) {
+	} else if (scic_sds_controller_error_isr(ihost)) {
 		spin_lock(&ihost->scic_lock);
-		scic_sds_controller_error_handler(scic);
+		scic_sds_controller_error_handler(ihost);
 		spin_unlock(&ihost->scic_lock);
 		ret = IRQ_HANDLED;
 	}
@@ -629,8 +625,8 @@ irqreturn_t isci_error_isr(int vec, void *data)
 {
 	struct isci_host *ihost = data;
 
-	if (scic_sds_controller_error_isr(&ihost->sci))
-		scic_sds_controller_error_handler(&ihost->sci);
+	if (scic_sds_controller_error_isr(ihost))
+		scic_sds_controller_error_handler(ihost);
 
 	return IRQ_HANDLED;
 }
@@ -685,11 +681,10 @@ int isci_host_scan_finished(struct Scsi_Host *shost, unsigned long time)
  * This method returns the number of milliseconds for the suggested start
  * operation timeout.
  */
-static u32 scic_controller_get_suggested_start_timeout(
-	struct scic_sds_controller *sc)
+static u32 scic_controller_get_suggested_start_timeout(struct isci_host *ihost)
 {
 	/* Validate the user supplied parameters. */
-	if (sc == NULL)
+	if (!ihost)
 		return 0;
 
 	/*
@@ -711,35 +706,32 @@ static u32 scic_controller_get_suggested_start_timeout(
 		+ ((SCI_MAX_PHYS - 1) * SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL);
 }
 
-static void scic_controller_enable_interrupts(
-	struct scic_sds_controller *scic)
+static void scic_controller_enable_interrupts(struct isci_host *ihost)
 {
-	BUG_ON(scic->smu_registers == NULL);
-	writel(0, &scic->smu_registers->interrupt_mask);
+	BUG_ON(ihost->smu_registers == NULL);
+	writel(0, &ihost->smu_registers->interrupt_mask);
 }
 
-void scic_controller_disable_interrupts(
-	struct scic_sds_controller *scic)
+void scic_controller_disable_interrupts(struct isci_host *ihost)
 {
-	BUG_ON(scic->smu_registers == NULL);
-	writel(0xffffffff, &scic->smu_registers->interrupt_mask);
+	BUG_ON(ihost->smu_registers == NULL);
+	writel(0xffffffff, &ihost->smu_registers->interrupt_mask);
 }
 
-static void scic_sds_controller_enable_port_task_scheduler(
-	struct scic_sds_controller *scic)
+static void scic_sds_controller_enable_port_task_scheduler(struct isci_host *ihost)
 {
 	u32 port_task_scheduler_value;
 
 	port_task_scheduler_value =
-		readl(&scic->scu_registers->peg0.ptsg.control);
+		readl(&ihost->scu_registers->peg0.ptsg.control);
 	port_task_scheduler_value |=
 		(SCU_PTSGCR_GEN_BIT(ETM_ENABLE) |
 		 SCU_PTSGCR_GEN_BIT(PTSG_ENABLE));
 	writel(port_task_scheduler_value,
-	       &scic->scu_registers->peg0.ptsg.control);
+	       &ihost->scu_registers->peg0.ptsg.control);
 }
 
-static void scic_sds_controller_assign_task_entries(struct scic_sds_controller *scic)
+static void scic_sds_controller_assign_task_entries(struct isci_host *ihost)
 {
 	u32 task_assignment;
 
@@ -749,32 +741,32 @@ static void scic_sds_controller_assign_task_entries(struct scic_sds_controller *
 	 */
 
 	task_assignment =
-		readl(&scic->smu_registers->task_context_assignment[0]);
+		readl(&ihost->smu_registers->task_context_assignment[0]);
 
 	task_assignment |= (SMU_TCA_GEN_VAL(STARTING, 0)) |
-		(SMU_TCA_GEN_VAL(ENDING,  scic->task_context_entries - 1)) |
+		(SMU_TCA_GEN_VAL(ENDING,  ihost->task_context_entries - 1)) |
 		(SMU_TCA_GEN_BIT(RANGE_CHECK_ENABLE));
 
 	writel(task_assignment,
-		&scic->smu_registers->task_context_assignment[0]);
+		&ihost->smu_registers->task_context_assignment[0]);
 
 }
 
-static void scic_sds_controller_initialize_completion_queue(struct scic_sds_controller *scic)
+static void scic_sds_controller_initialize_completion_queue(struct isci_host *ihost)
 {
 	u32 index;
 	u32 completion_queue_control_value;
 	u32 completion_queue_get_value;
 	u32 completion_queue_put_value;
 
-	scic->completion_queue_get = 0;
+	ihost->completion_queue_get = 0;
 
 	completion_queue_control_value =
 		(SMU_CQC_QUEUE_LIMIT_SET(SCU_MAX_COMPLETION_QUEUE_ENTRIES - 1) |
 		 SMU_CQC_EVENT_LIMIT_SET(SCU_MAX_EVENTS - 1));
 
 	writel(completion_queue_control_value,
-	       &scic->smu_registers->completion_queue_control);
+	       &ihost->smu_registers->completion_queue_control);
 
 
 	/* Set the completion queue get pointer and enable the queue */
@@ -786,7 +778,7 @@ static void scic_sds_controller_initialize_completion_queue(struct scic_sds_cont
 		);
 
 	writel(completion_queue_get_value,
-	       &scic->smu_registers->completion_queue_get);
+	       &ihost->smu_registers->completion_queue_get);
 
 	/* Set the completion queue put pointer */
 	completion_queue_put_value = (
@@ -795,7 +787,7 @@ static void scic_sds_controller_initialize_completion_queue(struct scic_sds_cont
 		);
 
 	writel(completion_queue_put_value,
-	       &scic->smu_registers->completion_queue_put);
+	       &ihost->smu_registers->completion_queue_put);
 
 	/* Initialize the cycle bit of the completion queue entries */
 	for (index = 0; index < SCU_MAX_COMPLETION_QUEUE_ENTRIES; index++) {
@@ -803,11 +795,11 @@ static void scic_sds_controller_initialize_completion_queue(struct scic_sds_cont
 		 * If get.cycle_bit != completion_queue.cycle_bit
 		 * its not a valid completion queue entry
 		 * so at system start all entries are invalid */
-		scic->completion_queue[index] = 0x80000000;
+		ihost->completion_queue[index] = 0x80000000;
 	}
 }
 
-static void scic_sds_controller_initialize_unsolicited_frame_queue(struct scic_sds_controller *scic)
+static void scic_sds_controller_initialize_unsolicited_frame_queue(struct isci_host *ihost)
 {
 	u32 frame_queue_control_value;
 	u32 frame_queue_get_value;
@@ -818,7 +810,7 @@ static void scic_sds_controller_initialize_unsolicited_frame_queue(struct scic_s
 		SCU_UFQC_GEN_VAL(QUEUE_SIZE, SCU_MAX_UNSOLICITED_FRAMES);
 
 	writel(frame_queue_control_value,
-	       &scic->scu_registers->sdma.unsolicited_frame_queue_control);
+	       &ihost->scu_registers->sdma.unsolicited_frame_queue_control);
 
 	/* Setup the get pointer for the unsolicited frame queue */
 	frame_queue_get_value = (
@@ -827,11 +819,11 @@ static void scic_sds_controller_initialize_unsolicited_frame_queue(struct scic_s
 		);
 
 	writel(frame_queue_get_value,
-	       &scic->scu_registers->sdma.unsolicited_frame_get_pointer);
+	       &ihost->scu_registers->sdma.unsolicited_frame_get_pointer);
 	/* Setup the put pointer for the unsolicited frame queue */
 	frame_queue_put_value = SCU_UFQPP_GEN_VAL(POINTER, 0);
 	writel(frame_queue_put_value,
-	       &scic->scu_registers->sdma.unsolicited_frame_put_pointer);
+	       &ihost->scu_registers->sdma.unsolicited_frame_put_pointer);
 }
 
 /**
@@ -846,17 +838,16 @@ static void scic_sds_controller_initialize_unsolicited_frame_queue(struct scic_s
  * none.
  */
 static void scic_sds_controller_transition_to_ready(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	enum sci_status status)
 {
-	struct isci_host *ihost = scic_to_ihost(scic);
 
-	if (scic->sm.current_state_id == SCIC_STARTING) {
+	if (ihost->sm.current_state_id == SCIC_STARTING) {
 		/*
 		 * We move into the ready state, because some of the phys/ports
 		 * may be up and operational.
 		 */
-		sci_change_state(&scic->sm, SCIC_READY);
+		sci_change_state(&ihost->sm, SCIC_READY);
 
 		isci_host_start_complete(ihost, status);
 	}
@@ -892,19 +883,18 @@ static bool is_phy_starting(struct isci_phy *iphy)
  * controller to the READY state and inform the user
  * (scic_cb_controller_start_complete()).
  */
-static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_controller *scic)
+static enum sci_status scic_sds_controller_start_next_phy(struct isci_host *ihost)
 {
-	struct isci_host *ihost = scic_to_ihost(scic);
-	struct scic_sds_oem_params *oem = &scic->oem_parameters.sds1;
+	struct scic_sds_oem_params *oem = &ihost->oem_parameters.sds1;
 	struct isci_phy *iphy;
 	enum sci_status status;
 
 	status = SCI_SUCCESS;
 
-	if (scic->phy_startup_timer_pending)
+	if (ihost->phy_startup_timer_pending)
 		return status;
 
-	if (scic->next_phy_to_start >= SCI_MAX_PHYS) {
+	if (ihost->next_phy_to_start >= SCI_MAX_PHYS) {
 		bool is_controller_start_complete = true;
 		u32 state;
 		u8 index;
@@ -934,16 +924,16 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 		 * The controller has successfully finished the start process.
 		 * Inform the SCI Core user and transition to the READY state. */
 		if (is_controller_start_complete == true) {
-			scic_sds_controller_transition_to_ready(scic, SCI_SUCCESS);
-			sci_del_timer(&scic->phy_timer);
-			scic->phy_startup_timer_pending = false;
+			scic_sds_controller_transition_to_ready(ihost, SCI_SUCCESS);
+			sci_del_timer(&ihost->phy_timer);
+			ihost->phy_startup_timer_pending = false;
 		}
 	} else {
-		iphy = &ihost->phys[scic->next_phy_to_start];
+		iphy = &ihost->phys[ihost->next_phy_to_start];
 
 		if (oem->controller.mode_type == SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
 			if (phy_get_non_dummy_port(iphy) == NULL) {
-				scic->next_phy_to_start++;
+				ihost->next_phy_to_start++;
 
 				/* Caution recursion ahead be forwarned
 				 *
@@ -954,27 +944,27 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 				 * incorrectly for the PORT or it was never
 				 * assigned to a PORT
 				 */
-				return scic_sds_controller_start_next_phy(scic);
+				return scic_sds_controller_start_next_phy(ihost);
 			}
 		}
 
 		status = scic_sds_phy_start(iphy);
 
 		if (status == SCI_SUCCESS) {
-			sci_mod_timer(&scic->phy_timer,
+			sci_mod_timer(&ihost->phy_timer,
 				      SCIC_SDS_CONTROLLER_PHY_START_TIMEOUT);
-			scic->phy_startup_timer_pending = true;
+			ihost->phy_startup_timer_pending = true;
 		} else {
-			dev_warn(scic_to_dev(scic),
+			dev_warn(&ihost->pdev->dev,
 				 "%s: Controller stop operation failed "
 				 "to stop phy %d because of status "
 				 "%d.\n",
 				 __func__,
-				 ihost->phys[scic->next_phy_to_start].phy_index,
+				 ihost->phys[ihost->next_phy_to_start].phy_index,
 				 status);
 		}
 
-		scic->next_phy_to_start++;
+		ihost->next_phy_to_start++;
 	}
 
 	return status;
@@ -983,8 +973,7 @@ static enum sci_status scic_sds_controller_start_next_phy(struct scic_sds_contro
 static void phy_startup_timeout(unsigned long data)
 {
 	struct sci_timer *tmr = (struct sci_timer *)data;
-	struct scic_sds_controller *scic = container_of(tmr, typeof(*scic), phy_timer);
-	struct isci_host *ihost = scic_to_ihost(scic);
+	struct isci_host *ihost = container_of(tmr, typeof(*ihost), phy_timer);
 	unsigned long flags;
 	enum sci_status status;
 
@@ -993,10 +982,10 @@ static void phy_startup_timeout(unsigned long data)
 	if (tmr->cancel)
 		goto done;
 
-	scic->phy_startup_timer_pending = false;
+	ihost->phy_startup_timer_pending = false;
 
 	do {
-		status = scic_sds_controller_start_next_phy(scic);
+		status = scic_sds_controller_start_next_phy(ihost);
 	} while (status != SCI_SUCCESS);
 
 done:
@@ -1008,15 +997,14 @@ static u16 isci_tci_active(struct isci_host *ihost)
 	return CIRC_CNT(ihost->tci_head, ihost->tci_tail, SCI_MAX_IO_REQUESTS);
 }
 
-static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
+static enum sci_status scic_controller_start(struct isci_host *ihost,
 					     u32 timeout)
 {
-	struct isci_host *ihost = scic_to_ihost(scic);
 	enum sci_status result;
 	u16 index;
 
-	if (scic->sm.current_state_id != SCIC_INITIALIZED) {
-		dev_warn(scic_to_dev(scic),
+	if (ihost->sm.current_state_id != SCIC_INITIALIZED) {
+		dev_warn(&ihost->pdev->dev,
 			 "SCIC Controller start operation requested in "
 			 "invalid state\n");
 		return SCI_FAILURE_INVALID_STATE;
@@ -1026,34 +1014,34 @@ static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 	BUILD_BUG_ON(SCI_MAX_IO_REQUESTS > 1 << sizeof(ihost->tci_pool[0]) * 8);
 	ihost->tci_head = 0;
 	ihost->tci_tail = 0;
-	for (index = 0; index < scic->task_context_entries; index++)
+	for (index = 0; index < ihost->task_context_entries; index++)
 		isci_tci_free(ihost, index);
 
 	/* Build the RNi free pool */
 	scic_sds_remote_node_table_initialize(
-			&scic->available_remote_nodes,
-			scic->remote_node_entries);
+			&ihost->available_remote_nodes,
+			ihost->remote_node_entries);
 
 	/*
 	 * Before anything else lets make sure we will not be
 	 * interrupted by the hardware.
 	 */
-	scic_controller_disable_interrupts(scic);
+	scic_controller_disable_interrupts(ihost);
 
 	/* Enable the port task scheduler */
-	scic_sds_controller_enable_port_task_scheduler(scic);
+	scic_sds_controller_enable_port_task_scheduler(ihost);
 
-	/* Assign all the task entries to scic physical function */
-	scic_sds_controller_assign_task_entries(scic);
+	/* Assign all the task entries to ihost physical function */
+	scic_sds_controller_assign_task_entries(ihost);
 
 	/* Now initialize the completion queue */
-	scic_sds_controller_initialize_completion_queue(scic);
+	scic_sds_controller_initialize_completion_queue(ihost);
 
 	/* Initialize the unsolicited frame queue for use */
-	scic_sds_controller_initialize_unsolicited_frame_queue(scic);
+	scic_sds_controller_initialize_unsolicited_frame_queue(ihost);
 
 	/* Start all of the ports on this controller */
-	for (index = 0; index < scic->logical_port_entries; index++) {
+	for (index = 0; index < ihost->logical_port_entries; index++) {
 		struct isci_port *iport = &ihost->ports[index];
 
 		result = scic_sds_port_start(iport);
@@ -1061,11 +1049,11 @@ static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 			return result;
 	}
 
-	scic_sds_controller_start_next_phy(scic);
+	scic_sds_controller_start_next_phy(ihost);
 
-	sci_mod_timer(&scic->timer, timeout);
+	sci_mod_timer(&ihost->timer, timeout);
 
-	sci_change_state(&scic->sm, SCIC_STARTING);
+	sci_change_state(&ihost->sm, SCIC_STARTING);
 
 	return SCI_SUCCESS;
 }
@@ -1073,35 +1061,35 @@ static enum sci_status scic_controller_start(struct scic_sds_controller *scic,
 void isci_host_scan_start(struct Scsi_Host *shost)
 {
 	struct isci_host *ihost = SHOST_TO_SAS_HA(shost)->lldd_ha;
-	unsigned long tmo = scic_controller_get_suggested_start_timeout(&ihost->sci);
+	unsigned long tmo = scic_controller_get_suggested_start_timeout(ihost);
 
 	set_bit(IHOST_START_PENDING, &ihost->flags);
 
 	spin_lock_irq(&ihost->scic_lock);
-	scic_controller_start(&ihost->sci, tmo);
-	scic_controller_enable_interrupts(&ihost->sci);
+	scic_controller_start(ihost, tmo);
+	scic_controller_enable_interrupts(ihost);
 	spin_unlock_irq(&ihost->scic_lock);
 }
 
 static void isci_host_stop_complete(struct isci_host *ihost, enum sci_status completion_status)
 {
 	isci_host_change_state(ihost, isci_stopped);
-	scic_controller_disable_interrupts(&ihost->sci);
+	scic_controller_disable_interrupts(ihost);
 	clear_bit(IHOST_STOP_PENDING, &ihost->flags);
 	wake_up(&ihost->eventq);
 }
 
-static void scic_sds_controller_completion_handler(struct scic_sds_controller *scic)
+static void scic_sds_controller_completion_handler(struct isci_host *ihost)
 {
 	/* Empty out the completion queue */
-	if (scic_sds_controller_completion_queue_has_entries(scic))
-		scic_sds_controller_process_completions(scic);
+	if (scic_sds_controller_completion_queue_has_entries(ihost))
+		scic_sds_controller_process_completions(ihost);
 
 	/* Clear the interrupt and enable all interrupts again */
-	writel(SMU_ISR_COMPLETION, &scic->smu_registers->interrupt_status);
+	writel(SMU_ISR_COMPLETION, &ihost->smu_registers->interrupt_status);
 	/* Could we write the value of SMU_ISR_COMPLETION? */
-	writel(0xFF000000, &scic->smu_registers->interrupt_mask);
-	writel(0, &scic->smu_registers->interrupt_mask);
+	writel(0xFF000000, &ihost->smu_registers->interrupt_mask);
+	writel(0, &ihost->smu_registers->interrupt_mask);
 }
 
 /**
@@ -1114,7 +1102,7 @@ static void scic_sds_controller_completion_handler(struct scic_sds_controller *s
  */
 static void isci_host_completion_routine(unsigned long data)
 {
-	struct isci_host *isci_host = (struct isci_host *)data;
+	struct isci_host *ihost = (struct isci_host *)data;
 	struct list_head    completed_request_list;
 	struct list_head    errored_request_list;
 	struct list_head    *current_position;
@@ -1126,20 +1114,20 @@ static void isci_host_completion_routine(unsigned long data)
 	INIT_LIST_HEAD(&completed_request_list);
 	INIT_LIST_HEAD(&errored_request_list);
 
-	spin_lock_irq(&isci_host->scic_lock);
+	spin_lock_irq(&ihost->scic_lock);
 
-	scic_sds_controller_completion_handler(&isci_host->sci);
+	scic_sds_controller_completion_handler(ihost);
 
 	/* Take the lists of completed I/Os from the host. */
 
-	list_splice_init(&isci_host->requests_to_complete,
+	list_splice_init(&ihost->requests_to_complete,
 			 &completed_request_list);
 
 	/* Take the list of errored I/Os from the host. */
-	list_splice_init(&isci_host->requests_to_errorback,
+	list_splice_init(&ihost->requests_to_errorback,
 			 &errored_request_list);
 
-	spin_unlock_irq(&isci_host->scic_lock);
+	spin_unlock_irq(&ihost->scic_lock);
 
 	/* Process any completions in the lists. */
 	list_for_each_safe(current_position, next_position,
@@ -1150,7 +1138,7 @@ static void isci_host_completion_routine(unsigned long data)
 		task = isci_request_access_task(request);
 
 		/* Normal notification (task_done) */
-		dev_dbg(&isci_host->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			"%s: Normal - request/task = %p/%p\n",
 			__func__,
 			request,
@@ -1169,9 +1157,9 @@ static void isci_host_completion_routine(unsigned long data)
 			}
 		}
 
-		spin_lock_irq(&isci_host->scic_lock);
-		isci_free_tag(isci_host, request->io_tag);
-		spin_unlock_irq(&isci_host->scic_lock);
+		spin_lock_irq(&ihost->scic_lock);
+		isci_free_tag(ihost, request->io_tag);
+		spin_unlock_irq(&ihost->scic_lock);
 	}
 	list_for_each_entry_safe(request, next_request, &errored_request_list,
 				 completed_node) {
@@ -1179,7 +1167,7 @@ static void isci_host_completion_routine(unsigned long data)
 		task = isci_request_access_task(request);
 
 		/* Use sas_task_abort */
-		dev_warn(&isci_host->pdev->dev,
+		dev_warn(&ihost->pdev->dev,
 			 "%s: Error - request/task = %p/%p\n",
 			 __func__,
 			 request,
@@ -1202,13 +1190,13 @@ static void isci_host_completion_routine(unsigned long data)
 			 * it.
 			 */
 
-			spin_lock_irq(&isci_host->scic_lock);
+			spin_lock_irq(&ihost->scic_lock);
 			/* Remove the request from the remote device's list
 			* of pending requests.
 			*/
 			list_del_init(&request->dev_node);
-			isci_free_tag(isci_host, request->io_tag);
-			spin_unlock_irq(&isci_host->scic_lock);
+			isci_free_tag(ihost, request->io_tag);
+			spin_unlock_irq(&ihost->scic_lock);
 		}
 	}
 
@@ -1232,18 +1220,18 @@ static void isci_host_completion_routine(unsigned long data)
  * controller is already in the STOPPED state. SCI_FAILURE_INVALID_STATE if the
  * controller is not either in the STARTED or STOPPED states.
  */
-static enum sci_status scic_controller_stop(struct scic_sds_controller *scic,
+static enum sci_status scic_controller_stop(struct isci_host *ihost,
 					    u32 timeout)
 {
-	if (scic->sm.current_state_id != SCIC_READY) {
-		dev_warn(scic_to_dev(scic),
+	if (ihost->sm.current_state_id != SCIC_READY) {
+		dev_warn(&ihost->pdev->dev,
 			 "SCIC Controller stop operation requested in "
 			 "invalid state\n");
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	sci_mod_timer(&scic->timer, timeout);
-	sci_change_state(&scic->sm, SCIC_STOPPING);
+	sci_mod_timer(&ihost->timer, timeout);
+	sci_change_state(&ihost->sm, SCIC_STOPPING);
 	return SCI_SUCCESS;
 }
 
@@ -1259,9 +1247,9 @@ static enum sci_status scic_controller_stop(struct scic_sds_controller *scic,
  * SCI_SUCCESS if the reset operation successfully started. SCI_FATAL_ERROR if
  * the controller reset operation is unable to complete.
  */
-static enum sci_status scic_controller_reset(struct scic_sds_controller *scic)
+static enum sci_status scic_controller_reset(struct isci_host *ihost)
 {
-	switch (scic->sm.current_state_id) {
+	switch (ihost->sm.current_state_id) {
 	case SCIC_RESET:
 	case SCIC_READY:
 	case SCIC_STOPPED:
@@ -1270,10 +1258,10 @@ static enum sci_status scic_controller_reset(struct scic_sds_controller *scic)
 		 * The reset operation is not a graceful cleanup, just
 		 * perform the state transition.
 		 */
-		sci_change_state(&scic->sm, SCIC_RESETTING);
+		sci_change_state(&ihost->sm, SCIC_RESETTING);
 		return SCI_SUCCESS;
 	default:
-		dev_warn(scic_to_dev(scic),
+		dev_warn(&ihost->pdev->dev,
 			 "SCIC Controller reset operation requested in "
 			 "invalid state\n");
 		return SCI_FAILURE_INVALID_STATE;
@@ -1298,14 +1286,14 @@ void isci_host_deinit(struct isci_host *ihost)
 	set_bit(IHOST_STOP_PENDING, &ihost->flags);
 
 	spin_lock_irq(&ihost->scic_lock);
-	scic_controller_stop(&ihost->sci, SCIC_CONTROLLER_STOP_TIMEOUT);
+	scic_controller_stop(ihost, SCIC_CONTROLLER_STOP_TIMEOUT);
 	spin_unlock_irq(&ihost->scic_lock);
 
 	wait_for_stop(ihost);
-	scic_controller_reset(&ihost->sci);
+	scic_controller_reset(ihost);
 
 	/* Cancel any/all outstanding port timers */
-	for (i = 0; i < ihost->sci.logical_port_entries; i++) {
+	for (i = 0; i < ihost->logical_port_entries; i++) {
 		struct isci_port *iport = &ihost->ports[i];
 		del_timer_sync(&iport->timer.timer);
 	}
@@ -1316,13 +1304,13 @@ void isci_host_deinit(struct isci_host *ihost)
 		del_timer_sync(&iphy->sata_timer.timer);
 	}
 
-	del_timer_sync(&ihost->sci.port_agent.timer.timer);
+	del_timer_sync(&ihost->port_agent.timer.timer);
 
-	del_timer_sync(&ihost->sci.power_control.timer.timer);
+	del_timer_sync(&ihost->power_control.timer.timer);
 
-	del_timer_sync(&ihost->sci.timer.timer);
+	del_timer_sync(&ihost->timer.timer);
 
-	del_timer_sync(&ihost->sci.phy_timer.timer);
+	del_timer_sync(&ihost->phy_timer.timer);
 }
 
 static void __iomem *scu_base(struct isci_host *isci_host)
@@ -1369,16 +1357,16 @@ static void isci_user_parameters_get(
 
 static void scic_sds_controller_initial_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
+	struct isci_host *ihost = container_of(sm, typeof(*ihost), sm);
 
-	sci_change_state(&scic->sm, SCIC_RESET);
+	sci_change_state(&ihost->sm, SCIC_RESET);
 }
 
 static inline void scic_sds_controller_starting_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
+	struct isci_host *ihost = container_of(sm, typeof(*ihost), sm);
 
-	sci_del_timer(&scic->timer);
+	sci_del_timer(&ihost->timer);
 }
 
 #define INTERRUPT_COALESCE_TIMEOUT_BASE_RANGE_LOWER_BOUND_NS 853
@@ -1405,10 +1393,10 @@ static inline void scic_sds_controller_starting_state_exit(struct sci_base_state
  * SCI_SUCCESS The user successfully updated the interrutp coalescence.
  * SCI_FAILURE_INVALID_PARAMETER_VALUE The user input value is out of range.
  */
-static enum sci_status scic_controller_set_interrupt_coalescence(
-	struct scic_sds_controller *scic_controller,
-	u32 coalesce_number,
-	u32 coalesce_timeout)
+static enum sci_status
+scic_controller_set_interrupt_coalescence(struct isci_host *ihost,
+					  u32 coalesce_number,
+					  u32 coalesce_timeout)
 {
 	u8 timeout_encode = 0;
 	u32 min = 0;
@@ -1491,11 +1479,11 @@ static enum sci_status scic_controller_set_interrupt_coalescence(
 
 	writel(SMU_ICC_GEN_VAL(NUMBER, coalesce_number) |
 	       SMU_ICC_GEN_VAL(TIMER, timeout_encode),
-	       &scic_controller->smu_registers->interrupt_coalesce_control);
+	       &ihost->smu_registers->interrupt_coalesce_control);
 
 
-	scic_controller->interrupt_coalesce_number = (u16)coalesce_number;
-	scic_controller->interrupt_coalesce_timeout = coalesce_timeout / 100;
+	ihost->interrupt_coalesce_number = (u16)coalesce_number;
+	ihost->interrupt_coalesce_timeout = coalesce_timeout / 100;
 
 	return SCI_SUCCESS;
 }
@@ -1503,26 +1491,25 @@ static enum sci_status scic_controller_set_interrupt_coalescence(
 
 static void scic_sds_controller_ready_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
+	struct isci_host *ihost = container_of(sm, typeof(*ihost), sm);
 
 	/* set the default interrupt coalescence number and timeout value. */
-	scic_controller_set_interrupt_coalescence(scic, 0x10, 250);
+	scic_controller_set_interrupt_coalescence(ihost, 0x10, 250);
 }
 
 static void scic_sds_controller_ready_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
+	struct isci_host *ihost = container_of(sm, typeof(*ihost), sm);
 
 	/* disable interrupt coalescence. */
-	scic_controller_set_interrupt_coalescence(scic, 0, 0);
+	scic_controller_set_interrupt_coalescence(ihost, 0, 0);
 }
 
-static enum sci_status scic_sds_controller_stop_phys(struct scic_sds_controller *scic)
+static enum sci_status scic_sds_controller_stop_phys(struct isci_host *ihost)
 {
 	u32 index;
 	enum sci_status status;
 	enum sci_status phy_status;
-	struct isci_host *ihost = scic_to_ihost(scic);
 
 	status = SCI_SUCCESS;
 
@@ -1533,7 +1520,7 @@ static enum sci_status scic_sds_controller_stop_phys(struct scic_sds_controller 
 		    phy_status != SCI_FAILURE_INVALID_STATE) {
 			status = SCI_FAILURE;
 
-			dev_warn(scic_to_dev(scic),
+			dev_warn(&ihost->pdev->dev,
 				 "%s: Controller stop operation failed to stop "
 				 "phy %d because of status %d.\n",
 				 __func__,
@@ -1544,14 +1531,13 @@ static enum sci_status scic_sds_controller_stop_phys(struct scic_sds_controller 
 	return status;
 }
 
-static enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller *scic)
+static enum sci_status scic_sds_controller_stop_ports(struct isci_host *ihost)
 {
 	u32 index;
 	enum sci_status port_status;
 	enum sci_status status = SCI_SUCCESS;
-	struct isci_host *ihost = scic_to_ihost(scic);
 
-	for (index = 0; index < scic->logical_port_entries; index++) {
+	for (index = 0; index < ihost->logical_port_entries; index++) {
 		struct isci_port *iport = &ihost->ports[index];
 
 		port_status = scic_sds_port_stop(iport);
@@ -1560,7 +1546,7 @@ static enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller
 		    (port_status != SCI_FAILURE_INVALID_STATE)) {
 			status = SCI_FAILURE;
 
-			dev_warn(scic_to_dev(scic),
+			dev_warn(&ihost->pdev->dev,
 				 "%s: Controller stop operation failed to "
 				 "stop port %d because of status %d.\n",
 				 __func__,
@@ -1572,7 +1558,7 @@ static enum sci_status scic_sds_controller_stop_ports(struct scic_sds_controller
 	return status;
 }
 
-static enum sci_status scic_sds_controller_stop_devices(struct scic_sds_controller *scic)
+static enum sci_status scic_sds_controller_stop_devices(struct isci_host *ihost)
 {
 	u32 index;
 	enum sci_status status;
@@ -1580,19 +1566,19 @@ static enum sci_status scic_sds_controller_stop_devices(struct scic_sds_controll
 
 	status = SCI_SUCCESS;
 
-	for (index = 0; index < scic->remote_node_entries; index++) {
-		if (scic->device_table[index] != NULL) {
+	for (index = 0; index < ihost->remote_node_entries; index++) {
+		if (ihost->device_table[index] != NULL) {
 			/* / @todo What timeout value do we want to provide to this request? */
-			device_status = scic_remote_device_stop(scic->device_table[index], 0);
+			device_status = scic_remote_device_stop(ihost->device_table[index], 0);
 
 			if ((device_status != SCI_SUCCESS) &&
 			    (device_status != SCI_FAILURE_INVALID_STATE)) {
-				dev_warn(scic_to_dev(scic),
+				dev_warn(&ihost->pdev->dev,
 					 "%s: Controller stop operation failed "
 					 "to stop device 0x%p because of "
 					 "status %d.\n",
 					 __func__,
-					 scic->device_table[index], device_status);
+					 ihost->device_table[index], device_status);
 			}
 		}
 	}
@@ -1602,19 +1588,19 @@ static enum sci_status scic_sds_controller_stop_devices(struct scic_sds_controll
 
 static void scic_sds_controller_stopping_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
+	struct isci_host *ihost = container_of(sm, typeof(*ihost), sm);
 
 	/* Stop all of the components for this controller */
-	scic_sds_controller_stop_phys(scic);
-	scic_sds_controller_stop_ports(scic);
-	scic_sds_controller_stop_devices(scic);
+	scic_sds_controller_stop_phys(ihost);
+	scic_sds_controller_stop_ports(ihost);
+	scic_sds_controller_stop_devices(ihost);
 }
 
 static void scic_sds_controller_stopping_state_exit(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
+	struct isci_host *ihost = container_of(sm, typeof(*ihost), sm);
 
-	sci_del_timer(&scic->timer);
+	sci_del_timer(&ihost->timer);
 }
 
 
@@ -1623,30 +1609,30 @@ static void scic_sds_controller_stopping_state_exit(struct sci_base_state_machin
  *
  * This method will reset the controller hardware.
  */
-static void scic_sds_controller_reset_hardware(struct scic_sds_controller *scic)
+static void scic_sds_controller_reset_hardware(struct isci_host *ihost)
 {
 	/* Disable interrupts so we dont take any spurious interrupts */
-	scic_controller_disable_interrupts(scic);
+	scic_controller_disable_interrupts(ihost);
 
 	/* Reset the SCU */
-	writel(0xFFFFFFFF, &scic->smu_registers->soft_reset_control);
+	writel(0xFFFFFFFF, &ihost->smu_registers->soft_reset_control);
 
 	/* Delay for 1ms to before clearing the CQP and UFQPR. */
 	udelay(1000);
 
 	/* The write to the CQGR clears the CQP */
-	writel(0x00000000, &scic->smu_registers->completion_queue_get);
+	writel(0x00000000, &ihost->smu_registers->completion_queue_get);
 
 	/* The write to the UFQGP clears the UFQPR */
-	writel(0, &scic->scu_registers->sdma.unsolicited_frame_get_pointer);
+	writel(0, &ihost->scu_registers->sdma.unsolicited_frame_get_pointer);
 }
 
 static void scic_sds_controller_resetting_state_enter(struct sci_base_state_machine *sm)
 {
-	struct scic_sds_controller *scic = container_of(sm, typeof(*scic), sm);
+	struct isci_host *ihost = container_of(sm, typeof(*ihost), sm);
 
-	scic_sds_controller_reset_hardware(scic);
-	sci_change_state(&scic->sm, SCIC_RESET);
+	scic_sds_controller_reset_hardware(ihost);
+	sci_change_state(&ihost->sm, SCIC_RESET);
 }
 
 static const struct sci_base_state scic_sds_controller_state_table[] = {
@@ -1674,58 +1660,56 @@ static const struct sci_base_state scic_sds_controller_state_table[] = {
 	[SCIC_FAILED] = {}
 };
 
-static void scic_sds_controller_set_default_config_parameters(struct scic_sds_controller *scic)
+static void scic_sds_controller_set_default_config_parameters(struct isci_host *ihost)
 {
 	/* these defaults are overridden by the platform / firmware */
-	struct isci_host *ihost = scic_to_ihost(scic);
 	u16 index;
 
 	/* Default to APC mode. */
-	scic->oem_parameters.sds1.controller.mode_type = SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE;
+	ihost->oem_parameters.sds1.controller.mode_type = SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE;
 
 	/* Default to APC mode. */
-	scic->oem_parameters.sds1.controller.max_concurrent_dev_spin_up = 1;
+	ihost->oem_parameters.sds1.controller.max_concurrent_dev_spin_up = 1;
 
 	/* Default to no SSC operation. */
-	scic->oem_parameters.sds1.controller.do_enable_ssc = false;
+	ihost->oem_parameters.sds1.controller.do_enable_ssc = false;
 
 	/* Initialize all of the port parameter information to narrow ports. */
 	for (index = 0; index < SCI_MAX_PORTS; index++) {
-		scic->oem_parameters.sds1.ports[index].phy_mask = 0;
+		ihost->oem_parameters.sds1.ports[index].phy_mask = 0;
 	}
 
 	/* Initialize all of the phy parameter information. */
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
 		/* Default to 6G (i.e. Gen 3) for now. */
-		scic->user_parameters.sds1.phys[index].max_speed_generation = 3;
+		ihost->user_parameters.sds1.phys[index].max_speed_generation = 3;
 
 		/* the frequencies cannot be 0 */
-		scic->user_parameters.sds1.phys[index].align_insertion_frequency = 0x7f;
-		scic->user_parameters.sds1.phys[index].in_connection_align_insertion_frequency = 0xff;
-		scic->user_parameters.sds1.phys[index].notify_enable_spin_up_insertion_frequency = 0x33;
+		ihost->user_parameters.sds1.phys[index].align_insertion_frequency = 0x7f;
+		ihost->user_parameters.sds1.phys[index].in_connection_align_insertion_frequency = 0xff;
+		ihost->user_parameters.sds1.phys[index].notify_enable_spin_up_insertion_frequency = 0x33;
 
 		/*
 		 * Previous Vitesse based expanders had a arbitration issue that
 		 * is worked around by having the upper 32-bits of SAS address
 		 * with a value greater then the Vitesse company identifier.
 		 * Hence, usage of 0x5FCFFFFF. */
-		scic->oem_parameters.sds1.phys[index].sas_address.low = 0x1 + ihost->id;
-		scic->oem_parameters.sds1.phys[index].sas_address.high = 0x5FCFFFFF;
+		ihost->oem_parameters.sds1.phys[index].sas_address.low = 0x1 + ihost->id;
+		ihost->oem_parameters.sds1.phys[index].sas_address.high = 0x5FCFFFFF;
 	}
 
-	scic->user_parameters.sds1.stp_inactivity_timeout = 5;
-	scic->user_parameters.sds1.ssp_inactivity_timeout = 5;
-	scic->user_parameters.sds1.stp_max_occupancy_timeout = 5;
-	scic->user_parameters.sds1.ssp_max_occupancy_timeout = 20;
-	scic->user_parameters.sds1.no_outbound_task_timeout = 20;
+	ihost->user_parameters.sds1.stp_inactivity_timeout = 5;
+	ihost->user_parameters.sds1.ssp_inactivity_timeout = 5;
+	ihost->user_parameters.sds1.stp_max_occupancy_timeout = 5;
+	ihost->user_parameters.sds1.ssp_max_occupancy_timeout = 20;
+	ihost->user_parameters.sds1.no_outbound_task_timeout = 20;
 }
 
 static void controller_timeout(unsigned long data)
 {
 	struct sci_timer *tmr = (struct sci_timer *)data;
-	struct scic_sds_controller *scic = container_of(tmr, typeof(*scic), timer);
-	struct isci_host *ihost = scic_to_ihost(scic);
-	struct sci_base_state_machine *sm = &scic->sm;
+	struct isci_host *ihost = container_of(tmr, typeof(*ihost), timer);
+	struct sci_base_state_machine *sm = &ihost->sm;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
@@ -1734,12 +1718,12 @@ static void controller_timeout(unsigned long data)
 		goto done;
 
 	if (sm->current_state_id == SCIC_STARTING)
-		scic_sds_controller_transition_to_ready(scic, SCI_FAILURE_TIMEOUT);
+		scic_sds_controller_transition_to_ready(ihost, SCI_FAILURE_TIMEOUT);
 	else if (sm->current_state_id == SCIC_STOPPING) {
 		sci_change_state(sm, SCIC_FAILED);
 		isci_host_stop_complete(ihost, SCI_FAILURE_TIMEOUT);
 	} else	/* / @todo Now what do we want to do in this case? */
-		dev_err(scic_to_dev(scic),
+		dev_err(&ihost->pdev->dev,
 			"%s: Controller timer fired when controller was not "
 			"in a state being timed.\n",
 			__func__);
@@ -1764,24 +1748,23 @@ done:
  * SCI_FAILURE_UNSUPPORTED_INIT_DATA_VERSION This value is returned if the
  * controller does not support the supplied initialization data version.
  */
-static enum sci_status scic_controller_construct(struct scic_sds_controller *scic,
+static enum sci_status scic_controller_construct(struct isci_host *ihost,
 					  void __iomem *scu_base,
 					  void __iomem *smu_base)
 {
-	struct isci_host *ihost = scic_to_ihost(scic);
 	u8 i;
 
-	sci_init_sm(&scic->sm, scic_sds_controller_state_table, SCIC_INITIAL);
+	sci_init_sm(&ihost->sm, scic_sds_controller_state_table, SCIC_INITIAL);
 
-	scic->scu_registers = scu_base;
-	scic->smu_registers = smu_base;
+	ihost->scu_registers = scu_base;
+	ihost->smu_registers = smu_base;
 
-	scic_sds_port_configuration_agent_construct(&scic->port_agent);
+	scic_sds_port_configuration_agent_construct(&ihost->port_agent);
 
 	/* Construct the ports for this controller */
 	for (i = 0; i < SCI_MAX_PORTS; i++)
-		scic_sds_port_construct(&ihost->ports[i], i, scic);
-	scic_sds_port_construct(&ihost->ports[i], SCIC_SDS_DUMMY_PORT, scic);
+		scic_sds_port_construct(&ihost->ports[i], i, ihost);
+	scic_sds_port_construct(&ihost->ports[i], SCIC_SDS_DUMMY_PORT, ihost);
 
 	/* Construct the phys for this controller */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
@@ -1790,14 +1773,14 @@ static enum sci_status scic_controller_construct(struct scic_sds_controller *sci
 				       &ihost->ports[SCI_MAX_PORTS], i);
 	}
 
-	scic->invalid_phy_mask = 0;
+	ihost->invalid_phy_mask = 0;
 
-	sci_init_timer(&scic->timer, controller_timeout);
+	sci_init_timer(&ihost->timer, controller_timeout);
 
 	/* Initialize the User and OEM parameters to default values. */
-	scic_sds_controller_set_default_config_parameters(scic);
+	scic_sds_controller_set_default_config_parameters(ihost);
 
-	return scic_controller_reset(scic);
+	return scic_controller_reset(ihost);
 }
 
 int scic_oem_parameters_validate(struct scic_sds_oem_params *oem)
@@ -1834,10 +1817,10 @@ int scic_oem_parameters_validate(struct scic_sds_oem_params *oem)
 	return 0;
 }
 
-static enum sci_status scic_oem_parameters_set(struct scic_sds_controller *scic,
+static enum sci_status scic_oem_parameters_set(struct isci_host *ihost,
 					union scic_oem_parameters *scic_parms)
 {
-	u32 state = scic->sm.current_state_id;
+	u32 state = ihost->sm.current_state_id;
 
 	if (state == SCIC_RESET ||
 	    state == SCIC_INITIALIZING ||
@@ -1845,7 +1828,7 @@ static enum sci_status scic_oem_parameters_set(struct scic_sds_controller *scic,
 
 		if (scic_oem_parameters_validate(&scic_parms->sds1))
 			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
-		scic->oem_parameters.sds1 = scic_parms->sds1;
+		ihost->oem_parameters.sds1 = scic_parms->sds1;
 
 		return SCI_SUCCESS;
 	}
@@ -1854,17 +1837,16 @@ static enum sci_status scic_oem_parameters_set(struct scic_sds_controller *scic,
 }
 
 void scic_oem_parameters_get(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	union scic_oem_parameters *scic_parms)
 {
-	memcpy(scic_parms, (&scic->oem_parameters), sizeof(*scic_parms));
+	memcpy(scic_parms, (&ihost->oem_parameters), sizeof(*scic_parms));
 }
 
 static void power_control_timeout(unsigned long data)
 {
 	struct sci_timer *tmr = (struct sci_timer *)data;
-	struct scic_sds_controller *scic = container_of(tmr, typeof(*scic), power_control.timer);
-	struct isci_host *ihost = scic_to_ihost(scic);
+	struct isci_host *ihost = container_of(tmr, typeof(*ihost), power_control.timer);
 	struct isci_phy *iphy;
 	unsigned long flags;
 	u8 i;
@@ -1874,29 +1856,29 @@ static void power_control_timeout(unsigned long data)
 	if (tmr->cancel)
 		goto done;
 
-	scic->power_control.phys_granted_power = 0;
+	ihost->power_control.phys_granted_power = 0;
 
-	if (scic->power_control.phys_waiting == 0) {
-		scic->power_control.timer_started = false;
+	if (ihost->power_control.phys_waiting == 0) {
+		ihost->power_control.timer_started = false;
 		goto done;
 	}
 
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
 
-		if (scic->power_control.phys_waiting == 0)
+		if (ihost->power_control.phys_waiting == 0)
 			break;
 
-		iphy = scic->power_control.requesters[i];
+		iphy = ihost->power_control.requesters[i];
 		if (iphy == NULL)
 			continue;
 
-		if (scic->power_control.phys_granted_power >=
-		    scic->oem_parameters.sds1.controller.max_concurrent_dev_spin_up)
+		if (ihost->power_control.phys_granted_power >=
+		    ihost->oem_parameters.sds1.controller.max_concurrent_dev_spin_up)
 			break;
 
-		scic->power_control.requesters[i] = NULL;
-		scic->power_control.phys_waiting--;
-		scic->power_control.phys_granted_power++;
+		ihost->power_control.requesters[i] = NULL;
+		ihost->power_control.phys_waiting--;
+		ihost->power_control.phys_granted_power++;
 		scic_sds_phy_consume_power_handler(iphy);
 	}
 
@@ -1905,7 +1887,7 @@ static void power_control_timeout(unsigned long data)
 	 * timer in case another phy becomes ready.
 	 */
 	sci_mod_timer(tmr, SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL);
-	scic->power_control.timer_started = true;
+	ihost->power_control.timer_started = true;
 
 done:
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
@@ -1918,31 +1900,31 @@ done:
  *
  */
 void scic_sds_controller_power_control_queue_insert(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_phy *iphy)
 {
 	BUG_ON(iphy == NULL);
 
-	if (scic->power_control.phys_granted_power <
-	    scic->oem_parameters.sds1.controller.max_concurrent_dev_spin_up) {
-		scic->power_control.phys_granted_power++;
+	if (ihost->power_control.phys_granted_power <
+	    ihost->oem_parameters.sds1.controller.max_concurrent_dev_spin_up) {
+		ihost->power_control.phys_granted_power++;
 		scic_sds_phy_consume_power_handler(iphy);
 
 		/*
 		 * stop and start the power_control timer. When the timer fires, the
 		 * no_of_phys_granted_power will be set to 0
 		 */
-		if (scic->power_control.timer_started)
-			sci_del_timer(&scic->power_control.timer);
+		if (ihost->power_control.timer_started)
+			sci_del_timer(&ihost->power_control.timer);
 
-		sci_mod_timer(&scic->power_control.timer,
+		sci_mod_timer(&ihost->power_control.timer,
 				 SCIC_SDS_CONTROLLER_POWER_CONTROL_INTERVAL);
-		scic->power_control.timer_started = true;
+		ihost->power_control.timer_started = true;
 
 	} else {
 		/* Add the phy in the waiting list */
-		scic->power_control.requesters[iphy->phy_index] = iphy;
-		scic->power_control.phys_waiting++;
+		ihost->power_control.requesters[iphy->phy_index] = iphy;
+		ihost->power_control.phys_waiting++;
 	}
 }
 
@@ -1953,16 +1935,16 @@ void scic_sds_controller_power_control_queue_insert(
  *
  */
 void scic_sds_controller_power_control_queue_remove(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_phy *iphy)
 {
 	BUG_ON(iphy == NULL);
 
-	if (scic->power_control.requesters[iphy->phy_index] != NULL) {
-		scic->power_control.phys_waiting--;
+	if (ihost->power_control.requesters[iphy->phy_index] != NULL) {
+		ihost->power_control.phys_waiting--;
 	}
 
-	scic->power_control.requesters[iphy->phy_index] = NULL;
+	ihost->power_control.requesters[iphy->phy_index] = NULL;
 }
 
 #define AFE_REGISTER_WRITE_DELAY 10
@@ -1970,50 +1952,50 @@ void scic_sds_controller_power_control_queue_remove(
 /* Initialize the AFE for this phy index. We need to read the AFE setup from
  * the OEM parameters
  */
-static void scic_sds_controller_afe_initialization(struct scic_sds_controller *scic)
+static void scic_sds_controller_afe_initialization(struct isci_host *ihost)
 {
-	const struct scic_sds_oem_params *oem = &scic->oem_parameters.sds1;
+	const struct scic_sds_oem_params *oem = &ihost->oem_parameters.sds1;
 	u32 afe_status;
 	u32 phy_id;
 
 	/* Clear DFX Status registers */
-	writel(0x0081000f, &scic->scu_registers->afe.afe_dfx_master_control0);
+	writel(0x0081000f, &ihost->scu_registers->afe.afe_dfx_master_control0);
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	if (is_b0()) {
 		/* PM Rx Equalization Save, PM SPhy Rx Acknowledgement
 		 * Timer, PM Stagger Timer */
-		writel(0x0007BFFF, &scic->scu_registers->afe.afe_pmsn_master_control2);
+		writel(0x0007BFFF, &ihost->scu_registers->afe.afe_pmsn_master_control2);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
 	/* Configure bias currents to normal */
 	if (is_a0())
-		writel(0x00005500, &scic->scu_registers->afe.afe_bias_control);
+		writel(0x00005500, &ihost->scu_registers->afe.afe_bias_control);
 	else if (is_a2())
-		writel(0x00005A00, &scic->scu_registers->afe.afe_bias_control);
+		writel(0x00005A00, &ihost->scu_registers->afe.afe_bias_control);
 	else if (is_b0() || is_c0())
-		writel(0x00005F00, &scic->scu_registers->afe.afe_bias_control);
+		writel(0x00005F00, &ihost->scu_registers->afe.afe_bias_control);
 
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Enable PLL */
 	if (is_b0() || is_c0())
-		writel(0x80040A08, &scic->scu_registers->afe.afe_pll_control0);
+		writel(0x80040A08, &ihost->scu_registers->afe.afe_pll_control0);
 	else
-		writel(0x80040908, &scic->scu_registers->afe.afe_pll_control0);
+		writel(0x80040908, &ihost->scu_registers->afe.afe_pll_control0);
 
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Wait for the PLL to lock */
 	do {
-		afe_status = readl(&scic->scu_registers->afe.afe_common_block_status);
+		afe_status = readl(&ihost->scu_registers->afe.afe_common_block_status);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	} while ((afe_status & 0x00001000) == 0);
 
 	if (is_a0() || is_a2()) {
 		/* Shorten SAS SNW lock time (RxLock timer value from 76 us to 50 us) */
-		writel(0x7bcc96ad, &scic->scu_registers->afe.afe_pmsn_master_control0);
+		writel(0x7bcc96ad, &ihost->scu_registers->afe.afe_pmsn_master_control0);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
@@ -2022,26 +2004,26 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
 
 		if (is_b0()) {
 			 /* Configure transmitter SSC parameters */
-			writel(0x00030000, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_ssc_control);
+			writel(0x00030000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_ssc_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 		} else if (is_c0()) {
 			 /* Configure transmitter SSC parameters */
-			writel(0x0003000, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_ssc_control);
+			writel(0x0003000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_ssc_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
 			/*
 			 * All defaults, except the Receive Word Alignament/Comma Detect
 			 * Enable....(0xe800) */
-			writel(0x00004500, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control0);
+			writel(0x00004500, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 		} else {
 			/*
 			 * All defaults, except the Receive Word Alignament/Comma Detect
 			 * Enable....(0xe800) */
-			writel(0x00004512, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control0);
+			writel(0x00004512, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
-			writel(0x0050100F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control1);
+			writel(0x0050100F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control1);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 		}
 
@@ -2049,106 +2031,105 @@ static void scic_sds_controller_afe_initialization(struct scic_sds_controller *s
 		 * Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
 		 * & increase TX int & ext bias 20%....(0xe85c) */
 		if (is_a0())
-			writel(0x000003D4, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000003D4, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 		else if (is_a2())
-			writel(0x000003F0, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000003F0, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 		else if (is_b0()) {
 			 /* Power down TX and RX (PWRDNTX and PWRDNRX) */
-			writel(0x000003D7, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000003D7, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
 			/*
 			 * Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
 			 * & increase TX int & ext bias 20%....(0xe85c) */
-			writel(0x000003D4, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000003D4, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 		} else {
-			writel(0x000001E7, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000001E7, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
 			/*
 			 * Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
 			 * & increase TX int & ext bias 20%....(0xe85c) */
-			writel(0x000001E4, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
+			writel(0x000001E4, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 		}
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		if (is_a0() || is_a2()) {
 			/* Enable TX equalization (0xe824) */
-			writel(0x00040000, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
+			writel(0x00040000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 		}
 
 		/*
 		 * RDPI=0x0(RX Power On), RXOOBDETPDNC=0x0, TPD=0x0(TX Power On),
 		 * RDD=0x0(RX Detect Enabled) ....(0xe800) */
-		writel(0x00004100, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control0);
+		writel(0x00004100, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_xcvr_control0);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		/* Leave DFE/FFE on */
 		if (is_a0())
-			writel(0x3F09983F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
+			writel(0x3F09983F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
 		else if (is_a2())
-			writel(0x3F11103F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
+			writel(0x3F11103F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
 		else if (is_b0()) {
-			writel(0x3F11103F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
+			writel(0x3F11103F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 			/* Enable TX equalization (0xe824) */
-			writel(0x00040000, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
+			writel(0x00040000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
 		} else {
-			writel(0x0140DF0F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control1);
+			writel(0x0140DF0F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control1);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
-			writel(0x3F6F103F, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
+			writel(0x3F6F103F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 
 			/* Enable TX equalization (0xe824) */
-			writel(0x00040000, &scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
+			writel(0x00040000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
 		}
 
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		writel(oem_phy->afe_tx_amp_control0,
-			&scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control0);
+			&ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control0);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		writel(oem_phy->afe_tx_amp_control1,
-			&scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control1);
+			&ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control1);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		writel(oem_phy->afe_tx_amp_control2,
-			&scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control2);
+			&ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control2);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		writel(oem_phy->afe_tx_amp_control3,
-			&scic->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control3);
+			&ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_amp_control3);
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	}
 
 	/* Transfer control to the PEs */
-	writel(0x00010f00, &scic->scu_registers->afe.afe_dfx_master_control0);
+	writel(0x00010f00, &ihost->scu_registers->afe.afe_dfx_master_control0);
 	udelay(AFE_REGISTER_WRITE_DELAY);
 }
 
-static void scic_sds_controller_initialize_power_control(struct scic_sds_controller *scic)
+static void scic_sds_controller_initialize_power_control(struct isci_host *ihost)
 {
-	sci_init_timer(&scic->power_control.timer, power_control_timeout);
+	sci_init_timer(&ihost->power_control.timer, power_control_timeout);
 
-	memset(scic->power_control.requesters, 0,
-	       sizeof(scic->power_control.requesters));
+	memset(ihost->power_control.requesters, 0,
+	       sizeof(ihost->power_control.requesters));
 
-	scic->power_control.phys_waiting = 0;
-	scic->power_control.phys_granted_power = 0;
+	ihost->power_control.phys_waiting = 0;
+	ihost->power_control.phys_granted_power = 0;
 }
 
-static enum sci_status scic_controller_initialize(struct scic_sds_controller *scic)
+static enum sci_status scic_controller_initialize(struct isci_host *ihost)
 {
-	struct sci_base_state_machine *sm = &scic->sm;
-	struct isci_host *ihost = scic_to_ihost(scic);
+	struct sci_base_state_machine *sm = &ihost->sm;
 	enum sci_status result = SCI_FAILURE;
 	unsigned long i, state, val;
 
-	if (scic->sm.current_state_id != SCIC_RESET) {
-		dev_warn(scic_to_dev(scic),
+	if (ihost->sm.current_state_id != SCIC_RESET) {
+		dev_warn(&ihost->pdev->dev,
 			 "SCIC Controller initialize operation requested "
 			 "in invalid state\n");
 		return SCI_FAILURE_INVALID_STATE;
@@ -2156,23 +2137,23 @@ static enum sci_status scic_controller_initialize(struct scic_sds_controller *sc
 
 	sci_change_state(sm, SCIC_INITIALIZING);
 
-	sci_init_timer(&scic->phy_timer, phy_startup_timeout);
+	sci_init_timer(&ihost->phy_timer, phy_startup_timeout);
 
-	scic->next_phy_to_start = 0;
-	scic->phy_startup_timer_pending = false;
+	ihost->next_phy_to_start = 0;
+	ihost->phy_startup_timer_pending = false;
 
-	scic_sds_controller_initialize_power_control(scic);
+	scic_sds_controller_initialize_power_control(ihost);
 
 	/*
 	 * There is nothing to do here for B0 since we do not have to
 	 * program the AFE registers.
 	 * / @todo The AFE settings are supposed to be correct for the B0 but
 	 * /       presently they seem to be wrong. */
-	scic_sds_controller_afe_initialization(scic);
+	scic_sds_controller_afe_initialization(ihost);
 
 
 	/* Take the hardware out of reset */
-	writel(0, &scic->smu_registers->soft_reset_control);
+	writel(0, &ihost->smu_registers->soft_reset_control);
 
 	/*
 	 * / @todo Provide meaningfull error code for hardware failure
@@ -2182,7 +2163,7 @@ static enum sci_status scic_controller_initialize(struct scic_sds_controller *sc
 
 		/* Loop until the hardware reports success */
 		udelay(SCU_CONTEXT_RAM_INIT_STALL_TIME);
-		status = readl(&scic->smu_registers->control_status);
+		status = readl(&ihost->smu_registers->control_status);
 
 		if ((status & SCU_RAM_INIT_COMPLETED) == SCU_RAM_INIT_COMPLETED)
 			break;
@@ -2193,32 +2174,32 @@ static enum sci_status scic_controller_initialize(struct scic_sds_controller *sc
 	/*
 	 * Determine what are the actaul device capacities that the
 	 * hardware will support */
-	val = readl(&scic->smu_registers->device_context_capacity);
+	val = readl(&ihost->smu_registers->device_context_capacity);
 
 	/* Record the smaller of the two capacity values */
-	scic->logical_port_entries = min(smu_max_ports(val), SCI_MAX_PORTS);
-	scic->task_context_entries = min(smu_max_task_contexts(val), SCI_MAX_IO_REQUESTS);
-	scic->remote_node_entries = min(smu_max_rncs(val), SCI_MAX_REMOTE_DEVICES);
+	ihost->logical_port_entries = min(smu_max_ports(val), SCI_MAX_PORTS);
+	ihost->task_context_entries = min(smu_max_task_contexts(val), SCI_MAX_IO_REQUESTS);
+	ihost->remote_node_entries = min(smu_max_rncs(val), SCI_MAX_REMOTE_DEVICES);
 
 	/*
 	 * Make all PEs that are unassigned match up with the
 	 * logical ports
 	 */
-	for (i = 0; i < scic->logical_port_entries; i++) {
+	for (i = 0; i < ihost->logical_port_entries; i++) {
 		struct scu_port_task_scheduler_group_registers __iomem
-			*ptsg = &scic->scu_registers->peg0.ptsg;
+			*ptsg = &ihost->scu_registers->peg0.ptsg;
 
 		writel(i, &ptsg->protocol_engine[i]);
 	}
 
 	/* Initialize hardware PCI Relaxed ordering in DMA engines */
-	val = readl(&scic->scu_registers->sdma.pdma_configuration);
+	val = readl(&ihost->scu_registers->sdma.pdma_configuration);
 	val |= SCU_PDMACR_GEN_BIT(PCI_RELAXED_ORDERING_ENABLE);
-	writel(val, &scic->scu_registers->sdma.pdma_configuration);
+	writel(val, &ihost->scu_registers->sdma.pdma_configuration);
 
-	val = readl(&scic->scu_registers->sdma.cdma_configuration);
+	val = readl(&ihost->scu_registers->sdma.cdma_configuration);
 	val |= SCU_CDMACR_GEN_BIT(PCI_RELAXED_ORDERING_ENABLE);
-	writel(val, &scic->scu_registers->sdma.cdma_configuration);
+	writel(val, &ihost->scu_registers->sdma.cdma_configuration);
 
 	/*
 	 * Initialize the PHYs before the PORTs because the PHY registers
@@ -2226,23 +2207,23 @@ static enum sci_status scic_controller_initialize(struct scic_sds_controller *sc
 	 */
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
 		result = scic_sds_phy_initialize(&ihost->phys[i],
-						 &scic->scu_registers->peg0.pe[i].tl,
-						 &scic->scu_registers->peg0.pe[i].ll);
+						 &ihost->scu_registers->peg0.pe[i].tl,
+						 &ihost->scu_registers->peg0.pe[i].ll);
 		if (result != SCI_SUCCESS)
 			goto out;
 	}
 
-	for (i = 0; i < scic->logical_port_entries; i++) {
+	for (i = 0; i < ihost->logical_port_entries; i++) {
 		result = scic_sds_port_initialize(&ihost->ports[i],
-						  &scic->scu_registers->peg0.ptsg.port[i],
-						  &scic->scu_registers->peg0.ptsg.protocol_engine,
-						  &scic->scu_registers->peg0.viit[i]);
+						  &ihost->scu_registers->peg0.ptsg.port[i],
+						  &ihost->scu_registers->peg0.ptsg.protocol_engine,
+						  &ihost->scu_registers->peg0.viit[i]);
 
 		if (result != SCI_SUCCESS)
 			goto out;
 	}
 
-	result = scic_sds_port_configuration_agent_initialize(scic, &scic->port_agent);
+	result = scic_sds_port_configuration_agent_initialize(ihost, &ihost->port_agent);
 
  out:
 	/* Advance the controller state machine */
@@ -2256,10 +2237,10 @@ static enum sci_status scic_controller_initialize(struct scic_sds_controller *sc
 }
 
 static enum sci_status scic_user_parameters_set(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	union scic_user_parameters *scic_parms)
 {
-	u32 state = scic->sm.current_state_id;
+	u32 state = ihost->sm.current_state_id;
 
 	if (state == SCIC_RESET ||
 	    state == SCIC_INITIALIZING ||
@@ -2301,7 +2282,7 @@ static enum sci_status scic_user_parameters_set(
 		    (scic_parms->sds1.no_outbound_task_timeout == 0))
 			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
-		memcpy(&scic->user_parameters, scic_parms, sizeof(*scic_parms));
+		memcpy(&ihost->user_parameters, scic_parms, sizeof(*scic_parms));
 
 		return SCI_SUCCESS;
 	}
@@ -2309,40 +2290,40 @@ static enum sci_status scic_user_parameters_set(
 	return SCI_FAILURE_INVALID_STATE;
 }
 
-static int scic_controller_mem_init(struct scic_sds_controller *scic)
+static int scic_controller_mem_init(struct isci_host *ihost)
 {
-	struct device *dev = scic_to_dev(scic);
+	struct device *dev = &ihost->pdev->dev;
 	dma_addr_t dma;
 	size_t size;
 	int err;
 
 	size = SCU_MAX_COMPLETION_QUEUE_ENTRIES * sizeof(u32);
-	scic->completion_queue = dmam_alloc_coherent(dev, size, &dma, GFP_KERNEL);
-	if (!scic->completion_queue)
+	ihost->completion_queue = dmam_alloc_coherent(dev, size, &dma, GFP_KERNEL);
+	if (!ihost->completion_queue)
 		return -ENOMEM;
 
-	writel(lower_32_bits(dma), &scic->smu_registers->completion_queue_lower);
-	writel(upper_32_bits(dma), &scic->smu_registers->completion_queue_upper);
+	writel(lower_32_bits(dma), &ihost->smu_registers->completion_queue_lower);
+	writel(upper_32_bits(dma), &ihost->smu_registers->completion_queue_upper);
 
-	size = scic->remote_node_entries * sizeof(union scu_remote_node_context);
-	scic->remote_node_context_table = dmam_alloc_coherent(dev, size, &dma,
+	size = ihost->remote_node_entries * sizeof(union scu_remote_node_context);
+	ihost->remote_node_context_table = dmam_alloc_coherent(dev, size, &dma,
 							      GFP_KERNEL);
-	if (!scic->remote_node_context_table)
+	if (!ihost->remote_node_context_table)
 		return -ENOMEM;
 
-	writel(lower_32_bits(dma), &scic->smu_registers->remote_node_context_lower);
-	writel(upper_32_bits(dma), &scic->smu_registers->remote_node_context_upper);
+	writel(lower_32_bits(dma), &ihost->smu_registers->remote_node_context_lower);
+	writel(upper_32_bits(dma), &ihost->smu_registers->remote_node_context_upper);
 
-	size = scic->task_context_entries * sizeof(struct scu_task_context),
-	scic->task_context_table = dmam_alloc_coherent(dev, size, &dma, GFP_KERNEL);
-	if (!scic->task_context_table)
+	size = ihost->task_context_entries * sizeof(struct scu_task_context),
+	ihost->task_context_table = dmam_alloc_coherent(dev, size, &dma, GFP_KERNEL);
+	if (!ihost->task_context_table)
 		return -ENOMEM;
 
-	scic->task_context_dma = dma;
-	writel(lower_32_bits(dma), &scic->smu_registers->host_task_table_lower);
-	writel(upper_32_bits(dma), &scic->smu_registers->host_task_table_upper);
+	ihost->task_context_dma = dma;
+	writel(lower_32_bits(dma), &ihost->smu_registers->host_task_table_lower);
+	writel(upper_32_bits(dma), &ihost->smu_registers->host_task_table_upper);
 
-	err = scic_sds_unsolicited_frame_control_construct(scic);
+	err = scic_sds_unsolicited_frame_control_construct(ihost);
 	if (err)
 		return err;
 
@@ -2350,112 +2331,112 @@ static int scic_controller_mem_init(struct scic_sds_controller *scic)
 	 * Inform the silicon as to the location of the UF headers and
 	 * address table.
 	 */
-	writel(lower_32_bits(scic->uf_control.headers.physical_address),
-		&scic->scu_registers->sdma.uf_header_base_address_lower);
-	writel(upper_32_bits(scic->uf_control.headers.physical_address),
-		&scic->scu_registers->sdma.uf_header_base_address_upper);
+	writel(lower_32_bits(ihost->uf_control.headers.physical_address),
+		&ihost->scu_registers->sdma.uf_header_base_address_lower);
+	writel(upper_32_bits(ihost->uf_control.headers.physical_address),
+		&ihost->scu_registers->sdma.uf_header_base_address_upper);
 
-	writel(lower_32_bits(scic->uf_control.address_table.physical_address),
-		&scic->scu_registers->sdma.uf_address_table_lower);
-	writel(upper_32_bits(scic->uf_control.address_table.physical_address),
-		&scic->scu_registers->sdma.uf_address_table_upper);
+	writel(lower_32_bits(ihost->uf_control.address_table.physical_address),
+		&ihost->scu_registers->sdma.uf_address_table_lower);
+	writel(upper_32_bits(ihost->uf_control.address_table.physical_address),
+		&ihost->scu_registers->sdma.uf_address_table_upper);
 
 	return 0;
 }
 
-int isci_host_init(struct isci_host *isci_host)
+int isci_host_init(struct isci_host *ihost)
 {
 	int err = 0, i;
 	enum sci_status status;
 	union scic_oem_parameters oem;
 	union scic_user_parameters scic_user_params;
-	struct isci_pci_info *pci_info = to_pci_info(isci_host->pdev);
+	struct isci_pci_info *pci_info = to_pci_info(ihost->pdev);
 
-	spin_lock_init(&isci_host->state_lock);
-	spin_lock_init(&isci_host->scic_lock);
-	init_waitqueue_head(&isci_host->eventq);
+	spin_lock_init(&ihost->state_lock);
+	spin_lock_init(&ihost->scic_lock);
+	init_waitqueue_head(&ihost->eventq);
 
-	isci_host_change_state(isci_host, isci_starting);
+	isci_host_change_state(ihost, isci_starting);
 
-	status = scic_controller_construct(&isci_host->sci, scu_base(isci_host),
-					   smu_base(isci_host));
+	status = scic_controller_construct(ihost, scu_base(ihost),
+					   smu_base(ihost));
 
 	if (status != SCI_SUCCESS) {
-		dev_err(&isci_host->pdev->dev,
+		dev_err(&ihost->pdev->dev,
 			"%s: scic_controller_construct failed - status = %x\n",
 			__func__,
 			status);
 		return -ENODEV;
 	}
 
-	isci_host->sas_ha.dev = &isci_host->pdev->dev;
-	isci_host->sas_ha.lldd_ha = isci_host;
+	ihost->sas_ha.dev = &ihost->pdev->dev;
+	ihost->sas_ha.lldd_ha = ihost;
 
 	/*
 	 * grab initial values stored in the controller object for OEM and USER
 	 * parameters
 	 */
-	isci_user_parameters_get(isci_host, &scic_user_params);
-	status = scic_user_parameters_set(&isci_host->sci,
+	isci_user_parameters_get(ihost, &scic_user_params);
+	status = scic_user_parameters_set(ihost,
 					  &scic_user_params);
 	if (status != SCI_SUCCESS) {
-		dev_warn(&isci_host->pdev->dev,
+		dev_warn(&ihost->pdev->dev,
 			 "%s: scic_user_parameters_set failed\n",
 			 __func__);
 		return -ENODEV;
 	}
 
-	scic_oem_parameters_get(&isci_host->sci, &oem);
+	scic_oem_parameters_get(ihost, &oem);
 
 	/* grab any OEM parameters specified in orom */
 	if (pci_info->orom) {
 		status = isci_parse_oem_parameters(&oem,
 						   pci_info->orom,
-						   isci_host->id);
+						   ihost->id);
 		if (status != SCI_SUCCESS) {
-			dev_warn(&isci_host->pdev->dev,
+			dev_warn(&ihost->pdev->dev,
 				 "parsing firmware oem parameters failed\n");
 			return -EINVAL;
 		}
 	}
 
-	status = scic_oem_parameters_set(&isci_host->sci, &oem);
+	status = scic_oem_parameters_set(ihost, &oem);
 	if (status != SCI_SUCCESS) {
-		dev_warn(&isci_host->pdev->dev,
+		dev_warn(&ihost->pdev->dev,
 				"%s: scic_oem_parameters_set failed\n",
 				__func__);
 		return -ENODEV;
 	}
 
-	tasklet_init(&isci_host->completion_tasklet,
-		     isci_host_completion_routine, (unsigned long)isci_host);
+	tasklet_init(&ihost->completion_tasklet,
+		     isci_host_completion_routine, (unsigned long)ihost);
 
-	INIT_LIST_HEAD(&isci_host->requests_to_complete);
-	INIT_LIST_HEAD(&isci_host->requests_to_errorback);
+	INIT_LIST_HEAD(&ihost->requests_to_complete);
+	INIT_LIST_HEAD(&ihost->requests_to_errorback);
 
-	spin_lock_irq(&isci_host->scic_lock);
-	status = scic_controller_initialize(&isci_host->sci);
-	spin_unlock_irq(&isci_host->scic_lock);
+	spin_lock_irq(&ihost->scic_lock);
+	status = scic_controller_initialize(ihost);
+	spin_unlock_irq(&ihost->scic_lock);
 	if (status != SCI_SUCCESS) {
-		dev_warn(&isci_host->pdev->dev,
+		dev_warn(&ihost->pdev->dev,
 			 "%s: scic_controller_initialize failed -"
 			 " status = 0x%x\n",
 			 __func__, status);
 		return -ENODEV;
 	}
 
-	err = scic_controller_mem_init(&isci_host->sci);
+	err = scic_controller_mem_init(ihost);
 	if (err)
 		return err;
 
 	for (i = 0; i < SCI_MAX_PORTS; i++)
-		isci_port_init(&isci_host->ports[i], isci_host, i);
+		isci_port_init(&ihost->ports[i], ihost, i);
 
 	for (i = 0; i < SCI_MAX_PHYS; i++)
-		isci_phy_init(&isci_host->phys[i], isci_host, i);
+		isci_phy_init(&ihost->phys[i], ihost, i);
 
 	for (i = 0; i < SCI_MAX_REMOTE_DEVICES; i++) {
-		struct isci_remote_device *idev = &isci_host->devices[i];
+		struct isci_remote_device *idev = &ihost->devices[i];
 
 		INIT_LIST_HEAD(&idev->reqs_in_process);
 		INIT_LIST_HEAD(&idev->node);
@@ -2465,63 +2446,62 @@ int isci_host_init(struct isci_host *isci_host)
 		struct isci_request *ireq;
 		dma_addr_t dma;
 
-		ireq = dmam_alloc_coherent(&isci_host->pdev->dev,
+		ireq = dmam_alloc_coherent(&ihost->pdev->dev,
 					   sizeof(struct isci_request), &dma,
 					   GFP_KERNEL);
 		if (!ireq)
 			return -ENOMEM;
 
-		ireq->tc = &isci_host->sci.task_context_table[i];
-		ireq->owning_controller = &isci_host->sci;
+		ireq->tc = &ihost->task_context_table[i];
+		ireq->owning_controller = ihost;
 		spin_lock_init(&ireq->state_lock);
 		ireq->request_daddr = dma;
-		ireq->isci_host = isci_host;
-
-		isci_host->reqs[i] = ireq;
+		ireq->isci_host = ihost;
+		ihost->reqs[i] = ireq;
 	}
 
 	return 0;
 }
 
-void scic_sds_controller_link_up(struct scic_sds_controller *scic,
+void scic_sds_controller_link_up(struct isci_host *ihost,
 		struct isci_port *iport, struct isci_phy *iphy)
 {
-	switch (scic->sm.current_state_id) {
+	switch (ihost->sm.current_state_id) {
 	case SCIC_STARTING:
-		sci_del_timer(&scic->phy_timer);
-		scic->phy_startup_timer_pending = false;
-		scic->port_agent.link_up_handler(scic, &scic->port_agent,
+		sci_del_timer(&ihost->phy_timer);
+		ihost->phy_startup_timer_pending = false;
+		ihost->port_agent.link_up_handler(ihost, &ihost->port_agent,
 						 iport, iphy);
-		scic_sds_controller_start_next_phy(scic);
+		scic_sds_controller_start_next_phy(ihost);
 		break;
 	case SCIC_READY:
-		scic->port_agent.link_up_handler(scic, &scic->port_agent,
+		ihost->port_agent.link_up_handler(ihost, &ihost->port_agent,
 						 iport, iphy);
 		break;
 	default:
-		dev_dbg(scic_to_dev(scic),
+		dev_dbg(&ihost->pdev->dev,
 			"%s: SCIC Controller linkup event from phy %d in "
 			"unexpected state %d\n", __func__, iphy->phy_index,
-			scic->sm.current_state_id);
+			ihost->sm.current_state_id);
 	}
 }
 
-void scic_sds_controller_link_down(struct scic_sds_controller *scic,
+void scic_sds_controller_link_down(struct isci_host *ihost,
 		struct isci_port *iport, struct isci_phy *iphy)
 {
-	switch (scic->sm.current_state_id) {
+	switch (ihost->sm.current_state_id) {
 	case SCIC_STARTING:
 	case SCIC_READY:
-		scic->port_agent.link_down_handler(scic, &scic->port_agent,
+		ihost->port_agent.link_down_handler(ihost, &ihost->port_agent,
 						   iport, iphy);
 		break;
 	default:
-		dev_dbg(scic_to_dev(scic),
+		dev_dbg(&ihost->pdev->dev,
 			"%s: SCIC Controller linkdown event from phy %d in "
 			"unexpected state %d\n",
 			__func__,
 			iphy->phy_index,
-			scic->sm.current_state_id);
+			ihost->sm.current_state_id);
 	}
 }
 
@@ -2530,14 +2510,13 @@ void scic_sds_controller_link_down(struct scic_sds_controller *scic,
  * controller are still in the stopping state.
  *
  */
-static bool scic_sds_controller_has_remote_devices_stopping(
-	struct scic_sds_controller *controller)
+static bool scic_sds_controller_has_remote_devices_stopping(struct isci_host *ihost)
 {
 	u32 index;
 
-	for (index = 0; index < controller->remote_node_entries; index++) {
-		if ((controller->device_table[index] != NULL) &&
-		   (controller->device_table[index]->sm.current_state_id == SCI_DEV_STOPPING))
+	for (index = 0; index < ihost->remote_node_entries; index++) {
+		if ((ihost->device_table[index] != NULL) &&
+		   (ihost->device_table[index]->sm.current_state_id == SCI_DEV_STOPPING))
 			return true;
 	}
 
@@ -2548,20 +2527,20 @@ static bool scic_sds_controller_has_remote_devices_stopping(
  * This method is called by the remote device to inform the controller
  * object that the remote device has stopped.
  */
-void scic_sds_controller_remote_device_stopped(struct scic_sds_controller *scic,
+void scic_sds_controller_remote_device_stopped(struct isci_host *ihost,
 					       struct isci_remote_device *idev)
 {
-	if (scic->sm.current_state_id != SCIC_STOPPING) {
-		dev_dbg(scic_to_dev(scic),
+	if (ihost->sm.current_state_id != SCIC_STOPPING) {
+		dev_dbg(&ihost->pdev->dev,
 			"SCIC Controller 0x%p remote device stopped event "
 			"from device 0x%p in unexpected state %d\n",
-			scic, idev,
-			scic->sm.current_state_id);
+			ihost, idev,
+			ihost->sm.current_state_id);
 		return;
 	}
 
-	if (!scic_sds_controller_has_remote_devices_stopping(scic)) {
-		sci_change_state(&scic->sm, SCIC_STOPPED);
+	if (!scic_sds_controller_has_remote_devices_stopping(ihost)) {
+		sci_change_state(&ihost->sm, SCIC_STOPPED);
 	}
 }
 
@@ -2573,32 +2552,32 @@ void scic_sds_controller_remote_device_stopped(struct scic_sds_controller *scic,
  *
  */
 void scic_sds_controller_post_request(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	u32 request)
 {
-	dev_dbg(scic_to_dev(scic),
+	dev_dbg(&ihost->pdev->dev,
 		"%s: SCIC Controller 0x%p post request 0x%08x\n",
 		__func__,
-		scic,
+		ihost,
 		request);
 
-	writel(request, &scic->smu_registers->post_context_port);
+	writel(request, &ihost->smu_registers->post_context_port);
 }
 
-struct isci_request *scic_request_by_tag(struct scic_sds_controller *scic, u16 io_tag)
+struct isci_request *scic_request_by_tag(struct isci_host *ihost, u16 io_tag)
 {
 	u16 task_index;
 	u16 task_sequence;
 
 	task_index = ISCI_TAG_TCI(io_tag);
 
-	if (task_index < scic->task_context_entries) {
-		struct isci_request *ireq = scic_to_ihost(scic)->reqs[task_index];
+	if (task_index < ihost->task_context_entries) {
+		struct isci_request *ireq = ihost->reqs[task_index];
 
 		if (test_bit(IREQ_ACTIVE, &ireq->flags)) {
 			task_sequence = ISCI_TAG_SEQ(io_tag);
 
-			if (task_sequence == scic->io_request_sequence[task_index])
+			if (task_sequence == ihost->io_request_sequence[task_index])
 				return ireq;
 		}
 	}
@@ -2621,7 +2600,7 @@ struct isci_request *scic_request_by_tag(struct scic_sds_controller *scic, u16 i
  * node index available.
  */
 enum sci_status scic_sds_controller_allocate_remote_node_context(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	u16 *node_id)
 {
@@ -2629,11 +2608,11 @@ enum sci_status scic_sds_controller_allocate_remote_node_context(
 	u32 remote_node_count = scic_sds_remote_device_node_count(idev);
 
 	node_index = scic_sds_remote_node_table_allocate_remote_node(
-		&scic->available_remote_nodes, remote_node_count
+		&ihost->available_remote_nodes, remote_node_count
 		);
 
 	if (node_index != SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX) {
-		scic->device_table[node_index] = idev;
+		ihost->device_table[node_index] = idev;
 
 		*node_id = node_index;
 
@@ -2653,17 +2632,17 @@ enum sci_status scic_sds_controller_allocate_remote_node_context(
  *
  */
 void scic_sds_controller_free_remote_node_context(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	u16 node_id)
 {
 	u32 remote_node_count = scic_sds_remote_device_node_count(idev);
 
-	if (scic->device_table[node_id] == idev) {
-		scic->device_table[node_id] = NULL;
+	if (ihost->device_table[node_id] == idev) {
+		ihost->device_table[node_id] = NULL;
 
 		scic_sds_remote_node_table_release_remote_node_index(
-			&scic->available_remote_nodes, remote_node_count, node_id
+			&ihost->available_remote_nodes, remote_node_count, node_id
 			);
 	}
 }
@@ -2677,14 +2656,14 @@ void scic_sds_controller_free_remote_node_context(
  * union scu_remote_node_context*
  */
 union scu_remote_node_context *scic_sds_controller_get_remote_node_context_buffer(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	u16 node_id
 	) {
 	if (
-		(node_id < scic->remote_node_entries)
-		&& (scic->device_table[node_id] != NULL)
+		(node_id < ihost->remote_node_entries)
+		&& (ihost->device_table[node_id] != NULL)
 		) {
-		return &scic->remote_node_context_table[node_id];
+		return &ihost->remote_node_context_table[node_id];
 	}
 
 	return NULL;
@@ -2722,13 +2701,13 @@ void scic_sds_controller_copy_sata_response(
  *
  */
 void scic_sds_controller_release_frame(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	u32 frame_index)
 {
 	if (scic_sds_unsolicited_frame_control_release_frame(
-		    &scic->uf_control, frame_index) == true)
-		writel(scic->uf_control.get,
-			&scic->scu_registers->sdma.unsolicited_frame_get_pointer);
+		    &ihost->uf_control, frame_index) == true)
+		writel(ihost->uf_control.get,
+			&ihost->scu_registers->sdma.unsolicited_frame_get_pointer);
 }
 
 void isci_tci_free(struct isci_host *ihost, u16 tci)
@@ -2757,7 +2736,7 @@ u16 isci_alloc_tag(struct isci_host *ihost)
 {
 	if (isci_tci_space(ihost)) {
 		u16 tci = isci_tci_alloc(ihost);
-		u8 seq = ihost->sci.io_request_sequence[tci];
+		u8 seq = ihost->io_request_sequence[tci];
 
 		return ISCI_TAG(seq, tci);
 	}
@@ -2767,7 +2746,6 @@ u16 isci_alloc_tag(struct isci_host *ihost)
 
 enum sci_status isci_free_tag(struct isci_host *ihost, u16 io_tag)
 {
-	struct scic_sds_controller *scic = &ihost->sci;
 	u16 tci = ISCI_TAG_TCI(io_tag);
 	u16 seq = ISCI_TAG_SEQ(io_tag);
 
@@ -2775,8 +2753,8 @@ enum sci_status isci_free_tag(struct isci_host *ihost, u16 io_tag)
 	if (isci_tci_active(ihost) == 0)
 		return SCI_FAILURE_INVALID_IO_TAG;
 
-	if (seq == scic->io_request_sequence[tci]) {
-		scic->io_request_sequence[tci] = (seq+1) & (SCI_MAX_SEQ-1);
+	if (seq == ihost->io_request_sequence[tci]) {
+		ihost->io_request_sequence[tci] = (seq+1) & (SCI_MAX_SEQ-1);
 
 		isci_tci_free(ihost, tci);
 
@@ -2797,23 +2775,23 @@ enum sci_status isci_free_tag(struct isci_host *ihost, u16 io_tag)
  * @io_tag: This parameter specifies a previously allocated IO tag that the
  *    user desires to be utilized for this request.
  */
-enum sci_status scic_controller_start_io(struct scic_sds_controller *scic,
+enum sci_status scic_controller_start_io(struct isci_host *ihost,
 					 struct isci_remote_device *idev,
 					 struct isci_request *ireq)
 {
 	enum sci_status status;
 
-	if (scic->sm.current_state_id != SCIC_READY) {
-		dev_warn(scic_to_dev(scic), "invalid state to start I/O");
+	if (ihost->sm.current_state_id != SCIC_READY) {
+		dev_warn(&ihost->pdev->dev, "invalid state to start I/O");
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	status = scic_sds_remote_device_start_io(scic, idev, ireq);
+	status = scic_sds_remote_device_start_io(ihost, idev, ireq);
 	if (status != SCI_SUCCESS)
 		return status;
 
 	set_bit(IREQ_ACTIVE, &ireq->flags);
-	scic_sds_controller_post_request(scic, scic_sds_request_get_post_context(ireq));
+	scic_sds_controller_post_request(ihost, scic_sds_request_get_post_context(ireq));
 	return SCI_SUCCESS;
 }
 
@@ -2834,14 +2812,14 @@ enum sci_status scic_controller_start_io(struct scic_sds_controller *scic,
  * for the request. Determine the failure situations and return values.
  */
 enum sci_status scic_controller_terminate_request(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq)
 {
 	enum sci_status status;
 
-	if (scic->sm.current_state_id != SCIC_READY) {
-		dev_warn(scic_to_dev(scic),
+	if (ihost->sm.current_state_id != SCIC_READY) {
+		dev_warn(&ihost->pdev->dev,
 			 "invalid state to terminate request\n");
 		return SCI_FAILURE_INVALID_STATE;
 	}
@@ -2854,7 +2832,7 @@ enum sci_status scic_controller_terminate_request(
 	 * Utilize the original post context command and or in the POST_TC_ABORT
 	 * request sub-type.
 	 */
-	scic_sds_controller_post_request(scic,
+	scic_sds_controller_post_request(ihost,
 		scic_sds_request_get_post_context(ireq) |
 		SCU_CONTEXT_COMMAND_REQUEST_POST_TC_ABORT);
 	return SCI_SUCCESS;
@@ -2872,19 +2850,19 @@ enum sci_status scic_controller_terminate_request(
  * @io_request: the handle to the io request object to complete.
  */
 enum sci_status scic_controller_complete_io(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq)
 {
 	enum sci_status status;
 	u16 index;
 
-	switch (scic->sm.current_state_id) {
+	switch (ihost->sm.current_state_id) {
 	case SCIC_STOPPING:
 		/* XXX: Implement this function */
 		return SCI_FAILURE;
 	case SCIC_READY:
-		status = scic_sds_remote_device_complete_io(scic, idev, ireq);
+		status = scic_sds_remote_device_complete_io(ihost, idev, ireq);
 		if (status != SCI_SUCCESS)
 			return status;
 
@@ -2892,7 +2870,7 @@ enum sci_status scic_controller_complete_io(
 		clear_bit(IREQ_ACTIVE, &ireq->flags);
 		return SCI_SUCCESS;
 	default:
-		dev_warn(scic_to_dev(scic), "invalid state to complete I/O");
+		dev_warn(&ihost->pdev->dev, "invalid state to complete I/O");
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
@@ -2900,15 +2878,15 @@ enum sci_status scic_controller_complete_io(
 
 enum sci_status scic_controller_continue_io(struct isci_request *ireq)
 {
-	struct scic_sds_controller *scic = ireq->owning_controller;
+	struct isci_host *ihost = ireq->owning_controller;
 
-	if (scic->sm.current_state_id != SCIC_READY) {
-		dev_warn(scic_to_dev(scic), "invalid state to continue I/O");
+	if (ihost->sm.current_state_id != SCIC_READY) {
+		dev_warn(&ihost->pdev->dev, "invalid state to continue I/O");
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
 	set_bit(IREQ_ACTIVE, &ireq->flags);
-	scic_sds_controller_post_request(scic, scic_sds_request_get_post_context(ireq));
+	scic_sds_controller_post_request(ihost, scic_sds_request_get_post_context(ireq));
 	return SCI_SUCCESS;
 }
 
@@ -2922,21 +2900,21 @@ enum sci_status scic_controller_continue_io(struct isci_request *ireq)
  * @task_request: the handle to the task request object to start.
  */
 enum sci_task_status scic_controller_start_task(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq)
 {
 	enum sci_status status;
 
-	if (scic->sm.current_state_id != SCIC_READY) {
-		dev_warn(scic_to_dev(scic),
+	if (ihost->sm.current_state_id != SCIC_READY) {
+		dev_warn(&ihost->pdev->dev,
 			 "%s: SCIC Controller starting task from invalid "
 			 "state\n",
 			 __func__);
 		return SCI_TASK_FAILURE_INVALID_STATE;
 	}
 
-	status = scic_sds_remote_device_start_task(scic, idev, ireq);
+	status = scic_sds_remote_device_start_task(ihost, idev, ireq);
 	switch (status) {
 	case SCI_FAILURE_RESET_DEVICE_PARTIAL_SUCCESS:
 		set_bit(IREQ_ACTIVE, &ireq->flags);
@@ -2950,7 +2928,7 @@ enum sci_task_status scic_controller_start_task(
 	case SCI_SUCCESS:
 		set_bit(IREQ_ACTIVE, &ireq->flags);
 
-		scic_sds_controller_post_request(scic,
+		scic_sds_controller_post_request(ihost,
 			scic_sds_request_get_post_context(ireq));
 		break;
 	default:

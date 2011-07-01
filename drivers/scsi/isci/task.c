@@ -257,7 +257,7 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 		return NULL;
 
 	/* let the core do it's construct. */
-	status = scic_task_request_construct(&ihost->sci, idev, tag,
+	status = scic_task_request_construct(ihost, idev, tag,
 					     ireq);
 
 	if (status != SCI_SUCCESS) {
@@ -332,7 +332,7 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 
 	/* start the TMF io. */
-	status = scic_controller_start_task(&ihost->sci, idev, ireq);
+	status = scic_controller_start_task(ihost, idev, ireq);
 
 	if (status != SCI_TASK_SUCCESS) {
 		dev_warn(&ihost->pdev->dev,
@@ -364,7 +364,7 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 		if (tmf->cb_state_func != NULL)
 			tmf->cb_state_func(isci_tmf_timed_out, tmf, tmf->cb_data);
 
-		scic_controller_terminate_request(&ihost->sci,
+		scic_controller_terminate_request(ihost,
 						  idev,
 						  ireq);
 
@@ -514,15 +514,14 @@ static void isci_request_cleanup_completed_loiterer(
  *    request, and wait for it to complete.  This function must only be called
  *    from a thread that can wait.  Note that the request is terminated and
  *    completed (back to the host, if started there).
- * @isci_host: This SCU.
+ * @ihost: This SCU.
  * @idev: The target.
  * @isci_request: The I/O request to be terminated.
  *
  */
-static void isci_terminate_request_core(
-	struct isci_host *isci_host,
-	struct isci_remote_device *idev,
-	struct isci_request *isci_request)
+static void isci_terminate_request_core(struct isci_host *ihost,
+					struct isci_remote_device *idev,
+					struct isci_request *isci_request)
 {
 	enum sci_status status      = SCI_SUCCESS;
 	bool was_terminated         = false;
@@ -533,11 +532,11 @@ static void isci_terminate_request_core(
 	struct completion *io_request_completion;
 	struct sas_task   *task;
 
-	dev_dbg(&isci_host->pdev->dev,
+	dev_dbg(&ihost->pdev->dev,
 		"%s: device = %p; request = %p\n",
 		__func__, idev, isci_request);
 
-	spin_lock_irqsave(&isci_host->scic_lock, flags);
+	spin_lock_irqsave(&ihost->scic_lock, flags);
 
 	io_request_completion = isci_request->io_request_completion;
 
@@ -557,12 +556,11 @@ static void isci_terminate_request_core(
 	if (!test_bit(IREQ_TERMINATED, &isci_request->flags)) {
 		was_terminated = true;
 		needs_cleanup_handling = true;
-		status = scic_controller_terminate_request(
-			&isci_host->sci,
-			idev,
-			isci_request);
+		status = scic_controller_terminate_request(ihost,
+							   idev,
+							   isci_request);
 	}
-	spin_unlock_irqrestore(&isci_host->scic_lock, flags);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	/*
 	 * The only time the request to terminate will
@@ -570,7 +568,7 @@ static void isci_terminate_request_core(
 	 * being aborted.
 	 */
 	if (status != SCI_SUCCESS) {
-		dev_err(&isci_host->pdev->dev,
+		dev_err(&ihost->pdev->dev,
 			"%s: scic_controller_terminate_request"
 			" returned = 0x%x\n",
 			__func__, status);
@@ -579,7 +577,7 @@ static void isci_terminate_request_core(
 
 	} else {
 		if (was_terminated) {
-			dev_dbg(&isci_host->pdev->dev,
+			dev_dbg(&ihost->pdev->dev,
 				"%s: before completion wait (%p/%p)\n",
 				__func__, isci_request, io_request_completion);
 
@@ -593,7 +591,7 @@ static void isci_terminate_request_core(
 			if (!termination_completed) {
 
 				/* The request to terminate has timed out.  */
-				spin_lock_irqsave(&isci_host->scic_lock,
+				spin_lock_irqsave(&ihost->scic_lock,
 						  flags);
 
 				/* Check for state changes. */
@@ -623,12 +621,12 @@ static void isci_terminate_request_core(
 				} else
 					termination_completed = 1;
 
-				spin_unlock_irqrestore(&isci_host->scic_lock,
+				spin_unlock_irqrestore(&ihost->scic_lock,
 						       flags);
 
 				if (!termination_completed) {
 
-					dev_err(&isci_host->pdev->dev,
+					dev_err(&ihost->pdev->dev,
 						"%s: *** Timeout waiting for "
 						"termination(%p/%p)\n",
 						__func__, io_request_completion,
@@ -642,7 +640,7 @@ static void isci_terminate_request_core(
 				}
 			}
 			if (termination_completed)
-				dev_dbg(&isci_host->pdev->dev,
+				dev_dbg(&ihost->pdev->dev,
 					"%s: after completion wait (%p/%p)\n",
 					__func__, isci_request, io_request_completion);
 		}
@@ -678,7 +676,7 @@ static void isci_terminate_request_core(
 		}
 		if (needs_cleanup_handling)
 			isci_request_cleanup_completed_loiterer(
-				isci_host, idev, isci_request, task);
+				ihost, idev, isci_request, task);
 	}
 }
 
@@ -1253,7 +1251,7 @@ isci_task_request_complete(struct isci_host *ihost,
 	/* PRINT_TMF( ((struct isci_tmf *)request->task)); */
 	tmf_complete = tmf->complete;
 
-	scic_controller_complete_io(&ihost->sci, ireq->target_device, ireq);
+	scic_controller_complete_io(ihost, ireq->target_device, ireq);
 	/* set the 'terminated' flag handle to make sure it cannot be terminated
 	 *  or completed again.
 	 */

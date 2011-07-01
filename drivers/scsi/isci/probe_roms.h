@@ -165,7 +165,7 @@ struct scic_sds_oem_params;
 int scic_oem_parameters_validate(struct scic_sds_oem_params *oem);
 
 union scic_oem_parameters;
-void scic_oem_parameters_get(struct scic_sds_controller *scic,
+void scic_oem_parameters_get(struct isci_host *ihost,
 			     union scic_oem_parameters *oem);
 
 struct isci_orom;

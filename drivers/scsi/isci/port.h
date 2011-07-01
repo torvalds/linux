@@ -115,7 +115,7 @@ struct isci_port {
 	u32 assigned_device_count;
 	u32 not_ready_reason;
 	struct isci_phy *phy_table[SCI_MAX_PHYS];
-	struct scic_sds_controller *owning_controller;
+	struct isci_host *owning_controller;
 	struct sci_timer timer;
 	struct scu_port_task_scheduler_registers __iomem *port_task_scheduler_registers;
 	/* XXX rework: only one register, no need to replicate per-port */
@@ -243,7 +243,7 @@ static inline void scic_sds_port_decrement_request_count(struct isci_port *iport
 void scic_sds_port_construct(
 	struct isci_port *iport,
 	u8 port_index,
-	struct scic_sds_controller *scic);
+	struct isci_host *ihost);
 
 enum sci_status scic_sds_port_initialize(
 	struct isci_port *iport,

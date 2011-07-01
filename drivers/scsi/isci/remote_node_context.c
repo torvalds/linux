@@ -107,11 +107,11 @@ static void scic_sds_remote_node_context_construct_buffer(
 	struct domain_device *dev = idev->domain_dev;
 	int rni = sci_rnc->remote_node_index;
 	union scu_remote_node_context *rnc;
-	struct scic_sds_controller *scic;
+	struct isci_host *ihost;
 	__le64 sas_addr;
 
-	scic = scic_sds_remote_device_get_controller(idev);
-	rnc = scic_sds_controller_get_remote_node_context_buffer(scic, rni);
+	ihost = scic_sds_remote_device_get_controller(idev);
+	rnc = scic_sds_controller_get_remote_node_context_buffer(ihost, rni);
 
 	memset(rnc, 0, sizeof(union scu_remote_node_context)
 		* scic_sds_remote_device_node_count(idev));
@@ -135,14 +135,14 @@ static void scic_sds_remote_node_context_construct_buffer(
 
 	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_STP)) {
 		rnc->ssp.connection_occupancy_timeout =
-			scic->user_parameters.sds1.stp_max_occupancy_timeout;
+			ihost->user_parameters.sds1.stp_max_occupancy_timeout;
 		rnc->ssp.connection_inactivity_timeout =
-			scic->user_parameters.sds1.stp_inactivity_timeout;
+			ihost->user_parameters.sds1.stp_inactivity_timeout;
 	} else {
 		rnc->ssp.connection_occupancy_timeout  =
-			scic->user_parameters.sds1.ssp_max_occupancy_timeout;
+			ihost->user_parameters.sds1.ssp_max_occupancy_timeout;
 		rnc->ssp.connection_inactivity_timeout =
-			scic->user_parameters.sds1.ssp_inactivity_timeout;
+			ihost->user_parameters.sds1.ssp_inactivity_timeout;
 	}
 
 	rnc->ssp.initial_arbitration_wait_time = 0;

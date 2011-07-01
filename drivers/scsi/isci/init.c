@@ -548,13 +548,13 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 
 static void __devexit isci_pci_remove(struct pci_dev *pdev)
 {
-	struct isci_host *isci_host;
+	struct isci_host *ihost;
 	int i;
 
-	for_each_isci_host(i, isci_host, pdev) {
-		isci_unregister(isci_host);
-		isci_host_deinit(isci_host);
-		scic_controller_disable_interrupts(&isci_host->sci);
+	for_each_isci_host(i, ihost, pdev) {
+		isci_unregister(ihost);
+		isci_host_deinit(ihost);
+		scic_controller_disable_interrupts(ihost);
 	}
 }
 

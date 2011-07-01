@@ -62,7 +62,7 @@
 #include "task.h"
 
 /**
- * isci_remote_device_not_ready() - This function is called by the scic when
+ * isci_remote_device_not_ready() - This function is called by the ihost when
  *    the remote device is not ready. We mark the isci device as ready (not
  *    "ready_for_io") and signal the waiting proccess.
  * @isci_host: This parameter specifies the isci host object.
@@ -92,7 +92,7 @@ static void isci_remote_device_not_ready(struct isci_host *ihost,
 				"%s: isci_device = %p request = %p\n",
 				__func__, idev, ireq);
 
-			scic_controller_terminate_request(&ihost->sci,
+			scic_controller_terminate_request(ihost,
 							  idev,
 							  ireq);
 		}
@@ -104,7 +104,7 @@ static void isci_remote_device_not_ready(struct isci_host *ihost,
 }
 
 /**
- * isci_remote_device_ready() - This function is called by the scic when the
+ * isci_remote_device_ready() - This function is called by the ihost when the
  *    remote device is ready. We mark the isci device as ready and signal the
  *    waiting proccess.
  * @ihost: our valid isci_host
@@ -135,8 +135,7 @@ static void rnc_destruct_done(void *_dev)
 
 static enum sci_status scic_sds_remote_device_terminate_requests(struct isci_remote_device *idev)
 {
-	struct scic_sds_controller *scic = idev->owning_port->owning_controller;
-	struct isci_host *ihost = scic_to_ihost(scic);
+	struct isci_host *ihost = idev->owning_port->owning_controller;
 	enum sci_status status  = SCI_SUCCESS;
 	u32 i;
 
@@ -148,7 +147,7 @@ static enum sci_status scic_sds_remote_device_terminate_requests(struct isci_rem
 		    ireq->target_device != idev)
 			continue;
 
-		s = scic_controller_terminate_request(scic, idev, ireq);
+		s = scic_controller_terminate_request(ihost, idev, ireq);
 		if (s != SCI_SUCCESS)
 			status = s;
 	}
@@ -276,7 +275,7 @@ enum sci_status scic_sds_remote_device_frame_handler(struct isci_remote_device *
 {
 	struct sci_base_state_machine *sm = &idev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
-	struct scic_sds_controller *scic = idev->owning_port->owning_controller;
+	struct isci_host *ihost = idev->owning_port->owning_controller;
 	enum sci_status status;
 
 	switch (state) {
@@ -290,7 +289,7 @@ enum sci_status scic_sds_remote_device_frame_handler(struct isci_remote_device *
 		dev_warn(scirdev_to_dev(idev), "%s: in wrong state: %d\n",
 			 __func__, state);
 		/* Return the frame back to the controller */
-		scic_sds_controller_release_frame(scic, frame_index);
+		scic_sds_controller_release_frame(ihost, frame_index);
 		return SCI_FAILURE_INVALID_STATE;
 	case SCI_DEV_READY:
 	case SCI_STP_DEV_NCQ_ERROR:
@@ -303,7 +302,7 @@ enum sci_status scic_sds_remote_device_frame_handler(struct isci_remote_device *
 		void *frame_header;
 		ssize_t word_cnt;
 
-		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+		status = scic_sds_unsolicited_frame_control_get_header(&ihost->uf_control,
 								       frame_index,
 								       &frame_header);
 		if (status != SCI_SUCCESS)
@@ -312,7 +311,7 @@ enum sci_status scic_sds_remote_device_frame_handler(struct isci_remote_device *
 		word_cnt = sizeof(hdr) / sizeof(u32);
 		sci_swab32_cpy(&hdr, frame_header, word_cnt);
 
-		ireq = scic_request_by_tag(scic, be16_to_cpu(hdr.tag));
+		ireq = scic_request_by_tag(ihost, be16_to_cpu(hdr.tag));
 		if (ireq && ireq->target_device == idev) {
 			/* The IO request is now in charge of releasing the frame */
 			status = scic_sds_io_request_frame_handler(ireq, frame_index);
@@ -320,14 +319,14 @@ enum sci_status scic_sds_remote_device_frame_handler(struct isci_remote_device *
 			/* We could not map this tag to a valid IO
 			 * request Just toss the frame and continue
 			 */
-			scic_sds_controller_release_frame(scic, frame_index);
+			scic_sds_controller_release_frame(ihost, frame_index);
 		}
 		break;
 	}
 	case SCI_STP_DEV_NCQ: {
 		struct dev_to_host_fis *hdr;
 
-		status = scic_sds_unsolicited_frame_control_get_header(&scic->uf_control,
+		status = scic_sds_unsolicited_frame_control_get_header(&ihost->uf_control,
 								       frame_index,
 								       (void **)&hdr);
 		if (status != SCI_SUCCESS)
@@ -350,7 +349,7 @@ enum sci_status scic_sds_remote_device_frame_handler(struct isci_remote_device *
 		} else
 			status = SCI_FAILURE;
 
-		scic_sds_controller_release_frame(scic, frame_index);
+		scic_sds_controller_release_frame(ihost, frame_index);
 		break;
 	}
 	case SCI_STP_DEV_CMD:
@@ -461,7 +460,7 @@ static void scic_sds_remote_device_start_request(struct isci_remote_device *idev
 	}
 }
 
-enum sci_status scic_sds_remote_device_start_io(struct scic_sds_controller *scic,
+enum sci_status scic_sds_remote_device_start_io(struct isci_host *ihost,
 						struct isci_remote_device *idev,
 						struct isci_request *ireq)
 {
@@ -597,7 +596,7 @@ static enum sci_status common_complete_io(struct isci_port *iport,
 	return status;
 }
 
-enum sci_status scic_sds_remote_device_complete_io(struct scic_sds_controller *scic,
+enum sci_status scic_sds_remote_device_complete_io(struct isci_host *ihost,
 						   struct isci_remote_device *idev,
 						   struct isci_request *ireq)
 {
@@ -678,7 +677,7 @@ static void scic_sds_remote_device_continue_request(void *dev)
 		scic_controller_continue_io(idev->working_request);
 }
 
-enum sci_status scic_sds_remote_device_start_task(struct scic_sds_controller *scic,
+enum sci_status scic_sds_remote_device_start_task(struct isci_host *ihost,
 						  struct isci_remote_device *idev,
 						  struct isci_request *ireq)
 {
@@ -802,13 +801,13 @@ static void remote_device_resume_done(void *_dev)
 static void scic_sds_stp_remote_device_ready_idle_substate_resume_complete_handler(void *_dev)
 {
 	struct isci_remote_device *idev = _dev;
-	struct scic_sds_controller *scic = idev->owning_port->owning_controller;
+	struct isci_host *ihost = idev->owning_port->owning_controller;
 
 	/* For NCQ operation we do not issue a isci_remote_device_not_ready().
 	 * As a result, avoid sending the ready notification.
 	 */
 	if (idev->sm.previous_state_id != SCI_STP_DEV_NCQ)
-		isci_remote_device_ready(scic_to_ihost(scic), idev);
+		isci_remote_device_ready(ihost, idev);
 }
 
 static void scic_sds_remote_device_initial_state_enter(struct sci_base_state_machine *sm)
@@ -836,7 +835,7 @@ static enum sci_status scic_remote_device_destruct(struct isci_remote_device *id
 {
 	struct sci_base_state_machine *sm = &idev->sm;
 	enum scic_sds_remote_device_states state = sm->current_state_id;
-	struct scic_sds_controller *scic;
+	struct isci_host *ihost;
 
 	if (state != SCI_DEV_STOPPED) {
 		dev_warn(scirdev_to_dev(idev), "%s: in wrong state: %d\n",
@@ -844,8 +843,8 @@ static enum sci_status scic_remote_device_destruct(struct isci_remote_device *id
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	scic = idev->owning_port->owning_controller;
-	scic_sds_controller_free_remote_node_context(scic, idev,
+	ihost = idev->owning_port->owning_controller;
+	scic_sds_controller_free_remote_node_context(ihost, idev,
 						     idev->rnc.remote_node_index);
 	idev->rnc.remote_node_index = SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX;
 	sci_change_state(sm, SCI_DEV_FINAL);
@@ -878,7 +877,7 @@ static void isci_remote_device_deconstruct(struct isci_host *ihost, struct isci_
 static void scic_sds_remote_device_stopped_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_remote_device *idev = container_of(sm, typeof(*idev), sm);
-	struct scic_sds_controller *scic = idev->owning_port->owning_controller;
+	struct isci_host *ihost = idev->owning_port->owning_controller;
 	u32 prev_state;
 
 	/* If we are entering from the stopping state let the SCI User know that
@@ -886,16 +885,15 @@ static void scic_sds_remote_device_stopped_state_enter(struct sci_base_state_mac
 	 */
 	prev_state = idev->sm.previous_state_id;
 	if (prev_state == SCI_DEV_STOPPING)
-		isci_remote_device_deconstruct(scic_to_ihost(scic), idev);
+		isci_remote_device_deconstruct(ihost, idev);
 
-	scic_sds_controller_remote_device_stopped(scic, idev);
+	scic_sds_controller_remote_device_stopped(ihost, idev);
 }
 
 static void scic_sds_remote_device_starting_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_remote_device *idev = container_of(sm, typeof(*idev), sm);
-	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(idev);
-	struct isci_host *ihost = scic_to_ihost(scic);
+	struct isci_host *ihost = scic_sds_remote_device_get_controller(idev);
 
 	isci_remote_device_not_ready(ihost, idev,
 				     SCIC_REMOTE_DEVICE_NOT_READY_START_REQUESTED);
@@ -904,7 +902,7 @@ static void scic_sds_remote_device_starting_state_enter(struct sci_base_state_ma
 static void scic_sds_remote_device_ready_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_remote_device *idev = container_of(sm, typeof(*idev), sm);
-	struct scic_sds_controller *scic = idev->owning_port->owning_controller;
+	struct isci_host *ihost = idev->owning_port->owning_controller;
 	struct domain_device *dev = idev->domain_dev;
 
 	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_SATA)) {
@@ -912,7 +910,7 @@ static void scic_sds_remote_device_ready_state_enter(struct sci_base_state_machi
 	} else if (dev_is_expander(dev)) {
 		sci_change_state(&idev->sm, SCI_SMP_DEV_IDLE);
 	} else
-		isci_remote_device_ready(scic_to_ihost(scic), idev);
+		isci_remote_device_ready(ihost, idev);
 }
 
 static void scic_sds_remote_device_ready_state_exit(struct sci_base_state_machine *sm)
@@ -921,9 +919,9 @@ static void scic_sds_remote_device_ready_state_exit(struct sci_base_state_machin
 	struct domain_device *dev = idev->domain_dev;
 
 	if (dev->dev_type == SAS_END_DEV) {
-		struct scic_sds_controller *scic = idev->owning_port->owning_controller;
+		struct isci_host *ihost = idev->owning_port->owning_controller;
 
-		isci_remote_device_not_ready(scic_to_ihost(scic), idev,
+		isci_remote_device_not_ready(ihost, idev,
 					     SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED);
 	}
 }
@@ -963,40 +961,40 @@ static void scic_sds_stp_remote_device_ready_idle_substate_enter(struct sci_base
 static void scic_sds_stp_remote_device_ready_cmd_substate_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_remote_device *idev = container_of(sm, typeof(*idev), sm);
-	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(idev);
+	struct isci_host *ihost = scic_sds_remote_device_get_controller(idev);
 
 	BUG_ON(idev->working_request == NULL);
 
-	isci_remote_device_not_ready(scic_to_ihost(scic), idev,
+	isci_remote_device_not_ready(ihost, idev,
 				     SCIC_REMOTE_DEVICE_NOT_READY_SATA_REQUEST_STARTED);
 }
 
 static void scic_sds_stp_remote_device_ready_ncq_error_substate_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_remote_device *idev = container_of(sm, typeof(*idev), sm);
-	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(idev);
+	struct isci_host *ihost = scic_sds_remote_device_get_controller(idev);
 
 	if (idev->not_ready_reason == SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED)
-		isci_remote_device_not_ready(scic_to_ihost(scic), idev,
+		isci_remote_device_not_ready(ihost, idev,
 					     idev->not_ready_reason);
 }
 
 static void scic_sds_smp_remote_device_ready_idle_substate_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_remote_device *idev = container_of(sm, typeof(*idev), sm);
-	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(idev);
+	struct isci_host *ihost = scic_sds_remote_device_get_controller(idev);
 
-	isci_remote_device_ready(scic_to_ihost(scic), idev);
+	isci_remote_device_ready(ihost, idev);
 }
 
 static void scic_sds_smp_remote_device_ready_cmd_substate_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_remote_device *idev = container_of(sm, typeof(*idev), sm);
-	struct scic_sds_controller *scic = scic_sds_remote_device_get_controller(idev);
+	struct isci_host *ihost = scic_sds_remote_device_get_controller(idev);
 
 	BUG_ON(idev->working_request == NULL);
 
-	isci_remote_device_not_ready(scic_to_ihost(scic), idev,
+	isci_remote_device_not_ready(ihost, idev,
 				     SCIC_REMOTE_DEVICE_NOT_READY_SMP_REQUEST_STARTED);
 }
 
@@ -1303,7 +1301,7 @@ void isci_remote_device_release(struct kref *kref)
  * @isci_host: This parameter specifies the isci host object.
  * @isci_device: This parameter specifies the remote device.
  *
- * The status of the scic request to stop.
+ * The status of the ihost request to stop.
  */
 enum sci_status isci_remote_device_stop(struct isci_host *ihost, struct isci_remote_device *idev)
 {

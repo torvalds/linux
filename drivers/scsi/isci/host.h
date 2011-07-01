@@ -106,7 +106,7 @@ struct scic_power_control {
 };
 
 struct scic_sds_port_configuration_agent;
-typedef void (*port_config_fn)(struct scic_sds_controller *,
+typedef void (*port_config_fn)(struct isci_host *,
 			       struct scic_sds_port_configuration_agent *,
 			       struct isci_port *, struct isci_phy *);
 
@@ -124,170 +124,65 @@ struct scic_sds_port_configuration_agent {
 };
 
 /**
- * struct scic_sds_controller -
- *
- * This structure represents the SCU controller object.
+ * isci_host - primary host/controller object
+ * @timer: timeout start/stop operations
+ * @device_table: rni (hw remote node index) to remote device lookup table
+ * @available_remote_nodes: rni allocator
+ * @power_control: manage device spin up
+ * @io_request_sequence: generation number for tci's (task contexts)
+ * @task_context_table: hw task context table
+ * @remote_node_context_table: hw remote node context table
+ * @completion_queue: hw-producer driver-consumer communication ring
+ * @completion_queue_get: tracks the driver 'head' of the ring to notify hw
+ * @logical_port_entries: min({driver|silicon}-supported-port-count)
+ * @remote_node_entries: min({driver|silicon}-supported-node-count)
+ * @task_context_entries: min({driver|silicon}-supported-task-count)
+ * @phy_timer: phy startup timer
+ * @invalid_phy_mask: if an invalid_link_up notification is reported a bit for
+ * 		      the phy index is set so further notifications are not
+ * 		      made.  Once the phy reports link up and is made part of a
+ * 		      port then this bit is cleared.
+
  */
-struct scic_sds_controller {
-	/**
-	 * This field contains the information for the base controller state
-	 * machine.
-	 */
+struct isci_host {
 	struct sci_base_state_machine sm;
-
-	/**
-	 * Timer for controller start/stop operations.
-	 */
+	/* XXX can we time this externally */
 	struct sci_timer timer;
-
-	/**
-	 * This field contains the user parameters to be utilized for this
-	 * core controller object.
-	 */
+	/* XXX drop reference module params directly */
 	union scic_user_parameters user_parameters;
-
-	/**
-	 * This field contains the OEM parameters to be utilized for this
-	 * core controller object.
-	 */
+	/* XXX no need to be a union */
 	union scic_oem_parameters oem_parameters;
-
-	/**
-	 * This field contains the port configuration agent for this controller.
-	 */
 	struct scic_sds_port_configuration_agent port_agent;
-
-	/**
-	 * This field is the array of device objects that are currently constructed
-	 * for this controller object.  This table is used as a fast lookup of device
-	 * objects that need to handle device completion notifications from the
-	 * hardware. The table is RNi based.
-	 */
 	struct isci_remote_device *device_table[SCI_MAX_REMOTE_DEVICES];
-
-	/**
-	 * This field is the free RNi data structure
-	 */
 	struct scic_remote_node_table available_remote_nodes;
-
-	/**
-	 * This filed is the struct scic_power_control data used to controll when direct
-	 * attached devices can consume power.
-	 */
 	struct scic_power_control power_control;
-
-	/* sequence number per tci */
 	u8 io_request_sequence[SCI_MAX_IO_REQUESTS];
-
-	/**
-	 * This field is a pointer to the memory allocated by the driver for the task
-	 * context table.  This data is shared between the hardware and software.
-	 */
 	struct scu_task_context *task_context_table;
 	dma_addr_t task_context_dma;
-
-	/**
-	 * This field is a pointer to the memory allocated by the driver for the
-	 * remote node context table.  This table is shared between the hardware and
-	 * software.
-	 */
 	union scu_remote_node_context *remote_node_context_table;
-
-	/**
-	 * This field is a pointer to the completion queue.  This memory is
-	 * written to by the hardware and read by the software.
-	 */
 	u32 *completion_queue;
-
-	/**
-	 * This field is the software copy of the completion queue get pointer.  The
-	 * controller object writes this value to the hardware after processing the
-	 * completion entries.
-	 */
 	u32 completion_queue_get;
-
-	/**
-	 * This field is the minimum of the number of hardware supported port entries
-	 * and the software requested port entries.
-	 */
 	u32 logical_port_entries;
-
-	/**
-	 * This field is the minimum number of devices supported by the hardware and
-	 * the number of devices requested by the software.
-	 */
 	u32 remote_node_entries;
-
-	/**
-	 * This field is the minimum number of IO requests supported by the hardware
-	 * and the number of IO requests requested by the software.
-	 */
 	u32 task_context_entries;
-
-	/**
-	 * This object contains all of the unsolicited frame specific
-	 * data utilized by the core controller.
-	 */
 	struct scic_sds_unsolicited_frame_control uf_control;
 
-	/* Phy Startup Data */
-	/**
-	 * Timer for controller phy request startup. On controller start the
-	 * controller will start each PHY individually in order of phy index.
-	 */
+	/* phy startup */
 	struct sci_timer phy_timer;
-
-	/**
-	 * This field is set when the phy_timer is running and is cleared when
-	 * the phy_timer is stopped.
-	 */
+	/* XXX kill */
 	bool phy_startup_timer_pending;
-
-	/**
-	 * This field is the index of the next phy start.  It is initialized to 0 and
-	 * increments for each phy index that is started.
-	 */
 	u32 next_phy_to_start;
-
-	/**
-	 * This field controlls the invalid link up notifications to the SCI_USER.  If
-	 * an invalid_link_up notification is reported a bit for the PHY index is set
-	 * so further notifications are not made.  Once the PHY object reports link up
-	 * and is made part of a port then this bit for the PHY index is cleared.
-	 */
 	u8 invalid_phy_mask;
 
-	/*
-	 * This field saves the current interrupt coalescing number of the controller.
-	 */
+	/* TODO attempt dynamic interrupt coalescing scheme */
 	u16 interrupt_coalesce_number;
-
-	/*
-	 * This field saves the current interrupt coalescing timeout value in microseconds.
-	 */
 	u32 interrupt_coalesce_timeout;
-
-	/**
-	 * This field is a pointer to the memory mapped register space for the
-	 * struct smu_registers.
-	 */
 	struct smu_registers __iomem *smu_registers;
-
-	/**
-	 * This field is a pointer to the memory mapped register space for the
-	 * struct scu_registers.
-	 */
 	struct scu_registers __iomem *scu_registers;
 
-};
-
-struct isci_host {
-	struct scic_sds_controller sci;
 	u16 tci_head;
 	u16 tci_tail;
 	u16 tci_pool[SCI_MAX_IO_REQUESTS];
-
-	union scic_oem_parameters oem_parameters;
 
 	int id; /* unique within a given pci device */
 	struct isci_phy phys[SCI_MAX_PHYS];
@@ -464,14 +359,6 @@ static inline struct isci_host *dev_to_ihost(struct domain_device *dev)
 	return dev->port->ha->lldd_ha;
 }
 
-static inline struct isci_host *scic_to_ihost(struct scic_sds_controller *scic)
-{
-	/* XXX delete after merging scic_sds_contoller and isci_host */
-	struct isci_host *ihost = container_of(scic, typeof(*ihost), sci);
-
-	return ihost;
-}
-
 /**
  * scic_sds_controller_get_protocol_engine_group() -
  *
@@ -517,11 +404,6 @@ static inline int scic_sds_remote_device_node_count(struct isci_remote_device *i
  */
 #define scic_sds_controller_clear_invalid_phy(controller, phy) \
 	((controller)->invalid_phy_mask &= ~(1 << (phy)->phy_index))
-
-static inline struct device *scic_to_dev(struct scic_sds_controller *scic)
-{
-	return &scic_to_ihost(scic)->pdev->dev;
-}
 
 static inline struct device *sciphy_to_dev(struct isci_phy *iphy)
 {
@@ -578,54 +460,54 @@ static inline bool is_c0(void)
 	return isci_si_rev > ISCI_SI_REVB0;
 }
 
-void scic_sds_controller_post_request(struct scic_sds_controller *scic,
+void scic_sds_controller_post_request(struct isci_host *ihost,
 				      u32 request);
-void scic_sds_controller_release_frame(struct scic_sds_controller *scic,
+void scic_sds_controller_release_frame(struct isci_host *ihost,
 				       u32 frame_index);
 void scic_sds_controller_copy_sata_response(void *response_buffer,
 					    void *frame_header,
 					    void *frame_buffer);
-enum sci_status scic_sds_controller_allocate_remote_node_context(struct scic_sds_controller *scic,
+enum sci_status scic_sds_controller_allocate_remote_node_context(struct isci_host *ihost,
 								 struct isci_remote_device *idev,
 								 u16 *node_id);
 void scic_sds_controller_free_remote_node_context(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	u16 node_id);
 union scu_remote_node_context *scic_sds_controller_get_remote_node_context_buffer(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	u16 node_id);
 
-struct isci_request *scic_request_by_tag(struct scic_sds_controller *scic,
+struct isci_request *scic_request_by_tag(struct isci_host *ihost,
 					     u16 io_tag);
 
 void scic_sds_controller_power_control_queue_insert(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_phy *iphy);
 
 void scic_sds_controller_power_control_queue_remove(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_phy *iphy);
 
 void scic_sds_controller_link_up(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_port *iport,
 	struct isci_phy *iphy);
 
 void scic_sds_controller_link_down(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_port *iport,
 	struct isci_phy *iphy);
 
 void scic_sds_controller_remote_device_stopped(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev);
 
 void scic_sds_controller_copy_task_context(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_request *ireq);
 
-void scic_sds_controller_register_setup(struct scic_sds_controller *scic);
+void scic_sds_controller_register_setup(struct isci_host *ihost);
 
 enum sci_status scic_controller_continue_io(struct isci_request *ireq);
 int isci_host_scan_finished(struct Scsi_Host *, unsigned long);
@@ -655,25 +537,25 @@ void isci_host_remote_device_start_complete(
 	enum sci_status);
 
 void scic_controller_disable_interrupts(
-	struct scic_sds_controller *scic);
+	struct isci_host *ihost);
 
 enum sci_status scic_controller_start_io(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
 enum sci_task_status scic_controller_start_task(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
 enum sci_status scic_controller_terminate_request(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
 enum sci_status scic_controller_complete_io(
-	struct scic_sds_controller *scic,
+	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
@@ -681,6 +563,6 @@ void scic_sds_port_configuration_agent_construct(
 	struct scic_sds_port_configuration_agent *port_agent);
 
 enum sci_status scic_sds_port_configuration_agent_initialize(
-	struct scic_sds_controller *controller,
+	struct isci_host *ihost,
 	struct scic_sds_port_configuration_agent *port_agent);
 #endif

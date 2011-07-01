@@ -214,9 +214,9 @@ struct scic_sds_unsolicited_frame_control {
 
 };
 
-struct scic_sds_controller;
+struct isci_host;
 
-int scic_sds_unsolicited_frame_control_construct(struct scic_sds_controller *scic);
+int scic_sds_unsolicited_frame_control_construct(struct isci_host *ihost);
 
 enum sci_status scic_sds_unsolicited_frame_control_get_header(
 	struct scic_sds_unsolicited_frame_control *uf_control,
