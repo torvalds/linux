@@ -251,7 +251,7 @@ struct pm_clk_notifier_block {
 	char *con_ids[];
 };
 
-#ifdef CONFIG_PM_RUNTIME_CLK
+#ifdef CONFIG_PM_CLK
 extern int pm_runtime_clk_init(struct device *dev);
 extern void pm_runtime_clk_destroy(struct device *dev);
 extern int pm_runtime_clk_add(struct device *dev, const char *con_id);
