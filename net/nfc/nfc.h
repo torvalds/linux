@@ -42,6 +42,20 @@ struct nfc_protocol {
 			const struct nfc_protocol *nfc_proto);
 };
 
+struct nfc_rawsock {
+	struct sock sk;
+	struct nfc_dev *dev;
+	u32 target_idx;
+	struct work_struct tx_work;
+	bool tx_work_scheduled;
+};
+#define nfc_rawsock(sk) ((struct nfc_rawsock *) sk)
+#define to_rawsock_sk(_tx_work) \
+	((struct sock *) container_of(_tx_work, struct nfc_rawsock, tx_work))
+
+int __init rawsock_init(void);
+void rawsock_exit(void);
+
 int __init af_nfc_init(void);
 void af_nfc_exit(void);
 int nfc_proto_register(const struct nfc_protocol *nfc_proto);
