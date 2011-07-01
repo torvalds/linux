@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.27
-# Thu Jun 30 19:14:37 2011
+# Fri Jul  1 14:29:35 2011
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -244,8 +244,8 @@ CONFIG_RK29_LAST_LOG=y
 #
 # support for RK29 power manage 
 #
-# CONFIG_RK29_CLK_SWITCH_TO_32K is not set
-# CONFIG_RK29_GPIO_SUSPEND is not set
+CONFIG_RK29_CLK_SWITCH_TO_32K=y
+CONFIG_RK29_GPIO_SUSPEND=y
 CONFIG_RK29_SPI_INSRAM=y
 
 #
@@ -1604,6 +1604,12 @@ CONFIG_RK29_IPP=y
 #
 # CONFIG_CMMB is not set
 # CONFIG_TEST_CODE is not set
+# CONFIG_RK29_SMC is not set
+
+#
+# CIR support
+#
+# CONFIG_RK_CIR is not set
 
 #
 # File systems
