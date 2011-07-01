@@ -1396,8 +1396,11 @@ static int _shutdown(struct omap_hwmod *oh)
 		}
 	}
 
-	if (oh->class->sysc)
+	if (oh->class->sysc) {
+		if (oh->_state == _HWMOD_STATE_IDLE)
+			_enable(oh);
 		_shutdown_sysc(oh);
+	}
 
 	/*
 	 * If an IP contains only one HW reset line, then assert it
