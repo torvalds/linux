@@ -1945,6 +1945,7 @@ static void __net_exit __ip_vs_dev_cleanup(struct net *net)
 {
 	EnterFunction(2);
 	net_ipvs(net)->enable = 0;	/* Disable packet reception */
+	smp_wmb();
 	__ip_vs_sync_cleanup(net);
 	LeaveFunction(2);
 }

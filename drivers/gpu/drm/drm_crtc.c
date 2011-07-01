@@ -1113,7 +1113,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	if (card_res->count_fbs >= fb_count) {
 		copied = 0;
 		fb_id = (uint32_t __user *)(unsigned long)card_res->fb_id_ptr;
-		list_for_each_entry(fb, &file_priv->fbs, head) {
+		list_for_each_entry(fb, &file_priv->fbs, filp_head) {
 			if (put_user(fb->base.id, fb_id + copied)) {
 				ret = -EFAULT;
 				goto out;

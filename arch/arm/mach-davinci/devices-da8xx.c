@@ -494,7 +494,7 @@ static struct platform_device da850_mcasp_device = {
 	.resource	= da850_mcasp_resources,
 };
 
-struct platform_device davinci_pcm_device = {
+static struct platform_device davinci_pcm_device = {
 	.name	= "davinci-pcm-audio",
 	.id	= -1,
 };
