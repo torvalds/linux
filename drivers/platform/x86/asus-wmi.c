@@ -194,6 +194,7 @@ struct asus_wmi {
 	struct asus_rfkill bluetooth;
 	struct asus_rfkill wimax;
 	struct asus_rfkill wwan3g;
+	struct asus_rfkill gps;
 
 	struct hotplug_slot *hotplug_slot;
 	struct mutex hotplug_lock;
@@ -835,6 +836,11 @@ static void asus_wmi_rfkill_exit(struct asus_wmi *asus)
 		rfkill_destroy(asus->wwan3g.rfkill);
 		asus->wwan3g.rfkill = NULL;
 	}
+	if (asus->gps.rfkill) {
+		rfkill_unregister(asus->gps.rfkill);
+		rfkill_destroy(asus->gps.rfkill);
+		asus->gps.rfkill = NULL;
+	}
 }
 
 static int asus_wmi_rfkill_init(struct asus_wmi *asus)
@@ -865,6 +871,12 @@ static int asus_wmi_rfkill_init(struct asus_wmi *asus)
 
 	result = asus_new_rfkill(asus, &asus->wwan3g, "asus-wwan3g",
 				 RFKILL_TYPE_WWAN, ASUS_WMI_DEVID_WWAN3G);
+
+	if (result && result != -ENODEV)
+		goto exit;
+
+	result = asus_new_rfkill(asus, &asus->gps, "asus-gps",
+				 RFKILL_TYPE_GPS, ASUS_WMI_DEVID_GPS);
 
 	if (result && result != -ENODEV)
 		goto exit;
@@ -1720,6 +1732,10 @@ static int asus_hotk_restore(struct device *device)
 	if (asus->wwan3g.rfkill) {
 		bl = !asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_WWAN3G);
 		rfkill_set_sw_state(asus->wwan3g.rfkill, bl);
+	}
+	if (asus->gps.rfkill) {
+		bl = !asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_GPS);
+		rfkill_set_sw_state(asus->gps.rfkill, bl);
 	}
 
 	return 0;
