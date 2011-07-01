@@ -89,7 +89,6 @@ struct kvmppc_vcpu_book3s {
 	u64 vsid_max;
 #endif
 	int context_id[SID_CONTEXTS];
-	ulong prog_flags; /* flags to inject when giving a 700 trap */
 
 	struct hlist_head hpte_hash_pte[HPTEG_HASH_NUM_PTE];
 	struct hlist_head hpte_hash_pte_long[HPTEG_HASH_NUM_PTE_LONG];
