@@ -702,37 +702,6 @@ ack:
 }
 
 static void
-nv50_display_unk20_dp_hack(struct drm_device *dev, struct dcb_entry *dcb)
-{
-	int or = ffs(dcb->or) - 1, link = !(dcb->dpconf.sor.link & 1);
-	struct drm_encoder *encoder;
-	uint32_t tmp, unk0 = 0, unk1 = 0;
-
-	if (dcb->type != OUTPUT_DP)
-		return;
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-
-		if (nv_encoder->dcb == dcb) {
-			unk0 = nv_encoder->dp.unk0;
-			unk1 = nv_encoder->dp.unk1;
-			break;
-		}
-	}
-
-	if (unk0 || unk1) {
-		tmp  = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
-		tmp &= 0xfffffe03;
-		nv_wr32(dev, NV50_SOR_DP_CTRL(or, link), tmp | unk0);
-
-		tmp  = nv_rd32(dev, NV50_SOR_DP_UNK128(or, link));
-		tmp &= 0xfef080c0;
-		nv_wr32(dev, NV50_SOR_DP_UNK128(or, link), tmp | unk1);
-	}
-}
-
-static void
 nv50_display_unk20_handler(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -830,7 +799,13 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	script = nv50_display_script_select(dev, dcb, mc, pclk);
 	nouveau_bios_run_display_table(dev, script, pclk, dcb, -1);
 
-	nv50_display_unk20_dp_hack(dev, dcb);
+	if (type == OUTPUT_DP) {
+		int link = !(dcb->dpconf.sor.link & 1);
+		if ((mc & 0x000f0000) == 0x00020000)
+			nouveau_dp_tu_update(dev, or, link, pclk, 18);
+		else
+			nouveau_dp_tu_update(dev, or, link, pclk, 24);
+	}
 
 	if (dcb->type != OUTPUT_ANALOG) {
 		tmp = nv_rd32(dev, NV50_PDISPLAY_SOR_CLK_CTRL2(or));

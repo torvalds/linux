@@ -194,6 +194,116 @@ auxch_wr(struct drm_encoder *encoder, int address, uint8_t *buf, int size)
 	return ret;
 }
 
+static u32
+dp_link_bw_get(struct drm_device *dev, int or, int link)
+{
+	u32 ctrl = nv_rd32(dev, 0x614300 + (or * 0x800));
+	if (!(ctrl & 0x000c0000))
+		return 162000;
+	return 270000;
+}
+
+static int
+dp_lane_count_get(struct drm_device *dev, int or, int link)
+{
+	u32 ctrl = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
+	switch (ctrl & 0x000f0000) {
+	case 0x00010000: return 1;
+	case 0x00030000: return 2;
+	default:
+		return 4;
+	}
+}
+
+void
+nouveau_dp_tu_update(struct drm_device *dev, int or, int link, u32 clk, u32 bpp)
+{
+	const u32 symbol = 100000;
+	int bestTU = 0, bestVTUi = 0, bestVTUf = 0, bestVTUa = 0;
+	int TU, VTUi, VTUf, VTUa;
+	u64 link_data_rate, link_ratio, unk;
+	u32 best_diff = 64 * symbol;
+	u32 link_nr, link_bw, r;
+
+	/* calculate packed data rate for each lane */
+	link_nr = dp_lane_count_get(dev, or, link);
+	link_data_rate = (clk * bpp / 8) / link_nr;
+
+	/* calculate ratio of packed data rate to link symbol rate */
+	link_bw = dp_link_bw_get(dev, or, link);
+	link_ratio = link_data_rate * symbol;
+	r = do_div(link_ratio, link_bw);
+
+	for (TU = 64; TU >= 32; TU--) {
+		/* calculate average number of valid symbols in each TU */
+		u32 tu_valid = link_ratio * TU;
+		u32 calc, diff;
+
+		/* find a hw representation for the fraction.. */
+		VTUi = tu_valid / symbol;
+		calc = VTUi * symbol;
+		diff = tu_valid - calc;
+		if (diff) {
+			if (diff >= (symbol / 2)) {
+				VTUf = symbol / (symbol - diff);
+				if (symbol - (VTUf * diff))
+					VTUf++;
+
+				if (VTUf <= 15) {
+					VTUa  = 1;
+					calc += symbol - (symbol / VTUf);
+				} else {
+					VTUa  = 0;
+					VTUf  = 1;
+					calc += symbol;
+				}
+			} else {
+				VTUa  = 0;
+				VTUf  = min((int)(symbol / diff), 15);
+				calc += symbol / VTUf;
+			}
+
+			diff = calc - tu_valid;
+		} else {
+			/* no remainder, but the hw doesn't like the fractional
+			 * part to be zero.  decrement the integer part and
+			 * have the fraction add a whole symbol back
+			 */
+			VTUa = 0;
+			VTUf = 1;
+			VTUi--;
+		}
+
+		if (diff < best_diff) {
+			best_diff = diff;
+			bestTU = TU;
+			bestVTUa = VTUa;
+			bestVTUf = VTUf;
+			bestVTUi = VTUi;
+			if (diff == 0)
+				break;
+		}
+	}
+
+	if (!bestTU) {
+		NV_ERROR(dev, "DP: unable to find suitable config\n");
+		return;
+	}
+
+	/* XXX close to vbios numbers, but not right */
+	unk  = (symbol - link_ratio) * bestTU;
+	unk *= link_ratio;
+	r = do_div(unk, symbol);
+	r = do_div(unk, symbol);
+	unk += 6;
+
+	nv_mask(dev, NV50_SOR_DP_CTRL(or, link), 0x000001fc, bestTU << 2);
+	nv_mask(dev, NV50_SOR_DP_SCFG(or, link), 0x010f7f3f, bestVTUa << 24 |
+							     bestVTUf << 16 |
+							     bestVTUi << 8 |
+							     unk);
+}
+
 static int
 nouveau_dp_lane_count_set(struct drm_encoder *encoder, uint8_t cmd)
 {
@@ -617,7 +727,6 @@ static int
 nouveau_dp_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 {
 	struct nouveau_i2c_chan *auxch = (struct nouveau_i2c_chan *)adap;
-	struct drm_device *dev = auxch->dev;
 	struct i2c_msg *msg = msgs;
 	int ret, mcnt = num;
 
