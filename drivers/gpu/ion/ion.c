@@ -116,13 +116,14 @@ static void ion_buffer_add(struct ion_device *dev,
 		parent = *p;
 		entry = rb_entry(parent, struct ion_buffer, node);
 
-		if (buffer < entry)
+		if (buffer < entry) {
 			p = &(*p)->rb_left;
-		else if (buffer > entry)
+		} else if (buffer > entry) {
 			p = &(*p)->rb_right;
-		else
+		} else {
 			pr_err("%s: buffer already found.", __func__);
 			BUG();
+		}
 	}
 
 	rb_link_node(&buffer->node, parent, p);
