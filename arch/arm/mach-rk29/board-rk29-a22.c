@@ -180,13 +180,12 @@ struct rk29_nand_platform_data rk29_nand_data = {
  * author: zyw@rock-chips.com
  *****************************************************************************************/
 //#ifdef  CONFIG_LCD_TD043MGEA1
+#define CONFIG_LCD_USE_SPI0 1
 #ifdef CONFIG_LCD_USE_SPI0
 #define LCD_TXD_PIN          RK29_PIN2_PC2
 #define LCD_CLK_PIN          RK29_PIN2_PC0
 #define LCD_CS_PIN           RK29_PIN1_PA4
-#endif
-
-#ifdef CONFIG_LCD_USE_SPI1
+#else
 #define LCD_TXD_PIN          RK29_PIN2_PC6
 #define LCD_CLK_PIN          RK29_PIN2_PC4
 #define LCD_CS_PIN           RK29_PIN2_PC5
@@ -209,25 +208,21 @@ static int rk29_lcd_io_init(void)
 {
 	int ret = 0;
 	//printk("rk29_lcd_io_init\n");
-	//ret = gpio_request(LCD_RXD_PIN, NULL);
-	ret = gpio_request(LCD_TXD_PIN, NULL);
-	ret = gpio_request(LCD_CLK_PIN, NULL);
-	ret = gpio_request(LCD_CS_PIN, NULL);
-	
 #ifdef CONFIG_LCD_USE_SPI0
 	//rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_GPIO2C7);
 	rk29_mux_api_set(GPIO2C2_SPI0TXD_NAME,GPIO2H_GPIO2C2);
 	rk29_mux_api_set(GPIO1A4_EMMCWRITEPRT_SPI0CS1_NAME,GPIO1L_GPIO1A4);
 	rk29_mux_api_set(GPIO2C0_SPI0CLK_NAME,GPIO2H_GPIO2C0);
-#endif
-
-#ifdef CONFIG_LCD_USE_SPI1
+#else
 	//rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_GPIO2C7);
 	rk29_mux_api_set(GPIO2C6_SPI1TXD_NAME,GPIO2H_GPIO2C6);
 	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME,GPIO2H_GPIO2C5);
 	rk29_mux_api_set(GPIO2C4_SPI1CLK_NAME,GPIO2H_GPIO2C4);
 #endif
-
+	//ret = gpio_request(LCD_RXD_PIN, NULL);
+	ret = gpio_request(LCD_TXD_PIN, NULL);
+	ret = gpio_request(LCD_CLK_PIN, NULL);
+	ret = gpio_request(LCD_CS_PIN, NULL);
 	return ret;
 }
 
@@ -244,9 +239,7 @@ static int rk29_lcd_io_deinit(void)
 	rk29_mux_api_set(GPIO2C2_SPI0TXD_NAME,GPIO2H_SPI0_TXD);
 	rk29_mux_api_set(GPIO1A4_EMMCWRITEPRT_SPI0CS1_NAME,GPIO1L_SPI0_CSN1);
 	rk29_mux_api_set(GPIO2C0_SPI0CLK_NAME,GPIO2H_SPI0_CLK);
-#endif
-
-#ifdef CONFIG_LCD_USE_SPI1
+#else
 	//rk29_mux_api_set(GPIO2C7_SPI1RXD_NAME,GPIO2H_SPI1_RXD);
 	rk29_mux_api_set(GPIO2C6_SPI1TXD_NAME,GPIO2H_SPI1_TXD);
 	rk29_mux_api_set(GPIO2C5_SPI1CSN0_NAME,GPIO2H_SPI1_CSN0);
@@ -1561,7 +1554,7 @@ struct rk_headset_pdata rk_headset_info = {
 	.Headset_gpio		= RK29_PIN3_PA6,
 	.headset_in_type= HEADSET_IN_HIGH,
 	.Hook_gpio = RK29_PIN4_PD1,//Detection Headset--Must be set
-	.hook_key_code = KEY_MEDIA,
+//	.hook_key_code = KEY_MEDIA,
 };
 
 struct platform_device rk_device_headset = {

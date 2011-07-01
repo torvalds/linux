@@ -1576,23 +1576,29 @@ extern void rk29_lcd_spim_spin_lock(void);
 extern void rk29_lcd_spim_spin_unlock(void);
 int standby(u8 enable)	//***enable =1 means suspend, 0 means resume 
 {
-	rk29_lcd_spim_spin_lock();
+	//rk29_lcd_spim_spin_lock();
 	if(gLcd_info)
         gLcd_info->io_init();
 
 	if(enable) {
 		WriteCommand(0X2800); 
 		//set_backlight(0);
-		mdelay(100);
-		WriteCommand(0X1000); 
+		WriteCommand(0X1100); 
+		mdelay(5);
+		WriteCommand(0X4f00); 
+		WriteParameter(0x01);
 	} else { 
- 		WriteCommand(0X1100); 
-		mdelay(120);
-		WriteCommand(0X2900); 
-		mdelay(100);
+		gpio_request(RK29_PIN6_PC6, NULL);
+		gpio_direction_output(RK29_PIN6_PC6, 1);
+		gpio_direction_output(RK29_PIN6_PC6, 0);
+		mdelay(5);
+		gpio_set_value(RK29_PIN6_PC6, 1);
+		mdelay(50);
+		gpio_free(RK29_PIN6_PC6);
+		init_nt35510();
 		//set_backlight(255);
 		//resume_nt35510();//may be fail to wake up LCD some time,so change to init lcd again
-		printk("%s\n",__FUNCTION__);
+		printk("%s\n",__FUNCTION__);printk("%s\n",__FUNCTION__);
 	}
 
     if(gLcd_info)
