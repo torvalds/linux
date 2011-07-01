@@ -606,32 +606,60 @@ driver/base/power/generic_ops.c:
       callback provided by its driver and return its result, or return 0 if not
       defined
 
+  int pm_generic_suspend_noirq(struct device *dev);
+    - if pm_runtime_suspended(dev) returns "false", invoke the ->suspend_noirq()
+      callback provided by the device's driver and return its result, or return
+      0 if not defined
+
   int pm_generic_resume(struct device *dev);
     - invoke the ->resume() callback provided by the driver of this device and,
       if successful, change the device's runtime PM status to 'active'
+
+  int pm_generic_resume_noirq(struct device *dev);
+    - invoke the ->resume_noirq() callback provided by the driver of this device
 
   int pm_generic_freeze(struct device *dev);
     - if the device has not been suspended at run time, invoke the ->freeze()
       callback provided by its driver and return its result, or return 0 if not
       defined
 
+  int pm_generic_freeze_noirq(struct device *dev);
+    - if pm_runtime_suspended(dev) returns "false", invoke the ->freeze_noirq()
+      callback provided by the device's driver and return its result, or return
+      0 if not defined
+
   int pm_generic_thaw(struct device *dev);
     - if the device has not been suspended at run time, invoke the ->thaw()
       callback provided by its driver and return its result, or return 0 if not
       defined
+
+  int pm_generic_thaw_noirq(struct device *dev);
+    - if pm_runtime_suspended(dev) returns "false", invoke the ->thaw_noirq()
+      callback provided by the device's driver and return its result, or return
+      0 if not defined
 
   int pm_generic_poweroff(struct device *dev);
     - if the device has not been suspended at run time, invoke the ->poweroff()
       callback provided by its driver and return its result, or return 0 if not
       defined
 
+  int pm_generic_poweroff_noirq(struct device *dev);
+    - if pm_runtime_suspended(dev) returns "false", run the ->poweroff_noirq()
+      callback provided by the device's driver and return its result, or return
+      0 if not defined
+
   int pm_generic_restore(struct device *dev);
     - invoke the ->restore() callback provided by the driver of this device and,
       if successful, change the device's runtime PM status to 'active'
 
+  int pm_generic_restore_noirq(struct device *dev);
+    - invoke the ->restore_noirq() callback provided by the device's driver
+
 These functions can be assigned to the ->runtime_idle(), ->runtime_suspend(),
-->runtime_resume(), ->suspend(), ->resume(), ->freeze(), ->thaw(), ->poweroff(),
-or ->restore() callback pointers in the subsystem-level dev_pm_ops structures.
+->runtime_resume(), ->suspend(), ->suspend_noirq(), ->resume(),
+->resume_noirq(), ->freeze(), ->freeze_noirq(), ->thaw(), ->thaw_noirq(),
+->poweroff(), ->poweroff_noirq(), ->restore(), ->restore_noirq() callback
+pointers in the subsystem-level dev_pm_ops structures.
 
 If a subsystem wishes to use all of them at the same time, it can simply assign
 the GENERIC_SUBSYS_PM_OPS macro, defined in include/linux/pm.h, to its
