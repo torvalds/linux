@@ -843,6 +843,7 @@ void __init sh7372_add_standard_devices(void)
 {
 	sh7372_init_pm_domain(&sh7372_a4lc);
 	sh7372_init_pm_domain(&sh7372_a3rv);
+	sh7372_init_pm_domain(&sh7372_a3ri);
 
 	platform_add_devices(sh7372_early_devices,
 			    ARRAY_SIZE(sh7372_early_devices));

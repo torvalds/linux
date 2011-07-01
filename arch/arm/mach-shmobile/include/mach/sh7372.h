@@ -486,6 +486,7 @@ static inline struct sh7372_pm_domain *to_sh7372_pd(struct generic_pm_domain *d)
 #ifdef CONFIG_PM
 extern struct sh7372_pm_domain sh7372_a4lc;
 extern struct sh7372_pm_domain sh7372_a3rv;
+extern struct sh7372_pm_domain sh7372_a3ri;
 
 extern void sh7372_init_pm_domain(struct sh7372_pm_domain *sh7372_pd);
 extern void sh7372_add_device_to_domain(struct sh7372_pm_domain *sh7372_pd,
