@@ -310,9 +310,10 @@ ENDPROC(native_usergs_sysret64)
 	movq_cfi r10, R10-RBP
 	movq_cfi r11, R11-RBP
 
-	leaq -RBP(%rsp),%rdi	/* arg1 for handler */
 	movq_cfi rbp, 0		/* push %rbp */
 	movq %rsp, %rbp
+
+	leaq -RBP(%rsp),%rdi	/* arg1 for handler */
 	testl $3, CS(%rdi)
 	je 1f
 	SWAPGS
