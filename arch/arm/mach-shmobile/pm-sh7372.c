@@ -133,6 +133,10 @@ struct sh7372_pm_domain sh7372_a3ri = {
 	.bit_shift = 8,
 };
 
+struct sh7372_pm_domain sh7372_a3sg = {
+	.bit_shift = 13,
+};
+
 #endif /* CONFIG_PM */
 
 static void sh7372_enter_core_standby(void)
