@@ -133,6 +133,34 @@ static inline void __kprobes load_write_pc(long pcv, struct pt_regs *regs)
 }
 
 
+#if __LINUX_ARM_ARCH__ >= 7
+
+#define alu_write_pc_interworks true
+#define test_alu_write_pc_interworking()
+
+#elif __LINUX_ARM_ARCH__ <= 5
+
+/* Kernels built for <= ARMv5 should never run on >= ARMv6 hardware, so... */
+#define alu_write_pc_interworks false
+#define test_alu_write_pc_interworking()
+
+#else /* __LINUX_ARM_ARCH__ == 6 */
+
+/* We could be an ARMv6 binary on ARMv7 hardware so we need a run-time check. */
+extern bool alu_write_pc_interworks;
+void __init test_alu_write_pc_interworking(void);
+
+#endif /* __LINUX_ARM_ARCH__ == 6 */
+
+static inline void __kprobes alu_write_pc(long pcv, struct pt_regs *regs)
+{
+	if (alu_write_pc_interworks)
+		bx_write_pc(pcv, regs);
+	else
+		regs->ARM_pc = pcv;
+}
+
+
 void __kprobes kprobe_simulate_nop(struct kprobe *p, struct pt_regs *regs);
 void __kprobes kprobe_emulate_none(struct kprobe *p, struct pt_regs *regs);
 

@@ -59,10 +59,25 @@ void __init test_load_write_pc_interworking(void)
 #endif /* !test_load_write_pc_interworking */
 
 
+#ifndef test_alu_write_pc_interworking
+
+bool alu_write_pc_interworks;
+
+void __init test_alu_write_pc_interworking(void)
+{
+	int arch = cpu_architecture();
+	BUG_ON(arch == CPU_ARCH_UNKNOWN);
+	alu_write_pc_interworks = arch >= CPU_ARCH_ARMv7;
+}
+
+#endif /* !test_alu_write_pc_interworking */
+
+
 void __init arm_kprobe_decode_init(void)
 {
 	find_str_pc_offset();
 	test_load_write_pc_interworking();
+	test_alu_write_pc_interworking();
 }
 
 
