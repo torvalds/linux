@@ -85,10 +85,6 @@ MODULE_DEVICE_TABLE(pci, isci_id_table);
 
 /* linux isci specific settings */
 
-int isci_si_rev = ISCI_SI_REVA2;
-module_param(isci_si_rev, int, 0);
-MODULE_PARM_DESC(isci_si_rev, "(deprecated) override default si rev (0: A0 1: A2 2: B0)");
-
 unsigned char no_outbound_task_to = 20;
 module_param(no_outbound_task_to, byte, 0);
 MODULE_PARM_DESC(no_outbound_task_to, "No Outbound Task Timeout (1us incr)");
@@ -435,32 +431,6 @@ static struct isci_host *isci_host_alloc(struct pci_dev *pdev, int id)
 	return NULL;
 }
 
-static void check_si_rev(struct pci_dev *pdev)
-{
-	switch (pdev->revision) {
-	case 0:
-	case 1:
-		/* if the id is ambiguous don't update isci_si_rev */
-		break;
-	case 3:
-		isci_si_rev = ISCI_SI_REVA2;
-		break;
-	case 4:
-		isci_si_rev = ISCI_SI_REVB0;
-		break;
-	default:
-	case 5:
-		isci_si_rev = ISCI_SI_REVC0;
-		break;
-	}
-
-	dev_info(&pdev->dev, "driver configured for %s silicon (rev: %d)\n",
-		 isci_si_rev == ISCI_SI_REVA0 ? "A0" :
-		 isci_si_rev == ISCI_SI_REVA2 ? "A2" :
-		 isci_si_rev == ISCI_SI_REVB0 ? "B0" : "C0", pdev->revision);
-
-}
-
 static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct isci_pci_info *pci_info;
@@ -470,7 +440,8 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 	struct isci_orom *orom = NULL;
 	char *source = "(platform)";
 
-	check_si_rev(pdev);
+	dev_info(&pdev->dev, "driver configured for rev: %d silicon\n",
+		 pdev->revision);
 
 	pci_info = devm_kzalloc(&pdev->dev, sizeof(*pci_info), GFP_KERNEL);
 	if (!pci_info)

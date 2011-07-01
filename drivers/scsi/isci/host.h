@@ -416,33 +416,25 @@ static inline struct device *scirdev_to_dev(struct isci_remote_device *idev)
 	return &idev->isci_port->isci_host->pdev->dev;
 }
 
-enum {
-	ISCI_SI_REVA0,
-	ISCI_SI_REVA2,
-	ISCI_SI_REVB0,
-	ISCI_SI_REVC0
-};
-
-extern int isci_si_rev;
-
-static inline bool is_a0(void)
+static inline bool is_a2(struct pci_dev *pdev)
 {
-	return isci_si_rev == ISCI_SI_REVA0;
+	if (pdev->revision < 4)
+		return true;
+	return false;
 }
 
-static inline bool is_a2(void)
+static inline bool is_b0(struct pci_dev *pdev)
 {
-	return isci_si_rev == ISCI_SI_REVA2;
+	if (pdev->revision == 4)
+		return true;
+	return false;
 }
 
-static inline bool is_b0(void)
+static inline bool is_c0(struct pci_dev *pdev)
 {
-	return isci_si_rev == ISCI_SI_REVB0;
-}
-
-static inline bool is_c0(void)
-{
-	return isci_si_rev > ISCI_SI_REVB0;
+	if (pdev->revision >= 5)
+		return true;
+	return false;
 }
 
 void sci_controller_post_request(struct isci_host *ihost,

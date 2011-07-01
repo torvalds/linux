@@ -1886,6 +1886,7 @@ void sci_controller_power_control_queue_remove(struct isci_host *ihost,
 static void sci_controller_afe_initialization(struct isci_host *ihost)
 {
 	const struct sci_oem_params *oem = &ihost->oem_parameters;
+	struct pci_dev *pdev = ihost->pdev;
 	u32 afe_status;
 	u32 phy_id;
 
@@ -1893,7 +1894,7 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 	writel(0x0081000f, &ihost->scu_registers->afe.afe_dfx_master_control0);
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
-	if (is_b0()) {
+	if (is_b0(pdev)) {
 		/* PM Rx Equalization Save, PM SPhy Rx Acknowledgement
 		 * Timer, PM Stagger Timer */
 		writel(0x0007BFFF, &ihost->scu_registers->afe.afe_pmsn_master_control2);
@@ -1901,17 +1902,15 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 	}
 
 	/* Configure bias currents to normal */
-	if (is_a0())
-		writel(0x00005500, &ihost->scu_registers->afe.afe_bias_control);
-	else if (is_a2())
+	if (is_a2(pdev))
 		writel(0x00005A00, &ihost->scu_registers->afe.afe_bias_control);
-	else if (is_b0() || is_c0())
+	else if (is_b0(pdev) || is_c0(pdev))
 		writel(0x00005F00, &ihost->scu_registers->afe.afe_bias_control);
 
 	udelay(AFE_REGISTER_WRITE_DELAY);
 
 	/* Enable PLL */
-	if (is_b0() || is_c0())
+	if (is_b0(pdev) || is_c0(pdev))
 		writel(0x80040A08, &ihost->scu_registers->afe.afe_pll_control0);
 	else
 		writel(0x80040908, &ihost->scu_registers->afe.afe_pll_control0);
@@ -1924,7 +1923,7 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 		udelay(AFE_REGISTER_WRITE_DELAY);
 	} while ((afe_status & 0x00001000) == 0);
 
-	if (is_a0() || is_a2()) {
+	if (is_a2(pdev)) {
 		/* Shorten SAS SNW lock time (RxLock timer value from 76 us to 50 us) */
 		writel(0x7bcc96ad, &ihost->scu_registers->afe.afe_pmsn_master_control0);
 		udelay(AFE_REGISTER_WRITE_DELAY);
@@ -1933,11 +1932,11 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 	for (phy_id = 0; phy_id < SCI_MAX_PHYS; phy_id++) {
 		const struct sci_phy_oem_params *oem_phy = &oem->phys[phy_id];
 
-		if (is_b0()) {
+		if (is_b0(pdev)) {
 			 /* Configure transmitter SSC parameters */
 			writel(0x00030000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_ssc_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
-		} else if (is_c0()) {
+		} else if (is_c0(pdev)) {
 			 /* Configure transmitter SSC parameters */
 			writel(0x0003000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_ssc_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
@@ -1961,11 +1960,9 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 		/*
 		 * Power up TX and RX out from power down (PWRDNTX and PWRDNRX)
 		 * & increase TX int & ext bias 20%....(0xe85c) */
-		if (is_a0())
-			writel(0x000003D4, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
-		else if (is_a2())
+		if (is_a2(pdev))
 			writel(0x000003F0, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
-		else if (is_b0()) {
+		else if (is_b0(pdev)) {
 			 /* Power down TX and RX (PWRDNTX and PWRDNRX) */
 			writel(0x000003D7, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_channel_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
@@ -1985,7 +1982,7 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 		}
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
-		if (is_a0() || is_a2()) {
+		if (is_a2(pdev)) {
 			/* Enable TX equalization (0xe824) */
 			writel(0x00040000, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_tx_control);
 			udelay(AFE_REGISTER_WRITE_DELAY);
@@ -1998,11 +1995,9 @@ static void sci_controller_afe_initialization(struct isci_host *ihost)
 		udelay(AFE_REGISTER_WRITE_DELAY);
 
 		/* Leave DFE/FFE on */
-		if (is_a0())
-			writel(0x3F09983F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
-		else if (is_a2())
+		if (is_a2(pdev))
 			writel(0x3F11103F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
-		else if (is_b0()) {
+		else if (is_b0(pdev)) {
 			writel(0x3F11103F, &ihost->scu_registers->afe.scu_afe_xcvr[phy_id].afe_rx_ssc_control0);
 			udelay(AFE_REGISTER_WRITE_DELAY);
 			/* Enable TX equalization (0xe824) */

@@ -211,7 +211,7 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	llctl |= SCU_SAS_LLCTL_GEN_VAL(MAX_LINK_RATE, link_rate);
 	writel(llctl, &iphy->link_layer_registers->link_layer_control);
 
-	if (is_a0() || is_a2()) {
+	if (is_a2(ihost->pdev)) {
 		/* Program the max ARB time for the PHY to 700us so we inter-operate with
 		 * the PMC expander which shuts down PHYs if the expander PHY generates too
 		 * many breaks.  This time value will guarantee that the initiator PHY will

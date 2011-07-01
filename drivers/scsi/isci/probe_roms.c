@@ -146,13 +146,13 @@ struct isci_orom *isci_request_firmware(struct pci_dev *pdev, const struct firmw
 
 	memcpy(orom, fw->data, fw->size);
 
+	if (is_c0(pdev))
+		goto out;
+
 	/*
 	 * deprecated: override default amp_control for pre-preproduction
 	 * silicon revisions
 	 */
-	if (isci_si_rev <= ISCI_SI_REVB0)
-		goto out;
-
 	for (i = 0; i < ARRAY_SIZE(orom->ctrl); i++)
 		for (j = 0; j < ARRAY_SIZE(orom->ctrl[i].phys); j++) {
 			orom->ctrl[i].phys[j].afe_tx_amp_control0 = 0xe7c03;
