@@ -24,6 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
+#include <linux/export.h>
 #include <linux/device.h>
 #include <linux/types.h>
 #include <linux/sched.h>
