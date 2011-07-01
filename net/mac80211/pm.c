@@ -72,15 +72,19 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	local->wowlan = wowlan && local->open_count;
 	if (local->wowlan) {
 		int err = drv_suspend(local, wowlan);
-		if (err) {
+		if (err < 0) {
 			local->quiescing = false;
 			return err;
+		} else if (err > 0) {
+			WARN_ON(err != 1);
+			local->wowlan = false;
+		} else {
+			list_for_each_entry(sdata, &local->interfaces, list) {
+				cancel_work_sync(&sdata->work);
+				ieee80211_quiesce(sdata);
+			}
+			goto suspend;
 		}
-		list_for_each_entry(sdata, &local->interfaces, list) {
-			cancel_work_sync(&sdata->work);
-			ieee80211_quiesce(sdata);
-		}
-		goto suspend;
 	}
 
 	/* disable keys */

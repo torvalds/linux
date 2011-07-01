@@ -1628,6 +1628,10 @@ enum ieee80211_ampdu_mlme_action {
  *	ask the device to suspend. This is only invoked when WoWLAN is
  *	configured, otherwise the device is deconfigured completely and
  *	reconfigured at resume time.
+ *	The driver may also impose special conditions under which it
+ *	wants to use the "normal" suspend (deconfigure), say if it only
+ *	supports WoWLAN when the device is associated. In this case, it
+ *	must return 1 from this function.
  *
  * @resume: If WoWLAN was configured, this indicates that mac80211 is
  *	now resuming its operation, after this the device must be fully
