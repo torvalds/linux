@@ -395,8 +395,9 @@ static int kbd_led_read(struct asus_wmi *asus, int *level, int *env)
 	retval = asus_wmi_get_devstate_bits(asus, ASUS_WMI_DEVID_KBD_BACKLIGHT,
 					    0xFFFF);
 
+	/* Unknown status is considered as off */
 	if (retval == 0x8000)
-		retval = -ENODEV;
+		retval = 0;
 
 	if (retval >= 0) {
 		if (level)
