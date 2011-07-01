@@ -1250,15 +1250,6 @@ static int _enable(struct omap_hwmod *oh)
 
 	pr_debug("omap_hwmod: %s: enabling\n", oh->name);
 
-	/*
-	 * If an IP contains only one HW reset line, then de-assert it in order
-	 * to allow to enable the clocks. Otherwise the PRCM will return
-	 * Intransition status, and the init will failed.
-	 */
-	if ((oh->_state == _HWMOD_STATE_INITIALIZED ||
-	     oh->_state == _HWMOD_STATE_DISABLED) && oh->rst_lines_cnt == 1)
-		_deassert_hardreset(oh, oh->rst_lines[0].name);
-
 	/* Mux pins for device runtime if populated */
 	if (oh->mux && (!oh->mux->enabled ||
 			((oh->_state == _HWMOD_STATE_IDLE) &&
@@ -1267,6 +1258,15 @@ static int _enable(struct omap_hwmod *oh)
 
 	_add_initiator_dep(oh, mpu_oh);
 	_enable_clocks(oh);
+
+	/*
+	 * If an IP contains only one HW reset line, then de-assert it in order
+	 * to allow the module state transition. Otherwise the PRCM will return
+	 * Intransition status, and the init will failed.
+	 */
+	if ((oh->_state == _HWMOD_STATE_INITIALIZED ||
+	     oh->_state == _HWMOD_STATE_DISABLED) && oh->rst_lines_cnt == 1)
+		_deassert_hardreset(oh, oh->rst_lines[0].name);
 
 	r = _wait_target_ready(oh);
 	if (!r) {
@@ -1396,13 +1396,6 @@ static int _shutdown(struct omap_hwmod *oh)
 		_shutdown_sysc(oh);
 	}
 
-	/*
-	 * If an IP contains only one HW reset line, then assert it
-	 * before disabling the clocks and shutting down the IP.
-	 */
-	if (oh->rst_lines_cnt == 1)
-		_assert_hardreset(oh, oh->rst_lines[0].name);
-
 	/* clocks and deps are already disabled in idle */
 	if (oh->_state == _HWMOD_STATE_ENABLED) {
 		_del_initiator_dep(oh, mpu_oh);
@@ -1410,6 +1403,13 @@ static int _shutdown(struct omap_hwmod *oh)
 		_disable_clocks(oh);
 	}
 	/* XXX Should this code also force-disable the optional clocks? */
+
+	/*
+	 * If an IP contains only one HW reset line, then assert it
+	 * after disabling the clocks and before shutting down the IP.
+	 */
+	if (oh->rst_lines_cnt == 1)
+		_assert_hardreset(oh, oh->rst_lines[0].name);
 
 	/* Mux pins to safe mode or use populated off mode values */
 	if (oh->mux)
