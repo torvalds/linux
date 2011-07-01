@@ -80,14 +80,6 @@ struct iwl_cmd;
 
 #define IWL_CMD(x) case x: return #x
 
-struct iwl_hcmd_ops {
-	void (*set_rxon_chain)(struct iwl_priv *priv,
-			       struct iwl_rxon_context *ctx);
-	int (*set_tx_ant)(struct iwl_priv *priv, u8 valid_tx_ant);
-	void (*send_bt_config)(struct iwl_priv *priv);
-	int (*set_pan_params)(struct iwl_priv *priv);
-};
-
 struct iwl_hcmd_utils_ops {
 	u16 (*build_addsta_hcmd)(const struct iwl_addsta_cmd *cmd, u8 *data);
 	void (*gain_computation)(struct iwl_priv *priv,
@@ -146,7 +138,6 @@ struct iwl_nic_ops {
 
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
-	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
 	const struct iwl_nic_ops *nic;
 };

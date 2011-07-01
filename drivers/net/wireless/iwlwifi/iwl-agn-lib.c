@@ -1366,17 +1366,14 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	/* set scan bit here for PAN params */
 	set_bit(STATUS_SCAN_HW, &priv->status);
 
-	if (priv->cfg->ops->hcmd->set_pan_params) {
-		ret = priv->cfg->ops->hcmd->set_pan_params(priv);
-		if (ret)
-			return ret;
-	}
+	ret = iwlagn_set_pan_params(priv);
+	if (ret)
+		return ret;
 
 	ret = iwl_send_cmd_sync(priv, &cmd);
 	if (ret) {
 		clear_bit(STATUS_SCAN_HW, &priv->status);
-		if (priv->cfg->ops->hcmd->set_pan_params)
-			priv->cfg->ops->hcmd->set_pan_params(priv);
+		iwlagn_set_pan_params(priv);
 	}
 
 	return ret;

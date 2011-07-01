@@ -585,8 +585,7 @@ static void _iwl_set_rxon_ht(struct iwl_priv *priv,
 		rxon->flags |= RXON_FLG_CHANNEL_MODE_LEGACY;
 	}
 
-	if (priv->cfg->ops->hcmd->set_rxon_chain)
-		priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
+	iwlagn_set_rxon_chain(priv, ctx);
 
 	IWL_DEBUG_ASSOC(priv, "rxon flags 0x%X operation mode :0x%X "
 			"extension channel offset 0x%x\n",
@@ -1216,8 +1215,7 @@ static int iwl_set_mode(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	iwl_connection_init_rx_config(priv, ctx);
 
-	if (priv->cfg->ops->hcmd->set_rxon_chain)
-		priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
+	iwlagn_set_rxon_chain(priv, ctx);
 
 	return iwlagn_commit_rxon(priv, ctx);
 }
