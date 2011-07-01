@@ -451,6 +451,9 @@ static void activate_output_path(struct hda_codec *codec, struct nid_path *path,
 		if (enable && path->multi[i])
 			snd_hda_codec_write(codec, dst, 0,
 					    AC_VERB_SET_CONNECT_SEL, idx);
+		if (get_wcaps_type(get_wcaps(codec, src)) == AC_WID_AUD_OUT &&
+		    get_wcaps_type(get_wcaps(codec, dst)) == AC_WID_AUD_MIX)
+			continue;
 		if (have_mute(codec, dst, HDA_INPUT)) {
 			int val = enable ? AMP_IN_UNMUTE(idx) :
 				AMP_IN_MUTE(idx);
