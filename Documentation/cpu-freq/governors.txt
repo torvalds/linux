@@ -212,7 +212,7 @@ idle.  When the cpu comes out of idle, a timer is configured to fire
 within 1-2 ticks.  If the cpu is very busy between exiting idle and
 when the timer fires then we assume the cpu is underpowered and ramp
 to MAX speed.
-    
+
 If the cpu was not sufficiently busy to immediately ramp to MAX speed,
 then governor evaluates the cpu load since the last speed adjustment,
 choosing th highest value between that longer-term load or the
