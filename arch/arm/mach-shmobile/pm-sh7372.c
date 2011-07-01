@@ -125,6 +125,10 @@ struct sh7372_pm_domain sh7372_a4lc = {
 	.bit_shift = 1,
 };
 
+struct sh7372_pm_domain sh7372_a3rv = {
+	.bit_shift = 6,
+};
+
 #endif /* CONFIG_PM */
 
 static void sh7372_enter_core_standby(void)
