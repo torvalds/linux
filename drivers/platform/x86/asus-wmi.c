@@ -1712,7 +1712,7 @@ static int asus_wmi_probe(struct platform_device *pdev)
 
 static bool used;
 
-int asus_wmi_register_driver(struct asus_wmi_driver *driver)
+int __init_or_module asus_wmi_register_driver(struct asus_wmi_driver *driver)
 {
 	struct platform_driver *platform_driver;
 	struct platform_device *platform_device;
