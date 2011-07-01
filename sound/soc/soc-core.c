@@ -986,6 +986,39 @@ err_probe:
 	return ret;
 }
 
+static int soc_probe_platform(struct snd_soc_card *card,
+			   struct snd_soc_platform *platform)
+{
+	int ret = 0;
+	const struct snd_soc_platform_driver *driver = platform->driver;
+
+	platform->card = card;
+
+	if (!try_module_get(platform->dev->driver->owner))
+		return -ENODEV;
+
+	if (driver->probe) {
+		ret = driver->probe(platform);
+		if (ret < 0) {
+			dev_err(platform->dev,
+				"asoc: failed to probe platform %s: %d\n",
+				platform->name, ret);
+			goto err_probe;
+		}
+	}
+
+	/* mark platform as probed and add to card platform list */
+	platform->probed = 1;
+	list_add(&platform->card_list, &card->platform_dev_list);
+
+	return 0;
+
+err_probe:
+	module_put(platform->dev->driver->owner);
+
+	return ret;
+}
+
 static void rtd_release(struct device *dev) {}
 
 static int soc_post_component_init(struct snd_soc_card *card,
@@ -1109,21 +1142,9 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num, int order)
 	/* probe the platform */
 	if (!platform->probed &&
 			platform->driver->probe_order == order) {
-		if (!try_module_get(platform->dev->driver->owner))
-			return -ENODEV;
-
-		if (platform->driver->probe) {
-			ret = platform->driver->probe(platform);
-			if (ret < 0) {
-				printk(KERN_ERR "asoc: failed to probe platform %s\n",
-						platform->name);
-				module_put(platform->dev->driver->owner);
-				return ret;
-			}
-		}
-		/* mark platform as probed and add to card platform list */
-		platform->probed = 1;
-		list_add(&platform->card_list, &card->platform_dev_list);
+		ret = soc_probe_platform(card, platform);
+		if (ret < 0)
+			return ret;
 	}
 
 	/* probe the CODEC DAI */
