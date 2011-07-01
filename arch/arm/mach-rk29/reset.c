@@ -118,8 +118,10 @@ void rk29_arch_reset(int mode, const char *cmd)
 	void (*rb2)(void);
 
 	if (cmd) {
-		if (!strcmp(cmd, "loader"))
+		if (!strcmp(cmd, "loader") || !strcmp(cmd, "bootloader"))
 			reboot_reason = 0x1888AAFF;
+		else if (!strcmp(cmd, "recovery"))
+			reboot_reason = 0x5242C303;
 	}
 
 	rb2 = (void(*)(void))((u32)rk29_rb_with_softreset - SRAM_CODE_OFFSET + 0x10130000);
