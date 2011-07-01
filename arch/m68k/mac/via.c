@@ -460,7 +460,7 @@ irqreturn_t via1_irq(int irq, void *dev_id)
 	do {
 		if (events & irq_bit) {
 			via1[vIFR] = irq_bit;
-			m68k_handle_int(irq_num);
+			generic_handle_irq(irq_num);
 		}
 		++irq_num;
 		irq_bit <<= 1;
@@ -482,7 +482,7 @@ irqreturn_t via2_irq(int irq, void *dev_id)
 	do {
 		if (events & irq_bit) {
 			via2[gIFR] = irq_bit | rbv_clear;
-			m68k_handle_int(irq_num);
+			generic_handle_irq(irq_num);
 		}
 		++irq_num;
 		irq_bit <<= 1;
@@ -514,7 +514,7 @@ irqreturn_t via_nubus_irq(int irq, void *dev_id)
 		do {
 			if (events & slot_bit) {
 				events &= ~slot_bit;
-				m68k_handle_int(slot_irq);
+				generic_handle_irq(slot_irq);
 			}
 			--slot_irq;
 			slot_bit >>= 1;

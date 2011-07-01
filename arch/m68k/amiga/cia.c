@@ -93,7 +93,7 @@ static irqreturn_t cia_handler(int irq, void *dev_id)
 	amiga_custom.intreq = base->int_mask;
 	for (; ints; mach_irq++, ints >>= 1) {
 		if (ints & 1)
-			m68k_handle_int(mach_irq);
+			generic_handle_irq(mach_irq);
 	}
 	return IRQ_HANDLED;
 }

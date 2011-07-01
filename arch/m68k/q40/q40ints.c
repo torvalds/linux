@@ -220,11 +220,11 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 	switch (irq) {
 	case 4:
 	case 6:
-		__m68k_handle_int(Q40_IRQ_SAMPLE, fp);
+		do_IRQ(Q40_IRQ_SAMPLE, fp);
 		return;
 	}
 	if (mir & Q40_IRQ_FRAME_MASK) {
-		__m68k_handle_int(Q40_IRQ_FRAME, fp);
+		do_IRQ(Q40_IRQ_FRAME, fp);
 		master_outb(-1, FRAME_CLEAR_REG);
 	}
 	if ((mir & Q40_IRQ_SER_MASK) || (mir & Q40_IRQ_EXT_MASK)) {
@@ -259,7 +259,7 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 					goto iirq;
 				}
 				q40_state[irq] |= IRQ_INPROGRESS;
-				__m68k_handle_int(irq, fp);
+				do_IRQ(irq, fp);
 				q40_state[irq] &= ~IRQ_INPROGRESS;
 
 				/* naively enable everything, if that fails than    */
@@ -290,7 +290,7 @@ static void q40_irq_handler(unsigned int irq, struct pt_regs *fp)
 	mir = master_inb(IIRQ_REG);
 	/* should test whether keyboard irq is really enabled, doing it in defhand */
 	if (mir & Q40_IRQ_KEYB_MASK)
-		__m68k_handle_int(Q40_IRQ_KEYBOARD, fp);
+		do_IRQ(Q40_IRQ_KEYBOARD, fp);
 
 	return;
 }

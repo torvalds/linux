@@ -83,7 +83,7 @@ static void sun3_inthandle(unsigned int irq, struct pt_regs *fp)
 {
         *sun3_intreg &= ~(1 << irq);
 
-	__m68k_handle_int(irq, fp);
+	do_IRQ(irq, fp);
 }
 
 static void sun3_irq_enable(struct irq_data *data)

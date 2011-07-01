@@ -118,8 +118,8 @@ extern void m68k_setup_irq_chip(struct irq_chip *, unsigned int, unsigned int);
 #define m68k_setup_irq_controller(chip, dummy, irq, cnt) \
 	m68k_setup_irq_chip((chip), (irq), (cnt))
 
-asmlinkage void m68k_handle_int(unsigned int);
-asmlinkage void __m68k_handle_int(unsigned int, struct pt_regs *);
+extern void generic_handle_irq(unsigned int);
+asmlinkage void do_IRQ(int irq, struct pt_regs *regs);
 
 #else
 #define irq_canonicalize(irq)  (irq)

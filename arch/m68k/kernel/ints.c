@@ -110,7 +110,7 @@ void __init init_IRQ(void)
  * @handler: called from auto vector interrupts
  *
  * setup the handler to be called from auto vector interrupts instead of the
- * standard __m68k_handle_int(), it will be called with irq numbers in the range
+ * standard do_IRQ(), it will be called with irq numbers in the range
  * from IRQ_AUTO_1 - IRQ_AUTO_7.
  */
 void __init m68k_setup_auto_interrupt(void (*handler)(unsigned int, struct pt_regs *))
@@ -129,7 +129,7 @@ void __init m68k_setup_auto_interrupt(void (*handler)(unsigned int, struct pt_re
  * setup user vector interrupts, this includes activating the specified range
  * of interrupts, only then these interrupts can be requested (note: this is
  * different from auto vector interrupts). An optional handler can be installed
- * to be called instead of the default __m68k_handle_int(), it will be called
+ * to be called instead of the default do_IRQ(), it will be called
  * with irq numbers starting from IRQ_USER.
  */
 void __init m68k_setup_user_interrupt(unsigned int vec, unsigned int cnt,
@@ -398,7 +398,7 @@ unsigned int irq_canonicalize(unsigned int irq)
 
 EXPORT_SYMBOL(irq_canonicalize);
 
-asmlinkage void m68k_handle_int(unsigned int irq)
+void generic_handle_irq(unsigned int irq)
 {
 	struct irq_data *node;
 	kstat_cpu(0).irqs[irq]++;
@@ -409,11 +409,11 @@ asmlinkage void m68k_handle_int(unsigned int irq)
 	} while (node);
 }
 
-asmlinkage void __m68k_handle_int(unsigned int irq, struct pt_regs *regs)
+asmlinkage void do_IRQ(int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 	old_regs = set_irq_regs(regs);
-	m68k_handle_int(irq);
+	generic_handle_irq(irq);
 	set_irq_regs(old_regs);
 }
 

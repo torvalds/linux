@@ -72,7 +72,7 @@ static irqreturn_t baboon_irq(int irq, void *dev_id)
 	do {
 	        if (events & irq_bit) {
 			baboon->mb_ifr &= ~irq_bit;
-			m68k_handle_int(irq_num);
+			generic_handle_irq(irq_num);
 		}
 		irq_bit <<= 1;
 		irq_num++;

@@ -113,7 +113,7 @@ static irqreturn_t oss_irq(int irq, void *dev_id)
 		/* FIXME: call sound handler */
 	} else if (events & OSS_IP_SCSI) {
 		oss->irq_pending &= ~OSS_IP_SCSI;
-		m68k_handle_int(IRQ_MAC_SCSI);
+		generic_handle_irq(IRQ_MAC_SCSI);
 	} else {
 		/* FIXME: error check here? */
 	}
@@ -148,7 +148,7 @@ static irqreturn_t oss_nubus_irq(int irq, void *dev_id)
 		irq_bit >>= 1;
 		if (events & irq_bit) {
 			oss->irq_pending &= ~irq_bit;
-			m68k_handle_int(NUBUS_SOURCE_BASE + i);
+			generic_handle_irq(NUBUS_SOURCE_BASE + i);
 		}
 	} while(events & (irq_bit - 1));
 	return IRQ_HANDLED;

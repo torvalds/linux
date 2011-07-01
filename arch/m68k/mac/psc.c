@@ -152,7 +152,7 @@ irqreturn_t psc_irq(int irq, void *dev_id)
 	do {
 		if (events & irq_bit) {
 			psc_write_byte(pIFR, irq_bit);
-			m68k_handle_int(irq_num);
+			generic_handle_irq(irq_num);
 		}
 		irq_num++;
 		irq_bit <<= 1;
