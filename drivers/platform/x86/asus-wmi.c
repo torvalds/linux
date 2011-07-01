@@ -66,6 +66,8 @@ MODULE_LICENSE("GPL");
 #define NOTIFY_BRNUP_MAX		0x1f
 #define NOTIFY_BRNDOWN_MIN		0x20
 #define NOTIFY_BRNDOWN_MAX		0x2e
+#define NOTIFY_KBD_BRTUP		0xc4
+#define NOTIFY_KBD_BRTDWN		0xc5
 
 /* WMI Methods */
 #define ASUS_WMI_METHODID_SPEC	        0x43455053 /* BIOS SPECification */
@@ -174,8 +176,11 @@ struct asus_wmi {
 
 	struct led_classdev tpd_led;
 	int tpd_led_wk;
+	struct led_classdev kbd_led;
+	int kbd_led_wk;
 	struct workqueue_struct *led_workqueue;
 	struct work_struct tpd_led_work;
+	struct work_struct kbd_led_work;
 
 	struct asus_rfkill wlan;
 	struct asus_rfkill bluetooth;
@@ -360,30 +365,79 @@ static enum led_brightness tpd_led_get(struct led_classdev *led_cdev)
 	return read_tpd_led_state(asus);
 }
 
-static int asus_wmi_led_init(struct asus_wmi *asus)
+static void kbd_led_update(struct work_struct *work)
 {
-	int rv;
+	int ctrl_param = 0;
+	struct asus_wmi *asus;
 
-	if (read_tpd_led_state(asus) < 0)
-		return 0;
+	asus = container_of(work, struct asus_wmi, kbd_led_work);
 
-	asus->led_workqueue = create_singlethread_workqueue("led_workqueue");
-	if (!asus->led_workqueue)
-		return -ENOMEM;
-	INIT_WORK(&asus->tpd_led_work, tpd_led_update);
+	/*
+	 * bits 0-2: level
+	 * bit 7: light on/off
+	 */
+	if (asus->kbd_led_wk > 0)
+		ctrl_param = 0x80 | (asus->kbd_led_wk & 0x7F);
 
-	asus->tpd_led.name = "asus::touchpad";
-	asus->tpd_led.brightness_set = tpd_led_set;
-	asus->tpd_led.brightness_get = tpd_led_get;
-	asus->tpd_led.max_brightness = 1;
+	asus_wmi_set_devstate(ASUS_WMI_DEVID_KBD_BACKLIGHT, ctrl_param, NULL);
+}
 
-	rv = led_classdev_register(&asus->platform_device->dev, &asus->tpd_led);
-	if (rv) {
-		destroy_workqueue(asus->led_workqueue);
-		return rv;
+static int kbd_led_read(struct asus_wmi *asus, int *level, int *env)
+{
+	int retval;
+
+	/*
+	 * bits 0-2: level
+	 * bit 7: light on/off
+	 * bit 8-10: environment (0: dark, 1: normal, 2: light)
+	 * bit 17: status unknown
+	 */
+	retval = asus_wmi_get_devstate_bits(asus, ASUS_WMI_DEVID_KBD_BACKLIGHT,
+					    0xFFFF);
+
+	if (retval == 0x8000)
+		retval = -ENODEV;
+
+	if (retval >= 0) {
+		if (level)
+			*level = retval & 0x80 ? retval & 0x7F : 0;
+		if (env)
+			*env = (retval >> 8) & 0x7F;
+		retval = 0;
 	}
 
-	return 0;
+	return retval;
+}
+
+static void kbd_led_set(struct led_classdev *led_cdev,
+			enum led_brightness value)
+{
+	struct asus_wmi *asus;
+
+	asus = container_of(led_cdev, struct asus_wmi, kbd_led);
+
+	if (value > asus->kbd_led.max_brightness)
+		value = asus->kbd_led.max_brightness;
+	else if (value < 0)
+		value = 0;
+
+	asus->kbd_led_wk = value;
+	queue_work(asus->led_workqueue, &asus->kbd_led_work);
+}
+
+static enum led_brightness kbd_led_get(struct led_classdev *led_cdev)
+{
+	struct asus_wmi *asus;
+	int retval, value;
+
+	asus = container_of(led_cdev, struct asus_wmi, kbd_led);
+
+	retval = kbd_led_read(asus, &value, NULL);
+
+	if (retval < 0)
+		return retval;
+
+	return value;
 }
 
 static void asus_wmi_led_exit(struct asus_wmi *asus)
@@ -393,6 +447,48 @@ static void asus_wmi_led_exit(struct asus_wmi *asus)
 	if (asus->led_workqueue)
 		destroy_workqueue(asus->led_workqueue);
 }
+
+static int asus_wmi_led_init(struct asus_wmi *asus)
+{
+	int rv = 0;
+
+	asus->led_workqueue = create_singlethread_workqueue("led_workqueue");
+	if (!asus->led_workqueue)
+		return -ENOMEM;
+
+	if (read_tpd_led_state(asus) >= 0) {
+		INIT_WORK(&asus->tpd_led_work, tpd_led_update);
+
+		asus->tpd_led.name = "asus::touchpad";
+		asus->tpd_led.brightness_set = tpd_led_set;
+		asus->tpd_led.brightness_get = tpd_led_get;
+		asus->tpd_led.max_brightness = 1;
+
+		rv = led_classdev_register(&asus->platform_device->dev,
+					   &asus->tpd_led);
+		if (rv)
+			goto error;
+	}
+
+	if (kbd_led_read(asus, NULL, NULL) >= 0) {
+		INIT_WORK(&asus->kbd_led_work, kbd_led_update);
+
+		asus->kbd_led.name = "asus::kbd_backlight";
+		asus->kbd_led.brightness_set = kbd_led_set;
+		asus->kbd_led.brightness_get = kbd_led_get;
+		asus->kbd_led.max_brightness = 3;
+
+		rv = led_classdev_register(&asus->platform_device->dev,
+					   &asus->kbd_led);
+	}
+
+error:
+	if (rv)
+		asus_wmi_led_exit(asus);
+
+	return rv;
+}
+
 
 /*
  * PCI hotplug (for wlan rfkill)
