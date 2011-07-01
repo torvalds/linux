@@ -385,8 +385,6 @@ struct omap_mcbsp {
 	void __iomem *io_base;
 	u8 id;
 	u8 free;
-	omap_mcbsp_word_length rx_word_length;
-	omap_mcbsp_word_length tx_word_length;
 
 	int rx_irq;
 	int tx_irq;
