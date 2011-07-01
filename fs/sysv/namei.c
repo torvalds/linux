@@ -196,8 +196,6 @@ static int sysv_rmdir(struct inode * dir, struct dentry * dentry)
 	struct inode *inode = dentry->d_inode;
 	int err = -ENOTEMPTY;
 
-	dentry_unhash(dentry);
-
 	if (sysv_empty_dir(inode)) {
 		err = sysv_unlink(dir, dentry);
 		if (!err) {
@@ -223,9 +221,6 @@ static int sysv_rename(struct inode * old_dir, struct dentry * old_dentry,
 	struct page * old_page;
 	struct sysv_dir_entry * old_de;
 	int err = -ENOENT;
-
-	if (new_inode && S_ISDIR(new_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	old_de = sysv_find_entry(old_dentry, &old_page);
 	if (!old_de)

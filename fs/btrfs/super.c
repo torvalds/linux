@@ -41,6 +41,7 @@
 #include <linux/slab.h>
 #include <linux/cleancache.h>
 #include "compat.h"
+#include "delayed-inode.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -160,7 +161,8 @@ enum {
 	Opt_compress_type, Opt_compress_force, Opt_compress_force_type,
 	Opt_notreelog, Opt_ratio, Opt_flushoncommit, Opt_discard,
 	Opt_space_cache, Opt_clear_cache, Opt_user_subvol_rm_allowed,
-	Opt_enospc_debug, Opt_subvolrootid, Opt_err,
+	Opt_enospc_debug, Opt_subvolrootid, Opt_defrag,
+	Opt_inode_cache, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -191,6 +193,8 @@ static match_table_t tokens = {
 	{Opt_user_subvol_rm_allowed, "user_subvol_rm_allowed"},
 	{Opt_enospc_debug, "enospc_debug"},
 	{Opt_subvolrootid, "subvolrootid=%d"},
+	{Opt_defrag, "autodefrag"},
+	{Opt_inode_cache, "inode_cache"},
 	{Opt_err, NULL},
 };
 
@@ -359,6 +363,10 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			printk(KERN_INFO "btrfs: enabling disk space caching\n");
 			btrfs_set_opt(info->mount_opt, SPACE_CACHE);
 			break;
+		case Opt_inode_cache:
+			printk(KERN_INFO "btrfs: enabling inode map caching\n");
+			btrfs_set_opt(info->mount_opt, INODE_MAP_CACHE);
+			break;
 		case Opt_clear_cache:
 			printk(KERN_INFO "btrfs: force clearing of disk cache\n");
 			btrfs_set_opt(info->mount_opt, CLEAR_CACHE);
@@ -368,6 +376,10 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			break;
 		case Opt_enospc_debug:
 			btrfs_set_opt(info->mount_opt, ENOSPC_DEBUG);
+			break;
+		case Opt_defrag:
+			printk(KERN_INFO "btrfs: enabling auto defrag");
+			btrfs_set_opt(info->mount_opt, AUTO_DEFRAG);
 			break;
 		case Opt_err:
 			printk(KERN_INFO "btrfs: unrecognized mount option "
@@ -507,8 +519,10 @@ static struct dentry *get_default_root(struct super_block *sb,
 	 */
 	dir_id = btrfs_super_root_dir(&root->fs_info->super_copy);
 	di = btrfs_lookup_dir_item(NULL, root, path, dir_id, "default", 7, 0);
-	if (IS_ERR(di))
+	if (IS_ERR(di)) {
+		btrfs_free_path(path);
 		return ERR_CAST(di);
+	}
 	if (!di) {
 		/*
 		 * Ok the default dir item isn't there.  This is weird since
@@ -741,7 +755,7 @@ static int btrfs_set_super(struct super_block *s, void *data)
  *	  for multiple device setup.  Make sure to keep it in sync.
  */
 static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
-		const char *dev_name, void *data)
+		const char *device_name, void *data)
 {
 	struct block_device *bdev = NULL;
 	struct super_block *s;
@@ -764,7 +778,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	if (error)
 		return ERR_PTR(error);
 
-	error = btrfs_scan_one_device(dev_name, mode, fs_type, &fs_devices);
+	error = btrfs_scan_one_device(device_name, mode, fs_type, &fs_devices);
 	if (error)
 		goto error_free_subvol_name;
 
@@ -811,7 +825,7 @@ static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
 	} else {
 		char b[BDEVNAME_SIZE];
 
-		s->s_flags = flags;
+		s->s_flags = flags | MS_NOSEC;
 		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
 		error = btrfs_fill_super(s, fs_devices, data,
 					 flags & MS_SILENT ? 1 : 0);
@@ -913,6 +927,32 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	}
 
 	return 0;
+}
+
+/* Used to sort the devices by max_avail(descending sort) */
+static int btrfs_cmp_device_free_bytes(const void *dev_info1,
+				       const void *dev_info2)
+{
+	if (((struct btrfs_device_info *)dev_info1)->max_avail >
+	    ((struct btrfs_device_info *)dev_info2)->max_avail)
+		return -1;
+	else if (((struct btrfs_device_info *)dev_info1)->max_avail <
+		 ((struct btrfs_device_info *)dev_info2)->max_avail)
+		return 1;
+	else
+	return 0;
+}
+
+/*
+ * sort the devices by max_avail, in which max free extent size of each device
+ * is stored.(Descending Sort)
+ */
+static inline void btrfs_descending_sort_devices(
+					struct btrfs_device_info *devices,
+					size_t nr_devices)
+{
+	sort(devices, nr_devices, sizeof(struct btrfs_device_info),
+	     btrfs_cmp_device_free_bytes, NULL);
 }
 
 /*
@@ -1208,9 +1248,13 @@ static int __init init_btrfs_fs(void)
 	if (err)
 		goto free_extent_io;
 
-	err = btrfs_interface_init();
+	err = btrfs_delayed_inode_init();
 	if (err)
 		goto free_extent_map;
+
+	err = btrfs_interface_init();
+	if (err)
+		goto free_delayed_inode;
 
 	err = register_filesystem(&btrfs_fs_type);
 	if (err)
@@ -1221,6 +1265,8 @@ static int __init init_btrfs_fs(void)
 
 unregister_ioctl:
 	btrfs_interface_exit();
+free_delayed_inode:
+	btrfs_delayed_inode_exit();
 free_extent_map:
 	extent_map_exit();
 free_extent_io:
@@ -1237,6 +1283,7 @@ free_sysfs:
 static void __exit exit_btrfs_fs(void)
 {
 	btrfs_destroy_cachep();
+	btrfs_delayed_inode_exit();
 	extent_map_exit();
 	extent_io_exit();
 	btrfs_interface_exit();

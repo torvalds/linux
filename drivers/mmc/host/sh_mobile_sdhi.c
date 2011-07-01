@@ -92,7 +92,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->ocr_mask = p->tmio_ocr_mask;
 		mmc_data->capabilities |= p->tmio_caps;
 
-		if (p->dma_slave_tx >= 0 && p->dma_slave_rx >= 0) {
+		if (p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
 			priv->param_tx.slave_id = p->dma_slave_tx;
 			priv->param_rx.slave_id = p->dma_slave_rx;
 			priv->dma_priv.chan_priv_tx = &priv->param_tx;
@@ -165,13 +165,14 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 
 	p->pdata = NULL;
 
+	tmio_mmc_host_remove(host);
+
 	for (i = 0; i < 3; i++) {
 		irq = platform_get_irq(pdev, i);
 		if (irq >= 0)
 			free_irq(irq, host);
 	}
 
-	tmio_mmc_host_remove(host);
 	clk_disable(priv->clk);
 	clk_put(priv->clk);
 	kfree(priv);

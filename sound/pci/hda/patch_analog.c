@@ -506,9 +506,11 @@ static void ad198x_power_eapd_write(struct hda_codec *codec, hda_nid_t front,
 				hda_nid_t hp)
 {
 	struct ad198x_spec *spec = codec->spec;
-	snd_hda_codec_write(codec, front, 0, AC_VERB_SET_EAPD_BTLENABLE,
+	if (snd_hda_query_pin_caps(codec, front) & AC_PINCAP_EAPD)
+		snd_hda_codec_write(codec, front, 0, AC_VERB_SET_EAPD_BTLENABLE,
 			    !spec->inv_eapd ? 0x00 : 0x02);
-	snd_hda_codec_write(codec, hp, 0, AC_VERB_SET_EAPD_BTLENABLE,
+	if (snd_hda_query_pin_caps(codec, hp) & AC_PINCAP_EAPD)
+		snd_hda_codec_write(codec, hp, 0, AC_VERB_SET_EAPD_BTLENABLE,
 			    !spec->inv_eapd ? 0x00 : 0x02);
 }
 
@@ -524,6 +526,10 @@ static void ad198x_power_eapd(struct hda_codec *codec)
 	case 0x11d4184a:
 	case 0x11d4194a:
 	case 0x11d4194b:
+	case 0x11d41988:
+	case 0x11d4198b:
+	case 0x11d4989a:
+	case 0x11d4989b:
 		ad198x_power_eapd_write(codec, 0x12, 0x11);
 		break;
 	case 0x11d41981:
@@ -532,12 +538,6 @@ static void ad198x_power_eapd(struct hda_codec *codec)
 		break;
 	case 0x11d41986:
 		ad198x_power_eapd_write(codec, 0x1b, 0x1a);
-		break;
-	case 0x11d41988:
-	case 0x11d4198b:
-	case 0x11d4989a:
-	case 0x11d4989b:
-		ad198x_power_eapd_write(codec, 0x29, 0x22);
 		break;
 	}
 }
@@ -3159,6 +3159,7 @@ static const struct snd_pci_quirk ad1988_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1043, 0x81ec, "Asus P5B-DLX", AD1988_6STACK_DIG),
 	SND_PCI_QUIRK(0x1043, 0x81f6, "Asus M2N-SLI", AD1988_6STACK_DIG),
 	SND_PCI_QUIRK(0x1043, 0x8277, "Asus P5K-E/WIFI-AP", AD1988_6STACK_DIG),
+	SND_PCI_QUIRK(0x1043, 0x82c0, "Asus M3N-HT Deluxe", AD1988_6STACK_DIG),
 	SND_PCI_QUIRK(0x1043, 0x8311, "Asus P5Q-Premium/Pro", AD1988_6STACK_DIG),
 	{}
 };

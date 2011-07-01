@@ -98,7 +98,6 @@ static int xattr_rmdir(struct inode *dir, struct dentry *dentry)
 
 	reiserfs_mutex_lock_nested_safe(&dentry->d_inode->i_mutex,
 					I_MUTEX_CHILD, dir->i_sb);
-	dentry_unhash(dentry);
 	error = dir->i_op->rmdir(dir, dentry);
 	if (!error)
 		dentry->d_inode->i_flags |= S_DEAD;
@@ -955,8 +954,6 @@ static int xattr_mount_check(struct super_block *s)
 
 int reiserfs_permission(struct inode *inode, int mask, unsigned int flags)
 {
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
 	/*
 	 * We don't do permission checks on the internal objects.
 	 * Permissions are determined by the "owning" object.

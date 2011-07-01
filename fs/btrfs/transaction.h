@@ -28,10 +28,12 @@ struct btrfs_transaction {
 	 * transaction can end
 	 */
 	atomic_t num_writers;
+	atomic_t use_count;
 
 	unsigned long num_joined;
+
+	spinlock_t commit_lock;
 	int in_commit;
-	atomic_t use_count;
 	int commit_done;
 	int blocked;
 	struct list_head list;
@@ -45,13 +47,14 @@ struct btrfs_transaction {
 
 struct btrfs_trans_handle {
 	u64 transid;
-	u64 block_group;
 	u64 bytes_reserved;
+	unsigned long use_count;
 	unsigned long blocks_reserved;
 	unsigned long blocks_used;
 	unsigned long delayed_ref_updates;
 	struct btrfs_transaction *transaction;
 	struct btrfs_block_rsv *block_rsv;
+	struct btrfs_block_rsv *orig_rsv;
 };
 
 struct btrfs_pending_snapshot {
@@ -66,19 +69,6 @@ struct btrfs_pending_snapshot {
 	struct list_head list;
 };
 
-static inline void btrfs_set_trans_block_group(struct btrfs_trans_handle *trans,
-					       struct inode *inode)
-{
-	trans->block_group = BTRFS_I(inode)->block_group;
-}
-
-static inline void btrfs_update_inode_block_group(
-					  struct btrfs_trans_handle *trans,
-					  struct inode *inode)
-{
-	BTRFS_I(inode)->block_group = trans->block_group;
-}
-
 static inline void btrfs_set_inode_last_trans(struct btrfs_trans_handle *trans,
 					      struct inode *inode)
 {
@@ -92,20 +82,14 @@ int btrfs_end_transaction_nolock(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 						   int num_items);
-struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root,
-						  int num_blocks);
-struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root,
-							  int num_blocks);
-struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *r,
-							 int num_blocks);
+struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root);
+struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root);
+struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root);
 int btrfs_wait_for_commit(struct btrfs_root *root, u64 transid);
 int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root);
-int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
-			    struct btrfs_root *root);
 
 int btrfs_add_dead_root(struct btrfs_root *root);
-int btrfs_drop_dead_root(struct btrfs_root *root);
 int btrfs_defrag_root(struct btrfs_root *root, int cacheonly);
 int btrfs_clean_old_snapshots(struct btrfs_root *root);
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
@@ -115,6 +99,8 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 				   int wait_for_unblock);
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root);
+int btrfs_end_transaction_dmeta(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root);
 int btrfs_should_end_transaction(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root);
 void btrfs_throttle(struct btrfs_root *root);

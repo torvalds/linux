@@ -1,9 +1,7 @@
 /*
- * linux/fs/inode.c
- *
  * (C) 1997 Linus Torvalds
+ * (C) 1999 Andrea Arcangeli <andrea@suse.de> (dynamic inode allocation)
  */
-
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/dcache.h>
@@ -27,10 +25,11 @@
 #include <linux/prefetch.h>
 #include <linux/ima.h>
 #include <linux/cred.h>
+#include <linux/buffer_head.h> /* for inode_has_buffers */
 #include "internal.h"
 
 /*
- * inode locking rules.
+ * Inode locking rules:
  *
  * inode->i_lock protects:
  *   inode->i_state, inode->i_hash, __iget()
@@ -60,53 +59,10 @@
  *   inode_hash_lock
  */
 
-/*
- * This is needed for the following functions:
- *  - inode_has_buffers
- *  - invalidate_bdev
- *
- * FIXME: remove all knowledge of the buffer layer from this file
- */
-#include <linux/buffer_head.h>
-
-/*
- * New inode.c implementation.
- *
- * This implementation has the basic premise of trying
- * to be extremely low-overhead and SMP-safe, yet be
- * simple enough to be "obviously correct".
- *
- * Famous last words.
- */
-
-/* inode dynamic allocation 1999, Andrea Arcangeli <andrea@suse.de> */
-
-/* #define INODE_PARANOIA 1 */
-/* #define INODE_DEBUG 1 */
-
-/*
- * Inode lookup is no longer as critical as it used to be:
- * most of the lookups are going to be through the dcache.
- */
-#define I_HASHBITS	i_hash_shift
-#define I_HASHMASK	i_hash_mask
-
 static unsigned int i_hash_mask __read_mostly;
 static unsigned int i_hash_shift __read_mostly;
 static struct hlist_head *inode_hashtable __read_mostly;
 static __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_hash_lock);
-
-/*
- * Each inode can be on two separate lists. One is
- * the hash list of the inode, used for lookups. The
- * other linked list is the "type" list:
- *  "in_use" - valid inode, i_count > 0, i_nlink > 0
- *  "dirty"  - as "in_use" but also dirty
- *  "unused" - valid inode, i_count = 0
- *
- * A "dirty" list is maintained for each super block,
- * allowing for low-overhead inode sync() operations.
- */
 
 static LIST_HEAD(inode_lru);
 static DEFINE_SPINLOCK(inode_lru_lock);
@@ -424,8 +380,8 @@ static unsigned long hash(struct super_block *sb, unsigned long hashval)
 
 	tmp = (hashval * (unsigned long)sb) ^ (GOLDEN_RATIO_PRIME + hashval) /
 			L1_CACHE_BYTES;
-	tmp = tmp ^ ((tmp ^ GOLDEN_RATIO_PRIME) >> I_HASHBITS);
-	return tmp & I_HASHMASK;
+	tmp = tmp ^ ((tmp ^ GOLDEN_RATIO_PRIME) >> i_hash_shift);
+	return tmp & i_hash_mask;
 }
 
 /**
@@ -467,7 +423,14 @@ EXPORT_SYMBOL(remove_inode_hash);
 void end_writeback(struct inode *inode)
 {
 	might_sleep();
+	/*
+	 * We have to cycle tree_lock here because reclaim can be still in the
+	 * process of removing the last page (in __delete_from_page_cache())
+	 * and we must not free mapping under it.
+	 */
+	spin_lock_irq(&inode->i_data.tree_lock);
 	BUG_ON(inode->i_data.nrpages);
+	spin_unlock_irq(&inode->i_data.tree_lock);
 	BUG_ON(!list_empty(&inode->i_data.private_list));
 	BUG_ON(!(inode->i_state & I_FREEING));
 	BUG_ON(inode->i_state & I_CLEAR);

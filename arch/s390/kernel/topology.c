@@ -17,7 +17,6 @@
 #include <linux/smp.h>
 #include <linux/cpuset.h>
 #include <asm/delay.h>
-#include <asm/s390_ext.h>
 
 #define PTF_HORIZONTAL	(0UL)
 #define PTF_VERTICAL	(1UL)

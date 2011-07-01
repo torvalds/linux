@@ -340,7 +340,7 @@ ppp_asynctty_poll(struct tty_struct *tty, struct file *file, poll_table *wait)
 }
 
 /* May sleep, don't call from interrupt level or with interrupts disabled */
-static unsigned int
+static void
 ppp_asynctty_receive(struct tty_struct *tty, const unsigned char *buf,
 		  char *cflags, int count)
 {
@@ -348,7 +348,7 @@ ppp_asynctty_receive(struct tty_struct *tty, const unsigned char *buf,
 	unsigned long flags;
 
 	if (!ap)
-		return -ENODEV;
+		return;
 	spin_lock_irqsave(&ap->recv_lock, flags);
 	ppp_async_input(ap, buf, cflags, count);
 	spin_unlock_irqrestore(&ap->recv_lock, flags);
@@ -356,8 +356,6 @@ ppp_asynctty_receive(struct tty_struct *tty, const unsigned char *buf,
 		tasklet_schedule(&ap->tsk);
 	ap_put(ap);
 	tty_unthrottle(tty);
-
-	return count;
 }
 
 static void
@@ -525,7 +523,7 @@ static void ppp_async_process(unsigned long arg)
 #define PUT_BYTE(ap, buf, c, islcp)	do {		\
 	if ((islcp && c < 0x20) || (ap->xaccm[c >> 5] & (1 << (c & 0x1f)))) {\
 		*buf++ = PPP_ESCAPE;			\
-		*buf++ = c ^ 0x20;			\
+		*buf++ = c ^ PPP_TRANS;			\
 	} else						\
 		*buf++ = c;				\
 } while (0)
@@ -898,7 +896,7 @@ ppp_async_input(struct asyncppp *ap, const unsigned char *buf,
 				sp = skb_put(skb, n);
 				memcpy(sp, buf, n);
 				if (ap->state & SC_ESCAPE) {
-					sp[0] ^= 0x20;
+					sp[0] ^= PPP_TRANS;
 					ap->state &= ~SC_ESCAPE;
 				}
 			}

@@ -293,19 +293,6 @@ extern unsigned long VMALLOC_START;
  * swap pte is 1011 and 0001, 0011, 0101, 0111 are invalid.
  */
 
-/* Page status table bits for virtualization */
-#define RCP_ACC_BITS	0xf000000000000000UL
-#define RCP_FP_BIT	0x0800000000000000UL
-#define RCP_PCL_BIT	0x0080000000000000UL
-#define RCP_HR_BIT	0x0040000000000000UL
-#define RCP_HC_BIT	0x0020000000000000UL
-#define RCP_GR_BIT	0x0004000000000000UL
-#define RCP_GC_BIT	0x0002000000000000UL
-
-/* User dirty / referenced bit for KVM's migration feature */
-#define KVM_UR_BIT	0x0000800000000000UL
-#define KVM_UC_BIT	0x0000400000000000UL
-
 #ifndef __s390x__
 
 /* Bits in the segment table address-space-control-element */
@@ -324,6 +311,19 @@ extern unsigned long VMALLOC_START;
 
 #define _SEGMENT_ENTRY		(_SEGMENT_ENTRY_PTL)
 #define _SEGMENT_ENTRY_EMPTY	(_SEGMENT_ENTRY_INV)
+
+/* Page status table bits for virtualization */
+#define RCP_ACC_BITS	0xf0000000UL
+#define RCP_FP_BIT	0x08000000UL
+#define RCP_PCL_BIT	0x00800000UL
+#define RCP_HR_BIT	0x00400000UL
+#define RCP_HC_BIT	0x00200000UL
+#define RCP_GR_BIT	0x00040000UL
+#define RCP_GC_BIT	0x00020000UL
+
+/* User dirty / referenced bit for KVM's migration feature */
+#define KVM_UR_BIT	0x00008000UL
+#define KVM_UC_BIT	0x00004000UL
 
 #else /* __s390x__ */
 
@@ -366,6 +366,19 @@ extern unsigned long VMALLOC_START;
 
 #define _SEGMENT_ENTRY_LARGE	0x400	/* STE-format control, large page   */
 #define _SEGMENT_ENTRY_CO	0x100	/* change-recording override   */
+
+/* Page status table bits for virtualization */
+#define RCP_ACC_BITS	0xf000000000000000UL
+#define RCP_FP_BIT	0x0800000000000000UL
+#define RCP_PCL_BIT	0x0080000000000000UL
+#define RCP_HR_BIT	0x0040000000000000UL
+#define RCP_HC_BIT	0x0020000000000000UL
+#define RCP_GR_BIT	0x0004000000000000UL
+#define RCP_GC_BIT	0x0002000000000000UL
+
+/* User dirty / referenced bit for KVM's migration feature */
+#define KVM_UR_BIT	0x0000800000000000UL
+#define KVM_UC_BIT	0x0000400000000000UL
 
 #endif /* __s390x__ */
 
@@ -577,16 +590,16 @@ static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
 static inline pgste_t pgste_update_all(pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
-	unsigned long pfn, bits;
+	unsigned long address, bits;
 	unsigned char skey;
 
-	pfn = pte_val(*ptep) >> PAGE_SHIFT;
-	skey = page_get_storage_key(pfn);
+	address = pte_val(*ptep) & PAGE_MASK;
+	skey = page_get_storage_key(address);
 	bits = skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
 	/* Clear page changed & referenced bit in the storage key */
 	if (bits) {
 		skey ^= bits;
-		page_set_storage_key(pfn, skey, 1);
+		page_set_storage_key(address, skey, 1);
 	}
 	/* Transfer page changed & referenced bit to guest bits in pgste */
 	pgste_val(pgste) |= bits << 48;		/* RCP_GR_BIT & RCP_GC_BIT */
@@ -628,16 +641,16 @@ static inline pgste_t pgste_update_young(pte_t *ptep, pgste_t pgste)
 static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
-	unsigned long pfn;
+	unsigned long address;
 	unsigned long okey, nkey;
 
-	pfn = pte_val(*ptep) >> PAGE_SHIFT;
-	okey = nkey = page_get_storage_key(pfn);
+	address = pte_val(*ptep) & PAGE_MASK;
+	okey = nkey = page_get_storage_key(address);
 	nkey &= ~(_PAGE_ACC_BITS | _PAGE_FP_BIT);
 	/* Set page access key and fetch protection bit from pgste */
 	nkey |= (pgste_val(pgste) & (RCP_ACC_BITS | RCP_FP_BIT)) >> 56;
 	if (okey != nkey)
-		page_set_storage_key(pfn, nkey, 1);
+		page_set_storage_key(address, nkey, 1);
 #endif
 }
 

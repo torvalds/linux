@@ -16,6 +16,8 @@
 #include <linux/pci.h>
 #include <video/vga.h>
 
+static bool request_mem_succeeded = false;
+
 static struct fb_var_screeninfo efifb_defined __devinitdata = {
 	.activate		= FB_ACTIVATE_NOW,
 	.height			= -1,
@@ -281,7 +283,9 @@ static void efifb_destroy(struct fb_info *info)
 {
 	if (info->screen_base)
 		iounmap(info->screen_base);
-	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
+	if (request_mem_succeeded)
+		release_mem_region(info->apertures->ranges[0].base,
+				   info->apertures->ranges[0].size);
 	framebuffer_release(info);
 }
 
@@ -326,14 +330,13 @@ static int __init efifb_setup(char *options)
 	return 0;
 }
 
-static int __devinit efifb_probe(struct platform_device *dev)
+static int __init efifb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	int err;
 	unsigned int size_vmode;
 	unsigned int size_remap;
 	unsigned int size_total;
-	int request_succeeded = 0;
 
 	if (!screen_info.lfb_depth)
 		screen_info.lfb_depth = 32;
@@ -387,7 +390,7 @@ static int __devinit efifb_probe(struct platform_device *dev)
 	efifb_fix.smem_len = size_remap;
 
 	if (request_mem_region(efifb_fix.smem_start, size_remap, "efifb")) {
-		request_succeeded = 1;
+		request_mem_succeeded = true;
 	} else {
 		/* We cannot make this fatal. Sometimes this comes from magic
 		   spaces our resource handlers simply don't know about */
@@ -413,7 +416,7 @@ static int __devinit efifb_probe(struct platform_device *dev)
 	info->apertures->ranges[0].base = efifb_fix.smem_start;
 	info->apertures->ranges[0].size = size_remap;
 
-	info->screen_base = ioremap(efifb_fix.smem_start, efifb_fix.smem_len);
+	info->screen_base = ioremap_wc(efifb_fix.smem_start, efifb_fix.smem_len);
 	if (!info->screen_base) {
 		printk(KERN_ERR "efifb: abort, cannot ioremap video memory "
 				"0x%x @ 0x%lx\n",
@@ -491,13 +494,12 @@ err_unmap:
 err_release_fb:
 	framebuffer_release(info);
 err_release_mem:
-	if (request_succeeded)
+	if (request_mem_succeeded)
 		release_mem_region(efifb_fix.smem_start, size_total);
 	return err;
 }
 
 static struct platform_driver efifb_driver = {
-	.probe	= efifb_probe,
 	.driver	= {
 		.name	= "efifb",
 	},
@@ -528,13 +530,21 @@ static int __init efifb_init(void)
 	if (!screen_info.lfb_linelength)
 		return -ENODEV;
 
-	ret = platform_driver_register(&efifb_driver);
+	ret = platform_device_register(&efifb_device);
+	if (ret)
+		return ret;
 
-	if (!ret) {
-		ret = platform_device_register(&efifb_device);
-		if (ret)
-			platform_driver_unregister(&efifb_driver);
+	/*
+	 * This is not just an optimization.  We will interfere
+	 * with a real driver if we get reprobed, so don't allow
+	 * it.
+	 */
+	ret = platform_driver_probe(&efifb_driver, efifb_probe);
+	if (ret) {
+		platform_device_unregister(&efifb_device);
+		return ret;
 	}
+
 	return ret;
 }
 module_init(efifb_init);

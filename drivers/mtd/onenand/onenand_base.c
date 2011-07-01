@@ -65,11 +65,11 @@ MODULE_PARM_DESC(otp,	"Corresponding behaviour of OneNAND in OTP"
 			"	   : 2 -> 1st Block lock"
 			"	   : 3 -> BOTH OTP Block and 1st Block lock");
 
-/**
- *  onenand_oob_128 - oob info for Flex-Onenand with 4KB page
- *  For now, we expose only 64 out of 80 ecc bytes
+/*
+ * flexonenand_oob_128 - oob info for Flex-Onenand with 4KB page
+ * For now, we expose only 64 out of 80 ecc bytes
  */
-static struct nand_ecclayout onenand_oob_128 = {
+static struct nand_ecclayout flexonenand_oob_128 = {
 	.eccbytes	= 64,
 	.eccpos		= {
 		6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
@@ -83,6 +83,35 @@ static struct nand_ecclayout onenand_oob_128 = {
 	.oobfree	= {
 		{2, 4}, {18, 4}, {34, 4}, {50, 4},
 		{66, 4}, {82, 4}, {98, 4}, {114, 4}
+	}
+};
+
+/*
+ * onenand_oob_128 - oob info for OneNAND with 4KB page
+ *
+ * Based on specification:
+ * 4Gb M-die OneNAND Flash (KFM4G16Q4M, KFN8G16Q4M). Rev. 1.3, Apr. 2010
+ *
+ * For eccpos we expose only 64 bytes out of 72 (see struct nand_ecclayout)
+ *
+ * oobfree uses the spare area fields marked as
+ * "Managed by internal ECC logic for Logical Sector Number area"
+ */
+static struct nand_ecclayout onenand_oob_128 = {
+	.eccbytes	= 64,
+	.eccpos		= {
+		7, 8, 9, 10, 11, 12, 13, 14, 15,
+		23, 24, 25, 26, 27, 28, 29, 30, 31,
+		39, 40, 41, 42, 43, 44, 45, 46, 47,
+		55, 56, 57, 58, 59, 60, 61, 62, 63,
+		71, 72, 73, 74, 75, 76, 77, 78, 79,
+		87, 88, 89, 90, 91, 92, 93, 94, 95,
+		103, 104, 105, 106, 107, 108, 109, 110, 111,
+		119
+	},
+	.oobfree	= {
+		{2, 3}, {18, 3}, {34, 3}, {50, 3},
+		{66, 3}, {82, 3}, {98, 3}, {114, 3}
 	}
 };
 
@@ -2424,7 +2453,7 @@ static int onenand_block_by_block_erase(struct mtd_info *mtd,
 		len -= block_size;
 		addr += block_size;
 
-		if (addr == region_end) {
+		if (region && addr == region_end) {
 			if (!len)
 				break;
 			region++;
@@ -4018,8 +4047,13 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	 */
 	switch (mtd->oobsize) {
 	case 128:
-		this->ecclayout = &onenand_oob_128;
-		mtd->subpage_sft = 0;
+		if (FLEXONENAND(this)) {
+			this->ecclayout = &flexonenand_oob_128;
+			mtd->subpage_sft = 0;
+		} else {
+			this->ecclayout = &onenand_oob_128;
+			mtd->subpage_sft = 2;
+		}
 		break;
 	case 64:
 		this->ecclayout = &onenand_oob_64;
@@ -4108,12 +4142,8 @@ void onenand_release(struct mtd_info *mtd)
 {
 	struct onenand_chip *this = mtd->priv;
 
-#ifdef CONFIG_MTD_PARTITIONS
 	/* Deregister partitions */
-	del_mtd_partitions (mtd);
-#endif
-	/* Deregister the device */
-	del_mtd_device (mtd);
+	mtd_device_unregister(mtd);
 
 	/* Free bad block table memory, if allocated */
 	if (this->bbm) {

@@ -273,8 +273,6 @@ static int logfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 
-	dentry_unhash(dentry);
-
 	if (!logfs_empty_dir(inode))
 		return -ENOTEMPTY;
 
@@ -557,13 +555,6 @@ static int logfs_symlink(struct inode *dir, struct dentry *dentry,
 	return __logfs_create(dir, dentry, inode, target, destlen);
 }
 
-static int logfs_permission(struct inode *inode, int mask, unsigned int flags)
-{
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
-	return generic_permission(inode, mask, flags, NULL);
-}
-
 static int logfs_link(struct dentry *old_dentry, struct inode *dir,
 		struct dentry *dentry)
 {
@@ -623,9 +614,6 @@ static int logfs_rename_cross(struct inode *old_dir, struct dentry *old_dentry,
 	struct logfs_transaction *ta;
 	loff_t pos;
 	int err;
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	/* 1. locate source dd */
 	err = logfs_get_dd(old_dir, old_dentry, &dd, &pos);
@@ -825,7 +813,6 @@ const struct inode_operations logfs_dir_iops = {
 	.mknod		= logfs_mknod,
 	.rename		= logfs_rename,
 	.rmdir		= logfs_rmdir,
-	.permission	= logfs_permission,
 	.symlink	= logfs_symlink,
 	.unlink		= logfs_unlink,
 };

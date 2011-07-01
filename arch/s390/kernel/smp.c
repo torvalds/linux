@@ -44,7 +44,6 @@
 #include <asm/sigp.h>
 #include <asm/pgalloc.h>
 #include <asm/irq.h>
-#include <asm/s390_ext.h>
 #include <asm/cpcmd.h>
 #include <asm/tlbflush.h>
 #include <asm/timer.h>
@@ -263,7 +262,7 @@ void smp_ctl_set_bit(int cr, int bit)
 
 	memset(&parms.orvals, 0, sizeof(parms.orvals));
 	memset(&parms.andvals, 0xff, sizeof(parms.andvals));
-	parms.orvals[cr] = 1 << bit;
+	parms.orvals[cr] = 1UL << bit;
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
 EXPORT_SYMBOL(smp_ctl_set_bit);
@@ -277,7 +276,7 @@ void smp_ctl_clear_bit(int cr, int bit)
 
 	memset(&parms.orvals, 0, sizeof(parms.orvals));
 	memset(&parms.andvals, 0xff, sizeof(parms.andvals));
-	parms.andvals[cr] = ~(1L << bit);
+	parms.andvals[cr] = ~(1UL << bit);
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
 EXPORT_SYMBOL(smp_ctl_clear_bit);

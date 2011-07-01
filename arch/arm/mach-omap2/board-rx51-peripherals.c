@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/mmc/host.h>
+#include <linux/power/isp1704_charger.h>
 
 #include <plat/mcspi.h>
 #include <plat/board.h>
@@ -52,6 +53,8 @@
 #define RX51_WL1251_IRQ_GPIO		42
 #define RX51_FMTX_RESET_GPIO		163
 #define RX51_FMTX_IRQ			53
+
+#define RX51_USB_TRANSCEIVER_RST_GPIO	67
 
 /* list all spi devices here */
 enum {
@@ -111,9 +114,29 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 	},
 };
 
-static struct platform_device rx51_charger_device = {
-	.name = "isp1704_charger",
+static void rx51_charger_set_power(bool on)
+{
+	gpio_set_value(RX51_USB_TRANSCEIVER_RST_GPIO, on);
+}
+
+static struct isp1704_charger_data rx51_charger_data = {
+	.set_power	= rx51_charger_set_power,
 };
+
+static struct platform_device rx51_charger_device = {
+	.name	= "isp1704_charger",
+	.dev	= {
+		.platform_data = &rx51_charger_data,
+	},
+};
+
+static void __init rx51_charger_init(void)
+{
+	WARN_ON(gpio_request_one(RX51_USB_TRANSCEIVER_RST_GPIO,
+		GPIOF_OUT_INIT_LOW, "isp1704_reset"));
+
+	platform_device_register(&rx51_charger_device);
+}
 
 #if defined(CONFIG_KEYBOARD_GPIO) || defined(CONFIG_KEYBOARD_GPIO_MODULE)
 
@@ -465,6 +488,7 @@ static struct regulator_init_data rx51_vmmc2 = {
 		.name			= "V28_A",
 		.min_uV			= 2800000,
 		.max_uV			= 3000000,
+		.always_on		= true, /* due VIO leak to AIC34 VDDs */
 		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
@@ -559,7 +583,7 @@ static int rx51_twlgpio_setup(struct device *dev, unsigned gpio, unsigned n)
 {
 	/* FIXME this gpio setup is just a placeholder for now */
 	gpio_request_one(gpio + 6, GPIOF_OUT_INIT_LOW, "backlight_pwm");
-	gpio_request_one(gpio + 7, GPIOF_OUT_INIT_HIGH, "speaker_en");
+	gpio_request_one(gpio + 7, GPIOF_OUT_INIT_LOW, "speaker_en");
 
 	return 0;
 }
@@ -961,6 +985,6 @@ void __init rx51_peripherals_init(void)
 	if (partition)
 		omap2_hsmmc_init(mmc);
 
-	platform_device_register(&rx51_charger_device);
+	rx51_charger_init();
 }
 

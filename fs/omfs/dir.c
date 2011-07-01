@@ -241,11 +241,9 @@ static int omfs_remove(struct inode *dir, struct dentry *dentry)
 	int ret;
 
 
-	if (S_ISDIR(inode->i_mode)) {
-		dentry_unhash(dentry);
-		if (!omfs_dir_is_empty(inode))
-			return -ENOTEMPTY;
-	}
+	if (S_ISDIR(inode->i_mode) &&
+	    !omfs_dir_is_empty(inode))
+		return -ENOTEMPTY;
 
 	ret = omfs_delete_entry(dentry);
 	if (ret)
@@ -382,9 +380,6 @@ static int omfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int err;
 
 	if (new_inode) {
-		if (S_ISDIR(new_inode->i_mode))
-			dentry_unhash(new_dentry);
-
 		/* overwriting existing file/dir */
 		err = omfs_remove(new_dir, new_dentry);
 		if (err)

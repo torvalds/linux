@@ -669,6 +669,14 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 							 &rx_status,
 							 (u8 *) pdesc, skb);
 
+			new_skb = dev_alloc_skb(rtlpci->rxbuffersize);
+			if (unlikely(!new_skb)) {
+				RT_TRACE(rtlpriv, (COMP_INTR | COMP_RECV),
+					 DBG_DMESG,
+					 ("can't alloc skb for rx\n"));
+				goto done;
+			}
+
 			pci_unmap_single(rtlpci->pdev,
 					 *((dma_addr_t *) skb->cb),
 					 rtlpci->rxbuffersize,
@@ -690,7 +698,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 			hdr = rtl_get_hdr(skb);
 			fc = rtl_get_fc(skb);
 
-			if (!stats.crc || !stats.hwerror) {
+			if (!stats.crc && !stats.hwerror) {
 				memcpy(IEEE80211_SKB_RXCB(skb), &rx_status,
 				       sizeof(rx_status));
 
@@ -758,15 +766,7 @@ static void _rtl_pci_rx_interrupt(struct ieee80211_hw *hw)
 				rtl_lps_leave(hw);
 			}
 
-			new_skb = dev_alloc_skb(rtlpci->rxbuffersize);
-			if (unlikely(!new_skb)) {
-				RT_TRACE(rtlpriv, (COMP_INTR | COMP_RECV),
-					 DBG_DMESG,
-					 ("can't alloc skb for rx\n"));
-				goto done;
-			}
 			skb = new_skb;
-			/*skb->dev = dev; */
 
 			rtlpci->rx_ring[rx_queue_idx].rx_buf[rtlpci->
 							     rx_ring
@@ -1112,6 +1112,13 @@ static int _rtl_pci_init_rx_ring(struct ieee80211_hw *hw)
 		       rtlpci->rxringcount);
 
 		rtlpci->rx_ring[rx_queue_idx].idx = 0;
+
+		/* If amsdu_8k is disabled, set buffersize to 4096. This
+		 * change will reduce memory fragmentation.
+		 */
+		if (rtlpci->rxbuffersize > 4096 &&
+		    rtlpriv->rtlhal.disable_amsdu_8k)
+			rtlpci->rxbuffersize = 4096;
 
 		for (i = 0; i < rtlpci->rxringcount; i++) {
 			struct sk_buff *skb =

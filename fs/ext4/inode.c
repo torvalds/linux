@@ -2634,7 +2634,7 @@ static int ext4_writepage(struct page *page,
 	struct buffer_head *page_bufs = NULL;
 	struct inode *inode = page->mapping->host;
 
-	trace_ext4_writepage(inode, page);
+	trace_ext4_writepage(page);
 	size = i_size_read(inode);
 	if (page->index == size >> PAGE_CACHE_SHIFT)
 		len = size & ~PAGE_CACHE_MASK;
@@ -5733,7 +5733,7 @@ int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode)
  * so would cause a commit on atime updates, which we don't bother doing.
  * We handle synchronous inodes at the highest possible level.
  */
-void ext4_dirty_inode(struct inode *inode)
+void ext4_dirty_inode(struct inode *inode, int flags)
 {
 	handle_t *handle;
 

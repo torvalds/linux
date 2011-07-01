@@ -584,11 +584,11 @@ static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 
 success:
 	d_add(dentry, inode);
-	_leave(" = 0 { vn=%u u=%u } -> { ino=%lu v=%llu }",
+	_leave(" = 0 { vn=%u u=%u } -> { ino=%lu v=%u }",
 	       fid.vnode,
 	       fid.unique,
 	       dentry->d_inode->i_ino,
-	       (unsigned long long)dentry->d_inode->i_version);
+	       dentry->d_inode->i_generation);
 
 	return NULL;
 }
@@ -671,10 +671,10 @@ static int afs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 		 * been deleted and replaced, and the original vnode ID has
 		 * been reused */
 		if (fid.unique != vnode->fid.unique) {
-			_debug("%s: file deleted (uq %u -> %u I:%llu)",
+			_debug("%s: file deleted (uq %u -> %u I:%u)",
 			       dentry->d_name.name, fid.unique,
 			       vnode->fid.unique,
-			       (unsigned long long)dentry->d_inode->i_version);
+			       dentry->d_inode->i_generation);
 			spin_lock(&vnode->lock);
 			set_bit(AFS_VNODE_DELETED, &vnode->flags);
 			spin_unlock(&vnode->lock);
@@ -844,8 +844,6 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	_enter("{%x:%u},{%s}",
 	       dvnode->fid.vid, dvnode->fid.vnode, dentry->d_name.name);
-
-	dentry_unhash(dentry);
 
 	ret = -ENAMETOOLONG;
 	if (dentry->d_name.len >= AFSNAMEMAX)
@@ -1147,9 +1145,6 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct afs_vnode *orig_dvnode, *new_dvnode, *vnode;
 	struct key *key;
 	int ret;
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	vnode = AFS_FS_I(old_dentry->d_inode);
 	orig_dvnode = AFS_FS_I(old_dir);

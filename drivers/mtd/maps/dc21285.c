@@ -145,17 +145,13 @@ static struct map_info dc21285_map = {
 
 
 /* Partition stuff */
-#ifdef CONFIG_MTD_PARTITIONS
 static struct mtd_partition *dc21285_parts;
 static const char *probes[] = { "RedBoot", "cmdlinepart", NULL };
-#endif
 
 static int __init init_dc21285(void)
 {
 
-#ifdef CONFIG_MTD_PARTITIONS
 	int nrparts;
-#endif
 
 	/* Determine bankwidth */
 	switch (*CSR_SA110_CNTL & (3<<14)) {
@@ -204,13 +200,8 @@ static int __init init_dc21285(void)
 
 	dc21285_mtd->owner = THIS_MODULE;
 
-#ifdef CONFIG_MTD_PARTITIONS
 	nrparts = parse_mtd_partitions(dc21285_mtd, probes, &dc21285_parts, 0);
-	if (nrparts > 0)
-		add_mtd_partitions(dc21285_mtd, dc21285_parts, nrparts);
-	else
-#endif
-		add_mtd_device(dc21285_mtd);
+	mtd_device_register(dc21285_mtd, dc21285_parts, nrparts);
 
 	if(machine_is_ebsa285()) {
 		/*
@@ -232,14 +223,9 @@ static int __init init_dc21285(void)
 
 static void __exit cleanup_dc21285(void)
 {
-#ifdef CONFIG_MTD_PARTITIONS
-	if (dc21285_parts) {
-		del_mtd_partitions(dc21285_mtd);
+	mtd_device_unregister(dc21285_mtd);
+	if (dc21285_parts)
 		kfree(dc21285_parts);
-	} else
-#endif
-		del_mtd_device(dc21285_mtd);
-
 	map_destroy(dc21285_mtd);
 	iounmap(dc21285_map.virt);
 }

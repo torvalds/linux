@@ -2005,7 +2005,8 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 static struct mfd_cell db8500_prcmu_devs[] = {
 	{
 		.name = "db8500-prcmu-regulators",
-		.mfd_data = &db8500_regulators,
+		.platform_data = &db8500_regulators,
+		.pdata_size = sizeof(db8500_regulators),
 	},
 	{
 		.name = "cpufreq-u8500",

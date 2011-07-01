@@ -45,6 +45,17 @@ static inline void nfs_attr_check_mountpoint(struct super_block *parent, struct 
 		fattr->valid |= NFS_ATTR_FATTR_MOUNTPOINT;
 }
 
+static inline int nfs_attr_use_mounted_on_fileid(struct nfs_fattr *fattr)
+{
+	if (((fattr->valid & NFS_ATTR_FATTR_MOUNTED_ON_FILEID) == 0) ||
+	    (((fattr->valid & NFS_ATTR_FATTR_MOUNTPOINT) == 0) &&
+	     ((fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL) == 0)))
+		return 0;
+
+	fattr->fileid = fattr->mounted_on_fileid;
+	return 1;
+}
+
 struct nfs_clone_mount {
 	const struct super_block *sb;
 	const struct dentry *dentry;
@@ -310,6 +321,7 @@ extern int nfs_migrate_page(struct address_space *,
 #endif
 
 /* nfs4proc.c */
+extern void __nfs4_read_done_cb(struct nfs_read_data *);
 extern void nfs4_reset_read(struct rpc_task *task, struct nfs_read_data *data);
 extern int nfs4_init_client(struct nfs_client *clp,
 			    const struct rpc_timeout *timeparms,

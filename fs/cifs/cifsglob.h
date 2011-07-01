@@ -155,6 +155,81 @@ struct cifs_cred {
  *****************************************************************
  */
 
+struct smb_vol {
+	char *username;
+	char *password;
+	char *domainname;
+	char *UNC;
+	char *UNCip;
+	char *iocharset;  /* local code page for mapping to and from Unicode */
+	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
+	char target_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* srvr nb name */
+	uid_t cred_uid;
+	uid_t linux_uid;
+	gid_t linux_gid;
+	mode_t file_mode;
+	mode_t dir_mode;
+	unsigned secFlg;
+	bool retry:1;
+	bool intr:1;
+	bool setuids:1;
+	bool override_uid:1;
+	bool override_gid:1;
+	bool dynperm:1;
+	bool noperm:1;
+	bool no_psx_acl:1; /* set if posix acl support should be disabled */
+	bool cifs_acl:1;
+	bool no_xattr:1;   /* set if xattr (EA) support should be disabled*/
+	bool server_ino:1; /* use inode numbers from server ie UniqueId */
+	bool direct_io:1;
+	bool strict_io:1; /* strict cache behavior */
+	bool remap:1;      /* set to remap seven reserved chars in filenames */
+	bool posix_paths:1; /* unset to not ask for posix pathnames. */
+	bool no_linux_ext:1;
+	bool sfu_emul:1;
+	bool nullauth:1;   /* attempt to authenticate with null user */
+	bool nocase:1;     /* request case insensitive filenames */
+	bool nobrl:1;      /* disable sending byte range locks to srv */
+	bool mand_lock:1;  /* send mandatory not posix byte range lock reqs */
+	bool seal:1;       /* request transport encryption on share */
+	bool nodfs:1;      /* Do not request DFS, even if available */
+	bool local_lease:1; /* check leases only on local system, not remote */
+	bool noblocksnd:1;
+	bool noautotune:1;
+	bool nostrictsync:1; /* do not force expensive SMBflush on every sync */
+	bool fsc:1;	/* enable fscache */
+	bool mfsymlinks:1; /* use Minshall+French Symlinks */
+	bool multiuser:1;
+	bool rwpidforward:1; /* pid forward for read/write operations */
+	unsigned int rsize;
+	unsigned int wsize;
+	bool sockopt_tcp_nodelay:1;
+	unsigned short int port;
+	unsigned long actimeo; /* attribute cache timeout (jiffies) */
+	char *prepath;
+	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
+	struct nls_table *local_nls;
+};
+
+#define CIFS_MOUNT_MASK (CIFS_MOUNT_NO_PERM | CIFS_MOUNT_SET_UID | \
+			 CIFS_MOUNT_SERVER_INUM | CIFS_MOUNT_DIRECT_IO | \
+			 CIFS_MOUNT_NO_XATTR | CIFS_MOUNT_MAP_SPECIAL_CHR | \
+			 CIFS_MOUNT_UNX_EMUL | CIFS_MOUNT_NO_BRL | \
+			 CIFS_MOUNT_CIFS_ACL | CIFS_MOUNT_OVERR_UID | \
+			 CIFS_MOUNT_OVERR_GID | CIFS_MOUNT_DYNPERM | \
+			 CIFS_MOUNT_NOPOSIXBRL | CIFS_MOUNT_NOSSYNC | \
+			 CIFS_MOUNT_FSCACHE | CIFS_MOUNT_MF_SYMLINKS | \
+			 CIFS_MOUNT_MULTIUSER | CIFS_MOUNT_STRICT_IO)
+
+#define CIFS_MS_MASK (MS_RDONLY | MS_MANDLOCK | MS_NOEXEC | MS_NOSUID | \
+		      MS_NODEV | MS_SYNCHRONOUS)
+
+struct cifs_mnt_data {
+	struct cifs_sb_info *cifs_sb;
+	struct smb_vol *vol;
+	int flags;
+};
+
 struct TCP_Server_Info {
 	struct list_head tcp_ses_list;
 	struct list_head smb_ses_list;
@@ -179,7 +254,7 @@ struct TCP_Server_Info {
 	struct mutex srv_mutex;
 	struct task_struct *tsk;
 	char server_GUID[16];
-	char secMode;
+	char sec_mode;
 	bool session_estab; /* mark when very first sess is established */
 	u16 dialect; /* dialect index that server chose */
 	enum securityEnum secType;
@@ -254,7 +329,7 @@ static inline void cifs_set_net_ns(struct TCP_Server_Info *srv, struct net *net)
 /*
  * Session structure.  One of these for each uid session with a particular host
  */
-struct cifsSesInfo {
+struct cifs_ses {
 	struct list_head smb_ses_list;
 	struct list_head tcon_list;
 	struct mutex session_mutex;
@@ -294,11 +369,11 @@ struct cifsSesInfo {
  * there is one of these for each connection to a resource on a particular
  * session
  */
-struct cifsTconInfo {
+struct cifs_tcon {
 	struct list_head tcon_list;
 	int tc_count;
 	struct list_head openFileList;
-	struct cifsSesInfo *ses;	/* pointer to session associated with */
+	struct cifs_ses *ses;	/* pointer to session associated with */
 	char treeName[MAX_TREE_SIZE + 1]; /* UNC name of resource in ASCII */
 	char *nativeFileSystem;
 	char *password;		/* for share-level security */
@@ -380,12 +455,12 @@ struct tcon_link {
 #define TCON_LINK_IN_TREE	2
 	unsigned long		tl_time;
 	atomic_t		tl_count;
-	struct cifsTconInfo	*tl_tcon;
+	struct cifs_tcon	*tl_tcon;
 };
 
 extern struct tcon_link *cifs_sb_tlink(struct cifs_sb_info *cifs_sb);
 
-static inline struct cifsTconInfo *
+static inline struct cifs_tcon *
 tlink_tcon(struct tcon_link *tlink)
 {
 	return tlink->tl_tcon;
@@ -402,7 +477,7 @@ cifs_get_tlink(struct tcon_link *tlink)
 }
 
 /* This function is always expected to succeed */
-extern struct cifsTconInfo *cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb);
+extern struct cifs_tcon *cifs_sb_master_tcon(struct cifs_sb_info *cifs_sb);
 
 /*
  * This info hangs off the cifsFileInfo structure, pointed to by llist.
@@ -453,6 +528,14 @@ struct cifsFileInfo {
 	struct mutex fh_mutex; /* prevents reopen race after dead ses*/
 	struct cifs_search_info srch_inf;
 	struct work_struct oplock_break; /* work for oplock breaks */
+};
+
+struct cifs_io_parms {
+	__u16 netfid;
+	__u32 pid;
+	__u64 offset;
+	unsigned int length;
+	struct cifs_tcon *tcon;
 };
 
 /*
@@ -509,10 +592,30 @@ static inline char CIFS_DIR_SEP(const struct cifs_sb_info *cifs_sb)
 		return '\\';
 }
 
+static inline void
+convert_delimiter(char *path, char delim)
+{
+	int i;
+	char old_delim;
+
+	if (path == NULL)
+		return;
+
+	if (delim == '/')
+		old_delim = '\\';
+	else
+		old_delim = '/';
+
+	for (i = 0; path[i] != '\0'; i++) {
+		if (path[i] == old_delim)
+			path[i] = delim;
+	}
+}
+
 #ifdef CONFIG_CIFS_STATS
 #define cifs_stats_inc atomic_inc
 
-static inline void cifs_stats_bytes_written(struct cifsTconInfo *tcon,
+static inline void cifs_stats_bytes_written(struct cifs_tcon *tcon,
 					    unsigned int bytes)
 {
 	if (bytes) {
@@ -522,7 +625,7 @@ static inline void cifs_stats_bytes_written(struct cifsTconInfo *tcon,
 	}
 }
 
-static inline void cifs_stats_bytes_read(struct cifsTconInfo *tcon,
+static inline void cifs_stats_bytes_read(struct cifs_tcon *tcon,
 					 unsigned int bytes)
 {
 	spin_lock(&tcon->stat_lock);
@@ -543,9 +646,8 @@ struct mid_q_entry;
  * This is the prototype for the mid callback function. When creating one,
  * take special care to avoid deadlocks. Things to bear in mind:
  *
- * - it will be called by cifsd
- * - the GlobalMid_Lock will be held
- * - the mid will be removed from the pending_mid_q list
+ * - it will be called by cifsd, with no locks held
+ * - the mid will be removed from any lists
  */
 typedef void (mid_callback_t)(struct mid_q_entry *mid);
 
@@ -573,7 +675,7 @@ struct mid_q_entry {
 struct oplock_q_entry {
 	struct list_head qhead;
 	struct inode *pinode;
-	struct cifsTconInfo *tcon;
+	struct cifs_tcon *tcon;
 	__u16 netfid;
 };
 
@@ -656,6 +758,7 @@ static inline void free_dfs_info_array(struct dfs_info3_param *param,
 #define   MID_RESPONSE_RECEIVED 4
 #define   MID_RETRY_NEEDED      8 /* session closed while this request out */
 #define   MID_RESPONSE_MALFORMED 0x10
+#define   MID_SHUTDOWN		 0x20
 
 /* Types of response buffer returned from SendReceive2 */
 #define   CIFS_NO_BUFFER        0    /* Response buffer not returned */

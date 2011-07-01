@@ -814,7 +814,6 @@ int v9fs_vfs_unlink(struct inode *i, struct dentry *d)
 
 int v9fs_vfs_rmdir(struct inode *i, struct dentry *d)
 {
-	dentry_unhash(d);
 	return v9fs_remove(i, d, 1);
 }
 
@@ -839,9 +838,6 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct p9_fid *olddirfid;
 	struct p9_fid *newdirfid;
 	struct p9_wstat wstat;
-
-	if (new_dentry->d_inode && S_ISDIR(new_dentry->d_inode->i_mode))
-		dentry_unhash(new_dentry);
 
 	P9_DPRINTK(P9_DEBUG_VFS, "\n");
 	retval = 0;

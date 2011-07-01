@@ -13,6 +13,7 @@
 
 #include <asm/blackfin.h>
 #include <asm/gpio.h>
+#include <asm/gptimers.h>
 #include <asm/bfin_can.h>
 #include <asm/bfin_dma.h>
 #include <asm/bfin_ppi.h>
@@ -230,8 +231,8 @@ bfin_debug_mmrs_dma(struct dentry *parent, unsigned long base, int num, char mdm
 #define DMA(num)  _DMA(num, DMA##num##_NEXT_DESC_PTR, 0, "")
 #define _MDMA(num, x) \
 	do { \
-		_DMA(num, x##DMA_D##num##_CONFIG, 'D', #x); \
-		_DMA(num, x##DMA_S##num##_CONFIG, 'S', #x); \
+		_DMA(num, x##DMA_D##num##_NEXT_DESC_PTR, 'D', #x); \
+		_DMA(num, x##DMA_S##num##_NEXT_DESC_PTR, 'S', #x); \
 	} while (0)
 #define MDMA(num) _MDMA(num, M)
 #define IMDMA(num) _MDMA(num, IM)
@@ -264,20 +265,15 @@ bfin_debug_mmrs_eppi(struct dentry *parent, unsigned long base, int num)
 /*
  * General Purpose Timers
  */
-#define GPTIMER_OFF(mmr) (TIMER0_##mmr - TIMER0_CONFIG)
-#define __GPTIMER(name) \
-	do { \
-		strcpy(_buf, #name); \
-		debugfs_create_x16(buf, S_IRUSR|S_IWUSR, parent, (u16 *)(base + GPTIMER_OFF(name))); \
-	} while (0)
+#define __GPTIMER(uname, lname) __REGS(gptimer, #uname, lname)
 static void __init __maybe_unused
 bfin_debug_mmrs_gptimer(struct dentry *parent, unsigned long base, int num)
 {
 	char buf[32], *_buf = REGS_STR_PFX(buf, TIMER, num);
-	__GPTIMER(CONFIG);
-	__GPTIMER(COUNTER);
-	__GPTIMER(PERIOD);
-	__GPTIMER(WIDTH);
+	__GPTIMER(CONFIG, config);
+	__GPTIMER(COUNTER, counter);
+	__GPTIMER(PERIOD, period);
+	__GPTIMER(WIDTH, width);
 }
 #define GPTIMER(num) bfin_debug_mmrs_gptimer(parent, TIMER##num##_CONFIG, num)
 
@@ -355,7 +351,7 @@ bfin_debug_mmrs_ppi(struct dentry *parent, unsigned long base, int num)
 	__PPI(DELAY, delay);
 	__PPI(FRAME, frame);
 }
-#define PPI(num) bfin_debug_mmrs_ppi(parent, PPI##num##_STATUS, num)
+#define PPI(num) bfin_debug_mmrs_ppi(parent, PPI##num##_CONTROL, num)
 
 /*
  * SPI
@@ -1288,15 +1284,15 @@ static int __init bfin_debug_mmrs_init(void)
 	D16(VR_CTL);
 	D32(CHIPID);	/* it's part of this hardware block */
 
-#if defined(PPI_STATUS) || defined(PPI0_STATUS) || defined(PPI1_STATUS)
+#if defined(PPI_CONTROL) || defined(PPI0_CONTROL) || defined(PPI1_CONTROL)
 	parent = debugfs_create_dir("ppi", top);
-# ifdef PPI_STATUS
-	bfin_debug_mmrs_ppi(parent, PPI_STATUS, -1);
+# ifdef PPI_CONTROL
+	bfin_debug_mmrs_ppi(parent, PPI_CONTROL, -1);
 # endif
-# ifdef PPI0_STATUS
+# ifdef PPI0_CONTROL
 	PPI(0);
 # endif
-# ifdef PPI1_STATUS
+# ifdef PPI1_CONTROL
 	PPI(1);
 # endif
 #endif
@@ -1341,6 +1337,10 @@ static int __init bfin_debug_mmrs_init(void)
 	D16(RSI_PID1);
 	D16(RSI_PID2);
 	D16(RSI_PID3);
+	D16(RSI_PID4);
+	D16(RSI_PID5);
+	D16(RSI_PID6);
+	D16(RSI_PID7);
 	D16(RSI_PWR_CONTROL);
 	D16(RSI_RD_WAIT_EN);
 	D32(RSI_RESPONSE0);

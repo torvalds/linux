@@ -92,7 +92,7 @@ static uint16_t cifs_server_get_key(const void *cookie_netfs_data,
 		break;
 
 	default:
-		cERROR(1, "CIFS: Unknown network family '%d'", sa->sa_family);
+		cERROR(1, "Unknown network family '%d'", sa->sa_family);
 		key_len = 0;
 		break;
 	}
@@ -146,13 +146,13 @@ static char *extract_sharename(const char *treename)
 static uint16_t cifs_super_get_key(const void *cookie_netfs_data, void *buffer,
 				   uint16_t maxbuf)
 {
-	const struct cifsTconInfo *tcon = cookie_netfs_data;
+	const struct cifs_tcon *tcon = cookie_netfs_data;
 	char *sharename;
 	uint16_t len;
 
 	sharename = extract_sharename(tcon->treeName);
 	if (IS_ERR(sharename)) {
-		cFYI(1, "CIFS: couldn't extract sharename\n");
+		cFYI(1, "%s: couldn't extract sharename\n", __func__);
 		sharename = NULL;
 		return 0;
 	}
@@ -173,7 +173,7 @@ cifs_fscache_super_get_aux(const void *cookie_netfs_data, void *buffer,
 			   uint16_t maxbuf)
 {
 	struct cifs_fscache_super_auxdata auxdata;
-	const struct cifsTconInfo *tcon = cookie_netfs_data;
+	const struct cifs_tcon *tcon = cookie_netfs_data;
 
 	memset(&auxdata, 0, sizeof(auxdata));
 	auxdata.resource_id = tcon->resource_id;
@@ -192,7 +192,7 @@ fscache_checkaux cifs_fscache_super_check_aux(void *cookie_netfs_data,
 					      uint16_t datalen)
 {
 	struct cifs_fscache_super_auxdata auxdata;
-	const struct cifsTconInfo *tcon = cookie_netfs_data;
+	const struct cifs_tcon *tcon = cookie_netfs_data;
 
 	if (datalen != sizeof(auxdata))
 		return FSCACHE_CHECKAUX_OBSOLETE;
@@ -302,7 +302,7 @@ static void cifs_fscache_inode_now_uncached(void *cookie_netfs_data)
 	pagevec_init(&pvec, 0);
 	first = 0;
 
-	cFYI(1, "cifs inode 0x%p now uncached", cifsi);
+	cFYI(1, "%s: cifs inode 0x%p now uncached", __func__, cifsi);
 
 	for (;;) {
 		nr_pages = pagevec_lookup(&pvec,
