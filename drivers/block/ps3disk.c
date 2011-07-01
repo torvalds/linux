@@ -21,6 +21,7 @@
 #include <linux/ata.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <asm/lv1call.h>
 #include <asm/ps3stor.h>
