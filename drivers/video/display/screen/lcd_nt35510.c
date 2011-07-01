@@ -317,7 +317,7 @@ void WriteParameter(char DH)
 void init_nt35510(void)
 {
 	WriteCommand(0X1100); 
-	mdelay(120);
+	msleep(120);
 
 	WriteCommand(0X1300); 
 
@@ -1431,11 +1431,11 @@ else if(OUT_FACE == OUT_P666)
 	WriteCommand(0X2000); //
 
 	WriteCommand(0X1100); 
-	mdelay(120);
+	msleep(120);
 
 	WriteCommand(0X2900); 
 
-	mdelay(100);
+	msleep(100);
 	WriteCommand(0X2C00); 
 }
 
@@ -1443,7 +1443,7 @@ else if(OUT_FACE == OUT_P666)
 void resume_nt35510(void)
 {
 	WriteCommand(0X1100); 
-	mdelay(120);
+	msleep(120);
 
 	WriteCommand(0X1300); 
 
@@ -1578,11 +1578,11 @@ else if(OUT_FACE == OUT_P666)
 	WriteCommand(0X2000); //
 
 	WriteCommand(0X1100); 
-	mdelay(120);
+	msleep(120);
 
 	WriteCommand(0X2900); 
 
-	mdelay(100);
+	msleep(100);
 	WriteCommand(0X2C00); 
 }
 
@@ -1594,9 +1594,9 @@ int init(void)
 	gpio_request(RK29_PIN6_PC6, NULL);
 	gpio_direction_output(RK29_PIN6_PC6, 1);
 	gpio_direction_output(RK29_PIN6_PC6, 0);
-	mdelay(5);
+	msleep(5);
 	gpio_set_value(RK29_PIN6_PC6, 1);
-	mdelay(50);
+	msleep(50);
 	gpio_free(RK29_PIN6_PC6);
 
 	if(gLcd_info)
@@ -1622,21 +1622,21 @@ int standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 		WriteCommand(0X2800); 
 		//set_backlight(0);
 		WriteCommand(0X1100); 
-		mdelay(5);
+		msleep(5);
 		WriteCommand(0X4f00); 
 		WriteParameter(0x01);
 	} else { 
 		gpio_request(RK29_PIN6_PC6, NULL);
 		gpio_direction_output(RK29_PIN6_PC6, 1);
 		gpio_direction_output(RK29_PIN6_PC6, 0);
-		mdelay(5);
+		msleep(5);
 		gpio_set_value(RK29_PIN6_PC6, 1);
-		mdelay(50);
+		msleep(50);
 		gpio_free(RK29_PIN6_PC6);
 		init_nt35510();
 		//set_backlight(255);
 		//resume_nt35510();//may be fail to wake up LCD some time,so change to init lcd again
-		printk("%s\n",__FUNCTION__);printk("%s\n",__FUNCTION__);
+		printk("%s\n",__FUNCTION__);
 	}
 
     if(gLcd_info)
