@@ -432,8 +432,14 @@ static int __init nfc_init(void)
 	/* the first generation must not be 0 */
 	nfc_devlist_generation = 1;
 
+	rc = af_nfc_init();
+	if (rc)
+		goto err_af_nfc;
+
 	return 0;
 
+err_af_nfc:
+	nfc_genl_exit();
 err_genl:
 	class_unregister(&nfc_class);
 	return rc;
@@ -441,6 +447,7 @@ err_genl:
 
 static void __exit nfc_exit(void)
 {
+	af_nfc_exit();
 	nfc_genl_exit();
 	class_unregister(&nfc_class);
 }

@@ -109,4 +109,7 @@ enum nfc_attrs {
 #define NFC_PROTO_ISO14443_MASK	(1 << NFC_PROTO_ISO14443)
 #define NFC_PROTO_NFC_DEP_MASK	(1 << NFC_PROTO_NFC_DEP)
 
+/* NFC socket protocols */
+#define NFC_SOCKPROTO_MAX	0
+
 #endif /*__LINUX_NFC_H */

@@ -25,6 +25,7 @@
 #define __LOCAL_NFC_H
 
 #include <net/nfc.h>
+#include <net/sock.h>
 
 __attribute__((format (printf, 2, 3)))
 int nfc_printk(const char *level, const char *fmt, ...);
@@ -32,6 +33,19 @@ int nfc_printk(const char *level, const char *fmt, ...);
 #define nfc_info(fmt, arg...) nfc_printk(KERN_INFO, fmt, ##arg)
 #define nfc_err(fmt, arg...) nfc_printk(KERN_ERR, fmt, ##arg)
 #define nfc_dbg(fmt, arg...) pr_debug(fmt "\n", ##arg)
+
+struct nfc_protocol {
+	int id;
+	struct proto *proto;
+	struct module *owner;
+	int (*create)(struct net *net, struct socket *sock,
+			const struct nfc_protocol *nfc_proto);
+};
+
+int __init af_nfc_init(void);
+void af_nfc_exit(void);
+int nfc_proto_register(const struct nfc_protocol *nfc_proto);
+void nfc_proto_unregister(const struct nfc_protocol *nfc_proto);
 
 extern int nfc_devlist_generation;
 extern struct mutex nfc_devlist_mutex;
