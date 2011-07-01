@@ -1242,6 +1242,8 @@ static int _enable(struct omap_hwmod *oh)
 {
 	int r;
 
+	pr_debug("omap_hwmod: %s: enabling\n", oh->name);
+
 	if (oh->_state != _HWMOD_STATE_INITIALIZED &&
 	    oh->_state != _HWMOD_STATE_IDLE &&
 	    oh->_state != _HWMOD_STATE_DISABLED) {
@@ -1249,8 +1251,6 @@ static int _enable(struct omap_hwmod *oh)
 		     "from initialized, idle, or disabled state\n", oh->name);
 		return -EINVAL;
 	}
-
-	pr_debug("omap_hwmod: %s: enabling\n", oh->name);
 
 	/* Mux pins for device runtime if populated */
 	if (oh->mux && (!oh->mux->enabled ||
@@ -1271,19 +1271,21 @@ static int _enable(struct omap_hwmod *oh)
 		_deassert_hardreset(oh, oh->rst_lines[0].name);
 
 	r = _wait_target_ready(oh);
-	if (!r) {
-		oh->_state = _HWMOD_STATE_ENABLED;
-
-		/* Access the sysconfig only if the target is ready */
-		if (oh->class->sysc) {
-			if (!(oh->_int_flags & _HWMOD_SYSCONFIG_LOADED))
-				_update_sysc_cache(oh);
-			_enable_sysc(oh);
-		}
-	} else {
-		_disable_clocks(oh);
+	if (r) {
 		pr_debug("omap_hwmod: %s: _wait_target_ready: %d\n",
 			 oh->name, r);
+		_disable_clocks(oh);
+
+		return r;
+	}
+
+	oh->_state = _HWMOD_STATE_ENABLED;
+
+	/* Access the sysconfig only if the target is ready */
+	if (oh->class->sysc) {
+		if (!(oh->_int_flags & _HWMOD_SYSCONFIG_LOADED))
+			_update_sysc_cache(oh);
+		_enable_sysc(oh);
 	}
 
 	return r;
@@ -1299,13 +1301,13 @@ static int _enable(struct omap_hwmod *oh)
  */
 static int _idle(struct omap_hwmod *oh)
 {
+	pr_debug("omap_hwmod: %s: idling\n", oh->name);
+
 	if (oh->_state != _HWMOD_STATE_ENABLED) {
 		WARN(1, "omap_hwmod: %s: idle state can only be entered from "
 		     "enabled state\n", oh->name);
 		return -EINVAL;
 	}
-
-	pr_debug("omap_hwmod: %s: idling\n", oh->name);
 
 	if (oh->class->sysc)
 		_idle_sysc(oh);
