@@ -112,7 +112,7 @@ static s32 sci_sas_address_compare(
  * port. port address if the port can be found to match the phy.
  * NULL if there is no matching port for the phy.
  */
-static struct isci_port *scic_sds_port_configuration_agent_find_port(
+static struct isci_port *sci_port_configuration_agent_find_port(
 	struct isci_host *ihost,
 	struct isci_phy *iphy)
 {
@@ -127,14 +127,14 @@ static struct isci_port *scic_sds_port_configuration_agent_find_port(
 	 * more phys match the sent and received SAS address as this phy in which
 	 * case it should participate in the same port.
 	 */
-	scic_sds_phy_get_sas_address(iphy, &phy_sas_address);
-	scic_sds_phy_get_attached_sas_address(iphy, &phy_attached_device_address);
+	sci_phy_get_sas_address(iphy, &phy_sas_address);
+	sci_phy_get_attached_sas_address(iphy, &phy_attached_device_address);
 
 	for (i = 0; i < ihost->logical_port_entries; i++) {
 		struct isci_port *iport = &ihost->ports[i];
 
-		scic_sds_port_get_sas_address(iport, &port_sas_address);
-		scic_sds_port_get_attached_sas_address(iport, &port_attached_device_address);
+		sci_port_get_sas_address(iport, &port_sas_address);
+		sci_port_get_attached_sas_address(iport, &port_attached_device_address);
 
 		if (sci_sas_address_compare(port_sas_address, phy_sas_address) == 0 &&
 		    sci_sas_address_compare(port_attached_device_address, phy_attached_device_address) == 0)
@@ -156,9 +156,9 @@ static struct isci_port *scic_sds_port_configuration_agent_find_port(
  * this port configuration agent. SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION
  * the port configuration is not valid for this port configuration agent.
  */
-static enum sci_status scic_sds_port_configuration_agent_validate_ports(
+static enum sci_status sci_port_configuration_agent_validate_ports(
 	struct isci_host *ihost,
-	struct scic_sds_port_configuration_agent *port_agent)
+	struct sci_port_configuration_agent *port_agent)
 {
 	struct sci_sas_address first_address;
 	struct sci_sas_address second_address;
@@ -194,8 +194,8 @@ static enum sci_status scic_sds_port_configuration_agent_validate_ports(
 	 * PE0 and PE3 can never have the same SAS Address unless they
 	 * are part of the same x4 wide port and we have already checked
 	 * for this condition. */
-	scic_sds_phy_get_sas_address(&ihost->phys[0], &first_address);
-	scic_sds_phy_get_sas_address(&ihost->phys[3], &second_address);
+	sci_phy_get_sas_address(&ihost->phys[0], &first_address);
+	sci_phy_get_sas_address(&ihost->phys[3], &second_address);
 
 	if (sci_sas_address_compare(first_address, second_address) == 0) {
 		return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
@@ -207,8 +207,8 @@ static enum sci_status scic_sds_port_configuration_agent_validate_ports(
 	 * part of the same port. */
 	if (port_agent->phy_valid_port_range[0].min_index == 0 &&
 	    port_agent->phy_valid_port_range[1].min_index == 1) {
-		scic_sds_phy_get_sas_address(&ihost->phys[0], &first_address);
-		scic_sds_phy_get_sas_address(&ihost->phys[2], &second_address);
+		sci_phy_get_sas_address(&ihost->phys[0], &first_address);
+		sci_phy_get_sas_address(&ihost->phys[2], &second_address);
 
 		if (sci_sas_address_compare(first_address, second_address) == 0) {
 			return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
@@ -221,8 +221,8 @@ static enum sci_status scic_sds_port_configuration_agent_validate_ports(
 	 * part of the same port. */
 	if (port_agent->phy_valid_port_range[2].min_index == 2 &&
 	    port_agent->phy_valid_port_range[3].min_index == 3) {
-		scic_sds_phy_get_sas_address(&ihost->phys[1], &first_address);
-		scic_sds_phy_get_sas_address(&ihost->phys[3], &second_address);
+		sci_phy_get_sas_address(&ihost->phys[1], &first_address);
+		sci_phy_get_sas_address(&ihost->phys[3], &second_address);
 
 		if (sci_sas_address_compare(first_address, second_address) == 0) {
 			return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
@@ -239,8 +239,8 @@ static enum sci_status scic_sds_port_configuration_agent_validate_ports(
 
 /* verify all of the phys in the same port are using the same SAS address */
 static enum sci_status
-scic_sds_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
-					      struct scic_sds_port_configuration_agent *port_agent)
+sci_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
+					      struct sci_port_configuration_agent *port_agent)
 {
 	u32 phy_mask;
 	u32 assigned_phy_mask;
@@ -254,7 +254,7 @@ scic_sds_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 	sas_address.low = 0;
 
 	for (port_index = 0; port_index < SCI_MAX_PORTS; port_index++) {
-		phy_mask = ihost->oem_parameters.sds1.ports[port_index].phy_mask;
+		phy_mask = ihost->oem_parameters.ports[port_index].phy_mask;
 
 		if (!phy_mask)
 			continue;
@@ -269,7 +269,7 @@ scic_sds_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 		for (phy_index = 0; phy_index < SCI_MAX_PHYS; phy_index++) {
 			if ((phy_mask & (1 << phy_index)) == 0)
 				continue;
-			scic_sds_phy_get_sas_address(&ihost->phys[phy_index],
+			sci_phy_get_sas_address(&ihost->phys[phy_index],
 						     &sas_address);
 
 			/*
@@ -294,7 +294,7 @@ scic_sds_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 		while (phy_index < SCI_MAX_PHYS) {
 			if ((phy_mask & (1 << phy_index)) == 0)
 				continue;
-			scic_sds_phy_get_sas_address(&ihost->phys[phy_index],
+			sci_phy_get_sas_address(&ihost->phys[phy_index],
 						     &phy_assigned_address);
 
 			if (sci_sas_address_compare(sas_address, phy_assigned_address) != 0) {
@@ -307,7 +307,7 @@ scic_sds_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 			port_agent->phy_valid_port_range[phy_index].min_index = port_index;
 			port_agent->phy_valid_port_range[phy_index].max_index = phy_index;
 
-			scic_sds_port_add_phy(&ihost->ports[port_index],
+			sci_port_add_phy(&ihost->ports[port_index],
 					      &ihost->phys[phy_index]);
 
 			assigned_phy_mask |= (1 << phy_index);
@@ -316,14 +316,14 @@ scic_sds_mpc_agent_validate_phy_configuration(struct isci_host *ihost,
 		phy_index++;
 	}
 
-	return scic_sds_port_configuration_agent_validate_ports(ihost, port_agent);
+	return sci_port_configuration_agent_validate_ports(ihost, port_agent);
 }
 
 static void mpc_agent_timeout(unsigned long data)
 {
 	u8 index;
 	struct sci_timer *tmr = (struct sci_timer *)data;
-	struct scic_sds_port_configuration_agent *port_agent;
+	struct sci_port_configuration_agent *port_agent;
 	struct isci_host *ihost;
 	unsigned long flags;
 	u16 configure_phy_mask;
@@ -355,8 +355,8 @@ done:
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 }
 
-static void scic_sds_mpc_agent_link_up(struct isci_host *ihost,
-				       struct scic_sds_port_configuration_agent *port_agent,
+static void sci_mpc_agent_link_up(struct isci_host *ihost,
+				       struct sci_port_configuration_agent *port_agent,
 				       struct isci_port *iport,
 				       struct isci_phy *iphy)
 {
@@ -367,10 +367,10 @@ static void scic_sds_mpc_agent_link_up(struct isci_host *ihost,
 	if (!iport)
 		return;
 
-	port_agent->phy_ready_mask |= (1 << scic_sds_phy_get_index(iphy));
-	scic_sds_port_link_up(iport, iphy);
-	if ((iport->active_phy_mask & (1 << scic_sds_phy_get_index(iphy))))
-		port_agent->phy_configured_mask |= (1 << scic_sds_phy_get_index(iphy));
+	port_agent->phy_ready_mask |= (1 << sci_phy_get_index(iphy));
+	sci_port_link_up(iport, iphy);
+	if ((iport->active_phy_mask & (1 << sci_phy_get_index(iphy))))
+		port_agent->phy_configured_mask |= (1 << sci_phy_get_index(iphy));
 }
 
 /**
@@ -390,9 +390,9 @@ static void scic_sds_mpc_agent_link_up(struct isci_host *ihost,
  * not associated with a port there is no action taken. Is it possible to get a
  * link down notification from a phy that has no assocoated port?
  */
-static void scic_sds_mpc_agent_link_down(
+static void sci_mpc_agent_link_down(
 	struct isci_host *ihost,
-	struct scic_sds_port_configuration_agent *port_agent,
+	struct sci_port_configuration_agent *port_agent,
 	struct isci_port *iport,
 	struct isci_phy *iphy)
 {
@@ -405,9 +405,9 @@ static void scic_sds_mpc_agent_link_down(
 		 * state.
 		 */
 		port_agent->phy_ready_mask &=
-			~(1 << scic_sds_phy_get_index(iphy));
+			~(1 << sci_phy_get_index(iphy));
 		port_agent->phy_configured_mask &=
-			~(1 << scic_sds_phy_get_index(iphy));
+			~(1 << sci_phy_get_index(iphy));
 
 		/*
 		 * Check to see if there are more phys waiting to be
@@ -424,7 +424,7 @@ static void scic_sds_mpc_agent_link_down(
 				      SCIC_SDS_MPC_RECONFIGURATION_TIMEOUT);
 		}
 
-		scic_sds_port_link_down(iport, iphy);
+		sci_port_link_down(iport, iphy);
 	}
 }
 
@@ -432,8 +432,8 @@ static void scic_sds_mpc_agent_link_down(
  * configuration mode.
  */
 static enum sci_status
-scic_sds_apc_agent_validate_phy_configuration(struct isci_host *ihost,
-					      struct scic_sds_port_configuration_agent *port_agent)
+sci_apc_agent_validate_phy_configuration(struct isci_host *ihost,
+					      struct sci_port_configuration_agent *port_agent)
 {
 	u8 phy_index;
 	u8 port_index;
@@ -446,11 +446,11 @@ scic_sds_apc_agent_validate_phy_configuration(struct isci_host *ihost,
 		port_index = phy_index;
 
 		/* Get the assigned SAS Address for the first PHY on the controller. */
-		scic_sds_phy_get_sas_address(&ihost->phys[phy_index],
+		sci_phy_get_sas_address(&ihost->phys[phy_index],
 					    &sas_address);
 
 		while (++phy_index < SCI_MAX_PHYS) {
-			scic_sds_phy_get_sas_address(&ihost->phys[phy_index],
+			sci_phy_get_sas_address(&ihost->phys[phy_index],
 						     &phy_assigned_address);
 
 			/* Verify each of the SAS address are all the same for every PHY */
@@ -465,11 +465,11 @@ scic_sds_apc_agent_validate_phy_configuration(struct isci_host *ihost,
 		}
 	}
 
-	return scic_sds_port_configuration_agent_validate_ports(ihost, port_agent);
+	return sci_port_configuration_agent_validate_ports(ihost, port_agent);
 }
 
-static void scic_sds_apc_agent_configure_ports(struct isci_host *ihost,
-					       struct scic_sds_port_configuration_agent *port_agent,
+static void sci_apc_agent_configure_ports(struct isci_host *ihost,
+					       struct sci_port_configuration_agent *port_agent,
 					       struct isci_phy *iphy,
 					       bool start_timer)
 {
@@ -478,10 +478,10 @@ static void scic_sds_apc_agent_configure_ports(struct isci_host *ihost,
 	struct isci_port *iport;
 	enum SCIC_SDS_APC_ACTIVITY apc_activity = SCIC_SDS_APC_SKIP_PHY;
 
-	iport = scic_sds_port_configuration_agent_find_port(ihost, iphy);
+	iport = sci_port_configuration_agent_find_port(ihost, iphy);
 
 	if (iport) {
-		if (scic_sds_port_is_valid_phy_assignment(iport, iphy->phy_index))
+		if (sci_port_is_valid_phy_assignment(iport, iphy->phy_index))
 			apc_activity = SCIC_SDS_APC_ADD_PHY;
 		else
 			apc_activity = SCIC_SDS_APC_SKIP_PHY;
@@ -499,7 +499,7 @@ static void scic_sds_apc_agent_configure_ports(struct isci_host *ihost,
 			iport = &ihost->ports[port_index];
 
 			/* First we must make sure that this PHY can be added to this Port. */
-			if (scic_sds_port_is_valid_phy_assignment(iport, iphy->phy_index)) {
+			if (sci_port_is_valid_phy_assignment(iport, iphy->phy_index)) {
 				/*
 				 * Port contains a PHY with a greater PHY ID than the current
 				 * PHY that has gone link up.  This phy can not be part of any
@@ -559,7 +559,7 @@ static void scic_sds_apc_agent_configure_ports(struct isci_host *ihost,
 
 	switch (apc_activity) {
 	case SCIC_SDS_APC_ADD_PHY:
-		status = scic_sds_port_add_phy(iport, iphy);
+		status = sci_port_add_phy(iport, iphy);
 
 		if (status == SCI_SUCCESS) {
 			port_agent->phy_configured_mask |= (1 << iphy->phy_index);
@@ -588,7 +588,7 @@ static void scic_sds_apc_agent_configure_ports(struct isci_host *ihost,
 }
 
 /**
- * scic_sds_apc_agent_link_up - handle apc link up events
+ * sci_apc_agent_link_up - handle apc link up events
  * @scic: This is the controller object that receives the link up
  *    notification.
  * @sci_port: This is the port object associated with the phy.  If the is no
@@ -599,8 +599,8 @@ static void scic_sds_apc_agent_configure_ports(struct isci_host *ihost,
  * notifications. Is it possible to get a link down notification from a phy
  * that has no assocoated port?
  */
-static void scic_sds_apc_agent_link_up(struct isci_host *ihost,
-				       struct scic_sds_port_configuration_agent *port_agent,
+static void sci_apc_agent_link_up(struct isci_host *ihost,
+				       struct sci_port_configuration_agent *port_agent,
 				       struct isci_port *iport,
 				       struct isci_phy *iphy)
 {
@@ -609,7 +609,7 @@ static void scic_sds_apc_agent_link_up(struct isci_host *ihost,
 	if (!iport) {
 		/* the phy is not the part of this port */
 		port_agent->phy_ready_mask |= 1 << phy_index;
-		scic_sds_apc_agent_configure_ports(ihost, port_agent, iphy, true);
+		sci_apc_agent_configure_ports(ihost, port_agent, iphy, true);
 	} else {
 		/* the phy is already the part of the port */
 		u32 port_state = iport->sm.current_state_id;
@@ -620,7 +620,7 @@ static void scic_sds_apc_agent_link_up(struct isci_host *ihost,
 		 */
 		BUG_ON(port_state != SCI_PORT_RESETTING);
 		port_agent->phy_ready_mask |= 1 << phy_index;
-		scic_sds_port_link_up(iport, iphy);
+		sci_port_link_up(iport, iphy);
 	}
 }
 
@@ -637,20 +637,20 @@ static void scic_sds_apc_agent_link_up(struct isci_host *ihost,
  * possible to get a link down notification from a phy that has no assocoated
  * port?
  */
-static void scic_sds_apc_agent_link_down(
+static void sci_apc_agent_link_down(
 	struct isci_host *ihost,
-	struct scic_sds_port_configuration_agent *port_agent,
+	struct sci_port_configuration_agent *port_agent,
 	struct isci_port *iport,
 	struct isci_phy *iphy)
 {
-	port_agent->phy_ready_mask &= ~(1 << scic_sds_phy_get_index(iphy));
+	port_agent->phy_ready_mask &= ~(1 << sci_phy_get_index(iphy));
 
 	if (!iport)
 		return;
 	if (port_agent->phy_configured_mask & (1 << iphy->phy_index)) {
 		enum sci_status status;
 
-		status = scic_sds_port_remove_phy(iport, iphy);
+		status = sci_port_remove_phy(iport, iphy);
 
 		if (status == SCI_SUCCESS)
 			port_agent->phy_configured_mask &= ~(1 << iphy->phy_index);
@@ -662,7 +662,7 @@ static void apc_agent_timeout(unsigned long data)
 {
 	u32 index;
 	struct sci_timer *tmr = (struct sci_timer *)data;
-	struct scic_sds_port_configuration_agent *port_agent;
+	struct sci_port_configuration_agent *port_agent;
 	struct isci_host *ihost;
 	unsigned long flags;
 	u16 configure_phy_mask;
@@ -686,7 +686,7 @@ static void apc_agent_timeout(unsigned long data)
 		if ((configure_phy_mask & (1 << index)) == 0)
 			continue;
 
-		scic_sds_apc_agent_configure_ports(ihost, port_agent,
+		sci_apc_agent_configure_ports(ihost, port_agent,
 						   &ihost->phys[index], false);
 	}
 
@@ -706,8 +706,8 @@ done:
  * call is universal for both manual port configuration and automatic port
  * configuration modes.
  */
-void scic_sds_port_configuration_agent_construct(
-	struct scic_sds_port_configuration_agent *port_agent)
+void sci_port_configuration_agent_construct(
+	struct sci_port_configuration_agent *port_agent)
 {
 	u32 index;
 
@@ -725,29 +725,29 @@ void scic_sds_port_configuration_agent_construct(
 	}
 }
 
-enum sci_status scic_sds_port_configuration_agent_initialize(
+enum sci_status sci_port_configuration_agent_initialize(
 	struct isci_host *ihost,
-	struct scic_sds_port_configuration_agent *port_agent)
+	struct sci_port_configuration_agent *port_agent)
 {
 	enum sci_status status;
-	enum scic_port_configuration_mode mode;
+	enum sci_port_configuration_mode mode;
 
-	mode = ihost->oem_parameters.sds1.controller.mode_type;
+	mode = ihost->oem_parameters.controller.mode_type;
 
 	if (mode == SCIC_PORT_MANUAL_CONFIGURATION_MODE) {
-		status = scic_sds_mpc_agent_validate_phy_configuration(
+		status = sci_mpc_agent_validate_phy_configuration(
 				ihost, port_agent);
 
-		port_agent->link_up_handler = scic_sds_mpc_agent_link_up;
-		port_agent->link_down_handler = scic_sds_mpc_agent_link_down;
+		port_agent->link_up_handler = sci_mpc_agent_link_up;
+		port_agent->link_down_handler = sci_mpc_agent_link_down;
 
 		sci_init_timer(&port_agent->timer, mpc_agent_timeout);
 	} else {
-		status = scic_sds_apc_agent_validate_phy_configuration(
+		status = sci_apc_agent_validate_phy_configuration(
 				ihost, port_agent);
 
-		port_agent->link_up_handler = scic_sds_apc_agent_link_up;
-		port_agent->link_down_handler = scic_sds_apc_agent_link_down;
+		port_agent->link_up_handler = sci_apc_agent_link_up;
+		port_agent->link_down_handler = sci_apc_agent_link_down;
 
 		sci_init_timer(&port_agent->timer, apc_agent_timeout);
 	}

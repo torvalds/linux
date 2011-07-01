@@ -92,12 +92,12 @@ enum unsolicited_frame_state {
 };
 
 /**
- * struct scic_sds_unsolicited_frame -
+ * struct sci_unsolicited_frame -
  *
  * This is the unsolicited frame data structure it acts as the container for
  * the current frame state, frame header and frame buffer.
  */
-struct scic_sds_unsolicited_frame {
+struct sci_unsolicited_frame {
 	/**
 	 * This field contains the current frame state
 	 */
@@ -116,11 +116,11 @@ struct scic_sds_unsolicited_frame {
 };
 
 /**
- * struct scic_sds_uf_header_array -
+ * struct sci_uf_header_array -
  *
  * This structure contains all of the unsolicited frame header information.
  */
-struct scic_sds_uf_header_array {
+struct sci_uf_header_array {
 	/**
 	 * This field is represents a virtual pointer to the start
 	 * address of the UF address table.  The table contains
@@ -137,19 +137,19 @@ struct scic_sds_uf_header_array {
 };
 
 /**
- * struct scic_sds_uf_buffer_array -
+ * struct sci_uf_buffer_array -
  *
  * This structure contains all of the unsolicited frame buffer (actual payload)
  * information.
  */
-struct scic_sds_uf_buffer_array {
+struct sci_uf_buffer_array {
 	/**
 	 * This field is the unsolicited frame data its used to manage
 	 * the data for the unsolicited frame requests.  It also represents
 	 * the virtual address location that corresponds to the
 	 * physical_address field.
 	 */
-	struct scic_sds_unsolicited_frame array[SCU_MAX_UNSOLICITED_FRAMES];
+	struct sci_unsolicited_frame array[SCU_MAX_UNSOLICITED_FRAMES];
 
 	/**
 	 * This field specifies the physical address location for the UF
@@ -159,13 +159,13 @@ struct scic_sds_uf_buffer_array {
 };
 
 /**
- * struct scic_sds_uf_address_table_array -
+ * struct sci_uf_address_table_array -
  *
  * This object maintains all of the unsolicited frame address table specific
  * data.  The address table is a collection of 64-bit pointers that point to
  * 1KB buffers into which the silicon will DMA unsolicited frames.
  */
-struct scic_sds_uf_address_table_array {
+struct sci_uf_address_table_array {
 	/**
 	 * This field represents a virtual pointer that refers to the
 	 * starting address of the UF address table.
@@ -182,11 +182,11 @@ struct scic_sds_uf_address_table_array {
 };
 
 /**
- * struct scic_sds_unsolicited_frame_control -
+ * struct sci_unsolicited_frame_control -
  *
  * This object contains all of the data necessary to handle unsolicited frames.
  */
-struct scic_sds_unsolicited_frame_control {
+struct sci_unsolicited_frame_control {
 	/**
 	 * This field is the software copy of the unsolicited frame queue
 	 * get pointer.  The controller object writes this value to the
@@ -198,38 +198,38 @@ struct scic_sds_unsolicited_frame_control {
 	 * This field contains all of the unsolicited frame header
 	 * specific fields.
 	 */
-	struct scic_sds_uf_header_array headers;
+	struct sci_uf_header_array headers;
 
 	/**
 	 * This field contains all of the unsolicited frame buffer
 	 * specific fields.
 	 */
-	struct scic_sds_uf_buffer_array buffers;
+	struct sci_uf_buffer_array buffers;
 
 	/**
 	 * This field contains all of the unsolicited frame address table
 	 * specific fields.
 	 */
-	struct scic_sds_uf_address_table_array address_table;
+	struct sci_uf_address_table_array address_table;
 
 };
 
 struct isci_host;
 
-int scic_sds_unsolicited_frame_control_construct(struct isci_host *ihost);
+int sci_unsolicited_frame_control_construct(struct isci_host *ihost);
 
-enum sci_status scic_sds_unsolicited_frame_control_get_header(
-	struct scic_sds_unsolicited_frame_control *uf_control,
+enum sci_status sci_unsolicited_frame_control_get_header(
+	struct sci_unsolicited_frame_control *uf_control,
 	u32 frame_index,
 	void **frame_header);
 
-enum sci_status scic_sds_unsolicited_frame_control_get_buffer(
-	struct scic_sds_unsolicited_frame_control *uf_control,
+enum sci_status sci_unsolicited_frame_control_get_buffer(
+	struct sci_unsolicited_frame_control *uf_control,
 	u32 frame_index,
 	void **frame_buffer);
 
-bool scic_sds_unsolicited_frame_control_release_frame(
-	struct scic_sds_unsolicited_frame_control *uf_control,
+bool sci_unsolicited_frame_control_release_frame(
+	struct sci_unsolicited_frame_control *uf_control,
 	u32 frame_index);
 
 #endif /* _SCIC_SDS_UNSOLICITED_FRAME_CONTROL_H_ */

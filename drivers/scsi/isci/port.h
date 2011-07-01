@@ -123,7 +123,7 @@ struct isci_port {
 	struct scu_viit_entry __iomem *viit_registers;
 };
 
-enum scic_port_not_ready_reason_code {
+enum sci_port_not_ready_reason_code {
 	SCIC_PORT_NOT_READY_NO_ACTIVE_PHYS,
 	SCIC_PORT_NOT_READY_HARD_RESET_REQUESTED,
 	SCIC_PORT_NOT_READY_INVALID_PORT_CONFIGURATION,
@@ -132,25 +132,25 @@ enum scic_port_not_ready_reason_code {
 	SCIC_PORT_NOT_READY_REASON_CODE_MAX
 };
 
-struct scic_port_end_point_properties {
+struct sci_port_end_point_properties {
 	struct sci_sas_address sas_address;
-	struct scic_phy_proto protocols;
+	struct sci_phy_proto protocols;
 };
 
-struct scic_port_properties {
+struct sci_port_properties {
 	u32 index;
-	struct scic_port_end_point_properties local;
-	struct scic_port_end_point_properties remote;
+	struct sci_port_end_point_properties local;
+	struct sci_port_end_point_properties remote;
 	u32 phy_mask;
 };
 
 /**
- * enum scic_sds_port_states - This enumeration depicts all the states for the
+ * enum sci_port_states - This enumeration depicts all the states for the
  *    common port state machine.
  *
  *
  */
-enum scic_sds_port_states {
+enum sci_port_states {
 	/**
 	 * This state indicates that the port has successfully been stopped.
 	 * In this state no new IO operations are permitted.
@@ -211,23 +211,23 @@ enum scic_sds_port_states {
 };
 
 /**
- * scic_sds_port_get_controller() -
+ * sci_port_get_controller() -
  *
  * Helper macro to get the owning controller of this port
  */
-#define scic_sds_port_get_controller(this_port)	\
+#define sci_port_get_controller(this_port)	\
 	((this_port)->owning_controller)
 
 /**
- * scic_sds_port_get_index() -
+ * sci_port_get_index() -
  *
  * This macro returns the physical port index for this port object
  */
-#define scic_sds_port_get_index(this_port) \
+#define sci_port_get_index(this_port) \
 	((this_port)->physical_port_index)
 
 
-static inline void scic_sds_port_decrement_request_count(struct isci_port *iport)
+static inline void sci_port_decrement_request_count(struct isci_port *iport)
 {
 	if (WARN_ONCE(iport->started_request_count == 0,
 		       "%s: tried to decrement started_request_count past 0!?",
@@ -237,79 +237,73 @@ static inline void scic_sds_port_decrement_request_count(struct isci_port *iport
 		iport->started_request_count--;
 }
 
-#define scic_sds_port_active_phy(port, phy) \
+#define sci_port_active_phy(port, phy) \
 	(((port)->active_phy_mask & (1 << (phy)->phy_index)) != 0)
 
-void scic_sds_port_construct(
+void sci_port_construct(
 	struct isci_port *iport,
 	u8 port_index,
 	struct isci_host *ihost);
 
-enum sci_status scic_sds_port_initialize(
-	struct isci_port *iport,
-	void __iomem *port_task_scheduler_registers,
-	void __iomem *port_configuration_regsiter,
-	void __iomem *viit_registers);
+enum sci_status sci_port_start(struct isci_port *iport);
+enum sci_status sci_port_stop(struct isci_port *iport);
 
-enum sci_status scic_sds_port_start(struct isci_port *iport);
-enum sci_status scic_sds_port_stop(struct isci_port *iport);
-
-enum sci_status scic_sds_port_add_phy(
+enum sci_status sci_port_add_phy(
 	struct isci_port *iport,
 	struct isci_phy *iphy);
 
-enum sci_status scic_sds_port_remove_phy(
+enum sci_status sci_port_remove_phy(
 	struct isci_port *iport,
 	struct isci_phy *iphy);
 
-void scic_sds_port_setup_transports(
+void sci_port_setup_transports(
 	struct isci_port *iport,
 	u32 device_id);
 
 void isci_port_bcn_enable(struct isci_host *, struct isci_port *);
 
-void scic_sds_port_deactivate_phy(
+void sci_port_deactivate_phy(
 	struct isci_port *iport,
 	struct isci_phy *iphy,
 	bool do_notify_user);
 
-bool scic_sds_port_link_detected(
+bool sci_port_link_detected(
 	struct isci_port *iport,
 	struct isci_phy *iphy);
 
-enum sci_status scic_sds_port_link_up(struct isci_port *iport,
+enum sci_status sci_port_link_up(struct isci_port *iport,
 				      struct isci_phy *iphy);
-enum sci_status scic_sds_port_link_down(struct isci_port *iport,
+enum sci_status sci_port_link_down(struct isci_port *iport,
 					struct isci_phy *iphy);
 
 struct isci_request;
 struct isci_remote_device;
-enum sci_status scic_sds_port_start_io(
+enum sci_status sci_port_start_io(
 	struct isci_port *iport,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
-enum sci_status scic_sds_port_complete_io(
+enum sci_status sci_port_complete_io(
 	struct isci_port *iport,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
-enum sas_linkrate scic_sds_port_get_max_allowed_speed(
+enum sas_linkrate sci_port_get_max_allowed_speed(
 	struct isci_port *iport);
 
-void scic_sds_port_broadcast_change_received(
+void sci_port_broadcast_change_received(
 	struct isci_port *iport,
 	struct isci_phy *iphy);
 
-bool scic_sds_port_is_valid_phy_assignment(
+bool sci_port_is_valid_phy_assignment(
 	struct isci_port *iport,
 	u32 phy_index);
 
-void scic_sds_port_get_sas_address(
+void sci_port_get_sas_address(
 	struct isci_port *iport,
 	struct sci_sas_address *sas_address);
 
-void scic_sds_port_get_attached_sas_address(
+void sci_port_get_attached_sas_address(
 	struct isci_port *iport,
 	struct sci_sas_address *sas_address);
 

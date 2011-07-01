@@ -76,7 +76,7 @@
  */
 #define SCIC_SDS_SATA_LINK_TRAINING_TIMEOUT  250
 
-enum scic_sds_phy_protocol {
+enum sci_phy_protocol {
 	SCIC_SDS_PHY_PROTOCOL_UNKNOWN,
 	SCIC_SDS_PHY_PROTOCOL_SAS,
 	SCIC_SDS_PHY_PROTOCOL_SATA,
@@ -95,7 +95,7 @@ struct isci_phy {
 	struct sci_base_state_machine sm;
 	struct isci_port *owning_port;
 	enum sas_linkrate max_negotiated_speed;
-	enum scic_sds_phy_protocol protocol;
+	enum sci_phy_protocol protocol;
 	u8 phy_index;
 	bool bcn_received_while_port_unassigned;
 	bool is_in_link_training;
@@ -118,7 +118,7 @@ static inline struct isci_phy *to_iphy(struct asd_sas_phy *sas_phy)
 	return iphy;
 }
 
-struct scic_phy_cap {
+struct sci_phy_cap {
 	union {
 		struct {
 			/*
@@ -147,7 +147,7 @@ struct scic_phy_cap {
 }  __packed;
 
 /* this data structure reflects the link layer transmit identification reg */
-struct scic_phy_proto {
+struct sci_phy_proto {
 	union {
 		struct {
 			u16 _r_a:1;
@@ -167,12 +167,12 @@ struct scic_phy_proto {
 
 
 /**
- * struct scic_phy_properties - This structure defines the properties common to
+ * struct sci_phy_properties - This structure defines the properties common to
  *    all phys that can be retrieved.
  *
  *
  */
-struct scic_phy_properties {
+struct sci_phy_properties {
 	/**
 	 * This field specifies the port that currently contains the
 	 * supplied phy.  This field may be set to NULL
@@ -194,12 +194,12 @@ struct scic_phy_properties {
 };
 
 /**
- * struct scic_sas_phy_properties - This structure defines the properties,
+ * struct sci_sas_phy_properties - This structure defines the properties,
  *    specific to a SAS phy, that can be retrieved.
  *
  *
  */
-struct scic_sas_phy_properties {
+struct sci_sas_phy_properties {
 	/**
 	 * This field delineates the Identify Address Frame received
 	 * from the remote end point.
@@ -210,17 +210,17 @@ struct scic_sas_phy_properties {
 	 * This field delineates the Phy capabilities structure received
 	 * from the remote end point.
 	 */
-	struct scic_phy_cap rcvd_cap;
+	struct sci_phy_cap rcvd_cap;
 
 };
 
 /**
- * struct scic_sata_phy_properties - This structure defines the properties,
+ * struct sci_sata_phy_properties - This structure defines the properties,
  *    specific to a SATA phy, that can be retrieved.
  *
  *
  */
-struct scic_sata_phy_properties {
+struct sci_sata_phy_properties {
 	/**
 	 * This field delineates the signature FIS received from the
 	 * attached target.
@@ -236,12 +236,12 @@ struct scic_sata_phy_properties {
 };
 
 /**
- * enum scic_phy_counter_id - This enumeration depicts the various pieces of
+ * enum sci_phy_counter_id - This enumeration depicts the various pieces of
  *    optional information that can be retrieved for a specific phy.
  *
  *
  */
-enum scic_phy_counter_id {
+enum sci_phy_counter_id {
 	/**
 	 * This PHY information field tracks the number of frames received.
 	 */
@@ -344,7 +344,7 @@ enum scic_phy_counter_id {
 	SCIC_PHY_COUNTER_SN_DWORD_SYNC_ERROR
 };
 
-enum scic_sds_phy_states {
+enum sci_phy_states {
 	/**
 	 * Simply the initial state for the base domain state machine.
 	 */
@@ -441,77 +441,77 @@ enum scic_sds_phy_states {
 };
 
 /**
- * scic_sds_phy_get_index() -
+ * sci_phy_get_index() -
  *
  * This macro returns the phy index for the specified phy
  */
-#define scic_sds_phy_get_index(phy) \
+#define sci_phy_get_index(phy) \
 	((phy)->phy_index)
 
 /**
- * scic_sds_phy_get_controller() - This macro returns the controller for this
+ * sci_phy_get_controller() - This macro returns the controller for this
  *    phy
  *
  *
  */
-#define scic_sds_phy_get_controller(phy) \
-	(scic_sds_port_get_controller((phy)->owning_port))
+#define sci_phy_get_controller(phy) \
+	(sci_port_get_controller((phy)->owning_port))
 
-void scic_sds_phy_construct(
+void sci_phy_construct(
 	struct isci_phy *iphy,
 	struct isci_port *iport,
 	u8 phy_index);
 
 struct isci_port *phy_get_non_dummy_port(struct isci_phy *iphy);
 
-void scic_sds_phy_set_port(
+void sci_phy_set_port(
 	struct isci_phy *iphy,
 	struct isci_port *iport);
 
-enum sci_status scic_sds_phy_initialize(
+enum sci_status sci_phy_initialize(
 	struct isci_phy *iphy,
 	struct scu_transport_layer_registers __iomem *transport_layer_registers,
 	struct scu_link_layer_registers __iomem *link_layer_registers);
 
-enum sci_status scic_sds_phy_start(
+enum sci_status sci_phy_start(
 	struct isci_phy *iphy);
 
-enum sci_status scic_sds_phy_stop(
+enum sci_status sci_phy_stop(
 	struct isci_phy *iphy);
 
-enum sci_status scic_sds_phy_reset(
+enum sci_status sci_phy_reset(
 	struct isci_phy *iphy);
 
-void scic_sds_phy_resume(
+void sci_phy_resume(
 	struct isci_phy *iphy);
 
-void scic_sds_phy_setup_transport(
+void sci_phy_setup_transport(
 	struct isci_phy *iphy,
 	u32 device_id);
 
-enum sci_status scic_sds_phy_event_handler(
+enum sci_status sci_phy_event_handler(
 	struct isci_phy *iphy,
 	u32 event_code);
 
-enum sci_status scic_sds_phy_frame_handler(
+enum sci_status sci_phy_frame_handler(
 	struct isci_phy *iphy,
 	u32 frame_index);
 
-enum sci_status scic_sds_phy_consume_power_handler(
+enum sci_status sci_phy_consume_power_handler(
 	struct isci_phy *iphy);
 
-void scic_sds_phy_get_sas_address(
+void sci_phy_get_sas_address(
 	struct isci_phy *iphy,
 	struct sci_sas_address *sas_address);
 
-void scic_sds_phy_get_attached_sas_address(
+void sci_phy_get_attached_sas_address(
 	struct isci_phy *iphy,
 	struct sci_sas_address *sas_address);
 
-struct scic_phy_proto;
-void scic_sds_phy_get_protocols(
+struct sci_phy_proto;
+void sci_phy_get_protocols(
 	struct isci_phy *iphy,
-	struct scic_phy_proto *protocols);
+	struct sci_phy_proto *protocols);
 enum sas_linkrate sci_phy_linkrate(struct isci_phy *iphy);
 
 struct isci_host;

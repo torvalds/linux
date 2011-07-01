@@ -74,57 +74,35 @@ static void isci_port_change_state(struct isci_port *iport, enum isci_status sta
 	spin_unlock_irqrestore(&iport->state_lock, flags);
 }
 
-/*
- * This function will indicate which protocols are supported by this port.
- * @sci_port: a handle corresponding to the SAS port for which to return the
- *    supported protocols.
- * @protocols: This parameter specifies a pointer to a data structure
- *    which the core will copy the protocol values for the port from the
- *    transmit_identification register.
- */
-static void
-scic_sds_port_get_protocols(struct isci_port *iport,
-			    struct scic_phy_proto *protocols)
+static void sci_port_get_protocols(struct isci_port *iport, struct sci_phy_proto *proto)
 {
 	u8 index;
 
-	protocols->all = 0;
-
+	proto->all = 0;
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		if (iport->phy_table[index] != NULL) {
-			scic_sds_phy_get_protocols(iport->phy_table[index],
-						   protocols);
-		}
+		struct isci_phy *iphy = iport->phy_table[index];
+
+		if (!iphy)
+			continue;
+		sci_phy_get_protocols(iphy, proto);
 	}
 }
 
-/**
- * This method requests a list (mask) of the phys contained in the supplied SAS
- *    port.
- * @sci_port: a handle corresponding to the SAS port for which to return the
- *    phy mask.
- *
- * Return a bit mask indicating which phys are a part of this port. Each bit
- * corresponds to a phy identifier (e.g. bit 0 = phy id 0).
- */
-static u32 scic_sds_port_get_phys(struct isci_port *iport)
+static u32 sci_port_get_phys(struct isci_port *iport)
 {
 	u32 index;
 	u32 mask;
 
 	mask = 0;
-
-	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		if (iport->phy_table[index] != NULL) {
+	for (index = 0; index < SCI_MAX_PHYS; index++)
+		if (iport->phy_table[index])
 			mask |= (1 << index);
-		}
-	}
 
 	return mask;
 }
 
 /**
- * scic_port_get_properties() - This method simply returns the properties
+ * sci_port_get_properties() - This method simply returns the properties
  *    regarding the port, such as: physical index, protocols, sas address, etc.
  * @port: this parameter specifies the port for which to retrieve the physical
  *    index.
@@ -136,22 +114,22 @@ static u32 scic_sds_port_get_phys(struct isci_port *iport)
  * value is returned if the specified port is not valid.  When this value is
  * returned, no data is copied to the properties output parameter.
  */
-static enum sci_status scic_port_get_properties(struct isci_port *iport,
-						struct scic_port_properties *prop)
+static enum sci_status sci_port_get_properties(struct isci_port *iport,
+						struct sci_port_properties *prop)
 {
 	if (!iport || iport->logical_port_index == SCIC_SDS_DUMMY_PORT)
 		return SCI_FAILURE_INVALID_PORT;
 
-	prop->index    = iport->logical_port_index;
-	prop->phy_mask = scic_sds_port_get_phys(iport);
-	scic_sds_port_get_sas_address(iport, &prop->local.sas_address);
-	scic_sds_port_get_protocols(iport, &prop->local.protocols);
-	scic_sds_port_get_attached_sas_address(iport, &prop->remote.sas_address);
+	prop->index = iport->logical_port_index;
+	prop->phy_mask = sci_port_get_phys(iport);
+	sci_port_get_sas_address(iport, &prop->local.sas_address);
+	sci_port_get_protocols(iport, &prop->local.protocols);
+	sci_port_get_attached_sas_address(iport, &prop->remote.sas_address);
 
 	return SCI_SUCCESS;
 }
 
-static void scic_port_bcn_enable(struct isci_port *iport)
+static void sci_port_bcn_enable(struct isci_port *iport)
 {
 	struct isci_phy *iphy;
 	u32 val;
@@ -167,7 +145,7 @@ static void scic_port_bcn_enable(struct isci_port *iport)
 	}
 }
 
-/* called under scic_lock to stabilize phy:port associations */
+/* called under sci_lock to stabilize phy:port associations */
 void isci_port_bcn_enable(struct isci_host *ihost, struct isci_port *iport)
 {
 	int i;
@@ -209,7 +187,7 @@ static void isci_port_bc_change_received(struct isci_host *ihost,
 		ihost->sas_ha.notify_port_event(&iphy->sas_phy,
 						PORTE_BROADCAST_RCVD);
 	}
-	scic_port_bcn_enable(iport);
+	sci_port_bcn_enable(iport);
 }
 
 static void isci_port_link_up(struct isci_host *isci_host,
@@ -217,7 +195,7 @@ static void isci_port_link_up(struct isci_host *isci_host,
 			      struct isci_phy *iphy)
 {
 	unsigned long flags;
-	struct scic_port_properties properties;
+	struct sci_port_properties properties;
 	unsigned long success = true;
 
 	BUG_ON(iphy->isci_port != NULL);
@@ -232,7 +210,7 @@ static void isci_port_link_up(struct isci_host *isci_host,
 
 	isci_port_change_state(iphy->isci_port, isci_starting);
 
-	scic_port_get_properties(iport, &properties);
+	sci_port_get_properties(iport, &properties);
 
 	if (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) {
 		u64 attached_sas_address;
@@ -245,7 +223,7 @@ static void isci_port_link_up(struct isci_host *isci_host,
 		 * automagically assign a SAS address to the end device
 		 * for the purpose of creating a port. This SAS address
 		 * will not be the same as assigned to the PHY and needs
-		 * to be obtained from struct scic_port_properties properties.
+		 * to be obtained from struct sci_port_properties properties.
 		 */
 		attached_sas_address = properties.remote.sas_address.high;
 		attached_sas_address <<= 32;
@@ -399,50 +377,40 @@ static void isci_port_hard_reset_complete(struct isci_port *isci_port,
  * doesn't preclude all configurations.  It merely ensures that a phy is part
  * of the allowable set of phy identifiers for that port.  For example, one
  * could assign phy 3 to port 0 and no other phys.  Please refer to
- * scic_sds_port_is_phy_mask_valid() for information regarding whether the
+ * sci_port_is_phy_mask_valid() for information regarding whether the
  * phy_mask for a port can be supported. bool true if this is a valid phy
  * assignment for the port false if this is not a valid phy assignment for the
  * port
  */
-bool scic_sds_port_is_valid_phy_assignment(struct isci_port *iport,
-					   u32 phy_index)
+bool sci_port_is_valid_phy_assignment(struct isci_port *iport, u32 phy_index)
 {
+	struct isci_host *ihost = iport->owning_controller;
+	struct sci_user_parameters *user = &ihost->user_parameters;
+
 	/* Initialize to invalid value. */
 	u32 existing_phy_index = SCI_MAX_PHYS;
 	u32 index;
 
-	if ((iport->physical_port_index == 1) && (phy_index != 1)) {
+	if ((iport->physical_port_index == 1) && (phy_index != 1))
 		return false;
-	}
 
-	if (iport->physical_port_index == 3 && phy_index != 3) {
+	if (iport->physical_port_index == 3 && phy_index != 3)
 		return false;
-	}
 
-	if (
-		(iport->physical_port_index == 2)
-		&& ((phy_index == 0) || (phy_index == 1))
-		) {
+	if (iport->physical_port_index == 2 &&
+	    (phy_index == 0 || phy_index == 1))
 		return false;
-	}
 
-	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		if ((iport->phy_table[index] != NULL)
-		    && (index != phy_index)) {
+	for (index = 0; index < SCI_MAX_PHYS; index++)
+		if (iport->phy_table[index] && index != phy_index)
 			existing_phy_index = index;
-		}
-	}
 
-	/*
-	 * Ensure that all of the phys in the port are capable of
-	 * operating at the same maximum link rate. */
-	if (
-		(existing_phy_index < SCI_MAX_PHYS)
-		&& (iport->owning_controller->user_parameters.sds1.phys[
-			    phy_index].max_speed_generation !=
-		    iport->owning_controller->user_parameters.sds1.phys[
-			    existing_phy_index].max_speed_generation)
-		)
+	/* Ensure that all of the phys in the port are capable of
+	 * operating at the same maximum link rate.
+	 */
+	if (existing_phy_index < SCI_MAX_PHYS &&
+	    user->phys[phy_index].max_speed_generation !=
+	    user->phys[existing_phy_index].max_speed_generation)
 		return false;
 
 	return true;
@@ -460,7 +428,7 @@ bool scic_sds_port_is_valid_phy_assignment(struct isci_port *iport,
  * phy mask can be supported. true if this is a valid phy assignment for the
  * port false if this is not a valid phy assignment for the port
  */
-static bool scic_sds_port_is_phy_mask_valid(
+static bool sci_port_is_phy_mask_valid(
 	struct isci_port *iport,
 	u32 phy_mask)
 {
@@ -493,10 +461,10 @@ static bool scic_sds_port_is_phy_mask_valid(
  * the port.  Currently, the lowest order phy that is connected is returned.
  * This method returns a pointer to a SCIS_SDS_PHY object. NULL This value is
  * returned if there are no currently active (i.e. connected to a remote end
- * point) phys contained in the port. All other values specify a struct scic_sds_phy
+ * point) phys contained in the port. All other values specify a struct sci_phy
  * object that is active in the port.
  */
-static struct isci_phy *scic_sds_port_get_a_connected_phy(struct isci_port *iport)
+static struct isci_phy *sci_port_get_a_connected_phy(struct isci_port *iport)
 {
 	u32 index;
 	struct isci_phy *iphy;
@@ -506,14 +474,14 @@ static struct isci_phy *scic_sds_port_get_a_connected_phy(struct isci_port *ipor
 		 * connected to the remote end-point.
 		 */
 		iphy = iport->phy_table[index];
-		if (iphy && scic_sds_port_active_phy(iport, iphy))
+		if (iphy && sci_port_active_phy(iport, iphy))
 			return iphy;
 	}
 
 	return NULL;
 }
 
-static enum sci_status scic_sds_port_set_phy(struct isci_port *iport, struct isci_phy *iphy)
+static enum sci_status sci_port_set_phy(struct isci_port *iport, struct isci_phy *iphy)
 {
 	/* Check to see if we can add this phy to a port
 	 * that means that the phy is not part of a port and that the port does
@@ -521,13 +489,13 @@ static enum sci_status scic_sds_port_set_phy(struct isci_port *iport, struct isc
 	 */
 	if (!iport->phy_table[iphy->phy_index] &&
 	    !phy_get_non_dummy_port(iphy) &&
-	    scic_sds_port_is_valid_phy_assignment(iport, iphy->phy_index)) {
+	    sci_port_is_valid_phy_assignment(iport, iphy->phy_index)) {
 		/* Phy is being added in the stopped state so we are in MPC mode
 		 * make logical port index = physical port index
 		 */
 		iport->logical_port_index = iport->physical_port_index;
 		iport->phy_table[iphy->phy_index] = iphy;
-		scic_sds_phy_set_port(iphy, iport);
+		sci_phy_set_port(iphy, iport);
 
 		return SCI_SUCCESS;
 	}
@@ -535,8 +503,7 @@ static enum sci_status scic_sds_port_set_phy(struct isci_port *iport, struct isc
 	return SCI_FAILURE;
 }
 
-static enum sci_status scic_sds_port_clear_phy(struct isci_port *iport,
-					       struct isci_phy *iphy)
+static enum sci_status sci_port_clear_phy(struct isci_port *iport, struct isci_phy *iphy)
 {
 	/* Make sure that this phy is part of this port */
 	if (iport->phy_table[iphy->phy_index] == iphy &&
@@ -544,7 +511,7 @@ static enum sci_status scic_sds_port_clear_phy(struct isci_port *iport,
 		struct isci_host *ihost = iport->owning_controller;
 
 		/* Yep it is assigned to this port so remove it */
-		scic_sds_phy_set_port(iphy, &ihost->ports[SCI_MAX_PORTS]);
+		sci_phy_set_port(iphy, &ihost->ports[SCI_MAX_PORTS]);
 		iport->phy_table[iphy->phy_index] = NULL;
 		return SCI_SUCCESS;
 	}
@@ -552,45 +519,18 @@ static enum sci_status scic_sds_port_clear_phy(struct isci_port *iport,
 	return SCI_FAILURE;
 }
 
-
-/**
- * This method requests the SAS address for the supplied SAS port from the SCI
- *    implementation.
- * @sci_port: a handle corresponding to the SAS port for which to return the
- *    SAS address.
- * @sas_address: This parameter specifies a pointer to a SAS address structure
- *    into which the core will copy the SAS address for the port.
- *
- */
-void scic_sds_port_get_sas_address(
-	struct isci_port *iport,
-	struct sci_sas_address *sas_address)
+void sci_port_get_sas_address(struct isci_port *iport, struct sci_sas_address *sas)
 {
 	u32 index;
 
-	sas_address->high = 0;
-	sas_address->low  = 0;
-
-	for (index = 0; index < SCI_MAX_PHYS; index++) {
-		if (iport->phy_table[index] != NULL) {
-			scic_sds_phy_get_sas_address(iport->phy_table[index], sas_address);
-		}
-	}
+	sas->high = 0;
+	sas->low  = 0;
+	for (index = 0; index < SCI_MAX_PHYS; index++)
+		if (iport->phy_table[index])
+			sci_phy_get_sas_address(iport->phy_table[index], sas);
 }
 
-/*
- * This function requests the SAS address for the device directly attached to
- *    this SAS port.
- * @sci_port: a handle corresponding to the SAS port for which to return the
- *    SAS address.
- * @sas_address: This parameter specifies a pointer to a SAS address structure
- *    into which the core will copy the SAS address for the device directly
- *    attached to the port.
- *
- */
-void scic_sds_port_get_attached_sas_address(
-	struct isci_port *iport,
-	struct sci_sas_address *sas_address)
+void sci_port_get_attached_sas_address(struct isci_port *iport, struct sci_sas_address *sas)
 {
 	struct isci_phy *iphy;
 
@@ -598,23 +538,22 @@ void scic_sds_port_get_attached_sas_address(
 	 * Ensure that the phy is both part of the port and currently
 	 * connected to the remote end-point.
 	 */
-	iphy = scic_sds_port_get_a_connected_phy(iport);
+	iphy = sci_port_get_a_connected_phy(iport);
 	if (iphy) {
 		if (iphy->protocol != SCIC_SDS_PHY_PROTOCOL_SATA) {
-			scic_sds_phy_get_attached_sas_address(iphy,
-							      sas_address);
+			sci_phy_get_attached_sas_address(iphy, sas);
 		} else {
-			scic_sds_phy_get_sas_address(iphy, sas_address);
-			sas_address->low += iphy->phy_index;
+			sci_phy_get_sas_address(iphy, sas);
+			sas->low += iphy->phy_index;
 		}
 	} else {
-		sas_address->high = 0;
-		sas_address->low  = 0;
+		sas->high = 0;
+		sas->low  = 0;
 	}
 }
 
 /**
- * scic_sds_port_construct_dummy_rnc() - create dummy rnc for si workaround
+ * sci_port_construct_dummy_rnc() - create dummy rnc for si workaround
  *
  * @sci_port: logical port on which we need to create the remote node context
  * @rni: remote node index for this remote node context.
@@ -623,7 +562,7 @@ void scic_sds_port_get_attached_sas_address(
  * This structure will be posted to the hardware to work around a scheduler
  * error in the hardware.
  */
-static void scic_sds_port_construct_dummy_rnc(struct isci_port *iport, u16 rni)
+static void sci_port_construct_dummy_rnc(struct isci_port *iport, u16 rni)
 {
 	union scu_remote_node_context *rnc;
 
@@ -651,7 +590,7 @@ static void scic_sds_port_construct_dummy_rnc(struct isci_port *iport, u16 rni)
  * structure will be posted to the hardwre to work around a scheduler error
  * in the hardware.
  */
-static void scic_sds_port_construct_dummy_task(struct isci_port *iport, u16 tag)
+static void sci_port_construct_dummy_task(struct isci_port *iport, u16 tag)
 {
 	struct isci_host *ihost = iport->owning_controller;
 	struct scu_task_context *task_context;
@@ -671,7 +610,7 @@ static void scic_sds_port_construct_dummy_task(struct isci_port *iport, u16 tag)
 	task_context->task_phase = 0x01;
 }
 
-static void scic_sds_port_destroy_dummy_resources(struct isci_port *iport)
+static void sci_port_destroy_dummy_resources(struct isci_port *iport)
 {
 	struct isci_host *ihost = iport->owning_controller;
 
@@ -679,93 +618,43 @@ static void scic_sds_port_destroy_dummy_resources(struct isci_port *iport)
 		isci_free_tag(ihost, iport->reserved_tag);
 
 	if (iport->reserved_rni != SCU_DUMMY_INDEX)
-		scic_sds_remote_node_table_release_remote_node_index(&ihost->available_remote_nodes,
+		sci_remote_node_table_release_remote_node_index(&ihost->available_remote_nodes,
 								     1, iport->reserved_rni);
 
 	iport->reserved_rni = SCU_DUMMY_INDEX;
 	iport->reserved_tag = SCI_CONTROLLER_INVALID_IO_TAG;
 }
 
-/**
- * This method performs initialization of the supplied port. Initialization
- *    includes: - state machine initialization - member variable initialization
- *    - configuring the phy_mask
- * @sci_port:
- * @transport_layer_registers:
- * @port_task_scheduler_registers:
- * @port_configuration_regsiter:
- *
- * enum sci_status SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION This value is returned
- * if the phy being added to the port
- */
-enum sci_status scic_sds_port_initialize(
-	struct isci_port *iport,
-	void __iomem *port_task_scheduler_registers,
-	void __iomem *port_configuration_regsiter,
-	void __iomem *viit_registers)
-{
-	iport->port_task_scheduler_registers  = port_task_scheduler_registers;
-	iport->port_pe_configuration_register = port_configuration_regsiter;
-	iport->viit_registers                 = viit_registers;
-
-	return SCI_SUCCESS;
-}
-
-
-/**
- * This method assigns the direct attached device ID for this port.
- *
- * @param[in] iport The port for which the direct attached device id is to
- *       be assigned.
- * @param[in] device_id The direct attached device ID to assign to the port.
- *       This will be the RNi for the device
- */
-void scic_sds_port_setup_transports(
-	struct isci_port *iport,
-	u32 device_id)
+void sci_port_setup_transports(struct isci_port *iport, u32 device_id)
 {
 	u8 index;
 
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
 		if (iport->active_phy_mask & (1 << index))
-			scic_sds_phy_setup_transport(iport->phy_table[index], device_id);
+			sci_phy_setup_transport(iport->phy_table[index], device_id);
 	}
 }
 
-/**
- *
- * @sci_port: This is the port on which the phy should be enabled.
- * @sci_phy: This is the specific phy which to enable.
- * @do_notify_user: This parameter specifies whether to inform the user (via
- *    scic_cb_port_link_up()) as to the fact that a new phy as become ready.
- *
- * This function will activate the phy in the port.
- * Activation includes: - adding
- * the phy to the port - enabling the Protocol Engine in the silicon. -
- * notifying the user that the link is up. none
- */
-static void scic_sds_port_activate_phy(struct isci_port *iport,
-				       struct isci_phy *iphy,
-				       bool do_notify_user)
+static void sci_port_activate_phy(struct isci_port *iport, struct isci_phy *iphy,
+				  bool do_notify_user)
 {
 	struct isci_host *ihost = iport->owning_controller;
 
 	if (iphy->protocol != SCIC_SDS_PHY_PROTOCOL_SATA)
-		scic_sds_phy_resume(iphy);
+		sci_phy_resume(iphy);
 
 	iport->active_phy_mask |= 1 << iphy->phy_index;
 
-	scic_sds_controller_clear_invalid_phy(ihost, iphy);
+	sci_controller_clear_invalid_phy(ihost, iphy);
 
 	if (do_notify_user == true)
 		isci_port_link_up(ihost, iport, iphy);
 }
 
-void scic_sds_port_deactivate_phy(struct isci_port *iport,
-				  struct isci_phy *iphy,
-				  bool do_notify_user)
+void sci_port_deactivate_phy(struct isci_port *iport, struct isci_phy *iphy,
+			     bool do_notify_user)
 {
-	struct isci_host *ihost = scic_sds_port_get_controller(iport);
+	struct isci_host *ihost = sci_port_get_controller(iport);
 
 	iport->active_phy_mask &= ~(1 << iphy->phy_index);
 
@@ -779,16 +668,7 @@ void scic_sds_port_deactivate_phy(struct isci_port *iport,
 		isci_port_link_down(ihost, iphy, iport);
 }
 
-/**
- *
- * @sci_port: This is the port on which the phy should be disabled.
- * @sci_phy: This is the specific phy which to disabled.
- *
- * This function will disable the phy and report that the phy is not valid for
- * this port object. None
- */
-static void scic_sds_port_invalid_link_up(struct isci_port *iport,
-					  struct isci_phy *iphy)
+static void sci_port_invalid_link_up(struct isci_port *iport, struct isci_phy *iphy)
 {
 	struct isci_host *ihost = iport->owning_controller;
 
@@ -798,12 +678,12 @@ static void scic_sds_port_invalid_link_up(struct isci_port *iport,
 	 * invalid link.
 	 */
 	if ((ihost->invalid_phy_mask & (1 << iphy->phy_index)) == 0) {
-		scic_sds_controller_set_invalid_phy(ihost, iphy);
+		sci_controller_set_invalid_phy(ihost, iphy);
 		dev_warn(&ihost->pdev->dev, "Invalid link up!\n");
 	}
 }
 
-static bool is_port_ready_state(enum scic_sds_port_states state)
+static bool is_port_ready_state(enum sci_port_states state)
 {
 	switch (state) {
 	case SCI_PORT_READY:
@@ -818,10 +698,10 @@ static bool is_port_ready_state(enum scic_sds_port_states state)
 
 /* flag dummy rnc hanling when exiting a ready state */
 static void port_state_machine_change(struct isci_port *iport,
-				      enum scic_sds_port_states state)
+				      enum sci_port_states state)
 {
 	struct sci_base_state_machine *sm = &iport->sm;
-	enum scic_sds_port_states old_state = sm->current_state_id;
+	enum sci_port_states old_state = sm->current_state_id;
 
 	if (is_port_ready_state(old_state) && !is_port_ready_state(state))
 		iport->ready_exit = true;
@@ -831,11 +711,11 @@ static void port_state_machine_change(struct isci_port *iport,
 }
 
 /**
- * scic_sds_port_general_link_up_handler - phy can be assigned to port?
- * @sci_port: scic_sds_port object for which has a phy that has gone link up.
+ * sci_port_general_link_up_handler - phy can be assigned to port?
+ * @sci_port: sci_port object for which has a phy that has gone link up.
  * @sci_phy: This is the struct isci_phy object that has gone link up.
  * @do_notify_user: This parameter specifies whether to inform the user (via
- *    scic_cb_port_link_up()) as to the fact that a new phy as become ready.
+ *    sci_port_link_up()) as to the fact that a new phy as become ready.
  *
  * Determine if this phy can be assigned to this
  * port . If the phy is not a valid PHY for
@@ -843,15 +723,15 @@ static void port_state_machine_change(struct isci_port *iport,
  * part of a port if it's attached SAS ADDRESS is the same as all other PHYs in
  * the same port. none
  */
-static void scic_sds_port_general_link_up_handler(struct isci_port *iport,
+static void sci_port_general_link_up_handler(struct isci_port *iport,
 						  struct isci_phy *iphy,
 						  bool do_notify_user)
 {
 	struct sci_sas_address port_sas_address;
 	struct sci_sas_address phy_sas_address;
 
-	scic_sds_port_get_attached_sas_address(iport, &port_sas_address);
-	scic_sds_phy_get_attached_sas_address(iphy, &phy_sas_address);
+	sci_port_get_attached_sas_address(iport, &port_sas_address);
+	sci_phy_get_attached_sas_address(iphy, &phy_sas_address);
 
 	/* If the SAS address of the new phy matches the SAS address of
 	 * other phys in the port OR this is the first phy in the port,
@@ -863,11 +743,11 @@ static void scic_sds_port_general_link_up_handler(struct isci_port *iport,
 	    iport->active_phy_mask == 0) {
 		struct sci_base_state_machine *sm = &iport->sm;
 
-		scic_sds_port_activate_phy(iport, iphy, do_notify_user);
+		sci_port_activate_phy(iport, iphy, do_notify_user);
 		if (sm->current_state_id == SCI_PORT_RESETTING)
 			port_state_machine_change(iport, SCI_PORT_READY);
 	} else
-		scic_sds_port_invalid_link_up(iport, iphy);
+		sci_port_invalid_link_up(iport, iphy);
 }
 
 
@@ -881,7 +761,7 @@ static void scic_sds_port_general_link_up_handler(struct isci_port *iport,
  * bool true Is returned if this is a wide ported port. false Is returned if
  * this is a narrow port.
  */
-static bool scic_sds_port_is_wide(struct isci_port *iport)
+static bool sci_port_is_wide(struct isci_port *iport)
 {
 	u32 index;
 	u32 phy_count = 0;
@@ -909,14 +789,14 @@ static bool scic_sds_port_is_wide(struct isci_port *iport)
  * wide ports and direct attached phys.  Since there are no wide ported SATA
  * devices this could become an invalid port configuration.
  */
-bool scic_sds_port_link_detected(
+bool sci_port_link_detected(
 	struct isci_port *iport,
 	struct isci_phy *iphy)
 {
 	if ((iport->logical_port_index != SCIC_SDS_DUMMY_PORT) &&
 	    (iphy->protocol == SCIC_SDS_PHY_PROTOCOL_SATA) &&
-	    scic_sds_port_is_wide(iport)) {
-		scic_sds_port_invalid_link_up(iport, iphy);
+	    sci_port_is_wide(iport)) {
+		sci_port_invalid_link_up(iport, iphy);
 
 		return false;
 	}
@@ -977,11 +857,11 @@ done:
  *
  *
  */
-static void scic_sds_port_update_viit_entry(struct isci_port *iport)
+static void sci_port_update_viit_entry(struct isci_port *iport)
 {
 	struct sci_sas_address sas_address;
 
-	scic_sds_port_get_sas_address(iport, &sas_address);
+	sci_port_get_sas_address(iport, &sas_address);
 
 	writel(sas_address.high,
 		&iport->viit_registers->initiator_sas_address_hi);
@@ -999,7 +879,7 @@ static void scic_sds_port_update_viit_entry(struct isci_port *iport)
 	       &iport->viit_registers->status);
 }
 
-enum sas_linkrate scic_sds_port_get_max_allowed_speed(struct isci_port *iport)
+enum sas_linkrate sci_port_get_max_allowed_speed(struct isci_port *iport)
 {
 	u16 index;
 	struct isci_phy *iphy;
@@ -1010,7 +890,7 @@ enum sas_linkrate scic_sds_port_get_max_allowed_speed(struct isci_port *iport)
 	 * lowest maximum link rate. */
 	for (index = 0; index < SCI_MAX_PHYS; index++) {
 		iphy = iport->phy_table[index];
-		if (iphy && scic_sds_port_active_phy(iport, iphy) &&
+		if (iphy && sci_port_active_phy(iport, iphy) &&
 		    iphy->max_negotiated_speed < max_allowed_speed)
 			max_allowed_speed = iphy->max_negotiated_speed;
 	}
@@ -1018,7 +898,7 @@ enum sas_linkrate scic_sds_port_get_max_allowed_speed(struct isci_port *iport)
 	return max_allowed_speed;
 }
 
-static void scic_sds_port_suspend_port_task_scheduler(struct isci_port *iport)
+static void sci_port_suspend_port_task_scheduler(struct isci_port *iport)
 {
 	u32 pts_control_value;
 
@@ -1028,7 +908,7 @@ static void scic_sds_port_suspend_port_task_scheduler(struct isci_port *iport)
 }
 
 /**
- * scic_sds_port_post_dummy_request() - post dummy/workaround request
+ * sci_port_post_dummy_request() - post dummy/workaround request
  * @sci_port: port to post task
  *
  * Prevent the hardware scheduler from posting new requests to the front
@@ -1036,7 +916,7 @@ static void scic_sds_port_suspend_port_task_scheduler(struct isci_port *iport)
  * ongoing requests.
  *
  */
-static void scic_sds_port_post_dummy_request(struct isci_port *iport)
+static void sci_port_post_dummy_request(struct isci_port *iport)
 {
 	struct isci_host *ihost = iport->owning_controller;
 	u16 tag = iport->reserved_tag;
@@ -1050,7 +930,7 @@ static void scic_sds_port_post_dummy_request(struct isci_port *iport)
 		  iport->physical_port_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT |
 		  ISCI_TAG_TCI(tag);
 
-	scic_sds_controller_post_request(ihost, command);
+	sci_controller_post_request(ihost, command);
 }
 
 /**
@@ -1060,7 +940,7 @@ static void scic_sds_port_post_dummy_request(struct isci_port *iport)
  * @sci_port: The port on which the task must be aborted.
  *
  */
-static void scic_sds_port_abort_dummy_request(struct isci_port *iport)
+static void sci_port_abort_dummy_request(struct isci_port *iport)
 {
 	struct isci_host *ihost = iport->owning_controller;
 	u16 tag = iport->reserved_tag;
@@ -1074,7 +954,7 @@ static void scic_sds_port_abort_dummy_request(struct isci_port *iport)
 		  iport->physical_port_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT |
 		  ISCI_TAG_TCI(tag);
 
-	scic_sds_controller_post_request(ihost, command);
+	sci_controller_post_request(ihost, command);
 }
 
 /**
@@ -1084,7 +964,7 @@ static void scic_sds_port_abort_dummy_request(struct isci_port *iport)
  * This method will resume the port task scheduler for this port object. none
  */
 static void
-scic_sds_port_resume_port_task_scheduler(struct isci_port *iport)
+sci_port_resume_port_task_scheduler(struct isci_port *iport)
 {
 	u32 pts_control_value;
 
@@ -1093,11 +973,11 @@ scic_sds_port_resume_port_task_scheduler(struct isci_port *iport)
 	writel(pts_control_value, &iport->port_task_scheduler_registers->control);
 }
 
-static void scic_sds_port_ready_substate_waiting_enter(struct sci_base_state_machine *sm)
+static void sci_port_ready_substate_waiting_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
 
-	scic_sds_port_suspend_port_task_scheduler(iport);
+	sci_port_suspend_port_task_scheduler(iport);
 
 	iport->not_ready_reason = SCIC_PORT_NOT_READY_NO_ACTIVE_PHYS;
 
@@ -1108,7 +988,7 @@ static void scic_sds_port_ready_substate_waiting_enter(struct sci_base_state_mac
 	}
 }
 
-static void scic_sds_port_ready_substate_operational_enter(struct sci_base_state_machine *sm)
+static void sci_port_ready_substate_operational_enter(struct sci_base_state_machine *sm)
 {
 	u32 index;
 	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
@@ -1124,18 +1004,18 @@ static void scic_sds_port_ready_substate_operational_enter(struct sci_base_state
 		}
 	}
 
-	scic_sds_port_update_viit_entry(iport);
+	sci_port_update_viit_entry(iport);
 
-	scic_sds_port_resume_port_task_scheduler(iport);
+	sci_port_resume_port_task_scheduler(iport);
 
 	/*
 	 * Post the dummy task for the port so the hardware can schedule
 	 * io correctly
 	 */
-	scic_sds_port_post_dummy_request(iport);
+	sci_port_post_dummy_request(iport);
 }
 
-static void scic_sds_port_invalidate_dummy_remote_node(struct isci_port *iport)
+static void sci_port_invalidate_dummy_remote_node(struct isci_port *iport)
 {
 	struct isci_host *ihost = iport->owning_controller;
 	u8 phys_index = iport->physical_port_index;
@@ -1157,7 +1037,7 @@ static void scic_sds_port_invalidate_dummy_remote_node(struct isci_port *iport)
 	command = SCU_CONTEXT_COMMAND_POST_RNC_INVALIDATE |
 		  phys_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT | rni;
 
-	scic_sds_controller_post_request(ihost, command);
+	sci_controller_post_request(ihost, command);
 }
 
 /**
@@ -1168,7 +1048,7 @@ static void scic_sds_port_invalidate_dummy_remote_node(struct isci_port *iport)
  * exiting the SCI_PORT_SUB_OPERATIONAL. This function reports
  * the port not ready and suspends the port task scheduler. none
  */
-static void scic_sds_port_ready_substate_operational_exit(struct sci_base_state_machine *sm)
+static void sci_port_ready_substate_operational_exit(struct sci_base_state_machine *sm)
 {
 	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
 	struct isci_host *ihost = iport->owning_controller;
@@ -1178,15 +1058,15 @@ static void scic_sds_port_ready_substate_operational_exit(struct sci_base_state_
 	 * the hardware will treat this as a NOP and just return abort
 	 * complete.
 	 */
-	scic_sds_port_abort_dummy_request(iport);
+	sci_port_abort_dummy_request(iport);
 
 	isci_port_not_ready(ihost, iport);
 
 	if (iport->ready_exit)
-		scic_sds_port_invalidate_dummy_remote_node(iport);
+		sci_port_invalidate_dummy_remote_node(iport);
 }
 
-static void scic_sds_port_ready_substate_configuring_enter(struct sci_base_state_machine *sm)
+static void sci_port_ready_substate_configuring_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
 	struct isci_host *ihost = iport->owning_controller;
@@ -1201,20 +1081,20 @@ static void scic_sds_port_ready_substate_configuring_enter(struct sci_base_state
 					  SCI_PORT_SUB_OPERATIONAL);
 }
 
-static void scic_sds_port_ready_substate_configuring_exit(struct sci_base_state_machine *sm)
+static void sci_port_ready_substate_configuring_exit(struct sci_base_state_machine *sm)
 {
 	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
 
-	scic_sds_port_suspend_port_task_scheduler(iport);
+	sci_port_suspend_port_task_scheduler(iport);
 	if (iport->ready_exit)
-		scic_sds_port_invalidate_dummy_remote_node(iport);
+		sci_port_invalidate_dummy_remote_node(iport);
 }
 
-enum sci_status scic_sds_port_start(struct isci_port *iport)
+enum sci_status sci_port_start(struct isci_port *iport)
 {
 	struct isci_host *ihost = iport->owning_controller;
 	enum sci_status status = SCI_SUCCESS;
-	enum scic_sds_port_states state;
+	enum sci_port_states state;
 	u32 phy_mask;
 
 	state = iport->sm.current_state_id;
@@ -1234,11 +1114,11 @@ enum sci_status scic_sds_port_start(struct isci_port *iport)
 	}
 
 	if (iport->reserved_rni == SCU_DUMMY_INDEX) {
-		u16 rni = scic_sds_remote_node_table_allocate_remote_node(
+		u16 rni = sci_remote_node_table_allocate_remote_node(
 				&ihost->available_remote_nodes, 1);
 
 		if (rni != SCU_DUMMY_INDEX)
-			scic_sds_port_construct_dummy_rnc(iport, rni);
+			sci_port_construct_dummy_rnc(iport, rni);
 		else
 			status = SCI_FAILURE_INSUFFICIENT_RESOURCES;
 		iport->reserved_rni = rni;
@@ -1251,19 +1131,19 @@ enum sci_status scic_sds_port_start(struct isci_port *iport)
 		if (tag == SCI_CONTROLLER_INVALID_IO_TAG)
 			status = SCI_FAILURE_INSUFFICIENT_RESOURCES;
 		else
-			scic_sds_port_construct_dummy_task(iport, tag);
+			sci_port_construct_dummy_task(iport, tag);
 		iport->reserved_tag = tag;
 	}
 
 	if (status == SCI_SUCCESS) {
-		phy_mask = scic_sds_port_get_phys(iport);
+		phy_mask = sci_port_get_phys(iport);
 
 		/*
 		 * There are one or more phys assigned to this port.  Make sure
 		 * the port's phy mask is in fact legal and supported by the
 		 * silicon.
 		 */
-		if (scic_sds_port_is_phy_mask_valid(iport, phy_mask) == true) {
+		if (sci_port_is_phy_mask_valid(iport, phy_mask) == true) {
 			port_state_machine_change(iport,
 						  SCI_PORT_READY);
 
@@ -1273,14 +1153,14 @@ enum sci_status scic_sds_port_start(struct isci_port *iport)
 	}
 
 	if (status != SCI_SUCCESS)
-		scic_sds_port_destroy_dummy_resources(iport);
+		sci_port_destroy_dummy_resources(iport);
 
 	return status;
 }
 
-enum sci_status scic_sds_port_stop(struct isci_port *iport)
+enum sci_status sci_port_stop(struct isci_port *iport)
 {
-	enum scic_sds_port_states state;
+	enum sci_port_states state;
 
 	state = iport->sm.current_state_id;
 	switch (state) {
@@ -1300,11 +1180,11 @@ enum sci_status scic_sds_port_stop(struct isci_port *iport)
 	}
 }
 
-static enum sci_status scic_port_hard_reset(struct isci_port *iport, u32 timeout)
+static enum sci_status sci_port_hard_reset(struct isci_port *iport, u32 timeout)
 {
 	enum sci_status status = SCI_FAILURE_INVALID_PHY;
 	struct isci_phy *iphy = NULL;
-	enum scic_sds_port_states state;
+	enum sci_port_states state;
 	u32 phy_index;
 
 	state = iport->sm.current_state_id;
@@ -1317,7 +1197,7 @@ static enum sci_status scic_port_hard_reset(struct isci_port *iport, u32 timeout
 	/* Select a phy on which we can send the hard reset request. */
 	for (phy_index = 0; phy_index < SCI_MAX_PHYS && !iphy; phy_index++) {
 		iphy = iport->phy_table[phy_index];
-		if (iphy && !scic_sds_port_active_phy(iport, iphy)) {
+		if (iphy && !sci_port_active_phy(iport, iphy)) {
 			/*
 			 * We found a phy but it is not ready select
 			 * different phy
@@ -1329,7 +1209,7 @@ static enum sci_status scic_port_hard_reset(struct isci_port *iport, u32 timeout
 	/* If we have a phy then go ahead and start the reset procedure */
 	if (!iphy)
 		return status;
-	status = scic_sds_phy_reset(iphy);
+	status = sci_phy_reset(iphy);
 
 	if (status != SCI_SUCCESS)
 		return status;
@@ -1342,7 +1222,7 @@ static enum sci_status scic_port_hard_reset(struct isci_port *iport, u32 timeout
 }
 
 /**
- * scic_sds_port_add_phy() -
+ * sci_port_add_phy() -
  * @sci_port: This parameter specifies the port in which the phy will be added.
  * @sci_phy: This parameter is the phy which is to be added to the port.
  *
@@ -1350,11 +1230,11 @@ static enum sci_status scic_port_hard_reset(struct isci_port *iport, u32 timeout
  * enum sci_status. SCI_SUCCESS the phy has been added to the port. Any other
  * status is a failure to add the phy to the port.
  */
-enum sci_status scic_sds_port_add_phy(struct isci_port *iport,
+enum sci_status sci_port_add_phy(struct isci_port *iport,
 				      struct isci_phy *iphy)
 {
 	enum sci_status status;
-	enum scic_sds_port_states state;
+	enum sci_port_states state;
 
 	state = iport->sm.current_state_id;
 	switch (state) {
@@ -1362,7 +1242,7 @@ enum sci_status scic_sds_port_add_phy(struct isci_port *iport,
 		struct sci_sas_address port_sas_address;
 
 		/* Read the port assigned SAS Address if there is one */
-		scic_sds_port_get_sas_address(iport, &port_sas_address);
+		sci_port_get_sas_address(iport, &port_sas_address);
 
 		if (port_sas_address.high != 0 && port_sas_address.low != 0) {
 			struct sci_sas_address phy_sas_address;
@@ -1370,32 +1250,32 @@ enum sci_status scic_sds_port_add_phy(struct isci_port *iport,
 			/* Make sure that the PHY SAS Address matches the SAS Address
 			 * for this port
 			 */
-			scic_sds_phy_get_sas_address(iphy, &phy_sas_address);
+			sci_phy_get_sas_address(iphy, &phy_sas_address);
 
 			if (port_sas_address.high != phy_sas_address.high ||
 			    port_sas_address.low  != phy_sas_address.low)
 				return SCI_FAILURE_UNSUPPORTED_PORT_CONFIGURATION;
 		}
-		return scic_sds_port_set_phy(iport, iphy);
+		return sci_port_set_phy(iport, iphy);
 	}
 	case SCI_PORT_SUB_WAITING:
 	case SCI_PORT_SUB_OPERATIONAL:
-		status = scic_sds_port_set_phy(iport, iphy);
+		status = sci_port_set_phy(iport, iphy);
 
 		if (status != SCI_SUCCESS)
 			return status;
 
-		scic_sds_port_general_link_up_handler(iport, iphy, true);
+		sci_port_general_link_up_handler(iport, iphy, true);
 		iport->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
 		port_state_machine_change(iport, SCI_PORT_SUB_CONFIGURING);
 
 		return status;
 	case SCI_PORT_SUB_CONFIGURING:
-		status = scic_sds_port_set_phy(iport, iphy);
+		status = sci_port_set_phy(iport, iphy);
 
 		if (status != SCI_SUCCESS)
 			return status;
-		scic_sds_port_general_link_up_handler(iport, iphy, true);
+		sci_port_general_link_up_handler(iport, iphy, true);
 
 		/* Re-enter the configuring state since this may be the last phy in
 		 * the port.
@@ -1411,7 +1291,7 @@ enum sci_status scic_sds_port_add_phy(struct isci_port *iport,
 }
 
 /**
- * scic_sds_port_remove_phy() -
+ * sci_port_remove_phy() -
  * @sci_port: This parameter specifies the port in which the phy will be added.
  * @sci_phy: This parameter is the phy which is to be added to the port.
  *
@@ -1419,33 +1299,33 @@ enum sci_status scic_sds_port_add_phy(struct isci_port *iport,
  * an enum sci_status. SCI_SUCCESS the phy has been removed from the port. Any
  * other status is a failure to add the phy to the port.
  */
-enum sci_status scic_sds_port_remove_phy(struct isci_port *iport,
+enum sci_status sci_port_remove_phy(struct isci_port *iport,
 					 struct isci_phy *iphy)
 {
 	enum sci_status status;
-	enum scic_sds_port_states state;
+	enum sci_port_states state;
 
 	state = iport->sm.current_state_id;
 
 	switch (state) {
 	case SCI_PORT_STOPPED:
-		return scic_sds_port_clear_phy(iport, iphy);
+		return sci_port_clear_phy(iport, iphy);
 	case SCI_PORT_SUB_OPERATIONAL:
-		status = scic_sds_port_clear_phy(iport, iphy);
+		status = sci_port_clear_phy(iport, iphy);
 		if (status != SCI_SUCCESS)
 			return status;
 
-		scic_sds_port_deactivate_phy(iport, iphy, true);
+		sci_port_deactivate_phy(iport, iphy, true);
 		iport->not_ready_reason = SCIC_PORT_NOT_READY_RECONFIGURING;
 		port_state_machine_change(iport,
 					  SCI_PORT_SUB_CONFIGURING);
 		return SCI_SUCCESS;
 	case SCI_PORT_SUB_CONFIGURING:
-		status = scic_sds_port_clear_phy(iport, iphy);
+		status = sci_port_clear_phy(iport, iphy);
 
 		if (status != SCI_SUCCESS)
 			return status;
-		scic_sds_port_deactivate_phy(iport, iphy, true);
+		sci_port_deactivate_phy(iport, iphy, true);
 
 		/* Re-enter the configuring state since this may be the last phy in
 		 * the port
@@ -1460,10 +1340,10 @@ enum sci_status scic_sds_port_remove_phy(struct isci_port *iport,
 	}
 }
 
-enum sci_status scic_sds_port_link_up(struct isci_port *iport,
+enum sci_status sci_port_link_up(struct isci_port *iport,
 				      struct isci_phy *iphy)
 {
-	enum scic_sds_port_states state;
+	enum sci_port_states state;
 
 	state = iport->sm.current_state_id;
 	switch (state) {
@@ -1471,13 +1351,13 @@ enum sci_status scic_sds_port_link_up(struct isci_port *iport,
 		/* Since this is the first phy going link up for the port we
 		 * can just enable it and continue
 		 */
-		scic_sds_port_activate_phy(iport, iphy, true);
+		sci_port_activate_phy(iport, iphy, true);
 
 		port_state_machine_change(iport,
 					  SCI_PORT_SUB_OPERATIONAL);
 		return SCI_SUCCESS;
 	case SCI_PORT_SUB_OPERATIONAL:
-		scic_sds_port_general_link_up_handler(iport, iphy, true);
+		sci_port_general_link_up_handler(iport, iphy, true);
 		return SCI_SUCCESS;
 	case SCI_PORT_RESETTING:
 		/* TODO We should  make  sure  that  the phy  that  has gone
@@ -1494,7 +1374,7 @@ enum sci_status scic_sds_port_link_up(struct isci_port *iport,
 		/* In the resetting state we don't notify the user regarding
 		 * link up and link down notifications.
 		 */
-		scic_sds_port_general_link_up_handler(iport, iphy, false);
+		sci_port_general_link_up_handler(iport, iphy, false);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(sciport_to_dev(iport),
@@ -1503,15 +1383,15 @@ enum sci_status scic_sds_port_link_up(struct isci_port *iport,
 	}
 }
 
-enum sci_status scic_sds_port_link_down(struct isci_port *iport,
+enum sci_status sci_port_link_down(struct isci_port *iport,
 					struct isci_phy *iphy)
 {
-	enum scic_sds_port_states state;
+	enum sci_port_states state;
 
 	state = iport->sm.current_state_id;
 	switch (state) {
 	case SCI_PORT_SUB_OPERATIONAL:
-		scic_sds_port_deactivate_phy(iport, iphy, true);
+		sci_port_deactivate_phy(iport, iphy, true);
 
 		/* If there are no active phys left in the port, then
 		 * transition the port to the WAITING state until such time
@@ -1524,7 +1404,7 @@ enum sci_status scic_sds_port_link_down(struct isci_port *iport,
 	case SCI_PORT_RESETTING:
 		/* In the resetting state we don't notify the user regarding
 		 * link up and link down notifications. */
-		scic_sds_port_deactivate_phy(iport, iphy, false);
+		sci_port_deactivate_phy(iport, iphy, false);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(sciport_to_dev(iport),
@@ -1533,11 +1413,11 @@ enum sci_status scic_sds_port_link_down(struct isci_port *iport,
 	}
 }
 
-enum sci_status scic_sds_port_start_io(struct isci_port *iport,
-				       struct isci_remote_device *idev,
-				       struct isci_request *ireq)
+enum sci_status sci_port_start_io(struct isci_port *iport,
+				  struct isci_remote_device *idev,
+				  struct isci_request *ireq)
 {
-	enum scic_sds_port_states state;
+	enum sci_port_states state;
 
 	state = iport->sm.current_state_id;
 	switch (state) {
@@ -1553,11 +1433,11 @@ enum sci_status scic_sds_port_start_io(struct isci_port *iport,
 	}
 }
 
-enum sci_status scic_sds_port_complete_io(struct isci_port *iport,
-					  struct isci_remote_device *idev,
-					  struct isci_request *ireq)
+enum sci_status sci_port_complete_io(struct isci_port *iport,
+				     struct isci_remote_device *idev,
+				     struct isci_request *ireq)
 {
-	enum scic_sds_port_states state;
+	enum sci_port_states state;
 
 	state = iport->sm.current_state_id;
 	switch (state) {
@@ -1566,7 +1446,7 @@ enum sci_status scic_sds_port_complete_io(struct isci_port *iport,
 			 "%s: in wrong state: %d\n", __func__, state);
 		return SCI_FAILURE_INVALID_STATE;
 	case SCI_PORT_STOPPING:
-		scic_sds_port_decrement_request_count(iport);
+		sci_port_decrement_request_count(iport);
 
 		if (iport->started_request_count == 0)
 			port_state_machine_change(iport,
@@ -1577,10 +1457,10 @@ enum sci_status scic_sds_port_complete_io(struct isci_port *iport,
 	case SCI_PORT_FAILED:
 	case SCI_PORT_SUB_WAITING:
 	case SCI_PORT_SUB_OPERATIONAL:
-		scic_sds_port_decrement_request_count(iport);
+		sci_port_decrement_request_count(iport);
 		break;
 	case SCI_PORT_SUB_CONFIGURING:
-		scic_sds_port_decrement_request_count(iport);
+		sci_port_decrement_request_count(iport);
 		if (iport->started_request_count == 0) {
 			port_state_machine_change(iport,
 						  SCI_PORT_SUB_OPERATIONAL);
@@ -1590,32 +1470,17 @@ enum sci_status scic_sds_port_complete_io(struct isci_port *iport,
 	return SCI_SUCCESS;
 }
 
-/**
- *
- * @sci_port: This is the port object which to suspend.
- *
- * This method will enable the SCU Port Task Scheduler for this port object but
- * will leave the port task scheduler in a suspended state. none
- */
-static void
-scic_sds_port_enable_port_task_scheduler(struct isci_port *iport)
+static void sci_port_enable_port_task_scheduler(struct isci_port *iport)
 {
 	u32 pts_control_value;
 
+	 /* enable the port task scheduler in a suspended state */
 	pts_control_value = readl(&iport->port_task_scheduler_registers->control);
 	pts_control_value |= SCU_PTSxCR_GEN_BIT(ENABLE) | SCU_PTSxCR_GEN_BIT(SUSPEND);
 	writel(pts_control_value, &iport->port_task_scheduler_registers->control);
 }
 
-/**
- *
- * @sci_port: This is the port object which to resume.
- *
- * This method will disable the SCU port task scheduler for this port object.
- * none
- */
-static void
-scic_sds_port_disable_port_task_scheduler(struct isci_port *iport)
+static void sci_port_disable_port_task_scheduler(struct isci_port *iport)
 {
 	u32 pts_control_value;
 
@@ -1625,7 +1490,7 @@ scic_sds_port_disable_port_task_scheduler(struct isci_port *iport)
 	writel(pts_control_value, &iport->port_task_scheduler_registers->control);
 }
 
-static void scic_sds_port_post_dummy_remote_node(struct isci_port *iport)
+static void sci_port_post_dummy_remote_node(struct isci_port *iport)
 {
 	struct isci_host *ihost = iport->owning_controller;
 	u8 phys_index = iport->physical_port_index;
@@ -1639,7 +1504,7 @@ static void scic_sds_port_post_dummy_remote_node(struct isci_port *iport)
 	command = SCU_CONTEXT_COMMAND_POST_RNC_32 |
 		  phys_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT | rni;
 
-	scic_sds_controller_post_request(ihost, command);
+	sci_controller_post_request(ihost, command);
 
 	/* ensure hardware has seen the post rnc command and give it
 	 * ample time to act before sending the suspend
@@ -1650,10 +1515,10 @@ static void scic_sds_port_post_dummy_remote_node(struct isci_port *iport)
 	command = SCU_CONTEXT_COMMAND_POST_RNC_SUSPEND_TX_RX |
 		  phys_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT | rni;
 
-	scic_sds_controller_post_request(ihost, command);
+	sci_controller_post_request(ihost, command);
 }
 
-static void scic_sds_port_stopped_state_enter(struct sci_base_state_machine *sm)
+static void sci_port_stopped_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
 
@@ -1662,19 +1527,19 @@ static void scic_sds_port_stopped_state_enter(struct sci_base_state_machine *sm)
 		 * If we enter this state becasuse of a request to stop
 		 * the port then we want to disable the hardwares port
 		 * task scheduler. */
-		scic_sds_port_disable_port_task_scheduler(iport);
+		sci_port_disable_port_task_scheduler(iport);
 	}
 }
 
-static void scic_sds_port_stopped_state_exit(struct sci_base_state_machine *sm)
+static void sci_port_stopped_state_exit(struct sci_base_state_machine *sm)
 {
 	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
 
 	/* Enable and suspend the port task scheduler */
-	scic_sds_port_enable_port_task_scheduler(iport);
+	sci_port_enable_port_task_scheduler(iport);
 }
 
-static void scic_sds_port_ready_state_enter(struct sci_base_state_machine *sm)
+static void sci_port_ready_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
 	struct isci_host *ihost = iport->owning_controller;
@@ -1687,30 +1552,30 @@ static void scic_sds_port_ready_state_enter(struct sci_base_state_machine *sm)
 		isci_port_not_ready(ihost, iport);
 
 	/* Post and suspend the dummy remote node context for this port. */
-	scic_sds_port_post_dummy_remote_node(iport);
+	sci_port_post_dummy_remote_node(iport);
 
 	/* Start the ready substate machine */
 	port_state_machine_change(iport,
 				  SCI_PORT_SUB_WAITING);
 }
 
-static void scic_sds_port_resetting_state_exit(struct sci_base_state_machine *sm)
+static void sci_port_resetting_state_exit(struct sci_base_state_machine *sm)
 {
 	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
 
 	sci_del_timer(&iport->timer);
 }
 
-static void scic_sds_port_stopping_state_exit(struct sci_base_state_machine *sm)
+static void sci_port_stopping_state_exit(struct sci_base_state_machine *sm)
 {
 	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
 
 	sci_del_timer(&iport->timer);
 
-	scic_sds_port_destroy_dummy_resources(iport);
+	sci_port_destroy_dummy_resources(iport);
 }
 
-static void scic_sds_port_failed_state_enter(struct sci_base_state_machine *sm)
+static void sci_port_failed_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_port *iport = container_of(sm, typeof(*iport), sm);
 
@@ -1719,40 +1584,40 @@ static void scic_sds_port_failed_state_enter(struct sci_base_state_machine *sm)
 
 /* --------------------------------------------------------------------------- */
 
-static const struct sci_base_state scic_sds_port_state_table[] = {
+static const struct sci_base_state sci_port_state_table[] = {
 	[SCI_PORT_STOPPED] = {
-		.enter_state = scic_sds_port_stopped_state_enter,
-		.exit_state  = scic_sds_port_stopped_state_exit
+		.enter_state = sci_port_stopped_state_enter,
+		.exit_state  = sci_port_stopped_state_exit
 	},
 	[SCI_PORT_STOPPING] = {
-		.exit_state  = scic_sds_port_stopping_state_exit
+		.exit_state  = sci_port_stopping_state_exit
 	},
 	[SCI_PORT_READY] = {
-		.enter_state = scic_sds_port_ready_state_enter,
+		.enter_state = sci_port_ready_state_enter,
 	},
 	[SCI_PORT_SUB_WAITING] = {
-		.enter_state = scic_sds_port_ready_substate_waiting_enter,
+		.enter_state = sci_port_ready_substate_waiting_enter,
 	},
 	[SCI_PORT_SUB_OPERATIONAL] = {
-		.enter_state = scic_sds_port_ready_substate_operational_enter,
-		.exit_state  = scic_sds_port_ready_substate_operational_exit
+		.enter_state = sci_port_ready_substate_operational_enter,
+		.exit_state  = sci_port_ready_substate_operational_exit
 	},
 	[SCI_PORT_SUB_CONFIGURING] = {
-		.enter_state = scic_sds_port_ready_substate_configuring_enter,
-		.exit_state  = scic_sds_port_ready_substate_configuring_exit
+		.enter_state = sci_port_ready_substate_configuring_enter,
+		.exit_state  = sci_port_ready_substate_configuring_exit
 	},
 	[SCI_PORT_RESETTING] = {
-		.exit_state  = scic_sds_port_resetting_state_exit
+		.exit_state  = sci_port_resetting_state_exit
 	},
 	[SCI_PORT_FAILED] = {
-		.enter_state = scic_sds_port_failed_state_enter,
+		.enter_state = sci_port_failed_state_enter,
 	}
 };
 
-void scic_sds_port_construct(struct isci_port *iport, u8 index,
+void sci_port_construct(struct isci_port *iport, u8 index,
 			     struct isci_host *ihost)
 {
-	sci_init_sm(&iport->sm, scic_sds_port_state_table, SCI_PORT_STOPPED);
+	sci_init_sm(&iport->sm, sci_port_state_table, SCI_PORT_STOPPED);
 
 	iport->logical_port_index  = SCIC_SDS_DUMMY_PORT;
 	iport->physical_port_index = index;
@@ -1798,9 +1663,7 @@ enum isci_status isci_port_get_state(
 	return isci_port->status;
 }
 
-void scic_sds_port_broadcast_change_received(
-	struct isci_port *iport,
-	struct isci_phy *iphy)
+void sci_port_broadcast_change_received(struct isci_port *iport, struct isci_phy *iphy)
 {
 	struct isci_host *ihost = iport->owning_controller;
 
@@ -1823,7 +1686,7 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 
 	#define ISCI_PORT_RESET_TIMEOUT SCIC_SDS_SIGNATURE_FIS_TIMEOUT
-	status = scic_port_hard_reset(iport, ISCI_PORT_RESET_TIMEOUT);
+	status = sci_port_hard_reset(iport, ISCI_PORT_RESET_TIMEOUT);
 
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
@@ -1840,7 +1703,7 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 		ret = TMF_RESP_FUNC_FAILED;
 
 		dev_err(&ihost->pdev->dev,
-			"%s: iport = %p; scic_port_hard_reset call"
+			"%s: iport = %p; sci_port_hard_reset call"
 			" failed 0x%x\n",
 			__func__, iport, status);
 
@@ -1863,8 +1726,8 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 
 			if (!iphy)
 				continue;
-			scic_sds_phy_stop(iphy);
-			scic_sds_phy_start(iphy);
+			sci_phy_stop(iphy);
+			sci_phy_start(iphy);
 		}
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 	}

@@ -130,11 +130,11 @@
 #define SCU_SATA_REMOTE_NODE_COUNT       1
 
 /**
- * struct scic_remote_node_table -
+ * struct sci_remote_node_table -
  *
  *
  */
-struct scic_remote_node_table {
+struct sci_remote_node_table {
 	/**
 	 * This field contains the array size in dwords
 	 */
@@ -172,16 +172,16 @@ struct scic_remote_node_table {
 
 /* --------------------------------------------------------------------------- */
 
-void scic_sds_remote_node_table_initialize(
-	struct scic_remote_node_table *remote_node_table,
+void sci_remote_node_table_initialize(
+	struct sci_remote_node_table *remote_node_table,
 	u32 remote_node_entries);
 
-u16 scic_sds_remote_node_table_allocate_remote_node(
-	struct scic_remote_node_table *remote_node_table,
+u16 sci_remote_node_table_allocate_remote_node(
+	struct sci_remote_node_table *remote_node_table,
 	u32 remote_node_count);
 
-void scic_sds_remote_node_table_release_remote_node_index(
-	struct scic_remote_node_table *remote_node_table,
+void sci_remote_node_table_release_remote_node_index(
+	struct sci_remote_node_table *remote_node_table,
 	u32 remote_node_count,
 	u16 remote_node_index);
 

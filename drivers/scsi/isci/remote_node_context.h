@@ -80,7 +80,7 @@
 
 struct isci_request;
 struct isci_remote_device;
-struct scic_sds_remote_node_context;
+struct sci_remote_node_context;
 
 typedef void (*scics_sds_remote_node_context_callback)(void *);
 
@@ -147,19 +147,19 @@ enum scis_sds_remote_node_context_states {
  * This enumeration is used to define the end destination state for the remote
  * node context.
  */
-enum scic_sds_remote_node_context_destination_state {
+enum sci_remote_node_context_destination_state {
 	SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_UNSPECIFIED,
 	SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_READY,
 	SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_FINAL
 };
 
 /**
- * struct scic_sds_remote_node_context - This structure contains the data
+ * struct sci_remote_node_context - This structure contains the data
  *    associated with the remote node context object.  The remote node context
  *    (RNC) object models the the remote device information necessary to manage
  *    the silicon RNC.
  */
-struct scic_sds_remote_node_context {
+struct sci_remote_node_context {
 	/**
 	 * This field indicates the remote node index (RNI) associated with
 	 * this RNC.
@@ -177,7 +177,7 @@ struct scic_sds_remote_node_context {
 	 * state.  This can cause an automatic resume on receiving a suspension
 	 * notification.
 	 */
-	enum scic_sds_remote_node_context_destination_state destination_state;
+	enum sci_remote_node_context_destination_state destination_state;
 
 	/**
 	 * This field contains the callback function that the user requested to be
@@ -197,31 +197,31 @@ struct scic_sds_remote_node_context {
 	struct sci_base_state_machine sm;
 };
 
-void scic_sds_remote_node_context_construct(struct scic_sds_remote_node_context *rnc,
+void sci_remote_node_context_construct(struct sci_remote_node_context *rnc,
 					    u16 remote_node_index);
 
 
-bool scic_sds_remote_node_context_is_ready(
-	struct scic_sds_remote_node_context *sci_rnc);
+bool sci_remote_node_context_is_ready(
+	struct sci_remote_node_context *sci_rnc);
 
-#define scic_sds_remote_node_context_get_remote_node_index(rcn)	\
+#define sci_remote_node_context_get_remote_node_index(rcn)	\
 	((rnc)->remote_node_index)
 
-enum sci_status scic_sds_remote_node_context_event_handler(struct scic_sds_remote_node_context *sci_rnc,
+enum sci_status sci_remote_node_context_event_handler(struct sci_remote_node_context *sci_rnc,
 							   u32 event_code);
-enum sci_status scic_sds_remote_node_context_destruct(struct scic_sds_remote_node_context *sci_rnc,
+enum sci_status sci_remote_node_context_destruct(struct sci_remote_node_context *sci_rnc,
 						      scics_sds_remote_node_context_callback callback,
 						      void *callback_parameter);
-enum sci_status scic_sds_remote_node_context_suspend(struct scic_sds_remote_node_context *sci_rnc,
+enum sci_status sci_remote_node_context_suspend(struct sci_remote_node_context *sci_rnc,
 						     u32 suspend_type,
 						     scics_sds_remote_node_context_callback cb_fn,
 						     void *cb_p);
-enum sci_status scic_sds_remote_node_context_resume(struct scic_sds_remote_node_context *sci_rnc,
+enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *sci_rnc,
 						    scics_sds_remote_node_context_callback cb_fn,
 						    void *cb_p);
-enum sci_status scic_sds_remote_node_context_start_task(struct scic_sds_remote_node_context *sci_rnc,
+enum sci_status sci_remote_node_context_start_task(struct sci_remote_node_context *sci_rnc,
 							struct isci_request *ireq);
-enum sci_status scic_sds_remote_node_context_start_io(struct scic_sds_remote_node_context *sci_rnc,
+enum sci_status sci_remote_node_context_start_io(struct sci_remote_node_context *sci_rnc,
 						      struct isci_request *ireq);
 
 #endif  /* _SCIC_SDS_REMOTE_NODE_CONTEXT_H_ */

@@ -257,12 +257,12 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 		return NULL;
 
 	/* let the core do it's construct. */
-	status = scic_task_request_construct(ihost, idev, tag,
+	status = sci_task_request_construct(ihost, idev, tag,
 					     ireq);
 
 	if (status != SCI_SUCCESS) {
 		dev_warn(&ihost->pdev->dev,
-			 "%s: scic_task_request_construct failed - "
+			 "%s: sci_task_request_construct failed - "
 			 "status = 0x%x\n",
 			 __func__,
 			 status);
@@ -272,7 +272,7 @@ static struct isci_request *isci_task_request_build(struct isci_host *ihost,
 	/* XXX convert to get this from task->tproto like other drivers */
 	if (dev->dev_type == SAS_END_DEV) {
 		isci_tmf->proto = SAS_PROTOCOL_SSP;
-		status = scic_task_request_construct_ssp(ireq);
+		status = sci_task_request_construct_ssp(ireq);
 		if (status != SCI_SUCCESS)
 			return NULL;
 	}
@@ -332,7 +332,7 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 
 	/* start the TMF io. */
-	status = scic_controller_start_task(ihost, idev, ireq);
+	status = sci_controller_start_task(ihost, idev, ireq);
 
 	if (status != SCI_TASK_SUCCESS) {
 		dev_warn(&ihost->pdev->dev,
@@ -364,7 +364,7 @@ int isci_task_execute_tmf(struct isci_host *ihost,
 		if (tmf->cb_state_func != NULL)
 			tmf->cb_state_func(isci_tmf_timed_out, tmf, tmf->cb_data);
 
-		scic_controller_terminate_request(ihost,
+		sci_controller_terminate_request(ihost,
 						  idev,
 						  ireq);
 
@@ -556,7 +556,7 @@ static void isci_terminate_request_core(struct isci_host *ihost,
 	if (!test_bit(IREQ_TERMINATED, &isci_request->flags)) {
 		was_terminated = true;
 		needs_cleanup_handling = true;
-		status = scic_controller_terminate_request(ihost,
+		status = sci_controller_terminate_request(ihost,
 							   idev,
 							   isci_request);
 	}
@@ -569,7 +569,7 @@ static void isci_terminate_request_core(struct isci_host *ihost,
 	 */
 	if (status != SCI_SUCCESS) {
 		dev_err(&ihost->pdev->dev,
-			"%s: scic_controller_terminate_request"
+			"%s: sci_controller_terminate_request"
 			" returned = 0x%x\n",
 			__func__, status);
 
@@ -1251,7 +1251,7 @@ isci_task_request_complete(struct isci_host *ihost,
 	/* PRINT_TMF( ((struct isci_tmf *)request->task)); */
 	tmf_complete = tmf->complete;
 
-	scic_controller_complete_io(ihost, ireq->target_device, ireq);
+	sci_controller_complete_io(ihost, ireq->target_device, ireq);
 	/* set the 'terminated' flag handle to make sure it cannot be terminated
 	 *  or completed again.
 	 */
@@ -1514,12 +1514,12 @@ static int isci_reset_device(struct isci_host *ihost,
 	dev_dbg(&ihost->pdev->dev, "%s: idev %p\n", __func__, idev);
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
-	status = scic_remote_device_reset(idev);
+	status = sci_remote_device_reset(idev);
 	if (status != SCI_SUCCESS) {
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 		dev_warn(&ihost->pdev->dev,
-			 "%s: scic_remote_device_reset(%p) returned %d!\n",
+			 "%s: sci_remote_device_reset(%p) returned %d!\n",
 			 __func__, idev, status);
 
 		return TMF_RESP_FUNC_FAILED;
@@ -1540,7 +1540,7 @@ static int isci_reset_device(struct isci_host *ihost,
 
 	/* Since all pending TCs have been cleaned, resume the RNC. */
 	spin_lock_irqsave(&ihost->scic_lock, flags);
-	status = scic_remote_device_reset_complete(idev);
+	status = sci_remote_device_reset_complete(idev);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	/* If this is a device on an expander, bring the phy back up. */
@@ -1560,7 +1560,7 @@ static int isci_reset_device(struct isci_host *ihost,
 
 	if (status != SCI_SUCCESS) {
 		dev_warn(&ihost->pdev->dev,
-			 "%s: scic_remote_device_reset_complete(%p) "
+			 "%s: sci_remote_device_reset_complete(%p) "
 			 "returned %d!\n", __func__, idev, status);
 	}
 

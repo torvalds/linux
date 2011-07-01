@@ -74,7 +74,7 @@
 #define SCIC_SDS_PARM_MAX_SPEED SCIC_SDS_PARM_GEN3_SPEED
 
 /* parameters that can be set by module parameters */
-struct scic_sds_user_parameters {
+struct sci_user_parameters {
 	struct sci_phy_user_params {
 		/**
 		 * This field specifies the NOTIFY (ENABLE SPIN UP) primitive
@@ -147,30 +147,16 @@ struct scic_sds_user_parameters {
 
 };
 
-/* XXX kill this union */
-union scic_user_parameters {
-	/**
-	 * This field specifies the user parameters specific to the
-	 * Storage Controller Unit (SCU) Driver Standard (SDS) version
-	 * 1.
-	 */
-	struct scic_sds_user_parameters sds1;
-};
-
 #define SCIC_SDS_PARM_PHY_MASK_MIN 0x0
 #define SCIC_SDS_PARM_PHY_MASK_MAX 0xF
 #define MAX_CONCURRENT_DEVICE_SPIN_UP_COUNT 4
 
-struct scic_sds_oem_params;
-int scic_oem_parameters_validate(struct scic_sds_oem_params *oem);
-
-union scic_oem_parameters;
-void scic_oem_parameters_get(struct isci_host *ihost,
-			     union scic_oem_parameters *oem);
+struct sci_oem_params;
+int sci_oem_parameters_validate(struct sci_oem_params *oem);
 
 struct isci_orom;
 struct isci_orom *isci_request_oprom(struct pci_dev *pdev);
-enum sci_status isci_parse_oem_parameters(union scic_oem_parameters *oem,
+enum sci_status isci_parse_oem_parameters(struct sci_oem_params *oem,
 					  struct isci_orom *orom, int scu_index);
 struct isci_orom *isci_request_firmware(struct pci_dev *pdev, const struct firmware *fw);
 struct isci_orom *isci_get_efi_var(struct pci_dev *pdev);
@@ -214,7 +200,7 @@ struct isci_oem_hdr {
  * A PORT_PHY mask that assigns just a single PHY to a port and no other PHYs
  * being assigned is sufficient to declare manual PORT configuration.
  */
-enum scic_port_configuration_mode {
+enum sci_port_configuration_mode {
 	SCIC_PORT_MANUAL_CONFIGURATION_MODE = 0,
 	SCIC_PORT_AUTOMATIC_CONFIGURATION_MODE = 1
 };
@@ -230,7 +216,7 @@ struct sci_bios_oem_param_block_hdr {
 	uint8_t reserved[8];
 } __attribute__ ((packed));
 
-struct scic_sds_oem_params {
+struct sci_oem_params {
 	struct {
 		uint8_t mode_type;
 		uint8_t max_concurrent_dev_spin_up;
@@ -255,19 +241,9 @@ struct scic_sds_oem_params {
 	} phys[SCI_MAX_PHYS];
 } __attribute__ ((packed));
 
-/* XXX kill this union */
-union scic_oem_parameters {
-	/**
-	 * This field specifies the OEM parameters specific to the
-	 * Storage Controller Unit (SCU) Driver Standard (SDS) version
-	 * 1.
-	 */
-	struct scic_sds_oem_params sds1;
-};
-
 struct isci_orom {
 	struct sci_bios_oem_param_block_hdr hdr;
-	struct scic_sds_oem_params ctrl[SCI_MAX_CONTROLLERS];
+	struct sci_oem_params ctrl[SCI_MAX_CONTROLLERS];
 } __attribute__ ((packed));
 
 #endif

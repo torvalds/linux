@@ -57,10 +57,10 @@
 #include "unsolicited_frame_control.h"
 #include "registers.h"
 
-int scic_sds_unsolicited_frame_control_construct(struct isci_host *ihost)
+int sci_unsolicited_frame_control_construct(struct isci_host *ihost)
 {
-	struct scic_sds_unsolicited_frame_control *uf_control = &ihost->uf_control;
-	struct scic_sds_unsolicited_frame *uf;
+	struct sci_unsolicited_frame_control *uf_control = &ihost->uf_control;
+	struct sci_unsolicited_frame *uf;
 	u32 buf_len, header_len, i;
 	dma_addr_t dma;
 	size_t size;
@@ -139,23 +139,14 @@ int scic_sds_unsolicited_frame_control_construct(struct isci_host *ihost)
 	return 0;
 }
 
-/**
- * This method returns the frame header for the specified frame index.
- * @uf_control:
- * @frame_index:
- * @frame_header:
- *
- * enum sci_status
- */
-enum sci_status scic_sds_unsolicited_frame_control_get_header(
-	struct scic_sds_unsolicited_frame_control *uf_control,
-	u32 frame_index,
-	void **frame_header)
+enum sci_status sci_unsolicited_frame_control_get_header(struct sci_unsolicited_frame_control *uf_control,
+							 u32 frame_index,
+							 void **frame_header)
 {
 	if (frame_index < SCU_MAX_UNSOLICITED_FRAMES) {
-		/*
-		 * Skip the first word in the frame since this is a controll word used
-		 * by the hardware. */
+		/* Skip the first word in the frame since this is a controll word used
+		 * by the hardware.
+		 */
 		*frame_header = &uf_control->buffers.array[frame_index].header->data;
 
 		return SCI_SUCCESS;
@@ -164,18 +155,9 @@ enum sci_status scic_sds_unsolicited_frame_control_get_header(
 	return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 }
 
-/**
- * This method returns the frame buffer for the specified frame index.
- * @uf_control:
- * @frame_index:
- * @frame_buffer:
- *
- * enum sci_status
- */
-enum sci_status scic_sds_unsolicited_frame_control_get_buffer(
-	struct scic_sds_unsolicited_frame_control *uf_control,
-	u32 frame_index,
-	void **frame_buffer)
+enum sci_status sci_unsolicited_frame_control_get_buffer(struct sci_unsolicited_frame_control *uf_control,
+							 u32 frame_index,
+							 void **frame_buffer)
 {
 	if (frame_index < SCU_MAX_UNSOLICITED_FRAMES) {
 		*frame_buffer = uf_control->buffers.array[frame_index].buffer;
@@ -186,19 +168,8 @@ enum sci_status scic_sds_unsolicited_frame_control_get_buffer(
 	return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 }
 
-/**
- * This method releases the frame once this is done the frame is available for
- *    re-use by the hardware.  The data contained in the frame header and frame
- *    buffer is no longer valid.
- * @uf_control: This parameter specifies the UF control object
- * @frame_index: This parameter specifies the frame index to attempt to release.
- *
- * This method returns an indication to the caller as to whether the
- * unsolicited frame get pointer should be updated.
- */
-bool scic_sds_unsolicited_frame_control_release_frame(
-	struct scic_sds_unsolicited_frame_control *uf_control,
-	u32 frame_index)
+bool sci_unsolicited_frame_control_release_frame(struct sci_unsolicited_frame_control *uf_control,
+						 u32 frame_index)
 {
 	u32 frame_get;
 	u32 frame_cycle;

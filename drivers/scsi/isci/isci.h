@@ -304,7 +304,7 @@ enum sci_status {
 	 * This member indicates that the operation failed, the failure is
 	 * controller implementation specific, and the response data associated
 	 * with the request is not valid.  You can query for the controller
-	 * specific error information via scic_controller_get_request_status()
+	 * specific error information via sci_controller_get_request_status()
 	 */
 	SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR,
 
@@ -395,7 +395,7 @@ enum sci_status {
 	/**
 	 * This value indicates that an unsupported PCI device ID has been
 	 * specified.  This indicates that attempts to invoke
-	 * scic_library_allocate_controller() will fail.
+	 * sci_library_allocate_controller() will fail.
 	 */
 	SCI_FAILURE_UNSUPPORTED_PCI_DEVICE_ID
 
@@ -493,7 +493,7 @@ irqreturn_t isci_error_isr(int vec, void *data);
 /*
  * Each timer is associated with a cancellation flag that is set when
  * del_timer() is called and checked in the timer callback function. This
- * is needed since del_timer_sync() cannot be called with scic_lock held.
+ * is needed since del_timer_sync() cannot be called with sci_lock held.
  * For deinit however, del_timer_sync() is used without holding the lock.
  */
 struct sci_timer {

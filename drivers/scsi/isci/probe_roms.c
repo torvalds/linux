@@ -111,25 +111,15 @@ struct isci_orom *isci_request_oprom(struct pci_dev *pdev)
 	return rom;
 }
 
-/**
- * isci_parse_oem_parameters() - This method will take OEM parameters
- *    from the module init parameters and copy them to oem_params. This will
- *    only copy values that are not set to the module parameter default values
- * @oem_parameters: This parameter specifies the controller default OEM
- *    parameters. It is expected that this has been initialized to the default
- *    parameters for the controller
- *
- *
- */
-enum sci_status isci_parse_oem_parameters(union scic_oem_parameters *oem_params,
+enum sci_status isci_parse_oem_parameters(struct sci_oem_params *oem,
 					  struct isci_orom *orom, int scu_index)
 {
 	/* check for valid inputs */
 	if (scu_index < 0 || scu_index >= SCI_MAX_CONTROLLERS ||
-	    scu_index > orom->hdr.num_elements || !oem_params)
+	    scu_index > orom->hdr.num_elements || !oem)
 		return -EINVAL;
 
-	oem_params->sds1 = orom->ctrl[scu_index];
+	*oem = orom->ctrl[scu_index];
 	return 0;
 }
 

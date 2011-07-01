@@ -301,75 +301,75 @@ enum sci_base_request_states {
 };
 
 /**
- * scic_sds_request_get_controller() -
+ * sci_request_get_controller() -
  *
  * This macro will return the controller for this io request object
  */
-#define scic_sds_request_get_controller(ireq) \
+#define sci_request_get_controller(ireq) \
 	((ireq)->owning_controller)
 
 /**
- * scic_sds_request_get_device() -
+ * sci_request_get_device() -
  *
  * This macro will return the device for this io request object
  */
-#define scic_sds_request_get_device(ireq) \
+#define sci_request_get_device(ireq) \
 	((ireq)->target_device)
 
 /**
- * scic_sds_request_get_port() -
+ * sci_request_get_port() -
  *
  * This macro will return the port for this io request object
  */
-#define scic_sds_request_get_port(ireq)	\
-	scic_sds_remote_device_get_port(scic_sds_request_get_device(ireq))
+#define sci_request_get_port(ireq)	\
+	sci_remote_device_get_port(sci_request_get_device(ireq))
 
 /**
- * scic_sds_request_get_post_context() -
+ * sci_request_get_post_context() -
  *
  * This macro returns the constructed post context result for the io request.
  */
-#define scic_sds_request_get_post_context(ireq)	\
+#define sci_request_get_post_context(ireq)	\
 	((ireq)->post_context)
 
 /**
- * scic_sds_request_get_task_context() -
+ * sci_request_get_task_context() -
  *
  * This is a helper macro to return the os handle for this request object.
  */
-#define scic_sds_request_get_task_context(request) \
+#define sci_request_get_task_context(request) \
 	((request)->task_context_buffer)
 
 /**
- * scic_sds_request_set_status() -
+ * sci_request_set_status() -
  *
  * This macro will set the scu hardware status and sci request completion
  * status for an io request.
  */
-#define scic_sds_request_set_status(request, scu_status_code, sci_status_code) \
+#define sci_request_set_status(request, scu_status_code, sci_status_code) \
 	{ \
 		(request)->scu_status = (scu_status_code); \
 		(request)->sci_status = (sci_status_code); \
 	}
 
-enum sci_status scic_sds_request_start(struct isci_request *ireq);
-enum sci_status scic_sds_io_request_terminate(struct isci_request *ireq);
+enum sci_status sci_request_start(struct isci_request *ireq);
+enum sci_status sci_io_request_terminate(struct isci_request *ireq);
 enum sci_status
-scic_sds_io_request_event_handler(struct isci_request *ireq,
+sci_io_request_event_handler(struct isci_request *ireq,
 				  u32 event_code);
 enum sci_status
-scic_sds_io_request_frame_handler(struct isci_request *ireq,
+sci_io_request_frame_handler(struct isci_request *ireq,
 				  u32 frame_index);
 enum sci_status
-scic_sds_task_request_terminate(struct isci_request *ireq);
+sci_task_request_terminate(struct isci_request *ireq);
 extern enum sci_status
-scic_sds_request_complete(struct isci_request *ireq);
+sci_request_complete(struct isci_request *ireq);
 extern enum sci_status
-scic_sds_io_request_tc_completion(struct isci_request *ireq, u32 code);
+sci_io_request_tc_completion(struct isci_request *ireq, u32 code);
 
 /* XXX open code in caller */
 static inline dma_addr_t
-scic_io_request_get_dma_addr(struct isci_request *ireq, void *virt_addr)
+sci_io_request_get_dma_addr(struct isci_request *ireq, void *virt_addr)
 {
 
 	char *requested_addr = (char *)virt_addr;
@@ -500,17 +500,17 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 void isci_terminate_pending_requests(struct isci_host *ihost,
 				     struct isci_remote_device *idev);
 enum sci_status
-scic_task_request_construct(struct isci_host *ihost,
+sci_task_request_construct(struct isci_host *ihost,
 			    struct isci_remote_device *idev,
 			    u16 io_tag,
 			    struct isci_request *ireq);
 enum sci_status
-scic_task_request_construct_ssp(struct isci_request *ireq);
+sci_task_request_construct_ssp(struct isci_request *ireq);
 enum sci_status
-scic_task_request_construct_sata(struct isci_request *ireq);
+sci_task_request_construct_sata(struct isci_request *ireq);
 void
-scic_stp_io_request_set_ncq_tag(struct isci_request *ireq, u16 ncq_tag);
-void scic_sds_smp_request_copy_response(struct isci_request *ireq);
+sci_stp_io_request_set_ncq_tag(struct isci_request *ireq, u16 ncq_tag);
+void sci_smp_request_copy_response(struct isci_request *ireq);
 
 static inline int isci_task_is_ncq_recovery(struct sas_task *task)
 {

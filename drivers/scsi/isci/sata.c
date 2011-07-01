@@ -116,7 +116,7 @@ void isci_sata_set_ncq_tag(
 	struct isci_request *request = task->lldd_task;
 
 	register_fis->sector_count = qc->tag << 3;
-	scic_stp_io_request_set_ncq_tag(request, qc->tag);
+	sci_stp_io_request_set_ncq_tag(request, qc->tag);
 }
 
 /**
@@ -187,7 +187,7 @@ enum sci_status isci_sata_management_task_request_build(struct isci_request *ire
 	/* core builds the protocol specific request
 	 *  based on the h2d fis.
 	 */
-	status = scic_task_request_construct_sata(ireq);
+	status = sci_task_request_construct_sata(ireq);
 
 	return status;
 }
