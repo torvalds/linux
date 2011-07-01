@@ -215,10 +215,10 @@ to MAX speed.
 
 If the cpu was not sufficiently busy to immediately ramp to MAX speed,
 then governor evaluates the cpu load since the last speed adjustment,
-choosing th highest value between that longer-term load or the
+choosing the highest value between that longer-term load or the
 short-term load since idle exit to determine the cpu speed to ramp to.
 
-The tuneable value for this governor are:
+The tuneable values for this governor are:
 
 min_sample_time: The minimum amount of time to spend at the current
 frequency before ramping down. This is to ensure that the governor has
@@ -228,6 +228,8 @@ workload.  Default is 80000 uS.
 go_maxspeed_load: The CPU load at which to ramp to max speed.  Default
 is 85.
 
+timer_rate: Sample rate for reevaluating cpu load when the system is
+not idle.  Default is 30000 uS.
 
 3. The Governor Interface in the CPUfreq Core
 =============================================
