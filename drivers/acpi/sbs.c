@@ -230,11 +230,17 @@ static int acpi_sbs_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_POWER_NOW:
 		val->intval = abs(battery->rate_now) *
 				acpi_battery_ipscale(battery) * 1000;
+		val->intval *= (acpi_battery_mode(battery)) ?
+				(battery->voltage_now *
+				acpi_battery_vscale(battery) / 1000) : 1;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
 	case POWER_SUPPLY_PROP_POWER_AVG:
 		val->intval = abs(battery->rate_avg) *
 				acpi_battery_ipscale(battery) * 1000;
+		val->intval *= (acpi_battery_mode(battery)) ?
+				(battery->voltage_now *
+				acpi_battery_vscale(battery) / 1000) : 1;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = battery->state_of_charge;
