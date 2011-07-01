@@ -106,6 +106,15 @@ struct mmc_host_ops {
 	 */
 	int (*enable)(struct mmc_host *host);
 	int (*disable)(struct mmc_host *host, int lazy);
+	/*
+	 * It is optional for the host to implement pre_req and post_req in
+	 * order to support double buffering of requests (prepare one
+	 * request while another request is active).
+	 */
+	void	(*post_req)(struct mmc_host *host, struct mmc_request *req,
+			    int err);
+	void	(*pre_req)(struct mmc_host *host, struct mmc_request *req,
+			   bool is_first_req);
 	void	(*request)(struct mmc_host *host, struct mmc_request *req);
 	/*
 	 * Avoid calling these three functions too often or in a "fast path",
@@ -143,6 +152,16 @@ struct mmc_host_ops {
 
 struct mmc_card;
 struct device;
+
+struct mmc_async_req {
+	/* active mmc request */
+	struct mmc_request	*mrq;
+	/*
+	 * Check error status of completed mmc request.
+	 * Returns 0 if success otherwise non zero.
+	 */
+	int (*err_check) (struct mmc_card *, struct mmc_async_req *);
+};
 
 struct mmc_host {
 	struct device		*parent;
@@ -281,6 +300,8 @@ struct mmc_host {
 #endif
 
 	struct dentry		*debugfs_root;
+
+	struct mmc_async_req	*areq;		/* active async req */
 
 	unsigned long		private[0] ____cacheline_aligned;
 };
