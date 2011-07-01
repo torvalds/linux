@@ -19,6 +19,7 @@ struct mmc_queue_req {
 	char			*bounce_buf;
 	struct scatterlist	*bounce_sg;
 	unsigned int		bounce_sg_len;
+	struct mmc_async_req	mmc_active;
 };
 
 struct mmc_queue {
