@@ -147,17 +147,18 @@ static void dn_rehash_zone(struct dn_zone *dz)
 
 	old_divisor = dz->dz_divisor;
 
-	switch(old_divisor) {
-		case 16:
-			new_divisor = 256;
-			new_hashmask = 0xFF;
-			break;
-		default:
-			printk(KERN_DEBUG "DECnet: dn_rehash_zone: BUG! %d\n", old_divisor);
-		case 256:
-			new_divisor = 1024;
-			new_hashmask = 0x3FF;
-			break;
+	switch (old_divisor) {
+	case 16:
+		new_divisor = 256;
+		new_hashmask = 0xFF;
+		break;
+	default:
+		printk(KERN_DEBUG "DECnet: dn_rehash_zone: BUG! %d\n",
+		       old_divisor);
+	case 256:
+		new_divisor = 1024;
+		new_hashmask = 0x3FF;
+		break;
 	}
 
 	ht = kcalloc(new_divisor, sizeof(struct dn_fib_node*), GFP_KERNEL);

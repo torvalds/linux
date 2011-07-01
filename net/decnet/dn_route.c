@@ -495,11 +495,11 @@ static int dn_route_rx_packet(struct sk_buff *skb)
 	}
 
 	if ((skb->pkt_type == PACKET_HOST) && (cb->rt_flags & DN_RT_F_RQR)) {
-		switch(cb->rt_flags & DN_RT_PKT_MSK) {
-			case DN_RT_PKT_SHORT:
-				return dn_return_short(skb);
-			case DN_RT_PKT_LONG:
-				return dn_return_long(skb);
+		switch (cb->rt_flags & DN_RT_PKT_MSK) {
+		case DN_RT_PKT_SHORT:
+			return dn_return_short(skb);
+		case DN_RT_PKT_LONG:
+			return dn_return_long(skb);
 		}
 	}
 
@@ -652,38 +652,38 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 		if (unlikely(skb_linearize(skb)))
 			goto dump_it;
 
-		switch(flags & DN_RT_CNTL_MSK) {
-			case DN_RT_PKT_INIT:
-				dn_dev_init_pkt(skb);
-				break;
-			case DN_RT_PKT_VERI:
-				dn_dev_veri_pkt(skb);
-				break;
+		switch (flags & DN_RT_CNTL_MSK) {
+		case DN_RT_PKT_INIT:
+			dn_dev_init_pkt(skb);
+			break;
+		case DN_RT_PKT_VERI:
+			dn_dev_veri_pkt(skb);
+			break;
 		}
 
 		if (dn->parms.state != DN_DEV_S_RU)
 			goto dump_it;
 
-		switch(flags & DN_RT_CNTL_MSK) {
-			case DN_RT_PKT_HELO:
-				return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
-					       skb, skb->dev, NULL,
-					       dn_route_ptp_hello);
+		switch (flags & DN_RT_CNTL_MSK) {
+		case DN_RT_PKT_HELO:
+			return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
+				       skb, skb->dev, NULL,
+				       dn_route_ptp_hello);
 
-			case DN_RT_PKT_L1RT:
-			case DN_RT_PKT_L2RT:
-				return NF_HOOK(NFPROTO_DECNET, NF_DN_ROUTE,
-					       skb, skb->dev, NULL,
-					       dn_route_discard);
-			case DN_RT_PKT_ERTH:
-				return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
-					       skb, skb->dev, NULL,
-					       dn_neigh_router_hello);
+		case DN_RT_PKT_L1RT:
+		case DN_RT_PKT_L2RT:
+			return NF_HOOK(NFPROTO_DECNET, NF_DN_ROUTE,
+				       skb, skb->dev, NULL,
+				       dn_route_discard);
+		case DN_RT_PKT_ERTH:
+			return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
+				       skb, skb->dev, NULL,
+				       dn_neigh_router_hello);
 
-			case DN_RT_PKT_EEDH:
-				return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
-					       skb, skb->dev, NULL,
-					       dn_neigh_endnode_hello);
+		case DN_RT_PKT_EEDH:
+			return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
+				       skb, skb->dev, NULL,
+				       dn_neigh_endnode_hello);
 		}
 	} else {
 		if (dn->parms.state != DN_DEV_S_RU)
@@ -691,11 +691,11 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 
 		skb_pull(skb, 1); /* Pull flags */
 
-		switch(flags & DN_RT_PKT_MSK) {
-			case DN_RT_PKT_LONG:
-				return dn_route_rx_long(skb);
-			case DN_RT_PKT_SHORT:
-				return dn_route_rx_short(skb);
+		switch (flags & DN_RT_PKT_MSK) {
+		case DN_RT_PKT_LONG:
+			return dn_route_rx_long(skb);
+		case DN_RT_PKT_SHORT:
+			return dn_route_rx_short(skb);
 		}
 	}
 
@@ -1419,20 +1419,20 @@ make_route:
 	rt->dst.neighbour = neigh;
 	rt->dst.lastuse = jiffies;
 	rt->dst.output = dn_rt_bug;
-	switch(res.type) {
-		case RTN_UNICAST:
-			rt->dst.input = dn_forward;
-			break;
-		case RTN_LOCAL:
-			rt->dst.output = dn_output;
-			rt->dst.input = dn_nsp_rx;
-			rt->dst.dev = in_dev;
-			flags |= RTCF_LOCAL;
-			break;
-		default:
-		case RTN_UNREACHABLE:
-		case RTN_BLACKHOLE:
-			rt->dst.input = dst_discard;
+	switch (res.type) {
+	case RTN_UNICAST:
+		rt->dst.input = dn_forward;
+		break;
+	case RTN_LOCAL:
+		rt->dst.output = dn_output;
+		rt->dst.input = dn_nsp_rx;
+		rt->dst.dev = in_dev;
+		flags |= RTCF_LOCAL;
+		break;
+	default:
+	case RTN_UNREACHABLE:
+	case RTN_BLACKHOLE:
+		rt->dst.input = dst_discard;
 	}
 	rt->rt_flags = flags;
 

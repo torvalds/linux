@@ -404,13 +404,13 @@ int dn_neigh_router_hello(struct sk_buff *skb)
 
 			dn->flags &= ~DN_NDFLAG_P3;
 
-			switch(msg->iinfo & DN_RT_INFO_TYPE) {
-				case DN_RT_INFO_L1RT:
-					dn->flags &=~DN_NDFLAG_R2;
-					dn->flags |= DN_NDFLAG_R1;
-					break;
-				case DN_RT_INFO_L2RT:
-					dn->flags |= DN_NDFLAG_R2;
+			switch (msg->iinfo & DN_RT_INFO_TYPE) {
+			case DN_RT_INFO_L1RT:
+				dn->flags &=~DN_NDFLAG_R2;
+				dn->flags |= DN_NDFLAG_R1;
+				break;
+			case DN_RT_INFO_L2RT:
+				dn->flags |= DN_NDFLAG_R2;
 			}
 		}
 
