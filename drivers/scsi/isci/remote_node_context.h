@@ -204,9 +204,6 @@ void sci_remote_node_context_construct(struct sci_remote_node_context *rnc,
 bool sci_remote_node_context_is_ready(
 	struct sci_remote_node_context *sci_rnc);
 
-#define sci_remote_node_context_get_remote_node_index(rcn)	\
-	((rnc)->remote_node_index)
-
 enum sci_status sci_remote_node_context_event_handler(struct sci_remote_node_context *sci_rnc,
 							   u32 event_code);
 enum sci_status sci_remote_node_context_destruct(struct sci_remote_node_context *sci_rnc,

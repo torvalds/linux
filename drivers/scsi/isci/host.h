@@ -172,6 +172,7 @@ struct isci_host {
 	/* XXX kill */
 	bool phy_startup_timer_pending;
 	u32 next_phy_to_start;
+	/* XXX convert to unsigned long and use bitops */
 	u8 invalid_phy_mask;
 
 	/* TODO attempt dynamic interrupt coalescing scheme */
@@ -359,13 +360,8 @@ static inline struct isci_host *dev_to_ihost(struct domain_device *dev)
 	return dev->port->ha->lldd_ha;
 }
 
-/**
- * sci_controller_get_protocol_engine_group() -
- *
- * This macro returns the protocol engine group for this controller object.
- * Presently we only support protocol engine group 0 so just return that
- */
-#define sci_controller_get_protocol_engine_group(controller) 0
+/* we always use protocol engine group zero */
+#define ISCI_PEG 0
 
 /* see sci_controller_io_tag_allocate|free for how seq and tci are built */
 #define ISCI_TAG(seq, tci) (((u16) (seq)) << 12 | tci)
@@ -384,16 +380,6 @@ static inline int sci_remote_device_node_count(struct isci_remote_device *idev)
 		return SCU_STP_REMOTE_NODE_COUNT;
 	return SCU_SSP_REMOTE_NODE_COUNT;
 }
-
-/**
- * sci_controller_set_invalid_phy() -
- *
- * This macro will set the bit in the invalid phy mask for this controller
- * object.  This is used to control messages reported for invalid link up
- * notifications.
- */
-#define sci_controller_set_invalid_phy(controller, phy) \
-	((controller)->invalid_phy_mask |= (1 << (phy)->phy_index))
 
 /**
  * sci_controller_clear_invalid_phy() -

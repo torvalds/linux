@@ -654,7 +654,7 @@ static void sci_port_activate_phy(struct isci_port *iport, struct isci_phy *iphy
 void sci_port_deactivate_phy(struct isci_port *iport, struct isci_phy *iphy,
 			     bool do_notify_user)
 {
-	struct isci_host *ihost = sci_port_get_controller(iport);
+	struct isci_host *ihost = iport->owning_controller;
 
 	iport->active_phy_mask &= ~(1 << iphy->phy_index);
 
@@ -678,7 +678,7 @@ static void sci_port_invalid_link_up(struct isci_port *iport, struct isci_phy *i
 	 * invalid link.
 	 */
 	if ((ihost->invalid_phy_mask & (1 << iphy->phy_index)) == 0) {
-		sci_controller_set_invalid_phy(ihost, iphy);
+		ihost->invalid_phy_mask |= 1 << iphy->phy_index;
 		dev_warn(&ihost->pdev->dev, "Invalid link up!\n");
 	}
 }

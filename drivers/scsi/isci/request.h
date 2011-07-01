@@ -300,58 +300,6 @@ enum sci_base_request_states {
 	SCI_REQ_FINAL,
 };
 
-/**
- * sci_request_get_controller() -
- *
- * This macro will return the controller for this io request object
- */
-#define sci_request_get_controller(ireq) \
-	((ireq)->owning_controller)
-
-/**
- * sci_request_get_device() -
- *
- * This macro will return the device for this io request object
- */
-#define sci_request_get_device(ireq) \
-	((ireq)->target_device)
-
-/**
- * sci_request_get_port() -
- *
- * This macro will return the port for this io request object
- */
-#define sci_request_get_port(ireq)	\
-	sci_remote_device_get_port(sci_request_get_device(ireq))
-
-/**
- * sci_request_get_post_context() -
- *
- * This macro returns the constructed post context result for the io request.
- */
-#define sci_request_get_post_context(ireq)	\
-	((ireq)->post_context)
-
-/**
- * sci_request_get_task_context() -
- *
- * This is a helper macro to return the os handle for this request object.
- */
-#define sci_request_get_task_context(request) \
-	((request)->task_context_buffer)
-
-/**
- * sci_request_set_status() -
- *
- * This macro will set the scu hardware status and sci request completion
- * status for an io request.
- */
-#define sci_request_set_status(request, scu_status_code, sci_status_code) \
-	{ \
-		(request)->scu_status = (scu_status_code); \
-		(request)->sci_status = (sci_status_code); \
-	}
-
 enum sci_status sci_request_start(struct isci_request *ireq);
 enum sci_status sci_io_request_terminate(struct isci_request *ireq);
 enum sci_status
@@ -380,27 +328,6 @@ sci_io_request_get_dma_addr(struct isci_request *ireq, void *virt_addr)
 
 	return ireq->request_daddr + (requested_addr - base_addr);
 }
-
-/**
- * This function gets the status of the request object.
- * @request: This parameter points to the isci_request object
- *
- * status of the object as a isci_request_status enum.
- */
-static inline enum isci_request_status
-isci_request_get_state(struct isci_request *isci_request)
-{
-	BUG_ON(isci_request == NULL);
-
-	/*probably a bad sign...	*/
-	if (isci_request->status == unallocated)
-		dev_warn(&isci_request->isci_host->pdev->dev,
-			 "%s: isci_request->status == unallocated\n",
-			 __func__);
-
-	return isci_request->status;
-}
-
 
 /**
  * isci_request_change_state() - This function sets the status of the request

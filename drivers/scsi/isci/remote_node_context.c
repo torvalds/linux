@@ -111,7 +111,7 @@ static void sci_remote_node_context_construct_buffer(struct sci_remote_node_cont
 	struct isci_host *ihost;
 	__le64 sas_addr;
 
-	ihost = sci_remote_device_get_controller(idev);
+	ihost = idev->owning_port->owning_controller;
 	rnc = sci_rnc_by_id(ihost, rni);
 
 	memset(rnc, 0, sizeof(union scu_remote_node_context)

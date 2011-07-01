@@ -654,7 +654,7 @@ static void isci_terminate_request_core(struct isci_host *ihost,
 			 * needs to be detached and freed here.
 			 */
 			spin_lock_irqsave(&isci_request->state_lock, flags);
-			request_status = isci_request_get_state(isci_request);
+			request_status = isci_request->status;
 
 			if ((isci_request->ttype == io_task) /* TMFs are in their own thread */
 			    && ((request_status == aborted)

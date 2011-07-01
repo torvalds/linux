@@ -210,23 +210,6 @@ enum sci_port_states {
 
 };
 
-/**
- * sci_port_get_controller() -
- *
- * Helper macro to get the owning controller of this port
- */
-#define sci_port_get_controller(this_port)	\
-	((this_port)->owning_controller)
-
-/**
- * sci_port_get_index() -
- *
- * This macro returns the physical port index for this port object
- */
-#define sci_port_get_index(this_port) \
-	((this_port)->physical_port_index)
-
-
 static inline void sci_port_decrement_request_count(struct isci_port *iport)
 {
 	if (WARN_ONCE(iport->started_request_count == 0,

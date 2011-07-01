@@ -367,10 +367,10 @@ static void sci_mpc_agent_link_up(struct isci_host *ihost,
 	if (!iport)
 		return;
 
-	port_agent->phy_ready_mask |= (1 << sci_phy_get_index(iphy));
+	port_agent->phy_ready_mask |= (1 << iphy->phy_index);
 	sci_port_link_up(iport, iphy);
-	if ((iport->active_phy_mask & (1 << sci_phy_get_index(iphy))))
-		port_agent->phy_configured_mask |= (1 << sci_phy_get_index(iphy));
+	if ((iport->active_phy_mask & (1 << iphy->phy_index)))
+		port_agent->phy_configured_mask |= (1 << iphy->phy_index);
 }
 
 /**
@@ -404,10 +404,8 @@ static void sci_mpc_agent_link_down(
 		 * rebuilding the port with the phys that remain in the ready
 		 * state.
 		 */
-		port_agent->phy_ready_mask &=
-			~(1 << sci_phy_get_index(iphy));
-		port_agent->phy_configured_mask &=
-			~(1 << sci_phy_get_index(iphy));
+		port_agent->phy_ready_mask &= ~(1 << iphy->phy_index);
+		port_agent->phy_configured_mask &= ~(1 << iphy->phy_index);
 
 		/*
 		 * Check to see if there are more phys waiting to be
@@ -643,7 +641,7 @@ static void sci_apc_agent_link_down(
 	struct isci_port *iport,
 	struct isci_phy *iphy)
 {
-	port_agent->phy_ready_mask &= ~(1 << sci_phy_get_index(iphy));
+	port_agent->phy_ready_mask &= ~(1 << iphy->phy_index);
 
 	if (!iport)
 		return;

@@ -265,10 +265,11 @@ done:
  * port (i.e. it's contained in the dummy port). !NULL All other
  * values indicate a handle/pointer to the port containing the phy.
  */
-struct isci_port *phy_get_non_dummy_port(
-	struct isci_phy *iphy)
+struct isci_port *phy_get_non_dummy_port(struct isci_phy *iphy)
 {
-	if (sci_port_get_index(iphy->owning_port) == SCIC_SDS_DUMMY_PORT)
+	struct isci_port *iport = iphy->owning_port;
+
+	if (iport->physical_port_index == SCIC_SDS_DUMMY_PORT)
 		return NULL;
 
 	return iphy->owning_port;
@@ -858,10 +859,9 @@ enum sci_status sci_phy_frame_handler(struct isci_phy *iphy, u32 frame_index)
 		struct dev_to_host_fis *frame_header;
 		u32 *fis_frame_data;
 
-		result = sci_unsolicited_frame_control_get_header(
-			&(sci_phy_get_controller(iphy)->uf_control),
-			frame_index,
-			(void **)&frame_header);
+		result = sci_unsolicited_frame_control_get_header(&ihost->uf_control,
+								  frame_index,
+								  (void **)&frame_header);
 
 		if (result != SCI_SUCCESS)
 			return result;
@@ -1090,6 +1090,8 @@ static void scu_link_layer_tx_hard_reset(
 static void sci_phy_stopped_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_phy *iphy = container_of(sm, typeof(*iphy), sm);
+	struct isci_port *iport = iphy->owning_port;
+	struct isci_host *ihost = iport->owning_controller;
 
 	/*
 	 * @todo We need to get to the controller to place this PE in a
@@ -1100,14 +1102,14 @@ static void sci_phy_stopped_state_enter(struct sci_base_state_machine *sm)
 	scu_link_layer_stop_protocol_engine(iphy);
 
 	if (iphy->sm.previous_state_id != SCI_PHY_INITIAL)
-		sci_controller_link_down(sci_phy_get_controller(iphy),
-					      phy_get_non_dummy_port(iphy),
-					      iphy);
+		sci_controller_link_down(ihost, phy_get_non_dummy_port(iphy), iphy);
 }
 
 static void sci_phy_starting_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_phy *iphy = container_of(sm, typeof(*iphy), sm);
+	struct isci_port *iport = iphy->owning_port;
+	struct isci_host *ihost = iport->owning_controller;
 
 	scu_link_layer_stop_protocol_engine(iphy);
 	scu_link_layer_start_oob(iphy);
@@ -1117,9 +1119,7 @@ static void sci_phy_starting_state_enter(struct sci_base_state_machine *sm)
 	iphy->bcn_received_while_port_unassigned = false;
 
 	if (iphy->sm.previous_state_id == SCI_PHY_READY)
-		sci_controller_link_down(sci_phy_get_controller(iphy),
-					      phy_get_non_dummy_port(iphy),
-					      iphy);
+		sci_controller_link_down(ihost, phy_get_non_dummy_port(iphy), iphy);
 
 	sci_change_state(&iphy->sm, SCI_PHY_SUB_INITIAL);
 }
@@ -1127,11 +1127,10 @@ static void sci_phy_starting_state_enter(struct sci_base_state_machine *sm)
 static void sci_phy_ready_state_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_phy *iphy = container_of(sm, typeof(*iphy), sm);
+	struct isci_port *iport = iphy->owning_port;
+	struct isci_host *ihost = iport->owning_controller;
 
-	sci_controller_link_up(sci_phy_get_controller(iphy),
-				    phy_get_non_dummy_port(iphy),
-				    iphy);
-
+	sci_controller_link_up(ihost, phy_get_non_dummy_port(iphy), iphy);
 }
 
 static void sci_phy_ready_state_exit(struct sci_base_state_machine *sm)

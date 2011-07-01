@@ -211,22 +211,21 @@ static void scu_ssp_reqeust_construct_task_context(
 	struct isci_remote_device *idev;
 	struct isci_port *iport;
 
-	idev = sci_request_get_device(ireq);
-	iport = sci_request_get_port(ireq);
+	idev = ireq->target_device;
+	iport = idev->owning_port;
 
 	/* Fill in the TC with the its required data */
 	task_context->abort = 0;
 	task_context->priority = 0;
 	task_context->initiator_request = 1;
 	task_context->connection_rate = idev->connection_rate;
-	task_context->protocol_engine_index =
-		sci_controller_get_protocol_engine_group(controller);
-	task_context->logical_port_index = sci_port_get_index(iport);
+	task_context->protocol_engine_index = ISCI_PEG;
+	task_context->logical_port_index = iport->physical_port_index;
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_SSP;
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
-	task_context->remote_node_index = sci_remote_device_get_index(idev);
+	task_context->remote_node_index = idev->rnc.remote_node_index;
 	task_context->command_code = 0;
 
 	task_context->link_layer_control = 0;
@@ -242,9 +241,8 @@ static void scu_ssp_reqeust_construct_task_context(
 	task_context->task_phase = 0x01;
 
 	ireq->post_context = (SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-			      (sci_controller_get_protocol_engine_group(controller) <<
-			       SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-			      (sci_port_get_index(iport) <<
+			      (ISCI_PEG << SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+			      (iport->physical_port_index <<
 			       SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
 			      ISCI_TAG_TCI(ireq->io_tag));
 
@@ -349,23 +347,21 @@ static void scu_sata_reqeust_construct_task_context(
 	struct isci_remote_device *idev;
 	struct isci_port *iport;
 
-	idev = sci_request_get_device(ireq);
-	iport = sci_request_get_port(ireq);
+	idev = ireq->target_device;
+	iport = idev->owning_port;
 
 	/* Fill in the TC with the its required data */
 	task_context->abort = 0;
 	task_context->priority = SCU_TASK_PRIORITY_NORMAL;
 	task_context->initiator_request = 1;
 	task_context->connection_rate = idev->connection_rate;
-	task_context->protocol_engine_index =
-		sci_controller_get_protocol_engine_group(controller);
-	task_context->logical_port_index =
-		sci_port_get_index(iport);
+	task_context->protocol_engine_index = ISCI_PEG;
+	task_context->logical_port_index = iport->physical_port_index;
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_STP;
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
 	task_context->context_type = SCU_TASK_CONTEXT_TYPE;
 
-	task_context->remote_node_index = sci_remote_device_get_index(idev);
+	task_context->remote_node_index = idev->rnc.remote_node_index;
 	task_context->command_code = 0;
 
 	task_context->link_layer_control = 0;
@@ -385,11 +381,10 @@ static void scu_sata_reqeust_construct_task_context(
 	task_context->type.words[0] = *(u32 *)&ireq->stp.cmd;
 
 	ireq->post_context = (SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-				 (sci_controller_get_protocol_engine_group(controller) <<
-				  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-				 (sci_port_get_index(iport) <<
-				  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
-				 ISCI_TAG_TCI(ireq->io_tag));
+			      (ISCI_PEG << SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+			      (iport->physical_port_index <<
+			       SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
+			      ISCI_TAG_TCI(ireq->io_tag));
 	/*
 	 * Copy the physical address for the command buffer to the SCU Task
 	 * Context. We must offset the command buffer by 4 bytes because the
@@ -716,10 +711,8 @@ sci_io_request_terminate(struct isci_request *ireq)
 
 	switch (state) {
 	case SCI_REQ_CONSTRUCTED:
-		sci_request_set_status(ireq,
-			SCU_TASK_DONE_TASK_ABORT,
-			SCI_FAILURE_IO_TERMINATED);
-
+		ireq->scu_status = SCU_TASK_DONE_TASK_ABORT;
+		ireq->sci_status = SCI_FAILURE_IO_TERMINATED;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		return SCI_SUCCESS;
 	case SCI_REQ_STARTED:
@@ -848,9 +841,8 @@ request_started_state_tc_event(struct isci_request *ireq,
 	 */
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		sci_request_set_status(ireq,
-					    SCU_TASK_DONE_GOOD,
-					    SCI_SUCCESS);
+		ireq->scu_status = SCU_TASK_DONE_GOOD;
+		ireq->sci_status = SCI_SUCCESS;
 		break;
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_EARLY_RESP): {
 		/* There are times when the SCU hardware will return an early
@@ -868,13 +860,11 @@ request_started_state_tc_event(struct isci_request *ireq,
 			       word_cnt);
 
 		if (resp->status == 0) {
-			sci_request_set_status(ireq,
-						    SCU_TASK_DONE_GOOD,
-						    SCI_SUCCESS_IO_DONE_EARLY);
+			ireq->scu_status = SCU_TASK_DONE_GOOD;
+			ireq->sci_status = SCI_SUCCESS_IO_DONE_EARLY;
 		} else {
-			sci_request_set_status(ireq,
-						    SCU_TASK_DONE_CHECK_RESPONSE,
-						    SCI_FAILURE_IO_RESPONSE_VALID);
+			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
+			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
 		}
 		break;
 	}
@@ -885,9 +875,8 @@ request_started_state_tc_event(struct isci_request *ireq,
 			       &ireq->ssp.rsp,
 			       word_cnt);
 
-		sci_request_set_status(ireq,
-					    SCU_TASK_DONE_CHECK_RESPONSE,
-					    SCI_FAILURE_IO_RESPONSE_VALID);
+		ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
+		ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
 		break;
 	}
 
@@ -900,13 +889,12 @@ request_started_state_tc_event(struct isci_request *ireq,
 		datapres = resp_iu->datapres;
 
 		if (datapres == 1 || datapres == 2) {
-			sci_request_set_status(ireq,
-						    SCU_TASK_DONE_CHECK_RESPONSE,
-						    SCI_FAILURE_IO_RESPONSE_VALID);
-		} else
-			sci_request_set_status(ireq,
-						    SCU_TASK_DONE_GOOD,
-						    SCI_SUCCESS);
+			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
+			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
+		} else {
+			ireq->scu_status = SCU_TASK_DONE_GOOD;
+			ireq->sci_status = SCI_SUCCESS;
+		}
 		break;
 	/* only stp device gets suspended. */
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_ACK_NAK_TO):
@@ -921,15 +909,13 @@ request_started_state_tc_event(struct isci_request *ireq,
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_REG_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SDB_ERR):
 		if (ireq->protocol == SCIC_STP_PROTOCOL) {
-			sci_request_set_status(ireq,
-				SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
-				SCU_COMPLETION_TL_STATUS_SHIFT,
-				SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED);
+			ireq->scu_status = SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
+					   SCU_COMPLETION_TL_STATUS_SHIFT;
+			ireq->sci_status = SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED;
 		} else {
-			sci_request_set_status(ireq,
-				SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
-				SCU_COMPLETION_TL_STATUS_SHIFT,
-				SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
+			ireq->scu_status = SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
+					   SCU_COMPLETION_TL_STATUS_SHIFT;
+			ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		}
 		break;
 
@@ -944,10 +930,9 @@ request_started_state_tc_event(struct isci_request *ireq,
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_STP_RESOURCES_BUSY):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED):
-		sci_request_set_status(ireq,
-					    SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
-					    SCU_COMPLETION_TL_STATUS_SHIFT,
-					    SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED);
+		ireq->scu_status = SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
+				   SCU_COMPLETION_TL_STATUS_SHIFT;
+		ireq->sci_status = SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED;
 		break;
 
 	/* neither ssp nor stp gets suspended. */
@@ -967,11 +952,9 @@ request_started_state_tc_event(struct isci_request *ireq,
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_IIT_ENTRY_NV):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_RNCNV_OUTBOUND):
 	default:
-		sci_request_set_status(
-			ireq,
-			SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
-			SCU_COMPLETION_TL_STATUS_SHIFT,
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
+		ireq->scu_status = SCU_GET_COMPLETION_TL_STATUS(completion_code) >>
+				   SCU_COMPLETION_TL_STATUS_SHIFT;
+		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		break;
 	}
 
@@ -991,9 +974,8 @@ request_aborting_state_tc_event(struct isci_request *ireq,
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case (SCU_TASK_DONE_GOOD << SCU_COMPLETION_TL_STATUS_SHIFT):
 	case (SCU_TASK_DONE_TASK_ABORT << SCU_COMPLETION_TL_STATUS_SHIFT):
-		sci_request_set_status(ireq, SCU_TASK_DONE_TASK_ABORT,
-					    SCI_FAILURE_IO_TERMINATED);
-
+		ireq->scu_status = SCU_TASK_DONE_TASK_ABORT;
+		ireq->sci_status = SCI_FAILURE_IO_TERMINATED;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
 
@@ -1012,9 +994,8 @@ static enum sci_status ssp_task_request_await_tc_event(struct isci_request *ireq
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		sci_request_set_status(ireq, SCU_TASK_DONE_GOOD,
-					    SCI_SUCCESS);
-
+		ireq->scu_status = SCU_TASK_DONE_GOOD;
+		ireq->sci_status = SCI_SUCCESS;
 		sci_change_state(&ireq->sm, SCI_REQ_TASK_WAIT_TC_RESP);
 		break;
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_ACK_NAK_TO):
@@ -1036,10 +1017,8 @@ static enum sci_status ssp_task_request_await_tc_event(struct isci_request *ireq
 		 * If a NAK was received, then it is up to the user to retry
 		 * the request.
 		 */
-		sci_request_set_status(ireq,
-			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
-
+		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
 	}
@@ -1057,12 +1036,10 @@ smp_request_await_response_tc_event(struct isci_request *ireq,
 		 * unexpected.  but if the TC has success status, we
 		 * complete the IO anyway.
 		 */
-		sci_request_set_status(ireq, SCU_TASK_DONE_GOOD,
-					    SCI_SUCCESS);
-
+		ireq->scu_status = SCU_TASK_DONE_GOOD;
+		ireq->sci_status = SCI_SUCCESS;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
-
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SMP_RESP_TO_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SMP_UFI_ERR):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_SMP_FRM_TYPE_ERR):
@@ -1074,20 +1051,16 @@ smp_request_await_response_tc_event(struct isci_request *ireq,
 		 * these SMP_XXX_XX_ERR status. For these type of error,
 		 * we ask ihost user to retry the request.
 		 */
-		sci_request_set_status(ireq, SCU_TASK_DONE_SMP_RESP_TO_ERR,
-					    SCI_FAILURE_RETRY_REQUIRED);
-
+		ireq->scu_status = SCU_TASK_DONE_SMP_RESP_TO_ERR;
+		ireq->sci_status = SCI_FAILURE_RETRY_REQUIRED;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
-
 	default:
 		/* All other completion status cause the IO to be complete.  If a NAK
 		 * was received, then it is up to the user to retry the request
 		 */
-		sci_request_set_status(ireq,
-					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
-
+		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
 	}
@@ -1101,9 +1074,8 @@ smp_request_await_tc_event(struct isci_request *ireq,
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		sci_request_set_status(ireq, SCU_TASK_DONE_GOOD,
-					    SCI_SUCCESS);
-
+		ireq->scu_status = SCU_TASK_DONE_GOOD;
+		ireq->sci_status = SCI_SUCCESS;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
 	default:
@@ -1111,10 +1083,8 @@ smp_request_await_tc_event(struct isci_request *ireq,
 		 * complete.  If a NAK was received, then it is up to
 		 * the user to retry the request.
 		 */
-		sci_request_set_status(ireq,
-					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
-
+		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
 	}
@@ -1171,9 +1141,8 @@ stp_request_non_data_await_h2d_tc_event(struct isci_request *ireq,
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		sci_request_set_status(ireq, SCU_TASK_DONE_GOOD,
-					    SCI_SUCCESS);
-
+		ireq->scu_status = SCU_TASK_DONE_GOOD;
+		ireq->sci_status = SCI_SUCCESS;
 		sci_change_state(&ireq->sm, SCI_REQ_STP_NON_DATA_WAIT_D2H);
 		break;
 
@@ -1182,10 +1151,8 @@ stp_request_non_data_await_h2d_tc_event(struct isci_request *ireq,
 		 * complete.  If a NAK was received, then it is up to
 		 * the user to retry the request.
 		 */
-		sci_request_set_status(ireq,
-					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
-
+		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
 	}
@@ -1363,10 +1330,8 @@ stp_request_pio_await_h2d_completion_tc_event(struct isci_request *ireq,
 
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		sci_request_set_status(ireq,
-					    SCU_TASK_DONE_GOOD,
-					    SCI_SUCCESS);
-
+		ireq->scu_status = SCU_TASK_DONE_GOOD;
+		ireq->sci_status = SCI_SUCCESS;
 		sci_change_state(&ireq->sm, SCI_REQ_STP_PIO_WAIT_FRAME);
 		break;
 
@@ -1375,10 +1340,8 @@ stp_request_pio_await_h2d_completion_tc_event(struct isci_request *ireq,
 		 * complete.  If a NAK was received, then it is up to
 		 * the user to retry the request.
 		 */
-		sci_request_set_status(ireq,
-					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
-
+		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
 	}
@@ -1426,25 +1389,13 @@ pio_data_out_tx_done_tc_event(struct isci_request *ireq,
 		 * If a NAK was received, then it is up to the user to retry
 		 * the request.
 		 */
-		sci_request_set_status(
-			ireq,
-			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
-
+		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
 	}
 
 	return status;
-}
-
-static void sci_stp_request_udma_complete_request(
-	struct isci_request *ireq,
-	u32 scu_status,
-	enum sci_status sci_status)
-{
-	sci_request_set_status(ireq, scu_status, sci_status);
-	sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 }
 
 static enum sci_status sci_stp_request_udma_general_frame_handler(struct isci_request *ireq,
@@ -1512,13 +1463,12 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 
 			if (resp_iu->datapres == 0x01 ||
 			    resp_iu->datapres == 0x02) {
-				sci_request_set_status(ireq,
-							    SCU_TASK_DONE_CHECK_RESPONSE,
-							    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
-			} else
-				sci_request_set_status(ireq,
-							    SCU_TASK_DONE_GOOD,
-							    SCI_SUCCESS);
+				ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
+				ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
+			} else {
+				ireq->scu_status = SCU_TASK_DONE_GOOD;
+				ireq->sci_status = SCI_SUCCESS;
+			}
 		} else {
 			/* not a response frame, why did it get forwarded? */
 			dev_err(&ihost->pdev->dev,
@@ -1567,9 +1517,8 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 			sci_swab32_cpy(((u8 *) rsp_hdr) + SMP_RESP_HDR_SZ,
 				       smp_resp, word_cnt);
 
-			sci_request_set_status(ireq, SCU_TASK_DONE_GOOD,
-						    SCI_SUCCESS);
-
+			ireq->scu_status = SCU_TASK_DONE_GOOD;
+			ireq->sci_status = SCI_SUCCESS;
 			sci_change_state(&ireq->sm, SCI_REQ_SMP_WAIT_TC_COMP);
 		} else {
 			/*
@@ -1584,10 +1533,8 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 				frame_index,
 				rsp_hdr->frame_type);
 
-			sci_request_set_status(ireq,
-						    SCU_TASK_DONE_SMP_FRM_TYPE_ERR,
-						    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
-
+			ireq->scu_status = SCU_TASK_DONE_SMP_FRM_TYPE_ERR;
+			ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 			sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		}
 
@@ -1602,16 +1549,14 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 
 	case SCI_REQ_STP_UDMA_WAIT_D2H:
 		/* Use the general frame handler to copy the resposne data */
-		status = sci_stp_request_udma_general_frame_handler(ireq,
-									 frame_index);
+		status = sci_stp_request_udma_general_frame_handler(ireq, frame_index);
 
 		if (status != SCI_SUCCESS)
 			return status;
 
-		sci_stp_request_udma_complete_request(ireq,
-							   SCU_TASK_DONE_CHECK_RESPONSE,
-							   SCI_FAILURE_IO_RESPONSE_VALID);
-
+		ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
+		ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
+		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		return SCI_SUCCESS;
 
 	case SCI_REQ_STP_NON_DATA_WAIT_D2H: {
@@ -1645,8 +1590,8 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 							       frame_buffer);
 
 			/* The command has completed with error */
-			sci_request_set_status(ireq, SCU_TASK_DONE_CHECK_RESPONSE,
-						    SCI_FAILURE_IO_RESPONSE_VALID);
+			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
+			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
 			break;
 
 		default:
@@ -1655,8 +1600,8 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 				  "violation occurred\n", __func__, stp_req,
 				  frame_index);
 
-			sci_request_set_status(ireq, SCU_TASK_DONE_UNEXP_FIS,
-						    SCI_FAILURE_PROTOCOL_VIOLATION);
+			ireq->scu_status = SCU_TASK_DONE_UNEXP_FIS;
+			ireq->sci_status = SCI_FAILURE_PROTOCOL_VIOLATION;
 			break;
 		}
 
@@ -1753,10 +1698,8 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 							       frame_header,
 							       frame_buffer);
 
-			sci_request_set_status(ireq,
-						    SCU_TASK_DONE_CHECK_RESPONSE,
-						    SCI_FAILURE_IO_RESPONSE_VALID);
-
+			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
+			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
 			sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 			break;
 
@@ -1800,10 +1743,8 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 				frame_index,
 				frame_header->fis_type);
 
-			sci_request_set_status(ireq,
-						    SCU_TASK_DONE_GOOD,
-						    SCI_FAILURE_IO_REQUIRES_SCSI_ABORT);
-
+			ireq->scu_status = SCU_TASK_DONE_GOOD;
+			ireq->sci_status = SCI_FAILURE_IO_REQUIRES_SCSI_ABORT;
 			sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 
 			/* Frame is decoded return it to the controller */
@@ -1833,10 +1774,8 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 			return status;
 
 		if ((stp_req->status & ATA_BUSY) == 0) {
-			sci_request_set_status(ireq,
-						    SCU_TASK_DONE_CHECK_RESPONSE,
-						    SCI_FAILURE_IO_RESPONSE_VALID);
-
+			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
+			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
 			sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		} else {
 			sci_change_state(&ireq->sm, SCI_REQ_STP_PIO_WAIT_FRAME);
@@ -1873,9 +1812,8 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 							       frame_buffer);
 
 			/* The command has completed with error */
-			sci_request_set_status(ireq,
-						    SCU_TASK_DONE_CHECK_RESPONSE,
-						    SCI_FAILURE_IO_RESPONSE_VALID);
+			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
+			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
 			break;
 
 		default:
@@ -1886,9 +1824,8 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 				 stp_req,
 				 frame_index);
 
-			sci_request_set_status(ireq,
-						    SCU_TASK_DONE_UNEXP_FIS,
-						    SCI_FAILURE_PROTOCOL_VIOLATION);
+			ireq->scu_status = SCU_TASK_DONE_UNEXP_FIS;
+			ireq->sci_status = SCI_FAILURE_PROTOCOL_VIOLATION;
 			break;
 		}
 
@@ -1927,9 +1864,9 @@ static enum sci_status stp_request_udma_await_tc_event(struct isci_request *ireq
 
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		sci_stp_request_udma_complete_request(ireq,
-							   SCU_TASK_DONE_GOOD,
-							   SCI_SUCCESS);
+		ireq->scu_status = SCU_TASK_DONE_GOOD;
+		ireq->sci_status = SCI_SUCCESS;
+		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_UNEXP_FIS):
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_REG_ERR):
@@ -1941,9 +1878,9 @@ static enum sci_status stp_request_udma_await_tc_event(struct isci_request *ireq
 			sci_remote_device_suspend(ireq->target_device,
 				SCU_EVENT_SPECIFIC(SCU_NORMALIZE_COMPLETION_STATUS(completion_code)));
 
-			sci_stp_request_udma_complete_request(ireq,
-								   SCU_TASK_DONE_CHECK_RESPONSE,
-								   SCI_FAILURE_IO_RESPONSE_VALID);
+			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
+			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
+			sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		} else {
 			/* If we have an error completion status for the
 			 * TC then we can expect a D2H register FIS from
@@ -1970,9 +1907,9 @@ static enum sci_status stp_request_udma_await_tc_event(struct isci_request *ireq
 	/* Fall through to the default case */
 	default:
 		/* All other completion status cause the IO to be complete. */
-		sci_stp_request_udma_complete_request(ireq,
-					SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-					SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
+		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
+		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
 	}
 
@@ -1985,9 +1922,8 @@ stp_request_soft_reset_await_h2d_asserted_tc_event(struct isci_request *ireq,
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		sci_request_set_status(ireq, SCU_TASK_DONE_GOOD,
-					    SCI_SUCCESS);
-
+		ireq->scu_status = SCU_TASK_DONE_GOOD;
+		ireq->sci_status = SCI_SUCCESS;
 		sci_change_state(&ireq->sm, SCI_REQ_STP_SOFT_RESET_WAIT_H2D_DIAG);
 		break;
 
@@ -1997,10 +1933,8 @@ stp_request_soft_reset_await_h2d_asserted_tc_event(struct isci_request *ireq,
 		 * If a NAK was received, then it is up to the user to retry
 		 * the request.
 		 */
-		sci_request_set_status(ireq,
-					    SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-					    SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
-
+		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
 	}
@@ -2014,9 +1948,8 @@ stp_request_soft_reset_await_h2d_diagnostic_tc_event(struct isci_request *ireq,
 {
 	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
 	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		sci_request_set_status(ireq, SCU_TASK_DONE_GOOD,
-					    SCI_SUCCESS);
-
+		ireq->scu_status = SCU_TASK_DONE_GOOD;
+		ireq->sci_status = SCI_SUCCESS;
 		sci_change_state(&ireq->sm, SCI_REQ_STP_SOFT_RESET_WAIT_D2H);
 		break;
 
@@ -2025,10 +1958,8 @@ stp_request_soft_reset_await_h2d_diagnostic_tc_event(struct isci_request *ireq,
 		 * a NAK was received, then it is up to the user to retry the
 		 * request.
 		 */
-		sci_request_set_status(ireq,
-			SCU_NORMALIZE_COMPLETION_STATUS(completion_code),
-			SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR);
-
+		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
+		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		break;
 	}
@@ -2504,7 +2435,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 		completion_status);
 
 	spin_lock(&request->state_lock);
-	request_status = isci_request_get_state(request);
+	request_status = request->status;
 
 	/* Decode the request status.  Note that if the request has been
 	 * aborted by a task management function, we don't care
@@ -2904,24 +2835,21 @@ static void sci_stp_request_started_non_data_await_h2d_completion_enter(struct s
 {
 	struct isci_request *ireq = container_of(sm, typeof(*ireq), sm);
 
-	sci_remote_device_set_working_request(ireq->target_device,
-						   ireq);
+	ireq->target_device->working_request = ireq;
 }
 
 static void sci_stp_request_started_pio_await_h2d_completion_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_request *ireq = container_of(sm, typeof(*ireq), sm);
 
-	sci_remote_device_set_working_request(ireq->target_device,
-						   ireq);
+	ireq->target_device->working_request = ireq;
 }
 
 static void sci_stp_request_started_soft_reset_await_h2d_asserted_completion_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_request *ireq = container_of(sm, typeof(*ireq), sm);
 
-	sci_remote_device_set_working_request(ireq->target_device,
-						   ireq);
+	ireq->target_device->working_request = ireq;
 }
 
 static void sci_stp_request_started_soft_reset_await_h2d_diagnostic_completion_enter(struct sci_base_state_machine *sm)
@@ -3141,8 +3069,8 @@ sci_io_request_construct_smp(struct device *dev,
 
 	task_context = ireq->tc;
 
-	idev = sci_request_get_device(ireq);
-	iport = sci_request_get_port(ireq);
+	idev = ireq->target_device;
+	iport = idev->owning_port;
 
 	/*
 	 * Fill in the TC with the its required data
@@ -3151,9 +3079,8 @@ sci_io_request_construct_smp(struct device *dev,
 	task_context->priority = 0;
 	task_context->initiator_request = 1;
 	task_context->connection_rate = idev->connection_rate;
-	task_context->protocol_engine_index =
-		sci_controller_get_protocol_engine_group(ihost);
-	task_context->logical_port_index = sci_port_get_index(iport);
+	task_context->protocol_engine_index = ISCI_PEG;
+	task_context->logical_port_index = iport->physical_port_index;
 	task_context->protocol_type = SCU_TASK_CONTEXT_PROTOCOL_SMP;
 	task_context->abort = 0;
 	task_context->valid = SCU_TASK_CONTEXT_VALID;
@@ -3195,11 +3122,10 @@ sci_io_request_construct_smp(struct device *dev,
 	task_context->task_phase = 0;
 
 	ireq->post_context = (SCU_CONTEXT_COMMAND_REQUEST_TYPE_POST_TC |
-				 (sci_controller_get_protocol_engine_group(ihost) <<
-				  SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
-				 (sci_port_get_index(iport) <<
-				  SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
-				 ISCI_TAG_TCI(ireq->io_tag));
+			      (ISCI_PEG << SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) |
+			       (iport->physical_port_index <<
+				SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) |
+			      ISCI_TAG_TCI(ireq->io_tag));
 	/*
 	 * Copy the physical address for the command buffer to the SCU Task
 	 * Context command buffer should not contain command header.

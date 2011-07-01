@@ -2627,7 +2627,7 @@ enum sci_status sci_controller_start_io(struct isci_host *ihost,
 		return status;
 
 	set_bit(IREQ_ACTIVE, &ireq->flags);
-	sci_controller_post_request(ihost, sci_request_get_post_context(ireq));
+	sci_controller_post_request(ihost, ireq->post_context);
 	return SCI_SUCCESS;
 }
 
@@ -2707,7 +2707,7 @@ enum sci_status sci_controller_continue_io(struct isci_request *ireq)
 	}
 
 	set_bit(IREQ_ACTIVE, &ireq->flags);
-	sci_controller_post_request(ihost, sci_request_get_post_context(ireq));
+	sci_controller_post_request(ihost, ireq->post_context);
 	return SCI_SUCCESS;
 }
 
@@ -2747,9 +2747,7 @@ enum sci_task_status sci_controller_start_task(struct isci_host *ihost,
 		return SCI_SUCCESS;
 	case SCI_SUCCESS:
 		set_bit(IREQ_ACTIVE, &ireq->flags);
-
-		sci_controller_post_request(ihost,
-			sci_request_get_post_context(ireq));
+		sci_controller_post_request(ihost, ireq->post_context);
 		break;
 	default:
 		break;

@@ -440,23 +440,6 @@ enum sci_phy_states {
 	SCI_PHY_FINAL,
 };
 
-/**
- * sci_phy_get_index() -
- *
- * This macro returns the phy index for the specified phy
- */
-#define sci_phy_get_index(phy) \
-	((phy)->phy_index)
-
-/**
- * sci_phy_get_controller() - This macro returns the controller for this
- *    phy
- *
- *
- */
-#define sci_phy_get_controller(phy) \
-	(sci_port_get_controller((phy)->owning_port))
-
 void sci_phy_construct(
 	struct isci_phy *iphy,
 	struct isci_port *iport,

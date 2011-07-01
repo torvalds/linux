@@ -73,11 +73,6 @@
 
 #define SCI_CONTROLLER_INVALID_IO_TAG 0xFFFF
 
-enum sci_controller_mode {
-	SCI_MODE_SPEED,
-	SCI_MODE_SIZE /* deprecated */
-};
-
 #define SCI_MAX_PHYS  (4UL)
 #define SCI_MAX_PORTS SCI_MAX_PHYS
 #define SCI_MAX_SMP_PHYS  (384) /* not silicon constrained */

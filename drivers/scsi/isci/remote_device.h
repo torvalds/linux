@@ -305,91 +305,18 @@ static inline bool dev_is_expander(struct domain_device *dev)
 	return dev->dev_type == EDGE_DEV || dev->dev_type == FANOUT_DEV;
 }
 
-/**
- * sci_remote_device_increment_request_count() -
- *
- * This macro incrments the request count for this device
- */
-#define sci_remote_device_increment_request_count(idev) \
-	((idev)->started_request_count++)
-
-/**
- * sci_remote_device_decrement_request_count() -
- *
- * This macro decrements the request count for this device.  This count will
- * never decrment past 0.
- */
-#define sci_remote_device_decrement_request_count(idev) \
-	((idev)->started_request_count > 0 ? \
-	 (idev)->started_request_count-- : 0)
-
-/**
- * sci_remote_device_get_request_count() -
- *
- * This is a helper macro to return the current device request count.
- */
-#define sci_remote_device_get_request_count(idev) \
-	((idev)->started_request_count)
-
-/**
- * sci_remote_device_get_controller() -
- *
- * This macro returns the controller object that contains this device object
- */
-#define sci_remote_device_get_controller(idev) \
-	sci_port_get_controller(sci_remote_device_get_port(idev))
-
-/**
- * sci_remote_device_get_port() -
- *
- * This macro returns the owning port of this device
- */
-#define sci_remote_device_get_port(idev) \
-	((idev)->owning_port)
-
-/**
- * sci_remote_device_get_controller_peg() -
- *
- * This macro returns the controllers protocol engine group
- */
-#define sci_remote_device_get_controller_peg(idev) \
-	(\
-		sci_controller_get_protocol_engine_group(\
-			sci_port_get_controller(\
-				sci_remote_device_get_port(idev) \
-				) \
-			) \
-	)
-
-/**
- * sci_remote_device_get_index() -
- *
- * This macro returns the remote node index for this device object
- */
-#define sci_remote_device_get_index(idev) \
-	((idev)->rnc.remote_node_index)
-
-/**
- * sci_remote_device_build_command_context() -
- *
- * This macro builds a remote device context for the SCU post request operation
- */
-#define sci_remote_device_build_command_context(device, command) \
-	((command) \
-	 | (sci_remote_device_get_controller_peg((device)) << SCU_CONTEXT_COMMAND_PROTOCOL_ENGINE_GROUP_SHIFT) \
-	 | ((device)->owning_port->physical_port_index << SCU_CONTEXT_COMMAND_LOGICAL_PORT_SHIFT) \
-	 | (sci_remote_device_get_index((device)))	\
-	)
-
-/**
- * sci_remote_device_set_working_request() -
- *
- * This macro makes the working request assingment for the remote device
- * object. To clear the working request use this macro with a NULL request
- * object.
- */
-#define sci_remote_device_set_working_request(device, request) \
-	((device)->working_request = (request))
+static inline void sci_remote_device_decrement_request_count(struct isci_remote_device *idev)
+{
+	/* XXX delete this voodoo when converting to the top-level device
+	 * reference count
+	 */
+	if (WARN_ONCE(idev->started_request_count == 0,
+		      "%s: tried to decrement started_request_count past 0!?",
+			__func__))
+		/* pass */;
+	else
+		idev->started_request_count--;
+}
 
 enum sci_status sci_remote_device_frame_handler(
 	struct isci_remote_device *idev,
