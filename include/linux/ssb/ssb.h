@@ -99,7 +99,7 @@ struct ssb_sprom {
 struct ssb_boardinfo {
 	u16 vendor;
 	u16 type;
-	u16 rev;
+	u8  rev;
 };
 
 
