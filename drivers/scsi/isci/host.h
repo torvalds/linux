@@ -60,7 +60,6 @@
 #include "isci.h"
 #include "remote_node_table.h"
 #include "registers.h"
-#include "scu_unsolicited_frame.h"
 #include "unsolicited_frame_control.h"
 #include "probe_roms.h"
 

@@ -57,7 +57,50 @@
 #define _SCIC_SDS_UNSOLICITED_FRAME_CONTROL_H_
 
 #include "isci.h"
-#include "scu_unsolicited_frame.h"
+
+#define SCU_UNSOLICITED_FRAME_HEADER_DATA_DWORDS 15
+
+/**
+ * struct scu_unsolicited_frame_header -
+ *
+ * This structure delineates the format of an unsolicited frame header. The
+ * first DWORD are UF attributes defined by the silicon architecture. The data
+ * depicts actual header information received on the link.
+ */
+struct scu_unsolicited_frame_header {
+	/**
+	 * This field indicates if there is an Initiator Index Table entry with
+	 * which this header is associated.
+	 */
+	u32 iit_exists:1;
+
+	/**
+	 * This field simply indicates the protocol type (i.e. SSP, STP, SMP).
+	 */
+	u32 protocol_type:3;
+
+	/**
+	 * This field indicates if the frame is an address frame (IAF or OAF)
+	 * or if it is a information unit frame.
+	 */
+	u32 is_address_frame:1;
+
+	/**
+	 * This field simply indicates the connection rate at which the frame
+	 * was received.
+	 */
+	u32 connection_rate:4;
+
+	u32 reserved:23;
+
+	/**
+	 * This field represents the actual header data received on the link.
+	 */
+	u32 data[SCU_UNSOLICITED_FRAME_HEADER_DATA_DWORDS];
+
+};
+
+
 
 /**
  * enum unsolicited_frame_state -

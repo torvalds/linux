@@ -67,7 +67,6 @@
 #include "registers.h"
 #include "scu_remote_node_context.h"
 #include "scu_task_context.h"
-#include "scu_unsolicited_frame.h"
 
 #define SCU_CONTEXT_RAM_INIT_STALL_TIME      200
 
