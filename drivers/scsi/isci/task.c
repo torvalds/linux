@@ -104,7 +104,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 			/* No notification because this request is already in the
 			* abort path.
 			*/
-			dev_warn(&ihost->pdev->dev,
+			dev_dbg(&ihost->pdev->dev,
 				 "%s: Aborted - task = %p, response=%d, "
 				"status=%d\n",
 				 __func__, task, response, status);
@@ -112,7 +112,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 
 		case isci_perform_error_io_completion:
 			/* Use sas_task_abort */
-			dev_warn(&ihost->pdev->dev,
+			dev_dbg(&ihost->pdev->dev,
 				 "%s: Error - task = %p, response=%d, "
 				"status=%d\n",
 				 __func__, task, response, status);
@@ -121,7 +121,7 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 			break;
 
 		default:
-			dev_warn(&ihost->pdev->dev,
+			dev_dbg(&ihost->pdev->dev,
 				 "%s: isci task notification default case!",
 				 __func__);
 			sas_task_abort(task);
@@ -374,7 +374,7 @@ static int isci_task_execute_tmf(struct isci_host *ihost,
 	status = sci_controller_start_task(ihost, idev, ireq);
 
 	if (status != SCI_TASK_SUCCESS) {
-		dev_warn(&ihost->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			 "%s: start_io failed - status = 0x%x, request = %p\n",
 			 __func__,
 			 status,
@@ -604,7 +604,7 @@ static void isci_terminate_request_core(struct isci_host *ihost,
 	 * being aborted.
 	 */
 	if (status != SCI_SUCCESS) {
-		dev_err(&ihost->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			"%s: sci_controller_terminate_request"
 			" returned = 0x%x\n",
 			__func__, status);
@@ -662,7 +662,7 @@ static void isci_terminate_request_core(struct isci_host *ihost,
 
 				if (!termination_completed) {
 
-					dev_err(&ihost->pdev->dev,
+					dev_dbg(&ihost->pdev->dev,
 						"%s: *** Timeout waiting for "
 						"termination(%p/%p)\n",
 						__func__, io_request_completion,
@@ -853,7 +853,7 @@ static int isci_task_send_lu_reset_sata(struct isci_host *ihost,
 	ret = isci_task_execute_tmf(ihost, idev, &tmf, ISCI_SRST_TIMEOUT_MS);
 
 	if (ret != TMF_RESP_FUNC_COMPLETE) {
-		dev_warn(&ihost->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			 "%s: Assert SRST failed (%p) = %x",
 			 __func__, idev, ret);
 
@@ -897,7 +897,7 @@ int isci_task_lu_reset(struct domain_device *domain_device, u8 *lun)
 	 */
 	if (!isci_device ||
 	    isci_device_is_reset_pending(isci_host, isci_device)) {
-		dev_warn(&isci_host->pdev->dev,
+		dev_dbg(&isci_host->pdev->dev,
 			 "%s: No dev (%p), or "
 			 "RESET PENDING: domain_device=%p\n",
 			 __func__, isci_device, domain_device);
@@ -970,7 +970,7 @@ static void isci_abort_task_process_cb(
 		 */
 		if ((old_request->status != aborted)
 			&& (old_request->status != completed))
-			dev_err(&old_request->isci_host->pdev->dev,
+			dev_dbg(&old_request->isci_host->pdev->dev,
 				"%s: Bad request status (%d): tmf=%p, old_request=%p\n",
 				__func__, old_request->status, tmf, old_request);
 		break;
@@ -988,7 +988,7 @@ static void isci_abort_task_process_cb(
 		break;
 
 	default:
-		dev_err(&old_request->isci_host->pdev->dev,
+		dev_dbg(&old_request->isci_host->pdev->dev,
 			"%s: Bad cb_state (%d): tmf=%p, old_request=%p\n",
 			__func__, cb_state, tmf, old_request);
 		break;
@@ -1046,7 +1046,7 @@ int isci_task_abort_task(struct sas_task *task)
 	 * SCSI error handler thread to escalate to LUN reset
 	 */
 	if (sas_protocol_ata(task->task_proto)) {
-		dev_warn(&isci_host->pdev->dev,
+		dev_dbg(&isci_host->pdev->dev,
 			    " task %p is for a STP/SATA device;"
 			    " returning TMF_RESP_FUNC_FAILED\n"
 			    " to cause a LUN reset...\n", task);
@@ -1176,7 +1176,7 @@ int isci_task_abort_task(struct sas_task *task)
 					    ISCI_ABORT_TASK_TIMEOUT_MS);
 
 		if (ret != TMF_RESP_FUNC_COMPLETE)
-			dev_err(&isci_host->pdev->dev,
+			dev_dbg(&isci_host->pdev->dev,
 				"%s: isci_task_send_tmf failed\n",
 				__func__);
 	}
@@ -1395,7 +1395,7 @@ static int isci_smp_execute_task(struct isci_host *ihost,
 
 		if (res) {
 			del_timer(&task->timer);
-			dev_err(&ihost->pdev->dev,
+			dev_dbg(&ihost->pdev->dev,
 				"%s: executing SMP task failed:%d\n",
 				__func__, res);
 			goto ex_err;
@@ -1404,12 +1404,12 @@ static int isci_smp_execute_task(struct isci_host *ihost,
 		wait_for_completion(&task->completion);
 		res = -ECOMM;
 		if ((task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
-			dev_err(&ihost->pdev->dev,
+			dev_dbg(&ihost->pdev->dev,
 				"%s: smp task timed out or aborted\n",
 				__func__);
 			isci_task_abort_task(task);
 			if (!(task->task_state_flags & SAS_TASK_STATE_DONE)) {
-				dev_err(&ihost->pdev->dev,
+				dev_dbg(&ihost->pdev->dev,
 					"%s: SMP task aborted and not done\n",
 					__func__);
 				goto ex_err;
@@ -1432,7 +1432,7 @@ static int isci_smp_execute_task(struct isci_host *ihost,
 			res = -EMSGSIZE;
 			break;
 		} else {
-			dev_err(&ihost->pdev->dev,
+			dev_dbg(&ihost->pdev->dev,
 				"%s: task to dev %016llx response: 0x%x "
 				"status 0x%x\n", __func__,
 				SAS_ADDR(dev->sas_addr),
@@ -1526,7 +1526,7 @@ static void isci_wait_for_smp_phy_reset(struct isci_remote_device *idev, int phy
 		tmo = deadline - jiffies;
 
 		if (res) {
-			dev_warn(&ihost->pdev->dev,
+			dev_dbg(&ihost->pdev->dev,
 				 "%s: iteration %d, phase %d:"
 				 " SMP error=%d, time_remaining=%lu\n",
 				 __func__, iteration, phy_state, res, tmo);
@@ -1578,7 +1578,7 @@ static int isci_reset_device(struct isci_host *ihost,
 	if (status != SCI_SUCCESS) {
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
-		dev_warn(&ihost->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			 "%s: sci_remote_device_reset(%p) returned %d!\n",
 			 __func__, idev, status);
 
@@ -1619,7 +1619,7 @@ static int isci_reset_device(struct isci_host *ihost,
 	}
 
 	if (status != SCI_SUCCESS) {
-		dev_warn(&ihost->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			 "%s: sci_remote_device_reset_complete(%p) "
 			 "returned %d!\n", __func__, idev, status);
 	}

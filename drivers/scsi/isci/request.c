@@ -2350,7 +2350,7 @@ static void isci_task_save_for_upper_layer_completion(
 		/* No notification to libsas because this request is
 		 * already in the abort path.
 		 */
-		dev_warn(&host->pdev->dev,
+		dev_dbg(&host->pdev->dev,
 			 "%s: Aborted - task = %p, response=%d (%d), status=%d (%d)\n",
 			 __func__,
 			 task,
@@ -2373,7 +2373,7 @@ static void isci_task_save_for_upper_layer_completion(
 
 	case isci_perform_error_io_completion:
 		/* Use sas_task_abort */
-		dev_warn(&host->pdev->dev,
+		dev_dbg(&host->pdev->dev,
 			 "%s: Error - task = %p, response=%d (%d), status=%d (%d)\n",
 			 __func__,
 			 task,
@@ -2385,7 +2385,7 @@ static void isci_task_save_for_upper_layer_completion(
 		break;
 
 	default:
-		dev_warn(&host->pdev->dev,
+		dev_dbg(&host->pdev->dev,
 			 "%s: Unknown - task = %p, response=%d (%d), status=%d (%d)\n",
 			 __func__,
 			 task,
@@ -2710,7 +2710,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 
 		default:
 			/* Catch any otherwise unhandled error codes here. */
-			dev_warn(&ihost->pdev->dev,
+			dev_dbg(&ihost->pdev->dev,
 				 "%s: invalid completion code: 0x%x - "
 				 "isci_request = %p\n",
 				 __func__, completion_status, request);
@@ -3164,7 +3164,7 @@ static enum sci_status isci_smp_request_build(struct isci_request *ireq)
 
 	status = sci_io_request_construct_smp(dev, ireq, task);
 	if (status != SCI_SUCCESS)
-		dev_warn(&ireq->isci_host->pdev->dev,
+		dev_dbg(&ireq->isci_host->pdev->dev,
 			 "%s: failed with status = %d\n",
 			 __func__,
 			 status);
@@ -3219,7 +3219,7 @@ static enum sci_status isci_io_request_build(struct isci_host *ihost,
 	status = sci_io_request_construct(ihost, idev, request);
 
 	if (status != SCI_SUCCESS) {
-		dev_warn(&ihost->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			 "%s: failed request construct\n",
 			 __func__);
 		return SCI_FAILURE;
@@ -3238,7 +3238,7 @@ static enum sci_status isci_io_request_build(struct isci_host *ihost,
 		status = isci_request_stp_request_construct(request);
 		break;
 	default:
-		dev_warn(&ihost->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			 "%s: unknown protocol\n", __func__);
 		return SCI_FAILURE;
 	}
@@ -3302,7 +3302,7 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 
 	status = isci_io_request_build(ihost, ireq, idev);
 	if (status != SCI_SUCCESS) {
-		dev_warn(&ihost->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			 "%s: request_construct failed - status = 0x%x\n",
 			 __func__,
 			 status);
@@ -3335,7 +3335,7 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 
 	if (status != SCI_SUCCESS &&
 	    status != SCI_FAILURE_REMOTE_DEVICE_RESET_REQUIRED) {
-		dev_warn(&ihost->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			 "%s: failed request start (0x%x)\n",
 			 __func__, status);
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
