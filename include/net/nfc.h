@@ -58,10 +58,28 @@ struct nfc_ops {
 							void *cb_context);
 };
 
+struct nfc_target {
+	u32 idx;
+	u32 supported_protocols;
+	u16 sens_res;
+	u8 sel_res;
+};
+
+struct nfc_genl_data {
+	u32 poll_req_pid;
+	struct mutex genl_data_mutex;
+};
+
 struct nfc_dev {
 	unsigned idx;
+	unsigned target_idx;
+	struct nfc_target *targets;
+	int n_targets;
+	int targets_generation;
+	spinlock_t targets_lock;
 	struct device dev;
 	bool polling;
+	struct nfc_genl_data genl_data;
 	u32 supported_protocols;
 
 	struct nfc_ops *ops;
@@ -131,5 +149,8 @@ static inline const char *nfc_device_name(struct nfc_dev *dev)
 }
 
 struct sk_buff *nfc_alloc_skb(unsigned int size, gfp_t gfp);
+
+int nfc_targets_found(struct nfc_dev *dev, struct nfc_target *targets,
+							int ntargets);
 
 #endif /* __NET_NFC_H */

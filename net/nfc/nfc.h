@@ -36,6 +36,17 @@ int nfc_printk(const char *level, const char *fmt, ...);
 extern int nfc_devlist_generation;
 extern struct mutex nfc_devlist_mutex;
 
+int __init nfc_genl_init(void);
+void nfc_genl_exit(void);
+
+void nfc_genl_data_init(struct nfc_genl_data *genl_data);
+void nfc_genl_data_exit(struct nfc_genl_data *genl_data);
+
+int nfc_genl_targets_found(struct nfc_dev *dev);
+
+int nfc_genl_device_added(struct nfc_dev *dev);
+int nfc_genl_device_removed(struct nfc_dev *dev);
+
 struct nfc_dev *nfc_get_device(unsigned idx);
 
 static inline void nfc_put_device(struct nfc_dev *dev)

@@ -4,4 +4,4 @@
 
 obj-$(CONFIG_NFC) += nfc.o
 
-nfc-objs := core.o
+nfc-objs := core.o netlink.o

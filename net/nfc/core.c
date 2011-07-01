@@ -233,12 +233,60 @@ struct sk_buff *nfc_alloc_skb(unsigned int size, gfp_t gfp)
 }
 EXPORT_SYMBOL(nfc_alloc_skb);
 
+/**
+ * nfc_targets_found - inform that targets were found
+ *
+ * @dev: The nfc device that found the targets
+ * @targets: array of nfc targets found
+ * @ntargets: targets array size
+ *
+ * The device driver must call this function when one or many nfc targets
+ * are found. After calling this function, the device driver must stop
+ * polling for targets.
+ */
+int nfc_targets_found(struct nfc_dev *dev, struct nfc_target *targets,
+							int n_targets)
+{
+	int i;
+
+	nfc_dbg("dev_name=%s n_targets=%d", dev_name(&dev->dev), n_targets);
+
+	dev->polling = false;
+
+	for (i = 0; i < n_targets; i++)
+		targets[i].idx = dev->target_idx++;
+
+	spin_lock_bh(&dev->targets_lock);
+
+	dev->targets_generation++;
+
+	kfree(dev->targets);
+	dev->targets = kmemdup(targets, n_targets * sizeof(struct nfc_target),
+								GFP_ATOMIC);
+
+	if (!dev->targets) {
+		dev->n_targets = 0;
+		spin_unlock_bh(&dev->targets_lock);
+		return -ENOMEM;
+	}
+
+	dev->n_targets = n_targets;
+	spin_unlock_bh(&dev->targets_lock);
+
+	nfc_genl_targets_found(dev);
+
+	return 0;
+}
+EXPORT_SYMBOL(nfc_targets_found);
+
 static void nfc_release(struct device *d)
 {
 	struct nfc_dev *dev = to_nfc_dev(d);
 
 	nfc_dbg("dev_name=%s", dev_name(&dev->dev));
 
+	nfc_genl_data_exit(&dev->genl_data);
+	kfree(dev->targets);
 	kfree(dev);
 }
 
@@ -298,6 +346,12 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 	dev->ops = ops;
 	dev->supported_protocols = supported_protocols;
 
+	spin_lock_init(&dev->targets_lock);
+	nfc_genl_data_init(&dev->genl_data);
+
+	/* first generation must not be 0 */
+	dev->targets_generation = 1;
+
 	return dev;
 }
 EXPORT_SYMBOL(nfc_allocate_device);
@@ -318,7 +372,16 @@ int nfc_register_device(struct nfc_dev *dev)
 	rc = device_add(&dev->dev);
 	mutex_unlock(&nfc_devlist_mutex);
 
-	return rc;
+	if (rc < 0)
+		return rc;
+
+	rc = nfc_genl_device_added(dev);
+	if (rc)
+		nfc_dbg("The userspace won't be notified that the device %s was"
+						" added", dev_name(&dev->dev));
+
+
+	return 0;
 }
 EXPORT_SYMBOL(nfc_register_device);
 
@@ -329,6 +392,8 @@ EXPORT_SYMBOL(nfc_register_device);
  */
 void nfc_unregister_device(struct nfc_dev *dev)
 {
+	int rc;
+
 	nfc_dbg("dev_name=%s", dev_name(&dev->dev));
 
 	mutex_lock(&nfc_devlist_mutex);
@@ -341,18 +406,42 @@ void nfc_unregister_device(struct nfc_dev *dev)
 	device_unlock(&dev->dev);
 
 	mutex_unlock(&nfc_devlist_mutex);
+
+	rc = nfc_genl_device_removed(dev);
+	if (rc)
+		nfc_dbg("The userspace won't be notified that the device %s"
+					" was removed", dev_name(&dev->dev));
+
 }
 EXPORT_SYMBOL(nfc_unregister_device);
 
 static int __init nfc_init(void)
 {
+	int rc;
+
 	nfc_info("NFC Core ver %s", VERSION);
 
-	return class_register(&nfc_class);
+	rc = class_register(&nfc_class);
+	if (rc)
+		return rc;
+
+	rc = nfc_genl_init();
+	if (rc)
+		goto err_genl;
+
+	/* the first generation must not be 0 */
+	nfc_devlist_generation = 1;
+
+	return 0;
+
+err_genl:
+	class_unregister(&nfc_class);
+	return rc;
 }
 
 static void __exit nfc_exit(void)
 {
+	nfc_genl_exit();
 	class_unregister(&nfc_class);
 }
 
