@@ -94,7 +94,7 @@ void xscale_mc_copy_user_highpage(struct page *to, struct page *from,
 
 	raw_spin_lock(&minicache_lock);
 
-	set_pte_ext(TOP_PTE(COPYPAGE_MINICACHE), pfn_pte(page_to_pfn(from), minicache_pgprot), 0);
+	set_pte_ext(TOP_PTE(COPYPAGE_MINICACHE), mk_pte(from, minicache_pgprot), 0);
 	flush_tlb_kernel_page(COPYPAGE_MINICACHE);
 
 	mc_copy_user_page((void *)COPYPAGE_MINICACHE, kto);
