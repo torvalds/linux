@@ -1343,9 +1343,6 @@ static int twl6040_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	/* get PLL and sysclk after power transition */
-	priv->pll = twl6040_get_pll(twl6040);
-	priv->sysclk = twl6040_get_sysclk(twl6040);
 	codec->dapm.bias_level = level;
 
 	return 0;
@@ -1371,14 +1368,8 @@ static int twl6040_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
-	struct twl6040 *twl6040 = codec->control_data;
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
-	unsigned int sysclk;
-	int rate, ret;
-
-	/* nothing to do for high-perf pll, it supports only 48 kHz */
-	if (priv->pll == TWL6040_HPPLL_ID)
-		return 0;
+	int rate;
 
 	rate = params_rate(params);
 	switch (rate) {
@@ -1386,25 +1377,32 @@ static int twl6040_hw_params(struct snd_pcm_substream *substream,
 	case 22500:
 	case 44100:
 	case 88200:
-		sysclk = 17640000;
+		/* These rates are not supported when HPPLL is in use */
+		if (unlikely(priv->pll == TWL6040_SYSCLK_SEL_HPPLL)) {
+			dev_err(codec->dev, "HPPLL does not support rate %d\n",
+				rate);
+			return -EINVAL;
+		}
+		/* Capture is not supported with 17.64MHz sysclk */
+		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+			dev_err(codec->dev,
+				"capture mode is not supported at %dHz\n",
+				rate);
+			return -EINVAL;
+		}
+		priv->sysclk = 17640000;
 		break;
 	case 8000:
 	case 16000:
 	case 32000:
 	case 48000:
 	case 96000:
-		sysclk = 19200000;
+		priv->sysclk = 19200000;
 		break;
 	default:
 		dev_err(codec->dev, "unsupported rate %d\n", rate);
 		return -EINVAL;
 	}
-
-	ret = twl6040_set_pll(twl6040, TWL6040_LPPLL_ID, priv->clk_in, sysclk);
-	if (ret)
-		return ret;
-
-	priv->sysclk = twl6040_get_sysclk(twl6040);
 
 	return 0;
 }
@@ -1414,23 +1412,13 @@ static int twl6040_prepare(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
+	struct twl6040 *twl6040 = codec->control_data;
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
+	int ret;
 
 	if (!priv->sysclk) {
 		dev_err(codec->dev,
 			"no mclk configured, call set_sysclk() on init\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * capture is not supported at 17.64 MHz,
-	 * it's reserved for headset low-power playback scenario
-	 */
-	if ((priv->sysclk == 17640000) &&
-			substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		dev_err(codec->dev,
-			"capture mode is not supported at %dHz\n",
-			priv->sysclk);
 		return -EINVAL;
 	}
 
@@ -1440,6 +1428,13 @@ static int twl6040_prepare(struct snd_pcm_substream *substream,
 				priv->sysclk);
 			return -EPERM;
 	}
+
+	ret = twl6040_set_pll(twl6040, priv->pll, priv->clk_in, priv->sysclk);
+	if (ret) {
+		dev_err(codec->dev, "Can not set PLL (%d)\n", ret);
+		return -EPERM;
+	}
+
 	return 0;
 }
 
@@ -1447,31 +1442,18 @@ static int twl6040_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct twl6040 *twl6040 = codec->control_data;
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
-	int ret = 0;
 
 	switch (clk_id) {
 	case TWL6040_SYSCLK_SEL_LPPLL:
-		ret = twl6040_set_pll(twl6040, TWL6040_LPPLL_ID,
-				      freq, priv->sysclk);
-		if (ret)
-			return ret;
-		break;
 	case TWL6040_SYSCLK_SEL_HPPLL:
-		ret = twl6040_set_pll(twl6040, TWL6040_HPPLL_ID,
-				      freq, priv->sysclk);
-		if (ret)
-			return ret;
+		priv->pll = clk_id;
+		priv->clk_in = freq;
 		break;
 	default:
 		dev_err(codec->dev, "unknown clk_id %d\n", clk_id);
 		return -EINVAL;
 	}
-
-	priv->pll = twl6040_get_pll(twl6040);
-	priv->clk_in = freq;
-	priv->sysclk = twl6040_get_sysclk(twl6040);
 
 	return 0;
 }
