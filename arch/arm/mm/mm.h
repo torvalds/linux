@@ -5,6 +5,19 @@ extern pmd_t *top_pmd;
 
 #define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
 
+/*
+ * 0xffff8000 to 0xffffffff is reserved for any ARM architecture
+ * specific hacks for copying pages efficiently, while 0xffff4000
+ * is reserved for VIPT aliasing flushing by generic code.
+ *
+ * Note that we don't allow VIPT aliasing caches with SMP.
+ */
+#define COPYPAGE_MINICACHE	0xffff8000
+#define COPYPAGE_V6_FROM	0xffff8000
+#define COPYPAGE_V6_TO		0xffffc000
+/* PFN alias flushing, for VIPT caches */
+#define FLUSH_ALIAS_START	0xffff4000
+
 static inline pmd_t *pmd_off_k(unsigned long virt)
 {
 	return pmd_offset(pud_offset(pgd_offset_k(virt), virt), virt);

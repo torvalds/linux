@@ -23,11 +23,9 @@
 
 #ifdef CONFIG_CPU_CACHE_VIPT
 
-#define ALIAS_FLUSH_START	0xffff4000
-
 static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 {
-	unsigned long to = ALIAS_FLUSH_START + (CACHE_COLOUR(vaddr) << PAGE_SHIFT);
+	unsigned long to = FLUSH_ALIAS_START + (CACHE_COLOUR(vaddr) << PAGE_SHIFT);
 	const int zero = 0;
 
 	set_pte_ext(TOP_PTE(to), pfn_pte(pfn, PAGE_KERNEL), 0);
@@ -46,8 +44,8 @@ static void flush_icache_alias(unsigned long pfn, unsigned long vaddr, unsigned 
 	unsigned long offset = vaddr & (PAGE_SIZE - 1);
 	unsigned long to;
 
-	set_pte_ext(TOP_PTE(ALIAS_FLUSH_START) + colour, pfn_pte(pfn, PAGE_KERNEL), 0);
-	to = ALIAS_FLUSH_START + (colour << PAGE_SHIFT) + offset;
+	set_pte_ext(TOP_PTE(FLUSH_ALIAS_START) + colour, pfn_pte(pfn, PAGE_KERNEL), 0);
+	to = FLUSH_ALIAS_START + (colour << PAGE_SHIFT) + offset;
 	flush_tlb_kernel_page(to);
 	flush_icache_range(to, to + len);
 }

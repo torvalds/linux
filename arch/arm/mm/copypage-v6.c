@@ -24,9 +24,6 @@
 #error FIX ME
 #endif
 
-#define from_address	(0xffff8000)
-#define to_address	(0xffffc000)
-
 static DEFINE_RAW_SPINLOCK(v6_lock);
 
 /*
@@ -90,11 +87,11 @@ static void v6_copy_user_highpage_aliasing(struct page *to,
 	 */
 	raw_spin_lock(&v6_lock);
 
-	set_pte_ext(TOP_PTE(from_address) + offset, pfn_pte(page_to_pfn(from), PAGE_KERNEL), 0);
-	set_pte_ext(TOP_PTE(to_address) + offset, pfn_pte(page_to_pfn(to), PAGE_KERNEL), 0);
+	kfrom = COPYPAGE_V6_FROM + (offset << PAGE_SHIFT);
+	kto   = COPYPAGE_V6_TO + (offset << PAGE_SHIFT);
 
-	kfrom = from_address + (offset << PAGE_SHIFT);
-	kto   = to_address + (offset << PAGE_SHIFT);
+	set_pte_ext(TOP_PTE(kfrom), pfn_pte(page_to_pfn(from), PAGE_KERNEL), 0);
+	set_pte_ext(TOP_PTE(kto), pfn_pte(page_to_pfn(to), PAGE_KERNEL), 0);
 
 	flush_tlb_kernel_page(kfrom);
 	flush_tlb_kernel_page(kto);
@@ -111,8 +108,7 @@ static void v6_copy_user_highpage_aliasing(struct page *to,
  */
 static void v6_clear_user_highpage_aliasing(struct page *page, unsigned long vaddr)
 {
-	unsigned int offset = CACHE_COLOUR(vaddr);
-	unsigned long to = to_address + (offset << PAGE_SHIFT);
+	unsigned long to = COPYPAGE_V6_TO + (CACHE_COLOUR(vaddr) << PAGE_SHIFT);
 
 	/* FIXME: not highmem safe */
 	discard_old_kernel_data(page_address(page));
@@ -123,7 +119,7 @@ static void v6_clear_user_highpage_aliasing(struct page *page, unsigned long vad
 	 */
 	raw_spin_lock(&v6_lock);
 
-	set_pte_ext(TOP_PTE(to_address) + offset, pfn_pte(page_to_pfn(page), PAGE_KERNEL), 0);
+	set_pte_ext(TOP_PTE(to), pfn_pte(page_to_pfn(page), PAGE_KERNEL), 0);
 	flush_tlb_kernel_page(to);
 	clear_page((void *)to);
 

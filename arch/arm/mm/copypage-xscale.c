@@ -23,12 +23,6 @@
 
 #include "mm.h"
 
-/*
- * 0xffff8000 to 0xffffffff is reserved for any ARM architecture
- * specific hacks for copying pages efficiently.
- */
-#define COPYPAGE_MINICACHE	0xffff8000
-
 #define minicache_pgprot __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | \
 				  L_PTE_MT_MINICACHE)
 
