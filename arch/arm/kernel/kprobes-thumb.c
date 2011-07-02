@@ -26,6 +26,39 @@
  */
 #define current_cond(cpsr)	((cpsr >> 12) & 0xf)
 
+static const union decode_item t16_table_1011[] = {
+	/* Miscellaneous 16-bit instructions		    */
+
+	/*
+	 * If-Then, and hints
+	 *				1011 1111 xxxx xxxx
+	 */
+
+	/* YIELD			1011 1111 0001 0000 */
+	DECODE_OR	(0xffff, 0xbf10),
+	/* SEV				1011 1111 0100 0000 */
+	DECODE_EMULATE	(0xffff, 0xbf40, kprobe_emulate_none),
+	/* NOP				1011 1111 0000 0000 */
+	/* WFE				1011 1111 0010 0000 */
+	/* WFI				1011 1111 0011 0000 */
+	DECODE_SIMULATE	(0xffcf, 0xbf00, kprobe_simulate_nop),
+	/* Unassigned hints		1011 1111 xxxx 0000 */
+	DECODE_REJECT	(0xff0f, 0xbf00),
+
+	DECODE_END
+};
+
+const union decode_item kprobe_decode_thumb16_table[] = {
+
+	/*
+	 * Miscellaneous 16-bit instructions
+	 *				1011 xxxx xxxx xxxx
+	 */
+	DECODE_TABLE	(0xf000, 0xb000, t16_table_1011),
+
+	DECODE_END
+};
+
 static unsigned long __kprobes thumb_check_cc(unsigned long cpsr)
 {
 	if (unlikely(in_it_block(cpsr)))
@@ -52,7 +85,7 @@ thumb16_kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 {
 	asi->insn_singlestep = thumb16_singlestep;
 	asi->insn_check_cc = thumb_check_cc;
-	return INSN_REJECTED;
+	return kprobe_decode_insn(insn, asi, kprobe_decode_thumb16_table, true);
 }
 
 enum kprobe_insn __kprobes
