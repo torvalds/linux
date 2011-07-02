@@ -1430,14 +1430,9 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
 
-	/*
-	 * Bail out if status register or PMBus revision register
-	 * does not exist.
-	 */
-	if (i2c_smbus_read_byte_data(client, PMBUS_STATUS_BYTE) < 0
-	    || i2c_smbus_read_byte_data(client, PMBUS_REVISION) < 0) {
-		dev_err(&client->dev,
-			"Status or revision register not found\n");
+	/* Bail out if PMBus status register does not exist. */
+	if (i2c_smbus_read_byte_data(client, PMBUS_STATUS_BYTE) < 0) {
+		dev_err(&client->dev, "PMBus status register not found\n");
 		ret = -ENODEV;
 		goto out_data;
 	}
