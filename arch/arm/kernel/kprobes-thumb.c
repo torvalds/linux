@@ -110,6 +110,37 @@ t16_simulate_cbz(struct kprobe *p, struct pt_regs *regs)
 	}
 }
 
+static void __kprobes
+t16_simulate_it(struct kprobe *p, struct pt_regs *regs)
+{
+	/*
+	 * The 8 IT state bits are split into two parts in CPSR:
+	 *	ITSTATE<1:0> are in CPSR<26:25>
+	 *	ITSTATE<7:2> are in CPSR<15:10>
+	 * The new IT state is in the lower byte of insn.
+	 */
+	kprobe_opcode_t insn = p->opcode;
+	unsigned long cpsr = regs->ARM_cpsr;
+	cpsr &= ~PSR_IT_MASK;
+	cpsr |= (insn & 0xfc) << 8;
+	cpsr |= (insn & 0x03) << 25;
+	regs->ARM_cpsr = cpsr;
+}
+
+static void __kprobes
+t16_singlestep_it(struct kprobe *p, struct pt_regs *regs)
+{
+	regs->ARM_pc += 2;
+	t16_simulate_it(p, regs);
+}
+
+static enum kprobe_insn __kprobes
+t16_decode_it(kprobe_opcode_t insn, struct arch_specific_insn *asi)
+{
+	asi->insn_singlestep = t16_singlestep_it;
+	return INSN_GOOD_NO_SLOT;
+}
+
 static unsigned long __kprobes
 t16_emulate_loregs(struct kprobe *p, struct pt_regs *regs)
 {
@@ -310,6 +341,8 @@ static const union decode_item t16_table_1011[] = {
 	DECODE_SIMULATE	(0xffcf, 0xbf00, kprobe_simulate_nop),
 	/* Unassigned hints		1011 1111 xxxx 0000 */
 	DECODE_REJECT	(0xff0f, 0xbf00),
+	/* IT				1011 1111 xxxx xxxx */
+	DECODE_CUSTOM	(0xff00, 0xbf00, t16_decode_it),
 
 	DECODE_END
 };
