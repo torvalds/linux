@@ -535,8 +535,8 @@ struct intr_pkt {
 
 static struct usb_driver uea_driver;
 static DEFINE_MUTEX(uea_mutex);
-static const char *chip_name[] = {"ADI930", "Eagle I", "Eagle II", "Eagle III",
-								"Eagle IV"};
+static const char * const chip_name[] = {
+	"ADI930", "Eagle I", "Eagle II", "Eagle III", "Eagle IV"};
 
 static int modem_index;
 static unsigned int debug;
