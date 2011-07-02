@@ -94,9 +94,6 @@ static inline void xfwrite(const void *str, size_t len, size_t count, FILE *out)
 		fprintf(stderr, "\nError in writing or end of file.\n");
 }
 
-/* kconfig_load.c */
-void kconfig_load(void);
-
 /* menu.c */
 void _menu_init(void);
 void menu_warn(struct menu *menu, const char *fmt, ...);
