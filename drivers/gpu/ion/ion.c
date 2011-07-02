@@ -594,6 +594,29 @@ static const struct file_operations debug_client_fops = {
 	.release = single_release,
 };
 
+static struct ion_client *ion_client_lookup(struct ion_device *dev,
+					    struct task_struct *task)
+{
+	struct rb_node *n = dev->user_clients.rb_node;
+	struct ion_client *client;
+
+	mutex_lock(&dev->lock);
+	while (n) {
+		client = rb_entry(n, struct ion_client, node);
+		if (task == client->task) {
+			ion_client_get(client);
+			mutex_unlock(&dev->lock);
+			return client;
+		} else if (task < client->task) {
+			n = n->rb_left;
+		} else if (task > client->task) {
+			n = n->rb_right;
+		}
+	}
+	mutex_unlock(&dev->lock);
+	return NULL;
+}
+
 struct ion_client *ion_client_create(struct ion_device *dev,
 				     unsigned int heap_mask,
 				     const char *name)
@@ -604,18 +627,11 @@ struct ion_client *ion_client_create(struct ion_device *dev,
 	struct rb_node *parent = NULL;
 	struct ion_client *entry;
 	char debug_name[64];
+	pid_t pid;
 
-	client = kzalloc(sizeof(struct ion_client), GFP_KERNEL);
-	if (!client)
-		return ERR_PTR(-ENOMEM);
-	client->dev = dev;
-	client->handles = RB_ROOT;
-	mutex_init(&client->lock);
-	client->name = name;
-	client->heap_mask = heap_mask;
 	get_task_struct(current->group_leader);
 	task_lock(current->group_leader);
-	client->pid = task_pid_nr(current->group_leader);
+	pid = task_pid_nr(current->group_leader);
 	/* don't bother to store task struct for kernel threads,
 	   they can't be killed anyway */
 	if (current->group_leader->flags & PF_KTHREAD) {
@@ -625,7 +641,30 @@ struct ion_client *ion_client_create(struct ion_device *dev,
 		task = current->group_leader;
 	}
 	task_unlock(current->group_leader);
+
+	/* if this isn't a kernel thread, see if a client already
+	   exists */
+	if (task) {
+		client = ion_client_lookup(dev, task);
+		if (!IS_ERR_OR_NULL(client)) {
+			put_task_struct(current->group_leader);
+			return client;
+		}
+	}
+
+	client = kzalloc(sizeof(struct ion_client), GFP_KERNEL);
+	if (!client) {
+		put_task_struct(current->group_leader);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	client->dev = dev;
+	client->handles = RB_ROOT;
+	mutex_init(&client->lock);
+	client->name = name;
+	client->heap_mask = heap_mask;
 	client->task = task;
+	client->pid = pid;
 	kref_init(&client->ref);
 
 	mutex_lock(&dev->lock);
@@ -688,29 +727,6 @@ void ion_client_destroy(struct ion_client *client)
 	mutex_unlock(&dev->lock);
 
 	kfree(client);
-}
-
-static struct ion_client *ion_client_lookup(struct ion_device *dev,
-					    struct task_struct *task)
-{
-	struct rb_node *n = dev->user_clients.rb_node;
-	struct ion_client *client;
-
-	mutex_lock(&dev->lock);
-	while (n) {
-		client = rb_entry(n, struct ion_client, node);
-		if (task == client->task) {
-			ion_client_get(client);
-			mutex_unlock(&dev->lock);
-			return client;
-		} else if (task < client->task) {
-			n = n->rb_left;
-		} else if (task > client->task) {
-			n = n->rb_right;
-		}
-	}
-	mutex_unlock(&dev->lock);
-	return NULL;
 }
 
 static void _ion_client_destroy(struct kref *kref)
