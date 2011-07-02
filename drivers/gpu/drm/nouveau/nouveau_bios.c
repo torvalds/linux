@@ -5884,9 +5884,15 @@ parse_dcb_gpio_table(struct nvbios *bios)
 			}
 
 			e->line = (e->entry & 0x0000001f) >> 0;
-			e->state_default = (e->entry & 0x01000000) >> 24;
-			e->state[0] = (e->entry & 0x18000000) >> 27;
-			e->state[1] = (e->entry & 0x60000000) >> 29;
+			if (gpio[0] == 0x40) {
+				e->state_default = (e->entry & 0x01000000) >> 24;
+				e->state[0] = (e->entry & 0x18000000) >> 27;
+				e->state[1] = (e->entry & 0x60000000) >> 29;
+			} else {
+				e->state_default = (e->entry & 0x00000080) >> 7;
+				e->state[0] = (entry[4] >> 4) & 3;
+				e->state[1] = (entry[4] >> 6) & 3;
+			}
 		}
 	}
 
