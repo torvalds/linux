@@ -761,6 +761,35 @@ static int ehci_run (struct usb_hcd *hcd)
 	return 0;
 }
 
+static int __maybe_unused ehci_setup (struct usb_hcd *hcd)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	int retval;
+
+	ehci->regs = (void __iomem *)ehci->caps +
+	    HC_LENGTH(ehci, ehci_readl(ehci, &ehci->caps->hc_capbase));
+	dbg_hcs_params(ehci, "reset");
+	dbg_hcc_params(ehci, "reset");
+
+	/* cache this readonly data; minimize chip reads */
+	ehci->hcs_params = ehci_readl(ehci, &ehci->caps->hcs_params);
+
+	ehci->sbrn = HCD_USB2;
+
+	retval = ehci_halt(ehci);
+	if (retval)
+		return retval;
+
+	/* data structure init */
+	retval = ehci_init(hcd);
+	if (retval)
+		return retval;
+
+	ehci_reset(ehci);
+
+	return 0;
+}
+
 /*-------------------------------------------------------------------------*/
 
 static irqreturn_t ehci_irq (struct usb_hcd *hcd)
