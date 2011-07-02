@@ -141,6 +141,35 @@ t16_decode_it(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 	return INSN_GOOD_NO_SLOT;
 }
 
+static void __kprobes
+t16_simulate_cond_branch(struct kprobe *p, struct pt_regs *regs)
+{
+	kprobe_opcode_t insn = p->opcode;
+	unsigned long pc = thumb_probe_pc(p);
+	long offset = insn & 0x7f;
+	offset -= insn & 0x80; /* Apply sign bit */
+	regs->ARM_pc = pc + (offset * 2);
+}
+
+static enum kprobe_insn __kprobes
+t16_decode_cond_branch(kprobe_opcode_t insn, struct arch_specific_insn *asi)
+{
+	int cc = (insn >> 8) & 0xf;
+	asi->insn_check_cc = kprobe_condition_checks[cc];
+	asi->insn_handler = t16_simulate_cond_branch;
+	return INSN_GOOD_NO_SLOT;
+}
+
+static void __kprobes
+t16_simulate_branch(struct kprobe *p, struct pt_regs *regs)
+{
+	kprobe_opcode_t insn = p->opcode;
+	unsigned long pc = thumb_probe_pc(p);
+	long offset = insn & 0x3ff;
+	offset -= insn & 0x400; /* Apply sign bit */
+	regs->ARM_pc = pc + (offset * 2);
+}
+
 static unsigned long __kprobes
 t16_emulate_loregs(struct kprobe *p, struct pt_regs *regs)
 {
@@ -471,6 +500,15 @@ const union decode_item kprobe_decode_thumb16_table[] = {
 	/* Permanently UNDEFINED	1101 1110 xxxx xxxx */
 	/* SVC				1101 1111 xxxx xxxx */
 	DECODE_REJECT	(0xfe00, 0xde00),
+
+	/* Conditional branch		1101 xxxx xxxx xxxx */
+	DECODE_CUSTOM	(0xf000, 0xd000, t16_decode_cond_branch),
+
+	/*
+	 * Unconditional branch
+	 * B				1110 0xxx xxxx xxxx
+	 */
+	DECODE_SIMULATE	(0xf800, 0xe000, t16_simulate_branch),
 
 	DECODE_END
 };
