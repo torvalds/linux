@@ -373,6 +373,10 @@ static const union decode_item t16_table_1011[] = {
 	/* IT				1011 1111 xxxx xxxx */
 	DECODE_CUSTOM	(0xff00, 0xbf00, t16_decode_it),
 
+	/* SETEND			1011 0110 010x xxxx */
+	/* CPS				1011 0110 011x xxxx */
+	/* BKPT				1011 1110 xxxx xxxx */
+	/* And unallocated instructions...		    */
 	DECODE_END
 };
 
