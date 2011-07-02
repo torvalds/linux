@@ -71,13 +71,12 @@ void *__kmap_atomic(struct page *page)
 	 */
 	BUG_ON(!pte_none(*(TOP_PTE(vaddr))));
 #endif
-	set_pte_ext(TOP_PTE(vaddr), mk_pte(page, kmap_prot), 0);
 	/*
 	 * When debugging is off, kunmap_atomic leaves the previous mapping
-	 * in place, so this TLB flush ensures the TLB is updated with the
-	 * new mapping.
+	 * in place, so the contained TLB flush ensures the TLB is updated
+	 * with the new mapping.
 	 */
-	local_flush_tlb_kernel_page(vaddr);
+	set_top_pte(vaddr, mk_pte(page, kmap_prot));
 
 	return (void *)vaddr;
 }
@@ -96,8 +95,7 @@ void __kunmap_atomic(void *kvaddr)
 			__cpuc_flush_dcache_area((void *)vaddr, PAGE_SIZE);
 #ifdef CONFIG_DEBUG_HIGHMEM
 		BUG_ON(vaddr != __fix_to_virt(FIX_KMAP_BEGIN + idx));
-		set_pte_ext(TOP_PTE(vaddr), __pte(0), 0);
-		local_flush_tlb_kernel_page(vaddr);
+		set_top_pte(vaddr, __pte(0));
 #else
 		(void) idx;  /* to kill a warning */
 #endif
@@ -123,8 +121,7 @@ void *kmap_atomic_pfn(unsigned long pfn)
 #ifdef CONFIG_DEBUG_HIGHMEM
 	BUG_ON(!pte_none(*(TOP_PTE(vaddr))));
 #endif
-	set_pte_ext(TOP_PTE(vaddr), pfn_pte(pfn, kmap_prot), 0);
-	local_flush_tlb_kernel_page(vaddr);
+	set_top_pte(vaddr, pfn_pte(pfn, kmap_prot));
 
 	return (void *)vaddr;
 }
