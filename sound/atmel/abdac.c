@@ -599,4 +599,4 @@ module_exit(atmel_abdac_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for Atmel Audio Bitstream DAC (ABDAC)");
-MODULE_AUTHOR("Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>");
+MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");

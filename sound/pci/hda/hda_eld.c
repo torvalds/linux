@@ -294,7 +294,7 @@ static int hdmi_update_eld(struct hdmi_eld *e,
 		snd_printd(KERN_INFO "HDMI: out of range MNL %d\n", mnl);
 		goto out_fail;
 	} else
-		strlcpy(e->monitor_name, buf + ELD_FIXED_BYTES, mnl);
+		strlcpy(e->monitor_name, buf + ELD_FIXED_BYTES, mnl + 1);
 
 	for (i = 0; i < e->sad_count; i++) {
 		if (ELD_FIXED_BYTES + mnl + 3 * (i + 1) > size) {
