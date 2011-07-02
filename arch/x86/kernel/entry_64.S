@@ -327,7 +327,6 @@ ENDPROC(native_usergs_sysret64)
 	jne 2f
 	mov PER_CPU_VAR(irq_stack_ptr),%rsp
 	EMPTY_FRAME 0
-	pushq_cfi %rbp			/* backlink for unwinder */
 	/*
 	 * We entered an interrupt context - irqs are off:
 	 */
