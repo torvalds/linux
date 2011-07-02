@@ -96,6 +96,20 @@ t16_simulate_add_sp_imm(struct kprobe *p, struct pt_regs *regs)
 		regs->ARM_sp += imm * 4;
 }
 
+static void __kprobes
+t16_simulate_cbz(struct kprobe *p, struct pt_regs *regs)
+{
+	kprobe_opcode_t insn = p->opcode;
+	int rn = insn & 0x7;
+	kprobe_opcode_t nonzero = regs->uregs[rn] ? insn : ~insn;
+	if (nonzero & 0x800) {
+		long i = insn & 0x200;
+		long imm5 = insn & 0xf8;
+		unsigned long pc = thumb_probe_pc(p);
+		regs->ARM_pc = pc + (i >> 3) + (imm5 >> 2);
+	}
+}
+
 static unsigned long __kprobes
 t16_emulate_loregs(struct kprobe *p, struct pt_regs *regs)
 {
@@ -179,6 +193,21 @@ static const union decode_item t16_table_1011[] = {
 	/* ADD (SP plus immediate)	1011 0000 0xxx xxxx */
 	/* SUB (SP minus immediate)	1011 0000 1xxx xxxx */
 	DECODE_SIMULATE	(0xff00, 0xb000, t16_simulate_add_sp_imm),
+
+	/* CBZ				1011 00x1 xxxx xxxx */
+	/* CBNZ				1011 10x1 xxxx xxxx */
+	DECODE_SIMULATE	(0xf500, 0xb100, t16_simulate_cbz),
+
+	/* SXTH				1011 0010 00xx xxxx */
+	/* SXTB				1011 0010 01xx xxxx */
+	/* UXTH				1011 0010 10xx xxxx */
+	/* UXTB				1011 0010 11xx xxxx */
+	/* REV				1011 1010 00xx xxxx */
+	/* REV16			1011 1010 01xx xxxx */
+	/* ???				1011 1010 10xx xxxx */
+	/* REVSH			1011 1010 11xx xxxx */
+	DECODE_REJECT	(0xffc0, 0xba80),
+	DECODE_EMULATE	(0xf500, 0xb000, t16_emulate_loregs_rwflags),
 
 	/*
 	 * If-Then, and hints
