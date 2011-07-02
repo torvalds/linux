@@ -33,7 +33,7 @@
 #include <asm/system.h>
 #include <asm/mach/time.h>
 
-extern void sa1100_finish_suspend(unsigned long);
+extern int sa1100_finish_suspend(unsigned long);
 
 #define SAVE(x)		sleep_save[SLEEP_SAVE_##x] = x
 #define RESTORE(x)	x = sleep_save[SLEEP_SAVE_##x]

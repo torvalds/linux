@@ -148,7 +148,7 @@ static void pxa3xx_cpu_pm_suspend(void)
 	asm volatile("mra %Q0, %R0, acc0" : "=r" (acc0));
 #endif
 
-	extern void pxa3xx_finish_suspend(unsigned long);
+	extern int pxa3xx_finish_suspend(unsigned long);
 
 	/* resuming from D2 requires the HSIO2/BOOT/TPM clocks enabled */
 	CKENA |= (1 << CKEN_BOOT) | (1 << CKEN_TPM);

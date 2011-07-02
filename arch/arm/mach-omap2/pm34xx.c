@@ -321,9 +321,10 @@ static void omap34xx_save_context(u32 *save)
 	*save++ = val;
 }
 
-static void omap34xx_do_sram_idle(unsigned long save_state)
+static int omap34xx_do_sram_idle(unsigned long save_state)
 {
 	omap34xx_cpu_suspend(save_state);
+	return 0;
 }
 
 void omap_sram_idle(void)
