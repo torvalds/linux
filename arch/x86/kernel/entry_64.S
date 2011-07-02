@@ -310,8 +310,11 @@ ENDPROC(native_usergs_sysret64)
 	movq_cfi r10, R10-RBP
 	movq_cfi r11, R11-RBP
 
-	movq_cfi rbp, 0		/* push %rbp */
-	movq %rsp, %rbp
+	/* Save rbp so that we can unwind from get_irq_regs() */
+	movq_cfi rbp, 0
+
+	/* Save previous stack value */
+	movq %rsp, %rsi
 
 	leaq -RBP(%rsp),%rdi	/* arg1 for handler */
 	testl $3, CS(%rdi)
@@ -327,10 +330,11 @@ ENDPROC(native_usergs_sysret64)
 	jne 2f
 	mov PER_CPU_VAR(irq_stack_ptr),%rsp
 	EMPTY_FRAME 0
-	/*
-	 * We entered an interrupt context - irqs are off:
-	 */
-2:	TRACE_IRQS_OFF
+
+2:	/* Store previous stack value */
+	pushq %rsi
+	/* We entered an interrupt context - irqs are off: */
+	TRACE_IRQS_OFF
 	.endm
 
 ENTRY(save_rest)
@@ -804,15 +808,14 @@ ret_from_intr:
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	decl PER_CPU_VAR(irq_count)
-	leaveq
 
-	CFI_RESTORE		rbp
+	/* Restore saved previous stack */
+	popq %rsi
+	leaq 16(%rsi), %rsp
+
 	CFI_DEF_CFA_REGISTER	rsp
-	CFI_ADJUST_CFA_OFFSET	-8
+	CFI_ADJUST_CFA_OFFSET	-16
 
-	/* we did not save rbx, restore only from ARGOFFSET */
-	addq $8, %rsp
-	CFI_ADJUST_CFA_OFFSET	-8
 exit_intr:
 	GET_THREAD_INFO(%rcx)
 	testl $3,CS-ARGOFFSET(%rsp)
