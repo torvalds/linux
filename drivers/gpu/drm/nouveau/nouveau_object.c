@@ -746,7 +746,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	int ret, i;
 
 	NV_DEBUG(dev, "ch%d vram=0x%08x tt=0x%08x\n", chan->id, vram_h, tt_h);
-	if (dev_priv->card_type == NV_C0)
+	if (dev_priv->card_type >= NV_C0)
 		return nvc0_gpuobj_channel_init(chan, vm);
 
 	/* Allocate a chunk of memory for per-channel object storage */

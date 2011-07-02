@@ -306,7 +306,7 @@ nouveau_vm_new(struct drm_device *dev, u64 offset, u64 length, u64 mm_offset,
 			block = length;
 
 	} else
-	if (dev_priv->card_type == NV_C0) {
+	if (dev_priv->card_type >= NV_C0) {
 		vm->map_pgt = nvc0_vm_map_pgt;
 		vm->map = nvc0_vm_map;
 		vm->map_sg = nvc0_vm_map_sg;
