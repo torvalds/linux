@@ -478,7 +478,7 @@ void omap2_check_revision(void);
 /*
  * Runtime detection of OMAP3 features
  */
-extern u32 omap3_features;
+extern u32 omap_features;
 
 #define OMAP3_HAS_L2CACHE		BIT(0)
 #define OMAP3_HAS_IVA			BIT(1)
@@ -488,11 +488,15 @@ extern u32 omap3_features;
 #define OMAP3_HAS_192MHZ_CLK		BIT(5)
 #define OMAP3_HAS_IO_WAKEUP		BIT(6)
 #define OMAP3_HAS_SDRC			BIT(7)
+#define OMAP4_HAS_MPU_1GHZ		BIT(8)
+#define OMAP4_HAS_MPU_1_2GHZ		BIT(9)
+#define OMAP4_HAS_MPU_1_5GHZ		BIT(10)
+
 
 #define OMAP3_HAS_FEATURE(feat,flag)			\
 static inline unsigned int omap3_has_ ##feat(void)	\
 {							\
-	return (omap3_features & OMAP3_HAS_ ##flag);	\
+	return omap_features & OMAP3_HAS_ ##flag;	\
 }							\
 
 OMAP3_HAS_FEATURE(l2cache, L2CACHE)
@@ -503,5 +507,20 @@ OMAP3_HAS_FEATURE(isp, ISP)
 OMAP3_HAS_FEATURE(192mhz_clk, 192MHZ_CLK)
 OMAP3_HAS_FEATURE(io_wakeup, IO_WAKEUP)
 OMAP3_HAS_FEATURE(sdrc, SDRC)
+
+/*
+ * Runtime detection of OMAP4 features
+ */
+extern u32 omap_features;
+
+#define OMAP4_HAS_FEATURE(feat, flag)			\
+static inline unsigned int omap4_has_ ##feat(void)	\
+{							\
+	return omap_features & OMAP4_HAS_ ##flag;	\
+}							\
+
+OMAP4_HAS_FEATURE(mpu_1ghz, MPU_1GHZ)
+OMAP4_HAS_FEATURE(mpu_1_2ghz, MPU_1_2GHZ)
+OMAP4_HAS_FEATURE(mpu_1_5ghz, MPU_1_5GHZ)
 
 #endif
