@@ -464,6 +464,14 @@ const union decode_item kprobe_decode_thumb16_table[] = {
 	/* LDM				1100 1xxx xxxx xxxx */
 	DECODE_EMULATE	(0xf000, 0xc000, t16_emulate_loregs_rwflags),
 
+	/*
+	 * Conditional branch, and Supervisor Call
+	 */
+
+	/* Permanently UNDEFINED	1101 1110 xxxx xxxx */
+	/* SVC				1101 1111 xxxx xxxx */
+	DECODE_REJECT	(0xfe00, 0xde00),
+
 	DECODE_END
 };
 
