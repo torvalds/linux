@@ -219,36 +219,46 @@ static struct safe_buffer *find_safe_buffer_dev(struct device *dev,
 	return find_safe_buffer(dev->archdata.dmabounce, dma_addr);
 }
 
+static int needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
+{
+	if (!dev || !dev->archdata.dmabounce)
+		return 0;
+
+	if (dev->dma_mask) {
+		unsigned long limit, mask = *dev->dma_mask;
+
+		limit = (mask + 1) & ~mask;
+		if (limit && size > limit) {
+			dev_err(dev, "DMA mapping too big (requested %#x "
+				"mask %#Lx)\n", size, *dev->dma_mask);
+			return -E2BIG;
+		}
+
+		/* Figure out if we need to bounce from the DMA mask. */
+		if ((dma_addr | (dma_addr + size - 1)) & ~mask)
+			return 1;
+	}
+
+	return dma_needs_bounce(dev, dma_addr, size) ? 1 : 0;
+}
+
 static inline dma_addr_t map_single(struct device *dev, void *ptr, size_t size,
 		enum dma_data_direction dir)
 {
 	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
 	dma_addr_t dma_addr;
-	int needs_bounce = 0;
+	int ret;
 
 	if (device_info)
 		DO_STATS ( device_info->map_op_count++ );
 
 	dma_addr = virt_to_dma(dev, ptr);
 
-	if (dev->dma_mask) {
-		unsigned long mask = *dev->dma_mask;
-		unsigned long limit;
+	ret = needs_bounce(dev, dma_addr, size);
+	if (ret < 0)
+		return ~0;
 
-		limit = (mask + 1) & ~mask;
-		if (limit && size > limit) {
-			dev_err(dev, "DMA mapping too big (requested %#x "
-				"mask %#Lx)\n", size, *dev->dma_mask);
-			return ~0;
-		}
-
-		/*
-		 * Figure out if we need to bounce from the DMA mask.
-		 */
-		needs_bounce = (dma_addr | (dma_addr + size - 1)) & ~mask;
-	}
-
-	if (device_info && (needs_bounce || dma_needs_bounce(dev, dma_addr, size))) {
+	if (ret > 0) {
 		struct safe_buffer *buf;
 
 		buf = alloc_safe_buffer(device_info, ptr, size, dir);
