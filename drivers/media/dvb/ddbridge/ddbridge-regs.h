@@ -21,26 +21,26 @@
  * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
-// $Id: DD-DVBBridgeV1.h 273 2010-09-17 05:03:16Z manfred $
+/* DD-DVBBridgeV1.h 273 2010-09-17 05:03:16Z manfred */
 
-// Register Definitions
+/* Register Definitions */
 
 #define CUR_REGISTERMAP_VERSION 0x10000
 
 #define HARDWARE_VERSION       0x00
 #define REGISTERMAP_VERSION    0x04
 
-// --------------------------------------------------------------------------
-// SPI Controller
+/* ------------------------------------------------------------------------- */
+/* SPI Controller */
 
 #define SPI_CONTROL     0x10
 #define SPI_DATA        0x14
 
-// --------------------------------------------------------------------------
+/* ------------------------------------------------------------------------- */
 
-// Interrupt controller
-// How many MSI's are available depends on HW (Min 2 max 8)
-// How many are usable also depends on Host platform
+/* Interrupt controller                                     */
+/* How many MSI's are available depends on HW (Min 2 max 8) */
+/* How many are usable also depends on Host platform        */
 
 #define INTERRUPT_BASE   (0x40)
 
@@ -81,15 +81,15 @@
 #define INTMASK_TSOUTPUT3   (0x00040000)
 #define INTMASK_TSOUTPUT4   (0x00080000)
 
-// --------------------------------------------------------------------------
-// I2C Master Controller
+/* ------------------------------------------------------------------------- */
+/* I2C Master Controller */
 
-#define I2C_BASE        (0x80)  // Byte offset
+#define I2C_BASE        (0x80)  /* Byte offset */
 
 #define I2C_COMMAND     (0x00)
 #define I2C_TIMING      (0x04)
-#define I2C_TASKLENGTH  (0x08)     // High read, low write
-#define I2C_TASKADDRESS (0x0C)     // High read, low write
+#define I2C_TASKLENGTH  (0x08)     /* High read, low write */
+#define I2C_TASKADDRESS (0x0C)     /* High read, low write */
 
 #define I2C_MONITOR     (0x1C)
 
@@ -100,7 +100,7 @@
 
 #define I2C_BASE_N(i)   (I2C_BASE + (i) * 0x20)
 
-#define I2C_TASKMEM_BASE    (0x1000)    // Byte offset
+#define I2C_TASKMEM_BASE    (0x1000)    /* Byte offset */
 #define I2C_TASKMEM_SIZE    (0x1000)
 
 #define I2C_SPEED_400   (0x04030404)
@@ -111,27 +111,27 @@
 #define I2C_SPEED_50    (0x27262727)
 
 
-// --------------------------------------------------------------------------
-// DMA  Controller
+/* ------------------------------------------------------------------------- */
+/* DMA  Controller */
 
 #define DMA_BASE_WRITE        (0x100)
 #define DMA_BASE_READ         (0x140)
 
-#define DMA_CONTROL     (0x00)                  // 64
-#define DMA_ERROR       (0x04)                  // 65 ( only read instance )
+#define DMA_CONTROL     (0x00)                  /* 64 */
+#define DMA_ERROR       (0x04)                  /* 65 ( only read instance ) */
 
-#define DMA_DIAG_CONTROL                (0x1C)  // 71
-#define DMA_DIAG_PACKETCOUNTER_LOW      (0x20)  // 72
-#define DMA_DIAG_PACKETCOUNTER_HIGH     (0x24)  // 73
-#define DMA_DIAG_TIMECOUNTER_LOW        (0x28)  // 74
-#define DMA_DIAG_TIMECOUNTER_HIGH       (0x2C)  // 75
-#define DMA_DIAG_RECHECKCOUNTER         (0x30)  // 76  ( Split completions on read )
-#define DMA_DIAG_WAITTIMEOUTINIT        (0x34)  // 77
-#define DMA_DIAG_WAITOVERFLOWCOUNTER    (0x38)  // 78
-#define DMA_DIAG_WAITCOUNTER            (0x3C)  // 79
+#define DMA_DIAG_CONTROL                (0x1C)  /* 71 */
+#define DMA_DIAG_PACKETCOUNTER_LOW      (0x20)  /* 72 */
+#define DMA_DIAG_PACKETCOUNTER_HIGH     (0x24)  /* 73 */
+#define DMA_DIAG_TIMECOUNTER_LOW        (0x28)  /* 74 */
+#define DMA_DIAG_TIMECOUNTER_HIGH       (0x2C)  /* 75 */
+#define DMA_DIAG_RECHECKCOUNTER         (0x30)  /* 76  ( Split completions on read ) */
+#define DMA_DIAG_WAITTIMEOUTINIT        (0x34)  /* 77 */
+#define DMA_DIAG_WAITOVERFLOWCOUNTER    (0x38)  /* 78 */
+#define DMA_DIAG_WAITCOUNTER            (0x3C)  /* 79 */
 
-// --------------------------------------------------------------------------
-// DMA  Buffer
+/* ------------------------------------------------------------------------- */
+/* DMA  Buffer */
 
 #define TS_INPUT_BASE       (0x200)
 #define TS_INPUT_CONTROL(i)         (TS_INPUT_BASE + (i) * 16 + 0x00)
