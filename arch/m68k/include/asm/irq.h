@@ -122,4 +122,6 @@ asmlinkage void __m68k_handle_int(unsigned int, struct pt_regs *);
 #define irq_canonicalize(irq)  (irq)
 #endif /* CONFIG_MMU */
 
+asmlinkage void do_IRQ(int irq, struct pt_regs *regs);
+
 #endif /* _M68K_IRQ_H_ */
