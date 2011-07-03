@@ -351,17 +351,17 @@ int drbd_khelper(struct drbd_device *device, char *cmd)
 	 * write out any unsynced meta data changes now */
 	drbd_md_sync(device);
 
-	dev_info(DEV, "helper command: %s %s %s\n", usermode_helper, cmd, mb);
+	drbd_info(device, "helper command: %s %s %s\n", usermode_helper, cmd, mb);
 	sib.sib_reason = SIB_HELPER_PRE;
 	sib.helper_name = cmd;
 	drbd_bcast_event(device, &sib);
 	ret = call_usermodehelper(usermode_helper, argv, envp, UMH_WAIT_PROC);
 	if (ret)
-		dev_warn(DEV, "helper command: %s %s %s exit code %u (0x%x)\n",
+		drbd_warn(device, "helper command: %s %s %s exit code %u (0x%x)\n",
 				usermode_helper, cmd, mb,
 				(ret >> 8) & 0xff, ret);
 	else
-		dev_info(DEV, "helper command: %s %s %s exit code %u (0x%x)\n",
+		drbd_info(device, "helper command: %s %s %s exit code %u (0x%x)\n",
 				usermode_helper, cmd, mb,
 				(ret >> 8) & 0xff, ret);
 	sib.sib_reason = SIB_HELPER_POST;
@@ -603,7 +603,7 @@ drbd_set_role(struct drbd_device *device, enum drbd_role new_role, int force)
 			goto out;
 		if (rv == SS_PRIMARY_NOP && mask.pdsk == 0) {
 			if (!conn_try_outdate_peer(first_peer_device(device)->connection) && force) {
-				dev_warn(DEV, "Forced into split brain situation!\n");
+				drbd_warn(device, "Forced into split brain situation!\n");
 				mask.pdsk = D_MASK;
 				val.pdsk  = D_OUTDATED;
 
@@ -636,7 +636,7 @@ drbd_set_role(struct drbd_device *device, enum drbd_role new_role, int force)
 		goto out;
 
 	if (forced)
-		dev_warn(DEV, "Forced to consider local data as UpToDate!\n");
+		drbd_warn(device, "Forced to consider local data as UpToDate!\n");
 
 	/* Wait until nothing is on the fly :) */
 	wait_event(device->misc_wait, atomic_read(&device->ap_pending_cnt) == 0);
@@ -905,7 +905,7 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 		if (rs && u_size == 0) {
 			/* Remove "rs &&" later. This check should always be active, but
 			   right now the receiver expects the permissive behavior */
-			dev_warn(DEV, "Implicit shrink not allowed. "
+			drbd_warn(device, "Implicit shrink not allowed. "
 				 "Use --size=%llus for explicit shrink.\n",
 				 (unsigned long long)size);
 			rv = DS_ERROR_SHRINK;
@@ -924,10 +924,10 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 			/* currently there is only one error: ENOMEM! */
 			size = drbd_bm_capacity(device)>>1;
 			if (size == 0) {
-				dev_err(DEV, "OUT OF MEMORY! "
+				drbd_err(device, "OUT OF MEMORY! "
 				    "Could not allocate bitmap!\n");
 			} else {
-				dev_err(DEV, "BM resizing failed. "
+				drbd_err(device, "BM resizing failed. "
 				    "Leaving size unchanged at size = %lu KB\n",
 				    (unsigned long)size);
 			}
@@ -936,7 +936,7 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 		/* racy, see comments above. */
 		drbd_set_my_capacity(device, size);
 		device->ldev->md.la_size_sect = size;
-		dev_info(DEV, "size = %s (%llu KB)\n", ppsize(ppb, size>>1),
+		drbd_info(device, "size = %s (%llu KB)\n", ppsize(ppb, size>>1),
 		     (unsigned long long)size>>1);
 	}
 	if (rv <= DS_ERROR)
@@ -956,7 +956,7 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 		md->flags &= ~MDF_PRIMARY_IND;
 		drbd_md_write(device, buffer);
 
-		dev_info(DEV, "Writing the whole bitmap, %s\n",
+		drbd_info(device, "Writing the whole bitmap, %s\n",
 			 la_size_changed && md_moved ? "size changed and md moved" :
 			 la_size_changed ? "size changed" : "md moved");
 		/* next line implicitly does drbd_suspend_io()+drbd_resume_io() */
@@ -968,8 +968,8 @@ drbd_determine_dev_size(struct drbd_device *device, enum dds_flags flags, struct
 		drbd_md_write(device, buffer);
 
 		if (rs)
-			dev_info(DEV, "Changed AL layout to al-stripes = %d, al-stripe-size-kB = %d\n",
-				 md->al_stripes, md->al_stripe_size_4k * 4);
+			drbd_info(device, "Changed AL layout to al-stripes = %d, al-stripe-size-kB = %d\n",
+				  md->al_stripes, md->al_stripe_size_4k * 4);
 	}
 
 	if (size > la_size_sect)
@@ -1007,7 +1007,7 @@ drbd_new_dev_size(struct drbd_device *device, struct drbd_backing_dev *bdev,
 	m_size = drbd_get_max_capacity(bdev);
 
 	if (device->state.conn < C_CONNECTED && assume_peer_has_space) {
-		dev_warn(DEV, "Resize while not connected was forced by the user!\n");
+		drbd_warn(device, "Resize while not connected was forced by the user!\n");
 		p_size = m_size;
 	}
 
@@ -1029,11 +1029,11 @@ drbd_new_dev_size(struct drbd_device *device, struct drbd_backing_dev *bdev,
 	}
 
 	if (size == 0)
-		dev_err(DEV, "Both nodes diskless!\n");
+		drbd_err(device, "Both nodes diskless!\n");
 
 	if (u_size) {
 		if (u_size > size)
-			dev_err(DEV, "Requested disk size is too big (%lu > %lu)\n",
+			drbd_err(device, "Requested disk size is too big (%lu > %lu)\n",
 			    (unsigned long)u_size>>1, (unsigned long)size>>1);
 		else
 			size = u_size;
@@ -1067,7 +1067,7 @@ static int drbd_check_al_size(struct drbd_device *device, struct disk_conf *dc)
 		dc->al_extents, sizeof(struct lc_element), 0);
 
 	if (n == NULL) {
-		dev_err(DEV, "Cannot allocate act_log lru!\n");
+		drbd_err(device, "Cannot allocate act_log lru!\n");
 		return -ENOMEM;
 	}
 	spin_lock_irq(&device->al_lock);
@@ -1075,7 +1075,7 @@ static int drbd_check_al_size(struct drbd_device *device, struct disk_conf *dc)
 		for (i = 0; i < t->nr_elements; i++) {
 			e = lc_element_by_index(t, i);
 			if (e->refcnt)
-				dev_err(DEV, "refcnt(%d)==%d\n",
+				drbd_err(device, "refcnt(%d)==%d\n",
 				    e->lc_number, e->refcnt);
 			in_use += e->refcnt;
 		}
@@ -1084,7 +1084,7 @@ static int drbd_check_al_size(struct drbd_device *device, struct disk_conf *dc)
 		device->act_log = n;
 	spin_unlock_irq(&device->al_lock);
 	if (in_use) {
-		dev_err(DEV, "Activity log still in use!\n");
+		drbd_err(device, "Activity log still in use!\n");
 		lc_destroy(n);
 		return -EBUSY;
 	} else {
@@ -1123,7 +1123,7 @@ static void drbd_setup_queue_param(struct drbd_device *device, unsigned int max_
 		blk_queue_stack_limits(q, b);
 
 		if (q->backing_dev_info.ra_pages != b->backing_dev_info.ra_pages) {
-			dev_info(DEV, "Adjusting my ra_pages to backing device's (%lu -> %lu)\n",
+			drbd_info(device, "Adjusting my ra_pages to backing device's (%lu -> %lu)\n",
 				 q->backing_dev_info.ra_pages,
 				 b->backing_dev_info.ra_pages);
 			q->backing_dev_info.ra_pages = b->backing_dev_info.ra_pages;
@@ -1165,10 +1165,10 @@ void drbd_reconsider_max_bio_size(struct drbd_device *device)
 	new = min(local, peer);
 
 	if (device->state.role == R_PRIMARY && new < now)
-		dev_err(DEV, "ASSERT FAILED new < now; (%u < %u)\n", new, now);
+		drbd_err(device, "ASSERT FAILED new < now; (%u < %u)\n", new, now);
 
 	if (new != now)
-		dev_info(DEV, "max BIO size = %u\n", new);
+		drbd_info(device, "max BIO size = %u\n", new);
 
 	drbd_setup_queue_param(device, new);
 }
@@ -1202,7 +1202,7 @@ static void drbd_suspend_al(struct drbd_device *device)
 	int s = 0;
 
 	if (!lc_try_lock(device->act_log)) {
-		dev_warn(DEV, "Failed to lock al in drbd_suspend_al()\n");
+		drbd_warn(device, "Failed to lock al in drbd_suspend_al()\n");
 		return;
 	}
 
@@ -1214,7 +1214,7 @@ static void drbd_suspend_al(struct drbd_device *device)
 	lc_unlock(device->act_log);
 
 	if (s)
-		dev_info(DEV, "Suspended AL updates\n");
+		drbd_info(device, "Suspended AL updates\n");
 }
 
 
@@ -1309,7 +1309,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	if (fifo_size != device->rs_plan_s->size) {
 		new_plan = fifo_alloc(fifo_size);
 		if (!new_plan) {
-			dev_err(DEV, "kmalloc of fifo_buffer failed");
+			drbd_err(device, "kmalloc of fifo_buffer failed");
 			retcode = ERR_NOMEM;
 			goto fail_unlock;
 		}
@@ -1485,7 +1485,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	bdev = blkdev_get_by_path(new_disk_conf->backing_dev,
 				  FMODE_READ | FMODE_WRITE | FMODE_EXCL, device);
 	if (IS_ERR(bdev)) {
-		dev_err(DEV, "open(\"%s\") failed with %ld\n", new_disk_conf->backing_dev,
+		drbd_err(device, "open(\"%s\") failed with %ld\n", new_disk_conf->backing_dev,
 			PTR_ERR(bdev));
 		retcode = ERR_OPEN_DISK;
 		goto fail;
@@ -1505,7 +1505,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 				  (new_disk_conf->meta_dev_idx < 0) ?
 				  (void *)device : (void *)drbd_m_holder);
 	if (IS_ERR(bdev)) {
-		dev_err(DEV, "open(\"%s\") failed with %ld\n", new_disk_conf->meta_dev,
+		drbd_err(device, "open(\"%s\") failed with %ld\n", new_disk_conf->meta_dev,
 			PTR_ERR(bdev));
 		retcode = ERR_OPEN_MD_DISK;
 		goto fail;
@@ -1539,7 +1539,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		new_disk_conf->al_extents = drbd_al_extents_max(nbc);
 
 	if (drbd_get_max_capacity(nbc) < new_disk_conf->disk_size) {
-		dev_err(DEV, "max capacity %llu smaller than disk size %llu\n",
+		drbd_err(device, "max capacity %llu smaller than disk size %llu\n",
 			(unsigned long long) drbd_get_max_capacity(nbc),
 			(unsigned long long) new_disk_conf->disk_size);
 		retcode = ERR_DISK_TOO_SMALL;
@@ -1557,7 +1557,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 
 	if (drbd_get_capacity(nbc->md_bdev) < min_md_device_sectors) {
 		retcode = ERR_MD_DISK_TOO_SMALL;
-		dev_warn(DEV, "refusing attach: md-device too small, "
+		drbd_warn(device, "refusing attach: md-device too small, "
 		     "at least %llu sectors needed for this meta-disk type\n",
 		     (unsigned long long) min_md_device_sectors);
 		goto fail;
@@ -1574,11 +1574,11 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	nbc->known_size = drbd_get_capacity(nbc->backing_bdev);
 
 	if (nbc->known_size > max_possible_sectors) {
-		dev_warn(DEV, "==> truncating very big lower level device "
+		drbd_warn(device, "==> truncating very big lower level device "
 			"to currently maximum possible %llu sectors <==\n",
 			(unsigned long long) max_possible_sectors);
 		if (new_disk_conf->meta_dev_idx >= 0)
-			dev_warn(DEV, "==>> using internal or flexible "
+			drbd_warn(device, "==>> using internal or flexible "
 				      "meta data may help <<==\n");
 	}
 
@@ -1613,7 +1613,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	if (device->state.conn < C_CONNECTED &&
 	    device->state.role == R_PRIMARY &&
 	    (device->ed_uuid & ~((u64)1)) != (nbc->md.uuid[UI_CURRENT] & ~((u64)1))) {
-		dev_err(DEV, "Can only attach to data with current UUID=%016llX\n",
+		drbd_err(device, "Can only attach to data with current UUID=%016llX\n",
 		    (unsigned long long)device->ed_uuid);
 		retcode = ERR_DATA_NOT_CURRENT;
 		goto force_diskless_dec;
@@ -1628,7 +1628,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	/* Prevent shrinking of consistent devices ! */
 	if (drbd_md_test_flag(nbc, MDF_CONSISTENT) &&
 	    drbd_new_dev_size(device, nbc, nbc->disk_conf->disk_size, 0) < nbc->md.la_size_sect) {
-		dev_warn(DEV, "refusing to truncate a consistent device\n");
+		drbd_warn(device, "refusing to truncate a consistent device\n");
 		retcode = ERR_DISK_TOO_SMALL;
 		goto force_diskless_dec;
 	}
@@ -1702,7 +1702,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	if (drbd_md_test_flag(device->ldev, MDF_FULL_SYNC) ||
 	    (test_bit(CRASHED_PRIMARY, &device->flags) &&
 	     drbd_md_test_flag(device->ldev, MDF_AL_DISABLED))) {
-		dev_info(DEV, "Assuming that all blocks are out of sync "
+		drbd_info(device, "Assuming that all blocks are out of sync "
 		     "(aka FullSync)\n");
 		if (drbd_bitmap_io(device, &drbd_bmio_set_n_write,
 			"set_n_write from attaching", BM_LOCKED_MASK)) {
@@ -2381,7 +2381,7 @@ void resync_after_online_grow(struct drbd_device *device)
 {
 	int iass; /* I am sync source */
 
-	dev_info(DEV, "Resync of new storage after online grow\n");
+	drbd_info(device, "Resync of new storage after online grow\n");
 	if (device->state.role != device->state.peer)
 		iass = (device->state.role == R_PRIMARY);
 	else
@@ -3203,7 +3203,7 @@ int drbd_adm_new_c_uuid(struct sk_buff *skb, struct genl_info *info)
 	if (device->state.conn == C_CONNECTED &&
 	    first_peer_device(device)->connection->agreed_pro_version >= 90 &&
 	    device->ldev->md.uuid[UI_CURRENT] == UUID_JUST_CREATED && args.clear_bm) {
-		dev_info(DEV, "Preparing to skip initial sync\n");
+		drbd_info(device, "Preparing to skip initial sync\n");
 		skip_initial_sync = 1;
 	} else if (device->state.conn != C_STANDALONE) {
 		retcode = ERR_CONNECTED;
@@ -3217,7 +3217,7 @@ int drbd_adm_new_c_uuid(struct sk_buff *skb, struct genl_info *info)
 		err = drbd_bitmap_io(device, &drbd_bmio_clear_n_write,
 			"clear_n_write from new_c_uuid", BM_LOCKED_MASK);
 		if (err) {
-			dev_err(DEV, "Writing bitmap failed with %d\n",err);
+			drbd_err(device, "Writing bitmap failed with %d\n", err);
 			retcode = ERR_IO_MD_DISK;
 		}
 		if (skip_initial_sync) {
@@ -3513,7 +3513,7 @@ void drbd_bcast_event(struct drbd_device *device, const struct sib_info *sib)
 nla_put_failure:
 	nlmsg_free(msg);
 failed:
-	dev_err(DEV, "Error %d while broadcasting event. "
+	drbd_err(device, "Error %d while broadcasting event. "
 			"Event seq:%u sib_reason:%u\n",
 			err, seq, sib->sib_reason);
 }

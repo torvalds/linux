@@ -176,12 +176,12 @@ void drbd_peer_request_endio(struct bio *bio, int error)
 	int is_write = bio_data_dir(bio) == WRITE;
 
 	if (error && __ratelimit(&drbd_ratelimit_state))
-		dev_warn(DEV, "%s: error=%d s=%llus\n",
+		drbd_warn(device, "%s: error=%d s=%llus\n",
 				is_write ? "write" : "read", error,
 				(unsigned long long)peer_req->i.sector);
 	if (!error && !uptodate) {
 		if (__ratelimit(&drbd_ratelimit_state))
-			dev_warn(DEV, "%s: setting error to -EIO s=%llus\n",
+			drbd_warn(device, "%s: setting error to -EIO s=%llus\n",
 					is_write ? "write" : "read",
 					(unsigned long long)peer_req->i.sector);
 		/* strange behavior of some lower level drivers...
@@ -214,7 +214,7 @@ void drbd_request_endio(struct bio *bio, int error)
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 
 	if (!error && !uptodate) {
-		dev_warn(DEV, "p %s: setting error to -EIO\n",
+		drbd_warn(device, "p %s: setting error to -EIO\n",
 			 bio_data_dir(bio) == WRITE ? "write" : "read");
 		/* strange behavior of some lower level drivers...
 		 * fail the request by clearing the uptodate flag,
@@ -253,7 +253,7 @@ void drbd_request_endio(struct bio *bio, int error)
 	 */
 	if (unlikely(req->rq_state & RQ_LOCAL_ABORTED)) {
 		if (__ratelimit(&drbd_ratelimit_state))
-			dev_emerg(DEV, "delayed completion of aborted local request; disk-timeout may be too aggressive\n");
+			drbd_emerg(device, "delayed completion of aborted local request; disk-timeout may be too aggressive\n");
 
 		if (!error)
 			panic("possible random memory corruption caused by delayed completion of aborted local request\n");
@@ -364,7 +364,7 @@ static int w_e_send_csum(struct drbd_work *w, int cancel)
 					      P_CSUM_RS_REQUEST);
 		kfree(digest);
 	} else {
-		dev_err(DEV, "kmalloc() of digest failed.\n");
+		drbd_err(device, "kmalloc() of digest failed.\n");
 		err = -ENOMEM;
 	}
 
@@ -373,7 +373,7 @@ out:
 		drbd_free_peer_req(device, peer_req);
 
 	if (unlikely(err))
-		dev_err(DEV, "drbd_send_drequest(..., csum) failed\n");
+		drbd_err(device, "drbd_send_drequest(..., csum) failed\n");
 	return err;
 }
 
@@ -534,7 +534,7 @@ static int drbd_rs_controller(struct drbd_device *device)
 		req_sect = max_sect;
 
 	/*
-	dev_warn(DEV, "si=%u if=%d wa=%u co=%d st=%d cps=%d pl=%d cc=%d rs=%d\n",
+	drbd_warn(device, "si=%u if=%d wa=%u co=%d st=%d cps=%d pl=%d cc=%d rs=%d\n",
 		 sect_in, device->rs_in_flight, want, correction,
 		 steps, cps, device->rs_planed, curr_corr, req_sect);
 	*/
@@ -586,7 +586,7 @@ int w_make_resync_request(struct drbd_work *w, int cancel)
 		   get_ldev_if_state(device,D_FAILED) would be sufficient, but
 		   to continue resync with a broken disk makes no sense at
 		   all */
-		dev_err(DEV, "Disk broke down during resync!\n");
+		drbd_err(device, "Disk broke down during resync!\n");
 		return 0;
 	}
 
@@ -699,7 +699,7 @@ next_sector:
 			err = drbd_send_drequest(device, P_RS_DATA_REQUEST,
 						 sector, size, ID_SYNCER);
 			if (err) {
-				dev_err(DEV, "drbd_send_drequest() failed, aborting...\n");
+				drbd_err(device, "drbd_send_drequest() failed, aborting...\n");
 				dec_rs_pending(device);
 				put_ldev(device);
 				return err;
@@ -835,7 +835,7 @@ int drbd_resync_finished(struct drbd_device *device)
 			drbd_queue_work(&first_peer_device(device)->connection->sender_work, w);
 			return 1;
 		}
-		dev_err(DEV, "Warn failed to drbd_rs_del_all() and to kmalloc(w).\n");
+		drbd_err(device, "Warn failed to drbd_rs_del_all() and to kmalloc(w).\n");
 	}
 
 	dt = (jiffies - device->rs_start - device->rs_paused) / HZ;
@@ -868,7 +868,7 @@ int drbd_resync_finished(struct drbd_device *device)
 	ns = os;
 	ns.conn = C_CONNECTED;
 
-	dev_info(DEV, "%s done (total %lu sec; paused %lu sec; %lu K/sec)\n",
+	drbd_info(device, "%s done (total %lu sec; paused %lu sec; %lu K/sec)\n",
 	     verify_done ? "Online verify" : "Resync",
 	     dt + device->rs_paused, device->rs_paused, dbdt);
 
@@ -876,7 +876,7 @@ int drbd_resync_finished(struct drbd_device *device)
 
 	if (os.conn == C_VERIFY_S || os.conn == C_VERIFY_T) {
 		if (n_oos) {
-			dev_alert(DEV, "Online verify found %lu %dk block out of sync!\n",
+			drbd_alert(device, "Online verify found %lu %dk block out of sync!\n",
 			      n_oos, Bit2KB(1));
 			khelper_cmd = "out-of-sync";
 		}
@@ -892,7 +892,7 @@ int drbd_resync_finished(struct drbd_device *device)
 			const int ratio =
 				(t == 0)     ? 0 :
 			(t < 100000) ? ((s*100)/t) : (s/(t/100));
-			dev_info(DEV, "%u %% had equal checksums, eliminated: %luK; "
+			drbd_info(device, "%u %% had equal checksums, eliminated: %luK; "
 			     "transferred %luK total %luK\n",
 			     ratio,
 			     Bit2KB(device->rs_same_csum),
@@ -902,7 +902,7 @@ int drbd_resync_finished(struct drbd_device *device)
 	}
 
 	if (device->rs_failed) {
-		dev_info(DEV, "            %lu failed blocks\n", device->rs_failed);
+		drbd_info(device, "            %lu failed blocks\n", device->rs_failed);
 
 		if (os.conn == C_SYNC_TARGET || os.conn == C_PAUSED_SYNC_T) {
 			ns.disk = D_INCONSISTENT;
@@ -923,7 +923,7 @@ int drbd_resync_finished(struct drbd_device *device)
 				drbd_uuid_set(device, UI_BITMAP, device->ldev->md.uuid[UI_CURRENT]);
 				_drbd_uuid_set(device, UI_CURRENT, device->p_uuid[UI_CURRENT]);
 			} else {
-				dev_err(DEV, "device->p_uuid is NULL! BUG\n");
+				drbd_err(device, "device->p_uuid is NULL! BUG\n");
 			}
 		}
 
@@ -1001,7 +1001,7 @@ int w_e_end_data_req(struct drbd_work *w, int cancel)
 		err = drbd_send_block(device, P_DATA_REPLY, peer_req);
 	} else {
 		if (__ratelimit(&drbd_ratelimit_state))
-			dev_err(DEV, "Sending NegDReply. sector=%llus.\n",
+			drbd_err(device, "Sending NegDReply. sector=%llus.\n",
 			    (unsigned long long)peer_req->i.sector);
 
 		err = drbd_send_ack(device, P_NEG_DREPLY, peer_req);
@@ -1012,7 +1012,7 @@ int w_e_end_data_req(struct drbd_work *w, int cancel)
 	move_to_net_ee_or_free(device, peer_req);
 
 	if (unlikely(err))
-		dev_err(DEV, "drbd_send_block() failed\n");
+		drbd_err(device, "drbd_send_block() failed\n");
 	return err;
 }
 
@@ -1047,13 +1047,13 @@ int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
 			err = drbd_send_block(device, P_RS_DATA_REPLY, peer_req);
 		} else {
 			if (__ratelimit(&drbd_ratelimit_state))
-				dev_err(DEV, "Not sending RSDataReply, "
+				drbd_err(device, "Not sending RSDataReply, "
 				    "partner DISKLESS!\n");
 			err = 0;
 		}
 	} else {
 		if (__ratelimit(&drbd_ratelimit_state))
-			dev_err(DEV, "Sending NegRSDReply. sector %llus.\n",
+			drbd_err(device, "Sending NegRSDReply. sector %llus.\n",
 			    (unsigned long long)peer_req->i.sector);
 
 		err = drbd_send_ack(device, P_NEG_RS_DREPLY, peer_req);
@@ -1067,7 +1067,7 @@ int w_e_end_rsdata_req(struct drbd_work *w, int cancel)
 	move_to_net_ee_or_free(device, peer_req);
 
 	if (unlikely(err))
-		dev_err(DEV, "drbd_send_block() failed\n");
+		drbd_err(device, "drbd_send_block() failed\n");
 	return err;
 }
 
@@ -1123,14 +1123,14 @@ int w_e_end_csum_rs_req(struct drbd_work *w, int cancel)
 	} else {
 		err = drbd_send_ack(device, P_NEG_RS_DREPLY, peer_req);
 		if (__ratelimit(&drbd_ratelimit_state))
-			dev_err(DEV, "Sending NegDReply. I guess it gets messy.\n");
+			drbd_err(device, "Sending NegDReply. I guess it gets messy.\n");
 	}
 
 	dec_unacked(device);
 	move_to_net_ee_or_free(device, peer_req);
 
 	if (unlikely(err))
-		dev_err(DEV, "drbd_send_block/ack() failed\n");
+		drbd_err(device, "drbd_send_block/ack() failed\n");
 	return err;
 }
 
@@ -1590,7 +1590,7 @@ int w_start_resync(struct drbd_work *w, int cancel)
 	struct drbd_device *device = w->device;
 
 	if (atomic_read(&device->unacked_cnt) || atomic_read(&device->rs_pending_cnt)) {
-		dev_warn(DEV, "w_start_resync later...\n");
+		drbd_warn(device, "w_start_resync later...\n");
 		device->start_resync_timer.expires = jiffies + HZ/10;
 		add_timer(&device->start_resync_timer);
 		return 0;
@@ -1615,7 +1615,7 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 	int r;
 
 	if (device->state.conn >= C_SYNC_SOURCE && device->state.conn < C_AHEAD) {
-		dev_err(DEV, "Resync already running!\n");
+		drbd_err(device, "Resync already running!\n");
 		return;
 	}
 
@@ -1627,7 +1627,7 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 			r = drbd_khelper(device, "before-resync-target");
 			r = (r >> 8) & 0xff;
 			if (r > 0) {
-				dev_info(DEV, "before-resync-target handler returned %d, "
+				drbd_info(device, "before-resync-target handler returned %d, "
 					 "dropping connection.\n", r);
 				conn_request_state(first_peer_device(device)->connection, NS(conn, C_DISCONNECTING), CS_HARD);
 				return;
@@ -1637,10 +1637,10 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 			r = (r >> 8) & 0xff;
 			if (r > 0) {
 				if (r == 3) {
-					dev_info(DEV, "before-resync-source handler returned %d, "
+					drbd_info(device, "before-resync-source handler returned %d, "
 						 "ignoring. Old userland tools?", r);
 				} else {
-					dev_info(DEV, "before-resync-source handler returned %d, "
+					drbd_info(device, "before-resync-source handler returned %d, "
 						 "dropping connection.\n", r);
 					conn_request_state(first_peer_device(device)->connection,
 							   NS(conn, C_DISCONNECTING), CS_HARD);
@@ -1715,7 +1715,7 @@ void drbd_start_resync(struct drbd_device *device, enum drbd_conns side)
 		 * to deal with potential jiffies wrap. */
 		device->rs_last_bcast = jiffies - HZ;
 
-		dev_info(DEV, "Began resync as %s (will sync %lu KB [%lu bits set]).\n",
+		drbd_info(device, "Began resync as %s (will sync %lu KB [%lu bits set]).\n",
 		     drbd_conn_str(ns.conn),
 		     (unsigned long) device->rs_total << (BM_BLOCK_SHIFT-10),
 		     (unsigned long) device->rs_total);

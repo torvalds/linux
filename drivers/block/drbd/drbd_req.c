@@ -102,7 +102,7 @@ void drbd_req_destroy(struct kref *kref)
 		atomic_read(&req->completion_ref) ||
 		(s & RQ_LOCAL_PENDING) ||
 		((s & RQ_NET_MASK) && !(s & RQ_NET_DONE))) {
-		dev_err(DEV, "drbd_req_destroy: Logic BUG rq_state = 0x%x, completion_ref = %d\n",
+		drbd_err(device, "drbd_req_destroy: Logic BUG rq_state = 0x%x, completion_ref = %d\n",
 				s, atomic_read(&req->completion_ref));
 		return;
 	}
@@ -153,7 +153,7 @@ void drbd_req_destroy(struct kref *kref)
 				drbd_al_complete_io(device, &req->i);
 				put_ldev(device);
 			} else if (__ratelimit(&drbd_ratelimit_state)) {
-				dev_warn(DEV, "Should have called drbd_al_complete_io(, %llu, %u), "
+				drbd_warn(device, "Should have called drbd_al_complete_io(, %llu, %u), "
 					 "but my Disk seems to have failed :(\n",
 					 (unsigned long long) req->i.sector, req->i.size);
 			}
@@ -227,12 +227,12 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 	if ((s & RQ_LOCAL_PENDING && !(s & RQ_LOCAL_ABORTED)) ||
 	    (s & RQ_NET_QUEUED) || (s & RQ_NET_PENDING) ||
 	    (s & RQ_COMPLETION_SUSP)) {
-		dev_err(DEV, "drbd_req_complete: Logic BUG rq_state = 0x%x\n", s);
+		drbd_err(device, "drbd_req_complete: Logic BUG rq_state = 0x%x\n", s);
 		return;
 	}
 
 	if (!req->master_bio) {
-		dev_err(DEV, "drbd_req_complete: Logic BUG, master_bio == NULL!\n");
+		drbd_err(device, "drbd_req_complete: Logic BUG, master_bio == NULL!\n");
 		return;
 	}
 
@@ -410,7 +410,7 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 		int at_least = k_put + !!c_put;
 		int refcount = atomic_read(&req->kref.refcount);
 		if (refcount < at_least)
-			dev_err(DEV,
+			drbd_err(device,
 				"mod_rq_state: Logic BUG: %x -> %x: refcount = %d, should be >= %d\n",
 				s, req->rq_state, refcount, at_least);
 	}
@@ -432,7 +432,7 @@ static void drbd_report_io_error(struct drbd_device *device, struct drbd_request
 	if (!__ratelimit(&drbd_ratelimit_state))
 		return;
 
-	dev_warn(DEV, "local %s IO error sector %llu+%u on %s\n",
+	drbd_warn(device, "local %s IO error sector %llu+%u on %s\n",
 			(req->rq_state & RQ_WRITE) ? "WRITE" : "READ",
 			(unsigned long long)req->i.sector,
 			req->i.size >> 9,
@@ -463,7 +463,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 	switch (what) {
 	default:
-		dev_err(DEV, "LOGIC BUG in %s:%u\n", __FILE__ , __LINE__);
+		drbd_err(device, "LOGIC BUG in %s:%u\n", __FILE__ , __LINE__);
 		break;
 
 	/* does not happen...
@@ -741,7 +741,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			/* barrier came in before all requests were acked.
 			 * this is bad, because if the connection is lost now,
 			 * we won't be able to clean them up... */
-			dev_err(DEV, "FIXME (BARRIER_ACKED but pending)\n");
+			drbd_err(device, "FIXME (BARRIER_ACKED but pending)\n");
 		}
 		/* Allowed to complete requests, even while suspended.
 		 * As this is called for all requests within a matching epoch,
@@ -883,12 +883,12 @@ static void maybe_pull_ahead(struct drbd_device *device)
 
 	if (nc->cong_fill &&
 	    atomic_read(&device->ap_in_flight) >= nc->cong_fill) {
-		dev_info(DEV, "Congestion-fill threshold reached\n");
+		drbd_info(device, "Congestion-fill threshold reached\n");
 		congested = true;
 	}
 
 	if (device->act_log->used >= nc->cong_extents) {
-		dev_info(DEV, "Congestion-extents threshold reached\n");
+		drbd_info(device, "Congestion-extents threshold reached\n");
 		congested = true;
 	}
 
@@ -1046,7 +1046,7 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long 
 		dec_ap_bio(device);
 		/* only pass the error to the upper layers.
 		 * if user cannot handle io errors, that's not our business. */
-		dev_err(DEV, "could not kmalloc() req\n");
+		drbd_err(device, "could not kmalloc() req\n");
 		bio_endio(bio, -ENOMEM);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -1146,7 +1146,7 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 	} else if (no_remote) {
 nodata:
 		if (__ratelimit(&drbd_ratelimit_state))
-			dev_err(DEV, "IO ERROR: neither local nor remote data, sector %llu+%u\n",
+			drbd_err(device, "IO ERROR: neither local nor remote data, sector %llu+%u\n",
 					(unsigned long long)req->i.sector, req->i.size >> 9);
 		/* A write may have been queued for send_oos, however.
 		 * So we can not simply free it, we must go through drbd_req_put_completion_ref() */
@@ -1387,13 +1387,13 @@ void request_timer_fn(unsigned long data)
 	if (ent && req->rq_state & RQ_NET_PENDING &&
 		 time_after(now, req->start_time + ent) &&
 		!time_in_range(now, connection->last_reconnect_jif, connection->last_reconnect_jif + ent)) {
-		dev_warn(DEV, "Remote failed to finish a request within ko-count * timeout\n");
+		drbd_warn(device, "Remote failed to finish a request within ko-count * timeout\n");
 		_drbd_set_state(_NS(device, conn, C_TIMEOUT), CS_VERBOSE | CS_HARD, NULL);
 	}
 	if (dt && req->rq_state & RQ_LOCAL_PENDING && req->w.device == device &&
 		 time_after(now, req->start_time + dt) &&
 		!time_in_range(now, device->last_reattach_jif, device->last_reattach_jif + dt)) {
-		dev_warn(DEV, "Local backing device failed to meet the disk-timeout\n");
+		drbd_warn(device, "Local backing device failed to meet the disk-timeout\n");
 		__drbd_chk_io_error(device, DRBD_FORCE_DETACH);
 	}
 	nt = (time_after(now, req->start_time + et) ? now : req->start_time) + et;

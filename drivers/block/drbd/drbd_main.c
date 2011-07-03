@@ -871,7 +871,7 @@ void drbd_print_uuids(struct drbd_device *device, const char *text)
 {
 	if (get_ldev_if_state(device, D_NEGOTIATING)) {
 		u64 *uuid = device->ldev->md.uuid;
-		dev_info(DEV, "%s %016llX:%016llX:%016llX:%016llX\n",
+		drbd_info(device, "%s %016llX:%016llX:%016llX:%016llX\n",
 		     text,
 		     (unsigned long long)uuid[UI_CURRENT],
 		     (unsigned long long)uuid[UI_BITMAP],
@@ -879,7 +879,7 @@ void drbd_print_uuids(struct drbd_device *device, const char *text)
 		     (unsigned long long)uuid[UI_HISTORY_END]);
 		put_ldev(device);
 	} else {
-		dev_info(DEV, "%s effective data uuid: %016llX\n",
+		drbd_info(device, "%s effective data uuid: %016llX\n",
 				text,
 				(unsigned long long)device->ed_uuid);
 	}
@@ -1126,7 +1126,7 @@ static int fill_bitmap_rle_bits(struct drbd_device *device,
 		/* paranoia: catch zero runlength.
 		 * can only happen if bitmap is modified while we scan it. */
 		if (rl == 0) {
-			dev_err(DEV, "unexpected zero runlength while encoding bitmap "
+			drbd_err(device, "unexpected zero runlength while encoding bitmap "
 			    "t:%u bo:%lu\n", toggle, c->bit_offset);
 			return -1;
 		}
@@ -1135,7 +1135,7 @@ static int fill_bitmap_rle_bits(struct drbd_device *device,
 		if (bits == -ENOBUFS) /* buffer full */
 			break;
 		if (bits <= 0) {
-			dev_err(DEV, "error while encoding bitmap: %d\n", bits);
+			drbd_err(device, "error while encoding bitmap: %d\n", bits);
 			return 0;
 		}
 
@@ -1238,13 +1238,13 @@ static int _drbd_send_bitmap(struct drbd_device *device)
 
 	if (get_ldev(device)) {
 		if (drbd_md_test_flag(device->ldev, MDF_FULL_SYNC)) {
-			dev_info(DEV, "Writing the whole bitmap, MDF_FullSync was set.\n");
+			drbd_info(device, "Writing the whole bitmap, MDF_FullSync was set.\n");
 			drbd_bm_set_all(device);
 			if (drbd_bm_write(device)) {
 				/* write_bm did fail! Leave full sync flag set in Meta P_DATA
 				 * but otherwise process as per normal - need to tell other
 				 * side that a full resync is required! */
-				dev_err(DEV, "Failed to write bitmap to disk!\n");
+				drbd_err(device, "Failed to write bitmap to disk!\n");
 			} else {
 				drbd_md_clear_flag(device, MDF_FULL_SYNC);
 				drbd_md_sync(device);
@@ -1517,7 +1517,7 @@ static int _drbd_send_page(struct drbd_device *device, struct page *page,
 					break;
 				continue;
 			}
-			dev_warn(DEV, "%s: size=%d len=%d sent=%d\n",
+			drbd_warn(device, "%s: size=%d len=%d sent=%d\n",
 			     __func__, (int)size, len, sent);
 			if (sent < 0)
 				err = sent;
@@ -1663,7 +1663,7 @@ int drbd_send_dblock(struct drbd_device *device, struct drbd_request *req)
 			unsigned char digest[64];
 			drbd_csum_bio(device, first_peer_device(device)->connection->integrity_tfm, req->master_bio, digest);
 			if (memcmp(p + 1, digest, dgs)) {
-				dev_warn(DEV,
+				drbd_warn(device,
 					"Digest mismatch, buffer modified by upper layers during write: %llus +%u\n",
 					(unsigned long long)req->i.sector, req->i.size);
 			}
@@ -1955,7 +1955,7 @@ void drbd_device_cleanup(struct drbd_device *device)
 {
 	int i;
 	if (first_peer_device(device)->connection->receiver.t_state != NONE)
-		dev_err(DEV, "ASSERT FAILED: receiver t_state == %d expected 0.\n",
+		drbd_err(device, "ASSERT FAILED: receiver t_state == %d expected 0.\n",
 				first_peer_device(device)->connection->receiver.t_state);
 
 	device->al_writ_cnt  =
@@ -2140,23 +2140,23 @@ static void drbd_release_all_peer_reqs(struct drbd_device *device)
 
 	rr = drbd_free_peer_reqs(device, &device->active_ee);
 	if (rr)
-		dev_err(DEV, "%d EEs in active list found!\n", rr);
+		drbd_err(device, "%d EEs in active list found!\n", rr);
 
 	rr = drbd_free_peer_reqs(device, &device->sync_ee);
 	if (rr)
-		dev_err(DEV, "%d EEs in sync list found!\n", rr);
+		drbd_err(device, "%d EEs in sync list found!\n", rr);
 
 	rr = drbd_free_peer_reqs(device, &device->read_ee);
 	if (rr)
-		dev_err(DEV, "%d EEs in read list found!\n", rr);
+		drbd_err(device, "%d EEs in read list found!\n", rr);
 
 	rr = drbd_free_peer_reqs(device, &device->done_ee);
 	if (rr)
-		dev_err(DEV, "%d EEs in done list found!\n", rr);
+		drbd_err(device, "%d EEs in done list found!\n", rr);
 
 	rr = drbd_free_peer_reqs(device, &device->net_ee);
 	if (rr)
-		dev_err(DEV, "%d EEs in net list found!\n", rr);
+		drbd_err(device, "%d EEs in net list found!\n", rr);
 }
 
 /* caution. no locking. */
@@ -2237,7 +2237,7 @@ static void do_retry(struct work_struct *ws)
 				(req->rq_state & RQ_LOCAL_ABORTED) != 0);
 
 		if (!expected)
-			dev_err(DEV, "req=%p completion_ref=%d rq_state=%x\n",
+			drbd_err(device, "req=%p completion_ref=%d rq_state=%x\n",
 				req, atomic_read(&req->completion_ref),
 				req->rq_state);
 
@@ -3011,7 +3011,7 @@ void drbd_md_write(struct drbd_device *device, void *b)
 
 	if (drbd_md_sync_page_io(device, device->ldev, sector, WRITE)) {
 		/* this was a try anyways ... */
-		dev_err(DEV, "meta data update failed!\n");
+		drbd_err(device, "meta data update failed!\n");
 		drbd_chk_io_error(device, 1, DRBD_META_IO_ERROR);
 	}
 }
@@ -3093,7 +3093,7 @@ static int check_activity_log_stripe_size(struct drbd_device *device,
 
 	return 0;
 err:
-	dev_err(DEV, "invalid activity log striping: al_stripes=%u, al_stripe_size_4k=%u\n",
+	drbd_err(device, "invalid activity log striping: al_stripes=%u, al_stripe_size_4k=%u\n",
 			al_stripes, al_stripe_size_4k);
 	return -EINVAL;
 }
@@ -3165,7 +3165,7 @@ static int check_offsets_and_sizes(struct drbd_device *device, struct drbd_backi
 	return 0;
 
 err:
-	dev_err(DEV, "meta data offsets don't make sense: idx=%d "
+	drbd_err(device, "meta data offsets don't make sense: idx=%d "
 			"al_s=%u, al_sz4k=%u, al_offset=%d, bm_offset=%d, "
 			"md_size_sect=%u, la_size=%llu, md_capacity=%llu\n",
 			in_core->meta_dev_idx,
@@ -3210,7 +3210,7 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
 	if (drbd_md_sync_page_io(device, bdev, bdev->md.md_offset, READ)) {
 		/* NOTE: can't do normal error processing here as this is
 		   called BEFORE disk is attached */
-		dev_err(DEV, "Error while reading metadata.\n");
+		drbd_err(device, "Error while reading metadata.\n");
 		rv = ERR_IO_MD_DISK;
 		goto err;
 	}
@@ -3220,7 +3220,7 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
 	if (magic == DRBD_MD_MAGIC_84_UNCLEAN ||
 	    (magic == DRBD_MD_MAGIC_08 && !(flags & MDF_AL_CLEAN))) {
 			/* btw: that's Activity Log clean, not "all" clean. */
-		dev_err(DEV, "Found unclean meta data. Did you \"drbdadm apply-al\"?\n");
+		drbd_err(device, "Found unclean meta data. Did you \"drbdadm apply-al\"?\n");
 		rv = ERR_MD_UNCLEAN;
 		goto err;
 	}
@@ -3228,14 +3228,14 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
 	rv = ERR_MD_INVALID;
 	if (magic != DRBD_MD_MAGIC_08) {
 		if (magic == DRBD_MD_MAGIC_07)
-			dev_err(DEV, "Found old (0.7) meta data magic. Did you \"drbdadm create-md\"?\n");
+			drbd_err(device, "Found old (0.7) meta data magic. Did you \"drbdadm create-md\"?\n");
 		else
-			dev_err(DEV, "Meta data magic not found. Did you \"drbdadm create-md\"?\n");
+			drbd_err(device, "Meta data magic not found. Did you \"drbdadm create-md\"?\n");
 		goto err;
 	}
 
 	if (be32_to_cpu(buffer->bm_bytes_per_bit) != BM_BLOCK_SIZE) {
-		dev_err(DEV, "unexpected bm_bytes_per_bit: %u (expected %u)\n",
+		drbd_err(device, "unexpected bm_bytes_per_bit: %u (expected %u)\n",
 		    be32_to_cpu(buffer->bm_bytes_per_bit), BM_BLOCK_SIZE);
 		goto err;
 	}
@@ -3258,12 +3258,12 @@ int drbd_md_read(struct drbd_device *device, struct drbd_backing_dev *bdev)
 		goto err;
 
 	if (be32_to_cpu(buffer->bm_offset) != bdev->md.bm_offset) {
-		dev_err(DEV, "unexpected bm_offset: %d (expected %d)\n",
+		drbd_err(device, "unexpected bm_offset: %d (expected %d)\n",
 		    be32_to_cpu(buffer->bm_offset), bdev->md.bm_offset);
 		goto err;
 	}
 	if (be32_to_cpu(buffer->md_size_sect) != bdev->md.md_size_sect) {
-		dev_err(DEV, "unexpected md_size: %u (expected %u)\n",
+		drbd_err(device, "unexpected md_size: %u (expected %u)\n",
 		    be32_to_cpu(buffer->md_size_sect), bdev->md.md_size_sect);
 		goto err;
 	}
@@ -3371,7 +3371,7 @@ void drbd_uuid_new_current(struct drbd_device *device) __must_hold(local)
 	bm_uuid = device->ldev->md.uuid[UI_BITMAP];
 
 	if (bm_uuid)
-		dev_warn(DEV, "bm UUID was already set: %llX\n", bm_uuid);
+		drbd_warn(device, "bm UUID was already set: %llX\n", bm_uuid);
 
 	device->ldev->md.uuid[UI_BITMAP] = device->ldev->md.uuid[UI_CURRENT];
 	__drbd_uuid_set(device, UI_CURRENT, val);
@@ -3396,7 +3396,7 @@ void drbd_uuid_set_bm(struct drbd_device *device, u64 val) __must_hold(local)
 	} else {
 		unsigned long long bm_uuid = device->ldev->md.uuid[UI_BITMAP];
 		if (bm_uuid)
-			dev_warn(DEV, "bm UUID was already set: %llX\n", bm_uuid);
+			drbd_warn(device, "bm UUID was already set: %llX\n", bm_uuid);
 
 		device->ldev->md.uuid[UI_BITMAP] = val & ~((u64)1);
 	}
@@ -3558,7 +3558,7 @@ void drbd_queue_bitmap_io(struct drbd_device *device,
 	D_ASSERT(!test_bit(BITMAP_IO, &device->flags));
 	D_ASSERT(list_empty(&device->bm_io_work.w.list));
 	if (device->bm_io_work.why)
-		dev_err(DEV, "FIXME going to queue '%s' but '%s' still pending?\n",
+		drbd_err(device, "FIXME going to queue '%s' but '%s' still pending?\n",
 			why, device->bm_io_work.why);
 
 	device->bm_io_work.io_fn = io_fn;
@@ -3637,9 +3637,9 @@ static int w_md_sync(struct drbd_work *w, int unused)
 {
 	struct drbd_device *device = w->device;
 
-	dev_warn(DEV, "md_sync_timer expired! Worker calls drbd_md_sync().\n");
+	drbd_warn(device, "md_sync_timer expired! Worker calls drbd_md_sync().\n");
 #ifdef DEBUG
-	dev_warn(DEV, "last md_mark_dirty: %s:%u\n",
+	drbd_warn(device, "last md_mark_dirty: %s:%u\n",
 		device->last_md_mark_dirty.func, device->last_md_mark_dirty.line);
 #endif
 	drbd_md_sync(device);
@@ -3813,7 +3813,7 @@ _drbd_insert_fault(struct drbd_device *device, unsigned int type)
 		fault_count++;
 
 		if (__ratelimit(&drbd_ratelimit_state))
-			dev_warn(DEV, "***Simulating %s failure\n",
+			drbd_warn(device, "***Simulating %s failure\n",
 				_drbd_fault_str(type));
 	}
 

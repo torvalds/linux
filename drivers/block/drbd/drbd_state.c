@@ -411,7 +411,7 @@ _drbd_request_state(struct drbd_device *device, union drbd_state mask,
 
 static void print_st(struct drbd_device *device, char *name, union drbd_state ns)
 {
-	dev_err(DEV, " %s = { cs:%s ro:%s/%s ds:%s/%s %c%c%c%c%c%c }\n",
+	drbd_err(device, " %s = { cs:%s ro:%s/%s ds:%s/%s %c%c%c%c%c%c }\n",
 	    name,
 	    drbd_conn_str(ns.conn),
 	    drbd_role_str(ns.role),
@@ -432,7 +432,7 @@ void print_st_err(struct drbd_device *device, union drbd_state os,
 {
 	if (err == SS_IN_TRANSIENT_STATE)
 		return;
-	dev_err(DEV, "State change failed: %s\n", drbd_set_st_err_str(err));
+	drbd_err(device, "State change failed: %s\n", drbd_set_st_err_str(err));
 	print_st(device, " state", os);
 	print_st(device, "wanted", ns);
 }
@@ -490,7 +490,7 @@ static void drbd_pr_state_change(struct drbd_device *device, union drbd_state os
 			       ns.user_isp);
 
 	if (pbp != pb)
-		dev_info(DEV, "%s\n", pb);
+		drbd_info(device, "%s\n", pb);
 }
 
 static void conn_pr_state_change(struct drbd_connection *connection, union drbd_state os, union drbd_state ns,
@@ -726,7 +726,7 @@ static void print_sanitize_warnings(struct drbd_device *device, enum sanitize_st
 	};
 
 	if (warn != NO_WARNING)
-		dev_warn(DEV, "%s\n", msg_table[warn]);
+		drbd_warn(device, "%s\n", msg_table[warn]);
 }
 
 /**
@@ -906,7 +906,7 @@ static union drbd_state sanitize_state(struct drbd_device *device, union drbd_st
 void drbd_resume_al(struct drbd_device *device)
 {
 	if (test_and_clear_bit(AL_SUSPENDED, &device->flags))
-		dev_info(DEV, "Resumed AL updates\n");
+		drbd_info(device, "Resumed AL updates\n");
 }
 
 /* helper for __drbd_set_state */
@@ -1035,13 +1035,13 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 		device->ov_start_sector =
 			BM_BIT_TO_SECT(drbd_bm_bits(device) - device->ov_left);
 		if (device->ov_left)
-			dev_info(DEV, "Online Verify reached sector %llu\n",
+			drbd_info(device, "Online Verify reached sector %llu\n",
 				(unsigned long long)device->ov_start_sector);
 	}
 
 	if ((os.conn == C_PAUSED_SYNC_T || os.conn == C_PAUSED_SYNC_S) &&
 	    (ns.conn == C_SYNC_TARGET  || ns.conn == C_SYNC_SOURCE)) {
-		dev_info(DEV, "Syncer continues.\n");
+		drbd_info(device, "Syncer continues.\n");
 		device->rs_paused += (long)jiffies
 				  -(long)device->rs_mark_time[device->rs_last_mark];
 		if (ns.conn == C_SYNC_TARGET)
@@ -1050,7 +1050,7 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 
 	if ((os.conn == C_SYNC_TARGET  || os.conn == C_SYNC_SOURCE) &&
 	    (ns.conn == C_PAUSED_SYNC_T || ns.conn == C_PAUSED_SYNC_S)) {
-		dev_info(DEV, "Resync suspended\n");
+		drbd_info(device, "Resync suspended\n");
 		device->rs_mark_time[device->rs_last_mark] = jiffies;
 	}
 
@@ -1074,7 +1074,7 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 		drbd_rs_controller_reset(device);
 
 		if (ns.conn == C_VERIFY_S) {
-			dev_info(DEV, "Starting Online Verify from sector %llu\n",
+			drbd_info(device, "Starting Online Verify from sector %llu\n",
 					(unsigned long long)device->ov_position);
 			mod_timer(&device->resync_timer, jiffies);
 		}
@@ -1149,7 +1149,7 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 		ascw->done = done;
 		drbd_queue_work(&first_peer_device(device)->connection->sender_work, &ascw->w);
 	} else {
-		dev_err(DEV, "Could not kmalloc an ascw\n");
+		drbd_err(device, "Could not kmalloc an ascw\n");
 	}
 
 	return rv;
@@ -1174,7 +1174,7 @@ static int w_after_state_ch(struct drbd_work *w, int unused)
 static void abw_start_sync(struct drbd_device *device, int rv)
 {
 	if (rv) {
-		dev_err(DEV, "Writing the bitmap failed not starting resync.\n");
+		drbd_err(device, "Writing the bitmap failed not starting resync.\n");
 		_drbd_request_state(device, NS(conn, C_CONNECTED), CS_VERBOSE);
 		return;
 	}
@@ -1441,7 +1441,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 			 * there is only one way out: to D_DISKLESS,
 			 * and that may only happen after our put_ldev below. */
 			if (device->state.disk != D_FAILED)
-				dev_err(DEV,
+				drbd_err(device,
 					"ASSERT FAILED: disk is %s during detach\n",
 					drbd_disk_str(device->state.disk));
 
@@ -1465,9 +1465,9 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		/* We must still be diskless,
 		 * re-attach has to be serialized with this! */
 		if (device->state.disk != D_DISKLESS)
-			dev_err(DEV,
-				"ASSERT FAILED: disk is %s while going diskless\n",
-				drbd_disk_str(device->state.disk));
+			drbd_err(device,
+				 "ASSERT FAILED: disk is %s while going diskless\n",
+				 drbd_disk_str(device->state.disk));
 
 		if (ns.conn >= C_CONNECTED)
 			drbd_send_state(device, ns);
