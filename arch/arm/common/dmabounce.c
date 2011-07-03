@@ -249,7 +249,7 @@ static inline dma_addr_t map_single(struct device *dev, void *ptr, size_t size,
 		DO_STATS ( device_info->map_op_count++ );
 
 	buf = alloc_safe_buffer(device_info, ptr, size, dir);
-	if (buf == 0) {
+	if (buf == NULL) {
 		dev_err(dev, "%s: unable to map unsafe buffer %p!\n",
 		       __func__, ptr);
 		return ~0;
