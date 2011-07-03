@@ -102,4 +102,17 @@ static inline int trans_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags,
 	return priv->trans.ops->send_cmd_pdu(priv, id, flags, len, data);
 }
 
+static inline struct iwl_tx_cmd *trans_get_tx_cmd(struct iwl_priv *priv,
+					int txq_id)
+{
+	return priv->trans.ops->get_tx_cmd(priv, txq_id);
+}
+
+static inline int trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
+		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
+		struct iwl_rxon_context *ctx)
+{
+	return priv->trans.ops->tx(priv, skb, tx_cmd, txq_id, fc, ampdu, ctx);
+}
+
 void iwl_trans_register(struct iwl_trans *trans);

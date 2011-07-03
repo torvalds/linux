@@ -142,6 +142,10 @@ void iwlagn_stop_device(struct iwl_priv *priv);
 /* tx queue */
 void iwlagn_set_wr_ptrs(struct iwl_priv *priv,
 		     int txq_id, u32 index);
+void iwlagn_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
+					   struct iwl_tx_queue *txq,
+					   u16 byte_cnt);
+
 void iwlagn_tx_queue_set_status(struct iwl_priv *priv,
 			     struct iwl_tx_queue *txq,
 			     int tx_fifo_id, int scd_retry);

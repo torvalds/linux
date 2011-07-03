@@ -1257,6 +1257,10 @@ struct iwl_trans_ops {
 
 	int (*send_cmd_pdu)(struct iwl_priv *priv, u8 id, u32 flags, u16 len,
 		     const void *data);
+	struct iwl_tx_cmd * (*get_tx_cmd)(struct iwl_priv *priv, int txq_id);
+	int (*tx)(struct iwl_priv *priv, struct sk_buff *skb,
+		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
+		struct iwl_rxon_context *ctx);
 };
 
 struct iwl_trans {
