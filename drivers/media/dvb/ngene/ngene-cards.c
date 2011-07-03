@@ -274,6 +274,7 @@ static int cineS2_probe(struct ngene_channel *chan)
 		demod_attach_drxk(chan, i2c);
 	} else {
 		printk(KERN_ERR "No demod found on chan %d\n", chan->number);
+		return -ENODEV;
 	}
 	return 0;
 }
