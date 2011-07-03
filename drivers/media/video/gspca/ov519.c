@@ -5006,7 +5006,8 @@ static const struct sd_desc sd_desc = {
 static const struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x4003), .driver_info = BRIDGE_W9968CF },
 	{USB_DEVICE(0x041e, 0x4052), .driver_info = BRIDGE_OV519 },
-	{USB_DEVICE(0x041e, 0x405f), .driver_info = BRIDGE_OV519 },
+	{USB_DEVICE(0x041e, 0x405f),
+		.driver_info = BRIDGE_OV519 | BRIDGE_INVERT_LED },
 	{USB_DEVICE(0x041e, 0x4060), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4061), .driver_info = BRIDGE_OV519 },
 	{USB_DEVICE(0x041e, 0x4064),
