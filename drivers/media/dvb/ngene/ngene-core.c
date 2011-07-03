@@ -1582,11 +1582,18 @@ static int init_channels(struct ngene *dev)
 	return 0;
 }
 
+static struct cxd2099_cfg cxd_cfg = {
+	.bitrate = 62000,
+	.adr = 0x40,
+	.polarity = 0,
+	.clock_mode = 0,
+};
+
 static void cxd_attach(struct ngene *dev)
 {
 	struct ngene_ci *ci = &dev->ci;
 
-	ci->en = cxd2099_attach(0x40, dev, &dev->channel[0].i2c_adapter);
+	ci->en = cxd2099_attach(&cxd_cfg, dev, &dev->channel[0].i2c_adapter);
 	ci->dev = dev;
 	return;
 }
