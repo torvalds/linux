@@ -41,7 +41,7 @@ struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
 #else
 
 static inline struct dvb_ca_en50221 *cxd2099_attach(struct cxd2099_cfg *cfg,
-					void *priv, struct i2c_adapter *i2c);
+					void *priv, struct i2c_adapter *i2c)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
 	return NULL;
