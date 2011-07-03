@@ -1073,13 +1073,13 @@ static int depca_rx(struct net_device *dev)
 							i = DEPCA_PKT_STAT_SZ;
 						}
 					}
-					if (buf[0] & 0x01) {	/* Multicast/Broadcast */
-						if ((*(s16 *) & buf[0] == -1) && (*(s16 *) & buf[2] == -1) && (*(s16 *) & buf[4] == -1)) {
+					if (is_multicast_ether_addr(buf)) {
+						if (is_broadcast_ether_addr(buf)) {
 							lp->pktStats.broadcast++;
 						} else {
 							lp->pktStats.multicast++;
 						}
-					} else if ((*(s16 *) & buf[0] == *(s16 *) & dev->dev_addr[0]) && (*(s16 *) & buf[2] == *(s16 *) & dev->dev_addr[2]) && (*(s16 *) & buf[4] == *(s16 *) & dev->dev_addr[4])) {
+					} else if (compare_ether_addr(buf, dev->dev_addr) == 0) {
 						lp->pktStats.unicast++;
 					}
 
