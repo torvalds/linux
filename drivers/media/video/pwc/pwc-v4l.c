@@ -526,8 +526,24 @@ static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
 	int ret = 0;
 
-	if (!pdev->udev)
-		return -ENODEV;
+	/*
+	 * Sometimes it can take quite long for the pwc to complete usb control
+	 * transfers, so release the modlock to give streaming by another
+	 * process / thread the chance to continue with a dqbuf.
+	 */
+	mutex_unlock(&pdev->modlock);
+
+	/*
+	 * Take the udev-lock to protect against the disconnect handler
+	 * completing and setting dev->udev to NULL underneath us. Other code
+	 * does not need to do this since it is protected by the modlock.
+	 */
+	mutex_lock(&pdev->udevlock);
+
+	if (!pdev->udev) {
+		ret = -ENODEV;
+		goto leave;
+	}
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTO_WHITE_BALANCE:
@@ -590,6 +606,9 @@ static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 	if (ret)
 		PWC_ERROR("g_ctrl %s error %d\n", ctrl->name, ret);
 
+leave:
+	mutex_unlock(&pdev->udevlock);
+	mutex_lock(&pdev->modlock);
 	return ret;
 }
 
@@ -751,8 +770,14 @@ static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
 	int ret = 0;
 
-	if (!pdev->udev)
-		return -ENODEV;
+	/* See the comments on locking in pwc_g_volatile_ctrl */
+	mutex_unlock(&pdev->modlock);
+	mutex_lock(&pdev->udevlock);
+
+	if (!pdev->udev) {
+		ret = -ENODEV;
+		goto leave;
+	}
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -841,6 +866,9 @@ static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 	if (ret)
 		PWC_ERROR("s_ctrl %s error %d\n", ctrl->name, ret);
 
+leave:
+	mutex_unlock(&pdev->udevlock);
+	mutex_lock(&pdev->modlock);
 	return ret;
 }
 

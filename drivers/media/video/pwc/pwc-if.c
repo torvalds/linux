@@ -1160,6 +1160,7 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	pwc_construct(pdev); /* set min/max sizes correct */
 
 	mutex_init(&pdev->modlock);
+	mutex_init(&pdev->udevlock);
 	spin_lock_init(&pdev->queued_bufs_lock);
 	INIT_LIST_HEAD(&pdev->queued_bufs);
 
@@ -1297,6 +1298,7 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 {
 	struct pwc_device *pdev  = usb_get_intfdata(intf);
 
+	mutex_lock(&pdev->udevlock);
 	mutex_lock(&pdev->modlock);
 
 	usb_set_intfdata(intf, NULL);
@@ -1306,6 +1308,7 @@ static void usb_pwc_disconnect(struct usb_interface *intf)
 	pdev->udev = NULL;
 
 	mutex_unlock(&pdev->modlock);
+	mutex_unlock(&pdev->udevlock);
 
 	pwc_remove_sysfs_files(pdev);
 	video_unregister_device(&pdev->vdev);

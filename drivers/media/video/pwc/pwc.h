@@ -200,6 +200,9 @@ struct pwc_device
 
 	/* Pointer to our usb_device, may be NULL after unplug */
 	struct usb_device *udev;
+	/* Protects the setting of udev to NULL by our disconnect handler */
+	struct mutex udevlock;
+
 	/* type of cam (645, 646, 675, 680, 690, 720, 730, 740, 750) */
 	int type;
 	int release;		/* release number */
