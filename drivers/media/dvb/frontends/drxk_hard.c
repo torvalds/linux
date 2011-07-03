@@ -1278,7 +1278,7 @@ static int DownloadMicrocode(struct drxk_state *state,
 	u16 BlockCRC;
 	u32 offset = 0;
 	u32 i;
-	int status;
+	int status = 0;
 
 	/* down the drain (we don care about MAGIC_WORD) */
 	Drain = (pSrc[0] << 8) | pSrc[1];
@@ -1731,7 +1731,7 @@ static int SetOperationMode(struct drxk_state *state,
 static int Start(struct drxk_state *state, s32 offsetFreq,
 		 s32 IntermediateFrequency)
 {
-	int status;
+	int status = 0;
 
 	do {
 		u16 IFreqkHz;
@@ -1789,7 +1789,7 @@ static int ShutDown(struct drxk_state *state)
 static int GetLockStatus(struct drxk_state *state, u32 *pLockStatus,
 			 u32 Time)
 {
-	int status;
+	int status = 0;
 
 	if (pLockStatus == NULL)
 		return -1;
