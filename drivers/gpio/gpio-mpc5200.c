@@ -23,6 +23,7 @@
 #include <linux/of_gpio.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
+#include <linux/module.h>
 
 #include <asm/gpio.h>
 #include <asm/mpc52xx.h>

@@ -23,6 +23,7 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pcf857x.h>
+#include <linux/module.h>
 
 
 static const struct i2c_device_id pcf857x_id[] = {
