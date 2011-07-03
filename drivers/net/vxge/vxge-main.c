@@ -684,8 +684,7 @@ static int vxge_mac_list_add(struct vxge_vpath *vpath, struct macInfo *mac)
 	new_mac_entry->state = mac->state;
 	vpath->mac_addr_cnt++;
 
-	/* Is this a multicast address */
-	if (0x01 & mac->macaddr[0])
+	if (is_multicast_ether_addr(mac->macaddr))
 		vpath->mcast_addr_cnt++;
 
 	return TRUE;
@@ -699,7 +698,7 @@ vxge_add_mac_addr(struct vxgedev *vdev, struct macInfo *mac)
 	struct vxge_vpath *vpath;
 	enum vxge_hw_vpath_mac_addr_add_mode duplicate_mode;
 
-	if (0x01 & mac->macaddr[0]) /* multicast address */
+	if (is_multicast_ether_addr(mac->macaddr))
 		duplicate_mode = VXGE_HW_VPATH_MAC_ADDR_ADD_DUPLICATE;
 	else
 		duplicate_mode = VXGE_HW_VPATH_MAC_ADDR_REPLACE_DUPLICATE;
@@ -1078,8 +1077,7 @@ static int vxge_mac_list_del(struct vxge_vpath *vpath, struct macInfo *mac)
 			kfree((struct vxge_mac_addrs *)entry);
 			vpath->mac_addr_cnt--;
 
-			/* Is this a multicast address */
-			if (0x01 & mac->macaddr[0])
+			if (is_multicast_ether_addr(mac->macaddr))
 				vpath->mcast_addr_cnt--;
 			return TRUE;
 		}
@@ -1201,8 +1199,7 @@ static void vxge_set_multicast(struct net_device *dev)
 				mac_address = (u8 *)&mac_entry->macaddr;
 				memcpy(mac_info.macaddr, mac_address, ETH_ALEN);
 
-				/* Is this a multicast address */
-				if (0x01 & mac_info.macaddr[0]) {
+				if (is_multicast_ether_addr(mac_info.macaddr)) {
 					for (vpath_idx = 0; vpath_idx <
 						vdev->no_of_vpath;
 						vpath_idx++) {
@@ -1244,8 +1241,7 @@ _set_all_mcast:
 				mac_address = (u8 *)&mac_entry->macaddr;
 				memcpy(mac_info.macaddr, mac_address, ETH_ALEN);
 
-				/* Is this a multicast address */
-				if (0x01 & mac_info.macaddr[0])
+				if (is_multicast_ether_addr(mac_info.macaddr))
 					break;
 			}
 
