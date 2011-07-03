@@ -44,7 +44,6 @@
 #include <asm/errno.h>
 
 #include "pwc.h"
-#include "pwc-uncompress.h"
 #include "pwc-kiara.h"
 #include "pwc-timon.h"
 #include "pwc-dec1.h"

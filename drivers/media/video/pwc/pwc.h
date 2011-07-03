@@ -42,7 +42,6 @@
 #include <linux/input.h>
 #endif
 
-#include "pwc-uncompress.h"
 #include <media/pwc-ioctl.h>
 
 /* Version block */
@@ -128,6 +127,9 @@
 #define DEVICE_USE_CODEC2(x) ((x)>=675 && (x)<700)
 #define DEVICE_USE_CODEC3(x) ((x)>=700)
 #define DEVICE_USE_CODEC23(x) ((x)>=675)
+
+/* from pwc-dec.h */
+#define PWCX_FLAG_PLANAR        0x0001
 
 /* Request types: video */
 #define SET_LUM_CTL			0x01

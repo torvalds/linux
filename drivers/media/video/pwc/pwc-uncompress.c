@@ -30,7 +30,6 @@
 #include <asm/types.h>
 
 #include "pwc.h"
-#include "pwc-uncompress.h"
 #include "pwc-dec1.h"
 #include "pwc-dec23.h"
 

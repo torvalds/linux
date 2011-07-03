@@ -75,7 +75,6 @@
 #include "pwc-timon.h"
 #include "pwc-dec23.h"
 #include "pwc-dec1.h"
-#include "pwc-uncompress.h"
 
 /* Function prototypes and driver templates */
 
