@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 struct lt3593_led_data {
 	struct led_classdev cdev;

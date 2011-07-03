@@ -17,6 +17,7 @@
 #include <linux/leds.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <mach/hardware.h>
 #include <mach/regs-gpio.h>

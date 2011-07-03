@@ -14,6 +14,7 @@
 
 #include <linux/mfd/asic3.h>
 #include <linux/mfd/core.h>
+#include <linux/module.h>
 
 /*
  *	The HTC ASIC3 LED GPIOs are inputs, not outputs.

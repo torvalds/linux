@@ -4,6 +4,7 @@
 #include <linux/io.h>
 #include <linux/atmel_pwm.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 
 struct pwmled {
