@@ -23,6 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/virtio.h>
 #include <linux/virtio_rng.h>
+#include <linux/module.h>
 
 static struct virtqueue *vq;
 static unsigned int data_avail;

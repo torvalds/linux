@@ -32,6 +32,7 @@
 #include <linux/virtio_console.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/module.h>
 #include "../tty/hvc/hvc_console.h"
 
 /*
