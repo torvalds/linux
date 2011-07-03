@@ -711,7 +711,7 @@ static int tuner_attach_stv6110(struct ddb_input *input, int type)
 	return 0;
 }
 
-int my_dvb_dmx_ts_card_init(struct dvb_demux *dvbdemux, char *id,
+static int my_dvb_dmx_ts_card_init(struct dvb_demux *dvbdemux, char *id,
 			    int (*start_feed)(struct dvb_demux_feed *),
 			    int (*stop_feed)(struct dvb_demux_feed *),
 			    void *priv)
@@ -729,7 +729,7 @@ int my_dvb_dmx_ts_card_init(struct dvb_demux *dvbdemux, char *id,
 	return dvb_dmx_init(dvbdemux);
 }
 
-int my_dvb_dmxdev_ts_card_init(struct dmxdev *dmxdev,
+static int my_dvb_dmxdev_ts_card_init(struct dmxdev *dmxdev,
 			       struct dvb_demux *dvbdemux,
 			       struct dmx_frontend *hw_frontend,
 			       struct dmx_frontend *mem_frontend,
