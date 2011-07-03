@@ -131,6 +131,49 @@ static struct usb_descriptor_header *hs_source_sink_descs[] = {
 	NULL,
 };
 
+/* super speed support: */
+
+static struct usb_endpoint_descriptor ss_source_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+};
+
+struct usb_ss_ep_comp_descriptor ss_source_comp_desc = {
+	.bLength =		USB_DT_SS_EP_COMP_SIZE,
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+	.bMaxBurst =		0,
+	.bmAttributes =		0,
+	.wBytesPerInterval =	0,
+};
+
+static struct usb_endpoint_descriptor ss_sink_desc = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+};
+
+struct usb_ss_ep_comp_descriptor ss_sink_comp_desc = {
+	.bLength =		USB_DT_SS_EP_COMP_SIZE,
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+	.bMaxBurst =		0,
+	.bmAttributes =		0,
+	.wBytesPerInterval =	0,
+};
+
+static struct usb_descriptor_header *ss_source_sink_descs[] = {
+	(struct usb_descriptor_header *) &source_sink_intf,
+	(struct usb_descriptor_header *) &ss_source_desc,
+	(struct usb_descriptor_header *) &ss_source_comp_desc,
+	(struct usb_descriptor_header *) &ss_sink_desc,
+	(struct usb_descriptor_header *) &ss_sink_comp_desc,
+	NULL,
+};
+
 /* function-specific strings: */
 
 static struct usb_string strings_sourcesink[] = {
@@ -187,8 +230,18 @@ autoconf_fail:
 		f->hs_descriptors = hs_source_sink_descs;
 	}
 
+	/* support super speed hardware */
+	if (gadget_is_superspeed(c->cdev->gadget)) {
+		ss_source_desc.bEndpointAddress =
+				fs_source_desc.bEndpointAddress;
+		ss_sink_desc.bEndpointAddress =
+				fs_sink_desc.bEndpointAddress;
+		f->ss_descriptors = ss_source_sink_descs;
+	}
+
 	DBG(cdev, "%s speed %s: IN/%s, OUT/%s\n",
-			gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
+	    (gadget_is_superspeed(c->cdev->gadget) ? "super" :
+	     (gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full")),
 			f->name, ss->in_ep->name, ss->out_ep->name);
 	return 0;
 }
