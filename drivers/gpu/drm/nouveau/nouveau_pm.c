@@ -312,7 +312,7 @@ nouveau_sysfs_fini(struct drm_device *dev)
 	}
 }
 
-#ifdef CONFIG_HWMON
+#if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 static ssize_t
 nouveau_hwmon_show_temp(struct device *d, struct device_attribute *a, char *buf)
 {
@@ -429,7 +429,7 @@ static const struct attribute_group hwmon_attrgroup = {
 static int
 nouveau_hwmon_init(struct drm_device *dev)
 {
-#ifdef CONFIG_HWMON
+#if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct device *hwmon_dev;
@@ -462,7 +462,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 static void
 nouveau_hwmon_fini(struct drm_device *dev)
 {
-#ifdef CONFIG_HWMON
+#if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 
