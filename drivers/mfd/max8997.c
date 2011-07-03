@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/max8997.h>
