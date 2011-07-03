@@ -41,7 +41,7 @@
 
 #include "ngene.h"
 
-static int one_adapter = 1;
+static int one_adapter = 0;
 module_param(one_adapter, int, 0444);
 MODULE_PARM_DESC(one_adapter, "Use only one adapter.");
 
@@ -461,7 +461,7 @@ static u8 TSFeatureDecoderSetup[8 * 5] = {
 	0x42, 0x00, 0x00, 0x02, 0x02, 0xbc, 0x00, 0x00,
 	0x40, 0x06, 0x00, 0x02, 0x02, 0xbc, 0x00, 0x00,	/* DRXH */
 	0x71, 0x07, 0x00, 0x02, 0x02, 0xbc, 0x00, 0x00,	/* DRXHser */
-	0x72, 0x06, 0x00, 0x02, 0x02, 0xbc, 0x00, 0x00,	/* S2ser */
+	0x72, 0x00, 0x00, 0x02, 0x02, 0xbc, 0x00, 0x00,	/* S2ser */
 	0x40, 0x07, 0x00, 0x02, 0x02, 0xbc, 0x00, 0x00, /* LGDT3303 */
 };
 
@@ -1443,6 +1443,9 @@ static void release_channel(struct ngene_channel *chan)
 		chan->ci_dev = NULL;
 	}
 
+	if (chan->fe2) {
+		dvb_unregister_frontend(chan->fe2);
+	}
 	if (chan->fe) {
 		dvb_unregister_frontend(chan->fe);
 		dvb_frontend_detach(chan->fe);
@@ -1533,6 +1536,14 @@ static int init_channel(struct ngene_channel *chan)
 		if (dvb_register_frontend(adapter, chan->fe) < 0)
 			goto err;
 		chan->has_demux = true;
+	}
+	if (chan->fe2) {
+		if (dvb_register_frontend(adapter, chan->fe2) < 0)
+			goto err;
+			chan->fe2->tuner_priv=chan->fe->tuner_priv;
+			memcpy(&chan->fe2->ops.tuner_ops,
+			       &chan->fe->ops.tuner_ops,
+			       sizeof(struct dvb_tuner_ops));
 	}
 
 	if (chan->has_demux) {

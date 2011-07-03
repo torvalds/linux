@@ -641,8 +641,11 @@ struct ngene_channel {
 	int                   mode;
 	bool                  has_adapter;
 	bool                  has_demux;
+	int                   demod_type;
+	int (*gate_ctrl)(struct dvb_frontend *, int);
 
 	struct dvb_frontend  *fe;
+	struct dvb_frontend  *fe2;
 	struct dmxdev         dmxdev;
 	struct dvb_demux      demux;
 	struct dvb_net        dvbnet;
