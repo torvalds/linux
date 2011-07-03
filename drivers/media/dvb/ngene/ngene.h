@@ -789,6 +789,8 @@ struct ngene {
 	u8                    uart_rbuf[UART_RBUF_LEN];
 	int                   uart_rp, uart_wp;
 
+#define TS_FILLER  0x6f
+
 	u8                   *tsout_buf;
 #define TSOUT_BUF_SIZE (512*188*8)
 	struct dvb_ringbuffer tsout_rbuf;

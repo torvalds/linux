@@ -507,7 +507,7 @@ void FillTSBuffer(void *Buffer, int Length, u32 Flags)
 {
 	u32 *ptr = Buffer;
 
-	memset(Buffer, 0xff, Length);
+	memset(Buffer, TS_FILLER, Length);
 	while (Length > 0) {
 		if (Flags & DF_SWAP32)
 			*ptr = 0x471FFF10;
