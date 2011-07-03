@@ -57,6 +57,15 @@ t32_simulate_table_branch(struct kprobe *p, struct pt_regs *regs)
 	regs->ARM_pc = pc + 2 * halfwords;
 }
 
+static void __kprobes
+t32_simulate_mrs(struct kprobe *p, struct pt_regs *regs)
+{
+	kprobe_opcode_t insn = p->opcode;
+	int rd = (insn >> 8) & 0xf;
+	unsigned long mask = 0xf8ff03df; /* Mask out execution state */
+	regs->uregs[rd] = regs->ARM_cpsr & mask;
+}
+
 static enum kprobe_insn __kprobes
 t32_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 {
@@ -393,6 +402,28 @@ static const union decode_item t32_table_1111_0xxx___1[] = {
 	/* WFE			1111 0011 1010 xxxx 10x0 x000 0000 0010 */
 	/* WFI			1111 0011 1010 xxxx 10x0 x000 0000 0011 */
 	DECODE_SIMULATE	(0xfff0d7fc, 0xf3a08000, kprobe_simulate_nop),
+
+	/* MRS Rd, CPSR		1111 0011 1110 xxxx 10x0 xxxx xxxx xxxx */
+	DECODE_SIMULATEX(0xfff0d000, 0xf3e08000, t32_simulate_mrs,
+						 REGS(0, 0, NOSPPC, 0, 0)),
+
+	/*
+	 * Unsupported instructions
+	 *			1111 0x11 1xxx xxxx 10x0 xxxx xxxx xxxx
+	 *
+	 * MSR			1111 0011 100x xxxx 10x0 xxxx xxxx xxxx
+	 * DBG hint		1111 0011 1010 xxxx 10x0 x000 1111 xxxx
+	 * Unallocated hints	1111 0011 1010 xxxx 10x0 x000 xxxx xxxx
+	 * CPS			1111 0011 1010 xxxx 10x0 xxxx xxxx xxxx
+	 * CLREX/DSB/DMB/ISB	1111 0011 1011 xxxx 10x0 xxxx xxxx xxxx
+	 * BXJ			1111 0011 1100 xxxx 10x0 xxxx xxxx xxxx
+	 * SUBS PC,LR,#<imm8>	1111 0011 1101 xxxx 10x0 xxxx xxxx xxxx
+	 * MRS Rd, SPSR		1111 0011 1111 xxxx 10x0 xxxx xxxx xxxx
+	 * SMC			1111 0111 1111 xxxx 1000 xxxx xxxx xxxx
+	 * UNDEFINED		1111 0111 1111 xxxx 1010 xxxx xxxx xxxx
+	 * ???			1111 0111 1xxx xxxx 1010 xxxx xxxx xxxx
+	 */
+	DECODE_REJECT	(0xfb80d000, 0xf3808000),
 
 	DECODE_END
 };
