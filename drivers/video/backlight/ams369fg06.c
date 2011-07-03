@@ -22,6 +22,7 @@
  */
 
 #include <linux/wait.h>
+#include <linux/module.h>
 #include <linux/fb.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>

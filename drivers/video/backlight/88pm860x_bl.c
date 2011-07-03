@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/backlight.h>
 #include <linux/mfd/88pm860x.h>
+#include <linux/module.h>
 
 #define MAX_BRIGHTNESS		(0xFF)
 #define MIN_BRIGHTNESS		(0)

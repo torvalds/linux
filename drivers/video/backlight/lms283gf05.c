@@ -17,6 +17,7 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/lms283gf05.h>
+#include <linux/module.h>
 
 struct lms283gf05_state {
 	struct spi_device	*spi;

@@ -27,6 +27,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/module.h>
 #include <linux/semaphore.h>
 #include <linux/seq_file.h>
 #include <linux/platform_device.h>

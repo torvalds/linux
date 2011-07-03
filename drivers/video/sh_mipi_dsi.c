@@ -17,6 +17,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/module.h>
 
 #include <video/mipi_display.h>
 #include <video/sh_mipi_dsi.h>
