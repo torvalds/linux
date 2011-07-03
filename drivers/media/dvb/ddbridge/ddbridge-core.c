@@ -27,7 +27,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/timer.h>
