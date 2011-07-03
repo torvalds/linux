@@ -162,7 +162,6 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 /* lib */
 void iwl_check_abort_status(struct iwl_priv *priv,
 			    u8 frame_count, u32 status);
-void iwlagn_setup_deferred_work(struct iwl_priv *priv);
 int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 int iwlagn_send_tx_power(struct iwl_priv *priv);
 void iwlagn_temperature(struct iwl_priv *priv);

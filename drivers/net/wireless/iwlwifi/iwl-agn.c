@@ -2845,8 +2845,8 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 
 	iwl_setup_scan_deferred_work(priv);
 
-	if (priv->cfg->lib->setup_deferred_work)
-		priv->cfg->lib->setup_deferred_work(priv);
+	if (priv->cfg->lib->bt_setup_deferred_work)
+		priv->cfg->lib->bt_setup_deferred_work(priv);
 
 	init_timer(&priv->statistics_periodic);
 	priv->statistics_periodic.data = (unsigned long)priv;

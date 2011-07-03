@@ -478,14 +478,6 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
-void iwlagn_setup_deferred_work(struct iwl_priv *priv)
-{
-	/*
-	 * nothing need to be done here anymore
-	 * still keep for future use if needed
-	 */
-}
-
 int iwlagn_hw_valid_rtc_data_addr(u32 addr)
 {
 	return (addr >= IWLAGN_RTC_DATA_LOWER_BOUND) &&
@@ -1754,8 +1746,6 @@ void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv)
 
 void iwlagn_bt_setup_deferred_work(struct iwl_priv *priv)
 {
-	iwlagn_setup_deferred_work(priv);
-
 	INIT_WORK(&priv->bt_traffic_change_work,
 		  iwlagn_bt_traffic_change_work);
 }
