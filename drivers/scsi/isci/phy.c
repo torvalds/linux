@@ -197,7 +197,7 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	llctl = SCU_SAS_LLCTL_GEN_VAL(NO_OUTBOUND_TASK_TIMEOUT,
 		(u8)ihost->user_parameters.no_outbound_task_timeout);
 
-	switch(phy_user->max_speed_generation) {
+	switch (phy_user->max_speed_generation) {
 	case SCIC_SDS_PARM_GEN3_SPEED:
 		link_rate = SCU_SAS_LINK_LAYER_CONTROL_MAX_LINK_RATE_GEN3;
 		break;

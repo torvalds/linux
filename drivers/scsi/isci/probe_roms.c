@@ -34,8 +34,9 @@
 #include "task.h"
 #include "probe_roms.h"
 
-static efi_char16_t isci_efivar_name[] =
-			{'R', 's', 't', 'S', 'c', 'u', 'O'};
+static efi_char16_t isci_efivar_name[] = {
+	'R', 's', 't', 'S', 'c', 'u', 'O'
+};
 
 struct isci_orom *isci_request_oprom(struct pci_dev *pdev)
 {
@@ -182,7 +183,7 @@ struct isci_orom *isci_get_efi_var(struct pci_dev *pdev)
 	struct isci_oem_hdr *oem_hdr;
 	u8 *tmp, sum;
 	int j;
-	ssize_t data_len;
+	unsigned long data_len;
 	u8 *efi_data;
 	u32 efi_attrib = 0;
 

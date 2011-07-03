@@ -440,8 +440,8 @@ void sci_smp_request_copy_response(struct isci_request *ireq);
 static inline int isci_task_is_ncq_recovery(struct sas_task *task)
 {
 	return (sas_protocol_ata(task->task_proto) &&
-	        task->ata_task.fis.command == ATA_CMD_READ_LOG_EXT &&
-	        task->ata_task.fis.lbal == ATA_LOG_SATA_NCQ);
+		task->ata_task.fis.command == ATA_CMD_READ_LOG_EXT &&
+		task->ata_task.fis.lbal == ATA_LOG_SATA_NCQ);
 
 }
 

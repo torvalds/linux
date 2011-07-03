@@ -73,7 +73,7 @@
 static void isci_remote_device_not_ready(struct isci_host *ihost,
 				  struct isci_remote_device *idev, u32 reason)
 {
-	struct isci_request * ireq;
+	struct isci_request *ireq;
 
 	dev_dbg(&ihost->pdev->dev,
 		"%s: isci_device = %p\n", __func__, idev);

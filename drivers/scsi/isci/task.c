@@ -88,44 +88,45 @@ static void isci_task_refuse(struct isci_host *ihost, struct sas_task *task,
 	 * function should not be completed to the host in the regular path.
 	 */
 	switch (disposition) {
-		case isci_perform_normal_io_completion:
-			/* Normal notification (task_done) */
-			dev_dbg(&ihost->pdev->dev,
-				"%s: Normal - task = %p, response=%d, "
-				"status=%d\n",
-				__func__, task, response, status);
+	case isci_perform_normal_io_completion:
+		/* Normal notification (task_done) */
+		dev_dbg(&ihost->pdev->dev,
+			"%s: Normal - task = %p, response=%d, "
+			"status=%d\n",
+			__func__, task, response, status);
 
-			task->lldd_task = NULL;
+		task->lldd_task = NULL;
 
-			isci_execpath_callback(ihost, task, task->task_done);
-			break;
+		isci_execpath_callback(ihost, task, task->task_done);
+		break;
 
-		case isci_perform_aborted_io_completion:
-			/* No notification because this request is already in the
-			* abort path.
-			*/
-			dev_dbg(&ihost->pdev->dev,
-				 "%s: Aborted - task = %p, response=%d, "
-				"status=%d\n",
-				 __func__, task, response, status);
-			break;
+	case isci_perform_aborted_io_completion:
+		/*
+		 * No notification because this request is already in the
+		 * abort path.
+		 */
+		dev_dbg(&ihost->pdev->dev,
+			"%s: Aborted - task = %p, response=%d, "
+			"status=%d\n",
+			__func__, task, response, status);
+		break;
 
-		case isci_perform_error_io_completion:
-			/* Use sas_task_abort */
-			dev_dbg(&ihost->pdev->dev,
-				 "%s: Error - task = %p, response=%d, "
-				"status=%d\n",
-				 __func__, task, response, status);
+	case isci_perform_error_io_completion:
+		/* Use sas_task_abort */
+		dev_dbg(&ihost->pdev->dev,
+			"%s: Error - task = %p, response=%d, "
+			"status=%d\n",
+			__func__, task, response, status);
 
-			isci_execpath_callback(ihost, task, sas_task_abort);
-			break;
+		isci_execpath_callback(ihost, task, sas_task_abort);
+		break;
 
-		default:
-			dev_dbg(&ihost->pdev->dev,
-				 "%s: isci task notification default case!",
-				 __func__);
-			sas_task_abort(task);
-			break;
+	default:
+		dev_dbg(&ihost->pdev->dev,
+			"%s: isci task notification default case!",
+			__func__);
+		sas_task_abort(task);
+		break;
 	}
 }
 
@@ -1056,7 +1057,7 @@ int isci_task_abort_task(struct sas_task *task)
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: old_request == %p\n", __func__, old_request);
 
-	any_dev_reset = isci_device_is_reset_pending(isci_host,isci_device);
+	any_dev_reset = isci_device_is_reset_pending(isci_host, isci_device);
 
 	spin_lock_irqsave(&task->task_state_lock, flags);
 
@@ -1115,9 +1116,9 @@ int isci_task_abort_task(struct sas_task *task)
 				__func__, task);
 		}
 		goto out;
-	}
-	else
+	} else {
 		spin_unlock_irqrestore(&task->task_state_lock, flags);
+	}
 
 	spin_lock_irqsave(&isci_host->scic_lock, flags);
 
