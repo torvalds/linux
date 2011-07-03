@@ -77,10 +77,6 @@ bool IsA1WithRomCode(struct drxk_state *state)
 
 #define NOA1ROM 0
 
-#ifndef CHK_ERROR
-#define CHK_ERROR(s) if ((status = s) < 0) break
-#endif
-
 #define DRXDAP_FASI_SHORT_FORMAT(addr) (((addr) & 0xFC30FF80) == 0)
 #define DRXDAP_FASI_LONG_FORMAT(addr)  (((addr) & 0xFC30FF80) != 0)
 
@@ -519,12 +515,16 @@ int PowerUpDevice(struct drxk_state *state)
 		return -1;
 	do {
 		/* Make sure all clk domains are active */
-		CHK_ERROR(Write16_0(state, SIO_CC_PWD_MODE__A,
-				    SIO_CC_PWD_MODE_LEVEL_NONE));
-		CHK_ERROR(Write16_0(state, SIO_CC_UPDATE__A,
-				    SIO_CC_UPDATE_KEY));
+		status = Write16_0(state, SIO_CC_PWD_MODE__A, SIO_CC_PWD_MODE_LEVEL_NONE);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY);
+		if (status < 0)
+			break;
 		/* Enable pll lock tests */
-		CHK_ERROR(Write16_0(state, SIO_CC_PLL_LOCK__A, 1));
+		status = Write16_0(state, SIO_CC_PLL_LOCK__A, 1);
+		if (status < 0)
+			break;
 		state->m_currentPowerMode = DRX_POWER_UP;
 	} while (0);
 	return status;
@@ -795,15 +795,25 @@ static int DRXX_Open(struct drxk_state *state)
 
 	do {
 		/* stop lock indicator process */
-		CHK_ERROR(Write16_0(state, SCU_RAM_GPIO__A,
-				    SCU_RAM_GPIO_HW_LOCK_IND_DISABLE));
+		status = Write16_0(state, SCU_RAM_GPIO__A, SCU_RAM_GPIO_HW_LOCK_IND_DISABLE);
+		if (status < 0)
+			break;
 		/* Check device id */
-		CHK_ERROR(Read16(state, SIO_TOP_COMM_KEY__A, &key, 0));
-		CHK_ERROR(Write16_0(state, SIO_TOP_COMM_KEY__A,
-				    SIO_TOP_COMM_KEY_KEY));
-		CHK_ERROR(Read32(state, SIO_TOP_JTAGID_LO__A, &jtag, 0));
-		CHK_ERROR(Read16(state, SIO_PDR_UIO_IN_HI__A, &bid, 0));
-		CHK_ERROR(Write16_0(state, SIO_TOP_COMM_KEY__A, key));
+		status = Read16(state, SIO_TOP_COMM_KEY__A, &key, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+		if (status < 0)
+			break;
+		status = Read32(state, SIO_TOP_JTAGID_LO__A, &jtag, 0);
+		if (status < 0)
+			break;
+		status = Read16(state, SIO_PDR_UIO_IN_HI__A, &bid, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_TOP_COMM_KEY__A, key);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -817,13 +827,19 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 	do {
 		/* driver 0.9.0 */
 		/* stop lock indicator process */
-		CHK_ERROR(Write16_0(state, SCU_RAM_GPIO__A,
-				    SCU_RAM_GPIO_HW_LOCK_IND_DISABLE));
+		status = Write16_0(state, SCU_RAM_GPIO__A, SCU_RAM_GPIO_HW_LOCK_IND_DISABLE);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, SIO_TOP_COMM_KEY__A, 0xFABA));
-		CHK_ERROR(Read16
-			  (state, SIO_PDR_OHW_CFG__A, &sioPdrOhwCfg, 0));
-		CHK_ERROR(Write16_0(state, SIO_TOP_COMM_KEY__A, 0x0000));
+		status = Write16_0(state, SIO_TOP_COMM_KEY__A, 0xFABA);
+		if (status < 0)
+			break;
+		status = Read16(state, SIO_PDR_OHW_CFG__A, &sioPdrOhwCfg, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_TOP_COMM_KEY__A, 0x0000);
+		if (status < 0)
+			break;
 
 		switch ((sioPdrOhwCfg & SIO_PDR_OHW_CFG_FREF_SEL__M)) {
 		case 0:
@@ -848,8 +864,9 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 		   Determine device capabilities
 		   Based on pinning v14
 		 */
-		CHK_ERROR(Read32(state, SIO_TOP_JTAGID_LO__A,
-				 &sioTopJtagidLo, 0));
+		status = Read32(state, SIO_TOP_JTAGID_LO__A, &sioTopJtagidLo, 0);
+		if (status < 0)
+			break;
 		/* driver 0.9.0 */
 		switch ((sioTopJtagidLo >> 29) & 0xF) {
 		case 0:
@@ -1024,19 +1041,27 @@ static int HI_CfgCommand(struct drxk_state *state)
 
 	mutex_lock(&state->mutex);
 	do {
-		CHK_ERROR(Write16_0(state, SIO_HI_RA_RAM_PAR_6__A,
-				    state->m_HICfgTimeout));
-		CHK_ERROR(Write16_0(state, SIO_HI_RA_RAM_PAR_5__A,
-				    state->m_HICfgCtrl));
-		CHK_ERROR(Write16_0(state, SIO_HI_RA_RAM_PAR_4__A,
-				    state->m_HICfgWakeUpKey));
-		CHK_ERROR(Write16_0(state, SIO_HI_RA_RAM_PAR_3__A,
-				    state->m_HICfgBridgeDelay));
-		CHK_ERROR(Write16_0(state, SIO_HI_RA_RAM_PAR_2__A,
-				    state->m_HICfgTimingDiv));
-		CHK_ERROR(Write16_0(state, SIO_HI_RA_RAM_PAR_1__A,
-				    SIO_HI_RA_RAM_PAR_1_PAR1_SEC_KEY));
-		CHK_ERROR(HI_Command(state, SIO_HI_RA_RAM_CMD_CONFIG, 0));
+		status = Write16_0(state, SIO_HI_RA_RAM_PAR_6__A, state->m_HICfgTimeout);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_HI_RA_RAM_PAR_5__A, state->m_HICfgCtrl);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_HI_RA_RAM_PAR_4__A, state->m_HICfgWakeUpKey);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_HI_RA_RAM_PAR_3__A, state->m_HICfgBridgeDelay);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_HI_RA_RAM_PAR_2__A, state->m_HICfgTimingDiv);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_HI_RA_RAM_PAR_1__A, SIO_HI_RA_RAM_PAR_1_PAR1_SEC_KEY);
+		if (status < 0)
+			break;
+		status = HI_Command(state, SIO_HI_RA_RAM_CMD_CONFIG, 0);
+		if (status < 0)
+			break;
 
 		state->m_HICfgCtrl &= ~SIO_HI_RA_RAM_PAR_5_CFG_SLEEP_ZZZ;
 	} while (0);
@@ -1061,38 +1086,53 @@ static int MPEGTSConfigurePins(struct drxk_state *state, bool mpegEnable)
 
 	do {
 		/* stop lock indicator process */
-		CHK_ERROR(Write16_0(state, SCU_RAM_GPIO__A,
-				    SCU_RAM_GPIO_HW_LOCK_IND_DISABLE));
+		status = Write16_0(state, SCU_RAM_GPIO__A, SCU_RAM_GPIO_HW_LOCK_IND_DISABLE);
+		if (status < 0)
+			break;
 
 		/*  MPEG TS pad configuration */
-		CHK_ERROR(Write16_0(state, SIO_TOP_COMM_KEY__A, 0xFABA));
+		status = Write16_0(state, SIO_TOP_COMM_KEY__A, 0xFABA);
+		if (status < 0)
+			break;
 
 		if (mpegEnable == false) {
 			/*  Set MPEG TS pads to inputmode */
-			CHK_ERROR(Write16_0(state,
-					    SIO_PDR_MSTRT_CFG__A, 0x0000));
-			CHK_ERROR(Write16_0(state,
-					    SIO_PDR_MERR_CFG__A, 0x0000));
-			CHK_ERROR(Write16_0(state,
-					    SIO_PDR_MCLK_CFG__A, 0x0000));
-			CHK_ERROR(Write16_0(state,
-					    SIO_PDR_MVAL_CFG__A, 0x0000));
-			CHK_ERROR(Write16_0
-				  (state, SIO_PDR_MD0_CFG__A, 0x0000));
-			CHK_ERROR(Write16_0
-				  (state, SIO_PDR_MD1_CFG__A, 0x0000));
-			CHK_ERROR(Write16_0
-				  (state, SIO_PDR_MD2_CFG__A, 0x0000));
-			CHK_ERROR(Write16_0
-				  (state, SIO_PDR_MD3_CFG__A, 0x0000));
-			CHK_ERROR(Write16_0
-				  (state, SIO_PDR_MD4_CFG__A, 0x0000));
-			CHK_ERROR(Write16_0
-				  (state, SIO_PDR_MD5_CFG__A, 0x0000));
-			CHK_ERROR(Write16_0
-				  (state, SIO_PDR_MD6_CFG__A, 0x0000));
-			CHK_ERROR(Write16_0
-				  (state, SIO_PDR_MD7_CFG__A, 0x0000));
+			status = Write16_0(state, SIO_PDR_MSTRT_CFG__A, 0x0000);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MERR_CFG__A, 0x0000);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MCLK_CFG__A, 0x0000);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MVAL_CFG__A, 0x0000);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MD0_CFG__A, 0x0000);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MD1_CFG__A, 0x0000);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MD2_CFG__A, 0x0000);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MD3_CFG__A, 0x0000);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MD4_CFG__A, 0x0000);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MD5_CFG__A, 0x0000);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MD6_CFG__A, 0x0000);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MD7_CFG__A, 0x0000);
+			if (status < 0)
+				break;
 		} else {
 			/* Enable MPEG output */
 			sioPdrMdxCfg =
@@ -1102,69 +1142,80 @@ static int MPEGTSConfigurePins(struct drxk_state *state, bool mpegEnable)
 					  SIO_PDR_MCLK_CFG_DRIVE__B) |
 					 0x0003);
 
-			CHK_ERROR(Write16_0(state, SIO_PDR_MSTRT_CFG__A,
-					    sioPdrMdxCfg));
-			CHK_ERROR(Write16_0(state, SIO_PDR_MERR_CFG__A, 0x0000));	/* Disable */
-			CHK_ERROR(Write16_0(state, SIO_PDR_MVAL_CFG__A, 0x0000));	/* Disable */
+			status = Write16_0(state, SIO_PDR_MSTRT_CFG__A, sioPdrMdxCfg);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MERR_CFG__A, 0x0000);	/* Disable */
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MVAL_CFG__A, 0x0000);	/* Disable */
+			if (status < 0)
+				break;
 			if (state->m_enableParallel == true) {
 				/* paralel -> enable MD1 to MD7 */
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD1_CFG__A,
-					   sioPdrMdxCfg));
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD2_CFG__A,
-					   sioPdrMdxCfg));
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD3_CFG__A,
-					   sioPdrMdxCfg));
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD4_CFG__A,
-					   sioPdrMdxCfg));
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD5_CFG__A,
-					   sioPdrMdxCfg));
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD6_CFG__A,
-					   sioPdrMdxCfg));
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD7_CFG__A,
-					   sioPdrMdxCfg));
+				status = Write16_0(state, SIO_PDR_MD1_CFG__A, sioPdrMdxCfg);
+				if (status < 0)
+					break;
+				status = Write16_0(state, SIO_PDR_MD2_CFG__A, sioPdrMdxCfg);
+				if (status < 0)
+					break;
+				status = Write16_0(state, SIO_PDR_MD3_CFG__A, sioPdrMdxCfg);
+				if (status < 0)
+					break;
+				status = Write16_0(state, SIO_PDR_MD4_CFG__A, sioPdrMdxCfg);
+				if (status < 0)
+					break;
+				status = Write16_0(state, SIO_PDR_MD5_CFG__A, sioPdrMdxCfg);
+				if (status < 0)
+					break;
+				status = Write16_0(state, SIO_PDR_MD6_CFG__A, sioPdrMdxCfg);
+				if (status < 0)
+					break;
+				status = Write16_0(state, SIO_PDR_MD7_CFG__A, sioPdrMdxCfg);
+				if (status < 0)
+					break;
 			} else {
 				sioPdrMdxCfg = ((state->m_TSDataStrength <<
 						 SIO_PDR_MD0_CFG_DRIVE__B)
 						| 0x0003);
 				/* serial -> disable MD1 to MD7 */
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD1_CFG__A,
-					   0x0000));
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD2_CFG__A,
-					   0x0000));
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD3_CFG__A,
-					   0x0000));
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD4_CFG__A,
-					   0x0000));
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD5_CFG__A,
-					   0x0000));
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD6_CFG__A,
-					   0x0000));
-				CHK_ERROR(Write16_0
-					  (state, SIO_PDR_MD7_CFG__A,
-					   0x0000));
+				status = Write16_0(state, SIO_PDR_MD1_CFG__A, 0x0000);
+				if (status < 0)
+					break;
+				status = Write16_0(state, SIO_PDR_MD2_CFG__A, 0x0000);
+				if (status < 0)
+					break;
+				status = Write16_0(state, SIO_PDR_MD3_CFG__A, 0x0000);
+				if (status < 0)
+					break;
+				status = Write16_0(state, SIO_PDR_MD4_CFG__A, 0x0000);
+				if (status < 0)
+					break;
+				status = Write16_0(state, SIO_PDR_MD5_CFG__A, 0x0000);
+				if (status < 0)
+					break;
+				status = Write16_0(state, SIO_PDR_MD6_CFG__A, 0x0000);
+				if (status < 0)
+					break;
+				status = Write16_0(state, SIO_PDR_MD7_CFG__A, 0x0000);
+				if (status < 0)
+					break;
 			}
-			CHK_ERROR(Write16_0(state, SIO_PDR_MCLK_CFG__A,
-					    sioPdrMclkCfg));
-			CHK_ERROR(Write16_0(state, SIO_PDR_MD0_CFG__A,
-					    sioPdrMdxCfg));
+			status = Write16_0(state, SIO_PDR_MCLK_CFG__A, sioPdrMclkCfg);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_PDR_MD0_CFG__A, sioPdrMdxCfg);
+			if (status < 0)
+				break;
 		}
 		/*  Enable MB output over MPEG pads and ctl input */
-		CHK_ERROR(Write16_0(state, SIO_PDR_MON_CFG__A, 0x0000));
+		status = Write16_0(state, SIO_PDR_MON_CFG__A, 0x0000);
+		if (status < 0)
+			break;
 		/*  Write nomagic word to enable pdr reg write */
-		CHK_ERROR(Write16_0(state, SIO_TOP_COMM_KEY__A, 0x0000));
+		status = Write16_0(state, SIO_TOP_COMM_KEY__A, 0x0000);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -1183,20 +1234,25 @@ static int BLChainCmd(struct drxk_state *state,
 
 	mutex_lock(&state->mutex);
 	do {
-		CHK_ERROR(Write16_0(state, SIO_BL_MODE__A,
-				    SIO_BL_MODE_CHAIN));
-		CHK_ERROR(Write16_0(state, SIO_BL_CHAIN_ADDR__A,
-				    romOffset));
-		CHK_ERROR(Write16_0(state, SIO_BL_CHAIN_LEN__A,
-				    nrOfElements));
-		CHK_ERROR(Write16_0(state, SIO_BL_ENABLE__A,
-				    SIO_BL_ENABLE_ON));
+		status = Write16_0(state, SIO_BL_MODE__A, SIO_BL_MODE_CHAIN);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_BL_CHAIN_ADDR__A, romOffset);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_BL_CHAIN_LEN__A, nrOfElements);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_BL_ENABLE__A, SIO_BL_ENABLE_ON);
+		if (status < 0)
+			break;
 		end = jiffies + msecs_to_jiffies(timeOut);
 
 		do {
 			msleep(1);
-			CHK_ERROR(Read16(state, SIO_BL_STATUS__A,
-					 &blStatus, 0));
+			status = Read16(state, SIO_BL_STATUS__A, &blStatus, 0);
+			if (status < 0)
+				break;
 		} while ((blStatus == 0x1) &&
 			 ((time_is_after_jiffies(end))));
 		if (blStatus == 0x1) {
@@ -1282,10 +1338,11 @@ static int DVBTEnableOFDMTokenRing(struct drxk_state *state, bool enable)
 	    Write16_0(state, SIO_OFDM_SH_OFDM_RING_ENABLE__A, desiredCtrl);
 
 	end = jiffies + msecs_to_jiffies(DRXK_OFDM_TR_SHUTDOWN_TIMEOUT);
-	do
-		CHK_ERROR(Read16_0
-			  (state, SIO_OFDM_SH_OFDM_RING_STATUS__A, &data));
-	while ((data != desiredStatus) && ((time_is_after_jiffies(end))));
+	do {
+		status = Read16_0(state, SIO_OFDM_SH_OFDM_RING_STATUS__A, &data);
+		if (status < 0)
+			break;
+	} while ((data != desiredStatus) && ((time_is_after_jiffies(end))));
 	if (data != desiredStatus) {
 		printk(KERN_ERR "SIO not ready\n");
 		return -1;
@@ -1301,18 +1358,22 @@ static int MPEGTSStop(struct drxk_state *state)
 
 	do {
 		/* Gracefull shutdown (byte boundaries) */
-		CHK_ERROR(Read16_0
-			  (state, FEC_OC_SNC_MODE__A, &fecOcSncMode));
+		status = Read16_0(state, FEC_OC_SNC_MODE__A, &fecOcSncMode);
+		if (status < 0)
+			break;
 		fecOcSncMode |= FEC_OC_SNC_MODE_SHUTDOWN__M;
-		CHK_ERROR(Write16_0
-			  (state, FEC_OC_SNC_MODE__A, fecOcSncMode));
+		status = Write16_0(state, FEC_OC_SNC_MODE__A, fecOcSncMode);
+		if (status < 0)
+			break;
 
 		/* Suppress MCLK during absence of data */
-		CHK_ERROR(Read16_0
-			  (state, FEC_OC_IPR_MODE__A, &fecOcIprMode));
+		status = Read16_0(state, FEC_OC_IPR_MODE__A, &fecOcIprMode);
+		if (status < 0)
+			break;
 		fecOcIprMode |= FEC_OC_IPR_MODE_MCLK_DIS_DAT_ABS__M;
-		CHK_ERROR(Write16_0
-			  (state, FEC_OC_IPR_MODE__A, fecOcIprMode));
+		status = Write16_0(state, FEC_OC_IPR_MODE__A, fecOcIprMode);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -1352,8 +1413,9 @@ static int scu_command(struct drxk_state *state,
 		end = jiffies + msecs_to_jiffies(DRXK_MAX_WAITTIME);
 		do {
 			msleep(1);
-			CHK_ERROR(Read16_0
-				  (state, SCU_RAM_COMMAND__A, &curCmd));
+			status = Read16_0(state, SCU_RAM_COMMAND__A, &curCmd);
+			if (status < 0)
+				break;
 		} while (!(curCmd == DRX_SCU_READY)
 			 && (time_is_after_jiffies(end)));
 		if (curCmd != DRX_SCU_READY) {
@@ -1367,9 +1429,9 @@ static int scu_command(struct drxk_state *state,
 			int ii;
 
 			for (ii = resultLen - 1; ii >= 0; ii -= 1) {
-				CHK_ERROR(Read16_0(state,
-						   SCU_RAM_PARAM_0__A - ii,
-						   &result[ii]));
+				status = Read16_0(state, SCU_RAM_PARAM_0__A - ii, &result[ii]);
+				if (status < 0)
+					break;
 			}
 
 			/* Check if an error was reported by SCU */
@@ -1408,7 +1470,9 @@ static int SetIqmAf(struct drxk_state *state, bool active)
 
 	do {
 		/* Configure IQM */
-		CHK_ERROR(Read16_0(state, IQM_AF_STDBY__A, &data));
+		status = Read16_0(state, IQM_AF_STDBY__A, &data);
+		if (status < 0)
+			break;
 		if (!active) {
 			data |= (IQM_AF_STDBY_STDBY_ADC_STANDBY
 				 | IQM_AF_STDBY_STDBY_AMP_STANDBY
@@ -1424,7 +1488,9 @@ static int SetIqmAf(struct drxk_state *state, bool active)
 				 & (~IQM_AF_STDBY_STDBY_TAGC_RF_STANDBY)
 			    );
 		}
-		CHK_ERROR(Write16_0(state, IQM_AF_STDBY__A, data));
+		status = Write16_0(state, IQM_AF_STDBY__A, data);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -1467,8 +1533,12 @@ static int CtrlPowerMode(struct drxk_state *state, enum DRXPowerMode *mode)
 	/* For next steps make sure to start from DRX_POWER_UP mode */
 	if (state->m_currentPowerMode != DRX_POWER_UP) {
 		do {
-			CHK_ERROR(PowerUpDevice(state));
-			CHK_ERROR(DVBTEnableOFDMTokenRing(state, true));
+			status = PowerUpDevice(state);
+			if (status < 0)
+				break;
+			status = DVBTEnableOFDMTokenRing(state, true);
+			if (status < 0)
+				break;
 		} while (0);
 	}
 
@@ -1487,27 +1557,41 @@ static int CtrlPowerMode(struct drxk_state *state, enum DRXPowerMode *mode)
 		do {
 			switch (state->m_OperationMode) {
 			case OM_DVBT:
-				CHK_ERROR(MPEGTSStop(state));
-				CHK_ERROR(PowerDownDVBT(state, false));
+				status = MPEGTSStop(state);
+				if (status < 0)
+					break;
+				status = PowerDownDVBT(state, false);
+				if (status < 0)
+					break;
 				break;
 			case OM_QAM_ITU_A:
 			case OM_QAM_ITU_C:
-				CHK_ERROR(MPEGTSStop(state));
-				CHK_ERROR(PowerDownQAM(state));
+				status = MPEGTSStop(state);
+				if (status < 0)
+					break;
+				status = PowerDownQAM(state);
+				if (status < 0)
+					break;
 				break;
 			default:
 				break;
 			}
-			CHK_ERROR(DVBTEnableOFDMTokenRing(state, false));
-			CHK_ERROR(Write16_0(state, SIO_CC_PWD_MODE__A,
-					    sioCcPwdMode));
-			CHK_ERROR(Write16_0(state, SIO_CC_UPDATE__A,
-					    SIO_CC_UPDATE_KEY));
+			status = DVBTEnableOFDMTokenRing(state, false);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_CC_PWD_MODE__A, sioCcPwdMode);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY);
+			if (status < 0)
+				break;
 
 			if (*mode != DRXK_POWER_DOWN_OFDM) {
 				state->m_HICfgCtrl |=
 				    SIO_HI_RA_RAM_PAR_5_CFG_SLEEP_ZZZ;
-				CHK_ERROR(HI_CfgCommand(state));
+				status = HI_CfgCommand(state);
+				if (status < 0)
+					break;
 			}
 		} while (0);
 	}
@@ -1523,36 +1607,41 @@ static int PowerDownDVBT(struct drxk_state *state, bool setPowerMode)
 	int status;
 
 	do {
-		CHK_ERROR(Read16_0(state, SCU_COMM_EXEC__A, &data));
+		status = Read16_0(state, SCU_COMM_EXEC__A, &data);
+		if (status < 0)
+			break;
 		if (data == SCU_COMM_EXEC_ACTIVE) {
 			/* Send OFDM stop command */
-			CHK_ERROR(scu_command(state,
-					      SCU_RAM_COMMAND_STANDARD_OFDM
-					      |
-					      SCU_RAM_COMMAND_CMD_DEMOD_STOP,
-					      0, NULL, 1, &cmdResult));
+			status = scu_command(state, SCU_RAM_COMMAND_STANDARD_OFDM | SCU_RAM_COMMAND_CMD_DEMOD_STOP, 0, NULL, 1, &cmdResult);
+			if (status < 0)
+				break;
 			/* Send OFDM reset command */
-			CHK_ERROR(scu_command(state,
-					      SCU_RAM_COMMAND_STANDARD_OFDM
-					      |
-					      SCU_RAM_COMMAND_CMD_DEMOD_RESET,
-					      0, NULL, 1, &cmdResult));
+			status = scu_command(state, SCU_RAM_COMMAND_STANDARD_OFDM | SCU_RAM_COMMAND_CMD_DEMOD_RESET, 0, NULL, 1, &cmdResult);
+			if (status < 0)
+				break;
 		}
 
 		/* Reset datapath for OFDM, processors first */
-		CHK_ERROR(Write16_0(state, OFDM_SC_COMM_EXEC__A,
-				    OFDM_SC_COMM_EXEC_STOP));
-		CHK_ERROR(Write16_0(state, OFDM_LC_COMM_EXEC__A,
-				    OFDM_LC_COMM_EXEC_STOP));
-		CHK_ERROR(Write16_0(state, IQM_COMM_EXEC__A,
-				    IQM_COMM_EXEC_B_STOP));
+		status = Write16_0(state, OFDM_SC_COMM_EXEC__A, OFDM_SC_COMM_EXEC_STOP);
+		if (status < 0)
+			break;
+		status = Write16_0(state, OFDM_LC_COMM_EXEC__A, OFDM_LC_COMM_EXEC_STOP);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_COMM_EXEC__A, IQM_COMM_EXEC_B_STOP);
+		if (status < 0)
+			break;
 
 		/* powerdown AFE                   */
-		CHK_ERROR(SetIqmAf(state, false));
+		status = SetIqmAf(state, false);
+		if (status < 0)
+			break;
 
 		/* powerdown to OFDM mode          */
 		if (setPowerMode) {
-			CHK_ERROR(CtrlPowerMode(state, &powerMode));
+			status = CtrlPowerMode(state, &powerMode);
+			if (status < 0)
+				break;
 		}
 	} while (0);
 	return status;
@@ -1570,8 +1659,9 @@ static int SetOperationMode(struct drxk_state *state,
 	 */
 	do {
 		/* disable HW lock indicator */
-		CHK_ERROR(Write16_0(state, SCU_RAM_GPIO__A,
-				    SCU_RAM_GPIO_HW_LOCK_IND_DISABLE));
+		status = Write16_0(state, SCU_RAM_GPIO__A, SCU_RAM_GPIO_HW_LOCK_IND_DISABLE);
+		if (status < 0)
+			break;
 
 		if (state->m_OperationMode != oMode) {
 			switch (state->m_OperationMode) {
@@ -1579,8 +1669,12 @@ static int SetOperationMode(struct drxk_state *state,
 			case OM_NONE:
 				break;
 			case OM_DVBT:
-				CHK_ERROR(MPEGTSStop(state));
-				CHK_ERROR(PowerDownDVBT(state, true));
+				status = MPEGTSStop(state);
+				if (status < 0)
+					break;
+				status = PowerDownDVBT(state, true);
+				if (status < 0)
+					break;
 				state->m_OperationMode = OM_NONE;
 				break;
 			case OM_QAM_ITU_B:
@@ -1588,14 +1682,20 @@ static int SetOperationMode(struct drxk_state *state,
 				break;
 			case OM_QAM_ITU_A:	/* fallthrough */
 			case OM_QAM_ITU_C:
-				CHK_ERROR(MPEGTSStop(state));
-				CHK_ERROR(PowerDownQAM(state));
+				status = MPEGTSStop(state);
+				if (status < 0)
+					break;
+				status = PowerDownQAM(state);
+				if (status < 0)
+					break;
 				state->m_OperationMode = OM_NONE;
 				break;
 			default:
 				status = -1;
 			}
-			CHK_ERROR(status);
+			status = status;
+			if (status < 0)
+				break;
 
 			/*
 			   Power up new standard
@@ -1603,7 +1703,9 @@ static int SetOperationMode(struct drxk_state *state,
 			switch (oMode) {
 			case OM_DVBT:
 				state->m_OperationMode = oMode;
-				CHK_ERROR(SetDVBTStandard(state, oMode));
+				status = SetDVBTStandard(state, oMode);
+				if (status < 0)
+					break;
 				break;
 			case OM_QAM_ITU_B:
 				status = -1;
@@ -1611,13 +1713,17 @@ static int SetOperationMode(struct drxk_state *state,
 			case OM_QAM_ITU_A:	/* fallthrough */
 			case OM_QAM_ITU_C:
 				state->m_OperationMode = oMode;
-				CHK_ERROR(SetQAMStandard(state, oMode));
+				status = SetQAMStandard(state, oMode);
+				if (status < 0)
+					break;
 				break;
 			default:
 				status = -1;
 			}
 		}
-		CHK_ERROR(status);
+		status = status;
+		if (status < 0)
+			break;
 	} while (0);
 	return 0;
 }
@@ -1649,14 +1755,22 @@ static int Start(struct drxk_state *state, s32 offsetFreq,
 		case OM_QAM_ITU_A:
 		case OM_QAM_ITU_C:
 			IFreqkHz = (IntermediateFrequency / 1000);
-			CHK_ERROR(SetQAM(state, IFreqkHz, OffsetkHz));
+			status = SetQAM(state, IFreqkHz, OffsetkHz);
+			if (status < 0)
+				break;
 			state->m_DrxkState = DRXK_DTV_STARTED;
 			break;
 		case OM_DVBT:
 			IFreqkHz = (IntermediateFrequency / 1000);
-			CHK_ERROR(MPEGTSStop(state));
-			CHK_ERROR(SetDVBT(state, IFreqkHz, OffsetkHz));
-			CHK_ERROR(DVBTStart(state));
+			status = MPEGTSStop(state);
+			if (status < 0)
+				break;
+			status = SetDVBT(state, IFreqkHz, OffsetkHz);
+			if (status < 0)
+				break;
+			status = DVBTStart(state);
+			if (status < 0)
+				break;
 			state->m_DrxkState = DRXK_DTV_STARTED;
 			break;
 		default:
@@ -1706,12 +1820,16 @@ static int MPEGTSStart(struct drxk_state *state)
 
 	do {
 		/* Allow OC to sync again */
-		CHK_ERROR(Read16_0
-			  (state, FEC_OC_SNC_MODE__A, &fecOcSncMode));
+		status = Read16_0(state, FEC_OC_SNC_MODE__A, &fecOcSncMode);
+		if (status < 0)
+			break;
 		fecOcSncMode &= ~FEC_OC_SNC_MODE_SHUTDOWN__M;
-		CHK_ERROR(Write16_0
-			  (state, FEC_OC_SNC_MODE__A, fecOcSncMode));
-		CHK_ERROR(Write16_0(state, FEC_OC_SNC_UNLOCK__A, 1));
+		status = Write16_0(state, FEC_OC_SNC_MODE__A, fecOcSncMode);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_SNC_UNLOCK__A, 1);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -1722,23 +1840,41 @@ static int MPEGTSDtoInit(struct drxk_state *state)
 
 	do {
 		/* Rate integration settings */
-		CHK_ERROR(Write16_0
-			  (state, FEC_OC_RCN_CTL_STEP_LO__A, 0x0000));
-		CHK_ERROR(Write16_0
-			  (state, FEC_OC_RCN_CTL_STEP_HI__A, 0x000C));
-		CHK_ERROR(Write16_0(state, FEC_OC_RCN_GAIN__A, 0x000A));
-		CHK_ERROR(Write16_0(state, FEC_OC_AVR_PARM_A__A, 0x0008));
-		CHK_ERROR(Write16_0(state, FEC_OC_AVR_PARM_B__A, 0x0006));
-		CHK_ERROR(Write16_0
-			  (state, FEC_OC_TMD_HI_MARGIN__A, 0x0680));
-		CHK_ERROR(Write16_0
-			  (state, FEC_OC_TMD_LO_MARGIN__A, 0x0080));
-		CHK_ERROR(Write16_0(state, FEC_OC_TMD_COUNT__A, 0x03F4));
+		status = Write16_0(state, FEC_OC_RCN_CTL_STEP_LO__A, 0x0000);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_RCN_CTL_STEP_HI__A, 0x000C);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_RCN_GAIN__A, 0x000A);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_AVR_PARM_A__A, 0x0008);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_AVR_PARM_B__A, 0x0006);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_TMD_HI_MARGIN__A, 0x0680);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_TMD_LO_MARGIN__A, 0x0080);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_TMD_COUNT__A, 0x03F4);
+		if (status < 0)
+			break;
 
 		/* Additional configuration */
-		CHK_ERROR(Write16_0(state, FEC_OC_OCR_INVERT__A, 0));
-		CHK_ERROR(Write16_0(state, FEC_OC_SNC_LWM__A, 2));
-		CHK_ERROR(Write16_0(state, FEC_OC_SNC_HWM__A, 12));
+		status = Write16_0(state, FEC_OC_OCR_INVERT__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_SNC_LWM__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_SNC_HWM__A, 12);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -1762,9 +1898,12 @@ static int MPEGTSDtoSetup(struct drxk_state *state,
 
 	do {
 		/* Check insertion of the Reed-Solomon parity bytes */
-		CHK_ERROR(Read16_0(state, FEC_OC_MODE__A, &fecOcRegMode));
-		CHK_ERROR(Read16_0(state, FEC_OC_IPR_MODE__A,
-				   &fecOcRegIprMode));
+		status = Read16_0(state, FEC_OC_MODE__A, &fecOcRegMode);
+		if (status < 0)
+			break;
+		status = Read16_0(state, FEC_OC_IPR_MODE__A, &fecOcRegIprMode);
+		if (status < 0)
+			break;
 		fecOcRegMode &= (~FEC_OC_MODE_PARITY__M);
 		fecOcRegIprMode &= (~FEC_OC_IPR_MODE_MVAL_DIS_PAR__M);
 		if (state->m_insertRSByte == true) {
@@ -1800,7 +1939,9 @@ static int MPEGTSDtoSetup(struct drxk_state *state,
 		default:
 			status = -1;
 		}		/* switch (standard) */
-		CHK_ERROR(status);
+		status = status;
+		if (status < 0)
+			break;
 
 		/* Configure DTO's */
 		if (staticCLK) {
@@ -1841,25 +1982,35 @@ static int MPEGTSDtoSetup(struct drxk_state *state,
 		}
 
 		/* Write appropriate registers with requested configuration */
-		CHK_ERROR(Write16_0(state, FEC_OC_DTO_BURST_LEN__A,
-				    fecOcDtoBurstLen));
-		CHK_ERROR(Write16_0(state, FEC_OC_DTO_PERIOD__A,
-				    fecOcDtoPeriod));
-		CHK_ERROR(Write16_0(state, FEC_OC_DTO_MODE__A,
-				    fecOcDtoMode));
-		CHK_ERROR(Write16_0(state, FEC_OC_FCT_MODE__A,
-				    fecOcFctMode));
-		CHK_ERROR(Write16_0(state, FEC_OC_MODE__A, fecOcRegMode));
-		CHK_ERROR(Write16_0(state, FEC_OC_IPR_MODE__A,
-				    fecOcRegIprMode));
+		status = Write16_0(state, FEC_OC_DTO_BURST_LEN__A, fecOcDtoBurstLen);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_DTO_PERIOD__A, fecOcDtoPeriod);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_DTO_MODE__A, fecOcDtoMode);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_FCT_MODE__A, fecOcFctMode);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_MODE__A, fecOcRegMode);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_IPR_MODE__A, fecOcRegIprMode);
+		if (status < 0)
+			break;
 
 		/* Rate integration settings */
-		CHK_ERROR(Write32(state, FEC_OC_RCN_CTL_RATE_LO__A,
-				  fecOcRcnCtlRate, 0));
-		CHK_ERROR(Write16_0(state, FEC_OC_TMD_INT_UPD_RATE__A,
-				    fecOcTmdIntUpdRate));
-		CHK_ERROR(Write16_0(state, FEC_OC_TMD_MODE__A,
-				    fecOcTmdMode));
+		status = Write32(state, FEC_OC_RCN_CTL_RATE_LO__A, fecOcRcnCtlRate, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_TMD_INT_UPD_RATE__A, fecOcTmdIntUpdRate);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_TMD_MODE__A, fecOcTmdMode);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -1914,12 +2065,17 @@ static int SetAgcRf(struct drxk_state *state,
 		case DRXK_AGC_CTRL_AUTO:
 
 			/* Enable RF AGC DAC */
-			CHK_ERROR(Read16_0(state, IQM_AF_STDBY__A, &data));
+			status = Read16_0(state, IQM_AF_STDBY__A, &data);
+			if (status < 0)
+				break;
 			data &= ~IQM_AF_STDBY_STDBY_TAGC_RF_STANDBY;
-			CHK_ERROR(Write16_0(state, IQM_AF_STDBY__A, data));
+			status = Write16_0(state, IQM_AF_STDBY__A, data);
+			if (status < 0)
+				break;
 
-			CHK_ERROR(Read16(state, SCU_RAM_AGC_CONFIG__A,
-					 &data, 0));
+			status = Read16(state, SCU_RAM_AGC_CONFIG__A, &data, 0);
+			if (status < 0)
+				break;
 
 			/* Enable SCU RF AGC loop */
 			data &= ~SCU_RAM_AGC_CONFIG_DISABLE_RF_AGC__M;
@@ -1929,20 +2085,23 @@ static int SetAgcRf(struct drxk_state *state,
 				data |= SCU_RAM_AGC_CONFIG_INV_RF_POL__M;
 			else
 				data &= ~SCU_RAM_AGC_CONFIG_INV_RF_POL__M;
-			CHK_ERROR(Write16_0(state,
-					    SCU_RAM_AGC_CONFIG__A, data));
+			status = Write16_0(state, SCU_RAM_AGC_CONFIG__A, data);
+			if (status < 0)
+				break;
 
 			/* Set speed (using complementary reduction value) */
-			CHK_ERROR(Read16(state, SCU_RAM_AGC_KI_RED__A,
-					 &data, 0));
+			status = Read16(state, SCU_RAM_AGC_KI_RED__A, &data, 0);
+			if (status < 0)
+				break;
 
 			data &= ~SCU_RAM_AGC_KI_RED_RAGC_RED__M;
 			data |= (~(pAgcCfg->speed <<
 				   SCU_RAM_AGC_KI_RED_RAGC_RED__B)
 				 & SCU_RAM_AGC_KI_RED_RAGC_RED__M);
 
-			CHK_ERROR(Write16_0(state,
-					    SCU_RAM_AGC_KI_RED__A, data));
+			status = Write16_0(state, SCU_RAM_AGC_KI_RED__A, data);
+			if (status < 0)
+				break;
 
 			if (IsDVBT(state))
 				pIfAgcSettings = &state->m_dvbtIfAgcCfg;
@@ -1955,61 +2114,74 @@ static int SetAgcRf(struct drxk_state *state,
 
 			/* Set TOP, only if IF-AGC is in AUTO mode */
 			if (pIfAgcSettings->ctrlMode == DRXK_AGC_CTRL_AUTO)
-				CHK_ERROR(Write16_0(state,
-						    SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
-						    pAgcCfg->top));
+				status = Write16_0(state, SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A, pAgcCfg->top);
+				if (status < 0)
+					break;
 
 			/* Cut-Off current */
-			CHK_ERROR(Write16_0(state,
-					    SCU_RAM_AGC_RF_IACCU_HI_CO__A,
-					    pAgcCfg->cutOffCurrent));
+			status = Write16_0(state, SCU_RAM_AGC_RF_IACCU_HI_CO__A, pAgcCfg->cutOffCurrent);
+			if (status < 0)
+				break;
 
 			/* Max. output level */
-			CHK_ERROR(Write16_0(state, SCU_RAM_AGC_RF_MAX__A,
-					    pAgcCfg->maxOutputLevel));
+			status = Write16_0(state, SCU_RAM_AGC_RF_MAX__A, pAgcCfg->maxOutputLevel);
+			if (status < 0)
+				break;
 
 			break;
 
 		case DRXK_AGC_CTRL_USER:
 			/* Enable RF AGC DAC */
-			CHK_ERROR(Read16_0(state, IQM_AF_STDBY__A, &data));
+			status = Read16_0(state, IQM_AF_STDBY__A, &data);
+			if (status < 0)
+				break;
 			data &= ~IQM_AF_STDBY_STDBY_TAGC_RF_STANDBY;
-			CHK_ERROR(Write16_0(state, IQM_AF_STDBY__A, data));
+			status = Write16_0(state, IQM_AF_STDBY__A, data);
+			if (status < 0)
+				break;
 
 			/* Disable SCU RF AGC loop */
-			CHK_ERROR(Read16_0(state,
-					   SCU_RAM_AGC_CONFIG__A, &data));
+			status = Read16_0(state, SCU_RAM_AGC_CONFIG__A, &data);
+			if (status < 0)
+				break;
 			data |= SCU_RAM_AGC_CONFIG_DISABLE_RF_AGC__M;
 			if (state->m_RfAgcPol)
 				data |= SCU_RAM_AGC_CONFIG_INV_RF_POL__M;
 			else
 				data &= ~SCU_RAM_AGC_CONFIG_INV_RF_POL__M;
-			CHK_ERROR(Write16_0(state, SCU_RAM_AGC_CONFIG__A,
-					    data));
+			status = Write16_0(state, SCU_RAM_AGC_CONFIG__A, data);
+			if (status < 0)
+				break;
 
 			/* SCU c.o.c. to 0, enabling full control range */
-			CHK_ERROR(Write16_0
-				  (state, SCU_RAM_AGC_RF_IACCU_HI_CO__A,
-				   0));
+			status = Write16_0(state, SCU_RAM_AGC_RF_IACCU_HI_CO__A, 0);
+			if (status < 0)
+				break;
 
 			/* Write value to output pin */
-			CHK_ERROR(Write16_0
-				  (state, SCU_RAM_AGC_RF_IACCU_HI__A,
-				   pAgcCfg->outputLevel));
+			status = Write16_0(state, SCU_RAM_AGC_RF_IACCU_HI__A, pAgcCfg->outputLevel);
+			if (status < 0)
+				break;
 			break;
 
 		case DRXK_AGC_CTRL_OFF:
 			/* Disable RF AGC DAC */
-			CHK_ERROR(Read16_0(state, IQM_AF_STDBY__A, &data));
+			status = Read16_0(state, IQM_AF_STDBY__A, &data);
+			if (status < 0)
+				break;
 			data |= IQM_AF_STDBY_STDBY_TAGC_RF_STANDBY;
-			CHK_ERROR(Write16_0(state, IQM_AF_STDBY__A, data));
+			status = Write16_0(state, IQM_AF_STDBY__A, data);
+			if (status < 0)
+				break;
 
 			/* Disable SCU RF AGC loop */
-			CHK_ERROR(Read16_0(state,
-					   SCU_RAM_AGC_CONFIG__A, &data));
+			status = Read16_0(state, SCU_RAM_AGC_CONFIG__A, &data);
+			if (status < 0)
+				break;
 			data |= SCU_RAM_AGC_CONFIG_DISABLE_RF_AGC__M;
-			CHK_ERROR(Write16_0(state,
-					    SCU_RAM_AGC_CONFIG__A, data));
+			status = Write16_0(state, SCU_RAM_AGC_CONFIG__A, data);
+			if (status < 0)
+				break;
 			break;
 
 		default:
@@ -2034,12 +2206,17 @@ static int SetAgcIf(struct drxk_state *state,
 		case DRXK_AGC_CTRL_AUTO:
 
 			/* Enable IF AGC DAC */
-			CHK_ERROR(Read16_0(state, IQM_AF_STDBY__A, &data));
+			status = Read16_0(state, IQM_AF_STDBY__A, &data);
+			if (status < 0)
+				break;
 			data &= ~IQM_AF_STDBY_STDBY_TAGC_IF_STANDBY;
-			CHK_ERROR(Write16_0(state, IQM_AF_STDBY__A, data));
+			status = Write16_0(state, IQM_AF_STDBY__A, data);
+			if (status < 0)
+				break;
 
-			CHK_ERROR(Read16_0(state, SCU_RAM_AGC_CONFIG__A,
-					   &data));
+			status = Read16_0(state, SCU_RAM_AGC_CONFIG__A, &data);
+			if (status < 0)
+				break;
 
 			/* Enable SCU IF AGC loop */
 			data &= ~SCU_RAM_AGC_CONFIG_DISABLE_IF_AGC__M;
@@ -2049,19 +2226,22 @@ static int SetAgcIf(struct drxk_state *state,
 				data |= SCU_RAM_AGC_CONFIG_INV_IF_POL__M;
 			else
 				data &= ~SCU_RAM_AGC_CONFIG_INV_IF_POL__M;
-			CHK_ERROR(Write16_0(state,
-					    SCU_RAM_AGC_CONFIG__A, data));
+			status = Write16_0(state, SCU_RAM_AGC_CONFIG__A, data);
+			if (status < 0)
+				break;
 
 			/* Set speed (using complementary reduction value) */
-			CHK_ERROR(Read16_0(state, SCU_RAM_AGC_KI_RED__A,
-					   &data));
+			status = Read16_0(state, SCU_RAM_AGC_KI_RED__A, &data);
+			if (status < 0)
+				break;
 			data &= ~SCU_RAM_AGC_KI_RED_IAGC_RED__M;
 			data |= (~(pAgcCfg->speed <<
 				   SCU_RAM_AGC_KI_RED_IAGC_RED__B)
 				 & SCU_RAM_AGC_KI_RED_IAGC_RED__M);
 
-			CHK_ERROR(Write16_0(state, SCU_RAM_AGC_KI_RED__A,
-					    data));
+			status = Write16_0(state, SCU_RAM_AGC_KI_RED__A, data);
+			if (status < 0)
+				break;
 
 			if (IsQAM(state))
 				pRfAgcSettings = &state->m_qamRfAgcCfg;
@@ -2070,20 +2250,25 @@ static int SetAgcIf(struct drxk_state *state,
 			if (pRfAgcSettings == NULL)
 				return -1;
 			/* Restore TOP */
-			CHK_ERROR(Write16_0(state,
-					    SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
-					    pRfAgcSettings->top));
+			status = Write16_0(state, SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A, pRfAgcSettings->top);
+			if (status < 0)
+				break;
 			break;
 
 		case DRXK_AGC_CTRL_USER:
 
 			/* Enable IF AGC DAC */
-			CHK_ERROR(Read16_0(state, IQM_AF_STDBY__A, &data));
+			status = Read16_0(state, IQM_AF_STDBY__A, &data);
+			if (status < 0)
+				break;
 			data &= ~IQM_AF_STDBY_STDBY_TAGC_IF_STANDBY;
-			CHK_ERROR(Write16_0(state, IQM_AF_STDBY__A, data));
+			status = Write16_0(state, IQM_AF_STDBY__A, data);
+			if (status < 0)
+				break;
 
-			CHK_ERROR(Read16_0(state,
-					   SCU_RAM_AGC_CONFIG__A, &data));
+			status = Read16_0(state, SCU_RAM_AGC_CONFIG__A, &data);
+			if (status < 0)
+				break;
 
 			/* Disable SCU IF AGC loop */
 			data |= SCU_RAM_AGC_CONFIG_DISABLE_IF_AGC__M;
@@ -2093,35 +2278,43 @@ static int SetAgcIf(struct drxk_state *state,
 				data |= SCU_RAM_AGC_CONFIG_INV_IF_POL__M;
 			else
 				data &= ~SCU_RAM_AGC_CONFIG_INV_IF_POL__M;
-			CHK_ERROR(Write16_0(state,
-					    SCU_RAM_AGC_CONFIG__A, data));
+			status = Write16_0(state, SCU_RAM_AGC_CONFIG__A, data);
+			if (status < 0)
+				break;
 
 			/* Write value to output pin */
-			CHK_ERROR(Write16_0(state,
-					    SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
-					    pAgcCfg->outputLevel));
+			status = Write16_0(state, SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A, pAgcCfg->outputLevel);
+			if (status < 0)
+				break;
 			break;
 
 		case DRXK_AGC_CTRL_OFF:
 
 			/* Disable If AGC DAC */
-			CHK_ERROR(Read16_0(state, IQM_AF_STDBY__A, &data));
+			status = Read16_0(state, IQM_AF_STDBY__A, &data);
+			if (status < 0)
+				break;
 			data |= IQM_AF_STDBY_STDBY_TAGC_IF_STANDBY;
-			CHK_ERROR(Write16_0(state, IQM_AF_STDBY__A, data));
+			status = Write16_0(state, IQM_AF_STDBY__A, data);
+			if (status < 0)
+				break;
 
 			/* Disable SCU IF AGC loop */
-			CHK_ERROR(Read16_0(state,
-					   SCU_RAM_AGC_CONFIG__A, &data));
+			status = Read16_0(state, SCU_RAM_AGC_CONFIG__A, &data);
+			if (status < 0)
+				break;
 			data |= SCU_RAM_AGC_CONFIG_DISABLE_IF_AGC__M;
-			CHK_ERROR(Write16_0(state,
-					    SCU_RAM_AGC_CONFIG__A, data));
+			status = Write16_0(state, SCU_RAM_AGC_CONFIG__A, data);
+			if (status < 0)
+				break;
 			break;
 		}		/* switch (agcSettingsIf->ctrlMode) */
 
 		/* always set the top to support
 		   configurations without if-loop */
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_INGAIN_TGT_MIN__A,
-				    pAgcCfg->top));
+		status = Write16_0(state, SCU_RAM_AGC_INGAIN_TGT_MIN__A, pAgcCfg->top);
+		if (status < 0)
+			break;
 
 
 	} while (0);
@@ -2161,8 +2354,9 @@ static int GetQAMSignalToNoise(struct drxk_state *state,
 		u32 qamSlMer = 0;	/* QAM MER */
 
 		/* get the register value needed for MER */
-		CHK_ERROR(Read16_0
-			  (state, QAM_SL_ERR_POWER__A, &qamSlErrPower));
+		status = Read16_0(state, QAM_SL_ERR_POWER__A, &qamSlErrPower);
+		if (status < 0)
+			break;
 
 		switch (state->param.u.qam.modulation) {
 		case QAM_16:
@@ -2212,30 +2406,36 @@ static int GetDVBTSignalToNoise(struct drxk_state *state,
 	u16 transmissionParams = 0;
 
 	do {
-		CHK_ERROR(Read16_0(state, OFDM_EQ_TOP_TD_TPS_PWR_OFS__A,
-				   &EqRegTdTpsPwrOfs));
-		CHK_ERROR(Read16_0(state, OFDM_EQ_TOP_TD_REQ_SMB_CNT__A,
-				   &EqRegTdReqSmbCnt));
-		CHK_ERROR(Read16_0(state, OFDM_EQ_TOP_TD_SQR_ERR_EXP__A,
-				   &EqRegTdSqrErrExp));
-		CHK_ERROR(Read16_0(state, OFDM_EQ_TOP_TD_SQR_ERR_I__A,
-				   &regData));
+		status = Read16_0(state, OFDM_EQ_TOP_TD_TPS_PWR_OFS__A, &EqRegTdTpsPwrOfs);
+		if (status < 0)
+			break;
+		status = Read16_0(state, OFDM_EQ_TOP_TD_REQ_SMB_CNT__A, &EqRegTdReqSmbCnt);
+		if (status < 0)
+			break;
+		status = Read16_0(state, OFDM_EQ_TOP_TD_SQR_ERR_EXP__A, &EqRegTdSqrErrExp);
+		if (status < 0)
+			break;
+		status = Read16_0(state, OFDM_EQ_TOP_TD_SQR_ERR_I__A, &regData);
+		if (status < 0)
+			break;
 		/* Extend SQR_ERR_I operational range */
 		EqRegTdSqrErrI = (u32) regData;
 		if ((EqRegTdSqrErrExp > 11) &&
 		    (EqRegTdSqrErrI < 0x00000FFFUL)) {
 			EqRegTdSqrErrI += 0x00010000UL;
 		}
-		CHK_ERROR(Read16_0(state, OFDM_EQ_TOP_TD_SQR_ERR_Q__A,
-				   &regData));
+		status = Read16_0(state, OFDM_EQ_TOP_TD_SQR_ERR_Q__A, &regData);
+		if (status < 0)
+			break;
 		/* Extend SQR_ERR_Q operational range */
 		EqRegTdSqrErrQ = (u32) regData;
 		if ((EqRegTdSqrErrExp > 11) &&
 		    (EqRegTdSqrErrQ < 0x00000FFFUL))
 			EqRegTdSqrErrQ += 0x00010000UL;
 
-		CHK_ERROR(Read16_0(state, OFDM_SC_RA_RAM_OP_PARAM__A,
-				   &transmissionParams));
+		status = Read16_0(state, OFDM_SC_RA_RAM_OP_PARAM__A, &transmissionParams);
+		if (status < 0)
+			break;
 
 		/* Check input data for MER */
 
@@ -2336,13 +2536,17 @@ static int GetDVBTQuality(struct drxk_state *state, s32 *pQuality)
 		u32 SignalToNoiseRel;
 		u32 BERQuality;
 
-		CHK_ERROR(GetDVBTSignalToNoise(state, &SignalToNoise));
-		CHK_ERROR(Read16_0(state, OFDM_EQ_TOP_TD_TPS_CONST__A,
-				   &Constellation));
+		status = GetDVBTSignalToNoise(state, &SignalToNoise);
+		if (status < 0)
+			break;
+		status = Read16_0(state, OFDM_EQ_TOP_TD_TPS_CONST__A, &Constellation);
+		if (status < 0)
+			break;
 		Constellation &= OFDM_EQ_TOP_TD_TPS_CONST__M;
 
-		CHK_ERROR(Read16_0(state, OFDM_EQ_TOP_TD_TPS_CODE_HP__A,
-				   &CodeRate));
+		status = Read16_0(state, OFDM_EQ_TOP_TD_TPS_CODE_HP__A, &CodeRate);
+		if (status < 0)
+			break;
 		CodeRate &= OFDM_EQ_TOP_TD_TPS_CODE_HP__M;
 
 		if (Constellation > OFDM_EQ_TOP_TD_TPS_CONST_64QAM ||
@@ -2373,7 +2577,9 @@ static int GetDVBCQuality(struct drxk_state *state, s32 *pQuality)
 		u32 BERQuality = 100;
 		u32 SignalToNoiseRel = 0;
 
-		CHK_ERROR(GetQAMSignalToNoise(state, &SignalToNoise));
+		status = GetQAMSignalToNoise(state, &SignalToNoise);
+		if (status < 0)
+			break;
 
 		switch (state->param.u.qam.modulation) {
 		case QAM_16:
@@ -2444,17 +2650,22 @@ static int ConfigureI2CBridge(struct drxk_state *state, bool bEnableBridge)
 		return -1;
 
 	do {
-		CHK_ERROR(Write16_0(state, SIO_HI_RA_RAM_PAR_1__A,
-				    SIO_HI_RA_RAM_PAR_1_PAR1_SEC_KEY));
+		status = Write16_0(state, SIO_HI_RA_RAM_PAR_1__A, SIO_HI_RA_RAM_PAR_1_PAR1_SEC_KEY);
+		if (status < 0)
+			break;
 		if (bEnableBridge) {
-			CHK_ERROR(Write16_0(state, SIO_HI_RA_RAM_PAR_2__A,
-					    SIO_HI_RA_RAM_PAR_2_BRD_CFG_CLOSED));
+			status = Write16_0(state, SIO_HI_RA_RAM_PAR_2__A, SIO_HI_RA_RAM_PAR_2_BRD_CFG_CLOSED);
+			if (status < 0)
+				break;
 		} else {
-			CHK_ERROR(Write16_0(state, SIO_HI_RA_RAM_PAR_2__A,
-					    SIO_HI_RA_RAM_PAR_2_BRD_CFG_OPEN));
+			status = Write16_0(state, SIO_HI_RA_RAM_PAR_2__A, SIO_HI_RA_RAM_PAR_2_BRD_CFG_OPEN);
+			if (status < 0)
+				break;
 		}
 
-		CHK_ERROR(HI_Command(state, SIO_HI_RA_RAM_CMD_BRDCTRL, 0));
+		status = HI_Command(state, SIO_HI_RA_RAM_CMD_BRDCTRL, 0);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -2483,20 +2694,30 @@ static int BLDirectCmd(struct drxk_state *state, u32 targetAddr,
 
 	mutex_lock(&state->mutex);
 	do {
-		CHK_ERROR(Write16_0
-			  (state, SIO_BL_MODE__A, SIO_BL_MODE_DIRECT));
-		CHK_ERROR(Write16_0(state, SIO_BL_TGT_HDR__A, blockbank));
-		CHK_ERROR(Write16_0(state, SIO_BL_TGT_ADDR__A, offset));
-		CHK_ERROR(Write16_0(state, SIO_BL_SRC_ADDR__A, romOffset));
-		CHK_ERROR(Write16_0
-			  (state, SIO_BL_SRC_LEN__A, nrOfElements));
-		CHK_ERROR(Write16_0
-			  (state, SIO_BL_ENABLE__A, SIO_BL_ENABLE_ON));
+		status = Write16_0(state, SIO_BL_MODE__A, SIO_BL_MODE_DIRECT);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_BL_TGT_HDR__A, blockbank);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_BL_TGT_ADDR__A, offset);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_BL_SRC_ADDR__A, romOffset);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_BL_SRC_LEN__A, nrOfElements);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_BL_ENABLE__A, SIO_BL_ENABLE_ON);
+		if (status < 0)
+			break;
 
 		end = jiffies + msecs_to_jiffies(timeOut);
 		do {
-			CHK_ERROR(Read16_0
-				  (state, SIO_BL_STATUS__A, &blStatus));
+			status = Read16_0(state, SIO_BL_STATUS__A, &blStatus);
+			if (status < 0)
+				break;
 		} while ((blStatus == 0x1) && time_is_after_jiffies(end));
 		if (blStatus == 0x1) {
 			printk(KERN_ERR "SIO not ready\n");
@@ -2516,18 +2737,27 @@ static int ADCSyncMeasurement(struct drxk_state *state, u16 *count)
 
 	do {
 		/* Start measurement */
-		CHK_ERROR(Write16_0(state, IQM_AF_COMM_EXEC__A,
-				    IQM_AF_COMM_EXEC_ACTIVE));
-		CHK_ERROR(Write16_0(state, IQM_AF_START_LOCK__A, 1));
+		status = Write16_0(state, IQM_AF_COMM_EXEC__A, IQM_AF_COMM_EXEC_ACTIVE);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_AF_START_LOCK__A, 1);
+		if (status < 0)
+			break;
 
 		*count = 0;
-		CHK_ERROR(Read16_0(state, IQM_AF_PHASE0__A, &data));
+		status = Read16_0(state, IQM_AF_PHASE0__A, &data);
+		if (status < 0)
+			break;
 		if (data == 127)
 			*count = *count + 1;
-		CHK_ERROR(Read16_0(state, IQM_AF_PHASE1__A, &data));
+		status = Read16_0(state, IQM_AF_PHASE1__A, &data);
+		if (status < 0)
+			break;
 		if (data == 127)
 			*count = *count + 1;
-		CHK_ERROR(Read16_0(state, IQM_AF_PHASE2__A, &data));
+		status = Read16_0(state, IQM_AF_PHASE2__A, &data);
+		if (status < 0)
+			break;
 		if (data == 127)
 			*count = *count + 1;
 	} while (0);
@@ -2540,14 +2770,17 @@ static int ADCSynchronization(struct drxk_state *state)
 	int status;
 
 	do {
-		CHK_ERROR(ADCSyncMeasurement(state, &count));
+		status = ADCSyncMeasurement(state, &count);
+		if (status < 0)
+			break;
 
 		if (count == 1) {
 			/* Try sampling on a diffrent edge */
 			u16 clkNeg = 0;
 
-			CHK_ERROR(Read16_0
-				  (state, IQM_AF_CLKNEG__A, &clkNeg));
+			status = Read16_0(state, IQM_AF_CLKNEG__A, &clkNeg);
+			if (status < 0)
+				break;
 			if ((clkNeg | IQM_AF_CLKNEG_CLKNEGDATA__M) ==
 			    IQM_AF_CLKNEG_CLKNEGDATA_CLK_ADC_DATA_POS) {
 				clkNeg &= (~(IQM_AF_CLKNEG_CLKNEGDATA__M));
@@ -2558,9 +2791,12 @@ static int ADCSynchronization(struct drxk_state *state)
 				clkNeg |=
 				    IQM_AF_CLKNEG_CLKNEGDATA_CLK_ADC_DATA_POS;
 			}
-			CHK_ERROR(Write16_0
-				  (state, IQM_AF_CLKNEG__A, clkNeg));
-			CHK_ERROR(ADCSyncMeasurement(state, &count));
+			status = Write16_0(state, IQM_AF_CLKNEG__A, clkNeg);
+			if (status < 0)
+				break;
+			status = ADCSyncMeasurement(state, &count);
+			if (status < 0)
+				break;
 		}
 
 		if (count < 2)
@@ -2669,7 +2905,9 @@ static int InitAGC(struct drxk_state *state, bool isDTV)
 			kiInnergainMin = (u16) -1030;
 		} else
 			status = -1;
-		CHK_ERROR((status));
+		status = (status);
+		if (status < 0)
+			break;
 		if (IsQAM(state)) {
 			ifIaccuHiTgtMax = 0x2380;
 			ifIaccuHiTgt = 0x2380;
@@ -2687,77 +2925,129 @@ static int InitAGC(struct drxk_state *state, bool isDTV)
 			fastClpCtrlDelay =
 			    state->m_dvbtIfAgcCfg.FastClipCtrlDelay;
 		}
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_AGC_FAST_CLP_CTRL_DELAY__A,
-			   fastClpCtrlDelay));
+		status = Write16_0(state, SCU_RAM_AGC_FAST_CLP_CTRL_DELAY__A, fastClpCtrlDelay);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_CLP_CTRL_MODE__A,
-				    clpCtrlMode));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_INGAIN_TGT__A,
-				    ingainTgt));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_INGAIN_TGT_MIN__A,
-				    ingainTgtMin));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_INGAIN_TGT_MAX__A,
-				    ingainTgtMax));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_AGC_IF_IACCU_HI_TGT_MIN__A,
-			   ifIaccuHiTgtMin));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A,
-			   ifIaccuHiTgtMax));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_IF_IACCU_HI__A, 0));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_IF_IACCU_LO__A, 0));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_RF_IACCU_HI__A, 0));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_RF_IACCU_LO__A, 0));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_CLP_SUM_MAX__A,
-				    clpSumMax));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_SNS_SUM_MAX__A,
-				    snsSumMax));
+		status = Write16_0(state, SCU_RAM_AGC_CLP_CTRL_MODE__A, clpCtrlMode);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_INGAIN_TGT__A, ingainTgt);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_INGAIN_TGT_MIN__A, ingainTgtMin);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_INGAIN_TGT_MAX__A, ingainTgtMax);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_IF_IACCU_HI_TGT_MIN__A, ifIaccuHiTgtMin);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_IF_IACCU_HI_TGT_MAX__A, ifIaccuHiTgtMax);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_IF_IACCU_HI__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_IF_IACCU_LO__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_RF_IACCU_HI__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_RF_IACCU_LO__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_CLP_SUM_MAX__A, clpSumMax);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_SNS_SUM_MAX__A, snsSumMax);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_KI_INNERGAIN_MIN__A,
-				    kiInnergainMin));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_IF_IACCU_HI_TGT__A,
-				    ifIaccuHiTgt));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_CLP_CYCLEN__A,
-				    clpCyclen));
+		status = Write16_0(state, SCU_RAM_AGC_KI_INNERGAIN_MIN__A, kiInnergainMin);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_IF_IACCU_HI_TGT__A, ifIaccuHiTgt);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_CLP_CYCLEN__A, clpCyclen);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_RF_SNS_DEV_MAX__A,
-				    1023));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_RF_SNS_DEV_MIN__A,
-				    (u16) -1023));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_AGC_FAST_SNS_CTRL_DELAY__A, 50));
+		status = Write16_0(state, SCU_RAM_AGC_RF_SNS_DEV_MAX__A, 1023);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_RF_SNS_DEV_MIN__A, (u16) -1023);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_FAST_SNS_CTRL_DELAY__A, 50);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_KI_MAXMINGAIN_TH__A,
-				    20));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_CLP_SUM_MIN__A,
-				    clpSumMin));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_SNS_SUM_MIN__A,
-				    snsSumMin));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_CLP_DIR_TO__A,
-				    clpDirTo));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_SNS_DIR_TO__A,
-				    snsDirTo));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_AGC_KI_MINGAIN__A, 0x7fff));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_AGC_KI_MAXGAIN__A, 0x0));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_KI_MIN__A, 0x0117));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_KI_MAX__A, 0x0657));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_CLP_SUM__A, 0));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_CLP_CYCCNT__A, 0));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_CLP_DIR_WD__A, 0));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_CLP_DIR_STP__A, 1));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_SNS_SUM__A, 0));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_SNS_CYCCNT__A, 0));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_SNS_DIR_WD__A, 0));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_SNS_DIR_STP__A, 1));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_AGC_SNS_CYCLEN__A, 500));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_KI_CYCLEN__A, 500));
+		status = Write16_0(state, SCU_RAM_AGC_KI_MAXMINGAIN_TH__A, 20);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_CLP_SUM_MIN__A, clpSumMin);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_SNS_SUM_MIN__A, snsSumMin);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_CLP_DIR_TO__A, clpDirTo);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_SNS_DIR_TO__A, snsDirTo);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_KI_MINGAIN__A, 0x7fff);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_KI_MAXGAIN__A, 0x0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_KI_MIN__A, 0x0117);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_KI_MAX__A, 0x0657);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_CLP_SUM__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_CLP_CYCCNT__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_CLP_DIR_WD__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_CLP_DIR_STP__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_SNS_SUM__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_SNS_CYCCNT__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_SNS_DIR_WD__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_SNS_DIR_STP__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_SNS_CYCLEN__A, 500);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_KI_CYCLEN__A, 500);
+		if (status < 0)
+			break;
 
 		/* Initialize inner-loop KI gain factors */
-		CHK_ERROR(Read16_0(state, SCU_RAM_AGC_KI__A, &data));
+		status = Read16_0(state, SCU_RAM_AGC_KI__A, &data);
+		if (status < 0)
+			break;
 		if (IsQAM(state)) {
 			data = 0x0657;
 			data &= ~SCU_RAM_AGC_KI_RF__M;
@@ -2765,7 +3055,9 @@ static int InitAGC(struct drxk_state *state, bool isDTV)
 			data &= ~SCU_RAM_AGC_KI_IF__M;
 			data |= (DRXK_KI_IAGC_QAM << SCU_RAM_AGC_KI_IF__B);
 		}
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_KI__A, data));
+		status = Write16_0(state, SCU_RAM_AGC_KI__A, data);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -2776,13 +3068,13 @@ static int DVBTQAMGetAccPktErr(struct drxk_state *state, u16 *packetErr)
 
 	do {
 		if (packetErr == NULL) {
-			CHK_ERROR(Write16_0(state,
-					    SCU_RAM_FEC_ACCUM_PKT_FAILURES__A,
-					    0));
+			status = Write16_0(state, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, 0);
+			if (status < 0)
+				break;
 		} else {
-			CHK_ERROR(Read16_0(state,
-					   SCU_RAM_FEC_ACCUM_PKT_FAILURES__A,
-					   packetErr));
+			status = Read16_0(state, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, packetErr);
+			if (status < 0)
+				break;
 		}
 	} while (0);
 	return status;
@@ -2905,7 +3197,9 @@ static int PowerUpDVBT(struct drxk_state *state)
 	int status;
 
 	do {
-		CHK_ERROR(CtrlPowerMode(state, &powerMode));
+		status = CtrlPowerMode(state, &powerMode);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -2947,8 +3241,9 @@ static int DVBTCtrlSetEchoThreshold(struct drxk_state *state,
 	int status;
 
 	do {
-		CHK_ERROR(Read16_0
-			  (state, OFDM_SC_RA_RAM_ECHO_THRES__A, &data));
+		status = Read16_0(state, OFDM_SC_RA_RAM_ECHO_THRES__A, &data);
+		if (status < 0)
+			break;
 
 		switch (echoThres->fftMode) {
 		case DRX_FFTMODE_2K:
@@ -2970,8 +3265,9 @@ static int DVBTCtrlSetEchoThreshold(struct drxk_state *state,
 			break;
 		}
 
-		CHK_ERROR(Write16_0
-			  (state, OFDM_SC_RA_RAM_ECHO_THRES__A, data));
+		status = Write16_0(state, OFDM_SC_RA_RAM_ECHO_THRES__A, data);
+		if (status < 0)
+			break;
 	} while (0);
 
 	return status;
@@ -3015,12 +3311,21 @@ static int DVBTActivatePresets(struct drxk_state *state)
 	do {
 		bool setincenable = false;
 		bool setfrenable = true;
-		CHK_ERROR(DVBTCtrlSetIncEnable(state, &setincenable));
-		CHK_ERROR(DVBTCtrlSetFrEnable(state, &setfrenable));
-		CHK_ERROR(DVBTCtrlSetEchoThreshold(state, &echoThres2k));
-		CHK_ERROR(DVBTCtrlSetEchoThreshold(state, &echoThres8k));
-		CHK_ERROR(Write16_0(state, SCU_RAM_AGC_INGAIN_TGT_MAX__A,
-				    state->m_dvbtIfAgcCfg.IngainTgtMax));
+		status = DVBTCtrlSetIncEnable(state, &setincenable);
+		if (status < 0)
+			break;
+		status = DVBTCtrlSetFrEnable(state, &setfrenable);
+		if (status < 0)
+			break;
+		status = DVBTCtrlSetEchoThreshold(state, &echoThres2k);
+		if (status < 0)
+			break;
+		status = DVBTCtrlSetEchoThreshold(state, &echoThres8k);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_AGC_INGAIN_TGT_MAX__A, state->m_dvbtIfAgcCfg.IngainTgtMax);
+		if (status < 0)
+			break;
 	} while (0);
 
 	return status;
@@ -3049,128 +3354,182 @@ static int SetDVBTStandard(struct drxk_state *state,
 		/* added antenna switch */
 		SwitchAntennaToDVBT(state);
 		/* send OFDM reset command */
-		CHK_ERROR(scu_command
-			  (state,
-			   SCU_RAM_COMMAND_STANDARD_OFDM |
-			   SCU_RAM_COMMAND_CMD_DEMOD_RESET, 0, NULL, 1,
-			   &cmdResult));
+		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_OFDM | SCU_RAM_COMMAND_CMD_DEMOD_RESET, 0, NULL, 1, &cmdResult);
+		if (status < 0)
+			break;
 
 		/* send OFDM setenv command */
-		CHK_ERROR(scu_command
-			  (state,
-			   SCU_RAM_COMMAND_STANDARD_OFDM |
-			   SCU_RAM_COMMAND_CMD_DEMOD_SET_ENV, 0, NULL, 1,
-			   &cmdResult));
+		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_OFDM | SCU_RAM_COMMAND_CMD_DEMOD_SET_ENV, 0, NULL, 1, &cmdResult);
+		if (status < 0)
+			break;
 
 		/* reset datapath for OFDM, processors first */
-		CHK_ERROR(Write16_0
-			  (state, OFDM_SC_COMM_EXEC__A,
-			   OFDM_SC_COMM_EXEC_STOP));
-		CHK_ERROR(Write16_0
-			  (state, OFDM_LC_COMM_EXEC__A,
-			   OFDM_LC_COMM_EXEC_STOP));
-		CHK_ERROR(Write16_0
-			  (state, IQM_COMM_EXEC__A, IQM_COMM_EXEC_B_STOP));
+		status = Write16_0(state, OFDM_SC_COMM_EXEC__A, OFDM_SC_COMM_EXEC_STOP);
+		if (status < 0)
+			break;
+		status = Write16_0(state, OFDM_LC_COMM_EXEC__A, OFDM_LC_COMM_EXEC_STOP);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_COMM_EXEC__A, IQM_COMM_EXEC_B_STOP);
+		if (status < 0)
+			break;
 
 		/* IQM setup */
 		/* synchronize on ofdstate->m_festart */
-		CHK_ERROR(Write16_0(state, IQM_AF_UPD_SEL__A, 1));
+		status = Write16_0(state, IQM_AF_UPD_SEL__A, 1);
+		if (status < 0)
+			break;
 		/* window size for clipping ADC detection */
-		CHK_ERROR(Write16_0(state, IQM_AF_CLP_LEN__A, 0));
+		status = Write16_0(state, IQM_AF_CLP_LEN__A, 0);
+		if (status < 0)
+			break;
 		/* window size for for sense pre-SAW detection */
-		CHK_ERROR(Write16_0(state, IQM_AF_SNS_LEN__A, 0));
+		status = Write16_0(state, IQM_AF_SNS_LEN__A, 0);
+		if (status < 0)
+			break;
 		/* sense threshold for sense pre-SAW detection */
-		CHK_ERROR(Write16_0
-			  (state, IQM_AF_AMUX__A, IQM_AF_AMUX_SIGNAL2ADC));
-		CHK_ERROR(SetIqmAf(state, true));
+		status = Write16_0(state, IQM_AF_AMUX__A, IQM_AF_AMUX_SIGNAL2ADC);
+		if (status < 0)
+			break;
+		status = SetIqmAf(state, true);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, IQM_AF_AGC_RF__A, 0));
+		status = Write16_0(state, IQM_AF_AGC_RF__A, 0);
+		if (status < 0)
+			break;
 
 		/* Impulse noise cruncher setup */
-		CHK_ERROR(Write16_0(state, IQM_AF_INC_LCT__A, 0));	/* crunch in IQM_CF */
-		CHK_ERROR(Write16_0(state, IQM_CF_DET_LCT__A, 0));	/* detect in IQM_CF */
-		CHK_ERROR(Write16_0(state, IQM_CF_WND_LEN__A, 3));	/* peak detector window length */
+		status = Write16_0(state, IQM_AF_INC_LCT__A, 0);	/* crunch in IQM_CF */
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_DET_LCT__A, 0);	/* detect in IQM_CF */
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_WND_LEN__A, 3);	/* peak detector window length */
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, IQM_RC_STRETCH__A, 16));
-		CHK_ERROR(Write16_0(state, IQM_CF_OUT_ENA__A, 0x4));	/* enable output 2 */
-		CHK_ERROR(Write16_0(state, IQM_CF_DS_ENA__A, 0x4));	/* decimate output 2 */
-		CHK_ERROR(Write16_0(state, IQM_CF_SCALE__A, 1600));
-		CHK_ERROR(Write16_0(state, IQM_CF_SCALE_SH__A, 0));
+		status = Write16_0(state, IQM_RC_STRETCH__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_OUT_ENA__A, 0x4);	/* enable output 2 */
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_DS_ENA__A, 0x4);	/* decimate output 2 */
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_SCALE__A, 1600);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_SCALE_SH__A, 0);
+		if (status < 0)
+			break;
 
 		/* virtual clipping threshold for clipping ADC detection */
-		CHK_ERROR(Write16_0(state, IQM_AF_CLP_TH__A, 448));
-		CHK_ERROR(Write16_0(state, IQM_CF_DATATH__A, 495));	/* crunching threshold */
+		status = Write16_0(state, IQM_AF_CLP_TH__A, 448);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_DATATH__A, 495);	/* crunching threshold */
+		if (status < 0)
+			break;
 
-		CHK_ERROR(BLChainCmd(state,
-				     DRXK_BL_ROM_OFFSET_TAPS_DVBT,
-				     DRXK_BLCC_NR_ELEMENTS_TAPS,
-				     DRXK_BLC_TIMEOUT));
+		status = BLChainCmd(state, DRXK_BL_ROM_OFFSET_TAPS_DVBT, DRXK_BLCC_NR_ELEMENTS_TAPS, DRXK_BLC_TIMEOUT);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, IQM_CF_PKDTH__A, 2));	/* peak detector threshold */
-		CHK_ERROR(Write16_0(state, IQM_CF_POW_MEAS_LEN__A, 2));
+		status = Write16_0(state, IQM_CF_PKDTH__A, 2);	/* peak detector threshold */
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_POW_MEAS_LEN__A, 2);
+		if (status < 0)
+			break;
 		/* enable power measurement interrupt */
-		CHK_ERROR(Write16_0(state, IQM_CF_COMM_INT_MSK__A, 1));
-		CHK_ERROR(Write16_0
-			  (state, IQM_COMM_EXEC__A,
-			   IQM_COMM_EXEC_B_ACTIVE));
+		status = Write16_0(state, IQM_CF_COMM_INT_MSK__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_COMM_EXEC__A, IQM_COMM_EXEC_B_ACTIVE);
+		if (status < 0)
+			break;
 
 		/* IQM will not be reset from here, sync ADC and update/init AGC */
-		CHK_ERROR(ADCSynchronization(state));
-		CHK_ERROR(SetPreSaw(state, &state->m_dvbtPreSawCfg));
+		status = ADCSynchronization(state);
+		if (status < 0)
+			break;
+		status = SetPreSaw(state, &state->m_dvbtPreSawCfg);
+		if (status < 0)
+			break;
 
 		/* Halt SCU to enable safe non-atomic accesses */
-		CHK_ERROR(Write16_0
-			  (state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_HOLD));
+		status = Write16_0(state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_HOLD);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(SetAgcRf(state, &state->m_dvbtRfAgcCfg, true));
-		CHK_ERROR(SetAgcIf(state, &state->m_dvbtIfAgcCfg, true));
+		status = SetAgcRf(state, &state->m_dvbtRfAgcCfg, true);
+		if (status < 0)
+			break;
+		status = SetAgcIf(state, &state->m_dvbtIfAgcCfg, true);
+		if (status < 0)
+			break;
 
 		/* Set Noise Estimation notch width and enable DC fix */
-		CHK_ERROR(Read16_0
-			  (state, OFDM_SC_RA_RAM_CONFIG__A, &data));
+		status = Read16_0(state, OFDM_SC_RA_RAM_CONFIG__A, &data);
+		if (status < 0)
+			break;
 		data |= OFDM_SC_RA_RAM_CONFIG_NE_FIX_ENABLE__M;
-		CHK_ERROR(Write16_0
-			  (state, OFDM_SC_RA_RAM_CONFIG__A, data));
+		status = Write16_0(state, OFDM_SC_RA_RAM_CONFIG__A, data);
+		if (status < 0)
+			break;
 
 		/* Activate SCU to enable SCU commands */
-		CHK_ERROR(Write16_0
-			  (state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE));
+		status = Write16_0(state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
+		if (status < 0)
+			break;
 
 		if (!state->m_DRXK_A3_ROM_CODE) {
 			/* AGCInit() is not done for DVBT, so set agcFastClipCtrlDelay  */
-			CHK_ERROR(Write16_0
-				  (state,
-				   SCU_RAM_AGC_FAST_CLP_CTRL_DELAY__A,
-				   state->
-				   m_dvbtIfAgcCfg.FastClipCtrlDelay));
+			status = Write16_0(state, SCU_RAM_AGC_FAST_CLP_CTRL_DELAY__A, state->m_dvbtIfAgcCfg.FastClipCtrlDelay);
+			if (status < 0)
+				break;
 		}
 
 		/* OFDM_SC setup */
 #ifdef COMPILE_FOR_NONRT
-		CHK_ERROR(Write16_0
-			  (state, OFDM_SC_RA_RAM_BE_OPT_DELAY__A, 1));
-		CHK_ERROR(Write16_0
-			  (state, OFDM_SC_RA_RAM_BE_OPT_INIT_DELAY__A, 2));
+		status = Write16_0(state, OFDM_SC_RA_RAM_BE_OPT_DELAY__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, OFDM_SC_RA_RAM_BE_OPT_INIT_DELAY__A, 2);
+		if (status < 0)
+			break;
 #endif
 
 		/* FEC setup */
-		CHK_ERROR(Write16_0(state, FEC_DI_INPUT_CTL__A, 1));	/* OFDM input */
+		status = Write16_0(state, FEC_DI_INPUT_CTL__A, 1);	/* OFDM input */
+		if (status < 0)
+			break;
 
 
 #ifdef COMPILE_FOR_NONRT
-		CHK_ERROR(Write16_0
-			  (state, FEC_RS_MEASUREMENT_PERIOD__A, 0x400));
+		status = Write16_0(state, FEC_RS_MEASUREMENT_PERIOD__A, 0x400);
+		if (status < 0)
+			break;
 #else
-		CHK_ERROR(Write16_0
-			  (state, FEC_RS_MEASUREMENT_PERIOD__A, 0x1000));
+		status = Write16_0(state, FEC_RS_MEASUREMENT_PERIOD__A, 0x1000);
+		if (status < 0)
+			break;
 #endif
-		CHK_ERROR(Write16_0
-			  (state, FEC_RS_MEASUREMENT_PRESCALE__A, 0x0001));
+		status = Write16_0(state, FEC_RS_MEASUREMENT_PRESCALE__A, 0x0001);
+		if (status < 0)
+			break;
 
 		/* Setup MPEG bus */
-		CHK_ERROR(MPEGTSDtoSetup(state, OM_DVBT));
+		status = MPEGTSDtoSetup(state, OM_DVBT);
+		if (status < 0)
+			break;
 		/* Set DVBT Presets */
-		CHK_ERROR(DVBTActivatePresets(state));
+		status = DVBTActivatePresets(state);
+		if (status < 0)
+			break;
 
 	} while (0);
 
@@ -3196,14 +3555,16 @@ static int DVBTStart(struct drxk_state *state)
 	/* DRXK: OFDM_SC_RA_RAM_PROC_LOCKTRACK is no longer in mapfile! */
 	do {
 		param1 = OFDM_SC_RA_RAM_LOCKTRACK_MIN;
-		CHK_ERROR(DVBTScCommand
-			  (state, OFDM_SC_RA_RAM_CMD_PROC_START, 0,
-			   OFDM_SC_RA_RAM_SW_EVENT_RUN_NMASK__M, param1, 0,
-			   0, 0));
+		status = DVBTScCommand(state, OFDM_SC_RA_RAM_CMD_PROC_START, 0, OFDM_SC_RA_RAM_SW_EVENT_RUN_NMASK__M, param1, 0, 0, 0);
+		if (status < 0)
+			break;
 		/* Start FEC OC */
-		CHK_ERROR(MPEGTSStart(state));
-		CHK_ERROR(Write16_0
-			  (state, FEC_COMM_EXEC__A, FEC_COMM_EXEC_ACTIVE));
+		status = MPEGTSStart(state);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_COMM_EXEC__A, FEC_COMM_EXEC_ACTIVE);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -3230,29 +3591,28 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 
 	/* printk(KERN_DEBUG "%s IF =%d, TFO = %d\n", __func__, IntermediateFreqkHz, tunerFreqOffset); */
 	do {
-		CHK_ERROR(scu_command
-			  (state,
-			   SCU_RAM_COMMAND_STANDARD_OFDM |
-			   SCU_RAM_COMMAND_CMD_DEMOD_STOP, 0, NULL, 1,
-			   &cmdResult));
+		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_OFDM | SCU_RAM_COMMAND_CMD_DEMOD_STOP, 0, NULL, 1, &cmdResult);
+		if (status < 0)
+			break;
 
 		/* Halt SCU to enable safe non-atomic accesses */
-		CHK_ERROR(Write16_0
-			  (state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_HOLD));
+		status = Write16_0(state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_HOLD);
+		if (status < 0)
+			break;
 
 		/* Stop processors */
-		CHK_ERROR(Write16_0
-			  (state, OFDM_SC_COMM_EXEC__A,
-			   OFDM_SC_COMM_EXEC_STOP));
-		CHK_ERROR(Write16_0
-			  (state, OFDM_LC_COMM_EXEC__A,
-			   OFDM_LC_COMM_EXEC_STOP));
+		status = Write16_0(state, OFDM_SC_COMM_EXEC__A, OFDM_SC_COMM_EXEC_STOP);
+		if (status < 0)
+			break;
+		status = Write16_0(state, OFDM_LC_COMM_EXEC__A, OFDM_LC_COMM_EXEC_STOP);
+		if (status < 0)
+			break;
 
 		/* Mandatory fix, always stop CP, required to set spl offset back to
 		   hardware default (is set to 0 by ucode during pilot detection */
-		CHK_ERROR(Write16_0
-			  (state, OFDM_CP_COMM_EXEC__A,
-			   OFDM_CP_COMM_EXEC_STOP));
+		status = Write16_0(state, OFDM_CP_COMM_EXEC__A, OFDM_CP_COMM_EXEC_STOP);
+		if (status < 0)
+			break;
 
 		/*== Write channel settings to device =====================================*/
 
@@ -3363,9 +3723,9 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 #else
 		/* Set Priorty high */
 		transmissionParams |= OFDM_SC_RA_RAM_OP_PARAM_PRIO_HI;
-		CHK_ERROR(Write16_0
-			  (state, OFDM_EC_SB_PRIOR__A,
-			   OFDM_EC_SB_PRIOR_HI));
+		status = Write16_0(state, OFDM_EC_SB_PRIOR__A, OFDM_EC_SB_PRIOR_HI);
+		if (status < 0)
+			break;
 #endif
 
 		/* coderate */
@@ -3407,75 +3767,60 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 		case BANDWIDTH_AUTO:
 		case BANDWIDTH_8_MHZ:
 			bandwidth = DRXK_BANDWIDTH_8MHZ_IN_HZ;
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_SRMM_FIX_FACT_8K__A,
-				   3052));
+			status = Write16_0(state, OFDM_SC_RA_RAM_SRMM_FIX_FACT_8K__A, 3052);
+			if (status < 0)
+				break;
 			/* cochannel protection for PAL 8 MHz */
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_NI_INIT_8K_PER_LEFT__A,
-				   7));
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_NI_INIT_8K_PER_RIGHT__A,
-				   7));
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_NI_INIT_2K_PER_LEFT__A,
-				   7));
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_NI_INIT_2K_PER_RIGHT__A,
-				   1));
+			status = Write16_0(state, OFDM_SC_RA_RAM_NI_INIT_8K_PER_LEFT__A, 7);
+			if (status < 0)
+				break;
+			status = Write16_0(state, OFDM_SC_RA_RAM_NI_INIT_8K_PER_RIGHT__A, 7);
+			if (status < 0)
+				break;
+			status = Write16_0(state, OFDM_SC_RA_RAM_NI_INIT_2K_PER_LEFT__A, 7);
+			if (status < 0)
+				break;
+			status = Write16_0(state, OFDM_SC_RA_RAM_NI_INIT_2K_PER_RIGHT__A, 1);
+			if (status < 0)
+				break;
 			break;
 		case BANDWIDTH_7_MHZ:
 			bandwidth = DRXK_BANDWIDTH_7MHZ_IN_HZ;
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_SRMM_FIX_FACT_8K__A,
-				   3491));
+			status = Write16_0(state, OFDM_SC_RA_RAM_SRMM_FIX_FACT_8K__A, 3491);
+			if (status < 0)
+				break;
 			/* cochannel protection for PAL 7 MHz */
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_NI_INIT_8K_PER_LEFT__A,
-				   8));
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_NI_INIT_8K_PER_RIGHT__A,
-				   8));
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_NI_INIT_2K_PER_LEFT__A,
-				   4));
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_NI_INIT_2K_PER_RIGHT__A,
-				   1));
+			status = Write16_0(state, OFDM_SC_RA_RAM_NI_INIT_8K_PER_LEFT__A, 8);
+			if (status < 0)
+				break;
+			status = Write16_0(state, OFDM_SC_RA_RAM_NI_INIT_8K_PER_RIGHT__A, 8);
+			if (status < 0)
+				break;
+			status = Write16_0(state, OFDM_SC_RA_RAM_NI_INIT_2K_PER_LEFT__A, 4);
+			if (status < 0)
+				break;
+			status = Write16_0(state, OFDM_SC_RA_RAM_NI_INIT_2K_PER_RIGHT__A, 1);
+			if (status < 0)
+				break;
 			break;
 		case BANDWIDTH_6_MHZ:
 			bandwidth = DRXK_BANDWIDTH_6MHZ_IN_HZ;
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_SRMM_FIX_FACT_8K__A,
-				   4073));
+			status = Write16_0(state, OFDM_SC_RA_RAM_SRMM_FIX_FACT_8K__A, 4073);
+			if (status < 0)
+				break;
 			/* cochannel protection for NTSC 6 MHz */
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_NI_INIT_8K_PER_LEFT__A,
-				   19));
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_NI_INIT_8K_PER_RIGHT__A,
-				   19));
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_NI_INIT_2K_PER_LEFT__A,
-				   14));
-			CHK_ERROR(Write16_0
-				  (state,
-				   OFDM_SC_RA_RAM_NI_INIT_2K_PER_RIGHT__A,
-				   1));
+			status = Write16_0(state, OFDM_SC_RA_RAM_NI_INIT_8K_PER_LEFT__A, 19);
+			if (status < 0)
+				break;
+			status = Write16_0(state, OFDM_SC_RA_RAM_NI_INIT_8K_PER_RIGHT__A, 19);
+			if (status < 0)
+				break;
+			status = Write16_0(state, OFDM_SC_RA_RAM_NI_INIT_2K_PER_LEFT__A, 14);
+			if (status < 0)
+				break;
+			status = Write16_0(state, OFDM_SC_RA_RAM_NI_INIT_2K_PER_RIGHT__A, 1);
+			if (status < 0)
+				break;
 			break;
 		}
 
@@ -3503,32 +3848,40 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 		iqmRcRateOfs &=
 		    ((((u32) IQM_RC_RATE_OFS_HI__M) <<
 		      IQM_RC_RATE_OFS_LO__W) | IQM_RC_RATE_OFS_LO__M);
-		CHK_ERROR(Write32
-			  (state, IQM_RC_RATE_OFS_LO__A, iqmRcRateOfs, 0));
+		status = Write32(state, IQM_RC_RATE_OFS_LO__A, iqmRcRateOfs, 0);
+		if (status < 0)
+			break;
 
 		/* Bandwidth setting done */
 
-		/* CHK_ERROR(DVBTSetFrequencyShift(demod, channel, tunerOffset)); */
-		CHK_ERROR(SetFrequencyShifter
-			  (state, IntermediateFreqkHz, tunerFreqOffset,
-			   true));
+#if 0
+		status = DVBTSetFrequencyShift(demod, channel, tunerOffset);
+		if (status < 0)
+			break;
+#endif
+		status = SetFrequencyShifter(state, IntermediateFreqkHz, tunerFreqOffset, true);
+		if (status < 0)
+			break;
 
 		/*== Start SC, write channel settings to SC ===============================*/
 
 		/* Activate SCU to enable SCU commands */
-		CHK_ERROR(Write16_0
-			  (state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE));
+		status = Write16_0(state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
+		if (status < 0)
+			break;
 
 		/* Enable SC after setting all other parameters */
-		CHK_ERROR(Write16_0(state, OFDM_SC_COMM_STATE__A, 0));
-		CHK_ERROR(Write16_0(state, OFDM_SC_COMM_EXEC__A, 1));
+		status = Write16_0(state, OFDM_SC_COMM_STATE__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, OFDM_SC_COMM_EXEC__A, 1);
+		if (status < 0)
+			break;
 
 
-		CHK_ERROR(scu_command
-			  (state,
-			   SCU_RAM_COMMAND_STANDARD_OFDM |
-			   SCU_RAM_COMMAND_CMD_DEMOD_START, 0, NULL, 1,
-			   &cmdResult));
+		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_OFDM | SCU_RAM_COMMAND_CMD_DEMOD_START, 0, NULL, 1, &cmdResult);
+		if (status < 0)
+			break;
 
 		/* Write SC parameter registers, set all AUTO flags in operation mode */
 		param1 = (OFDM_SC_RA_RAM_OP_AUTO_MODE__M |
@@ -3540,8 +3893,9 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 		    DVBTScCommand(state, OFDM_SC_RA_RAM_CMD_SET_PREF_PARAM,
 				  0, transmissionParams, param1, 0, 0, 0);
 		if (!state->m_DRXK_A3_ROM_CODE)
-			CHK_ERROR(DVBTCtrlSetSqiSpeed
-				  (state, &state->m_sqiSpeed));
+			status = DVBTCtrlSetSqiSpeed(state, &state->m_sqiSpeed);
+			if (status < 0)
+				break;
 
 	} while (0);
 
@@ -3600,7 +3954,9 @@ static int PowerUpQAM(struct drxk_state *state)
 	int status = 0;
 
 	do {
-		CHK_ERROR(CtrlPowerMode(state, &powerMode));
+		status = CtrlPowerMode(state, &powerMode);
+		if (status < 0)
+			break;
 
 	} while (0);
 
@@ -3616,24 +3972,26 @@ static int PowerDownQAM(struct drxk_state *state)
 	int status = 0;
 
 	do {
-		CHK_ERROR(Read16_0(state, SCU_COMM_EXEC__A, &data));
+		status = Read16_0(state, SCU_COMM_EXEC__A, &data);
+		if (status < 0)
+			break;
 		if (data == SCU_COMM_EXEC_ACTIVE) {
 			/*
 			   STOP demodulator
 			   QAM and HW blocks
 			 */
 			/* stop all comstate->m_exec */
-			CHK_ERROR(Write16_0
-				  (state, QAM_COMM_EXEC__A,
-				   QAM_COMM_EXEC_STOP));
-			CHK_ERROR(scu_command
-				  (state,
-				   SCU_RAM_COMMAND_STANDARD_QAM |
-				   SCU_RAM_COMMAND_CMD_DEMOD_STOP, 0, NULL,
-				   1, &cmdResult));
+			status = Write16_0(state, QAM_COMM_EXEC__A, QAM_COMM_EXEC_STOP);
+			if (status < 0)
+				break;
+			status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_STOP, 0, NULL, 1, &cmdResult);
+			if (status < 0)
+				break;
 		}
 		/* powerdown AFE                   */
-		CHK_ERROR(SetIqmAf(state, false));
+		status = SetIqmAf(state, false);
+		if (status < 0)
+			break;
 	} while (0);
 
 	return status;
@@ -3691,7 +4049,9 @@ static int SetQAMMeasurement(struct drxk_state *state,
 		default:
 			status = -EINVAL;
 		}
-		CHK_ERROR(status);
+		status = status;
+		if (status < 0)
+			break;
 
 		fecBitsDesired /= 1000;	/* symbolRate [Hz] -> symbolRate [kHz]  */
 		fecBitsDesired *= 500;	/* meas. period [ms] */
@@ -3706,20 +4066,23 @@ static int SetQAMMeasurement(struct drxk_state *state,
 			/* Divide by zero (though impossible) */
 			status = -1;
 		}
-		CHK_ERROR(status);
+		status = status;
+		if (status < 0)
+			break;
 		fecRsPeriod =
 		    ((u16) fecRsPeriodTotal +
 		     (fecRsPrescale >> 1)) / fecRsPrescale;
 
 		/* write corresponding registers */
-		CHK_ERROR(Write16_0
-			  (state, FEC_RS_MEASUREMENT_PERIOD__A,
-			   fecRsPeriod));
-		CHK_ERROR(Write16_0
-			  (state, FEC_RS_MEASUREMENT_PRESCALE__A,
-			   fecRsPrescale));
-		CHK_ERROR(Write16_0
-			  (state, FEC_OC_SNC_FAIL_PERIOD__A, fecRsPeriod));
+		status = Write16_0(state, FEC_RS_MEASUREMENT_PERIOD__A, fecRsPeriod);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_RS_MEASUREMENT_PRESCALE__A, fecRsPrescale);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_OC_SNC_FAIL_PERIOD__A, fecRsPeriod);
+		if (status < 0)
+			break;
 
 	} while (0);
 
@@ -3736,112 +4099,178 @@ static int SetQAM16(struct drxk_state *state)
 	do {
 		/* QAM Equalizer Setup */
 		/* Equalizer */
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD0__A, 13517));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD1__A, 13517));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD2__A, 13517));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD3__A, 13517));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD4__A, 13517));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD5__A, 13517));
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD0__A, 13517);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD1__A, 13517);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD2__A, 13517);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD3__A, 13517);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD4__A, 13517);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD5__A, 13517);
+		if (status < 0)
+			break;
 		/* Decision Feedback Equalizer */
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN0__A, 2));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN1__A, 2));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN2__A, 2));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN3__A, 2));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN4__A, 2));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN5__A, 0));
+		status = Write16_0(state, QAM_DQ_QUAL_FUN0__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN1__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN2__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN3__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN4__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN5__A, 0);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_HWM__A, 5));
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_AWM__A, 4));
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_LWM__A, 3));
+		status = Write16_0(state, QAM_SY_SYNC_HWM__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_SY_SYNC_AWM__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_SY_SYNC_LWM__A, 3);
+		if (status < 0)
+			break;
 
 		/* QAM Slicer Settings */
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_SL_SIG_POWER__A,
-			   DRXK_QAM_SL_SIG_POWER_QAM16));
+		status = Write16_0(state, SCU_RAM_QAM_SL_SIG_POWER__A, DRXK_QAM_SL_SIG_POWER_QAM16);
+		if (status < 0)
+			break;
 
 		/* QAM Loop Controller Coeficients */
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CA_FINE__A, 15));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CA_COARSE__A, 40));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_EP_FINE__A, 12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EP_COARSE__A, 24));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_EI_FINE__A, 12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EI_COARSE__A, 16));
+		status = Write16_0(state, SCU_RAM_QAM_LC_CA_FINE__A, 15);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_FINE__A, 12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_FINE__A, 12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CP_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CP_MEDIUM__A, 20));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CP_COARSE__A, 80));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CI_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CI_MEDIUM__A, 20));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CI_COARSE__A, 50));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CF_FINE__A, 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF_MEDIUM__A, 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF_COARSE__A, 32));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CF1_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 10));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF1_COARSE__A, 10));
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_MEDIUM__A, 20);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_COARSE__A, 80);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_MEDIUM__A, 20);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_COARSE__A, 50);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_FINE__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_MEDIUM__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_COARSE__A, 32);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 10);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_COARSE__A, 10);
+		if (status < 0)
+			break;
 
 
 		/* QAM State Machine (FSM) Thresholds */
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_RTH__A, 140));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_FTH__A, 50));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_CTH__A, 95));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_PTH__A, 120));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_QTH__A, 230));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_MTH__A, 105));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RTH__A, 140);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_FTH__A, 50);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_CTH__A, 95);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_PTH__A, 120);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_QTH__A, 230);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_MTH__A, 105);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_RATE_LIM__A, 40));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_COUNT_LIM__A, 4));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_FREQ_LIM__A, 24));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_COUNT_LIM__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_FREQ_LIM__A, 24);
+		if (status < 0)
+			break;
 
 
 		/* QAM FSM Tracking Parameters */
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A,
-			   (u16) 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A,
-			   (u16) 220));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A,
-			   (u16) 25));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A,
-			   (u16) 6));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A,
-			   (u16) -24));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A,
-			   (u16) -65));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A,
-			   (u16) -127));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, (u16) 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, (u16) 220);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, (u16) 25);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, (u16) 6);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) -24);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) -65);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) -127);
+		if (status < 0)
+			break;
 	} while (0);
 
 	return status;
@@ -3861,116 +4290,182 @@ static int SetQAM32(struct drxk_state *state)
 	do {
 		/* QAM Equalizer Setup */
 		/* Equalizer */
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD0__A, 6707));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD1__A, 6707));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD2__A, 6707));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD3__A, 6707));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD4__A, 6707));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD5__A, 6707));
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD0__A, 6707);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD1__A, 6707);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD2__A, 6707);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD3__A, 6707);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD4__A, 6707);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD5__A, 6707);
+		if (status < 0)
+			break;
 
 		/* Decision Feedback Equalizer */
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN0__A, 3));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN1__A, 3));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN2__A, 3));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN3__A, 3));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN4__A, 3));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN5__A, 0));
+		status = Write16_0(state, QAM_DQ_QUAL_FUN0__A, 3);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN1__A, 3);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN2__A, 3);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN3__A, 3);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN4__A, 3);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN5__A, 0);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_HWM__A, 6));
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_AWM__A, 5));
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_LWM__A, 3));
+		status = Write16_0(state, QAM_SY_SYNC_HWM__A, 6);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_SY_SYNC_AWM__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_SY_SYNC_LWM__A, 3);
+		if (status < 0)
+			break;
 
 		/* QAM Slicer Settings */
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_SL_SIG_POWER__A,
-			   DRXK_QAM_SL_SIG_POWER_QAM32));
+		status = Write16_0(state, SCU_RAM_QAM_SL_SIG_POWER__A, DRXK_QAM_SL_SIG_POWER_QAM32);
+		if (status < 0)
+			break;
 
 
 		/* QAM Loop Controller Coeficients */
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CA_FINE__A, 15));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CA_COARSE__A, 40));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_EP_FINE__A, 12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EP_COARSE__A, 24));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_EI_FINE__A, 12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EI_COARSE__A, 16));
+		status = Write16_0(state, SCU_RAM_QAM_LC_CA_FINE__A, 15);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_FINE__A, 12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_FINE__A, 12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CP_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CP_MEDIUM__A, 20));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CP_COARSE__A, 80));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CI_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CI_MEDIUM__A, 20));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CI_COARSE__A, 50));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CF_FINE__A, 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF_MEDIUM__A, 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF_COARSE__A, 16));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CF1_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 10));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF1_COARSE__A, 0));
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_MEDIUM__A, 20);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_COARSE__A, 80);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_MEDIUM__A, 20);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_COARSE__A, 50);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_FINE__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_MEDIUM__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_COARSE__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 10);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_COARSE__A, 0);
+		if (status < 0)
+			break;
 
 
 		/* QAM State Machine (FSM) Thresholds */
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_RTH__A, 90));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_FTH__A, 50));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_CTH__A, 80));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_PTH__A, 100));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_QTH__A, 170));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_MTH__A, 100));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RTH__A, 90);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_FTH__A, 50);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_CTH__A, 80);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_PTH__A, 100);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_QTH__A, 170);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_MTH__A, 100);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_RATE_LIM__A, 40));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_COUNT_LIM__A, 4));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_FREQ_LIM__A, 10));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_COUNT_LIM__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_FREQ_LIM__A, 10);
+		if (status < 0)
+			break;
 
 
 		/* QAM FSM Tracking Parameters */
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A,
-			   (u16) 12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A,
-			   (u16) 140));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A,
-			   (u16) -8));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A,
-			   (u16) -16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A,
-			   (u16) -26));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A,
-			   (u16) -56));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A,
-			   (u16) -86));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, (u16) 12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, (u16) 140);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, (u16) -8);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, (u16) -16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) -26);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) -56);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) -86);
+		if (status < 0)
+			break;
 	} while (0);
 
 	return status;
@@ -3990,115 +4485,181 @@ static int SetQAM64(struct drxk_state *state)
 	do {
 		/* QAM Equalizer Setup */
 		/* Equalizer */
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD0__A, 13336));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD1__A, 12618));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD2__A, 11988));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD3__A, 13809));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD4__A, 13809));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD5__A, 15609));
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD0__A, 13336);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD1__A, 12618);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD2__A, 11988);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD3__A, 13809);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD4__A, 13809);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD5__A, 15609);
+		if (status < 0)
+			break;
 
 		/* Decision Feedback Equalizer */
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN0__A, 4));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN1__A, 4));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN2__A, 4));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN3__A, 4));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN4__A, 3));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN5__A, 0));
+		status = Write16_0(state, QAM_DQ_QUAL_FUN0__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN1__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN2__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN3__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN4__A, 3);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN5__A, 0);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_HWM__A, 5));
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_AWM__A, 4));
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_LWM__A, 3));
+		status = Write16_0(state, QAM_SY_SYNC_HWM__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_SY_SYNC_AWM__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_SY_SYNC_LWM__A, 3);
+		if (status < 0)
+			break;
 
 		/* QAM Slicer Settings */
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_SL_SIG_POWER__A,
-			   DRXK_QAM_SL_SIG_POWER_QAM64));
+		status = Write16_0(state, SCU_RAM_QAM_SL_SIG_POWER__A, DRXK_QAM_SL_SIG_POWER_QAM64);
+		if (status < 0)
+			break;
 
 
 		/* QAM Loop Controller Coeficients */
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CA_FINE__A, 15));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CA_COARSE__A, 40));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_EP_FINE__A, 12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EP_COARSE__A, 24));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_EI_FINE__A, 12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EI_COARSE__A, 16));
+		status = Write16_0(state, SCU_RAM_QAM_LC_CA_FINE__A, 15);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_FINE__A, 12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_FINE__A, 12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CP_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CP_MEDIUM__A, 30));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CP_COARSE__A, 100));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CI_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CI_MEDIUM__A, 30));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CI_COARSE__A, 50));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CF_FINE__A, 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF_MEDIUM__A, 25));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF_COARSE__A, 48));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CF1_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 10));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF1_COARSE__A, 10));
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_MEDIUM__A, 30);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_COARSE__A, 100);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_MEDIUM__A, 30);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_COARSE__A, 50);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_FINE__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_MEDIUM__A, 25);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_COARSE__A, 48);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 10);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_COARSE__A, 10);
+		if (status < 0)
+			break;
 
 
 		/* QAM State Machine (FSM) Thresholds */
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_RTH__A, 100));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_FTH__A, 60));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_CTH__A, 80));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_PTH__A, 110));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_QTH__A, 200));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_MTH__A, 95));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RTH__A, 100);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_FTH__A, 60);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_CTH__A, 80);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_PTH__A, 110);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_QTH__A, 200);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_MTH__A, 95);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_RATE_LIM__A, 40));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_COUNT_LIM__A, 4));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_FREQ_LIM__A, 15));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_COUNT_LIM__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_FREQ_LIM__A, 15);
+		if (status < 0)
+			break;
 
 
 		/* QAM FSM Tracking Parameters */
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A,
-			   (u16) 12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A,
-			   (u16) 141));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A,
-			   (u16) 7));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A,
-			   (u16) 0));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A,
-			   (u16) -15));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A,
-			   (u16) -45));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A,
-			   (u16) -80));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, (u16) 12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, (u16) 141);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, (u16) 7);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, (u16) 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) -15);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) -45);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) -80);
+		if (status < 0)
+			break;
 	} while (0);
 
 	return status;
@@ -4118,117 +4679,183 @@ static int SetQAM128(struct drxk_state *state)
 	do {
 		/* QAM Equalizer Setup */
 		/* Equalizer */
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD0__A, 6564));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD1__A, 6598));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD2__A, 6394));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD3__A, 6409));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD4__A, 6656));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD5__A, 7238));
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD0__A, 6564);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD1__A, 6598);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD2__A, 6394);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD3__A, 6409);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD4__A, 6656);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD5__A, 7238);
+		if (status < 0)
+			break;
 
 		/* Decision Feedback Equalizer */
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN0__A, 6));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN1__A, 6));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN2__A, 6));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN3__A, 6));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN4__A, 5));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN5__A, 0));
+		status = Write16_0(state, QAM_DQ_QUAL_FUN0__A, 6);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN1__A, 6);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN2__A, 6);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN3__A, 6);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN4__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN5__A, 0);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_HWM__A, 6));
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_AWM__A, 5));
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_LWM__A, 3));
+		status = Write16_0(state, QAM_SY_SYNC_HWM__A, 6);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_SY_SYNC_AWM__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_SY_SYNC_LWM__A, 3);
+		if (status < 0)
+			break;
 
 
 		/* QAM Slicer Settings */
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_SL_SIG_POWER__A,
-			   DRXK_QAM_SL_SIG_POWER_QAM128));
+		status = Write16_0(state, SCU_RAM_QAM_SL_SIG_POWER__A, DRXK_QAM_SL_SIG_POWER_QAM128);
+		if (status < 0)
+			break;
 
 
 		/* QAM Loop Controller Coeficients */
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CA_FINE__A, 15));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CA_COARSE__A, 40));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_EP_FINE__A, 12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EP_COARSE__A, 24));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_EI_FINE__A, 12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EI_COARSE__A, 16));
+		status = Write16_0(state, SCU_RAM_QAM_LC_CA_FINE__A, 15);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_FINE__A, 12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_FINE__A, 12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CP_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CP_MEDIUM__A, 40));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CP_COARSE__A, 120));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CI_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CI_MEDIUM__A, 40));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CI_COARSE__A, 60));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CF_FINE__A, 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF_MEDIUM__A, 25));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF_COARSE__A, 64));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CF1_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 10));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF1_COARSE__A, 0));
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_MEDIUM__A, 40);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_COARSE__A, 120);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_MEDIUM__A, 40);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_COARSE__A, 60);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_FINE__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_MEDIUM__A, 25);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_COARSE__A, 64);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 10);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_COARSE__A, 0);
+		if (status < 0)
+			break;
 
 
 		/* QAM State Machine (FSM) Thresholds */
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_RTH__A, 50));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_FTH__A, 60));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_CTH__A, 80));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_PTH__A, 100));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_QTH__A, 140));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_MTH__A, 100));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RTH__A, 50);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_FTH__A, 60);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_CTH__A, 80);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_PTH__A, 100);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_QTH__A, 140);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_MTH__A, 100);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_RATE_LIM__A, 40));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_COUNT_LIM__A, 5));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_COUNT_LIM__A, 5);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_FREQ_LIM__A, 12));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_FREQ_LIM__A, 12);
+		if (status < 0)
+			break;
 
 		/* QAM FSM Tracking Parameters */
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A,
-			   (u16) 8));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A,
-			   (u16) 65));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A,
-			   (u16) 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A,
-			   (u16) 3));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A,
-			   (u16) -1));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A,
-			   (u16) -12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A,
-			   (u16) -23));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, (u16) 8);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, (u16) 65);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, (u16) 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, (u16) 3);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) -1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) -12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) -23);
+		if (status < 0)
+			break;
 	} while (0);
 
 	return status;
@@ -4248,116 +4875,182 @@ static int SetQAM256(struct drxk_state *state)
 	do {
 		/* QAM Equalizer Setup */
 		/* Equalizer */
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD0__A, 11502));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD1__A, 12084));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD2__A, 12543));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD3__A, 12931));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD4__A, 13629));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_EQ_CMA_RAD5__A, 15385));
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD0__A, 11502);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD1__A, 12084);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD2__A, 12543);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD3__A, 12931);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD4__A, 13629);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_EQ_CMA_RAD5__A, 15385);
+		if (status < 0)
+			break;
 
 		/* Decision Feedback Equalizer */
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN0__A, 8));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN1__A, 8));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN2__A, 8));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN3__A, 8));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN4__A, 6));
-		CHK_ERROR(Write16_0(state, QAM_DQ_QUAL_FUN5__A, 0));
+		status = Write16_0(state, QAM_DQ_QUAL_FUN0__A, 8);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN1__A, 8);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN2__A, 8);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN3__A, 8);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN4__A, 6);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_DQ_QUAL_FUN5__A, 0);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_HWM__A, 5));
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_AWM__A, 4));
-		CHK_ERROR(Write16_0(state, QAM_SY_SYNC_LWM__A, 3));
+		status = Write16_0(state, QAM_SY_SYNC_HWM__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_SY_SYNC_AWM__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_SY_SYNC_LWM__A, 3);
+		if (status < 0)
+			break;
 
 		/* QAM Slicer Settings */
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_SL_SIG_POWER__A,
-			   DRXK_QAM_SL_SIG_POWER_QAM256));
+		status = Write16_0(state, SCU_RAM_QAM_SL_SIG_POWER__A, DRXK_QAM_SL_SIG_POWER_QAM256);
+		if (status < 0)
+			break;
 
 
 		/* QAM Loop Controller Coeficients */
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CA_FINE__A, 15));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CA_COARSE__A, 40));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_EP_FINE__A, 12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EP_COARSE__A, 24));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_EI_FINE__A, 12));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_EI_COARSE__A, 16));
+		status = Write16_0(state, SCU_RAM_QAM_LC_CA_FINE__A, 15);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CA_COARSE__A, 40);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_FINE__A, 12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_MEDIUM__A, 24);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EP_COARSE__A, 24);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_FINE__A, 12);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_MEDIUM__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_EI_COARSE__A, 16);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CP_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CP_MEDIUM__A, 50));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CP_COARSE__A, 250));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CI_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CI_MEDIUM__A, 50));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CI_COARSE__A, 125));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CF_FINE__A, 16));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF_MEDIUM__A, 25));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF_COARSE__A, 48));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_LC_CF1_FINE__A, 5));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 10));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_LC_CF1_COARSE__A, 10));
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_MEDIUM__A, 50);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CP_COARSE__A, 250);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_MEDIUM__A, 50);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CI_COARSE__A, 125);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_FINE__A, 16);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_MEDIUM__A, 25);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF_COARSE__A, 48);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_FINE__A, 5);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_MEDIUM__A, 10);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_LC_CF1_COARSE__A, 10);
+		if (status < 0)
+			break;
 
 
 		/* QAM State Machine (FSM) Thresholds */
 
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_RTH__A, 50));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_FTH__A, 60));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_CTH__A, 80));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_PTH__A, 100));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_QTH__A, 150));
-		CHK_ERROR(Write16_0(state, SCU_RAM_QAM_FSM_MTH__A, 110));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RTH__A, 50);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_FTH__A, 60);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_CTH__A, 80);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_PTH__A, 100);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_QTH__A, 150);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_MTH__A, 110);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_RATE_LIM__A, 40));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_COUNT_LIM__A, 4));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_FREQ_LIM__A, 12));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RATE_LIM__A, 40);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_COUNT_LIM__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_FREQ_LIM__A, 12);
+		if (status < 0)
+			break;
 
 
 		/* QAM FSM Tracking Parameters */
 
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A,
-			   (u16) 8));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A,
-			   (u16) 74));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A,
-			   (u16) 18));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A,
-			   (u16) 13));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A,
-			   (u16) 7));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A,
-			   (u16) 0));
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A,
-			   (u16) -8));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_MEDIAN_AV_MULT__A, (u16) 8);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_RADIUS_AV_LIMIT__A, (u16) 74);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET1__A, (u16) 18);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET2__A, (u16) 13);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET3__A, (u16) 7);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET4__A, (u16) 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SCU_RAM_QAM_FSM_LCAVG_OFFSET5__A, (u16) -8);
+		if (status < 0)
+			break;
 	} while (0);
 
 	return status;
@@ -4378,14 +5071,13 @@ static int QAMResetQAM(struct drxk_state *state)
 
 	do {
 		/* Stop QAM comstate->m_exec */
-		CHK_ERROR(Write16_0
-			  (state, QAM_COMM_EXEC__A, QAM_COMM_EXEC_STOP));
+		status = Write16_0(state, QAM_COMM_EXEC__A, QAM_COMM_EXEC_STOP);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(scu_command
-			  (state,
-			   SCU_RAM_COMMAND_STANDARD_QAM |
-			   SCU_RAM_COMMAND_CMD_DEMOD_RESET, 0, NULL, 1,
-			   &cmdResult));
+		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_RESET, 0, NULL, 1, &cmdResult);
+		if (status < 0)
+			break;
 	} while (0);
 
 	/* All done, all OK */
@@ -4420,7 +5112,9 @@ static int QAMSetSymbolrate(struct drxk_state *state)
 			ratesel = 2;
 		else if (state->param.u.qam.symbol_rate <= 4755000)
 			ratesel = 1;
-		CHK_ERROR(Write16_0(state, IQM_FD_RATESEL__A, ratesel));
+		status = Write16_0(state, IQM_FD_RATESEL__A, ratesel);
+		if (status < 0)
+			break;
 
 		/*
 		   IqmRcRate = ((Fadc / (symbolrate * (4<<ratesel))) - 1) * (1<<23)
@@ -4433,8 +5127,9 @@ static int QAMSetSymbolrate(struct drxk_state *state)
 		iqmRcRate = (adcFrequency / symbFreq) * (1 << 21) +
 		    (Frac28a((adcFrequency % symbFreq), symbFreq) >> 7) -
 		    (1 << 23);
-		CHK_ERROR(Write32
-			  (state, IQM_RC_RATE_OFS_LO__A, iqmRcRate, 0));
+		status = Write32(state, IQM_RC_RATE_OFS_LO__A, iqmRcRate, 0);
+		if (status < 0)
+			break;
 		state->m_iqmRcRate = iqmRcRate;
 		/*
 		   LcSymbFreq = round (.125 *  symbolrate / adcFreq * (1<<15))
@@ -4449,9 +5144,9 @@ static int QAMSetSymbolrate(struct drxk_state *state)
 		     16);
 		if (lcSymbRate > 511)
 			lcSymbRate = 511;
-		CHK_ERROR(Write16_0
-			  (state, QAM_LC_SYMBOL_FREQ__A,
-			   (u16) lcSymbRate));
+		status = Write16_0(state, QAM_LC_SYMBOL_FREQ__A, (u16) lcSymbRate);
+		if (status < 0)
+			break;
 	} while (0);
 
 	return status;
@@ -4521,20 +5216,24 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 		   resets QAM block
 		   resets SCU variables
 		 */
-		CHK_ERROR(Write16_0
-			  (state, FEC_DI_COMM_EXEC__A,
-			   FEC_DI_COMM_EXEC_STOP));
-		CHK_ERROR(Write16_0
-			  (state, FEC_RS_COMM_EXEC__A,
-			   FEC_RS_COMM_EXEC_STOP));
-		CHK_ERROR(QAMResetQAM(state));
+		status = Write16_0(state, FEC_DI_COMM_EXEC__A, FEC_DI_COMM_EXEC_STOP);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_RS_COMM_EXEC__A, FEC_RS_COMM_EXEC_STOP);
+		if (status < 0)
+			break;
+		status = QAMResetQAM(state);
+		if (status < 0)
+			break;
 
 		/*
 		   STEP 2: configure demodulator
 		   -set env
 		   -set params; resets IQM,QAM,FEC HW; initializes some SCU variables
 		 */
-		CHK_ERROR(QAMSetSymbolrate(state));
+		status = QAMSetSymbolrate(state);
+		if (status < 0)
+			break;
 
 		/* Env parameters */
 		setEnvParameters[2] = QAM_TOP_ANNEX_A;	/* Annex */
@@ -4567,114 +5266,174 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 			status = -EINVAL;
 			break;
 		}
-		CHK_ERROR(status);
+		status = status;
+		if (status < 0)
+			break;
 		setParamParameters[0] = state->m_Constellation;	/* constellation     */
 		setParamParameters[1] = DRXK_QAM_I12_J17;	/* interleave mode   */
 
-		CHK_ERROR(scu_command
-			  (state,
-			   SCU_RAM_COMMAND_STANDARD_QAM |
-			   SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM, 4,
-			   setParamParameters, 1, &cmdResult));
+		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM, 4, setParamParameters, 1, &cmdResult);
+		if (status < 0)
+			break;
 
 
 		/* STEP 3: enable the system in a mode where the ADC provides valid signal
 		   setup constellation independent registers */
-		/* CHK_ERROR (SetFrequency (channel, tunerFreqOffset)); */
-		CHK_ERROR(SetFrequencyShifter
-			  (state, IntermediateFreqkHz, tunerFreqOffset,
-			   true));
+#if 0
+		status = SetFrequency (channel, tunerFreqOffset));
+		if (status < 0)
+			break;
+#endif
+		status = SetFrequencyShifter(state, IntermediateFreqkHz, tunerFreqOffset, true);
+		if (status < 0)
+			break;
 
 		/* Setup BER measurement */
-		CHK_ERROR(SetQAMMeasurement(state,
-					    state->m_Constellation,
-					    state->param.u.
-					    qam.symbol_rate));
+		status = SetQAMMeasurement(state, state->m_Constellation, state->param.u. qam.symbol_rate);
+		if (status < 0)
+			break;
 
 		/* Reset default values */
-		CHK_ERROR(Write16_0
-			  (state, IQM_CF_SCALE_SH__A,
-			   IQM_CF_SCALE_SH__PRE));
-		CHK_ERROR(Write16_0
-			  (state, QAM_SY_TIMEOUT__A, QAM_SY_TIMEOUT__PRE));
+		status = Write16_0(state, IQM_CF_SCALE_SH__A, IQM_CF_SCALE_SH__PRE);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_SY_TIMEOUT__A, QAM_SY_TIMEOUT__PRE);
+		if (status < 0)
+			break;
 
 		/* Reset default LC values */
-		CHK_ERROR(Write16_0(state, QAM_LC_RATE_LIMIT__A, 3));
-		CHK_ERROR(Write16_0(state, QAM_LC_LPF_FACTORP__A, 4));
-		CHK_ERROR(Write16_0(state, QAM_LC_LPF_FACTORI__A, 4));
-		CHK_ERROR(Write16_0(state, QAM_LC_MODE__A, 7));
+		status = Write16_0(state, QAM_LC_RATE_LIMIT__A, 3);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_LPF_FACTORP__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_LPF_FACTORI__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_MODE__A, 7);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB0__A, 1));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB1__A, 1));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB2__A, 1));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB3__A, 1));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB4__A, 2));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB5__A, 2));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB6__A, 2));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB8__A, 2));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB9__A, 2));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB10__A, 2));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB12__A, 2));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB15__A, 3));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB16__A, 3));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB20__A, 4));
-		CHK_ERROR(Write16_0(state, QAM_LC_QUAL_TAB25__A, 4));
+		status = Write16_0(state, QAM_LC_QUAL_TAB0__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB1__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB2__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB3__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB4__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB5__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB6__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB8__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB9__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB10__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB12__A, 2);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB15__A, 3);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB16__A, 3);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB20__A, 4);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_LC_QUAL_TAB25__A, 4);
+		if (status < 0)
+			break;
 
 		/* Mirroring, QAM-block starting point not inverted */
-		CHK_ERROR(Write16_0
-			  (state, QAM_SY_SP_INV__A,
-			   QAM_SY_SP_INV_SPECTRUM_INV_DIS));
+		status = Write16_0(state, QAM_SY_SP_INV__A, QAM_SY_SP_INV_SPECTRUM_INV_DIS);
+		if (status < 0)
+			break;
 
 		/* Halt SCU to enable safe non-atomic accesses */
-		CHK_ERROR(Write16_0
-			  (state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_HOLD));
+		status = Write16_0(state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_HOLD);
+		if (status < 0)
+			break;
 
 		/* STEP 4: constellation specific setup */
 		switch (state->param.u.qam.modulation) {
 		case QAM_16:
-			CHK_ERROR(SetQAM16(state));
+			status = SetQAM16(state);
+			if (status < 0)
+				break;
 			break;
 		case QAM_32:
-			CHK_ERROR(SetQAM32(state));
+			status = SetQAM32(state);
+			if (status < 0)
+				break;
 			break;
 		case QAM_AUTO:
 		case QAM_64:
-			CHK_ERROR(SetQAM64(state));
+			status = SetQAM64(state);
+			if (status < 0)
+				break;
 			break;
 		case QAM_128:
-			CHK_ERROR(SetQAM128(state));
+			status = SetQAM128(state);
+			if (status < 0)
+				break;
 			break;
 		case QAM_256:
-			CHK_ERROR(SetQAM256(state));
+			status = SetQAM256(state);
+			if (status < 0)
+				break;
 			break;
 		default:
 			return -1;
 			break;
 		}		/* switch */
 		/* Activate SCU to enable SCU commands */
-		CHK_ERROR(Write16_0
-			  (state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE));
+		status = Write16_0(state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
+		if (status < 0)
+			break;
 
 
 		/* Re-configure MPEG output, requires knowledge of channel bitrate */
 		/* extAttr->currentChannel.constellation = channel->constellation; */
 		/* extAttr->currentChannel.symbolrate    = channel->symbolrate; */
-		CHK_ERROR(MPEGTSDtoSetup(state, state->m_OperationMode));
+		status = MPEGTSDtoSetup(state, state->m_OperationMode);
+		if (status < 0)
+			break;
 
 		/* Start processes */
-		CHK_ERROR(MPEGTSStart(state));
-		CHK_ERROR(Write16_0
-			  (state, FEC_COMM_EXEC__A, FEC_COMM_EXEC_ACTIVE));
-		CHK_ERROR(Write16_0
-			  (state, QAM_COMM_EXEC__A, QAM_COMM_EXEC_ACTIVE));
-		CHK_ERROR(Write16_0
-			  (state, IQM_COMM_EXEC__A,
-			   IQM_COMM_EXEC_B_ACTIVE));
+		status = MPEGTSStart(state);
+		if (status < 0)
+			break;
+		status = Write16_0(state, FEC_COMM_EXEC__A, FEC_COMM_EXEC_ACTIVE);
+		if (status < 0)
+			break;
+		status = Write16_0(state, QAM_COMM_EXEC__A, QAM_COMM_EXEC_ACTIVE);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_COMM_EXEC__A, IQM_COMM_EXEC_B_ACTIVE);
+		if (status < 0)
+			break;
 
 		/* STEP 5: start QAM demodulator (starts FEC, QAM and IQM HW) */
-		CHK_ERROR(scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM |
-				      SCU_RAM_COMMAND_CMD_DEMOD_START, 0,
-				      NULL, 1, &cmdResult));
+		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_START, 0, NULL, 1, &cmdResult);
+		if (status < 0)
+			break;
 
 		/* update global DRXK data container */
 	/*?     extAttr->qamInterleaveMode = DRXK_QAM_I12_J17; */
@@ -4704,96 +5463,153 @@ static int SetQAMStandard(struct drxk_state *state,
 		SwitchAntennaToQAM(state);
 
 		/* Ensure correct power-up mode */
-		CHK_ERROR(PowerUpQAM(state));
+		status = PowerUpQAM(state);
+		if (status < 0)
+			break;
 		/* Reset QAM block */
-		CHK_ERROR(QAMResetQAM(state));
+		status = QAMResetQAM(state);
+		if (status < 0)
+			break;
 
 		/* Setup IQM */
 
-		CHK_ERROR(Write16_0
-			  (state, IQM_COMM_EXEC__A, IQM_COMM_EXEC_B_STOP));
-		CHK_ERROR(Write16_0
-			  (state, IQM_AF_AMUX__A, IQM_AF_AMUX_SIGNAL2ADC));
+		status = Write16_0(state, IQM_COMM_EXEC__A, IQM_COMM_EXEC_B_STOP);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_AF_AMUX__A, IQM_AF_AMUX_SIGNAL2ADC);
+		if (status < 0)
+			break;
 
 		/* Upload IQM Channel Filter settings by
 		   boot loader from ROM table */
 		switch (oMode) {
 		case OM_QAM_ITU_A:
-			CHK_ERROR(BLChainCmd(state,
-					     DRXK_BL_ROM_OFFSET_TAPS_ITU_A,
-					     DRXK_BLCC_NR_ELEMENTS_TAPS,
-					     DRXK_BLC_TIMEOUT));
+			status = BLChainCmd(state, DRXK_BL_ROM_OFFSET_TAPS_ITU_A, DRXK_BLCC_NR_ELEMENTS_TAPS, DRXK_BLC_TIMEOUT);
+			if (status < 0)
+				break;
 			break;
 		case OM_QAM_ITU_C:
-			CHK_ERROR(BLDirectCmd(state, IQM_CF_TAP_RE0__A,
-					      DRXK_BL_ROM_OFFSET_TAPS_ITU_C,
-					      DRXK_BLDC_NR_ELEMENTS_TAPS,
-					      DRXK_BLC_TIMEOUT));
-			CHK_ERROR(BLDirectCmd(state, IQM_CF_TAP_IM0__A,
-					      DRXK_BL_ROM_OFFSET_TAPS_ITU_C,
-					      DRXK_BLDC_NR_ELEMENTS_TAPS,
-					      DRXK_BLC_TIMEOUT));
+			status = BLDirectCmd(state, IQM_CF_TAP_RE0__A, DRXK_BL_ROM_OFFSET_TAPS_ITU_C, DRXK_BLDC_NR_ELEMENTS_TAPS, DRXK_BLC_TIMEOUT);
+			if (status < 0)
+				break;
+			status = BLDirectCmd(state, IQM_CF_TAP_IM0__A, DRXK_BL_ROM_OFFSET_TAPS_ITU_C, DRXK_BLDC_NR_ELEMENTS_TAPS, DRXK_BLC_TIMEOUT);
+			if (status < 0)
+				break;
 			break;
 		default:
 			status = -EINVAL;
 		}
-		CHK_ERROR(status);
+		status = status;
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, IQM_CF_OUT_ENA__A,
-				    (1 << IQM_CF_OUT_ENA_QAM__B)));
-		CHK_ERROR(Write16_0(state, IQM_CF_SYMMETRIC__A, 0));
-		CHK_ERROR(Write16_0(state, IQM_CF_MIDTAP__A,
-				    ((1 << IQM_CF_MIDTAP_RE__B) |
-				     (1 << IQM_CF_MIDTAP_IM__B))));
+		status = Write16_0(state, IQM_CF_OUT_ENA__A, (1 << IQM_CF_OUT_ENA_QAM__B));
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_SYMMETRIC__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_MIDTAP__A, ((1 << IQM_CF_MIDTAP_RE__B) | (1 << IQM_CF_MIDTAP_IM__B)));
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, IQM_RC_STRETCH__A, 21));
-		CHK_ERROR(Write16_0(state, IQM_AF_CLP_LEN__A, 0));
-		CHK_ERROR(Write16_0(state, IQM_AF_CLP_TH__A, 448));
-		CHK_ERROR(Write16_0(state, IQM_AF_SNS_LEN__A, 0));
-		CHK_ERROR(Write16_0(state, IQM_CF_POW_MEAS_LEN__A, 0));
+		status = Write16_0(state, IQM_RC_STRETCH__A, 21);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_AF_CLP_LEN__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_AF_CLP_TH__A, 448);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_AF_SNS_LEN__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_POW_MEAS_LEN__A, 0);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0(state, IQM_FS_ADJ_SEL__A, 1));
-		CHK_ERROR(Write16_0(state, IQM_RC_ADJ_SEL__A, 1));
-		CHK_ERROR(Write16_0(state, IQM_CF_ADJ_SEL__A, 1));
-		CHK_ERROR(Write16_0(state, IQM_AF_UPD_SEL__A, 0));
+		status = Write16_0(state, IQM_FS_ADJ_SEL__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_RC_ADJ_SEL__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_ADJ_SEL__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_AF_UPD_SEL__A, 0);
+		if (status < 0)
+			break;
 
 		/* IQM Impulse Noise Processing Unit */
-		CHK_ERROR(Write16_0(state, IQM_CF_CLP_VAL__A, 500));
-		CHK_ERROR(Write16_0(state, IQM_CF_DATATH__A, 1000));
-		CHK_ERROR(Write16_0(state, IQM_CF_BYPASSDET__A, 1));
-		CHK_ERROR(Write16_0(state, IQM_CF_DET_LCT__A, 0));
-		CHK_ERROR(Write16_0(state, IQM_CF_WND_LEN__A, 1));
-		CHK_ERROR(Write16_0(state, IQM_CF_PKDTH__A, 1));
-		CHK_ERROR(Write16_0(state, IQM_AF_INC_BYPASS__A, 1));
+		status = Write16_0(state, IQM_CF_CLP_VAL__A, 500);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_DATATH__A, 1000);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_BYPASSDET__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_DET_LCT__A, 0);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_WND_LEN__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_CF_PKDTH__A, 1);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_AF_INC_BYPASS__A, 1);
+		if (status < 0)
+			break;
 
 		/* turn on IQMAF. Must be done before setAgc**() */
-		CHK_ERROR(SetIqmAf(state, true));
-		CHK_ERROR(Write16_0(state, IQM_AF_START_LOCK__A, 0x01));
+		status = SetIqmAf(state, true);
+		if (status < 0)
+			break;
+		status = Write16_0(state, IQM_AF_START_LOCK__A, 0x01);
+		if (status < 0)
+			break;
 
 		/* IQM will not be reset from here, sync ADC and update/init AGC */
-		CHK_ERROR(ADCSynchronization(state));
+		status = ADCSynchronization(state);
+		if (status < 0)
+			break;
 
 		/* Set the FSM step period */
-		CHK_ERROR(Write16_0
-			  (state, SCU_RAM_QAM_FSM_STEP_PERIOD__A, 2000));
+		status = Write16_0(state, SCU_RAM_QAM_FSM_STEP_PERIOD__A, 2000);
+		if (status < 0)
+			break;
 
 		/* Halt SCU to enable safe non-atomic accesses */
-		CHK_ERROR(Write16_0
-			  (state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_HOLD));
+		status = Write16_0(state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_HOLD);
+		if (status < 0)
+			break;
 
 		/* No more resets of the IQM, current standard correctly set =>
 		   now AGCs can be configured. */
 
-		CHK_ERROR(InitAGC(state, true));
-		CHK_ERROR(SetPreSaw(state, &(state->m_qamPreSawCfg)));
+		status = InitAGC(state, true);
+		if (status < 0)
+			break;
+		status = SetPreSaw(state, &(state->m_qamPreSawCfg));
+		if (status < 0)
+			break;
 
 		/* Configure AGC's */
-		CHK_ERROR(SetAgcRf(state, &(state->m_qamRfAgcCfg), true));
-		CHK_ERROR(SetAgcIf(state, &(state->m_qamIfAgcCfg), true));
+		status = SetAgcRf(state, &(state->m_qamRfAgcCfg), true);
+		if (status < 0)
+			break;
+		status = SetAgcIf(state, &(state->m_qamIfAgcCfg), true);
+		if (status < 0)
+			break;
 
 		/* Activate SCU to enable SCU commands */
-		CHK_ERROR(Write16_0
-			  (state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE));
+		status = Write16_0(state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -4805,32 +5621,39 @@ static int WriteGPIO(struct drxk_state *state)
 
 	do {
 		/* stop lock indicator process */
-		CHK_ERROR(Write16_0(state, SCU_RAM_GPIO__A,
-				    SCU_RAM_GPIO_HW_LOCK_IND_DISABLE));
+		status = Write16_0(state, SCU_RAM_GPIO__A, SCU_RAM_GPIO_HW_LOCK_IND_DISABLE);
+		if (status < 0)
+			break;
 
 		/*  Write magic word to enable pdr reg write               */
-		CHK_ERROR(Write16_0(state, SIO_TOP_COMM_KEY__A,
-				    SIO_TOP_COMM_KEY_KEY));
+		status = Write16_0(state, SIO_TOP_COMM_KEY__A, SIO_TOP_COMM_KEY_KEY);
+		if (status < 0)
+			break;
 
 		if (state->m_hasSAWSW) {
 			/* write to io pad configuration register - output mode */
-			CHK_ERROR(Write16_0(state, SIO_PDR_SMA_TX_CFG__A,
-					    state->m_GPIOCfg));
+			status = Write16_0(state, SIO_PDR_SMA_TX_CFG__A, state->m_GPIOCfg);
+			if (status < 0)
+				break;
 
 			/* use corresponding bit in io data output registar */
-			CHK_ERROR(Read16_0
-				  (state, SIO_PDR_UIO_OUT_LO__A, &value));
+			status = Read16_0(state, SIO_PDR_UIO_OUT_LO__A, &value);
+			if (status < 0)
+				break;
 			if (state->m_GPIO == 0)
 				value &= 0x7FFF;	/* write zero to 15th bit - 1st UIO */
 			else
 				value |= 0x8000;	/* write one to 15th bit - 1st UIO */
 			/* write back to io data output register */
-			CHK_ERROR(Write16_0
-				  (state, SIO_PDR_UIO_OUT_LO__A, value));
+			status = Write16_0(state, SIO_PDR_UIO_OUT_LO__A, value);
+			if (status < 0)
+				break;
 
 		}
 		/*  Write magic word to disable pdr reg write               */
-		CHK_ERROR(Write16_0(state, SIO_TOP_COMM_KEY__A, 0x0000));
+		status = Write16_0(state, SIO_TOP_COMM_KEY__A, 0x0000);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -4874,18 +5697,25 @@ static int PowerDownDevice(struct drxk_state *state)
 	do {
 		if (state->m_bPDownOpenBridge) {
 			/* Open I2C bridge before power down of DRXK */
-			CHK_ERROR(ConfigureI2CBridge(state, true));
+			status = ConfigureI2CBridge(state, true);
+			if (status < 0)
+				break;
 		}
 		/* driver 0.9.0 */
-		CHK_ERROR(DVBTEnableOFDMTokenRing(state, false));
+		status = DVBTEnableOFDMTokenRing(state, false);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(Write16_0
-			  (state, SIO_CC_PWD_MODE__A,
-			   SIO_CC_PWD_MODE_LEVEL_CLOCK));
-		CHK_ERROR(Write16_0
-			  (state, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY));
+		status = Write16_0(state, SIO_CC_PWD_MODE__A, SIO_CC_PWD_MODE_LEVEL_CLOCK);
+		if (status < 0)
+			break;
+		status = Write16_0(state, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY);
+		if (status < 0)
+			break;
 		state->m_HICfgCtrl |= SIO_HI_RA_RAM_PAR_5_CFG_SLEEP_ZZZ;
-		CHK_ERROR(HI_CfgCommand(state));
+		status = HI_CfgCommand(state);
+		if (status < 0)
+			break;
 	} while (0);
 
 	if (status < 0)
@@ -4920,20 +5750,25 @@ static int init_drxk(struct drxk_state *state)
 
 	if ((state->m_DrxkState == DRXK_UNINITIALIZED)) {
 		do {
-			CHK_ERROR(PowerUpDevice(state));
-			CHK_ERROR(DRXX_Open(state));
+			status = PowerUpDevice(state);
+			if (status < 0)
+				break;
+			status = DRXX_Open(state);
+			if (status < 0)
+				break;
 			/* Soft reset of OFDM-, sys- and osc-clockdomain */
-			CHK_ERROR(Write16_0(state, SIO_CC_SOFT_RST__A,
-					    SIO_CC_SOFT_RST_OFDM__M |
-					    SIO_CC_SOFT_RST_SYS__M |
-					    SIO_CC_SOFT_RST_OSC__M));
-			CHK_ERROR(Write16_0
-				  (state, SIO_CC_UPDATE__A,
-				   SIO_CC_UPDATE_KEY));
+			status = Write16_0(state, SIO_CC_SOFT_RST__A, SIO_CC_SOFT_RST_OFDM__M | SIO_CC_SOFT_RST_SYS__M | SIO_CC_SOFT_RST_OSC__M);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SIO_CC_UPDATE__A, SIO_CC_UPDATE_KEY);
+			if (status < 0)
+				break;
 			/* TODO is this needed, if yes how much delay in worst case scenario */
 			msleep(1);
 			state->m_DRXK_A3_PATCH_CODE = true;
-			CHK_ERROR(GetDeviceCapabilities(state));
+			status = GetDeviceCapabilities(state);
+			if (status < 0)
+				break;
 
 			/* Bridge delay, uses oscilator clock */
 			/* Delay = (delay (nano seconds) * oscclk (kHz))/ 1000 */
@@ -4952,69 +5787,79 @@ static int init_drxk(struct drxk_state *state)
 			    state->m_HICfgBridgeDelay <<
 			    SIO_HI_RA_RAM_PAR_3_CFG_DBL_SCL__B;
 
-			CHK_ERROR(InitHI(state));
+			status = InitHI(state);
+			if (status < 0)
+				break;
 			/* disable various processes */
 #if NOA1ROM
 			if (!(state->m_DRXK_A1_ROM_CODE)
 			    && !(state->m_DRXK_A2_ROM_CODE))
 #endif
 			{
-				CHK_ERROR(Write16_0
-					  (state, SCU_RAM_GPIO__A,
-					   SCU_RAM_GPIO_HW_LOCK_IND_DISABLE));
+				status = Write16_0(state, SCU_RAM_GPIO__A, SCU_RAM_GPIO_HW_LOCK_IND_DISABLE);
+				if (status < 0)
+					break;
 			}
 
 			/* disable MPEG port */
-			CHK_ERROR(MPEGTSDisable(state));
+			status = MPEGTSDisable(state);
+			if (status < 0)
+				break;
 
 			/* Stop AUD and SCU */
-			CHK_ERROR(Write16_0
-				  (state, AUD_COMM_EXEC__A,
-				   AUD_COMM_EXEC_STOP));
-			CHK_ERROR(Write16_0
-				  (state, SCU_COMM_EXEC__A,
-				   SCU_COMM_EXEC_STOP));
+			status = Write16_0(state, AUD_COMM_EXEC__A, AUD_COMM_EXEC_STOP);
+			if (status < 0)
+				break;
+			status = Write16_0(state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_STOP);
+			if (status < 0)
+				break;
 
 			/* enable token-ring bus through OFDM block for possible ucode upload */
-			CHK_ERROR(Write16_0
-				  (state, SIO_OFDM_SH_OFDM_RING_ENABLE__A,
-				   SIO_OFDM_SH_OFDM_RING_ENABLE_ON));
+			status = Write16_0(state, SIO_OFDM_SH_OFDM_RING_ENABLE__A, SIO_OFDM_SH_OFDM_RING_ENABLE_ON);
+			if (status < 0)
+				break;
 
 			/* include boot loader section */
-			CHK_ERROR(Write16_0
-				  (state, SIO_BL_COMM_EXEC__A,
-				   SIO_BL_COMM_EXEC_ACTIVE));
-			CHK_ERROR(BLChainCmd(state, 0, 6, 100));
+			status = Write16_0(state, SIO_BL_COMM_EXEC__A, SIO_BL_COMM_EXEC_ACTIVE);
+			if (status < 0)
+				break;
+			status = BLChainCmd(state, 0, 6, 100);
+			if (status < 0)
+				break;
 
 #if 0
 			if (state->m_DRXK_A3_PATCH_CODE)
-				CHK_ERROR(DownloadMicrocode(state,
-							    DRXK_A3_microcode,
-							    DRXK_A3_microcode_length));
+				status = DownloadMicrocode(state, DRXK_A3_microcode, DRXK_A3_microcode_length);
+				if (status < 0)
+					break;
 #else
 			load_microcode(state, "drxk_a3.mc");
 #endif
 #if NOA1ROM
 			if (state->m_DRXK_A2_PATCH_CODE)
-				CHK_ERROR(DownloadMicrocode(state,
-							    DRXK_A2_microcode,
-							    DRXK_A2_microcode_length));
+				status = DownloadMicrocode(state, DRXK_A2_microcode, DRXK_A2_microcode_length);
+				if (status < 0)
+					break;
 #endif
 			/* disable token-ring bus through OFDM block for possible ucode upload */
-			CHK_ERROR(Write16_0
-				  (state, SIO_OFDM_SH_OFDM_RING_ENABLE__A,
-				   SIO_OFDM_SH_OFDM_RING_ENABLE_OFF));
+			status = Write16_0(state, SIO_OFDM_SH_OFDM_RING_ENABLE__A, SIO_OFDM_SH_OFDM_RING_ENABLE_OFF);
+			if (status < 0)
+				break;
 
 			/* Run SCU for a little while to initialize microcode version numbers */
-			CHK_ERROR(Write16_0
-				  (state, SCU_COMM_EXEC__A,
-				   SCU_COMM_EXEC_ACTIVE));
-			CHK_ERROR(DRXX_Open(state));
+			status = Write16_0(state, SCU_COMM_EXEC__A, SCU_COMM_EXEC_ACTIVE);
+			if (status < 0)
+				break;
+			status = DRXX_Open(state);
+			if (status < 0)
+				break;
 			/* added for test */
 			msleep(30);
 
 			powerMode = DRXK_POWER_DOWN_OFDM;
-			CHK_ERROR(CtrlPowerMode(state, &powerMode));
+			status = CtrlPowerMode(state, &powerMode);
+			if (status < 0)
+				break;
 
 			/* Stamp driver version number in SCU data RAM in BCD code
 			   Done to enable field application engineers to retreive drxdriver version
@@ -5027,17 +5872,17 @@ static int init_drxk(struct drxk_state *state)
 			    (((DRXK_VERSION_MAJOR / 10) % 10) << 8) +
 			    ((DRXK_VERSION_MAJOR % 10) << 4) +
 			    (DRXK_VERSION_MINOR % 10);
-			CHK_ERROR(Write16_0
-				  (state, SCU_RAM_DRIVER_VER_HI__A,
-				   driverVersion));
+			status = Write16_0(state, SCU_RAM_DRIVER_VER_HI__A, driverVersion);
+			if (status < 0)
+				break;
 			driverVersion =
 			    (((DRXK_VERSION_PATCH / 1000) % 10) << 12) +
 			    (((DRXK_VERSION_PATCH / 100) % 10) << 8) +
 			    (((DRXK_VERSION_PATCH / 10) % 10) << 4) +
 			    (DRXK_VERSION_PATCH % 10);
-			CHK_ERROR(Write16_0
-				  (state, SCU_RAM_DRIVER_VER_LO__A,
-				   driverVersion));
+			status = Write16_0(state, SCU_RAM_DRIVER_VER_LO__A, driverVersion);
+			if (status < 0)
+				break;
 
 			printk(KERN_INFO "DRXK driver version %d.%d.%d\n",
 			       DRXK_VERSION_MAJOR, DRXK_VERSION_MINOR,
@@ -5051,27 +5896,39 @@ static int init_drxk(struct drxk_state *state)
 			/* m_dvbtRfAgcCfg.speed = 3; */
 
 			/* Reset driver debug flags to 0 */
-			CHK_ERROR(Write16_0
-				  (state, SCU_RAM_DRIVER_DEBUG__A, 0));
+			status = Write16_0(state, SCU_RAM_DRIVER_DEBUG__A, 0);
+			if (status < 0)
+				break;
 			/* driver 0.9.0 */
 			/* Setup FEC OC:
 			   NOTE: No more full FEC resets allowed afterwards!! */
-			CHK_ERROR(Write16_0
-				  (state, FEC_COMM_EXEC__A,
-				   FEC_COMM_EXEC_STOP));
+			status = Write16_0(state, FEC_COMM_EXEC__A, FEC_COMM_EXEC_STOP);
+			if (status < 0)
+				break;
 			/* MPEGTS functions are still the same */
-			CHK_ERROR(MPEGTSDtoInit(state));
-			CHK_ERROR(MPEGTSStop(state));
-			CHK_ERROR(MPEGTSConfigurePolarity(state));
-			CHK_ERROR(MPEGTSConfigurePins
-				  (state, state->m_enableMPEGOutput));
+			status = MPEGTSDtoInit(state);
+			if (status < 0)
+				break;
+			status = MPEGTSStop(state);
+			if (status < 0)
+				break;
+			status = MPEGTSConfigurePolarity(state);
+			if (status < 0)
+				break;
+			status = MPEGTSConfigurePins(state, state->m_enableMPEGOutput);
+			if (status < 0)
+				break;
 			/* added: configure GPIO */
-			CHK_ERROR(WriteGPIO(state));
+			status = WriteGPIO(state);
+			if (status < 0)
+				break;
 
 			state->m_DrxkState = DRXK_STOPPED;
 
 			if (state->m_bPowerDown) {
-				CHK_ERROR(PowerDownDevice(state));
+				status = PowerDownDevice(state);
+				if (status < 0)
+					break;
 				state->m_DrxkState = DRXK_POWERED_DOWN;
 			} else
 				state->m_DrxkState = DRXK_STOPPED;

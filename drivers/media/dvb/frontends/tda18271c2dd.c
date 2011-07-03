@@ -817,7 +817,7 @@ static int ChannelConfiguration(struct tda_state *state,
 	u8 BP_Filter = 0;
 	u8 RF_Band = 0;
 	u8 GainTaper = 0;
-	u8 IR_Meas;
+	u8 IR_Meas = 0;
 
 	state->IF = IntermediateFrequency;
 	/* printk("%s Freq = %d Standard = %d IF = %d\n", __func__, Frequency, Standard, IntermediateFrequency); */
@@ -884,7 +884,7 @@ static int ChannelConfiguration(struct tda_state *state,
 			state->m_Regs[EB4] &= ~0x20;   /* LO_forceSrce = 0 */
 			CHK_ERROR(UpdateReg(state, EB4));
 		} else {
-			u8 PostDiv;
+			u8 PostDiv = 0;
 			u8 Div;
 			CHK_ERROR(CalcCalPLL(state, Frequency + IntermediateFrequency));
 
