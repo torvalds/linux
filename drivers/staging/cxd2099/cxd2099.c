@@ -294,8 +294,6 @@ static void cam_mode(struct cxd *ci, int mode)
 
 
 
-#define CHK_ERROR(s) if ((status = s)) break
-
 static int init(struct cxd *ci)
 {
 	int status;
@@ -303,55 +301,121 @@ static int init(struct cxd *ci)
 	mutex_lock(&ci->lock);
 	ci->mode = -1;
 	do {
-		CHK_ERROR(write_reg(ci, 0x00, 0x00));
-		CHK_ERROR(write_reg(ci, 0x01, 0x00));
-		CHK_ERROR(write_reg(ci, 0x02, 0x10));
-		CHK_ERROR(write_reg(ci, 0x03, 0x00));
-		CHK_ERROR(write_reg(ci, 0x05, 0xFF));
-		CHK_ERROR(write_reg(ci, 0x06, 0x1F));
-		CHK_ERROR(write_reg(ci, 0x07, 0x1F));
-		CHK_ERROR(write_reg(ci, 0x08, 0x28));
-		CHK_ERROR(write_reg(ci, 0x14, 0x20));
+		status = write_reg(ci, 0x00, 0x00);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x01, 0x00);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x02, 0x10);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x03, 0x00);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x05, 0xFF);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x06, 0x1F);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x07, 0x1F);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x08, 0x28);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x14, 0x20);
+		if (status < 0)
+			break;
 
-		/* CHK_ERROR(write_reg(ci, 0x09, 0x4D));*/ /* Input Mode C, BYPass Serial, TIVAL = low, MSB */
-		CHK_ERROR(write_reg(ci, 0x0A, 0xA7)); /* TOSTRT = 8, Mode B (gated clock), falling Edge, Serial, POL=HIGH, MSB */
+#if 0
+		status = write_reg(ci, 0x09, 0x4D); /* Input Mode C, BYPass Serial, TIVAL = low, MSB */
+		if (status < 0)
+			break;
+#endif
+		status = write_reg(ci, 0x0A, 0xA7); /* TOSTRT = 8, Mode B (gated clock), falling Edge, Serial, POL=HIGH, MSB */
+		if (status < 0)
+			break;
 
-		CHK_ERROR(write_reg(ci, 0x0B, 0x33));
-		CHK_ERROR(write_reg(ci, 0x0C, 0x33));
+		status = write_reg(ci, 0x0B, 0x33);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x0C, 0x33);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(write_regm(ci, 0x14, 0x00, 0x0F));
-		CHK_ERROR(write_reg(ci, 0x15, ci->clk_reg_b));
-		CHK_ERROR(write_regm(ci, 0x16, 0x00, 0x0F));
-		CHK_ERROR(write_reg(ci, 0x17, ci->clk_reg_f));
+		status = write_regm(ci, 0x14, 0x00, 0x0F);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x15, ci->clk_reg_b);
+		if (status < 0)
+			break;
+		status = write_regm(ci, 0x16, 0x00, 0x0F);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x17, ci->clk_reg_f);
+		if (status < 0)
+			break;
 
 		if (ci->cfg.clock_mode) {
 			if (ci->cfg.polarity) {
-				CHK_ERROR(write_reg(ci, 0x09, 0x6f));
+				status = write_reg(ci, 0x09, 0x6f);
+				if (status < 0)
+					break;
 			} else {
-				CHK_ERROR(write_reg(ci, 0x09, 0x6d));
+				status = write_reg(ci, 0x09, 0x6d);
+				if (status < 0)
+					break;
 			}
-			CHK_ERROR(write_reg(ci, 0x20, 0x68));
-			CHK_ERROR(write_reg(ci, 0x21, 0x00));
-			CHK_ERROR(write_reg(ci, 0x22, 0x02));
+			status = write_reg(ci, 0x20, 0x68);
+			if (status < 0)
+				break;
+			status = write_reg(ci, 0x21, 0x00);
+			if (status < 0)
+				break;
+			status = write_reg(ci, 0x22, 0x02);
+			if (status < 0)
+				break;
 		} else {
 			if (ci->cfg.polarity) {
-				CHK_ERROR(write_reg(ci, 0x09, 0x4f));
+				status = write_reg(ci, 0x09, 0x4f);
+				if (status < 0)
+					break;
 			} else {
-				CHK_ERROR(write_reg(ci, 0x09, 0x4d));
+				status = write_reg(ci, 0x09, 0x4d);
+				if (status < 0)
+					break;
 			}
 
-			CHK_ERROR(write_reg(ci, 0x20, 0x28));
-			CHK_ERROR(write_reg(ci, 0x21, 0x00));
-			CHK_ERROR(write_reg(ci, 0x22, 0x07));
+			status = write_reg(ci, 0x20, 0x28);
+			if (status < 0)
+				break;
+			status = write_reg(ci, 0x21, 0x00);
+			if (status < 0)
+				break;
+			status = write_reg(ci, 0x22, 0x07);
+			if (status < 0)
+				break;
 		}
 
-		CHK_ERROR(write_regm(ci, 0x20, 0x80, 0x80));
-		CHK_ERROR(write_regm(ci, 0x03, 0x02, 0x02));
-		CHK_ERROR(write_reg(ci, 0x01, 0x04));
-		CHK_ERROR(write_reg(ci, 0x00, 0x31));
+		status = write_regm(ci, 0x20, 0x80, 0x80);
+		if (status < 0)
+			break;
+		status = write_regm(ci, 0x03, 0x02, 0x02);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x01, 0x04);
+		if (status < 0)
+			break;
+		status = write_reg(ci, 0x00, 0x31);
+		if (status < 0)
+			break;
 
 		/* Put TS in bypass */
-		CHK_ERROR(write_regm(ci, 0x09, 0x08, 0x08));
+		status = write_regm(ci, 0x09, 0x08, 0x08);
+		if (status < 0)
+			break;
 		ci->cammode = -1;
 		cam_mode(ci, 0);
 	} while (0);
