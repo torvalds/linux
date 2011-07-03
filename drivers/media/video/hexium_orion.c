@@ -24,6 +24,7 @@
 #define DEBUG_VARIABLE debug
 
 #include <media/saa7146_vv.h>
+#include <linux/module.h>
 
 static int debug;
 module_param(debug, int, 0);

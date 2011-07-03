@@ -19,6 +19,7 @@
 */
 
 #include <media/saa7146.h>
+#include <linux/module.h>
 
 LIST_HEAD(saa7146_devices);
 DEFINE_MUTEX(saa7146_devices_lock);

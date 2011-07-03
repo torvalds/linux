@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 static struct rc_map_table videomate_m1f[] = {
 	{ 0x01, KEY_POWER },

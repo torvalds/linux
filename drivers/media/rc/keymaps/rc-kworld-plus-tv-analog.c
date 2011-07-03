@@ -11,6 +11,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 /* Kworld Plus TV Analog Lite PCI IR
    Mauro Carvalho Chehab <mchehab@infradead.org>

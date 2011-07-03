@@ -1,4 +1,5 @@
 #include <media/saa7146_vv.h>
+#include <linux/module.h>
 
 /****************************************************************************/
 /* resource management functions, shamelessly stolen from saa7134 driver */

@@ -13,6 +13,7 @@
  */
 
 #include "rc-core-priv.h"
+#include <linux/module.h>
 
 /*
  * This decoder currently supports:

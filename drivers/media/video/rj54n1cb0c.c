@@ -12,6 +12,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
+#include <linux/module.h>
 
 #include <media/rj54n1cb0c.h>
 #include <media/soc_camera.h>

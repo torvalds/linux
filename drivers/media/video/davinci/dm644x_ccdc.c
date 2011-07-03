@@ -40,6 +40,7 @@
 #include <linux/gfp.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/module.h>
 
 #include <media/davinci/dm644x_ccdc.h>
 #include <media/davinci/vpss.h>

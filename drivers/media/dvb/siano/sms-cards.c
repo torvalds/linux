@@ -19,6 +19,7 @@
 
 #include "sms-cards.h"
 #include "smsir.h"
+#include <linux/module.h>
 
 static int sms_dbg;
 module_param_named(cards_dbg, sms_dbg, int, 0644);

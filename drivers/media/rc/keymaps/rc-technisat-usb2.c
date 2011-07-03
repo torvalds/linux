@@ -30,6 +30,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 static struct rc_map_table technisat_usb2[] = {
 	{0x0a0c, KEY_POWER},

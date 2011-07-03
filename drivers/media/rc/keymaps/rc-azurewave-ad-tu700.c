@@ -19,6 +19,7 @@
  */
 
 #include <media/rc-map.h>
+#include <linux/module.h>
 
 static struct rc_map_table azurewave_ad_tu700[] = {
 	{ 0x0000, KEY_TAB },             /* Tab */
