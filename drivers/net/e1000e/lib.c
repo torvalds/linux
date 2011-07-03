@@ -220,7 +220,7 @@ s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
 	}
 
 	/* if multicast bit is set, the alternate address will not be used */
-	if (alt_mac_addr[0] & 0x01) {
+	if (is_multicast_ether_addr(alt_mac_addr)) {
 		e_dbg("Ignoring Alternate Mac Address with MC bit set\n");
 		goto out;
 	}
