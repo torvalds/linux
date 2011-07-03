@@ -44,6 +44,7 @@
 #include <linux/hdreg.h>
 #include <linux/proc_fs.h>
 #include <linux/random.h>
+#include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/file.h>
 #include <linux/compat.h>

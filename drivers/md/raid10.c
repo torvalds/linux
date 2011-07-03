@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/blkdev.h>
+#include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/ratelimit.h>
 #include "md.h"
