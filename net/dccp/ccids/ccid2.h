@@ -53,6 +53,10 @@ struct ccid2_seq {
  * @tx_rttvar:		     moving average/maximum of @mdev_max
  * @tx_rto:		     RTO value deriving from SRTT and RTTVAR (RFC 2988)
  * @tx_rtt_seq:		     to decay RTTVAR at most once per flight
+ * @tx_cwnd_used:	     actually used cwnd, W_used of RFC 2861
+ * @tx_expected_wnd:	     moving average of @tx_cwnd_used
+ * @tx_cwnd_stamp:	     to track idle periods in CWV
+ * @tx_lsndtime:	     last time (in jiffies) a data packet was sent
  * @tx_rpseq:		     last consecutive seqno
  * @tx_rpdupack:	     dupacks since rpseq
  * @tx_av_chunks:	     list of Ack Vectors received on current skb
@@ -75,6 +79,12 @@ struct ccid2_hc_tx_sock {
 				tx_rto;
 	u64			tx_rtt_seq:48;
 	struct timer_list	tx_rtotimer;
+
+	/* Congestion Window validation (optional, RFC 2861) */
+	u32			tx_cwnd_used,
+				tx_expected_wnd,
+				tx_cwnd_stamp,
+				tx_lsndtime;
 
 	u64			tx_rpseq;
 	int			tx_rpdupack;
