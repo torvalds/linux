@@ -253,7 +253,6 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 #define OHCI1394_MAX_PHYS_RESP_RETRIES	0x8
 
 #define OHCI1394_REGISTER_SIZE		0x800
-#define OHCI_LOOP_COUNT			500
 #define OHCI1394_PCI_HCI_Control	0x40
 #define SELF_ID_BUF_SIZE		0x800
 #define OHCI_TCODE_PHY_PACKET		0x0e
@@ -1967,14 +1966,18 @@ static irqreturn_t irq_handler(int irq, void *data)
 
 static int software_reset(struct fw_ohci *ohci)
 {
+	u32 val;
 	int i;
 
 	reg_write(ohci, OHCI1394_HCControlSet, OHCI1394_HCControl_softReset);
+	for (i = 0; i < 500; i++) {
+		val = reg_read(ohci, OHCI1394_HCControlSet);
+		if (!~val)
+			return -ENODEV; /* Card was ejected. */
 
-	for (i = 0; i < OHCI_LOOP_COUNT; i++) {
-		if ((reg_read(ohci, OHCI1394_HCControlSet) &
-		     OHCI1394_HCControl_softReset) == 0)
+		if (!(val & OHCI1394_HCControl_softReset))
 			return 0;
+
 		msleep(1);
 	}
 
