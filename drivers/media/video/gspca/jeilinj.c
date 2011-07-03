@@ -405,13 +405,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	dev->type = id->driver_info;
 	gspca_dev->cam.ctrls = dev->ctrls;
 	dev->quality = QUALITY_DEF;
-	dev->ctrls[LIGHTFREQ].def = V4L2_CID_POWER_LINE_FREQUENCY_60HZ;
-	dev->ctrls[RED].def = RED_BALANCE_DEF;
-	dev->ctrls[GREEN].def = GREEN_BALANCE_DEF;
-	dev->ctrls[BLUE].def = BLUE_BALANCE_DEF;
-	PDEBUG(D_PROBE,
-		"JEILINJ camera detected"
-		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+
 	cam->cam_mode = jlj_mode;
 	cam->nmodes = ARRAY_SIZE(jlj_mode);
 	cam->bulk = 1;
@@ -424,7 +418,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	int i;
 	u8 *buf;
-	u8 stop_commands[][2] = {
+	static u8 stop_commands[][2] = {
 		{0x71, 0x00},
 		{0x70, 0x09},
 		{0x71, 0x80},
