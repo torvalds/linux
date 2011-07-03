@@ -510,6 +510,12 @@ const union decode_item kprobe_decode_thumb32_table[] = {
 	DECODE_TABLE	(0xfe000000, 0xea000000, t32_table_1110_101x),
 
 	/*
+	 * Coprocessor instructions
+	 *			1110 11xx xxxx xxxx xxxx xxxx xxxx xxxx
+	 */
+	DECODE_REJECT	(0xfc000000, 0xec000000),
+
+	/*
 	 * Data-processing (modified immediate)
 	 *			1111 0x0x xxxx xxxx 0xxx xxxx xxxx xxxx
 	 */
@@ -527,6 +533,16 @@ const union decode_item kprobe_decode_thumb32_table[] = {
 	 */
 	DECODE_TABLE	(0xf8008000, 0xf0008000, t32_table_1111_0xxx___1),
 
+	/*
+	 * Advanced SIMD element or structure load/store instructions
+	 *			1111 1001 xxx0 xxxx xxxx xxxx xxxx xxxx
+	 */
+	DECODE_REJECT	(0xff100000, 0xf9000000),
+
+	/*
+	 * Coprocessor instructions
+	 *			1111 11xx xxxx xxxx xxxx xxxx xxxx xxxx
+	 */
 	DECODE_END
 };
 
