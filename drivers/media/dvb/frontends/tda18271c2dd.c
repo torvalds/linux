@@ -175,9 +175,6 @@ static int UpdateReg(struct tda_state *state, u8 Reg)
 
 #include "tda18271c2dd_maps.h"
 
-#undef CHK_ERROR
-#define CHK_ERROR(s) if ((status = s) < 0) break
-
 static void reset(struct tda_state *state)
 {
 	u32   ulIFLevelAnalog = 0;
@@ -271,22 +268,34 @@ static int ThermometerRead(struct tda_state *state, u8 *pTM_Value)
 	do {
 		u8 Regs[16];
 		state->m_Regs[TM] |= 0x10;
-		CHK_ERROR(UpdateReg(state, TM));
-		CHK_ERROR(Read(state, Regs));
+		status = UpdateReg(state, TM);
+		if (status < 0)
+			break;
+		status = Read(state, Regs);
+		if (status < 0)
+			break;
 		if (((Regs[TM] & 0x0F) == 0 && (Regs[TM] & 0x20) == 0x20) ||
 		    ((Regs[TM] & 0x0F) == 8 && (Regs[TM] & 0x20) == 0x00)) {
 			state->m_Regs[TM] ^= 0x20;
-			CHK_ERROR(UpdateReg(state, TM));
+			status = UpdateReg(state, TM);
+			if (status < 0)
+				break;
 			msleep(10);
-			CHK_ERROR(Read(state, Regs));
+			status = Read(state, Regs);
+			if (status < 0)
+				break;
 		}
 		*pTM_Value = (Regs[TM] & 0x20)
 				? m_Thermometer_Map_2[Regs[TM] & 0x0F]
 				: m_Thermometer_Map_1[Regs[TM] & 0x0F] ;
 		state->m_Regs[TM] &= ~0x10;        /* Thermometer off */
-		CHK_ERROR(UpdateReg(state, TM));
+		status = UpdateReg(state, TM);
+		if (status < 0)
+			break;
 		state->m_Regs[EP4] &= ~0x03;       /* CAL_mode = 0 ????????? */
-		CHK_ERROR(UpdateReg(state, EP4));
+		status = UpdateReg(state, EP4);
+		if (status < 0)
+			break;
 	} while (0);
 
 	return status;
@@ -297,14 +306,22 @@ static int StandBy(struct tda_state *state)
 	int status = 0;
 	do {
 		state->m_Regs[EB12] &= ~0x20;  /* PD_AGC1_Det = 0 */
-		CHK_ERROR(UpdateReg(state, EB12));
+		status = UpdateReg(state, EB12);
+		if (status < 0)
+			break;
 		state->m_Regs[EB18] &= ~0x83;  /* AGC1_loop_off = 0, AGC1_Gain = 6 dB */
-		CHK_ERROR(UpdateReg(state, EB18));
+		status = UpdateReg(state, EB18);
+		if (status < 0)
+			break;
 		state->m_Regs[EB21] |= 0x03; /* AGC2_Gain = -6 dB */
 		state->m_Regs[EP3] = state->m_EP3_Standby;
-		CHK_ERROR(UpdateReg(state, EP3));
+		status = UpdateReg(state, EP3);
+		if (status < 0)
+			break;
 		state->m_Regs[EB23] &= ~0x06; /* ForceLP_Fc2_En = 0, LP_Fc[2] = 0 */
-		CHK_ERROR(UpdateRegs(state, EB21, EB23));
+		status = UpdateRegs(state, EB21, EB23);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -369,9 +386,13 @@ static int CalibrateRF(struct tda_state *state,
 		u8 RFC_M = 0;
 
 		state->m_Regs[EP4] &= ~0x03; /* CAL_mode = 0 */
-		CHK_ERROR(UpdateReg(state, EP4));
+		status = UpdateReg(state, EP4);
+		if (status < 0)
+			break;
 		state->m_Regs[EB18] |= 0x03;  /* AGC1_Gain = 3 */
-		CHK_ERROR(UpdateReg(state, EB18));
+		status = UpdateReg(state, EB18);
+		if (status < 0)
+			break;
 
 		/* Switching off LT (as datasheet says) causes calibration on C1 to fail */
 		/* (Readout of Cprog is allways 255) */
@@ -388,52 +409,92 @@ static int CalibrateRF(struct tda_state *state,
 
 		state->m_Regs[EB13] = (state->m_Regs[EB13] & ~0x7C) | (RFC_K << 4) | (RFC_M << 2);
 
-		CHK_ERROR(UpdateRegs(state, EP1, EP3));
-		CHK_ERROR(UpdateReg(state, EB13));
+		status = UpdateRegs(state, EP1, EP3);
+		if (status < 0)
+			break;
+		status = UpdateReg(state, EB13);
+		if (status < 0)
+			break;
 
 		state->m_Regs[EB4] |= 0x20;    /* LO_ForceSrce = 1 */
-		CHK_ERROR(UpdateReg(state, EB4));
+		status = UpdateReg(state, EB4);
+		if (status < 0)
+			break;
 
 		state->m_Regs[EB7] |= 0x20;    /* CAL_ForceSrce = 1 */
-		CHK_ERROR(UpdateReg(state, EB7));
+		status = UpdateReg(state, EB7);
+		if (status < 0)
+			break;
 
 		state->m_Regs[EB14] = 0; /* RFC_Cprog = 0 */
-		CHK_ERROR(UpdateReg(state, EB14));
+		status = UpdateReg(state, EB14);
+		if (status < 0)
+			break;
 
 		state->m_Regs[EB20] &= ~0x20;  /* ForceLock = 0; */
-		CHK_ERROR(UpdateReg(state, EB20));
+		status = UpdateReg(state, EB20);
+		if (status < 0)
+			break;
 
 		state->m_Regs[EP4] |= 0x03;  /* CAL_Mode = 3 */
-		CHK_ERROR(UpdateRegs(state, EP4, EP5));
+		status = UpdateRegs(state, EP4, EP5);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(CalcCalPLL(state, freq));
-		CHK_ERROR(CalcMainPLL(state, freq + 1000000));
+		status = CalcCalPLL(state, freq);
+		if (status < 0)
+			break;
+		status = CalcMainPLL(state, freq + 1000000);
+		if (status < 0)
+			break;
 
 		msleep(5);
-		CHK_ERROR(UpdateReg(state, EP2));
-		CHK_ERROR(UpdateReg(state, EP1));
-		CHK_ERROR(UpdateReg(state, EP2));
-		CHK_ERROR(UpdateReg(state, EP1));
+		status = UpdateReg(state, EP2);
+		if (status < 0)
+			break;
+		status = UpdateReg(state, EP1);
+		if (status < 0)
+			break;
+		status = UpdateReg(state, EP2);
+		if (status < 0)
+			break;
+		status = UpdateReg(state, EP1);
+		if (status < 0)
+			break;
 
 		state->m_Regs[EB4] &= ~0x20;    /* LO_ForceSrce = 0 */
-		CHK_ERROR(UpdateReg(state, EB4));
+		status = UpdateReg(state, EB4);
+		if (status < 0)
+			break;
 
 		state->m_Regs[EB7] &= ~0x20;    /* CAL_ForceSrce = 0 */
-		CHK_ERROR(UpdateReg(state, EB7));
+		status = UpdateReg(state, EB7);
+		if (status < 0)
+			break;
 		msleep(10);
 
 		state->m_Regs[EB20] |= 0x20;  /* ForceLock = 1; */
-		CHK_ERROR(UpdateReg(state, EB20));
+		status = UpdateReg(state, EB20);
+		if (status < 0)
+			break;
 		msleep(60);
 
 		state->m_Regs[EP4] &= ~0x03;  /* CAL_Mode = 0 */
 		state->m_Regs[EP3] &= ~0x40; /* SM_LT = 0 */
 		state->m_Regs[EB18] &= ~0x03;  /* AGC1_Gain = 0 */
-		CHK_ERROR(UpdateReg(state, EB18));
-		CHK_ERROR(UpdateRegs(state, EP3, EP4));
-		CHK_ERROR(UpdateReg(state, EP1));
+		status = UpdateReg(state, EB18);
+		if (status < 0)
+			break;
+		status = UpdateRegs(state, EP3, EP4);
+		if (status < 0)
+			break;
+		status = UpdateReg(state, EP1);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(ReadExtented(state, Regs));
+		status = ReadExtented(state, Regs);
+		if (status < 0)
+			break;
 
 		*pCprog = Regs[EB14];
 
@@ -464,9 +525,13 @@ static int RFTrackingFiltersInit(struct tda_state *state,
 	state->m_RF_B2[RFBand] = 0;
 
 	do {
-		CHK_ERROR(PowerScan(state, RFBand, RF1, &RF1, &bcal));
+		status = PowerScan(state, RFBand, RF1, &RF1, &bcal);
+		if (status < 0)
+			break;
 		if (bcal) {
-			CHK_ERROR(CalibrateRF(state, RFBand, RF1, &Cprog_cal1));
+			status = CalibrateRF(state, RFBand, RF1, &Cprog_cal1);
+			if (status < 0)
+				break;
 		}
 		SearchMap2(m_RF_Cal_Map, RF1, &Cprog_table1);
 		if (!bcal)
@@ -477,9 +542,13 @@ static int RFTrackingFiltersInit(struct tda_state *state,
 		if (RF2 == 0)
 			break;
 
-		CHK_ERROR(PowerScan(state, RFBand, RF2, &RF2, &bcal));
+		status = PowerScan(state, RFBand, RF2, &RF2, &bcal);
+		if (status < 0)
+			break;
 		if (bcal) {
-			CHK_ERROR(CalibrateRF(state, RFBand, RF2, &Cprog_cal2));
+			status = CalibrateRF(state, RFBand, RF2, &Cprog_cal2);
+			if (status < 0)
+				break;
 		}
 		SearchMap2(m_RF_Cal_Map, RF2, &Cprog_table2);
 		if (!bcal)
@@ -492,9 +561,13 @@ static int RFTrackingFiltersInit(struct tda_state *state,
 		if (RF3 == 0)
 			break;
 
-		CHK_ERROR(PowerScan(state, RFBand, RF3, &RF3, &bcal));
+		status = PowerScan(state, RFBand, RF3, &RF3, &bcal);
+		if (status < 0)
+			break;
 		if (bcal) {
-			CHK_ERROR(CalibrateRF(state, RFBand, RF3, &Cprog_cal3));
+			status = CalibrateRF(state, RFBand, RF3, &Cprog_cal3);
+			if (status < 0)
+				break;
 		}
 		SearchMap2(m_RF_Cal_Map, RF3, &Cprog_table3);
 		if (!bcal)
@@ -543,16 +616,28 @@ static int PowerScan(struct tda_state *state,
 
 		state->m_Regs[EP2] = (RFBand << 5) | Gain_Taper;
 		state->m_Regs[EB14] = (RFC_Cprog);
-		CHK_ERROR(UpdateReg(state, EP2));
-		CHK_ERROR(UpdateReg(state, EB14));
+		status = UpdateReg(state, EP2);
+		if (status < 0)
+			break;
+		status = UpdateReg(state, EB14);
+		if (status < 0)
+			break;
 
 		freq_MainPLL = RF_in + 1000000;
-		CHK_ERROR(CalcMainPLL(state, freq_MainPLL));
+		status = CalcMainPLL(state, freq_MainPLL);
+		if (status < 0)
+			break;
 		msleep(5);
 		state->m_Regs[EP4] = (state->m_Regs[EP4] & ~0x03) | 1;    /* CAL_mode = 1 */
-		CHK_ERROR(UpdateReg(state, EP4));
-		CHK_ERROR(UpdateReg(state, EP2));  /* Launch power measurement */
-		CHK_ERROR(ReadExtented(state, Regs));
+		status = UpdateReg(state, EP4);
+		if (status < 0)
+			break;
+		status = UpdateReg(state, EP2);  /* Launch power measurement */
+		if (status < 0)
+			break;
+		status = ReadExtented(state, Regs);
+		if (status < 0)
+			break;
 		CID_Gain = Regs[EB10] & 0x3F;
 		state->m_Regs[ID] = Regs[ID];  /* Chip version, (needed for C1 workarround in CalibrateRF) */
 
@@ -560,11 +645,17 @@ static int PowerScan(struct tda_state *state,
 
 		while (CID_Gain < CID_Target) {
 			freq_MainPLL = RF_in + sign * Count + 1000000;
-			CHK_ERROR(CalcMainPLL(state, freq_MainPLL));
+			status = CalcMainPLL(state, freq_MainPLL);
+			if (status < 0)
+				break;
 			msleep(wait ? 5 : 1);
 			wait = false;
-			CHK_ERROR(UpdateReg(state, EP2));  /* Launch power measurement */
-			CHK_ERROR(ReadExtented(state, Regs));
+			status = UpdateReg(state, EP2);  /* Launch power measurement */
+			if (status < 0)
+				break;
+			status = ReadExtented(state, Regs);
+			if (status < 0)
+				break;
 			CID_Gain = Regs[EB10] & 0x3F;
 			Count += 200000;
 
@@ -577,7 +668,9 @@ static int PowerScan(struct tda_state *state,
 			Count = 200000;
 			wait = true;
 		}
-		CHK_ERROR(status);
+		status = status;
+		if (status < 0)
+			break;
 		if (CID_Gain >= CID_Target) {
 			*pbcal = true;
 			*pRF_Out = freq_MainPLL - 1000000;
@@ -594,12 +687,18 @@ static int PowerScanInit(struct tda_state *state)
 	do {
 		state->m_Regs[EP3] = (state->m_Regs[EP3] & ~0x1F) | 0x12;
 		state->m_Regs[EP4] = (state->m_Regs[EP4] & ~0x1F); /* If level = 0, Cal mode = 0 */
-		CHK_ERROR(UpdateRegs(state, EP3, EP4));
+		status = UpdateRegs(state, EP3, EP4);
+		if (status < 0)
+			break;
 		state->m_Regs[EB18] = (state->m_Regs[EB18] & ~0x03); /* AGC 1 Gain = 0 */
-		CHK_ERROR(UpdateReg(state, EB18));
+		status = UpdateReg(state, EB18);
+		if (status < 0)
+			break;
 		state->m_Regs[EB21] = (state->m_Regs[EB21] & ~0x03); /* AGC 2 Gain = 0 (Datasheet = 3) */
 		state->m_Regs[EB23] = (state->m_Regs[EB23] | 0x06); /* ForceLP_Fc2_En = 1, LPFc[2] = 1 */
-		CHK_ERROR(UpdateRegs(state, EB21, EB23));
+		status = UpdateRegs(state, EB21, EB23);
+		if (status < 0)
+			break;
 	} while (0);
 	return status;
 }
@@ -609,15 +708,33 @@ static int CalcRFFilterCurve(struct tda_state *state)
 	int status = 0;
 	do {
 		msleep(200);      /* Temperature stabilisation */
-		CHK_ERROR(PowerScanInit(state));
-		CHK_ERROR(RFTrackingFiltersInit(state, 0));
-		CHK_ERROR(RFTrackingFiltersInit(state, 1));
-		CHK_ERROR(RFTrackingFiltersInit(state, 2));
-		CHK_ERROR(RFTrackingFiltersInit(state, 3));
-		CHK_ERROR(RFTrackingFiltersInit(state, 4));
-		CHK_ERROR(RFTrackingFiltersInit(state, 5));
-		CHK_ERROR(RFTrackingFiltersInit(state, 6));
-		CHK_ERROR(ThermometerRead(state, &state->m_TMValue_RFCal)); /* also switches off Cal mode !!! */
+		status = PowerScanInit(state);
+		if (status < 0)
+			break;
+		status = RFTrackingFiltersInit(state, 0);
+		if (status < 0)
+			break;
+		status = RFTrackingFiltersInit(state, 1);
+		if (status < 0)
+			break;
+		status = RFTrackingFiltersInit(state, 2);
+		if (status < 0)
+			break;
+		status = RFTrackingFiltersInit(state, 3);
+		if (status < 0)
+			break;
+		status = RFTrackingFiltersInit(state, 4);
+		if (status < 0)
+			break;
+		status = RFTrackingFiltersInit(state, 5);
+		if (status < 0)
+			break;
+		status = RFTrackingFiltersInit(state, 6);
+		if (status < 0)
+			break;
+		status = ThermometerRead(state, &state->m_TMValue_RFCal); /* also switches off Cal mode !!! */
+		if (status < 0)
+			break;
 	} while (0);
 
 	return status;
@@ -640,17 +757,27 @@ static int FixedContentsI2CUpdate(struct tda_state *state)
 	int status = 0;
 	memcpy(&state->m_Regs[TM], InitRegs, EB23 - TM + 1);
 	do {
-		CHK_ERROR(UpdateRegs(state, TM, EB23));
+		status = UpdateRegs(state, TM, EB23);
+		if (status < 0)
+			break;
 
 		/* AGC1 gain setup */
 		state->m_Regs[EB17] = 0x00;
-		CHK_ERROR(UpdateReg(state, EB17));
+		status = UpdateReg(state, EB17);
+		if (status < 0)
+			break;
 		state->m_Regs[EB17] = 0x03;
-		CHK_ERROR(UpdateReg(state, EB17));
+		status = UpdateReg(state, EB17);
+		if (status < 0)
+			break;
 		state->m_Regs[EB17] = 0x43;
-		CHK_ERROR(UpdateReg(state, EB17));
+		status = UpdateReg(state, EB17);
+		if (status < 0)
+			break;
 		state->m_Regs[EB17] = 0x4C;
-		CHK_ERROR(UpdateReg(state, EB17));
+		status = UpdateReg(state, EB17);
+		if (status < 0)
+			break;
 
 		/* IRC Cal Low band */
 		state->m_Regs[EP3] = 0x1F;
@@ -664,27 +791,39 @@ static int FixedContentsI2CUpdate(struct tda_state *state)
 		state->m_Regs[MD1] = 0x77;
 		state->m_Regs[MD2] = 0x08;
 		state->m_Regs[MD3] = 0x00;
-		CHK_ERROR(UpdateRegs(state, EP2, MD3)); /* diff between sw and datasheet (ep3-md3) */
+		status = UpdateRegs(state, EP2, MD3); /* diff between sw and datasheet (ep3-md3) */
+		if (status < 0)
+			break;
 
 #if 0
 		state->m_Regs[EB4] = 0x61;          /* missing in sw */
-		CHK_ERROR(UpdateReg(state, EB4));
+		status = UpdateReg(state, EB4);
+		if (status < 0)
+			break;
 		msleep(1);
 		state->m_Regs[EB4] = 0x41;
-		CHK_ERROR(UpdateReg(state, EB4));
+		status = UpdateReg(state, EB4);
+		if (status < 0)
+			break;
 #endif
 
 		msleep(5);
-		CHK_ERROR(UpdateReg(state, EP1));
+		status = UpdateReg(state, EP1);
+		if (status < 0)
+			break;
 		msleep(5);
 
 		state->m_Regs[EP5] = 0x85;
 		state->m_Regs[CPD] = 0xCB;
 		state->m_Regs[CD1] = 0x66;
 		state->m_Regs[CD2] = 0x70;
-		CHK_ERROR(UpdateRegs(state, EP3, CD3));
+		status = UpdateRegs(state, EP3, CD3);
+		if (status < 0)
+			break;
 		msleep(5);
-		CHK_ERROR(UpdateReg(state, EP2));
+		status = UpdateReg(state, EP2);
+		if (status < 0)
+			break;
 		msleep(30);
 
 		/* IRC Cal mid band */
@@ -694,19 +833,27 @@ static int FixedContentsI2CUpdate(struct tda_state *state)
 		state->m_Regs[MPD] = 0xA1; /* Datasheet = 0xA9 */
 		state->m_Regs[MD1] = 0x73;
 		state->m_Regs[MD2] = 0x1A;
-		CHK_ERROR(UpdateRegs(state, EP3, MD3));
+		status = UpdateRegs(state, EP3, MD3);
+		if (status < 0)
+			break;
 
 		msleep(5);
-		CHK_ERROR(UpdateReg(state, EP1));
+		status = UpdateReg(state, EP1);
+		if (status < 0)
+			break;
 		msleep(5);
 
 		state->m_Regs[EP5] = 0x86;
 		state->m_Regs[CPD] = 0xA8;
 		state->m_Regs[CD1] = 0x66;
 		state->m_Regs[CD2] = 0xA0;
-		CHK_ERROR(UpdateRegs(state, EP3, CD3));
+		status = UpdateRegs(state, EP3, CD3);
+		if (status < 0)
+			break;
 		msleep(5);
-		CHK_ERROR(UpdateReg(state, EP2));
+		status = UpdateReg(state, EP2);
+		if (status < 0)
+			break;
 		msleep(30);
 
 		/* IRC Cal high band */
@@ -717,22 +864,34 @@ static int FixedContentsI2CUpdate(struct tda_state *state)
 		state->m_Regs[MPD] = 0x91;  /* Datasheet = 0x91 */
 		state->m_Regs[MD1] = 0x71;
 		state->m_Regs[MD2] = 0xCD;
-		CHK_ERROR(UpdateRegs(state, EP3, MD3));
+		status = UpdateRegs(state, EP3, MD3);
+		if (status < 0)
+			break;
 		msleep(5);
-		CHK_ERROR(UpdateReg(state, EP1));
+		status = UpdateReg(state, EP1);
+		if (status < 0)
+			break;
 		msleep(5);
 		state->m_Regs[EP5] = 0x87;
 		state->m_Regs[CD1] = 0x65;
 		state->m_Regs[CD2] = 0x50;
-		CHK_ERROR(UpdateRegs(state, EP3, CD3));
+		status = UpdateRegs(state, EP3, CD3);
+		if (status < 0)
+			break;
 		msleep(5);
-		CHK_ERROR(UpdateReg(state, EP2));
+		status = UpdateReg(state, EP2);
+		if (status < 0)
+			break;
 		msleep(30);
 
 		/* Back to normal */
 		state->m_Regs[EP4] = 0x64;
-		CHK_ERROR(UpdateReg(state, EP4));
-		CHK_ERROR(UpdateReg(state, EP1));
+		status = UpdateReg(state, EP4);
+		if (status < 0)
+			break;
+		status = UpdateReg(state, EP1);
+		if (status < 0)
+			break;
 
 	} while (0);
 	return status;
@@ -743,9 +902,15 @@ static int InitCal(struct tda_state *state)
 	int status = 0;
 
 	do {
-		CHK_ERROR(FixedContentsI2CUpdate(state));
-		CHK_ERROR(CalcRFFilterCurve(state));
-		CHK_ERROR(StandBy(state));
+		status = FixedContentsI2CUpdate(state);
+		if (status < 0)
+			break;
+		status = CalcRFFilterCurve(state);
+		if (status < 0)
+			break;
+		status = StandBy(state);
+		if (status < 0)
+			break;
 		/* m_bInitDone = true; */
 	} while (0);
 	return status;
@@ -778,9 +943,13 @@ static int RFTrackingFiltersCorrection(struct tda_state *state,
 		int TComp;
 
 		state->m_Regs[EP3] &= ~0xE0;  /* Power up */
-		CHK_ERROR(UpdateReg(state, EP3));
+		status = UpdateReg(state, EP3);
+		if (status < 0)
+			break;
 
-		CHK_ERROR(ThermometerRead(state, &TMValue_Current));
+		status = ThermometerRead(state, &TMValue_Current);
+		if (status < 0)
+			break;
 
 		if (RF3 == 0 || Frequency < RF2)
 			Capprox = RF_A1 * ((s32)(Frequency) - (s32)(RF1)) + RF_B1 + Cprog_table;
@@ -801,7 +970,9 @@ static int RFTrackingFiltersCorrection(struct tda_state *state,
 		/*      missing in the datasheet, so leave it out for now.           */
 		state->m_Regs[EB14] = Capprox;
 
-		CHK_ERROR(UpdateReg(state, EB14));
+		status = UpdateReg(state, EB14);
+		if (status < 0)
+			break;
 
 	} while (0);
 	return status;
@@ -863,7 +1034,9 @@ static int ChannelConfiguration(struct tda_state *state,
 		else
 			state->m_Regs[EB23] &= ~0x06; /* ForceLP_Fc2_En = 0, LPFc[2] = 0 */
 
-		CHK_ERROR(UpdateRegs(state, EB22, EB23));
+		status = UpdateRegs(state, EB22, EB23);
+		if (status < 0)
+			break;
 
 		state->m_Regs[EP1] = (state->m_Regs[EP1] & ~0x07) | 0x40 | BP_Filter;   /* Dis_Power_level = 1, Filter */
 		state->m_Regs[EP5] = (state->m_Regs[EP5] & ~0x07) | IR_Meas;
@@ -873,36 +1046,58 @@ static int ChannelConfiguration(struct tda_state *state,
 			(state->m_bMaster ? 0x04 : 0x00); /* CALVCO_FortLOn = MS */
 		/* AGC1_always_master = 0 */
 		/* AGC_firstn = 0 */
-		CHK_ERROR(UpdateReg(state, EB1));
+		status = UpdateReg(state, EB1);
+		if (status < 0)
+			break;
 
 		if (state->m_bMaster) {
-			CHK_ERROR(CalcMainPLL(state, Frequency + IntermediateFrequency));
-			CHK_ERROR(UpdateRegs(state, TM, EP5));
+			status = CalcMainPLL(state, Frequency + IntermediateFrequency);
+			if (status < 0)
+				break;
+			status = UpdateRegs(state, TM, EP5);
+			if (status < 0)
+				break;
 			state->m_Regs[EB4] |= 0x20;    /* LO_forceSrce = 1 */
-			CHK_ERROR(UpdateReg(state, EB4));
+			status = UpdateReg(state, EB4);
+			if (status < 0)
+				break;
 			msleep(1);
 			state->m_Regs[EB4] &= ~0x20;   /* LO_forceSrce = 0 */
-			CHK_ERROR(UpdateReg(state, EB4));
+			status = UpdateReg(state, EB4);
+			if (status < 0)
+				break;
 		} else {
 			u8 PostDiv = 0;
 			u8 Div;
-			CHK_ERROR(CalcCalPLL(state, Frequency + IntermediateFrequency));
+			status = CalcCalPLL(state, Frequency + IntermediateFrequency);
+			if (status < 0)
+				break;
 
 			SearchMap3(m_Cal_PLL_Map, Frequency + IntermediateFrequency, &PostDiv, &Div);
 			state->m_Regs[MPD] = (state->m_Regs[MPD] & ~0x7F) | (PostDiv & 0x77);
-			CHK_ERROR(UpdateReg(state, MPD));
-			CHK_ERROR(UpdateRegs(state, TM, EP5));
+			status = UpdateReg(state, MPD);
+			if (status < 0)
+				break;
+			status = UpdateRegs(state, TM, EP5);
+			if (status < 0)
+				break;
 
 			state->m_Regs[EB7] |= 0x20;    /* CAL_forceSrce = 1 */
-			CHK_ERROR(UpdateReg(state, EB7));
+			status = UpdateReg(state, EB7);
+			if (status < 0)
+				break;
 			msleep(1);
 			state->m_Regs[EB7] &= ~0x20;   /* CAL_forceSrce = 0 */
-			CHK_ERROR(UpdateReg(state, EB7));
+			status = UpdateReg(state, EB7);
+			if (status < 0)
+				break;
 		}
 		msleep(20);
 		if (Standard != HF_FM_Radio)
 			state->m_Regs[EP3] |= 0x04;    /* RFAGC to normal mode */
-		CHK_ERROR(UpdateReg(state, EP3));
+		status = UpdateReg(state, EP3);
+		if (status < 0)
+			break;
 
 	} while (0);
 	return status;
@@ -955,8 +1150,12 @@ static int set_params(struct dvb_frontend *fe,
 	} else
 		return -EINVAL;
 	do {
-		CHK_ERROR(RFTrackingFiltersCorrection(state, params->frequency));
-		CHK_ERROR(ChannelConfiguration(state, params->frequency, Standard));
+		status = RFTrackingFiltersCorrection(state, params->frequency);
+		if (status < 0)
+			break;
+		status = ChannelConfiguration(state, params->frequency, Standard);
+		if (status < 0)
+			break;
 
 		msleep(state->m_SettlingTime);  /* Allow AGC's to settle down */
 	} while (0);
