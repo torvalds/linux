@@ -2474,14 +2474,6 @@ generic_ip_connect(struct TCP_Server_Info *server)
 	if (rc < 0)
 		return rc;
 
-	rc = socket->ops->connect(socket, saddr, slen, 0);
-	if (rc < 0) {
-		cFYI(1, "Error %d connecting to server", rc);
-		sock_release(socket);
-		server->ssocket = NULL;
-		return rc;
-	}
-
 	/*
 	 * Eventually check for other socket options to change from
 	 * the default. sock_setsockopt not used because it expects
@@ -2509,6 +2501,14 @@ generic_ip_connect(struct TCP_Server_Info *server)
 	 cFYI(1, "sndbuf %d rcvbuf %d rcvtimeo 0x%lx",
 		 socket->sk->sk_sndbuf,
 		 socket->sk->sk_rcvbuf, socket->sk->sk_rcvtimeo);
+
+	rc = socket->ops->connect(socket, saddr, slen, 0);
+	if (rc < 0) {
+		cFYI(1, "Error %d connecting to server", rc);
+		sock_release(socket);
+		server->ssocket = NULL;
+		return rc;
+	}
 
 	if (sport == htons(RFC1001_PORT))
 		rc = ip_rfc1001_connect(server);
