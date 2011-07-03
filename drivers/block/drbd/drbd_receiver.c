@@ -3200,8 +3200,8 @@ static int ignore_remaining_packet(struct drbd_tconn *tconn, struct packet_info 
  */
 static int config_unknown_volume(struct drbd_tconn *tconn, struct packet_info *pi)
 {
-	conn_warn(tconn, "Volume %u unknown; ignoring %s packet\n",
-		  pi->vnr, cmdname(pi->cmd));
+	conn_warn(tconn, "%s packet received for volume %u, which is not configured locally\n",
+		  cmdname(pi->cmd), pi->vnr);
 	return ignore_remaining_packet(tconn, pi);
 }
 
@@ -4256,13 +4256,15 @@ static void drbdd(struct drbd_tconn *tconn)
 
 		cmd = &drbd_cmd_handler[pi.cmd];
 		if (unlikely(pi.cmd >= ARRAY_SIZE(drbd_cmd_handler) || !cmd->fn)) {
-			conn_err(tconn, "unknown packet type %d, l: %d!\n", pi.cmd, pi.size);
+			conn_err(tconn, "Unexpected data packet %s (0x%04x)",
+				 cmdname(pi.cmd), pi.cmd);
 			goto err_out;
 		}
 
 		shs = cmd->pkt_size;
 		if (pi.size > shs && !cmd->expect_payload) {
-			conn_err(tconn, "No payload expected %s l:%d\n", cmdname(pi.cmd), pi.size);
+			conn_err(tconn, "No payload expected %s l:%d\n",
+				 cmdname(pi.cmd), pi.size);
 			goto err_out;
 		}
 
@@ -4474,7 +4476,7 @@ static int drbd_do_features(struct drbd_tconn *tconn)
 
 	if (pi.cmd != P_CONNECTION_FEATURES) {
 		conn_err(tconn, "expected ConnectionFeatures packet, received: %s (0x%04x)\n",
-		     cmdname(pi.cmd), pi.cmd);
+			 cmdname(pi.cmd), pi.cmd);
 		return -1;
 	}
 
@@ -4583,7 +4585,7 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 
 	if (pi.cmd != P_AUTH_CHALLENGE) {
 		conn_err(tconn, "expected AuthChallenge packet, received: %s (0x%04x)\n",
-		    cmdname(pi.cmd), pi.cmd);
+			 cmdname(pi.cmd), pi.cmd);
 		rv = 0;
 		goto fail;
 	}
@@ -4642,7 +4644,7 @@ static int drbd_do_auth(struct drbd_tconn *tconn)
 
 	if (pi.cmd != P_AUTH_RESPONSE) {
 		conn_err(tconn, "expected AuthResponse packet, received: %s (0x%04x)\n",
-			cmdname(pi.cmd), pi.cmd);
+			 cmdname(pi.cmd), pi.cmd);
 		rv = 0;
 		goto fail;
 	}
@@ -5192,8 +5194,8 @@ int drbd_asender(struct drbd_thread *thi)
 				goto reconnect;
 			cmd = &asender_tbl[pi.cmd];
 			if (pi.cmd >= ARRAY_SIZE(asender_tbl) || !cmd->fn) {
-				conn_err(tconn, "unknown command %d on meta (l: %d)\n",
-					pi.cmd, pi.size);
+				conn_err(tconn, "Unexpected meta packet %s (0x%04x)\n",
+					 cmdname(pi.cmd), pi.cmd);
 				goto disconnect;
 			}
 			expect = header_size + cmd->pkt_size;
