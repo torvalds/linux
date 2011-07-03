@@ -87,6 +87,8 @@ struct ehci_hcd {			/* one per controller */
 	union ehci_shadow	*pshadow;	/* mirror hw periodic table */
 	int			next_uframe;	/* scan periodic, start here */
 	unsigned		periodic_sched;	/* periodic activity count */
+	unsigned		uframe_periodic_max; /* max periodic time per uframe */
+
 
 	/* list of itds & sitds completed while clock_frame was still active */
 	struct list_head	cached_itd_list;
