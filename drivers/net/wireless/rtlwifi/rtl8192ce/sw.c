@@ -28,6 +28,7 @@
  *****************************************************************************/
 
 #include <linux/vmalloc.h>
+#include <linux/module.h>
 
 #include "../wifi.h"
 #include "../core.h"

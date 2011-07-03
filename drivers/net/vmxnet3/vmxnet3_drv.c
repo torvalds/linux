@@ -24,6 +24,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <net/ip6_checksum.h>
 
 #include "vmxnet3_int.h"

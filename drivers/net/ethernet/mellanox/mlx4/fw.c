@@ -33,6 +33,7 @@
  */
 
 #include <linux/mlx4/cmd.h>
+#include <linux/module.h>
 #include <linux/cache.h>
 
 #include "fw.h"
