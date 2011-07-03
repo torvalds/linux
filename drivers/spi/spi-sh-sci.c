@@ -22,6 +22,7 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
+#include <linux/module.h>
 
 #include <asm/spi.h>
 #include <asm/io.h>

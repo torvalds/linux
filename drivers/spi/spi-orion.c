@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/orion_spi.h>
+#include <linux/module.h>
 #include <asm/unaligned.h>
 
 #define DRIVER_NAME			"orion_spi"
