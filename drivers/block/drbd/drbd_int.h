@@ -1239,9 +1239,9 @@ extern struct bio *bio_alloc_drbd(gfp_t gfp_mask);
 extern rwlock_t global_state_lock;
 
 extern int conn_lowest_minor(struct drbd_connection *connection);
-enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigned int minor, int vnr);
+enum drbd_ret_code drbd_create_device(struct drbd_connection *connection, unsigned int minor, int vnr);
 extern void drbd_destroy_device(struct kref *kref);
-extern void drbd_delete_minor(struct drbd_device *mdev);
+extern void drbd_delete_device(struct drbd_device *mdev);
 
 extern struct drbd_resource *drbd_create_resource(const char *name);
 extern void drbd_free_resource(struct drbd_resource *resource);

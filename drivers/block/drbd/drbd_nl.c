@@ -3328,7 +3328,7 @@ int drbd_adm_new_minor(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	retcode = drbd_create_minor(adm_ctx.connection, dh->minor, adm_ctx.volume);
+	retcode = drbd_create_device(adm_ctx.connection, dh->minor, adm_ctx.volume);
 out:
 	drbd_adm_finish(info, retcode);
 	return 0;
@@ -3343,7 +3343,7 @@ static enum drbd_ret_code adm_del_minor(struct drbd_device *device)
 	    device->state.role == R_SECONDARY) {
 		_drbd_request_state(device, NS(conn, C_WF_REPORT_PARAMS),
 				    CS_VERBOSE + CS_WAIT_COMPLETE);
-		drbd_delete_minor(device);
+		drbd_delete_device(device);
 		return NO_ERROR;
 	} else
 		return ERR_MINOR_CONFIGURED;

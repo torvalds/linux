@@ -2327,7 +2327,7 @@ static void drbd_cleanup(void)
 	drbd_genl_unregister();
 
 	idr_for_each_entry(&drbd_devices, device, i)
-		drbd_delete_minor(device);
+		drbd_delete_device(device);
 
 	/* not _rcu since, no other updater anymore. Genl already unregistered */
 	for_each_resource_safe(resource, tmp, &drbd_resources) {
@@ -2659,7 +2659,7 @@ static int init_submitter(struct drbd_device *device)
 	return 0;
 }
 
-enum drbd_ret_code drbd_create_minor(struct drbd_connection *connection, unsigned int minor, int vnr)
+enum drbd_ret_code drbd_create_device(struct drbd_connection *connection, unsigned int minor, int vnr)
 {
 	struct drbd_resource *resource = connection->resource;
 	struct drbd_device *device;
@@ -2809,7 +2809,7 @@ out_no_peer_device:
 	return err;
 }
 
-void drbd_delete_minor(struct drbd_device *device)
+void drbd_delete_device(struct drbd_device *device)
 {
 	struct drbd_resource *resource = device->resource;
 	struct drbd_connection *connection;
