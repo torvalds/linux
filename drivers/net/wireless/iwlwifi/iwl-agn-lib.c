@@ -391,8 +391,7 @@ void iwl_check_abort_status(struct iwl_priv *priv,
 	}
 }
 
-static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
-				struct iwl_rx_mem_buffer *rxb)
+void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -477,19 +476,6 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
-}
-
-void iwlagn_rx_handler_setup(struct iwl_priv *priv)
-{
-	/* init calibration handlers */
-	priv->rx_handlers[CALIBRATION_RES_NOTIFICATION] =
-					iwlagn_rx_calib_result;
-	priv->rx_handlers[REPLY_TX] = iwlagn_rx_reply_tx;
-
-	/* set up notification wait support */
-	spin_lock_init(&priv->_agn.notif_wait_lock);
-	INIT_LIST_HEAD(&priv->_agn.notif_waits);
-	init_waitqueue_head(&priv->_agn.notif_waitq);
 }
 
 void iwlagn_setup_deferred_work(struct iwl_priv *priv)
@@ -1762,7 +1748,6 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 
 void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv)
 {
-	iwlagn_rx_handler_setup(priv);
 	priv->rx_handlers[REPLY_BT_COEX_PROFILE_NOTIF] =
 		iwlagn_bt_coex_profile_notif;
 }

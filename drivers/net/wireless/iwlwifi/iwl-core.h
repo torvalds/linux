@@ -83,8 +83,8 @@ struct iwl_cmd;
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
-	/* setup Rx handler */
-	void (*rx_handler_setup)(struct iwl_priv *priv);
+	/* setup BT Rx handler */
+	void (*bt_rx_handler_setup)(struct iwl_priv *priv);
 	/* setup deferred work */
 	void (*setup_deferred_work)(struct iwl_priv *priv);
 	/* cancel deferred work */
