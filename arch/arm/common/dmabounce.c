@@ -210,10 +210,7 @@ static struct safe_buffer *find_safe_buffer_dev(struct device *dev,
 	if (!dev || !dev->archdata.dmabounce)
 		return NULL;
 	if (dma_mapping_error(dev, dma_addr)) {
-		if (dev)
-			dev_err(dev, "Trying to %s invalid mapping\n", where);
-		else
-			pr_err("unknown device: Trying to %s invalid mapping\n", where);
+		dev_err(dev, "Trying to %s invalid mapping\n", where);
 		return NULL;
 	}
 	return find_safe_buffer(dev->archdata.dmabounce, dma_addr);
