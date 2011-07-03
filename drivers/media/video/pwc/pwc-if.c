@@ -999,6 +999,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			PWC_INFO("Logitech QuickCam 4000 Pro USB webcam detected.\n");
 			name = "Logitech QuickCam Pro 4000";
 			type_id = 740; /* CCD sensor */
+			if (my_power_save == -1)
+				my_power_save = 1;
 			break;
 		case 0x08b3:
 			PWC_INFO("Logitech QuickCam Zoom USB webcam detected.\n");
@@ -1016,6 +1018,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			PWC_INFO("Logitech QuickCam Orbit/Sphere USB webcam detected.\n");
 			name = "Logitech QuickCam Orbit";
 			type_id = 740; /* CCD sensor */
+			if (my_power_save == -1)
+				my_power_save = 1;
 			features |= FEATURE_MOTOR_PANTILT;
 			break;
 		case 0x08b6:
@@ -1070,6 +1074,8 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 			PWC_INFO("Creative Labs Webcam 5 detected.\n");
 			name = "Creative Labs Webcam 5";
 			type_id = 730;
+			if (my_power_save == -1)
+				my_power_save = 1;
 			break;
 		case 0x4011:
 			PWC_INFO("Creative Labs Webcam Pro Ex detected.\n");
