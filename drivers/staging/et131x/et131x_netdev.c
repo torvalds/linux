@@ -88,22 +88,18 @@
 #include "et131x_adapter.h"
 #include "et131x.h"
 
-struct net_device_stats *et131x_stats(struct net_device *netdev);
-
 /**
  * et131x_stats - Return the current device statistics.
  * @netdev: device whose stats are being queried
  *
  * Returns 0 on success, errno on failure (as defined in errno.h)
  */
-struct net_device_stats *et131x_stats(struct net_device *netdev)
+static struct net_device_stats *et131x_stats(struct net_device *netdev)
 {
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct net_device_stats *stats = &adapter->net_stats;
 	struct ce_stats *devstat = &adapter->stats;
 
-	stats->rx_packets = devstat->ipackets;
-	stats->tx_packets = devstat->opackets;
 	stats->rx_errors = devstat->length_err + devstat->alignment_err +
 	    devstat->crc_err + devstat->code_violations + devstat->other_errors;
 	stats->tx_errors = devstat->max_pkt_error;

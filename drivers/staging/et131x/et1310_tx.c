@@ -673,7 +673,7 @@ inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 	/* Add the TCB to the Ready Q */
 	spin_lock_irqsave(&etdev->TCBReadyQLock, flags);
 
-	etdev->stats.opackets++;
+	etdev->net_stats.tx_packets++;
 
 	if (etdev->tx_ring.tcb_qtail)
 		etdev->tx_ring.tcb_qtail->next = tcb;

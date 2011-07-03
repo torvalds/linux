@@ -1131,7 +1131,7 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 			continue;
 
 		/* Increment the number of packets we received */
-		etdev->stats.ipackets++;
+		etdev->net_stats.rx_packets++;
 
 		/* Set the status on the packet, either resources or success */
 		if (etdev->rx_ring.nReadyRecv < RFD_LOW_WATER_MARK) {

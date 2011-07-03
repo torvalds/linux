@@ -99,10 +99,6 @@ struct rfd {
 
 /* Struct to define some device statistics */
 struct ce_stats {
-	/* Link Input/Output stats */
-	uint64_t ipackets;	/* # of in packets */
-	uint64_t opackets;	/* # of out packets */
-
 	/* MIB II variables
 	 *
 	 * NOTE: atomic_t types are only guaranteed to store 24-bits; if we
@@ -242,7 +238,6 @@ struct et131x_adapter {
 	struct ce_stats stats;
 
 	struct net_device_stats net_stats;
-	struct net_device_stats net_stats_prev;
 };
 
 #endif /* __ET131X_ADAPTER_H__ */
