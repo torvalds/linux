@@ -2662,7 +2662,7 @@ static void __exit f71882fg_exit(void)
 }
 
 MODULE_DESCRIPTION("F71882FG Hardware Monitoring Driver");
-MODULE_AUTHOR("Hans Edgington, Hans de Goede (hdegoede@redhat.com)");
+MODULE_AUTHOR("Hans Edgington, Hans de Goede <hdegoede@redhat.com>");
 MODULE_LICENSE("GPL");
 
 module_init(f71882fg_init);
