@@ -49,9 +49,9 @@ t32_simulate_table_branch(struct kprobe *p, struct pt_regs *regs)
 	unsigned long rmv = regs->uregs[rm];
 	unsigned int halfwords;
 
-	if (insn & 0x10)
+	if (insn & 0x10) /* TBH */
 		halfwords = ((u16 *)rnv)[rmv];
-	else
+	else /* TBB */
 		halfwords = ((u8 *)rnv)[rmv];
 
 	regs->ARM_pc = pc + 2 * halfwords;
@@ -64,6 +64,58 @@ t32_simulate_mrs(struct kprobe *p, struct pt_regs *regs)
 	int rd = (insn >> 8) & 0xf;
 	unsigned long mask = 0xf8ff03df; /* Mask out execution state */
 	regs->uregs[rd] = regs->ARM_cpsr & mask;
+}
+
+static void __kprobes
+t32_simulate_cond_branch(struct kprobe *p, struct pt_regs *regs)
+{
+	kprobe_opcode_t insn = p->opcode;
+	unsigned long pc = thumb_probe_pc(p);
+
+	long offset = insn & 0x7ff;		/* imm11 */
+	offset += (insn & 0x003f0000) >> 5;	/* imm6 */
+	offset += (insn & 0x00002000) << 4;	/* J1 */
+	offset += (insn & 0x00000800) << 7;	/* J2 */
+	offset -= (insn & 0x04000000) >> 7;	/* Apply sign bit */
+
+	regs->ARM_pc = pc + (offset * 2);
+}
+
+static enum kprobe_insn __kprobes
+t32_decode_cond_branch(kprobe_opcode_t insn, struct arch_specific_insn *asi)
+{
+	int cc = (insn >> 22) & 0xf;
+	asi->insn_check_cc = kprobe_condition_checks[cc];
+	asi->insn_handler = t32_simulate_cond_branch;
+	return INSN_GOOD_NO_SLOT;
+}
+
+static void __kprobes
+t32_simulate_branch(struct kprobe *p, struct pt_regs *regs)
+{
+	kprobe_opcode_t insn = p->opcode;
+	unsigned long pc = thumb_probe_pc(p);
+
+	long offset = insn & 0x7ff;		/* imm11 */
+	offset += (insn & 0x03ff0000) >> 5;	/* imm10 */
+	offset += (insn & 0x00002000) << 9;	/* J1 */
+	offset += (insn & 0x00000800) << 10;	/* J2 */
+	if (insn & 0x04000000)
+		offset -= 0x00800000; /* Apply sign bit */
+	else
+		offset ^= 0x00600000; /* Invert J1 and J2 */
+
+	if (insn & (1 << 14)) {
+		/* BL or BLX */
+		regs->ARM_lr = (unsigned long)p->addr + 4;
+		if (!(insn & (1 << 12))) {
+			/* BLX so switch to ARM mode */
+			regs->ARM_cpsr &= ~PSR_T_BIT;
+			pc &= ~3;
+		}
+	}
+
+	regs->ARM_pc = pc + (offset * 2);
 }
 
 static enum kprobe_insn __kprobes
@@ -424,6 +476,15 @@ static const union decode_item t32_table_1111_0xxx___1[] = {
 	 * ???			1111 0111 1xxx xxxx 1010 xxxx xxxx xxxx
 	 */
 	DECODE_REJECT	(0xfb80d000, 0xf3808000),
+
+	/* Bcc			1111 0xxx xxxx xxxx 10x0 xxxx xxxx xxxx */
+	DECODE_CUSTOM	(0xf800d000, 0xf0008000, t32_decode_cond_branch),
+
+	/* BLX			1111 0xxx xxxx xxxx 11x0 xxxx xxxx xxx0 */
+	DECODE_OR	(0xf800d001, 0xf000c000),
+	/* B			1111 0xxx xxxx xxxx 10x1 xxxx xxxx xxxx */
+	/* BL			1111 0xxx xxxx xxxx 11x1 xxxx xxxx xxxx */
+	DECODE_SIMULATE	(0xf8009000, 0xf0009000, t32_simulate_branch),
 
 	DECODE_END
 };
