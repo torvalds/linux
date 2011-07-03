@@ -133,9 +133,9 @@ void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 		}
 		return 0;
 	}
-	if (chan->users > 0) {
+	if (chan->users > 0)
 		dvb_dmx_swfilter(&chan->demux, buf, len);
-	}
+
 	return NULL;
 }
 

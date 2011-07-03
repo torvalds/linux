@@ -855,7 +855,7 @@ struct ngene_info {
 };
 
 #ifdef NGENE_V4L
-struct ngene_format{
+struct ngene_format {
 	char *name;
 	int   fourcc;          /* video4linux 2      */
 	int   btformat;        /* BT848_COLOR_FMT_*  */

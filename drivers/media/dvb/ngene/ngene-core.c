@@ -41,7 +41,7 @@
 
 #include "ngene.h"
 
-static int one_adapter = 0;
+static int one_adapter;
 module_param(one_adapter, int, 0444);
 MODULE_PARM_DESC(one_adapter, "Use only one adapter.");
 
@@ -1443,9 +1443,9 @@ static void release_channel(struct ngene_channel *chan)
 		chan->ci_dev = NULL;
 	}
 
-	if (chan->fe2) {
+	if (chan->fe2)
 		dvb_unregister_frontend(chan->fe2);
-	}
+
 	if (chan->fe) {
 		dvb_unregister_frontend(chan->fe);
 		dvb_frontend_detach(chan->fe);
@@ -1540,10 +1540,10 @@ static int init_channel(struct ngene_channel *chan)
 	if (chan->fe2) {
 		if (dvb_register_frontend(adapter, chan->fe2) < 0)
 			goto err;
-			chan->fe2->tuner_priv=chan->fe->tuner_priv;
-			memcpy(&chan->fe2->ops.tuner_ops,
-			       &chan->fe->ops.tuner_ops,
-			       sizeof(struct dvb_tuner_ops));
+		chan->fe2->tuner_priv = chan->fe->tuner_priv;
+		memcpy(&chan->fe2->ops.tuner_ops,
+		       &chan->fe->ops.tuner_ops,
+		       sizeof(struct dvb_tuner_ops));
 	}
 
 	if (chan->has_demux) {
