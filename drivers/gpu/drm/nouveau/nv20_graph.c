@@ -753,6 +753,7 @@ nv20_graph_create(struct drm_device *dev)
 			break;
 		default:
 			NV_ERROR(dev, "PGRAPH: unknown chipset\n");
+			kfree(pgraph);
 			return 0;
 		}
 	} else {
@@ -774,6 +775,7 @@ nv20_graph_create(struct drm_device *dev)
 			break;
 		default:
 			NV_ERROR(dev, "PGRAPH: unknown chipset\n");
+			kfree(pgraph);
 			return 0;
 		}
 	}
