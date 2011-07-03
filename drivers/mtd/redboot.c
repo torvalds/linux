@@ -28,6 +28,7 @@
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/module.h>
 
 struct fis_image_desc {
     unsigned char name[16];      // Null terminated name

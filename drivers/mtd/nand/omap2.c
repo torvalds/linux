@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
 #include <linux/sched.h>

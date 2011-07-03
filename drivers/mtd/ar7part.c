@@ -27,6 +27,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/bootmem.h>
 #include <linux/magic.h>
+#include <linux/module.h>
 
 #define AR7_PARTS	4
 #define ROOT_OFFSET	0xe0000

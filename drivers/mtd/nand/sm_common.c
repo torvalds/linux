@@ -8,6 +8,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/mtd/nand.h>
+#include <linux/module.h>
 #include "sm_common.h"
 
 static struct nand_ecclayout nand_oob_sm = {

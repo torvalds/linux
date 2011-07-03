@@ -43,6 +43,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/bootmem.h>
+#include <linux/module.h>
 
 /* error message prefix */
 #define ERRP "mtd: "
