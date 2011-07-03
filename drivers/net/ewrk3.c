@@ -1008,15 +1008,13 @@ static int ewrk3_rx(struct net_device *dev)
 							}
 						}
 						p = skb->data;	/* Look at the dest addr */
-						if (p[0] & 0x01) {	/* Multicast/Broadcast */
-							if ((*(s16 *) & p[0] == -1) && (*(s16 *) & p[2] == -1) && (*(s16 *) & p[4] == -1)) {
+						if (is_multicast_ether_addr(p)) {
+							if (is_broadcast_ether_addr(p)) {
 								lp->pktStats.broadcast++;
 							} else {
 								lp->pktStats.multicast++;
 							}
-						} else if ((*(s16 *) & p[0] == *(s16 *) & dev->dev_addr[0]) &&
-							   (*(s16 *) & p[2] == *(s16 *) & dev->dev_addr[2]) &&
-							   (*(s16 *) & p[4] == *(s16 *) & dev->dev_addr[4])) {
+						} else if (compare_ether_addr(p, dev->dev_addr) == 0) {
 							lp->pktStats.unicast++;
 						}
 						lp->pktStats.bins[0]++;		/* Duplicates stats.rx_packets */
