@@ -107,7 +107,7 @@ union drbd_dev_state {
 	unsigned int i;
 };
 
-extern enum drbd_state_rv drbd_change_state(struct drbd_device *mdev,
+extern enum drbd_state_rv drbd_change_state(struct drbd_device *device,
 					    enum chg_state_flags f,
 					    union drbd_state mask,
 					    union drbd_state val);
@@ -131,12 +131,12 @@ enum drbd_state_rv
 conn_request_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
 		   enum chg_state_flags flags);
 
-extern void drbd_resume_al(struct drbd_device *mdev);
+extern void drbd_resume_al(struct drbd_device *device);
 extern bool conn_all_vols_unconf(struct drbd_tconn *tconn);
 
 /**
  * drbd_request_state() - Reqest a state change
- * @mdev:	DRBD device.
+ * @device:	DRBD device.
  * @mask:	mask of state bits to change.
  * @val:	value of new state bits.
  *
@@ -144,11 +144,11 @@ extern bool conn_all_vols_unconf(struct drbd_tconn *tconn);
  * quite verbose in case the state change is not possible, and all those
  * state changes are globally serialized.
  */
-static inline int drbd_request_state(struct drbd_device *mdev,
+static inline int drbd_request_state(struct drbd_device *device,
 				     union drbd_state mask,
 				     union drbd_state val)
 {
-	return _drbd_request_state(mdev, mask, val, CS_VERBOSE + CS_ORDERED);
+	return _drbd_request_state(device, mask, val, CS_VERBOSE + CS_ORDERED);
 }
 
 enum drbd_role conn_highest_role(struct drbd_tconn *tconn);
