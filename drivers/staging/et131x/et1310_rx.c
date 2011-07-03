@@ -1126,10 +1126,9 @@ void et131x_handle_recv_interrupt(struct et131x_adapter *etdev)
 		 * Free buffer ring.
 		 */
 		if (!etdev->PacketFilter ||
-		    !(etdev->Flags & fMP_ADAPTER_LINK_DETECTION) ||
-		    rfd->len == 0) {
+		    !netif_carrier_ok(etdev->netdev) ||
+		    rfd->len == 0)
 			continue;
-		}
 
 		/* Increment the number of packets we received */
 		etdev->stats.ipackets++;

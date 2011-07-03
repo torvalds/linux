@@ -450,10 +450,6 @@ void et131x_tx_timeout(struct net_device *netdev)
 	struct tcb *tcb;
 	unsigned long flags;
 
-	/* Just skip this part if the adapter is doing link detection */
-	if (etdev->Flags & fMP_ADAPTER_LINK_DETECTION)
-		return;
-
 	/* Any nonrecoverable hardware error?
 	 * Checks adapter->flags for any failure in phy reading
 	 */

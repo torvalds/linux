@@ -750,7 +750,6 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 			spin_lock_irqsave(&etdev->Lock, flags);
 
 			etdev->MediaState = NETIF_STATUS_MEDIA_CONNECT;
-			etdev->Flags &= ~fMP_ADAPTER_LINK_DETECTION;
 
 			spin_unlock_irqrestore(&etdev->Lock, flags);
 
@@ -780,8 +779,7 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 			 * Timer expires, we can report disconnected (handled
 			 * in the LinkDetectionDPC).
 			 */
-			if (!(etdev->Flags & fMP_ADAPTER_LINK_DETECTION) ||
-			 (etdev->MediaState == NETIF_STATUS_MEDIA_DISCONNECT)) {
+			if ((etdev->MediaState == NETIF_STATUS_MEDIA_DISCONNECT)) {
 				spin_lock_irqsave(&etdev->Lock, flags);
 				etdev->MediaState =
 				    NETIF_STATUS_MEDIA_DISCONNECT;
