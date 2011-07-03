@@ -345,8 +345,8 @@ void __dma_unmap_page(struct device *dev, dma_addr_t dma_addr, size_t size,
 {
 	struct safe_buffer *buf;
 
-	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
-		__func__, (void *) dma_addr, size, dir);
+	dev_dbg(dev, "%s(dma=%#x,size=%d,dir=%x)\n",
+		__func__, dma_addr, size, dir);
 
 	buf = find_safe_buffer_dev(dev, dma_addr, __func__);
 	if (!buf) {
