@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/mmc/card.h>

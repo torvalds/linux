@@ -22,6 +22,7 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
+#include <linux/module.h>
 
 #define RESULT_OK		0
 #define RESULT_FAIL		1
