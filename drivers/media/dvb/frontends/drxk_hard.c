@@ -177,7 +177,7 @@ bool IsA1WithRomCode(struct drxk_state *state)
 #define DRXK_QAM_SL_SIG_POWER_QAM128      (20992)
 #define DRXK_QAM_SL_SIG_POWER_QAM256      (43520)
 
-inline u32 MulDiv32(u32 a, u32 b, u32 c)
+static inline u32 MulDiv32(u32 a, u32 b, u32 c)
 {
 	u64 tmp64;
 

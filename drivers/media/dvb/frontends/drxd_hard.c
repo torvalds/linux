@@ -232,7 +232,7 @@ static int i2c_read(struct i2c_adapter *adap,
 	return 0;
 }
 
-inline u32 MulDiv32(u32 a, u32 b, u32 c)
+static inline u32 MulDiv32(u32 a, u32 b, u32 c)
 {
 	u64 tmp64;
 
