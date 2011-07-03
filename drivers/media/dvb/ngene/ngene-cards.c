@@ -426,9 +426,9 @@ static struct ngene_info ngene_info_cineS2v5 = {
 };
 
 
-static struct ngene_info ngene_info_duoFlexS2 = {
+static struct ngene_info ngene_info_duoFlex = {
 	.type           = NGENE_SIDEWINDER,
-	.name           = "Digital Devices DuoFlex S2 miniPCIe",
+	.name           = "Digital Devices DuoFlex PCIe or miniPCIe",
 	.io_type        = {NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN, NGENE_IO_TSIN,
 			   NGENE_IO_TSOUT},
 	.demod_attach   = {cineS2_probe, cineS2_probe, cineS2_probe, cineS2_probe},
@@ -480,8 +480,8 @@ static const struct pci_device_id ngene_id_tbl[] __devinitdata = {
 	NGENE_ID(0x18c3, 0xdb01, ngene_info_satixS2),
 	NGENE_ID(0x18c3, 0xdb02, ngene_info_satixS2v2),
 	NGENE_ID(0x18c3, 0xdd00, ngene_info_cineS2v5),
-	NGENE_ID(0x18c3, 0xdd10, ngene_info_duoFlexS2),
-	NGENE_ID(0x18c3, 0xdd20, ngene_info_duoFlexS2),
+	NGENE_ID(0x18c3, 0xdd10, ngene_info_duoFlex),
+	NGENE_ID(0x18c3, 0xdd20, ngene_info_duoFlex),
 	NGENE_ID(0x1461, 0x062e, ngene_info_m780),
 	{0}
 };
