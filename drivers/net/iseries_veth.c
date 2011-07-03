@@ -1182,7 +1182,7 @@ static int veth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct veth_port *port = netdev_priv(dev);
 	HvLpIndexMap lpmask;
 
-	if (! (frame[0] & 0x01)) {
+	if (is_unicast_ether_addr(frame)) {
 		/* unicast packet */
 		HvLpIndex rlp = frame[5];
 
