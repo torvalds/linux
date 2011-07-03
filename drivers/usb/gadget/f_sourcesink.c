@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/module.h>
 
 #include "g_zero.h"
 #include "gadget_chips.h"

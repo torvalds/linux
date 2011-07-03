@@ -243,6 +243,7 @@
 #include <linux/kref.h>
 #include <linux/kthread.h>
 #include <linux/limits.h>
+#include <linux/module.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
