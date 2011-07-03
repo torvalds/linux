@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/i2c.h>
 #include <linux/rtc.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"

@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/gpio.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"

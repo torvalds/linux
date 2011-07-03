@@ -14,6 +14,7 @@
 #include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/i2c.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"

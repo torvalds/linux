@@ -21,6 +21,7 @@
 #include <linux/pci_ids.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/backlight.h>
 #include <linux/device.h>
 #include <linux/uaccess.h>

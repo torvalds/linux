@@ -27,6 +27,7 @@
 #include <linux/mutex.h>
 #include <linux/unistd.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include "../iio.h"
 
 #define TSL258X_MAX_DEVICE_REGS		32

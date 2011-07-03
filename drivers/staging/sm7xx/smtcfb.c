@@ -35,11 +35,13 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/module.h>
 #include <linux/console.h>
 #include <linux/screen_info.h>
 
 #ifdef CONFIG_PM
 #include <linux/pm.h>
+#include <linux/module.h>
 #endif
 
 #include "smtcfb.h"

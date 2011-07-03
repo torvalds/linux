@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"

@@ -30,6 +30,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"

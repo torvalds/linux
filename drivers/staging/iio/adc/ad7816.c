@@ -14,6 +14,7 @@
 #include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/spi/spi.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"

@@ -7,6 +7,7 @@
  * the Free Software Foundation.
  */
 #include <linux/irq.h>
+#include <linux/module.h>
 
 #ifndef _IIO_TRIGGER_H_
 #define _IIO_TRIGGER_H_

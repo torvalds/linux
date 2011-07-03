@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/err.h>
+#include <linux/module.h>
 
 #include "../iio.h"
 #include "../sysfs.h"

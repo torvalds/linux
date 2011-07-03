@@ -28,6 +28,7 @@
 #include <linux/string.h>
 #include <linux/firmware.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include "altera.h"
 #include "altera-exprt.h"
 #include "altera-jtag.h"

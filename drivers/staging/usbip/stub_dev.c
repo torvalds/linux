@@ -19,6 +19,7 @@
 
 #include <linux/device.h>
 #include <linux/kthread.h>
+#include <linux/module.h>
 
 #include "usbip_common.h"
 #include "stub.h"
