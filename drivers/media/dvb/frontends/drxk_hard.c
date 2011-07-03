@@ -3822,6 +3822,8 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 			if (status < 0)
 				break;
 			break;
+		default:
+			return -EINVAL;
 		}
 
 		if (iqmRcRateOfs == 0) {
