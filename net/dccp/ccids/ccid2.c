@@ -627,18 +627,14 @@ static void ccid2_hc_tx_exit(struct sock *sk)
 
 static void ccid2_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid2_hc_rx_sock *hc = ccid2_hc_rx_sk(sk);
 
-	switch (DCCP_SKB_CB(skb)->dccpd_type) {
-	case DCCP_PKT_DATA:
-	case DCCP_PKT_DATAACK:
-		hc->rx_data++;
-		if (hc->rx_data >= dp->dccps_r_ack_ratio) {
-			dccp_send_ack(sk);
-			hc->rx_data = 0;
-		}
-		break;
+	if (!dccp_data_packet(skb))
+		return;
+
+	if (++hc->rx_num_data_pkts >= dccp_sk(sk)->dccps_r_ack_ratio) {
+		dccp_send_ack(sk);
+		hc->rx_num_data_pkts = 0;
 	}
 }
 

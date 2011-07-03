@@ -97,8 +97,12 @@ static inline u32 rfc3390_bytes_to_packets(const u32 smss)
 	return smss <= 1095 ? 4 : (smss > 2190 ? 2 : 3);
 }
 
+/**
+ * struct ccid2_hc_rx_sock  -  Receiving end of CCID-2 half-connection
+ * @rx_num_data_pkts: number of data packets received since last feedback
+ */
 struct ccid2_hc_rx_sock {
-	int	rx_data;
+	u32	rx_num_data_pkts;
 };
 
 static inline struct ccid2_hc_tx_sock *ccid2_hc_tx_sk(const struct sock *sk)
