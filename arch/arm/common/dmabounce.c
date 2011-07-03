@@ -334,8 +334,6 @@ dma_addr_t __dma_map_page(struct device *dev, struct page *page,
 	dev_dbg(dev, "%s(page=%p,off=%#lx,size=%zx,dir=%x)\n",
 		__func__, page, offset, size, dir);
 
-	BUG_ON(!valid_dma_direction(dir));
-
 	if (PageHighMem(page)) {
 		dev_err(dev, "DMA buffer bouncing of HIGHMEM pages "
 			     "is not supported\n");
