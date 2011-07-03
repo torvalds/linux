@@ -326,6 +326,13 @@ struct pwc_device
 	struct v4l2_ctrl		*save_user;
 	struct v4l2_ctrl		*restore_user;
 	struct v4l2_ctrl		*restore_factory;
+	struct {
+		/* motor control cluster */
+		struct v4l2_ctrl	*motor_pan;
+		struct v4l2_ctrl	*motor_tilt;
+		struct v4l2_ctrl	*motor_pan_reset;
+		struct v4l2_ctrl	*motor_tilt_reset;
+	};
 	/* CODEC3 models have both gain and exposure controlled by autogain */
 	struct v4l2_ctrl		*autogain_expo_cluster[3];
 };
@@ -350,6 +357,8 @@ extern int pwc_mpt_reset(struct pwc_device *pdev, int flags);
 extern int pwc_mpt_set_angle(struct pwc_device *pdev, int pan, int tilt);
 extern int pwc_set_leds(struct pwc_device *pdev, int on_value, int off_value);
 extern int pwc_get_cmos_sensor(struct pwc_device *pdev, int *sensor);
+extern int send_control_msg(struct pwc_device *pdev,
+			    u8 request, u16 value, void *buf, int buflen);
 
 /* Control get / set helpers */
 int pwc_get_u8_ctrl(struct pwc_device *pdev, u8 request, u16 value, int *data);

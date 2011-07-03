@@ -338,6 +338,22 @@ int pwc_init_controls(struct pwc_device *pdev)
 	if (pdev->restore_factory)
 		pdev->restore_factory->flags = V4L2_CTRL_FLAG_UPDATE;
 
+	if (!pdev->features & FEATURE_MOTOR_PANTILT)
+		return hdl->error;
+
+	/* Motor pan / tilt / reset */
+	pdev->motor_pan = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_PAN_RELATIVE, -4480, 4480, 64, 0);
+	if (!pdev->motor_pan)
+		return hdl->error;
+	pdev->motor_tilt = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_TILT_RELATIVE, -1920, 1920, 64, 0);
+	pdev->motor_pan_reset = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_PAN_RESET, 0, 0, 0, 0);
+	pdev->motor_tilt_reset = v4l2_ctrl_new_std(hdl, &pwc_ctrl_ops,
+				V4L2_CID_TILT_RESET, 0, 0, 0, 0);
+	v4l2_ctrl_cluster(4, &pdev->motor_pan);
+
 	return hdl->error;
 }
 
@@ -764,6 +780,43 @@ static int pwc_set_autogain_expo(struct pwc_device *pdev)
 	return ret;
 }
 
+static int pwc_set_motor(struct pwc_device *pdev)
+{
+	int ret;
+	u8 buf[4];
+
+	buf[0] = 0;
+	if (pdev->motor_pan_reset->is_new)
+		buf[0] |= 0x01;
+	if (pdev->motor_tilt_reset->is_new)
+		buf[0] |= 0x02;
+	if (pdev->motor_pan_reset->is_new || pdev->motor_tilt_reset->is_new) {
+		ret = send_control_msg(pdev, SET_MPT_CTL,
+				       PT_RESET_CONTROL_FORMATTER, buf, 1);
+		if (ret < 0)
+			return ret;
+	}
+
+	memset(buf, 0, sizeof(buf));
+	if (pdev->motor_pan->is_new) {
+		buf[0] = pdev->motor_pan->val & 0xFF;
+		buf[1] = (pdev->motor_pan->val >> 8);
+	}
+	if (pdev->motor_tilt->is_new) {
+		buf[2] = pdev->motor_tilt->val & 0xFF;
+		buf[3] = (pdev->motor_tilt->val >> 8);
+	}
+	if (pdev->motor_pan->is_new || pdev->motor_tilt->is_new) {
+		ret = send_control_msg(pdev, SET_MPT_CTL,
+				       PT_RELATIVE_CONTROL_FORMATTER,
+				       buf, sizeof(buf));
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct pwc_device *pdev =
@@ -858,6 +911,9 @@ static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 	case PWC_CID_CUSTOM(restore_factory):
 		ret = pwc_button_ctrl(pdev,
 				      RESTORE_FACTORY_DEFAULTS_FORMATTER);
+		break;
+	case V4L2_CID_PAN_RELATIVE:
+		ret = pwc_set_motor(pdev);
 		break;
 	default:
 		ret = -EINVAL;

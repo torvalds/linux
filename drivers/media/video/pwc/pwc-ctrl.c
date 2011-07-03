@@ -165,7 +165,7 @@ static inline int send_video_command(struct pwc_device *pdev,
 		buf, buflen);
 }
 
-static inline int send_control_msg(struct pwc_device *pdev,
+int send_control_msg(struct pwc_device *pdev,
 	u8 request, u16 value, void *buf, int buflen)
 {
 	return _send_control_msg(pdev,
