@@ -1,6 +1,7 @@
 #include <linux/virtio.h>
 #include <linux/spinlock.h>
 #include <linux/virtio_config.h>
+#include <linux/module.h>
 
 /* Unique numbering for virtio devices. */
 static unsigned int dev_index;
