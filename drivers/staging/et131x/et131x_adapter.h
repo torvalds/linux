@@ -222,7 +222,7 @@ struct et131x_adapter {
 	u32 CachedMaskValue;
 
 	/* Xcvr status at last poll */
-	MI_BMSR_t Bmsr;
+	u16 bmsr;
 
 	/* Tx Memory Variables */
 	struct tx_ring tx_ring;

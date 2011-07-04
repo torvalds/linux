@@ -582,7 +582,7 @@ static void et131x_xcvr_init(struct et131x_adapter *etdev)
 	u16 lcr2;
 
 	/* Zero out the adapter structure variable representing BMSR */
-	etdev->Bmsr.value = 0;
+	etdev->bmsr = 0;
 
 	MiRead(etdev, (u8) offsetof(struct mi_regs, isr), &isr);
 	MiRead(etdev, (u8) offsetof(struct mi_regs, imr), &imr);
@@ -729,7 +729,7 @@ static void et131x_xcvr_init(struct et131x_adapter *etdev)
 }
 
 void et131x_Mii_check(struct et131x_adapter *etdev,
-		      MI_BMSR_t bmsr, MI_BMSR_t bmsr_ints)
+		      u16 bmsr, u16 bmsr_ints)
 {
 	u8 link_status;
 	u32 autoneg_status;
@@ -740,8 +740,8 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 	u32 polarity;
 	unsigned long flags;
 
-	if (bmsr_ints.bits.link_status) {
-		if (bmsr.bits.link_status) {
+	if (bmsr_ints & MI_BMSR_LINK_STATUS) {
+		if (bmsr & MI_BMSR_LINK_STATUS) {
 			etdev->boot_coma = 20;
 
 			/* Update our state variables and indicate the
@@ -820,9 +820,10 @@ void et131x_Mii_check(struct et131x_adapter *etdev,
 		}
 	}
 
-	if (bmsr_ints.bits.auto_neg_complete ||
-	    (etdev->AiForceDpx == 3 && bmsr_ints.bits.link_status)) {
-		if (bmsr.bits.auto_neg_complete || etdev->AiForceDpx == 3) {
+	if ((bmsr_ints & MI_BMSR_AUTO_NEG_COMPLETE) ||
+	    (etdev->AiForceDpx == 3 && (bmsr_ints & MI_BMSR_LINK_STATUS))) {
+		if ((bmsr & MI_BMSR_AUTO_NEG_COMPLETE) ||
+		    etdev->AiForceDpx == 3) {
 			ET1310_PhyLinkStatus(etdev,
 					     &link_status, &autoneg_status,
 					     &speed, &duplex, &mdi_mdix,
