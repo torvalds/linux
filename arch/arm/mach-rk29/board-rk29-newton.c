@@ -45,6 +45,7 @@
 #include <mach/sram.h>
 #include <mach/ddr.h>
 #include <mach/cpufreq.h>
+#include <mach/rk29_smc.h>
 
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
@@ -364,6 +365,140 @@ struct platform_device rk29_device_dma_cpy = {
 };
 
 #endif
+
+#if defined(CONFIG_RK_IRDA) || defined(CONFIG_BU92747GUW_CIR)
+#define BU92747GUW_RESET_PIN         RK29_PIN3_PD4// INVALID_GPIO //
+#define BU92747GUW_RESET_MUX_NAME    GPIO3D4_HOSTWRN_NAME//NULL //
+#define BU92747GUW_RESET_MUX_MODE    GPIO3H_GPIO3D4//NULL //
+
+#define BU92747GUW_PWDN_PIN          RK29_PIN3_PD3//RK29_PIN5_PA7 //
+#define BU92747GUW_PWDN_MUX_NAME     GPIO3D3_HOSTRDN_NAME//GPIO5A7_HSADCDATA2_NAME //
+#define BU92747GUW_PWDN_MUX_MODE     GPIO3H_GPIO3D3//GPIO5L_GPIO5A7  //
+
+static int bu92747guw_io_init(void)
+{
+	int ret;
+	
+	//reset pin
+    if(BU92747GUW_RESET_MUX_NAME != NULL)
+    {
+        rk29_mux_api_set(BU92747GUW_RESET_MUX_NAME, BU92747GUW_RESET_MUX_MODE);
+    }
+	ret = gpio_request(BU92747GUW_RESET_PIN, NULL);
+	if(ret != 0)
+	{
+		gpio_free(BU92747GUW_RESET_PIN);
+		printk(">>>>>> BU92747GUW_RESET_PIN gpio_request err \n ");
+	}
+	gpio_direction_output(BU92747GUW_RESET_PIN, GPIO_HIGH);
+
+	//power down pin
+    if(BU92747GUW_PWDN_MUX_NAME != NULL)
+    {
+        rk29_mux_api_set(BU92747GUW_PWDN_MUX_NAME, BU92747GUW_PWDN_MUX_MODE);
+    }
+	ret = gpio_request(BU92747GUW_PWDN_PIN, NULL);
+	if(ret != 0)
+	{
+		gpio_free(BU92747GUW_PWDN_PIN);
+		printk(">>>>>> BU92747GUW_PWDN_PIN gpio_request err \n ");
+	}
+
+	//power down as default
+	gpio_direction_output(BU92747GUW_PWDN_PIN, GPIO_LOW);
+	
+	return 0;
+}
+
+
+static int bu92747guw_io_deinit(void)
+{
+	gpio_free(BU92747GUW_PWDN_PIN);
+	gpio_free(BU92747GUW_RESET_PIN);
+	return 0;
+}
+
+//power ctl func is share with irda and remote
+static int nPowerOnCount = 0;
+static DEFINE_MUTEX(bu92747_power_mutex);
+
+//1---power on;  0---power off
+static int bu92747guw_power_ctl(int enable)
+{
+    printk("%s \n",__FUNCTION__);
+
+	mutex_lock(&bu92747_power_mutex);
+	if (enable) {
+		nPowerOnCount++;
+		if (nPowerOnCount == 1) {//power on first	
+			//smc0_init(NULL);
+   	 		gpio_set_value(BU92747GUW_PWDN_PIN, GPIO_HIGH);
+			gpio_set_value(BU92747GUW_RESET_PIN, GPIO_LOW);
+			mdelay(5);
+			gpio_set_value(BU92747GUW_RESET_PIN, GPIO_HIGH);
+			mdelay(5);
+		}
+	}
+	else {
+		nPowerOnCount--;
+		if (nPowerOnCount == 0) {//power down final
+			//smc0_exit();
+			gpio_set_value(BU92747GUW_PWDN_PIN, GPIO_LOW);
+		}
+	}
+	mutex_unlock(&bu92747_power_mutex);
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_RK_IRDA
+#define IRDA_IRQ_PIN           RK29_PIN5_PB2
+#define IRDA_IRQ_MUX_NAME      GPIO5B2_HSADCDATA5_NAME
+#define IRDA_IRQ_MUX_MODE      GPIO5L_GPIO5B2
+
+int irda_iomux_init(void)
+{
+    int ret = 0;
+
+	//irda irq pin
+    if(IRDA_IRQ_MUX_NAME != NULL)
+    {
+        rk29_mux_api_set(IRDA_IRQ_MUX_NAME, IRDA_IRQ_MUX_MODE);
+    }
+	ret = gpio_request(IRDA_IRQ_PIN, NULL);
+	if(ret != 0)
+	{
+		gpio_free(IRDA_IRQ_PIN);
+		printk(">>>>>> IRDA_IRQ_PIN gpio_request err \n ");
+	}
+	gpio_pull_updown(IRDA_IRQ_PIN, GPIO_HIGH);
+	gpio_direction_input(IRDA_IRQ_PIN);
+
+    return 0;
+}
+
+int irda_iomux_deinit(void)
+{
+	gpio_free(IRDA_IRQ_PIN);
+	return 0;
+}
+
+static struct irda_info rk29_irda_info = {
+    .intr_pin = IRDA_IRQ_PIN,
+    .iomux_init = irda_iomux_init,
+    .iomux_deinit = irda_iomux_deinit,
+	.irda_pwr_ctl = bu92747guw_power_ctl,
+};
+
+static struct platform_device irda_device = {
+	.name		= "rk_irda",
+    .id		  = -1,
+	.dev            = {
+		.platform_data  = &rk29_irda_info,
+	}
+};
+#endif
+
 
 static struct android_pmem_platform_data android_pmem_pdata = {
 	.name		= "pmem",
@@ -1486,6 +1621,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_RK29_NEWTON
 	&rk29_device_newton,
 #endif
+#ifdef CONFIG_RK_IRDA
+    &irda_device,
+#endif
 };
 
 /*****************************************************************************************
@@ -1686,6 +1824,12 @@ static void __init machine_rk29_board_init(void)
 #endif
 
 	board_usb_detect_init(RK29_PIN0_PA0);
+
+#if defined(CONFIG_RK_IRDA) || defined(CONFIG_BU92747GUW_CIR)
+	smc0_init(NULL);
+	bu92747guw_io_init();
+#endif
+
 }
 
 static void __init machine_rk29_fixup(struct machine_desc *desc, struct tag *tags,

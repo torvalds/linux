@@ -22,6 +22,13 @@
 #include <linux/timer.h>
 #include <linux/notifier.h>
 
+struct irda_info{
+    u32 intr_pin;
+    int (*iomux_init)(void);
+    int (*iomux_deinit)(void);
+    int (*irda_pwr_ctl)(int en);
+};
+
 struct rk29_button_light_info{
 	u32 led_on_pin;
 	u32 led_on_level;

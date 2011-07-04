@@ -126,4 +126,5 @@ source "drivers/cmmb/Kconfig"
 
 source "drivers/testcode/Kconfig"
 
+source "drivers/smc/Kconfig"
 endmenu
