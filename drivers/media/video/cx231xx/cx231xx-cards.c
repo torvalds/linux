@@ -1125,6 +1125,9 @@ static int cx231xx_usb_probe(struct usb_interface *interface,
 	if (assoc_desc->bFirstInterface != ifnum) {
 		cx231xx_err(DRIVER_NAME ": Not found "
 			    "matching IAD interface\n");
+		cx231xx_devused &= ~(1 << nr);
+		kfree(dev);
+		dev = NULL;
 		return -ENODEV;
 	}
 
