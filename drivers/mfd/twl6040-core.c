@@ -270,7 +270,8 @@ int twl6040_power(struct twl6040 *twl6040, int on)
 				goto out;
 			}
 		}
-		twl6040->pll = TWL6040_LPPLL_ID;
+		/* Default PLL configuration after power up */
+		twl6040->pll = TWL6040_SYSCLK_SEL_LPPLL;
 		twl6040->sysclk = 19200000;
 	} else {
 		/* already powered-down */
@@ -294,7 +295,6 @@ int twl6040_power(struct twl6040 *twl6040, int on)
 			/* use manual power-down sequence */
 			twl6040_power_down(twl6040);
 		}
-		twl6040->pll = TWL6040_NOPLL_ID;
 		twl6040->sysclk = 0;
 	}
 
@@ -304,7 +304,7 @@ out:
 }
 EXPORT_SYMBOL(twl6040_power);
 
-int twl6040_set_pll(struct twl6040 *twl6040, enum twl6040_pll_id id,
+int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 		    unsigned int freq_in, unsigned int freq_out)
 {
 	u8 hppllctl, lppllctl;
@@ -315,8 +315,8 @@ int twl6040_set_pll(struct twl6040 *twl6040, enum twl6040_pll_id id,
 	hppllctl = twl6040_reg_read(twl6040, TWL6040_REG_HPPLLCTL);
 	lppllctl = twl6040_reg_read(twl6040, TWL6040_REG_LPPLLCTL);
 
-	switch (id) {
-	case TWL6040_LPPLL_ID:
+	switch (pll_id) {
+	case TWL6040_SYSCLK_SEL_LPPLL:
 		/* low-power PLL divider */
 		switch (freq_out) {
 		case 17640000:
@@ -352,10 +352,8 @@ int twl6040_set_pll(struct twl6040 *twl6040, enum twl6040_pll_id id,
 			ret = -EINVAL;
 			goto pll_out;
 		}
-
-		twl6040->pll = TWL6040_LPPLL_ID;
 		break;
-	case TWL6040_HPPLL_ID:
+	case TWL6040_SYSCLK_SEL_HPPLL:
 		/* high-performance PLL can provide only 19.2 MHz */
 		if (freq_out != 19200000) {
 			dev_err(&twl6040_dev->dev,
@@ -406,16 +404,15 @@ int twl6040_set_pll(struct twl6040 *twl6040, enum twl6040_pll_id id,
 		twl6040_reg_write(twl6040, TWL6040_REG_LPPLLCTL, lppllctl);
 		lppllctl &= ~TWL6040_LPLLENA;
 		twl6040_reg_write(twl6040, TWL6040_REG_LPPLLCTL, lppllctl);
-
-		twl6040->pll = TWL6040_HPPLL_ID;
 		break;
 	default:
-		dev_err(&twl6040_dev->dev, "unknown pll id %d\n", id);
+		dev_err(&twl6040_dev->dev, "unknown pll id %d\n", pll_id);
 		ret = -EINVAL;
 		goto pll_out;
 	}
 
 	twl6040->sysclk = freq_out;
+	twl6040->pll = pll_id;
 
 pll_out:
 	mutex_unlock(&twl6040->mutex);
@@ -423,9 +420,12 @@ pll_out:
 }
 EXPORT_SYMBOL(twl6040_set_pll);
 
-enum twl6040_pll_id twl6040_get_pll(struct twl6040 *twl6040)
+int twl6040_get_pll(struct twl6040 *twl6040)
 {
-	return twl6040->pll;
+	if (twl6040->power_count)
+		return twl6040->pll;
+	else
+		return -ENODEV;
 }
 EXPORT_SYMBOL(twl6040_get_pll);
 

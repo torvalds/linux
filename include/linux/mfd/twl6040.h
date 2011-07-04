@@ -165,9 +165,6 @@
 #define TWL6040_RESETSPLIT		0x04
 #define TWL6040_INTCLRMODE		0x08
 
-#define TWL6040_SYSCLK_SEL_LPPLL	1
-#define TWL6040_SYSCLK_SEL_HPPLL	2
-
 /* STATUS (0x2E) fields */
 
 #define TWL6040_PLUGCOMP		0x02
@@ -188,11 +185,9 @@
 #define TWL6040_IRQ_VIB			4
 #define TWL6040_IRQ_READY		5
 
-enum twl6040_pll_id {
-	TWL6040_NOPLL_ID,
-	TWL6040_LPPLL_ID,
-	TWL6040_HPPLL_ID,
-};
+/* PLL selection */
+#define TWL6040_SYSCLK_SEL_LPPLL	0
+#define TWL6040_SYSCLK_SEL_HPPLL	1
 
 struct twl6040 {
 	struct device *dev;
@@ -206,7 +201,7 @@ struct twl6040 {
 	int power_count;
 	int rev;
 
-	enum twl6040_pll_id pll;
+	int pll;
 	unsigned int sysclk;
 
 	unsigned int irq;
@@ -223,9 +218,9 @@ int twl6040_set_bits(struct twl6040 *twl6040, unsigned int reg,
 int twl6040_clear_bits(struct twl6040 *twl6040, unsigned int reg,
 		       u8 mask);
 int twl6040_power(struct twl6040 *twl6040, int on);
-int twl6040_set_pll(struct twl6040 *twl6040, enum twl6040_pll_id id,
+int twl6040_set_pll(struct twl6040 *twl6040, int pll_id,
 		    unsigned int freq_in, unsigned int freq_out);
-enum twl6040_pll_id twl6040_get_pll(struct twl6040 *twl6040);
+int twl6040_get_pll(struct twl6040 *twl6040);
 unsigned int twl6040_get_sysclk(struct twl6040 *twl6040);
 int twl6040_irq_init(struct twl6040 *twl6040);
 void twl6040_irq_exit(struct twl6040 *twl6040);
