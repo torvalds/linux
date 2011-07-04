@@ -316,8 +316,11 @@ static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 		return 0;
 
 	ret = usbhs_pipe_is_accessible(pipe);
-	if (ret < 0)
+	if (ret < 0) {
+		/* inaccessible pipe is not an error */
+		ret = 0;
 		goto usbhs_fifo_write_busy;
+	}
 
 	ret = usbhsf_fifo_barrier(priv, fifo);
 	if (ret < 0)
