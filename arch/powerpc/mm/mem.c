@@ -249,7 +249,7 @@ static int __init mark_nonram_nosave(void)
  */
 void __init paging_init(void)
 {
-	unsigned long total_ram = memblock_phys_mem_size();
+	unsigned long long total_ram = memblock_phys_mem_size();
 	phys_addr_t top_of_ram = memblock_end_of_DRAM();
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 
@@ -269,7 +269,7 @@ void __init paging_init(void)
 	kmap_prot = PAGE_KERNEL;
 #endif /* CONFIG_HIGHMEM */
 
-	printk(KERN_DEBUG "Top of RAM: 0x%llx, Total RAM: 0x%lx\n",
+	printk(KERN_DEBUG "Top of RAM: 0x%llx, Total RAM: 0x%llx\n",
 	       (unsigned long long)top_of_ram, total_ram);
 	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
 	       (long int)((top_of_ram - total_ram) >> 20));
