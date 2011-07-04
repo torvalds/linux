@@ -259,6 +259,8 @@ static void sh_mobile_lcdc_clk_on(struct sh_mobile_lcdc_priv *priv)
 		pm_runtime_get_sync(priv->dev);
 		if (priv->dot_clk)
 			clk_enable(priv->dot_clk);
+		if (priv->meram_dev && priv->meram_dev->pdev)
+			pm_runtime_get_sync(&priv->meram_dev->pdev->dev);
 	}
 }
 
@@ -267,6 +269,8 @@ static void sh_mobile_lcdc_clk_off(struct sh_mobile_lcdc_priv *priv)
 	if (atomic_sub_return(1, &priv->hw_usecnt) == -1) {
 		if (priv->dot_clk)
 			clk_disable(priv->dot_clk);
+		if (priv->meram_dev && priv->meram_dev->pdev)
+			pm_runtime_put_sync(&priv->meram_dev->pdev->dev);
 		pm_runtime_put(priv->dev);
 	}
 }
