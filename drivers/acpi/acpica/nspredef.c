@@ -212,6 +212,7 @@ acpi_ns_check_predefined_names(struct acpi_namespace_node *node,
 		goto cleanup;
 	}
 	data->predefined = predefined;
+	data->node = node;
 	data->node_flags = node->flags;
 	data->pathname = pathname;
 
