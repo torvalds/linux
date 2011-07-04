@@ -683,12 +683,14 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 	if (mac_address)
 		memcpy(mac_address, outbuf + offset, ETH_ALEN);
 	if (fw_subtype_list) {
+		/* Byte-swap and truncate or zero-pad as necessary */
 		offset = MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_OFST;
 		for (i = 0;
-		     i < MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MINNUM;
+		     i < MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MAXNUM;
 		     i++) {
 			fw_subtype_list[i] =
-				le16_to_cpup((__le16 *)(outbuf + offset));
+				(offset + 2 <= outlen) ?
+				le16_to_cpup((__le16 *)(outbuf + offset)) : 0;
 			offset += 2;
 		}
 	}
