@@ -431,6 +431,15 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		return 1;
 	}
 
+	/* headless mode */
+	if (nouveau_modeset == 2) {
+		engine->display.early_init = nouveau_stub_init;
+		engine->display.late_takedown = nouveau_stub_takedown;
+		engine->display.create = nouveau_stub_init;
+		engine->display.init = nouveau_stub_init;
+		engine->display.destroy = nouveau_stub_takedown;
+	}
+
 	return 0;
 }
 
