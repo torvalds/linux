@@ -256,14 +256,14 @@ int dma_mmap_writecombine(struct device *, struct vm_area_struct *,
  * @dev: valid struct device pointer
  * @small_buf_size: size of buffers to use with small buffer pool
  * @large_buf_size: size of buffers to use with large buffer pool (can be 0)
+ * @needs_bounce_fn: called to determine whether buffer needs bouncing
  *
  * This function should be called by low-level platform code to register
  * a device as requireing DMA buffer bouncing. The function will allocate
  * appropriate DMA pools for the device.
- *
  */
 extern int dmabounce_register_dev(struct device *, unsigned long,
-		unsigned long);
+		unsigned long, int (*)(struct device *, dma_addr_t, size_t));
 
 /**
  * dmabounce_unregister_dev
@@ -276,24 +276,6 @@ extern int dmabounce_register_dev(struct device *, unsigned long,
  *
  */
 extern void dmabounce_unregister_dev(struct device *);
-
-/**
- * dma_needs_bounce
- *
- * @dev: valid struct device pointer
- * @dma_handle: dma_handle of unbounced buffer
- * @size: size of region being mapped
- *
- * Platforms that utilize the dmabounce mechanism must implement
- * this function.
- *
- * The dmabounce routines call this function whenever a dma-mapping
- * is requested to determine whether a given buffer needs to be bounced
- * or not. The function must return 0 if the buffer is OK for
- * DMA access and 1 if the buffer needs to be bounced.
- *
- */
-extern int dma_needs_bounce(struct device*, dma_addr_t, size_t);
 
 /*
  * The DMA API, implemented by dmabounce.c.  See below for descriptions.

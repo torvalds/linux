@@ -79,6 +79,8 @@ struct dmabounce_device_info {
 	struct dmabounce_pool	large;
 
 	rwlock_t lock;
+
+	int (*needs_bounce)(struct device *, dma_addr_t, size_t);
 };
 
 #ifdef STATS
@@ -236,7 +238,7 @@ static int needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
 			return 1;
 	}
 
-	return dma_needs_bounce(dev, dma_addr, size) ? 1 : 0;
+	return !!dev->archdata.dmabounce->needs_bounce(dev, dma_addr, size);
 }
 
 static inline dma_addr_t map_single(struct device *dev, void *ptr, size_t size,
@@ -430,7 +432,8 @@ static int dmabounce_init_pool(struct dmabounce_pool *pool, struct device *dev,
 }
 
 int dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
-		unsigned long large_buffer_size)
+		unsigned long large_buffer_size,
+		int (*needs_bounce_fn)(struct device *, dma_addr_t, size_t))
 {
 	struct dmabounce_device_info *device_info;
 	int ret;
@@ -466,6 +469,7 @@ int dmabounce_register_dev(struct device *dev, unsigned long small_buffer_size,
 	device_info->dev = dev;
 	INIT_LIST_HEAD(&device_info->safe_buffers);
 	rwlock_init(&device_info->lock);
+	device_info->needs_bounce = needs_bounce_fn;
 
 #ifdef STATS
 	device_info->total_allocs = 0;
