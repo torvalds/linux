@@ -47,6 +47,7 @@ struct vibra_info {
 	struct workqueue_struct *workqueue;
 	struct work_struct play_work;
 	struct mutex mutex;
+	int irq;
 
 	bool enabled;
 	int weak_speed;
@@ -277,6 +278,13 @@ static int __devinit twl6040_vibra_probe(struct platform_device *pdev)
 		goto err_kzalloc;
 	}
 
+	info->irq = platform_get_irq(pdev, 0);
+	if (info->irq < 0) {
+		dev_err(info->dev, "invalid irq\n");
+		ret = -EINVAL;
+		goto err_kzalloc;
+	}
+
 	mutex_init(&info->mutex);
 
 	info->input_dev = input_allocate_device();
@@ -308,9 +316,8 @@ static int __devinit twl6040_vibra_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, info);
 
-	ret = twl6040_request_irq(info->twl6040, TWL6040_IRQ_VIB,
-				  twl6040_vib_irq_handler, 0,
-				  "twl6040_irq_vib", info);
+	ret = request_threaded_irq(info->irq, NULL, twl6040_vib_irq_handler, 0,
+				   "twl6040_irq_vib", info);
 	if (ret) {
 		dev_err(info->dev, "VIB IRQ request failed: %d\n", ret);
 		goto err_irq;
@@ -360,7 +367,7 @@ static int __devinit twl6040_vibra_probe(struct platform_device *pdev)
 err_voltage:
 	regulator_bulk_free(ARRAY_SIZE(info->supplies), info->supplies);
 err_regulator:
-	twl6040_free_irq(info->twl6040, TWL6040_IRQ_VIB, info);
+	free_irq(info->irq, info);
 err_irq:
 	input_unregister_device(info->input_dev);
 	info->input_dev = NULL;
@@ -379,7 +386,7 @@ static int __devexit twl6040_vibra_remove(struct platform_device *pdev)
 	struct vibra_info *info = platform_get_drvdata(pdev);
 
 	input_unregister_device(info->input_dev);
-	twl6040_free_irq(info->twl6040, TWL6040_IRQ_VIB, info);
+	free_irq(info->irq, info);
 	regulator_bulk_free(ARRAY_SIZE(info->supplies), info->supplies);
 	destroy_workqueue(info->workqueue);
 	kfree(info);
