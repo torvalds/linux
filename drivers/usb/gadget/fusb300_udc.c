@@ -767,56 +767,6 @@ static void fusb300_rdfifo(struct fusb300_ep *ep,
 	} while (!reg);
 }
 
-/* write data to fifo */
-static void fusb300_wrfifo(struct fusb300_ep *ep,
-			   struct fusb300_request *req)
-{
-	int i = 0;
-	u8 *tmp;
-	u32 data, reg;
-	struct fusb300 *fusb300 = ep->fusb300;
-
-	tmp = req->req.buf;
-	req->req.actual = req->req.length;
-
-	for (i = (req->req.length >> 2); i > 0; i--) {
-		data = *tmp | *(tmp + 1) << 8 |
-			*(tmp + 2) << 16 | *(tmp + 3) << 24;
-
-		iowrite32(data, fusb300->reg +
-			FUSB300_OFFSET_EPPORT(ep->epnum));
-		tmp += 4;
-	}
-
-	switch (req->req.length % 4) {
-	case 1:
-		data = *tmp;
-		iowrite32(data, fusb300->reg +
-			FUSB300_OFFSET_EPPORT(ep->epnum));
-		break;
-	case 2:
-		data = *tmp | *(tmp + 1) << 8;
-		iowrite32(data, fusb300->reg +
-			FUSB300_OFFSET_EPPORT(ep->epnum));
-		break;
-	case 3:
-		data = *tmp | *(tmp + 1) << 8 | *(tmp + 2) << 16;
-		iowrite32(data, fusb300->reg +
-			FUSB300_OFFSET_EPPORT(ep->epnum));
-		break;
-	default:
-		break;
-	}
-
-	do {
-		reg = ioread32(fusb300->reg + FUSB300_OFFSET_IGR1);
-		reg &= FUSB300_IGR1_SYNF0_EMPTY_INT;
-		if (i)
-			printk(KERN_INFO"sync fifo is not empty!\n");
-		i++;
-	} while (!reg);
-}
-
 static u8 fusb300_get_epnstall(struct fusb300 *fusb300, u8 ep)
 {
 	u8 value;
@@ -1024,17 +974,6 @@ static int setup_packet(struct fusb300 *fusb300, struct usb_ctrlrequest *ctrl)
 	return ret;
 }
 
-static void fusb300_set_ep_bycnt(struct fusb300_ep *ep, u32 bycnt)
-{
-	struct fusb300 *fusb300 = ep->fusb300;
-	u32 reg = ioread32(fusb300->reg + FUSB300_OFFSET_EPFFR(ep->epnum));
-
-	reg &= ~FUSB300_FFR_BYCNT;
-	reg |= bycnt & FUSB300_FFR_BYCNT;
-
-	iowrite32(reg, fusb300->reg + FUSB300_OFFSET_EPFFR(ep->epnum));
-}
-
 static void done(struct fusb300_ep *ep, struct fusb300_request *req,
 		 int status)
 {
@@ -1143,14 +1082,8 @@ static void in_ep_fifo_handler(struct fusb300_ep *ep)
 	struct fusb300_request *req = list_entry(ep->queue.next,
 					struct fusb300_request, queue);
 
-	if (req->req.length) {
-#if 0
-		fusb300_set_ep_bycnt(ep, req->req.length);
-		fusb300_wrfifo(ep, req);
-#else
+	if (req->req.length)
 		fusb300_set_idma(ep, req);
-#endif
-	}
 	done(ep, req, 0);
 }
 
