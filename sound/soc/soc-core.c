@@ -1665,6 +1665,7 @@ int snd_soc_platform_read(struct snd_soc_platform *platform,
 
 	ret = platform->driver->read(platform, reg);
 	dev_dbg(platform->dev, "read %x => %x\n", reg, ret);
+	trace_snd_soc_preg_read(platform, reg, ret);
 
 	return ret;
 }
@@ -1679,6 +1680,7 @@ int snd_soc_platform_write(struct snd_soc_platform *platform,
 	}
 
 	dev_dbg(platform->dev, "write %x = %x\n", reg, val);
+	trace_snd_soc_preg_write(platform, reg, val);
 	return platform->driver->write(platform, reg, val);
 }
 EXPORT_SYMBOL_GPL(snd_soc_platform_write);
