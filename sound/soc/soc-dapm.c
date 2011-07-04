@@ -128,14 +128,22 @@ static int soc_widget_read(struct snd_soc_dapm_widget *w, int reg)
 {
 	if (w->codec)
 		return snd_soc_read(w->codec, reg);
-	return 0;
+	else if (w->platform)
+		return snd_soc_platform_read(w->platform, reg);
+
+	dev_err(w->dapm->dev, "no valid widget read method\n");
+	return -1;
 }
 
 static int soc_widget_write(struct snd_soc_dapm_widget *w, int reg, int val)
 {
 	if (w->codec)
 		return snd_soc_write(w->codec, reg, val);
-	return 0;
+	else if (w->platform)
+		return snd_soc_platform_write(w->platform, reg, val);
+
+	dev_err(w->dapm->dev, "no valid widget write method\n");
+	return -1;
 }
 
 static int soc_widget_update_bits(struct snd_soc_dapm_widget *w,
@@ -2495,6 +2503,7 @@ int snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 	dapm->n_widgets++;
 	w->dapm = dapm;
 	w->codec = dapm->codec;
+	w->platform = dapm->platform;
 	INIT_LIST_HEAD(&w->sources);
 	INIT_LIST_HEAD(&w->sinks);
 	INIT_LIST_HEAD(&w->list);

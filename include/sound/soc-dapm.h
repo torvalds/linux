@@ -447,6 +447,7 @@ struct snd_soc_dapm_widget {
 	char *name;		/* widget name */
 	char *sname;	/* stream name */
 	struct snd_soc_codec *codec;
+	struct snd_soc_platform *platform;
 	struct list_head list;
 	struct snd_soc_dapm_context *dapm;
 
@@ -510,6 +511,7 @@ struct snd_soc_dapm_context {
 
 	struct device *dev; /* from parent - for debug */
 	struct snd_soc_codec *codec; /* parent codec */
+	struct snd_soc_platform *platform; /* parent platform */
 	struct snd_soc_card *card; /* parent card */
 
 	/* used during DAPM updates */
