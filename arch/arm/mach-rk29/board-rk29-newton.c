@@ -1799,11 +1799,19 @@ static void __init machine_rk29_init_irq(void)
 	rk29_gpio_init();
 }
 
+static struct cpufreq_frequency_table freq_table[] = {
+	{ .index = 1200000, .frequency =  408000 },
+	{ .index = 1200000, .frequency =  816000 },
+	{ .index = 1300000, .frequency = 1008000 },
+	{ .frequency = CPUFREQ_TABLE_END },
+};
+
 static void __init machine_rk29_board_init(void)
 {
 	rk29_board_iomux_init();
 
 	board_power_init();
+	board_update_cpufreq_table(freq_table);
 
 		platform_add_devices(devices, ARRAY_SIZE(devices));
 #ifdef CONFIG_I2C0_RK29
