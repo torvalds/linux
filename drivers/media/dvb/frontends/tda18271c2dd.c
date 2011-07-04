@@ -130,7 +130,7 @@ static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
 			      .buf = data, .len = len};
 
 	if (i2c_transfer(adap, &msg, 1) != 1) {
-		printk(KERN_ERR "i2c_write error\n");
+		printk(KERN_ERR "tda18271c2dd: i2c write error at addr %i\n", adr);
 		return -1;
 	}
 	return 0;
@@ -582,7 +582,7 @@ static int RFTrackingFiltersInit(struct tda_state *state,
 	state->m_RF3[RFBand] = RF3;
 
 #if 0
-	printk(KERN_ERR "%s %d RF1 = %d A1 = %d B1 = %d RF2 = %d A2 = %d B2 = %d RF3 = %d\n", __func__,
+	printk(KERN_ERR "tda18271c2dd: %s %d RF1 = %d A1 = %d B1 = %d RF2 = %d A2 = %d B2 = %d RF3 = %d\n", __func__,
 	       RFBand, RF1, state->m_RF_A1[RFBand], state->m_RF_B1[RFBand], RF2,
 	       state->m_RF_A2[RFBand], state->m_RF_B2[RFBand], RF3);
 #endif
@@ -610,7 +610,7 @@ static int PowerScan(struct tda_state *state,
 		      SearchMap1(m_GainTaper_Map, RF_in, &Gain_Taper) &&
 		      SearchMap3(m_CID_Target_Map, RF_in, &CID_Target, &CountLimit))) {
 
-			printk(KERN_ERR "%s Search map failed\n", __func__);
+			printk(KERN_ERR "tda18271c2dd: %s Search map failed\n", __func__);
 			return -EINVAL;
 		}
 
@@ -991,7 +991,7 @@ static int ChannelConfiguration(struct tda_state *state,
 	u8 IR_Meas = 0;
 
 	state->IF = IntermediateFrequency;
-	/* printk("%s Freq = %d Standard = %d IF = %d\n", __func__, Frequency, Standard, IntermediateFrequency); */
+	/* printk("tda18271c2dd: %s Freq = %d Standard = %d IF = %d\n", __func__, Frequency, Standard, IntermediateFrequency); */
 	/* get values from tables */
 
 	if (!(SearchMap1(m_BP_Filter_Map, Frequency, &BP_Filter) &&
@@ -999,7 +999,7 @@ static int ChannelConfiguration(struct tda_state *state,
 	       SearchMap1(m_IR_Meas_Map, Frequency, &IR_Meas) &&
 	       SearchMap4(m_RF_Band_Map, Frequency, &RF_Band))) {
 
-		printk(KERN_ERR "%s SearchMap failed\n", __func__);
+		printk(KERN_ERR "tda18271c2dd: %s SearchMap failed\n", __func__);
 		return -EINVAL;
 	}
 
