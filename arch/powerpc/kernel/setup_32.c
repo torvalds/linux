@@ -126,6 +126,8 @@ notrace void __init machine_init(unsigned long dt_ptr)
 	/* Do some early initialization based on the flat device tree */
 	early_init_devtree(__va(dt_ptr));
 
+	early_init_mmu();
+
 	probe_machine();
 
 	setup_kdump_trampoline();

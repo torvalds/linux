@@ -35,6 +35,7 @@
 #include <linux/preempt.h>
 #include <linux/spinlock.h>
 #include <linux/memblock.h>
+#include <linux/of_fdt.h>
 
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
@@ -265,6 +266,17 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 EXPORT_SYMBOL(flush_tlb_page);
 
 #endif /* CONFIG_SMP */
+
+#ifdef CONFIG_PPC_47x
+void __init early_init_mmu_47x(void)
+{
+#ifdef CONFIG_SMP
+	unsigned long root = of_get_flat_dt_root();
+	if (of_get_flat_dt_prop(root, "cooperative-partition", NULL))
+		mmu_clear_feature(MMU_FTR_USE_TLBIVAX_BCAST);
+#endif /* CONFIG_SMP */
+}
+#endif /* CONFIG_PPC_47x */
 
 /*
  * Flush kernel TLB entries in the given range
@@ -592,5 +604,12 @@ void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 
 	/* Finally limit subsequent allocations */
 	memblock_set_current_limit(first_memblock_base + ppc64_rma_size);
+}
+#else /* ! CONFIG_PPC64 */
+void __init early_init_mmu(void)
+{
+#ifdef CONFIG_PPC_47x
+	early_init_mmu_47x();
+#endif
 }
 #endif /* CONFIG_PPC64 */
