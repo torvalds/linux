@@ -459,6 +459,12 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	/* In order to operate correctly we need valid interrupt config */
+	if (!pdata->naudint_irq || !pdata->irq_base) {
+		dev_err(&pdev->dev, "Invalid IRQ configuration\n");
+		return -EINVAL;
+	}
+
 	twl6040 = kzalloc(sizeof(struct twl6040), GFP_KERNEL);
 	if (!twl6040)
 		return -ENOMEM;
@@ -491,20 +497,18 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 	if (twl6040->rev == TWL6040_REV_ES1_0)
 		twl6040->audpwron = -EINVAL;
 
-	if (twl6040->irq) {
-		/* codec interrupt */
-		ret = twl6040_irq_init(twl6040);
-		if (ret)
-			goto gpio2_err;
+	/* codec interrupt */
+	ret = twl6040_irq_init(twl6040);
+	if (ret)
+		goto gpio2_err;
 
-		ret = twl6040_request_irq(twl6040, TWL6040_IRQ_READY,
-					  twl6040_naudint_handler, 0,
-					  "twl6040_irq_ready", twl6040);
-		if (ret) {
-			dev_err(twl6040->dev, "READY IRQ request failed: %d\n",
-				ret);
-			goto irq_err;
-		}
+	ret = twl6040_request_irq(twl6040, TWL6040_IRQ_READY,
+					twl6040_naudint_handler, 0,
+					"twl6040_irq_ready", twl6040);
+	if (ret) {
+		dev_err(twl6040->dev, "READY IRQ request failed: %d\n",
+			ret);
+		goto irq_err;
 	}
 
 	/* dual-access registers controlled by I2C only */
@@ -553,11 +557,9 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 	return 0;
 
 mfd_err:
-	if (twl6040->irq)
-		twl6040_free_irq(twl6040, TWL6040_IRQ_READY, twl6040);
+	twl6040_free_irq(twl6040, TWL6040_IRQ_READY, twl6040);
 irq_err:
-	if (twl6040->irq)
-		twl6040_irq_exit(twl6040);
+	twl6040_irq_exit(twl6040);
 gpio2_err:
 	if (gpio_is_valid(twl6040->audpwron))
 		gpio_free(twl6040->audpwron);
@@ -579,9 +581,7 @@ static int __devexit twl6040_remove(struct platform_device *pdev)
 		gpio_free(twl6040->audpwron);
 
 	twl6040_free_irq(twl6040, TWL6040_IRQ_READY, twl6040);
-
-	if (twl6040->irq)
-		twl6040_irq_exit(twl6040);
+	twl6040_irq_exit(twl6040);
 
 	mfd_remove_devices(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);

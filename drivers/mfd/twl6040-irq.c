@@ -148,19 +148,6 @@ int twl6040_irq_init(struct twl6040 *twl6040)
 	twl6040->irq_masks_cache = TWL6040_ALLINT_MSK;
 	twl6040_reg_write(twl6040, TWL6040_REG_INTMR, TWL6040_ALLINT_MSK);
 
-	if (!twl6040->irq) {
-		dev_warn(twl6040->dev,
-			 "no interrupt specified, no interrupts\n");
-		twl6040->irq_base = 0;
-		return 0;
-	}
-
-	if (!twl6040->irq_base) {
-		dev_err(twl6040->dev,
-			"no interrupt base specified, no interrupts\n");
-		return 0;
-	}
-
 	/* Register them with genirq */
 	for (cur_irq = twl6040->irq_base;
 	     cur_irq < twl6040->irq_base + ARRAY_SIZE(twl6040_irqs);
@@ -199,7 +186,6 @@ EXPORT_SYMBOL(twl6040_irq_init);
 
 void twl6040_irq_exit(struct twl6040 *twl6040)
 {
-	if (twl6040->irq)
-		free_irq(twl6040->irq, twl6040);
+	free_irq(twl6040->irq, twl6040);
 }
 EXPORT_SYMBOL(twl6040_irq_exit);
