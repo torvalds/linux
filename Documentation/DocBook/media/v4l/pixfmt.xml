@@ -741,9 +741,54 @@ information.</para>
 	  <row id="V4L2-PIX-FMT-MPEG">
 	    <entry><constant>V4L2_PIX_FMT_MPEG</constant></entry>
 	    <entry>'MPEG'</entry>
-	    <entry>MPEG stream. The actual format is determined by
+	    <entry>MPEG multiplexed stream. The actual format is determined by
 extended control <constant>V4L2_CID_MPEG_STREAM_TYPE</constant>, see
 <xref linkend="mpeg-control-id" />.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-H264">
+		<entry><constant>V4L2_PIX_FMT_H264</constant></entry>
+		<entry>'H264'</entry>
+		<entry>H264 video elementary stream with start codes.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-H264-NO-SC">
+		<entry><constant>V4L2_PIX_FMT_H264_NO_SC</constant></entry>
+		<entry>'AVC1'</entry>
+		<entry>H264 video elementary stream without start codes.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-H263">
+		<entry><constant>V4L2_PIX_FMT_H263</constant></entry>
+		<entry>'H263'</entry>
+		<entry>H263 video elementary stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-MPEG1">
+		<entry><constant>V4L2_PIX_FMT_MPEG1</constant></entry>
+		<entry>'MPG1'</entry>
+		<entry>MPEG1 video elementary stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-MPEG2">
+		<entry><constant>V4L2_PIX_FMT_MPEG2</constant></entry>
+		<entry>'MPG2'</entry>
+		<entry>MPEG2 video elementary stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-MPEG4">
+		<entry><constant>V4L2_PIX_FMT_MPEG4</constant></entry>
+		<entry>'MPG4'</entry>
+		<entry>MPEG4 video elementary stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-XVID">
+		<entry><constant>V4L2_PIX_FMT_XVID</constant></entry>
+		<entry>'XVID'</entry>
+		<entry>Xvid video elementary stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-VC1-ANNEX-G">
+		<entry><constant>V4L2_PIX_FMT_VC1_ANNEX_G</constant></entry>
+		<entry>'VC1G'</entry>
+		<entry>VC1, SMPTE 421M Annex G compliant stream.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-VC1-ANNEX-L">
+		<entry><constant>V4L2_PIX_FMT_VC1_ANNEX_L</constant></entry>
+		<entry>'VC1L'</entry>
+		<entry>VC1, SMPTE 421M Annex L compliant stream.</entry>
 	  </row>
 	</tbody>
       </tgroup>

@@ -678,7 +678,8 @@ caption of a Tab page in a GUI, for example.</entry>
 	      </row><row><entry spanname="descr">The MPEG-1, -2 or -4
 output stream type. One cannot assume anything here. Each hardware
 MPEG encoder tends to support different subsets of the available MPEG
-stream types. The currently defined stream types are:</entry>
+stream types. This control is specific to multiplexed MPEG streams.
+The currently defined stream types are:</entry>
 	      </row>
 	      <row>
 		<entrytbl spanname="descr" cols="2">
@@ -808,6 +809,7 @@ frequency. Possible values are:</entry>
 		<entry spanname="id"><constant>V4L2_CID_MPEG_AUDIO_ENCODING</constant>&nbsp;</entry>
 		<entry>enum&nbsp;v4l2_mpeg_audio_encoding</entry>
 	      </row><row><entry spanname="descr">MPEG Audio encoding.
+This control is specific to multiplexed MPEG streams.
 Possible values are:</entry>
 	      </row>
 	      <row>
@@ -1258,7 +1260,8 @@ and reproducible audio bitstream. 0 = unmuted, 1 = muted.</entry>
 		<entry spanname="id"><constant>V4L2_CID_MPEG_VIDEO_ENCODING</constant>&nbsp;</entry>
 		<entry>enum&nbsp;v4l2_mpeg_video_encoding</entry>
 	      </row><row><entry spanname="descr">MPEG Video encoding
-method. Possible values are:</entry>
+method. This control is specific to multiplexed MPEG streams.
+Possible values are:</entry>
 	      </row>
 	      <row>
 		<entrytbl spanname="descr" cols="2">
