@@ -312,6 +312,10 @@ int snd_soc_default_readable_register(struct snd_soc_codec *codec,
 				      unsigned int reg);
 int snd_soc_default_writable_register(struct snd_soc_codec *codec,
 				      unsigned int reg);
+int snd_soc_platform_read(struct snd_soc_platform *platform,
+					unsigned int reg);
+int snd_soc_platform_write(struct snd_soc_platform *platform,
+					unsigned int reg, unsigned int val);
 
 /* Utility functions to get clock rates from various things */
 int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
@@ -658,6 +662,10 @@ struct snd_soc_platform_driver {
 	/* probe ordering - for components with runtime dependencies */
 	int probe_order;
 	int remove_order;
+
+	/* platform IO - used for platform DAPM */
+	unsigned int (*read)(struct snd_soc_platform *, unsigned int);
+	int (*write)(struct snd_soc_platform *, unsigned int, unsigned int);
 };
 
 struct snd_soc_platform {
