@@ -489,7 +489,7 @@ static void init_output_pin(struct hda_codec *codec, hda_nid_t pin,
 
 static void via_auto_init_output(struct hda_codec *codec,
 				 struct nid_path *path, int pin_type,
-				 bool force)
+				 bool with_aa_mix, bool force)
 {
 	struct via_spec *spec = codec->spec;
 	unsigned int caps;
@@ -520,9 +520,12 @@ static void via_auto_init_output(struct hda_codec *codec,
 		idx = get_connection_index(codec, nid, spec->aa_mix_nid);
 		if (idx >= 0) {
 			if (have_mute(codec, nid, HDA_INPUT)) {
+				unsigned int mute = with_aa_mix ?
+					AMP_IN_UNMUTE(idx) : AMP_IN_MUTE(idx);
 				snd_hda_codec_write(codec, nid, 0,
 						    AC_VERB_SET_AMP_GAIN_MUTE,
-						    AMP_IN_UNMUTE(idx));
+						    mute);
+				/* exclusively via aa-mix for front */
 				if (pre_nid == spec->multiout.dac_nids[0]) {
 					num = snd_hda_get_conn_list(codec, nid,
 								    NULL);
@@ -547,7 +550,9 @@ static void via_auto_init_multi_out(struct hda_codec *codec)
 	int i;
 
 	for (i = 0; i < spec->autocfg.line_outs + spec->smart51_nums; i++)
-		via_auto_init_output(codec, &spec->out_path[i], PIN_OUT, true);
+		/* enable aa-mute only for the front channel */
+		via_auto_init_output(codec, &spec->out_path[i], PIN_OUT,
+				     i == 0, true);
 }
 
 static void via_auto_init_hp_out(struct hda_codec *codec)
@@ -555,15 +560,18 @@ static void via_auto_init_hp_out(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 
 	if (!spec->hp_dac_nid) {
-		via_auto_init_output(codec, &spec->hp_dep_path, PIN_HP, true);
+		via_auto_init_output(codec, &spec->hp_dep_path, PIN_HP,
+				     true, true);
 		return;
 	}
 	if (spec->hp_independent_mode) {
 		activate_output_path(codec, &spec->hp_dep_path, false, false);
-		via_auto_init_output(codec, &spec->hp_path, PIN_HP, true);
+		via_auto_init_output(codec, &spec->hp_path, PIN_HP,
+				     true, true);
 	} else {
 		activate_output_path(codec, &spec->hp_path, false, false);
-		via_auto_init_output(codec, &spec->hp_dep_path, PIN_HP, true);
+		via_auto_init_output(codec, &spec->hp_dep_path, PIN_HP,
+				     true, true);
 	}
 }
 
@@ -572,7 +580,8 @@ static void via_auto_init_speaker_out(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 
 	if (spec->autocfg.speaker_outs)
-		via_auto_init_output(codec, &spec->speaker_path, PIN_OUT, true);
+		via_auto_init_output(codec, &spec->speaker_path, PIN_OUT,
+				     true, true);
 }
 
 static bool is_smart51_pins(struct hda_codec *codec, hda_nid_t pin);
