@@ -625,7 +625,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 }
 
 /* tasklet for iwlagn interrupt */
-static void iwl_irq_tasklet(struct iwl_priv *priv)
+void iwl_irq_tasklet(struct iwl_priv *priv)
 {
 	u32 inta = 0;
 	u32 handled = 0;
@@ -3227,9 +3227,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	init_timer(&priv->watchdog);
 	priv->watchdog.data = (unsigned long)priv;
 	priv->watchdog.function = iwl_bg_watchdog;
-
-	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
-		iwl_irq_tasklet, (unsigned long)priv);
 }
 
 static void iwl_cancel_deferred_work(struct iwl_priv *priv)
@@ -3548,8 +3545,6 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	priv->bus.ops->set_drv_data(&priv->bus, priv);
 	priv->bus.dev = priv->bus.ops->get_dev(&priv->bus);
 
-	iwl_trans_register(&priv->trans);
-
 	/* At this point both hw and priv are allocated. */
 
 	SET_IEEE80211_DEV(hw, priv->bus.dev);
@@ -3557,6 +3552,10 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 	priv->cfg = cfg;
 	priv->inta_mask = CSR_INI_SET_MASK;
+
+	err = iwl_trans_register(priv);
+	if (err)
+		goto out_free_priv;
 
 	/* is antenna coupling more than 35dB ? */
 	priv->bt_ant_couple_ok =
@@ -3652,15 +3651,6 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	/********************
 	 * 7. Setup services
 	 ********************/
-	iwl_alloc_isr_ict(priv);
-
-	err = request_irq(priv->bus.irq, iwl_isr_ict, IRQF_SHARED,
-			  DRV_NAME, priv);
-	if (err) {
-		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->bus.irq);
-		goto out_uninit_drv;
-	}
-
 	iwl_setup_deferred_work(priv);
 	iwl_setup_rx_handlers(priv);
 	iwl_testmode_init(priv);
@@ -3691,19 +3681,18 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 
 	return 0;
 
- out_destroy_workqueue:
+out_destroy_workqueue:
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
-	free_irq(priv->bus.irq, priv);
-	iwl_free_isr_ict(priv);
- out_uninit_drv:
 	iwl_uninit_drv(priv);
- out_free_eeprom:
+out_free_eeprom:
 	iwl_eeprom_free(priv);
- out_free_traffic_mem:
+out_free_traffic_mem:
 	iwl_free_traffic_mem(priv);
+	trans_free(priv);
+out_free_priv:
 	ieee80211_free_hw(priv->hw);
- out:
+out:
 	return err;
 }
 
@@ -3754,7 +3743,6 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 
 	iwl_eeprom_free(priv);
 
-
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->workqueue);
 
@@ -3765,12 +3753,11 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	priv->workqueue = NULL;
 	iwl_free_traffic_mem(priv);
 
-	free_irq(priv->bus.irq, priv);
+	trans_free(priv);
+
 	priv->bus.ops->set_drv_data(&priv->bus, NULL);
 
 	iwl_uninit_drv(priv);
-
-	iwl_free_isr_ict(priv);
 
 	dev_kfree_skb(priv->beacon_skb);
 

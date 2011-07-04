@@ -705,6 +705,12 @@ static int iwl_trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
 	return 0;
 }
 
+static void iwl_trans_free(struct iwl_priv *priv)
+{
+	free_irq(priv->bus.irq, priv);
+	iwl_free_isr_ict(priv);
+}
+
 static const struct iwl_trans_ops trans_ops = {
 	.rx_init = iwl_trans_rx_init,
 	.rx_stop = iwl_trans_rx_stop,
@@ -719,9 +725,28 @@ static const struct iwl_trans_ops trans_ops = {
 
 	.get_tx_cmd = iwl_trans_get_tx_cmd,
 	.tx = iwl_trans_tx,
+
+	.free = iwl_trans_free,
 };
 
-void iwl_trans_register(struct iwl_trans *trans)
+int iwl_trans_register(struct iwl_priv *priv)
 {
-	trans->ops = &trans_ops;
+	int err;
+
+	priv->trans.ops = &trans_ops;
+
+	iwl_alloc_isr_ict(priv);
+
+	err = request_irq(priv->bus.irq, iwl_isr_ict, IRQF_SHARED,
+		DRV_NAME, priv);
+	if (err) {
+		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->bus.irq);
+		iwl_free_isr_ict(priv);
+		return err;
+	}
+
+	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
+		iwl_irq_tasklet, (unsigned long)priv);
+
+	return 0;
 }

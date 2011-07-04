@@ -115,4 +115,9 @@ static inline int trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
 	return priv->trans.ops->tx(priv, skb, tx_cmd, txq_id, fc, ampdu, ctx);
 }
 
-void iwl_trans_register(struct iwl_trans *trans);
+static inline void trans_free(struct iwl_priv *priv)
+{
+	priv->trans.ops->free(priv);
+}
+
+int iwl_trans_register(struct iwl_priv *priv);

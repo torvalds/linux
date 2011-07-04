@@ -1243,6 +1243,8 @@ struct iwl_trans;
  * @tx_free: frees the tx memory
  * @send_cmd:send a host command
  * @send_cmd_pdu:send a host command: flags can be CMD_*
+ * @free: release all the ressource for the transport layer itself such as
+ *        irq, tasklet etc...
  */
 struct iwl_trans_ops {
 	int (*rx_init)(struct iwl_priv *priv);
@@ -1261,6 +1263,8 @@ struct iwl_trans_ops {
 	int (*tx)(struct iwl_priv *priv, struct sk_buff *skb,
 		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
 		struct iwl_rxon_context *ctx);
+
+	void (*free)(struct iwl_priv *priv);
 };
 
 struct iwl_trans {

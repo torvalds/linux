@@ -49,6 +49,10 @@ void iwl_free_isr_ict(struct iwl_priv *priv)
 				  priv->_agn.ict_tbl_vir,
 				  priv->_agn.ict_tbl_dma);
 		priv->_agn.ict_tbl_vir = NULL;
+		memset(&priv->_agn.ict_tbl_dma, 0,
+			sizeof(priv->_agn.ict_tbl_dma));
+		memset(&priv->_agn.aligned_ict_tbl_dma, 0,
+			sizeof(priv->_agn.aligned_ict_tbl_dma));
 	}
 }
 
