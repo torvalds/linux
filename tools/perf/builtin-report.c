@@ -33,6 +33,8 @@
 #include "util/sort.h"
 #include "util/hist.h"
 
+#include <linux/bitmap.h>
+
 static char		const *input_name = "perf.data";
 
 static bool		force, use_tui, use_stdio;
@@ -48,6 +50,9 @@ static const char	*pretty_printing_style = default_pretty_printing_style;
 static char		callchain_default_opt[] = "fractal,0.5,callee";
 static bool		inverted_callchain;
 static symbol_filter_t	annotate_init;
+
+static const char	*cpu_list;
+static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 
 static int perf_session__add_hist_entry(struct perf_session *session,
 					struct addr_location *al,
@@ -115,6 +120,9 @@ static int process_sample_event(union perf_event *event,
 	}
 
 	if (al.filtered || (hide_unresolved && al.sym == NULL))
+		return 0;
+
+	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
 		return 0;
 
 	if (al.map != NULL)
@@ -262,6 +270,12 @@ static int __cmd_report(void)
 	session = perf_session__new(input_name, O_RDONLY, force, false, &event_ops);
 	if (session == NULL)
 		return -ENOMEM;
+
+	if (cpu_list) {
+		ret = perf_session__cpu_bitmap(session, cpu_list, cpu_bitmap);
+		if (ret)
+			goto out_delete;
+	}
 
 	if (show_threads)
 		perf_read_values_init(&show_threads_values);
@@ -473,6 +487,7 @@ static const struct option options[] = {
 		    "Only display entries resolved to a symbol"),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
+	OPT_STRING('c', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
 	OPT_END()
 };
 

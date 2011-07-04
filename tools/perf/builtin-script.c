@@ -13,6 +13,7 @@
 #include "util/util.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include <linux/bitmap.h>
 
 static char const		*script_name;
 static char const		*generate_script_lang;
@@ -21,6 +22,8 @@ static u64			last_timestamp;
 static u64			nr_unordered;
 extern const struct option	record_options[];
 static bool			no_callchain;
+static const char		*cpu_list;
+static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 
 enum perf_output_field {
 	PERF_OUTPUT_COMM            = 1U << 0,
@@ -453,6 +456,10 @@ static int process_sample_event(union perf_event *event,
 		last_timestamp = sample->time;
 		return 0;
 	}
+
+	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
+		return 0;
+
 	scripting_ops->process_event(event, sample, evsel, session, thread);
 
 	session->hists.stats.total_period += sample->period;
@@ -1075,6 +1082,7 @@ static const struct option options[] = {
 	OPT_CALLBACK('f', "fields", NULL, "str",
 		     "comma separated output fields prepend with 'type:'. Valid types: hw,sw,trace,raw. Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,addr",
 		     parse_output_fields),
+	OPT_STRING('c', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
 
 	OPT_END()
 };
@@ -1254,6 +1262,11 @@ int cmd_script(int argc, const char **argv, const char *prefix __used)
 	session = perf_session__new(input_name, O_RDONLY, 0, false, &event_ops);
 	if (session == NULL)
 		return -ENOMEM;
+
+	if (cpu_list) {
+		if (perf_session__cpu_bitmap(session, cpu_list, cpu_bitmap))
+			return -1;
+	}
 
 	if (!no_callchain)
 		symbol_conf.use_callchain = true;

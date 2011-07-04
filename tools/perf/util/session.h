@@ -172,4 +172,7 @@ void perf_session__print_ip(union perf_event *event,
 				 struct perf_session *session,
 				 int print_sym, int print_dso);
 
+int perf_session__cpu_bitmap(struct perf_session *session,
+			     const char *cpu_list, unsigned long *cpu_bitmap);
+
 #endif /* __PERF_SESSION_H */
