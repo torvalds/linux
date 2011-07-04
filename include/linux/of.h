@@ -198,7 +198,7 @@ extern struct property *of_find_property(const struct device_node *np,
 extern int of_property_read_u32(struct device_node *np, char *propname,
 					u32 *out_value);
 extern int of_property_read_string(struct device_node *np, char *propname,
-					char **out_string);
+					const char **out_string);
 extern int of_device_is_compatible(const struct device_node *device,
 				   const char *);
 extern int of_device_is_available(const struct device_node *device);

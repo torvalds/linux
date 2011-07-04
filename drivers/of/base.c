@@ -639,7 +639,7 @@ EXPORT_SYMBOL_GPL(of_property_read_u32);
  * The out_string pointer is modified only if a valid string can be decoded.
  */
 int of_property_read_string(struct device_node *np, char *propname,
-				char **out_string)
+				const char **out_string)
 {
 	struct property *prop = of_find_property(np, propname, NULL);
 	if (!prop)
