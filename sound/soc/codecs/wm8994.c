@@ -148,7 +148,6 @@ struct wm8994_priv {
 	
 	struct delayed_work wm8994_delayed_work;
 	int work_type;
-	char First_Poweron;
 
 	unsigned int playback_active:1;
 	unsigned int capture_active:1;
@@ -2695,14 +2694,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	char route = kcontrol->private_value & 0xff;
 	mutex_lock(&wm8994->route_lock);
 	wm8994->kcontrol = kcontrol;//save rount
-	
-	if(wm8994->First_Poweron == 1 && route == SPEAKER_NORMAL )
-	{//First start & Poweron  mast disable wm8994
-		PA_ctrl(GPIO_LOW);
-		wm8994_write(0,0);
-		msleep(50);
-		goto out;
-	}
+
 	//before set the route -- disable PA
 	switch(route)
 	{
@@ -3044,18 +3036,6 @@ static void wm8994_work_fun(struct work_struct *work)
 		mutex_unlock(&wm8994->route_lock);	
 		break;
 	case SNDRV_PCM_TRIGGER_START:
-		if(wm8994->First_Poweron == 1)
-		{
-			DBG("wm8994 First_Poweron shutup\n");
-			wm8994->First_Poweron = 0;
-			if(wm8994->kcontrol->private_value != SPEAKER_NORMAL)
-			{
-			//	DBG("wm8994->kcontrol->private_value != SPEAKER_NORMAL\n");
-				return;
-			}
-			wm8994_current_mode = null;
-			snd_soc_put_route(wm8994->kcontrol,NULL);
-		}		
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:	
 		msleep(100);
@@ -3543,7 +3523,6 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	wm8994->RW_status = TRUE;//add
 	wm8994->capture_active = 0;
 	wm8994->playback_active = 0;
-	wm8994->First_Poweron = 1;
 	wm8994->call_vol = call_maxvol;
 	wm8994->BT_call_vol = BT_call_maxvol;
 	INIT_DELAYED_WORK(&wm8994->wm8994_delayed_work, wm8994_work_fun);
