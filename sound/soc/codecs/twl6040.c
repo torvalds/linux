@@ -1101,10 +1101,7 @@ int twl6040_get_clk_id(struct snd_soc_codec *codec)
 {
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 
-	if (priv->pll_power_mode)
-		return TWL6040_SYSCLK_SEL_HPPLL;
-	else
-		return TWL6040_SYSCLK_SEL_LPPLL;
+	return priv->pll_power_mode;
 }
 EXPORT_SYMBOL_GPL(twl6040_get_clk_id);
 
