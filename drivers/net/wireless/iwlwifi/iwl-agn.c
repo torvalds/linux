@@ -3734,7 +3734,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	iwl_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	iwl_synchronize_irq(priv);
+	trans_sync_irq(priv);
 
 	iwl_dealloc_ucode(priv);
 

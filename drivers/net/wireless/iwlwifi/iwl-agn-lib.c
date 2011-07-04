@@ -2399,7 +2399,7 @@ void iwlagn_stop_device(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
-	iwl_synchronize_irq(priv);
+	trans_sync_irq(priv);
 
 	/* device going down, Stop using ICT table */
 	iwl_disable_ict(priv);

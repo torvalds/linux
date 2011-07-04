@@ -115,6 +115,11 @@ static inline int trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
 	return priv->trans.ops->tx(priv, skb, tx_cmd, txq_id, fc, ampdu, ctx);
 }
 
+static inline void trans_sync_irq(struct iwl_priv *priv)
+{
+	priv->trans.ops->sync_irq(priv);
+}
+
 static inline void trans_free(struct iwl_priv *priv)
 {
 	priv->trans.ops->free(priv);

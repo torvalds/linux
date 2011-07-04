@@ -705,6 +705,13 @@ static int iwl_trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
 	return 0;
 }
 
+static void iwl_trans_sync_irq(struct iwl_priv *priv)
+{
+	/* wait to make sure we flush pending tasklet*/
+	synchronize_irq(priv->bus.irq);
+	tasklet_kill(&priv->irq_tasklet);
+}
+
 static void iwl_trans_free(struct iwl_priv *priv)
 {
 	free_irq(priv->bus.irq, priv);
@@ -726,6 +733,7 @@ static const struct iwl_trans_ops trans_ops = {
 	.get_tx_cmd = iwl_trans_get_tx_cmd,
 	.tx = iwl_trans_tx,
 
+	.sync_irq = iwl_trans_sync_irq,
 	.free = iwl_trans_free,
 };
 
