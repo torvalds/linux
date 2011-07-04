@@ -318,7 +318,7 @@ static int abort_handler(unsigned long addr, unsigned int fsr, struct pt_regs *r
 
 static int ixp4xx_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t size)
 {
-	return dev->bus == &pci_bus_type && (dma_addr + size) >= SZ_64M;
+	return (dma_addr + size) >= SZ_64M;
 }
 
 /*

@@ -247,8 +247,7 @@ static int it8152_needs_bounce(struct device *dev, dma_addr_t dma_addr, size_t s
 {
 	dev_dbg(dev, "%s: dma_addr %08x, size %08x\n",
 		__func__, dma_addr, size);
-	return dev->bus == &pci_bus_type &&
-		(dma_addr + size - PHYS_OFFSET) >= SZ_64M;
+	return (dma_addr + size - PHYS_OFFSET) >= SZ_64M;
 }
 
 /*
