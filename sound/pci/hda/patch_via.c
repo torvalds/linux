@@ -1855,6 +1855,7 @@ static int via_auto_create_hp_ctls(struct hda_codec *codec, hda_nid_t pin)
 {
 	struct via_spec *spec = codec->spec;
 	struct nid_path *path;
+	bool check_dac;
 	int err;
 
 	if (!pin)
@@ -1875,11 +1876,14 @@ static int via_auto_create_hp_ctls(struct hda_codec *codec, hda_nid_t pin)
 	    !spec->hp_dac_nid)
 		return 0;
 
-	if (spec->hp_dac_nid && !spec->hp_indep_shared)
+	if (spec->hp_dac_nid && !spec->hp_indep_shared) {
 		path = &spec->hp_path;
-	else
+		check_dac = true;
+	} else {
 		path = &spec->hp_dep_path;
-	err = create_ch_ctls(codec, "Headphone", 3, false, path);
+		check_dac = false;
+	}
+	err = create_ch_ctls(codec, "Headphone", 3, check_dac, path);
 	if (err < 0)
 		return err;
 	if (spec->hp_dac_nid) {
