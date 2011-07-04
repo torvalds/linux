@@ -107,6 +107,8 @@ struct via_input {
 	const char *label;	/* input-source label */
 };
 
+#define VIA_MAX_ADCS	3
+
 struct via_spec {
 	/* codec parameterization */
 	const struct snd_kcontrol_new *mixers[6];
@@ -132,15 +134,15 @@ struct via_spec {
 	int num_active_streams;
 	int dac_mixer_idx;
 
-	struct nid_path out_path[4];
+	struct nid_path out_path[HDA_SIDE + 1];
 	struct nid_path hp_path;
 	struct nid_path hp_dep_path;
 	struct nid_path speaker_path;
 
 	/* capture */
 	unsigned int num_adc_nids;
-	hda_nid_t adc_nids[3];
-	hda_nid_t mux_nids[3];
+	hda_nid_t adc_nids[VIA_MAX_ADCS];
+	hda_nid_t mux_nids[VIA_MAX_ADCS];
 	hda_nid_t aa_mix_nid;
 	hda_nid_t dig_in_nid;
 
@@ -148,7 +150,7 @@ struct via_spec {
 	bool dyn_adc_switch;
 	int num_inputs;
 	struct via_input inputs[AUTO_CFG_MAX_INS + 1];
-	unsigned int cur_mux[3];
+	unsigned int cur_mux[VIA_MAX_ADCS];
 
 	/* dynamic ADC switching */
 	hda_nid_t cur_adc;
