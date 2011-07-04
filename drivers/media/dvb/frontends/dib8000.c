@@ -2215,7 +2215,7 @@ static int dib8000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 			 ((state->fe[0]->dtv_property_cache.layer[1].segment_count == 0) ||
 			  ((state->fe[0]->dtv_property_cache.isdbt_layer_enabled & (2 << 0)) == 0)) &&
 			 ((state->fe[0]->dtv_property_cache.layer[2].segment_count == 0) || ((state->fe[0]->dtv_property_cache.isdbt_layer_enabled & (3 << 0)) == 0)))) {
-		int i = 80000;
+		int i = 100;
 		u8 found = 0;
 		u8 tune_failed = 0;
 
@@ -2243,6 +2243,7 @@ static int dib8000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 					default:
 						 dprintk("unhandled autosearch result");
 					case 1:
+						 tune_failed |= (1 << index_frontend);
 						 dprintk("autosearch failed for the frontend%i", index_frontend);
 						 break;
 					}
@@ -2401,7 +2402,7 @@ static int dib8000_read_snr(struct dvb_frontend *fe, u16 * snr)
 	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
 		snr_master += dib8000_get_snr(state->fe[index_frontend]);
 
-	if (snr_master != 0) {
+	if ((snr_master >> 16) != 0) {
 		snr_master = 10*intlog10(snr_master>>16);
 		*snr = snr_master / ((1 << 24) / 10);
 	}
