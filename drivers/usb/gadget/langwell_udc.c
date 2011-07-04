@@ -593,8 +593,8 @@ static int queue_dtd(struct langwell_ep *ep, struct langwell_request *req)
 		/* ep0 */
 		dev_vdbg(&dev->pdev->dev, "%s-%s\n", ep->name, DIR_STRING(ep));
 
-	dev_vdbg(&dev->pdev->dev, "ep_dqh[%d] addr: 0x%08x\n",
-			i, (u32)&(dev->ep_dqh[i]));
+	dev_vdbg(&dev->pdev->dev, "ep_dqh[%d] addr: 0x%p\n",
+			i, &(dev->ep_dqh[i]));
 
 	bit_mask = is_in(ep) ?
 		(1 << (ep->ep_num + 16)) : (1 << (ep->ep_num));
@@ -3271,7 +3271,7 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 
 	/* allocate device dQH memory */
 	size = dev->ep_max * sizeof(struct langwell_dqh);
-	dev_vdbg(&dev->pdev->dev, "orig size = %d\n", size);
+	dev_vdbg(&dev->pdev->dev, "orig size = %zd\n", size);
 	if (size < DQH_ALIGNMENT)
 		size = DQH_ALIGNMENT;
 	else if ((size % DQH_ALIGNMENT) != 0) {
@@ -3286,7 +3286,7 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 		goto error;
 	}
 	dev->ep_dqh_size = size;
-	dev_vdbg(&dev->pdev->dev, "ep_dqh_size = %d\n", dev->ep_dqh_size);
+	dev_vdbg(&dev->pdev->dev, "ep_dqh_size = %zd\n", dev->ep_dqh_size);
 
 	/* initialize ep0 status request structure */
 	dev->status_req = kzalloc(sizeof(struct langwell_request), GFP_KERNEL);
@@ -3470,7 +3470,7 @@ static int langwell_udc_resume(struct pci_dev *pdev)
 
 	/* allocate device dQH memory */
 	size = dev->ep_max * sizeof(struct langwell_dqh);
-	dev_vdbg(&dev->pdev->dev, "orig size = %d\n", size);
+	dev_vdbg(&dev->pdev->dev, "orig size = %zd\n", size);
 	if (size < DQH_ALIGNMENT)
 		size = DQH_ALIGNMENT;
 	else if ((size % DQH_ALIGNMENT) != 0) {
@@ -3484,7 +3484,7 @@ static int langwell_udc_resume(struct pci_dev *pdev)
 		return -ENOMEM;
 	}
 	dev->ep_dqh_size = size;
-	dev_vdbg(&dev->pdev->dev, "ep_dqh_size = %d\n", dev->ep_dqh_size);
+	dev_vdbg(&dev->pdev->dev, "ep_dqh_size = %zd\n", dev->ep_dqh_size);
 
 	/* create dTD dma_pool resource */
 	dev->dtd_pool = dma_pool_create("langwell_dtd",
