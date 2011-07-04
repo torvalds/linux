@@ -211,6 +211,7 @@ int em28xx_write_reg(struct em28xx *dev, u16 reg, u8 val)
 {
 	return em28xx_write_regs(dev, reg, &val, 1);
 }
+EXPORT_SYMBOL_GPL(em28xx_write_reg);
 
 /*
  * em28xx_write_reg_bits()
@@ -618,7 +619,9 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 {
 	int rc;
 
-	if (dev->chip_id == CHIP_ID_EM2874 || dev->chip_id == CHIP_ID_EM28174) {
+	if (dev->chip_id == CHIP_ID_EM2874 ||
+	    dev->chip_id == CHIP_ID_EM2884 ||
+	    dev->chip_id == CHIP_ID_EM28174) {
 		/* The Transport Stream Enable Register moved in em2874 */
 		if (!start) {
 			rc = em28xx_write_reg_bits(dev, EM2874_R5F_TS_ENABLE,
@@ -887,6 +890,7 @@ int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio)
 	}
 	return rc;
 }
+EXPORT_SYMBOL_GPL(em28xx_gpio_set);
 
 int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode)
 {
@@ -1111,7 +1115,7 @@ int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev)
 	unsigned int chip_cfg2;
 	unsigned int packet_size = 564;
 
-	if (dev->chip_id == CHIP_ID_EM2874) {
+	if (dev->chip_id == CHIP_ID_EM2874 || dev->chip_id == CHIP_ID_EM2884) {
 		/* FIXME - for now assume 564 like it was before, but the
 		   em2874 code should be added to return the proper value... */
 		packet_size = 564;

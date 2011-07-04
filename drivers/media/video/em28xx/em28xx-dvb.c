@@ -1,7 +1,7 @@
 /*
  DVB device driver for em28xx
 
- (c) 2008 Mauro Carvalho Chehab <mchehab@infradead.org>
+ (c) 2008-2011 Mauro Carvalho Chehab <mchehab@infradead.org>
 
  (c) 2008 Devin Heitmueller <devin.heitmueller@gmail.com>
 	- Fixes for the driver to properly work with HVR-950
@@ -40,6 +40,8 @@
 #include "s921.h"
 #include "drxd.h"
 #include "cxd2820r.h"
+#include "tda18271c2dd.h"
+#include "drxk.h"
 
 MODULE_DESCRIPTION("driver for em28xx based DVB cards");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
@@ -73,6 +75,10 @@ struct em28xx_dvb {
 	struct dmx_frontend        fe_hw;
 	struct dmx_frontend        fe_mem;
 	struct dvb_net             net;
+
+	/* Due to DRX-D - probably need changes */
+	int (*gate_ctrl)(struct dvb_frontend *, int);
+	struct semaphore      pll_mutex;
 };
 
 
@@ -293,6 +299,78 @@ static struct drxd_config em28xx_drxd = {
 	.pll_type = DRXD_PLL_NONE, .clock = 12000, .insert_rs_byte = 1,
 	.pll_set = NULL, .osc_deviation = NULL, .IF = 42800000,
 	.disable_i2c_gate_ctrl = 1,
+};
+
+#define TERRATEC_H5_DRXK_I2C_ADDR	0x29
+
+struct drxk_config terratec_h5_drxk = {
+	.adr = 0x29,
+};
+
+static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
+{
+	struct em28xx_dvb *dvb = fe->sec_priv;
+	int status;
+
+	if (!dvb)
+		return -EINVAL;
+
+	if (enable) {
+		down(&dvb->pll_mutex);
+		status = dvb->gate_ctrl(fe, 1);
+	} else {
+		status = dvb->gate_ctrl(fe, 0);
+		up(&dvb->pll_mutex);
+	}
+	return status;
+}
+
+static void terratec_h5_init(struct em28xx *dev)
+{
+	int i;
+	struct em28xx_reg_seq terratec_h5_init[] = {
+		{EM28XX_R08_GPIO,	0xff,	0xff,	10},
+		{EM2874_R80_GPIO,	0xf6,	0xff,	100},
+		{EM2874_R80_GPIO,	0xf2,	0xff,	50},
+		{EM2874_R80_GPIO,	0xf6,	0xff,	100},
+		{ -1,                   -1,     -1,     -1},
+	};
+	struct em28xx_reg_seq terratec_h5_end[] = {
+		{EM2874_R80_GPIO,	0xe6,	0xff,	100},
+		{EM2874_R80_GPIO,	0xa6,	0xff,	50},
+		{EM2874_R80_GPIO,	0xe6,	0xff,	100},
+		{ -1,                   -1,     -1,     -1},
+	};
+	struct {
+		unsigned char r[4];
+		int len;
+	} regs[] = {
+		{{ 0x06, 0x02, 0x00, 0x31 }, 4},
+		{{ 0x01, 0x02 }, 2},
+		{{ 0x01, 0x02, 0x00, 0xc6 }, 4},
+		{{ 0x01, 0x00 }, 2},
+		{{ 0x01, 0x00, 0xff, 0xaf }, 4},
+		{{ 0x01, 0x00, 0x03, 0xa0 }, 4},
+		{{ 0x01, 0x00 }, 2},
+		{{ 0x01, 0x00, 0x73, 0xaf }, 4},
+		{{ 0x04, 0x00 }, 2},
+		{{ 0x00, 0x04 }, 2},
+		{{ 0x00, 0x04, 0x00, 0x0a }, 4},
+		{{ 0x04, 0x14 }, 2},
+		{{ 0x04, 0x14, 0x00, 0x00 }, 4},
+	};
+
+	em28xx_gpio_set(dev, terratec_h5_init);
+	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, 0x40);
+	msleep(10);
+	em28xx_write_reg(dev, EM28XX_R06_I2C_CLK, 0x45);
+	msleep(10);
+
+	dev->i2c_client.addr = 0x82 >> 1;
+
+	for (i = 0; i < ARRAY_SIZE(regs); i++)
+		i2c_master_send(&dev->i2c_client, regs[i].r, regs[i].len);
+	em28xx_gpio_set(dev, terratec_h5_end);
 };
 
 static int mt352_terratec_xs_init(struct dvb_frontend *fe)
@@ -688,6 +766,36 @@ static int dvb_init(struct em28xx *dev)
 				/* leave FE 0 still active */
 			}
 		}
+		break;
+	case EM2884_BOARD_TERRATEC_H5:
+		terratec_h5_init(dev);
+
+		/* dvb->fe[1] will be DVB-C, and dvb->fe[0] will be DVB-T */
+		dvb->fe[0] = dvb_attach(drxk_attach, &terratec_h5_drxk, &dev->i2c_adap, &dvb->fe[1]);
+		if (!dvb->fe[0] || !dvb->fe[1]) {
+			result = -EINVAL;
+			goto out_free;
+		}
+		/* FIXME: do we need a pll semaphore? */
+		dvb->fe[0]->sec_priv = dvb;
+		sema_init(&dvb->pll_mutex, 1);
+		dvb->gate_ctrl = dvb->fe[0]->ops.i2c_gate_ctrl;
+		dvb->fe[0]->ops.i2c_gate_ctrl = drxk_gate_ctrl;
+		dvb->fe[1]->ops.i2c_gate_ctrl = drxk_gate_ctrl;
+		dvb->fe[1]->id = 1;
+
+		/* Attach tda18271 */
+		if (dvb->fe[0]->ops.i2c_gate_ctrl)
+			dvb->fe[0]->ops.i2c_gate_ctrl(dvb->fe[0], 1);
+		if (!dvb_attach(tda18271c2dd_attach, dvb->fe[0], &dev->i2c_adap, 0x60)) {
+			result = -EINVAL;
+			goto out_free;
+		}
+		if (dvb->fe[0]->ops.i2c_gate_ctrl)
+			dvb->fe[0]->ops.i2c_gate_ctrl(dvb->fe[0], 0);
+		if (dvb->fe[1]->ops.i2c_gate_ctrl)
+			dvb->fe[1]->ops.i2c_gate_ctrl(dvb->fe[1], 1);
+
 		break;
 	default:
 		em28xx_errdev("/2: The frontend of your DVB/ATSC card"

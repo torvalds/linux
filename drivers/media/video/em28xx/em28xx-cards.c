@@ -300,6 +300,23 @@ static struct em28xx_reg_seq pctv_290e[] = {
 	{-1,			-1,	-1,		-1},
 };
 
+#if 0
+static struct em28xx_reg_seq terratec_h5_gpio[] = {
+	{EM28XX_R08_GPIO,	0xff,	0xff,	10},
+	{EM2874_R80_GPIO,	0xf6,	0xff,	100},
+	{EM2874_R80_GPIO,	0xf2,	0xff,	50},
+	{EM2874_R80_GPIO,	0xf6,	0xff,	50},
+	{ -1,			-1,	-1,	-1},
+};
+
+static struct em28xx_reg_seq terratec_h5_digital[] = {
+	{EM2874_R80_GPIO,	0xf6,	0xff,	10},
+	{EM2874_R80_GPIO,	0xe6,	0xff,	100},
+	{EM2874_R80_GPIO,	0xa6,	0xff,	10},
+	{ -1,			-1,	-1,	-1},
+};
+#endif
+
 /*
  *  Board definitions
  */
@@ -842,6 +859,19 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = EM28XX_AMUX_LINE_IN,
 			.gpio     = terratec_cinergy_USB_XS_FR_analog,
 		} },
+	},
+	[EM2884_BOARD_TERRATEC_H5] = {
+		.name         = "Terratec Cinergy H5",
+		.has_dvb      = 1,
+#if 0
+		.tuner_type   = TUNER_PHILIPS_TDA8290,
+		.tuner_addr   = 0x41,
+		.dvb_gpio     = terratec_h5_digital, /* FIXME: probably wrong */
+		.tuner_gpio   = terratec_h5_gpio,
+#endif
+		.i2c_speed    = EM2874_I2C_SECONDARY_BUS_SELECT |
+				EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM28XX_I2C_FREQ_400_KHZ,
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900] = {
 		.name         = "Hauppauge WinTV HVR 900",
@@ -1855,6 +1885,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2882_BOARD_TERRATEC_HYBRID_XS },
 	{ USB_DEVICE(0x0ccd, 0x0043),
 			.driver_info = EM2870_BOARD_TERRATEC_XS },
+	{ USB_DEVICE(0x0ccd, 0x10a2),
+			.driver_info = EM2884_BOARD_TERRATEC_H5 },
 	{ USB_DEVICE(0x0ccd, 0x0047),
 			.driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
 	{ USB_DEVICE(0x0ccd, 0x0084),
@@ -2838,6 +2870,11 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			break;
 		case CHIP_ID_EM2883:
 			em28xx_info("chip ID is em2882/em2883\n");
+			dev->wait_after_write = 0;
+			break;
+		case CHIP_ID_EM2884:
+			em28xx_info("chip ID is em2884\n");
+			dev->reg_gpio_num = EM2874_R80_GPIO;
 			dev->wait_after_write = 0;
 			break;
 		default:
