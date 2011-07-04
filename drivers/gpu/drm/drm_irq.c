@@ -407,13 +407,16 @@ int drm_irq_uninstall(struct drm_device *dev)
 	/*
 	 * Wake up any waiters so they don't hang.
 	 */
-	spin_lock_irqsave(&dev->vbl_lock, irqflags);
-	for (i = 0; i < dev->num_crtcs; i++) {
-		DRM_WAKEUP(&dev->vbl_queue[i]);
-		dev->vblank_enabled[i] = 0;
-		dev->last_vblank[i] = dev->driver->get_vblank_counter(dev, i);
+	if (dev->num_crtcs) {
+		spin_lock_irqsave(&dev->vbl_lock, irqflags);
+		for (i = 0; i < dev->num_crtcs; i++) {
+			DRM_WAKEUP(&dev->vbl_queue[i]);
+			dev->vblank_enabled[i] = 0;
+			dev->last_vblank[i] =
+				dev->driver->get_vblank_counter(dev, i);
+		}
+		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 	}
-	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 
 	if (!irq_enabled)
 		return -EINVAL;
