@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
@@ -515,6 +516,8 @@ static int __devinit sh_mobile_meram_probe(struct platform_device *pdev)
 	if (pdata->addr_mode == SH_MOBILE_MERAM_MODE1)
 		meram_write_reg(priv->base, MEVCR1, 1 << 29);
 
+	pm_runtime_enable(&pdev->dev);
+
 	dev_info(&pdev->dev, "sh_mobile_meram initialized.");
 
 	return 0;
@@ -529,6 +532,8 @@ err:
 static int sh_mobile_meram_remove(struct platform_device *pdev)
 {
 	struct sh_mobile_meram_priv *priv = platform_get_drvdata(pdev);
+
+	pm_runtime_disable(&pdev->dev);
 
 	if (priv->base)
 		iounmap(priv->base);
