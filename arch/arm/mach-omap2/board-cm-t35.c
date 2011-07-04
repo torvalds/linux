@@ -1,8 +1,9 @@
 /*
  * board-cm-t35.c (CompuLab CM-T35 module)
  *
- * Copyright (C) 2009 CompuLab, Ltd.
- * Author: Mike Rapoport <mike@compulab.co.il>
+ * Copyright (C) 2009-2011 CompuLab, Ltd.
+ * Authors: Mike Rapoport <mike@compulab.co.il>
+ *	    Igor Grinberg <grinberg@compulab.co.il>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -12,11 +13,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  *
  */
 
@@ -149,12 +145,12 @@ static struct mtd_partition cm_t35_nand_partitions[] = {
 	},
 	{
 		.name           = "linux",
-		.offset         = MTDPART_OFS_APPEND,	/* Offset = 0x280000 */
+		.offset         = MTDPART_OFS_APPEND,	/* Offset = 0x2A0000 */
 		.size           = 32 * NAND_BLOCK_SIZE,
 	},
 	{
 		.name           = "rootfs",
-		.offset         = MTDPART_OFS_APPEND,	/* Offset = 0x680000 */
+		.offset         = MTDPART_OFS_APPEND,	/* Offset = 0x6A0000 */
 		.size           = MTDPART_SIZ_FULL,
 	},
 };
