@@ -585,6 +585,7 @@ static const struct siena_nvram_type_info siena_nvram_types[] = {
 	[MC_CMD_NVRAM_TYPE_EXP_ROM_CFG_PORT1]	= { 1, "sfc_exp_rom_cfg" },
 	[MC_CMD_NVRAM_TYPE_PHY_PORT0]		= { 0, "sfc_phy_fw" },
 	[MC_CMD_NVRAM_TYPE_PHY_PORT1]		= { 1, "sfc_phy_fw" },
+	[MC_CMD_NVRAM_TYPE_FPGA]		= { 0, "sfc_fpga" },
 };
 
 static int siena_mtd_probe_partition(struct efx_nic *efx,
@@ -598,7 +599,8 @@ static int siena_mtd_probe_partition(struct efx_nic *efx,
 	bool protected;
 	int rc;
 
-	if (type >= ARRAY_SIZE(siena_nvram_types))
+	if (type >= ARRAY_SIZE(siena_nvram_types) ||
+	    siena_nvram_types[type].name == NULL)
 		return -ENODEV;
 
 	info = &siena_nvram_types[type];
