@@ -466,9 +466,9 @@ static int cm_t35_twl_gpio_setup(struct device *dev, unsigned gpio,
 	if (gpio_request_one(wlan_rst, GPIOF_OUT_INIT_HIGH, "WLAN RST") == 0) {
 		gpio_export(wlan_rst, 0);
 		udelay(10);
-		gpio_set_value(wlan_rst, 0);
+		gpio_set_value_cansleep(wlan_rst, 0);
 		udelay(10);
-		gpio_set_value(wlan_rst, 1);
+		gpio_set_value_cansleep(wlan_rst, 1);
 	} else {
 		pr_err("CM-T35: could not obtain gpio for WiFi reset\n");
 	}
