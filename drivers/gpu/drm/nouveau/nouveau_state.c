@@ -456,9 +456,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fifo.unload_context	= nvc0_fifo_unload_context;
 		engine->display.early_init	= nouveau_stub_init;
 		engine->display.late_takedown	= nouveau_stub_takedown;
-		engine->display.create		= nouveau_stub_init;
-		engine->display.init		= nouveau_stub_init;
-		engine->display.destroy		= nouveau_stub_takedown;
+		engine->display.create		= nvd0_display_create;
+		engine->display.init		= nvd0_display_init;
+		engine->display.destroy		= nvd0_display_destroy;
 		engine->gpio.init		= nv50_gpio_init;
 		engine->gpio.takedown		= nouveau_stub_takedown;
 		engine->gpio.get		= nvd0_gpio_get;

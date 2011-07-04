@@ -1281,6 +1281,11 @@ extern int nv04_display_create(struct drm_device *);
 extern int nv04_display_init(struct drm_device *);
 extern void nv04_display_destroy(struct drm_device *);
 
+/* nvd0_display.c */
+extern int nvd0_display_create(struct drm_device *);
+extern int nvd0_display_init(struct drm_device *);
+extern void nvd0_display_destroy(struct drm_device *);
+
 /* nv04_crtc.c */
 extern int nv04_crtc_create(struct drm_device *, int index);
 
