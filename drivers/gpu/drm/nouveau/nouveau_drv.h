@@ -736,7 +736,6 @@ struct drm_nouveau_private {
 	uint64_t vram_size;
 	uint64_t vram_sys_base;
 
-	uint64_t fb_phys;
 	uint64_t fb_available_size;
 	uint64_t fb_mappable_pages;
 	uint64_t fb_aper_free;

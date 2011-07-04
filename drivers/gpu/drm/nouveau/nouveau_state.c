@@ -657,6 +657,26 @@ nouveau_card_init(struct drm_device *dev)
 			goto out_engine;
 	}
 
+	/* initialise general modesetting */
+	drm_mode_config_init(dev);
+	drm_mode_create_scaling_mode_property(dev);
+	drm_mode_create_dithering_property(dev);
+	dev->mode_config.funcs = (void *)&nouveau_mode_config_funcs;
+	dev->mode_config.fb_base = pci_resource_start(dev->pdev, 1);
+	dev->mode_config.min_width = 0;
+	dev->mode_config.min_height = 0;
+	if (dev_priv->card_type < NV_10) {
+		dev->mode_config.max_width = 2048;
+		dev->mode_config.max_height = 2048;
+	} else
+	if (dev_priv->card_type < NV_50) {
+		dev->mode_config.max_width = 4096;
+		dev->mode_config.max_height = 4096;
+	} else {
+		dev->mode_config.max_width = 8192;
+		dev->mode_config.max_height = 8192;
+	}
+
 	ret = engine->display.create(dev);
 	if (ret)
 		goto out_fifo;
@@ -747,6 +767,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	}
 
 	engine->display.destroy(dev);
+	drm_mode_config_cleanup(dev);
 
 	if (!dev_priv->noaccel) {
 		engine->fifo.takedown(dev);

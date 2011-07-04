@@ -408,8 +408,6 @@ nouveau_mem_vram_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	dev_priv->fb_phys = pci_resource_start(dev->pdev, 1);
-
 	ret = nouveau_ttm_global_init(dev_priv);
 	if (ret)
 		return ret;

@@ -247,6 +247,16 @@ static int nv50_display_disable(struct drm_device *dev)
 		}
 	}
 
+	for (i = 0; i < 2; i++) {
+		nv_wr32(dev, NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(i), 0);
+		if (!nv_wait(dev, NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(i),
+			     NV50_PDISPLAY_CURSOR_CURSOR_CTRL2_STATUS, 0)) {
+			NV_ERROR(dev, "timeout: CURSOR_CTRL2_STATUS == 0\n");
+			NV_ERROR(dev, "CURSOR_CTRL2 = 0x%08x\n",
+				 nv_rd32(dev, NV50_PDISPLAY_CURSOR_CURSOR_CTRL2(i)));
+		}
+	}
+
 	nv50_evo_fini(dev);
 
 	for (i = 0; i < 3; i++) {
@@ -285,23 +295,6 @@ int nv50_display_create(struct drm_device *dev)
 	if (!priv)
 		return -ENOMEM;
 	dev_priv->engine.display.priv = priv;
-
-	/* init basic kernel modesetting */
-	drm_mode_config_init(dev);
-
-	/* Initialise some optional connector properties. */
-	drm_mode_create_scaling_mode_property(dev);
-	drm_mode_create_dithering_property(dev);
-
-	dev->mode_config.min_width = 0;
-	dev->mode_config.min_height = 0;
-
-	dev->mode_config.funcs = (void *)&nouveau_mode_config_funcs;
-
-	dev->mode_config.max_width = 8192;
-	dev->mode_config.max_height = 8192;
-
-	dev->mode_config.fb_base = dev_priv->fb_phys;
 
 	/* Create CRTC objects */
 	for (i = 0; i < 2; i++)
@@ -363,8 +356,6 @@ nv50_display_destroy(struct drm_device *dev)
 	struct nv50_display *disp = nv50_display(dev);
 
 	NV_DEBUG_KMS(dev, "\n");
-
-	drm_mode_config_cleanup(dev);
 
 	nv50_display_disable(dev);
 	nouveau_irq_unregister(dev, 26);
