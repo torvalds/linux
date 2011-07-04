@@ -51,6 +51,10 @@ readability until any ioctl (querying the properties) is
 called.</para>
       </footnote></para>
 
+    <para>
+      All controls use machine endianness.
+    </para>
+
     <table pgwide="1" frame="none" id="control-id">
       <title>Control IDs</title>
       <tgroup cols="3">
@@ -545,6 +549,10 @@ may not be supported (<constant>VIDIOC_QUERYMENU</constant> will
 return an error). A good example is the list of supported MPEG audio
 bitrates. Some drivers only support one or two bitrates, others
 support a wider range.</para>
+
+      <para>
+	All controls use machine endianness.
+      </para>
     </section>
 
     <section>
