@@ -130,6 +130,7 @@ struct via_spec {
 	hda_nid_t hp_dac_nid;
 	bool hp_indep_shared;	/* indep HP-DAC is shared with side ch */
 	int num_active_streams;
+	int dac_mixer_idx;
 
 	struct nid_path out_path[4];
 	struct nid_path hp_path;
@@ -1810,6 +1811,8 @@ static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
 
 	idx = get_connection_index(codec, spec->aa_mix_nid,
 				   spec->multiout.dac_nids[0]);
+	if (idx < 0 && spec->dac_mixer_idx)
+		idx = spec->dac_mixer_idx;
 	if (idx >= 0) {
 		/* add control to mixer */
 		err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
@@ -2959,6 +2962,7 @@ static int patch_vt1718S(struct hda_codec *codec)
 	spec->aa_mix_nid = 0x21;
 	override_mic_boost(codec, 0x2b, 0, 3, 40);
 	override_mic_boost(codec, 0x29, 0, 3, 40);
+	spec->dac_mixer_idx = 5;
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
