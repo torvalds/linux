@@ -642,6 +642,9 @@ static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 	if (len % 4) /* 32bit alignment */
 		goto usbhsf_pio_prepare_push;
 
+	if (((u32)pkt->buf + pkt->actual) & 0x7) /* 8byte alignment */
+		goto usbhsf_pio_prepare_push;
+
 	/* get enable DMA fifo */
 	fifo = usbhsf_get_dma_fifo(priv, pkt);
 	if (!fifo)
@@ -714,6 +717,9 @@ static int usbhsf_dma_try_pop(struct usbhs_pkt *pkt, int *is_done)
 	/* get enable DMA fifo */
 	fifo = usbhsf_get_dma_fifo(priv, pkt);
 	if (!fifo)
+		goto usbhsf_pio_prepare_pop;
+
+	if (((u32)pkt->buf + pkt->actual) & 0x7) /* 8byte alignment */
 		goto usbhsf_pio_prepare_pop;
 
 	ret = usbhsf_fifo_select(pipe, fifo, 0);
