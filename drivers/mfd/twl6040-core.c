@@ -502,9 +502,9 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 	if (ret)
 		goto gpio2_err;
 
-	ret = twl6040_request_irq(twl6040, TWL6040_IRQ_READY,
-					twl6040_naudint_handler, 0,
-					"twl6040_irq_ready", twl6040);
+	ret = request_threaded_irq(twl6040->irq_base + TWL6040_IRQ_READY,
+				   NULL, twl6040_naudint_handler, 0,
+				   "twl6040_irq_ready", twl6040);
 	if (ret) {
 		dev_err(twl6040->dev, "READY IRQ request failed: %d\n",
 			ret);
@@ -557,7 +557,7 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 	return 0;
 
 mfd_err:
-	twl6040_free_irq(twl6040, TWL6040_IRQ_READY, twl6040);
+	free_irq(twl6040->irq_base + TWL6040_IRQ_READY, twl6040);
 irq_err:
 	twl6040_irq_exit(twl6040);
 gpio2_err:
@@ -580,7 +580,7 @@ static int __devexit twl6040_remove(struct platform_device *pdev)
 	if (gpio_is_valid(twl6040->audpwron))
 		gpio_free(twl6040->audpwron);
 
-	twl6040_free_irq(twl6040, TWL6040_IRQ_READY, twl6040);
+	free_irq(twl6040->irq_base + TWL6040_IRQ_READY, twl6040);
 	twl6040_irq_exit(twl6040);
 
 	mfd_remove_devices(&pdev->dev);

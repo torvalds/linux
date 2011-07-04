@@ -215,28 +215,6 @@ struct twl6040 {
 	u8 irq_masks_cache;
 };
 
-static inline int twl6040_request_irq(struct twl6040 *twl6040, int irq,
-				      irq_handler_t handler,
-				      unsigned long irqflags,
-				      const char *name,
-				      void *data)
-{
-	if (!twl6040->irq_base)
-		return -EINVAL;
-
-	return request_threaded_irq(twl6040->irq_base + irq, NULL, handler,
-				    irqflags, name, data);
-}
-
-static inline void twl6040_free_irq(struct twl6040 *twl6040, int irq,
-				    void *data)
-{
-	if (!twl6040->irq_base)
-		return;
-
-	free_irq(twl6040->irq_base + irq, data);
-}
-
 int twl6040_reg_read(struct twl6040 *twl6040, unsigned int reg);
 int twl6040_reg_write(struct twl6040 *twl6040, unsigned int reg,
 		      u8 val);
