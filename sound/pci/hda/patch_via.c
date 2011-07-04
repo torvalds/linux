@@ -452,8 +452,9 @@ static void activate_output_path(struct hda_codec *codec, struct nid_path *path,
 		if (enable && path->multi[i])
 			snd_hda_codec_write(codec, dst, 0,
 					    AC_VERB_SET_CONNECT_SEL, idx);
-		if (get_wcaps_type(get_wcaps(codec, src)) == AC_WID_AUD_OUT &&
-		    get_wcaps_type(get_wcaps(codec, dst)) == AC_WID_AUD_MIX)
+		if (!force
+		    && get_wcaps_type(get_wcaps(codec, src)) == AC_WID_AUD_OUT
+		    && get_wcaps_type(get_wcaps(codec, dst)) == AC_WID_AUD_MIX)
 			continue;
 		if (have_mute(codec, dst, HDA_INPUT)) {
 			int val = enable ? AMP_IN_UNMUTE(idx) :
@@ -490,8 +491,8 @@ static void via_auto_init_output(struct hda_codec *codec,
 {
 	struct via_spec *spec = codec->spec;
 	unsigned int caps;
-	hda_nid_t pin, nid;
-	int i, idx;
+	hda_nid_t pin, nid, pre_nid;
+	int i, idx, j, num;
 
 	if (!path->depth)
 		return;
@@ -513,12 +514,26 @@ static void via_auto_init_output(struct hda_codec *codec,
 		return;
 	for (i = path->depth - 1; i > 0; i--) {
 		nid = path->path[i];
+		pre_nid = path->path[i - 1];
 		idx = get_connection_index(codec, nid, spec->aa_mix_nid);
 		if (idx >= 0) {
-			if (have_mute(codec, nid, HDA_INPUT))
+			if (have_mute(codec, nid, HDA_INPUT)) {
 				snd_hda_codec_write(codec, nid, 0,
 						    AC_VERB_SET_AMP_GAIN_MUTE,
 						    AMP_IN_UNMUTE(idx));
+				if (pre_nid == spec->multiout.dac_nids[0]) {
+					num = snd_hda_get_conn_list(codec, nid,
+								    NULL);
+					for (j = 0; j < num; j++) {
+						if (j == idx)
+							continue;
+						snd_hda_codec_write(codec,
+						    nid, 0,
+						    AC_VERB_SET_AMP_GAIN_MUTE,
+						    AMP_IN_MUTE(j));
+					}
+				}
+			}
 			break;
 		}
 	}
