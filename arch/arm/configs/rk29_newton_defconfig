@@ -1817,6 +1817,12 @@ CONFIG_RK29_IPP=y
 CONFIG_RK29_SMC=y
 
 #
+# CIR support
+#
+CONFIG_RK_CIR=y
+CONFIG_BU92747GUW_CIR=y
+
+#
 # File systems
 #
 # CONFIG_EXT2_FS is not set

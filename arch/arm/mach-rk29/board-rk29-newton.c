@@ -57,6 +57,10 @@
 #include "devices.h"
 #include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
 
+#ifdef CONFIG_BU92747GUW_CIR
+#include "../../../drivers/cir/bu92747guw_cir.h"
+#endif
+
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
@@ -499,6 +503,26 @@ static struct platform_device irda_device = {
 };
 #endif
 
+#ifdef CONFIG_BU92747GUW_CIR
+#define BU92747_CIR_IRQ_PIN RK29_PIN5_PB0
+#define CIR_IRQ_PIN_IOMUX_NAME GPIO5B0_HSADCDATA3_NAME
+#define CIR_IRQ_PIN_IOMUX_VALUE GPIO5L_GPIO5B0
+static int cir_iomux_init(void)
+{
+	if (CIR_IRQ_PIN_IOMUX_NAME)
+		rk29_mux_api_set(CIR_IRQ_PIN_IOMUX_NAME, CIR_IRQ_PIN_IOMUX_VALUE);
+	
+	rk29_mux_api_set(GPIO5A7_HSADCDATA2_NAME, GPIO5L_GPIO5A7);
+}
+
+static struct  bu92747guw_platform_data bu92747guw_pdata = {
+	.intr_pin = BU92747_CIR_IRQ_PIN,
+	.iomux_init = cir_iomux_init,
+	.iomux_deinit = NULL,
+	.cir_pwr_ctl = bu92747guw_power_ctl,
+};  
+#endif
+
 
 static struct android_pmem_platform_data android_pmem_pdata = {
 	.name		= "pmem",
@@ -918,6 +942,16 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
         .flags          = 0,
         .irq            = RK29_PIN1_PD7,
     },
+#endif
+#ifdef CONFIG_BU92747GUW_CIR
+    {
+    	.type	="bu92747_cir",
+    	.addr 	= 0x77,    
+    	.flags      =0,
+    	.irq		= BU92747_CIR_IRQ_PIN,
+    	.platform_data = &bu92747guw_pdata,
+    },
+
 #endif
 
 };
