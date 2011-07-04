@@ -422,8 +422,12 @@ static void sh_mobile_ceu_videobuf_release(struct vb2_buffer *vb)
 		pcdev->active = NULL;
 	}
 
-	/* Doesn't hurt also if the list is empty */
-	list_del_init(&buf->queue);
+	/*
+	 * Doesn't hurt also if the list is empty, but it hurts, if queuing the
+	 * buffer failed, and .buf_init() hasn't been called
+	 */
+	if (buf->queue.next)
+		list_del_init(&buf->queue);
 
 	spin_unlock_irq(&pcdev->lock);
 }
