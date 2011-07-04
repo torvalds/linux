@@ -793,7 +793,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 			return ret;
 
 		/* dma objects for display sync channel semaphore blocks */
-		for (i = 0; i < 2; i++) {
+		for (i = 0; i < dev->mode_config.num_crtc; i++) {
 			struct nouveau_gpuobj *sem = NULL;
 			struct nv50_display_crtc *dispc =
 				&nv50_display(dev)->crtc[i];
@@ -878,7 +878,7 @@ nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 	if (dev_priv->card_type >= NV_50) {
 		struct nv50_display *disp = nv50_display(dev);
 
-		for (i = 0; i < 2; i++) {
+		for (i = 0; i < dev->mode_config.num_crtc; i++) {
 			struct nv50_display_crtc *dispc = &disp->crtc[i];
 			nouveau_bo_vma_del(dispc->sem.bo, &chan->dispc_vma[i]);
 		}

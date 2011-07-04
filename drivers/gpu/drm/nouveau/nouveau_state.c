@@ -452,21 +452,6 @@ nouveau_vga_set_decode(void *priv, bool state)
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 }
 
-static int
-nouveau_card_init_channel(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int ret;
-
-	ret = nouveau_channel_alloc(dev, &dev_priv->channel, NULL,
-				    NvDmaFB, NvDmaTT);
-	if (ret)
-		return ret;
-
-	mutex_unlock(&dev_priv->channel->mutex);
-	return 0;
-}
-
 static void nouveau_switcheroo_set_state(struct pci_dev *pdev,
 					 enum vga_switcheroo_state state)
 {
@@ -657,6 +642,10 @@ nouveau_card_init(struct drm_device *dev)
 			goto out_engine;
 	}
 
+	ret = nouveau_irq_init(dev);
+	if (ret)
+		goto out_fifo;
+
 	/* initialise general modesetting */
 	drm_mode_config_init(dev);
 	drm_mode_create_scaling_mode_property(dev);
@@ -679,39 +668,40 @@ nouveau_card_init(struct drm_device *dev)
 
 	ret = engine->display.create(dev);
 	if (ret)
-		goto out_fifo;
-
-	ret = drm_vblank_init(dev, nv_two_heads(dev) ? 2 : 1);
-	if (ret)
-		goto out_vblank;
-
-	ret = nouveau_irq_init(dev);
-	if (ret)
-		goto out_vblank;
-
-	/* what about PVIDEO/PCRTC/PRAMDAC etc? */
+		goto out_irq;
 
 	if (dev_priv->eng[NVOBJ_ENGINE_GR]) {
 		ret = nouveau_fence_init(dev);
 		if (ret)
-			goto out_irq;
+			goto out_disp;
 
-		ret = nouveau_card_init_channel(dev);
+		ret = nouveau_channel_alloc(dev, &dev_priv->channel, NULL,
+					    NvDmaFB, NvDmaTT);
 		if (ret)
 			goto out_fence;
+
+		mutex_unlock(&dev_priv->channel->mutex);
 	}
 
-	nouveau_fbcon_init(dev);
-	drm_kms_helper_poll_init(dev);
+	if (dev->mode_config.num_crtc) {
+		ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
+		if (ret)
+			goto out_chan;
+
+		nouveau_fbcon_init(dev);
+		drm_kms_helper_poll_init(dev);
+	}
+
 	return 0;
 
+out_chan:
+	nouveau_channel_put_unlocked(&dev_priv->channel);
 out_fence:
 	nouveau_fence_fini(dev);
+out_disp:
+	engine->display.destroy(dev);
 out_irq:
 	nouveau_irq_fini(dev);
-out_vblank:
-	drm_vblank_cleanup(dev);
-	engine->display.destroy(dev);
 out_fifo:
 	if (!dev_priv->noaccel)
 		engine->fifo.takedown(dev);
@@ -758,8 +748,11 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	struct nouveau_engine *engine = &dev_priv->engine;
 	int e;
 
-	drm_kms_helper_poll_fini(dev);
-	nouveau_fbcon_fini(dev);
+	if (dev->mode_config.num_crtc) {
+		drm_kms_helper_poll_fini(dev);
+		nouveau_fbcon_fini(dev);
+		drm_vblank_cleanup(dev);
+	}
 
 	if (dev_priv->channel) {
 		nouveau_channel_put_unlocked(&dev_priv->channel);
@@ -801,7 +794,6 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	engine->vram.takedown(dev);
 
 	nouveau_irq_fini(dev);
-	drm_vblank_cleanup(dev);
 
 	nouveau_pm_fini(dev);
 	nouveau_bios_takedown(dev);
