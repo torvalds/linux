@@ -1,0 +1,9 @@
+
+config RK29_SMC
+	bool "rk29 smc interface"
+	default n 
+	help
+	  if you want to use smc in rk29, pls enable it
+	  
+
+

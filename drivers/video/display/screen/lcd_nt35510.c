@@ -1366,7 +1366,7 @@ void init_nt35510(void)
 	WriteParameter(0x07);
 	WriteCommand(0XBF03); 
 	WriteParameter(0x31);
-
+/*
 	WriteCommand(0XFF00); 
 	WriteParameter(0xAA);
 	WriteCommand(0XFF01); 
@@ -1375,8 +1375,46 @@ void init_nt35510(void)
 	WriteParameter(0x25);
 	WriteCommand(0XFF03); 
 	WriteParameter(0x01);
+*/
+/*****************************************************************/
+	WriteCommand(0XF000);WriteParameter(0x55);//ENABLE  High Mode
+	WriteCommand(0XF001);WriteParameter(0xAA);
+	WriteCommand(0XF002);WriteParameter(0x52);
+	WriteCommand(0XF003);WriteParameter(0x08);
+	WriteCommand(0XF004);WriteParameter(0x00);
+	
+	WriteCommand(0XB400);WriteParameter(0x10);
+	
+	WriteCommand(0XFF00);WriteParameter(0xAA);//ENABLE LV3 
+	WriteCommand(0XFF01);WriteParameter(0x55);
+	WriteCommand(0XFF02);WriteParameter(0x25);
+	WriteCommand(0XFF03);WriteParameter(0x01);
 
-
+  WriteCommand(0XF900);WriteParameter(0x14);//中等增艳显示效果
+	WriteCommand(0XF901);WriteParameter(0x00);
+	WriteCommand(0XF902);WriteParameter(0x0A);
+	WriteCommand(0XF903);WriteParameter(0x11);
+	WriteCommand(0XF904);WriteParameter(0x17);
+	WriteCommand(0XF905);WriteParameter(0x1D);
+	WriteCommand(0XF906);WriteParameter(0x24);
+	WriteCommand(0XF907);WriteParameter(0x2A);
+	WriteCommand(0XF908);WriteParameter(0x31);
+	WriteCommand(0XF909);WriteParameter(0x37);
+	WriteCommand(0XF90A);WriteParameter(0x3D);
+/*
+	WriteCommand(0XF900);WriteParameter(0x14);//高等增艳显示效果
+	WriteCommand(0XF901);WriteParameter(0x00);
+	WriteCommand(0XF902);WriteParameter(0x0D);
+	WriteCommand(0XF903);WriteParameter(0x1A);
+	WriteCommand(0XF904);WriteParameter(0x26);
+	WriteCommand(0XF905);WriteParameter(0x33);
+	WriteCommand(0XF906);WriteParameter(0x40);
+	WriteCommand(0XF907);WriteParameter(0x4D);
+	WriteCommand(0XF908);WriteParameter(0x5A);
+	WriteCommand(0XF909);WriteParameter(0x66);
+	WriteCommand(0XF90A);WriteParameter(0x73);
+*/
+/******************************************************************/
 	WriteCommand(0X3500); 
 	WriteParameter(0x00);
 
@@ -1583,16 +1621,22 @@ int standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 	if(enable) {
 		WriteCommand(0X2800); 
 		//set_backlight(0);
-		mdelay(100);
-		WriteCommand(0X1000); 
+		WriteCommand(0X1100); 
+		mdelay(5);
+		WriteCommand(0X4f00); 
+		WriteParameter(0x01);
 	} else { 
- 		WriteCommand(0X1100); 
-		mdelay(120);
-		WriteCommand(0X2900); 
-		mdelay(100);
+		gpio_request(RK29_PIN6_PC6, NULL);
+		gpio_direction_output(RK29_PIN6_PC6, 1);
+		gpio_direction_output(RK29_PIN6_PC6, 0);
+		mdelay(5);
+		gpio_set_value(RK29_PIN6_PC6, 1);
+		mdelay(50);
+		gpio_free(RK29_PIN6_PC6);
+		init_nt35510();
 		//set_backlight(255);
 		//resume_nt35510();//may be fail to wake up LCD some time,so change to init lcd again
-		printk("%s\n",__FUNCTION__);
+		printk("%s\n",__FUNCTION__);printk("%s\n",__FUNCTION__);
 	}
 
     if(gLcd_info)

@@ -116,5 +116,7 @@ obj-y				+= platform/
 obj-y				+= ieee802154/
 obj-$(CONFIG_CMMB)		+= cmmb/
 obj-$(CONFIG_TEST_CODE)		+= testcode/
+obj-y		+= smc/
+obj-y		+= cir/		
 obj-y				+= dbg/
 

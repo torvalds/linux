@@ -1543,7 +1543,7 @@ struct wm8994_pdata wm8994_platdata = {
 	
 	.speaker_incall_vol = 0,
 	.speaker_incall_mic_vol = -9,
-	.speaker_normal_vol = 6,
+	.speaker_normal_vol = -26,
 	.earpiece_incall_vol = 0,
 	.headset_incall_vol = 6,
 	.headset_incall_mic_vol = -6,

@@ -44,44 +44,34 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct clk	*general_pll;
 	  
     DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
-    /*by Vincent Hsiung for EQ Vol Change*/
-    #define HW_PARAMS_FLAG_EQVOL_ON 0x21
-    #define HW_PARAMS_FLAG_EQVOL_OFF 0x22
-    if ((params->flags == HW_PARAMS_FLAG_EQVOL_ON)||(params->flags == HW_PARAMS_FLAG_EQVOL_OFF))
-    {
-     	ret = codec_dai->ops->hw_params(substream, params, codec_dai); //by Vincent      
-    }
-    else
-    {
-        /* set codec DAI configuration */
-        #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
-			DBG("Set codec_dai slave\n");    
-            ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-                            SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
-            #endif	
-        #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 			   
-            ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-                            SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-			DBG("Set codec_dai master\n"); 						
-        #endif
-        if (ret < 0)
-            return ret; 
+	/* set codec DAI configuration */
+#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+	DBG("Set codec_dai slave\n");    
+	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+                           SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+#endif	
+#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 			   
+    ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
+                           SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
+	DBG("Set codec_dai master\n"); 						
+#endif
+    if (ret < 0)
+        return ret; 
 
-        /* set cpu DAI configuration */
-         #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
-			DBG("Set cpu_dai slave\n");    
-            ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+	/* set cpu DAI configuration */
+#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
+	DBG("Set cpu_dai slave\n");    
+	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
                             SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-        #endif	
-        #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER)  
-		    ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
+#endif	
+#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER)  
+	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
                             SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
-			DBG("Set cpu_dai master\n");   				
-        #endif		
-        if (ret < 0)
-            return ret;
-    }
-	
+	DBG("Set cpu_dai master\n");   				
+#endif		
+	if (ret < 0)
+		return ret;
+
     switch(params_rate(params)) {
         case 8000:
         case 16000:
@@ -101,36 +91,40 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
             break;
      }
      DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
-	#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 	
-		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
-	#endif	
+#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 	
+	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+#endif	
 	
-	#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
-		general_pll=clk_get(NULL, "general_pll");
-		if(clk_get_rate(general_pll)>260000000)
-		{
-			div_bclk=(pll_out/4)/params_rate(params)-1;
-			div_mclk=3;
-		}
-		else if(clk_get_rate(general_pll)>130000000)
-		{
-			div_bclk=(pll_out/2)/params_rate(params)-1;
-			div_mclk=1;
-		}
-		else
-		{
-			pll_out=pll_out/4;
-			div_bclk=(pll_out)/params_rate(params)-1;
-			div_mclk=0;
-		}
-		DBG("func is%s,gpll=%ld,pll_out=%ld,div_mclk=%ld\n",
-				__FUNCTION__,clk_get_rate(general_pll),pll_out,div_mclk);
-		snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
-		snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,div_bclk);
-		snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
-		snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, 0);
-		DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));		
-	#endif
+#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
+	general_pll=clk_get(NULL, "general_pll");
+	if(clk_get_rate(general_pll)>260000000)
+	{
+		div_bclk=(pll_out/4)/params_rate(params)-1;
+		div_mclk=3;
+	}
+	else if(clk_get_rate(general_pll)>130000000)
+	{
+		div_bclk=(pll_out/2)/params_rate(params)-1;
+		div_mclk=1;
+	}
+	else
+	{
+		pll_out=pll_out/4;
+		div_bclk=(pll_out)/params_rate(params)-1;
+		div_mclk=0;
+	}
+	DBG("func is%s,gpll=%ld,pll_out=%ld,div_mclk=%ld\n",
+			__FUNCTION__,clk_get_rate(general_pll),pll_out,div_mclk);
+	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK,div_bclk);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, div_mclk);
+	
+	if(div_mclk == 3)
+		snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_MCLK1, pll_out, 0);
+	else
+		snd_soc_dai_set_sysclk(codec_dai, WM8994_SYSCLK_FLL1, pll_out, 0);
+	DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));		
+#endif
 
     return 0;
 }

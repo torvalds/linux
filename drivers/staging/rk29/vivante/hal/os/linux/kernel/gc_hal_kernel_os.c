@@ -6126,10 +6126,10 @@ CreateMemoryRecord(
     mr->u.Memory.physical   = Physical;
     mr->u.Memory.logical    = Logical;
 
-    mr->prev            = List->prev;
-    mr->next            = List;
-    List->prev->next    = mr;
-    List->prev          = mr;
+    mr->prev            = List;
+    mr->next            = List->next;
+    List->next->prev    = mr;
+    List->next          = mr;
 
     MEMORY_UNLOCK(Os);
 
@@ -6228,10 +6228,10 @@ CreateVideoMemoryRecord(
             ? private->maxTotalAllocatedMem : private->totalAllocatedMem;
 #endif
 
-    mr->prev            = List->prev;
-    mr->next            = List;
-    List->prev->next    = mr;
-    List->prev          = mr;
+    mr->prev            = List;
+    mr->next            = List->next;
+    List->next->prev    = mr;
+    List->next          = mr;
 
     MEMORY_UNLOCK(Os);
 

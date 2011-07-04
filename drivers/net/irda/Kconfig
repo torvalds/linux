@@ -387,5 +387,19 @@ config MCS_FIR
 	  To compile it as a module, choose M here: the module will be called
 	  mcs7780.
 
+config RK_IRDA
+	tristate "rockchip rk29 IrDA"
+	depends on IRDA && RK29_SMC
+	help
+	  Say Y or M here if you want to build support for the rk29
+	  built-in IRDA interface which can support both SIR, MIR and FIR.
+
+choice
+    depends on RK_IRDA
+	prompt  "irda module select"
+config BU92725GUW
+	bool "bu92725guw"
+endchoice
+
 endmenu
 

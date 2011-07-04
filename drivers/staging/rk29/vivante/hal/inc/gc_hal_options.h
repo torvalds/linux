@@ -260,7 +260,7 @@
 #   define gcdGPU_TIMEOUT                   0
 #endif
 
-
+/*=============================== add by dkm ==================================== */
 /*
     dkm: gcdENABLE_AUTO_FREQ
     0: 关闭自动调频
@@ -301,6 +301,14 @@
     或长时间不操作界面但还未进入一级待机
 */
 #define gcdENABLE_LONG_IDLE_POWEROFF        1
+
+
+/*
+    dkm: gcdOPTIMIZE_HEAP_SAMESIZE
+
+    optimize for heap alloc when alloc the same size 
+*/
+#define gcdOPTIMIZE_HEAP_SAMESIZE              1
 
 #endif /* __gc_hal_options_h_ */
 

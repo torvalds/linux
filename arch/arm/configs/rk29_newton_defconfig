@@ -487,7 +487,47 @@ CONFIG_ANDROID_PARANOID_NETWORK=y
 # CONFIG_NET_PKTGEN is not set
 # CONFIG_HAMRADIO is not set
 # CONFIG_CAN is not set
-# CONFIG_IRDA is not set
+CONFIG_IRDA=y
+
+#
+# IrDA protocols
+#
+CONFIG_IRLAN=y
+CONFIG_IRNET=y
+# CONFIG_IRCOMM is not set
+# CONFIG_IRDA_ULTRA is not set
+
+#
+# IrDA options
+#
+# CONFIG_IRDA_CACHE_LAST_LSAP is not set
+# CONFIG_IRDA_FAST_RR is not set
+CONFIG_IRDA_DEBUG=y
+
+#
+# Infrared-port device drivers
+#
+
+#
+# SIR device drivers
+#
+# CONFIG_IRTTY_SIR is not set
+
+#
+# Dongle support
+#
+# CONFIG_KINGSUN_DONGLE is not set
+# CONFIG_KSDAZZLE_DONGLE is not set
+# CONFIG_KS959_DONGLE is not set
+
+#
+# FIR device drivers
+#
+# CONFIG_USB_IRDA is not set
+# CONFIG_SIGMATEL_FIR is not set
+# CONFIG_MCS_FIR is not set
+CONFIG_RK_IRDA=y
+CONFIG_BU92725GUW=y
 CONFIG_BT=y
 CONFIG_BT_L2CAP=y
 CONFIG_BT_SCO=y
@@ -1774,6 +1814,13 @@ CONFIG_RK29_IPP=y
 #
 # CONFIG_CMMB is not set
 # CONFIG_TEST_CODE is not set
+CONFIG_RK29_SMC=y
+
+#
+# CIR support
+#
+CONFIG_RK_CIR=y
+CONFIG_BU92747GUW_CIR=y
 
 #
 # File systems

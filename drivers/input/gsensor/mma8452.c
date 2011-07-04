@@ -365,7 +365,7 @@ static int mma8452_get_data(struct i2c_client *client)
     do {
         memset(buffer, 0, 3);
         buffer[0] = MMA8452_REG_X_OUT_MSB;
-		ret = mma8452_tx_data(client, &buffer[0], 1);
+		//ret = mma8452_tx_data(client, &buffer[0], 1);
         ret = mma8452_rx_data(client, &buffer[0], 3);
         if (ret < 0)
             return ret;
