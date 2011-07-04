@@ -310,5 +310,12 @@ config REGULATOR_TPS65910
 	help
 	  This driver supports TPS65910 voltage regulator chips.
 
+config REGULATOR_AAT2870
+	tristate "AnalogicTech AAT2870 Regulators"
+	depends on MFD_AAT2870_CORE
+	help
+	  If you have a AnalogicTech AAT2870 say Y to enable the
+	  regulator driver.
+
 endif
 
