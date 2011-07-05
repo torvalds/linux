@@ -139,14 +139,18 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 	if (!lvds_lfp_data)
 		return;
 
-	dev_priv->lvds_vbt = 1;
 
 	entry = &lvds_lfp_data->data[lvds_options->panel_type];
 	dvo_timing = &entry->dvo_timing;
 
 	panel_fixed_mode = kzalloc(sizeof(*panel_fixed_mode),
 				      GFP_KERNEL);
+	if (panel_fixed_mode == NULL) {
+		dev_err(dev_priv->dev->dev, "out of memory for fixed panel mode\n");
+		return;
+	}
 
+	dev_priv->lvds_vbt = 1;
 	fill_detail_timing_data(panel_fixed_mode, dvo_timing);
 
 	if (panel_fixed_mode->htotal > 0 && panel_fixed_mode->vtotal > 0) {
