@@ -15,15 +15,28 @@
 #include <linux/hid.h>
 #include <linux/input.h>
 #include <linux/module.h>
+#include <linux/spinlock.h>
 #include "hid-ids.h"
 
 #define WIIMOTE_VERSION "0.1"
 #define WIIMOTE_NAME "Nintendo Wii Remote"
+#define WIIMOTE_BUFSIZE 32
+
+struct wiimote_buf {
+	__u8 data[HID_MAX_BUFFER_SIZE];
+	size_t size;
+};
 
 struct wiimote_data {
 	atomic_t ready;
 	struct hid_device *hdev;
 	struct input_dev *input;
+
+	spinlock_t qlock;
+	__u8 head;
+	__u8 tail;
+	struct wiimote_buf outq[WIIMOTE_BUFSIZE];
+	struct work_struct worker;
 };
 
 static ssize_t wiimote_hid_send(struct hid_device *hdev, __u8 *buffer,
@@ -43,6 +56,65 @@ static ssize_t wiimote_hid_send(struct hid_device *hdev, __u8 *buffer,
 
 	kfree(buf);
 	return ret;
+}
+
+static void wiimote_worker(struct work_struct *work)
+{
+	struct wiimote_data *wdata = container_of(work, struct wiimote_data,
+									worker);
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->qlock, flags);
+
+	while (wdata->head != wdata->tail) {
+		spin_unlock_irqrestore(&wdata->qlock, flags);
+		wiimote_hid_send(wdata->hdev, wdata->outq[wdata->tail].data,
+						wdata->outq[wdata->tail].size);
+		spin_lock_irqsave(&wdata->qlock, flags);
+
+		wdata->tail = (wdata->tail + 1) % WIIMOTE_BUFSIZE;
+	}
+
+	spin_unlock_irqrestore(&wdata->qlock, flags);
+}
+
+static void wiimote_queue(struct wiimote_data *wdata, const __u8 *buffer,
+								size_t count)
+{
+	unsigned long flags;
+	__u8 newhead;
+
+	if (count > HID_MAX_BUFFER_SIZE) {
+		hid_warn(wdata->hdev, "Sending too large output report\n");
+		return;
+	}
+
+	/*
+	 * Copy new request into our output queue and check whether the
+	 * queue is full. If it is full, discard this request.
+	 * If it is empty we need to start a new worker that will
+	 * send out the buffer to the hid device.
+	 * If the queue is not empty, then there must be a worker
+	 * that is currently sending out our buffer and this worker
+	 * will reschedule itself until the queue is empty.
+	 */
+
+	spin_lock_irqsave(&wdata->qlock, flags);
+
+	memcpy(wdata->outq[wdata->head].data, buffer, count);
+	wdata->outq[wdata->head].size = count;
+	newhead = (wdata->head + 1) % WIIMOTE_BUFSIZE;
+
+	if (wdata->head == wdata->tail) {
+		wdata->head = newhead;
+		schedule_work(&wdata->worker);
+	} else if (newhead != wdata->tail) {
+		wdata->head = newhead;
+	} else {
+		hid_warn(wdata->hdev, "Output queue is full");
+	}
+
+	spin_unlock_irqrestore(&wdata->qlock, flags);
 }
 
 static int wiimote_input_event(struct input_dev *dev, unsigned int type,
@@ -99,6 +171,9 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	wdata->input->id.product = wdata->hdev->product;
 	wdata->input->id.version = wdata->hdev->version;
 	wdata->input->name = WIIMOTE_NAME;
+
+	spin_lock_init(&wdata->qlock);
+	INIT_WORK(&wdata->worker, wiimote_worker);
 
 	return wdata;
 }
@@ -157,8 +232,11 @@ static void wiimote_hid_remove(struct hid_device *hdev)
 	struct wiimote_data *wdata = hid_get_drvdata(hdev);
 
 	hid_info(hdev, "Device removed\n");
+
 	hid_hw_stop(hdev);
 	input_unregister_device(wdata->input);
+
+	cancel_work_sync(&wdata->worker);
 	wiimote_destroy(wdata);
 }
 
