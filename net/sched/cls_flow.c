@@ -356,7 +356,7 @@ static u32 flow_key_get(struct sk_buff *skb, int key)
 	}
 }
 
-static int flow_classify(struct sk_buff *skb, struct tcf_proto *tp,
+static int flow_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			 struct tcf_result *res)
 {
 	struct flow_head *head = tp->root;

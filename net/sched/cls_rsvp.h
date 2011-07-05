@@ -130,7 +130,7 @@ static struct tcf_ext_map rsvp_ext_map = {
 		return r;				\
 }
 
-static int rsvp_classify(struct sk_buff *skb, struct tcf_proto *tp,
+static int rsvp_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 			 struct tcf_result *res)
 {
 	struct rsvp_session **sht = ((struct rsvp_head *)tp->root)->ht;
