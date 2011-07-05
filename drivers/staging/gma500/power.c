@@ -36,7 +36,7 @@
 #include <linux/pm_runtime.h>
 
 static struct mutex power_mutex;	/* Serialize power ops */
-static struct mutex power_ctrl_mutex;	/* Serialize power claim */
+static spinlock_t power_ctrl_lock;	/* Serialize power claim */
 
 /**
  *	gma_power_init		-	initialise power manager
@@ -55,8 +55,8 @@ void gma_power_init(struct drm_device *dev)
 	dev_priv->display_power = true;	/* We start active */
 	dev_priv->display_count = 0;	/* Currently no users */
 	dev_priv->suspended = false;	/* And not suspended */
+	spin_lock_init(&power_ctrl_lock);
 	mutex_init(&power_mutex);
-	mutex_init(&power_ctrl_mutex);
 
 	dev_priv->ops->init_pm(dev);
 }
@@ -247,13 +247,14 @@ bool gma_power_begin(struct drm_device *dev, bool force_on)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	int ret;
+	unsigned long flags;
 
-	mutex_lock(&power_ctrl_mutex);
+	spin_lock_irqsave(&power_ctrl_lock, flags);
 	/* Power already on ? */
 	if (dev_priv->display_power) {
 		dev_priv->display_count++;
 		pm_runtime_get(&dev->pdev->dev);
-		mutex_unlock(&power_ctrl_mutex);
+		spin_unlock_irqrestore(&power_ctrl_lock, flags);
 		return true;
 	}
 	if (force_on == false)
@@ -266,11 +267,11 @@ bool gma_power_begin(struct drm_device *dev, bool force_on)
 		psb_irq_postinstall(dev);
 		pm_runtime_get(&dev->pdev->dev);
 		dev_priv->display_count++;
-		mutex_unlock(&power_ctrl_mutex);
+		spin_unlock_irqrestore(&power_ctrl_lock, flags);
 		return true;
 	}
 out_false:
-	mutex_unlock(&power_ctrl_mutex);
+	spin_unlock_irqrestore(&power_ctrl_lock, flags);
 	return false;
 }
 
@@ -284,10 +285,11 @@ out_false:
 void gma_power_end(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	mutex_lock(&power_ctrl_mutex);
+	unsigned long flags;
+	spin_lock_irqsave(&power_ctrl_lock, flags);
 	dev_priv->display_count--;
 	WARN_ON(dev_priv->display_count < 0);
-	mutex_unlock(&power_ctrl_mutex);
+	spin_unlock_irqrestore(&power_ctrl_lock, flags);
 	pm_runtime_put(&dev->pdev->dev);
 }
 
