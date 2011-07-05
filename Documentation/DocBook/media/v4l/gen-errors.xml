@@ -35,6 +35,10 @@
 	       descriptor is not for a media device.</entry>
       </row>
       <row>
+        <entry>ENODEV</entry>
+	<entry>Device not found or was removed.</entry>
+      </row>
+      <row>
 	<entry>ENOMEM</entry>
 	<entry>There's not enough memory to handle the desired operation.</entry>
       </row>
