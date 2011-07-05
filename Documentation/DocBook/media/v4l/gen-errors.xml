@@ -1,0 +1,17 @@
+<title>Generic Error Codes</title>
+
+<table frame="none" pgwide="1" id="gen-errors">
+  <title>Generic error codes</title>
+  <tgroup cols="2">
+    &cs-str;
+    <tbody valign="top">
+      <row>
+	<entry>EBUSY</entry>
+	<entry>The ioctl can't be handled because the device is busy. This is
+	       typically return while device is streaming, and an ioctl tried to
+	       change something that would affect the stream, or would require the
+	       usage of a hardware resource that was already allocated.</entry>
+      </row>
+    </tbody>
+  </tgroup>
+</table>

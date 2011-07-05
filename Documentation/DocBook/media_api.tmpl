@@ -8,7 +8,7 @@
 <!ENTITY ie                     "i.&nbsp;e.">
 <!ENTITY fd                     "File descriptor returned by <link linkend='func-open'><function>open()</function></link>.">
 <!ENTITY i2c                    "I<superscript>2</superscript>C">
-<!ENTITY return-value		"<title>Return Value</title><para>On success <returnvalue>0</returnvalue> is returned, on error <returnvalue>-1</returnvalue> and the <varname>errno</varname> variable is set appropriately:</para>">
+<!ENTITY return-value		"<title>Return Value</title><para>On success <returnvalue>0</returnvalue> is returned, on error <returnvalue>-1</returnvalue> and the <varname>errno</varname> variable is set appropriately. The generic error codes are described at the <link linkend='gen-errors'>Generic Error Codes</link> chapter.</para>">
 <!ENTITY manvol                 "<manvolnum>2</manvolnum>">
 
 <!-- Table templates: structs, structs w/union, defines. -->
@@ -109,6 +109,11 @@ Foundation. A copy of the license is included in the chapter entitled
 <part id="media_common">
 &sub-media-controller;
 </part>
+
+<chapter id="gen_errors">
+&sub-gen-errors;
+</chapter>
+
 
 &sub-fdl-appendix;
 

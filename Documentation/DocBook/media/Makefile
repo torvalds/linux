@@ -100,23 +100,59 @@ STRUCTS = \
 	$(shell perl -ne 'print "$$1 " if /^struct\s+([^\s]+)\s+/' $(srctree)/include/linux/v4l2-mediabus.h)
 
 ERRORS = \
+	E2BIG \
 	EACCES \
 	EAGAIN \
 	EBADF \
+	EBADFD \
+	EBADR \
+	EBADRQC \
 	EBUSY \
+	ECHILD \
+	ECONNRESET \
+	EDEADLK \
+	EDOM \
+	EEXIST \
 	EFAULT \
-	EIO \
+	EFBIG \
+	EILSEQ \
+	EINIT \
+	EINPROGRESS \
 	EINTR \
 	EINVAL \
+	EIO \
+	EMFILE \
 	ENFILE \
+	ENOBUFS \
+	ENODATA \
+	ENODEV \
+	ENOENT \
+	ENOIOCTLCMD \
 	ENOMEM \
 	ENOSPC \
+	ENOSR \
+	ENOSYS \
+	ENOTSUP \
+	ENOTSUPP \
 	ENOTTY \
 	ENXIO \
-	EMFILE \
+	EOPNOTSUPP \
+	EOVERFLOW \
 	EPERM \
-	ERANGE \
 	EPIPE \
+	EPROTO \
+	ERANGE \
+	EREMOTE \
+	EREMOTEIO \
+	ERESTART \
+	ERESTARTSYS \
+	ESHUTDOWN \
+	ESPIPE \
+	ETIME \
+	ETIMEDOUT \
+	EUSERS \
+	EWOULDBLOCK \
+	EXDEV \
 
 ESCAPE = \
 	-e "s/&/\\&amp;/g" \
