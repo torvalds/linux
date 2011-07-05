@@ -598,7 +598,7 @@ MODULE_ALIAS("platform:spi_tegra");
 
 #ifdef CONFIG_OF
 static struct of_device_id spi_tegra_of_match_table[] __devinitdata = {
-	{ .compatible = "nvidia,tegra250-spi", },
+	{ .compatible = "nvidia,tegra20-spi", },
 	{}
 };
 MODULE_DEVICE_TABLE(of, spi_tegra_of_match_table);
