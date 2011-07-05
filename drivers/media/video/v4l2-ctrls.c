@@ -712,10 +712,15 @@ static void new_to_cur(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl,
 		if (!is_cur_manual(ctrl->cluster[0]))
 			ctrl->flags |= V4L2_CTRL_FLAG_INACTIVE;
 	}
-	if (changed || update_inactive)
+	if (changed || update_inactive) {
+		/* If a control was changed that was not one of the controls
+		   modified by the application, then send the event to all. */
+		if (!ctrl->is_new)
+			fh = NULL;
 		send_event(fh, ctrl,
 			(changed ? V4L2_EVENT_CTRL_CH_VALUE : 0) |
 			(update_inactive ? V4L2_EVENT_CTRL_CH_FLAGS : 0));
+	}
 }
 
 /* Copy the current value to the new value */
