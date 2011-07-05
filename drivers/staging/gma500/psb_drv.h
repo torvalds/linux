@@ -732,13 +732,13 @@ extern void mdfld_disable_te(struct drm_device *dev, int pipe);
 extern int psb_intel_opregion_init(struct drm_device *dev);
 
 /*
- *psb_fb.c
+ * framebuffer.c
  */
 extern int psbfb_probed(struct drm_device *dev);
 extern int psbfb_remove(struct drm_device *dev,
 			struct drm_framebuffer *fb);
 /*
- * psb_2d.c
+ * accel_2d.c
  */
 extern void psbfb_copyarea(struct fb_info *info,
 					const struct fb_copyarea *region);
