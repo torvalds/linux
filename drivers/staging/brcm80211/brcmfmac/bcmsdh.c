@@ -27,7 +27,6 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include <soc.h>
-#include "bcmsdbus.h"		/* common SDIO/controller interface */
 #include "dhd.h"
 #include "dhd_bus.h"
 #include "sdio_host.h"

@@ -30,7 +30,6 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include "sdio_host.h"
-#include "bcmsdbus.h"
 #include "dhd.h"
 #include "dhd_dbg.h"
 #include "wl_cfg80211.h"
@@ -65,6 +64,56 @@
 #if !defined(SDIO_DEVICE_ID_BROADCOM_4319)
 #define SDIO_DEVICE_ID_BROADCOM_4319	0x4319
 #endif		/* !defined(SDIO_DEVICE_ID_BROADCOM_4329) */
+
+/* Common msglevel constants */
+#define SDH_ERROR_VAL		0x0001	/* Error */
+#define SDH_TRACE_VAL		0x0002	/* Trace */
+#define SDH_INFO_VAL		0x0004	/* Info */
+#define SDH_DEBUG_VAL		0x0008	/* Debug */
+#define SDH_DATA_VAL		0x0010	/* Data */
+#define SDH_CTRL_VAL		0x0020	/* Control Regs */
+#define SDH_LOG_VAL		0x0040	/* Enable bcmlog */
+#define SDH_DMA_VAL		0x0080	/* DMA */
+
+#ifdef BCMDBG
+#define sd_err(x)	\
+	do { \
+		if ((sd_msglevel & SDH_ERROR_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define sd_trace(x)	\
+	do { \
+		if ((sd_msglevel & SDH_TRACE_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define sd_info(x)	\
+	do { \
+		if ((sd_msglevel & SDH_INFO_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define sd_debug(x)	\
+	do { \
+		if ((sd_msglevel & SDH_DEBUG_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define sd_data(x)	\
+	do { \
+		if ((sd_msglevel & SDH_DATA_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define sd_ctrl(x)	\
+	do { \
+		if ((sd_msglevel & SDH_CTRL_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#else
+#define sd_err(x)
+#define sd_trace(x)
+#define sd_info(x)
+#define sd_debug(x)
+#define sd_data(x)
+#define sd_ctrl(x)
+#endif
 
 struct sdos_info {
 	struct sdioh_info *sd;

@@ -32,7 +32,6 @@
 #include <brcm_hw_ids.h>
 #include <soc.h>
 #include "sdio_host.h"
-#include "bcmsdbus.h"
 
 /* register access macros */
 #ifndef __BIG_ENDIAN
