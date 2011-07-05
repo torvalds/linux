@@ -224,13 +224,10 @@ static int wm9705_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 	}
 
 	/* set up digitiser */
-	if (adcsel & 0x8000)
-		adcsel = ((adcsel & 0x7fff) + 3) << 12;
-
 	if (wm->mach_ops && wm->mach_ops->pre_sample)
 		wm->mach_ops->pre_sample(adcsel);
-	wm97xx_reg_write(wm, AC97_WM97XX_DIGITISER1,
-			 adcsel | WM97XX_POLL | WM97XX_DELAY(delay));
+	wm97xx_reg_write(wm, AC97_WM97XX_DIGITISER1, (adcsel & WM97XX_ADCSEL_MASK)
+				| WM97XX_POLL | WM97XX_DELAY(delay));
 
 	/* wait 3 AC97 time slots + delay for conversion */
 	poll_delay(delay);
@@ -256,9 +253,10 @@ static int wm9705_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 		wm->mach_ops->post_sample(adcsel);
 
 	/* check we have correct sample */
-	if ((*sample & WM97XX_ADCSEL_MASK) != adcsel) {
-		dev_dbg(wm->dev, "adc wrong sample, read %x got %x", adcsel,
-		*sample & WM97XX_ADCSEL_MASK);
+	if ((*sample ^ adcsel) & WM97XX_ADCSEL_MASK) {
+		dev_dbg(wm->dev, "adc wrong sample, wanted %x got %x",
+			adcsel & WM97XX_ADCSEL_MASK,
+			*sample & WM97XX_ADCSEL_MASK);
 		return RC_PENUP;
 	}
 

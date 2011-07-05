@@ -270,15 +270,14 @@ static int wm9713_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 	}
 
 	/* set up digitiser */
-	if (adcsel & 0x8000)
-		adcsel = 1 << ((adcsel & 0x7fff) + 3);
-
 	dig1 = wm97xx_reg_read(wm, AC97_WM9713_DIG1);
 	dig1 &= ~WM9713_ADCSEL_MASK;
+	/* WM97XX_ADCSEL_* channels need to be converted to WM9713 format */
+	dig1 |= 1 << ((adcsel & WM97XX_ADCSEL_MASK) >> 12);
 
 	if (wm->mach_ops && wm->mach_ops->pre_sample)
 		wm->mach_ops->pre_sample(adcsel);
-	wm97xx_reg_write(wm, AC97_WM9713_DIG1, dig1 | adcsel | WM9713_POLL);
+	wm97xx_reg_write(wm, AC97_WM9713_DIG1, dig1 | WM9713_POLL);
 
 	/* wait 3 AC97 time slots + delay for conversion */
 	poll_delay(delay);
@@ -304,8 +303,9 @@ static int wm9713_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 		wm->mach_ops->post_sample(adcsel);
 
 	/* check we have correct sample */
-	if ((*sample & WM97XX_ADCSEL_MASK) != ffs(adcsel >> 1) << 12) {
-		dev_dbg(wm->dev, "adc wrong sample, read %x got %x", adcsel,
+	if ((*sample ^ adcsel) & WM97XX_ADCSEL_MASK) {
+		dev_dbg(wm->dev, "adc wrong sample, wanted %x got %x",
+			adcsel & WM97XX_ADCSEL_MASK,
 			*sample & WM97XX_ADCSEL_MASK);
 		return RC_PENUP;
 	}
@@ -400,14 +400,14 @@ static int wm9713_poll_touch(struct wm97xx *wm, struct wm97xx_data *data)
 		if (rc != RC_VALID)
 			return rc;
 	} else {
-		rc = wm9713_poll_sample(wm, WM9713_ADCSEL_X, &data->x);
+		rc = wm9713_poll_sample(wm, WM97XX_ADCSEL_X, &data->x);
 		if (rc != RC_VALID)
 			return rc;
-		rc = wm9713_poll_sample(wm, WM9713_ADCSEL_Y, &data->y);
+		rc = wm9713_poll_sample(wm, WM97XX_ADCSEL_Y, &data->y);
 		if (rc != RC_VALID)
 			return rc;
 		if (pil) {
-			rc = wm9713_poll_sample(wm, WM9713_ADCSEL_PRES,
+			rc = wm9713_poll_sample(wm, WM97XX_ADCSEL_PRES,
 						&data->p);
 			if (rc != RC_VALID)
 				return rc;
