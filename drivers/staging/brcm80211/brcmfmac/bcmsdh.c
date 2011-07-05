@@ -119,30 +119,22 @@ brcmf_sdcard_iovar_op(struct brcmf_sdio_card *card, const char *name,
 
 int brcmf_sdcard_intr_enable(struct brcmf_sdio_card *card)
 {
-	ASSERT(card);
-
 	return brcmf_sdioh_interrupt_set(card->sdioh, true);
 }
 
 int brcmf_sdcard_intr_disable(struct brcmf_sdio_card *card)
 {
-	ASSERT(card);
-
 	return brcmf_sdioh_interrupt_set(card->sdioh, false);
 }
 
 int brcmf_sdcard_intr_reg(struct brcmf_sdio_card *card,
 			  void (*fn)(void *), void *argh)
 {
-	ASSERT(card);
-
 	return brcmf_sdioh_interrupt_register(card->sdioh, fn, argh);
 }
 
 int brcmf_sdcard_intr_dereg(struct brcmf_sdio_card *card)
 {
-	ASSERT(card);
-
 	return brcmf_sdioh_interrupt_deregister(card->sdioh);
 }
 
@@ -157,8 +149,6 @@ u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_card *card, uint fnc_num, u32 addr,
 
 	if (!card)
 		card = l_card;
-
-	ASSERT(card->init_success);
 
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	do {
@@ -193,8 +183,6 @@ brcmf_sdcard_cfg_write(struct brcmf_sdio_card *card, uint fnc_num, u32 addr,
 	if (!card)
 		card = l_card;
 
-	ASSERT(card->init_success);
-
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	do {
 		if (retry)	/* wait for 1 ms till bus get settled down */
@@ -223,8 +211,6 @@ u32 brcmf_sdcard_cfg_read_word(struct brcmf_sdio_card *card, uint fnc_num,
 	if (!card)
 		card = l_card;
 
-	ASSERT(card->init_success);
-
 	status = brcmf_sdioh_request_word(card->sdioh, SDIOH_CMD_TYPE_NORMAL,
 		SDIOH_READ, fnc_num, addr, &data, 4);
 
@@ -245,8 +231,6 @@ brcmf_sdcard_cfg_write_word(struct brcmf_sdio_card *card, uint fnc_num,
 
 	if (!card)
 		card = l_card;
-
-	ASSERT(card->init_success);
 
 	status =
 	    brcmf_sdioh_request_word(card->sdioh, SDIOH_CMD_TYPE_NORMAL,
@@ -271,10 +255,6 @@ int brcmf_sdcard_cis_read(struct brcmf_sdio_card *card, uint func, u8 * cis,
 
 	if (!card)
 		card = l_card;
-
-	ASSERT(card->init_success);
-	ASSERT(cis);
-	ASSERT(length <= SBSDIO_CIS_SIZE_LIMIT);
 
 	status = brcmf_sdioh_cis_read(card->sdioh, func, cis, length);
 
@@ -330,8 +310,6 @@ u32 brcmf_sdcard_reg_read(struct brcmf_sdio_card *card, u32 addr, uint size)
 	if (!card)
 		card = l_card;
 
-	ASSERT(card->init_success);
-
 	if (bar0 != card->sbwad) {
 		if (brcmf_sdcard_set_sbaddr_window(card, bar0))
 			return 0xFFFFFFFF;
@@ -384,8 +362,6 @@ u32 brcmf_sdcard_reg_write(struct brcmf_sdio_card *card, u32 addr, uint size,
 	if (!card)
 		card = l_card;
 
-	ASSERT(card->init_success);
-
 	if (bar0 != card->sbwad) {
 		err = brcmf_sdcard_set_sbaddr_window(card, bar0);
 		if (err)
@@ -429,14 +405,10 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
-	ASSERT(card);
-	ASSERT(card->init_success);
-
 	BRCMF_SD_INFO(("%s:fun = %d, addr = 0x%x, size = %d\n",
 		     __func__, fn, addr, nbytes));
 
 	/* Async not implemented yet */
-	ASSERT(!(flags & SDIO_REQ_ASYNC));
 	if (flags & SDIO_REQ_ASYNC)
 		return -ENOTSUPP;
 
@@ -473,14 +445,10 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
-	ASSERT(card);
-	ASSERT(card->init_success);
-
 	BRCMF_SD_INFO(("%s:fun = %d, addr = 0x%x, size = %d\n",
 		     __func__, fn, addr, nbytes));
 
 	/* Async not implemented yet */
-	ASSERT(!(flags & SDIO_REQ_ASYNC));
 	if (flags & SDIO_REQ_ASYNC)
 		return -ENOTSUPP;
 
@@ -506,10 +474,6 @@ brcmf_sdcard_send_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
 int brcmf_sdcard_rwdata(struct brcmf_sdio_card *card, uint rw, u32 addr,
 			u8 *buf, uint nbytes)
 {
-	ASSERT(card);
-	ASSERT(card->init_success);
-	ASSERT((addr & SBSDIO_SBWINDOW_MASK) == 0);
-
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
 	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
