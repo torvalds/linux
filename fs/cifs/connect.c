@@ -3012,7 +3012,6 @@ try_mount_again:
 		else if (pSesInfo)
 			cifs_put_smb_ses(pSesInfo);
 
-		cifs_cleanup_volume_info(&volume_info);
 		FreeXid(xid);
 	}
 #endif
