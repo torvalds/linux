@@ -4771,6 +4771,12 @@
 #define UMAC_COMMAND_CONFIG_REG_SW_RESET			 (0x1<<13)
 #define UMAC_COMMAND_CONFIG_REG_TX_ENA				 (0x1<<0)
 #define UMAC_REG_COMMAND_CONFIG					 0x8
+/* [RW 32] Register Bit 0 refers to Bit 16 of the MAC address; Bit 1 refers
+ * to bit 17 of the MAC address etc. */
+#define UMAC_REG_MAC_ADDR0					 0xc
+/* [RW 16] Register Bit 0 refers to Bit 0 of the MAC address; Register Bit 1
+ * refers to Bit 1 of the MAC address etc. Bits 16 to 31 are reserved. */
+#define UMAC_REG_MAC_ADDR1					 0x10
 /* [RW 14] Defines a 14-Bit maximum frame length used by the MAC receive
  * logic to check frames. */
 #define UMAC_REG_MAXFR						 0x14
@@ -5300,6 +5306,12 @@
 #define XMAC_PFC_CTRL_HI_REG_TX_PFC_EN				 (0x1<<5)
 #define XMAC_REG_CLEAR_RX_LSS_STATUS				 0x60
 #define XMAC_REG_CTRL						 0
+/* [RW 16] Upper 48 bits of ctrl_sa register. Used as the SA in PAUSE/PFC
+ * packets transmitted by the MAC */
+#define XMAC_REG_CTRL_SA_HI					 0x2c
+/* [RW 32] Lower 48 bits of ctrl_sa register. Used as the SA in PAUSE/PFC
+ * packets transmitted by the MAC */
+#define XMAC_REG_CTRL_SA_LO					 0x28
 #define XMAC_REG_PAUSE_CTRL					 0x68
 #define XMAC_REG_PFC_CTRL					 0x70
 #define XMAC_REG_PFC_CTRL_HI					 0x74

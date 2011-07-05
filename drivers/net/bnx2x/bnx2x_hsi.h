@@ -1196,6 +1196,8 @@ struct drv_port_mb {
 	#define LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE		0x00800000
 	#define LINK_STATUS_LINK_PARTNER_20GXFD_CAPABLE		0x10000000
 
+	#define LINK_STATUS_PFC_ENABLED				0x20000000
+
 	u32 port_stx;
 
 	u32 stat_nig_timer;

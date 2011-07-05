@@ -1344,28 +1344,21 @@ static void bnx2x_update_pfc_xmac(struct link_params *params,
 	REG_WR(bp, xmac_base + XMAC_REG_PFC_CTRL, pfc0_val);
 	REG_WR(bp, xmac_base + XMAC_REG_PFC_CTRL_HI, pfc1_val);
 
+
+	/* Set MAC address for source TX Pause/PFC frames */
+	REG_WR(bp, xmac_base + XMAC_REG_CTRL_SA_LO,
+	       ((params->mac_addr[2] << 24) |
+		(params->mac_addr[3] << 16) |
+		(params->mac_addr[4] << 8) |
+		(params->mac_addr[5])));
+	REG_WR(bp, xmac_base + XMAC_REG_CTRL_SA_HI,
+	       ((params->mac_addr[0] << 8) |
+		(params->mac_addr[1])));
+
 	udelay(30);
 }
 
 
-static void bnx2x_bmac2_get_pfc_stat(struct link_params *params,
-				     u32 pfc_frames_sent[2],
-				     u32 pfc_frames_received[2])
-{
-	/* Read pfc statistic */
-	struct bnx2x *bp = params->bp;
-	u32 bmac_addr = params->port ? NIG_REG_INGRESS_BMAC1_MEM :
-		NIG_REG_INGRESS_BMAC0_MEM;
-
-	DP(NETIF_MSG_LINK, "pfc statistic read from BMAC\n");
-
-	REG_RD_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_TX_STAT_GTPP,
-					pfc_frames_sent, 2);
-
-	REG_RD_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_RX_STAT_GRPP,
-					pfc_frames_received, 2);
-
-}
 static void bnx2x_emac_get_pfc_stat(struct link_params *params,
 				    u32 pfc_frames_sent[2],
 				    u32 pfc_frames_received[2])
@@ -1397,28 +1390,23 @@ static void bnx2x_emac_get_pfc_stat(struct link_params *params,
 	pfc_frames_sent[0] = val_xon + val_xoff;
 }
 
+/* Read pfc statistic*/
 void bnx2x_pfc_statistic(struct link_params *params, struct link_vars *vars,
 			 u32 pfc_frames_sent[2],
 			 u32 pfc_frames_received[2])
 {
 	/* Read pfc statistic */
 	struct bnx2x *bp = params->bp;
-	u32 val	= 0;
+
 	DP(NETIF_MSG_LINK, "pfc statistic\n");
 
 	if (!vars->link_up)
 		return;
 
-	val = REG_RD(bp, MISC_REG_RESET_REG_2);
-	if ((val & (MISC_REGISTERS_RESET_REG_2_RST_BMAC0 << params->port))
-	    == 0) {
-		DP(NETIF_MSG_LINK, "About to read stats from EMAC\n");
+	if (MAC_TYPE_EMAC == vars->mac_type) {
+		DP(NETIF_MSG_LINK, "About to read PFC stats from EMAC\n");
 		bnx2x_emac_get_pfc_stat(params, pfc_frames_sent,
 					pfc_frames_received);
-	} else {
-		DP(NETIF_MSG_LINK, "About to read stats from BMAC\n");
-		bnx2x_bmac2_get_pfc_stat(params, pfc_frames_sent,
-					 pfc_frames_received);
 	}
 }
 /******************************************************************/
@@ -1560,6 +1548,16 @@ static void bnx2x_umac_enable(struct link_params *params,
 	}
 	REG_WR(bp, umac_base + UMAC_REG_COMMAND_CONFIG, val);
 	udelay(50);
+
+	/* Set MAC address for source TX Pause/PFC frames (under SW reset) */
+	REG_WR(bp, umac_base + UMAC_REG_MAC_ADDR0,
+	       ((params->mac_addr[2] << 24) |
+		(params->mac_addr[3] << 16) |
+		(params->mac_addr[4] << 8) |
+		(params->mac_addr[5])));
+	REG_WR(bp, umac_base + UMAC_REG_MAC_ADDR1,
+	       ((params->mac_addr[0] << 8) |
+		(params->mac_addr[1])));
 
 	/* Enable RX and TX */
 	val &= ~UMAC_COMMAND_CONFIG_REG_PAD_EN;
@@ -2358,6 +2356,15 @@ int bnx2x_pfc_nig_rx_priority_mask(struct bnx2x *bp,
 
 	return 0;
 }
+static void bnx2x_update_mng(struct link_params *params, u32 link_status)
+{
+	struct bnx2x *bp = params->bp;
+
+	REG_WR(bp, params->shmem_base +
+	       offsetof(struct shmem_region,
+			port_mb[params->port].link_status), link_status);
+}
+
 static void bnx2x_update_pfc_nig(struct link_params *params,
 		struct link_vars *vars,
 		struct bnx2x_nig_brb_pfc_port_params *nig_params)
@@ -2467,6 +2474,14 @@ int bnx2x_update_pfc(struct link_params *params,
 	struct bnx2x *bp = params->bp;
 	int bnx2x_status = 0;
 	u8 bmac_loopback = (params->loopback_mode == LOOPBACK_BMAC);
+
+	if (params->feature_config_flags & FEATURE_CONFIG_PFC_ENABLED)
+		vars->link_status |= LINK_STATUS_PFC_ENABLED;
+	else
+		vars->link_status &= ~LINK_STATUS_PFC_ENABLED;
+
+	bnx2x_update_mng(params, vars->link_status);
+
 	/* update NIG params */
 	bnx2x_update_pfc_nig(params, vars, pfc_params);
 
@@ -2693,16 +2708,6 @@ static int bnx2x_bmac_enable(struct link_params *params,
 
 	vars->mac_type = MAC_TYPE_BMAC;
 	return rc;
-}
-
-
-static void bnx2x_update_mng(struct link_params *params, u32 link_status)
-{
-	struct bnx2x *bp = params->bp;
-
-	REG_WR(bp, params->shmem_base +
-	       offsetof(struct shmem_region,
-			port_mb[params->port].link_status), link_status);
 }
 
 static void bnx2x_bmac_rx_disable(struct bnx2x *bp, u8 port)
@@ -4452,6 +4457,14 @@ void bnx2x_link_status_update(struct link_params *params,
 				 dev_info.port_hw_config[port].aeu_int_mask);
 
 	vars->aeu_int_mask = REG_RD(bp, sync_offset);
+
+	/* Sync PFC status */
+	if (vars->link_status & LINK_STATUS_PFC_ENABLED)
+		params->feature_config_flags |=
+					FEATURE_CONFIG_PFC_ENABLED;
+	else
+		params->feature_config_flags &=
+					~FEATURE_CONFIG_PFC_ENABLED;
 
 	DP(NETIF_MSG_LINK, "link_status 0x%x  phy_link_up %x int_mask 0x%x\n",
 		 vars->link_status, vars->phy_link_up, vars->aeu_int_mask);
