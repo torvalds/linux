@@ -100,6 +100,44 @@ evo_kick(u32 *push, struct drm_device *dev, int id)
 /******************************************************************************
  * IRQ
  *****************************************************************************/
+static void
+nvd0_display_intr(struct drm_device *dev)
+{
+	u32 intr = nv_rd32(dev, 0x610088);
+
+	if (intr & 0x00000002) {
+		u32 stat = nv_rd32(dev, 0x61009c);
+		int chid = ffs(stat) - 1;
+		if (chid >= 0) {
+			u32 mthd = nv_rd32(dev, 0x6101f0 + (chid * 12));
+			u32 data = nv_rd32(dev, 0x6101f4 + (chid * 12));
+			u32 unkn = nv_rd32(dev, 0x6101f8 + (chid * 12));
+
+			NV_INFO(dev, "EvoCh: chid %d mthd 0x%04x data 0x%08x "
+				     "0x%08x 0x%08x\n",
+				chid, (mthd & 0x0000ffc), data, mthd, unkn);
+			nv_wr32(dev, 0x61009c, (1 << chid));
+			nv_wr32(dev, 0x6101f0 + (chid * 12), 0x90000000);
+		}
+
+		intr &= ~0x00000002;
+	}
+
+	if (intr & 0x01000000) {
+		u32 stat = nv_rd32(dev, 0x6100bc);
+		nv_wr32(dev, 0x6100bc, stat);
+		intr &= ~0x01000000;
+	}
+
+	if (intr & 0x02000000) {
+		u32 stat = nv_rd32(dev, 0x6108bc);
+		nv_wr32(dev, 0x6108bc, stat);
+		intr &= ~0x02000000;
+	}
+
+	if (intr)
+		NV_INFO(dev, "PDISP: unknown intr 0x%08x\n", intr);
+}
 
 /******************************************************************************
  * Init
@@ -190,6 +228,7 @@ nvd0_display_destroy(struct drm_device *dev)
 
 	pci_free_consistent(pdev, PAGE_SIZE, disp->evo[0].ptr, disp->evo[0].handle);
 	nouveau_gpuobj_ref(NULL, &disp->mem);
+	nouveau_irq_unregister(dev, 26);
 
 	dev_priv->engine.display.priv = NULL;
 	kfree(disp);
@@ -207,6 +246,9 @@ nvd0_display_create(struct drm_device *dev)
 	if (!disp)
 		return -ENOMEM;
 	dev_priv->engine.display.priv = disp;
+
+	/* setup interrupt handling */
+	nouveau_irq_register(dev, 26, nvd0_display_intr);
 
 	/* hash table and dma objects for the memory areas we care about */
 	ret = nouveau_gpuobj_new(dev, NULL, 4 * 1024, 0x1000, 0, &disp->mem);
