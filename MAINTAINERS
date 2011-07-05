@@ -6040,6 +6040,11 @@ L:	devel@driverdev.osuosl.org
 S:	Maintained
 F:	drivers/staging/
 
+STAGING - ASUS OLED
+M:	Jakub Schmidtke <sjakub@gmail.com>
+S:	Odd Fixes
+F:	drivers/staging/asus_oled/
+
 STARFIRE/DURALAN NETWORK DRIVER
 M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
