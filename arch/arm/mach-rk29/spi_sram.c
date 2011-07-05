@@ -549,7 +549,9 @@ void __sramfunc pm_clk_switch_32k(void)
 	int vol;
 	sram_printch('7');
 
-	#ifndef CONFIG_MACH_RK29_A22
+	#if defined (CONFIG_RK29_WORKING_POWER_MANAGEMENT)
+	//not code in here
+	#else
 	pm_gpio_out_high(RK29_PIN4_PC0);
 	#endif
 	sram_delay_loop(30);
@@ -569,7 +571,9 @@ void __sramfunc pm_clk_switch_32k(void)
 	sram_udelay(1000,24);
 	cru_writel(crumode, CRU_MODE_CON); //externel clk 24M
 
-	#ifndef CONFIG_MACH_RK29_A22
+	#if defined (CONFIG_RK29_WORKING_POWER_MANAGEMENT)
+	//not code in here
+	#else
 	pm_gpio_out_low(RK29_PIN4_PC0); //enable 27M
 	#endif
 	sram_udelay(1000,27);
