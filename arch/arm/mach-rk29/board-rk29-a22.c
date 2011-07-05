@@ -2592,8 +2592,8 @@ static void __init rk29_board_iomux_init(void)
 		return -1;
 	}
 	//phy power down
-	gpio_direction_output(RK29_PIN4_PC0, GPIO_LOW);
-	gpio_set_value(RK29_PIN4_PC0, GPIO_LOW);
+	gpio_direction_output(RK29_PIN4_PC0, GPIO_HIGH);
+	gpio_set_value(RK29_PIN4_PC0, GPIO_HIGH);
 
 	rk29_mux_api_set(GPIO4C5_RMIICSRDVALID_MIIRXDVALID_NAME,GPIO4H_GPIO4C5);
 
