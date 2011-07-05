@@ -1642,6 +1642,60 @@ err:
 	return ret;
 }
 
+static int dcbnl_cee_pg_fill(struct sk_buff *skb, struct net_device *dev,
+			     int dir)
+{
+	u8 pgid, up_map, prio, tc_pct;
+	const struct dcbnl_rtnl_ops *ops = dev->dcbnl_ops;
+	int i = dir ? DCB_ATTR_CEE_TX_PG : DCB_ATTR_CEE_RX_PG;
+	struct nlattr *pg = nla_nest_start(skb, i);
+
+	if (!pg)
+		goto nla_put_failure;
+
+	for (i = DCB_PG_ATTR_TC_0; i <= DCB_PG_ATTR_TC_7; i++) {
+		struct nlattr *tc_nest = nla_nest_start(skb, i);
+
+		if (!tc_nest)
+			goto nla_put_failure;
+
+		pgid = DCB_ATTR_VALUE_UNDEFINED;
+		prio = DCB_ATTR_VALUE_UNDEFINED;
+		tc_pct = DCB_ATTR_VALUE_UNDEFINED;
+		up_map = DCB_ATTR_VALUE_UNDEFINED;
+
+		if (!dir)
+			ops->getpgtccfgrx(dev, i - DCB_PG_ATTR_TC_0,
+					  &prio, &pgid, &tc_pct, &up_map);
+		else
+			ops->getpgtccfgtx(dev, i - DCB_PG_ATTR_TC_0,
+					  &prio, &pgid, &tc_pct, &up_map);
+
+		NLA_PUT_U8(skb, DCB_TC_ATTR_PARAM_PGID, pgid);
+		NLA_PUT_U8(skb, DCB_TC_ATTR_PARAM_UP_MAPPING, up_map);
+		NLA_PUT_U8(skb, DCB_TC_ATTR_PARAM_STRICT_PRIO, prio);
+		NLA_PUT_U8(skb, DCB_TC_ATTR_PARAM_BW_PCT, tc_pct);
+		nla_nest_end(skb, tc_nest);
+	}
+
+	for (i = DCB_PG_ATTR_BW_ID_0; i <= DCB_PG_ATTR_BW_ID_7; i++) {
+		tc_pct = DCB_ATTR_VALUE_UNDEFINED;
+
+		if (!dir)
+			ops->getpgbwgcfgrx(dev, i - DCB_PG_ATTR_BW_ID_0,
+					   &tc_pct);
+		else
+			ops->getpgbwgcfgtx(dev, i - DCB_PG_ATTR_BW_ID_0,
+					   &tc_pct);
+		NLA_PUT_U8(skb, i, tc_pct);
+	}
+	nla_nest_end(skb, pg);
+	return 0;
+
+nla_put_failure:
+	return -EMSGSIZE;
+}
+
 /* Handle CEE DCBX GET commands. */
 static int dcbnl_cee_get(struct net_device *netdev, struct nlattr **tb,
 			 u32 pid, u32 seq, u16 flags)
@@ -1649,9 +1703,11 @@ static int dcbnl_cee_get(struct net_device *netdev, struct nlattr **tb,
 	struct sk_buff *skb;
 	struct nlmsghdr *nlh;
 	struct dcbmsg *dcb;
-	struct nlattr *cee;
+	struct nlattr *cee, *app;
+	struct dcb_app_type *itr;
 	const struct dcbnl_rtnl_ops *ops = netdev->dcbnl_ops;
-	int err;
+	int dcbx, i, err = -EMSGSIZE;
+	u8 value;
 
 	if (!ops)
 		return -EOPNOTSUPP;
@@ -1672,7 +1728,88 @@ static int dcbnl_cee_get(struct net_device *netdev, struct nlattr **tb,
 	if (!cee)
 		goto nla_put_failure;
 
-	/* get peer info if available */
+	/* local pg */
+	if (ops->getpgtccfgtx && ops->getpgbwgcfgtx) {
+		err = dcbnl_cee_pg_fill(skb, netdev, 1);
+		if (err)
+			goto nla_put_failure;
+	}
+
+	if (ops->getpgtccfgrx && ops->getpgbwgcfgrx) {
+		err = dcbnl_cee_pg_fill(skb, netdev, 0);
+		if (err)
+			goto nla_put_failure;
+	}
+
+	/* local pfc */
+	if (ops->getpfccfg) {
+		struct nlattr *pfc_nest = nla_nest_start(skb, DCB_ATTR_CEE_PFC);
+
+		if (!pfc_nest)
+			goto nla_put_failure;
+
+		for (i = DCB_PFC_UP_ATTR_0; i <= DCB_PFC_UP_ATTR_7; i++) {
+			ops->getpfccfg(netdev, i - DCB_PFC_UP_ATTR_0, &value);
+			NLA_PUT_U8(skb, i, value);
+		}
+		nla_nest_end(skb, pfc_nest);
+	}
+
+	/* local app */
+	spin_lock(&dcb_lock);
+	app = nla_nest_start(skb, DCB_ATTR_CEE_APP_TABLE);
+	if (!app)
+		goto nla_put_failure;
+
+	list_for_each_entry(itr, &dcb_app_list, list) {
+		if (strncmp(itr->name, netdev->name, IFNAMSIZ) == 0) {
+			struct nlattr *app_nest = nla_nest_start(skb,
+								 DCB_ATTR_APP);
+			if (!app_nest)
+				goto dcb_unlock;
+
+			err = nla_put_u8(skb, DCB_APP_ATTR_IDTYPE,
+					 itr->app.selector);
+			if (err)
+				goto dcb_unlock;
+
+			err = nla_put_u16(skb, DCB_APP_ATTR_ID,
+					  itr->app.protocol);
+			if (err)
+				goto dcb_unlock;
+
+			err = nla_put_u8(skb, DCB_APP_ATTR_PRIORITY,
+					 itr->app.priority);
+			if (err)
+				goto dcb_unlock;
+
+			nla_nest_end(skb, app_nest);
+		}
+	}
+	nla_nest_end(skb, app);
+
+	if (netdev->dcbnl_ops->getdcbx)
+		dcbx = netdev->dcbnl_ops->getdcbx(netdev);
+	else
+		dcbx = -EOPNOTSUPP;
+
+	spin_unlock(&dcb_lock);
+
+	/* features flags */
+	if (ops->getfeatcfg) {
+		struct nlattr *feat = nla_nest_start(skb, DCB_ATTR_CEE_FEAT);
+		if (!feat)
+			goto nla_put_failure;
+
+		for (i = DCB_FEATCFG_ATTR_ALL + 1; i <= DCB_FEATCFG_ATTR_MAX;
+		     i++)
+			if (!ops->getfeatcfg(netdev, i, &value))
+				NLA_PUT_U8(skb, i, value);
+
+		nla_nest_end(skb, feat);
+	}
+
+	/* peer info if available */
 	if (ops->cee_peer_getpg) {
 		struct cee_pg pg;
 		err = ops->cee_peer_getpg(netdev, &pg);
@@ -1695,16 +1832,24 @@ static int dcbnl_cee_get(struct net_device *netdev, struct nlattr **tb,
 		if (err)
 			goto nla_put_failure;
 	}
-
 	nla_nest_end(skb, cee);
-	nlmsg_end(skb, nlh);
 
+	/* DCBX state */
+	if (dcbx >= 0) {
+		err = nla_put_u8(skb, DCB_ATTR_DCBX, dcbx);
+		if (err)
+			goto nla_put_failure;
+	}
+	nlmsg_end(skb, nlh);
 	return rtnl_unicast(skb, &init_net, pid);
+
+dcb_unlock:
+	spin_unlock(&dcb_lock);
 nla_put_failure:
 	nlmsg_cancel(skb, nlh);
 nlmsg_failure:
-	kfree_skb(skb);
-	return -1;
+	nlmsg_free(skb);
+	return err;
 }
 
 static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
