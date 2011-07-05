@@ -48,6 +48,11 @@
 	       that this request would overcommit the usb bandwidth reserved
 	       for periodic transfers (up to 80% of the USB bandwidth).</entry>
       </row>
+      <row>
+	<entry>EWOULDBLOCK</entry>
+	<entry>Operation would block. Used when the ioctl would need to wait
+	       for an event, but the device was opened in non-blocking mode.</entry>
+      </row>
     </tbody>
   </tgroup>
 </table>

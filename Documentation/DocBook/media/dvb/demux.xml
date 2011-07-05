@@ -552,13 +552,6 @@ typedef enum {
 &return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
-<para>EBADF</para>
-</entry><entry
- align="char">
-<para>fd is not a valid file descriptor.</para>
-</entry>
- </row><row><entry
- align="char">
 <para>EINVAL</para>
 </entry><entry
  align="char">
@@ -615,14 +608,6 @@ typedef enum {
 </entry>
  </row></tbody></tgroup></informaltable>
 &return-value-dvb;
-<informaltable><tgroup cols="2"><tbody><row><entry
- align="char">
-<para>EBADF</para>
-</entry><entry
- align="char">
-<para>fd is not a valid file descriptor.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
 </section>
 
 <section id="DMX_SET_FILTER">
@@ -677,21 +662,6 @@ typedef enum {
 </entry>
  </row></tbody></tgroup></informaltable>
 &return-value-dvb;
-<informaltable><tgroup cols="2"><tbody><row><entry
- align="char">
-<para>EBADF</para>
-</entry><entry
- align="char">
-<para>fd is not a valid file descriptor.</para>
-</entry>
- </row><row><entry
- align="char">
-<para>EINVAL</para>
-</entry><entry
- align="char">
-<para>Invalid argument.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
 </section>
 
 <section id="DMX_SET_PES_FILTER">
@@ -751,20 +721,6 @@ typedef enum {
 &return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
-<para>EBADF</para>
-</entry><entry
- align="char">
-<para>fd is not a valid file descriptor.</para>
-</entry>
- </row><row><entry
- align="char">
-<para>EINVAL</para>
-</entry><entry
- align="char">
-<para>Invalid argument.</para>
-</entry>
- </row><row><entry
- align="char">
 <para>EBUSY</para>
 </entry><entry
  align="char">
@@ -820,22 +776,6 @@ typedef enum {
 </entry>
  </row></tbody></tgroup></informaltable>
 &return-value-dvb;
-<informaltable><tgroup cols="2"><tbody><row><entry
- align="char">
-<para>EBADF</para>
-</entry><entry
- align="char">
-<para>fd is not a valid file descriptor.</para>
-</entry>
- </row><row><entry
- align="char">
-<para>ENOMEM</para>
-</entry><entry
- align="char">
-<para>The driver was not able to allocate a buffer of the
- requested size.</para>
-</entry>
- </row></tbody></tgroup></informaltable>
 </section>
 
 <section id="DMX_GET_EVENT">
@@ -893,20 +833,6 @@ typedef enum {
  </row></tbody></tgroup></informaltable>
 &return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
- align="char">
-<para>EBADF</para>
-</entry><entry
- align="char">
-<para>fd is not a valid file descriptor.</para>
-</entry>
- </row><row><entry
- align="char">
-<para>EFAULT</para>
-</entry><entry
- align="char">
-<para>ev points to an invalid address.</para>
-</entry>
- </row><row><entry
  align="char">
 <para>EWOULDBLOCK</para>
 </entry><entry
@@ -966,20 +892,6 @@ typedef enum {
  </row></tbody></tgroup></informaltable>
 &return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
- align="char">
-<para>EBADF</para>
-</entry><entry
- align="char">
-<para>fd is not a valid file descriptor.</para>
-</entry>
- </row><row><entry
- align="char">
-<para>EFAULT</para>
-</entry><entry
- align="char">
-<para>stc points to an invalid address.</para>
-</entry>
- </row><row><entry
  align="char">
 <para>EINVAL</para>
 </entry><entry
