@@ -31,7 +31,6 @@
 #include <brcmu_utils.h>
 #include <defs.h>
 #include <brcmu_wifi.h>
-#include "dngl_stats.h"
 #include "dhd.h"
 #include "wl_cfg80211.h"
 

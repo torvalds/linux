@@ -152,7 +152,6 @@ struct rte_console {
 
 #include "sbsdio.h"
 
-#include "dngl_stats.h"
 #include "dhd.h"
 #include "dhd_bus.h"
 #include "dhd_proto.h"

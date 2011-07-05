@@ -29,7 +29,6 @@
 #include <soc.h>
 #include "bcmsdbus.h"		/* common SDIO/controller interface */
 #include "sbsdio.h"		/* BRCM sdio device core */
-#include "dngl_stats.h"
 #include "dhd.h"
 #include "dhd_bus.h"
 #include "sdio_host.h"

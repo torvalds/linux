@@ -31,7 +31,6 @@
 #include <brcmu_wifi.h>
 #include "sdio_host.h"
 #include "bcmsdbus.h"
-#include "dngl_stats.h"
 #include "dhd.h"
 #include "dhd_dbg.h"
 #include "wl_cfg80211.h"

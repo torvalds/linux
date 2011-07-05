@@ -161,6 +161,18 @@ struct brcmf_event {
 	struct brcmf_event_msg msg;
 } __packed;
 
+struct dngl_stats {
+	unsigned long rx_packets;	/* total packets received */
+	unsigned long tx_packets;	/* total packets transmitted */
+	unsigned long rx_bytes;	/* total bytes received */
+	unsigned long tx_bytes;	/* total bytes transmitted */
+	unsigned long rx_errors;	/* bad packets received */
+	unsigned long tx_errors;	/* packet transmit problems */
+	unsigned long rx_dropped;	/* packets dropped by dongle */
+	unsigned long tx_dropped;	/* packets dropped by dongle */
+	unsigned long multicast;	/* multicast packets received */
+};
+
 #define BRCMF_E_SET_SSID			0
 #define BRCMF_E_JOIN				1
 #define BRCMF_E_START				2
