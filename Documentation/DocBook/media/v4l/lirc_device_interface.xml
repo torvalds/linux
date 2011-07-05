@@ -248,4 +248,8 @@ on working with the default settings initially.</para>
 </variablelist>
 
 </section>
+
+<section id="lirc_dev_errors">
+    &return-value;
+</section>
 </section>
