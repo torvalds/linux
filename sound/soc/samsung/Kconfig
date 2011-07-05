@@ -171,6 +171,14 @@ config SND_SOC_SMDK_WM8580_PCM
 	help
 	  Say Y if you want to add support for SoC audio on the SMDK.
 
+config SND_SOC_SMDK_WM8994_PCM
+	tristate "SoC PCM Audio support for WM8994 on SMDK"
+	depends on SND_SOC_SAMSUNG && (MACH_SMDKC210 || MACH_SMDKV310)
+	select SND_SOC_WM8994
+	select SND_SAMSUNG_PCM
+	help
+	  Say Y if you want to add support for SoC audio on the SMDK
+
 config SND_SOC_SPEYSIDE
 	tristate "Audio support for Wolfson Speyside"
 	depends on SND_SOC_SAMSUNG && MACH_WLF_CRAGG_6410
