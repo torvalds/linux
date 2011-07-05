@@ -515,6 +515,13 @@ static const struct dmi_system_id __initconst ehci_dmi_nohandoff_table[] = {
 			DMI_MATCH(DMI_BIOS_VERSION, "Lucid-CE-133"),
 		},
 	},
+	{
+		/*  Pegatron Lucid (Ordissimo AIRIS) */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "M11JB"),
+			DMI_MATCH(DMI_BIOS_VERSION, "Lucid-GE-133"),
+		},
+	},
 	{ }
 };
 
