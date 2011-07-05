@@ -69,7 +69,7 @@ struct panel_funcs {
 	int (*get_panel_info) (struct drm_device *, int, struct panel_info *);
 };
 
-void mdfld_output_init(struct drm_device *dev);
+int mdfld_output_init(struct drm_device *dev);
 int mdfld_panel_dpi(struct drm_device *dev);
 int mdfld_get_panel_type(struct drm_device *dev, int pipe);
 void mdfld_disable_crtc (struct drm_device *dev, int pipe);

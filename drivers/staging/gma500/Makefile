@@ -4,6 +4,7 @@
 ccflags-y += -Iinclude/drm
 
 psb_gfx-y += gem_glue.o \
+	  power.o \
 	  psb_bl.o \
 	  psb_drv.o \
 	  psb_gem.o \
@@ -19,11 +20,13 @@ psb_gfx-y += gem_glue.o \
 	  psb_intel_sdvo.o \
 	  psb_lid.o \
 	  psb_mmu.o \
-	  psb_powermgmt.o \
 	  psb_irq.o \
+	  psb_device.o \
+	  mrst_device.o \
 	  mrst_crtc.o \
 	  mrst_lvds.o \
 	  mrst_bios.o \
+	  mdfld_device.o \
 	  mdfld_output.o \
 	  mdfld_pyr_cmd.o \
 	  mdfld_tmd_vid.o \

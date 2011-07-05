@@ -725,17 +725,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 	drm_mode_create_scaling_mode_property(dev);
 	psb_create_backlight_property(dev);
 
-	if (IS_MRST(dev)) {
-		if (dev_priv->iLVDS_enable)
-			mrst_lvds_init(dev, &dev_priv->mode_dev);
-		else
-			dev_err(dev->dev, "DSI is not supported\n");
-	} else if (IS_MFLD(dev)) {
-		mdfld_output_init(dev);
-	} else {
-		psb_intel_lvds_init(dev, &dev_priv->mode_dev);
-		psb_intel_sdvo_init(dev, SDVOB);
-	}
+	dev_priv->ops->output_init(dev);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list,
 			    head) {

@@ -258,11 +258,11 @@ struct psb_intel_opregion {
 	int enabled;
 };
 
+struct psb_ops;
 
 struct drm_psb_private {
 	struct drm_device *dev;
-
-	unsigned long chipset;
+	const struct psb_ops *ops;
 
 	struct psb_gtt *pg;
 
@@ -612,6 +612,23 @@ struct drm_psb_private {
 };
 
 
+/*
+ *	Operations for each board type
+ */
+ 
+struct psb_ops {
+	/* Display management hooks */
+	int (*output_init)(struct drm_device *dev);
+	/* Power management hooks */
+	void (*init_pm)(struct drm_device *dev);
+	int (*save_regs)(struct drm_device *dev);
+	int (*restore_regs)(struct drm_device *dev);
+	int (*power_up)(struct drm_device *dev);
+	int (*power_down)(struct drm_device *dev);
+};
+
+
+
 struct psb_mmu_driver;
 
 extern int drm_crtc_probe_output_modes(struct drm_device *dev, int, int);
@@ -761,6 +778,14 @@ extern int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
 			 uint32_t handle, uint64_t *offset);
 extern int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 
+/* psb_device.c */
+extern const struct psb_ops psb_chip_ops;
+
+/* mrst_device.c */
+extern const struct psb_ops mrst_chip_ops;
+
+/* mdfld_device.c */
+extern const struct psb_ops mdfld_chip_ops;
 
 /*
  * Debug print bits setting

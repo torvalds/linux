@@ -63,14 +63,20 @@ int mdfld_panel_dpi(struct drm_device *dev)
 	}
 }
 
-static void init_panel(struct drm_device *dev, int mipi_pipe, int p_type)
+static int init_panel(struct drm_device *dev, int mipi_pipe, int p_type)
 {
 	struct panel_funcs *p_cmd_funcs;
 	struct panel_funcs *p_vid_funcs;
 
 	/* Oh boy ... FIXME */
 	p_cmd_funcs = kzalloc(sizeof(struct panel_funcs), GFP_KERNEL);
+	if (p_cmd_funcs == NULL)
+		return -ENODEV;
 	p_vid_funcs = kzalloc(sizeof(struct panel_funcs), GFP_KERNEL);
+	if (p_vid_funcs == NULL) {
+		kfree(p_cmd_funcs);
+		return -ENODEV;
+	}
 
 	switch (p_type) {
 	case TPO_CMD:
@@ -115,11 +121,12 @@ static void init_panel(struct drm_device *dev, int mipi_pipe, int p_type)
 #endif
 	default:
 		dev_err(dev->dev, "Unsupported interface %d", p_type);
-		break;
+		return -ENODEV;
 	}
+	return 0;
 }
 
-void mdfld_output_init(struct drm_device *dev)
+int mdfld_output_init(struct drm_device *dev)
 {
 	int type;
 
@@ -132,4 +139,6 @@ void mdfld_output_init(struct drm_device *dev)
 	type = mdfld_get_panel_type(dev, 2);
 	dev_info(dev->dev, "panel 2: type is %d\n", type);
 	init_panel(dev, 2, type);
+
+	return 0;
 }
