@@ -184,29 +184,13 @@ capture and output devices.</entry>
 
     <variablelist>
       <varlistentry>
-	<term><errorcode>EBUSY</errorcode></term>
-	<listitem>
-	  <para>The data format cannot be changed at this
-time, for example because I/O is already in progress.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The &v4l2-format; <structfield>type</structfield>
-field is invalid, the requested buffer type not supported, or
-<constant>VIDIOC_TRY_FMT</constant> was called and is not
-supported with this buffer type.</para>
+field is invalid, the requested buffer type not supported, or the
+format is not supported with this buffer type.</para>
 	</listitem>
       </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

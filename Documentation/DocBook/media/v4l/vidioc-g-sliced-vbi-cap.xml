@@ -246,19 +246,10 @@ line systems.</entry>
       <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
-	  <para>The device does not support sliced VBI capturing or
-output, or the value in the <structfield>type</structfield> field is
+	  <para>The value in the <structfield>type</structfield> field is
 wrong.</para>
 	</listitem>
       </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

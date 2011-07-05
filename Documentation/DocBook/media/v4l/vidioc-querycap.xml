@@ -283,24 +283,5 @@ linkend="mmap">streaming</link> I/O method.</entry>
 
   <refsect1>
     &return-value;
-
-    <variablelist>
-      <varlistentry>
-	<term><errorcode>EINVAL</errorcode></term>
-	<listitem>
-	  <para>The device is not compatible with this
-specification.</para>
-	</listitem>
-      </varlistentry>
-    </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->
-

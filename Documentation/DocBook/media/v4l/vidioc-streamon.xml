@@ -88,9 +88,9 @@ synchronize with other events.</para>
       <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
-	  <para>Streaming I/O is not supported, the buffer
-<structfield>type</structfield> is not supported, or no buffers have
-been allocated (memory mapping) or enqueued (output) yet.</para>
+	  <para>The buffer<structfield>type</structfield> is not supported,
+	  or no buffers have been allocated (memory mapping) or enqueued
+	  (output) yet.</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
@@ -105,11 +105,3 @@ been allocated (memory mapping) or enqueued (output) yet.</para>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

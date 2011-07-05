@@ -10,7 +10,24 @@
 	<entry>The ioctl can't be handled because the device is busy. This is
 	       typically return while device is streaming, and an ioctl tried to
 	       change something that would affect the stream, or would require the
-	       usage of a hardware resource that was already allocated.</entry>
+	       usage of a hardware resource that was already allocated. The ioctl
+	       must not be retried without performing another action to fix the
+	       problem first (typically: stop the stream before retrying).</entry>
+      </row>
+      <row>
+	<entry>EINVAL</entry>
+	<entry>The ioctl is not supported by the driver, actually meaning that
+	       the required functionality is not available.</entry>
+      </row>
+      <row>
+	<entry>ENOMEM</entry>
+	<entry>There's not enough memory to handle the desired operation.</entry>
+      </row>
+      <row>
+	<entry>ENOSPC</entry>
+	<entry>On USB devices, the stream ioctl's can return this error meaning
+	       that this request would overcommit the usb bandwidth reserved
+	       for periodic transfers (up to 80% of the USB bandwidth).</entry>
       </row>
     </tbody>
   </tgroup>

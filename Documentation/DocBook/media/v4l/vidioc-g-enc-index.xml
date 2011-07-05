@@ -192,22 +192,5 @@ this mask to obtain the picture coding type.</entry>
 
   <refsect1>
     &return-value;
-
-    <variablelist>
-      <varlistentry>
-	<term><errorcode>EINVAL</errorcode></term>
-	<listitem>
-	  <para>The driver does not support this ioctl.</para>
-	</listitem>
-      </varlistentry>
-    </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

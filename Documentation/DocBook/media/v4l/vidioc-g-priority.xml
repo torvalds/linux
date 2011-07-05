@@ -120,8 +120,7 @@ recording.</entry>
       <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
-	  <para>The requested priority value is invalid, or the
-driver does not support access priorities.</para>
+	  <para>The requested priority value is invalid.</para>
 	</listitem>
       </varlistentry>
       <varlistentry>

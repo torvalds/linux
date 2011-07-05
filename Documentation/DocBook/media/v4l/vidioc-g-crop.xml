@@ -122,22 +122,5 @@ for &v4l2-cropcap; <structfield>bounds</structfield> is used.</entry>
 
   <refsect1>
     &return-value;
-
-    <variablelist>
-      <varlistentry>
-	<term><errorcode>EINVAL</errorcode></term>
-	<listitem>
-	  <para>Cropping is not supported.</para>
-	</listitem>
-      </varlistentry>
-    </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

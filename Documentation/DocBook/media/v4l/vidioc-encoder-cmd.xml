@@ -180,8 +180,7 @@ Pictures</wordasword>, rather than immediately.</entry>
       <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
-	  <para>The driver does not support this ioctl, or the
-<structfield>cmd</structfield> field is invalid.</para>
+	  <para>The <structfield>cmd</structfield> field is invalid.</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
@@ -194,11 +193,3 @@ the encoder was not running.</para>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

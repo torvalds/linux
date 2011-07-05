@@ -71,19 +71,9 @@ signal to a sound card are not audio outputs in this sense.</para>
       <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
-	  <para>The number of the audio output is out of bounds, or
-there are no audio outputs at all and this ioctl is not
-supported.</para>
+	  <para>The number of the audio output is out of bounds.</para>
 	</listitem>
       </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

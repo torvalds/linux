@@ -446,28 +446,11 @@ overlay.</para>
 	</listitem>
       </varlistentry>
       <varlistentry>
-	<term><errorcode>EBUSY</errorcode></term>
-	<listitem>
-	  <para>The framebuffer parameters cannot be changed at this
-time because overlay is already enabled, or capturing is enabled
-and the hardware cannot capture and overlay simultaneously.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
-	  <para>The ioctl is not supported or the
-<constant>VIDIOC_S_FBUF</constant> parameters are unsuitable.</para>
+	  <para>The <constant>VIDIOC_S_FBUF</constant> parameters are unsuitable.</para>
 	</listitem>
       </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

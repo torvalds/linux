@@ -258,18 +258,9 @@ could not identify it.</entry>
       <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
-	  <para>The driver does not support this ioctl, or the
-<structfield>match_type</structfield> is invalid.</para>
+	  <para>The <structfield>match_type</structfield> is invalid.</para>
 	</listitem>
       </varlistentry>
      </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

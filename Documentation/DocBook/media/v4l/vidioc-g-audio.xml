@@ -164,25 +164,9 @@ tuner.</entry>
 	<listitem>
 	  <para>No audio inputs combine with the current video input,
 or the number of the selected audio input is out of bounds or it does
-not combine, or there are no audio inputs at all and the ioctl is not
-supported.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>EBUSY</errorcode></term>
-	<listitem>
-	  <para>I/O is in progress, the input cannot be
-switched.</para>
+not combine.</para>
 	</listitem>
       </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

@@ -267,16 +267,5 @@ application should zero out all members except for the
 
   <refsect1>
     &return-value;
-
-    <para>See the description section above for a list of return
-values that <varname>errno</varname> can have.</para>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

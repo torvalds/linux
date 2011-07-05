@@ -122,14 +122,6 @@ higher. This array should be zeroed by applications.</entry>
 
     <variablelist>
       <varlistentry>
-	<term><errorcode>EBUSY</errorcode></term>
-	<listitem>
-	  <para>The driver supports multiple opens and I/O is already
-in progress, or reallocation of buffers was attempted although one or
-more are still mapped.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The buffer type (<structfield>type</structfield> field) or the
@@ -140,11 +132,3 @@ supported.</para>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

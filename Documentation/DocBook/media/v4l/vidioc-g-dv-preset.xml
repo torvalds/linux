@@ -97,14 +97,8 @@ If the preset is not supported, it returns an &EINVAL; </para>
 	</tbody>
       </tgroup>
     </table>
-
+  </refsect1>
+  <refsect1>
+    &return-value;
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

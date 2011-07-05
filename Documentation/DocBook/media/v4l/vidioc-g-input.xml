@@ -75,26 +75,9 @@ querying or negotiating any other parameters.</para>
       <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
-	  <para>The number of the video input is out of bounds, or
-there are no video inputs at all and this ioctl is not
-supported.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>EBUSY</errorcode></term>
-	<listitem>
-	  <para>I/O is in progress, the input cannot be
-switched.</para>
+	  <para>The number of the video input is out of bounds.</para>
 	</listitem>
       </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

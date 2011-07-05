@@ -158,15 +158,6 @@ or no buffers have been allocated yet, or the
 <structfield>userptr</structfield> or
 <structfield>length</structfield> are invalid.</para>
 	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>ENOMEM</errorcode></term>
-	<listitem>
-	  <para>Not enough physical or virtual memory was available to
-enqueue a user pointer buffer.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
 	<term><errorcode>EIO</errorcode></term>
 	<listitem>
 	  <para><constant>VIDIOC_DQBUF</constant> failed due to an
@@ -184,11 +175,3 @@ continue streaming.
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

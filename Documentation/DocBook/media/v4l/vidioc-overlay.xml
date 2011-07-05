@@ -65,19 +65,10 @@
       <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
-	  <para>Video overlay is not supported, or the
-parameters have not been set up. See <xref
+	  <para>The overlay parameters have not been set up. See <xref
 linkend="overlay" /> for the necessary steps.</para>
 	</listitem>
       </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

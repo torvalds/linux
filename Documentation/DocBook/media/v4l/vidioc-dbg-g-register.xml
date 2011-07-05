@@ -247,15 +247,6 @@ register.</entry>
 
     <variablelist>
       <varlistentry>
-	<term><errorcode>EINVAL</errorcode></term>
-	<listitem>
-	  <para>The driver does not support this ioctl, or the kernel
-was not compiled with the <constant>CONFIG_VIDEO_ADV_DEBUG</constant>
-option, or the <structfield>match_type</structfield> is invalid, or the
-selected chip or register does not exist.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
 	<term><errorcode>EPERM</errorcode></term>
 	<listitem>
 	  <para>Insufficient permissions. Root privileges are required
@@ -265,11 +256,3 @@ to execute these ioctls.</para>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

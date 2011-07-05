@@ -177,4 +177,7 @@
       </varlistentry>
     </variablelist>
   </refsect1>
+  <refsect1>
+    &return-value;
+  </refsect1>
 </refentry>

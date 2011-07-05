@@ -156,19 +156,10 @@ on 22 Oct 2002 subject "Re:[V4L][patches!] Re:v4l2/kernel-2.5" -->
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The &v4l2-cropcap; <structfield>type</structfield> is
-invalid or the ioctl is not supported. This is not permitted for
-video capture, output and overlay devices, which must support
-<constant>VIDIOC_CROPCAP</constant>.</para>
+invalid. This is not permitted for video capture, output and overlay devices,
+which must support <constant>VIDIOC_CROPCAP</constant>.</para>
 	</listitem>
       </varlistentry>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

@@ -82,14 +82,7 @@ standards.</para>
       <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
-	  <para>This ioctl is not supported, or the
-<constant>VIDIOC_S_STD</constant> parameter was unsuitable.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>EBUSY</errorcode></term>
-	<listitem>
-	  <para>The device is busy and therefore can not change the standard</para>
+	  <para>The <constant>VIDIOC_S_STD</constant> parameter was unsuitable.</para>
 	</listitem>
       </varlistentry>
     </variablelist>
