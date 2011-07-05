@@ -3440,7 +3440,7 @@ static void wl_deinit_priv(struct brcmf_cfg80211_priv *cfg_priv)
 	brcmf_deinit_priv_mem(cfg_priv);
 }
 
-s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
+s32 brcmf_cfg80211_attach(struct net_device *ndev, void *data)
 {
 	struct wireless_dev *wdev;
 	struct brcmf_cfg80211_priv *cfg_priv;
@@ -3456,9 +3456,9 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *data)
 		WL_ERR("wl_cfg80211_dev is invalid\n");
 		return -ENOMEM;
 	}
-	WL_INFO("func %p\n", wl_cfg80211_get_sdio_func());
+	WL_INFO("func %p\n", brcmf_cfg80211_get_sdio_func());
 	wdev = brcmf_alloc_wdev(sizeof(struct brcmf_cfg80211_iface),
-				&wl_cfg80211_get_sdio_func()->dev);
+				&brcmf_cfg80211_get_sdio_func()->dev);
 	if (IS_ERR(wdev))
 		return -ENOMEM;
 
@@ -3485,7 +3485,7 @@ cfg80211_attach_out:
 	return err;
 }
 
-void wl_cfg80211_detach(void)
+void brcmf_cfg80211_detach(void)
 {
 	struct brcmf_cfg80211_priv *cfg_priv;
 
@@ -3536,7 +3536,7 @@ static s32 brcmf_event_handler(void *data)
 }
 
 void
-wl_cfg80211_event(struct net_device *ndev,
+brcmf_cfg80211_event(struct net_device *ndev,
 		  const struct brcmf_event_msg *e, void *data)
 {
 	u32 event_type = be32_to_cpu(e->event_type);
@@ -3619,7 +3619,7 @@ static void brcmf_put_event(struct brcmf_cfg80211_event_q *e)
 	kfree(e);
 }
 
-void wl_cfg80211_sdio_func(void *func)
+void brcmf_cfg80211_sdio_func(void *func)
 {
 	cfg80211_sdio_func = (struct sdio_func *)func;
 }
@@ -3629,7 +3629,7 @@ static void brcmf_clear_sdio_func(void)
 	cfg80211_sdio_func = NULL;
 }
 
-struct sdio_func *wl_cfg80211_get_sdio_func(void)
+struct sdio_func *brcmf_cfg80211_get_sdio_func(void)
 {
 	return cfg80211_sdio_func;
 }
@@ -3938,7 +3938,7 @@ static s32 __brcmf_cfg80211_down(struct brcmf_cfg80211_priv *cfg_priv)
 	return 0;
 }
 
-s32 wl_cfg80211_up(void)
+s32 brcmf_cfg80211_up(void)
 {
 	struct brcmf_cfg80211_priv *cfg_priv;
 	s32 err = 0;
@@ -3951,7 +3951,7 @@ s32 wl_cfg80211_up(void)
 	return err;
 }
 
-s32 wl_cfg80211_down(void)
+s32 brcmf_cfg80211_down(void)
 {
 	struct brcmf_cfg80211_priv *cfg_priv;
 	s32 err = 0;

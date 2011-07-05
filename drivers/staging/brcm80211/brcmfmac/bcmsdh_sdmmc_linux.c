@@ -88,7 +88,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 	gInstance->func[func->num] = func;
 
 	if (func->num == 2) {
-		wl_cfg80211_sdio_func(func);
+		brcmf_cfg80211_sdio_func(func);
 		sd_trace(("F2 found, calling brcmf_sdio_probe...\n"));
 		ret = brcmf_sdio_probe(&sdmmc_dev);
 	}

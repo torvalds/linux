@@ -343,15 +343,14 @@ static inline struct brcmf_bss_info *next_bss(struct brcmf_scan_results *list,
 #define for_each_bss(list, bss, __i)	\
 	for (__i = 0; __i < list->count && __i < WL_AP_MAX; __i++, bss = next_bss(list, bss))
 
-extern s32 wl_cfg80211_attach(struct net_device *ndev, void *data);
-extern void wl_cfg80211_detach(void);
+extern s32 brcmf_cfg80211_attach(struct net_device *ndev, void *data);
+extern void brcmf_cfg80211_detach(void);
 /* event handler from dongle */
-extern void wl_cfg80211_event(struct net_device *ndev,
-			      const struct brcmf_event_msg *e, void *data);
-extern void wl_cfg80211_sdio_func(void *func);	/* set sdio function info */
-extern struct sdio_func *wl_cfg80211_get_sdio_func(void);
-extern s32 wl_cfg80211_up(void);	/* dongle up */
-extern s32 wl_cfg80211_down(void);	/* dongle down */
-extern void wl_cfg80211_dbg_level(u32 level);	/* set dongle
-							 debugging level */
+extern void brcmf_cfg80211_event(struct net_device *ndev,
+				 const struct brcmf_event_msg *e, void *data);
+extern void brcmf_cfg80211_sdio_func(void *func); /* set sdio function info */
+extern struct sdio_func *brcmf_cfg80211_get_sdio_func(void);
+extern s32 brcmf_cfg80211_up(void);	/* dongle up */
+extern s32 brcmf_cfg80211_down(void);	/* dongle down */
+
 #endif				/* _wl_cfg80211_h_ */

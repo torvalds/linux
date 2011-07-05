@@ -1052,7 +1052,8 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *net,
 	sprintf(info->driver, KBUILD_MODNAME);
 	sprintf(info->version, "%lu", drvr_priv->pub.drv_version);
 	sprintf(info->fw_version, "%s", BCM4329_FW_NAME);
-	sprintf(info->bus_info, "%s", dev_name(&wl_cfg80211_get_sdio_func()->dev));
+	sprintf(info->bus_info, "%s",
+		dev_name(&brcmf_cfg80211_get_sdio_func()->dev));
 }
 
 struct ethtool_ops brcmf_ethtool_ops = {
@@ -1292,7 +1293,7 @@ static int brcmf_netdev_stop(struct net_device *net)
 	struct brcmf_info *drvr_priv = *(struct brcmf_info **) netdev_priv(net);
 
 	DHD_TRACE(("%s: Enter\n", __func__));
-	wl_cfg80211_down();
+	brcmf_cfg80211_down();
 	if (drvr_priv->pub.up == 0)
 		return 0;
 
@@ -1338,7 +1339,7 @@ static int brcmf_netdev_open(struct net_device *net)
 	/* Allow transmit calls */
 	netif_start_queue(net);
 	drvr_priv->pub.up = 1;
-	if (unlikely(wl_cfg80211_up())) {
+	if (unlikely(brcmf_cfg80211_up())) {
 		DHD_ERROR(("%s: failed to bring up cfg80211\n",
 			   __func__));
 		return -1;
@@ -1464,7 +1465,7 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 	}
 
 	/* Attach and link in the cfg80211 */
-	if (unlikely(wl_cfg80211_attach(net, &drvr_priv->pub))) {
+	if (unlikely(brcmf_cfg80211_attach(net, &drvr_priv->pub))) {
 		DHD_ERROR(("wl_cfg80211_attach failed\n"));
 		goto fail;
 	}
@@ -1700,7 +1701,7 @@ void brcmf_detach(struct brcmf_pub *drvr)
 			if (drvr->prot)
 				brcmf_proto_detach(drvr);
 
-			wl_cfg80211_detach();
+			brcmf_cfg80211_detach();
 
 			/* && defined(DHD_GPL) */
 			free_netdev(ifp->net);
@@ -1824,7 +1825,8 @@ static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktd
 	ASSERT(drvr_priv->iflist[*ifidx] != NULL);
 	ASSERT(drvr_priv->iflist[*ifidx]->net != NULL);
 	if (drvr_priv->iflist[*ifidx]->net)
-		wl_cfg80211_event(drvr_priv->iflist[*ifidx]->net, event, *data);
+		brcmf_cfg80211_event(drvr_priv->iflist[*ifidx]->net,
+				     event, *data);
 
 	return bcmerror;
 }
