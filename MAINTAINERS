@@ -6096,6 +6096,11 @@ M:	Forest Bond <forest@alittletooquiet.net>
 S:	Odd Fixes
 F:	drivers/staging/vt665?/
 
+STAGING - WINBOND IS89C35 WLAN USB DRIVER
+M:	Pavel Machek <pavel@ucw.cz>
+S:	Odd Fixes
+F:	drivers/staging/winbond/
+
 STARFIRE/DURALAN NETWORK DRIVER
 M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
