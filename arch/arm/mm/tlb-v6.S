@@ -54,7 +54,6 @@ ENTRY(v6wbi_flush_user_tlb_range)
 	add	r0, r0, #PAGE_SZ
 	cmp	r0, r1
 	blo	1b
-	mcr	p15, 0, ip, c7, c5, 6		@ flush BTAC/BTB
 	mcr	p15, 0, ip, c7, c10, 4		@ data synchronization barrier
 	mov	pc, lr
 
@@ -83,9 +82,8 @@ ENTRY(v6wbi_flush_kern_tlb_range)
 	add	r0, r0, #PAGE_SZ
 	cmp	r0, r1
 	blo	1b
-	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
 	mcr	p15, 0, r2, c7, c10, 4		@ data synchronization barrier
-	mcr	p15, 0, r2, c7, c5, 4		@ prefetch flush
+	mcr	p15, 0, r2, c7, c5, 4		@ prefetch flush (isb)
 	mov	pc, lr
 
 	__INIT
