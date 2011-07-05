@@ -26,6 +26,25 @@ struct wiimote_data {
 	struct input_dev *input;
 };
 
+static ssize_t wiimote_hid_send(struct hid_device *hdev, __u8 *buffer,
+								size_t count)
+{
+	__u8 *buf;
+	ssize_t ret;
+
+	if (!hdev->hid_output_raw_report)
+		return -ENODEV;
+
+	buf = kmemdup(buffer, count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = hdev->hid_output_raw_report(hdev, buf, count, HID_OUTPUT_REPORT);
+
+	kfree(buf);
+	return ret;
+}
+
 static int wiimote_input_event(struct input_dev *dev, unsigned int type,
 						unsigned int code, int value)
 {
