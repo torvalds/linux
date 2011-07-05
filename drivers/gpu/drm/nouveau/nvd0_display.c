@@ -31,6 +31,7 @@
 #include "nouveau_connector.h"
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
+#include "nouveau_fb.h"
 
 #define MEM_SYNC 0xe0000001
 #define MEM_VRAM 0xe0010000
@@ -98,6 +99,449 @@ static struct drm_crtc *
 nvd0_display_crtc_get(struct drm_encoder *encoder)
 {
 	return nouveau_encoder(encoder)->crtc;
+}
+
+/******************************************************************************
+ * CRTC
+ *****************************************************************************/
+static int
+nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool on, bool update)
+{
+	struct drm_device *dev = nv_crtc->base.dev;
+	u32 *push, mode;
+
+	mode = 0x00000000;
+	if (on) {
+		/* 0x11: 6bpc dynamic 2x2
+		 * 0x13: 8bpc dynamic 2x2
+		 * 0x19: 6bpc static 2x2
+		 * 0x1b: 8bpc static 2x2
+		 * 0x21: 6bpc temporal
+		 * 0x23: 8bpc temporal
+		 */
+		mode = 0x00000011;
+	}
+
+	push = evo_wait(dev, 0, 4);
+	if (push) {
+		evo_mthd(push, 0x0490 + (nv_crtc->index * 0x300), 1);
+		evo_data(push, mode);
+		if (update) {
+			evo_mthd(push, 0x0080, 1);
+			evo_data(push, 0x00000000);
+		}
+		evo_kick(push, dev, 0);
+	}
+
+	return 0;
+}
+
+static int
+nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, int type, bool update)
+{
+	struct drm_display_mode *mode = &nv_crtc->base.mode;
+	struct drm_device *dev = nv_crtc->base.dev;
+	u32 *push;
+
+	/*XXX: actually handle scaling */
+
+	push = evo_wait(dev, 0, 16);
+	if (push) {
+		evo_mthd(push, 0x04c0 + (nv_crtc->index * 0x300), 3);
+		evo_data(push, (mode->vdisplay << 16) | mode->hdisplay);
+		evo_data(push, (mode->vdisplay << 16) | mode->hdisplay);
+		evo_data(push, (mode->vdisplay << 16) | mode->hdisplay);
+		evo_mthd(push, 0x0494 + (nv_crtc->index * 0x300), 1);
+		evo_data(push, 0x00000000);
+		evo_mthd(push, 0x04b0 + (nv_crtc->index * 0x300), 1);
+		evo_data(push, 0x00000000);
+		evo_mthd(push, 0x04b8 + (nv_crtc->index * 0x300), 1);
+		evo_data(push, (mode->vdisplay << 16) | mode->hdisplay);
+		if (update) {
+			evo_mthd(push, 0x0080, 1);
+			evo_data(push, 0x00000000);
+		}
+		evo_kick(push, dev, 0);
+	}
+
+	return 0;
+}
+
+static int
+nvd0_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
+		    int x, int y, bool update)
+{
+	struct nouveau_framebuffer *nvfb = nouveau_framebuffer(fb);
+	u32 *push;
+
+	/*XXX*/
+	nv_crtc->fb.tile_flags = MEM_VRAM;
+
+	push = evo_wait(fb->dev, 0, 16);
+	if (push) {
+		evo_mthd(push, 0x0460 + (nv_crtc->index * 0x300), 1);
+		evo_data(push, nvfb->nvbo->bo.offset >> 8);
+		evo_mthd(push, 0x0468 + (nv_crtc->index * 0x300), 4);
+		evo_data(push, (fb->height << 16) | fb->width);
+		evo_data(push, nvfb->r_pitch);
+		evo_data(push, nvfb->r_format);
+		evo_data(push, nv_crtc->fb.tile_flags);
+		evo_kick(push, fb->dev, 0);
+	}
+
+	return 0;
+}
+
+static void
+nvd0_crtc_cursor_show(struct nouveau_crtc *nv_crtc, bool show, bool update)
+{
+	struct drm_device *dev = nv_crtc->base.dev;
+	u32 *push = evo_wait(dev, 0, 16);
+	if (push) {
+		if (show) {
+			evo_mthd(push, 0x0480 + (nv_crtc->index * 0x300), 2);
+			evo_data(push, 0x85000000);
+			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
+			evo_mthd(push, 0x048c + (nv_crtc->index * 0x300), 1);
+			evo_data(push, MEM_VRAM);
+		} else {
+			evo_mthd(push, 0x0480 + (nv_crtc->index * 0x300), 1);
+			evo_data(push, 0x05000000);
+			evo_mthd(push, 0x048c + (nv_crtc->index * 0x300), 1);
+			evo_data(push, 0x00000000);
+		}
+
+		if (update) {
+			evo_mthd(push, 0x0080, 1);
+			evo_data(push, 0x00000000);
+		}
+
+		evo_kick(push, dev, 0);
+	}
+}
+
+static void
+nvd0_crtc_dpms(struct drm_crtc *crtc, int mode)
+{
+}
+
+static void
+nvd0_crtc_prepare(struct drm_crtc *crtc)
+{
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	u32 *push;
+
+	push = evo_wait(crtc->dev, 0, 2);
+	if (push) {
+		evo_mthd(push, 0x0474 + (nv_crtc->index * 0x300), 1);
+		evo_data(push, 0x00000000);
+		evo_mthd(push, 0x0440 + (nv_crtc->index * 0x300), 1);
+		evo_data(push, 0x03000000);
+		evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
+		evo_data(push, 0x00000000);
+		evo_kick(push, crtc->dev, 0);
+	}
+
+	nvd0_crtc_cursor_show(nv_crtc, false, false);
+}
+
+static void
+nvd0_crtc_commit(struct drm_crtc *crtc)
+{
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	u32 *push;
+
+	push = evo_wait(crtc->dev, 0, 32);
+	if (push) {
+		evo_mthd(push, 0x0474 + (nv_crtc->index * 0x300), 1);
+		evo_data(push, nv_crtc->fb.tile_flags);
+		evo_mthd(push, 0x0440 + (nv_crtc->index * 0x300), 4);
+		evo_data(push, 0x83000000);
+		evo_data(push, nv_crtc->lut.nvbo->bo.offset >> 8);
+		evo_data(push, 0x00000000);
+		evo_data(push, 0x00000000);
+		evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
+		evo_data(push, MEM_VRAM);
+		evo_kick(push, crtc->dev, 0);
+	}
+
+	nvd0_crtc_cursor_show(nv_crtc, nv_crtc->cursor.visible, true);
+}
+
+static bool
+nvd0_crtc_mode_fixup(struct drm_crtc *crtc, struct drm_display_mode *mode,
+		     struct drm_display_mode *adjusted_mode)
+{
+	return true;
+}
+
+static int
+nvd0_crtc_swap_fbs(struct drm_crtc *crtc, struct drm_framebuffer *old_fb)
+{
+	struct nouveau_framebuffer *nvfb = nouveau_framebuffer(crtc->fb);
+	int ret;
+
+	ret = nouveau_bo_pin(nvfb->nvbo, TTM_PL_FLAG_VRAM);
+	if (ret)
+		return ret;
+
+	if (old_fb) {
+		nvfb = nouveau_framebuffer(old_fb);
+		nouveau_bo_unpin(nvfb->nvbo);
+	}
+
+	return 0;
+}
+
+static int
+nvd0_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
+		   struct drm_display_mode *mode, int x, int y,
+		   struct drm_framebuffer *old_fb)
+{
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct nouveau_connector *nv_connector;
+	u32 htotal = mode->htotal;
+	u32 vtotal = mode->vtotal;
+	u32 hsyncw = mode->hsync_end - mode->hsync_start - 1;
+	u32 vsyncw = mode->vsync_end - mode->vsync_start - 1;
+	u32 hfrntp = mode->hsync_start - mode->hdisplay;
+	u32 vfrntp = mode->vsync_start - mode->vdisplay;
+	u32 hbackp = mode->htotal - mode->hsync_end;
+	u32 vbackp = mode->vtotal - mode->vsync_end;
+	u32 hss2be = hsyncw + hbackp;
+	u32 vss2be = vsyncw + vbackp;
+	u32 hss2de = htotal - hfrntp;
+	u32 vss2de = vtotal - vfrntp;
+	u32 hstart = 0;
+	u32 vstart = 0;
+	u32 *push;
+	int ret;
+
+	ret = nvd0_crtc_swap_fbs(crtc, old_fb);
+	if (ret)
+		return ret;
+
+	push = evo_wait(crtc->dev, 0, 64);
+	if (push) {
+		evo_mthd(push, 0x0410 + (nv_crtc->index * 0x300), 5);
+		evo_data(push, (vstart << 16) | hstart);
+		evo_data(push, (vtotal << 16) | htotal);
+		evo_data(push, (vsyncw << 16) | hsyncw);
+		evo_data(push, (vss2be << 16) | hss2be);
+		evo_data(push, (vss2de << 16) | hss2de);
+		evo_mthd(push, 0x042c + (nv_crtc->index * 0x300), 1);
+		evo_data(push, 0x00000000); /* ??? */
+		evo_mthd(push, 0x0450 + (nv_crtc->index * 0x300), 3);
+		evo_data(push, mode->clock * 1000);
+		evo_data(push, 0x00200000); /* ??? */
+		evo_data(push, mode->clock * 1000);
+		evo_mthd(push, 0x0408 + (nv_crtc->index * 0x300), 1);
+		evo_data(push, 0x31ec6000); /* ??? */
+		evo_kick(push, crtc->dev, 0);
+	}
+
+	nv_connector = nouveau_crtc_connector_get(nv_crtc);
+	nvd0_crtc_set_dither(nv_crtc, nv_connector->use_dithering, false);
+	nvd0_crtc_set_scale(nv_crtc, nv_connector->scaling_mode, false);
+	nvd0_crtc_set_image(nv_crtc, crtc->fb, x, y, false);
+	return 0;
+}
+
+static int
+nvd0_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
+			struct drm_framebuffer *old_fb)
+{
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	int ret;
+
+	ret = nvd0_crtc_swap_fbs(crtc, old_fb);
+	if (ret)
+		return ret;
+
+	nvd0_crtc_set_image(nv_crtc, crtc->fb, x, y, true);
+	return 0;
+}
+
+static int
+nvd0_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb, int x, int y,
+			       enum mode_set_atomic state)
+{
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	nvd0_crtc_set_image(nv_crtc, fb, x, y, true);
+	return 0;
+}
+
+static void
+nvd0_crtc_lut_load(struct drm_crtc *crtc)
+{
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	void __iomem *lut = nvbo_kmap_obj_iovirtual(nv_crtc->lut.nvbo);
+	int i;
+
+	for (i = 0; i < 256; i++) {
+		writew(nv_crtc->lut.r[i] >> 2, lut + 8*i + 0);
+		writew(nv_crtc->lut.g[i] >> 2, lut + 8*i + 2);
+		writew(nv_crtc->lut.b[i] >> 2, lut + 8*i + 4);
+	}
+}
+
+static int
+nvd0_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
+		     uint32_t handle, uint32_t width, uint32_t height)
+{
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct drm_gem_object *gem;
+	struct nouveau_bo *nvbo;
+	bool visible = (handle != 0);
+	int i, ret = 0;
+
+	if (visible) {
+		if (width != 64 || height != 64)
+			return -EINVAL;
+
+		gem = drm_gem_object_lookup(dev, file_priv, handle);
+		if (unlikely(!gem))
+			return -ENOENT;
+		nvbo = nouveau_gem_object(gem);
+
+		ret = nouveau_bo_map(nvbo);
+		if (ret == 0) {
+			for (i = 0; i < 64 * 64; i++) {
+				u32 v = nouveau_bo_rd32(nvbo, i);
+				nouveau_bo_wr32(nv_crtc->cursor.nvbo, i, v);
+			}
+			nouveau_bo_unmap(nvbo);
+		}
+
+		drm_gem_object_unreference_unlocked(gem);
+	}
+
+	if (visible != nv_crtc->cursor.visible) {
+		nvd0_crtc_cursor_show(nv_crtc, visible, true);
+		nv_crtc->cursor.visible = visible;
+	}
+
+	return ret;
+}
+
+static int
+nvd0_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
+{
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	const u32 data = (y << 16) | x;
+
+	nv_wr32(crtc->dev, 0x64d084 + (nv_crtc->index * 0x1000), data);
+	nv_wr32(crtc->dev, 0x64d080 + (nv_crtc->index * 0x1000), 0x00000000);
+	return 0;
+}
+
+static void
+nvd0_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
+		    uint32_t start, uint32_t size)
+{
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	u32 end = max(start + size, (u32)256);
+	u32 i;
+
+	for (i = start; i < end; i++) {
+		nv_crtc->lut.r[i] = r[i];
+		nv_crtc->lut.g[i] = g[i];
+		nv_crtc->lut.b[i] = b[i];
+	}
+
+	nvd0_crtc_lut_load(crtc);
+}
+
+static void
+nvd0_crtc_destroy(struct drm_crtc *crtc)
+{
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
+	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
+	nouveau_bo_unmap(nv_crtc->lut.nvbo);
+	nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
+	drm_crtc_cleanup(crtc);
+	kfree(crtc);
+}
+
+static const struct drm_crtc_helper_funcs nvd0_crtc_hfunc = {
+	.dpms = nvd0_crtc_dpms,
+	.prepare = nvd0_crtc_prepare,
+	.commit = nvd0_crtc_commit,
+	.mode_fixup = nvd0_crtc_mode_fixup,
+	.mode_set = nvd0_crtc_mode_set,
+	.mode_set_base = nvd0_crtc_mode_set_base,
+	.mode_set_base_atomic = nvd0_crtc_mode_set_base_atomic,
+	.load_lut = nvd0_crtc_lut_load,
+};
+
+static const struct drm_crtc_funcs nvd0_crtc_func = {
+	.cursor_set = nvd0_crtc_cursor_set,
+	.cursor_move = nvd0_crtc_cursor_move,
+	.gamma_set = nvd0_crtc_gamma_set,
+	.set_config = drm_crtc_helper_set_config,
+	.destroy = nvd0_crtc_destroy,
+};
+
+static int
+nvd0_crtc_create(struct drm_device *dev, int index)
+{
+	struct nouveau_crtc *nv_crtc;
+	struct drm_crtc *crtc;
+	int ret, i;
+
+	nv_crtc = kzalloc(sizeof(*nv_crtc), GFP_KERNEL);
+	if (!nv_crtc)
+		return -ENOMEM;
+
+	nv_crtc->index = index;
+	nv_crtc->set_dither = nvd0_crtc_set_dither;
+	nv_crtc->set_scale = nvd0_crtc_set_scale;
+	for (i = 0; i < 256; i++) {
+		nv_crtc->lut.r[i] = i << 8;
+		nv_crtc->lut.g[i] = i << 8;
+		nv_crtc->lut.b[i] = i << 8;
+	}
+
+	crtc = &nv_crtc->base;
+	drm_crtc_init(dev, crtc, &nvd0_crtc_func);
+	drm_crtc_helper_add(crtc, &nvd0_crtc_hfunc);
+	drm_mode_crtc_set_gamma_size(crtc, 256);
+
+	ret = nouveau_bo_new(dev, 64 * 64 * 4, 0x100, TTM_PL_FLAG_VRAM,
+			     0, 0x0000, &nv_crtc->cursor.nvbo);
+	if (!ret) {
+		ret = nouveau_bo_pin(nv_crtc->cursor.nvbo, TTM_PL_FLAG_VRAM);
+		if (!ret)
+			ret = nouveau_bo_map(nv_crtc->cursor.nvbo);
+		if (ret)
+			nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
+	}
+
+	if (ret)
+		goto out;
+
+	ret = nouveau_bo_new(dev, 4096, 0x100, TTM_PL_FLAG_VRAM,
+			     0, 0x0000, &nv_crtc->lut.nvbo);
+	if (!ret) {
+		ret = nouveau_bo_pin(nv_crtc->lut.nvbo, TTM_PL_FLAG_VRAM);
+		if (!ret)
+			ret = nouveau_bo_map(nv_crtc->lut.nvbo);
+		if (ret)
+			nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
+	}
+
+	if (ret)
+		goto out;
+
+	nvd0_crtc_lut_load(crtc);
+
+out:
+	if (ret)
+		nvd0_crtc_destroy(crtc);
+	return ret;
 }
 
 /******************************************************************************
@@ -194,6 +638,7 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	if (push) {
 		evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 1);
 		evo_data(push, mode_ctrl);
+		evo_kick(push, encoder->dev, 0);
 	}
 
 	nv_encoder->crtc = encoder->crtc;
@@ -204,9 +649,12 @@ nvd0_sor_disconnect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
+	u32 *push;
 
 	if (nv_encoder->crtc) {
-		u32 *push = evo_wait(dev, 0, 4);
+		nvd0_crtc_prepare(nv_encoder->crtc);
+
+		push = evo_wait(dev, 0, 4);
 		if (push) {
 			evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 1);
 			evo_data(push, 0x00000000);
@@ -492,6 +940,13 @@ nvd0_display_create(struct drm_device *dev)
 	if (!disp)
 		return -ENOMEM;
 	dev_priv->engine.display.priv = disp;
+
+	/* create crtc objects to represent the hw heads */
+	for (i = 0; i < 2; i++) {
+		ret = nvd0_crtc_create(dev, i);
+		if (ret)
+			goto out;
+	}
 
 	/* create encoder/connector objects based on VBIOS DCB table */
 	for (i = 0, dcbe = &dcb->entry[0]; i < dcb->entries; i++, dcbe++) {
