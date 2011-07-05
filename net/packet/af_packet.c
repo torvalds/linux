@@ -223,7 +223,7 @@ struct packet_fanout {
 	unsigned int		num_members;
 	u16			id;
 	u8			type;
-	u8			pad;
+	u8			defrag;
 	atomic_t		rr_cur;
 	struct list_head	list;
 	struct sock		*arr[PACKET_FANOUT_MAX];
@@ -447,6 +447,41 @@ static struct sock *fanout_demux_lb(struct packet_fanout *f, struct sk_buff *skb
 	return f->arr[cur];
 }
 
+static struct sk_buff *fanout_check_defrag(struct sk_buff *skb)
+{
+	const struct iphdr *iph;
+	u32 len;
+
+	if (skb->protocol != htons(ETH_P_IP))
+		return skb;
+
+	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
+		return skb;
+
+	iph = ip_hdr(skb);
+	if (iph->ihl < 5 || iph->version != 4)
+		return skb;
+	if (!pskb_may_pull(skb, iph->ihl*4))
+		return skb;
+	iph = ip_hdr(skb);
+	len = ntohs(iph->tot_len);
+	if (skb->len < len || len < (iph->ihl * 4))
+		return skb;
+
+	if (ip_is_fragment(ip_hdr(skb))) {
+		skb = skb_clone(skb, GFP_ATOMIC);
+		if (skb) {
+			if (pskb_trim_rcsum(skb, len))
+				return skb;
+			memset(IPCB(skb), 0, sizeof(struct inet_skb_parm));
+			if (ip_defrag(skb, IP_DEFRAG_AF_PACKET))
+				return NULL;
+			skb->rxhash = 0;
+		}
+	}
+	return skb;
+}
+
 static int packet_rcv_fanout_hash(struct sk_buff *skb, struct net_device *dev,
 				  struct packet_type *pt, struct net_device *orig_dev)
 {
@@ -459,6 +494,12 @@ static int packet_rcv_fanout_hash(struct sk_buff *skb, struct net_device *dev,
 	    !num) {
 		kfree_skb(skb);
 		return 0;
+	}
+
+	if (f->defrag) {
+		skb = fanout_check_defrag(skb);
+		if (!skb)
+			return 0;
 	}
 
 	skb_get_rxhash(skb);
@@ -519,10 +560,12 @@ static void __fanout_unlink(struct sock *sk, struct packet_sock *po)
 	spin_unlock(&f->lock);
 }
 
-static int fanout_add(struct sock *sk, u16 id, u8 type)
+static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 {
 	struct packet_sock *po = pkt_sk(sk);
 	struct packet_fanout *f, *match;
+	u8 type = type_flags & 0xff;
+	u8 defrag = (type_flags & PACKET_FANOUT_FLAG_DEFRAG) ? 1 : 0;
 	int err;
 
 	switch (type) {
@@ -548,12 +591,15 @@ static int fanout_add(struct sock *sk, u16 id, u8 type)
 			break;
 		}
 	}
+	if (match && match->defrag != defrag)
+		return -EINVAL;
 	if (!match) {
 		match = kzalloc(sizeof(*match), GFP_KERNEL);
 		if (match) {
 			write_pnet(&match->net, sock_net(sk));
 			match->id = id;
 			match->type = type;
+			match->defrag = defrag;
 			atomic_set(&match->rr_cur, 0);
 			INIT_LIST_HEAD(&match->list);
 			spin_lock_init(&match->lock);
