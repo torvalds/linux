@@ -1,5 +1,5 @@
 /*
- * Copyright Â© 2006-2011 Intel Corporation
+ * Copyright © 2006-2011 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -11,7 +11,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
+ * this program; if not, write to the Free Software Foundation, Inc., 
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors:
@@ -28,10 +28,20 @@
 #include "psb_intel_reg.h"
 #include "psb_intel_display.h"
 #include "power.h"
+#include "cdv_device.h"
 
-#include "mdfld_output.h"
 
-struct psb_intel_clock_t {
+struct cdv_intel_range_t {
+	int min, max;
+};
+
+struct cdv_intel_p2_t {
+	int dot_limit;
+	int p2_slow, p2_fast;
+};
+
+struct cdv_intel_clock_t
+{
 	/* given values */
 	int n;
 	int m1, m2;
@@ -43,172 +53,299 @@ struct psb_intel_clock_t {
 	int p;
 };
 
-struct psb_intel_range_t {
-	int min, max;
-};
-
-struct psb_intel_p2_t {
-	int dot_limit;
-	int p2_slow, p2_fast;
-};
-
 #define INTEL_P2_NUM		      2
 
-struct psb_intel_limit_t {
-	struct psb_intel_range_t dot, vco, n, m, m1, m2, p, p1;
-	struct psb_intel_p2_t p2;
+struct cdv_intel_limit_t {
+	struct cdv_intel_range_t dot, vco, n, m, m1, m2, p, p1;
+	struct cdv_intel_p2_t p2;
 };
 
-#define I8XX_DOT_MIN		  25000
-#define I8XX_DOT_MAX		 350000
-#define I8XX_VCO_MIN		 930000
-#define I8XX_VCO_MAX		1400000
-#define I8XX_N_MIN		      3
-#define I8XX_N_MAX		     16
-#define I8XX_M_MIN		     96
-#define I8XX_M_MAX		    140
-#define I8XX_M1_MIN		     18
-#define I8XX_M1_MAX		     26
-#define I8XX_M2_MIN		      6
-#define I8XX_M2_MAX		     16
-#define I8XX_P_MIN		      4
-#define I8XX_P_MAX		    128
-#define I8XX_P1_MIN		      2
-#define I8XX_P1_MAX		     33
-#define I8XX_P1_LVDS_MIN	      1
-#define I8XX_P1_LVDS_MAX	      6
-#define I8XX_P2_SLOW		      4
-#define I8XX_P2_FAST		      2
-#define I8XX_P2_LVDS_SLOW	      14
-#define I8XX_P2_LVDS_FAST	      14	/* No fast option */
-#define I8XX_P2_SLOW_LIMIT	 165000
+#define CDV_LIMIT_SINGLE_LVDS_96	0
+#define CDV_LIMIT_SINGLE_LVDS_100	1
+#define CDV_LIMIT_DAC_HDMI_27		2
+#define CDV_LIMIT_DAC_HDMI_96		3
 
-#define I9XX_DOT_MIN		  20000
-#define I9XX_DOT_MAX		 400000
-#define I9XX_VCO_MIN		1400000
-#define I9XX_VCO_MAX		2800000
-#define I9XX_N_MIN		      3
-#define I9XX_N_MAX		      8
-#define I9XX_M_MIN		     70
-#define I9XX_M_MAX		    120
-#define I9XX_M1_MIN		     10
-#define I9XX_M1_MAX		     20
-#define I9XX_M2_MIN		      5
-#define I9XX_M2_MAX		      9
-#define I9XX_P_SDVO_DAC_MIN	      5
-#define I9XX_P_SDVO_DAC_MAX	     80
-#define I9XX_P_LVDS_MIN		      7
-#define I9XX_P_LVDS_MAX		     98
-#define I9XX_P1_MIN		      1
-#define I9XX_P1_MAX		      8
-#define I9XX_P2_SDVO_DAC_SLOW		     10
-#define I9XX_P2_SDVO_DAC_FAST		      5
-#define I9XX_P2_SDVO_DAC_SLOW_LIMIT	 200000
-#define I9XX_P2_LVDS_SLOW		     14
-#define I9XX_P2_LVDS_FAST		      7
-#define I9XX_P2_LVDS_SLOW_LIMIT		 112000
-
-#define INTEL_LIMIT_I8XX_DVO_DAC    0
-#define INTEL_LIMIT_I8XX_LVDS	    1
-#define INTEL_LIMIT_I9XX_SDVO_DAC   2
-#define INTEL_LIMIT_I9XX_LVDS	    3
-
-static const struct psb_intel_limit_t psb_intel_limits[] = {
-	{			/* INTEL_LIMIT_I8XX_DVO_DAC */
-	 .dot = {.min = I8XX_DOT_MIN, .max = I8XX_DOT_MAX},
-	 .vco = {.min = I8XX_VCO_MIN, .max = I8XX_VCO_MAX},
-	 .n = {.min = I8XX_N_MIN, .max = I8XX_N_MAX},
-	 .m = {.min = I8XX_M_MIN, .max = I8XX_M_MAX},
-	 .m1 = {.min = I8XX_M1_MIN, .max = I8XX_M1_MAX},
-	 .m2 = {.min = I8XX_M2_MIN, .max = I8XX_M2_MAX},
-	 .p = {.min = I8XX_P_MIN, .max = I8XX_P_MAX},
-	 .p1 = {.min = I8XX_P1_MIN, .max = I8XX_P1_MAX},
-	 .p2 = {.dot_limit = I8XX_P2_SLOW_LIMIT,
-		.p2_slow = I8XX_P2_SLOW, .p2_fast = I8XX_P2_FAST},
+static const struct cdv_intel_limit_t cdv_intel_limits[] = {
+	{			/* CDV_SIGNLE_LVDS_96MHz */
+	 .dot = {.min = 20000, .max = 115500},
+	 .vco = {.min = 1800000, .max = 3600000},
+	 .n = {.min = 2, .max = 6},
+	 .m = {.min = 60, .max = 160},
+	 .m1 = {.min = 0, .max = 0},
+	 .m2 = {.min = 58, .max = 158},
+	 .p = {.min = 28, .max = 140},
+	 .p1 = {.min = 2, .max = 10},
+	 .p2 = {.dot_limit = 200000,
+		.p2_slow = 14, .p2_fast = 14},
 	 },
-	{			/* INTEL_LIMIT_I8XX_LVDS */
-	 .dot = {.min = I8XX_DOT_MIN, .max = I8XX_DOT_MAX},
-	 .vco = {.min = I8XX_VCO_MIN, .max = I8XX_VCO_MAX},
-	 .n = {.min = I8XX_N_MIN, .max = I8XX_N_MAX},
-	 .m = {.min = I8XX_M_MIN, .max = I8XX_M_MAX},
-	 .m1 = {.min = I8XX_M1_MIN, .max = I8XX_M1_MAX},
-	 .m2 = {.min = I8XX_M2_MIN, .max = I8XX_M2_MAX},
-	 .p = {.min = I8XX_P_MIN, .max = I8XX_P_MAX},
-	 .p1 = {.min = I8XX_P1_LVDS_MIN, .max = I8XX_P1_LVDS_MAX},
-	 .p2 = {.dot_limit = I8XX_P2_SLOW_LIMIT,
-		.p2_slow = I8XX_P2_LVDS_SLOW, .p2_fast = I8XX_P2_LVDS_FAST},
-	 },
-	{			/* INTEL_LIMIT_I9XX_SDVO_DAC */
-	 .dot = {.min = I9XX_DOT_MIN, .max = I9XX_DOT_MAX},
-	 .vco = {.min = I9XX_VCO_MIN, .max = I9XX_VCO_MAX},
-	 .n = {.min = I9XX_N_MIN, .max = I9XX_N_MAX},
-	 .m = {.min = I9XX_M_MIN, .max = I9XX_M_MAX},
-	 .m1 = {.min = I9XX_M1_MIN, .max = I9XX_M1_MAX},
-	 .m2 = {.min = I9XX_M2_MIN, .max = I9XX_M2_MAX},
-	 .p = {.min = I9XX_P_SDVO_DAC_MIN, .max = I9XX_P_SDVO_DAC_MAX},
-	 .p1 = {.min = I9XX_P1_MIN, .max = I9XX_P1_MAX},
-	 .p2 = {.dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
-		.p2_slow = I9XX_P2_SDVO_DAC_SLOW, .p2_fast =
-		I9XX_P2_SDVO_DAC_FAST},
-	 },
-	{			/* INTEL_LIMIT_I9XX_LVDS */
-	 .dot = {.min = I9XX_DOT_MIN, .max = I9XX_DOT_MAX},
-	 .vco = {.min = I9XX_VCO_MIN, .max = I9XX_VCO_MAX},
-	 .n = {.min = I9XX_N_MIN, .max = I9XX_N_MAX},
-	 .m = {.min = I9XX_M_MIN, .max = I9XX_M_MAX},
-	 .m1 = {.min = I9XX_M1_MIN, .max = I9XX_M1_MAX},
-	 .m2 = {.min = I9XX_M2_MIN, .max = I9XX_M2_MAX},
-	 .p = {.min = I9XX_P_LVDS_MIN, .max = I9XX_P_LVDS_MAX},
-	 .p1 = {.min = I9XX_P1_MIN, .max = I9XX_P1_MAX},
+	{			/* CDV_SINGLE_LVDS_100MHz */
+	 .dot = {.min = 20000, .max = 115500},
+	 .vco = {.min = 1800000, .max = 3600000},
+	 .n = {.min = 2, .max = 6},
+	 .m = {.min = 60, .max = 160},
+	 .m1 = {.min = 0, .max = 0},
+	 .m2 = {.min = 58, .max = 158},
+	 .p = {.min = 28, .max = 140},
+	 .p1 = {.min = 2, .max = 10},
 	 /* The single-channel range is 25-112Mhz, and dual-channel
 	  * is 80-224Mhz.  Prefer single channel as much as possible.
 	  */
-	 .p2 = {.dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
-		.p2_slow = I9XX_P2_LVDS_SLOW, .p2_fast = I9XX_P2_LVDS_FAST},
+	 .p2 = {.dot_limit = 200000, .p2_slow = 14, .p2_fast = 14},
+	 },
+	{			/* CDV_DAC_HDMI_27MHz */
+	 .dot = {.min = 20000, .max = 400000},
+	 .vco = {.min = 1809000, .max = 3564000},
+	 .n = {.min = 1, .max = 1},
+	 .m = {.min = 67, .max = 132},
+	 .m1 = {.min = 0, .max = 0},
+	 .m2 = {.min = 65, .max = 130},
+	 .p = {.min = 5, .max = 90},
+	 .p1 = {.min = 1, .max = 9},
+	 .p2 = {.dot_limit = 225000, .p2_slow = 10, .p2_fast = 5},
+	 },
+	{			/* CDV_DAC_HDMI_96MHz */
+	 .dot = {.min = 20000, .max = 400000},
+	 .vco = {.min = 1800000, .max = 3600000},
+	 .n = {.min = 2, .max = 6},
+	 .m = {.min = 60, .max = 160},
+	 .m1 = {.min = 0, .max = 0},
+	 .m2 = {.min = 58, .max = 158},
+	 .p = {.min = 5, .max = 100},
+	 .p1 = {.min = 1, .max = 10},
+	 .p2 = {.dot_limit = 225000, .p2_slow = 10, .p2_fast = 5},
 	 },
 };
 
-static const struct psb_intel_limit_t *psb_intel_limit(struct drm_crtc *crtc)
-{
-	const struct psb_intel_limit_t *limit;
+#define _wait_for(COND, MS, W) ({ \
+        unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);       \
+        int ret__ = 0;                                                  \
+        while (! (COND)) {                                              \
+                if (time_after(jiffies, timeout__)) {                   \
+                        ret__ = -ETIMEDOUT;                             \
+                        break;                                          \
+                }                                                       \
+                if (W && !in_dbg_master()) msleep(W);                   \
+        }                                                               \
+        ret__;                                                          \
+})      
 
-	if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-		limit = &psb_intel_limits[INTEL_LIMIT_I9XX_LVDS];
-	else
-		limit = &psb_intel_limits[INTEL_LIMIT_I9XX_SDVO_DAC];
-	return limit;
+#define wait_for(COND, MS) _wait_for(COND, MS, 1)
+
+
+static int cdv_sb_read(struct drm_device *dev, u32 reg, u32 *val)
+{
+	int ret;
+
+	ret = wait_for((REG_READ(SB_PCKT) & SB_BUSY) == 0, 1000);
+	if (ret) {
+		DRM_ERROR("timeout waiting for SB to idle before read\n");
+		return ret;
+	}
+
+	REG_WRITE(SB_ADDR, reg);
+	REG_WRITE(SB_PCKT,
+		   SET_FIELD(SB_OPCODE_READ, SB_OPCODE) |
+		   SET_FIELD(SB_DEST_DPLL, SB_DEST) |
+		   SET_FIELD(0xf, SB_BYTE_ENABLE));
+
+	ret = wait_for((REG_READ(SB_PCKT) & SB_BUSY) == 0, 1000);
+	if (ret) {
+		DRM_ERROR("timeout waiting for SB to idle after read\n");
+		return ret;
+	}
+
+	*val = REG_READ(SB_DATA);
+
+	return 0;
 }
 
-/** Derive the pixel clock for the given refclk and divisors for 8xx chips. */
-
-static void i8xx_clock(int refclk, struct psb_intel_clock_t *clock)
+static int cdv_sb_write(struct drm_device *dev, u32 reg, u32 val)
 {
-	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
-	clock->p = clock->p1 * clock->p2;
-	clock->vco = refclk * clock->m / (clock->n + 2);
-	clock->dot = clock->vco / clock->p;
+	int ret;
+	static bool dpio_debug = true;
+	u32 temp;
+
+	if (dpio_debug) {
+		if (cdv_sb_read(dev, reg, &temp) == 0)
+			DRM_DEBUG_KMS("0x%08x: 0x%08x (before)\n", reg, temp);
+		DRM_DEBUG_KMS("0x%08x: 0x%08x\n", reg, val);
+	}
+
+	ret = wait_for((REG_READ(SB_PCKT) & SB_BUSY) == 0, 1000);
+	if (ret) {
+		DRM_ERROR("timeout waiting for SB to idle before write\n");
+		return ret;
+	}
+
+	REG_WRITE(SB_ADDR, reg);
+	REG_WRITE(SB_DATA, val);
+	REG_WRITE(SB_PCKT,
+		   SET_FIELD(SB_OPCODE_WRITE, SB_OPCODE) |
+		   SET_FIELD(SB_DEST_DPLL, SB_DEST) |
+		   SET_FIELD(0xf, SB_BYTE_ENABLE));
+
+	ret = wait_for((REG_READ(SB_PCKT) & SB_BUSY) == 0, 1000);
+	if (ret) {
+		DRM_ERROR("timeout waiting for SB to idle after write\n");
+		return ret;
+	}
+
+	if (dpio_debug) {
+		if (cdv_sb_read(dev, reg, &temp) == 0)
+			DRM_DEBUG_KMS("0x%08x: 0x%08x (after)\n", reg, temp);
+	}
+
+	return 0;
 }
 
-/** Derive the pixel clock for the given refclk and divisors for 9xx chips. */
-
-static void i9xx_clock(int refclk, struct psb_intel_clock_t *clock)
+/* Reset the DPIO configuration register.  The BIOS does this at every
+ * mode set.
+ */
+static void cdv_sb_reset(struct drm_device *dev)
 {
-	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
-	clock->p = clock->p1 * clock->p2;
-	clock->vco = refclk * clock->m / (clock->n + 2);
-	clock->dot = clock->vco / clock->p;
+
+	REG_WRITE(DPIO_CFG, 0);
+	REG_READ(DPIO_CFG);
+	REG_WRITE(DPIO_CFG, DPIO_MODE_SELECT_0 | DPIO_CMN_RESET_N);
 }
 
-static void psb_intel_clock(struct drm_device *dev, int refclk,
-			struct psb_intel_clock_t *clock)
+/* Unlike most Intel display engines, on Cedarview the DPLL registers
+ * are behind this sideband bus.  They must be programmed while the
+ * DPLL reference clock is on in the DPLL control register, but before
+ * the DPLL is enabled in the DPLL control register.
+ */
+static int
+cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
+			       struct cdv_intel_clock_t *clock)
 {
-	return i9xx_clock(refclk, clock);
+	struct psb_intel_crtc *psb_crtc =
+				to_psb_intel_crtc(crtc);
+	int pipe = psb_crtc->pipe;
+	u32 m, n_vco, p;
+	int ret = 0;
+	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
+	u32 ref_value;
+
+	cdv_sb_reset(dev);
+
+	if ((REG_READ(dpll_reg) & DPLL_SYNCLOCK_ENABLE) == 0) {
+		DRM_ERROR("Attempting to set DPLL with refclk disabled\n");
+		return -EBUSY;
+	}
+
+	/* Follow the BIOS and write the REF/SFR Register. Hardcoded value */
+	ref_value = 0x68A701;
+
+	cdv_sb_write(dev, SB_REF_SFR(pipe), ref_value);
+	
+	/* We don't know what the other fields of these regs are, so
+	 * leave them in place.
+	 */
+	ret = cdv_sb_read(dev, SB_M(pipe), &m);
+	if (ret)
+		return ret;
+	m &= ~SB_M_DIVIDER_MASK;
+	m |= ((clock->m2) << SB_M_DIVIDER_SHIFT);
+	ret = cdv_sb_write(dev, SB_M(pipe), m);
+	if (ret)
+		return ret;
+
+	ret = cdv_sb_read(dev, SB_N_VCO(pipe), &n_vco);
+	if (ret)
+		return ret;
+
+	/* Follow the BIOS to program the N_DIVIDER REG */
+	n_vco &= 0xFFFF;
+	n_vco |= 0x107;
+	n_vco &= ~(SB_N_VCO_SEL_MASK |
+		   SB_N_DIVIDER_MASK |
+		   SB_N_CB_TUNE_MASK);
+
+	n_vco |= ((clock->n) << SB_N_DIVIDER_SHIFT);
+
+	if (clock->vco < 2250000) {
+		n_vco |= (2 << SB_N_CB_TUNE_SHIFT);
+		n_vco |= (0 << SB_N_VCO_SEL_SHIFT);
+	} else if (clock->vco < 2750000) {
+		n_vco |= (1 << SB_N_CB_TUNE_SHIFT);
+		n_vco |= (1 << SB_N_VCO_SEL_SHIFT);
+	} else if (clock->vco < 3300000) {
+		n_vco |= (0 << SB_N_CB_TUNE_SHIFT);
+		n_vco |= (2 << SB_N_VCO_SEL_SHIFT);
+	} else {
+		n_vco |= (0 << SB_N_CB_TUNE_SHIFT);
+		n_vco |= (3 << SB_N_VCO_SEL_SHIFT);
+	}
+
+	ret = cdv_sb_write(dev, SB_N_VCO(pipe), n_vco);
+	if (ret)
+		return ret;
+
+	ret = cdv_sb_read(dev, SB_P(pipe), &p);
+	if (ret)
+		return ret;
+	p &= ~(SB_P2_DIVIDER_MASK | SB_P1_DIVIDER_MASK);
+	p |= SET_FIELD(clock->p1, SB_P1_DIVIDER);
+	switch (clock->p2) {
+	case 5:
+		p |= SET_FIELD(SB_P2_5, SB_P2_DIVIDER);
+		break;
+	case 10:
+		p |= SET_FIELD(SB_P2_10, SB_P2_DIVIDER);
+		break;
+	case 14:
+		p |= SET_FIELD(SB_P2_14, SB_P2_DIVIDER);
+		break;
+	case 7:
+		p |= SET_FIELD(SB_P2_7, SB_P2_DIVIDER);
+		break;
+	default:
+		DRM_ERROR("Bad P2 clock: %d\n", clock->p2);
+		return -EINVAL;
+	}
+	ret = cdv_sb_write(dev, SB_P(pipe), p);
+	if (ret)
+		return ret;
+
+	/* always Program the Lane Register for the Pipe A*/
+	if (pipe == 0) {
+		/* Program the Lane0/1 for HDMI B */
+		u32 lane_reg, lane_value;
+
+		lane_reg = PSB_LANE0;
+		cdv_sb_read(dev, lane_reg, &lane_value);
+		lane_value &= ~(LANE_PLL_MASK);
+		lane_value |= LANE_PLL_ENABLE;
+		cdv_sb_write(dev, lane_reg, lane_value);
+
+		lane_reg = PSB_LANE1;
+		cdv_sb_read(dev, lane_reg, &lane_value);
+		lane_value &= ~(LANE_PLL_MASK);
+		lane_value |= LANE_PLL_ENABLE;
+		cdv_sb_write(dev, lane_reg, lane_value);
+
+		/* Program the Lane2/3 for HDMI C */	
+		lane_reg = PSB_LANE2;
+		cdv_sb_read(dev, lane_reg, &lane_value);
+		lane_value &= ~(LANE_PLL_MASK);
+		lane_value |= LANE_PLL_ENABLE;
+		cdv_sb_write(dev, lane_reg, lane_value);
+
+	
+		lane_reg = PSB_LANE3;
+		cdv_sb_read(dev, lane_reg, &lane_value);
+		lane_value &= ~(LANE_PLL_MASK);
+		lane_value |= LANE_PLL_ENABLE;
+		cdv_sb_write(dev, lane_reg, lane_value);
+	}
+
+	return 0;
 }
 
-/**
+/*
  * Returns whether any output on the specified pipe is of the specified type
  */
-bool psb_intel_pipe_has_type(struct drm_crtc *crtc, int type)
+bool cdv_intel_pipe_has_type(struct drm_crtc *crtc, int type)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
@@ -225,31 +362,48 @@ bool psb_intel_pipe_has_type(struct drm_crtc *crtc, int type)
 	return false;
 }
 
-#define INTELPllInvalid(s)   { /* ErrorF (s) */; return false; }
-/**
- * Returns whether the given set of divisors are valid for a given refclk with
- * the given connectors.
- */
-
-static bool psb_intel_PLL_is_valid(struct drm_crtc *crtc,
-			       struct psb_intel_clock_t *clock)
+static const struct cdv_intel_limit_t *cdv_intel_limit(struct drm_crtc *crtc, int refclk)
 {
-	const struct psb_intel_limit_t *limit = psb_intel_limit(crtc);
+	const struct cdv_intel_limit_t *limit;
+	if (cdv_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+		/*
+ 		 * Now only single-channel LVDS is supported on CDV. If it is
+ 		 * incorrect, please add the dual-channel LVDS.
+ 		 */
+		if (refclk == 96000)
+			limit = &cdv_intel_limits[CDV_LIMIT_SINGLE_LVDS_96];
+		else 
+			limit = &cdv_intel_limits[CDV_LIMIT_SINGLE_LVDS_100];
+	} else {
+		if (refclk == 27000)
+			limit = &cdv_intel_limits[CDV_LIMIT_DAC_HDMI_27];
+		else
+			limit = &cdv_intel_limits[CDV_LIMIT_DAC_HDMI_96];
+	}
+	return limit;
+}
 
+/* m1 is reserved as 0 in CDV, n is a ring counter */
+static void cdv_intel_clock(struct drm_device *dev, 
+			int refclk, struct cdv_intel_clock_t *clock)
+{
+	clock->m = clock->m2 + 2;
+	clock->p = clock->p1 * clock->p2;
+	clock->vco = (refclk * clock->m) / clock->n;
+	clock->dot = clock->vco / clock->p;
+}
+
+
+#define INTELPllInvalid(s)   { /* ErrorF (s) */; return false; }
+static bool cdv_intel_PLL_is_valid(struct drm_crtc *crtc,
+				const struct cdv_intel_limit_t *limit,
+			       struct cdv_intel_clock_t *clock)
+{
 	if (clock->p1 < limit->p1.min || limit->p1.max < clock->p1)
 		INTELPllInvalid("p1 out of range\n");
 	if (clock->p < limit->p.min || limit->p.max < clock->p)
 		INTELPllInvalid("p out of range\n");
-	if (clock->m2 < limit->m2.min || limit->m2.max < clock->m2)
-		INTELPllInvalid("m2 out of range\n");
-	if (clock->m1 < limit->m1.min || limit->m1.max < clock->m1)
-		INTELPllInvalid("m1 out of range\n");
-	if (clock->m1 <= clock->m2)
-		INTELPllInvalid("m1 <= m2\n");
-	if (clock->m < limit->m.min || limit->m.max < clock->m)
-		INTELPllInvalid("m out of range\n");
-	if (clock->n < limit->n.min || limit->n.max < clock->n)
-		INTELPllInvalid("n out of range\n");
+	/* unnecessary to check the range of m(m1/M2)/n again */
 	if (clock->vco < limit->vco.min || limit->vco.max < clock->vco)
 		INTELPllInvalid("vco out of range\n");
 	/* XXX: We may need to be checking "Dot clock"
@@ -262,21 +416,17 @@ static bool psb_intel_PLL_is_valid(struct drm_crtc *crtc,
 	return true;
 }
 
-/**
- * Returns a set of divisors for the desired target clock with the given
- * refclk, or FALSE.  The returned values represent the clock equation:
- * reflck * (5 * (m1 + 2) + (m2 + 2)) / (n + 2) / p1 / p2.
- */
-static bool psb_intel_find_best_PLL(struct drm_crtc *crtc, int target,
+static bool cdv_intel_find_best_PLL(struct drm_crtc *crtc, int target,
 				int refclk,
-				struct psb_intel_clock_t *best_clock)
+				struct cdv_intel_clock_t *best_clock)
 {
 	struct drm_device *dev = crtc->dev;
-	struct psb_intel_clock_t clock;
-	const struct psb_intel_limit_t *limit = psb_intel_limit(crtc);
+	struct cdv_intel_clock_t clock;
+	const struct cdv_intel_limit_t *limit = cdv_intel_limit(crtc, refclk);
 	int err = target;
 
-	if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
+
+	if (cdv_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
 	    (REG_READ(LVDS) & LVDS_PORT_EN) != 0) {
 		/*
 		 * For LVDS, if the panel is on, just rely on its current
@@ -297,30 +447,24 @@ static bool psb_intel_find_best_PLL(struct drm_crtc *crtc, int target,
 	}
 
 	memset(best_clock, 0, sizeof(*best_clock));
-
-	for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max;
-	     clock.m1++) {
-		for (clock.m2 = limit->m2.min;
-		     clock.m2 < clock.m1 && clock.m2 <= limit->m2.max;
-		     clock.m2++) {
-			for (clock.n = limit->n.min;
-			     clock.n <= limit->n.max; clock.n++) {
-				for (clock.p1 = limit->p1.min;
-				     clock.p1 <= limit->p1.max;
+	clock.m1 = 0;
+	/* m1 is reserved as 0 in CDV, n is a ring counter. So skip the m1 loop */
+	for (clock.n = limit->n.min; clock.n <= limit->n.max; clock.n++) {
+		for (clock.m2 = limit->m2.min; clock.m2 <= limit->m2.max;
+					     clock.m2++) {
+			for (clock.p1 = limit->p1.min; clock.p1 <= limit->p1.max;
 				     clock.p1++) {
-					int this_err;
+				int this_err;
 
-					psb_intel_clock(dev, refclk, &clock);
+				cdv_intel_clock(dev, refclk, &clock);
 
-					if (!psb_intel_PLL_is_valid
-					    (crtc, &clock))
+				if (!cdv_intel_PLL_is_valid(crtc, limit, &clock))
 						continue;
-
-					this_err = abs(clock.dot - target);
-					if (this_err < err) {
-						*best_clock = clock;
-						err = this_err;
-					}
+				
+				this_err = abs(clock.dot - target);
+				if (this_err < err) {
+					*best_clock = clock;
+					err = this_err;
 				}
 			}
 		}
@@ -329,17 +473,10 @@ static bool psb_intel_find_best_PLL(struct drm_crtc *crtc, int target,
 	return err != target;
 }
 
-void psb_intel_wait_for_vblank(struct drm_device *dev)
-{
-	/* Wait for 20ms, i.e. one cycle at 50hz. */
-	udelay(20000);
-}
-
-int psb_intel_pipe_set_base(struct drm_crtc *crtc,
+int cdv_intel_pipe_set_base(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
-	/* struct drm_i915_master_private *master_priv; */
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
 	int pipe = psb_intel_crtc->pipe;
@@ -356,9 +493,10 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 
 	/* no fb bound */
 	if (!crtc->fb) {
-		dev_dbg(dev->dev, "No FB bound\n");
+		dev_err(dev->dev, "No FB bound\n");
 		goto psb_intel_pipe_cleaner;
 	}
+
 
 	/* We are displaying this buffer, make sure it is actually loaded
 	   into the GTT */
@@ -366,7 +504,6 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 	if (ret < 0)
 		goto psb_intel_pipe_set_base_exit;
 	start = psbfb->gtt->offset;
-
 	offset = y * crtc->fb->pitch + x * (crtc->fb->bits_per_pixel / 8);
 
 	REG_WRITE(dspstride, crtc->fb->pitch);
@@ -391,21 +528,17 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 	default:
 		dev_err(dev->dev, "Unknown color depth\n");
 		ret = -EINVAL;
-		psb_gtt_unpin(psbfb->gtt);
 		goto psb_intel_pipe_set_base_exit;
 	}
 	REG_WRITE(dspcntr_reg, dspcntr);
 
+	dev_dbg(dev->dev,
+	        "Writing base %08lX %08lX %d %d\n", start, offset, x, y);
 
-	if (0 /* FIXMEAC - check what PSB needs */) {
-		REG_WRITE(dspbase, offset);
-		REG_READ(dspbase);
-		REG_WRITE(dspsurf, start);
-		REG_READ(dspsurf);
-	} else {
-		REG_WRITE(dspbase, start + offset);
-		REG_READ(dspbase);
-	}
+	REG_WRITE(dspbase, offset);
+	REG_READ(dspbase);
+	REG_WRITE(dspsurf, start);
+	REG_READ(dspsurf);
 
 psb_intel_pipe_cleaner:
 	/* If there was a previous display we can now unpin it */
@@ -423,11 +556,9 @@ psb_intel_pipe_set_base_exit:
  * This code should probably grow support for turning the cursor off and back
  * on appropriately at the same time as we're turning the pipe off/on.
  */
-static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
+static void cdv_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
-	/* struct drm_i915_master_private *master_priv; */
-	/* struct drm_i915_private *dev_priv = dev->dev_private; */
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
 	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
@@ -461,11 +592,7 @@ static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 			udelay(150);
 		}
 
-		/* Enable the pipe */
-		temp = REG_READ(pipeconf_reg);
-		if ((temp & PIPEACONF_ENABLE) == 0)
-			REG_WRITE(pipeconf_reg, temp | PIPEACONF_ENABLE);
-
+		/* Jim Bish - switch plan and pipe per scott */
 		/* Enable the plane */
 		temp = REG_READ(dspcntr_reg);
 		if ((temp & DISPLAY_PLANE_ENABLE) == 0) {
@@ -474,6 +601,13 @@ static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 			/* Flush the plane changes */
 			REG_WRITE(dspbase_reg, REG_READ(dspbase_reg));
 		}
+
+		udelay(150);
+
+		/* Enable the pipe */
+		temp = REG_READ(pipeconf_reg);
+		if ((temp & PIPEACONF_ENABLE) == 0)
+			REG_WRITE(pipeconf_reg, temp | PIPEACONF_ENABLE);
 
 		psb_intel_crtc_load_lut(crtc);
 
@@ -489,15 +623,10 @@ static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* Disable the VGA plane that we never use */
 		REG_WRITE(VGACNTRL, VGA_DISP_DISABLE);
 
-		/* Disable display plane */
-		temp = REG_READ(dspcntr_reg);
-		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
-			REG_WRITE(dspcntr_reg,
-				  temp & ~DISPLAY_PLANE_ENABLE);
-			/* Flush the plane changes */
-			REG_WRITE(dspbase_reg, REG_READ(dspbase_reg));
-			REG_READ(dspbase_reg);
-		}
+		/* Jim Bish - changed pipe/plane here as well. */
+
+		/* Wait for vblank for the disable to take effect */
+		cdv_intel_wait_for_vblank(dev);
 
 		/* Next, disable display pipes */
 		temp = REG_READ(pipeconf_reg);
@@ -507,7 +636,19 @@ static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		}
 
 		/* Wait for vblank for the disable to take effect. */
-		psb_intel_wait_for_vblank(dev);
+		cdv_intel_wait_for_vblank(dev);
+
+		udelay(150);
+
+		/* Disable display plane */
+		temp = REG_READ(dspcntr_reg);
+		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
+			REG_WRITE(dspcntr_reg,
+				  temp & ~DISPLAY_PLANE_ENABLE);
+			/* Flush the plane changes */
+			REG_WRITE(dspbase_reg, REG_READ(dspbase_reg));
+			REG_READ(dspbase_reg);
+		}
 
 		temp = REG_READ(dpll_reg);
 		if ((temp & DPLL_VCO_ENABLE) != 0) {
@@ -519,42 +660,40 @@ static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		udelay(150);
 		break;
 	}
-
 	enabled = crtc->enabled && mode != DRM_MODE_DPMS_OFF;
-
 	/*Set FIFO Watermarks*/
 	REG_WRITE(DSPARB, 0x3F3E);
 }
 
-static void psb_intel_crtc_prepare(struct drm_crtc *crtc)
+static void cdv_intel_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
-static void psb_intel_crtc_commit(struct drm_crtc *crtc)
+static void cdv_intel_crtc_commit(struct drm_crtc *crtc)
 {
 	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
-void psb_intel_encoder_prepare(struct drm_encoder *encoder)
+void cdv_intel_encoder_prepare(struct drm_encoder *encoder)
 {
 	struct drm_encoder_helper_funcs *encoder_funcs =
 	    encoder->helper_private;
-	/* lvds has its own version of prepare see psb_intel_lvds_prepare */
+	/* lvds has its own version of prepare see cdv_intel_lvds_prepare */
 	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
 }
 
-void psb_intel_encoder_commit(struct drm_encoder *encoder)
+void cdv_intel_encoder_commit(struct drm_encoder *encoder)
 {
 	struct drm_encoder_helper_funcs *encoder_funcs =
 	    encoder->helper_private;
-	/* lvds has its own version of commit see psb_intel_lvds_commit */
+	/* lvds has its own version of commit see cdv_intel_lvds_commit */
 	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
 }
 
-static bool psb_intel_crtc_mode_fixup(struct drm_crtc *crtc,
+static bool cdv_intel_crtc_mode_fixup(struct drm_crtc *crtc,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
@@ -566,7 +705,7 @@ static bool psb_intel_crtc_mode_fixup(struct drm_crtc *crtc,
  * Return the pipe currently connected to the panel fitter,
  * or -1 if the panel fitter is not present or not in use
  */
-static int psb_intel_panel_fitter_pipe(struct drm_device *dev)
+static int cdv_intel_panel_fitter_pipe(struct drm_device *dev)
 {
 	u32 pfit_control;
 
@@ -575,11 +714,10 @@ static int psb_intel_panel_fitter_pipe(struct drm_device *dev)
 	/* See if the panel fitter is in use */
 	if ((pfit_control & PFIT_ENABLE) == 0)
 		return -1;
-	/* Must be on PIPE 1 for PSB */
-	return 1;
+	return (pfit_control >> 29) & 0x3;
 }
 
-static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
+static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode,
 			       int x, int y,
@@ -587,10 +725,9 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	int pipe = psb_intel_crtc->pipe;
-	int fp_reg = (pipe == 0) ? FPA0 : FPB0;
 	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
+	int dpll_md_reg = (psb_intel_crtc->pipe == 0) ? DPLL_A_MD : DPLL_B_MD;
 	int dspcntr_reg = (pipe == 0) ? DSPACNTR : DSPBCNTR;
 	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
 	int htot_reg = (pipe == 0) ? HTOTAL_A : HTOTAL_B;
@@ -603,18 +740,13 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	int dsppos_reg = (pipe == 0) ? DSPAPOS : DSPBPOS;
 	int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
 	int refclk;
-	struct psb_intel_clock_t clock;
-	u32 dpll = 0, fp = 0, dspcntr, pipeconf;
+	struct cdv_intel_clock_t clock;
+	u32 dpll = 0, dspcntr, pipeconf;
 	bool ok, is_sdvo = false, is_dvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false;
+	bool is_hdmi = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
-
-	/* No scan out no play */
-	if (crtc->fb == NULL) {
-		crtc_funcs->mode_set_base(crtc, x, y, old_fb);
-		return 0;
-	}
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		struct psb_intel_output *psb_intel_output =
@@ -640,57 +772,43 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 		case INTEL_OUTPUT_ANALOG:
 			is_crt = true;
 			break;
+		case INTEL_OUTPUT_HDMI:
+			is_hdmi = true;
+			break;
 		}
 	}
 
 	refclk = 96000;
 
-	ok = psb_intel_find_best_PLL(crtc, adjusted_mode->clock, refclk,
+	/* Hack selection about ref clk for CRT */
+	/* Select 27MHz as the reference clk for HDMI */
+	if (is_crt || is_hdmi)
+		refclk = 27000;
+
+	drm_mode_debug_printmodeline(adjusted_mode);
+
+	ok = cdv_intel_find_best_PLL(crtc, adjusted_mode->clock, refclk,
 				 &clock);
 	if (!ok) {
 		dev_err(dev->dev, "Couldn't find PLL settings for mode!\n");
 		return 0;
 	}
 
-	fp = clock.n << 16 | clock.m1 << 8 | clock.m2;
-
 	dpll = DPLL_VGA_MODE_DIS;
-	if (is_lvds) {
-		dpll |= DPLLB_MODE_LVDS;
-		dpll |= DPLL_DVO_HIGH_SPEED;
-	} else
-		dpll |= DPLLB_MODE_DAC_SERIAL;
-	if (is_sdvo) {
-		int sdvo_pixel_multiply =
-			    adjusted_mode->clock / mode->clock;
-		dpll |= DPLL_DVO_HIGH_SPEED;
-		dpll |=
-		    (sdvo_pixel_multiply - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
-	}
-
-	/* compute bitmask from p1 value */
-	dpll |= (1 << (clock.p1 - 1)) << 16;
-	switch (clock.p2) {
-	case 5:
-		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
-		break;
-	case 7:
-		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_7;
-		break;
-	case 10:
-		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_10;
-		break;
-	case 14:
-		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
-		break;
-	}
-
 	if (is_tv) {
 		/* XXX: just matching BIOS for now */
 /*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
 		dpll |= 3;
 	}
-	dpll |= PLL_REF_INPUT_DREFCLK;
+		dpll |= PLL_REF_INPUT_DREFCLK;
+
+	dpll |= DPLL_SYNCLOCK_ENABLE;
+	dpll |= DPLL_VGA_MODE_DIS;
+	if (is_lvds)
+		dpll |= DPLLB_MODE_LVDS;
+	else
+		dpll |= DPLLB_MODE_DAC_SERIAL;
+	//dpll |= (2 << 11);
 
 	/* setup pipeconf */
 	pipeconf = REG_READ(pipeconf_reg);
@@ -705,21 +823,16 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	dspcntr |= DISPLAY_PLANE_ENABLE;
 	pipeconf |= PIPEACONF_ENABLE;
-	dpll |= DPLL_VCO_ENABLE;
 
+	REG_WRITE(dpll_reg,
+                   dpll | DPLL_VGA_MODE_DIS |
+                   DPLL_SYNCLOCK_ENABLE);
+        REG_READ(dpll_reg);
 
-	/* Disable the panel fitter if it was on our pipe */
-	if (psb_intel_panel_fitter_pipe(dev) == pipe)
-		REG_WRITE(PFIT_CONTROL, 0);
+	cdv_dpll_set_clock_cdv(dev, crtc, &clock);
 
-	drm_mode_debug_printmodeline(mode);
+        udelay(150);
 
-	if (dpll & DPLL_VCO_ENABLE) {
-		REG_WRITE(fp_reg, fp);
-		REG_WRITE(dpll_reg, dpll & ~DPLL_VCO_ENABLE);
-		REG_READ(dpll_reg);
-		udelay(150);
-	}
 
 	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
 	 * This is an exception to the general rule that mode_set doesn't turn
@@ -728,18 +841,17 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	if (is_lvds) {
 		u32 lvds = REG_READ(LVDS);
 
-		lvds &= ~LVDS_PIPEB_SELECT;
-		if (pipe == 1)
-			lvds |= LVDS_PIPEB_SELECT;
-
-		lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
+		lvds |=
+		    LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP |
+		    LVDS_PIPEB_SELECT;
 		/* Set the B0-B3 data pairs corresponding to
 		 * whether we're going to
 		 * set the DPLLs for dual-channel mode or not.
 		 */
-		lvds &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
 		if (clock.p2 == 7)
 			lvds |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
+		else
+			lvds &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
 
 		/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
 		 * appropriately here, but we need to look more
@@ -750,18 +862,36 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 		REG_READ(LVDS);
 	}
 
-	REG_WRITE(fp_reg, fp);
-	REG_WRITE(dpll_reg, dpll);
-	REG_READ(dpll_reg);
-	/* Wait for the clocks to stabilize. */
-	udelay(150);
+	dpll |= DPLL_VCO_ENABLE;
 
-	/* write it again -- the BIOS does, after all */
-	REG_WRITE(dpll_reg, dpll);
+		
+	/* Disable the panel fitter if it was on our pipe */
+	if (cdv_intel_panel_fitter_pipe(dev) == pipe)
+		REG_WRITE(PFIT_CONTROL, 0);
 
-	REG_READ(dpll_reg);
+	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
+	drm_mode_debug_printmodeline(mode);
+
+	REG_WRITE(dpll_reg,
+                   (REG_READ(dpll_reg) & ~DPLL_LOCK) |
+                   DPLL_VCO_ENABLE);
+        REG_READ(dpll_reg);
 	/* Wait for the clocks to stabilize. */
-	udelay(150);
+        udelay(150); /* 42 usec w/o calibration, 110 with.  rounded up. */
+
+        if (!(REG_READ(dpll_reg) & DPLL_LOCK)) {
+                dev_err(dev->dev, "Failed to get DPLL lock\n");
+                return -EBUSY;
+        }
+
+        {
+        	int sdvo_pixel_multiply =
+		    adjusted_mode->clock / mode->clock;
+		REG_WRITE(dpll_md_reg,
+			  (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
+			  ((sdvo_pixel_multiply -
+			    1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
+	}
 
 	REG_WRITE(htot_reg, (adjusted_mode->crtc_hdisplay - 1) |
 		  ((adjusted_mode->crtc_htotal - 1) << 16));
@@ -786,20 +916,24 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	REG_WRITE(pipeconf_reg, pipeconf);
 	REG_READ(pipeconf_reg);
 
-	psb_intel_wait_for_vblank(dev);
+	cdv_intel_wait_for_vblank(dev);
 
 	REG_WRITE(dspcntr_reg, dspcntr);
 
 	/* Flush the plane changes */
-	crtc_funcs->mode_set_base(crtc, x, y, old_fb);
+	{
+		struct drm_crtc_helper_funcs *crtc_funcs =
+		    crtc->helper_private;
+		crtc_funcs->mode_set_base(crtc, x, y, old_fb);
+	}
 
-	psb_intel_wait_for_vblank(dev);
+	cdv_intel_wait_for_vblank(dev);
 
 	return 0;
 }
 
 /** Loads the palette/gamma unit for the CRTC with the prepared values */
-void psb_intel_crtc_load_lut(struct drm_crtc *crtc)
+void cdv_intel_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv =
@@ -822,10 +956,10 @@ void psb_intel_crtc_load_lut(struct drm_crtc *crtc)
 		palreg = PALETTE_C;
 		break;
 	default:
-		dev_err(dev->dev, "Illegal Pipe Number.\n");
+		dev_err(dev->dev, "Illegal Pipe Number. \n");
 		return;
 	}
-
+	
 	if (gma_power_begin(dev, false)) {
 		for (i = 0; i < 256; i++) {
 			REG_WRITE(palreg + 4 * i,
@@ -854,7 +988,7 @@ void psb_intel_crtc_load_lut(struct drm_crtc *crtc)
 /**
  * Save HW states of giving crtc
  */
-static void psb_intel_crtc_save(struct drm_crtc *crtc)
+static void cdv_intel_crtc_save(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	/* struct drm_psb_private *dev_priv =
@@ -866,7 +1000,7 @@ static void psb_intel_crtc_save(struct drm_crtc *crtc)
 	int i;
 
 	if (!crtc_state) {
-		dev_err(dev->dev, "No CRTC state found\n");
+		dev_dbg(dev->dev, "No CRTC state found\n");
 		return;
 	}
 
@@ -890,6 +1024,25 @@ static void psb_intel_crtc_save(struct drm_crtc *crtc)
 
 	crtc_state->saveDSPBASE = REG_READ(pipeA ? DSPABASE : DSPBBASE);
 
+	DRM_DEBUG("(%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x)\n",
+			crtc_state->saveDSPCNTR,
+			crtc_state->savePIPECONF,
+			crtc_state->savePIPESRC,
+			crtc_state->saveFP0,
+			crtc_state->saveFP1,
+			crtc_state->saveDPLL,
+			crtc_state->saveHTOTAL,
+			crtc_state->saveHBLANK,
+			crtc_state->saveHSYNC,
+			crtc_state->saveVTOTAL,
+			crtc_state->saveVBLANK,
+			crtc_state->saveVSYNC,
+			crtc_state->saveDSPSTRIDE,
+			crtc_state->saveDSPSIZE,
+			crtc_state->saveDSPPOS,
+			crtc_state->saveDSPBASE
+		);
+
 	paletteReg = pipeA ? PALETTE_A : PALETTE_B;
 	for (i = 0; i < 256; ++i)
 		crtc_state->savePalette[i] = REG_READ(paletteReg + (i << 2));
@@ -898,7 +1051,7 @@ static void psb_intel_crtc_save(struct drm_crtc *crtc)
 /**
  * Restore HW states of giving crtc
  */
-static void psb_intel_crtc_restore(struct drm_crtc *crtc)
+static void cdv_intel_crtc_restore(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	/* struct drm_psb_private * dev_priv =
@@ -911,14 +1064,57 @@ static void psb_intel_crtc_restore(struct drm_crtc *crtc)
 	int i;
 
 	if (!crtc_state) {
-		dev_err(dev->dev, "No crtc state\n");
+		dev_dbg(dev->dev, "No crtc state\n");
 		return;
 	}
+
+	DRM_DEBUG(
+		"current:(%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x)\n",
+		REG_READ(pipeA ? DSPACNTR : DSPBCNTR),
+		REG_READ(pipeA ? PIPEACONF : PIPEBCONF),
+		REG_READ(pipeA ? PIPEASRC : PIPEBSRC),
+		REG_READ(pipeA ? FPA0 : FPB0),
+		REG_READ(pipeA ? FPA1 : FPB1),
+		REG_READ(pipeA ? DPLL_A : DPLL_B),
+		REG_READ(pipeA ? HTOTAL_A : HTOTAL_B),
+		REG_READ(pipeA ? HBLANK_A : HBLANK_B),
+		REG_READ(pipeA ? HSYNC_A : HSYNC_B),
+		REG_READ(pipeA ? VTOTAL_A : VTOTAL_B),
+		REG_READ(pipeA ? VBLANK_A : VBLANK_B),
+		REG_READ(pipeA ? VSYNC_A : VSYNC_B),
+		REG_READ(pipeA ? DSPASTRIDE : DSPBSTRIDE),
+		REG_READ(pipeA ? DSPASIZE : DSPBSIZE),
+		REG_READ(pipeA ? DSPAPOS : DSPBPOS),
+		REG_READ(pipeA ? DSPABASE : DSPBBASE)
+		);
+
+	DRM_DEBUG(
+		"saved: (%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x)\n",
+		crtc_state->saveDSPCNTR,
+		crtc_state->savePIPECONF,
+		crtc_state->savePIPESRC,
+		crtc_state->saveFP0,
+		crtc_state->saveFP1,
+		crtc_state->saveDPLL,
+		crtc_state->saveHTOTAL,
+		crtc_state->saveHBLANK,
+		crtc_state->saveHSYNC,
+		crtc_state->saveVTOTAL,
+		crtc_state->saveVBLANK,
+		crtc_state->saveVSYNC,
+		crtc_state->saveDSPSTRIDE,
+		crtc_state->saveDSPSIZE,
+		crtc_state->saveDSPPOS,
+		crtc_state->saveDSPBASE
+		);
+
 
 	if (crtc_state->saveDPLL & DPLL_VCO_ENABLE) {
 		REG_WRITE(pipeA ? DPLL_A : DPLL_B,
 			crtc_state->saveDPLL & ~DPLL_VCO_ENABLE);
 		REG_READ(pipeA ? DPLL_A : DPLL_B);
+		DRM_DEBUG("write dpll: %x\n",
+				REG_READ(pipeA ? DPLL_A : DPLL_B));
 		udelay(150);
 	}
 
@@ -947,19 +1143,19 @@ static void psb_intel_crtc_restore(struct drm_crtc *crtc)
 	REG_WRITE(pipeA ? DSPABASE : DSPBBASE, crtc_state->saveDSPBASE);
 	REG_WRITE(pipeA ? PIPEACONF : PIPEBCONF, crtc_state->savePIPECONF);
 
-	psb_intel_wait_for_vblank(dev);
+	cdv_intel_wait_for_vblank(dev);
 
 	REG_WRITE(pipeA ? DSPACNTR : DSPBCNTR, crtc_state->saveDSPCNTR);
 	REG_WRITE(pipeA ? DSPABASE : DSPBBASE, crtc_state->saveDSPBASE);
 
-	psb_intel_wait_for_vblank(dev);
+	cdv_intel_wait_for_vblank(dev);
 
 	paletteReg = pipeA ? PALETTE_A : PALETTE_B;
 	for (i = 0; i < 256; ++i)
 		REG_WRITE(paletteReg + (i << 2), crtc_state->savePalette[i]);
 }
 
-static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
+static int cdv_intel_crtc_cursor_set(struct drm_crtc *crtc,
 				 struct drm_file *file_priv,
 				 uint32_t handle,
 				 uint32_t width, uint32_t height)
@@ -986,7 +1182,7 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 			gma_power_end(dev);
 		}
 
-		/* Unpin the old GEM object */
+		/* unpin the old GEM object */
 		if (psb_intel_crtc->cursor_obj) {
 			gt = container_of(psb_intel_crtc->cursor_obj,
 							struct gtt_range, gem);
@@ -1022,7 +1218,6 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 		return ret;
 	}
 
-
 	addr = gt->offset;	/* Or resource.start ??? */
 
 	psb_intel_crtc->cursor_addr = addr;
@@ -1038,7 +1233,7 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 		gma_power_end(dev);
 	}
 
-	/* unpin the old bo */
+	/* unpin the old GEM object */
 	if (psb_intel_crtc->cursor_obj) {
 		gt = container_of(psb_intel_crtc->cursor_obj,
 							struct gtt_range, gem);
@@ -1049,13 +1244,13 @@ static int psb_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	return 0;
 }
 
-static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
+static int cdv_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
 	uint32_t temp = 0;
-	uint32_t addr;
+	uint32_t adder;
 
 
 	if (x < 0) {
@@ -1070,58 +1265,71 @@ static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	temp |= ((x & CURSOR_POS_MASK) << CURSOR_X_SHIFT);
 	temp |= ((y & CURSOR_POS_MASK) << CURSOR_Y_SHIFT);
 
-	addr = psb_intel_crtc->cursor_addr;
+	adder = psb_intel_crtc->cursor_addr;
 
 	if (gma_power_begin(dev, false)) {
 		REG_WRITE((pipe == 0) ? CURAPOS : CURBPOS, temp);
-		REG_WRITE((pipe == 0) ? CURABASE : CURBBASE, addr);
+		REG_WRITE((pipe == 0) ? CURABASE : CURBBASE, adder);
 		gma_power_end(dev);
 	}
 	return 0;
 }
 
-void psb_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
-			 u16 *green, u16 *blue, uint32_t type, uint32_t size)
+static void cdv_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
+				 u16 *green, u16 *blue, uint32_t start, uint32_t size)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int i;
+	int end = (start + size > 256) ? 256 : start + size;
 
-	if (size != 256)
-		return;
-
-	for (i = 0; i < 256; i++) {
+	for (i = start; i < end; i++) {
 		psb_intel_crtc->lut_r[i] = red[i] >> 8;
 		psb_intel_crtc->lut_g[i] = green[i] >> 8;
 		psb_intel_crtc->lut_b[i] = blue[i] >> 8;
 	}
 
-	psb_intel_crtc_load_lut(crtc);
+	cdv_intel_crtc_load_lut(crtc);
 }
 
-static int psb_crtc_set_config(struct drm_mode_set *set)
+static int cdv_crtc_set_config(struct drm_mode_set *set)
 {
-	int ret;
-	struct drm_device *dev = set->crtc->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	int ret = 0;
+	struct drm_device * dev = set->crtc->dev;
+	struct drm_psb_private * dev_priv = dev->dev_private;
 
-	if (!dev_priv->rpm_enabled)
+	if(!dev_priv->rpm_enabled)
 		return drm_crtc_helper_set_config(set);
 
 	pm_runtime_forbid(&dev->pdev->dev);
+
 	ret = drm_crtc_helper_set_config(set);
+
 	pm_runtime_allow(&dev->pdev->dev);
+
 	return ret;
 }
 
+/** Derive the pixel clock for the given refclk and divisors for 8xx chips. */
+
+/* FIXME: why are we using this, should it be cdv_ in this tree ? */
+
+static void i8xx_clock(int refclk, struct cdv_intel_clock_t *clock)
+{
+	clock->m = 5 * (clock->m1 + 2) + (clock->m2 + 2);
+	clock->p = clock->p1 * clock->p2;
+	clock->vco = refclk * clock->m / (clock->n + 2);
+	clock->dot = clock->vco / clock->p;
+}
+
 /* Returns the clock of the currently programmed mode of the given pipe. */
-static int psb_intel_crtc_clock_get(struct drm_device *dev,
+static int cdv_intel_crtc_clock_get(struct drm_device *dev,
 				struct drm_crtc *crtc)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
 	u32 dpll;
 	u32 fp;
-	struct psb_intel_clock_t clock;
+	struct cdv_intel_clock_t clock;
 	bool is_lvds;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
@@ -1158,6 +1366,10 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 		    ffs((dpll &
 			 DPLL_FPA01_P1_POST_DIV_MASK_I830_LVDS) >>
 			DPLL_FPA01_P1_POST_DIV_SHIFT);
+		if (clock.p1 == 0) {
+			clock.p1 = 4;
+			dev_err(dev->dev, "PLL %d\n", dpll);
+		}
 		clock.p2 = 14;
 
 		if ((dpll & PLL_REF_INPUT_MASK) ==
@@ -1192,7 +1404,7 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 }
 
 /** Returns the currently programmed mode of the given pipe. */
-struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
+struct drm_display_mode *cdv_intel_crtc_mode_get(struct drm_device *dev,
 					     struct drm_crtc *crtc)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
@@ -1225,7 +1437,7 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 	if (!mode)
 		return NULL;
 
-	mode->clock = psb_intel_crtc_clock_get(dev, crtc);
+	mode->clock = cdv_intel_crtc_clock_get(dev, crtc);
 	mode->hdisplay = (htot & 0xffff) + 1;
 	mode->htotal = ((htot & 0xffff0000) >> 16) + 1;
 	mode->hsync_start = (hsync & 0xffff) + 1;
@@ -1241,179 +1453,61 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 	return mode;
 }
 
-void psb_intel_crtc_destroy(struct drm_crtc *crtc)
+static void cdv_intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	struct gtt_range *gt;
 
-	/* Unpin the old GEM object */
-	if (psb_intel_crtc->cursor_obj) {
-		gt = container_of(psb_intel_crtc->cursor_obj,
-						struct gtt_range, gem);
-		psb_gtt_unpin(gt);
-		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
-		psb_intel_crtc->cursor_obj = NULL;
-	}
 	kfree(psb_intel_crtc->crtc_state);
 	drm_crtc_cleanup(crtc);
 	kfree(psb_intel_crtc);
 }
 
-const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
-	.dpms = psb_intel_crtc_dpms,
-	.mode_fixup = psb_intel_crtc_mode_fixup,
-	.mode_set = psb_intel_crtc_mode_set,
-	.mode_set_base = psb_intel_pipe_set_base,
-	.prepare = psb_intel_crtc_prepare,
-	.commit = psb_intel_crtc_commit,
+const struct drm_crtc_helper_funcs cdv_intel_helper_funcs = {
+	.dpms = cdv_intel_crtc_dpms,
+	.mode_fixup = cdv_intel_crtc_mode_fixup,
+	.mode_set = cdv_intel_crtc_mode_set,
+	.mode_set_base = cdv_intel_pipe_set_base,
+	.prepare = cdv_intel_crtc_prepare,
+	.commit = cdv_intel_crtc_commit,
 };
 
-const struct drm_crtc_funcs psb_intel_crtc_funcs = {
-	.save = psb_intel_crtc_save,
-	.restore = psb_intel_crtc_restore,
-	.cursor_set = psb_intel_crtc_cursor_set,
-	.cursor_move = psb_intel_crtc_cursor_move,
-	.gamma_set = psb_intel_crtc_gamma_set,
-	.set_config = psb_crtc_set_config,
-	.destroy = psb_intel_crtc_destroy,
+const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
+	.save = cdv_intel_crtc_save,
+	.restore = cdv_intel_crtc_restore,
+	.cursor_set = cdv_intel_crtc_cursor_set,
+	.cursor_move = cdv_intel_crtc_cursor_move,
+	.gamma_set = cdv_intel_crtc_gamma_set,
+	.set_config = cdv_crtc_set_config,
+	.destroy = cdv_intel_crtc_destroy,
 };
 
-void psb_intel_crtc_init(struct drm_device *dev, int pipe,
-		     struct psb_intel_mode_device *mode_dev)
+/*
+ * Set the default value of cursor control and base register
+ * to zero. This is a workaround for h/w defect on oaktrail
+ */
+void cdv_intel_cursor_init(struct drm_device *dev, int pipe)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_crtc *psb_intel_crtc;
-	int i;
-	uint16_t *r_base, *g_base, *b_base;
-
-	/* We allocate a extra array of drm_connector pointers
-	 * for fbdev after the crtc */
-	psb_intel_crtc =
-	    kzalloc(sizeof(struct psb_intel_crtc) +
-		    (INTELFB_CONN_LIMIT * sizeof(struct drm_connector *)),
-		    GFP_KERNEL);
-	if (psb_intel_crtc == NULL)
+	uint32_t control;
+	uint32_t base;
+      
+	switch (pipe) {
+	case 0:
+		control = CURACNTR;
+		base = CURABASE;
+		break;
+	case 1:
+		control = CURBCNTR;
+		base = CURBBASE;
+		break;
+	case 2:
+		control = CURCCNTR;
+		base = CURCBASE;
+		break;
+	default:
 		return;
-
-	psb_intel_crtc->crtc_state =
-		kzalloc(sizeof(struct psb_intel_crtc_state), GFP_KERNEL);
-	if (!psb_intel_crtc->crtc_state) {
-		dev_err(dev->dev, "Crtc state error: No memory\n");
-		kfree(psb_intel_crtc);
-		return;
 	}
 
-	/* Set the CRTC operations from the chip specific data */
-	drm_crtc_init(dev, &psb_intel_crtc->base, dev_priv->ops->crtc_funcs);
-
-	drm_mode_crtc_set_gamma_size(&psb_intel_crtc->base, 256);
-	psb_intel_crtc->pipe = pipe;
-	psb_intel_crtc->plane = pipe;
-
-	r_base = psb_intel_crtc->base.gamma_store;
-	g_base = r_base + 256;
-	b_base = g_base + 256;
-	for (i = 0; i < 256; i++) {
-		psb_intel_crtc->lut_r[i] = i;
-		psb_intel_crtc->lut_g[i] = i;
-		psb_intel_crtc->lut_b[i] = i;
-		r_base[i] = i << 8;
-		g_base[i] = i << 8;
-		b_base[i] = i << 8;
-
-		psb_intel_crtc->lut_adj[i] = 0;
-	}
-
-	psb_intel_crtc->mode_dev = mode_dev;
-	psb_intel_crtc->cursor_addr = 0;
-
-	drm_crtc_helper_add(&psb_intel_crtc->base,
-	                                dev_priv->ops->crtc_helper);
-
-	/* Setup the array of drm_connector pointer array */
-	psb_intel_crtc->mode_set.crtc = &psb_intel_crtc->base;
-	BUG_ON(pipe >= ARRAY_SIZE(dev_priv->plane_to_crtc_mapping) ||
-	       dev_priv->plane_to_crtc_mapping[psb_intel_crtc->plane] != NULL);
-	dev_priv->plane_to_crtc_mapping[psb_intel_crtc->plane] =
-							&psb_intel_crtc->base;
-	dev_priv->pipe_to_crtc_mapping[psb_intel_crtc->pipe] =
-							&psb_intel_crtc->base;
-	psb_intel_crtc->mode_set.connectors =
-	    (struct drm_connector **) (psb_intel_crtc + 1);
-	psb_intel_crtc->mode_set.num_connectors = 0;
-}
-
-int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
-				struct drm_file *file_priv)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct drm_psb_get_pipe_from_crtc_id_arg *pipe_from_crtc_id = data;
-	struct drm_mode_object *drmmode_obj;
-	struct psb_intel_crtc *crtc;
-
-	if (!dev_priv) {
-		dev_err(dev->dev, "called with no initialization\n");
-		return -EINVAL;
-	}
-
-	drmmode_obj = drm_mode_object_find(dev, pipe_from_crtc_id->crtc_id,
-			DRM_MODE_OBJECT_CRTC);
-
-	if (!drmmode_obj) {
-		dev_err(dev->dev, "no such CRTC id\n");
-		return -EINVAL;
-	}
-
-	crtc = to_psb_intel_crtc(obj_to_crtc(drmmode_obj));
-	pipe_from_crtc_id->pipe = crtc->pipe;
-
-	return 0;
-}
-
-struct drm_crtc *psb_intel_get_crtc_from_pipe(struct drm_device *dev, int pipe)
-{
-	struct drm_crtc *crtc = NULL;
-
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-		if (psb_intel_crtc->pipe == pipe)
-			break;
-	}
-	return crtc;
-}
-
-int psb_intel_connector_clones(struct drm_device *dev, int type_mask)
-{
-	int index_mask = 0;
-	struct drm_connector *connector;
-	int entry = 0;
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list,
-			    head) {
-		struct psb_intel_output *psb_intel_output =
-		    to_psb_intel_output(connector);
-		if (type_mask & (1 << psb_intel_output->type))
-			index_mask |= (1 << entry);
-		entry++;
-	}
-	return index_mask;
-}
-
-
-void psb_intel_modeset_cleanup(struct drm_device *dev)
-{
-	drm_mode_config_cleanup(dev);
-}
-
-
-/* current intel driver doesn't take advantage of encoders
-   always give back the encoder for the connector
-*/
-struct drm_encoder *psb_intel_best_encoder(struct drm_connector *connector)
-{
-	struct psb_intel_output *psb_intel_output =
-					to_psb_intel_output(connector);
-
-	return &psb_intel_output->enc;
+	REG_WRITE(control, 0);
+	REG_WRITE(base, 0);
 }
 

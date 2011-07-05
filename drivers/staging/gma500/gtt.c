@@ -395,12 +395,10 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	(void) PSB_RVDC32(PSB_PGETBL_CTL);
 
 	/* The root resource we allocate address space from */
-	dev_priv->gtt_mem = &dev->pdev->resource[PSB_GATT_RESOURCE];
 	dev_priv->gtt_initialized = 1;
 
-	pg->gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
-
-	pg->gatt_start = pci_resource_start(dev->pdev, PSB_GATT_RESOURCE);
+	pg->gtt_phys_start = dev_priv->pge_ctl;
+	
 	/*
 	 *	FIXME: video mmu has hw bug to access 0x0D0000000,
 	 *	then make gatt start at 0x0e000,0000
@@ -410,8 +408,33 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	pg->gtt_start = pci_resource_start(dev->pdev, PSB_GTT_RESOURCE);
 	gtt_pages = pci_resource_len(dev->pdev, PSB_GTT_RESOURCE)
 								>> PAGE_SHIFT;
+	/* CDV workaround */
+	if (pg->gtt_start == 0 || gtt_pages == 0) {
+		dev_err(dev->dev, "GTT PCI BAR not initialized.\n");
+		gtt_pages = 64;
+		pg->gtt_start = dev_priv->pge_ctl;
+	}
+
+	pg->gatt_start = pci_resource_start(dev->pdev, PSB_GATT_RESOURCE);
 	pg->gatt_pages = pci_resource_len(dev->pdev, PSB_GATT_RESOURCE)
 								>> PAGE_SHIFT;
+	dev_priv->gtt_mem = &dev->pdev->resource[PSB_GATT_RESOURCE];
+
+	if (pg->gatt_pages == 0 || pg->gatt_start == 0) {
+		static struct resource fudge;	/* Preferably peppermint */
+
+		/* This can occur on CDV SDV systems. Fudge it in this case.
+		   We really don't care what imaginary space is being allocated
+		   at this point */
+		dev_err(dev->dev, "GATT PCI BAR not initialized.\n");
+		pg->gatt_start = 0x40000000;
+		pg->gatt_pages = (128 * 1024 * 1024) >> PAGE_SHIFT;
+		fudge.start = 0x40000000;
+		fudge.end = 0x40000000 + 128 * 1024 * 1024 - 1;
+		fudge.name = "fudge";
+		fudge.flags = IORESOURCE_MEM;
+		dev_priv->gtt_mem = &fudge;
+	}
 
 	pci_read_config_dword(dev->pdev, PSB_BSM, &dev_priv->stolen_base);
 	vram_stolen_size = pg->gtt_phys_start - dev_priv->stolen_base
@@ -463,7 +486,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	pfn_base = dev_priv->stolen_base >> PAGE_SHIFT;
 	vram_pages = num_pages = vram_stolen_size >> PAGE_SHIFT;
 	printk(KERN_INFO"Set up %d stolen pages starting at 0x%08x, GTT offset %dK\n",
-		num_pages, pfn_base, 0);
+		num_pages, pfn_base << PAGE_SHIFT, 0);
 	for (i = 0; i < num_pages; ++i) {
 		pte = psb_gtt_mask_pte(pfn_base + i, 0);
 		iowrite32(pte, dev_priv->gtt_map + i);

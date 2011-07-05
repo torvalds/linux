@@ -142,6 +142,8 @@
 #define DPLLB_LVDS_P2_CLOCK_DIV_7	(1 << 24)	/* i915 */
 #define DPLL_P2_CLOCK_DIV_MASK		0x03000000	/* i915 */
 #define DPLL_FPA01_P1_POST_DIV_MASK	0x00ff0000	/* i915 */
+#define DPLL_LOCK			(1 << 15)	/* CDV */
+
 /*
  *  The i830 generation, in DAC/serial mode, defines p1 as two plus this
  * bitfield, or just 2 if PLL_P1_DIVIDE_BY_TWO is set.
@@ -271,6 +273,20 @@
 #define TV_HOTPLUG_INT_EN		(1 << 18)
 #define CRT_HOTPLUG_INT_EN		(1 << 9)
 #define CRT_HOTPLUG_FORCE_DETECT	(1 << 3)
+/* CDV.. */
+#define CRT_HOTPLUG_ACTIVATION_PERIOD_64	(1 << 8)
+#define CRT_HOTPLUG_DAC_ON_TIME_2M		(0 << 7)
+#define CRT_HOTPLUG_DAC_ON_TIME_4M		(1 << 7)
+#define CRT_HOTPLUG_VOLTAGE_COMPARE_40		(0 << 5)
+#define CRT_HOTPLUG_VOLTAGE_COMPARE_50		(1 << 5)
+#define CRT_HOTPLUG_VOLTAGE_COMPARE_60		(2 << 5)
+#define CRT_HOTPLUG_VOLTAGE_COMPARE_70		(3 << 5)
+#define CRT_HOTPLUG_VOLTAGE_COMPARE_MASK	(3 << 5)
+#define CRT_HOTPLUG_DETECT_DELAY_1G		(0 << 4)
+#define CRT_HOTPLUG_DETECT_DELAY_2G		(1 << 4)
+#define CRT_HOTPLUG_DETECT_VOLTAGE_325MV	(0 << 2)
+#define CRT_HOTPLUG_DETECT_VOLTAGE_475MV	(1 << 2)
+#define CRT_HOTPLUG_DETECT_MASK			0x000000F8
 
 #define PORT_HOTPLUG_STAT	0x61114
 #define CRT_HOTPLUG_INT_STATUS		(1 << 11)
@@ -1140,5 +1156,80 @@ No status bits are changed.
 #define SKU_100				0x02
 #define SKU_100L			0x04
 #define SKU_BYPASS			0x08
+
+/* Some handy macros for playing with bitfields. */
+#define PSB_MASK(high, low) (((1<<((high)-(low)+1))-1)<<(low))
+#define SET_FIELD(value, field) (((value) << field ## _SHIFT) & field ## _MASK)
+#define GET_FIELD(word, field) (((word)  & field ## _MASK) >> field ## _SHIFT)
+
+#define _PIPE(pipe, a, b) ((a) + (pipe)*((b)-(a)))
+
+/* PCI config space */
+
+#define SB_PCKT         0x02100 /* cedarview */
+# define SB_OPCODE_MASK                         PSB_MASK(31, 16)
+# define SB_OPCODE_SHIFT                        16
+# define SB_OPCODE_READ                         0
+# define SB_OPCODE_WRITE                        1
+# define SB_DEST_MASK                           PSB_MASK(15, 8)
+# define SB_DEST_SHIFT                          8
+# define SB_DEST_DPLL                           0x88
+# define SB_BYTE_ENABLE_MASK                    PSB_MASK(7, 4)
+# define SB_BYTE_ENABLE_SHIFT                   4
+# define SB_BUSY                                (1 << 0)
+
+
+/* 32-bit value read/written from the DPIO reg. */
+#define SB_DATA		0x02104 /* cedarview */
+/* 32-bit address of the DPIO reg to be read/written. */
+#define SB_ADDR		0x02108 /* cedarview */
+#define DPIO_CFG	0x02110 /* cedarview */
+# define DPIO_MODE_SELECT_1			(1 << 3)
+# define DPIO_MODE_SELECT_0			(1 << 2)
+# define DPIO_SFR_BYPASS			(1 << 1)
+/* reset is active low */
+# define DPIO_CMN_RESET_N			(1 << 0)
+
+/* Cedarview sideband registers */
+#define _SB_M_A			0x8008
+#define _SB_M_B			0x8028
+#define SB_M(pipe) _PIPE(pipe, _SB_M_A, _SB_M_B)
+# define SB_M_DIVIDER_MASK			(0xFF << 24)
+# define SB_M_DIVIDER_SHIFT			24
+
+#define _SB_N_VCO_A		0x8014
+#define _SB_N_VCO_B		0x8034
+#define SB_N_VCO(pipe) _PIPE(pipe, _SB_N_VCO_A, _SB_N_VCO_B)
+#define SB_N_VCO_SEL_MASK			PSB_MASK(31, 30)
+#define SB_N_VCO_SEL_SHIFT			30
+#define SB_N_DIVIDER_MASK			PSB_MASK(29, 26)
+#define SB_N_DIVIDER_SHIFT			26
+#define SB_N_CB_TUNE_MASK			PSB_MASK(25, 24)
+#define SB_N_CB_TUNE_SHIFT			24
+
+#define _SB_REF_A		0x8018
+#define _SB_REF_B		0x8038
+#define SB_REF_SFR(pipe)	_PIPE(pipe, _SB_REF_A, _SB_REF_B)
+
+#define _SB_P_A			0x801c
+#define _SB_P_B			0x803c
+#define SB_P(pipe) _PIPE(pipe, _SB_P_A, _SB_P_B)
+#define SB_P2_DIVIDER_MASK			PSB_MASK(31, 30)
+#define SB_P2_DIVIDER_SHIFT			30
+#define SB_P2_10				0 /* HDMI, DP, DAC */
+#define SB_P2_5				1 /* DAC */
+#define SB_P2_14				2 /* LVDS single */
+#define SB_P2_7				3 /* LVDS double */
+#define SB_P1_DIVIDER_MASK			PSB_MASK(15, 12)
+#define SB_P1_DIVIDER_SHIFT			12
+
+#define PSB_LANE0		0x120
+#define PSB_LANE1		0x220
+#define PSB_LANE2		0x2320
+#define PSB_LANE3		0x2420
+
+#define LANE_PLL_MASK		(0x7 << 20)
+#define LANE_PLL_ENABLE		(0x3 << 20)
+
 
 #endif

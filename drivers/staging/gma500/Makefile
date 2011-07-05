@@ -24,7 +24,10 @@ psb_gfx-y += gem_glue.o \
 	  psb_device.o \
 	  mid_bios.o
 
-psb_gfx-$(CONFIG_DRM_PSB_CDV) +=  cdv_device.o
+psb_gfx-$(CONFIG_DRM_PSB_CDV) +=  cdv_device.o \
+	  cdv_intel_display.o \
+	  cdv_intel_crt.o \
+	  cdv_intel_lvds.o
 
 psb_gfx-$(CONFIG_DRM_PSB_MRST) += mrst_device.o \
 	  mrst_crtc.o \

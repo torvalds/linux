@@ -25,13 +25,42 @@
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
 #include "intel_bios.h"
+#include "cdv_device.h"
 
+#define VGA_SR_INDEX		0x3c4
+#define VGA_SR_DATA		0x3c5
+
+/* FIXME: should check if we are the active VGA device ?? */
+static void cdv_disable_vga(struct drm_device *dev)
+{
+	u8 sr1;
+	u32 vga_reg;
+
+	vga_reg = VGACNTRL;
+
+	outb(1, VGA_SR_INDEX);
+	sr1 = inb(VGA_SR_DATA);
+	outb(sr1 | 1<<5, VGA_SR_DATA);
+	udelay(300);
+
+	REG_WRITE(vga_reg, VGA_DISP_DISABLE);
+	REG_READ(vga_reg);
+}
 
 static int cdv_output_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	psb_intel_lvds_init(dev, &dev_priv->mode_dev);
-	psb_intel_sdvo_init(dev, SDVOB);
+	cdv_disable_vga(dev);
+
+	cdv_intel_crt_init(dev, &dev_priv->mode_dev);
+	cdv_intel_lvds_init(dev, &dev_priv->mode_dev);
+
+	/* These bits indicate HDMI not SDVO on CDV, but we don't yet support
+	   the HDMI interface */
+	if (REG_READ(SDVOB) & SDVO_DETECTED)
+		DRM_ERROR("HDMI not supported yet\n");
+	if (REG_READ(SDVOC) & SDVO_DETECTED)
+		DRM_ERROR("HDMI not supported yet\n");
 	return 0;
 }
 
@@ -148,19 +177,70 @@ static int cdv_backlight_init(struct drm_device *dev)
 #endif
 
 /*
- *	Provide the Poulsbo specific chip logic and low level methods
+ *	Provide the Cedarview specific chip logic and low level methods
  *	for power management
+ *
+ *	FIXME: we need to implement the apm/ospm base management bits
+ *	for this and the MID devices.
  */
+
+static inline u32 CDV_MSG_READ32(uint port, uint offset)
+{
+	int mcr = (0x10<<24) | (port << 16) | (offset << 8);
+	uint32_t ret_val = 0;
+	struct pci_dev *pci_root = pci_get_bus_and_slot (0, 0);
+	pci_write_config_dword (pci_root, 0xD0, mcr);
+	pci_read_config_dword (pci_root, 0xD4, &ret_val);
+	pci_dev_put(pci_root);
+	return ret_val;
+}
+
+static inline void CDV_MSG_WRITE32(uint port, uint offset, u32 value)
+{
+	int mcr = (0x11<<24) | (port << 16) | (offset << 8) | 0xF0;
+	struct pci_dev *pci_root = pci_get_bus_and_slot (0, 0);
+	pci_write_config_dword (pci_root, 0xD4, value);
+	pci_write_config_dword (pci_root, 0xD0, mcr);
+	pci_dev_put(pci_root);
+}
+
+#define PSB_APM_CMD			0x0
+#define PSB_APM_STS			0x04
+#define PSB_PM_SSC			0x20
+#define PSB_PM_SSS			0x30
+#define PSB_PWRGT_GFX_MASK		0x3
+#define CDV_PWRGT_DISPLAY_CNTR		0x000fc00c
+#define CDV_PWRGT_DISPLAY_STS		0x000fc00c
 
 static void cdv_init_pm(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	u32 pwr_cnt;
+	int i;
 
-	u32 gating = PSB_RSGX32(PSB_CR_CLKGATECTL);
-	gating &= ~3;	/* Disable 2D clock gating */
-	gating |= 1;
-	PSB_WSGX32(gating, PSB_CR_CLKGATECTL);
-	PSB_RSGX32(PSB_CR_CLKGATECTL);
+	dev_priv->apm_base = CDV_MSG_READ32(PSB_PUNIT_PORT, PSB_APMBA) & 0xFFFF;
+	dev_priv->ospm_base = CDV_MSG_READ32(PSB_PUNIT_PORT, PSB_OSPMBA) & 0xFFFF;
+
+	/* Force power on for now */
+	pwr_cnt = inl(dev_priv->apm_base + PSB_APM_CMD);
+	pwr_cnt &= ~PSB_PWRGT_GFX_MASK;
+
+	outl(pwr_cnt, dev_priv->apm_base + PSB_APM_CMD);
+	for (i = 0; i < 5; i++) {
+		u32 pwr_sts = inl(dev_priv->apm_base + PSB_APM_STS);
+		if ((pwr_sts & PSB_PWRGT_GFX_MASK) == 0)
+			break;
+		udelay(10);
+	}
+	pwr_cnt = inl(dev_priv->ospm_base + PSB_PM_SSC);
+	pwr_cnt &= ~CDV_PWRGT_DISPLAY_CNTR;
+	outl(pwr_cnt, dev_priv->ospm_base + PSB_PM_SSC);
+	for (i = 0; i < 5; i++) {
+		u32 pwr_sts = inl(dev_priv->ospm_base + PSB_PM_SSS);
+		if ((pwr_sts & CDV_PWRGT_DISPLAY_STS) == 0)
+			break;
+		udelay(10);
+	}
 }
 
 /**
@@ -169,34 +249,11 @@ static void cdv_init_pm(struct drm_device *dev)
  *
  *	Save the state we need in order to be able to restore the interface
  *	upon resume from suspend
+ *
+ *	FIXME: review
  */
 static int cdv_save_display_registers(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
-	struct drm_connector *connector;
-
-	/* Display arbitration control + watermarks */
-	dev_priv->saveDSPARB = PSB_RVDC32(DSPARB);
-	dev_priv->saveDSPFW1 = PSB_RVDC32(DSPFW1);
-	dev_priv->saveDSPFW2 = PSB_RVDC32(DSPFW2);
-	dev_priv->saveDSPFW3 = PSB_RVDC32(DSPFW3);
-	dev_priv->saveDSPFW4 = PSB_RVDC32(DSPFW4);
-	dev_priv->saveDSPFW5 = PSB_RVDC32(DSPFW5);
-	dev_priv->saveDSPFW6 = PSB_RVDC32(DSPFW6);
-	dev_priv->saveCHICKENBIT = PSB_RVDC32(DSPCHICKENBIT);
-
-	/* Save crtc and output state */
-	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (drm_helper_crtc_in_use(crtc))
-			crtc->funcs->save(crtc);
-	}
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		connector->funcs->save(connector);
-
-	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
 }
 
@@ -205,67 +262,11 @@ static int cdv_save_display_registers(struct drm_device *dev)
  *	@dev: our DRM device
  *
  *	Restore register state that was lost during suspend and resume.
+ *
+ *	FIXME: review
  */
 static int cdv_restore_display_registers(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
-	struct drm_connector *connector;
-	int pp_stat;
-
-	/* Display arbitration + watermarks */
-	PSB_WVDC32(dev_priv->saveDSPARB, DSPARB);
-	PSB_WVDC32(dev_priv->saveDSPFW1, DSPFW1);
-	PSB_WVDC32(dev_priv->saveDSPFW2, DSPFW2);
-	PSB_WVDC32(dev_priv->saveDSPFW3, DSPFW3);
-	PSB_WVDC32(dev_priv->saveDSPFW4, DSPFW4);
-	PSB_WVDC32(dev_priv->saveDSPFW5, DSPFW5);
-	PSB_WVDC32(dev_priv->saveDSPFW6, DSPFW6);
-	PSB_WVDC32(dev_priv->saveCHICKENBIT, DSPCHICKENBIT);
-
-	/*make sure VGA plane is off. it initializes to on after reset!*/
-	PSB_WVDC32(0x80000000, VGACNTRL);
-
-	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		if (drm_helper_crtc_in_use(crtc))
-			crtc->funcs->restore(crtc);
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		connector->funcs->restore(connector);
-
-	mutex_unlock(&dev->mode_config.mutex);
-
-	if (dev_priv->iLVDS_enable) {
-		/*shutdown the panel*/
-		PSB_WVDC32(0, PP_CONTROL);
-		do {
-			pp_stat = PSB_RVDC32(PP_STATUS);
-		} while (pp_stat & 0x80000000);
-
-		/* Turn off the plane */
-		PSB_WVDC32(0x58000000, DSPACNTR);
-		PSB_WVDC32(0, DSPASURF);/*trigger the plane disable*/
-		/* Wait ~4 ticks */
-		msleep(4);
-		/* Turn off pipe */
-		PSB_WVDC32(0x0, PIPEACONF);
-		/* Wait ~8 ticks */
-		msleep(8);
-
-		/* Turn off PLLs */
-		PSB_WVDC32(0, MRST_DPLL_A);
-	} else {
-		PSB_WVDC32(DPI_SHUT_DOWN, DPI_CONTROL_REG);
-		PSB_WVDC32(0x0, PIPEACONF);
-		PSB_WVDC32(0x2faf0000, BLC_PWM_CTL);
-		while (REG_READ(0x70008) & 0x40000000)
-			cpu_relax();
-		while ((PSB_RVDC32(GEN_FIFO_STAT_REG) & DPI_FIFO_EMPTY)
-			!= DPI_FIFO_EMPTY)
-			cpu_relax();
-		PSB_WVDC32(0, DEVICE_READY_REG);
-	}
 	return 0;
 }
 
@@ -285,9 +286,6 @@ static void cdv_get_core_freq(struct drm_device *dev)
 	uint32_t clock;
 	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
 	struct drm_psb_private *dev_priv = dev->dev_private;
-
-	/*pci_write_config_dword(pci_root, 0xD4, 0x00C32004);*/
-	/*pci_write_config_dword(pci_root, 0xD0, 0xE0033000);*/
 
 	pci_write_config_dword(pci_root, 0xD0, 0xD0050300);
 	pci_read_config_dword(pci_root, 0xD4, &clock);
@@ -326,7 +324,7 @@ static int cdv_chip_setup(struct drm_device *dev)
 	return 0;
 }
 
-/* CDV is much like Poulsbo but has MID like SGX offsets */
+/* CDV is much like Poulsbo but has MID like SGX offsets and PM */
 
 const struct psb_ops cdv_chip_ops = {
 	.name = "Cedartrail",
@@ -335,8 +333,8 @@ const struct psb_ops cdv_chip_ops = {
 	.sgx_offset = MRST_SGX_OFFSET,
 	.chip_setup = cdv_chip_setup,
 
-	.crtc_helper = &psb_intel_helper_funcs,
-	.crtc_funcs = &psb_intel_crtc_funcs,
+	.crtc_helper = &cdv_intel_helper_funcs,
+	.crtc_funcs = &cdv_intel_crtc_funcs,
 
 	.output_init = cdv_output_init,
 
@@ -350,4 +348,3 @@ const struct psb_ops cdv_chip_ops = {
 	.power_down = cdv_power_down,
 	.power_up = cdv_power_up,	
 };
-

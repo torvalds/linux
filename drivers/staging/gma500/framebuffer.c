@@ -732,6 +732,10 @@ static void psb_setup_outputs(struct drm_device *dev)
 
 		/* valid crtcs */
 		switch (psb_intel_output->type) {
+		case INTEL_OUTPUT_ANALOG:
+			crtc_mask = (1 << 0);
+			clone_mask = (1 << INTEL_OUTPUT_ANALOG);
+			break;
 		case INTEL_OUTPUT_SDVO:
 			crtc_mask = ((1 << 0) | (1 << 1));
 			clone_mask = (1 << INTEL_OUTPUT_SDVO);
@@ -752,7 +756,10 @@ static void psb_setup_outputs(struct drm_device *dev)
 			clone_mask = (1 << INTEL_OUTPUT_MIPI2);
 			break;
 		case INTEL_OUTPUT_HDMI:
-			crtc_mask = (1 << 1);
+		        if (IS_MFLD(dev))
+        			crtc_mask = (1 << 1);
+                        else	/* FIXME: review Oaktrail */
+                                crtc_mask = (1 << 0);	/* Cedarview */
 			clone_mask = (1 << INTEL_OUTPUT_HDMI);
 			break;
 		}
