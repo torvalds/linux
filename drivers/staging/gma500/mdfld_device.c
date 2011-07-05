@@ -26,7 +26,7 @@
 #include "psb_drv.h"
 #include "mdfld_output.h"
 #include "mdfld_dsi_output.h"
-#include "mrst_bios.h"
+#include "mid_bios.h"
 
 /*
  *	Provide the Medfield specific backlight management

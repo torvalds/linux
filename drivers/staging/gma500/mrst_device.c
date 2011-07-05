@@ -25,7 +25,7 @@
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
 #include <asm/intel_scu_ipc.h>
-#include "mrst_bios.h"
+#include "mid_bios.h"
 
 /* IPC message and command defines used to enable/disable mipi panel voltages */
 #define IPC_MSG_PANEL_ON_OFF    0xE9

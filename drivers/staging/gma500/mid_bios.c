@@ -27,7 +27,7 @@
 #include <drm/drm.h>
 #include "psb_drm.h"
 #include "psb_drv.h"
-#include "mrst_bios.h"
+#include "mid_bios.h"
 #include "mdfld_output.h"
 
 static int panel_id = GCT_DETECT;

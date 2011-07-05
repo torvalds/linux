@@ -23,10 +23,10 @@ psb_gfx-y += gem_glue.o \
 	  psb_irq.o \
 	  psb_device.o \
 	  cdv_device.o \
+	  mid_bios.o \
 	  mrst_device.o \
 	  mrst_crtc.o \
 	  mrst_lvds.o \
-	  mrst_bios.o \
 	  mdfld_device.o \
 	  mdfld_output.o \
 	  mdfld_pyr_cmd.o \
