@@ -10,6 +10,7 @@
  * any later version.
  */
 
+#include <linux/atomic.h>
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/input.h>
@@ -20,6 +21,7 @@
 #define WIIMOTE_NAME "Nintendo Wii Remote"
 
 struct wiimote_data {
+	atomic_t ready;
 	struct hid_device *hdev;
 	struct input_dev *input;
 };
@@ -27,12 +29,26 @@ struct wiimote_data {
 static int wiimote_input_event(struct input_dev *dev, unsigned int type,
 						unsigned int code, int value)
 {
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+
+	if (!atomic_read(&wdata->ready))
+		return -EBUSY;
+	/* smp_rmb: Make sure wdata->xy is available when wdata->ready is 1 */
+	smp_rmb();
+
 	return 0;
 }
 
 static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 							u8 *raw_data, int size)
 {
+	struct wiimote_data *wdata = hid_get_drvdata(hdev);
+
+	if (!atomic_read(&wdata->ready))
+		return -EBUSY;
+	/* smp_rmb: Make sure wdata->xy is available when wdata->ready is 1 */
+	smp_rmb();
+
 	if (size < 1)
 		return -EINVAL;
 
@@ -103,6 +119,9 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		goto err_stop;
 	}
 
+	/* smp_wmb: Write wdata->xy first before wdata->ready is set to 1 */
+	smp_wmb();
+	atomic_set(&wdata->ready, 1);
 	hid_info(hdev, "New device registered\n");
 	return 0;
 
