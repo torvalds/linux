@@ -2557,6 +2557,11 @@ static void __init rk29_board_iomux_init(void)
 }
 
 static struct platform_device *devices[] __initdata = {
+
+#ifdef CONFIG_RK29_WATCHDOG
+	&rk29_device_wdt,
+#endif
+
 #ifdef CONFIG_UART1_RK29
 	&rk29_device_uart1,
 #endif
