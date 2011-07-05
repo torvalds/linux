@@ -39,7 +39,13 @@ struct wiimote_data {
 	struct work_struct worker;
 };
 
+#define WIIPROTO_FLAG_LED1 0x01
+#define WIIPROTO_FLAG_LED2 0x02
+#define WIIPROTO_FLAG_LED3 0x04
+#define WIIPROTO_FLAG_LED4 0x08
+
 enum wiiproto_reqs {
+	WIIPROTO_REQ_LED = 0x11,
 	WIIPROTO_REQ_DRM_K = 0x30,
 };
 
@@ -148,6 +154,25 @@ static void wiimote_queue(struct wiimote_data *wdata, const __u8 *buffer,
 	}
 
 	spin_unlock_irqrestore(&wdata->qlock, flags);
+}
+
+static void wiiproto_req_leds(struct wiimote_data *wdata, int leds)
+{
+	__u8 cmd[2];
+
+	cmd[0] = WIIPROTO_REQ_LED;
+	cmd[1] = 0;
+
+	if (leds & WIIPROTO_FLAG_LED1)
+		cmd[1] |= 0x10;
+	if (leds & WIIPROTO_FLAG_LED2)
+		cmd[1] |= 0x20;
+	if (leds & WIIPROTO_FLAG_LED3)
+		cmd[1] |= 0x40;
+	if (leds & WIIPROTO_FLAG_LED4)
+		cmd[1] |= 0x80;
+
+	wiimote_queue(wdata, cmd, sizeof(cmd));
 }
 
 static int wiimote_input_event(struct input_dev *dev, unsigned int type,
@@ -301,6 +326,7 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 	smp_wmb();
 	atomic_set(&wdata->ready, 1);
 	hid_info(hdev, "New device registered\n");
+	wiiproto_req_leds(wdata, WIIPROTO_FLAG_LED1);
 	return 0;
 
 err_stop:
