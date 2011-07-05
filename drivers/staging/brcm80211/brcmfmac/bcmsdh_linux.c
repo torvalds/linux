@@ -68,7 +68,7 @@ EXPORT_SYMBOL(brcmf_sdio_remove);
 int brcmf_sdio_probe(struct device *dev)
 {
 	struct sdio_hc *sdhc = NULL;
-	unsigned long regs = 0;
+	u32 regs = 0;
 	struct brcmf_sdio_card *card = NULL;
 	int irq = 0;
 	u32 vendevid;
@@ -82,7 +82,7 @@ int brcmf_sdio_probe(struct device *dev)
 	}
 	sdhc->dev = (void *)dev;
 
-	card = brcmf_sdcard_attach((void *)0, (void **)&regs, irq);
+	card = brcmf_sdcard_attach((void *)0, &regs, irq);
 	if (!card) {
 		SDLX_MSG(("%s: attach failed\n", __func__));
 		goto err;
@@ -101,7 +101,7 @@ int brcmf_sdio_probe(struct device *dev)
 
 	/* try to attach to the target device */
 	sdhc->ch = drvinfo.attach((vendevid >> 16), (vendevid & 0xFFFF),
-				  0, 0, 0, 0, (void *)regs, card);
+				  0, 0, 0, 0, regs, card);
 	if (!sdhc->ch) {
 		SDLX_MSG(("%s: device attach failed\n", __func__));
 		goto err;

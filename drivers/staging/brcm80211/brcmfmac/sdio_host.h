@@ -52,8 +52,8 @@ struct brcmf_sdio_card;
  *    implementation may maintain a single "default" handle (e.g. the first or
  *    most recent one) to enable single-instance implementations to pass NULL.
  */
-extern struct brcmf_sdio_card *brcmf_sdcard_attach(void *cfghdl, void **regsva,
-					  uint irq);
+extern struct brcmf_sdio_card*
+brcmf_sdcard_attach(void *cfghdl, u32 *regsva, uint irq);
 
 /* Detach - freeup resources allocated in attach */
 extern int brcmf_sdcard_detach(struct brcmf_sdio_card *card);
@@ -174,7 +174,7 @@ extern int brcmf_sdcard_iovar_op(struct brcmf_sdio_card *card, const char *name,
 struct brcmf_sdioh_driver {
 	/* attach to device */
 	void *(*attach) (u16 vend_id, u16 dev_id, u16 bus, u16 slot,
-			 u16 func, uint bustype, void *regsva, void *param);
+			 u16 func, uint bustype, u32 regsva, void *param);
 	/* detach from device */
 	void (*detach) (void *ch);
 };

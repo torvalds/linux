@@ -67,7 +67,7 @@ struct brcmf_sdio_card {
 static struct brcmf_sdio_card *l_card;
 
 struct brcmf_sdio_card*
-brcmf_sdcard_attach(void *cfghdl, void **regsva, uint irq)
+brcmf_sdcard_attach(void *cfghdl, u32 *regsva, uint irq)
 {
 	struct brcmf_sdio_card *card;
 
@@ -88,7 +88,7 @@ brcmf_sdcard_attach(void *cfghdl, void **regsva, uint irq)
 
 	card->init_success = true;
 
-	*regsva = (u32 *) SI_ENUM_BASE;
+	*regsva = SI_ENUM_BASE;
 
 	/* Report the BAR, to fix if needed */
 	card->sbwad = SI_ENUM_BASE;

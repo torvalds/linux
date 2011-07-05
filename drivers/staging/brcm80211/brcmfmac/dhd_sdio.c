@@ -884,7 +884,7 @@ static void brcmf_sdbrcm_release_malloc(struct brcmf_bus *bus);
 static void brcmf_sdbrcm_disconnect(void *ptr);
 static bool brcmf_sdbrcm_chipmatch(u16 chipid);
 static bool brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card,
-				 void *regsva, u16 devid);
+				      u32 regsva, u16 devid);
 static bool brcmf_sdbrcm_probe_malloc(struct brcmf_bus *bus, void *card);
 static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus, void *card);
 static void brcmf_sdbrcm_release_dongle(struct brcmf_bus *bus);
@@ -908,7 +908,7 @@ static int brcmf_sdbrcm_download_nvram(struct brcmf_bus *bus);
 static void
 brcmf_sdbrcm_chip_disablecore(struct brcmf_sdio_card *card, u32 corebase);
 
-static int brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, void *regs);
+static int brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs);
 
 static void
 brcmf_sdbrcm_chip_resetcore(struct brcmf_sdio_card *card, u32 corebase);
@@ -5343,7 +5343,7 @@ static bool brcmf_sdbrcm_chipmatch(u16 chipid)
 }
 
 static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
-			   u16 slot, u16 func, uint bustype, void *regsva,
+			   u16 slot, u16 func, uint bustype, u32 regsva,
 			   void *card)
 {
 	int ret;
@@ -5374,7 +5374,7 @@ static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 	DHD_INFO(("%s: venid 0x%04x devid 0x%04x\n", __func__, venid, devid));
 
 	/* We make assumptions about address window mappings */
-	ASSERT((unsigned long)regsva == SI_ENUM_BASE);
+	ASSERT(regsva == SI_ENUM_BASE);
 
 	/* SDIO car passes venid and devid based on CIS parsing -- but
 	 * low-power start
@@ -5540,7 +5540,7 @@ fail:
 }
 
 static bool
-brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card, void *regsva,
+brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card, u32 regsva,
 			  u16 devid)
 {
 	u8 clkctl = 0;
@@ -6097,8 +6097,8 @@ int brcmf_bus_devreset(struct brcmf_pub *drvr, u8 flag)
 
 			/* Attempt to re-attach & download */
 			if (brcmf_sdbrcm_probe_attach(bus, bus->card,
-						 (u32 *) SI_ENUM_BASE,
-						 bus->cl_devid)) {
+						      SI_ENUM_BASE,
+						      bus->cl_devid)) {
 				/* Attempt to download binary to the dongle */
 				if (brcmf_sdbrcm_probe_init(bus, bus->card)) {
 					/* Re-init bus, enable F2 transfer */
@@ -6126,7 +6126,7 @@ int brcmf_bus_devreset(struct brcmf_pub *drvr, u8 flag)
 
 static int
 brcmf_sdbrcm_chip_recognition(struct brcmf_sdio_card *card,
-			      struct chip_info *ci, void *regs)
+			      struct chip_info *ci, u32 regs)
 {
 	u32 regdata;
 
@@ -6136,7 +6136,7 @@ brcmf_sdbrcm_chip_recognition(struct brcmf_sdio_card *card,
 	 * For different chiptypes or old sdio hosts w/o chipcommon,
 	 * other ways of recognition should be added here.
 	 */
-	ci->cccorebase = (u32)regs;
+	ci->cccorebase = regs;
 	regdata = brcmf_sdcard_reg_read(card,
 				CORE_CC_REG(ci->cccorebase, chipid), 4);
 	ci->chip = regdata & CID_ID_MASK;
@@ -6263,7 +6263,7 @@ brcmf_sdbrcm_chip_disablecore(struct brcmf_sdio_card *card, u32 corebase)
 }
 
 static int
-brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, void *regs)
+brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
 {
 	struct chip_info *ci;
 	int err;

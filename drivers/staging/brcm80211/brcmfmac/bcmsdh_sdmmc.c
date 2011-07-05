@@ -694,7 +694,7 @@ brcmf_sdioh_request_packet(struct sdioh_info *sd, uint fix_inc, uint write,
 		 * is supposed to give
 		 * us something we can work with.
 		 */
-		ASSERT(((u32) (pkt->data) & DMA_ALIGN_MASK) == 0);
+		ASSERT(((ulong) (pkt->data) & DMA_ALIGN_MASK) == 0);
 
 		if ((write) && (!fifo)) {
 			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
@@ -789,7 +789,7 @@ brcmf_sdioh_request_buffer(struct sdioh_info *sd, uint pio_dma, uint fix_inc,
 			memcpy(buffer, mypkt->data, buflen_u);
 
 		brcmu_pkt_buf_free_skb(mypkt);
-	} else if (((u32) (pkt->data) & DMA_ALIGN_MASK) != 0) {
+	} else if (((ulong) (pkt->data) & DMA_ALIGN_MASK) != 0) {
 		/* Case 2: We have a packet, but it is unaligned. */
 
 		/* In this case, we cannot have a chain. */
