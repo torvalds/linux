@@ -129,6 +129,64 @@ static const int sdp4430_keymap[] = {
 	KEY(7, 6, KEY_OK),
 	KEY(7, 7, KEY_DOWN),
 };
+static struct omap_device_pad keypad_pads[] __initdata = {
+	{	.name   = "kpd_col1.kpd_col1",
+		.enable = OMAP_WAKEUP_EN | OMAP_MUX_MODE1,
+	},
+	{	.name   = "kpd_col1.kpd_col1",
+		.enable = OMAP_WAKEUP_EN | OMAP_MUX_MODE1,
+	},
+	{	.name   = "kpd_col2.kpd_col2",
+		.enable = OMAP_WAKEUP_EN | OMAP_MUX_MODE1,
+	},
+	{	.name   = "kpd_col3.kpd_col3",
+		.enable = OMAP_WAKEUP_EN | OMAP_MUX_MODE1,
+	},
+	{	.name   = "kpd_col4.kpd_col4",
+		.enable = OMAP_WAKEUP_EN | OMAP_MUX_MODE1,
+	},
+	{	.name   = "kpd_col5.kpd_col5",
+		.enable = OMAP_WAKEUP_EN | OMAP_MUX_MODE1,
+	},
+	{	.name   = "gpmc_a23.kpd_col7",
+		.enable = OMAP_WAKEUP_EN | OMAP_MUX_MODE1,
+	},
+	{	.name   = "gpmc_a22.kpd_col6",
+		.enable = OMAP_WAKEUP_EN | OMAP_MUX_MODE1,
+	},
+	{	.name   = "kpd_row0.kpd_row0",
+		.enable = OMAP_PULL_ENA | OMAP_PULL_UP | OMAP_WAKEUP_EN |
+			OMAP_MUX_MODE1 | OMAP_INPUT_EN,
+	},
+	{	.name   = "kpd_row1.kpd_row1",
+		.enable = OMAP_PULL_ENA | OMAP_PULL_UP | OMAP_WAKEUP_EN |
+			OMAP_MUX_MODE1 | OMAP_INPUT_EN,
+	},
+	{	.name   = "kpd_row2.kpd_row2",
+		.enable = OMAP_PULL_ENA | OMAP_PULL_UP | OMAP_WAKEUP_EN |
+			OMAP_MUX_MODE1 | OMAP_INPUT_EN,
+	},
+	{	.name   = "kpd_row3.kpd_row3",
+		.enable = OMAP_PULL_ENA | OMAP_PULL_UP | OMAP_WAKEUP_EN |
+			OMAP_MUX_MODE1 | OMAP_INPUT_EN,
+	},
+	{	.name   = "kpd_row4.kpd_row4",
+		.enable = OMAP_PULL_ENA | OMAP_PULL_UP | OMAP_WAKEUP_EN |
+			OMAP_MUX_MODE1 | OMAP_INPUT_EN,
+	},
+	{	.name   = "kpd_row5.kpd_row5",
+		.enable = OMAP_PULL_ENA | OMAP_PULL_UP | OMAP_WAKEUP_EN |
+			OMAP_MUX_MODE1 | OMAP_INPUT_EN,
+	},
+	{	.name   = "gpmc_a18.kpd_row6",
+		.enable = OMAP_PULL_ENA | OMAP_PULL_UP | OMAP_WAKEUP_EN |
+			OMAP_MUX_MODE1 | OMAP_INPUT_EN,
+	},
+	{	.name   = "gpmc_a19.kpd_row7",
+		.enable = OMAP_PULL_ENA | OMAP_PULL_UP | OMAP_WAKEUP_EN |
+			OMAP_MUX_MODE1 | OMAP_INPUT_EN,
+	},
+};
 
 static struct matrix_keymap_data sdp4430_keymap_data = {
 	.keymap			= sdp4430_keymap,
@@ -140,6 +198,13 @@ static struct omap4_keypad_platform_data sdp4430_keypad_data = {
 	.rows			= 8,
 	.cols			= 8,
 };
+
+static struct omap_board_data keypad_data = {
+	.id	    		= 1,
+	.pads	 		= keypad_pads,
+	.pads_cnt       	= ARRAY_SIZE(keypad_pads),
+};
+
 static struct gpio_led sdp4430_gpio_leds[] = {
 	{
 		.name	= "omap4:green:debug0",
@@ -825,7 +890,7 @@ static void __init omap_4430sdp_init(void)
 				ARRAY_SIZE(sdp4430_spi_board_info));
 	}
 
-	status = omap4_keyboard_init(&sdp4430_keypad_data);
+	status = omap4_keyboard_init(&sdp4430_keypad_data, &keypad_data);
 	if (status)
 		pr_err("Keypad initialization failed: %d\n", status);
 
