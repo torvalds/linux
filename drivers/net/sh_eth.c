@@ -1184,8 +1184,8 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 				mdp->cd->set_rate(ndev);
 		}
 		if (mdp->link == PHY_DOWN) {
-			sh_eth_write(ndev, (sh_eth_read(ndev, ECMR) & ~ECMR_TXF)
-					| ECMR_DM, ECMR);
+			sh_eth_write(ndev,
+				(sh_eth_read(ndev, ECMR) & ~ECMR_TXF), ECMR);
 			new_state = 1;
 			mdp->link = phydev->link;
 		}
