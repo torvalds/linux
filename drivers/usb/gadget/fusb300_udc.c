@@ -997,8 +997,8 @@ static void done(struct fusb300_ep *ep, struct fusb300_request *req,
 		fusb300_set_cxdone(ep->fusb300);
 }
 
-void fusb300_fill_idma_prdtbl(struct fusb300_ep *ep,
-			struct fusb300_request *req)
+static void fusb300_fill_idma_prdtbl(struct fusb300_ep *ep, dma_addr_t d,
+		u32 len)
 {
 	u32 value;
 	u32 reg;
@@ -1010,10 +1010,9 @@ void fusb300_fill_idma_prdtbl(struct fusb300_ep *ep,
 		reg &= FUSB300_EPPRD0_H;
 	} while (reg);
 
-	iowrite32((u32) req->req.buf, ep->fusb300->reg +
-		FUSB300_OFFSET_EPPRD_W1(ep->epnum));
+	iowrite32(d, ep->fusb300->reg + FUSB300_OFFSET_EPPRD_W1(ep->epnum));
 
-	value = FUSB300_EPPRD0_BTC(req->req.length) | FUSB300_EPPRD0_H |
+	value = FUSB300_EPPRD0_BTC(len) | FUSB300_EPPRD0_H |
 		FUSB300_EPPRD0_F | FUSB300_EPPRD0_L | FUSB300_EPPRD0_I;
 	iowrite32(value, ep->fusb300->reg + FUSB300_OFFSET_EPPRD_W0(ep->epnum));
 
@@ -1050,13 +1049,12 @@ static void  fusb300_set_idma(struct fusb300_ep *ep,
 			struct fusb300_request *req)
 {
 	dma_addr_t d;
-	u8 *tmp = NULL;
 
 	d = dma_map_single(NULL, req->req.buf, req->req.length, DMA_TO_DEVICE);
 
 	if (dma_mapping_error(NULL, d)) {
-		kfree(req->req.buf);
 		printk(KERN_DEBUG "dma_mapping_error\n");
+		return;
 	}
 
 	dma_sync_single_for_device(NULL, d, req->req.length, DMA_TO_DEVICE);
@@ -1064,17 +1062,11 @@ static void  fusb300_set_idma(struct fusb300_ep *ep,
 	fusb300_enable_bit(ep->fusb300, FUSB300_OFFSET_IGER0,
 		FUSB300_IGER0_EEPn_PRD_INT(ep->epnum));
 
-	tmp = req->req.buf;
-	req->req.buf = (u8 *)d;
-
-	fusb300_fill_idma_prdtbl(ep, req);
+	fusb300_fill_idma_prdtbl(ep, d, req->req.length);
 	/* check idma is done */
 	fusb300_wait_idma_finished(ep);
 
-	req->req.buf = tmp;
-
-	if (d)
-		dma_unmap_single(NULL, d, req->req.length, DMA_TO_DEVICE);
+	dma_unmap_single(NULL, d, req->req.length, DMA_TO_DEVICE);
 }
 
 static void in_ep_fifo_handler(struct fusb300_ep *ep)
