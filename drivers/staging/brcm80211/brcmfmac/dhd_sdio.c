@@ -65,11 +65,6 @@
 
 /* Trap types defined by ARM (see arminc.h) */
 
-/* Trap locations in lo memory */
-#define	TRAP_STRIDE	4
-#define FIRST_TRAP	TR_RST
-#define LAST_TRAP	(TR_FIQ * TRAP_STRIDE)
-
 #if defined(__ARM_ARCH_4T__)
 #define	MAX_TRAP_TYPE	(TR_FIQ + 1)
 #elif defined(__ARM_ARCH_7M__)
@@ -113,8 +108,6 @@ struct brcmf_trap {
 };
 
 #define CBUF_LEN	(128)
-
-#define LOG_BUF_LEN	1024
 
 struct rte_log {
 	u32 buf;		/* Can't be pointer on (64-bit) hosts */
@@ -165,10 +158,6 @@ struct rte_console {
 #include "dhd_proto.h"
 #include "dhd_dbg.h"
 #include <bcmchip.h>
-
-#ifndef DHDSDIO_MEM_DUMP_FNAME
-#define DHDSDIO_MEM_DUMP_FNAME         "mem_dump"
-#endif
 
 #define TXQLEN		2048	/* bulk tx queue length */
 #define TXHI		(TXQLEN - 256)	/* turn on flow control above TXHI */
@@ -344,7 +333,6 @@ struct rte_console {
 /* Value for ChipClockCSR during initial setup */
 #define DHD_INIT_CLKCTL1	(SBSDIO_FORCE_HW_CLKREQ_OFF |	\
 					SBSDIO_ALP_AVAIL_REQ)
-#define DHD_INIT_CLKCTL2	(SBSDIO_FORCE_HW_CLKREQ_OFF | SBSDIO_FORCE_ALP)
 
 /* Flags for SDH calls */
 #define F2SYNC	(SDIO_REQ_4BYTE | SDIO_REQ_FIXED)
@@ -541,11 +529,7 @@ struct brcmf_bus {
 	struct chip_info *ci;	/* Chip info struct */
 	char *vars;		/* Variables (from CIS and/or other) */
 	uint varsz;		/* Size of variables buffer */
-	u32 sbaddr;		/* Current SB window pointer (-1, invalid) */
 
-	uint sdpcmrev;		/* SDIO core revision */
-	uint armrev;		/* CPU core revision */
-	uint ramrev;		/* SOCRAM core revision */
 	u32 ramsize;		/* Size of RAM in SOCRAM (bytes) */
 	u32 orig_ramsize;	/* Size of RAM in SOCRAM (bytes) */
 
@@ -612,8 +596,6 @@ struct brcmf_bus {
 	bool sleeping;		/* Is SDIO bus sleeping? */
 	bool rxflow_mode;	/* Rx flow control mode */
 	bool rxflow;		/* Is rx flow control on */
-	uint prev_rxlim_hit;	/* Is prev rx limit exceeded
-					 (per dpc schedule) */
 	bool alp_only;		/* Don't use HT clock (ALP only) */
 /* Field to decide if rx of control frames happen in rxbuf or lb-pool */
 	bool usebufpool;
@@ -781,8 +763,6 @@ static bool retrydata;
 
 static const uint watermark = 8;
 static const uint firstread = BRCMF_FIRSTREAD;
-
-#define HDATLEN (firstread - (SDPCM_HDRLEN))
 
 /* Retry count for register access failures */
 static const uint retry_limit = 2;
@@ -5584,8 +5564,8 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card, u32 regsva,
 
 	/* Get info on the ARM and SOCRAM cores... */
 	if (!DHD_NOPMU(bus)) {
-		bus->armrev = SBCOREREV(brcmf_sdcard_reg_read(bus->card,
-			CORE_SB(bus->ci->armcorebase, sbidhigh), 4));
+		brcmf_sdcard_reg_read(bus->card,
+			  CORE_SB(bus->ci->armcorebase, sbidhigh), 4);
 		bus->orig_ramsize = bus->ci->ramsize;
 		if (!(bus->orig_ramsize)) {
 			DHD_ERROR(("%s: failed to find SOCRAM memory!\n",
@@ -5680,7 +5660,6 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus, void *card)
 	bus->drvr->busstate = DHD_BUS_DOWN;
 	bus->sleeping = false;
 	bus->rxflow = false;
-	bus->prev_rxlim_hit = 0;
 
 	/* Done with backplane-dependent accesses, can drop clock... */
 	brcmf_sdcard_cfg_write(card, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR, 0,
