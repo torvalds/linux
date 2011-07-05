@@ -27,8 +27,9 @@
 #define DRIVER_DESC   "B.A.T.M.A.N. advanced"
 #define DRIVER_DEVICE "batman-adv"
 
-#define SOURCE_VERSION "next"
-
+#ifndef SOURCE_VERSION
+#define SOURCE_VERSION "2011.3.0"
+#endif
 
 /* B.A.T.M.A.N. parameters */
 
@@ -143,12 +144,6 @@ enum dbg_level {
 #include <linux/jiffies.h>
 #include <linux/seq_file.h>
 #include "types.h"
-
-#ifndef REVISION_VERSION
-#define REVISION_VERSION_STR ""
-#else
-#define REVISION_VERSION_STR " "REVISION_VERSION
-#endif
 
 extern struct list_head hardif_list;
 

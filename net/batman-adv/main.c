@@ -58,9 +58,8 @@ static int __init batman_init(void)
 
 	register_netdevice_notifier(&hard_if_notifier);
 
-	pr_info("B.A.T.M.A.N. advanced %s%s (compatibility version %i) "
-		"loaded\n", SOURCE_VERSION, REVISION_VERSION_STR,
-		COMPAT_VERSION);
+	pr_info("B.A.T.M.A.N. advanced %s (compatibility version %i) "
+		"loaded\n", SOURCE_VERSION, COMPAT_VERSION);
 
 	return 0;
 }
@@ -184,8 +183,4 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_SUPPORTED_DEVICE(DRIVER_DEVICE);
-#ifdef REVISION_VERSION
-MODULE_VERSION(SOURCE_VERSION "-" REVISION_VERSION);
-#else
 MODULE_VERSION(SOURCE_VERSION);
-#endif
