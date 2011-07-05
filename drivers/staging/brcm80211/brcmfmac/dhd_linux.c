@@ -1426,7 +1426,7 @@ void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx)
 	up(&drvr_priv->sysioc_sem);
 }
 
-struct brcmf_pub *brcmf_attach(struct dhd_bus *bus, uint bus_hdrlen)
+struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 {
 	struct brcmf_info *drvr_priv = NULL;
 	struct net_device *net;
@@ -1761,7 +1761,7 @@ static void __exit brcmf_module_cleanup(void)
 {
 	DHD_TRACE(("%s: Enter\n", __func__));
 
-	dhd_bus_unregister();
+	brcmf_bus_unregister();
 }
 
 static int __init brcmf_module_init(void)
@@ -1770,7 +1770,7 @@ static int __init brcmf_module_init(void)
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
-	error = dhd_bus_register();
+	error = brcmf_bus_register();
 
 	if (error) {
 		DHD_ERROR(("%s: dhd_bus_register failed\n", __func__));

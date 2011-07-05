@@ -225,7 +225,7 @@ brcmf_c_doiovar(struct brcmf_pub *drvr, const struct brcmu_iovar *vi,
 		drvr->tx_realloc = 0;
 		drvr->wd_dpc_sched = 0;
 		memset(&drvr->dstats, 0, sizeof(drvr->dstats));
-		dhd_bus_clearcounts(drvr);
+		brcmf_bus_clearcounts(drvr);
 		break;
 
 	case IOV_GVAL(IOV_IOCTLTIMEOUT):{

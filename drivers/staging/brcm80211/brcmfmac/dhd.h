@@ -522,14 +522,14 @@ struct brcmf_ioctl {
 };
 
 /* Forward decls for struct brcmf_pub (see below) */
-struct dhd_bus;		/* device bus info */
+struct brcmf_bus;		/* device bus info */
 struct brcmf_proto;	/* device communication protocol info */
 struct brcmf_info;	/* device driver info */
 
 /* Common structure for module and instance linkage */
 struct brcmf_pub {
 	/* Linkage ponters */
-	struct dhd_bus *bus;
+	struct brcmf_bus *bus;
 	struct brcmf_proto *prot;
 	struct brcmf_info *info;
 
@@ -753,7 +753,7 @@ static inline void MUTEX_UNLOCK_WL_SCAN_SET(void)
  * Returned structure should have bus and prot pointers filled in.
  * bus_hdrlen specifies required headroom for bus module header.
  */
-extern struct brcmf_pub *brcmf_attach(struct dhd_bus *bus,
+extern struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus,
 				      uint bus_hdrlen);
 extern int brcmf_net_attach(struct brcmf_pub *drvr, int idx);
 extern int brcmf_netdev_wait_pend8021x(struct net_device *dev);

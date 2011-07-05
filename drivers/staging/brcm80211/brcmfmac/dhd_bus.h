@@ -33,26 +33,26 @@
 extern uint brcmf_watchdog_ms;
 
 /* Indicate (dis)interest in finding dongles. */
-extern int dhd_bus_register(void);
-extern void dhd_bus_unregister(void);
+extern int brcmf_bus_register(void);
+extern void brcmf_bus_unregister(void);
 
 /* Stop bus module: clear pending frames, disable data flow */
-extern void brcmf_sdbrcm_bus_stop(struct dhd_bus *bus, bool enforce_mutex);
+extern void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus, bool enforce_mutex);
 
 /* Initialize bus module: prepare for communication w/dongle */
 extern int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr, bool enforce_mutex);
 
 /* Send a data frame to the dongle.  Callee disposes of txp. */
-extern int brcmf_sdbrcm_bus_txdata(struct dhd_bus *bus, struct sk_buff *txp);
+extern int brcmf_sdbrcm_bus_txdata(struct brcmf_bus *bus, struct sk_buff *txp);
 
 /* Send/receive a control message to/from the dongle.
  * Expects caller to enforce a single outstanding transaction.
  */
 extern int
-brcmf_sdbrcm_bus_txctl(struct dhd_bus *bus, unsigned char *msg, uint msglen);
+brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen);
 
 extern int
-brcmf_sdbrcm_bus_rxctl(struct dhd_bus *bus, unsigned char *msg, uint msglen);
+brcmf_sdbrcm_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen);
 
 extern void dhd_bus_isr(bool *InterruptRecognized,
 			bool *QueueMiniportHandleInterrupt, void *arg);
@@ -67,15 +67,15 @@ extern void brcmf_sdbrcm_bus_dump(struct brcmf_pub *drvr,
 				  struct brcmu_strbuf *strbuf);
 
 /* Clear any bus counters */
-extern void dhd_bus_clearcounts(struct brcmf_pub *drvr);
+extern void brcmf_bus_clearcounts(struct brcmf_pub *drvr);
 
 /* return the dongle chipid */
-extern uint dhd_bus_chip(struct dhd_bus *bus);
+extern uint brcmf_bus_chip(struct brcmf_bus *bus);
 
-extern void *dhd_bus_pub(struct dhd_bus *bus);
-extern void *dhd_bus_txq(struct dhd_bus *bus);
-extern uint dhd_bus_hdrlen(struct dhd_bus *bus);
+extern void *brcmf_bus_drvr(struct brcmf_bus *bus);
+extern void *brcmf_bus_txq(struct brcmf_bus *bus);
+extern uint brcmf_bus_hdrlen(struct brcmf_bus *bus);
 
-extern void brcmf_sdbrcm_wd_timer(struct dhd_bus *bus, uint wdtick);
+extern void brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick);
 
 #endif				/* _dhd_bus_h_ */
