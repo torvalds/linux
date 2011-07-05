@@ -96,25 +96,20 @@ static void parse_backlight_data(struct drm_psb_private *dev_priv,
 
 	dev_priv->lvds_bl = NULL;
 
-	if (lvds_opts) {
-		DRM_DEBUG("lvds_options found at %p\n", lvds_opts);
+	if (lvds_opts)
 		p_type = lvds_opts->panel_type;
-	} else {
-		DRM_DEBUG("no lvds_options\n");
+	else
 		return;
-	}
 
 	bl_start = find_section(bdb, BDB_LVDS_BACKLIGHT);
 	vbt_lvds_bl = (struct bdb_lvds_backlight *)(bl_start + 1) + p_type;
 
 	lvds_bl = kzalloc(sizeof(*vbt_lvds_bl), GFP_KERNEL);
 	if (!lvds_bl) {
-		DRM_DEBUG("No memory\n");
+		dev_err(dev_priv->dev->dev, "out of memory for backlight data\n");
 		return;
 	}
-
 	memcpy(lvds_bl, vbt_lvds_bl, sizeof(*vbt_lvds_bl));
-
 	dev_priv->lvds_bl = lvds_bl;
 }
 
@@ -156,14 +151,12 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 
 	if (panel_fixed_mode->htotal > 0 && panel_fixed_mode->vtotal > 0) {
 		dev_priv->lfp_lvds_vbt_mode = panel_fixed_mode;
-		DRM_DEBUG("Found panel mode in BIOS VBT tables:\n");
 		drm_mode_debug_printmodeline(panel_fixed_mode);
 	} else {
-		DRM_DEBUG("Ignoring bogus LVDS VBT mode.\n");
+		dev_dbg(dev_priv->dev->dev, "ignoring invalid LVDS VBT\n");
 		dev_priv->lvds_vbt = 0;
 		kfree(panel_fixed_mode);
 	}
-
 	return;
 }
 
@@ -257,7 +250,7 @@ bool psb_intel_init_bios(struct drm_device *dev)
 	}
 
 	if (!vbt) {
-		DRM_ERROR("VBT signature missing\n");
+		dev_err(dev->dev, "VBT signature missing\n");
 		pci_unmap_rom(pdev, bios);
 		return -1;
 	}

@@ -47,7 +47,6 @@ static void mrst_lvds_set_power(struct drm_device *dev,
 {
 	u32 pp_status;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	PSB_DEBUG_ENTRY("\n");
 
 	if (!gma_power_begin(dev, true))
 		return;
@@ -77,8 +76,6 @@ static void mrst_lvds_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_device *dev = encoder->dev;
 	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);
 
-	PSB_DEBUG_ENTRY("\n");
-
 	if (mode == DRM_MODE_DPMS_ON)
 		mrst_lvds_set_power(dev, output, true);
 	else
@@ -96,8 +93,6 @@ static void mrst_lvds_mode_set(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	u32 lvds_port;
 	uint64_t v = DRM_MODE_SCALE_FULLSCREEN;
-
-	PSB_DEBUG_ENTRY("\n");
 
 	if (!gma_power_begin(dev, true))
 		return;
@@ -252,8 +247,6 @@ void mrst_lvds_init(struct drm_device *dev,
 	struct i2c_adapter *i2c_adap;
 	struct drm_display_mode *scan;	/* *modes, *bios_mode; */
 
-	PSB_DEBUG_ENTRY("\n");
-
 	psb_intel_output = kzalloc(sizeof(struct psb_intel_output), GFP_KERNEL);
 	if (!psb_intel_output)
 		return;
@@ -348,8 +341,7 @@ void mrst_lvds_init(struct drm_device *dev,
 
 	/* If we still don't have a mode after all that, give up. */
 	if (!mode_dev->panel_fixed_mode) {
-		DRM_DEBUG
-		    ("Found no modes on the lvds, ignoring the LVDS\n");
+		dev_err(dev->dev, "Found no modes on the lvds, ignoring the LVDS\n");
 		goto failed_find;
 	}
 
@@ -358,7 +350,7 @@ out:
 	return;
 
 failed_find:
-	DRM_DEBUG("No LVDS modes found, disabling.\n");
+	dev_dbg(dev->dev, "No LVDS modes found, disabling.\n");
 	if (psb_intel_output->ddc_bus)
 		psb_intel_i2c_destroy(psb_intel_output->ddc_bus);
 

@@ -187,7 +187,8 @@ static void mid_pipe_event_handler(struct drm_device *dev, uint32_t pipe)
 	}
 
 	if (i == WAIT_STATUS_CLEAR_LOOP_COUNT)
-		DRM_ERROR("%s, can't clear the status bits in pipe_stat_reg, its value = 0x%x.\n",
+		dev_err(dev->dev,
+	"%s, can't clear the status bits in pipe_stat_reg, its value = 0x%x.\n",
 			__func__, PSB_RVDC32(pipe_stat_reg));
 
 	if (pipe_stat_val & PIPE_VBLANK_STATUS)
@@ -219,21 +220,11 @@ irqreturn_t psb_irq_handler(DRM_IRQ_ARGS)
 
 	vdc_stat = PSB_RVDC32(PSB_INT_IDENTITY_R);
 
-	if (vdc_stat & _MDFLD_DISP_ALL_IRQ_FLAG) {
-		PSB_DEBUG_IRQ("Got DISP interrupt\n");
+	if (vdc_stat & _MDFLD_DISP_ALL_IRQ_FLAG)
 		dsp_int = 1;
-	}
 
-	if (vdc_stat & _PSB_IRQ_SGX_FLAG) {
-		PSB_DEBUG_IRQ("Got SGX interrupt\n");
+	if (vdc_stat & _PSB_IRQ_SGX_FLAG)
 		sgx_int = 1;
-	}
-	if (vdc_stat & _PSB_IRQ_MSVDX_FLAG)
-		PSB_DEBUG_IRQ("Got MSVDX interrupt\n");
-
-	if (vdc_stat & _LNC_IRQ_TOPAZ_FLAG)
-		PSB_DEBUG_IRQ("Got TOPAZ interrupt\n");
-
 
 	vdc_stat &= dev_priv->vdc_irq_mask;
 	spin_unlock(&dev_priv->irqmask_lock);
@@ -293,8 +284,6 @@ int psb_irq_postinstall(struct drm_device *dev)
 	    (struct drm_psb_private *) dev->dev_private;
 	unsigned long irqflags;
 
-	PSB_DEBUG_ENTRY("\n");
-
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
 	/* This register is safe even if display island is off */
@@ -325,8 +314,6 @@ void psb_irq_uninstall(struct drm_device *dev)
 	struct drm_psb_private *dev_priv =
 	    (struct drm_psb_private *) dev->dev_private;
 	unsigned long irqflags;
-
-	PSB_DEBUG_ENTRY("\n");
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
@@ -395,8 +382,6 @@ int psb_irq_enable_dpst(struct drm_device *dev)
 		(struct drm_psb_private *) dev->dev_private;
 	unsigned long irqflags;
 
-	PSB_DEBUG_ENTRY("\n");
-
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
 	/* enable DPST */
@@ -435,8 +420,6 @@ int psb_irq_disable_dpst(struct drm_device *dev)
 	    (struct drm_psb_private *) dev->dev_private;
 	unsigned long irqflags;
 
-	PSB_DEBUG_ENTRY("\n");
-
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
 	mid_disable_pipe_event(dev_priv, 0);
@@ -472,8 +455,6 @@ int psb_enable_vblank(struct drm_device *dev, int pipe)
 	uint32_t reg_val = 0;
 	uint32_t pipeconf_reg = mid_pipeconf(pipe);
 
-	PSB_DEBUG_ENTRY("\n");
-
 	if (gma_power_begin(dev, false)) {
 		reg_val = REG_READ(pipeconf_reg);
 		gma_power_end(dev);
@@ -499,8 +480,6 @@ void psb_disable_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
-
-	PSB_DEBUG_ENTRY("\n");
 
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
@@ -535,7 +514,7 @@ u32 psb_get_vblank_counter(struct drm_device *dev, int pipe)
 		pipeconf_reg = PIPECCONF;
 		break;
 	default:
-		DRM_ERROR("%s, invalded pipe.\n", __func__);
+		dev_err(dev->dev, "%s, invalid pipe.\n", __func__);
 		return 0;
 	}
 
@@ -545,7 +524,7 @@ u32 psb_get_vblank_counter(struct drm_device *dev, int pipe)
 	reg_val = REG_READ(pipeconf_reg);
 
 	if (!(reg_val & PIPEACONF_ENABLE)) {
-		DRM_ERROR("trying to get vblank count for disabled pipe %d\n",
+		dev_err(dev->dev, "trying to get vblank count for disabled pipe %d\n",
 								pipe);
 		goto psb_get_vblank_counter_exit;
 	}

@@ -35,17 +35,14 @@
 #include <linux/pm_runtime.h>
 #include <acpi/video.h>
 
-int drm_psb_debug;
 static int drm_psb_trap_pagefaults;
 
 int drm_psb_no_fb;
 
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 
-MODULE_PARM_DESC(debug, "Enable debug output");
 MODULE_PARM_DESC(no_fb, "Disable FBdev");
 MODULE_PARM_DESC(trap_pagefaults, "Error and reset on MMU pagefaults");
-module_param_named(debug, drm_psb_debug, int, 0600);
 module_param_named(no_fb, drm_psb_no_fb, int, 0600);
 module_param_named(trap_pagefaults, drm_psb_trap_pagefaults, int, 0600);
 
@@ -215,7 +212,8 @@ void mrst_get_fuse_settings(struct drm_device *dev)
 		dev_priv->core_freq = 166;
 		break;
 	default:
-		DRM_ERROR("Invalid SKU values, SKU value = 0x%08x\n", fuse_value_tmp);
+		dev_warn(dev->dev, "Invalid SKU values, SKU value = 0x%08x\n",
+								fuse_value_tmp);
 		dev_priv->core_freq = 0;
 	}
 	DRM_INFO("LNC core clk is %dMHz.\n", dev_priv->core_freq);
@@ -231,7 +229,8 @@ void mid_get_pci_revID (struct drm_psb_private *dev_priv)
 	pci_read_config_dword(pci_gfx_root, 0x08, &platform_rev_id);
 	dev_priv->platform_rev_id = (uint8_t) platform_rev_id;
 	pci_dev_put(pci_gfx_root);
-	PSB_DEBUG_ENTRY("platform_rev_id is %x\n",	dev_priv->platform_rev_id);
+	dev_info(dev_priv->dev->dev, "platform_rev_id is %x\n",
+							dev_priv->platform_rev_id);
 }
 
 void mrst_get_vbt_data(struct drm_psb_private *dev_priv)
@@ -413,7 +412,7 @@ static int psb_do_init(struct drm_device *dev)
 	int ret = -ENOMEM;
 
 	if (pg->mmu_gatt_start & 0x0FFFFFFF) {
-		DRM_ERROR("Gatt must be 256M aligned. This is a bug.\n");
+		dev_err(dev->dev, "Gatt must be 256M aligned. This is a bug.\n");
 		ret = -EINVAL;
 		goto out_err;
 	}
@@ -446,9 +445,6 @@ static int psb_do_init(struct drm_device *dev)
 
 
 	spin_lock_init(&dev_priv->irqmask_lock);
-
-	/* FIXME: can we kill ta_mem_size ? */
-	dev_priv->sizes.ta_mem_size = 0;
 
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK0);
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK1);
@@ -553,7 +549,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev->dev_private = (void *) dev_priv;
 	dev_priv->chipset = chipset;
 
-	PSB_DEBUG_INIT("Mapping MMIO\n");
 	resource_start = pci_resource_start(dev->pdev, PSB_MMIO_RESOURCE);
 
 	dev_priv->vdc_reg =
@@ -679,7 +674,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	pm_runtime_set_active(&dev->pdev->dev);
 #endif
 	/*Intel drm driver load is done, continue doing pvr load*/
-	DRM_DEBUG("Pvr driver load\n");
 	return 0;
 out_err:
 	psb_driver_unload(dev);
@@ -721,7 +715,7 @@ static int psb_dc_state_ioctl(struct drm_device *dev, void * data,
 		obj = drm_mode_object_find(dev, obj_id,
 				DRM_MODE_OBJECT_CRTC);
 		if (!obj) {
-			DRM_DEBUG("Invalid CRTC object.\n");
+			dev_dbg(dev->dev, "Invalid CRTC object.\n");
 			return -EINVAL;
 		}
 
@@ -741,7 +735,7 @@ static int psb_dc_state_ioctl(struct drm_device *dev, void * data,
 		obj = drm_mode_object_find(dev, obj_id,
 				DRM_MODE_OBJECT_CONNECTOR);
 		if (!obj) {
-			DRM_DEBUG("Invalid connector id.\n");
+			dev_dbg(dev->dev, "Invalid connector id.\n");
 			return -EINVAL;
 		}
 
@@ -753,8 +747,6 @@ static int psb_dc_state_ioctl(struct drm_device *dev, void * data,
 
 		return 0;
 	}
-
-	DRM_DEBUG("Bad flags 0x%x\n", flags);
 	return -EINVAL;
 }
 
@@ -832,7 +824,7 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 	obj_id = lut_arg->output_id;
 	obj = drm_mode_object_find(dev, obj_id, DRM_MODE_OBJECT_CONNECTOR);
 	if (!obj) {
-		DRM_DEBUG("Invalid Connector object.\n");
+		dev_dbg(dev->dev, "Invalid Connector object.\n");
 		return -EINVAL;
 	}
 
@@ -873,7 +865,7 @@ static int psb_mode_operation_ioctl(struct drm_device *dev, void *data,
 	case PSB_MODE_OPERATION_SET_DC_BASE:
 		obj = drm_mode_object_find(dev, obj_id, DRM_MODE_OBJECT_FB);
 		if (!obj) {
-			DRM_ERROR("Invalid FB id %d\n", obj_id);
+			dev_dbg(dev->dev, "Invalid FB id %d\n", obj_id);
 			return -EINVAL;
 		}
 
@@ -945,7 +937,7 @@ mode_op_out:
 		return ret;
 
 	default:
-		DRM_DEBUG("Unsupported psb mode operation");
+		dev_dbg(dev->dev, "Unsupported psb mode operation\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1336,9 +1328,6 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 	struct drm_device *dev = file_priv->minor->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	static unsigned int runtime_allowed;
-	unsigned int nr = DRM_IOCTL_NR(cmd);
-
-	DRM_DEBUG("cmd = %x, nr = %x\n", cmd, nr);
 
 	if (runtime_allowed == 1 && dev_priv->is_lvds_on) {
 		runtime_allowed++;
@@ -1439,7 +1428,7 @@ static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	/* MLD Added this from Inaky's patch */
 	if (pci_enable_msi(pdev))
-		DRM_ERROR("Enable MSI failed!\n");
+                dev_warn(&pdev->dev, "Enable MSI failed!\n");
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 

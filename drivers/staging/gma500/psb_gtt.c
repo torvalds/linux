@@ -456,7 +456,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 
 	if (resume && (gtt_pages != pg->gtt_pages) &&
 	    (stolen_size != pg->stolen_size)) {
-		DRM_ERROR("GTT resume error.\n");
+		dev_err(dev->dev, "GTT resume error.\n");
 		ret = -EINVAL;
 		goto out_err;
 	}
@@ -470,14 +470,14 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	 */
 	dev_priv->gtt_map = ioremap_nocache(pg->gtt_phys_start, gtt_pages << PAGE_SHIFT);
 	if (!dev_priv->gtt_map) {
-		DRM_ERROR("Failure to map gtt.\n");
+		dev_err(dev->dev, "Failure to map gtt.\n");
 		ret = -ENOMEM;
 		goto out_err;
 	}
 
 	dev_priv->vram_addr = ioremap_wc(dev_priv->stolen_base, stolen_size);
 	if (!dev_priv->vram_addr) {
-		DRM_ERROR("Failure to map stolen base.\n");
+		dev_err(dev->dev, "Failure to map stolen base.\n");
 		ret = -ENOMEM;
 		goto out_err;
 	}

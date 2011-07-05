@@ -100,7 +100,6 @@ static int psbfb_kms_off(struct drm_device *dev, int suspend)
 {
 	struct drm_framebuffer *fb = 0;
 	struct psb_framebuffer *psbfb = to_psb_fb(fb);
-	DRM_DEBUG("psbfb_kms_off_ioctl\n");
 
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
@@ -133,8 +132,6 @@ static int psbfb_kms_on(struct drm_device *dev, int resume)
 {
 	struct drm_framebuffer *fb = 0;
 	struct psb_framebuffer *psbfb = to_psb_fb(fb);
-
-	DRM_DEBUG("psbfb_kms_on_ioctl\n");
 
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
@@ -217,12 +214,10 @@ static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 static void psbfb_vm_open(struct vm_area_struct *vma)
 {
-	DRM_DEBUG("vm_open\n");
 }
 
 static void psbfb_vm_close(struct vm_area_struct *vma)
 {
-	DRM_DEBUG("vm_close\n");
 }
 
 static struct vm_operations_struct psbfb_vm_ops = {
@@ -237,7 +232,6 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
 	char *fb_screen_base = NULL;
 	struct drm_device *dev = psbfb->base.dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
 
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
@@ -248,10 +242,6 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 		psbfb->addr_space = vma->vm_file->f_mapping;
 
 	fb_screen_base = (char *)info->screen_base;
-
-	DRM_DEBUG("vm_pgoff 0x%lx, screen base %p vram_addr %p\n",
-				vma->vm_pgoff, fb_screen_base,
-                                dev_priv->vram_addr);
 
         /* If this is a GEM object then info->screen_base is the virtual
            kernel remapping of the object. FIXME: Review if this is
@@ -523,14 +513,10 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 	info->pixmap.scan_align = 1;
 
-	DRM_DEBUG("fb depth is %d\n", fb->depth);
-	DRM_DEBUG("   pitch is %d\n", fb->pitch);
-
-	printk(KERN_INFO"allocated %dx%d fb\n",
-				psbfb->base.width, psbfb->base.height);
+	dev_info(dev->dev, "allocated %dx%d fb\n",
+					psbfb->base.width, psbfb->base.height);
 
 	mutex_unlock(&dev->struct_mutex);
-
 	return 0;
 out_unref:
         if (backing->stolen)
@@ -575,13 +561,11 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 static void psbfb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 							u16 blue, int regno)
 {
-	DRM_DEBUG("%s\n", __func__);
 }
 
 static void psbfb_gamma_get(struct drm_crtc *crtc, u16 *red,
 					u16 *green, u16 *blue, int regno)
 {
-	DRM_DEBUG("%s\n", __func__);
 }
 
 static int psbfb_probe(struct drm_fb_helper *helper,
@@ -590,8 +574,6 @@ static int psbfb_probe(struct drm_fb_helper *helper,
 	struct psb_fbdev *psb_fbdev = (struct psb_fbdev *)helper;
 	int new_fb = 0;
 	int ret;
-
-	DRM_DEBUG("%s\n", __func__);
 
 	if (!helper->fb) {
 		ret = psbfb_create(psb_fbdev, sizes);
@@ -650,7 +632,7 @@ int psb_fbdev_init(struct drm_device *dev)
 
 	fbdev = kzalloc(sizeof(struct psb_fbdev), GFP_KERNEL);
 	if (!fbdev) {
-		DRM_ERROR("no memory\n");
+		dev_err(dev->dev, "no memory\n");
 		return -ENOMEM;
 	}
 
@@ -781,8 +763,6 @@ static void psb_setup_outputs(struct drm_device *dev)
 	    (struct drm_psb_private *) dev->dev_private;
 	struct drm_connector *connector;
 
-	PSB_DEBUG_ENTRY("\n");
-
 	drm_mode_create_scaling_mode_property(dev);
 
 	psb_create_backlight_property(dev);
@@ -791,7 +771,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 		if (dev_priv->iLVDS_enable)
 			mrst_lvds_init(dev, &dev_priv->mode_dev);
 		else
-			DRM_ERROR("DSI is not supported\n");
+			dev_err(dev->dev, "DSI is not supported\n");
 	} else {
 		psb_intel_lvds_init(dev, &dev_priv->mode_dev);
 		psb_intel_sdvo_init(dev, SDVOB);
@@ -811,7 +791,6 @@ static void psb_setup_outputs(struct drm_device *dev)
 			clone_mask = (1 << INTEL_OUTPUT_SDVO);
 			break;
 		case INTEL_OUTPUT_LVDS:
-			PSB_DEBUG_ENTRY("LVDS.\n");
 			if (IS_MRST(dev))
 				crtc_mask = (1 << 0);
 			else
@@ -819,17 +798,14 @@ static void psb_setup_outputs(struct drm_device *dev)
 			clone_mask = (1 << INTEL_OUTPUT_LVDS);
 			break;
 		case INTEL_OUTPUT_MIPI:
-			PSB_DEBUG_ENTRY("MIPI.\n");
 			crtc_mask = (1 << 0);
 			clone_mask = (1 << INTEL_OUTPUT_MIPI);
 			break;
 		case INTEL_OUTPUT_MIPI2:
-			PSB_DEBUG_ENTRY("MIPI2.\n");
 			crtc_mask = (1 << 2);
 			clone_mask = (1 << INTEL_OUTPUT_MIPI2);
 			break;
 		case INTEL_OUTPUT_HDMI:
-			PSB_DEBUG_ENTRY("HDMI.\n");
 			crtc_mask = (1 << 1);
 			clone_mask = (1 << INTEL_OUTPUT_HDMI);
 			break;
@@ -848,8 +824,6 @@ void psb_modeset_init(struct drm_device *dev)
 	    (struct drm_psb_private *) dev->dev_private;
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
 	int i;
-
-	PSB_DEBUG_ENTRY("\n");
 
 	drm_mode_config_init(dev);
 

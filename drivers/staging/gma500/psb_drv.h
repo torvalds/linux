@@ -659,54 +659,12 @@ extern int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 #define PSB_D_MSVDX   (1 << 9)
 #define PSB_D_TOPAZ   (1 << 10)
 
-#ifndef DRM_DEBUG_CODE
-/* To enable debug printout, set drm_psb_debug in psb_drv.c
- * to any combination of above print flags.
- */
-/* #define DRM_DEBUG_CODE 2 */
-#endif
-
-extern int drm_psb_debug;
 extern int drm_psb_no_fb;
 extern int drm_idle_check_interval;
 
-#define PSB_DEBUG_GENERAL(_fmt, _arg...) \
-	PSB_DEBUG(PSB_D_GENERAL, _fmt, ##_arg)
-#define PSB_DEBUG_INIT(_fmt, _arg...) \
-	PSB_DEBUG(PSB_D_INIT, _fmt, ##_arg)
-#define PSB_DEBUG_IRQ(_fmt, _arg...) \
-	PSB_DEBUG(PSB_D_IRQ, _fmt, ##_arg)
-#define PSB_DEBUG_ENTRY(_fmt, _arg...) \
-	PSB_DEBUG(PSB_D_ENTRY, _fmt, ##_arg)
-#define PSB_DEBUG_HV(_fmt, _arg...) \
-	PSB_DEBUG(PSB_D_HV, _fmt, ##_arg)
-#define PSB_DEBUG_DBI_BF(_fmt, _arg...) \
-	PSB_DEBUG(PSB_D_DBI_BF, _fmt, ##_arg)
-#define PSB_DEBUG_PM(_fmt, _arg...) \
-	PSB_DEBUG(PSB_D_PM, _fmt, ##_arg)
-#define PSB_DEBUG_RENDER(_fmt, _arg...) \
-	PSB_DEBUG(PSB_D_RENDER, _fmt, ##_arg)
-#define PSB_DEBUG_REG(_fmt, _arg...) \
-	PSB_DEBUG(PSB_D_REG, _fmt, ##_arg)
-#define PSB_DEBUG_MSVDX(_fmt, _arg...) \
-	PSB_DEBUG(PSB_D_MSVDX, _fmt, ##_arg)
-#define PSB_DEBUG_TOPAZ(_fmt, _arg...) \
-	PSB_DEBUG(PSB_D_TOPAZ, _fmt, ##_arg)
-
-#if DRM_DEBUG_CODE
-#define PSB_DEBUG(_flag, _fmt, _arg...)					\
-	do {								\
-		if (unlikely((_flag) & drm_psb_debug))			\
-			printk(KERN_DEBUG				\
-			       "[psb:0x%02x:%s] " _fmt , _flag,		\
-			       __func__ , ##_arg);			\
-	} while (0)
-#else
-#define PSB_DEBUG(_fmt, _arg...)     do { } while (0)
-#endif
 
 /*
- *Utilities
+ *	Utilities
  */
 
 static inline u32 MRST_MSG_READ32(uint port, uint offset)
@@ -749,19 +707,15 @@ static inline void MDFLD_MSG_WRITE32(uint port, uint offset, u32 value)
 static inline uint32_t REGISTER_READ(struct drm_device *dev, uint32_t reg)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	int reg_val = ioread32(dev_priv->vdc_reg + (reg));
-	PSB_DEBUG_REG("reg = 0x%x. reg_val = 0x%x. \n", reg, reg_val);
-	return reg_val;
+	return ioread32(dev_priv->vdc_reg + reg);
 }
 
 #define REG_READ(reg)	       REGISTER_READ(dev, (reg))
+
 static inline void REGISTER_WRITE(struct drm_device *dev, uint32_t reg,
 				      uint32_t val)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	if ((reg < 0x70084 || reg >0x70088) && (reg < 0xa000 || reg >0xa3ff))
-		PSB_DEBUG_REG("reg = 0x%x, val = 0x%x. \n", reg, val);
-
 	iowrite32((val), dev_priv->vdc_reg + (reg));
 }
 
@@ -771,9 +725,6 @@ static inline void REGISTER_WRITE16(struct drm_device *dev,
 					uint32_t reg, uint32_t val)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-
-	PSB_DEBUG_REG("reg = 0x%x, val = 0x%x. \n", reg, val);
-
 	iowrite16((val), dev_priv->vdc_reg + (reg));
 }
 
@@ -783,20 +734,13 @@ static inline void REGISTER_WRITE8(struct drm_device *dev,
 				       uint32_t reg, uint32_t val)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-
-	PSB_DEBUG_REG("reg = 0x%x, val = 0x%x. \n", reg, val);
-
 	iowrite8((val), dev_priv->vdc_reg + (reg));
 }
 
-#define REG_WRITE8(reg, val)	 REGISTER_WRITE8(dev, (reg), (val))
+#define REG_WRITE8(reg, val)		REGISTER_WRITE8(dev, (reg), (val))
 
-#define PSB_ALIGN_TO(_val, _align) \
-  (((_val) + ((_align) - 1)) & ~((_align) - 1))
-#define PSB_WVDC32(_val, _offs) \
-  iowrite32(_val, dev_priv->vdc_reg + (_offs))
-#define PSB_RVDC32(_offs) \
-  ioread32(dev_priv->vdc_reg + (_offs))
+#define PSB_WVDC32(_val, _offs)		iowrite32(_val, dev_priv->vdc_reg + (_offs))
+#define PSB_RVDC32(_offs)		ioread32(dev_priv->vdc_reg + (_offs))
 
 /* #define TRAP_SGX_PM_FAULT 1 */
 #ifdef TRAP_SGX_PM_FAULT
@@ -810,33 +754,13 @@ static inline void REGISTER_WRITE8(struct drm_device *dev,
     ioread32(dev_priv->sgx_reg + (_offs));			\
 })
 #else
-#define PSB_RSGX32(_offs)					\
-  ioread32(dev_priv->sgx_reg + (_offs))
+#define PSB_RSGX32(_offs)		ioread32(dev_priv->sgx_reg + (_offs))
 #endif
-#define PSB_WSGX32(_val, _offs) \
-  iowrite32(_val, dev_priv->sgx_reg + (_offs))
+#define PSB_WSGX32(_val, _offs)		iowrite32(_val, dev_priv->sgx_reg + (_offs))
 
 #define MSVDX_REG_DUMP 0
-#if MSVDX_REG_DUMP
 
-#define PSB_WMSVDX32(_val, _offs) \
-  printk("MSVDX: write %08x to reg 0x%08x\n", (unsigned int)(_val), (unsigned int)(_offs));\
-  iowrite32(_val, dev_priv->msvdx_reg + (_offs))
-#define PSB_RMSVDX32(_offs) \
-  ioread32(dev_priv->msvdx_reg + (_offs))
-
-#else
-
-#define PSB_WMSVDX32(_val, _offs) \
-  iowrite32(_val, dev_priv->msvdx_reg + (_offs))
-#define PSB_RMSVDX32(_offs) \
-  ioread32(dev_priv->msvdx_reg + (_offs))
-
-#endif
-
-#define PSB_ALPL(_val, _base)			\
-  (((_val) >> (_base ## _ALIGNSHIFT)) << (_base ## _SHIFT))
-#define PSB_ALPLM(_val, _base)			\
-  ((((_val) >> (_base ## _ALIGNSHIFT)) << (_base ## _SHIFT)) & (_base ## _MASK))
+#define PSB_WMSVDX32(_val, _offs)	iowrite32(_val, dev_priv->msvdx_reg + (_offs))
+#define PSB_RMSVDX32(_offs)		ioread32(dev_priv->msvdx_reg + (_offs))
 
 #endif

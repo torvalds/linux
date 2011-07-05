@@ -56,8 +56,6 @@ int psb_set_brightness(struct backlight_device *bd)
 	struct drm_device *dev = bl_get_data(psb_backlight_device);
 	int level = bd->props.brightness;
 
-	DRM_DEBUG_DRIVER("backlight level set to %d\n", level);
-
 	/* Percentage 1-100% being valid */
 	if (level < 1)
 		level = 1;
@@ -74,8 +72,6 @@ int mrst_set_brightness(struct backlight_device *bd)
 	int level = bd->props.brightness;
 	u32 blc_pwm_ctl;
 	u32 max_pwm_blc;
-
-	DRM_DEBUG_DRIVER("backlight level set to %d\n", level);
 
 	/* Percentage 1-100% being valid */
 	if (level < 1)
@@ -111,8 +107,6 @@ int mrst_set_brightness(struct backlight_device *bd)
 
 int psb_get_brightness(struct backlight_device *bd)
 {
-	DRM_DEBUG_DRIVER("brightness = 0x%x\n", psb_brightness);
-
 	/* return locally cached var instead of HW read (due to DPST etc.) */
 	/* FIXME: ideally return actual value in case firmware fiddled with
 	   it */
@@ -144,7 +138,7 @@ static int device_backlight_init(struct drm_device *dev)
 	} else {
 		/* get bl_max_freq and pol from dev_priv*/
 		if (!dev_priv->lvds_bl) {
-			DRM_ERROR("Has no valid LVDS backlight info\n");
+			dev_err(dev->dev, "Has no valid LVDS backlight info\n");
 			return 1;
 		}
 		bl_max_freq = dev_priv->lvds_bl->freq;

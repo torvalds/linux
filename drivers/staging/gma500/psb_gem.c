@@ -87,7 +87,7 @@ static int psb_gem_create_mmap_offset(struct drm_gem_object *obj)
 	list->file_offset_node = drm_mm_search_free(&mm->offset_manager,
 					obj->size / PAGE_SIZE, 0, 0);
 	if (!list->file_offset_node) {
-		DRM_ERROR("failed to allocate offset for bo %d\n", obj->name);
+		dev_err(dev->dev, "failed to allocate offset for bo %d\n", obj->name);
 		ret = -ENOSPC;
 		goto free_it;
 	}
@@ -100,7 +100,7 @@ static int psb_gem_create_mmap_offset(struct drm_gem_object *obj)
 	list->hash.key = list->file_offset_node->start;
 	ret = drm_ht_insert_item(&mm->offset_hash, &list->hash);
 	if (ret) {
-		DRM_ERROR("failed to add to map hash\n");
+		dev_err(dev->dev, "failed to add to map hash\n");
 		goto free_mm;
 	}
 	return 0;
@@ -283,7 +283,7 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (r->mmapping == 0) {
 		ret = psb_gtt_pin(r);
 		if (ret < 0) {
-		        DRM_ERROR("gma500: pin failed: %d\n", ret);
+		        dev_err(dev->dev, "gma500: pin failed: %d\n", ret);
 		        goto fail;
                 }
 		r->mmapping = 1;
