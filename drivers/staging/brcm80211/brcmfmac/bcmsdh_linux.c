@@ -58,51 +58,6 @@ static struct brcmf_sdioh_driver drvinfo = { NULL, NULL };
 /* debugging macros */
 #define SDLX_MSG(x)
 
-/**
- * Checks to see if vendor and device IDs match a supported SDIO Host Controller.
- */
-bool brcmf_sdio_chipmatch(u16 vendor, u16 device)
-{
-	/* Add other vendors and devices as required */
-
-#ifdef BCMSDIOH_STD
-	/* Check for Arasan host controller */
-	if (vendor == VENDOR_SI_IMAGE)
-		return true;
-
-	/* Check for BRCM 27XX Standard host controller */
-	if (device == BCM27XX_SDIOH_ID && vendor == PCI_VENDOR_ID_BROADCOM)
-		return true;
-
-	/* Check for BRCM Standard host controller */
-	if (device == SDIOH_FPGA_ID && vendor == PCI_VENDOR_ID_BROADCOM)
-		return true;
-
-	/* Check for TI PCIxx21 Standard host controller */
-	if (device == PCIXX21_SDIOH_ID && vendor == VENDOR_TI)
-		return true;
-
-	if (device == PCIXX21_SDIOH0_ID && vendor == VENDOR_TI)
-		return true;
-
-	/* Ricoh R5C822 Standard SDIO Host */
-	if (device == R5C822_SDIOH_ID && vendor == VENDOR_RICOH)
-		return true;
-
-	/* JMicron Standard SDIO Host */
-	if (device == JMICRON_SDIOH_ID && vendor == VENDOR_JMICRON)
-		return true;
-#endif				/* BCMSDIOH_STD */
-#ifdef BCMSDIOH_SPI
-	/* This is the PciSpiHost. */
-	if (device == SPIH_FPGA_ID && vendor == PCI_VENDOR_ID_BROADCOM) {
-		return true;
-	}
-#endif				/* BCMSDIOH_SPI */
-
-	return false;
-}
-
 /* forward declarations */
 int brcmf_sdio_probe(struct device *dev);
 EXPORT_SYMBOL(brcmf_sdio_probe);

@@ -58,9 +58,6 @@ extern struct brcmf_sdio_card *brcmf_sdcard_attach(void *cfghdl, void **regsva,
 /* Detach - freeup resources allocated in attach */
 extern int brcmf_sdcard_detach(struct brcmf_sdio_card *card);
 
-/* Query if SD device interrupts are enabled */
-extern bool brcmf_sdcard_intr_query(struct brcmf_sdio_card *card);
-
 /* Enable/disable SD interrupt */
 extern int brcmf_sdcard_intr_enable(struct brcmf_sdio_card *card);
 extern int brcmf_sdcard_intr_disable(struct brcmf_sdio_card *card);
@@ -71,13 +68,6 @@ brcmf_sdcard_intr_reg(struct brcmf_sdio_card *card,
 		      void (*fn)(void *), void *argh);
 
 extern int brcmf_sdcard_intr_dereg(struct brcmf_sdio_card *card);
-
-/* Register a callback to be called on device removal.
- * No-op in the case of non-removable/hardwired devices.
- */
-extern int
-brcmf_sdcard_devremove_reg(struct brcmf_sdio_card *card,
-			   void (*fn)(void *), void *argh);
 
 /* Access SDIO address space (e.g. CCCR) using CMD52 (single-byte interface).
  *   fn:   function number
@@ -173,17 +163,12 @@ extern int brcmf_sdcard_abort(struct brcmf_sdio_card *card, uint fn);
 /* Returns the "Device ID" of target device on the SDIO bus. */
 extern int brcmf_sdcard_query_device(struct brcmf_sdio_card *card);
 
-/* Returns the number of IO functions reported by the device */
-extern uint brcmf_sdcard_query_iofnum(struct brcmf_sdio_card *card);
-
 /* Miscellaneous knob tweaker. */
 extern int brcmf_sdcard_iovar_op(struct brcmf_sdio_card *card, const char *name,
 				 void *params, int plen, void *arg, int len,
 				 bool set);
 
 /* helper functions */
-
-extern void *brcmf_sdcard_get_sdioh(struct brcmf_sdio_card *card);
 
 /* callback functions */
 struct brcmf_sdioh_driver {
@@ -200,19 +185,11 @@ struct sdioh_info;
 extern int brcmf_sdio_function_init(void);
 extern int brcmf_sdio_register(struct brcmf_sdioh_driver *driver);
 extern void brcmf_sdio_unregister(void);
-extern bool brcmf_sdio_chipmatch(u16 vendor, u16 device);
 extern void brcmf_sdio_function_cleanup(void);
 extern int brcmf_sdio_probe(struct device *dev);
 extern int brcmf_sdio_remove(struct device *dev);
 
-/* Function to pass device-status bits to DHD. */
-extern u32 brcmf_sdcard_get_dstatus(struct brcmf_sdio_card *card);
-
 /* Function to return current window addr */
 extern u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_card *card);
-
-/* Function to pass chipid and rev to lower layers for controlling pr's */
-extern void brcmf_sdcard_chipinfo(struct brcmf_sdio_card *card, u32 chip,
-				  u32 chiprev);
 
 #endif				/* _BRCM_SDH_H_ */

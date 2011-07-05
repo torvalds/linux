@@ -774,9 +774,6 @@ extern void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx,
 /* Return pointer to interface name */
 extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
 
-/* Request scheduling of the bus dpc */
-extern void brcmf_sched_dpc(struct brcmf_pub *drvr);
-
 /* Notify tx completion */
 extern void brcmf_txcomplete(struct brcmf_pub *drvr, struct sk_buff *txp,
 			     bool success);
@@ -793,12 +790,6 @@ extern int brcmf_os_ioctl_resp_wait(struct brcmf_pub *drvr, uint *condition,
 extern int brcmf_os_ioctl_resp_wake(struct brcmf_pub *drvr);
 extern unsigned int brcmf_os_get_ioctl_resp_timeout(void);
 extern void brcmf_os_set_ioctl_resp_timeout(unsigned int timeout_msec);
-extern void brcmf_os_sdlock_sndup_rxq(struct brcmf_pub *drvr);
-extern void brcmf_customer_gpio_wlan_ctrl(int onoff);
-extern int brcmf_custom_get_mac_address(unsigned char *buf);
-extern void brcmf_os_sdunlock_sndup_rxq(struct brcmf_pub *drvr);
-extern void brcmf_os_sdlock_eventq(struct brcmf_pub *drvr);
-extern void brcmf_os_sdunlock_eventq(struct brcmf_pub *drvr);
 #ifdef BCMDBG
 extern int brcmf_write_to_file(struct brcmf_pub *drvr, u8 *buf, int size);
 #endif				/* BCMDBG */
@@ -816,14 +807,6 @@ extern void brcmf_c_init(void);
 extern int brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, void *handle,
 		      char *name, u8 *mac_addr, u32 flags, u8 bssidx);
 extern void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx);
-
-extern void brcmf_vif_add(struct brcmf_info *drvr_priv, int ifidx, char *name);
-extern void brcmf_vif_del(struct brcmf_info *drvr_priv, int ifidx);
-
-extern void brcmf_event(struct brcmf_info *drvr_priv, char *evpkt, int evlen,
-			int ifidx);
-extern void brcmf_vif_sendup(struct brcmf_info *drvr_priv, int ifidx,
-			     unsigned char *cp, int len);
 
 /* Send packet to dongle via data channel */
 extern int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx,\

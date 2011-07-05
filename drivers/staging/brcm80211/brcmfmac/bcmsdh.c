@@ -117,19 +117,6 @@ brcmf_sdcard_iovar_op(struct brcmf_sdio_card *card, const char *name,
 				    len, set);
 }
 
-bool brcmf_sdcard_intr_query(struct brcmf_sdio_card *card)
-{
-	int status;
-	bool on;
-
-	ASSERT(card);
-	status = brcmf_sdioh_interrupt_query(card->sdioh, &on);
-	if (status == 0)
-		return false;
-	else
-		return on;
-}
-
 int brcmf_sdcard_intr_enable(struct brcmf_sdio_card *card)
 {
 	ASSERT(card);
@@ -157,15 +144,6 @@ int brcmf_sdcard_intr_dereg(struct brcmf_sdio_card *card)
 	ASSERT(card);
 
 	return brcmf_sdioh_interrupt_deregister(card->sdioh);
-}
-
-int brcmf_sdcard_devremove_reg(struct brcmf_sdio_card *card,
-			       void (*fn)(void *), void *argh)
-{
-	ASSERT(card);
-
-	/* don't support yet */
-	return -ENOTSUPP;
 }
 
 u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_card *card, uint fnc_num, u32 addr,
@@ -551,35 +529,10 @@ int brcmf_sdcard_query_device(struct brcmf_sdio_card *card)
 	return card->vendevid;
 }
 
-uint brcmf_sdcard_query_iofnum(struct brcmf_sdio_card *card)
-{
-	if (!card)
-		card = l_card;
-
-	return brcmf_sdioh_query_iofnum(card->sdioh);
-}
-
-void *brcmf_sdcard_get_sdioh(struct brcmf_sdio_card *card)
-{
-	ASSERT(card);
-	return card->sdioh;
-}
-
-/* Function to pass device-status bits to DHD. */
-u32 brcmf_sdcard_get_dstatus(struct brcmf_sdio_card *card)
-{
-	return 0;
-}
-
 u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_card *card)
 {
 	if (!card)
 		card = l_card;
 
 	return card->sbwad;
-}
-
-void brcmf_sdcard_chipinfo(struct brcmf_sdio_card *card, u32 chip, u32 chiprev)
-{
-	return;
 }

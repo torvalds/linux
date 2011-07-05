@@ -57,11 +57,6 @@ extern int brcmf_proto_hdrpull(struct brcmf_pub *, int *ifidx,
 extern int brcmf_proto_ioctl(struct brcmf_pub *dhd, int ifidx,
 			     struct brcmf_ioctl *ioc, void *buf, int len);
 
-/* Check for and handle local prot-specific iovar commands */
-extern int brcmf_proto_iovar_op(struct brcmf_pub *dhdp, const char *name,
-				void *params, int plen, void *arg, int len,
-				bool set);
-
 /* Add prot dump output to a buffer */
 extern void brcmf_proto_dump(struct brcmf_pub *dhdp,
 			     struct brcmu_strbuf *strbuf);

@@ -352,16 +352,6 @@ done:
 		(((struct sk_buff *)(skb))->ip_summed = \
 		((x) ? CHECKSUM_UNNECESSARY : CHECKSUM_NONE))
 
-/* PKTSETSUMNEEDED and PKTSUMGOOD are not possible because
-	skb->ip_summed is overloaded */
-
-int
-brcmf_proto_iovar_op(struct brcmf_pub *drvr, const char *name,
-		  void *params, int plen, void *arg, int len, bool set)
-{
-	return -ENOTSUPP;
-}
-
 void brcmf_proto_dump(struct brcmf_pub *drvr, struct brcmu_strbuf *strbuf)
 {
 	brcmu_bprintf(strbuf, "Protocol CDC: reqid %d\n", drvr->prot->reqid);

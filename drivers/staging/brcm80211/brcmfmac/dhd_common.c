@@ -414,20 +414,6 @@ int brcmf_c_ioctl(struct brcmf_pub *drvr, struct brcmf_c_ioctl *ioc, void *buf,
 			if (bcmerror != -ENOTSUPP)
 				break;
 
-			/* not in generic table, try protocol module */
-			if (ioc->cmd == BRCMF_GET_VAR)
-				bcmerror = brcmf_proto_iovar_op(drvr, buf,
-								arg, arglen,
-								buf, buflen,
-								IOV_GET);
-			else
-				bcmerror = brcmf_proto_iovar_op(drvr, buf,
-								NULL, 0, arg,
-								arglen,
-								IOV_SET);
-			if (bcmerror != -ENOTSUPP)
-				break;
-
 			/* if still not found, try bus module */
 			if (ioc->cmd == BRCMF_GET_VAR)
 				bcmerror = brcmf_sdbrcm_bus_iovar_op(drvr,
@@ -815,8 +801,6 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 		}
 		/* send up the if event: btamp user needs it */
 		*ifidx = brcmf_ifname2idx(drvr_priv, event->ifname);
-		/* push up to external supp/auth */
-		brcmf_event(drvr_priv, (char *)pvt_data, evlen, *ifidx);
 		break;
 
 		/* These are what external supplicant/authenticator wants */
@@ -829,8 +813,6 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 		/* Fall through: this should get _everything_  */
 
 		*ifidx = brcmf_ifname2idx(drvr_priv, event->ifname);
-		/* push up to external supp/auth */
-		brcmf_event(drvr_priv, (char *)pvt_data, evlen, *ifidx);
 		DHD_TRACE(("%s: MAC event %d, flags %x, status %x\n",
 			   __func__, type, flags, status));
 

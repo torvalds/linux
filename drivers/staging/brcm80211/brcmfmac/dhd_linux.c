@@ -188,24 +188,6 @@ static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktd
 			    struct brcmf_event_msg *event_ptr,
 			    void **data_ptr);
 
-static void brcmf_set_packet_filter(int value, struct brcmf_pub *drvr)
-{
-	DHD_TRACE(("%s: %d\n", __func__, value));
-	/* 1 - Enable packet filter, only allow unicast packet to send up */
-	/* 0 - Disable packet filter */
-	if (brcmf_pkt_filter_enable) {
-		int i;
-
-		for (i = 0; i < drvr->pktfilter_count; i++) {
-			brcmf_c_pktfilter_offload_set(drvr, drvr->pktfilter[i]);
-			brcmf_c_pktfilter_offload_enable(drvr,
-							 drvr->pktfilter[i],
-							 value,
-							 brcmf_master_mode);
-		}
-	}
-}
-
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 static int brcmf_set_suspend(int value, struct brcmf_pub *drvr)
 {
@@ -933,12 +915,6 @@ void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx, struct sk_buff *skb,
 	}
 }
 
-void brcmf_event(struct brcmf_info *drvr_priv, char *evpkt, int evlen, int ifidx)
-{
-	/* Linux version has nothing to do */
-	return;
-}
-
 void brcmf_txcomplete(struct brcmf_pub *drvr, struct sk_buff *txp, bool success)
 {
 	uint ifidx;
@@ -1600,30 +1576,6 @@ int brcmf_bus_start(struct brcmf_pub *drvr)
 	return 0;
 }
 
-int brcmf_iovar(struct brcmf_pub *drvr, int ifidx, char *name, char *cmd_buf,
-	  uint cmd_len, int set)
-{
-	char buf[strlen(name) + 1 + cmd_len];
-	int len = sizeof(buf);
-	struct brcmf_ioctl ioc;
-	int ret;
-
-	len = brcmu_mkiovar(name, cmd_buf, cmd_len, buf, len);
-
-	memset(&ioc, 0, sizeof(ioc));
-
-	ioc.cmd = set ? BRCMF_C_SET_VAR : BRCMF_C_GET_VAR;
-	ioc.buf = buf;
-	ioc.len = len;
-	ioc.set = set;
-
-	ret = brcmf_proto_ioctl(drvr, ifidx, &ioc, ioc.buf, ioc.len);
-	if (!set && ret >= 0)
-		memcpy(cmd_buf, buf, cmd_len);
-
-	return ret;
-}
-
 static struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_open = brcmf_netdev_open,
 	.ndo_stop = brcmf_netdev_stop,
@@ -1884,71 +1836,6 @@ int brcmf_netdev_reset(struct net_device *dev, u8 flag)
 	brcmf_bus_devreset(&drvr_priv->pub, flag);
 
 	return 1;
-}
-
-int brcmf_netdev_set_suspend_disable(struct net_device *dev, int val)
-{
-	struct brcmf_info *drvr_priv = *(struct brcmf_info **)netdev_priv(dev);
-	int ret = 0;
-
-	if (drvr_priv) {
-		ret = drvr_priv->pub.suspend_disable_flag;
-		drvr_priv->pub.suspend_disable_flag = val;
-	}
-	return ret;
-}
-
-int brcmf_netdev_set_suspend(struct net_device *dev, int val)
-{
-	int ret = 0;
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-	struct brcmf_info *drvr_priv = *(struct brcmf_info **)netdev_priv(dev);
-
-	if (drvr_priv) {
-		brcmf_os_proto_block(&drvr_priv->pub);
-		ret = brcmf_set_suspend(val, &drvr_priv->pub);
-		brcmf_os_proto_unblock(&drvr_priv->pub);
-	}
-#endif		/* defined(CONFIG_HAS_EARLYSUSPEND) */
-	return ret;
-}
-
-int brcmf_netdev_set_dtim_skip(struct net_device *dev, int val)
-{
-	struct brcmf_info *drvr_priv = *(struct brcmf_info **) netdev_priv(dev);
-
-	if (drvr_priv)
-		drvr_priv->pub.dtim_skip = val;
-
-	return 0;
-}
-
-int brcmf_netdev_set_packet_filter(struct net_device *dev, int val)
-{
-	struct brcmf_info *drvr_priv = *(struct brcmf_info **) netdev_priv(dev);
-	int ret = 0;
-
-	/* Packet filtering is set only if we still in early-suspend and
-	 * we need either to turn it ON or turn it OFF
-	 * We can always turn it OFF in case of early-suspend, but we turn it
-	 * back ON only if suspend_disable_flag was not set
-	 */
-	if (drvr_priv && drvr_priv->pub.up) {
-		brcmf_os_proto_block(&drvr_priv->pub);
-		if (drvr_priv->pub.in_suspend) {
-			if (!val || (val && !drvr_priv->pub.suspend_disable_flag))
-				brcmf_set_packet_filter(val, &drvr_priv->pub);
-		}
-		brcmf_os_proto_unblock(&drvr_priv->pub);
-	}
-	return ret;
-}
-
-void brcmf_netdev_init_ioctl(struct net_device *dev)
-{
-	struct brcmf_info *drvr_priv = *(struct brcmf_info **)netdev_priv(dev);
-
-	brcmf_c_preinit_ioctls(&drvr_priv->pub);
 }
 
 static int brcmf_get_pend_8021x_cnt(struct brcmf_info *drvr_priv)

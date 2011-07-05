@@ -244,19 +244,6 @@ extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *sd)
 	return 0;
 }
 
-extern int
-brcmf_sdioh_interrupt_query(struct sdioh_info *sd, bool *onoff)
-{
-	sd_trace(("%s: Entering\n", __func__));
-	*onoff = sd->client_intr_enabled;
-	return 0;
-}
-
-uint brcmf_sdioh_query_iofnum(struct sdioh_info *sd)
-{
-	return sd->num_funcs;
-}
-
 /* IOVar table */
 enum {
 	IOV_MSGLEVEL = 1,

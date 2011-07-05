@@ -54,9 +54,6 @@ brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen);
 extern int
 brcmf_sdbrcm_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen);
 
-extern void dhd_bus_isr(bool *InterruptRecognized,
-			bool *QueueMiniportHandleInterrupt, void *arg);
-
 /* Check for and handle local prot-specific iovar commands */
 extern int brcmf_sdbrcm_bus_iovar_op(struct brcmf_pub *drvr, const char *name,
 			    void *params, int plen, void *arg, int len,
@@ -68,13 +65,6 @@ extern void brcmf_sdbrcm_bus_dump(struct brcmf_pub *drvr,
 
 /* Clear any bus counters */
 extern void brcmf_bus_clearcounts(struct brcmf_pub *drvr);
-
-/* return the dongle chipid */
-extern uint brcmf_bus_chip(struct brcmf_bus *bus);
-
-extern void *brcmf_bus_drvr(struct brcmf_bus *bus);
-extern void *brcmf_bus_txq(struct brcmf_bus *bus);
-extern uint brcmf_bus_hdrlen(struct brcmf_bus *bus);
 
 extern void brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick);
 

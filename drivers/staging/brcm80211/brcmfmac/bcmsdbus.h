@@ -125,20 +125,9 @@ struct brcmf_sdmmc_instance {
 extern int  brcmf_sdioh_osinit(struct sdioh_info *sd);
 extern void brcmf_sdioh_osfree(struct sdioh_info *sd);
 
-/* OS-independent interrupt handler */
-extern bool brcmf_sdioh_check_client_intr(struct sdioh_info *sd);
-
 /* Core interrupt enable/disable of device interrupts */
 extern void brcmf_sdioh_dev_intr_on(struct sdioh_info *sd);
 extern void brcmf_sdioh_dev_intr_off(struct sdioh_info *sd);
-
-/* Register mapping routines */
-extern u32 *brcmf_sdioh_reg_map(s32 addr, int size);
-extern void brcmf_sdioh_reg_unmap(s32 addr, int size);
-
-/* Interrupt (de)registration routines */
-extern int  brcmf_sdioh_register_irq(struct sdioh_info *sd, uint irq);
-extern void brcmf_sdioh_free_irq(uint irq, struct sdioh_info *sd);
 
 /* attach, return handler on success, NULL if failed.
  *  The handler shall be provided by all subsequent calls. No local cache
@@ -152,10 +141,6 @@ brcmf_sdioh_interrupt_register(struct sdioh_info *si,
 			       void (*sdioh_cb_fn)(void *), void *argh);
 
 extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *si);
-
-/* query whether SD interrupt is enabled or not */
-extern int
-brcmf_sdioh_interrupt_query(struct sdioh_info *si, bool *onoff);
 
 /* enable or disable SD interrupt */
 extern int
@@ -188,18 +173,12 @@ brcmf_sdioh_cfg_read(struct sdioh_info *si, uint fuc, u32 addr, u8 *data);
 extern int
 brcmf_sdioh_cfg_write(struct sdioh_info *si, uint fuc, u32 addr, u8 *data);
 
-/* query number of io functions */
-extern uint brcmf_sdioh_query_iofnum(struct sdioh_info *si);
-
 /* handle iovars */
 extern int brcmf_sdioh_iovar_op(struct sdioh_info *si, const char *name,
 			  void *params, int plen, void *arg, int len, bool set);
 
 /* Issue abort to the specified function and clear controller as needed */
 extern int brcmf_sdioh_abort(struct sdioh_info *si, uint fnc);
-
-/* Helper function */
-void *brcmf_sdcard_get_sdioh(struct brcmf_sdio_card *card);
 
 /* Watchdog timer interface for pm ops */
 extern void brcmf_sdio_wdtmr_enable(bool enable);

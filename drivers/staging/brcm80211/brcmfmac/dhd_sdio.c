@@ -5565,8 +5565,6 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card, void *regsva,
 		goto fail;
 	}
 
-	brcmf_sdcard_chipinfo(card, bus->ci->chip, bus->ci->chiprev);
-
 	if (!brcmf_sdbrcm_chipmatch((u16) bus->ci->chip)) {
 		DHD_ERROR(("%s: unsupported chip: 0x%04x\n",
 			   __func__, bus->ci->chip));
@@ -6044,27 +6042,6 @@ brcmf_sdbrcm_send_buf(struct brcmf_bus *bus, u32 addr, uint fn, uint flags,
 	return brcmf_sdcard_send_buf
 		(bus->card, addr, fn, flags, buf, nbytes, pkt, complete,
 		 handle);
-}
-
-uint brcmf_bus_chip(struct brcmf_bus *bus)
-{
-	ASSERT(bus->ci != NULL);
-	return bus->ci->chip;
-}
-
-void *brcmf_bus_drvr(struct brcmf_bus *bus)
-{
-	return bus->drvr;
-}
-
-void *brcmf_bus_txq(struct brcmf_bus *bus)
-{
-	return &bus->txq;
-}
-
-uint brcmf_bus_hdrlen(struct brcmf_bus *bus)
-{
-	return SDPCM_HDRLEN;
 }
 
 int brcmf_bus_devreset(struct brcmf_pub *drvr, u8 flag)
