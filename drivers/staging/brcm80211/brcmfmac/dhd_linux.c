@@ -50,7 +50,6 @@ u32 g_assert_type;
 #if defined(CONFIG_PM_SLEEP)
 #include <linux/suspend.h>
 atomic_t brcmf_mmc_suspend;
-DECLARE_WAIT_QUEUE_HEAD(dhd_dpc_wait);
 #endif	/*  defined(CONFIG_PM_SLEEP) */
 
 MODULE_AUTHOR("Broadcom Corporation");
@@ -175,13 +174,6 @@ uint brcmf_pktgen_len;
 module_param(brcmf_pktgen_len, uint, 0);
 #endif
 
-/* Version string to report */
-#ifdef BCMDBG
-#define DHD_COMPILED "\nCompiled in " SRCBASE
-#else
-#define DHD_COMPILED
-#endif
-
 static int brcmf_toe_get(struct brcmf_info *drvr_priv, int idx, u32 *toe_ol);
 static int brcmf_toe_set(struct brcmf_info *drvr_priv, int idx, u32 toe_ol);
 static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
@@ -274,7 +266,7 @@ static void brcmf_early_suspend(struct early_suspend *h)
 	DHD_TRACE(("%s: enter\n", __func__));
 
 	if (drvr_priv)
-		dhd_suspend_resume_helper(drvr_priv, 1);
+		brcmf_suspend_resume_helper(drvr_priv, 1);
 
 }
 
@@ -286,7 +278,7 @@ static void brcmf_late_resume(struct early_suspend *h)
 	DHD_TRACE(("%s: enter\n", __func__));
 
 	if (drvr_priv)
-		dhd_suspend_resume_helper(drvr_priv, 0);
+		brcmf_suspend_resume_helper(drvr_priv, 0);
 }
 #endif				/* defined(CONFIG_HAS_EARLYSUSPEND) */
 
@@ -589,7 +581,7 @@ static void brcmf_op_if(struct brcmf_if *ifp)
 			memcpy(netdev_priv(ifp->net), &drvr_priv, sizeof(drvr_priv));
 			err = brcmf_net_attach(&drvr_priv->pub, ifp->idx);
 			if (err != 0) {
-				DHD_ERROR(("%s: dhd_net_attach failed, "
+				DHD_ERROR(("%s: brcmf_net_attach failed, "
 					"err %d\n",
 					__func__, err));
 				ret = -EOPNOTSUPP;
@@ -741,7 +733,7 @@ int brcmf_sendpkt(struct brcmf_pub *drvr, int ifidx, struct sk_buff *pktbuf)
 	struct brcmf_info *drvr_priv = drvr->info;
 
 	/* Reject if down */
-	if (!drvr->up || (drvr->busstate == DHD_BUS_DOWN))
+	if (!drvr->up || (drvr->busstate == BRCMF_BUS_DOWN))
 		return -ENODEV;
 
 	/* Update multicast statistic */
@@ -771,7 +763,7 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *net)
 	DHD_TRACE(("%s: Enter\n", __func__));
 
 	/* Reject if down */
-	if (!drvr_priv->pub.up || (drvr_priv->pub.busstate == DHD_BUS_DOWN)) {
+	if (!drvr_priv->pub.up || (drvr_priv->pub.busstate == BRCMF_BUS_DOWN)) {
 		DHD_ERROR(("%s: xmit rejected pub.up=%d busstate=%d\n",
 			   __func__, drvr_priv->pub.up, drvr_priv->pub.busstate));
 		netif_stop_queue(net);
@@ -1087,7 +1079,7 @@ static int brcmf_ethtool(struct brcmf_info *drvr_priv, void *uaddr)
 		memset(&info, 0, sizeof(info));
 		info.cmd = cmd;
 
-		/* if dhd requested, identify ourselves */
+		/* if requested, identify ourselves */
 		if (strcmp(drvname, "?dhd") == 0) {
 			sprintf(info.driver, "dhd");
 			strcpy(info.version, BRCMF_VERSION_STR);
@@ -1225,7 +1217,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 		}
 	}
 
-	/* To differentiate between wl and dhd read 4 more byes */
+	/* To differentiate read 4 more byes */
 	if ((copy_from_user(&driver, (char *)ifr->ifr_data +
 			    sizeof(struct brcmf_ioctl), sizeof(uint)) != 0)) {
 		bcmerror = -EINVAL;
@@ -1237,7 +1229,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 		goto done;
 	}
 
-	/* check for local dhd ioctl and handle it */
+	/* check for local brcmf ioctl and handle it */
 	if (driver == BRCMF_IOCTL_MAGIC) {
 		bcmerror = brcmf_c_ioctl((void *)&drvr_priv->pub, &ioc, buf, buflen);
 		if (bcmerror)
@@ -1246,7 +1238,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 	}
 
 	/* send to dongle (must be up, and wl) */
-	if ((drvr_priv->pub.busstate != DHD_BUS_DATA)) {
+	if ((drvr_priv->pub.busstate != BRCMF_BUS_DATA)) {
 		DHD_ERROR(("%s DONGLE_DOWN,__func__\n", __func__));
 		bcmerror = -EIO;
 		goto done;
@@ -1362,7 +1354,7 @@ brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, void *handle, char *name,
 	if (!ifp) {
 		ifp = kmalloc(sizeof(struct brcmf_if), GFP_ATOMIC);
 		if (!ifp) {
-			DHD_ERROR(("%s: OOM - struct dhd_if\n", __func__));
+			DHD_ERROR(("%s: OOM - struct brcmf_if\n", __func__));
 			return -ENOMEM;
 		}
 	}
@@ -1421,7 +1413,7 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 	/* Allocate primary brcmf_info */
 	drvr_priv = kzalloc(sizeof(struct brcmf_info), GFP_ATOMIC);
 	if (!drvr_priv) {
-		DHD_ERROR(("%s: OOM - alloc dhd_info\n", __func__));
+		DHD_ERROR(("%s: OOM - alloc brcmf_info\n", __func__));
 		goto fail;
 	}
 
@@ -1460,7 +1452,7 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 
 	/* Attach and link in the protocol */
 	if (brcmf_proto_attach(&drvr_priv->pub) != 0) {
-		DHD_ERROR(("dhd_prot_attach failed\n"));
+		DHD_ERROR(("brcmf_proto_attach failed\n"));
 		goto fail;
 	}
 
@@ -1473,10 +1465,10 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 	if (brcmf_sysioc) {
 		sema_init(&drvr_priv->sysioc_sem, 0);
 		drvr_priv->sysioc_tsk = kthread_run(_brcmf_sysioc_thread, drvr_priv,
-						"_dhd_sysioc");
+						"_brcmf_sysioc");
 		if (IS_ERR(drvr_priv->sysioc_tsk)) {
 			printk(KERN_WARNING
-				"_dhd_sysioc thread failed to start\n");
+				"_brcmf_sysioc thread failed to start\n");
 			drvr_priv->sysioc_tsk = NULL;
 		}
 	} else
@@ -1493,7 +1485,6 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 #if defined(CONFIG_PM_SLEEP)
 	atomic_set(&brcmf_mmc_suspend, false);
 #endif	/* defined(CONFIG_PM_SLEEP) */
-	/* && defined(DHD_GPL) */
 	/* Init lock suspend to prevent kernel going to suspend */
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	drvr_priv->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 20;
@@ -1533,7 +1524,7 @@ int brcmf_bus_start(struct brcmf_pub *drvr)
 	}
 
 	/* If bus is not ready, can't come up */
-	if (drvr_priv->pub.busstate != DHD_BUS_DATA) {
+	if (drvr_priv->pub.busstate != BRCMF_BUS_DATA) {
 		DHD_ERROR(("%s failed bus is not ready\n", __func__));
 		return -ENODEV;
 	}
@@ -1703,7 +1694,6 @@ void brcmf_detach(struct brcmf_pub *drvr)
 
 			brcmf_cfg80211_detach();
 
-			/* && defined(DHD_GPL) */
 			free_netdev(ifp->net);
 			kfree(ifp);
 			kfree(drvr_priv);
@@ -1727,7 +1717,7 @@ static int __init brcmf_module_init(void)
 	error = brcmf_bus_register();
 
 	if (error) {
-		DHD_ERROR(("%s: dhd_bus_register failed\n", __func__));
+		DHD_ERROR(("%s: brcmf_bus_register failed\n", __func__));
 		goto failed;
 	}
 	return 0;
@@ -1739,9 +1729,6 @@ failed:
 module_init(brcmf_module_init);
 module_exit(brcmf_module_cleanup);
 
-/*
- * OS specific functions required to implement DHD driver in OS independent way
- */
 int brcmf_os_proto_block(struct brcmf_pub *drvr)
 {
 	struct brcmf_info *drvr_priv = drvr->info;

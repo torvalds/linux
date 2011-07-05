@@ -118,7 +118,7 @@ static int brcmf_c_dump(struct brcmf_pub *drvr, char *buf, int buflen)
 
 	brcmu_binit(strbuf, buf, buflen);
 
-	/* Base DHD info */
+	/* Base info */
 	brcmu_bprintf(strbuf, "%s\n", brcmf_version);
 	brcmu_bprintf(strbuf, "\n");
 	brcmu_bprintf(strbuf, "pub.up %d pub.txoff %d pub.busstate %d\n",
@@ -672,7 +672,7 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 			if (hdr.version != MSGTRACE_VERSION) {
 				DHD_ERROR(
 				    ("\nMACEVENT: %s [unsupported version --> "
-				     "dhd version:%d dongle version:%d]\n",
+				     "brcmf version:%d dongle version:%d]\n",
 				     event_name, MSGTRACE_VERSION, hdr.version)
 				);
 				/* Reset datalen to avoid display below */

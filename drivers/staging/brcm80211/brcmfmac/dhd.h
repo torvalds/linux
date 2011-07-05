@@ -18,8 +18,8 @@
  * Common types *
  */
 
-#ifndef _dhd_h_
-#define _dhd_h_
+#ifndef _BRCMF_H_
+#define _BRCMF_H_
 
 #define BRCMF_VERSION_STR		"4.218.248.5"
 
@@ -310,10 +310,10 @@ struct brcmf_event {
 #define BRCMF_E_LINK_BSSCFG_DIS			4
 
 /* The level of bus communication with the dongle */
-enum dhd_bus_state {
-	DHD_BUS_DOWN,		/* Not ready for frame transfers */
-	DHD_BUS_LOAD,		/* Download access only (CPU reset) */
-	DHD_BUS_DATA		/* Ready for frame transfers */
+enum brcmf_bus_state {
+	BRCMF_BUS_DOWN,		/* Not ready for frame transfers */
+	BRCMF_BUS_LOAD,		/* Download access only (CPU reset) */
+	BRCMF_BUS_DATA		/* Ready for frame transfers */
 };
 
 /* Pattern matching filter. Specifies an offset within received packets to
@@ -533,12 +533,12 @@ struct brcmf_pub {
 	struct brcmf_proto *prot;
 	struct brcmf_info *info;
 
-	/* Internal dhd items */
+	/* Internal brcmf items */
 	bool up;		/* Driver up/down (to OS) */
 	bool txoff;		/* Transmit flow-controlled */
 	bool dongle_reset;	/* true = DEVRESET put dongle into reset */
-	enum dhd_bus_state busstate;
-	uint hdrlen;		/* Total DHD header length (proto + bus) */
+	enum brcmf_bus_state busstate;
+	uint hdrlen;		/* Total BRCMF header length (proto + bus) */
 	uint maxctl;		/* Max size rxctl request from proto to bus */
 	uint rxsz;		/* Rx buffer size bus module should use */
 	u8 wme_dp;		/* wme discard priority */
@@ -564,7 +564,7 @@ struct brcmf_pub {
 	unsigned long rx_dropped;	/* Packets dropped locally (no memory) */
 	unsigned long rx_flushed;	/* Packets flushed due to
 				unscheduled sendup thread */
-	unsigned long wd_dpc_sched;	/* Number of times dhd dpc scheduled by
+	unsigned long wd_dpc_sched;	/* Number of times dpc scheduled by
 					 watchdog timer */
 
 	unsigned long rx_readahead_cnt;	/* Number of packets where header read-ahead
@@ -744,10 +744,6 @@ static inline void MUTEX_UNLOCK_WL_SCAN_SET(void)
 {
 }
 
-/*
- * Exported from dhd OS modules (dhd_linux/dhd_ndis)
- */
-
 /* Indication from bus module regarding presence/insertion of dongle.
  * Return struct brcmf_pub pointer, used as handle to OS module in later calls.
  * Returned structure should have bus and prot pointers filled in.
@@ -902,4 +898,4 @@ struct brcmf_pktgen {
 #define BRCMF_IDLE_ACTIVE	0	/* Do not request any SD clock change
 				 when idle */
 
-#endif				/* _dhd_h_ */
+#endif				/* _BRCMF_H_ */

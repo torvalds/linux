@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _dhd_bus_h_
-#define _dhd_bus_h_
+#ifndef _BRCMF_BUS_H_
+#define _BRCMF_BUS_H_
 
 /* Packet alignment for most efficient SDIO (can change based on platform) */
 #ifndef BRCMF_SDALIGN
@@ -26,7 +26,7 @@
 #endif
 
 /*
- * Exported from dhd bus module (dhd_usb, dhd_sdio)
+ * Exported from brcmf bus module (brcmf_usb, brcmf_sdio)
  */
 
 /* Watchdog timer interval */
@@ -68,4 +68,4 @@ extern void brcmf_bus_clearcounts(struct brcmf_pub *drvr);
 
 extern void brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick);
 
-#endif				/* _dhd_bus_h_ */
+#endif				/* _BRCMF_BUS_H_ */

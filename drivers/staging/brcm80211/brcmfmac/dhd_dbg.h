@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _dhd_dbg_
-#define _dhd_dbg_
+#ifndef _BRCMF_DBG_H_
+#define _BRCMF_DBG_H_
 
 #if defined(BCMDBG)
 
@@ -73,4 +73,4 @@
 
 extern int brcmf_msg_level;
 
-#endif				/* _dhd_dbg_ */
+#endif				/* _BRCMF_DBG_H_ */

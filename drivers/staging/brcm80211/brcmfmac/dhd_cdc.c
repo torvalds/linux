@@ -82,7 +82,6 @@ struct brcmf_proto_bdc_header {
 
 #define RETRIES 2	/* # of retries to retrieve matching ioctl response */
 #define BUS_HEADER_LEN	(16+BRCMF_SDALIGN) /* Must be atleast SDPCM_RESERVE
-					 * defined in dhd_sdio.c
 					 * (amount of header tha might be added)
 					 * plus any space that might be needed
 					 * for alignment padding.
@@ -176,8 +175,8 @@ brcmf_proto_cdc_query_ioctl(struct brcmf_pub *drvr, int ifidx, uint cmd,
 
 	ret = brcmf_proto_cdc_msg(drvr);
 	if (ret < 0) {
-		DHD_ERROR(("dhdcdc_query_ioctl: dhdcdc_msg failed w/status "
-			"%d\n", ret));
+		DHD_ERROR(("brcmf_proto_cdc_query_ioctl: brcmf_proto_cdc_msg "
+			   "failed w/status %d\n", ret));
 		goto done;
 	}
 
@@ -280,7 +279,7 @@ brcmf_proto_ioctl(struct brcmf_pub *drvr, int ifidx, struct brcmf_ioctl *ioc,
 	struct brcmf_proto *prot = drvr->prot;
 	int ret = -1;
 
-	if (drvr->busstate == DHD_BUS_DOWN) {
+	if (drvr->busstate == BRCMF_BUS_DOWN) {
 		DHD_ERROR(("%s : bus is down. we have nothing to do\n",
 			   __func__));
 		return ret;
