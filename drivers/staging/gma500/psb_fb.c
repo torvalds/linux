@@ -591,7 +591,6 @@ int psb_fbdev_init(struct drm_device *dev)
 {
 	struct psb_fbdev *fbdev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	int num_crtc;
 
 	fbdev = kzalloc(sizeof(struct psb_fbdev), GFP_KERNEL);
 	if (!fbdev) {
@@ -602,10 +601,7 @@ int psb_fbdev_init(struct drm_device *dev)
 	dev_priv->fbdev = fbdev;
 	fbdev->psb_fb_helper.funcs = &psb_fb_helper_funcs;
 
-	/* FIXME: check Medfield */
-	num_crtc = 2;
-
-	drm_fb_helper_init(dev, &fbdev->psb_fb_helper, num_crtc,
+	drm_fb_helper_init(dev, &fbdev->psb_fb_helper, 2,
 							INTELFB_CONN_LIMIT);
 
 	drm_fb_helper_single_add_all_connectors(&fbdev->psb_fb_helper);
