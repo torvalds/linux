@@ -254,17 +254,13 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 				vma->vm_pgoff, fb_screen_base,
                                 dev_priv->vram_addr);
 
-        /* FIXME: ultimately this needs to become 'if entirely stolen memory' */
-	if (1 || fb_screen_base == dev_priv->vram_addr) {
-		vma->vm_ops = &psbfb_vm_ops;
-		vma->vm_private_data = (void *)psbfb;
-		vma->vm_flags |= VM_RESERVED | VM_IO |
-						VM_MIXEDMAP | VM_DONTEXPAND;
-	} else {
-	        /* GTT memory backed by kernel/user pages, needs a different
-	           approach ? - GEM ? */
-	}
-
+        /* If this is a GEM object then info->screen_base is the virtual
+           kernel remapping of the object. FIXME: Review if this is
+           suitable for our mmap work */
+	vma->vm_ops = &psbfb_vm_ops;
+	vma->vm_private_data = (void *)psbfb;
+	vma->vm_flags |= VM_RESERVED | VM_IO |
+					VM_MIXEDMAP | VM_DONTEXPAND;
 	return 0;
 }
 
@@ -349,8 +345,6 @@ err:
  *
  *	FIXME: console speed up - allocate twice the space if room and use
  *	hardware scrolling for acceleration.
- *	FIXME: we need to vm_map_ram  a linear mapping if the object has to
- *	be GEM host mapped, otherwise the cfb layer's brain will fall out.
  */
 static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 {
@@ -439,10 +433,22 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info->fix.smem_start = dev->mode_config.fb_base;
 	info->fix.smem_len = size;
 
-	/* Accessed via stolen memory directly, This only works for stolem
-	   memory however. Need to address this once we start using gtt
-	   pages we allocate. FIXME: vm_map_ram for that case */
-	info->screen_base = (char *)dev_priv->vram_addr + backing->offset;
+	if (backing->stolen) {
+		/* Accessed stolen memory directly */
+		info->screen_base = (char *)dev_priv->vram_addr +
+							backing->offset;
+	} else {
+		/* Pin the pages into the GTT and create a mapping to them */
+		psb_gtt_pin(backing);
+		info->screen_base = vm_map_ram(backing->pages, backing->npage,
+				-1, PAGE_KERNEL);
+		if (info->screen_base == NULL) {
+			psb_gtt_unpin(backing);
+			ret = -ENOMEM;
+			goto out_err0;
+		}
+		psbfb->vm_map = 1;
+	}
 	info->screen_size = size;
 	memset(info->screen_base, 0, size);
 
@@ -570,6 +576,13 @@ int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 
 	if (fbdev->psb_fb_helper.fbdev) {
 		info = fbdev->psb_fb_helper.fbdev;
+
+		/* If this is our base framebuffer then kill any virtual map
+		   for the framebuffer layer and unpin it */
+		if (psbfb->vm_map) {
+			vm_unmap_ram(info->screen_base, psbfb->gtt->npage);
+			psb_gtt_unpin(psbfb->gtt);
+		}
 		/* FIXME: this is a bit more inside knowledge than I'd like
 		   but I don't see how to make a fake GEM object of the
 		   stolen space nicely */

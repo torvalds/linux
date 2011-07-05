@@ -79,7 +79,6 @@ u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
 static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 {
 	u32 *gtt_slot, pte;
-	int numpages = (r->resource.end + 1 - r->resource.start) >> PAGE_SHIFT;
 	struct page **pages;
 	int i;
 
@@ -94,10 +93,10 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 	pages = r->pages;
 
 	/* Make sure changes are visible to the GPU */
-	set_pages_array_uc(pages, numpages);
+	set_pages_array_uc(pages, r->npage);
 
 	/* Write our page entries into the GTT itself */
-	for (i = 0; i < numpages; i++) {
+	for (i = 0; i < r->npage; i++) {
 		pte = psb_gtt_mask_pte(page_to_pfn(*pages++), 0/*type*/);
 		iowrite32(pte, gtt_slot++);
 	}
@@ -120,7 +119,6 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 *gtt_slot, pte;
-	int numpages = (r->resource.end + 1 - r->resource.start) >> PAGE_SHIFT;
 	int i;
 
 	WARN_ON(r->stolen);
@@ -128,10 +126,10 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 	gtt_slot = psb_gtt_entry(dev, r);
 	pte = psb_gtt_mask_pte(page_to_pfn(dev_priv->scratch_page), 0);
 
-	for (i = 0; i < numpages; i++)
+	for (i = 0; i < r->npage; i++)
 		iowrite32(pte, gtt_slot++);
 	ioread32(gtt_slot - 1);
-	set_pages_array_wb(r->pages, numpages);
+	set_pages_array_wb(r->pages, r->npage);
 }
 
 /**
@@ -149,7 +147,7 @@ static int psb_gtt_attach_pages(struct gtt_range *gt)
 	struct address_space *mapping;
 	int i;
 	struct page *p;
-	int pages = (gt->resource.end + 1 - gt->resource.start) >> PAGE_SHIFT;
+	int pages = gt->gem.size / PAGE_SIZE;
 
 	WARN_ON(gt->pages);
 
@@ -160,6 +158,8 @@ static int psb_gtt_attach_pages(struct gtt_range *gt)
 	gt->pages = kmalloc(pages * sizeof(struct page *), GFP_KERNEL);
 	if (gt->pages == NULL)
 		return -ENOMEM;
+	gt->npage = pages;
+
 	for (i = 0; i < pages; i++) {
 		/* FIXME: review flags later */
 		p = read_cache_page_gfp(mapping, i,
@@ -191,9 +191,7 @@ err:
 static void psb_gtt_detach_pages(struct gtt_range *gt)
 {
 	int i;
-	int pages = (gt->resource.end + 1 - gt->resource.start) >> PAGE_SHIFT;
-
-	for (i = 0; i < pages; i++) {
+	for (i = 0; i < gt->npage; i++) {
 		/* FIXME: do we need to force dirty */
 		set_page_dirty(gt->pages[i]);
 		/* Undo the reference we took when populating the table */

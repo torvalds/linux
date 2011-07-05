@@ -46,9 +46,10 @@ struct gtt_range {
 	struct kref kref;
 	struct drm_gem_object gem;	/* GEM high level stuff */
 	int in_gart;			/* Currently in the GART (ref ct) */
-        bool stolen;			/* Backed from stolen RAM */
-        bool mmapping;			/* Is mmappable */
+	bool stolen;			/* Backed from stolen RAM */
+	bool mmapping;			/* Is mmappable */
 	struct page **pages;		/* Backing pages if present */
+	int npage;			/* Number of backing pages */
 };
 
 extern struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,

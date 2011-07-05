@@ -33,6 +33,7 @@ struct psb_framebuffer {
 	struct address_space *addr_space;
 	struct fb_info *fbdev;
 	struct gtt_range *gtt;
+	bool vm_map;		/* True if we must undo a vm_map_ram */
 };
 
 struct psb_fbdev {
