@@ -127,7 +127,6 @@
   </refsect1>
 
   <refsect1>
-    <title>Return value</title>
-    <para>This function doesn't return specific error codes.</para>
+    &return-value;
   </refsect1>
 </refentry>

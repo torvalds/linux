@@ -5,6 +5,11 @@
   <tgroup cols="2">
     &cs-str;
     <tbody valign="top">
+	<!-- Keep it ordered alphabetically -->
+      <row>
+	<entry>EBADF</entry>
+	<entry><parameter>fd</parameter> is not a valid open file descriptor.</entry>
+      </row>
       <row>
 	<entry>EBUSY</entry>
 	<entry>The ioctl can't be handled because the device is busy. This is
@@ -15,7 +20,16 @@
 	       problem first (typically: stop the stream before retrying).</entry>
       </row>
       <row>
+	<entry>EFAULT</entry>
+	<entry><parameter>fd</parameter> is not a valid open file descriptor.</entry>
+      </row>
+      <row>
 	<entry>EINVAL</entry>
+	<entry>One or more of the ioctl parameters are invalid. This is a widely
+	       used error code. See the individual ioctl requests for actual causes.</entry>
+      </row>
+      <row>
+	<entry>EINVAL or ENOTTY</entry>
 	<entry>The ioctl is not supported by the driver, actually meaning that
 	       the required functionality is not available.</entry>
       </row>
@@ -25,7 +39,7 @@
       </row>
       <row>
 	<entry>ENOSPC</entry>
-	<entry>On USB devices, the stream ioctl's can return this error meaning
+	<entry>On USB devices, the stream ioctl's can return this error, meaning
 	       that this request would overcommit the usb bandwidth reserved
 	       for periodic transfers (up to 80% of the USB bandwidth).</entry>
       </row>

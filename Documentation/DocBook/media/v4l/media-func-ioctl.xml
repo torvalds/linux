@@ -63,54 +63,10 @@
   </refsect1>
 
   <refsect1>
-    <title>Return Value</title>
-
-    <para><function>ioctl()</function> returns <returnvalue>0</returnvalue> on
-    success. On failure, <returnvalue>-1</returnvalue> is returned, and the
-    <varname>errno</varname> variable is set appropriately. Generic error codes
-    are listed below, and request-specific error codes are listed in the
+    &return-value;
+    <para>Request-specific error codes are listed in the
     individual requests descriptions.</para>
     <para>When an ioctl that takes an output or read/write parameter fails,
     the parameter remains unmodified.</para>
-
-    <variablelist>
-      <varlistentry>
-	<term><errorcode>EBADF</errorcode></term>
-	<listitem>
-	  <para><parameter>fd</parameter> is not a valid open file descriptor.
-	  </para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>EFAULT</errorcode></term>
-	<listitem>
-	  <para><parameter>argp</parameter> references an inaccessible memory
-	  area.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>EINVAL</errorcode></term>
-	<listitem>
-	  <para>The <parameter>request</parameter> or the data pointed to by
-	  <parameter>argp</parameter> is not valid. This is a very common error
-	  code, see the individual ioctl requests listed in
-	  <xref linkend="media-user-func" /> for actual causes.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>ENOMEM</errorcode></term>
-	<listitem>
-	  <para>Insufficient kernel memory was available to complete the
-	  request.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>ENOTTY</errorcode></term>
-	<listitem>
-	  <para><parameter>fd</parameter> is  not  associated  with  a character
-	  special device.</para>
-	</listitem>
-      </varlistentry>
-    </variablelist>
   </refsect1>
 </refentry>
