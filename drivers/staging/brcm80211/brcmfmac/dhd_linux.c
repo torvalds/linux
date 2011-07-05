@@ -113,7 +113,6 @@ module_param(brcmf_pkt_filter_init, uint, 0);
 uint brcmf_master_mode = true;
 module_param(brcmf_master_mode, uint, 1);
 
-extern int brcmf_dongle_memsize;
 module_param(brcmf_dongle_memsize, int, 0);
 
 /* Contorl fw roaming */
@@ -148,8 +147,6 @@ uint brcmf_sdiod_drive_strength = 6;
 module_param(brcmf_sdiod_drive_strength, uint, 0);
 
 /* Tx/Rx bounds */
-extern uint brcmf_txbound;
-extern uint brcmf_rxbound;
 module_param(brcmf_txbound, uint, 0);
 module_param(brcmf_rxbound, uint, 0);
 
