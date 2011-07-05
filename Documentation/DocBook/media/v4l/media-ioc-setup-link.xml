@@ -72,15 +72,6 @@
 
     <variablelist>
       <varlistentry>
-	<term><errorcode>EBUSY</errorcode></term>
-	<listitem>
-	  <para>The link properties can't be changed because the link is
-	  currently busy. This can be caused, for instance, by an active media
-	  stream (audio or video) on the link. The ioctl shouldn't be retried if
-	  no other action is performed before to fix the problem.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
 	<term><errorcode>EINVAL</errorcode></term>
 	<listitem>
 	  <para>The &media-link-desc; references a non-existing link, or the
