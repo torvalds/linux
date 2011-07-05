@@ -3,7 +3,8 @@
 #
 ccflags-y += -Iinclude/drm
 
-psb_gfx-y += psb_bl.o \
+psb_gfx-y += gem_glue.o \
+	  psb_bl.o \
 	  psb_drv.o \
 	  psb_gem.o \
 	  psb_fb.o \
