@@ -6086,6 +6086,11 @@ M:	Willy Tarreau <willy@meta-x.org>
 S:	Odd Fixes
 F:	drivers/staging/panel/
 
+STAGING - SILICON MOTION SM7XX FRAME BUFFER DRIVER
+M:	Teddy Wang <teddy.wang@siliconmotion.com.cn>
+S:	Odd Fixes
+F:	drivers/staging/sm7xx/
+
 STARFIRE/DURALAN NETWORK DRIVER
 M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
