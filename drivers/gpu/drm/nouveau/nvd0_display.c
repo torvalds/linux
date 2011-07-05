@@ -23,7 +23,9 @@
  */
 
 #include <linux/dma-mapping.h>
+
 #include "drmP.h"
+#include "drm_crtc_helper.h"
 
 #include "nouveau_drv.h"
 #include "nouveau_connector.h"
@@ -92,6 +94,12 @@ evo_kick(u32 *push, struct drm_device *dev, int id)
 #define evo_mthd(p,m,s) *((p)++) = (((s) << 18) | (m))
 #define evo_data(p,d)   *((p)++) = (d)
 
+static struct drm_crtc *
+nvd0_display_crtc_get(struct drm_encoder *encoder)
+{
+	return nouveau_encoder(encoder)->crtc;
+}
+
 /******************************************************************************
  * DAC
  *****************************************************************************/
@@ -99,6 +107,163 @@ evo_kick(u32 *push, struct drm_device *dev, int id)
 /******************************************************************************
  * SOR
  *****************************************************************************/
+static void
+nvd0_sor_dpms(struct drm_encoder *encoder, int mode)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
+	struct drm_encoder *partner;
+	int or = nv_encoder->or;
+	u32 dpms_ctrl;
+
+	nv_encoder->last_dpms = mode;
+
+	list_for_each_entry(partner, &dev->mode_config.encoder_list, head) {
+		struct nouveau_encoder *nv_partner = nouveau_encoder(partner);
+
+		if (partner->encoder_type != DRM_MODE_ENCODER_TMDS)
+			continue;
+
+		if (nv_partner != nv_encoder &&
+		    nv_partner->dcb->or == nv_encoder->or) {
+			if (nv_partner->last_dpms == DRM_MODE_DPMS_ON)
+				return;
+			break;
+		}
+	}
+
+	dpms_ctrl  = (mode == DRM_MODE_DPMS_ON);
+	dpms_ctrl |= 0x80000000;
+
+	nv_wait(dev, 0x61c004 + (or * 0x0800), 0x80000000, 0x00000000);
+	nv_mask(dev, 0x61c004 + (or * 0x0800), 0x80000001, dpms_ctrl);
+	nv_wait(dev, 0x61c004 + (or * 0x0800), 0x80000000, 0x00000000);
+	nv_wait(dev, 0x61c030 + (or * 0x0800), 0x10000000, 0x00000000);
+}
+
+static bool
+nvd0_sor_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
+		    struct drm_display_mode *adjusted_mode)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_connector *nv_connector;
+
+	nv_connector = nouveau_encoder_connector_get(nv_encoder);
+	if (nv_connector && nv_connector->native_mode) {
+		if (nv_connector->scaling_mode != DRM_MODE_SCALE_NONE) {
+			int id = adjusted_mode->base.id;
+			*adjusted_mode = *nv_connector->native_mode;
+			adjusted_mode->base.id = id;
+		}
+	}
+
+	return true;
+}
+
+static void
+nvd0_sor_prepare(struct drm_encoder *encoder)
+{
+}
+
+static void
+nvd0_sor_commit(struct drm_encoder *encoder)
+{
+}
+
+static void
+nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
+		  struct drm_display_mode *adjusted_mode)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
+	u32 mode_ctrl = (1 << nv_crtc->index);
+	u32 *push;
+
+	if (nv_encoder->dcb->sorconf.link & 1) {
+		if (adjusted_mode->clock < 165000)
+			mode_ctrl |= 0x00000100;
+		else
+			mode_ctrl |= 0x00000500;
+	} else {
+		mode_ctrl |= 0x00000200;
+	}
+
+	nvd0_sor_dpms(encoder, DRM_MODE_DPMS_ON);
+
+	push = evo_wait(encoder->dev, 0, 2);
+	if (push) {
+		evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 1);
+		evo_data(push, mode_ctrl);
+	}
+
+	nv_encoder->crtc = encoder->crtc;
+}
+
+static void
+nvd0_sor_disconnect(struct drm_encoder *encoder)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
+
+	if (nv_encoder->crtc) {
+		u32 *push = evo_wait(dev, 0, 4);
+		if (push) {
+			evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 1);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x0080, 1);
+			evo_data(push, 0x00000000);
+			evo_kick(push, dev, 0);
+		}
+
+		nv_encoder->crtc = NULL;
+		nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
+	}
+}
+
+static void
+nvd0_sor_destroy(struct drm_encoder *encoder)
+{
+	drm_encoder_cleanup(encoder);
+	kfree(encoder);
+}
+
+static const struct drm_encoder_helper_funcs nvd0_sor_hfunc = {
+	.dpms = nvd0_sor_dpms,
+	.mode_fixup = nvd0_sor_mode_fixup,
+	.prepare = nvd0_sor_prepare,
+	.commit = nvd0_sor_commit,
+	.mode_set = nvd0_sor_mode_set,
+	.disable = nvd0_sor_disconnect,
+	.get_crtc = nvd0_display_crtc_get,
+};
+
+static const struct drm_encoder_funcs nvd0_sor_func = {
+	.destroy = nvd0_sor_destroy,
+};
+
+static int
+nvd0_sor_create(struct drm_connector *connector, struct dcb_entry *dcbe)
+{
+	struct drm_device *dev = connector->dev;
+	struct nouveau_encoder *nv_encoder;
+	struct drm_encoder *encoder;
+
+	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
+	if (!nv_encoder)
+		return -ENOMEM;
+	nv_encoder->dcb = dcbe;
+	nv_encoder->or = ffs(dcbe->or) - 1;
+	nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
+
+	encoder = to_drm_encoder(nv_encoder);
+	encoder->possible_crtcs = dcbe->heads;
+	encoder->possible_clones = 0;
+	drm_encoder_init(dev, encoder, &nvd0_sor_func, DRM_MODE_ENCODER_TMDS);
+	drm_encoder_helper_add(encoder, &nvd0_sor_hfunc);
+
+	drm_mode_connector_attach_encoder(connector, encoder);
+	return 0;
+}
 
 /******************************************************************************
  * IRQ
@@ -256,14 +421,50 @@ nvd0_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
+	struct dcb_table *dcb = &dev_priv->vbios.dcb;
+	struct drm_connector *connector, *tmp;
 	struct pci_dev *pdev = dev->pdev;
 	struct nvd0_display *disp;
-	int ret;
+	struct dcb_entry *dcbe;
+	int ret, i;
 
 	disp = kzalloc(sizeof(*disp), GFP_KERNEL);
 	if (!disp)
 		return -ENOMEM;
 	dev_priv->engine.display.priv = disp;
+
+	/* create encoder/connector objects based on VBIOS DCB table */
+	for (i = 0, dcbe = &dcb->entry[0]; i < dcb->entries; i++, dcbe++) {
+		connector = nouveau_connector_create(dev, dcbe->connector);
+		if (IS_ERR(connector))
+			continue;
+
+		if (dcbe->location != DCB_LOC_ON_CHIP) {
+			NV_WARN(dev, "skipping off-chip encoder %d/%d\n",
+				dcbe->type, ffs(dcbe->or) - 1);
+			continue;
+		}
+
+		switch (dcbe->type) {
+		case OUTPUT_TMDS:
+			nvd0_sor_create(connector, dcbe);
+			break;
+		default:
+			NV_WARN(dev, "skipping unsupported encoder %d/%d\n",
+				dcbe->type, ffs(dcbe->or) - 1);
+			continue;
+		}
+	}
+
+	/* cull any connectors we created that don't have an encoder */
+	list_for_each_entry_safe(connector, tmp, &dev->mode_config.connector_list, head) {
+		if (connector->encoder_ids[0])
+			continue;
+
+		NV_WARN(dev, "%s has no encoders, removing\n",
+			drm_get_connector_name(connector));
+		connector->funcs->destroy(connector);
+	}
 
 	/* setup interrupt handling */
 	nouveau_irq_register(dev, 26, nvd0_display_intr);
