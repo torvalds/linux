@@ -16,6 +16,7 @@
  * device driver can get phy interface from device tree.
  */
 static const char *phy_modes[] = {
+	[PHY_INTERFACE_MODE_NA]		= "",
 	[PHY_INTERFACE_MODE_MII]	= "mii",
 	[PHY_INTERFACE_MODE_GMII]	= "gmii",
 	[PHY_INTERFACE_MODE_SGMII]	= "sgmii",
@@ -26,6 +27,7 @@ static const char *phy_modes[] = {
 	[PHY_INTERFACE_MODE_RGMII_RXID]	= "rgmii-rxid",
 	[PHY_INTERFACE_MODE_RGMII_TXID] = "rgmii-txid",
 	[PHY_INTERFACE_MODE_RTBI]	= "rtbi",
+	[PHY_INTERFACE_MODE_SMII]	= "smii",
 };
 
 /**
