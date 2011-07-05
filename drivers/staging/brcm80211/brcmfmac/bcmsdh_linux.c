@@ -38,8 +38,8 @@
 /**
  * SDIO Host Controller info
  */
-struct bcmsdh_hc {
-	struct bcmsdh_hc *next;
+struct sdio_hc {
+	struct sdio_hc *next;
 	struct device *dev;	/* platform device handle */
 	void *regs;		/* SDIO Host Controller address */
 	struct brcmf_sdio *sdh;	/* SDIO Host Controller handle */
@@ -49,7 +49,7 @@ struct bcmsdh_hc {
 					as edge and etc */
 	bool oob_irq_registered;
 };
-static struct bcmsdh_hc *sdhcinfo;
+static struct sdio_hc *sdhcinfo;
 
 /* driver info, initialized when brcmf_sdio_register is called */
 static struct brcmf_sdioh_driver drvinfo = { NULL, NULL };
@@ -111,7 +111,7 @@ EXPORT_SYMBOL(brcmf_sdio_remove);
 
 int brcmf_sdio_probe(struct device *dev)
 {
-	struct bcmsdh_hc *sdhc = NULL;
+	struct sdio_hc *sdhc = NULL;
 	unsigned long regs = 0;
 	struct brcmf_sdio *sdh = NULL;
 	int irq = 0;
@@ -119,7 +119,7 @@ int brcmf_sdio_probe(struct device *dev)
 	unsigned long irq_flags = 0;
 
 	/* allocate SDIO Host Controller state info */
-	sdhc = kzalloc(sizeof(struct bcmsdh_hc), GFP_ATOMIC);
+	sdhc = kzalloc(sizeof(struct sdio_hc), GFP_ATOMIC);
 	if (!sdhc) {
 		SDLX_MSG(("%s: out of memory\n", __func__));
 		goto err;
@@ -128,7 +128,7 @@ int brcmf_sdio_probe(struct device *dev)
 
 	sdh = brcmf_sdcard_attach((void *)0, (void **)&regs, irq);
 	if (!sdh) {
-		SDLX_MSG(("%s: bcmsdh_attach failed\n", __func__));
+		SDLX_MSG(("%s: attach failed\n", __func__));
 		goto err;
 	}
 
@@ -166,7 +166,7 @@ err:
 
 int brcmf_sdio_remove(struct device *dev)
 {
-	struct bcmsdh_hc *sdhc, *prev;
+	struct sdio_hc *sdhc, *prev;
 
 	sdhc = sdhcinfo;
 	drvinfo.detach(sdhc->ch);

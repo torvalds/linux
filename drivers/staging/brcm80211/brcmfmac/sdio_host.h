@@ -18,24 +18,26 @@
 #define	_BRCM_SDH_H_
 
 #include <linux/skbuff.h>
-#define BCMSDH_ERROR_VAL	0x0001	/* Error */
-#define BCMSDH_INFO_VAL		0x0002	/* Info */
-extern const uint bcmsdh_msglevel;
+#define BRCMF_SD_ERROR_VAL	0x0001	/* Error */
+#define BRCMF_SD_INFO_VAL		0x0002	/* Info */
+extern const uint brcmf_sdio_msglevel;
 
 #ifdef BCMDBG
-#define BCMSDH_ERROR(x) \
+#define BRCMF_SD_ERROR(x) \
 	do { \
-		if ((bcmsdh_msglevel & BCMSDH_ERROR_VAL) && net_ratelimit()) \
+		if ((brcmf_sdio_msglevel & BRCMF_SD_ERROR_VAL) && \
+		    net_ratelimit()) \
 			printk x; \
 	} while (0)
-#define BCMSDH_INFO(x)	\
+#define BRCMF_SD_INFO(x)	\
 	do { \
-		if ((bcmsdh_msglevel & BCMSDH_INFO_VAL) && net_ratelimit()) \
+		if ((brcmf_sdio_msglevel & BRCMF_SD_INFO_VAL) && \
+		    net_ratelimit()) \
 			printk x; \
 	} while (0)
 #else				/* BCMDBG */
-#define BCMSDH_ERROR(x)
-#define BCMSDH_INFO(x)
+#define BRCMF_SD_ERROR(x)
+#define BRCMF_SD_INFO(x)
 #endif				/* BCMDBG */
 
 #define SDIO_FUNC_0		0
@@ -61,11 +63,12 @@ extern const uint bcmsdh_msglevel;
 
 /* forward declarations */
 struct brcmf_sdio;
-typedef void (*bcmsdh_cb_fn_t) (void *);
+typedef void (*brcmf_sdiocard_cb_fn_t) (void *);
 
 /* Attach and build an interface to the underlying SD host driver.
- *  - Allocates resources (structs, arrays, mem, OS handles, etc) needed by bcmsdh.
- *  - Returns the bcmsdh handle and virtual address base for register access.
+ *  - Allocates resources (structs, arrays, mem, OS handles, etc) needed by
+ *    brcmf_sdcard.
+ *  - Returns the sdio card handle and virtual address base for register access.
  *    The returned handle should be used in all subsequent calls, but the bcmsh
  *    implementation may maintain a single "default" handle (e.g. the first or
  *    most recent one) to enable single-instance implementations to pass NULL.
@@ -84,20 +87,21 @@ extern int brcmf_sdcard_intr_enable(void *sdh);
 extern int brcmf_sdcard_intr_disable(void *sdh);
 
 /* Register/deregister device interrupt handler. */
-extern int brcmf_sdcard_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
+extern int
+brcmf_sdcard_intr_reg(void *sdh, brcmf_sdiocard_cb_fn_t fn, void *argh);
+
 extern int brcmf_sdcard_intr_dereg(void *sdh);
 
 #if defined(BCMDBG)
 /* Query pending interrupt status from the host controller */
 extern bool brcmf_sdcard_intr_pending(void *sdh);
 #endif
-extern int bcmsdh_claim_host_and_lock(void *sdh);
-extern int bcmsdh_release_host_and_unlock(void *sdh);
 
-/* Register a callback to be called if and when bcmsdh detects
- * device removal. No-op in the case of non-removable/hardwired devices.
+/* Register a callback to be called on device removal.
+ * No-op in the case of non-removable/hardwired devices.
  */
-extern int brcmf_sdcard_devremove_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
+extern int
+brcmf_sdcard_devremove_reg(void *sdh, brcmf_sdiocard_cb_fn_t fn, void *argh);
 
 /* Access SDIO address space (e.g. CCCR) using CMD52 (single-byte interface).
  *   fn:   function number
@@ -147,13 +151,14 @@ extern bool brcmf_sdcard_regfail(void *sdh);
  * Returns 0 or error code.
  * NOTE: Async operation is not currently supported.
  */
-typedef void (*bcmsdh_cmplt_fn_t) (void *handle, int status, bool sync_waiting);
+typedef void (*brcmf_sdio_cmplt_fn_t)
+		(void *handle, int status, bool sync_waiting);
 extern int brcmf_sdcard_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 		u8 *buf, uint nbytes, void *pkt,
-		bcmsdh_cmplt_fn_t complete, void *handle);
+		brcmf_sdio_cmplt_fn_t complete, void *handle);
 extern int brcmf_sdcard_recv_buf(struct brcmf_sdio *sdh, u32 addr, uint fn,
 		uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt,
-		bcmsdh_cmplt_fn_t complete, void *handle);
+		brcmf_sdio_cmplt_fn_t complete, void *handle);
 
 /* Flags bits */
 #define SDIO_REQ_4BYTE	0x1	/* Four-byte target (backplane) width (vs. two-byte) */

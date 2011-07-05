@@ -27,7 +27,7 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include "sdio_host.h"
-#include "bcmsdbus.h"		/* bcmsdh to/from specific controller APIs */
+#include "bcmsdbus.h"
 #include "sdiovar.h"		/* ioctl/iovars */
 #include "dngl_stats.h"
 #include "dhd.h"
@@ -83,8 +83,8 @@ static int brcmf_sdioh_enablefuncs(struct sdioh_info *sd)
 	err_ret = sdio_enable_func(gInstance->func[1]);
 	sdio_release_host(gInstance->func[1]);
 	if (err_ret) {
-		sd_err(("bcmsdh_sdmmc: Failed to enable F1 Err: 0x%08x",
-			err_ret));
+		sd_err(("brcmf_sdioh_enablefuncs: Failed to enable F1 "
+			"Err: 0x%08x", err_ret));
 	}
 
 	return false;
@@ -128,7 +128,7 @@ struct sdioh_info *brcmf_sdioh_attach(void *bar0, uint irq)
 	sd->client_block_size[1] = 64;
 	err_ret = sdio_set_block_size(gInstance->func[1], 64);
 	if (err_ret)
-		sd_err(("bcmsdh_sdmmc: Failed to set F1 blocksize\n"));
+		sd_err(("brcmf_sdioh_attach: Failed to set F1 blocksize\n"));
 
 	/* Release host controller F1 */
 	sdio_release_host(gInstance->func[1]);
@@ -141,8 +141,8 @@ struct sdioh_info *brcmf_sdioh_attach(void *bar0, uint irq)
 		err_ret =
 		    sdio_set_block_size(gInstance->func[2], sd_f2_blocksize);
 		if (err_ret)
-			sd_err(("bcmsdh_sdmmc: Failed to set F2 blocksize "
-				"to %d\n", sd_f2_blocksize));
+			sd_err(("brcmf_sdioh_attach: Failed to set F2 blocksize"
+				" to %d\n", sd_f2_blocksize));
 
 		/* Release host controller F2 */
 		sdio_release_host(gInstance->func[2]);
@@ -549,7 +549,9 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 						    sdio_enable_func
 						    (gInstance->func[2]);
 						if (err_ret)
-							sd_err(("bcmsdh_sdmmc: enable F2 failed:%d",
+							sd_err(("request_byte: "
+								"enable F2 "
+								"failed:%d",
 								 err_ret));
 					} else {
 						/* Disable Function 2 */
@@ -557,7 +559,9 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 						    sdio_disable_func
 						    (gInstance->func[2]);
 						if (err_ret)
-							sd_err(("bcmsdh_sdmmc: Disab F2 failed:%d",
+							sd_err(("request_byte: "
+								"Disab F2 "
+								"failed:%d",
 								 err_ret));
 					}
 					sdio_release_host(gInstance->func[2]);
@@ -577,7 +581,7 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 				sdio_release_host(gInstance->func[func]);
 			}
 			else if (regaddr < 0xF0) {
-				sd_err(("bcmsdh_sdmmc: F0 Wr:0x%02x: write "
+				sd_err(("brcmf: F0 Wr:0x%02x: write "
 					"disallowed\n", regaddr));
 			} else {
 				/* Claim host controller, perform F0 write,
@@ -613,7 +617,7 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 	}
 
 	if (err_ret)
-		sd_err(("bcmsdh_sdmmc: Failed to %s byte F%d:@0x%05x=%02x, "
+		sd_err(("brcmf: Failed to %s byte F%d:@0x%05x=%02x, "
 			"Err: %d\n", rw ? "Write" : "Read", func, regaddr,
 			*byte, err_ret));
 
@@ -666,7 +670,7 @@ brcmf_sdioh_request_word(struct sdioh_info *sd, uint cmd_type, uint rw,
 	sdio_release_host(gInstance->func[func]);
 
 	if (err_ret) {
-		sd_err(("bcmsdh_sdmmc: Failed to %s word, Err: 0x%08x",
+		sd_err(("brcmf: Failed to %s word, Err: 0x%08x",
 			rw ? "Write" : "Read", err_ret));
 	}
 
@@ -896,12 +900,11 @@ brcmf_sdioh_card_regread(struct sdioh_info *sd, int func, u32 regaddr,
 	return SUCCESS;
 }
 
-/* bcmsdh_sdmmc interrupt handler */
 static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 {
 	struct sdioh_info *sd;
 
-	sd_trace(("bcmsdh_sdmmc: ***IRQHandler\n"));
+	sd_trace(("brcmf: ***IRQHandler\n"));
 	sd = gInstance->sd;
 
 	ASSERT(sd != NULL);
@@ -913,7 +916,7 @@ static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 		ASSERT(sd->intr_handler_arg);
 		(sd->intr_handler) (sd->intr_handler_arg);
 	} else {
-		sd_err(("bcmsdh_sdmmc: ***IRQHandler\n"));
+		sd_err(("brcmf: ***IRQHandler\n"));
 
 		sd_err(("%s: Not ready for intr: enabled %d, handler %p\n",
 			__func__, sd->client_intr_enabled, sd->intr_handler));
@@ -922,12 +925,12 @@ static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 	sdio_claim_host(gInstance->func[0]);
 }
 
-/* bcmsdh_sdmmc interrupt handler for F2 (dummy handler) */
+/* interrupt handler for F2 (dummy handler) */
 static void brcmf_sdioh_irqhandler_f2(struct sdio_func *func)
 {
 	struct sdioh_info *sd;
 
-	sd_trace(("bcmsdh_sdmmc: ***IRQHandlerF2\n"));
+	sd_trace(("brcmf: ***IRQHandlerF2\n"));
 
 	sd = gInstance->sd;
 

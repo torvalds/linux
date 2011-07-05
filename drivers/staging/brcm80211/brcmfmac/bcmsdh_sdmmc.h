@@ -15,7 +15,7 @@
  */
 
 /*
- * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
+ * BRCMF SDIO Function Driver for the native SDIO/MMC driver in the Linux Kernel
  */
 
 #ifndef __BCMSDH_SDMMC_H__
@@ -97,10 +97,6 @@ struct sdioh_info {
 	/*	SDDMA_DESCRIPTOR	SGList[32]; *//* Scatter/Gather DMA List */
 };
 
-/************************************************************
- * Internal interfaces: per-port references into bcmsdh_sdmmc.c
- */
-
 /* Global message bits */
 extern uint sd_msglevel;
 
@@ -115,10 +111,6 @@ extern bool brcmf_sdioh_check_client_intr(struct sdioh_info *sd);
 extern void brcmf_sdioh_dev_intr_on(struct sdioh_info *sd);
 extern void brcmf_sdioh_dev_intr_off(struct sdioh_info *sd);
 
-/**************************************************************
- * Internal interfaces: bcmsdh_sdmmc.c references to per-port code
- */
-
 /* Register mapping routines */
 extern u32 *brcmf_sdioh_reg_map(s32 addr, int size);
 extern void brcmf_sdioh_reg_unmap(s32 addr, int size);
@@ -127,12 +119,12 @@ extern void brcmf_sdioh_reg_unmap(s32 addr, int size);
 extern int  brcmf_sdioh_register_irq(struct sdioh_info *sd, uint irq);
 extern void brcmf_sdioh_free_irq(uint irq, struct sdioh_info *sd);
 
-typedef struct _BCMSDH_SDMMC_INSTANCE {
+struct brcmf_sdmmc_instance {
 	struct sdioh_info *sd;
 	struct sdio_func *func[SDIOD_MAX_IOFUNCS];
 	u32 host_claimed;
-} BCMSDH_SDMMC_INSTANCE, *PBCMSDH_SDMMC_INSTANCE;
+};
 
-extern PBCMSDH_SDMMC_INSTANCE gInstance;
+extern struct brcmf_sdmmc_instance *gInstance;
 
 #endif				/* __BCMSDH_SDMMC_H__ */

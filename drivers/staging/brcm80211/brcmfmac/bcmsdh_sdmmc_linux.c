@@ -27,7 +27,7 @@
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include "sdio_host.h"
-#include "bcmsdbus.h"		/* bcmsdh to/from specific controller APIs */
+#include "bcmsdbus.h"
 #include "sdiovar.h"		/* to get msglevel bit values */
 #include "dngl_stats.h"
 #include "dhd.h"
@@ -62,10 +62,7 @@ static int clockoverride;
 module_param(clockoverride, int, 0644);
 MODULE_PARM_DESC(clockoverride, "SDIO card clock override");
 
-PBCMSDH_SDMMC_INSTANCE gInstance;
-
-/* Maximum number of bcmsdh_sdmmc devices supported by driver */
-#define BCMSDH_SDMMC_MAX_DEVICES 1
+struct brcmf_sdmmc_instance *gInstance;
 
 struct device sdmmc_dev;
 
@@ -74,8 +71,8 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 {
 	int ret = 0;
 	static struct sdio_func sdio_func_0;
-	sd_trace(("bcmsdh_sdmmc: %s Enter\n", __func__));
-	sd_trace(("sdio_bcmsdh: func->class=%x\n", func->class));
+	sd_trace(("sdio_probe: %s Enter\n", __func__));
+	sd_trace(("sdio_probe: func->class=%x\n", func->class));
 	sd_trace(("sdio_vendor: 0x%04x\n", func->vendor));
 	sd_trace(("sdio_device: 0x%04x\n", func->device));
 	sd_trace(("Function#: 0x%04x\n", func->num));
@@ -117,7 +114,7 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 }
 
 /* devices we support, null terminated */
-static const struct sdio_device_id bcmsdh_sdmmc_ids[] = {
+static const struct sdio_device_id brcmf_sdmmc_ids[] = {
 	{SDIO_DEVICE(SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_DEFAULT)},
 	{SDIO_DEVICE
 	 (SDIO_VENDOR_ID_BROADCOM, SDIO_DEVICE_ID_BROADCOM_4325_SDGWB)},
@@ -127,7 +124,7 @@ static const struct sdio_device_id bcmsdh_sdmmc_ids[] = {
 	{ /* end: all zeroes */ },
 };
 
-MODULE_DEVICE_TABLE(sdio, bcmsdh_sdmmc_ids);
+MODULE_DEVICE_TABLE(sdio, brcmf_sdmmc_ids);
 
 #ifdef CONFIG_PM
 static int brcmf_sdio_suspend(struct device *dev)
@@ -166,11 +163,11 @@ static const struct dev_pm_ops brcmf_sdio_pm_ops = {
 };
 #endif		/* CONFIG_PM */
 
-static struct sdio_driver bcmsdh_sdmmc_driver = {
+static struct sdio_driver brcmf_sdmmc_driver = {
 	.probe = brcmf_ops_sdio_probe,
 	.remove = brcmf_ops_sdio_remove,
 	.name = "brcmfmac",
-	.id_table = bcmsdh_sdmmc_ids,
+	.id_table = brcmf_sdmmc_ids,
 #ifdef CONFIG_PM
 	.drv = {
 		.pm = &brcmf_sdio_pm_ops,
@@ -243,14 +240,14 @@ int brcmf_sdioh_interrupt_set(struct sdioh_info *sd, bool enable)
 int brcmf_sdio_function_init(void)
 {
 	int error = 0;
-	sd_trace(("bcmsdh_sdmmc: %s Enter\n", __func__));
+	sd_trace(("brcmf_sdio_function_init: %s Enter\n", __func__));
 
-	gInstance = kzalloc(sizeof(BCMSDH_SDMMC_INSTANCE), GFP_KERNEL);
+	gInstance = kzalloc(sizeof(struct brcmf_sdmmc_instance), GFP_KERNEL);
 	if (!gInstance)
 		return -ENOMEM;
 
 	memset(&sdmmc_dev, 0, sizeof(sdmmc_dev));
-	error = sdio_register_driver(&bcmsdh_sdmmc_driver);
+	error = sdio_register_driver(&brcmf_sdmmc_driver);
 
 	return error;
 }
@@ -262,7 +259,7 @@ void brcmf_sdio_function_cleanup(void)
 {
 	sd_trace(("%s Enter\n", __func__));
 
-	sdio_unregister_driver(&bcmsdh_sdmmc_driver);
+	sdio_unregister_driver(&brcmf_sdmmc_driver);
 
 	kfree(gInstance);
 }

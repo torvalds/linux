@@ -458,7 +458,7 @@ struct chip_info {
 typedef struct dhd_bus {
 	struct brcmf_pub *dhd;
 
-	struct brcmf_sdio *sdh;	/* Handle for BCMSDH calls */
+	struct brcmf_sdio *sdh;	/* Handle for sdio card calls */
 	struct chip_info *ci;	/* Chip info struct */
 	char *vars;		/* Variables (from CIS and/or other) */
 	uint varsz;		/* Size of variables buffer */
@@ -529,7 +529,7 @@ typedef struct dhd_bus {
 	s32 idletime;		/* Control for activity timeout */
 	s32 idlecount;	/* Activity timeout counter */
 	s32 idleclock;	/* How to set bus driver when idle */
-	s32 sd_rxchain;	/* If bcmsdh api accepts PKT chains */
+	s32 sd_rxchain;
 	bool use_rxchain;	/* If dhd should use PKT chains */
 	bool sleeping;		/* Is SDIO bus sleeping? */
 	bool rxflow_mode;	/* Rx flow control mode */
@@ -805,8 +805,8 @@ static uint brcmf_process_nvram_vars(char *varbuf, uint len);
 static void brcmf_sdbrcm_setmemsize(struct dhd_bus *bus, int mem_size);
 static int brcmf_sdbrcm_send_buf(dhd_bus_t *bus, u32 addr, uint fn,
 			       uint flags, u8 *buf, uint nbytes,
-			       struct sk_buff *pkt, bcmsdh_cmplt_fn_t complete,
-			       void *handle);
+			       struct sk_buff *pkt,
+			       brcmf_sdio_cmplt_fn_t complete, void *handle);
 
 static bool brcmf_sdbrcm_download_firmware(struct dhd_bus *bus, void *sdh);
 static int  _brcmf_sdbrcm_download_firmware(struct dhd_bus *bus);
@@ -3210,8 +3210,6 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *dhdp, bool enforce_mutex)
 		/* Set bus state according to enable result */
 		dhdp->busstate = DHD_BUS_DATA;
 
-		/* bcmsdh_intr_unmask(bus->sdh); */
-
 		bus->intdis = false;
 		if (bus->intr) {
 			DHD_INTR(("%s: enable SDIO device interrupts\n",
@@ -3844,7 +3842,7 @@ brcmf_sdbrcm_readframes(dhd_bus_t *bus, uint maxframes, bool *finished)
 	u16 rdlen;		/* Total number of bytes to read */
 	u8 rxseq;		/* Next sequence number to expect */
 	uint rxleft = 0;	/* Remaining number of frames allowed */
-	int sdret;		/* Return code from bcmsdh calls */
+	int sdret;		/* Return code from calls */
 	u8 txmax;		/* Maximum tx sequence offered */
 	bool len_consistent;	/* Result of comparing readahead len and
 					 len from hw-hdr */
@@ -4857,7 +4855,7 @@ static void brcmf_sdbrcm_pktgen(dhd_bus_t *bus)
 		/* Allocate an appropriate-sized packet */
 		len = bus->pktgen_len;
 		pkt = brcmu_pkt_buf_get_skb(
-			(len + SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + BRCMF_SDALIGN),
+			len + SDPCM_HDRLEN + SDPCM_TEST_HDRLEN + BRCMF_SDALIGN,
 			true);
 		if (!pkt) {
 			DHD_ERROR(("%s: brcmu_pkt_buf_get_skb failed!\n",
@@ -5268,7 +5266,7 @@ static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 	/* We make assumptions about address window mappings */
 	ASSERT((unsigned long)regsva == SI_ENUM_BASE);
 
-	/* BCMSDH passes venid and devid based on CIS parsing -- but
+	/* SDIO car passes venid and devid based on CIS parsing -- but
 	 * low-power start
 	 * means early parse could fail, so here we should get either an ID
 	 * we recognize OR (-1) indicating we must request power first.
@@ -5402,7 +5400,7 @@ static void *brcmf_sdbrcm_probe(u16 venid, u16 devid, u16 bus_no,
 	brcmf_sdcard_intr_disable(sdh);
 	ret = brcmf_sdcard_intr_reg(sdh, brcmf_sdbrcm_isr, bus);
 	if (ret != 0) {
-		DHD_ERROR(("%s: FAILED: bcmsdh_intr_reg returned %d\n",
+		DHD_ERROR(("%s: FAILED: sdcard_intr_reg returned %d\n",
 			   __func__, ret));
 		goto fail;
 	}
@@ -5510,7 +5508,8 @@ brcmf_sdbrcm_probe_attach(struct dhd_bus *bus, void *sdh, void *regsva,
 	brcmu_pktq_init(&bus->txq, (PRIOMASK + 1), TXQLEN);
 
 	/* Locate an appropriately-aligned portion of hdrbuf */
-	bus->rxhdr = (u8 *) roundup((unsigned long)&bus->hdrbuf[0], BRCMF_SDALIGN);
+	bus->rxhdr = (u8 *) roundup((unsigned long)&bus->hdrbuf[0],
+				    BRCMF_SDALIGN);
 
 	/* Set the poll and/or interrupt flags */
 	bus->intr = (bool) brcmf_intr;
@@ -5553,9 +5552,8 @@ static bool brcmf_sdbrcm_probe_malloc(dhd_bus_t *bus, void *sdh)
 
 	/* Align the buffer */
 	if ((unsigned long)bus->databuf % BRCMF_SDALIGN)
-		bus->dataptr =
-		    bus->databuf + (BRCMF_SDALIGN -
-				    ((unsigned long)bus->databuf % BRCMF_SDALIGN));
+		bus->dataptr = bus->databuf + (BRCMF_SDALIGN -
+			       ((unsigned long)bus->databuf % BRCMF_SDALIGN));
 	else
 		bus->dataptr = bus->databuf;
 
@@ -5612,7 +5610,7 @@ static bool brcmf_sdbrcm_probe_init(dhd_bus_t *bus, void *sdh)
 			    false) != 0) {
 		bus->sd_rxchain = false;
 	} else {
-		DHD_INFO(("%s: bus module (through bcmsdh API) %s chaining\n",
+		DHD_INFO(("%s: bus module (through sdiocard API) %s chaining\n",
 			  __func__,
 			  (bus->sd_rxchain ? "supports" : "does not support")));
 	}
@@ -5773,8 +5771,8 @@ static int brcmf_sdbrcm_download_code_file(struct dhd_bus *bus)
 		goto err;
 	}
 	if ((u32)(unsigned long)memblock % BRCMF_SDALIGN)
-		memptr +=
-		    (BRCMF_SDALIGN - ((u32)(unsigned long)memblock % BRCMF_SDALIGN));
+		memptr += (BRCMF_SDALIGN -
+			   ((u32)(unsigned long)memblock % BRCMF_SDALIGN));
 
 	/* Download image */
 	while ((len =
@@ -5946,7 +5944,7 @@ err:
 static int
 brcmf_sdbrcm_send_buf(dhd_bus_t *bus, u32 addr, uint fn, uint flags,
 		    u8 *buf, uint nbytes, struct sk_buff *pkt,
-		    bcmsdh_cmplt_fn_t complete, void *handle)
+		    brcmf_sdio_cmplt_fn_t complete, void *handle)
 {
 	return brcmf_sdcard_send_buf
 		(bus->sdh, addr, fn, flags, buf, nbytes, pkt, complete,
