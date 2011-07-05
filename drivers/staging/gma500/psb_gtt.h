@@ -44,7 +44,6 @@ extern void psb_gtt_takedown(struct drm_device *dev);
 struct gtt_range {
 	struct resource resource;	/* Resource for our allocation */
 	u32 offset;			/* GTT offset of our object */
-	struct kref kref;		/* Can probably go FIXME - GEM kref will do */
 	struct drm_gem_object gem;	/* GEM high level stuff */
 	int in_gart;			/* Currently in the GART (ref ct) */
 	bool stolen;			/* Backed from stolen RAM */

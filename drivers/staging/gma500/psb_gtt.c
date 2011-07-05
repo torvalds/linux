@@ -303,8 +303,6 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 	gt->in_gart = backed;
 	/* Ensure this is set for non GEM objects */
 	gt->gem.dev = dev;
-	kref_init(&gt->kref);
-
 	ret = allocate_resource(dev_priv->gtt_mem, &gt->resource,
 				len, start, end, PAGE_SIZE, NULL, NULL);
 	if (ret == 0) {
@@ -316,18 +314,15 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 }
 
 /**
- *	psb_gtt_destroy		-	final free up of a gtt
- *	@kref: the kref of the gtt
+ *	psb_gtt_free_range	-	release GTT address space
+ *	@dev: our DRM device
+ *	@gt: a mapping created with psb_gtt_alloc_range
  *
- *	Called from the kernel kref put when the final reference to our
- *	GTT object is dropped. At that point we can free up the resources.
- *
- *	For now we handle mmap clean up here to work around limits in GEM
+ *	Release a resource that was allocated with psb_gtt_alloc_range. If the object
+ *	has been pinned by mmap users we clean this up here currently.
  */
-static void psb_gtt_destroy(struct kref *kref)
+void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
 {
-	struct gtt_range *gt = container_of(kref, struct gtt_range, kref);
-
 	/* Undo the mmap pin if we are destroying the object */
 	if (gt->mmapping) {
 		psb_gtt_unpin(gt);
@@ -337,30 +332,6 @@ static void psb_gtt_destroy(struct kref *kref)
 	release_resource(&gt->resource);
 	kfree(gt);
 }
-
-/**
- *	psb_gtt_kref_put	-	drop reference to a GTT object
- *	@gt: the GT being dropped
- *
- *	Drop a reference to a psb gtt
- */
-void psb_gtt_kref_put(struct gtt_range *gt)
-{
-	kref_put(&gt->kref, psb_gtt_destroy);
-}
-
-/**
- *	psb_gtt_free_range	-	release GTT address space
- *	@dev: our DRM device
- *	@gt: a mapping created with psb_gtt_alloc_range
- *
- *	Release a resource that was allocated with psb_gtt_alloc_range
- */
-void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
-{
-	psb_gtt_kref_put(gt);
-}
-
 
 struct psb_gtt *psb_gtt_alloc(struct drm_device *dev)
 {

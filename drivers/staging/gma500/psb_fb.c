@@ -231,7 +231,6 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct psb_fbdev *fbdev = info->par;
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
 	char *fb_screen_base = NULL;
-	struct drm_device *dev = psbfb->base.dev;
 
 	if (vma->vm_pgoff != 0)
 		return -EINVAL;
