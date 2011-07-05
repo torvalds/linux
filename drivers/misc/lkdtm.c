@@ -120,6 +120,7 @@ static int recur_count = REC_NUM_DEFAULT;
 static enum cname cpoint = CN_INVALID;
 static enum ctype cptype = CT_NONE;
 static int count = DEFAULT_COUNT;
+static DEFINE_SPINLOCK(count_lock);
 
 module_param(recur_count, int, 0644);
 MODULE_PARM_DESC(recur_count, " Recursion level for the stack overflow test, "\
@@ -230,11 +231,14 @@ static const char *cp_name_to_str(enum cname name)
 static int lkdtm_parse_commandline(void)
 {
 	int i;
+	unsigned long flags;
 
 	if (cpoint_count < 1 || recur_count < 1)
 		return -EINVAL;
 
+	spin_lock_irqsave(&count_lock, flags);
 	count = cpoint_count;
+	spin_unlock_irqrestore(&count_lock, flags);
 
 	/* No special parameters */
 	if (!cpoint_type && !cpoint_name)
@@ -349,6 +353,9 @@ static void lkdtm_do_action(enum ctype which)
 
 static void lkdtm_handler(void)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&count_lock, flags);
 	count--;
 	printk(KERN_INFO "lkdtm: Crash point %s of type %s hit, trigger in %d rounds\n",
 			cp_name_to_str(cpoint), cp_type_to_str(cptype), count);
@@ -357,6 +364,7 @@ static void lkdtm_handler(void)
 		lkdtm_do_action(cptype);
 		count = cpoint_count;
 	}
+	spin_unlock_irqrestore(&count_lock, flags);
 }
 
 static int lkdtm_register_cpoint(enum cname which)

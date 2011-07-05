@@ -1228,6 +1228,7 @@ static void reada_for_search(struct btrfs_root *root,
 	u32 nr;
 	u32 blocksize;
 	u32 nscan = 0;
+	bool map = true;
 
 	if (level != 1)
 		return;
@@ -1249,8 +1250,11 @@ static void reada_for_search(struct btrfs_root *root,
 
 	nritems = btrfs_header_nritems(node);
 	nr = slot;
+	if (node->map_token || path->skip_locking)
+		map = false;
+
 	while (1) {
-		if (!node->map_token) {
+		if (map && !node->map_token) {
 			unsigned long offset = btrfs_node_key_ptr_offset(nr);
 			map_private_extent_buffer(node, offset,
 						  sizeof(struct btrfs_key_ptr),
@@ -1277,7 +1281,7 @@ static void reada_for_search(struct btrfs_root *root,
 		if ((search <= target && target - search <= 65536) ||
 		    (search > target && search - target <= 65536)) {
 			gen = btrfs_node_ptr_generation(node, nr);
-			if (node->map_token) {
+			if (map && node->map_token) {
 				unmap_extent_buffer(node, node->map_token,
 						    KM_USER1);
 				node->map_token = NULL;
@@ -1289,7 +1293,7 @@ static void reada_for_search(struct btrfs_root *root,
 		if ((nread > 65536 || nscan > 32))
 			break;
 	}
-	if (node->map_token) {
+	if (map && node->map_token) {
 		unmap_extent_buffer(node, node->map_token, KM_USER1);
 		node->map_token = NULL;
 	}

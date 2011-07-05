@@ -211,7 +211,7 @@ static inline int do_int_store(int reg_num, int size, unsigned long *dst_addr,
 		default:
 			BUG();
 			break;
-		};
+		}
 	}
 	return __do_int_store(dst_addr, size, src_val, asi);
 }
@@ -328,7 +328,7 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 		case ASI_SNFL:
 			asi &= ~0x08;
 			break;
-		};
+		}
 		switch (dir) {
 		case load:
 			reg_addr = fetch_reg_addr(((insn>>25)&0x1f), regs);
@@ -351,7 +351,7 @@ asmlinkage void kernel_unaligned_trap(struct pt_regs *regs, unsigned int insn)
 				default:
 					BUG();
 					break;
-				};
+				}
 				*reg_addr = val_in;
 			}
 			break;

@@ -3222,6 +3222,9 @@ static int filename_trans_write(struct policydb *p, void *fp)
 	__le32 buf[1];
 	int rc;
 
+	if (p->policyvers < POLICYDB_VERSION_FILENAME_TRANS)
+		return 0;
+
 	nel = 0;
 	rc = hashtab_map(p->filename_trans, hashtab_cnt, &nel);
 	if (rc)

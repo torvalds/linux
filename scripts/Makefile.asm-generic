@@ -17,6 +17,7 @@ quiet_cmd_wrap = WRAP    $@
 cmd_wrap = echo "\#include <asm-generic/$*.h>" >$@
 
 all: $(patsubst %, $(obj)/%, $(generic-y))
+	@:
 
 $(obj)/%.h:
 	$(call cmd,wrap)

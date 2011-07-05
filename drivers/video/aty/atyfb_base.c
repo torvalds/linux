@@ -248,10 +248,6 @@ static int atyfb_sync(struct fb_info *info);
 
 static int aty_init(struct fb_info *info);
 
-#ifdef CONFIG_ATARI
-static int store_video_par(char *videopar, unsigned char m64_num);
-#endif
-
 static void aty_get_crtc(const struct atyfb_par *par, struct crtc *crtc);
 
 static void aty_set_crtc(const struct atyfb_par *par, const struct crtc *crtc);
@@ -2268,11 +2264,13 @@ error:
 	return;
 }
 
+#ifdef CONFIG_PCI
 static void aty_bl_exit(struct backlight_device *bd)
 {
 	backlight_device_unregister(bd);
 	printk("aty: Backlight unloaded\n");
 }
+#endif /* CONFIG_PCI */
 
 #endif /* CONFIG_FB_ATY_BACKLIGHT */
 
@@ -2789,7 +2787,7 @@ aty_init_exit:
 	return ret;
 }
 
-#ifdef CONFIG_ATARI
+#if defined(CONFIG_ATARI) && !defined(MODULE)
 static int __devinit store_video_par(char *video_str, unsigned char m64_num)
 {
 	char *p;
@@ -2818,7 +2816,7 @@ static int __devinit store_video_par(char *video_str, unsigned char m64_num)
 	phys_vmembase[m64_num] = 0;
 	return -1;
 }
-#endif /* CONFIG_ATARI */
+#endif /* CONFIG_ATARI && !MODULE */
 
 /*
  * Blank the display.

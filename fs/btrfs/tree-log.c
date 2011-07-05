@@ -3177,7 +3177,7 @@ again:
 		tmp_key.offset = (u64)-1;
 
 		wc.replay_dest = btrfs_read_fs_root_no_name(fs_info, &tmp_key);
-		BUG_ON(!wc.replay_dest);
+		BUG_ON(IS_ERR_OR_NULL(wc.replay_dest));
 
 		wc.replay_dest->log_root = log;
 		btrfs_record_root_in_trans(trans, wc.replay_dest);

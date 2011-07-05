@@ -1144,9 +1144,17 @@ static int __devinit mmci_probe(struct amba_device *dev,
 		else if (ret != -ENOSYS)
 			goto err_gpio_cd;
 
+		/*
+		 * A gpio pin that will detect cards when inserted and removed
+		 * will most likely want to trigger on the edges if it is
+		 * 0 when ejected and 1 when inserted (or mutatis mutandis
+		 * for the inverted case) so we request triggers on both
+		 * edges.
+		 */
 		ret = request_any_context_irq(gpio_to_irq(plat->gpio_cd),
-					      mmci_cd_irq, 0,
-					      DRIVER_NAME " (cd)", host);
+				mmci_cd_irq,
+				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				DRIVER_NAME " (cd)", host);
 		if (ret >= 0)
 			host->gpio_cd_irq = gpio_to_irq(plat->gpio_cd);
 	}

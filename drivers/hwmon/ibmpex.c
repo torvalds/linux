@@ -358,6 +358,7 @@ static int create_sensor(struct ibmpex_bmc_data *data, int type,
 	else if (type == POWER_SENSOR)
 		sprintf(n, power_sensor_name_templates[func], "power", counter);
 
+	sysfs_attr_init(&data->sensors[sensor].attr[func].dev_attr.attr);
 	data->sensors[sensor].attr[func].dev_attr.attr.name = n;
 	data->sensors[sensor].attr[func].dev_attr.attr.mode = S_IRUGO;
 	data->sensors[sensor].attr[func].dev_attr.show = ibmpex_show_sensor;

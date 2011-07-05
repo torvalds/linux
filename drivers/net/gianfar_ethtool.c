@@ -9,7 +9,7 @@
  *  Maintainer: Kumar Gala
  *  Modifier: Sandeep Gopalpet <sandeep.kumar@freescale.com>
  *
- *  Copyright 2003-2006, 2008-2009 Freescale Semiconductor, Inc.
+ *  Copyright 2003-2006, 2008-2009, 2011 Freescale Semiconductor, Inc.
  *
  *  This software may be used and distributed according to
  *  the terms of the GNU Public License, Version 2, incorporated herein
@@ -609,15 +609,15 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	if (ethflow & RXH_L2DA) {
 		fcr = RQFCR_PID_DAH |RQFCR_CMP_NOMATCH |
 			RQFCR_HASH | RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 
 		fcr = RQFCR_PID_DAL | RQFCR_AND | RQFCR_CMP_NOMATCH |
 				RQFCR_HASH | RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
@@ -626,16 +626,16 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 		fcr = RQFCR_PID_VID | RQFCR_CMP_NOMATCH | RQFCR_HASH |
 				RQFCR_AND | RQFCR_HASHTBL_0;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
 
 	if (ethflow & RXH_IP_SRC) {
 		fcr = RQFCR_PID_SIA | RQFCR_CMP_NOMATCH | RQFCR_HASH |
 			RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
@@ -643,8 +643,8 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	if (ethflow & (RXH_IP_DST)) {
 		fcr = RQFCR_PID_DIA | RQFCR_CMP_NOMATCH | RQFCR_HASH |
 			RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
@@ -652,8 +652,8 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	if (ethflow & RXH_L3_PROTO) {
 		fcr = RQFCR_PID_L4P | RQFCR_CMP_NOMATCH | RQFCR_HASH |
 			RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
@@ -661,8 +661,8 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	if (ethflow & RXH_L4_B_0_1) {
 		fcr = RQFCR_PID_SPT | RQFCR_CMP_NOMATCH | RQFCR_HASH |
 			RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
@@ -670,8 +670,8 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 	if (ethflow & RXH_L4_B_2_3) {
 		fcr = RQFCR_PID_DPT | RQFCR_CMP_NOMATCH | RQFCR_HASH |
 			RQFCR_AND | RQFCR_HASHTBL_0;
-		ftp_rqfpr[priv->cur_filer_idx] = fpr;
-		ftp_rqfcr[priv->cur_filer_idx] = fcr;
+		priv->ftp_rqfpr[priv->cur_filer_idx] = fpr;
+		priv->ftp_rqfcr[priv->cur_filer_idx] = fcr;
 		gfar_write_filer(priv, priv->cur_filer_idx, fcr, fpr);
 		priv->cur_filer_idx = priv->cur_filer_idx - 1;
 	}
@@ -705,12 +705,12 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow, u
 	}
 
 	for (i = 0; i < MAX_FILER_IDX + 1; i++) {
-		local_rqfpr[j] = ftp_rqfpr[i];
-		local_rqfcr[j] = ftp_rqfcr[i];
+		local_rqfpr[j] = priv->ftp_rqfpr[i];
+		local_rqfcr[j] = priv->ftp_rqfcr[i];
 		j--;
-		if ((ftp_rqfcr[i] == (RQFCR_PID_PARSE |
+		if ((priv->ftp_rqfcr[i] == (RQFCR_PID_PARSE |
 			RQFCR_CLE |RQFCR_AND)) &&
-			(ftp_rqfpr[i] == cmp_rqfpr))
+			(priv->ftp_rqfpr[i] == cmp_rqfpr))
 			break;
 	}
 
@@ -724,20 +724,22 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow, u
 	 * if it was already programmed, we need to overwrite these rules
 	 */
 	for (l = i+1; l < MAX_FILER_IDX; l++) {
-		if ((ftp_rqfcr[l] & RQFCR_CLE) &&
-			!(ftp_rqfcr[l] & RQFCR_AND)) {
-			ftp_rqfcr[l] = RQFCR_CLE | RQFCR_CMP_EXACT |
+		if ((priv->ftp_rqfcr[l] & RQFCR_CLE) &&
+			!(priv->ftp_rqfcr[l] & RQFCR_AND)) {
+			priv->ftp_rqfcr[l] = RQFCR_CLE | RQFCR_CMP_EXACT |
 				RQFCR_HASHTBL_0 | RQFCR_PID_MASK;
-			ftp_rqfpr[l] = FPR_FILER_MASK;
-			gfar_write_filer(priv, l, ftp_rqfcr[l], ftp_rqfpr[l]);
+			priv->ftp_rqfpr[l] = FPR_FILER_MASK;
+			gfar_write_filer(priv, l, priv->ftp_rqfcr[l],
+				priv->ftp_rqfpr[l]);
 			break;
 		}
 
-		if (!(ftp_rqfcr[l] & RQFCR_CLE) && (ftp_rqfcr[l] & RQFCR_AND))
+		if (!(priv->ftp_rqfcr[l] & RQFCR_CLE) &&
+			(priv->ftp_rqfcr[l] & RQFCR_AND))
 			continue;
 		else {
-			local_rqfpr[j] = ftp_rqfpr[l];
-			local_rqfcr[j] = ftp_rqfcr[l];
+			local_rqfpr[j] = priv->ftp_rqfpr[l];
+			local_rqfcr[j] = priv->ftp_rqfcr[l];
 			j--;
 		}
 	}
@@ -750,8 +752,8 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow, u
 
 	/* Write back the popped out rules again */
 	for (k = j+1; k < MAX_FILER_IDX; k++) {
-		ftp_rqfpr[priv->cur_filer_idx] = local_rqfpr[k];
-		ftp_rqfcr[priv->cur_filer_idx] = local_rqfcr[k];
+		priv->ftp_rqfpr[priv->cur_filer_idx] = local_rqfpr[k];
+		priv->ftp_rqfcr[priv->cur_filer_idx] = local_rqfcr[k];
 		gfar_write_filer(priv, priv->cur_filer_idx,
 				local_rqfcr[k], local_rqfpr[k]);
 		if (!priv->cur_filer_idx)

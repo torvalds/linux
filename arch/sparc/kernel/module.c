@@ -214,7 +214,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			       me->name,
 			       (int) (ELF_R_TYPE(rel[i].r_info) & 0xff));
 			return -ENOEXEC;
-		};
+		}
 	}
 	return 0;
 }

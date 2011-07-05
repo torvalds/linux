@@ -51,6 +51,7 @@ obj-$(CONFIG_X86_VISWS) += setup-irq.o
 obj-$(CONFIG_MN10300) += setup-bus.o
 obj-$(CONFIG_MICROBLAZE) += setup-bus.o
 obj-$(CONFIG_TILE) += setup-bus.o setup-irq.o
+obj-$(CONFIG_SPARC_LEON) += setup-bus.o setup-irq.o
 
 #
 # ACPI Related PCI FW Functions

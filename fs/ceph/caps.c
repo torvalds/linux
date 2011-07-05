@@ -2940,14 +2940,12 @@ void ceph_flush_dirty_caps(struct ceph_mds_client *mdsc)
 	while (!list_empty(&mdsc->cap_dirty)) {
 		ci = list_first_entry(&mdsc->cap_dirty, struct ceph_inode_info,
 				      i_dirty_item);
-		inode = igrab(&ci->vfs_inode);
+		inode = &ci->vfs_inode;
+		ihold(inode);
 		dout("flush_dirty_caps %p\n", inode);
 		spin_unlock(&mdsc->cap_dirty_lock);
-		if (inode) {
-			ceph_check_caps(ci, CHECK_CAPS_NODELAY|CHECK_CAPS_FLUSH,
-					NULL);
-			iput(inode);
-		}
+		ceph_check_caps(ci, CHECK_CAPS_NODELAY|CHECK_CAPS_FLUSH, NULL);
+		iput(inode);
 		spin_lock(&mdsc->cap_dirty_lock);
 	}
 	spin_unlock(&mdsc->cap_dirty_lock);

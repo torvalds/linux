@@ -185,7 +185,7 @@ int mei_hw_init(struct mei_device *dev)
 		mutex_lock(&dev->device_lock);
 	}
 
-	if (!err && !dev->recvd_msg) {
+	if (err <= 0 && !dev->recvd_msg) {
 		dev->mei_state = MEI_DISABLED;
 		dev_dbg(&dev->pdev->dev,
 			"wait_event_interruptible_timeout failed"

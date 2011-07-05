@@ -180,7 +180,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 		printk(KERN_ERR "TSB[%s:%d]: Impossible TSB size %lu, killing process.\n",
 		       current->comm, current->pid, tsb_bytes);
 		do_exit(SIGSEGV);
-	};
+	}
 	tte |= pte_sz_bits(page_sz);
 
 	if (tlb_type == cheetah_plus || tlb_type == hypervisor) {
@@ -215,7 +215,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 #endif
 		default:
 			BUG();
-		};
+		}
 		hp->assoc = 1;
 		hp->num_ttes = tsb_bytes / 16;
 		hp->ctx_idx = 0;
@@ -230,7 +230,7 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 #endif
 		default:
 			BUG();
-		};
+		}
 		hp->tsb_base = tsb_paddr;
 		hp->resv = 0;
 	}

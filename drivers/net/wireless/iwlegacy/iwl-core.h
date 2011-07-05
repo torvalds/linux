@@ -560,7 +560,7 @@ void iwl_legacy_free_geos(struct iwl_priv *priv);
 #define STATUS_SCAN_HW		15
 #define STATUS_POWER_PMI	16
 #define STATUS_FW_ERROR		17
-
+#define STATUS_CHANNEL_SWITCH_PENDING 18
 
 static inline int iwl_legacy_is_ready(struct iwl_priv *priv)
 {

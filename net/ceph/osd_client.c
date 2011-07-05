@@ -1144,6 +1144,13 @@ static void handle_osds_timeout(struct work_struct *work)
 			      round_jiffies_relative(delay));
 }
 
+static void complete_request(struct ceph_osd_request *req)
+{
+	if (req->r_safe_callback)
+		req->r_safe_callback(req, NULL);
+	complete_all(&req->r_safe_completion);  /* fsync waiter */
+}
+
 /*
  * handle osd op reply.  either call the callback if it is specified,
  * or do the completion to wake up the waiting thread.
@@ -1226,11 +1233,8 @@ static void handle_reply(struct ceph_osd_client *osdc, struct ceph_msg *msg,
 	else
 		complete_all(&req->r_completion);
 
-	if (flags & CEPH_OSD_FLAG_ONDISK) {
-		if (req->r_safe_callback)
-			req->r_safe_callback(req, msg);
-		complete_all(&req->r_safe_completion);  /* fsync waiter */
-	}
+	if (flags & CEPH_OSD_FLAG_ONDISK)
+		complete_request(req);
 
 done:
 	dout("req=%p req->r_linger=%d\n", req, req->r_linger);
@@ -1732,6 +1736,7 @@ int ceph_osdc_wait_request(struct ceph_osd_client *osdc,
 		__cancel_request(req);
 		__unregister_request(osdc, req);
 		mutex_unlock(&osdc->request_mutex);
+		complete_request(req);
 		dout("wait_request tid %llu canceled/timed out\n", req->r_tid);
 		return rc;
 	}

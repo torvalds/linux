@@ -196,9 +196,6 @@ static int __devinit fsl_lbc_ctrl_init(struct fsl_lbc_ctrl *ctrl,
 	out_be32(&lbc->lteccr, LTECCR_CLEAR);
 	out_be32(&lbc->ltedr, LTEDR_ENABLE);
 
-	/* Enable interrupts for any detected events */
-	out_be32(&lbc->lteir, LTEIR_ENABLE);
-
 	/* Set the monitor timeout value to the maximum for erratum A001 */
 	if (of_device_is_compatible(node, "fsl,elbc"))
 		clrsetbits_be32(&lbc->lbcr, LBCR_BMT, LBCR_BMTPS);
@@ -321,6 +318,9 @@ static int __devinit fsl_lbc_ctrl_probe(struct platform_device *dev)
 		ret = fsl_lbc_ctrl_dev->irq;
 		goto err;
 	}
+
+	/* Enable interrupts for any detected events */
+	out_be32(&fsl_lbc_ctrl_dev->regs->lteir, LTEIR_ENABLE);
 
 	return 0;
 

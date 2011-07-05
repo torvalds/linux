@@ -32,6 +32,7 @@ static int adm1275_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	int config;
+	int ret;
 	struct pmbus_driver_info *info;
 
 	if (!i2c_check_functionality(client->adapter,
@@ -43,8 +44,10 @@ static int adm1275_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	config = i2c_smbus_read_byte_data(client, ADM1275_PMON_CONFIG);
-	if (config < 0)
-		return config;
+	if (config < 0) {
+		ret = config;
+		goto err_mem;
+	}
 
 	info->pages = 1;
 	info->direct[PSC_VOLTAGE_IN] = true;
@@ -76,7 +79,14 @@ static int adm1275_probe(struct i2c_client *client,
 	else
 		info->func[0] |= PMBUS_HAVE_VIN | PMBUS_HAVE_STATUS_INPUT;
 
-	return pmbus_do_probe(client, id, info);
+	ret = pmbus_do_probe(client, id, info);
+	if (ret)
+		goto err_mem;
+	return 0;
+
+err_mem:
+	kfree(info);
+	return ret;
 }
 
 static int adm1275_remove(struct i2c_client *client)

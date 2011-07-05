@@ -97,9 +97,7 @@ struct platform_data {
 struct pdev_entry {
 	struct list_head list;
 	struct platform_device *pdev;
-	unsigned int cpu;
 	u16 phys_proc_id;
-	u16 cpu_core_id;
 };
 
 static LIST_HEAD(pdev_list);
@@ -653,9 +651,7 @@ static int __cpuinit coretemp_device_add(unsigned int cpu)
 	}
 
 	pdev_entry->pdev = pdev;
-	pdev_entry->cpu = cpu;
 	pdev_entry->phys_proc_id = TO_PHYS_ID(cpu);
-	pdev_entry->cpu_core_id = TO_CORE_ID(cpu);
 
 	list_add_tail(&pdev_entry->list, &pdev_list);
 	mutex_unlock(&pdev_list_mutex);

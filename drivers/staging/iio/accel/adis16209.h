@@ -119,8 +119,6 @@ struct adis16209_state {
 
 int adis16209_set_irq(struct iio_dev *indio_dev, bool enable);
 
-#ifdef CONFIG_IIO_RING_BUFFER
-
 #define ADIS16209_SCAN_SUPPLY	0
 #define ADIS16209_SCAN_ACC_X	1
 #define ADIS16209_SCAN_ACC_Y	2
@@ -129,6 +127,8 @@ int adis16209_set_irq(struct iio_dev *indio_dev, bool enable);
 #define ADIS16209_SCAN_INCLI_X	5
 #define ADIS16209_SCAN_INCLI_Y	6
 #define ADIS16209_SCAN_ROT	7
+
+#ifdef CONFIG_IIO_RING_BUFFER
 
 void adis16209_remove_trigger(struct iio_dev *indio_dev);
 int adis16209_probe_trigger(struct iio_dev *indio_dev);

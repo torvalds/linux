@@ -101,12 +101,14 @@ static void s5pv210_set_refresh(enum s5pv210_dmc_port ch, unsigned long freq)
 	unsigned long tmp, tmp1;
 	void __iomem *reg = NULL;
 
-	if (ch == DMC0)
+	if (ch == DMC0) {
 		reg = (S5P_VA_DMC0 + 0x30);
-	else if (ch == DMC1)
+	} else if (ch == DMC1) {
 		reg = (S5P_VA_DMC1 + 0x30);
-	else
+	} else {
 		printk(KERN_ERR "Cannot find DMC port\n");
+		return;
+	}
 
 	/* Find current DRAM frequency */
 	tmp = s5pv210_dram_conf[ch].freq;

@@ -138,11 +138,11 @@ With the ability to classify tasks differently for different resources
 the admin can easily set up a script which receives exec notifications
 and depending on who is launching the browser he can
 
-       # echo browser_pid > /mnt/<restype>/<userclass>/tasks
+    # echo browser_pid > /sys/fs/cgroup/<restype>/<userclass>/tasks
 
 With only a single hierarchy, he now would potentially have to create
 a separate cgroup for every browser launched and associate it with
-approp network and other resource class.  This may lead to
+appropriate network and other resource class.  This may lead to
 proliferation of such cgroups.
 
 Also lets say that the administrator would like to give enhanced network
@@ -153,9 +153,9 @@ apps enhanced CPU power,
 With ability to write pids directly to resource classes, it's just a
 matter of :
 
-       # echo pid > /mnt/network/<new_class>/tasks
+       # echo pid > /sys/fs/cgroup/network/<new_class>/tasks
        (after some time)
-       # echo pid > /mnt/network/<orig_class>/tasks
+       # echo pid > /sys/fs/cgroup/network/<orig_class>/tasks
 
 Without this ability, he would have to split the cgroup into
 multiple separate ones and then associate the new cgroups with the
@@ -310,21 +310,24 @@ subsystem, this is the case for the cpuset.
 To start a new job that is to be contained within a cgroup, using
 the "cpuset" cgroup subsystem, the steps are something like:
 
- 1) mkdir /dev/cgroup
- 2) mount -t cgroup -ocpuset cpuset /dev/cgroup
- 3) Create the new cgroup by doing mkdir's and write's (or echo's) in
-    the /dev/cgroup virtual file system.
- 4) Start a task that will be the "founding father" of the new job.
- 5) Attach that task to the new cgroup by writing its pid to the
-    /dev/cgroup tasks file for that cgroup.
- 6) fork, exec or clone the job tasks from this founding father task.
+ 1) mount -t tmpfs cgroup_root /sys/fs/cgroup
+ 2) mkdir /sys/fs/cgroup/cpuset
+ 3) mount -t cgroup -ocpuset cpuset /sys/fs/cgroup/cpuset
+ 4) Create the new cgroup by doing mkdir's and write's (or echo's) in
+    the /sys/fs/cgroup virtual file system.
+ 5) Start a task that will be the "founding father" of the new job.
+ 6) Attach that task to the new cgroup by writing its pid to the
+    /sys/fs/cgroup/cpuset/tasks file for that cgroup.
+ 7) fork, exec or clone the job tasks from this founding father task.
 
 For example, the following sequence of commands will setup a cgroup
 named "Charlie", containing just CPUs 2 and 3, and Memory Node 1,
 and then start a subshell 'sh' in that cgroup:
 
-  mount -t cgroup cpuset -ocpuset /dev/cgroup
-  cd /dev/cgroup
+  mount -t tmpfs cgroup_root /sys/fs/cgroup
+  mkdir /sys/fs/cgroup/cpuset
+  mount -t cgroup cpuset -ocpuset /sys/fs/cgroup/cpuset
+  cd /sys/fs/cgroup/cpuset
   mkdir Charlie
   cd Charlie
   /bin/echo 2-3 > cpuset.cpus
@@ -345,7 +348,7 @@ Creating, modifying, using the cgroups can be done through the cgroup
 virtual filesystem.
 
 To mount a cgroup hierarchy with all available subsystems, type:
-# mount -t cgroup xxx /dev/cgroup
+# mount -t cgroup xxx /sys/fs/cgroup
 
 The "xxx" is not interpreted by the cgroup code, but will appear in
 /proc/mounts so may be any useful identifying string that you like.
@@ -354,23 +357,32 @@ Note: Some subsystems do not work without some user input first.  For instance,
 if cpusets are enabled the user will have to populate the cpus and mems files
 for each new cgroup created before that group can be used.
 
+As explained in section `1.2 Why are cgroups needed?' you should create
+different hierarchies of cgroups for each single resource or group of
+resources you want to control. Therefore, you should mount a tmpfs on
+/sys/fs/cgroup and create directories for each cgroup resource or resource
+group.
+
+# mount -t tmpfs cgroup_root /sys/fs/cgroup
+# mkdir /sys/fs/cgroup/rg1
+
 To mount a cgroup hierarchy with just the cpuset and memory
 subsystems, type:
-# mount -t cgroup -o cpuset,memory hier1 /dev/cgroup
+# mount -t cgroup -o cpuset,memory hier1 /sys/fs/cgroup/rg1
 
 To change the set of subsystems bound to a mounted hierarchy, just
 remount with different options:
-# mount -o remount,cpuset,blkio hier1 /dev/cgroup
+# mount -o remount,cpuset,blkio hier1 /sys/fs/cgroup/rg1
 
 Now memory is removed from the hierarchy and blkio is added.
 
 Note this will add blkio to the hierarchy but won't remove memory or
 cpuset, because the new options are appended to the old ones:
-# mount -o remount,blkio /dev/cgroup
+# mount -o remount,blkio /sys/fs/cgroup/rg1
 
 To Specify a hierarchy's release_agent:
 # mount -t cgroup -o cpuset,release_agent="/sbin/cpuset_release_agent" \
-  xxx /dev/cgroup
+  xxx /sys/fs/cgroup/rg1
 
 Note that specifying 'release_agent' more than once will return failure.
 
@@ -379,17 +391,17 @@ when the hierarchy consists of a single (root) cgroup. Supporting
 the ability to arbitrarily bind/unbind subsystems from an existing
 cgroup hierarchy is intended to be implemented in the future.
 
-Then under /dev/cgroup you can find a tree that corresponds to the
-tree of the cgroups in the system. For instance, /dev/cgroup
+Then under /sys/fs/cgroup/rg1 you can find a tree that corresponds to the
+tree of the cgroups in the system. For instance, /sys/fs/cgroup/rg1
 is the cgroup that holds the whole system.
 
 If you want to change the value of release_agent:
-# echo "/sbin/new_release_agent" > /dev/cgroup/release_agent
+# echo "/sbin/new_release_agent" > /sys/fs/cgroup/rg1/release_agent
 
 It can also be changed via remount.
 
-If you want to create a new cgroup under /dev/cgroup:
-# cd /dev/cgroup
+If you want to create a new cgroup under /sys/fs/cgroup/rg1:
+# cd /sys/fs/cgroup/rg1
 # mkdir my_cgroup
 
 Now you want to do something with this cgroup.

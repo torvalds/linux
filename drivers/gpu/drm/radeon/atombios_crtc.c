@@ -671,6 +671,13 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 								DISPPLL_CONFIG_DUAL_LINK;
 					}
 				}
+				if (radeon_encoder_is_dp_bridge(encoder)) {
+					struct drm_encoder *ext_encoder = radeon_atom_get_external_encoder(encoder);
+					struct radeon_encoder *ext_radeon_encoder = to_radeon_encoder(ext_encoder);
+					args.v3.sInput.ucExtTransmitterID = ext_radeon_encoder->encoder_id;
+				} else
+					args.v3.sInput.ucExtTransmitterID = 0;
+
 				atom_execute_table(rdev->mode_info.atom_context,
 						   index, (uint32_t *)&args);
 				adjusted_clock = le32_to_cpu(args.v3.sOutput.ulDispPllFreq) * 10;

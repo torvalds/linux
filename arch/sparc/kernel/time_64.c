@@ -708,7 +708,7 @@ static void sparc64_timer_setup(enum clock_event_mode mode,
 	case CLOCK_EVT_MODE_UNUSED:
 		WARN_ON(1);
 		break;
-	};
+	}
 }
 
 static struct clock_event_device sparc64_clockevent = {

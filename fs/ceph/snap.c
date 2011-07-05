@@ -722,7 +722,7 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
 		ci = list_first_entry(&mdsc->snap_flush_list,
 				struct ceph_inode_info, i_snap_flush_item);
 		inode = &ci->vfs_inode;
-		igrab(inode);
+		ihold(inode);
 		spin_unlock(&mdsc->snap_flush_lock);
 		spin_lock(&inode->i_lock);
 		__ceph_flush_snaps(ci, &session, 0);

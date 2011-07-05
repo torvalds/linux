@@ -1406,6 +1406,7 @@ qlcnic_dump_que(struct qlcnic_adapter *adapter, struct qlcnic_dump_entry *entry,
 
 	for (loop = 0; loop < que->no_ops; loop++) {
 		QLCNIC_WR_DUMP_REG(que->sel_addr, base, que_id);
+		addr = que->read_addr;
 		for (i = 0; i < cnt; i++) {
 			QLCNIC_RD_DUMP_REG(addr, base, &data);
 			*buffer++ = cpu_to_le32(data);

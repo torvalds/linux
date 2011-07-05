@@ -105,6 +105,9 @@ void rv770_pm_misc(struct radeon_device *rdev)
 	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
 
 	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
+		/* 0xff01 is a flag rather then an actual voltage */
+		if (voltage->voltage == 0xff01)
+			return;
 		if (voltage->voltage != rdev->pm.current_vddc) {
 			radeon_atom_set_voltage(rdev, voltage->voltage, SET_VOLTAGE_TYPE_ASIC_VDDC);
 			rdev->pm.current_vddc = voltage->voltage;
@@ -571,6 +574,12 @@ static void rv770_program_channel_remap(struct radeon_device *rdev)
 		tcp_chan_steer = 0x00ef2a60;
 	else
 		tcp_chan_steer = 0x00fac688;
+
+	/* RV770 CE has special chremap setup */
+	if (rdev->pdev->device == 0x944e) {
+		tcp_chan_steer = 0x00b08b08;
+		mc_shared_chremap = 0x00b08b08;
+	}
 
 	WREG32(TCP_CHAN_STEER, tcp_chan_steer);
 	WREG32(MC_SHARED_CHREMAP, mc_shared_chremap);

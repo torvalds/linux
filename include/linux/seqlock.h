@@ -28,6 +28,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/preempt.h>
+#include <asm/processor.h>
 
 typedef struct {
 	unsigned sequence;

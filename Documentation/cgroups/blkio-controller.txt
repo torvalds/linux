@@ -28,16 +28,19 @@ cgroups. Here is what you can do.
 - Enable group scheduling in CFQ
 	CONFIG_CFQ_GROUP_IOSCHED=y
 
-- Compile and boot into kernel and mount IO controller (blkio).
+- Compile and boot into kernel and mount IO controller (blkio); see
+  cgroups.txt, Why are cgroups needed?.
 
-	mount -t cgroup -o blkio none /cgroup
+	mount -t tmpfs cgroup_root /sys/fs/cgroup
+	mkdir /sys/fs/cgroup/blkio
+	mount -t cgroup -o blkio none /sys/fs/cgroup/blkio
 
 - Create two cgroups
-	mkdir -p /cgroup/test1/ /cgroup/test2
+	mkdir -p /sys/fs/cgroup/blkio/test1/ /sys/fs/cgroup/blkio/test2
 
 - Set weights of group test1 and test2
-	echo 1000 > /cgroup/test1/blkio.weight
-	echo 500 > /cgroup/test2/blkio.weight
+	echo 1000 > /sys/fs/cgroup/blkio/test1/blkio.weight
+	echo 500 > /sys/fs/cgroup/blkio/test2/blkio.weight
 
 - Create two same size files (say 512MB each) on same disk (file1, file2) and
   launch two dd threads in different cgroup to read those files.
@@ -46,12 +49,12 @@ cgroups. Here is what you can do.
 	echo 3 > /proc/sys/vm/drop_caches
 
 	dd if=/mnt/sdb/zerofile1 of=/dev/null &
-	echo $! > /cgroup/test1/tasks
-	cat /cgroup/test1/tasks
+	echo $! > /sys/fs/cgroup/blkio/test1/tasks
+	cat /sys/fs/cgroup/blkio/test1/tasks
 
 	dd if=/mnt/sdb/zerofile2 of=/dev/null &
-	echo $! > /cgroup/test2/tasks
-	cat /cgroup/test2/tasks
+	echo $! > /sys/fs/cgroup/blkio/test2/tasks
+	cat /sys/fs/cgroup/blkio/test2/tasks
 
 - At macro level, first dd should finish first. To get more precise data, keep
   on looking at (with the help of script), at blkio.disk_time and
@@ -68,13 +71,13 @@ Throttling/Upper Limit policy
 - Enable throttling in block layer
 	CONFIG_BLK_DEV_THROTTLING=y
 
-- Mount blkio controller
-        mount -t cgroup -o blkio none /cgroup/blkio
+- Mount blkio controller (see cgroups.txt, Why are cgroups needed?)
+        mount -t cgroup -o blkio none /sys/fs/cgroup/blkio
 
 - Specify a bandwidth rate on particular device for root group. The format
   for policy is "<major>:<minor>  <byes_per_second>".
 
-        echo "8:16  1048576" > /cgroup/blkio/blkio.read_bps_device
+        echo "8:16  1048576" > /sys/fs/cgroup/blkio/blkio.read_bps_device
 
   Above will put a limit of 1MB/second on reads happening for root group
   on device having major/minor number 8:16.
@@ -108,7 +111,7 @@ Hierarchical Cgroups
   CFQ and throttling will practically treat all groups at same level.
 
 				pivot
-			     /  |   \  \
+			     /  /   \  \
 			root  test1 test2  test3
 
   Down the line we can implement hierarchical accounting/control support
@@ -149,7 +152,7 @@ Proportional weight policy files
 
 	  Following is the format.
 
-	  #echo dev_maj:dev_minor weight > /path/to/cgroup/blkio.weight_device
+	  # echo dev_maj:dev_minor weight > blkio.weight_device
 	  Configure weight=300 on /dev/sdb (8:16) in this cgroup
 	  # echo 8:16 300 > blkio.weight_device
 	  # cat blkio.weight_device

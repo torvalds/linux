@@ -579,6 +579,9 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	} else switch (INTEL_INFO(dev)->gen) {
 	case 6:
 		ret = gen6_do_reset(dev, flags);
+		/* If reset with a user forcewake, try to restore */
+		if (atomic_read(&dev_priv->forcewake_count))
+			__gen6_gt_force_wake_get(dev_priv);
 		break;
 	case 5:
 		ret = ironlake_do_reset(dev, flags);
@@ -762,14 +765,6 @@ static struct drm_driver driver = {
 	.resume = i915_resume,
 
 	.device_is_agp = i915_driver_device_is_agp,
-	.enable_vblank = i915_enable_vblank,
-	.disable_vblank = i915_disable_vblank,
-	.get_vblank_timestamp = i915_get_vblank_timestamp,
-	.get_scanout_position = i915_get_crtc_scanoutpos,
-	.irq_preinstall = i915_driver_irq_preinstall,
-	.irq_postinstall = i915_driver_irq_postinstall,
-	.irq_uninstall = i915_driver_irq_uninstall,
-	.irq_handler = i915_driver_irq_handler,
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.master_create = i915_master_create,
 	.master_destroy = i915_master_destroy,

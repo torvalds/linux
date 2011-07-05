@@ -248,12 +248,15 @@ static int hiddev_release(struct inode * inode, struct file * file)
 			usbhid_close(list->hiddev->hid);
 			usbhid_put_power(list->hiddev->hid);
 		} else {
+			mutex_unlock(&list->hiddev->existancelock);
 			kfree(list->hiddev);
+			kfree(list);
+			return 0;
 		}
 	}
 
-	kfree(list);
 	mutex_unlock(&list->hiddev->existancelock);
+	kfree(list);
 
 	return 0;
 }
@@ -923,10 +926,11 @@ void hiddev_disconnect(struct hid_device *hid)
 	usb_deregister_dev(usbhid->intf, &hiddev_class);
 
 	if (hiddev->open) {
+		mutex_unlock(&hiddev->existancelock);
 		usbhid_close(hiddev->hid);
 		wake_up_interruptible(&hiddev->wait);
 	} else {
+		mutex_unlock(&hiddev->existancelock);
 		kfree(hiddev);
 	}
-	mutex_unlock(&hiddev->existancelock);
 }

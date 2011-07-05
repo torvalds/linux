@@ -16,13 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include <linux/sched.h>
-#include <linux/pagemap.h>
-#include <linux/writeback.h>
 #include <linux/blkdev.h>
-#include <linux/rbtree.h>
-#include <linux/slab.h>
-#include <linux/workqueue.h>
 #include "ctree.h"
 #include "volumes.h"
 #include "disk-io.h"
@@ -804,18 +798,12 @@ static noinline_for_stack int scrub_stripe(struct scrub_dev *sdev,
 
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
-			goto out;
+			goto out_noplug;
 
-		l = path->nodes[0];
-		slot = path->slots[0];
-		btrfs_item_key_to_cpu(l, &key, slot);
-		if (key.objectid != logical) {
-			ret = btrfs_previous_item(root, path, 0,
-						  BTRFS_EXTENT_ITEM_KEY);
-			if (ret < 0)
-				goto out;
-		}
-
+		/*
+		 * we might miss half an extent here, but that doesn't matter,
+		 * as it's only the prefetch
+		 */
 		while (1) {
 			l = path->nodes[0];
 			slot = path->slots[0];
@@ -824,7 +812,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_dev *sdev,
 				if (ret == 0)
 					continue;
 				if (ret < 0)
-					goto out;
+					goto out_noplug;
 
 				break;
 			}
@@ -906,15 +894,20 @@ again:
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto out;
-
-		l = path->nodes[0];
-		slot = path->slots[0];
-		btrfs_item_key_to_cpu(l, &key, slot);
-		if (key.objectid != logical) {
+		if (ret > 0) {
 			ret = btrfs_previous_item(root, path, 0,
 						  BTRFS_EXTENT_ITEM_KEY);
 			if (ret < 0)
 				goto out;
+			if (ret > 0) {
+				/* there's no smaller item, so stick with the
+				 * larger one */
+				btrfs_release_path(path);
+				ret = btrfs_search_slot(NULL, root, &key,
+							path, 0, 0);
+				if (ret < 0)
+					goto out;
+			}
 		}
 
 		while (1) {
@@ -989,6 +982,7 @@ next:
 
 out:
 	blk_finish_plug(&plug);
+out_noplug:
 	btrfs_free_path(path);
 	return ret < 0 ? ret : 0;
 }
@@ -1064,8 +1058,15 @@ int scrub_enumerate_chunks(struct scrub_dev *sdev, u64 start, u64 end)
 	while (1) {
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
-			goto out;
-		ret = 0;
+			break;
+		if (ret > 0) {
+			if (path->slots[0] >=
+			    btrfs_header_nritems(path->nodes[0])) {
+				ret = btrfs_next_leaf(root, path);
+				if (ret)
+					break;
+			}
+		}
 
 		l = path->nodes[0];
 		slot = path->slots[0];
@@ -1075,7 +1076,7 @@ int scrub_enumerate_chunks(struct scrub_dev *sdev, u64 start, u64 end)
 		if (found_key.objectid != sdev->dev->devid)
 			break;
 
-		if (btrfs_key_type(&key) != BTRFS_DEV_EXTENT_KEY)
+		if (btrfs_key_type(&found_key) != BTRFS_DEV_EXTENT_KEY)
 			break;
 
 		if (found_key.offset >= end)
@@ -1104,7 +1105,7 @@ int scrub_enumerate_chunks(struct scrub_dev *sdev, u64 start, u64 end)
 		cache = btrfs_lookup_block_group(fs_info, chunk_offset);
 		if (!cache) {
 			ret = -ENOENT;
-			goto out;
+			break;
 		}
 		ret = scrub_chunk(sdev, chunk_tree, chunk_objectid,
 				  chunk_offset, length);
@@ -1116,9 +1117,13 @@ int scrub_enumerate_chunks(struct scrub_dev *sdev, u64 start, u64 end)
 		btrfs_release_path(path);
 	}
 
-out:
 	btrfs_free_path(path);
-	return ret;
+
+	/*
+	 * ret can still be 1 from search_slot or next_leaf,
+	 * that's not an error
+	 */
+	return ret < 0 ? ret : 0;
 }
 
 static noinline_for_stack int scrub_supers(struct scrub_dev *sdev)
@@ -1155,8 +1160,12 @@ static noinline_for_stack int scrub_workers_get(struct btrfs_root *root)
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
 	mutex_lock(&fs_info->scrub_lock);
-	if (fs_info->scrub_workers_refcnt == 0)
+	if (fs_info->scrub_workers_refcnt == 0) {
+		btrfs_init_workers(&fs_info->scrub_workers, "scrub",
+			   fs_info->thread_pool_size, &fs_info->generic_worker);
+		fs_info->scrub_workers.idle_thresh = 4;
 		btrfs_start_workers(&fs_info->scrub_workers, 1);
+	}
 	++fs_info->scrub_workers_refcnt;
 	mutex_unlock(&fs_info->scrub_lock);
 

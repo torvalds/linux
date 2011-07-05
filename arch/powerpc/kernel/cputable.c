@@ -1979,7 +1979,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pvr_value		= 0x80240000,
 		.cpu_name		= "e5500",
 		.cpu_features		= CPU_FTRS_E5500,
-		.cpu_user_features	= COMMON_USER_BOOKE,
+		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
 		.mmu_features		= MMU_FTR_TYPE_FSL_E | MMU_FTR_BIG_PHYS |
 			MMU_FTR_USE_TLBILX,
 		.icache_bsize		= 64,
