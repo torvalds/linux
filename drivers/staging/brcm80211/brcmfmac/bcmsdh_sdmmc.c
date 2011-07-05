@@ -220,7 +220,7 @@ static int brcmf_sdioh_enablefuncs(struct sdioh_info *sd)
 	sdio_release_host(gInstance->func[1]);
 	if (err_ret) {
 		sd_err(("brcmf_sdioh_enablefuncs: Failed to enable F1 "
-			"Err: 0x%08x", err_ret));
+			"Err: 0x%08x\n", err_ret));
 	}
 
 	return false;
@@ -671,7 +671,7 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 						if (err_ret)
 							sd_err(("request_byte: "
 								"enable F2 "
-								"failed:%d",
+								"failed:%d\n",
 								 err_ret));
 					} else {
 						/* Disable Function 2 */
@@ -681,7 +681,7 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 						if (err_ret)
 							sd_err(("request_byte: "
 								"Disab F2 "
-								"failed:%d",
+								"failed:%d\n",
 								 err_ret));
 					}
 					sdio_release_host(gInstance->func[2]);
@@ -789,7 +789,7 @@ brcmf_sdioh_request_word(struct sdioh_info *sd, uint cmd_type, uint rw,
 	sdio_release_host(gInstance->func[func]);
 
 	if (err_ret) {
-		sd_err(("brcmf: Failed to %s word, Err: 0x%08x",
+		sd_err(("brcmf: Failed to %s word, Err: 0x%08x\n",
 			rw ? "Write" : "Read", err_ret));
 	}
 
