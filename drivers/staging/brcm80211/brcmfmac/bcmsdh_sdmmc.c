@@ -30,7 +30,16 @@
 #include "bcmsdbus.h"
 #include "dngl_stats.h"
 #include "dhd.h"
-#include "bcmsdh_sdmmc.h"
+
+#define BLOCK_SIZE_64 64
+#define BLOCK_SIZE_512 512
+#define BLOCK_SIZE_4318 64
+#define BLOCK_SIZE_4328 512
+
+/* private bus modes */
+#define SDIOH_MODE_SD4		2
+
+#define CLIENT_INTR		0x100	/* Get rid of this! */
 
 static void brcmf_sdioh_irqhandler(struct sdio_func *func);
 static void brcmf_sdioh_irqhandler_f2(struct sdio_func *func);

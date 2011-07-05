@@ -32,6 +32,60 @@
 #define SDIOH_DATA_PIO          0	/* PIO mode */
 #define SDIOH_DATA_DMA          1	/* DMA mode */
 
+/* internal return code */
+#define SUCCESS	0
+#define ERROR	1
+
+/* Common msglevel constants */
+#define SDH_ERROR_VAL		0x0001	/* Error */
+#define SDH_TRACE_VAL		0x0002	/* Trace */
+#define SDH_INFO_VAL		0x0004	/* Info */
+#define SDH_DEBUG_VAL		0x0008	/* Debug */
+#define SDH_DATA_VAL		0x0010	/* Data */
+#define SDH_CTRL_VAL		0x0020	/* Control Regs */
+#define SDH_LOG_VAL		0x0040	/* Enable bcmlog */
+#define SDH_DMA_VAL		0x0080	/* DMA */
+
+#ifdef BCMDBG
+#define sd_err(x)	\
+	do { \
+		if ((sd_msglevel & SDH_ERROR_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define sd_trace(x)	\
+	do { \
+		if ((sd_msglevel & SDH_TRACE_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define sd_info(x)	\
+	do { \
+		if ((sd_msglevel & SDH_INFO_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define sd_debug(x)	\
+	do { \
+		if ((sd_msglevel & SDH_DEBUG_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define sd_data(x)	\
+	do { \
+		if ((sd_msglevel & SDH_DATA_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define sd_ctrl(x)	\
+	do { \
+		if ((sd_msglevel & SDH_CTRL_VAL) && net_ratelimit()) \
+			printk x; \
+	} while (0)
+#else
+#define sd_err(x)
+#define sd_trace(x)
+#define sd_info(x)
+#define sd_debug(x)
+#define sd_data(x)
+#define sd_ctrl(x)
+#endif
+
 struct brcmf_sdreg {
 	int func;
 	int offset;
@@ -40,6 +94,54 @@ struct brcmf_sdreg {
 
 /* callback function, taking one arg */
 typedef void (*sdioh_cb_fn_t) (void *);
+
+struct sdioh_info {
+	struct osl_info *osh;		/* osh handler */
+	bool client_intr_enabled;	/* interrupt connnected flag */
+	bool intr_handler_valid;	/* client driver interrupt handler valid */
+	sdioh_cb_fn_t intr_handler;	/* registered interrupt handler */
+	void *intr_handler_arg;	/* argument to call interrupt handler */
+	u16 intmask;		/* Current active interrupts */
+	void *sdos_info;	/* Pointer to per-OS private data */
+
+	uint irq;		/* Client irq */
+	int intrcount;		/* Client interrupts */
+	bool sd_blockmode;	/* sd_blockmode == false => 64 Byte Cmd 53s. */
+	/*  Must be on for sd_multiblock to be effective */
+	bool use_client_ints;	/* If this is false, make sure to restore */
+	int client_block_size[SDIOD_MAX_IOFUNCS];	/* Blocksize */
+	u8 num_funcs;	/* Supported funcs on client */
+	u32 com_cis_ptr;
+	u32 func_cis_ptr[SDIOD_MAX_IOFUNCS];
+	uint max_dma_len;
+	uint max_dma_descriptors;	/* DMA Descriptors supported by this controller. */
+	/*	SDDMA_DESCRIPTOR	SGList[32]; *//* Scatter/Gather DMA List */
+};
+
+struct brcmf_sdmmc_instance {
+	struct sdioh_info *sd;
+	struct sdio_func *func[SDIOD_MAX_IOFUNCS];
+	u32 host_claimed;
+};
+
+/* Allocate/init/free per-OS private data */
+extern int  brcmf_sdioh_osinit(struct sdioh_info *sd);
+extern void brcmf_sdioh_osfree(struct sdioh_info *sd);
+
+/* OS-independent interrupt handler */
+extern bool brcmf_sdioh_check_client_intr(struct sdioh_info *sd);
+
+/* Core interrupt enable/disable of device interrupts */
+extern void brcmf_sdioh_dev_intr_on(struct sdioh_info *sd);
+extern void brcmf_sdioh_dev_intr_off(struct sdioh_info *sd);
+
+/* Register mapping routines */
+extern u32 *brcmf_sdioh_reg_map(s32 addr, int size);
+extern void brcmf_sdioh_reg_unmap(s32 addr, int size);
+
+/* Interrupt (de)registration routines */
+extern int  brcmf_sdioh_register_irq(struct sdioh_info *sd, uint irq);
+extern void brcmf_sdioh_free_irq(uint irq, struct sdioh_info *sd);
 
 /* attach, return handler on success, NULL if failed.
  *  The handler shall be provided by all subsequent calls. No local cache
@@ -58,9 +160,6 @@ brcmf_sdioh_interrupt_query(struct sdioh_info *si, bool *onoff);
 /* enable or disable SD interrupt */
 extern int
 brcmf_sdioh_interrupt_set(struct sdioh_info *si, bool enable_disable);
-
-extern int brcmf_sdioh_claim_host_and_lock(struct sdioh_info *si);
-extern int brcmf_sdioh_release_host_and_unlock(struct sdioh_info *si);
 
 /* read or write one byte using cmd52 */
 extern int
@@ -104,5 +203,9 @@ void *brcmf_sdcard_get_sdioh(struct brcmf_sdio_card *card);
 
 /* Watchdog timer interface for pm ops */
 extern void brcmf_sdio_wdtmr_enable(bool enable);
+
+extern uint sd_msglevel;	/* Debug message level */
+
+extern struct brcmf_sdmmc_instance *gInstance;
 
 #endif				/* _sdio_api_h_ */

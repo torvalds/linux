@@ -18,27 +18,7 @@
 #define	_BRCM_SDH_H_
 
 #include <linux/skbuff.h>
-#define BRCMF_SD_ERROR_VAL	0x0001	/* Error */
-#define BRCMF_SD_INFO_VAL		0x0002	/* Info */
 extern const uint brcmf_sdio_msglevel;
-
-#ifdef BCMDBG
-#define BRCMF_SD_ERROR(x) \
-	do { \
-		if ((brcmf_sdio_msglevel & BRCMF_SD_ERROR_VAL) && \
-		    net_ratelimit()) \
-			printk x; \
-	} while (0)
-#define BRCMF_SD_INFO(x)	\
-	do { \
-		if ((brcmf_sdio_msglevel & BRCMF_SD_INFO_VAL) && \
-		    net_ratelimit()) \
-			printk x; \
-	} while (0)
-#else				/* BCMDBG */
-#define BRCMF_SD_ERROR(x)
-#define BRCMF_SD_INFO(x)
-#endif				/* BCMDBG */
 
 #define SDIO_FUNC_0		0
 #define SDIO_FUNC_1		1
@@ -221,11 +201,7 @@ extern int brcmf_sdio_function_init(void);
 extern int brcmf_sdio_register(struct brcmf_sdioh_driver *driver);
 extern void brcmf_sdio_unregister(void);
 extern bool brcmf_sdio_chipmatch(u16 vendor, u16 device);
-extern void brcmf_sdio_device_remove(void *card);
 extern void brcmf_sdio_function_cleanup(void);
-
-extern void brcmf_sdioh_dev_intr_off(struct sdioh_info *sd);
-extern void brcmf_sdioh_dev_intr_on(struct sdioh_info *sd);
 extern int brcmf_sdio_probe(struct device *dev);
 extern int brcmf_sdio_remove(struct device *dev);
 

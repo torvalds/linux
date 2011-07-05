@@ -34,6 +34,7 @@
 #include "dngl_stats.h"
 #include "dhd.h"
 #include "dhd_bus.h"
+#include "bcmsdbus.h"
 
 /**
  * SDIO Host Controller info
@@ -208,7 +209,6 @@ void brcmf_sdio_unregister(void)
 
 /* Module parameters specific to each host-controller driver */
 
-extern uint sd_msglevel;	/* Debug message level */
 module_param(sd_msglevel, uint, 0);
 
 extern uint sd_f2_blocksize;

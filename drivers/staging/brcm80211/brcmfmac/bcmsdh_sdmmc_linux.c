@@ -50,8 +50,6 @@
 #define SDIO_DEVICE_ID_BROADCOM_4319	0x4319
 #endif		/* !defined(SDIO_DEVICE_ID_BROADCOM_4329) */
 
-#include <bcmsdh_sdmmc.h>
-
 #include "dhd_dbg.h"
 #include "wl_cfg80211.h"
 

@@ -31,6 +31,28 @@
 #include "dhd.h"
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
+
+#define BRCMF_SD_ERROR_VAL	0x0001	/* Error */
+#define BRCMF_SD_INFO_VAL		0x0002	/* Info */
+
+#ifdef BCMDBG
+#define BRCMF_SD_ERROR(x) \
+	do { \
+		if ((brcmf_sdio_msglevel & BRCMF_SD_ERROR_VAL) && \
+		    net_ratelimit()) \
+			printk x; \
+	} while (0)
+#define BRCMF_SD_INFO(x)	\
+	do { \
+		if ((brcmf_sdio_msglevel & BRCMF_SD_INFO_VAL) && \
+		    net_ratelimit()) \
+			printk x; \
+	} while (0)
+#else				/* BCMDBG */
+#define BRCMF_SD_ERROR(x)
+#define BRCMF_SD_INFO(x)
+#endif				/* BCMDBG */
+
 const uint brcmf_sdio_msglevel = BRCMF_SD_ERROR_VAL;
 
 struct brcmf_sdio_card {
