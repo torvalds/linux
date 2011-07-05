@@ -1889,8 +1889,7 @@ void brcmf_sdbrcm_bus_dump(struct brcmf_pub *dhdp, struct brcmu_strbuf *strbuf)
 #endif				/* SDTEST */
 #ifdef BCMDBG
 	brcmu_bprintf(strbuf, "dpc_sched %d host interrupt%spending\n",
-		    bus->dpc_sched,
-		    (brcmf_sdcard_intr_pending(bus->card) ? " " : " not "));
+		      bus->dpc_sched, " not ");
 	brcmu_bprintf(strbuf, "blocksize %d roundup %d\n", bus->blocksize,
 		    bus->roundup);
 #endif				/* BCMDBG */

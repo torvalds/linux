@@ -244,13 +244,6 @@ brcmf_sdioh_interrupt_query(struct sdioh_info *sd, bool *onoff)
 	return 0;
 }
 
-#if defined(BCMDBG)
-extern bool brcmf_sdioh_interrupt_pending(struct sdioh_info *sd)
-{
-	return 0;
-}
-#endif
-
 uint brcmf_sdioh_query_iofnum(struct sdioh_info *sd)
 {
 	return sd->num_funcs;

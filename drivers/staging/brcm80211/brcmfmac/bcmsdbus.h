@@ -53,10 +53,6 @@ brcmf_sdioh_interrupt_query(struct sdioh_info *si, bool *onoff);
 extern int
 brcmf_sdioh_interrupt_set(struct sdioh_info *si, bool enable_disable);
 
-#if defined(BCMDBG)
-extern bool brcmf_sdioh_interrupt_pending(struct sdioh_info *si);
-#endif
-
 extern int brcmf_sdioh_claim_host_and_lock(struct sdioh_info *si);
 extern int brcmf_sdioh_release_host_and_unlock(struct sdioh_info *si);
 

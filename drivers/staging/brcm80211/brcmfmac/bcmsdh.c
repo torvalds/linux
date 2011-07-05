@@ -138,14 +138,6 @@ int brcmf_sdcard_intr_dereg(struct brcmf_sdio_card *card)
 	return brcmf_sdioh_interrupt_deregister(card->sdioh);
 }
 
-#if defined(BCMDBG)
-bool brcmf_sdcard_intr_pending(struct brcmf_sdio_card *card)
-{
-	ASSERT(card);
-	return brcmf_sdioh_interrupt_pending(card->sdioh);
-}
-#endif
-
 int brcmf_sdcard_devremove_reg(struct brcmf_sdio_card *card,
 			       brcmf_sdiocard_cb_fn_t fn,
 			       void *argh)

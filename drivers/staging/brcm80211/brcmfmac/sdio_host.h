@@ -93,11 +93,6 @@ brcmf_sdcard_intr_reg(struct brcmf_sdio_card *card, brcmf_sdiocard_cb_fn_t fn,
 
 extern int brcmf_sdcard_intr_dereg(struct brcmf_sdio_card *card);
 
-#if defined(BCMDBG)
-/* Query pending interrupt status from the host controller */
-extern bool brcmf_sdcard_intr_pending(struct brcmf_sdio_card *card);
-#endif
-
 /* Register a callback to be called on device removal.
  * No-op in the case of non-removable/hardwired devices.
  */
