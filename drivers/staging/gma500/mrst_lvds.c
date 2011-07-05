@@ -46,7 +46,7 @@ static void mrst_lvds_set_power(struct drm_device *dev,
 				struct psb_intel_output *output, bool on)
 {
 	u32 pp_status;
-	DRM_DRIVER_PRIVATE_T *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	PSB_DEBUG_ENTRY("\n");
 
 	if (!gma_power_begin(dev, true))

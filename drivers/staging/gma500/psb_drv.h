@@ -1,5 +1,5 @@
 /**************************************************************************
- * Copyright (c) 2007-2008, Intel Corporation.
+ * Copyright (c) 2007-2011, Intel Corporation.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -32,40 +32,32 @@
 #include "psb_powermgmt.h"
 #include "mrst.h"
 
-/*Append new drm mode definition here, align with libdrm definition*/
+/* Append new drm mode definition here, align with libdrm definition */
 #define DRM_MODE_SCALE_NO_SCALE   2
 
 enum {
-	CHIP_PSB_8108 = 0,
-	CHIP_PSB_8109 = 1,
-	CHIP_MRST_4100 = 2,
+	CHIP_PSB_8108 = 0,		/* Poulsbo */
+	CHIP_PSB_8109 = 1,		/* Poulsbo */
+	CHIP_MRST_4100 = 2,		/* Moorestown/Oaktrail */
 };
 
 #define IS_MRST(dev) (((dev)->pci_device & 0xfffc) == 0x4100)
 
 /*
- *Hardware bugfixes
+ * Driver definitions
  */
 
-#define DRIVER_NAME "pvrsrvkm"
-#define DRIVER_DESC "drm driver for the Intel GMA500"
-#define DRIVER_AUTHOR "Intel Corporation"
+#define DRIVER_NAME "gma500"
+#define DRIVER_DESC "DRM driver for the Intel GMA500"
 
-#define PSB_DRM_DRIVER_DATE "2009-03-10"
-#define PSB_DRM_DRIVER_MAJOR 8
-#define PSB_DRM_DRIVER_MINOR 1
+#define PSB_DRM_DRIVER_DATE "2011-06-06"
+#define PSB_DRM_DRIVER_MAJOR 1
+#define PSB_DRM_DRIVER_MINOR 0
 #define PSB_DRM_DRIVER_PATCHLEVEL 0
 
 /*
- *TTM driver private offsets.
+ *	Hardware offsets
  */
-
-#define DRM_PSB_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
-
-#define PSB_OBJECT_HASH_ORDER 13
-#define PSB_FILE_OBJECT_HASH_ORDER 12
-#define PSB_BO_HASH_ORDER 12
-
 #define PSB_VDC_OFFSET		 0x00000000
 #define PSB_VDC_SIZE		 0x000080000
 #define MRST_MMIO_SIZE		 0x0000C0000
@@ -73,42 +65,52 @@ enum {
 #define PSB_SGX_SIZE		 0x8000
 #define PSB_SGX_OFFSET		 0x00040000
 #define MRST_SGX_OFFSET		 0x00080000
+/*
+ *	PCI resource identifiers
+ */
 #define PSB_MMIO_RESOURCE	 0
 #define PSB_GATT_RESOURCE	 2
 #define PSB_GTT_RESOURCE	 3
+/*
+ *	PCI configuration
+ */
 #define PSB_GMCH_CTRL		 0x52
 #define PSB_BSM			 0x5C
 #define _PSB_GMCH_ENABLED	 0x4
 #define PSB_PGETBL_CTL		 0x2020
 #define _PSB_PGETBL_ENABLED	 0x00000001
 #define PSB_SGX_2D_SLAVE_PORT	 0x4000
+
+/* To get rid of */
 #define PSB_TT_PRIV0_LIMIT	 (256*1024*1024)
 #define PSB_TT_PRIV0_PLIMIT	 (PSB_TT_PRIV0_LIMIT >> PAGE_SHIFT)
-#define PSB_NUM_VALIDATE_BUFFERS 2048
 
 /*
- *Flags for external memory type field.
+ *	SGX side MMU definitions (these can probably go)
  */
 
+/*
+ *	Flags for external memory type field.
+ */
 #define PSB_MMU_CACHED_MEMORY	  0x0001	/* Bind to MMU only */
 #define PSB_MMU_RO_MEMORY	  0x0002	/* MMU RO memory */
 #define PSB_MMU_WO_MEMORY	  0x0004	/* MMU WO memory */
-
 /*
- *PTE's and PDE's
+ *	PTE's and PDE's
  */
-
 #define PSB_PDE_MASK		  0x003FFFFF
 #define PSB_PDE_SHIFT		  22
 #define PSB_PTE_SHIFT		  12
-
+/*
+ *	Cache control
+ */
 #define PSB_PTE_VALID		  0x0001	/* PTE / PDE valid */
 #define PSB_PTE_WO		  0x0002	/* Write only */
 #define PSB_PTE_RO		  0x0004	/* Read only */
 #define PSB_PTE_CACHED		  0x0008	/* CPU cache coherent */
 
 /*
- *VDC registers and bits
+ *	VDC registers and bits
  */
 #define PSB_MSVDX_CLOCKGATING	  0x2064
 #define PSB_TOPAZ_CLOCKGATING	  0x2068
@@ -278,7 +280,7 @@ struct drm_psb_private {
 	int display_count;
 
 	/*
-	 *Modesetting
+	 * Modesetting
 	 */
 	struct psb_intel_mode_device mode_dev;
 
@@ -287,12 +289,8 @@ struct drm_psb_private {
 	uint32_t num_pipe;
 
 	/*
-	 *Memory managers
+	 * OSPM info (Power management base) (can go ?)
 	 */
-
-	/*
-	*OSPM info
-	*/
 	uint32_t ospm_base;
 
 	/*
@@ -304,11 +302,11 @@ struct drm_psb_private {
 	u32 fuse_reg_value;
 	u32 video_device_fuse;
 
-	/* pci revision id for B0:D2:F0 */
+	/* PCI revision ID for B0:D2:F0 */
 	uint8_t platform_rev_id;
 
 	/*
-	 *LVDS info
+	 * LVDS info
 	 */
 	int backlight_duty_cycle;	/* restore backlight to this value */
 	bool panel_wants_dither;
@@ -316,10 +314,10 @@ struct drm_psb_private {
 	struct drm_display_mode *lfp_lvds_vbt_mode;
 	struct drm_display_mode *sdvo_lvds_vbt_mode;
 
-	struct bdb_lvds_backlight *lvds_bl; /*LVDS backlight info from VBT*/
+	struct bdb_lvds_backlight *lvds_bl; /* LVDS backlight info from VBT */
 	struct psb_intel_i2c_chan *lvds_i2c_bus;
 
-	/* Feature bits from the VBIOS*/
+	/* Feature bits from the VBIOS */
 	unsigned int int_tv_support:1;
 	unsigned int lvds_dither:1;
 	unsigned int lvds_vbt:1;
@@ -332,7 +330,7 @@ struct drm_psb_private {
 	unsigned int core_freq;
 	uint32_t iLVDS_enable;
 
-	/*runtime PM state*/
+	/* Runtime PM state */
 	int rpm_enabled;
 
 	/* Moorestown specific */
@@ -350,7 +348,7 @@ struct drm_psb_private {
 	uint32_t dspcntr2;
 
 	/*
-	 *Register state
+	 * Register state
 	 */
 	uint32_t saveDSPACNTR;
 	uint32_t saveDSPBCNTR;
@@ -468,7 +466,7 @@ struct drm_psb_private {
 	u32 lid_last_state;
 
 	/*
-	 *Watchdog
+	 * Watchdog
 	 */
 
 	uint32_t apm_reg;
@@ -497,7 +495,7 @@ static inline struct drm_psb_private *psb_priv(struct drm_device *dev)
 }
 
 /*
- *MMU stuff.
+ * MMU stuff.
  */
 
 extern struct psb_mmu_driver *psb_mmu_driver_init(uint8_t __iomem * registers,
@@ -525,7 +523,7 @@ extern int psb_mmu_virtual_to_pfn(struct psb_mmu_pd *pd, uint32_t virtual,
 				  unsigned long *pfn);
 
 /*
- *Enable / disable MMU for different requestors.
+ * Enable / disable MMU for different requestors.
  */
 
 
@@ -598,7 +596,7 @@ extern int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
 	 	  	   unsigned size);
 
 /*
- *psb_reset.c
+ * psb_reset.c
  */
 
 extern void psb_lid_timer_init(struct drm_psb_private *dev_priv);
@@ -710,7 +708,6 @@ extern int drm_idle_check_interval;
 /*
  *Utilities
  */
-#define DRM_DRIVER_PRIVATE_T struct drm_psb_private
 
 static inline u32 MRST_MSG_READ32(uint port, uint offset)
 {

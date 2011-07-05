@@ -1,5 +1,5 @@
 /**************************************************************************
- * Copyright (c) 2007, Intel Corporation.
+ * Copyright (c) 2007-2011, Intel Corporation.
  * All Rights Reserved.
  * Copyright (c) 2008, Tungsten Graphics, Inc. Cedar Park, TX., USA.
  * All Rights Reserved.
@@ -1462,6 +1462,6 @@ static void __exit psb_exit(void)
 late_initcall(psb_init);
 module_exit(psb_exit);
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
+MODULE_AUTHOR("Alan Cox <alan@linux.intel.com> and others");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

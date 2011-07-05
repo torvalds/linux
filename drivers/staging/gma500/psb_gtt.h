@@ -22,6 +22,7 @@
 
 #include <drm/drmP.h>
 
+/* This wants cleaning up with respect to the psb_dev and un-needed stuff */
 struct psb_gtt {
 	struct drm_device *dev;
 	uint32_t gatt_start;
@@ -41,9 +42,9 @@ extern void psb_gtt_takedown(struct drm_device *dev);
 
 /* Each gtt_range describes an allocation in the GTT area */
 struct gtt_range {
-	struct resource resource;
-	u32 offset;
-	struct kref kref;
+	struct resource resource;	/* Resource for our allocation */
+	u32 offset;			/* GTT offset of our object */
+	struct kref kref;		/* Can probably go FIXME - GEM kref will do */
 	struct drm_gem_object gem;	/* GEM high level stuff */
 	int in_gart;			/* Currently in the GART (ref ct) */
 	bool stolen;			/* Backed from stolen RAM */

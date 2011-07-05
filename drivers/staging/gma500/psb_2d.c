@@ -1,5 +1,5 @@
 /**************************************************************************
- * Copyright (c) 2007, Intel Corporation.
+ * Copyright (c) 2007-2011, Intel Corporation.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -396,8 +396,3 @@ int psbfb_sync(struct fb_info *info)
 out:
 	return (busy) ? -EBUSY : 0;
 }
-
-/*
-	info->fix.accel = FB_ACCEL_I830;
-	info->flags = FBINFO_DEFAULT;
-*/

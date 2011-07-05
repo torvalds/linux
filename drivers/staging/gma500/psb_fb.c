@@ -1,5 +1,5 @@
 /**************************************************************************
- * Copyright (c) 2007, Intel Corporation.
+ * Copyright (c) 2007-2011, Intel Corporation.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -56,7 +56,6 @@ void *psbfb_vdc_reg(struct drm_device *dev)
 	dev_priv = (struct drm_psb_private *) dev->dev_private;
 	return dev_priv->vdc_reg;
 }
-/*EXPORT_SYMBOL(psbfb_vdc_reg); */
 
 static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			   unsigned blue, unsigned transp,

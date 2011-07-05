@@ -86,7 +86,7 @@ static const struct mrst_limit_t *mrst_limit(struct drm_crtc *crtc)
 {
 	const struct mrst_limit_t *limit = NULL;
 	struct drm_device *dev = crtc->dev;
-	DRM_DRIVER_PRIVATE_T *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 
 	if (psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)
 	    || psb_intel_pipe_has_type(crtc, INTEL_OUTPUT_MIPI)) {
@@ -296,7 +296,7 @@ static int mrst_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
-	DRM_DRIVER_PRIVATE_T *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	int pipe = psb_intel_crtc->pipe;
 	int fp_reg = (pipe == 0) ? MRST_FPA0 : FPB0;
 	int dpll_reg = (pipe == 0) ? MRST_DPLL_A : DPLL_B;
