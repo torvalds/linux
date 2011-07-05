@@ -30,6 +30,9 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 
+#define MEM_SYNC 0xe0000001
+#define MEM_VRAM 0xe0010000
+
 struct nvd0_display {
 	struct nouveau_gpuobj *mem;
 	struct {
@@ -172,6 +175,7 @@ int
 nvd0_display_init(struct drm_device *dev)
 {
 	struct nvd0_display *disp = nvd0_display(dev);
+	u32 *push;
 	int i;
 
 	if (nv_rd32(dev, 0x6100ac) & 0x00000100) {
@@ -189,7 +193,7 @@ nvd0_display_init(struct drm_device *dev)
 	/* init master */
 	nv_wr32(dev, 0x610494, (disp->evo[0].handle >> 8) | 3);
 	nv_wr32(dev, 0x610498, 0x00010000);
-	nv_wr32(dev, 0x61049c, 0x00000000);
+	nv_wr32(dev, 0x61049c, 0x00000001);
 	nv_mask(dev, 0x610490, 0x00000010, 0x00000010);
 	nv_wr32(dev, 0x640000, 0x00000000);
 	nv_wr32(dev, 0x610490, 0x01000013);
@@ -213,6 +217,19 @@ nvd0_display_init(struct drm_device *dev)
 		nv_mask(dev, 0x610090, 1 << i, 1 << i);
 		nv_mask(dev, 0x6100a0, 1 << i, 1 << i);
 	}
+
+	push = evo_wait(dev, 0, 32);
+	if (!push)
+		return -EBUSY;
+	evo_mthd(push, 0x0088, 1);
+	evo_data(push, MEM_SYNC);
+	evo_mthd(push, 0x0084, 1);
+	evo_data(push, 0x00000000);
+	evo_mthd(push, 0x0084, 1);
+	evo_data(push, 0x80000000);
+	evo_mthd(push, 0x008c, 1);
+	evo_data(push, 0x00000000);
+	evo_kick(push, dev, 0);
 
 	return 0;
 }
@@ -238,6 +255,7 @@ int
 nvd0_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_instmem_engine *pinstmem = &dev_priv->engine.instmem;
 	struct pci_dev *pdev = dev->pdev;
 	struct nvd0_display *disp;
 	int ret;
@@ -251,9 +269,30 @@ nvd0_display_create(struct drm_device *dev)
 	nouveau_irq_register(dev, 26, nvd0_display_intr);
 
 	/* hash table and dma objects for the memory areas we care about */
-	ret = nouveau_gpuobj_new(dev, NULL, 4 * 1024, 0x1000, 0, &disp->mem);
+	ret = nouveau_gpuobj_new(dev, NULL, 0x4000, 0x10000,
+				 NVOBJ_FLAG_ZERO_ALLOC, &disp->mem);
 	if (ret)
 		goto out;
+
+	nv_wo32(disp->mem, 0x1000, 0x00000049);
+	nv_wo32(disp->mem, 0x1004, (disp->mem->vinst + 0x2000) >> 8);
+	nv_wo32(disp->mem, 0x1008, (disp->mem->vinst + 0x2fff) >> 8);
+	nv_wo32(disp->mem, 0x100c, 0x00000000);
+	nv_wo32(disp->mem, 0x1010, 0x00000000);
+	nv_wo32(disp->mem, 0x1014, 0x00000000);
+	nv_wo32(disp->mem, 0x0000, MEM_SYNC);
+	nv_wo32(disp->mem, 0x0004, (0x1000 << 9) | 0x00000001);
+
+	nv_wo32(disp->mem, 0x1020, 0x00000009);
+	nv_wo32(disp->mem, 0x1024, 0x00000000);
+	nv_wo32(disp->mem, 0x1028, (dev_priv->vram_size - 1) >> 8);
+	nv_wo32(disp->mem, 0x102c, 0x00000000);
+	nv_wo32(disp->mem, 0x1030, 0x00000000);
+	nv_wo32(disp->mem, 0x1034, 0x00000000);
+	nv_wo32(disp->mem, 0x0008, MEM_VRAM);
+	nv_wo32(disp->mem, 0x000c, (0x1020 << 9) | 0x00000001);
+
+	pinstmem->flush(dev);
 
 	/* push buffers for evo channels */
 	disp->evo[0].ptr =
