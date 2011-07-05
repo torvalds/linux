@@ -21,11 +21,9 @@
  */
 
 #include <linux/i2c.h>
-/* #include <drm/drm_crtc.h> */
-/* #include <drm/drm_edid.h> */
 #include <drm/drmP.h>
 
-#include "psb_intel_bios.h"
+#include "intel_bios.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"

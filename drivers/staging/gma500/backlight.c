@@ -23,7 +23,7 @@
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
 #include "psb_intel_drv.h"
-#include "psb_intel_bios.h"
+#include "intel_bios.h"
 #include "psb_powermgmt.h"
 
 int gma_backlight_init(struct drm_device *dev)

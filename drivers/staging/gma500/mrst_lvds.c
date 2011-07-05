@@ -24,7 +24,7 @@
 #include <drm/drmP.h>
 #include <asm/mrst.h>
 
-#include "psb_intel_bios.h"
+#include "intel_bios.h"
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"

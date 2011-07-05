@@ -26,7 +26,7 @@
 #include "framebuffer.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
-#include "psb_intel_bios.h"
+#include "intel_bios.h"
 #include "mid_bios.h"
 #include "mdfld_dsi_dbi.h"
 #include <drm/drm_pciids.h>

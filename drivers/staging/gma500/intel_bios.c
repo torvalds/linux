@@ -24,7 +24,7 @@
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "psb_intel_bios.h"
+#include "intel_bios.h"
 
 
 static void *find_section(struct bdb_header *bdb, int section_id)

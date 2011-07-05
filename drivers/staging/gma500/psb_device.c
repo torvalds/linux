@@ -24,7 +24,7 @@
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
-#include "psb_intel_bios.h"
+#include "intel_bios.h"
 
 
 static int psb_output_init(struct drm_device *dev)
