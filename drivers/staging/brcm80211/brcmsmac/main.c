@@ -278,7 +278,7 @@ static bool in_send_q;
 #define wme_shmemacindex(ac)	wme_ac2fifo[ac]
 
 #ifdef BCMDBG
-static const char *fifo_names[] = {
+static const char * const fifo_names[] = {
 	"AC_BK", "AC_BE", "AC_VI", "AC_VO", "BCMC", "ATIM" };
 #else
 static const char fifo_names[6][0];
@@ -2831,7 +2831,7 @@ static void brcms_c_wme_retries_write(struct brcms_c_info *wlc)
 }
 
 #ifdef BCMDBG
-static const char *supr_reason[] = {
+static const char * const supr_reason[] = {
 	"None", "PMQ Entry", "Flush request",
 	"Previous frag failure", "Channel mismatch",
 	"Lifetime Expiry", "Underflow"
