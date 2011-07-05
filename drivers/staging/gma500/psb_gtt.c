@@ -314,7 +314,6 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 				len, start, end, PAGE_SIZE, NULL, NULL);
 	if (ret == 0) {
 		gt->offset = gt->resource.start - r->start;
-		dev_err(dev->dev, "GTT new %p, %d\n", gt, gt->stolen);
 		return gt;
 	}
 	kfree(gt);
@@ -341,7 +340,6 @@ static void psb_gtt_destroy(struct kref *kref)
 	}
 	WARN_ON(gt->in_gart && !gt->stolen);
 	release_resource(&gt->resource);
-	pr_err("GTT destroyed %p, %d\n", gt, gt->stolen);
 	kfree(gt);
 }
 

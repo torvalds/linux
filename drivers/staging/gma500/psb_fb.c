@@ -727,15 +727,11 @@ static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	/* Should never get stolen memory for a user fb */
 	WARN_ON(r->stolen);
-	pr_err("user framebuffer destroy %p, fbdev %p\n",
-						psbfb, psbfb->fbdev);
+
 	/* Check if we are erroneously live */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		if (crtc->fb == fb)
 			reset = 1;
-
-	if (reset)
-		pr_err("DRM: gma500, forcing reset\n");
 
 	if (reset)
 		/* 
