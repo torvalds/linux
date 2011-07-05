@@ -4959,9 +4959,9 @@ static void b43_wireless_exit(struct b43_bus_dev *dev, struct b43_wl *wl)
 	ieee80211_free_hw(hw);
 }
 
-static struct b43_wl *b43_wireless_init(struct ssb_device *dev)
+static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 {
-	struct ssb_sprom *sprom = &dev->bus->sprom;
+	struct ssb_sprom *sprom = dev->bus_sprom;
 	struct ieee80211_hw *hw;
 	struct b43_wl *wl;
 
@@ -5003,7 +5003,7 @@ static struct b43_wl *b43_wireless_init(struct ssb_device *dev)
 	skb_queue_head_init(&wl->tx_queue);
 
 	b43info(wl, "Broadcom %04X WLAN found (core revision %u)\n",
-		dev->bus->chip_id, dev->id.revision);
+		dev->chip_id, dev->core_rev);
 	return wl;
 }
 
@@ -5045,7 +5045,7 @@ int b43_ssb_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
 		/* Probing the first core. Must setup common struct b43_wl */
 		first = 1;
 		b43_sprom_fixup(sdev->bus);
-		wl = b43_wireless_init(sdev);
+		wl = b43_wireless_init(dev);
 		if (IS_ERR(wl)) {
 			err = PTR_ERR(wl);
 			goto out;
