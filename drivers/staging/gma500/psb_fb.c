@@ -719,16 +719,38 @@ static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct psb_framebuffer *psbfb = to_psb_fb(fb);
 	struct gtt_range *r = psbfb->gtt;
+	struct drm_device *dev = fb->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_fbdev *fbdev = dev_priv->fbdev;
+	struct drm_crtc *crtc;
+	int reset = 0;
 
 	/* Should never get stolen memory for a user fb */
 	WARN_ON(r->stolen);
 	pr_err("user framebuffer destroy %p, fbdev %p\n",
 						psbfb, psbfb->fbdev);
+	/* Check if we are erroneously live */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		if (crtc->fb == fb)
+			reset = 1;
+
+	if (reset)
+		pr_err("DRM: gma500, forcing reset\n");
+
+	if (reset)
+		/* 
+		 * Now force a sane response before we permit the DRM crc layer to
+		 * do stupid things like blank the display. Instead we reset this
+		 * framebuffer as if the user had forced a reset. We must do this
+		 * before the cleanup so that the DRM layer doesn't get a chance
+		 * to stick its oar in where it isn't wanted.
+		 */
+		drm_fb_helper_restore_fbdev_mode(&fbdev->psb_fb_helper);
+
         /* Let DRM do its clean up */
 	drm_framebuffer_cleanup(fb);
 	/*  We are no longer using the resource in GEM */
 	drm_gem_object_unreference_unlocked(&r->gem);
-
 	kfree(fb);
 }
 

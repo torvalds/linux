@@ -352,14 +352,14 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 
 	PSB_DEBUG_ENTRY("\n");
 
+	if (!gma_power_begin(dev, true))
+		return 0;
+
 	/* no fb bound */
 	if (!crtc->fb) {
 		DRM_DEBUG("No FB bound\n");
-		return 0;
+		goto psb_intel_pipe_cleaner;
 	}
-
-	if (!gma_power_begin(dev, true))
-		return 0;
 
 	/* We are displaying this buffer, make sure it is actually loaded
 	   into the GTT */
@@ -409,6 +409,7 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 		REG_READ(dspbase);
 	}
 
+psb_intel_pipe_cleaner:
 	/* If there was a previous display we can now unpin it */
 	if (old_fb)
 		psb_gtt_unpin(to_psb_fb(old_fb)->gtt);
@@ -588,6 +589,7 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
+	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	int pipe = psb_intel_crtc->pipe;
 	int fp_reg = (pipe == 0) ? FPA0 : FPB0;
 	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
@@ -609,6 +611,12 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	bool is_crt = false, is_lvds = false, is_tv = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
+
+	/* No scan out no play */
+	if (crtc->fb == NULL) {
+	        crtc_funcs->mode_set_base(crtc, x, y, old_fb);
+                return 0;
+        }
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		struct psb_intel_output *psb_intel_output =
@@ -786,11 +794,7 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	REG_WRITE(dspcntr_reg, dspcntr);
 
 	/* Flush the plane changes */
-	{
-		struct drm_crtc_helper_funcs *crtc_funcs =
-		    crtc->helper_private;
-		crtc_funcs->mode_set_base(crtc, x, y, old_fb);
-	}
+	crtc_funcs->mode_set_base(crtc, x, y, old_fb);
 
 	psb_intel_wait_for_vblank(dev);
 
