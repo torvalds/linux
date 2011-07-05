@@ -255,8 +255,9 @@ static inline int is_pden(struct wm97xx *wm)
 static int wm9712_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 {
 	int timeout = 5 * delay;
+	bool wants_pen = adcsel & WM97XX_PEN_DOWN;
 
-	if (!wm->pen_probably_down) {
+	if (wants_pen && !wm->pen_probably_down) {
 		u16 data = wm97xx_reg_read(wm, AC97_WM97XX_DIGITISER_RD);
 		if (!(data & WM97XX_PEN_DOWN))
 			return RC_PENUP;
@@ -300,7 +301,7 @@ static int wm9712_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 		return RC_PENUP;
 	}
 
-	if (!(*sample & WM97XX_PEN_DOWN)) {
+	if (wants_pen && !(*sample & WM97XX_PEN_DOWN)) {
 		wm->pen_probably_down = 0;
 		return RC_PENUP;
 	}
@@ -385,16 +386,18 @@ static int wm9712_poll_touch(struct wm97xx *wm, struct wm97xx_data *data)
 		if (rc != RC_VALID)
 			return rc;
 	} else {
-		rc = wm9712_poll_sample(wm, WM97XX_ADCSEL_X, &data->x);
+		rc = wm9712_poll_sample(wm, WM97XX_ADCSEL_X | WM97XX_PEN_DOWN,
+					&data->x);
 		if (rc != RC_VALID)
 			return rc;
 
-		rc = wm9712_poll_sample(wm, WM97XX_ADCSEL_Y, &data->y);
+		rc = wm9712_poll_sample(wm, WM97XX_ADCSEL_Y | WM97XX_PEN_DOWN,
+					&data->y);
 		if (rc != RC_VALID)
 			return rc;
 
 		if (pil && !five_wire) {
-			rc = wm9712_poll_sample(wm, WM97XX_ADCSEL_PRES,
+			rc = wm9712_poll_sample(wm, WM97XX_ADCSEL_PRES | WM97XX_PEN_DOWN,
 						&data->p);
 			if (rc != RC_VALID)
 				return rc;
