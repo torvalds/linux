@@ -135,9 +135,13 @@ static int hfsplus_system_write_inode(struct inode *inode)
 static int hfsplus_write_inode(struct inode *inode,
 		struct writeback_control *wbc)
 {
+	int err;
+
 	dprint(DBG_INODE, "hfsplus_write_inode: %lu\n", inode->i_ino);
 
-	hfsplus_ext_write_extent(inode);
+	err = hfsplus_ext_write_extent(inode);
+	if (err)
+		return err;
 
 	if (inode->i_ino >= HFSPLUS_FIRSTUSER_CNID ||
 	    inode->i_ino == HFSPLUS_ROOT_CNID)

@@ -119,23 +119,31 @@ static void __hfsplus_ext_write_extent(struct inode *inode,
 	set_bit(HFSPLUS_I_EXT_DIRTY, &hip->flags);
 }
 
-static void hfsplus_ext_write_extent_locked(struct inode *inode)
+static int hfsplus_ext_write_extent_locked(struct inode *inode)
 {
+	int res;
+
 	if (HFSPLUS_I(inode)->extent_state & HFSPLUS_EXT_DIRTY) {
 		struct hfs_find_data fd;
 
-		if (!hfs_find_init(HFSPLUS_SB(inode->i_sb)->ext_tree, &fd)) {
-			__hfsplus_ext_write_extent(inode, &fd);
-			hfs_find_exit(&fd);
-		}
+		res = hfs_find_init(HFSPLUS_SB(inode->i_sb)->ext_tree, &fd);
+		if (res)
+			return res;
+		__hfsplus_ext_write_extent(inode, &fd);
+		hfs_find_exit(&fd);
 	}
+	return 0;
 }
 
-void hfsplus_ext_write_extent(struct inode *inode)
+int hfsplus_ext_write_extent(struct inode *inode)
 {
+	int res;
+
 	mutex_lock(&HFSPLUS_I(inode)->extents_lock);
-	hfsplus_ext_write_extent_locked(inode);
+	res = hfsplus_ext_write_extent_locked(inode);
 	mutex_unlock(&HFSPLUS_I(inode)->extents_lock);
+
+	return res;
 }
 
 static inline int __hfsplus_ext_read_extent(struct hfs_find_data *fd,
@@ -477,7 +485,9 @@ out:
 
 insert_extent:
 	dprint(DBG_EXTENT, "insert new extent\n");
-	hfsplus_ext_write_extent_locked(inode);
+	res = hfsplus_ext_write_extent_locked(inode);
+	if (res)
+		goto out;
 
 	memset(hip->cached_extents, 0, sizeof(hfsplus_extent_rec));
 	hip->cached_extents[0].start_block = cpu_to_be32(start);
