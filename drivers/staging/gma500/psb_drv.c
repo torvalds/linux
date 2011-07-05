@@ -409,8 +409,6 @@ static int psb_do_init(struct drm_device *dev)
 	struct psb_gtt *pg = dev_priv->pg;
 
 	uint32_t stolen_gtt;
-	uint32_t tt_start;
-	uint32_t tt_pages;
 
 	int ret = -ENOMEM;
 
@@ -449,10 +447,6 @@ static int psb_do_init(struct drm_device *dev)
 
 	spin_lock_init(&dev_priv->irqmask_lock);
 
-	tt_pages = (pg->gatt_pages < PSB_TT_PRIV0_PLIMIT) ?
-	    pg->gatt_pages : PSB_TT_PRIV0_PLIMIT;
-	tt_start = dev_priv->gatt_free_offset - pg->mmu_gatt_start;
-	tt_pages -= tt_start >> PAGE_SHIFT;
 	/* FIXME: can we kill ta_mem_size ? */
 	dev_priv->sizes.ta_mem_size = 0;
 
