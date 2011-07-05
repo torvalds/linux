@@ -3564,7 +3564,7 @@ static u8 bnx2x_ext_phy_resolve_fc(struct bnx2x_phy *phy,
 static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 					struct link_params *params,
 					struct link_vars *vars) {
-	u16 val16 = 0, lane;
+	u16 val16 = 0, lane, bam37 = 0;
 	struct bnx2x *bp = params->bp;
 	DP(NETIF_MSG_LINK, "Enable Auto Negotiation for KR\n");
 	/* Check adding advertisement for 1G KX */
@@ -3615,6 +3615,18 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	/* Advertised speeds */
 	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
 			 MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT1, val16);
+
+	/* Enable CL37 BAM */
+	if (REG_RD(bp, params->shmem_base +
+		   offsetof(struct shmem_region, dev_info.
+			    port_hw_config[params->port].default_cfg)) &
+	    PORT_HW_CFG_ENABLE_BAM_ON_KR_ENABLED) {
+		bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+				MDIO_WC_REG_DIGITAL6_MP5_NEXTPAGECTRL, &bam37);
+		bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			MDIO_WC_REG_DIGITAL6_MP5_NEXTPAGECTRL, bam37 | 1);
+		DP(NETIF_MSG_LINK, "Enable CL37 BAM on KR\n");
+	}
 
 	/* Advertise pause */
 	bnx2x_ext_phy_set_pause(params, phy, vars);
