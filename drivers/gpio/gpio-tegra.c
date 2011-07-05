@@ -347,7 +347,7 @@ static int __init tegra_gpio_init(void)
 	 * driver is converted into a platform_device
 	 */
 	tegra_gpio_chip.of_node = of_find_compatible_node(NULL, NULL,
-						"nvidia,tegra250-gpio");
+						"nvidia,tegra20-gpio");
 #endif /* CONFIG_OF_GPIO */
 
 	gpiochip_add(&tegra_gpio_chip);
