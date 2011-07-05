@@ -545,11 +545,6 @@ uint brcmf_sdcard_query_iofnum(struct brcmf_sdio_card *card)
 	return brcmf_sdioh_query_iofnum(card->sdioh);
 }
 
-int brcmf_sdcard_reset(struct brcmf_sdio_card *card)
-{
-	return brcmf_sdioh_reset(card->sdioh);
-}
-
 void *brcmf_sdcard_get_sdioh(struct brcmf_sdio_card *card)
 {
 	ASSERT(card);

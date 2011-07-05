@@ -97,9 +97,6 @@ extern int brcmf_sdioh_abort(struct sdioh_info *si, uint fnc);
 extern int brcmf_sdioh_start(struct sdioh_info *si, int stage);
 extern int brcmf_sdioh_stop(struct sdioh_info *si);
 
-/* Reset and re-initialize the device */
-extern int brcmf_sdioh_reset(struct sdioh_info *si);
-
 /* Helper function */
 void *brcmf_sdcard_get_sdioh(struct brcmf_sdio_card *card);
 

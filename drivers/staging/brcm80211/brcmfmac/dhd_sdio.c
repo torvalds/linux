@@ -6013,8 +6013,6 @@ int brcmf_bus_devreset(struct brcmf_pub *dhdp, u8 flag)
 
 		if (bus->dhd->dongle_reset) {
 			/* Turn on WLAN */
-			/* Reset SD client */
-			brcmf_sdcard_reset(bus->card);
 
 			/* Attempt to re-attach & download */
 			if (brcmf_sdbrcm_probe_attach(bus, bus->card,

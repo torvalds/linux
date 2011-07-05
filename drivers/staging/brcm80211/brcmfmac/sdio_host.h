@@ -207,9 +207,6 @@ extern int brcmf_sdcard_iovar_op(struct brcmf_sdio_card *card, const char *name,
 				 void *params, int plen, void *arg, int len,
 				 bool set);
 
-/* Reset and reinitialize the device */
-extern int brcmf_sdcard_reset(struct brcmf_sdio_card *card);
-
 /* helper functions */
 
 extern void *brcmf_sdcard_get_sdioh(struct brcmf_sdio_card *card);

@@ -846,14 +846,6 @@ extern int brcmf_sdioh_abort(struct sdioh_info *sd, uint func)
 	return 0;
 }
 
-/* Reset and re-initialize the device */
-int brcmf_sdioh_reset(struct sdioh_info *si)
-{
-	sd_trace(("%s: Enter\n", __func__));
-	sd_trace(("%s: Exit\n", __func__));
-	return 0;
-}
-
 /* Disable device interrupt */
 void brcmf_sdioh_dev_intr_off(struct sdioh_info *sd)
 {
