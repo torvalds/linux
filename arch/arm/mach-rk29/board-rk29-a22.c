@@ -454,8 +454,8 @@ struct p1003_platform_data p1003_info = {
 
 #if defined(CONFIG_TOUCHSCREEN_ILI2102_IIC) 
 #include "../../../drivers/input/touchscreen/ili2102_ts.h"
-#define GT801_GPIO_INT      RK29_PIN4_PD5
-#define GT801_GPIO_RESET    RK29_PIN6_PC3
+#define ili2102_GPIO_INT      RK29_PIN4_PD5
+#define ili2102_GPIO_RESET    RK29_PIN6_PC3
 static struct ili2102_platform_data ili2102_info = {
 	.model			= 2102,
 	.swap_xy		= 0,
@@ -463,11 +463,11 @@ static struct ili2102_platform_data ili2102_info = {
 	.x_max			= 481,
 	.y_min			= 0,
 	.y_max			= 801,
-	.gpio_reset     = GT801_GPIO_RESET,
+	.gpio_reset     = ili2102_GPIO_RESET,
 	.gpio_reset_active_low = 1,
-	.gpio_pendown		= GT801_GPIO_INT,
+	.gpio_pendown		= ili2102_GPIO_INT,
 	.pendown_iomux_name = GPIO4D5_CPUTRACECTL_NAME,
-	.resetpin_iomux_name = NULL,
+	.resetpin_iomux_name = "",
 	.pendown_iomux_mode = GPIO4H_GPIO4D5,
 	.resetpin_iomux_mode = 0,
 };
