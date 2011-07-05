@@ -186,6 +186,8 @@ static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct psb_framebuffer *psbfb = vma->vm_private_data;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
+
+	/* FIXME: assumes fb at stolen base which may not be true */
 	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base;
 
 	page_num = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
@@ -381,8 +383,11 @@ static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 	struct gtt_range *backing;
 	/* Begin by trying to use stolen memory backing */
 	backing = psb_gtt_alloc_range(dev, aligned_size, "fb", 1);
-	if (backing)
-		return backing;
+	if (backing) {
+	        if (drm_gem_private_object_init(dev, &backing->gem, aligned_size) == 0)
+        		return backing;
+                psb_gtt_free_range(dev, backing);
+        }
 	/* Next try using GEM host memory */
 	backing = psb_gtt_alloc_range(dev, aligned_size, "fb(gem)", 0);
 	if (backing == NULL)
@@ -683,8 +688,6 @@ static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 {
         struct psb_framebuffer *psbfb = to_psb_fb(fb);
         struct gtt_range *r = psbfb->gtt;
-        if (r->stolen)
-                return -EOPNOTSUPP;
         return drm_gem_handle_create(file_priv, &r->gem, handle);
 }
 

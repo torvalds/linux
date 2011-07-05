@@ -49,7 +49,7 @@ void psb_gem_free_object(struct drm_gem_object *obj)
 		kfree(list->map);
 		list->map = NULL;
 	}
-	drm_gem_object_release(obj);
+	drm_gem_object_release_wrap(obj);
 	/* This must occur last as it frees up the memory of the GEM object */
 	psb_gtt_free_range(obj->dev, gtt);
 }
@@ -268,9 +268,11 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	unsigned long pfn;
 	pgoff_t page_offset;
 	struct drm_device *dev;
+	struct drm_psb_private *dev_priv;
 
 	obj = vma->vm_private_data;	/* GEM object */
 	dev = obj->dev;
+	dev_priv = dev->dev_private;
 
 	r = container_of(obj, struct gtt_range, gem);	/* Get the gtt range */
 
@@ -294,8 +296,11 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	page_offset = ((unsigned long) vmf->virtual_address - vma->vm_start)
 				>> PAGE_SHIFT;
 
-        /* CPU view of the page, don't go via the GART for CPU writes */
-	pfn = page_to_phys(r->pages[page_offset]) >> PAGE_SHIFT;
+	/* CPU view of the page, don't go via the GART for CPU writes */
+	if (r->stolen)
+		pfn = (dev_priv->stolen_base + r->offset) >> PAGE_SHIFT;
+	else
+		pfn = page_to_pfn(r->pages[page_offset]);
 	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
 
 fail:
