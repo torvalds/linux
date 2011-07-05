@@ -468,6 +468,7 @@ static int mdfld_dsi_connector_set_property(struct drm_connector * connector,
 {
 	struct drm_encoder * encoder = connector->encoder;
 	struct backlight_device * psb_bd;
+	struct drm_psb_private * dev_priv = encoder->dev->dev_private;
 
 	if (!strcmp(property->name, "scaling mode") && encoder) {
 		struct psb_intel_crtc * psb_crtc = to_psb_intel_crtc(encoder->crtc);
@@ -512,6 +513,7 @@ static int mdfld_dsi_connector_set_property(struct drm_connector * connector,
 						     &psb_crtc->saved_adjusted_mode);
 			}
 		}
+#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 	} else if (!strcmp(property->name, "backlight") && encoder) {
 		dev_dbg(encoder->dev->dev, "backlight level = %d\n", (int)value);
 		if (drm_connector_property_set_value(connector, property, value))
@@ -519,20 +521,21 @@ static int mdfld_dsi_connector_set_property(struct drm_connector * connector,
 		else {
 			dev_dbg(encoder->dev->dev,
 			                "set brightness to %d", (int)value);
-			psb_bd = psb_get_backlight_device();
-			if(psb_bd) {
+			psb_bd = dev_priv->backlight_device;
+			if (psb_bd) {
 				psb_bd->props.brightness = value;
-				psb_set_brightness(psb_bd);
+				backlight_update_status(psb_bd);
 			}
 		}
 	} 
+#endif
 set_prop_done:
     return 0;
 set_prop_error:
     return -1;
 }
 
-static void mdfld_dsi_connector_destroy(struct drm_connector * connector)
+static void mdfld_dsi_connector_destroy(struct drm_connector *connector)
 {
 	struct psb_intel_output * psb_output = to_psb_intel_output(connector);
 	struct mdfld_dsi_connector * dsi_connector = MDFLD_DSI_CONNECTOR(psb_output);

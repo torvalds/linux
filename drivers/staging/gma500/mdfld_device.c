@@ -17,6 +17,7 @@
  *
  **************************************************************************/
 
+#include <linux/backlight.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
 #include "psb_reg.h"
@@ -27,7 +28,93 @@
 #include "mdfld_dsi_output.h"
 
 /*
- *	Provide the Medfield specific chip logic and low level methods
+ *	Provide the Medfield specific backlight management
+ */
+
+#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+
+static int mdfld_brightness;
+struct backlight_device *mdfld_backlight_device;
+
+static int mfld_set_brightness(struct backlight_device *bd)
+{
+	struct drm_device *dev = bl_get_data(mdfld_backlight_device);
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	int level = bd->props.brightness;
+
+	/* Percentage 1-100% being valid */
+	if (level < 1)
+		level = 1;
+
+	if (gma_power_begin(dev, 0)) {
+		/* Calculate and set the brightness value */
+		u32 adjusted_level;
+
+		/* Adjust the backlight level with the percent in
+		 * dev_priv->blc_adj2;
+		 */
+		adjusted_level = level * dev_priv->blc_adj2;
+		adjusted_level = adjusted_level / 100;
+#if 0
+#ifndef CONFIG_MDFLD_DSI_DPU
+		if(!(dev_priv->dsr_fb_update & MDFLD_DSR_MIPI_CONTROL) && 
+			(dev_priv->dbi_panel_on || dev_priv->dbi_panel_on2)){
+			mdfld_dsi_dbi_exit_dsr(dev,MDFLD_DSR_MIPI_CONTROL, 0, 0);
+			dev_dbg(dev->dev, "Out of DSR before set brightness to %d.\n",adjusted_level);
+		}
+#endif
+		mdfld_dsi_brightness_control(dev, 0, adjusted_level);
+
+		if ((dev_priv->dbi_panel_on2) || (dev_priv->dpi_panel_on2))
+			mdfld_dsi_brightness_control(dev, 2, adjusted_level);
+#endif
+		gma_power_end(dev);
+	}
+	mdfld_brightness = level;
+	return 0;
+}
+
+int psb_get_brightness(struct backlight_device *bd)
+{
+	/* return locally cached var instead of HW read (due to DPST etc.) */
+	/* FIXME: ideally return actual value in case firmware fiddled with
+	   it */
+	return mdfld_brightness;
+}
+
+static const struct backlight_ops mfld_ops = {
+	.get_brightness = psb_get_brightness,
+	.update_status  = mfld_set_brightness,
+};
+
+static int mdfld_backlight_init(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct backlight_properties props;
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 100;
+	props.type = BACKLIGHT_PLATFORM;
+
+	mdfld_backlight_device = backlight_device_register("mfld-bl",
+					NULL, (void *)dev, &mfld_ops, &props);
+					
+	if (IS_ERR(mdfld_backlight_device))
+		return PTR_ERR(mdfld_backlight_device);
+
+	dev_priv->blc_adj1 = 100;
+	dev_priv->blc_adj2 = 100;
+	mdfld_backlight_device->props.brightness = 100;
+	mdfld_backlight_device->props.max_brightness = 100;
+	backlight_update_status(mdfld_backlight_device);
+	dev_priv->backlight_device = mdfld_backlight_device;
+	return 0;
+}
+
+#endif
+
+/*
+ *	Provide the Medfield specific chip logic and low level methods for
+ *	power management.
  */
 
 static void mdfld_init_pm(struct drm_device *dev)
@@ -601,6 +688,11 @@ static int mdfld_power_up(struct drm_device *dev)
 
 const struct psb_ops mdfld_chip_ops = {
 	.output_init = mdfld_output_init,
+
+#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+	.backlight_init = mdfld_backlight_init,
+#endif
+
 	.init_pm = mdfld_init_pm,
 	.save_regs = mdfld_save_registers,
 	.restore_regs = mdfld_restore_registers,

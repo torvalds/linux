@@ -575,11 +575,12 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 				       struct drm_property *property,
 				       uint64_t value)
 {
-	struct drm_encoder *pEncoder = connector->encoder;
+	struct drm_encoder *encoder = connector->encoder;
+	struct drm_psb_private *dev_priv = encoder->dev->dev_private;
 
-	if (!strcmp(property->name, "scaling mode") && pEncoder) {
+	if (!strcmp(property->name, "scaling mode") && encoder) {
 		struct psb_intel_crtc *pPsbCrtc =
-					to_psb_intel_crtc(pEncoder->crtc);
+					to_psb_intel_crtc(encoder->crtc);
 		uint64_t curValue;
 
 		if (!pPsbCrtc)
@@ -611,29 +612,31 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 
 		if (pPsbCrtc->saved_mode.hdisplay != 0 &&
 		    pPsbCrtc->saved_mode.vdisplay != 0) {
-			if (!drm_crtc_helper_set_mode(pEncoder->crtc,
+			if (!drm_crtc_helper_set_mode(encoder->crtc,
 						      &pPsbCrtc->saved_mode,
-						      pEncoder->crtc->x,
-						      pEncoder->crtc->y,
-						      pEncoder->crtc->fb))
+						      encoder->crtc->x,
+						      encoder->crtc->y,
+						      encoder->crtc->fb))
 				goto set_prop_error;
 		}
-	} else if (!strcmp(property->name, "backlight") && pEncoder) {
+	} else if (!strcmp(property->name, "backlight") && encoder) {
 		if (drm_connector_property_set_value(connector,
 							property,
 							value))
 			goto set_prop_error;
 		else {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-			struct backlight_device bd;
-			bd.props.brightness = value;
-			psb_set_brightness(&bd);
+			struct backlight_device *bd = dev_priv->backlight_device;
+			if (bd) {
+        			bd->props.brightness = value;
+	        		backlight_update_status(bd);
+                        }
 #endif
 		}
-	} else if (!strcmp(property->name, "DPMS") && pEncoder) {
+	} else if (!strcmp(property->name, "DPMS") && encoder) {
 		struct drm_encoder_helper_funcs *pEncHFuncs
-						= pEncoder->helper_private;
-		pEncHFuncs->dpms(pEncoder, value);
+						= encoder->helper_private;
+		pEncHFuncs->dpms(encoder, value);
 	}
 
 set_prop_done:

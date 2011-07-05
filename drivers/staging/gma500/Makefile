@@ -4,8 +4,8 @@
 ccflags-y += -Iinclude/drm
 
 psb_gfx-y += gem_glue.o \
+	  backlight.o \
 	  power.o \
-	  psb_bl.o \
 	  psb_drv.o \
 	  psb_gem.o \
 	  psb_fb.o \

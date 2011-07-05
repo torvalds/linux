@@ -261,7 +261,7 @@ static int psb_driver_unload(struct drm_device *dev)
 
 	/* Kill vblank etc here */
 
-	psb_backlight_exit(); /*writes minimum value to backlight HW reg */
+	gma_backlight_exit(dev);
 
 	if (drm_psb_no_fb == 0)
 		psb_modeset_cleanup(dev);
@@ -455,7 +455,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 		switch (psb_intel_output->type) {
 		case INTEL_OUTPUT_LVDS:
-			ret = psb_backlight_init(dev);
+			ret = gma_backlight_init(dev);
 			break;
 		}
 	}
@@ -554,12 +554,14 @@ static int psb_dpst_bl_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_psb_private *dev_priv = psb_priv(dev);
 	uint32_t *arg = data;
-	struct backlight_device bd;
+	struct backlight_device *bd = dev_priv->backlight_device;
 	dev_priv->blc_adj2 = *arg;
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-	bd.props.brightness = psb_get_brightness(&bd);
-	psb_set_brightness(&bd);
+	if (bd) {
+		bd->props.brightness = bd->ops->get_brightness(bd);
+		backlight_update_status(bd);
+	}
 #endif
 	return 0;
 }
@@ -569,12 +571,14 @@ static int psb_adb_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_psb_private *dev_priv = psb_priv(dev);
 	uint32_t *arg = data;
-	struct backlight_device bd;
+	struct backlight_device *bd = dev_priv->backlight_device;
 	dev_priv->blc_adj1 = *arg;
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-	bd.props.brightness = psb_get_brightness(&bd);
-	psb_set_brightness(&bd);
+	if (bd) {
+		bd->props.brightness = bd->ops->get_brightness(bd);
+		backlight_update_status(bd);
+	}
 #endif
 	return 0;
 }

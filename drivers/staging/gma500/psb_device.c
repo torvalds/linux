@@ -17,12 +17,15 @@
  *
  **************************************************************************/
 
+#include <linux/backlight.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
 #include "psb_drm.h"
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
+#include "psb_intel_bios.h"
+
 
 static int psb_output_init(struct drm_device *dev)
 {
@@ -32,8 +35,123 @@ static int psb_output_init(struct drm_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+
+/*
+ *	Poulsbo Backlight Interfaces
+ */
+
+#define BLC_PWM_PRECISION_FACTOR 100	/* 10000000 */
+#define BLC_PWM_FREQ_CALC_CONSTANT 32
+#define MHz 1000000
+
+#define PSB_BLC_PWM_PRECISION_FACTOR    10
+#define PSB_BLC_MAX_PWM_REG_FREQ        0xFFFE
+#define PSB_BLC_MIN_PWM_REG_FREQ        0x2
+
+#define PSB_BACKLIGHT_PWM_POLARITY_BIT_CLEAR (0xFFFE)
+#define PSB_BACKLIGHT_PWM_CTL_SHIFT	(16)
+
+static int psb_brightness;
+static struct backlight_device *psb_backlight_device;
+
+static int psb_get_brightness(struct backlight_device *bd)
+{
+	/* return locally cached var instead of HW read (due to DPST etc.) */
+	/* FIXME: ideally return actual value in case firmware fiddled with
+	   it */
+	return psb_brightness;
+}
+
+
+static int psb_backlight_setup(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	unsigned long core_clock;
+	/* u32 bl_max_freq; */
+	/* unsigned long value; */
+	u16 bl_max_freq;
+	uint32_t value;
+	uint32_t blc_pwm_precision_factor;
+
+	/* get bl_max_freq and pol from dev_priv*/
+	if (!dev_priv->lvds_bl) {
+		dev_err(dev->dev, "Has no valid LVDS backlight info\n");
+		return -ENOENT;
+	}
+	bl_max_freq = dev_priv->lvds_bl->freq;
+	blc_pwm_precision_factor = PSB_BLC_PWM_PRECISION_FACTOR;
+
+	core_clock = dev_priv->core_freq;
+
+	value = (core_clock * MHz) / BLC_PWM_FREQ_CALC_CONSTANT;
+	value *= blc_pwm_precision_factor;
+	value /= bl_max_freq;
+	value /= blc_pwm_precision_factor;
+
+	if (value > (unsigned long long)PSB_BLC_MAX_PWM_REG_FREQ ||
+		 value < (unsigned long long)PSB_BLC_MIN_PWM_REG_FREQ)
+				return -ERANGE;
+	else {
+		value &= PSB_BACKLIGHT_PWM_POLARITY_BIT_CLEAR;
+		REG_WRITE(BLC_PWM_CTL,
+			(value << PSB_BACKLIGHT_PWM_CTL_SHIFT) | (value));
+	}
+	return 0;
+}
+
+static int psb_set_brightness(struct backlight_device *bd)
+{
+	struct drm_device *dev = bl_get_data(psb_backlight_device);
+	int level = bd->props.brightness;
+
+	/* Percentage 1-100% being valid */
+	if (level < 1)
+		level = 1;
+
+	psb_intel_lvds_set_brightness(dev, level);
+	psb_brightness = level;
+	return 0;
+}
+
+static const struct backlight_ops psb_ops = {
+	.get_brightness = psb_get_brightness,
+	.update_status  = psb_set_brightness,
+};
+
+static int psb_backlight_init(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	int ret;
+	struct backlight_properties props;
+
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 100;
+	props.type = BACKLIGHT_PLATFORM;
+
+	psb_backlight_device = backlight_device_register("psb-bl",
+					NULL, (void *)dev, &psb_ops, &props);
+	if (IS_ERR(psb_backlight_device))
+		return PTR_ERR(psb_backlight_device);
+
+	ret = psb_backlight_setup(dev);
+	if (ret < 0) {
+		backlight_device_unregister(psb_backlight_device);
+		psb_backlight_device = NULL;
+		return ret;
+	}
+	psb_backlight_device->props.brightness = 100;
+	psb_backlight_device->props.max_brightness = 100;
+	backlight_update_status(psb_backlight_device);
+	dev_priv->backlight_device = psb_backlight_device;
+	return 0;
+}
+
+#endif
+
 /*
  *	Provide the Poulsbo specific chip logic and low level methods
+ *	for power management
  */
 
 static void psb_init_pm(struct drm_device *dev)
@@ -165,10 +283,15 @@ int psb_power_up(struct drm_device *dev)
 
 const struct psb_ops psb_chip_ops = {
 	.output_init = psb_output_init,
+
+#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+	.backlight_init = psb_backlight_init,
+#endif
+
 	.init_pm = psb_init_pm,
 	.save_regs = psb_save_display_registers,
 	.restore_regs = psb_restore_display_registers,
 	.power_down = psb_power_down,
-	.power_up = psb_power_up,
+	.power_up = psb_power_up,	
 };
 

@@ -588,12 +588,12 @@ struct drm_psb_private {
 	 * Used for modifying backlight from
 	 * xrandr -- consider removing and using HAL instead
 	 */
+	struct backlight_device *backlight_device;
 	struct drm_property *backlight_property;
 	uint32_t blc_adj1;
 	uint32_t blc_adj2;
 
 	void *fbdev;
-
 	/* DPST state */
 	uint32_t dsr_idle_count;
 	bool is_in_idle;
@@ -625,6 +625,10 @@ struct psb_ops {
 	int (*restore_regs)(struct drm_device *dev);
 	int (*power_up)(struct drm_device *dev);
 	int (*power_down)(struct drm_device *dev);
+#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+	/* Backlight */
+	int (*backlight_init)(struct drm_device *dev);
+#endif
 };
 
 
@@ -744,12 +748,9 @@ extern void psb_modeset_init(struct drm_device *dev);
 extern void psb_modeset_cleanup(struct drm_device *dev);
 extern int psb_fbdev_init(struct drm_device *dev);
 
-/* psb_bl.c */
-int psb_backlight_init(struct drm_device *dev);
-void psb_backlight_exit(void);
-int psb_set_brightness(struct backlight_device *bd);
-int psb_get_brightness(struct backlight_device *bd);
-struct backlight_device *psb_get_backlight_device(void);
+/* backlight.c */
+int gma_backlight_init(struct drm_device *dev);
+void gma_backlight_exit(struct drm_device *dev);
 
 /* mrst_crtc.c */
 extern const struct drm_crtc_helper_funcs mrst_helper_funcs;
