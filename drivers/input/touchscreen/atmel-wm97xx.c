@@ -164,7 +164,7 @@ static irqreturn_t atmel_wm97xx_channel_b_interrupt(int irq, void *dev_id)
 
 		data = ac97c_readl(atmel_wm97xx, CBRHR);
 		value = data & 0x0fff;
-		source = data & WM97XX_ADCSRC_MASK;
+		source = data & WM97XX_ADCSEL_MASK;
 		pen_down = (data & WM97XX_PEN_DOWN) >> 8;
 
 		if (source == WM97XX_ADCSEL_X)

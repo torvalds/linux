@@ -304,9 +304,9 @@ static int wm9713_poll_sample(struct wm97xx *wm, int adcsel, int *sample)
 		wm->mach_ops->post_sample(adcsel);
 
 	/* check we have correct sample */
-	if ((*sample & WM97XX_ADCSRC_MASK) != ffs(adcsel >> 1) << 12) {
+	if ((*sample & WM97XX_ADCSEL_MASK) != ffs(adcsel >> 1) << 12) {
 		dev_dbg(wm->dev, "adc wrong sample, read %x got %x", adcsel,
-			*sample & WM97XX_ADCSRC_MASK);
+			*sample & WM97XX_ADCSEL_MASK);
 		return RC_PENUP;
 	}
 
