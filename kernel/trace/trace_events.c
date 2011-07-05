@@ -557,7 +557,7 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 		   loff_t *ppos)
 {
 	const char set_to_char[4] = { '?', '0', '1', 'X' };
-	const char *system = filp->private_data;
+	struct event_subsystem *system = filp->private_data;
 	struct ftrace_event_call *call;
 	char buf[2];
 	int set = 0;
@@ -568,7 +568,7 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 		if (!call->name || !call->class || !call->class->reg)
 			continue;
 
-		if (system && strcmp(call->class->system, system) != 0)
+		if (system && strcmp(call->class->system, system->name) != 0)
 			continue;
 
 		/*
@@ -598,7 +598,8 @@ static ssize_t
 system_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 		    loff_t *ppos)
 {
-	const char *system = filp->private_data;
+	struct event_subsystem *system = filp->private_data;
+	const char *name = NULL;
 	unsigned long val;
 	char buf[64];
 	ssize_t ret;
@@ -622,7 +623,14 @@ system_enable_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (val != 0 && val != 1)
 		return -EINVAL;
 
-	ret = __ftrace_set_clr_event(NULL, system, NULL, val);
+	/*
+	 * Opening of "enable" adds a ref count to system,
+	 * so the name is safe to use.
+	 */
+	if (system)
+		name = system->name;
+
+	ret = __ftrace_set_clr_event(NULL, name, NULL, val);
 	if (ret)
 		goto out;
 
@@ -862,6 +870,9 @@ static int subsystem_open(struct inode *inode, struct file *filp)
 	struct event_subsystem *system = NULL;
 	int ret;
 
+	if (!inode->i_private)
+		goto skip_search;
+
 	/* Make sure the system still exists */
 	mutex_lock(&event_mutex);
 	list_for_each_entry(system, &event_subsystems, list) {
@@ -880,8 +891,9 @@ static int subsystem_open(struct inode *inode, struct file *filp)
 	if (system != inode->i_private)
 		return -ENODEV;
 
+ skip_search:
 	ret = tracing_open_generic(inode, filp);
-	if (ret < 0)
+	if (ret < 0 && system)
 		put_system(system);
 
 	return ret;
@@ -891,7 +903,8 @@ static int subsystem_release(struct inode *inode, struct file *file)
 {
 	struct event_subsystem *system = inode->i_private;
 
-	put_system(system);
+	if (system)
+		put_system(system);
 
 	return 0;
 }
@@ -1041,10 +1054,11 @@ static const struct file_operations ftrace_subsystem_filter_fops = {
 };
 
 static const struct file_operations ftrace_system_enable_fops = {
-	.open = tracing_open_generic,
+	.open = subsystem_open,
 	.read = system_enable_read,
 	.write = system_enable_write,
 	.llseek = default_llseek,
+	.release = subsystem_release,
 };
 
 static const struct file_operations ftrace_show_header_fops = {
@@ -1133,8 +1147,7 @@ event_subsystem_dir(const char *name, struct dentry *d_events)
 			   "'%s/filter' entry\n", name);
 	}
 
-	trace_create_file("enable", 0644, system->entry,
-			  (void *)system->name,
+	trace_create_file("enable", 0644, system->entry, system,
 			  &ftrace_system_enable_fops);
 
 	return system->entry;
