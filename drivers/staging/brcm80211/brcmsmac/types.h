@@ -370,6 +370,7 @@ struct tx_status;
 struct d11rxhdr;
 struct brcms_d11rxhdr;
 struct txpwr_limits;
+struct brcms_phy;
 
 typedef volatile struct intctrlregs intctrlregs_t;
 typedef volatile struct pio2regs pio2regs_t;
@@ -385,7 +386,6 @@ typedef u32 ratespec_t;
 typedef struct tx_power tx_power_t;
 typedef struct chanvec chanvec_t;
 typedef struct phy_pub wlc_phy_t;
-typedef struct phy_info phy_info_t;
 typedef s32 fixed;
 typedef struct _cs32 cs32;
 typedef volatile union pmqreg pmqreg_t;
