@@ -58,6 +58,14 @@ static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 	{ 0x8086, 0x4105, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MRST_4100},
 	{ 0x8086, 0x4106, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MRST_4100},
 	{ 0x8086, 0x4107, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MRST_4100},
+	{ 0x8086, 0x0130, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MFLD_0130},
+	{ 0x8086, 0x0131, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MFLD_0130},
+	{ 0x8086, 0x0132, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MFLD_0130},
+	{ 0x8086, 0x0133, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MFLD_0130},
+	{ 0x8086, 0x0134, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MFLD_0130},
+	{ 0x8086, 0x0135, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MFLD_0130},
+	{ 0x8086, 0x0136, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MFLD_0130},
+	{ 0x8086, 0x0137, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MFLD_0130},
 	{ 0, 0, 0}
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
@@ -176,7 +184,9 @@ void mrst_get_fuse_settings(struct drm_device *dev)
 	pci_write_config_dword(pci_root, 0xD0, FB_REG06);
 	pci_read_config_dword(pci_root, 0xD4, &fuse_value);
 
-	dev_priv->iLVDS_enable = fuse_value & FB_MIPI_DISABLE;
+	/* FB_MIPI_DISABLE doesn't mean LVDS on with Medfield */
+	if (IS_MRST(dev))
+		dev_priv->iLVDS_enable = fuse_value & FB_MIPI_DISABLE;
 
 	DRM_INFO("internal display is %s\n",
 		 dev_priv->iLVDS_enable ? "LVDS display" : "MIPI display");
@@ -360,6 +370,7 @@ void mrst_get_vbt_data(struct drm_psb_private *dev_priv)
 		printk(KERN_ERR "Unknown revision of GCT!\n");
 		vbt->size = 0;
 	}
+	/* FIXME: Need to sort out Medfield panel identifiers in future */
 }
 
 static void psb_get_core_freq(struct drm_device *dev)
@@ -539,6 +550,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	if (IS_MRST(dev))
 		dev_priv->num_pipe = 1;
+	else if (IS_MFLD(dev))
+		dev_priv->num_pipe = 3;
 	else
 		dev_priv->num_pipe = 2;
 
@@ -554,7 +567,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (!dev_priv->vdc_reg)
 		goto out_err;
 
-	if (IS_MRST(dev))
+	if (IS_MRST(dev) || IS_MFLD(dev))
 		dev_priv->sgx_reg = ioremap(resource_start + MRST_SGX_OFFSET,
 							PSB_SGX_SIZE);
 	else
@@ -564,7 +577,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (!dev_priv->sgx_reg)
 		goto out_err;
 
-	if (IS_MRST(dev)) {
+	if (IS_MRST(dev) || IS_MFLD(dev)) {
 		mrst_get_fuse_settings(dev);
 		mrst_get_vbt_data(dev_priv);
 		mid_get_pci_revID(dev_priv);
@@ -705,6 +718,11 @@ static int psb_dc_state_ioctl(struct drm_device *dev, void * data,
 	struct drm_crtc *crtc;
 	struct drm_psb_dc_state_arg *arg =
 		(struct drm_psb_dc_state_arg *)data;
+
+
+	/* Double check MRST case */
+	if (IS_MRST(dev) || IS_MFLD(dev))
+		return -EOPNOTSUPP;
 
 	flags = arg->flags;
 	obj_id = arg->obj_id;
@@ -954,6 +972,7 @@ static int psb_stolen_memory_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+/* FIXME: needs Medfield changes */
 static int psb_register_rw_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv)
 {

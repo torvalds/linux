@@ -105,6 +105,46 @@ int mrst_set_brightness(struct backlight_device *bd)
 	return 0;
 }
 
+int mfld_set_brightness(struct backlight_device *bd)
+{
+	struct drm_device *dev = bl_get_data(psb_backlight_device);
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	int level = bd->props.brightness;
+
+	DRM_DEBUG_DRIVER("backlight level set to %d\n", level);
+
+	/* Percentage 1-100% being valid */
+	if (level < 1)
+		level = 1;
+
+	if (gma_power_begin(dev, 0)) {
+		/* Calculate and set the brightness value */
+		u32 adjusted_level;
+
+		/* Adjust the backlight level with the percent in
+		 * dev_priv->blc_adj2;
+		 */
+		adjusted_level = level * dev_priv->blc_adj2;
+		adjusted_level = adjusted_level / BLC_ADJUSTMENT_MAX;
+#if 0
+#ifndef CONFIG_MDFLD_DSI_DPU
+		if(!(dev_priv->dsr_fb_update & MDFLD_DSR_MIPI_CONTROL) && 
+			(dev_priv->dbi_panel_on || dev_priv->dbi_panel_on2)){
+			mdfld_dsi_dbi_exit_dsr(dev,MDFLD_DSR_MIPI_CONTROL, 0, 0);
+			dev_dbg(dev->dev, "Out of DSR before set brightness to %d.\n",adjusted_level);
+		}
+#endif
+		mdfld_dsi_brightness_control(dev, 0, adjusted_level);
+
+		if ((dev_priv->dbi_panel_on2) || (dev_priv->dpi_panel_on2))
+			mdfld_dsi_brightness_control(dev, 2, adjusted_level);
+#endif
+		gma_power_end(dev);
+	}
+	psb_brightness = level;
+	return 0;
+}
+
 int psb_get_brightness(struct backlight_device *bd)
 {
 	/* return locally cached var instead of HW read (due to DPST etc.) */
@@ -118,6 +158,16 @@ static const struct backlight_ops psb_ops = {
 	.update_status  = psb_set_brightness,
 };
 
+static const struct backlight_ops mrst_ops = {
+	.get_brightness = psb_get_brightness,
+	.update_status  = mrst_set_brightness,
+};
+
+static const struct backlight_ops mfld_ops = {
+	.get_brightness = psb_get_brightness,
+	.update_status  = mfld_set_brightness,
+};
+
 static int device_backlight_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -128,7 +178,11 @@ static int device_backlight_init(struct drm_device *dev)
 	uint32_t value;
 	uint32_t blc_pwm_precision_factor;
 
-	if (IS_MRST(dev)) {
+	if (IS_MFLD(dev)) {
+		dev_priv->blc_adj1 = BLC_ADJUSTMENT_MAX;
+		dev_priv->blc_adj2 = BLC_ADJUSTMENT_MAX;
+		return 0;
+	} else if (IS_MRST(dev)) {
 		dev_priv->blc_adj1 = BLC_ADJUSTMENT_MAX;
 		dev_priv->blc_adj2 = BLC_ADJUSTMENT_MAX;
 		bl_max_freq = 256;
@@ -190,8 +244,16 @@ int psb_backlight_init(struct drm_device *dev)
 	props.max_brightness = 100;
 	props.type = BACKLIGHT_PLATFORM;
 
-	psb_backlight_device = backlight_device_register("psb-bl", NULL,
-						(void *)dev, &psb_ops, &props);
+	if (IS_MFLD(dev))
+		psb_backlight_device = backlight_device_register("mfld-bl",
+					NULL, (void *)dev, &mfld_ops, &props);
+	else if (IS_MRST(dev))
+		psb_backlight_device = backlight_device_register("mrst-bl",
+					NULL, (void *)dev, &psb_ops, &props);
+	else
+		psb_backlight_device = backlight_device_register("psb-bl",
+					NULL, (void *)dev, &psb_ops, &props);
+					
 	if (IS_ERR(psb_backlight_device))
 		return PTR_ERR(psb_backlight_device);
 

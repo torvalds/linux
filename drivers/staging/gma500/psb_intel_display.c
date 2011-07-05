@@ -1,5 +1,5 @@
 /*
- * Copyright Â© 2006-2007 Intel Corporation
+ * Copyright Â© 2006-2011 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -1080,7 +1080,7 @@ static int psb_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	return 0;
 }
 
-static void psb_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
+void psb_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
 			 u16 *green, u16 *blue, uint32_t type, uint32_t size)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
@@ -1241,7 +1241,7 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 	return mode;
 }
 
-static void psb_intel_crtc_destroy(struct drm_crtc *crtc)
+void psb_intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct gtt_range *gt;
@@ -1303,7 +1303,14 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 		return;
 	}
 
-	drm_crtc_init(dev, &psb_intel_crtc->base, &psb_intel_crtc_funcs);
+#if 0	/* FIXME */
+	if (IS_MFLD(dev))
+		drm_crtc_init(dev, &psb_intel_crtc->base,
+						&mfld_intel_crtc_funcs);
+	else
+#endif
+        	drm_crtc_init(dev, &psb_intel_crtc->base,
+						&psb_intel_crtc_funcs);
 
 	drm_mode_crtc_set_gamma_size(&psb_intel_crtc->base, 256);
 	psb_intel_crtc->pipe = pipe;
@@ -1329,6 +1336,9 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	if (IS_MRST(dev))
 		drm_crtc_helper_add(&psb_intel_crtc->base,
 				    &mrst_helper_funcs);
+/*	else if (IS_MDFLD(dev))
+		drm_crtc_helper_add(&psb_intel_crtc->base,
+				    &mfld_helper_funcs); */
 	else
 		drm_crtc_helper_add(&psb_intel_crtc->base,
 				    &psb_intel_helper_funcs);

@@ -22,6 +22,16 @@ psb_gfx-y += gem_glue.o \
 	  psb_powermgmt.o \
 	  psb_irq.o \
 	  mrst_crtc.o \
-	  mrst_lvds.o
+	  mrst_lvds.o \
+	  mdfld_output.o \
+	  mdfld_pyr_cmd.o \
+	  mdfld_tmd_vid.o \
+	  mdfld_tpo_cmd.o \
+	  mdfld_tpo_vid.o \
+	  mdfld_dsi_pkg_sender.o \
+	  mdfld_dsi_dpi.o \
+	  mdfld_dsi_output.o \
+	  mdfld_dsi_dbi.o \
+	  mdfld_intel_display.o
 
 obj-$(CONFIG_DRM_PSB) += psb_gfx.o

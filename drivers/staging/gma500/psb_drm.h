@@ -186,4 +186,11 @@ struct drm_psb_get_pipe_from_crtc_id_arg {
 	u32 pipe;
 };
 
+/* FIXME: move this into a medfield header once we are sure it isn't needed for an
+   ioctl  */
+struct psb_drm_dpu_rect {  
+	int x, y;             
+	int width, height;    
+};  
+
 #endif

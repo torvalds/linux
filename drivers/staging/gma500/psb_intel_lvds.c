@@ -388,6 +388,7 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	if (psb_intel_output->type == INTEL_OUTPUT_MIPI2)
 		panel_fixed_mode = mode_dev->panel_fixed_mode2;
 
+	/* FIXME: review for Medfield */
 	/* PSB requires the LVDS is on pipe B, MRST has only one pipe anyway */
 	if (!IS_MRST(dev) && psb_intel_crtc->pipe == 0) {
 		printk(KERN_ERR "Can't support LVDS on pipe A\n");

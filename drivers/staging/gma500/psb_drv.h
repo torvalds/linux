@@ -34,15 +34,18 @@
 #include "mrst.h"
 
 /* Append new drm mode definition here, align with libdrm definition */
-#define DRM_MODE_SCALE_NO_SCALE   2
+#define DRM_MODE_SCALE_NO_SCALE   	2
+#define DRM_MODE_CONNECTOR_MIPI         15
 
 enum {
 	CHIP_PSB_8108 = 0,		/* Poulsbo */
 	CHIP_PSB_8109 = 1,		/* Poulsbo */
 	CHIP_MRST_4100 = 2,		/* Moorestown/Oaktrail */
+	CHIP_MFLD_0130 = 3,		/* Medfield */
 };
 
 #define IS_MRST(dev) (((dev)->pci_device & 0xfffc) == 0x4100)
+#define IS_MFLD(dev) (((dev)->pci_device & 0xfff8) == 0x0130)
 
 /*
  * Driver definitions
@@ -204,9 +207,24 @@ enum {
 #define PSB_WATCHDOG_DELAY (DRM_HZ * 2)
 #define PSB_LID_DELAY (DRM_HZ / 10)
 
-#define MDFLD_PNW_A0 0x00
 #define MDFLD_PNW_B0 0x04
 #define MDFLD_PNW_C0 0x08
+
+#define MDFLD_DSR_2D_3D_0 	(1 << 0)
+#define MDFLD_DSR_2D_3D_2 	(1 << 1)
+#define MDFLD_DSR_CURSOR_0 	(1 << 2)
+#define MDFLD_DSR_CURSOR_2	(1 << 3)
+#define MDFLD_DSR_OVERLAY_0 	(1 << 4)
+#define MDFLD_DSR_OVERLAY_2 	(1 << 5)
+#define MDFLD_DSR_MIPI_CONTROL	(1 << 6)
+#define MDFLD_DSR_DAMAGE_MASK_0	(1 << 0) | (1 << 2) | (1 << 4)
+#define MDFLD_DSR_DAMAGE_MASK_2	(1 << 1) | (1 << 3) | (1 << 5)
+#define MDFLD_DSR_2D_3D 	(MDFLD_DSR_2D_3D_0 | MDFLD_DSR_2D_3D_2)
+
+#define MDFLD_DSR_RR		45
+#define MDFLD_DPU_ENABLE 	(1 << 31)
+#define MDFLD_DSR_FULLSCREEN 	(1 << 30)
+#define MDFLD_DSR_DELAY		(DRM_HZ / MDFLD_DSR_RR)
 
 #define PSB_PWR_STATE_ON		1
 #define PSB_PWR_STATE_OFF		2
@@ -220,6 +238,12 @@ enum {
 #define PSB_PMSTATE_POWERDOWN		2
 #define PSB_PCIx_MSI_ADDR_LOC		0x94
 #define PSB_PCIx_MSI_DATA_LOC		0x98
+
+/* Medfield crystal settings */
+#define KSEL_CRYSTAL_19 1
+#define KSEL_BYPASS_19 5
+#define KSEL_BYPASS_25 6
+#define KSEL_BYPASS_83_100 7
 
 struct opregion_header;
 struct opregion_acpi;
@@ -331,6 +355,7 @@ struct drm_psb_private {
 	int lvds_ssc_freq;
 	bool is_lvds_on;
 	bool is_mipi_on;
+	u32 mipi_ctrl_display;
 
 	unsigned int core_freq;
 	uint32_t iLVDS_enable;
@@ -338,9 +363,18 @@ struct drm_psb_private {
 	/* Runtime PM state */
 	int rpm_enabled;
 
-	/* Moorestown specific */
+	/* MID specific */
 	struct mrst_vbt vbt_data;
 	struct mrst_gct_data gct_data;
+
+	/* MIPI Panel type etc */
+	int panel_id;
+	bool dual_mipi;		/* dual display - DPI & DBI */
+	bool dpi_panel_on;	/* The DPI panel power is on */
+	bool dpi_panel_on2;	/* The DPI panel power is on */
+	bool dbi_panel_on;	/* The DBI panel power is on */
+	bool dbi_panel_on2;	/* The DBI panel power is on */
+	u32 dsr_fb_update;	/* DSR FB update counter */
 
 	/* Moorestown pipe config register value cache */
 	uint32_t pipeconf;
@@ -376,6 +410,7 @@ struct drm_psb_private {
 	uint32_t saveDSPAPOS;
 	uint32_t saveDSPABASE;
 	uint32_t saveDSPASURF;
+	uint32_t saveDSPASTATUS;
 	uint32_t saveFPB0;
 	uint32_t saveFPB1;
 	uint32_t saveDPLL_B;
@@ -391,6 +426,7 @@ struct drm_psb_private {
 	uint32_t saveDSPBPOS;
 	uint32_t saveDSPBBASE;
 	uint32_t saveDSPBSURF;
+	uint32_t saveDSPBSTATUS;
 	uint32_t saveVCLK_DIVISOR_VGA0;
 	uint32_t saveVCLK_DIVISOR_VGA1;
 	uint32_t saveVCLK_POST_DIV;
@@ -461,6 +497,77 @@ struct drm_psb_private {
 	uint32_t msi_addr;
 	uint32_t msi_data;
 
+	/* Medfield specific register save state */
+	uint32_t saveHDMIPHYMISCCTL;
+	uint32_t saveHDMIB_CONTROL;
+	uint32_t saveDSPCCNTR;
+	uint32_t savePIPECCONF;
+	uint32_t savePIPECSRC;
+	uint32_t saveHTOTAL_C;
+	uint32_t saveHBLANK_C;
+	uint32_t saveHSYNC_C;
+	uint32_t saveVTOTAL_C;
+	uint32_t saveVBLANK_C;
+	uint32_t saveVSYNC_C;
+	uint32_t saveDSPCSTRIDE;
+	uint32_t saveDSPCSIZE;
+	uint32_t saveDSPCPOS;
+	uint32_t saveDSPCSURF;
+	uint32_t saveDSPCSTATUS;
+	uint32_t saveDSPCLINOFF;
+	uint32_t saveDSPCTILEOFF;
+	uint32_t saveDSPCCURSOR_CTRL;
+	uint32_t saveDSPCCURSOR_BASE;
+	uint32_t saveDSPCCURSOR_POS;
+	uint32_t save_palette_c[256];
+	uint32_t saveOV_OVADD_C;
+	uint32_t saveOV_OGAMC0_C;
+	uint32_t saveOV_OGAMC1_C;
+	uint32_t saveOV_OGAMC2_C;
+	uint32_t saveOV_OGAMC3_C;
+	uint32_t saveOV_OGAMC4_C;
+	uint32_t saveOV_OGAMC5_C;
+
+	/* DSI register save */
+	uint32_t saveDEVICE_READY_REG;
+	uint32_t saveINTR_EN_REG;
+	uint32_t saveDSI_FUNC_PRG_REG;
+	uint32_t saveHS_TX_TIMEOUT_REG;
+	uint32_t saveLP_RX_TIMEOUT_REG;
+	uint32_t saveTURN_AROUND_TIMEOUT_REG;
+	uint32_t saveDEVICE_RESET_REG;
+	uint32_t saveDPI_RESOLUTION_REG;
+	uint32_t saveHORIZ_SYNC_PAD_COUNT_REG;
+	uint32_t saveHORIZ_BACK_PORCH_COUNT_REG;
+	uint32_t saveHORIZ_FRONT_PORCH_COUNT_REG;
+	uint32_t saveHORIZ_ACTIVE_AREA_COUNT_REG;
+	uint32_t saveVERT_SYNC_PAD_COUNT_REG;
+	uint32_t saveVERT_BACK_PORCH_COUNT_REG;
+	uint32_t saveVERT_FRONT_PORCH_COUNT_REG;
+	uint32_t saveHIGH_LOW_SWITCH_COUNT_REG;
+	uint32_t saveINIT_COUNT_REG;
+	uint32_t saveMAX_RET_PAK_REG;
+	uint32_t saveVIDEO_FMT_REG;
+	uint32_t saveEOT_DISABLE_REG;
+	uint32_t saveLP_BYTECLK_REG;
+	uint32_t saveHS_LS_DBI_ENABLE_REG;
+	uint32_t saveTXCLKESC_REG;
+	uint32_t saveDPHY_PARAM_REG;
+	uint32_t saveMIPI_CONTROL_REG;
+	uint32_t saveMIPI;
+	uint32_t saveMIPI_C;
+
+	/* DPST register save */
+	uint32_t saveHISTOGRAM_INT_CONTROL_REG;
+	uint32_t saveHISTOGRAM_LOGIC_CONTROL_REG;
+	uint32_t savePWM_CONTROL_LOGIC;
+
+	/*
+	 * DSI info. 
+	 */
+	void * dbi_dsr_info;	
+	void * dbi_dpu_info;
+	void * dsi_configs[2];
 	/*
 	 * LID-Switch
 	 */
@@ -486,6 +593,22 @@ struct drm_psb_private {
 	uint32_t blc_adj2;
 
 	void *fbdev;
+
+	/* DPST state */
+	uint32_t dsr_idle_count;
+	bool is_in_idle;
+	bool dsr_enable;
+	void (*exit_idle)(struct drm_device *dev, u32 update_src, void *p_surfaceAddr, bool check_hw_on_only);
+
+	/* FIXME: Arrays anyone ? */
+	struct mdfld_dsi_encoder *encoder0;	
+	struct mdfld_dsi_encoder *encoder2;	
+	struct mdfld_dsi_dbi_output * dbi_output;
+	struct mdfld_dsi_dbi_output * dbi_output2;
+	u32 bpp;
+	u32 bpp2;
+	
+	bool dispstatus;
 };
 
 
@@ -566,6 +689,9 @@ void
 psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask);
 
 extern u32 psb_get_vblank_counter(struct drm_device *dev, int crtc);
+
+extern int mdfld_enable_te(struct drm_device *dev, int pipe);
+extern void mdfld_disable_te(struct drm_device *dev, int pipe);
 
 /*
  * psb_opregion.c

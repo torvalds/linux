@@ -27,7 +27,7 @@
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
 #include "psb_powermgmt.h"
-
+#include "mdfld_output.h"
 
 /*
  * inline functions
@@ -455,6 +455,11 @@ int psb_enable_vblank(struct drm_device *dev, int pipe)
 	uint32_t reg_val = 0;
 	uint32_t pipeconf_reg = mid_pipeconf(pipe);
 
+	/* Medfield is different - we should perhaps extract out vblank
+	   and blacklight etc ops */
+	if (IS_MFLD(dev) && !mdfld_panel_dpi(dev))
+		return mdfld_enable_te(dev, pipe);
+
 	if (gma_power_begin(dev, false)) {
 		reg_val = REG_READ(pipeconf_reg);
 		gma_power_end(dev);
@@ -481,12 +486,66 @@ void psb_disable_vblank(struct drm_device *dev, int pipe)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 
+	if (IS_MFLD(dev) && !mdfld_panel_dpi(dev))
+		mdfld_disable_te(dev, pipe);
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
 	mid_disable_pipe_event(dev_priv, pipe);
 	psb_disable_pipestat(dev_priv, pipe, PIPE_VBLANK_INTERRUPT_ENABLE);
 
 	spin_unlock_irqrestore(&dev_priv->irqmask_lock, irqflags);
+}
+
+/**
+ *	mdfld_enable_te		-	enable TE events
+ *	@dev: our DRM device
+ *	@pipe: which pipe to work on
+ *
+ *	Enable TE events on a Medfield display pipe. Medfield specific.
+ */
+int mdfld_enable_te(struct drm_device *dev, int pipe)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+	uint32_t reg_val = 0;
+	uint32_t pipeconf_reg = mid_pipeconf(pipe);
+
+	if (gma_power_begin(dev, false)) {
+		reg_val = REG_READ(pipeconf_reg);
+		gma_power_end(dev);
+	}
+
+	if (!(reg_val & PIPEACONF_ENABLE))
+		return -EINVAL;
+
+	spin_lock_irqsave(&dev_priv->irqmask_lock, flags);
+
+	mid_enable_pipe_event(dev_priv, pipe);
+	psb_enable_pipestat(dev_priv, pipe, PIPE_TE_ENABLE);
+
+	spin_unlock_irqrestore(&dev_priv->irqmask_lock, flags);
+
+	return 0;
+}
+
+/**
+ *	mdfld_disable_te		-	disable TE events
+ *	@dev: our DRM device
+ *	@pipe: which pipe to work on
+ *
+ *	Disable TE events on a Medfield display pipe. Medfield specific.
+ */
+void mdfld_disable_te(struct drm_device *dev, int pipe)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->irqmask_lock, flags);
+
+	mid_disable_pipe_event(dev_priv, pipe);
+	psb_disable_pipestat(dev_priv, pipe, PIPE_TE_ENABLE);
+
+	spin_unlock_irqrestore(&dev_priv->irqmask_lock, flags);
 }
 
 /* Called from drm generic code, passed a 'crtc', which

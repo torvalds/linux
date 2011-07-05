@@ -38,6 +38,8 @@
 #include "psb_intel_drv.h"
 #include "psb_fb.h"
 
+#include "mdfld_output.h"
+
 static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb);
 static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 					      struct drm_file *file_priv,
@@ -270,6 +272,8 @@ static int psbfb_ioctl(struct fb_info *info, unsigned int cmd,
 	case 0x12345678:
 		if (!capable(CAP_SYS_RAWIO))
 			return -EPERM;
+	        if (IS_MFLD(dev))
+                        return -EOPNOTSUPP;
 		if (get_user(l, p))
 			return -EFAULT;
 		if (l > 32)
@@ -294,6 +298,19 @@ static struct fb_ops psbfb_ops = {
 	.fb_imageblit = cfb_imageblit,
 	.fb_mmap = psbfb_mmap,
 	.fb_sync = psbfb_sync,
+	.fb_ioctl = psbfb_ioctl,
+};
+
+static struct fb_ops psbfb_mfld_ops = {
+	.owner = THIS_MODULE,
+	.fb_check_var = drm_fb_helper_check_var,
+	.fb_set_par = drm_fb_helper_set_par,
+	.fb_blank = drm_fb_helper_blank,
+	.fb_setcolreg = psbfb_setcolreg,
+	.fb_fillrect = cfb_fillrect,
+	.fb_copyarea = cfb_copyarea,
+	.fb_imageblit = cfb_imageblit,
+	.fb_mmap = psbfb_mmap,
 	.fb_ioctl = psbfb_ioctl,
 };
 
@@ -346,6 +363,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
  *
  *	TODO: review object references
  */
+
 static struct drm_framebuffer *psb_framebuffer_create
 			(struct drm_device *dev,
 			 struct drm_mode_fb_cmd *mode_cmd,
@@ -468,7 +486,11 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	strcpy(info->fix.id, "psbfb");
 
 	info->flags = FBINFO_DEFAULT;
-	info->fbops = &psbfb_ops;
+	/* No 2D engine */
+	if (IS_MFLD(dev))
+	        info->fbops = &psbfb_mfld_ops;
+        else
+        	info->fbops = &psbfb_ops;
 
 	ret = fb_alloc_cmap(&info->cmap, 256, 0);
 	if (ret) {
@@ -781,7 +803,9 @@ static void psb_setup_outputs(struct drm_device *dev)
 			mrst_lvds_init(dev, &dev_priv->mode_dev);
 		else
 			dev_err(dev->dev, "DSI is not supported\n");
-	} else {
+	} else if (IS_MFLD(dev)) {
+		mdfld_output_init(dev);
+        } else {
 		psb_intel_lvds_init(dev, &dev_priv->mode_dev);
 		psb_intel_sdvo_init(dev, SDVOB);
 	}

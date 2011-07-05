@@ -224,4 +224,7 @@ extern int psb_intel_lvds_set_property(struct drm_connector *connector,
 extern void psb_intel_lvds_destroy(struct drm_connector *connector);
 extern const struct drm_encoder_funcs psb_intel_lvds_enc_funcs;
 
+extern void mdfldWaitForPipeDisable(struct drm_device *dev, int pipe);
+extern void mdfldWaitForPipeEnable(struct drm_device *dev, int pipe);
+
 #endif				/* __INTEL_DRV_H__ */
