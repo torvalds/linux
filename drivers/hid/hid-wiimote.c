@@ -87,6 +87,9 @@ static __u16 wiiproto_keymap[] = {
 	BTN_MODE,	/* WIIPROTO_KEY_HOME */
 };
 
+#define dev_to_wii(pdev) hid_get_drvdata(container_of(pdev, struct hid_device, \
+									dev))
+
 static ssize_t wiimote_hid_send(struct hid_device *hdev, __u8 *buffer,
 								size_t count)
 {
@@ -188,6 +191,55 @@ static void wiiproto_req_leds(struct wiimote_data *wdata, int leds)
 
 	wiimote_queue(wdata, cmd, sizeof(cmd));
 }
+
+#define wiifs_led_show_set(num)						\
+static ssize_t wiifs_led_show_##num(struct device *dev,			\
+			struct device_attribute *attr, char *buf)	\
+{									\
+	struct wiimote_data *wdata = dev_to_wii(dev);			\
+	unsigned long flags;						\
+	int state;							\
+									\
+	if (!atomic_read(&wdata->ready))				\
+		return -EBUSY;						\
+									\
+	spin_lock_irqsave(&wdata->state.lock, flags);			\
+	state = !!(wdata->state.flags & WIIPROTO_FLAG_LED##num);	\
+	spin_unlock_irqrestore(&wdata->state.lock, flags);		\
+									\
+	return sprintf(buf, "%d\n", state);				\
+}									\
+static ssize_t wiifs_led_set_##num(struct device *dev,			\
+	struct device_attribute *attr, const char *buf, size_t count)	\
+{									\
+	struct wiimote_data *wdata = dev_to_wii(dev);			\
+	int tmp = simple_strtoul(buf, NULL, 10);			\
+	unsigned long flags;						\
+	__u8 state;							\
+									\
+	if (!atomic_read(&wdata->ready))				\
+		return -EBUSY;						\
+									\
+	spin_lock_irqsave(&wdata->state.lock, flags);			\
+									\
+	state = wdata->state.flags;					\
+									\
+	if (tmp)							\
+		wiiproto_req_leds(wdata, state | WIIPROTO_FLAG_LED##num);\
+	else								\
+		wiiproto_req_leds(wdata, state & ~WIIPROTO_FLAG_LED##num);\
+									\
+	spin_unlock_irqrestore(&wdata->state.lock, flags);		\
+									\
+	return count;							\
+}									\
+static DEVICE_ATTR(led##num, S_IRUGO | S_IWUSR, wiifs_led_show_##num,	\
+						wiifs_led_set_##num)
+
+wiifs_led_show_set(1);
+wiifs_led_show_set(2);
+wiifs_led_show_set(3);
+wiifs_led_show_set(4);
 
 static int wiimote_input_event(struct input_dev *dev, unsigned int type,
 						unsigned int code, int value)
@@ -325,6 +377,19 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		return -ENOMEM;
 	}
 
+	ret = device_create_file(&hdev->dev, &dev_attr_led1);
+	if (ret)
+		goto err;
+	ret = device_create_file(&hdev->dev, &dev_attr_led2);
+	if (ret)
+		goto err;
+	ret = device_create_file(&hdev->dev, &dev_attr_led3);
+	if (ret)
+		goto err;
+	ret = device_create_file(&hdev->dev, &dev_attr_led4);
+	if (ret)
+		goto err;
+
 	ret = hid_parse(hdev);
 	if (ret) {
 		hid_err(hdev, "HID parse failed\n");
@@ -359,6 +424,10 @@ err_stop:
 	hid_hw_stop(hdev);
 err:
 	input_free_device(wdata->input);
+	device_remove_file(&hdev->dev, &dev_attr_led1);
+	device_remove_file(&hdev->dev, &dev_attr_led2);
+	device_remove_file(&hdev->dev, &dev_attr_led3);
+	device_remove_file(&hdev->dev, &dev_attr_led4);
 	wiimote_destroy(wdata);
 	return ret;
 }
@@ -368,6 +437,11 @@ static void wiimote_hid_remove(struct hid_device *hdev)
 	struct wiimote_data *wdata = hid_get_drvdata(hdev);
 
 	hid_info(hdev, "Device removed\n");
+
+	device_remove_file(&hdev->dev, &dev_attr_led1);
+	device_remove_file(&hdev->dev, &dev_attr_led2);
+	device_remove_file(&hdev->dev, &dev_attr_led3);
+	device_remove_file(&hdev->dev, &dev_attr_led4);
 
 	hid_hw_stop(hdev);
 	input_unregister_device(wdata->input);
