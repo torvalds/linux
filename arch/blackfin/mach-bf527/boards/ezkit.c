@@ -539,9 +539,25 @@ static struct resource bfin_snd_resources[][4] = {
 	BFIN_SND_RES(0),
 	BFIN_SND_RES(1),
 };
+#endif
 
-static struct platform_device bfin_pcm = {
-	.name = "bfin-pcm-audio",
+#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+static struct platform_device bfin_i2s_pcm = {
+	.name = "bfin-i2s-pcm-audio",
+	.id = -1,
+};
+#endif
+
+#if defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE)
+static struct platform_device bfin_tdm_pcm = {
+	.name = "bfin-tdm-pcm-audio",
+	.id = -1,
+};
+#endif
+
+#if defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
+static struct platform_device bfin_ac97_pcm = {
+	.name = "bfin-ac97-pcm-audio",
 	.id = -1,
 };
 #endif
@@ -1217,9 +1233,16 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&ezkit_flash_device,
 #endif
 
-#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE) || \
-	defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE)
-	&bfin_pcm,
+#if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
+	&bfin_i2s_pcm,
+#endif
+
+#if defined(CONFIG_SND_BF5XX_TDM) || defined(CONFIG_SND_BF5XX_TDM_MODULE)
+	&bfin_tdm_pcm,
+#endif
+
+#if defined(CONFIG_SND_BF5XX_AC97) || defined(CONFIG_SND_BF5XX_AC97_MODULE)
+	&bfin_ac97_pcm,
 #endif
 
 #if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
