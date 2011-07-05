@@ -617,6 +617,13 @@ struct drm_psb_private {
  */
  
 struct psb_ops {
+	const char *name;
+	unsigned int accel_2d:1;
+
+	/* Sub functions */
+	struct drm_crtc_helper_funcs const *crtc_helper;
+	struct drm_crtc_funcs const *crtc_funcs;
+
 	/* Display management hooks */
 	int (*output_init)(struct drm_device *dev);
 	/* Power management hooks */
@@ -758,6 +765,10 @@ extern const struct drm_crtc_helper_funcs mrst_helper_funcs;
 /* mrst_lvds.c */
 extern void mrst_lvds_init(struct drm_device *dev,
 		    struct psb_intel_mode_device *mode_dev);
+
+/* psb_intel_display.c */
+extern const struct drm_crtc_helper_funcs psb_intel_helper_funcs;
+extern const struct drm_crtc_funcs psb_intel_crtc_funcs;
 
 /* psb_intel_lvds.c */
 extern void psb_intel_lvds_prepare(struct drm_encoder *encoder);

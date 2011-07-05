@@ -1260,7 +1260,7 @@ void psb_intel_crtc_destroy(struct drm_crtc *crtc)
 	kfree(psb_intel_crtc);
 }
 
-static const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
+const struct drm_crtc_helper_funcs psb_intel_helper_funcs = {
 	.dpms = psb_intel_crtc_dpms,
 	.mode_fixup = psb_intel_crtc_mode_fixup,
 	.mode_set = psb_intel_crtc_mode_set,
@@ -1304,12 +1304,8 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 		return;
 	}
 
-	if (IS_MFLD(dev))
-		drm_crtc_init(dev, &psb_intel_crtc->base,
-						&mdfld_intel_crtc_funcs);
-	else
-        	drm_crtc_init(dev, &psb_intel_crtc->base,
-						&psb_intel_crtc_funcs);
+	/* Set the CRTC operations from the chip specific data */
+	drm_crtc_init(dev, &psb_intel_crtc->base, dev_priv->ops->crtc_funcs);
 
 	drm_mode_crtc_set_gamma_size(&psb_intel_crtc->base, 256);
 	psb_intel_crtc->pipe = pipe;
@@ -1332,15 +1328,8 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	psb_intel_crtc->mode_dev = mode_dev;
 	psb_intel_crtc->cursor_addr = 0;
 
-	if (IS_MRST(dev))
-		drm_crtc_helper_add(&psb_intel_crtc->base,
-				    &mrst_helper_funcs);
-	else if (IS_MFLD(dev))
-		drm_crtc_helper_add(&psb_intel_crtc->base,
-				    &mdfld_helper_funcs);
-	else
-		drm_crtc_helper_add(&psb_intel_crtc->base,
-				    &psb_intel_helper_funcs);
+	drm_crtc_helper_add(&psb_intel_crtc->base,
+	                                dev_priv->ops->crtc_helper);
 
 	/* Setup the array of drm_connector pointer array */
 	psb_intel_crtc->mode_set.crtc = &psb_intel_crtc->base;

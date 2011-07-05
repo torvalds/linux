@@ -687,6 +687,11 @@ static int mdfld_power_up(struct drm_device *dev)
 }
 
 const struct psb_ops mdfld_chip_ops = {
+	.name = "Medfield",
+	.accel_2d = 0,
+	.crtc_helper = &mdfld_helper_funcs,
+	.crtc_funcs = &mdfld_intel_crtc_funcs,
+
 	.output_init = mdfld_output_init,
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE

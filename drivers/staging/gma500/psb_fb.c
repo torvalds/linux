@@ -211,7 +211,7 @@ static int psbfb_ioctl(struct fb_info *info, unsigned int cmd,
 	case 0x12345678:
 		if (!capable(CAP_SYS_RAWIO))
 			return -EPERM;
-		if (IS_MFLD(dev))
+		if (!dev_priv->ops->accel_2d)
 			return -EOPNOTSUPP;
 		if (get_user(l, p))
 			return -EFAULT;
@@ -240,7 +240,7 @@ static struct fb_ops psbfb_ops = {
 	.fb_ioctl = psbfb_ioctl,
 };
 
-static struct fb_ops psbfb_mfld_ops = {
+static struct fb_ops psbfb_unaccel_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = drm_fb_helper_check_var,
 	.fb_set_par = drm_fb_helper_set_par,
@@ -426,8 +426,8 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	info->flags = FBINFO_DEFAULT;
 	/* No 2D engine */
-	if (IS_MFLD(dev))
-		info->fbops = &psbfb_mfld_ops;
+	if (!dev_priv->ops->accel_2d)
+		info->fbops = &psbfb_unaccel_ops;
 	else
 		info->fbops = &psbfb_ops;
 

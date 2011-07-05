@@ -352,6 +352,11 @@ static int mrst_power_up(struct drm_device *dev)
 }
 
 const struct psb_ops mrst_chip_ops = {
+	.name = "Moorestown",
+	.accel_2d = 1,
+	.crtc_helper = &mrst_helper_funcs,
+	.crtc_funcs = &psb_intel_crtc_funcs,
+
 	.output_init = mrst_output_init,
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE

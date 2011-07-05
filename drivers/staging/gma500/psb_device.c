@@ -282,6 +282,11 @@ int psb_power_up(struct drm_device *dev)
 }
 
 const struct psb_ops psb_chip_ops = {
+	.name = "Poulsbo",
+	.accel_2d = 1,
+	.crtc_helper = &psb_intel_helper_funcs,
+	.crtc_funcs = &psb_intel_crtc_funcs,
+
 	.output_init = psb_output_init,
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
