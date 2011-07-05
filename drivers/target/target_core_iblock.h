@@ -16,14 +16,9 @@ struct iblock_req {
 } ____cacheline_aligned;
 
 #define IBDF_HAS_UDEV_PATH		0x01
-#define IBDF_HAS_FORCE			0x02
 
 struct iblock_dev {
 	unsigned char ibd_udev_path[SE_UDEV_PATH_LEN];
-	int	ibd_force;
-	int	ibd_major;
-	int	ibd_minor;
-	u32	ibd_depth;
 	u32	ibd_flags;
 	struct bio_set	*ibd_bio_set;
 	struct block_device *ibd_bd;

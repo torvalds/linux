@@ -167,8 +167,6 @@ static struct se_device *iblock_create_virtdevice(
 	dev_limits.hw_queue_depth = q->nr_requests;
 	dev_limits.queue_depth = q->nr_requests;
 
-	ib_dev->ibd_major = MAJOR(bd->bd_dev);
-	ib_dev->ibd_minor = MINOR(bd->bd_dev);
 	ib_dev->ibd_bd = bd;
 
 	dev = transport_add_device_to_core_hba(hba,
@@ -176,8 +174,6 @@ static struct se_device *iblock_create_virtdevice(
 			&dev_limits, "IBLOCK", IBLOCK_VERSION);
 	if (!(dev))
 		goto failed;
-
-	ib_dev->ibd_depth = dev->queue_depth;
 
 	/*
 	 * Check if the underlying struct block_device request_queue supports
@@ -208,8 +204,6 @@ failed:
 		ib_dev->ibd_bio_set = NULL;
 	}
 	ib_dev->ibd_bd = NULL;
-	ib_dev->ibd_major = 0;
-	ib_dev->ibd_minor = 0;
 	return ERR_PTR(ret);
 }
 
@@ -467,7 +461,7 @@ static ssize_t iblock_set_configfs_dev_params(struct se_hba *hba,
 	struct iblock_dev *ib_dev = se_dev->se_dev_su_ptr;
 	char *orig, *ptr, *arg_p, *opts;
 	substring_t args[MAX_OPT_ARGS];
-	int ret = 0, arg, token;
+	int ret = 0, token;
 
 	opts = kstrdup(page, GFP_KERNEL);
 	if (!opts)
@@ -501,10 +495,6 @@ static ssize_t iblock_set_configfs_dev_params(struct se_hba *hba,
 			ib_dev->ibd_flags |= IBDF_HAS_UDEV_PATH;
 			break;
 		case Opt_force:
-			match_int(args, &arg);
-			ib_dev->ibd_force = arg;
-			printk(KERN_INFO "IBLOCK: Set force=%d\n",
-				ib_dev->ibd_force);
 			break;
 		default:
 			break;
@@ -552,12 +542,11 @@ static ssize_t iblock_show_configfs_dev_params(
 	bl += sprintf(b + bl, "        ");
 	if (bd) {
 		bl += sprintf(b + bl, "Major: %d Minor: %d  %s\n",
-			ibd->ibd_major, ibd->ibd_minor, (!bd->bd_contains) ?
+			MAJOR(bd->bd_dev), MINOR(bd->bd_dev), (!bd->bd_contains) ?
 			"" : (bd->bd_holder == (struct iblock_dev *)ibd) ?
 			"CLAIMED: IBLOCK" : "CLAIMED: OS");
 	} else {
-		bl += sprintf(b + bl, "Major: %d Minor: %d\n",
-			ibd->ibd_major, ibd->ibd_minor);
+		bl += sprintf(b + bl, "Major: 0 Minor: 0\n");
 	}
 
 	return bl;
