@@ -22,12 +22,15 @@ psb_gfx-y += gem_glue.o \
 	  psb_mmu.o \
 	  psb_irq.o \
 	  psb_device.o \
-	  cdv_device.o \
-	  mid_bios.o \
-	  mrst_device.o \
+	  mid_bios.o
+
+psb_gfx-$(CONFIG_DRM_PSB_CDV) +=  cdv_device.o
+
+psb_gfx-$(CONFIG_DRM_PSB_MRST) += mrst_device.o \
 	  mrst_crtc.o \
-	  mrst_lvds.o \
-	  mdfld_device.o \
+	  mrst_lvds.o
+
+psb_gfx-$(CONFIG_DRM_PSB_MFLD) += mdfld_device.o \
 	  mdfld_output.o \
 	  mdfld_pyr_cmd.o \
 	  mdfld_tmd_vid.o \

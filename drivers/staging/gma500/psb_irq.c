@@ -455,11 +455,12 @@ int psb_enable_vblank(struct drm_device *dev, int pipe)
 	uint32_t reg_val = 0;
 	uint32_t pipeconf_reg = mid_pipeconf(pipe);
 
+#if defined(CONFIG_DRM_PSB_MFLD)
 	/* Medfield is different - we should perhaps extract out vblank
 	   and blacklight etc ops */
 	if (IS_MFLD(dev) && !mdfld_panel_dpi(dev))
 		return mdfld_enable_te(dev, pipe);
-
+#endif
 	if (gma_power_begin(dev, false)) {
 		reg_val = REG_READ(pipeconf_reg);
 		gma_power_end(dev);
@@ -486,8 +487,10 @@ void psb_disable_vblank(struct drm_device *dev, int pipe)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 
+#if defined(CONFIG_DRM_PSB_MFLD)
 	if (IS_MFLD(dev) && !mdfld_panel_dpi(dev))
 		mdfld_disable_te(dev, pipe);
+#endif
 	spin_lock_irqsave(&dev_priv->irqmask_lock, irqflags);
 
 	mid_disable_pipe_event(dev_priv, pipe);
