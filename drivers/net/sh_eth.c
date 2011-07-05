@@ -140,6 +140,8 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 	.no_ade		= 1,
+	.rpadir		= 1,
+	.rpadir_value   = 2 << 16,
 };
 
 #define SH_GIGA_ETH_BASE	0xfee00000
