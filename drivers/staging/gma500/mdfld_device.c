@@ -589,7 +589,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipe)
 		PSB_WVDC32(palette_val[i], palette_reg + (i<<2));
 	if (pipe == 1)
 		return 0;
-	if (IS_MFLD(dev) && !mdfld_panel_dpi(dev))
+	if (!mdfld_panel_dpi(dev))
 		mdfld_enable_te(dev, pipe);
 	return 0;
 }
