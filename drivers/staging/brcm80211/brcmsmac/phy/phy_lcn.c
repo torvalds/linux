@@ -991,7 +991,7 @@ static bool wlc_lcnphy_rx_iq_est(struct brcms_phy *pi, u16 num_samps,
 static bool wlc_lcnphy_calc_rx_iq_comp(struct brcms_phy *pi, u16 num_samps);
 static u16 wlc_lcnphy_get_pa_gain(struct brcms_phy *pi);
 static void wlc_lcnphy_afe_clk_init(struct brcms_phy *pi, u8 mode);
-extern void wlc_lcnphy_tx_pwr_ctrl_init(wlc_phy_t *ppi);
+extern void wlc_lcnphy_tx_pwr_ctrl_init(struct brcms_phy_pub *ppi);
 static void wlc_lcnphy_radio_2064_channel_tune_4313(struct brcms_phy *pi,
 						    u8 channel);
 
@@ -1210,7 +1210,7 @@ void wlc_phy_chanspec_set_lcnphy(struct brcms_phy *pi, chanspec_t chanspec)
 {
 	u8 channel = CHSPEC_CHANNEL(chanspec);
 
-	wlc_phy_chanspec_radio_set((wlc_phy_t *) pi, chanspec);
+	wlc_phy_chanspec_radio_set((struct brcms_phy_pub *) pi, chanspec);
 
 	wlc_lcnphy_set_chanspec_tweaks(pi, pi->radio_chanspec);
 
@@ -2067,7 +2067,7 @@ wlc_lcnphy_tx_iqlo_cal(struct brcms_phy *pi,
 
 }
 
-static void wlc_lcnphy_idle_tssi_est(wlc_phy_t *ppi)
+static void wlc_lcnphy_idle_tssi_est(struct brcms_phy_pub *ppi)
 {
 	bool suspend, tx_gain_override_old;
 	struct lcnphy_txgains old_gains;
@@ -2275,7 +2275,7 @@ static void wlc_lcnphy_vbat_temp_sense_setup(struct brcms_phy *pi, u8 mode)
 	udelay(999);
 }
 
-void WLBANDINITFN(wlc_lcnphy_tx_pwr_ctrl_init) (wlc_phy_t *ppi)
+void WLBANDINITFN(wlc_lcnphy_tx_pwr_ctrl_init) (struct brcms_phy_pub *ppi)
 {
 	struct lcnphy_txgains tx_gains;
 	u8 bbmult;
@@ -3501,7 +3501,7 @@ static void wlc_lcnphy_periodic_cal(struct brcms_phy *pi)
 
 	if (wlc_lcnphy_tssi_based_pwr_ctrl_enabled(pi)) {
 
-		wlc_lcnphy_idle_tssi_est((wlc_phy_t *) pi);
+		wlc_lcnphy_idle_tssi_est((struct brcms_phy_pub *) pi);
 
 		b0 = pi->txpa_2g[0];
 		b1 = pi->txpa_2g[1];
@@ -3563,7 +3563,8 @@ void wlc_lcnphy_calib_modes(struct brcms_phy *pi, uint mode)
 		break;
 	case LCNPHY_PERICAL_TEMPBASED_TXPWRCTRL:
 		if (wlc_lcnphy_tempsense_based_pwr_ctrl_enabled(pi))
-			wlc_lcnphy_tx_power_adjustment((wlc_phy_t *) pi);
+			wlc_lcnphy_tx_power_adjustment(
+						(struct brcms_phy_pub *) pi);
 		break;
 	}
 }
@@ -3649,7 +3650,7 @@ wlc_lcnphy_set_chanspec_tweaks(struct brcms_phy *pi, chanspec_t chanspec)
 	write_phy_reg(pi, 0x44a, 0x80);
 }
 
-void wlc_lcnphy_tx_power_adjustment(wlc_phy_t *ppi)
+void wlc_lcnphy_tx_power_adjustment(struct brcms_phy_pub *ppi)
 {
 	s8 index;
 	u16 index2;
@@ -3705,9 +3706,9 @@ void WLBANDINITFN(wlc_phy_init_lcnphy) (struct brcms_phy *pi)
 	wlc_lcnphy_radio_init(pi);
 
 	if (CHSPEC_IS2G(pi->radio_chanspec))
-		wlc_lcnphy_tx_pwr_ctrl_init((wlc_phy_t *) pi);
+		wlc_lcnphy_tx_pwr_ctrl_init((struct brcms_phy_pub *) pi);
 
-	wlc_phy_chanspec_set((wlc_phy_t *) pi, pi->radio_chanspec);
+	wlc_phy_chanspec_set((struct brcms_phy_pub *) pi, pi->radio_chanspec);
 
 	si_pmu_regcontrol(pi->sh->sih, 0, 0xf, 0x9);
 
@@ -4808,7 +4809,7 @@ static bool wlc_phy_txpwr_srom_read_lcnphy(struct brcms_phy *pi)
 		pi_lcn->lcnphy_freqoffset_corr =
 		    (u8) PHY_GETINTVAR(pi, "freqoffset_corr");
 		if ((u8) getintvar(pi->vars, "aa2g") > 1)
-			wlc_phy_ant_rxdiv_set((wlc_phy_t *) pi,
+			wlc_phy_ant_rxdiv_set((struct brcms_phy_pub *) pi,
 					      (u8) getintvar(pi->vars,
 								"aa2g"));
 	}

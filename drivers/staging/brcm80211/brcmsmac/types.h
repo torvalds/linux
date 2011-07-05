@@ -385,7 +385,6 @@ typedef struct brcms_rateset wlc_rateset_t;
 typedef u32 ratespec_t;
 typedef struct tx_power tx_power_t;
 typedef struct chanvec chanvec_t;
-typedef struct phy_pub wlc_phy_t;
 typedef s32 fixed;
 typedef struct _cs32 cs32;
 typedef volatile union pmqreg pmqreg_t;

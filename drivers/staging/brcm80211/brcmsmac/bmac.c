@@ -1796,7 +1796,7 @@ void brcms_b_macphyclk_set(struct brcms_c_hw_info *wlc_hw, bool clk)
 
 void brcms_b_phy_reset(struct brcms_c_hw_info *wlc_hw)
 {
-	wlc_phy_t *pih = wlc_hw->band->pi;
+	struct brcms_phy_pub *pih = wlc_hw->band->pi;
 	u32 phy_bw_clkbits;
 	bool phy_in_reset = false;
 

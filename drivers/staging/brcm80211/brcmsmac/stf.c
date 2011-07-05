@@ -72,7 +72,7 @@ static void brcms_c_stf_stbc_rx_ht_update(struct brcms_c_info *wlc, int val)
 /* every WLC_TEMPSENSE_PERIOD seconds temperature check to decide whether to turn on/off txchain */
 void brcms_c_tempsense_upd(struct brcms_c_info *wlc)
 {
-	wlc_phy_t *pi = wlc->band->pi;
+	struct brcms_phy_pub *pi = wlc->band->pi;
 	uint active_chains, txchain;
 
 	/* Check if the chip is too hot. Disable one Tx chain, if it is */

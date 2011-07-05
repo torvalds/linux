@@ -369,7 +369,7 @@ struct brcms_c_band {
 	u16 phyrev;
 	u16 radioid;
 	u16 radiorev;
-	wlc_phy_t *pi;		/* pointer to phy specific information */
+	struct brcms_phy_pub *pi; /* pointer to phy specific information */
 	bool abgphy_encore;
 
 	u8 gmode;		/* currently active gmode */
@@ -475,7 +475,7 @@ struct brcms_c_hwband {
 	u16 phyrev;
 	u16 radioid;
 	u16 radiorev;
-	wlc_phy_t *pi;		/* pointer to phy specific information */
+	struct brcms_phy_pub *pi; /* pointer to phy specific information */
 	bool abgphy_encore;
 };
 

@@ -565,7 +565,7 @@ struct shared_phy {
 	bool _rifs_phy;
 };
 
-struct phy_pub {
+struct brcms_phy_pub {
 	uint phy_type;
 	uint phy_rev;
 	u8 phy_corenum;
@@ -594,7 +594,7 @@ struct phy_func_ptr {
 };
 
 struct brcms_phy {
-	wlc_phy_t pubpi_ro;
+	struct brcms_phy_pub pubpi_ro;
 	struct shared_phy *sh;
 	struct phy_func_ptr pi_fptr;
 	void *pi_ptr;
@@ -607,7 +607,7 @@ struct brcms_phy {
 	d11regs_t *regs;
 	struct brcms_phy *next;
 	char *vars;
-	wlc_phy_t pubpi;
+	struct brcms_phy_pub pubpi;
 
 	bool do_initcal;
 	bool phytest_on;
@@ -1002,10 +1002,10 @@ extern void xor_radio_reg(struct brcms_phy *pi, u16 addr, u16 mask);
 
 extern void write_radio_reg(struct brcms_phy *pi, u16 addr, u16 val);
 
-extern void wlc_phyreg_enter(wlc_phy_t *pih);
-extern void wlc_phyreg_exit(wlc_phy_t *pih);
-extern void wlc_radioreg_enter(wlc_phy_t *pih);
-extern void wlc_radioreg_exit(wlc_phy_t *pih);
+extern void wlc_phyreg_enter(struct brcms_phy_pub *pih);
+extern void wlc_phyreg_exit(struct brcms_phy_pub *pih);
+extern void wlc_radioreg_enter(struct brcms_phy_pub *pih);
+extern void wlc_radioreg_exit(struct brcms_phy_pub *pih);
 
 extern void wlc_phy_read_table(struct brcms_phy *pi,
 			       const struct phytbl_info *ptbl_info,
@@ -1125,7 +1125,7 @@ extern void wlc_lcnphy_tx_pwr_update_npt(struct brcms_phy *pi);
 extern s32 wlc_lcnphy_tssi2dbm(s32 tssi, s32 a1, s32 b0, s32 b1);
 extern void wlc_lcnphy_get_tssi(struct brcms_phy *pi, s8 *ofdm_pwr,
 				s8 *cck_pwr);
-extern void wlc_lcnphy_tx_power_adjustment(wlc_phy_t *ppi);
+extern void wlc_lcnphy_tx_power_adjustment(struct brcms_phy_pub *ppi);
 
 extern s32 wlc_lcnphy_rx_signal_power(struct brcms_phy *pi, s32 gain_index);
 
@@ -1185,8 +1185,9 @@ extern void wlc_phy_rx_iq_coeffs_nphy(struct brcms_phy *pi, u8 write,
 				      struct nphy_iq_comp *comp);
 extern void wlc_phy_aci_and_noise_reduction_nphy(struct brcms_phy *pi);
 
-extern void wlc_phy_rxcore_setstate_nphy(wlc_phy_t *pih, u8 rxcore_bitmask);
-extern u8 wlc_phy_rxcore_getstate_nphy(wlc_phy_t *pih);
+extern void wlc_phy_rxcore_setstate_nphy(struct brcms_phy_pub *pih,
+					 u8 rxcore_bitmask);
+extern u8 wlc_phy_rxcore_getstate_nphy(struct brcms_phy_pub *pih);
 
 extern void wlc_phy_txpwrctrl_enable_nphy(struct brcms_phy *pi, u8 ctrl_type);
 extern void wlc_phy_txpwr_fixpower_nphy(struct brcms_phy *pi);
