@@ -90,6 +90,7 @@ static struct s3c64xx_spi_info s5pc100_spi0_pdata = {
 	.fifo_lvl_mask = 0x7f,
 	.rx_lvl_offset = 13,
 	.high_speed = 1,
+	.tx_st_done = 21,
 };
 
 static u64 spi_dmamask = DMA_BIT_MASK(32);
@@ -134,6 +135,7 @@ static struct s3c64xx_spi_info s5pc100_spi1_pdata = {
 	.fifo_lvl_mask = 0x7f,
 	.rx_lvl_offset = 13,
 	.high_speed = 1,
+	.tx_st_done = 21,
 };
 
 struct platform_device s5pc100_device_spi1 = {
@@ -176,6 +178,7 @@ static struct s3c64xx_spi_info s5pc100_spi2_pdata = {
 	.fifo_lvl_mask = 0x7f,
 	.rx_lvl_offset = 13,
 	.high_speed = 1,
+	.tx_st_done = 21,
 };
 
 struct platform_device s5pc100_device_spi2 = {
