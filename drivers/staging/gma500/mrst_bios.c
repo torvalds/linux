@@ -35,7 +35,7 @@ module_param_named(panel_id, panel_id, int, 0600);
 MODULE_PARM_DESC(panel_id, "Panel Identifier");
 
 
-void mrst_get_fuse_settings(struct drm_device *dev)
+static void mid_get_fuse_settings(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
@@ -102,7 +102,7 @@ void mrst_get_fuse_settings(struct drm_device *dev)
 /*
  *	Get the revison ID, B0:D2:F0;0x08
  */
-void mid_get_pci_revID(struct drm_psb_private *dev_priv)
+static void mid_get_pci_revID(struct drm_psb_private *dev_priv)
 {
 	uint32_t platform_rev_id = 0;
 	struct pci_dev *pci_gfx_root = pci_get_bus_and_slot(0, PCI_DEVFN(2, 0));
@@ -114,7 +114,7 @@ void mid_get_pci_revID(struct drm_psb_private *dev_priv)
 					dev_priv->platform_rev_id);
 }
 
-void mrst_get_vbt_data(struct drm_psb_private *dev_priv)
+static void mid_get_vbt_data(struct drm_psb_private *dev_priv)
 {
 	struct drm_device *dev = dev_priv->dev;
 	struct mrst_vbt *vbt = &dev_priv->vbt_data;
@@ -261,3 +261,11 @@ void mrst_get_vbt_data(struct drm_psb_private *dev_priv)
 	}
 }
 
+int mid_chip_setup(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	mid_get_fuse_settings(dev);
+	mid_get_vbt_data(dev_priv);
+	mid_get_pci_revID(dev_priv);
+	return 0;
+}

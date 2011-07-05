@@ -619,10 +619,15 @@ struct drm_psb_private {
 struct psb_ops {
 	const char *name;
 	unsigned int accel_2d:1;
+	int pipes;		/* Number of output pipes */
+	int sgx_offset;		/* Base offset of SGX device */
 
 	/* Sub functions */
 	struct drm_crtc_helper_funcs const *crtc_helper;
 	struct drm_crtc_funcs const *crtc_funcs;
+
+	/* Setup hooks */
+	int (*chip_setup)(struct drm_device *dev);
 
 	/* Display management hooks */
 	int (*output_init)(struct drm_device *dev);

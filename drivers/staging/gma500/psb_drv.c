@@ -158,44 +158,6 @@ static void psb_do_takedown(struct drm_device *dev)
 	/* FIXME: do we need to clean up the gtt here ? */
 }
 
-static void psb_get_core_freq(struct drm_device *dev)
-{
-	uint32_t clock;
-	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
-	struct drm_psb_private *dev_priv = dev->dev_private;
-
-	/*pci_write_config_dword(pci_root, 0xD4, 0x00C32004);*/
-	/*pci_write_config_dword(pci_root, 0xD0, 0xE0033000);*/
-
-	pci_write_config_dword(pci_root, 0xD0, 0xD0050300);
-	pci_read_config_dword(pci_root, 0xD4, &clock);
-	pci_dev_put(pci_root);
-
-	switch (clock & 0x07) {
-	case 0:
-		dev_priv->core_freq = 100;
-		break;
-	case 1:
-		dev_priv->core_freq = 133;
-		break;
-	case 2:
-		dev_priv->core_freq = 150;
-		break;
-	case 3:
-		dev_priv->core_freq = 178;
-		break;
-	case 4:
-		dev_priv->core_freq = 200;
-		break;
-	case 5:
-	case 6:
-	case 7:
-		dev_priv->core_freq = 266;
-	default:
-		dev_priv->core_freq = 0;
-	}
-}
-
 static int psb_do_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv =
@@ -336,13 +298,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->dev = dev;
 	dev->dev_private = (void *) dev_priv;
 
-	if (IS_MRST(dev))
-		dev_priv->num_pipe = 1;
-	else if (IS_MFLD(dev))
-		dev_priv->num_pipe = 3;
-	else
-		dev_priv->num_pipe = 2;
-
+	dev_priv->num_pipe = dev_priv->ops->pipes;
 
 	resource_start = pci_resource_start(dev->pdev, PSB_MMIO_RESOURCE);
 
@@ -351,25 +307,14 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (!dev_priv->vdc_reg)
 		goto out_err;
 
-	if (IS_MRST(dev) || IS_MFLD(dev))
-		dev_priv->sgx_reg = ioremap(resource_start + MRST_SGX_OFFSET,
+	dev_priv->sgx_reg = ioremap(resource_start + dev_priv->ops->sgx_offset,
 							PSB_SGX_SIZE);
-	else
-		dev_priv->sgx_reg = ioremap(resource_start + PSB_SGX_OFFSET,
-							PSB_SGX_SIZE);
-
 	if (!dev_priv->sgx_reg)
 		goto out_err;
 
-	if (IS_MRST(dev) || IS_MFLD(dev)) {
-		mrst_get_fuse_settings(dev);
-		mrst_get_vbt_data(dev_priv);
-		mid_get_pci_revID(dev_priv);
-	} else {
-		psb_get_core_freq(dev);
-		psb_intel_opregion_init(dev);
-		psb_intel_init_bios(dev);
-	}
+	ret = dev_priv->ops->chip_setup(dev);
+	if (ret)
+		goto out_err;
 
 	/* Init OSPM support */
 	gma_power_init(dev);

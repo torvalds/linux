@@ -25,6 +25,7 @@
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
 #include <asm/intel_scu_ipc.h>
+#include "mrst_bios.h"
 
 /* IPC message and command defines used to enable/disable mipi panel voltages */
 #define IPC_MSG_PANEL_ON_OFF    0xE9
@@ -354,6 +355,10 @@ static int mrst_power_up(struct drm_device *dev)
 const struct psb_ops mrst_chip_ops = {
 	.name = "Moorestown",
 	.accel_2d = 1,
+	.pipes = 1,
+	.sgx_offset = MRST_SGX_OFFSET,
+
+	.chip_setup = mid_chip_setup,
 	.crtc_helper = &mrst_helper_funcs,
 	.crtc_funcs = &psb_intel_crtc_funcs,
 

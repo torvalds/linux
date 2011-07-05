@@ -26,6 +26,7 @@
 #include "psb_drv.h"
 #include "mdfld_output.h"
 #include "mdfld_dsi_output.h"
+#include "mrst_bios.h"
 
 /*
  *	Provide the Medfield specific backlight management
@@ -689,6 +690,11 @@ static int mdfld_power_up(struct drm_device *dev)
 const struct psb_ops mdfld_chip_ops = {
 	.name = "Medfield",
 	.accel_2d = 0,
+	.pipes = 3,
+	.sgx_offset = MRST_SGX_OFFSET,
+
+	.chip_setup = mid_chip_setup,
+
 	.crtc_helper = &mdfld_helper_funcs,
 	.crtc_funcs = &mdfld_intel_crtc_funcs,
 

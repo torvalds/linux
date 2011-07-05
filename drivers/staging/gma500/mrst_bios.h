@@ -17,6 +17,5 @@
  *
  **************************************************************************/
 
-extern void mrst_get_fuse_settings(struct drm_device *dev);
-extern void mid_get_pci_revID(struct drm_psb_private *dev_priv);
-extern void mrst_get_vbt_data(struct drm_psb_private *dev_priv);
+extern int mid_chip_setup(struct drm_device *dev);
+
