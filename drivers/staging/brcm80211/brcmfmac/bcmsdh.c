@@ -17,8 +17,10 @@
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
+#include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/sched.h>
+#include <linux/completion.h>
 
 #include <defs.h>
 #include <brcm_hw_ids.h>
@@ -29,11 +31,14 @@
 #include "sbsdio.h"		/* BRCM sdio device core */
 #include "dngl_stats.h"
 #include "dhd.h"
+#include "dhd_bus.h"
+#include "sdio_host.h"
 
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 
 #define BRCMF_SD_ERROR_VAL	0x0001	/* Error */
 #define BRCMF_SD_INFO_VAL		0x0002	/* Info */
+
 
 #ifdef BCMDBG
 #define BRCMF_SD_ERROR(x) \
@@ -53,7 +58,8 @@
 #define BRCMF_SD_INFO(x)
 #endif				/* BCMDBG */
 
-const uint brcmf_sdio_msglevel = BRCMF_SD_ERROR_VAL;
+/* debugging macros */
+#define SDLX_MSG(x)
 
 struct brcmf_sdio_card {
 	bool init_success;	/* underlying driver successfully attached */
@@ -63,8 +69,45 @@ struct brcmf_sdio_card {
 				 reg_read/reg_write call */
 	u32 sbwad;		/* Save backplane window address */
 };
+
+/**
+ * SDIO Host Controller info
+ */
+struct sdio_hc {
+	struct sdio_hc *next;
+	struct device *dev;	/* platform device handle */
+	void *regs;		/* SDIO Host Controller address */
+	struct brcmf_sdio_card *card;
+	void *ch;
+	unsigned int oob_irq;
+	unsigned long oob_flags;	/* OOB Host specifiction
+					as edge and etc */
+	bool oob_irq_registered;
+};
+
 /* local copy of bcm sd handler */
 static struct brcmf_sdio_card *l_card;
+
+const uint brcmf_sdio_msglevel = BRCMF_SD_ERROR_VAL;
+
+static struct sdio_hc *sdhcinfo;
+
+/* driver info, initialized when brcmf_sdio_register is called */
+static struct brcmf_sdioh_driver drvinfo = { NULL, NULL };
+
+/* Module parameters specific to each host-controller driver */
+
+module_param(sd_msglevel, uint, 0);
+
+extern uint sd_f2_blocksize;
+module_param(sd_f2_blocksize, int, 0);
+
+/* forward declarations */
+int brcmf_sdio_probe(struct device *dev);
+EXPORT_SYMBOL(brcmf_sdio_probe);
+
+int brcmf_sdio_remove(struct device *dev);
+EXPORT_SYMBOL(brcmf_sdio_remove);
 
 struct brcmf_sdio_card*
 brcmf_sdcard_attach(void *cfghdl, u32 *regsva, uint irq)
@@ -499,4 +542,109 @@ u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_card *card)
 		card = l_card;
 
 	return card->sbwad;
+}
+
+int brcmf_sdio_probe(struct device *dev)
+{
+	struct sdio_hc *sdhc = NULL;
+	u32 regs = 0;
+	struct brcmf_sdio_card *card = NULL;
+	int irq = 0;
+	u32 vendevid;
+	unsigned long irq_flags = 0;
+
+	/* allocate SDIO Host Controller state info */
+	sdhc = kzalloc(sizeof(struct sdio_hc), GFP_ATOMIC);
+	if (!sdhc) {
+		SDLX_MSG(("%s: out of memory\n", __func__));
+		goto err;
+	}
+	sdhc->dev = (void *)dev;
+
+	card = brcmf_sdcard_attach((void *)0, &regs, irq);
+	if (!card) {
+		SDLX_MSG(("%s: attach failed\n", __func__));
+		goto err;
+	}
+
+	sdhc->card = card;
+	sdhc->oob_irq = irq;
+	sdhc->oob_flags = irq_flags;
+	sdhc->oob_irq_registered = false;	/* to make sure.. */
+
+	/* chain SDIO Host Controller info together */
+	sdhc->next = sdhcinfo;
+	sdhcinfo = sdhc;
+	/* Read the vendor/device ID from the CIS */
+	vendevid = brcmf_sdcard_query_device(card);
+
+	/* try to attach to the target device */
+	sdhc->ch = drvinfo.attach((vendevid >> 16), (vendevid & 0xFFFF),
+				  0, 0, 0, 0, regs, card);
+	if (!sdhc->ch) {
+		SDLX_MSG(("%s: device attach failed\n", __func__));
+		goto err;
+	}
+
+	return 0;
+
+	/* error handling */
+err:
+	if (sdhc) {
+		if (sdhc->card)
+			brcmf_sdcard_detach(sdhc->card);
+		kfree(sdhc);
+	}
+
+	return -ENODEV;
+}
+
+int brcmf_sdio_remove(struct device *dev)
+{
+	struct sdio_hc *sdhc, *prev;
+
+	sdhc = sdhcinfo;
+	drvinfo.detach(sdhc->ch);
+	brcmf_sdcard_detach(sdhc->card);
+	/* find the SDIO Host Controller state for this pdev
+		 and take it out from the list */
+	for (sdhc = sdhcinfo, prev = NULL; sdhc; sdhc = sdhc->next) {
+		if (sdhc->dev == (void *)dev) {
+			if (prev)
+				prev->next = sdhc->next;
+			else
+				sdhcinfo = NULL;
+			break;
+		}
+		prev = sdhc;
+	}
+	if (!sdhc) {
+		SDLX_MSG(("%s: failed\n", __func__));
+		return 0;
+	}
+
+	/* release SDIO Host Controller info */
+	kfree(sdhc);
+	return 0;
+}
+
+int brcmf_sdio_register(struct brcmf_sdioh_driver *driver)
+{
+	drvinfo = *driver;
+
+	SDLX_MSG(("Linux Kernel SDIO/MMC Driver\n"));
+	return brcmf_sdio_function_init();
+}
+
+void brcmf_sdio_unregister(void)
+{
+	brcmf_sdio_function_cleanup();
+}
+
+void brcmf_sdio_wdtmr_enable(bool enable)
+{
+	if (enable)
+		brcmf_sdbrcm_wd_timer(sdhcinfo->ch, brcmf_watchdog_ms);
+	else
+		brcmf_sdbrcm_wd_timer(sdhcinfo->ch, 0);
 }
