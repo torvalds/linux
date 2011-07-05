@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef _PSB_FB_H_
-#define _PSB_FB_H_
+#ifndef _FRAMEBUFFER_H_
+#define _FRAMEBUFFER_H_
 
 #include <linux/version.h>
 #include <drm/drmP.h>

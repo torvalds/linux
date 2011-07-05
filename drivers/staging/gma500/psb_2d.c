@@ -38,8 +38,7 @@
 
 #include "psb_drv.h"
 #include "psb_reg.h"
-#include "psb_drv.h"
-#include "psb_fb.h"
+#include "framebuffer.h"
 
 /**
  *	psb_spank		-	reset the 2D engine

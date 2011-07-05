@@ -36,7 +36,7 @@
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
 #include "psb_intel_drv.h"
-#include "psb_fb.h"
+#include "framebuffer.h"
 
 #include "mdfld_output.h"
 

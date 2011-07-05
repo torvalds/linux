@@ -24,7 +24,7 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
-#include "psb_fb.h"
+#include "framebuffer.h"
 #include "psb_intel_display.h"
 #include "mdfld_dsi_dbi.h"
 #include "mdfld_dsi_dpi.h"

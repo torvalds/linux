@@ -23,7 +23,7 @@
 #include <drm/drm.h>
 #include "psb_drm.h"
 #include "psb_drv.h"
-#include "psb_fb.h"
+#include "framebuffer.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
 #include "psb_intel_bios.h"
