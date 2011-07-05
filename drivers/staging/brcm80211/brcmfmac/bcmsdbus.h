@@ -105,7 +105,7 @@ extern int brcmf_sdioh_stop(struct sdioh_info *si);
 extern int brcmf_sdioh_reset(struct sdioh_info *si);
 
 /* Helper function */
-void *brcmf_sdcard_get_sdioh(struct brcmf_sdio *sdh);
+void *brcmf_sdcard_get_sdioh(struct brcmf_sdio_card *card);
 
 /* Watchdog timer interface for pm ops */
 extern void brcmf_sdio_wdtmr_enable(bool enable);

@@ -13,7 +13,7 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-/* ****************** SDIOCARD Interface Functions ***************************/
+/* ****************** SDIO CARD Interface Functions **************************/
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
@@ -33,7 +33,7 @@
 #define SDIOH_API_ACCESS_RETRY_LIMIT	2
 const uint brcmf_sdio_msglevel = BRCMF_SD_ERROR_VAL;
 
-struct brcmf_sdio {
+struct brcmf_sdio_card {
 	bool init_success;	/* underlying driver successfully attached */
 	void *sdioh;		/* handler for sdioh */
 	u32 vendevid;	/* Target Vendor and Device ID on SD bus */
@@ -42,13 +42,14 @@ struct brcmf_sdio {
 	u32 sbwad;		/* Save backplane window address */
 };
 /* local copy of bcm sd handler */
-static struct brcmf_sdio *l_card;
+static struct brcmf_sdio_card *l_card;
 
-struct brcmf_sdio *brcmf_sdcard_attach(void *cfghdl, void **regsva, uint irq)
+struct brcmf_sdio_card*
+brcmf_sdcard_attach(void *cfghdl, void **regsva, uint irq)
 {
-	struct brcmf_sdio *card;
+	struct brcmf_sdio_card *card;
 
-	card = kzalloc(sizeof(struct brcmf_sdio), GFP_ATOMIC);
+	card = kzalloc(sizeof(struct brcmf_sdio_card), GFP_ATOMIC);
 	if (card == NULL) {
 		BRCMF_SD_ERROR(("sdcard_attach: out of memory"));
 		return NULL;
@@ -72,10 +73,8 @@ struct brcmf_sdio *brcmf_sdcard_attach(void *cfghdl, void **regsva, uint irq)
 	return card;
 }
 
-int brcmf_sdcard_detach(void *sdh)
+int brcmf_sdcard_detach(struct brcmf_sdio_card *card)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
-
 	if (card != NULL) {
 		if (card->sdioh) {
 			brcmf_sdioh_detach(card->sdioh);
@@ -89,17 +88,15 @@ int brcmf_sdcard_detach(void *sdh)
 }
 
 int
-brcmf_sdcard_iovar_op(void *sdh, const char *name,
+brcmf_sdcard_iovar_op(struct brcmf_sdio_card *card, const char *name,
 		void *params, int plen, void *arg, int len, bool set)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	return brcmf_sdioh_iovar_op(card->sdioh, name, params, plen, arg,
 				    len, set);
 }
 
-bool brcmf_sdcard_intr_query(void *sdh)
+bool brcmf_sdcard_intr_query(struct brcmf_sdio_card *card)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	int status;
 	bool on;
 
@@ -111,59 +108,57 @@ bool brcmf_sdcard_intr_query(void *sdh)
 		return on;
 }
 
-int brcmf_sdcard_intr_enable(void *sdh)
+int brcmf_sdcard_intr_enable(struct brcmf_sdio_card *card)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	ASSERT(card);
 
 	return brcmf_sdioh_interrupt_set(card->sdioh, true);
 }
 
-int brcmf_sdcard_intr_disable(void *sdh)
+int brcmf_sdcard_intr_disable(struct brcmf_sdio_card *card)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	ASSERT(card);
 
 	return brcmf_sdioh_interrupt_set(card->sdioh, false);
 }
 
-int brcmf_sdcard_intr_reg(void *sdh, brcmf_sdiocard_cb_fn_t fn, void *argh)
+int brcmf_sdcard_intr_reg(struct brcmf_sdio_card *card,
+			  brcmf_sdiocard_cb_fn_t fn,
+			  void *argh)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	ASSERT(card);
 
 	return brcmf_sdioh_interrupt_register(card->sdioh, fn, argh);
 }
 
-int brcmf_sdcard_intr_dereg(void *sdh)
+int brcmf_sdcard_intr_dereg(struct brcmf_sdio_card *card)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	ASSERT(card);
 
 	return brcmf_sdioh_interrupt_deregister(card->sdioh);
 }
 
 #if defined(BCMDBG)
-bool brcmf_sdcard_intr_pending(void *sdh)
+bool brcmf_sdcard_intr_pending(struct brcmf_sdio_card *card)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
-
-	ASSERT(sdh);
+	ASSERT(card);
 	return brcmf_sdioh_interrupt_pending(card->sdioh);
 }
 #endif
 
-int brcmf_sdcard_devremove_reg(void *sdh, brcmf_sdiocard_cb_fn_t fn, void *argh)
+int brcmf_sdcard_devremove_reg(struct brcmf_sdio_card *card,
+			       brcmf_sdiocard_cb_fn_t fn,
+			       void *argh)
 {
-	ASSERT(sdh);
+	ASSERT(card);
 
 	/* don't support yet */
 	return -ENOTSUPP;
 }
 
-u8 brcmf_sdcard_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
+u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_card *card, uint fnc_num, u32 addr,
+			 int *err)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	int status;
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	s32 retry = 0;
@@ -197,9 +192,9 @@ u8 brcmf_sdcard_cfg_read(void *sdh, uint fnc_num, u32 addr, int *err)
 }
 
 void
-brcmf_sdcard_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
+brcmf_sdcard_cfg_write(struct brcmf_sdio_card *card, uint fnc_num, u32 addr,
+		       u8 data, int *err)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	int status;
 #ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	s32 retry = 0;
@@ -229,9 +224,9 @@ brcmf_sdcard_cfg_write(void *sdh, uint fnc_num, u32 addr, u8 data, int *err)
 		     __func__, fnc_num, addr, data));
 }
 
-u32 brcmf_sdcard_cfg_read_word(void *sdh, uint fnc_num, u32 addr, int *err)
+u32 brcmf_sdcard_cfg_read_word(struct brcmf_sdio_card *card, uint fnc_num,
+			       u32 addr, int *err)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	int status;
 	u32 data = 0;
 
@@ -253,10 +248,9 @@ u32 brcmf_sdcard_cfg_read_word(void *sdh, uint fnc_num, u32 addr, int *err)
 }
 
 void
-brcmf_sdcard_cfg_write_word(void *sdh, uint fnc_num, u32 addr, u32 data,
-		      int *err)
+brcmf_sdcard_cfg_write_word(struct brcmf_sdio_card *card, uint fnc_num,
+			    u32 addr, u32 data, int *err)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	int status;
 
 	if (!card)
@@ -275,9 +269,9 @@ brcmf_sdcard_cfg_write_word(void *sdh, uint fnc_num, u32 addr, u32 data,
 		     __func__, fnc_num, addr, data));
 }
 
-int brcmf_sdcard_cis_read(void *sdh, uint func, u8 * cis, uint length)
+int brcmf_sdcard_cis_read(struct brcmf_sdio_card *card, uint func, u8 * cis,
+			  uint length)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	int status;
 
 	u8 *tmp_buf, *tmp_ptr;
@@ -315,10 +309,10 @@ int brcmf_sdcard_cis_read(void *sdh, uint func, u8 * cis, uint length)
 	return status;
 }
 
-static int brcmf_sdcard_set_sbaddr_window(void *sdh, u32 address)
+static int
+brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_card *card, u32 address)
 {
 	int err = 0;
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	brcmf_sdcard_cfg_write(card, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRLOW,
 			 (address >> 8) & SBSDIO_SBADDRLOW_MASK, &err);
 	if (!err)
@@ -335,9 +329,8 @@ static int brcmf_sdcard_set_sbaddr_window(void *sdh, u32 address)
 	return err;
 }
 
-u32 brcmf_sdcard_reg_read(void *sdh, u32 addr, uint size)
+u32 brcmf_sdcard_reg_read(struct brcmf_sdio_card *card, u32 addr, uint size)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	int status;
 	u32 word = 0;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
@@ -388,9 +381,9 @@ u32 brcmf_sdcard_reg_read(void *sdh, u32 addr, uint size)
 	return 0xFFFFFFFF;
 }
 
-u32 brcmf_sdcard_reg_write(void *sdh, u32 addr, uint size, u32 data)
+u32 brcmf_sdcard_reg_write(struct brcmf_sdio_card *card, u32 addr, uint size,
+			   u32 data)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	int status;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
@@ -427,15 +420,16 @@ u32 brcmf_sdcard_reg_write(void *sdh, u32 addr, uint size, u32 data)
 	return 0xFFFFFFFF;
 }
 
-bool brcmf_sdcard_regfail(void *sdh)
+bool brcmf_sdcard_regfail(struct brcmf_sdio_card *card)
 {
-	return ((struct brcmf_sdio *) sdh)->regfail;
+	return card->regfail;
 }
 
 int
-brcmf_sdcard_recv_buf(struct brcmf_sdio *card, u32 addr, uint fn, uint flags,
-		u8 *buf, uint nbytes, struct sk_buff *pkt,
-		brcmf_sdio_cmplt_fn_t complete, void *handle)
+brcmf_sdcard_recv_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
+		      uint flags,
+		      u8 *buf, uint nbytes, struct sk_buff *pkt,
+		      brcmf_sdio_cmplt_fn_t complete, void *handle)
 {
 	int status;
 	uint incr_fix;
@@ -476,11 +470,10 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio *card, u32 addr, uint fn, uint flags,
 }
 
 int
-brcmf_sdcard_send_buf(void *sdh, u32 addr, uint fn, uint flags,
-		u8 *buf, uint nbytes, void *pkt,
-		brcmf_sdio_cmplt_fn_t complete, void *handle)
+brcmf_sdcard_send_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
+		      uint flags, u8 *buf, uint nbytes, void *pkt,
+		      brcmf_sdio_cmplt_fn_t complete, void *handle)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	uint incr_fix;
 	uint width;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
@@ -516,10 +509,9 @@ brcmf_sdcard_send_buf(void *sdh, u32 addr, uint fn, uint flags,
 		incr_fix, SDIOH_WRITE, fn, addr, width, nbytes, buf, pkt);
 }
 
-int brcmf_sdcard_rwdata(void *sdh, uint rw, u32 addr, u8 *buf, uint nbytes)
+int brcmf_sdcard_rwdata(struct brcmf_sdio_card *card, uint rw, u32 addr,
+			u8 *buf, uint nbytes)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
-
 	ASSERT(card);
 	ASSERT(card->init_success);
 	ASSERT((addr & SBSDIO_SBWINDOW_MASK) == 0);
@@ -532,74 +524,61 @@ int brcmf_sdcard_rwdata(void *sdh, uint rw, u32 addr, u8 *buf, uint nbytes)
 		addr, 4, nbytes, buf, NULL);
 }
 
-int brcmf_sdcard_abort(void *sdh, uint fn)
+int brcmf_sdcard_abort(struct brcmf_sdio_card *card, uint fn)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
-
 	return brcmf_sdioh_abort(card->sdioh, fn);
 }
 
-int brcmf_sdcard_start(void *sdh, int stage)
+int brcmf_sdcard_start(struct brcmf_sdio_card *card, int stage)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
-
 	return brcmf_sdioh_start(card->sdioh, stage);
 }
 
-int brcmf_sdcard_stop(void *sdh)
+int brcmf_sdcard_stop(struct brcmf_sdio_card *card)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
-
 	return brcmf_sdioh_stop(card->sdioh);
 }
 
-int brcmf_sdcard_query_device(void *sdh)
+int brcmf_sdcard_query_device(struct brcmf_sdio_card *card)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
 	card->vendevid = (PCI_VENDOR_ID_BROADCOM << 16) | 0;
 	return card->vendevid;
 }
 
-uint brcmf_sdcard_query_iofnum(void *sdh)
+uint brcmf_sdcard_query_iofnum(struct brcmf_sdio_card *card)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
-
 	if (!card)
 		card = l_card;
 
 	return brcmf_sdioh_query_iofnum(card->sdioh);
 }
 
-int brcmf_sdcard_reset(struct brcmf_sdio *sdh)
+int brcmf_sdcard_reset(struct brcmf_sdio_card *card)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
-
 	return brcmf_sdioh_reset(card->sdioh);
 }
 
-void *brcmf_sdcard_get_sdioh(struct brcmf_sdio *sdh)
+void *brcmf_sdcard_get_sdioh(struct brcmf_sdio_card *card)
 {
-	ASSERT(sdh);
-	return sdh->sdioh;
+	ASSERT(card);
+	return card->sdioh;
 }
 
 /* Function to pass device-status bits to DHD. */
-u32 brcmf_sdcard_get_dstatus(void *sdh)
+u32 brcmf_sdcard_get_dstatus(struct brcmf_sdio_card *card)
 {
 	return 0;
 }
 
-u32 brcmf_sdcard_cur_sbwad(void *sdh)
+u32 brcmf_sdcard_cur_sbwad(struct brcmf_sdio_card *card)
 {
-	struct brcmf_sdio *card = (struct brcmf_sdio *) sdh;
-
 	if (!card)
 		card = l_card;
 
 	return card->sbwad;
 }
 
-void brcmf_sdcard_chipinfo(void *sdh, u32 chip, u32 chiprev)
+void brcmf_sdcard_chipinfo(struct brcmf_sdio_card *card, u32 chip, u32 chiprev)
 {
 	return;
 }

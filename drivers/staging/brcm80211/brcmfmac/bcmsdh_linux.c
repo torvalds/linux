@@ -42,7 +42,7 @@ struct sdio_hc {
 	struct sdio_hc *next;
 	struct device *dev;	/* platform device handle */
 	void *regs;		/* SDIO Host Controller address */
-	struct brcmf_sdio *sdh;	/* SDIO Host Controller handle */
+	struct brcmf_sdio_card *card;
 	void *ch;
 	unsigned int oob_irq;
 	unsigned long oob_flags;	/* OOB Host specifiction
@@ -113,7 +113,7 @@ int brcmf_sdio_probe(struct device *dev)
 {
 	struct sdio_hc *sdhc = NULL;
 	unsigned long regs = 0;
-	struct brcmf_sdio *sdh = NULL;
+	struct brcmf_sdio_card *card = NULL;
 	int irq = 0;
 	u32 vendevid;
 	unsigned long irq_flags = 0;
@@ -126,13 +126,13 @@ int brcmf_sdio_probe(struct device *dev)
 	}
 	sdhc->dev = (void *)dev;
 
-	sdh = brcmf_sdcard_attach((void *)0, (void **)&regs, irq);
-	if (!sdh) {
+	card = brcmf_sdcard_attach((void *)0, (void **)&regs, irq);
+	if (!card) {
 		SDLX_MSG(("%s: attach failed\n", __func__));
 		goto err;
 	}
 
-	sdhc->sdh = sdh;
+	sdhc->card = card;
 	sdhc->oob_irq = irq;
 	sdhc->oob_flags = irq_flags;
 	sdhc->oob_irq_registered = false;	/* to make sure.. */
@@ -141,11 +141,11 @@ int brcmf_sdio_probe(struct device *dev)
 	sdhc->next = sdhcinfo;
 	sdhcinfo = sdhc;
 	/* Read the vendor/device ID from the CIS */
-	vendevid = brcmf_sdcard_query_device(sdh);
+	vendevid = brcmf_sdcard_query_device(card);
 
 	/* try to attach to the target device */
 	sdhc->ch = drvinfo.attach((vendevid >> 16), (vendevid & 0xFFFF),
-				  0, 0, 0, 0, (void *)regs, sdh);
+				  0, 0, 0, 0, (void *)regs, card);
 	if (!sdhc->ch) {
 		SDLX_MSG(("%s: device attach failed\n", __func__));
 		goto err;
@@ -156,8 +156,8 @@ int brcmf_sdio_probe(struct device *dev)
 	/* error handling */
 err:
 	if (sdhc) {
-		if (sdhc->sdh)
-			brcmf_sdcard_detach(sdhc->sdh);
+		if (sdhc->card)
+			brcmf_sdcard_detach(sdhc->card);
 		kfree(sdhc);
 	}
 
@@ -170,7 +170,7 @@ int brcmf_sdio_remove(struct device *dev)
 
 	sdhc = sdhcinfo;
 	drvinfo.detach(sdhc->ch);
-	brcmf_sdcard_detach(sdhc->sdh);
+	brcmf_sdcard_detach(sdhc->card);
 	/* find the SDIO Host Controller state for this pdev
 		 and take it out from the list */
 	for (sdhc = sdhcinfo, prev = NULL; sdhc; sdhc = sdhc->next) {
