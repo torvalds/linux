@@ -11,6 +11,7 @@ psb_gfx-y += gem_glue.o \
 	  gtt.o \
 	  intel_bios.o \
 	  intel_opregion.o \
+	  mmu.o \
 	  power.o \
 	  psb_drv.o \
 	  psb_intel_display.o \
@@ -19,7 +20,6 @@ psb_gfx-y += gem_glue.o \
 	  psb_intel_modes.o \
 	  psb_intel_sdvo.o \
 	  psb_lid.o \
-	  psb_mmu.o \
 	  psb_irq.o \
 	  psb_device.o \
 	  mid_bios.o
