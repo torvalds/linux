@@ -567,8 +567,7 @@ brcmf_sdioh_request_byte(struct sdioh_info *sd, uint rw, uint func,
 				sdio_writeb(gInstance->func[func], *byte,
 					    regaddr, &err_ret);
 				sdio_release_host(gInstance->func[func]);
-			}
-			else if (regaddr < 0xF0) {
+			} else if (regaddr < 0xF0) {
 				sd_err(("brcmf: F0 Wr:0x%02x: write "
 					"disallowed\n", regaddr));
 			} else {
