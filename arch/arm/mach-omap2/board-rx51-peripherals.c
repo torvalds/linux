@@ -563,6 +563,32 @@ static struct regulator_init_data rx51_vmmc2 = {
 	.consumer_supplies	= rx51_vmmc2_supplies,
 };
 
+static struct regulator_init_data rx51_vpll1 = {
+	.constraints = {
+		.name			= "VPLL",
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.apply_uV		= true,
+		.always_on		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE,
+	},
+};
+
+static struct regulator_init_data rx51_vpll2 = {
+	.constraints = {
+		.name			= "VSDI_CSI",
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.apply_uV		= true,
+		.always_on		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE,
+	},
+};
+
 static struct regulator_init_data rx51_vsim = {
 	.constraints = {
 		.name			= "VMMC2_IO_18",
@@ -605,6 +631,43 @@ static struct regulator_init_data rx51_vio = {
 	},
 	.num_consumer_supplies	= ARRAY_SIZE(rx51_vio_supplies),
 	.consumer_supplies	= rx51_vio_supplies,
+};
+
+static struct regulator_init_data rx51_vintana1 = {
+	.constraints = {
+		.name			= "VINTANA1",
+		.min_uV			= 1500000,
+		.max_uV			= 1500000,
+		.always_on		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE,
+	},
+};
+
+static struct regulator_init_data rx51_vintana2 = {
+	.constraints = {
+		.name			= "VINTANA2",
+		.min_uV			= 2750000,
+		.max_uV			= 2750000,
+		.apply_uV		= true,
+		.always_on		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE,
+	},
+};
+
+static struct regulator_init_data rx51_vintdig = {
+	.constraints = {
+		.name			= "VINTDIG",
+		.min_uV			= 1500000,
+		.max_uV			= 1500000,
+		.always_on		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE,
+	},
 };
 
 static struct si4713_platform_data rx51_si4713_i2c_data __initdata_or_module = {
@@ -853,8 +916,13 @@ static struct twl4030_platform_data rx51_twldata __initdata = {
 	.vaux2			= &rx51_vaux2,
 	.vaux4			= &rx51_vaux4,
 	.vmmc1			= &rx51_vmmc1,
+	.vpll1			= &rx51_vpll1,
+	.vpll2			= &rx51_vpll2,
 	.vsim			= &rx51_vsim,
 	.vdac			= &rx51_vdac,
+	.vintana1		= &rx51_vintana1,
+	.vintana2		= &rx51_vintana2,
+	.vintdig		= &rx51_vintdig,
 	.vio			= &rx51_vio,
 };
 
@@ -1042,6 +1110,7 @@ error:
 void __init rx51_peripherals_init(void)
 {
 	rx51_i2c_init();
+	regulator_has_full_constraints();
 	gpmc_onenand_init(board_onenand_data);
 	board_smc91x_init();
 	rx51_add_gpio_keys();
