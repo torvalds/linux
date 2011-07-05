@@ -436,7 +436,7 @@ brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
 }
 
 int
-brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
+brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 	      struct sk_buff **pdu, int prec)
 {
 	struct brcms_c_info *wlc;
@@ -1204,7 +1204,7 @@ static void dma_cb_fn_ampdu(void *txi, void *arg_a)
 void brcms_c_ampdu_flush(struct brcms_c_info *wlc,
 		     struct ieee80211_sta *sta, u16 tid)
 {
-	struct brcms_c_txq_info *qi = wlc->pkt_queue;
+	struct brcms_txq_info *qi = wlc->pkt_queue;
 	struct pktq *pq = &qi->q;
 	int prec;
 	struct cb_del_ampdu_pars ampdu_pars;

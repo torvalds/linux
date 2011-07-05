@@ -20,8 +20,8 @@
 #include "main.h"
 #include "alloc.h"
 
-static struct brcms_c_bsscfg *brcms_c_bsscfg_malloc(uint unit);
-static void brcms_c_bsscfg_mfree(struct brcms_c_bsscfg *cfg);
+static struct brcms_bss_cfg *brcms_c_bsscfg_malloc(uint unit);
+static void brcms_c_bsscfg_mfree(struct brcms_bss_cfg *cfg);
 static struct brcms_pub *brcms_c_pub_malloc(uint unit,
 				      uint *err, uint devid);
 static void brcms_c_pub_mfree(struct brcms_pub *pub);
@@ -87,11 +87,11 @@ static void brcms_c_pub_mfree(struct brcms_pub *pub)
 	kfree(pub);
 }
 
-static struct brcms_c_bsscfg *brcms_c_bsscfg_malloc(uint unit)
+static struct brcms_bss_cfg *brcms_c_bsscfg_malloc(uint unit)
 {
-	struct brcms_c_bsscfg *cfg;
+	struct brcms_bss_cfg *cfg;
 
-	cfg = kzalloc(sizeof(struct brcms_c_bsscfg), GFP_ATOMIC);
+	cfg = kzalloc(sizeof(struct brcms_bss_cfg), GFP_ATOMIC);
 	if (cfg == NULL)
 		goto fail;
 
@@ -106,7 +106,7 @@ static struct brcms_c_bsscfg *brcms_c_bsscfg_malloc(uint unit)
 	return NULL;
 }
 
-static void brcms_c_bsscfg_mfree(struct brcms_c_bsscfg *cfg)
+static void brcms_c_bsscfg_mfree(struct brcms_bss_cfg *cfg)
 {
 	if (cfg == NULL)
 		return;
@@ -117,7 +117,7 @@ static void brcms_c_bsscfg_mfree(struct brcms_c_bsscfg *cfg)
 }
 
 static void brcms_c_bsscfg_ID_assign(struct brcms_c_info *wlc,
-				 struct brcms_c_bsscfg *bsscfg)
+				 struct brcms_bss_cfg *bsscfg)
 {
 	bsscfg->ID = wlc->next_bsscfg_ID;
 	wlc->next_bsscfg_ID++;
@@ -144,9 +144,9 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 	}
 	wlc->pub->wlc = wlc;
 
-	/* allocate struct brcms_c_hw_info state structure */
+	/* allocate struct brcms_hardware state structure */
 
-	wlc->hw = kzalloc(sizeof(struct brcms_c_hw_info), GFP_ATOMIC);
+	wlc->hw = kzalloc(sizeof(struct brcms_hardware), GFP_ATOMIC);
 	if (wlc->hw == NULL) {
 		*err = 1005;
 		goto fail;
@@ -154,7 +154,7 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 	wlc->hw->wlc = wlc;
 
 	wlc->hw->bandstate[0] =
-		kzalloc(sizeof(struct brcms_c_hwband) * MAXBANDS, GFP_ATOMIC);
+		kzalloc(sizeof(struct brcms_hw_band) * MAXBANDS, GFP_ATOMIC);
 	if (wlc->hw->bandstate[0] == NULL) {
 		*err = 1006;
 		goto fail;
@@ -162,9 +162,9 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 		int i;
 
 		for (i = 1; i < MAXBANDS; i++) {
-			wlc->hw->bandstate[i] = (struct brcms_c_hwband *)
+			wlc->hw->bandstate[i] = (struct brcms_hw_band *)
 			    ((unsigned long)wlc->hw->bandstate[0] +
-			     (sizeof(struct brcms_c_hwband) * i));
+			     (sizeof(struct brcms_hw_band) * i));
 		}
 	}
 
@@ -202,21 +202,21 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 		}
 	}
 
-	wlc->protection = kzalloc(sizeof(struct brcms_c_protection),
+	wlc->protection = kzalloc(sizeof(struct brcms_protection),
 				  GFP_ATOMIC);
 	if (wlc->protection == NULL) {
 		*err = 1016;
 		goto fail;
 	}
 
-	wlc->stf = kzalloc(sizeof(struct brcms_c_stf), GFP_ATOMIC);
+	wlc->stf = kzalloc(sizeof(struct brcms_stf), GFP_ATOMIC);
 	if (wlc->stf == NULL) {
 		*err = 1017;
 		goto fail;
 	}
 
 	wlc->bandstate[0] =
-		kzalloc(sizeof(struct brcms_c_band)*MAXBANDS, GFP_ATOMIC);
+		kzalloc(sizeof(struct brcms_band)*MAXBANDS, GFP_ATOMIC);
 	if (wlc->bandstate[0] == NULL) {
 		*err = 1025;
 		goto fail;
@@ -224,13 +224,13 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 		int i;
 
 		for (i = 1; i < MAXBANDS; i++) {
-			wlc->bandstate[i] = (struct brcms_c_band *)
+			wlc->bandstate[i] = (struct brcms_band *)
 				((unsigned long)wlc->bandstate[0]
-				+ (sizeof(struct brcms_c_band)*i));
+				+ (sizeof(struct brcms_band)*i));
 		}
 	}
 
-	wlc->corestate = kzalloc(sizeof(struct brcms_c_core), GFP_ATOMIC);
+	wlc->corestate = kzalloc(sizeof(struct brcms_core), GFP_ATOMIC);
 	if (wlc->corestate == NULL) {
 		*err = 1026;
 		goto fail;

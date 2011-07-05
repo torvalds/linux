@@ -27,7 +27,7 @@ extern void brcms_c_stf_ss_algo_channel_get(struct brcms_c_info *wlc,
 					u16 *ss_algo_channel,
 					chanspec_t chanspec);
 extern int brcms_c_stf_ss_update(struct brcms_c_info *wlc,
-			     struct brcms_c_band *band);
+			     struct brcms_band *band);
 extern void brcms_c_stf_phy_txant_upd(struct brcms_c_info *wlc);
 extern int brcms_c_stf_txchain_set(struct brcms_c_info *wlc, s32 int_val,
 			       bool force);

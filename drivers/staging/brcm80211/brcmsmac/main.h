@@ -73,13 +73,6 @@
 		(((val) & (~(field ## _M << field ## _S))) | \
 		 ((unsigned)(bits) << field ## _S))
 
-/* For managing scan result lists */
-struct brcms_c_bss_list {
-	uint count;
-	bool beacon;		/* set for beacon, cleared for probe response */
-	struct brcms_bss_info *ptrs[MAXBSS];
-};
-
 #define	SW_TIMER_MAC_STAT_UPD		30	/* periodic MAC stats update */
 
 /* Double check that unsupported cores are not enabled */
@@ -236,7 +229,7 @@ extern const u8 prio2fifo[];
 
 #define WLCWLUNIT(wlc)		((wlc)->pub->unit)
 
-struct brcms_c_protection {
+struct brcms_protection {
 	bool _g;		/* use g spec protection, driver internal */
 	s8 g_override;	/* override for use of g spec protection */
 	u8 gmode_user;	/* user config gmode, operating band->gmode is different */
@@ -251,7 +244,7 @@ struct brcms_c_protection {
 };
 
 /* anything affects the single/dual streams/antenna operation */
-struct brcms_c_stf {
+struct brcms_stf {
 	u8 hw_txchain;	/* HW txchain bitmap cfg */
 	u8 txchain;		/* txchain bitmap being used */
 	u8 txstreams;	/* number of txchains being used */
@@ -348,7 +341,7 @@ struct wsec_key {
 /*
  * core state (mac)
  */
-struct brcms_c_core {
+struct brcms_core {
 	uint coreidx;		/* # sb enumerated core */
 
 	/* fifo */
@@ -361,7 +354,7 @@ struct brcms_c_core {
 /*
  * band state (phy+ana+radio)
  */
-struct brcms_c_band {
+struct brcms_band {
 	int bandtype;		/* WLC_BAND_2G, WLC_BAND_5G */
 	uint bandunit;		/* bandstate[] index */
 
@@ -450,19 +443,19 @@ struct brcms_c_if {
 				 */
 	u8 flags;		/* flags for the interface */
 	struct brcms_if *wlif;		/* pointer to wlif */
-	struct brcms_c_txq_info *qi;	/* pointer to associated tx queue */
+	struct brcms_txq_info *qi;	/* pointer to associated tx queue */
 	union {
 		/* pointer to scb if WLC_IFTYPE_WDS */
 		struct scb *scb;
 		/* pointer to bsscfg if WLC_IFTYPE_BSS */
-		struct brcms_c_bsscfg *bsscfg;
+		struct brcms_bss_cfg *bsscfg;
 	} u;
 };
 
 /* flags for the interface, this interface is linked to a brcms_if */
 #define WLC_IF_LINKED		0x02
 
-struct brcms_c_hwband {
+struct brcms_hw_band {
 	int bandtype;		/* WLC_BAND_2G, WLC_BAND_5G */
 	uint bandunit;		/* bandstate[] index */
 	u16 mhfs[MHFMAX];	/* MHF array shadow */
@@ -479,7 +472,7 @@ struct brcms_c_hwband {
 	bool abgphy_encore;
 };
 
-struct brcms_c_hw_info {
+struct brcms_hardware {
 	bool _piomode;		/* true if pio mode */
 	struct brcms_c_info *wlc;
 
@@ -506,9 +499,9 @@ struct brcms_c_hw_info {
 	d11regs_t *regs;	/* pointer to device registers */
 	void *physhim;		/* phy shim layer handler */
 	void *phy_sh;		/* pointer to shared phy state */
-	struct brcms_c_hwband *band;/* pointer to active per-band state */
+	struct brcms_hw_band *band;/* pointer to active per-band state */
 	/* band state per phy/radio */
-	struct brcms_c_hwband *bandstate[MAXBANDS];
+	struct brcms_hw_band *bandstate[MAXBANDS];
 	u16 bmac_phytxant;	/* cache of high phytxant state */
 	bool shortslot;		/* currently using 11g ShortSlot timing */
 	u16 SRL;		/* 802.11 dot11ShortRetryLimit */
@@ -561,8 +554,8 @@ struct brcms_c_hw_info {
  * if they belong to the same flow of traffic from the device. For multi-channel
  * operation there are independent TX Queues for each channel.
  */
-struct brcms_c_txq_info {
-	struct brcms_c_txq_info *next;
+struct brcms_txq_info {
+	struct brcms_txq_info *next;
 	struct pktq q;
 	uint stopped;		/* tx flow control bits */
 };
@@ -576,7 +569,7 @@ struct brcms_c_info {
 	d11regs_t *regs;	/* pointer to device registers */
 
 	/* HW related state used primarily by BMAC */
-	struct brcms_c_hw_info *hw;
+	struct brcms_hardware *hw;
 
 	/* clock */
 	int clkreq_override;	/* setting for clkreq for PCIE : Auto, 0, 1 */
@@ -593,11 +586,11 @@ struct brcms_c_info {
 	bool clk;		/* core is out of reset and has clock */
 
 	/* multiband */
-	struct brcms_c_core *core;	/* pointer to active io core */
-	struct brcms_c_band *band;	/* pointer to active per-band state */
-	struct brcms_c_core *corestate;	/* per-core state (one per hw core) */
+	struct brcms_core *core;	/* pointer to active io core */
+	struct brcms_band *band;	/* pointer to active per-band state */
+	struct brcms_core *corestate;	/* per-core state (one per hw core) */
 	/* per-band state (one per phy/radio): */
-	struct brcms_c_band *bandstate[MAXBANDS];
+	struct brcms_band *bandstate[MAXBANDS];
 
 	bool war16165;		/* PCI slow clock 16165 war flag */
 
@@ -680,11 +673,11 @@ struct brcms_c_info {
 	 * BSS Configurations set of BSS configurations, idx 0 is default and
 	 * always valid
 	 */
-	struct brcms_c_bsscfg *bsscfg[WLC_MAXBSSCFG];
-	struct brcms_c_bsscfg *cfg; /* the primary bsscfg (can be AP or STA) */
+	struct brcms_bss_cfg *bsscfg[WLC_MAXBSSCFG];
+	struct brcms_bss_cfg *cfg; /* the primary bsscfg (can be AP or STA) */
 
 	/* tx queue */
-	struct brcms_c_txq_info *tx_queues;	/* common TX Queue list */
+	struct brcms_txq_info *tx_queues;	/* common TX Queue list */
 
 	/* security */
 	struct wsec_key *wsec_keys[WSEC_MAX_KEYS]; /* dynamic key storage */
@@ -737,10 +730,10 @@ struct brcms_c_info {
 	s8 shortslot_override;	/* 11g ShortSlot override */
 	bool include_legacy_erp;	/* include Legacy ERP info elt ID 47 as well as g ID 42 */
 
-	struct brcms_c_protection *protection;
+	struct brcms_protection *protection;
 	s8 PLCPHdr_override;	/* 802.11b Preamble Type override */
 
-	struct brcms_c_stf *stf;
+	struct brcms_stf *stf;
 
 	ratespec_t bcn_rspec;	/* save bcn ratespec purpose */
 
@@ -751,7 +744,7 @@ struct brcms_c_info {
 
 	u16 next_bsscfg_ID;
 
-	struct brcms_c_txq_info *pkt_queue; /* txq for transmit packets */
+	struct brcms_txq_info *pkt_queue; /* txq for transmit packets */
 	u32 mpc_dur;		/* total time (ms) in mpc mode except for the
 				 * portion since radio is turned off last time
 				 */
@@ -775,7 +768,7 @@ struct antsel_info {
 };
 
 /* BSS configuration state */
-struct brcms_c_bsscfg {
+struct brcms_bss_cfg {
 	struct brcms_c_info *wlc; /* wlc to which this bsscfg belongs to. */
 	bool up;		/* is this configuration up operational */
 	bool enable;		/* is this configuration enabled */
@@ -906,8 +899,8 @@ extern void brcms_c_print_txdesc(struct d11txh *txh);
 #define brcms_c_print_txdesc(a)
 #endif
 
-extern void brcms_c_setxband(struct brcms_c_hw_info *wlc_hw, uint bandunit);
-extern void brcms_c_coredisable(struct brcms_c_hw_info *wlc_hw);
+extern void brcms_c_setxband(struct brcms_hardware *wlc_hw, uint bandunit);
+extern void brcms_c_coredisable(struct brcms_hardware *wlc_hw);
 
 extern bool brcms_c_valid_rate(struct brcms_c_info *wlc, ratespec_t rate,
 			       int band, bool verbose);
@@ -915,7 +908,7 @@ extern void brcms_c_ap_upd(struct brcms_c_info *wlc);
 
 /* helper functions */
 extern void brcms_c_shm_ssid_upd(struct brcms_c_info *wlc,
-				 struct brcms_c_bsscfg *cfg);
+				 struct brcms_bss_cfg *cfg);
 extern int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config);
 
 extern void brcms_c_mac_bcn_promisc_change(struct brcms_c_info *wlc,
@@ -923,13 +916,13 @@ extern void brcms_c_mac_bcn_promisc_change(struct brcms_c_info *wlc,
 extern void brcms_c_mac_bcn_promisc(struct brcms_c_info *wlc);
 extern void brcms_c_mac_promisc(struct brcms_c_info *wlc);
 extern void brcms_c_txflowcontrol(struct brcms_c_info *wlc,
-				  struct brcms_c_txq_info *qi,
+				  struct brcms_txq_info *qi,
 				  bool on, int prio);
 extern void brcms_c_txflowcontrol_override(struct brcms_c_info *wlc,
-				       struct brcms_c_txq_info *qi,
+				       struct brcms_txq_info *qi,
 				       bool on, uint override);
 extern bool brcms_c_txflowcontrol_prio_isset(struct brcms_c_info *wlc,
-					     struct brcms_c_txq_info *qi,
+					     struct brcms_txq_info *qi,
 					     int prio);
 extern void brcms_c_send_q(struct brcms_c_info *wlc);
 extern int brcms_c_prep_pdu(struct brcms_c_info *wlc, struct sk_buff *pdu,
@@ -948,12 +941,12 @@ extern u16 brcms_c_compute_rtscts_dur(struct brcms_c_info *wlc, bool cts_only,
 				      bool ba);
 
 extern void brcms_c_tbtt(struct brcms_c_info *wlc);
-extern void brcms_c_inval_dma_pkts(struct brcms_c_hw_info *hw,
+extern void brcms_c_inval_dma_pkts(struct brcms_hardware *hw,
 			       struct ieee80211_sta *sta,
 			       void (*dma_callback_fn));
 
 extern void brcms_c_reprate_init(struct brcms_c_info *wlc);
-extern void brcms_c_bsscfg_reprate_init(struct brcms_c_bsscfg *bsscfg);
+extern void brcms_c_bsscfg_reprate_init(struct brcms_bss_cfg *bsscfg);
 
 /* Shared memory access */
 extern void brcms_c_write_shm(struct brcms_c_info *wlc, uint offset, u16 v);
@@ -963,11 +956,11 @@ extern void brcms_c_copyto_shm(struct brcms_c_info *wlc, uint offset,
 
 extern void brcms_c_update_beacon(struct brcms_c_info *wlc);
 extern void brcms_c_bss_update_beacon(struct brcms_c_info *wlc,
-				  struct brcms_c_bsscfg *bsscfg);
+				  struct brcms_bss_cfg *bsscfg);
 
 extern void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend);
 extern void brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,
-					  struct brcms_c_bsscfg *cfg,
+					  struct brcms_bss_cfg *cfg,
 					  bool suspend);
 extern bool brcms_c_ismpc(struct brcms_c_info *wlc);
 extern bool brcms_c_is_non_delay_mpc(struct brcms_c_info *wlc);
@@ -990,15 +983,15 @@ extern bool brcms_c_timers_init(struct brcms_c_info *wlc, int unit);
 
 extern int brcms_c_set_nmode(struct brcms_c_info *wlc, s32 nmode);
 extern void brcms_c_mimops_action_ht_send(struct brcms_c_info *wlc,
-				      struct brcms_c_bsscfg *bsscfg,
+				      struct brcms_bss_cfg *bsscfg,
 				      u8 mimops_mode);
 
 extern void brcms_c_switch_shortslot(struct brcms_c_info *wlc, bool shortslot);
-extern void brcms_c_set_bssid(struct brcms_c_bsscfg *cfg);
+extern void brcms_c_set_bssid(struct brcms_bss_cfg *cfg);
 extern void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend);
 
 extern void brcms_c_set_ratetable(struct brcms_c_info *wlc);
-extern int brcms_c_set_mac(struct brcms_c_bsscfg *cfg);
+extern int brcms_c_set_mac(struct brcms_bss_cfg *cfg);
 extern void brcms_c_beacon_phytxctl_txant_upd(struct brcms_c_info *wlc,
 					  ratespec_t bcn_rate);
 extern void brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc,

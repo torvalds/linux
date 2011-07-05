@@ -290,7 +290,7 @@ int brcms_c_stf_txchain_set(struct brcms_c_info *wlc, s32 int_val, bool force)
 }
 
 /* update wlc->stf->ss_opmode which represents the operational stf_ss mode we're using */
-int brcms_c_stf_ss_update(struct brcms_c_info *wlc, struct brcms_c_band *band)
+int brcms_c_stf_ss_update(struct brcms_c_info *wlc, struct brcms_band *band)
 {
 	int ret_code = 0;
 	u8 prev_stf_ss;

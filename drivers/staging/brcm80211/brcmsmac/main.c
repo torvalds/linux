@@ -309,7 +309,7 @@ static u16 brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc,
 static void brcms_c_bss_default_init(struct brcms_c_info *wlc);
 static void brcms_c_ucode_mac_upd(struct brcms_c_info *wlc);
 static ratespec_t mac80211_wlc_set_nrate(struct brcms_c_info *wlc,
-					 struct brcms_c_band *cur_band,
+					 struct brcms_band *cur_band,
 					 u32 int_val);
 static void brcms_c_tx_prec_map_init(struct brcms_c_info *wlc);
 static void brcms_c_watchdog(void *arg);
@@ -319,11 +319,11 @@ static int brcms_c_set_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs_arg);
 static u8 brcms_c_local_constraint_qdbm(struct brcms_c_info *wlc);
 
 /* send and receive */
-static struct brcms_c_txq_info *brcms_c_txq_alloc(struct brcms_c_info *wlc);
+static struct brcms_txq_info *brcms_c_txq_alloc(struct brcms_c_info *wlc);
 static void brcms_c_txq_free(struct brcms_c_info *wlc,
-			 struct brcms_c_txq_info *qi);
+			 struct brcms_txq_info *qi);
 static void brcms_c_txflowcontrol_signal(struct brcms_c_info *wlc,
-				     struct brcms_c_txq_info *qi,
+				     struct brcms_txq_info *qi,
 				     bool on, int prio);
 static void brcms_c_txflowcontrol_reset(struct brcms_c_info *wlc);
 static void brcms_c_compute_cck_plcp(struct brcms_c_info *wlc, ratespec_t rate,
@@ -380,7 +380,7 @@ static int _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 bool brcms_c_ps_allowed(struct brcms_c_info *wlc)
 {
 	int idx;
-	struct brcms_c_bsscfg *cfg;
+	struct brcms_bss_cfg *cfg;
 
 	/* disallow PS when one of the following global conditions meets */
 	if (!wlc->pub->associated)
@@ -458,7 +458,7 @@ void brcms_c_init(struct brcms_c_info *wlc)
 	d11regs_t *regs;
 	chanspec_t chanspec;
 	int i;
-	struct brcms_c_bsscfg *bsscfg;
+	struct brcms_bss_cfg *bsscfg;
 	bool mute = false;
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
@@ -643,7 +643,7 @@ void brcms_c_set_ps_ctrl(struct brcms_c_info *wlc)
  * Write this BSS config's MAC address to core.
  * Updates RXE match engine.
  */
-int brcms_c_set_mac(struct brcms_c_bsscfg *cfg)
+int brcms_c_set_mac(struct brcms_bss_cfg *cfg)
 {
 	int err = 0;
 	struct brcms_c_info *wlc = cfg->wlc;
@@ -661,7 +661,7 @@ int brcms_c_set_mac(struct brcms_c_bsscfg *cfg)
 /* Write the BSS config's BSSID address to core (set_bssid in d11procs.tcl).
  * Updates RXE match engine.
  */
-void brcms_c_set_bssid(struct brcms_c_bsscfg *cfg)
+void brcms_c_set_bssid(struct brcms_bss_cfg *cfg)
 {
 	struct brcms_c_info *wlc = cfg->wlc;
 
@@ -683,7 +683,7 @@ void brcms_c_set_bssid(struct brcms_c_bsscfg *cfg)
 void brcms_c_switch_shortslot(struct brcms_c_info *wlc, bool shortslot)
 {
 	int idx;
-	struct brcms_c_bsscfg *cfg;
+	struct brcms_bss_cfg *cfg;
 
 	/* use the override if it is set */
 	if (wlc->shortslot_override != WLC_SHORTSLOT_AUTO)
@@ -739,7 +739,7 @@ void brcms_c_set_home_chanspec(struct brcms_c_info *wlc, chanspec_t chanspec)
 {
 	if (wlc->home_chanspec != chanspec) {
 		int idx;
-		struct brcms_c_bsscfg *cfg;
+		struct brcms_bss_cfg *cfg;
 
 		wlc->home_chanspec = chanspec;
 
@@ -1052,7 +1052,7 @@ static void WLBANDINITFN(brcms_c_setband) (struct brcms_c_info *wlc,
 					   uint bandunit)
 {
 	int idx;
-	struct brcms_c_bsscfg *cfg;
+	struct brcms_bss_cfg *cfg;
 
 	wlc->band = wlc->bandstate[bandunit];
 
@@ -1944,7 +1944,7 @@ static void brcms_c_watchdog(void *arg)
 {
 	struct brcms_c_info *wlc = (struct brcms_c_info *) arg;
 	int i;
-	struct brcms_c_bsscfg *cfg;
+	struct brcms_bss_cfg *cfg;
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
@@ -2051,7 +2051,7 @@ int brcms_c_up(struct brcms_c_info *wlc)
 			if (!mboolisset
 			    (wlc->pub->radio_disabled, WL_RADIO_HW_DISABLE)) {
 				int idx;
-				struct brcms_c_bsscfg *bsscfg;
+				struct brcms_bss_cfg *bsscfg;
 				mboolset(wlc->pub->radio_disabled,
 					 WL_RADIO_HW_DISABLE);
 
@@ -2158,7 +2158,7 @@ uint brcms_c_down(struct brcms_c_info *wlc)
 	uint callbacks = 0;
 	int i;
 	bool dev_gone = false;
-	struct brcms_c_txq_info *qi;
+	struct brcms_txq_info *qi;
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
@@ -2230,7 +2230,7 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 	bool preamble_restrict = false;	/* Restrict association to stations that support short
 					 * preambles
 					 */
-	struct brcms_c_band *band;
+	struct brcms_band *band;
 
 	/* if N-support is enabled, allow Gmode set as long as requested
 	 * Gmode is not GMODE_LEGACY_B
@@ -2531,7 +2531,7 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 	struct scb *nextscb;
 	bool ta_ok;
 	uint band;
-	struct brcms_c_bsscfg *bsscfg;
+	struct brcms_bss_cfg *bsscfg;
 	struct brcms_bss_info *current_bss;
 
 	/* update bsscfg pointer */
@@ -3155,7 +3155,7 @@ void brcms_c_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 			     uint prec)
 {
 	struct brcms_c_info *wlc = (struct brcms_c_info *) ctx;
-	struct brcms_c_txq_info *qi = wlc->pkt_queue;	/* Check me */
+	struct brcms_txq_info *qi = wlc->pkt_queue;	/* Check me */
 	struct pktq *q = &qi->q;
 	int prio;
 
@@ -3222,7 +3222,7 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 	u16 prec_map;
 	int err = 0, i, count;
 	uint fifo;
-	struct brcms_c_txq_info *qi = wlc->pkt_queue;
+	struct brcms_txq_info *qi = wlc->pkt_queue;
 	struct pktq *q = &qi->q;
 	struct ieee80211_tx_info *tx_info;
 
@@ -3288,7 +3288,7 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
  * for MC frames so is used as part of the sequence number.
  */
 static inline u16
-bcmc_fid_generate(struct brcms_c_info *wlc, struct brcms_c_bsscfg *bsscfg,
+bcmc_fid_generate(struct brcms_c_info *wlc, struct brcms_bss_cfg *bsscfg,
 		  struct d11txh *txh)
 {
 	u16 frameid;
@@ -4268,7 +4268,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 
 void brcms_c_tbtt(struct brcms_c_info *wlc)
 {
-	struct brcms_c_bsscfg *cfg = wlc->cfg;
+	struct brcms_bss_cfg *cfg = wlc->cfg;
 
 	if (!cfg->BSS) {
 		/* DirFrmQ is now valid...defer setting until end of ATIM window */
@@ -5172,7 +5172,7 @@ bool brcms_c_valid_rate(struct brcms_c_info *wlc, ratespec_t rspec, int band,
 static void brcms_c_update_mimo_band_bwcap(struct brcms_c_info *wlc, u8 bwcap)
 {
 	uint i;
-	struct brcms_c_band *band;
+	struct brcms_band *band;
 
 	for (i = 0; i < NBANDS(wlc); i++) {
 		if (IS_SINGLEBAND_5G(wlc->deviceid))
@@ -5249,7 +5249,7 @@ void brcms_c_mod_prb_rsp_rate_table(struct brcms_c_info *wlc, uint frame_len)
 static void
 brcms_c_bcn_prb_template(struct brcms_c_info *wlc, u16 type,
 			 ratespec_t bcn_rspec,
-			 struct brcms_c_bsscfg *cfg, u16 *buf, int *len)
+			 struct brcms_bss_cfg *cfg, u16 *buf, int *len)
 {
 	static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
 	struct cck_phy_hdr *plcp;
@@ -5313,7 +5313,7 @@ int brcms_c_get_header_len()
  * Otherwise, it updates the hardware template.
  */
 void brcms_c_bss_update_beacon(struct brcms_c_info *wlc,
-			       struct brcms_c_bsscfg *cfg)
+			       struct brcms_bss_cfg *cfg)
 {
 	int len = BCN_TMPL_LEN;
 
@@ -5361,7 +5361,7 @@ void brcms_c_bss_update_beacon(struct brcms_c_info *wlc,
 void brcms_c_update_beacon(struct brcms_c_info *wlc)
 {
 	int idx;
-	struct brcms_c_bsscfg *bsscfg;
+	struct brcms_bss_cfg *bsscfg;
 
 	/* update AP or IBSS beacons */
 	FOREACH_BSS(wlc, idx, bsscfg) {
@@ -5371,7 +5371,7 @@ void brcms_c_update_beacon(struct brcms_c_info *wlc)
 }
 
 /* Write ssid into shared memory */
-void brcms_c_shm_ssid_upd(struct brcms_c_info *wlc, struct brcms_c_bsscfg *cfg)
+void brcms_c_shm_ssid_upd(struct brcms_c_info *wlc, struct brcms_bss_cfg *cfg)
 {
 	u8 *ssidptr = cfg->SSID;
 	u16 base = M_SSID;
@@ -5390,7 +5390,7 @@ void brcms_c_shm_ssid_upd(struct brcms_c_info *wlc, struct brcms_c_bsscfg *cfg)
 void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend)
 {
 	int idx;
-	struct brcms_c_bsscfg *bsscfg;
+	struct brcms_bss_cfg *bsscfg;
 
 	/* update AP or IBSS probe responses */
 	FOREACH_BSS(wlc, idx, bsscfg) {
@@ -5401,7 +5401,7 @@ void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend)
 
 void
 brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,
-			      struct brcms_c_bsscfg *cfg,
+			      struct brcms_bss_cfg *cfg,
 			      bool suspend)
 {
 	u16 prb_resp[BCN_TMPL_LEN / 2];
@@ -5475,7 +5475,7 @@ int brcms_c_prep_pdu(struct brcms_c_info *wlc, struct sk_buff *pdu, uint *fifop)
 void brcms_c_reprate_init(struct brcms_c_info *wlc)
 {
 	int i;
-	struct brcms_c_bsscfg *bsscfg;
+	struct brcms_bss_cfg *bsscfg;
 
 	FOREACH_BSS(wlc, i, bsscfg) {
 		brcms_c_bsscfg_reprate_init(bsscfg);
@@ -5483,7 +5483,7 @@ void brcms_c_reprate_init(struct brcms_c_info *wlc)
 }
 
 /* per bsscfg init tx reported rate mechanism */
-void brcms_c_bsscfg_reprate_init(struct brcms_c_bsscfg *bsscfg)
+void brcms_c_bsscfg_reprate_init(struct brcms_bss_cfg *bsscfg)
 {
 	bsscfg->txrspecidx = 0;
 	memset((char *)bsscfg->txrspec, 0, sizeof(bsscfg->txrspec));
@@ -5501,7 +5501,7 @@ void brcms_default_rateset(struct brcms_c_info *wlc, wlc_rateset_t *rs)
 static void brcms_c_bss_default_init(struct brcms_c_info *wlc)
 {
 	chanspec_t chanspec;
-	struct brcms_c_band *band;
+	struct brcms_band *band;
 	struct brcms_bss_info *bi = wlc->default_bss;
 
 	/* init default and target BSS with some sane initial values */
@@ -5531,7 +5531,7 @@ static void brcms_c_bss_default_init(struct brcms_c_info *wlc)
 }
 
 static ratespec_t
-mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_c_band *cur_band,
+mac80211_wlc_set_nrate(struct brcms_c_info *wlc, struct brcms_band *cur_band,
 		       u32 int_val)
 {
 	u8 stf = (int_val & NRATE_STF_MASK) >> NRATE_STF_SHIFT;
@@ -5753,7 +5753,7 @@ void brcms_c_reset_bmac_done(struct brcms_c_info *wlc)
 /* check for the particular priority flow control bit being set */
 bool
 brcms_c_txflowcontrol_prio_isset(struct brcms_c_info *wlc,
-				 struct brcms_c_txq_info *q,
+				 struct brcms_txq_info *q,
 				 int prio)
 {
 	uint prio_mask;
@@ -5769,7 +5769,7 @@ brcms_c_txflowcontrol_prio_isset(struct brcms_c_info *wlc,
 
 /* propagate the flow control to all interfaces using the given tx queue */
 void brcms_c_txflowcontrol(struct brcms_c_info *wlc,
-			   struct brcms_c_txq_info *qi,
+			   struct brcms_txq_info *qi,
 			   bool on, int prio)
 {
 	uint prio_bits;
@@ -5812,7 +5812,7 @@ void brcms_c_txflowcontrol(struct brcms_c_info *wlc,
 
 void
 brcms_c_txflowcontrol_override(struct brcms_c_info *wlc,
-			       struct brcms_c_txq_info *qi,
+			       struct brcms_txq_info *qi,
 			       bool on, uint override)
 {
 	uint prev_override;
@@ -5858,7 +5858,7 @@ brcms_c_txflowcontrol_override(struct brcms_c_info *wlc,
 
 static void brcms_c_txflowcontrol_reset(struct brcms_c_info *wlc)
 {
-	struct brcms_c_txq_info *qi;
+	struct brcms_txq_info *qi;
 
 	for (qi = wlc->tx_queues; qi != NULL; qi = qi->next) {
 		if (qi->stopped) {
@@ -5870,7 +5870,7 @@ static void brcms_c_txflowcontrol_reset(struct brcms_c_info *wlc)
 
 static void
 brcms_c_txflowcontrol_signal(struct brcms_c_info *wlc,
-			     struct brcms_c_txq_info *qi, bool on, int prio)
+			     struct brcms_txq_info *qi, bool on, int prio)
 {
 #ifdef NON_FUNCTIONAL
 	/* wlcif_list is never filled so this function is not functional */
@@ -5883,11 +5883,11 @@ brcms_c_txflowcontrol_signal(struct brcms_c_info *wlc,
 #endif
 }
 
-static struct brcms_c_txq_info *brcms_c_txq_alloc(struct brcms_c_info *wlc)
+static struct brcms_txq_info *brcms_c_txq_alloc(struct brcms_c_info *wlc)
 {
-	struct brcms_c_txq_info *qi, *p;
+	struct brcms_txq_info *qi, *p;
 
-	qi = kzalloc(sizeof(struct brcms_c_txq_info), GFP_ATOMIC);
+	qi = kzalloc(sizeof(struct brcms_txq_info), GFP_ATOMIC);
 	if (qi != NULL) {
 		/*
 		 * Have enough room for control packets along with HI watermark
@@ -5913,9 +5913,9 @@ static struct brcms_c_txq_info *brcms_c_txq_alloc(struct brcms_c_info *wlc)
 }
 
 static void brcms_c_txq_free(struct brcms_c_info *wlc,
-			     struct brcms_c_txq_info *qi)
+			     struct brcms_txq_info *qi)
 {
-	struct brcms_c_txq_info *p;
+	struct brcms_txq_info *p;
 
 	if (qi == NULL)
 		return;
@@ -5958,7 +5958,7 @@ void brcms_c_associate_upd(struct brcms_c_info *wlc, bool state)
  * AMPDU traffic, packets pending in hardware have to be invalidated so that
  * when later on hardware releases them, they can be handled appropriately.
  */
-void brcms_c_inval_dma_pkts(struct brcms_c_hw_info *hw,
+void brcms_c_inval_dma_pkts(struct brcms_hardware *hw,
 			       struct ieee80211_sta *sta,
 			       void (*dma_callback_fn))
 {

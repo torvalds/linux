@@ -30,12 +30,12 @@
 
 /* PHY SHIM module specific state */
 struct phy_shim_info {
-	struct brcms_c_hw_info *wlc_hw;	/* pointer to main wlc_hw structure */
+	struct brcms_hardware *wlc_hw;	/* pointer to main wlc_hw structure */
 	void *wlc;		/* pointer to main wlc structure */
 	void *wl;		/* pointer to os-specific private state */
 };
 
-struct phy_shim_info *wlc_phy_shim_attach(struct brcms_c_hw_info *wlc_hw,
+struct phy_shim_info *wlc_phy_shim_attach(struct brcms_hardware *wlc_hw,
 						       void *wl, void *wlc) {
 	struct phy_shim_info *physhim = NULL;
 

@@ -869,7 +869,7 @@ brcms_c_channels_init(struct brcms_cm_info *wlc_cm,
 {
 	struct brcms_c_info *wlc = wlc_cm->wlc;
 	uint i, j;
-	struct brcms_c_band *band;
+	struct brcms_band *band;
 	const struct locale_info *li;
 	chanvec_t sup_chan;
 	const struct locale_mimo_info *li_mimo;
@@ -970,7 +970,7 @@ static void brcms_c_quiet_channels_reset(struct brcms_cm_info *wlc_cm)
 {
 	struct brcms_c_info *wlc = wlc_cm->wlc;
 	uint i, j;
-	struct brcms_c_band *band;
+	struct brcms_band *band;
 	const chanvec_t *chanvec;
 
 	memset(&wlc_cm->quiet_channels, 0, sizeof(chanvec_t));
@@ -1262,7 +1262,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, chanspec_t chanspec,
 	int maxpwr;
 	int delta;
 	const struct country_info *country;
-	struct brcms_c_band *band;
+	struct brcms_band *band;
 	const struct locale_info *li;
 	int conducted_max;
 	int conducted_ofdm_max;

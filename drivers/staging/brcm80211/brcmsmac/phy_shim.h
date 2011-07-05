@@ -108,7 +108,7 @@
 #define WLC_N_TXRX_CHAIN0		0
 #define WLC_N_TXRX_CHAIN1		1
 
-extern struct phy_shim_info *wlc_phy_shim_attach(struct brcms_c_hw_info *wlc_hw,
+extern struct phy_shim_info *wlc_phy_shim_attach(struct brcms_hardware *wlc_hw,
 						void *wl, void *wlc);
 extern void wlc_phy_shim_detach(struct phy_shim_info *physhim);
 
