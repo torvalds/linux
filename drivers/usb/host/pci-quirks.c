@@ -507,20 +507,27 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	iounmap(base);
 }
 
+static const struct dmi_system_id __initconst ehci_dmi_nohandoff_table[] = {
+	{
+		/*  Pegatron Lucid (ExoPC) */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "EXOPG06411"),
+			DMI_MATCH(DMI_BIOS_VERSION, "Lucid-CE-133"),
+		},
+	},
+	{ }
+};
+
 static void __devinit ehci_bios_handoff(struct pci_dev *pdev,
 					void __iomem *op_reg_base,
 					u32 cap, u8 offset)
 {
 	int try_handoff = 1, tried_handoff = 0;
 
-	/* The Pegatron Lucid (ExoPC) tablet sporadically waits for 90
-	 * seconds trying the handoff on its unused controller.  Skip
-	 * it. */
+	/* The Pegatron Lucid tablet sporadically waits for 98 seconds trying
+	 * the handoff on its unused controller.  Skip it. */
 	if (pdev->vendor == 0x8086 && pdev->device == 0x283a) {
-		const char *dmi_bn = dmi_get_system_info(DMI_BOARD_NAME);
-		const char *dmi_bv = dmi_get_system_info(DMI_BIOS_VERSION);
-		if (dmi_bn && !strcmp(dmi_bn, "EXOPG06411") &&
-		    dmi_bv && !strcmp(dmi_bv, "Lucid-CE-133"))
+		if (dmi_check_system(ehci_dmi_nohandoff_table))
 			try_handoff = 0;
 	}
 
