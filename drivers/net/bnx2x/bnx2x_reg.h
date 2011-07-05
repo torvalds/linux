@@ -6919,7 +6919,15 @@ Theotherbitsarereservedandshouldbezero*/
 
 #define DIGITAL5_ACTUAL_SPEED_TX_MASK			0x003f
 
-/* 54616s */
+/* 54618se */
+#define MDIO_REG_GPHY_PHYID_LSB				0x3
+#define MDIO_REG_GPHY_ID_54618SE		0x5cd5
+#define MDIO_REG_GPHY_CL45_ADDR_REG			0xd
+#define MDIO_REG_GPHY_CL45_DATA_REG			0xe
+#define MDIO_REG_GPHY_EEE_ADV			0x3c
+#define MDIO_REG_GPHY_EEE_1G		(0x1 << 2)
+#define MDIO_REG_GPHY_EEE_100		(0x1 << 1)
+#define MDIO_REG_GPHY_EEE_RESOLVED		0x803e
 #define MDIO_REG_INTR_STATUS				0x1a
 #define MDIO_REG_INTR_MASK				0x1b
 #define MDIO_REG_INTR_MASK_LINK_STATUS			(0x1 << 1)
