@@ -34,7 +34,10 @@ int dcb_ieee_setapp(struct net_device *, struct dcb_app *);
 int dcb_ieee_delapp(struct net_device *, struct dcb_app *);
 u8 dcb_ieee_getapp_mask(struct net_device *, struct dcb_app *);
 
-int dcbnl_notify(struct net_device *dev, int event, int cmd, u32 seq, u32 pid);
+int dcbnl_ieee_notify(struct net_device *dev, int event, int cmd,
+		      u32 seq, u32 pid);
+int dcbnl_cee_notify(struct net_device *dev, int event, int cmd,
+		     u32 seq, u32 pid);
 
 /*
  * Ops struct for the netlink callbacks.  Used by DCB-enabled drivers through
