@@ -703,7 +703,6 @@ extern uint brcmf_pktgen_len;
 #define BRCMF_MAX_PKTGEN_LEN 1800
 #endif
 
-extern u32 g_assert_type;
 extern const struct bcmevent_name bcmevent_names[];
 extern const int bcmevent_names_size;
 
@@ -814,14 +813,6 @@ extern int brcmf_bus_start(struct brcmf_pub *drvr);
 extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
 extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
 					     int enable, int master_mode);
-
-#ifdef BCMDBG
-#define ASSERT(exp) \
-	  do { if (!(exp)) osl_assert(#exp, __FILE__, __LINE__); } while (0)
-extern void osl_assert(char *exp, char *file, int line);
-#else
-#define ASSERT(exp)	do {} while (0)
-#endif  /* defined(BCMDBG) */
 
 /* Linux network driver ioctl encoding */
 struct brcmf_c_ioctl {
