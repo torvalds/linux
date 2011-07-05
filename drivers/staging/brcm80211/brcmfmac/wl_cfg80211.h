@@ -321,20 +321,15 @@ struct brcmf_cfg80211_priv {
 	u8 ci[0] __attribute__ ((__aligned__(NETDEV_ALIGN)));
 };
 
-#define wl_to_dev(w) (wiphy_dev(wl->wdev->wiphy))
-#define wl_to_wiphy(w) (w->wdev->wiphy)
-#define wiphy_to_wl(w) ((struct brcmf_cfg80211_priv *)(wiphy_priv(w)))
-#define wl_to_wdev(w) (w->wdev)
-#define wdev_to_wl(w) ((struct brcmf_cfg80211_priv *)(wdev_priv(w)))
-#define wl_to_ndev(w) (w->wdev->netdev)
-#define ndev_to_wl(n) (wdev_to_wl(n->ieee80211_ptr))
-#define ci_to_wl(c) (ci->cfg_priv)
-#define wl_to_ci(w) (&w->ci)
-#define wl_to_sr(w) (w->scan_req_int)
-#define wl_to_ie(w) (&w->ie)
-#define iscan_to_wl(i) ((struct brcmf_cfg80211_priv *)(i->data))
-#define wl_to_iscan(w) (w->iscan)
-#define wl_to_conn(w) (&w->conn_info)
+#define cfg_to_wiphy(w) (w->wdev->wiphy)
+#define wiphy_to_cfg(w) ((struct brcmf_cfg80211_priv *)(wiphy_priv(w)))
+#define cfg_to_wdev(w) (w->wdev)
+#define wdev_to_cfg(w) ((struct brcmf_cfg80211_priv *)(wdev_priv(w)))
+#define cfg_to_ndev(w) (w->wdev->netdev)
+#define ndev_to_cfg(n) (wdev_to_cfg(n->ieee80211_ptr))
+#define iscan_to_cfg(i) ((struct brcmf_cfg80211_priv *)(i->data))
+#define cfg_to_iscan(w) (w->iscan)
+#define cfg_to_conn(w) (&w->conn_info)
 
 static inline struct brcmf_bss_info *next_bss(struct brcmf_scan_results *list,
 					   struct brcmf_bss_info *bss)
