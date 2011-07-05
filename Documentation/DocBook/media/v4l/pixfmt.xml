@@ -121,7 +121,7 @@ set this field to zero.</entry>
     an array of <structname>v4l2_plane_pix_format</structname> structures,
     describing all planes of that format.</para>
   <table pgwide="1" frame="none" id="v4l2-plane-pix-format">
-    <title>struct <structname>vl42_plane_pix_format</structname></title>
+    <title>struct <structname>v4l2_plane_pix_format</structname></title>
     <tgroup cols="3">
       &cs-str;
       <tbody valign="top">
