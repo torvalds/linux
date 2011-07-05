@@ -145,8 +145,7 @@ int brcmf_sdcard_intr_disable(struct brcmf_sdio_card *card)
 }
 
 int brcmf_sdcard_intr_reg(struct brcmf_sdio_card *card,
-			  brcmf_sdiocard_cb_fn_t fn,
-			  void *argh)
+			  void (*fn)(void *), void *argh)
 {
 	ASSERT(card);
 
@@ -161,8 +160,7 @@ int brcmf_sdcard_intr_dereg(struct brcmf_sdio_card *card)
 }
 
 int brcmf_sdcard_devremove_reg(struct brcmf_sdio_card *card,
-			       brcmf_sdiocard_cb_fn_t fn,
-			       void *argh)
+			       void (*fn)(void *), void *argh)
 {
 	ASSERT(card);
 
@@ -443,7 +441,9 @@ int
 brcmf_sdcard_recv_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
 		      uint flags,
 		      u8 *buf, uint nbytes, struct sk_buff *pkt,
-		      brcmf_sdio_cmplt_fn_t complete, void *handle)
+		      void (*complete)(void *handle, int status,
+				       bool sync_waiting),
+		      void *handle)
 {
 	int status;
 	uint incr_fix;
@@ -486,7 +486,9 @@ brcmf_sdcard_recv_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
 int
 brcmf_sdcard_send_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
 		      uint flags, u8 *buf, uint nbytes, void *pkt,
-		      brcmf_sdio_cmplt_fn_t complete, void *handle)
+		      void (*complete)(void *handle, int status,
+				       bool sync_waiting),
+		      void *handle)
 {
 	uint incr_fix;
 	uint width;

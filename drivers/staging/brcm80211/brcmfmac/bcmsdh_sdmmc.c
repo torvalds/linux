@@ -188,7 +188,7 @@ extern int brcmf_sdioh_detach(struct sdioh_info *sd)
 
 /* Configure callback to client when we receive client interrupt */
 extern int
-brcmf_sdioh_interrupt_register(struct sdioh_info *sd, sdioh_cb_fn_t fn,
+brcmf_sdioh_interrupt_register(struct sdioh_info *sd, void (*fn)(void *),
 			       void *argh)
 {
 	sd_trace(("%s: Entering\n", __func__));

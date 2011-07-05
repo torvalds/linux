@@ -92,14 +92,11 @@ struct brcmf_sdreg {
 	int value;
 };
 
-/* callback function, taking one arg */
-typedef void (*sdioh_cb_fn_t) (void *);
-
 struct sdioh_info {
 	struct osl_info *osh;		/* osh handler */
 	bool client_intr_enabled;	/* interrupt connnected flag */
 	bool intr_handler_valid;	/* client driver interrupt handler valid */
-	sdioh_cb_fn_t intr_handler;	/* registered interrupt handler */
+	void (*intr_handler)(void *);	/* registered interrupt handler */
 	void *intr_handler_arg;	/* argument to call interrupt handler */
 	u16 intmask;		/* Current active interrupts */
 	void *sdos_info;	/* Pointer to per-OS private data */
@@ -149,8 +146,11 @@ extern void brcmf_sdioh_free_irq(uint irq, struct sdioh_info *sd);
  */
 extern struct sdioh_info *brcmf_sdioh_attach(void *cfghdl, uint irq);
 extern int brcmf_sdioh_detach(struct sdioh_info *si);
-extern int brcmf_sdioh_interrupt_register(struct sdioh_info *si,
-					     sdioh_cb_fn_t fn, void *argh);
+
+extern int
+brcmf_sdioh_interrupt_register(struct sdioh_info *si,
+			       void (*sdioh_cb_fn)(void *), void *argh);
+
 extern int brcmf_sdioh_interrupt_deregister(struct sdioh_info *si);
 
 /* query whether SD interrupt is enabled or not */

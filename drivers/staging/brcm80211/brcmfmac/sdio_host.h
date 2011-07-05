@@ -43,7 +43,6 @@ extern const uint brcmf_sdio_msglevel;
 
 /* forward declarations */
 struct brcmf_sdio_card;
-typedef void (*brcmf_sdiocard_cb_fn_t) (void *);
 
 /* Attach and build an interface to the underlying SD host driver.
  *  - Allocates resources (structs, arrays, mem, OS handles, etc) needed by
@@ -68,8 +67,8 @@ extern int brcmf_sdcard_intr_disable(struct brcmf_sdio_card *card);
 
 /* Register/deregister device interrupt handler. */
 extern int
-brcmf_sdcard_intr_reg(struct brcmf_sdio_card *card, brcmf_sdiocard_cb_fn_t fn,
-		      void *argh);
+brcmf_sdcard_intr_reg(struct brcmf_sdio_card *card,
+		      void (*fn)(void *), void *argh);
 
 extern int brcmf_sdcard_intr_dereg(struct brcmf_sdio_card *card);
 
@@ -78,8 +77,7 @@ extern int brcmf_sdcard_intr_dereg(struct brcmf_sdio_card *card);
  */
 extern int
 brcmf_sdcard_devremove_reg(struct brcmf_sdio_card *card,
-			   brcmf_sdiocard_cb_fn_t fn,
-			   void *argh);
+			   void (*fn)(void *), void *argh);
 
 /* Access SDIO address space (e.g. CCCR) using CMD52 (single-byte interface).
  *   fn:   function number
@@ -138,16 +136,18 @@ extern bool brcmf_sdcard_regfail(struct brcmf_sdio_card *card);
  * Returns 0 or error code.
  * NOTE: Async operation is not currently supported.
  */
-typedef void (*brcmf_sdio_cmplt_fn_t)
-		(void *handle, int status, bool sync_waiting);
 extern int
 brcmf_sdcard_send_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
 		      uint flags, u8 *buf, uint nbytes, void *pkt,
-		      brcmf_sdio_cmplt_fn_t complete, void *handle);
+		      void (*complete)(void *handle, int status,
+				       bool sync_waiting),
+		      void *handle);
 extern int
 brcmf_sdcard_recv_buf(struct brcmf_sdio_card *card, u32 addr, uint fn,
 		      uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt,
-		      brcmf_sdio_cmplt_fn_t complete, void *handle);
+		      void (*complete)(void *handle, int status,
+				       bool sync_waiting),
+		      void *handle);
 
 /* Flags bits */
 #define SDIO_REQ_4BYTE	0x1	/* Four-byte target (backplane) width (vs. two-byte) */

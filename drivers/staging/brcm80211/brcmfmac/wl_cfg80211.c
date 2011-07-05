@@ -117,24 +117,24 @@ static void brcmf_init_eq_lock(struct wl_priv *wl);
 static void brcmf_init_eloop_handler(struct wl_event_loop *el);
 static struct wl_event_q *brcmf_deq_event(struct wl_priv *wl);
 static s32 brcmf_enq_event(struct wl_priv *wl, u32 type,
-			  const brcmf_event_msg_t *msg, void *data);
+			   const struct brcmf_event_msg *msg, void *data);
 static void brcmf_put_event(struct wl_event_q *e);
 static void brcmf_wakeup_event(struct wl_priv *wl);
-static s32 brcmf_notify_connect_status(struct wl_priv *wl,
-				      struct net_device *ndev,
-				      const brcmf_event_msg_t *e, void *data);
-static s32 brcmf_notify_roaming_status(struct wl_priv *wl,
-				      struct net_device *ndev,
-				      const brcmf_event_msg_t *e, void *data);
+static s32 brcmf_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
+				       const struct brcmf_event_msg *e,
+				       void *data);
+static s32 brcmf_notify_roaming_status(struct wl_priv *wl, struct net_device *ndev,
+				    const struct brcmf_event_msg *e,
+				    void *data);
 static s32 brcmf_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
-				   const brcmf_event_msg_t *e, void *data);
+				    const struct brcmf_event_msg *e, void *data);
 static s32 brcmf_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
-				 const brcmf_event_msg_t *e, void *data,
-				bool completed);
+				  const struct brcmf_event_msg *e, void *data,
+				  bool completed);
 static s32 brcmf_bss_roaming_done(struct wl_priv *wl, struct net_device *ndev,
-				 const brcmf_event_msg_t *e, void *data);
+				  const struct brcmf_event_msg *e, void *data);
 static s32 brcmf_notify_mic_status(struct wl_priv *wl, struct net_device *ndev,
-				  const brcmf_event_msg_t *e, void *data);
+				   const struct brcmf_event_msg *e, void *data);
 
 /*
 ** register/deregister sdio function
@@ -165,8 +165,8 @@ static s32 brcmf_set_retry(struct net_device *dev, u32 retry, bool l);
 /*
 ** wl profile utilities
 */
-static s32 brcmf_update_prof(struct wl_priv *wl, const brcmf_event_msg_t *e,
-			    void *data, s32 item);
+static s32 brcmf_update_prof(struct wl_priv *wl, const struct brcmf_event_msg *e,
+			     void *data, s32 item);
 static void *brcmf_read_prof(struct wl_priv *wl, s32 item);
 static void brcmf_init_prof(struct wl_profile *prof);
 
@@ -231,9 +231,10 @@ static bool brcmf_is_ibssmode(struct wl_priv *wl);
 /*
 ** dongle up/down , default configuration utilities
 */
-static bool brcmf_is_linkdown(struct wl_priv *wl, const brcmf_event_msg_t *e);
-static bool brcmf_is_linkup(struct wl_priv *wl, const brcmf_event_msg_t *e);
-static bool brcmf_is_nonetwork(struct wl_priv *wl, const brcmf_event_msg_t *e);
+static bool brcmf_is_linkdown(struct wl_priv *wl, const struct brcmf_event_msg *e);
+static bool brcmf_is_linkup(struct wl_priv *wl, const struct brcmf_event_msg *e);
+static bool brcmf_is_nonetwork(struct wl_priv *wl,
+			       const struct brcmf_event_msg *e);
 static void brcmf_link_down(struct wl_priv *wl);
 static s32 brcmf_dongle_mode(struct net_device *ndev, s32 iftype);
 static s32 __brcmf_cfg80211_up(struct wl_priv *wl);
@@ -2536,7 +2537,7 @@ CleanUp:
 	return err;
 }
 
-static bool brcmf_is_linkup(struct wl_priv *wl, const brcmf_event_msg_t *e)
+static bool brcmf_is_linkup(struct wl_priv *wl, const struct brcmf_event_msg *e)
 {
 	u32 event = be32_to_cpu(e->event_type);
 	u32 status = be32_to_cpu(e->status);
@@ -2550,7 +2551,7 @@ static bool brcmf_is_linkup(struct wl_priv *wl, const brcmf_event_msg_t *e)
 	return false;
 }
 
-static bool brcmf_is_linkdown(struct wl_priv *wl, const brcmf_event_msg_t *e)
+static bool brcmf_is_linkdown(struct wl_priv *wl, const struct brcmf_event_msg *e)
 {
 	u32 event = be32_to_cpu(e->event_type);
 	u16 flags = be16_to_cpu(e->flags);
@@ -2562,7 +2563,7 @@ static bool brcmf_is_linkdown(struct wl_priv *wl, const brcmf_event_msg_t *e)
 	return false;
 }
 
-static bool brcmf_is_nonetwork(struct wl_priv *wl, const brcmf_event_msg_t *e)
+static bool brcmf_is_nonetwork(struct wl_priv *wl, const struct brcmf_event_msg *e)
 {
 	u32 event = be32_to_cpu(e->event_type);
 	u32 status = be32_to_cpu(e->status);
@@ -2584,7 +2585,7 @@ static bool brcmf_is_nonetwork(struct wl_priv *wl, const brcmf_event_msg_t *e)
 
 static s32
 brcmf_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
-			 const brcmf_event_msg_t *e, void *data)
+			    const struct brcmf_event_msg *e, void *data)
 {
 	s32 err = 0;
 
@@ -2628,7 +2629,7 @@ brcmf_notify_connect_status(struct wl_priv *wl, struct net_device *ndev,
 
 static s32
 brcmf_notify_roaming_status(struct wl_priv *wl, struct net_device *ndev,
-			 const brcmf_event_msg_t *e, void *data)
+			    const struct brcmf_event_msg *e, void *data)
 {
 	s32 err = 0;
 	u32 event = be32_to_cpu(e->event_type);
@@ -2840,7 +2841,7 @@ update_bss_info_out:
 
 static s32
 brcmf_bss_roaming_done(struct wl_priv *wl, struct net_device *ndev,
-		    const brcmf_event_msg_t *e, void *data)
+		       const struct brcmf_event_msg *e, void *data)
 {
 	struct wl_connect_info *conn_info = wl_to_conn(wl);
 	s32 err = 0;
@@ -2864,7 +2865,7 @@ brcmf_bss_roaming_done(struct wl_priv *wl, struct net_device *ndev,
 
 static s32
 brcmf_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
-		    const brcmf_event_msg_t *e, void *data, bool completed)
+		       const struct brcmf_event_msg *e, void *data, bool completed)
 {
 	struct wl_connect_info *conn_info = wl_to_conn(wl);
 	s32 err = 0;
@@ -2896,7 +2897,7 @@ brcmf_bss_connect_done(struct wl_priv *wl, struct net_device *ndev,
 
 static s32
 brcmf_notify_mic_status(struct wl_priv *wl, struct net_device *ndev,
-		     const brcmf_event_msg_t *e, void *data)
+			const struct brcmf_event_msg *e, void *data)
 {
 	u16 flags = be16_to_cpu(e->flags);
 	enum nl80211_key_type key_type;
@@ -2916,7 +2917,7 @@ brcmf_notify_mic_status(struct wl_priv *wl, struct net_device *ndev,
 
 static s32
 brcmf_notify_scan_status(struct wl_priv *wl, struct net_device *ndev,
-		      const brcmf_event_msg_t *e, void *data)
+			 const struct brcmf_event_msg *e, void *data)
 {
 	struct brcmf_channel_info channel_inform;
 	struct brcmf_scan_results *bss_list;
@@ -3484,7 +3485,7 @@ static s32 brcmf_event_handler(void *data)
 
 void
 wl_cfg80211_event(struct net_device *ndev,
-		  const brcmf_event_msg_t *e, void *data)
+		  const struct brcmf_event_msg *e, void *data)
 {
 	u32 event_type = be32_to_cpu(e->event_type);
 	struct wl_priv *wl = ndev_to_wl(ndev);
@@ -3535,8 +3536,8 @@ static struct wl_event_q *brcmf_deq_event(struct wl_priv *wl)
 */
 
 static s32
-brcmf_enq_event(struct wl_priv *wl, u32 event, const brcmf_event_msg_t *msg,
-	     void *data)
+brcmf_enq_event(struct wl_priv *wl, u32 event, const struct brcmf_event_msg *msg,
+		void *data)
 {
 	struct wl_event_q *e;
 	s32 err = 0;
@@ -3548,7 +3549,7 @@ brcmf_enq_event(struct wl_priv *wl, u32 event, const brcmf_event_msg_t *msg,
 	}
 
 	e->etype = event;
-	memcpy(&e->emsg, msg, sizeof(brcmf_event_msg_t));
+	memcpy(&e->emsg, msg, sizeof(struct brcmf_event_msg));
 	if (data) {
 	}
 	brcmf_lock_eq(wl);
@@ -3927,8 +3928,8 @@ static void *brcmf_read_prof(struct wl_priv *wl, s32 item)
 }
 
 static s32
-brcmf_update_prof(struct wl_priv *wl, const brcmf_event_msg_t *e, void *data,
-	       s32 item)
+brcmf_update_prof(struct wl_priv *wl, const struct brcmf_event_msg *e, void *data,
+		  s32 item)
 {
 	s32 err = 0;
 	struct brcmf_ssid *ssid;

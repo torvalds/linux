@@ -449,7 +449,8 @@ int brcmf_c_ioctl(struct brcmf_pub *drvr, struct brcmf_c_ioctl *ioc, void *buf,
 }
 
 #ifdef SHOW_EVENTS
-static void brcmf_c_show_host_event(brcmf_event_msg_t *event, void *event_data)
+static void
+brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 {
 	uint i, status, reason;
 	bool group = false, flush_txq = false, link = false;
@@ -756,10 +757,10 @@ static void brcmf_c_show_host_event(brcmf_event_msg_t *event, void *event_data)
 
 int
 brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
-	      brcmf_event_msg_t *event, void **data_ptr)
+		   struct brcmf_event_msg *event, void **data_ptr)
 {
 	/* check whether packet is a BRCM event pkt */
-	brcmf_event_t *pvt_data = (brcmf_event_t *) pktdata;
+	struct brcmf_event *pvt_data = (struct brcmf_event *) pktdata;
 	char *event_data;
 	u32 type, status;
 	u16 flags;
@@ -781,12 +782,13 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 	event_data = *data_ptr;
 
 	/* memcpy since BRCM event pkt may be unaligned. */
-	memcpy(event, &pvt_data->msg, sizeof(brcmf_event_msg_t));
+	memcpy(event, &pvt_data->msg, sizeof(struct brcmf_event_msg));
 
 	type = get_unaligned_be32(&event->event_type);
 	flags = get_unaligned_be16(&event->flags);
 	status = get_unaligned_be32(&event->status);
-	evlen = get_unaligned_be32(&event->datalen) + sizeof(brcmf_event_t);
+	evlen = get_unaligned_be32(&event->datalen) +
+		sizeof(struct brcmf_event);
 
 	switch (type) {
 	case BRCMF_E_IF:

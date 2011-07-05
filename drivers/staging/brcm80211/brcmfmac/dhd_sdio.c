@@ -410,7 +410,7 @@ BRCMF_SPINWAIT_SLEEP_INIT(sdioh_spinwait_sleep);
 #define CORE_BUS_REG(base, field) \
 		(base + offsetof(struct sdpcmd_regs, field))
 #define CORE_SB(base, field) \
-		(base + SBCONFIGOFF + offsetof(sbconfig_t, field))
+		(base + SBCONFIGOFF + offsetof(struct sbconfig, field))
 
 /* core registers */
 struct sdpcmd_regs {
@@ -697,7 +697,7 @@ struct brcmf_bus {
 	u32 fw_ptr;
 };
 
-typedef volatile struct _sbconfig {
+struct sbconfig {
 	u32 PAD[2];
 	u32 sbipsflag;	/* initiator port ocp slave flag */
 	u32 PAD[3];
@@ -735,7 +735,7 @@ typedef volatile struct _sbconfig {
 	u32 PAD[3];
 	u32 sbidlow;		/* identification */
 	u32 sbidhigh;	/* identification */
-} sbconfig_t;
+};
 
 /* clkstate */
 #define CLK_NONE	0
@@ -893,7 +893,9 @@ static void brcmf_sdbrcm_setmemsize(struct brcmf_bus *bus, int mem_size);
 static int brcmf_sdbrcm_send_buf(struct brcmf_bus *bus, u32 addr, uint fn,
 			       uint flags, u8 *buf, uint nbytes,
 			       struct sk_buff *pkt,
-			       brcmf_sdio_cmplt_fn_t complete, void *handle);
+			       void (*complete)(void *handle, int status,
+						      bool sync_waiting),
+			       void *handle);
 
 static bool brcmf_sdbrcm_download_firmware(struct brcmf_bus *bus, void *card);
 static int  _brcmf_sdbrcm_download_firmware(struct brcmf_bus *bus);
@@ -1865,7 +1867,7 @@ const struct brcmu_iovar dhdsdio_iovars[] = {
 #ifdef SDTEST
 	{"extloop", IOV_EXTLOOP, 0, IOVT_BOOL, 0}
 	,
-	{"pktgen", IOV_PKTGEN, 0, IOVT_BUFFER, sizeof(brcmf_pktgen_t)}
+	{"pktgen", IOV_PKTGEN, 0, IOVT_BUFFER, sizeof(struct brcmf_pktgen)}
 	,
 #endif				/* SDTEST */
 
@@ -2001,7 +2003,7 @@ void brcmf_bus_clearcounts(struct brcmf_pub *drvr)
 #ifdef SDTEST
 static int brcmf_sdbrcm_pktgen_get(struct brcmf_bus *bus, u8 *arg)
 {
-	brcmf_pktgen_t pktgen;
+	struct brcmf_pktgen pktgen;
 
 	pktgen.version = BRCMF_PKTGEN_VERSION;
 	pktgen.freq = bus->pktgen_freq;
@@ -2023,7 +2025,7 @@ static int brcmf_sdbrcm_pktgen_get(struct brcmf_bus *bus, u8 *arg)
 
 static int brcmf_sdbrcm_pktgen_set(struct brcmf_bus *bus, u8 *arg)
 {
-	brcmf_pktgen_t pktgen;
+	struct brcmf_pktgen pktgen;
 	uint oldcnt, oldmode;
 
 	memcpy(&pktgen, arg, sizeof(pktgen));
@@ -6035,7 +6037,9 @@ err:
 static int
 brcmf_sdbrcm_send_buf(struct brcmf_bus *bus, u32 addr, uint fn, uint flags,
 		    u8 *buf, uint nbytes, struct sk_buff *pkt,
-		    brcmf_sdio_cmplt_fn_t complete, void *handle)
+		    void (*complete)(void *handle, int status,
+				     bool sync_waiting),
+		    void *handle)
 {
 	return brcmf_sdcard_send_buf
 		(bus->card, addr, fn, flags, buf, nbytes, pkt, complete,

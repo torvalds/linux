@@ -135,7 +135,7 @@
 #define BRCMF_EVENT_MSG_FLUSHTXQ	0x02
 #define BRCMF_EVENT_MSG_GROUP		0x04
 
-typedef struct brcmf_event_msg {
+struct brcmf_event_msg {
 	u16 version;
 	u16 flags;
 	u32 event_type;
@@ -145,7 +145,7 @@ typedef struct brcmf_event_msg {
 	u32 datalen;
 	u8 addr[ETH_ALEN];
 	char ifname[IFNAMSIZ];
-} __packed brcmf_event_msg_t;
+} __packed;
 
 struct brcm_ethhdr {
 	u16 subtype;
@@ -155,11 +155,11 @@ struct brcm_ethhdr {
 	u16 usr_subtype;
 } __packed;
 
-typedef struct brcmf_event {
+struct brcmf_event {
 	struct ethhdr eth;
 	struct brcm_ethhdr hdr;
 	struct brcmf_event_msg msg;
-} __packed brcmf_event_t;
+} __packed;
 
 #define BRCMF_E_SET_SSID			0
 #define BRCMF_E_JOIN				1
@@ -547,7 +547,7 @@ struct brcmf_pub {
 	bool iswl;		/* Dongle-resident driver is wl */
 	unsigned long drv_version;	/* Version of dongle-resident driver */
 	u8 mac[ETH_ALEN];			/* MAC address obtained from dongle */
-	dngl_stats_t dstats;		/* Stats for dongle-based data */
+	struct dngl_stats dstats;	/* Stats for dongle-based data */
 
 	/* Additional stats for the bus level */
 	unsigned long tx_packets;	/* Data packets sent to dongle */
@@ -609,10 +609,10 @@ struct brcmf_timeout {
 	u32 tick;		/* O/S tick time (usec) */
 };
 
-typedef struct {
+struct bcmevent_name {
 	uint event;
 	const char *name;
-} bcmevent_name_t;
+};
 
 #if defined(CONFIG_PM_SLEEP)
 extern atomic_t brcmf_mmc_suspend;
@@ -704,7 +704,7 @@ extern uint brcmf_pktgen_len;
 #endif
 
 extern u32 g_assert_type;
-extern const bcmevent_name_t bcmevent_names[];
+extern const struct bcmevent_name bcmevent_names[];
 extern const int bcmevent_names_size;
 
 
@@ -808,7 +808,7 @@ extern int brcmf_timeout_expired(struct brcmf_timeout *tmo);
 
 extern int brcmf_ifname2idx(struct brcmf_info *drvr_priv, char *name);
 extern int brcmf_c_host_event(struct brcmf_info *drvr_priv, int *idx,
-			      void *pktdata, brcmf_event_msg_t *,
+			      void *pktdata, struct brcmf_event_msg *,
 			      void **data_ptr);
 
 extern void brcmf_c_init(void);
@@ -885,7 +885,7 @@ struct brcmf_c_ioctl {
 
 #ifdef SDTEST
 /* For pktgen iovar */
-typedef struct brcmf_pktgen {
+struct brcmf_pktgen {
 	uint version;		/* To allow structure change tracking */
 	uint freq;		/* Max ticks between tx/rx attempts */
 	uint count;		/* Test packets to send/rcv each attempt */
@@ -898,7 +898,7 @@ typedef struct brcmf_pktgen {
 	uint numfail;		/* Count of test send failures */
 	uint mode;		/* Test mode (type of test packets) */
 	uint stop;		/* Stop after this many tx failures */
-} brcmf_pktgen_t;
+};
 
 /* Version in case structure changes */
 #define BRCMF_PKTGEN_VERSION	2

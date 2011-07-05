@@ -183,7 +183,8 @@ struct wl_conf {
 struct wl_event_loop {
 	s32(*handler[BRCMF_E_LAST]) (struct wl_priv *wl,
 				     struct net_device *ndev,
-				     const brcmf_event_msg_t *e, void *data);
+				     const struct brcmf_event_msg *e,
+				     void *data);
 };
 
 /* representing interface of cfg80211 plane */
@@ -219,7 +220,7 @@ struct wl_ie {
 struct wl_event_q {
 	struct list_head eq_list;
 	u32 etype;
-	brcmf_event_msg_t emsg;
+	struct brcmf_event_msg emsg;
 	s8 edata[1];
 };
 
@@ -370,7 +371,7 @@ extern s32 wl_cfg80211_attach(struct net_device *ndev, void *data);
 extern void wl_cfg80211_detach(void);
 /* event handler from dongle */
 extern void wl_cfg80211_event(struct net_device *ndev,
-			      const brcmf_event_msg_t *e, void *data);
+			      const struct brcmf_event_msg *e, void *data);
 extern void wl_cfg80211_sdio_func(void *func);	/* set sdio function info */
 extern struct sdio_func *wl_cfg80211_get_sdio_func(void);	/* set sdio function info */
 extern s32 wl_cfg80211_up(void);	/* dongle up */

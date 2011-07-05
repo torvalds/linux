@@ -185,7 +185,8 @@ module_param(brcmf_pktgen_len, uint, 0);
 static int brcmf_toe_get(struct brcmf_info *drvr_priv, int idx, u32 *toe_ol);
 static int brcmf_toe_set(struct brcmf_info *drvr_priv, int idx, u32 toe_ol);
 static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
-			     brcmf_event_msg_t *event_ptr, void **data_ptr);
+			    struct brcmf_event_msg *event_ptr,
+			    void **data_ptr);
 
 static void brcmf_set_packet_filter(int value, struct brcmf_pub *drvr)
 {
@@ -858,7 +859,7 @@ void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx, struct sk_buff *skb,
 	struct sk_buff *pnext, *save_pktbuf;
 	int i;
 	struct brcmf_if *ifp;
-	brcmf_event_msg_t event;
+	struct brcmf_event_msg event;
 
 	DHD_TRACE(("%s: Enter\n", __func__));
 
@@ -1858,7 +1859,7 @@ int brcmf_os_ioctl_resp_wake(struct brcmf_pub *drvr)
 }
 
 static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
-			    brcmf_event_msg_t *event, void **data)
+			    struct brcmf_event_msg *event, void **data)
 {
 	int bcmerror = 0;
 

@@ -17,7 +17,7 @@
 #ifndef _dngl_stats_h_
 #define _dngl_stats_h_
 
-typedef struct {
+struct dngl_stats {
 	unsigned long rx_packets;	/* total packets received */
 	unsigned long tx_packets;	/* total packets transmitted */
 	unsigned long rx_bytes;	/* total bytes received */
@@ -27,6 +27,6 @@ typedef struct {
 	unsigned long rx_dropped;	/* packets dropped by dongle */
 	unsigned long tx_dropped;	/* packets dropped by dongle */
 	unsigned long multicast;	/* multicast packets received */
-} dngl_stats_t;
+};
 
 #endif				/* _dngl_stats_h_ */
