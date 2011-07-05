@@ -9437,6 +9437,7 @@ static int bnx2x_84833_common_init_phy(struct bnx2x *bp,
 	return 0;
 }
 
+#define PHY84833_CONSTANT_LATENCY 1193
 static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 				   struct link_params *params,
 				   struct link_vars *vars)
@@ -9445,7 +9446,7 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	u8 port, initialize = 1;
 	u16 val;
 	u16 temp;
-	u32 actual_phy_selection, cms_enable;
+	u32 actual_phy_selection, cms_enable, idx;
 	int rc = 0;
 
 	msleep(1);
@@ -9537,24 +9538,86 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	DP(NETIF_MSG_LINK, "Multi_phy config = 0x%x, Media control = 0x%x\n",
 		   params->multi_phy_config, val);
 
+	/* AutogrEEEn */
+	if (params->feature_config_flags &
+		FEATURE_CONFIG_AUTOGREEEN_ENABLED) {
+		/* Ensure that f/w is ready */
+		for (idx = 0; idx < PHY84833_HDSHK_WAIT; idx++) {
+			bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
+					MDIO_84833_TOP_CFG_SCRATCH_REG2, &val);
+			if (val == PHY84833_CMD_OPEN_FOR_CMDS)
+				break;
+			usleep_range(1000, 1000);
+		}
+		if (idx >= PHY84833_HDSHK_WAIT) {
+			DP(NETIF_MSG_LINK, "AutogrEEEn: FW not ready.\n");
+			return -EINVAL;
+		}
+
+		/* Select EEE mode */
+		bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+				MDIO_84833_TOP_CFG_SCRATCH_REG3,
+				0x2);
+
+		/* Set Idle and Latency */
+		bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+				MDIO_84833_TOP_CFG_SCRATCH_REG4,
+				PHY84833_CONSTANT_LATENCY + 1);
+
+		bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+				MDIO_84833_TOP_CFG_DATA3_REG,
+				PHY84833_CONSTANT_LATENCY + 1);
+
+		bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+				MDIO_84833_TOP_CFG_DATA4_REG,
+				PHY84833_CONSTANT_LATENCY);
+
+		/* Send EEE instruction to command register */
+		bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+				MDIO_84833_TOP_CFG_SCRATCH_REG0,
+				PHY84833_DIAG_CMD_SET_EEE_MODE);
+
+		/* Ensure that the command has completed */
+		for (idx = 0; idx < PHY84833_HDSHK_WAIT; idx++) {
+			bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
+					MDIO_84833_TOP_CFG_SCRATCH_REG2, &val);
+			if ((val == PHY84833_CMD_COMPLETE_PASS) ||
+				(val == PHY84833_CMD_COMPLETE_ERROR))
+				break;
+			usleep_range(1000, 1000);
+		}
+		if ((idx >= PHY84833_HDSHK_WAIT) ||
+			(val == PHY84833_CMD_COMPLETE_ERROR)) {
+			DP(NETIF_MSG_LINK, "AutogrEEEn: command failed.\n");
+			return -EINVAL;
+		}
+
+		/* Reset command handler */
+		bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+			    MDIO_84833_TOP_CFG_SCRATCH_REG2,
+			    PHY84833_CMD_CLEAR_COMPLETE);
+	}
+
 	if (initialize)
 		rc = bnx2x_848xx_cmn_config_init(phy, params, vars);
 	else
 		bnx2x_save_848xx_spirom_version(phy, params);
-	cms_enable = REG_RD(bp, params->shmem_base +
+	/* 84833 PHY has a better feature and doesn't need to support this. */
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84823) {
+		cms_enable = REG_RD(bp, params->shmem_base +
 			offsetof(struct shmem_region,
 			dev_info.port_hw_config[params->port].default_cfg)) &
 			PORT_HW_CFG_ENABLE_CMS_MASK;
 
-	bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
-		MDIO_CTL_REG_84823_USER_CTRL_REG, &val);
-	if (cms_enable)
-		val |= MDIO_CTL_REG_84823_USER_CTRL_CMS;
-	else
-		val &= ~MDIO_CTL_REG_84823_USER_CTRL_CMS;
-	bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
-		MDIO_CTL_REG_84823_USER_CTRL_REG, val);
-
+		bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD,
+				MDIO_CTL_REG_84823_USER_CTRL_REG, &val);
+		if (cms_enable)
+			val |= MDIO_CTL_REG_84823_USER_CTRL_CMS;
+		else
+			val &= ~MDIO_CTL_REG_84823_USER_CTRL_CMS;
+		bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
+				 MDIO_CTL_REG_84823_USER_CTRL_REG, val);
+	}
 
 	return rc;
 }
@@ -10066,6 +10129,30 @@ static int bnx2x_54618se_config_init(struct bnx2x_phy *phy,
 				0x18,
 				(1<<15 | 1<<9 | 7<<0));
 		DP(NETIF_MSG_LINK, "Setting 10M force\n");
+	}
+
+	/* Check if we should turn on Auto-GrEEEn */
+	bnx2x_cl22_read(bp, phy, MDIO_REG_GPHY_PHYID_LSB, &temp);
+	if (temp == MDIO_REG_GPHY_ID_54618SE) {
+		if (params->feature_config_flags &
+		    FEATURE_CONFIG_AUTOGREEEN_ENABLED) {
+			temp = 6;
+			DP(NETIF_MSG_LINK, "Enabling Auto-GrEEEn\n");
+		} else {
+			temp = 0;
+			DP(NETIF_MSG_LINK, "Disabling Auto-GrEEEn\n");
+		}
+		bnx2x_cl22_write(bp, phy,
+				 MDIO_REG_GPHY_CL45_ADDR_REG, MDIO_AN_DEVAD);
+		bnx2x_cl22_write(bp, phy,
+				 MDIO_REG_GPHY_CL45_DATA_REG,
+				 MDIO_REG_GPHY_EEE_ADV);
+		bnx2x_cl22_write(bp, phy,
+				 MDIO_REG_GPHY_CL45_ADDR_REG,
+				 (0x1 << 14) | MDIO_AN_DEVAD);
+		bnx2x_cl22_write(bp, phy,
+				 MDIO_REG_GPHY_CL45_DATA_REG,
+				 temp);
 	}
 
 	bnx2x_cl22_write(bp, phy,
@@ -11597,12 +11684,16 @@ int bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 	bnx2x_set_led(params, vars, LED_MODE_OFF, 0);
 
 	if (reset_ext_phy) {
+		bnx2x_set_mdio_clk(bp, params->chip_id, port);
 		for (phy_index = EXT_PHY1; phy_index < params->num_phys;
 		      phy_index++) {
-			if (params->phy[phy_index].link_reset)
+			if (params->phy[phy_index].link_reset) {
+				bnx2x_set_aer_mmd(params,
+						  &params->phy[phy_index]);
 				params->phy[phy_index].link_reset(
 					&params->phy[phy_index],
 					params);
+			}
 			if (params->phy[phy_index].flags &
 			    FLAGS_REARM_LATCH_SIGNAL)
 				clear_latch_ind = 1;

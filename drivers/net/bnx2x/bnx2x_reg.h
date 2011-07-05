@@ -6792,6 +6792,8 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_84833_TOP_CFG_SCRATCH_REG2			0x4007
 #define MDIO_84833_TOP_CFG_SCRATCH_REG3			0x4008
 #define MDIO_84833_TOP_CFG_SCRATCH_REG4			0x4009
+#define MDIO_84833_TOP_CFG_DATA3_REG			0x4011
+#define MDIO_84833_TOP_CFG_DATA4_REG			0x4012
 
 /* Mailbox command set used by 84833. */
 #define PHY84833_DIAG_CMD_PAIR_SWAP_CHANGE		0x2
@@ -6805,6 +6807,11 @@ Theotherbitsarereservedandshouldbezero*/
 #define PHY84833_CMD_NOT_OPEN_FOR_CMDS			0x0040
 #define PHY84833_CMD_CLEAR_COMPLETE			0x0080
 #define PHY84833_CMD_OPEN_OVERRIDE			0xa5a5
+
+
+/* 84833 F/W Feature Commands */
+#define PHY84833_DIAG_CMD_GET_EEE_MODE			0x27
+#define PHY84833_DIAG_CMD_SET_EEE_MODE			0x28
 
 /* Warpcore clause 45 addressing */
 #define MDIO_WC_DEVAD					0x3
