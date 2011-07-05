@@ -269,6 +269,42 @@ nvd0_sor_create(struct drm_connector *connector, struct dcb_entry *dcbe)
  * IRQ
  *****************************************************************************/
 static void
+nvd0_display_unk1_handler(struct drm_device *dev)
+{
+	u32 unk0 = nv_rd32(dev, 0x6101d0);
+
+	NV_INFO(dev, "PDISP: unk1 0x%08x\n", unk0);
+
+	nv_wr32(dev, 0x6101d4, 0x00000000);
+	nv_wr32(dev, 0x6109d4, 0x00000000);
+	nv_wr32(dev, 0x6101d0, 0x80000000);
+}
+
+static void
+nvd0_display_unk2_handler(struct drm_device *dev)
+{
+	u32 unk0 = nv_rd32(dev, 0x6101d0);
+
+	NV_INFO(dev, "PDISP: unk2 0x%08x\n", unk0);
+
+	nv_wr32(dev, 0x6101d4, 0x00000000);
+	nv_wr32(dev, 0x6109d4, 0x00000000);
+	nv_wr32(dev, 0x6101d0, 0x80000000);
+}
+
+static void
+nvd0_display_unk4_handler(struct drm_device *dev)
+{
+	u32 unk0 = nv_rd32(dev, 0x6101d0);
+
+	NV_INFO(dev, "PDISP: unk4 0x%08x\n", unk0);
+
+	nv_wr32(dev, 0x6101d4, 0x00000000);
+	nv_wr32(dev, 0x6109d4, 0x00000000);
+	nv_wr32(dev, 0x6101d0, 0x80000000);
+}
+
+static void
 nvd0_display_intr(struct drm_device *dev)
 {
 	u32 intr = nv_rd32(dev, 0x610088);
@@ -289,6 +325,29 @@ nvd0_display_intr(struct drm_device *dev)
 		}
 
 		intr &= ~0x00000002;
+	}
+
+	if (intr & 0x00100000) {
+		u32 stat = nv_rd32(dev, 0x6100ac);
+
+		if (stat & 0x00000007) {
+			nv_wr32(dev, 0x6100ac, (stat & 0x00000007));
+
+			if (stat & 0x00000001)
+				nvd0_display_unk1_handler(dev);
+			if (stat & 0x00000002)
+				nvd0_display_unk2_handler(dev);
+			if (stat & 0x00000004)
+				nvd0_display_unk4_handler(dev);
+			stat &= ~0x00000007;
+		}
+
+		if (stat) {
+			NV_INFO(dev, "PDISP: unknown intr24 0x%08x\n", stat);
+			nv_wr32(dev, 0x6100ac, stat);
+		}
+
+		intr &= ~0x00100000;
 	}
 
 	if (intr & 0x01000000) {
@@ -354,6 +413,7 @@ nvd0_display_init(struct drm_device *dev)
 	}
 
 	nv_wr32(dev, 0x610010, (disp->mem->vinst >> 8) | 9);
+	nv_mask(dev, 0x6100b0, 0x00000307, 0x00000307);
 
 	/* init master */
 	nv_wr32(dev, 0x610494, (disp->evo[0].handle >> 8) | 3);
