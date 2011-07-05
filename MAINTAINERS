@@ -6065,6 +6065,11 @@ M:	David Rowe <david@rowetel.com>
 S:	Odd Fixes
 F:	drivers/staging/echo/
 
+STAGING - FRONTIER TRANZPORT AND ALPHATRACK
+M:	David Täht <d@teklibre.com>
+S:	Odd Fixes
+F:	drivers/staging/frontier/
+
 STARFIRE/DURALAN NETWORK DRIVER
 M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
