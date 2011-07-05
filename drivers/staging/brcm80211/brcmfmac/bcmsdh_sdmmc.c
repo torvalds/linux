@@ -921,13 +921,3 @@ static void brcmf_sdioh_irqhandler_f2(struct sdio_func *func)
 
 	ASSERT(sd != NULL);
 }
-
-int brcmf_sdioh_start(struct sdioh_info *si, int stage)
-{
-	return 0;
-}
-
-int brcmf_sdioh_stop(struct sdioh_info *si)
-{
-	return 0;
-}

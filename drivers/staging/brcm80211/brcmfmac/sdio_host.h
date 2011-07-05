@@ -190,12 +190,6 @@ extern int brcmf_sdcard_rwdata(struct brcmf_sdio_card *card, uint rw, u32 addr,
 /* Issue an abort to the specified function */
 extern int brcmf_sdcard_abort(struct brcmf_sdio_card *card, uint fn);
 
-/* Start SDIO Host Controller communication */
-extern int brcmf_sdcard_start(struct brcmf_sdio_card *card, int stage);
-
-/* Stop SDIO Host Controller communication */
-extern int brcmf_sdcard_stop(struct brcmf_sdio_card *card);
-
 /* Returns the "Device ID" of target device on the SDIO bus. */
 extern int brcmf_sdcard_query_device(struct brcmf_sdio_card *card);
 

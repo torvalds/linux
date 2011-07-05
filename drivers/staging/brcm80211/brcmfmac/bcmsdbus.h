@@ -93,10 +93,6 @@ extern int brcmf_sdioh_iovar_op(struct sdioh_info *si, const char *name,
 /* Issue abort to the specified function and clear controller as needed */
 extern int brcmf_sdioh_abort(struct sdioh_info *si, uint fnc);
 
-/* Start and Stop SDIO without re-enumerating the SD card. */
-extern int brcmf_sdioh_start(struct sdioh_info *si, int stage);
-extern int brcmf_sdioh_stop(struct sdioh_info *si);
-
 /* Helper function */
 void *brcmf_sdcard_get_sdioh(struct brcmf_sdio_card *card);
 

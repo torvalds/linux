@@ -521,16 +521,6 @@ int brcmf_sdcard_abort(struct brcmf_sdio_card *card, uint fn)
 	return brcmf_sdioh_abort(card->sdioh, fn);
 }
 
-int brcmf_sdcard_start(struct brcmf_sdio_card *card, int stage)
-{
-	return brcmf_sdioh_start(card->sdioh, stage);
-}
-
-int brcmf_sdcard_stop(struct brcmf_sdio_card *card)
-{
-	return brcmf_sdioh_stop(card->sdioh);
-}
-
 int brcmf_sdcard_query_device(struct brcmf_sdio_card *card)
 {
 	card->vendevid = (PCI_VENDOR_ID_BROADCOM << 16) | 0;
