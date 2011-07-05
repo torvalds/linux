@@ -438,7 +438,7 @@ struct edcf_acparam {
 	u8 ACI;
 	u8 ECW;
 	u16 TXOP;
-} __attribute__((packed));
+} __packed;
 
 struct wme_param_ie {
 	u8 oui[3];
@@ -448,7 +448,7 @@ struct wme_param_ie {
 	u8 qosinfo;
 	u8 rsvd;
 	struct edcf_acparam acparam[AC_COUNT];
-} __attribute__((packed));
+} __packed;
 
 /* virtual interface */
 struct brcms_c_if {

@@ -625,7 +625,7 @@ struct ofdm_phy_hdr {
 	u8 rlpt[3];		/* rate, length, parity, tail */
 	u16 service;
 	u8 pad;
-} __attribute__((packed));
+} __packed;
 
 #define	D11A_PHY_HDR_GRATE(phdr)	((phdr)->rlpt[0] & 0x0f)
 #define	D11A_PHY_HDR_GRES(phdr)		(((phdr)->rlpt[0] >> 4) & 0x01)
@@ -660,7 +660,7 @@ struct cck_phy_hdr {
 	u8 service;
 	u16 length;
 	u16 crc;
-} __attribute__((packed));
+} __packed;
 
 #define	D11B_PHY_HDR_LEN	6
 
@@ -735,7 +735,7 @@ struct d11txh {
 	u8 RTSPhyHeader[D11_PHY_HDR_LEN];	/* 0x2c - 0x2e */
 	struct ieee80211_rts rts_frame;	/* 0x2f - 0x36 */
 	u16 PAD;		/* 0x37 */
-} __attribute__((packed));
+} __packed;
 
 #define	D11_TXH_LEN		112	/* bytes */
 
@@ -852,7 +852,7 @@ struct tx_status {
 	u16 sequence;
 	u16 phyerr;
 	u16 ackphyrxsh;
-} __attribute__((packed));
+} __packed;
 
 #define	TXSTATUS_LEN	16
 
@@ -1245,7 +1245,7 @@ struct shm_acparams {
 	u16 reggap;
 	u16 status;
 	u16 rsvd[8];
-} __attribute__((packed));
+} __packed;
 #define M_EDCF_QLEN	(16 * 2)
 
 #define WME_STATUS_NEWAC	(1 << 8)
@@ -1306,7 +1306,7 @@ struct d11rxhdr {
 	u16 RxStatus2;	/* extended MAC Rx status */
 	u16 RxTSFTime;	/* RxTSFTime time of first MAC symbol + M_PHY_PLCPRX_DLY */
 	u16 RxChan;		/* gain code, channel radio code, and phy type */
-} __attribute__((packed));
+} __packed;
 
 #define	RXHDR_LEN		24	/* sizeof struct d11rxhdr */
 #define	FRAMELEN(h)		((h)->RxFrameSize)
@@ -1319,7 +1319,7 @@ struct brcms_d11rxhdr {
 	s8 rxpwr1;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */
 	s8 do_rssi_ma;	/* do per-pkt sampling for per-antenna ma in HIGH */
 	s8 rxpwr[WL_RSSI_ANT_MAX];	/* rssi for supported antennas */
-} __attribute__((packed));
+} __packed;
 
 /* PhyRxStatus_0: */
 #define	PRXS0_FT_MASK		0x0003	/* NPHY only: CCK, OFDM, preN, N */
