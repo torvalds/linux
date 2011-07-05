@@ -527,8 +527,8 @@ static int mdfld_dsi_connector_set_property(struct drm_connector * connector,
 				backlight_update_status(psb_bd);
 			}
 		}
-	} 
 #endif
+	}
 set_prop_done:
     return 0;
 set_prop_error:
