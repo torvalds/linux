@@ -10,7 +10,9 @@
  * any later version.
  */
 
+#include <linux/device.h>
 #include <linux/hid.h>
+#include <linux/input.h>
 #include <linux/module.h>
 #include "hid-ids.h"
 
@@ -19,7 +21,14 @@
 
 struct wiimote_data {
 	struct hid_device *hdev;
+	struct input_dev *input;
 };
+
+static int wiimote_input_event(struct input_dev *dev, unsigned int type,
+						unsigned int code, int value)
+{
+	return 0;
+}
 
 static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 							u8 *raw_data, int size)
@@ -38,8 +47,23 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	if (!wdata)
 		return NULL;
 
+	wdata->input = input_allocate_device();
+	if (!wdata->input) {
+		kfree(wdata);
+		return NULL;
+	}
+
 	wdata->hdev = hdev;
 	hid_set_drvdata(hdev, wdata);
+
+	input_set_drvdata(wdata->input, wdata);
+	wdata->input->event = wiimote_input_event;
+	wdata->input->dev.parent = &wdata->hdev->dev;
+	wdata->input->id.bustype = wdata->hdev->bus;
+	wdata->input->id.vendor = wdata->hdev->vendor;
+	wdata->input->id.product = wdata->hdev->product;
+	wdata->input->id.version = wdata->hdev->version;
+	wdata->input->name = WIIMOTE_NAME;
 
 	return wdata;
 }
@@ -73,10 +97,19 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		goto err;
 	}
 
+	ret = input_register_device(wdata->input);
+	if (ret) {
+		hid_err(hdev, "Cannot register input device\n");
+		goto err_stop;
+	}
+
 	hid_info(hdev, "New device registered\n");
 	return 0;
 
+err_stop:
+	hid_hw_stop(hdev);
 err:
+	input_free_device(wdata->input);
 	wiimote_destroy(wdata);
 	return ret;
 }
@@ -87,6 +120,7 @@ static void wiimote_hid_remove(struct hid_device *hdev)
 
 	hid_info(hdev, "Device removed\n");
 	hid_hw_stop(hdev);
+	input_unregister_device(wdata->input);
 	wiimote_destroy(wdata);
 }
 
