@@ -205,12 +205,8 @@ extern int brcmu_iovar_lencheck(const struct brcmu_iovar *table, void *arg,
 #define	ISPOWEROF2(x)		((((x)-1)&(x)) == 0)
 
 /* map physical to virtual I/O */
-#if !defined(CONFIG_MMC_MSM7X00A)
 #define REG_MAP(pa, size)       ioremap_nocache((unsigned long)(pa), \
 					(unsigned long)(size))
-#else
-#define REG_MAP(pa, size)       (void *)(0)
-#endif
 
 /* the largest reasonable packet buffer driver uses for ethernet MTU in bytes */
 #define	PKTBUFSZ	2048

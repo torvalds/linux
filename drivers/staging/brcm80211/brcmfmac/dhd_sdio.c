@@ -166,13 +166,8 @@ struct rte_console {
 
 #define TXRETRIES	2	/* # of retries for tx frames */
 
-#if defined(CONFIG_MACH_SANDGATE2G)
-#define BRCMF_RXBOUND	250	/* Default for max rx frames in
-				 one scheduling */
-#else
 #define BRCMF_RXBOUND	50	/* Default for max rx frames in
 				 one scheduling */
-#endif				/* defined(CONFIG_MACH_SANDGATE2G) */
 
 #define BRCMF_TXBOUND	20	/* Default for max tx frames in
 				 one scheduling */

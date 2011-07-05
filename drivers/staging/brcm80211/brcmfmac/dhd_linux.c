@@ -29,9 +29,6 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <net/cfg80211.h>
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-#include <linux/earlysuspend.h>
-#endif
 #include <defs.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
@@ -90,10 +87,6 @@ struct brcmf_info {
 	bool set_macaddress;
 	u8 macvalue[ETH_ALEN];
 	atomic_t pend_8021x_cnt;
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	struct early_suspend early_suspend;
-#endif				/* CONFIG_HAS_EARLYSUSPEND */
 };
 
 /* Error bits */
@@ -179,108 +172,6 @@ static int brcmf_toe_set(struct brcmf_info *drvr_priv, int idx, u32 toe_ol);
 static int brcmf_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 			    struct brcmf_event_msg *event_ptr,
 			    void **data_ptr);
-
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-static int brcmf_set_suspend(int value, struct brcmf_pub *drvr)
-{
-	int power_mode = PM_MAX;
-	/* struct wl_pkt_filter_enable       enable_parm; */
-	char iovbuf[32];
-	int bcn_li_dtim = 3;
-
-	DHD_TRACE(("%s: enter, value = %d in_suspend=%d\n",
-		   __func__, value, drvr->in_suspend));
-
-	if (drvr && drvr->up) {
-		if (value && drvr->in_suspend) {
-
-			/* Kernel suspended */
-			DHD_TRACE(("%s: force extra Suspend setting\n",
-				   __func__));
-
-			brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_PM,
-					 (char *)&power_mode,
-					 sizeof(power_mode));
-
-			/* Enable packet filter, only allow unicast
-				 packet to send up */
-			brcmf_set_packet_filter(1, drvr);
-
-			/* if dtim skip setup as default force it
-			 * to wake each third dtim
-			 * for better power saving.
-			 * Note that side effect is chance to miss BC/MC
-			 * packet
-			 */
-			if ((drvr->dtim_skip == 0) || (drvr->dtim_skip == 1))
-				bcn_li_dtim = 3;
-			else
-				bcn_li_dtim = drvr->dtim_skip;
-			brcmu_mkiovar("bcn_li_dtim", (char *)&bcn_li_dtim,
-				    4, iovbuf, sizeof(iovbuf));
-			brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR,
-						  iovbuf, sizeof(iovbuf));
-		} else {
-
-			/* Kernel resumed  */
-			DHD_TRACE(("%s: Remove extra suspend setting\n",
-				   __func__));
-
-			power_mode = PM_FAST;
-			brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_PM,
-						  (char *)&power_mode,
-						  sizeof(power_mode));
-
-			/* disable pkt filter */
-			brcmf_set_packet_filter(0, drvr);
-
-			/* restore pre-suspend setting for dtim_skip */
-			brcmu_mkiovar("bcn_li_dtim", (char *)&drvr->dtim_skip,
-				    4, iovbuf, sizeof(iovbuf));
-
-			brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR,
-						  iovbuf, sizeof(iovbuf));
-		}
-	}
-
-	return 0;
-}
-
-static void brcmf_suspend_resume_helper(struct brcmf_info *drvr_priv, int val)
-{
-	struct brcmf_pub *drvr = &drvr_priv->pub;
-
-	brcmf_os_proto_block(drvr);
-	/* Set flag when early suspend was called */
-	drvr->in_suspend = val;
-	if (!drvr->suspend_disable_flag)
-		brcmf_set_suspend(val, drvr);
-	brcmf_os_proto_unblock(drvr);
-}
-
-static void brcmf_early_suspend(struct early_suspend *h)
-{
-	struct brcmf_info *drvr_priv =
-			container_of(h, struct brcmf_info, early_suspend);
-
-	DHD_TRACE(("%s: enter\n", __func__));
-
-	if (drvr_priv)
-		brcmf_suspend_resume_helper(drvr_priv, 1);
-
-}
-
-static void brcmf_late_resume(struct early_suspend *h)
-{
-	struct brcmf_info *drvr_priv =
-			container_of(h, struct brcmf_info, early_suspend);
-
-	DHD_TRACE(("%s: enter\n", __func__));
-
-	if (drvr_priv)
-		brcmf_suspend_resume_helper(drvr_priv, 0);
-}
-#endif				/* defined(CONFIG_HAS_EARLYSUSPEND) */
 
 /*
  * Generalized timeout mechanism.  Uses spin sleep with exponential
@@ -1479,20 +1370,9 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 	 */
 	memcpy(netdev_priv(net), &drvr_priv, sizeof(drvr_priv));
 
-#if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
-	g_bus = bus;
-#endif
 #if defined(CONFIG_PM_SLEEP)
 	atomic_set(&brcmf_mmc_suspend, false);
 #endif	/* defined(CONFIG_PM_SLEEP) */
-	/* Init lock suspend to prevent kernel going to suspend */
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	drvr_priv->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 20;
-	drvr_priv->early_suspend.suspend = brcmf_early_suspend;
-	drvr_priv->early_suspend.resume = brcmf_late_resume;
-	register_early_suspend(&drvr_priv->early_suspend);
-#endif
-
 	return &drvr_priv->pub;
 
 fail:
@@ -1663,12 +1543,6 @@ void brcmf_detach(struct brcmf_pub *drvr)
 		if (drvr_priv) {
 			struct brcmf_if *ifp;
 			int i;
-
-#if defined(CONFIG_HAS_EARLYSUSPEND)
-			if (drvr_priv->early_suspend.suspend)
-				unregister_early_suspend(
-					&drvr_priv->early_suspend);
-#endif				/* defined(CONFIG_HAS_EARLYSUSPEND) */
 
 			for (i = 1; i < BRCMF_MAX_IFS; i++)
 				if (drvr_priv->iflist[i])
