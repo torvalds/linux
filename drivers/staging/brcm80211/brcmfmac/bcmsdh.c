@@ -58,6 +58,13 @@
 /* debugging macros */
 #define SDLX_MSG(x)
 
+#define SDIOH_CMD_TYPE_NORMAL   0	/* Normal command */
+#define SDIOH_CMD_TYPE_APPEND   1	/* Append command */
+#define SDIOH_CMD_TYPE_CUTTHRU  2	/* Cut-through command */
+
+#define SDIOH_DATA_PIO          0	/* PIO mode */
+#define SDIOH_DATA_DMA          1	/* DMA mode */
+
 struct brcmf_sdio_card {
 	bool init_success;	/* underlying driver successfully attached */
 	void *sdioh;		/* handler for sdioh */
