@@ -98,7 +98,7 @@
 /* sslpnphy specifics */
 #define WL_TX_POWER_MCS20_SISO_FIRST_SSN   12	/* Index for first 20MHz MCS SISO rate */
 
-/* tx_power_t.flags bits */
+/* struct tx_power::flags bits */
 #define WL_TX_POWER_F_ENABLED	1
 #define WL_TX_POWER_F_HW	2
 #define WL_TX_POWER_F_MIMO	4

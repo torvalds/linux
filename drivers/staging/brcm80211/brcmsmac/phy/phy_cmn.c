@@ -2179,7 +2179,7 @@ static u32 wlc_phy_txpower_est_power_nphy(struct brcms_phy *pi)
 }
 
 void
-wlc_phy_txpower_get_current(struct brcms_phy_pub *ppi, tx_power_t *power,
+wlc_phy_txpower_get_current(struct brcms_phy_pub *ppi, struct tx_power *power,
 			    uint channel)
 {
 	struct brcms_phy *pi = (struct brcms_phy *) ppi;
@@ -2187,7 +2187,7 @@ wlc_phy_txpower_get_current(struct brcms_phy_pub *ppi, tx_power_t *power,
 	u8 min_pwr, max_pwr;
 
 #if WL_TX_POWER_RATES != TXP_NUM_RATES
-#error "tx_power_t struct out of sync with this fn"
+#error "struct tx_power out of sync with this fn"
 #endif
 
 	if (ISNPHY(pi)) {

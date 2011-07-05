@@ -270,7 +270,7 @@ extern void wlc_phy_mute_upd(struct brcms_phy_pub *ppi, bool val, mbool flags);
 extern void wlc_phy_antsel_type_set(struct brcms_phy_pub *ppi, u8 antsel_type);
 
 extern void wlc_phy_txpower_get_current(struct brcms_phy_pub *ppi,
-					tx_power_t *power, uint channel);
+					struct tx_power *power, uint channel);
 
 extern void wlc_phy_initcal_enable(struct brcms_phy_pub *pih, bool initcal);
 extern bool wlc_phy_test_ison(struct brcms_phy_pub *ppi);

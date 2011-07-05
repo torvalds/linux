@@ -383,7 +383,6 @@ typedef volatile struct dma32diag dma32diag_t;
 typedef volatile struct dma64regs dma64regs_t;
 typedef struct brcms_rateset wlc_rateset_t;
 typedef u32 ratespec_t;
-typedef struct tx_power tx_power_t;
 typedef struct chanvec chanvec_t;
 typedef s32 fixed;
 typedef struct _cs32 cs32;
