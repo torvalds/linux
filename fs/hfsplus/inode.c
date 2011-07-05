@@ -195,11 +195,13 @@ static struct dentry *hfsplus_file_lookup(struct inode *dir,
 	hip->flags = 0;
 	set_bit(HFSPLUS_I_RSRC, &hip->flags);
 
-	hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
-	err = hfsplus_find_cat(sb, dir->i_ino, &fd);
-	if (!err)
-		err = hfsplus_cat_read_inode(inode, &fd);
-	hfs_find_exit(&fd);
+	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
+	if (!err) {
+		err = hfsplus_find_cat(sb, dir->i_ino, &fd);
+		if (!err)
+			err = hfsplus_cat_read_inode(inode, &fd);
+		hfs_find_exit(&fd);
+	}
 	if (err) {
 		iput(inode);
 		return ERR_PTR(err);
