@@ -704,12 +704,6 @@ extern int psb_intel_opregion_init(struct drm_device *dev);
 extern int psbfb_probed(struct drm_device *dev);
 extern int psbfb_remove(struct drm_device *dev,
 			struct drm_framebuffer *fb);
-extern int psbfb_kms_off_ioctl(struct drm_device *dev, void *data,
-			       struct drm_file *file_priv);
-extern int psbfb_kms_on_ioctl(struct drm_device *dev, void *data,
-			      struct drm_file *file_priv);
-extern void *psbfb_vdc_reg(struct drm_device* dev);
-
 /*
  * psb_2d.c
  */

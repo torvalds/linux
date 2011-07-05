@@ -145,8 +145,6 @@ struct drm_psb_register_rw_arg {
 
 /* Controlling the kernel modesetting buffers */
 
-#define DRM_PSB_KMS_OFF		0x00
-#define DRM_PSB_KMS_ON		0x01
 #define DRM_PSB_SIZES           0x07
 #define DRM_PSB_FUSE_REG	0x08
 #define DRM_PSB_DC_STATE	0x0A
@@ -155,7 +153,7 @@ struct drm_psb_register_rw_arg {
 #define DRM_PSB_STOLEN_MEMORY	0x0D
 #define DRM_PSB_REGISTER_RW	0x0E
 
-/**
+/*
  * NOTE: Add new commands here, but increment
  * the values below and increment their
  * corresponding defines where they're
