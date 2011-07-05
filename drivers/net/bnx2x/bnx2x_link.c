@@ -11684,16 +11684,12 @@ int bnx2x_link_reset(struct link_params *params, struct link_vars *vars,
 	bnx2x_set_led(params, vars, LED_MODE_OFF, 0);
 
 	if (reset_ext_phy) {
-		bnx2x_set_mdio_clk(bp, params->chip_id, port);
 		for (phy_index = EXT_PHY1; phy_index < params->num_phys;
 		      phy_index++) {
-			if (params->phy[phy_index].link_reset) {
-				bnx2x_set_aer_mmd(params,
-						  &params->phy[phy_index]);
+			if (params->phy[phy_index].link_reset)
 				params->phy[phy_index].link_reset(
 					&params->phy[phy_index],
 					params);
-			}
 			if (params->phy[phy_index].flags &
 			    FLAGS_REARM_LATCH_SIGNAL)
 				clear_latch_ind = 1;
