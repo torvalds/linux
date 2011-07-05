@@ -195,6 +195,7 @@ static struct clk mstp_clks[MSTP_NR] = {
 };
 
 #define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
+#define CLKDEV_DEV_ID(_id, _clk) { .dev_id = _id, .clk = _clk }
 
 static struct clk_lookup lookups[] = {
 	/* main clocks */
@@ -257,8 +258,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("sio0", &mstp_clks[MSTP003]),
 	CLKDEV_CON_ID("siof0", &mstp_clks[MSTP002]),
 	CLKDEV_CON_ID("siof1", &mstp_clks[MSTP001]),
-	CLKDEV_CON_ID("i2c0", &mstp_clks[MSTP109]),
-	CLKDEV_CON_ID("i2c1", &mstp_clks[MSTP108]),
+	CLKDEV_DEV_ID("i2c-sh_mobile.0", &mstp_clks[MSTP109]),
+	CLKDEV_DEV_ID("i2c-sh_mobile.1", &mstp_clks[MSTP108]),
 	CLKDEV_CON_ID("tpu0", &mstp_clks[MSTP225]),
 	CLKDEV_CON_ID("irda0", &mstp_clks[MSTP224]),
 	CLKDEV_CON_ID("sdhi0", &mstp_clks[MSTP218]),
