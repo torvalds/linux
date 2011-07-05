@@ -306,10 +306,6 @@ struct target_fabric_configfs *target_fabric_configfs_init(
 {
 	struct target_fabric_configfs *tf;
 
-	if (!(fabric_mod)) {
-		printk(KERN_ERR "Missing struct module *fabric_mod pointer\n");
-		return ERR_PTR(-EINVAL);
-	}
 	if (!(name)) {
 		printk(KERN_ERR "Unable to locate passed fabric name\n");
 		return ERR_PTR(-EINVAL);
