@@ -529,11 +529,13 @@ static void vivi_thread_tick(struct vivi_dev *dev)
 	spin_lock_irqsave(&dev->slock, flags);
 	if (list_empty(&dma_q->active)) {
 		dprintk(dev, 1, "No active queue to serve\n");
-		goto unlock;
+		spin_unlock_irqrestore(&dev->slock, flags);
+		return;
 	}
 
 	buf = list_entry(dma_q->active.next, struct vivi_buffer, list);
 	list_del(&buf->list);
+	spin_unlock_irqrestore(&dev->slock, flags);
 
 	do_gettimeofday(&buf->vb.v4l2_buf.timestamp);
 
@@ -543,8 +545,6 @@ static void vivi_thread_tick(struct vivi_dev *dev)
 
 	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
 	dprintk(dev, 2, "[%p/%d] done\n", buf, buf->vb.v4l2_buf.index);
-unlock:
-	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
 #define frames_to_ms(frames)					\
