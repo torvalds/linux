@@ -42,6 +42,15 @@ int drm_gem_private_object_init(struct drm_device *dev,
 
 void drm_gem_object_release_wrap(struct drm_gem_object *obj)
 {
+	/* Remove the list map if one is present */
+	if (obj->map_list.map) {
+		struct drm_gem_mm *mm = obj->dev->mm_private;
+		struct drm_map_list *list = &obj->map_list;
+		drm_ht_remove_item(&mm->offset_hash, &list->hash);
+		drm_mm_put_block(list->file_offset_node);
+		kfree(list->map);
+		list->map = NULL;
+	}
 	if (obj->filp)
 		drm_gem_object_release(obj);
 }

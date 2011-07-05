@@ -19,12 +19,8 @@
  * Authors: Alan Cox
  *
  * TODO:
- *	-	we don't actually put GEM objects into the GART yet
- *	-	we need to work out if the MMU is relevant as well (eg for
+ *	-	we need to work out if the MMU is relevant (eg for
  *		accelerated operations on a GEM object)
- *	-	cache coherency
- *
- * ie this is just an initial framework to get us going.
  */
 
 #include <drm/drmP.h>
@@ -40,15 +36,6 @@ int psb_gem_init_object(struct drm_gem_object *obj)
 void psb_gem_free_object(struct drm_gem_object *obj)
 {
 	struct gtt_range *gtt = container_of(obj, struct gtt_range, gem);
-	if (obj->map_list.map) {
-		/* Do things GEM should do for us */
-		struct drm_gem_mm *mm = obj->dev->mm_private;
-		struct drm_map_list *list = &obj->map_list;
-		drm_ht_remove_item(&mm->offset_hash, &list->hash);
-		drm_mm_put_block(list->file_offset_node);
-		kfree(list->map);
-		list->map = NULL;
-	}
 	drm_gem_object_release_wrap(obj);
 	/* This must occur last as it frees up the memory of the GEM object */
 	psb_gtt_free_range(obj->dev, gtt);
