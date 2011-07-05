@@ -112,6 +112,8 @@ source "drivers/uio/Kconfig"
 
 source "drivers/vlynq/Kconfig"
 
+source "drivers/virtio/Kconfig"
+
 source "drivers/xen/Kconfig"
 
 source "drivers/staging/Kconfig"
