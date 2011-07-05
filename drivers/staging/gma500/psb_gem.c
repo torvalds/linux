@@ -61,60 +61,6 @@ int psb_gem_get_aperture(struct drm_device *dev, void *data,
 }
 
 /**
- *	psb_gem_create_mmap_offset	-	invent an mmap offset
- *	@obj: our object
- *
- *	This is basically doing by hand a pile of ugly crap which should
- *	be done automatically by the GEM library code but isn't
- */
-static int psb_gem_create_mmap_offset(struct drm_gem_object *obj)
-{
-	struct drm_device *dev = obj->dev;
-	struct drm_gem_mm *mm = dev->mm_private;
-	struct drm_map_list *list;
-	struct drm_local_map *map;
-	int ret;
-
-	list = &obj->map_list;
-	list->map = kzalloc(sizeof(struct drm_map_list), GFP_KERNEL);
-	if (list->map == NULL)
-		return -ENOMEM;
-	map = list->map;
-	map->type = _DRM_GEM;
-	map->size = obj->size;
-	map->handle = obj;
-
-	list->file_offset_node = drm_mm_search_free(&mm->offset_manager,
-					obj->size / PAGE_SIZE, 0, 0);
-	if (!list->file_offset_node) {
-		dev_err(dev->dev, "failed to allocate offset for bo %d\n",
-								obj->name);
-		ret = -ENOSPC;
-		goto free_it;
-	}
-	list->file_offset_node = drm_mm_get_block(list->file_offset_node,
-					obj->size / PAGE_SIZE, 0);
-	if (!list->file_offset_node) {
-		ret = -ENOMEM;
-		goto free_it;
-	}
-	list->hash.key = list->file_offset_node->start;
-	ret = drm_ht_insert_item(&mm->offset_hash, &list->hash);
-	if (ret) {
-		dev_err(dev->dev, "failed to add to map hash\n");
-		goto free_mm;
-	}
-	return 0;
-
-free_mm:
-	drm_mm_put_block(list->file_offset_node);
-free_it:
-	kfree(list->map);
-	list->map = NULL;
-	return ret;
-}
-
-/**
  *	psb_gem_dumb_map_gtt	-	buffer mapping for dumb interface
  *	@file: our drm client file
  *	@dev: drm device
@@ -144,7 +90,7 @@ int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
 
 	/* Make it mmapable */
 	if (!obj->map_list.map) {
-		ret = psb_gem_create_mmap_offset(obj);
+		ret = gem_create_mmap_offset(obj);
 		if (ret)
 			goto out;
 	}
