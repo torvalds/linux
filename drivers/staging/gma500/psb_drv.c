@@ -245,6 +245,7 @@ static int psb_driver_unload(struct drm_device *dev)
 
 	if (dev_priv) {
 		psb_lid_timer_takedown(dev_priv);
+		intel_opregion_exit(dev);
 
 		psb_do_takedown(dev);
 
