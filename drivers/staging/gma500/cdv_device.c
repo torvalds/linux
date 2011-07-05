@@ -58,9 +58,9 @@ static int cdv_output_init(struct drm_device *dev)
 	/* These bits indicate HDMI not SDVO on CDV, but we don't yet support
 	   the HDMI interface */
 	if (REG_READ(SDVOB) & SDVO_DETECTED)
-		DRM_ERROR("HDMI not supported yet\n");
+		cdv_hdmi_init(dev, &dev_priv->mode_dev, SDVOB);
 	if (REG_READ(SDVOC) & SDVO_DETECTED)
-		DRM_ERROR("HDMI not supported yet\n");
+		cdv_hdmi_init(dev, &dev_priv->mode_dev, SDVOC);
 	return 0;
 }
 

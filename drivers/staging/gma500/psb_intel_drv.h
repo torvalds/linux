@@ -105,7 +105,7 @@ struct psb_intel_output {
 	void *dev_priv;
 
 	struct psb_intel_mode_device *mode_dev;
-
+	struct i2c_adapter *hdmi_i2c_adapter;	/* for control functions */
 };
 
 struct psb_intel_crtc_state {
