@@ -189,26 +189,20 @@ u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_card *card, uint fnc_num, u32 addr,
 			 int *err)
 {
 	int status;
-#ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	s32 retry = 0;
-#endif
 	u8 data = 0;
 
 	if (!card)
 		card = l_card;
 
-#ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	do {
 		if (retry)	/* wait for 1 ms till bus get settled down */
 			udelay(1000);
-#endif
 		status =
 		    brcmf_sdioh_cfg_read(card->sdioh, fnc_num, addr,
 				   (u8 *) &data);
-#ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	} while (status != 0
 		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
-#endif
 	if (err)
 		*err = status;
 
@@ -223,25 +217,19 @@ brcmf_sdcard_cfg_write(struct brcmf_sdio_card *card, uint fnc_num, u32 addr,
 		       u8 data, int *err)
 {
 	int status;
-#ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	s32 retry = 0;
-#endif
 
 	if (!card)
 		card = l_card;
 
-#ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	do {
 		if (retry)	/* wait for 1 ms till bus get settled down */
 			udelay(1000);
-#endif
 		status =
 		    brcmf_sdioh_cfg_write(card->sdioh, fnc_num, addr,
 				    (u8 *) &data);
-#ifdef SDIOH_API_ACCESS_RETRY_LIMIT
 	} while (status != 0
 		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
-#endif
 	if (err)
 		*err = status;
 
