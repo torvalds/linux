@@ -538,7 +538,13 @@ struct port_hw_cfg {		    /* port 0: 0x12c  port 1: 0x2bc */
 	u32 fcoe_wwn_node_name_upper;
 	u32 fcoe_wwn_node_name_lower;
 
-	u32 Reserved1[50];					/* 0x1C0 */
+	u32 Reserved1[49];				    /* 0x1C0 */
+
+	/*  Enable RJ45 magjack pair swapping on 10GBase-T PHY (0=default),
+	      84833 only */
+	u32 xgbt_phy_cfg;				    /* 0x284 */
+	#define PORT_HW_CFG_RJ45_PAIR_SWAP_MASK             0x000000FF
+	#define PORT_HW_CFG_RJ45_PAIR_SWAP_SHIFT                     0
 
 		u32 default_cfg;			    /* 0x288 */
 	#define PORT_HW_CFG_GPIO0_CONFIG_MASK               0x00000003

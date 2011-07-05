@@ -9182,11 +9182,14 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 			 MDIO_AN_DEVAD, MDIO_AN_REG_8481_1000T_CTRL,
 			 an_1000_val);
 
-	/* set 10 speed advertisement */
+	/* set 100 speed advertisement */
 	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
 	     (phy->speed_cap_mask &
-	     (PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL |
-	      PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF)))) {
+	      (PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL |
+	       PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF)) &&
+	     (phy->supported &
+	      (SUPPORTED_100baseT_Half |
+	       SUPPORTED_100baseT_Full)))) {
 		an_10_100_val |= (1<<7);
 		/* Enable autoneg and restart autoneg for legacy speeds */
 		autoneg_val |= (1<<9 | 1<<12);
@@ -9197,9 +9200,12 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 	}
 	/* set 10 speed advertisement */
 	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
-	    (phy->speed_cap_mask &
-	  (PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL |
-	   PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF)))) {
+	     (phy->speed_cap_mask &
+	      (PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL |
+	       PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF)) &&
+	     (phy->supported &
+	      (SUPPORTED_10baseT_Half |
+	       SUPPORTED_10baseT_Full)))) {
 		an_10_100_val |= (1<<5);
 		autoneg_val |= (1<<9 | 1<<12);
 		if (phy->req_duplex == DUPLEX_FULL)
@@ -9208,7 +9214,10 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 	}
 
 	/* Only 10/100 are allowed to work in FORCE mode */
-	if (phy->req_line_speed == SPEED_100) {
+	if ((phy->req_line_speed == SPEED_100) &&
+	    (phy->supported &
+	     (SUPPORTED_100baseT_Half |
+	      SUPPORTED_100baseT_Full))) {
 		autoneg_val |= (1<<13);
 		/* Enabled AUTO-MDIX when autoneg is disabled */
 		bnx2x_cl45_write(bp, phy,
@@ -9216,7 +9225,10 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 				 (1<<15 | 1<<9 | 7<<0));
 		DP(NETIF_MSG_LINK, "Setting 100M force\n");
 	}
-	if (phy->req_line_speed == SPEED_10) {
+	if ((phy->req_line_speed == SPEED_10) &&
+	    (phy->supported &
+	     (SUPPORTED_10baseT_Half |
+	      SUPPORTED_10baseT_Full))) {
 		/* Enabled AUTO-MDIX when autoneg is disabled */
 		bnx2x_cl45_write(bp, phy,
 				 MDIO_AN_DEVAD, MDIO_AN_REG_8481_AUX_CTRL,
@@ -9284,11 +9296,22 @@ static int bnx2x_84833_pair_swap_cfg(struct bnx2x_phy *phy,
 				   struct link_vars *vars)
 {
 	u32 idx;
+	u32 pair_swap;
 	u16 val;
-	u16 data = 0x01b1;
+	u16 data;
 	struct bnx2x *bp = params->bp;
 	/* Do pair swap */
 
+	/* Check for configuration. */
+	pair_swap = REG_RD(bp, params->shmem_base +
+			   offsetof(struct shmem_region,
+			dev_info.port_hw_config[params->port].xgbt_phy_cfg)) &
+		PORT_HW_CFG_RJ45_PAIR_SWAP_MASK;
+
+	if (pair_swap == 0)
+		return 0;
+
+	data = (u16)pair_swap;
 
 	/* Write CMD_OPEN_OVERRIDE to STATUS reg */
 	bnx2x_cl45_write(bp, phy, MDIO_CTL_DEVAD,
@@ -10787,9 +10810,7 @@ static struct bnx2x_phy phy_84833 = {
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
-	.supported	= (SUPPORTED_10baseT_Half |
-			   SUPPORTED_10baseT_Full |
-			   SUPPORTED_100baseT_Half |
+	.supported	= (SUPPORTED_100baseT_Half |
 			   SUPPORTED_100baseT_Full |
 			   SUPPORTED_1000baseT_Full |
 			   SUPPORTED_10000baseT_Full |
