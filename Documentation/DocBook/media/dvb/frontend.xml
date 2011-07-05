@@ -515,8 +515,7 @@ typedef enum fe_hierarchy {
 <para>(blocking mode is the default)</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+<para>RETURN VALUE</para>
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>ENODEV</para>
@@ -576,8 +575,7 @@ typedef enum fe_hierarchy {
 <para>File descriptor returned by a previous call to open().</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -633,8 +631,7 @@ typedef enum fe_hierarchy {
  to be stored.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+<para>RETURN VALUE</para>
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -695,8 +692,7 @@ typedef enum fe_hierarchy {
 <para>The bit error rate is stored into *ber.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -773,8 +769,7 @@ typedef enum fe_hierarchy {
 </entry>
  </row></tbody></tgroup></informaltable>
 
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -851,8 +846,7 @@ typedef enum fe_hierarchy {
 <para>The signal strength value is stored into *strength.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -936,8 +930,7 @@ typedef enum fe_hierarchy {
  so far.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1012,8 +1005,7 @@ typedef enum fe_hierarchy {
 <para>Points to parameters for tuning operation.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1085,8 +1077,7 @@ typedef enum fe_hierarchy {
 </entry>
  </row></tbody></tgroup></informaltable>
 
-<para>ERRORS
-</para>
+&return-value-dvb;
 
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
@@ -1187,8 +1178,7 @@ typedef enum fe_hierarchy {
 </entry>
  </row></tbody></tgroup></informaltable>
 
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1273,8 +1263,7 @@ typedef enum fe_hierarchy {
  to be stored.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1332,8 +1321,7 @@ typedef enum fe_hierarchy {
 </entry>
  </row></tbody></tgroup></informaltable>
 
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1405,8 +1393,7 @@ typedef enum fe_hierarchy {
 </entry>
  </row></tbody></tgroup></informaltable>
 
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1493,8 +1480,7 @@ typedef enum fe_hierarchy {
 <para>Pointer to the command to be received.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1579,8 +1565,7 @@ typedef enum fe_hierarchy {
 </entry>
  </row></tbody></tgroup></informaltable>
 
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1663,8 +1648,7 @@ typedef enum fe_hierarchy {
 <para>The requested tone generation mode (on/off).</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>ENODEV</para>
@@ -1748,8 +1732,7 @@ typedef enum fe_hierarchy {
 </entry>
  </row></tbody></tgroup></informaltable>
 
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>ENODEV</para>
@@ -1834,8 +1817,7 @@ typedef enum fe_hierarchy {
 </entry>
  </row></tbody></tgroup></informaltable>
 
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>ENODEV</para>
@@ -1903,7 +1885,7 @@ FE_TUNE_MODE_ONESHOT When set, this flag will disable any zigzagging or other "n
 </entry>
  </row></tbody></tgroup></informaltable>
 
-<para>ERRORS</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row>
 <entry align="char"><para>EINVAL</para></entry>
 <entry align="char"><para>Invalid argument.</para></entry>
@@ -1941,7 +1923,7 @@ sends the specified raw cmd to the dish via DISEqC.
 </entry>
  </row></tbody></tgroup></informaltable>
 
-<para>ERRORS</para>
+&return-value-dvb;
 <informaltable><tgroup cols="1"><tbody><row>
 <entry align="char">
 	<para>There are no errors in use for this call</para>

@@ -220,8 +220,7 @@ and right.
 <para>(blocking mode is the default)</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+<para>RETURN VALUE</para>
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>ENODEV</para>
@@ -279,8 +278,7 @@ and right.
 <para>File descriptor returned by a previous call to open().</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+<para>RETURN VALUE</para>
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -335,8 +333,7 @@ and right.
 <para>Size of buf.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+<para>RETURN VALUE</para>
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EPERM</para>
@@ -394,8 +391,7 @@ role="subsection"><title>AUDIO_STOP</title>
 <para>Equals AUDIO_STOP for this command.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -446,8 +442,7 @@ role="subsection"><title>AUDIO_PLAY</title>
 <para>Equals AUDIO_PLAY for this command.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -506,8 +501,7 @@ role="subsection"><title>AUDIO_PAUSE</title>
 <para>Equals AUDIO_PAUSE for this command.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -563,8 +557,7 @@ with AUDIO_PAUSE command.</para>
 <para>Equals AUDIO_CONTINUE for this command.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -627,8 +620,7 @@ role="subsection"><title>AUDIO_SELECT_SOURCE</title>
  stream.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -706,8 +698,7 @@ role="subsection"><title>AUDIO_SET_MUTE</title>
 <para>FALSE Audio Un-mute</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -785,8 +776,7 @@ role="subsection"><title>AUDIO_SET_AV_SYNC</title>
 <para>FALSE AV-sync OFF</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -868,8 +858,7 @@ role="subsection"><title>AUDIO_SET_BYPASS_MODE</title>
 <para>FALSE Bypass is enabled</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -937,8 +926,7 @@ role="subsection"><title>AUDIO_CHANNEL_SELECT</title>
  stereo).</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1005,8 +993,7 @@ role="subsection"><title>AUDIO_GET_STATUS</title>
 <para>Returns the current state of Audio Device.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1073,8 +1060,7 @@ role="subsection"><title>AUDIO_GET_CAPABILITIES</title>
 <para>Returns a bit array of supported sound formats.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1132,8 +1118,7 @@ role="subsection"><title>AUDIO_CLEAR_BUFFER</title>
 <para>Equals AUDIO_CLEAR_BUFFER for this command.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1196,8 +1181,7 @@ role="subsection"><title>AUDIO_SET_ID</title>
 <para>audio sub-stream id</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1262,8 +1246,7 @@ role="subsection"><title>AUDIO_SET_MIXER</title>
 <para>mixer settings.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1330,8 +1313,7 @@ role="subsection"><title>AUDIO_SET_STREAMTYPE</title>
 <para>stream type</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1390,8 +1372,7 @@ role="subsection"><title>AUDIO_SET_EXT_ID</title>
 <para>audio sub_stream_id</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1451,8 +1432,7 @@ role="subsection"><title>AUDIO_SET_ATTRIBUTES</title>
 <para>audio attributes according to section ??</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1512,8 +1492,7 @@ role="subsection"><title>AUDIO_SET_KARAOKE</title>
 <para>karaoke settings according to section ??.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>

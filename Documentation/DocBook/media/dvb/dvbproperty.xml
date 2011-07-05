@@ -80,7 +80,7 @@ struct dtv_properties {
 <para>Points to the location where the front-end property commands are stored.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row>
   <entry align="char"><para>EINVAL</para></entry>
   <entry align="char"><para>Invalid parameter(s) received or number of parameters out of the range.</para></entry>
@@ -137,8 +137,7 @@ struct dtv_properties {
 <para>Points to the location where the front-end property commands are stored.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row>
   <entry align="char"><para>EINVAL</para></entry>
   <entry align="char"><para>Invalid parameter(s) received or number of parameters out of the range.</para></entry>

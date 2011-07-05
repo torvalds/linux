@@ -399,8 +399,7 @@ VIDEO_GET_NAVI:
 <para>(blocking mode is the default)</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+<para>RETURN VALUE</para>
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>ENODEV</para>
@@ -458,8 +457,7 @@ VIDEO_GET_NAVI:
 <para>File descriptor returned by a previous call to open().</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+<para>RETURN VALUE</para>
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -514,8 +512,7 @@ VIDEO_GET_NAVI:
 <para>Size of buf.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+<para>RETURN VALUE</para>
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EPERM</para>
@@ -595,8 +592,7 @@ role="subsection"><title>VIDEO_STOP</title>
 <para>FALSE: Show last decoded frame.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -648,8 +644,7 @@ role="subsection"><title>VIDEO_PLAY</title>
 <para>Equals VIDEO_PLAY for this command.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -705,8 +700,7 @@ role="subsection"><title>VIDEO_FREEZE</title>
 <para>Equals VIDEO_FREEZE for this command.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -758,8 +752,7 @@ role="subsection"><title>VIDEO_CONTINUE</title>
 <para>Equals VIDEO_CONTINUE for this command.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -821,8 +814,7 @@ role="subsection"><title>VIDEO_SELECT_SOURCE</title>
 <para>Indicates which source shall be used for the Video stream.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -887,8 +879,7 @@ role="subsection"><title>VIDEO_SET_BLANK</title>
 <para>FALSE: Show last decoded frame.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -955,8 +946,7 @@ role="subsection"><title>VIDEO_GET_STATUS</title>
 <para>Returns the current status of the Video Device.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1032,8 +1022,7 @@ role="subsection"><title>VIDEO_GET_EVENT</title>
  stored.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1115,8 +1104,7 @@ role="subsection"><title>VIDEO_SET_DISPLAY_FORMAT</title>
 <para>Selects the video format to be used.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1185,8 +1173,7 @@ role="subsection"><title>VIDEO_STILLPICTURE</title>
 <para>Pointer to a location where an I-frame and size is stored.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1252,8 +1239,7 @@ role="subsection"><title>VIDEO_FAST_FORWARD</title>
 <para>The number of frames to skip.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1326,8 +1312,7 @@ role="subsection"><title>VIDEO_SLOWMOTION</title>
 <para>The number of times to repeat each frame.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1402,8 +1387,7 @@ role="subsection"><title>VIDEO_GET_CAPABILITIES</title>
  information.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1462,8 +1446,7 @@ role="subsection"><title>VIDEO_SET_ID</title>
 <para>video sub-stream id</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1520,8 +1503,7 @@ role="subsection"><title>VIDEO_CLEAR_BUFFER</title>
 <para>Equals VIDEO_CLEAR_BUFFER for this command.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1574,8 +1556,7 @@ role="subsection"><title>VIDEO_SET_STREAMTYPE</title>
 <para>stream type</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1635,8 +1616,7 @@ role="subsection"><title>VIDEO_SET_FORMAT</title>
 <para>video format of TV as defined in section ??.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1697,8 +1677,7 @@ role="subsection"><title>VIDEO_SET_SYSTEM</title>
 <para>video system of TV output.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1757,8 +1736,7 @@ role="subsection"><title>VIDEO_SET_HIGHLIGHT</title>
 <para>SPU Highlight information according to section ??.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1818,8 +1796,7 @@ role="subsection"><title>VIDEO_SET_SPU</title>
  to section ??.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1879,8 +1856,7 @@ role="subsection"><title>VIDEO_SET_SPU_PALETTE</title>
 <para>SPU palette according to section ??.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -1941,8 +1917,7 @@ role="subsection"><title>VIDEO_GET_NAVI</title>
  ??.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
@@ -2003,8 +1978,7 @@ role="subsection"><title>VIDEO_SET_ATTRIBUTES</title>
 <para>video attributes according to section ??.</para>
 </entry>
  </row></tbody></tgroup></informaltable>
-<para>ERRORS
-</para>
+&return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row><entry
  align="char">
 <para>EBADF</para>
