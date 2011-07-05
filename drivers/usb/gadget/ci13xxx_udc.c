@@ -1214,12 +1214,13 @@ static DEVICE_ATTR(qheads, S_IRUSR, show_qheads, NULL);
  *
  * Check "device.h" for details
  */
+#define DUMP_ENTRIES	512
 static ssize_t show_registers(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
 	unsigned long flags;
-	u32 dump[512];
+	u32 *dump;
 	unsigned i, k, n = 0;
 
 	dbg_trace("[%s] %p\n", __func__, buf);
@@ -1228,8 +1229,14 @@ static ssize_t show_registers(struct device *dev,
 		return 0;
 	}
 
+	dump = kmalloc(sizeof(u32) * DUMP_ENTRIES, GFP_KERNEL);
+	if (!dump) {
+		dev_err(dev, "%s: out of memory\n", __func__);
+		return 0;
+	}
+
 	spin_lock_irqsave(udc->lock, flags);
-	k = hw_register_read(dump, sizeof(dump)/sizeof(u32));
+	k = hw_register_read(dump, DUMP_ENTRIES);
 	spin_unlock_irqrestore(udc->lock, flags);
 
 	for (i = 0; i < k; i++) {
@@ -1237,6 +1244,7 @@ static ssize_t show_registers(struct device *dev,
 			       "reg[0x%04X] = 0x%08X\n",
 			       i * (unsigned)sizeof(u32), dump[i]);
 	}
+	kfree(dump);
 
 	return n;
 }
