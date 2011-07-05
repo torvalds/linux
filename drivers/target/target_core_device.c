@@ -853,6 +853,7 @@ void se_dev_set_default_attribs(
 	dev->se_sub_dev->se_dev_attrib.emulate_reservations = DA_EMULATE_RESERVATIONS;
 	dev->se_sub_dev->se_dev_attrib.emulate_alua = DA_EMULATE_ALUA;
 	dev->se_sub_dev->se_dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
+	dev->se_sub_dev->se_dev_attrib.is_nonrot = DA_IS_NONROT;
 	/*
 	 * The TPU=1 and TPWS=1 settings will be set in TCM/IBLOCK
 	 * iblock_create_virtdevice() from struct queue_limits values
@@ -1114,6 +1115,18 @@ int se_dev_set_enforce_pr_isids(struct se_device *dev, int flag)
 	dev->se_sub_dev->se_dev_attrib.enforce_pr_isids = flag;
 	printk(KERN_INFO "dev[%p]: SE Device enforce_pr_isids bit: %s\n", dev,
 		(dev->se_sub_dev->se_dev_attrib.enforce_pr_isids) ? "Enabled" : "Disabled");
+	return 0;
+}
+
+int se_dev_set_is_nonrot(struct se_device *dev, int flag)
+{
+	if ((flag != 0) && (flag != 1)) {
+		printk(KERN_ERR "Illegal value %d\n", flag);
+		return -EINVAL;
+	}
+	dev->se_sub_dev->se_dev_attrib.is_nonrot = flag;
+	printk(KERN_INFO "dev[%p]: SE Device is_nonrot bit: %d\n",
+	       dev, flag);
 	return 0;
 }
 

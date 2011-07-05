@@ -196,6 +196,9 @@ static struct se_device *iblock_create_virtdevice(
 				" disabled by default\n");
 	}
 
+	if (blk_queue_nonrot(q))
+		dev->se_sub_dev->se_dev_attrib.is_nonrot = 1;
+
 	return dev;
 
 failed:

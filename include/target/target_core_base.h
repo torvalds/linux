@@ -661,6 +661,7 @@ struct se_dev_attrib {
 	int		emulate_reservations;
 	int		emulate_alua;
 	int		enforce_pr_isids;
+	int		is_nonrot;
 	u32		hw_block_size;
 	u32		block_size;
 	u32		hw_max_sectors;

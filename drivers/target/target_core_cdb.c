@@ -535,6 +535,22 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
+/* Block Device Characteristics VPD page */
+static int
+target_emulate_evpd_b1(struct se_cmd *cmd, unsigned char *buf)
+{
+	struct se_device *dev = cmd->se_dev;
+
+	buf[0] = dev->transport->get_device_type(dev);
+	buf[3] = 0x3c;
+
+	if (cmd->data_length >= 5 &&
+	    dev->se_sub_dev->se_dev_attrib.is_nonrot)
+		buf[5] = 1;
+
+	return 0;
+}
+
 /* Thin Provisioning VPD */
 static int
 target_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
@@ -599,6 +615,7 @@ static struct {
 	{ .page = 0x83, .emulate = target_emulate_evpd_83 },
 	{ .page = 0x86, .emulate = target_emulate_evpd_86 },
 	{ .page = 0xb0, .emulate = target_emulate_evpd_b0 },
+	{ .page = 0xb1, .emulate = target_emulate_evpd_b1 },
 	{ .page = 0xb2, .emulate = target_emulate_evpd_b2 },
 };
 
