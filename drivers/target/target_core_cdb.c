@@ -114,31 +114,6 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 	return 0;
 }
 
-/* supported vital product data pages */
-static int
-target_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
-{
-	buf[1] = 0x00;
-	if (cmd->data_length < 8)
-		return 0;
-
-	buf[4] = 0x0;
-	/*
-	 * Only report the INQUIRY EVPD=1 pages after a valid NAA
-	 * Registered Extended LUN WWN has been set via ConfigFS
-	 * during device creation/restart.
-	 */
-	if (cmd->se_dev->se_sub_dev->su_dev_flags &
-			SDF_EMULATED_VPD_UNIT_SERIAL) {
-		buf[3] = 3;
-		buf[5] = 0x80;
-		buf[6] = 0x83;
-		buf[7] = 0x86;
-	}
-
-	return 0;
-}
-
 /* unit serial number */
 static int
 target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
@@ -146,7 +121,6 @@ target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 	struct se_device *dev = cmd->se_dev;
 	u16 len = 0;
 
-	buf[1] = 0x80;
 	if (dev->se_sub_dev->su_dev_flags &
 			SDF_EMULATED_VPD_UNIT_SERIAL) {
 		u32 unit_serial_len;
@@ -190,7 +164,6 @@ target_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	int i;
 	u16 len = 0, id_len;
 
-	buf[1] = 0x83;
 	off = 4;
 
 	/*
@@ -471,7 +444,6 @@ target_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 	if (cmd->data_length < 60)
 		return 0;
 
-	buf[1] = 0x86;
 	buf[2] = 0x3c;
 	/* Set HEADSUP, ORDSUP, SIMPSUP */
 	buf[5] = 0x07;
@@ -512,7 +484,6 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	}
 
 	buf[0] = dev->transport->get_device_type(dev);
-	buf[1] = 0xb0;
 	buf[3] = have_tp ? 0x3c : 0x10;
 
 	/*
@@ -579,7 +550,6 @@ target_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	 * defined in table 162.
 	 */
 	buf[0] = dev->transport->get_device_type(dev);
-	buf[1] = 0xb2;
 
 	/*
 	 * Set Hardcoded length mentioned above for DP=0
@@ -618,11 +588,51 @@ target_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 }
 
 static int
+target_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf);
+
+static struct {
+	uint8_t		page;
+	int		(*emulate)(struct se_cmd *, unsigned char *);
+} evpd_handlers[] = {
+	{ .page = 0x00, .emulate = target_emulate_evpd_00 },
+	{ .page = 0x80, .emulate = target_emulate_evpd_80 },
+	{ .page = 0x83, .emulate = target_emulate_evpd_83 },
+	{ .page = 0x86, .emulate = target_emulate_evpd_86 },
+	{ .page = 0xb0, .emulate = target_emulate_evpd_b0 },
+	{ .page = 0xb2, .emulate = target_emulate_evpd_b2 },
+};
+
+/* supported vital product data pages */
+static int
+target_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
+{
+	int p;
+
+	if (cmd->data_length < 8)
+		return 0;
+	/*
+	 * Only report the INQUIRY EVPD=1 pages after a valid NAA
+	 * Registered Extended LUN WWN has been set via ConfigFS
+	 * during device creation/restart.
+	 */
+	if (cmd->se_dev->se_sub_dev->su_dev_flags &
+			SDF_EMULATED_VPD_UNIT_SERIAL) {
+		buf[3] = ARRAY_SIZE(evpd_handlers);
+		for (p = 0; p < min_t(int, ARRAY_SIZE(evpd_handlers),
+				      cmd->data_length - 4); ++p)
+			buf[p + 4] = evpd_handlers[p].page;
+	}
+
+	return 0;
+}
+
+static int
 target_emulate_inquiry(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *buf = cmd->t_task_buf;
 	unsigned char *cdb = cmd->t_task_cdb;
+	int p;
 
 	if (!(cdb[1] & 0x1))
 		return target_emulate_inquiry_std(cmd);
@@ -641,25 +651,14 @@ target_emulate_inquiry(struct se_cmd *cmd)
 	}
 	buf[0] = dev->transport->get_device_type(dev);
 
-	switch (cdb[2]) {
-	case 0x00:
-		return target_emulate_evpd_00(cmd, buf);
-	case 0x80:
-		return target_emulate_evpd_80(cmd, buf);
-	case 0x83:
-		return target_emulate_evpd_83(cmd, buf);
-	case 0x86:
-		return target_emulate_evpd_86(cmd, buf);
-	case 0xb0:
-		return target_emulate_evpd_b0(cmd, buf);
-	case 0xb2:
-		return target_emulate_evpd_b2(cmd, buf);
-	default:
-		printk(KERN_ERR "Unknown VPD Code: 0x%02x\n", cdb[2]);
-		return -EINVAL;
-	}
+	for (p = 0; p < ARRAY_SIZE(evpd_handlers); ++p)
+		if (cdb[2] == evpd_handlers[p].page) {
+			buf[1] = cdb[2];
+			return evpd_handlers[p].emulate(cmd, buf);
+		}
 
-	return 0;
+	printk(KERN_ERR "Unknown VPD Code: 0x%02x\n", cdb[2]);
+	return -EINVAL;
 }
 
 static int
