@@ -3605,8 +3605,7 @@ brcmf_enq_event(struct brcmf_cfg80211_priv *cfg_priv, u32 event,
 
 	e->etype = event;
 	memcpy(&e->emsg, msg, sizeof(struct brcmf_event_msg));
-	if (data) {
-	}
+
 	brcmf_lock_eq(cfg_priv);
 	list_add_tail(&e->eq_list, &cfg_priv->eq_list);
 	brcmf_unlock_eq(cfg_priv);

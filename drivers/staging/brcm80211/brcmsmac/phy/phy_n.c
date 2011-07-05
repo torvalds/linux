@@ -20996,10 +20996,8 @@ s16 wlc_phy_tempsense_nphy(struct brcms_phy *pi)
 		write_radio_reg(pi, RADIO_2056_SYN_TEMPPROCSENSE, 0x01);
 
 		wlc_phy_poll_rssi_nphy(pi, NPHY_RSSI_SEL_IQ, radio_temp, 1);
-		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
-		} else {
+		if (NREV_LT(pi->pubpi.phy_rev, 7))
 			write_radio_reg(pi, RADIO_2056_SYN_TEMPPROCSENSE, 0x05);
-		}
 
 		wlc_phy_poll_rssi_nphy(pi, NPHY_RSSI_SEL_IQ, radio_temp2, 1);
 		if (NREV_GE(pi->pubpi.phy_rev, 7)) {
@@ -24578,7 +24576,6 @@ static void wlc_phy_calc_rx_iq_comp_nphy(struct brcms_phy *pi, u8 core_mask)
 		}
 
 		new_comp = old_comp;
-	} else if (cal_retry > 0) {
 	}
 
 	wlc_phy_rx_iq_coeffs_nphy(pi, 1, &new_comp);

@@ -318,10 +318,6 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 		brcms_c_update_beacon(wlc);
 	}
 
-	/* PMQ entry addition */
-	if (macintstatus & MI_PMQ) {
-	}
-
 	/* tx status */
 	if (macintstatus & MI_TFS) {
 		if (brcms_b_txstatus(wlc->hw, bounded, &fatal))

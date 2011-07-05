@@ -2249,8 +2249,7 @@ wlc_phy_txpower_get_current(struct brcms_phy_pub *ppi, struct tx_power *power,
 
 		power->tx_power_max_rate_ind[0] = pi->tx_power_max_rate_ind;
 		power->tx_power_max_rate_ind[1] = pi->tx_power_max_rate_ind;
-	} else if (!pi->hwpwrctrl) {
-	} else if (pi->sh->up) {
+	} else if (pi->hwpwrctrl && pi->sh->up) {
 
 		wlc_phyreg_enter(ppi);
 		if (ISLCNPHY(pi)) {
