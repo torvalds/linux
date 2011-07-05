@@ -176,7 +176,6 @@ struct rte_console {
 #include "dhd_bus.h"
 #include "dhd_proto.h"
 #include "dhd_dbg.h"
-#include <sdiovar.h>
 #include <bcmchip.h>
 
 #ifndef DHDSDIO_MEM_DUMP_FNAME

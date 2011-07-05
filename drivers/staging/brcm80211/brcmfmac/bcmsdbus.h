@@ -32,6 +32,12 @@
 #define SDIOH_DATA_PIO          0	/* PIO mode */
 #define SDIOH_DATA_DMA          1	/* DMA mode */
 
+struct brcmf_sdreg {
+	int func;
+	int offset;
+	int value;
+};
+
 /* callback function, taking one arg */
 typedef void (*sdioh_cb_fn_t) (void *);
 

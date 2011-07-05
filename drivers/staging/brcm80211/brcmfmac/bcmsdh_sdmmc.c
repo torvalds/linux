@@ -28,7 +28,6 @@
 #include <brcmu_wifi.h>
 #include "sdio_host.h"
 #include "bcmsdbus.h"
-#include "sdiovar.h"		/* ioctl/iovars */
 #include "dngl_stats.h"
 #include "dhd.h"
 #include "bcmsdh_sdmmc.h"

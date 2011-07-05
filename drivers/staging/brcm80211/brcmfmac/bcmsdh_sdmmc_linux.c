@@ -28,7 +28,6 @@
 #include <brcmu_wifi.h>
 #include "sdio_host.h"
 #include "bcmsdbus.h"
-#include "sdiovar.h"		/* to get msglevel bit values */
 #include "dngl_stats.h"
 #include "dhd.h"
 
