@@ -183,10 +183,14 @@ static void psbfb_fillrect_accel(struct fb_info *info,
 		cfb_fillrect(info, r);
 		return;
 	}
-
+	if (!gma_power_begin(dev, false)) {
+		cfb_fillrect(info, r);
+		return;
+	}
 	psb_accel_2d_fillrect(dev_priv,
 			      offset, stride, format,
 			      r->dx, r->dy, r->width, r->height, r->color);
+	gma_power_end(dev);
 }
 
 void psbfb_fillrect(struct fb_info *info,
@@ -198,9 +202,7 @@ void psbfb_fillrect(struct fb_info *info,
 	if (1 || (info->flags & FBINFO_HWACCEL_DISABLED))
 		return cfb_fillrect(info, rect);
 
-	/*psb_check_power_state(dev, PSB_DEVICE_SGX); */
 	psbfb_fillrect_accel(info, rect);
-	/* Drop power again here on MRST FIXMEAC */
 }
 
 static u32 psb_accel_2d_copy_direction(int xdir, int ydir)
@@ -331,10 +333,15 @@ static void psbfb_copyarea_accel(struct fb_info *info,
 		return;
 	}
 
+	if (!gma_power_begin(dev, false)) {
+		cfb_copyarea(info, a);
+		return;
+	}
 	psb_accel_2d_copy(dev_priv,
 			  offset, stride, src_format,
 			  offset, stride, dst_format,
 			  a->sx, a->sy, a->dx, a->dy, a->width, a->height);
+	gma_power_end(dev);
 }
 
 void psbfb_copyarea(struct fb_info *info,
@@ -343,12 +350,12 @@ void psbfb_copyarea(struct fb_info *info,
 	if (unlikely(info->state != FBINFO_STATE_RUNNING))
 		return;
 
-	if (info->flags & FBINFO_HWACCEL_DISABLED)
+        /* Avoid the 8 pixel erratum */
+	if (region->width == 8 || region->height == 8 ||
+	        (info->flags & FBINFO_HWACCEL_DISABLED))
 		return cfb_copyarea(info, region);
 
-	/* psb_check_power_state(dev, PSB_DEVICE_SGX); */
 	psbfb_copyarea_accel(info, region);
-	/* Need to power back off here for MRST FIXMEAC */
 }
 
 void psbfb_imageblit(struct fb_info *info, const struct fb_image *image)
