@@ -130,10 +130,22 @@ static int wiimote_input_event(struct input_dev *dev, unsigned int type,
 	return 0;
 }
 
+struct wiiproto_handler {
+	__u8 id;
+	size_t size;
+	void (*func)(struct wiimote_data *wdata, const __u8 *payload);
+};
+
+static struct wiiproto_handler handlers[] = {
+	{ .id = 0 }
+};
+
 static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 							u8 *raw_data, int size)
 {
 	struct wiimote_data *wdata = hid_get_drvdata(hdev);
+	struct wiiproto_handler *h;
+	int i;
 
 	if (!atomic_read(&wdata->ready))
 		return -EBUSY;
@@ -142,6 +154,12 @@ static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 
 	if (size < 1)
 		return -EINVAL;
+
+	for (i = 0; handlers[i].id; ++i) {
+		h = &handlers[i];
+		if (h->id == raw_data[0] && h->size < size)
+			h->func(wdata, &raw_data[1]);
+	}
 
 	return 0;
 }
