@@ -22,6 +22,7 @@ psb_gfx-y += gem_glue.o \
 	  psb_mmu.o \
 	  psb_irq.o \
 	  psb_device.o \
+	  cdv_device.o \
 	  mrst_device.o \
 	  mrst_crtc.o \
 	  mrst_lvds.o \

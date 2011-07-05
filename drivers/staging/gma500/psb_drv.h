@@ -804,6 +804,9 @@ extern const struct psb_ops mrst_chip_ops;
 /* mdfld_device.c */
 extern const struct psb_ops mdfld_chip_ops;
 
+/* cdv_device.c */
+extern const struct psb_ops cdv_chip_ops;
+
 /*
  * Debug print bits setting
  */
