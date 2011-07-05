@@ -6091,6 +6091,11 @@ M:	Teddy Wang <teddy.wang@siliconmotion.com.cn>
 S:	Odd Fixes
 F:	drivers/staging/sm7xx/
 
+STAGING - VIA VT665X DRIVERS
+M:	Forest Bond <forest@alittletooquiet.net>
+S:	Odd Fixes
+F:	drivers/staging/vt665?/
+
 STARFIRE/DURALAN NETWORK DRIVER
 M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
