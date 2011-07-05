@@ -30,7 +30,7 @@
 #include "mid_bios.h"
 #include "mdfld_dsi_dbi.h"
 #include <drm/drm_pciids.h>
-#include "psb_powermgmt.h"
+#include "power.h"
 #include <linux/cpu.h>
 #include <linux/notifier.h>
 #include <linux/spinlock.h>

@@ -27,7 +27,7 @@
 #include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "psb_powermgmt.h"
+#include "power.h"
 #include <linux/pm_runtime.h>
 
 u32 CoreClock;

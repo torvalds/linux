@@ -28,7 +28,7 @@
  *    Alan Cox <alan@linux.intel.com>
  */
 
-#include "psb_powermgmt.h"
+#include "power.h"
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"

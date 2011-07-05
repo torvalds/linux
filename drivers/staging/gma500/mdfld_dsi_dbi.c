@@ -29,7 +29,7 @@
 #include "mdfld_dsi_dbi_dpu.h"
 #include "mdfld_dsi_pkg_sender.h"
 
-#include "psb_powermgmt.h"
+#include "power.h"
 #include <linux/pm_runtime.h>
 
 int enable_gfx_rtpm;

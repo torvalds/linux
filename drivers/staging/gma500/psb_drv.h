@@ -30,7 +30,7 @@
 #include "psb_reg.h"
 #include "psb_intel_drv.h"
 #include "gtt.h"
-#include "psb_powermgmt.h"
+#include "power.h"
 #include "mrst.h"
 
 /* Append new drm mode definition here, align with libdrm definition */
