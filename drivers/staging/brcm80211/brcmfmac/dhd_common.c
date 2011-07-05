@@ -958,13 +958,7 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 		goto fail;
 	}
 
-	memcpy(arg_save, arg, strlen(arg) + 1);
-
-	if (strlen(arg) > PKTFILTER_BUF_SIZE) {
-		BRCMF_ERROR(("Not enough buffer %d < %d\n", (int)strlen(arg),
-			     (int)sizeof(buf)));
-		goto fail;
-	}
+	strcpy(arg_save, arg);
 
 	argv[i] = strsep(&arg_save, " ");
 	while (argv[i++])
@@ -977,9 +971,8 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 	}
 
 	str = "pkt_filter_add";
+	strcpy(buf, str);
 	str_len = strlen(str);
-	strncpy(buf, str, str_len);
-	buf[str_len] = '\0';
 	buf_len = str_len + 1;
 
 	pkt_filterp = (struct brcmf_pkt_filter *) (buf + str_len + 1);
