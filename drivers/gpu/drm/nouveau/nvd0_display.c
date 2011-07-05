@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 
+#include <linux/dma-mapping.h>
 #include "drmP.h"
 
 #include "nouveau_drv.h"
@@ -31,6 +32,10 @@
 
 struct nvd0_display {
 	struct nouveau_gpuobj *mem;
+	struct {
+		dma_addr_t handle;
+		u32 *ptr;
+	} evo[1];
 };
 
 static struct nvd0_display *
@@ -39,6 +44,50 @@ nvd0_display(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	return dev_priv->engine.display.priv;
 }
+
+static int
+evo_icmd(struct drm_device *dev, int id, u32 mthd, u32 data)
+{
+	int ret = 0;
+	nv_mask(dev, 0x610700 + (id * 0x10), 0x00000001, 0x00000001);
+	nv_wr32(dev, 0x610704 + (id * 0x10), data);
+	nv_mask(dev, 0x610704 + (id * 0x10), 0x80000ffc, 0x80000000 | mthd);
+	if (!nv_wait(dev, 0x610704 + (id * 0x10), 0x80000000, 0x00000000))
+		ret = -EBUSY;
+	nv_mask(dev, 0x610700 + (id * 0x10), 0x00000001, 0x00000000);
+	return ret;
+}
+
+static u32 *
+evo_wait(struct drm_device *dev, int id, int nr)
+{
+	struct nvd0_display *disp = nvd0_display(dev);
+	u32 put = nv_rd32(dev, 0x640000 + (id * 0x1000)) / 4;
+
+	if (put + nr >= (PAGE_SIZE / 4)) {
+		disp->evo[id].ptr[put] = 0x20000000;
+
+		nv_wr32(dev, 0x640000 + (id * 0x1000), 0x00000000);
+		if (!nv_wait(dev, 0x640004 + (id * 0x1000), ~0, 0x00000000)) {
+			NV_ERROR(dev, "evo %d dma stalled\n", id);
+			return NULL;
+		}
+
+		put = 0;
+	}
+
+	return disp->evo[id].ptr + put;
+}
+
+static void
+evo_kick(u32 *push, struct drm_device *dev, int id)
+{
+	struct nvd0_display *disp = nvd0_display(dev);
+	nv_wr32(dev, 0x640000 + (id * 0x1000), (push - disp->evo[id].ptr) << 2);
+}
+
+#define evo_mthd(p,m,s) *((p)++) = (((s) << 18) | (m))
+#define evo_data(p,d)   *((p)++) = (d)
 
 /******************************************************************************
  * DAC
@@ -100,7 +149,7 @@ nvd0_display_init(struct drm_device *dev)
 	nv_wr32(dev, 0x610010, (disp->mem->vinst >> 8) | 9);
 
 	/* init master */
-	nv_wr32(dev, 0x610494, ((disp->mem->vinst + 0x1000) >> 8) | 1);
+	nv_wr32(dev, 0x610494, (disp->evo[0].handle >> 8) | 3);
 	nv_wr32(dev, 0x610498, 0x00010000);
 	nv_wr32(dev, 0x61049c, 0x00000000);
 	nv_mask(dev, 0x610490, 0x00000010, 0x00000010);
@@ -135,11 +184,14 @@ nvd0_display_destroy(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvd0_display *disp = nvd0_display(dev);
+	struct pci_dev *pdev = dev->pdev;
 
 	nvd0_display_fini(dev);
 
-	dev_priv->engine.display.priv = NULL;
+	pci_free_consistent(pdev, PAGE_SIZE, disp->evo[0].ptr, disp->evo[0].handle);
 	nouveau_gpuobj_ref(NULL, &disp->mem);
+
+	dev_priv->engine.display.priv = NULL;
 	kfree(disp);
 }
 
@@ -147,6 +199,7 @@ int
 nvd0_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct pci_dev *pdev = dev->pdev;
 	struct nvd0_display *disp;
 	int ret;
 
@@ -155,9 +208,18 @@ nvd0_display_create(struct drm_device *dev)
 		return -ENOMEM;
 	dev_priv->engine.display.priv = disp;
 
-	ret = nouveau_gpuobj_new(dev, NULL, 8 * 1024, 0x1000, 0, &disp->mem);
+	/* hash table and dma objects for the memory areas we care about */
+	ret = nouveau_gpuobj_new(dev, NULL, 4 * 1024, 0x1000, 0, &disp->mem);
 	if (ret)
 		goto out;
+
+	/* push buffers for evo channels */
+	disp->evo[0].ptr =
+		pci_alloc_consistent(pdev, PAGE_SIZE, &disp->evo[0].handle);
+	if (!disp->evo[0].ptr) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	ret = nvd0_display_init(dev);
 	if (ret)
