@@ -435,6 +435,18 @@ unsigned int twl6040_get_sysclk(struct twl6040 *twl6040)
 }
 EXPORT_SYMBOL(twl6040_get_sysclk);
 
+static struct resource twl6040_vibra_rsrc[] = {
+	{
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct resource twl6040_codec_rsrc[] = {
+	{
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
 static int __devinit twl6040_probe(struct platform_device *pdev)
 {
 	struct twl4030_audio_data *pdata = pdev->dev.platform_data;
@@ -499,16 +511,29 @@ static int __devinit twl6040_probe(struct platform_device *pdev)
 	twl6040_set_bits(twl6040, TWL6040_REG_ACCCTL, TWL6040_I2CSEL);
 
 	if (pdata->codec) {
+		int irq = twl6040->irq_base + TWL6040_IRQ_PLUG;
+
 		cell = &twl6040->cells[children];
 		cell->name = "twl6040-codec";
+		twl6040_codec_rsrc[0].start = irq;
+		twl6040_codec_rsrc[0].end = irq;
+		cell->resources = twl6040_codec_rsrc;
+		cell->num_resources = ARRAY_SIZE(twl6040_codec_rsrc);
 		cell->platform_data = pdata->codec;
 		cell->pdata_size = sizeof(*pdata->codec);
 		children++;
 	}
 
 	if (pdata->vibra) {
+		int irq = twl6040->irq_base + TWL6040_IRQ_VIB;
+
 		cell = &twl6040->cells[children];
 		cell->name = "twl6040-vibra";
+		twl6040_vibra_rsrc[0].start = irq;
+		twl6040_vibra_rsrc[0].end = irq;
+		cell->resources = twl6040_vibra_rsrc;
+		cell->num_resources = ARRAY_SIZE(twl6040_vibra_rsrc);
+
 		cell->platform_data = pdata->vibra;
 		cell->pdata_size = sizeof(*pdata->vibra);
 		children++;
