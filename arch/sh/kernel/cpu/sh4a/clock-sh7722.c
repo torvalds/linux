@@ -176,6 +176,7 @@ static struct clk mstp_clks[HWBLK_NR] = {
 };
 
 #define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
+#define CLKDEV_DEV_ID(_id, _clk) { .dev_id = _id, .clk = _clk }
 
 static struct clk_lookup lookups[] = {
 	/* main clocks */
@@ -236,7 +237,7 @@ static struct clk_lookup lookups[] = {
 		.con_id		= "sci_fck",
 		.clk		= &mstp_clks[HWBLK_SCIF2],
 	},
-	CLKDEV_CON_ID("i2c0", &mstp_clks[HWBLK_IIC]),
+	CLKDEV_DEV_ID("i2c-sh_mobile.0", &mstp_clks[HWBLK_IIC]),
 	CLKDEV_CON_ID("rtc0", &mstp_clks[HWBLK_RTC]),
 	CLKDEV_CON_ID("sdhi0", &mstp_clks[HWBLK_SDHI]),
 	CLKDEV_CON_ID("keysc0", &mstp_clks[HWBLK_KEYSC]),
