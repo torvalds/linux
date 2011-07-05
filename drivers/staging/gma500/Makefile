@@ -6,11 +6,11 @@ ccflags-y += -Iinclude/drm
 psb_gfx-y += gem_glue.o \
 	  accel_2d.o \
 	  backlight.o \
-	  power.o \
 	  framebuffer.o \
+	  gem.o \
+	  gtt.o \
+	  power.o \
 	  psb_drv.o \
-	  psb_gem.o \
-	  psb_gtt.o \
 	  psb_intel_bios.o \
 	  psb_intel_opregion.o \
 	  psb_intel_display.o \

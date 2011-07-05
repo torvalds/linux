@@ -29,7 +29,7 @@
 #include "psb_drm.h"
 #include "psb_reg.h"
 #include "psb_intel_drv.h"
-#include "psb_gtt.h"
+#include "gtt.h"
 #include "psb_powermgmt.h"
 #include "mrst.h"
 
