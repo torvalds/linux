@@ -1278,6 +1278,19 @@ const struct drm_crtc_funcs psb_intel_crtc_funcs = {
 	.destroy = psb_intel_crtc_destroy,
 };
 
+/*
+ * Set the default value of cursor control and base register
+ * to zero. This is a workaround for h/w defect on Oaktrail
+ */
+static void psb_intel_cursor_init(struct drm_device *dev, int pipe)
+{
+        u32 control[3] = { CURACNTR, CURBCNTR, CURCCNTR };
+        u32 base[3] = { CURABASE, CURBBASE, CURCBASE };
+        
+	REG_WRITE(control[pipe], 0);
+	REG_WRITE(base[pipe], 0);
+}
+
 void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 		     struct psb_intel_mode_device *mode_dev)
 {
@@ -1341,6 +1354,7 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	psb_intel_crtc->mode_set.connectors =
 	    (struct drm_connector **) (psb_intel_crtc + 1);
 	psb_intel_crtc->mode_set.num_connectors = 0;
+	psb_intel_cursor_init(dev, pipe);
 }
 
 int psb_intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
