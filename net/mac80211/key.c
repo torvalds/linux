@@ -613,3 +613,15 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 
 	mutex_unlock(&sdata->local->key_mtx);
 }
+
+
+void ieee80211_gtk_rekey_notify(struct ieee80211_vif *vif, const u8 *bssid,
+				const u8 *replay_ctr, gfp_t gfp)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	trace_api_gtk_rekey_notify(sdata, bssid, replay_ctr);
+
+	cfg80211_gtk_rekey_notify(sdata->dev, bssid, replay_ctr, gfp);
+}
+EXPORT_SYMBOL_GPL(ieee80211_gtk_rekey_notify);
