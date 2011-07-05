@@ -105,8 +105,10 @@ static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
         }
     }
     udelay(3);
+    #ifndef CONFIG_DWC_REMOTE_WAKEUP
     clk_disable(core_if->otg_dev->phyclk);
     clk_disable(core_if->otg_dev->ahbclk);
+    #endif
     //power off
     return 0;
 }
@@ -124,9 +126,10 @@ static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
     	DWC_PRINT("%s, usb device mode\n", __func__);
     	return 0;
     }
+    #ifndef CONFIG_DWC_REMOTE_WAKEUP
     clk_enable(core_if->otg_dev->phyclk);
     clk_enable(core_if->otg_dev->ahbclk);
-    
+    #endif
     //partial power-down
     //power on
     pcgcctl.d32 = dwc_read_reg32(core_if->pcgcctl);;
