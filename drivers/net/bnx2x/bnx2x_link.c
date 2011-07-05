@@ -7195,6 +7195,30 @@ static u8 bnx2x_8705_read_status(struct bnx2x_phy *phy,
 /******************************************************************/
 /*			SFP+ module Section			  */
 /******************************************************************/
+static void bnx2x_set_disable_pmd_transmit(struct link_params *params,
+					   struct bnx2x_phy *phy,
+					   u8 pmd_dis)
+{
+	struct bnx2x *bp = params->bp;
+	/*
+	 * Disable transmitter only for bootcodes which can enable it afterwards
+	 * (for D3 link)
+	 */
+	if (pmd_dis) {
+		if (params->feature_config_flags &
+		     FEATURE_CONFIG_BC_SUPPORTS_SFP_TX_DISABLED)
+			DP(NETIF_MSG_LINK, "Disabling PMD transmitter\n");
+		else {
+			DP(NETIF_MSG_LINK, "NOT disabling PMD transmitter\n");
+			return;
+		}
+	} else
+		DP(NETIF_MSG_LINK, "Enabling PMD transmitter\n");
+	bnx2x_cl45_write(bp, phy,
+			 MDIO_PMA_DEVAD,
+			 MDIO_PMA_REG_TX_DISABLE, pmd_dis);
+}
+
 static u8 bnx2x_get_gpio_port(struct link_params *params)
 {
 	u8 gpio_port;
@@ -8598,6 +8622,9 @@ static int bnx2x_8727_config_init(struct bnx2x_phy *phy,
 			 MDIO_PMA_DEVAD, MDIO_PMA_REG_PHY_IDENTIFIER, mod_abs);
 
 
+	/* Enable/Disable PHY transmitter output */
+	bnx2x_set_disable_pmd_transmit(params, phy, 0);
+
 	/* Make MOD_ABS give interrupt on change */
 	bnx2x_cl45_read(bp, phy, MDIO_PMA_DEVAD, MDIO_PMA_REG_8727_PCS_OPT_CTRL,
 			&val);
@@ -8972,6 +8999,10 @@ static void bnx2x_8727_link_reset(struct bnx2x_phy *phy,
 				  struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
+
+	/* Enable/Disable PHY transmitter output */
+	bnx2x_set_disable_pmd_transmit(params, phy, 1);
+
 	/* Disable Transmitter */
 	bnx2x_sfp_set_transmitter(params, phy, 0);
 	/* Clear LASI */
@@ -11895,6 +11926,10 @@ static int bnx2x_8727_common_init_phy(struct bnx2x *bp,
 		if (bnx2x_8073_8727_external_rom_boot(bp, phy_blk[port],
 						      port_of_path))
 			return -EINVAL;
+		/* Disable PHY transmitter output */
+		bnx2x_cl45_write(bp, phy_blk[port],
+				 MDIO_PMA_DEVAD,
+				 MDIO_PMA_REG_TX_DISABLE, 1);
 
 	}
 	return 0;

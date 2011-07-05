@@ -6618,6 +6618,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_CTRL		0x0
 #define MDIO_PMA_REG_STATUS		0x1
 #define MDIO_PMA_REG_10G_CTRL2		0x7
+#define MDIO_PMA_REG_TX_DISABLE		0x0009
 #define MDIO_PMA_REG_RX_SD		0xa
 /*bcm*/
 #define MDIO_PMA_REG_BCM_CTRL		0x0096

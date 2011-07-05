@@ -8349,6 +8349,10 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 		(val >= REQ_BC_VER_4_VRFY_SPECIFIC_PHY_OPT_MDL) ?
 		FEATURE_CONFIG_BC_SUPPORTS_DUAL_PHY_OPT_MDL_VRFY : 0;
 
+	bp->link_params.feature_config_flags |=
+		(val >= REQ_BC_VER_4_SFP_TX_DISABLE_SUPPORTED) ?
+		FEATURE_CONFIG_BC_SUPPORTS_SFP_TX_DISABLED : 0;
+
 	pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_PMC, &pmc);
 	bp->flags |= (pmc & PCI_PM_CAP_PME_D3cold) ? 0 : NO_WOL_FLAG;
 
