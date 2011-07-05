@@ -10,9 +10,9 @@ psb_gfx-y += gem_glue.o \
 	  gem.o \
 	  gtt.o \
 	  intel_bios.o \
+	  intel_opregion.o \
 	  power.o \
 	  psb_drv.o \
-	  psb_intel_opregion.o \
 	  psb_intel_display.o \
 	  psb_intel_i2c.o \
 	  psb_intel_lvds.o \

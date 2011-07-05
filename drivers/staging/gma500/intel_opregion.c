@@ -78,4 +78,3 @@ int intel_opregion_exit(struct drm_device *dev)
 		iounmap(dev_priv->lid_state);
 	return 0;
 }
-	
