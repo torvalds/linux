@@ -38,7 +38,7 @@ struct psb_framebuffer {
 
 struct psb_fbdev {
 	struct drm_fb_helper psb_fb_helper;
-	struct psb_framebuffer *pfb;
+	struct psb_framebuffer pfb;
 };
 
 

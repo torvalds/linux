@@ -51,6 +51,7 @@ void psb_gem_free_object(struct drm_gem_object *obj)
 	}
 	drm_gem_object_release(obj);
 	/* This must occur last as it frees up the memory of the GEM object */
+	pr_err("GEM destroyed %p, %p\n", gtt, obj);
 	psb_gtt_free_range(obj->dev, gtt);
 }
 
@@ -176,21 +177,28 @@ static int psb_gem_create(struct drm_file *file,
 
 	size = roundup(size, PAGE_SIZE);
 
+	dev_err(dev->dev, "GEM creating %lld\n", size);
+
 	/* Allocate our object - for now a direct gtt range which is not 
 	   stolen memory backed */
 	r = psb_gtt_alloc_range(dev, size, "gem", 0);
-	if (r == NULL)
+	if (r == NULL) {
+		dev_err(dev->dev, "no memory for %lld byte GEM object\n", size);
 		return -ENOSPC;
+	}
 	/* Initialize the extra goodies GEM needs to do all the hard work */
 	if (drm_gem_object_init(dev, &r->gem, size) != 0) {
 		psb_gtt_free_range(dev, r);
 		/* GEM doesn't give an error code and we don't have an
 		   EGEMSUCKS so make something up for now - FIXME */
+		dev_err(dev->dev, "GEM init failed for %lld\n", size);
 		return -ENOMEM;
 	}
 	/* Give the object a handle so we can carry it more easily */
 	ret = drm_gem_handle_create(file, &r->gem, &handle);
 	if (ret) {
+		dev_err(dev->dev, "GEM handle failed for %p, %lld\n",
+							&r->gem, size);
 		drm_gem_object_release(&r->gem);
 		psb_gtt_free_range(dev, r);
 		return ret;
@@ -198,6 +206,8 @@ static int psb_gem_create(struct drm_file *file,
 	/* We have the initial and handle reference but need only one now */
 	drm_gem_object_unreference(&r->gem);
 	*handlep = handle;
+	dev_err(dev->dev, "GEM handle %x for %p OK\n",
+				handle, &r->gem);
 	return 0;
 }
 
@@ -273,9 +283,12 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	   something from beneath our feet */
 	mutex_lock(&dev->struct_mutex);
 
+	dev_err(dev->dev, "Fault on GTT %p\n", r);
+
 	/* For now the mmap pins the object and it stays pinned. As things
 	   stand that will do us no harm */
 	if (r->mmapping == 0) {
+		dev_err(dev->dev, "Need to pin %p\n", r);
 		ret = psb_gtt_pin(r);
 		if (ret < 0) {
 		        DRM_ERROR("gma500: pin failed: %d\n", ret);
@@ -289,9 +302,12 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	page_offset = ((unsigned long) vmf->virtual_address - vma->vm_start)
 				>> PAGE_SHIFT;
 
+	dev_err(dev->dev, "Page offset %p %d\n", r, (int)page_offset);
         /* CPU view of the page, don't go via the GART for CPU writes */
 	pfn = page_to_phys(r->pages[page_offset]) >> PAGE_SHIFT;
 	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
+
+	dev_err(dev->dev, "PFN %ld for VA %p = %d\n", pfn, vmf->virtual_address, ret);
 
 fail:
         mutex_unlock(&dev->struct_mutex);

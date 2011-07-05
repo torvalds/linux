@@ -148,7 +148,7 @@ static void psbfb_fillrect_accel(struct fb_info *info,
 				 const struct fb_fillrect *r)
 {
 	struct psb_fbdev *fbdev = info->par;
-	struct psb_framebuffer *psbfb = fbdev->pfb;
+	struct psb_framebuffer *psbfb = &fbdev->pfb;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -291,7 +291,7 @@ static void psbfb_copyarea_accel(struct fb_info *info,
 				 const struct fb_copyarea *a)
 {
 	struct psb_fbdev *fbdev = info->par;
-	struct psb_framebuffer *psbfb = fbdev->pfb;
+	struct psb_framebuffer *psbfb = &fbdev->pfb;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_framebuffer *fb = fbdev->psb_fb_helper.fb;
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -360,19 +360,12 @@ void psbfb_imageblit(struct fb_info *info, const struct fb_image *image)
 int psbfb_sync(struct fb_info *info)
 {
 	struct psb_fbdev *fbdev = info->par;
-	struct psb_framebuffer *psbfb = fbdev->pfb;
+	struct psb_framebuffer *psbfb = &fbdev->pfb;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long _end = jiffies + DRM_HZ;
 	int busy = 0;
 
-#if 0
-        /* Just a way to quickly test if cmd issue explodes */
-	u32 test[2] = {
-	        PSB_2D_FENCE_BH,
-        };
-	psbfb_2d_submit(dev_priv, test, 1);
-#endif	
 	/*
 	 * First idle the 2D engine.
 	 */

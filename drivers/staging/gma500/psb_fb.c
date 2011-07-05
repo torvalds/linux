@@ -235,7 +235,7 @@ static struct vm_operations_struct psbfb_vm_ops = {
 static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct psb_fbdev *fbdev = info->par;
-	struct psb_framebuffer *psbfb = fbdev->pfb;
+	struct psb_framebuffer *psbfb = &fbdev->pfb;
 	char *fb_screen_base = NULL;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -267,7 +267,7 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 static int psbfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	struct psb_fbdev *fbdev = info->par;
-	struct psb_framebuffer *psbfb = fbdev->pfb;
+	struct psb_framebuffer *psbfb = &fbdev->pfb;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 __user *p = (u32 __user *)arg;
@@ -304,8 +304,58 @@ static struct fb_ops psbfb_ops = {
 	.fb_ioctl = psbfb_ioctl,
 };
 
+/**
+ *	psb_framebuffer_init	-	initialize a framebuffer
+ *	@dev: our DRM device
+ *	@fb: framebuffer to set up
+ *	@mode_cmd: mode description
+ *	@gt: backing object
+ *
+ *	Configure and fill in the boilerplate for our frame buffer. Return
+ *	0 on success or an error code if we fail.
+ */
+static int psb_framebuffer_init(struct drm_device *dev,
+                                struct psb_framebuffer *fb,
+                                struct drm_mode_fb_cmd *mode_cmd,
+                                struct gtt_range *gt)
+{
+        int ret;
+
+        if (mode_cmd->pitch & 63)
+                return -EINVAL;
+        switch (mode_cmd->bpp) {
+        case 8:
+        case 16:
+        case 24:
+        case 32:
+                break;
+        default:
+                return -EINVAL;
+        }
+        ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
+        if (ret) {
+                dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
+                return ret;
+        }
+        drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
+        fb->gtt = gt;
+        return 0;
+}
+                
+/**
+ *	psb_framebuffer_create	-	create a framebuffer backed by gt
+ *	@dev: our DRM device
+ *	@mode_cmd: the description of the requested mode
+ *	@gt: the backing object
+ *
+ *	Create a framebuffer object backed by the gt, and fill in the
+ *	boilerplate required
+ *
+ *	TODO: review object references
+ */
 static struct drm_framebuffer *psb_framebuffer_create
-			(struct drm_device *dev, struct drm_mode_fb_cmd *r,
+			(struct drm_device *dev,
+			 struct drm_mode_fb_cmd *mode_cmd,
 			 struct gtt_range *gt)
 {
 	struct psb_framebuffer *fb;
@@ -313,22 +363,14 @@ static struct drm_framebuffer *psb_framebuffer_create
 
 	fb = kzalloc(sizeof(*fb), GFP_KERNEL);
 	if (!fb)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
-
-	if (ret)
-		goto err;
-
-	drm_helper_mode_fill_fb_struct(&fb->base, r);
-
-	fb->gtt = gt;
-
-	return &fb->base;
-
-err:
-	kfree(fb);
-	return NULL;
+	ret = psb_framebuffer_init(dev, fb, mode_cmd, gt);
+	if (ret) {
+	        kfree(fb);
+	        return ERR_PTR(ret);
+        }
+        return &fb->base;
 }
 
 /**
@@ -380,56 +422,63 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct fb_info *info;
 	struct drm_framebuffer *fb;
-	struct psb_framebuffer *psbfb;
+	struct psb_framebuffer *psbfb = &fbdev->pfb;
 	struct drm_mode_fb_cmd mode_cmd;
 	struct device *device = &dev->pdev->dev;
-	int size, aligned_size;
+	int size;
 	int ret;
 	struct gtt_range *backing;
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
+	mode_cmd.bpp = sizes->surface_bpp;
 
-	mode_cmd.bpp = 32;
+	/* No 24bit packed */
+	if (mode_cmd.bpp == 24)
+        	mode_cmd.bpp = 32;
+
 	/* HW requires pitch to be 64 byte aligned */
-	mode_cmd.pitch =  ALIGN(mode_cmd.width * ((mode_cmd.bpp + 1) / 8), 64);
-	mode_cmd.depth = 24;
+	mode_cmd.pitch =  ALIGN(mode_cmd.width * ((mode_cmd.bpp + 7) / 8), 64);
+	mode_cmd.depth = sizes->surface_depth;
 
 	size = mode_cmd.pitch * mode_cmd.height;
-	aligned_size = ALIGN(size, PAGE_SIZE);
+	size = ALIGN(size, PAGE_SIZE);
 
 	/* Allocate the framebuffer in the GTT with stolen page backing */
-	backing = psbfb_alloc(dev, aligned_size);
+	backing = psbfb_alloc(dev, size);
 	if (backing == NULL)
 	        return -ENOMEM;
 
 	mutex_lock(&dev->struct_mutex);
-	fb = psb_framebuffer_create(dev, &mode_cmd, backing);
-	if (!fb) {
-		DRM_ERROR("failed to allocate fb.\n");
+
+	info = framebuffer_alloc(0, device);
+	if (!info) {
 		ret = -ENOMEM;
 		goto out_err1;
 	}
-	psbfb = to_psb_fb(fb);
-
-	info = framebuffer_alloc(sizeof(struct psb_fbdev), device);
-	if (!info) {
-		ret = -ENOMEM;
-		goto out_err0;
-	}
-
 	info->par = fbdev;
 
+	ret = psb_framebuffer_init(dev, psbfb, &mode_cmd, backing);
+	if (ret)
+		goto out_unref;
+
+        fb = &psbfb->base;
 	psbfb->fbdev = info;
 
 	fbdev->psb_fb_helper.fb = fb;
 	fbdev->psb_fb_helper.fbdev = info;
-	fbdev->pfb = psbfb;
 
 	strcpy(info->fix.id, "psbfb");
 
 	info->flags = FBINFO_DEFAULT;
 	info->fbops = &psbfb_ops;
+
+	ret = fb_alloc_cmap(&info->cmap, 256, 0);
+	if (ret) {
+		ret = -ENOMEM;
+		goto out_unref;
+	}
+
 	info->fix.smem_start = dev->mode_config.fb_base;
 	info->fix.smem_len = size;
 
@@ -445,18 +494,18 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		if (info->screen_base == NULL) {
 			psb_gtt_unpin(backing);
 			ret = -ENOMEM;
-			goto out_err0;
+			goto out_unref;
 		}
 		psbfb->vm_map = 1;
 	}
 	info->screen_size = size;
-	memset(info->screen_base, 0, size);
+/*	memset(info->screen_base, 0, size); */
 
 	if (dev_priv->pg->stolen_size) {
 		info->apertures = alloc_apertures(1);
 		if (!info->apertures) {
 			ret = -ENOMEM;
-			goto out_err0;
+			goto out_unref;
 		}
 		info->apertures->ranges[0].base = dev->mode_config.fb_base;
 		info->apertures->ranges[0].size = dev_priv->pg->stolen_size;
@@ -484,8 +533,14 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	mutex_unlock(&dev->struct_mutex);
 
 	return 0;
-out_err0:
-	fb->funcs->destroy(fb);
+out_unref:
+        if (backing->stolen)
+                psb_gtt_free_range(dev, backing);
+        else {
+                if (psbfb->vm_map)
+                        vm_unmap_ram(info->screen_base, backing->npage);
+                drm_gem_object_unreference(&backing->gem);
+        }
 out_err1:
 	mutex_unlock(&dev->struct_mutex);
 	psb_gtt_free_range(dev, backing);
@@ -506,7 +561,6 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 {
         struct gtt_range *r;
         struct drm_gem_object *obj;
-        struct psb_framebuffer *psbfb;
 
         /* Find the GEM object and thus the gtt range object that is
            to back this space */
@@ -514,23 +568,9 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 	if (obj == NULL)
 	        return ERR_PTR(-ENOENT);
 
-        /* Allocate a framebuffer */
-        psbfb = kzalloc(sizeof(*psbfb), GFP_KERNEL);
-        if (psbfb == NULL) {
-                drm_gem_object_unreference_unlocked(obj);
-                return ERR_PTR(-ENOMEM);
-        }
-        
         /* Let the core code do all the work */
         r = container_of(obj, struct gtt_range, gem);
-	if (psb_framebuffer_create(dev, cmd, r) == NULL) {
-                drm_gem_object_unreference_unlocked(obj);
-                kfree(psbfb);
-                return ERR_PTR(-EINVAL);
-        }
-        /* Return the drm_framebuffer contained within the psb fbdev which
-           has been initialized by the framebuffer creation */
-        return &psbfb->base;
+	return psb_framebuffer_create(dev, cmd, r);
 }
 
 static void psbfb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
@@ -572,7 +612,7 @@ struct drm_fb_helper_funcs psb_fb_helper_funcs = {
 int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 {
 	struct fb_info *info;
-	struct psb_framebuffer *psbfb = fbdev->pfb;
+	struct psb_framebuffer *psbfb = &fbdev->pfb;
 
 	if (fbdev->psb_fb_helper.fbdev) {
 		info = fbdev->psb_fb_helper.fbdev;
@@ -583,6 +623,15 @@ int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 			vm_unmap_ram(info->screen_base, psbfb->gtt->npage);
 			psb_gtt_unpin(psbfb->gtt);
 		}
+		unregister_framebuffer(info);
+		if (info->cmap.len)
+		        fb_dealloc_cmap(&info->cmap);
+		framebuffer_release(info);
+	}
+	drm_fb_helper_fini(&fbdev->psb_fb_helper);
+	drm_framebuffer_cleanup(&psbfb->base);
+	
+	if (psbfb->gtt) {
 		/* FIXME: this is a bit more inside knowledge than I'd like
 		   but I don't see how to make a fake GEM object of the
 		   stolen space nicely */
@@ -590,13 +639,7 @@ int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 			psb_gtt_free_range(dev, psbfb->gtt);
 		else
 			drm_gem_object_unreference(&psbfb->gtt->gem);
-		unregister_framebuffer(info);
-		iounmap(info->screen_base);
-		framebuffer_release(info);
-	}
-
-	drm_fb_helper_fini(&fbdev->psb_fb_helper);
-	drm_framebuffer_cleanup(&psbfb->base);
+        }
 	return 0;
 }
 
@@ -644,22 +687,6 @@ static void psbfb_output_poll_changed(struct drm_device *dev)
 	drm_fb_helper_hotplug_event(&fbdev->psb_fb_helper);
 }
 
-int psbfb_remove(struct drm_device *dev, struct drm_framebuffer *fb)
-{
-	struct fb_info *info;
-	struct psb_framebuffer *psbfb = to_psb_fb(fb);
-
-	if (drm_psb_no_fb)
-		return 0;
-
-	info = psbfb->fbdev;
-
-	if (info)
-		framebuffer_release(info);
-	return 0;
-}
-/*EXPORT_SYMBOL(psbfb_remove); */
-
 /**
  *	psb_user_framebuffer_create_handle - add hamdle to a framebuffer
  *	@fb: framebuffer
@@ -690,15 +717,13 @@ static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
  */
 static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
-	struct drm_device *dev = fb->dev;
 	struct psb_framebuffer *psbfb = to_psb_fb(fb);
 	struct gtt_range *r = psbfb->gtt;
 
+	/* Should never get stolen memory for a user fb */
+	WARN_ON(r->stolen);
 	pr_err("user framebuffer destroy %p, fbdev %p\n",
 						psbfb, psbfb->fbdev);
-	if (psbfb->fbdev)
-		psbfb_remove(dev, fb);
-
         /* Let DRM do its clean up */
 	drm_framebuffer_cleanup(fb);
 	/*  We are no longer using the resource in GEM */
