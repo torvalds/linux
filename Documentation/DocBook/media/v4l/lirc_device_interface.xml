@@ -246,10 +246,8 @@ on working with the default settings initially.</para>
     </listitem>
   </varlistentry>
 </variablelist>
-
-</section>
-
 <section id="lirc_dev_errors">
-    &return-value;
+  &return-value;
+</section>
 </section>
 </section>
