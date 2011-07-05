@@ -59,7 +59,7 @@ struct irda_driver {
 };
 
 #define IS_FIR(si)		((si)->speed >= 4000000)
-static int max_rate = 115200;
+static int max_rate = 4000000;
 #define IRDA_FRAME_SIZE_LIMIT	BU92725GUW_FIFO_SIZE
 
 #define RK29_MAX_RXLEN 2047
@@ -123,8 +123,8 @@ static int rk29_irda_set_speed(struct rk29_irda *si, int speed)
 
 		si->speed = speed;
 		
-		irda_hw_set_speed(speed);
-		
+		//irda_hw_set_speed(speed);
+		irda_hw_set_speed(1152000);//MIR
 		rk29_irda_rx_alloc(si);
 
 		local_irq_restore(flags);
@@ -154,10 +154,11 @@ static irqreturn_t rk29_irda_irq(int irq, void *dev_id)
 	
 	//disable_irq(dev->irq);
    
-        /* EIR 1, 3, 11, 12 */
+        /* EIR 1, 3, 11, 12 
 	irda_setptn |= irq_src & (REG_INT_EOFRX | REG_INT_TXE | REG_INT_WRE | REG_INT_RDE |
 	                          REG_INT_CRC | REG_INT_OE | REG_INT_FE | REG_INT_AC | 
-	                          REG_INT_DECE | REG_INT_RDOE | REG_INT_DEX) ;
+	                          REG_INT_DECE | REG_INT_RDOE | REG_INT_DEX) ;*/
+	irda_setptn = irq_src;
 
 	/* error */
 	if (irq_src & (REG_INT_TO| REG_INT_CRC | REG_INT_OE | REG_INT_FE | 
@@ -170,7 +171,7 @@ static irqreturn_t rk29_irda_irq(int irq, void *dev_id)
     if (IS_FIR(si))  //FIR
     {
         RK29IR_DBG("[%s][%d]: FIR\n",__FUNCTION__,__LINE__);
-        if(irda_hw_get_mode() == BU92725GUW_AUTO_MULTI_REV) {//rx
+        if(irda_hw_get_mode() == BU92725GUW_MIR_REV) {//rx
 			struct sk_buff *skb = si->rxskb;
             RK29IR_DBG("[%s][%d]: rx\n",__FUNCTION__,__LINE__);
             if (irda_setptn & (REG_INT_FE | REG_INT_OE | REG_INT_CRC | REG_INT_DECE)) {
@@ -182,11 +183,11 @@ static irqreturn_t rk29_irda_irq(int irq, void *dev_id)
                     dev->stats.rx_errors++;
                 }
             }
-            if ((irda_setptn & (FRM_EVT_RX_EOFRX | FRM_EVT_RX_RDE | REG_INT_EOF))) {
+            if (irda_setptn & FRM_EVT_RX_EOFRX) {
 				tmp_len = BU92725GUW_get_data(skb->data+skb->len);
 				skb->len += tmp_len;			
             }
-			if (irda_setptn & (REG_INT_EOF | FRM_EVT_RX_EOFRX)) {				
+			if (irda_setptn & REG_INT_EOF) {				
 				RK29IR_DBG("[%s][%d]: report data:\n",__FUNCTION__,__LINE__);
 				si->rxskb = NULL;
 				RK29IR_DATA_DBG("[%s][%d]: fir report data:\n",__FUNCTION__,__LINE__);
@@ -212,11 +213,11 @@ static irqreturn_t rk29_irda_irq(int irq, void *dev_id)
 				netif_rx(skb);
 			}						
         }
-		else if (irda_hw_get_mode() == BU92725GUW_MULTI_SEND) {//tx
+		else if (irda_hw_get_mode() == BU92725GUW_MIR_SEND) {//tx
 			struct sk_buff *skb = si->txskb;			
 			si->txskb = NULL;
             RK29IR_DBG("[%s][%d]: tx\n",__FUNCTION__,__LINE__);
-            if (irda_setptn & (FRM_EVT_TX_TXE | FRM_EVT_TX_WRE)) {
+            if (irda_setptn & FRM_EVT_TX_TXE) {
 				/*
 				 * Do we need to change speed?	Note that we're lazy
 				 * here - we don't free the old rxskb.	We don't need
@@ -471,13 +472,12 @@ static int rk29_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->trans_start = jiffies;
 		BU92725GUW_send_data(si->tx_buff.data, si->tx_buff.len, NULL, 0);
 		si->tx_buff.len = 0;
-
     } 
 	else {
         unsigned long mtt = irda_get_mtt(skb);
 		si->txskb = skb;
        
-	   irda_hw_tx_enable_irq(BU92725GUW_FIR);
+	   irda_hw_tx_enable_irq(BU92725GUW_MIR);
 
 	  RK29IR_DATA_DBG("[%d][%s], fir transmit data:\n", __LINE__, __FUNCTION__);
 	  for (i=0;i<skb->len;i++) {
