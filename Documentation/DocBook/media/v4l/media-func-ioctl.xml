@@ -64,6 +64,7 @@
 
   <refsect1>
     &return-value;
+
     <para>Request-specific error codes are listed in the
     individual requests descriptions.</para>
     <para>When an ioctl that takes an output or read/write parameter fails,

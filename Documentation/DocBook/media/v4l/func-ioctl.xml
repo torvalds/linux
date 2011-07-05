@@ -64,75 +64,9 @@ their respective function and parameters are specified in <xref
   </refsect1>
 
   <refsect1>
-    <title>Return Value</title>
-
-    <para>On success the <function>ioctl()</function> function returns
-<returnvalue>0</returnvalue> and does not reset the
-<varname>errno</varname> variable. On failure
-<returnvalue>-1</returnvalue> is returned, when the ioctl takes an
-output or read/write parameter it remains unmodified, and the
-<varname>errno</varname> variable is set appropriately. See below for
-possible error codes. Generic errors like <errorcode>EBADF</errorcode>
-or <errorcode>EFAULT</errorcode> are not listed in the sections
-discussing individual ioctl requests.</para>
-    <para>Note ioctls may return undefined error codes. Since errors
-may have side effects such as a driver reset applications should
-abort on unexpected errors.</para>
-
-    <variablelist>
-      <varlistentry>
-	<term><errorcode>EBADF</errorcode></term>
-	<listitem>
-	  <para><parameter>fd</parameter> is not a valid open file
-descriptor.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>EBUSY</errorcode></term>
-	<listitem>
-	  <para>The property cannot be changed right now. Typically
-this error code is returned when I/O is in progress or the driver
-supports multiple opens and another process locked the property.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>EFAULT</errorcode></term>
-	<listitem>
-	  <para><parameter>argp</parameter> references an inaccessible
-memory area.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>ENOTTY</errorcode></term>
-	<listitem>
-	  <para><parameter>fd</parameter> is  not  associated  with  a
-character special device.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>EINVAL</errorcode></term>
-	<listitem>
-	  <para>The <parameter>request</parameter> or the data pointed
-to by <parameter>argp</parameter> is not valid. This is a very common
-error code, see the individual ioctl requests listed in <xref
-	      linkend="user-func" /> for actual causes.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>ENOMEM</errorcode></term>
-	<listitem>
-	  <para>Not enough physical or virtual memory was available to
-complete the request.</para>
-	</listitem>
-      </varlistentry>
-      <varlistentry>
-	<term><errorcode>ERANGE</errorcode></term>
-	<listitem>
-	  <para>The application attempted to set a control with the
-&VIDIOC-S-CTRL; ioctl to a value which is out of bounds.</para>
-	</listitem>
-      </varlistentry>
-    </variablelist>
+    &return-value;
+    <para>When an ioctl that takes an output or read/write parameter fails,
+    the parameter remains unmodified.</para>
   </refsect1>
 </refentry>
 

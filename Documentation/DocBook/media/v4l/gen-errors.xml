@@ -31,7 +31,8 @@
       <row>
 	<entry>EINVAL or ENOTTY</entry>
 	<entry>The ioctl is not supported by the driver, actually meaning that
-	       the required functionality is not available.</entry>
+	       the required functionality is not available, or the file
+	       descriptor is not for a media device.</entry>
       </row>
       <row>
 	<entry>ENOMEM</entry>
@@ -46,3 +47,10 @@
     </tbody>
   </tgroup>
 </table>
+
+<para>Note 1: ioctls may return other error codes. Since errors may have side
+effects such as a driver reset, applications should abort on unexpected errors.
+</para>
+
+<para>Note 2: Request-specific error codes are listed in the individual
+requests descriptions.</para>
