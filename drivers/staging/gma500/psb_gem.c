@@ -82,12 +82,13 @@ static int psb_gem_create_mmap_offset(struct drm_gem_object *obj)
 	map = list->map;
 	map->type = _DRM_GEM;
 	map->size = obj->size;
-	map->handle =obj;
+	map->handle = obj;
 
 	list->file_offset_node = drm_mm_search_free(&mm->offset_manager,
 					obj->size / PAGE_SIZE, 0, 0);
 	if (!list->file_offset_node) {
-		dev_err(dev->dev, "failed to allocate offset for bo %d\n", obj->name);
+		dev_err(dev->dev, "failed to allocate offset for bo %d\n",
+								obj->name);
 		ret = -ENOSPC;
 		goto free_it;
 	}
@@ -130,7 +131,7 @@ int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
 
 	if (!(dev->driver->driver_features & DRIVER_GEM))
 		return -ENODEV;
-		
+
 	mutex_lock(&dev->struct_mutex);
 
 	/* GEM does all our handle to object mapping */
@@ -140,7 +141,7 @@ int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
 		goto unlock;
 	}
 	/* What validation is needed here ? */
-	
+
 	/* Make it mmapable */
 	if (!obj->map_list.map) {
 		ret = psb_gem_create_mmap_offset(obj);
@@ -176,7 +177,7 @@ static int psb_gem_create(struct drm_file *file,
 
 	size = roundup(size, PAGE_SIZE);
 
-	/* Allocate our object - for now a direct gtt range which is not 
+	/* Allocate our object - for now a direct gtt range which is not
 	   stolen memory backed */
 	r = psb_gtt_alloc_range(dev, size, "gem", 0);
 	if (r == NULL) {
@@ -285,9 +286,9 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (r->mmapping == 0) {
 		ret = psb_gtt_pin(r);
 		if (ret < 0) {
-		        dev_err(dev->dev, "gma500: pin failed: %d\n", ret);
-		        goto fail;
-                }
+			dev_err(dev->dev, "gma500: pin failed: %d\n", ret);
+			goto fail;
+		}
 		r->mmapping = 1;
 	}
 
@@ -304,7 +305,7 @@ int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
 
 fail:
-        mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev->struct_mutex);
 	switch (ret) {
 	case 0:
 	case -ERESTARTSYS:

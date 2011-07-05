@@ -388,7 +388,7 @@ int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
 		break;
 	default:
-                dev_err(dev->dev, "Unknown color depth\n");
+		dev_err(dev->dev, "Unknown color depth\n");
 		ret = -EINVAL;
 		psb_gtt_unpin(psbfb->gtt);
 		goto psb_intel_pipe_set_base_exit;
@@ -611,9 +611,9 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* No scan out no play */
 	if (crtc->fb == NULL) {
-	        crtc_funcs->mode_set_base(crtc, x, y, old_fb);
-                return 0;
-        }
+		crtc_funcs->mode_set_base(crtc, x, y, old_fb);
+		return 0;
+	}
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
 		struct psb_intel_output *psb_intel_output =
@@ -728,8 +728,8 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 		u32 lvds = REG_READ(LVDS);
 
 		lvds &= ~LVDS_PIPEB_SELECT;
-                if (pipe == 1)
-                        lvds |= LVDS_PIPEB_SELECT;
+		if (pipe == 1)
+			lvds |= LVDS_PIPEB_SELECT;
 
 		lvds |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
 		/* Set the B0-B3 data pairs corresponding to

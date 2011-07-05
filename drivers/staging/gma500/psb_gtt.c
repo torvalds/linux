@@ -52,7 +52,7 @@ static inline uint32_t psb_gtt_mask_pte(uint32_t pfn, int type)
  *	psb_gtt_entry		-	find the GTT entries for a gtt_range
  *	@dev: our DRM device
  *	@r: our GTT range
- * 
+ *
  *	Given a gtt_range object return the GTT offset of the page table
  *	entries for this gtt_range
  */
@@ -102,7 +102,6 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 	}
 	/* Make sure all the entries are set before we return */
 	ioread32(gtt_slot - 1);
-	
 	return 0;
 }
 
@@ -257,7 +256,7 @@ void psb_gtt_unpin(struct gtt_range *gt)
 	}
 	mutex_unlock(&dev_priv->gtt_mutex);
 }
-	
+
 /*
  *	GTT resource allocator - allocate and manage GTT address space
  */
@@ -289,11 +288,11 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 		/* The start of the GTT is the stolen pages */
 		start = r->start;
 		end = r->start + dev_priv->pg->stolen_size - 1;
-        } else {
-        	/* The rest we will use for GEM backed objects */
-        	start = r->start + dev_priv->pg->stolen_size;
-        	end = r->end;
-        }
+	} else {
+		/* The rest we will use for GEM backed objects */
+		start = r->start + dev_priv->pg->stolen_size;
+		end = r->end;
+	}
 
 	gt = kzalloc(sizeof(struct gtt_range), GFP_KERNEL);
 	if (gt == NULL)
@@ -318,8 +317,8 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
  *	@dev: our DRM device
  *	@gt: a mapping created with psb_gtt_alloc_range
  *
- *	Release a resource that was allocated with psb_gtt_alloc_range. If the object
- *	has been pinned by mmap users we clean this up here currently.
+ *	Release a resource that was allocated with psb_gtt_alloc_range. If the
+ *	object has been pinned by mmap users we clean this up here currently.
  */
 void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
 {
@@ -386,7 +385,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	if (pg == NULL)
 		return -ENOMEM;
 
-        /* Enable the GTT */
+	/* Enable the GTT */
 	pci_read_config_word(dev->pdev, PSB_GMCH_CTRL, &dev_priv->gmch_ctrl);
 	pci_write_config_word(dev->pdev, PSB_GMCH_CTRL,
 			      dev_priv->gmch_ctrl | _PSB_GMCH_ENABLED);
@@ -402,18 +401,21 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	pg->gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
 
 	pg->gatt_start = pci_resource_start(dev->pdev, PSB_GATT_RESOURCE);
-	/* 
+	/*
 	 *	FIXME: video mmu has hw bug to access 0x0D0000000,
 	 *	then make gatt start at 0x0e000,0000
 	 */
 	pg->mmu_gatt_start = 0xE0000000;
 
 	pg->gtt_start = pci_resource_start(dev->pdev, PSB_GTT_RESOURCE);
-	gtt_pages = pci_resource_len(dev->pdev, PSB_GTT_RESOURCE) >> PAGE_SHIFT;
-	pg->gatt_pages = pci_resource_len(dev->pdev, PSB_GATT_RESOURCE) >> PAGE_SHIFT;
+	gtt_pages = pci_resource_len(dev->pdev, PSB_GTT_RESOURCE)
+								>> PAGE_SHIFT;
+	pg->gatt_pages = pci_resource_len(dev->pdev, PSB_GATT_RESOURCE)
+								>> PAGE_SHIFT;
 
 	pci_read_config_dword(dev->pdev, PSB_BSM, &dev_priv->stolen_base);
-	vram_stolen_size = pg->gtt_phys_start - dev_priv->stolen_base - PAGE_SIZE;
+	vram_stolen_size = pg->gtt_phys_start - dev_priv->stolen_base
+								- PAGE_SIZE;
 
 	stolen_size = vram_stolen_size;
 
@@ -439,7 +441,8 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	/*
 	 *	Map the GTT and the stolen memory area
 	 */
-	dev_priv->gtt_map = ioremap_nocache(pg->gtt_phys_start, gtt_pages << PAGE_SHIFT);
+	dev_priv->gtt_map = ioremap_nocache(pg->gtt_phys_start,
+						gtt_pages << PAGE_SHIFT);
 	if (!dev_priv->gtt_map) {
 		dev_err(dev->dev, "Failure to map gtt.\n");
 		ret = -ENOMEM;

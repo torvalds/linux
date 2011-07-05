@@ -211,7 +211,8 @@ static void psb_intel_sdvo_write_cmd(struct psb_intel_output *psb_intel_output,
 		     sizeof(sdvo_cmd_names) / sizeof(sdvo_cmd_names[0]);
 		     i++) {
 			if (cmd == sdvo_cmd_names[i].cmd) {
-				printk(KERN_CONT "(%s)", sdvo_cmd_names[i].name);
+				printk(KERN_CONT
+					"(%s)", sdvo_cmd_names[i].name);
 				break;
 			}
 		}

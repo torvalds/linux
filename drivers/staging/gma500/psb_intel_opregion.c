@@ -33,19 +33,19 @@ struct opregion_header {
 	u8 driver_ver[16];
 	u32 mboxes;
 	u8 reserved[164];
-} __attribute__((packed));
+} __packed;
 
 struct opregion_apci {
 	/*FIXME: add it later*/
-} __attribute__((packed));
+} __packed;
 
 struct opregion_swsci {
 	/*FIXME: add it later*/
-} __attribute__((packed));
+} __packed;
 
 struct opregion_acpi {
 	/*FIXME: add it later*/
-} __attribute__((packed));
+} __packed;
 
 int psb_intel_opregion_init(struct drm_device *dev)
 {

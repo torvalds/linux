@@ -118,10 +118,10 @@ struct drm_psb_register_rw_arg {
 		u32 OGAMC3;
 		u32 OGAMC4;
 		u32 OGAMC5;
-        	u32 IEP_ENABLED;
-        	u32 IEP_BLE_MINMAX;
-        	u32 IEP_BSSCC_CONTROL;
-                u32 b_wait_vblank;
+		u32 IEP_ENABLED;
+		u32 IEP_BLE_MINMAX;
+		u32 IEP_BSSCC_CONTROL;
+		u32 b_wait_vblank;
 	} overlay;
 
 	u32 sprite_enable_mask;

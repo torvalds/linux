@@ -244,9 +244,11 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 
 	fb_screen_base = (char *)info->screen_base;
 
-        /* If this is a GEM object then info->screen_base is the virtual
-           kernel remapping of the object. FIXME: Review if this is
-           suitable for our mmap work */
+	/*
+	 * If this is a GEM object then info->screen_base is the virtual
+	 * kernel remapping of the object. FIXME: Review if this is
+	 * suitable for our mmap work
+	 */
 	vma->vm_ops = &psbfb_vm_ops;
 	vma->vm_private_data = (void *)psbfb;
 	vma->vm_flags |= VM_RESERVED | VM_IO |
@@ -254,7 +256,8 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int psbfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
+static int psbfb_ioctl(struct fb_info *info, unsigned int cmd,
+						unsigned long arg)
 {
 	struct psb_fbdev *fbdev = info->par;
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
@@ -305,33 +308,33 @@ static struct fb_ops psbfb_ops = {
  *	0 on success or an error code if we fail.
  */
 static int psb_framebuffer_init(struct drm_device *dev,
-                                struct psb_framebuffer *fb,
-                                struct drm_mode_fb_cmd *mode_cmd,
-                                struct gtt_range *gt)
+					struct psb_framebuffer *fb,
+					struct drm_mode_fb_cmd *mode_cmd,
+					struct gtt_range *gt)
 {
-        int ret;
+	int ret;
 
-        if (mode_cmd->pitch & 63)
-                return -EINVAL;
-        switch (mode_cmd->bpp) {
-        case 8:
-        case 16:
-        case 24:
-        case 32:
-                break;
-        default:
-                return -EINVAL;
-        }
-        ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
-        if (ret) {
-                dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
-                return ret;
-        }
-        drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
-        fb->gtt = gt;
-        return 0;
+	if (mode_cmd->pitch & 63)
+		return -EINVAL;
+	switch (mode_cmd->bpp) {
+	case 8:
+	case 16:
+	case 24:
+	case 32:
+		break;
+	default:
+		return -EINVAL;
+	}
+	ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
+	if (ret) {
+		dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
+		return ret;
+	}
+	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
+	fb->gtt = gt;
+	return 0;
 }
-                
+
 /**
  *	psb_framebuffer_create	-	create a framebuffer backed by gt
  *	@dev: our DRM device
@@ -357,10 +360,10 @@ static struct drm_framebuffer *psb_framebuffer_create
 
 	ret = psb_framebuffer_init(dev, fb, mode_cmd, gt);
 	if (ret) {
-	        kfree(fb);
-	        return ERR_PTR(ret);
-        }
-        return &fb->base;
+		kfree(fb);
+		return ERR_PTR(ret);
+	}
+	return &fb->base;
 }
 
 /**
@@ -373,7 +376,7 @@ static struct drm_framebuffer *psb_framebuffer_create
  *	stolen memory or the system has no stolen memory we allocate a range
  *	and back it with a GEM object.
  *
- *	In this case the GEM object has no handle. 
+ *	In this case the GEM object has no handle.
  *
  *	FIXME: console speed up - allocate twice the space if room and use
  *	hardware scrolling for acceleration.
@@ -384,10 +387,11 @@ static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 	/* Begin by trying to use stolen memory backing */
 	backing = psb_gtt_alloc_range(dev, aligned_size, "fb", 1);
 	if (backing) {
-	        if (drm_gem_private_object_init(dev, &backing->gem, aligned_size) == 0)
-        		return backing;
-                psb_gtt_free_range(dev, backing);
-        }
+		if (drm_gem_private_object_init(dev,
+					&backing->gem, aligned_size) == 0)
+			return backing;
+		psb_gtt_free_range(dev, backing);
+	}
 	/* Next try using GEM host memory */
 	backing = psb_gtt_alloc_range(dev, aligned_size, "fb(gem)", 0);
 	if (backing == NULL)
@@ -400,7 +404,7 @@ static struct gtt_range *psbfb_alloc(struct drm_device *dev, int aligned_size)
 	}
 	return backing;
 }
-	
+
 /**
  *	psbfb_create		-	create a framebuffer
  *	@fbdev: the framebuffer device
@@ -428,7 +432,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	/* No 24bit packed */
 	if (mode_cmd.bpp == 24)
-        	mode_cmd.bpp = 32;
+		mode_cmd.bpp = 32;
 
 	/* HW requires pitch to be 64 byte aligned */
 	mode_cmd.pitch =  ALIGN(mode_cmd.width * ((mode_cmd.bpp + 7) / 8), 64);
@@ -440,7 +444,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	/* Allocate the framebuffer in the GTT with stolen page backing */
 	backing = psbfb_alloc(dev, size);
 	if (backing == NULL)
-	        return -ENOMEM;
+		return -ENOMEM;
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -455,7 +459,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	if (ret)
 		goto out_unref;
 
-        fb = &psbfb->base;
+	fb = &psbfb->base;
 	psbfb->fbdev = info;
 
 	fbdev->psb_fb_helper.fb = fb;
@@ -523,13 +527,13 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	mutex_unlock(&dev->struct_mutex);
 	return 0;
 out_unref:
-        if (backing->stolen)
-                psb_gtt_free_range(dev, backing);
-        else {
-                if (psbfb->vm_map)
-                        vm_unmap_ram(info->screen_base, backing->npage);
-                drm_gem_object_unreference(&backing->gem);
-        }
+	if (backing->stolen)
+		psb_gtt_free_range(dev, backing);
+	else {
+		if (psbfb->vm_map)
+			vm_unmap_ram(info->screen_base, backing->npage);
+		drm_gem_object_unreference(&backing->gem);
+	}
 out_err1:
 	mutex_unlock(&dev->struct_mutex);
 	psb_gtt_free_range(dev, backing);
@@ -548,17 +552,19 @@ static struct drm_framebuffer *psb_user_framebuffer_create
 			(struct drm_device *dev, struct drm_file *filp,
 			 struct drm_mode_fb_cmd *cmd)
 {
-        struct gtt_range *r;
-        struct drm_gem_object *obj;
+	struct gtt_range *r;
+	struct drm_gem_object *obj;
 
-        /* Find the GEM object and thus the gtt range object that is
-           to back this space */
+	/*
+	 *	Find the GEM object and thus the gtt range object that is
+	 *	to back this space
+	 */
 	obj = drm_gem_object_lookup(dev, filp, cmd->handle);
 	if (obj == NULL)
-	        return ERR_PTR(-ENOENT);
+		return ERR_PTR(-ENOENT);
 
-        /* Let the core code do all the work */
-        r = container_of(obj, struct gtt_range, gem);
+	/* Let the core code do all the work */
+	r = container_of(obj, struct gtt_range, gem);
 	return psb_framebuffer_create(dev, cmd, r);
 }
 
@@ -610,12 +616,12 @@ int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 		}
 		unregister_framebuffer(info);
 		if (info->cmap.len)
-		        fb_dealloc_cmap(&info->cmap);
+			fb_dealloc_cmap(&info->cmap);
 		framebuffer_release(info);
 	}
 	drm_fb_helper_fini(&fbdev->psb_fb_helper);
 	drm_framebuffer_cleanup(&psbfb->base);
-	
+
 	if (psbfb->gtt) {
 		/* FIXME: this is a bit more inside knowledge than I'd like
 		   but I don't see how to make a fake GEM object of the
@@ -624,7 +630,7 @@ int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 			psb_gtt_free_range(dev, psbfb->gtt);
 		else
 			drm_gem_object_unreference(&psbfb->gtt->gem);
-        }
+	}
 	return 0;
 }
 
@@ -686,9 +692,9 @@ static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 					      struct drm_file *file_priv,
 					      unsigned int *handle)
 {
-        struct psb_framebuffer *psbfb = to_psb_fb(fb);
-        struct gtt_range *r = psbfb->gtt;
-        return drm_gem_handle_create(file_priv, &r->gem, handle);
+	struct psb_framebuffer *psbfb = to_psb_fb(fb);
+	struct gtt_range *r = psbfb->gtt;
+	return drm_gem_handle_create(file_priv, &r->gem, handle);
 }
 
 /**
@@ -717,16 +723,17 @@ static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb)
 			reset = 1;
 
 	if (reset)
-		/* 
-		 * Now force a sane response before we permit the DRM crc layer to
-		 * do stupid things like blank the display. Instead we reset this
-		 * framebuffer as if the user had forced a reset. We must do this
-		 * before the cleanup so that the DRM layer doesn't get a chance
-		 * to stick its oar in where it isn't wanted.
+		/*
+		 * Now force a sane response before we permit the DRM CRTC
+		 * layer to do stupid things like blank the display. Instead
+		 * we reset this framebuffer as if the user had forced a reset.
+		 * We must do this before the cleanup so that the DRM layer
+		 * doesn't get a chance to stick its oar in where it isn't
+		 * wanted.
 		 */
 		drm_fb_helper_restore_fbdev_mode(&fbdev->psb_fb_helper);
 
-        /* Let DRM do its clean up */
+	/* Let DRM do its clean up */
 	drm_framebuffer_cleanup(fb);
 	/*  We are no longer using the resource in GEM */
 	drm_gem_object_unreference_unlocked(&r->gem);

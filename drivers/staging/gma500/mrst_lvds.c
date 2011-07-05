@@ -298,10 +298,10 @@ void mrst_lvds_init(struct drm_device *dev,
 	 /* This ifdef can go once the cpu ident stuff is cleaned up in arch */
 #if defined(CONFIG_X86_MRST)
 	if (mrst_identify_cpu())
-        	i2c_adap = i2c_get_adapter(2);
-        else	/* Oaktrail uses I2C 1 */
-#endif        
-        	i2c_adap = i2c_get_adapter(1);
+		i2c_adap = i2c_get_adapter(2);
+	else	/* Oaktrail uses I2C 1 */
+#endif
+		i2c_adap = i2c_get_adapter(1);
 
 	if (i2c_adap == NULL)
 		printk(KERN_ALERT "No ddc adapter available!\n");

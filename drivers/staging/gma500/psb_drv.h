@@ -25,6 +25,7 @@
 
 #include <drm/drmP.h>
 #include "drm_global.h"
+#include "gem_glue.h"
 #include "psb_drm.h"
 #include "psb_reg.h"
 #include "psb_intel_drv.h"
@@ -132,8 +133,12 @@ enum {
 #define _LNC_IRQ_TOPAZ_FLAG	  (1<<20)
 
 /* This flag includes all the display IRQ bits excepts the vblank irqs. */
-#define _MDFLD_DISP_ALL_IRQ_FLAG (_MDFLD_PIPEC_EVENT_FLAG | _MDFLD_PIPEB_EVENT_FLAG | \
-        _PSB_PIPEA_EVENT_FLAG | _PSB_VSYNC_PIPEA_FLAG | _MDFLD_MIPIA_FLAG | _MDFLD_MIPIC_FLAG)
+#define _MDFLD_DISP_ALL_IRQ_FLAG (_MDFLD_PIPEC_EVENT_FLAG | \
+				  _MDFLD_PIPEB_EVENT_FLAG | \
+				  _PSB_PIPEA_EVENT_FLAG | \
+				  _PSB_VSYNC_PIPEA_FLAG | \
+				  _MDFLD_MIPIA_FLAG | \
+				  _MDFLD_MIPIC_FLAG)
 #define PSB_INT_IDENTITY_R	  0x20A4
 #define PSB_INT_MASK_R		  0x20A8
 #define PSB_INT_ENABLE_R	  0x20A0
@@ -273,7 +278,7 @@ struct drm_psb_private {
 
 	/*
 	 * Power
-         */
+	 */
 
 	bool suspended;
 	bool display_power;
@@ -480,7 +485,7 @@ struct drm_psb_private {
 	uint32_t blc_adj1;
 	uint32_t blc_adj2;
 
-	void * fbdev;
+	void *fbdev;
 };
 
 
@@ -550,7 +555,7 @@ extern void psb_irq_turn_on_dpst(struct drm_device *dev);
 extern void psb_irq_turn_off_dpst(struct drm_device *dev);
 
 extern void psb_irq_uninstall_islands(struct drm_device *dev, int hw_islands);
-extern int psb_vblank_wait2(struct drm_device *dev,unsigned int *sequence);
+extern int psb_vblank_wait2(struct drm_device *dev, unsigned int *sequence);
 extern int psb_vblank_wait(struct drm_device *dev, unsigned int *sequence);
 extern int psb_enable_vblank(struct drm_device *dev, int crtc);
 extern void psb_disable_vblank(struct drm_device *dev, int crtc);
@@ -593,7 +598,7 @@ extern int psbfb_sync(struct fb_info *info);
 extern void psb_spank(struct drm_psb_private *dev_priv);
 
 extern int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
-	 	  	   unsigned size);
+					unsigned size);
 
 /*
  * psb_reset.c
@@ -606,14 +611,14 @@ extern void psb_print_pagefault(struct drm_psb_private *dev_priv);
 /* modesetting */
 extern void psb_modeset_init(struct drm_device *dev);
 extern void psb_modeset_cleanup(struct drm_device *dev);
-extern int psb_fbdev_init(struct drm_device * dev);
+extern int psb_fbdev_init(struct drm_device *dev);
 
 /* psb_bl.c */
 int psb_backlight_init(struct drm_device *dev);
 void psb_backlight_exit(void);
 int psb_set_brightness(struct backlight_device *bd);
 int psb_get_brightness(struct backlight_device *bd);
-struct backlight_device * psb_get_backlight_device(void);
+struct backlight_device *psb_get_backlight_device(void);
 
 /* mrst_crtc.c */
 extern const struct drm_crtc_helper_funcs mrst_helper_funcs;
@@ -662,7 +667,6 @@ extern int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 extern int drm_psb_no_fb;
 extern int drm_idle_check_interval;
 
-
 /*
  *	Utilities
  */
@@ -671,36 +675,36 @@ static inline u32 MRST_MSG_READ32(uint port, uint offset)
 {
 	int mcr = (0xD0<<24) | (port << 16) | (offset << 8);
 	uint32_t ret_val = 0;
-	struct pci_dev *pci_root = pci_get_bus_and_slot (0, 0);
-	pci_write_config_dword (pci_root, 0xD0, mcr);
-	pci_read_config_dword (pci_root, 0xD4, &ret_val);
+	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	pci_write_config_dword(pci_root, 0xD0, mcr);
+	pci_read_config_dword(pci_root, 0xD4, &ret_val);
 	pci_dev_put(pci_root);
 	return ret_val;
 }
 static inline void MRST_MSG_WRITE32(uint port, uint offset, u32 value)
 {
 	int mcr = (0xE0<<24) | (port << 16) | (offset << 8) | 0xF0;
-	struct pci_dev *pci_root = pci_get_bus_and_slot (0, 0);
-	pci_write_config_dword (pci_root, 0xD4, value);
-	pci_write_config_dword (pci_root, 0xD0, mcr);
+	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	pci_write_config_dword(pci_root, 0xD4, value);
+	pci_write_config_dword(pci_root, 0xD0, mcr);
 	pci_dev_put(pci_root);
 }
 static inline u32 MDFLD_MSG_READ32(uint port, uint offset)
 {
 	int mcr = (0x10<<24) | (port << 16) | (offset << 8);
 	uint32_t ret_val = 0;
-	struct pci_dev *pci_root = pci_get_bus_and_slot (0, 0);
-	pci_write_config_dword (pci_root, 0xD0, mcr);
-	pci_read_config_dword (pci_root, 0xD4, &ret_val);
+	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	pci_write_config_dword(pci_root, 0xD0, mcr);
+	pci_read_config_dword(pci_root, 0xD4, &ret_val);
 	pci_dev_put(pci_root);
 	return ret_val;
 }
 static inline void MDFLD_MSG_WRITE32(uint port, uint offset, u32 value)
 {
 	int mcr = (0x11<<24) | (port << 16) | (offset << 8) | 0xF0;
-	struct pci_dev *pci_root = pci_get_bus_and_slot (0, 0);
-	pci_write_config_dword (pci_root, 0xD4, value);
-	pci_write_config_dword (pci_root, 0xD0, mcr);
+	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	pci_write_config_dword(pci_root, 0xD4, value);
+	pci_write_config_dword(pci_root, 0xD0, mcr);
 	pci_dev_put(pci_root);
 }
 
@@ -744,14 +748,15 @@ static inline void REGISTER_WRITE8(struct drm_device *dev,
 
 /* #define TRAP_SGX_PM_FAULT 1 */
 #ifdef TRAP_SGX_PM_FAULT
-#define PSB_RSGX32(_offs)					\
-({								\
-    if (inl(dev_priv->apm_base + PSB_APM_STS) & 0x3) {		\
-	printk(KERN_ERR "access sgx when it's off!! (READ) %s, %d\n", \
-	       __FILE__, __LINE__);				\
-	mdelay(1000);						\
-    }								\
-    ioread32(dev_priv->sgx_reg + (_offs));			\
+#define PSB_RSGX32(_offs)						\
+({									\
+	if (inl(dev_priv->apm_base + PSB_APM_STS) & 0x3) {		\
+		printk(KERN_ERR						\
+			"access sgx when it's off!! (READ) %s, %d\n",	\
+	       __FILE__, __LINE__);					\
+		melay(1000);						\
+	}								\
+	ioread32(dev_priv->sgx_reg + (_offs));				\
 })
 #else
 #define PSB_RSGX32(_offs)		ioread32(dev_priv->sgx_reg + (_offs))

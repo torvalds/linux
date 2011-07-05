@@ -43,11 +43,11 @@
 
 void psb_spank(struct drm_psb_private *dev_priv)
 {
-        PSB_WSGX32(_PSB_CS_RESET_BIF_RESET | _PSB_CS_RESET_DPM_RESET |
+	PSB_WSGX32(_PSB_CS_RESET_BIF_RESET | _PSB_CS_RESET_DPM_RESET |
 		_PSB_CS_RESET_TA_RESET | _PSB_CS_RESET_USE_RESET |
 		_PSB_CS_RESET_ISP_RESET | _PSB_CS_RESET_TSP_RESET |
 		_PSB_CS_RESET_TWOD_RESET, PSB_CR_SOFT_RESET);
-	(void) PSB_RSGX32(PSB_CR_SOFT_RESET);
+	PSB_RSGX32(PSB_CR_SOFT_RESET);
 
 	msleep(1);
 
@@ -71,7 +71,7 @@ static int psb_2d_wait_available(struct drm_psb_private *dev_priv,
 	uint32_t avail = PSB_RSGX32(PSB_CR_2D_SOCIF);
 	unsigned long t = jiffies + HZ;
 
-	while(avail < size) {
+	while (avail < size) {
 		avail = PSB_RSGX32(PSB_CR_2D_SOCIF);
 		if (time_after(jiffies, t)) {
 			psb_spank(dev_priv);
@@ -85,7 +85,7 @@ static int psb_2d_wait_available(struct drm_psb_private *dev_priv,
    it with console use */
 
 int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
-	 	  	   unsigned size)
+								unsigned size)
 {
 	int ret = 0;
 	int i;
@@ -99,9 +99,10 @@ int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
 			return ret;
 
 		submit_size <<= 2;
-		for (i = 0; i < submit_size; i += 4) {
+
+		for (i = 0; i < submit_size; i += 4)
 			PSB_WSGX32(*cmdbuf++, PSB_SGX_2D_SLAVE_PORT + i);
-		}
+
 		(void)PSB_RSGX32(PSB_SGX_2D_SLAVE_PORT + i - 4);
 	}
 	return 0;
@@ -209,10 +210,10 @@ static u32 psb_accel_2d_copy_direction(int xdir, int ydir)
 {
 	if (xdir < 0)
 		return (ydir < 0) ? PSB_2D_COPYORDER_BR2TL :
-                			PSB_2D_COPYORDER_TR2BL;
+						PSB_2D_COPYORDER_TR2BL;
 	else
 		return (ydir < 0) ? PSB_2D_COPYORDER_BL2TR :
-                			PSB_2D_COPYORDER_TL2BR;
+						PSB_2D_COPYORDER_TL2BR;
 }
 
 /*
@@ -350,9 +351,9 @@ void psbfb_copyarea(struct fb_info *info,
 	if (unlikely(info->state != FBINFO_STATE_RUNNING))
 		return;
 
-        /* Avoid the 8 pixel erratum */
+	/* Avoid the 8 pixel erratum */
 	if (region->width == 8 || region->height == 8 ||
-	        (info->flags & FBINFO_HWACCEL_DISABLED))
+		(info->flags & FBINFO_HWACCEL_DISABLED))
 		return cfb_copyarea(info, region);
 
 	psbfb_copyarea_accel(info, region);
@@ -360,7 +361,7 @@ void psbfb_copyarea(struct fb_info *info,
 
 void psbfb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-        /* For now */
+	/* For now */
 	cfb_imageblit(info, image);
 }
 

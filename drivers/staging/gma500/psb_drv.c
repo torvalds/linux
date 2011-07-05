@@ -47,7 +47,7 @@ module_param_named(no_fb, drm_psb_no_fb, int, 0600);
 module_param_named(trap_pagefaults, drm_psb_trap_pagefaults, int, 0600);
 
 
-static struct pci_device_id pciidlist[] = {
+static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 	{ 0x8086, 0x8108, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_PSB_8108 },
 	{ 0x8086, 0x8109, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_PSB_8109 },
 	{ 0x8086, 0x4100, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_MRST_4100},
@@ -185,8 +185,7 @@ void mrst_get_fuse_settings(struct drm_device *dev)
 	 if (dev_priv->iLVDS_enable) {
 		dev_priv->is_lvds_on = true;
 		dev_priv->is_mipi_on = false;
-	}
-	else {
+	} else {
 		dev_priv->is_mipi_on = true;
 		dev_priv->is_lvds_on = false;
 	}
@@ -196,7 +195,7 @@ void mrst_get_fuse_settings(struct drm_device *dev)
 	pci_write_config_dword(pci_root, 0xD0, FB_REG09);
 	pci_read_config_dword(pci_root, 0xD4, &fuse_value);
 
-	DRM_INFO("SKU values is 0x%x. \n", fuse_value);
+	DRM_INFO("SKU values is 0x%x.\n", fuse_value);
 	fuse_value_tmp = (fuse_value & FB_SKU_MASK) >> FB_SKU_SHIFT;
 
 	dev_priv->fuse_reg_value = fuse_value;
@@ -220,7 +219,7 @@ void mrst_get_fuse_settings(struct drm_device *dev)
 	pci_dev_put(pci_root);
 }
 
-void mid_get_pci_revID (struct drm_psb_private *dev_priv)
+void mid_get_pci_revID(struct drm_psb_private *dev_priv)
 {
 	uint32_t platform_rev_id = 0;
 	struct pci_dev *pci_gfx_root = pci_get_bus_and_slot(0, PCI_DEVFN(2, 0));
@@ -230,7 +229,7 @@ void mid_get_pci_revID (struct drm_psb_private *dev_priv)
 	dev_priv->platform_rev_id = (uint8_t) platform_rev_id;
 	pci_dev_put(pci_gfx_root);
 	dev_info(dev_priv->dev->dev, "platform_rev_id is %x\n",
-							dev_priv->platform_rev_id);
+					dev_priv->platform_rev_id);
 }
 
 void mrst_get_vbt_data(struct drm_psb_private *dev_priv)
@@ -285,7 +284,7 @@ void mrst_get_vbt_data(struct drm_psb_private *dev_priv)
 		dev_priv->gct_data.Panel_Port_Control =
 		  ((struct mrst_gct_v1 *)pGCT)->panel[bpi].Panel_Port_Control;
 		dev_priv->gct_data.Panel_MIPI_Display_Descriptor =
-		  ((struct mrst_gct_v1 *)pGCT)->panel[bpi].Panel_MIPI_Display_Descriptor;
+			((struct mrst_gct_v1 *)pGCT)->panel[bpi].Panel_MIPI_Display_Descriptor;
 		break;
 	case 1:
 		vbt->mrst_gct = NULL;
@@ -303,7 +302,7 @@ void mrst_get_vbt_data(struct drm_psb_private *dev_priv)
 		dev_priv->gct_data.Panel_Port_Control =
 		  ((struct mrst_gct_v2 *)pGCT)->panel[bpi].Panel_Port_Control;
 		dev_priv->gct_data.Panel_MIPI_Display_Descriptor =
-		  ((struct mrst_gct_v2 *)pGCT)->panel[bpi].Panel_MIPI_Display_Descriptor;
+			((struct mrst_gct_v2 *)pGCT)->panel[bpi].Panel_MIPI_Display_Descriptor;
 		break;
 	case 0x10:
 		/*header definition changed from rev 01 (v2) to rev 10h. */
@@ -449,13 +448,12 @@ static int psb_do_init(struct drm_device *dev)
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK0);
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK1);
 	PSB_RSGX32(PSB_CR_BIF_BANK1);
-        PSB_WSGX32(PSB_RSGX32(PSB_CR_BIF_CTRL) | _PSB_MMU_ER_MASK,
+	PSB_WSGX32(PSB_RSGX32(PSB_CR_BIF_CTRL) | _PSB_MMU_ER_MASK,
 							PSB_CR_BIF_CTRL);
 	psb_spank(dev_priv);
 
 	/* mmu_gatt ?? */
-      	PSB_WSGX32(pg->gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
-
+	PSB_WSGX32(pg->gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
 	return 0;
 out_err:
 	psb_do_takedown(dev);
@@ -1335,7 +1333,6 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 		dev_priv->rpm_enabled = 1;
 	}
 	return drm_ioctl(filp, cmd, arg);
-	
 	/* FIXME: do we need to wrap the other side of this */
 }
 
@@ -1367,7 +1364,7 @@ static struct vm_operations_struct psb_gem_vm_ops = {
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | \
-			   DRIVER_IRQ_VBL | DRIVER_MODESET| DRIVER_GEM ,
+			   DRIVER_IRQ_VBL | DRIVER_MODESET | DRIVER_GEM ,
 	.load = psb_driver_load,
 	.unload = psb_driver_unload,
 
@@ -1428,7 +1425,7 @@ static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	/* MLD Added this from Inaky's patch */
 	if (pci_enable_msi(pdev))
-                dev_warn(&pdev->dev, "Enable MSI failed!\n");
+		dev_warn(&pdev->dev, "Enable MSI failed!\n");
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
