@@ -176,7 +176,7 @@ static void brcms_b_update_slot_timing(struct brcms_hardware *wlc_hw,
 	}
 }
 
-static void WLBANDINITFN(brcms_c_ucode_bsinit) (struct brcms_hardware *wlc_hw)
+static void brcms_c_ucode_bsinit(struct brcms_hardware *wlc_hw)
 {
 	struct wiphy *wiphy = wlc_hw->wlc->wiphy;
 
@@ -209,7 +209,7 @@ static void WLBANDINITFN(brcms_c_ucode_bsinit) (struct brcms_hardware *wlc_hw)
 }
 
 /* switch to new band but leave it inactive */
-static u32 WLBANDINITFN(brcms_c_setband_inact) (struct brcms_c_info *wlc,
+static u32 brcms_c_setband_inact(struct brcms_c_info *wlc,
 					    uint bandunit)
 {
 	struct brcms_hardware *wlc_hw = wlc->hw;
@@ -1671,7 +1671,7 @@ brcms_b_write_hw_bcntemplates(struct brcms_hardware *wlc_hw, void *bcn,
 	}
 }
 
-static void WLBANDINITFN(brcms_b_upd_synthpu) (struct brcms_hardware *wlc_hw)
+static void brcms_b_upd_synthpu(struct brcms_hardware *wlc_hw)
 {
 	u16 v;
 	struct brcms_c_info *wlc = wlc_hw->wlc;
@@ -1690,7 +1690,7 @@ static void WLBANDINITFN(brcms_b_upd_synthpu) (struct brcms_hardware *wlc_hw)
 
 /* band-specific init */
 static void
-WLBANDINITFN(brcms_b_bsinit) (struct brcms_c_info *wlc, chanspec_t chanspec)
+brcms_b_bsinit(struct brcms_c_info *wlc, chanspec_t chanspec)
 {
 	struct brcms_hardware *wlc_hw = wlc->hw;
 
@@ -1833,7 +1833,7 @@ void brcms_b_phy_reset(struct brcms_hardware *wlc_hw)
 
 /* switch to and initialize new band */
 static void
-WLBANDINITFN(brcms_b_setband) (struct brcms_hardware *wlc_hw, uint bandunit,
+brcms_b_setband(struct brcms_hardware *wlc_hw, uint bandunit,
 				chanspec_t chanspec) {
 	struct brcms_c_info *wlc = wlc_hw->wlc;
 	u32 macintmask;
@@ -1870,7 +1870,7 @@ WLBANDINITFN(brcms_b_setband) (struct brcms_hardware *wlc_hw, uint bandunit,
 }
 
 /* low-level band switch utility routine */
-void WLBANDINITFN(brcms_c_setxband) (struct brcms_hardware *wlc_hw,
+void brcms_c_setxband(struct brcms_hardware *wlc_hw,
 				     uint bandunit)
 {
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d: bandunit %d\n", wlc_hw->unit,

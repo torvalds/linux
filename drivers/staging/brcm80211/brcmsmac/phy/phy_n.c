@@ -14216,7 +14216,7 @@ bool wlc_phy_bist_check_phy(struct brcms_phy_pub *pih)
 	return false;
 }
 
-static void WLBANDINITFN(wlc_phy_bphy_init_nphy) (struct brcms_phy *pi)
+static void wlc_phy_bphy_init_nphy(struct brcms_phy *pi)
 {
 	u16 addr, val;
 
@@ -14273,7 +14273,7 @@ wlc_phy_table_read_nphy(struct brcms_phy *pi, u32 id, u32 len, u32 offset,
 }
 
 static void
-WLBANDINITFN(wlc_phy_static_table_download_nphy) (struct brcms_phy *pi)
+wlc_phy_static_table_download_nphy(struct brcms_phy *pi)
 {
 	uint idx;
 
@@ -14296,7 +14296,7 @@ WLBANDINITFN(wlc_phy_static_table_download_nphy) (struct brcms_phy *pi)
 	}
 }
 
-static void WLBANDINITFN(wlc_phy_tbl_init_nphy) (struct brcms_phy *pi)
+static void wlc_phy_tbl_init_nphy(struct brcms_phy *pi)
 {
 	uint idx = 0;
 	u8 antswctrllut;
@@ -14524,7 +14524,7 @@ static void wlc_phy_txpwrctrl_config_nphy(struct brcms_phy *pi)
 		pi->phy_5g_pwrgain = true;
 }
 
-void WLBANDINITFN(wlc_phy_init_nphy) (struct brcms_phy *pi)
+void wlc_phy_init_nphy(struct brcms_phy *pi)
 {
 	u16 val;
 	u16 clip1_ths[2];

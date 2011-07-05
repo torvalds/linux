@@ -2269,7 +2269,7 @@ static void wlc_lcnphy_vbat_temp_sense_setup(struct brcms_phy *pi, u8 mode)
 	udelay(999);
 }
 
-static void WLBANDINITFN(wlc_lcnphy_tx_pwr_ctrl_init) (struct brcms_phy_pub *ppi)
+static void wlc_lcnphy_tx_pwr_ctrl_init(struct brcms_phy_pub *ppi)
 {
 	struct lcnphy_txgains tx_gains;
 	u8 bbmult;
@@ -3585,7 +3585,7 @@ void wlc_lcnphy_get_tssi(struct brcms_phy *pi, s8 *ofdm_pwr, s8 *cck_pwr)
 	}
 }
 
-void WLBANDINITFN(wlc_phy_cal_init_lcnphy) (struct brcms_phy *pi)
+void wlc_phy_cal_init_lcnphy(struct brcms_phy *pi)
 {
 	return;
 
@@ -3677,7 +3677,7 @@ static void wlc_lcnphy_set_rx_iq_comp(struct brcms_phy *pi, u16 a, u16 b)
 
 }
 
-void WLBANDINITFN(wlc_phy_init_lcnphy) (struct brcms_phy *pi)
+void wlc_phy_init_lcnphy(struct brcms_phy *pi)
 {
 	u8 phybw40;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
@@ -4213,7 +4213,7 @@ wlc_lcnphy_tx_iqlo_loopback_cleanup(struct brcms_phy *pi, u16 *values_to_save)
 }
 
 static void
-WLBANDINITFN(wlc_lcnphy_load_tx_gain_table) (struct brcms_phy *pi,
+wlc_lcnphy_load_tx_gain_table(struct brcms_phy *pi,
 			const struct lcnphy_tx_gain_tbl_entry *gain_table) {
 	u32 j;
 	struct phytbl_info tab;
@@ -4297,7 +4297,7 @@ static void wlc_lcnphy_load_rfpower(struct brcms_phy *pi)
 	}
 }
 
-static void WLBANDINITFN(wlc_lcnphy_tbl_init) (struct brcms_phy *pi)
+static void wlc_lcnphy_tbl_init(struct brcms_phy *pi)
 {
 	uint idx;
 	u8 phybw40;
@@ -4392,7 +4392,7 @@ static void WLBANDINITFN(wlc_lcnphy_tbl_init) (struct brcms_phy *pi)
 	wlc_lcnphy_clear_papd_comptable(pi);
 }
 
-static void WLBANDINITFN(wlc_lcnphy_rev0_baseband_init) (struct brcms_phy *pi)
+static void wlc_lcnphy_rev0_baseband_init(struct brcms_phy *pi)
 {
 	u16 afectrl1;
 	struct brcms_phy_lcnphy *pi_lcn = pi->u.pi_lcnphy;
@@ -4439,7 +4439,7 @@ static void WLBANDINITFN(wlc_lcnphy_rev0_baseband_init) (struct brcms_phy *pi)
 
 }
 
-static void WLBANDINITFN(wlc_lcnphy_rev2_baseband_init) (struct brcms_phy *pi)
+static void wlc_lcnphy_rev2_baseband_init(struct brcms_phy *pi)
 {
 	if (CHSPEC_IS5G(pi->radio_chanspec)) {
 		mod_phy_reg(pi, 0x416, (0xff << 0), 80 << 0);
@@ -4509,7 +4509,7 @@ static void wlc_lcnphy_agc_temp_init(struct brcms_phy *pi)
 
 }
 
-static void WLBANDINITFN(wlc_lcnphy_bu_tweaks) (struct brcms_phy *pi)
+static void wlc_lcnphy_bu_tweaks(struct brcms_phy *pi)
 {
 	if (NORADIO_ENAB(pi->pubpi))
 		return;
@@ -4564,7 +4564,7 @@ static void WLBANDINITFN(wlc_lcnphy_bu_tweaks) (struct brcms_phy *pi)
 	}
 }
 
-static void WLBANDINITFN(wlc_lcnphy_baseband_init) (struct brcms_phy *pi)
+static void wlc_lcnphy_baseband_init(struct brcms_phy *pi)
 {
 
 	wlc_lcnphy_tbl_init(pi);
@@ -4574,7 +4574,7 @@ static void WLBANDINITFN(wlc_lcnphy_baseband_init) (struct brcms_phy *pi)
 	wlc_lcnphy_bu_tweaks(pi);
 }
 
-static void WLBANDINITFN(wlc_radio_2064_init) (struct brcms_phy *pi)
+static void wlc_radio_2064_init(struct brcms_phy *pi)
 {
 	u32 i;
 	struct lcnphy_radio_regs *lcnphyregs = NULL;
@@ -4635,7 +4635,7 @@ static void WLBANDINITFN(wlc_radio_2064_init) (struct brcms_phy *pi)
 	wlc_lcnphy_rc_cal(pi);
 }
 
-static void WLBANDINITFN(wlc_lcnphy_radio_init) (struct brcms_phy *pi)
+static void wlc_lcnphy_radio_init(struct brcms_phy *pi)
 {
 	if (NORADIO_ENAB(pi->pubpi))
 		return;

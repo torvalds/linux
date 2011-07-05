@@ -1024,7 +1024,7 @@ static void brcms_c_bandinit_ordered(struct brcms_c_info *wlc,
 }
 
 /* band-specific init */
-static void WLBANDINITFN(brcms_c_bsinit) (struct brcms_c_info *wlc)
+static void brcms_c_bsinit(struct brcms_c_info *wlc)
 {
 	BCMMSG(wlc->wiphy, "wl%d: bandunit %d\n",
 		 wlc->pub->unit, wlc->band->bandunit);
@@ -1041,7 +1041,7 @@ static void WLBANDINITFN(brcms_c_bsinit) (struct brcms_c_info *wlc)
 }
 
 /* switch to and initialize new band */
-static void WLBANDINITFN(brcms_c_setband) (struct brcms_c_info *wlc,
+static void brcms_c_setband(struct brcms_c_info *wlc,
 					   uint bandunit)
 {
 	int idx;

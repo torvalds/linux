@@ -244,8 +244,6 @@
 #define RXBND		8	/* max # frames to process in brcms_c_recv() */
 #define TXSBND		8	/* max # tx status to process in wlc_txstatus() */
 
-#define WLBANDINITFN(_fn)	_fn
-
 #define BAND_5G(bt)	((bt) == BRCM_BAND_5G)
 #define BAND_2G(bt)	((bt) == BRCM_BAND_2G)
 

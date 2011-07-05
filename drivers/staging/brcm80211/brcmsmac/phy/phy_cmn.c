@@ -433,7 +433,7 @@ void mod_phy_reg(struct brcms_phy *pi, u16 addr, u16 mask, u16 val)
 	pi->phy_wreg = 0;
 }
 
-static void WLBANDINITFN(wlc_set_phy_uninitted) (struct brcms_phy *pi)
+static void wlc_set_phy_uninitted(struct brcms_phy *pi)
 {
 	int i, j;
 
@@ -816,7 +816,7 @@ u32 wlc_phy_clk_bwbits(struct brcms_phy_pub *pih)
 	return phy_bw_clkbits;
 }
 
-void WLBANDINITFN(wlc_phy_por_inform) (struct brcms_phy_pub *ppi)
+void wlc_phy_por_inform(struct brcms_phy_pub *ppi)
 {
 	struct brcms_phy *pi = (struct brcms_phy *) ppi;
 
@@ -862,7 +862,7 @@ void wlc_phy_hw_state_upd(struct brcms_phy_pub *pih, bool newstate)
 	pi->sh->up = newstate;
 }
 
-void WLBANDINITFN(wlc_phy_init) (struct brcms_phy_pub *pih, chanspec_t chanspec)
+void wlc_phy_init(struct brcms_phy_pub *pih, chanspec_t chanspec)
 {
 	u32 mc;
 	initfn_t phy_init = NULL;
