@@ -1929,7 +1929,7 @@ static int try_set_ext_ctrls(struct v4l2_fh *fh, struct v4l2_ctrl_handler *hdl,
 		if (!ret) {
 			idx = i;
 			do {
-				ret = user_to_new(cs->controls + idx,
+				ret = new_to_user(cs->controls + idx,
 						helpers[idx].ctrl);
 				idx = helpers[idx].next;
 			} while (!ret && idx);
