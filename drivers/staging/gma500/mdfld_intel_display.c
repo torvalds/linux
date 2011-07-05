@@ -44,7 +44,6 @@
 /* Hardcoded currently */
 static int ksel = KSEL_CRYSTAL_19;
 
-extern struct drm_device *gpDrmDevice;
 extern void mdfld_save_display(struct drm_device *dev);
 extern bool gbgfxsuspended;
 
@@ -561,10 +560,10 @@ static void mdfld_crtc_dpms(struct drm_crtc *crtc, int mode)
 		return;
 
 	 /* Ignore if system is already in DSR and in suspended state. */
-	if(gbgfxsuspended && dev_priv->dispstatus == false && mode == 3){
+	if(/*gbgfxsuspended */0 && dev_priv->dispstatus == false && mode == 3){
 	    if(dev_priv->rpm_enabled && pipe == 1){
 	//          dev_priv->is_mipi_on = false;
-	            pm_request_idle(&gpDrmDevice->pdev->dev);
+	          pm_request_idle(&dev->pdev->dev);
 	    }
 	    return;
 	}else if(mode == 0) {
@@ -1386,3 +1385,31 @@ mrst_crtc_mode_set_exit:
 
 	return 0;
 }
+
+static void mdfld_crtc_prepare(struct drm_crtc *crtc)
+{
+	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
+}
+
+static void mdfld_crtc_commit(struct drm_crtc *crtc)
+{
+	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
+	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
+}
+
+static bool mdfld_crtc_mode_fixup(struct drm_crtc *crtc,
+				  struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode)
+{
+	return true;
+}
+
+const struct drm_crtc_helper_funcs mdfld_helper_funcs = {
+	.dpms = mdfld_crtc_dpms,
+	.mode_fixup = mdfld_crtc_mode_fixup,
+	.mode_set = mdfld_crtc_mode_set,
+	.mode_set_base = mdfld__intel_pipe_set_base,
+	.prepare = mdfld_crtc_prepare,
+	.commit = mdfld_crtc_commit,
+};

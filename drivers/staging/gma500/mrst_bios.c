@@ -30,7 +30,7 @@
 #include "mrst_bios.h"
 #include "mdfld_output.h"
 
-static int panel_id;
+static int panel_id = GCT_DETECT;
 module_param_named(panel_id, panel_id, int, 0600);
 MODULE_PARM_DESC(panel_id, "Panel Identifier");
 
@@ -237,7 +237,7 @@ void mrst_get_vbt_data(struct drm_psb_private *dev_priv)
 		dev_err(dev->dev, "Unknown revision of GCT!\n");
 		vbt->size = 0;
 	}
-	if (IS_MDFLD(dev_priv->dev)){
+	if (IS_MFLD(dev_priv->dev)){
 		if (panel_id == GCT_DETECT) {
 			if (dev_priv->gct_data.bpi == 2) {
 				dev_info(dev->dev, "[GFX] PYR Panel Detected\n");

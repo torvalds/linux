@@ -74,4 +74,7 @@ int mdfld_panel_dpi(struct drm_device *dev);
 int mdfld_get_panel_type(struct drm_device *dev, int pipe);
 void mdfld_disable_crtc (struct drm_device *dev, int pipe);
 
+extern const struct drm_crtc_helper_funcs mdfld_helper_funcs;
+extern const struct drm_crtc_funcs mdfld_intel_crtc_funcs;
+
 #endif

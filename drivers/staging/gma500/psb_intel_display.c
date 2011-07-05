@@ -29,6 +29,7 @@
 #include "psb_intel_display.h"
 #include "psb_powermgmt.h"
 
+#include "mdfld_output.h"
 
 struct psb_intel_clock_t {
 	/* given values */
@@ -1303,12 +1304,10 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 		return;
 	}
 
-#if 0	/* FIXME */
 	if (IS_MFLD(dev))
 		drm_crtc_init(dev, &psb_intel_crtc->base,
-						&mfld_intel_crtc_funcs);
+						&mdfld_intel_crtc_funcs);
 	else
-#endif
         	drm_crtc_init(dev, &psb_intel_crtc->base,
 						&psb_intel_crtc_funcs);
 
@@ -1336,9 +1335,9 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	if (IS_MRST(dev))
 		drm_crtc_helper_add(&psb_intel_crtc->base,
 				    &mrst_helper_funcs);
-/*	else if (IS_MDFLD(dev))
+	else if (IS_MFLD(dev))
 		drm_crtc_helper_add(&psb_intel_crtc->base,
-				    &mfld_helper_funcs); */
+				    &mdfld_helper_funcs);
 	else
 		drm_crtc_helper_add(&psb_intel_crtc->base,
 				    &psb_intel_helper_funcs);
