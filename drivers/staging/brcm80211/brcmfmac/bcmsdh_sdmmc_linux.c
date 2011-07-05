@@ -194,7 +194,6 @@ int brcmf_sdioh_osinit(struct sdioh_info *sd)
 void brcmf_sdioh_osfree(struct sdioh_info *sd)
 {
 	struct sdos_info *sdos;
-	ASSERT(sd && sd->sdos_info);
 
 	sdos = (struct sdos_info *)sd->sdos_info;
 	kfree(sdos);
@@ -209,7 +208,6 @@ int brcmf_sdioh_interrupt_set(struct sdioh_info *sd, bool enable)
 	sd_trace(("%s: %s\n", __func__, enable ? "Enabling" : "Disabling"));
 
 	sdos = (struct sdos_info *)sd->sdos_info;
-	ASSERT(sdos);
 
 	if (enable && !(sd->intr_handler && sd->intr_handler_arg)) {
 		sd_err(("%s: no handler registered, will not enable\n",

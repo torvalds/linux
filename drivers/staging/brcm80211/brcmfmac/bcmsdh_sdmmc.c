@@ -279,12 +279,16 @@ brcmf_sdioh_iovar_op(struct sdioh_info *si, const char *name,
 	bool bool_val;
 	u32 actionid;
 
-	ASSERT(name);
-	ASSERT(len >= 0);
+	if (name == NULL || len <= 0)
+		return -EINVAL;
 
-	/* Get must have return space; Set does not take qualifiers */
-	ASSERT(set || (arg && len));
-	ASSERT(!set || (!params && !plen));
+	/* Set does not take qualifiers */
+	if (set && (params || plen))
+		return -EINVAL;
+
+	/* Get must have return space;*/
+	if (!set && !(arg && len))
+		return -EINVAL;
 
 	sd_trace(("%s: Enter (%s %s)\n", __func__, (set ? "set" : "get"),
 		  name));
@@ -676,7 +680,6 @@ brcmf_sdioh_request_packet(struct sdioh_info *sd, uint fix_inc, uint write,
 
 	sd_trace(("%s: Enter\n", __func__));
 
-	ASSERT(pkt);
 	BRCMF_PM_RESUME_WAIT(sdioh_request_packet_wait);
 	BRCMF_PM_RESUME_RETURN_ERROR(-EIO);
 
@@ -686,14 +689,6 @@ brcmf_sdioh_request_packet(struct sdioh_info *sd, uint fix_inc, uint write,
 		uint pkt_len = pnext->len;
 		pkt_len += 3;
 		pkt_len &= 0xFFFFFFFC;
-
-		/* Make sure the packet is aligned properly.
-		 * If it isn't, then this
-		 * is the fault of brcmf_sdioh_request_buffer() which
-		 * is supposed to give
-		 * us something we can work with.
-		 */
-		ASSERT(((ulong) (pkt->data) & DMA_ALIGN_MASK) == 0);
 
 		if ((write) && (!fifo)) {
 			err_ret = sdio_memcpy_toio(gInstance->func[func], addr,
@@ -789,11 +784,10 @@ brcmf_sdioh_request_buffer(struct sdioh_info *sd, uint pio_dma, uint fix_inc,
 
 		brcmu_pkt_buf_free_skb(mypkt);
 	} else if (((ulong) (pkt->data) & DMA_ALIGN_MASK) != 0) {
-		/* Case 2: We have a packet, but it is unaligned. */
-
-		/* In this case, we cannot have a chain. */
-		ASSERT(pkt->next == NULL);
-
+		/*
+		 * Case 2: We have a packet, but it is unaligned.
+		 * In this case, we cannot have a chain (pkt->next == NULL)
+		 */
 		sd_data(("%s: Creating aligned %s Packet, len=%d\n",
 			 __func__, write ? "TX" : "RX", pkt->len));
 		mypkt = brcmu_pkt_buf_get_skb(pkt->len);
@@ -886,13 +880,10 @@ static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 	sd_trace(("brcmf: ***IRQHandler\n"));
 	sd = gInstance->sd;
 
-	ASSERT(sd != NULL);
 	sdio_release_host(gInstance->func[0]);
 
 	if (sd->use_client_ints) {
 		sd->intrcount++;
-		ASSERT(sd->intr_handler);
-		ASSERT(sd->intr_handler_arg);
 		(sd->intr_handler) (sd->intr_handler_arg);
 	} else {
 		sd_err(("brcmf: ***IRQHandler\n"));
@@ -912,6 +903,4 @@ static void brcmf_sdioh_irqhandler_f2(struct sdio_func *func)
 	sd_trace(("brcmf: ***IRQHandlerF2\n"));
 
 	sd = gInstance->sd;
-
-	ASSERT(sd != NULL);
 }
