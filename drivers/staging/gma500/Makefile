@@ -23,6 +23,7 @@ psb_gfx-y += gem_glue.o \
 	  psb_irq.o \
 	  mrst_crtc.o \
 	  mrst_lvds.o \
+	  mrst_bios.o \
 	  mdfld_output.o \
 	  mdfld_pyr_cmd.o \
 	  mdfld_tmd_vid.o \
