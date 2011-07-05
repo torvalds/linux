@@ -176,7 +176,7 @@ brcmf_c_doiovar(struct brcmf_pub *drvr, const struct brcmu_iovar *vi,
 	int bcmerror = 0;
 	s32 int_val = 0;
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	bcmerror = brcmu_iovar_lencheck(vi, arg, len, IOV_ISSET(actionid));
 	if (bcmerror != 0)
@@ -288,8 +288,8 @@ bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
 		p = discard_oldest ? brcmu_pktq_pdeq(q, eprec) :
 			brcmu_pktq_pdeq_tail(q, eprec);
 		if (p == NULL) {
-			DHD_ERROR(("%s: brcmu_pktq_penq() failed, oldest %d.",
-				   __func__, discard_oldest));
+			BRCMF_ERROR(("%s: brcmu_pktq_penq() failed, oldest %d.",
+				     __func__, discard_oldest));
 			ASSERT(p);
 		}
 
@@ -299,7 +299,7 @@ bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
 	/* Enqueue */
 	p = brcmu_pktq_penq(q, prec, pkt);
 	if (p == NULL) {
-		DHD_ERROR(("%s: brcmu_pktq_penq() failed.", __func__));
+		BRCMF_ERROR(("%s: brcmu_pktq_penq() failed.", __func__));
 		ASSERT(p);
 	}
 
@@ -315,7 +315,7 @@ brcmf_c_iovar_op(struct brcmf_pub *drvr, const char *name,
 	const struct brcmu_iovar *vi = NULL;
 	u32 actionid;
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	ASSERT(name);
 	ASSERT(len >= 0);
@@ -332,8 +332,8 @@ brcmf_c_iovar_op(struct brcmf_pub *drvr, const char *name,
 		goto exit;
 	}
 
-	DHD_CTL(("%s: %s %s, len %d plen %d\n", __func__,
-		 name, (set ? "set" : "get"), len, plen));
+	BRCMF_CTL(("%s: %s %s, len %d plen %d\n", __func__,
+		   name, (set ? "set" : "get"), len, plen));
 
 	/* set up 'params' pointer in case this is a set command so that
 	 * the convenience int and bool code can be common to set and get
@@ -365,7 +365,7 @@ int brcmf_c_ioctl(struct brcmf_pub *drvr, struct brcmf_c_ioctl *ioc, void *buf,
 {
 	int bcmerror = 0;
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	if (!buf)
 		return -EINVAL;
@@ -521,9 +521,9 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 			event_name = event_names[i].event_name;
 	}
 
-	DHD_EVENT(("EVENT: %s, event ID = %d\n", event_name, event_type));
-	DHD_EVENT(("flags 0x%04x, status %d, reason %d, auth_type %d MAC %s\n",
-				flags, status, reason, auth_type, eabuf));
+	BRCMF_EVENT(("EVENT: %s, event ID = %d\n", event_name, event_type));
+	BRCMF_EVENT(("flags 0x%04x, status %d, reason %d, auth_type %d"
+		     " MAC %s\n", flags, status, reason, auth_type, eabuf));
 
 	if (flags & BRCMF_EVENT_MSG_LINK)
 		link = true;
@@ -536,35 +536,36 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 	case BRCMF_E_START:
 	case BRCMF_E_DEAUTH:
 	case BRCMF_E_DISASSOC:
-		DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
+		BRCMF_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
 		break;
 
 	case BRCMF_E_ASSOC_IND:
 	case BRCMF_E_REASSOC_IND:
-		DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
+		BRCMF_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
 		break;
 
 	case BRCMF_E_ASSOC:
 	case BRCMF_E_REASSOC:
 		if (status == BRCMF_E_STATUS_SUCCESS) {
-			DHD_EVENT(("MACEVENT: %s, MAC %s, SUCCESS\n",
-				   event_name, eabuf));
+			BRCMF_EVENT(("MACEVENT: %s, MAC %s, SUCCESS\n",
+				     event_name, eabuf));
 		} else if (status == BRCMF_E_STATUS_TIMEOUT) {
-			DHD_EVENT(("MACEVENT: %s, MAC %s, TIMEOUT\n",
-				   event_name, eabuf));
+			BRCMF_EVENT(("MACEVENT: %s, MAC %s, TIMEOUT\n",
+				     event_name, eabuf));
 		} else if (status == BRCMF_E_STATUS_FAIL) {
-			DHD_EVENT(("MACEVENT: %s, MAC %s, FAILURE, reason %d\n",
-				   event_name, eabuf, (int)reason));
+			BRCMF_EVENT(("MACEVENT: %s, MAC %s, FAILURE,"
+				     " reason %d\n", event_name, eabuf,
+				     (int)reason));
 		} else {
-			DHD_EVENT(("MACEVENT: %s, MAC %s, unexpected status "
-				"%d\n", event_name, eabuf, (int)status));
+			BRCMF_EVENT(("MACEVENT: %s, MAC %s, unexpected status "
+				     "%d\n", event_name, eabuf, (int)status));
 		}
 		break;
 
 	case BRCMF_E_DEAUTH_IND:
 	case BRCMF_E_DISASSOC_IND:
-		DHD_EVENT(("MACEVENT: %s, MAC %s, reason %d\n", event_name,
-			   eabuf, (int)reason));
+		BRCMF_EVENT(("MACEVENT: %s, MAC %s, reason %d\n", event_name,
+			     eabuf, (int)reason));
 		break;
 
 	case BRCMF_E_AUTH:
@@ -578,18 +579,18 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 			auth_str = err_msg;
 		}
 		if (event_type == BRCMF_E_AUTH_IND) {
-			DHD_EVENT(("MACEVENT: %s, MAC %s, %s\n", event_name,
-				   eabuf, auth_str));
+			BRCMF_EVENT(("MACEVENT: %s, MAC %s, %s\n", event_name,
+				     eabuf, auth_str));
 		} else if (status == BRCMF_E_STATUS_SUCCESS) {
-			DHD_EVENT(("MACEVENT: %s, MAC %s, %s, SUCCESS\n",
-				   event_name, eabuf, auth_str));
+			BRCMF_EVENT(("MACEVENT: %s, MAC %s, %s, SUCCESS\n",
+				     event_name, eabuf, auth_str));
 		} else if (status == BRCMF_E_STATUS_TIMEOUT) {
-			DHD_EVENT(("MACEVENT: %s, MAC %s, %s, TIMEOUT\n",
-				   event_name, eabuf, auth_str));
+			BRCMF_EVENT(("MACEVENT: %s, MAC %s, %s, TIMEOUT\n",
+				     event_name, eabuf, auth_str));
 		} else if (status == BRCMF_E_STATUS_FAIL) {
-			DHD_EVENT(("MACEVENT: %s, MAC %s, %s, FAILURE, "
-				"reason %d\n",
-				event_name, eabuf, auth_str, (int)reason));
+			BRCMF_EVENT(("MACEVENT: %s, MAC %s, %s, FAILURE, "
+				     "reason %d\n",
+				     event_name, eabuf, auth_str, (int)reason));
 		}
 
 		break;
@@ -598,64 +599,64 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 	case BRCMF_E_ROAM:
 	case BRCMF_E_SET_SSID:
 		if (status == BRCMF_E_STATUS_SUCCESS) {
-			DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name,
-				   eabuf));
+			BRCMF_EVENT(("MACEVENT: %s, MAC %s\n", event_name,
+				     eabuf));
 		} else if (status == BRCMF_E_STATUS_FAIL) {
-			DHD_EVENT(("MACEVENT: %s, failed\n", event_name));
+			BRCMF_EVENT(("MACEVENT: %s, failed\n", event_name));
 		} else if (status == BRCMF_E_STATUS_NO_NETWORKS) {
-			DHD_EVENT(("MACEVENT: %s, no networks found\n",
-				   event_name));
+			BRCMF_EVENT(("MACEVENT: %s, no networks found\n",
+				     event_name));
 		} else {
-			DHD_EVENT(("MACEVENT: %s, unexpected status %d\n",
-				   event_name, (int)status));
+			BRCMF_EVENT(("MACEVENT: %s, unexpected status %d\n",
+				     event_name, (int)status));
 		}
 		break;
 
 	case BRCMF_E_BEACON_RX:
 		if (status == BRCMF_E_STATUS_SUCCESS) {
-			DHD_EVENT(("MACEVENT: %s, SUCCESS\n", event_name));
+			BRCMF_EVENT(("MACEVENT: %s, SUCCESS\n", event_name));
 		} else if (status == BRCMF_E_STATUS_FAIL) {
-			DHD_EVENT(("MACEVENT: %s, FAIL\n", event_name));
+			BRCMF_EVENT(("MACEVENT: %s, FAIL\n", event_name));
 		} else {
-			DHD_EVENT(("MACEVENT: %s, status %d\n", event_name,
-				   status));
+			BRCMF_EVENT(("MACEVENT: %s, status %d\n", event_name,
+				     status));
 		}
 		break;
 
 	case BRCMF_E_LINK:
-		DHD_EVENT(("MACEVENT: %s %s\n", event_name,
-			   link ? "UP" : "DOWN"));
+		BRCMF_EVENT(("MACEVENT: %s %s\n", event_name,
+			     link ? "UP" : "DOWN"));
 		break;
 
 	case BRCMF_E_MIC_ERROR:
-		DHD_EVENT(("MACEVENT: %s, MAC %s, Group %d, Flush %d\n",
-			   event_name, eabuf, group, flush_txq));
+		BRCMF_EVENT(("MACEVENT: %s, MAC %s, Group %d, Flush %d\n",
+			     event_name, eabuf, group, flush_txq));
 		break;
 
 	case BRCMF_E_ICV_ERROR:
 	case BRCMF_E_UNICAST_DECODE_ERROR:
 	case BRCMF_E_MULTICAST_DECODE_ERROR:
-		DHD_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
+		BRCMF_EVENT(("MACEVENT: %s, MAC %s\n", event_name, eabuf));
 		break;
 
 	case BRCMF_E_TXFAIL:
-		DHD_EVENT(("MACEVENT: %s, RA %s\n", event_name, eabuf));
+		BRCMF_EVENT(("MACEVENT: %s, RA %s\n", event_name, eabuf));
 		break;
 
 	case BRCMF_E_SCAN_COMPLETE:
 	case BRCMF_E_PMKID_CACHE:
-		DHD_EVENT(("MACEVENT: %s\n", event_name));
+		BRCMF_EVENT(("MACEVENT: %s\n", event_name));
 		break;
 
 	case BRCMF_E_PFN_NET_FOUND:
 	case BRCMF_E_PFN_NET_LOST:
 	case BRCMF_E_PFN_SCAN_COMPLETE:
-		DHD_EVENT(("PNOEVENT: %s\n", event_name));
+		BRCMF_EVENT(("PNOEVENT: %s\n", event_name));
 		break;
 
 	case BRCMF_E_PSK_SUP:
 	case BRCMF_E_PRUNE:
-		DHD_EVENT(("MACEVENT: %s, status %d, reason %d\n",
+		BRCMF_EVENT(("MACEVENT: %s, status %d, reason %d\n",
 			   event_name, (int)status, (int)reason));
 		break;
 
@@ -670,7 +671,7 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 			memcpy(&hdr, buf, sizeof(struct msgtrace_hdr));
 
 			if (hdr.version != MSGTRACE_VERSION) {
-				DHD_ERROR(
+				BRCMF_ERROR(
 				    ("\nMACEVENT: %s [unsupported version --> "
 				     "brcmf version:%d dongle version:%d]\n",
 				     event_name, MSGTRACE_VERSION, hdr.version)
@@ -686,7 +687,7 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 
 			if (be32_to_cpu(hdr.discarded_bytes)
 			    || be32_to_cpu(hdr.discarded_printf)) {
-				DHD_ERROR(
+				BRCMF_ERROR(
 				    ("\nWLC_E_TRACE: [Discarded traces in dongle -->"
 				     "discarded_bytes %d discarded_printf %d]\n",
 				     be32_to_cpu(hdr.discarded_bytes),
@@ -695,7 +696,7 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 
 			nblost = be32_to_cpu(hdr.seqnum) - seqnum_prev - 1;
 			if (nblost > 0) {
-				DHD_ERROR(
+				BRCMF_ERROR(
 				    ("\nWLC_E_TRACE: [Event lost --> seqnum %d nblost %d\n",
 				     be32_to_cpu(hdr.seqnum), nblost));
 			}
@@ -719,24 +720,24 @@ brcmf_c_show_host_event(struct brcmf_event_msg *event, void *event_data)
 		break;
 
 	case BRCMF_E_RSSI:
-		DHD_EVENT(("MACEVENT: %s %d\n", event_name,
-			   be32_to_cpu(*((int *)event_data))));
+		BRCMF_EVENT(("MACEVENT: %s %d\n", event_name,
+			     be32_to_cpu(*((int *)event_data))));
 		break;
 
 	default:
-		DHD_EVENT(("MACEVENT: %s %d, MAC %s, status %d, reason %d, "
-			"auth %d\n", event_name, event_type, eabuf,
-			(int)status, (int)reason, (int)auth_type));
+		BRCMF_EVENT(("MACEVENT: %s %d, MAC %s, status %d, reason %d, "
+			     "auth %d\n", event_name, event_type, eabuf,
+			     (int)status, (int)reason, (int)auth_type));
 		break;
 	}
 
 	/* show any appended data */
 	if (datalen) {
 		buf = (unsigned char *) event_data;
-		DHD_EVENT((" data (%d) : ", datalen));
+		BRCMF_EVENT((" data (%d) : ", datalen));
 		for (i = 0; i < datalen; i++)
-			DHD_EVENT((" 0x%02x ", *buf++));
-		DHD_EVENT(("\n"));
+			BRCMF_EVENT((" 0x%02x ", *buf++));
+		BRCMF_EVENT(("\n"));
 	}
 }
 #endif				/* SHOW_EVENTS */
@@ -753,14 +754,14 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 	int evlen;
 
 	if (memcmp(BRCM_OUI, &pvt_data->hdr.oui[0], DOT11_OUI_LEN)) {
-		DHD_ERROR(("%s: mismatched OUI, bailing\n", __func__));
+		BRCMF_ERROR(("%s: mismatched OUI, bailing\n", __func__));
 		return -EBADE;
 	}
 
 	/* BRCM event pkt may be unaligned - use xxx_ua to load user_subtype. */
 	if (get_unaligned_be16(&pvt_data->hdr.usr_subtype) !=
 	    BCMILCP_BCM_SUBTYPE_EVENT) {
-		DHD_ERROR(("%s: mismatched subtype, bailing\n", __func__));
+		BRCMF_ERROR(("%s: mismatched subtype, bailing\n", __func__));
 		return -EBADE;
 	}
 
@@ -781,7 +782,7 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 		{
 			struct brcmf_if_event *ifevent =
 					(struct brcmf_if_event *) event_data;
-			DHD_TRACE(("%s: if event\n", __func__));
+			BRCMF_TRACE(("%s: if event\n", __func__));
 
 			if (ifevent->ifidx > 0 &&
 				 ifevent->ifidx < BRCMF_MAX_IFS) {
@@ -794,9 +795,9 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 				else
 					brcmf_del_if(drvr_priv, ifevent->ifidx);
 			} else {
-				DHD_ERROR(("%s: Invalid ifidx %d for %s\n",
-					   __func__, ifevent->ifidx,
-					   event->ifname));
+				BRCMF_ERROR(("%s: Invalid ifidx %d for %s\n",
+					     __func__, ifevent->ifidx,
+					     event->ifname));
 			}
 		}
 		/* send up the if event: btamp user needs it */
@@ -813,15 +814,16 @@ brcmf_c_host_event(struct brcmf_info *drvr_priv, int *ifidx, void *pktdata,
 		/* Fall through: this should get _everything_  */
 
 		*ifidx = brcmf_ifname2idx(drvr_priv, event->ifname);
-		DHD_TRACE(("%s: MAC event %d, flags %x, status %x\n",
-			   __func__, type, flags, status));
+		BRCMF_TRACE(("%s: MAC event %d, flags %x, status %x\n",
+			     __func__, type, flags, status));
 
 		/* put it back to BRCMF_E_NDIS_LINK */
 		if (type == BRCMF_E_NDIS_LINK) {
 			u32 temp;
 
 			temp = get_unaligned_be32(&event->event_type);
-			DHD_TRACE(("Converted to WLC_E_LINK type %d\n", temp));
+			BRCMF_TRACE(("Converted to WLC_E_LINK type %d\n",
+				     temp));
 
 			temp = be32_to_cpu(BRCMF_E_NDIS_LINK);
 			memcpy((void *)(&pvt_data->msg.event_type), &temp,
@@ -842,12 +844,12 @@ static int brcmf_c_pattern_atoh(char *src, char *dst)
 {
 	int i;
 	if (strncmp(src, "0x", 2) != 0 && strncmp(src, "0X", 2) != 0) {
-		DHD_ERROR(("Mask invalid format. Needs to start with 0x\n"));
+		BRCMF_ERROR(("Mask invalid format. Needs to start with 0x\n"));
 		return -1;
 	}
 	src = src + 2;		/* Skip past 0x */
 	if (strlen(src) % 2 != 0) {
-		DHD_ERROR(("Mask invalid format. Length must be even.\n"));
+		BRCMF_ERROR(("Mask invalid format. Length must be even.\n"));
 		return -1;
 	}
 	for (i = 0; *src != '\0'; i++) {
@@ -877,7 +879,7 @@ brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg, int enable,
 
 	arg_save = kmalloc(strlen(arg) + 1, GFP_ATOMIC);
 	if (!arg_save) {
-		DHD_ERROR(("%s: kmalloc failed\n", __func__));
+		BRCMF_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
 	}
 	arg_org = arg_save;
@@ -887,7 +889,7 @@ brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg, int enable,
 
 	i = 0;
 	if (NULL == argv[i]) {
-		DHD_ERROR(("No args provided\n"));
+		BRCMF_ERROR(("No args provided\n"));
 		goto fail;
 	}
 
@@ -912,11 +914,11 @@ brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg, int enable,
 	rc = brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_VAR, buf, buf_len);
 	rc = rc >= 0 ? 0 : rc;
 	if (rc)
-		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
-			   __func__, arg, rc));
+		BRCMF_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
+			     __func__, arg, rc));
 	else
-		DHD_TRACE(("%s: successfully added pktfilter %s\n",
-			   __func__, arg));
+		BRCMF_TRACE(("%s: successfully added pktfilter %s\n",
+			     __func__, arg));
 
 	/* Contorl the master mode */
 	brcmu_mkiovar("pkt_filter_mode", (char *)&master_mode, 4, buf,
@@ -925,8 +927,8 @@ brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg, int enable,
 				       sizeof(buf));
 	rc = rc >= 0 ? 0 : rc;
 	if (rc)
-		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
-			   __func__, arg, rc));
+		BRCMF_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
+			     __func__, arg, rc));
 
 fail:
 	kfree(arg_org);
@@ -948,7 +950,7 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 
 	arg_save = kmalloc(strlen(arg) + 1, GFP_ATOMIC);
 	if (!arg_save) {
-		DHD_ERROR(("%s: kmalloc failed\n", __func__));
+		BRCMF_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
 	}
 
@@ -956,15 +958,15 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 
 	buf = kmalloc(PKTFILTER_BUF_SIZE, GFP_ATOMIC);
 	if (!buf) {
-		DHD_ERROR(("%s: kmalloc failed\n", __func__));
+		BRCMF_ERROR(("%s: kmalloc failed\n", __func__));
 		goto fail;
 	}
 
 	memcpy(arg_save, arg, strlen(arg) + 1);
 
 	if (strlen(arg) > PKTFILTER_BUF_SIZE) {
-		DHD_ERROR(("Not enough buffer %d < %d\n", (int)strlen(arg),
-			   (int)sizeof(buf)));
+		BRCMF_ERROR(("Not enough buffer %d < %d\n", (int)strlen(arg),
+			     (int)sizeof(buf)));
 		goto fail;
 	}
 
@@ -974,7 +976,7 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 
 	i = 0;
 	if (NULL == argv[i]) {
-		DHD_ERROR(("No args provided\n"));
+		BRCMF_ERROR(("No args provided\n"));
 		goto fail;
 	}
 
@@ -990,7 +992,7 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 	pkt_filter.id = simple_strtoul(argv[i], NULL, 0);
 
 	if (NULL == argv[++i]) {
-		DHD_ERROR(("Polarity not provided\n"));
+		BRCMF_ERROR(("Polarity not provided\n"));
 		goto fail;
 	}
 
@@ -998,7 +1000,7 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 	pkt_filter.negate_match = simple_strtoul(argv[i], NULL, 0);
 
 	if (NULL == argv[++i]) {
-		DHD_ERROR(("Filter type not provided\n"));
+		BRCMF_ERROR(("Filter type not provided\n"));
 		goto fail;
 	}
 
@@ -1006,7 +1008,7 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 	pkt_filter.type = simple_strtoul(argv[i], NULL, 0);
 
 	if (NULL == argv[++i]) {
-		DHD_ERROR(("Offset not provided\n"));
+		BRCMF_ERROR(("Offset not provided\n"));
 		goto fail;
 	}
 
@@ -1014,7 +1016,7 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 	pkt_filter.u.pattern.offset = simple_strtoul(argv[i], NULL, 0);
 
 	if (NULL == argv[++i]) {
-		DHD_ERROR(("Bitmask not provided\n"));
+		BRCMF_ERROR(("Bitmask not provided\n"));
 		goto fail;
 	}
 
@@ -1024,7 +1026,7 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 		   (argv[i], (char *)pkt_filterp->u.pattern.mask_and_pattern);
 
 	if (NULL == argv[++i]) {
-		DHD_ERROR(("Pattern not provided\n"));
+		BRCMF_ERROR(("Pattern not provided\n"));
 		goto fail;
 	}
 
@@ -1035,7 +1037,7 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 				   mask_and_pattern[mask_size]);
 
 	if (mask_size != pattern_size) {
-		DHD_ERROR(("Mask and pattern not the same size\n"));
+		BRCMF_ERROR(("Mask and pattern not the same size\n"));
 		goto fail;
 	}
 
@@ -1056,11 +1058,11 @@ void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg)
 	rc = rc >= 0 ? 0 : rc;
 
 	if (rc)
-		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
-			   __func__, arg, rc));
+		BRCMF_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
+			     __func__, arg, rc));
 	else
-		DHD_TRACE(("%s: successfully added pktfilter %s\n",
-			   __func__, arg));
+		BRCMF_TRACE(("%s: successfully added pktfilter %s\n",
+			     __func__, arg));
 
 fail:
 	kfree(arg_org);
@@ -1078,11 +1080,11 @@ void brcmf_c_arp_offload_set(struct brcmf_pub *drvr, int arp_mode)
 				   iovbuf, sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
-		DHD_TRACE(("%s: failed to set ARP offload mode to 0x%x, "
-			"retcode = %d\n", __func__, arp_mode, retcode));
+		BRCMF_TRACE(("%s: failed to set ARP offload mode to 0x%x, "
+			     "retcode = %d\n", __func__, arp_mode, retcode));
 	else
-		DHD_TRACE(("%s: successfully set ARP offload mode to 0x%x\n",
-			   __func__, arp_mode));
+		BRCMF_TRACE(("%s: successfully set ARP offload mode to 0x%x\n",
+			     __func__, arp_mode));
 }
 
 void brcmf_c_arp_offload_enable(struct brcmf_pub *drvr, int arp_enable)
@@ -1095,11 +1097,11 @@ void brcmf_c_arp_offload_enable(struct brcmf_pub *drvr, int arp_enable)
 				   iovbuf, sizeof(iovbuf));
 	retcode = retcode >= 0 ? 0 : retcode;
 	if (retcode)
-		DHD_TRACE(("%s: failed to enabe ARP offload to %d, "
-			"retcode = %d\n", __func__, arp_enable, retcode));
+		BRCMF_TRACE(("%s: failed to enabe ARP offload to %d, "
+			     "retcode = %d\n", __func__, arp_enable, retcode));
 	else
-		DHD_TRACE(("%s: successfully enabed ARP offload to %d\n",
-			   __func__, arp_enable));
+		BRCMF_TRACE(("%s: successfully enabed ARP offload to %d\n",
+			     __func__, arp_enable));
 }
 
 int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
@@ -1123,8 +1125,8 @@ int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
 		if (brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_COUNTRY,
 				     drvr->country_code,
 				     sizeof(drvr->country_code)) < 0) {
-			DHD_ERROR(("%s: country code setting failed\n",
-				   __func__));
+			BRCMF_ERROR(("%s: country code setting failed\n",
+				     __func__));
 		}
 	}
 
@@ -1135,7 +1137,7 @@ int brcmf_c_preinit_ioctls(struct brcmf_pub *drvr)
 	brcmf_proto_cdc_query_ioctl(drvr, 0, BRCMF_C_GET_VAR, buf, sizeof(buf));
 	strsep(&ptr, "\n");
 	/* Print fw version info */
-	DHD_ERROR(("Firmware version = %s\n", buf));
+	BRCMF_ERROR(("Firmware version = %s\n", buf));
 
 	/* Set PowerSave mode */
 	brcmf_proto_cdc_set_ioctl(drvr, 0, BRCMF_C_SET_PM, (char *)&power_mode,

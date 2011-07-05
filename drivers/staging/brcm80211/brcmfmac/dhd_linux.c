@@ -259,7 +259,7 @@ int brcmf_ifname2idx(struct brcmf_info *drvr_priv, char *name)
 		    && !strncmp(drvr_priv->iflist[i]->name, name, IFNAMSIZ))
 			break;
 
-	DHD_TRACE(("%s: return idx %d for \"%s\"\n", __func__, i, name));
+	BRCMF_TRACE(("%s: return idx %d for \"%s\"\n", __func__, i, name));
 
 	return i;		/* default - the primary interface */
 }
@@ -271,12 +271,12 @@ char *brcmf_ifname(struct brcmf_pub *drvr, int ifidx)
 	ASSERT(drvr_priv);
 
 	if (ifidx < 0 || ifidx >= BRCMF_MAX_IFS) {
-		DHD_ERROR(("%s: ifidx %d out of range\n", __func__, ifidx));
+		BRCMF_ERROR(("%s: ifidx %d out of range\n", __func__, ifidx));
 		return "<if_bad>";
 	}
 
 	if (drvr_priv->iflist[ifidx] == NULL) {
-		DHD_ERROR(("%s: null i/f %d\n", __func__, ifidx));
+		BRCMF_ERROR(("%s: null i/f %d\n", __func__, ifidx));
 		return "<if_null>";
 	}
 
@@ -309,8 +309,8 @@ static void _brcmf_set_multicast_list(struct brcmf_info *drvr_priv, int ifidx)
 	buflen = sizeof("mcast_list") + sizeof(cnt) + (cnt * ETH_ALEN);
 	bufp = buf = kmalloc(buflen, GFP_ATOMIC);
 	if (!bufp) {
-		DHD_ERROR(("%s: out of memory for mcast_list, cnt %d\n",
-			   brcmf_ifname(&drvr_priv->pub, ifidx), cnt));
+		BRCMF_ERROR(("%s: out of memory for mcast_list, cnt %d\n",
+			     brcmf_ifname(&drvr_priv->pub, ifidx), cnt));
 		return;
 	}
 
@@ -337,8 +337,8 @@ static void _brcmf_set_multicast_list(struct brcmf_info *drvr_priv, int ifidx)
 
 	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
-		DHD_ERROR(("%s: set mcast_list failed, cnt %d\n",
-			   brcmf_ifname(&drvr_priv->pub, ifidx), cnt));
+		BRCMF_ERROR(("%s: set mcast_list failed, cnt %d\n",
+			     brcmf_ifname(&drvr_priv->pub, ifidx), cnt));
 		allmulti = cnt ? true : allmulti;
 	}
 
@@ -352,17 +352,18 @@ static void _brcmf_set_multicast_list(struct brcmf_info *drvr_priv, int ifidx)
 	buflen = sizeof("allmulti") + sizeof(allmulti);
 	buf = kmalloc(buflen, GFP_ATOMIC);
 	if (!buf) {
-		DHD_ERROR(("%s: out of memory for allmulti\n",
-			   brcmf_ifname(&drvr_priv->pub, ifidx)));
+		BRCMF_ERROR(("%s: out of memory for allmulti\n",
+			     brcmf_ifname(&drvr_priv->pub, ifidx)));
 		return;
 	}
 	allmulti = cpu_to_le32(allmulti);
 
 	if (!brcmu_mkiovar
 	    ("allmulti", (void *)&allmulti, sizeof(allmulti), buf, buflen)) {
-		DHD_ERROR(("%s: mkiovar failed for allmulti, datalen %d "
-			"buflen %u\n", brcmf_ifname(&drvr_priv->pub, ifidx),
-			(int)sizeof(allmulti), buflen));
+		BRCMF_ERROR(("%s: mkiovar failed for allmulti, datalen %d "
+			     "buflen %u\n",
+			     brcmf_ifname(&drvr_priv->pub, ifidx),
+			     (int)sizeof(allmulti), buflen));
 		kfree(buf);
 		return;
 	}
@@ -375,9 +376,9 @@ static void _brcmf_set_multicast_list(struct brcmf_info *drvr_priv, int ifidx)
 
 	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
-		DHD_ERROR(("%s: set allmulti %d failed\n",
-			   brcmf_ifname(&drvr_priv->pub, ifidx),
-			   le32_to_cpu(allmulti)));
+		BRCMF_ERROR(("%s: set allmulti %d failed\n",
+			     brcmf_ifname(&drvr_priv->pub, ifidx),
+			     le32_to_cpu(allmulti)));
 	}
 
 	kfree(buf);
@@ -396,9 +397,9 @@ static void _brcmf_set_multicast_list(struct brcmf_info *drvr_priv, int ifidx)
 
 	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
-		DHD_ERROR(("%s: set promisc %d failed\n",
-			   brcmf_ifname(&drvr_priv->pub, ifidx),
-			   le32_to_cpu(allmulti)));
+		BRCMF_ERROR(("%s: set promisc %d failed\n",
+			     brcmf_ifname(&drvr_priv->pub, ifidx),
+			     le32_to_cpu(allmulti)));
 	}
 }
 
@@ -408,11 +409,11 @@ static int _brcmf_set_mac_address(struct brcmf_info *drvr_priv, int ifidx, u8 *a
 	struct brcmf_ioctl ioc;
 	int ret;
 
-	DHD_TRACE(("%s enter\n", __func__));
+	BRCMF_TRACE(("%s enter\n", __func__));
 	if (!brcmu_mkiovar
 	    ("cur_etheraddr", (char *)addr, ETH_ALEN, buf, 32)) {
-		DHD_ERROR(("%s: mkiovar failed for cur_etheraddr\n",
-			   brcmf_ifname(&drvr_priv->pub, ifidx)));
+		BRCMF_ERROR(("%s: mkiovar failed for cur_etheraddr\n",
+			     brcmf_ifname(&drvr_priv->pub, ifidx)));
 		return -1;
 	}
 	memset(&ioc, 0, sizeof(ioc));
@@ -423,8 +424,8 @@ static int _brcmf_set_mac_address(struct brcmf_info *drvr_priv, int ifidx, u8 *a
 
 	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
-		DHD_ERROR(("%s: set cur_etheraddr failed\n",
-			   brcmf_ifname(&drvr_priv->pub, ifidx)));
+		BRCMF_ERROR(("%s: set cur_etheraddr failed\n",
+			     brcmf_ifname(&drvr_priv->pub, ifidx)));
 	} else {
 		memcpy(drvr_priv->iflist[ifidx]->net->dev_addr, addr, ETH_ALEN);
 	}
@@ -445,7 +446,7 @@ static void brcmf_op_if(struct brcmf_if *ifp)
 
 	drvr_priv = ifp->info;
 
-	DHD_TRACE(("%s: idx %d, state %d\n", __func__, ifp->idx, ifp->state));
+	BRCMF_TRACE(("%s: idx %d, state %d\n", __func__, ifp->idx, ifp->state));
 
 	switch (ifp->state) {
 	case BRCMF_E_IF_ADD:
@@ -454,9 +455,9 @@ static void brcmf_op_if(struct brcmf_if *ifp)
 		 * in case we missed the BRCMF_E_IF_DEL event.
 		 */
 		if (ifp->net != NULL) {
-			DHD_ERROR(("%s: ERROR: netdev:%s already exists, "
-			"try free & unregister\n",
-			__func__, ifp->net->name));
+			BRCMF_ERROR(("%s: ERROR: netdev:%s already exists, "
+				     "try free & unregister\n",
+				     __func__, ifp->net->name));
 			netif_stop_queue(ifp->net);
 			unregister_netdev(ifp->net);
 			free_netdev(ifp->net);
@@ -464,7 +465,7 @@ static void brcmf_op_if(struct brcmf_if *ifp)
 		/* Allocate etherdev, including space for private structure */
 		ifp->net = alloc_etherdev(sizeof(drvr_priv));
 		if (!ifp->net) {
-			DHD_ERROR(("%s: OOM - alloc_etherdev\n", __func__));
+			BRCMF_ERROR(("%s: OOM - alloc_etherdev\n", __func__));
 			ret = -ENOMEM;
 		}
 		if (ret == 0) {
@@ -472,9 +473,9 @@ static void brcmf_op_if(struct brcmf_if *ifp)
 			memcpy(netdev_priv(ifp->net), &drvr_priv, sizeof(drvr_priv));
 			err = brcmf_net_attach(&drvr_priv->pub, ifp->idx);
 			if (err != 0) {
-				DHD_ERROR(("%s: brcmf_net_attach failed, "
-					"err %d\n",
-					__func__, err));
+				BRCMF_ERROR(("%s: brcmf_net_attach failed, "
+					     "err %d\n",
+					     __func__, err));
 				ret = -EOPNOTSUPP;
 			} else {
 #ifdef SOFTAP
@@ -489,17 +490,17 @@ static void brcmf_op_if(struct brcmf_if *ifp)
 					 wl0.1 is ready */
 				up(&ap_eth_sema);
 #endif
-				DHD_TRACE(("\n ==== pid:%x, net_device for "
-					"if:%s created ===\n\n",
-					current->pid, ifp->net->name));
+				BRCMF_TRACE(("\n ==== pid:%x, net_device for "
+					     "if:%s created ===\n\n",
+					     current->pid, ifp->net->name));
 				ifp->state = 0;
 			}
 		}
 		break;
 	case BRCMF_E_IF_DEL:
 		if (ifp->net != NULL) {
-			DHD_TRACE(("\n%s: got 'WLC_E_IF_DEL' state\n",
-				   __func__));
+			BRCMF_TRACE(("\n%s: got 'WLC_E_IF_DEL' state\n",
+				     __func__));
 			netif_stop_queue(ifp->net);
 			unregister_netdev(ifp->net);
 			ret = BRCMF_DEL_IF;	/* Make sure the free_netdev()
@@ -507,7 +508,7 @@ static void brcmf_op_if(struct brcmf_if *ifp)
 		}
 		break;
 	default:
-		DHD_ERROR(("%s: bad op %d\n", __func__, ifp->state));
+		BRCMF_ERROR(("%s: bad op %d\n", __func__, ifp->state));
 		ASSERT(!ifp->state);
 		break;
 	}
@@ -540,32 +541,35 @@ static int _brcmf_sysioc_thread(void *data)
 		if (kthread_should_stop())
 			break;
 		for (i = 0; i < BRCMF_MAX_IFS; i++) {
-			if (drvr_priv->iflist[i]) {
+			struct brcmf_if *ifentry = drvr_priv->iflist[i];
+			if (ifentry) {
 #ifdef SOFTAP
 				in_ap = (ap_net_dev != NULL);
 #endif				/* SOFTAP */
-				if (drvr_priv->iflist[i]->state)
-					brcmf_op_if(drvr_priv->iflist[i]);
+				if (ifentry->state)
+					brcmf_op_if(ifentry);
 #ifdef SOFTAP
 				if (drvr_priv->iflist[i] == NULL) {
-					DHD_TRACE(("\n\n %s: interface %d "
-						"removed!\n", __func__, i));
+					BRCMF_TRACE(("\n\n %s: interface %d "
+						     "removed!\n", __func__,
+						     i));
 					continue;
 				}
 
 				if (in_ap && drvr_priv->set_macaddress) {
-					DHD_TRACE(("attempt to set MAC for %s "
-						"in AP Mode," "blocked.\n",
-						drvr_priv->iflist[i]->net->name));
+					BRCMF_TRACE(("attempt to set MAC for"
+						     " %s in AP Mode,"
+						     " blocked.\n",
+						     ifentry->net->name));
 					drvr_priv->set_macaddress = false;
 					continue;
 				}
 
 				if (in_ap && drvr_priv->set_multicast) {
-					DHD_TRACE(("attempt to set MULTICAST "
-						   "list for %s in AP Mode, "
-						   "blocked.\n",
-						   drvr_priv->iflist[i]->net->name));
+					BRCMF_TRACE(("attempt to set MULTICAST "
+						     "list for %s in AP Mode, "
+						     "blocked.\n",
+						     ifentry->net->name));
 					drvr_priv->set_multicast = false;
 					continue;
 				}
@@ -577,7 +581,7 @@ static int _brcmf_sysioc_thread(void *data)
 				if (drvr_priv->set_macaddress) {
 					drvr_priv->set_macaddress = false;
 					_brcmf_set_mac_address(drvr_priv, i,
-							     drvr_priv->macvalue);
+						drvr_priv->macvalue);
 				}
 			}
 		}
@@ -651,19 +655,20 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *net)
 	struct brcmf_info *drvr_priv = *(struct brcmf_info **) netdev_priv(net);
 	int ifidx;
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	/* Reject if down */
 	if (!drvr_priv->pub.up || (drvr_priv->pub.busstate == BRCMF_BUS_DOWN)) {
-		DHD_ERROR(("%s: xmit rejected pub.up=%d busstate=%d\n",
-			   __func__, drvr_priv->pub.up, drvr_priv->pub.busstate));
+		BRCMF_ERROR(("%s: xmit rejected pub.up=%d busstate=%d\n",
+			     __func__, drvr_priv->pub.up,
+			     drvr_priv->pub.busstate));
 		netif_stop_queue(net);
 		return -ENODEV;
 	}
 
 	ifidx = brcmf_net2idx(drvr_priv, net);
 	if (ifidx == BRCMF_BAD_IF) {
-		DHD_ERROR(("%s: bad ifidx %d\n", __func__, ifidx));
+		BRCMF_ERROR(("%s: bad ifidx %d\n", __func__, ifidx));
 		netif_stop_queue(net);
 		return -ENODEV;
 	}
@@ -672,15 +677,15 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *net)
 	if (skb_headroom(skb) < drvr_priv->pub.hdrlen) {
 		struct sk_buff *skb2;
 
-		DHD_INFO(("%s: insufficient headroom\n",
-			  brcmf_ifname(&drvr_priv->pub, ifidx)));
+		BRCMF_INFO(("%s: insufficient headroom\n",
+			    brcmf_ifname(&drvr_priv->pub, ifidx)));
 		drvr_priv->pub.tx_realloc++;
 		skb2 = skb_realloc_headroom(skb, drvr_priv->pub.hdrlen);
 		dev_kfree_skb(skb);
 		skb = skb2;
 		if (skb == NULL) {
-			DHD_ERROR(("%s: skb_realloc_headroom failed\n",
-				   brcmf_ifname(&drvr_priv->pub, ifidx)));
+			BRCMF_ERROR(("%s: skb_realloc_headroom failed\n",
+				     brcmf_ifname(&drvr_priv->pub, ifidx)));
 			ret = -ENOMEM;
 			goto done;
 		}
@@ -703,7 +708,7 @@ void brcmf_txflowcontrol(struct brcmf_pub *drvr, int ifidx, bool state)
 	struct net_device *net;
 	struct brcmf_info *drvr_priv = drvr->info;
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	drvr->txoff = state;
 	ASSERT(drvr_priv && drvr_priv->iflist[ifidx]);
@@ -726,7 +731,7 @@ void brcmf_rx_frame(struct brcmf_pub *drvr, int ifidx, struct sk_buff *skb,
 	struct brcmf_if *ifp;
 	struct brcmf_event_msg event;
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	save_pktbuf = skb;
 
@@ -821,7 +826,7 @@ static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *net)
 	struct brcmf_if *ifp;
 	int ifidx;
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	ifidx = brcmf_net2idx(drvr_priv, net);
 	if (ifidx == BRCMF_BAD_IF)
@@ -869,13 +874,13 @@ static int brcmf_toe_get(struct brcmf_info *drvr_priv, int ifidx, u32 *toe_ol)
 	if (ret < 0) {
 		/* Check for older dongle image that doesn't support toe_ol */
 		if (ret == -EIO) {
-			DHD_ERROR(("%s: toe not supported by device\n",
-				   brcmf_ifname(&drvr_priv->pub, ifidx)));
+			BRCMF_ERROR(("%s: toe not supported by device\n",
+				     brcmf_ifname(&drvr_priv->pub, ifidx)));
 			return -EOPNOTSUPP;
 		}
 
-		DHD_INFO(("%s: could not get toe_ol: ret=%d\n",
-			  brcmf_ifname(&drvr_priv->pub, ifidx), ret));
+		BRCMF_INFO(("%s: could not get toe_ol: ret=%d\n",
+			    brcmf_ifname(&drvr_priv->pub, ifidx), ret));
 		return ret;
 	}
 
@@ -905,8 +910,8 @@ static int brcmf_toe_set(struct brcmf_info *drvr_priv, int ifidx, u32 toe_ol)
 
 	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
-		DHD_ERROR(("%s: could not set toe_ol: ret=%d\n",
-			   brcmf_ifname(&drvr_priv->pub, ifidx), ret));
+		BRCMF_ERROR(("%s: could not set toe_ol: ret=%d\n",
+			     brcmf_ifname(&drvr_priv->pub, ifidx), ret));
 		return ret;
 	}
 
@@ -919,8 +924,8 @@ static int brcmf_toe_set(struct brcmf_info *drvr_priv, int ifidx, u32 toe_ol)
 
 	ret = brcmf_proto_ioctl(&drvr_priv->pub, ifidx, &ioc, ioc.buf, ioc.len);
 	if (ret < 0) {
-		DHD_ERROR(("%s: could not set toe: ret=%d\n",
-			   brcmf_ifname(&drvr_priv->pub, ifidx), ret));
+		BRCMF_ERROR(("%s: could not set toe: ret=%d\n",
+			     brcmf_ifname(&drvr_priv->pub, ifidx), ret));
 		return ret;
 	}
 
@@ -952,7 +957,7 @@ static int brcmf_ethtool(struct brcmf_info *drvr_priv, void *uaddr)
 	u32 toe_cmpnt, csum_dir;
 	int ret;
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	/* all ethtool calls start with a cmd word */
 	if (copy_from_user(&cmd, uaddr, sizeof(u32)))
@@ -978,7 +983,7 @@ static int brcmf_ethtool(struct brcmf_info *drvr_priv, void *uaddr)
 
 		/* otherwise, require dongle to be up */
 		else if (!drvr_priv->pub.up) {
-			DHD_ERROR(("%s: dongle is not up\n", __func__));
+			BRCMF_ERROR(("%s: dongle is not up\n", __func__));
 			return -ENODEV;
 		}
 
@@ -991,8 +996,8 @@ static int brcmf_ethtool(struct brcmf_info *drvr_priv, void *uaddr)
 		sprintf(info.version, "%lu", drvr_priv->pub.drv_version);
 		if (copy_to_user(uaddr, &info, sizeof(info)))
 			return -EFAULT;
-		DHD_CTL(("%s: given %*s, returning %s\n", __func__,
-			 (int)sizeof(drvname), drvname, info.driver));
+		BRCMF_CTL(("%s: given %*s, returning %s\n", __func__,
+			   (int)sizeof(drvname), drvname, info.driver));
 		break;
 
 		/* Get toe offload components from dongle */
@@ -1067,7 +1072,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 	bool is_set_key_cmd;
 
 	ifidx = brcmf_net2idx(drvr_priv, net);
-	DHD_TRACE(("%s: ifidx %d, cmd 0x%04x\n", __func__, ifidx, cmd));
+	BRCMF_TRACE(("%s: ifidx %d, cmd 0x%04x\n", __func__, ifidx, cmd));
 
 	if (ifidx == BRCMF_BAD_IF)
 		return -1;
@@ -1130,7 +1135,7 @@ static int brcmf_netdev_ioctl_entry(struct net_device *net, struct ifreq *ifr,
 
 	/* send to dongle (must be up, and wl) */
 	if ((drvr_priv->pub.busstate != BRCMF_BUS_DATA)) {
-		DHD_ERROR(("%s DONGLE_DOWN,__func__\n", __func__));
+		BRCMF_ERROR(("%s DONGLE_DOWN,__func__\n", __func__));
 		bcmerror = -EIO;
 		goto done;
 	}
@@ -1175,7 +1180,7 @@ static int brcmf_netdev_stop(struct net_device *net)
 #if !defined(IGNORE_ETH0_DOWN)
 	struct brcmf_info *drvr_priv = *(struct brcmf_info **) netdev_priv(net);
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 	brcmf_cfg80211_down();
 	if (drvr_priv->pub.up == 0)
 		return 0;
@@ -1184,8 +1189,8 @@ static int brcmf_netdev_stop(struct net_device *net)
 	drvr_priv->pub.up = 0;
 	netif_stop_queue(net);
 #else
-	DHD_ERROR(("BYPASS %s:due to BRCM compilation : under investigation\n",
-		__func__));
+	BRCMF_ERROR(("BYPASS %s:due to BRCM compilation: under investigation\n",
+		     __func__));
 #endif				/* !defined(IGNORE_ETH0_DOWN) */
 
 	return 0;
@@ -1198,14 +1203,15 @@ static int brcmf_netdev_open(struct net_device *net)
 	int ifidx = brcmf_net2idx(drvr_priv, net);
 	s32 ret = 0;
 
-	DHD_TRACE(("%s: ifidx %d\n", __func__, ifidx));
+	BRCMF_TRACE(("%s: ifidx %d\n", __func__, ifidx));
 
 	if (ifidx == 0) {	/* do it only for primary eth0 */
 
 		/* try to bring up bus */
 		ret = brcmf_bus_start(&drvr_priv->pub);
 		if (ret != 0) {
-			DHD_ERROR(("%s: failed with code %d\n", __func__, ret));
+			BRCMF_ERROR(("%s: failed with code %d\n",
+				     __func__, ret));
 			return -1;
 		}
 		atomic_set(&drvr_priv->pend_8021x_cnt, 0);
@@ -1215,16 +1221,18 @@ static int brcmf_netdev_open(struct net_device *net)
 		/* Get current TOE mode from dongle */
 		if (brcmf_toe_get(drvr_priv, ifidx, &toe_ol) >= 0
 		    && (toe_ol & TOE_TX_CSUM_OL) != 0)
-			drvr_priv->iflist[ifidx]->net->features |= NETIF_F_IP_CSUM;
+			drvr_priv->iflist[ifidx]->net->features |=
+				NETIF_F_IP_CSUM;
 		else
-			drvr_priv->iflist[ifidx]->net->features &= ~NETIF_F_IP_CSUM;
+			drvr_priv->iflist[ifidx]->net->features &=
+				~NETIF_F_IP_CSUM;
 	}
 	/* Allow transmit calls */
 	netif_start_queue(net);
 	drvr_priv->pub.up = 1;
 	if (unlikely(brcmf_cfg80211_up())) {
-		DHD_ERROR(("%s: failed to bring up cfg80211\n",
-			   __func__));
+		BRCMF_ERROR(("%s: failed to bring up cfg80211\n",
+			     __func__));
 		return -1;
 	}
 
@@ -1237,7 +1245,7 @@ brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, void *handle, char *name,
 {
 	struct brcmf_if *ifp;
 
-	DHD_TRACE(("%s: idx %d, handle->%p\n", __func__, ifidx, handle));
+	BRCMF_TRACE(("%s: idx %d, handle->%p\n", __func__, ifidx, handle));
 
 	ASSERT(drvr_priv && (ifidx < BRCMF_MAX_IFS));
 
@@ -1245,7 +1253,7 @@ brcmf_add_if(struct brcmf_info *drvr_priv, int ifidx, void *handle, char *name,
 	if (!ifp) {
 		ifp = kmalloc(sizeof(struct brcmf_if), GFP_ATOMIC);
 		if (!ifp) {
-			DHD_ERROR(("%s: OOM - struct brcmf_if\n", __func__));
+			BRCMF_ERROR(("%s: OOM - struct brcmf_if\n", __func__));
 			return -ENOMEM;
 		}
 	}
@@ -1272,12 +1280,12 @@ void brcmf_del_if(struct brcmf_info *drvr_priv, int ifidx)
 {
 	struct brcmf_if *ifp;
 
-	DHD_TRACE(("%s: idx %d\n", __func__, ifidx));
+	BRCMF_TRACE(("%s: idx %d\n", __func__, ifidx));
 
 	ASSERT(drvr_priv && ifidx && (ifidx < BRCMF_MAX_IFS));
 	ifp = drvr_priv->iflist[ifidx];
 	if (!ifp) {
-		DHD_ERROR(("%s: Null interface\n", __func__));
+		BRCMF_ERROR(("%s: Null interface\n", __func__));
 		return;
 	}
 
@@ -1292,19 +1300,19 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 	struct brcmf_info *drvr_priv = NULL;
 	struct net_device *net;
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	/* Allocate etherdev, including space for private structure */
 	net = alloc_etherdev(sizeof(drvr_priv));
 	if (!net) {
-		DHD_ERROR(("%s: OOM - alloc_etherdev\n", __func__));
+		BRCMF_ERROR(("%s: OOM - alloc_etherdev\n", __func__));
 		goto fail;
 	}
 
 	/* Allocate primary brcmf_info */
 	drvr_priv = kzalloc(sizeof(struct brcmf_info), GFP_ATOMIC);
 	if (!drvr_priv) {
-		DHD_ERROR(("%s: OOM - alloc brcmf_info\n", __func__));
+		BRCMF_ERROR(("%s: OOM - alloc brcmf_info\n", __func__));
 		goto fail;
 	}
 
@@ -1343,13 +1351,13 @@ struct brcmf_pub *brcmf_attach(struct brcmf_bus *bus, uint bus_hdrlen)
 
 	/* Attach and link in the protocol */
 	if (brcmf_proto_attach(&drvr_priv->pub) != 0) {
-		DHD_ERROR(("brcmf_proto_attach failed\n"));
+		BRCMF_ERROR(("brcmf_prot_attach failed\n"));
 		goto fail;
 	}
 
 	/* Attach and link in the cfg80211 */
 	if (unlikely(brcmf_cfg80211_attach(net, &drvr_priv->pub))) {
-		DHD_ERROR(("wl_cfg80211_attach failed\n"));
+		BRCMF_ERROR(("wl_cfg80211_attach failed\n"));
 		goto fail;
 	}
 
@@ -1393,19 +1401,19 @@ int brcmf_bus_start(struct brcmf_pub *drvr)
 
 	ASSERT(drvr_priv);
 
-	DHD_TRACE(("%s:\n", __func__));
+	BRCMF_TRACE(("%s:\n", __func__));
 
 	/* Bring up the bus */
 	ret = brcmf_sdbrcm_bus_init(&drvr_priv->pub, true);
 	if (ret != 0) {
-		DHD_ERROR(("%s, brcmf_sdbrcm_bus_init failed %d\n", __func__,
-			   ret));
+		BRCMF_ERROR(("%s, brcmf_sdbrcm_bus_init failed %d\n", __func__,
+			     ret));
 		return ret;
 	}
 
 	/* If bus is not ready, can't come up */
 	if (drvr_priv->pub.busstate != BRCMF_BUS_DATA) {
-		DHD_ERROR(("%s failed bus is not ready\n", __func__));
+		BRCMF_ERROR(("%s failed bus is not ready\n", __func__));
 		return -ENODEV;
 	}
 
@@ -1465,7 +1473,7 @@ int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)
 	u8 temp_addr[ETH_ALEN] = {
 		0x00, 0x90, 0x4c, 0x11, 0x22, 0x33};
 
-	DHD_TRACE(("%s: ifidx %d\n", __func__, ifidx));
+	BRCMF_TRACE(("%s: ifidx %d\n", __func__, ifidx));
 
 	ASSERT(drvr_priv && drvr_priv->iflist[ifidx]);
 
@@ -1485,7 +1493,7 @@ int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)
 	}
 
 	if (ifidx == 1) {
-		DHD_TRACE(("%s ACCESS POINT MAC:\n", __func__));
+		BRCMF_TRACE(("%s ACCESS POINT MAC:\n", __func__));
 		/*  ACCESSPOINT INTERFACE CASE */
 		temp_addr[0] |= 0X02;	/* set bit 2 ,
 			 - Locally Administered address  */
@@ -1500,12 +1508,12 @@ int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)
 	memcpy(net->dev_addr, temp_addr, ETH_ALEN);
 
 	if (register_netdev(net) != 0) {
-		DHD_ERROR(("%s: couldn't register the net device\n",
-			__func__));
+		BRCMF_ERROR(("%s: couldn't register the net device\n",
+			     __func__));
 		goto fail;
 	}
 
-	DHD_INFO(("%s: Broadcom Dongle Host Driver\n", net->name));
+	BRCMF_INFO(("%s: Broadcom Dongle Host Driver\n", net->name));
 
 	return 0;
 
@@ -1518,7 +1526,7 @@ static void brcmf_bus_detach(struct brcmf_pub *drvr)
 {
 	struct brcmf_info *drvr_priv;
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	if (drvr) {
 		drvr_priv = drvr->info;
@@ -1536,7 +1544,7 @@ void brcmf_detach(struct brcmf_pub *drvr)
 {
 	struct brcmf_info *drvr_priv;
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	if (drvr) {
 		drvr_priv = drvr->info;
@@ -1577,7 +1585,7 @@ void brcmf_detach(struct brcmf_pub *drvr)
 
 static void __exit brcmf_module_cleanup(void)
 {
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	brcmf_bus_unregister();
 }
@@ -1586,12 +1594,12 @@ static int __init brcmf_module_init(void)
 {
 	int error;
 
-	DHD_TRACE(("%s: Enter\n", __func__));
+	BRCMF_TRACE(("%s: Enter\n", __func__));
 
 	error = brcmf_bus_register();
 
 	if (error) {
-		DHD_ERROR(("%s: brcmf_bus_register failed\n", __func__));
+		BRCMF_ERROR(("%s: brcmf_bus_register failed\n", __func__));
 		goto failed;
 	}
 	return 0;
@@ -1742,7 +1750,7 @@ int brcmf_write_to_file(struct brcmf_pub *drvr, u8 *buf, int size)
 	/* open file to write */
 	fp = filp_open("/tmp/mem_dump", O_WRONLY | O_CREAT, 0640);
 	if (!fp) {
-		DHD_ERROR(("%s: open file error\n", __func__));
+		BRCMF_ERROR(("%s: open file error\n", __func__));
 		ret = -1;
 		goto exit;
 	}
