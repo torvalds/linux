@@ -2932,7 +2932,7 @@ void drbd_md_sync(struct drbd_conf *mdev)
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
 		buffer->uuid[i] = cpu_to_be64(mdev->ldev->md.uuid[i]);
 	buffer->flags = cpu_to_be32(mdev->ldev->md.flags);
-	buffer->magic = cpu_to_be32(DRBD_MD_MAGIC);
+	buffer->magic = cpu_to_be32(DRBD_MD_MAGIC_84_UNCLEAN);
 
 	buffer->md_size_sect  = cpu_to_be32(mdev->ldev->md.md_size_sect);
 	buffer->al_offset     = cpu_to_be32(mdev->ldev->md.al_offset);
@@ -2967,11 +2967,12 @@ out:
  * @bdev:	Device from which the meta data should be read in.
  *
  * Return 0 (NO_ERROR) on success, and an enum drbd_ret_code in case
- * something goes wrong.  Currently only: ERR_IO_MD_DISK, ERR_MD_INVALID.
+ * something goes wrong.
  */
 int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 {
 	struct meta_data_on_disk *buffer;
+	u32 magic, flags;
 	int i, rv = NO_ERROR;
 
 	if (!get_ldev_if_state(mdev, D_ATTACHING))
@@ -2989,8 +2990,20 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 		goto err;
 	}
 
-	if (buffer->magic != cpu_to_be32(DRBD_MD_MAGIC)) {
-		dev_err(DEV, "Error while reading metadata, magic not found.\n");
+	magic = be32_to_cpu(buffer->magic);
+	flags = be32_to_cpu(buffer->flags);
+	if (magic == DRBD_MD_MAGIC_84_UNCLEAN ||
+	    (magic == DRBD_MD_MAGIC_08 && !(flags & MDF_AL_CLEAN))) {
+			/* btw: that's Activity Log clean, not "all" clean. */
+		dev_err(DEV, "Found unclean meta data. Did you \"drbdadm apply-al\"?\n");
+		rv = ERR_MD_UNCLEAN;
+		goto err;
+	}
+	if (magic != DRBD_MD_MAGIC_08) {
+		if (magic == DRBD_MD_MAGIC_07) 
+			dev_err(DEV, "Found old (0.7) meta data magic. Did you \"drbdadm create-md\"?\n");
+		else
+			dev_err(DEV, "Meta data magic not found. Did you \"drbdadm create-md\"?\n");
 		rv = ERR_MD_INVALID;
 		goto err;
 	}
@@ -3034,11 +3047,6 @@ int drbd_md_read(struct drbd_conf *mdev, struct drbd_backing_dev *bdev)
 		mdev->peer_max_bio_size = peer;
 	}
 	spin_unlock_irq(&mdev->tconn->req_lock);
-
-	/* This blocks wants to be get removed... */
-	bdev->disk_conf->al_extents = be32_to_cpu(buffer->al_nr_extents);
-	if (bdev->disk_conf->al_extents < DRBD_AL_EXTENTS_MIN)
-		bdev->disk_conf->al_extents = DRBD_AL_EXTENTS_DEF;
 
  err:
 	drbd_md_put_buffer(mdev);

@@ -162,6 +162,7 @@ enum drbd_ret_code {
 	ERR_INVALID_REQUEST	= 162,
 	ERR_NEED_APV_100	= 163,
 	ERR_NEED_ALLOW_TWO_PRI  = 164,
+	ERR_MD_UNCLEAN          = 165,
 
 	/* insert new ones above this line */
 	AFTER_LAST_ERR_CODE
@@ -321,7 +322,8 @@ extern const char *drbd_set_st_err_str(enum drbd_state_rv);
 #define MDF_FULL_SYNC		(1 << 3)
 #define MDF_WAS_UP_TO_DATE	(1 << 4)
 #define MDF_PEER_OUT_DATED	(1 << 5)
-#define MDF_CRASHED_PRIMARY     (1 << 6)
+#define MDF_CRASHED_PRIMARY	(1 << 6)
+#define MDF_AL_CLEAN		(1 << 7)
 
 enum drbd_uuid_index {
 	UI_CURRENT,
@@ -341,9 +343,15 @@ enum drbd_timeout_flag {
 
 #define UUID_JUST_CREATED ((__u64)4)
 
+/* magic numbers used in meta data and network packets */
 #define DRBD_MAGIC 0x83740267
 #define DRBD_MAGIC_BIG 0x835a
 #define DRBD_MAGIC_100 0x8620ec20
+
+#define DRBD_MD_MAGIC_07   (DRBD_MAGIC+3)
+#define DRBD_MD_MAGIC_08   (DRBD_MAGIC+4)
+#define DRBD_MD_MAGIC_84_UNCLEAN	(DRBD_MAGIC+5)
+
 
 /* how I came up with this magic?
  * base64 decode "actlog==" ;) */

@@ -164,10 +164,6 @@ drbd_insert_fault(struct drbd_conf *mdev, unsigned int type) {
 /* usual integer division */
 #define div_floor(A, B) ((A)/(B))
 
-/* drbd_meta-data.c (still in drbd_main.c) */
-/* 4th incarnation of the disk layout. */
-#define DRBD_MD_MAGIC (DRBD_MAGIC+4)
-
 extern struct ratelimit_state drbd_ratelimit_state;
 extern struct idr minors; /* RCU, updates: genl_lock() */
 extern struct list_head drbd_tconns; /* RCU, updates: genl_lock() */
@@ -1560,7 +1556,6 @@ extern void drbd_rs_cancel_all(struct drbd_conf *mdev);
 extern int drbd_rs_del_all(struct drbd_conf *mdev);
 extern void drbd_rs_failed_io(struct drbd_conf *mdev,
 		sector_t sector, int size);
-extern int drbd_al_read_log(struct drbd_conf *mdev, struct drbd_backing_dev *);
 extern void drbd_advance_rs_marks(struct drbd_conf *mdev, unsigned long still_to_go);
 extern void __drbd_set_in_sync(struct drbd_conf *mdev, sector_t sector,
 		int size, const char *file, const unsigned int line);
@@ -1570,7 +1565,6 @@ extern int __drbd_set_out_of_sync(struct drbd_conf *mdev, sector_t sector,
 		int size, const char *file, const unsigned int line);
 #define drbd_set_out_of_sync(mdev, sector, size) \
 	__drbd_set_out_of_sync(mdev, sector, size, __FILE__, __LINE__)
-extern void drbd_al_apply_to_bm(struct drbd_conf *mdev);
 extern void drbd_al_shrink(struct drbd_conf *mdev);
 
 /* drbd_nl.c */

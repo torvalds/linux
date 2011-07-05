@@ -1267,7 +1267,6 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	union drbd_state ns, os;
 	enum drbd_state_rv rv;
 	struct net_conf *nc;
-	int cp_discovered = 0;
 
 	retcode = drbd_adm_prepare(skb, info, DRBD_ADM_NEED_MINOR);
 	if (!adm_ctx.reply_skb)
@@ -1477,11 +1476,6 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		goto force_diskless_dec;
 	}
 
-	if (!drbd_al_read_log(mdev, nbc)) {
-		retcode = ERR_IO_MD_DISK;
-		goto force_diskless_dec;
-	}
-
 	/* Reset the "barriers don't work" bits here, then force meta data to
 	 * be written, to ensure we determine if barriers are supported. */
 	if (new_disk_conf->md_flushes)
@@ -1511,10 +1505,8 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		clear_bit(CRASHED_PRIMARY, &mdev->flags);
 
 	if (drbd_md_test_flag(mdev->ldev, MDF_PRIMARY_IND) &&
-	    !(mdev->state.role == R_PRIMARY && mdev->tconn->susp_nod)) {
+	    !(mdev->state.role == R_PRIMARY && mdev->tconn->susp_nod))
 		set_bit(CRASHED_PRIMARY, &mdev->flags);
-		cp_discovered = 1;
-	}
 
 	mdev->send_cnt = 0;
 	mdev->recv_cnt = 0;
@@ -1561,15 +1553,6 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	} else {
 		if (drbd_bitmap_io(mdev, &drbd_bm_read,
 			"read from attaching", BM_LOCKED_MASK)) {
-			retcode = ERR_IO_MD_DISK;
-			goto force_diskless_dec;
-		}
-	}
-
-	if (cp_discovered) {
-		drbd_al_apply_to_bm(mdev);
-		if (drbd_bitmap_io(mdev, &drbd_bm_write,
-			"crashed primary apply AL", BM_LOCKED_MASK)) {
 			retcode = ERR_IO_MD_DISK;
 			goto force_diskless_dec;
 		}

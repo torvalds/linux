@@ -1017,6 +1017,7 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 						 MDF_CONNECTED_IND|MDF_WAS_UP_TO_DATE|
 						 MDF_PEER_OUT_DATED|MDF_CRASHED_PRIMARY);
 
+		mdf &= ~MDF_AL_CLEAN;
 		if (test_bit(CRASHED_PRIMARY, &mdev->flags))
 			mdf |= MDF_CRASHED_PRIMARY;
 		if (mdev->state.role == R_PRIMARY ||
