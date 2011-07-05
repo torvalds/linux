@@ -29,6 +29,9 @@
 #include "drbd_int.h"
 #include "drbd_req.h"
 
+/* in drbd_main.c */
+extern void tl_apply(struct drbd_conf *mdev, enum drbd_req_event what);
+
 struct after_state_chg_work {
 	struct drbd_work w;
 	union drbd_state os;
@@ -1314,6 +1317,10 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		eh = rcu_dereference(mdev->ldev->disk_conf)->on_io_error;
 		rcu_read_unlock();
 		was_io_error = test_and_clear_bit(WAS_IO_ERROR, &mdev->flags);
+
+		/* Immediately allow completion of all application IO, that waits
+		   for completion from the local disk. */
+		tl_apply(mdev, ABORT_DISK_IO);
 
 		/* current state still has to be D_FAILED,
 		 * there is only one way out: to D_DISKLESS,

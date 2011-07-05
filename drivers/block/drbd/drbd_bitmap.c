@@ -918,12 +918,21 @@ void drbd_bm_clear_all(struct drbd_conf *mdev)
 struct bm_aio_ctx {
 	struct drbd_conf *mdev;
 	atomic_t in_flight;
-	struct completion done;
+	unsigned int done;
 	unsigned flags;
 #define BM_AIO_COPY_PAGES	1
 #define BM_AIO_WRITE_HINTED	2
 	int error;
+	struct kref kref;
 };
+
+static void bm_aio_ctx_destroy(struct kref *kref)
+{
+	struct bm_aio_ctx *ctx = container_of(kref, struct bm_aio_ctx, kref);
+
+	put_ldev(ctx->mdev);
+	kfree(ctx);
+}
 
 /* bv_page may be a copy, or may be the original */
 static void bm_async_io_complete(struct bio *bio, int error)
@@ -968,13 +977,16 @@ static void bm_async_io_complete(struct bio *bio, int error)
 
 	bio_put(bio);
 
-	if (atomic_dec_and_test(&ctx->in_flight))
-		complete(&ctx->done);
+	if (atomic_dec_and_test(&ctx->in_flight)) {
+		ctx->done = 1;
+		wake_up(&mdev->misc_wait);
+		kref_put(&ctx->kref, &bm_aio_ctx_destroy);
+	}
 }
 
 static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must_hold(local)
 {
-	struct bio *bio = bio_alloc_drbd(GFP_KERNEL);
+	struct bio *bio = bio_alloc_drbd(GFP_NOIO);
 	struct drbd_conf *mdev = ctx->mdev;
 	struct drbd_bitmap *b = mdev->bitmap;
 	struct page *page;
@@ -1032,12 +1044,7 @@ static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must
  */
 static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_writeout_upper_idx) __must_hold(local)
 {
-	struct bm_aio_ctx ctx = {
-		.mdev = mdev,
-		.in_flight = ATOMIC_INIT(1),
-		.done = COMPLETION_INITIALIZER_ONSTACK(ctx.done),
-		.flags = flags,
-	};
+	struct bm_aio_ctx *ctx;
 	struct drbd_bitmap *b = mdev->bitmap;
 	int num_pages, i, count = 0;
 	unsigned long now;
@@ -1052,7 +1059,27 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_w
 	 * For lazy writeout, we don't care for ongoing changes to the bitmap,
 	 * as we submit copies of pages anyways.
 	 */
-	if (!ctx.flags)
+
+	ctx = kmalloc(sizeof(struct bm_aio_ctx), GFP_NOIO);
+	if (!ctx)
+		return -ENOMEM;
+
+	*ctx = (struct bm_aio_ctx) {
+		.mdev = mdev,
+		.in_flight = ATOMIC_INIT(1),
+		.done = 0,
+		.flags = flags,
+		.error = 0,
+		.kref = { ATOMIC_INIT(2) },
+	};
+
+	if (!get_ldev_if_state(mdev, D_ATTACHING)) {  /* put is in bm_aio_ctx_destroy() */
+		dev_err(DEV, "ASSERT FAILED: get_ldev_if_state() == 1 in bm_rw()\n");
+		err = -ENODEV;
+		goto out;
+	}
+
+	if (!ctx->flags)
 		WARN_ON(!(BM_LOCKED_MASK & b->bm_flags));
 
 	num_pages = b->bm_number_of_pages;
@@ -1081,31 +1108,39 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_w
 				continue;
 			}
 		}
-		atomic_inc(&ctx.in_flight);
-		bm_page_io_async(&ctx, i, rw);
+		atomic_inc(&ctx->in_flight);
+		bm_page_io_async(ctx, i, rw);
 		++count;
 		cond_resched();
 	}
 
 	/*
-	 * We initialize ctx.in_flight to one to make sure bm_async_io_complete
-	 * will not complete() early, and decrement / test it here.  If there
+	 * We initialize ctx->in_flight to one to make sure bm_async_io_complete
+	 * will not set ctx->done early, and decrement / test it here.  If there
 	 * are still some bios in flight, we need to wait for them here.
+	 * If all IO is done already (or nothing had been submitted), there is
+	 * no need to wait.  Still, we need to put the kref associated with the
+	 * "in_flight reached zero, all done" event.
 	 */
-	if (!atomic_dec_and_test(&ctx.in_flight))
-		wait_for_completion(&ctx.done);
+	if (!atomic_dec_and_test(&ctx->in_flight))
+		wait_until_done_or_disk_failure(mdev, &ctx->done);
+	else
+		kref_put(&ctx->kref, &bm_aio_ctx_destroy);
 
 	/* summary for global bitmap IO */
 	if (flags == 0)
 		dev_info(DEV, "bitmap %s of %u pages took %lu jiffies\n",
-				rw == WRITE ? "WRITE" : "READ",
-				count, jiffies - now);
+			 rw == WRITE ? "WRITE" : "READ",
+			 count, jiffies - now);
 
-	if (ctx.error) {
+	if (ctx->error) {
 		dev_alert(DEV, "we had at least one MD IO ERROR during bitmap IO\n");
 		drbd_chk_io_error(mdev, 1, true);
-		err = -EIO; /* ctx.error ? */
+		err = -EIO; /* ctx->error ? */
 	}
+
+	if (atomic_read(&ctx->in_flight))
+		err = -EIO; /* Disk failed during IO... */
 
 	now = jiffies;
 	if (rw == WRITE) {
@@ -1121,6 +1156,8 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_w
 		dev_info(DEV, "%s (%lu bits) marked out-of-sync by on disk bit-map.\n",
 		     ppsize(ppb, now << (BM_BLOCK_SHIFT-10)), now);
 
+out:
+	kref_put(&ctx->kref, &bm_aio_ctx_destroy);
 	return err;
 }
 
@@ -1177,28 +1214,46 @@ int drbd_bm_write_hinted(struct drbd_conf *mdev) __must_hold(local)
  */
 int drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(local)
 {
-	struct bm_aio_ctx ctx = {
-		.mdev = mdev,
-		.in_flight = ATOMIC_INIT(1),
-		.done = COMPLETION_INITIALIZER_ONSTACK(ctx.done),
-		.flags = BM_AIO_COPY_PAGES,
-	};
+	struct bm_aio_ctx *ctx;
+	int err;
 
 	if (bm_test_page_unchanged(mdev->bitmap->bm_pages[idx])) {
 		dynamic_dev_dbg(DEV, "skipped bm page write for idx %u\n", idx);
 		return 0;
 	}
 
-	bm_page_io_async(&ctx, idx, WRITE_SYNC);
-	wait_for_completion(&ctx.done);
+	ctx = kmalloc(sizeof(struct bm_aio_ctx), GFP_NOIO);
+	if (!ctx)
+		return -ENOMEM;
 
-	if (ctx.error)
+	*ctx = (struct bm_aio_ctx) {
+		.mdev = mdev,
+		.in_flight = ATOMIC_INIT(1),
+		.done = 0,
+		.flags = BM_AIO_COPY_PAGES,
+		.error = 0,
+		.kref = { ATOMIC_INIT(2) },
+	};
+
+	if (!get_ldev_if_state(mdev, D_ATTACHING)) {  /* put is in bm_aio_ctx_destroy() */
+		dev_err(DEV, "ASSERT FAILED: get_ldev_if_state() == 1 in drbd_bm_write_page()\n");
+		err = -ENODEV;
+		goto out;
+	}
+
+	bm_page_io_async(ctx, idx, WRITE_SYNC);
+	wait_until_done_or_disk_failure(mdev, &ctx->done);
+
+	if (ctx->error)
 		drbd_chk_io_error(mdev, 1, true);
 		/* that should force detach, so the in memory bitmap will be
 		 * gone in a moment as well. */
 
 	mdev->bm_writ_cnt++;
-	return ctx.error;
+	err = atomic_read(&ctx->in_flight) ? -EIO : ctx->error;
+ out:
+	kref_put(&ctx->kref, &bm_aio_ctx_destroy);
+	return err;
 }
 
 /* NOTE

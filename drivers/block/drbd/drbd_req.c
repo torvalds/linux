@@ -213,8 +213,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 {
 	const unsigned long s = req->rq_state;
 	struct drbd_conf *mdev = req->w.mdev;
-	/* only WRITES may end up here without a master bio (on barrier ack) */
-	int rw = req->master_bio ? bio_data_dir(req->master_bio) : WRITE;
+	int rw = req->rq_state & RQ_WRITE ? WRITE : READ;
 
 	/* we must not complete the master bio, while it is
 	 *	still being processed by _drbd_send_zc_bio (drbd_send_dblock)
@@ -225,7 +224,7 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 	 *	the receiver,
 	 *	the bio_endio completion callbacks.
 	 */
-	if (s & RQ_LOCAL_PENDING)
+	if (s & RQ_LOCAL_PENDING && !(s & RQ_LOCAL_ABORTED))
 		return;
 	if (req->i.waiting) {
 		/* Retry all conflicting peer requests.  */
@@ -287,6 +286,9 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		}
 		req->master_bio = NULL;
 	}
+
+	if (s & RQ_LOCAL_PENDING)
+		return;
 
 	if ((s & RQ_NET_MASK) == 0 || (s & RQ_NET_DONE)) {
 		/* this is disconnected (local only) operation,
@@ -362,7 +364,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case COMPLETED_OK:
-		if (bio_data_dir(req->master_bio) == WRITE)
+		if (req->rq_state & RQ_WRITE)
 			mdev->writ_cnt += req->i.size >> 9;
 		else
 			mdev->read_cnt += req->i.size >> 9;
@@ -372,6 +374,14 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		_req_may_be_done_not_susp(req, m);
 		put_ldev(mdev);
+		break;
+
+	case ABORT_DISK_IO:
+		req->rq_state |= RQ_LOCAL_ABORTED;
+		if (req->rq_state & RQ_WRITE)
+			_req_may_be_done_not_susp(req, m);
+		else
+			goto goto_queue_for_net_read;
 		break;
 
 	case WRITE_COMPLETED_WITH_ERROR:
@@ -401,6 +411,8 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		__drbd_chk_io_error(mdev, false);
 		put_ldev(mdev);
+
+	goto_queue_for_net_read:
 
 		/* no point in retrying if there is no good remote data,
 		 * or we have no connection. */
@@ -1071,14 +1083,21 @@ void request_timer_fn(unsigned long data)
 	struct drbd_request *req; /* oldest request */
 	struct list_head *le;
 	struct net_conf *nc;
-	unsigned long et; /* effective timeout = ko_count * timeout */
+	unsigned long ent = 0, dt = 0, et; /* effective timeout = ko_count * timeout */
 
 	rcu_read_lock();
 	nc = rcu_dereference(tconn->net_conf);
-	et = nc ? nc->timeout * HZ/10 * nc->ko_count : 0;
+	ent = nc ? nc->timeout * HZ/10 * nc->ko_count : 0;
+
+	if (get_ldev(mdev)) {
+		dt = rcu_dereference(mdev->ldev->disk_conf)->disk_timeout * HZ / 10;
+		put_ldev(mdev);
+	}
 	rcu_read_unlock();
 
-	if (!et || mdev->state.conn < C_WF_REPORT_PARAMS)
+	et = min_not_zero(dt, ent);
+
+	if (!et || (mdev->state.conn < C_WF_REPORT_PARAMS && mdev->state.disk <= D_FAILED))
 		return; /* Recurring timer stopped */
 
 	spin_lock_irq(&tconn->req_lock);
@@ -1091,17 +1110,18 @@ void request_timer_fn(unsigned long data)
 
 	le = le->prev;
 	req = list_entry(le, struct drbd_request, tl_requests);
-	if (time_is_before_eq_jiffies(req->start_time + et)) {
-		if (req->rq_state & RQ_NET_PENDING) {
+	if (ent && req->rq_state & RQ_NET_PENDING) {
+		if (time_is_before_eq_jiffies(req->start_time + ent)) {
 			dev_warn(DEV, "Remote failed to finish a request within ko-count * timeout\n");
-			_drbd_set_state(_NS(mdev, conn, C_TIMEOUT), CS_VERBOSE, NULL);
-		} else {
-			dev_warn(DEV, "Local backing block device frozen?\n");
-			mod_timer(&mdev->request_timer, jiffies + et);
+			_drbd_set_state(_NS(mdev, conn, C_TIMEOUT), CS_VERBOSE | CS_HARD, NULL);
 		}
-	} else {
-		mod_timer(&mdev->request_timer, req->start_time + et);
 	}
-
+	if (dt && req->rq_state & RQ_LOCAL_PENDING) {
+		if (time_is_before_eq_jiffies(req->start_time + dt)) {
+			dev_warn(DEV, "Local backing device failed to meet the disk-timeout\n");
+			__drbd_chk_io_error(mdev, 1);
+		}
+	}
 	spin_unlock_irq(&tconn->req_lock);
+	mod_timer(&mdev->request_timer, req->start_time + et);
 }
