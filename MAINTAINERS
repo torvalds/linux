@@ -6051,6 +6051,14 @@ M:	Mori Hess <fmhess@users.sourceforge.net>
 S:	Odd Fixes
 F:	drivers/staging/comedi/
 
+STAGING - CRYSTAL HD VIDEO DECODER
+M:	Naren Sankar <nsankar@broadcom.com>
+M:	Jarod Wilson <jarod@wilsonet.com>
+M:	Scott Davilla <davilla@4pi.com>
+M:	Manu Abraham <abraham.manu@gmail.com>
+S:	Odd Fixes
+F:	drivers/staging/crystalhd/
+
 STARFIRE/DURALAN NETWORK DRIVER
 M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
