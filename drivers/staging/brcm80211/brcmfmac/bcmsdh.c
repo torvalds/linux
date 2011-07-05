@@ -28,7 +28,6 @@
 #include <brcmu_wifi.h>
 #include <soc.h>
 #include "bcmsdbus.h"		/* common SDIO/controller interface */
-#include "sbsdio.h"		/* BRCM sdio device core */
 #include "dhd.h"
 #include "dhd_bus.h"
 #include "sdio_host.h"

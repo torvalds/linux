@@ -150,8 +150,6 @@ struct rte_console {
 #endif				/* BCMDBG */
 #include <chipcommon.h>
 
-#include "sbsdio.h"
-
 #include "dhd.h"
 #include "dhd_bus.h"
 #include "dhd_proto.h"
