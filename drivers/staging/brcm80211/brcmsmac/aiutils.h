@@ -278,7 +278,7 @@
 #define	BCM5357_CHIP_ID		0x5357	/* 5357 chipcommon chipid */
 
 
-#define	SI_INFO(sih)	((si_info_t *)sih)
+#define	SI_INFO(sih)	((struct si_info *)sih)
 
 #define	GOODCOREADDR(x, b) \
 	(((x) >= (b)) && ((x) < ((b) + SI_MAXCORES * SI_CORE_SIZE)) && \

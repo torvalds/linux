@@ -82,11 +82,11 @@ typedef bool(*di_rxenable_t) (struct dma_pub *dmah);
 typedef bool(*di_rxenabled_t) (struct dma_pub *dmah);
 typedef void *(*di_rx_t) (struct dma_pub *dmah);
 typedef bool(*di_rxfill_t) (struct dma_pub *dmah);
-typedef void (*di_txreclaim_t) (struct dma_pub *dmah, txd_range_t range);
+typedef void (*di_txreclaim_t) (struct dma_pub *dmah, enum txd_range range);
 typedef void (*di_rxreclaim_t) (struct dma_pub *dmah);
 typedef unsigned long (*di_getvar_t) (struct dma_pub *dmah,
 				      const char *name);
-typedef void *(*di_getnexttxp_t) (struct dma_pub *dmah, txd_range_t range);
+typedef void *(*di_getnexttxp_t) (struct dma_pub *dmah, enum txd_range range);
 typedef void *(*di_getnextrxp_t) (struct dma_pub *dmah, bool forceall);
 typedef void *(*di_peeknexttxp_t) (struct dma_pub *dmah);
 typedef void *(*di_peeknextrxp_t) (struct dma_pub *dmah);
@@ -161,7 +161,7 @@ struct di_fcn_s {
  */
 /* export structure */
 struct dma_pub {
-	const di_fcn_t *di_fn;	/* DMA function pointers */
+	const struct di_fcn_s *di_fn;	/* DMA function pointers */
 	uint txavail;		/* # free tx descriptors */
 	uint dmactrlflags;	/* dma control flags */
 
@@ -177,7 +177,7 @@ extern struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 			    uint nrxd, uint rxbufsize, int rxextheadroom,
 			    uint nrxpost, uint rxoffset, uint *msg_level);
 
-extern const di_fcn_t dma64proc;
+extern const struct di_fcn_s dma64proc;
 
 #define dma_detach(di)			(dma64proc.detach(di))
 #define dma_txreset(di)			(dma64proc.txreset(di))

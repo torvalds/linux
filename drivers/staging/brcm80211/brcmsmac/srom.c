@@ -361,19 +361,19 @@
 /* Max. nvram variable table size */
 #define	MAXSZ_NVRAM_VARS	4096
 
-typedef struct {
+struct brcms_sromvar {
 	const char *name;
 	u32 revmask;
 	u32 flags;
 	u16 off;
 	u16 mask;
-} sromvar_t;
+};
 
-typedef struct varbuf {
+struct brcms_varbuf {
 	char *base;		/* pointer to buffer base */
 	char *buf;		/* pointer to current position */
 	unsigned int size;	/* current (residual) size in bytes */
-} varbuf_t;
+};
 
 /* Assumptions:
  * - Ethernet address spans across 3 consective words
@@ -387,7 +387,7 @@ typedef struct varbuf {
  * - The last entry's name field must be NULL to indicate the end of the table. Other
  *   entries must have non-NULL name.
  */
-static const sromvar_t pci_sromvars[] = {
+static const struct brcms_sromvar pci_sromvars[] = {
 	{"devid", 0xffffff00, SRFL_PRHEX | SRFL_NOVAR, PCI_F0DEVID, 0xffff},
 	{"boardrev", 0x0000000e, SRFL_PRHEX, SROM_AABREV, SROM_BR_MASK},
 	{"boardrev", 0x000000f0, SRFL_PRHEX, SROM4_BREV, 0xffff},
@@ -731,7 +731,7 @@ static const sromvar_t pci_sromvars[] = {
 	{NULL, 0, 0, 0, 0}
 };
 
-static const sromvar_t perpath_pci_sromvars[] = {
+static const struct brcms_sromvar perpath_pci_sromvars[] = {
 	{"maxp2ga", 0x000000f0, 0, SROM4_2G_ITT_MAXP, 0x00ff},
 	{"itt2ga", 0x000000f0, 0, SROM4_2G_ITT_MAXP, 0xff00},
 	{"itt5ga", 0x000000f0, 0, SROM4_5G_ITT_MAXP, 0xff00},
@@ -775,7 +775,8 @@ static const sromvar_t perpath_pci_sromvars[] = {
 	{NULL, 0, 0, 0, 0}
 };
 
-static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, varbuf_t *b);
+static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off,
+			       struct brcms_varbuf *b);
 static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 			     uint *count);
 static int sprom_read_pci(struct si_pub *sih, u16 *sprom,
@@ -788,14 +789,14 @@ static int initvars_table(char *start, char *end,
 			  char **vars, uint *count);
 
 /* Initialization of varbuf structure */
-static void varbuf_init(varbuf_t *b, char *buf, uint size)
+static void varbuf_init(struct brcms_varbuf *b, char *buf, uint size)
 {
 	b->size = size;
 	b->base = b->buf = buf;
 }
 
 /* append a null terminated var=value string */
-static int varbuf_append(varbuf_t *b, const char *fmt, ...)
+static int varbuf_append(struct brcms_varbuf *b, const char *fmt, ...)
 {
 	va_list ap;
 	int r;
@@ -1011,11 +1012,12 @@ static uint mask_width(u16 mask)
 	return 0;
 }
 
-static void _initvars_srom_pci(u8 sromrev, u16 *srom, uint off, varbuf_t *b)
+static void
+_initvars_srom_pci(u8 sromrev, u16 *srom, uint off, struct brcms_varbuf *b)
 {
 	u16 w;
 	u32 val;
-	const sromvar_t *srv;
+	const struct brcms_sromvar *srv;
 	uint width;
 	uint flags;
 	u32 sr = (1 << sromrev);
@@ -1153,7 +1155,7 @@ static int initvars_srom_pci(struct si_pub *sih, void *curmap, char **vars,
 	u16 *srom, *sromwindow;
 	u8 sromrev = 0;
 	u32 sr;
-	varbuf_t b;
+	struct brcms_varbuf b;
 	char *vp, *base = NULL;
 	int err = 0;
 

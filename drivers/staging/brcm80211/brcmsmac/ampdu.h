@@ -23,7 +23,7 @@ extern int brcms_c_sendampdu(struct ampdu_info *ampdu,
 			     struct brcms_c_txq_info *qi,
 			     struct sk_buff **aggp, int prec);
 extern void brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
-				 struct sk_buff *p, tx_status_t *txs);
+				 struct sk_buff *p, struct tx_status *txs);
 extern void brcms_c_ampdu_macaddr_upd(struct brcms_c_info *wlc);
 extern void brcms_c_ampdu_shm_upd(struct ampdu_info *ampdu);
 

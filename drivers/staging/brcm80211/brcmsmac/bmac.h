@@ -119,7 +119,7 @@ extern u16 brcms_b_get_txant(struct brcms_c_hw_info *wlc_hw);
 extern void brcms_b_antsel_type_set(struct brcms_c_hw_info *wlc_hw,
 				     u8 antsel_type);
 extern int brcms_b_state_get(struct brcms_c_hw_info *wlc_hw,
-			      brcms_b_state_t *state);
+			      struct brcms_b_state *state);
 extern void brcms_b_write_shm(struct brcms_c_hw_info *wlc_hw, uint offset,
 			      u16 v);
 extern u16 brcms_b_read_shm(struct brcms_c_hw_info *wlc_hw, uint offset);

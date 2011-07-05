@@ -1308,11 +1308,11 @@ struct d11rxhdr {
 	u16 RxChan;		/* gain code, channel radio code, and phy type */
 } __attribute__((packed));
 
-#define	RXHDR_LEN		24	/* sizeof d11rxhdr_t */
+#define	RXHDR_LEN		24	/* sizeof struct d11rxhdr */
 #define	FRAMELEN(h)		((h)->RxFrameSize)
 
-struct wlc_d11rxhdr {
-	d11rxhdr_t rxhdr;
+struct brcms_d11rxhdr {
+	struct d11rxhdr rxhdr;
 	u32 tsf_l;		/* TSF_L reading */
 	s8 rssi;		/* computed instanteneous rssi in BMAC */
 	s8 rxpwr0;		/* obsoleted, place holder for legacy ROM code. use rxpwr[] */

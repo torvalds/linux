@@ -304,7 +304,7 @@ static u16 brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc,
 					       struct scb *scb, uint frag,
 					       uint nfrags, uint queue,
 					       uint next_frag_len,
-					       wsec_key_t *key,
+					       struct wsec_key *key,
 					       ratespec_t rspec_override);
 static void brcms_c_bss_default_init(struct brcms_c_info *wlc);
 static void brcms_c_ucode_mac_upd(struct brcms_c_info *wlc);
@@ -333,9 +333,9 @@ static void brcms_c_compute_mimo_plcp(ratespec_t rate, uint length, u8 *plcp);
 static u16 brcms_c_compute_frame_dur(struct brcms_c_info *wlc, ratespec_t rate,
 				    u8 preamble_type, uint next_frag_len);
 static u64 brcms_c_recover_tsf64(struct brcms_c_info *wlc,
-			     struct wlc_d11rxhdr *rxh);
+			     struct brcms_d11rxhdr *rxh);
 static void brcms_c_recvctl(struct brcms_c_info *wlc,
-			d11rxhdr_t *rxh, struct sk_buff *p);
+			struct d11rxhdr *rxh, struct sk_buff *p);
 static uint brcms_c_calc_frame_len(struct brcms_c_info *wlc, ratespec_t rate,
 			       u8 preamble_type, uint dur);
 static uint brcms_c_calc_ack_time(struct brcms_c_info *wlc, ratespec_t rate,
@@ -417,7 +417,7 @@ void brcms_c_reset(struct brcms_c_info *wlc)
 
 	/* reset our snapshot of macstat counters */
 	memset((char *)wlc->core->macstat_snapshot, 0,
-		sizeof(macstat_t));
+		sizeof(struct macstat));
 
 	brcms_b_reset(wlc->hw);
 }
@@ -1072,9 +1072,10 @@ static void WLBANDINITFN(brcms_c_setband) (struct brcms_c_info *wlc,
 }
 
 /* Initialize a WME Parameter Info Element with default STA parameters from WMM Spec, Table 12 */
-void brcms_c_wme_initparams_sta(struct brcms_c_info *wlc, wme_param_ie_t *pe)
+void
+brcms_c_wme_initparams_sta(struct brcms_c_info *wlc, struct wme_param_ie *pe)
 {
-	static const wme_param_ie_t stadef = {
+	static const struct wme_param_ie stadef = {
 		WME_OUI,
 		WME_TYPE,
 		WME_SUBTYPE_PARAM_IE,
@@ -1100,7 +1101,7 @@ void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 		       bool suspend)
 {
 	int i;
-	shm_acparams_t acp_shm;
+	struct shm_acparams acp_shm;
 	u16 *shm_entry;
 
 	/* Only apply params if the core is out of reset and has clocks */
@@ -1111,7 +1112,7 @@ void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 	}
 
 	do {
-		memset((char *)&acp_shm, 0, sizeof(shm_acparams_t));
+		memset((char *)&acp_shm, 0, sizeof(struct shm_acparams));
 		/* fill in shm ac params struct */
 		acp_shm.txop = le16_to_cpu(params->txop);
 		/* convert from units of 32us to us for ucode */
@@ -1145,7 +1146,7 @@ void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 
 		/* Fill in shm acparam table */
 		shm_entry = (u16 *) &acp_shm;
-		for (i = 0; i < (int)sizeof(shm_acparams_t); i += 2)
+		for (i = 0; i < (int)sizeof(struct shm_acparams); i += 2)
 			brcms_c_write_shm(wlc,
 				      M_EDCF_QINFO +
 				      wme_shmemacindex(aci) * M_EDCF_QLEN + i,
@@ -1165,7 +1166,7 @@ void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
 {
 	u16 aci;
 	int i_ac;
-	edcf_acparam_t *edcf_acp;
+	struct edcf_acparam *edcf_acp;
 
 	struct ieee80211_tx_queue_params txq_pars;
 	struct ieee80211_tx_queue_params *params = &txq_pars;
@@ -1176,7 +1177,7 @@ void brcms_c_edcf_setparams(struct brcms_c_info *wlc, bool suspend)
 	 * STA uses AC params from wme_param_ie.
 	 */
 
-	edcf_acp = (edcf_acparam_t *) &wlc->wme_param_ie.acparam[0];
+	edcf_acp = (struct edcf_acparam *) &wlc->wme_param_ie.acparam[0];
 
 	for (i_ac = 0; i_ac < AC_COUNT; i_ac++, edcf_acp++) {
 		/* find out which ac this set of params applies to */
@@ -1307,7 +1308,7 @@ void brcms_c_info_init(struct brcms_c_info *wlc, int unit)
 
 static bool brcms_c_state_bmac_sync(struct brcms_c_info *wlc)
 {
-	brcms_b_state_t state_bmac;
+	struct brcms_b_state state_bmac;
 
 	if (brcms_b_state_get(wlc->hw, &state_bmac) != 0)
 		return false;
@@ -1351,7 +1352,7 @@ static uint brcms_c_attach_module(struct brcms_c_info *wlc)
 	return err;
 }
 
-struct wlc_pub *brcms_c_pub(void *wlc)
+struct brcms_pub *brcms_c_pub(void *wlc)
 {
 	return ((struct brcms_c_info *) wlc)->pub;
 }
@@ -1368,7 +1369,7 @@ void *brcms_c_attach(struct brcms_info *wl, u16 vendor, u16 device, uint unit,
 	struct brcms_c_info *wlc;
 	uint err = 0;
 	uint j;
-	struct wlc_pub *pub;
+	struct brcms_pub *pub;
 	uint n_disabled;
 
 	/* allocate struct brcms_c_info state and its substructures */
@@ -2531,7 +2532,7 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 	bool ta_ok;
 	uint band;
 	struct brcms_c_bsscfg *bsscfg;
-	wlc_bss_info_t *current_bss;
+	struct brcms_bss_info *current_bss;
 
 	/* update bsscfg pointer */
 	bsscfg = wlc->cfg;
@@ -2770,7 +2771,7 @@ _brcms_c_ioctl(struct brcms_c_info *wlc, int cmd, void *arg, int len,
 /*
  * register watchdog and down handlers.
  */
-int brcms_c_module_register(struct wlc_pub *pub,
+int brcms_c_module_register(struct brcms_pub *pub,
 			const char *name, void *hdl,
 			watchdog_fn_t w_fn, down_fn_t d_fn)
 {
@@ -2793,7 +2794,8 @@ int brcms_c_module_register(struct wlc_pub *pub,
 }
 
 /* unregister module callbacks */
-int brcms_c_module_unregister(struct wlc_pub *pub, const char *name, void *hdl)
+int
+brcms_c_module_unregister(struct brcms_pub *pub, const char *name, void *hdl)
 {
 	struct brcms_c_info *wlc = (struct brcms_c_info *) pub->wlc;
 	int i;
@@ -2855,7 +2857,7 @@ static void brcms_c_print_txs_status(u16 s)
 }
 #endif				/* BCMDBG */
 
-void brcms_c_print_txstatus(tx_status_t *txs)
+void brcms_c_print_txstatus(struct tx_status *txs)
 {
 #if defined(BCMDBG)
 	u16 s = txs->status;
@@ -2883,7 +2885,7 @@ void brcms_c_print_txstatus(tx_status_t *txs)
 void brcms_c_statsupd(struct brcms_c_info *wlc)
 {
 	int i;
-	macstat_t macstats;
+	struct macstat macstats;
 #ifdef BCMDBG
 	u16 delta;
 	u16 rxf0ovfl;
@@ -2905,7 +2907,7 @@ void brcms_c_statsupd(struct brcms_c_info *wlc)
 
 	/* Read mac stats from contiguous shared memory */
 	brcms_b_copyfrom_shm(wlc->hw, M_UCODE_MACSTAT,
-			     &macstats, sizeof(macstat_t));
+			     &macstats, sizeof(struct macstat));
 
 #ifdef BCMDBG
 	/* check for rx fifo 0 overflow */
@@ -2954,7 +2956,7 @@ bool brcms_c_chipmatch(u16 vendor, u16 device)
 }
 
 #if defined(BCMDBG)
-void brcms_c_print_txdesc(d11txh_t *txh)
+void brcms_c_print_txdesc(struct d11txh *txh)
 {
 	u16 mtcl = le16_to_cpu(txh->MacTxControlLow);
 	u16 mtch = le16_to_cpu(txh->MacTxControlHigh);
@@ -2990,7 +2992,7 @@ void brcms_c_print_txdesc(d11txh_t *txh)
 	/* add plcp header along with txh descriptor */
 	printk(KERN_DEBUG "Raw TxDesc + plcp header:\n");
 	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
-			     txh, sizeof(d11txh_t) + 48);
+			     txh, sizeof(struct d11txh) + 48);
 
 	printk(KERN_DEBUG "TxCtlLow: %04x ", mtcl);
 	printk(KERN_DEBUG "TxCtlHigh: %04x ", mtch);
@@ -3040,7 +3042,7 @@ void brcms_c_print_txdesc(d11txh_t *txh)
 #endif				/* defined(BCMDBG) */
 
 #if defined(BCMDBG)
-void brcms_c_print_rxh(d11rxhdr_t *rxh)
+void brcms_c_print_rxh(struct d11rxhdr *rxh)
 {
 	u16 len = rxh->RxFrameSize;
 	u16 phystatus_0 = rxh->PhyRxStatus_0;
@@ -3062,7 +3064,8 @@ void brcms_c_print_rxh(d11rxhdr_t *rxh)
 	};
 
 	printk(KERN_DEBUG "Raw RxDesc:\n");
-	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, rxh, sizeof(d11rxhdr_t));
+	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, rxh,
+			     sizeof(struct d11rxhdr));
 
 	brcmu_format_flags(macstat_flags, macstatus1, flagstr, 64);
 
@@ -3286,7 +3289,7 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
  */
 static inline u16
 bcmc_fid_generate(struct brcms_c_info *wlc, struct brcms_c_bsscfg *bsscfg,
-		  d11txh_t *txh)
+		  struct d11txh *txh)
 {
 	u16 frameid;
 
@@ -3305,9 +3308,9 @@ brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo, struct sk_buff *p,
 	       bool commit, s8 txpktpend)
 {
 	u16 frameid = INVALIDFID;
-	d11txh_t *txh;
+	struct d11txh *txh;
 
-	txh = (d11txh_t *) (p->data);
+	txh = (struct d11txh *) (p->data);
 
 	/* When a BC/MC frame is being committed to the BCMC fifo via DMA (NOT PIO), update
 	 * ucode or BSS info as appropriate.
@@ -3378,7 +3381,7 @@ brcms_c_compute_ofdm_plcp(ratespec_t rspec, u32 length, u8 *plcp)
 	/* encode rate per 802.11a-1999 sec 17.3.4.1, with lsb transmitted first */
 	rate_signal = rate_info[rate] & WLC_RATE_MASK;
 	memset(plcp, 0, D11_PHY_HDR_LEN);
-	D11A_PHY_HDR_SRATE((ofdm_phy_hdr_t *) plcp, rate_signal);
+	D11A_PHY_HDR_SRATE((struct ofdm_phy_hdr *) plcp, rate_signal);
 
 	tmp = (length & 0xfff) << 5;
 	plcp[2] |= (tmp >> 16) & 0xff;
@@ -3622,7 +3625,7 @@ brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc, ratespec_t rspec,
 }
 
 /*
- * Add d11txh_t, cck_phy_hdr_t.
+ * Add struct d11txh, struct cck_phy_hdr.
  *
  * 'p' data must start with 802.11 MAC header
  * 'p' must allow enough bytes of local headers to be "pushed" onto the packet
@@ -3634,10 +3637,10 @@ static u16
 brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		     struct sk_buff *p, struct scb *scb, uint frag,
 		     uint nfrags, uint queue, uint next_frag_len,
-		     wsec_key_t *key, ratespec_t rspec_override)
+		     struct wsec_key *key, ratespec_t rspec_override)
 {
 	struct ieee80211_hdr *h;
-	d11txh_t *txh;
+	struct d11txh *txh;
 	u8 *plcp, plcp_fallback[D11_PHY_HDR_LEN];
 	int len, phylen, rts_phylen;
 	u16 mch, phyctl, xfts, mainrates;
@@ -3693,7 +3696,7 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	plcp = skb_push(p, D11_PHY_HDR_LEN);
 
 	/* add Broadcom tx descriptor header */
-	txh = (d11txh_t *) skb_push(p, D11_TXH_LEN);
+	txh = (struct d11txh *) skb_push(p, D11_TXH_LEN);
 	memset(txh, 0, D11_TXH_LEN);
 
 	/* setup frameid */
@@ -3912,7 +3915,8 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	    (phylen > wlc->RTSThresh) && !is_multicast_ether_addr(h->addr1))
 		use_rts = true;
 
-	/* (3) PLCP: determine PLCP header and MAC duration, fill d11txh_t */
+	/* (3) PLCP: determine PLCP header and MAC duration,
+	 * fill struct d11txh */
 	brcms_c_compute_plcp(wlc, rspec[0], phylen, plcp);
 	brcms_c_compute_plcp(wlc, rspec[1], phylen, plcp_fallback);
 	memcpy(&txh->FragPLCPFallback,
@@ -3925,9 +3929,9 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	}
 
 	/* MIMO-RATE: need validation ?? */
-	mainrates =
-	    IS_OFDM(rspec[0]) ? D11A_PHY_HDR_GRATE((ofdm_phy_hdr_t *) plcp) :
-	    plcp[0];
+	mainrates = IS_OFDM(rspec[0]) ?
+			D11A_PHY_HDR_GRATE((struct ofdm_phy_hdr *) plcp) :
+			plcp[0];
 
 	/* DUR field for main rate */
 	if (!ieee80211_is_pspoll(h->frame_control) &&
@@ -4011,7 +4015,8 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	txh->MaxABytes_FBR = cpu_to_le16(0);
 	txh->MinMBytes = cpu_to_le16(0);
 
-	/* (5) RTS/CTS: determine RTS/CTS PLCP header and MAC duration, furnish d11txh_t */
+	/* (5) RTS/CTS: determine RTS/CTS PLCP header and MAC duration,
+	 * furnish struct d11txh */
 	/* RTS PLCP header and RTS frame */
 	if (use_rts || use_cts) {
 		if (use_rts && use_cts)
@@ -4091,8 +4096,9 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 		 *    high 8 bits: rts/cts rate/mcs
 		 */
 		mainrates |= (IS_OFDM(rts_rspec[0]) ?
-			      D11A_PHY_HDR_GRATE((ofdm_phy_hdr_t *) rts_plcp) :
-			      rts_plcp[0]) << 8;
+				D11A_PHY_HDR_GRATE(
+					(struct ofdm_phy_hdr *) rts_plcp) :
+				rts_plcp[0]) << 8;
 	} else {
 		memset((char *)txh->RTSPhyHeader, 0, D11_PHY_HDR_LEN);
 		memset((char *)&txh->rts_frame, 0,
@@ -4283,14 +4289,14 @@ static void brcms_c_war16165(struct brcms_c_info *wlc, bool tx)
 	}
 }
 
-/* process an individual tx_status_t */
+/* process an individual struct tx_status */
 /* WLC_HIGH_API */
 bool
-brcms_c_dotxstatus(struct brcms_c_info *wlc, tx_status_t *txs, u32 frm_tx2)
+brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs, u32 frm_tx2)
 {
 	struct sk_buff *p;
 	uint queue;
-	d11txh_t *txh;
+	struct d11txh *txh;
 	struct scb *scb = NULL;
 	bool free_pdu;
 	int tx_rts, tx_frame_count, tx_rts_count;
@@ -4328,7 +4334,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, tx_status_t *txs, u32 frm_tx2)
 	if (p == NULL)
 		goto fatal;
 
-	txh = (d11txh_t *) (p->data);
+	txh = (struct d11txh *) (p->data);
 	mcl = le16_to_cpu(txh->MacTxControlLow);
 
 	if (txs->phyerr) {
@@ -4495,7 +4501,7 @@ void brcms_c_bcn_li_upd(struct brcms_c_info *wlc)
  * are used. Finally, the tsf_h is read from the tsf register.
  */
 static u64 brcms_c_recover_tsf64(struct brcms_c_info *wlc,
-				 struct wlc_d11rxhdr *rxh)
+				 struct brcms_d11rxhdr *rxh)
 {
 	u32 tsf_h, tsf_l;
 	u16 rx_tsf_0_15, rx_tsf_16_31;
@@ -4519,11 +4525,11 @@ static u64 brcms_c_recover_tsf64(struct brcms_c_info *wlc,
 }
 
 static void
-prep_mac80211_status(struct brcms_c_info *wlc, d11rxhdr_t *rxh,
+prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 		     struct sk_buff *p,
 		     struct ieee80211_rx_status *rx_status)
 {
-	wlc_d11rxhdr_t *wlc_rxh = (wlc_d11rxhdr_t *) rxh;
+	struct brcms_d11rxhdr *wlc_rxh = (struct brcms_d11rxhdr *) rxh;
 	int preamble;
 	int channel;
 	ratespec_t rspec;
@@ -4630,7 +4636,8 @@ prep_mac80211_status(struct brcms_c_info *wlc, d11rxhdr_t *rxh,
 }
 
 static void
-brcms_c_recvctl(struct brcms_c_info *wlc, d11rxhdr_t *rxh, struct sk_buff *p)
+brcms_c_recvctl(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
+		struct sk_buff *p)
 {
 	int len_mpdu;
 	struct ieee80211_rx_status rx_status;
@@ -4656,7 +4663,7 @@ brcms_c_recvctl(struct brcms_c_info *wlc, d11rxhdr_t *rxh, struct sk_buff *p)
 /* WLC_HIGH_API */
 void brcms_c_recv(struct brcms_c_info *wlc, struct sk_buff *p)
 {
-	d11rxhdr_t *rxh;
+	struct d11rxhdr *rxh;
 	struct ieee80211_hdr *h;
 	uint len;
 	bool is_amsdu;
@@ -4664,7 +4671,7 @@ void brcms_c_recv(struct brcms_c_info *wlc, struct sk_buff *p)
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
 	/* frame starts with rxhdr */
-	rxh = (d11rxhdr_t *) (p->data);
+	rxh = (struct d11rxhdr *) (p->data);
 
 	/* strip off rxhdr */
 	skb_pull(p, WL_HWRXOFF);
@@ -5245,7 +5252,7 @@ brcms_c_bcn_prb_template(struct brcms_c_info *wlc, u16 type,
 			 struct brcms_c_bsscfg *cfg, u16 *buf, int *len)
 {
 	static const u8 ether_bcast[ETH_ALEN] = {255, 255, 255, 255, 255, 255};
-	cck_phy_hdr_t *plcp;
+	struct cck_phy_hdr *plcp;
 	struct ieee80211_mgmt *h;
 	int hdr_len, body_len;
 
@@ -5260,7 +5267,7 @@ brcms_c_bcn_prb_template(struct brcms_c_info *wlc, u16 type,
 	/* format PHY and MAC headers */
 	memset((char *)buf, 0, hdr_len);
 
-	plcp = (cck_phy_hdr_t *) buf;
+	plcp = (struct cck_phy_hdr *) buf;
 
 	/* PLCP for Probe Response frames are filled in from core's rate table */
 	if (type == IEEE80211_STYPE_BEACON && !MBSS_BCN_ENAB(cfg)) {
@@ -5440,11 +5447,11 @@ brcms_c_bss_update_probe_resp(struct brcms_c_info *wlc,
 int brcms_c_prep_pdu(struct brcms_c_info *wlc, struct sk_buff *pdu, uint *fifop)
 {
 	uint fifo;
-	d11txh_t *txh;
+	struct d11txh *txh;
 	struct ieee80211_hdr *h;
 	struct scb *scb;
 
-	txh = (d11txh_t *) (pdu->data);
+	txh = (struct d11txh *) (pdu->data);
 	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
 
 	/* get the pkt queue info. This was put at brcms_c_sendctl or
@@ -5495,10 +5502,10 @@ static void brcms_c_bss_default_init(struct brcms_c_info *wlc)
 {
 	chanspec_t chanspec;
 	struct brcms_c_band *band;
-	wlc_bss_info_t *bi = wlc->default_bss;
+	struct brcms_bss_info *bi = wlc->default_bss;
 
 	/* init default and target BSS with some sane initial values */
-	memset((char *)(bi), 0, sizeof(wlc_bss_info_t));
+	memset((char *)(bi), 0, sizeof(struct brcms_bss_info));
 	bi->beacon_period = BEACON_INTERVAL_DEFAULT;
 	bi->dtim_period = DTIM_INTERVAL_DEFAULT;
 

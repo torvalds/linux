@@ -69,18 +69,18 @@ typedef int (*otp_read_region_t) (struct si_pub *sih, int region, u16 *data,
 typedef int (*otp_nvread_t) (void *oh, char *data, uint *len);
 
 /* OTP function struct */
-typedef struct otp_fn_s {
+struct otp_fn_s {
 	otp_size_t size;
 	otp_read_bit_t read_bit;
 	otp_init_t init;
 	otp_read_region_t read_region;
 	otp_nvread_t nvread;
 	otp_status_t status;
-} otp_fn_t;
+};
 
-typedef struct {
+struct otpinfo {
 	uint ccrev;		/* chipc revision */
-	otp_fn_t *fn;		/* OTP functions */
+	struct otp_fn_s *fn;		/* OTP functions */
 	struct si_pub *sih;		/* Saved sb handle */
 
 	/* IPX OTP section */
@@ -97,9 +97,9 @@ typedef struct {
 	u16 fbase;		/* fuse subregion offset */
 	u16 flim;		/* fuse subregion boundary */
 	int otpgu_base;		/* offset to General Use Region */
-} otpinfo_t;
+};
 
-static otpinfo_t otpinfo;
+static struct otpinfo otpinfo;
 
 /*
  * IPX OTP Code
@@ -153,29 +153,29 @@ static otpinfo_t otpinfo;
 
 static int ipxotp_status(void *oh)
 {
-	otpinfo_t *oi = (otpinfo_t *) oh;
+	struct otpinfo *oi = (struct otpinfo *) oh;
 	return (int)(oi->status);
 }
 
 /* Return size in bytes */
 static int ipxotp_size(void *oh)
 {
-	otpinfo_t *oi = (otpinfo_t *) oh;
+	struct otpinfo *oi = (struct otpinfo *) oh;
 	return (int)oi->wsize * 2;
 }
 
 static u16 ipxotp_otpr(void *oh, chipcregs_t *cc, uint wn)
 {
-	otpinfo_t *oi;
+	struct otpinfo *oi;
 
-	oi = (otpinfo_t *) oh;
+	oi = (struct otpinfo *) oh;
 
 	return R_REG(&cc->sromotp[wn]);
 }
 
 static u16 ipxotp_read_bit(void *oh, chipcregs_t *cc, uint off)
 {
-	otpinfo_t *oi = (otpinfo_t *) oh;
+	struct otpinfo *oi = (struct otpinfo *) oh;
 	uint k, row, col;
 	u32 otpp, st;
 
@@ -225,7 +225,7 @@ static int ipxotp_max_rgnsz(struct si_pub *sih, int osizew)
 	return ret;
 }
 
-static void _ipxotp_init(otpinfo_t *oi, chipcregs_t *cc)
+static void _ipxotp_init(struct otpinfo *oi, chipcregs_t *cc)
 {
 	uint k;
 	u32 otpp, st;
@@ -300,7 +300,7 @@ static void *ipxotp_init(struct si_pub *sih)
 {
 	uint idx;
 	chipcregs_t *cc;
-	otpinfo_t *oi;
+	struct otpinfo *oi;
 
 	/* Make sure we're running IPX OTP */
 	if (!OTPTYPE_IPX(sih->ccrev))
@@ -356,7 +356,7 @@ static void *ipxotp_init(struct si_pub *sih)
 
 static int ipxotp_read_region(void *oh, int region, u16 *data, uint *wlen)
 {
-	otpinfo_t *oi = (otpinfo_t *) oh;
+	struct otpinfo *oi = (struct otpinfo *) oh;
 	uint idx;
 	chipcregs_t *cc;
 	uint base, i, sz;
@@ -444,7 +444,7 @@ static int ipxotp_nvread(void *oh, char *data, uint *len)
 	return -ENOTSUPP;
 }
 
-static otp_fn_t ipxotp_fn = {
+static struct otp_fn_s ipxotp_fn = {
 	(otp_size_t) ipxotp_size,
 	(otp_read_bit_t) ipxotp_read_bit,
 
@@ -466,21 +466,21 @@ static otp_fn_t ipxotp_fn = {
 
 int otp_status(void *oh)
 {
-	otpinfo_t *oi = (otpinfo_t *) oh;
+	struct otpinfo *oi = (struct otpinfo *) oh;
 
 	return oi->fn->status(oh);
 }
 
 int otp_size(void *oh)
 {
-	otpinfo_t *oi = (otpinfo_t *) oh;
+	struct otpinfo *oi = (struct otpinfo *) oh;
 
 	return oi->fn->size(oh);
 }
 
 u16 otp_read_bit(void *oh, uint offset)
 {
-	otpinfo_t *oi = (otpinfo_t *) oh;
+	struct otpinfo *oi = (struct otpinfo *) oh;
 	uint idx = ai_coreidx(oi->sih);
 	chipcregs_t *cc = ai_setcoreidx(oi->sih, SI_CC_IDX);
 	u16 readBit = (u16) oi->fn->read_bit(oh, cc, offset);
@@ -490,11 +490,11 @@ u16 otp_read_bit(void *oh, uint offset)
 
 void *otp_init(struct si_pub *sih)
 {
-	otpinfo_t *oi;
+	struct otpinfo *oi;
 	void *ret = NULL;
 
 	oi = &otpinfo;
-	memset(oi, 0, sizeof(otpinfo_t));
+	memset(oi, 0, sizeof(struct otpinfo));
 
 	oi->ccrev = sih->ccrev;
 
@@ -529,7 +529,8 @@ otp_read_region(struct si_pub *sih, int region, u16 *data,
 		goto out;
 	}
 
-	err = (((otpinfo_t *) oh)->fn->read_region) (oh, region, data, wlen);
+	err = (((struct otpinfo *) oh)->fn->read_region)
+						(oh, region, data, wlen);
 
  out:
 	return err;
@@ -537,7 +538,7 @@ otp_read_region(struct si_pub *sih, int region, u16 *data,
 
 int otp_nvread(void *oh, char *data, uint *len)
 {
-	otpinfo_t *oi = (otpinfo_t *) oh;
+	struct otpinfo *oi = (struct otpinfo *) oh;
 
 	return oi->fn->nvread(oh, data, len);
 }

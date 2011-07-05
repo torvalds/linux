@@ -239,7 +239,7 @@
 /* resetctrl */
 #define	AIRC_RESET		1
 
-typedef volatile struct _aidmp {
+struct aidmp {
 	u32 oobselina30;	/* 0x000 */
 	u32 oobselina74;	/* 0x004 */
 	u32 PAD[6];
@@ -355,7 +355,7 @@ typedef volatile struct _aidmp {
 	u32 componentid1;	/* 0xff4 */
 	u32 componentid2;	/* 0xff8 */
 	u32 componentid3;	/* 0xffc */
-} aidmp_t;
+};
 
 /* EROM parsing */
 
@@ -429,14 +429,14 @@ get_asd(struct si_pub *sih, u32 **eromptr, uint sp, uint ad, uint st,
 	return asd;
 }
 
-static void ai_hwfixup(si_info_t *sii)
+static void ai_hwfixup(struct si_info *sii)
 {
 }
 
 /* parse the enumeration rom to identify all cores */
 void ai_scan(struct si_pub *sih, void *regs)
 {
-	si_info_t *sii = SI_INFO(sih);
+	struct si_info *sii = SI_INFO(sih);
 	chipcregs_t *cc = (chipcregs_t *) regs;
 	u32 erombase, *eromptr, *eromlim;
 
@@ -639,7 +639,7 @@ void ai_scan(struct si_pub *sih, void *regs)
  */
 void *ai_setcoreidx(struct si_pub *sih, uint coreidx)
 {
-	si_info_t *sii = SI_INFO(sih);
+	struct si_info *sii = SI_INFO(sih);
 	u32 addr = sii->coresba[coreidx];
 	u32 wrap = sii->wrapba[coreidx];
 	void *regs;
@@ -694,7 +694,7 @@ int ai_numaddrspaces(struct si_pub *sih)
 /* Return the address of the nth address space in the current core */
 u32 ai_addrspace(struct si_pub *sih, uint asidx)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	uint cidx;
 
 	sii = SI_INFO(sih);
@@ -713,7 +713,7 @@ u32 ai_addrspace(struct si_pub *sih, uint asidx)
 /* Return the size of the nth address space in the current core */
 u32 ai_addrspacesize(struct si_pub *sih, uint asidx)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	uint cidx;
 
 	sii = SI_INFO(sih);
@@ -731,8 +731,8 @@ u32 ai_addrspacesize(struct si_pub *sih, uint asidx)
 
 uint ai_flag(struct si_pub *sih)
 {
-	si_info_t *sii;
-	aidmp_t *ai;
+	struct si_info *sii;
+	struct aidmp *ai;
 
 	sii = SI_INFO(sih);
 	if (BCM47162_DMP()) {
@@ -750,7 +750,7 @@ void ai_setint(struct si_pub *sih, int siflag)
 
 uint ai_corevendor(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	u32 cia;
 
 	sii = SI_INFO(sih);
@@ -760,7 +760,7 @@ uint ai_corevendor(struct si_pub *sih)
 
 uint ai_corerev(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	u32 cib;
 
 	sii = SI_INFO(sih);
@@ -770,8 +770,8 @@ uint ai_corerev(struct si_pub *sih)
 
 bool ai_iscoreup(struct si_pub *sih)
 {
-	si_info_t *sii;
-	aidmp_t *ai;
+	struct si_info *sii;
+	struct aidmp *ai;
 
 	sii = SI_INFO(sih);
 	ai = sii->curwrap;
@@ -783,8 +783,8 @@ bool ai_iscoreup(struct si_pub *sih)
 
 void ai_core_cflags_wo(struct si_pub *sih, u32 mask, u32 val)
 {
-	si_info_t *sii;
-	aidmp_t *ai;
+	struct si_info *sii;
+	struct aidmp *ai;
 	u32 w;
 
 	sii = SI_INFO(sih);
@@ -805,8 +805,8 @@ void ai_core_cflags_wo(struct si_pub *sih, u32 mask, u32 val)
 
 u32 ai_core_cflags(struct si_pub *sih, u32 mask, u32 val)
 {
-	si_info_t *sii;
-	aidmp_t *ai;
+	struct si_info *sii;
+	struct aidmp *ai;
 	u32 w;
 
 	sii = SI_INFO(sih);
@@ -828,8 +828,8 @@ u32 ai_core_cflags(struct si_pub *sih, u32 mask, u32 val)
 
 u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val)
 {
-	si_info_t *sii;
-	aidmp_t *ai;
+	struct si_info *sii;
+	struct aidmp *ai;
 	u32 w;
 
 	sii = SI_INFO(sih);
@@ -850,19 +850,19 @@ u32 ai_core_sflags(struct si_pub *sih, u32 mask, u32 val)
 
 /* *************** from siutils.c ************** */
 /* local prototypes */
-static si_info_t *ai_doattach(si_info_t *sii, void *regs,
+static struct si_info *ai_doattach(struct si_info *sii, void *regs,
 			      uint bustype, void *sdh, char **vars,
 			      uint *varsz);
-static bool ai_buscore_prep(si_info_t *sii, uint bustype);
-static bool ai_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
+static bool ai_buscore_prep(struct si_info *sii, uint bustype);
+static bool ai_buscore_setup(struct si_info *sii, chipcregs_t *cc, uint bustype,
 			     u32 savewin, uint *origidx, void *regs);
-static void ai_nvram_process(si_info_t *sii, char *pvars);
+static void ai_nvram_process(struct si_info *sii, char *pvars);
 
 /* dev path concatenation util */
 static char *ai_devpathvar(struct si_pub *sih, char *var, int len,
 			   const char *name);
-static bool _ai_clkctl_cc(si_info_t *sii, uint mode);
-static bool ai_ispcie(si_info_t *sii);
+static bool _ai_clkctl_cc(struct si_info *sii, uint mode);
+static bool ai_ispcie(struct si_info *sii);
 
 /* global variable to indicate reservation/release of gpio's */
 static u32 ai_gpioreservation;
@@ -879,10 +879,10 @@ static u32 ai_gpioreservation;
 struct si_pub *ai_attach(void *regs, uint bustype,
 		void *sdh, char **vars, uint *varsz)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 
-	/* alloc si_info_t */
-	sii = kmalloc(sizeof(si_info_t), GFP_ATOMIC);
+	/* alloc struct si_info */
+	sii = kmalloc(sizeof(struct si_info), GFP_ATOMIC);
 	if (sii == NULL) {
 		SI_ERROR(("si_attach: malloc failed!\n"));
 		return NULL;
@@ -900,9 +900,9 @@ struct si_pub *ai_attach(void *regs, uint bustype,
 }
 
 /* global kernel resource */
-static si_info_t ksii;
+static struct si_info ksii;
 
-static bool ai_buscore_prep(si_info_t *sii, uint bustype)
+static bool ai_buscore_prep(struct si_info *sii, uint bustype)
 {
 	/* kludge to enable the clock on the 4306 which lacks a slowclock */
 	if (bustype == PCI_BUS && !ai_ispcie(sii))
@@ -910,7 +910,7 @@ static bool ai_buscore_prep(si_info_t *sii, uint bustype)
 	return true;
 }
 
-static bool ai_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
+static bool ai_buscore_setup(struct si_info *sii, chipcregs_t *cc, uint bustype,
 			     u32 savewin, uint *origidx, void *regs)
 {
 	bool pci, pcie;
@@ -1019,7 +1019,7 @@ static bool ai_buscore_setup(si_info_t *sii, chipcregs_t *cc, uint bustype,
 	return true;
 }
 
-static __used void ai_nvram_process(si_info_t *sii, char *pvars)
+static __used void ai_nvram_process(struct si_info *sii, char *pvars)
 {
 	uint w = 0;
 
@@ -1068,7 +1068,7 @@ static __used void ai_nvram_process(si_info_t *sii, char *pvars)
 	sii->pub.boardflags = getintvar(pvars, "boardflags");
 }
 
-static si_info_t *ai_doattach(si_info_t *sii,
+static struct si_info *ai_doattach(struct si_info *sii,
 			      void *regs, uint bustype, void *pbus,
 			      char **vars, uint *varsz)
 {
@@ -1079,7 +1079,7 @@ static si_info_t *ai_doattach(si_info_t *sii,
 	uint socitype;
 	uint origidx;
 
-	memset((unsigned char *) sii, 0, sizeof(si_info_t));
+	memset((unsigned char *) sii, 0, sizeof(struct si_info));
 
 	savewin = 0;
 
@@ -1241,7 +1241,7 @@ static si_info_t *ai_doattach(si_info_t *sii,
 /* may be called with core in reset */
 void ai_detach(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	uint idx;
 
 	struct si_pub *si_local = NULL;
@@ -1275,7 +1275,7 @@ ai_register_intr_callback(struct si_pub *sih, void *intrsoff_fn,
 			  void *intrsrestore_fn,
 			  void *intrsenabled_fn, void *intr_arg)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 	sii->intr_arg = intr_arg;
@@ -1290,7 +1290,7 @@ ai_register_intr_callback(struct si_pub *sih, void *intrsoff_fn,
 
 void ai_deregister_intr_callback(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 	sii->intrsoff_fn = NULL;
@@ -1298,7 +1298,7 @@ void ai_deregister_intr_callback(struct si_pub *sih)
 
 uint ai_coreid(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 	return sii->coreid[sii->curidx];
@@ -1306,7 +1306,7 @@ uint ai_coreid(struct si_pub *sih)
 
 uint ai_coreidx(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 	return sii->curidx;
@@ -1320,7 +1320,7 @@ bool ai_backplane64(struct si_pub *sih)
 /* return index of coreid or BADIDX if not found */
 uint ai_findcoreidx(struct si_pub *sih, uint coreid, uint coreunit)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	uint found;
 	uint i;
 
@@ -1360,7 +1360,7 @@ void *ai_switch_core(struct si_pub *sih, uint coreid, uint *origidx,
 		     uint *intr_val)
 {
 	void *cc;
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 
@@ -1384,7 +1384,7 @@ void *ai_switch_core(struct si_pub *sih, uint coreid, uint *origidx,
 /* restore coreidx and restore interrupt */
 void ai_restore_core(struct si_pub *sih, uint coreid, uint intr_val)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 	if (SI_FAST(sii)
@@ -1397,7 +1397,7 @@ void ai_restore_core(struct si_pub *sih, uint coreid, uint intr_val)
 
 void ai_write_wrapperreg(struct si_pub *sih, u32 offset, u32 val)
 {
-	si_info_t *sii = SI_INFO(sih);
+	struct si_info *sii = SI_INFO(sih);
 	u32 *w = (u32 *) sii->curwrap;
 	W_REG(w + (offset / 4), val);
 	return;
@@ -1421,7 +1421,7 @@ uint ai_corereg(struct si_pub *sih, uint coreidx, uint regoff, uint mask,
 	uint w;
 	uint intr_val = 0;
 	bool fast = false;
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 
@@ -1500,9 +1500,9 @@ uint ai_corereg(struct si_pub *sih, uint coreidx, uint regoff, uint mask,
 
 void ai_core_disable(struct si_pub *sih, u32 bits)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	u32 dummy;
-	aidmp_t *ai;
+	struct aidmp *ai;
 
 	sii = SI_INFO(sih);
 
@@ -1527,8 +1527,8 @@ void ai_core_disable(struct si_pub *sih, u32 bits)
  */
 void ai_core_reset(struct si_pub *sih, u32 bits, u32 resetbits)
 {
-	si_info_t *sii;
-	aidmp_t *ai;
+	struct si_info *sii;
+	struct aidmp *ai;
 	u32 dummy;
 
 	sii = SI_INFO(sih);
@@ -1554,7 +1554,7 @@ void ai_core_reset(struct si_pub *sih, u32 bits, u32 resetbits)
 }
 
 /* return the slow clock source - LPO, XTAL, or PCI */
-static uint ai_slowclk_src(si_info_t *sii)
+static uint ai_slowclk_src(struct si_info *sii)
 {
 	chipcregs_t *cc;
 	u32 val;
@@ -1578,7 +1578,7 @@ static uint ai_slowclk_src(si_info_t *sii)
 * return the ILP (slowclock) min or max frequency
 * precondition: we've established the chip has dynamic clk control
 */
-static uint ai_slowclk_freq(si_info_t *sii, bool max_freq, chipcregs_t *cc)
+static uint ai_slowclk_freq(struct si_info *sii, bool max_freq, chipcregs_t *cc)
 {
 	u32 slowclk;
 	uint div;
@@ -1612,7 +1612,7 @@ static uint ai_slowclk_freq(si_info_t *sii, bool max_freq, chipcregs_t *cc)
 	return 0;
 }
 
-static void ai_clkctl_setdelay(si_info_t *sii, void *chipcregs)
+static void ai_clkctl_setdelay(struct si_info *sii, void *chipcregs)
 {
 	chipcregs_t *cc = (chipcregs_t *) chipcregs;
 	uint slowmaxfreq, pll_delay, slowclk;
@@ -1644,7 +1644,7 @@ static void ai_clkctl_setdelay(si_info_t *sii, void *chipcregs)
 /* initialize power control delay registers */
 void ai_clkctl_init(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	uint origidx = 0;
 	chipcregs_t *cc;
 	bool fast;
@@ -1682,7 +1682,7 @@ void ai_clkctl_init(struct si_pub *sih)
  */
 u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	uint origidx = 0;
 	chipcregs_t *cc;
 	uint slowminfreq;
@@ -1730,7 +1730,7 @@ u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih)
 /* turn primary xtal and/or pll off/on */
 int ai_clkctl_xtal(struct si_pub *sih, uint what, bool on)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	u32 in, out, outen;
 
 	sii = SI_INFO(sih);
@@ -1807,7 +1807,7 @@ int ai_clkctl_xtal(struct si_pub *sih, uint what, bool on)
  */
 bool ai_clkctl_cc(struct si_pub *sih, uint mode)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 
@@ -1822,7 +1822,7 @@ bool ai_clkctl_cc(struct si_pub *sih, uint mode)
 }
 
 /* clk control mechanism through chipcommon, no policy checking */
-static bool _ai_clkctl_cc(si_info_t *sii, uint mode)
+static bool _ai_clkctl_cc(struct si_info *sii, uint mode)
 {
 	uint origidx = 0;
 	chipcregs_t *cc;
@@ -2001,7 +2001,7 @@ static char *ai_devpathvar(struct si_pub *sih, char *var, int len,
 }
 
 /* return true if PCIE capability exists in the pci config space */
-static bool ai_ispcie(si_info_t *sii)
+static bool ai_ispcie(struct si_info *sii)
 {
 	u8 cap_ptr;
 
@@ -2019,7 +2019,7 @@ static bool ai_ispcie(si_info_t *sii)
 
 bool ai_pci_war16165(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 
@@ -2028,7 +2028,7 @@ bool ai_pci_war16165(struct si_pub *sih)
 
 void ai_pci_up(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 
@@ -2047,7 +2047,7 @@ void ai_pci_up(struct si_pub *sih)
 /* Unconfigure and/or apply various WARs when system is going to sleep mode */
 void ai_pci_sleep(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 
@@ -2057,7 +2057,7 @@ void ai_pci_sleep(struct si_pub *sih)
 /* Unconfigure and/or apply various WARs when going down */
 void ai_pci_down(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 
@@ -2078,7 +2078,7 @@ void ai_pci_down(struct si_pub *sih)
  */
 void ai_pci_setup(struct si_pub *sih, uint coremask)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	void *regs = NULL;
 	u32 siflag = 0, w;
 	uint idx = 0;
@@ -2130,7 +2130,7 @@ int ai_pci_fixcfg(struct si_pub *sih)
 	uint origidx;
 	void *regs = NULL;
 
-	si_info_t *sii = SI_INFO(sih);
+	struct si_info *sii = SI_INFO(sih);
 
 	/* Fixup PI in SROM shadow area to enable the correct PCI core access */
 	/* save the current index */
@@ -2170,7 +2170,7 @@ u32 ai_gpiocontrol(struct si_pub *sih, u32 mask, u32 val, u8 priority)
 
 void ai_chipcontrl_epa4331(struct si_pub *sih, bool on)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	chipcregs_t *cc;
 	uint origidx;
 	u32 val;
@@ -2204,7 +2204,7 @@ void ai_chipcontrl_epa4331(struct si_pub *sih, bool on)
 /* Enable BT-COEX & Ex-PA for 4313 */
 void ai_epa_4313war(struct si_pub *sih)
 {
-	si_info_t *sii;
+	struct si_info *sii;
 	chipcregs_t *cc;
 	uint origidx;
 
@@ -2224,7 +2224,7 @@ void ai_epa_4313war(struct si_pub *sih)
 bool ai_deviceremoved(struct si_pub *sih)
 {
 	u32 w;
-	si_info_t *sii;
+	struct si_info *sii;
 
 	sii = SI_INFO(sih);
 
@@ -2241,7 +2241,7 @@ bool ai_deviceremoved(struct si_pub *sih)
 bool ai_is_sprom_available(struct si_pub *sih)
 {
 	if (sih->ccrev >= 31) {
-		si_info_t *sii;
+		struct si_info *sii;
 		uint origidx;
 		chipcregs_t *cc;
 		u32 sromctrl;

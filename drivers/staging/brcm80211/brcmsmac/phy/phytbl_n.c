@@ -4436,7 +4436,7 @@ const u16 loft_lut_core1_rev0[] = {
 	0x0103,
 };
 
-const mimophytbl_info_t mimophytbl_info_rev0_volatile[] = {
+const struct phytbl_info mimophytbl_info_rev0_volatile[] = {
 	{&bdi_tbl_rev0, sizeof(bdi_tbl_rev0) / sizeof(bdi_tbl_rev0[0]), 21, 0,
 	 16}
 	,
@@ -4484,7 +4484,7 @@ const mimophytbl_info_t mimophytbl_info_rev0_volatile[] = {
 	,
 };
 
-const mimophytbl_info_t mimophytbl_info_rev0[] = {
+const struct phytbl_info mimophytbl_info_rev0[] = {
 	{&frame_struct_rev0,
 	 sizeof(frame_struct_rev0) / sizeof(frame_struct_rev0[0]), 10, 0, 32}
 	,
@@ -9361,34 +9361,34 @@ const u32 papd_cal_scalars_tbl_core1_rev3[] = {
 	0x002606a4,
 };
 
-const mimophytbl_info_t mimophytbl_info_rev3_volatile[] = {
+const struct phytbl_info mimophytbl_info_rev3_volatile[] = {
 	{&ant_swctrl_tbl_rev3,
 	 sizeof(ant_swctrl_tbl_rev3) / sizeof(ant_swctrl_tbl_rev3[0]), 9, 0, 16}
 	,
 };
 
-const mimophytbl_info_t mimophytbl_info_rev3_volatile1[] = {
+const struct phytbl_info mimophytbl_info_rev3_volatile1[] = {
 	{&ant_swctrl_tbl_rev3_1,
 	 sizeof(ant_swctrl_tbl_rev3_1) / sizeof(ant_swctrl_tbl_rev3_1[0]), 9, 0,
 	 16}
 	,
 };
 
-const mimophytbl_info_t mimophytbl_info_rev3_volatile2[] = {
+const struct phytbl_info mimophytbl_info_rev3_volatile2[] = {
 	{&ant_swctrl_tbl_rev3_2,
 	 sizeof(ant_swctrl_tbl_rev3_2) / sizeof(ant_swctrl_tbl_rev3_2[0]), 9, 0,
 	 16}
 	,
 };
 
-const mimophytbl_info_t mimophytbl_info_rev3_volatile3[] = {
+const struct phytbl_info mimophytbl_info_rev3_volatile3[] = {
 	{&ant_swctrl_tbl_rev3_3,
 	 sizeof(ant_swctrl_tbl_rev3_3) / sizeof(ant_swctrl_tbl_rev3_3[0]), 9, 0,
 	 16}
 	,
 };
 
-const mimophytbl_info_t mimophytbl_info_rev3[] = {
+const struct phytbl_info mimophytbl_info_rev3[] = {
 	{&frame_struct_rev3,
 	 sizeof(frame_struct_rev3) / sizeof(frame_struct_rev3[0]), 10, 0, 32}
 	,
@@ -10467,7 +10467,7 @@ const u32 papd_cal_scalars_tbl_core1_rev7[] = {
 	0x004e068c,
 };
 
-const mimophytbl_info_t mimophytbl_info_rev7[] = {
+const struct phytbl_info mimophytbl_info_rev7[] = {
 	{&frame_struct_rev3,
 	 sizeof(frame_struct_rev3) / sizeof(frame_struct_rev3[0]), 10, 0, 32}
 	,
@@ -10581,7 +10581,7 @@ const mimophytbl_info_t mimophytbl_info_rev7[] = {
 const u32 mimophytbl_info_sz_rev7 =
 	sizeof(mimophytbl_info_rev7) / sizeof(mimophytbl_info_rev7[0]);
 
-const mimophytbl_info_t mimophytbl_info_rev16[] = {
+const struct phytbl_info mimophytbl_info_rev16[] = {
 	{&noise_var_tbl_rev7,
 	 sizeof(noise_var_tbl_rev7) / sizeof(noise_var_tbl_rev7[0]), 16, 0, 32}
 	,

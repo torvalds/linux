@@ -51,11 +51,11 @@
 
 /* static functions */
 static int brcms_c_antsel_cfgupd(struct antsel_info *asi,
-				 wlc_antselcfg_t *antsel);
+				 struct brcms_antselcfg *antsel);
 static u8 brcms_c_antsel_id2antcfg(struct antsel_info *asi, u8 id);
 static u16 brcms_c_antsel_antcfg2antsel(struct antsel_info *asi, u8 ant_cfg);
 static void brcms_c_antsel_init_cfg(struct antsel_info *asi,
-				wlc_antselcfg_t *antsel,
+				struct brcms_antselcfg *antsel,
 				bool auto_sel);
 
 const u16 mimo_2x4_div_antselpat_tbl[] = {
@@ -160,7 +160,7 @@ void brcms_c_antsel_init(struct antsel_info *asi)
 
 /* boardlevel antenna selection: init antenna selection structure */
 static void
-brcms_c_antsel_init_cfg(struct antsel_info *asi, wlc_antselcfg_t *antsel,
+brcms_c_antsel_init_cfg(struct antsel_info *asi, struct brcms_antselcfg *antsel,
 		    bool auto_sel)
 {
 	if (asi->antsel_type == ANTSEL_2x3) {
@@ -282,7 +282,7 @@ static u16 brcms_c_antsel_antcfg2antsel(struct antsel_info *asi, u8 ant_cfg)
 
 /* boardlevel antenna selection: ucode interface control */
 static int brcms_c_antsel_cfgupd(struct antsel_info *asi,
-				 wlc_antselcfg_t *antsel)
+				 struct brcms_antselcfg *antsel)
 {
 	struct brcms_c_info *wlc = asi->wlc;
 	u8 ant_cfg;

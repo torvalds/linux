@@ -22,12 +22,12 @@
 
 static struct brcms_c_bsscfg *brcms_c_bsscfg_malloc(uint unit);
 static void brcms_c_bsscfg_mfree(struct brcms_c_bsscfg *cfg);
-static struct wlc_pub *brcms_c_pub_malloc(uint unit,
+static struct brcms_pub *brcms_c_pub_malloc(uint unit,
 				      uint *err, uint devid);
-static void brcms_c_pub_mfree(struct wlc_pub *pub);
-static void brcms_c_tunables_init(wlc_tunables_t *tunables, uint devid);
+static void brcms_c_pub_mfree(struct brcms_pub *pub);
+static void brcms_c_tunables_init(struct brcms_tunables *tunables, uint devid);
 
-static void brcms_c_tunables_init(wlc_tunables_t *tunables, uint devid)
+static void brcms_c_tunables_init(struct brcms_tunables *tunables, uint devid)
 {
 	tunables->ntxd = NTXD;
 	tunables->nrxd = NRXD;
@@ -45,17 +45,17 @@ static void brcms_c_tunables_init(wlc_tunables_t *tunables, uint devid)
 	tunables->txsbnd = TXSBND;
 }
 
-static struct wlc_pub *brcms_c_pub_malloc(uint unit, uint *err, uint devid)
+static struct brcms_pub *brcms_c_pub_malloc(uint unit, uint *err, uint devid)
 {
-	struct wlc_pub *pub;
+	struct brcms_pub *pub;
 
-	pub = kzalloc(sizeof(struct wlc_pub), GFP_ATOMIC);
+	pub = kzalloc(sizeof(struct brcms_pub), GFP_ATOMIC);
 	if (pub == NULL) {
 		*err = 1001;
 		goto fail;
 	}
 
-	pub->tunables = kzalloc(sizeof(wlc_tunables_t), GFP_ATOMIC);
+	pub->tunables = kzalloc(sizeof(struct brcms_tunables), GFP_ATOMIC);
 	if (pub->tunables == NULL) {
 		*err = 1028;
 		goto fail;
@@ -77,7 +77,7 @@ static struct wlc_pub *brcms_c_pub_malloc(uint unit, uint *err, uint devid)
 	return NULL;
 }
 
-static void brcms_c_pub_mfree(struct wlc_pub *pub)
+static void brcms_c_pub_mfree(struct brcms_pub *pub)
 {
 	if (pub == NULL)
 		return;
@@ -95,7 +95,7 @@ static struct brcms_c_bsscfg *brcms_c_bsscfg_malloc(uint unit)
 	if (cfg == NULL)
 		goto fail;
 
-	cfg->current_bss = kzalloc(sizeof(wlc_bss_info_t), GFP_ATOMIC);
+	cfg->current_bss = kzalloc(sizeof(struct brcms_bss_info), GFP_ATOMIC);
 	if (cfg->current_bss == NULL)
 		goto fail;
 
@@ -175,7 +175,7 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 		goto fail;
 	}
 
-	wlc->default_bss = kzalloc(sizeof(wlc_bss_info_t), GFP_ATOMIC);
+	wlc->default_bss = kzalloc(sizeof(struct brcms_bss_info), GFP_ATOMIC);
 	if (wlc->default_bss == NULL) {
 		*err = 1010;
 		goto fail;
@@ -189,16 +189,16 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 	brcms_c_bsscfg_ID_assign(wlc, wlc->cfg);
 
 	wlc->wsec_def_keys[0] =
-		kzalloc(sizeof(wsec_key_t) * WLC_DEFAULT_KEYS, GFP_ATOMIC);
+		kzalloc(sizeof(struct wsec_key) * WLC_DEFAULT_KEYS, GFP_ATOMIC);
 	if (wlc->wsec_def_keys[0] == NULL) {
 		*err = 1015;
 		goto fail;
 	} else {
 		int i;
 		for (i = 1; i < WLC_DEFAULT_KEYS; i++) {
-			wlc->wsec_def_keys[i] = (wsec_key_t *)
+			wlc->wsec_def_keys[i] = (struct wsec_key *)
 			    ((unsigned long)wlc->wsec_def_keys[0] +
-			     (sizeof(wsec_key_t) * i));
+			     (sizeof(struct wsec_key) * i));
 		}
 	}
 
@@ -237,7 +237,7 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 	}
 
 	wlc->corestate->macstat_snapshot =
-		kzalloc(sizeof(macstat_t), GFP_ATOMIC);
+		kzalloc(sizeof(struct macstat), GFP_ATOMIC);
 	if (wlc->corestate->macstat_snapshot == NULL) {
 		*err = 1027;
 		goto fail;

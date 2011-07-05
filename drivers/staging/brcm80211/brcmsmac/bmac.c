@@ -83,8 +83,8 @@ static void brcms_ucode_download(struct brcms_c_hw_info *wlc);
 static void brcms_c_ucode_txant_set(struct brcms_c_hw_info *wlc_hw);
 
 /* used by brcms_c_dpc() */
-static bool brcms_b_dotxstatus(struct brcms_c_hw_info *wlc, tx_status_t *txs,
-				u32 s2);
+static bool brcms_b_dotxstatus(struct brcms_c_hw_info *wlc,
+			       struct tx_status *txs, u32 s2);
 static bool brcms_b_txstatus(struct brcms_c_hw_info *wlc, bool bound,
 			     bool *fatal);
 static bool brcms_b_recv(struct brcms_c_hw_info *wlc_hw, uint fifo, bool bound);
@@ -246,7 +246,7 @@ brcms_b_recv(struct brcms_c_hw_info *wlc_hw, uint fifo, bool bound)
 	struct sk_buff *tail = NULL;
 	uint n = 0;
 	uint bound_limit = bound ? wlc_hw->wlc->pub->tunables->rxbnd : -1;
-	wlc_d11rxhdr_t *wlc_rxhdr = NULL;
+	struct brcms_d11rxhdr *wlc_rxhdr = NULL;
 
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 	/* gather received frames */
@@ -272,7 +272,7 @@ brcms_b_recv(struct brcms_c_hw_info *wlc_hw, uint fifo, bool bound)
 		head = head->prev;
 		p->prev = NULL;
 
-		wlc_rxhdr = (wlc_d11rxhdr_t *) p->data;
+		wlc_rxhdr = (struct brcms_d11rxhdr *) p->data;
 
 		/* compute the RSSI from d11rxhdr and record it in wlc_rxd11hr */
 		wlc_phy_rssi_compute(wlc_hw->band->pi, wlc_rxhdr);
@@ -457,7 +457,8 @@ brcms_b_set_chanspec(struct brcms_c_hw_info *wlc_hw, chanspec_t chanspec,
 	}
 }
 
-int brcms_b_state_get(struct brcms_c_hw_info *wlc_hw, brcms_b_state_t *state)
+int brcms_b_state_get(struct brcms_c_hw_info *wlc_hw,
+		      struct brcms_b_state *state)
 {
 	state->machwcap = wlc_hw->machwcap;
 
@@ -472,7 +473,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 	u16 pio_mhf2 = 0;
 	struct brcms_c_hw_info *wlc_hw = wlc->hw;
 	uint unit = wlc_hw->unit;
-	wlc_tunables_t *tune = wlc->pub->tunables;
+	struct brcms_tunables *tune = wlc->pub->tunables;
 	struct wiphy *wiphy = wlc->wiphy;
 
 	/* name and offsets for dma_attach */
@@ -589,7 +590,7 @@ int brcms_b_attach(struct brcms_c_info *wlc, u16 vendor, u16 device, uint unit,
 	uint err = 0;
 	uint j;
 	bool wme = false;
-	shared_phy_params_t sha_params;
+	struct shared_phy_params sha_params;
 	struct wiphy *wiphy = wlc->wiphy;
 
 	BCMMSG(wlc->wiphy, "wl%d: vendor 0x%x device 0x%x\n", unit, vendor,
@@ -2959,7 +2960,8 @@ bool brcms_c_isr(struct brcms_c_info *wlc, bool *wantdpc)
 }
 
 static bool
-brcms_b_dotxstatus(struct brcms_c_hw_info *wlc_hw, tx_status_t *txs, u32 s2)
+brcms_b_dotxstatus(struct brcms_c_hw_info *wlc_hw, struct tx_status *txs,
+		   u32 s2)
 {
 	/* discard intermediate indications for ucode with one legitimate case:
 	 *   e.g. if "useRTS" is set. ucode did a successful rts/cts exchange, but the subsequent
@@ -2983,7 +2985,7 @@ brcms_b_txstatus(struct brcms_c_hw_info *wlc_hw, bool bound, bool *fatal)
 	bool morepending = false;
 	struct brcms_c_info *wlc = wlc_hw->wlc;
 	d11regs_t *regs;
-	tx_status_t txstatus, *txs;
+	struct tx_status txstatus, *txs;
 	u32 s1, s2;
 	uint n = 0;
 	/*

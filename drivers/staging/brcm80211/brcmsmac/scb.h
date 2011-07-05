@@ -47,7 +47,8 @@ struct scb_ampdu {
 	 * of having mac80211 hold it for us.  Also could be made dynamic per tid instead of
 	 * static.
 	 */
-	scb_ampdu_tid_ini_t ini[AMPDU_MAX_SCB_TID];	/* initiator info - per tid (NUMPRIO) */
+	/* initiator info - per tid (NUMPRIO): */
+	struct scb_ampdu_tid_ini ini[AMPDU_MAX_SCB_TID];
 };
 
 #define SCB_MAGIC	0xbeefcafe
@@ -68,7 +69,7 @@ struct scb {
 				 */
 	u16 seqnum[NUMPRIO];	/* WME: driver maintained sw seqnum per priority */
 
-	scb_ampdu_t scb_ampdu;	/* AMPDU state including per tid info */
+	struct scb_ampdu scb_ampdu;	/* AMPDU state including per tid info */
 };
 
 /* scb flags */

@@ -38,7 +38,7 @@ const u8 rate_info[WLC_MAXRATE + 1] = {
 };
 
 /* rates are in units of Kbps */
-const mcs_info_t mcs_table[MCS_TABLE_SIZE] = {
+const struct brcms_mcs_info mcs_table[MCS_TABLE_SIZE] = {
 	/* MCS  0: SS 1, MOD: BPSK,  CR 1/2 */
 	{6500, 13500, CEIL(6500 * 10, 9), CEIL(13500 * 10, 9), 0x00,
 	 WLC_RATE_6M},
@@ -143,17 +143,18 @@ const mcs_info_t mcs_table[MCS_TABLE_SIZE] = {
  *   Number of spatial streams: always 1
  *   other fields: refer to table 78 of section 17.3.2.2 of the original .11a standard
  */
-typedef struct legacy_phycfg {
+struct legacy_phycfg {
 	u32 rate_ofdm;	/* ofdm mac rate */
 	u8 tx_phy_ctl3;	/* phy ctl byte 3, code rate, modulation type, # of streams */
-} legacy_phycfg_t;
+};
 
 #define LEGACY_PHYCFG_TABLE_SIZE	12	/* Number of legacy_rate_cfg entries in the table */
 
 /* In CCK mode LPPHY overloads OFDM Modulation bits with CCK Data Rate */
 /* Eventually MIMOPHY would also be converted to this format */
 /* 0 = 1Mbps; 1 = 2Mbps; 2 = 5.5Mbps; 3 = 11Mbps */
-static const legacy_phycfg_t legacy_phycfg_table[LEGACY_PHYCFG_TABLE_SIZE] = {
+static const struct
+legacy_phycfg legacy_phycfg_table[LEGACY_PHYCFG_TABLE_SIZE] = {
 	{WLC_RATE_1M, 0x00},	/* CCK  1Mbps,  data rate  0 */
 	{WLC_RATE_2M, 0x08},	/* CCK  2Mbps,  data rate  1 */
 	{WLC_RATE_5M5, 0x10},	/* CCK  5.5Mbps,  data rate  2 */
@@ -320,7 +321,7 @@ brcms_c_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 }
 
 /* calculate the rate of a rx'd frame and return it as a ratespec */
-ratespec_t brcms_c_compute_rspec(d11rxhdr_t *rxh, u8 *plcp)
+ratespec_t brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp)
 {
 	int phy_type;
 	ratespec_t rspec = PHY_TXC1_BW_20MHZ << RSPEC_BW_SHIFT;
@@ -333,12 +334,13 @@ ratespec_t brcms_c_compute_rspec(d11rxhdr_t *rxh, u8 *plcp)
 		switch (rxh->PhyRxStatus_0 & PRXS0_FT_MASK) {
 		case PRXS0_CCK:
 			rspec =
-			    CCK_PHY2MAC_RATE(((cck_phy_hdr_t *) plcp)->signal);
+			    CCK_PHY2MAC_RATE(
+				((struct cck_phy_hdr *) plcp)->signal);
 			break;
 		case PRXS0_OFDM:
 			rspec =
-			    OFDM_PHY2MAC_RATE(((ofdm_phy_hdr_t *) plcp)->
-					      rlpt[0]);
+			    OFDM_PHY2MAC_RATE(
+				((struct ofdm_phy_hdr *) plcp)->rlpt[0]);
 			break;
 		case PRXS0_PREN:
 			rspec = (plcp[0] & MIMO_PLCP_MCS_MASK) | RSPEC_MIMORATE;
@@ -358,9 +360,11 @@ ratespec_t brcms_c_compute_rspec(d11rxhdr_t *rxh, u8 *plcp)
 			rspec |= RSPEC_SHORT_GI;
 	} else
 	    if ((phy_type == PHY_TYPE_A) || (rxh->PhyRxStatus_0 & PRXS0_OFDM))
-		rspec = OFDM_PHY2MAC_RATE(((ofdm_phy_hdr_t *) plcp)->rlpt[0]);
+		rspec = OFDM_PHY2MAC_RATE(
+				((struct ofdm_phy_hdr *) plcp)->rlpt[0]);
 	else
-		rspec = CCK_PHY2MAC_RATE(((cck_phy_hdr_t *) plcp)->signal);
+		rspec = CCK_PHY2MAC_RATE(
+				((struct cck_phy_hdr *) plcp)->signal);
 
 	return rspec;
 }

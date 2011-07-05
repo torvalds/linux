@@ -106,7 +106,7 @@
 #define	WL_SPURAVOID_ON1	1
 #define	WL_SPURAVOID_ON2	2
 
-struct wlc_tunables {
+struct brcms_tunables {
 	int ntxd;		/* size of tx descriptor table */
 	int nrxd;		/* size of rx descriptor table */
 	int rxbufsz;		/* size of rx buffers to post */
@@ -124,7 +124,7 @@ struct wlc_tunables {
 	int memreserved;	/* memory reserved for BMAC's USB dma rx */
 };
 
-struct wlc_rateset {
+struct brcms_rateset {
 	uint count;		/* number of rates in rates[] */
 	u8 rates[WLC_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
 	u8 htphy_membership;	/* HT PHY Membership */
@@ -160,7 +160,7 @@ struct rsn_parms {
 	IEEE80211_HT_CAP_MAX_AMSDU | IEEE80211_HT_CAP_DSSSCCK40)
 
 /* wlc internal bss_info */
-struct wlc_bss_info {
+struct brcms_bss_info {
 	u8 BSSID[ETH_ALEN];	/* network BSSID */
 	u16 flags;		/* flags for internal attributes */
 	u8 SSID_len;		/* the length of SSID */
@@ -242,12 +242,12 @@ typedef int (*iovar_fn_t) (void *handle, const struct brcmu_iovar *vi,
  * Public portion of "common" os-independent state structure.
  * The wlc handle points at this.
  */
-struct wlc_pub {
+struct brcms_pub {
 	void *wlc;
 
 	struct ieee80211_hw *ieee_hw;
 	struct scb *global_scb;
-	scb_ampdu_t *global_ampdu;
+	struct scb_ampdu *global_ampdu;
 	uint mac80211_state;
 	uint unit;		/* device instance number */
 	uint corerev;		/* core revision */
@@ -255,7 +255,8 @@ struct wlc_pub {
 	char *vars;		/* "environment" name=value */
 	bool up;		/* interface up and running */
 	bool hw_off;		/* HW is off */
-	wlc_tunables_t *tunables;	/* tunables: ntxd, nrxd, maxscb, etc. */
+	/* tunables: ntxd, nrxd, maxscb, etc. */
+	struct brcms_tunables *tunables;
 	bool hw_up;		/* one time hw up/down(from boot or hibernation) */
 	bool _piomode;		/* true if pio mode *//* BMAC_NOTE: NEED In both */
 	uint _nbands;		/* # bands supported */
@@ -570,7 +571,7 @@ extern const u8 wme_fifo2ac[];
 
 #define HIGHEST_SINGLE_STREAM_MCS	7	/* MCS values greater than this enable multiple streams */
 
-struct wlc_antselcfg {
+struct brcms_antselcfg {
 	u8 ant_config[ANT_SELCFG_MAX];	/* antenna configuration */
 	u8 num_antcfg;	/* number of available antenna configurations */
 };
@@ -615,7 +616,7 @@ extern void brcms_c_set_addrmatch(struct brcms_c_info *wlc,
 extern void brcms_c_wme_setparams(struct brcms_c_info *wlc, u16 aci,
 			      const struct ieee80211_tx_queue_params *arg,
 			      bool suspend);
-extern struct wlc_pub *brcms_c_pub(void *wlc);
+extern struct brcms_pub *brcms_c_pub(void *wlc);
 
 /* common functions for every port */
 extern void brcms_c_mhf(struct brcms_c_info *wlc, u8 idx, u16 mask, u16 val,
@@ -639,10 +640,10 @@ extern int getintvar(char *vars, const char *name);
 extern void brcms_c_set_ps_ctrl(struct brcms_c_info *wlc);
 extern void brcms_c_mctrl(struct brcms_c_info *wlc, u32 mask, u32 val);
 
-extern int brcms_c_module_register(struct wlc_pub *pub,
+extern int brcms_c_module_register(struct brcms_pub *pub,
 			       const char *name, void *hdl,
 			       watchdog_fn_t watchdog_fn, down_fn_t down_fn);
-extern int brcms_c_module_unregister(struct wlc_pub *pub, const char *name,
+extern int brcms_c_module_unregister(struct brcms_pub *pub, const char *name,
 				 void *hdl);
 extern void brcms_c_suspend_mac_and_wait(struct brcms_c_info *wlc);
 extern void brcms_c_enable_mac(struct brcms_c_info *wlc);

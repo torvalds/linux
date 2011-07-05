@@ -29,13 +29,12 @@
 
 u32 phyhal_msg_level = PHYHAL_ERROR;
 
-typedef struct _chan_info_basic {
+struct chan_info_basic {
 	u16 chan;
 	u16 freq;
-} chan_info_basic_t;
+};
 
-static chan_info_basic_t chan_info_all[] = {
-
+static struct chan_info_basic chan_info_all[] = {
 	{1, 2412},
 	{2, 2417},
 	{3, 2422},
@@ -469,11 +468,11 @@ static void WLBANDINITFN(wlc_set_phy_uninitted) (phy_info_t *pi)
 	}
 }
 
-shared_phy_t *wlc_phy_shared_attach(shared_phy_params_t *shp)
+struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp)
 {
-	shared_phy_t *sh;
+	struct shared_phy *sh;
 
-	sh = kzalloc(sizeof(shared_phy_t), GFP_ATOMIC);
+	sh = kzalloc(sizeof(struct shared_phy), GFP_ATOMIC);
 	if (sh == NULL) {
 		return NULL;
 	}
@@ -506,7 +505,7 @@ shared_phy_t *wlc_phy_shared_attach(shared_phy_params_t *shp)
 	return sh;
 }
 
-wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype,
+wlc_phy_t *wlc_phy_attach(struct shared_phy *sh, void *regs, int bandtype,
 			  char *vars, struct wiphy *wiphy)
 {
 	phy_info_t *pi;
@@ -998,7 +997,7 @@ void wlc_phy_table_data_write(phy_info_t *pi, uint width, u32 val)
 }
 
 void
-wlc_phy_write_table(phy_info_t *pi, const phytbl_info_t *ptbl_info,
+wlc_phy_write_table(phy_info_t *pi, const struct phytbl_info *ptbl_info,
 		    u16 tblAddr, u16 tblDataHi, u16 tblDataLo)
 {
 	uint idx;
@@ -1038,7 +1037,7 @@ wlc_phy_write_table(phy_info_t *pi, const phytbl_info_t *ptbl_info,
 }
 
 void
-wlc_phy_read_table(phy_info_t *pi, const phytbl_info_t *ptbl_info,
+wlc_phy_read_table(phy_info_t *pi, const struct phytbl_info *ptbl_info,
 		   u16 tblAddr, u16 tblDataHi, u16 tblDataLo)
 {
 	uint idx;
@@ -1076,7 +1075,8 @@ wlc_phy_read_table(phy_info_t *pi, const phytbl_info_t *ptbl_info,
 }
 
 uint
-wlc_phy_init_radio_regs_allbands(phy_info_t *pi, radio_20xx_regs_t *radioregs)
+wlc_phy_init_radio_regs_allbands(phy_info_t *pi,
+				 struct radio_20xx_regs *radioregs)
 {
 	uint i = 0;
 
@@ -1093,7 +1093,7 @@ wlc_phy_init_radio_regs_allbands(phy_info_t *pi, radio_20xx_regs_t *radioregs)
 }
 
 uint
-wlc_phy_init_radio_regs(phy_info_t *pi, radio_regs_t *radioregs,
+wlc_phy_init_radio_regs(phy_info_t *pi, struct radio_regs *radioregs,
 			u16 core_offset)
 {
 	uint i = 0;
@@ -2440,7 +2440,7 @@ wlc_phy_noise_sample_request(wlc_phy_t *pih, u8 reason, u8 ch)
 			OR_REG(&pi->regs->maccommand,
 			       MCMD_BG_NOISE);
 		} else {
-			phy_iq_est_t est[PHY_CORE_MAX];
+			struct phy_iq_est est[PHY_CORE_MAX];
 			u32 cmplx_pwr[PHY_CORE_MAX];
 			s8 noise_dbm_ant[PHY_CORE_MAX];
 			u16 log_num_samps, num_samps, classif_state = 0;
@@ -2675,8 +2675,8 @@ void wlc_phy_compute_dB(u32 *cmplx_pwr, s8 *p_cmplx_pwr_dB, u8 core)
 
 void wlc_phy_rssi_compute(wlc_phy_t *pih, void *ctx)
 {
-	wlc_d11rxhdr_t *wlc_rxhdr = (wlc_d11rxhdr_t *) ctx;
-	d11rxhdr_t *rxh = &wlc_rxhdr->rxhdr;
+	struct brcms_d11rxhdr *wlc_rxhdr = (struct brcms_d11rxhdr *) ctx;
+	struct d11rxhdr *rxh = &wlc_rxhdr->rxhdr;
 	int rssi = le16_to_cpu(rxh->PhyRxStatus_1) & PRXS1_JSSI_MASK;
 	uint radioid = pih->radioid;
 	phy_info_t *pi = (phy_info_t *) pih;
@@ -2694,7 +2694,7 @@ void wlc_phy_rssi_compute(wlc_phy_t *pih, void *ctx)
 
 	if (ISLCNPHY(pi)) {
 		u8 gidx = (le16_to_cpu(rxh->PhyRxStatus_2) & 0xFC00) >> 10;
-		phy_info_lcnphy_t *pi_lcn = pi->u.pi_lcnphy;
+		struct phy_info_lcnphy *pi_lcn = pi->u.pi_lcnphy;
 
 		if (rssi > 127)
 			rssi -= 256;

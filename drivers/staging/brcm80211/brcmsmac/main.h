@@ -77,7 +77,7 @@
 struct brcms_c_bss_list {
 	uint count;
 	bool beacon;		/* set for beacon, cleared for probe response */
-	wlc_bss_info_t *ptrs[MAXBSS];
+	struct brcms_bss_info *ptrs[MAXBSS];
 };
 
 #define	SW_TIMER_MAC_STAT_UPD		30	/* periodic MAC stats update */
@@ -292,7 +292,7 @@ struct brcms_c_stf {
 #define WLC_CHAN_CHANNEL(x)     (((x) & RXS_CHAN_ID_MASK) >> RXS_CHAN_ID_SHIFT)
 #define WLC_RX_CHANNEL(rxh)	(WLC_CHAN_CHANNEL((rxh)->RxChan))
 
-/* wlc_bss_info flag bit values */
+/* brcms_bss_info flag bit values */
 #define WLC_BSS_HT		0x0020	/* BSS is HT (MIMO) capable */
 
 /* Flags used in brcms_c_txq_info.stopped */
@@ -341,8 +341,8 @@ struct wsec_key {
 	u32 len;		/* key length..don't move this var */
 	/* data is 4byte aligned */
 	u8 data[WLAN_MAX_KEY_LEN];	/* key data */
-	wsec_iv_t rxiv[WLC_NUMRXIVS];	/* Rx IV (one per TID) */
-	wsec_iv_t txiv;		/* Tx IV */
+	struct wsec_iv rxiv[WLC_NUMRXIVS];	/* Rx IV (one per TID) */
+	struct wsec_iv txiv;		/* Tx IV */
 };
 
 /*
@@ -355,7 +355,7 @@ struct brcms_c_core {
 	uint *txavail[NFIFO];	/* # tx descriptors available */
 	s16 txpktpend[NFIFO];	/* tx admission control */
 
-	macstat_t *macstat_snapshot;	/* mac hw prev read values */
+	struct macstat *macstat_snapshot;	/* mac hw prev read values */
 };
 
 /*
@@ -437,7 +437,7 @@ struct wme_param_ie {
 	u8 version;
 	u8 qosinfo;
 	u8 rsvd;
-	edcf_acparam_t acparam[AC_COUNT];
+	struct edcf_acparam acparam[AC_COUNT];
 } __attribute__((packed));
 
 /* virtual interface */
@@ -571,7 +571,7 @@ struct brcms_c_txq_info {
  * Principal common (os-independent) software data structure.
  */
 struct brcms_c_info {
-	struct wlc_pub *pub;		/* pointer to wlc public state */
+	struct brcms_pub *pub;		/* pointer to wlc public state */
 	struct brcms_info *wl;	/* pointer to os-specific private state */
 	d11regs_t *regs;	/* pointer to device registers */
 
@@ -615,7 +615,7 @@ struct brcms_c_info {
 
 	struct ampdu_info *ampdu;	/* ampdu module handler */
 	struct antsel_info *asi;	/* antsel module handler */
-	wlc_cm_info_t *cmi;	/* channel manager module handler */
+	struct brcms_cm_info *cmi;	/* channel manager module handler */
 
 	uint vars_size;		/* size of vars, free vars on detach */
 
@@ -664,11 +664,13 @@ struct brcms_c_info {
 	/* WME */
 	ac_bitmap_t wme_dp;	/* Discard (oldest first) policy per AC */
 	u16 edcf_txop[AC_COUNT];	/* current txop for each ac */
-	wme_param_ie_t wme_param_ie;	/* WME parameter info element, which on STA
-					 * contains parameters in use locally, and on
-					 * AP contains parameters advertised to STA
-					 * in beacons and assoc responses.
-					 */
+
+	/*
+	 * WME parameter info element, which on STA contains parameters in use
+	 * locally, and on AP contains parameters advertised to STA in beacons
+	 * and assoc responses.
+	 */
+	struct wme_param_ie wme_param_ie;
 	u16 wme_retries[AC_COUNT];	/* per-AC retry limits */
 
 	u16 tx_prec_map;	/* Precedence map based on HW FIFO space */
@@ -685,8 +687,9 @@ struct brcms_c_info {
 	struct brcms_c_txq_info *tx_queues;	/* common TX Queue list */
 
 	/* security */
-	wsec_key_t *wsec_keys[WSEC_MAX_KEYS];	/* dynamic key storage */
-	wsec_key_t *wsec_def_keys[WLC_DEFAULT_KEYS];	/* default key storage */
+	struct wsec_key *wsec_keys[WSEC_MAX_KEYS]; /* dynamic key storage */
+	/* default key storage */
+	struct wsec_key *wsec_def_keys[WLC_DEFAULT_KEYS];
 	bool wsec_swkeys;	/* indicates that all keys should be
 				 * treated as sw keys (used for debugging)
 				 */
@@ -699,7 +702,7 @@ struct brcms_c_info {
 	/* HT CAP IE being advertised by this node: */
 	struct ieee80211_ht_cap ht_cap;
 
-	wlc_bss_info_t *default_bss;	/* configured BSS parameters */
+	struct brcms_bss_info *default_bss;	/* configured BSS parameters */
 
 	u16 mc_fid_counter;	/* BC/MC FIFO frame ID counter */
 
@@ -761,14 +764,14 @@ struct brcms_c_info {
 /* antsel module specific state */
 struct antsel_info {
 	struct brcms_c_info *wlc;	/* pointer to main wlc structure */
-	struct wlc_pub *pub;		/* pointer to public fn */
+	struct brcms_pub *pub;		/* pointer to public fn */
 	u8 antsel_type;	/* Type of boardlevel mimo antenna switch-logic
 				 * 0 = N/A, 1 = 2x4 board, 2 = 2x3 CB2 board
 				 */
 	u8 antsel_antswitch;	/* board level antenna switch type */
 	bool antsel_avail;	/* Ant selection availability (SROM based) */
-	wlc_antselcfg_t antcfg_11n;	/* antenna configuration */
-	wlc_antselcfg_t antcfg_cur;	/* current antenna config (auto) */
+	struct brcms_antselcfg antcfg_11n; /* antenna configuration */
+	struct brcms_antselcfg antcfg_cur; /* current antenna config (auto) */
 };
 
 /* BSS configuration state */
@@ -800,9 +803,11 @@ struct brcms_c_bsscfg {
 	u16 WPA_auth;	/* WPA: authenticated key management */
 	bool wpa2_preauth;	/* default is true, wpa_cap sets value */
 	bool wsec_portopen;	/* indicates keys are plumbed */
-	wsec_iv_t wpa_none_txiv;	/* global txiv for WPA_NONE, tkip and aes */
+	/* global txiv for WPA_NONE, tkip and aes */
+	struct wsec_iv wpa_none_txiv;
 	int wsec_index;		/* 0-3: default tx key, -1: not set */
-	wsec_key_t *bss_def_keys[WLC_DEFAULT_KEYS];	/* default key storage */
+	/* default key storage: */
+	struct wsec_key *bss_def_keys[WLC_DEFAULT_KEYS];
 
 	/* TKIP countermeasures */
 	bool tkip_countermeasures;	/* flags TKIP no-assoc period */
@@ -829,7 +834,7 @@ struct brcms_c_bsscfg {
 	pmkid_t pmkid[MAXPMKID];	/* PMKID cache */
 	uint npmkid;		/* num cached PMKIDs */
 
-	wlc_bss_info_t *current_bss;	/* BSS parms in ASSOCIATED state */
+	struct brcms_bss_info *current_bss; /* BSS parms in ASSOCIATED state */
 
 	/* PM states */
 	bool PMawakebcn;	/* bcn recvd during current waking state */
@@ -840,7 +845,7 @@ struct brcms_c_bsscfg {
 	/* BSSID entry in RCMTA, use the wsec key management infrastructure to
 	 * manage the RCMTA entries.
 	 */
-	wsec_key_t *rcmta;
+	struct wsec_key *rcmta;
 
 	/* 'unique' ID of this bsscfg, assigned at bsscfg allocation */
 	u16 ID;
@@ -874,7 +879,7 @@ struct brcms_c_bsscfg {
 extern void brcms_c_fatal_error(struct brcms_c_info *wlc);
 extern void brcms_b_rpc_watchdog(struct brcms_c_info *wlc);
 extern void brcms_c_recv(struct brcms_c_info *wlc, struct sk_buff *p);
-extern bool brcms_c_dotxstatus(struct brcms_c_info *wlc, tx_status_t *txs,
+extern bool brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs,
 			       u32 frm_tx2);
 extern void brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo,
 			   struct sk_buff *p,
@@ -884,7 +889,7 @@ extern void brcms_c_txfifo_complete(struct brcms_c_info *wlc, uint fifo,
 extern void brcms_c_txq_enq(void *ctx, struct scb *scb, struct sk_buff *sdu,
 			    uint prec);
 extern void brcms_c_info_init(struct brcms_c_info *wlc, int unit);
-extern void brcms_c_print_txstatus(tx_status_t *txs);
+extern void brcms_c_print_txstatus(struct tx_status *txs);
 extern int brcms_c_xmtfifo_sz_get(struct brcms_c_info *wlc, uint fifo,
 				  uint *blocks);
 extern void brcms_c_write_template_ram(struct brcms_c_info *wlc, int offset,
@@ -895,8 +900,8 @@ extern void brcms_c_pllreq(struct brcms_c_info *wlc, bool set, mbool req_bit);
 extern void brcms_c_reset_bmac_done(struct brcms_c_info *wlc);
 
 #if defined(BCMDBG)
-extern void brcms_c_print_rxh(d11rxhdr_t *rxh);
-extern void brcms_c_print_txdesc(d11txh_t *txh);
+extern void brcms_c_print_rxh(struct d11rxhdr *rxh);
+extern void brcms_c_print_txdesc(struct d11txh *txh);
 #else
 #define brcms_c_print_txdesc(a)
 #endif
@@ -1007,6 +1012,6 @@ extern void brcms_c_set_home_chanspec(struct brcms_c_info *wlc,
 extern bool brcms_c_ps_allowed(struct brcms_c_info *wlc);
 extern bool brcms_c_stay_awake(struct brcms_c_info *wlc);
 extern void brcms_c_wme_initparams_sta(struct brcms_c_info *wlc,
-				       wme_param_ie_t *pe);
+				       struct wme_param_ie *pe);
 
 #endif				/* _BRCM_MAIN_H_ */

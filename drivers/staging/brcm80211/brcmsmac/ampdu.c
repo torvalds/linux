@@ -60,7 +60,7 @@
  * This allows to maintain a specific state independently of
  * how often and/or when the wlc counters are updated.
  */
-typedef struct wlc_fifo_info {
+struct brcms_fifo_info {
 	u16 ampdu_pld_size;	/* number of bytes to be pre-loaded */
 	u8 mcs2ampdu_table[FFPLD_MAX_MCS + 1];	/* per-mcs max # of mpdus in an ampdu */
 	u16 prev_txfunfl;	/* num of underflows last read from the HW macstats counter */
@@ -68,7 +68,7 @@ typedef struct wlc_fifo_info {
 	u32 accum_txampdu;	/* num of tx ampdu since we modified pld params  */
 	u32 prev_txampdu;	/* previous reading of tx ampdu */
 	u32 dmaxferrate;	/* estimated dma avg xfer rate in kbits/sec */
-} wlc_fifo_info_t;
+};
 
 /* AMPDU module specific state */
 struct ampdu_info {
@@ -94,7 +94,8 @@ struct ampdu_info {
 	u32 tx_max_funl;	/* underflows should be kept such that
 				 * (tx_max_funfl*underflows) < tx frames
 				 */
-	wlc_fifo_info_t fifo_tb[NUM_FFPLD_FIFO];	/* table of fifo infos  */
+	/* table of fifo infos */
+	struct brcms_fifo_info fifo_tb[NUM_FFPLD_FIFO];
 
 };
 
@@ -122,10 +123,12 @@ static void brcms_c_scb_ampdu_update_config_all(struct ampdu_info *ampdu);
 
 #define brcms_c_ampdu_txflowcontrol(a, b, c)	do {} while (0)
 
-static void brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu,
-					  struct scb *scb,
-					  struct sk_buff *p, tx_status_t *txs,
-					  u32 frmtxstatus, u32 frmtxstatus2);
+static void
+brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu,
+				  struct scb *scb,
+				  struct sk_buff *p, struct tx_status *txs,
+				  u32 frmtxstatus, u32 frmtxstatus2);
+
 static bool brcms_c_ampdu_cap(struct ampdu_info *ampdu);
 static int brcms_c_ampdu_set(struct ampdu_info *ampdu, bool on);
 
@@ -203,7 +206,7 @@ void brcms_c_ampdu_detach(struct ampdu_info *ampdu)
 static void brcms_c_scb_ampdu_update_config(struct ampdu_info *ampdu,
 					    struct scb *scb)
 {
-	scb_ampdu_t *scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
+	struct scb_ampdu *scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
 	int i;
 
 	scb_ampdu->max_pdu = (u8) ampdu->wlc->pub->tunables->ampdunummpdu;
@@ -237,7 +240,7 @@ static void brcms_c_scb_ampdu_update_config_all(struct ampdu_info *ampdu)
 static void brcms_c_ffpld_init(struct ampdu_info *ampdu)
 {
 	int i, j;
-	wlc_fifo_info_t *fifo;
+	struct brcms_fifo_info *fifo;
 
 	for (j = 0; j < NUM_FFPLD_FIFO; j++) {
 		fifo = (ampdu->fifo_tb + j);
@@ -267,14 +270,14 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 	u32 current_ampdu_cnt = 0;
 	u16 max_pld_size;
 	u32 new_txunfl;
-	wlc_fifo_info_t *fifo = (ampdu->fifo_tb + fid);
+	struct brcms_fifo_info *fifo = (ampdu->fifo_tb + fid);
 	uint xmtfifo_sz;
 	u16 cur_txunfl;
 
 	/* return if we got here for a different reason than underflows */
-	cur_txunfl =
-	    brcms_c_read_shm(wlc,
-			 M_UCODE_MACSTAT + offsetof(macstat_t, txfunfl[fid]));
+	cur_txunfl = brcms_c_read_shm(wlc,
+				      M_UCODE_MACSTAT +
+				      offsetof(struct macstat, txfunfl[fid]));
 	new_txunfl = (u16) (cur_txunfl - fifo->prev_txfunfl);
 	if (new_txunfl == 0) {
 		BCMMSG(wlc->wiphy, "TX status FRAG set but no tx underflows\n");
@@ -381,7 +384,7 @@ static void brcms_c_ffpld_calc_mcs2ampdu_table(struct ampdu_info *ampdu, int f)
 	int i;
 	u32 phy_rate, dma_rate, tmp;
 	u8 max_mpdu;
-	wlc_fifo_info_t *fifo = (ampdu->fifo_tb + f);
+	struct brcms_fifo_info *fifo = (ampdu->fifo_tb + f);
 
 	/* recompute the dma rate */
 	/* note : we divide/multiply by 100 to avoid integer overflows */
@@ -413,8 +416,8 @@ brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
 	u8 ba_wsize,		/* negotiated ba window size (in pdu) */
 	uint max_rx_ampdu_bytes) /* from ht_cap in beacon */
 {
-	scb_ampdu_t *scb_ampdu;
-	scb_ampdu_tid_ini_t *ini;
+	struct scb_ampdu *scb_ampdu;
+	struct scb_ampdu_tid_ini *ini;
 	struct ampdu_info *ampdu = wlc->ampdu;
 	struct scb *scb = wlc->pub->global_scb;
 	scb_ampdu = SCB_AMPDU_CUBBY(ampdu, scb);
@@ -449,12 +452,12 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 	uint i, count = 0, fifo, seg_cnt = 0;
 	u16 plen, len, seq = 0, mcl, mch, index, frameid, dma_len = 0;
 	u32 ampdu_len, max_ampdu_bytes = 0;
-	d11txh_t *txh = NULL;
+	struct d11txh *txh = NULL;
 	u8 *plcp;
 	struct ieee80211_hdr *h;
 	struct scb *scb;
-	scb_ampdu_t *scb_ampdu;
-	scb_ampdu_tid_ini_t *ini;
+	struct scb_ampdu *scb_ampdu;
+	struct scb_ampdu_tid_ini *ini;
 	u8 mcs = 0;
 	bool use_rts = false, use_cts = false;
 	ratespec_t rspec = 0, rspec_fallback = 0;
@@ -462,7 +465,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 	u16 mimo_ctlchbw = PHY_TXC1_BW_20MHZ;
 	struct ieee80211_rts *rts;
 	u8 rr_retry_limit;
-	wlc_fifo_info_t *f;
+	struct brcms_fifo_info *f;
 	bool fbr_iscck;
 	struct ieee80211_tx_info *tx_info;
 	u16 qlen;
@@ -524,7 +527,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 		}
 
 		/* pkt is good to be aggregated */
-		txh = (d11txh_t *) p->data;
+		txh = (struct d11txh *) p->data;
 		plcp = (u8 *) (txh + 1);
 		h = (struct ieee80211_hdr *)(plcp + D11_PHY_HDR_LEN);
 		seq = le16_to_cpu(h->seq_ctrl) >> SEQNUM_SHIFT;
@@ -701,7 +704,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 
 	if (count) {
 		/* patch up the last txh */
-		txh = (d11txh_t *) pkt[count - 1]->data;
+		txh = (struct d11txh *) pkt[count - 1]->data;
 		mcl = le16_to_cpu(txh->MacTxControlLow);
 		mcl &= ~TXC_AMPDU_MASK;
 		mcl |= (TXC_AMPDU_LAST << TXC_AMPDU_SHIFT);
@@ -719,7 +722,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 		ampdu_len -= roundup(len, 4) - len;
 
 		/* patch up the first txh & plcp */
-		txh = (d11txh_t *) pkt[0]->data;
+		txh = (struct d11txh *) pkt[0]->data;
 		plcp = (u8 *) (txh + 1);
 
 		WLC_SET_MIMO_PLCP_LEN(plcp, ampdu_len);
@@ -809,11 +812,11 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_c_txq_info *qi,
 
 void
 brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
-		     struct sk_buff *p, tx_status_t *txs)
+		     struct sk_buff *p, struct tx_status *txs)
 {
-	scb_ampdu_t *scb_ampdu;
+	struct scb_ampdu *scb_ampdu;
 	struct brcms_c_info *wlc = ampdu->wlc;
-	scb_ampdu_tid_ini_t *ini;
+	struct scb_ampdu_tid_ini *ini;
 	u32 s1 = 0, s2 = 0;
 	struct ieee80211_tx_info *tx_info;
 
@@ -845,11 +848,11 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 	} else {
 		/* loop through all pkts and free */
 		u8 queue = txs->frameid & TXFID_QUEUE_MASK;
-		d11txh_t *txh;
+		struct d11txh *txh;
 		u16 mcl;
 		while (p) {
 			tx_info = IEEE80211_SKB_CB(p);
-			txh = (d11txh_t *) p->data;
+			txh = (struct d11txh *) p->data;
 			mcl = le16_to_cpu(txh->MacTxControlLow);
 			brcmu_pkt_buf_free_skb(p);
 			/* break out if last packet of ampdu */
@@ -866,7 +869,7 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 static void
 brcms_c_ampdu_rate_status(struct brcms_c_info *wlc,
 			  struct ieee80211_tx_info *tx_info,
-			  tx_status_t *txs, u8 mcs)
+			  struct tx_status *txs, u8 mcs)
 {
 	struct ieee80211_tx_rate *txrate = tx_info->status.rates;
 	int i;
@@ -882,14 +885,14 @@ brcms_c_ampdu_rate_status(struct brcms_c_info *wlc,
 
 static void
 brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
-			      struct sk_buff *p, tx_status_t *txs,
+			      struct sk_buff *p, struct tx_status *txs,
 			      u32 s1, u32 s2)
 {
-	scb_ampdu_t *scb_ampdu;
+	struct scb_ampdu *scb_ampdu;
 	struct brcms_c_info *wlc = ampdu->wlc;
-	scb_ampdu_tid_ini_t *ini;
+	struct scb_ampdu_tid_ini *ini;
 	u8 bitmap[8], queue, tid;
-	d11txh_t *txh;
+	struct d11txh *txh;
 	u8 *plcp;
 	struct ieee80211_hdr *h;
 	u16 seq, start_seq = 0, bindex, index, mcl;
@@ -982,7 +985,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 
 			if (WL_ERROR_ON()) {
 				brcmu_prpkt("txpkt (AMPDU)", p);
-				brcms_c_print_txdesc((d11txh_t *) p->data);
+				brcms_c_print_txdesc((struct d11txh *) p->data);
 			}
 			brcms_c_print_txstatus(txs);
 		}
@@ -991,7 +994,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	/* loop through all pkts and retry if not acked */
 	while (p) {
 		tx_info = IEEE80211_SKB_CB(p);
-		txh = (d11txh_t *) p->data;
+		txh = (struct d11txh *) p->data;
 		mcl = le16_to_cpu(txh->MacTxControlLow);
 		plcp = (u8 *) (txh + 1);
 		h = (struct ieee80211_hdr *)(plcp + D11_PHY_HDR_LEN);

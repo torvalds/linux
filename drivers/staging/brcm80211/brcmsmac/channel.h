@@ -103,18 +103,21 @@ struct country_info {
 	const u8 locale_mimo_5G;	/* 5G mimo info */
 };
 
-extern wlc_cm_info_t *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc);
-extern void brcms_c_channel_mgr_detach(wlc_cm_info_t *wlc_cm);
+extern struct brcms_cm_info *
+brcms_c_channel_mgr_attach(struct brcms_c_info *wlc);
 
-extern u8 brcms_c_channel_locale_flags_in_band(wlc_cm_info_t *wlc_cm,
+extern void brcms_c_channel_mgr_detach(struct brcms_cm_info *wlc_cm);
+
+extern u8 brcms_c_channel_locale_flags_in_band(struct brcms_cm_info *wlc_cm,
 					   uint bandunit);
 
-extern bool brcms_c_valid_chanspec_db(wlc_cm_info_t *wlc_cm, chanspec_t chspec);
+extern bool brcms_c_valid_chanspec_db(struct brcms_cm_info *wlc_cm,
+				      chanspec_t chspec);
 
-extern void brcms_c_channel_reg_limits(wlc_cm_info_t *wlc_cm,
+extern void brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm,
 				   chanspec_t chanspec,
 				   struct txpwr_limits *txpwr);
-extern void brcms_c_channel_set_chanspec(wlc_cm_info_t *wlc_cm,
+extern void brcms_c_channel_set_chanspec(struct brcms_cm_info *wlc_cm,
 				     chanspec_t chanspec,
 				     u8 local_constraint_qdbm);
 

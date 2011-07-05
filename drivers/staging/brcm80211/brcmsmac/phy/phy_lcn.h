@@ -100,7 +100,7 @@ struct phy_info_lcnphy {
 	u16 lcnphy_extstxctrl1;
 	s16 lcnphy_cck_dig_filt_type;
 	s16 lcnphy_ofdm_dig_filt_type;
-	lcnphy_cal_results_t lcnphy_cal_results;
+	struct lcnphy_cal_results lcnphy_cal_results;
 
 	u8 lcnphy_psat_pwr;
 	u8 lcnphy_psat_indx;

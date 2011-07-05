@@ -20,16 +20,16 @@
 #include "types.h"
 
 extern const u8 rate_info[];
-extern const struct wlc_rateset cck_ofdm_mimo_rates;
-extern const struct wlc_rateset ofdm_mimo_rates;
-extern const struct wlc_rateset cck_ofdm_rates;
-extern const struct wlc_rateset ofdm_rates;
-extern const struct wlc_rateset cck_rates;
-extern const struct wlc_rateset gphy_legacy_rates;
-extern const struct wlc_rateset wlc_lrs_rates;
-extern const struct wlc_rateset rate_limit_1_2;
+extern const struct brcms_rateset cck_ofdm_mimo_rates;
+extern const struct brcms_rateset ofdm_mimo_rates;
+extern const struct brcms_rateset cck_ofdm_rates;
+extern const struct brcms_rateset ofdm_rates;
+extern const struct brcms_rateset cck_rates;
+extern const struct brcms_rateset gphy_legacy_rates;
+extern const struct brcms_rateset wlc_lrs_rates;
+extern const struct brcms_rateset rate_limit_1_2;
 
-struct mcs_info {
+struct brcms_mcs_info {
 	u32 phy_rate_20;	/* phy rate in kbps [20Mhz] */
 	u32 phy_rate_40;	/* phy rate in kbps [40Mhz] */
 	u32 phy_rate_20_sgi;	/* phy rate in kbps [20Mhz] with SGI */
@@ -40,7 +40,7 @@ struct mcs_info {
 
 #define WLC_MAXMCS	32	/* max valid mcs index */
 #define MCS_TABLE_SIZE	33	/* Number of mcs entries in the table */
-extern const mcs_info_t mcs_table[];
+extern const struct brcms_mcs_info mcs_table[];
 
 #define MCS_INVALID	0xFF
 #define MCS_CR_MASK	0x07	/* Code Rate bit mask */
@@ -139,31 +139,33 @@ extern const u8 ofdm_rate_lookup[];
 #define WLC_RATES_OFDM		2
 
 /* sanitize, and sort a rateset with the basic bit(s) preserved, validate rateset */
-extern bool brcms_c_rate_hwrs_filter_sort_validate(struct wlc_rateset *rs,
-					       const struct wlc_rateset *hw_rs,
-					       bool check_brate,
-					       u8 txstreams);
+extern bool
+brcms_c_rate_hwrs_filter_sort_validate(struct brcms_rateset *rs,
+				       const struct brcms_rateset *hw_rs,
+				       bool check_brate, u8 txstreams);
 /* copy rateset src to dst as-is (no masking or sorting) */
-extern void brcms_c_rateset_copy(const struct wlc_rateset *src,
-			     struct wlc_rateset *dst);
+extern void brcms_c_rateset_copy(const struct brcms_rateset *src,
+			     struct brcms_rateset *dst);
 
 /* would be nice to have these documented ... */
-extern ratespec_t brcms_c_compute_rspec(d11rxhdr_t *rxh, u8 *plcp);
+extern ratespec_t brcms_c_compute_rspec(struct d11rxhdr *rxh, u8 *plcp);
 
-extern void brcms_c_rateset_filter(struct wlc_rateset *src,
-	struct wlc_rateset *dst, bool basic_only, u8 rates, uint xmask,
+extern void brcms_c_rateset_filter(struct brcms_rateset *src,
+	struct brcms_rateset *dst, bool basic_only, u8 rates, uint xmask,
 	bool mcsallow);
 
-extern void brcms_c_rateset_default(struct wlc_rateset *rs_tgt,
-				const struct wlc_rateset *rs_hw, uint phy_type,
-				int bandtype, bool cck_only, uint rate_mask,
-				bool mcsallow, u8 bw, u8 txstreams);
+extern void
+brcms_c_rateset_default(struct brcms_rateset *rs_tgt,
+			const struct brcms_rateset *rs_hw, uint phy_type,
+			int bandtype, bool cck_only, uint rate_mask,
+			bool mcsallow, u8 bw, u8 txstreams);
+
 extern s16 brcms_c_rate_legacy_phyctl(uint rate);
 
-extern void brcms_c_rateset_mcs_upd(struct wlc_rateset *rs, u8 txstreams);
-extern void brcms_c_rateset_mcs_clear(struct wlc_rateset *rateset);
-extern void brcms_c_rateset_mcs_build(struct wlc_rateset *rateset,
+extern void brcms_c_rateset_mcs_upd(struct brcms_rateset *rs, u8 txstreams);
+extern void brcms_c_rateset_mcs_clear(struct brcms_rateset *rateset);
+extern void brcms_c_rateset_mcs_build(struct brcms_rateset *rateset,
 				      u8 txstreams);
-extern void brcms_c_rateset_bw_mcs_filter(struct wlc_rateset *rateset, u8 bw);
+extern void brcms_c_rateset_bw_mcs_filter(struct brcms_rateset *rateset, u8 bw);
 
 #endif				/* _WLC_RATE_H_ */

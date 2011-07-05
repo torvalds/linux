@@ -176,9 +176,9 @@ struct shared_phy_params {
 };
 
 
-extern shared_phy_t *wlc_phy_shared_attach(shared_phy_params_t *shp);
-extern wlc_phy_t *wlc_phy_attach(shared_phy_t *sh, void *regs, int bandtype,
-				 char *vars, struct wiphy *wiphy);
+extern struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp);
+extern wlc_phy_t *wlc_phy_attach(struct shared_phy *sh, void *regs,
+				 int bandtype, char *vars, struct wiphy *wiphy);
 extern void wlc_phy_detach(wlc_phy_t *ppi);
 
 extern bool wlc_phy_get_phyversion(wlc_phy_t *pih, u16 *phytype,

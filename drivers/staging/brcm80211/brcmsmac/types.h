@@ -206,7 +206,7 @@
  * Defaults for tunables (e.g. sizing constants)
  *
  * For each new tunable, add a member to the end
- * of wlc_tunables_t in brcms_c_pub.h to enable
+ * of struct brcms_tunables in brcms_c_pub.h to enable
  * runtime checks of tunable values. (Directly
  * using the macros in code invalidates ROM code)
  *
@@ -353,105 +353,42 @@ typedef u32 mbool;
 #define	mboolmaskset(mb, mask, val)	((mb) = (((mb) & ~(mask)) | (val)))
 
 /* forward declarations */
-struct sk_buff;
+struct wiphy;
+struct ieee80211_sta;
+struct ieee80211_tx_queue_params;
 struct brcms_info;
 struct brcms_c_info;
 struct brcms_c_hw_info;
 struct brcms_c_if;
-struct brcms_if;
-struct ampdu_info;
-struct antsel_info;
-struct bmac_pmq;
-struct d11init;
-struct dma_pub;
-struct brcms_c_bsscfg;
-struct brcmu_strbuf;
-struct si_pub;
-struct wiphy;
 struct brcmu_iovar;
+struct brcmu_strbuf;
 struct brcms_c_txq_info;
 struct brcms_c_band;
-struct ieee80211_tx_queue_params;
-struct ieee80211_sta;
+struct dma_pub;
+struct si_pub;
+struct tx_status;
+struct d11rxhdr;
+struct brcms_d11rxhdr;
+struct txpwr_limits;
 
-typedef struct gpioh_item gpioh_item_t;
-typedef struct si_info si_info_t;
-typedef struct brcms_b_state brcms_b_state_t;
-typedef struct locale_info locale_info_t;
-typedef struct locale_mimo_info locale_mimo_info_t;
-typedef struct country_info country_info_t;
-typedef struct wlc_cm_info wlc_cm_info_t;
 typedef volatile struct intctrlregs intctrlregs_t;
 typedef volatile struct pio2regs pio2regs_t;
 typedef volatile struct pio2regp pio2regp_t;
-typedef struct ofdm_phy_hdr ofdm_phy_hdr_t;
-typedef struct cck_phy_hdr cck_phy_hdr_t;
-typedef struct d11txh d11txh_t;
-typedef struct tx_status tx_status_t;
-typedef struct shm_acparams shm_acparams_t;
-typedef struct d11rxhdr d11rxhdr_t;
-typedef struct wlc_d11rxhdr wlc_d11rxhdr_t;
 typedef volatile struct pio4regs pio4regs_t;
 typedef volatile struct pio4regp pio4regp_t;
 typedef volatile struct fifo64 fifo64_t;
 typedef volatile struct d11regs d11regs_t;
-typedef struct macstat macstat_t;
-typedef struct d11cnt d11cnt_t;
 typedef volatile struct dma32diag dma32diag_t;
 typedef volatile struct dma64regs dma64regs_t;
-typedef enum txd_range txd_range_t;
-typedef struct di_fcn_s di_fcn_t;
-typedef struct wsec_iv wsec_iv_t;
-typedef struct wsec_key wsec_key_t;
-typedef struct edcf_acparam edcf_acparam_t;
-typedef struct wme_param_ie wme_param_ie_t;
-typedef struct wlc_phy_shim_info wlc_phy_shim_info_t;
-typedef struct wlc_tunables wlc_tunables_t;
-typedef struct wlc_rateset wlc_rateset_t;
-typedef struct wlc_bss_info  wlc_bss_info_t;
-typedef struct wl_rxsts wl_rxsts_t;
-typedef struct wlc_antselcfg wlc_antselcfg_t;
-typedef struct mcs_info mcs_info_t;
+typedef struct brcms_rateset wlc_rateset_t;
 typedef u32 ratespec_t;
-typedef struct scb_ampdu_tid_ini scb_ampdu_tid_ini_t;
-typedef struct scb_ampdu scb_ampdu_t;
-typedef struct txpwr_limits txpwr_limits_t;
 typedef struct tx_power tx_power_t;
-typedef struct tx_inst_power tx_inst_power_t;
 typedef struct chanvec chanvec_t;
-typedef struct shared_phy shared_phy_t;
-typedef struct shared_phy_params shared_phy_params_t;
 typedef struct phy_pub wlc_phy_t;
-typedef struct wlc_phy_srom_fem wlc_phy_srom_fem_t;
 typedef struct phy_info phy_info_t;
-typedef enum phy_cal_mode phy_cal_mode_t;
-typedef struct phy_table_info phy_table_info_t;
-typedef struct phytbl_info phytbl_info_t;
-typedef struct interference_info interference_info_t;
-typedef struct aci_save_gphy  aci_save_gphy_t;
-typedef struct lo_complex_abgphy_info lo_complex_abgphy_info_t;
-typedef struct nphy_iq_comp nphy_iq_comp_t;
-typedef struct nphy_txpwrindex phy_txpwrindex_t;
-typedef struct txiqcal_cache txiqcal_cache_t;
-typedef struct nphy_pwrctrl  phy_pwrctrl_t;
-typedef struct nphy_txgains nphy_txgains_t;
-typedef struct nphy_noisevar_buf phy_noisevar_buf_t;
-typedef struct rssical_cache rssical_cache_t;
-typedef struct lcnphy_cal_results lcnphy_cal_results_t;
-typedef struct phy_info_nphy phy_info_nphy_t;
-typedef struct phy_info_lcnphy phy_info_lcnphy_t;
-typedef struct phy_func_ptr phy_func_ptr_t;
 typedef s32 fixed;
 typedef struct _cs32 cs32;
-typedef struct radio_regs radio_regs_t;
-typedef struct radio_20xx_regs radio_20xx_regs_t;
-typedef struct lcnphy_radio_regs lcnphy_radio_regs_t;
-typedef struct phy_iq_est phy_iq_est_t;
-typedef phytbl_info_t dot11lcnphytbl_info_t;
-typedef struct _lcnphy_tx_gain_tbl_entry lcnphy_tx_gain_tbl_entry;
-typedef phytbl_info_t mimophytbl_info_t;
 typedef volatile union pmqreg pmqreg_t;
-typedef enum _ePsmScratchPadRegDefinitions  ePsmScratchPadRegDefinitions;
 
 /* brcm_msg_level is a bit vector with defs in defs.h */
 extern u32 brcm_msg_level;

@@ -141,7 +141,7 @@
 #define CCTRL5357_EXTPA                 (1<<14)	/* extPA in ChipControl 1, bit 14 */
 #define CCTRL5357_ANT_MUX_2o3		(1<<15)	/* 2o3 in ChipControl 1, bit 15 */
 
-typedef struct _nphy_iqcal_params {
+struct nphy_iqcal_params {
 	u16 txlpf;
 	u16 txgm;
 	u16 pga;
@@ -149,20 +149,20 @@ typedef struct _nphy_iqcal_params {
 	u16 ipa;
 	u16 cal_gain;
 	u16 ncorr[5];
-} nphy_iqcal_params_t;
+};
 
-typedef struct _nphy_txiqcal_ladder {
+struct nphy_txiqcal_ladder {
 	u8 percent;
 	u8 g_env;
-} nphy_txiqcal_ladder_t;
+};
 
-typedef struct {
-	nphy_txgains_t gains;
+struct nphy_ipa_txcalgains {
+	struct nphy_txgains gains;
 	bool useindex;
 	u8 index;
-} nphy_ipa_txcalgains_t;
+};
 
-typedef struct nphy_papd_restore_state_t {
+struct nphy_papd_restore_state {
 	u16 fbmix[2];
 	u16 vga_master[2];
 	u16 intpa_master[2];
@@ -171,20 +171,20 @@ typedef struct nphy_papd_restore_state_t {
 	u16 pwrup[2];
 	u16 atten[2];
 	u16 mm;
-} nphy_papd_restore_state;
+};
 
-typedef struct _nphy_ipa_txrxgain {
+struct nphy_ipa_txrxgain {
 	u16 hpvga;
 	u16 lpf_biq1;
 	u16 lpf_biq0;
 	u16 lna2;
 	u16 lna1;
 	s8 txpwrindex;
-} nphy_ipa_txrxgain_t;
+};
 
 #define NPHY_IPA_RXCAL_MAXGAININDEX (6 - 1)
 
-nphy_ipa_txrxgain_t nphy_ipa_rxcal_gaintbl_5GHz[] = { {0, 0, 0, 0, 0, 100},
+struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_5GHz[] = { {0, 0, 0, 0, 0, 100},
 {0, 0, 0, 0, 0, 50},
 {0, 0, 0, 0, 0, -1},
 {0, 0, 0, 3, 0, -1},
@@ -192,7 +192,7 @@ nphy_ipa_txrxgain_t nphy_ipa_rxcal_gaintbl_5GHz[] = { {0, 0, 0, 0, 0, 100},
 {0, 2, 3, 3, 0, -1}
 };
 
-nphy_ipa_txrxgain_t nphy_ipa_rxcal_gaintbl_2GHz[] = { {0, 0, 0, 0, 0, 128},
+struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_2GHz[] = { {0, 0, 0, 0, 0, 128},
 {0, 0, 0, 0, 0, 70},
 {0, 0, 0, 0, 0, 20},
 {0, 0, 0, 3, 0, 20},
@@ -200,7 +200,8 @@ nphy_ipa_txrxgain_t nphy_ipa_rxcal_gaintbl_2GHz[] = { {0, 0, 0, 0, 0, 128},
 {0, 2, 3, 3, 0, 20}
 };
 
-nphy_ipa_txrxgain_t nphy_ipa_rxcal_gaintbl_5GHz_rev7[] = { {0, 0, 0, 0, 0, 100},
+struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_5GHz_rev7[] = {
+{0, 0, 0, 0, 0, 100},
 {0, 0, 0, 0, 0, 50},
 {0, 0, 0, 0, 0, -1},
 {0, 0, 0, 3, 0, -1},
@@ -208,7 +209,8 @@ nphy_ipa_txrxgain_t nphy_ipa_rxcal_gaintbl_5GHz_rev7[] = { {0, 0, 0, 0, 0, 100},
 {0, 0, 5, 3, 0, -1}
 };
 
-nphy_ipa_txrxgain_t nphy_ipa_rxcal_gaintbl_2GHz_rev7[] = { {0, 0, 0, 0, 0, 10},
+struct nphy_ipa_txrxgain nphy_ipa_rxcal_gaintbl_2GHz_rev7[] = {
+{0, 0, 0, 0, 0, 10},
 {0, 0, 0, 1, 0, 10},
 {0, 0, 1, 2, 0, 10},
 {0, 0, 1, 3, 0, 10},
@@ -255,7 +257,7 @@ u16 NPHY_IPA_REV4_txdigi_filtcoeffs[][NPHY_NUM_DIG_FILT_COEFFS] = {
 	 0x97, 0x12d, 0x97, 0x25a, 0xd10, 0x25a}
 };
 
-typedef struct _chan_info_nphy_2055 {
+struct chan_info_nphy_2055 {
 	u16 chan;
 	u16 freq;
 	uint unknown;
@@ -287,9 +289,9 @@ typedef struct _chan_info_nphy_2055 {
 	u16 PHY_BW4;
 	u16 PHY_BW5;
 	u16 PHY_BW6;
-} chan_info_nphy_2055_t;
+};
 
-typedef struct _chan_info_nphy_radio205x {
+struct chan_info_nphy_radio205x {
 	u16 chan;
 	u16 freq;
 	u8 RF_SYN_pll_vcocal1;
@@ -335,9 +337,9 @@ typedef struct _chan_info_nphy_radio205x {
 	u16 PHY_BW4;
 	u16 PHY_BW5;
 	u16 PHY_BW6;
-} chan_info_nphy_radio205x_t;
+};
 
-typedef struct _chan_info_nphy_radio2057 {
+struct chan_info_nphy_radio2057 {
 	u16 chan;
 	u16 freq;
 	u8 RF_vcocal_countval0;
@@ -374,9 +376,9 @@ typedef struct _chan_info_nphy_radio2057 {
 	u16 PHY_BW4;
 	u16 PHY_BW5;
 	u16 PHY_BW6;
-} chan_info_nphy_radio2057_t;
+};
 
-typedef struct _chan_info_nphy_radio2057_rev5 {
+struct chan_info_nphy_radio2057_rev5 {
 	u16 chan;
 	u16 freq;
 	u8 RF_vcocal_countval0;
@@ -403,18 +405,18 @@ typedef struct _chan_info_nphy_radio2057_rev5 {
 	u16 PHY_BW4;
 	u16 PHY_BW5;
 	u16 PHY_BW6;
-} chan_info_nphy_radio2057_rev5_t;
+};
 
-typedef struct nphy_sfo_cfg {
+struct nphy_sfo_cfg {
 	u16 PHY_BW1a;
 	u16 PHY_BW2;
 	u16 PHY_BW3;
 	u16 PHY_BW4;
 	u16 PHY_BW5;
 	u16 PHY_BW6;
-} nphy_sfo_cfg_t;
+};
 
-static chan_info_nphy_2055_t chan_info_nphy_2055[] = {
+static struct chan_info_nphy_2055 chan_info_nphy_2055[] = {
 	{
 	 184, 4920, 3280, 0x71, 0x01, 0xEC, 0x0F, 0xFF, 0x01, 0x04, 0x0A,
 	 0x00, 0x8F, 0xFF, 0xFF, 0xFF, 0x00, 0x0F, 0x0F, 0x8F, 0xFF, 0x00, 0x0F,
@@ -913,7 +915,7 @@ static chan_info_nphy_2055_t chan_info_nphy_2055[] = {
 	 0x01, 0x80, 0x3E6, 0x3E2, 0x3DE, 0x41B, 0x41F, 0x424}
 };
 
-static chan_info_nphy_radio205x_t chan_info_nphyrev3_2056[] = {
+static struct chan_info_nphy_radio205x chan_info_nphyrev3_2056[] = {
 	{
 	 184, 4920, 0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x04, 0x0c, 0x01,
 	 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00, 0xff, 0xff, 0x00, 0x08, 0x00, 0x7f,
@@ -1536,7 +1538,7 @@ static chan_info_nphy_radio205x_t chan_info_nphyrev3_2056[] = {
 	 0x0f, 0x00, 0x0d, 0x03e6, 0x03e2, 0x03de, 0x041b, 0x041f, 0x0424}
 };
 
-static chan_info_nphy_radio205x_t chan_info_nphyrev4_2056_A1[] = {
+static struct chan_info_nphy_radio205x chan_info_nphyrev4_2056_A1[] = {
 	{
 	 184, 4920, 0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x04, 0x0c, 0x01,
 	 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00, 0xff, 0xff, 0x00, 0x0e, 0x00, 0x7f,
@@ -2159,7 +2161,7 @@ static chan_info_nphy_radio205x_t chan_info_nphyrev4_2056_A1[] = {
 	 0x0f, 0x00, 0x0e, 0x03e6, 0x03e2, 0x03de, 0x041b, 0x041f, 0x0424}
 };
 
-static chan_info_nphy_radio205x_t chan_info_nphyrev5_2056v5[] = {
+static struct chan_info_nphy_radio205x chan_info_nphyrev5_2056v5[] = {
 	{
 	 184, 4920, 0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x04, 0x0c, 0x01,
 	 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00, 0xff, 0xff, 0x00, 0x0b, 0x00, 0x70,
@@ -2782,7 +2784,7 @@ static chan_info_nphy_radio205x_t chan_info_nphyrev5_2056v5[] = {
 	 0x0d, 0x00, 0x08, 0x03e6, 0x03e2, 0x03de, 0x041b, 0x041f, 0x0424}
 };
 
-static chan_info_nphy_radio205x_t chan_info_nphyrev6_2056v6[] = {
+static struct chan_info_nphy_radio205x chan_info_nphyrev6_2056v6[] = {
 	{
 	 184, 4920, 0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x04, 0x0c, 0x01,
 	 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00, 0xff, 0xfe, 0x00, 0x09, 0x00, 0x77,
@@ -3405,7 +3407,7 @@ static chan_info_nphy_radio205x_t chan_info_nphyrev6_2056v6[] = {
 	 0x09, 0x00, 0x09, 0x03e6, 0x03e2, 0x03de, 0x041b, 0x041f, 0x0424}
 };
 
-static chan_info_nphy_radio205x_t chan_info_nphyrev5n6_2056v7[] = {
+static struct chan_info_nphy_radio205x chan_info_nphyrev5n6_2056v7[] = {
 	{
 	 184, 4920, 0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x04, 0x0c, 0x01,
 	 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00, 0xff, 0xff, 0x00, 0x0b, 0x00, 0x70,
@@ -4028,7 +4030,7 @@ static chan_info_nphy_radio205x_t chan_info_nphyrev5n6_2056v7[] = {
 	 0x0d, 0x00, 0x08, 0x03e6, 0x03e2, 0x03de, 0x041b, 0x041f, 0x0424}
 };
 
-static chan_info_nphy_radio205x_t chan_info_nphyrev6_2056v8[] = {
+static struct chan_info_nphy_radio205x chan_info_nphyrev6_2056v8[] = {
 	{
 	 184, 4920, 0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x04, 0x0c, 0x01,
 	 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00, 0xff, 0xfe, 0x00, 0x09, 0x00, 0x77,
@@ -4651,7 +4653,7 @@ static chan_info_nphy_radio205x_t chan_info_nphyrev6_2056v8[] = {
 	 0x09, 0x00, 0x09, 0x03e6, 0x03e2, 0x03de, 0x041b, 0x041f, 0x0424}
 };
 
-static chan_info_nphy_radio205x_t chan_info_nphyrev6_2056v11[] = {
+static struct chan_info_nphy_radio205x chan_info_nphyrev6_2056v11[] = {
 	{
 	 184, 4920, 0xff, 0x01, 0x01, 0x01, 0xec, 0x05, 0x05, 0x02, 0x0c, 0x01,
 	 0x00, 0x00, 0x00, 0x8f, 0x0f, 0x00, 0xff, 0xfe, 0x00, 0x09, 0x00, 0x77,
@@ -5274,7 +5276,7 @@ static chan_info_nphy_radio205x_t chan_info_nphyrev6_2056v11[] = {
 	 0x09, 0x00, 0x09, 0x03e6, 0x03e2, 0x03de, 0x041b, 0x041f, 0x0424}
 };
 
-static chan_info_nphy_radio2057_t chan_info_nphyrev7_2057_rev4[] = {
+static struct chan_info_nphy_radio2057 chan_info_nphyrev7_2057_rev4[] = {
 	{
 	 184, 4920, 0x68, 0x16, 0x10, 0x0c, 0x0c, 0x0c, 0x30, 0xec, 0x01, 0x0f,
 	 0x00, 0x0f, 0x00, 0xff, 0x00, 0x00, 0x0f, 0x0f, 0xf3, 0x00, 0xef, 0x00,
@@ -6137,7 +6139,7 @@ static chan_info_nphy_radio2057_t chan_info_nphyrev7_2057_rev4[] = {
 	 0x0424}
 };
 
-static chan_info_nphy_radio2057_rev5_t chan_info_nphyrev8_2057_rev5[] = {
+static struct chan_info_nphy_radio2057_rev5 chan_info_nphyrev8_2057_rev5[] = {
 	{
 	 1, 2412, 0x48, 0x16, 0x30, 0x1b, 0x0a, 0x0a, 0x30, 0x6c, 0x09, 0x0d,
 	 0x08, 0x0e, 0x61, 0x03, 0xff, 0x61, 0x03, 0xff, 0x03c9, 0x03c5, 0x03c1,
@@ -6196,7 +6198,7 @@ static chan_info_nphy_radio2057_rev5_t chan_info_nphyrev8_2057_rev5[] = {
 	 0x041b, 0x041f, 0x0424}
 };
 
-static chan_info_nphy_radio2057_rev5_t chan_info_nphyrev9_2057_rev5v1[] = {
+static struct chan_info_nphy_radio2057_rev5 chan_info_nphyrev9_2057_rev5v1[] = {
 	{
 	 1, 2412, 0x48, 0x16, 0x30, 0x1b, 0x0a, 0x0a, 0x30, 0x6c, 0x09, 0x0d,
 	 0x08, 0x0e, 0x61, 0x03, 0xff, 0x61, 0x03, 0xff, 0x03c9, 0x03c5, 0x03c1,
@@ -6255,7 +6257,7 @@ static chan_info_nphy_radio2057_rev5_t chan_info_nphyrev9_2057_rev5v1[] = {
 	 0x041b, 0x041f, 0x0424}
 };
 
-static chan_info_nphy_radio2057_t chan_info_nphyrev8_2057_rev7[] = {
+static struct chan_info_nphy_radio2057 chan_info_nphyrev8_2057_rev7[] = {
 	{
 	 184, 4920, 0x68, 0x16, 0x10, 0x0c, 0x0c, 0x0c, 0x30, 0xec, 0x01, 0x0f,
 	 0x00, 0x0f, 0x00, 0xff, 0x00, 0xd3, 0x0f, 0x0f, 0xd3, 0x00, 0xff, 0x00,
@@ -6996,7 +6998,7 @@ static chan_info_nphy_radio2057_t chan_info_nphyrev8_2057_rev7[] = {
 	 0x0424}
 };
 
-static chan_info_nphy_radio2057_t chan_info_nphyrev8_2057_rev8[] = {
+static struct chan_info_nphy_radio2057 chan_info_nphyrev8_2057_rev8[] = {
 	{
 	 186, 4930, 0x6b, 0x16, 0x10, 0x0c, 0x0c, 0x0c, 0x30, 0xed, 0x01, 0x0f,
 	 0x00, 0x0f, 0x00, 0xff, 0x00, 0xd3, 0x0f, 0x0f, 0xd3, 0x00, 0xff, 0x00,
@@ -7731,7 +7733,7 @@ static chan_info_nphy_radio2057_t chan_info_nphyrev8_2057_rev8[] = {
 	 0x0424}
 };
 
-radio_regs_t regs_2055[] = {
+struct radio_regs regs_2055[] = {
 	{0x02, 0x80, 0x80, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0x27, 0x27, 0, 0},
@@ -7960,7 +7962,7 @@ radio_regs_t regs_2055[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-radio_regs_t regs_SYN_2056[] = {
+struct radio_regs regs_SYN_2056[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -8145,7 +8147,7 @@ radio_regs_t regs_SYN_2056[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-radio_regs_t regs_TX_2056[] = {
+struct radio_regs regs_TX_2056[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -8294,7 +8296,7 @@ radio_regs_t regs_TX_2056[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-radio_regs_t regs_RX_2056[] = {
+struct radio_regs regs_RX_2056[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -8445,7 +8447,7 @@ radio_regs_t regs_RX_2056[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-radio_regs_t regs_SYN_2056_A1[] = {
+struct radio_regs regs_SYN_2056_A1[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -8630,7 +8632,7 @@ radio_regs_t regs_SYN_2056_A1[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-radio_regs_t regs_TX_2056_A1[] = {
+struct radio_regs regs_TX_2056_A1[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -8779,7 +8781,7 @@ radio_regs_t regs_TX_2056_A1[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-radio_regs_t regs_RX_2056_A1[] = {
+struct radio_regs regs_RX_2056_A1[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -8930,7 +8932,7 @@ radio_regs_t regs_RX_2056_A1[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-radio_regs_t regs_SYN_2056_rev5[] = {
+struct radio_regs regs_SYN_2056_rev5[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -9115,7 +9117,7 @@ radio_regs_t regs_SYN_2056_rev5[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-radio_regs_t regs_TX_2056_rev5[] = {
+struct radio_regs regs_TX_2056_rev5[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -9272,7 +9274,7 @@ radio_regs_t regs_TX_2056_rev5[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-radio_regs_t regs_RX_2056_rev5[] = {
+struct radio_regs regs_RX_2056_rev5[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -9423,7 +9425,7 @@ radio_regs_t regs_RX_2056_rev5[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-radio_regs_t regs_SYN_2056_rev6[] = {
+struct radio_regs regs_SYN_2056_rev6[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -9608,7 +9610,7 @@ radio_regs_t regs_SYN_2056_rev6[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-radio_regs_t regs_TX_2056_rev6[] = {
+struct radio_regs regs_TX_2056_rev6[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -9765,7 +9767,7 @@ radio_regs_t regs_TX_2056_rev6[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-radio_regs_t regs_RX_2056_rev6[] = {
+struct radio_regs regs_RX_2056_rev6[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -9916,7 +9918,7 @@ radio_regs_t regs_RX_2056_rev6[] = {
 	{0xFFFF, 0, 0, 0, 0}
 };
 
-radio_regs_t regs_SYN_2056_rev7[] = {
+struct radio_regs regs_SYN_2056_rev7[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -10101,7 +10103,7 @@ radio_regs_t regs_SYN_2056_rev7[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-radio_regs_t regs_TX_2056_rev7[] = {
+struct radio_regs regs_TX_2056_rev7[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -10258,7 +10260,7 @@ radio_regs_t regs_TX_2056_rev7[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-radio_regs_t regs_RX_2056_rev7[] = {
+struct radio_regs regs_RX_2056_rev7[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -10409,7 +10411,7 @@ radio_regs_t regs_RX_2056_rev7[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-radio_regs_t regs_SYN_2056_rev8[] = {
+struct radio_regs regs_SYN_2056_rev8[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -10594,7 +10596,7 @@ radio_regs_t regs_SYN_2056_rev8[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-radio_regs_t regs_TX_2056_rev8[] = {
+struct radio_regs regs_TX_2056_rev8[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -10751,7 +10753,7 @@ radio_regs_t regs_TX_2056_rev8[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-radio_regs_t regs_RX_2056_rev8[] = {
+struct radio_regs regs_RX_2056_rev8[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -10902,7 +10904,7 @@ radio_regs_t regs_RX_2056_rev8[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-radio_regs_t regs_SYN_2056_rev11[] = {
+struct radio_regs regs_SYN_2056_rev11[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -11087,7 +11089,7 @@ radio_regs_t regs_SYN_2056_rev11[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-radio_regs_t regs_TX_2056_rev11[] = {
+struct radio_regs regs_TX_2056_rev11[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -11244,7 +11246,7 @@ radio_regs_t regs_TX_2056_rev11[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-radio_regs_t regs_RX_2056_rev11[] = {
+struct radio_regs regs_RX_2056_rev11[] = {
 	{0x02, 0, 0, 0, 0},
 	{0x03, 0, 0, 0, 0},
 	{0x04, 0, 0, 0, 0},
@@ -11395,7 +11397,7 @@ radio_regs_t regs_RX_2056_rev11[] = {
 	{0xFFFF, 0, 0, 0, 0},
 };
 
-radio_20xx_regs_t regs_2057_rev4[] = {
+struct radio_20xx_regs regs_2057_rev4[] = {
 	{0x00, 0x84, 0},
 	{0x01, 0, 0},
 	{0x02, 0x60, 0},
@@ -11785,7 +11787,7 @@ radio_20xx_regs_t regs_2057_rev4[] = {
 	{0xFFFF, 0, 0},
 };
 
-radio_20xx_regs_t regs_2057_rev5[] = {
+struct radio_20xx_regs regs_2057_rev5[] = {
 	{0x00, 0, 1},
 	{0x01, 0x57, 1},
 	{0x02, 0x20, 1},
@@ -12117,7 +12119,7 @@ radio_20xx_regs_t regs_2057_rev5[] = {
 	{0xFFFF, 0, 0}
 };
 
-radio_20xx_regs_t regs_2057_rev5v1[] = {
+struct radio_20xx_regs regs_2057_rev5v1[] = {
 	{0x00, 0x15, 1},
 	{0x01, 0x57, 1},
 	{0x02, 0x20, 1},
@@ -12449,7 +12451,7 @@ radio_20xx_regs_t regs_2057_rev5v1[] = {
 	{0xFFFF, 0, 0}
 };
 
-radio_20xx_regs_t regs_2057_rev7[] = {
+struct radio_20xx_regs regs_2057_rev7[] = {
 	{0x00, 0, 1},
 	{0x01, 0x57, 1},
 	{0x02, 0x20, 1},
@@ -12865,7 +12867,7 @@ radio_20xx_regs_t regs_2057_rev7[] = {
 	{0xFFFF, 0, 0}
 };
 
-radio_20xx_regs_t regs_2057_rev8[] = {
+struct radio_20xx_regs regs_2057_rev8[] = {
 	{0x00, 0x8, 1},
 	{0x01, 0x57, 1},
 	{0x02, 0x20, 1},
@@ -14084,12 +14086,12 @@ static u8 ant_sw_ctrl_tbl_rev8_2057v7_core1[] = {
 	0x09, 0x0a, 0x09, 0x0a, 0x15, 0x16 };
 
 static bool wlc_phy_chan2freq_nphy(phy_info_t *pi, uint channel, int *f,
-				   chan_info_nphy_radio2057_t **t0,
-				   chan_info_nphy_radio205x_t **t1,
-				   chan_info_nphy_radio2057_rev5_t **t2,
-				   chan_info_nphy_2055_t **t3);
+				   struct chan_info_nphy_radio2057 **t0,
+				   struct chan_info_nphy_radio205x **t1,
+				   struct chan_info_nphy_radio2057_rev5 **t2,
+				   struct chan_info_nphy_2055 **t3);
 static void wlc_phy_chanspec_nphy_setup(phy_info_t *pi, chanspec_t chans,
-					const nphy_sfo_cfg_t *c);
+					const struct nphy_sfo_cfg *c);
 
 static void wlc_phy_adjust_rx_analpfbw_nphy(phy_info_t *pi,
 					    u16 reduction_factr);
@@ -14116,7 +14118,7 @@ static void wlc_phy_adjust_lnagaintbl_nphy(phy_info_t *pi);
 static void wlc_phy_restore_rssical_nphy(phy_info_t *pi);
 static void wlc_phy_reapply_txcal_coeffs_nphy(phy_info_t *pi);
 static void wlc_phy_tx_iq_war_nphy(phy_info_t *pi);
-static int wlc_phy_cal_rxiq_nphy_rev3(phy_info_t *pi, nphy_txgains_t tg,
+static int wlc_phy_cal_rxiq_nphy_rev3(phy_info_t *pi, struct nphy_txgains tg,
 				      u8 type, bool d);
 static void wlc_phy_rxcal_gainctrl_nphy_rev5(phy_info_t *pi, u8 rxcore,
 					     u16 *rg, u8 type);
@@ -14140,12 +14142,12 @@ static u32 *wlc_phy_get_ipa_gaintbl_nphy(phy_info_t *pi);
 static void wlc_phy_a1_nphy(phy_info_t *pi, u8 core, u32 winsz, u32,
 			    u32 e);
 static u8 wlc_phy_a3_nphy(phy_info_t *pi, u8 start_gain, u8 core);
-static void wlc_phy_a2_nphy(phy_info_t *pi, nphy_ipa_txcalgains_t *,
-			    phy_cal_mode_t, u8);
+static void wlc_phy_a2_nphy(phy_info_t *pi, struct nphy_ipa_txcalgains *,
+			    enum phy_cal_mode, u8);
 static void wlc_phy_papd_cal_cleanup_nphy(phy_info_t *pi,
-					  nphy_papd_restore_state *state);
+				struct nphy_papd_restore_state *state);
 static void wlc_phy_papd_cal_setup_nphy(phy_info_t *pi,
-					nphy_papd_restore_state *state, u8);
+				struct nphy_papd_restore_state *state, u8);
 
 static void wlc_phy_clip_det_nphy(phy_info_t *pi, u8 write, u16 *vals);
 
@@ -14246,7 +14248,7 @@ void
 wlc_phy_table_write_nphy(phy_info_t *pi, u32 id, u32 len, u32 offset,
 			 u32 width, const void *data)
 {
-	mimophytbl_info_t tbl;
+	struct phytbl_info tbl;
 
 	tbl.tbl_id = id;
 	tbl.tbl_len = len;
@@ -14260,7 +14262,7 @@ void
 wlc_phy_table_read_nphy(phy_info_t *pi, u32 id, u32 len, u32 offset,
 			u32 width, void *data)
 {
-	mimophytbl_info_t tbl;
+	struct phytbl_info tbl;
 
 	tbl.tbl_id = id;
 	tbl.tbl_len = len;
@@ -14525,7 +14527,7 @@ void WLBANDINITFN(wlc_phy_init_nphy) (phy_info_t *pi)
 {
 	u16 val;
 	u16 clip1_ths[2];
-	nphy_txgains_t target_gain;
+	struct nphy_txgains target_gain;
 	u8 tx_pwr_ctrl_state;
 	bool do_nphy_cal = false;
 	uint core;
@@ -17442,9 +17444,9 @@ static void wlc_phy_radio_preinit_205x(phy_info_t *pi)
 
 static void wlc_phy_radio_init_2056(phy_info_t *pi)
 {
-	radio_regs_t *regs_SYN_2056_ptr = NULL;
-	radio_regs_t *regs_TX_2056_ptr = NULL;
-	radio_regs_t *regs_RX_2056_ptr = NULL;
+	struct radio_regs *regs_SYN_2056_ptr = NULL;
+	struct radio_regs *regs_TX_2056_ptr = NULL;
+	struct radio_regs *regs_RX_2056_ptr = NULL;
 
 	if (NREV_IS(pi->pubpi.phy_rev, 3)) {
 		regs_SYN_2056_ptr = regs_SYN_2056;
@@ -17530,7 +17532,7 @@ static void wlc_phy_radio_postinit_2056(phy_info_t *pi)
 
 static void wlc_phy_radio_init_2057(phy_info_t *pi)
 {
-	radio_20xx_regs_t *regs_2057_ptr = NULL;
+	struct radio_20xx_regs *regs_2057_ptr = NULL;
 
 	if (NREV_IS(pi->pubpi.phy_rev, 7)) {
 
@@ -17590,15 +17592,15 @@ static void wlc_phy_radio_postinit_2057(phy_info_t *pi)
 
 static bool
 wlc_phy_chan2freq_nphy(phy_info_t *pi, uint channel, int *f,
-		       chan_info_nphy_radio2057_t **t0,
-		       chan_info_nphy_radio205x_t **t1,
-		       chan_info_nphy_radio2057_rev5_t **t2,
-		       chan_info_nphy_2055_t **t3)
+		       struct chan_info_nphy_radio2057 **t0,
+		       struct chan_info_nphy_radio205x **t1,
+		       struct chan_info_nphy_radio2057_rev5 **t2,
+		       struct chan_info_nphy_2055 **t3)
 {
 	uint i;
-	chan_info_nphy_radio2057_t *chan_info_tbl_p_0 = NULL;
-	chan_info_nphy_radio205x_t *chan_info_tbl_p_1 = NULL;
-	chan_info_nphy_radio2057_rev5_t *chan_info_tbl_p_2 = NULL;
+	struct chan_info_nphy_radio2057 *chan_info_tbl_p_0 = NULL;
+	struct chan_info_nphy_radio205x *chan_info_tbl_p_1 = NULL;
+	struct chan_info_nphy_radio2057_rev5 *chan_info_tbl_p_2 = NULL;
 	u32 tbl_len = 0;
 
 	int freq = 0;
@@ -17760,10 +17762,10 @@ wlc_phy_chan2freq_nphy(phy_info_t *pi, uint channel, int *f,
 u8 wlc_phy_get_chan_freq_range_nphy(phy_info_t *pi, uint channel)
 {
 	int freq;
-	chan_info_nphy_radio2057_t *t0 = NULL;
-	chan_info_nphy_radio205x_t *t1 = NULL;
-	chan_info_nphy_radio2057_rev5_t *t2 = NULL;
-	chan_info_nphy_2055_t *t3 = NULL;
+	struct chan_info_nphy_radio2057 *t0 = NULL;
+	struct chan_info_nphy_radio205x *t1 = NULL;
+	struct chan_info_nphy_radio2057_rev5 *t2 = NULL;
+	struct chan_info_nphy_2055 *t3 = NULL;
 
 	if (NORADIO_ENAB(pi->pubpi))
 		return WL_CHAN_FREQ_RANGE_2G;
@@ -17786,7 +17788,7 @@ u8 wlc_phy_get_chan_freq_range_nphy(phy_info_t *pi, uint channel)
 }
 
 static void
-wlc_phy_chanspec_radio2055_setup(phy_info_t *pi, chan_info_nphy_2055_t *ci)
+wlc_phy_chanspec_radio2055_setup(phy_info_t *pi, struct chan_info_nphy_2055 *ci)
 {
 
 	write_radio_reg(pi, RADIO_2055_PLL_REF, ci->RF_pll_ref);
@@ -17849,9 +17851,9 @@ wlc_phy_chanspec_radio2055_setup(phy_info_t *pi, chan_info_nphy_2055_t *ci)
 
 static void
 wlc_phy_chanspec_radio2056_setup(phy_info_t *pi,
-				 const chan_info_nphy_radio205x_t *ci)
+				 const struct chan_info_nphy_radio205x *ci)
 {
-	radio_regs_t *regs_SYN_2056_ptr = NULL;
+	struct radio_regs *regs_SYN_2056_ptr = NULL;
 
 	write_radio_reg(pi,
 			RADIO_2056_SYN_PLL_VCOCAL1 | RADIO_2056_SYN,
@@ -18292,8 +18294,8 @@ static u16 wlc_phy_radio205x_rcal(phy_info_t *pi)
 
 static void
 wlc_phy_chanspec_radio2057_setup(phy_info_t *pi,
-				 const chan_info_nphy_radio2057_t *ci,
-				 const chan_info_nphy_radio2057_rev5_t *ci2)
+			const struct chan_info_nphy_radio2057 *ci,
+			const struct chan_info_nphy_radio2057_rev5 *ci2)
 {
 	int coreNum;
 	u16 txmix2g_tune_boost_pu = 0;
@@ -18910,7 +18912,7 @@ static void wlc_phy_spurwar_nphy(phy_info_t *pi)
 
 static void
 wlc_phy_chanspec_nphy_setup(phy_info_t *pi, chanspec_t chanspec,
-			    const nphy_sfo_cfg_t *ci)
+			    const struct nphy_sfo_cfg *ci)
 {
 	u16 val;
 
@@ -19047,10 +19049,10 @@ wlc_phy_chanspec_nphy_setup(phy_info_t *pi, chanspec_t chanspec,
 void wlc_phy_chanspec_set_nphy(phy_info_t *pi, chanspec_t chanspec)
 {
 	int freq;
-	chan_info_nphy_radio2057_t *t0 = NULL;
-	chan_info_nphy_radio205x_t *t1 = NULL;
-	chan_info_nphy_radio2057_rev5_t *t2 = NULL;
-	chan_info_nphy_2055_t *t3 = NULL;
+	struct chan_info_nphy_radio2057 *t0 = NULL;
+	struct chan_info_nphy_radio205x *t1 = NULL;
+	struct chan_info_nphy_radio2057_rev5 *t2 = NULL;
+	struct chan_info_nphy_2055 *t3 = NULL;
 
 	if (NORADIO_ENAB(pi->pubpi)) {
 		return;
@@ -19097,12 +19099,9 @@ void wlc_phy_chanspec_set_nphy(phy_info_t *pi, chanspec_t chanspec)
 
 			wlc_phy_chanspec_radio2057_setup(pi, t0, t2);
 			wlc_phy_chanspec_nphy_setup(pi, chanspec,
-						    (pi->pubpi.radiorev ==
-						     5) ? (const nphy_sfo_cfg_t
-							   *)&(t2->
-							       PHY_BW1a)
-						    : (const nphy_sfo_cfg_t *)
-						    &(t0->PHY_BW1a));
+				(pi->pubpi.radiorev == 5) ?
+				(const struct nphy_sfo_cfg *)&(t2->PHY_BW1a) :
+				(const struct nphy_sfo_cfg *)&(t0->PHY_BW1a));
 
 		} else {
 
@@ -19113,8 +19112,7 @@ void wlc_phy_chanspec_set_nphy(phy_info_t *pi, chanspec_t chanspec)
 			wlc_phy_chanspec_radio2056_setup(pi, t1);
 
 			wlc_phy_chanspec_nphy_setup(pi, chanspec,
-						    (const nphy_sfo_cfg_t *)
-						    &(t1->PHY_BW1a));
+				(const struct nphy_sfo_cfg *) &(t1->PHY_BW1a));
 		}
 
 	} else {
@@ -19125,7 +19123,7 @@ void wlc_phy_chanspec_set_nphy(phy_info_t *pi, chanspec_t chanspec)
 
 		wlc_phy_chanspec_radio2055_setup(pi, t3);
 		wlc_phy_chanspec_nphy_setup(pi, chanspec,
-					    (const nphy_sfo_cfg_t *)&(t3->
+					    (const struct nphy_sfo_cfg *)&(t3->
 								      PHY_BW1a));
 	}
 
@@ -21369,9 +21367,9 @@ static void wlc_phy_rssi_cal_nphy_rev2(phy_info_t *pi, u8 rssi_type)
 }
 
 int
-wlc_phy_rssi_compute_nphy(phy_info_t *pi, wlc_d11rxhdr_t *wlc_rxh)
+wlc_phy_rssi_compute_nphy(phy_info_t *pi, struct brcms_d11rxhdr *wlc_rxh)
 {
-	d11rxhdr_t *rxh = &wlc_rxh->rxhdr;
+	struct d11rxhdr *rxh = &wlc_rxh->rxhdr;
 	s16 rxpwr, rxpwr0, rxpwr1;
 	s16 phyRx0_l, phyRx2_l;
 
@@ -22464,11 +22462,11 @@ void wlc_phy_stopplayback_nphy(phy_info_t *pi)
 		wlc_phy_stay_in_carriersearch_nphy(pi, false);
 }
 
-nphy_txgains_t wlc_phy_get_tx_gain_nphy(phy_info_t *pi)
+struct nphy_txgains wlc_phy_get_tx_gain_nphy(phy_info_t *pi)
 {
 	u16 base_idx[2], curr_gain[2];
 	u8 core_no;
-	nphy_txgains_t target_gain;
+	struct nphy_txgains target_gain;
 	u32 *tx_pwrctrl_tbl = NULL;
 
 	if (pi->nphy_txpwrctrl == PHY_TPC_HW_OFF) {
@@ -22623,8 +22621,8 @@ nphy_txgains_t wlc_phy_get_tx_gain_nphy(phy_info_t *pi)
 
 static void
 wlc_phy_iqcal_gainparams_nphy(phy_info_t *pi, u16 core_no,
-			      nphy_txgains_t target_gain,
-			      nphy_iqcal_params_t *params)
+			      struct nphy_txgains target_gain,
+			      struct nphy_iqcal_params *params)
 {
 	u8 k;
 	int idx;
@@ -23700,13 +23698,13 @@ static void wlc_phy_update_txcal_ladder_nphy(phy_info_t *pi, u16 core)
 	u16 bbmult;
 	u16 tblentry;
 
-	nphy_txiqcal_ladder_t ladder_lo[] = {
+	struct nphy_txiqcal_ladder ladder_lo[] = {
 		{3, 0}, {4, 0}, {6, 0}, {9, 0}, {13, 0}, {18, 0},
 		{25, 0}, {25, 1}, {25, 2}, {25, 3}, {25, 4}, {25, 5},
 		{25, 6}, {25, 7}, {35, 7}, {50, 7}, {71, 7}, {100, 7}
 	};
 
-	nphy_txiqcal_ladder_t ladder_iq[] = {
+	struct nphy_txiqcal_ladder ladder_iq[] = {
 		{3, 0}, {4, 0}, {6, 0}, {9, 0}, {13, 0}, {18, 0},
 		{25, 0}, {35, 0}, {50, 0}, {71, 0}, {100, 0}, {100, 1},
 		{100, 2}, {100, 3}, {100, 4}, {100, 5}, {100, 6}, {100, 7}
@@ -23737,7 +23735,7 @@ static void wlc_phy_update_txcal_ladder_nphy(phy_info_t *pi, u16 core)
 
 void wlc_phy_cal_perical_nphy_run(phy_info_t *pi, u8 caltype)
 {
-	nphy_txgains_t target_gain;
+	struct nphy_txgains target_gain;
 	u8 tx_pwr_ctrl_state;
 	bool fullcal = true;
 	bool restore_tx_gain = false;
@@ -23987,7 +23985,7 @@ void wlc_phy_cal_perical_nphy_run(phy_info_t *pi, u8 caltype)
 }
 
 int
-wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
+wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, struct nphy_txgains target_gain,
 			bool fullcal, bool mphase)
 {
 	u16 val;
@@ -24002,7 +24000,7 @@ wlc_phy_cal_txiqlo_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
 	u16 tone_freq;
 	u16 gain_save[2];
 	u16 cal_gain[2];
-	nphy_iqcal_params_t cal_params[2];
+	struct nphy_iqcal_params cal_params[2];
 	u32 tbl_len;
 	void *tbl_ptr;
 	bool ladder_updated[2];
@@ -24394,7 +24392,7 @@ static void wlc_phy_reapply_txcal_coeffs_nphy(phy_info_t *pi)
 
 static void wlc_phy_tx_iq_war_nphy(phy_info_t *pi)
 {
-	nphy_iq_comp_t tx_comp;
+	struct nphy_iq_comp tx_comp;
 
 	wlc_phy_table_read_nphy(pi, 15, 4, 0x50, 16, (void *)&tx_comp);
 
@@ -24405,7 +24403,7 @@ static void wlc_phy_tx_iq_war_nphy(phy_info_t *pi)
 }
 
 void
-wlc_phy_rx_iq_coeffs_nphy(phy_info_t *pi, u8 write, nphy_iq_comp_t *pcomp)
+wlc_phy_rx_iq_coeffs_nphy(phy_info_t *pi, u8 write, struct nphy_iq_comp *pcomp)
 {
 	if (write) {
 		write_phy_reg(pi, 0x9a, pcomp->a0);
@@ -24421,7 +24419,7 @@ wlc_phy_rx_iq_coeffs_nphy(phy_info_t *pi, u8 write, nphy_iq_comp_t *pcomp)
 }
 
 void
-wlc_phy_rx_iq_est_nphy(phy_info_t *pi, phy_iq_est_t *est, u16 num_samps,
+wlc_phy_rx_iq_est_nphy(phy_info_t *pi, struct phy_iq_est *est, u16 num_samps,
 		       u8 wait_time, u8 wait_for_crs)
 {
 	u8 core;
@@ -24458,8 +24456,8 @@ wlc_phy_rx_iq_est_nphy(phy_info_t *pi, phy_iq_est_t *est, u16 num_samps,
 static void wlc_phy_calc_rx_iq_comp_nphy(phy_info_t *pi, u8 core_mask)
 {
 	u8 curr_core;
-	phy_iq_est_t est[PHY_CORE_MAX];
-	nphy_iq_comp_t old_comp, new_comp;
+	struct phy_iq_est est[PHY_CORE_MAX];
+	struct nphy_iq_comp old_comp, new_comp;
 	s32 iq = 0;
 	u32 ii = 0, qq = 0;
 	s16 iq_nbits, qq_nbits, brsh, arsh;
@@ -25205,9 +25203,9 @@ wlc_phy_rxcal_gainctrl_nphy_rev5(phy_info_t *pi, u8 rx_core,
 {
 
 	u16 num_samps;
-	phy_iq_est_t est[PHY_CORE_MAX];
+	struct phy_iq_est est[PHY_CORE_MAX];
 	u8 tx_core;
-	nphy_iq_comp_t save_comp, zero_comp;
+	struct nphy_iq_comp save_comp, zero_comp;
 	u32 i_pwr, q_pwr, curr_pwr, optim_pwr = 0, prev_pwr = 0, thresh_pwr =
 	    10000;
 	s16 desired_log2_pwr, actual_log2_pwr, delta_pwr;
@@ -25216,7 +25214,7 @@ wlc_phy_rxcal_gainctrl_nphy_rev5(phy_info_t *pi, u8 rx_core,
 	s8 optim_gaintbl_index = 0, prev_gaintbl_index = 0;
 	s8 curr_gaintbl_index = 3;
 	u8 gainctrl_dirn = NPHY_RXCAL_GAIN_INIT;
-	nphy_ipa_txrxgain_t *nphy_rxcal_gaintbl;
+	struct nphy_ipa_txrxgain *nphy_rxcal_gaintbl;
 	u16 hpvga, lpf_biq1, lpf_biq0, lna2, lna1;
 	int fine_gain_idx;
 	s8 txpwrindex;
@@ -25447,7 +25445,7 @@ wlc_phy_rc_sweep_nphy(phy_info_t *pi, u8 core_idx, u8 loopback_type)
 	u16 rccal_val, last_rccal_val = 0, best_rccal_val = 0;
 	u32 ref_iq_vals = 0, target_iq_vals = 0;
 	u16 num_samps, log_num_samps = 10;
-	phy_iq_est_t est[PHY_CORE_MAX];
+	struct phy_iq_est est[PHY_CORE_MAX];
 
 	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
 		return 0;
@@ -25656,7 +25654,7 @@ wlc_phy_rc_sweep_nphy(phy_info_t *pi, u8 core_idx, u8 loopback_type)
 
 #define WAIT_FOR_SCOPE	4000
 static int
-wlc_phy_cal_rxiq_nphy_rev3(phy_info_t *pi, nphy_txgains_t target_gain,
+wlc_phy_cal_rxiq_nphy_rev3(phy_info_t *pi, struct nphy_txgains target_gain,
 			   u8 cal_type, bool debug)
 {
 	u16 orig_BBConfig;
@@ -25664,7 +25662,7 @@ wlc_phy_cal_rxiq_nphy_rev3(phy_info_t *pi, nphy_txgains_t target_gain,
 	u8 best_rccal[2];
 	u16 gain_save[2];
 	u16 cal_gain[2];
-	nphy_iqcal_params_t cal_params[2];
+	struct nphy_iqcal_params cal_params[2];
 	u8 rxcore_state;
 	s8 rxlpf_rccal_hpc, txlpf_rccal_lpc;
 	s8 txlpf_idac;
@@ -25813,10 +25811,10 @@ wlc_phy_cal_rxiq_nphy_rev3(phy_info_t *pi, nphy_txgains_t target_gain,
 }
 
 static int
-wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, nphy_txgains_t target_gain,
+wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, struct nphy_txgains target_gain,
 			   bool debug)
 {
-	phy_iq_est_t est[PHY_CORE_MAX];
+	struct phy_iq_est est[PHY_CORE_MAX];
 	u8 core_num, rx_core, tx_core;
 	u16 lna_vals[] = { 0x3, 0x3, 0x1 };
 	u16 hpf1_vals[] = { 0x7, 0x2, 0x0 };
@@ -25832,7 +25830,7 @@ wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, nphy_txgains_t target_gain,
 	u16 core_no;
 	u16 gain_save[2];
 	u16 cal_gain[2];
-	nphy_iqcal_params_t cal_params[2];
+	struct nphy_iqcal_params cal_params[2];
 	u8 phy_bw;
 	int bcmerror = 0;
 	bool first_playtone = true;
@@ -26039,7 +26037,7 @@ wlc_phy_cal_rxiq_nphy_rev2(phy_info_t *pi, nphy_txgains_t target_gain,
 }
 
 int
-wlc_phy_cal_rxiq_nphy(phy_info_t *pi, nphy_txgains_t target_gain,
+wlc_phy_cal_rxiq_nphy(phy_info_t *pi, struct nphy_txgains target_gain,
 		      u8 cal_type, bool debug)
 {
 	if (NREV_GE(pi->pubpi.phy_rev, 7)) {
@@ -26200,8 +26198,8 @@ static u32 *wlc_phy_get_ipa_gaintbl_nphy(phy_info_t *pi)
 }
 
 static void
-wlc_phy_papd_cal_setup_nphy(phy_info_t *pi, nphy_papd_restore_state *state,
-			    u8 core)
+wlc_phy_papd_cal_setup_nphy(phy_info_t *pi,
+			    struct nphy_papd_restore_state *state, u8 core)
 {
 	s32 tone_freq;
 	u8 off_core;
@@ -26470,7 +26468,8 @@ wlc_phy_papd_cal_setup_nphy(phy_info_t *pi, nphy_papd_restore_state *state,
 }
 
 static void
-wlc_phy_papd_cal_cleanup_nphy(phy_info_t *pi, nphy_papd_restore_state *state)
+wlc_phy_papd_cal_cleanup_nphy(phy_info_t *pi,
+			      struct nphy_papd_restore_state *state)
 {
 	u8 core;
 
@@ -26648,15 +26647,15 @@ wlc_phy_a1_nphy(phy_info_t *pi, u8 core, u32 winsz, u32 start,
 }
 
 static void
-wlc_phy_a2_nphy(phy_info_t *pi, nphy_ipa_txcalgains_t *txgains,
-		phy_cal_mode_t cal_mode, u8 core)
+wlc_phy_a2_nphy(phy_info_t *pi, struct nphy_ipa_txcalgains *txgains,
+		enum phy_cal_mode cal_mode, u8 core)
 {
 	u16 phy_a1, phy_a2, phy_a3;
 	u16 phy_a4, phy_a5;
 	bool phy_a6;
 	u8 phy_a7, m[2];
 	u32 phy_a8 = 0;
-	nphy_txgains_t phy_a9;
+	struct nphy_txgains phy_a9;
 
 	if (NREV_LT(pi->pubpi.phy_rev, 3))
 		return;
@@ -26942,7 +26941,7 @@ static u8 wlc_phy_a3_nphy(phy_info_t *pi, u8 start_gain, u8 core)
 	int phy_a1;
 	int phy_a2;
 	bool phy_a3;
-	nphy_ipa_txcalgains_t phy_a4;
+	struct nphy_ipa_txcalgains phy_a4;
 	bool phy_a5 = false;
 	bool phy_a6 = true;
 	s32 phy_a7, phy_a8;
@@ -27100,8 +27099,8 @@ static u8 wlc_phy_a3_nphy(phy_info_t *pi, u8 start_gain, u8 core)
 
 static void wlc_phy_a4(phy_info_t *pi, bool full_cal)
 {
-	nphy_ipa_txcalgains_t phy_b1[2];
-	nphy_papd_restore_state phy_b2;
+	struct nphy_ipa_txcalgains phy_b1[2];
+	struct nphy_papd_restore_state phy_b2;
 	bool phy_b3;
 	u8 phy_b4;
 	u8 phy_b5;
