@@ -51,22 +51,13 @@
 	})
 #endif				/* __mips__ */
 
-#define W_REG(r, v, typ) do { \
-		brcmf_sdcard_reg_write(NULL, (r), sizeof(typ), (v)); \
-	} while (0)
 #else				/* __BIG_ENDIAN */
 #define R_REG(r, typ) \
 	brcmf_sdcard_reg_read(NULL, (r), sizeof(typ))
-#define W_REG(r, v, typ) do { \
-		brcmf_sdcard_reg_write(NULL, (r), sizeof(typ), (v)); \
-	} while (0)
 #endif				/* __BIG_ENDIAN */
 
-#define AND_REG(r, v, typ)	W_REG((r), R_REG(r, typ) & (v), typ)
-#define OR_REG(r, v, typ)	W_REG((r), R_REG(r, typ) | (v), typ)
-
-#define SET_REG(r, mask, val, typ) \
-		W_REG((r), ((R_REG(r) & ~(mask)) | (val)), typ)
+#define OR_REG(r, v, typ) \
+	brcmf_sdcard_reg_write(NULL, (r), sizeof(typ), R_REG(r, typ) | (v))
 
 #ifdef BCMDBG
 
@@ -609,7 +600,7 @@ struct brcmf_bus {
 	uint console_addr;	/* Console address from shared struct */
 #endif				/* BCMDBG */
 
-	uint regfails;		/* Count of R_REG/W_REG failures */
+	uint regfails;		/* Count of R_REG failures */
 
 	uint clkstate;		/* State of sd and backplane clock(s) */
 	bool activity;		/* Activity flag for clock down */
@@ -850,7 +841,8 @@ w_sdreg32(struct brcmf_bus *bus, u32 regval, u32 reg_offset, u32 *retryvar)
 {
 	*retryvar = 0;
 	do {
-		W_REG(bus->ci->buscorebase + reg_offset, regval, u32);
+		brcmf_sdcard_reg_write(NULL, bus->ci->buscorebase + reg_offset,
+				       sizeof(u32), regval);
 	} while (brcmf_sdcard_regfail(bus->card) &&
 		 (++(*retryvar) <= retry_limit));
 	if (*retryvar) {
