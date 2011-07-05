@@ -568,6 +568,12 @@ config HID_WACOM_POWER_SUPPLY
 	  Say Y here if you want to enable power supply status monitoring for
 	  Wacom Bluetooth devices.
 
+config HID_WIIMOTE
+	tristate "Nintendo Wii Remote support"
+	depends on BT_HIDP
+	---help---
+	Support for the Nintendo Wii Remote bluetooth device.
+
 config HID_ZEROPLUS
 	tristate "Zeroplus based game controller support"
 	depends on USB_HID
