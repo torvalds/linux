@@ -288,8 +288,6 @@ brcmf_proto_ioctl(struct brcmf_pub *drvr, int ifidx, struct brcmf_ioctl *ioc,
 
 	BRCMF_TRACE(("%s: Enter\n", __func__));
 
-	ASSERT(len <= BRCMF_C_IOCTL_MAXLEN);
-
 	if (len > BRCMF_C_IOCTL_MAXLEN)
 		goto done;
 

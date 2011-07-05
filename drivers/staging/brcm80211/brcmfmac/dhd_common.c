@@ -272,7 +272,6 @@ bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
 		eprec = prec;
 	else if (pktq_full(q)) {
 		p = brcmu_pktq_peek_tail(q, &eprec);
-		ASSERT(p);
 		if (eprec > prec)
 			return false;
 	}
@@ -280,7 +279,6 @@ bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
 	/* Evict if needed */
 	if (eprec >= 0) {
 		/* Detect queueing to unconfigured precedence */
-		ASSERT(!pktq_pempty(q, eprec));
 		discard_oldest = AC_BITMAP_TST(drvr->wme_dp, eprec);
 		if (eprec == prec && !discard_oldest)
 			return false;	/* refuse newer (incoming) packet */
@@ -290,9 +288,7 @@ bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
 		if (p == NULL) {
 			BRCMF_ERROR(("%s: brcmu_pktq_penq() failed, oldest %d.",
 				     __func__, discard_oldest));
-			ASSERT(p);
 		}
-
 		brcmu_pkt_buf_free_skb(p);
 	}
 
@@ -300,10 +296,9 @@ bool brcmf_c_prec_enq(struct brcmf_pub *drvr, struct pktq *q,
 	p = brcmu_pktq_penq(q, prec, pkt);
 	if (p == NULL) {
 		BRCMF_ERROR(("%s: brcmu_pktq_penq() failed.", __func__));
-		ASSERT(p);
 	}
 
-	return true;
+	return p != NULL;
 }
 
 static int
@@ -317,14 +312,16 @@ brcmf_c_iovar_op(struct brcmf_pub *drvr, const char *name,
 
 	BRCMF_TRACE(("%s: Enter\n", __func__));
 
-	ASSERT(name);
-	ASSERT(len >= 0);
+	if (name == NULL || len <= 0)
+		return -EINVAL;
 
-	/* Get MUST have return space */
-	ASSERT(set || (arg && len));
+	/* Set does not take qualifiers */
+	if (set && (params || plen))
+		return -EINVAL;
 
-	/* Set does NOT take qualifiers */
-	ASSERT(!set || (!params && !plen));
+	/* Get must have return space;*/
+	if (!set && !(arg && len))
+		return -EINVAL;
 
 	vi = brcmu_iovar_lookup(brcmf_iovars, name);
 	if (vi == NULL) {
