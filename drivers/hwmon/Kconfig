@@ -694,10 +694,11 @@ config SENSORS_LTC4261
 	  be called ltc4261.
 
 config SENSORS_LM95241
-	tristate "National Semiconductor LM95241 sensor chip"
+	tristate "National Semiconductor LM95241 and compatibles"
 	depends on I2C
 	help
-	  If you say yes here you get support for LM95241 sensor chip.
+	  If you say yes here you get support for LM95231 and LM95241 sensor
+	  chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm95241.
