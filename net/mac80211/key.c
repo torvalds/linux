@@ -551,6 +551,39 @@ void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata)
 	mutex_unlock(&sdata->local->key_mtx);
 }
 
+void ieee80211_iter_keys(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif,
+			 void (*iter)(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_sta *sta,
+				      struct ieee80211_key_conf *key,
+				      void *data),
+			 void *iter_data)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_key *key;
+	struct ieee80211_sub_if_data *sdata;
+
+	ASSERT_RTNL();
+
+	mutex_lock(&local->key_mtx);
+	if (vif) {
+		sdata = vif_to_sdata(vif);
+		list_for_each_entry(key, &sdata->key_list, list)
+			iter(hw, &sdata->vif,
+			     key->sta ? &key->sta->sta : NULL,
+			     &key->conf, iter_data);
+	} else {
+		list_for_each_entry(sdata, &local->interfaces, list)
+			list_for_each_entry(key, &sdata->key_list, list)
+				iter(hw, &sdata->vif,
+				     key->sta ? &key->sta->sta : NULL,
+				     &key->conf, iter_data);
+	}
+	mutex_unlock(&local->key_mtx);
+}
+EXPORT_SYMBOL(ieee80211_iter_keys);
+
 void ieee80211_disable_keys(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_key *key;
