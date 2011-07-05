@@ -552,8 +552,6 @@ struct brcmf_bus {
 	uint varsz;		/* Size of variables buffer */
 	u32 sbaddr;		/* Current SB window pointer (-1, invalid) */
 
-	/* SDIO core, 32 bit address on the backplane bus: */
-	struct sdpcmd_regs *regs;
 	uint sdpcmrev;		/* SDIO core revision */
 	uint armrev;		/* CPU core revision */
 	uint ramrev;		/* SOCRAM core revision */
@@ -2725,7 +2723,7 @@ brcmf_sdbrcm_doiovar(struct brcmf_bus *bus, const struct brcmu_iovar *vi, u32 ac
 
 			sd_ptr = (struct brcmf_sdreg *) params;
 
-			addr = (unsigned long)bus->regs + sd_ptr->offset;
+			addr = bus->ci->buscorebase + sd_ptr->offset;
 			size = sd_ptr->func;
 			int_val = (s32) brcmf_sdcard_reg_read(bus->card, addr,
 							      size);
@@ -2742,7 +2740,7 @@ brcmf_sdbrcm_doiovar(struct brcmf_bus *bus, const struct brcmu_iovar *vi, u32 ac
 
 			sd_ptr = (struct brcmf_sdreg *) params;
 
-			addr = (unsigned long)bus->regs + sd_ptr->offset;
+			addr = bus->ci->buscorebase + sd_ptr->offset;
 			size = sd_ptr->func;
 			brcmf_sdcard_reg_write(bus->card, addr, size,
 					       sd_ptr->value);
@@ -5610,10 +5608,10 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, void *card, void *regsva,
 			   bus->ramsize, bus->orig_ramsize));
 	}
 
-	bus->regs = (void *)bus->ci->buscorebase;
-
 	/* Set core control so an SDIO reset does a backplane reset */
-	OR_REG((u32)&bus->regs->corecontrol, CC_BPRESEN, u32);
+	OR_REG(bus->ci->buscorebase + offsetof(struct sdpcmd_regs,
+						       corecontrol),
+	       CC_BPRESEN, u32);
 
 	brcmu_pktq_init(&bus->txq, (PRIOMASK + 1), TXQLEN);
 
