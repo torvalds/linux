@@ -92,10 +92,6 @@ easycap_alsa_complete(struct urb *purb)
 		SAY("ERROR: peasycap is NULL\n");
 		return;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap\n");
-		return;
-	}
 	much = 0;
 	if (peasycap->audio_idle) {
 		JOM(16, "%i=audio_idle  %i=audio_isoc_streaming\n",
@@ -310,10 +306,6 @@ static int easycap_alsa_open(struct snd_pcm_substream *pss)
 		SAY("ERROR:  peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap\n");
-		return -EFAULT;
-	}
 	if (peasycap->psnd_card != psnd_card) {
 		SAM("ERROR: bad peasycap->psnd_card\n");
 		return -EFAULT;
@@ -348,10 +340,6 @@ static int easycap_alsa_close(struct snd_pcm_substream *pss)
 	peasycap = snd_pcm_substream_chip(pss);
 	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL\n");
-		return -EFAULT;
-	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap\n");
 		return -EFAULT;
 	}
 	pss->private_data = NULL;
@@ -441,10 +429,6 @@ static int easycap_alsa_prepare(struct snd_pcm_substream *pss)
 		SAY("ERROR:  peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap\n");
-		return -EFAULT;
-	}
 
 	JOM(16, "ALSA decides %8i Hz=rate\n", pss->runtime->rate);
 	JOM(16, "ALSA decides %8ld =period_size\n", pss->runtime->period_size);
@@ -488,11 +472,6 @@ static int easycap_alsa_trigger(struct snd_pcm_substream *pss, int cmd)
 		SAY("ERROR:  peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap\n");
-		return -EFAULT;
-	}
-
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START: {
 		peasycap->audio_idle = 0;
@@ -521,10 +500,6 @@ static snd_pcm_uframes_t easycap_alsa_pointer(struct snd_pcm_substream *pss)
 	peasycap = snd_pcm_substream_chip(pss);
 	if (!peasycap) {
 		SAY("ERROR:  peasycap is NULL\n");
-		return -EFAULT;
-	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap\n");
 		return -EFAULT;
 	}
 	if ((0 != peasycap->audio_eof) || (0 != peasycap->audio_idle)) {
@@ -583,10 +558,6 @@ int easycap_alsa_probe(struct easycap *peasycap)
 	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
 		return -ENODEV;
-	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap\n");
-		return -EFAULT;
 	}
 	if (0 > peasycap->minor) {
 		SAY("ERROR: no minor\n");

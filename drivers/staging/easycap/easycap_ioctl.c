@@ -967,10 +967,6 @@ long easycap_unlocked_ioctl(struct file *file,
 		SAY("ERROR:  peasycap is NULL\n");
 		return -1;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap\n");
-		return -EFAULT;
-	}
 	p = peasycap->pusb_device;
 	if (!p) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
@@ -1004,12 +1000,6 @@ long easycap_unlocked_ioctl(struct file *file,
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
 		}
-		if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-			SAY("ERROR: bad peasycap\n");
-			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
-			return -EFAULT;
-		}
-		p = peasycap->pusb_device;
 		if (!peasycap->pusb_device) {
 			SAM("ERROR: peasycap->pusb_device is NULL\n");
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);

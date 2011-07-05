@@ -158,10 +158,6 @@ static int easycap_open(struct inode *inode, struct file *file)
 		SAY("ERROR: peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
-		return -EFAULT;
-	}
 	if (!peasycap->pusb_device) {
 		SAM("ERROR: peasycap->pusb_device is NULL\n");
 		return -EFAULT;
@@ -695,10 +691,6 @@ static int videodev_release(struct video_device *pvideo_device)
 		SAY("ending unsuccessfully\n");
 		return -EFAULT;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
-		return -EFAULT;
-	}
 	if (0 != kill_video_urbs(peasycap)) {
 		SAM("ERROR: kill_video_urbs() failed\n");
 		return -EFAULT;
@@ -734,10 +726,6 @@ static void easycap_delete(struct kref *pkref)
 	peasycap = container_of(pkref, struct easycap, kref);
 	if (!peasycap) {
 		SAM("ERROR: peasycap is NULL: cannot perform deletions\n");
-		return;
-	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		return;
 	}
 	kd = isdongle(peasycap);
@@ -962,10 +950,6 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 		SAY("ERROR:  peasycap is NULL\n");
 		return -EFAULT;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
-		return -EFAULT;
-	}
 	if (!peasycap->pusb_device) {
 		SAY("ERROR:  peasycap->pusb_device is NULL\n");
 		return -EFAULT;
@@ -993,11 +977,6 @@ static unsigned int easycap_poll(struct file *file, poll_table *wait)
 		peasycap = file->private_data;
 		if (!peasycap) {
 			SAY("ERROR:  peasycap is NULL\n");
-			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
-			return -ERESTARTSYS;
-		}
-		if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-			SAY("ERROR: bad peasycap: %p\n", peasycap);
 			mutex_unlock(&easycapdc60_dongle[kd].mutex_video);
 			return -ERESTARTSYS;
 		}
@@ -2455,10 +2434,6 @@ static void easycap_vma_open(struct vm_area_struct *pvma)
 		SAY("ERROR: peasycap is NULL\n");
 		return;
 	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
-		return;
-	}
 	peasycap->vma_many++;
 	JOT(8, "%i=peasycap->vma_many\n", peasycap->vma_many);
 	return;
@@ -2471,10 +2446,6 @@ static void easycap_vma_close(struct vm_area_struct *pvma)
 	peasycap = pvma->vm_private_data;
 	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
-		return;
-	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		return;
 	}
 	peasycap->vma_many--;
@@ -2605,10 +2576,6 @@ static void easycap_complete(struct urb *purb)
 	peasycap = purb->context;
 	if (!peasycap) {
 		SAY("ERROR: easycap_complete(): peasycap is NULL\n");
-		return;
-	}
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		return;
 	}
 	if (peasycap->video_eof)
@@ -3001,7 +2968,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 	struct easycap_format *peasycap_format;
 	int fmtidx;
 	struct inputset *inputset;
-	struct v4l2_device *pv4l2_device;
 
 	usbdev = interface_to_usbdev(intf);
 
@@ -3055,7 +3021,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 */
 /*---------------------------------------------------------------------------*/
 		peasycap->minor = -1;
-		strcpy(&peasycap->telltale[0], TELLTALE);
 		kref_init(&peasycap->kref);
 		JOM(8, "intf[%i]: after kref_init(..._video) "
 				"%i=peasycap->kref.refcount.counter\n",
@@ -3267,23 +3232,6 @@ static int easycap_usb_probe(struct usb_interface *intf,
 			SAY("ERROR: peasycap is NULL when probing interface %i\n",
 								bInterfaceNumber);
 			return -ENODEV;
-		}
-/*---------------------------------------------------------------------------*/
-/*
- *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
- *  BEEN WRITTEN BY THE CALL TO usb_set_intfdata() IN easycap_usb_probe(),
- *  REPLACING IT WITH A POINTER TO THE EMBEDDED v4l2_device STRUCTURE.
- *  TO DETECT THIS, THE STRING IN THE easycap.telltale[] BUFFER IS CHECKED.
-*/
-/*---------------------------------------------------------------------------*/
-		if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-			pv4l2_device = usb_get_intfdata(intf);
-			if (!pv4l2_device) {
-				SAY("ERROR: pv4l2_device is NULL\n");
-				return -ENODEV;
-			}
-			peasycap = (struct easycap *)
-				container_of(pv4l2_device, struct easycap, v4l2_device);
 		}
 	}
 /*---------------------------------------------------------------------------*/
@@ -3776,14 +3724,12 @@ static int easycap_usb_probe(struct usb_interface *intf,
  *  THE VIDEO DEVICE CAN BE REGISTERED NOW, AS IT IS READY.
  */
 /*--------------------------------------------------------------------------*/
-		if (0 != (v4l2_device_register(&(intf->dev),
-							&(peasycap->v4l2_device)))) {
+		if (v4l2_device_register(&intf->dev, &peasycap->v4l2_device)) {
 			SAM("v4l2_device_register() failed\n");
 			return -ENODEV;
-		} else {
-			JOM(4, "registered device instance: %s\n",
-						&(peasycap->v4l2_device.name[0]));
 		}
+		JOM(4, "registered device instance: %s\n",
+			peasycap->v4l2_device.name);
 /*---------------------------------------------------------------------------*/
 /*
  *                                 FIXME
@@ -4160,7 +4106,6 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 	struct list_head *plist_head;
 	struct data_urb *pdata_urb;
 	int minor, m, kd;
-	struct v4l2_device *pv4l2_device;
 
 	JOT(4, "\n");
 
@@ -4184,29 +4129,6 @@ static void easycap_usb_disconnect(struct usb_interface *pusb_interface)
 	peasycap = usb_get_intfdata(pusb_interface);
 	if (!peasycap) {
 		SAY("ERROR: peasycap is NULL\n");
-		return;
-	}
-/*---------------------------------------------------------------------------*/
-/*
- *  SOME VERSIONS OF THE videodev MODULE OVERWRITE THE DATA WHICH HAS
- *  BEEN WRITTEN BY THE CALL TO usb_set_intfdata() IN easycap_usb_probe(),
- *  REPLACING IT WITH A POINTER TO THE EMBEDDED v4l2_device STRUCTURE.
- *  TO DETECT THIS, THE STRING IN THE easycap.telltale[] BUFFER IS CHECKED.
-*/
-/*---------------------------------------------------------------------------*/
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		pv4l2_device = usb_get_intfdata(pusb_interface);
-		if (!pv4l2_device) {
-			SAY("ERROR: pv4l2_device is NULL\n");
-			return;
-		}
-		peasycap = (struct easycap *)
-			container_of(pv4l2_device, struct easycap, v4l2_device);
-	}
-/*^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^*/
-/*---------------------------------------------------------------------------*/
-	if (memcmp(&peasycap->telltale[0], TELLTALE, strlen(TELLTALE))) {
-		SAY("ERROR: bad peasycap: %p\n", peasycap);
 		return;
 	}
 /*---------------------------------------------------------------------------*/

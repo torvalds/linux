@@ -280,8 +280,6 @@ struct inputset {
  */
 /*---------------------------------------------------------------------------*/
 struct easycap {
-#define TELLTALE "expectedstring"
-	char telltale[16];
 	int isdongle;
 	int minor;
 
