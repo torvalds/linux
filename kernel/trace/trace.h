@@ -677,6 +677,7 @@ struct event_subsystem {
 	struct dentry		*entry;
 	struct event_filter	*filter;
 	int			nr_events;
+	int			ref_count;
 };
 
 #define FILTER_PRED_INVALID	((unsigned short)-1)
