@@ -6051,6 +6051,12 @@ M:	Jakub Schmidtke <sjakub@gmail.com>
 S:	Odd Fixes
 F:	drivers/staging/asus_oled/
 
+STAGING - ATHEROS ATH6KL WIRELESS DRIVER
+M:	Luis R. Rodriguez <mcgrof@gmail.com>
+M:	Naveen Singh <nsingh@atheros.com>
+S:	Odd Fixes
+F:	drivers/staging/ath6kl/
+
 STAGING - COMEDI
 M:	Ian Abbott <abbotti@mev.co.uk>
 M:	Mori Hess <fmhess@users.sourceforge.net>
@@ -6065,11 +6071,21 @@ M:	Manu Abraham <abraham.manu@gmail.com>
 S:	Odd Fixes
 F:	drivers/staging/crystalhd/
 
+STAGING - CYPRESS WESTBRIDGE SUPPORT
+M:	David Cross <david.cross@cypress.com>
+S:	Odd Fixes
+F:	drivers/staging/westbridge/
+
 STAGING - ECHO CANCELLER
 M:	Steve Underwood <steveu@coppice.org>
 M:	David Rowe <david@rowetel.com>
 S:	Odd Fixes
 F:	drivers/staging/echo/
+
+STAGING - FLARION FT1000 DRIVERS
+M:	Marek Belisko <marek.belisko@gmail.com>
+S:	Odd Fixes
+F:	drivers/staging/ft1000/
 
 STAGING - FRONTIER TRANZPORT AND ALPHATRACK
 M:	David Täht <d@teklibre.com>
@@ -6084,18 +6100,69 @@ F:	drivers/staging/hv/
 
 STAGING - INDUSTRIAL IO
 M:	Jonathan Cameron <jic23@cam.ac.uk>
+L:	linux-iio@vger.kernel.org
 S:	Odd Fixes
 F:	drivers/staging/iio/
 
-STAGING -  PARALLEL LCD/KEYPAD PANEL DRIVER
+STAGING - LIRC (LINUX INFRARED REMOTE CONTROL) DRIVERS
+M:	Jarod Wilson <jarod@wilsonet.com>
+W:	http://www.lirc.org/
+S:	Odd Fixes
+F:	drivers/staging/lirc/
+
+STAGING - OLPC SECONDARY DISPLAY CONTROLLER (DCON)
+M:	Andres Salomon <dilinger@queued.net>
+M:	Chris Ball <cjb@laptop.org>
+M:	Jon Nettleton <jon.nettleton@gmail.com>
+W:	http://wiki.laptop.org/go/DCON
+S:	Odd Fixes
+F:	drivers/staging/olpc_dcon/
+
+STAGING - PARALLEL LCD/KEYPAD PANEL DRIVER
 M:	Willy Tarreau <willy@meta-x.org>
 S:	Odd Fixes
 F:	drivers/staging/panel/
+
+STAGING - REALTEK RTL8712U DRIVERS
+M:	Larry Finger <Larry.Finger@lwfinger.net>
+M:	Florian Schilhabel <florian.c.schilhabel@googlemail.com>.
+S:	Odd Fixes
+F:	drivers/staging/rtl8712/
 
 STAGING - SILICON MOTION SM7XX FRAME BUFFER DRIVER
 M:	Teddy Wang <teddy.wang@siliconmotion.com.cn>
 S:	Odd Fixes
 F:	drivers/staging/sm7xx/
+
+STAGING - SOFTLOGIC 6x10 MPEG CODEC
+M:	Ben Collins <bcollins@bluecherry.net>
+S:	Odd Fixes
+F:	drivers/staging/solo6x10/
+
+STAGING - SPEAKUP CONSOLE SPEECH DRIVER
+M:	William Hubbs <w.d.hubbs@gmail.com>
+M:	Chris Brannon <chris@the-brannons.com>
+M:	Kirk Reiser <kirk@braille.uwo.ca>
+M:	Samuel Thibault <samuel.thibault@ens-lyon.org>
+L:	speakup@braille.uwo.ca
+W:	http://www.linux-speakup.org/
+S:	Odd Fixes
+F:	drivers/staging/speakup/
+
+STAGING - TI DSP BRIDGE DRIVERS
+M:	Omar Ramirez Luna <omar.ramirez@ti.com>
+S:	Odd Fixes
+F:	drivers/staging/tidspbridge/
+
+STAGING - TRIDENT TVMASTER TMxxxx USB VIDEO CAPTURE DRIVERS
+L:	linux-media@vger.kernel.org
+S:	Odd Fixes
+F:	drivers/staging/tm6000/
+
+STAGING - USB ENE SM/MS CARD READER DRIVER
+M:	Al Cho <acho@novell.com>
+S:	Odd Fixes
+F:	drivers/staging/keucr/
 
 STAGING - VIA VT665X DRIVERS
 M:	Forest Bond <forest@alittletooquiet.net>
