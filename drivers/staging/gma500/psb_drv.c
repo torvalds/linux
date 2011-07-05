@@ -28,6 +28,7 @@
 #include "psb_intel_reg.h"
 #include "psb_intel_bios.h"
 #include "mrst_bios.h"
+#include "mdfld_dsi_dbi.h"
 #include <drm/drm_pciids.h>
 #include "psb_powermgmt.h"
 #include <linux/cpu.h>
@@ -441,6 +442,17 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 
 	dev->driver->get_vblank_counter = psb_get_vblank_counter;
+
+	/* FIXME: this is not the right place for this stuff ! */
+	if (IS_MFLD(dev)) {
+#ifdef CONFIG_MDFLD_DSI_DPU
+		/*init dpu info*/
+		mdfld_dbi_dpu_init(dev);
+#else 
+		mdfld_dbi_dsr_init(dev);
+#endif /*CONFIG_MDFLD_DSI_DPU*/
+		/* INIT_WORK(&dev_priv->te_work, mdfld_te_handler_work);*/
+	}
 
 	if (drm_psb_no_fb == 0) {
 		psb_modeset_init(dev);
