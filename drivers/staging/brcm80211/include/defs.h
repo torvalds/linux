@@ -59,16 +59,16 @@ typedef struct wl_rateset {
 	u8 rates[WL_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
 } wl_rateset_t;
 
-#define WLC_CNTRY_BUF_SZ	4	/* Country string is 3 bytes + NUL */
+#define BRCM_CNTRY_BUF_SZ	4	/* Country string is 3 bytes + NUL */
 
-#define WLC_SET_CHANNEL				30
-#define WLC_SET_SRL				32
-#define WLC_SET_LRL				34
+#define BRCM_SET_CHANNEL				30
+#define BRCM_SET_SRL				32
+#define BRCM_SET_LRL				34
 
-#define WLC_SET_RATESET				72
-#define WLC_SET_BCNPRD				76
-#define WLC_GET_CURR_RATESET			114	/* current rateset */
-#define WLC_GET_PHYLIST				180
+#define BRCM_SET_RATESET				72
+#define BRCM_SET_BCNPRD				76
+#define BRCM_GET_CURR_RATESET			114	/* current rateset */
+#define BRCM_GET_PHYLIST				180
 
 /* Bit masks for radio disabled status - returned by WL_GET_RADIO */
 #define WL_RADIO_SW_DISABLE		(1<<0)
@@ -76,14 +76,14 @@ typedef struct wl_rateset {
 #define WL_RADIO_MPC_DISABLE		(1<<2)
 #define WL_RADIO_COUNTRY_DISABLE	(1<<3)	/* some countries don't support any channel */
 
-/* Override bit for WLC_SET_TXPWR.  if set, ignore other level limits */
+/* Override bit for SET_TXPWR.  if set, ignore other level limits */
 #define WL_TXPWR_OVERRIDE	(1U<<31)
 
 /* band types */
-#define	WLC_BAND_AUTO		0	/* auto-select */
-#define	WLC_BAND_5G		1	/* 5 Ghz */
-#define	WLC_BAND_2G		2	/* 2.4 Ghz */
-#define	WLC_BAND_ALL		3	/* all bands */
+#define	BRCM_BAND_AUTO		0	/* auto-select */
+#define	BRCM_BAND_5G		1	/* 5 Ghz */
+#define	BRCM_BAND_2G		2	/* 2.4 Ghz */
+#define	BRCM_BAND_ALL		3	/* all bands */
 
 /* Values for PM */
 #define PM_OFF	0

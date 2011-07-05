@@ -87,40 +87,40 @@
 #define PHY_MODE_CAL		0x0002
 #define PHY_MODE_NOISEM		0x0004
 
-#define WLC_TXPWR_DB_FACTOR	4
+#define BRCMS_TXPWR_DB_FACTOR	4
 
 /* a large TX Power as an init value to factor out of min() calculations,
  * keep low enough to fit in an s8, units are .25 dBm
  */
-#define WLC_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */
+#define BRCMS_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */
 
-#define WLC_NUM_RATES_CCK           4
-#define WLC_NUM_RATES_OFDM          8
-#define WLC_NUM_RATES_MCS_1_STREAM  8
-#define WLC_NUM_RATES_MCS_2_STREAM  8
-#define WLC_NUM_RATES_MCS_3_STREAM  8
-#define WLC_NUM_RATES_MCS_4_STREAM  8
+#define BRCMS_NUM_RATES_CCK           4
+#define BRCMS_NUM_RATES_OFDM          8
+#define BRCMS_NUM_RATES_MCS_1_STREAM  8
+#define BRCMS_NUM_RATES_MCS_2_STREAM  8
+#define BRCMS_NUM_RATES_MCS_3_STREAM  8
+#define BRCMS_NUM_RATES_MCS_4_STREAM  8
 
-#define	WLC_RSSI_INVALID	 0	/* invalid RSSI value */
+#define	BRCMS_RSSI_INVALID	 0	/* invalid RSSI value */
 
 struct txpwr_limits {
-	u8 cck[WLC_NUM_RATES_CCK];
-	u8 ofdm[WLC_NUM_RATES_OFDM];
+	u8 cck[BRCMS_NUM_RATES_CCK];
+	u8 ofdm[BRCMS_NUM_RATES_OFDM];
 
-	u8 ofdm_cdd[WLC_NUM_RATES_OFDM];
+	u8 ofdm_cdd[BRCMS_NUM_RATES_OFDM];
 
-	u8 ofdm_40_siso[WLC_NUM_RATES_OFDM];
-	u8 ofdm_40_cdd[WLC_NUM_RATES_OFDM];
+	u8 ofdm_40_siso[BRCMS_NUM_RATES_OFDM];
+	u8 ofdm_40_cdd[BRCMS_NUM_RATES_OFDM];
 
-	u8 mcs_20_siso[WLC_NUM_RATES_MCS_1_STREAM];
-	u8 mcs_20_cdd[WLC_NUM_RATES_MCS_1_STREAM];
-	u8 mcs_20_stbc[WLC_NUM_RATES_MCS_1_STREAM];
-	u8 mcs_20_mimo[WLC_NUM_RATES_MCS_2_STREAM];
+	u8 mcs_20_siso[BRCMS_NUM_RATES_MCS_1_STREAM];
+	u8 mcs_20_cdd[BRCMS_NUM_RATES_MCS_1_STREAM];
+	u8 mcs_20_stbc[BRCMS_NUM_RATES_MCS_1_STREAM];
+	u8 mcs_20_mimo[BRCMS_NUM_RATES_MCS_2_STREAM];
 
-	u8 mcs_40_siso[WLC_NUM_RATES_MCS_1_STREAM];
-	u8 mcs_40_cdd[WLC_NUM_RATES_MCS_1_STREAM];
-	u8 mcs_40_stbc[WLC_NUM_RATES_MCS_1_STREAM];
-	u8 mcs_40_mimo[WLC_NUM_RATES_MCS_2_STREAM];
+	u8 mcs_40_siso[BRCMS_NUM_RATES_MCS_1_STREAM];
+	u8 mcs_40_cdd[BRCMS_NUM_RATES_MCS_1_STREAM];
+	u8 mcs_40_stbc[BRCMS_NUM_RATES_MCS_1_STREAM];
+	u8 mcs_40_mimo[BRCMS_NUM_RATES_MCS_2_STREAM];
 	u8 mcs32;
 };
 

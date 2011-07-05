@@ -31,7 +31,7 @@ typedef u16 chanspec_t;
 #define CH_10MHZ_APART			2
 #define CH_5MHZ_APART			1	/* 2G band channels are 5 Mhz apart */
 #define CH_MAX_2G_CHANNEL		14	/* Max channel in 2G band */
-#define WLC_MAX_2G_CHANNEL		CH_MAX_2G_CHANNEL	/* legacy define */
+#define BRCM_MAX_2G_CHANNEL	CH_MAX_2G_CHANNEL	/* legacy define */
 #define	MAXCHANNEL		224	/* max # supported channels. The max channel no is 216,
 					 * this is that + 1 rounded up to a multiple of NBBY (8).
 					 * DO NOT MAKE it > 255: channels are u8's all over
@@ -67,7 +67,8 @@ typedef u16 chanspec_t;
 #define LOWER_20_SB(channel)	(((channel) > CH_10MHZ_APART) ? ((channel) - CH_10MHZ_APART) : 0)
 #define UPPER_20_SB(channel)	(((channel) < (MAXCHANNEL - CH_10MHZ_APART)) ? \
 				((channel) + CH_10MHZ_APART) : 0)
-#define CHSPEC_WLCBANDUNIT(chspec)	(CHSPEC_IS5G(chspec) ? BAND_5G_INDEX : BAND_2G_INDEX)
+#define CHSPEC_BANDUNIT(chspec)	(CHSPEC_IS5G(chspec) ? BAND_5G_INDEX : \
+						       BAND_2G_INDEX)
 #define CH20MHZ_CHSPEC(channel)	(chanspec_t)((chanspec_t)(channel) | WL_CHANSPEC_BW_20 | \
 				WL_CHANSPEC_CTL_SB_NONE | (((channel) <= CH_MAX_2G_CHANNEL) ? \
 				WL_CHANSPEC_BAND_2G : WL_CHANSPEC_BAND_5G))
@@ -110,26 +111,26 @@ typedef u16 chanspec_t;
 #define CHSPEC_CTL_CHAN(chspec)  ((CHSPEC_SB_LOWER(chspec)) ? \
 				  (LOWER_20_SB(((chspec) & WL_CHANSPEC_CHAN_MASK))) : \
 				  (UPPER_20_SB(((chspec) & WL_CHANSPEC_CHAN_MASK))))
-#define CHSPEC2WLC_BAND(chspec) (CHSPEC_IS5G(chspec) ? WLC_BAND_5G : WLC_BAND_2G)
+#define CHSPEC2BAND(chspec) (CHSPEC_IS5G(chspec) ? BRCM_BAND_5G : BRCM_BAND_2G)
 
 #define CHANSPEC_STR_LEN    8
 
 /* defined rate in 500kbps */
-#define WLC_MAXRATE	108	/* in 500kbps units */
-#define WLC_RATE_1M	2	/* in 500kbps units */
-#define WLC_RATE_2M	4	/* in 500kbps units */
-#define WLC_RATE_5M5	11	/* in 500kbps units */
-#define WLC_RATE_11M	22	/* in 500kbps units */
-#define WLC_RATE_6M	12	/* in 500kbps units */
-#define WLC_RATE_9M	18	/* in 500kbps units */
-#define WLC_RATE_12M	24	/* in 500kbps units */
-#define WLC_RATE_18M	36	/* in 500kbps units */
-#define WLC_RATE_24M	48	/* in 500kbps units */
-#define WLC_RATE_36M	72	/* in 500kbps units */
-#define WLC_RATE_48M	96	/* in 500kbps units */
-#define WLC_RATE_54M	108	/* in 500kbps units */
+#define BRCM_MAXRATE	108	/* in 500kbps units */
+#define BRCM_RATE_1M	2	/* in 500kbps units */
+#define BRCM_RATE_2M	4	/* in 500kbps units */
+#define BRCM_RATE_5M5	11	/* in 500kbps units */
+#define BRCM_RATE_11M	22	/* in 500kbps units */
+#define BRCM_RATE_6M	12	/* in 500kbps units */
+#define BRCM_RATE_9M	18	/* in 500kbps units */
+#define BRCM_RATE_12M	24	/* in 500kbps units */
+#define BRCM_RATE_18M	36	/* in 500kbps units */
+#define BRCM_RATE_24M	48	/* in 500kbps units */
+#define BRCM_RATE_36M	72	/* in 500kbps units */
+#define BRCM_RATE_48M	96	/* in 500kbps units */
+#define BRCM_RATE_54M	108	/* in 500kbps units */
 
-#define WLC_2G_25MHZ_OFFSET		5	/* 2.4GHz band channel offset */
+#define BRCM_2G_25MHZ_OFFSET		5	/* 2.4GHz band channel offset */
 
 #define MCSSET_LEN	16
 

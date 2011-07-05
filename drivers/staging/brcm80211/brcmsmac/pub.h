@@ -21,7 +21,7 @@
 #include "types.h"
 #include "defs.h"
 
-#define	WLC_NUMRATES	16	/* max # of rates in a rateset */
+#define	BRCMS_NUMRATES	16	/* max # of rates in a rateset */
 #define	MAXMULTILIST	32	/* max # multicast addresses */
 #define	D11_PHY_HDR_LEN	6	/* Phy header length - 6 bytes */
 
@@ -36,36 +36,37 @@
 #define	PHY_TYPE_HT	7	/* Phy type 3-Stream N */
 
 /* bw */
-#define WLC_10_MHZ	10	/* 10Mhz nphy channel bandwidth */
-#define WLC_20_MHZ	20	/* 20Mhz nphy channel bandwidth */
-#define WLC_40_MHZ	40	/* 40Mhz nphy channel bandwidth */
+#define BRCMS_10_MHZ	10	/* 10Mhz nphy channel bandwidth */
+#define BRCMS_20_MHZ	20	/* 20Mhz nphy channel bandwidth */
+#define BRCMS_40_MHZ	40	/* 40Mhz nphy channel bandwidth */
 
-#define CHSPEC_WLC_BW(chanspec)	(CHSPEC_IS40(chanspec) ? WLC_40_MHZ : \
-				 CHSPEC_IS20(chanspec) ? WLC_20_MHZ : \
-							 WLC_10_MHZ)
+#define CHSPEC_WLC_BW(chanspec)	(CHSPEC_IS40(chanspec) ? BRCMS_40_MHZ : \
+				 CHSPEC_IS20(chanspec) ? BRCMS_20_MHZ : \
+							 BRCMS_10_MHZ)
 
-#define	WLC_RSSI_MINVAL		-200	/* Low value, e.g. for forcing roam */
-#define	WLC_RSSI_NO_SIGNAL	-91	/* NDIS RSSI link quality cutoffs */
-#define	WLC_RSSI_VERY_LOW	-80	/* Very low quality cutoffs */
-#define	WLC_RSSI_LOW		-70	/* Low quality cutoffs */
-#define	WLC_RSSI_GOOD		-68	/* Good quality cutoffs */
-#define	WLC_RSSI_VERY_GOOD	-58	/* Very good quality cutoffs */
-#define	WLC_RSSI_EXCELLENT	-57	/* Excellent quality cutoffs */
+#define	BRCMS_RSSI_MINVAL	-200	/* Low value, e.g. for forcing roam */
+#define	BRCMS_RSSI_NO_SIGNAL	-91	/* NDIS RSSI link quality cutoffs */
+#define	BRCMS_RSSI_VERY_LOW	-80	/* Very low quality cutoffs */
+#define	BRCMS_RSSI_LOW		-70	/* Low quality cutoffs */
+#define	BRCMS_RSSI_GOOD		-68	/* Good quality cutoffs */
+#define	BRCMS_RSSI_VERY_GOOD	-58	/* Very good quality cutoffs */
+#define	BRCMS_RSSI_EXCELLENT	-57	/* Excellent quality cutoffs */
 
-#define WLC_PHYTYPE(_x) (_x)	/* macro to perform WLC PHY -> D11 PHY TYPE, currently 1:1 */
+/* macro to perform PHY -> D11 PHY TYPE, currently 1:1 */
+#define BRCMS_PHYTYPE(_x) (_x)
 
 #define MA_WINDOW_SZ		8	/* moving average window size */
 
-#define WLC_SNR_INVALID		0	/* invalid SNR value */
+#define BRCMS_SNR_INVALID		0	/* invalid SNR value */
 
 /* a large TX Power as an init value to factor out of min() calculations,
  * keep low enough to fit in an s8, units are .25 dBm
  */
-#define WLC_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */
+#define BRCMS_TXPWR_MAX		(127)	/* ~32 dBm = 1,500 mW */
 
 /* rate related definitions */
-#define	WLC_RATE_FLAG	0x80	/* Flag to indicate it is a basic rate */
-#define	WLC_RATE_MASK	0x7f	/* Rate value mask w/o basic rate flag */
+#define	BRCMS_RATE_FLAG	0x80	/* Flag to indicate it is a basic rate */
+#define	BRCMS_RATE_MASK	0x7f	/* Rate value mask w/o basic rate flag */
 
 /* legacy rx Antenna diversity for SISO rates */
 #define	ANT_RX_DIV_FORCE_0		0	/* Use antenna 0 */
@@ -126,7 +127,8 @@ struct brcms_tunables {
 
 struct brcms_rateset {
 	uint count;		/* number of rates in rates[] */
-	u8 rates[WLC_NUMRATES];	/* rates in 500kbps units w/hi bit set if basic */
+	 /* rates in 500kbps units w/hi bit set if basic */
+	u8 rates[BRCMS_NUMRATES];
 	u8 htphy_membership;	/* HT PHY Membership */
 	u8 mcs[MCSSET_LEN];	/* supported mcs index bit map */
 };
@@ -175,7 +177,7 @@ struct brcms_bss_info {
 	u8 dtim_period;	/* DTIM period */
 	s8 phy_noise;		/* noise right after tx (in dBm) */
 	u16 capability;	/* Capability information */
-	u8 wme_qosinfo;	/* QoS Info from WME IE; valid if WLC_BSS_WME flag set */
+	u8 wme_qosinfo;	/* QoS Info from WME IE; valid if BSS_WME flag set */
 	struct rsn_parms wpa;
 	struct rsn_parms wpa2;
 	u16 qbss_load_aac;	/* qbss load available admission capacity */
@@ -184,17 +186,6 @@ struct brcms_bss_info {
 	u8 mcipher;		/* multicast cipher */
 	u8 wpacfg;		/* wpa config index */
 };
-
-/* brcms_c_ioctl error codes */
-#define WLC_ENOIOCTL	1	/* No such Ioctl */
-#define WLC_EINVAL	2	/* Invalid value */
-#define WLC_ETOOSMALL	3	/* Value too small */
-#define WLC_ETOOBIG	4	/* Value too big */
-#define WLC_ERANGE	5	/* Out of range */
-#define WLC_EDOWN	6	/* Down */
-#define WLC_EUP		7	/* Up */
-#define WLC_ENOMEM	8	/* No Memory */
-#define WLC_EBUSY	9	/* Busy */
 
 /* IOVar flags for common error checks */
 #define IOVF_MFG	(1<<3)	/* flag for mfgtest iovars */
@@ -312,7 +303,7 @@ struct brcms_pub {
 
 	u16 boardrev;	/* version # of particular board */
 	u8 sromrev;		/* version # of the srom */
-	char srom_ccode[WLC_CNTRY_BUF_SZ];	/* Country Code in SROM */
+	char srom_ccode[BRCM_CNTRY_BUF_SZ];	/* Country Code in SROM */
 	u32 boardflags;	/* Board specific flags from srom */
 	u32 boardflags2;	/* More board flags if sromrev >= 4 */
 	bool tempsense_disable;	/* disable periodic tempsense check */
@@ -427,62 +418,64 @@ enum wlc_par_id {
 
 #define PROMISC_ENAB(wlc)	((wlc)->promisc)
 
-#define	WLC_PREC_COUNT		16	/* Max precedence level implemented */
+#define	BRCMS_PREC_COUNT	16	/* Max precedence level implemented */
 
 /* pri is priority encoded in the packet. This maps the Packet priority to
  * enqueue precedence as defined in wlc_prec_map
  */
 extern const u8 wlc_prio2prec_map[];
-#define WLC_PRIO_TO_PREC(pri)	wlc_prio2prec_map[(pri) & 7]
+#define BRCMS_PRIO_TO_PREC(pri)	wlc_prio2prec_map[(pri) & 7]
 
 /* This maps priority to one precedence higher - Used by PS-Poll response packets to
  * simulate enqueue-at-head operation, but still maintain the order on the queue
  */
-#define WLC_PRIO_TO_HI_PREC(pri)	min(WLC_PRIO_TO_PREC(pri) + 1, WLC_PREC_COUNT - 1)
+#define BRCMS_PRIO_TO_HI_PREC(pri)	min(BRCMS_PRIO_TO_PREC(pri) + 1,\
+					    BRCMS_PREC_COUNT - 1)
 
 extern const u8 wme_fifo2ac[];
 #define WME_PRIO2AC(prio)	wme_fifo2ac[prio2fifo[(prio)]]
 
 /* Mask to describe all precedence levels */
-#define WLC_PREC_BMP_ALL		MAXBITVAL(WLC_PREC_COUNT)
+#define BRCMS_PREC_BMP_ALL		MAXBITVAL(BRCMS_PREC_COUNT)
 
 /* Define a bitmap of precedences comprised by each AC */
-#define WLC_PREC_BMP_AC_BE	(NBITVAL(WLC_PRIO_TO_PREC(PRIO_8021D_BE)) |	\
-				NBITVAL(WLC_PRIO_TO_HI_PREC(PRIO_8021D_BE)) |	\
-				NBITVAL(WLC_PRIO_TO_PREC(PRIO_8021D_EE)) |	\
-				NBITVAL(WLC_PRIO_TO_HI_PREC(PRIO_8021D_EE)))
-#define WLC_PREC_BMP_AC_BK	(NBITVAL(WLC_PRIO_TO_PREC(PRIO_8021D_BK)) |	\
-				NBITVAL(WLC_PRIO_TO_HI_PREC(PRIO_8021D_BK)) |	\
-				NBITVAL(WLC_PRIO_TO_PREC(PRIO_8021D_NONE)) |	\
-				NBITVAL(WLC_PRIO_TO_HI_PREC(PRIO_8021D_NONE)))
-#define WLC_PREC_BMP_AC_VI	(NBITVAL(WLC_PRIO_TO_PREC(PRIO_8021D_CL)) |	\
-				NBITVAL(WLC_PRIO_TO_HI_PREC(PRIO_8021D_CL)) |	\
-				NBITVAL(WLC_PRIO_TO_PREC(PRIO_8021D_VI)) |	\
-				NBITVAL(WLC_PRIO_TO_HI_PREC(PRIO_8021D_VI)))
-#define WLC_PREC_BMP_AC_VO	(NBITVAL(WLC_PRIO_TO_PREC(PRIO_8021D_VO)) |	\
-				NBITVAL(WLC_PRIO_TO_HI_PREC(PRIO_8021D_VO)) |	\
-				NBITVAL(WLC_PRIO_TO_PREC(PRIO_8021D_NC)) |	\
-				NBITVAL(WLC_PRIO_TO_HI_PREC(PRIO_8021D_NC)))
+#define BRCMS_PREC_BMP_AC_BE	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_BE)) | \
+			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_BE)) |	\
+			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_EE)) |	\
+			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_EE)))
+#define BRCMS_PREC_BMP_AC_BK	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_BK)) | \
+			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_BK)) |	\
+			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_NONE)) |	\
+			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_NONE)))
+#define BRCMS_PREC_BMP_AC_VI	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_CL)) | \
+			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_CL)) |	\
+			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_VI)) |	\
+			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_VI)))
+#define BRCMS_PREC_BMP_AC_VO	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_VO)) | \
+			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_VO)) |	\
+			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_NC)) |	\
+			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_NC)))
 
 /* WME Support */
 #define WME_ENAB(pub) ((pub)->_wme != OFF)
 #define WME_AUTO(wlc) ((wlc)->pub->_wme == AUTO)
 
-#define WLC_USE_COREFLAGS	0xffffffff	/* invalid core flags, use the saved coreflags */
+/* invalid core flags, use the saved coreflags */
+#define BRCMS_USE_COREFLAGS	0xffffffff
 
 
 /* network protection config */
-#define	WLC_PROT_G_SPEC		1	/* SPEC g protection */
-#define	WLC_PROT_G_OVR		2	/* SPEC g prot override */
-#define	WLC_PROT_G_USER		3	/* gmode specified by user */
-#define	WLC_PROT_OVERLAP	4	/* overlap */
-#define	WLC_PROT_N_USER		10	/* nmode specified by user */
-#define	WLC_PROT_N_CFG		11	/* n protection */
-#define	WLC_PROT_N_CFG_OVR	12	/* n protection override */
-#define	WLC_PROT_N_NONGF	13	/* non-GF protection */
-#define	WLC_PROT_N_NONGF_OVR	14	/* non-GF protection override */
-#define	WLC_PROT_N_PAM_OVR	15	/* n preamble override */
-#define	WLC_PROT_N_OBSS		16	/* non-HT OBSS present */
+#define	BRCMS_PROT_G_SPEC		1	/* SPEC g protection */
+#define	BRCMS_PROT_G_OVR		2	/* SPEC g prot override */
+#define	BRCMS_PROT_G_USER		3	/* gmode specified by user */
+#define	BRCMS_PROT_OVERLAP	4	/* overlap */
+#define	BRCMS_PROT_N_USER		10	/* nmode specified by user */
+#define	BRCMS_PROT_N_CFG		11	/* n protection */
+#define	BRCMS_PROT_N_CFG_OVR	12	/* n protection override */
+#define	BRCMS_PROT_N_NONGF	13	/* non-GF protection */
+#define	BRCMS_PROT_N_NONGF_OVR	14	/* non-GF protection override */
+#define	BRCMS_PROT_N_PAM_OVR	15	/* n preamble override */
+#define	BRCMS_PROT_N_OBSS		16	/* non-HT OBSS present */
 
 /*
  * 54g modes (basic bits may still be overridden)
@@ -519,36 +512,36 @@ extern const u8 wme_fifo2ac[];
 #define GMODE_MAX		6
 
 /* values for PLCPHdr_override */
-#define WLC_PLCP_AUTO	-1
-#define WLC_PLCP_SHORT	0
-#define WLC_PLCP_LONG	1
+#define BRCMS_PLCP_AUTO	-1
+#define BRCMS_PLCP_SHORT	0
+#define BRCMS_PLCP_LONG	1
 
 /* values for g_protection_override and n_protection_override */
-#define WLC_PROTECTION_AUTO		-1
-#define WLC_PROTECTION_OFF		0
-#define WLC_PROTECTION_ON		1
-#define WLC_PROTECTION_MMHDR_ONLY	2
-#define WLC_PROTECTION_CTS_ONLY		3
+#define BRCMS_PROTECTION_AUTO		-1
+#define BRCMS_PROTECTION_OFF		0
+#define BRCMS_PROTECTION_ON		1
+#define BRCMS_PROTECTION_MMHDR_ONLY	2
+#define BRCMS_PROTECTION_CTS_ONLY		3
 
 /* values for g_protection_control and n_protection_control */
-#define WLC_PROTECTION_CTL_OFF		0
-#define WLC_PROTECTION_CTL_LOCAL	1
-#define WLC_PROTECTION_CTL_OVERLAP	2
+#define BRCMS_PROTECTION_CTL_OFF		0
+#define BRCMS_PROTECTION_CTL_LOCAL	1
+#define BRCMS_PROTECTION_CTL_OVERLAP	2
 
 /* values for n_protection */
-#define WLC_N_PROTECTION_OFF		0
-#define WLC_N_PROTECTION_OPTIONAL	1
-#define WLC_N_PROTECTION_20IN40		2
-#define WLC_N_PROTECTION_MIXEDMODE	3
+#define BRCMS_N_PROTECTION_OFF		0
+#define BRCMS_N_PROTECTION_OPTIONAL	1
+#define BRCMS_N_PROTECTION_20IN40		2
+#define BRCMS_N_PROTECTION_MIXEDMODE	3
 
 /* values for band specific 40MHz capabilities */
-#define WLC_N_BW_20ALL			0
-#define WLC_N_BW_40ALL			1
-#define WLC_N_BW_20IN2G_40IN5G		2
+#define BRCMS_N_BW_20ALL			0
+#define BRCMS_N_BW_40ALL			1
+#define BRCMS_N_BW_20IN2G_40IN5G		2
 
 /* bitflags for SGI support (sgi_rx iovar) */
-#define WLC_N_SGI_20			0x01
-#define WLC_N_SGI_40			0x02
+#define BRCMS_N_SGI_20			0x01
+#define BRCMS_N_SGI_40			0x02
 
 /* defines used by the nrate iovar */
 #define NRATE_MCS_INUSE	0x00000080	/* MSC in use,indicates b0-6 holds an mcs */
@@ -667,6 +660,6 @@ extern bool brcms_c_radio_monitor_stop(struct brcms_c_info *wlc);
 #define BAND_5G_NAME		"5G"
 
 /* BMAC RPC: 7 u32 params: pkttotlen, fifo, commit, fid, txpktpend, pktflag, rpc_id */
-#define WLC_RPCTX_PARAMS		32
+#define BRCMS_RPCTX_PARAMS		32
 
 #endif				/* _BRCM_PUB_H_ */

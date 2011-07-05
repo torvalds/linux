@@ -14,8 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _WLC_RATE_H_
-#define _WLC_RATE_H_
+#ifndef _BRCM_RATE_H_
+#define _BRCM_RATE_H_
 
 #include "types.h"
 
@@ -38,7 +38,7 @@ struct brcms_mcs_info {
 	u8 leg_ofdm;		/* matching legacy ofdm rate in 500bkps */
 };
 
-#define WLC_MAXMCS	32	/* max valid mcs index */
+#define BRCMS_MAXMCS	32	/* max valid mcs index */
 #define MCS_TABLE_SIZE	33	/* Number of mcs entries in the table */
 extern const struct brcms_mcs_info mcs_table[];
 
@@ -57,9 +57,10 @@ extern const struct brcms_mcs_info mcs_table[];
 #define VALID_MCS(_mcs)	((_mcs < MCS_TABLE_SIZE))
 
 /* Macro to use the rate_info table */
-#define	WLC_RATE_MASK_FULL 0xff	/* Rate value mask with basic rate flag */
+#define	BRCMS_RATE_MASK_FULL 0xff /* Rate value mask with basic rate flag */
 
-#define WLC_RATE_500K_TO_BPS(rate)	((rate) * 500000)	/* convert 500kbps to bps */
+/* convert 500kbps to bps */
+#define BRCMS_RATE_500K_TO_BPS(rate)	((rate) * 500000)
 
 /* rate spec : holds rate and mode specific information required to generate a tx frame. */
 /* Legacy CCK and OFDM information is held in the same manner as was done in the past    */
@@ -81,7 +82,7 @@ extern const struct brcms_mcs_info mcs_table[];
 #define RSPEC_OVERRIDE		0x80000000	/* bit indicates override both rate & mode */
 #define RSPEC_OVERRIDE_MCS_ONLY 0x40000000	/* bit indicates override rate only */
 
-#define WLC_HTPHY		127	/* HT PHY Membership */
+#define BRCMS_HTPHY		127	/* HT PHY Membership */
 
 #define RSPEC_ACTIVE(rspec)	(rspec & (RSPEC_RATE_MASK | RSPEC_MIMORATE))
 #define RSPEC2RATE(rspec)	((rspec & RSPEC_MIMORATE) ? \
@@ -112,12 +113,13 @@ extern const struct brcms_mcs_info mcs_table[];
 
 /* Rate info table; takes a legacy rate or ratespec_t */
 #define	IS_MCS(r)	(r & RSPEC_MIMORATE)
-#define	IS_OFDM(r)	(!IS_MCS(r) && (rate_info[(r) & RSPEC_RATE_MASK] & WLC_RATE_FLAG))
+#define	IS_OFDM(r)	(!IS_MCS(r) && (rate_info[(r) & RSPEC_RATE_MASK] & \
+					BRCMS_RATE_FLAG))
 #define	IS_CCK(r)	(!IS_MCS(r) && ( \
-			 ((r) & WLC_RATE_MASK) == WLC_RATE_1M || \
-			 ((r) & WLC_RATE_MASK) == WLC_RATE_2M || \
-			 ((r) & WLC_RATE_MASK) == WLC_RATE_5M5 || \
-			 ((r) & WLC_RATE_MASK) == WLC_RATE_11M))
+			 ((r) & BRCMS_RATE_MASK) == BRCM_RATE_1M || \
+			 ((r) & BRCMS_RATE_MASK) == BRCM_RATE_2M || \
+			 ((r) & BRCMS_RATE_MASK) == BRCM_RATE_5M5 || \
+			 ((r) & BRCMS_RATE_MASK) == BRCM_RATE_11M))
 #define IS_SINGLE_STREAM(mcs)	(((mcs) <= HIGHEST_SINGLE_STREAM_MCS) || ((mcs) == 32))
 #define CCK_RSPEC(cck)		((cck) & RSPEC_RATE_MASK)
 #define OFDM_RSPEC(ofdm)	(((ofdm) & RSPEC_RATE_MASK) |\
@@ -134,9 +136,9 @@ extern const u8 ofdm_rate_lookup[];
 #define CCK_PHY2MAC_RATE(signal)	(signal/5)
 
 /* Rates specified in brcms_c_rateset_filter() */
-#define WLC_RATES_CCK_OFDM	0
-#define WLC_RATES_CCK		1
-#define WLC_RATES_OFDM		2
+#define BRCMS_RATES_CCK_OFDM	0
+#define BRCMS_RATES_CCK		1
+#define BRCMS_RATES_OFDM		2
 
 /* sanitize, and sort a rateset with the basic bit(s) preserved, validate rateset */
 extern bool
@@ -168,4 +170,4 @@ extern void brcms_c_rateset_mcs_build(struct brcms_rateset *rateset,
 				      u8 txstreams);
 extern void brcms_c_rateset_bw_mcs_filter(struct brcms_rateset *rateset, u8 bw);
 
-#endif				/* _WLC_RATE_H_ */
+#endif				/* _BRCM_RATE_H_ */

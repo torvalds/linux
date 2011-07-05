@@ -1159,7 +1159,7 @@ extern void wlc_phy_table_write_nphy(struct brcms_phy *pi, u32, u32, u32,
 	((pi->ipa2g_on && CHSPEC_IS2G(pi->radio_chanspec)) || \
 	 (pi->ipa5g_on && CHSPEC_IS5G(pi->radio_chanspec)))
 
-#define WLC_PHY_WAR_PR51571(pi) \
+#define BRCMS_PHY_WAR_PR51571(pi) \
 	if (((pi)->sh->bustype == PCI_BUS) && NREV_LT((pi)->pubpi.phy_rev, 3)) \
 		(void)R_REG(&(pi)->regs->maccontrol)
 

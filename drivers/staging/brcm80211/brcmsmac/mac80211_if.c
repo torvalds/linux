@@ -248,7 +248,7 @@ ieee_set_channel(struct ieee80211_hw *hw, struct ieee80211_channel *chan,
 	switch (type) {
 	case NL80211_CHAN_HT20:
 	case NL80211_CHAN_NO_HT:
-		err = brcms_c_set(wl->wlc, WLC_SET_CHANNEL, chan->hw_value);
+		err = brcms_c_set(wl->wlc, BRCM_SET_CHANNEL, chan->hw_value);
 		break;
 	case NL80211_CHAN_HT40MINUS:
 	case NL80211_CHAN_HT40PLUS:
@@ -310,13 +310,13 @@ static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 	}
 	if (changed & IEEE80211_CONF_CHANGE_RETRY_LIMITS) {
 		if (brcms_c_set
-		    (wl->wlc, WLC_SET_SRL,
+		    (wl->wlc, BRCM_SET_SRL,
 		     conf->short_frame_max_tx_count) < 0) {
 			wiphy_err(wiphy, "%s: Error setting srl\n", __func__);
 			err = -EIO;
 			goto config_out;
 		}
-		if (brcms_c_set(wl->wlc, WLC_SET_LRL,
+		if (brcms_c_set(wl->wlc, BRCM_SET_LRL,
 				conf->long_frame_max_tx_count) < 0) {
 			wiphy_err(wiphy, "%s: Error setting lrl\n", __func__);
 			err = -EIO;
@@ -355,7 +355,7 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		else
 			val = 0;
 		LOCK(wl);
-		brcms_c_set(wl->wlc, WLC_SET_SHORTSLOT_OVERRIDE, val);
+		brcms_c_set(wl->wlc, BRCMS_SET_SHORTSLOT_OVERRIDE, val);
 		UNLOCK(wl);
 	}
 
@@ -364,11 +364,11 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		u16 mode = info->ht_operation_mode;
 
 		LOCK(wl);
-		brcms_c_protection_upd(wl->wlc, WLC_PROT_N_CFG,
+		brcms_c_protection_upd(wl->wlc, BRCMS_PROT_N_CFG,
 			mode & IEEE80211_HT_OP_MODE_PROTECTION);
-		brcms_c_protection_upd(wl->wlc, WLC_PROT_N_NONGF,
+		brcms_c_protection_upd(wl->wlc, BRCMS_PROT_N_NONGF,
 			mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
-		brcms_c_protection_upd(wl->wlc, WLC_PROT_N_OBSS,
+		brcms_c_protection_upd(wl->wlc, BRCMS_PROT_N_OBSS,
 			mode & IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT);
 		UNLOCK(wl);
 	}
@@ -381,7 +381,7 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 		/* retrieve the current rates */
 		LOCK(wl);
-		error = brcms_c_ioctl(wl->wlc, WLC_GET_CURR_RATESET,
+		error = brcms_c_ioctl(wl->wlc, BRCM_GET_CURR_RATESET,
 				  &rs, sizeof(rs), NULL);
 		UNLOCK(wl);
 		if (error) {
@@ -402,13 +402,13 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 		/* update the rate set */
 		LOCK(wl);
-		brcms_c_ioctl(wl->wlc, WLC_SET_RATESET, &rs, sizeof(rs), NULL);
+		brcms_c_ioctl(wl->wlc, BRCM_SET_RATESET, &rs, sizeof(rs), NULL);
 		UNLOCK(wl);
 	}
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		/* Beacon interval changed */
 		LOCK(wl);
-		brcms_c_set(wl->wlc, WLC_SET_BCNPRD, info->beacon_int);
+		brcms_c_set(wl->wlc, BRCM_SET_BCNPRD, info->beacon_int);
 		UNLOCK(wl);
 	}
 	if (changed & BSS_CHANGED_BSSID) {
@@ -1045,7 +1045,7 @@ static int ieee_hw_rate_init(struct ieee80211_hw *hw)
 	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = NULL;
 	hw->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
 
-	if (brcms_c_get(wl->wlc, WLC_GET_PHYLIST, (int *)&phy_list) < 0)
+	if (brcms_c_get(wl->wlc, BRCM_GET_PHYLIST, (int *)&phy_list) < 0)
 		wiphy_err(hw->wiphy, "Phy list failed\n");
 
 	if (phy_list[0] == 'n' || phy_list[0] == 'c') {
@@ -1382,9 +1382,9 @@ static void brcms_set_basic_rate(struct wl_rateset *rs, u16 rate, bool is_br)
 			continue;
 
 		if (is_br)
-			rs->rates[i] |= WLC_RATE_FLAG;
+			rs->rates[i] |= BRCMS_RATE_FLAG;
 		else
-			rs->rates[i] &= WLC_RATE_MASK;
+			rs->rates[i] &= BRCMS_RATE_MASK;
 		return;
 	}
 }

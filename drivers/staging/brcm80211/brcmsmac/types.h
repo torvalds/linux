@@ -191,11 +191,11 @@
 	 PHYTYPE_IS(phytype, PHY_TYPE_SSN))
 
 /* Last but not least: shorter wlc-specific var checks */
-#define WLCISNPHY(band)		PHYTYPE_IS((band)->phytype, PHY_TYPE_N)
-#define WLCISLCNPHY(band)	PHYTYPE_IS((band)->phytype, PHY_TYPE_LCN)
-#define WLCISSSLPNPHY(band)	PHYTYPE_IS((band)->phytype, PHY_TYPE_SSN)
+#define BRCMS_ISNPHY(band)		PHYTYPE_IS((band)->phytype, PHY_TYPE_N)
+#define BRCMS_ISLCNPHY(band)	PHYTYPE_IS((band)->phytype, PHY_TYPE_LCN)
+#define BRCMS_ISSSLPNPHY(band)	PHYTYPE_IS((band)->phytype, PHY_TYPE_SSN)
 
-#define WLC_PHY_11N_CAP(band)	PHYTYPE_11N_CAP((band)->phytype)
+#define BRCMS_PHY_11N_CAP(band)	PHYTYPE_11N_CAP((band)->phytype)
 
 /**********************************************************************
  * ------------- End of Core phy/rev configuration. ----------------- *
@@ -227,12 +227,18 @@
 #define MAXPKTCB	MAXSCB	/* Max number of packet callbacks */
 
 /* NetBSD also needs to keep track of this */
-#define WLC_MAX_UCODE_BSS	(16)	/* Number of BSS handled in ucode bcn/prb */
-#define WLC_MAX_UCODE_BSS4	(4)	/* Number of BSS handled in sw bcn/prb */
-#define WLC_MAXBSSCFG		(1)	/* max # BSS configs */
-#define MAXBSS		64	/* max # available networks */
-#define WLC_DATAHIWAT		50	/* data msg txq hiwat mark */
-#define WLC_AMPDUDATAHIWAT 255
+
+/* Number of BSS handled in ucode bcn/prb */
+#define BRCMS_MAX_UCODE_BSS	(16)
+/* Number of BSS handled in sw bcn/prb */
+#define BRCMS_MAX_UCODE_BSS4	(4)
+/* max # BSS configs */
+#define BRCMS_MAXBSSCFG		(1)
+/* max # available networks */
+#define MAXBSS		64
+/* data msg txq hiwat mark */
+#define BRCMS_DATAHIWAT		50
+#define BRCMS_AMPDUDATAHIWAT 255
 
 /* bounded rx loops */
 #define RXBND		8	/* max # frames to process in brcms_c_recv() */
@@ -240,8 +246,8 @@
 
 #define WLBANDINITFN(_fn)	_fn
 
-#define BAND_5G(bt)	((bt) == WLC_BAND_5G)
-#define BAND_2G(bt)	((bt) == WLC_BAND_2G)
+#define BAND_5G(bt)	((bt) == BRCM_BAND_5G)
+#define BAND_2G(bt)	((bt) == BRCM_BAND_2G)
 
 #define BCMMSG(dev, fmt, args...)		\
 do {						\

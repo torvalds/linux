@@ -681,17 +681,17 @@ struct cck_phy_hdr {
 #define MIMO_PLCP_40MHZ		0x80	/* 40 Hz frame */
 #define MIMO_PLCP_AMPDU		0x08	/* ampdu */
 
-#define WLC_GET_CCK_PLCP_LEN(plcp) (plcp[4] + (plcp[5] << 8))
-#define WLC_GET_MIMO_PLCP_LEN(plcp) (plcp[1] + (plcp[2] << 8))
-#define WLC_SET_MIMO_PLCP_LEN(plcp, len) \
+#define BRCMS_GET_CCK_PLCP_LEN(plcp) (plcp[4] + (plcp[5] << 8))
+#define BRCMS_GET_MIMO_PLCP_LEN(plcp) (plcp[1] + (plcp[2] << 8))
+#define BRCMS_SET_MIMO_PLCP_LEN(plcp, len) \
 	do { \
 		plcp[1] = len & 0xff; \
 		plcp[2] = ((len >> 8) & 0xff); \
 	} while (0);
 
-#define WLC_SET_MIMO_PLCP_AMPDU(plcp) (plcp[3] |= MIMO_PLCP_AMPDU)
-#define WLC_CLR_MIMO_PLCP_AMPDU(plcp) (plcp[3] &= ~MIMO_PLCP_AMPDU)
-#define WLC_IS_MIMO_PLCP_AMPDU(plcp) (plcp[3] & MIMO_PLCP_AMPDU)
+#define BRCMS_SET_MIMO_PLCP_AMPDU(plcp) (plcp[3] |= MIMO_PLCP_AMPDU)
+#define BRCMS_CLR_MIMO_PLCP_AMPDU(plcp) (plcp[3] &= ~MIMO_PLCP_AMPDU)
+#define BRCMS_IS_MIMO_PLCP_AMPDU(plcp) (plcp[3] & MIMO_PLCP_AMPDU)
 
 /* The dot11a PLCP header is 5 bytes.  To simplify the software (so that we
  * don't need e.g. different tx DMA headers for 11a and 11b), the PLCP header has

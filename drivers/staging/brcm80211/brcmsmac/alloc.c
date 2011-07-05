@@ -36,11 +36,11 @@ static void brcms_c_tunables_init(struct brcms_tunables *tunables, uint devid)
 	tunables->maxscb = MAXSCB;
 	tunables->ampdunummpdu = AMPDU_NUM_MPDU;
 	tunables->maxpktcb = MAXPKTCB;
-	tunables->maxucodebss = WLC_MAX_UCODE_BSS;
-	tunables->maxucodebss4 = WLC_MAX_UCODE_BSS4;
+	tunables->maxucodebss = BRCMS_MAX_UCODE_BSS;
+	tunables->maxucodebss4 = BRCMS_MAX_UCODE_BSS4;
 	tunables->maxbss = MAXBSS;
-	tunables->datahiwat = WLC_DATAHIWAT;
-	tunables->ampdudatahiwat = WLC_AMPDUDATAHIWAT;
+	tunables->datahiwat = BRCMS_DATAHIWAT;
+	tunables->ampdudatahiwat = BRCMS_AMPDUDATAHIWAT;
 	tunables->rxbnd = RXBND;
 	tunables->txsbnd = TXSBND;
 }
@@ -169,7 +169,7 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 	}
 
 	wlc->modulecb =
-		kzalloc(sizeof(struct modulecb) * WLC_MAXMODULES, GFP_ATOMIC);
+		kzalloc(sizeof(struct modulecb) * BRCMS_MAXMODULES, GFP_ATOMIC);
 	if (wlc->modulecb == NULL) {
 		*err = 1009;
 		goto fail;
@@ -189,13 +189,14 @@ struct brcms_c_info *brcms_c_attach_malloc(uint unit, uint *err, uint devid)
 	brcms_c_bsscfg_ID_assign(wlc, wlc->cfg);
 
 	wlc->wsec_def_keys[0] =
-		kzalloc(sizeof(struct wsec_key) * WLC_DEFAULT_KEYS, GFP_ATOMIC);
+		kzalloc(sizeof(struct wsec_key) * BRCMS_DEFAULT_KEYS,
+			GFP_ATOMIC);
 	if (wlc->wsec_def_keys[0] == NULL) {
 		*err = 1015;
 		goto fail;
 	} else {
 		int i;
-		for (i = 1; i < WLC_DEFAULT_KEYS; i++) {
+		for (i = 1; i < BRCMS_DEFAULT_KEYS; i++) {
 			wlc->wsec_def_keys[i] = (struct wsec_key *)
 			    ((unsigned long)wlc->wsec_def_keys[0] +
 			     (sizeof(struct wsec_key) * i));

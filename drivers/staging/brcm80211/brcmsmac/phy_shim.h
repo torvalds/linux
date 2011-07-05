@@ -63,9 +63,9 @@
 #define WL_ANT_IDX_2		1	/* antenna index 2 */
 
 /* values for n_preamble_type */
-#define WLC_N_PREAMBLE_MIXEDMODE	0
-#define WLC_N_PREAMBLE_GF		1
-#define WLC_N_PREAMBLE_GF_BRCM          2
+#define BRCMS_N_PREAMBLE_MIXEDMODE	0
+#define BRCMS_N_PREAMBLE_GF		1
+#define BRCMS_N_PREAMBLE_GF_BRCM          2
 
 #define WL_TX_POWER_RATES_LEGACY	45
 #define WL_TX_POWER_MCS20_FIRST	        12
@@ -105,8 +105,8 @@
 #define WL_TX_POWER_F_SISO	8
 
 /* values to force tx/rx chain */
-#define WLC_N_TXRX_CHAIN0		0
-#define WLC_N_TXRX_CHAIN1		1
+#define BRCMS_N_TXRX_CHAIN0		0
+#define BRCMS_N_TXRX_CHAIN1		1
 
 extern struct phy_shim_info *wlc_phy_shim_attach(struct brcms_hardware *wlc_hw,
 						void *wl, void *wlc);

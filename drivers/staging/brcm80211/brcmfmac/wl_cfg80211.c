@@ -363,18 +363,18 @@ do {									\
 	}
 
 static struct ieee80211_rate __wl_rates[] = {
-	RATETAB_ENT(WLC_RATE_1M, 0),
-	RATETAB_ENT(WLC_RATE_2M, IEEE80211_RATE_SHORT_PREAMBLE),
-	RATETAB_ENT(WLC_RATE_5M5, IEEE80211_RATE_SHORT_PREAMBLE),
-	RATETAB_ENT(WLC_RATE_11M, IEEE80211_RATE_SHORT_PREAMBLE),
-	RATETAB_ENT(WLC_RATE_6M, 0),
-	RATETAB_ENT(WLC_RATE_9M, 0),
-	RATETAB_ENT(WLC_RATE_12M, 0),
-	RATETAB_ENT(WLC_RATE_18M, 0),
-	RATETAB_ENT(WLC_RATE_24M, 0),
-	RATETAB_ENT(WLC_RATE_36M, 0),
-	RATETAB_ENT(WLC_RATE_48M, 0),
-	RATETAB_ENT(WLC_RATE_54M, 0),
+	RATETAB_ENT(BRCM_RATE_1M, 0),
+	RATETAB_ENT(BRCM_RATE_2M, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(BRCM_RATE_5M5, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(BRCM_RATE_11M, IEEE80211_RATE_SHORT_PREAMBLE),
+	RATETAB_ENT(BRCM_RATE_6M, 0),
+	RATETAB_ENT(BRCM_RATE_9M, 0),
+	RATETAB_ENT(BRCM_RATE_12M, 0),
+	RATETAB_ENT(BRCM_RATE_18M, 0),
+	RATETAB_ENT(BRCM_RATE_24M, 0),
+	RATETAB_ENT(BRCM_RATE_36M, 0),
+	RATETAB_ENT(BRCM_RATE_48M, 0),
+	RATETAB_ENT(BRCM_RATE_54M, 0),
 };
 
 #define wl_a_rates		(__wl_rates + 4)
@@ -895,7 +895,7 @@ static s32 brcmf_set_frag(struct net_device *dev, u32 frag_threshold)
 static s32 brcmf_set_retry(struct net_device *dev, u32 retry, bool l)
 {
 	s32 err = 0;
-	u32 cmd = (l ? WLC_SET_LRL : WLC_SET_SRL);
+	u32 cmd = (l ? BRCM_SET_LRL : BRCM_SET_SRL);
 
 	retry = cpu_to_le32(retry);
 	err = brcmf_dev_ioctl(dev, cmd, &retry, sizeof(retry));
@@ -1025,7 +1025,7 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	else
 		bcnprd = cpu_to_le32(100);
 
-	err = brcmf_dev_ioctl(dev, WLC_SET_BCNPRD, &bcnprd, sizeof(bcnprd));
+	err = brcmf_dev_ioctl(dev, BRCM_SET_BCNPRD, &bcnprd, sizeof(bcnprd));
 	if (unlikely(err)) {
 		WL_ERR("WLC_SET_BCNPRD failed (%d)\n", err);
 		goto done;
@@ -1068,7 +1068,7 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
 		/* set channel for starter */
 		target_channel = cpu_to_le32(cfg_priv->channel);
-		err = brcmf_dev_ioctl(dev, WLC_SET_CHANNEL,
+		err = brcmf_dev_ioctl(dev, BRCM_SET_CHANNEL,
 			&target_channel, sizeof(target_channel));
 		if (unlikely(err)) {
 			WL_ERR("WLC_SET_CHANNEL failed (%d)\n", err);
@@ -2039,7 +2039,7 @@ brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *dev,
 
 	/* addr param is always NULL. ignore it */
 	/* Get current rateset */
-	err = brcmf_dev_ioctl(dev, WLC_GET_CURR_RATESET, &rateset,
+	err = brcmf_dev_ioctl(dev, BRCM_GET_CURR_RATESET, &rateset,
 			sizeof(rateset));
 	if (unlikely(err)) {
 		WL_ERR("could not get current rateset (%d)\n", err);
@@ -3755,7 +3755,7 @@ brcmf_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
 	}
 
 	roamtrigger[0] = WL_ROAM_TRIGGER_LEVEL;
-	roamtrigger[1] = WLC_BAND_ALL;
+	roamtrigger[1] = BRCM_BAND_ALL;
 	err = brcmf_dev_ioctl(ndev, BRCMF_C_SET_ROAM_TRIGGER,
 			(void *)roamtrigger, sizeof(roamtrigger));
 	if (unlikely(err)) {
@@ -3764,7 +3764,7 @@ brcmf_dongle_roam(struct net_device *ndev, u32 roamvar, u32 bcn_timeout)
 	}
 
 	roam_delta[0] = WL_ROAM_DELTA;
-	roam_delta[1] = WLC_BAND_ALL;
+	roam_delta[1] = BRCM_BAND_ALL;
 	err = brcmf_dev_ioctl(ndev, BRCMF_C_SET_ROAM_DELTA,
 				(void *)roam_delta, sizeof(roam_delta));
 	if (unlikely(err)) {
@@ -3865,8 +3865,8 @@ static s32 wl_update_wiphybands(struct brcmf_cfg80211_priv *cfg_priv)
 	s8 phy;
 	s32 err = 0;
 
-	err = brcmf_dev_ioctl(cfg_to_ndev(cfg_priv), WLC_GET_PHYLIST, &phy_list,
-			sizeof(phy_list));
+	err = brcmf_dev_ioctl(cfg_to_ndev(cfg_priv), BRCM_GET_PHYLIST,
+			      &phy_list, sizeof(phy_list));
 	if (unlikely(err)) {
 		WL_ERR("error (%d)\n", err);
 		return err;

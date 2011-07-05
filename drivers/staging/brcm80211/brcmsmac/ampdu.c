@@ -164,7 +164,7 @@ struct ampdu_info *brcms_c_ampdu_attach(struct brcms_c_info *wlc)
 
 	ampdu->ffpld_rsvd = AMPDU_DEF_FFPLD_RSVD;
 	/* bump max ampdu rcv size to 64k for all 11n devices except 4321A0 and 4321A1 */
-	if (WLCISNPHY(wlc->band) && NREV_LT(wlc->band->phyrev, 2))
+	if (BRCMS_ISNPHY(wlc->band) && NREV_LT(wlc->band->phyrev, 2))
 		ampdu->rx_factor = IEEE80211_HT_MAX_AMPDU_32K;
 	else
 		ampdu->rx_factor = IEEE80211_HT_MAX_AMPDU_64K;
@@ -443,10 +443,10 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 	struct sk_buff *p, *pkt[AMPDU_MAX_MPDU];
 	u8 tid, ndelim;
 	int err = 0;
-	u8 preamble_type = WLC_GF_PREAMBLE;
-	u8 fbr_preamble_type = WLC_GF_PREAMBLE;
-	u8 rts_preamble_type = WLC_LONG_PREAMBLE;
-	u8 rts_fbr_preamble_type = WLC_LONG_PREAMBLE;
+	u8 preamble_type = BRCMS_GF_PREAMBLE;
+	u8 fbr_preamble_type = BRCMS_GF_PREAMBLE;
+	u8 rts_preamble_type = BRCMS_LONG_PREAMBLE;
+	u8 rts_fbr_preamble_type = BRCMS_LONG_PREAMBLE;
 
 	bool rr = true, fbr = false;
 	uint i, count = 0, fifo, seg_cnt = 0;
@@ -551,8 +551,8 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 		}
 
 		/* extract the length info */
-		len = fbr_iscck ? WLC_GET_CCK_PLCP_LEN(txh->FragPLCPFallback)
-		    : WLC_GET_MIMO_PLCP_LEN(txh->FragPLCPFallback);
+		len = fbr_iscck ? BRCMS_GET_CCK_PLCP_LEN(txh->FragPLCPFallback)
+		    : BRCMS_GET_MIMO_PLCP_LEN(txh->FragPLCPFallback);
 
 		/* retrieve null delimiter count */
 		ndelim = txh->RTSPLCPFallback[AMPDU_FBR_NULL_DELIM];
@@ -622,8 +622,8 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 
 			if (is40)
 				mimo_ctlchbw =
-				    CHSPEC_SB_UPPER(WLC_BAND_PI_RADIO_CHANSPEC)
-				    ? PHY_TXC1_BW_20MHZ_UP : PHY_TXC1_BW_20MHZ;
+				   CHSPEC_SB_UPPER(BRCMS_BAND_PI_RADIO_CHANSPEC)
+				   ? PHY_TXC1_BW_20MHZ_UP : PHY_TXC1_BW_20MHZ;
 
 			/* rebuild the rspec and rspec_fallback */
 			rspec = RSPEC_MIMORATE;
@@ -717,31 +717,31 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 
 		/* remove the pad len from last mpdu */
 		fbr_iscck = ((le16_to_cpu(txh->XtraFrameTypes) & 0x3) == 0);
-		len = fbr_iscck ? WLC_GET_CCK_PLCP_LEN(txh->FragPLCPFallback)
-		    : WLC_GET_MIMO_PLCP_LEN(txh->FragPLCPFallback);
+		len = fbr_iscck ? BRCMS_GET_CCK_PLCP_LEN(txh->FragPLCPFallback)
+		    : BRCMS_GET_MIMO_PLCP_LEN(txh->FragPLCPFallback);
 		ampdu_len -= roundup(len, 4) - len;
 
 		/* patch up the first txh & plcp */
 		txh = (struct d11txh *) pkt[0]->data;
 		plcp = (u8 *) (txh + 1);
 
-		WLC_SET_MIMO_PLCP_LEN(plcp, ampdu_len);
+		BRCMS_SET_MIMO_PLCP_LEN(plcp, ampdu_len);
 		/* mark plcp to indicate ampdu */
-		WLC_SET_MIMO_PLCP_AMPDU(plcp);
+		BRCMS_SET_MIMO_PLCP_AMPDU(plcp);
 
 		/* reset the mixed mode header durations */
 		if (txh->MModeLen) {
 			u16 mmodelen =
 			    brcms_c_calc_lsig_len(wlc, rspec, ampdu_len);
 			txh->MModeLen = cpu_to_le16(mmodelen);
-			preamble_type = WLC_MM_PREAMBLE;
+			preamble_type = BRCMS_MM_PREAMBLE;
 		}
 		if (txh->MModeFbrLen) {
 			u16 mmfbrlen =
 			    brcms_c_calc_lsig_len(wlc, rspec_fallback,
 						  ampdu_len);
 			txh->MModeFbrLen = cpu_to_le16(mmfbrlen);
-			fbr_preamble_type = WLC_MM_PREAMBLE;
+			fbr_preamble_type = BRCMS_MM_PREAMBLE;
 		}
 
 		/* set the preload length */
@@ -759,11 +759,11 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 			rts = (struct ieee80211_rts *)&txh->rts_frame;
 			if ((mch & TXC_PREAMBLE_RTS_MAIN_SHORT) ==
 			    TXC_PREAMBLE_RTS_MAIN_SHORT)
-				rts_preamble_type = WLC_SHORT_PREAMBLE;
+				rts_preamble_type = BRCMS_SHORT_PREAMBLE;
 
 			if ((mch & TXC_PREAMBLE_RTS_FB_SHORT) ==
 			    TXC_PREAMBLE_RTS_FB_SHORT)
-				rts_fbr_preamble_type = WLC_SHORT_PREAMBLE;
+				rts_fbr_preamble_type = BRCMS_SHORT_PREAMBLE;
 
 			durid =
 			    brcms_c_compute_rtscts_dur(wlc, use_cts, rts_rspec,
@@ -788,8 +788,8 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 		if (fbr) {
 			mch |= TXC_AMPDU_FBR;
 			txh->MacTxControlHigh = cpu_to_le16(mch);
-			WLC_SET_MIMO_PLCP_AMPDU(plcp);
-			WLC_SET_MIMO_PLCP_AMPDU(txh->FragPLCPFallback);
+			BRCMS_SET_MIMO_PLCP_AMPDU(plcp);
+			BRCMS_SET_MIMO_PLCP_AMPDU(txh->FragPLCPFallback);
 		}
 
 		BCMMSG(wlc->wiphy, "wl%d: count %d ampdu_len %d\n",
@@ -1046,9 +1046,9 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				ini->tx_in_transit--;
 				/* Use high prededence for retransmit to give some punch */
 				/* brcms_c_txq_enq(wlc, scb, p,
-				 * WLC_PRIO_TO_PREC(tid)); */
+				 * BRCMS_PRIO_TO_PREC(tid)); */
 				brcms_c_txq_enq(wlc, scb, p,
-					    WLC_PRIO_TO_HI_PREC(tid));
+					    BRCMS_PRIO_TO_HI_PREC(tid));
 			} else {
 				/* Retry timeout */
 				ini->tx_in_transit--;
@@ -1108,7 +1108,7 @@ static int brcms_c_ampdu_set(struct ampdu_info *ampdu, bool on)
 
 static bool brcms_c_ampdu_cap(struct ampdu_info *ampdu)
 {
-	if (WLC_PHY_11N_CAP(ampdu->wlc->band))
+	if (BRCMS_PHY_11N_CAP(ampdu->wlc->band))
 		return true;
 	else
 		return false;

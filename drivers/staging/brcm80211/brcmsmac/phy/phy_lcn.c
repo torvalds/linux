@@ -1606,15 +1606,15 @@ static void wlc_lcnphy_txpower_reset_npt(struct brcms_phy *pi)
 void wlc_lcnphy_txpower_recalc_target(struct brcms_phy *pi)
 {
 	struct phytbl_info tab;
-	u32 rate_table[WLC_NUM_RATES_CCK + WLC_NUM_RATES_OFDM +
-			  WLC_NUM_RATES_MCS_1_STREAM];
+	u32 rate_table[BRCMS_NUM_RATES_CCK + BRCMS_NUM_RATES_OFDM +
+			  BRCMS_NUM_RATES_MCS_1_STREAM];
 	uint i, j;
 	if (wlc_lcnphy_tempsense_based_pwr_ctrl_enabled(pi))
 		return;
 
 	for (i = 0, j = 0; i < ARRAY_SIZE(rate_table); i++, j++) {
 
-		if (i == WLC_NUM_RATES_CCK + WLC_NUM_RATES_OFDM)
+		if (i == BRCMS_NUM_RATES_CCK + BRCMS_NUM_RATES_OFDM)
 			j = TXP_FIRST_MCS_20_SISO;
 
 		rate_table[i] = (u32) ((s32) (-pi->tx_power_offset[j]));

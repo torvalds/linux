@@ -22,7 +22,7 @@
 #include "rate.h"
 
 /* Rate info per rate: It tells whether a rate is ofdm or not and its phy_rate value */
-const u8 rate_info[WLC_MAXRATE + 1] = {
+const u8 rate_info[BRCM_MAXRATE + 1] = {
 	/*  0     1     2     3     4     5     6     7     8     9 */
 /*   0 */ 0x00, 0x00, 0x0a, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00,
 /*  10 */ 0x00, 0x37, 0x8b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8f, 0x00,
@@ -41,102 +41,102 @@ const u8 rate_info[WLC_MAXRATE + 1] = {
 const struct brcms_mcs_info mcs_table[MCS_TABLE_SIZE] = {
 	/* MCS  0: SS 1, MOD: BPSK,  CR 1/2 */
 	{6500, 13500, CEIL(6500 * 10, 9), CEIL(13500 * 10, 9), 0x00,
-	 WLC_RATE_6M},
+	 BRCM_RATE_6M},
 	/* MCS  1: SS 1, MOD: QPSK,  CR 1/2 */
 	{13000, 27000, CEIL(13000 * 10, 9), CEIL(27000 * 10, 9), 0x08,
-	 WLC_RATE_12M},
+	 BRCM_RATE_12M},
 	/* MCS  2: SS 1, MOD: QPSK,  CR 3/4 */
 	{19500, 40500, CEIL(19500 * 10, 9), CEIL(40500 * 10, 9), 0x0A,
-	 WLC_RATE_18M},
+	 BRCM_RATE_18M},
 	/* MCS  3: SS 1, MOD: 16QAM, CR 1/2 */
 	{26000, 54000, CEIL(26000 * 10, 9), CEIL(54000 * 10, 9), 0x10,
-	 WLC_RATE_24M},
+	 BRCM_RATE_24M},
 	/* MCS  4: SS 1, MOD: 16QAM, CR 3/4 */
 	{39000, 81000, CEIL(39000 * 10, 9), CEIL(81000 * 10, 9), 0x12,
-	 WLC_RATE_36M},
+	 BRCM_RATE_36M},
 	/* MCS  5: SS 1, MOD: 64QAM, CR 2/3 */
 	{52000, 108000, CEIL(52000 * 10, 9), CEIL(108000 * 10, 9), 0x19,
-	 WLC_RATE_48M},
+	 BRCM_RATE_48M},
 	/* MCS  6: SS 1, MOD: 64QAM, CR 3/4 */
 	{58500, 121500, CEIL(58500 * 10, 9), CEIL(121500 * 10, 9), 0x1A,
-	 WLC_RATE_54M},
+	 BRCM_RATE_54M},
 	/* MCS  7: SS 1, MOD: 64QAM, CR 5/6 */
 	{65000, 135000, CEIL(65000 * 10, 9), CEIL(135000 * 10, 9), 0x1C,
-	 WLC_RATE_54M},
+	 BRCM_RATE_54M},
 	/* MCS  8: SS 2, MOD: BPSK,  CR 1/2 */
 	{13000, 27000, CEIL(13000 * 10, 9), CEIL(27000 * 10, 9), 0x40,
-	 WLC_RATE_6M},
+	 BRCM_RATE_6M},
 	/* MCS  9: SS 2, MOD: QPSK,  CR 1/2 */
 	{26000, 54000, CEIL(26000 * 10, 9), CEIL(54000 * 10, 9), 0x48,
-	 WLC_RATE_12M},
+	 BRCM_RATE_12M},
 	/* MCS 10: SS 2, MOD: QPSK,  CR 3/4 */
 	{39000, 81000, CEIL(39000 * 10, 9), CEIL(81000 * 10, 9), 0x4A,
-	 WLC_RATE_18M},
+	 BRCM_RATE_18M},
 	/* MCS 11: SS 2, MOD: 16QAM, CR 1/2 */
 	{52000, 108000, CEIL(52000 * 10, 9), CEIL(108000 * 10, 9), 0x50,
-	 WLC_RATE_24M},
+	 BRCM_RATE_24M},
 	/* MCS 12: SS 2, MOD: 16QAM, CR 3/4 */
 	{78000, 162000, CEIL(78000 * 10, 9), CEIL(162000 * 10, 9), 0x52,
-	 WLC_RATE_36M},
+	 BRCM_RATE_36M},
 	/* MCS 13: SS 2, MOD: 64QAM, CR 2/3 */
 	{104000, 216000, CEIL(104000 * 10, 9), CEIL(216000 * 10, 9), 0x59,
-	 WLC_RATE_48M},
+	 BRCM_RATE_48M},
 	/* MCS 14: SS 2, MOD: 64QAM, CR 3/4 */
 	{117000, 243000, CEIL(117000 * 10, 9), CEIL(243000 * 10, 9), 0x5A,
-	 WLC_RATE_54M},
+	 BRCM_RATE_54M},
 	/* MCS 15: SS 2, MOD: 64QAM, CR 5/6 */
 	{130000, 270000, CEIL(130000 * 10, 9), CEIL(270000 * 10, 9), 0x5C,
-	 WLC_RATE_54M},
+	 BRCM_RATE_54M},
 	/* MCS 16: SS 3, MOD: BPSK,  CR 1/2 */
 	{19500, 40500, CEIL(19500 * 10, 9), CEIL(40500 * 10, 9), 0x80,
-	 WLC_RATE_6M},
+	 BRCM_RATE_6M},
 	/* MCS 17: SS 3, MOD: QPSK,  CR 1/2 */
 	{39000, 81000, CEIL(39000 * 10, 9), CEIL(81000 * 10, 9), 0x88,
-	 WLC_RATE_12M},
+	 BRCM_RATE_12M},
 	/* MCS 18: SS 3, MOD: QPSK,  CR 3/4 */
 	{58500, 121500, CEIL(58500 * 10, 9), CEIL(121500 * 10, 9), 0x8A,
-	 WLC_RATE_18M},
+	 BRCM_RATE_18M},
 	/* MCS 19: SS 3, MOD: 16QAM, CR 1/2 */
 	{78000, 162000, CEIL(78000 * 10, 9), CEIL(162000 * 10, 9), 0x90,
-	 WLC_RATE_24M},
+	 BRCM_RATE_24M},
 	/* MCS 20: SS 3, MOD: 16QAM, CR 3/4 */
 	{117000, 243000, CEIL(117000 * 10, 9), CEIL(243000 * 10, 9), 0x92,
-	 WLC_RATE_36M},
+	 BRCM_RATE_36M},
 	/* MCS 21: SS 3, MOD: 64QAM, CR 2/3 */
 	{156000, 324000, CEIL(156000 * 10, 9), CEIL(324000 * 10, 9), 0x99,
-	 WLC_RATE_48M},
+	 BRCM_RATE_48M},
 	/* MCS 22: SS 3, MOD: 64QAM, CR 3/4 */
 	{175500, 364500, CEIL(175500 * 10, 9), CEIL(364500 * 10, 9), 0x9A,
-	 WLC_RATE_54M},
+	 BRCM_RATE_54M},
 	/* MCS 23: SS 3, MOD: 64QAM, CR 5/6 */
 	{195000, 405000, CEIL(195000 * 10, 9), CEIL(405000 * 10, 9), 0x9B,
-	 WLC_RATE_54M},
+	 BRCM_RATE_54M},
 	/* MCS 24: SS 4, MOD: BPSK,  CR 1/2 */
 	{26000, 54000, CEIL(26000 * 10, 9), CEIL(54000 * 10, 9), 0xC0,
-	 WLC_RATE_6M},
+	 BRCM_RATE_6M},
 	/* MCS 25: SS 4, MOD: QPSK,  CR 1/2 */
 	{52000, 108000, CEIL(52000 * 10, 9), CEIL(108000 * 10, 9), 0xC8,
-	 WLC_RATE_12M},
+	 BRCM_RATE_12M},
 	/* MCS 26: SS 4, MOD: QPSK,  CR 3/4 */
 	{78000, 162000, CEIL(78000 * 10, 9), CEIL(162000 * 10, 9), 0xCA,
-	 WLC_RATE_18M},
+	 BRCM_RATE_18M},
 	/* MCS 27: SS 4, MOD: 16QAM, CR 1/2 */
 	{104000, 216000, CEIL(104000 * 10, 9), CEIL(216000 * 10, 9), 0xD0,
-	 WLC_RATE_24M},
+	 BRCM_RATE_24M},
 	/* MCS 28: SS 4, MOD: 16QAM, CR 3/4 */
 	{156000, 324000, CEIL(156000 * 10, 9), CEIL(324000 * 10, 9), 0xD2,
-	 WLC_RATE_36M},
+	 BRCM_RATE_36M},
 	/* MCS 29: SS 4, MOD: 64QAM, CR 2/3 */
 	{208000, 432000, CEIL(208000 * 10, 9), CEIL(432000 * 10, 9), 0xD9,
-	 WLC_RATE_48M},
+	 BRCM_RATE_48M},
 	/* MCS 30: SS 4, MOD: 64QAM, CR 3/4 */
 	{234000, 486000, CEIL(234000 * 10, 9), CEIL(486000 * 10, 9), 0xDA,
-	 WLC_RATE_54M},
+	 BRCM_RATE_54M},
 	/* MCS 31: SS 4, MOD: 64QAM, CR 5/6 */
 	{260000, 540000, CEIL(260000 * 10, 9), CEIL(540000 * 10, 9), 0xDB,
-	 WLC_RATE_54M},
+	 BRCM_RATE_54M},
 	/* MCS 32: SS 1, MOD: BPSK,  CR 1/2 */
-	{0, 6000, 0, CEIL(6000 * 10, 9), 0x00, WLC_RATE_6M},
+	{0, 6000, 0, CEIL(6000 * 10, 9), 0x00, BRCM_RATE_6M},
 };
 
 /* phycfg for legacy OFDM frames: code rate, modulation scheme, spatial streams
@@ -155,18 +155,26 @@ struct legacy_phycfg {
 /* 0 = 1Mbps; 1 = 2Mbps; 2 = 5.5Mbps; 3 = 11Mbps */
 static const struct
 legacy_phycfg legacy_phycfg_table[LEGACY_PHYCFG_TABLE_SIZE] = {
-	{WLC_RATE_1M, 0x00},	/* CCK  1Mbps,  data rate  0 */
-	{WLC_RATE_2M, 0x08},	/* CCK  2Mbps,  data rate  1 */
-	{WLC_RATE_5M5, 0x10},	/* CCK  5.5Mbps,  data rate  2 */
-	{WLC_RATE_11M, 0x18},	/* CCK  11Mbps,  data rate   3 */
-	{WLC_RATE_6M, 0x00},	/* OFDM  6Mbps,  code rate 1/2, BPSK,   1 spatial stream */
-	{WLC_RATE_9M, 0x02},	/* OFDM  9Mbps,  code rate 3/4, BPSK,   1 spatial stream */
-	{WLC_RATE_12M, 0x08},	/* OFDM  12Mbps, code rate 1/2, QPSK,   1 spatial stream */
-	{WLC_RATE_18M, 0x0A},	/* OFDM  18Mbps, code rate 3/4, QPSK,   1 spatial stream */
-	{WLC_RATE_24M, 0x10},	/* OFDM  24Mbps, code rate 1/2, 16-QAM, 1 spatial stream */
-	{WLC_RATE_36M, 0x12},	/* OFDM  36Mbps, code rate 3/4, 16-QAM, 1 spatial stream */
-	{WLC_RATE_48M, 0x19},	/* OFDM  48Mbps, code rate 2/3, 64-QAM, 1 spatial stream */
-	{WLC_RATE_54M, 0x1A},	/* OFDM  54Mbps, code rate 3/4, 64-QAM, 1 spatial stream */
+	{BRCM_RATE_1M, 0x00},	/* CCK  1Mbps,  data rate  0 */
+	{BRCM_RATE_2M, 0x08},	/* CCK  2Mbps,  data rate  1 */
+	{BRCM_RATE_5M5, 0x10},	/* CCK  5.5Mbps,  data rate  2 */
+	{BRCM_RATE_11M, 0x18},	/* CCK  11Mbps,  data rate   3 */
+	/* OFDM  6Mbps,  code rate 1/2, BPSK,   1 spatial stream */
+	{BRCM_RATE_6M, 0x00},
+	/* OFDM  9Mbps,  code rate 3/4, BPSK,   1 spatial stream */
+	{BRCM_RATE_9M, 0x02},
+	/* OFDM  12Mbps, code rate 1/2, QPSK,   1 spatial stream */
+	{BRCM_RATE_12M, 0x08},
+	/* OFDM  18Mbps, code rate 3/4, QPSK,   1 spatial stream */
+	{BRCM_RATE_18M, 0x0A},
+	/* OFDM  24Mbps, code rate 1/2, 16-QAM, 1 spatial stream */
+	{BRCM_RATE_24M, 0x10},
+	/* OFDM  36Mbps, code rate 3/4, 16-QAM, 1 spatial stream */
+	{BRCM_RATE_36M, 0x12},
+	/* OFDM  48Mbps, code rate 2/3, 64-QAM, 1 spatial stream */
+	{BRCM_RATE_48M, 0x19},
+	/* OFDM  54Mbps, code rate 3/4, 64-QAM, 1 spatial stream */
+	{BRCM_RATE_54M, 0x1A},
 };
 
 /* Hardware rates (also encodes default basic rates) */
@@ -262,7 +270,7 @@ static bool brcms_c_rateset_valid(wlc_rateset_t *rs, bool check_brate)
 
 	/* error if no basic rates */
 	for (idx = 0; idx < rs->count; idx++) {
-		if (rs->rates[idx] & WLC_RATE_FLAG)
+		if (rs->rates[idx] & BRCMS_RATE_FLAG)
 			return true;
 	}
 	return false;
@@ -283,7 +291,7 @@ brcms_c_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 				   const wlc_rateset_t *hw_rs,
 				   bool check_brate, u8 txstreams)
 {
-	u8 rateset[WLC_MAXRATE + 1];
+	u8 rateset[BRCM_MAXRATE + 1];
 	u8 r;
 	uint count;
 	uint i;
@@ -292,18 +300,17 @@ brcms_c_rate_hwrs_filter_sort_validate(wlc_rateset_t *rs,
 	count = rs->count;
 
 	for (i = 0; i < count; i++) {
-		/* mask off "basic rate" bit, WLC_RATE_FLAG */
-		r = (int)rs->rates[i] & WLC_RATE_MASK;
-		if ((r > WLC_MAXRATE) || (rate_info[r] == 0)) {
+		/* mask off "basic rate" bit, BRCMS_RATE_FLAG */
+		r = (int)rs->rates[i] & BRCMS_RATE_MASK;
+		if ((r > BRCM_MAXRATE) || (rate_info[r] == 0))
 			continue;
-		}
 		rateset[r] = rs->rates[i];	/* preserve basic bit! */
 	}
 
 	/* fill out the rates in order, looking at only supported rates */
 	count = 0;
 	for (i = 0; i < hw_rs->count; i++) {
-		r = hw_rs->rates[i] & WLC_RATE_MASK;
+		r = hw_rs->rates[i] & BRCMS_RATE_MASK;
 		if (rateset[r])
 			rs->rates[count++] = rateset[r];
 	}
@@ -395,18 +402,18 @@ brcms_c_rateset_filter(wlc_rateset_t *src, wlc_rateset_t *dst, bool basic_only,
 	count = 0;
 	for (i = 0; i < src->count; i++) {
 		r = src->rates[i];
-		if (basic_only && !(r & WLC_RATE_FLAG))
+		if (basic_only && !(r & BRCMS_RATE_FLAG))
 			continue;
-		if ((rates == WLC_RATES_CCK) && IS_OFDM((r & WLC_RATE_MASK)))
+		if (rates == BRCMS_RATES_CCK && IS_OFDM((r & BRCMS_RATE_MASK)))
 			continue;
-		if ((rates == WLC_RATES_OFDM) && IS_CCK((r & WLC_RATE_MASK)))
+		if (rates == BRCMS_RATES_OFDM && IS_CCK((r & BRCMS_RATE_MASK)))
 			continue;
 		dst->rates[count++] = r & xmask;
 	}
 	dst->count = count;
 	dst->htphy_membership = src->htphy_membership;
 
-	if (mcsallow && rates != WLC_RATES_CCK)
+	if (mcsallow && rates != BRCMS_RATES_CCK)
 		memcpy(&dst->mcs[0], &src->mcs[0], MCSSET_LEN);
 	else
 		brcms_c_rateset_mcs_clear(dst);
@@ -427,10 +434,10 @@ brcms_c_rateset_default(wlc_rateset_t *rs_tgt, const wlc_rateset_t *rs_hw,
 	    (PHYTYPE_IS(phy_type, PHY_TYPE_LCN)) ||
 	    (PHYTYPE_IS(phy_type, PHY_TYPE_SSN))) {
 		if (BAND_5G(bandtype)) {
-			rs_dflt = (bw == WLC_20_MHZ ?
+			rs_dflt = (bw == BRCMS_20_MHZ ?
 				   &ofdm_mimo_rates : &ofdm_40bw_mimo_rates);
 		} else {
-			rs_dflt = (bw == WLC_20_MHZ ?
+			rs_dflt = (bw == BRCMS_20_MHZ ?
 				   &cck_ofdm_mimo_rates :
 				   &cck_ofdm_40bw_mimo_rates);
 		}
@@ -452,7 +459,7 @@ brcms_c_rateset_default(wlc_rateset_t *rs_tgt, const wlc_rateset_t *rs_hw,
 	brcms_c_rateset_copy(rs_dflt, &rs_sel);
 	brcms_c_rateset_mcs_upd(&rs_sel, txstreams);
 	brcms_c_rateset_filter(&rs_sel, rs_tgt, false,
-			   cck_only ? WLC_RATES_CCK : WLC_RATES_CCK_OFDM,
+			   cck_only ? BRCMS_RATES_CCK : BRCMS_RATES_CCK_OFDM,
 			   rate_mask, mcsallow);
 	brcms_c_rate_hwrs_filter_sort_validate(rs_tgt, rs_hw, false,
 					   mcsallow ? txstreams : 1);
@@ -484,7 +491,7 @@ void brcms_c_rateset_mcs_build(wlc_rateset_t *rateset, u8 txstreams)
 /* Based on bandwidth passed, allow/disallow MCS 32 in the rateset */
 void brcms_c_rateset_bw_mcs_filter(wlc_rateset_t *rateset, u8 bw)
 {
-	if (bw == WLC_40_MHZ)
+	if (bw == BRCMS_40_MHZ)
 		setbit(rateset->mcs, 32);
 	else
 		clrbit(rateset->mcs, 32);

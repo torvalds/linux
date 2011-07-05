@@ -24,10 +24,12 @@
 #include "d11.h"
 
 #define MA_WINDOW_SZ		8	/* moving average window size */
-#define	WL_HWRXOFF		38	/* chip rx buffer offset */
+#define	BRCMS_HWRXOFF		38	/* chip rx buffer offset */
 #define	INVCHANNEL		255	/* invalid channel */
-#define	MAXCOREREV		28	/* max # supported core revisions (0 .. MAXCOREREV - 1) */
-#define WLC_MAXMODULES		22  /* max # brcms_c_module_register() calls */
+/* max # supported core revisions (0 .. MAXCOREREV - 1) */
+#define	MAXCOREREV		28
+/* max # brcms_c_module_register() calls */
+#define BRCMS_MAXMODULES	22
 
 #define SEQNUM_SHIFT		4
 #define AMPDU_DELIMITER_LEN	4
@@ -41,14 +43,15 @@
 
 #define NTXRATE			64	/* # tx MPDUs rate is reported for */
 
-#define WLC_BITSCNT(x)	brcmu_bitcount((u8 *)&(x), sizeof(u8))
+#define BRCMS_BITSCNT(x)	brcmu_bitcount((u8 *)&(x), sizeof(u8))
 
 /* Maximum wait time for a MAC suspend */
-#define	WLC_MAX_MAC_SUSPEND	83000	/* uS: 83mS is max packet time (64KB ampdu @ 6Mbps) */
+/* uS: 83mS is max packet time (64KB ampdu @ 6Mbps) */
+#define	BRCMS_MAX_MAC_SUSPEND	83000
 
 /* Probe Response timeout - responses for probe requests older that this are tossed, zero to disable
  */
-#define WLC_PRB_RESP_TIMEOUT	0	/* Disable probe response timeout */
+#define BRCMS_PRB_RESP_TIMEOUT	0	/* Disable probe response timeout */
 
 /* transmit buffer max headroom for protocol headers */
 #define TXOFF (D11_TXH_LEN + D11_PHY_HDR_LEN)
@@ -83,26 +86,28 @@
 #define	VALID_COREREV(corerev)	CONF_HAS(D11CONF, corerev)
 
 /* values for shortslot_override */
-#define WLC_SHORTSLOT_AUTO	-1	/* Driver will manage Shortslot setting */
-#define WLC_SHORTSLOT_OFF	0	/* Turn off short slot */
-#define WLC_SHORTSLOT_ON	1	/* Turn on short slot */
+#define BRCMS_SHORTSLOT_AUTO	-1 /* Driver will manage Shortslot setting */
+#define BRCMS_SHORTSLOT_OFF	0  /* Turn off short slot */
+#define BRCMS_SHORTSLOT_ON	1  /* Turn on short slot */
 
 /* value for short/long and mixmode/greenfield preamble */
-
-#define WLC_LONG_PREAMBLE	(0)
-#define WLC_SHORT_PREAMBLE	(1 << 0)
-#define WLC_GF_PREAMBLE		(1 << 1)
-#define WLC_MM_PREAMBLE		(1 << 2)
-#define WLC_IS_MIMO_PREAMBLE(_pre) (((_pre) == WLC_GF_PREAMBLE) || ((_pre) == WLC_MM_PREAMBLE))
+#define BRCMS_LONG_PREAMBLE	(0)
+#define BRCMS_SHORT_PREAMBLE	(1 << 0)
+#define BRCMS_GF_PREAMBLE		(1 << 1)
+#define BRCMS_MM_PREAMBLE		(1 << 2)
+#define BRCMS_IS_MIMO_PREAMBLE(_pre) (((_pre) == BRCMS_GF_PREAMBLE) || \
+				      ((_pre) == BRCMS_MM_PREAMBLE))
 
 /* values for barker_preamble */
-#define WLC_BARKER_SHORT_ALLOWED	0	/* Short pre-amble allowed */
+#define BRCMS_BARKER_SHORT_ALLOWED	0	/* Short pre-amble allowed */
 
 /* A fifo is full. Clear precedences related to that FIFO */
-#define WLC_TX_FIFO_CLEAR(wlc, fifo) ((wlc)->tx_prec_map &= ~(wlc)->fifo2prec_map[fifo])
+#define BRCMS_TX_FIFO_CLEAR(wlc, fifo) \
+			((wlc)->tx_prec_map &= ~(wlc)->fifo2prec_map[fifo])
 
 /* Fifo is NOT full. Enable precedences for that FIFO */
-#define WLC_TX_FIFO_ENAB(wlc, fifo)  ((wlc)->tx_prec_map |= (wlc)->fifo2prec_map[fifo])
+#define BRCMS_TX_FIFO_ENAB(wlc, fifo) \
+			((wlc)->tx_prec_map |= (wlc)->fifo2prec_map[fifo])
 
 /* TxFrameID */
 /* seq and frag bits: SEQNUM_SHIFT, FRAGNUM_MASK (802.11.h) */
@@ -121,10 +126,10 @@
 /* if wpa is in use then portopen is true when the group key is plumbed otherwise it is always true
  */
 #define WSEC_ENABLED(wsec) ((wsec) & (WEP_ENABLED | TKIP_ENABLED | AES_ENABLED))
-#define WLC_SW_KEYS(wlc, bsscfg) ((((wlc)->wsec_swkeys) || \
+#define BRCMS_SW_KEYS(wlc, bsscfg) ((((wlc)->wsec_swkeys) || \
 	((bsscfg)->wsec & WSEC_SWFLAG)))
 
-#define WLC_PORTOPEN(cfg) \
+#define BRCMS_PORTOPEN(cfg) \
 	(((cfg)->WPA_auth != WPA_AUTH_DISABLED && WSEC_ENABLED((cfg)->wsec)) ? \
 	(cfg)->wsec_portopen : true)
 
@@ -136,11 +141,11 @@
 extern const u8 prio2fifo[];
 
 /* Ucode MCTL_WAKE override bits */
-#define WLC_WAKE_OVERRIDE_CLKCTL	0x01
-#define WLC_WAKE_OVERRIDE_PHYREG	0x02
-#define WLC_WAKE_OVERRIDE_MACSUSPEND	0x04
-#define WLC_WAKE_OVERRIDE_TXFIFO	0x08
-#define WLC_WAKE_OVERRIDE_FORCEFAST	0x10
+#define BRCMS_WAKE_OVERRIDE_CLKCTL	0x01
+#define BRCMS_WAKE_OVERRIDE_PHYREG	0x02
+#define BRCMS_WAKE_OVERRIDE_MACSUSPEND	0x04
+#define BRCMS_WAKE_OVERRIDE_TXFIFO	0x08
+#define BRCMS_WAKE_OVERRIDE_FORCEFAST	0x10
 
 /* stuff pulled in from wlc.c */
 
@@ -179,24 +184,32 @@ extern const u8 prio2fifo[];
 
 #define	NFIFO			6	/* # tx/rx fifopairs */
 
-#define WLC_WME_RETRY_SHORT_GET(wlc, ac)    GFIELD(wlc->wme_retries[ac], EDCF_SHORT)
-#define WLC_WME_RETRY_SFB_GET(wlc, ac)      GFIELD(wlc->wme_retries[ac], EDCF_SFB)
-#define WLC_WME_RETRY_LONG_GET(wlc, ac)     GFIELD(wlc->wme_retries[ac], EDCF_LONG)
-#define WLC_WME_RETRY_LFB_GET(wlc, ac)      GFIELD(wlc->wme_retries[ac], EDCF_LFB)
+#define BRCMS_WME_RETRY_SHORT_GET(wlc, ac) \
+					GFIELD(wlc->wme_retries[ac], EDCF_SHORT)
+#define BRCMS_WME_RETRY_SFB_GET(wlc, ac) \
+					GFIELD(wlc->wme_retries[ac], EDCF_SFB)
+#define BRCMS_WME_RETRY_LONG_GET(wlc, ac) \
+					GFIELD(wlc->wme_retries[ac], EDCF_LONG)
+#define BRCMS_WME_RETRY_LFB_GET(wlc, ac) \
+					GFIELD(wlc->wme_retries[ac], EDCF_LFB)
 
-#define WLC_WME_RETRY_SHORT_SET(wlc, ac, val) \
+#define BRCMS_WME_RETRY_SHORT_SET(wlc, ac, val) \
 	(wlc->wme_retries[ac] = SFIELD(wlc->wme_retries[ac], EDCF_SHORT, val))
-#define WLC_WME_RETRY_SFB_SET(wlc, ac, val) \
+#define BRCMS_WME_RETRY_SFB_SET(wlc, ac, val) \
 	(wlc->wme_retries[ac] = SFIELD(wlc->wme_retries[ac], EDCF_SFB, val))
-#define WLC_WME_RETRY_LONG_SET(wlc, ac, val) \
+#define BRCMS_WME_RETRY_LONG_SET(wlc, ac, val) \
 	(wlc->wme_retries[ac] = SFIELD(wlc->wme_retries[ac], EDCF_LONG, val))
-#define WLC_WME_RETRY_LFB_SET(wlc, ac, val) \
+#define BRCMS_WME_RETRY_LFB_SET(wlc, ac, val) \
 	(wlc->wme_retries[ac] = SFIELD(wlc->wme_retries[ac], EDCF_LFB, val))
 
 /* PLL requests */
-#define WLC_PLLREQ_SHARED	0x1	/* pll is shared on old chips */
-#define WLC_PLLREQ_RADIO_MON	0x2	/* hold pll for radio monitor register checking */
-#define WLC_PLLREQ_FLIP		0x4	/* hold/release pll for some short operation */
+
+/* pll is shared on old chips */
+#define BRCMS_PLLREQ_SHARED	0x1
+/* hold pll for radio monitor register checking */
+#define BRCMS_PLLREQ_RADIO_MON	0x2
+/* hold/release pll for some short operation */
+#define BRCMS_PLLREQ_FLIP		0x4
 
 /*
  * Macros to check if AP or STA is active.
@@ -227,7 +240,7 @@ extern const u8 prio2fifo[];
 	(MCTL_PSM_JMP_0 | MCTL_IHR_EN)) != MCTL_IHR_EN) : \
 	(ai_deviceremoved(wlc->hw->sih)))
 
-#define WLCWLUNIT(wlc)		((wlc)->pub->unit)
+#define BRCMS_UNIT(wlc)		((wlc)->pub->unit)
 
 struct brcms_protection {
 	bool _g;		/* use g spec protection, driver internal */
@@ -270,37 +283,41 @@ struct brcms_stf {
 	s8 spatial_policy;
 };
 
-#define WLC_STF_SS_STBC_TX(wlc, scb) \
+#define BRCMS_STF_SS_STBC_TX(wlc, scb) \
 	(((wlc)->stf->txstreams > 1) && (((wlc)->band->band_stf_stbc_tx == ON) || \
 	 (SCB_STBC_CAP((scb)) &&					\
 	  (wlc)->band->band_stf_stbc_tx == AUTO &&			\
 	  isset(&((wlc)->stf->ss_algo_channel), PHY_TXC1_MODE_STBC))))
 
-#define WLC_STBC_CAP_PHY(wlc) (WLCISNPHY(wlc->band) && NREV_GE(wlc->band->phyrev, 3))
+#define BRCMS_STBC_CAP_PHY(wlc) (BRCMS_ISNPHY(wlc->band) && \
+				 NREV_GE(wlc->band->phyrev, 3))
 
-#define WLC_SGI_CAP_PHY(wlc) ((WLCISNPHY(wlc->band) && NREV_GE(wlc->band->phyrev, 3)) || \
-	WLCISLCNPHY(wlc->band))
+#define BRCMS_SGI_CAP_PHY(wlc) ((BRCMS_ISNPHY(wlc->band) && \
+				 NREV_GE(wlc->band->phyrev, 3)) || \
+				BRCMS_ISLCNPHY(wlc->band))
 
-#define WLC_CHAN_PHYTYPE(x)     (((x) & RXS_CHAN_PHYTYPE_MASK) >> RXS_CHAN_PHYTYPE_SHIFT)
-#define WLC_CHAN_CHANNEL(x)     (((x) & RXS_CHAN_ID_MASK) >> RXS_CHAN_ID_SHIFT)
-#define WLC_RX_CHANNEL(rxh)	(WLC_CHAN_CHANNEL((rxh)->RxChan))
+#define BRCMS_CHAN_PHYTYPE(x)     (((x) & RXS_CHAN_PHYTYPE_MASK) \
+				   >> RXS_CHAN_PHYTYPE_SHIFT)
+#define BRCMS_CHAN_CHANNEL(x)     (((x) & RXS_CHAN_ID_MASK) \
+				   >> RXS_CHAN_ID_SHIFT)
+#define BRCMS_RX_CHANNEL(rxh)	(BRCMS_CHAN_CHANNEL((rxh)->RxChan))
 
 /* brcms_bss_info flag bit values */
-#define WLC_BSS_HT		0x0020	/* BSS is HT (MIMO) capable */
+#define BRCMS_BSS_HT		0x0020	/* BSS is HT (MIMO) capable */
 
 /* Flags used in brcms_c_txq_info.stopped */
 #define TXQ_STOP_FOR_PRIOFC_MASK	0x000000FF	/* per prio flow control bits */
 #define TXQ_STOP_FOR_PKT_DRAIN		0x00000100	/* stop txq enqueue for packet drain */
 #define TXQ_STOP_FOR_AMPDU_FLOW_CNTRL	0x00000200	/* stop txq enqueue for ampdu flow control */
 
-#define WLC_HT_WEP_RESTRICT	0x01	/* restrict HT with WEP */
-#define WLC_HT_TKIP_RESTRICT	0x02	/* restrict HT with TKIP */
+#define BRCMS_HT_WEP_RESTRICT	0x01	/* restrict HT with WEP */
+#define BRCMS_HT_TKIP_RESTRICT	0x02	/* restrict HT with TKIP */
 
 /* Maximum # of keys that wl driver supports in S/W.
  * Keys supported in H/W is less than or equal to WSEC_MAX_KEYS.
  */
 #define WSEC_MAX_KEYS		54	/* Max # of keys (50 + 4 default keys) */
-#define WLC_DEFAULT_KEYS	4	/* Default # of keys */
+#define BRCMS_DEFAULT_KEYS	4	/* Default # of keys */
 
 /*
 * Max # of keys currently supported:
@@ -308,7 +325,7 @@ struct brcms_stf {
 *     s/w keys if WSEC_SW(wlc->wsec).
 *     h/w keys otherwise.
 */
-#define WLC_MAX_WSEC_KEYS(wlc) WSEC_MAX_KEYS
+#define BRCMS_MAX_WSEC_KEYS(wlc) WSEC_MAX_KEYS
 
 /* number of 802.11 default (non-paired, group keys) */
 #define WSEC_MAX_DEFAULT_KEYS	4	/* # of default keys */
@@ -318,7 +335,7 @@ struct wsec_iv {
 	u16 lo;		/* lower 16 bits of IV */
 };
 
-#define WLC_NUMRXIVS	16	/* # rx IVs (one per 802.11e TID) */
+#define BRCMS_NUMRXIVS	16	/* # rx IVs (one per 802.11e TID) */
 
 struct wsec_key {
 	u8 ea[ETH_ALEN];	/* per station */
@@ -334,7 +351,7 @@ struct wsec_key {
 	u32 len;		/* key length..don't move this var */
 	/* data is 4byte aligned */
 	u8 data[WLAN_MAX_KEY_LEN];	/* key data */
-	struct wsec_iv rxiv[WLC_NUMRXIVS];	/* Rx IV (one per TID) */
+	struct wsec_iv rxiv[BRCMS_NUMRXIVS];	/* Rx IV (one per TID) */
 	struct wsec_iv txiv;		/* Tx IV */
 };
 
@@ -355,7 +372,7 @@ struct brcms_core {
  * band state (phy+ana+radio)
  */
 struct brcms_band {
-	int bandtype;		/* WLC_BAND_2G, WLC_BAND_5G */
+	int bandtype;		/* BRCM_BAND_2G, BRCM_BAND_5G */
 	uint bandunit;		/* bandstate[] index */
 
 	u16 phytype;		/* phytype */
@@ -376,7 +393,7 @@ struct brcms_band {
 	u8 band_stf_ss_mode;	/* Configured STF type, 0:siso; 1:cdd */
 	s8 band_stf_stbc_tx;	/* STBC TX 0:off; 1:force on; -1:auto */
 	wlc_rateset_t hw_rateset;	/* rates supported by chip (phy-specific) */
-	u8 basic_rate[WLC_MAXRATE + 1];	/* basic rates indexed by rate */
+	u8 basic_rate[BRCM_MAXRATE + 1]; /* basic rates indexed by rate */
 	bool mimo_cap_40;	/* 40 MHz cap enabled on this band */
 	s8 antgain;		/* antenna gain from srom */
 
@@ -436,7 +453,7 @@ struct wme_param_ie {
 /* virtual interface */
 struct brcms_c_if {
 	struct brcms_c_if *next;
-	u8 type;		/* WLC_IFTYPE_BSS or WLC_IFTYPE_WDS */
+	u8 type;		/* BSS or WDS */
 	u8 index;		/* assigned in wl_add_if(), index of the wlif if any,
 				 * not necessarily corresponding to bsscfg._idx or
 				 * AID2PVBMAP(scb).
@@ -445,18 +462,18 @@ struct brcms_c_if {
 	struct brcms_if *wlif;		/* pointer to wlif */
 	struct brcms_txq_info *qi;	/* pointer to associated tx queue */
 	union {
-		/* pointer to scb if WLC_IFTYPE_WDS */
+		/* pointer to scb if WDS */
 		struct scb *scb;
-		/* pointer to bsscfg if WLC_IFTYPE_BSS */
+		/* pointer to bsscfg if BSS */
 		struct brcms_bss_cfg *bsscfg;
 	} u;
 };
 
 /* flags for the interface, this interface is linked to a brcms_if */
-#define WLC_IF_LINKED		0x02
+#define BRCMS_IF_LINKED		0x02
 
 struct brcms_hw_band {
-	int bandtype;		/* WLC_BAND_2G, WLC_BAND_5G */
+	int bandtype;		/* BRCM_BAND_2G, BRCM_BAND_5G */
 	uint bandunit;		/* bandstate[] index */
 	u16 mhfs[MHFMAX];	/* MHF array shadow */
 	u8 bandhw_stf_ss_mode;	/* HW configured STF type, 0:siso; 1:cdd */
@@ -673,7 +690,7 @@ struct brcms_c_info {
 	 * BSS Configurations set of BSS configurations, idx 0 is default and
 	 * always valid
 	 */
-	struct brcms_bss_cfg *bsscfg[WLC_MAXBSSCFG];
+	struct brcms_bss_cfg *bsscfg[BRCMS_MAXBSSCFG];
 	struct brcms_bss_cfg *cfg; /* the primary bsscfg (can be AP or STA) */
 
 	/* tx queue */
@@ -682,7 +699,7 @@ struct brcms_c_info {
 	/* security */
 	struct wsec_key *wsec_keys[WSEC_MAX_KEYS]; /* dynamic key storage */
 	/* default key storage */
-	struct wsec_key *wsec_def_keys[WLC_DEFAULT_KEYS];
+	struct wsec_key *wsec_def_keys[BRCMS_DEFAULT_KEYS];
 	bool wsec_swkeys;	/* indicates that all keys should be
 				 * treated as sw keys (used for debugging)
 				 */
@@ -699,12 +716,10 @@ struct brcms_c_info {
 
 	u16 mc_fid_counter;	/* BC/MC FIFO frame ID counter */
 
-	char country_default[WLC_CNTRY_BUF_SZ];	/* saved country for leaving 802.11d
-						 * auto-country mode
-						 */
-	char autocountry_default[WLC_CNTRY_BUF_SZ];	/* initial country for 802.11d
-							 * auto-country mode
-							 */
+	/* saved country for leaving 802.11d auto-country mode */
+	char country_default[BRCM_CNTRY_BUF_SZ];
+	/* initial country for 802.11d auto-country mode */
+	char autocountry_default[BRCM_CNTRY_BUF_SZ];
 	u16 prb_resp_timeout;	/* do not send prb resp if request older than this,
 					 * 0 = disable
 					 */
@@ -800,7 +815,7 @@ struct brcms_bss_cfg {
 	struct wsec_iv wpa_none_txiv;
 	int wsec_index;		/* 0-3: default tx key, -1: not set */
 	/* default key storage: */
-	struct wsec_key *bss_def_keys[WLC_DEFAULT_KEYS];
+	struct wsec_key *bss_def_keys[BRCMS_DEFAULT_KEYS];
 
 	/* TKIP countermeasures */
 	bool tkip_countermeasures;	/* flags TKIP no-assoc period */
@@ -814,7 +829,7 @@ struct brcms_bss_cfg {
 	u16 bcmc_fid;	/* the last BCMC FID queued to TX_BCMC_FIFO */
 	u16 bcmc_fid_shm;	/* the last BCMC FID written to shared mem */
 
-	u32 flags;		/* WLC_BSSCFG flags; see below */
+	u32 flags;		/* BSSCFG flags; see below */
 
 	u8 *bcn;		/* AP beacon */
 	uint bcn_len;		/* AP beacon length */
@@ -853,7 +868,7 @@ struct brcms_bss_cfg {
 #define IS_MBAND_UNLOCKED(wlc) \
 	((NBANDS(wlc) > 1) && !(wlc)->bandlocked)
 
-#define WLC_BAND_PI_RADIO_CHANSPEC wlc_phy_chanspec_get(wlc->band->pi)
+#define BRCMS_BAND_PI_RADIO_CHANSPEC wlc_phy_chanspec_get(wlc->band->pi)
 
 /* sum the individual fifo tx pending packet counts */
 #define	TXPKTPENDTOT(wlc) ((wlc)->core->txpktpend[0] + (wlc)->core->txpktpend[1] + \
@@ -866,7 +881,7 @@ struct brcms_bss_cfg {
 #define GETNEXTTXP(wlc, _queue)								\
 		dma_getnexttxp((wlc)->hw->di[(_queue)], DMA_RANGE_TRANSMITTED)
 
-#define WLC_IS_MATCH_SSID(wlc, ssid1, ssid2, len1, len2) \
+#define BRCMS_IS_MATCH_SSID(wlc, ssid1, ssid2, len1, len2) \
 	((len1 == len2) && !memcmp(ssid1, ssid2, len1))
 
 extern void brcms_c_fatal_error(struct brcms_c_info *wlc);

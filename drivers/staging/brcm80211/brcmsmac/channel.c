@@ -41,12 +41,12 @@ struct brcms_cm_band {
 struct brcms_cm_info {
 	struct brcms_pub *pub;
 	struct brcms_c_info *wlc;
-	char srom_ccode[WLC_CNTRY_BUF_SZ];	/* Country Code in SROM */
+	char srom_ccode[BRCM_CNTRY_BUF_SZ];	/* Country Code in SROM */
 	uint srom_regrev;	/* Regulatory Rev for the SROM ccode */
 	const struct country_info *country;	/* current country def */
-	char ccode[WLC_CNTRY_BUF_SZ];	/* current internal Country Code */
+	char ccode[BRCM_CNTRY_BUF_SZ];	/* current internal Country Code */
 	uint regrev;		/* current Regulatory Revision */
-	char country_abbrev[WLC_CNTRY_BUF_SZ];	/* current advertised ccode */
+	char country_abbrev[BRCM_CNTRY_BUF_SZ];	/* current advertised ccode */
 	/* per-band state (one per phy/radio) */
 	struct brcms_cm_band bandstate[MAXBANDS];
 	/* quiet channels currently for radar sensitivity or 11h support */
@@ -106,7 +106,7 @@ static const struct locale_mimo_info *brcms_c_get_mimo_5g(u8 locale_idx);
 #ifdef QDB
 #undef QDB
 #endif
-#define QDB(n) ((n) * WLC_TXPWR_DB_FACTOR)
+#define QDB(n) ((n) * BRCMS_TXPWR_DB_FACTOR)
 
 /* Regulatory Matrix Spreadsheet (CLM) MIMO v3.7.9 */
 
@@ -422,7 +422,7 @@ static const struct locale_info locale_i = {	/* locale i. channel 1 - 13 */
 	{QDB(19), QDB(19), QDB(19),
 	 QDB(19), QDB(19), QDB(19)},
 	{20, 20, 20, 0},
-	WLC_EIRP
+	BRCMS_EIRP
 };
 
 /*
@@ -435,7 +435,7 @@ static const struct locale_info locale_11 = {
 	LOCALE_RESTRICTED_NONE,
 	{QDB(21), QDB(21), QDB(21), QDB(21), QDB(21)},
 	{23, 23, 23, 30, 30},
-	WLC_EIRP | WLC_DFS_EU
+	BRCMS_EIRP | BRCMS_DFS_EU
 };
 
 #define LOCALE_2G_IDX_i			0
@@ -500,7 +500,7 @@ static const struct locale_mimo_info *g_mimo_5g_table[] = {
 #define LOCALES(band2, band5, mimo2, mimo5)     {LC_2G(band2), LC_5G(band5), LC(mimo2), LC(mimo5)}
 
 static const struct {
-	char abbrev[WLC_CNTRY_BUF_SZ];	/* country abbreviation */
+	char abbrev[BRCM_CNTRY_BUF_SZ];	/* country abbreviation */
 	struct country_info country;
 } cntry_locales[] = {
 	{
@@ -619,7 +619,7 @@ static const struct locale_mimo_info *brcms_c_get_mimo_5g(u8 locale_idx)
 struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 {
 	struct brcms_cm_info *wlc_cm;
-	char country_abbrev[WLC_CNTRY_BUF_SZ];
+	char country_abbrev[BRCM_CNTRY_BUF_SZ];
 	const struct country_info *country;
 	struct brcms_pub *pub = wlc->pub;
 	char *ccode;
@@ -639,19 +639,19 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 	/* store the country code for passing up as a regulatory hint */
 	ccode = getvar(wlc->pub->vars, "ccode");
 	if (ccode) {
-		strncpy(wlc->pub->srom_ccode, ccode, WLC_CNTRY_BUF_SZ - 1);
+		strncpy(wlc->pub->srom_ccode, ccode, BRCM_CNTRY_BUF_SZ - 1);
 	}
 
 	/* internal country information which must match regulatory constraints in firmware */
-	memset(country_abbrev, 0, WLC_CNTRY_BUF_SZ);
+	memset(country_abbrev, 0, BRCM_CNTRY_BUF_SZ);
 	strncpy(country_abbrev, "X2", sizeof(country_abbrev) - 1);
 	country = brcms_c_country_lookup(wlc, country_abbrev);
 
 	/* save default country for exiting 11d regulatory mode */
-	strncpy(wlc->country_default, country_abbrev, WLC_CNTRY_BUF_SZ - 1);
+	strncpy(wlc->country_default, country_abbrev, BRCM_CNTRY_BUF_SZ - 1);
 
 	/* initialize autocountry_default to driver default */
-	strncpy(wlc->autocountry_default, "X2", WLC_CNTRY_BUF_SZ - 1);
+	strncpy(wlc->autocountry_default, "X2", BRCM_CNTRY_BUF_SZ - 1);
 
 	brcms_c_set_countrycode(wlc_cm, country_abbrev);
 
@@ -676,8 +676,8 @@ brcms_c_channel_locale_flags_in_band(struct brcms_cm_info *wlc_cm,
 static int
 brcms_c_set_countrycode(struct brcms_cm_info *wlc_cm, const char *ccode)
 {
-	char country_abbrev[WLC_CNTRY_BUF_SZ];
-	strncpy(country_abbrev, ccode, WLC_CNTRY_BUF_SZ);
+	char country_abbrev[BRCM_CNTRY_BUF_SZ];
+	strncpy(country_abbrev, ccode, BRCM_CNTRY_BUF_SZ);
 	return brcms_c_set_countrycode_rev(wlc_cm, country_abbrev, ccode, -1);
 }
 
@@ -687,7 +687,7 @@ brcms_c_set_countrycode_rev(struct brcms_cm_info *wlc_cm,
 			const char *ccode, int regrev)
 {
 	const struct country_info *country;
-	char mapped_ccode[WLC_CNTRY_BUF_SZ];
+	char mapped_ccode[BRCM_CNTRY_BUF_SZ];
 	uint mapped_regrev;
 
 	/* if regrev is -1, lookup the mapped country code,
@@ -701,7 +701,7 @@ brcms_c_set_countrycode_rev(struct brcms_cm_info *wlc_cm,
 	} else {
 		/* find the matching built-in country definition */
 		country = brcms_c_country_lookup_direct(ccode, regrev);
-		strncpy(mapped_ccode, ccode, WLC_CNTRY_BUF_SZ);
+		strncpy(mapped_ccode, ccode, BRCM_CNTRY_BUF_SZ);
 		mapped_regrev = regrev;
 	}
 
@@ -727,22 +727,22 @@ brcms_c_set_country_common(struct brcms_cm_info *wlc_cm,
 	const struct locale_mimo_info *li_mimo;
 	const struct locale_info *locale;
 	struct brcms_c_info *wlc = wlc_cm->wlc;
-	char prev_country_abbrev[WLC_CNTRY_BUF_SZ];
+	char prev_country_abbrev[BRCM_CNTRY_BUF_SZ];
 
 	/* save current country state */
 	wlc_cm->country = country;
 
-	memset(&prev_country_abbrev, 0, WLC_CNTRY_BUF_SZ);
+	memset(&prev_country_abbrev, 0, BRCM_CNTRY_BUF_SZ);
 	strncpy(prev_country_abbrev, wlc_cm->country_abbrev,
-		WLC_CNTRY_BUF_SZ - 1);
+		BRCM_CNTRY_BUF_SZ - 1);
 
-	strncpy(wlc_cm->country_abbrev, country_abbrev, WLC_CNTRY_BUF_SZ - 1);
-	strncpy(wlc_cm->ccode, ccode, WLC_CNTRY_BUF_SZ - 1);
+	strncpy(wlc_cm->country_abbrev, country_abbrev, BRCM_CNTRY_BUF_SZ - 1);
+	strncpy(wlc_cm->ccode, ccode, BRCM_CNTRY_BUF_SZ - 1);
 	wlc_cm->regrev = regrev;
 
 	/* disable/restore nmode based on country regulations */
 	li_mimo = brcms_c_get_mimo_2g(country->locale_mimo_2G);
-	if (li_mimo && (li_mimo->flags & WLC_NO_MIMO)) {
+	if (li_mimo && (li_mimo->flags & BRCMS_NO_MIMO)) {
 		brcms_c_set_nmode(wlc, OFF);
 		wlc->stf->no_cddstbc = true;
 	} else {
@@ -755,7 +755,7 @@ brcms_c_set_country_common(struct brcms_cm_info *wlc_cm,
 	brcms_c_stf_ss_update(wlc, wlc->bandstate[BAND_5G_INDEX]);
 	/* set or restore gmode as required by regulatory */
 	locale = brcms_c_get_locale_2g(country->locale_2G);
-	if (locale && (locale->flags & WLC_NO_OFDM)) {
+	if (locale && (locale->flags & BRCMS_NO_OFDM)) {
 		brcms_c_set_gmode(wlc, GMODE_LEGACY_B, false);
 	} else {
 		brcms_c_set_gmode(wlc, wlc->protection->gmode_user, false);
@@ -773,7 +773,7 @@ static const struct country_info *
 brcms_c_country_lookup(struct brcms_c_info *wlc, const char *ccode)
 {
 	const struct country_info *country;
-	char mapped_ccode[WLC_CNTRY_BUF_SZ];
+	char mapped_ccode[BRCM_CNTRY_BUF_SZ];
 	uint mapped_regrev;
 
 	/* map the country code to a built-in country code, regrev, and country_info struct */
@@ -794,14 +794,14 @@ brcms_c_countrycode_map(struct brcms_cm_info *wlc_cm, const char *ccode,
 	int mapped;
 
 	/* check for currently supported ccode size */
-	if (strlen(ccode) > (WLC_CNTRY_BUF_SZ - 1)) {
+	if (strlen(ccode) > (BRCM_CNTRY_BUF_SZ - 1)) {
 		wiphy_err(wlc->wiphy, "wl%d: %s: ccode \"%s\" too long for "
 			  "match\n", wlc->pub->unit, __func__, ccode);
 		return NULL;
 	}
 
 	/* default mapping is the given ccode and regrev 0 */
-	strncpy(mapped_ccode, ccode, WLC_CNTRY_BUF_SZ);
+	strncpy(mapped_ccode, ccode, BRCM_CNTRY_BUF_SZ);
 	*mapped_regrev = 0;
 
 	/* If the desired country code matches the srom country code,
@@ -959,8 +959,7 @@ static void brcms_c_channels_commit(struct brcms_cm_info *wlc_cm)
 	if (wlc->pub->up && chan != INVCHANNEL) {
 		brcms_c_channel_reg_limits(wlc_cm, wlc->chanspec, &txpwr);
 		brcms_c_channel_min_txpower_limits_with_local_constraint(wlc_cm,
-								     &txpwr,
-								     WLC_TXPWR_MAX);
+			&txpwr, BRCMS_TXPWR_MAX);
 		wlc_phy_txpower_limit_set(wlc->band->pi, &txpwr, wlc->chanspec);
 	}
 }
@@ -1050,66 +1049,66 @@ brcms_c_channel_min_txpower_limits_with_local_constraint(
 	}
 
 	/* 20 MHz Legacy OFDM CDD */
-	for (j = 0; j < WLC_NUM_RATES_OFDM; j++) {
+	for (j = 0; j < BRCMS_NUM_RATES_OFDM; j++) {
 		txpwr->ofdm_cdd[j] =
 		    min(txpwr->ofdm_cdd[j], local_constraint_qdbm);
 	}
 
 	/* 40 MHz Legacy OFDM SISO */
-	for (j = 0; j < WLC_NUM_RATES_OFDM; j++) {
+	for (j = 0; j < BRCMS_NUM_RATES_OFDM; j++) {
 		txpwr->ofdm_40_siso[j] =
 		    min(txpwr->ofdm_40_siso[j], local_constraint_qdbm);
 	}
 
 	/* 40 MHz Legacy OFDM CDD */
-	for (j = 0; j < WLC_NUM_RATES_OFDM; j++) {
+	for (j = 0; j < BRCMS_NUM_RATES_OFDM; j++) {
 		txpwr->ofdm_40_cdd[j] =
 		    min(txpwr->ofdm_40_cdd[j], local_constraint_qdbm);
 	}
 
 	/* 20MHz MCS 0-7 SISO */
-	for (j = 0; j < WLC_NUM_RATES_MCS_1_STREAM; j++) {
+	for (j = 0; j < BRCMS_NUM_RATES_MCS_1_STREAM; j++) {
 		txpwr->mcs_20_siso[j] =
 		    min(txpwr->mcs_20_siso[j], local_constraint_qdbm);
 	}
 
 	/* 20MHz MCS 0-7 CDD */
-	for (j = 0; j < WLC_NUM_RATES_MCS_1_STREAM; j++) {
+	for (j = 0; j < BRCMS_NUM_RATES_MCS_1_STREAM; j++) {
 		txpwr->mcs_20_cdd[j] =
 		    min(txpwr->mcs_20_cdd[j], local_constraint_qdbm);
 	}
 
 	/* 20MHz MCS 0-7 STBC */
-	for (j = 0; j < WLC_NUM_RATES_MCS_1_STREAM; j++) {
+	for (j = 0; j < BRCMS_NUM_RATES_MCS_1_STREAM; j++) {
 		txpwr->mcs_20_stbc[j] =
 		    min(txpwr->mcs_20_stbc[j], local_constraint_qdbm);
 	}
 
 	/* 20MHz MCS 8-15 MIMO */
-	for (j = 0; j < WLC_NUM_RATES_MCS_2_STREAM; j++)
+	for (j = 0; j < BRCMS_NUM_RATES_MCS_2_STREAM; j++)
 		txpwr->mcs_20_mimo[j] =
 		    min(txpwr->mcs_20_mimo[j], local_constraint_qdbm);
 
 	/* 40MHz MCS 0-7 SISO */
-	for (j = 0; j < WLC_NUM_RATES_MCS_1_STREAM; j++) {
+	for (j = 0; j < BRCMS_NUM_RATES_MCS_1_STREAM; j++) {
 		txpwr->mcs_40_siso[j] =
 		    min(txpwr->mcs_40_siso[j], local_constraint_qdbm);
 	}
 
 	/* 40MHz MCS 0-7 CDD */
-	for (j = 0; j < WLC_NUM_RATES_MCS_1_STREAM; j++) {
+	for (j = 0; j < BRCMS_NUM_RATES_MCS_1_STREAM; j++) {
 		txpwr->mcs_40_cdd[j] =
 		    min(txpwr->mcs_40_cdd[j], local_constraint_qdbm);
 	}
 
 	/* 40MHz MCS 0-7 STBC */
-	for (j = 0; j < WLC_NUM_RATES_MCS_1_STREAM; j++) {
+	for (j = 0; j < BRCMS_NUM_RATES_MCS_1_STREAM; j++) {
 		txpwr->mcs_40_stbc[j] =
 		    min(txpwr->mcs_40_stbc[j], local_constraint_qdbm);
 	}
 
 	/* 40MHz MCS 8-15 MIMO */
-	for (j = 0; j < WLC_NUM_RATES_MCS_2_STREAM; j++)
+	for (j = 0; j < BRCMS_NUM_RATES_MCS_2_STREAM; j++)
 		txpwr->mcs_40_mimo[j] =
 		    min(txpwr->mcs_40_mimo[j], local_constraint_qdbm);
 
@@ -1143,112 +1142,122 @@ static void wlc_phy_txpower_limits_dump(struct txpwr_limits *txpwr)
 	char fraction[4][4] = { "   ", ".25", ".5 ", ".75" };
 
 	sprintf(buf, "CCK                ");
-	for (i = 0; i < WLC_NUM_RATES_CCK; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_CCK; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->cck[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->cck[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->cck[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->cck[i] % BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	sprintf(buf, "20 MHz OFDM SISO   ");
-	for (i = 0; i < WLC_NUM_RATES_OFDM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_OFDM; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->ofdm[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->ofdm[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->ofdm[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->ofdm[i] % BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	sprintf(buf, "20 MHz OFDM CDD    ");
-	for (i = 0; i < WLC_NUM_RATES_OFDM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_OFDM; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->ofdm_cdd[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->ofdm_cdd[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->ofdm_cdd[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->ofdm_cdd[i] % BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	sprintf(buf, "40 MHz OFDM SISO   ");
-	for (i = 0; i < WLC_NUM_RATES_OFDM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_OFDM; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->ofdm_40_siso[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->ofdm_40_siso[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->ofdm_40_siso[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->ofdm_40_siso[i] %
+							BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	sprintf(buf, "40 MHz OFDM CDD    ");
-	for (i = 0; i < WLC_NUM_RATES_OFDM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_OFDM; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->ofdm_40_cdd[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->ofdm_40_cdd[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->ofdm_40_cdd[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->ofdm_40_cdd[i] %
+							BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	sprintf(buf, "20 MHz MCS0-7 SISO ");
-	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_20_siso[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_20_siso[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->mcs_20_siso[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->mcs_20_siso[i] %
+							BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	sprintf(buf, "20 MHz MCS0-7 CDD  ");
-	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_20_cdd[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_20_cdd[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->mcs_20_cdd[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->mcs_20_cdd[i] %
+							BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	sprintf(buf, "20 MHz MCS0-7 STBC ");
-	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_20_stbc[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_20_stbc[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->mcs_20_stbc[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->mcs_20_stbc[i] %
+							BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	sprintf(buf, "20 MHz MCS8-15 SDM ");
-	for (i = 0; i < WLC_NUM_RATES_MCS_2_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_2_STREAM; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_20_mimo[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_20_mimo[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->mcs_20_mimo[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->mcs_20_mimo[i] %
+							BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	sprintf(buf, "40 MHz MCS0-7 SISO ");
-	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_40_siso[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_40_siso[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->mcs_40_siso[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->mcs_40_siso[i] %
+							BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	sprintf(buf, "40 MHz MCS0-7 CDD  ");
-	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_40_cdd[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_40_cdd[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->mcs_40_cdd[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->mcs_40_cdd[i] %
+							BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	sprintf(buf, "40 MHz MCS0-7 STBC ");
-	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_40_stbc[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_40_stbc[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->mcs_40_stbc[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->mcs_40_stbc[i] %
+							BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	sprintf(buf, "40 MHz MCS8-15 SDM ");
-	for (i = 0; i < WLC_NUM_RATES_MCS_2_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_2_STREAM; i++) {
 		sprintf(buf[strlen(buf)], " %2d%s",
-			txpwr->mcs_40_mimo[i] / WLC_TXPWR_DB_FACTOR,
-			fraction[txpwr->mcs_40_mimo[i] % WLC_TXPWR_DB_FACTOR]);
+			txpwr->mcs_40_mimo[i] / BRCMS_TXPWR_DB_FACTOR,
+			fraction[txpwr->mcs_40_mimo[i] %
+							BRCMS_TXPWR_DB_FACTOR]);
 	}
 	printk(KERN_DEBUG "%s\n", buf);
 
 	printk(KERN_DEBUG "MCS32               %2d%s\n",
-	       txpwr->mcs32 / WLC_TXPWR_DB_FACTOR,
-	       fraction[txpwr->mcs32 % WLC_TXPWR_DB_FACTOR]);
+	       txpwr->mcs32 / BRCMS_TXPWR_DB_FACTOR,
+	       fraction[txpwr->mcs32 % BRCMS_TXPWR_DB_FACTOR]);
 }
 #endif				/* POWER_DBG */
 
@@ -1282,7 +1291,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, chanspec_t chanspec,
 	}
 
 	chan = CHSPEC_CHANNEL(chanspec);
-	band = wlc->bandstate[CHSPEC_WLCBANDUNIT(chanspec)];
+	band = wlc->bandstate[CHSPEC_BANDUNIT(chanspec)];
 	li = BAND_5G(band->bandtype) ?
 	    brcms_c_get_locale_5g(country->locale_5G) :
 	    brcms_c_get_locale_2g(country->locale_2G);
@@ -1291,7 +1300,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, chanspec_t chanspec,
 	    brcms_c_get_mimo_5g(country->locale_mimo_5G) :
 	    brcms_c_get_mimo_2g(country->locale_mimo_2G);
 
-	if (li->flags & WLC_EIRP) {
+	if (li->flags & BRCMS_EIRP) {
 		delta = band->antgain;
 	} else {
 		delta = 0;
@@ -1312,7 +1321,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, chanspec_t chanspec,
 		maxpwr = max(maxpwr, 0);
 		maxpwr = min(maxpwr, conducted_max);
 
-		for (i = 0; i < WLC_NUM_RATES_CCK; i++)
+		for (i = 0; i < BRCMS_NUM_RATES_CCK; i++)
 			txpwr->cck[i] = (u8) maxpwr;
 	}
 
@@ -1332,11 +1341,10 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, chanspec_t chanspec,
 	if (BAND_2G(band->bandtype))
 		maxpwr = min_t(int, maxpwr, txpwr->cck[0]);
 
-	for (i = 0; i < WLC_NUM_RATES_OFDM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_OFDM; i++)
 		txpwr->ofdm[i] = (u8) maxpwr;
-	}
 
-	for (i = 0; i < WLC_NUM_RATES_OFDM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_OFDM; i++) {
 		/* OFDM 40 MHz SISO has the same power as the corresponding MCS0-7 rate unless
 		 * overriden by the locale specific code. We set this value to 0 as a
 		 * flag (presumably 0 dBm isn't a possibility) and then copy the MCS0-7 value
@@ -1350,7 +1358,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, chanspec_t chanspec,
 	}
 
 	/* MIMO/HT specific limits */
-	if (li_mimo->flags & WLC_EIRP) {
+	if (li_mimo->flags & BRCMS_EIRP) {
 		delta = band->antgain;
 	} else {
 		delta = 0;
@@ -1372,7 +1380,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, chanspec_t chanspec,
 	maxpwr40 = max(maxpwr40, 0);
 
 	/* Fill in the MCS 0-7 (SISO) rates */
-	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 
 		/* 20 MHz has the same power as the corresponding OFDM rate unless
 		 * overriden by the locale specific code.
@@ -1382,7 +1390,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, chanspec_t chanspec,
 	}
 
 	/* Fill in the MCS 0-7 CDD rates */
-	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 		txpwr->mcs_20_cdd[i] = (u8) maxpwr20;
 		txpwr->mcs_40_cdd[i] = (u8) maxpwr40;
 	}
@@ -1398,20 +1406,20 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, chanspec_t chanspec,
 			}
 		}
 
-		for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
+		for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 			txpwr->mcs_20_siso[i] = (u8) maxpwr20;
 			txpwr->mcs_40_siso[i] = (u8) maxpwr40;
 		}
 	}
 
 	/* Fill in the MCS 0-7 STBC rates */
-	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 		txpwr->mcs_20_stbc[i] = 0;
 		txpwr->mcs_40_stbc[i] = 0;
 	}
 
 	/* Fill in the MCS 8-15 SDM rates */
-	for (i = 0; i < WLC_NUM_RATES_MCS_2_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_2_STREAM; i++) {
 		txpwr->mcs_20_mimo[i] = (u8) maxpwr20;
 		txpwr->mcs_40_mimo[i] = (u8) maxpwr40;
 	}
@@ -1419,7 +1427,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, chanspec_t chanspec,
 	/* Fill in MCS32 */
 	txpwr->mcs32 = (u8) maxpwr40;
 
-	for (i = 0, j = 0; i < WLC_NUM_RATES_OFDM; i++, j++) {
+	for (i = 0, j = 0; i < BRCMS_NUM_RATES_OFDM; i++, j++) {
 		if (txpwr->ofdm_40_cdd[i] == 0)
 			txpwr->ofdm_40_cdd[i] = txpwr->mcs_40_cdd[j];
 		if (i == 0) {
@@ -1433,12 +1441,12 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, chanspec_t chanspec,
 	 * provided explicitly.
 	 */
 
-	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 		if (txpwr->mcs_40_siso[i] == 0)
 			txpwr->mcs_40_siso[i] = txpwr->mcs_40_cdd[i];
 	}
 
-	for (i = 0, j = 0; i < WLC_NUM_RATES_OFDM; i++, j++) {
+	for (i = 0, j = 0; i < BRCMS_NUM_RATES_OFDM; i++, j++) {
 		if (txpwr->ofdm_40_siso[i] == 0)
 			txpwr->ofdm_40_siso[i] = txpwr->mcs_40_siso[j];
 		if (i == 0) {
@@ -1451,7 +1459,7 @@ brcms_c_channel_reg_limits(struct brcms_cm_info *wlc_cm, chanspec_t chanspec,
 	/* Copy the 20 and 40 MHz MCS0-7 CDD values to the corresponding STBC values if they weren't
 	 * provided explicitly.
 	 */
-	for (i = 0; i < WLC_NUM_RATES_MCS_1_STREAM; i++) {
+	for (i = 0; i < BRCMS_NUM_RATES_MCS_1_STREAM; i++) {
 		if (txpwr->mcs_20_stbc[i] == 0)
 			txpwr->mcs_20_stbc[i] = txpwr->mcs_20_cdd[i];
 
@@ -1497,7 +1505,7 @@ brcms_c_valid_chanspec_ext(struct brcms_cm_info *wlc_cm, chanspec_t chspec,
 	}
 
 	if (CHANNEL_BANDUNIT(wlc_cm->wlc, channel) !=
-	    CHSPEC_WLCBANDUNIT(chspec))
+	    CHSPEC_BANDUNIT(chspec))
 		return false;
 
 	/* Check a 20Mhz channel */
@@ -1511,12 +1519,12 @@ brcms_c_valid_chanspec_ext(struct brcms_cm_info *wlc_cm, chanspec_t chspec,
 	/* We know we are now checking a 40MHZ channel, so we should only be here
 	 * for NPHYS
 	 */
-	if (WLCISNPHY(wlc->band) || WLCISSSLPNPHY(wlc->band)) {
+	if (BRCMS_ISNPHY(wlc->band) || BRCMS_ISSSLPNPHY(wlc->band)) {
 		u8 upper_sideband = 0, idx;
 		u8 num_ch20_entries =
 		    sizeof(chan20_info) / sizeof(struct chan20_info);
 
-		if (!VALID_40CHANSPEC_IN_BAND(wlc, CHSPEC_WLCBANDUNIT(chspec)))
+		if (!VALID_40CHANSPEC_IN_BAND(wlc, CHSPEC_BANDUNIT(chspec)))
 			return false;
 
 		if (dualband) {

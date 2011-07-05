@@ -14470,7 +14470,7 @@ bool wlc_phy_attach_nphy(struct brcms_phy *pi)
 
 	pi->n_preamble_override = AUTO;
 	if (NREV_IS(pi->pubpi.phy_rev, 3) || NREV_IS(pi->pubpi.phy_rev, 4))
-		pi->n_preamble_override = WLC_N_PREAMBLE_MIXEDMODE;
+		pi->n_preamble_override = BRCMS_N_PREAMBLE_MIXEDMODE;
 
 	pi->nphy_txrx_chain = AUTO;
 	pi->phy_scraminit = AUTO;
@@ -14929,9 +14929,8 @@ static void wlc_phy_update_mimoconfig_nphy(struct brcms_phy *pi, s32 preamble)
 	bool gf_preamble = false;
 	u16 val;
 
-	if (preamble == WLC_N_PREAMBLE_GF) {
+	if (preamble == BRCMS_N_PREAMBLE_GF)
 		gf_preamble = true;
-	}
 
 	val = read_phy_reg(pi, 0xed);
 
@@ -14995,14 +14994,14 @@ void wlc_phy_stf_chain_upd_nphy(struct brcms_phy *pi)
 	    (NPHY_RfseqCoreActv_TxRxChain0 | NPHY_RfseqCoreActv_TxRxChain1);
 	bool CoreActv_override = false;
 
-	if (pi->nphy_txrx_chain == WLC_N_TXRX_CHAIN0) {
+	if (pi->nphy_txrx_chain == BRCMS_N_TXRX_CHAIN0) {
 		txrx_chain = NPHY_RfseqCoreActv_TxRxChain0;
 		CoreActv_override = true;
 
 		if (NREV_LE(pi->pubpi.phy_rev, 2)) {
 			and_phy_reg(pi, 0xa0, ~0x20);
 		}
-	} else if (pi->nphy_txrx_chain == WLC_N_TXRX_CHAIN1) {
+	} else if (pi->nphy_txrx_chain == BRCMS_N_TXRX_CHAIN1) {
 		txrx_chain = NPHY_RfseqCoreActv_TxRxChain1;
 		CoreActv_override = true;
 
@@ -16215,8 +16214,8 @@ static void wlc_phy_workarounds_nphy(struct brcms_phy *pi)
 
 			if (pi->sh->boardflags2 & BFL2_SINGLEANT_CCK) {
 				wlapi_bmac_mhf(pi->sh->physhim, MHF4,
-					       MHF4_BPHY_TXCORE0,
-					       MHF4_BPHY_TXCORE0, WLC_BAND_ALL);
+					MHF4_BPHY_TXCORE0,
+					MHF4_BPHY_TXCORE0, BRCM_BAND_ALL);
 			}
 		}
 	} else {
@@ -16284,7 +16283,7 @@ static void wlc_phy_workarounds_nphy(struct brcms_phy *pi)
 				wlapi_bmac_mhf(pi->sh->physhim, MHF3,
 					       MHF3_NPHY_MLADV_WAR,
 					       MHF3_NPHY_MLADV_WAR,
-					       WLC_BAND_ALL);
+					       BRCM_BAND_ALL);
 
 		} else if (NREV_IS(pi->pubpi.phy_rev, 2)) {
 			write_phy_reg(pi, 0x1e3, 0x0);
@@ -17798,21 +17797,21 @@ wlc_phy_chanspec_radio2055_setup(struct brcms_phy *pi,
 	write_radio_reg(pi, RADIO_2055_RF_PLL_MOD1, ci->RF_rf_pll_mod1);
 	write_radio_reg(pi, RADIO_2055_VCO_CAP_TAIL, ci->RF_vco_cap_tail);
 
-	WLC_PHY_WAR_PR51571(pi);
+	BRCMS_PHY_WAR_PR51571(pi);
 
 	write_radio_reg(pi, RADIO_2055_VCO_CAL1, ci->RF_vco_cal1);
 	write_radio_reg(pi, RADIO_2055_VCO_CAL2, ci->RF_vco_cal2);
 	write_radio_reg(pi, RADIO_2055_PLL_LF_C1, ci->RF_pll_lf_c1);
 	write_radio_reg(pi, RADIO_2055_PLL_LF_R1, ci->RF_pll_lf_r1);
 
-	WLC_PHY_WAR_PR51571(pi);
+	BRCMS_PHY_WAR_PR51571(pi);
 
 	write_radio_reg(pi, RADIO_2055_PLL_LF_C2, ci->RF_pll_lf_c2);
 	write_radio_reg(pi, RADIO_2055_LGBUF_CEN_BUF, ci->RF_lgbuf_cen_buf);
 	write_radio_reg(pi, RADIO_2055_LGEN_TUNE1, ci->RF_lgen_tune1);
 	write_radio_reg(pi, RADIO_2055_LGEN_TUNE2, ci->RF_lgen_tune2);
 
-	WLC_PHY_WAR_PR51571(pi);
+	BRCMS_PHY_WAR_PR51571(pi);
 
 	write_radio_reg(pi, RADIO_2055_CORE1_LGBUF_A_TUNE,
 			ci->RF_core1_lgbuf_a_tune);
@@ -17822,7 +17821,7 @@ wlc_phy_chanspec_radio2055_setup(struct brcms_phy *pi,
 	write_radio_reg(pi, RADIO_2055_CORE1_TX_PGA_PAD_TN,
 			ci->RF_core1_tx_pga_pad_tn);
 
-	WLC_PHY_WAR_PR51571(pi);
+	BRCMS_PHY_WAR_PR51571(pi);
 
 	write_radio_reg(pi, RADIO_2055_CORE1_TX_MX_BGTRIM,
 			ci->RF_core1_tx_mx_bgtrim);
@@ -17832,7 +17831,7 @@ wlc_phy_chanspec_radio2055_setup(struct brcms_phy *pi,
 			ci->RF_core2_lgbuf_g_tune);
 	write_radio_reg(pi, RADIO_2055_CORE2_RXRF_REG1, ci->RF_core2_rxrf_reg1);
 
-	WLC_PHY_WAR_PR51571(pi);
+	BRCMS_PHY_WAR_PR51571(pi);
 
 	write_radio_reg(pi, RADIO_2055_CORE2_TX_PGA_PAD_TN,
 			ci->RF_core2_tx_pga_pad_tn);
@@ -17844,7 +17843,7 @@ wlc_phy_chanspec_radio2055_setup(struct brcms_phy *pi,
 	write_radio_reg(pi, RADIO_2055_VCO_CAL10, 0x05);
 	write_radio_reg(pi, RADIO_2055_VCO_CAL10, 0x45);
 
-	WLC_PHY_WAR_PR51571(pi);
+	BRCMS_PHY_WAR_PR51571(pi);
 
 	write_radio_reg(pi, RADIO_2055_VCO_CAL10, 0x65);
 
@@ -28697,7 +28696,7 @@ void wlc_phy_txpwrctrl_enable_nphy(struct brcms_phy *pi, u8 ctrl_type)
 
 		if (NREV_LT(pi->pubpi.phy_rev, 2) && IS40MHZ(pi))
 			wlapi_bmac_mhf(pi->sh->physhim, MHF1, MHF1_IQSWAP_WAR,
-				       MHF1_IQSWAP_WAR, WLC_BAND_ALL);
+				       MHF1_IQSWAP_WAR, BRCM_BAND_ALL);
 
 	} else {
 
@@ -28756,7 +28755,7 @@ void wlc_phy_txpwrctrl_enable_nphy(struct brcms_phy *pi, u8 ctrl_type)
 
 		if (NREV_LT(pi->pubpi.phy_rev, 2) && IS40MHZ(pi))
 			wlapi_bmac_mhf(pi->sh->physhim, MHF1, MHF1_IQSWAP_WAR,
-				       0x0, WLC_BAND_ALL);
+				       0x0, BRCM_BAND_ALL);
 
 		if (PHY_IPA(pi)) {
 			mod_phy_reg(pi, (0 == PHY_CORE_0) ? 0x297 :

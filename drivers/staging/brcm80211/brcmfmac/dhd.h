@@ -590,7 +590,7 @@ struct brcmf_pub {
 	char *pktfilter[100];
 	int pktfilter_count;
 
-	u8 country_code[WLC_CNTRY_BUF_SZ];
+	u8 country_code[BRCM_CNTRY_BUF_SZ];
 	char eventmask[BRCMF_EVENTING_MASK_LEN];
 
 };

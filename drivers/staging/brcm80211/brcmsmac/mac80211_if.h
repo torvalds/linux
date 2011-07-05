@@ -21,7 +21,7 @@
 #include <linux/interrupt.h>
 
 /* softmac ioctl definitions */
-#define WLC_SET_SHORTSLOT_OVERRIDE		146
+#define BRCMS_SET_SHORTSLOT_OVERRIDE		146
 
 
 /* BMAC Note: High-only driver is no longer working in softirq context as it needs to block and

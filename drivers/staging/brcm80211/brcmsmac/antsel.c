@@ -31,11 +31,12 @@
 #define ANT_SELCFG_RX_DEF	3	/* default rx antenna configuration */
 
 /* useful macros */
-#define WLC_ANTSEL_11N_0(ant)	((((ant) & ANT_SELCFG_MASK) >> 4) & 0xf)
-#define WLC_ANTSEL_11N_1(ant)	(((ant) & ANT_SELCFG_MASK) & 0xf)
-#define WLC_ANTIDX_11N(ant)	(((WLC_ANTSEL_11N_0(ant)) << 2) + (WLC_ANTSEL_11N_1(ant)))
-#define WLC_ANT_ISAUTO_11N(ant)	(((ant) & ANT_SELCFG_AUTO) == ANT_SELCFG_AUTO)
-#define WLC_ANTSEL_11N(ant)	((ant) & ANT_SELCFG_MASK)
+#define BRCMS_ANTSEL_11N_0(ant)	((((ant) & ANT_SELCFG_MASK) >> 4) & 0xf)
+#define BRCMS_ANTSEL_11N_1(ant)	(((ant) & ANT_SELCFG_MASK) & 0xf)
+#define BRCMS_ANTIDX_11N(ant)	(((BRCMS_ANTSEL_11N_0(ant)) << 2) +\
+				(BRCMS_ANTSEL_11N_1(ant)))
+#define BRCMS_ANT_ISAUTO_11N(ant) (((ant) & ANT_SELCFG_AUTO) == ANT_SELCFG_AUTO)
+#define BRCMS_ANTSEL_11N(ant)	((ant) & ANT_SELCFG_MASK)
 
 /* antenna switch */
 /* defines for no boardlevel antenna diversity */
@@ -263,7 +264,7 @@ static u8 brcms_c_antsel_id2antcfg(struct antsel_info *asi, u8 id)
 /* boardlevel antenna selection: convert ant_cfg to mimo_antsel (ucode interface) */
 static u16 brcms_c_antsel_antcfg2antsel(struct antsel_info *asi, u8 ant_cfg)
 {
-	u8 idx = WLC_ANTIDX_11N(WLC_ANTSEL_11N(ant_cfg));
+	u8 idx = BRCMS_ANTIDX_11N(BRCMS_ANTSEL_11N(ant_cfg));
 	u16 mimo_antsel = 0;
 
 	if (asi->antsel_type == ANTSEL_2x4) {

@@ -17,7 +17,8 @@
 #ifndef _BRCM_CHANNEL_H_
 #define _BRCM_CHANNEL_H_
 
-#define WLC_TXPWR_DB_FACTOR 4	/* conversion for phy txpwr cacluations that use .25 dB units */
+/* conversion for phy txpwr calculations that use .25 dB units */
+#define BRCMS_TXPWR_DB_FACTOR 4
 
 
 /* maxpwr mapping to 5GHz band channels:
@@ -46,8 +47,10 @@
 #define CHANNEL_POWER_IDX_5G(c) \
 	(((c) < 52) ? 0 : (((c) < 62) ? 1 : (((c) < 100) ? 2 : (((c) < 149) ? 3 : 4))))
 
-#define WLC_MAXPWR_TBL_SIZE		6	/* max of BAND_5G_PWR_LVLS and 6 for 2.4 GHz */
-#define WLC_MAXPWR_MIMO_TBL_SIZE	14	/* max of BAND_5G_PWR_LVLS and 14 for 2.4 GHz */
+/* max of BAND_5G_PWR_LVLS and 6 for 2.4 GHz */
+#define BRCMS_MAXPWR_TBL_SIZE		6
+/* max of BAND_5G_PWR_LVLS and 14 for 2.4 GHz */
+#define BRCMS_MAXPWR_MIMO_TBL_SIZE	14
 
 #define NBANDS(wlc) ((wlc)->pub->_nbands)
 #define NBANDS_PUB(pub) ((pub)->_nbands)
@@ -58,9 +61,12 @@
 /* locale channel and power info. */
 struct locale_info {
 	u32 valid_channels;
-	u8 radar_channels;	/* List of radar sensitive channels */
-	u8 restricted_channels;	/* List of channels used only if APs are detected */
-	s8 maxpwr[WLC_MAXPWR_TBL_SIZE];	/* Max tx pwr in qdBm for each sub-band */
+	/* List of radar sensitive channels */
+	u8 radar_channels;
+	/* List of channels used only if APs are detected */
+	u8 restricted_channels;
+	/* Max tx pwr in qdBm for each sub-band */
+	s8 maxpwr[BRCMS_MAXPWR_TBL_SIZE];
 	s8 pub_maxpwr[BAND_5G_PWR_LVLS];	/* Country IE advertised max tx pwr in dBm
 						 * per sub-band
 						 */
@@ -68,25 +74,27 @@ struct locale_info {
 };
 
 /* bits for locale_info flags */
-#define WLC_PEAK_CONDUCTED	0x00	/* Peak for locals */
-#define WLC_EIRP		0x01	/* Flag for EIRP */
-#define WLC_DFS_TPC		0x02	/* Flag for DFS TPC */
-#define WLC_NO_OFDM		0x04	/* Flag for No OFDM */
-#define WLC_NO_40MHZ		0x08	/* Flag for No MIMO 40MHz */
-#define WLC_NO_MIMO		0x10	/* Flag for No MIMO, 20 or 40 MHz */
-#define WLC_RADAR_TYPE_EU       0x20	/* Flag for EU */
-#define WLC_DFS_FCC             WLC_DFS_TPC	/* Flag for DFS FCC */
-#define WLC_DFS_EU              (WLC_DFS_TPC | WLC_RADAR_TYPE_EU)	/* Flag for DFS EU */
+#define BRCMS_PEAK_CONDUCTED	0x00	/* Peak for locals */
+#define BRCMS_EIRP		0x01	/* Flag for EIRP */
+#define BRCMS_DFS_TPC		0x02	/* Flag for DFS TPC */
+#define BRCMS_NO_OFDM		0x04	/* Flag for No OFDM */
+#define BRCMS_NO_40MHZ		0x08	/* Flag for No MIMO 40MHz */
+#define BRCMS_NO_MIMO		0x10	/* Flag for No MIMO, 20 or 40 MHz */
+#define BRCMS_RADAR_TYPE_EU       0x20	/* Flag for EU */
+#define BRCMS_DFS_FCC             BRCMS_DFS_TPC	/* Flag for DFS FCC */
+#define BRCMS_DFS_EU (BRCMS_DFS_TPC | BRCMS_RADAR_TYPE_EU) /* Flag for DFS EU */
 
-#define ISDFS_EU(fl)		(((fl) & WLC_DFS_EU) == WLC_DFS_EU)
+#define ISDFS_EU(fl)		(((fl) & BRCMS_DFS_EU) == BRCMS_DFS_EU)
 
 /* locale per-channel tx power limits for MIMO frames
  * maxpwr arrays are index by channel for 2.4 GHz limits, and
  * by sub-band for 5 GHz limits using CHANNEL_POWER_IDX_5G(channel)
  */
 struct locale_mimo_info {
-	s8 maxpwr20[WLC_MAXPWR_MIMO_TBL_SIZE];	/* tx 20 MHz power limits, qdBm units */
-	s8 maxpwr40[WLC_MAXPWR_MIMO_TBL_SIZE];	/* tx 40 MHz power limits, qdBm units */
+	/* tx 20 MHz power limits, qdBm units */
+	s8 maxpwr20[BRCMS_MAXPWR_MIMO_TBL_SIZE];
+	/* tx 40 MHz power limits, qdBm units */
+	s8 maxpwr40[BRCMS_MAXPWR_MIMO_TBL_SIZE];
 	u8 flags;
 };
 
