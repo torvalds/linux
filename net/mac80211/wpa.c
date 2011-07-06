@@ -523,6 +523,16 @@ static void bip_aad(struct sk_buff *skb, u8 *aad)
 }
 
 
+static inline void bip_ipn_set64(u8 *d, u64 pn)
+{
+	*d++ = pn;
+	*d++ = pn >> 8;
+	*d++ = pn >> 16;
+	*d++ = pn >> 24;
+	*d++ = pn >> 32;
+	*d = pn >> 40;
+}
+
 static inline void bip_ipn_swap(u8 *d, const u8 *s)
 {
 	*d++ = s[5];
@@ -541,8 +551,8 @@ ieee80211_crypto_aes_cmac_encrypt(struct ieee80211_tx_data *tx)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key *key = tx->key;
 	struct ieee80211_mmie *mmie;
-	u8 *pn, aad[20];
-	int i;
+	u8 aad[20];
+	u64 pn64;
 
 	if (info->control.hw_key)
 		return 0;
@@ -556,22 +566,17 @@ ieee80211_crypto_aes_cmac_encrypt(struct ieee80211_tx_data *tx)
 	mmie->key_id = cpu_to_le16(key->conf.keyidx);
 
 	/* PN = PN + 1 */
-	pn = key->u.aes_cmac.tx_pn;
+	pn64 = atomic64_inc_return(&key->u.aes_cmac.tx_pn);
 
-	for (i = sizeof(key->u.aes_cmac.tx_pn) - 1; i >= 0; i--) {
-		pn[i]++;
-		if (pn[i])
-			break;
-	}
-	bip_ipn_swap(mmie->sequence_number, pn);
+	bip_ipn_set64(mmie->sequence_number, pn64);
 
 	bip_aad(skb, aad);
 
 	/*
 	 * MIC = AES-128-CMAC(IGTK, AAD || Management Frame Body || MMIE, 64)
 	 */
-	ieee80211_aes_cmac(key->u.aes_cmac.tfm, key->u.aes_cmac.tx_crypto_buf,
-			   aad, skb->data + 24, skb->len - 24, mmie->mic);
+	ieee80211_aes_cmac(key->u.aes_cmac.tfm, aad,
+			   skb->data + 24, skb->len - 24, mmie->mic);
 
 	return TX_CONTINUE;
 }
@@ -609,8 +614,7 @@ ieee80211_crypto_aes_cmac_decrypt(struct ieee80211_rx_data *rx)
 	if (!(status->flag & RX_FLAG_DECRYPTED)) {
 		/* hardware didn't decrypt/verify MIC */
 		bip_aad(skb, aad);
-		ieee80211_aes_cmac(key->u.aes_cmac.tfm,
-				   key->u.aes_cmac.rx_crypto_buf, aad,
+		ieee80211_aes_cmac(key->u.aes_cmac.tfm, aad,
 				   skb->data + 24, skb->len - 24, mic);
 		if (memcmp(mic, mmie->mic, sizeof(mmie->mic)) != 0) {
 			key->u.aes_cmac.icverrors++;

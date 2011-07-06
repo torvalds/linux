@@ -97,14 +97,11 @@ struct ieee80211_key {
 #endif
 		} ccmp;
 		struct {
-			u8 tx_pn[6];
+			atomic64_t tx_pn;
 			u8 rx_pn[6];
 			struct crypto_cipher *tfm;
 			u32 replays; /* dot11RSNAStatsCMACReplays */
 			u32 icverrors; /* dot11RSNAStatsCMACICVErrors */
-			/* scratch buffers for virt_to_page() (crypto API) */
-			u8 tx_crypto_buf[2 * AES_BLOCK_LEN];
-			u8 rx_crypto_buf[2 * AES_BLOCK_LEN];
 		} aes_cmac;
 	} u;
 
