@@ -45,6 +45,7 @@
 struct pltfm_imx_data {
 	int flags;
 	u32 scratchpad;
+	struct esdhc_platform_data boarddata;
 };
 
 static inline void esdhc_clrset_le(struct sdhci_host *host, u32 mask, u32 val, int reg)
@@ -57,8 +58,9 @@ static inline void esdhc_clrset_le(struct sdhci_host *host, u32 mask, u32 val, i
 
 static u32 esdhc_readl_le(struct sdhci_host *host, int reg)
 {
-	struct esdhc_platform_data *boarddata =
-			host->mmc->parent->platform_data;
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
 
 	/* fake CARD_PRESENT flag */
 	u32 val = readl(host->ioaddr + reg);
@@ -80,8 +82,7 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct pltfm_imx_data *imx_data = pltfm_host->priv;
-	struct esdhc_platform_data *boarddata =
-			host->mmc->parent->platform_data;
+	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
 
 	if (unlikely((reg == SDHCI_INT_ENABLE || reg == SDHCI_SIGNAL_ENABLE)
 			&& (boarddata->cd_type == ESDHC_CD_GPIO)))
@@ -198,8 +199,9 @@ static unsigned int esdhc_pltfm_get_min_clock(struct sdhci_host *host)
 
 static unsigned int esdhc_pltfm_get_ro(struct sdhci_host *host)
 {
-	struct esdhc_platform_data *boarddata =
-			host->mmc->parent->platform_data;
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
 
 	switch (boarddata->wp_type) {
 	case ESDHC_WP_GPIO:
@@ -281,12 +283,14 @@ static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
 	if (!(cpu_is_mx25() || cpu_is_mx35() || cpu_is_mx51()))
 		imx_data->flags |= ESDHC_FLAG_MULTIBLK_NO_INT;
 
-	boarddata = host->mmc->parent->platform_data;
-	if (!boarddata) {
+	if (!host->mmc->parent->platform_data) {
 		dev_err(mmc_dev(host->mmc), "no board data!\n");
 		err = -EINVAL;
 		goto no_board_data;
 	}
+	imx_data->boarddata = *((struct esdhc_platform_data *)
+				host->mmc->parent->platform_data);
+	boarddata = &imx_data->boarddata;
 
 	/* write_protect */
 	if (boarddata->wp_type == ESDHC_WP_GPIO) {
@@ -363,8 +367,8 @@ static int __devexit sdhci_esdhc_imx_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct esdhc_platform_data *boarddata = host->mmc->parent->platform_data;
 	struct pltfm_imx_data *imx_data = pltfm_host->priv;
+	struct esdhc_platform_data *boarddata = &imx_data->boarddata;
 	int dead = (readl(host->ioaddr + SDHCI_INT_STATUS) == 0xffffffff);
 
 	sdhci_remove_host(host, dead);
