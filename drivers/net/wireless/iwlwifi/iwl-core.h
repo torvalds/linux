@@ -189,11 +189,22 @@ struct iwl_ht_params {
 
 /**
  * struct iwl_cfg
+ * @name: Offical name of the device
  * @fw_name_pre: Firmware filename prefix. The api version and extension
  *	(.ucode) will be added to filename before loading from disk. The
  *	filename is constructed as fw_name_pre<api>.ucode.
  * @ucode_api_max: Highest version of uCode API supported by driver.
  * @ucode_api_min: Lowest version of uCode API supported by driver.
+ * @valid_tx_ant: valid transmit antenna
+ * @valid_rx_ant: valid receive antenna
+ * @sku: sku information from EEPROM
+ * @eeprom_ver: EEPROM version
+ * @eeprom_calib_ver: EEPROM calibration version
+ * @lib: pointer to the lib ops
+ * @additional_nic_config: additional nic configuration
+ * @base_params: pointer to basic parameters
+ * @ht_params: point to ht patameters
+ * @bt_params: pointer to bt parameters
  * @pa_type: used by 6000 series only to identify the type of Power Amplifier
  * @need_dc_calib: need to perform init dc calibration
  * @need_temp_offset_calib: need to perform temperature offset calibration
@@ -220,11 +231,7 @@ struct iwl_ht_params {
  * }
  *
  * The ideal usage of this infrastructure is to treat a new ucode API
- * release as a new hardware revision. That is, through utilizing the
- * iwl_hcmd_utils_ops etc. we accommodate different command structures
- * and flows between hardware versions (4965/5000) as well as their API
- * versions.
- *
+ * release as a new hardware revision.
  */
 struct iwl_cfg {
 	/* params specific to an individual device within a device family */
