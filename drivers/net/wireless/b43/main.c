@@ -5010,7 +5010,14 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 #ifdef CONFIG_B43_BCMA
 static int b43_bcma_probe(struct bcma_device *core)
 {
+	struct b43_bus_dev *dev;
+
+	dev = b43_bus_dev_bcma_init(core);
+	if (!dev)
+		return -ENODEV;
+
 	b43err(NULL, "BCMA is not supported yet!");
+	kfree(dev);
 	return -EOPNOTSUPP;
 }
 
