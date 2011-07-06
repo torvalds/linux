@@ -338,7 +338,7 @@ static void __init omapl138_hawk_map_io(void)
 }
 
 MACHINE_START(OMAPL138_HAWKBOARD, "AM18x/OMAP-L138 Hawkboard")
-	.boot_params	= (DA8XX_DDR_BASE + 0x100),
+	.atag_offset	= 0x100,
 	.map_io		= omapl138_hawk_map_io,
 	.init_irq	= cp_intc_init,
 	.timer		= &davinci_timer,
