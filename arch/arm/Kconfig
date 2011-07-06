@@ -349,6 +349,7 @@ config ARCH_GEMINI
 	select CPU_FA526
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_USES_GETTIMEOFFSET
+	select NO_MACH_MEMORY_H
 	help
 	  Support for the Cortina Systems Gemini family SoCs
 
