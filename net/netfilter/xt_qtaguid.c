@@ -1065,7 +1065,7 @@ static int qtaguid_ctrl_parse(const char *input, int count)
 	goto ok;
 
 err_unlock:
-	if (!sock_tag_entry)
+	if (sock_tag_entry)
 		spin_unlock_irqrestore(&sock_tag_list_lock, flags);
 err:
 ok:
