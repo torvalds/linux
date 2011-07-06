@@ -112,25 +112,9 @@ static int xen_register_pirq(u32 gsi, int gsi_override, int triggering)
 	if (!xen_pv_domain())
 		return -1;
 
-	if (triggering == ACPI_EDGE_SENSITIVE) {
-		shareable = 0;
-		name = "ioapic-edge";
-	} else {
-		shareable = 1;
-		name = "ioapic-level";
-	}
 	pirq = xen_allocate_pirq_gsi(gsi);
 	if (pirq < 0)
 		goto out;
-
-	if (gsi_override >= 0)
-		irq = xen_bind_pirq_gsi_to_irq(gsi_override, pirq, shareable, name);
-	else
-		irq = xen_bind_pirq_gsi_to_irq(gsi, pirq, shareable, name);
-	if (irq < 0)
-		goto out;
-
-	printk(KERN_DEBUG "xen: --> pirq=%d -> irq=%d (gsi=%d)\n", pirq, irq, gsi);
 
 	map_irq.domid = DOMID_SELF;
 	map_irq.type = MAP_PIRQ_TYPE_GSI;
@@ -143,6 +127,22 @@ static int xen_register_pirq(u32 gsi, int gsi_override, int triggering)
 		return -1;
 	}
 
+	if (triggering == ACPI_EDGE_SENSITIVE) {
+		shareable = 0;
+		name = "ioapic-edge";
+	} else {
+		shareable = 1;
+		name = "ioapic-level";
+	}
+
+	if (gsi_override >= 0)
+		gsi = gsi_override;
+
+	irq = xen_bind_pirq_gsi_to_irq(gsi, pirq, shareable, name);
+	if (irq < 0)
+		goto out;
+
+	printk(KERN_DEBUG "xen: --> pirq=%d -> irq=%d (gsi=%d)\n", pirq, irq, gsi);
 out:
 	return irq;
 }
