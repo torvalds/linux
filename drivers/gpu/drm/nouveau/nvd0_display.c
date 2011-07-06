@@ -35,6 +35,7 @@
 
 #define MEM_SYNC 0xe0000001
 #define MEM_VRAM 0xe0010000
+#include "nouveau_dma.h"
 
 struct nvd0_display {
 	struct nouveau_gpuobj *mem;
@@ -174,9 +175,6 @@ nvd0_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 	struct nouveau_framebuffer *nvfb = nouveau_framebuffer(fb);
 	u32 *push;
 
-	/*XXX*/
-	nv_crtc->fb.tile_flags = MEM_VRAM;
-
 	push = evo_wait(fb->dev, 0, 16);
 	if (push) {
 		evo_mthd(push, 0x0460 + (nv_crtc->index * 0x300), 1);
@@ -185,10 +183,11 @@ nvd0_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 		evo_data(push, (fb->height << 16) | fb->width);
 		evo_data(push, nvfb->r_pitch);
 		evo_data(push, nvfb->r_format);
-		evo_data(push, nv_crtc->fb.tile_flags);
+		evo_data(push, nvfb->r_dma);
 		evo_kick(push, fb->dev, 0);
 	}
 
+	nv_crtc->fb.tile_flags = nvfb->r_dma;
 	return 0;
 }
 
@@ -1011,7 +1010,7 @@ nvd0_display_create(struct drm_device *dev)
 	nv_wo32(disp->mem, 0x0000, MEM_SYNC);
 	nv_wo32(disp->mem, 0x0004, (0x1000 << 9) | 0x00000001);
 
-	nv_wo32(disp->mem, 0x1020, 0x00000009);
+	nv_wo32(disp->mem, 0x1020, 0x00000049);
 	nv_wo32(disp->mem, 0x1024, 0x00000000);
 	nv_wo32(disp->mem, 0x1028, (dev_priv->vram_size - 1) >> 8);
 	nv_wo32(disp->mem, 0x102c, 0x00000000);
@@ -1019,6 +1018,24 @@ nvd0_display_create(struct drm_device *dev)
 	nv_wo32(disp->mem, 0x1034, 0x00000000);
 	nv_wo32(disp->mem, 0x0008, MEM_VRAM);
 	nv_wo32(disp->mem, 0x000c, (0x1020 << 9) | 0x00000001);
+
+	nv_wo32(disp->mem, 0x1040, 0x00000009);
+	nv_wo32(disp->mem, 0x1044, 0x00000000);
+	nv_wo32(disp->mem, 0x1048, (dev_priv->vram_size - 1) >> 8);
+	nv_wo32(disp->mem, 0x104c, 0x00000000);
+	nv_wo32(disp->mem, 0x1050, 0x00000000);
+	nv_wo32(disp->mem, 0x1054, 0x00000000);
+	nv_wo32(disp->mem, 0x0010, NvEvoVRAM_LP);
+	nv_wo32(disp->mem, 0x0014, (0x1040 << 9) | 0x00000001);
+
+	nv_wo32(disp->mem, 0x1060, 0x0fe00009);
+	nv_wo32(disp->mem, 0x1064, 0x00000000);
+	nv_wo32(disp->mem, 0x1068, (dev_priv->vram_size - 1) >> 8);
+	nv_wo32(disp->mem, 0x106c, 0x00000000);
+	nv_wo32(disp->mem, 0x1070, 0x00000000);
+	nv_wo32(disp->mem, 0x1074, 0x00000000);
+	nv_wo32(disp->mem, 0x0018, NvEvoFB32);
+	nv_wo32(disp->mem, 0x001c, (0x1060 << 9) | 0x00000001);
 
 	pinstmem->flush(dev);
 
