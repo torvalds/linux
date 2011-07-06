@@ -845,6 +845,7 @@ config ARCH_TCC_926
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
+	select NO_MACH_MEMORY_H
 	help
 	  Support for Telechips TCC ARM926-based systems.
 
