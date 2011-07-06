@@ -66,11 +66,11 @@ SECTIONS
 	. = PAGE_OFFSET + TEXT_OFFSET;
 #endif
 	.head.text : {
-		_stext = .;
+		_text = .;
 		HEAD_TEXT
 	}
 	.text : {			/* Real text segment		*/
-		_text = .;		/* Text and read-only data	*/
+		_stext = .;		/* Text and read-only data	*/
 			__exception_text_start = .;
 			*(.exception.text)
 			__exception_text_end = .;
