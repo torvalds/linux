@@ -546,6 +546,140 @@ out:
 /******************************************************************************
  * DAC
  *****************************************************************************/
+static void
+nvd0_dac_dpms(struct drm_encoder *encoder, int mode)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
+	int or = nv_encoder->or;
+	u32 dpms_ctrl;
+
+	dpms_ctrl = 0x80000000;
+	if (mode == DRM_MODE_DPMS_STANDBY || mode == DRM_MODE_DPMS_OFF)
+		dpms_ctrl |= 0x00000001;
+	if (mode == DRM_MODE_DPMS_SUSPEND || mode == DRM_MODE_DPMS_OFF)
+		dpms_ctrl |= 0x00000004;
+
+	nv_wait(dev, 0x61a004 + (or * 0x0800), 0x80000000, 0x00000000);
+	nv_mask(dev, 0x61a004 + (or * 0x0800), 0xc000007f, dpms_ctrl);
+	nv_wait(dev, 0x61a004 + (or * 0x0800), 0x80000000, 0x00000000);
+}
+
+static bool
+nvd0_dac_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
+		    struct drm_display_mode *adjusted_mode)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_connector *nv_connector;
+
+	nv_connector = nouveau_encoder_connector_get(nv_encoder);
+	if (nv_connector && nv_connector->native_mode) {
+		if (nv_connector->scaling_mode != DRM_MODE_SCALE_NONE) {
+			int id = adjusted_mode->base.id;
+			*adjusted_mode = *nv_connector->native_mode;
+			adjusted_mode->base.id = id;
+		}
+	}
+
+	return true;
+}
+
+static void
+nvd0_dac_prepare(struct drm_encoder *encoder)
+{
+}
+
+static void
+nvd0_dac_commit(struct drm_encoder *encoder)
+{
+}
+
+static void
+nvd0_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
+		  struct drm_display_mode *adjusted_mode)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
+	u32 *push;
+
+	nvd0_dac_dpms(encoder, DRM_MODE_DPMS_ON);
+
+	push = evo_wait(encoder->dev, 0, 2);
+	if (push) {
+		evo_mthd(push, 0x0180 + (nv_encoder->or * 0x20), 1);
+		evo_data(push, 1 << nv_crtc->index);
+		evo_kick(push, encoder->dev, 0);
+	}
+
+	nv_encoder->crtc = encoder->crtc;
+}
+
+static void
+nvd0_dac_disconnect(struct drm_encoder *encoder)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
+	u32 *push;
+
+	if (nv_encoder->crtc) {
+		nvd0_crtc_prepare(nv_encoder->crtc);
+
+		push = evo_wait(dev, 0, 4);
+		if (push) {
+			evo_mthd(push, 0x0180 + (nv_encoder->or * 0x20), 1);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x0080, 1);
+			evo_data(push, 0x00000000);
+			evo_kick(push, dev, 0);
+		}
+
+		nv_encoder->crtc = NULL;
+	}
+}
+
+static void
+nvd0_dac_destroy(struct drm_encoder *encoder)
+{
+	drm_encoder_cleanup(encoder);
+	kfree(encoder);
+}
+
+static const struct drm_encoder_helper_funcs nvd0_dac_hfunc = {
+	.dpms = nvd0_dac_dpms,
+	.mode_fixup = nvd0_dac_mode_fixup,
+	.prepare = nvd0_dac_prepare,
+	.commit = nvd0_dac_commit,
+	.mode_set = nvd0_dac_mode_set,
+	.disable = nvd0_dac_disconnect,
+	.get_crtc = nvd0_display_crtc_get,
+};
+
+static const struct drm_encoder_funcs nvd0_dac_func = {
+	.destroy = nvd0_dac_destroy,
+};
+
+static int
+nvd0_dac_create(struct drm_connector *connector, struct dcb_entry *dcbe)
+{
+	struct drm_device *dev = connector->dev;
+	struct nouveau_encoder *nv_encoder;
+	struct drm_encoder *encoder;
+
+	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
+	if (!nv_encoder)
+		return -ENOMEM;
+	nv_encoder->dcb = dcbe;
+	nv_encoder->or = ffs(dcbe->or) - 1;
+
+	encoder = to_drm_encoder(nv_encoder);
+	encoder->possible_crtcs = dcbe->heads;
+	encoder->possible_clones = 0;
+	drm_encoder_init(dev, encoder, &nvd0_dac_func, DRM_MODE_ENCODER_DAC);
+	drm_encoder_helper_add(encoder, &nvd0_dac_hfunc);
+
+	drm_mode_connector_attach_encoder(connector, encoder);
+	return 0;
+}
 
 /******************************************************************************
  * SOR
@@ -982,6 +1116,9 @@ nvd0_display_create(struct drm_device *dev)
 		switch (dcbe->type) {
 		case OUTPUT_TMDS:
 			nvd0_sor_create(connector, dcbe);
+			break;
+		case OUTPUT_ANALOG:
+			nvd0_dac_create(connector, dcbe);
 			break;
 		default:
 			NV_WARN(dev, "skipping unsupported encoder %d/%d\n",
