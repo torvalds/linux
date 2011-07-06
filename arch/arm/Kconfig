@@ -502,6 +502,7 @@ config ARCH_IXP4XX
 	select HAVE_SCHED_CLOCK
 	select MIGHT_HAVE_PCI
 	select DMABOUNCE if PCI
+	select NO_MACH_MEMORY_H
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
 
