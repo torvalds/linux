@@ -121,7 +121,7 @@ static void __init dsm320_init(void)
 
 MACHINE_START(DSM320, "D-Link DSM-320 Wireless Media Player")
 	/* Maintainer: Simtec Electronics. */
-	.boot_params	= KS8695_SDRAM_PA + 0x100,
+	.atag_offset	= 0x100,
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= dsm320_init,
