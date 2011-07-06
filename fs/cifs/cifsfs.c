@@ -713,7 +713,7 @@ cifs_do_mount(struct file_system_type *fs_type,
 out_super:
 	deactivate_locked_super(sb);
 out:
-	cifs_cleanup_volume_info(&volume_info);
+	cifs_cleanup_volume_info(volume_info);
 	return root;
 
 out_mountdata:
