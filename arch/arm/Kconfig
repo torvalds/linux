@@ -503,6 +503,7 @@ config ARCH_DOVE
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
+	select NO_MACH_MEMORY_H
 	help
 	  Support for the Marvell Dove SoC 88AP510
 
