@@ -99,6 +99,10 @@ config GPIO_EXYNOS4
 	def_bool y
 	depends on CPU_EXYNOS4210
 
+config GPIO_MPC5200
+	def_bool y
+	depends on PPC_MPC52xx
+
 config GPIO_MXC
 	def_bool y
 	depends on ARCH_MXC
