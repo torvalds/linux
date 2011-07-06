@@ -18855,28 +18855,38 @@ static int alc662_auto_fill_dac_nids(struct hda_codec *codec)
 	return 0;
 }
 
-static inline int __alc662_add_vol_ctl(struct alc_spec *spec, const char *pfx,
-				       hda_nid_t nid, int idx, unsigned int chs)
+static int alc662_add_vol_ctl(struct hda_codec *codec,
+			      const char *pfx, int cidx,
+			      hda_nid_t nid, unsigned int chs)
 {
-	return __add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, pfx, idx,
-			   HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT));
+	return __add_pb_vol_ctrl(codec->spec, ALC_CTL_WIDGET_VOL, pfx, cidx,
+				 HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT));
 }
 
-static inline int __alc662_add_sw_ctl(struct alc_spec *spec, const char *pfx,
-				      hda_nid_t nid, int idx, unsigned int chs)
+#define alc662_add_stereo_vol(codec, pfx, cidx, nid)	\
+	alc662_add_vol_ctl(codec, pfx, cidx, nid, 3)
+
+/* create a mute-switch for the given mixer widget;
+ * if it has multiple sources (e.g. DAC and loopback), create a bind-mute
+ */
+static int alc662_add_sw_ctl(struct hda_codec *codec,
+			     const char *pfx, int cidx,
+			     hda_nid_t nid, unsigned int chs)
 {
-	return __add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx, idx,
-			   HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_INPUT));
+	int type;
+	unsigned long val;
+	if (snd_hda_get_conn_list(codec, nid, NULL) == 1) {
+		type = ALC_CTL_WIDGET_MUTE;
+		val = HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_INPUT);
+	} else {
+		type = ALC_CTL_BIND_MUTE;
+		val = HDA_COMPOSE_AMP_VAL(nid, chs, 2, HDA_INPUT);
+	}
+	return __add_pb_sw_ctrl(codec->spec, type, pfx, cidx, val);
 }
 
-#define alc662_add_vol_ctl(spec, pfx, nid, chs) \
-	__alc662_add_vol_ctl(spec, pfx, nid, 0, chs)
-#define alc662_add_sw_ctl(spec, pfx, nid, chs) \
-	__alc662_add_sw_ctl(spec, pfx, nid, 0, chs)
-#define alc662_add_stereo_vol(spec, pfx, nid) \
-	alc662_add_vol_ctl(spec, pfx, nid, 3)
-#define alc662_add_stereo_sw(spec, pfx, nid) \
-	alc662_add_sw_ctl(spec, pfx, nid, 3)
+#define alc662_add_stereo_sw(codec, pfx, cidx, nid)	\
+	alc662_add_sw_ctl(codec, pfx, cidx, nid, 3)
 
 /* add playback controls from the parsed DAC table */
 static int alc662_auto_create_multi_out_ctls(struct hda_codec *codec,
@@ -18906,23 +18916,23 @@ static int alc662_auto_create_multi_out_ctls(struct hda_codec *codec,
 		name = alc_get_line_out_pfx(spec, i, true, &index);
 		if (!name) {
 			/* Center/LFE */
-			err = alc662_add_vol_ctl(spec, "Center", nid, 1);
+			err = alc662_add_vol_ctl(codec, "Center", 0, nid, 1);
 			if (err < 0)
 				return err;
-			err = alc662_add_vol_ctl(spec, "LFE", nid, 2);
+			err = alc662_add_vol_ctl(codec, "LFE", 0, nid, 2);
 			if (err < 0)
 				return err;
-			err = alc662_add_sw_ctl(spec, "Center", mix, 1);
+			err = alc662_add_sw_ctl(codec, "Center", 0, mix, 1);
 			if (err < 0)
 				return err;
-			err = alc662_add_sw_ctl(spec, "LFE", mix, 2);
+			err = alc662_add_sw_ctl(codec, "LFE", 0, mix, 2);
 			if (err < 0)
 				return err;
 		} else {
-			err = __alc662_add_vol_ctl(spec, name, nid, index, 3);
+			err = alc662_add_stereo_vol(codec, name, index, nid);
 			if (err < 0)
 				return err;
-			err = __alc662_add_sw_ctl(spec, name, mix, index, 3);
+			err = alc662_add_stereo_sw(codec, name, index, mix);
 			if (err < 0)
 				return err;
 		}
@@ -18952,10 +18962,10 @@ static int alc662_auto_create_extra_out(struct hda_codec *codec, hda_nid_t pin,
 	mix = alc_auto_dac_to_mix(codec, pin, dac);
 	if (!mix)
 		return 0;
-	err = alc662_add_vol_ctl(spec, pfx, dac, 3);
+	err = alc662_add_stereo_vol(codec, pfx, 0, dac);
 	if (err < 0)
 		return err;
-	err = alc662_add_sw_ctl(spec, pfx, mix, 3);
+	err = alc662_add_stereo_sw(codec, pfx, 0, mix);
 	if (err < 0)
 		return err;
 	return 0;
