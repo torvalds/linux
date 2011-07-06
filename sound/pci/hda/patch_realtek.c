@@ -405,6 +405,7 @@ struct alc_spec {
 	unsigned int no_analog :1; /* digital I/O only */
 	unsigned int dual_adc_switch:1; /* switch ADCs (for ALC275) */
 	unsigned int single_input_src:1;
+	unsigned int vol_in_capsrc:1; /* use capsrc volume (ADC has no vol) */
 
 	/* auto-mute control */
 	int automute_mode;
@@ -2677,11 +2678,15 @@ static int alc_cap_vol_info(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
+	unsigned long val;
 	int err;
 
 	mutex_lock(&codec->control_mutex);
-	kcontrol->private_value = HDA_COMPOSE_AMP_VAL(spec->adc_nids[0], 3, 0,
-						      HDA_INPUT);
+	if (spec->vol_in_capsrc)
+		val = HDA_COMPOSE_AMP_VAL(spec->capsrc_nids[0], 3, 0, HDA_OUTPUT);
+	else
+		val = HDA_COMPOSE_AMP_VAL(spec->adc_nids[0], 3, 0, HDA_INPUT);
+	kcontrol->private_value = val;
 	err = snd_hda_mixer_amp_volume_info(kcontrol, uinfo);
 	mutex_unlock(&codec->control_mutex);
 	return err;
@@ -2692,11 +2697,15 @@ static int alc_cap_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
+	unsigned long val;
 	int err;
 
 	mutex_lock(&codec->control_mutex);
-	kcontrol->private_value = HDA_COMPOSE_AMP_VAL(spec->adc_nids[0], 3, 0,
-						      HDA_INPUT);
+	if (spec->vol_in_capsrc)
+		val = HDA_COMPOSE_AMP_VAL(spec->capsrc_nids[0], 3, 0, HDA_OUTPUT);
+	else
+		val = HDA_COMPOSE_AMP_VAL(spec->adc_nids[0], 3, 0, HDA_INPUT);
+	kcontrol->private_value = val;
 	err = snd_hda_mixer_amp_tlv(kcontrol, op_flag, size, tlv);
 	mutex_unlock(&codec->control_mutex);
 	return err;
@@ -2725,9 +2734,14 @@ static int alc_cap_getput_caller(struct snd_kcontrol *kcontrol,
 		}
 	} else {
 		i = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-		kcontrol->private_value =
-			HDA_COMPOSE_AMP_VAL(spec->adc_nids[i],
-					    3, 0, HDA_INPUT);
+		if (spec->vol_in_capsrc)
+			kcontrol->private_value =
+				HDA_COMPOSE_AMP_VAL(spec->capsrc_nids[i],
+						    3, 0, HDA_OUTPUT);
+		else
+			kcontrol->private_value =
+				val = HDA_COMPOSE_AMP_VAL(spec->adc_nids[i],
+							  3, 0, HDA_INPUT);
 		err = func(kcontrol, ucontrol);
 	}
  error:
@@ -5381,10 +5395,14 @@ static int alc_is_input_pin(struct hda_codec *codec, hda_nid_t nid)
 	return (pincap & AC_PINCAP_IN) != 0;
 }
 
-static int alc_auto_fill_adc_caps(struct hda_codec *codec, hda_nid_t *adc_nids,
-				  hda_nid_t *cap_nids, int max_nums)
+static int alc_auto_fill_adc_caps(struct hda_codec *codec)
 {
+	struct alc_spec *spec = codec->spec;
 	hda_nid_t nid;
+	hda_nid_t *adc_nids = spec->private_adc_nids;
+	hda_nid_t *cap_nids = spec->private_capsrc_nids;
+	int max_nums = ARRAY_SIZE(spec->private_adc_nids);
+	bool indep_capsrc = false;
 	int i, nums = 0;
 
 	nid = codec->start_nid;
@@ -5406,11 +5424,13 @@ static int alc_auto_fill_adc_caps(struct hda_codec *codec, hda_nid_t *adc_nids,
 				break;
 			if (type == AC_WID_AUD_SEL) {
 				cap_nids[nums] = src;
+				indep_capsrc = true;
 				break;
 			}
 			n = snd_hda_get_conn_list(codec, src, &list);
 			if (n > 1) {
 				cap_nids[nums] = src;
+				indep_capsrc = true;
 				break;
 			} else if (n != 1)
 				break;
@@ -5419,6 +5439,10 @@ static int alc_auto_fill_adc_caps(struct hda_codec *codec, hda_nid_t *adc_nids,
 		if (++nums >= max_nums)
 			break;
 	}
+	spec->adc_nids = spec->private_adc_nids;
+	if (indep_capsrc)
+		spec->capsrc_nids = spec->private_capsrc_nids;
+	spec->num_adc_nids = nums;
 	return nums;
 }
 
@@ -5430,11 +5454,10 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec)
 	hda_nid_t mixer = spec->mixer_nid;
 	struct hda_input_mux *imux = &spec->private_imux[0];
 	int num_adcs;
-	hda_nid_t caps[5], adcs[5];
 	int i, c, err, idx, type_idx = 0;
 	const char *prev_label = NULL;
 
-	num_adcs = alc_auto_fill_adc_caps(codec, adcs, caps, ARRAY_SIZE(adcs));
+	num_adcs = alc_auto_fill_adc_caps(codec);
 	if (num_adcs < 0)
 		return 0;
 
@@ -5465,7 +5488,9 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec)
 		}
 
 		for (c = 0; c < num_adcs; c++) {
-			idx = get_connection_index(codec, caps[c], pin);
+			hda_nid_t cap = spec->capsrc_nids ?
+				spec->capsrc_nids[c] : spec->adc_nids[c];
+			idx = get_connection_index(codec, cap, pin);
 			if (idx >= 0) {
 				snd_hda_add_imux_item(imux, label, idx, NULL);
 				break;
@@ -5552,6 +5577,7 @@ static void alc880_auto_init_input_src(struct hda_codec *codec)
 
 static int alc_auto_add_multi_channel_mode(struct hda_codec *codec,
 					   int (*fill_dac)(struct hda_codec *));
+static void alc_remove_invalid_adc_nids(struct hda_codec *codec);
 
 /* parse the BIOS configuration and set up the alc_spec */
 /* return 1 if successful, 0 if the proper config is not found,
@@ -5598,6 +5624,9 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
+
+	if (!spec->dual_adc_switch)
+		alc_remove_invalid_adc_nids(codec);
 
 	alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0);
 
@@ -5742,9 +5771,21 @@ static void set_capture_mixer(struct hda_codec *codec)
 		  alc_capture_mixer2,
 		  alc_capture_mixer3 },
 	};
-	if (spec->num_adc_nids > 0 && spec->num_adc_nids <= 3) {
+
+	/* check whether either of ADC or MUX has a volume control */
+	if (!(query_amp_caps(codec, spec->adc_nids[0], HDA_INPUT) &
+	      AC_AMPCAP_NUM_STEPS)) {
+		if (!spec->capsrc_nids)
+			return; /* no volume */
+		if (!(query_amp_caps(codec, spec->capsrc_nids[0], HDA_OUTPUT) &
+		      AC_AMPCAP_NUM_STEPS))
+			return; /* no volume in capsrc, too */
+		spec->vol_in_capsrc = 1;
+	}
+
+	if (spec->num_adc_nids > 0) {
 		int mux = 0;
-		int num_adcs = spec->num_adc_nids;
+		int num_adcs = 0;
 		if (spec->dual_adc_switch)
 			num_adcs = 1;
 		else if (spec->auto_mic)
@@ -5755,70 +5796,52 @@ static void set_capture_mixer(struct hda_codec *codec)
 			else if (spec->input_mux->num_items == 1)
 				fixup_single_adc(codec);
 		}
+		if (!num_adcs) {
+			if (spec->num_adc_nids > 3)
+				spec->num_adc_nids = 3;
+			else if (!spec->num_adc_nids)
+				return;
+			num_adcs = spec->num_adc_nids;
+		}
 		spec->cap_mixer = caps[mux][num_adcs - 1];
 	}
 }
 
-/* fill adc_nids (and capsrc_nids) containing all active input pins */
-static void fillup_priv_adc_nids(struct hda_codec *codec, const hda_nid_t *nids,
-				 int num_nids)
+/* filter out invalid adc_nids (and capsrc_nids) that don't give all
+ * active input pins
+ */
+static void alc_remove_invalid_adc_nids(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int n;
-	hda_nid_t fallback_adc = 0, fallback_cap = 0;
+	hda_nid_t adc_nids[ARRAY_SIZE(spec->private_adc_nids)];
+	hda_nid_t capsrc_nids[ARRAY_SIZE(spec->private_adc_nids)];
+	int i, n, nums;
 
-	for (n = 0; n < num_nids; n++) {
-		hda_nid_t adc, cap;
-		hda_nid_t conn[HDA_MAX_NUM_INPUTS];
-		int nconns, i, j;
-
-		adc = nids[n];
-		if (get_wcaps_type(get_wcaps(codec, adc)) != AC_WID_AUD_IN)
-			continue;
-		cap = adc;
-		nconns = snd_hda_get_connections(codec, cap, conn,
-						 ARRAY_SIZE(conn));
-		if (nconns == 1) {
-			cap = conn[0];
-			nconns = snd_hda_get_connections(codec, cap, conn,
-							 ARRAY_SIZE(conn));
-		}
-		if (nconns <= 0)
-			continue;
-		if (!fallback_adc) {
-			fallback_adc = adc;
-			fallback_cap = cap;
-		}
+	nums = 0;
+	for (n = 0; n < spec->num_adc_nids; n++) {
+		hda_nid_t cap = spec->private_capsrc_nids[n];
 		for (i = 0; i < cfg->num_inputs; i++) {
-			hda_nid_t nid = cfg->inputs[i].pin;
-			for (j = 0; j < nconns; j++) {
-				if (conn[j] == nid)
-					break;
-			}
-			if (j >= nconns)
+			hda_nid_t pin = cfg->inputs[i].pin;
+			if (get_connection_index(codec, cap, pin) < 0)
 				break;
 		}
 		if (i >= cfg->num_inputs) {
-			int num_adcs = spec->num_adc_nids;
-			spec->private_adc_nids[num_adcs] = adc;
-			spec->private_capsrc_nids[num_adcs] = cap;
-			spec->num_adc_nids++;
-			spec->adc_nids = spec->private_adc_nids;
-			if (adc != cap)
-				spec->capsrc_nids = spec->private_capsrc_nids;
+			adc_nids[nums] = spec->private_adc_nids[n];
+			capsrc_nids[nums++] = cap;
 		}
 	}
-	if (!spec->num_adc_nids) {
+	if (!nums) {
 		printk(KERN_WARNING "hda_codec: %s: no valid ADC found;"
 		       " using fallback 0x%x\n",
-		       codec->chip_name, fallback_adc);
-		spec->private_adc_nids[0] = fallback_adc;
-		spec->adc_nids = spec->private_adc_nids;
-		if (fallback_adc != fallback_cap) {
-			spec->private_capsrc_nids[0] = fallback_cap;
-			spec->capsrc_nids = spec->private_adc_nids;
-		}
+		       codec->chip_name, spec->private_adc_nids[0]);
+		spec->num_adc_nids = 1;
+	} else if (nums != spec->num_adc_nids) {
+		memcpy(spec->private_adc_nids, adc_nids,
+		       nums * sizeof(hda_nid_t));
+		memcpy(spec->private_capsrc_nids, capsrc_nids,
+		       nums * sizeof(hda_nid_t));
+		spec->num_adc_nids = nums;
 	}
 }
 
@@ -5907,17 +5930,8 @@ static int patch_alc880(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc880_pcm_digital_capture;
 
 	if (!spec->adc_nids && spec->input_mux) {
-		/* check whether NID 0x07 is valid */
-		unsigned int wcap = get_wcaps(codec, alc880_adc_nids[0]);
-		/* get type */
-		wcap = get_wcaps_type(wcap);
-		if (wcap != AC_WID_AUD_IN) {
-			spec->adc_nids = alc880_adc_nids_alt;
-			spec->num_adc_nids = ARRAY_SIZE(alc880_adc_nids_alt);
-		} else {
-			spec->adc_nids = alc880_adc_nids;
-			spec->num_adc_nids = ARRAY_SIZE(alc880_adc_nids);
-		}
+		alc_auto_fill_adc_caps(codec);
+		alc_remove_invalid_adc_nids(codec);
 	}
 	set_capture_mixer(codec);
 	set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
@@ -7173,6 +7187,9 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
 
+	if (!spec->dual_adc_switch)
+		alc_remove_invalid_adc_nids(codec);
+
 	alc_ssid_check(codec, 0x10, 0x15, 0x0f, 0);
 
 	return 1;
@@ -7463,17 +7480,8 @@ static int patch_alc260(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc260_pcm_digital_capture;
 
 	if (!spec->adc_nids && spec->input_mux) {
-		/* check whether NID 0x04 is valid */
-		unsigned int wcap = get_wcaps(codec, 0x04);
-		wcap = get_wcaps_type(wcap);
-		/* get type */
-		if (wcap != AC_WID_AUD_IN || spec->input_mux->num_items == 1) {
-			spec->adc_nids = alc260_adc_nids_alt;
-			spec->num_adc_nids = ARRAY_SIZE(alc260_adc_nids_alt);
-		} else {
-			spec->adc_nids = alc260_adc_nids;
-			spec->num_adc_nids = ARRAY_SIZE(alc260_adc_nids);
-		}
+		alc_auto_fill_adc_caps(codec);
+		alc_remove_invalid_adc_nids(codec);
 	}
 	set_capture_mixer(codec);
 	set_beep_amp(spec, 0x07, 0x05, HDA_INPUT);
@@ -10947,6 +10955,9 @@ static int alc882_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
 
+	if (!spec->dual_adc_switch)
+		alc_remove_invalid_adc_nids(codec);
+
 	alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0);
 
 	err = alc_auto_add_mic_boost(codec);
@@ -11048,34 +11059,8 @@ static int patch_alc882(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc882_pcm_digital_capture;
 
 	if (!spec->adc_nids && spec->input_mux) {
-		int i, j;
-		spec->num_adc_nids = 0;
-		for (i = 0; i < ARRAY_SIZE(alc882_adc_nids); i++) {
-			const struct hda_input_mux *imux = spec->input_mux;
-			hda_nid_t cap;
-			hda_nid_t nid = alc882_adc_nids[i];
-			unsigned int wcap = get_wcaps(codec, nid);
-			/* get type */
-			wcap = get_wcaps_type(wcap);
-			if (wcap != AC_WID_AUD_IN)
-				continue;
-			spec->private_adc_nids[spec->num_adc_nids] = nid;
-			err = snd_hda_get_connections(codec, nid, &cap, 1);
-			if (err < 0)
-				continue;
-			err = snd_hda_get_conn_list(codec, cap, NULL);
-			if (err < 0)
-				continue;
-			for (j = 0; j < imux->num_items; j++)
-				if (imux->items[j].index >= err)
-					break;
-			if (j < imux->num_items)
-				continue;
-			spec->private_capsrc_nids[spec->num_adc_nids] = cap;
-			spec->num_adc_nids++;
-		}
-		spec->adc_nids = spec->private_adc_nids;
-		spec->capsrc_nids = spec->private_capsrc_nids;
+		alc_auto_fill_adc_caps(codec);
+		alc_remove_invalid_adc_nids(codec);
 	}
 
 	set_capture_mixer(codec);
@@ -12308,6 +12293,9 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
 
+	if (!spec->dual_adc_switch)
+		alc_remove_invalid_adc_nids(codec);
+
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
 		return err;
@@ -12727,36 +12715,8 @@ static int patch_alc262(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc262_pcm_digital_capture;
 
 	if (!spec->adc_nids && spec->input_mux) {
-		int i;
-		/* check whether the digital-mic has to be supported */
-		for (i = 0; i < spec->input_mux->num_items; i++) {
-			if (spec->input_mux->items[i].index >= 9)
-				break;
-		}
-		if (i < spec->input_mux->num_items) {
-			/* use only ADC0 */
-			spec->adc_nids = alc262_dmic_adc_nids;
-			spec->num_adc_nids = 1;
-			spec->capsrc_nids = alc262_dmic_capsrc_nids;
-		} else {
-			/* all analog inputs */
-			/* check whether NID 0x07 is valid */
-			unsigned int wcap = get_wcaps(codec, 0x07);
-
-			/* get type */
-			wcap = get_wcaps_type(wcap);
-			if (wcap != AC_WID_AUD_IN) {
-				spec->adc_nids = alc262_adc_nids_alt;
-				spec->num_adc_nids =
-					ARRAY_SIZE(alc262_adc_nids_alt);
-				spec->capsrc_nids = alc262_capsrc_nids_alt;
-			} else {
-				spec->adc_nids = alc262_adc_nids;
-				spec->num_adc_nids =
-					ARRAY_SIZE(alc262_adc_nids);
-				spec->capsrc_nids = alc262_capsrc_nids;
-			}
-		}
+		alc_auto_fill_adc_caps(codec);
+		alc_remove_invalid_adc_nids(codec);
 	}
 	if (!spec->cap_mixer && !spec->no_analog)
 		set_capture_mixer(codec);
@@ -13462,6 +13422,9 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 2;
 	spec->input_mux = &spec->private_imux[0];
 
+	if (!spec->dual_adc_switch)
+		alc_remove_invalid_adc_nids(codec);
+
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
 		return err;
@@ -13773,28 +13736,12 @@ static int patch_alc268(struct hda_codec *codec)
 	}
 
 	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
-		/* check whether NID 0x07 is valid */
-		unsigned int wcap = get_wcaps(codec, 0x07);
-
-		spec->capsrc_nids = alc268_capsrc_nids;
-		/* get type */
-		wcap = get_wcaps_type(wcap);
-		if (spec->auto_mic ||
-		    wcap != AC_WID_AUD_IN || spec->input_mux->num_items == 1) {
-			spec->adc_nids = alc268_adc_nids_alt;
-			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids_alt);
-			if (spec->auto_mic)
-				fixup_automic_adc(codec);
-			if (spec->auto_mic || spec->input_mux->num_items == 1)
-				add_mixer(spec, alc268_capture_nosrc_mixer);
-			else
-				add_mixer(spec, alc268_capture_alt_mixer);
-		} else {
-			spec->adc_nids = alc268_adc_nids;
-			spec->num_adc_nids = ARRAY_SIZE(alc268_adc_nids);
-			add_mixer(spec, alc268_capture_mixer);
-		}
+		alc_auto_fill_adc_caps(codec);
+		alc_remove_invalid_adc_nids(codec);
 	}
+
+	if (!spec->cap_mixer && !spec->no_analog)
+		set_capture_mixer(codec);
 
 	spec->vmaster_nid = 0x02;
 
@@ -13831,10 +13778,6 @@ static const hda_nid_t alc269vb_adc_nids[1] = {
 
 static const hda_nid_t alc269vb_capsrc_nids[1] = {
 	0x22,
-};
-
-static const hda_nid_t alc269_adc_candidates[] = {
-	0x08, 0x09, 0x07, 0x11,
 };
 
 #define alc269_modes		alc260_modes
@@ -14422,9 +14365,9 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
 
-	if (!alc275_setup_dual_adc(codec))
-		fillup_priv_adc_nids(codec, alc269_adc_candidates,
-				     sizeof(alc269_adc_candidates));
+	alc275_setup_dual_adc(codec);
+	if (!spec->dual_adc_switch)
+		alc_remove_invalid_adc_nids(codec);
 
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
@@ -14961,15 +14904,8 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc269_pcm_digital_capture;
 
 	if (!spec->adc_nids) { /* wasn't filled automatically? use default */
-		if (spec->codec_variant == ALC269_TYPE_ALC269VA) {
-			spec->adc_nids = alc269_adc_nids;
-			spec->num_adc_nids = ARRAY_SIZE(alc269_adc_nids);
-			spec->capsrc_nids = alc269_capsrc_nids;
-		} else {
-			spec->adc_nids = alc269vb_adc_nids;
-			spec->num_adc_nids = ARRAY_SIZE(alc269vb_adc_nids);
-			spec->capsrc_nids = alc269vb_capsrc_nids;
-		}
+		alc_auto_fill_adc_caps(codec);
+		alc_remove_invalid_adc_nids(codec);
 	}
 
 	if (!spec->cap_mixer)
@@ -15776,11 +15712,12 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
 
-	spec->adc_nids = alc861_adc_nids;
-	spec->num_adc_nids = ARRAY_SIZE(alc861_adc_nids);
-	set_capture_mixer(codec);
+	if (!spec->dual_adc_switch)
+		alc_remove_invalid_adc_nids(codec);
 
 	alc_ssid_check(codec, 0x0e, 0x0f, 0x0b, 0);
+
+	set_capture_mixer(codec);
 
 	return 1;
 }
@@ -16837,6 +16774,9 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
 
+	if (!spec->dual_adc_switch)
+		alc_remove_invalid_adc_nids(codec);
+
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
 		return err;
@@ -16944,11 +16884,9 @@ static int patch_alc861vd(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc861vd_pcm_digital_capture;
 
 	if (!spec->adc_nids) {
-		spec->adc_nids = alc861vd_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(alc861vd_adc_nids);
+		alc_auto_fill_adc_caps(codec);
+		alc_remove_invalid_adc_nids(codec);
 	}
-	if (!spec->capsrc_nids)
-		spec->capsrc_nids = alc861vd_capsrc_nids;
 
 	set_capture_mixer(codec);
 	set_beep_amp(spec, 0x0b, 0x05, HDA_INPUT);
@@ -18965,6 +18903,9 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
 
+	if (!spec->dual_adc_switch)
+		alc_remove_invalid_adc_nids(codec);
+
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
 		return err;
@@ -19134,11 +19075,9 @@ static int patch_alc662(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc662_pcm_digital_capture;
 
 	if (!spec->adc_nids) {
-		spec->adc_nids = alc662_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(alc662_adc_nids);
+		alc_auto_fill_adc_caps(codec);
+		alc_remove_invalid_adc_nids(codec);
 	}
-	if (!spec->capsrc_nids)
-		spec->capsrc_nids = alc662_capsrc_nids;
 
 	if (!spec->cap_mixer)
 		set_capture_mixer(codec);
@@ -19631,8 +19570,8 @@ static int patch_alc680(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc680_pcm_digital_capture;
 
 	if (!spec->adc_nids) {
-		spec->adc_nids = alc680_adc_nids;
-		spec->num_adc_nids = ARRAY_SIZE(alc680_adc_nids);
+		alc_auto_fill_adc_caps(codec);
+		alc_remove_invalid_adc_nids(codec);
 	}
 
 	if (!spec->cap_mixer)
