@@ -2,7 +2,9 @@
 #define B43_BUS_H_
 
 enum b43_bus_type {
+#ifdef CONFIG_B43_BCMA
 	B43_BUS_BCMA,
+#endif
 	B43_BUS_SSB,
 };
 

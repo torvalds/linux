@@ -1187,7 +1187,13 @@ void b43_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 {
 	u32 macctl;
 
-	b43_ssb_wireless_core_reset(dev, gmode);
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		b43_ssb_wireless_core_reset(dev, gmode);
+		break;
+#endif
+	}
 
 	/* Turn Analog ON, but only if we already know the PHY-type.
 	 * This protects against very early setup where we don't know the
@@ -2624,11 +2630,17 @@ static int b43_gpio_init(struct b43_wldev *dev)
 	if (dev->dev->core_rev >= 2)
 		mask |= 0x0010;	/* FIXME: This is redundant. */
 
-	gpiodev = b43_ssb_gpio_dev(dev);
-	if (gpiodev)
-		ssb_write32(gpiodev, B43_GPIO_CONTROL,
-			    (ssb_read32(gpiodev, B43_GPIO_CONTROL)
-			     & mask) | set);
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		gpiodev = b43_ssb_gpio_dev(dev);
+		if (gpiodev)
+			ssb_write32(gpiodev, B43_GPIO_CONTROL,
+				    (ssb_read32(gpiodev, B43_GPIO_CONTROL)
+				    & mask) | set);
+		break;
+#endif
+	}
 
 	return 0;
 }
@@ -2638,9 +2650,15 @@ static void b43_gpio_cleanup(struct b43_wldev *dev)
 {
 	struct ssb_device *gpiodev;
 
-	gpiodev = b43_ssb_gpio_dev(dev);
-	if (gpiodev)
-		ssb_write32(gpiodev, B43_GPIO_CONTROL, 0);
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		gpiodev = b43_ssb_gpio_dev(dev);
+		if (gpiodev)
+			ssb_write32(gpiodev, B43_GPIO_CONTROL, 0);
+		break;
+#endif
+	}
 }
 
 /* http://bcm-specs.sipsolutions.net/EnableMac */
@@ -2712,12 +2730,20 @@ out:
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/MacPhyClkSet */
 void b43_mac_phy_clock_set(struct b43_wldev *dev, bool on)
 {
-	u32 tmslow = ssb_read32(dev->sdev, SSB_TMSLOW);
-	if (on)
-		tmslow |= B43_TMSLOW_MACPHYCLKEN;
-	else
-		tmslow &= ~B43_TMSLOW_MACPHYCLKEN;
-	ssb_write32(dev->sdev, SSB_TMSLOW, tmslow);
+	u32 tmp;
+
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
+		if (on)
+			tmp |= B43_TMSLOW_MACPHYCLKEN;
+		else
+			tmp &= ~B43_TMSLOW_MACPHYCLKEN;
+		ssb_write32(dev->dev->sdev, SSB_TMSLOW, tmp);
+		break;
+#endif
+	}
 }
 
 static void b43_adjust_opmode(struct b43_wldev *dev)
@@ -2956,8 +2982,14 @@ static int b43_chip_init(struct b43_wldev *dev)
 
 	b43_mac_phy_clock_set(dev, true);
 
-	b43_write16(dev, B43_MMIO_POWERUP_DELAY,
-		    dev->sdev->bus->chipco.fast_pwrup_delay);
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		b43_write16(dev, B43_MMIO_POWERUP_DELAY,
+			    dev->dev->sdev->bus->chipco.fast_pwrup_delay);
+		break;
+#endif
+	}
 
 	err = 0;
 	b43dbg(dev->wl, "Chip initialized\n");
@@ -3473,21 +3505,27 @@ static void b43_op_set_tsf(struct ieee80211_hw *hw, u64 tsf)
 
 static void b43_put_phy_into_reset(struct b43_wldev *dev)
 {
-	struct ssb_device *sdev = dev->sdev;
-	u32 tmslow;
+	u32 tmp;
 
-	tmslow = ssb_read32(sdev, SSB_TMSLOW);
-	tmslow &= ~B43_TMSLOW_GMODE;
-	tmslow |= B43_TMSLOW_PHYRESET;
-	tmslow |= SSB_TMSLOW_FGC;
-	ssb_write32(sdev, SSB_TMSLOW, tmslow);
-	msleep(1);
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
+		tmp &= ~B43_TMSLOW_GMODE;
+		tmp |= B43_TMSLOW_PHYRESET;
+		tmp |= SSB_TMSLOW_FGC;
+		ssb_write32(dev->dev->sdev, SSB_TMSLOW, tmp);
+		msleep(1);
 
-	tmslow = ssb_read32(sdev, SSB_TMSLOW);
-	tmslow &= ~SSB_TMSLOW_FGC;
-	tmslow |= B43_TMSLOW_PHYRESET;
-	ssb_write32(sdev, SSB_TMSLOW, tmslow);
-	msleep(1);
+		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
+		tmp &= ~SSB_TMSLOW_FGC;
+		tmp |= B43_TMSLOW_PHYRESET;
+		ssb_write32(dev->dev->sdev, SSB_TMSLOW, tmp);
+		msleep(1);
+
+		break;
+#endif
+	}
 }
 
 static const char *band_to_string(enum ieee80211_band band)
@@ -4347,7 +4385,6 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 /* Initialize a wireless core */
 static int b43_wireless_core_init(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->sdev->bus;
 	struct ssb_sprom *sprom = dev->dev->bus_sprom;
 	struct b43_phy *phy = &dev->phy;
 	int err;
@@ -4366,7 +4403,14 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	phy->ops->prepare_structs(dev);
 
 	/* Enable IRQ routing to this device. */
-	ssb_pcicore_dev_irqvecs_enable(&bus->pcicore, dev->sdev);
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		ssb_pcicore_dev_irqvecs_enable(&dev->dev->sdev->bus->pcicore,
+					       dev->dev->sdev);
+		break;
+#endif
+	}
 
 	b43_imcfglo_timeouts_workaround(dev);
 	b43_bluetooth_coext_disable(dev);
@@ -4397,8 +4441,9 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	if (sprom->boardflags_lo & B43_BFL_XTAL_NOSLOW)
 		hf |= B43_HF_DSCRQ; /* Disable slowclock requests from ucode. */
 #ifdef CONFIG_SSB_DRIVER_PCICORE
-	if ((bus->bustype == SSB_BUSTYPE_PCI) &&
-	    (bus->pcicore.dev->id.revision <= 10))
+	if (dev->dev->bus_type == B43_BUS_SSB &&
+	    dev->dev->sdev->bus->bustype == SSB_BUSTYPE_PCI &&
+	    dev->dev->sdev->bus->pcicore.dev->id.revision <= 10)
 		hf |= B43_HF_PCISCW; /* PCI slow clock workaround. */
 #endif
 	hf &= ~B43_HF_SKCFPUP;
@@ -4764,8 +4809,7 @@ static void b43_wireless_core_detach(struct b43_wldev *dev)
 static int b43_wireless_core_attach(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
-	struct ssb_bus *bus = dev->sdev->bus;
-	struct pci_dev *pdev = (bus->bustype == SSB_BUSTYPE_PCI) ? bus->host_pci : NULL;
+	struct pci_dev *pdev = NULL;
 	int err;
 	bool have_2ghz_phy = 0, have_5ghz_phy = 0;
 
@@ -4776,20 +4820,31 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	 * that in core_init(), too.
 	 */
 
+#ifdef CONFIG_B43_SSB
+	if (dev->dev->bus_type == B43_BUS_SSB &&
+	    dev->dev->sdev->bus->bustype == SSB_BUSTYPE_PCI)
+		pdev = dev->dev->sdev->bus->host_pci;
+#endif
+
 	err = b43_bus_powerup(dev, 0);
 	if (err) {
 		b43err(wl, "Bus powerup failed\n");
 		goto out;
 	}
-	/* Get the PHY type. */
-	if (dev->dev->core_rev >= 5) {
-		u32 tmshigh;
 
-		tmshigh = ssb_read32(dev->sdev, SSB_TMSHIGH);
-		have_2ghz_phy = !!(tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY);
-		have_5ghz_phy = !!(tmshigh & B43_TMSHIGH_HAVE_5GHZ_PHY);
-	} else
-		B43_WARN_ON(1);
+	/* Get the PHY type. */
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		if (dev->dev->core_rev >= 5) {
+			u32 tmshigh = ssb_read32(dev->dev->sdev, SSB_TMSHIGH);
+			have_2ghz_phy = !!(tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY);
+			have_5ghz_phy = !!(tmshigh & B43_TMSHIGH_HAVE_5GHZ_PHY);
+		} else
+			B43_WARN_ON(1);
+		break;
+#endif
+	}
 
 	dev->phy.gmode = have_2ghz_phy;
 	dev->phy.radio_on = 1;
@@ -4898,7 +4953,6 @@ static int b43_one_core_attach(struct b43_bus_dev *dev, struct b43_wl *wl)
 
 	wldev->use_pio = b43_modparam_pio;
 	wldev->dev = dev;
-	wldev->sdev = dev->sdev; /* TODO: Remove when not needed */
 	wldev->wl = wl;
 	b43_set_status(wldev, B43_STAT_UNINIT);
 	wldev->bad_frames_preempt = modparam_bad_frames_preempt;
