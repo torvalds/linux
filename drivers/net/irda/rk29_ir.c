@@ -378,6 +378,8 @@ static int rk29_irda_start(struct net_device *dev)
 err_irlap:
 	si->open = 0;
 	irda_hw_shutdown(si);
+	if (si->pdata->irda_pwr_ctl)
+		si->pdata->irda_pwr_ctl(0);
 err_startup:
 	free_irq(dev->irq, dev);
 err_irq:
@@ -678,6 +680,78 @@ static int rk29_irda_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+/*
+ * Suspend the IrDA interface.
+ */
+static int rk29_irda_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct rk29_irda *si;
+
+	if (!dev)
+		return 0;
+
+	si = netdev_priv(dev);
+	if (si->open) {
+		/*
+		 * Stop the transmit queue
+		 */
+		netif_device_detach(dev);
+		disable_irq(dev->irq);
+		irda_hw_shutdown(si);
+		if (si->pdata->irda_pwr_ctl)
+			si->pdata->irda_pwr_ctl(0);
+	}
+
+	return 0;
+}
+
+/*
+ * Resume the IrDA interface.
+ */
+static int rk29_irda_resume(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct rk29_irda *si;
+
+	if (!dev)
+		return 0;
+
+	si = netdev_priv(dev);
+	if (si->open) {
+		
+		if (si->pdata->irda_pwr_ctl)
+			si->pdata->irda_pwr_ctl(1);
+
+		/*
+		 * If we missed a speed change, initialise at the new speed
+		 * directly.  It is debatable whether this is actually
+		 * required, but in the interests of continuing from where
+		 * we left off it is desireable.  The converse argument is
+		 * that we should re-negotiate at 9600 baud again.
+		 */
+		if (si->newspeed) {
+			si->speed = si->newspeed;
+			si->newspeed = 0;
+		}
+		
+		irda_hw_startup(si);
+		enable_irq(dev->irq);
+
+		/*
+		 * This automatically wakes up the queue
+		 */
+		netif_device_attach(dev);
+	}
+
+	return 0;
+}
+#else
+#define rk29_irda_suspend	NULL
+#define rk29_irda_resume	NULL
+#endif
+
 
 static struct platform_driver irda_driver = {
 	.driver = {
@@ -686,8 +760,8 @@ static struct platform_driver irda_driver = {
 	},
 	.probe = rk29_irda_probe,
 	.remove = rk29_irda_remove,
-	//.suspend = rk29_irda_suspend,
-	//.resume = rk29_irda_resume,
+	.suspend = rk29_irda_suspend,
+	.resume = rk29_irda_resume,
 };
 
 static int __init irda_init(void)

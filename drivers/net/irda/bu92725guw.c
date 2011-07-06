@@ -128,8 +128,8 @@ int irda_hw_shutdown(struct rk29_irda *si)
 //PWR/FIT (default)
 	BU92725GUW_WRITE_REG(REG_PWR_FIT_ADDR, REG_PWR_FIT_MPW_3 | REG_PWR_FIT_FPW_2 | REG_PWR_FIT_FIT_0);
 
-//TRCR (idle, clr fifo, IrDA power down)
-	BU92725GUW_WRITE_REG(REG_TRCR_ADDR, REG_TRCR_FCLR | REG_TRCR_IRPD);
+//TRCR (idle, clr fifo, IrDA , rx, tx power down)
+	BU92725GUW_WRITE_REG(REG_TRCR_ADDR, REG_TRCR_FCLR | REG_TRCR_IRPD |REG_TRCR_TXPWD | REG_TRCR_RXPWD);
 
 //FTLV
 	BU92725GUW_WRITE_REG(REG_FTLV_ADDR, 0x0000);
@@ -660,34 +660,6 @@ static void internal_set(u8 modeChg)
 		}
 	}
 
-	/* TRCR */
-	switch (curTrans_way) {
-	case BU92725GUW_IDLE:
-		val = 0x0000;
-		break;
-	case BU92725GUW_REV:
-	case BU92725GUW_MIR_REV: 
-	case BU92725GUW_FIR_REV:
-		val = REG_TRCR_RX_EN;
-		break;
-	case BU92725GUW_AUTO_MULTI_REV:
-		val = REG_TRCR_RX_EN | REG_TRCR_AUTO_FLV_CP;
-		break;
-	case BU92725GUW_MULTI_REV: 
-		val = REG_TRCR_RX_EN | REG_TRCR_RX_CON;//FIR
-		break;
-	case BU92725GUW_SEND:
-	case BU92725GUW_MIR_SEND:
-	case BU92725GUW_FIR_SEND:
-		val = 0x0000;
-		break;		
-	case BU92725GUW_MULTI_SEND:
-		val = REG_TRCR_TX_CON;
-		break;
-	}
-	BU92725GUW_WRITE_REG(REG_TRCR_ADDR, val);
-	RK29IR_DBG("REG_TRCR_ADDR: 0x%x\n", val);
-
 	/* IER */
 	switch (curTrans_way) {
 	case BU92725GUW_IDLE:
@@ -733,6 +705,34 @@ static void internal_set(u8 modeChg)
 	}
 	BU92725GUW_WRITE_REG(REG_IER_ADDR, val);
 	RK29IR_DBG("REG_IER_ADDR: 0x%x\n", val);
+	
+	/* TRCR */
+	switch (curTrans_way) {
+	case BU92725GUW_IDLE:
+		val = 0x0000;
+		break;
+	case BU92725GUW_REV:
+	case BU92725GUW_MIR_REV: 
+	case BU92725GUW_FIR_REV:
+		val = REG_TRCR_RX_EN;
+		break;
+	case BU92725GUW_AUTO_MULTI_REV:
+		val = REG_TRCR_RX_EN | REG_TRCR_AUTO_FLV_CP;
+		break;
+	case BU92725GUW_MULTI_REV: 
+		val = REG_TRCR_RX_EN | REG_TRCR_RX_CON;//FIR
+		break;
+	case BU92725GUW_SEND:
+	case BU92725GUW_MIR_SEND:
+	case BU92725GUW_FIR_SEND:
+		val = 0x0000;
+		break;		
+	case BU92725GUW_MULTI_SEND:
+		val = REG_TRCR_TX_CON;
+		break;
+	}
+	BU92725GUW_WRITE_REG(REG_TRCR_ADDR, val);
+	RK29IR_DBG("REG_TRCR_ADDR: 0x%x\n", val);
 	
 }
 
