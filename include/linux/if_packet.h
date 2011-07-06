@@ -53,6 +53,7 @@ struct sockaddr_ll {
 
 #define PACKET_FANOUT_HASH		0
 #define PACKET_FANOUT_LB		1
+#define PACKET_FANOUT_CPU		2
 #define PACKET_FANOUT_FLAG_DEFRAG	0x8000
 
 struct tpacket_stats {

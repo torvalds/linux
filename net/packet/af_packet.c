@@ -447,6 +447,13 @@ static struct sock *fanout_demux_lb(struct packet_fanout *f, struct sk_buff *skb
 	return f->arr[cur];
 }
 
+static struct sock *fanout_demux_cpu(struct packet_fanout *f, struct sk_buff *skb, unsigned int num)
+{
+	unsigned int cpu = smp_processor_id();
+
+	return f->arr[cpu % num];
+}
+
 static struct sk_buff *fanout_check_defrag(struct sk_buff *skb)
 {
 	const struct iphdr *iph;
@@ -482,8 +489,8 @@ static struct sk_buff *fanout_check_defrag(struct sk_buff *skb)
 	return skb;
 }
 
-static int packet_rcv_fanout_hash(struct sk_buff *skb, struct net_device *dev,
-				  struct packet_type *pt, struct net_device *orig_dev)
+static int packet_rcv_fanout(struct sk_buff *skb, struct net_device *dev,
+			     struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct packet_fanout *f = pt->af_packet_priv;
 	unsigned int num = f->num_members;
@@ -496,35 +503,25 @@ static int packet_rcv_fanout_hash(struct sk_buff *skb, struct net_device *dev,
 		return 0;
 	}
 
-	if (f->defrag) {
-		skb = fanout_check_defrag(skb);
-		if (!skb)
-			return 0;
+	switch (f->type) {
+	case PACKET_FANOUT_HASH:
+	default:
+		if (f->defrag) {
+			skb = fanout_check_defrag(skb);
+			if (!skb)
+				return 0;
+		}
+		skb_get_rxhash(skb);
+		sk = fanout_demux_hash(f, skb, num);
+		break;
+	case PACKET_FANOUT_LB:
+		sk = fanout_demux_lb(f, skb, num);
+		break;
+	case PACKET_FANOUT_CPU:
+		sk = fanout_demux_cpu(f, skb, num);
+		break;
 	}
 
-	skb_get_rxhash(skb);
-
-	sk = fanout_demux_hash(f, skb, num);
-	po = pkt_sk(sk);
-
-	return po->prot_hook.func(skb, dev, &po->prot_hook, orig_dev);
-}
-
-static int packet_rcv_fanout_lb(struct sk_buff *skb, struct net_device *dev,
-				struct packet_type *pt, struct net_device *orig_dev)
-{
-	struct packet_fanout *f = pt->af_packet_priv;
-	unsigned int num = f->num_members;
-	struct packet_sock *po;
-	struct sock *sk;
-
-	if (!net_eq(dev_net(dev), read_pnet(&f->net)) ||
-	    !num) {
-		kfree_skb(skb);
-		return 0;
-	}
-
-	sk = fanout_demux_lb(f, skb, num);
 	po = pkt_sk(sk);
 
 	return po->prot_hook.func(skb, dev, &po->prot_hook, orig_dev);
@@ -571,6 +568,7 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 	switch (type) {
 	case PACKET_FANOUT_HASH:
 	case PACKET_FANOUT_LB:
+	case PACKET_FANOUT_CPU:
 		break;
 	default:
 		return -EINVAL;
@@ -606,14 +604,7 @@ static int fanout_add(struct sock *sk, u16 id, u16 type_flags)
 			atomic_set(&match->sk_ref, 0);
 			match->prot_hook.type = po->prot_hook.type;
 			match->prot_hook.dev = po->prot_hook.dev;
-			switch (type) {
-			case PACKET_FANOUT_HASH:
-				match->prot_hook.func = packet_rcv_fanout_hash;
-				break;
-			case PACKET_FANOUT_LB:
-				match->prot_hook.func = packet_rcv_fanout_lb;
-				break;
-			}
+			match->prot_hook.func = packet_rcv_fanout;
 			match->prot_hook.af_packet_priv = match;
 			dev_add_pack(&match->prot_hook);
 			list_add(&match->list, &fanout_list);
