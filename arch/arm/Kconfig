@@ -341,6 +341,7 @@ config ARCH_CNS3XXX
 	select ARM_GIC
 	select MIGHT_HAVE_PCI
 	select PCI_DOMAINS if PCI
+	select NO_MACH_MEMORY_H
 	help
 	  Support for Cavium Networks CNS3XXX platform.
 
