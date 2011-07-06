@@ -3061,6 +3061,8 @@ static enum drbd_ret_code adm_delete_minor(struct drbd_conf *mdev)
 	     * we may want to delete a minor from a live replication group.
 	     */
 	    mdev->state.role == R_SECONDARY) {
+		_drbd_request_state(mdev, NS(conn, C_WF_REPORT_PARAMS),
+				    CS_VERBOSE + CS_WAIT_COMPLETE);
 		idr_remove(&mdev->tconn->volumes, mdev->vnr);
 		idr_remove(&minors, mdev_to_minor(mdev));
 		del_gendisk(mdev->vdisk);

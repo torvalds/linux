@@ -201,7 +201,8 @@ static int cl_wide_st_chg(struct drbd_conf *mdev,
 		  (os.conn != C_STARTING_SYNC_S && ns.conn == C_STARTING_SYNC_S) ||
 		  (os.disk != D_DISKLESS && ns.disk == D_DISKLESS))) ||
 		(os.conn >= C_CONNECTED && ns.conn == C_DISCONNECTING) ||
-		(os.conn == C_CONNECTED && ns.conn == C_VERIFY_S);
+		(os.conn == C_CONNECTED && ns.conn == C_VERIFY_S) ||
+		(os.conn == C_CONNECTED && ns.conn == C_WF_REPORT_PARAMS);
 }
 
 static union drbd_state
@@ -1202,7 +1203,8 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	}
 
 	/* Do not change the order of the if above and the two below... */
-	if (os.pdsk == D_DISKLESS && ns.pdsk > D_DISKLESS) {      /* attach on the peer */
+	if (os.pdsk == D_DISKLESS &&
+	    ns.pdsk > D_DISKLESS && ns.pdsk != D_UNKNOWN) {      /* attach on the peer */
 		drbd_send_uuids(mdev);
 		drbd_send_state(mdev);
 	}

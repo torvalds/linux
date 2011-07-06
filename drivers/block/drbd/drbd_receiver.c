@@ -3628,6 +3628,7 @@ static union drbd_state convert_state(union drbd_state ps)
 	union drbd_state ms;
 
 	static enum drbd_conns c_tab[] = {
+		[C_WF_REPORT_PARAMS] = C_WF_REPORT_PARAMS,
 		[C_CONNECTED] = C_CONNECTED,
 
 		[C_STARTING_SYNC_S] = C_STARTING_SYNC_T,
