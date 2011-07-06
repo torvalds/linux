@@ -49,32 +49,27 @@ struct page {
 					 * see PAGE_MAPPING_ANON below.
 					 */
 	/* Second double word */
-	union {
-		struct {
+	struct {
+		union {
 			pgoff_t index;		/* Our offset within mapping. */
+			void *freelist;		/* slub first free object */
+		};
+
+		union {
 			atomic_t _mapcount;	/* Count of ptes mapped in mms,
 							 * to show when page is mapped
 							 * & limit reverse map searches.
 							 */
-			atomic_t _count;		/* Usage count, see below. */
-		};
 
-		struct {			/* SLUB cmpxchg_double area */
-			void *freelist;
-			union {
-				unsigned long counters;
-				struct {
+			/* Used for cmpxchg_double in slub */
+			unsigned long counters;
+			struct {
 					unsigned inuse:16;
 					unsigned objects:15;
 					unsigned frozen:1;
-					/*
-					 * Kernel may make use of this field even when slub
-					 * uses the rest of the double word!
-					 */
-					atomic_t _count;
-				};
 			};
 		};
+		atomic_t _count;		/* Usage count, see below. */
 	};
 
 	/* Third double word block */
