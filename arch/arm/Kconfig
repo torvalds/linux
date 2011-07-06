@@ -863,6 +863,7 @@ config ARCH_U8500
 	select CLKDEV_LOOKUP
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_CPUFREQ
+	select NO_MACH_MEMORY_H
 	help
 	  Support for ST-Ericsson's Ux500 architecture
 
