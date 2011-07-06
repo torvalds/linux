@@ -61,5 +61,6 @@ void handle_tt_response(struct bat_priv *bat_priv,
 			struct tt_query_packet *tt_response);
 void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 		   struct orig_node *orig_node);
+void tt_commit_changes(struct bat_priv *bat_priv);
 
 #endif /* _NET_BATMAN_ADV_TRANSLATION_TABLE_H_ */

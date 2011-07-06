@@ -309,10 +309,8 @@ void schedule_own_packet(struct hard_iface *hard_iface)
 	if (hard_iface == primary_if) {
 		/* if at least one change happened */
 		if (atomic_read(&bat_priv->tt_local_changes) > 0) {
+			tt_commit_changes(bat_priv);
 			prepare_packet_buffer(bat_priv, hard_iface);
-			/* Increment the TTVN only once per OGM interval */
-			atomic_inc(&bat_priv->ttvn);
-			bat_priv->tt_poss_change = false;
 		}
 
 		/* if the changes have been sent enough times */
