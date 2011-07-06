@@ -490,7 +490,7 @@ static void __init am3517_evm_init(void)
 }
 
 MACHINE_START(OMAP3517EVM, "OMAP3517/AM3517 EVM")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= am3517_evm_init_early,

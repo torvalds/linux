@@ -299,7 +299,7 @@ static void __init cm_t3517_init(void)
 }
 
 MACHINE_START(CM_T3517, "Compulab CM-T3517")
-	.boot_params	= 0x80000100,
+	.atag_offset	= 0x100,
 	.reserve        = omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= cm_t3517_init_early,
