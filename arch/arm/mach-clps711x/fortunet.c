@@ -75,7 +75,6 @@ fortunet_fixup(struct machine_desc *desc, struct tag *tags,
 
 MACHINE_START(FORTUNET, "ARM-FortuNet")
 	/* Maintainer: FortuNet Inc. */
-	.boot_params	= 0x00000000,
 	.fixup		= fortunet_fixup,
 	.map_io		= clps711x_map_io,
 	.init_irq	= clps711x_init_irq,
