@@ -24,8 +24,13 @@
 
 #include "b43.h"
 #include "phy_ht.h"
+#include "tables_phy_ht.h"
 #include "radio_2059.h"
 #include "main.h"
+
+/**************************************************
+ * Radio 2059.
+ **************************************************/
 
 static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 			const struct b43_phy_ht_channeltab_e_radio2059 *e)
@@ -56,7 +61,7 @@ static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 	b43_radio_write(dev, 0x98, e->radio_syn98);
 
 	for (i = 0; i < 2; i++) {
-		routing = i ? 0x800 : 0x400;
+		routing = i ? R2059_RXRX1 : R2059_TXRX0;
 		b43_radio_write(dev, routing | 0x4a, e->radio_rxtx4a);
 		b43_radio_write(dev, routing | 0x58, e->radio_rxtx58);
 		b43_radio_write(dev, routing | 0x5a, e->radio_rxtx5a);
@@ -78,11 +83,120 @@ static void b43_radio_2059_channel_setup(struct b43_wldev *dev,
 	udelay(300);
 }
 
+static void b43_radio_2059_init(struct b43_wldev *dev)
+{
+	const u16 routing[] = { R2059_SYN, R2059_TXRX0, R2059_RXRX1 };
+	const u16 radio_values[3][2] = {
+		{ 0x61, 0xE9 }, { 0x69, 0xD5 }, { 0x73, 0x99 },
+	};
+	u16 i, j;
+
+	b43_radio_write(dev, R2059_ALL | 0x51, 0x0070);
+	b43_radio_write(dev, R2059_ALL | 0x5a, 0x0003);
+
+	for (i = 0; i < ARRAY_SIZE(routing); i++)
+		b43_radio_set(dev, routing[i] | 0x146, 0x3);
+
+	b43_radio_set(dev, 0x2e, 0x0078);
+	b43_radio_set(dev, 0xc0, 0x0080);
+	msleep(2);
+	b43_radio_mask(dev, 0x2e, ~0x0078);
+	b43_radio_mask(dev, 0xc0, ~0x0080);
+
+	if (1) { /* FIXME */
+		b43_radio_set(dev, R2059_RXRX1 | 0x4, 0x1);
+		udelay(10);
+		b43_radio_set(dev, R2059_RXRX1 | 0x0BF, 0x1);
+		b43_radio_maskset(dev, R2059_RXRX1 | 0x19B, 0x3, 0x2);
+
+		b43_radio_set(dev, R2059_RXRX1 | 0x4, 0x2);
+		udelay(100);
+		b43_radio_mask(dev, R2059_RXRX1 | 0x4, ~0x2);
+
+		for (i = 0; i < 10000; i++) {
+			if (b43_radio_read(dev, R2059_RXRX1 | 0x145) & 1) {
+				i = 0;
+				break;
+			}
+			udelay(100);
+		}
+		if (i)
+			b43err(dev->wl, "radio 0x945 timeout\n");
+
+		b43_radio_mask(dev, R2059_RXRX1 | 0x4, ~0x1);
+		b43_radio_set(dev, 0xa, 0x60);
+
+		for (i = 0; i < 3; i++) {
+			b43_radio_write(dev, 0x17F, radio_values[i][0]);
+			b43_radio_write(dev, 0x13D, 0x6E);
+			b43_radio_write(dev, 0x13E, radio_values[i][1]);
+			b43_radio_write(dev, 0x13C, 0x55);
+
+			for (j = 0; j < 10000; j++) {
+				if (b43_radio_read(dev, 0x140) & 2) {
+					j = 0;
+					break;
+				}
+				udelay(500);
+			}
+			if (j)
+				b43err(dev->wl, "radio 0x140 timeout\n");
+
+			b43_radio_write(dev, 0x13C, 0x15);
+		}
+
+		b43_radio_mask(dev, 0x17F, ~0x1);
+	}
+
+	b43_radio_mask(dev, 0x11, 0x0008);
+}
+
+/**************************************************
+ * Channel switching ops.
+ **************************************************/
+
 static void b43_phy_ht_channel_setup(struct b43_wldev *dev,
 				const struct b43_phy_ht_channeltab_e_phy *e,
 				struct ieee80211_channel *new_channel)
 {
-	/* TODO */
+	bool old_band_5ghz;
+	u8 i;
+
+	old_band_5ghz = b43_phy_read(dev, B43_PHY_HT_BANDCTL) & 0; /* FIXME */
+	if (new_channel->band == IEEE80211_BAND_5GHZ && !old_band_5ghz) {
+		/* TODO */
+	} else if (new_channel->band == IEEE80211_BAND_2GHZ && old_band_5ghz) {
+		/* TODO */
+	}
+
+	b43_phy_write(dev, B43_PHY_HT_BW1, e->bw1);
+	b43_phy_write(dev, B43_PHY_HT_BW2, e->bw2);
+	b43_phy_write(dev, B43_PHY_HT_BW3, e->bw3);
+	b43_phy_write(dev, B43_PHY_HT_BW4, e->bw4);
+	b43_phy_write(dev, B43_PHY_HT_BW5, e->bw5);
+	b43_phy_write(dev, B43_PHY_HT_BW6, e->bw6);
+
+	/* TODO: some ops on PHY regs 0x0B0 and 0xC0A */
+
+	/* TODO: separated function? */
+	for (i = 0; i < 3; i++) {
+		u16 mask;
+		u32 tmp = b43_httab_read(dev, B43_HTTAB32(26, 0xE8));
+
+		if (0) /* FIXME */
+			mask = 0x2 << (i * 4);
+		else
+			mask = 0;
+		b43_phy_mask(dev, B43_PHY_EXTG(0x108), mask);
+
+		b43_httab_write(dev, B43_HTTAB16(7, 0x110 + i), tmp >> 16);
+		b43_httab_write(dev, B43_HTTAB8(13, 0x63 + (i * 4)),
+				tmp & 0xFF);
+		b43_httab_write(dev, B43_HTTAB8(13, 0x73 + (i * 4)),
+				tmp & 0xFF);
+	}
+
+	b43_phy_write(dev, 0x017e, 0x3830);
 }
 
 static int b43_phy_ht_set_channel(struct b43_wldev *dev,
@@ -139,6 +253,13 @@ static void b43_phy_ht_op_prepare_structs(struct b43_wldev *dev)
 	memset(phy_ht, 0, sizeof(*phy_ht));
 }
 
+static int b43_phy_ht_op_init(struct b43_wldev *dev)
+{
+	b43_phy_ht_tables_init(dev);
+
+	return 0;
+}
+
 static void b43_phy_ht_op_free(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
@@ -162,6 +283,11 @@ static void b43_phy_ht_op_software_rfkill(struct b43_wldev *dev,
 		b43_phy_maskset(dev, B43_PHY_HT_RF_CTL1, ~0, 0x1);
 		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, ~0);
 		b43_phy_maskset(dev, B43_PHY_HT_RF_CTL1, ~0, 0x2);
+
+		if (dev->phy.radio_ver == 0x2059)
+			b43_radio_2059_init(dev);
+		else
+			B43_WARN_ON(1);
 	}
 }
 
@@ -255,9 +381,7 @@ const struct b43_phy_operations b43_phyops_ht = {
 	.allocate		= b43_phy_ht_op_allocate,
 	.free			= b43_phy_ht_op_free,
 	.prepare_structs	= b43_phy_ht_op_prepare_structs,
-	/*
 	.init			= b43_phy_ht_op_init,
-	*/
 	.phy_read		= b43_phy_ht_op_read,
 	.phy_write		= b43_phy_ht_op_write,
 	.phy_maskset		= b43_phy_ht_op_maskset,

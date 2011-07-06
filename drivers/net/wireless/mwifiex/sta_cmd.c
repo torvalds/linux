@@ -779,6 +779,8 @@ static int mwifiex_cmd_ibss_coalescing_status(struct host_cmd_ds_command *cmd,
 	case HostCmd_ACT_GEN_SET:
 		if (enable)
 			ibss_coal->enable = cpu_to_le16(*enable);
+		else
+			ibss_coal->enable = 0;
 		break;
 
 		/* In other case.. Nothing to do */

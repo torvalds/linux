@@ -1018,7 +1018,8 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 					  u8 *dst,
 					  const u8 *ssid, size_t ssid_len,
-					  const u8 *ie, size_t ie_len)
+					  const u8 *ie, size_t ie_len,
+					  bool directed)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
@@ -1035,8 +1036,16 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 	}
 
-	chan = ieee80211_frequency_to_channel(
-		local->hw.conf.channel->center_freq);
+	/*
+	 * Do not send DS Channel parameter for directed probe requests
+	 * in order to maximize the chance that we get a response.  Some
+	 * badly-behaved APs don't respond when this parameter is included.
+	 */
+	if (directed)
+		chan = 0;
+	else
+		chan = ieee80211_frequency_to_channel(
+			local->hw.conf.channel->center_freq);
 
 	buf_len = ieee80211_build_preq_ies(local, buf, ie, ie_len,
 					   local->hw.conf.channel->band,
@@ -1062,11 +1071,13 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
-			      const u8 *ie, size_t ie_len)
+			      const u8 *ie, size_t ie_len,
+			      bool directed)
 {
 	struct sk_buff *skb;
 
-	skb = ieee80211_build_probe_req(sdata, dst, ssid, ssid_len, ie, ie_len);
+	skb = ieee80211_build_probe_req(sdata, dst, ssid, ssid_len, ie, ie_len,
+					directed);
 	if (skb)
 		ieee80211_tx_skb(sdata, skb);
 }

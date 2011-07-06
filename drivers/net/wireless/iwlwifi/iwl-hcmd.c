@@ -113,7 +113,7 @@ const char *get_cmd_string(u8 cmd)
 	}
 }
 
-#define HOST_COMPLETE_TIMEOUT (HZ / 2)
+#define HOST_COMPLETE_TIMEOUT (2 * HZ)
 
 static void iwl_generic_cmd_callback(struct iwl_priv *priv,
 				     struct iwl_device_cmd *cmd,

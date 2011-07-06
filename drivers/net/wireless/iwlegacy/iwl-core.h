@@ -484,7 +484,7 @@ static inline u16 iwl_legacy_pcie_link_ctl(struct iwl_priv *priv)
 {
 	int pos;
 	u16 pci_lnk_ctl;
-	pos = pci_find_capability(priv->pci_dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(priv->pci_dev);
 	pci_read_config_word(priv->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
 	return pci_lnk_ctl;
 }

@@ -1130,6 +1130,8 @@ static int mac80211_hwsim_hw_scan(struct ieee80211_hw *hw,
 	for (i = 0; i < req->n_channels; i++)
 		printk(KERN_DEBUG "hwsim hw_scan freq %d\n",
 			req->channels[i]->center_freq);
+	print_hex_dump(KERN_DEBUG, "scan IEs: ", DUMP_PREFIX_OFFSET,
+			16, 1, req->ie, req->ie_len, 1);
 
 	ieee80211_queue_delayed_work(hw, &hsd->w, 2 * HZ);
 

@@ -1002,8 +1002,8 @@ u32 ssb_calc_clock_rate(u32 plltype, u32 n, u32 m)
 	switch (plltype) {
 	case SSB_PLLTYPE_6: /* 100/200 or 120/240 only */
 		if (m & SSB_CHIPCO_CLK_T6_MMASK)
-			return SSB_CHIPCO_CLK_T6_M0;
-		return SSB_CHIPCO_CLK_T6_M1;
+			return SSB_CHIPCO_CLK_T6_M1;
+		return SSB_CHIPCO_CLK_T6_M0;
 	case SSB_PLLTYPE_1: /* 48Mhz base, 3 dividers */
 	case SSB_PLLTYPE_3: /* 25Mhz, 2 dividers */
 	case SSB_PLLTYPE_4: /* 48Mhz, 4 dividers */

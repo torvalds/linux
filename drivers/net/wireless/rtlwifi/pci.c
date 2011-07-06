@@ -35,10 +35,10 @@
 #include "efuse.h"
 
 static const u16 pcibridge_vendors[PCI_BRIDGE_VENDOR_MAX] = {
-	INTEL_VENDOR_ID,
-	ATI_VENDOR_ID,
-	AMD_VENDOR_ID,
-	SIS_VENDOR_ID
+	PCI_VENDOR_ID_INTEL,
+	PCI_VENDOR_ID_ATI,
+	PCI_VENDOR_ID_AMD,
+	PCI_VENDOR_ID_SI
 };
 
 static const u8 ac_to_hwq[] = {
@@ -390,7 +390,7 @@ static void rtl_pci_parse_configuration(struct pci_dev *pdev,
 	u8 linkctrl_reg;
 
 	/*Link Control Register */
-	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(pdev);
 	pci_read_config_byte(pdev, pos + PCI_EXP_LNKCTL, &linkctrl_reg);
 	pcipriv->ndis_adapter.linkctrl_reg = linkctrl_reg;
 
@@ -1615,6 +1615,16 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 	pci_read_config_byte(pdev, 0x8, &revisionid);
 	pci_read_config_word(pdev, 0x3C, &irqline);
 
+	/* PCI ID 0x10ec:0x8192 occurs for both RTL8192E, which uses
+	 * r8192e_pci, and RTL8192SE, which uses this driver. If the
+	 * revision ID is RTL_PCI_REVISION_ID_8192PCIE (0x01), then
+	 * the correct driver is r8192e_pci, thus this routine should
+	 * return false.
+	 */
+	if (deviceid == RTL_PCI_8192SE_DID &&
+	    revisionid == RTL_PCI_REVISION_ID_8192PCIE)
+		return false;
+
 	if (deviceid == RTL_PCI_8192_DID ||
 	    deviceid == RTL_PCI_0044_DID ||
 	    deviceid == RTL_PCI_0047_DID ||
@@ -1847,7 +1857,8 @@ int __devinit rtl_pci_probe(struct pci_dev *pdev,
 	pci_write_config_byte(pdev, 0x04, 0x07);
 
 	/* find adapter */
-	_rtl_pci_find_adapter(pdev, hw);
+	if (!_rtl_pci_find_adapter(pdev, hw))
+		goto fail3;
 
 	/* Init IO handler */
 	_rtl_pci_io_handler_init(&pdev->dev, hw);

@@ -383,7 +383,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	struct iwl_pci_bus *bus;
-	u8 rev_id;
 	u16 pci_cmd;
 	int err;
 
@@ -440,8 +439,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		(unsigned long long) pci_resource_len(pdev, 0));
 	pr_info("pci_resource_base = %p\n", bus->hw_base);
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
-	pr_info("HW Revision ID = 0x%X\n", rev_id);
+	pr_info("HW Revision ID = 0x%X\n", pdev->revision);
 
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep
 	 * PCI Tx retries from interfering with C3 CPU state */
@@ -496,14 +494,11 @@ static void iwl_pci_down(void *bus)
 static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl_priv *priv = pci_get_drvdata(pdev);
-
-	/* This can happen if probe failed */
-	if (unlikely(!priv))
-		return;
+	void *bus_specific = priv->bus.bus_specific;
 
 	iwl_remove(priv);
 
-	iwl_pci_down(IWL_BUS_GET_PCI_BUS(&priv->bus));
+	iwl_pci_down(bus_specific);
 }
 
 #ifdef CONFIG_PM
@@ -530,14 +525,7 @@ static int iwl_pci_resume(struct device *device)
 	return iwl_resume(priv);
 }
 
-static const struct dev_pm_ops iwl_dev_pm_ops = {
-	.suspend = iwl_pci_suspend,
-	.resume = iwl_pci_resume,
-	.freeze = iwl_pci_suspend,
-	.thaw = iwl_pci_resume,
-	.poweroff = iwl_pci_suspend,
-	.restore = iwl_pci_resume,
-};
+static SIMPLE_DEV_PM_OPS(iwl_dev_pm_ops, iwl_pci_suspend, iwl_pci_resume);
 
 #define IWL_PM_OPS	(&iwl_dev_pm_ops)
 

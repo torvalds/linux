@@ -760,23 +760,34 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	if (local->hw.conf.flags & IEEE80211_CONF_PS)
 		return;
 
-	/*
-	 * transmission can be stopped by others which leads to
-	 * dynamic_ps_timer expiry. Postpond the ps timer if it
-	 * is not the actual idle state.
-	 */
-	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
-	for (q = 0; q < local->hw.queues; q++) {
-		if (local->queue_stop_reasons[q]) {
-			spin_unlock_irqrestore(&local->queue_stop_reason_lock,
-					       flags);
+	if (!local->disable_dynamic_ps &&
+	    local->hw.conf.dynamic_ps_timeout > 0) {
+		/* don't enter PS if TX frames are pending */
+		if (drv_tx_frames_pending(local)) {
 			mod_timer(&local->dynamic_ps_timer, jiffies +
 				  msecs_to_jiffies(
 				  local->hw.conf.dynamic_ps_timeout));
 			return;
 		}
+
+		/*
+		 * transmission can be stopped by others which leads to
+		 * dynamic_ps_timer expiry. Postpone the ps timer if it
+		 * is not the actual idle state.
+		 */
+		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+		for (q = 0; q < local->hw.queues; q++) {
+			if (local->queue_stop_reasons[q]) {
+				spin_unlock_irqrestore(&local->queue_stop_reason_lock,
+						       flags);
+				mod_timer(&local->dynamic_ps_timer, jiffies +
+					  msecs_to_jiffies(
+					  local->hw.conf.dynamic_ps_timeout));
+				return;
+			}
+		}
+		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 	}
-	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
 	if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
 	    (!(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED))) {
@@ -801,7 +812,8 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 
-	netif_tx_wake_all_queues(sdata->dev);
+	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
+		netif_tx_wake_all_queues(sdata->dev);
 }
 
 void ieee80211_dynamic_ps_timer(unsigned long data)
@@ -1204,7 +1216,8 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 		ieee80211_send_nullfunc(sdata->local, sdata, 0);
 	} else {
 		ssid = ieee80211_bss_get_ie(ifmgd->associated, WLAN_EID_SSID);
-		ieee80211_send_probe_req(sdata, dst, ssid + 2, ssid[1], NULL, 0);
+		ieee80211_send_probe_req(sdata, dst, ssid + 2, ssid[1], NULL, 0,
+					 true);
 	}
 
 	ifmgd->probe_send_count++;
@@ -1289,7 +1302,7 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 
 	ssid = ieee80211_bss_get_ie(ifmgd->associated, WLAN_EID_SSID);
 	skb = ieee80211_build_probe_req(sdata, ifmgd->associated->bssid,
-					ssid + 2, ssid[1], NULL, 0);
+					ssid + 2, ssid[1], NULL, 0, true);
 
 	return skb;
 }

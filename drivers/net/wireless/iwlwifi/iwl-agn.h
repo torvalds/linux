@@ -304,6 +304,8 @@ int iwl_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
 int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,
 			int tid);
 void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt);
+int iwl_update_bcast_station(struct iwl_priv *priv,
+			     struct iwl_rxon_context *ctx);
 int iwl_update_bcast_stations(struct iwl_priv *priv);
 void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif,

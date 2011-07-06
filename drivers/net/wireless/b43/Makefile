@@ -11,6 +11,7 @@ b43-$(CONFIG_B43_PHY_N)		+= phy_n.o
 b43-$(CONFIG_B43_PHY_LP)	+= phy_lp.o
 b43-$(CONFIG_B43_PHY_LP)	+= tables_lpphy.o
 b43-$(CONFIG_B43_PHY_HT)	+= phy_ht.o
+b43-$(CONFIG_B43_PHY_HT)	+= tables_phy_ht.o
 b43-$(CONFIG_B43_PHY_HT)	+= radio_2059.o
 b43-y				+= sysfs.o
 b43-y				+= xmit.o

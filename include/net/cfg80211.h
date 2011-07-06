@@ -2697,7 +2697,7 @@ void cfg80211_send_unprot_disassoc(struct net_device *dev, const u8 *buf,
  * @dev: network device
  * @addr: The source MAC address of the frame
  * @key_type: The key type that the received frame used
- * @key_id: Key identifier (0..3)
+ * @key_id: Key identifier (0..3). Can be -1 if missing.
  * @tsc: The TSC value of the frame that generated the MIC failure (6 octets)
  * @gfp: allocation flags
  *

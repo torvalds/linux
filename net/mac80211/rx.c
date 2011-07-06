@@ -338,7 +338,7 @@ static void ieee80211_parse_qos(struct ieee80211_rx_data *rx)
 		u8 *qc = ieee80211_get_qos_ctl(hdr);
 		/* frame has qos control */
 		tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
-		if (*qc & IEEE80211_QOS_CONTROL_A_MSDU_PRESENT)
+		if (*qc & IEEE80211_QOS_CTL_A_MSDU_PRESENT)
 			status->rx_flags |= IEEE80211_RX_AMSDU;
 	} else {
 		/*

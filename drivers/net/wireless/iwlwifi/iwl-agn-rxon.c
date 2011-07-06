@@ -210,6 +210,8 @@ static int iwlagn_rxon_disconn(struct iwl_priv *priv,
 	 * keys, so we have to restore those afterwards.
 	 */
 	iwl_clear_ucode_stations(priv, ctx);
+	/* update -- might need P2P now */
+	iwl_update_bcast_station(priv, ctx);
 	iwl_restore_stations(priv, ctx);
 	ret = iwl_restore_default_wep_keys(priv, ctx);
 	if (ret) {

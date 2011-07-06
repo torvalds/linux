@@ -34,6 +34,7 @@
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 #include <asm/unaligned.h>
+#include <linux/stringify.h>
 
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
@@ -56,13 +57,13 @@
 #define IWL105_UCODE_API_MIN 5
 
 #define IWL2030_FW_PRE "iwlwifi-2030-"
-#define IWL2030_MODULE_FIRMWARE(api) IWL2030_FW_PRE #api ".ucode"
+#define IWL2030_MODULE_FIRMWARE(api) IWL2030_FW_PRE __stringify(api) ".ucode"
 
 #define IWL2000_FW_PRE "iwlwifi-2000-"
-#define IWL2000_MODULE_FIRMWARE(api) IWL2000_FW_PRE #api ".ucode"
+#define IWL2000_MODULE_FIRMWARE(api) IWL2000_FW_PRE __stringify(api) ".ucode"
 
 #define IWL105_FW_PRE "iwlwifi-105-"
-#define IWL105_MODULE_FIRMWARE(api) IWL105_FW_PRE #api ".ucode"
+#define IWL105_MODULE_FIRMWARE(api) IWL105_FW_PRE __stringify(api) ".ucode"
 
 static void iwl2000_set_ct_threshold(struct iwl_priv *priv)
 {

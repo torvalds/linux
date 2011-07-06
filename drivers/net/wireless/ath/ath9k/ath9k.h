@@ -101,6 +101,11 @@ enum buffer_type {
 
 #define ATH_TXSTATUS_RING_SIZE 64
 
+#define	DS2PHYS(_dd, _ds)						\
+	((_dd)->dd_desc_paddr + ((caddr_t)(_ds) - (caddr_t)(_dd)->dd_desc))
+#define ATH_DESC_4KB_BOUND_CHECK(_daddr) ((((_daddr) & 0xFFF) > 0xF7F) ? 1 : 0)
+#define ATH_DESC_4KB_BOUND_NUM_SKIPPED(_len) ((_len) / 4096)
+
 struct ath_descdma {
 	void *dd_desc;
 	dma_addr_t dd_desc_paddr;

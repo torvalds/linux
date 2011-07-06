@@ -617,8 +617,11 @@ void ath_hw_check(struct work_struct *work)
 	ath_dbg(common, ATH_DBG_RESET, "Possible baseband hang, "
 		"busy=%d (try %d)\n", busy, sc->hw_busy_count + 1);
 	if (busy >= 99) {
-		if (++sc->hw_busy_count >= 3)
+		if (++sc->hw_busy_count >= 3) {
+			spin_lock_bh(&sc->sc_pcu_lock);
 			ath_reset(sc, true);
+			spin_unlock_bh(&sc->sc_pcu_lock);
+		}
 	} else if (busy >= 0)
 		sc->hw_busy_count = 0;
 
@@ -637,7 +640,9 @@ static void ath_hw_pll_rx_hang_check(struct ath_softc *sc, u32 pll_sqsum)
 			/* Rx is hung for more than 500ms. Reset it */
 			ath_dbg(common, ATH_DBG_RESET,
 				"Possible RX hang, resetting");
+			spin_lock_bh(&sc->sc_pcu_lock);
 			ath_reset(sc, true);
+			spin_unlock_bh(&sc->sc_pcu_lock);
 			count = 0;
 		}
 	} else
@@ -674,7 +679,9 @@ void ath9k_tasklet(unsigned long data)
 
 	if ((status & ATH9K_INT_FATAL) ||
 	    (status & ATH9K_INT_BB_WATCHDOG)) {
+		spin_lock(&sc->sc_pcu_lock);
 		ath_reset(sc, true);
+		spin_unlock(&sc->sc_pcu_lock);
 		return;
 	}
 
@@ -980,7 +987,6 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	del_timer_sync(&common->ani.timer);
 
 	ath9k_ps_wakeup(sc);
-	spin_lock_bh(&sc->sc_pcu_lock);
 
 	ieee80211_stop_queues(hw);
 
@@ -1023,7 +1029,6 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	}
 
 	ieee80211_wake_queues(hw);
-	spin_unlock_bh(&sc->sc_pcu_lock);
 
 	/* Start ANI */
 	if (!common->disable_ani)
@@ -2326,9 +2331,9 @@ static void ath9k_flush(struct ieee80211_hw *hw, bool drop)
 	ath9k_ps_wakeup(sc);
 	spin_lock_bh(&sc->sc_pcu_lock);
 	drain_txq = ath_drain_all_txq(sc, false);
-	spin_unlock_bh(&sc->sc_pcu_lock);
 	if (!drain_txq)
 		ath_reset(sc, false);
+	spin_unlock_bh(&sc->sc_pcu_lock);
 	ath9k_ps_restore(sc);
 	ieee80211_wake_queues(hw);
 
