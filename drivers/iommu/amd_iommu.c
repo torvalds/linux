@@ -28,6 +28,7 @@
 #include <linux/iommu.h>
 #include <linux/delay.h>
 #include <linux/amd-iommu.h>
+#include <asm/msidef.h>
 #include <asm/proto.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -1202,7 +1203,7 @@ static int alloc_new_range(struct dma_ops_domain *dma_dom,
 {
 	int index = dma_dom->aperture_size >> APERTURE_RANGE_SHIFT;
 	struct amd_iommu *iommu;
-	unsigned long i;
+	unsigned long i, old_size;
 
 #ifdef CONFIG_IOMMU_STRESS
 	populate = false;
@@ -1238,7 +1239,20 @@ static int alloc_new_range(struct dma_ops_domain *dma_dom,
 		}
 	}
 
+	old_size                = dma_dom->aperture_size;
 	dma_dom->aperture_size += APERTURE_RANGE_SIZE;
+
+	/* Reserve address range used for MSI messages */
+	if (old_size < MSI_ADDR_BASE_LO &&
+	    dma_dom->aperture_size > MSI_ADDR_BASE_LO) {
+		unsigned long spage;
+		int pages;
+
+		pages = iommu_num_pages(MSI_ADDR_BASE_LO, 0x10000, PAGE_SIZE);
+		spage = MSI_ADDR_BASE_LO >> PAGE_SHIFT;
+
+		dma_ops_reserve_addresses(dma_dom, spage, pages);
+	}
 
 	/* Initialize the exclusion range if necessary */
 	for_each_iommu(iommu) {
