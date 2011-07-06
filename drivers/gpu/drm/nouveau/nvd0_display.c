@@ -718,9 +718,8 @@ nvd0_sor_create(struct drm_connector *connector, struct dcb_entry *dcbe)
 static void
 nvd0_display_unk1_handler(struct drm_device *dev)
 {
-	u32 unk0 = nv_rd32(dev, 0x6101d0);
-
-	NV_INFO(dev, "PDISP: unk1 0x%08x\n", unk0);
+	NV_INFO(dev, "PDISP: 1 0x%08x 0x%08x 0x%08x\n", nv_rd32(dev, 0x6101d0),
+		nv_rd32(dev, 0x6101d4), nv_rd32(dev, 0x6109d4));
 
 	nv_wr32(dev, 0x6101d4, 0x00000000);
 	nv_wr32(dev, 0x6109d4, 0x00000000);
@@ -730,9 +729,8 @@ nvd0_display_unk1_handler(struct drm_device *dev)
 static void
 nvd0_display_unk2_handler(struct drm_device *dev)
 {
-	u32 unk0 = nv_rd32(dev, 0x6101d0);
-
-	NV_INFO(dev, "PDISP: unk2 0x%08x\n", unk0);
+	NV_INFO(dev, "PDISP: 2 0x%08x 0x%08x 0x%08x\n", nv_rd32(dev, 0x6101d0),
+		nv_rd32(dev, 0x6101d4), nv_rd32(dev, 0x6109d4));
 
 	nv_wr32(dev, 0x6101d4, 0x00000000);
 	nv_wr32(dev, 0x6109d4, 0x00000000);
@@ -742,9 +740,8 @@ nvd0_display_unk2_handler(struct drm_device *dev)
 static void
 nvd0_display_unk4_handler(struct drm_device *dev)
 {
-	u32 unk0 = nv_rd32(dev, 0x6101d0);
-
-	NV_INFO(dev, "PDISP: unk4 0x%08x\n", unk0);
+	NV_INFO(dev, "PDISP: 4 0x%08x 0x%08x 0x%08x\n", nv_rd32(dev, 0x6101d0),
+		nv_rd32(dev, 0x6101d4), nv_rd32(dev, 0x6109d4));
 
 	nv_wr32(dev, 0x6101d4, 0x00000000);
 	nv_wr32(dev, 0x6109d4, 0x00000000);
@@ -849,18 +846,6 @@ nvd0_display_init(struct drm_device *dev)
 	u32 *push;
 	int i;
 
-	/*XXX: wrong, and wtf is it for? */
-	for (i = 0; i < 3; i++) {
-		u32 dac = nv_rd32(dev, 0x61a000 + (i * 0x800));
-		nv_wr32(dev, 0x6101c0 + (i * 0x800), dac);
-	}
-
-	/*XXX: wrong, and wtf is it for? SOR_MODE_CTRL is an error without..  */
-	for (i = 0; i < 4; i++) {
-		u32 sor = nv_rd32(dev, 0x61c000 + (i * 0x800));
-		nv_wr32(dev, 0x6301c4 + (i * 0x800), sor);
-	}
-
 	if (nv_rd32(dev, 0x6100ac) & 0x00000100) {
 		nv_wr32(dev, 0x6100ac, 0x00000100);
 		nv_mask(dev, 0x6194e8, 0x00000001, 0x00000000);
@@ -871,6 +856,29 @@ nvd0_display_init(struct drm_device *dev)
 		}
 	}
 
+	/* nfi what these are exactly, i do know that SOR_MODE_CTRL won't
+	 * work at all unless you do the SOR part below.
+	 */
+	for (i = 0; i < 3; i++) {
+		u32 dac = nv_rd32(dev, 0x61a000 + (i * 0x800));
+		nv_wr32(dev, 0x6101c0 + (i * 0x800), dac);
+	}
+
+	for (i = 0; i < 4; i++) {
+		u32 sor = nv_rd32(dev, 0x61c000 + (i * 0x800));
+		nv_wr32(dev, 0x6301c4 + (i * 0x800), sor);
+	}
+
+	for (i = 0; i < 2; i++) {
+		u32 crtc0 = nv_rd32(dev, 0x616104 + (i * 0x800));
+		u32 crtc1 = nv_rd32(dev, 0x616108 + (i * 0x800));
+		u32 crtc2 = nv_rd32(dev, 0x61610c + (i * 0x800));
+		nv_wr32(dev, 0x6101b4 + (i * 0x800), crtc0);
+		nv_wr32(dev, 0x6101b8 + (i * 0x800), crtc1);
+		nv_wr32(dev, 0x6101bc + (i * 0x800), crtc2);
+	}
+
+	/* point at our hash table / objects, enable interrupts */
 	nv_wr32(dev, 0x610010, (disp->mem->vinst >> 8) | 9);
 	nv_mask(dev, 0x6100b0, 0x00000307, 0x00000307);
 
