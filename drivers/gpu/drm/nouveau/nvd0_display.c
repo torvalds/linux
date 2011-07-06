@@ -850,6 +850,18 @@ nvd0_display_init(struct drm_device *dev)
 	u32 *push;
 	int i;
 
+	/*XXX: wrong, and wtf is it for? */
+	for (i = 0; i < 3; i++) {
+		u32 dac = nv_rd32(dev, 0x61a000 + (i * 0x800));
+		nv_wr32(dev, 0x6101c0 + (i * 0x800), dac);
+	}
+
+	/*XXX: wrong, and wtf is it for? SOR_MODE_CTRL is an error without..  */
+	for (i = 0; i < 4; i++) {
+		u32 sor = nv_rd32(dev, 0x61c000 + (i * 0x800));
+		nv_wr32(dev, 0x6301c4 + (i * 0x800), sor);
+	}
+
 	if (nv_rd32(dev, 0x6100ac) & 0x00000100) {
 		nv_wr32(dev, 0x6100ac, 0x00000100);
 		nv_mask(dev, 0x6194e8, 0x00000001, 0x00000000);
