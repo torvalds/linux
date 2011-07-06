@@ -8,7 +8,7 @@
  */
 #include <mach/devices-common.h>
 
-struct platform_device *__init mxc_register_gpio(int id,
+struct platform_device *__init mxc_register_gpio(char *name, int id,
 	resource_size_t iobase, resource_size_t iosize, int irq, int irq_high)
 {
 	struct resource res[] = {
@@ -28,5 +28,5 @@ struct platform_device *__init mxc_register_gpio(int id,
 	};
 
 	return platform_device_register_resndata(&mxc_aips_bus,
-			"gpio-mxc", id, res, ARRAY_SIZE(res), NULL, 0);
+			name, id, res, ARRAY_SIZE(res), NULL, 0);
 }
