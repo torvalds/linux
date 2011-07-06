@@ -1504,10 +1504,54 @@ static struct platform_device rk29_device_keys = {
 };
 #endif
 
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+struct gpio_led rk29_leds[] = {
+		{
+			.name = "rk29_red_led",
+			.gpio = RK29_PIN4_PB2,
+			.default_trigger = "timer",
+			.active_low = 0,
+			.default_state = LEDS_GPIO_DEFSTATE_OFF,
+		},
+		{
+			.name = "rk29_green_led",
+			.gpio = RK29_PIN4_PB1,
+			.default_trigger = "timer",
+			.active_low = 0,
+			.default_state = LEDS_GPIO_DEFSTATE_OFF,
+		},
+		{
+			.name = "rk29_blue_led",
+			.gpio = RK29_PIN4_PB0,
+			.default_trigger = "timer",
+			.active_low = 0,
+			.default_state = LEDS_GPIO_DEFSTATE_OFF,
+		},
+};
+
+struct gpio_led_platform_data rk29_leds_pdata = {
+	.leds = &rk29_leds,
+	.num_leds	= ARRAY_SIZE(rk29_leds),
+};
+
+struct platform_device rk29_device_gpio_leds = {
+	.name	= "leds-gpio",
+	.id 	= -1,
+	.dev	= {
+	   .platform_data  = &rk29_leds_pdata,
+	},
+};
+#endif
+
 static void __init rk29_board_iomux_init(void)
 {
 	#ifdef CONFIG_RK29_PWM_REGULATOR
 	rk29_mux_api_set(REGULATOR_PWM_MUX_NAME,REGULATOR_PWM_MUX_MODE);
+	#endif
+	#ifdef CONFIG_LEDS_GPIO_PLATFORM
+	rk29_mux_api_set(GPIO4B0_FLASHDATA8_NAME,GPIO4L_GPIO4B0);
+	rk29_mux_api_set(GPIO4B1_FLASHDATA9_NAME,GPIO4L_GPIO4B1);
+	rk29_mux_api_set(GPIO4B2_FLASHDATA10_NAME,GPIO4L_GPIO4B2);
 	#endif
 }
 
@@ -1589,6 +1633,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
+#endif
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+	&rk29_device_gpio_leds,
 #endif
 #ifdef CONFIG_RK29_VMAC
 	&rk29_device_vmac,
