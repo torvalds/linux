@@ -637,6 +637,12 @@ nvd0_dac_disconnect(struct drm_encoder *encoder)
 	}
 }
 
+static enum drm_connector_status
+nvd0_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
+{
+	return connector_status_disconnected;
+}
+
 static void
 nvd0_dac_destroy(struct drm_encoder *encoder)
 {
@@ -652,6 +658,7 @@ static const struct drm_encoder_helper_funcs nvd0_dac_hfunc = {
 	.mode_set = nvd0_dac_mode_set,
 	.disable = nvd0_dac_disconnect,
 	.get_crtc = nvd0_display_crtc_get,
+	.detect = nvd0_dac_detect
 };
 
 static const struct drm_encoder_funcs nvd0_dac_func = {
