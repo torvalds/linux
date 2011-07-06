@@ -1483,9 +1483,7 @@ static int listen(struct socket *sock, int len)
 
 	lock_sock(sk);
 
-	if (sock->state == SS_READY)
-		res = -EOPNOTSUPP;
-	else if (sock->state != SS_UNCONNECTED)
+	if (sock->state != SS_UNCONNECTED)
 		res = -EINVAL;
 	else {
 		sock->state = SS_LISTENING;
@@ -1513,10 +1511,6 @@ static int accept(struct socket *sock, struct socket *new_sock, int flags)
 
 	lock_sock(sk);
 
-	if (sock->state == SS_READY) {
-		res = -EOPNOTSUPP;
-		goto exit;
-	}
 	if (sock->state != SS_LISTENING) {
 		res = -EINVAL;
 		goto exit;
@@ -1793,11 +1787,11 @@ static const struct proto_ops msg_ops = {
 	.bind		= bind,
 	.connect	= connect,
 	.socketpair	= sock_no_socketpair,
-	.accept		= accept,
+	.accept		= sock_no_accept,
 	.getname	= get_name,
 	.poll		= poll,
 	.ioctl		= sock_no_ioctl,
-	.listen		= listen,
+	.listen		= sock_no_listen,
 	.shutdown	= shutdown,
 	.setsockopt	= setsockopt,
 	.getsockopt	= getsockopt,
