@@ -51,7 +51,6 @@ obj-$(CONFIG_VIDEO_DT3155)	+= dt3155v4l/
 obj-$(CONFIG_CRYSTALHD)		+= crystalhd/
 obj-$(CONFIG_CXT1E1)		+= cxt1e1/
 obj-$(CONFIG_FB_XGI)		+= xgifb/
-obj-$(CONFIG_MSM_STAGING)	+= msm/
 obj-$(CONFIG_EASYCAP)		+= easycap/
 obj-$(CONFIG_SOLO6X10)		+= solo6x10/
 obj-$(CONFIG_TIDSPBRIDGE)	+= tidspbridge/
