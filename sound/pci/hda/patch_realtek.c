@@ -5553,31 +5553,10 @@ static void alc_auto_init_analog_input(struct hda_codec *codec)
 	}
 }
 
-static void alc880_auto_init_input_src(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	int c;
-
-	for (c = 0; c < spec->num_adc_nids; c++) {
-		unsigned int mux_idx;
-		const struct hda_input_mux *imux;
-		mux_idx = c >= spec->num_mux_defs ? 0 : c;
-		imux = &spec->input_mux[mux_idx];
-		if (!imux->num_items && mux_idx > 0)
-			imux = &spec->input_mux[0];
-		if (imux)
-			snd_hda_codec_write(codec, spec->adc_nids[c], 0,
-					    AC_VERB_SET_CONNECT_SEL,
-					    imux->items[0].index);
-		snd_hda_codec_write(codec, spec->adc_nids[c], 0,
-				    AC_VERB_SET_AMP_GAIN_MUTE,
-				    AMP_IN_MUTE(0));
-	}
-}
-
 static int alc_auto_add_multi_channel_mode(struct hda_codec *codec,
 					   int (*fill_dac)(struct hda_codec *));
 static void alc_remove_invalid_adc_nids(struct hda_codec *codec);
+static void alc_auto_init_input_src(struct hda_codec *codec);
 
 /* parse the BIOS configuration and set up the alc_spec */
 /* return 1 if successful, 0 if the proper config is not found,
@@ -5640,7 +5619,7 @@ static void alc880_auto_init(struct hda_codec *codec)
 	alc_auto_init_multi_out(codec);
 	alc_auto_init_extra_out(codec);
 	alc_auto_init_analog_input(codec);
-	alc880_auto_init_input_src(codec);
+	alc_auto_init_input_src(codec);
 	alc_auto_init_digital(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
@@ -7156,8 +7135,6 @@ static void alc260_auto_init_multi_out(struct hda_codec *codec)
 		alc260_auto_set_output_and_unmute(codec, nid, PIN_HP, 0);
 }
 
-#define alc260_auto_init_input_src	alc880_auto_init_input_src
-
 static int alc260_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -7201,7 +7178,7 @@ static void alc260_auto_init(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 	alc260_auto_init_multi_out(codec);
 	alc_auto_init_analog_input(codec);
-	alc260_auto_init_input_src(codec);
+	alc_auto_init_input_src(codec);
 	alc_auto_init_digital(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
@@ -10817,18 +10794,23 @@ static const struct snd_pci_quirk alc882_fixup_tbl[] = {
 /*
  * BIOS auto configuration
  */
-static void alc882_auto_init_input_src(struct hda_codec *codec)
+static void alc_auto_init_input_src(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
 	int c;
 
+	if (spec->dual_adc_switch)
+		return;
+
 	for (c = 0; c < spec->num_adc_nids; c++) {
-		hda_nid_t nid = spec->capsrc_nids[c];
+		hda_nid_t nid;
 		unsigned int mux_idx;
 		const struct hda_input_mux *imux;
 		int conns, mute, idx, item;
 		unsigned int wid_type;
 
+		nid = spec->capsrc_nids ?
+			spec->capsrc_nids[c] : spec->adc_nids[c];
 		/* mute ADC */
 		if (query_amp_caps(codec, spec->adc_nids[c], HDA_INPUT) &
 		    AC_AMPCAP_MUTE)
@@ -10974,7 +10956,7 @@ static void alc882_auto_init(struct hda_codec *codec)
 	alc_auto_init_multi_out(codec);
 	alc_auto_init_extra_out(codec);
 	alc_auto_init_analog_input(codec);
-	alc882_auto_init_input_src(codec);
+	alc_auto_init_input_src(codec);
 	alc_auto_init_digital(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
@@ -12305,8 +12287,6 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 	return 1;
 }
 
-#define alc262_auto_init_input_src	alc882_auto_init_input_src
-
 
 /* init callback for auto-configuration model -- overriding the default init */
 static void alc262_auto_init(struct hda_codec *codec)
@@ -12315,7 +12295,7 @@ static void alc262_auto_init(struct hda_codec *codec)
 	alc_auto_init_multi_out(codec);
 	alc_auto_init_extra_out(codec);
 	alc_auto_init_analog_input(codec);
-	alc262_auto_init_input_src(codec);
+	alc_auto_init_input_src(codec);
 	alc_auto_init_digital(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
@@ -13419,7 +13399,7 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 		add_verb(spec, alc268_beep_init_verbs);
 	}
 
-	spec->num_mux_defs = 2;
+	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
 
 	if (!spec->dual_adc_switch)
@@ -13434,8 +13414,6 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	return 1;
 }
 
-#define alc268_auto_init_input_src	alc882_auto_init_input_src
-
 /* init callback for auto-configuration model -- overriding the default init */
 static void alc268_auto_init(struct hda_codec *codec)
 {
@@ -13444,7 +13422,7 @@ static void alc268_auto_init(struct hda_codec *codec)
 	alc268_auto_init_hp_out(codec);
 	alc268_auto_init_mono_speaker_out(codec);
 	alc_auto_init_analog_input(codec);
-	alc268_auto_init_input_src(codec);
+	alc_auto_init_input_src(codec);
 	alc_auto_init_digital(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
@@ -14381,7 +14359,6 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 
 #define alc269_auto_init_multi_out	alc268_auto_init_multi_out
 #define alc269_auto_init_hp_out		alc268_auto_init_hp_out
-#define alc269_auto_init_input_src	alc882_auto_init_input_src
 
 
 /* init callback for auto-configuration model -- overriding the default init */
@@ -14391,8 +14368,7 @@ static void alc269_auto_init(struct hda_codec *codec)
 	alc269_auto_init_multi_out(codec);
 	alc269_auto_init_hp_out(codec);
 	alc_auto_init_analog_input(codec);
-	if (!spec->dual_adc_switch)
-		alc269_auto_init_input_src(codec);
+	alc_auto_init_input_src(codec);
 	alc_auto_init_digital(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
@@ -16604,8 +16580,6 @@ static const struct alc_config_preset alc861vd_presets[] = {
 /*
  * BIOS auto configuration
  */
-#define alc861vd_auto_init_input_src	alc882_auto_init_input_src
-
 #define alc861vd_idx_to_mixer_vol(nid)		((nid) + 0x02)
 #define alc861vd_idx_to_mixer_switch(nid)	((nid) + 0x0c)
 
@@ -16793,7 +16767,7 @@ static void alc861vd_auto_init(struct hda_codec *codec)
 	alc_auto_init_multi_out(codec);
 	alc_auto_init_extra_out(codec);
 	alc_auto_init_analog_input(codec);
-	alc861vd_auto_init_input_src(codec);
+	alc_auto_init_input_src(codec);
 	alc_auto_init_digital(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
@@ -18687,8 +18661,6 @@ static void alc_auto_init_extra_out(struct hda_codec *codec)
 					spec->multiout.extra_out_nid[0]);
 }
 
-#define alc662_auto_init_input_src	alc882_auto_init_input_src
-
 /*
  * multi-io helper
  */
@@ -18926,7 +18898,7 @@ static void alc662_auto_init(struct hda_codec *codec)
 	alc_auto_init_multi_out(codec);
 	alc_auto_init_extra_out(codec);
 	alc_auto_init_analog_input(codec);
-	alc662_auto_init_input_src(codec);
+	alc_auto_init_input_src(codec);
 	alc_auto_init_digital(codec);
 	if (spec->unsol_event)
 		alc_inithook(codec);
