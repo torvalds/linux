@@ -34,4 +34,6 @@ enum kprobe_insn arm_kprobe_decode_insn(kprobe_opcode_t,
 
 void __init arm_kprobe_decode_init(void);
 
+extern kprobe_check_cc * const kprobe_condition_checks[16];
+
 #endif /* _ARM_KERNEL_KPROBES_H */
