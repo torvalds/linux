@@ -548,7 +548,12 @@ void __sramfunc pm_clk_switch_32k(void)
 {
 	int vol;
 	sram_printch('7');
+
+	#if defined (CONFIG_RK29_WORKING_POWER_MANAGEMENT)
+	//not code in here
+	#else
 	pm_gpio_out_high(RK29_PIN4_PC0);
+	#endif
 	sram_delay_loop(30);
 
 	crumode=cru_readl(CRU_MODE_CON); //24M to 27M
@@ -565,8 +570,12 @@ void __sramfunc pm_clk_switch_32k(void)
 	pm_gpio_out_low(RK29_PIN4_PC5);//enable 24M 
 	sram_udelay(1000,24);
 	cru_writel(crumode, CRU_MODE_CON); //externel clk 24M
-	
+
+	#if defined (CONFIG_RK29_WORKING_POWER_MANAGEMENT)
+	//not code in here
+	#else
 	pm_gpio_out_low(RK29_PIN4_PC0); //enable 27M
+	#endif
 	sram_udelay(1000,27);
 	sram_printch('7');
 
@@ -585,13 +594,13 @@ void __sramfunc pm_clk_switch(void)
 #ifdef  CONFIG_RK29_GPIO_SUSPEND
 void pm_gpio_suspend(void)
 {
-	pm_spi_gpio_suspend(); // spi  pullup/pulldown  disable.....¡£
+	pm_spi_gpio_suspend(); // spi  pullup/pulldown  disable.....
 
 }
 
 void pm_gpio_resume(void)
 {
-	pm_spi_gpio_resume(); // spi  pullup/pulldown  disable.....¡£
+	pm_spi_gpio_resume(); // spi  pullup/pulldown  disable.....
 
 }
 

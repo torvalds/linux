@@ -283,6 +283,36 @@ struct platform_device rk29_device_sdmmc1 = {
 	},
 };
 #endif
+
+/*
+ * rk29 wdt device  ADDED BY HHB@ROCK-CHIPS.COM
+ */
+
+#ifdef CONFIG_RK29_WATCHDOG
+
+static struct resource resources_wdt[] = {
+	{
+		.start	= IRQ_WDT,
+		.end	= IRQ_WDT,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK29_WDT_PHYS,
+		.end	= RK29_WDT_PHYS + RK29_WDT_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device rk29_device_wdt = {
+	.name	= "rk29-wdt",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(resources_wdt),
+	.resource	= resources_wdt,
+};
+
+#endif
+
+
 /*
  * rk29 4 uarts device
  */

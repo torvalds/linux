@@ -258,6 +258,18 @@ int ipp_check_param(const struct rk29_ipp_req *req)
 		return	-EINVAL;
 	}
 
+	//check src_vir_w
+	if(unlikely(req->src_vir_w < req->src0.w)){
+		ERR("invalid src_vir_w\n");
+		return	-EINVAL;
+	}
+
+	//check dst_vir_w
+	if(unlikely(req->dst_vir_w < req->dst0.w)){
+		ERR("invalid dst_vir_w\n");
+		return	-EINVAL;
+	}
+
 	//check src address
 	if (unlikely(req->src0.YrgbMst== 0) )
 	{
@@ -304,7 +316,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 
 	drvdata->ipp_result = -1;
 
-	//When ipp_blit_async is called in kernel space req->complete should NOt be NULL, otherwise req->complete should be NULL
+	//When ipp_blit_async is called in kernel space req->complete should NOT be NULL, otherwise req->complete should be NULL
 	if(req->complete)
 	{
 		drvdata->ipp_irq_callback = req->complete;
@@ -613,7 +625,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 			}
 			else
 			{
-				printk("invalid pre_scale operation! pre_scale_w should not be more than 8!\n");
+				printk("invalid pre_scale operation! Down scaling ratio should not be more than 16!\n");
 				goto error_scale;
 			}
 		}
@@ -625,7 +637,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 			}
 			else
 			{
-				printk("invalid pre_scale operation! pre_scale_h should not be more than 8!\n");
+				printk("invalid pre_scale operation! Down scaling ratio should not be more than 16!\n");
 				goto error_scale;
 			}
 		}
@@ -861,11 +873,13 @@ int ipp_blit(const struct rk29_ipp_req *req)
 
 error_status:
 error_scale:
+	ret = -EINVAL;
 	ipp_soft_reset();
 	ipp_power_off(NULL);
 erorr_input:
 error_noerror:
 	drvdata->ipp_result = ret;
+	//printk("ipp_blit done\n");
 	return ret;
 }
 
@@ -1327,7 +1341,8 @@ uint32_t size = 8*1024*1024;
 		*/
 
 		/*6.call IPP driver in the kernel space and the user space at the same time*/
-		
+			ipp_req.src_vir_w = 280;
+		ipp_req.dst_vir_w = 800;
 		do
 		{
 			 ret = ipp_blit_sync(&ipp_req);
@@ -1337,6 +1352,10 @@ uint32_t size = 8*1024*1024;
 
 		printk("error! ret =%d\n",ret);
 
+		ipp_req.src_vir_w = 480;
+		ipp_req.dst_vir_w = 600;
+
+		ipp_blit_sync(&ipp_req);
 		/*7.suspand and resume*/
 		/*
 		//do

@@ -1378,6 +1378,9 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		mmc->ops = &rk29_sdmmc_ops[1];
 	else
 		mmc->ops = &rk29_sdmmc_ops[0];
+  
+        if (host->is_sdio) 
+           mmc->pm_flags = MMC_PM_IGNORE_PM_NOTIFY;   //ignore pm notify    
 	
 	mmc->f_min = DIV_ROUND_UP(host->bus_hz, 510);
 	mmc->f_max = host->bus_hz; 

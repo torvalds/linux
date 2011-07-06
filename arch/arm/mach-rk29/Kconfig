@@ -205,6 +205,12 @@ config RK29_LAST_LOG
 	  It is only intended for debugging.
 
 menu "support for RK29 power manage "
+config RK29_WORKING_POWER_MANAGEMENT
+	bool "Support power saving in working"
+	default n
+	help 
+	  a series of measures to reduce working power
+
 config RK29_CLK_SWITCH_TO_32K
 	bool "Support clock switch to 32.768k"
 	default n
