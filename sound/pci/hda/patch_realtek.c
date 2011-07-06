@@ -18845,6 +18845,13 @@ static int alc662_auto_fill_dac_nids(struct hda_codec *codec)
 				sizeof(hda_nid_t) * (cfg->line_outs - i - 1));
 	}
 
+	if (cfg->hp_outs && !spec->multiout.hp_nid)
+		spec->multiout.hp_nid =
+			alc_auto_look_for_dac(codec, cfg->hp_pins[0]);
+	if (cfg->speaker_outs && !spec->multiout.extra_out_nid[0])
+		spec->multiout.extra_out_nid[0] =
+			alc_auto_look_for_dac(codec, cfg->speaker_pins[0]);
+
 	return 0;
 }
 
