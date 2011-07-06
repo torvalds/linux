@@ -171,7 +171,7 @@ static void __init smdk6440_machine_init(void)
 
 MACHINE_START(SMDK6440, "SMDK6440")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
-	.boot_params	= S5P64X0_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 
 	.init_irq	= s5p6440_init_irq,
 	.map_io		= smdk6440_map_io,
