@@ -285,6 +285,7 @@ config ARCH_VERSATILE
 	select PLAT_VERSATILE_CLCD
 	select PLAT_VERSATILE_FPGA_IRQ
 	select ARM_TIMER_SP804
+	select NO_MACH_MEMORY_H
 	help
 	  This enables support for ARM Ltd Versatile board.
 
