@@ -565,33 +565,11 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	u8 rate_idx, rate_flags;
 	int ret = 0;
 
-	spin_lock(&queue->tx_lock);
-
-	entry = rt2x00queue_get_entry(queue, Q_INDEX);
-
-	if (unlikely(rt2x00queue_full(queue))) {
-		ERROR(queue->rt2x00dev,
-		      "Dropping frame due to full tx queue %d.\n", queue->qid);
-		ret = -ENOBUFS;
-		goto out;
-	}
-
-	if (unlikely(test_and_set_bit(ENTRY_OWNER_DEVICE_DATA,
-				      &entry->flags))) {
-		ERROR(queue->rt2x00dev,
-		      "Arrived at non-free entry in the non-full queue %d.\n"
-		      "Please file bug report to %s.\n",
-		      queue->qid, DRV_PROJECT);
-		ret = -EINVAL;
-		goto out;
-	}
-
 	/*
 	 * Copy all TX descriptor information into txdesc,
 	 * after that we are free to use the skb->cb array
 	 * for our information.
 	 */
-	entry->skb = skb;
 	rt2x00queue_create_tx_descriptor(queue->rt2x00dev, skb, &txdesc);
 
 	/*
@@ -604,7 +582,6 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	rate_flags = tx_info->control.rates[0].flags;
 	skbdesc = get_skb_frame_desc(skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->entry = entry;
 	skbdesc->tx_rate_idx = rate_idx;
 	skbdesc->tx_rate_flags = rate_flags;
 
@@ -633,9 +610,33 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	 * for PCI devices.
 	 */
 	if (test_bit(REQUIRE_L2PAD, &queue->rt2x00dev->cap_flags))
-		rt2x00queue_insert_l2pad(entry->skb, txdesc.header_length);
+		rt2x00queue_insert_l2pad(skb, txdesc.header_length);
 	else if (test_bit(REQUIRE_DMA, &queue->rt2x00dev->cap_flags))
-		rt2x00queue_align_frame(entry->skb);
+		rt2x00queue_align_frame(skb);
+
+	spin_lock(&queue->tx_lock);
+
+	if (unlikely(rt2x00queue_full(queue))) {
+		ERROR(queue->rt2x00dev,
+		      "Dropping frame due to full tx queue %d.\n", queue->qid);
+		ret = -ENOBUFS;
+		goto out;
+	}
+
+	entry = rt2x00queue_get_entry(queue, Q_INDEX);
+
+	if (unlikely(test_and_set_bit(ENTRY_OWNER_DEVICE_DATA,
+				      &entry->flags))) {
+		ERROR(queue->rt2x00dev,
+		      "Arrived at non-free entry in the non-full queue %d.\n"
+		      "Please file bug report to %s.\n",
+		      queue->qid, DRV_PROJECT);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	skbdesc->entry = entry;
+	entry->skb = skb;
 
 	/*
 	 * It could be possible that the queue was corrupted and this
