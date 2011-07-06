@@ -106,10 +106,8 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 			     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
 	}
 	/* do additional nic configuration if needed */
-	if (priv->cfg->nic &&
-		priv->cfg->nic->additional_nic_config) {
-			priv->cfg->nic->additional_nic_config(priv);
-	}
+	if (priv->cfg->additional_nic_config)
+			priv->cfg->additional_nic_config(priv);
 }
 
 static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
@@ -301,14 +299,6 @@ static struct iwl_lib_ops iwl6030_lib = {
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
 	.temperature = iwlagn_temperature,
-};
-
-static struct iwl_nic_ops iwl6050_nic_ops = {
-	.additional_nic_config = &iwl6050_additional_nic_config,
-};
-
-static struct iwl_nic_ops iwl6150_nic_ops = {
-	.additional_nic_config = &iwl6150_additional_nic_config,
 };
 
 static struct iwl_base_params iwl6000_base_params = {
@@ -521,7 +511,7 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.valid_tx_ant = ANT_AB,		/* .cfg overwrite */	\
 	.valid_rx_ant = ANT_AB,		/* .cfg overwrite */	\
 	.lib = &iwl6000_lib,					\
-	.nic = &iwl6050_nic_ops,				\
+	.additional_nic_config = iwl6050_additional_nic_config,	\
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,	\
 	.base_params = &iwl6050_base_params,			\
@@ -545,7 +535,7 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.ucode_api_max = IWL6050_UCODE_API_MAX,			\
 	.ucode_api_min = IWL6050_UCODE_API_MIN,			\
 	.lib = &iwl6000_lib,					\
-	.nic = &iwl6150_nic_ops,				\
+	.additional_nic_config = iwl6150_additional_nic_config,	\
 	.eeprom_ver = EEPROM_6150_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6150_TX_POWER_VERSION,	\
 	.base_params = &iwl6050_base_params,			\

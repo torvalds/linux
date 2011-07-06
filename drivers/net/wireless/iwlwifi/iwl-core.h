@@ -103,11 +103,6 @@ struct iwl_lib_ops {
 	void (*temperature)(struct iwl_priv *priv);
 };
 
-/* NIC specific ops */
-struct iwl_nic_ops {
-	void (*additional_nic_config)(struct iwl_priv *priv);
-};
-
 struct iwl_mod_params {
 	int sw_crypto;		/* def: 0 = using hardware encryption */
 	int num_of_queues;	/* def: HW dependent */
@@ -243,7 +238,7 @@ struct iwl_cfg {
 	u16  eeprom_ver;
 	u16  eeprom_calib_ver;
 	const struct iwl_lib_ops *lib;
-	const struct iwl_nic_ops *nic;
+	void (*additional_nic_config)(struct iwl_priv *priv);
 	/* params not likely to change within a device family */
 	struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
