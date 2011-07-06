@@ -543,12 +543,12 @@ static long __video_do_ioctl(struct file *file,
 	struct v4l2_fh *vfh = NULL;
 	struct v4l2_format f_copy;
 	int use_fh_prio = 0;
-	long ret = -EINVAL;
+	long ret = -ENOTTY;
 
 	if (ops == NULL) {
 		printk(KERN_WARNING "videodev: \"%s\" has no ioctl_ops.\n",
 				vfd->name);
-		return -EINVAL;
+		return ret;
 	}
 
 	if ((vfd->debug & V4L2_DEBUG_IOCTL) &&

@@ -132,7 +132,9 @@ applications. -->
 	<date>2011-06-27</date>
 	<authorinitials>mcc, po</authorinitials>
 	<revremark>Documented that VIDIOC_QUERYCAP now returns a per-subsystem version instead of a per-driver one.</revremark>
+	<revremark>Standardize an error code for invalid ioctl.</revremark>
       </revision>
+
       <revision>
 	<revnumber>2.6.39</revnumber>
 	<date>2011-03-01</date>

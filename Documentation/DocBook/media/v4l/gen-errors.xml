@@ -31,19 +31,18 @@
 	       ioctl requests for specific causes.</entry>
       </row>
       <row>
-	<entry>EINVAL or ENOTTY</entry>
-	<entry>The ioctl is not supported by the driver, actually meaning that
-	       the required functionality is not available, or the file
-	       descriptor is not for a media device. The usage of EINVAL is
-	       deprecated and will be fixed on a latter patch.</entry>
-      </row>
-      <row>
         <entry>ENODEV</entry>
 	<entry>Device not found or was removed.</entry>
       </row>
       <row>
 	<entry>ENOMEM</entry>
 	<entry>There's not enough memory to handle the desired operation.</entry>
+      </row>
+      <row>
+	<entry>ENOTTY</entry>
+	<entry>The ioctl is not supported by the driver, actually meaning that
+	       the required functionality is not available, or the file
+	       descriptor is not for a media device.</entry>
       </row>
       <row>
 	<entry>ENOSPC</entry>
