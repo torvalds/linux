@@ -1549,7 +1549,7 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 	/* We don't register a new USB class. Our client interface is fbdev */
 
 	/* allocates framebuffer driver structure, not framebuffer memory */
-	info = framebuffer_alloc(0, &usbdev->dev);
+	info = framebuffer_alloc(0, &interface->dev);
 	if (!info) {
 		retval = -ENOMEM;
 		pr_err("framebuffer_alloc failed\n");
