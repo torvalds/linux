@@ -69,12 +69,6 @@
 
 #define is_r15(insn, bitpos) (((insn) & (0xf << bitpos)) == (0xf << bitpos))
 
-/*
- * Test if load/store instructions writeback the address register.
- * if P (bit 24) == 0 or W (bit 21) == 1
- */
-#define is_writeback(insn) ((insn ^ 0x01000000) & 0x01200000)
-
 #define PSR_fs	(PSR_f|PSR_s)
 
 #define KPROBE_RETURN_INSTRUCTION	0xe1a0f00e	/* mov pc, lr */

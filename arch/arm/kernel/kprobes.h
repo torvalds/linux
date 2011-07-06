@@ -36,4 +36,10 @@ void __init arm_kprobe_decode_init(void);
 
 extern kprobe_check_cc * const kprobe_condition_checks[16];
 
+/*
+ * Test if load/store instructions writeback the address register.
+ * if P (bit 24) == 0 or W (bit 21) == 1
+ */
+#define is_writeback(insn) ((insn ^ 0x01000000) & 0x01200000)
+
 #endif /* _ARM_KERNEL_KPROBES_H */
