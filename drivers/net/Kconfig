@@ -2303,6 +2303,15 @@ config SKGE_DEBUG
 
 	  If unsure, say N.
 
+config SKGE_GENESIS
+       bool "Support for older SysKonnect Genesis boards"
+       depends on SKGE
+       help
+         This enables support for the older and uncommon SysKonnect Genesis
+	 chips, which support MII via an external transceiver, instead of
+	 an internal one. Disabling this option will save some memory
+	 by making code smaller. If unsure say Y.
+
 config SKY2
 	tristate "SysKonnect Yukon2 support"
 	depends on PCI
