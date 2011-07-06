@@ -2931,33 +2931,20 @@ expand_dfs_referral(int xid, struct cifs_ses *pSesInfo,
 }
 #endif
 
-int cifs_setup_volume_info(struct smb_vol **pvolume_info, char *mount_data,
-			   const char *devname)
+static int
+cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
+			const char *devname)
 {
-	struct smb_vol *volume_info;
 	int rc = 0;
 
-	*pvolume_info = NULL;
-
-	volume_info = kzalloc(sizeof(struct smb_vol), GFP_KERNEL);
-	if (!volume_info) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	if (cifs_parse_mount_options(mount_data, devname,
-				     volume_info)) {
-		rc = -EINVAL;
-		goto out;
-	}
+	if (cifs_parse_mount_options(mount_data, devname, volume_info))
+		return -EINVAL;
 
 	if (volume_info->nullauth) {
 		cFYI(1, "null user");
 		volume_info->username = kzalloc(1, GFP_KERNEL);
-		if (volume_info->username == NULL) {
-			rc = -ENOMEM;
-			goto out;
-		}
+		if (volume_info->username == NULL)
+			return -ENOMEM;
 	} else if (volume_info->username) {
 		/* BB fixme parse for domain name here */
 		cFYI(1, "Username: %s", volume_info->username);
@@ -2965,8 +2952,7 @@ int cifs_setup_volume_info(struct smb_vol **pvolume_info, char *mount_data,
 		cifserror("No username specified");
 	/* In userspace mount helper we can get user name from alternate
 	   locations such as env variables and files on disk */
-		rc = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	/* this is needed for ASCII cp to Unicode converts */
@@ -2978,16 +2964,30 @@ int cifs_setup_volume_info(struct smb_vol **pvolume_info, char *mount_data,
 		if (volume_info->local_nls == NULL) {
 			cERROR(1, "CIFS mount error: iocharset %s not found",
 				 volume_info->iocharset);
-			rc = -ELIBACC;
-			goto out;
+			return -ELIBACC;
 		}
 	}
 
-	*pvolume_info = volume_info;
 	return rc;
-out:
-	cifs_cleanup_volume_info(volume_info);
-	return rc;
+}
+
+struct smb_vol *
+cifs_get_volume_info(char *mount_data, const char *devname)
+{
+	int rc;
+	struct smb_vol *volume_info;
+
+	volume_info = kzalloc(sizeof(struct smb_vol), GFP_KERNEL);
+	if (!volume_info)
+		return ERR_PTR(-ENOMEM);
+
+	rc = cifs_setup_volume_info(volume_info, mount_data, devname);
+	if (rc) {
+		cifs_cleanup_volume_info(volume_info);
+		volume_info = ERR_PTR(rc);
+	}
+
+	return volume_info;
 }
 
 int
