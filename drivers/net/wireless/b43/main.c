@@ -2160,20 +2160,28 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 	int err;
 
 	/* Get microcode */
-	if ((rev >= 5) && (rev <= 10))
+	if ((rev >= 5) && (rev <= 10)) {
 		filename = "ucode5";
-	else if ((rev >= 11) && (rev <= 12))
+	} else if ((rev >= 11) && (rev <= 12)) {
 		filename = "ucode11";
-	else if (rev == 13)
+	} else if (rev == 13) {
 		filename = "ucode13";
-	else if (rev == 14)
+	} else if (rev == 14) {
 		filename = "ucode14";
-	else if (rev == 15)
+	} else if (rev == 15) {
 		filename = "ucode15";
-	else if ((rev >= 16) && (rev <= 20))
-		filename = "ucode16_mimo";
-	else
-		goto err_no_ucode;
+	} else {
+		switch (dev->phy.type) {
+		case B43_PHYTYPE_N:
+			if (rev >= 16)
+				filename = "ucode16_mimo";
+			else
+				goto err_no_ucode;
+			break;
+		default:
+			goto err_no_ucode;
+		}
+	}
 	err = b43_do_request_fw(ctx, filename, &fw->ucode);
 	if (err)
 		goto err_load;
