@@ -407,10 +407,9 @@ static __init void xen_setup_acpi_sci(void)
 	 * the ACPI interpreter and keels over since IRQ 9 has not been
 	 * setup as we had setup IRQ 20 for it).
 	 */
-	/* Check whether the GSI != IRQ */
 	if (acpi_gsi_to_irq(gsi, &irq) == 0) {
-		if (irq >= 0 && irq != gsi)
-			/* Bugger, we MUST have that IRQ. */
+		/* Use the provided value if it's valid. */
+		if (irq >= 0)
 			gsi_override = irq;
 	}
 
