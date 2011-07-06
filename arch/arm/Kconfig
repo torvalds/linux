@@ -627,6 +627,7 @@ config ARCH_PNX4008
 	select CPU_ARM926T
 	select CLKDEV_LOOKUP
 	select ARCH_USES_GETTIMEOFFSET
+	select NO_MACH_MEMORY_H
 	help
 	  This enables support for Philips PNX4008 mobile platform.
 
