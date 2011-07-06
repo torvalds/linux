@@ -18970,26 +18970,38 @@ static void alc662_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t dac)
 {
 	int i, num;
+	hda_nid_t mix;
 	hda_nid_t srcs[HDA_MAX_CONNECTIONS];
 
 	alc_set_pin_output(codec, nid, pin_type);
+	nid = alc_go_down_to_selector(codec, nid);
 	num = snd_hda_get_connections(codec, nid, srcs, ARRAY_SIZE(srcs));
 	for (i = 0; i < num; i++) {
 		if (alc_auto_mix_to_dac(codec, srcs[i]) != dac)
 			continue;
-		/* need the manual connection? */
-		if (num > 1)
-			snd_hda_codec_write(codec, nid, 0,
-					    AC_VERB_SET_CONNECT_SEL, i);
-		/* unmute mixer widget inputs */
-		snd_hda_codec_write(codec, srcs[i], 0,
-				    AC_VERB_SET_AMP_GAIN_MUTE,
-				    AMP_IN_UNMUTE(0));
-		snd_hda_codec_write(codec, srcs[i], 0,
-				    AC_VERB_SET_AMP_GAIN_MUTE,
-				    AMP_IN_UNMUTE(1));
-		return;
+		mix = srcs[i];
+		break;
 	}
+	if (!mix)
+		return;
+
+	/* need the manual connection? */
+	if (num > 1)
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, i);
+	/* unmute mixer widget inputs */
+	snd_hda_codec_write(codec, mix, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    AMP_IN_UNMUTE(0));
+	snd_hda_codec_write(codec, mix, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    AMP_IN_UNMUTE(1));
+	/* initialize volume */
+	if (query_amp_caps(codec, dac, HDA_OUTPUT) & AC_AMPCAP_NUM_STEPS)
+		nid = dac;
+	else if (query_amp_caps(codec, mix, HDA_OUTPUT) & AC_AMPCAP_NUM_STEPS)
+		nid = mix;
+	else
+		return;
+	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    AMP_OUT_ZERO);
 }
 
 static void alc662_auto_init_multi_out(struct hda_codec *codec)
