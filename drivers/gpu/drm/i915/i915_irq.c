@@ -1749,6 +1749,7 @@ void ironlake_irq_preinstall(struct drm_device *dev)
 		 * happens.
 		 */
 		I915_WRITE(GEN6_BLITTER_HWSTAM, ~GEN6_BLITTER_USER_INTERRUPT);
+		I915_WRITE(GEN6_BSD_HWSTAM, ~GEN6_BSD_USER_INTERRUPT);
 	}
 
 	/* XXX hotplug from PCH */

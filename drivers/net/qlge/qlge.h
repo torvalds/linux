@@ -17,7 +17,7 @@
  */
 #define DRV_NAME  	"qlge"
 #define DRV_STRING 	"QLogic 10 Gigabit PCI-E Ethernet Driver "
-#define DRV_VERSION	"v1.00.00.27.00.00-01"
+#define DRV_VERSION	"v1.00.00.29.00.00-01"
 
 #define WQ_ADDR_ALIGN	0x3	/* 4 byte alignment */
 
@@ -1997,6 +1997,7 @@ enum {
 	QL_LB_LINK_UP = 10,
 	QL_FRC_COREDUMP = 11,
 	QL_EEH_FATAL = 12,
+	QL_ASIC_RECOVERY = 14, /* We are in ascic recovery. */
 };
 
 /* link_status bit definitions */

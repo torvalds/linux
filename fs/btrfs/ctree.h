@@ -19,7 +19,6 @@
 #ifndef __BTRFS_CTREE__
 #define __BTRFS_CTREE__
 
-#include <linux/version.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/fs.h>

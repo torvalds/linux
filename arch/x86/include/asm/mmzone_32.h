@@ -48,17 +48,6 @@ static inline int pfn_to_nid(unsigned long pfn)
 #endif
 }
 
-/*
- * Following are macros that each numa implmentation must define.
- */
-
-#define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
-#define node_end_pfn(nid)						\
-({									\
-	pg_data_t *__pgdat = NODE_DATA(nid);				\
-	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;		\
-})
-
 static inline int pfn_valid(int pfn)
 {
 	int nid = pfn_to_nid(pfn);

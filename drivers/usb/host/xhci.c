@@ -759,6 +759,8 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		msleep(100);
 
 	spin_lock_irq(&xhci->lock);
+	if (xhci->quirks & XHCI_RESET_ON_RESUME)
+		hibernated = true;
 
 	if (!hibernated) {
 		/* step 1: restore register */
@@ -1401,6 +1403,7 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	u32 added_ctxs;
 	unsigned int last_ctx;
 	u32 new_add_flags, new_drop_flags, new_slot_info;
+	struct xhci_virt_device *virt_dev;
 	int ret = 0;
 
 	ret = xhci_check_args(hcd, udev, ep, 1, true, __func__);
@@ -1425,11 +1428,25 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 		return 0;
 	}
 
-	in_ctx = xhci->devs[udev->slot_id]->in_ctx;
-	out_ctx = xhci->devs[udev->slot_id]->out_ctx;
+	virt_dev = xhci->devs[udev->slot_id];
+	in_ctx = virt_dev->in_ctx;
+	out_ctx = virt_dev->out_ctx;
 	ctrl_ctx = xhci_get_input_control_ctx(xhci, in_ctx);
 	ep_index = xhci_get_endpoint_index(&ep->desc);
 	ep_ctx = xhci_get_ep_ctx(xhci, out_ctx, ep_index);
+
+	/* If this endpoint is already in use, and the upper layers are trying
+	 * to add it again without dropping it, reject the addition.
+	 */
+	if (virt_dev->eps[ep_index].ring &&
+			!(le32_to_cpu(ctrl_ctx->drop_flags) &
+				xhci_get_endpoint_flag(&ep->desc))) {
+		xhci_warn(xhci, "Trying to add endpoint 0x%x "
+				"without dropping it.\n",
+				(unsigned int) ep->desc.bEndpointAddress);
+		return -EINVAL;
+	}
+
 	/* If the HCD has already noted the endpoint is enabled,
 	 * ignore this request.
 	 */
@@ -1445,8 +1462,7 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	 * process context, not interrupt context (or so documenation
 	 * for usb_set_interface() and usb_set_configuration() claim).
 	 */
-	if (xhci_endpoint_init(xhci, xhci->devs[udev->slot_id],
-				udev, ep, GFP_NOIO) < 0) {
+	if (xhci_endpoint_init(xhci, virt_dev, udev, ep, GFP_NOIO) < 0) {
 		dev_dbg(&udev->dev, "%s - could not initialize ep %#x\n",
 				__func__, ep->desc.bEndpointAddress);
 		return -ENOMEM;
@@ -1537,6 +1553,11 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 				"and endpoint is not disabled.\n");
 		ret = -EINVAL;
 		break;
+	case COMP_DEV_ERR:
+		dev_warn(&udev->dev, "ERROR: Incompatible device for endpoint "
+				"configure command.\n");
+		ret = -ENODEV;
+		break;
 	case COMP_SUCCESS:
 		dev_dbg(&udev->dev, "Successful Endpoint Configure command\n");
 		ret = 0;
@@ -1570,6 +1591,11 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 				"evaluate context command.\n");
 		xhci_dbg_ctx(xhci, virt_dev->out_ctx, 1);
 		ret = -EINVAL;
+		break;
+	case COMP_DEV_ERR:
+		dev_warn(&udev->dev, "ERROR: Incompatible device for evaluate "
+				"context command.\n");
+		ret = -ENODEV;
 		break;
 	case COMP_MEL_ERR:
 		/* Max Exit Latency too large error */
@@ -2852,6 +2878,11 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	case COMP_TX_ERR:
 		dev_warn(&udev->dev, "Device not responding to set address.\n");
 		ret = -EPROTO;
+		break;
+	case COMP_DEV_ERR:
+		dev_warn(&udev->dev, "ERROR: Incompatible device for address "
+				"device command.\n");
+		ret = -ENODEV;
 		break;
 	case COMP_SUCCESS:
 		xhci_dbg(xhci, "Successful Address Device command\n");

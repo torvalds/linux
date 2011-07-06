@@ -465,8 +465,10 @@ int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	if (addr_len < sizeof(struct sockaddr_in))
 		goto out;
 
-	if (addr->sin_family != AF_INET)
+	if (addr->sin_family != AF_INET) {
+		err = -EAFNOSUPPORT;
 		goto out;
+	}
 
 	chk_addr_ret = inet_addr_type(sock_net(sk), addr->sin_addr.s_addr);
 

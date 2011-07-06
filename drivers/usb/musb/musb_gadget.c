@@ -1524,6 +1524,12 @@ static void musb_gadget_fifo_flush(struct usb_ep *ep)
 		csr = musb_readw(epio, MUSB_TXCSR);
 		if (csr & MUSB_TXCSR_FIFONOTEMPTY) {
 			csr |= MUSB_TXCSR_FLUSHFIFO | MUSB_TXCSR_P_WZC_BITS;
+			/*
+			 * Setting both TXPKTRDY and FLUSHFIFO makes controller
+			 * to interrupt current FIFO loading, but not flushing
+			 * the already loaded ones.
+			 */
+			csr &= ~MUSB_TXCSR_TXPKTRDY;
 			musb_writew(epio, MUSB_TXCSR, csr);
 			/* REVISIT may be inappropriate w/o FIFONOTEMPTY ... */
 			musb_writew(epio, MUSB_TXCSR, csr);

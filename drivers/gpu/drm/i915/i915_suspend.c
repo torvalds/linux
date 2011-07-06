@@ -678,6 +678,7 @@ void i915_save_display(struct drm_device *dev)
 	}
 
 	/* VGA state */
+	mutex_lock(&dev->struct_mutex);
 	dev_priv->saveVGA0 = I915_READ(VGA0);
 	dev_priv->saveVGA1 = I915_READ(VGA1);
 	dev_priv->saveVGA_PD = I915_READ(VGA_PD);
@@ -687,6 +688,7 @@ void i915_save_display(struct drm_device *dev)
 		dev_priv->saveVGACNTRL = I915_READ(VGACNTRL);
 
 	i915_save_vga(dev);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 void i915_restore_display(struct drm_device *dev)
@@ -780,6 +782,8 @@ void i915_restore_display(struct drm_device *dev)
 		I915_WRITE(CPU_VGACNTRL, dev_priv->saveVGACNTRL);
 	else
 		I915_WRITE(VGACNTRL, dev_priv->saveVGACNTRL);
+
+	mutex_lock(&dev->struct_mutex);
 	I915_WRITE(VGA0, dev_priv->saveVGA0);
 	I915_WRITE(VGA1, dev_priv->saveVGA1);
 	I915_WRITE(VGA_PD, dev_priv->saveVGA_PD);
@@ -787,6 +791,7 @@ void i915_restore_display(struct drm_device *dev)
 	udelay(150);
 
 	i915_restore_vga(dev);
+	mutex_unlock(&dev->struct_mutex);
 }
 
 int i915_save_state(struct drm_device *dev)

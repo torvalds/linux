@@ -14,13 +14,6 @@ extern struct node_map_data node_data[];
 
 #define NODE_DATA(nid)          (&node_data[nid].pg_data)
 
-#define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
-#define node_end_pfn(nid)						\
-({									\
-	pg_data_t *__pgdat = NODE_DATA(nid);				\
-	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;		\
-})
-
 /* We have these possible memory map layouts:
  * Astro: 0-3.75, 67.75-68, 4-64
  * zx1: 0-1, 257-260, 4-256

@@ -452,7 +452,7 @@ void ahci_save_initial_config(struct device *dev,
 	}
 
 	if (mask_port_map) {
-		dev_printk(KERN_ERR, dev, "masking port_map 0x%x -> 0x%x\n",
+		dev_printk(KERN_WARNING, dev, "masking port_map 0x%x -> 0x%x\n",
 			   port_map,
 			   port_map & mask_port_map);
 		port_map &= mask_port_map;

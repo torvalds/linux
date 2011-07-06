@@ -3284,7 +3284,7 @@ static int pci_set_vga_state_arch(struct pci_dev *dev, bool decode,
  * @dev: the PCI device
  * @decode: true = enable decoding, false = disable decoding
  * @command_bits: PCI_COMMAND_IO and/or PCI_COMMAND_MEMORY
- * @change_bridge_flags: traverse ancestors and change bridges
+ * @flags: traverse ancestors and change bridges
  * CHANGE_BRIDGE_ONLY / CHANGE_BRIDGE
  */
 int pci_set_vga_state(struct pci_dev *dev, bool decode,

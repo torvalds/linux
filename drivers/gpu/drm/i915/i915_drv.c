@@ -579,6 +579,9 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	} else switch (INTEL_INFO(dev)->gen) {
 	case 6:
 		ret = gen6_do_reset(dev, flags);
+		/* If reset with a user forcewake, try to restore */
+		if (atomic_read(&dev_priv->forcewake_count))
+			__gen6_gt_force_wake_get(dev_priv);
 		break;
 	case 5:
 		ret = ironlake_do_reset(dev, flags);

@@ -1733,6 +1733,7 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		frame->status = -EOVERFLOW;
 		skip_td = true;
 		break;
+	case COMP_DEV_ERR:
 	case COMP_STALL:
 		frame->status = -EPROTO;
 		skip_td = true;
@@ -1767,9 +1768,6 @@ static int process_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		}
 	}
 
-	if ((idx == urb_priv->length - 1) && *status == -EINPROGRESS)
-		*status = 0;
-
 	return finish_td(xhci, td, event_trb, event, ep, status, false);
 }
 
@@ -1787,8 +1785,7 @@ static int skip_isoc_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	idx = urb_priv->td_cnt;
 	frame = &td->urb->iso_frame_desc[idx];
 
-	/* The transfer is partly done */
-	*status = -EXDEV;
+	/* The transfer is partly done. */
 	frame->status = -EXDEV;
 
 	/* calc actual length */
@@ -2016,6 +2013,10 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 				 TRB_TO_SLOT_ID(le32_to_cpu(event->flags)),
 				 ep_index);
 		goto cleanup;
+	case COMP_DEV_ERR:
+		xhci_warn(xhci, "WARN: detect an incompatible device");
+		status = -EPROTO;
+		break;
 	case COMP_MISSED_INT:
 		/*
 		 * When encounter missed service error, one or more isoc tds
@@ -2063,6 +2064,20 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		/* Is this a TRB in the currently executing TD? */
 		event_seg = trb_in_td(ep_ring->deq_seg, ep_ring->dequeue,
 				td->last_trb, event_dma);
+
+		/*
+		 * Skip the Force Stopped Event. The event_trb(event_dma) of FSE
+		 * is not in the current TD pointed by ep_ring->dequeue because
+		 * that the hardware dequeue pointer still at the previous TRB
+		 * of the current TD. The previous TRB maybe a Link TD or the
+		 * last TRB of the previous TD. The command completion handle
+		 * will take care the rest.
+		 */
+		if (!event_seg && trb_comp_code == COMP_STOP_INVAL) {
+			ret = 0;
+			goto cleanup;
+		}
+
 		if (!event_seg) {
 			if (!ep->skip ||
 			    !usb_endpoint_xfer_isoc(&td->urb->ep->desc)) {
@@ -2158,6 +2173,11 @@ cleanup:
 						urb->transfer_buffer_length,
 						status);
 			spin_unlock(&xhci->lock);
+			/* EHCI, UHCI, and OHCI always unconditionally set the
+			 * urb->status of an isochronous endpoint to 0.
+			 */
+			if (usb_pipetype(urb->pipe) == PIPE_ISOCHRONOUS)
+				status = 0;
 			usb_hcd_giveback_urb(bus_to_hcd(urb->dev->bus), urb, status);
 			spin_lock(&xhci->lock);
 		}

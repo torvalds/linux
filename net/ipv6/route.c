@@ -228,9 +228,10 @@ static struct rt6_info ip6_blk_hole_entry_template = {
 
 /* allocate dst with ip6_dst_ops */
 static inline struct rt6_info *ip6_dst_alloc(struct dst_ops *ops,
-					     struct net_device *dev)
+					     struct net_device *dev,
+					     int flags)
 {
-	struct rt6_info *rt = dst_alloc(ops, dev, 0, 0, 0);
+	struct rt6_info *rt = dst_alloc(ops, dev, 0, 0, flags);
 
 	memset(&rt->rt6i_table, 0, sizeof(*rt) - sizeof(struct dst_entry));
 
@@ -1042,7 +1043,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	if (unlikely(idev == NULL))
 		return NULL;
 
-	rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops, dev);
+	rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops, dev, 0);
 	if (unlikely(rt == NULL)) {
 		in6_dev_put(idev);
 		goto out;
@@ -1061,14 +1062,6 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	atomic_set(&rt->dst.__refcnt, 1);
 	dst_metric_set(&rt->dst, RTAX_HOPLIMIT, 255);
 	rt->dst.output  = ip6_output;
-
-#if 0	/* there's no chance to use these for ndisc */
-	rt->dst.flags   = ipv6_addr_type(addr) & IPV6_ADDR_UNICAST
-				? DST_HOST
-				: 0;
-	ipv6_addr_copy(&rt->rt6i_dst.addr, addr);
-	rt->rt6i_dst.plen = 128;
-#endif
 
 	spin_lock_bh(&icmp6_dst_lock);
 	rt->dst.next = icmp6_dst_gc_list;
@@ -1214,7 +1207,7 @@ int ip6_route_add(struct fib6_config *cfg)
 		goto out;
 	}
 
-	rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops, NULL);
+	rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops, NULL, DST_NOCOUNT);
 
 	if (rt == NULL) {
 		err = -ENOMEM;
@@ -1244,7 +1237,7 @@ int ip6_route_add(struct fib6_config *cfg)
 	ipv6_addr_prefix(&rt->rt6i_dst.addr, &cfg->fc_dst, cfg->fc_dst_len);
 	rt->rt6i_dst.plen = cfg->fc_dst_len;
 	if (rt->rt6i_dst.plen == 128)
-	       rt->dst.flags = DST_HOST;
+	       rt->dst.flags |= DST_HOST;
 
 #ifdef CONFIG_IPV6_SUBTREES
 	ipv6_addr_prefix(&rt->rt6i_src.addr, &cfg->fc_src, cfg->fc_src_len);
@@ -1734,7 +1727,7 @@ static struct rt6_info * ip6_rt_copy(struct rt6_info *ort)
 {
 	struct net *net = dev_net(ort->rt6i_dev);
 	struct rt6_info *rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops,
-					    ort->dst.dev);
+					    ort->dst.dev, 0);
 
 	if (rt) {
 		rt->dst.input = ort->dst.input;
@@ -2013,7 +2006,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 {
 	struct net *net = dev_net(idev->dev);
 	struct rt6_info *rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops,
-					    net->loopback_dev);
+					    net->loopback_dev, 0);
 	struct neighbour *neigh;
 
 	if (rt == NULL) {
@@ -2025,7 +2018,7 @@ struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 
 	in6_dev_hold(idev);
 
-	rt->dst.flags = DST_HOST;
+	rt->dst.flags |= DST_HOST;
 	rt->dst.input = ip6_input;
 	rt->dst.output = ip6_output;
 	rt->rt6i_idev = idev;
