@@ -4218,22 +4218,30 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 	       analog_type, phy_type, phy_rev);
 
 	/* Get RADIO versioning */
-	if (dev->dev->chip_id == 0x4317) {
-		if (dev->dev->chip_rev == 0)
-			tmp = 0x3205017F;
-		else if (dev->dev->chip_rev == 1)
-			tmp = 0x4205017F;
-		else
-			tmp = 0x5205017F;
+	if (dev->dev->core_rev >= 24) {
+		/* TODO */
 	} else {
-		b43_write16(dev, B43_MMIO_RADIO_CONTROL, B43_RADIOCTL_ID);
-		tmp = b43_read16(dev, B43_MMIO_RADIO_DATA_LOW);
-		b43_write16(dev, B43_MMIO_RADIO_CONTROL, B43_RADIOCTL_ID);
-		tmp |= (u32)b43_read16(dev, B43_MMIO_RADIO_DATA_HIGH) << 16;
+		if (dev->dev->chip_id == 0x4317) {
+			if (dev->dev->chip_rev == 0)
+				tmp = 0x3205017F;
+			else if (dev->dev->chip_rev == 1)
+				tmp = 0x4205017F;
+			else
+				tmp = 0x5205017F;
+		} else {
+			b43_write16(dev, B43_MMIO_RADIO_CONTROL,
+				    B43_RADIOCTL_ID);
+			tmp = b43_read16(dev, B43_MMIO_RADIO_DATA_LOW);
+			b43_write16(dev, B43_MMIO_RADIO_CONTROL,
+				    B43_RADIOCTL_ID);
+			tmp |= (u32)b43_read16(dev, B43_MMIO_RADIO_DATA_HIGH)
+				<< 16;
+		}
+		radio_manuf = (tmp & 0x00000FFF);
+		radio_ver = (tmp & 0x0FFFF000) >> 12;
+		radio_rev = (tmp & 0xF0000000) >> 28;
 	}
-	radio_manuf = (tmp & 0x00000FFF);
-	radio_ver = (tmp & 0x0FFFF000) >> 12;
-	radio_rev = (tmp & 0xF0000000) >> 28;
+
 	if (radio_manuf != 0x17F /* Broadcom */)
 		unsupported = 1;
 	switch (phy_type) {
