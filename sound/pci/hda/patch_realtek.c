@@ -5381,16 +5381,62 @@ static int alc_is_input_pin(struct hda_codec *codec, hda_nid_t nid)
 	return (pincap & AC_PINCAP_IN) != 0;
 }
 
+static int alc_auto_fill_adc_caps(struct hda_codec *codec, hda_nid_t *adc_nids,
+				  hda_nid_t *cap_nids, int max_nums)
+{
+	hda_nid_t nid;
+	int i, nums = 0;
+
+	nid = codec->start_nid;
+	for (i = 0; i < codec->num_nodes; i++, nid++) {
+		hda_nid_t src;
+		const hda_nid_t *list;
+		unsigned int caps = get_wcaps(codec, nid);
+		int type = get_wcaps_type(caps);
+
+		if (type != AC_WID_AUD_IN || (caps & AC_WCAP_DIGITAL))
+			continue;
+		adc_nids[nums] = nid;
+		cap_nids[nums] = nid;
+		src = nid;
+		for (;;) {
+			int n;
+			type = get_wcaps_type(get_wcaps(codec, src));
+			if (type == AC_WID_PIN)
+				break;
+			if (type == AC_WID_AUD_SEL) {
+				cap_nids[nums] = src;
+				break;
+			}
+			n = snd_hda_get_conn_list(codec, src, &list);
+			if (n > 1) {
+				cap_nids[nums] = src;
+				break;
+			} else if (n != 1)
+				break;
+			src = *list;
+		}
+		if (++nums >= max_nums)
+			break;
+	}
+	return nums;
+}
+
 /* create playback/capture controls for input pins */
-static int alc_auto_create_input_ctls(struct hda_codec *codec,
-				      const struct auto_pin_cfg *cfg,
-				      hda_nid_t mixer,
-				      hda_nid_t cap1, hda_nid_t cap2)
+static int alc_auto_create_input_ctls(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	hda_nid_t mixer = spec->mixer_nid;
 	struct hda_input_mux *imux = &spec->private_imux[0];
-	int i, err, idx, type_idx = 0;
+	int num_adcs;
+	hda_nid_t caps[5], adcs[5];
+	int i, c, err, idx, type_idx = 0;
 	const char *prev_label = NULL;
+
+	num_adcs = alc_auto_fill_adc_caps(codec, adcs, caps, ARRAY_SIZE(adcs));
+	if (num_adcs < 0)
+		return 0;
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		hda_nid_t pin;
@@ -5418,13 +5464,13 @@ static int alc_auto_create_input_ctls(struct hda_codec *codec,
 			}
 		}
 
-		if (!cap1)
-			continue;
-		idx = get_connection_index(codec, cap1, pin);
-		if (idx < 0 && cap2)
-			idx = get_connection_index(codec, cap2, pin);
-		if (idx >= 0)
-			snd_hda_add_imux_item(imux, label, idx, NULL);
+		for (c = 0; c < num_adcs; c++) {
+			idx = get_connection_index(codec, caps[c], pin);
+			if (idx >= 0) {
+				snd_hda_add_imux_item(imux, label, idx, NULL);
+				break;
+			}
+		}
 	}
 	return 0;
 }
@@ -5436,12 +5482,6 @@ static int alc_auto_create_hp_out(struct hda_codec *codec);
 static int alc_auto_create_speaker_out(struct hda_codec *codec);
 static void alc_auto_init_multi_out(struct hda_codec *codec);
 static void alc_auto_init_extra_out(struct hda_codec *codec);
-
-static int alc880_auto_create_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return alc_auto_create_input_ctls(codec, cfg, 0x0b, 0x08, 0x09);
-}
 
 static void alc_set_pin_output(struct hda_codec *codec, hda_nid_t nid,
 			       unsigned int pin_type)
@@ -5545,7 +5585,7 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 	err = alc_auto_create_speaker_out(codec);
 	if (err < 0)
 		return err;
-	err = alc880_auto_create_input_ctls(codec, &spec->autocfg);
+	err = alc_auto_create_input_ctls(codec);
 	if (err < 0)
 		return err;
 
@@ -7057,13 +7097,6 @@ static int alc260_auto_create_multi_out_ctls(struct alc_spec *spec,
 	return 0;
 }
 
-/* create playback/capture controls for input pins */
-static int alc260_auto_create_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return alc_auto_create_input_ctls(codec, cfg, 0x07, 0x04, 0x05);
-}
-
 static void alc260_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t nid, int pin_type,
 					      int sel_idx)
@@ -7127,7 +7160,7 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 		return err;
 	if (!spec->kctls.list)
 		return 0; /* can't find valid BIOS pin config */
-	err = alc260_auto_create_input_ctls(codec, &spec->autocfg);
+	err = alc_auto_create_input_ctls(codec);
 	if (err < 0)
 		return err;
 
@@ -10777,12 +10810,6 @@ static const struct snd_pci_quirk alc882_fixup_tbl[] = {
 /*
  * BIOS auto configuration
  */
-static int alc882_auto_create_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return alc_auto_create_input_ctls(codec, cfg, 0x0b, 0x23, 0x22);
-}
-
 #define alc882_auto_init_analog_input	alc880_auto_init_analog_input
 
 static void alc882_auto_init_input_src(struct hda_codec *codec)
@@ -10909,7 +10936,7 @@ static int alc882_parse_auto_config(struct hda_codec *codec)
 	err = alc_auto_create_speaker_out(codec);
 	if (err < 0)
 		return err;
-	err = alc882_auto_create_input_ctls(codec, &spec->autocfg);
+	err = alc_auto_create_input_ctls(codec);
 	if (err < 0)
 		return err;
 
@@ -11984,9 +12011,6 @@ static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec,
 	return 0;
 }
 
-#define alc262_auto_create_input_ctls \
-	alc882_auto_create_input_ctls
-
 static const struct hda_verb alc262_HP_BPC_init_verbs[] = {
 	/*
 	 * Unmute ADC0-2 and set the default input to mic-in
@@ -12272,7 +12296,7 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 	err = alc262_auto_create_multi_out_ctls(spec, &spec->autocfg);
 	if (err < 0)
 		return err;
-	err = alc262_auto_create_input_ctls(codec, &spec->autocfg);
+	err = alc_auto_create_input_ctls(codec);
 	if (err < 0)
 		return err;
 
@@ -13285,13 +13309,6 @@ static int alc268_auto_create_multi_out_ctls(struct alc_spec *spec,
 	return 0;
 }
 
-/* create playback/capture controls for input pins */
-static int alc268_auto_create_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return alc_auto_create_input_ctls(codec, cfg, 0, 0x23, 0x24);
-}
-
 static void alc268_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t nid, int pin_type)
 {
@@ -13429,7 +13446,7 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	err = alc268_auto_create_multi_out_ctls(spec, &spec->autocfg);
 	if (err < 0)
 		return err;
-	err = alc268_auto_create_input_ctls(codec, &spec->autocfg);
+	err = alc_auto_create_input_ctls(codec);
 	if (err < 0)
 		return err;
 
@@ -14276,8 +14293,6 @@ static const struct hda_verb alc269vb_init_verbs[] = {
 
 #define alc269_auto_create_multi_out_ctls \
 	alc268_auto_create_multi_out_ctls
-#define alc269_auto_create_input_ctls \
-	alc268_auto_create_input_ctls
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 #define alc269_loopbacks	alc880_loopbacks
@@ -14393,11 +14408,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	err = alc269_auto_create_multi_out_ctls(spec, &spec->autocfg);
 	if (err < 0)
 		return err;
-	if (spec->codec_variant == ALC269_TYPE_ALC269VA)
-		err = alc269_auto_create_input_ctls(codec, &spec->autocfg);
-	else
-		err = alc_auto_create_input_ctls(codec, &spec->autocfg, 0,
-						 0x22, 0);
+	err = alc_auto_create_input_ctls(codec);
 	if (err < 0)
 		return err;
 
@@ -15671,13 +15682,6 @@ static int alc861_auto_create_hp_ctls(struct hda_codec *codec, hda_nid_t pin)
 	return 0;
 }
 
-/* create playback/capture controls for input pins */
-static int alc861_auto_create_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return alc_auto_create_input_ctls(codec, cfg, 0x15, 0x08, 0);
-}
-
 static void alc861_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t nid,
 					      int pin_type, hda_nid_t dac)
@@ -15766,7 +15770,7 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 	err = alc861_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
 	if (err < 0)
 		return err;
-	err = alc861_auto_create_input_ctls(codec, &spec->autocfg);
+	err = alc_auto_create_input_ctls(codec);
 	if (err < 0)
 		return err;
 
@@ -16671,13 +16675,6 @@ static const struct alc_config_preset alc861vd_presets[] = {
 /*
  * BIOS auto configuration
  */
-static int alc861vd_auto_create_input_ctls(struct hda_codec *codec,
-						const struct auto_pin_cfg *cfg)
-{
-	return alc_auto_create_input_ctls(codec, cfg, 0x0b, 0x22, 0);
-}
-
-
 #define alc861vd_auto_init_analog_input	alc882_auto_init_analog_input
 #define alc861vd_auto_init_input_src	alc882_auto_init_input_src
 
@@ -16835,7 +16832,7 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 					     "Headphone");
 	if (err < 0)
 		return err;
-	err = alc861vd_auto_create_input_ctls(codec, &spec->autocfg);
+	err = alc_auto_create_input_ctls(codec);
 	if (err < 0)
 		return err;
 
@@ -18693,10 +18690,6 @@ static int alc_auto_create_speaker_out(struct hda_codec *codec)
 					 "Speaker");
 }
 
-/* create playback/capture controls for input pins */
-#define alc662_auto_create_input_ctls \
-	alc882_auto_create_input_ctls
-
 static void alc_auto_set_output_and_unmute(struct hda_codec *codec,
 					      hda_nid_t nid, int pin_type,
 					      hda_nid_t dac)
@@ -18968,7 +18961,7 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 					   "Headphone");
 	if (err < 0)
 		return err;
-	err = alc662_auto_create_input_ctls(codec, &spec->autocfg);
+	err = alc_auto_create_input_ctls(codec);
 	if (err < 0)
 		return err;
 
