@@ -462,6 +462,7 @@ config ARCH_IOP33X
 	select PLAT_IOP
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
+	select NO_MACH_MEMORY_H
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
 
