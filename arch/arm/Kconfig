@@ -301,6 +301,7 @@ config ARCH_VEXPRESS
 	select ICST
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
+	select NO_MACH_MEMORY_H
 	help
 	  This enables support for the ARM Ltd Versatile Express boards.
 
