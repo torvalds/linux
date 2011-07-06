@@ -194,10 +194,6 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP200] = MSTP(&div4_clks[DIV4_B], MSTPCR2, 0, 0),
 };
 
-#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
-#define CLKDEV_DEV_ID(_id, _clk) { .dev_id = _id, .clk = _clk }
-#define CLKDEV_ICK_ID(_cid, _did, _clk) { .con_id = _cid, .dev_id = _did, .clk = _clk }
-
 static struct clk_lookup lookups[] = {
 	/* main clocks */
 	CLKDEV_CON_ID("rclk", &r_clk),

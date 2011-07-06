@@ -252,10 +252,6 @@ static struct clk mstp_clks[HWBLK_NR] = {
 	SH_HWBLK_CLK(HWBLK_LCDC, &div4_clks[DIV4_B], 0),
 };
 
-#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
-#define CLKDEV_DEV_ID(_id, _clk) { .dev_id = _id, .clk = _clk }
-#define CLKDEV_ICK_ID(_cid, _did, _clk) { .con_id = _cid, .dev_id = _did, .clk = _clk }
-
 static struct clk_lookup lookups[] = {
 	/* main clocks */
 	CLKDEV_CON_ID("rclk", &r_clk),

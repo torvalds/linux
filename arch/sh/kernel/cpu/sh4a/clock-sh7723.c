@@ -200,9 +200,6 @@ static struct clk mstp_clks[] = {
 	SH_HWBLK_CLK(HWBLK_LCDC, &div4_clks[DIV4_B], 0),
 };
 
-#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
-#define CLKDEV_DEV_ID(_id, _clk) { .dev_id = _id, .clk = _clk }
-
 static struct clk_lookup lookups[] = {
 	/* main clocks */
 	CLKDEV_CON_ID("rclk", &r_clk),
