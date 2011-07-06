@@ -2678,12 +2678,14 @@ noinline int btrfs_update_inode(struct btrfs_trans_handle *trans,
 	int ret;
 
 	/*
-	 * If root is tree root, it means this inode is used to
-	 * store free space information. And these inodes are updated
-	 * when committing the transaction, so they needn't delaye to
-	 * be updated, or deadlock will occured.
+	 * If the inode is a free space inode, we can deadlock during commit
+	 * if we put it into the delayed code.
+	 *
+	 * The data relocation inode should also be directly updated
+	 * without delay
 	 */
-	if (!is_free_space_inode(root, inode)) {
+	if (!is_free_space_inode(root, inode)
+	    && root->root_key.objectid != BTRFS_DATA_RELOC_TREE_OBJECTID) {
 		ret = btrfs_delayed_update_inode(trans, root, inode);
 		if (!ret)
 			btrfs_set_inode_last_trans(trans, inode);
