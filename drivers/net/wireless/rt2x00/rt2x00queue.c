@@ -200,11 +200,12 @@ void rt2x00queue_remove_l2pad(struct sk_buff *skb, unsigned int header_length)
 	skb_pull(skb, l2pad);
 }
 
-static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
+static void rt2x00queue_create_tx_descriptor_seq(struct rt2x00_dev *rt2x00dev,
+						 struct sk_buff *skb,
 						 struct txentry_desc *txdesc)
 {
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
 
 	if (!(tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ))
@@ -212,7 +213,7 @@ static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
 
 	__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
 
-	if (!test_bit(REQUIRE_SW_SEQNO, &entry->queue->rt2x00dev->cap_flags))
+	if (!test_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags))
 		return;
 
 	/*
@@ -237,12 +238,12 @@ static void rt2x00queue_create_tx_descriptor_seq(struct queue_entry *entry,
 
 }
 
-static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,
+static void rt2x00queue_create_tx_descriptor_plcp(struct rt2x00_dev *rt2x00dev,
+						  struct sk_buff *skb,
 						  struct txentry_desc *txdesc,
 						  const struct rt2x00_rate *hwrate)
 {
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *txrate = &tx_info->control.rates[0];
 	unsigned int data_length;
 	unsigned int duration;
@@ -259,8 +260,8 @@ static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,
 		txdesc->u.plcp.ifs = IFS_SIFS;
 
 	/* Data length + CRC + Crypto overhead (IV/EIV/ICV/MIC) */
-	data_length = entry->skb->len + 4;
-	data_length += rt2x00crypto_tx_overhead(rt2x00dev, entry->skb);
+	data_length = skb->len + 4;
+	data_length += rt2x00crypto_tx_overhead(rt2x00dev, skb);
 
 	/*
 	 * PLCP setup
@@ -301,13 +302,14 @@ static void rt2x00queue_create_tx_descriptor_plcp(struct queue_entry *entry,
 	}
 }
 
-static void rt2x00queue_create_tx_descriptor_ht(struct queue_entry *entry,
+static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
+						struct sk_buff *skb,
 						struct txentry_desc *txdesc,
 						const struct rt2x00_rate *hwrate)
 {
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *txrate = &tx_info->control.rates[0];
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
 	if (tx_info->control.sta)
 		txdesc->u.ht.mpdu_density =
@@ -380,12 +382,12 @@ static void rt2x00queue_create_tx_descriptor_ht(struct queue_entry *entry,
 		txdesc->u.ht.txop = TXOP_HTTXOP;
 }
 
-static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
+static void rt2x00queue_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,
+					     struct sk_buff *skb,
 					     struct txentry_desc *txdesc)
 {
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
+	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_rate *txrate = &tx_info->control.rates[0];
 	struct ieee80211_rate *rate;
 	const struct rt2x00_rate *hwrate = NULL;
@@ -395,8 +397,8 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	/*
 	 * Header and frame information.
 	 */
-	txdesc->length = entry->skb->len;
-	txdesc->header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
+	txdesc->length = skb->len;
+	txdesc->header_length = ieee80211_get_hdrlen_from_skb(skb);
 
 	/*
 	 * Check whether this frame is to be acked.
@@ -471,13 +473,15 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	/*
 	 * Apply TX descriptor handling by components
 	 */
-	rt2x00crypto_create_tx_descriptor(entry, txdesc);
-	rt2x00queue_create_tx_descriptor_seq(entry, txdesc);
+	rt2x00crypto_create_tx_descriptor(rt2x00dev, skb, txdesc);
+	rt2x00queue_create_tx_descriptor_seq(rt2x00dev, skb, txdesc);
 
 	if (test_bit(REQUIRE_HT_TX_DESC, &rt2x00dev->cap_flags))
-		rt2x00queue_create_tx_descriptor_ht(entry, txdesc, hwrate);
+		rt2x00queue_create_tx_descriptor_ht(rt2x00dev, skb, txdesc,
+						    hwrate);
 	else
-		rt2x00queue_create_tx_descriptor_plcp(entry, txdesc, hwrate);
+		rt2x00queue_create_tx_descriptor_plcp(rt2x00dev, skb, txdesc,
+						      hwrate);
 }
 
 static int rt2x00queue_write_tx_data(struct queue_entry *entry,
@@ -588,7 +592,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	 * for our information.
 	 */
 	entry->skb = skb;
-	rt2x00queue_create_tx_descriptor(entry, &txdesc);
+	rt2x00queue_create_tx_descriptor(queue->rt2x00dev, skb, &txdesc);
 
 	/*
 	 * All information is retrieved from the skb->cb array,
@@ -707,7 +711,7 @@ int rt2x00queue_update_beacon_locked(struct rt2x00_dev *rt2x00dev,
 	 * after that we are free to use the skb->cb array
 	 * for our information.
 	 */
-	rt2x00queue_create_tx_descriptor(intf->beacon, &txdesc);
+	rt2x00queue_create_tx_descriptor(rt2x00dev, intf->beacon->skb, &txdesc);
 
 	/*
 	 * Fill in skb descriptor
