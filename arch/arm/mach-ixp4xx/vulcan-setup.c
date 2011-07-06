@@ -241,4 +241,7 @@ MACHINE_START(ARCOM_VULCAN, "Arcom/Eurotech Vulcan")
 	.timer		= &ixp4xx_timer,
 	.boot_params	= 0x0100,
 	.init_machine	= vulcan_init,
+#if defined(CONFIG_PCI)
+	.dma_zone_size	= SZ_64M,
+#endif
 MACHINE_END
