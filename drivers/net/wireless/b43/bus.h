@@ -64,4 +64,7 @@ static inline bool b43_bus_host_is_sdio(struct b43_bus_dev *dev)
 struct b43_bus_dev *b43_bus_dev_bcma_init(struct bcma_device *core);
 struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev);
 
+void *b43_bus_get_wldev(struct b43_bus_dev *dev);
+void b43_bus_set_wldev(struct b43_bus_dev *dev, void *data);
+
 #endif /* B43_BUS_H_ */

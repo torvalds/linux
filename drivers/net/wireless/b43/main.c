@@ -5000,13 +5000,13 @@ static void b43_one_core_detach(struct b43_bus_dev *dev)
 	/* Do not cancel ieee80211-workqueue based work here.
 	 * See comment in b43_remove(). */
 
-	wldev = ssb_get_drvdata(dev->sdev);
+	wldev = b43_bus_get_wldev(dev);
 	wl = wldev->wl;
 	b43_debugfs_remove_device(wldev);
 	b43_wireless_core_detach(wldev);
 	list_del(&wldev->list);
 	wl->nr_devs--;
-	ssb_set_drvdata(dev->sdev, NULL);
+	b43_bus_set_wldev(dev, NULL);
 	kfree(wldev);
 }
 
@@ -5032,7 +5032,7 @@ static int b43_one_core_attach(struct b43_bus_dev *dev, struct b43_wl *wl)
 
 	list_add(&wldev->list, &wl->devlist);
 	wl->nr_devs++;
-	ssb_set_drvdata(dev->sdev, wldev);
+	b43_bus_set_wldev(dev, wldev);
 	b43_debugfs_add_device(wldev);
 
       out:
