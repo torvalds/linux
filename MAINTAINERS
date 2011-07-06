@@ -2197,7 +2197,7 @@ F:	drivers/acpi/dock.c
 DOCUMENTATION
 M:	Randy Dunlap <rdunlap@xenotime.net>
 L:	linux-doc@vger.kernel.org
-T:	quilt oss.oracle.com/~rdunlap/kernel-doc-patches/current/
+T:	quilt http://userweb.kernel.org/~rdunlap/kernel-doc-patches/current/
 S:	Maintained
 F:	Documentation/
 
