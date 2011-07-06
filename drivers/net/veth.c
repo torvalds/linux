@@ -148,13 +148,6 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	return NETDEV_TX_OK;
 
-tx_drop:
-	kfree_skb(skb);
-	u64_stats_update_begin(&stats->syncp);
-	stats->tx_dropped++;
-	u64_stats_update_end(&stats->syncp);
-	return NETDEV_TX_OK;
-
 rx_drop:
 	u64_stats_update_begin(&rcv_stats->syncp);
 	rcv_stats->rx_dropped++;
