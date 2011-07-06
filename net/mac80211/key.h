@@ -92,9 +92,6 @@ struct ieee80211_key {
 			u8 rx_pn[NUM_RX_DATA_QUEUES + 1][6];
 			struct crypto_cipher *tfm;
 			u32 replays; /* dot11RSNAStatsCCMPReplays */
-#ifndef AES_BLOCK_LEN
-#define AES_BLOCK_LEN 16
-#endif
 		} ccmp;
 		struct {
 			atomic64_t tx_pn;

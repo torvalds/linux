@@ -291,10 +291,10 @@ static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *scratch,
 	unsigned int hdrlen;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
-	memset(scratch, 0, 6 * AES_BLOCK_LEN);
+	memset(scratch, 0, 6 * AES_BLOCK_SIZE);
 
-	b_0 = scratch + 3 * AES_BLOCK_LEN;
-	aad = scratch + 4 * AES_BLOCK_LEN;
+	b_0 = scratch + 3 * AES_BLOCK_SIZE;
+	aad = scratch + 4 * AES_BLOCK_SIZE;
 
 	/*
 	 * Mask FC: zero subtype b4 b5 b6 (if not mgmt)
@@ -386,7 +386,7 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	u8 *pos;
 	u8 pn[6];
 	u64 pn64;
-	u8 scratch[6 * AES_BLOCK_LEN];
+	u8 scratch[6 * AES_BLOCK_SIZE];
 
 	if (info->control.hw_key &&
 	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
@@ -487,7 +487,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	}
 
 	if (!(status->flag & RX_FLAG_DECRYPTED)) {
-		u8 scratch[6 * AES_BLOCK_LEN];
+		u8 scratch[6 * AES_BLOCK_SIZE];
 		/* hardware didn't decrypt/verify MIC */
 		ccmp_special_blocks(skb, pn, scratch, 1);
 
