@@ -8,7 +8,7 @@ Required properties:
 	- "ns16550"
 	- "ns16750"
 	- "ns16850"
-	- "nvidia,tegra250-uart"
+	- "nvidia,tegra20-uart"
 	- "ibm,qpace-nwp-serial"
 	- "serial" if the port type is unknown.
 - reg : offset and length of the register set for the device.
