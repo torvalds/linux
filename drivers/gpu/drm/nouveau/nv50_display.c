@@ -689,7 +689,7 @@ nv50_display_unk10_handler(struct drm_device *dev)
 		struct dcb_entry *dcb = &dev_priv->vbios.dcb.entry[i];
 
 		if (dcb->type == type && (dcb->or & (1 << or))) {
-			nouveau_bios_run_display_table(dev, dcb, 0, -1);
+			nouveau_bios_run_display_table(dev, 0, -1, dcb, -1);
 			disp->irq.dcb = dcb;
 			goto ack;
 		}
@@ -744,7 +744,7 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	NV_DEBUG_KMS(dev, "0x610030: 0x%08x\n", unk30);
 	dcb = disp->irq.dcb;
 	if (dcb) {
-		nouveau_bios_run_display_table(dev, dcb, 0, -2);
+		nouveau_bios_run_display_table(dev, 0, -2, dcb, -1);
 		disp->irq.dcb = NULL;
 	}
 
@@ -828,7 +828,7 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	}
 
 	script = nv50_display_script_select(dev, dcb, mc, pclk);
-	nouveau_bios_run_display_table(dev, dcb, script, pclk);
+	nouveau_bios_run_display_table(dev, script, pclk, dcb, -1);
 
 	nv50_display_unk20_dp_hack(dev, dcb);
 
@@ -895,7 +895,7 @@ nv50_display_unk40_handler(struct drm_device *dev)
 	if (!dcb)
 		goto ack;
 
-	nouveau_bios_run_display_table(dev, dcb, script, -pclk);
+	nouveau_bios_run_display_table(dev, script, -pclk, dcb, -1);
 	nv50_display_unk40_dp_set_tmds(dev, dcb);
 
 ack:

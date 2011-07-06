@@ -1039,7 +1039,7 @@ extern int nouveau_bios_init(struct drm_device *);
 extern void nouveau_bios_takedown(struct drm_device *dev);
 extern int nouveau_run_vbios_init(struct drm_device *);
 extern void nouveau_bios_run_init_table(struct drm_device *, uint16_t table,
-					struct dcb_entry *);
+					struct dcb_entry *, int crtc);
 extern struct dcb_gpio_entry *nouveau_bios_gpio_entry(struct drm_device *,
 						      enum dcb_gpio_tag);
 extern struct dcb_connector_table_entry *
@@ -1047,9 +1047,8 @@ nouveau_bios_connector_entry(struct drm_device *, int index);
 extern u32 get_pll_register(struct drm_device *, enum pll_types);
 extern int get_pll_limits(struct drm_device *, uint32_t limit_match,
 			  struct pll_lims *);
-extern int nouveau_bios_run_display_table(struct drm_device *,
-					  struct dcb_entry *,
-					  uint32_t script, int pxclk);
+extern int nouveau_bios_run_display_table(struct drm_device *, u16 id, int clk,
+					  struct dcb_entry *, int crtc);
 extern void *nouveau_bios_dp_table(struct drm_device *, struct dcb_entry *,
 				   int *length);
 extern bool nouveau_bios_fp_mode(struct drm_device *, struct drm_display_mode *);
