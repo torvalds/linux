@@ -1414,7 +1414,7 @@ long pwc_ioctl(struct pwc_device *pdev, unsigned int cmd, void *arg)
 	{
 		ARG_DEF(struct pwc_probe, probe)
 
-		strcpy(ARGR(probe).name, pdev->vdev->name);
+		strcpy(ARGR(probe).name, pdev->vdev.name);
 		ARGR(probe).type = pdev->type;
 		ARG_OUT(probe)
 		break;
