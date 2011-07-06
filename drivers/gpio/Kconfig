@@ -68,6 +68,12 @@ config GPIO_GENERIC
 
 # put drivers in the right section, in alphabetical order
 
+config GPIO_DA9052
+	tristate "Dialog DA9052 GPIO"
+	depends on PMIC_DA9052
+	help
+	  Say yes here to enable the GPIO driver for the DA9052 chip.
+
 config GPIO_MAX730X
 	tristate
 
