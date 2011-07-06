@@ -129,7 +129,7 @@ static void __init wbd111_init(void)
 }
 
 MACHINE_START(WBD111, "Wiliboard WBD-111")
-	.boot_params	= 0x100,
+	.atag_offset	= 0x100,
 	.map_io		= gemini_map_io,
 	.init_irq	= gemini_init_irq,
 	.timer		= &wbd111_timer,
