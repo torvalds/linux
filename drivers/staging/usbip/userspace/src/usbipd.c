@@ -27,7 +27,7 @@
 #include <glib.h>
 #include <signal.h>
 
-#include "stub_driver.h"
+#include "usbip_host_driver.h"
 #include "usbip_common.h"
 #include "usbip_network.h"
 
@@ -43,7 +43,7 @@ static int send_reply_devlist(int sockfd)
 	reply.ndev = 0;
 
 	/* how many devices are exported ? */
-	dlist_for_each_data(stub_driver->edev_list, edev, struct usbip_exported_device) {
+	dlist_for_each_data(host_driver->edev_list, edev, struct usbip_exported_device) {
 		reply.ndev += 1;
 	}
 
@@ -63,7 +63,7 @@ static int send_reply_devlist(int sockfd)
 		return ret;
 	}
 
-	dlist_for_each_data(stub_driver->edev_list, edev, struct usbip_exported_device) {
+	dlist_for_each_data(host_driver->edev_list, edev, struct usbip_exported_device) {
 		struct usbip_usb_device pdu_udev;
 
 		dump_usb_device(&edev->udev);
@@ -138,7 +138,7 @@ static int recv_request_import(int sockfd)
 
 	PACK_OP_IMPORT_REQUEST(0, &req);
 
-	dlist_for_each_data(stub_driver->edev_list, edev, struct usbip_exported_device) {
+	dlist_for_each_data(host_driver->edev_list, edev, struct usbip_exported_device) {
 		if (!strncmp(req.busid, edev->udev.busid, SYSFS_BUS_ID_SIZE)) {
 			dbg("found requested device %s", req.busid);
 			found = 1;
@@ -151,7 +151,7 @@ static int recv_request_import(int sockfd)
 		usbip_set_nodelay(sockfd);
 
 		/* export_device needs a TCP/IP socket descriptor */
-		ret = usbip_stub_export_device(edev, sockfd);
+		ret = usbip_host_export_device(edev, sockfd);
 		if (ret < 0)
 			error = 1;
 	} else {
@@ -197,7 +197,7 @@ static int recv_pdu(int sockfd)
 	}
 
 
-	ret = usbip_stub_refresh_device_list();
+	ret = usbip_host_refresh_device_list();
 	if (ret < 0)
 		return -1;
 
@@ -431,7 +431,7 @@ static void do_standalone_mode(gboolean daemonize)
 	if (ret)
 		err("open usb.ids");
 
-	ret = usbip_stub_driver_open();
+	ret = usbip_host_driver_open();
 	if (ret < 0)
 		g_error("driver open failed");
 
@@ -471,7 +471,7 @@ static void do_standalone_mode(gboolean daemonize)
 
 	freeaddrinfo(ai_head);
 	usbip_names_free();
-	usbip_stub_driver_close();
+	usbip_host_driver_close();
 
 	return;
 }
