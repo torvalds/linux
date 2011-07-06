@@ -436,6 +436,7 @@ config ARCH_H720X
 	select CPU_ARM720T
 	select ISA_DMA_API
 	select ARCH_USES_GETTIMEOFFSET
+	select NO_MACH_MEMORY_H
 	help
 	  This enables support for systems based on the Hynix HMS720x
 
