@@ -170,6 +170,8 @@ static struct platform_device *cns3420_pdevs[] __initdata = {
 
 static void __init cns3420_init(void)
 {
+	cns3xxx_l2x0_init();
+
 	platform_add_devices(cns3420_pdevs, ARRAY_SIZE(cns3420_pdevs));
 
 	cns3xxx_ahci_init();
