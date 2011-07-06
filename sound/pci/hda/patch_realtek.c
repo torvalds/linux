@@ -14650,12 +14650,9 @@ static int alc275_setup_dual_adc(struct hda_codec *codec)
 
 /* different alc269-variants */
 enum {
-	ALC269_TYPE_NORMAL,
-	ALC269_TYPE_ALC258,
-	ALC269_TYPE_ALC259,
+	ALC269_TYPE_ALC269VA,
 	ALC269_TYPE_ALC269VB,
-	ALC269_TYPE_ALC270,
-	ALC269_TYPE_ALC271X,
+	ALC269_TYPE_ALC269VC,
 };
 
 /*
@@ -14675,7 +14672,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	err = alc269_auto_create_multi_out_ctls(spec, &spec->autocfg);
 	if (err < 0)
 		return err;
-	if (spec->codec_variant == ALC269_TYPE_NORMAL)
+	if (spec->codec_variant == ALC269_TYPE_ALC269VA)
 		err = alc269_auto_create_input_ctls(codec, &spec->autocfg);
 	else
 		err = alc_auto_create_input_ctls(codec, &spec->autocfg, 0,
@@ -14690,7 +14687,7 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	if (spec->kctls.list)
 		add_mixer(spec, spec->kctls.list);
 
-	if (spec->codec_variant != ALC269_TYPE_NORMAL)
+	if (spec->codec_variant != ALC269_TYPE_ALC269VA)
 		alc_ssid_check(codec, 0, 0x1b, 0x14, 0x21);
 	else
 		alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0);
@@ -15148,24 +15145,33 @@ static int patch_alc269(struct hda_codec *codec)
 	alc_auto_parse_customize_define(codec);
 
 	if (codec->vendor_id == 0x10ec0269) {
+		spec->codec_variant = ALC269_TYPE_ALC269VA;
 		coef = alc_read_coef_idx(codec, 0);
 		if ((coef & 0x00f0) == 0x0010) {
 			if (codec->bus->pci->subsystem_vendor == 0x1025 &&
 			    spec->cdefine.platform_type == 1) {
 				alc_codec_rename(codec, "ALC271X");
-				spec->codec_variant = ALC269_TYPE_ALC271X;
-			} else if ((coef & 0xf000) == 0x1000) {
-				spec->codec_variant = ALC269_TYPE_ALC270;
 			} else if ((coef & 0xf000) == 0x2000) {
 				alc_codec_rename(codec, "ALC259");
-				spec->codec_variant = ALC269_TYPE_ALC259;
 			} else if ((coef & 0xf000) == 0x3000) {
 				alc_codec_rename(codec, "ALC258");
-				spec->codec_variant = ALC269_TYPE_ALC258;
+			} else if ((coef & 0xfff0) == 0x3010) {
+				alc_codec_rename(codec, "ALC277");
 			} else {
 				alc_codec_rename(codec, "ALC269VB");
-				spec->codec_variant = ALC269_TYPE_ALC269VB;
 			}
+			spec->codec_variant = ALC269_TYPE_ALC269VB;
+		} else if ((coef & 0x00f0) == 0x0020) {
+			if (coef == 0xa023)
+				alc_codec_rename(codec, "ALC259");
+			else if (coef == 0x6023)
+				alc_codec_rename(codec, "ALC281X");
+			else if (codec->bus->pci->subsystem_vendor == 0x17aa &&
+				 codec->bus->pci->subsystem_device == 0x21f3)
+				alc_codec_rename(codec, "ALC3202");
+			else
+				alc_codec_rename(codec, "ALC269VC");
+			spec->codec_variant = ALC269_TYPE_ALC269VC;
 		} else
 			alc_fix_pll_init(codec, 0x20, 0x04, 15);
 		alc269_fill_coef(codec);
@@ -15229,7 +15235,7 @@ static int patch_alc269(struct hda_codec *codec)
 	spec->stream_digital_capture = &alc269_pcm_digital_capture;
 
 	if (!spec->adc_nids) { /* wasn't filled automatically? use default */
-		if (spec->codec_variant == ALC269_TYPE_NORMAL) {
+		if (spec->codec_variant == ALC269_TYPE_ALC269VA) {
 			spec->adc_nids = alc269_adc_nids;
 			spec->num_adc_nids = ARRAY_SIZE(alc269_adc_nids);
 			spec->capsrc_nids = alc269_capsrc_nids;
