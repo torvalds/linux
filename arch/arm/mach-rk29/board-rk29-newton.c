@@ -571,7 +571,7 @@ struct platform_device rk29_device_newton = {
 		}    	    
 	};
 #endif
-#if defined (CONFIG_TOUCHSCREEN_FT5406)
+#if defined (CONFIG_TOUCHSCREEN_FT5406)|| defined (CONFIG_TOUCHSCREEN_GOODIX_NEWTON)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN0_PA2
 
@@ -621,7 +621,9 @@ int ft5406_init_platform_hw(void)
 
     return 0;
 }
+#endif
 
+#if defined (CONFIG_TOUCHSCREEN_FT5406)
 
 struct ft5406_platform_data ft5406_info = {
 
@@ -629,6 +631,15 @@ struct ft5406_platform_data ft5406_info = {
 
 };
 #endif
+
+#if defined(CONFIG_TOUCHSCREEN_GOODIX_NEWTON)
+struct goodix_platform_data goodix_info = {
+
+  .init_platform_hw= ft5406_init_platform_hw,
+
+};
+#endif
+
 
 #if defined (CONFIG_SND_SOC_CS42L52)
 
@@ -951,12 +962,26 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
       .platform_data  = &eeti_egalax_info,
     },
 #endif
+
+
+#if defined (CONFIG_TOUCHSCREEN_GOODIX_NEWTON)
+{
+	.type	= "Goodix-TS",
+		.addr 	= 0x55,
+		.flags      =0,
+		//.irq		=RK29_PIN0_PA2,
+		.platform_data = &goodix_info,
+},
+#endif
+
+
+
 #if defined (CONFIG_TOUCHSCREEN_FT5406)
 {
 	.type	="ft5x0x_ts",
 		.addr 	= 0x38,    //0x70,
 		.flags      =0,
-		.irq		=RK29_PIN0_PA2,
+		//.irq		=RK29_PIN0_PA2, // support goodix tp detect, 20110706
 		.platform_data = &ft5406_info,
 },
 	//added by koffu

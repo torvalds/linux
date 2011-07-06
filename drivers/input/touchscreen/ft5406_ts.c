@@ -495,8 +495,8 @@ static void ft5x0x_report_value(struct ft5x0x_ts_data *data )
 		input_report_abs(data->input_dev, ABS_Y, event->y1);
 		input_report_abs(data->input_dev, ABS_PRESSURE, event->pressure);
 	//}
-	printk("x = %d,y = %d\n",event->x1,event->y1);
-	//input_report_key(data->input_dev, BTN_TOUCH, 1);
+	//printk("x = %d,y = %d\n",event->x1,event->y1);
+	input_report_key(data->input_dev, BTN_TOUCH, 1);
 #endif	/* CONFIG_FT5X0X_MULTITOUCH*/
 	input_sync(data->input_dev);
 
@@ -1081,8 +1081,10 @@ static int  ft5406_probe(struct i2c_client *client ,const struct i2c_device_id *
 
 	int err = 0;
 	int ret = 0;
+	int retry = 0;
 	u8 buf_w[1];
 	u8 buf_r[1];
+	const u8 buf_test[1] = {0};
 	
     unsigned char reg_value;
     unsigned char reg_version;
@@ -1092,7 +1094,10 @@ static int  ft5406_probe(struct i2c_client *client ,const struct i2c_device_id *
 	if (!pdata) {
 		dev_err(&client->dev, "platform data is required!\n");
 		return -EINVAL;
-	}	
+	}
+
+	if (pdata->init_platform_hw)                              
+		pdata->init_platform_hw();
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -EIO;
@@ -1146,6 +1151,18 @@ static int  ft5406_probe(struct i2c_client *client ,const struct i2c_device_id *
 	}
 
        this_client = client;
+
+	while(retry < 5)
+	{
+		ret=ft5406_set_regs(this_client,FT5X0X_REG_PMODE, buf_test,1);
+		if(ret > 0)break;
+		retry++;
+	}
+	if(ret <= 0)
+	{
+		printk("FT5406 I2C TEST ERROR!\n");
+		goto exit_err_i2c_test;
+	}
 	ft5x0x_ts->client = client;
 	ft5x0x_ts->irq = client->irq;
 	ft5x0x_ts->input_dev = input_dev;
@@ -1196,9 +1213,8 @@ static int  ft5406_probe(struct i2c_client *client ,const struct i2c_device_id *
 	}
 
 //	printk("==probe over =\n");
-	if (pdata->init_platform_hw)                              
-		pdata->init_platform_hw();
 
+	ft5x0x_ts->irq = RK29_PIN0_PA2;
 	if (!ft5x0x_ts->irq) {
 		dev_dbg(&ft5x0x_ts->client->dev, "no IRQ?\n");
 		return -ENODEV;
@@ -1254,7 +1270,6 @@ static int  ft5406_probe(struct i2c_client *client ,const struct i2c_device_id *
 
 	//printk("client->dev.driver->name %s  ,%d \n",client->dev.driver->name,ft5x0x_ts->irq);
 
-
 	ret = request_irq(ft5x0x_ts->irq, ft5x0x_ts_interrupt, /*IRQF_TRIGGER_LOW*/IRQF_TRIGGER_FALLING,     //IRQF_DISABLED|IRQF_TRIGGER_FALLING,
 			client->dev.driver->name, ft5x0x_ts);
 	
@@ -1308,6 +1323,7 @@ exit_platform_data_null:
 	cancel_work_sync(&ft5x0x_ts->pen_event_work);
 	destroy_workqueue(ft5x0x_ts->ts_workqueue);
 exit_create_singlethread:
+exit_err_i2c_test:
 	printk("==singlethread error =\n");
 	kfree(ft5x0x_ts);
 exit_alloc_data_failed:
