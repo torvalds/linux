@@ -581,6 +581,7 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
  * Tunables that become constants when CONFIG_SCHED_DEBUG is off:
  */
 #ifdef CONFIG_SCHED_DEBUG
+# include <linux/jump_label.h>
 # define const_debug __read_mostly
 #else
 # define const_debug const
@@ -593,11 +594,37 @@ extern const_debug unsigned int sysctl_sched_features;
 
 enum {
 #include "features.h"
+	__SCHED_FEAT_NR,
 };
 
 #undef SCHED_FEAT
 
+#if defined(CONFIG_SCHED_DEBUG) && defined(HAVE_JUMP_LABEL)
+static __always_inline bool static_branch__true(struct jump_label_key *key)
+{
+	return likely(static_branch(key)); /* Not out of line branch. */
+}
+
+static __always_inline bool static_branch__false(struct jump_label_key *key)
+{
+	return unlikely(static_branch(key)); /* Out of line branch. */
+}
+
+#define SCHED_FEAT(name, enabled)					\
+static __always_inline bool static_branch_##name(struct jump_label_key *key) \
+{									\
+	return static_branch__##enabled(key);				\
+}
+
+#include "features.h"
+
+#undef SCHED_FEAT
+
+extern struct jump_label_key sched_feat_keys[__SCHED_FEAT_NR];
+#define sched_feat(x) (static_branch_##x(&sched_feat_keys[__SCHED_FEAT_##x]))
+#else /* !(SCHED_DEBUG && HAVE_JUMP_LABEL) */
 #define sched_feat(x) (sysctl_sched_features & (1UL << __SCHED_FEAT_##x))
+#endif /* SCHED_DEBUG && HAVE_JUMP_LABEL */
 
 static inline u64 global_rt_period(void)
 {

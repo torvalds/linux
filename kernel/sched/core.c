@@ -149,7 +149,7 @@ static int sched_feat_show(struct seq_file *m, void *v)
 {
 	int i;
 
-	for (i = 0; sched_feat_names[i]; i++) {
+	for (i = 0; i < __SCHED_FEAT_NR; i++) {
 		if (!(sysctl_sched_features & (1UL << i)))
 			seq_puts(m, "NO_");
 		seq_printf(m, "%s ", sched_feat_names[i]);
@@ -158,6 +158,36 @@ static int sched_feat_show(struct seq_file *m, void *v)
 
 	return 0;
 }
+
+#ifdef HAVE_JUMP_LABEL
+
+#define jump_label_key__true  jump_label_key_enabled
+#define jump_label_key__false jump_label_key_disabled
+
+#define SCHED_FEAT(name, enabled)	\
+	jump_label_key__##enabled ,
+
+struct jump_label_key sched_feat_keys[__SCHED_FEAT_NR] = {
+#include "features.h"
+};
+
+#undef SCHED_FEAT
+
+static void sched_feat_disable(int i)
+{
+	if (jump_label_enabled(&sched_feat_keys[i]))
+		jump_label_dec(&sched_feat_keys[i]);
+}
+
+static void sched_feat_enable(int i)
+{
+	if (!jump_label_enabled(&sched_feat_keys[i]))
+		jump_label_inc(&sched_feat_keys[i]);
+}
+#else
+static void sched_feat_disable(int i) { };
+static void sched_feat_enable(int i) { };
+#endif /* HAVE_JUMP_LABEL */
 
 static ssize_t
 sched_feat_write(struct file *filp, const char __user *ubuf,
@@ -182,17 +212,20 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 		cmp += 3;
 	}
 
-	for (i = 0; sched_feat_names[i]; i++) {
+	for (i = 0; i < __SCHED_FEAT_NR; i++) {
 		if (strcmp(cmp, sched_feat_names[i]) == 0) {
-			if (neg)
+			if (neg) {
 				sysctl_sched_features &= ~(1UL << i);
-			else
+				sched_feat_disable(i);
+			} else {
 				sysctl_sched_features |= (1UL << i);
+				sched_feat_enable(i);
+			}
 			break;
 		}
 	}
 
-	if (!sched_feat_names[i])
+	if (i == __SCHED_FEAT_NR)
 		return -EINVAL;
 
 	*ppos += cnt;
@@ -221,8 +254,7 @@ static __init int sched_init_debug(void)
 	return 0;
 }
 late_initcall(sched_init_debug);
-
-#endif
+#endif /* CONFIG_SCHED_DEBUG */
 
 /*
  * Number of tasks to iterate in a single balance run.
