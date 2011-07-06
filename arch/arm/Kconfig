@@ -416,6 +416,7 @@ config ARCH_MXS
 	select ARCH_REQUIRE_GPIOLIB
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+	select NO_MACH_MEMORY_H
 	help
 	  Support for Freescale MXS-based family of processors
 
