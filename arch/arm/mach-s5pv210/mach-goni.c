@@ -897,7 +897,7 @@ static void __init goni_machine_init(void)
 
 MACHINE_START(GONI, "GONI")
 	/* Maintainers: Kyungmin Park <kyungmin.park@samsung.com> */
-	.boot_params	= S5P_PA_SDRAM + 0x100,
+	.atag_offset	= 0x100,
 	.init_irq	= s5pv210_init_irq,
 	.map_io		= goni_map_io,
 	.init_machine	= goni_machine_init,
