@@ -82,7 +82,7 @@ struct ieee80211_key {
 			struct tkip_ctx rx[NUM_RX_DATA_QUEUES];
 		} tkip;
 		struct {
-			u8 tx_pn[6];
+			atomic64_t tx_pn;
 			/*
 			 * Last received packet number. The first
 			 * NUM_RX_DATA_QUEUES counters are used with Data
@@ -92,12 +92,9 @@ struct ieee80211_key {
 			u8 rx_pn[NUM_RX_DATA_QUEUES + 1][6];
 			struct crypto_cipher *tfm;
 			u32 replays; /* dot11RSNAStatsCCMPReplays */
-			/* scratch buffers for virt_to_page() (crypto API) */
 #ifndef AES_BLOCK_LEN
 #define AES_BLOCK_LEN 16
 #endif
-			u8 tx_crypto_buf[6 * AES_BLOCK_LEN];
-			u8 rx_crypto_buf[6 * AES_BLOCK_LEN];
 		} ccmp;
 		struct {
 			u8 tx_pn[6];

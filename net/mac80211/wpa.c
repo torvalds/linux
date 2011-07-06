@@ -15,6 +15,7 @@
 #include <linux/gfp.h>
 #include <asm/unaligned.h>
 #include <net/mac80211.h>
+#include <crypto/aes.h>
 
 #include "ieee80211_i.h"
 #include "michael.h"
@@ -290,6 +291,8 @@ static void ccmp_special_blocks(struct sk_buff *skb, u8 *pn, u8 *scratch,
 	unsigned int hdrlen;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
+	memset(scratch, 0, 6 * AES_BLOCK_LEN);
+
 	b_0 = scratch + 3 * AES_BLOCK_LEN;
 	aad = scratch + 4 * AES_BLOCK_LEN;
 
@@ -380,8 +383,10 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	struct ieee80211_key *key = tx->key;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	int hdrlen, len, tail;
-	u8 *pos, *pn;
-	int i;
+	u8 *pos;
+	u8 pn[6];
+	u64 pn64;
+	u8 scratch[6 * AES_BLOCK_LEN];
 
 	if (info->control.hw_key &&
 	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
@@ -409,14 +414,14 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	hdr = (struct ieee80211_hdr *) pos;
 	pos += hdrlen;
 
-	/* PN = PN + 1 */
-	pn = key->u.ccmp.tx_pn;
+	pn64 = atomic64_inc_return(&key->u.ccmp.tx_pn);
 
-	for (i = CCMP_PN_LEN - 1; i >= 0; i--) {
-		pn[i]++;
-		if (pn[i])
-			break;
-	}
+	pn[5] = pn64;
+	pn[4] = pn64 >> 8;
+	pn[3] = pn64 >> 16;
+	pn[2] = pn64 >> 24;
+	pn[1] = pn64 >> 32;
+	pn[0] = pn64 >> 40;
 
 	ccmp_pn2hdr(pos, pn, key->conf.keyidx);
 
@@ -425,8 +430,8 @@ static int ccmp_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 		return 0;
 
 	pos += CCMP_HDR_LEN;
-	ccmp_special_blocks(skb, pn, key->u.ccmp.tx_crypto_buf, 0);
-	ieee80211_aes_ccm_encrypt(key->u.ccmp.tfm, key->u.ccmp.tx_crypto_buf, pos, len,
+	ccmp_special_blocks(skb, pn, scratch, 0);
+	ieee80211_aes_ccm_encrypt(key->u.ccmp.tfm, scratch, pos, len,
 				  pos, skb_put(skb, CCMP_MIC_LEN));
 
 	return 0;
@@ -482,11 +487,12 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	}
 
 	if (!(status->flag & RX_FLAG_DECRYPTED)) {
+		u8 scratch[6 * AES_BLOCK_LEN];
 		/* hardware didn't decrypt/verify MIC */
-		ccmp_special_blocks(skb, pn, key->u.ccmp.rx_crypto_buf, 1);
+		ccmp_special_blocks(skb, pn, scratch, 1);
 
 		if (ieee80211_aes_ccm_decrypt(
-			    key->u.ccmp.tfm, key->u.ccmp.rx_crypto_buf,
+			    key->u.ccmp.tfm, scratch,
 			    skb->data + hdrlen + CCMP_HDR_LEN, data_len,
 			    skb->data + skb->len - CCMP_MIC_LEN,
 			    skb->data + hdrlen + CCMP_HDR_LEN))
