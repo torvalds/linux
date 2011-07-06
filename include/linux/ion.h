@@ -22,12 +22,12 @@
 struct ion_handle;
 /**
  * enum ion_heap_types - list of all possible types of heaps
- * @ION_HEAP_SYSTEM:		memory allocated via vmalloc
- * @ION_HEAP_SYSTEM_CONTIG:	memory allocated via kmalloc
- * @ION_HEAP_CARVEOUT:		memory allocated from a prereserved
- * 				carveout heap, allocations are physically
- * 				contiguous
- * @ION_HEAP_END:		helper for iterating over heaps
+ * @ION_HEAP_TYPE_SYSTEM:	 memory allocated via vmalloc
+ * @ION_HEAP_TYPE_SYSTEM_CONTIG: memory allocated via kmalloc
+ * @ION_HEAP_TYPE_CARVEOUT:	 memory allocated from a prereserved
+ * 				 carveout heap, allocations are physically
+ * 				 contiguous
+ * @ION_HEAP_END:		 helper for iterating over heaps
  */
 enum ion_heap_type {
 	ION_HEAP_TYPE_SYSTEM,
@@ -38,9 +38,9 @@ enum ion_heap_type {
 	ION_NUM_HEAPS,
 };
 
-#define ION_HEAP_SYSTEM_MASK		(1 << ION_HEAP_SYSTEM)
-#define ION_HEAP_SYSTEM_CONTIG_MASK	(1 << ION_HEAP_SYSTEM_CONTIG)
-#define ION_HEAP_CARVEOUT_MASK		(1 << ION_HEAP_CARVEOUT)
+#define ION_HEAP_SYSTEM_MASK		(1 << ION_HEAP_TYPE_SYSTEM)
+#define ION_HEAP_SYSTEM_CONTIG_MASK	(1 << ION_HEAP_TYPE_SYSTEM_CONTIG)
+#define ION_HEAP_CARVEOUT_MASK		(1 << ION_HEAP_TYPE_CARVEOUT)
 
 #ifdef __KERNEL__
 struct ion_device;
