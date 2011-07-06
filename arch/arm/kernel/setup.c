@@ -819,6 +819,8 @@ static struct machine_desc * __init setup_machine_tags(unsigned int nr)
 
 	if (__atags_pointer)
 		tags = phys_to_virt(__atags_pointer);
+	else if (mdesc->atag_offset)
+		tags = (void *)(PAGE_OFFSET + mdesc->atag_offset);
 	else if (mdesc->boot_params) {
 #ifdef CONFIG_MMU
 		/*
