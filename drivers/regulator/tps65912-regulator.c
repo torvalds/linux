@@ -417,7 +417,7 @@ static int tps65912_reg_enable(struct regulator_dev *dev)
 	struct tps65912_reg *pmic = rdev_get_drvdata(dev);
 	struct tps65912 *mfd = pmic->mfd;
 	int id = rdev_get_id(dev);
-	u8 reg;
+	int reg;
 
 	if (id < TPS65912_REG_DCDC1 || id > TPS65912_REG_LDO10)
 		return -EINVAL;
