@@ -16,8 +16,11 @@
 #include <linux/compiler.h>
 #include <linux/const.h>
 #include <linux/types.h>
-#include <mach/memory.h>
 #include <asm/sizes.h>
+
+#ifndef CONFIG_NO_MACH_MEMORY_H
+#include <mach/memory.h>
+#endif
 
 /*
  * Allow for constants defined here to be used from assembly code
@@ -184,7 +187,11 @@ static inline unsigned long __phys_to_virt(unsigned long x)
 #endif
 
 #ifndef PHYS_OFFSET
+#ifdef PLAT_PHYS_OFFSET
 #define PHYS_OFFSET	PLAT_PHYS_OFFSET
+#else
+#define PHYS_OFFSET	UL(CONFIG_PHYS_OFFSET)
+#endif
 #endif
 
 /*
