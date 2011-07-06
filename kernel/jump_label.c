@@ -248,8 +248,13 @@ void jump_label_apply_nops(struct module *mod)
 	if (iter_start == iter_stop)
 		return;
 
-	for (iter = iter_start; iter < iter_stop; iter++)
-		arch_jump_label_transform_static(iter, JUMP_LABEL_DISABLE);
+	for (iter = iter_start; iter < iter_stop; iter++) {
+		struct jump_label_key *iterk;
+
+		iterk = (struct jump_label_key *)(unsigned long)iter->key;
+		arch_jump_label_transform_static(iter, jump_label_enabled(iterk) ?
+				JUMP_LABEL_ENABLE : JUMP_LABEL_DISABLE);
+	}
 }
 
 static int jump_label_add_module(struct module *mod)
@@ -289,8 +294,7 @@ static int jump_label_add_module(struct module *mod)
 		key->next = jlm;
 
 		if (jump_label_enabled(key))
-			__jump_label_update(key, iter, iter_stop,
-					    JUMP_LABEL_ENABLE);
+			__jump_label_update(key, iter, iter_stop, JUMP_LABEL_ENABLE);
 	}
 
 	return 0;

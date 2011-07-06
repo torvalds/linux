@@ -128,4 +128,7 @@ static inline void jump_label_rate_limit(struct jump_label_key_deferred *key,
 }
 #endif	/* HAVE_JUMP_LABEL */
 
+#define jump_label_key_enabled	((struct jump_label_key){ .enabled = ATOMIC_INIT(1), })
+#define jump_label_key_disabled	((struct jump_label_key){ .enabled = ATOMIC_INIT(0), })
+
 #endif	/* _LINUX_JUMP_LABEL_H */
