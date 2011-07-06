@@ -555,15 +555,21 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 			       bool local)
 {
 	struct ieee80211_tx_info *tx_info;
-	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
+	struct queue_entry *entry;
 	struct txentry_desc txdesc;
 	struct skb_frame_desc *skbdesc;
 	u8 rate_idx, rate_flags;
+	int ret = 0;
+
+	spin_lock(&queue->tx_lock);
+
+	entry = rt2x00queue_get_entry(queue, Q_INDEX);
 
 	if (unlikely(rt2x00queue_full(queue))) {
 		ERROR(queue->rt2x00dev,
 		      "Dropping frame due to full tx queue %d.\n", queue->qid);
-		return -ENOBUFS;
+		ret = -ENOBUFS;
+		goto out;
 	}
 
 	if (unlikely(test_and_set_bit(ENTRY_OWNER_DEVICE_DATA,
@@ -572,7 +578,8 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 		      "Arrived at non-free entry in the non-full queue %d.\n"
 		      "Please file bug report to %s.\n",
 		      queue->qid, DRV_PROJECT);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	/*
@@ -634,7 +641,8 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	if (unlikely(rt2x00queue_write_tx_data(entry, &txdesc))) {
 		clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 		entry->skb = NULL;
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	set_bit(ENTRY_DATA_PENDING, &entry->flags);
@@ -643,7 +651,9 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	rt2x00queue_write_tx_descriptor(entry, &txdesc);
 	rt2x00queue_kick_tx_queue(queue, &txdesc);
 
-	return 0;
+out:
+	spin_unlock(&queue->tx_lock);
+	return ret;
 }
 
 int rt2x00queue_clear_beacon(struct rt2x00_dev *rt2x00dev,
@@ -1184,6 +1194,7 @@ static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 			     struct data_queue *queue, enum data_queue_qid qid)
 {
 	mutex_init(&queue->status_lock);
+	spin_lock_init(&queue->tx_lock);
 	spin_lock_init(&queue->index_lock);
 
 	queue->rt2x00dev = rt2x00dev;
