@@ -2272,7 +2272,7 @@ config SIS190
 	  will be called sis190.  This is recommended.
 
 config SKGE
-	tristate "New SysKonnect GigaEthernet support"
+	tristate "SysKonnect GigaEthernet support"
 	depends on PCI
 	select CRC32
 	---help---
