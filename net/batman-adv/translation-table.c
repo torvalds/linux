@@ -230,8 +230,9 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr)
 	if (tt_global_entry) {
 		/* This node is probably going to update its tt table */
 		tt_global_entry->orig_node->tt_poss_change = true;
-		_tt_global_del(bat_priv, tt_global_entry,
-			       "local tt received");
+		/* The global entry has to be marked as PENDING and has to be
+		 * kept for consistency purpose */
+		tt_global_entry->flags |= TT_CLIENT_PENDING;
 		send_roam_adv(bat_priv, tt_global_entry->addr,
 			      tt_global_entry->orig_node);
 	}
@@ -785,6 +786,11 @@ struct orig_node *transtable_search(struct bat_priv *bat_priv,
 		goto out;
 
 	if (!atomic_inc_not_zero(&tt_global_entry->orig_node->refcount))
+		goto free_tt;
+
+	/* A global client marked as PENDING has already moved from that
+	 * originator */
+	if (tt_global_entry->flags & TT_CLIENT_PENDING)
 		goto free_tt;
 
 	orig_node = tt_global_entry->orig_node;
