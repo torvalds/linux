@@ -183,7 +183,7 @@ void __init colibri_pxa300_init(void)
 }
 
 MACHINE_START(COLIBRI300, "Toradex Colibri PXA300")
-	.boot_params	= COLIBRI_SDRAM_BASE + 0x100,
+	.atag_offset	= 0x100,
 	.init_machine	= colibri_pxa300_init,
 	.map_io		= pxa3xx_map_io,
 	.init_irq	= pxa3xx_init_irq,

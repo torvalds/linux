@@ -148,7 +148,7 @@ static void __init capc7117_init(void)
 
 MACHINE_START(CAPC7117,
 	      "Embedian CAPC-7117 evaluation kit based on the MXM-8x10 CoM")
-	.boot_params = 0xa0000100,
+	.atag_offset = 0x100,
 	.map_io = pxa3xx_map_io,
 	.init_irq = pxa3xx_init_irq,
 	.handle_irq = pxa3xx_handle_irq,

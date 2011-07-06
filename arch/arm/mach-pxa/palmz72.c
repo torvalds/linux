@@ -399,7 +399,7 @@ static void __init palmz72_init(void)
 }
 
 MACHINE_START(PALMZ72, "Palm Zire72")
-	.boot_params	= 0xa0000100,
+	.atag_offset	= 0x100,
 	.map_io		= pxa27x_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.handle_irq	= pxa27x_handle_irq,
