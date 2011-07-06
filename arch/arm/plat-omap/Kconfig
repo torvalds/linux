@@ -22,6 +22,7 @@ config ARCH_OMAP2PLUS
 	select CLKDEV_LOOKUP
 	select GENERIC_IRQ_CHIP
 	select OMAP_DM_TIMER
+	select NO_MACH_MEMORY_H
 	help
 	  "Systems based on OMAP2, OMAP3 or OMAP4"
 
