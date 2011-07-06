@@ -82,15 +82,6 @@ struct dtv_properties {
  </row></tbody></tgroup></informaltable>
 &return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row>
-  <entry align="char"><para>EINVAL</para></entry>
-  <entry align="char"><para>Invalid parameter(s) received or number of parameters out of the range.</para></entry>
- </row><row>
-  <entry align="char"><para>ENOMEM</para></entry>
-  <entry align="char"><para>Out of memory.</para></entry>
- </row><row>
-  <entry align="char"><para>EFAULT</para></entry>
-  <entry align="char"><para>Failure while copying data from/to userspace.</para></entry>
- </row><row>
   <entry align="char"><para>EOPNOTSUPP</para></entry>
   <entry align="char"><para>Property type not supported.</para></entry>
  </row></tbody></tgroup></informaltable>
@@ -139,15 +130,6 @@ struct dtv_properties {
  </row></tbody></tgroup></informaltable>
 &return-value-dvb;
 <informaltable><tgroup cols="2"><tbody><row>
-  <entry align="char"><para>EINVAL</para></entry>
-  <entry align="char"><para>Invalid parameter(s) received or number of parameters out of the range.</para></entry>
- </row><row>
-  <entry align="char"><para>ENOMEM</para></entry>
-  <entry align="char"><para>Out of memory.</para></entry>
- </row><row>
-  <entry align="char"><para>EFAULT</para></entry>
-  <entry align="char"><para>Failure while copying data from/to userspace.</para></entry>
- </row><row>
   <entry align="char"><para>EOPNOTSUPP</para></entry>
   <entry align="char"><para>Property type not supported.</para></entry>
  </row></tbody></tgroup></informaltable>

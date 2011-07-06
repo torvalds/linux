@@ -8,7 +8,7 @@
 	<!-- Keep it ordered alphabetically -->
       <row>
 	<entry>EBADF</entry>
-	<entry><parameter>fd</parameter> is not a valid open file descriptor.</entry>
+	<entry>The file descriptor is not a valid.</entry>
       </row>
       <row>
 	<entry>EBUSY</entry>
@@ -21,18 +21,21 @@
       </row>
       <row>
 	<entry>EFAULT</entry>
-	<entry><parameter>fd</parameter> is not a valid open file descriptor.</entry>
+	<entry>There was a failure while copying data from/to userspace,
+	       probably caused by an invalid pointer reference.</entry>
       </row>
       <row>
 	<entry>EINVAL</entry>
-	<entry>One or more of the ioctl parameters are invalid. This is a widely
-	       used error code. See the individual ioctl requests for actual causes.</entry>
+	<entry>One or more of the ioctl parameters are invalid or out of the
+	       allowed range. This is a widely used error code. See the individual
+	       ioctl requests for specific causes.</entry>
       </row>
       <row>
 	<entry>EINVAL or ENOTTY</entry>
 	<entry>The ioctl is not supported by the driver, actually meaning that
 	       the required functionality is not available, or the file
-	       descriptor is not for a media device.</entry>
+	       descriptor is not for a media device. The usage of EINVAL is
+	       deprecated and will be fixed on a latter patch.</entry>
       </row>
       <row>
         <entry>ENODEV</entry>
@@ -47,6 +50,17 @@
 	<entry>On USB devices, the stream ioctl's can return this error, meaning
 	       that this request would overcommit the usb bandwidth reserved
 	       for periodic transfers (up to 80% of the USB bandwidth).</entry>
+      </row>
+      <row>
+	<entry>ENOSYS or EOPNOTSUPP</entry>
+	<entry>Function not available for this device (dvb API only. Will likely
+	       be replaced anytime soon by ENOTTY).</entry>
+      </row>
+      <row>
+	<entry>EPERM</entry>
+	<entry>Permission denied. Can be returned if the device needs write
+		permission, or some special capabilities is needed
+		(e. g. root)</entry>
       </row>
       <row>
 	<entry>EWOULDBLOCK</entry>
