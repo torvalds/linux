@@ -55,7 +55,7 @@ static void __init s3c_init_uart_irq(struct s3c_uart_irq *uirq)
 	gc = irq_alloc_generic_chip("s3c-uart", 1, uirq->base_irq, reg_base,
 				    handle_level_irq);
 	ct = gc->chip_types;
-	ct->chip.irq_ack = irq_gc_ack;
+	ct->chip.irq_ack = irq_gc_ack_set_bit;
 	ct->chip.irq_mask = irq_gc_mask_set_bit;
 	ct->chip.irq_unmask = irq_gc_mask_clr_bit;
 	ct->regs.ack = S3C64XX_UINTP;
