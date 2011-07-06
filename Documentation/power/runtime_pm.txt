@@ -583,6 +583,13 @@ this is:
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 
+The PM core always increments the run-time usage counter before calling the
+->suspend() callback and decrements it after calling the ->resume() callback.
+Hence disabling run-time PM temporarily like this will not cause any runtime
+suspend attempts to be permanently lost.  If the usage count goes to zero
+following the return of the ->resume() callback, the ->runtime_idle() callback
+will be invoked as usual.
+
 On some systems, however, system sleep is not entered through a global firmware
 or hardware operation.  Instead, all hardware components are put into low-power
 states directly by the kernel in a coordinated way.  Then, the system sleep
@@ -594,6 +601,20 @@ known to it.  If that is the case and none of the situations listed above takes
 place (in particular, if the system is not waking up from hibernation), it may
 be more efficient to leave the devices that had been suspended before the system
 suspend began in the suspended state.
+
+The PM core does its best to reduce the probability of race conditions between
+the runtime PM and system suspend/resume (and hibernation) callbacks by carrying
+out the following operations:
+
+  * During system suspend it calls pm_runtime_get_noresume() and
+    pm_runtime_barrier() for every device right before executing the
+    subsystem-level .suspend() callback for it.  In addition to that it calls
+    pm_runtime_disable() for every device right after executing the
+    subsystem-level .suspend() callback for it.
+
+  * During system resume it calls pm_runtime_enable() and pm_runtime_put_sync()
+    for every device right before and right after executing the subsystem-level
+    .resume() callback for it, respectively.
 
 7. Generic subsystem callbacks
 
