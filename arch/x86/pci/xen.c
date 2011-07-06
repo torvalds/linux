@@ -37,14 +37,8 @@ static int xen_pcifront_enable_irq(struct pci_dev *dev)
 			 rc);
 		return rc;
 	}
-
-	rc = xen_allocate_pirq_gsi(gsi);
-	if (rc < 0) {
-		dev_warn(&dev->dev, "Xen PCI: failed to allocate a PIRQ for GSI%d: %d\n",
-			 gsi, rc);
-		return rc;
-	}
-	pirq = rc;
+	/* In PV DomU the Xen PCI backend puts the PIRQ in the interrupt line.*/
+	pirq = gsi;
 
 	if (gsi < NR_IRQS_LEGACY)
 		share = 0;
@@ -63,18 +57,16 @@ static int xen_pcifront_enable_irq(struct pci_dev *dev)
 
 #ifdef CONFIG_ACPI
 static int xen_register_pirq(u32 gsi, int gsi_override, int triggering,
-			     bool alloc_pirq)
+			     bool set_pirq)
 {
 	int rc, pirq = -1, irq = -1;
 	struct physdev_map_pirq map_irq;
 	int shareable = 0;
 	char *name;
 
-	if (alloc_pirq) {
-		pirq = xen_allocate_pirq_gsi(gsi);
-		if (pirq < 0)
-			goto out;
-	}
+	if (set_pirq)
+		pirq = gsi;
+
 	map_irq.domid = DOMID_SELF;
 	map_irq.type = MAP_PIRQ_TYPE_GSI;
 	map_irq.index = gsi;
@@ -112,8 +104,8 @@ static int acpi_register_gsi_xen_hvm(struct device *dev, u32 gsi,
 	if (!xen_hvm_domain())
 		return -1;
 
-	return xen_register_pirq(gsi, -1 /* no GSI override */,
-				 trigger, false /* no PIRQ allocation */);
+	return xen_register_pirq(gsi, -1 /* no GSI override */, trigger,
+				 false /* no mapping of GSI to PIRQ */);
 }
 
 #ifdef CONFIG_XEN_DOM0
@@ -430,7 +422,7 @@ static __init void xen_setup_acpi_sci(void)
 
 int __init pci_xen_initial_domain(void)
 {
-	int pirq, irq;
+	int irq;
 
 #ifdef CONFIG_PCI_MSI
 	x86_msi.setup_msi_irqs = xen_initdom_setup_msi_irqs;
@@ -447,16 +439,11 @@ int __init pci_xen_initial_domain(void)
 
 		xen_register_pirq(irq, -1 /* no GSI override */,
 			trigger ? ACPI_LEVEL_SENSITIVE : ACPI_EDGE_SENSITIVE,
-			true /* allocate IRQ */);
+			true /* Map GSI to PIRQ */);
 	}
 	if (0 == nr_ioapics) {
-		for (irq = 0; irq < NR_IRQS_LEGACY; irq++) {
-			pirq = xen_allocate_pirq_gsi(irq);
-			if (WARN(pirq < 0,
-				 "Could not allocate PIRQ for legacy interrupt\n"))
-				break;
-			irq = xen_bind_pirq_gsi_to_irq(irq, pirq, 0, "xt-pic");
-		}
+		for (irq = 0; irq < NR_IRQS_LEGACY; irq++)
+			xen_bind_pirq_gsi_to_irq(irq, irq, 0, "xt-pic");
 	}
 	return 0;
 }
