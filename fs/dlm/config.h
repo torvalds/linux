@@ -20,7 +20,6 @@ struct dlm_config_info {
 	int ci_tcp_port;
 	int ci_buffer_size;
 	int ci_rsbtbl_size;
-	int ci_lkbtbl_size;
 	int ci_dirtbl_size;
 	int ci_recover_timer;
 	int ci_toss_secs;

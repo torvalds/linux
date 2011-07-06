@@ -580,9 +580,8 @@ static void detach_lkb(struct dlm_lkb *lkb)
 
 static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 {
-	struct dlm_lkb *lkb, *tmp;
-	uint32_t lkid = 0;
-	uint16_t bucket;
+	struct dlm_lkb *lkb;
+	int rv, id;
 
 	lkb = dlm_allocate_lkb(ls);
 	if (!lkb)
@@ -596,58 +595,38 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 	INIT_LIST_HEAD(&lkb->lkb_time_list);
 	INIT_LIST_HEAD(&lkb->lkb_astqueue);
 
-	get_random_bytes(&bucket, sizeof(bucket));
-	bucket &= (ls->ls_lkbtbl_size - 1);
+ retry:
+	rv = idr_pre_get(&ls->ls_lkbidr, GFP_NOFS);
+	if (!rv)
+		return -ENOMEM;
 
-	write_lock(&ls->ls_lkbtbl[bucket].lock);
+	spin_lock(&ls->ls_lkbidr_spin);
+	rv = idr_get_new_above(&ls->ls_lkbidr, lkb, 1, &id);
+	if (!rv)
+		lkb->lkb_id = id;
+	spin_unlock(&ls->ls_lkbidr_spin);
 
-	/* counter can roll over so we must verify lkid is not in use */
+	if (rv == -EAGAIN)
+		goto retry;
 
-	while (lkid == 0) {
-		lkid = (bucket << 16) | ls->ls_lkbtbl[bucket].counter++;
-
-		list_for_each_entry(tmp, &ls->ls_lkbtbl[bucket].list,
-				    lkb_idtbl_list) {
-			if (tmp->lkb_id != lkid)
-				continue;
-			lkid = 0;
-			break;
-		}
+	if (rv < 0) {
+		log_error(ls, "create_lkb idr error %d", rv);
+		return rv;
 	}
-
-	lkb->lkb_id = lkid;
-	list_add(&lkb->lkb_idtbl_list, &ls->ls_lkbtbl[bucket].list);
-	write_unlock(&ls->ls_lkbtbl[bucket].lock);
 
 	*lkb_ret = lkb;
 	return 0;
 }
 
-static struct dlm_lkb *__find_lkb(struct dlm_ls *ls, uint32_t lkid)
-{
-	struct dlm_lkb *lkb;
-	uint16_t bucket = (lkid >> 16);
-
-	list_for_each_entry(lkb, &ls->ls_lkbtbl[bucket].list, lkb_idtbl_list) {
-		if (lkb->lkb_id == lkid)
-			return lkb;
-	}
-	return NULL;
-}
-
 static int find_lkb(struct dlm_ls *ls, uint32_t lkid, struct dlm_lkb **lkb_ret)
 {
 	struct dlm_lkb *lkb;
-	uint16_t bucket = (lkid >> 16);
 
-	if (bucket >= ls->ls_lkbtbl_size)
-		return -EBADSLT;
-
-	read_lock(&ls->ls_lkbtbl[bucket].lock);
-	lkb = __find_lkb(ls, lkid);
+	spin_lock(&ls->ls_lkbidr_spin);
+	lkb = idr_find(&ls->ls_lkbidr, lkid);
 	if (lkb)
 		kref_get(&lkb->lkb_ref);
-	read_unlock(&ls->ls_lkbtbl[bucket].lock);
+	spin_unlock(&ls->ls_lkbidr_spin);
 
 	*lkb_ret = lkb;
 	return lkb ? 0 : -ENOENT;
@@ -668,12 +647,12 @@ static void kill_lkb(struct kref *kref)
 
 static int __put_lkb(struct dlm_ls *ls, struct dlm_lkb *lkb)
 {
-	uint16_t bucket = (lkb->lkb_id >> 16);
+	uint32_t lkid = lkb->lkb_id;
 
-	write_lock(&ls->ls_lkbtbl[bucket].lock);
+	spin_lock(&ls->ls_lkbidr_spin);
 	if (kref_put(&lkb->lkb_ref, kill_lkb)) {
-		list_del(&lkb->lkb_idtbl_list);
-		write_unlock(&ls->ls_lkbtbl[bucket].lock);
+		idr_remove(&ls->ls_lkbidr, lkid);
+		spin_unlock(&ls->ls_lkbidr_spin);
 
 		detach_lkb(lkb);
 
@@ -683,7 +662,7 @@ static int __put_lkb(struct dlm_ls *ls, struct dlm_lkb *lkb)
 		dlm_free_lkb(lkb);
 		return 1;
 	} else {
-		write_unlock(&ls->ls_lkbtbl[bucket].lock);
+		spin_unlock(&ls->ls_lkbidr_spin);
 		return 0;
 	}
 }

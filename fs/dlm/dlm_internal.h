@@ -37,6 +37,7 @@
 #include <linux/jhash.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
+#include <linux/idr.h>
 #include <asm/uaccess.h>
 
 #include <linux/dlm.h>
@@ -52,7 +53,6 @@ struct dlm_ls;
 struct dlm_lkb;
 struct dlm_rsb;
 struct dlm_member;
-struct dlm_lkbtable;
 struct dlm_rsbtable;
 struct dlm_dirtable;
 struct dlm_direntry;
@@ -108,11 +108,6 @@ struct dlm_rsbtable {
 	spinlock_t		lock;
 };
 
-struct dlm_lkbtable {
-	struct list_head	list;
-	rwlock_t		lock;
-	uint16_t		counter;
-};
 
 /*
  * Lockspace member (per node in a ls)
@@ -248,7 +243,6 @@ struct dlm_lkb {
 	int8_t			lkb_wait_count;
 	int			lkb_wait_nodeid; /* for debugging */
 
-	struct list_head	lkb_idtbl_list;	/* lockspace lkbtbl */
 	struct list_head	lkb_statequeue;	/* rsb g/c/w list */
 	struct list_head	lkb_rsb_lookup;	/* waiting for rsb lookup */
 	struct list_head	lkb_wait_reply;	/* waiting for remote reply */
@@ -465,11 +459,11 @@ struct dlm_ls {
 	unsigned long		ls_scan_time;
 	struct kobject		ls_kobj;
 
+	struct idr		ls_lkbidr;
+	spinlock_t		ls_lkbidr_spin;
+
 	struct dlm_rsbtable	*ls_rsbtbl;
 	uint32_t		ls_rsbtbl_size;
-
-	struct dlm_lkbtable	*ls_lkbtbl;
-	uint32_t		ls_lkbtbl_size;
 
 	struct dlm_dirtable	*ls_dirtbl;
 	uint32_t		ls_dirtbl_size;
