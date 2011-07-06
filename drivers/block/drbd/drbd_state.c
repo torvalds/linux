@@ -507,7 +507,7 @@ static void conn_pr_state_change(struct drbd_connection *connection, union drbd_
 			       is_susp(ns));
 
 	if (pbp != pb)
-		conn_info(connection, "%s\n", pb);
+		drbd_info(connection, "%s\n", pb);
 }
 
 
@@ -1846,7 +1846,7 @@ _conn_request_state(struct drbd_connection *connection, union drbd_state mask, u
 		acscw->w.connection = connection;
 		drbd_queue_work(&connection->sender_work, &acscw->w);
 	} else {
-		conn_err(connection, "Could not kmalloc an acscw\n");
+		drbd_err(connection, "Could not kmalloc an acscw\n");
 	}
 
  abort:
@@ -1859,9 +1859,9 @@ _conn_request_state(struct drbd_connection *connection, union drbd_state mask, u
 		spin_lock_irq(&connection->req_lock);
 	}
 	if (rv < SS_SUCCESS && flags & CS_VERBOSE) {
-		conn_err(connection, "State change failed: %s\n", drbd_set_st_err_str(rv));
-		conn_err(connection, " mask = 0x%x val = 0x%x\n", mask.i, val.i);
-		conn_err(connection, " old_conn:%s wanted_conn:%s\n", drbd_conn_str(oc), drbd_conn_str(val.conn));
+		drbd_err(connection, "State change failed: %s\n", drbd_set_st_err_str(rv));
+		drbd_err(connection, " mask = 0x%x val = 0x%x\n", mask.i, val.i);
+		drbd_err(connection, " old_conn:%s wanted_conn:%s\n", drbd_conn_str(oc), drbd_conn_str(val.conn));
 	}
 	return rv;
 }

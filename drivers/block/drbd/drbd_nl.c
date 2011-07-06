@@ -392,16 +392,16 @@ static int conn_khelper(struct drbd_connection *connection, char *cmd)
 	setup_khelper_env(connection, envp);
 	conn_md_sync(connection);
 
-	conn_info(connection, "helper command: %s %s %s\n", usermode_helper, cmd, resource_name);
+	drbd_info(connection, "helper command: %s %s %s\n", usermode_helper, cmd, resource_name);
 	/* TODO: conn_bcast_event() ?? */
 
 	ret = call_usermodehelper(usermode_helper, argv, envp, UMH_WAIT_PROC);
 	if (ret)
-		conn_warn(connection, "helper command: %s %s %s exit code %u (0x%x)\n",
+		drbd_warn(connection, "helper command: %s %s %s exit code %u (0x%x)\n",
 			  usermode_helper, cmd, resource_name,
 			  (ret >> 8) & 0xff, ret);
 	else
-		conn_info(connection, "helper command: %s %s %s exit code %u (0x%x)\n",
+		drbd_info(connection, "helper command: %s %s %s exit code %u (0x%x)\n",
 			  usermode_helper, cmd, resource_name,
 			  (ret >> 8) & 0xff, ret);
 	/* TODO: conn_bcast_event() ?? */
@@ -443,7 +443,7 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
 	int r;
 
 	if (connection->cstate >= C_WF_REPORT_PARAMS) {
-		conn_err(connection, "Expected cstate < C_WF_REPORT_PARAMS\n");
+		drbd_err(connection, "Expected cstate < C_WF_REPORT_PARAMS\n");
 		return false;
 	}
 
@@ -454,7 +454,7 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
 	fp = highest_fencing_policy(connection);
 	switch (fp) {
 	case FP_NOT_AVAIL:
-		conn_warn(connection, "Not fencing peer, I'm not even Consistent myself.\n");
+		drbd_warn(connection, "Not fencing peer, I'm not even Consistent myself.\n");
 		goto out;
 	case FP_DONT_CARE:
 		return true;
@@ -488,24 +488,24 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
 		 * This is useful when an unconnected R_SECONDARY is asked to
 		 * become R_PRIMARY, but finds the other peer being active. */
 		ex_to_string = "peer is active";
-		conn_warn(connection, "Peer is primary, outdating myself.\n");
+		drbd_warn(connection, "Peer is primary, outdating myself.\n");
 		mask.disk = D_MASK;
 		val.disk = D_OUTDATED;
 		break;
 	case 7:
 		if (fp != FP_STONITH)
-			conn_err(connection, "fence-peer() = 7 && fencing != Stonith !!!\n");
+			drbd_err(connection, "fence-peer() = 7 && fencing != Stonith !!!\n");
 		ex_to_string = "peer was stonithed";
 		mask.pdsk = D_MASK;
 		val.pdsk = D_OUTDATED;
 		break;
 	default:
 		/* The script is broken ... */
-		conn_err(connection, "fence-peer helper broken, returned %d\n", (r>>8)&0xff);
+		drbd_err(connection, "fence-peer helper broken, returned %d\n", (r>>8)&0xff);
 		return false; /* Eventually leave IO frozen */
 	}
 
-	conn_info(connection, "fence-peer helper returned %d (%s)\n",
+	drbd_info(connection, "fence-peer helper returned %d (%s)\n",
 		  (r>>8) & 0xff, ex_to_string);
 
  out:
@@ -519,7 +519,7 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
 		if (connection->connect_cnt != connect_cnt)
 			/* In case the connection was established and droped
 			   while the fence-peer handler was running, ignore it */
-			conn_info(connection, "Ignoring fence-peer exit code\n");
+			drbd_info(connection, "Ignoring fence-peer exit code\n");
 		else
 			_conn_request_state(connection, mask, val, CS_VERBOSE);
 	}
@@ -545,7 +545,7 @@ void conn_try_outdate_peer_async(struct drbd_connection *connection)
 	kref_get(&connection->kref);
 	opa = kthread_run(_try_outdate_peer_async, connection, "drbd_async_h");
 	if (IS_ERR(opa)) {
-		conn_err(connection, "out of mem, failed to invoke fence-peer helper\n");
+		drbd_err(connection, "out of mem, failed to invoke fence-peer helper\n");
 		kref_put(&connection->kref, drbd_destroy_connection);
 	}
 }
@@ -2335,7 +2335,7 @@ static enum drbd_state_rv conn_try_disconnect(struct drbd_connection *connection
 		rv2 = conn_request_state(connection, NS(conn, C_STANDALONE),
 				CS_VERBOSE | CS_HARD);
 		if (rv2 < SS_SUCCESS)
-			conn_err(connection,
+			drbd_err(connection,
 				"unexpected rv2=%d in conn_try_disconnect()\n",
 				rv2);
 	}

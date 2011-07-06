@@ -227,18 +227,18 @@ void tl_release(struct drbd_connection *connection, unsigned int barrier_nr,
 
 	/* first some paranoia code */
 	if (req == NULL) {
-		conn_err(connection, "BAD! BarrierAck #%u received, but no epoch in tl!?\n",
+		drbd_err(connection, "BAD! BarrierAck #%u received, but no epoch in tl!?\n",
 			 barrier_nr);
 		goto bail;
 	}
 	if (expect_epoch != barrier_nr) {
-		conn_err(connection, "BAD! BarrierAck #%u received, expected #%u!\n",
+		drbd_err(connection, "BAD! BarrierAck #%u received, expected #%u!\n",
 			 barrier_nr, expect_epoch);
 		goto bail;
 	}
 
 	if (expect_size != set_size) {
-		conn_err(connection, "BAD! BarrierAck #%u received with n_writes=%u, expected n_writes=%u!\n",
+		drbd_err(connection, "BAD! BarrierAck #%u received with n_writes=%u, expected n_writes=%u!\n",
 			 barrier_nr, set_size, expect_size);
 		goto bail;
 	}
@@ -349,7 +349,7 @@ restart:
 	 */
 
 	if (thi->t_state == RESTARTING) {
-		conn_info(connection, "Restarting %s thread\n", thi->name);
+		drbd_info(connection, "Restarting %s thread\n", thi->name);
 		thi->t_state = RUNNING;
 		spin_unlock_irqrestore(&thi->t_lock, flags);
 		goto restart;
@@ -361,7 +361,7 @@ restart:
 	complete_all(&thi->stop);
 	spin_unlock_irqrestore(&thi->t_lock, flags);
 
-	conn_info(connection, "Terminating %s\n", current->comm);
+	drbd_info(connection, "Terminating %s\n", current->comm);
 
 	/* Release mod reference taken when thread was started */
 
@@ -393,12 +393,12 @@ int drbd_thread_start(struct drbd_thread *thi)
 
 	switch (thi->t_state) {
 	case NONE:
-		conn_info(connection, "Starting %s thread (from %s [%d])\n",
+		drbd_info(connection, "Starting %s thread (from %s [%d])\n",
 			 thi->name, current->comm, current->pid);
 
 		/* Get ref on module for thread - this is released when thread exits */
 		if (!try_module_get(THIS_MODULE)) {
-			conn_err(connection, "Failed to get module reference in drbd_thread_start\n");
+			drbd_err(connection, "Failed to get module reference in drbd_thread_start\n");
 			spin_unlock_irqrestore(&thi->t_lock, flags);
 			return false;
 		}
@@ -415,7 +415,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 				    "drbd_%c_%s", thi->name[0], thi->connection->resource->name);
 
 		if (IS_ERR(nt)) {
-			conn_err(connection, "Couldn't start thread\n");
+			drbd_err(connection, "Couldn't start thread\n");
 
 			kref_put(&connection->kref, drbd_destroy_connection);
 			module_put(THIS_MODULE);
@@ -429,7 +429,7 @@ int drbd_thread_start(struct drbd_thread *thi)
 		break;
 	case EXITING:
 		thi->t_state = RESTARTING;
-		conn_info(connection, "Restarting %s thread (from %s [%d])\n",
+		drbd_info(connection, "Restarting %s thread (from %s [%d])\n",
 				thi->name, current->comm, current->pid);
 		/* fall through */
 	case RUNNING:
@@ -786,7 +786,7 @@ int __drbd_send_protocol(struct drbd_connection *connection, enum drbd_packet cm
 	if (nc->tentative && connection->agreed_pro_version < 92) {
 		rcu_read_unlock();
 		mutex_unlock(&sock->mutex);
-		conn_err(connection, "--dry-run is not supported by peer");
+		drbd_err(connection, "--dry-run is not supported by peer");
 		return -EOPNOTSUPP;
 	}
 
@@ -1435,7 +1435,7 @@ static int we_should_drop_the_connection(struct drbd_connection *connection, str
 
 	drop_it = !--connection->ko_count;
 	if (!drop_it) {
-		conn_err(connection, "[%s/%d] sock_sendmsg time expired, ko = %u\n",
+		drbd_err(connection, "[%s/%d] sock_sendmsg time expired, ko = %u\n",
 			 current->comm, current->pid, connection->ko_count);
 		request_ping(connection);
 	}
@@ -1800,7 +1800,7 @@ int drbd_send(struct drbd_connection *connection, struct socket *sock,
 
 	if (rv <= 0) {
 		if (rv != -EAGAIN) {
-			conn_err(connection, "%s_sendmsg returned %d\n",
+			drbd_err(connection, "%s_sendmsg returned %d\n",
 				 sock == connection->meta.socket ? "msock" : "sock",
 				 rv);
 			conn_request_state(connection, NS(conn, C_BROKEN_PIPE), CS_HARD);
@@ -2507,7 +2507,7 @@ int set_resource_options(struct drbd_resource *resource, struct res_opts *res_op
 		err = bitmap_parse(res_opts->cpu_mask, 32,
 				   cpumask_bits(new_cpu_mask), nr_cpu_ids);
 		if (err) {
-			conn_warn(connection, "bitmap_parse() failed with %d\n", err);
+			drbd_warn(resource, "bitmap_parse() failed with %d\n", err);
 			/* retcode = ERR_CPU_MASK_PARSE; */
 			goto fail;
 		}
@@ -2630,7 +2630,7 @@ void drbd_destroy_connection(struct kref *kref)
 	struct drbd_resource *resource = connection->resource;
 
 	if (atomic_read(&connection->current_epoch->epoch_size) !=  0)
-		conn_err(connection, "epoch_size:%d\n", atomic_read(&connection->current_epoch->epoch_size));
+		drbd_err(connection, "epoch_size:%d\n", atomic_read(&connection->current_epoch->epoch_size));
 	kfree(connection->current_epoch);
 
 	idr_destroy(&connection->peer_devices);
