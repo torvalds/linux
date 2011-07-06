@@ -476,7 +476,7 @@ static struct sk_buff *fanout_check_defrag(struct sk_buff *skb)
 		return skb;
 
 	if (ip_is_fragment(ip_hdr(skb))) {
-		skb = skb_clone(skb, GFP_ATOMIC);
+		skb = skb_share_check(skb, GFP_ATOMIC);
 		if (skb) {
 			if (pskb_trim_rcsum(skb, len))
 				return skb;
