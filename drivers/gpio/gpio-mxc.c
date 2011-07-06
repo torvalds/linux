@@ -27,6 +27,8 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/basic_mmio_gpio.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <asm-generic/bug.h>
 
 enum mxc_gpio_hwtype {
@@ -118,6 +120,13 @@ static struct platform_device_id mxc_gpio_devtype[] = {
 	}, {
 		/* sentinel */
 	}
+};
+
+static const struct of_device_id mxc_gpio_dt_ids[] = {
+	{ .compatible = "fsl,imx1-gpio", .data = &mxc_gpio_devtype[IMX1_GPIO], },
+	{ .compatible = "fsl,imx21-gpio", .data = &mxc_gpio_devtype[IMX21_GPIO], },
+	{ .compatible = "fsl,imx31-gpio", .data = &mxc_gpio_devtype[IMX31_GPIO], },
+	{ /* sentinel */ }
 };
 
 /*
@@ -302,7 +311,13 @@ static void __init mxc_gpio_init_gc(struct mxc_gpio_port *port)
 
 static void __devinit mxc_gpio_get_hw(struct platform_device *pdev)
 {
-	enum mxc_gpio_hwtype hwtype = pdev->id_entry->driver_data;
+	const struct of_device_id *of_id =
+			of_match_device(mxc_gpio_dt_ids, &pdev->dev);
+	enum mxc_gpio_hwtype hwtype;
+
+	if (of_id)
+		pdev->id_entry = of_id->data;
+	hwtype = pdev->id_entry->driver_data;
 
 	if (mxc_gpio_hwtype) {
 		/*
@@ -324,6 +339,7 @@ static void __devinit mxc_gpio_get_hw(struct platform_device *pdev)
 
 static int __devinit mxc_gpio_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	struct mxc_gpio_port *port;
 	struct resource *iores;
 	int err;
@@ -333,8 +349,6 @@ static int __devinit mxc_gpio_probe(struct platform_device *pdev)
 	port = kzalloc(sizeof(struct mxc_gpio_port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
-
-	port->virtual_irq_start = MXC_GPIO_IRQ_START + pdev->id * 32;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iores) {
@@ -364,9 +378,6 @@ static int __devinit mxc_gpio_probe(struct platform_device *pdev)
 	/* disable the interrupt and clear the status */
 	writel(0, port->base + GPIO_IMR);
 	writel(~0, port->base + GPIO_ISR);
-
-	/* gpio-mxc can be a generic irq chip */
-	mxc_gpio_init_gc(port);
 
 	if (mxc_gpio_hwtype == IMX21_GPIO) {
 		/* setup one handler for all GPIO interrupts */
@@ -400,6 +411,16 @@ static int __devinit mxc_gpio_probe(struct platform_device *pdev)
 	if (err)
 		goto out_bgpio_remove;
 
+	/*
+	 * In dt case, we use gpio number range dynamically
+	 * allocated by gpio core.
+	 */
+	port->virtual_irq_start = MXC_GPIO_IRQ_START + (np ? port->bgc.gc.base :
+							     pdev->id * 32);
+
+	/* gpio-mxc can be a generic irq chip */
+	mxc_gpio_init_gc(port);
+
 	list_add_tail(&port->node, &mxc_gpio_ports);
 
 	return 0;
@@ -420,6 +441,7 @@ static struct platform_driver mxc_gpio_driver = {
 	.driver		= {
 		.name	= "gpio-mxc",
 		.owner	= THIS_MODULE,
+		.of_match_table = mxc_gpio_dt_ids,
 	},
 	.probe		= mxc_gpio_probe,
 	.id_table	= mxc_gpio_devtype,
