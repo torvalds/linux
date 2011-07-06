@@ -179,7 +179,7 @@ static void __init tegra_harmony_init(void)
 }
 
 MACHINE_START(HARMONY, "harmony")
-	.boot_params  = 0x00000100,
+	.atag_offset	= 0x100,
 	.fixup		= tegra_harmony_fixup,
 	.map_io         = tegra_map_common_io,
 	.init_early	= tegra_init_early,
