@@ -609,6 +609,16 @@ static void b43_nphy_bmac_clock_fgc(struct b43_wldev *dev, bool force)
 		return;
 
 	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+	case B43_BUS_BCMA:
+		tmp = bcma_read32(dev->dev->bdev, BCMA_IOCTL);
+		if (force)
+			tmp |= BCMA_IOCTL_FGC;
+		else
+			tmp &= ~BCMA_IOCTL_FGC;
+		bcma_write32(dev->dev->bdev, BCMA_IOCTL, tmp);
+		break;
+#endif
 #ifdef CONFIG_B43_SSB
 	case B43_BUS_SSB:
 		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
@@ -965,6 +975,12 @@ static void b43_nphy_superswitch_init(struct b43_wldev *dev, bool init)
 		b43_phy_write(dev, B43_NPHY_GPIO_HIOEN, 0);
 
 		switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+		case B43_BUS_BCMA:
+			bcma_chipco_gpio_control(&dev->dev->bdev->bus->drv_cc,
+						 0xFC00, 0xFC00);
+			break;
+#endif
 #ifdef CONFIG_B43_SSB
 		case B43_BUS_SSB:
 			ssb_chipco_gpio_control(&dev->dev->sdev->bus->chipco,
@@ -3614,6 +3630,12 @@ int b43_phy_initn(struct b43_wldev *dev)
 	   (sprom->boardflags_lo & B43_BFL_EXTLNA) &&
 	   (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)) {
 		switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+		case B43_BUS_BCMA:
+			bcma_cc_set32(&dev->dev->bdev->bus->drv_cc,
+				      BCMA_CC_CHIPCTL, 0x40);
+			break;
+#endif
 #ifdef CONFIG_B43_SSB
 		case B43_BUS_SSB:
 			chipco_set32(&dev->dev->sdev->bus->chipco,
