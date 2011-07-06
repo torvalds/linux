@@ -1117,6 +1117,8 @@ static __init int da850_evm_init_cpufreq(void)
 static __init int da850_evm_init_cpufreq(void) { return 0; }
 #endif
 
+#define DA850EVM_SATA_REFCLKPN_RATE	(100 * 1000 * 1000)
+
 static __init void da850_evm_init(void)
 {
 	int ret;
@@ -1236,6 +1238,11 @@ static __init void da850_evm_init(void)
 				 ARRAY_SIZE(da850evm_spi_info));
 	if (ret)
 		pr_warning("da850_evm_init: spi 1 registration failed: %d\n",
+				ret);
+
+	ret = da850_register_sata(DA850EVM_SATA_REFCLKPN_RATE);
+	if (ret)
+		pr_warning("da850_evm_init: sata registration failed: %d\n",
 				ret);
 }
 
