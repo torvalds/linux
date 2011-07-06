@@ -75,6 +75,8 @@ void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 	mdctl = __raw_readl(psc_base + MDCTL + 4 * id);
 	mdctl &= ~MDSTAT_STATE_MASK;
 	mdctl |= next_state;
+	if (flags & PSC_FORCE)
+		mdctl |= MDCTL_FORCE;
 	__raw_writel(mdctl, psc_base + MDCTL + 4 * id);
 
 	pdstat = __raw_readl(psc_base + PDSTAT);
