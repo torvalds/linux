@@ -487,10 +487,9 @@ int gw_client_seq_print_text(struct seq_file *seq, void *offset)
 	}
 
 	seq_printf(seq, "      %-12s (%s/%i) %17s [%10s]: gw_class ... "
-		   "[B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%pM (%s)]\n",
+		   "[B.A.T.M.A.N. adv %s, MainIF/MAC: %s/%pM (%s)]\n",
 		   "Gateway", "#", TQ_MAX_VALUE, "Nexthop",
-		   "outgoingIF", SOURCE_VERSION, REVISION_VERSION_STR,
-		   primary_if->net_dev->name,
+		   "outgoingIF", SOURCE_VERSION, primary_if->net_dev->name,
 		   primary_if->net_dev->dev_addr, net_dev->name);
 
 	rcu_read_lock();

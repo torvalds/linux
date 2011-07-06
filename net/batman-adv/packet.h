@@ -78,10 +78,13 @@ enum tt_query_flags {
 	TT_FULL_TABLE = 1 << 2
 };
 
-/* TT_CHANGE flags */
-enum tt_change_flags {
-	TT_CHANGE_DEL  = 0x01,
-	TT_CLIENT_ROAM = 0x02
+/* TT_CLIENT flags.
+ * Flags from 1 to 1 << 7 are sent on the wire, while flags from 1 << 8 to
+ * 1 << 15 are used for local computation only */
+enum tt_client_flags {
+	TT_CLIENT_DEL     = 1 << 0,
+	TT_CLIENT_ROAM    = 1 << 1,
+	TT_CLIENT_NOPURGE = 1 << 8
 };
 
 struct batman_packet {

@@ -163,6 +163,7 @@ static void send_packet(struct forw_packet *forw_packet)
 	struct hard_iface *hard_iface;
 	struct net_device *soft_iface;
 	struct bat_priv *bat_priv;
+	struct hard_iface *primary_if = NULL;
 	struct batman_packet *batman_packet =
 		(struct batman_packet *)(forw_packet->skb->data);
 	int directlink = (batman_packet->flags & DIRECTLINK ? 1 : 0);
@@ -170,19 +171,23 @@ static void send_packet(struct forw_packet *forw_packet)
 	if (!forw_packet->if_incoming) {
 		pr_err("Error - can't forward packet: incoming iface not "
 		       "specified\n");
-		return;
+		goto out;
 	}
 
 	soft_iface = forw_packet->if_incoming->soft_iface;
 	bat_priv = netdev_priv(soft_iface);
 
 	if (forw_packet->if_incoming->if_status != IF_ACTIVE)
-		return;
+		goto out;
+
+	primary_if = primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		goto out;
 
 	/* multihomed peer assumed */
 	/* non-primary OGMs are only broadcasted on their interface */
 	if ((directlink && (batman_packet->ttl == 1)) ||
-	    (forw_packet->own && (forw_packet->if_incoming->if_num > 0))) {
+	    (forw_packet->own && (forw_packet->if_incoming != primary_if))) {
 
 		/* FIXME: what about aggregated packets ? */
 		bat_dbg(DBG_BATMAN, bat_priv,
@@ -199,7 +204,7 @@ static void send_packet(struct forw_packet *forw_packet)
 				broadcast_addr);
 		forw_packet->skb = NULL;
 
-		return;
+		goto out;
 	}
 
 	/* broadcast on every interface */
@@ -211,6 +216,10 @@ static void send_packet(struct forw_packet *forw_packet)
 		send_packet_to_if(forw_packet, hard_iface);
 	}
 	rcu_read_unlock();
+
+out:
+	if (primary_if)
+		hardif_free_ref(primary_if);
 }
 
 static void realloc_packet_buffer(struct hard_iface *hard_iface,
@@ -455,7 +464,7 @@ static void _add_bcast_packet_to_list(struct bat_priv *bat_priv,
  * The skb is not consumed, so the caller should make sure that the
  * skb is freed. */
 int add_bcast_packet_to_list(struct bat_priv *bat_priv,
-			     const struct sk_buff *skb)
+			     const struct sk_buff *skb, unsigned long delay)
 {
 	struct hard_iface *primary_if = NULL;
 	struct forw_packet *forw_packet;
@@ -492,7 +501,7 @@ int add_bcast_packet_to_list(struct bat_priv *bat_priv,
 	/* how often did we send the bcast packet ? */
 	forw_packet->num_packets = 0;
 
-	_add_bcast_packet_to_list(bat_priv, forw_packet, 1);
+	_add_bcast_packet_to_list(bat_priv, forw_packet, delay);
 	return NETDEV_TX_OK;
 
 packet_free:

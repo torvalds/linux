@@ -1677,7 +1677,7 @@ int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	spin_unlock_bh(&orig_node->bcast_seqno_lock);
 
 	/* rebroadcast packet */
-	add_bcast_packet_to_list(bat_priv, skb);
+	add_bcast_packet_to_list(bat_priv, skb, 1);
 
 	/* broadcast for me */
 	interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size);
