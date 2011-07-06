@@ -969,7 +969,6 @@ source "arch/arm/plat-spear/Kconfig"
 source "arch/arm/plat-tcc/Kconfig"
 
 if ARCH_S3C2410
-source "arch/arm/mach-s3c2400/Kconfig"
 source "arch/arm/mach-s3c2410/Kconfig"
 source "arch/arm/mach-s3c2412/Kconfig"
 source "arch/arm/mach-s3c2416/Kconfig"

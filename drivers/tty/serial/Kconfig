@@ -457,7 +457,6 @@ config SERIAL_SAMSUNG_UARTS_4
 config SERIAL_SAMSUNG_UARTS
 	int
 	depends on ARM && PLAT_SAMSUNG
-	default 2 if ARCH_S3C2400
 	default 6 if ARCH_S5P6450
 	default 4 if SERIAL_SAMSUNG_UARTS_4
 	default 3
@@ -488,13 +487,6 @@ config SERIAL_SAMSUNG_CONSOLE
 	  "console=ttySACx". (Try "man bootparam" or see the documentation of
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
-
-config SERIAL_S3C2400
-	tristate "Samsung S3C2410 Serial port support"
-	depends on ARM && SERIAL_SAMSUNG && CPU_S3C2400
-	default y if CPU_S3C2400
-	help
-	  Serial port support for the Samsung S3C2400 SoC
 
 config SERIAL_S3C2410
 	tristate "Samsung S3C2410 Serial port support"
