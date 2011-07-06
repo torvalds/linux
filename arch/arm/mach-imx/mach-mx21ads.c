@@ -305,7 +305,7 @@ static struct sys_timer mx21ads_timer = {
 
 MACHINE_START(MX21ADS, "Freescale i.MX21ADS")
 	/* maintainer: Freescale Semiconductor, Inc. */
-	.boot_params = MX21_PHYS_OFFSET + 0x100,
+	.atag_offset = 0x100,
 	.map_io = mx21ads_map_io,
 	.init_early = imx21_init_early,
 	.init_irq = mx21_init_irq,
