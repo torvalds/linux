@@ -513,6 +513,9 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 			       DMA_FROM_DEVICE);
 		pkt = rxb_addr(rxb);
 
+		IWL_DEBUG_RX(priv, "r = %d, i = %d, %s, 0x%02x\n", r,
+			i, get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
+
 		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 		len += sizeof(u32); /* account for status word */
 		trace_iwlwifi_dev_rx(priv, pkt, len);
@@ -531,44 +534,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 			(pkt->hdr.cmd != STATISTICS_NOTIFICATION) &&
 			(pkt->hdr.cmd != REPLY_TX);
 
-		/*
-		 * Do the notification wait before RX handlers so
-		 * even if the RX handler consumes the RXB we have
-		 * access to it in the notification wait entry.
-		 */
-		if (!list_empty(&priv->_agn.notif_waits)) {
-			struct iwl_notification_wait *w;
-
-			spin_lock(&priv->_agn.notif_wait_lock);
-			list_for_each_entry(w, &priv->_agn.notif_waits, list) {
-				if (w->cmd == pkt->hdr.cmd) {
-					w->triggered = true;
-					if (w->fn)
-						w->fn(priv, pkt, w->fn_data);
-				}
-			}
-			spin_unlock(&priv->_agn.notif_wait_lock);
-
-			wake_up_all(&priv->_agn.notif_waitq);
-		}
-		if (priv->pre_rx_handler)
-			priv->pre_rx_handler(priv, rxb);
-
-		/* Based on type of command response or notification,
-		 *   handle those that need handling via function in
-		 *   rx_handlers table.  See iwl_setup_rx_handlers() */
-		if (priv->rx_handlers[pkt->hdr.cmd]) {
-			IWL_DEBUG_RX(priv, "r = %d, i = %d, %s, 0x%02x\n", r,
-				i, get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
-			priv->isr_stats.rx_handlers[pkt->hdr.cmd]++;
-			priv->rx_handlers[pkt->hdr.cmd] (priv, rxb);
-		} else {
-			/* No handling needed */
-			IWL_DEBUG_RX(priv,
-				"r %d i %d No handler needed for %s, 0x%02x\n",
-				r, i, get_cmd_string(pkt->hdr.cmd),
-				pkt->hdr.cmd);
-		}
+		iwl_rx_dispatch(priv, rxb);
 
 		/*
 		 * XXX: After here, we should always check rxb->page
