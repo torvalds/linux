@@ -361,13 +361,20 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 */
 	if (max_cpus > ncores)
 		max_cpus = ncores;
-
-	if (max_cpus > 1) {
+	if (ncores > 1 && max_cpus) {
 		/*
 		 * Enable the local timer or broadcast device for the
 		 * boot CPU, but only if we have more than one CPU.
 		 */
 		percpu_timer_setup();
+
+		/*
+		 * Initialise the present map, which describes the set of CPUs
+		 * actually populated at the present time. A platform should
+		 * re-initialize the map in platform_smp_prepare_cpus() if
+		 * present != possible (e.g. physical hotplug).
+		 */
+		init_cpu_present(&cpu_possible_map);
 
 		/*
 		 * Initialise the SCU if there are more than one CPU
