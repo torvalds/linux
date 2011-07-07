@@ -104,6 +104,7 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
  */
 int ath5k_hw_init(struct ath5k_softc *sc)
 {
+	static const u8 zero_mac[ETH_ALEN] = { };
 	struct ath5k_hw *ah = sc->ah;
 	struct ath_common *common = ath5k_hw_common(ah);
 	struct pci_dev *pdev = sc->pdev;
@@ -334,7 +335,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	}
 
 	/* MAC address is cleared until add_interface */
-	ath5k_hw_set_lladdr(ah, (u8[ETH_ALEN]){});
+	ath5k_hw_set_lladdr(ah, zero_mac);
 
 	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
 	memcpy(common->curbssid, ath_bcast_mac, ETH_ALEN);
