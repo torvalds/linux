@@ -555,8 +555,6 @@ static void adjust_aoi_size_position(struct fb_var_screeninfo *var,
 static int fsl_diu_check_var(struct fb_var_screeninfo *var,
 				struct fb_info *info)
 {
-	unsigned long htotal, vtotal;
-
 	pr_debug("check_var xres: %d\n", var->xres);
 	pr_debug("check_var yres: %d\n", var->yres);
 
@@ -634,20 +632,6 @@ static int fsl_diu_check_var(struct fb_var_screeninfo *var,
 		var->transp.msb_right = 0;
 
 		break;
-	}
-	/* If the pixclock is below the minimum spec'd value then set to
-	 * refresh rate for 60Hz since this is supported by most monitors.
-	 * Refer to Documentation/fb/ for calculations.
-	 */
-	if ((var->pixclock < MIN_PIX_CLK) || (var->pixclock > MAX_PIX_CLK)) {
-		htotal = var->xres + var->right_margin + var->hsync_len +
-		    var->left_margin;
-		vtotal = var->yres + var->lower_margin + var->vsync_len +
-		    var->upper_margin;
-		var->pixclock = (vtotal * htotal * 6UL) / 100UL;
-		var->pixclock = KHZ2PICOS(var->pixclock);
-		pr_debug("pixclock set for 60Hz refresh = %u ps\n",
-			var->pixclock);
 	}
 
 	var->height = -1;
