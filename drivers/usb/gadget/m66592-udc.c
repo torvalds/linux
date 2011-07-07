@@ -781,7 +781,7 @@ static void irq_ep0_write(struct m66592_ep *ep, struct m66592_request *req)
 	/* write fifo */
 	if (req->req.buf) {
 		if (size > 0)
-			m66592_write_fifo(m66592, ep->fifoaddr, buf, size);
+			m66592_write_fifo(m66592, ep, buf, size);
 		if ((size == 0) || ((size % ep->ep.maxpacket) != 0))
 			m66592_bset(m66592, M66592_BVAL, ep->fifoctr);
 	}
@@ -827,7 +827,7 @@ static void irq_packet_write(struct m66592_ep *ep, struct m66592_request *req)
 
 	/* write fifo */
 	if (req->req.buf) {
-		m66592_write_fifo(m66592, ep->fifoaddr, buf, size);
+		m66592_write_fifo(m66592, ep, buf, size);
 		if ((size == 0)
 				|| ((size % ep->ep.maxpacket) != 0)
 				|| ((bufsize != ep->ep.maxpacket)
