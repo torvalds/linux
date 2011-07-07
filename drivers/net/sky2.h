@@ -1807,10 +1807,11 @@ enum {
 };
 
 #define DATA_BLIND_VAL(x)	(((x)<<11) & GM_SMOD_DATABL_MSK)
-#define DATA_BLIND_DEF		0x04
-
 #define IPG_DATA_VAL(x)		(x & GM_SMOD_IPG_MSK)
-#define IPG_DATA_DEF		0x1e
+
+#define DATA_BLIND_DEF		0x04
+#define IPG_DATA_DEF_1000	0x1e
+#define IPG_DATA_DEF_10_100	0x18
 
 /*	GM_SMI_CTRL			16 bit r/w	SMI Control Register */
 enum {

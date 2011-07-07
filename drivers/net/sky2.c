@@ -714,6 +714,20 @@ static void sky2_phy_power_down(struct sky2_hw *hw, unsigned port)
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 }
 
+/* configure IPG according to used link speed */
+static void sky2_set_ipg(struct sky2_port *sky2)
+{
+	u16 reg;
+
+	reg = gma_read16(sky2->hw, sky2->port, GM_SERIAL_MODE);
+	reg &= ~GM_SMOD_IPG_MSK;
+	if (sky2->speed > SPEED_100)
+		reg |= IPG_DATA_VAL(IPG_DATA_DEF_1000);
+	else
+		reg |= IPG_DATA_VAL(IPG_DATA_DEF_10_100);
+	gma_write16(sky2->hw, sky2->port, GM_SERIAL_MODE, reg);
+}
+
 /* Enable Rx/Tx */
 static void sky2_enable_rx_tx(struct sky2_port *sky2)
 {
@@ -882,7 +896,7 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 
 	/* serial mode register */
 	reg = DATA_BLIND_VAL(DATA_BLIND_DEF) |
-		GM_SMOD_VLAN_ENA | IPG_DATA_VAL(IPG_DATA_DEF);
+		GM_SMOD_VLAN_ENA | IPG_DATA_VAL(IPG_DATA_DEF_1000);
 
 	if (hw->dev[port]->mtu > ETH_DATA_LEN)
 		reg |= GM_SMOD_JUMBO_ENA;
@@ -2053,6 +2067,8 @@ static void sky2_link_up(struct sky2_port *sky2)
 		[FC_BOTH]	= "both",
 	};
 
+	sky2_set_ipg(sky2);
+
 	sky2_enable_rx_tx(sky2);
 
 	gm_phy_write(hw, port, PHY_MARV_INT_MASK, PHY_M_DEF_MSK);
@@ -2290,8 +2306,11 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	dev->mtu = new_mtu;
 	netdev_update_features(dev);
 
-	mode = DATA_BLIND_VAL(DATA_BLIND_DEF) |
-		GM_SMOD_VLAN_ENA | IPG_DATA_VAL(IPG_DATA_DEF);
+	mode = DATA_BLIND_VAL(DATA_BLIND_DEF) |	GM_SMOD_VLAN_ENA;
+	if (sky2->speed > SPEED_100)
+		mode |= IPG_DATA_VAL(IPG_DATA_DEF_1000);
+	else
+		mode |= IPG_DATA_VAL(IPG_DATA_DEF_10_100);
 
 	if (dev->mtu > ETH_DATA_LEN)
 		mode |= GM_SMOD_JUMBO_ENA;
