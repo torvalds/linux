@@ -231,7 +231,7 @@ static int stub_send_ret_submit(struct stub_device *sdev)
 			if (txsize != sizeof(pdu_header) + urb->actual_length) {
 				dev_err(&sdev->interface->dev,
 					"actual length of urb %d does not "
-					"match iso packet sizes %lu\n",
+					"match iso packet sizes %zu\n",
 					urb->actual_length,
 					txsize-sizeof(pdu_header));
 				kfree(iov);
