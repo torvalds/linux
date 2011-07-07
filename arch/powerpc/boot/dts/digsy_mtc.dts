@@ -37,14 +37,6 @@
 			status = "disabled";
 		};
 
-		can@900 {
-			status = "disabled";
-		};
-
-		can@980 {
-			status = "disabled";
-		};
-
 		spi@f00 {
 			msp430@0 {
 				compatible = "spidev";
