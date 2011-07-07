@@ -1,4 +1,4 @@
-Freescale SoC SEC Security Engines
+Freescale SoC SEC Security Engines versions 2.x-3.x
 
 Required properties:
 
