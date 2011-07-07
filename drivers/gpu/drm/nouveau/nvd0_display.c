@@ -192,6 +192,10 @@ nvd0_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 		evo_data(push, nvfb->r_pitch);
 		evo_data(push, nvfb->r_format);
 		evo_data(push, nvfb->r_dma);
+		if (update) {
+			evo_mthd(push, 0x0080, 1);
+			evo_data(push, 0x00000000);
+		}
 		evo_kick(push, fb->dev, 0);
 	}
 
