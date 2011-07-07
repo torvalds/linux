@@ -42,6 +42,9 @@ struct r8a66597_platdata {
 
 	/* set one = big endian, set zero = little endian */
 	unsigned	endian:1;
+
+	/* (external controller only) set one = WR0_N shorted to WR1_N */
+	unsigned	wr0_shorted_to_wr1:1;
 };
 
 /* Register definitions */

@@ -1438,7 +1438,7 @@ static void packet_write(struct r8a66597 *r8a66597, u16 pipenum)
 	if (pipenum > 0)
 		r8a66597_write(r8a66597, ~(1 << pipenum), BEMPSTS);
 	if (urb->transfer_buffer) {
-		r8a66597_write_fifo(r8a66597, td->pipe->fifoaddr, buf, size);
+		r8a66597_write_fifo(r8a66597, td->pipe, buf, size);
 		if (!usb_pipebulk(urb->pipe) || td->maxpacket != size)
 			r8a66597_write(r8a66597, BVAL, td->pipe->fifoctr);
 	}
