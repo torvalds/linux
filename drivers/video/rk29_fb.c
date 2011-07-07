@@ -627,7 +627,7 @@ void load_screen(struct fb_info *info, bool initscreen)
    // clk_disable(inf->hclk_cpu_display);
 
    // clk_disable(inf->clk);
-    ret = clk_set_parent(inf->aclk, inf->aclk_parent);
+    
 
     fbprintk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz ret =%d\n ", screen->pixclock, screen->lcdc_aclk, ret);
 
@@ -636,20 +636,22 @@ void load_screen(struct fb_info *info, bool initscreen)
     {
         printk(KERN_ERR ">>>>>> set lcdc dclk failed\n");
     }
-
-    if(screen->lcdc_aclk){
-        aclk_rate = screen->lcdc_aclk;
+    
+    if(initscreen)
+    {
+        ret = clk_set_parent(inf->aclk, inf->aclk_parent);
+        if(screen->lcdc_aclk){
+           aclk_rate = screen->lcdc_aclk;
+        }
+        ret = clk_set_rate(inf->aclk, aclk_rate);
+        if(ret){
+            printk(KERN_ERR ">>>>>> set lcdc aclk failed\n");
+        }
+        clk_enable(inf->aclk);
     }
-    ret = clk_set_rate(inf->aclk, aclk_rate);
-    if(ret){
-        printk(KERN_ERR ">>>>>> set lcdc aclk failed\n");
-    }
-
   //  clk_enable(inf->aclk_ddr_lcdc);
   //  clk_enable(inf->aclk_disp_matrix);
-  //  clk_enable(inf->hclk_cpu_display);
-    if(initscreen)
-        clk_enable(inf->aclk);
+  //  clk_enable(inf->hclk_cpu_display);       
   //  clk_enable(inf->clk);
     clk_enable(inf->dclk);
 
