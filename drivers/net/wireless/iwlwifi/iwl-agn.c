@@ -375,7 +375,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 	u32 next_entry; /* index of next entry to be written by uCode */
 
 	base = priv->device_pointers.error_event_table;
-	if (priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
+	if (priv->cfg->lib->is_valid_rtc_data_addr(base)) {
 		capacity = iwl_read_targ_mem(priv, base);
 		num_wraps = iwl_read_targ_mem(priv, base + (2 * sizeof(u32)));
 		mode = iwl_read_targ_mem(priv, base + (1 * sizeof(u32)));
@@ -1614,7 +1614,7 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 			base = priv->_agn.inst_errlog_ptr;
 	}
 
-	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
+	if (!priv->cfg->lib->is_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv,
 			"Not valid error log pointer 0x%08X for %s uCode\n",
 			base,
@@ -1805,7 +1805,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 			base = priv->_agn.inst_evtlog_ptr;
 	}
 
-	if (!priv->cfg->ops->lib->is_valid_rtc_data_addr(base)) {
+	if (!priv->cfg->lib->is_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv,
 			"Invalid event log pointer 0x%08X for %s uCode\n",
 			base,
@@ -2939,7 +2939,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	if (!iwl_is_associated_ctx(ctx))
 		goto out;
 
-	if (!priv->cfg->ops->lib->set_channel_switch)
+	if (!priv->cfg->lib->set_channel_switch)
 		goto out;
 
 	ch = channel->hw_value;
@@ -2991,7 +2991,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	 */
 	set_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status);
 	priv->switch_channel = cpu_to_le16(ch);
-	if (priv->cfg->ops->lib->set_channel_switch(priv, ch_switch)) {
+	if (priv->cfg->lib->set_channel_switch(priv, ch_switch)) {
 		clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status);
 		priv->switch_channel = 0;
 		ieee80211_chswitch_done(ctx->vif, false);
@@ -3198,8 +3198,8 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 
 	iwl_setup_scan_deferred_work(priv);
 
-	if (priv->cfg->ops->lib->setup_deferred_work)
-		priv->cfg->ops->lib->setup_deferred_work(priv);
+	if (priv->cfg->lib->setup_deferred_work)
+		priv->cfg->lib->setup_deferred_work(priv);
 
 	init_timer(&priv->statistics_periodic);
 	priv->statistics_periodic.data = (unsigned long)priv;
@@ -3216,8 +3216,8 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 
 static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 {
-	if (priv->cfg->ops->lib->cancel_deferred_work)
-		priv->cfg->ops->lib->cancel_deferred_work(priv);
+	if (priv->cfg->lib->cancel_deferred_work)
+		priv->cfg->lib->cancel_deferred_work(priv);
 
 	cancel_work_sync(&priv->run_time_calib_work);
 	cancel_work_sync(&priv->beacon_update);
@@ -3397,7 +3397,7 @@ static int iwl_set_hw_params(struct iwl_priv *priv)
 		priv->cfg->sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
 
 	/* Device-specific setup */
-	return priv->cfg->ops->lib->set_hw_params(priv);
+	return priv->cfg->lib->set_hw_params(priv);
 }
 
 static const u8 iwlagn_bss_ac_to_fifo[] = {

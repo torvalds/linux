@@ -106,9 +106,9 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 			     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
 	}
 	/* do additional nic configuration if needed */
-	if (priv->cfg->ops->nic &&
-		priv->cfg->ops->nic->additional_nic_config) {
-			priv->cfg->ops->nic->additional_nic_config(priv);
+	if (priv->cfg->nic &&
+		priv->cfg->nic->additional_nic_config) {
+			priv->cfg->nic->additional_nic_config(priv);
 	}
 }
 
@@ -311,24 +311,6 @@ static struct iwl_nic_ops iwl6150_nic_ops = {
 	.additional_nic_config = &iwl6150_additional_nic_config,
 };
 
-static const struct iwl_ops iwl6000_ops = {
-	.lib = &iwl6000_lib,
-};
-
-static const struct iwl_ops iwl6050_ops = {
-	.lib = &iwl6000_lib,
-	.nic = &iwl6050_nic_ops,
-};
-
-static const struct iwl_ops iwl6150_ops = {
-	.lib = &iwl6000_lib,
-	.nic = &iwl6150_nic_ops,
-};
-
-static const struct iwl_ops iwl6030_ops = {
-	.lib = &iwl6030_lib,
-};
-
 static struct iwl_base_params iwl6000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
@@ -402,7 +384,7 @@ static struct iwl_bt_params iwl6000_bt_params = {
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,		\
 	.eeprom_ver = EEPROM_6005_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6005_TX_POWER_VERSION,	\
-	.ops = &iwl6000_ops,					\
+	.lib = &iwl6000_lib,					\
 	.base_params = &iwl6000_g2_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
@@ -430,7 +412,7 @@ struct iwl_cfg iwl6005_2bg_cfg = {
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,		\
 	.eeprom_ver = EEPROM_6030_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6030_TX_POWER_VERSION,	\
-	.ops = &iwl6030_ops,					\
+	.lib = &iwl6030_lib,					\
 	.base_params = &iwl6000_g2_base_params,			\
 	.bt_params = &iwl6000_bt_params,			\
 	.need_dc_calib = true,					\
@@ -511,7 +493,7 @@ struct iwl_cfg iwl130_bg_cfg = {
 	.valid_rx_ant = ANT_BC,		/* .cfg overwrite */	\
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,	\
-	.ops = &iwl6000_ops,					\
+	.lib = &iwl6000_lib,					\
 	.base_params = &iwl6000_base_params,			\
 	.pa_type = IWL_PA_INTERNAL,				\
 	.led_mode = IWL_LED_BLINK
@@ -538,7 +520,8 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.ucode_api_min = IWL6050_UCODE_API_MIN,			\
 	.valid_tx_ant = ANT_AB,		/* .cfg overwrite */	\
 	.valid_rx_ant = ANT_AB,		/* .cfg overwrite */	\
-	.ops = &iwl6050_ops,					\
+	.lib = &iwl6000_lib,					\
+	.nic = &iwl6050_nic_ops,				\
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,	\
 	.base_params = &iwl6050_base_params,			\
@@ -561,7 +544,8 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.fw_name_pre = IWL6050_FW_PRE,				\
 	.ucode_api_max = IWL6050_UCODE_API_MAX,			\
 	.ucode_api_min = IWL6050_UCODE_API_MIN,			\
-	.ops = &iwl6150_ops,					\
+	.lib = &iwl6000_lib,					\
+	.nic = &iwl6150_nic_ops,				\
 	.eeprom_ver = EEPROM_6150_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6150_TX_POWER_VERSION,	\
 	.base_params = &iwl6050_base_params,			\
@@ -587,7 +571,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
-	.ops = &iwl6000_ops,
+	.lib = &iwl6000_lib,
 	.base_params = &iwl6000_base_params,
 	.ht_params = &iwl6000_ht_params,
 	.need_dc_calib = true,

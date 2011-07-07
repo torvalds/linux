@@ -711,7 +711,7 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 
 	iwlagn_set_pwr_vmain(priv);
 
-	priv->cfg->ops->lib->nic_config(priv);
+	priv->cfg->lib->nic_config(priv);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	trans_rx_init(priv);

@@ -186,10 +186,6 @@ static struct iwl_lib_ops iwl1000_lib = {
 	.temperature = iwlagn_temperature,
 };
 
-static const struct iwl_ops iwl1000_ops = {
-	.lib = &iwl1000_lib,
-};
-
 static struct iwl_base_params iwl1000_base_params = {
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
@@ -217,7 +213,7 @@ static struct iwl_ht_params iwl1000_ht_params = {
 	.ucode_api_min = IWL1000_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
-	.ops = &iwl1000_ops,					\
+	.lib = &iwl1000_lib,					\
 	.base_params = &iwl1000_base_params,			\
 	.led_mode = IWL_LED_BLINK
 
@@ -238,7 +234,7 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.ucode_api_min = IWL100_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
-	.ops = &iwl1000_ops,					\
+	.lib = &iwl1000_lib,					\
 	.base_params = &iwl1000_base_params,			\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true

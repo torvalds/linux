@@ -208,22 +208,6 @@ static struct iwl_lib_ops iwl2030_lib = {
 	.temperature = iwlagn_temperature,
 };
 
-static const struct iwl_ops iwl2000_ops = {
-	.lib = &iwl2000_lib,
-};
-
-static const struct iwl_ops iwl2030_ops = {
-	.lib = &iwl2030_lib,
-};
-
-static const struct iwl_ops iwl105_ops = {
-	.lib = &iwl2000_lib,
-};
-
-static const struct iwl_ops iwl135_ops = {
-	.lib = &iwl2030_lib,
-};
-
 static struct iwl_base_params iwl2000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
@@ -282,7 +266,7 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.ucode_api_min = IWL2000_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.ops = &iwl2000_ops,					\
+	.lib = &iwl2000_lib,					\
 	.base_params = &iwl2000_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
@@ -307,7 +291,7 @@ struct iwl_cfg iwl2000_2bg_cfg = {
 	.ucode_api_min = IWL2030_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.ops = &iwl2030_ops,					\
+	.lib = &iwl2030_lib,					\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
 	.need_dc_calib = true,					\
@@ -333,7 +317,7 @@ struct iwl_cfg iwl2030_2bg_cfg = {
 	.ucode_api_min = IWL105_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.ops = &iwl105_ops,					\
+	.lib = &iwl2000_lib,					\
 	.base_params = &iwl2000_base_params,			\
 	.need_dc_calib = true,					\
 	.need_temp_offset_calib = true,				\
@@ -358,7 +342,7 @@ struct iwl_cfg iwl105_bgn_cfg = {
 	.ucode_api_min = IWL135_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
-	.ops = &iwl135_ops,					\
+	.lib = &iwl2030_lib,					\
 	.base_params = &iwl2030_base_params,			\
 	.bt_params = &iwl2030_bt_params,			\
 	.need_dc_calib = true,					\

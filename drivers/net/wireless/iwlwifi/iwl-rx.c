@@ -624,8 +624,8 @@ static void iwl_rx_statistics(struct iwl_priv *priv,
 		iwl_rx_calc_noise(priv);
 		queue_work(priv->workqueue, &priv->run_time_calib_work);
 	}
-	if (priv->cfg->ops->lib->temperature && change)
-		priv->cfg->ops->lib->temperature(priv);
+	if (priv->cfg->lib->temperature && change)
+		priv->cfg->lib->temperature(priv);
 }
 
 static void iwl_rx_reply_statistics(struct iwl_priv *priv,
@@ -1103,7 +1103,7 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	handlers[REPLY_COMPRESSED_BA]		= iwlagn_rx_reply_compressed_ba;
 
 	/* Set up hardware specific Rx handlers */
-	priv->cfg->ops->lib->rx_handler_setup(priv);
+	priv->cfg->lib->rx_handler_setup(priv);
 }
 
 void iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
