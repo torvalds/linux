@@ -437,54 +437,6 @@ static void __kprobes simulate_mrs(struct kprobe *p, struct pt_regs *regs)
 	regs->uregs[rd] = regs->ARM_cpsr & mask;
 }
 
-static void __kprobes simulate_ldm1stm1(struct kprobe *p, struct pt_regs *regs)
-{
-	kprobe_opcode_t insn = p->opcode;
-	int rn = (insn >> 16) & 0xf;
-	int lbit = insn & (1 << 20);
-	int wbit = insn & (1 << 21);
-	int ubit = insn & (1 << 23);
-	int pbit = insn & (1 << 24);
-	long *addr = (long *)regs->uregs[rn];
-	int reg_bit_vector;
-	int reg_count;
-
-	reg_count = 0;
-	reg_bit_vector = insn & 0xffff;
-	while (reg_bit_vector) {
-		reg_bit_vector &= (reg_bit_vector - 1);
-		++reg_count;
-	}
-
-	if (!ubit)
-		addr -= reg_count;
-	addr += (!pbit == !ubit);
-
-	reg_bit_vector = insn & 0xffff;
-	while (reg_bit_vector) {
-		int reg = __ffs(reg_bit_vector);
-		reg_bit_vector &= (reg_bit_vector - 1);
-		if (lbit)
-			regs->uregs[reg] = *addr++;
-		else
-			*addr++ = regs->uregs[reg];
-	}
-
-	if (wbit) {
-		if (!ubit)
-			addr -= reg_count;
-		addr -= (!pbit == !ubit);
-		regs->uregs[rn] = (long)addr;
-	}
-}
-
-static void __kprobes simulate_stm1_pc(struct kprobe *p, struct pt_regs *regs)
-{
-	regs->ARM_pc = (long)p->addr + str_pc_offset;
-	simulate_ldm1stm1(p, regs);
-	regs->ARM_pc = (long)p->addr + 4;
-}
-
 static void __kprobes simulate_mov_ipsp(struct kprobe *p, struct pt_regs *regs)
 {
 	regs->uregs[12] = regs->uregs[13];
@@ -1463,9 +1415,13 @@ space_cccc_100x(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 
 	/* LDM(1) : cccc 100x x0x1 xxxx xxxx xxxx xxxx xxxx */
 	/* STM(1) : cccc 100x x0x0 xxxx xxxx xxxx xxxx xxxx */
-	asi->insn_handler = ((insn & 0x108000) == 0x008000) ? /* STM & R15 */
-				simulate_stm1_pc : simulate_ldm1stm1;
-	return INSN_GOOD_NO_SLOT;
+
+	/*
+	 * Make the instruction unconditional because the new emulation
+	 * functions don't bother to setup the PSR context.
+	 */
+	insn = (insn | 0xe0000000) & ~0x10000000;
+	return kprobe_decode_ldmstm(insn, asi);
 }
 
 static enum kprobe_insn __kprobes

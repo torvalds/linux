@@ -136,6 +136,9 @@ static inline void __kprobes load_write_pc(long pcv, struct pt_regs *regs)
 void __kprobes kprobe_simulate_nop(struct kprobe *p, struct pt_regs *regs);
 void __kprobes kprobe_emulate_none(struct kprobe *p, struct pt_regs *regs);
 
+enum kprobe_insn __kprobes
+kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi);
+
 /*
  * Test if load/store instructions writeback the address register.
  * if P (bit 24) == 0 or W (bit 21) == 1

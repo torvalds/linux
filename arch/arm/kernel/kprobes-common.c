@@ -166,6 +166,76 @@ void __kprobes kprobe_emulate_none(struct kprobe *p, struct pt_regs *regs)
 	p->ainsn.insn_fn();
 }
 
+static void __kprobes simulate_ldm1stm1(struct kprobe *p, struct pt_regs *regs)
+{
+	kprobe_opcode_t insn = p->opcode;
+	int rn = (insn >> 16) & 0xf;
+	int lbit = insn & (1 << 20);
+	int wbit = insn & (1 << 21);
+	int ubit = insn & (1 << 23);
+	int pbit = insn & (1 << 24);
+	long *addr = (long *)regs->uregs[rn];
+	int reg_bit_vector;
+	int reg_count;
+
+	reg_count = 0;
+	reg_bit_vector = insn & 0xffff;
+	while (reg_bit_vector) {
+		reg_bit_vector &= (reg_bit_vector - 1);
+		++reg_count;
+	}
+
+	if (!ubit)
+		addr -= reg_count;
+	addr += (!pbit == !ubit);
+
+	reg_bit_vector = insn & 0xffff;
+	while (reg_bit_vector) {
+		int reg = __ffs(reg_bit_vector);
+		reg_bit_vector &= (reg_bit_vector - 1);
+		if (lbit)
+			regs->uregs[reg] = *addr++;
+		else
+			*addr++ = regs->uregs[reg];
+	}
+
+	if (wbit) {
+		if (!ubit)
+			addr -= reg_count;
+		addr -= (!pbit == !ubit);
+		regs->uregs[rn] = (long)addr;
+	}
+}
+
+static void __kprobes simulate_stm1_pc(struct kprobe *p, struct pt_regs *regs)
+{
+	regs->ARM_pc = (long)p->addr + str_pc_offset;
+	simulate_ldm1stm1(p, regs);
+	regs->ARM_pc = (long)p->addr + 4;
+}
+
+static void __kprobes simulate_ldm1_pc(struct kprobe *p, struct pt_regs *regs)
+{
+	simulate_ldm1stm1(p, regs);
+	load_write_pc(regs->ARM_pc, regs);
+}
+
+enum kprobe_insn __kprobes
+kprobe_decode_ldmstm(kprobe_opcode_t insn, struct arch_specific_insn *asi)
+{
+	kprobe_insn_handler_t *handler = 0;
+	unsigned reglist = insn & 0xffff;
+	int is_ldm = insn & 0x100000;
+
+	if (reglist & 0x8000)
+		handler = is_ldm ? simulate_ldm1_pc : simulate_stm1_pc;
+	else
+		handler = simulate_ldm1stm1;
+	asi->insn_handler = handler;
+	return INSN_GOOD_NO_SLOT;
+}
+
+
 /*
  * Prepare an instruction slot to receive an instruction for emulating.
  * This is done by placing a subroutine return after the location where the
