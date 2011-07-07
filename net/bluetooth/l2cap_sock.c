@@ -711,13 +711,15 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg, size_t len, int flags)
 {
 	struct sock *sk = sock->sk;
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	int err;
 
 	lock_sock(sk);
 
 	if (sk->sk_state == BT_CONNECT2 && bt_sk(sk)->defer_setup) {
 		sk->sk_state = BT_CONFIG;
 
-		__l2cap_connect_rsp_defer(l2cap_pi(sk)->chan);
+		__l2cap_connect_rsp_defer(pi->chan);
 		release_sock(sk);
 		return 0;
 	}
@@ -725,9 +727,37 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	release_sock(sk);
 
 	if (sock->type == SOCK_STREAM)
-		return bt_sock_stream_recvmsg(iocb, sock, msg, len, flags);
+		err = bt_sock_stream_recvmsg(iocb, sock, msg, len, flags);
+	else
+		err = bt_sock_recvmsg(iocb, sock, msg, len, flags);
 
-	return bt_sock_recvmsg(iocb, sock, msg, len, flags);
+	if (pi->chan->mode != L2CAP_MODE_ERTM)
+		return err;
+
+	/* Attempt to put pending rx data in the socket buffer */
+
+	lock_sock(sk);
+
+	if (!test_bit(CONN_LOCAL_BUSY, &pi->chan->conn_state))
+		goto done;
+
+	if (pi->rx_busy_skb) {
+		if (!sock_queue_rcv_skb(sk, pi->rx_busy_skb))
+			pi->rx_busy_skb = NULL;
+		else
+			goto done;
+	}
+
+	/* Restore data flow when half of the receive buffer is
+	 * available.  This avoids resending large numbers of
+	 * frames.
+	 */
+	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf >> 1)
+		l2cap_chan_busy(pi->chan, 0);
+
+done:
+	release_sock(sk);
+	return err;
 }
 
 /* Kill socket (only if zapped and orphan)
@@ -811,9 +841,31 @@ static struct l2cap_chan *l2cap_sock_new_connection_cb(void *data)
 
 static int l2cap_sock_recv_cb(void *data, struct sk_buff *skb)
 {
+	int err;
 	struct sock *sk = data;
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
 
-	return sock_queue_rcv_skb(sk, skb);
+	if (pi->rx_busy_skb)
+		return -ENOMEM;
+
+	err = sock_queue_rcv_skb(sk, skb);
+
+	/* For ERTM, handle one skb that doesn't fit into the recv
+	 * buffer.  This is important to do because the data frames
+	 * have already been acked, so the skb cannot be discarded.
+	 *
+	 * Notify the l2cap core that the buffer is full, so the
+	 * LOCAL_BUSY state is entered and no more frames are
+	 * acked and reassembled until there is buffer space
+	 * available.
+	 */
+	if (err < 0 && pi->chan->mode == L2CAP_MODE_ERTM) {
+		pi->rx_busy_skb = skb;
+		l2cap_chan_busy(pi->chan, 1);
+		err = 0;
+	}
+
+	return err;
 }
 
 static void l2cap_sock_close_cb(void *data)
@@ -841,6 +893,11 @@ static struct l2cap_ops l2cap_chan_ops = {
 static void l2cap_sock_destruct(struct sock *sk)
 {
 	BT_DBG("sk %p", sk);
+
+	if (l2cap_pi(sk)->rx_busy_skb) {
+		kfree_skb(l2cap_pi(sk)->rx_busy_skb);
+		l2cap_pi(sk)->rx_busy_skb = NULL;
+	}
 
 	skb_queue_purge(&sk->sk_receive_queue);
 	skb_queue_purge(&sk->sk_write_queue);
