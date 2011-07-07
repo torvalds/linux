@@ -269,6 +269,8 @@ nvd0_crtc_commit(struct drm_crtc *crtc)
 		evo_data(push, 0x00000000);
 		evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
 		evo_data(push, MEM_VRAM);
+		evo_mthd(push, 0x0430 + (nv_crtc->index * 0x300), 1);
+		evo_data(push, 0xffffff00);
 		evo_kick(push, crtc->dev, 0);
 	}
 
@@ -387,9 +389,9 @@ nvd0_crtc_lut_load(struct drm_crtc *crtc)
 	int i;
 
 	for (i = 0; i < 256; i++) {
-		writew(nv_crtc->lut.r[i] >> 2, lut + 8*i + 0);
-		writew(nv_crtc->lut.g[i] >> 2, lut + 8*i + 2);
-		writew(nv_crtc->lut.b[i] >> 2, lut + 8*i + 4);
+		writew(0x6000 + (nv_crtc->lut.r[i] >> 2), lut + (i * 0x20) + 0);
+		writew(0x6000 + (nv_crtc->lut.g[i] >> 2), lut + (i * 0x20) + 2);
+		writew(0x6000 + (nv_crtc->lut.b[i] >> 2), lut + (i * 0x20) + 4);
 	}
 }
 
@@ -530,7 +532,7 @@ nvd0_crtc_create(struct drm_device *dev, int index)
 	if (ret)
 		goto out;
 
-	ret = nouveau_bo_new(dev, 4096, 0x100, TTM_PL_FLAG_VRAM,
+	ret = nouveau_bo_new(dev, 8192, 0x100, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, &nv_crtc->lut.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(nv_crtc->lut.nvbo, TTM_PL_FLAG_VRAM);
