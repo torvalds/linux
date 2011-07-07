@@ -3,7 +3,6 @@
 
 #include <linux/ioctl.h>
 #include <linux/compiler.h>
-#include <linux/compat.h>
 
 /* New file layout: Now the ioctl definitions immediately follow the
  * definitions of the structures that they use */
@@ -378,7 +377,11 @@ struct floppy_raw_cmd {
 #define FDEJECT _IO(2, 0x5a)
 /* eject the disk */
 
+
+#ifdef __KERNEL__
 #ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+
 struct compat_floppy_struct {
 	compat_uint_t	size;
 	compat_uint_t	sect;
@@ -393,6 +396,7 @@ struct compat_floppy_struct {
 };
 
 #define FDGETPRM32 _IOR(2, 0x04, struct compat_floppy_struct)
+#endif
 #endif
 
 #endif
