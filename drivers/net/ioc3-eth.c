@@ -1664,12 +1664,7 @@ static void ioc3_set_multicast_list(struct net_device *dev)
 			ip->ehar_l = 0xffffffff;
 		} else {
 			netdev_for_each_mc_addr(ha, dev) {
-				char *addr = ha->addr;
-
-				if (!(*addr & 1))
-					continue;
-
-				ehar |= (1UL << ioc3_hash(addr));
+				ehar |= (1UL << ioc3_hash(ha->addr));
 			}
 			ip->ehar_h = ehar >> 32;
 			ip->ehar_l = ehar & 0xffffffff;

@@ -1802,12 +1802,7 @@ static u32 gem_setup_multicast(struct gem *gp)
 
 		memset(hash_table, 0, sizeof(hash_table));
 		netdev_for_each_mc_addr(ha, gp->dev) {
-			char *addrs = ha->addr;
-
-			if (!(*addrs & 1))
-				continue;
-
- 			crc = ether_crc_le(6, addrs);
+			crc = ether_crc_le(6, ha->addr);
 			crc >>= 24;
 			hash_table[crc >> 4] |= 1 << (15 - (crc & 0xf));
 		}

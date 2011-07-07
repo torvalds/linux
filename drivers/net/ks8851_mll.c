@@ -1190,8 +1190,6 @@ static void ks_set_rx_mode(struct net_device *netdev)
 			int i = 0;
 
 			netdev_for_each_mc_addr(ha, netdev) {
-				if (!(*ha->addr & 1))
-					continue;
 				if (i >= MAX_MCAST_LST)
 					break;
 				memcpy(ks->mcast_lst[i++], ha->addr, ETH_ALEN);

@@ -1227,10 +1227,6 @@ static void set_multicast_list(struct net_device *ndev)
 	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
 
 	netdev_for_each_mc_addr(ha, ndev) {
-		/* Only support group multicast for now */
-		if (!(ha->addr[0] & 1))
-			continue;
-
 		/* calculate crc32 value of mac address */
 		crc = 0xffffffff;
 
