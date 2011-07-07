@@ -2707,17 +2707,30 @@ typedef int (*getput_call_t)(struct snd_kcontrol *kcontrol,
 
 static int alc_cap_getput_caller(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol,
-				 getput_call_t func)
+				 getput_call_t func, bool check_adc_switch)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
-	unsigned int adc_idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
-	int err;
+	int i, err;
 
 	mutex_lock(&codec->control_mutex);
-	kcontrol->private_value = HDA_COMPOSE_AMP_VAL(spec->adc_nids[adc_idx],
-						      3, 0, HDA_INPUT);
-	err = func(kcontrol, ucontrol);
+	if (check_adc_switch && spec->dual_adc_switch) {
+		for (i = 0; i < spec->num_adc_nids; i++) {
+			kcontrol->private_value =
+				HDA_COMPOSE_AMP_VAL(spec->adc_nids[i],
+						    3, 0, HDA_INPUT);
+			err = func(kcontrol, ucontrol);
+			if (err < 0)
+				goto error;
+		}
+	} else {
+		i = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
+		kcontrol->private_value =
+			HDA_COMPOSE_AMP_VAL(spec->adc_nids[i],
+					    3, 0, HDA_INPUT);
+		err = func(kcontrol, ucontrol);
+	}
+ error:
 	mutex_unlock(&codec->control_mutex);
 	return err;
 }
@@ -2726,14 +2739,14 @@ static int alc_cap_vol_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
 	return alc_cap_getput_caller(kcontrol, ucontrol,
-				     snd_hda_mixer_amp_volume_get);
+				     snd_hda_mixer_amp_volume_get, false);
 }
 
 static int alc_cap_vol_put(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
 	return alc_cap_getput_caller(kcontrol, ucontrol,
-				     snd_hda_mixer_amp_volume_put);
+				     snd_hda_mixer_amp_volume_put, true);
 }
 
 /* capture mixer elements */
@@ -2743,14 +2756,14 @@ static int alc_cap_sw_get(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	return alc_cap_getput_caller(kcontrol, ucontrol,
-				     snd_hda_mixer_amp_switch_get);
+				     snd_hda_mixer_amp_switch_get, false);
 }
 
 static int alc_cap_sw_put(struct snd_kcontrol *kcontrol,
 			  struct snd_ctl_elem_value *ucontrol)
 {
 	return alc_cap_getput_caller(kcontrol, ucontrol,
-				     snd_hda_mixer_amp_switch_put);
+				     snd_hda_mixer_amp_switch_put, true);
 }
 
 #define _DEFINE_CAPMIX(num) \
