@@ -275,8 +275,8 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 		prox = data[7] & 0xf8;
 		if (prox || wacom->id[1]) {
 			wacom->id[1] = PAD_DEVICE_ID;
-			input_report_key(input, BTN_0, (data[7] & 0x40));
-			input_report_key(input, BTN_4, (data[7] & 0x80));
+			input_report_key(input, BTN_BACK, (data[7] & 0x40));
+			input_report_key(input, BTN_FORWARD, (data[7] & 0x80));
 			rw = ((data[7] & 0x18) >> 3) - ((data[7] & 0x20) >> 3);
 			input_report_rel(input, REL_WHEEL, rw);
 			if (!prox)
@@ -291,10 +291,10 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 		prox = (data[7] & 0xf8) || data[8];
 		if (prox || wacom->id[1]) {
 			wacom->id[1] = PAD_DEVICE_ID;
-			input_report_key(input, BTN_0, (data[7] & 0x08));
-			input_report_key(input, BTN_1, (data[7] & 0x20));
-			input_report_key(input, BTN_4, (data[7] & 0x10));
-			input_report_key(input, BTN_5, (data[7] & 0x40));
+			input_report_key(input, BTN_BACK, (data[7] & 0x08));
+			input_report_key(input, BTN_LEFT, (data[7] & 0x20));
+			input_report_key(input, BTN_FORWARD, (data[7] & 0x10));
+			input_report_key(input, BTN_RIGHT, (data[7] & 0x40));
 			input_report_abs(input, ABS_WHEEL, (data[8] & 0x7f));
 			if (!prox)
 				wacom->id[1] = 0;
@@ -1076,17 +1076,14 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	switch (wacom_wac->features.type) {
 	case WACOM_MO:
-		__set_bit(BTN_1, input_dev->keybit);
-		__set_bit(BTN_5, input_dev->keybit);
-
 		input_set_abs_params(input_dev, ABS_WHEEL, 0, 71, 0, 0);
 		/* fall through */
 
 	case WACOM_G4:
 		input_set_capability(input_dev, EV_MSC, MSC_SERIAL);
 
-		__set_bit(BTN_0, input_dev->keybit);
-		__set_bit(BTN_4, input_dev->keybit);
+		__set_bit(BTN_BACK, input_dev->keybit);
+		__set_bit(BTN_FORWARD, input_dev->keybit);
 		/* fall through */
 
 	case GRAPHIRE:
