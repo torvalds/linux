@@ -684,23 +684,25 @@ static psmouse_ret_t synaptics_process_byte(struct psmouse *psmouse)
 static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 {
 	int i;
+	int fuzz = SYN_CAP_REDUCED_FILTERING(priv->ext_cap_0c) ?
+			SYN_REDUCED_FILTER_FUZZ : 0;
 
 	__set_bit(INPUT_PROP_POINTER, dev->propbit);
 
 	__set_bit(EV_ABS, dev->evbit);
-	input_set_abs_params(dev, ABS_X,
-			     XMIN_NOMINAL, priv->x_max ?: XMAX_NOMINAL, 0, 0);
-	input_set_abs_params(dev, ABS_Y,
-			     YMIN_NOMINAL, priv->y_max ?: YMAX_NOMINAL, 0, 0);
+	input_set_abs_params(dev, ABS_X, XMIN_NOMINAL,
+			     priv->x_max ?: XMAX_NOMINAL, fuzz, 0);
+	input_set_abs_params(dev, ABS_Y, YMIN_NOMINAL,
+			     priv->y_max ?: YMAX_NOMINAL, fuzz, 0);
 	input_set_abs_params(dev, ABS_PRESSURE, 0, 255, 0, 0);
 
 	if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c)) {
 		__set_bit(INPUT_PROP_SEMI_MT, dev->propbit);
 		input_mt_init_slots(dev, 2);
 		input_set_abs_params(dev, ABS_MT_POSITION_X, XMIN_NOMINAL,
-				     priv->x_max ?: XMAX_NOMINAL, 0, 0);
+				     priv->x_max ?: XMAX_NOMINAL, fuzz, 0);
 		input_set_abs_params(dev, ABS_MT_POSITION_Y, YMIN_NOMINAL,
-				     priv->y_max ?: YMAX_NOMINAL, 0, 0);
+				     priv->y_max ?: YMAX_NOMINAL, fuzz, 0);
 
 		input_abs_set_res(dev, ABS_MT_POSITION_X, priv->x_res);
 		input_abs_set_res(dev, ABS_MT_POSITION_Y, priv->y_res);
@@ -974,4 +976,3 @@ bool synaptics_supported(void)
 }
 
 #endif /* CONFIG_MOUSE_PS2_SYNAPTICS */
-
