@@ -4103,6 +4103,7 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 				chan->sec_level = hcon->sec_level;
 				del_timer(&conn->security_timer);
 				l2cap_chan_ready(sk);
+				smp_distribute_keys(conn, 0);
 			}
 
 			bh_unlock_sock(sk);

@@ -202,8 +202,8 @@ static void build_pairing_cmd(struct l2cap_conn *conn,
 	cmd->io_capability = conn->hcon->io_capability;
 	cmd->oob_flag = SMP_OOB_NOT_PRESENT;
 	cmd->max_key_size = SMP_MAX_ENC_KEY_SIZE;
-	cmd->init_key_dist = 0x00;
-	cmd->resp_key_dist = 0x00;
+	cmd->init_key_dist = SMP_DIST_ENC_KEY | SMP_DIST_ID_KEY | SMP_DIST_SIGN;
+	cmd->resp_key_dist = SMP_DIST_ENC_KEY | SMP_DIST_ID_KEY | SMP_DIST_SIGN;
 	cmd->auth_req = authreq;
 }
 
@@ -474,6 +474,26 @@ int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 	return 0;
 }
 
+static int smp_cmd_encrypt_info(struct l2cap_conn *conn, struct sk_buff *skb)
+{
+	BT_DBG("conn %p", conn);
+	/* FIXME: store the ltk */
+	return 0;
+}
+
+static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
+{
+	struct smp_cmd_pairing *paircmd = (void *) &conn->prsp[1];
+	u8 keydist = paircmd->init_key_dist;
+
+	BT_DBG("keydist 0x%x", keydist);
+	/* FIXME: store ediv and rand */
+
+	smp_distribute_keys(conn, 1);
+
+	return 0;
+}
+
 int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 {
 	__u8 code = skb->data[0];
@@ -521,10 +541,20 @@ int smp_sig_channel(struct l2cap_conn *conn, struct sk_buff *skb)
 		break;
 
 	case SMP_CMD_ENCRYPT_INFO:
+		reason = smp_cmd_encrypt_info(conn, skb);
+		break;
+
 	case SMP_CMD_MASTER_IDENT:
+		reason = smp_cmd_master_ident(conn, skb);
+		break;
+
 	case SMP_CMD_IDENT_INFO:
 	case SMP_CMD_IDENT_ADDR_INFO:
 	case SMP_CMD_SIGN_INFO:
+		/* Just ignored */
+		reason = 0;
+		break;
+
 	default:
 		BT_DBG("Unknown command code 0x%2.2x", code);
 
@@ -540,4 +570,84 @@ done:
 
 	kfree_skb(skb);
 	return err;
+}
+
+int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
+{
+	struct smp_cmd_pairing *req, *rsp;
+	__u8 *keydist;
+
+	BT_DBG("conn %p force %d", conn, force);
+
+	if (IS_ERR(conn->hcon->hdev->tfm))
+		return PTR_ERR(conn->hcon->hdev->tfm);
+
+	rsp = (void *) &conn->prsp[1];
+
+	/* The responder sends its keys first */
+	if (!force && conn->hcon->out && (rsp->resp_key_dist & 0x07))
+		return 0;
+
+	req = (void *) &conn->preq[1];
+
+	if (conn->hcon->out) {
+		keydist = &rsp->init_key_dist;
+		*keydist &= req->init_key_dist;
+	} else {
+		keydist = &rsp->resp_key_dist;
+		*keydist &= req->resp_key_dist;
+	}
+
+
+	BT_DBG("keydist 0x%x", *keydist);
+
+	if (*keydist & SMP_DIST_ENC_KEY) {
+		struct smp_cmd_encrypt_info enc;
+		struct smp_cmd_master_ident ident;
+		__le16 ediv;
+
+		get_random_bytes(enc.ltk, sizeof(enc.ltk));
+		get_random_bytes(&ediv, sizeof(ediv));
+		get_random_bytes(ident.rand, sizeof(ident.rand));
+
+		smp_send_cmd(conn, SMP_CMD_ENCRYPT_INFO, sizeof(enc), &enc);
+
+		ident.ediv = cpu_to_le16(ediv);
+
+		smp_send_cmd(conn, SMP_CMD_MASTER_IDENT, sizeof(ident), &ident);
+
+		*keydist &= ~SMP_DIST_ENC_KEY;
+	}
+
+	if (*keydist & SMP_DIST_ID_KEY) {
+		struct smp_cmd_ident_addr_info addrinfo;
+		struct smp_cmd_ident_info idinfo;
+
+		/* Send a dummy key */
+		get_random_bytes(idinfo.irk, sizeof(idinfo.irk));
+
+		smp_send_cmd(conn, SMP_CMD_IDENT_INFO, sizeof(idinfo), &idinfo);
+
+		/* Just public address */
+		memset(&addrinfo, 0, sizeof(addrinfo));
+		bacpy(&addrinfo.bdaddr, conn->src);
+
+		smp_send_cmd(conn, SMP_CMD_IDENT_ADDR_INFO, sizeof(addrinfo),
+								&addrinfo);
+
+		*keydist &= ~SMP_DIST_ID_KEY;
+	}
+
+	if (*keydist & SMP_DIST_SIGN) {
+		struct smp_cmd_sign_info sign;
+
+		/* Send a dummy key */
+		get_random_bytes(sign.csrk, sizeof(sign.csrk));
+
+		smp_send_cmd(conn, SMP_CMD_SIGN_INFO, sizeof(sign), &sign);
+
+		*keydist &= ~SMP_DIST_SIGN;
+	}
+
+	return 0;
 }
