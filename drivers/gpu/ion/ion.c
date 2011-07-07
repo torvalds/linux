@@ -705,8 +705,9 @@ struct ion_client *ion_client_create(struct ion_device *dev,
 	return client;
 }
 
-void ion_client_destroy(struct ion_client *client)
+static void _ion_client_destroy(struct kref *kref)
 {
+	struct ion_client *client = container_of(kref, struct ion_client, ref);
 	struct ion_device *dev = client->dev;
 	struct rb_node *n;
 
@@ -729,12 +730,6 @@ void ion_client_destroy(struct ion_client *client)
 	kfree(client);
 }
 
-static void _ion_client_destroy(struct kref *kref)
-{
-	struct ion_client *client = container_of(kref, struct ion_client, ref);
-	ion_client_destroy(client);
-}
-
 static void ion_client_get(struct ion_client *client)
 {
 	kref_get(&client->ref);
@@ -743,6 +738,11 @@ static void ion_client_get(struct ion_client *client)
 static int ion_client_put(struct ion_client *client)
 {
 	return kref_put(&client->ref, _ion_client_destroy);
+}
+
+void ion_client_destroy(struct ion_client *client)
+{
+	ion_client_put(client);
 }
 
 static int ion_share_release(struct inode *inode, struct file* file)
