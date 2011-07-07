@@ -287,6 +287,8 @@ static const struct imxi2c_platform_data mx27_3ds_i2c0_data __initconst = {
 
 static void __init mx27pdk_init(void)
 {
+	imx27_soc_init();
+
 	mxc_gpio_setup_multiple_pins(mx27pdk_pins, ARRAY_SIZE(mx27pdk_pins),
 		"mx27pdk");
 	mx27_3ds_sdhc1_enable_level_translator();

@@ -229,6 +229,8 @@ late_initcall(mx51_efikamx_power_init);
 
 static void __init mx51_efikamx_init(void)
 {
+	imx51_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(mx51efikamx_pads,
 					ARRAY_SIZE(mx51efikamx_pads));
 	efika_board_common_init();

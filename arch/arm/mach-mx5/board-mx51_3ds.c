@@ -136,6 +136,8 @@ static struct spi_board_info mx51_3ds_spi_nor_device[] = {
  */
 static void __init mx51_3ds_init(void)
 {
+	imx51_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(mx51_3ds_pads,
 					ARRAY_SIZE(mx51_3ds_pads));
 

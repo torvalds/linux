@@ -115,6 +115,8 @@ static struct platform_device *devices[] __initdata = {
  */
 static void __init scb9328_init(void)
 {
+	imx1_soc_init();
+
 	mxc_gpio_setup_multiple_pins(mxc_uart1_pins,
 			ARRAY_SIZE(mxc_uart1_pins), "UART1");
 

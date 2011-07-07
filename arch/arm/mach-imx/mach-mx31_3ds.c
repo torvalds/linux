@@ -686,6 +686,8 @@ static void __init mx31_3ds_init(void)
 {
 	int ret;
 
+	imx31_soc_init();
+
 	/* Configure SPI1 IOMUX */
 	mxc_iomux_set_gpr(MUX_PGP_CSPI_BB, true);
 

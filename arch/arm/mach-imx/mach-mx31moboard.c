@@ -498,6 +498,8 @@ core_param(mx31moboard_baseboard, mx31moboard_baseboard, int, 0444);
  */
 static void __init mx31moboard_init(void)
 {
+	imx31_soc_init();
+
 	mxc_iomux_setup_multiple_pins(moboard_pins, ARRAY_SIZE(moboard_pins),
 		"moboard");
 

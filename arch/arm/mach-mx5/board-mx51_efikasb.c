@@ -241,6 +241,8 @@ static void __init mx51_efikasb_board_id(void)
 
 static void __init efikasb_board_init(void)
 {
+	imx51_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(mx51efikasb_pads,
 					ARRAY_SIZE(mx51efikasb_pads));
 	efika_board_common_init();

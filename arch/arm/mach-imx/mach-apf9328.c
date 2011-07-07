@@ -110,6 +110,8 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init apf9328_init(void)
 {
+	imx1_soc_init();
+
 	mxc_gpio_setup_multiple_pins(apf9328_pins,
 			ARRAY_SIZE(apf9328_pins),
 			"APF9328");
