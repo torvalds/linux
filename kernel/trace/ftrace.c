@@ -2407,10 +2407,9 @@ ftrace_match_module_records(struct ftrace_hash *hash, char *buff, char *mod)
  */
 
 static int
-ftrace_mod_callback(char *func, char *cmd, char *param, int enable)
+ftrace_mod_callback(struct ftrace_hash *hash,
+		    char *func, char *cmd, char *param, int enable)
 {
-	struct ftrace_ops *ops = &global_ops;
-	struct ftrace_hash *hash;
 	char *mod;
 	int ret = -EINVAL;
 
@@ -2429,11 +2428,6 @@ ftrace_mod_callback(char *func, char *cmd, char *param, int enable)
 	mod = strsep(&param, ":");
 	if (!strlen(mod))
 		return ret;
-
-	if (enable)
-		hash = ops->filter_hash;
-	else
-		hash = ops->notrace_hash;
 
 	ret = ftrace_match_module_records(hash, func, mod);
 	if (!ret)
@@ -2760,7 +2754,7 @@ static int ftrace_process_regex(struct ftrace_hash *hash,
 	mutex_lock(&ftrace_cmd_mutex);
 	list_for_each_entry(p, &ftrace_commands, list) {
 		if (strcmp(p->name, command) == 0) {
-			ret = p->func(func, command, next, enable);
+			ret = p->func(hash, func, command, next, enable);
 			goto out_unlock;
 		}
 	}

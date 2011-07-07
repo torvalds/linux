@@ -123,7 +123,8 @@ stack_trace_sysctl(struct ctl_table *table, int write,
 struct ftrace_func_command {
 	struct list_head	list;
 	char			*name;
-	int			(*func)(char *func, char *cmd,
+	int			(*func)(struct ftrace_hash *hash,
+					char *func, char *cmd,
 					char *params, int enable);
 };
 
