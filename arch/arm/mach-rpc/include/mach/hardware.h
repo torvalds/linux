@@ -51,12 +51,12 @@
 /*
  * IO Addresses
  */
-#define VIDC_BASE		IOMEM(0xe0400000)
-#define EXPMASK_BASE		0xe0360000
-#define IOMD_BASE		IOMEM(0xe0200000)
-#define IOC_BASE		IOMEM(0xe0200000)
-#define PCIO_BASE		IOMEM(0xe0010000)
-#define FLOPPYDMA_BASE		IOMEM(0xe002a000)
+#define VIDC_BASE		(IO_BASE + 0x00400000)
+#define EXPMASK_BASE		(IO_BASE + 0x00360000)
+#define IOMD_BASE		(IO_BASE + 0x00200000)
+#define IOC_BASE		(IO_BASE + 0x00200000)
+#define FLOPPYDMA_BASE		(IO_BASE + 0x0002a000)
+#define PCIO_BASE		(IO_BASE + 0x00010000)
 
 #define vidc_writel(val)	__raw_writel(val, VIDC_BASE)
 
