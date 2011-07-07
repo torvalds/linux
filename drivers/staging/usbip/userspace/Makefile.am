@@ -1,5 +1,5 @@
 SUBDIRS := libsrc src
-includedir := @includedir@/usbip
+includedir = @includedir@/usbip
 include_HEADERS := $(addprefix libsrc/, \
 		     usbip_common.h vhci_driver.h usbip_host_driver.h)
 
