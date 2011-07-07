@@ -1057,6 +1057,42 @@ static int hci_persistent_key(struct hci_dev *hdev, struct hci_conn *conn,
 	return 0;
 }
 
+struct link_key *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8])
+{
+	struct link_key *k;
+
+	list_for_each_entry(k, &hdev->link_keys, list) {
+		struct key_master_id *id;
+
+		if (k->type != HCI_LK_SMP_LTK)
+			continue;
+
+		if (k->dlen != sizeof(*id))
+			continue;
+
+		id = (void *) &k->data;
+		if (id->ediv == ediv &&
+				(memcmp(rand, id->rand, sizeof(id->rand)) == 0))
+			return k;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(hci_find_ltk);
+
+struct link_key *hci_find_link_key_type(struct hci_dev *hdev,
+					bdaddr_t *bdaddr, u8 type)
+{
+	struct link_key *k;
+
+	list_for_each_entry(k, &hdev->link_keys, list)
+		if (k->type == type && bacmp(bdaddr, &k->bdaddr) == 0)
+			return k;
+
+	return NULL;
+}
+EXPORT_SYMBOL(hci_find_link_key_type);
+
 int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 				bdaddr_t *bdaddr, u8 *val, u8 type, u8 pin_len)
 {
@@ -1108,6 +1144,43 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 		list_del(&key->list);
 		kfree(key);
 	}
+
+	return 0;
+}
+
+int hci_add_ltk(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
+					__le16 ediv, u8 rand[8], u8 ltk[16])
+{
+	struct link_key *key, *old_key;
+	struct key_master_id *id;
+	u8 old_key_type;
+
+	BT_DBG("%s addr %s", hdev->name, batostr(bdaddr));
+
+	old_key = hci_find_link_key_type(hdev, bdaddr, HCI_LK_SMP_LTK);
+	if (old_key) {
+		key = old_key;
+		old_key_type = old_key->type;
+	} else {
+		key = kzalloc(sizeof(*key) + sizeof(*id), GFP_ATOMIC);
+		if (!key)
+			return -ENOMEM;
+		list_add(&key->list, &hdev->link_keys);
+		old_key_type = 0xff;
+	}
+
+	key->dlen = sizeof(*id);
+
+	bacpy(&key->bdaddr, bdaddr);
+	memcpy(key->val, ltk, sizeof(key->val));
+	key->type = HCI_LK_SMP_LTK;
+
+	id = (void *) &key->data;
+	id->ediv = ediv;
+	memcpy(id->rand, rand, sizeof(id->rand));
+
+	if (new_key)
+		mgmt_new_key(hdev->id, key, old_key_type);
 
 	return 0;
 }
