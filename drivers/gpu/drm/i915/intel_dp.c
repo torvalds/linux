@@ -1019,14 +1019,20 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 static bool
 intel_dp_get_link_status(struct intel_dp *intel_dp)
 {
-	int ret;
+	int ret, i;
 
-	ret = intel_dp_aux_native_read(intel_dp,
-				       DP_LANE0_1_STATUS,
-				       intel_dp->link_status, DP_LINK_STATUS_SIZE);
-	if (ret != DP_LINK_STATUS_SIZE)
-		return false;
-	return true;
+	/* Must try AUX reads for this at least 3 times */
+	for (i = 0; i < 3; i++) {
+		ret = intel_dp_aux_native_read(intel_dp,
+					       DP_LANE0_1_STATUS,
+					       intel_dp->link_status,
+					       DP_LINK_STATUS_SIZE);
+		if (ret == DP_LINK_STATUS_SIZE)
+			return true;
+		msleep(1);
+	}
+
+	return false;
 }
 
 static uint8_t
