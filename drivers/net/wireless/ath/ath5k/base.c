@@ -1265,12 +1265,11 @@ static int ath5k_common_padpos(struct sk_buff *skb)
 	__le16 frame_control = hdr->frame_control;
 	int padpos = 24;
 
-	if (ieee80211_has_a4(frame_control)) {
+	if (ieee80211_has_a4(frame_control))
 		padpos += ETH_ALEN;
-	}
-	if (ieee80211_is_data_qos(frame_control)) {
+
+	if (ieee80211_is_data_qos(frame_control))
 		padpos += IEEE80211_QOS_CTL_LEN;
-	}
 
 	return padpos;
 }
@@ -2199,13 +2198,12 @@ ath5k_intr(int irq, void *dev_id)
 				ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
 					  "rx overrun, resetting\n");
 				ieee80211_queue_work(sc->hw, &sc->reset_work);
-			}
-			else
+			} else
 				ath5k_schedule_rx(sc);
 		} else {
-			if (status & AR5K_INT_SWBA) {
+			if (status & AR5K_INT_SWBA)
 				tasklet_hi_schedule(&sc->beacontq);
-			}
+
 			if (status & AR5K_INT_RXEOL) {
 				/*
 				* NB: the hardware should re-read the link when

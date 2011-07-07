@@ -96,8 +96,7 @@ struct ath5k_txq {
 /*
  * State for LED triggers
  */
-struct ath5k_led
-{
+struct ath5k_led {
 	char name[ATH5K_LED_MAX_NAME_LEN + 1];	/* name of the LED in sysfs */
 	struct ath5k_softc *sc;			/* driver state */
 	struct led_classdev led_dev;		/* led classdev */

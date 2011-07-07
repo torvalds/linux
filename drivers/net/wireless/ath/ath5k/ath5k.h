@@ -1011,8 +1011,7 @@ struct ath5k_capabilities {
 
 /* size of noise floor history (keep it a power of two) */
 #define ATH5K_NF_CAL_HIST_MAX	8
-struct ath5k_nfcal_hist
-{
+struct ath5k_nfcal_hist {
 	s16 index;				/* current index into nfval */
 	s16 nfval[ATH5K_NF_CAL_HIST_MAX];	/* last few noise floors */
 };
