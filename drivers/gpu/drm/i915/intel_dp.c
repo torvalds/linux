@@ -138,8 +138,8 @@ intel_dp_max_lane_count(struct intel_dp *intel_dp)
 {
 	int max_lane_count = 4;
 
-	if (intel_dp->dpcd[0] >= 0x11) {
-		max_lane_count = intel_dp->dpcd[2] & 0x1f;
+	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11) {
+		max_lane_count = intel_dp->dpcd[DP_MAX_LANE_COUNT] & 0x1f;
 		switch (max_lane_count) {
 		case 1: case 2: case 4:
 			break;
@@ -153,7 +153,7 @@ intel_dp_max_lane_count(struct intel_dp *intel_dp)
 static int
 intel_dp_max_link_bw(struct intel_dp *intel_dp)
 {
-	int max_link_bw = intel_dp->dpcd[1];
+	int max_link_bw = intel_dp->dpcd[DP_MAX_LINK_RATE];
 
 	switch (max_link_bw) {
 	case DP_LINK_BW_1_62:
@@ -774,7 +774,8 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	/*
 	 * Check for DPCD version > 1.1 and enhanced framing support
 	 */
-	if (intel_dp->dpcd[0] >= 0x11 && (intel_dp->dpcd[2] & DP_ENHANCED_FRAME_CAP)) {
+	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11 &&
+	    (intel_dp->dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP)) {
 		intel_dp->link_configuration[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 		intel_dp->DP |= DP_ENHANCED_FRAMING;
 	}
@@ -1553,7 +1554,7 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 				     0x000, intel_dp->dpcd,
 				     sizeof (intel_dp->dpcd))
 	    == sizeof(intel_dp->dpcd)) {
-		if (intel_dp->dpcd[0] != 0)
+		if (intel_dp->dpcd[DP_DPCD_REV] != 0)
 			status = connector_status_connected;
 	}
 	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", intel_dp->dpcd[0],
@@ -1592,7 +1593,7 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 	if (intel_dp_aux_native_read(intel_dp, 0x000, intel_dp->dpcd,
 				     sizeof (intel_dp->dpcd)) == sizeof (intel_dp->dpcd))
 	{
-		if (intel_dp->dpcd[0] != 0)
+		if (intel_dp->dpcd[DP_DPCD_REV] != 0)
 			status = connector_status_connected;
 	}
 
@@ -1960,8 +1961,9 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 					       sizeof(intel_dp->dpcd));
 		ironlake_edp_panel_vdd_off(intel_dp);
 		if (ret == sizeof(intel_dp->dpcd)) {
-			if (intel_dp->dpcd[0] >= 0x11)
-				dev_priv->no_aux_handshake = intel_dp->dpcd[3] &
+			if (intel_dp->dpcd[DP_DPCD_REV] >= 0x11)
+				dev_priv->no_aux_handshake =
+					intel_dp->dpcd[DP_MAX_DOWNSPREAD] &
 					DP_NO_AUX_HANDSHAKE_LINK_TRAINING;
 		} else {
 			/* if this fails, presume the device is a ghost */
