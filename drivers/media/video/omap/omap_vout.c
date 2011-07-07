@@ -37,6 +37,7 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/videodev2.h>
+#include <linux/dma-mapping.h>
 
 #include <media/videobuf-dma-contig.h>
 #include <media/v4l2-device.h>
@@ -778,6 +779,17 @@ static int omap_vout_buffer_prepare(struct videobuf_queue *q,
 		vout->queued_buf_addr[vb->i] = (u8 *)
 			omap_vout_uservirt_to_phys(vb->baddr);
 	} else {
+		u32 addr, dma_addr;
+		unsigned long size;
+
+		addr = (unsigned long) vout->buf_virt_addr[vb->i];
+		size = (unsigned long) vb->size;
+
+		dma_addr = dma_map_single(vout->vid_dev->v4l2_dev.dev, (void *) addr,
+				size, DMA_TO_DEVICE);
+		if (dma_mapping_error(vout->vid_dev->v4l2_dev.dev, dma_addr))
+			v4l2_err(&vout->vid_dev->v4l2_dev, "dma_map_single failed\n");
+
 		vout->queued_buf_addr[vb->i] = (u8 *)vout->buf_phy_addr[vb->i];
 	}
 
@@ -1567,15 +1579,28 @@ static int vidioc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 	struct omap_vout_device *vout = fh;
 	struct videobuf_queue *q = &vout->vbq;
 
+	int ret;
+	u32 addr;
+	unsigned long size;
+	struct videobuf_buffer *vb;
+
+	vb = q->bufs[b->index];
+
 	if (!vout->streaming)
 		return -EINVAL;
 
 	if (file->f_flags & O_NONBLOCK)
 		/* Call videobuf_dqbuf for non blocking mode */
-		return videobuf_dqbuf(q, (struct v4l2_buffer *)b, 1);
+		ret = videobuf_dqbuf(q, (struct v4l2_buffer *)b, 1);
 	else
 		/* Call videobuf_dqbuf for  blocking mode */
-		return videobuf_dqbuf(q, (struct v4l2_buffer *)b, 0);
+		ret = videobuf_dqbuf(q, (struct v4l2_buffer *)b, 0);
+
+	addr = (unsigned long) vout->buf_phy_addr[vb->i];
+	size = (unsigned long) vb->size;
+	dma_unmap_single(vout->vid_dev->v4l2_dev.dev,  addr,
+				size, DMA_TO_DEVICE);
+	return ret;
 }
 
 static int vidioc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
