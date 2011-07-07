@@ -1977,7 +1977,7 @@ ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf)
 	hw_tsf = ath5k_hw_get_tsf64(ah);
 	hw_tu = TSF_TO_TU(hw_tsf);
 
-#define FUDGE AR5K_TUNE_SW_BEACON_RESP + 3
+#define FUDGE (AR5K_TUNE_SW_BEACON_RESP + 3)
 	/* We use FUDGE to make sure the next TBTT is ahead of the current TU.
 	 * Since we later subtract AR5K_TUNE_SW_BEACON_RESP (10) in the timer
 	 * configuration we need to make sure it is bigger than that. */
