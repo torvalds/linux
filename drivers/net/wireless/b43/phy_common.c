@@ -32,6 +32,7 @@
 #include "phy_n.h"
 #include "phy_lp.h"
 #include "phy_ht.h"
+#include "phy_lcn.h"
 #include "b43.h"
 #include "main.h"
 
@@ -63,6 +64,11 @@ int b43_phy_allocate(struct b43_wldev *dev)
 	case B43_PHYTYPE_HT:
 #ifdef CONFIG_B43_PHY_HT
 		phy->ops = &b43_phyops_ht;
+#endif
+		break;
+	case B43_PHYTYPE_LCN:
+#ifdef CONFIG_B43_PHY_LCN
+		phy->ops = &b43_phyops_lcn;
 #endif
 		break;
 	}
