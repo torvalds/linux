@@ -1331,7 +1331,7 @@ static void iput_final(struct inode *inode)
 
 	WARN_ON(inode->i_state & I_NEW);
 
-	if (op && op->drop_inode)
+	if (op->drop_inode)
 		drop = op->drop_inode(inode);
 	else
 		drop = generic_drop_inode(inode);
