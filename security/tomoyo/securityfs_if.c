@@ -139,8 +139,6 @@ static int __init tomoyo_initerface_init(void)
 			    TOMOYO_AUDIT);
 	tomoyo_create_entry("self_domain",      0400, tomoyo_dir,
 			    TOMOYO_SELFDOMAIN);
-	tomoyo_create_entry(".domain_status",   0600, tomoyo_dir,
-			    TOMOYO_DOMAIN_STATUS);
 	tomoyo_create_entry(".process_status",  0600, tomoyo_dir,
 			    TOMOYO_PROCESS_STATUS);
 	tomoyo_create_entry("stat",             0644, tomoyo_dir,

@@ -1213,73 +1213,6 @@ static void tomoyo_read_domain(struct tomoyo_io_buffer *head)
 }
 
 /**
- * tomoyo_write_domain_profile - Assign profile for specified domain.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns 0 on success, -EINVAL otherwise.
- *
- * This is equivalent to doing
- *
- *     ( echo "select " $domainname; echo "use_profile " $profile ) |
- *     /usr/sbin/tomoyo-loadpolicy -d
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_write_domain_profile(struct tomoyo_io_buffer *head)
-{
-	char *data = head->write_buf;
-	char *cp = strchr(data, ' ');
-	struct tomoyo_domain_info *domain;
-	unsigned long profile;
-
-	if (!cp)
-		return -EINVAL;
-	*cp = '\0';
-	domain = tomoyo_find_domain(cp + 1);
-	if (strict_strtoul(data, 10, &profile))
-		return -EINVAL;
-	if (domain && (!tomoyo_policy_loaded ||
-		       head->w.ns->profile_ptr[(u8) profile]))
-		domain->profile = (u8) profile;
-	return 0;
-}
-
-/**
- * tomoyo_read_domain_profile - Read only domainname and profile.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns list of profile number and domainname pairs.
- *
- * This is equivalent to doing
- *
- *     grep -A 1 '^<kernel>' /sys/kernel/security/tomoyo/domain_policy |
- *     awk ' { if ( domainname == "" ) { if ( $1 == "<kernel>" )
- *     domainname = $0; } else if ( $1 == "use_profile" ) {
- *     print $2 " " domainname; domainname = ""; } } ; '
- *
- * Caller holds tomoyo_read_lock().
- */
-static void tomoyo_read_domain_profile(struct tomoyo_io_buffer *head)
-{
-	if (head->r.eof)
-		return;
-	list_for_each_cookie(head->r.domain, &tomoyo_domain_list) {
-		struct tomoyo_domain_info *domain =
-			list_entry(head->r.domain, typeof(*domain), list);
-		if (domain->is_deleted)
-			continue;
-		if (!tomoyo_flush(head))
-			return;
-		tomoyo_io_printf(head, "%u ", domain->profile);
-		tomoyo_set_string(head, domain->domainname->name);
-		tomoyo_set_lf(head);
-	}
-	head->r.eof = true;
-}
-
-/**
  * tomoyo_write_pid: Specify PID to obtain domainname.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
@@ -1994,11 +1927,6 @@ int tomoyo_open_control(const u8 type, struct file *file)
 		/* /sys/kernel/security/tomoyo/self_domain */
 		head->read = tomoyo_read_self_domain;
 		break;
-	case TOMOYO_DOMAIN_STATUS:
-		/* /sys/kernel/security/tomoyo/.domain_status */
-		head->write = tomoyo_write_domain_profile;
-		head->read = tomoyo_read_domain_profile;
-		break;
 	case TOMOYO_PROCESS_STATUS:
 		/* /sys/kernel/security/tomoyo/.process_status */
 		head->write = tomoyo_write_pid;
@@ -2291,7 +2219,6 @@ ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 			switch (head->type) {
 			case TOMOYO_DOMAINPOLICY:
 			case TOMOYO_EXCEPTIONPOLICY:
-			case TOMOYO_DOMAIN_STATUS:
 			case TOMOYO_STAT:
 			case TOMOYO_PROFILE:
 			case TOMOYO_MANAGER:

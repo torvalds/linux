@@ -172,7 +172,6 @@ enum tomoyo_path_number_acl_index {
 enum tomoyo_securityfs_interface_index {
 	TOMOYO_DOMAINPOLICY,
 	TOMOYO_EXCEPTIONPOLICY,
-	TOMOYO_DOMAIN_STATUS,
 	TOMOYO_PROCESS_STATUS,
 	TOMOYO_STAT,
 	TOMOYO_SELFDOMAIN,
