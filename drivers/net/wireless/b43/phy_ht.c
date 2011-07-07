@@ -373,6 +373,16 @@ static void b43_phy_ht_op_radio_write(struct b43_wldev *dev, u16 reg,
 	b43_write16(dev, B43_MMIO_RADIO24_DATA, value);
 }
 
+static enum b43_txpwr_result
+b43_phy_ht_op_recalc_txpower(struct b43_wldev *dev, bool ignore_tssi)
+{
+	return B43_TXPWR_RES_DONE;
+}
+
+static void b43_phy_ht_op_adjust_txpower(struct b43_wldev *dev)
+{
+}
+
 /**************************************************
  * PHY ops struct.
  **************************************************/
@@ -391,8 +401,6 @@ const struct b43_phy_operations b43_phyops_ht = {
 	.switch_analog		= b43_phy_ht_op_switch_analog,
 	.switch_channel		= b43_phy_ht_op_switch_channel,
 	.get_default_chan	= b43_phy_ht_op_get_default_chan,
-	/*
 	.recalc_txpower		= b43_phy_ht_op_recalc_txpower,
 	.adjust_txpower		= b43_phy_ht_op_adjust_txpower,
-	*/
 };
