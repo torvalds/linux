@@ -456,6 +456,7 @@ static struct sock *fanout_demux_cpu(struct packet_fanout *f, struct sk_buff *sk
 
 static struct sk_buff *fanout_check_defrag(struct sk_buff *skb)
 {
+#ifdef CONFIG_INET
 	const struct iphdr *iph;
 	u32 len;
 
@@ -486,6 +487,7 @@ static struct sk_buff *fanout_check_defrag(struct sk_buff *skb)
 			skb->rxhash = 0;
 		}
 	}
+#endif
 	return skb;
 }
 
