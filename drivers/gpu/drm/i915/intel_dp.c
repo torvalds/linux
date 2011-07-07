@@ -942,10 +942,43 @@ static void ironlake_edp_pll_off(struct drm_encoder *encoder)
 	udelay(200);
 }
 
+/* If the sink supports it, try to set the power state appropriately */
+static void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
+{
+	int ret, i;
+
+	/* Should have a valid DPCD by this point */
+	if (intel_dp->dpcd[DP_DPCD_REV] < 0x11)
+		return;
+
+	if (mode != DRM_MODE_DPMS_ON) {
+		ret = intel_dp_aux_native_write_1(intel_dp, DP_SET_POWER,
+						  DP_SET_POWER_D3);
+		if (ret != 1)
+			DRM_DEBUG_DRIVER("failed to write sink power state\n");
+	} else {
+		/*
+		 * When turning on, we need to retry for 1ms to give the sink
+		 * time to wake up.
+		 */
+		for (i = 0; i < 3; i++) {
+			ret = intel_dp_aux_native_write_1(intel_dp,
+							  DP_SET_POWER,
+							  DP_SET_POWER_D0);
+			if (ret == 1)
+				break;
+			msleep(1);
+		}
+	}
+}
+
 static void intel_dp_prepare(struct drm_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct drm_device *dev = encoder->dev;
+
+	/* Wake up the sink first */
+	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 
 	if (is_edp(intel_dp)) {
 		ironlake_edp_backlight_off(dev);
@@ -990,6 +1023,7 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 	if (mode != DRM_MODE_DPMS_ON) {
 		if (is_edp(intel_dp))
 			ironlake_edp_backlight_off(dev);
+		intel_dp_sink_dpms(intel_dp, mode);
 		intel_dp_link_down(intel_dp);
 		if (is_edp(intel_dp))
 			ironlake_edp_panel_off(dev);
@@ -998,6 +1032,7 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 	} else {
 		if (is_edp(intel_dp))
 			ironlake_edp_panel_vdd_on(intel_dp);
+		intel_dp_sink_dpms(intel_dp, mode);
 		if (!(dp_reg & DP_PORT_EN)) {
 			intel_dp_start_link_train(intel_dp);
 			if (is_edp(intel_dp)) {
