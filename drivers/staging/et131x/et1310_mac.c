@@ -384,31 +384,31 @@ void ConfigMacStatRegs(struct et131x_adapter *etdev)
 	struct macstat_regs __iomem *macstat =
 		&etdev->regs->macstat;
 
-	/* Next we need to initialize all the MAC_STAT registers to zero on
+	/* Next we need to initialize all the macstat registers to zero on
 	 * the device.
 	 */
-	writel(0, &macstat->RFcs);
-	writel(0, &macstat->RAln);
-	writel(0, &macstat->RFlr);
-	writel(0, &macstat->RDrp);
-	writel(0, &macstat->RCde);
-	writel(0, &macstat->ROvr);
-	writel(0, &macstat->RFrg);
+	writel(0, &macstat->rx_fcs_errs);
+	writel(0, &macstat->rx_align_errs);
+	writel(0, &macstat->rx_frame_len_errs);
+	writel(0, &macstat->rx_code_errs);
+	writel(0, &macstat->rx_drops);
+	writel(0, &macstat->rx_oversize_packets);
+	writel(0, &macstat->rx_fragment_packets);
 
-	writel(0, &macstat->TScl);
-	writel(0, &macstat->TDfr);
-	writel(0, &macstat->TMcl);
-	writel(0, &macstat->TLcl);
-	writel(0, &macstat->TNcl);
-	writel(0, &macstat->TOvr);
-	writel(0, &macstat->TUnd);
+	writel(0, &macstat->tx_deferred);
+	writel(0, &macstat->tx_single_collisions);
+	writel(0, &macstat->tx_multiple_collisions);
+	writel(0, &macstat->tx_late_collisions);
+	writel(0, &macstat->tx_total_collisions);
+	writel(0, &macstat->tx_oversize_frames);
+	writel(0, &macstat->tx_undersize_frames);
 
 	/* Unmask any counters that we want to track the overflow of.
 	 * Initially this will be all counters.  It may become clear later
 	 * that we do not need to track all counters.
 	 */
-	writel(0xFFFFBE32, &macstat->Carry1M);
-	writel(0xFFFE7E8B, &macstat->Carry2M);
+	writel(0xFFFFBE32, &macstat->carry_reg1_mask);
+	writel(0xFFFE7E8B, &macstat->carry_reg2_mask);
 }
 
 void ConfigFlowControl(struct et131x_adapter *etdev)
@@ -456,22 +456,22 @@ void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
 	struct macstat_regs __iomem *macstat =
 		&etdev->regs->macstat;
 
-	stats->collisions += readl(&macstat->TNcl);
-	stats->first_collision += readl(&macstat->TScl);
-	stats->tx_deferred += readl(&macstat->TDfr);
-	stats->excessive_collisions += readl(&macstat->TMcl);
-	stats->late_collisions += readl(&macstat->TLcl);
-	stats->tx_uflo += readl(&macstat->TUnd);
-	stats->max_pkt_error += readl(&macstat->TOvr);
+	stats->collisions += readl(&macstat->tx_total_collisions);
+	stats->first_collision += readl(&macstat->tx_single_collisions);
+	stats->tx_deferred += readl(&macstat->tx_deferred);
+	stats->excessive_collisions += readl(&macstat->tx_multiple_collisions);
+	stats->late_collisions += readl(&macstat->tx_late_collisions);
+	stats->tx_uflo += readl(&macstat->tx_undersize_frames);
+	stats->max_pkt_error += readl(&macstat->tx_oversize_frames);
 
-	stats->alignment_err += readl(&macstat->RAln);
-	stats->crc_err += readl(&macstat->RCde);
-	stats->norcvbuf += readl(&macstat->RDrp);
-	stats->rx_ov_flow += readl(&macstat->ROvr);
-	stats->code_violations += readl(&macstat->RFcs);
-	stats->length_err += readl(&macstat->RFlr);
+	stats->alignment_err += readl(&macstat->rx_align_errs);
+	stats->crc_err += readl(&macstat->rx_code_errs);
+	stats->norcvbuf += readl(&macstat->rx_drops);
+	stats->rx_ov_flow += readl(&macstat->rx_oversize_packets);
+	stats->code_violations += readl(&macstat->rx_fcs_errs);
+	stats->length_err += readl(&macstat->rx_frame_len_errs);
 
-	stats->other_errors += readl(&macstat->RFrg);
+	stats->other_errors += readl(&macstat->rx_fragment_packets);
 }
 
 /**
@@ -484,17 +484,17 @@ void UpdateMacStatHostCounters(struct et131x_adapter *etdev)
  */
 void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 {
-	u32 Carry1;
-	u32 Carry2;
+	u32 carry_reg1;
+	u32 carry_reg2;
 
 	/* Read the interrupt bits from the register(s).  These are Clear On
 	 * Write.
 	 */
-	Carry1 = readl(&etdev->regs->macstat.Carry1);
-	Carry2 = readl(&etdev->regs->macstat.Carry2);
+	carry_reg1 = readl(&etdev->regs->macstat.carry_reg1);
+	carry_reg2 = readl(&etdev->regs->macstat.carry_reg2);
 
-	writel(Carry1, &etdev->regs->macstat.Carry1);
-	writel(Carry2, &etdev->regs->macstat.Carry2);
+	writel(carry_reg2, &etdev->regs->macstat.carry_reg1);
+	writel(carry_reg2, &etdev->regs->macstat.carry_reg2);
 
 	/* We need to do update the host copy of all the MAC_STAT counters.
 	 * For each counter, check it's overflow bit.  If the overflow bit is
@@ -502,33 +502,33 @@ void HandleMacStatInterrupt(struct et131x_adapter *etdev)
 	 * revolution of the counter.  This routine is called when the counter
 	 * block indicates that one of the counters has wrapped.
 	 */
-	if (Carry1 & (1 << 14))
+	if (carry_reg1 & (1 << 14))
 		etdev->stats.code_violations += COUNTER_WRAP_16_BIT;
-	if (Carry1 & (1 << 8))
+	if (carry_reg1 & (1 << 8))
 		etdev->stats.alignment_err += COUNTER_WRAP_12_BIT;
-	if (Carry1 & (1 << 7))
+	if (carry_reg1 & (1 << 7))
 		etdev->stats.length_err += COUNTER_WRAP_16_BIT;
-	if (Carry1 & (1 << 2))
+	if (carry_reg1 & (1 << 2))
 		etdev->stats.other_errors += COUNTER_WRAP_16_BIT;
-	if (Carry1 & (1 << 6))
+	if (carry_reg1 & (1 << 6))
 		etdev->stats.crc_err += COUNTER_WRAP_16_BIT;
-	if (Carry1 & (1 << 3))
+	if (carry_reg1 & (1 << 3))
 		etdev->stats.rx_ov_flow += COUNTER_WRAP_16_BIT;
-	if (Carry1 & (1 << 0))
+	if (carry_reg1 & (1 << 0))
 		etdev->stats.norcvbuf += COUNTER_WRAP_16_BIT;
-	if (Carry2 & (1 << 16))
+	if (carry_reg2 & (1 << 16))
 		etdev->stats.max_pkt_error += COUNTER_WRAP_12_BIT;
-	if (Carry2 & (1 << 15))
+	if (carry_reg2 & (1 << 15))
 		etdev->stats.tx_uflo += COUNTER_WRAP_12_BIT;
-	if (Carry2 & (1 << 6))
+	if (carry_reg2 & (1 << 6))
 		etdev->stats.first_collision += COUNTER_WRAP_12_BIT;
-	if (Carry2 & (1 << 8))
+	if (carry_reg2 & (1 << 8))
 		etdev->stats.tx_deferred += COUNTER_WRAP_12_BIT;
-	if (Carry2 & (1 << 5))
+	if (carry_reg2 & (1 << 5))
 		etdev->stats.excessive_collisions += COUNTER_WRAP_12_BIT;
-	if (Carry2 & (1 << 4))
+	if (carry_reg2 & (1 << 4))
 		etdev->stats.late_collisions += COUNTER_WRAP_12_BIT;
-	if (Carry2 & (1 << 2))
+	if (carry_reg2 & (1 << 2))
 		etdev->stats.collisions += COUNTER_WRAP_12_BIT;
 }
 

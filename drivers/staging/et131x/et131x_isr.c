@@ -268,7 +268,7 @@ void et131x_isr_handler(struct work_struct *work)
 			u32 txdma_err;
 
 			/* Following read also clears the register (COR) */
-			txdma_err = readl(&iomem->txdma.TxDmaError);
+			txdma_err = readl(&iomem->txdma.tx_dma_error);
 
 			dev_warn(&etdev->pdev->dev,
 				    "TXDMA_ERR interrupt, error = %d\n",

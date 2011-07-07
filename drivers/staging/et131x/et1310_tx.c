@@ -747,7 +747,7 @@ void et131x_handle_send_interrupt(struct et131x_adapter *etdev)
 	struct tcb *tcb;
 	u32 index;
 
-	serviced = readl(&etdev->regs->txdma.NewServiceComplete);
+	serviced = readl(&etdev->regs->txdma.new_service_complete);
 	index = INDEX10(serviced);
 
 	/* Has the ring wrapped?  Process any descriptors that do not have

@@ -267,19 +267,19 @@ struct txdma_regs {			/* Location: */
 	u32 service_complete;		/*  0x1028 */
 	u32 cache_rd_index;		/*  0x102C */
 	u32 cache_wr_index;		/*  0x1030 */
-	u32 TxDmaError;			/*  0x1034 */
-	u32 DescAbortCount;		/*  0x1038 */
-	u32 PayloadAbortCnt;		/*  0x103c */
-	u32 WriteBackAbortCnt;		/*  0x1040 */
-	u32 DescTimeoutCnt;		/*  0x1044 */
-	u32 PayloadTimeoutCnt;		/*  0x1048 */
-	u32 WriteBackTimeoutCnt;	/*  0x104c */
-	u32 DescErrorCount;		/*  0x1050 */
-	u32 PayloadErrorCnt;		/*  0x1054 */
-	u32 WriteBackErrorCnt;		/*  0x1058 */
-	u32 DroppedTLPCount;		/*  0x105c */
-	u32 NewServiceComplete;		/*  0x1060 */
-	u32 EthernetPacketCount;	/*  0x1064 */
+	u32 tx_dma_error;		/*  0x1034 */
+	u32 desc_abort_cnt;		/*  0x1038 */
+	u32 payload_abort_cnt;		/*  0x103c */
+	u32 writeback_abort_cnt;	/*  0x1040 */
+	u32 desc_timeout_cnt;		/*  0x1044 */
+	u32 payload_timeout_cnt;	/*  0x1048 */
+	u32 writeback_timeout_cnt;	/*  0x104c */
+	u32 desc_error_cnt;		/*  0x1050 */
+	u32 payload_error_cnt;		/*  0x1054 */
+	u32 writeback_error_cnt;	/*  0x1058 */
+	u32 dropped_tlp_cnt;		/*  0x105c */
+	u32 new_service_complete;	/*  0x1060 */
+	u32 ethernet_packet_cnt;	/*  0x1064 */
 };
 
 /* END OF TXDMA REGISTER ADDRESS MAP */
@@ -1204,148 +1204,148 @@ struct macstat_regs {			/* Location: */
 	u32 pad[32];			/*  0x6000 - 607C */
 
 	/* Tx/Rx 0-64 Byte Frame Counter */
-	u32 TR64;			/*  0x6080 */
+	u32 txrx_0_64_byte_frames;	/*  0x6080 */
 
 	/* Tx/Rx 65-127 Byte Frame Counter */
-	u32 TR127;			/*  0x6084 */
+	u32 txrx_65_127_byte_frames;	/*  0x6084 */
 
 	/* Tx/Rx 128-255 Byte Frame Counter */
-	u32 TR255;			/*  0x6088 */
+	u32 txrx_128_255_byte_frames;	/*  0x6088 */
 
 	/* Tx/Rx 256-511 Byte Frame Counter */
-	u32 TR511;			/*  0x608C */
+	u32 txrx_256_511_byte_frames;	/*  0x608C */
 
 	/* Tx/Rx 512-1023 Byte Frame Counter */
-	u32 TR1K;			/*  0x6090 */
+	u32 txrx_512_1023_byte_frames;	/*  0x6090 */
 
 	/* Tx/Rx 1024-1518 Byte Frame Counter */
-	u32 TRMax;			/*  0x6094 */
+	u32 txrx_1024_1518_byte_frames;	/*  0x6094 */
 
 	/* Tx/Rx 1519-1522 Byte Good VLAN Frame Count */
-	u32 TRMgv;			/*  0x6098 */
+	u32 txrx_1519_1522_gvln_frames;	/*  0x6098 */
 
 	/* Rx Byte Counter */
-	u32 RByt;			/*  0x609C */
+	u32 rx_bytes;	 		/*  0x609C */
 
 	/* Rx Packet Counter */
-	u32 RPkt;			/*  0x60A0 */
+	u32 rx_packets;			/*  0x60A0 */
 
 	/* Rx FCS Error Counter */
-	u32 RFcs;			/*  0x60A4 */
+	u32 rx_fcs_errs;		/*  0x60A4 */
 
 	/* Rx Multicast Packet Counter */
-	u32 RMca;			/*  0x60A8 */
+	u32 rx_multicast_packets;	/*  0x60A8 */
 
 	/* Rx Broadcast Packet Counter */
-	u32 RBca;			/*  0x60AC */
+	u32 rx_broadcast_packets;	/*  0x60AC */
 
 	/* Rx Control Frame Packet Counter */
-	u32 RxCf;			/*  0x60B0 */
+	u32 rx_control_frames; 		/*  0x60B0 */
 
 	/* Rx Pause Frame Packet Counter */
-	u32 RxPf;			/*  0x60B4 */
+	u32 rx_pause_frames;		/*  0x60B4 */
 
 	/* Rx Unknown OP Code Counter */
-	u32 RxUo;			/*  0x60B8 */
+	u32 rx_unknown_opcodes;		/*  0x60B8 */
 
 	/* Rx Alignment Error Counter */
-	u32 RAln;			/*  0x60BC */
+	u32 rx_align_errs;		/*  0x60BC */
 
 	/* Rx Frame Length Error Counter */
-	u32 RFlr;			/*  0x60C0 */
+	u32 rx_frame_len_errs;		/*  0x60C0 */
 
 	/* Rx Code Error Counter */
-	u32 RCde;			/*  0x60C4 */
+	u32 rx_code_errs;		/*  0x60C4 */
 
 	/* Rx Carrier Sense Error Counter */
-	u32 RCse;			/*  0x60C8 */
+	u32 rx_carrier_sense_errs;	/*  0x60C8 */
 
 	/* Rx Undersize Packet Counter */
-	u32 RUnd;			/*  0x60CC */
+	u32 rx_undersize_packets;	/*  0x60CC */
 
 	/* Rx Oversize Packet Counter */
-	u32 ROvr;			/*  0x60D0 */
+	u32 rx_oversize_packets;	/*  0x60D0 */
 
 	/* Rx Fragment Counter */
-	u32 RFrg;			/*  0x60D4 */
+	u32 rx_fragment_packets;	/*  0x60D4 */
 
 	/* Rx Jabber Counter */
-	u32 RJbr;			/*  0x60D8 */
+	u32 rx_jabbers;			/*  0x60D8 */
 
 	/* Rx Drop */
-	u32 RDrp;			/*  0x60DC */
+	u32 rx_drops;			/*  0x60DC */
 
 	/* Tx Byte Counter */
-	u32 TByt;			/*  0x60E0 */
+	u32 tx_bytes;	 		/*  0x60E0 */
 
 	/* Tx Packet Counter */
-	u32 TPkt;			/*  0x60E4 */
+	u32 tx_packets;			/*  0x60E4 */
 
 	/* Tx Multicast Packet Counter */
-	u32 TMca;			/*  0x60E8 */
+	u32 tx_multicast_packets;	/*  0x60E8 */
 
 	/* Tx Broadcast Packet Counter */
-	u32 TBca;			/*  0x60EC */
+	u32 tx_broadcast_packets;	/*  0x60EC */
 
 	/* Tx Pause Control Frame Counter */
-	u32 TxPf;			/*  0x60F0 */
+	u32 tx_pause_frames;		/*  0x60F0 */
 
 	/* Tx Deferral Packet Counter */
-	u32 TDfr;			/*  0x60F4 */
+	u32 tx_deferred;		/*  0x60F4 */
 
 	/* Tx Excessive Deferral Packet Counter */
-	u32 TEdf;			/*  0x60F8 */
+	u32 tx_excessive_deferred;	/*  0x60F8 */
 
 	/* Tx Single Collision Packet Counter */
-	u32 TScl;			/*  0x60FC */
+	u32 tx_single_collisions;	/*  0x60FC */
 
 	/* Tx Multiple Collision Packet Counter */
-	u32 TMcl;			/*  0x6100 */
+	u32 tx_multiple_collisions;	/*  0x6100 */
 
 	/* Tx Late Collision Packet Counter */
-	u32 TLcl;			/*  0x6104 */
+	u32 tx_late_collisions;		/*  0x6104 */
 
 	/* Tx Excessive Collision Packet Counter */
-	u32 TXcl;			/*  0x6108 */
+	u32 tx_excessive_collisions;	/*  0x6108 */
 
 	/* Tx Total Collision Packet Counter */
-	u32 TNcl;			/*  0x610C */
+	u32 tx_total_collisions;	/*  0x610C */
 
 	/* Tx Pause Frame Honored Counter */
-	u32 TPfh;			/*  0x6110 */
+	u32 tx_pause_honored_frames;	/*  0x6110 */
 
 	/* Tx Drop Frame Counter */
-	u32 TDrp;			/*  0x6114 */
+	u32 tx_drops;			/*  0x6114 */
 
 	/* Tx Jabber Frame Counter */
-	u32 TJbr;			/*  0x6118 */
+	u32 tx_jabbers;			/*  0x6118 */
 
 	/* Tx FCS Error Counter */
-	u32 TFcs;			/*  0x611C */
+	u32 tx_fcs_errs;		/*  0x611C */
 
 	/* Tx Control Frame Counter */
-	u32 TxCf;			/*  0x6120 */
+	u32 tx_control_frames;		/*  0x6120 */
 
 	/* Tx Oversize Frame Counter */
-	u32 TOvr;			/*  0x6124 */
+	u32 tx_oversize_frames;		/*  0x6124 */
 
 	/* Tx Undersize Frame Counter */
-	u32 TUnd;			/*  0x6128 */
+	u32 tx_undersize_frames;	/*  0x6128 */
 
 	/* Tx Fragments Frame Counter */
-	u32 TFrg;			/*  0x612C */
+	u32 tx_fragments;		/*  0x612C */
 
 	/* Carry Register One Register */
-	u32 Carry1;			/*  0x6130 */
+	u32 carry_reg1;			/*  0x6130 */
 
 	/* Carry Register Two Register */
-	u32 Carry2;			/*  0x6134 */
+	u32 carry_reg2;	 		/*  0x6134 */
 
 	/* Carry Register One Mask Register */
-	u32 Carry1M;			/*  0x6138 */
+	u32 carry_reg1_mask;		/*  0x6138 */
 
 	/* Carry Register Two Mask Register */
-	u32 Carry2M;			/*  0x613C */
+	u32 carry_reg2_mask;		/*  0x613C */
 };
 
 /* END OF MAC STAT REGISTER ADDRESS MAP */
