@@ -26,7 +26,16 @@
 #define usbhsf_fifo_is_busy(f)	((f)->pipe) /* see usbhs_pipe_select_fifo */
 
 /*
- *		packet info function
+ *		packet initialize
+ */
+void usbhs_pkt_init(struct usbhs_pkt *pkt)
+{
+	pkt->dma = DMA_ADDR_INVALID;
+	INIT_LIST_HEAD(&pkt->node);
+}
+
+/*
+ *		packet control function
  */
 static int usbhsf_null_handle(struct usbhs_pkt *pkt, int *is_done)
 {
@@ -42,12 +51,6 @@ static struct usbhs_pkt_handle usbhsf_null_handler = {
 	.prepare = usbhsf_null_handle,
 	.try_run = usbhsf_null_handle,
 };
-
-void usbhs_pkt_init(struct usbhs_pkt *pkt)
-{
-	pkt->dma = DMA_ADDR_INVALID;
-	INIT_LIST_HEAD(&pkt->node);
-}
 
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 		    struct usbhs_pkt_handle *handler,
@@ -293,7 +296,7 @@ static int usbhsf_fifo_select(struct usbhs_pipe *pipe,
 }
 
 /*
- *		PIO fifo functions
+ *		PIO push handler
  */
 static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 {
@@ -395,6 +398,9 @@ struct usbhs_pkt_handle usbhs_fifo_pio_push_handler = {
 	.try_run = usbhsf_pio_try_push,
 };
 
+/*
+ *		PIO pop handler
+ */
 static int usbhsf_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
@@ -497,7 +503,7 @@ struct usbhs_pkt_handle usbhs_fifo_pio_pop_handler = {
 };
 
 /*
- *		handler function
+ *		DCP ctrol statge handler
  */
 static int usbhsf_ctrl_stage_end(struct usbhs_pkt *pkt, int *is_done)
 {
@@ -614,6 +620,9 @@ static void usbhsf_dma_prepare_tasklet(unsigned long data)
 	dma_async_issue_pending(chan);
 }
 
+/*
+ *		DMA push handler
+ */
 static int usbhsf_dma_prepare_push(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;
@@ -686,6 +695,9 @@ struct usbhs_pkt_handle usbhs_fifo_dma_push_handler = {
 	.dma_done	= usbhsf_dma_push_done,
 };
 
+/*
+ *		DMA pop handler
+ */
 static int usbhsf_dma_try_pop(struct usbhs_pkt *pkt, int *is_done)
 {
 	struct usbhs_pipe *pipe = pkt->pipe;

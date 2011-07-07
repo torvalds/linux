@@ -21,6 +21,29 @@
 #include <linux/sysfs.h>
 #include "./common.h"
 
+/*
+ *		image of renesas_usbhs
+ *
+ * ex) gadget case
+
+ * mod.c
+ * mod_gadget.c
+ * mod_host.c		pipe.c		fifo.c
+ *
+ *			+-------+	+-----------+
+ *			| pipe0 |------>| fifo pio  |
+ * +------------+	+-------+	+-----------+
+ * | mod_gadget |=====> | pipe1 |--+
+ * +------------+	+-------+  |	+-----------+
+ *			| pipe2 |  |  +-| fifo dma0 |
+ * +------------+	+-------+  |  |	+-----------+
+ * | mod_host   |	| pipe3 |<-|--+
+ * +------------+	+-------+  |	+-----------+
+ *			| ....  |  +--->| fifo dma1 |
+ *			| ....  |	+-----------+
+ */
+
+
 #define USBHSF_RUNTIME_PWCTRL	(1 << 0)
 
 /* status */

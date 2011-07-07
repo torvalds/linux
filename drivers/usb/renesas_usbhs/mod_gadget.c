@@ -114,7 +114,7 @@ struct usbhsg_recip_handle {
 #define usbhsg_status_has(gp, b) (gp->status &   b)
 
 /*
- *		list push/pop
+ *		queue push/pop
  */
 static void usbhsg_queue_push(struct usbhsg_uep *uep,
 			      struct usbhsg_request *ureq)
@@ -160,6 +160,9 @@ static void usbhsg_queue_done(struct usbhs_pkt *pkt)
 	usbhsg_queue_pop(uep, ureq, 0);
 }
 
+/*
+ *		dma map/unmap
+ */
 static int usbhsg_dma_map(struct device *dev,
 			  struct usbhs_pkt *pkt,
 			  enum dma_data_direction dir)
@@ -473,6 +476,11 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 		uep->pipe		= pipe;
 		pipe->mod_private	= uep;
 
+		/*
+		 * usbhs_fifo_dma_push/pop_handler try to
+		 * use dmaengine if possible.
+		 * It will use pio handler if impossible.
+		 */
 		if (usb_endpoint_dir_in(desc))
 			uep->handler = &usbhs_fifo_dma_push_handler;
 		else
