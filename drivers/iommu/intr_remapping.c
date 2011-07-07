@@ -13,7 +13,6 @@
 #include "intr_remapping.h"
 #include <acpi/acpi.h>
 #include <asm/pci-direct.h>
-#include "pci.h"
 
 static struct ioapic_scope ir_ioapic[MAX_IO_APICS];
 static struct hpet_scope ir_hpet[MAX_HPET_TBS];
