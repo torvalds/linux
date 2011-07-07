@@ -129,7 +129,6 @@ static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 int iwl_prepare_card_hw(struct iwl_priv *priv);
 
 int iwlagn_start_device(struct iwl_priv *priv);
-void iwlagn_stop_device(struct iwl_priv *priv);
 
 /* tx queue */
 void iwlagn_set_wr_ptrs(struct iwl_priv *priv,

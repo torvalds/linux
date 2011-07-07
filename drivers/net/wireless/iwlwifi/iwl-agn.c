@@ -1782,7 +1782,7 @@ static void __iwl_down(struct iwl_priv *priv)
 		       test_bit(STATUS_EXIT_PENDING, &priv->status) <<
 				STATUS_EXIT_PENDING;
 
-	iwlagn_stop_device(priv);
+	trans_stop_device(priv);
 
 	dev_kfree_skb(priv->beacon_skb);
 	priv->beacon_skb = NULL;

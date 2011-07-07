@@ -707,6 +707,6 @@ int iwlagn_run_init_ucode(struct iwl_priv *priv)
 	iwlagn_remove_notification(priv, &calib_wait);
  out:
 	/* Whatever happened, stop the device */
-	iwlagn_stop_device(priv);
+	trans_stop_device(priv);
 	return ret;
 }
