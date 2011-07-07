@@ -75,7 +75,6 @@ static int eucr_resume(struct usb_interface *iface)
          us->Power_IsResum = true;
 	//
 	//us->SD_Status.Ready = 0; //??
-    	us->MS_Status = *(PMS_STATUS)&tmp;
     	us->SM_Status = *(PSM_STATUS)&tmp;
     	
 	return 0;
@@ -98,7 +97,6 @@ static int eucr_reset_resume(struct usb_interface *iface)
  	us->Power_IsResum = true;
 	//
 	//us->SD_Status.Ready = 0; //??
-    	us->MS_Status = *(PMS_STATUS)&tmp;
     	us->SM_Status = *(PSM_STATUS)&tmp;
 	return 0;
 }
