@@ -149,8 +149,8 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 
 update_iv:
 	/* update IV in key information to be able to detect replays */
-	rx->key->u.tkip.rx[rx->queue].iv32 = rx->tkip_iv32;
-	rx->key->u.tkip.rx[rx->queue].iv16 = rx->tkip_iv16;
+	rx->key->u.tkip.rx[rx->security_idx].iv32 = rx->tkip_iv32;
+	rx->key->u.tkip.rx[rx->security_idx].iv16 = rx->tkip_iv16;
 
 	return RX_CONTINUE;
 
@@ -263,7 +263,7 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_rx_data *rx)
 	res = ieee80211_tkip_decrypt_data(rx->local->wep_rx_tfm,
 					  key, skb->data + hdrlen,
 					  skb->len - hdrlen, rx->sta->sta.addr,
-					  hdr->addr1, hwaccel, rx->queue,
+					  hdr->addr1, hwaccel, rx->security_idx,
 					  &rx->tkip_iv32,
 					  &rx->tkip_iv16);
 	if (res != TKIP_DECRYPT_OK)
@@ -478,8 +478,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 
 	ccmp_hdr2pn(pn, skb->data + hdrlen);
 
-	queue = ieee80211_is_mgmt(hdr->frame_control) ?
-		NUM_RX_DATA_QUEUES : rx->queue;
+	queue = rx->security_idx;
 
 	if (memcmp(pn, key->u.ccmp.rx_pn[queue], CCMP_PN_LEN) <= 0) {
 		key->u.ccmp.replays++;

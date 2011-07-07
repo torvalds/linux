@@ -287,7 +287,8 @@ struct sta_info {
 	unsigned long rx_dropped;
 	int last_signal;
 	struct ewma avg_signal;
-	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES];
+	/* Plus 1 for non-QoS frames */
+	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES + 1];
 
 	/* Updated from TX status path only, no locking requirements */
 	unsigned long tx_filtered_count;

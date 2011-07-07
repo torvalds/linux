@@ -202,7 +202,22 @@ struct ieee80211_rx_data {
 	struct ieee80211_key *key;
 
 	unsigned int flags;
-	int queue;
+
+	/*
+	 * Index into sequence numbers array, 0..16
+	 * since the last (16) is used for non-QoS,
+	 * will be 16 on non-QoS frames.
+	 */
+	int seqno_idx;
+
+	/*
+	 * Index into the security IV/PN arrays, 0..16
+	 * since the last (16) is used for CCMP-encrypted
+	 * management frames, will be set to 16 on mgmt
+	 * frames and 0 on non-QoS frames.
+	 */
+	int security_idx;
+
 	u32 tkip_iv32;
 	u16 tkip_iv16;
 };

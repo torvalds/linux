@@ -29,7 +29,7 @@
 #define TKIP_IV_LEN		8
 #define TKIP_ICV_LEN		4
 
-#define NUM_RX_DATA_QUEUES	17
+#define NUM_RX_DATA_QUEUES	16
 
 struct ieee80211_local;
 struct ieee80211_sub_if_data;
