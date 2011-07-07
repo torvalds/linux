@@ -1243,6 +1243,8 @@ struct iwl_trans;
  * @tx_free: frees the tx memory
  * @send_cmd:send a host command
  * @send_cmd_pdu:send a host command: flags can be CMD_*
+ * @get_tx_cmd: returns a pointer to a new Tx cmd for the upper layer use
+ * @tx: send an skb
  * @sync_irq: the upper layer will typically disable interrupt and call this
  *            handler. After this handler returns, it is guaranteed that all
  *            the ISR / tasklet etc... have finished running and the transport
