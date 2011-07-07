@@ -422,6 +422,7 @@ struct l2cap_conn {
 struct l2cap_pinfo {
 	struct bt_sock	bt;
 	struct l2cap_chan	*chan;
+	struct sk_buff	*rx_busy_skb;
 };
 
 enum {
@@ -498,5 +499,6 @@ void l2cap_chan_close(struct l2cap_chan *chan, int reason);
 void l2cap_chan_destroy(struct l2cap_chan *chan);
 int l2cap_chan_connect(struct l2cap_chan *chan);
 int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len);
+void l2cap_chan_busy(struct l2cap_chan *chan, int busy);
 
 #endif /* __L2CAP_H */

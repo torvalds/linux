@@ -3350,19 +3350,19 @@ static int l2cap_push_rx_skb(struct l2cap_chan *chan, struct sk_buff *skb, u16 c
 	}
 
 	err = l2cap_ertm_reassembly_sdu(chan, skb, control);
-	if (err >= 0) {
-		chan->buffer_seq = (chan->buffer_seq + 1) % 64;
-		return err;
-	}
-
-	l2cap_ertm_enter_local_busy(chan);
-
-	bt_cb(skb)->sar = control >> L2CAP_CTRL_SAR_SHIFT;
-	__skb_queue_tail(&chan->busy_q, skb);
-
-	queue_work(_busy_wq, &chan->busy_work);
+	chan->buffer_seq = (chan->buffer_seq + 1) % 64;
 
 	return err;
+}
+
+void l2cap_chan_busy(struct l2cap_chan *chan, int busy)
+{
+	if (chan->mode == L2CAP_MODE_ERTM) {
+		if (busy)
+			l2cap_ertm_enter_local_busy(chan);
+		else
+			l2cap_ertm_exit_local_busy(chan);
+	}
 }
 
 static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *skb, u16 control)
@@ -3463,13 +3463,22 @@ static void l2cap_check_srej_gap(struct l2cap_chan *chan, u8 tx_seq)
 	struct sk_buff *skb;
 	u16 control;
 
-	while ((skb = skb_peek(&chan->srej_q))) {
+	while ((skb = skb_peek(&chan->srej_q)) &&
+			!test_bit(CONN_LOCAL_BUSY, &chan->conn_state)) {
+		int err;
+
 		if (bt_cb(skb)->tx_seq != tx_seq)
 			break;
 
 		skb = skb_dequeue(&chan->srej_q);
 		control = bt_cb(skb)->sar << L2CAP_CTRL_SAR_SHIFT;
-		l2cap_ertm_reassembly_sdu(chan, skb, control);
+		err = l2cap_ertm_reassembly_sdu(chan, skb, control);
+
+		if (err < 0) {
+			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
+			break;
+		}
+
 		chan->buffer_seq_srej =
 			(chan->buffer_seq_srej + 1) % 64;
 		tx_seq = (tx_seq + 1) % 64;
@@ -3625,8 +3634,10 @@ expected:
 	}
 
 	err = l2cap_push_rx_skb(chan, skb, rx_control);
-	if (err < 0)
-		return 0;
+	if (err < 0) {
+		l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
+		return err;
+	}
 
 	if (rx_control & L2CAP_CTRL_FINAL) {
 		if (!test_and_clear_bit(CONN_REJ_ACT, &chan->conn_state))
