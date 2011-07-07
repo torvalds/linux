@@ -150,16 +150,43 @@ nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, int type, bool update)
 {
 	struct drm_display_mode *mode = &nv_crtc->base.mode;
 	struct drm_device *dev = nv_crtc->base.dev;
-	u32 *push;
+	struct nouveau_connector *nv_connector;
+	u32 *push, outX, outY;
 
-	/*XXX: actually handle scaling */
+	outX = mode->hdisplay;
+	outY = mode->vdisplay;
+
+	nv_connector = nouveau_crtc_connector_get(nv_crtc);
+	if (nv_connector && nv_connector->native_mode) {
+		struct drm_display_mode *native = nv_connector->native_mode;
+		u32 xratio = (native->hdisplay << 19) / mode->hdisplay;
+		u32 yratio = (native->vdisplay << 19) / mode->vdisplay;
+
+		switch (type) {
+		case DRM_MODE_SCALE_ASPECT:
+			if (xratio > yratio) {
+				outX = (mode->hdisplay * yratio) >> 19;
+				outY = (mode->vdisplay * yratio) >> 19;
+			} else {
+				outX = (mode->hdisplay * xratio) >> 19;
+				outY = (mode->vdisplay * xratio) >> 19;
+			}
+			break;
+		case DRM_MODE_SCALE_FULLSCREEN:
+			outX = native->hdisplay;
+			outY = native->vdisplay;
+			break;
+		default:
+			break;
+		}
+	}
 
 	push = evo_wait(dev, 0, 16);
 	if (push) {
 		evo_mthd(push, 0x04c0 + (nv_crtc->index * 0x300), 3);
-		evo_data(push, (mode->vdisplay << 16) | mode->hdisplay);
-		evo_data(push, (mode->vdisplay << 16) | mode->hdisplay);
-		evo_data(push, (mode->vdisplay << 16) | mode->hdisplay);
+		evo_data(push, (outY << 16) | outX);
+		evo_data(push, (outY << 16) | outX);
+		evo_data(push, (outY << 16) | outX);
 		evo_mthd(push, 0x0494 + (nv_crtc->index * 0x300), 1);
 		evo_data(push, 0x00000000);
 		evo_mthd(push, 0x04b0 + (nv_crtc->index * 0x300), 1);
