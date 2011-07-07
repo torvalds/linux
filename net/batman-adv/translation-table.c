@@ -183,7 +183,8 @@ static int tt_local_init(struct bat_priv *bat_priv)
 	return 1;
 }
 
-void tt_local_add(struct net_device *soft_iface, const uint8_t *addr)
+void tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
+		  int ifindex)
 {
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	struct tt_local_entry *tt_local_entry = NULL;
@@ -207,6 +208,8 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr)
 	memcpy(tt_local_entry->addr, addr, ETH_ALEN);
 	tt_local_entry->last_seen = jiffies;
 	tt_local_entry->flags = NO_FLAGS;
+	if (is_wifi_iface(ifindex))
+		tt_local_entry->flags |= TT_CLIENT_WIFI;
 	atomic_set(&tt_local_entry->refcount, 2);
 
 	/* the batman interface mac address should never be purged */
@@ -495,7 +498,8 @@ static void tt_changes_list_free(struct bat_priv *bat_priv)
 
 /* caller must hold orig_node refcount */
 int tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
-		  const unsigned char *tt_addr, uint8_t ttvn, bool roaming)
+		  const unsigned char *tt_addr, uint8_t ttvn, bool roaming,
+		  bool wifi)
 {
 	struct tt_global_entry *tt_global_entry;
 	struct orig_node *orig_node_tmp;
@@ -536,6 +540,9 @@ int tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
 		tt_global_entry->flags = NO_FLAGS;
 		tt_global_entry->roam_at = 0;
 	}
+
+	if (wifi)
+		tt_global_entry->flags |= TT_CLIENT_WIFI;
 
 	bat_dbg(DBG_TT, bat_priv,
 		"Creating new global tt entry: %pM (via %pM)\n",
@@ -1363,7 +1370,9 @@ static void _tt_update_changes(struct bat_priv *bat_priv,
 				      (tt_change + i)->flags & TT_CLIENT_ROAM);
 		else
 			if (!tt_global_add(bat_priv, orig_node,
-					   (tt_change + i)->addr, ttvn, false))
+					   (tt_change + i)->addr, ttvn, false,
+					   (tt_change + i)->flags &
+							TT_CLIENT_WIFI))
 				/* In case of problem while storing a
 				 * global_entry, we stop the updating
 				 * procedure without committing the

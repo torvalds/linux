@@ -681,6 +681,36 @@ err_out:
 	return NET_RX_DROP;
 }
 
+/* This function returns true if the interface represented by ifindex is a
+ * 802.11 wireless device */
+bool is_wifi_iface(int ifindex)
+{
+	struct net_device *net_device = NULL;
+	bool ret = false;
+
+	if (ifindex == NULL_IFINDEX)
+		goto out;
+
+	net_device = dev_get_by_index(&init_net, ifindex);
+	if (!net_device)
+		goto out;
+
+#ifdef CONFIG_WIRELESS_EXT
+	/* pre-cfg80211 drivers have to implement WEXT, so it is possible to
+	 * check for wireless_handlers != NULL */
+	if (net_device->wireless_handlers)
+		ret = true;
+	else
+#endif
+		/* cfg80211 drivers have to set ieee80211_ptr */
+		if (net_device->ieee80211_ptr)
+			ret = true;
+out:
+	if (net_device)
+		dev_put(net_device);
+	return ret;
+}
+
 struct notifier_block hard_if_notifier = {
 	.notifier_call = hard_if_event,
 };

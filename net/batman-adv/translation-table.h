@@ -26,15 +26,16 @@ int tt_len(int changes_num);
 int tt_changes_fill_buffer(struct bat_priv *bat_priv,
 			   unsigned char *buff, int buff_len);
 int tt_init(struct bat_priv *bat_priv);
-void tt_local_add(struct net_device *soft_iface, const uint8_t *addr);
+void tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
+		  int ifindex);
 void tt_local_remove(struct bat_priv *bat_priv,
 		     const uint8_t *addr, const char *message, bool roaming);
 int tt_local_seq_print_text(struct seq_file *seq, void *offset);
 void tt_global_add_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 			const unsigned char *tt_buff, int tt_buff_len);
-int tt_global_add(struct bat_priv *bat_priv,
-		  struct orig_node *orig_node, const unsigned char *addr,
-		  uint8_t ttvn, bool roaming);
+int tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
+		  const unsigned char *addr, uint8_t ttvn, bool roaming,
+		  bool wifi);
 int tt_global_seq_print_text(struct seq_file *seq, void *offset);
 void tt_global_del_orig(struct bat_priv *bat_priv,
 			struct orig_node *orig_node, const char *message);
