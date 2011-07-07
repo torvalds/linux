@@ -1245,6 +1245,7 @@ struct iwl_trans;
  * @send_cmd_pdu:send a host command: flags can be CMD_*
  * @get_tx_cmd: returns a pointer to a new Tx cmd for the upper layer use
  * @tx: send an skb
+ * @kick_nic: remove the RESET from the embedded CPU and let it run
  * @sync_irq: the upper layer will typically disable interrupt and call this
  *            handler. After this handler returns, it is guaranteed that all
  *            the ISR / tasklet etc... have finished running and the transport
@@ -1270,6 +1271,8 @@ struct iwl_trans_ops {
 	int (*tx)(struct iwl_priv *priv, struct sk_buff *skb,
 		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
 		struct iwl_rxon_context *ctx);
+
+	void (*kick_nic)(struct iwl_priv *priv);
 
 	void (*sync_irq)(struct iwl_priv *priv);
 	void (*free)(struct iwl_priv *priv);

@@ -494,8 +494,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 		return ret;
 	}
 
-	/* Remove all resets to allow NIC to operate */
-	iwl_write32(priv, CSR_RESET, 0);
+	trans_kick_nic(priv);
 
 	/*
 	 * Some things may run in the background now, but we

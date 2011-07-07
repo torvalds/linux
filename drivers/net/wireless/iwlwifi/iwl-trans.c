@@ -952,6 +952,12 @@ static int iwl_trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
 	return 0;
 }
 
+static void iwl_trans_kick_nic(struct iwl_priv *priv)
+{
+	/* Remove all resets to allow NIC to operate */
+	iwl_write32(priv, CSR_RESET, 0);
+}
+
 static void iwl_trans_sync_irq(struct iwl_priv *priv)
 {
 	/* wait to make sure we flush pending tasklet*/
@@ -980,6 +986,7 @@ static const struct iwl_trans_ops trans_ops = {
 
 	.get_tx_cmd = iwl_trans_get_tx_cmd,
 	.tx = iwl_trans_tx,
+	.kick_nic = iwl_trans_kick_nic,
 
 	.sync_irq = iwl_trans_sync_irq,
 	.free = iwl_trans_free,
