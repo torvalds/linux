@@ -701,6 +701,9 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 				     priv->x_max ?: XMAX_NOMINAL, 0, 0);
 		input_set_abs_params(dev, ABS_MT_POSITION_Y, YMIN_NOMINAL,
 				     priv->y_max ?: YMAX_NOMINAL, 0, 0);
+
+		input_abs_set_res(dev, ABS_MT_POSITION_X, priv->x_res);
+		input_abs_set_res(dev, ABS_MT_POSITION_Y, priv->y_res);
 	}
 
 	if (SYN_CAP_PALMDETECT(priv->capabilities))
