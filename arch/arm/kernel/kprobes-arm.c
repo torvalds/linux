@@ -92,29 +92,6 @@ union reg_pair {
 };
 
 /*
- * For STR and STM instructions, an ARM core may choose to use either
- * a +8 or a +12 displacement from the current instruction's address.
- * Whichever value is chosen for a given core, it must be the same for
- * both instructions and may not change.  This function measures it.
- */
-
-static int str_pc_offset;
-
-static void __init find_str_pc_offset(void)
-{
-	int addr, scratch, ret;
-
-	__asm__ (
-		"sub	%[ret], pc, #4		\n\t"
-		"str	pc, %[addr]		\n\t"
-		"ldr	%[scr], %[addr]		\n\t"
-		"sub	%[ret], %[scr], %[ret]	\n\t"
-		: [ret] "=r" (ret), [scr] "=r" (scratch), [addr] "+m" (addr));
-
-	str_pc_offset = ret;
-}
-
-/*
  * The insnslot_?arg_r[w]flags() functions below are to keep the
  * msr -> *fn -> mrs instruction sequences indivisible so that
  * the state of the CPSR flags aren't inadvertently modified
@@ -1568,9 +1545,4 @@ arm_kprobe_decode_insn(kprobe_opcode_t insn, struct arch_specific_insn *asi)
 		return space_cccc_101x(insn, asi);
 
 	return space_cccc_11xx(insn, asi);
-}
-
-void __init arm_kprobe_decode_init(void)
-{
-	find_str_pc_offset();
 }

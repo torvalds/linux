@@ -36,6 +36,8 @@ void __init arm_kprobe_decode_init(void);
 
 extern kprobe_check_cc * const kprobe_condition_checks[16];
 
+extern int str_pc_offset;
+
 /*
  * Test if load/store instructions writeback the address register.
  * if P (bit 24) == 0 or W (bit 21) == 1
