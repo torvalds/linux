@@ -300,8 +300,8 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 				wacom->id[1] = 0;
 			input_report_abs(input, ABS_MISC, wacom->id[1]);
 			input_event(input, EV_MSC, MSC_SERIAL, 0xf0);
+			retval = 1;
 		}
-		retval = 1;
 		break;
 	}
 exit:
