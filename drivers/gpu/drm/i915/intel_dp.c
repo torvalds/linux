@@ -1522,10 +1522,21 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 static void
 intel_dp_check_link_status(struct intel_dp *intel_dp)
 {
+	int ret;
+
 	if (!intel_dp->base.base.crtc)
 		return;
 
 	if (!intel_dp_get_link_status(intel_dp)) {
+		intel_dp_link_down(intel_dp);
+		return;
+	}
+
+	/* Try to read receiver status if the link appears to be up */
+	ret = intel_dp_aux_native_read(intel_dp,
+				       0x000, intel_dp->dpcd,
+				       sizeof (intel_dp->dpcd));
+	if (ret != sizeof(intel_dp->dpcd)) {
 		intel_dp_link_down(intel_dp);
 		return;
 	}
