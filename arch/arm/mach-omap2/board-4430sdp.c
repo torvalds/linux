@@ -22,6 +22,7 @@
 #include <linux/i2c/twl.h>
 #include <linux/gpio_keys.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 #include <linux/leds.h>
 #include <linux/leds_pwm.h>
 
@@ -275,11 +276,40 @@ static struct platform_device sdp4430_lcd_device = {
 	.id		= -1,
 };
 
+static struct regulator_consumer_supply sdp4430_vbat_supply[] = {
+	REGULATOR_SUPPLY("vddvibl", "twl6040-vibra"),
+	REGULATOR_SUPPLY("vddvibr", "twl6040-vibra"),
+};
+
+static struct regulator_init_data sdp4430_vbat_data = {
+	.constraints = {
+		.always_on	= 1,
+	},
+	.num_consumer_supplies	= ARRAY_SIZE(sdp4430_vbat_supply),
+	.consumer_supplies	= sdp4430_vbat_supply,
+};
+
+static struct fixed_voltage_config sdp4430_vbat_pdata = {
+	.supply_name	= "VBAT",
+	.microvolts	= 3750000,
+	.init_data	= &sdp4430_vbat_data,
+	.gpio		= -EINVAL,
+};
+
+static struct platform_device sdp4430_vbat = {
+	.name		= "reg-fixed-voltage",
+	.id		= -1,
+	.dev = {
+		.platform_data = &sdp4430_vbat_pdata,
+	},
+};
+
 static struct platform_device *sdp4430_devices[] __initdata = {
 	&sdp4430_lcd_device,
 	&sdp4430_gpio_keys_device,
 	&sdp4430_leds_gpio,
 	&sdp4430_leds_pwm,
+	&sdp4430_vbat,
 };
 
 static struct omap_lcd_config sdp4430_lcd_config __initdata = {
@@ -395,7 +425,33 @@ static struct regulator_init_data sdp4430_vusim = {
 	},
 };
 
+static struct twl4030_codec_data twl6040_codec = {
+	/* single-step ramp for headset and handsfree */
+	.hs_left_step	= 0x0f,
+	.hs_right_step	= 0x0f,
+	.hf_left_step	= 0x1d,
+	.hf_right_step	= 0x1d,
+};
+
+static struct twl4030_vibra_data twl6040_vibra = {
+	.vibldrv_res = 8,
+	.vibrdrv_res = 3,
+	.viblmotor_res = 10,
+	.vibrmotor_res = 10,
+	.vddvibl_uV = 0,	/* fixed volt supply - VBAT */
+	.vddvibr_uV = 0,	/* fixed volt supply - VBAT */
+};
+
+static struct twl4030_audio_data twl6040_audio = {
+	.codec		= &twl6040_codec,
+	.vibra		= &twl6040_vibra,
+	.audpwron_gpio	= 127,
+	.naudint_irq	= OMAP44XX_IRQ_SYS_2N,
+	.irq_base	= TWL6040_CODEC_IRQ_BASE,
+};
+
 static struct twl4030_platform_data sdp4430_twldata = {
+	.audio		= &twl6040_audio,
 	/* Regulators */
 	.vusim		= &sdp4430_vusim,
 	.vaux1		= &sdp4430_vaux1,

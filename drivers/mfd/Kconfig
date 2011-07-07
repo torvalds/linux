@@ -218,7 +218,7 @@ config TWL4030_POWER
 	  and load scripts controlling which resources are switched off/on
 	  or reset when a sleep, wakeup or warm reset event occurs.
 
-config TWL4030_CODEC
+config MFD_TWL4030_AUDIO
 	bool
 	depends on TWL4030_CORE
 	select MFD_CORE
@@ -232,6 +232,12 @@ config TWL6030_PWM
 	help
 	  Say yes here if you want support for TWL6030 PWM.
 	  This is used to control charging LED brightness.
+
+config TWL6040_CORE
+	bool
+	depends on TWL4030_CORE && GENERIC_HARDIRQS
+	select MFD_CORE
+	default n
 
 config MFD_STMPE
 	bool "Support STMicroelectronics STMPE"

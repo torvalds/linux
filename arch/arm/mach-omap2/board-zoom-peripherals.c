@@ -274,12 +274,12 @@ static int __init omap_i2c_init(void)
 			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
 
 	if (machine_is_omap_zoom2()) {
-		struct twl4030_codec_audio_data *audio_data;
-		audio_data = zoom_twldata.codec->audio;
+		struct twl4030_codec_data *codec_data;
+		codec_data = zoom_twldata.audio->codec;
 
-		audio_data->ramp_delay_value = 3;	/* 161 ms */
-		audio_data->hs_extmute = 1;
-		audio_data->set_hs_extmute = zoom2_set_hs_extmute;
+		codec_data->ramp_delay_value = 3;	/* 161 ms */
+		codec_data->hs_extmute = 1;
+		codec_data->set_hs_extmute = zoom2_set_hs_extmute;
 	}
 	omap_pmic_init(1, 2400, "twl5030", INT_34XX_SYS_NIRQ, &zoom_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);

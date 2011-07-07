@@ -1,5 +1,5 @@
 /*
- * MFD driver for twl4030 codec submodule
+ * MFD driver for twl4030 audio submodule
  *
  * Author: Peter Ujfalusi <peter.ujfalusi@ti.com>
  *
@@ -259,14 +259,14 @@
 #define TWL4030_VIBRA_DIR_SEL		0x20
 
 /* TWL4030 codec resource IDs */
-enum twl4030_codec_res {
-	TWL4030_CODEC_RES_POWER = 0,
-	TWL4030_CODEC_RES_APLL,
-	TWL4030_CODEC_RES_MAX,
+enum twl4030_audio_res {
+	TWL4030_AUDIO_RES_POWER = 0,
+	TWL4030_AUDIO_RES_APLL,
+	TWL4030_AUDIO_RES_MAX,
 };
 
-int twl4030_codec_disable_resource(enum twl4030_codec_res id);
-int twl4030_codec_enable_resource(enum twl4030_codec_res id);
-unsigned int twl4030_codec_get_mclk(void);
+int twl4030_audio_disable_resource(enum twl4030_audio_res id);
+int twl4030_audio_enable_resource(enum twl4030_audio_res id);
+unsigned int twl4030_audio_get_mclk(void);
 
 #endif	/* End of __TWL4030_CODEC_H__ */
