@@ -1551,6 +1551,7 @@ static enum drm_connector_status
 ironlake_dp_detect(struct intel_dp *intel_dp)
 {
 	enum drm_connector_status status;
+	int ret, i;
 
 	/* Can't disconnect eDP, but you can close the lid... */
 	if (is_edp(intel_dp)) {
@@ -1561,12 +1562,16 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 	}
 
 	status = connector_status_disconnected;
-	if (intel_dp_aux_native_read(intel_dp,
-				     0x000, intel_dp->dpcd,
-				     sizeof (intel_dp->dpcd))
-	    == sizeof(intel_dp->dpcd)) {
-		if (intel_dp->dpcd[DP_DPCD_REV] != 0)
+	for (i = 0; i < 3; i++) {
+		ret = intel_dp_aux_native_read(intel_dp,
+					       0x000, intel_dp->dpcd,
+					       sizeof (intel_dp->dpcd));
+		if (ret == sizeof(intel_dp->dpcd) &&
+		    intel_dp->dpcd[DP_DPCD_REV] != 0) {
 			status = connector_status_connected;
+			break;
+		}
+		msleep(1);
 	}
 	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", intel_dp->dpcd[0],
 		      intel_dp->dpcd[1], intel_dp->dpcd[2], intel_dp->dpcd[3]);
