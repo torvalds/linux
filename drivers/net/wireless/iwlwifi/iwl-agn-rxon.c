@@ -303,6 +303,99 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 	return 0;
 }
 
+int iwlagn_set_pan_params(struct iwl_priv *priv)
+{
+	struct iwl_wipan_params_cmd cmd;
+	struct iwl_rxon_context *ctx_bss, *ctx_pan;
+	int slot0 = 300, slot1 = 0;
+	int ret;
+
+	if (priv->valid_contexts == BIT(IWL_RXON_CTX_BSS))
+		return 0;
+
+	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
+
+	lockdep_assert_held(&priv->mutex);
+
+	ctx_bss = &priv->contexts[IWL_RXON_CTX_BSS];
+	ctx_pan = &priv->contexts[IWL_RXON_CTX_PAN];
+
+	/*
+	 * If the PAN context is inactive, then we don't need
+	 * to update the PAN parameters, the last thing we'll
+	 * have done before it goes inactive is making the PAN
+	 * parameters be WLAN-only.
+	 */
+	if (!ctx_pan->is_active)
+		return 0;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	/* only 2 slots are currently allowed */
+	cmd.num_slots = 2;
+
+	cmd.slots[0].type = 0; /* BSS */
+	cmd.slots[1].type = 1; /* PAN */
+
+	if (priv->_agn.hw_roc_channel) {
+		/* both contexts must be used for this to happen */
+		slot1 = priv->_agn.hw_roc_duration;
+		slot0 = IWL_MIN_SLOT_TIME;
+	} else if (ctx_bss->vif && ctx_pan->vif) {
+		int bcnint = ctx_pan->vif->bss_conf.beacon_int;
+		int dtim = ctx_pan->vif->bss_conf.dtim_period ?: 1;
+
+		/* should be set, but seems unused?? */
+		cmd.flags |= cpu_to_le16(IWL_WIPAN_PARAMS_FLG_SLOTTED_MODE);
+
+		if (ctx_pan->vif->type == NL80211_IFTYPE_AP &&
+		    bcnint &&
+		    bcnint != ctx_bss->vif->bss_conf.beacon_int) {
+			IWL_ERR(priv,
+				"beacon intervals don't match (%d, %d)\n",
+				ctx_bss->vif->bss_conf.beacon_int,
+				ctx_pan->vif->bss_conf.beacon_int);
+		} else
+			bcnint = max_t(int, bcnint,
+				       ctx_bss->vif->bss_conf.beacon_int);
+		if (!bcnint)
+			bcnint = DEFAULT_BEACON_INTERVAL;
+		slot0 = bcnint / 2;
+		slot1 = bcnint - slot0;
+
+		if (test_bit(STATUS_SCAN_HW, &priv->status) ||
+		    (!ctx_bss->vif->bss_conf.idle &&
+		     !ctx_bss->vif->bss_conf.assoc)) {
+			slot0 = dtim * bcnint * 3 - IWL_MIN_SLOT_TIME;
+			slot1 = IWL_MIN_SLOT_TIME;
+		} else if (!ctx_pan->vif->bss_conf.idle &&
+			   !ctx_pan->vif->bss_conf.assoc) {
+			slot1 = bcnint * 3 - IWL_MIN_SLOT_TIME;
+			slot0 = IWL_MIN_SLOT_TIME;
+		}
+	} else if (ctx_pan->vif) {
+		slot0 = 0;
+		slot1 = max_t(int, 1, ctx_pan->vif->bss_conf.dtim_period) *
+					ctx_pan->vif->bss_conf.beacon_int;
+		slot1 = max_t(int, DEFAULT_BEACON_INTERVAL, slot1);
+
+		if (test_bit(STATUS_SCAN_HW, &priv->status)) {
+			slot0 = slot1 * 3 - IWL_MIN_SLOT_TIME;
+			slot1 = IWL_MIN_SLOT_TIME;
+		}
+	}
+
+	cmd.slots[0].width = cpu_to_le16(slot0);
+	cmd.slots[1].width = cpu_to_le16(slot1);
+
+	ret = trans_send_cmd_pdu(priv, REPLY_WIPAN_PARAMS, CMD_SYNC,
+			sizeof(cmd), &cmd);
+	if (ret)
+		IWL_ERR(priv, "Error setting PAN parameters (%d)\n", ret);
+
+	return ret;
+}
+
 /**
  * iwlagn_commit_rxon - commit staging_rxon to hardware
  *

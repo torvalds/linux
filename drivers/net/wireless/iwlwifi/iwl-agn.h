@@ -146,6 +146,7 @@ void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 			    int sta_id, int tid, int freed);
 
 /* RXON */
+int iwlagn_set_pan_params(struct iwl_priv *priv);
 int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed);
@@ -178,6 +179,7 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv);
 int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv);
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
+int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
 
 /* rx */
 void iwl_irq_tasklet(struct iwl_priv *priv);
@@ -244,17 +246,6 @@ void iwlagn_post_scan(struct iwl_priv *priv);
 /* station mgmt */
 int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 			       struct ieee80211_vif *vif, bool add);
-
-/* hcmd */
-int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant);
-int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
-int iwlagn_set_pan_params(struct iwl_priv *priv);
-void iwlagn_gain_computation(struct iwl_priv *priv,
-                u32 average_noise[NUM_RX_CHAINS],
-                u16 min_average_noise_antenna_i,
-                u32 min_average_noise,
-                u8 default_chain);
-
 
 /* bt coex */
 void iwlagn_send_advance_bt_config(struct iwl_priv *priv);

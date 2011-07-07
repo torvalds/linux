@@ -1954,6 +1954,25 @@ static int iwlagn_send_calib_cfg_rt(struct iwl_priv *priv, u32 cfg)
 }
 
 
+static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
+{
+	struct iwl_tx_ant_config_cmd tx_ant_cmd = {
+	  .valid = cpu_to_le32(valid_tx_ant),
+	};
+
+	if (IWL_UCODE_API(priv->ucode_ver) > 1) {
+		IWL_DEBUG_HC(priv, "select valid tx ant: %u\n", valid_tx_ant);
+		return trans_send_cmd_pdu(priv,
+					TX_ANT_CONFIGURATION_CMD,
+					CMD_SYNC,
+					sizeof(struct iwl_tx_ant_config_cmd),
+					&tx_ant_cmd);
+	} else {
+		IWL_DEBUG_HC(priv, "TX_ANT_CONFIGURATION_CMD not supported\n");
+		return -EOPNOTSUPP;
+	}
+}
+
 /**
  * iwl_alive_start - called after REPLY_ALIVE notification received
  *                   from protocol/runtime uCode (initialization uCode's
