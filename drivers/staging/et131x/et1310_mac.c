@@ -387,21 +387,54 @@ void ConfigMacStatRegs(struct et131x_adapter *etdev)
 	/* Next we need to initialize all the macstat registers to zero on
 	 * the device.
 	 */
+	writel(0, &macstat->txrx_0_64_byte_frames);
+	writel(0, &macstat->txrx_65_127_byte_frames);
+	writel(0, &macstat->txrx_128_255_byte_frames);
+	writel(0, &macstat->txrx_256_511_byte_frames);
+	writel(0, &macstat->txrx_512_1023_byte_frames);
+	writel(0, &macstat->txrx_1024_1518_byte_frames);
+	writel(0, &macstat->txrx_1519_1522_gvln_frames);
+
+	writel(0, &macstat->rx_bytes);
+	writel(0, &macstat->rx_packets);
 	writel(0, &macstat->rx_fcs_errs);
+	writel(0, &macstat->rx_multicast_packets);
+	writel(0, &macstat->rx_broadcast_packets);
+	writel(0, &macstat->rx_control_frames);
+	writel(0, &macstat->rx_pause_frames);
+	writel(0, &macstat->rx_unknown_opcodes);
 	writel(0, &macstat->rx_align_errs);
 	writel(0, &macstat->rx_frame_len_errs);
 	writel(0, &macstat->rx_code_errs);
-	writel(0, &macstat->rx_drops);
+	writel(0, &macstat->rx_carrier_sense_errs);
+	writel(0, &macstat->rx_undersize_packets);
 	writel(0, &macstat->rx_oversize_packets);
 	writel(0, &macstat->rx_fragment_packets);
+	writel(0, &macstat->rx_jabbers);
+	writel(0, &macstat->rx_drops);
 
+	writel(0, &macstat->tx_bytes);
+	writel(0, &macstat->tx_packets);
+	writel(0, &macstat->tx_multicast_packets);
+	writel(0, &macstat->tx_broadcast_packets);
+	writel(0, &macstat->tx_pause_frames);
 	writel(0, &macstat->tx_deferred);
+	writel(0, &macstat->tx_excessive_deferred);
 	writel(0, &macstat->tx_single_collisions);
 	writel(0, &macstat->tx_multiple_collisions);
 	writel(0, &macstat->tx_late_collisions);
+	writel(0, &macstat->tx_excessive_collisions);
 	writel(0, &macstat->tx_total_collisions);
+	writel(0, &macstat->tx_pause_honored_frames);
+	writel(0, &macstat->tx_drops);
+	writel(0, &macstat->tx_jabbers);
+	writel(0, &macstat->tx_fcs_errs);
+	writel(0, &macstat->tx_control_frames);
 	writel(0, &macstat->tx_oversize_frames);
 	writel(0, &macstat->tx_undersize_frames);
+	writel(0, &macstat->tx_fragments);
+	writel(0, &macstat->carry_reg1);
+	writel(0, &macstat->carry_reg2);
 
 	/* Unmask any counters that we want to track the overflow of.
 	 * Initially this will be all counters.  It may become clear later
