@@ -781,6 +781,18 @@ static void tt_global_table_free(struct bat_priv *bat_priv)
 	bat_priv->tt_global_hash = NULL;
 }
 
+static bool _is_ap_isolated(struct tt_local_entry *tt_local_entry,
+			    struct tt_global_entry *tt_global_entry)
+{
+	bool ret = false;
+
+	if (tt_local_entry->flags & TT_CLIENT_WIFI &&
+	    tt_global_entry->flags & TT_CLIENT_WIFI)
+		ret = true;
+
+	return ret;
+}
+
 struct orig_node *transtable_search(struct bat_priv *bat_priv,
 				    const uint8_t *addr)
 {
@@ -1728,4 +1740,34 @@ void tt_commit_changes(struct bat_priv *bat_priv)
 	/* Increment the TTVN only once per OGM interval */
 	atomic_inc(&bat_priv->ttvn);
 	bat_priv->tt_poss_change = false;
+}
+
+bool is_ap_isolated(struct bat_priv *bat_priv, uint8_t *src, uint8_t *dst)
+{
+	struct tt_local_entry *tt_local_entry = NULL;
+	struct tt_global_entry *tt_global_entry = NULL;
+	bool ret = true;
+
+	if (!atomic_read(&bat_priv->ap_isolation))
+		return false;
+
+	tt_local_entry = tt_local_hash_find(bat_priv, dst);
+	if (!tt_local_entry)
+		goto out;
+
+	tt_global_entry = tt_global_hash_find(bat_priv, src);
+	if (!tt_global_entry)
+		goto out;
+
+	if (_is_ap_isolated(tt_local_entry, tt_global_entry))
+		goto out;
+
+	ret = false;
+
+out:
+	if (tt_global_entry)
+		tt_global_entry_free_ref(tt_global_entry);
+	if (tt_local_entry)
+		tt_local_entry_free_ref(tt_local_entry);
+	return ret;
 }

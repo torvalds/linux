@@ -63,5 +63,6 @@ void handle_tt_response(struct bat_priv *bat_priv,
 void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 		   struct orig_node *orig_node);
 void tt_commit_changes(struct bat_priv *bat_priv);
+bool is_ap_isolated(struct bat_priv *bat_priv, uint8_t *src, uint8_t *dst);
 
 #endif /* _NET_BATMAN_ADV_TRANSLATION_TABLE_H_ */
