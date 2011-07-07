@@ -153,9 +153,9 @@ struct ath5k_statistics {
 };
 
 #if CHAN_DEBUG
-#define ATH_CHAN_MAX	(26+26+26+200+200)
+#define ATH_CHAN_MAX	(26 + 26 + 26 + 200 + 200)
 #else
-#define ATH_CHAN_MAX	(14+14+14+252+20)
+#define ATH_CHAN_MAX	(14 + 14 + 14 + 252 + 20)
 #endif
 
 struct ath5k_vif {

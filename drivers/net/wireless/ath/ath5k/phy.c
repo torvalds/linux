@@ -173,7 +173,7 @@ static unsigned int ath5k_hw_rfb_op(struct ath5k_hw *ah,
 		data = ath5k_hw_bitswap(val, num_bits);
 
 	for (bits_shifted = 0, bits_left = num_bits; bits_left > 0;
-	position = 0, entry++) {
+	     position = 0, entry++) {
 
 		last_bit = (position + bits_left > 8) ? 8 :
 					position + bits_left;
@@ -472,7 +472,7 @@ static bool ath5k_hw_rf_check_gainf_readback(struct ath5k_hw *ah)
 		level[0] = 0;
 		level[1] = (step == 63) ? 50 : step + 4;
 		level[2] = (step != 63) ? 64 : level[0];
-		level[3] = level[2] + 50 ;
+		level[3] = level[2] + 50;
 
 		ah->ah_gain.g_high = level[3] -
 			(step == 63 ? AR5K_GAIN_DYN_ADJUST_HI_MARGIN : -5);
@@ -549,7 +549,7 @@ static s8 ath5k_hw_rf_gainf_adjust(struct ath5k_hw *ah)
 
 		for (ah->ah_gain.g_target = ah->ah_gain.g_current;
 				ah->ah_gain.g_target <= ah->ah_gain.g_low &&
-				ah->ah_gain.g_step_idx < go->go_steps_count-1;
+				ah->ah_gain.g_step_idx < go->go_steps_count - 1;
 				g_step = &go->go_step[ah->ah_gain.g_step_idx])
 			ah->ah_gain.g_target -= 2 *
 			    (go->go_step[++ah->ah_gain.g_step_idx].gos_gain -
@@ -614,7 +614,7 @@ enum ath5k_rfgain ath5k_hw_gainf_calibrate(struct ath5k_hw *ah)
 			ath5k_hw_rf_gainf_corr(ah);
 			ah->ah_gain.g_current =
 				ah->ah_gain.g_current >= ah->ah_gain.g_f_corr ?
-				(ah->ah_gain.g_current-ah->ah_gain.g_f_corr) :
+				(ah->ah_gain.g_current - ah->ah_gain.g_f_corr) :
 				0;
 		}
 
@@ -1331,7 +1331,7 @@ void ath5k_hw_init_nfcal_hist(struct ath5k_hw *ah)
 static void ath5k_hw_update_nfcal_hist(struct ath5k_hw *ah, s16 noise_floor)
 {
 	struct ath5k_nfcal_hist *hist = &ah->ah_nfcal_hist;
-	hist->index = (hist->index + 1) & (ATH5K_NF_CAL_HIST_MAX-1);
+	hist->index = (hist->index + 1) & (ATH5K_NF_CAL_HIST_MAX - 1);
 	hist->nfval[hist->index] = noise_floor;
 }
 
@@ -1344,10 +1344,10 @@ static s16 ath5k_hw_get_median_noise_floor(struct ath5k_hw *ah)
 	memcpy(sort, ah->ah_nfcal_hist.nfval, sizeof(sort));
 	for (i = 0; i < ATH5K_NF_CAL_HIST_MAX - 1; i++) {
 		for (j = 1; j < ATH5K_NF_CAL_HIST_MAX - i; j++) {
-			if (sort[j] > sort[j-1]) {
+			if (sort[j] > sort[j - 1]) {
 				tmp = sort[j];
-				sort[j] = sort[j-1];
-				sort[j-1] = tmp;
+				sort[j] = sort[j - 1];
+				sort[j - 1] = tmp;
 			}
 		}
 	}
@@ -1355,7 +1355,7 @@ static s16 ath5k_hw_get_median_noise_floor(struct ath5k_hw *ah)
 		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
 			"cal %d:%d\n", i, sort[i]);
 	}
-	return sort[(ATH5K_NF_CAL_HIST_MAX-1) / 2];
+	return sort[(ATH5K_NF_CAL_HIST_MAX - 1) / 2];
 }
 
 /*
@@ -2080,7 +2080,7 @@ ath5k_get_interpolated_value(s16 target, s16 x_left, s16 x_right,
 	 * always 1 instead of 1.25, 1.75 etc). We scale up by 100
 	 * to have some accuracy both for 0.5 and 0.25 steps.
 	 */
-	ratio = ((100 * y_right - 100 * y_left)/(x_right - x_left));
+	ratio = ((100 * y_right - 100 * y_left) / (x_right - x_left));
 
 	/* Now scale down to be in range */
 	result = y_left + (ratio * (target - x_left) / 100);
@@ -2159,7 +2159,7 @@ ath5k_create_power_curve(s16 pmin, s16 pmax,
 			u8 *vpd_table, u8 type)
 {
 	u8 idx[2] = { 0, 1 };
-	s16 pwr_i = 2*pmin;
+	s16 pwr_i = 2 * pmin;
 	int i;
 
 	if (num_points < 2)
@@ -2437,7 +2437,7 @@ ath5k_get_max_ctl_power(struct ath5k_hw *ah,
 	}
 
 	if (edge_pwr)
-		ah->ah_txpower.txp_max_pwr = 4*min(edge_pwr, max_chan_pwr);
+		ah->ah_txpower.txp_max_pwr = 4 * min(edge_pwr, max_chan_pwr);
 }
 
 
@@ -2475,8 +2475,8 @@ ath5k_fill_pwr_to_pcdac_table(struct ath5k_hw *ah, s16* table_min,
 
 	/* Copy values from pcdac_tmp */
 	pwr_idx = min_pwr;
-	for (i = 0 ; pwr_idx <= max_pwr &&
-	pcdac_i < AR5K_EEPROM_POWER_TABLE_SIZE; i++) {
+	for (i = 0; pwr_idx <= max_pwr &&
+		    pcdac_i < AR5K_EEPROM_POWER_TABLE_SIZE; i++) {
 		pcdac_out[pcdac_i++] = pcdac_tmp[i];
 		pwr_idx++;
 	}
@@ -2552,7 +2552,7 @@ ath5k_combine_linear_pcdac_curves(struct ath5k_hw *ah, s16* table_min,
 	}
 
 	/* This is used when setting tx power*/
-	ah->ah_txpower.txp_min_idx = min_pwr_idx/2;
+	ah->ah_txpower.txp_min_idx = min_pwr_idx / 2;
 
 	/* Fill Power to PCDAC table backwards */
 	pwr = max_pwr_idx;
@@ -2561,10 +2561,10 @@ ath5k_combine_linear_pcdac_curves(struct ath5k_hw *ah, s16* table_min,
 		 * edge flag and set pcdac_tmp to lower
 		 * power curve.*/
 		if (edge_flag == 0x40 &&
-		(2*pwr <= (table_max[1] - table_min[0]) || pwr == 0)) {
+		(2 * pwr <= (table_max[1] - table_min[0]) || pwr == 0)) {
 			edge_flag = 0x00;
 			pcdac_tmp = pcdac_low_pwr;
-			pwr = mid_pwr_idx/2;
+			pwr = mid_pwr_idx / 2;
 		}
 
 		/* Don't go below 1, extrapolate below if we have
@@ -2604,8 +2604,8 @@ ath5k_write_pcdac_table(struct ath5k_hw *ah)
 	 */
 	for (i = 0; i < (AR5K_EEPROM_POWER_TABLE_SIZE / 2); i++) {
 		ath5k_hw_reg_write(ah,
-			(((pcdac_out[2*i + 0] << 8 | 0xff) & 0xffff) << 0) |
-			(((pcdac_out[2*i + 1] << 8 | 0xff) & 0xffff) << 16),
+			(((pcdac_out[2 * i + 0] << 8 | 0xff) & 0xffff) << 0) |
+			(((pcdac_out[2 * i + 1] << 8 | 0xff) & 0xffff) << 16),
 			AR5K_PHY_PCDAC_TXPOWER(i));
 	}
 }
@@ -2789,10 +2789,10 @@ ath5k_write_pwr_to_pdadc_table(struct ath5k_hw *ah, u8 ee_mode)
 	 */
 	for (i = 0; i < (AR5K_EEPROM_POWER_TABLE_SIZE / 2); i++) {
 		ath5k_hw_reg_write(ah,
-			((pdadc_out[4*i + 0] & 0xff) << 0) |
-			((pdadc_out[4*i + 1] & 0xff) << 8) |
-			((pdadc_out[4*i + 2] & 0xff) << 16) |
-			((pdadc_out[4*i + 3] & 0xff) << 24),
+			((pdadc_out[4 * i + 0] & 0xff) << 0) |
+			((pdadc_out[4 * i + 1] & 0xff) << 8) |
+			((pdadc_out[4 * i + 2] & 0xff) << 16) |
+			((pdadc_out[4 * i + 3] & 0xff) << 24),
 			AR5K_PHY_PDADC_TXPOWER(i));
 	}
 }

@@ -192,7 +192,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 		break;
 	case AR5K_SREV_RAD_5424:
 		if (ah->ah_mac_version == AR5K_SREV_AR2425 ||
-		ah->ah_mac_version == AR5K_SREV_AR2417){
+		    ah->ah_mac_version == AR5K_SREV_AR2417) {
 			ah->ah_radio = AR5K_RF2425;
 			ah->ah_single_chip = true;
 		} else {
@@ -211,28 +211,28 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 			ah->ah_radio_2ghz_revision = ath5k_hw_radio_revision(ah,
 								CHANNEL_2GHZ);
 		} else if (ah->ah_mac_version == (AR5K_SREV_AR2425 >> 4) ||
-		ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4) ||
-		ah->ah_phy_revision == AR5K_SREV_PHY_2425) {
+			   ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4) ||
+			   ah->ah_phy_revision == AR5K_SREV_PHY_2425) {
 			ah->ah_radio = AR5K_RF2425;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2425;
 		} else if (srev == AR5K_SREV_AR5213A &&
-		ah->ah_phy_revision == AR5K_SREV_PHY_5212B) {
+			   ah->ah_phy_revision == AR5K_SREV_PHY_5212B) {
 			ah->ah_radio = AR5K_RF5112;
 			ah->ah_single_chip = false;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_5112B;
 		} else if (ah->ah_mac_version == (AR5K_SREV_AR2415 >> 4) ||
-			ah->ah_mac_version == (AR5K_SREV_AR2315_R6 >> 4)) {
+			   ah->ah_mac_version == (AR5K_SREV_AR2315_R6 >> 4)) {
 			ah->ah_radio = AR5K_RF2316;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2316;
 		} else if (ah->ah_mac_version == (AR5K_SREV_AR5414 >> 4) ||
-		ah->ah_phy_revision == AR5K_SREV_PHY_5413) {
+			   ah->ah_phy_revision == AR5K_SREV_PHY_5413) {
 			ah->ah_radio = AR5K_RF5413;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_5413;
 		} else if (ah->ah_mac_version == (AR5K_SREV_AR2414 >> 4) ||
-		ah->ah_phy_revision == AR5K_SREV_PHY_2413) {
+			   ah->ah_phy_revision == AR5K_SREV_PHY_2413) {
 			ah->ah_radio = AR5K_RF2413;
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2413;
@@ -245,8 +245,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 
 
 	/* Return on unsuported chips (unsupported eeprom etc) */
-	if ((srev >= AR5K_SREV_AR5416) &&
-	(srev < AR5K_SREV_AR2425)) {
+	if ((srev >= AR5K_SREV_AR5416) && (srev < AR5K_SREV_AR2425)) {
 		ATH5K_ERR(sc, "Device not yet supported.\n");
 		ret = -ENODEV;
 		goto err;

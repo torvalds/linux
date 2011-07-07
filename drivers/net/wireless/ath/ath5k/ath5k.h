@@ -362,7 +362,7 @@ struct ath5k_srev_name {
 /*
  * Some of this information is based on Documentation from:
  *
- * http://madwifi-project.org/wiki/ChipsetFeatures/SuperAG 
+ * http://madwifi-project.org/wiki/ChipsetFeatures/SuperAG
  *
  * Modulation for Atheros' eXtended Range - range enhancing extension that is
  * supposed to double the distance an Atheros client device can keep a
@@ -617,8 +617,8 @@ struct ath5k_rx_status {
 #define AR5K_RXERR_FIFO		0x04
 #define AR5K_RXERR_DECRYPT	0x08
 #define AR5K_RXERR_MIC		0x10
-#define AR5K_RXKEYIX_INVALID	((u8) - 1)
-#define AR5K_TXKEYIX_INVALID	((u32) - 1)
+#define AR5K_RXKEYIX_INVALID	((u8) -1)
+#define AR5K_TXKEYIX_INVALID	((u32) -1)
 
 
 /**************************\
@@ -679,12 +679,13 @@ struct ath5k_gain {
 #define	CHANNEL_DYN	0x0400	/* Dynamic CCK-OFDM channel (for g operation) */
 #define	CHANNEL_XR	0x0800	/* XR channel */
 
-#define	CHANNEL_A	(CHANNEL_5GHZ|CHANNEL_OFDM)
-#define	CHANNEL_B	(CHANNEL_2GHZ|CHANNEL_CCK)
-#define	CHANNEL_G	(CHANNEL_2GHZ|CHANNEL_OFDM)
-#define	CHANNEL_X	(CHANNEL_5GHZ|CHANNEL_OFDM|CHANNEL_XR)
+#define	CHANNEL_A	(CHANNEL_5GHZ | CHANNEL_OFDM)
+#define	CHANNEL_B	(CHANNEL_2GHZ | CHANNEL_CCK)
+#define	CHANNEL_G	(CHANNEL_2GHZ | CHANNEL_OFDM)
+#define	CHANNEL_X	(CHANNEL_5GHZ | CHANNEL_OFDM | CHANNEL_XR)
 
-#define	CHANNEL_ALL	(CHANNEL_OFDM|CHANNEL_CCK|CHANNEL_2GHZ|CHANNEL_5GHZ)
+#define	CHANNEL_ALL	(CHANNEL_OFDM | CHANNEL_CCK | \
+			 CHANNEL_2GHZ | CHANNEL_5GHZ)
 
 #define CHANNEL_MODES		CHANNEL_ALL
 
@@ -777,7 +778,7 @@ extern int ath5k_modparam_nohwcrypt;
 /*
  * Misc definitions
  */
-#define	AR5K_RSSI_EP_MULTIPLIER	(1<<7)
+#define	AR5K_RSSI_EP_MULTIPLIER	(1 << 7)
 
 #define AR5K_ASSERT_ENTRY(_e, _s) do {		\
 	if (_e >= _s)				\
@@ -1378,7 +1379,7 @@ static inline void __iomem *ath5k_ahb_reg(struct ath5k_hw *ah, u16 reg)
 	/* On AR2315 and AR2317 the PCI clock domain registers
 	 * are outside of the WMAC register space */
 	if (unlikely((reg >= 0x4000) && (reg < 0x5000) &&
-		(ah->ah_mac_srev >= AR5K_SREV_AR2315_R6)))
+	    (ah->ah_mac_srev >= AR5K_SREV_AR2315_R6)))
 		return AR5K_AR2315_PCI_BASE + reg;
 
 	return ah->ah_iobase + reg;

@@ -234,7 +234,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 
 	mem = pci_iomap(pdev, 0, 0);
 	if (!mem) {
-		dev_err(&pdev->dev, "cannot remap PCI memory region\n") ;
+		dev_err(&pdev->dev, "cannot remap PCI memory region\n");
 		ret = -EIO;
 		goto err_reg;
 	}

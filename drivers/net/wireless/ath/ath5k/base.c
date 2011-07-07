@@ -814,8 +814,7 @@ ath5k_desc_alloc(struct ath5k_softc *sc)
 
 	INIT_LIST_HEAD(&sc->txbuf);
 	sc->txbuf_len = ATH_TXBUF;
-	for (i = 0; i < ATH_TXBUF; i++, bf++, ds++,
-			da += sizeof(*ds)) {
+	for (i = 0; i < ATH_TXBUF; i++, bf++, ds++, da += sizeof(*ds)) {
 		bf->desc = ds;
 		bf->daddr = da;
 		list_add_tail(&bf->list, &sc->txbuf);
@@ -981,7 +980,7 @@ ath5k_beaconq_config(struct ath5k_softc *sc)
 		goto err;
 
 	if (sc->opmode == NL80211_IFTYPE_AP ||
-		sc->opmode == NL80211_IFTYPE_MESH_POINT) {
+	    sc->opmode == NL80211_IFTYPE_MESH_POINT) {
 		/*
 		 * Always burst out beacon and CAB traffic
 		 * (aifs = cwmin = cwmax = 0)
@@ -1261,7 +1260,7 @@ ath5k_update_beacon_rssi(struct ath5k_softc *sc, struct sk_buff *skb, int rssi)
  */
 static int ath5k_common_padpos(struct sk_buff *skb)
 {
-	struct ieee80211_hdr * hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	__le16 frame_control = hdr->frame_control;
 	int padpos = 24;
 
@@ -1283,13 +1282,13 @@ static int ath5k_add_padding(struct sk_buff *skb)
 	int padpos = ath5k_common_padpos(skb);
 	int padsize = padpos & 3;
 
-	if (padsize && skb->len>padpos) {
+	if (padsize && skb->len > padpos) {
 
 		if (skb_headroom(skb) < padsize)
 			return -1;
 
 		skb_push(skb, padsize);
-		memmove(skb->data, skb->data+padsize, padpos);
+		memmove(skb->data, skb->data + padsize, padpos);
 		return padsize;
 	}
 
@@ -1314,7 +1313,7 @@ static int ath5k_remove_padding(struct sk_buff *skb)
 	int padpos = ath5k_common_padpos(skb);
 	int padsize = padpos & 3;
 
-	if (padsize && skb->len>=padpos+padsize) {
+	if (padsize && skb->len >= padpos + padsize) {
 		memmove(skb->data + padsize, skb->data, padpos);
 		skb_pull(skb, padsize);
 		return padsize;
@@ -1709,7 +1708,7 @@ ath5k_tasklet_tx(unsigned long data)
 	int i;
 	struct ath5k_softc *sc = (void *)data;
 
-	for (i=0; i < AR5K_NUM_TX_QUEUES; i++)
+	for (i = 0; i < AR5K_NUM_TX_QUEUES; i++)
 		if (sc->txqs[i].setup && (sc->ah->ah_txq_isr & BIT(i)))
 			ath5k_tx_processq(sc, &sc->txqs[i]);
 
@@ -1900,7 +1899,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 	avf = (void *)vif->drv_priv;
 	bf = avf->bbuf;
 	if (unlikely(bf->skb == NULL || sc->opmode == NL80211_IFTYPE_STATION ||
-			sc->opmode == NL80211_IFTYPE_MONITOR)) {
+		     sc->opmode == NL80211_IFTYPE_MONITOR)) {
 		ATH5K_WARN(sc, "bf=%p bf_skb=%p\n", bf, bf ? bf->skb : NULL);
 		return;
 	}
@@ -1917,7 +1916,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 
 	/* refresh the beacon for AP or MESH mode */
 	if (sc->opmode == NL80211_IFTYPE_AP ||
-			sc->opmode == NL80211_IFTYPE_MESH_POINT)
+	    sc->opmode == NL80211_IFTYPE_MESH_POINT)
 		ath5k_beacon_update(sc->hw, vif);
 
 	trace_ath5k_tx(sc, bf->skb, &sc->txqs[sc->bhalq]);
@@ -2485,7 +2484,7 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 		/* Multi chip radio (RF5111 - RF2111) ->
 		 * report both 2GHz/5GHz radios */
 		else if (sc->ah->ah_radio_5ghz_revision &&
-				sc->ah->ah_radio_2ghz_revision){
+				sc->ah->ah_radio_2ghz_revision) {
 			ATH5K_INFO(sc, "RF%s 5GHz radio found (0x%x)\n",
 				ath5k_chip_name(AR5K_VERSION_RAD,
 					sc->ah->ah_radio_5ghz_revision),
@@ -2710,8 +2709,7 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 
 	fast = ((chan != NULL) && modparam_fastchanswitch) ? 1 : 0;
 
-	ret = ath5k_hw_reset(ah, sc->opmode, sc->curchan, fast,
-								skip_pcu);
+	ret = ath5k_hw_reset(ah, sc->opmode, sc->curchan, fast, skip_pcu);
 	if (ret) {
 		ATH5K_ERR(sc, "can't reset hardware (%d)\n", ret);
 		goto err;

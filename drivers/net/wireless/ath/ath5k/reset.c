@@ -142,10 +142,10 @@ static void ath5k_hw_init_core_clock(struct ath5k_hw *ah)
 
 	/* Set 32MHz USEC counter */
 	if ((ah->ah_radio == AR5K_RF5112) ||
-		(ah->ah_radio == AR5K_RF5413) ||
-		(ah->ah_radio == AR5K_RF2316) ||
-		(ah->ah_radio == AR5K_RF2317))
-	/* Remain on 40MHz clock ? */
+	    (ah->ah_radio == AR5K_RF5413) ||
+	    (ah->ah_radio == AR5K_RF2316) ||
+	    (ah->ah_radio == AR5K_RF2317))
+		/* Remain on 40MHz clock ? */
 		sclock = 40 - 1;
 	else
 		sclock = 32 - 1;

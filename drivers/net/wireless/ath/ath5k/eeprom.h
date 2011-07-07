@@ -223,7 +223,7 @@
 #define AR5K_EEPROM_CCK_OFDM_DELTA	15
 #define AR5K_EEPROM_N_IQ_CAL		2
 /* 5GHz/2GHz */
-enum ath5k_eeprom_freq_bands{
+enum ath5k_eeprom_freq_bands {
 	AR5K_EEPROM_BAND_5GHZ = 0,
 	AR5K_EEPROM_BAND_2GHZ = 1,
 	AR5K_EEPROM_N_FREQ_BANDS,

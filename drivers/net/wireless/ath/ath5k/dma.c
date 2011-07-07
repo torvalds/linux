@@ -258,7 +258,7 @@ static int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue)
 		/* For 2413+ order PCU to drop packets using
 		 * QUIET mechanism */
 		if (ah->ah_mac_version >= (AR5K_SREV_AR2414 >> 4) &&
-		pending){
+		    pending) {
 			/* Set periodicity and duration */
 			ath5k_hw_reg_write(ah,
 				AR5K_REG_SM(100, AR5K_QUIET_CTL2_QT_PER)|

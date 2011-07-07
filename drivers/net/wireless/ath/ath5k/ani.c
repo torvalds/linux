@@ -642,7 +642,7 @@ ath5k_ani_init(struct ath5k_hw *ah, enum ath5k_ani_mode mode)
 	/* initial values for our ani parameters */
 	if (mode == ATH5K_ANI_MODE_OFF) {
 		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI, "ANI off\n");
-	} else if  (mode == ATH5K_ANI_MODE_MANUAL_LOW) {
+	} else if (mode == ATH5K_ANI_MODE_MANUAL_LOW) {
 		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_ANI,
 			"ANI manual low -> high sensitivity\n");
 		ath5k_ani_set_noise_immunity_level(ah, 0);

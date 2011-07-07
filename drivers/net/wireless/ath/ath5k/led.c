@@ -43,11 +43,11 @@
 #include "ath5k.h"
 #include "base.h"
 
-#define ATH_SDEVICE(subv,subd) \
+#define ATH_SDEVICE(subv, subd) \
 	.vendor = PCI_ANY_ID, .device = PCI_ANY_ID, \
 	.subvendor = (subv), .subdevice = (subd)
 
-#define ATH_LED(pin,polarity) .driver_data = (((pin) << 8) | (polarity))
+#define ATH_LED(pin, polarity) .driver_data = (((pin) << 8) | (polarity))
 #define ATH_PIN(data) ((data) >> 8)
 #define ATH_POLARITY(data) ((data) & 0xff)
 
