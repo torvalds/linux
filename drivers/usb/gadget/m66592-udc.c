@@ -1561,10 +1561,26 @@ static int m66592_get_frame(struct usb_gadget *_gadget)
 	return m66592_read(m66592, M66592_FRMNUM) & 0x03FF;
 }
 
+static int m66592_pullup(struct usb_gadget *gadget, int is_on)
+{
+	struct m66592 *m66592 = gadget_to_m66592(gadget);
+	unsigned long flags;
+
+	spin_lock_irqsave(&m66592->lock, flags);
+	if (is_on)
+		m66592_bset(m66592, M66592_DPRPU, M66592_SYSCFG);
+	else
+		m66592_bclr(m66592, M66592_DPRPU, M66592_SYSCFG);
+	spin_unlock_irqrestore(&m66592->lock, flags);
+
+	return 0;
+}
+
 static struct usb_gadget_ops m66592_gadget_ops = {
 	.get_frame		= m66592_get_frame,
 	.start			= m66592_start,
 	.stop			= m66592_stop,
+	.pullup			= m66592_pullup,
 };
 
 static int __exit m66592_remove(struct platform_device *pdev)
