@@ -2996,7 +2996,8 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 		hw->flags = SKY2_HW_GIGABIT
 			| SKY2_HW_NEWER_PHY
 			| SKY2_HW_NEW_LE
-			| SKY2_HW_ADV_POWER_CTL;
+			| SKY2_HW_ADV_POWER_CTL
+			| SKY2_HW_RSS_CHKSUM;
 
 		/* New transmit checksum */
 		if (hw->chip_rev != CHIP_REV_YU_EX_B0)
@@ -3024,7 +3025,7 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 
 		/* The workaround for status conflicts VLAN tag detection. */
 		if (hw->chip_rev == CHIP_REV_YU_FE2_A0)
-			hw->flags |= SKY2_HW_VLAN_BROKEN;
+			hw->flags |= SKY2_HW_VLAN_BROKEN | SKY2_HW_RSS_CHKSUM;
 		break;
 
 	case CHIP_ID_YUKON_SUPR:
@@ -3033,6 +3034,9 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 			| SKY2_HW_NEW_LE
 			| SKY2_HW_AUTO_TX_SUM
 			| SKY2_HW_ADV_POWER_CTL;
+
+		if (hw->chip_rev == CHIP_REV_YU_SU_A0)
+			hw->flags |= SKY2_HW_RSS_CHKSUM;
 		break;
 
 	case CHIP_ID_YUKON_UL_2:
@@ -4176,8 +4180,18 @@ static u32 sky2_fix_features(struct net_device *dev, u32 features)
 	/* In order to do Jumbo packets on these chips, need to turn off the
 	 * transmit store/forward. Therefore checksum offload won't work.
 	 */
-	if (dev->mtu > ETH_DATA_LEN && hw->chip_id == CHIP_ID_YUKON_EC_U)
+	if (dev->mtu > ETH_DATA_LEN && hw->chip_id == CHIP_ID_YUKON_EC_U) {
+		netdev_info(dev, "checksum offload not possible with jumbo frames\n");
 		features &= ~(NETIF_F_TSO|NETIF_F_SG|NETIF_F_ALL_CSUM);
+	}
+
+	/* Some hardware requires receive checksum for RSS to work. */
+	if ( (features & NETIF_F_RXHASH) &&
+	     !(features & NETIF_F_RXCSUM) &&
+	     (sky2->hw->flags & SKY2_HW_RSS_CHKSUM)) {
+		netdev_info(dev, "receive hashing forces receive checksum\n");
+		features |= NETIF_F_RXCSUM;
+	}
 
 	return features;
 }

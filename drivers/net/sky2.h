@@ -2281,6 +2281,7 @@ struct sky2_hw {
 #define SKY2_HW_ADV_POWER_CTL	0x00000080	/* additional PHY power regs */
 #define SKY2_HW_RSS_BROKEN	0x00000100
 #define SKY2_HW_VLAN_BROKEN     0x00000200
+#define SKY2_HW_RSS_CHKSUM	0x00000400	/* RSS requires chksum */
 
 	u8	     	     chip_id;
 	u8		     chip_rev;
