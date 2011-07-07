@@ -678,13 +678,13 @@ static int __init ecard_probeirqhw(void)
 #define IO_EC_MEMC8_BASE 0
 #endif
 
-static unsigned int __ecard_address(ecard_t *ec, card_type_t type, card_speed_t speed)
+static void __iomem *__ecard_address(ecard_t *ec, card_type_t type, card_speed_t speed)
 {
 	unsigned long address = 0;
 	int slot = ec->slot_no;
 
 	if (ec->slot_no == 8)
-		return IO_EC_MEMC8_BASE;
+		return (void __iomem *)ioaddr(IO_EC_MEMC8_BASE);
 
 	ectcr &= ~(1 << slot);
 
@@ -719,7 +719,7 @@ static unsigned int __ecard_address(ecard_t *ec, card_type_t type, card_speed_t 
 #ifdef IOMD_ECTCR
 	iomd_writeb(ectcr, IOMD_ECTCR);
 #endif
-	return address;
+	return (void __iomem *)(address ? ioaddr(address) : NULL);
 }
 
 static int ecard_prints(struct seq_file *m, ecard_t *ec)
@@ -990,6 +990,7 @@ ecard_probe(int slot, card_type_t type)
 	ecard_t **ecp;
 	ecard_t *ec;
 	struct ex_ecid cid;
+	void __iomem *addr;
 	int i, rc;
 
 	ec = ecard_alloc_card(type, slot);
@@ -999,7 +1000,7 @@ ecard_probe(int slot, card_type_t type)
 	}
 
 	rc = -ENODEV;
-	if ((ec->podaddr = __ecard_address(ec, type, ECARD_SYNC)) == 0)
+	if ((addr = __ecard_address(ec, type, ECARD_SYNC)) == NULL)
 		goto nodev;
 
 	cid.r_zero = 1;
@@ -1019,7 +1020,7 @@ ecard_probe(int slot, card_type_t type)
 	ec->cid.fiqmask = cid.r_fiqmask;
 	ec->cid.fiqoff  = ecard_gets24(cid.r_fiqoff);
 	ec->fiqaddr	=
-	ec->irqaddr	= (void __iomem *)ioaddr(ec->podaddr);
+	ec->irqaddr	= addr;
 
 	if (ec->cid.is) {
 		ec->irqmask = ec->cid.irqmask;
