@@ -100,9 +100,9 @@ static int get_exported_devices(char *host, int sockfd)
 		usbip_names_get_class(class_name, sizeof(class_name),
 				      udev.bDeviceClass, udev.bDeviceSubClass,
 				      udev.bDeviceProtocol);
-		printf("%8s: %s\n", udev.busid, product_name);
-		printf("%8s: %s\n", "", udev.path);
-		printf("%8s: %s\n", "", class_name);
+		printf("%11s: %s\n", udev.busid, product_name);
+		printf("%11s: %s\n", "", udev.path);
+		printf("%11s: %s\n", "", class_name);
 
 		for (j = 0; j < udev.bNumInterfaces; j++) {
 			rc = usbip_net_recv(sockfd, &uintf, sizeof(uintf));
@@ -118,7 +118,7 @@ static int get_exported_devices(char *host, int sockfd)
 					      uintf.bInterfaceClass,
 					      uintf.bInterfaceSubClass,
 					      uintf.bInterfaceProtocol);
-			printf("%8s: %2d - %s\n", "", j, class_name);
+			printf("%11s: %2d - %s\n", "", j, class_name);
 		}
 		printf("\n");
 	}
