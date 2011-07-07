@@ -394,7 +394,7 @@ int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 						   SLAB_HWCACHE_ALIGN,
 						   NULL);
 
-	adapter->Flags |= fMP_ADAPTER_RECV_LOOKASIDE;
+	adapter->flags |= fMP_ADAPTER_RECV_LOOKASIDE;
 
 	/* The RFDs are going to be put on lists later on, so initialize the
 	 * lists now.
@@ -528,9 +528,9 @@ void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	/* Free receive packet pool */
 
 	/* Destroy the lookaside (RFD) pool */
-	if (adapter->Flags & fMP_ADAPTER_RECV_LOOKASIDE) {
+	if (adapter->flags & fMP_ADAPTER_RECV_LOOKASIDE) {
 		kmem_cache_destroy(rx_ring->RecvLookaside);
-		adapter->Flags &= ~fMP_ADAPTER_RECV_LOOKASIDE;
+		adapter->flags &= ~fMP_ADAPTER_RECV_LOOKASIDE;
 	}
 
 	/* Free the FBR Lookup Table */

@@ -162,7 +162,7 @@ int et131x_open(struct net_device *netdev)
 	/* Enable device interrupts */
 	et131x_enable_interrupts(adapter);
 
-	adapter->Flags |= fMP_ADAPTER_INTERRUPT_IN_USE;
+	adapter->flags |= fMP_ADAPTER_INTERRUPT_IN_USE;
 
 	/* We're ready to move some data, so start the queue */
 	netif_start_queue(netdev);
@@ -190,7 +190,7 @@ int et131x_close(struct net_device *netdev)
 	et131x_disable_interrupts(adapter);
 
 	/* Deregistering ISR */
-	adapter->Flags &= ~fMP_ADAPTER_INTERRUPT_IN_USE;
+	adapter->flags &= ~fMP_ADAPTER_INTERRUPT_IN_USE;
 	free_irq(netdev->irq, netdev);
 
 	/* Stop the error timer */
@@ -449,11 +449,11 @@ void et131x_tx_timeout(struct net_device *netdev)
 	/* Any nonrecoverable hardware error?
 	 * Checks adapter->flags for any failure in phy reading
 	 */
-	if (etdev->Flags & fMP_ADAPTER_NON_RECOVER_ERROR)
+	if (etdev->flags & fMP_ADAPTER_NON_RECOVER_ERROR)
 		return;
 
 	/* Hardware failure? */
-	if (etdev->Flags & fMP_ADAPTER_HARDWARE_ERROR) {
+	if (etdev->flags & fMP_ADAPTER_HARDWARE_ERROR) {
 		dev_err(&etdev->pdev->dev, "hardware error - reset\n");
 		return;
 	}
@@ -471,7 +471,7 @@ void et131x_tx_timeout(struct net_device *netdev)
 					       flags);
 
 			dev_warn(&etdev->pdev->dev,
-				"Send stuck - reset.  tcb->WrIndex %x, Flags 0x%08x\n",
+				"Send stuck - reset.  tcb->WrIndex %x, flags 0x%08x\n",
 				tcb->index,
 				tcb->flags);
 
@@ -540,7 +540,7 @@ int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 	et131x_adapter_setup(adapter);
 
 	/* Enable interrupts */
-	if (adapter->Flags & fMP_ADAPTER_INTERRUPT_IN_USE)
+	if (adapter->flags & fMP_ADAPTER_INTERRUPT_IN_USE)
 		et131x_enable_interrupts(adapter);
 
 	/* Restart the Tx and Rx DMA engines */
@@ -622,7 +622,7 @@ int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 	et131x_adapter_setup(adapter);
 
 	/* Enable interrupts */
-	if (adapter->Flags & fMP_ADAPTER_INTERRUPT_IN_USE)
+	if (adapter->flags & fMP_ADAPTER_INTERRUPT_IN_USE)
 		et131x_enable_interrupts(adapter);
 
 	/* Restart the Tx and Rx DMA engines */

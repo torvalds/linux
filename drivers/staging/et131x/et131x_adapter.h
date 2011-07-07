@@ -150,7 +150,7 @@ struct et131x_adapter {
 	struct work_struct task;
 
 	/* Flags that indicate current state of the adapter */
-	u32 Flags;
+	u32 flags;
 	u32 HwErrCount;
 
 	/* Configuration  */
