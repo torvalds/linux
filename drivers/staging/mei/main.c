@@ -1326,9 +1326,9 @@ module_init(mei_init_module);
  */
 static void __exit mei_exit_module(void)
 {
-	pci_unregister_driver(&mei_driver);
 	mei_sysfs_device_remove();
 	mei_unregister_cdev();
+	pci_unregister_driver(&mei_driver);
 
 	pr_debug("mei: Driver unloaded successfully.\n");
 }
