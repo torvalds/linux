@@ -485,7 +485,8 @@ static int synaptics_parse_hw_state(const unsigned char buf[],
 	return 0;
 }
 
-static void set_slot(struct input_dev *dev, int slot, bool active, int x, int y)
+static void synaptics_report_semi_mt_slot(struct input_dev *dev, int slot,
+					  bool active, int x, int y)
 {
 	input_mt_slot(dev, slot);
 	input_mt_report_slot_state(dev, MT_TOOL_FINGER, active);
@@ -502,14 +503,16 @@ static void synaptics_report_semi_mt_data(struct input_dev *dev,
 					  int num_fingers)
 {
 	if (num_fingers >= 2) {
-		set_slot(dev, 0, true, min(a->x, b->x), min(a->y, b->y));
-		set_slot(dev, 1, true, max(a->x, b->x), max(a->y, b->y));
+		synaptics_report_semi_mt_slot(dev, 0, true, min(a->x, b->x),
+					      min(a->y, b->y));
+		synaptics_report_semi_mt_slot(dev, 1, true, max(a->x, b->x),
+					      max(a->y, b->y));
 	} else if (num_fingers == 1) {
-		set_slot(dev, 0, true, a->x, a->y);
-		set_slot(dev, 1, false, 0, 0);
+		synaptics_report_semi_mt_slot(dev, 0, true, a->x, a->y);
+		synaptics_report_semi_mt_slot(dev, 1, false, 0, 0);
 	} else {
-		set_slot(dev, 0, false, 0, 0);
-		set_slot(dev, 1, false, 0, 0);
+		synaptics_report_semi_mt_slot(dev, 0, false, 0, 0);
+		synaptics_report_semi_mt_slot(dev, 1, false, 0, 0);
 	}
 }
 
