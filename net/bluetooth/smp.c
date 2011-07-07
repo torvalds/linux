@@ -390,29 +390,36 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 	}
 
 	if (conn->hcon->out) {
+		u8 stk[16], rand[8];
 		__le16 ediv;
-		u8 rand[8];
-
-		smp_s1(tfm, conn->tk, random, conn->prnd, key);
-		swap128(key, hcon->ltk);
-
-		memset(hcon->ltk + conn->smp_key_size, 0,
-				SMP_MAX_ENC_KEY_SIZE - conn->smp_key_size);
 
 		memset(rand, 0, sizeof(rand));
 		ediv = 0;
-		hci_le_start_enc(hcon, ediv, rand, hcon->ltk);
+
+		smp_s1(tfm, conn->tk, random, conn->prnd, key);
+		swap128(key, stk);
+
+		memset(stk + conn->smp_key_size, 0,
+				SMP_MAX_ENC_KEY_SIZE - conn->smp_key_size);
+
+		hci_le_start_enc(hcon, ediv, rand, stk);
 	} else {
-		u8 r[16];
+		u8 stk[16], r[16], rand[8];
+		__le16 ediv;
+
+		memset(rand, 0, sizeof(rand));
+		ediv = 0;
 
 		swap128(conn->prnd, r);
 		smp_send_cmd(conn, SMP_CMD_PAIRING_RANDOM, sizeof(r), r);
 
 		smp_s1(tfm, conn->tk, conn->prnd, random, key);
-		swap128(key, hcon->ltk);
+		swap128(key, stk);
 
-		memset(hcon->ltk + conn->smp_key_size, 0,
+		memset(stk + conn->smp_key_size, 0,
 				SMP_MAX_ENC_KEY_SIZE - conn->smp_key_size);
+
+		hci_add_ltk(conn->hcon->hdev, 0, conn->dst, ediv, rand, stk);
 	}
 
 	return 0;
