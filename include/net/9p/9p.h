@@ -327,21 +327,6 @@ enum p9_qid_t {
 #define P9_READDIRHDRSZ	24
 
 /**
- * struct p9_str - length prefixed string type
- * @len: length of the string
- * @str: the string
- *
- * The protocol uses length prefixed strings for all
- * string data, so we replicate that for our internal
- * string members.
- */
-
-struct p9_str {
-	u16 len;
-	char *str;
-};
-
-/**
  * struct p9_qid - file system entity information
  * @type: 8-bit type &p9_qid_t
  * @version: 16-bit monotonically incrementing version number
@@ -377,11 +362,11 @@ struct p9_qid {
  * @atime: Last access/read time
  * @mtime: Last modify/write time
  * @length: file length
- * @name: last element of path (aka filename) in type &p9_str
- * @uid: owner name in type &p9_str
- * @gid: group owner in type &p9_str
- * @muid: last modifier in type &p9_str
- * @extension: area used to encode extended UNIX support in type &p9_str
+ * @name: last element of path (aka filename)
+ * @uid: owner name
+ * @gid: group owner
+ * @muid: last modifier
+ * @extension: area used to encode extended UNIX support
  * @n_uid: numeric user id of owner (part of 9p2000.u extension)
  * @n_gid: numeric group id (part of 9p2000.u extension)
  * @n_muid: numeric user id of laster modifier (part of 9p2000.u extension)
@@ -518,11 +503,6 @@ struct p9_getlock {
 	char *client_id;
 };
 
-/* Structures for Protocol Operations */
-struct p9_tstatfs {
-	u32 fid;
-};
-
 struct p9_rstatfs {
 	u32 type;
 	u32 bsize;
@@ -533,159 +513,6 @@ struct p9_rstatfs {
 	u64 ffree;
 	u64 fsid;
 	u32 namelen;
-};
-
-struct p9_trename {
-	u32 fid;
-	u32 newdirfid;
-	struct p9_str name;
-};
-
-struct p9_rrename {
-};
-
-struct p9_tversion {
-	u32 msize;
-	struct p9_str version;
-};
-
-struct p9_rversion {
-	u32 msize;
-	struct p9_str version;
-};
-
-struct p9_tauth {
-	u32 afid;
-	struct p9_str uname;
-	struct p9_str aname;
-	u32 n_uname;		/* 9P2000.u extensions */
-};
-
-struct p9_rauth {
-	struct p9_qid qid;
-};
-
-struct p9_rerror {
-	struct p9_str error;
-	u32 errno;		/* 9p2000.u extension */
-};
-
-struct p9_tflush {
-	u16 oldtag;
-};
-
-struct p9_rflush {
-};
-
-struct p9_tattach {
-	u32 fid;
-	u32 afid;
-	struct p9_str uname;
-	struct p9_str aname;
-	u32 n_uname;		/* 9P2000.u extensions */
-};
-
-struct p9_rattach {
-	struct p9_qid qid;
-};
-
-struct p9_twalk {
-	u32 fid;
-	u32 newfid;
-	u16 nwname;
-	struct p9_str wnames[16];
-};
-
-struct p9_rwalk {
-	u16 nwqid;
-	struct p9_qid wqids[16];
-};
-
-struct p9_topen {
-	u32 fid;
-	u8 mode;
-};
-
-struct p9_ropen {
-	struct p9_qid qid;
-	u32 iounit;
-};
-
-struct p9_tcreate {
-	u32 fid;
-	struct p9_str name;
-	u32 perm;
-	u8 mode;
-	struct p9_str extension;
-};
-
-struct p9_rcreate {
-	struct p9_qid qid;
-	u32 iounit;
-};
-
-struct p9_tread {
-	u32 fid;
-	u64 offset;
-	u32 count;
-};
-
-struct p9_rread {
-	u32 count;
-	u8 *data;
-};
-
-struct p9_twrite {
-	u32 fid;
-	u64 offset;
-	u32 count;
-	u8 *data;
-};
-
-struct p9_rwrite {
-	u32 count;
-};
-
-struct p9_treaddir {
-	u32 fid;
-	u64 offset;
-	u32 count;
-};
-
-struct p9_rreaddir {
-	u32 count;
-	u8 *data;
-};
-
-
-struct p9_tclunk {
-	u32 fid;
-};
-
-struct p9_rclunk {
-};
-
-struct p9_tremove {
-	u32 fid;
-};
-
-struct p9_rremove {
-};
-
-struct p9_tstat {
-	u32 fid;
-};
-
-struct p9_rstat {
-	struct p9_wstat stat;
-};
-
-struct p9_twstat {
-	u32 fid;
-	struct p9_wstat stat;
-};
-
-struct p9_rwstat {
 };
 
 /**
