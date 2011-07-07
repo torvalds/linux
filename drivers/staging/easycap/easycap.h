@@ -596,10 +596,6 @@ extern int easycap_debug;
 #define JOM(n, format, args...) do {} while (0)
 #endif /* CONFIG_EASYCAP_DEBUG */
 
-#define MICROSECONDS(X, Y) \
-			((1000000*((long long int)(X.tv_sec - Y.tv_sec))) + \
-					(long long int)(X.tv_usec - Y.tv_usec))
-
 /*---------------------------------------------------------------------------*/
 /*
  *  (unsigned char *)P           pointer to next byte pair
