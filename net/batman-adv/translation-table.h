@@ -43,7 +43,7 @@ void tt_global_del(struct bat_priv *bat_priv,
 		   struct orig_node *orig_node, const unsigned char *addr,
 		   const char *message, bool roaming);
 struct orig_node *transtable_search(struct bat_priv *bat_priv,
-				    const uint8_t *addr);
+				    const uint8_t *src, const uint8_t *addr);
 void tt_save_orig_buffer(struct bat_priv *bat_priv, struct orig_node *orig_node,
 			 const unsigned char *tt_buff, uint8_t tt_num_changes);
 uint16_t tt_local_crc(struct bat_priv *bat_priv);

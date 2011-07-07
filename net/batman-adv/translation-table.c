@@ -794,29 +794,43 @@ static bool _is_ap_isolated(struct tt_local_entry *tt_local_entry,
 }
 
 struct orig_node *transtable_search(struct bat_priv *bat_priv,
-				    const uint8_t *addr)
+				    const uint8_t *src, const uint8_t *addr)
 {
-	struct tt_global_entry *tt_global_entry;
+	struct tt_local_entry *tt_local_entry = NULL;
+	struct tt_global_entry *tt_global_entry = NULL;
 	struct orig_node *orig_node = NULL;
 
-	tt_global_entry = tt_global_hash_find(bat_priv, addr);
+	if (src && atomic_read(&bat_priv->ap_isolation)) {
+		tt_local_entry = tt_local_hash_find(bat_priv, src);
+		if (!tt_local_entry)
+			goto out;
+	}
 
+	tt_global_entry = tt_global_hash_find(bat_priv, addr);
 	if (!tt_global_entry)
 		goto out;
 
+	/* check whether the clients should not communicate due to AP
+	 * isolation */
+	if (tt_local_entry && _is_ap_isolated(tt_local_entry, tt_global_entry))
+		goto out;
+
 	if (!atomic_inc_not_zero(&tt_global_entry->orig_node->refcount))
-		goto free_tt;
+		goto out;
 
 	/* A global client marked as PENDING has already moved from that
 	 * originator */
 	if (tt_global_entry->flags & TT_CLIENT_PENDING)
-		goto free_tt;
+		goto out;
 
 	orig_node = tt_global_entry->orig_node;
 
-free_tt:
-	tt_global_entry_free_ref(tt_global_entry);
 out:
+	if (tt_global_entry)
+		tt_global_entry_free_ref(tt_global_entry);
+	if (tt_local_entry)
+		tt_local_entry_free_ref(tt_local_entry);
+
 	return orig_node;
 }
 

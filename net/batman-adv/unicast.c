@@ -299,8 +299,10 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 			goto find_router;
 	}
 
-	/* check for tt host - increases orig_node refcount */
-	orig_node = transtable_search(bat_priv, ethhdr->h_dest);
+	/* check for tt host - increases orig_node refcount.
+	 * returns NULL in case of AP isolation */
+	orig_node = transtable_search(bat_priv, ethhdr->h_source,
+				      ethhdr->h_dest);
 
 find_router:
 	/**
