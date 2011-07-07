@@ -2159,6 +2159,8 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 	u32 tmshigh;
 	int err;
 
+	/* Files for HT and LCN were found by trying one by one */
+
 	/* Get microcode */
 	if ((rev >= 5) && (rev <= 10)) {
 		filename = "ucode5";
@@ -2175,6 +2177,18 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 		case B43_PHYTYPE_N:
 			if (rev >= 16)
 				filename = "ucode16_mimo";
+			else
+				goto err_no_ucode;
+			break;
+		case B43_PHYTYPE_HT:
+			if (rev == 29)
+				filename = "ucode29_mimo";
+			else
+				goto err_no_ucode;
+			break;
+		case B43_PHYTYPE_LCN:
+			if (rev == 24)
+				filename = "ucode24_mimo";
 			else
 				goto err_no_ucode;
 			break;
@@ -2240,6 +2254,18 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 		else
 			goto err_no_initvals;
 		break;
+	case B43_PHYTYPE_HT:
+		if (rev == 29)
+			filename = "ht0initvals29";
+		else
+			goto err_no_initvals;
+		break;
+	case B43_PHYTYPE_LCN:
+		if (rev == 24)
+			filename = "lcn0initvals24";
+		else
+			goto err_no_initvals;
+		break;
 	default:
 		goto err_no_initvals;
 	}
@@ -2284,6 +2310,18 @@ static int b43_try_request_fw(struct b43_request_fw_context *ctx)
 			filename = "lp0bsinitvals14";
 		else if (rev >= 15)
 			filename = "lp0bsinitvals15";
+		else
+			goto err_no_initvals;
+		break;
+	case B43_PHYTYPE_HT:
+		if (rev == 29)
+			filename = "ht0bsinitvals29";
+		else
+			goto err_no_initvals;
+		break;
+	case B43_PHYTYPE_LCN:
+		if (rev == 24)
+			filename = "lcn0bsinitvals24";
 		else
 			goto err_no_initvals;
 		break;
@@ -4976,6 +5014,8 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 #endif
 		case B43_PHYTYPE_G:
 		case B43_PHYTYPE_N:
+		case B43_PHYTYPE_HT:
+		case B43_PHYTYPE_LCN:
 			have_2ghz_phy = 1;
 			break;
 		default:
