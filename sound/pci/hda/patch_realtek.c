@@ -2080,11 +2080,13 @@ static void alc_auto_parse_digital(struct hda_codec *codec)
 
 	/* support multiple SPDIFs; the secondary is set up as a slave */
 	for (i = 0; i < spec->autocfg.dig_outs; i++) {
+		hda_nid_t conn[4];
 		err = snd_hda_get_connections(codec,
 					      spec->autocfg.dig_out_pins[i],
-					      &dig_nid, 1);
+					      conn, ARRAY_SIZE(conn));
 		if (err < 0)
 			continue;
+		dig_nid = conn[0]; /* assume the first element is audio-out */
 		if (!i) {
 			spec->multiout.dig_out_nid = dig_nid;
 			spec->dig_out_type = spec->autocfg.dig_out_type[0];
