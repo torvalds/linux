@@ -74,7 +74,7 @@ static struct map_desc rpc_io_desc[] __initdata = {
 		.length		= 	IO_SIZE	 ,
 		.type		= MT_DEVICE
 	}, {	/* EASI space	*/
-		.virtual	= EASI_BASE,
+		.virtual	= (unsigned long)EASI_BASE,
 		.pfn		= __phys_to_pfn(EASI_START),
 		.length		= EASI_SIZE,
 		.type		= MT_DEVICE

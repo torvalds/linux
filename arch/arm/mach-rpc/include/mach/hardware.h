@@ -36,7 +36,7 @@
 
 #define EASI_SIZE		0x08000000	/* EASI I/O */
 #define EASI_START		0x08000000
-#define EASI_BASE		0xe5000000
+#define EASI_BASE		IOMEM(0xe5000000)
 
 #define IO_START		0x03000000	/* I/O */
 #define IO_SIZE			0x01000000
@@ -51,7 +51,7 @@
 /*
  * IO Addresses
  */
-#define ECARD_EASI_BASE		(IO_BASE + 0x05000000)
+#define ECARD_EASI_BASE		(EASI_BASE)
 #define VIDC_BASE		(IO_BASE + 0x00400000)
 #define EXPMASK_BASE		(IO_BASE + 0x00360000)
 #define ECARD_IOC4_BASE		(IO_BASE + 0x00270000)
