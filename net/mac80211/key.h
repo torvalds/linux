@@ -28,6 +28,7 @@
 #define CCMP_PN_LEN		6
 #define TKIP_IV_LEN		8
 #define TKIP_ICV_LEN		4
+#define CMAC_PN_LEN		6
 
 #define NUM_RX_DATA_QUEUES	16
 
@@ -89,13 +90,13 @@ struct ieee80211_key {
 			 * frames and the last counter is used with Robust
 			 * Management frames.
 			 */
-			u8 rx_pn[NUM_RX_DATA_QUEUES + 1][6];
+			u8 rx_pn[NUM_RX_DATA_QUEUES + 1][CCMP_PN_LEN];
 			struct crypto_cipher *tfm;
 			u32 replays; /* dot11RSNAStatsCCMPReplays */
 		} ccmp;
 		struct {
 			atomic64_t tx_pn;
-			u8 rx_pn[6];
+			u8 rx_pn[CMAC_PN_LEN];
 			struct crypto_cipher *tfm;
 			u32 replays; /* dot11RSNAStatsCMACReplays */
 			u32 icverrors; /* dot11RSNAStatsCMACICVErrors */

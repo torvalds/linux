@@ -626,3 +626,77 @@ void ieee80211_gtk_rekey_notify(struct ieee80211_vif *vif, const u8 *bssid,
 	cfg80211_gtk_rekey_notify(sdata->dev, bssid, replay_ctr, gfp);
 }
 EXPORT_SYMBOL_GPL(ieee80211_gtk_rekey_notify);
+
+void ieee80211_get_key_tx_seq(struct ieee80211_key_conf *keyconf,
+			      struct ieee80211_key_seq *seq)
+{
+	struct ieee80211_key *key;
+	u64 pn64;
+
+	if (WARN_ON(!(keyconf->flags & IEEE80211_KEY_FLAG_GENERATE_IV)))
+		return;
+
+	key = container_of(keyconf, struct ieee80211_key, conf);
+
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		seq->tkip.iv32 = key->u.tkip.tx.iv32;
+		seq->tkip.iv16 = key->u.tkip.tx.iv16;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		pn64 = atomic64_read(&key->u.ccmp.tx_pn);
+		seq->ccmp.pn[5] = pn64;
+		seq->ccmp.pn[4] = pn64 >> 8;
+		seq->ccmp.pn[3] = pn64 >> 16;
+		seq->ccmp.pn[2] = pn64 >> 24;
+		seq->ccmp.pn[1] = pn64 >> 32;
+		seq->ccmp.pn[0] = pn64 >> 40;
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		pn64 = atomic64_read(&key->u.aes_cmac.tx_pn);
+		seq->ccmp.pn[5] = pn64;
+		seq->ccmp.pn[4] = pn64 >> 8;
+		seq->ccmp.pn[3] = pn64 >> 16;
+		seq->ccmp.pn[2] = pn64 >> 24;
+		seq->ccmp.pn[1] = pn64 >> 32;
+		seq->ccmp.pn[0] = pn64 >> 40;
+		break;
+	default:
+		WARN_ON(1);
+	}
+}
+EXPORT_SYMBOL(ieee80211_get_key_tx_seq);
+
+void ieee80211_get_key_rx_seq(struct ieee80211_key_conf *keyconf,
+			      int tid, struct ieee80211_key_seq *seq)
+{
+	struct ieee80211_key *key;
+	const u8 *pn;
+
+	key = container_of(keyconf, struct ieee80211_key, conf);
+
+	switch (key->conf.cipher) {
+	case WLAN_CIPHER_SUITE_TKIP:
+		if (WARN_ON(tid < 0 || tid >= NUM_RX_DATA_QUEUES))
+			return;
+		seq->tkip.iv32 = key->u.tkip.rx[tid].iv32;
+		seq->tkip.iv16 = key->u.tkip.rx[tid].iv16;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		if (WARN_ON(tid < -1 || tid >= NUM_RX_DATA_QUEUES))
+			return;
+		if (tid < 0)
+			pn = key->u.ccmp.rx_pn[NUM_RX_DATA_QUEUES];
+		else
+			pn = key->u.ccmp.rx_pn[tid];
+		memcpy(seq->ccmp.pn, pn, CCMP_PN_LEN);
+		break;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		if (WARN_ON(tid != 0))
+			return;
+		pn = key->u.aes_cmac.rx_pn;
+		memcpy(seq->aes_cmac.pn, pn, CMAC_PN_LEN);
+		break;
+	}
+}
+EXPORT_SYMBOL(ieee80211_get_key_rx_seq);
