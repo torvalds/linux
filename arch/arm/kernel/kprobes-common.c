@@ -17,6 +17,8 @@
 #include "kprobes.h"
 
 
+#ifndef find_str_pc_offset
+
 /*
  * For STR and STM instructions, an ARM core may choose to use either
  * a +8 or a +12 displacement from the current instruction's address.
@@ -39,6 +41,8 @@ void __init find_str_pc_offset(void)
 
 	str_pc_offset = ret;
 }
+
+#endif /* !find_str_pc_offset */
 
 
 void __init arm_kprobe_decode_init(void)

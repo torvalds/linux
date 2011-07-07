@@ -36,7 +36,21 @@ void __init arm_kprobe_decode_init(void);
 
 extern kprobe_check_cc * const kprobe_condition_checks[16];
 
+
+#if __LINUX_ARM_ARCH__ >= 7
+
+/* str_pc_offset is architecturally defined from ARMv7 onwards */
+#define str_pc_offset 8
+#define find_str_pc_offset()
+
+#else /* __LINUX_ARM_ARCH__ < 7 */
+
+/* We need a run-time check to determine str_pc_offset */
 extern int str_pc_offset;
+void __init find_str_pc_offset(void);
+
+#endif
+
 
 /*
  * Test if load/store instructions writeback the address register.
