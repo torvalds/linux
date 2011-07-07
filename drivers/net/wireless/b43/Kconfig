@@ -131,6 +131,14 @@ config B43_PHY_HT
 
 	  Say N, this is BROKEN and crashes driver.
 
+config B43_PHY_LCN
+	bool "Support for LCN-PHY devices (BROKEN)"
+	depends on B43 && BROKEN
+	---help---
+	  Support for the LCN-PHY.
+
+	  Say N, this is BROKEN and crashes driver.
+
 # This config option automatically enables b43 LEDS support,
 # if it's possible.
 config B43_LEDS
