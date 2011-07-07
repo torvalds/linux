@@ -367,8 +367,6 @@ static u8 smp_cmd_pairing_random(struct l2cap_conn *conn, struct sk_buff *skb)
 	swap128(skb->data, random);
 	skb_pull(skb, sizeof(random));
 
-	memset(hcon->ltk, 0, sizeof(hcon->ltk));
-
 	if (conn->hcon->out)
 		ret = smp_c1(tfm, conn->tk, random, conn->preq, conn->prsp, 0,
 				conn->src, conn->hcon->dst_type, conn->dst,
