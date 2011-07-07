@@ -369,6 +369,7 @@ struct ieee80211_key *ieee80211_key_alloc(u32 cipher, int idx, size_t key_len,
 					get_unaligned_le16(seq);
 			}
 		}
+		spin_lock_init(&key->u.tkip.txlock);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		key->conf.iv_len = CCMP_HDR_LEN;

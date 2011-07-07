@@ -52,9 +52,10 @@ enum ieee80211_internal_tkip_state {
 };
 
 struct tkip_ctx {
-	u32 iv32;
-	u16 iv16;
-	u16 p1k[5];
+	u32 iv32;	/* current iv32 */
+	u16 iv16;	/* current iv16 */
+	u16 p1k[5];	/* p1k cache */
+	u32 p1k_iv32;	/* iv32 for which p1k computed */
 	enum ieee80211_internal_tkip_state state;
 };
 
@@ -71,6 +72,9 @@ struct ieee80211_key {
 
 	union {
 		struct {
+			/* protects tx context */
+			spinlock_t txlock;
+
 			/* last used TSC */
 			struct tkip_ctx tx;
 

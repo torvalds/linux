@@ -962,21 +962,6 @@ enum sta_notify_cmd {
 };
 
 /**
- * enum ieee80211_tkip_key_type - get tkip key
- *
- * Used by drivers which need to get a tkip key for skb. Some drivers need a
- * phase 1 key, others need a phase 2 key. A single function allows the driver
- * to get the key, this enum indicates what type of key is required.
- *
- * @IEEE80211_TKIP_P1_KEY: the driver needs a phase 1 key
- * @IEEE80211_TKIP_P2_KEY: the driver needs a phase 2 key
- */
-enum ieee80211_tkip_key_type {
-	IEEE80211_TKIP_P1_KEY,
-	IEEE80211_TKIP_P2_KEY,
-};
-
-/**
  * enum ieee80211_hw_flags - hardware flags
  *
  * These flags are used to indicate hardware capabilities to
@@ -2579,21 +2564,32 @@ struct sk_buff *
 ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 
 /**
- * ieee80211_get_tkip_key - get a TKIP rc4 for skb
+ * ieee80211_get_tkip_p1k - get a TKIP phase 1 key
  *
- * This function computes a TKIP rc4 key for an skb. It computes
- * a phase 1 key if needed (iv16 wraps around). This function is to
- * be used by drivers which can do HW encryption but need to compute
- * to phase 1/2 key in SW.
+ * This function returns the TKIP phase 1 key for the IV32 taken
+ * from the given packet.
  *
  * @keyconf: the parameter passed with the set key
- * @skb: the skb for which the key is needed
- * @type: TBD
- * @key: a buffer to which the key will be written
+ * @skb: the packet to take the IV32 value from that will be encrypted
+ *	with this P1K
+ * @p1k: a buffer to which the key will be written, as 5 u16 values
  */
-void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
-				struct sk_buff *skb,
-				enum ieee80211_tkip_key_type type, u8 *key);
+void ieee80211_get_tkip_p1k(struct ieee80211_key_conf *keyconf,
+			    struct sk_buff *skb, u16 *p1k);
+
+/**
+ * ieee80211_get_tkip_p2k - get a TKIP phase 2 key
+ *
+ * This function computes the TKIP RC4 key for the IV values
+ * in the packet.
+ *
+ * @keyconf: the parameter passed with the set key
+ * @skb: the packet to take the IV32/IV16 values from that will be
+ *	encrypted with this key
+ * @p2k: a buffer to which the key will be written, 16 bytes
+ */
+void ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
+			    struct sk_buff *skb, u8 *p2k);
 
 /**
  * ieee80211_gtk_rekey_notify - notify userspace supplicant of rekeying
