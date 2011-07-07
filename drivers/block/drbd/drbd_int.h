@@ -518,7 +518,7 @@ struct drbd_backing_dev {
 	struct block_device *backing_bdev;
 	struct block_device *md_bdev;
 	struct drbd_md md;
-	struct disk_conf *disk_conf; /* RCU, for updates: first_peer_device(device)->connection->conf_update */
+	struct disk_conf *disk_conf; /* RCU, for updates: resource->conf_update */
 	sector_t known_size; /* last known size of that backing device */
 };
 
@@ -578,6 +578,8 @@ struct drbd_resource {
 	struct list_head connections;
 	struct list_head resources;
 	struct res_opts res_opts;
+	struct mutex conf_update;	/* mutex for ready-copy-update of net_conf and disk_conf */
+	spinlock_t req_lock;
 };
 
 struct drbd_connection {
@@ -594,7 +596,6 @@ struct drbd_connection {
 
 	unsigned long flags;
 	struct net_conf *net_conf;	/* content protected by rcu */
-	struct mutex conf_update;	/* mutex for ready-copy-update of net_conf and disk_conf */
 	wait_queue_head_t ping_wait;	/* Woken upon reception of a ping, and a state change */
 
 	struct sockaddr_storage my_addr;
@@ -607,8 +608,6 @@ struct drbd_connection {
 	int agreed_pro_version;		/* actually used protocol version */
 	unsigned long last_received;	/* in jiffies, either socket */
 	unsigned int ko_count;
-
-	spinlock_t req_lock;
 
 	struct list_head transfer_log;	/* all requests not yet fully processed */
 
@@ -1595,9 +1594,9 @@ static inline void drbd_chk_io_error_(struct drbd_device *device,
 {
 	if (error) {
 		unsigned long flags;
-		spin_lock_irqsave(&first_peer_device(device)->connection->req_lock, flags);
+		spin_lock_irqsave(&device->resource->req_lock, flags);
 		__drbd_chk_io_error_(device, forcedetach, where);
-		spin_unlock_irqrestore(&first_peer_device(device)->connection->req_lock, flags);
+		spin_unlock_irqrestore(&device->resource->req_lock, flags);
 	}
 }
 
@@ -2069,11 +2068,11 @@ static inline bool inc_ap_bio_cond(struct drbd_device *device)
 {
 	bool rv = false;
 
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	rv = may_inc_ap_bio(device);
 	if (rv)
 		atomic_inc(&device->ap_bio_cnt);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	return rv;
 }

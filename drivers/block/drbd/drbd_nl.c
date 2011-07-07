@@ -443,9 +443,9 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
 		return false;
 	}
 
-	spin_lock_irq(&connection->req_lock);
+	spin_lock_irq(&connection->resource->req_lock);
 	connect_cnt = connection->connect_cnt;
-	spin_unlock_irq(&connection->req_lock);
+	spin_unlock_irq(&connection->resource->req_lock);
 
 	fp = highest_fencing_policy(connection);
 	switch (fp) {
@@ -510,7 +510,7 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
 	   conn_request_state(connection, mask, val, CS_VERBOSE);
 	   here, because we might were able to re-establish the connection in the
 	   meantime. */
-	spin_lock_irq(&connection->req_lock);
+	spin_lock_irq(&connection->resource->req_lock);
 	if (connection->cstate < C_WF_REPORT_PARAMS && !test_bit(STATE_SENT, &connection->flags)) {
 		if (connection->connect_cnt != connect_cnt)
 			/* In case the connection was established and droped
@@ -519,7 +519,7 @@ bool conn_try_outdate_peer(struct drbd_connection *connection)
 		else
 			_conn_request_state(connection, mask, val, CS_VERBOSE);
 	}
-	spin_unlock_irq(&connection->req_lock);
+	spin_unlock_irq(&connection->resource->req_lock);
 
 	return conn_highest_pdsk(connection) <= D_OUTDATED;
 }
@@ -654,11 +654,11 @@ drbd_set_role(struct drbd_device *device, enum drbd_role new_role, int force)
 			put_ldev(device);
 		}
 	} else {
-		mutex_lock(&first_peer_device(device)->connection->conf_update);
+		mutex_lock(&device->resource->conf_update);
 		nc = first_peer_device(device)->connection->net_conf;
 		if (nc)
 			nc->discard_my_data = 0; /* without copy; single bit op is atomic */
-		mutex_unlock(&first_peer_device(device)->connection->conf_update);
+		mutex_unlock(&device->resource->conf_update);
 
 		set_disk_ro(device->vdisk, false);
 		if (get_ldev(device)) {
@@ -1188,10 +1188,10 @@ static void conn_reconfig_start(struct drbd_connection *connection)
 static void conn_reconfig_done(struct drbd_connection *connection)
 {
 	bool stop_threads;
-	spin_lock_irq(&connection->req_lock);
+	spin_lock_irq(&connection->resource->req_lock);
 	stop_threads = conn_all_vols_unconf(connection) &&
 		connection->cstate == C_STANDALONE;
-	spin_unlock_irq(&connection->req_lock);
+	spin_unlock_irq(&connection->resource->req_lock);
 	if (stop_threads) {
 		/* asender is implicitly stopped by receiver
 		 * in conn_disconnect() */
@@ -1211,10 +1211,10 @@ static void drbd_suspend_al(struct drbd_device *device)
 	}
 
 	drbd_al_shrink(device);
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	if (device->state.conn < C_CONNECTED)
 		s = !test_and_set_bit(AL_SUSPENDED, &device->flags);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 	lc_unlock(device->act_log);
 
 	if (s)
@@ -1285,7 +1285,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 		goto fail;
 	}
 
-	mutex_lock(&first_peer_device(device)->connection->conf_update);
+	mutex_lock(&device->resource->conf_update);
 	old_disk_conf = device->ldev->disk_conf;
 	*new_disk_conf = *old_disk_conf;
 	if (should_set_defaults(info))
@@ -1348,7 +1348,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 		rcu_assign_pointer(device->rs_plan_s, new_plan);
 	}
 
-	mutex_unlock(&first_peer_device(device)->connection->conf_update);
+	mutex_unlock(&device->resource->conf_update);
 
 	if (new_disk_conf->al_updates)
 		device->ldev->md.flags &= ~MDF_AL_DISABLED;
@@ -1374,7 +1374,7 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	goto success;
 
 fail_unlock:
-	mutex_unlock(&first_peer_device(device)->connection->conf_update);
+	mutex_unlock(&device->resource->conf_update);
  fail:
 	kfree(new_disk_conf);
 	kfree(new_plan);
@@ -1724,7 +1724,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	if (_drbd_bm_total_weight(device) == drbd_bm_bits(device))
 		drbd_suspend_al(device); /* IO is still suspended here... */
 
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	os = drbd_read_state(device);
 	ns = os;
 	/* If MDF_CONSISTENT is not set go into inconsistent state,
@@ -1776,7 +1776,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	rv = _drbd_set_state(device, ns, CS_VERBOSE, NULL);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	if (rv < SS_SUCCESS)
 		goto force_diskless_dec;
@@ -2077,7 +2077,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	conn_reconfig_start(connection);
 
 	mutex_lock(&connection->data.mutex);
-	mutex_lock(&connection->conf_update);
+	mutex_lock(&connection->resource->conf_update);
 	old_net_conf = connection->net_conf;
 
 	if (!old_net_conf) {
@@ -2141,7 +2141,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	crypto_free_hash(connection->cram_hmac_tfm);
 	connection->cram_hmac_tfm = crypto.cram_hmac_tfm;
 
-	mutex_unlock(&connection->conf_update);
+	mutex_unlock(&connection->resource->conf_update);
 	mutex_unlock(&connection->data.mutex);
 	synchronize_rcu();
 	kfree(old_net_conf);
@@ -2152,7 +2152,7 @@ int drbd_adm_net_opts(struct sk_buff *skb, struct genl_info *info)
 	goto done;
 
  fail:
-	mutex_unlock(&connection->conf_update);
+	mutex_unlock(&connection->resource->conf_update);
 	mutex_unlock(&connection->data.mutex);
 	free_crypto(&crypto);
 	kfree(new_net_conf);
@@ -2243,11 +2243,11 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 
 	conn_flush_workqueue(connection);
 
-	mutex_lock(&connection->conf_update);
+	mutex_lock(&adm_ctx.resource->conf_update);
 	old_net_conf = connection->net_conf;
 	if (old_net_conf) {
 		retcode = ERR_NET_CONFIGURED;
-		mutex_unlock(&connection->conf_update);
+		mutex_unlock(&adm_ctx.resource->conf_update);
 		goto fail;
 	}
 	rcu_assign_pointer(connection->net_conf, new_net_conf);
@@ -2263,7 +2263,7 @@ int drbd_adm_connect(struct sk_buff *skb, struct genl_info *info)
 	connection->peer_addr_len = nla_len(adm_ctx.peer_addr);
 	memcpy(&connection->peer_addr, nla_data(adm_ctx.peer_addr), connection->peer_addr_len);
 
-	mutex_unlock(&connection->conf_update);
+	mutex_unlock(&adm_ctx.resource->conf_update);
 
 	rcu_read_lock();
 	idr_for_each_entry(&connection->peer_devices, peer_device, i) {
@@ -2486,12 +2486,12 @@ int drbd_adm_resize(struct sk_buff *skb, struct genl_info *info)
 		device->ldev->known_size = drbd_get_capacity(device->ldev->backing_bdev);
 
 	if (new_disk_conf) {
-		mutex_lock(&first_peer_device(device)->connection->conf_update);
+		mutex_lock(&device->resource->conf_update);
 		old_disk_conf = device->ldev->disk_conf;
 		*new_disk_conf = *old_disk_conf;
 		new_disk_conf->disk_size = (sector_t)rs.resize_size;
 		rcu_assign_pointer(device->ldev->disk_conf, new_disk_conf);
-		mutex_unlock(&first_peer_device(device)->connection->conf_update);
+		mutex_unlock(&device->resource->conf_update);
 		synchronize_rcu();
 		kfree(old_disk_conf);
 	}
@@ -3248,10 +3248,10 @@ int drbd_adm_new_c_uuid(struct sk_buff *skb, struct genl_info *info)
 			drbd_send_uuids_skip_initial_sync(device);
 			_drbd_uuid_set(device, UI_BITMAP, 0);
 			drbd_print_uuids(device, "cleared bitmap UUID");
-			spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+			spin_lock_irq(&device->resource->req_lock);
 			_drbd_set_state(_NS2(device, disk, D_UP_TO_DATE, pdsk, D_UP_TO_DATE),
 					CS_VERBOSE, NULL);
-			spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+			spin_unlock_irq(&device->resource->req_lock);
 		}
 	}
 

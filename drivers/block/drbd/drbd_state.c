@@ -250,10 +250,10 @@ drbd_change_state(struct drbd_device *device, enum chg_state_flags f,
 	union drbd_state ns;
 	enum drbd_state_rv rv;
 
-	spin_lock_irqsave(&first_peer_device(device)->connection->req_lock, flags);
+	spin_lock_irqsave(&device->resource->req_lock, flags);
 	ns = apply_mask_val(drbd_read_state(device), mask, val);
 	rv = _drbd_set_state(device, ns, f, NULL);
-	spin_unlock_irqrestore(&first_peer_device(device)->connection->req_lock, flags);
+	spin_unlock_irqrestore(&device->resource->req_lock, flags);
 
 	return rv;
 }
@@ -284,7 +284,7 @@ _req_st_cond(struct drbd_device *device, union drbd_state mask,
 	if (test_and_clear_bit(CL_ST_CHG_FAIL, &device->flags))
 		return SS_CW_FAILED_BY_PEER;
 
-	spin_lock_irqsave(&first_peer_device(device)->connection->req_lock, flags);
+	spin_lock_irqsave(&device->resource->req_lock, flags);
 	os = drbd_read_state(device);
 	ns = sanitize_state(device, apply_mask_val(os, mask, val), NULL);
 	rv = is_valid_transition(os, ns);
@@ -301,7 +301,7 @@ _req_st_cond(struct drbd_device *device, union drbd_state mask,
 				rv = SS_UNKNOWN_ERROR; /* cont waiting, otherwise fail. */
 		}
 	}
-	spin_unlock_irqrestore(&first_peer_device(device)->connection->req_lock, flags);
+	spin_unlock_irqrestore(&device->resource->req_lock, flags);
 
 	return rv;
 }
@@ -330,12 +330,12 @@ drbd_req_state(struct drbd_device *device, union drbd_state mask,
 	if (f & CS_SERIALIZE)
 		mutex_lock(device->state_mutex);
 
-	spin_lock_irqsave(&first_peer_device(device)->connection->req_lock, flags);
+	spin_lock_irqsave(&device->resource->req_lock, flags);
 	os = drbd_read_state(device);
 	ns = sanitize_state(device, apply_mask_val(os, mask, val), NULL);
 	rv = is_valid_transition(os, ns);
 	if (rv < SS_SUCCESS) {
-		spin_unlock_irqrestore(&first_peer_device(device)->connection->req_lock, flags);
+		spin_unlock_irqrestore(&device->resource->req_lock, flags);
 		goto abort;
 	}
 
@@ -343,7 +343,7 @@ drbd_req_state(struct drbd_device *device, union drbd_state mask,
 		rv = is_valid_state(device, ns);
 		if (rv == SS_SUCCESS)
 			rv = is_valid_soft_transition(os, ns, first_peer_device(device)->connection);
-		spin_unlock_irqrestore(&first_peer_device(device)->connection->req_lock, flags);
+		spin_unlock_irqrestore(&device->resource->req_lock, flags);
 
 		if (rv < SS_SUCCESS) {
 			if (f & CS_VERBOSE)
@@ -366,14 +366,14 @@ drbd_req_state(struct drbd_device *device, union drbd_state mask,
 				print_st_err(device, os, ns, rv);
 			goto abort;
 		}
-		spin_lock_irqsave(&first_peer_device(device)->connection->req_lock, flags);
+		spin_lock_irqsave(&device->resource->req_lock, flags);
 		ns = apply_mask_val(drbd_read_state(device), mask, val);
 		rv = _drbd_set_state(device, ns, f, &done);
 	} else {
 		rv = _drbd_set_state(device, ns, f, &done);
 	}
 
-	spin_unlock_irqrestore(&first_peer_device(device)->connection->req_lock, flags);
+	spin_unlock_irqrestore(&device->resource->req_lock, flags);
 
 	if (f & CS_WAIT_COMPLETE && rv == SS_SUCCESS) {
 		D_ASSERT(device, current != first_peer_device(device)->connection->worker.task);
@@ -1245,7 +1245,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		struct drbd_connection *connection = first_peer_device(device)->connection;
 		enum drbd_req_event what = NOTHING;
 
-		spin_lock_irq(&connection->req_lock);
+		spin_lock_irq(&device->resource->req_lock);
 		if (os.conn < C_CONNECTED && conn_lowest_conn(connection) >= C_CONNECTED)
 			what = RESEND;
 
@@ -1260,13 +1260,13 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 					    (union drbd_state) { { .susp_nod = 0 } },
 					    CS_VERBOSE);
 		}
-		spin_unlock_irq(&connection->req_lock);
+		spin_unlock_irq(&device->resource->req_lock);
 	}
 
 	if (ns.susp_fen) {
 		struct drbd_connection *connection = first_peer_device(device)->connection;
 
-		spin_lock_irq(&connection->req_lock);
+		spin_lock_irq(&device->resource->req_lock);
 		if (connection->susp_fen && conn_lowest_conn(connection) >= C_CONNECTED) {
 			/* case2: The connection was established again: */
 			struct drbd_peer_device *peer_device;
@@ -1282,7 +1282,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 					    (union drbd_state) { { .susp_fen = 0 } },
 					    CS_VERBOSE);
 		}
-		spin_unlock_irq(&connection->req_lock);
+		spin_unlock_irq(&device->resource->req_lock);
 	}
 
 	/* Became sync source.  With protocol >= 96, we still need to send out
@@ -1555,13 +1555,13 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 	if (oc == C_DISCONNECTING && ns_max.conn == C_STANDALONE) {
 		struct net_conf *old_conf;
 
-		mutex_lock(&connection->conf_update);
+		mutex_lock(&connection->resource->conf_update);
 		old_conf = connection->net_conf;
 		connection->my_addr_len = 0;
 		connection->peer_addr_len = 0;
 		rcu_assign_pointer(connection->net_conf, NULL);
 		conn_free_crypto(connection);
-		mutex_unlock(&connection->conf_update);
+		mutex_unlock(&connection->resource->conf_update);
 
 		synchronize_rcu();
 		kfree(old_conf);
@@ -1579,13 +1579,13 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 				}
 			}
 			rcu_read_unlock();
-			spin_lock_irq(&connection->req_lock);
+			spin_lock_irq(&connection->resource->req_lock);
 			_tl_restart(connection, CONNECTION_LOST_WHILE_PENDING);
 			_conn_request_state(connection,
 					    (union drbd_state) { { .susp_fen = 1 } },
 					    (union drbd_state) { { .susp_fen = 0 } },
 					    CS_VERBOSE);
-			spin_unlock_irq(&connection->req_lock);
+			spin_unlock_irq(&connection->resource->req_lock);
 		}
 	}
 	kref_put(&connection->kref, drbd_destroy_connection);
@@ -1802,7 +1802,7 @@ _conn_request_state(struct drbd_connection *connection, union drbd_state mask, u
 		/* This will be a cluster-wide state change.
 		 * Need to give up the spinlock, grab the mutex,
 		 * then send the state change request, ... */
-		spin_unlock_irq(&connection->req_lock);
+		spin_unlock_irq(&connection->resource->req_lock);
 		mutex_lock(&connection->cstate_mutex);
 		have_mutex = true;
 
@@ -1821,10 +1821,10 @@ _conn_request_state(struct drbd_connection *connection, union drbd_state mask, u
 		/* ... and re-aquire the spinlock.
 		 * If _conn_rq_cond() returned >= SS_SUCCESS, we must call
 		 * conn_set_state() within the same spinlock. */
-		spin_lock_irq(&connection->req_lock);
+		spin_lock_irq(&connection->resource->req_lock);
 		wait_event_lock_irq(connection->ping_wait,
 				(rv = _conn_rq_cond(connection, mask, val)),
-				connection->req_lock);
+				connection->resource->req_lock);
 		clear_bit(CONN_WD_ST_CHG_REQ, &connection->flags);
 		if (rv < SS_SUCCESS)
 			goto abort;
@@ -1853,10 +1853,10 @@ _conn_request_state(struct drbd_connection *connection, union drbd_state mask, u
 	if (have_mutex) {
 		/* mutex_unlock() "... must not be used in interrupt context.",
 		 * so give up the spinlock, then re-aquire it */
-		spin_unlock_irq(&connection->req_lock);
+		spin_unlock_irq(&connection->resource->req_lock);
  abort_unlocked:
 		mutex_unlock(&connection->cstate_mutex);
-		spin_lock_irq(&connection->req_lock);
+		spin_lock_irq(&connection->resource->req_lock);
 	}
 	if (rv < SS_SUCCESS && flags & CS_VERBOSE) {
 		drbd_err(connection, "State change failed: %s\n", drbd_set_st_err_str(rv));
@@ -1872,9 +1872,9 @@ conn_request_state(struct drbd_connection *connection, union drbd_state mask, un
 {
 	enum drbd_state_rv rv;
 
-	spin_lock_irq(&connection->req_lock);
+	spin_lock_irq(&connection->resource->req_lock);
 	rv = _conn_request_state(connection, mask, val, flags);
-	spin_unlock_irq(&connection->req_lock);
+	spin_unlock_irq(&connection->resource->req_lock);
 
 	return rv;
 }

@@ -221,9 +221,9 @@ static void drbd_kick_lo_and_reclaim_net(struct drbd_device *device)
 	LIST_HEAD(reclaimed);
 	struct drbd_peer_request *peer_req, *t;
 
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	reclaim_finished_net_peer_reqs(device, &reclaimed);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	list_for_each_entry_safe(peer_req, t, &reclaimed, w.list)
 		drbd_free_net_peer_req(device, peer_req);
@@ -288,7 +288,7 @@ struct page *drbd_alloc_pages(struct drbd_device *device, unsigned int number,
 }
 
 /* Must not be used from irq, as that may deadlock: see drbd_alloc_pages.
- * Is also used from inside an other spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+ * Is also used from inside an other spin_lock_irq(&resource->req_lock);
  * Either links the page chain back to the global pool,
  * or returns all pages to the system. */
 static void drbd_free_pages(struct drbd_device *device, struct page *page, int is_net)
@@ -396,9 +396,9 @@ int drbd_free_peer_reqs(struct drbd_device *device, struct list_head *list)
 	int count = 0;
 	int is_net = list == &device->net_ee;
 
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	list_splice_init(list, &work_list);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	list_for_each_entry_safe(peer_req, t, &work_list, w.list) {
 		__drbd_free_peer_req(device, peer_req, is_net);
@@ -417,10 +417,10 @@ static int drbd_finish_peer_reqs(struct drbd_device *device)
 	struct drbd_peer_request *peer_req, *t;
 	int err = 0;
 
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	reclaim_finished_net_peer_reqs(device, &reclaimed);
 	list_splice_init(&device->done_ee, &work_list);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	list_for_each_entry_safe(peer_req, t, &reclaimed, w.list)
 		drbd_free_net_peer_req(device, peer_req);
@@ -452,19 +452,19 @@ static void _drbd_wait_ee_list_empty(struct drbd_device *device,
 	 * and calling prepare_to_wait in the fast path */
 	while (!list_empty(head)) {
 		prepare_to_wait(&device->ee_wait, &wait, TASK_UNINTERRUPTIBLE);
-		spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+		spin_unlock_irq(&device->resource->req_lock);
 		io_schedule();
 		finish_wait(&device->ee_wait, &wait);
-		spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+		spin_lock_irq(&device->resource->req_lock);
 	}
 }
 
 static void drbd_wait_ee_list_empty(struct drbd_device *device,
 				    struct list_head *head)
 {
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	_drbd_wait_ee_list_empty(device, head);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 }
 
 static int drbd_recv_short(struct socket *sock, void *buf, size_t size, int flags)
@@ -1072,13 +1072,13 @@ randomize:
 
 	drbd_thread_start(&connection->asender);
 
-	mutex_lock(&connection->conf_update);
+	mutex_lock(&connection->resource->conf_update);
 	/* The discard_my_data flag is a single-shot modifier to the next
 	 * connection attempt, the handshake of which is now well underway.
 	 * No need for rcu style copying of the whole struct
 	 * just to clear a single value. */
 	connection->net_conf->discard_my_data = 0;
-	mutex_unlock(&connection->conf_update);
+	mutex_unlock(&connection->resource->conf_update);
 
 	return h;
 
@@ -1692,9 +1692,9 @@ static int recv_resync_read(struct drbd_device *device, sector_t sector, int dat
 
 	peer_req->w.cb = e_end_resync_block;
 
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	list_add(&peer_req->w.list, &device->sync_ee);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	atomic_add(data_size >> 9, &device->rs_sect_ev);
 	if (drbd_submit_peer_request(device, peer_req, WRITE, DRBD_FAULT_RS_WR) == 0)
@@ -1702,9 +1702,9 @@ static int recv_resync_read(struct drbd_device *device, sector_t sector, int dat
 
 	/* don't care for the reason here */
 	drbd_err(device, "submit failed, triggering re-connect\n");
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	list_del(&peer_req->w.list);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	drbd_free_peer_req(device, peer_req);
 fail:
@@ -1743,9 +1743,9 @@ static int receive_DataReply(struct drbd_connection *connection, struct packet_i
 
 	sector = be64_to_cpu(p->sector);
 
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	req = find_request(device, &device->read_requests, p->block_id, sector, false, __func__);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 	if (unlikely(!req))
 		return -EIO;
 
@@ -1844,12 +1844,12 @@ static int e_end_block(struct drbd_work *w, int cancel)
 	/* we delete from the conflict detection hash _after_ we sent out the
 	 * P_WRITE_ACK / P_NEG_ACK, to get the sequence number right.  */
 	if (peer_req->flags & EE_IN_INTERVAL_TREE) {
-		spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+		spin_lock_irq(&device->resource->req_lock);
 		D_ASSERT(device, !drbd_interval_empty(&peer_req->i));
 		drbd_remove_epoch_entry_interval(device, peer_req);
 		if (peer_req->flags & EE_RESTART_REQUESTS)
 			restart_conflicting_writes(device, sector, peer_req->i.size);
-		spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+		spin_unlock_irq(&device->resource->req_lock);
 	} else
 		D_ASSERT(device, drbd_interval_empty(&peer_req->i));
 
@@ -1925,7 +1925,7 @@ static bool overlapping_resync_write(struct drbd_device *device, struct drbd_pee
 	struct drbd_peer_request *rs_req;
 	bool rv = 0;
 
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	list_for_each_entry(rs_req, &device->sync_ee, w.list) {
 		if (overlaps(peer_req->i.sector, peer_req->i.size,
 			     rs_req->i.sector, rs_req->i.size)) {
@@ -1933,7 +1933,7 @@ static bool overlapping_resync_write(struct drbd_device *device, struct drbd_pee
 			break;
 		}
 	}
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	return rv;
 }
@@ -2034,10 +2034,10 @@ static void fail_postponed_requests(struct drbd_device *device, sector_t sector,
 			continue;
 		req->rq_state &= ~RQ_POSTPONED;
 		__req_mod(req, NEG_ACKED, &m);
-		spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+		spin_unlock_irq(&device->resource->req_lock);
 		if (m.bio)
 			complete_master_bio(device, &m);
-		spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+		spin_lock_irq(&device->resource->req_lock);
 		goto repeat;
 	}
 }
@@ -2218,10 +2218,10 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 		err = wait_for_and_update_peer_seq(device, peer_seq);
 		if (err)
 			goto out_interrupted;
-		spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+		spin_lock_irq(&device->resource->req_lock);
 		err = handle_write_conflicts(device, peer_req);
 		if (err) {
-			spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+			spin_unlock_irq(&device->resource->req_lock);
 			if (err == -ENOENT) {
 				put_ldev(device);
 				return 0;
@@ -2230,10 +2230,10 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 		}
 	} else {
 		update_peer_seq(device, peer_seq);
-		spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+		spin_lock_irq(&device->resource->req_lock);
 	}
 	list_add(&peer_req->w.list, &device->active_ee);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	if (device->state.conn == C_SYNC_TARGET)
 		wait_event(device->ee_wait, !overlapping_resync_write(device, peer_req));
@@ -2278,10 +2278,10 @@ static int receive_Data(struct drbd_connection *connection, struct packet_info *
 
 	/* don't care for the reason here */
 	drbd_err(device, "submit failed, triggering re-connect\n");
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	list_del(&peer_req->w.list);
 	drbd_remove_epoch_entry_interval(device, peer_req);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 	if (peer_req->flags & EE_CALL_AL_COMPLETE_IO)
 		drbd_al_complete_io(device, &peer_req->i);
 
@@ -2532,18 +2532,18 @@ submit_for_resync:
 
 submit:
 	inc_unacked(device);
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	list_add_tail(&peer_req->w.list, &device->read_ee);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	if (drbd_submit_peer_request(device, peer_req, READ, fault_type) == 0)
 		return 0;
 
 	/* don't care for the reason here */
 	drbd_err(device, "submit failed, triggering re-connect\n");
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	list_del(&peer_req->w.list);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 	/* no drbd_rs_complete_io(), we are dropping the connection anyways */
 
 out_free_e:
@@ -3221,7 +3221,7 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
 	}
 
 	mutex_lock(&connection->data.mutex);
-	mutex_lock(&connection->conf_update);
+	mutex_lock(&connection->resource->conf_update);
 	old_net_conf = connection->net_conf;
 	*new_net_conf = *old_net_conf;
 
@@ -3232,7 +3232,7 @@ static int receive_protocol(struct drbd_connection *connection, struct packet_in
 	new_net_conf->two_primaries = p_two_primaries;
 
 	rcu_assign_pointer(connection->net_conf, new_net_conf);
-	mutex_unlock(&connection->conf_update);
+	mutex_unlock(&connection->resource->conf_update);
 	mutex_unlock(&connection->data.mutex);
 
 	crypto_free_hash(connection->peer_integrity_tfm);
@@ -3372,13 +3372,13 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
 	if (err)
 		return err;
 
-	mutex_lock(&first_peer_device(device)->connection->conf_update);
+	mutex_lock(&connection->resource->conf_update);
 	old_net_conf = first_peer_device(device)->connection->net_conf;
 	if (get_ldev(device)) {
 		new_disk_conf = kzalloc(sizeof(struct disk_conf), GFP_KERNEL);
 		if (!new_disk_conf) {
 			put_ldev(device);
-			mutex_unlock(&first_peer_device(device)->connection->conf_update);
+			mutex_unlock(&connection->resource->conf_update);
 			drbd_err(device, "Allocation of new disk_conf failed\n");
 			return -ENOMEM;
 		}
@@ -3498,7 +3498,7 @@ static int receive_SyncParam(struct drbd_connection *connection, struct packet_i
 		rcu_assign_pointer(device->rs_plan_s, new_plan);
 	}
 
-	mutex_unlock(&first_peer_device(device)->connection->conf_update);
+	mutex_unlock(&connection->resource->conf_update);
 	synchronize_rcu();
 	if (new_net_conf)
 		kfree(old_net_conf);
@@ -3512,7 +3512,7 @@ reconnect:
 		put_ldev(device);
 		kfree(new_disk_conf);
 	}
-	mutex_unlock(&first_peer_device(device)->connection->conf_update);
+	mutex_unlock(&connection->resource->conf_update);
 	return -EIO;
 
 disconnect:
@@ -3521,7 +3521,7 @@ disconnect:
 		put_ldev(device);
 		kfree(new_disk_conf);
 	}
-	mutex_unlock(&first_peer_device(device)->connection->conf_update);
+	mutex_unlock(&connection->resource->conf_update);
 	/* just for completeness: actually not needed,
 	 * as this is not reached if csums_tfm was ok. */
 	crypto_free_hash(csums_tfm);
@@ -3601,13 +3601,13 @@ static int receive_sizes(struct drbd_connection *connection, struct packet_info 
 				return -ENOMEM;
 			}
 
-			mutex_lock(&first_peer_device(device)->connection->conf_update);
+			mutex_lock(&connection->resource->conf_update);
 			old_disk_conf = device->ldev->disk_conf;
 			*new_disk_conf = *old_disk_conf;
 			new_disk_conf->disk_size = p_usize;
 
 			rcu_assign_pointer(device->ldev->disk_conf, new_disk_conf);
-			mutex_unlock(&first_peer_device(device)->connection->conf_update);
+			mutex_unlock(&connection->resource->conf_update);
 			synchronize_rcu();
 			kfree(old_disk_conf);
 
@@ -3846,10 +3846,10 @@ static int receive_state(struct drbd_connection *connection, struct packet_info 
 		drbd_info(device, "real peer disk state = %s\n", drbd_disk_str(real_peer_disk));
 	}
 
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
  retry:
 	os = ns = drbd_read_state(device);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	/* If some other part of the code (asender thread, timeout)
 	 * already decided to close the connection again,
@@ -3952,7 +3952,7 @@ static int receive_state(struct drbd_connection *connection, struct packet_info 
 		}
 	}
 
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	if (os.i != drbd_read_state(device).i)
 		goto retry;
 	clear_bit(CONSIDER_RESYNC, &device->flags);
@@ -3966,7 +3966,7 @@ static int receive_state(struct drbd_connection *connection, struct packet_info 
 	    test_bit(NEW_CUR_UUID, &device->flags)) {
 		/* Do not allow tl_restart(RESEND) for a rebooted peer. We can only allow this
 		   for temporal network outages! */
-		spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+		spin_unlock_irq(&device->resource->req_lock);
 		drbd_err(device, "Aborting Connect, can not thaw IO with an only Consistent peer\n");
 		tl_clear(first_peer_device(device)->connection);
 		drbd_uuid_new_current(device);
@@ -3976,7 +3976,7 @@ static int receive_state(struct drbd_connection *connection, struct packet_info 
 	}
 	rv = _drbd_set_state(device, ns, cs_flags, NULL);
 	ns = drbd_read_state(device);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	if (rv < SS_SUCCESS) {
 		conn_request_state(first_peer_device(device)->connection, NS(conn, C_DISCONNECTING), CS_HARD);
@@ -4483,12 +4483,12 @@ static void conn_disconnect(struct drbd_connection *connection)
 	if (conn_highest_role(connection) == R_PRIMARY && conn_highest_pdsk(connection) >= D_UNKNOWN)
 		conn_try_outdate_peer_async(connection);
 
-	spin_lock_irq(&connection->req_lock);
+	spin_lock_irq(&connection->resource->req_lock);
 	oc = connection->cstate;
 	if (oc >= C_UNCONNECTED)
 		_conn_request_state(connection, NS(conn, C_UNCONNECTED), CS_VERBOSE);
 
-	spin_unlock_irq(&connection->req_lock);
+	spin_unlock_irq(&connection->resource->req_lock);
 
 	if (oc == C_DISCONNECTING)
 		conn_request_state(connection, NS(conn, C_STANDALONE), CS_VERBOSE | CS_HARD);
@@ -4499,11 +4499,11 @@ static int drbd_disconnected(struct drbd_device *device)
 	unsigned int i;
 
 	/* wait for current activity to cease. */
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	_drbd_wait_ee_list_empty(device, &device->active_ee);
 	_drbd_wait_ee_list_empty(device, &device->sync_ee);
 	_drbd_wait_ee_list_empty(device, &device->read_ee);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	/* We do not have data structures that would allow us to
 	 * get the rs_pending_cnt down to 0 again.
@@ -4970,14 +4970,14 @@ validate_req_change_req_state(struct drbd_device *device, u64 id, sector_t secto
 	struct drbd_request *req;
 	struct bio_and_error m;
 
-	spin_lock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_lock_irq(&device->resource->req_lock);
 	req = find_request(device, root, id, sector, missing_ok, func);
 	if (unlikely(!req)) {
-		spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+		spin_unlock_irq(&device->resource->req_lock);
 		return -EIO;
 	}
 	__req_mod(req, what, &m);
-	spin_unlock_irq(&first_peer_device(device)->connection->req_lock);
+	spin_unlock_irq(&device->resource->req_lock);
 
 	if (m.bio)
 		complete_master_bio(device, &m);
@@ -5218,14 +5218,14 @@ static int connection_finish_peer_reqs(struct drbd_connection *connection)
 		}
 		set_bit(SIGNAL_ASENDER, &connection->flags);
 
-		spin_lock_irq(&connection->req_lock);
+		spin_lock_irq(&connection->resource->req_lock);
 		idr_for_each_entry(&connection->peer_devices, peer_device, vnr) {
 			struct drbd_device *device = peer_device->device;
 			not_empty = !list_empty(&device->done_ee);
 			if (not_empty)
 				break;
 		}
-		spin_unlock_irq(&connection->req_lock);
+		spin_unlock_irq(&connection->resource->req_lock);
 		rcu_read_unlock();
 	} while (not_empty);
 
