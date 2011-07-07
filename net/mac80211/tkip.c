@@ -170,15 +170,12 @@ static void ieee80211_compute_tkip_p1k(struct ieee80211_key *key, u32 iv32)
 		tkip_mixing_phase1(tk, ctx, sdata->vif.addr, iv32);
 }
 
-void ieee80211_get_tkip_p1k(struct ieee80211_key_conf *keyconf,
-			    struct sk_buff *skb, u16 *p1k)
+void ieee80211_get_tkip_p1k_iv(struct ieee80211_key_conf *keyconf,
+			       u32 iv32, u16 *p1k)
 {
 	struct ieee80211_key *key = (struct ieee80211_key *)
 			container_of(keyconf, struct ieee80211_key, conf);
 	struct tkip_ctx *ctx = &key->u.tkip.tx;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	const u8 *data = (u8 *)hdr + ieee80211_hdrlen(hdr->frame_control);
-	u32 iv32 = get_unaligned_le32(&data[4]);
 	unsigned long flags;
 
 	spin_lock_irqsave(&key->u.tkip.txlock, flags);
@@ -186,7 +183,7 @@ void ieee80211_get_tkip_p1k(struct ieee80211_key_conf *keyconf,
 	memcpy(p1k, ctx->p1k, sizeof(ctx->p1k));
 	spin_unlock_irqrestore(&key->u.tkip.txlock, flags);
 }
-EXPORT_SYMBOL(ieee80211_get_tkip_p1k);
+EXPORT_SYMBOL(ieee80211_get_tkip_p1k_iv);
 
 void ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
 			    struct sk_buff *skb, u8 *p2k)

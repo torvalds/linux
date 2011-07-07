@@ -20,6 +20,7 @@
 #include <linux/device.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
+#include <asm/unaligned.h>
 
 /**
  * DOC: Introduction
@@ -2564,6 +2565,18 @@ struct sk_buff *
 ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 
 /**
+ * ieee80211_get_tkip_p1k_iv - get a TKIP phase 1 key for IV32
+ *
+ * This function returns the TKIP phase 1 key for the given IV32.
+ *
+ * @keyconf: the parameter passed with the set key
+ * @iv32: IV32 to get the P1K for
+ * @p1k: a buffer to which the key will be written, as 5 u16 values
+ */
+void ieee80211_get_tkip_p1k_iv(struct ieee80211_key_conf *keyconf,
+			       u32 iv32, u16 *p1k);
+
+/**
  * ieee80211_get_tkip_p1k - get a TKIP phase 1 key
  *
  * This function returns the TKIP phase 1 key for the IV32 taken
@@ -2574,8 +2587,15 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
  *	with this P1K
  * @p1k: a buffer to which the key will be written, as 5 u16 values
  */
-void ieee80211_get_tkip_p1k(struct ieee80211_key_conf *keyconf,
-			    struct sk_buff *skb, u16 *p1k);
+static inline void ieee80211_get_tkip_p1k(struct ieee80211_key_conf *keyconf,
+					  struct sk_buff *skb, u16 *p1k)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	const u8 *data = (u8 *)hdr + ieee80211_hdrlen(hdr->frame_control);
+	u32 iv32 = get_unaligned_le32(&data[4]);
+
+	ieee80211_get_tkip_p1k_iv(keyconf, iv32, p1k);
+}
 
 /**
  * ieee80211_get_tkip_p2k - get a TKIP phase 2 key
