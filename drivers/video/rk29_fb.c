@@ -213,6 +213,7 @@ struct rk29fb_inf {
 	int mcu_usetimer;
 	int mcu_stopflush;
 
+    int setFlag;
     /* external memery */
 	char __iomem *screen_base2;
     __u32 smem_len2;
@@ -618,14 +619,14 @@ void load_screen(struct fb_info *info, bool initscreen)
     if(initscreen == 0)    //not init
     {
         clk_disable(inf->dclk);
-        clk_disable(inf->aclk);
+      //  clk_disable(inf->aclk);
     }
 
-    clk_disable(inf->aclk_ddr_lcdc);
-    clk_disable(inf->aclk_disp_matrix);
-    clk_disable(inf->hclk_cpu_display);
+   // clk_disable(inf->aclk_ddr_lcdc);
+   // clk_disable(inf->aclk_disp_matrix);
+   // clk_disable(inf->hclk_cpu_display);
 
-    clk_disable(inf->clk);
+   // clk_disable(inf->clk);
     ret = clk_set_parent(inf->aclk, inf->aclk_parent);
 
     fbprintk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz ret =%d\n ", screen->pixclock, screen->lcdc_aclk, ret);
@@ -644,12 +645,12 @@ void load_screen(struct fb_info *info, bool initscreen)
         printk(KERN_ERR ">>>>>> set lcdc aclk failed\n");
     }
 
-    clk_enable(inf->aclk_ddr_lcdc);
-    clk_enable(inf->aclk_disp_matrix);
-    clk_enable(inf->hclk_cpu_display);
-
-    clk_enable(inf->aclk);
-    clk_enable(inf->clk);
+  //  clk_enable(inf->aclk_ddr_lcdc);
+  //  clk_enable(inf->aclk_disp_matrix);
+  //  clk_enable(inf->hclk_cpu_display);
+    if(initscreen)
+        clk_enable(inf->aclk);
+  //  clk_enable(inf->clk);
     clk_enable(inf->dclk);
 
     // init screen panel
@@ -1310,6 +1311,7 @@ static int fb0_set_par(struct fb_info *info)
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
+    inf->setFlag = 0;
 	CHK_SUSPEND(inf);
 
     if(inf->fb0_color_deepth)var->bits_per_pixel=inf->fb0_color_deepth;
@@ -1410,7 +1412,7 @@ static int fb0_set_par(struct fb_info *info)
         par->ysize = screen->y_res;
         win0_set_par(info);
     }
-
+    inf->setFlag = 1;
     return 0;
 }
 
@@ -1996,7 +1998,10 @@ int fb1_release(struct fb_info *info, int user)
 	struct fb_var_screeninfo *var0 = &info->var;
 
     fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
-
+    if(inf->setFlag == 0)
+    {
+        wait_event_interruptible_timeout(wq, inf->setFlag, HZ*10);
+    } 
     if(par->refcount) {
         par->refcount--;
         inf->video_mode = 0;
