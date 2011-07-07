@@ -191,8 +191,12 @@ static LIST_HEAD(slab_caches);
 /*
  * Tracking user of a slab.
  */
+#define TRACK_ADDRS_COUNT 16
 struct track {
 	unsigned long addr;	/* Called from address */
+#ifdef CONFIG_STACKTRACE
+	unsigned long addrs[TRACK_ADDRS_COUNT];	/* Called from address */
+#endif
 	int cpu;		/* Was running on cpu */
 	int pid;		/* Pid context */
 	unsigned long when;	/* When did the operation occur */
@@ -420,6 +424,24 @@ static void set_track(struct kmem_cache *s, void *object,
 	struct track *p = get_track(s, object, alloc);
 
 	if (addr) {
+#ifdef CONFIG_STACKTRACE
+		struct stack_trace trace;
+		int i;
+
+		trace.nr_entries = 0;
+		trace.max_entries = TRACK_ADDRS_COUNT;
+		trace.entries = p->addrs;
+		trace.skip = 3;
+		save_stack_trace(&trace);
+
+		/* See rant in lockdep.c */
+		if (trace.nr_entries != 0 &&
+		    trace.entries[trace.nr_entries - 1] == ULONG_MAX)
+			trace.nr_entries--;
+
+		for (i = trace.nr_entries; i < TRACK_ADDRS_COUNT; i++)
+			p->addrs[i] = 0;
+#endif
 		p->addr = addr;
 		p->cpu = smp_processor_id();
 		p->pid = current->pid;
@@ -444,6 +466,16 @@ static void print_track(const char *s, struct track *t)
 
 	printk(KERN_ERR "INFO: %s in %pS age=%lu cpu=%u pid=%d\n",
 		s, (void *)t->addr, jiffies - t->when, t->cpu, t->pid);
+#ifdef CONFIG_STACKTRACE
+	{
+		int i;
+		for (i = 0; i < TRACK_ADDRS_COUNT; i++)
+			if (t->addrs[i])
+				printk(KERN_ERR "\t%pS\n", (void *)t->addrs[i]);
+			else
+				break;
+	}
+#endif
 }
 
 static void print_tracking(struct kmem_cache *s, void *object)
