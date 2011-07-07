@@ -364,19 +364,15 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 	__le32 tx_flags = tx_cmd->tx_flags;
 
 	tx_cmd->stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
-		tx_flags |= TX_CMD_FLG_ACK_MSK;
-		if (ieee80211_is_mgmt(fc))
-			tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
-		if (ieee80211_is_probe_resp(fc) &&
-		    !(le16_to_cpu(hdr->seq_ctrl) & 0xf))
-			tx_flags |= TX_CMD_FLG_TSF_MSK;
-	} else {
-		tx_flags &= (~TX_CMD_FLG_ACK_MSK);
-		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
-	}
 
-	if (ieee80211_is_back_req(fc))
+	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
+		tx_flags |= TX_CMD_FLG_ACK_MSK;
+	else
+		tx_flags &= ~TX_CMD_FLG_ACK_MSK;
+
+	if (ieee80211_is_probe_resp(fc))
+		tx_flags |= TX_CMD_FLG_TSF_MSK;
+	else if (ieee80211_is_back_req(fc))
 		tx_flags |= TX_CMD_FLG_ACK_MSK | TX_CMD_FLG_IMM_BA_RSP_MASK;
 	else if (info->band == IEEE80211_BAND_2GHZ &&
 		 priv->cfg->bt_params &&
