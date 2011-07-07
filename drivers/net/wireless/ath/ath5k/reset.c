@@ -375,7 +375,7 @@ static int ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
 static int ath5k_hw_wisoc_reset(struct ath5k_hw *ah, u32 flags)
 {
 	u32 mask = flags ? flags : ~0U;
-	volatile __iomem u32 *reg;
+	u32 __iomem *reg;
 	u32 regval;
 	u32 val = 0;
 
