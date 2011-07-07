@@ -1244,7 +1244,7 @@ int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	if (bacmp(bdaddr, BDADDR_ANY) == 0)
 		return -EBADF;
 
-	hci_dev_lock(hdev);
+	hci_dev_lock_bh(hdev);
 
 	if (hci_blacklist_lookup(hdev, bdaddr)) {
 		err = -EEXIST;
@@ -1264,7 +1264,7 @@ int hci_blacklist_add(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	err = 0;
 
 err:
-	hci_dev_unlock(hdev);
+	hci_dev_unlock_bh(hdev);
 	return err;
 }
 
@@ -1273,7 +1273,7 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	struct bdaddr_list *entry;
 	int err = 0;
 
-	hci_dev_lock(hdev);
+	hci_dev_lock_bh(hdev);
 
 	if (bacmp(bdaddr, BDADDR_ANY) == 0) {
 		hci_blacklist_clear(hdev);
@@ -1290,7 +1290,7 @@ int hci_blacklist_del(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	kfree(entry);
 
 done:
-	hci_dev_unlock(hdev);
+	hci_dev_unlock_bh(hdev);
 	return err;
 }
 
