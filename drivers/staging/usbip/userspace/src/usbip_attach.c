@@ -115,7 +115,7 @@ static int query_import_device(int sockfd, char *busid)
 	memset(&reply, 0, sizeof(reply));
 
 	/* send a request */
-	rc = usbip_send_op_common(sockfd, OP_REQ_IMPORT, 0);
+	rc = usbip_net_send_op_common(sockfd, OP_REQ_IMPORT, 0);
 	if (rc < 0) {
 		err("send op_common");
 		return -1;
@@ -125,20 +125,20 @@ static int query_import_device(int sockfd, char *busid)
 
 	PACK_OP_IMPORT_REQUEST(0, &request);
 
-	rc = usbip_send(sockfd, (void *) &request, sizeof(request));
+	rc = usbip_net_send(sockfd, (void *) &request, sizeof(request));
 	if (rc < 0) {
 		err("send op_import_request");
 		return -1;
 	}
 
-	/* receive a reply */
-	rc = usbip_recv_op_common(sockfd, &code);
+	/* recieve a reply */
+	rc = usbip_net_recv_op_common(sockfd, &code);
 	if (rc < 0) {
 		err("recv op_common");
 		return -1;
 	}
 
-	rc = usbip_recv(sockfd, (void *) &reply, sizeof(reply));
+	rc = usbip_net_recv(sockfd, (void *) &reply, sizeof(reply));
 	if (rc < 0) {
 		err("recv op_import_reply");
 		return -1;

@@ -28,7 +28,7 @@
 #include "usbip_common.h"
 #include "usbip_network.h"
 
-void pack_uint32_t(int pack, uint32_t *num)
+void usbip_net_pack_uint32_t(int pack, uint32_t *num)
 {
 	uint32_t i;
 
@@ -40,7 +40,7 @@ void pack_uint32_t(int pack, uint32_t *num)
 	*num = i;
 }
 
-void pack_uint16_t(int pack, uint16_t *num)
+void usbip_net_pack_uint16_t(int pack, uint16_t *num)
 {
 	uint16_t i;
 
@@ -52,24 +52,26 @@ void pack_uint16_t(int pack, uint16_t *num)
 	*num = i;
 }
 
-void pack_usb_device(int pack, struct usbip_usb_device *udev)
+void usbip_net_pack_usb_device(int pack, struct usbip_usb_device *udev)
 {
-	pack_uint32_t(pack, &udev->busnum);
-	pack_uint32_t(pack, &udev->devnum);
-	pack_uint32_t(pack, &udev->speed );
+	usbip_net_pack_uint32_t(pack, &udev->busnum);
+	usbip_net_pack_uint32_t(pack, &udev->devnum);
+	usbip_net_pack_uint32_t(pack, &udev->speed );
 
-	pack_uint16_t(pack, &udev->idVendor );
-	pack_uint16_t(pack, &udev->idProduct);
-	pack_uint16_t(pack, &udev->bcdDevice);
+	usbip_net_pack_uint16_t(pack, &udev->idVendor);
+	usbip_net_pack_uint16_t(pack, &udev->idProduct);
+	usbip_net_pack_uint16_t(pack, &udev->bcdDevice);
 }
 
-void pack_usb_interface(int pack __attribute__((unused)),
-			struct usbip_usb_interface *udev __attribute__((unused)))
+void usbip_net_pack_usb_interface(int pack __attribute__((unused)),
+				  struct usbip_usb_interface *udev
+				  __attribute__((unused)))
 {
 	/* uint8_t members need nothing */
 }
 
-static ssize_t usbip_xmit(int sockfd, void *buff, size_t bufflen, int sending)
+static ssize_t usbip_net_xmit(int sockfd, void *buff, size_t bufflen,
+			      int sending)
 {
 	ssize_t nbytes;
 	ssize_t total = 0;
@@ -95,17 +97,17 @@ static ssize_t usbip_xmit(int sockfd, void *buff, size_t bufflen, int sending)
 	return total;
 }
 
-ssize_t usbip_recv(int sockfd, void *buff, size_t bufflen)
+ssize_t usbip_net_recv(int sockfd, void *buff, size_t bufflen)
 {
-	return usbip_xmit(sockfd, buff, bufflen, 0);
+	return usbip_net_xmit(sockfd, buff, bufflen, 0);
 }
 
-ssize_t usbip_send(int sockfd, void *buff, size_t bufflen)
+ssize_t usbip_net_send(int sockfd, void *buff, size_t bufflen)
 {
-	return usbip_xmit(sockfd, buff, bufflen, 1);
+	return usbip_net_xmit(sockfd, buff, bufflen, 1);
 }
 
-int usbip_send_op_common(int sockfd, uint32_t code, uint32_t status)
+int usbip_net_send_op_common(int sockfd, uint32_t code, uint32_t status)
 {
 	struct op_common op_common;
 	int rc;
@@ -118,25 +120,25 @@ int usbip_send_op_common(int sockfd, uint32_t code, uint32_t status)
 
 	PACK_OP_COMMON(1, &op_common);
 
-	rc = usbip_send(sockfd, &op_common, sizeof(op_common));
+	rc = usbip_net_send(sockfd, &op_common, sizeof(op_common));
 	if (rc < 0) {
-		dbg("usbip_send failed: %d", rc);
+		dbg("usbip_net_send failed: %d", rc);
 		return -1;
 	}
 
 	return 0;
 }
 
-int usbip_recv_op_common(int sockfd, uint16_t *code)
+int usbip_net_recv_op_common(int sockfd, uint16_t *code)
 {
 	struct op_common op_common;
 	int rc;
 
 	memset(&op_common, 0, sizeof(op_common));
 
-	rc = usbip_recv(sockfd, &op_common, sizeof(op_common));
+	rc = usbip_net_recv(sockfd, &op_common, sizeof(op_common));
 	if (rc < 0) {
-		dbg("usbip_recv failed: %d", rc);
+		dbg("usbip_net_recv failed: %d", rc);
 		goto err;
 	}
 
@@ -171,7 +173,7 @@ err:
 	return -1;
 }
 
-int usbip_set_reuseaddr(int sockfd)
+int usbip_net_set_reuseaddr(int sockfd)
 {
 	const int val = 1;
 	int ret;
@@ -183,7 +185,7 @@ int usbip_set_reuseaddr(int sockfd)
 	return ret;
 }
 
-int usbip_set_nodelay(int sockfd)
+int usbip_net_set_nodelay(int sockfd)
 {
 	const int val = 1;
 	int ret;
@@ -195,7 +197,7 @@ int usbip_set_nodelay(int sockfd)
 	return ret;
 }
 
-int usbip_set_keepalive(int sockfd)
+int usbip_net_set_keepalive(int sockfd)
 {
 	const int val = 1;
 	int ret;
@@ -236,9 +238,9 @@ int usbip_net_tcp_connect(char *hostname, char *service)
 			continue;
 
 		/* should set TCP_NODELAY for usbip */
-		usbip_set_nodelay(sockfd);
+		usbip_net_set_nodelay(sockfd);
 		/* TODO: write code for heartbeat */
-		usbip_set_keepalive(sockfd);
+		usbip_net_set_keepalive(sockfd);
 
 		if (connect(sockfd, rp->ai_addr, rp->ai_addrlen) == 0)
 			break;

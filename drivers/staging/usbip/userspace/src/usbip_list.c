@@ -56,22 +56,22 @@ static int get_exported_devices(char *host, int sockfd)
 	unsigned int i;
 	int j, rc;
 
-	rc = usbip_send_op_common(sockfd, OP_REQ_DEVLIST, 0);
+	rc = usbip_net_send_op_common(sockfd, OP_REQ_DEVLIST, 0);
 	if (rc < 0) {
-		dbg("usbip_send_op_common failed");
+		dbg("usbip_net_send_op_common failed");
 		return -1;
 	}
 
-	rc = usbip_recv_op_common(sockfd, &code);
+	rc = usbip_net_recv_op_common(sockfd, &code);
 	if (rc < 0) {
-		dbg("usbip_recv_op_common failed");
+		dbg("usbip_net_recv_op_common failed");
 		return -1;
 	}
 
 	memset(&reply, 0, sizeof(reply));
-	rc = usbip_recv(sockfd, &reply, sizeof(reply));
+	rc = usbip_net_recv(sockfd, &reply, sizeof(reply));
 	if (rc < 0) {
-		dbg("usbip_recv_op_devlist failed");
+		dbg("usbip_net_recv_op_devlist failed");
 		return -1;
 	}
 	PACK_OP_DEVLIST_REPLY(0, &reply);
@@ -88,12 +88,12 @@ static int get_exported_devices(char *host, int sockfd)
 
 	for (i = 0; i < reply.ndev; i++) {
 		memset(&udev, 0, sizeof(udev));
-		rc = usbip_recv(sockfd, &udev, sizeof(udev));
+		rc = usbip_net_recv(sockfd, &udev, sizeof(udev));
 		if (rc < 0) {
-			dbg("usbip_recv failed: usbip_usb_device[%d]", i);
+			dbg("usbip_net_recv failed: usbip_usb_device[%d]", i);
 			return -1;
 		}
-		pack_usb_device(0, &udev);
+		usbip_net_pack_usb_device(0, &udev);
 
 		usbip_names_get_product(product_name, sizeof(product_name),
 					udev.idVendor, udev.idProduct);
@@ -105,12 +105,14 @@ static int get_exported_devices(char *host, int sockfd)
 		printf("%8s: %s\n", "", class_name);
 
 		for (j = 0; j < udev.bNumInterfaces; j++) {
-			rc = usbip_recv(sockfd, &uintf, sizeof(uintf));
+			rc = usbip_net_recv(sockfd, &uintf, sizeof(uintf));
 			if (rc < 0) {
-				dbg("usbip_recv failed: usbip_usb_intf[%d]", j);
+				dbg("usbip_net_recv failed: usbip_usb_intf[%d]",
+				    j);
+
 				return -1;
 			}
-			pack_usb_interface(0, &uintf);
+			usbip_net_pack_usb_interface(0, &uintf);
 
 			usbip_names_get_class(class_name, sizeof(class_name),
 					      uintf.bInterfaceClass,

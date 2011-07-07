@@ -84,9 +84,9 @@ static int recv_request_import(int sockfd)
 	memset(&req, 0, sizeof(req));
 	memset(&reply, 0, sizeof(reply));
 
-	rc = usbip_recv(sockfd, &req, sizeof(req));
+	rc = usbip_net_recv(sockfd, &req, sizeof(req));
 	if (rc < 0) {
-		dbg("usbip_recv failed: import request");
+		dbg("usbip_net_recv failed: import request");
 		return -1;
 	}
 	PACK_OP_IMPORT_REQUEST(0, &req);
@@ -102,7 +102,7 @@ static int recv_request_import(int sockfd)
 
 	if (found) {
 		/* should set TCP_NODELAY for usbip */
-		usbip_set_nodelay(sockfd);
+		usbip_net_set_nodelay(sockfd);
 
 		/* export device needs a TCP/IP socket descriptor */
 		rc = usbip_host_export_device(edev, sockfd);
@@ -113,11 +113,10 @@ static int recv_request_import(int sockfd)
 		error = 1;
 	}
 
-
-	rc = usbip_send_op_common(sockfd, OP_REP_IMPORT,
-				  (!error ? ST_OK : ST_NA));
+	rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT,
+				      (!error ? ST_OK : ST_NA));
 	if (rc < 0) {
-		dbg("usbip_send_op_common failed: %#0x", OP_REP_IMPORT);
+		dbg("usbip_net_send_op_common failed: %#0x", OP_REP_IMPORT);
 		return -1;
 	}
 
@@ -127,11 +126,11 @@ static int recv_request_import(int sockfd)
 	}
 
 	memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
-	pack_usb_device(1, &pdu_udev);
+	usbip_net_pack_usb_device(1, &pdu_udev);
 
-	rc = usbip_send(sockfd, &pdu_udev, sizeof(pdu_udev));
+	rc = usbip_net_send(sockfd, &pdu_udev, sizeof(pdu_udev));
 	if (rc < 0) {
-		dbg("usbip_send failed: devinfo");
+		dbg("usbip_net_send failed: devinfo");
 		return -1;
 	}
 
@@ -157,16 +156,16 @@ static int send_reply_devlist(int connfd)
 	}
 	info("exportable devices: %d", reply.ndev);
 
-	rc = usbip_send_op_common(connfd, OP_REP_DEVLIST, ST_OK);
+	rc = usbip_net_send_op_common(connfd, OP_REP_DEVLIST, ST_OK);
 	if (rc < 0) {
-		dbg("usbip_send_op_common failed: %#0x", OP_REP_DEVLIST);
+		dbg("usbip_net_send_op_common failed: %#0x", OP_REP_DEVLIST);
 		return -1;
 	}
 	PACK_OP_DEVLIST_REPLY(1, &reply);
 
-	rc = usbip_send(connfd, &reply, sizeof(reply));
+	rc = usbip_net_send(connfd, &reply, sizeof(reply));
 	if (rc < 0) {
-		dbg("usbip_send failed: %#0x", OP_REP_DEVLIST);
+		dbg("usbip_net_send failed: %#0x", OP_REP_DEVLIST);
 		return -1;
 	}
 
@@ -174,22 +173,23 @@ static int send_reply_devlist(int connfd)
 			    struct usbip_exported_device) {
 		dump_usb_device(&edev->udev);
 		memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
-		pack_usb_device(1, &pdu_udev);
+		usbip_net_pack_usb_device(1, &pdu_udev);
 
-		rc = usbip_send(connfd, &pdu_udev, sizeof(pdu_udev));
+		rc = usbip_net_send(connfd, &pdu_udev, sizeof(pdu_udev));
 		if (rc < 0) {
-			dbg("usbip_send failed: pdu_udev");
+			dbg("usbip_net_send failed: pdu_udev");
 			return -1;
 		}
 
 		for (i = 0; i < edev->udev.bNumInterfaces; i++) {
 			dump_usb_interface(&edev->uinf[i]);
 			memcpy(&pdu_uinf, &edev->uinf[i], sizeof(pdu_uinf));
-			pack_usb_interface(1, &pdu_uinf);
+			usbip_net_pack_usb_interface(1, &pdu_uinf);
 
-			rc = usbip_send(connfd, &pdu_uinf, sizeof(pdu_uinf));
+			rc = usbip_net_send(connfd, &pdu_uinf,
+					    sizeof(pdu_uinf));
 			if (rc < 0) {
-				dbg("usbip_send failed: pdu_uinf");
+				dbg("usbip_net_send failed: pdu_uinf");
 				return -1;
 			}
 		}
@@ -205,9 +205,9 @@ static int recv_request_devlist(int connfd)
 
 	memset(&req, 0, sizeof(req));
 
-	rc = usbip_recv(connfd, &req, sizeof(req));
+	rc = usbip_net_recv(connfd, &req, sizeof(req));
 	if (rc < 0) {
-		dbg("usbip_recv failed: devlist request");
+		dbg("usbip_net_recv failed: devlist request");
 		return -1;
 	}
 
@@ -225,7 +225,7 @@ static int recv_pdu(int connfd)
 	uint16_t code = OP_UNSPEC;
 	int ret;
 
-	ret = usbip_recv_op_common(connfd, &code);
+	ret = usbip_net_recv_op_common(connfd, &code);
 	if (ret < 0) {
 		dbg("could not receive opcode: %#0x", code);
 		return -1;
@@ -361,8 +361,8 @@ static int listen_all_addrinfo(struct addrinfo *ai_head, int sockfdlist[])
 		if (sockfdlist[nsockfd] < 0)
 			continue;
 
-		usbip_set_reuseaddr(sockfdlist[nsockfd]);
-		usbip_set_nodelay(sockfdlist[nsockfd]);
+		usbip_net_set_reuseaddr(sockfdlist[nsockfd]);
+		usbip_net_set_nodelay(sockfdlist[nsockfd]);
 
 		if (sockfdlist[nsockfd] >= FD_SETSIZE) {
 			close(sockfdlist[nsockfd]);
