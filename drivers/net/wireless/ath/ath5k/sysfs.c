@@ -19,9 +19,11 @@ static ssize_t ath5k_attr_store_##name(struct device *dev,		\
 			const char *buf, size_t count)			\
 {									\
 	struct ath5k_softc *sc = dev_get_drvdata(dev);			\
-	int val;							\
+	int val, ret;							\
 									\
-	val = (int)simple_strtoul(buf, NULL, 10);			\
+	ret = kstrtoint(buf, 10, &val);					\
+	if (ret < 0)							\
+		return ret;						\
 	set(sc->ah, val);						\
 	return count;							\
 }									\
