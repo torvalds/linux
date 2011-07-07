@@ -50,7 +50,6 @@ struct intel_dp {
 	bool has_audio;
 	int force_audio;
 	uint32_t color_range;
-	int dpms_mode;
 	uint8_t link_bw;
 	uint8_t lane_count;
 	uint8_t dpcd[4];
@@ -1010,7 +1009,6 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 		if (is_edp(intel_dp))
 			ironlake_edp_backlight_on(dev);
 	}
-	intel_dp->dpms_mode = mode;
 }
 
 /*
@@ -1813,8 +1811,7 @@ intel_dp_hot_plug(struct intel_encoder *intel_encoder)
 {
 	struct intel_dp *intel_dp = container_of(intel_encoder, struct intel_dp, base);
 
-	if (intel_dp->dpms_mode == DRM_MODE_DPMS_ON)
-		intel_dp_check_link_status(intel_dp);
+	intel_dp_check_link_status(intel_dp);
 }
 
 /* Return which DP Port should be selected for Transcoder DP control */
@@ -1882,7 +1879,6 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 		return;
 
 	intel_dp->output_reg = output_reg;
-	intel_dp->dpms_mode = -1;
 
 	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
 	if (!intel_connector) {
