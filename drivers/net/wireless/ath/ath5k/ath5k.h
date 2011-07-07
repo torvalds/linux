@@ -72,7 +72,8 @@
   GENERIC DRIVER DEFINITIONS
 \****************************/
 
-#define ATH5K_PRINTF(fmt, ...)   printk("%s: " fmt, __func__, ##__VA_ARGS__)
+#define ATH5K_PRINTF(fmt, ...) \
+	printk(KERN_WARNING "%s: " fmt, __func__, ##__VA_ARGS__)
 
 #define ATH5K_PRINTK(_sc, _level, _fmt, ...) \
 	printk(_level "ath5k %s: " _fmt, \
