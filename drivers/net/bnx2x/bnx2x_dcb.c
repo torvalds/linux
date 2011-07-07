@@ -19,14 +19,14 @@
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#ifdef BCM_DCBNL
-#include <linux/dcbnl.h>
-#endif
 
 #include "bnx2x.h"
 #include "bnx2x_cmn.h"
 #include "bnx2x_dcb.h"
 
+#ifdef BCM_DCBNL
+#include <linux/rtnetlink.h>
+#endif
 
 /* forward declarations of dcbx related functions */
 static void bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp);
@@ -702,6 +702,12 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 	case BNX2X_DCBX_STATE_TX_RELEASED:
 		DP(NETIF_MSG_LINK, "BNX2X_DCBX_STATE_TX_RELEASED\n");
 		bnx2x_fw_command(bp, DRV_MSG_CODE_DCBX_PMF_DRV_OK, 0);
+#ifdef BCM_DCBNL
+		/**
+		 * Send a notification for the new negotiated parameters
+		 */
+		dcbnl_cee_notify(bp->dev, RTM_GETDCB, DCB_CMD_CEE_GET, 0, 0);
+#endif
 		return;
 	default:
 		BNX2X_ERR("Unknown DCBX_STATE\n");
