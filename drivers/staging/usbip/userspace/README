@@ -79,7 +79,7 @@ Physically attach your USB devices to this host.
 In another terminal, let's look up what USB devices are physically
 attached to this host.
 
-    trois:# usbip_bind_driver --list
+    trois:# usbip list -l
     Local USB devices
     =================
      - busid 1-1 (05a9:a511)
@@ -115,8 +115,9 @@ Mark the device of busid 3-3.2 as exportable:
 
     trois:# usbip --debug bind --busid 3-3.2
     ...
-    usbip dbg: utils.c:	 52 (modify_match_busid) write "add 3-3.2" to...
-    usbip dbg: usbip_bind.c: 231 (use_device_by_usbip) bind 3-3.2 complete!
+    usbip debug: usbip_bind.c:162:[unbind_other] 3-3.2:1.0 -> usb-storage
+    ...
+    bind device on busid 3-3.2: complete
 
     trois:# usbip list -l
     Local USB devices
@@ -137,28 +138,30 @@ exportable on the host.
     deux:# insmod path/to/vhci-hcd.ko
 
     deux:# usbip list --remote 10.0.0.3
-    - 10.0.0.3
-	  1-1: Prolific Technology, Inc. : unknown product (067b:3507)
-	     : /sys/devices/pci0000:00/0000:00:1f.2/usb1/1-1
-	     : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
-	     :	0 - Mass Storage / SCSI / Bulk (Zip) (08/06/50)
+    Exportable USB devices
+    ======================
+     - 10.0.0.3
+	    1-1: Prolific Technology, Inc. : unknown product (067b:3507)
+	       : /sys/devices/pci0000:00/0000:00:1f.2/usb1/1-1
+	       : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
+	       :  0 - Mass Storage / SCSI / Bulk (Zip) (08/06/50)
 
-      1-2.2.1: Apple Computer, Inc. : unknown product (05ac:0203)
-	     : /sys/devices/pci0000:00/0000:00:1f.2/usb1/1-2/1-2.2/1-2.2.1
-	     : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
-	     :	0 - Human Interface Devices / Boot Interface Subclass / Keyboard (03/01/01)
+	1-2.2.1: Apple Computer, Inc. : unknown product (05ac:0203)
+	       : /sys/devices/pci0000:00/0000:00:1f.2/usb1/1-2/1-2.2/1-2.2.1
+	       : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
+	       :  0 - Human Interface Devices / Boot Interface Subclass / Keyboard (03/01/01)
 
-      1-2.2.3: OmniVision Technologies, Inc. : OV511+ WebCam (05a9:a511)
-	     : /sys/devices/pci0000:00/0000:00:1f.2/usb1/1-2/1-2.2/1-2.2.3
-	     : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
-	     :	0 - Vendor Specific Class / unknown subclass / unknown protocol (ff/00/00)
+	1-2.2.3: OmniVision Technologies, Inc. : OV511+ WebCam (05a9:a511)
+	       : /sys/devices/pci0000:00/0000:00:1f.2/usb1/1-2/1-2.2/1-2.2.3
+	       : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
+	       :  0 - Vendor Specific Class / unknown subclass / unknown protocol (ff/00/00)
 
-	  3-1: Logitech, Inc. : QuickCam Pro 4000 (046d:08b2)
-	     : /sys/devices/pci0000:00/0000:00:1e.0/0000:02:0a.0/usb3/3-1
-	     : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
-	     :	0 - Data / unknown subclass / unknown protocol (0a/ff/00)
-	     :	1 - Audio / Control Device / unknown protocol (01/01/00)
-	     :	2 - Audio / Streaming / unknown protocol (01/02/00)
+	    3-1: Logitech, Inc. : QuickCam Pro 4000 (046d:08b2)
+	       : /sys/devices/pci0000:00/0000:00:1e.0/0000:02:0a.0/usb3/3-1
+	       : (Defined at Interface level) / unknown subclass / unknown protocol (00/00/00)
+	       :  0 - Data / unknown subclass / unknown protocol (0a/ff/00)
+	       :  1 - Audio / Control Device / unknown protocol (01/01/00)
+	       :  2 - Audio / Streaming / unknown protocol (01/02/00)
 
 Attach a remote USB device:
 
