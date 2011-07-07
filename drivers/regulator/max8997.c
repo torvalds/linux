@@ -544,7 +544,8 @@ static int max8997_set_voltage_ldobuck(struct regulator_dev *rdev,
 			rid == MAX8997_BUCK4 || rid == MAX8997_BUCK5) {
 		/* If the voltage is increasing */
 		if (org < i)
-			udelay(desc->step * (i - org) / max8997->ramp_delay);
+			udelay(DIV_ROUND_UP(desc->step * (i - org),
+						max8997->ramp_delay));
 	}
 
 	return ret;
