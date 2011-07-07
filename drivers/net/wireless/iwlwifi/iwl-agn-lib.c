@@ -2346,6 +2346,8 @@ int iwlagn_start_device(struct iwl_priv *priv)
 {
 	int ret;
 
+	priv->ucode_owner = IWL_OWNERSHIP_DRIVER;
+
 	if ((priv->cfg->sku & EEPROM_SKU_CAP_AMT_ENABLE) &&
 	     iwl_prepare_card_hw(priv)) {
 		IWL_WARN(priv, "Exit HW not ready\n");
