@@ -1447,10 +1447,11 @@ ath5k_receive_frame_ok(struct ath5k_softc *sc, struct ath5k_rx_status *rs)
 static void
 ath5k_set_current_imask(struct ath5k_softc *sc)
 {
-	enum ath5k_int imask = sc->imask;
+	enum ath5k_int imask;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sc->irqlock, flags);
+	imask = sc->imask;
 	if (sc->rx_pending)
 		imask &= ~AR5K_INT_RX_ALL;
 	if (sc->tx_pending)
