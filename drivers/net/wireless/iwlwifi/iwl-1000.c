@@ -170,7 +170,6 @@ static struct iwl_lib_ops iwl1000_lib = {
 	.set_hw_params = iwl1000_hw_set_hw_params,
 	.rx_handler_setup = iwlagn_rx_handler_setup,
 	.setup_deferred_work = iwlagn_setup_deferred_work,
-	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
 	.nic_config = iwl1000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {

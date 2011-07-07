@@ -375,7 +375,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 	u32 next_entry; /* index of next entry to be written by uCode */
 
 	base = priv->device_pointers.error_event_table;
-	if (priv->cfg->lib->is_valid_rtc_data_addr(base)) {
+	if (iwlagn_hw_valid_rtc_data_addr(base)) {
 		capacity = iwl_read_targ_mem(priv, base);
 		num_wraps = iwl_read_targ_mem(priv, base + (2 * sizeof(u32)));
 		mode = iwl_read_targ_mem(priv, base + (1 * sizeof(u32)));
@@ -1614,7 +1614,7 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 			base = priv->_agn.inst_errlog_ptr;
 	}
 
-	if (!priv->cfg->lib->is_valid_rtc_data_addr(base)) {
+	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv,
 			"Not valid error log pointer 0x%08X for %s uCode\n",
 			base,
@@ -1805,7 +1805,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 			base = priv->_agn.inst_evtlog_ptr;
 	}
 
-	if (!priv->cfg->lib->is_valid_rtc_data_addr(base)) {
+	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
 		IWL_ERR(priv,
 			"Invalid event log pointer 0x%08X for %s uCode\n",
 			base,
