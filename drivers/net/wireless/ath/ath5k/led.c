@@ -52,7 +52,7 @@
 #define ATH_POLARITY(data) ((data) & 0xff)
 
 /* Devices we match on for LED config info (typically laptops) */
-static const struct pci_device_id ath5k_led_devices[] = {
+static DEFINE_PCI_DEVICE_TABLE(ath5k_led_devices) = {
 	/* AR5211 */
 	{ PCI_VDEVICE(ATHEROS, PCI_DEVICE_ID_ATHEROS_AR5211), ATH_LED(0, 0) },
 	/* HP Compaq nc6xx, nc4000, nx6000 */
@@ -157,7 +157,7 @@ void ath5k_unregister_leds(struct ath5k_softc *sc)
 	ath5k_unregister_led(&sc->tx_led);
 }
 
-int ath5k_init_leds(struct ath5k_softc *sc)
+int __devinit ath5k_init_leds(struct ath5k_softc *sc)
 {
 	int ret = 0;
 	struct ieee80211_hw *hw = sc->hw;
