@@ -332,7 +332,7 @@ int tt_local_seq_print_text(struct seq_file *seq, void *offset)
 
 		rcu_read_lock();
 		__hlist_for_each_rcu(node, head)
-			buf_size += 21;
+			buf_size += 29;
 		rcu_read_unlock();
 	}
 
@@ -351,8 +351,19 @@ int tt_local_seq_print_text(struct seq_file *seq, void *offset)
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(tt_local_entry, node,
 					 head, hash_entry) {
-			pos += snprintf(buff + pos, 22, " * %pM\n",
-					tt_local_entry->addr);
+			pos += snprintf(buff + pos, 30, " * %pM "
+					"[%c%c%c%c%c]\n",
+					tt_local_entry->addr,
+					(tt_local_entry->flags &
+					 TT_CLIENT_ROAM ? 'R' : '.'),
+					(tt_local_entry->flags &
+					 TT_CLIENT_NOPURGE ? 'P' : '.'),
+					(tt_local_entry->flags &
+					 TT_CLIENT_NEW ? 'N' : '.'),
+					(tt_local_entry->flags &
+					 TT_CLIENT_PENDING ? 'X' : '.'),
+					(tt_local_entry->flags &
+					 TT_CLIENT_WIFI ? 'W' : '.'));
 		}
 		rcu_read_unlock();
 	}
@@ -589,8 +600,8 @@ int tt_global_seq_print_text(struct seq_file *seq, void *offset)
 	seq_printf(seq,
 		   "Globally announced TT entries received via the mesh %s\n",
 		   net_dev->name);
-	seq_printf(seq, "       %-13s %s       %-15s %s\n",
-		   "Client", "(TTVN)", "Originator", "(Curr TTVN)");
+	seq_printf(seq, "       %-13s %s       %-15s %s %s\n",
+		   "Client", "(TTVN)", "Originator", "(Curr TTVN)", "Flags");
 
 	buf_size = 1;
 	/* Estimate length for: " * xx:xx:xx:xx:xx:xx (ttvn) via
@@ -600,7 +611,7 @@ int tt_global_seq_print_text(struct seq_file *seq, void *offset)
 
 		rcu_read_lock();
 		__hlist_for_each_rcu(node, head)
-			buf_size += 59;
+			buf_size += 67;
 		rcu_read_unlock();
 	}
 
@@ -619,14 +630,20 @@ int tt_global_seq_print_text(struct seq_file *seq, void *offset)
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(tt_global_entry, node,
 					 head, hash_entry) {
-			pos += snprintf(buff + pos, 61,
-					" * %pM  (%3u) via %pM     (%3u)\n",
-					tt_global_entry->addr,
+			pos += snprintf(buff + pos, 69,
+					" * %pM  (%3u) via %pM     (%3u)   "
+					"[%c%c%c]\n", tt_global_entry->addr,
 					tt_global_entry->ttvn,
 					tt_global_entry->orig_node->orig,
 					(uint8_t) atomic_read(
 						&tt_global_entry->orig_node->
-						last_ttvn));
+						last_ttvn),
+					(tt_global_entry->flags &
+					 TT_CLIENT_ROAM ? 'R' : '.'),
+					(tt_global_entry->flags &
+					 TT_CLIENT_PENDING ? 'X' : '.'),
+					(tt_global_entry->flags &
+					 TT_CLIENT_WIFI ? 'W' : '.'));
 		}
 		rcu_read_unlock();
 	}
