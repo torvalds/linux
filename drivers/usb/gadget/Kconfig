@@ -215,9 +215,11 @@ config USB_R8A66597
 	   dynamically linked module called "r8a66597_udc" and force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_RENESAS_USBHS
+config USB_RENESAS_USBHS_UDC
 	tristate 'Renesas USBHS controller'
 	depends on SUPERH || ARCH_SHMOBILE
+	depends on USB_RENESAS_USBHS
+	select USB_GADGET_DUALSPEED
 	help
 	   Renesas USBHS is a discrete USB host and peripheral controller chip
 	   that supports both full and high speed USB 2.0 data transfers.
