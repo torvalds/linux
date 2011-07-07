@@ -166,10 +166,10 @@ static int iwlagn_tx_queue_set_q2ratid(struct iwl_priv *priv, u16 ra_tid,
 	u32 tbl_dw;
 	u16 scd_q2ratid;
 
-	scd_q2ratid = ra_tid & IWL_SCD_QUEUE_RA_TID_MAP_RATID_MSK;
+	scd_q2ratid = ra_tid & SCD_QUEUE_RA_TID_MAP_RATID_MSK;
 
 	tbl_dw_addr = priv->scd_base_addr +
-			IWLAGN_SCD_TRANSLATE_TBL_OFFSET_QUEUE(txq_id);
+			SCD_TRANS_TBL_OFFSET_QUEUE(txq_id);
 
 	tbl_dw = iwl_read_targ_mem(priv, tbl_dw_addr);
 
@@ -188,9 +188,9 @@ static void iwlagn_tx_queue_stop_scheduler(struct iwl_priv *priv, u16 txq_id)
 	/* Simply stop the queue, but don't change any configuration;
 	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
 	iwl_write_prph(priv,
-		IWLAGN_SCD_QUEUE_STATUS_BITS(txq_id),
-		(0 << IWLAGN_SCD_QUEUE_STTS_REG_POS_ACTIVE)|
-		(1 << IWLAGN_SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
+		SCD_QUEUE_STATUS_BITS(txq_id),
+		(0 << SCD_QUEUE_STTS_REG_POS_ACTIVE)|
+		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 }
 
 void iwlagn_set_wr_ptrs(struct iwl_priv *priv,
@@ -198,7 +198,7 @@ void iwlagn_set_wr_ptrs(struct iwl_priv *priv,
 {
 	iwl_write_direct32(priv, HBUS_TARG_WRPTR,
 			(index & 0xff) | (txq_id << 8));
-	iwl_write_prph(priv, IWLAGN_SCD_QUEUE_RDPTR(txq_id), index);
+	iwl_write_prph(priv, SCD_QUEUE_RDPTR(txq_id), index);
 }
 
 void iwlagn_tx_queue_set_status(struct iwl_priv *priv,
@@ -208,11 +208,11 @@ void iwlagn_tx_queue_set_status(struct iwl_priv *priv,
 	int txq_id = txq->q.id;
 	int active = test_bit(txq_id, &priv->txq_ctx_active_msk) ? 1 : 0;
 
-	iwl_write_prph(priv, IWLAGN_SCD_QUEUE_STATUS_BITS(txq_id),
-			(active << IWLAGN_SCD_QUEUE_STTS_REG_POS_ACTIVE) |
-			(tx_fifo_id << IWLAGN_SCD_QUEUE_STTS_REG_POS_TXF) |
-			(1 << IWLAGN_SCD_QUEUE_STTS_REG_POS_WSL) |
-			IWLAGN_SCD_QUEUE_STTS_REG_MSK);
+	iwl_write_prph(priv, SCD_QUEUE_STATUS_BITS(txq_id),
+			(active << SCD_QUEUE_STTS_REG_POS_ACTIVE) |
+			(tx_fifo_id << SCD_QUEUE_STTS_REG_POS_TXF) |
+			(1 << SCD_QUEUE_STTS_REG_POS_WSL) |
+			SCD_QUEUE_STTS_REG_MSK);
 
 	txq->sched_retry = scd_retry;
 
@@ -271,10 +271,10 @@ void iwlagn_txq_agg_queue_setup(struct iwl_priv *priv,
 	iwlagn_tx_queue_set_q2ratid(priv, ra_tid, txq_id);
 
 	/* Set this queue as a chain-building queue */
-	iwl_set_bits_prph(priv, IWLAGN_SCD_QUEUECHAIN_SEL, (1<<txq_id));
+	iwl_set_bits_prph(priv, SCD_QUEUECHAIN_SEL, (1<<txq_id));
 
 	/* enable aggregations for the queue */
-	iwl_set_bits_prph(priv, IWLAGN_SCD_AGGR_SEL, (1<<txq_id));
+	iwl_set_bits_prph(priv, SCD_AGGR_SEL, (1<<txq_id));
 
 	/* Place first TFD at index corresponding to start sequence number.
 	 * Assumes that ssn_idx is valid (!= 0xFFF) */
@@ -284,16 +284,16 @@ void iwlagn_txq_agg_queue_setup(struct iwl_priv *priv,
 
 	/* Set up Tx window size and frame limit for this queue */
 	iwl_write_targ_mem(priv, priv->scd_base_addr +
-			IWLAGN_SCD_CONTEXT_QUEUE_OFFSET(txq_id) +
+			SCD_CONTEXT_QUEUE_OFFSET(txq_id) +
 			sizeof(u32),
 			((frame_limit <<
-			IWLAGN_SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
-			IWLAGN_SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
+			SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
+			SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
 			((frame_limit <<
-			IWLAGN_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
-			IWLAGN_SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
+			SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
+			SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
 
-	iwl_set_bits_prph(priv, IWLAGN_SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl_set_bits_prph(priv, SCD_INTERRUPT_MASK, (1 << txq_id));
 
 	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
 	iwlagn_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
@@ -317,27 +317,18 @@ static int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 
 	iwlagn_tx_queue_stop_scheduler(priv, txq_id);
 
-	iwl_clear_bits_prph(priv, IWLAGN_SCD_AGGR_SEL, (1 << txq_id));
+	iwl_clear_bits_prph(priv, SCD_AGGR_SEL, (1 << txq_id));
 
 	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
 	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
 	/* supposes that ssn_idx is valid (!= 0xFFF) */
 	iwlagn_set_wr_ptrs(priv, txq_id, ssn_idx);
 
-	iwl_clear_bits_prph(priv, IWLAGN_SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl_clear_bits_prph(priv, SCD_INTERRUPT_MASK, (1 << txq_id));
 	iwl_txq_ctx_deactivate(priv, txq_id);
 	iwlagn_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
 
 	return 0;
-}
-
-/*
- * Activate/Deactivate Tx DMA/FIFO channels according tx fifos mask
- * must be called under priv->lock and mac access
- */
-void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask)
-{
-	iwl_write_prph(priv, IWLAGN_SCD_TXFACT, mask);
 }
 
 static void iwlagn_tx_cmd_protection(struct iwl_priv *priv,

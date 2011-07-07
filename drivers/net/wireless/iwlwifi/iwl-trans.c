@@ -547,7 +547,7 @@ static int iwl_trans_tx_init(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	/* Turn off all Tx DMA fifos */
-	iwl_write_prph(priv, IWLAGN_SCD_TXFACT, 0);
+	iwl_write_prph(priv, SCD_TXFACT, 0);
 
 	/* Tell NIC where to find the "keep warm" buffer */
 	iwl_write_direct32(priv, FH_KW_MEM_ADDR_REG, priv->kw.dma >> 4);
@@ -574,6 +574,154 @@ error:
 	return ret;
 }
 
+/*
+ * Activate/Deactivate Tx DMA/FIFO channels according tx fifos mask
+ * must be called under priv->lock and mac access
+ */
+static void iwl_trans_txq_set_sched(struct iwl_priv *priv, u32 mask)
+{
+	iwl_write_prph(priv, SCD_TXFACT, mask);
+}
+
+#define IWL_AC_UNSET -1
+
+struct queue_to_fifo_ac {
+	s8 fifo, ac;
+};
+
+static const struct queue_to_fifo_ac iwlagn_default_queue_to_tx_fifo[] = {
+	{ IWL_TX_FIFO_VO, IEEE80211_AC_VO, },
+	{ IWL_TX_FIFO_VI, IEEE80211_AC_VI, },
+	{ IWL_TX_FIFO_BE, IEEE80211_AC_BE, },
+	{ IWL_TX_FIFO_BK, IEEE80211_AC_BK, },
+	{ IWLAGN_CMD_FIFO_NUM, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+	{ IWL_TX_FIFO_UNUSED, IWL_AC_UNSET, },
+};
+
+static const struct queue_to_fifo_ac iwlagn_ipan_queue_to_tx_fifo[] = {
+	{ IWL_TX_FIFO_VO, IEEE80211_AC_VO, },
+	{ IWL_TX_FIFO_VI, IEEE80211_AC_VI, },
+	{ IWL_TX_FIFO_BE, IEEE80211_AC_BE, },
+	{ IWL_TX_FIFO_BK, IEEE80211_AC_BK, },
+	{ IWL_TX_FIFO_BK_IPAN, IEEE80211_AC_BK, },
+	{ IWL_TX_FIFO_BE_IPAN, IEEE80211_AC_BE, },
+	{ IWL_TX_FIFO_VI_IPAN, IEEE80211_AC_VI, },
+	{ IWL_TX_FIFO_VO_IPAN, IEEE80211_AC_VO, },
+	{ IWL_TX_FIFO_BE_IPAN, 2, },
+	{ IWLAGN_CMD_FIFO_NUM, IWL_AC_UNSET, },
+};
+static void iwl_trans_tx_start(struct iwl_priv *priv)
+{
+	const struct queue_to_fifo_ac *queue_to_fifo;
+	struct iwl_rxon_context *ctx;
+	u32 a;
+	unsigned long flags;
+	int i, chan;
+	u32 reg_val;
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	priv->scd_base_addr = iwl_read_prph(priv, SCD_SRAM_BASE_ADDR);
+	a = priv->scd_base_addr + SCD_CONTEXT_MEM_LOWER_BOUND;
+	/* reset conext data memory */
+	for (; a < priv->scd_base_addr + SCD_CONTEXT_MEM_UPPER_BOUND;
+		a += 4)
+		iwl_write_targ_mem(priv, a, 0);
+	/* reset tx status memory */
+	for (; a < priv->scd_base_addr + SCD_TX_STTS_MEM_UPPER_BOUND;
+		a += 4)
+		iwl_write_targ_mem(priv, a, 0);
+	for (; a < priv->scd_base_addr +
+	       SCD_TRANS_TBL_OFFSET_QUEUE(priv->hw_params.max_txq_num); a += 4)
+		iwl_write_targ_mem(priv, a, 0);
+
+	iwl_write_prph(priv, SCD_DRAM_BASE_ADDR,
+		       priv->scd_bc_tbls.dma >> 10);
+
+	/* Enable DMA channel */
+	for (chan = 0; chan < FH_TCSR_CHNL_NUM ; chan++)
+		iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(chan),
+				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
+				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
+
+	/* Update FH chicken bits */
+	reg_val = iwl_read_direct32(priv, FH_TX_CHICKEN_BITS_REG);
+	iwl_write_direct32(priv, FH_TX_CHICKEN_BITS_REG,
+			   reg_val | FH_TX_CHICKEN_BITS_SCD_AUTO_RETRY_EN);
+
+	iwl_write_prph(priv, SCD_QUEUECHAIN_SEL,
+		SCD_QUEUECHAIN_SEL_ALL(priv));
+	iwl_write_prph(priv, SCD_AGGR_SEL, 0);
+
+	/* initiate the queues */
+	for (i = 0; i < priv->hw_params.max_txq_num; i++) {
+		iwl_write_prph(priv, SCD_QUEUE_RDPTR(i), 0);
+		iwl_write_direct32(priv, HBUS_TARG_WRPTR, 0 | (i << 8));
+		iwl_write_targ_mem(priv, priv->scd_base_addr +
+				SCD_CONTEXT_QUEUE_OFFSET(i), 0);
+		iwl_write_targ_mem(priv, priv->scd_base_addr +
+				SCD_CONTEXT_QUEUE_OFFSET(i) +
+				sizeof(u32),
+				((SCD_WIN_SIZE <<
+				SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
+				SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
+				((SCD_FRAME_LIMIT <<
+				SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
+				SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
+	}
+
+	iwl_write_prph(priv, SCD_INTERRUPT_MASK,
+			IWL_MASK(0, priv->hw_params.max_txq_num));
+
+	/* Activate all Tx DMA/FIFO channels */
+	iwl_trans_txq_set_sched(priv, IWL_MASK(0, 7));
+
+	/* map queues to FIFOs */
+	if (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS))
+		queue_to_fifo = iwlagn_ipan_queue_to_tx_fifo;
+	else
+		queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
+
+	iwlagn_set_wr_ptrs(priv, priv->cmd_queue, 0);
+
+	/* make sure all queue are not stopped */
+	memset(&priv->queue_stopped[0], 0, sizeof(priv->queue_stopped));
+	for (i = 0; i < 4; i++)
+		atomic_set(&priv->queue_stop_count[i], 0);
+	for_each_context(priv, ctx)
+		ctx->last_tx_rejected = false;
+
+	/* reset to 0 to enable all the queue first */
+	priv->txq_ctx_active_msk = 0;
+
+	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo) != 10);
+	BUILD_BUG_ON(ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo) != 10);
+
+	for (i = 0; i < 10; i++) {
+		int fifo = queue_to_fifo[i].fifo;
+		int ac = queue_to_fifo[i].ac;
+
+		iwl_txq_ctx_activate(priv, i);
+
+		if (fifo == IWL_TX_FIFO_UNUSED)
+			continue;
+
+		if (ac != IWL_AC_UNSET)
+			iwl_set_swq_id(&priv->txq[i], ac, i);
+		iwlagn_tx_queue_set_status(priv, &priv->txq[i], fifo, 0);
+	}
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	/* Enable L1-Active */
+	iwl_clear_bits_prph(priv, APMG_PCIDEV_STT_REG,
+			  APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
+}
+
 /**
  * iwlagn_txq_ctx_stop - Stop all Tx DMA channels
  */
@@ -585,7 +733,7 @@ static int iwl_trans_tx_stop(struct iwl_priv *priv)
 	/* Turn off all Tx DMA fifos */
 	spin_lock_irqsave(&priv->lock, flags);
 
-	iwlagn_txq_set_sched(priv, 0);
+	iwl_trans_txq_set_sched(priv, 0);
 
 	/* Stop each Tx DMA channel, and wait for it to be idle */
 	for (ch = 0; ch < FH_TCSR_CHNL_NUM; ch++) {
@@ -822,6 +970,7 @@ static const struct iwl_trans_ops trans_ops = {
 	.rx_free = iwl_trans_rx_free,
 
 	.tx_init = iwl_trans_tx_init,
+	.tx_start = iwl_trans_tx_start,
 	.tx_free = iwl_trans_tx_free,
 
 	.stop_device = iwl_trans_stop_device,

@@ -79,6 +79,11 @@ static inline int trans_tx_init(struct iwl_priv *priv)
 	return priv->trans.ops->tx_init(priv);
 }
 
+static inline void trans_tx_start(struct iwl_priv *priv)
+{
+	priv->trans.ops->tx_start(priv);
+}
+
 static inline void trans_tx_free(struct iwl_priv *priv)
 {
 	priv->trans.ops->tx_free(priv);
