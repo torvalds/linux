@@ -1275,8 +1275,8 @@ static struct shrinker dcache_shrinker = {
 };
 
 /**
- * d_alloc	-	allocate a dcache entry
- * @parent: parent of entry to allocate
+ * __d_alloc	-	allocate a dcache entry
+ * @sb: filesystem it will belong to
  * @name: qstr of the name
  *
  * Allocates a dentry. It returns %NULL if there is insufficient memory
@@ -1284,7 +1284,7 @@ static struct shrinker dcache_shrinker = {
  * copied and the copy passed in may be reused after this call.
  */
  
-struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
+struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
 {
 	struct dentry *dentry;
 	char *dname;
@@ -1314,8 +1314,8 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 	spin_lock_init(&dentry->d_lock);
 	seqcount_init(&dentry->d_seq);
 	dentry->d_inode = NULL;
-	dentry->d_parent = NULL;
-	dentry->d_sb = NULL;
+	dentry->d_parent = dentry;
+	dentry->d_sb = sb;
 	dentry->d_op = NULL;
 	dentry->d_fsdata = NULL;
 	INIT_HLIST_BL_NODE(&dentry->d_hash);
@@ -1323,22 +1323,37 @@ struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
 	INIT_LIST_HEAD(&dentry->d_subdirs);
 	INIT_LIST_HEAD(&dentry->d_alias);
 	INIT_LIST_HEAD(&dentry->d_u.d_child);
-
-	if (parent) {
-		spin_lock(&parent->d_lock);
-		/*
-		 * don't need child lock because it is not subject
-		 * to concurrency here
-		 */
-		__dget_dlock(parent);
-		dentry->d_parent = parent;
-		dentry->d_sb = parent->d_sb;
-		d_set_d_op(dentry, dentry->d_sb->s_d_op);
-		list_add(&dentry->d_u.d_child, &parent->d_subdirs);
-		spin_unlock(&parent->d_lock);
-	}
+	d_set_d_op(dentry, dentry->d_sb->s_d_op);
 
 	this_cpu_inc(nr_dentry);
+
+	return dentry;
+}
+
+/**
+ * d_alloc	-	allocate a dcache entry
+ * @parent: parent of entry to allocate
+ * @name: qstr of the name
+ *
+ * Allocates a dentry. It returns %NULL if there is insufficient memory
+ * available. On a success the dentry is returned. The name passed in is
+ * copied and the copy passed in may be reused after this call.
+ */
+struct dentry *d_alloc(struct dentry * parent, const struct qstr *name)
+{
+	struct dentry *dentry = __d_alloc(parent->d_sb, name);
+	if (!dentry)
+		return NULL;
+
+	spin_lock(&parent->d_lock);
+	/*
+	 * don't need child lock because it is not subject
+	 * to concurrency here
+	 */
+	__dget_dlock(parent);
+	dentry->d_parent = parent;
+	list_add(&dentry->d_u.d_child, &parent->d_subdirs);
+	spin_unlock(&parent->d_lock);
 
 	return dentry;
 }
@@ -1346,13 +1361,9 @@ EXPORT_SYMBOL(d_alloc);
 
 struct dentry *d_alloc_pseudo(struct super_block *sb, const struct qstr *name)
 {
-	struct dentry *dentry = d_alloc(NULL, name);
-	if (dentry) {
-		dentry->d_sb = sb;
-		d_set_d_op(dentry, dentry->d_sb->s_d_op);
-		dentry->d_parent = dentry;
+	struct dentry *dentry = __d_alloc(sb, name);
+	if (dentry)
 		dentry->d_flags |= DCACHE_DISCONNECTED;
-	}
 	return dentry;
 }
 EXPORT_SYMBOL(d_alloc_pseudo);
@@ -1522,13 +1533,9 @@ struct dentry * d_alloc_root(struct inode * root_inode)
 	if (root_inode) {
 		static const struct qstr name = { .name = "/", .len = 1 };
 
-		res = d_alloc(NULL, &name);
-		if (res) {
-			res->d_sb = root_inode->i_sb;
-			d_set_d_op(res, res->d_sb->s_d_op);
-			res->d_parent = res;
+		res = __d_alloc(root_inode->i_sb, &name);
+		if (res)
 			d_instantiate(res, root_inode);
-		}
 	}
 	return res;
 }
@@ -1589,13 +1596,11 @@ struct dentry *d_obtain_alias(struct inode *inode)
 	if (res)
 		goto out_iput;
 
-	tmp = d_alloc(NULL, &anonstring);
+	tmp = __d_alloc(inode->i_sb, &anonstring);
 	if (!tmp) {
 		res = ERR_PTR(-ENOMEM);
 		goto out_iput;
 	}
-	tmp->d_parent = tmp; /* make sure dput doesn't croak */
-
 
 	spin_lock(&inode->i_lock);
 	res = __d_find_any_alias(inode);
@@ -1607,8 +1612,6 @@ struct dentry *d_obtain_alias(struct inode *inode)
 
 	/* attach a disconnected dentry */
 	spin_lock(&tmp->d_lock);
-	tmp->d_sb = inode->i_sb;
-	d_set_d_op(tmp, tmp->d_sb->s_d_op);
 	tmp->d_inode = inode;
 	tmp->d_flags |= DCACHE_DISCONNECTED;
 	list_add(&tmp->d_alias, &inode->i_dentry);
