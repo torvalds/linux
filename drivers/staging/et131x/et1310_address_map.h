@@ -1225,7 +1225,7 @@ struct macstat_regs {			/* Location: */
 	u32 txrx_1519_1522_gvln_frames;	/*  0x6098 */
 
 	/* Rx Byte Counter */
-	u32 rx_bytes;	 		/*  0x609C */
+	u32 rx_bytes;			/*  0x609C */
 
 	/* Rx Packet Counter */
 	u32 rx_packets;			/*  0x60A0 */
@@ -1240,7 +1240,7 @@ struct macstat_regs {			/* Location: */
 	u32 rx_broadcast_packets;	/*  0x60AC */
 
 	/* Rx Control Frame Packet Counter */
-	u32 rx_control_frames; 		/*  0x60B0 */
+	u32 rx_control_frames;		/*  0x60B0 */
 
 	/* Rx Pause Frame Packet Counter */
 	u32 rx_pause_frames;		/*  0x60B4 */
@@ -1276,7 +1276,7 @@ struct macstat_regs {			/* Location: */
 	u32 rx_drops;			/*  0x60DC */
 
 	/* Tx Byte Counter */
-	u32 tx_bytes;	 		/*  0x60E0 */
+	u32 tx_bytes;			/*  0x60E0 */
 
 	/* Tx Packet Counter */
 	u32 tx_packets;			/*  0x60E4 */
@@ -1339,7 +1339,7 @@ struct macstat_regs {			/* Location: */
 	u32 carry_reg1;			/*  0x6130 */
 
 	/* Carry Register Two Register */
-	u32 carry_reg2;	 		/*  0x6134 */
+	u32 carry_reg2;			/*  0x6134 */
 
 	/* Carry Register One Mask Register */
 	u32 carry_reg1_mask;		/*  0x6138 */
