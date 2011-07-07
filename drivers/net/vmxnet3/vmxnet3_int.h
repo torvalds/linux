@@ -55,6 +55,7 @@
 #include <linux/if_vlan.h>
 #include <linux/if_arp.h>
 #include <linux/inetdevice.h>
+#include <linux/log2.h>
 
 #include "vmxnet3_defs.h"
 
@@ -68,10 +69,10 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.1.14.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.1.18.0-k"
 
 /* a 32-bit int, each byte encode a verion number in VMXNET3_DRIVER_VERSION */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01010E00
+#define VMXNET3_DRIVER_VERSION_NUM      0x01011200
 
 #if defined(CONFIG_PCI_MSI)
 	/* RSS only makes sense if MSI-X is supported. */
