@@ -119,9 +119,11 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 	struct mlx4_set_port_rqp_calc_context *context;
 	int err;
 	u32 in_mod;
-	u32 m_promisc = (dev->caps.vep_mc_steering) ? MCAST_DIRECT : MCAST_DEFAULT;
+	u32 m_promisc = (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER) ?
+						MCAST_DIRECT : MCAST_DEFAULT;
 
-	if (dev->caps.vep_mc_steering && dev->caps.vep_uc_steering)
+	if (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER  &&
+			dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER)
 		return 0;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);

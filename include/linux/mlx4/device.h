@@ -73,7 +73,12 @@ enum {
 	MLX4_DEV_CAP_FLAG_RAW_MCAST	= 1LL << 19,
 	MLX4_DEV_CAP_FLAG_UD_AV_PORT	= 1LL << 20,
 	MLX4_DEV_CAP_FLAG_UD_MCAST	= 1LL << 21,
-	MLX4_DEV_CAP_FLAG_IBOE		= 1LL << 30
+	MLX4_DEV_CAP_FLAG_IBOE		= 1LL << 30,
+	MLX4_DEV_CAP_FLAG_UC_LOOPBACK	= 1LL << 32,
+	MLX4_DEV_CAP_FLAG_WOL		= 1LL << 38,
+	MLX4_DEV_CAP_FLAG_UDP_RSS	= 1LL << 40,
+	MLX4_DEV_CAP_FLAG_VEP_UC_STEER	= 1LL << 41,
+	MLX4_DEV_CAP_FLAG_VEP_MC_STEER	= 1LL << 42
 };
 
 enum {
@@ -257,11 +262,6 @@ struct mlx4_caps {
 	u32			bmme_flags;
 	u32			reserved_lkey;
 	u16			stat_rate_support;
-	int			udp_rss;
-	int			loopback_support;
-	int			vep_uc_steering;
-	int			vep_mc_steering;
-	int			wol;
 	u8			port_width_cap[MLX4_MAX_PORTS + 1];
 	int			max_gso_sz;
 	int                     reserved_qps_cnt[MLX4_NUM_QP_REGION];

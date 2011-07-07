@@ -78,11 +78,6 @@ struct mlx4_dev_cap {
 	u16 wavelength[MLX4_MAX_PORTS + 1];
 	u64 trans_code[MLX4_MAX_PORTS + 1];
 	u16 stat_rate_support;
-	int udp_rss;
-	int loopback_support;
-	int vep_uc_steering;
-	int vep_mc_steering;
-	int wol;
 	u64 flags;
 	int reserved_uars;
 	int uar_size;
