@@ -306,10 +306,11 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	} else {
 		DHD_ERROR(("Unknown PRIVATE command %s - ignored\n", command));
 		snprintf(command, 3, "OK");
-		bytes_written = strlen("OK") + 1;
+		bytes_written = strlen("OK");
 	}
 
 	if (bytes_written > 0) {
+		bytes_written++;
 		priv_cmd->used_len = bytes_written;
 		if (copy_to_user(priv_cmd->buf, command, bytes_written)) {
 			DHD_ERROR(("%s: failed to copy data to user buffer\n", __FUNCTION__));
