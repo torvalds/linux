@@ -274,7 +274,8 @@ int ubifs_recover_master_node(struct ubifs_info *c)
 				if (cor1)
 					goto out_err;
 				mst = mst1;
-			} else if (offs1 == 0 && offs2 + sz >= c->leb_size) {
+			} else if (offs1 == 0 &&
+				   c->leb_size - offs2 - sz < sz) {
 				/* 1st LEB was unmapped and written, 2nd not */
 				if (cor1)
 					goto out_err;
