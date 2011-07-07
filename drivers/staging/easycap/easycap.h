@@ -69,7 +69,6 @@
 #include <linux/delay.h>
 #include <linux/types.h>
 
-#ifndef CONFIG_EASYCAP_OSS
 #include <linux/vmalloc.h>
 #include <linux/sound.h>
 #include <sound/core.h>
@@ -78,7 +77,6 @@
 #include <sound/info.h>
 #include <sound/initval.h>
 #include <sound/control.h>
-#endif /* !CONFIG_EASYCAP_OSS */
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
 #include <linux/videodev2.h>
@@ -413,7 +411,6 @@ struct easycap {
  *  ALSA
  */
 /*---------------------------------------------------------------------------*/
-#ifndef CONFIG_EASYCAP_OSS
 	struct snd_pcm_hardware alsa_hardware;
 	struct snd_card *psnd_card;
 	struct snd_pcm *psnd_pcm;
@@ -421,7 +418,6 @@ struct easycap {
 	int dma_fill;
 	int dma_next;
 	int dma_read;
-#endif /* !CONFIG_EASYCAP_OSS */
 /*---------------------------------------------------------------------------*/
 /*
  *  SOUND PROPERTIES
@@ -503,12 +499,8 @@ int              adjust_volume(struct easycap *, int);
  *  AUDIO FUNCTION PROTOTYPES
  */
 /*---------------------------------------------------------------------------*/
-#ifndef CONFIG_EASYCAP_OSS
 int		easycap_alsa_probe(struct easycap *);
 void            easycap_alsa_complete(struct urb *);
-#else /* CONFIG_EASYCAP_OSS */
-void             easyoss_complete(struct urb *);
-#endif /* !CONFIG_EASYCAP_OSS */
 
 int              easycap_sound_setup(struct easycap *);
 int              submit_audio_urbs(struct easycap *);
@@ -597,30 +589,6 @@ extern int easycap_debug;
 #endif /* CONFIG_EASYCAP_DEBUG */
 
 /*---------------------------------------------------------------------------*/
-/*
- *  (unsigned char *)P           pointer to next byte pair
- *       (long int *)X           pointer to accumulating count
- *       (long int *)Y           pointer to accumulating sum
- *  (long long int *)Z           pointer to accumulating sum of squares
- */
-/*---------------------------------------------------------------------------*/
-#define SUMMER(P, X, Y, Z) do {                                 \
-	unsigned char *p;                                    \
-	unsigned int u0, u1, u2;                             \
-	long int s;                                          \
-	p = (unsigned char *)(P);                            \
-	u0 = (unsigned int) (*p);                            \
-	u1 = (unsigned int) (*(p + 1));                      \
-	u2 = (unsigned int) ((u1 << 8) | u0);                \
-	if (0x8000 & u2)                                     \
-		s = -(long int)(0x7FFF & (~u2));             \
-	else                                                 \
-		s =  (long int)(0x7FFF & u2);                \
-	*((X)) += (long int) 1;                              \
-	*((Y)) += (long int) s;                              \
-	*((Z)) += ((long long int)(s) * (long long int)(s)); \
-} while (0)
-/*---------------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------------*/
 /* globals
@@ -633,8 +601,5 @@ extern struct easycap_format easycap_format[];
 extern struct v4l2_queryctrl easycap_control[];
 extern struct usb_driver easycap_usb_driver;
 extern struct easycap_dongle easycapdc60_dongle[];
-#ifdef CONFIG_EASYCAP_OSS
-extern struct usb_class_driver easyoss_class;
-#endif /* !CONFIG_EASYCAP_OSS */
 
 #endif /* !__EASYCAP_H__  */

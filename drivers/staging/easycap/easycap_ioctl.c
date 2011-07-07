@@ -2347,14 +2347,8 @@ long easycap_unlocked_ioctl(struct file *file,
 /*---------------------------------------------------------------------------*/
 		JOM(8, "calling wake_up on wq_video and wq_audio\n");
 		wake_up_interruptible(&(peasycap->wq_video));
-#ifdef CONFIG_EASYCAP_OSS
-		wake_up_interruptible(&(peasycap->wq_audio));
-
-#else
 		if (peasycap->psubstream)
 			snd_pcm_period_elapsed(peasycap->psubstream);
-#endif /* CONFIG_EASYCAP_OSS */
-/*---------------------------------------------------------------------------*/
 		break;
 	}
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */

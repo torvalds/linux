@@ -30,7 +30,6 @@
 
 #include "easycap.h"
 
-#ifndef CONFIG_EASYCAP_OSS
 /*--------------------------------------------------------------------------*/
 /*
  *  PARAMETERS USED WHEN REGISTERING THE AUDIO INTERFACE
@@ -615,7 +614,6 @@ int easycap_alsa_probe(struct easycap *peasycap)
 	SAM("registered %s\n", &psnd_card->id[0]);
 	return 0;
 }
-#endif /*! CONFIG_EASYCAP_OSS */
 
 /*****************************************************************************/
 /*****************************************************************************/
@@ -733,11 +731,7 @@ submit_audio_urbs(struct easycap *peasycap)
 			purb->transfer_flags = URB_ISO_ASAP;
 			purb->transfer_buffer = peasycap->audio_isoc_buffer[isbuf].pgo;
 			purb->transfer_buffer_length = peasycap->audio_isoc_buffer_size;
-#ifdef CONFIG_EASYCAP_OSS
-			purb->complete = easyoss_complete;
-#else /* CONFIG_EASYCAP_OSS */
 			purb->complete = easycap_alsa_complete;
-#endif /* CONFIG_EASYCAP_OSS */
 			purb->context = peasycap;
 			purb->start_frame = 0;
 			purb->number_of_packets = peasycap->audio_isoc_framesperdesc;
