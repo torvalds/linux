@@ -17,12 +17,7 @@
 #ifndef __MACH_ZYNQ_COMMON_H__
 #define __MACH_ZYNQ_COMMON_H__
 
-#include <linux/init.h>
 #include <asm/mach/time.h>
-
-extern void xilinx_init_machine(void);
-extern void xilinx_irq_init(void);
-extern void xilinx_map_io(void);
 
 extern struct sys_timer xttcpss_sys_timer;
 

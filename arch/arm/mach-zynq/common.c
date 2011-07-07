@@ -21,8 +21,11 @@
 #include <linux/clk.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/of.h>
 
+#include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach-types.h>
 #include <asm/page.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -40,7 +43,7 @@ static struct of_device_id zynq_of_bus_ids[] __initdata = {
  * xilinx_init_machine() - System specific initialization, intended to be
  *			   called from board specific initialization.
  */
-void __init xilinx_init_machine(void)
+static void __init xilinx_init_machine(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	/*
@@ -55,7 +58,7 @@ void __init xilinx_init_machine(void)
 /**
  * xilinx_irq_init() - Interrupt controller initialization for the GIC.
  */
-void __init xilinx_irq_init(void)
+static void __init xilinx_irq_init(void)
 {
 	gic_init(0, 29, SCU_GIC_DIST_BASE, SCU_GIC_CPU_BASE);
 }
@@ -96,7 +99,20 @@ static struct map_desc io_desc[] __initdata = {
 /**
  * xilinx_map_io() - Create memory mappings needed for early I/O.
  */
-void __init xilinx_map_io(void)
+static void __init xilinx_map_io(void)
 {
 	iotable_init(io_desc, ARRAY_SIZE(io_desc));
 }
+
+static const char *xilinx_dt_match[] = {
+	"xlnx,zynq-ep107",
+	NULL
+};
+
+MACHINE_START(XILINX_EP107, "Xilinx Zynq Platform")
+	.map_io		= xilinx_map_io,
+	.init_irq	= xilinx_irq_init,
+	.init_machine	= xilinx_init_machine,
+	.timer		= &xttcpss_sys_timer,
+	.dt_compat	= xilinx_dt_match,
+MACHINE_END
