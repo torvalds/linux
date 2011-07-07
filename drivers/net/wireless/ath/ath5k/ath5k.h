@@ -39,34 +39,34 @@
 #include "../ath.h"
 
 /* PCI IDs */
-#define PCI_DEVICE_ID_ATHEROS_AR5210 		0x0007 /* AR5210 */
-#define PCI_DEVICE_ID_ATHEROS_AR5311 		0x0011 /* AR5311 */
-#define PCI_DEVICE_ID_ATHEROS_AR5211 		0x0012 /* AR5211 */
-#define PCI_DEVICE_ID_ATHEROS_AR5212 		0x0013 /* AR5212 */
-#define PCI_DEVICE_ID_3COM_3CRDAG675 		0x0013 /* 3CRDAG675 (Atheros AR5212) */
-#define PCI_DEVICE_ID_3COM_2_3CRPAG175 		0x0013 /* 3CRPAG175 (Atheros AR5212) */
-#define PCI_DEVICE_ID_ATHEROS_AR5210_AP 	0x0207 /* AR5210 (Early) */
+#define PCI_DEVICE_ID_ATHEROS_AR5210		0x0007 /* AR5210 */
+#define PCI_DEVICE_ID_ATHEROS_AR5311		0x0011 /* AR5311 */
+#define PCI_DEVICE_ID_ATHEROS_AR5211		0x0012 /* AR5211 */
+#define PCI_DEVICE_ID_ATHEROS_AR5212		0x0013 /* AR5212 */
+#define PCI_DEVICE_ID_3COM_3CRDAG675		0x0013 /* 3CRDAG675 (Atheros AR5212) */
+#define PCI_DEVICE_ID_3COM_2_3CRPAG175		0x0013 /* 3CRPAG175 (Atheros AR5212) */
+#define PCI_DEVICE_ID_ATHEROS_AR5210_AP		0x0207 /* AR5210 (Early) */
 #define PCI_DEVICE_ID_ATHEROS_AR5212_IBM	0x1014 /* AR5212 (IBM MiniPCI) */
-#define PCI_DEVICE_ID_ATHEROS_AR5210_DEFAULT 	0x1107 /* AR5210 (no eeprom) */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_DEFAULT 	0x1113 /* AR5212 (no eeprom) */
-#define PCI_DEVICE_ID_ATHEROS_AR5211_DEFAULT 	0x1112 /* AR5211 (no eeprom) */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_FPGA 	0xf013 /* AR5212 (emulation board) */
-#define PCI_DEVICE_ID_ATHEROS_AR5211_LEGACY 	0xff12 /* AR5211 (emulation board) */
-#define PCI_DEVICE_ID_ATHEROS_AR5211_FPGA11B 	0xf11b /* AR5211 (emulation board) */
-#define PCI_DEVICE_ID_ATHEROS_AR5312_REV2 	0x0052 /* AR5312 WMAC (AP31) */
-#define PCI_DEVICE_ID_ATHEROS_AR5312_REV7 	0x0057 /* AR5312 WMAC (AP30-040) */
-#define PCI_DEVICE_ID_ATHEROS_AR5312_REV8 	0x0058 /* AR5312 WMAC (AP43-030) */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_0014 	0x0014 /* AR5212 compatible */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_0015 	0x0015 /* AR5212 compatible */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_0016 	0x0016 /* AR5212 compatible */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_0017 	0x0017 /* AR5212 compatible */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_0018 	0x0018 /* AR5212 compatible */
-#define PCI_DEVICE_ID_ATHEROS_AR5212_0019 	0x0019 /* AR5212 compatible */
-#define PCI_DEVICE_ID_ATHEROS_AR2413 		0x001a /* AR2413 (Griffin-lite) */
-#define PCI_DEVICE_ID_ATHEROS_AR5413 		0x001b /* AR5413 (Eagle) */
-#define PCI_DEVICE_ID_ATHEROS_AR5424 		0x001c /* AR5424 (Condor PCI-E) */
-#define PCI_DEVICE_ID_ATHEROS_AR5416 		0x0023 /* AR5416 */
-#define PCI_DEVICE_ID_ATHEROS_AR5418 		0x0024 /* AR5418 */
+#define PCI_DEVICE_ID_ATHEROS_AR5210_DEFAULT	0x1107 /* AR5210 (no eeprom) */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_DEFAULT	0x1113 /* AR5212 (no eeprom) */
+#define PCI_DEVICE_ID_ATHEROS_AR5211_DEFAULT	0x1112 /* AR5211 (no eeprom) */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_FPGA	0xf013 /* AR5212 (emulation board) */
+#define PCI_DEVICE_ID_ATHEROS_AR5211_LEGACY	0xff12 /* AR5211 (emulation board) */
+#define PCI_DEVICE_ID_ATHEROS_AR5211_FPGA11B	0xf11b /* AR5211 (emulation board) */
+#define PCI_DEVICE_ID_ATHEROS_AR5312_REV2	0x0052 /* AR5312 WMAC (AP31) */
+#define PCI_DEVICE_ID_ATHEROS_AR5312_REV7	0x0057 /* AR5312 WMAC (AP30-040) */
+#define PCI_DEVICE_ID_ATHEROS_AR5312_REV8	0x0058 /* AR5312 WMAC (AP43-030) */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_0014	0x0014 /* AR5212 compatible */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_0015	0x0015 /* AR5212 compatible */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_0016	0x0016 /* AR5212 compatible */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_0017	0x0017 /* AR5212 compatible */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_0018	0x0018 /* AR5212 compatible */
+#define PCI_DEVICE_ID_ATHEROS_AR5212_0019	0x0019 /* AR5212 compatible */
+#define PCI_DEVICE_ID_ATHEROS_AR2413		0x001a /* AR2413 (Griffin-lite) */
+#define PCI_DEVICE_ID_ATHEROS_AR5413		0x001b /* AR5413 (Eagle) */
+#define PCI_DEVICE_ID_ATHEROS_AR5424		0x001c /* AR5424 (Condor PCI-E) */
+#define PCI_DEVICE_ID_ATHEROS_AR5416		0x0023 /* AR5416 */
+#define PCI_DEVICE_ID_ATHEROS_AR5418		0x0024 /* AR5418 */
 
 /****************************\
   GENERIC DRIVER DEFINITIONS
@@ -374,7 +374,7 @@ struct ath5k_srev_name {
  * they are exclusive.
  *
  */
-#define MODULATION_XR 		0x00000200
+#define MODULATION_XR		0x00000200
 /*
  * Modulation for Atheros' Turbo G and Turbo A, its supposed to provide a
  * throughput transmission speed up to 40Mbit/s-60Mbit/s at a 108Mbit/s
@@ -495,9 +495,9 @@ enum ath5k_tx_queue {
  */
 enum ath5k_tx_queue_subtype {
 	AR5K_WME_AC_BK = 0,	/*Background traffic*/
-	AR5K_WME_AC_BE, 	/*Best-effort (normal) traffic)*/
-	AR5K_WME_AC_VI, 	/*Video traffic*/
-	AR5K_WME_AC_VO, 	/*Voice traffic*/
+	AR5K_WME_AC_BE,		/*Best-effort (normal) traffic)*/
+	AR5K_WME_AC_VI,		/*Video traffic*/
+	AR5K_WME_AC_VO,		/*Voice traffic*/
 };
 
 /*
@@ -791,47 +791,47 @@ extern int ath5k_modparam_nohwcrypt;
  * enum ath5k_int - Hardware interrupt masks helpers
  *
  * @AR5K_INT_RX: mask to identify received frame interrupts, of type
- * 	AR5K_ISR_RXOK or AR5K_ISR_RXERR
+ *	AR5K_ISR_RXOK or AR5K_ISR_RXERR
  * @AR5K_INT_RXDESC: Request RX descriptor/Read RX descriptor (?)
  * @AR5K_INT_RXNOFRM: No frame received (?)
  * @AR5K_INT_RXEOL: received End Of List for VEOL (Virtual End Of List). The
- * 	Queue Control Unit (QCU) signals an EOL interrupt only if a descriptor's
- * 	LinkPtr is NULL. For more details, refer to:
- * 	http://www.freepatentsonline.com/20030225739.html
+ *	Queue Control Unit (QCU) signals an EOL interrupt only if a descriptor's
+ *	LinkPtr is NULL. For more details, refer to:
+ *	http://www.freepatentsonline.com/20030225739.html
  * @AR5K_INT_RXORN: Indicates we got RX overrun (eg. no more descriptors).
- * 	Note that Rx overrun is not always fatal, on some chips we can continue
- * 	operation without reseting the card, that's why int_fatal is not
- * 	common for all chips.
+ *	Note that Rx overrun is not always fatal, on some chips we can continue
+ *	operation without reseting the card, that's why int_fatal is not
+ *	common for all chips.
  * @AR5K_INT_TX: mask to identify received frame interrupts, of type
- * 	AR5K_ISR_TXOK or AR5K_ISR_TXERR
+ *	AR5K_ISR_TXOK or AR5K_ISR_TXERR
  * @AR5K_INT_TXDESC: Request TX descriptor/Read TX status descriptor (?)
  * @AR5K_INT_TXURN: received when we should increase the TX trigger threshold
- * 	We currently do increments on interrupt by
- * 	(AR5K_TUNE_MAX_TX_FIFO_THRES - current_trigger_level) / 2
+ *	We currently do increments on interrupt by
+ *	(AR5K_TUNE_MAX_TX_FIFO_THRES - current_trigger_level) / 2
  * @AR5K_INT_MIB: Indicates the either Management Information Base counters or
  *	one of the PHY error counters reached the maximum value and should be
  *	read and cleared.
  * @AR5K_INT_RXPHY: RX PHY Error
  * @AR5K_INT_RXKCM: RX Key cache miss
  * @AR5K_INT_SWBA: SoftWare Beacon Alert - indicates its time to send a
- * 	beacon that must be handled in software. The alternative is if you
- * 	have VEOL support, in that case you let the hardware deal with things.
+ *	beacon that must be handled in software. The alternative is if you
+ *	have VEOL support, in that case you let the hardware deal with things.
  * @AR5K_INT_BMISS: If in STA mode this indicates we have stopped seeing
- * 	beacons from the AP have associated with, we should probably try to
- * 	reassociate. When in IBSS mode this might mean we have not received
- * 	any beacons from any local stations. Note that every station in an
- * 	IBSS schedules to send beacons at the Target Beacon Transmission Time
- * 	(TBTT) with a random backoff.
+ *	beacons from the AP have associated with, we should probably try to
+ *	reassociate. When in IBSS mode this might mean we have not received
+ *	any beacons from any local stations. Note that every station in an
+ *	IBSS schedules to send beacons at the Target Beacon Transmission Time
+ *	(TBTT) with a random backoff.
  * @AR5K_INT_BNR: Beacon Not Ready interrupt - ??
  * @AR5K_INT_GPIO: GPIO interrupt is used for RF Kill, disabled for now
- * 	until properly handled
+ *	until properly handled
  * @AR5K_INT_FATAL: Fatal errors were encountered, typically caused by DMA
- * 	errors. These types of errors we can enable seem to be of type
- * 	AR5K_SIMR2_MCABT, AR5K_SIMR2_SSERR and AR5K_SIMR2_DPERR.
+ *	errors. These types of errors we can enable seem to be of type
+ *	AR5K_SIMR2_MCABT, AR5K_SIMR2_SSERR and AR5K_SIMR2_DPERR.
  * @AR5K_INT_GLOBAL: Used to clear and set the IER
  * @AR5K_INT_NOCARD: signals the card has been removed
  * @AR5K_INT_COMMON: common interrupts shared amogst MACs with the same
- * 	bit value
+ *	bit value
  *
  * These are mapped to take advantage of some common bits
  * between the MACs, to be able to set intr properties
@@ -968,9 +968,9 @@ enum ath5k_capability_type {
 	AR5K_CAP_MCAST_KEYSRCH		= 14,	/* Supports multicast key search */
 	AR5K_CAP_TSF_ADJUST		= 15,	/* Supports beacon tsf adjust */
 	AR5K_CAP_XR			= 16,	/* Supports XR mode */
-	AR5K_CAP_WME_TKIPMIC 		= 17,	/* Supports TKIP MIC when using WMM */
-	AR5K_CAP_CHAN_HALFRATE 		= 18,	/* Supports half rate channels */
-	AR5K_CAP_CHAN_QUARTERRATE 	= 19,	/* Supports quarter rate channels */
+	AR5K_CAP_WME_TKIPMIC		= 17,	/* Supports TKIP MIC when using WMM */
+	AR5K_CAP_CHAN_HALFRATE		= 18,	/* Supports half rate channels */
+	AR5K_CAP_CHAN_QUARTERRATE	= 19,	/* Supports quarter rate channels */
 	AR5K_CAP_RFSILENT		= 20,	/* Supports RFsilent */
 };
 
@@ -1362,12 +1362,12 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 
 static inline struct ath_common *ath5k_hw_common(struct ath5k_hw *ah)
 {
-        return &ah->common;
+	return &ah->common;
 }
 
 static inline struct ath_regulatory *ath5k_hw_regulatory(struct ath5k_hw *ah)
 {
-        return &(ath5k_hw_common(ah)->regulatory);
+	return &(ath5k_hw_common(ah)->regulatory);
 }
 
 #ifdef CONFIG_ATHEROS_AR231X

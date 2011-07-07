@@ -223,14 +223,14 @@ static int ath5k_eeprom_read_ants(struct ath5k_hw *ah, u32 *offset,
 	ah->ah_ant_ctl[mode][AR5K_ANT_CTL] =
 	    (ee->ee_ant_control[mode][0] << 4);
 	ah->ah_ant_ctl[mode][AR5K_ANT_SWTABLE_A] =
-	     ee->ee_ant_control[mode][1] 	|
-	    (ee->ee_ant_control[mode][2] << 6) 	|
+	     ee->ee_ant_control[mode][1]	|
+	    (ee->ee_ant_control[mode][2] << 6)	|
 	    (ee->ee_ant_control[mode][3] << 12) |
 	    (ee->ee_ant_control[mode][4] << 18) |
 	    (ee->ee_ant_control[mode][5] << 24);
 	ah->ah_ant_ctl[mode][AR5K_ANT_SWTABLE_B] =
-	     ee->ee_ant_control[mode][6] 	|
-	    (ee->ee_ant_control[mode][7] << 6) 	|
+	     ee->ee_ant_control[mode][6]	|
+	    (ee->ee_ant_control[mode][7] << 6)	|
 	    (ee->ee_ant_control[mode][8] << 12) |
 	    (ee->ee_ant_control[mode][9] << 18) |
 	    (ee->ee_ant_control[mode][10] << 24);

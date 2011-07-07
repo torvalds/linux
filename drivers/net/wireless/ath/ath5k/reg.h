@@ -72,7 +72,7 @@
 #define	AR5K_CFG_SWRD		0x00000004	/* Byte-swap RX descriptor */
 #define	AR5K_CFG_SWRB		0x00000008	/* Byte-swap RX buffer */
 #define	AR5K_CFG_SWRG		0x00000010	/* Byte-swap Register access */
-#define AR5K_CFG_IBSS		0x00000020 	/* 0-BSS, 1-IBSS [5211+] */
+#define AR5K_CFG_IBSS		0x00000020	/* 0-BSS, 1-IBSS [5211+] */
 #define AR5K_CFG_PHY_OK		0x00000100	/* [5211+] */
 #define AR5K_CFG_EEBS		0x00000200	/* EEPROM is busy */
 #define	AR5K_CFG_CLKGD		0x00000400	/* Clock gated (Disable dynamic clock) */
@@ -303,7 +303,7 @@
 #define AR5K_ISR_BRSSI		0x00020000	/* Beacon rssi below threshold (?) */
 #define AR5K_ISR_BMISS		0x00040000	/* Beacon missed */
 #define AR5K_ISR_HIUERR		0x00080000	/* Host Interface Unit error [5211+] */
-#define AR5K_ISR_BNR		0x00100000 	/* Beacon not ready [5211+] */
+#define AR5K_ISR_BNR		0x00100000	/* Beacon not ready [5211+] */
 #define AR5K_ISR_MCABT		0x00100000	/* Master Cycle Abort [5210] */
 #define AR5K_ISR_RXCHIRP	0x00200000	/* CHIRP Received [5212+] */
 #define AR5K_ISR_SSERR		0x00200000	/* Signaled System Error [5210] */
@@ -397,7 +397,7 @@
 #define AR5K_IMR_BRSSI		0x00020000	/* Beacon rssi below threshold (?) */
 #define AR5K_IMR_BMISS		0x00040000	/* Beacon missed*/
 #define AR5K_IMR_HIUERR		0x00080000	/* Host Interface Unit error [5211+] */
-#define AR5K_IMR_BNR		0x00100000 	/* Beacon not ready [5211+] */
+#define AR5K_IMR_BNR		0x00100000	/* Beacon not ready [5211+] */
 #define AR5K_IMR_MCABT		0x00100000	/* Master Cycle Abort [5210] */
 #define AR5K_IMR_RXCHIRP	0x00200000	/* CHIRP Received [5212+]*/
 #define AR5K_IMR_SSERR		0x00200000	/* Signaled System Error [5210] */
@@ -1328,16 +1328,16 @@
 #define AR5K_RX_FILTER_5211	0x803c			/* Register Address [5211+] */
 #define AR5K_RX_FILTER		(ah->ah_version == AR5K_AR5210 ? \
 				AR5K_RX_FILTER_5210 : AR5K_RX_FILTER_5211)
-#define	AR5K_RX_FILTER_UCAST 	0x00000001	/* Don't filter unicast frames */
-#define	AR5K_RX_FILTER_MCAST 	0x00000002	/* Don't filter multicast frames */
-#define	AR5K_RX_FILTER_BCAST 	0x00000004	/* Don't filter broadcast frames */
-#define	AR5K_RX_FILTER_CONTROL 	0x00000008	/* Don't filter control frames */
-#define	AR5K_RX_FILTER_BEACON 	0x00000010	/* Don't filter beacon frames */
-#define	AR5K_RX_FILTER_PROM 	0x00000020	/* Set promiscuous mode */
-#define	AR5K_RX_FILTER_XRPOLL 	0x00000040	/* Don't filter XR poll frame [5212+] */
+#define	AR5K_RX_FILTER_UCAST	0x00000001	/* Don't filter unicast frames */
+#define	AR5K_RX_FILTER_MCAST	0x00000002	/* Don't filter multicast frames */
+#define	AR5K_RX_FILTER_BCAST	0x00000004	/* Don't filter broadcast frames */
+#define	AR5K_RX_FILTER_CONTROL	0x00000008	/* Don't filter control frames */
+#define	AR5K_RX_FILTER_BEACON	0x00000010	/* Don't filter beacon frames */
+#define	AR5K_RX_FILTER_PROM	0x00000020	/* Set promiscuous mode */
+#define	AR5K_RX_FILTER_XRPOLL	0x00000040	/* Don't filter XR poll frame [5212+] */
 #define	AR5K_RX_FILTER_PROBEREQ 0x00000080	/* Don't filter probe requests [5212+] */
 #define	AR5K_RX_FILTER_PHYERR_5212	0x00000100	/* Don't filter phy errors [5212+] */
-#define	AR5K_RX_FILTER_RADARERR_5212 	0x00000200	/* Don't filter phy radar errors [5212+] */
+#define	AR5K_RX_FILTER_RADARERR_5212	0x00000200	/* Don't filter phy radar errors [5212+] */
 #define AR5K_RX_FILTER_PHYERR_5211	0x00000040	/* [5211] */
 #define AR5K_RX_FILTER_RADARERR_5211	0x00000080	/* [5211] */
 #define AR5K_RX_FILTER_PHYERR  \
@@ -1461,7 +1461,7 @@
  * ADDAC test register [5211+]
  */
 #define AR5K_ADDAC_TEST			0x8054			/* Register Address */
-#define AR5K_ADDAC_TEST_TXCONT 		0x00000001	/* Test continuous tx */
+#define AR5K_ADDAC_TEST_TXCONT		0x00000001	/* Test continuous tx */
 #define AR5K_ADDAC_TEST_TST_MODE	0x00000002	/* Test mode */
 #define AR5K_ADDAC_TEST_LOOP_EN		0x00000004	/* Enable loop */
 #define AR5K_ADDAC_TEST_LOOP_LEN	0x00000008	/* Loop length (field) */
@@ -2038,7 +2038,7 @@
 #define AR5K_PHY_WEAK_OFDM_HIGH_THR_M2_S	24
 
 /* Low thresholds */
-#define AR5K_PHY_WEAK_OFDM_LOW_THR 		0x986c
+#define AR5K_PHY_WEAK_OFDM_LOW_THR		0x986c
 #define AR5K_PHY_WEAK_OFDM_LOW_THR_SELFCOR_EN	0x00000001
 #define AR5K_PHY_WEAK_OFDM_LOW_THR_M2_COUNT	0x00003f00
 #define AR5K_PHY_WEAK_OFDM_LOW_THR_M2_COUNT_S	8
@@ -2281,22 +2281,22 @@
 #define	AR5K_PHY_RADAR			0x9954
 #define	AR5K_PHY_RADAR_ENABLE		0x00000001
 #define	AR5K_PHY_RADAR_DISABLE		0x00000000
-#define AR5K_PHY_RADAR_INBANDTHR    	0x0000003e	/* Inband threshold
+#define AR5K_PHY_RADAR_INBANDTHR	0x0000003e	/* Inband threshold
 							5-bits, units unknown {0..31}
 							(? MHz ?) */
 #define AR5K_PHY_RADAR_INBANDTHR_S	1
 
-#define AR5K_PHY_RADAR_PRSSI_THR    	0x00000fc0	/* Pulse RSSI/SNR threshold
+#define AR5K_PHY_RADAR_PRSSI_THR	0x00000fc0	/* Pulse RSSI/SNR threshold
 							6-bits, dBm range {0..63}
 							in dBm units. */
 #define AR5K_PHY_RADAR_PRSSI_THR_S	6
 
-#define AR5K_PHY_RADAR_PHEIGHT_THR   	0x0003f000	/* Pulse height threshold
+#define AR5K_PHY_RADAR_PHEIGHT_THR	0x0003f000	/* Pulse height threshold
 							6-bits, dBm range {0..63}
 							in dBm units. */
 #define AR5K_PHY_RADAR_PHEIGHT_THR_S	12
 
-#define AR5K_PHY_RADAR_RSSI_THR    	0x00fc0000	/* Radar RSSI/SNR threshold.
+#define AR5K_PHY_RADAR_RSSI_THR		0x00fc0000	/* Radar RSSI/SNR threshold.
 							6-bits, dBm range {0..63}
 							in dBm units. */
 #define AR5K_PHY_RADAR_RSSI_THR_S	18

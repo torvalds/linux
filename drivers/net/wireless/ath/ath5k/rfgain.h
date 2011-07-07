@@ -452,7 +452,7 @@ static const struct ath5k_ini_rfgain rfgain_2425[] = {
 
 /* Check if our current measurement is inside our
  * current variable attenuation window */
-#define AR5K_GAIN_CHECK_ADJUST(_g) 		\
+#define AR5K_GAIN_CHECK_ADJUST(_g)		\
 	((_g)->g_current <= (_g)->g_low || (_g)->g_current >= (_g)->g_high)
 
 struct ath5k_gain_opt_step {

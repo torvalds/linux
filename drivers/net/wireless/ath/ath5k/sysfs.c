@@ -11,7 +11,7 @@ static ssize_t ath5k_attr_show_##name(struct device *dev,		\
 			char *buf)					\
 {									\
 	struct ath5k_softc *sc = dev_get_drvdata(dev);			\
-	return snprintf(buf, PAGE_SIZE, "%d\n", get); 			\
+	return snprintf(buf, PAGE_SIZE, "%d\n", get);			\
 }									\
 									\
 static ssize_t ath5k_attr_store_##name(struct device *dev,		\
@@ -34,7 +34,7 @@ static ssize_t ath5k_attr_show_##name(struct device *dev,		\
 			char *buf)					\
 {									\
 	struct ath5k_softc *sc = dev_get_drvdata(dev);			\
-	return snprintf(buf, PAGE_SIZE, "%d\n", get); 			\
+	return snprintf(buf, PAGE_SIZE, "%d\n", get);			\
 }									\
 static DEVICE_ATTR(name, S_IRUGO, ath5k_attr_show_##name, NULL)
 

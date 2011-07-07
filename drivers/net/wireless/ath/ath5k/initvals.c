@@ -113,8 +113,8 @@ static const struct ath5k_ini ar5210_ini[] = {
 	{ AR5K_PHY(28),	0x0000000f },
 	{ AR5K_PHY(29),	0x00000080 },
 	{ AR5K_PHY(30),	0x00000004 },
-	{ AR5K_PHY(31),	0x00000018 }, 	/* 0x987c */
-	{ AR5K_PHY(64),	0x00000000 }, 	/* 0x9900 */
+	{ AR5K_PHY(31),	0x00000018 },	/* 0x987c */
+	{ AR5K_PHY(64),	0x00000000 },	/* 0x9900 */
 	{ AR5K_PHY(65),	0x00000000 },
 	{ AR5K_PHY(66),	0x00000000 },
 	{ AR5K_PHY(67),	0x00800000 },
@@ -549,7 +549,7 @@ static const struct ath5k_ini ar5212_ini_common_start[] = {
 	{ AR5K_DIAG_SW_5211,	0x00000000 },
 	{ AR5K_ADDAC_TEST,	0x00000000 },
 	{ AR5K_DEFAULT_ANTENNA,	0x00000000 },
-	{ AR5K_FRAME_CTL_QOSM, 	0x000fc78f },
+	{ AR5K_FRAME_CTL_QOSM,	0x000fc78f },
 	{ AR5K_XRMODE,		0x2a82301a },
 	{ AR5K_XRDELAY,		0x05dc01e0 },
 	{ AR5K_XRTIMEOUT,	0x1f402710 },
@@ -760,9 +760,9 @@ static const struct ath5k_ini_mode rf5111_ini_mode_end[] = {
 
 static const struct ath5k_ini rf5111_ini_common_end[] = {
 	{ AR5K_DCU_FP,		0x00000000 },
-	{ AR5K_PHY_AGC, 	0x00000000 },
-	{ AR5K_PHY_ADC_CTL, 	0x00022ffe },
-	{ 0x983c, 		0x00020100 },
+	{ AR5K_PHY_AGC,		0x00000000 },
+	{ AR5K_PHY_ADC_CTL,	0x00022ffe },
+	{ 0x983c,		0x00020100 },
 	{ AR5K_PHY_GAIN_OFFSET,	0x1284613c },
 	{ AR5K_PHY_PAPD_PROBE,	0x00004883 },
 	{ 0x9940,		0x00000004 },

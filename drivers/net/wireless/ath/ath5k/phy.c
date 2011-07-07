@@ -2456,7 +2456,7 @@ static void
 ath5k_fill_pwr_to_pcdac_table(struct ath5k_hw *ah, s16* table_min,
 							s16 *table_max)
 {
-	u8 	*pcdac_out = ah->ah_txpower.txp_pd_table;
+	u8	*pcdac_out = ah->ah_txpower.txp_pd_table;
 	u8	*pcdac_tmp = ah->ah_txpower.tmpL[0];
 	u8	pcdac_0, pcdac_n, pcdac_i, pwr_idx, i;
 	s16	min_pwr, max_pwr;
@@ -2502,7 +2502,7 @@ static void
 ath5k_combine_linear_pcdac_curves(struct ath5k_hw *ah, s16* table_min,
 						s16 *table_max, u8 pdcurves)
 {
-	u8 	*pcdac_out = ah->ah_txpower.txp_pd_table;
+	u8	*pcdac_out = ah->ah_txpower.txp_pd_table;
 	u8	*pcdac_low_pwr;
 	u8	*pcdac_high_pwr;
 	u8	*pcdac_tmp;
@@ -2596,7 +2596,7 @@ ath5k_combine_linear_pcdac_curves(struct ath5k_hw *ah, s16* table_min,
 static void
 ath5k_write_pcdac_table(struct ath5k_hw *ah)
 {
-	u8 	*pcdac_out = ah->ah_txpower.txp_pd_table;
+	u8	*pcdac_out = ah->ah_txpower.txp_pd_table;
 	int	i;
 
 	/*
