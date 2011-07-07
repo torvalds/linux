@@ -780,7 +780,7 @@ extern int ath5k_modparam_nohwcrypt;
 
 #define AR5K_ASSERT_ENTRY(_e, _s) do {		\
 	if (_e >= _s)				\
-		return (false);			\
+		return false;			\
 } while (0)
 
 /*

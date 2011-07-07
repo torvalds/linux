@@ -536,7 +536,7 @@ u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah)
 
 	WARN_ON( i == ATH5K_MAX_TSF_READ );
 
-	return (((u64)tsf_upper1 << 32) | tsf_lower);
+	return ((u64)tsf_upper1 << 32) | tsf_lower;
 }
 
 /**
