@@ -77,7 +77,7 @@ static const struct command cmds[] = {
 	{
 		.name  = "list",
 		.fn    = usbip_list,
-		.help  = "List exported or local USB devices",
+		.help  = "List exportable or local USB devices",
 		.usage = usbip_list_usage
 	},
 	{
