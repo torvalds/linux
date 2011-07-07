@@ -44,21 +44,21 @@ struct bus_type iio_bus_type = {
 EXPORT_SYMBOL(iio_bus_type);
 
 static const char * const iio_chan_type_name_spec_shared[] = {
-	[IIO_TIMESTAMP] = "timestamp",
-	[IIO_ACCEL] = "accel",
 	[IIO_IN] = "in",
 	[IIO_OUT] = "out",
 	[IIO_CURRENT] = "current",
 	[IIO_POWER] = "power",
+	[IIO_ACCEL] = "accel",
 	[IIO_IN_DIFF] = "in-in",
 	[IIO_GYRO] = "gyro",
-	[IIO_TEMP] = "temp",
 	[IIO_MAGN] = "magn",
+	[IIO_LIGHT] = "illuminance",
+	[IIO_INTENSITY] = "intensity",
+	[IIO_TEMP] = "temp",
 	[IIO_INCLI] = "incli",
 	[IIO_ROT] = "rot",
-	[IIO_INTENSITY] = "intensity",
-	[IIO_LIGHT] = "illuminance",
 	[IIO_ANGL] = "angl",
+	[IIO_TIMESTAMP] = "timestamp",
 };
 
 static const char * const iio_chan_type_name_spec_complex[] = {
