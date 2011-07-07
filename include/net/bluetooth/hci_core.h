@@ -265,7 +265,6 @@ struct hci_conn {
 	__u8		power_save;
 	__u16		disc_timeout;
 	unsigned long	pend;
-	__u8		ltk[16];
 
 	__u8		remote_cap;
 	__u8		remote_oob;
