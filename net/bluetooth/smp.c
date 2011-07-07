@@ -496,18 +496,23 @@ int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 
 static int smp_cmd_encrypt_info(struct l2cap_conn *conn, struct sk_buff *skb)
 {
-	BT_DBG("conn %p", conn);
-	/* FIXME: store the ltk */
+	struct smp_cmd_encrypt_info *rp = (void *) skb->data;
+
+	skb_pull(skb, sizeof(*rp));
+
+	memcpy(conn->tk, rp->ltk, sizeof(conn->tk));
+
 	return 0;
 }
 
 static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 {
-	struct smp_cmd_pairing *paircmd = (void *) &conn->prsp[1];
-	u8 keydist = paircmd->init_key_dist;
+	struct smp_cmd_master_ident *rp = (void *) skb->data;
 
-	BT_DBG("keydist 0x%x", keydist);
-	/* FIXME: store ediv and rand */
+	skb_pull(skb, sizeof(*rp));
+
+	hci_add_ltk(conn->hcon->hdev, 1, conn->src, rp->ediv,
+						rp->rand, conn->tk);
 
 	smp_distribute_keys(conn, 1);
 
@@ -631,6 +636,9 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 		get_random_bytes(ident.rand, sizeof(ident.rand));
 
 		smp_send_cmd(conn, SMP_CMD_ENCRYPT_INFO, sizeof(enc), &enc);
+
+		hci_add_ltk(conn->hcon->hdev, 1, conn->dst, ediv,
+							ident.rand, enc.ltk);
 
 		ident.ediv = cpu_to_le16(ediv);
 
