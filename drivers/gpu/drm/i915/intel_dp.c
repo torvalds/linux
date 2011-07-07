@@ -1012,26 +1012,41 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 }
 
 /*
+ * Native read with retry for link status and receiver capability reads for
+ * cases where the sink may still be asleep.
+ */
+static bool
+intel_dp_aux_native_read_retry(struct intel_dp *intel_dp, uint16_t address,
+			       uint8_t *recv, int recv_bytes)
+{
+	int ret, i;
+
+	/*
+	 * Sinks are *supposed* to come up within 1ms from an off state,
+	 * but we're also supposed to retry 3 times per the spec.
+	 */
+	for (i = 0; i < 3; i++) {
+		ret = intel_dp_aux_native_read(intel_dp, address, recv,
+					       recv_bytes);
+		if (ret == recv_bytes)
+			return true;
+		msleep(1);
+	}
+
+	return false;
+}
+
+/*
  * Fetch AUX CH registers 0x202 - 0x207 which contain
  * link status information
  */
 static bool
 intel_dp_get_link_status(struct intel_dp *intel_dp)
 {
-	int ret, i;
-
-	/* Must try AUX reads for this at least 3 times */
-	for (i = 0; i < 3; i++) {
-		ret = intel_dp_aux_native_read(intel_dp,
-					       DP_LANE0_1_STATUS,
-					       intel_dp->link_status,
-					       DP_LINK_STATUS_SIZE);
-		if (ret == DP_LINK_STATUS_SIZE)
-			return true;
-		msleep(1);
-	}
-
-	return false;
+	return intel_dp_aux_native_read_retry(intel_dp,
+					      DP_LANE0_1_STATUS,
+					      intel_dp->link_status,
+					      DP_LINK_STATUS_SIZE);
 }
 
 static uint8_t
@@ -1549,7 +1564,7 @@ static enum drm_connector_status
 ironlake_dp_detect(struct intel_dp *intel_dp)
 {
 	enum drm_connector_status status;
-	int ret, i;
+	bool ret;
 
 	/* Can't disconnect eDP, but you can close the lid... */
 	if (is_edp(intel_dp)) {
@@ -1560,17 +1575,11 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 	}
 
 	status = connector_status_disconnected;
-	for (i = 0; i < 3; i++) {
-		ret = intel_dp_aux_native_read(intel_dp,
-					       0x000, intel_dp->dpcd,
-					       sizeof (intel_dp->dpcd));
-		if (ret == sizeof(intel_dp->dpcd) &&
-		    intel_dp->dpcd[DP_DPCD_REV] != 0) {
-			status = connector_status_connected;
-			break;
-		}
-		msleep(1);
-	}
+	ret = intel_dp_aux_native_read_retry(intel_dp,
+					     0x000, intel_dp->dpcd,
+					     sizeof (intel_dp->dpcd));
+	if (ret && intel_dp->dpcd[DP_DPCD_REV] != 0)
+		status = connector_status_connected;
 	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", intel_dp->dpcd[0],
 		      intel_dp->dpcd[1], intel_dp->dpcd[2], intel_dp->dpcd[3]);
 	return status;
