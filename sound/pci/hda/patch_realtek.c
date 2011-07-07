@@ -7200,8 +7200,8 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 
 	spec->multiout.max_channels = 2;
 
-	if (spec->autocfg.dig_outs)
-		spec->multiout.dig_out_nid = ALC260_DIGOUT_NID;
+	alc_auto_parse_digital(codec);
+
 	if (spec->kctls.list)
 		add_mixer(spec, spec->kctls.list);
 
