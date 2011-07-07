@@ -832,7 +832,7 @@ static struct platform_driver ds2780_battery_driver = {
 		.name = "ds2780-battery",
 	},
 	.probe	  = ds2780_battery_probe,
-	.remove   = ds2780_battery_remove,
+	.remove   = __devexit_p(ds2780_battery_remove),
 };
 
 static int __init ds2780_battery_init(void)

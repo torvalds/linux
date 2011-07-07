@@ -313,7 +313,7 @@ static struct i2c_driver z2_batt_driver = {
 		.pm	= Z2_BATTERY_PM_OPS
 	},
 	.probe		= z2_batt_probe,
-	.remove		= z2_batt_remove,
+	.remove		= __devexit_p(z2_batt_remove),
 	.id_table	= z2_batt_id,
 };
 
