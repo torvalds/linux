@@ -997,11 +997,13 @@ static int qtaguid_ctrl_parse(const char *input, int count)
 		sock_tag_entry = get_sock_stat_nl(el_socket->sk);
 		if (!sock_tag_entry)
 			spin_unlock_irqrestore(&sock_tag_list_lock, flags);
+		/* HERE: The lock is held if there was a matching sock tag entry */
 		break;
 	default:
 		res = -EINVAL;
 		goto err;
 	}
+	/* HERE: The lock is held if there was a matching sock tag entry */
 
 	/* Process commands */
 	switch (cmd) {
@@ -1009,17 +1011,23 @@ static int qtaguid_ctrl_parse(const char *input, int count)
 	case 't':
 		if (argc < 2) {
 			res = -EINVAL;
+			/* HERE: The lock is held if there was a matching sock
+			 * tag entry */
 			goto err_unlock;
 		}
 		if (argc < 3) {
 			acct_tag = 0;
 		} else if (!valid_atag(acct_tag)) {
 			res = -EINVAL;
+			/* HERE: The lock is held if there was a matching sock
+			 * tag entry */
 			goto err_unlock;
 		}
 		if (argc < 4)
 			uid = current_fsuid();
 		if (!sock_tag_entry) {
+			/* HERE: There is no lock held because there was no
+			 * sock tag entry */
 			sock_tag_entry = kmalloc(sizeof(*sock_tag_entry),
 						GFP_KERNEL);
 			if (!sock_tag_entry) {
@@ -1034,13 +1042,15 @@ static int qtaguid_ctrl_parse(const char *input, int count)
 								uid);
 			spin_lock_irqsave(&sock_tag_list_lock, flags);
 			sock_tag_tree_insert(sock_tag_entry, &sock_tag_tree);
-			spin_unlock_irqrestore(&sock_tag_list_lock, flags);
 		} else {
+			/* HERE: The lock is held because there is a matching
+			 * sock tag entry */
 			/* Just update the acct_tag portion. */
 			uid_t orig_uid = get_uid_from_tag(sock_tag_entry->tag);
 			sock_tag_entry->tag = combine_atag_with_uid(acct_tag,
 								orig_uid);
 		}
+		spin_unlock_irqrestore(&sock_tag_list_lock, flags);
 		pr_debug("xt_qtaguid: tag: sock_tag_entry->sk=%p "
 			"...->tag=0x%llx (uid=%u)\n",
 			sock_tag_entry->sk, sock_tag_entry->tag,
