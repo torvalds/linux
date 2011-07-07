@@ -32,6 +32,7 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 #include "nouveau_fb.h"
+#include "nv50_display.h"
 
 #define MEM_SYNC 0xe0000001
 #define MEM_VRAM 0xe0010000
@@ -43,6 +44,13 @@ struct nvd0_display {
 		dma_addr_t handle;
 		u32 *ptr;
 	} evo[1];
+	struct {
+		struct dcb_entry *dis;
+		struct dcb_entry *ena;
+		int crtc;
+		int pclk;
+		u16 script;
+	} irq;
 };
 
 static struct nvd0_display *
@@ -856,11 +864,81 @@ nvd0_sor_create(struct drm_connector *connector, struct dcb_entry *dcbe)
 /******************************************************************************
  * IRQ
  *****************************************************************************/
+static struct dcb_entry *
+lookup_dcb(struct drm_device *dev, int id, u32 mc)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	int type, or, i;
+
+	if (id < 4) {
+		type = OUTPUT_ANALOG;
+		or   = id;
+	} else {
+		type = OUTPUT_TMDS;
+		or   = id - 4;
+	}
+
+	for (i = 0; i < dev_priv->vbios.dcb.entries; i++) {
+		struct dcb_entry *dcb = &dev_priv->vbios.dcb.entry[i];
+		if (dcb->type == type && (dcb->or & (1 << or)))
+			return dcb;
+	}
+
+	NV_INFO(dev, "PDISP: DCB for %d/0x%08x not found\n", id, mc);
+	return NULL;
+}
+
 static void
 nvd0_display_unk1_handler(struct drm_device *dev)
 {
+	struct nvd0_display *disp = nvd0_display(dev);
+	struct dcb_entry *dcb;
+	u32 unkn, crtc = 0;
+	int i;
+
 	NV_INFO(dev, "PDISP: 1 0x%08x 0x%08x 0x%08x\n", nv_rd32(dev, 0x6101d0),
 		nv_rd32(dev, 0x6101d4), nv_rd32(dev, 0x6109d4));
+
+	unkn = nv_rd32(dev, 0x6101d4);
+	if (!unkn) {
+		unkn = nv_rd32(dev, 0x6109d4);
+		crtc = 1;
+	}
+
+	disp->irq.ena = NULL;
+	disp->irq.dis = NULL;
+	disp->irq.crtc = crtc;
+	disp->irq.pclk = nv_rd32(dev, 0x660450 + (disp->irq.crtc * 0x300));
+	disp->irq.pclk /= 1000;
+
+	for (i = 0; i < 8; i++) {
+		u32 mcc = nv_rd32(dev, 0x640180 + (i * 0x20));
+		u32 mcp = nv_rd32(dev, 0x660180 + (i * 0x20));
+
+		if (mcc & (1 << crtc))
+			disp->irq.dis = lookup_dcb(dev, i, mcc);
+
+		if (mcp & (1 << crtc)) {
+			disp->irq.ena = lookup_dcb(dev, i, mcp);
+			switch (disp->irq.ena->type) {
+			case OUTPUT_ANALOG:
+				disp->irq.script = 0x00ff;
+				break;
+			case OUTPUT_TMDS:
+				disp->irq.script = (mcp & 0x00000f00) >> 8;
+				if (disp->irq.pclk >= 165000)
+					disp->irq.script |= 0x0100;
+				break;
+			default:
+				disp->irq.script = 0xbeef;
+				break;
+			}
+		}
+	}
+
+	dcb = disp->irq.dis;
+	if (dcb)
+		nouveau_bios_run_display_table(dev, 0x0000, -1, dcb, crtc);
 
 	nv_wr32(dev, 0x6101d4, 0x00000000);
 	nv_wr32(dev, 0x6109d4, 0x00000000);
@@ -870,9 +948,48 @@ nvd0_display_unk1_handler(struct drm_device *dev)
 static void
 nvd0_display_unk2_handler(struct drm_device *dev)
 {
+	struct nvd0_display *disp = nvd0_display(dev);
+	struct dcb_entry *dcb;
+	int crtc = disp->irq.crtc;
+	int pclk = disp->irq.pclk;
+	int or;
+	u32 tmp;
+
 	NV_INFO(dev, "PDISP: 2 0x%08x 0x%08x 0x%08x\n", nv_rd32(dev, 0x6101d0),
 		nv_rd32(dev, 0x6101d4), nv_rd32(dev, 0x6109d4));
 
+	dcb = disp->irq.dis;
+	disp->irq.dis = NULL;
+	if (dcb)
+		nouveau_bios_run_display_table(dev, 0x0000, -2, dcb, crtc);
+
+	nv50_crtc_set_clock(dev, crtc, pclk);
+
+	dcb = disp->irq.ena;
+	if (!dcb)
+		goto ack;
+	or = ffs(dcb->or) - 1;
+
+	nouveau_bios_run_display_table(dev, disp->irq.script, pclk, dcb, crtc);
+
+	nv_wr32(dev, 0x612200 + (crtc * 0x800), 0x00000000);
+	switch (dcb->type) {
+	case OUTPUT_ANALOG:
+		nv_wr32(dev, 0x612280 + (or * 0x800), 0x00000000);
+		break;
+	case OUTPUT_TMDS:
+		if (disp->irq.pclk >= 165000)
+			tmp = 0x00000101;
+		else
+			tmp = 0x00000000;
+
+		nv_mask(dev, 0x612300 + (or * 0x800), 0x00000707, tmp);
+		break;
+	default:
+		break;
+	}
+
+ack:
 	nv_wr32(dev, 0x6101d4, 0x00000000);
 	nv_wr32(dev, 0x6109d4, 0x00000000);
 	nv_wr32(dev, 0x6101d0, 0x80000000);
@@ -881,9 +998,22 @@ nvd0_display_unk2_handler(struct drm_device *dev)
 static void
 nvd0_display_unk4_handler(struct drm_device *dev)
 {
+	struct nvd0_display *disp = nvd0_display(dev);
+	struct dcb_entry *dcb;
+	int crtc = disp->irq.crtc;
+	int pclk = disp->irq.pclk;
+
 	NV_INFO(dev, "PDISP: 4 0x%08x 0x%08x 0x%08x\n", nv_rd32(dev, 0x6101d0),
 		nv_rd32(dev, 0x6101d4), nv_rd32(dev, 0x6109d4));
 
+	dcb = disp->irq.ena;
+	disp->irq.ena = NULL;
+	if (!dcb)
+		goto ack;
+
+	nouveau_bios_run_display_table(dev, disp->irq.script, pclk, dcb, crtc);
+
+ack:
 	nv_wr32(dev, 0x6101d4, 0x00000000);
 	nv_wr32(dev, 0x6109d4, 0x00000000);
 	nv_wr32(dev, 0x6101d0, 0x80000000);
