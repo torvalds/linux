@@ -68,7 +68,7 @@ static int isl29018_write_data(struct i2c_client *client, u8 reg,
 {
 	u8 regval;
 	int ret = 0;
-	struct isl29018_chip *chip = i2c_get_clientdata(client);
+	struct isl29018_chip *chip = iio_priv(i2c_get_clientdata(client));
 
 	regval = chip->reg_cache[reg];
 	regval &= ~mask;
@@ -158,7 +158,7 @@ static int isl29018_read_sensor_input(struct i2c_client *client, int mode)
 static int isl29018_read_lux(struct i2c_client *client, int *lux)
 {
 	int lux_data;
-	struct isl29018_chip *chip = i2c_get_clientdata(client);
+	struct isl29018_chip *chip = iio_priv(i2c_get_clientdata(client));
 
 	lux_data = isl29018_read_sensor_input(client,
 				COMMMAND1_OPMODE_ALS_ONCE);
@@ -466,7 +466,7 @@ static const struct attribute_group isl29108_group = {
 
 static int isl29018_chip_init(struct i2c_client *client)
 {
-	struct isl29018_chip *chip = i2c_get_clientdata(client);
+	struct isl29018_chip *chip = iio_priv(i2c_get_clientdata(client));
 	int status;
 	int new_adc_bit;
 	unsigned int new_range;
