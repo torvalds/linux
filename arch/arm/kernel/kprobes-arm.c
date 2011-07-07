@@ -67,6 +67,13 @@
 
 #define branch_displacement(insn) sign_extend(((insn) & 0xffffff) << 2, 25)
 
+#if  __LINUX_ARM_ARCH__ >= 6
+#define BLX(reg)	"blx	"reg"		\n\t"
+#else
+#define BLX(reg)	"mov	lr, pc		\n\t"	\
+			"mov	pc, "reg"	\n\t"
+#endif
+
 #define is_r15(insn, bitpos) (((insn) & (0xf << bitpos)) == (0xf << bitpos))
 
 #define PSR_fs	(PSR_f|PSR_s)
