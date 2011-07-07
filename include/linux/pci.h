@@ -843,8 +843,8 @@ void pci_enable_ido(struct pci_dev *dev, unsigned long type);
 void pci_disable_ido(struct pci_dev *dev, unsigned long type);
 
 enum pci_obff_signal_type {
-	PCI_EXP_OBFF_SIGNAL_L0,
-	PCI_EXP_OBFF_SIGNAL_ALWAYS,
+	PCI_EXP_OBFF_SIGNAL_L0 = 0,
+	PCI_EXP_OBFF_SIGNAL_ALWAYS = 1,
 };
 int pci_enable_obff(struct pci_dev *dev, enum pci_obff_signal_type);
 void pci_disable_obff(struct pci_dev *dev);
