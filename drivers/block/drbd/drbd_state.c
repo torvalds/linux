@@ -1008,9 +1008,9 @@ __drbd_set_state(struct drbd_device *device, union drbd_state ns,
 	did_remote = drbd_should_do_remote(device->state);
 	device->state.i = ns.i;
 	should_do_remote = drbd_should_do_remote(device->state);
-	first_peer_device(device)->connection->susp = ns.susp;
-	first_peer_device(device)->connection->susp_nod = ns.susp_nod;
-	first_peer_device(device)->connection->susp_fen = ns.susp_fen;
+	device->resource->susp = ns.susp;
+	device->resource->susp_nod = ns.susp_nod;
+	device->resource->susp_fen = ns.susp_fen;
 
 	/* put replicated vs not-replicated requests in seperate epochs */
 	if (did_remote != should_do_remote)
@@ -1219,6 +1219,7 @@ int drbd_bitmap_io_from_worker(struct drbd_device *device,
 static void after_state_ch(struct drbd_device *device, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags)
 {
+	struct drbd_resource *resource = device->resource;
 	struct sib_info sib;
 
 	sib.sib_reason = SIB_STATE_CHANGE;
@@ -1253,7 +1254,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		    conn_lowest_disk(connection) > D_NEGOTIATING)
 			what = RESTART_FROZEN_DISK_IO;
 
-		if (connection->susp_nod && what != NOTHING) {
+		if (resource->susp_nod && what != NOTHING) {
 			_tl_restart(connection, what);
 			_conn_request_state(connection,
 					    (union drbd_state) { { .susp_nod = 1 } },
@@ -1267,7 +1268,7 @@ static void after_state_ch(struct drbd_device *device, union drbd_state os,
 		struct drbd_connection *connection = first_peer_device(device)->connection;
 
 		spin_lock_irq(&device->resource->req_lock);
-		if (connection->susp_fen && conn_lowest_conn(connection) >= C_CONNECTED) {
+		if (resource->susp_fen && conn_lowest_conn(connection) >= C_CONNECTED) {
 			/* case2: The connection was established again: */
 			struct drbd_peer_device *peer_device;
 			int vnr;
@@ -1750,9 +1751,9 @@ conn_set_state(struct drbd_connection *connection, union drbd_state mask, union 
 			} };
 	}
 
-	ns_min.susp = ns_max.susp = connection->susp;
-	ns_min.susp_nod = ns_max.susp_nod = connection->susp_nod;
-	ns_min.susp_fen = ns_max.susp_fen = connection->susp_fen;
+	ns_min.susp = ns_max.susp = connection->resource->susp;
+	ns_min.susp_nod = ns_max.susp_nod = connection->resource->susp_nod;
+	ns_min.susp_fen = ns_max.susp_fen = connection->resource->susp_fen;
 
 	*pns_min = ns_min;
 	*pns_max = ns_max;

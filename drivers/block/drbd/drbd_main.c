@@ -2534,7 +2534,7 @@ struct drbd_resource *drbd_create_resource(const char *name)
 {
 	struct drbd_resource *resource;
 
-	resource = kmalloc(sizeof(struct drbd_resource), GFP_KERNEL);
+	resource = kzalloc(sizeof(struct drbd_resource), GFP_KERNEL);
 	if (!resource)
 		return NULL;
 	resource->name = kstrdup(name, GFP_KERNEL);

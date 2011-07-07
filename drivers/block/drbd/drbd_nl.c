@@ -1665,8 +1665,7 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
 		clear_bit(CRASHED_PRIMARY, &device->flags);
 
 	if (drbd_md_test_flag(device->ldev, MDF_PRIMARY_IND) &&
-	    !(device->state.role == R_PRIMARY &&
-	      first_peer_device(device)->connection->susp_nod))
+	    !(device->state.role == R_PRIMARY && device->resource->susp_nod))
 		set_bit(CRASHED_PRIMARY, &device->flags);
 
 	device->send_cnt = 0;

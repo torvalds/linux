@@ -580,6 +580,10 @@ struct drbd_resource {
 	struct res_opts res_opts;
 	struct mutex conf_update;	/* mutex for ready-copy-update of net_conf and disk_conf */
 	spinlock_t req_lock;
+
+	unsigned susp:1;		/* IO suspended by user */
+	unsigned susp_nod:1;		/* IO suspended because no data */
+	unsigned susp_fen:1;		/* IO suspended because fence peer handler runs */
 };
 
 struct drbd_connection {
@@ -588,9 +592,6 @@ struct drbd_connection {
 	struct kref kref;
 	struct idr peer_devices;	/* volume number to peer device mapping */
 	enum drbd_conns cstate;		/* Only C_STANDALONE to C_WF_REPORT_PARAMS */
-	unsigned susp:1;		/* IO suspended by user */
-	unsigned susp_nod:1;		/* IO suspended because no data */
-	unsigned susp_fen:1;		/* IO suspended because fence peer handler runs */
 	struct mutex cstate_mutex;	/* Protects graceful disconnects */
 	unsigned int connect_cnt;	/* Inc each time a connection is established */
 
@@ -1507,12 +1508,13 @@ _drbd_set_state(struct drbd_device *device, union drbd_state ns,
 
 static inline union drbd_state drbd_read_state(struct drbd_device *device)
 {
+	struct drbd_resource *resource = device->resource;
 	union drbd_state rv;
 
 	rv.i = device->state.i;
-	rv.susp = first_peer_device(device)->connection->susp;
-	rv.susp_nod = first_peer_device(device)->connection->susp_nod;
-	rv.susp_fen = first_peer_device(device)->connection->susp_fen;
+	rv.susp = resource->susp;
+	rv.susp_nod = resource->susp_nod;
+	rv.susp_fen = resource->susp_fen;
 
 	return rv;
 }
@@ -2033,9 +2035,9 @@ static inline int drbd_state_is_stable(struct drbd_device *device)
 
 static inline int drbd_suspended(struct drbd_device *device)
 {
-	struct drbd_connection *connection = first_peer_device(device)->connection;
+	struct drbd_resource *resource = device->resource;
 
-	return connection->susp || connection->susp_fen || connection->susp_nod;
+	return resource->susp || resource->susp_fen || resource->susp_nod;
 }
 
 static inline bool may_inc_ap_bio(struct drbd_device *device)
