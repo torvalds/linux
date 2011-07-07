@@ -198,6 +198,16 @@ static inline int wl1271_tx_get_mac80211_queue(int queue)
 	}
 }
 
+static inline int wl1271_tx_total_queue_count(struct wl1271 *wl)
+{
+	int i, count = 0;
+
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		count += wl->tx_queue_count[i];
+
+	return count;
+}
+
 void wl1271_tx_work(struct work_struct *work);
 void wl1271_tx_work_locked(struct wl1271 *wl);
 void wl1271_tx_complete(struct wl1271 *wl);

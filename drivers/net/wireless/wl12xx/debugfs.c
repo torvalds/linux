@@ -30,6 +30,7 @@
 #include "acx.h"
 #include "ps.h"
 #include "io.h"
+#include "tx.h"
 
 /* ms */
 #define WL1271_DEBUGFS_STATS_LIFETIME 1000
@@ -233,7 +234,7 @@ static ssize_t tx_queue_len_read(struct file *file, char __user *userbuf,
 	char buf[20];
 	int res;
 
-	queue_len = wl->tx_queue_count;
+	queue_len = wl1271_tx_total_queue_count(wl);
 
 	res = scnprintf(buf, sizeof(buf), "%u\n", queue_len);
 	return simple_read_from_buffer(userbuf, count, ppos, buf, res);
@@ -344,7 +345,10 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 	DRIVER_STATE_PRINT_INT(tx_allocated_blocks[3]);
 	DRIVER_STATE_PRINT_INT(tx_frames_cnt);
 	DRIVER_STATE_PRINT_LHEX(tx_frames_map[0]);
-	DRIVER_STATE_PRINT_INT(tx_queue_count);
+	DRIVER_STATE_PRINT_INT(tx_queue_count[0]);
+	DRIVER_STATE_PRINT_INT(tx_queue_count[1]);
+	DRIVER_STATE_PRINT_INT(tx_queue_count[2]);
+	DRIVER_STATE_PRINT_INT(tx_queue_count[3]);
 	DRIVER_STATE_PRINT_INT(tx_packets_count);
 	DRIVER_STATE_PRINT_INT(tx_results_count);
 	DRIVER_STATE_PRINT_LHEX(flags);

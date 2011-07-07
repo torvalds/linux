@@ -438,7 +438,7 @@ struct wl1271 {
 
 	/* Frames scheduled for transmission, not handled yet */
 	struct sk_buff_head tx_queue[NUM_TX_QUEUES];
-	int tx_queue_count;
+	int tx_queue_count[NUM_TX_QUEUES];
 	long stopped_queues_map;
 
 	/* Frames received, not handled yet by mac80211 */

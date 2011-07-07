@@ -448,8 +448,7 @@ void wl1271_handle_tx_low_watermark(struct wl1271 *wl)
 
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		if (test_bit(i, &wl->stopped_queues_map) &&
-		    skb_queue_len(&wl->tx_queue[i]) <=
-						WL1271_TX_QUEUE_LOW_WATERMARK) {
+		    wl->tx_queue_count[i] <= WL1271_TX_QUEUE_LOW_WATERMARK) {
 			/* firmware buffer has space, restart queues */
 			spin_lock_irqsave(&wl->wl_lock, flags);
 			ieee80211_wake_queue(wl->hw,
@@ -498,8 +497,9 @@ static struct sk_buff *wl1271_sta_skb_dequeue(struct wl1271 *wl)
 
 out:
 	if (skb) {
+		int q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 		spin_lock_irqsave(&wl->wl_lock, flags);
-		wl->tx_queue_count--;
+		wl->tx_queue_count[q]--;
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
 
@@ -535,9 +535,10 @@ static struct sk_buff *wl1271_ap_skb_dequeue(struct wl1271 *wl)
 	}
 
 	if (skb) {
+		int q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 		wl->last_tx_hlid = h;
 		spin_lock_irqsave(&wl->wl_lock, flags);
-		wl->tx_queue_count--;
+		wl->tx_queue_count[q]--;
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	} else {
 		wl->last_tx_hlid = 0;
@@ -558,9 +559,12 @@ static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl)
 
 	if (!skb &&
 	    test_and_clear_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags)) {
+		int q;
+
 		skb = wl->dummy_packet;
+		q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 		spin_lock_irqsave(&wl->wl_lock, flags);
-		wl->tx_queue_count--;
+		wl->tx_queue_count[q]--;
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
 
@@ -585,7 +589,7 @@ static void wl1271_skb_queue_head(struct wl1271 *wl, struct sk_buff *skb)
 	}
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
-	wl->tx_queue_count++;
+	wl->tx_queue_count[q]++;
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
 
@@ -813,23 +817,26 @@ void wl1271_tx_complete(struct wl1271 *wl)
 void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid)
 {
 	struct sk_buff *skb;
-	int i, total = 0;
+	int i;
 	unsigned long flags;
 	struct ieee80211_tx_info *info;
+	int total[NUM_TX_QUEUES];
 
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
+		total[i] = 0;
 		while ((skb = skb_dequeue(&wl->links[hlid].tx_queue[i]))) {
 			wl1271_debug(DEBUG_TX, "link freeing skb 0x%p", skb);
 			info = IEEE80211_SKB_CB(skb);
 			info->status.rates[0].idx = -1;
 			info->status.rates[0].count = 0;
 			ieee80211_tx_status_ni(wl->hw, skb);
-			total++;
+			total[i]++;
 		}
 	}
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
-	wl->tx_queue_count -= total;
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		wl->tx_queue_count[i] -= total[i];
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	wl1271_handle_tx_low_watermark(wl);
@@ -864,10 +871,10 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 					ieee80211_tx_status_ni(wl->hw, skb);
 				}
 			}
+			wl->tx_queue_count[i] = 0;
 		}
 	}
 
-	wl->tx_queue_count = 0;
 	wl->stopped_queues_map = 0;
 
 	/*
@@ -921,8 +928,10 @@ void wl1271_tx_flush(struct wl1271 *wl)
 	while (!time_after(jiffies, timeout)) {
 		mutex_lock(&wl->mutex);
 		wl1271_debug(DEBUG_TX, "flushing tx buffer: %d %d",
-			     wl->tx_frames_cnt, wl->tx_queue_count);
-		if ((wl->tx_frames_cnt == 0) && (wl->tx_queue_count == 0)) {
+			     wl->tx_frames_cnt,
+			     wl1271_tx_total_queue_count(wl));
+		if ((wl->tx_frames_cnt == 0) &&
+		    (wl1271_tx_total_queue_count(wl) == 0)) {
 			mutex_unlock(&wl->mutex);
 			return;
 		}
