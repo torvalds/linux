@@ -2468,6 +2468,9 @@ mark_held_locks(struct task_struct *curr, enum mark_type mark)
 
 		BUG_ON(usage_bit >= LOCK_USAGE_STATES);
 
+		if (hlock_class(hlock)->key == &__lockdep_no_validate__)
+			continue;
+
 		if (!mark_lock(curr, hlock, usage_bit))
 			return 0;
 	}
