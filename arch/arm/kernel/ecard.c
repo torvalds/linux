@@ -674,44 +674,37 @@ static int __init ecard_probeirqhw(void)
 #define ecard_probeirqhw() (0)
 #endif
 
-#ifndef IO_EC_MEMC8_BASE
-#define IO_EC_MEMC8_BASE 0
-#endif
-
 static void __iomem *__ecard_address(ecard_t *ec, card_type_t type, card_speed_t speed)
 {
-	unsigned long address = 0;
+	void __iomem *address = NULL;
 	int slot = ec->slot_no;
 
 	if (ec->slot_no == 8)
-		return (void __iomem *)ioaddr(IO_EC_MEMC8_BASE);
+		return ECARD_MEMC8_BASE;
 
 	ectcr &= ~(1 << slot);
 
 	switch (type) {
 	case ECARD_MEMC:
 		if (slot < 4)
-			address = IO_EC_MEMC_BASE + (slot << 12);
+			address = ECARD_MEMC_BASE + (slot << 14);
 		break;
 
 	case ECARD_IOC:
 		if (slot < 4)
-			address = IO_EC_IOC_BASE + (slot << 12);
-#ifdef IO_EC_IOC4_BASE
+			address = ECARD_IOC_BASE + (slot << 14);
 		else
-			address = IO_EC_IOC4_BASE + ((slot - 4) << 12);
-#endif
+			address = ECARD_IOC4_BASE + ((slot - 4) << 14);
 		if (address)
-			address +=  speed << 17;
+			address += speed << 19;
 		break;
 
-#ifdef IO_EC_EASI_BASE
 	case ECARD_EASI:
-		address = IO_EC_EASI_BASE + (slot << 22);
+		address = ECARD_EASI_BASE + (slot << 24);
 		if (speed == ECARD_FAST)
 			ectcr |= 1 << slot;
 		break;
-#endif
+
 	default:
 		break;
 	}
@@ -719,7 +712,7 @@ static void __iomem *__ecard_address(ecard_t *ec, card_type_t type, card_speed_t
 #ifdef IOMD_ECTCR
 	iomd_writeb(ectcr, IOMD_ECTCR);
 #endif
-	return (void __iomem *)(address ? ioaddr(address) : NULL);
+	return address;
 }
 
 static int ecard_prints(struct seq_file *m, ecard_t *ec)
@@ -1049,10 +1042,8 @@ ecard_probe(int slot, card_type_t type)
 		set_irq_flags(ec->irq, IRQF_VALID);
 	}
 
-#ifdef IO_EC_MEMC8_BASE
 	if (slot == 8)
 		ec->irq = 11;
-#endif
 #ifdef CONFIG_ARCH_RPC
 	/* On RiscPC, only first two slots have DMA capability */
 	if (slot < 2)
@@ -1098,9 +1089,7 @@ static int __init ecard_init(void)
 			ecard_probe(slot, ECARD_IOC);
 	}
 
-#ifdef IO_EC_MEMC8_BASE
 	ecard_probe(8, ECARD_IOC);
-#endif
 
 	irqhw = ecard_probeirqhw();
 
