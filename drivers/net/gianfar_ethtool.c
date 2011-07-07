@@ -40,6 +40,7 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/sort.h>
+#include <linux/if_vlan.h>
 
 #include "gianfar.h"
 
@@ -883,7 +884,7 @@ static void gfar_set_attribute(u32 value, u32 mask, u32 flag,
 		struct filer_table *tab)
 {
 	switch (flag) {
-	/* 3bit */
+		/* 3bit */
 	case RQFCR_PID_PRI:
 		if (!(value | mask))
 			return;
@@ -1051,17 +1052,17 @@ static int gfar_convert_to_filer(struct ethtool_rx_flow_spec *rule,
 		vlan_mask = RQFPR_VLN;
 
 		/* Separate the fields */
-		id = rule->h_ext.vlan_tci & 0xFFF;
-		id_mask = rule->m_ext.vlan_tci & 0xFFF;
-		cfi = (rule->h_ext.vlan_tci >> 12) & 1;
-		cfi_mask = (rule->m_ext.vlan_tci >> 12) & 1;
-		prio = (rule->h_ext.vlan_tci >> 13) & 0x7;
-		prio_mask = (rule->m_ext.vlan_tci >> 13) & 0x7;
+		id = rule->h_ext.vlan_tci & VLAN_VID_MASK;
+		id_mask = rule->m_ext.vlan_tci & VLAN_VID_MASK;
+		cfi = rule->h_ext.vlan_tci & VLAN_CFI_MASK;
+		cfi_mask = rule->m_ext.vlan_tci & VLAN_CFI_MASK;
+		prio = (rule->h_ext.vlan_tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+		prio_mask = (rule->m_ext.vlan_tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
 
-		if (cfi == 1 && cfi_mask == 1) {
+		if (cfi == VLAN_TAG_PRESENT && cfi_mask == VLAN_TAG_PRESENT) {
 			vlan |= RQFPR_CFI;
 			vlan_mask |= RQFPR_CFI;
-		} else if (cfi == 0 && cfi_mask == 1) {
+		} else if (cfi != VLAN_TAG_PRESENT && cfi_mask == VLAN_TAG_PRESENT) {
 			vlan_mask |= RQFPR_CFI;
 		}
 	}
@@ -1262,21 +1263,21 @@ static void gfar_cluster_filer(struct filer_table *tab)
 	}
 }
 
-/* Swaps the 0xFF80 masked bits of a1<>a2 and b1<>b2 */
-static void gfar_swap_ff80_bits(struct gfar_filer_entry *a1,
+/* Swaps the masked bits of a1<>a2 and b1<>b2 */
+static void gfar_swap_bits(struct gfar_filer_entry *a1,
 		struct gfar_filer_entry *a2, struct gfar_filer_entry *b1,
-		struct gfar_filer_entry *b2)
+		struct gfar_filer_entry *b2, u32 mask)
 {
 	u32 temp[4];
-	temp[0] = a1->ctrl & 0xFF80;
-	temp[1] = a2->ctrl & 0xFF80;
-	temp[2] = b1->ctrl & 0xFF80;
-	temp[3] = b2->ctrl & 0xFF80;
+	temp[0] = a1->ctrl & mask;
+	temp[1] = a2->ctrl & mask;
+	temp[2] = b1->ctrl & mask;
+	temp[3] = b2->ctrl & mask;
 
-	a1->ctrl &= ~0xFF80;
-	a2->ctrl &= ~0xFF80;
-	b1->ctrl &= ~0xFF80;
-	b2->ctrl &= ~0xFF80;
+	a1->ctrl &= ~mask;
+	a2->ctrl &= ~mask;
+	b1->ctrl &= ~mask;
+	b2->ctrl &= ~mask;
 
 	a1->ctrl |= temp[1];
 	a2->ctrl |= temp[0];
@@ -1305,7 +1306,7 @@ static u32 gfar_generate_mask_table(struct gfar_mask_entry *mask_table,
 				mask_table[and_index - 1].end = i - 1;
 			and_index++;
 		}
-		/* cluster starts will be separated because they should
+		/* cluster starts and ends will be separated because they should
 		 * hold their position */
 		if (tab->fe[i].ctrl & RQFCR_CLE)
 			block_index++;
@@ -1356,10 +1357,13 @@ static void gfar_sort_mask_table(struct gfar_mask_entry *mask_table,
 			new_first = mask_table[start].start + 1;
 			new_last = mask_table[i - 1].end;
 
-			gfar_swap_ff80_bits(&temp_table->fe[new_first],
+			gfar_swap_bits(&temp_table->fe[new_first],
 					&temp_table->fe[old_first],
 					&temp_table->fe[new_last],
-					&temp_table->fe[old_last]);
+					&temp_table->fe[old_last],
+					RQFCR_QUEUE | RQFCR_CLE |
+						RQFCR_RJE | RQFCR_AND
+					);
 
 			start = i;
 			size = 0;
