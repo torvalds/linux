@@ -493,6 +493,9 @@ static int new_lockspace(const char *name, int namelen, void **lockspace,
 	INIT_LIST_HEAD(&ls->ls_timeout);
 	mutex_init(&ls->ls_timeout_mutex);
 
+	INIT_LIST_HEAD(&ls->ls_new_rsb);
+	spin_lock_init(&ls->ls_new_rsb_spin);
+
 	INIT_LIST_HEAD(&ls->ls_nodes);
 	INIT_LIST_HEAD(&ls->ls_nodes_gone);
 	ls->ls_num_nodes = 0;
@@ -763,6 +766,13 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	}
 
 	vfree(ls->ls_rsbtbl);
+
+	while (!list_empty(&ls->ls_new_rsb)) {
+		rsb = list_first_entry(&ls->ls_new_rsb, struct dlm_rsb,
+				       res_hashchain);
+		list_del(&rsb->res_hashchain);
+		dlm_free_rsb(rsb);
+	}
 
 	/*
 	 * Free structures on any other lists

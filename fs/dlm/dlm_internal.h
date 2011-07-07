@@ -293,7 +293,7 @@ struct dlm_rsb {
 	int			res_recover_locks_count;
 
 	char			*res_lvbptr;
-	char			res_name[1];
+	char			res_name[DLM_RESNAME_MAXLEN+1];
 };
 
 /* find_rsb() flags */
@@ -476,6 +476,10 @@ struct dlm_ls {
 
 	struct mutex		ls_timeout_mutex;
 	struct list_head	ls_timeout;
+
+	spinlock_t		ls_new_rsb_spin;
+	int			ls_new_rsb_count;
+	struct list_head	ls_new_rsb;	/* new rsb structs */
 
 	struct list_head	ls_nodes;	/* current nodes in ls */
 	struct list_head	ls_nodes_gone;	/* dead node list, recovery */

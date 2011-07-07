@@ -28,6 +28,7 @@ struct dlm_config_info {
 	int ci_protocol;
 	int ci_timewarn_cs;
 	int ci_waitwarn_us;
+	int ci_new_rsb_count;
 };
 
 extern struct dlm_config_info dlm_config;
