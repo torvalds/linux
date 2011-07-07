@@ -1219,7 +1219,7 @@ struct btrfs_root {
 	 * right now this just gets used so that a root has its own devid
 	 * for stat.  It may be used for more later
 	 */
-	struct super_block anon_super;
+	dev_t anon_dev;
 };
 
 struct btrfs_ioctl_defrag_range_args {
