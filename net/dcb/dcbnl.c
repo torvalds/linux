@@ -1409,7 +1409,7 @@ static int dcbnl_cee_fill(struct sk_buff *skb, struct net_device *netdev)
 	spin_lock(&dcb_lock);
 	app = nla_nest_start(skb, DCB_ATTR_CEE_APP_TABLE);
 	if (!app)
-		goto nla_put_failure;
+		goto dcb_unlock;
 
 	list_for_each_entry(itr, &dcb_app_list, list) {
 		if (strncmp(itr->name, netdev->name, IFNAMSIZ) == 0) {
