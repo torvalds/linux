@@ -1139,6 +1139,12 @@ static const union decode_item arm_1111_table[] = {
 	/* PLD (immediate)	1111 0101 x101 xxxx xxxx xxxx xxxx xxxx */
 	DECODE_SIMULATE	(0xfe300000, 0xf4100000, kprobe_simulate_nop),
 
+	/* memory hint		1111 0110 x001 xxxx xxxx xxxx xxx0 xxxx */
+	/* PLDI (register)	1111 0110 x101 xxxx xxxx xxxx xxx0 xxxx */
+	/* PLDW (register)	1111 0111 x001 xxxx xxxx xxxx xxx0 xxxx */
+	/* PLD (register)	1111 0111 x101 xxxx xxxx xxxx xxx0 xxxx */
+	DECODE_SIMULATE	(0xfe300010, 0xf6100000, kprobe_simulate_nop),
+
 	/* BLX (immediate)	1111 101x xxxx xxxx xxxx xxxx xxxx xxxx */
 	DECODE_SIMULATE	(0xfe000000, 0xfa000000, simulate_blx1),
 
