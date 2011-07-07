@@ -38,7 +38,7 @@ Status: in development
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#include <asm/termios.h>
+#include <linux/termios.h>
 #include <asm/ioctls.h>
 #include <linux/serial.h>
 #include <linux/poll.h>
@@ -192,9 +192,8 @@ static int tty_read(struct file *f, int timeout)
 				elapsed =
 				    (1000000 * (now.tv_sec - start.tv_sec) +
 				     now.tv_usec - start.tv_usec);
-				if (elapsed > timeout) {
+				if (elapsed > timeout)
 					break;
-				}
 				set_current_state(TASK_INTERRUPTIBLE);
 				schedule_timeout(((timeout -
 						   elapsed) * HZ) / 10000);
@@ -204,9 +203,8 @@ static int tty_read(struct file *f, int timeout)
 				unsigned char ch;
 
 				f->f_pos = 0;
-				if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1) {
+				if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1)
 					result = ch;
-				}
 			}
 		} else {
 			/* Device does not support poll, busy wait */
@@ -215,9 +213,8 @@ static int tty_read(struct file *f, int timeout)
 				unsigned char ch;
 
 				retries++;
-				if (retries >= timeout) {
+				if (retries >= timeout)
 					break;
-				}
 
 				f->f_pos = 0;
 				if (f->f_op->read(f, &ch, 1, &f->f_pos) == 1) {
@@ -329,7 +326,7 @@ static struct serial_data serial_read(struct file *f, int timeout)
 
 		length++;
 		if (data < 0) {
-			printk("serial2002 error\n");
+			printk(KERN_ERR "serial2002 error\n");
 			break;
 		} else if (data & 0x80) {
 			result.value = (result.value << 7) | (data & 0x7f);
@@ -402,7 +399,7 @@ static int serial_2002_open(struct comedi_device *dev)
 	devpriv->tty = filp_open(port, O_RDWR, 0);
 	if (IS_ERR(devpriv->tty)) {
 		result = (int)PTR_ERR(devpriv->tty);
-		printk("serial_2002: file open error = %d\n", result);
+		printk(KERN_ERR "serial_2002: file open error = %d\n", result);
 	} else {
 		struct config_t {
 
