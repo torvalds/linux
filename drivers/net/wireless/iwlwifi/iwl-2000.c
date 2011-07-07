@@ -156,7 +156,7 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 		BIT(IWL_CALIB_TX_IQ)            |
 		BIT(IWL_CALIB_BASE_BAND);
 	if (priv->cfg->need_dc_calib)
-		priv->hw_params.calib_rt_cfg |= BIT(IWL_CALIB_CFG_DC_IDX);
+		priv->hw_params.calib_rt_cfg |= IWL_CALIB_CFG_DC_IDX;
 	if (priv->cfg->need_temp_offset_calib)
 		priv->hw_params.calib_init_cfg |= BIT(IWL_CALIB_TEMP_OFFSET);
 
