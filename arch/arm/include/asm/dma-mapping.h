@@ -115,33 +115,8 @@ static inline void __dma_page_dev_to_cpu(struct page *page, unsigned long off,
 		___dma_page_dev_to_cpu(page, off, size, dir);
 }
 
-/*
- * Return whether the given device DMA address mask can be supported
- * properly.  For example, if your device can only drive the low 24-bits
- * during bus mastering, then you would pass 0x00ffffff as the mask
- * to this function.
- *
- * FIXME: This should really be a platform specific issue - we should
- * return false if GFP_DMA allocations may not satisfy the supplied 'mask'.
- */
-static inline int dma_supported(struct device *dev, u64 mask)
-{
-	if (mask < ISA_DMA_THRESHOLD)
-		return 0;
-	return 1;
-}
-
-static inline int dma_set_mask(struct device *dev, u64 dma_mask)
-{
-	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
-		return -EIO;
-
-#ifndef CONFIG_DMABOUNCE
-	*dev->dma_mask = dma_mask;
-#endif
-
-	return 0;
-}
+extern int dma_supported(struct device *, u64);
+extern int dma_set_mask(struct device *, u64);
 
 /*
  * DMA errors are defined by all-bits-set in the DMA address.
