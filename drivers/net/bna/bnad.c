@@ -386,14 +386,12 @@ bnad_alloc_n_post_rxbufs(struct bnad *bnad, struct bna_rcb *rcb)
 			BNA_RXQ_QPGE_PTR_GET(unmap_prod, rcb->sw_qpt, rxent,
 					     wi_range);
 		}
-		skb = alloc_skb(rcb->rxq->buffer_size + NET_IP_ALIGN,
-				     GFP_ATOMIC);
+		skb = netdev_alloc_skb_ip_align(bnad->netdev,
+						rcb->rxq->buffer_size);
 		if (unlikely(!skb)) {
 			BNAD_UPDATE_CTR(bnad, rxbuf_alloc_failed);
 			goto finishing;
 		}
-		skb->dev = bnad->netdev;
-		skb_reserve(skb, NET_IP_ALIGN);
 		unmap_array[unmap_prod].skb = skb;
 		dma_addr = dma_map_single(&bnad->pcidev->dev, skb->data,
 					  rcb->rxq->buffer_size,
