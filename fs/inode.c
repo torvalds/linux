@@ -34,7 +34,7 @@
  * inode->i_lock protects:
  *   inode->i_state, inode->i_hash, __iget()
  * inode_lru_lock protects:
- *   inode_lru, inode->i_lru
+ *   inode->i_sb->s_inode_lru, inode->i_lru
  * inode_sb_list_lock protects:
  *   sb->s_inodes, inode->i_sb_list
  * inode_wb_list_lock protects:
@@ -64,7 +64,6 @@ static unsigned int i_hash_shift __read_mostly;
 static struct hlist_head *inode_hashtable __read_mostly;
 static __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_hash_lock);
 
-static LIST_HEAD(inode_lru);
 static DEFINE_SPINLOCK(inode_lru_lock);
 
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_sb_list_lock);
@@ -345,7 +344,8 @@ static void inode_lru_list_add(struct inode *inode)
 {
 	spin_lock(&inode_lru_lock);
 	if (list_empty(&inode->i_lru)) {
-		list_add(&inode->i_lru, &inode_lru);
+		list_add(&inode->i_lru, &inode->i_sb->s_inode_lru);
+		inode->i_sb->s_nr_inodes_unused++;
 		this_cpu_inc(nr_unused);
 	}
 	spin_unlock(&inode_lru_lock);
@@ -356,6 +356,7 @@ static void inode_lru_list_del(struct inode *inode)
 	spin_lock(&inode_lru_lock);
 	if (!list_empty(&inode->i_lru)) {
 		list_del_init(&inode->i_lru);
+		inode->i_sb->s_nr_inodes_unused--;
 		this_cpu_dec(nr_unused);
 	}
 	spin_unlock(&inode_lru_lock);
@@ -628,21 +629,20 @@ static int can_unuse(struct inode *inode)
  * LRU does not have strict ordering. Hence we don't want to reclaim inodes
  * with this flag set because they are the inodes that are out of order.
  */
-static void prune_icache(int nr_to_scan)
+static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
 {
 	LIST_HEAD(freeable);
 	int nr_scanned;
 	unsigned long reap = 0;
 
-	down_read(&iprune_sem);
 	spin_lock(&inode_lru_lock);
-	for (nr_scanned = 0; nr_scanned < nr_to_scan; nr_scanned++) {
+	for (nr_scanned = *nr_to_scan; nr_scanned >= 0; nr_scanned--) {
 		struct inode *inode;
 
-		if (list_empty(&inode_lru))
+		if (list_empty(&sb->s_inode_lru))
 			break;
 
-		inode = list_entry(inode_lru.prev, struct inode, i_lru);
+		inode = list_entry(sb->s_inode_lru.prev, struct inode, i_lru);
 
 		/*
 		 * we are inverting the inode_lru_lock/inode->i_lock here,
@@ -650,7 +650,7 @@ static void prune_icache(int nr_to_scan)
 		 * inode to the back of the list so we don't spin on it.
 		 */
 		if (!spin_trylock(&inode->i_lock)) {
-			list_move(&inode->i_lru, &inode_lru);
+			list_move(&inode->i_lru, &sb->s_inode_lru);
 			continue;
 		}
 
@@ -662,6 +662,7 @@ static void prune_icache(int nr_to_scan)
 		    (inode->i_state & ~I_REFERENCED)) {
 			list_del_init(&inode->i_lru);
 			spin_unlock(&inode->i_lock);
+			sb->s_nr_inodes_unused--;
 			this_cpu_dec(nr_unused);
 			continue;
 		}
@@ -669,7 +670,7 @@ static void prune_icache(int nr_to_scan)
 		/* recently referenced inodes get one more pass */
 		if (inode->i_state & I_REFERENCED) {
 			inode->i_state &= ~I_REFERENCED;
-			list_move(&inode->i_lru, &inode_lru);
+			list_move(&inode->i_lru, &sb->s_inode_lru);
 			spin_unlock(&inode->i_lock);
 			continue;
 		}
@@ -683,7 +684,7 @@ static void prune_icache(int nr_to_scan)
 			iput(inode);
 			spin_lock(&inode_lru_lock);
 
-			if (inode != list_entry(inode_lru.next,
+			if (inode != list_entry(sb->s_inode_lru.next,
 						struct inode, i_lru))
 				continue;	/* wrong inode or list_empty */
 			/* avoid lock inversions with trylock */
@@ -699,6 +700,7 @@ static void prune_icache(int nr_to_scan)
 		spin_unlock(&inode->i_lock);
 
 		list_move(&inode->i_lru, &freeable);
+		sb->s_nr_inodes_unused--;
 		this_cpu_dec(nr_unused);
 	}
 	if (current_is_kswapd())
@@ -706,8 +708,75 @@ static void prune_icache(int nr_to_scan)
 	else
 		__count_vm_events(PGINODESTEAL, reap);
 	spin_unlock(&inode_lru_lock);
+	*nr_to_scan = nr_scanned;
 
 	dispose_list(&freeable);
+}
+
+static void prune_icache(int count)
+{
+	struct super_block *sb, *p = NULL;
+	int w_count;
+	int unused = inodes_stat.nr_unused;
+	int prune_ratio;
+	int pruned;
+
+	if (unused == 0 || count == 0)
+		return;
+	down_read(&iprune_sem);
+	if (count >= unused)
+		prune_ratio = 1;
+	else
+		prune_ratio = unused / count;
+	spin_lock(&sb_lock);
+	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (list_empty(&sb->s_instances))
+			continue;
+		if (sb->s_nr_inodes_unused == 0)
+			continue;
+		sb->s_count++;
+		/* Now, we reclaim unused dentrins with fairness.
+		 * We reclaim them same percentage from each superblock.
+		 * We calculate number of dentries to scan on this sb
+		 * as follows, but the implementation is arranged to avoid
+		 * overflows:
+		 * number of dentries to scan on this sb =
+		 * count * (number of dentries on this sb /
+		 * number of dentries in the machine)
+		 */
+		spin_unlock(&sb_lock);
+		if (prune_ratio != 1)
+			w_count = (sb->s_nr_inodes_unused / prune_ratio) + 1;
+		else
+			w_count = sb->s_nr_inodes_unused;
+		pruned = w_count;
+		/*
+		 * We need to be sure this filesystem isn't being unmounted,
+		 * otherwise we could race with generic_shutdown_super(), and
+		 * end up holding a reference to an inode while the filesystem
+		 * is unmounted.  So we try to get s_umount, and make sure
+		 * s_root isn't NULL.
+		 */
+		if (down_read_trylock(&sb->s_umount)) {
+			if ((sb->s_root != NULL) &&
+			    (!list_empty(&sb->s_dentry_lru))) {
+				shrink_icache_sb(sb, &w_count);
+				pruned -= w_count;
+			}
+			up_read(&sb->s_umount);
+		}
+		spin_lock(&sb_lock);
+		if (p)
+			__put_super(p);
+		count -= pruned;
+		p = sb;
+		/* more work left to do? */
+		if (count <= 0)
+			break;
+	}
+	if (p)
+		__put_super(p);
+	spin_unlock(&sb_lock);
 	up_read(&iprune_sem);
 }
 
