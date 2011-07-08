@@ -1915,6 +1915,12 @@ static int via_auto_create_hp_ctls(struct hda_codec *codec, hda_nid_t pin)
 				   &spec->hp_path)) {
 		spec->hp_dac_nid = spec->hp_path.path[0];
 		spec->hp_indep_shared = true;
+	} else if (spec->multiout.dac_nids[HDA_CLFE] &&
+		 parse_output_path(codec, pin,
+				   spec->multiout.dac_nids[HDA_CLFE],
+				   &spec->hp_path)) {
+		spec->hp_dac_nid = spec->hp_path.path[0];
+		spec->hp_indep_shared = true;
 	}
 
 	if (!parse_output_path(codec, pin, spec->multiout.dac_nids[HDA_FRONT],
