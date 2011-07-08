@@ -67,6 +67,7 @@
 #include "iwl-core.h"
 #include "iwl-agn-calib.h"
 #include "iwl-trans.h"
+#include "iwl-agn.h"
 
 /*****************************************************************************
  * INIT calibrations framework
@@ -993,8 +994,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	IWL_DEBUG_CALIB(priv, "min_average_noise = %d, antenna %d\n",
 			min_average_noise, min_average_noise_antenna_i);
 
-	if (priv->cfg->ops->utils->gain_computation)
-		priv->cfg->ops->utils->gain_computation(priv, average_noise,
+	iwlagn_gain_computation(priv, average_noise,
 				min_average_noise_antenna_i, min_average_noise,
 				find_first_chain(priv->cfg->valid_rx_ant));
 

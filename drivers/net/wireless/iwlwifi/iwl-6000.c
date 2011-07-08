@@ -313,24 +313,20 @@ static struct iwl_nic_ops iwl6150_nic_ops = {
 
 static const struct iwl_ops iwl6000_ops = {
 	.lib = &iwl6000_lib,
-	.utils = &iwlagn_hcmd_utils,
 };
 
 static const struct iwl_ops iwl6050_ops = {
 	.lib = &iwl6000_lib,
-	.utils = &iwlagn_hcmd_utils,
 	.nic = &iwl6050_nic_ops,
 };
 
 static const struct iwl_ops iwl6150_ops = {
 	.lib = &iwl6000_lib,
-	.utils = &iwlagn_hcmd_utils,
 	.nic = &iwl6150_nic_ops,
 };
 
 static const struct iwl_ops iwl6030_ops = {
 	.lib = &iwl6030_lib,
-	.utils = &iwlagn_hcmd_utils,
 };
 
 static struct iwl_base_params iwl6000_base_params = {

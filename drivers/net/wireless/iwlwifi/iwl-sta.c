@@ -36,6 +36,7 @@
 #include "iwl-core.h"
 #include "iwl-sta.h"
 #include "iwl-trans.h"
+#include "iwl-agn.h"
 
 /* priv->sta_lock must be held */
 static void iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
@@ -133,6 +134,16 @@ static void iwl_add_sta_callback(struct iwl_priv *priv,
 
 }
 
+static u16 iwlagn_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
+{
+	u16 size = (u16)sizeof(struct iwl_addsta_cmd);
+	struct iwl_addsta_cmd *addsta = (struct iwl_addsta_cmd *)data;
+	memcpy(addsta, cmd, size);
+	/* resrved in 5000 */
+	addsta->rate_n_flags = cpu_to_le16(0);
+	return size;
+}
+
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags)
 {
@@ -156,7 +167,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 		might_sleep();
 	}
 
-	cmd.len[0] = priv->cfg->ops->utils->build_addsta_hcmd(sta, data);
+	cmd.len[0] = iwlagn_build_addsta_hcmd(sta, data);
 	ret = trans_send_cmd(priv, &cmd);
 
 	if (ret || (flags & CMD_ASYNC))

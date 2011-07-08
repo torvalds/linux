@@ -109,9 +109,6 @@ extern struct iwl_cfg iwl135_bg_cfg;
 extern struct iwl_cfg iwl135_bgn_cfg;
 
 extern struct iwl_mod_params iwlagn_mod_params;
-extern struct iwl_hcmd_ops iwlagn_hcmd;
-extern struct iwl_hcmd_ops iwlagn_bt_hcmd;
-extern struct iwl_hcmd_utils_ops iwlagn_hcmd_utils;
 
 extern struct ieee80211_ops iwlagn_hw_ops;
 
@@ -253,6 +250,12 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
 int iwlagn_set_pan_params(struct iwl_priv *priv);
+void iwlagn_gain_computation(struct iwl_priv *priv,
+                u32 average_noise[NUM_RX_CHAINS],
+                u16 min_average_noise_antenna_i,
+                u32 min_average_noise,
+                u8 default_chain);
+
 
 /* bt coex */
 void iwlagn_send_advance_bt_config(struct iwl_priv *priv);

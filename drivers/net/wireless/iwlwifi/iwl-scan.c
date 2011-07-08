@@ -350,9 +350,6 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 
 	lockdep_assert_held(&priv->mutex);
 
-	if (WARN_ON(!priv->cfg->ops->utils->request_scan))
-		return -EOPNOTSUPP;
-
 	cancel_delayed_work(&priv->scan_check);
 
 	if (!iwl_is_ready_rf(priv)) {
@@ -381,7 +378,7 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 	priv->scan_start = jiffies;
 	priv->scan_band = band;
 
-	ret = priv->cfg->ops->utils->request_scan(priv, vif);
+	ret = iwlagn_request_scan(priv, vif);
 	if (ret) {
 		clear_bit(STATUS_SCANNING, &priv->status);
 		priv->scan_type = IWL_SCAN_NORMAL;

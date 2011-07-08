@@ -80,22 +80,6 @@ struct iwl_cmd;
 
 #define IWL_CMD(x) case x: return #x
 
-struct iwl_hcmd_utils_ops {
-	u16 (*build_addsta_hcmd)(const struct iwl_addsta_cmd *cmd, u8 *data);
-	void (*gain_computation)(struct iwl_priv *priv,
-			u32 *average_noise,
-			u16 min_average_noise_antennat_i,
-			u32 min_average_noise,
-			u8 default_chain);
-	void (*chain_noise_reset)(struct iwl_priv *priv);
-	void (*tx_cmd_protection)(struct iwl_priv *priv,
-				  struct ieee80211_tx_info *info,
-				  __le16 fc, __le32 *tx_flags);
-	int  (*calc_rssi)(struct iwl_priv *priv,
-			  struct iwl_rx_phy_res *rx_resp);
-	int (*request_scan)(struct iwl_priv *priv, struct ieee80211_vif *vif);
-};
-
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
@@ -126,7 +110,6 @@ struct iwl_nic_ops {
 
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
-	const struct iwl_hcmd_utils_ops *utils;
 	const struct iwl_nic_ops *nic;
 };
 

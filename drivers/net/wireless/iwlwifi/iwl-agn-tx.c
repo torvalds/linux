@@ -339,6 +339,16 @@ void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask)
 	iwl_write_prph(priv, IWLAGN_SCD_TXFACT, mask);
 }
 
+static void iwlagn_tx_cmd_protection(struct iwl_priv *priv,
+				     struct ieee80211_tx_info *info,
+				     __le16 fc, __le32 *tx_flags)
+{
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS ||
+	    info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT ||
+	    info->flags & IEEE80211_TX_CTL_AMPDU)
+		*tx_flags |= TX_CMD_FLG_PROT_REQUIRE_MSK;
+}
+
 /*
  * handle build REPLY_TX command notification.
  */
@@ -388,7 +398,7 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
 	}
 
-	priv->cfg->ops->utils->tx_cmd_protection(priv, info, fc, &tx_flags);
+	iwlagn_tx_cmd_protection(priv, info, fc, &tx_flags);
 
 	tx_flags &= ~(TX_CMD_FLG_ANT_SEL_MSK);
 	if (ieee80211_is_mgmt(fc)) {
