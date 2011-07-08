@@ -21,7 +21,8 @@
 #include <linux/list.h>
 #include <linux/cred.h>
 #include <linux/poll.h>
-struct linux_binprm;
+#include <linux/binfmts.h>
+#include <linux/highmem.h>
 
 /********** Constants definitions. **********/
 
@@ -40,6 +41,22 @@ struct linux_binprm;
 
 /* Group number is an integer between 0 and 255. */
 #define TOMOYO_MAX_ACL_GROUPS 256
+
+/* Index numbers for "struct tomoyo_condition". */
+enum tomoyo_conditions_index {
+	TOMOYO_TASK_UID,             /* current_uid()   */
+	TOMOYO_TASK_EUID,            /* current_euid()  */
+	TOMOYO_TASK_SUID,            /* current_suid()  */
+	TOMOYO_TASK_FSUID,           /* current_fsuid() */
+	TOMOYO_TASK_GID,             /* current_gid()   */
+	TOMOYO_TASK_EGID,            /* current_egid()  */
+	TOMOYO_TASK_SGID,            /* current_sgid()  */
+	TOMOYO_TASK_FSGID,           /* current_fsgid() */
+	TOMOYO_TASK_PID,             /* sys_getpid()   */
+	TOMOYO_TASK_PPID,            /* sys_getppid()  */
+	TOMOYO_MAX_CONDITION_KEYWORD,
+	TOMOYO_NUMBER_UNION,
+};
 
 /* Index numbers for operation mode. */
 enum tomoyo_mode_index {
@@ -61,6 +78,7 @@ enum tomoyo_policy_id {
 	TOMOYO_ID_TRANSITION_CONTROL,
 	TOMOYO_ID_AGGREGATOR,
 	TOMOYO_ID_MANAGER,
+	TOMOYO_ID_CONDITION,
 	TOMOYO_ID_NAME,
 	TOMOYO_ID_ACL,
 	TOMOYO_ID_DOMAIN,
@@ -370,9 +388,32 @@ struct tomoyo_number_group {
 	struct tomoyo_number_union number;
 };
 
+/* Structure for entries which follows "struct tomoyo_condition". */
+struct tomoyo_condition_element {
+	/* Left hand operand. */
+	u8 left;
+	/* Right hand operand. */
+	u8 right;
+	/* Equation operator. True if equals or overlaps, false otherwise. */
+	bool equals;
+};
+
+/* Structure for optional arguments. */
+struct tomoyo_condition {
+	struct tomoyo_shared_acl_head head;
+	u32 size; /* Memory size allocated for this entry. */
+	u16 condc; /* Number of conditions in this struct. */
+	u16 numbers_count; /* Number of "struct tomoyo_number_union values". */
+	/*
+	 * struct tomoyo_condition_element condition[condc];
+	 * struct tomoyo_number_union values[numbers_count];
+	 */
+};
+
 /* Common header for individual entries. */
 struct tomoyo_acl_info {
 	struct list_head list;
+	struct tomoyo_condition *cond; /* Maybe NULL. */
 	bool is_deleted;
 	u8 type; /* One of values in "enum tomoyo_acl_entry_type_index". */
 } __packed;
@@ -475,12 +516,15 @@ struct tomoyo_io_buffer {
 		unsigned int step;
 		unsigned int query_index;
 		u16 index;
+		u16 cond_index;
 		u8 acl_group_index;
+		u8 cond_step;
 		u8 bit;
 		u8 w_pos;
 		bool eof;
 		bool print_this_domain_only;
 		bool print_transition_related_only;
+		bool print_cond_part;
 		const char *w[TOMOYO_MAX_IO_READ_QUEUE];
 	} r;
 	struct {
@@ -586,6 +630,8 @@ struct tomoyo_policy_namespace {
 
 bool tomoyo_compare_number_union(const unsigned long value,
 				 const struct tomoyo_number_union *ptr);
+bool tomoyo_condition(struct tomoyo_request_info *r,
+		      const struct tomoyo_condition *cond);
 bool tomoyo_correct_domain(const unsigned char *domainname);
 bool tomoyo_correct_path(const char *filename);
 bool tomoyo_correct_word(const char *string);
@@ -664,6 +710,7 @@ ssize_t tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
 			    const int buffer_len);
 ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 			     const char __user *buffer, const int buffer_len);
+struct tomoyo_condition *tomoyo_get_condition(struct tomoyo_acl_param *param);
 struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
 						const bool transit);
 struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
@@ -675,6 +722,7 @@ struct tomoyo_profile *tomoyo_profile(const struct tomoyo_policy_namespace *ns,
 				      const u8 profile);
 unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
 				const u8 index);
+u8 tomoyo_parse_ulong(unsigned long *result, char **str);
 void *tomoyo_commit_ok(void *data, const unsigned int size);
 void __init tomoyo_load_builtin_policy(void);
 void __init tomoyo_mm_init(void);
@@ -683,6 +731,7 @@ void tomoyo_check_acl(struct tomoyo_request_info *r,
 					   const struct tomoyo_acl_info *));
 void tomoyo_check_profile(void);
 void tomoyo_convert_time(time_t time, struct tomoyo_time *stamp);
+void tomoyo_del_condition(struct list_head *element);
 void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
 void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns);
 void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
@@ -706,6 +755,8 @@ void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
 /********** External variable definitions. **********/
 
 extern bool tomoyo_policy_loaded;
+extern const char * const tomoyo_condition_keyword
+[TOMOYO_MAX_CONDITION_KEYWORD];
 extern const char * const tomoyo_dif[TOMOYO_MAX_DOMAIN_INFO_FLAGS];
 extern const char * const tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
 					      + TOMOYO_MAX_MAC_CATEGORY_INDEX];
@@ -715,6 +766,7 @@ extern const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX];
 extern const u8 tomoyo_pn2mac[TOMOYO_MAX_PATH_NUMBER_OPERATION];
 extern const u8 tomoyo_pnnn2mac[TOMOYO_MAX_MKDEV_OPERATION];
 extern const u8 tomoyo_pp2mac[TOMOYO_MAX_PATH2_OPERATION];
+extern struct list_head tomoyo_condition_list;
 extern struct list_head tomoyo_domain_list;
 extern struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
 extern struct list_head tomoyo_namespace_list;
@@ -750,6 +802,36 @@ static inline void tomoyo_read_unlock(int idx)
 }
 
 /**
+ * tomoyo_sys_getppid - Copy of getppid().
+ *
+ * Returns parent process's PID.
+ *
+ * Alpha does not have getppid() defined. To be able to build this module on
+ * Alpha, I have to copy getppid() from kernel/timer.c.
+ */
+static inline pid_t tomoyo_sys_getppid(void)
+{
+	pid_t pid;
+	rcu_read_lock();
+	pid = task_tgid_vnr(current->real_parent);
+	rcu_read_unlock();
+	return pid;
+}
+
+/**
+ * tomoyo_sys_getpid - Copy of getpid().
+ *
+ * Returns current thread's PID.
+ *
+ * Alpha does not have getpid() defined. To be able to build this module on
+ * Alpha, I have to copy getpid() from kernel/timer.c.
+ */
+static inline pid_t tomoyo_sys_getpid(void)
+{
+	return task_tgid_vnr(current);
+}
+
+/**
  * tomoyo_pathcmp - strcmp() for "struct tomoyo_path_info" structure.
  *
  * @a: Pointer to "struct tomoyo_path_info".
@@ -777,6 +859,19 @@ static inline void tomoyo_put_name(const struct tomoyo_path_info *name)
 			container_of(name, typeof(*ptr), entry);
 		atomic_dec(&ptr->head.users);
 	}
+}
+
+/**
+ * tomoyo_put_condition - Drop reference on "struct tomoyo_condition".
+ *
+ * @cond: Pointer to "struct tomoyo_condition". Maybe NULL.
+ *
+ * Returns nothing.
+ */
+static inline void tomoyo_put_condition(struct tomoyo_condition *cond)
+{
+	if (cond)
+		atomic_dec(&cond->head.users);
 }
 
 /**

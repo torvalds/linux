@@ -48,6 +48,20 @@ const char * const tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
 	[TOMOYO_MAX_MAC_INDEX + TOMOYO_MAC_CATEGORY_FILE] = "file",
 };
 
+/* String table for conditions. */
+const char * const tomoyo_condition_keyword[TOMOYO_MAX_CONDITION_KEYWORD] = {
+	[TOMOYO_TASK_UID]             = "task.uid",
+	[TOMOYO_TASK_EUID]            = "task.euid",
+	[TOMOYO_TASK_SUID]            = "task.suid",
+	[TOMOYO_TASK_FSUID]           = "task.fsuid",
+	[TOMOYO_TASK_GID]             = "task.gid",
+	[TOMOYO_TASK_EGID]            = "task.egid",
+	[TOMOYO_TASK_SGID]            = "task.sgid",
+	[TOMOYO_TASK_FSGID]           = "task.fsgid",
+	[TOMOYO_TASK_PID]             = "task.pid",
+	[TOMOYO_TASK_PPID]            = "task.ppid",
+};
+
 /* String table for PREFERENCE keyword. */
 static const char * const tomoyo_pref_keywords[TOMOYO_MAX_PREF] = {
 	[TOMOYO_PREF_MAX_AUDIT_LOG]      = "max_audit_log",
@@ -294,15 +308,16 @@ static void tomoyo_print_name_union(struct tomoyo_io_buffer *head,
 }
 
 /**
- * tomoyo_print_number_union - Print a tomoyo_number_union.
+ * tomoyo_print_number_union_nospace - Print a tomoyo_number_union without a space.
  *
- * @head:       Pointer to "struct tomoyo_io_buffer".
- * @ptr:        Pointer to "struct tomoyo_number_union".
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ * @ptr:  Pointer to "struct tomoyo_number_union".
+ *
+ * Returns nothing.
  */
-static void tomoyo_print_number_union(struct tomoyo_io_buffer *head,
-				      const struct tomoyo_number_union *ptr)
+static void tomoyo_print_number_union_nospace
+(struct tomoyo_io_buffer *head, const struct tomoyo_number_union *ptr)
 {
-	tomoyo_set_space(head);
 	if (ptr->group) {
 		tomoyo_set_string(head, "@");
 		tomoyo_set_string(head, ptr->group->group_name->name);
@@ -325,8 +340,8 @@ static void tomoyo_print_number_union(struct tomoyo_io_buffer *head,
 						 "0%lo", min);
 				break;
 			default:
-				tomoyo_addprintf(buffer, sizeof(buffer),
-						 "%lu", min);
+				tomoyo_addprintf(buffer, sizeof(buffer), "%lu",
+						 min);
 				break;
 			}
 			if (min == max && min_type == max_type)
@@ -337,6 +352,21 @@ static void tomoyo_print_number_union(struct tomoyo_io_buffer *head,
 		}
 		tomoyo_io_printf(head, "%s", buffer);
 	}
+}
+
+/**
+ * tomoyo_print_number_union - Print a tomoyo_number_union.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ * @ptr:  Pointer to "struct tomoyo_number_union".
+ *
+ * Returns nothing.
+ */
+static void tomoyo_print_number_union(struct tomoyo_io_buffer *head,
+				      const struct tomoyo_number_union *ptr)
+{
+	tomoyo_set_space(head);
+	tomoyo_print_number_union_nospace(head, ptr);
 }
 
 /**
@@ -1004,6 +1034,91 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 }
 
 /**
+ * tomoyo_print_condition - Print condition part.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ * @cond: Pointer to "struct tomoyo_condition".
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
+				   const struct tomoyo_condition *cond)
+{
+	switch (head->r.cond_step) {
+	case 0:
+		head->r.cond_index = 0;
+		head->r.cond_step++;
+		/* fall through */
+	case 1:
+		{
+			const u16 condc = cond->condc;
+			const struct tomoyo_condition_element *condp =
+				(typeof(condp)) (cond + 1);
+			const struct tomoyo_number_union *numbers_p =
+				(typeof(numbers_p)) (condp + condc);
+			u16 skip;
+			for (skip = 0; skip < head->r.cond_index; skip++) {
+				const u8 left = condp->left;
+				const u8 right = condp->right;
+				condp++;
+				switch (left) {
+				case TOMOYO_NUMBER_UNION:
+					numbers_p++;
+					break;
+				}
+				switch (right) {
+				case TOMOYO_NUMBER_UNION:
+					numbers_p++;
+					break;
+				}
+			}
+			while (head->r.cond_index < condc) {
+				const u8 match = condp->equals;
+				const u8 left = condp->left;
+				const u8 right = condp->right;
+				if (!tomoyo_flush(head))
+					return false;
+				condp++;
+				head->r.cond_index++;
+				tomoyo_set_space(head);
+				switch (left) {
+				case TOMOYO_NUMBER_UNION:
+					tomoyo_print_number_union_nospace
+						(head, numbers_p++);
+					break;
+				default:
+					tomoyo_set_string(head,
+					       tomoyo_condition_keyword[left]);
+					break;
+				}
+				tomoyo_set_string(head, match ? "=" : "!=");
+				switch (right) {
+				case TOMOYO_NUMBER_UNION:
+					tomoyo_print_number_union_nospace
+						(head, numbers_p++);
+					break;
+				default:
+					tomoyo_set_string(head,
+					  tomoyo_condition_keyword[right]);
+					break;
+				}
+			}
+		}
+		head->r.cond_step++;
+		/* fall through */
+	case 2:
+		if (!tomoyo_flush(head))
+			break;
+		head->r.cond_step++;
+		/* fall through */
+	case 3:
+		tomoyo_set_lf(head);
+		return true;
+	}
+	return false;
+}
+
+/**
  * tomoyo_set_group - Print "acl_group " header keyword and category name.
  *
  * @head:     Pointer to "struct tomoyo_io_buffer".
@@ -1037,6 +1152,8 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 	bool first = true;
 	u8 bit;
 
+	if (head->r.print_cond_part)
+		goto print_cond_part;
 	if (acl->is_deleted)
 		return true;
 	if (!tomoyo_flush(head))
@@ -1135,7 +1252,18 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 		tomoyo_print_name_union(head, &ptr->fs_type);
 		tomoyo_print_number_union(head, &ptr->flags);
 	}
-	tomoyo_set_lf(head);
+	if (acl->cond) {
+		head->r.print_cond_part = true;
+		head->r.cond_step = 0;
+		if (!tomoyo_flush(head))
+			return false;
+print_cond_part:
+		if (!tomoyo_print_condition(head, acl->cond))
+			return false;
+		head->r.print_cond_part = false;
+	} else {
+		tomoyo_set_lf(head);
+	}
 	return true;
 }
 

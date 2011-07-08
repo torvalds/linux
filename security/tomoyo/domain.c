@@ -69,7 +69,7 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 static inline bool tomoyo_same_acl_head(const struct tomoyo_acl_info *a,
 					const struct tomoyo_acl_info *b)
 {
-	return a->type == b->type;
+	return a->type == b->type && a->cond == b->cond;
 }
 
 /**
@@ -100,8 +100,13 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 	struct tomoyo_acl_info *entry;
 	struct list_head * const list = param->list;
 
+	if (param->data[0]) {
+		new_entry->cond = tomoyo_get_condition(param);
+		if (!new_entry->cond)
+			return -EINVAL;
+	}
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		return error;
+		goto out;
 	list_for_each_entry_rcu(entry, list, list) {
 		if (!tomoyo_same_acl_head(entry, new_entry) ||
 		    !check_duplicate(entry, new_entry))
@@ -122,6 +127,8 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 		}
 	}
 	mutex_unlock(&tomoyo_policy_lock);
+out:
+	tomoyo_put_condition(new_entry->cond);
 	return error;
 }
 
@@ -148,10 +155,12 @@ retry:
 	list_for_each_entry_rcu(ptr, list, list) {
 		if (ptr->is_deleted || ptr->type != r->param_type)
 			continue;
-		if (check_entry(r, ptr)) {
-			r->granted = true;
-			return;
-		}
+		if (!check_entry(r, ptr))
+			continue;
+		if (!tomoyo_condition(r, ptr->cond))
+			continue;
+		r->granted = true;
+		return;
 	}
 	if (!retried) {
 		retried = true;

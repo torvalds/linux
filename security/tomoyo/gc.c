@@ -25,6 +25,7 @@ static const u8 tomoyo_element_size[TOMOYO_MAX_POLICY] = {
 	[TOMOYO_ID_TRANSITION_CONTROL] =
 	sizeof(struct tomoyo_transition_control),
 	[TOMOYO_ID_MANAGER] = sizeof(struct tomoyo_manager),
+	/* [TOMOYO_ID_CONDITION] = "struct tomoyo_condition"->size, */
 	/* [TOMOYO_ID_NAME] = "struct tomoyo_name"->size, */
 	/* [TOMOYO_ID_ACL] =
 	   tomoyo_acl_size["struct tomoyo_acl_info"->type], */
@@ -162,6 +163,10 @@ static bool tomoyo_add_to_gc(const int type, struct list_head *element)
 		entry->size = strlen(container_of(element,
 						  typeof(struct tomoyo_name),
 						  head.list)->entry.name) + 1;
+	else if (type == TOMOYO_ID_CONDITION)
+		entry->size =
+			container_of(element, typeof(struct tomoyo_condition),
+				     head.list)->size;
 	else
 		entry->size = tomoyo_element_size[type];
 	entry->element = element;
@@ -246,6 +251,7 @@ static void tomoyo_del_acl(struct list_head *element)
 {
 	struct tomoyo_acl_info *acl =
 		container_of(element, typeof(*acl), list);
+	tomoyo_put_condition(acl->cond);
 	switch (acl->type) {
 	case TOMOYO_TYPE_PATH_ACL:
 		{
@@ -338,6 +344,27 @@ static bool tomoyo_del_domain(struct list_head *element)
 	return true;
 }
 
+/**
+ * tomoyo_del_condition - Delete members in "struct tomoyo_condition".
+ *
+ * @element: Pointer to "struct list_head".
+ *
+ * Returns nothing.
+ */
+void tomoyo_del_condition(struct list_head *element)
+{
+	struct tomoyo_condition *cond = container_of(element, typeof(*cond),
+						     head.list);
+	const u16 condc = cond->condc;
+	const u16 numbers_count = cond->numbers_count;
+	unsigned int i;
+	const struct tomoyo_condition_element *condp
+		= (const struct tomoyo_condition_element *) (cond + 1);
+	struct tomoyo_number_union *numbers_p
+		= (struct tomoyo_number_union *) (condp + condc);
+	for (i = 0; i < numbers_count; i++)
+		tomoyo_put_number_union(numbers_p++);
+}
 
 /**
  * tomoyo_del_name - Delete members in "struct tomoyo_name".
@@ -494,15 +521,18 @@ static void tomoyo_collect_entry(void)
 			}
 		}
 	}
-	for (i = 0; i < TOMOYO_MAX_HASH; i++) {
-		struct list_head *list = &tomoyo_name_list[i];
+	id = TOMOYO_ID_CONDITION;
+	for (i = 0; i < TOMOYO_MAX_HASH + 1; i++) {
+		struct list_head *list = !i ?
+			&tomoyo_condition_list : &tomoyo_name_list[i - 1];
 		struct tomoyo_shared_acl_head *ptr;
 		list_for_each_entry(ptr, list, list) {
 			if (atomic_read(&ptr->users))
 				continue;
-			if (!tomoyo_add_to_gc(TOMOYO_ID_NAME, &ptr->list))
+			if (!tomoyo_add_to_gc(id, &ptr->list))
 				goto unlock;
 		}
+		id = TOMOYO_ID_NAME;
 	}
 unlock:
 	tomoyo_read_unlock(idx);
@@ -556,6 +586,9 @@ static bool tomoyo_kfree_entry(void)
 			break;
 		case TOMOYO_ID_MANAGER:
 			tomoyo_del_manager(element);
+			break;
+		case TOMOYO_ID_CONDITION:
+			tomoyo_del_condition(element);
 			break;
 		case TOMOYO_ID_NAME:
 			/*

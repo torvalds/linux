@@ -1,4 +1,4 @@
-obj-y = audit.o common.o domain.o file.o gc.o group.o load_policy.o memory.o mount.o realpath.o securityfs_if.o tomoyo.o util.o
+obj-y = audit.o common.o condition.o domain.o file.o gc.o group.o load_policy.o memory.o mount.o realpath.o securityfs_if.o tomoyo.o util.o
 
 $(obj)/policy/profile.conf:
 	@mkdir -p $(obj)/policy/

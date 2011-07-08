@@ -138,7 +138,7 @@ char *tomoyo_read_token(struct tomoyo_acl_param *param)
  * The @src is updated to point the first character after the value
  * on success.
  */
-static u8 tomoyo_parse_ulong(unsigned long *result, char **str)
+u8 tomoyo_parse_ulong(unsigned long *result, char **str)
 {
 	const char *cp = *str;
 	char *ep;
