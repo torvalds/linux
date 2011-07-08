@@ -229,6 +229,8 @@ struct super_operations {
 
         ssize_t (*quota_read)(struct super_block *, int, char *, size_t, loff_t);
         ssize_t (*quota_write)(struct super_block *, int, const char *, size_t, loff_t);
+	int (*nr_cached_objects)(struct super_block *);
+	void (*free_cached_objects)(struct super_block *, int);
 };
 
 All methods are called without any locks being held, unless otherwise
@@ -300,6 +302,20 @@ or bottom half).
   quota_read: called by the VFS to read from filesystem quota file.
 
   quota_write: called by the VFS to write to filesystem quota file.
+
+  nr_cached_objects: called by the sb cache shrinking function for the
+	filesystem to return the number of freeable cached objects it contains.
+	Optional.
+
+  free_cache_objects: called by the sb cache shrinking function for the
+	filesystem to scan the number of objects indicated to try to free them.
+	Optional, but any filesystem implementing this method needs to also
+	implement ->nr_cached_objects for it to be called correctly.
+
+	We can't do anything with any errors that the filesystem might
+	encountered, hence the void return type. This will never be called if
+	the VM is trying to reclaim under GFP_NOFS conditions, hence this
+	method does not need to handle that situation itself.
 
 Whoever sets up the inode is responsible for filling in the "i_op" field. This
 is a pointer to a "struct inode_operations" which describes the methods that

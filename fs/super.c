@@ -48,7 +48,8 @@ DEFINE_SPINLOCK(sb_lock);
 static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
 {
 	struct super_block *sb;
-	int count;
+	int	fs_objects = 0;
+	int	total_objects;
 
 	sb = container_of(shrink, struct super_block, s_shrink);
 
@@ -62,22 +63,42 @@ static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
 	if (!grab_super_passive(sb))
 		return -1;
 
+	if (sb->s_op && sb->s_op->nr_cached_objects)
+		fs_objects = sb->s_op->nr_cached_objects(sb);
+
+	total_objects = sb->s_nr_dentry_unused +
+			sb->s_nr_inodes_unused + fs_objects + 1;
+
 	if (sc->nr_to_scan) {
-		/* proportion the scan between the two caches */
-		int total;
+		int	dentries;
+		int	inodes;
 
-		total = sb->s_nr_dentry_unused + sb->s_nr_inodes_unused + 1;
-		count = (sc->nr_to_scan * sb->s_nr_dentry_unused) / total;
+		/* proportion the scan between the caches */
+		dentries = (sc->nr_to_scan * sb->s_nr_dentry_unused) /
+							total_objects;
+		inodes = (sc->nr_to_scan * sb->s_nr_inodes_unused) /
+							total_objects;
+		if (fs_objects)
+			fs_objects = (sc->nr_to_scan * fs_objects) /
+							total_objects;
+		/*
+		 * prune the dcache first as the icache is pinned by it, then
+		 * prune the icache, followed by the filesystem specific caches
+		 */
+		prune_dcache_sb(sb, dentries);
+		prune_icache_sb(sb, inodes);
 
-		/* prune dcache first as icache is pinned by it */
-		prune_dcache_sb(sb, count);
-		prune_icache_sb(sb, sc->nr_to_scan - count);
+		if (fs_objects && sb->s_op->free_cached_objects) {
+			sb->s_op->free_cached_objects(sb, fs_objects);
+			fs_objects = sb->s_op->nr_cached_objects(sb);
+		}
+		total_objects = sb->s_nr_dentry_unused +
+				sb->s_nr_inodes_unused + fs_objects;
 	}
 
-	count = ((sb->s_nr_dentry_unused + sb->s_nr_inodes_unused) / 100)
-						* sysctl_vfs_cache_pressure;
+	total_objects = (total_objects / 100) * sysctl_vfs_cache_pressure;
 	drop_super(sb);
-	return count;
+	return total_objects;
 }
 
 /**
