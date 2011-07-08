@@ -171,10 +171,7 @@ static struct iwl_lib_ops iwl2000_lib = {
 	.setup_deferred_work = iwlagn_bt_setup_deferred_work,
 	.cancel_deferred_work = iwlagn_bt_cancel_deferred_work,
 	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
-	.apm_ops = {
-		.init = iwl_apm_init,
-		.config = iwl2000_nic_config,
-	},
+	.nic_config = iwl2000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {
 			EEPROM_REG_BAND_1_CHANNELS,

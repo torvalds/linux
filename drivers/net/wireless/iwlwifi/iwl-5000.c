@@ -324,10 +324,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.setup_deferred_work = iwlagn_setup_deferred_work,
 	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
 	.set_channel_switch = iwl5000_hw_channel_switch,
-	.apm_ops = {
-		.init = iwl_apm_init,
-		.config = iwl5000_nic_config,
-	},
+	.nic_config = iwl5000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {
 			EEPROM_REG_BAND_1_CHANNELS,
@@ -351,10 +348,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 	.setup_deferred_work = iwlagn_setup_deferred_work,
 	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
 	.set_channel_switch = iwl5000_hw_channel_switch,
-	.apm_ops = {
-		.init = iwl_apm_init,
-		.config = iwl5000_nic_config,
-	},
+	.nic_config = iwl5000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {
 			EEPROM_REG_BAND_1_CHANNELS,

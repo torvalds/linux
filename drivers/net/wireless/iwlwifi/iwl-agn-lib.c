@@ -703,7 +703,7 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 
 	/* nic_init */
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->cfg->ops->lib->apm_ops.init(priv);
+	iwl_apm_init(priv);
 
 	/* Set interrupt coalescing calibration timer to default (512 usecs) */
 	iwl_write8(priv, CSR_INT_COALESCING, IWL_HOST_INT_CALIB_TIMEOUT_DEF);
@@ -712,7 +712,7 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 
 	iwlagn_set_pwr_vmain(priv);
 
-	priv->cfg->ops->lib->apm_ops.config(priv);
+	priv->cfg->ops->lib->nic_config(priv);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
 	trans_rx_init(priv);

@@ -449,7 +449,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 	}
 	e = (__le16 *)priv->eeprom;
 
-	priv->cfg->ops->lib->apm_ops.init(priv);
+	iwl_apm_init(priv);
 
 	ret = iwl_eeprom_verify_signature(priv);
 	if (ret < 0) {

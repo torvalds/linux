@@ -96,11 +96,6 @@ struct iwl_hcmd_utils_ops {
 	int (*request_scan)(struct iwl_priv *priv, struct ieee80211_vif *vif);
 };
 
-struct iwl_apm_ops {
-	int (*init)(struct iwl_priv *priv);
-	void (*config)(struct iwl_priv *priv);
-};
-
 struct iwl_temp_ops {
 	void (*temperature)(struct iwl_priv *priv);
 };
@@ -118,8 +113,8 @@ struct iwl_lib_ops {
 	int (*is_valid_rtc_data_addr)(u32 addr);
 	int (*set_channel_switch)(struct iwl_priv *priv,
 				  struct ieee80211_channel_switch *ch_switch);
-	/* power management */
-	struct iwl_apm_ops apm_ops;
+	/* device specific configuration */
+	void (*nic_config)(struct iwl_priv *priv);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
