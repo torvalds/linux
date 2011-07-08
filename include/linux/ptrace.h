@@ -217,16 +217,17 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 {
 	INIT_LIST_HEAD(&child->ptrace_entry);
 	INIT_LIST_HEAD(&child->ptraced);
-	child->parent = child->real_parent;
-	child->ptrace = 0;
-	if (unlikely(ptrace) && (current->ptrace & PT_PTRACED)) {
-		child->ptrace = current->ptrace;
-		__ptrace_link(child, current->parent);
-	}
-
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	atomic_set(&child->ptrace_bp_refcnt, 1);
 #endif
+	child->jobctl = 0;
+	child->ptrace = 0;
+	child->parent = child->real_parent;
+
+	if (unlikely(ptrace) && current->ptrace) {
+		child->ptrace = current->ptrace;
+		__ptrace_link(child, current->parent);
+	}
 }
 
 /**
