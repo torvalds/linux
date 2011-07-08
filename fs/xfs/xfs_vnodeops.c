@@ -1969,6 +1969,8 @@ xfs_zero_remaining_bytes(
 	if (!bp)
 		return XFS_ERROR(ENOMEM);
 
+	xfs_buf_unlock(bp);
+
 	for (offset = startoff; offset <= endoff; offset = lastoffset + 1) {
 		offset_fsb = XFS_B_TO_FSBT(mp, offset);
 		nimap = 1;

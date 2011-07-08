@@ -679,7 +679,6 @@ xfs_buf_read_uncached(
 		return NULL;
 
 	/* set up the buffer for a read IO */
-	xfs_buf_lock(bp);
 	XFS_BUF_SET_ADDR(bp, daddr);
 	XFS_BUF_READ(bp);
 	XFS_BUF_BUSY(bp);
@@ -813,8 +812,6 @@ xfs_buf_get_uncached(
 			"%s: failed to map pages\n", __func__);
 		goto fail_free_mem;
 	}
-
-	xfs_buf_unlock(bp);
 
 	trace_xfs_buf_get_uncached(bp, _RET_IP_);
 	return bp;

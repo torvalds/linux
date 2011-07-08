@@ -1090,8 +1090,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 						log->l_iclog_size, 0);
 		if (!bp)
 			goto out_free_iclog;
-		if (!xfs_buf_trylock(bp))
-			ASSERT(0);
+
 		XFS_BUF_SET_IODONE_FUNC(bp, xlog_iodone);
 		XFS_BUF_SET_FSPRIVATE2(bp, (unsigned long)1);
 		iclog->ic_bp = bp;
