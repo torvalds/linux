@@ -4083,7 +4083,7 @@ xfs_bmap_sanity_check(
 {
 	struct xfs_btree_block  *block = XFS_BUF_TO_BLOCK(bp);
 
-	if (be32_to_cpu(block->bb_magic) != XFS_BMAP_MAGIC ||
+	if (block->bb_magic != cpu_to_be32(XFS_BMAP_MAGIC) ||
 	    be16_to_cpu(block->bb_level) != level ||
 	    be16_to_cpu(block->bb_numrecs) == 0 ||
 	    be16_to_cpu(block->bb_numrecs) > mp->m_bmap_dmxr[level != 0])

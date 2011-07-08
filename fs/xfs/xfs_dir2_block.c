@@ -109,7 +109,7 @@ xfs_dir2_block_addname(
 	/*
 	 * Check the magic number, corrupted if wrong.
 	 */
-	if (unlikely(be32_to_cpu(hdr->magic) != XFS_DIR2_BLOCK_MAGIC)) {
+	if (unlikely(hdr->magic != cpu_to_be32(XFS_DIR2_BLOCK_MAGIC))) {
 		XFS_CORRUPTION_ERROR("xfs_dir2_block_addname",
 				     XFS_ERRLEVEL_LOW, mp, hdr);
 		xfs_da_brelse(tp, bp);
@@ -255,7 +255,8 @@ xfs_dir2_block_addname(
 			highstale = lfloghigh = -1;
 		     fromidx >= 0;
 		     fromidx--) {
-			if (be32_to_cpu(blp[fromidx].address) == XFS_DIR2_NULL_DATAPTR) {
+			if (blp[fromidx].address ==
+			    cpu_to_be32(XFS_DIR2_NULL_DATAPTR)) {
 				if (highstale == -1)
 					highstale = toidx;
 				else {
@@ -352,12 +353,14 @@ xfs_dir2_block_addname(
 	else {
 		for (lowstale = mid;
 		     lowstale >= 0 &&
-			be32_to_cpu(blp[lowstale].address) != XFS_DIR2_NULL_DATAPTR;
+			blp[lowstale].address !=
+			cpu_to_be32(XFS_DIR2_NULL_DATAPTR);
 		     lowstale--)
 			continue;
 		for (highstale = mid + 1;
 		     highstale < be32_to_cpu(btp->count) &&
-			be32_to_cpu(blp[highstale].address) != XFS_DIR2_NULL_DATAPTR &&
+			blp[highstale].address !=
+			cpu_to_be32(XFS_DIR2_NULL_DATAPTR) &&
 			(lowstale < 0 || mid - lowstale > highstale - mid);
 		     highstale++)
 			continue;
@@ -899,7 +902,7 @@ xfs_dir2_leaf_to_block(
 	tp = args->trans;
 	mp = dp->i_mount;
 	leaf = lbp->data;
-	ASSERT(be16_to_cpu(leaf->hdr.info.magic) == XFS_DIR2_LEAF1_MAGIC);
+	ASSERT(leaf->hdr.info.magic == cpu_to_be16(XFS_DIR2_LEAF1_MAGIC));
 	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
 	/*
 	 * If there are data blocks other than the first one, take this
@@ -929,7 +932,7 @@ xfs_dir2_leaf_to_block(
 		goto out;
 	}
 	hdr = dbp->data;
-	ASSERT(be32_to_cpu(hdr->magic) == XFS_DIR2_DATA_MAGIC);
+	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC));
 	/*
 	 * Size of the "leaf" area in the block.
 	 */
@@ -971,7 +974,8 @@ xfs_dir2_leaf_to_block(
 	 */
 	lep = xfs_dir2_block_leaf_p(btp);
 	for (from = to = 0; from < be16_to_cpu(leaf->hdr.count); from++) {
-		if (be32_to_cpu(leaf->ents[from].address) == XFS_DIR2_NULL_DATAPTR)
+		if (leaf->ents[from].address ==
+		    cpu_to_be32(XFS_DIR2_NULL_DATAPTR))
 			continue;
 		lep[to++] = leaf->ents[from];
 	}

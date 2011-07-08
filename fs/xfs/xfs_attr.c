@@ -1203,7 +1203,7 @@ xfs_attr_leaf_list(xfs_attr_list_context_t *context)
 		return XFS_ERROR(error);
 	ASSERT(bp != NULL);
 	leaf = bp->data;
-	if (unlikely(be16_to_cpu(leaf->hdr.info.magic) != XFS_ATTR_LEAF_MAGIC)) {
+	if (unlikely(leaf->hdr.info.magic != cpu_to_be16(XFS_ATTR_LEAF_MAGIC))) {
 		XFS_CORRUPTION_ERROR("xfs_attr_leaf_list", XFS_ERRLEVEL_LOW,
 				     context->dp->i_mount, leaf);
 		xfs_da_brelse(NULL, bp);
@@ -1610,9 +1610,8 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 						     XFS_ATTR_FORK);
 		if (error)
 			goto out;
-		ASSERT(be16_to_cpu(((xfs_attr_leafblock_t *)
-				      bp->data)->hdr.info.magic)
-						       == XFS_ATTR_LEAF_MAGIC);
+		ASSERT((((xfs_attr_leafblock_t *)bp->data)->hdr.info.magic) ==
+		       cpu_to_be16(XFS_ATTR_LEAF_MAGIC));
 
 		if ((forkoff = xfs_attr_shortform_allfit(bp, dp))) {
 			xfs_bmap_init(args->flist, args->firstblock);
@@ -1877,11 +1876,11 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 				return(XFS_ERROR(EFSCORRUPTED));
 			}
 			node = bp->data;
-			if (be16_to_cpu(node->hdr.info.magic)
-							== XFS_ATTR_LEAF_MAGIC)
+			if (node->hdr.info.magic ==
+			    cpu_to_be16(XFS_ATTR_LEAF_MAGIC))
 				break;
-			if (unlikely(be16_to_cpu(node->hdr.info.magic)
-							!= XFS_DA_NODE_MAGIC)) {
+			if (unlikely(node->hdr.info.magic !=
+				     cpu_to_be16(XFS_DA_NODE_MAGIC))) {
 				XFS_CORRUPTION_ERROR("xfs_attr_node_list(3)",
 						     XFS_ERRLEVEL_LOW,
 						     context->dp->i_mount,
@@ -1916,8 +1915,8 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	 */
 	for (;;) {
 		leaf = bp->data;
-		if (unlikely(be16_to_cpu(leaf->hdr.info.magic)
-						!= XFS_ATTR_LEAF_MAGIC)) {
+		if (unlikely(leaf->hdr.info.magic !=
+			     cpu_to_be16(XFS_ATTR_LEAF_MAGIC))) {
 			XFS_CORRUPTION_ERROR("xfs_attr_node_list(4)",
 					     XFS_ERRLEVEL_LOW,
 					     context->dp->i_mount, leaf);

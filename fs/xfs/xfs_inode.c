@@ -167,7 +167,7 @@ xfs_imap_to_bp(
 
 		dip = (xfs_dinode_t *)xfs_buf_offset(bp,
 					(i << mp->m_sb.sb_inodelog));
-		di_ok = be16_to_cpu(dip->di_magic) == XFS_DINODE_MAGIC &&
+		di_ok = dip->di_magic == cpu_to_be16(XFS_DINODE_MAGIC) &&
 			    XFS_DINODE_GOOD_VERSION(dip->di_version);
 		if (unlikely(XFS_TEST_ERROR(!di_ok, mp,
 						XFS_ERRTAG_ITOBP_INOTOBP,
@@ -802,7 +802,7 @@ xfs_iread(
 	 * If we got something that isn't an inode it means someone
 	 * (nfs or dmi) has a stale handle.
 	 */
-	if (be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC) {
+	if (dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC)) {
 #ifdef DEBUG
 		xfs_alert(mp,
 			"%s: dip->di_magic (0x%x) != XFS_DINODE_MAGIC (0x%x)",
@@ -1457,7 +1457,7 @@ xfs_iunlink(
 	ASSERT(agi->agi_unlinked[bucket_index]);
 	ASSERT(be32_to_cpu(agi->agi_unlinked[bucket_index]) != agino);
 
-	if (be32_to_cpu(agi->agi_unlinked[bucket_index]) != NULLAGINO) {
+	if (agi->agi_unlinked[bucket_index] != cpu_to_be32(NULLAGINO)) {
 		/*
 		 * There is already another inode in the bucket we need
 		 * to add ourselves to.  Add us at the front of the list.
@@ -1468,8 +1468,7 @@ xfs_iunlink(
 		if (error)
 			return error;
 
-		ASSERT(be32_to_cpu(dip->di_next_unlinked) == NULLAGINO);
-		/* both on-disk, don't endian flip twice */
+		ASSERT(dip->di_next_unlinked == cpu_to_be32(NULLAGINO));
 		dip->di_next_unlinked = agi->agi_unlinked[bucket_index];
 		offset = ip->i_imap.im_boffset +
 			offsetof(xfs_dinode_t, di_next_unlinked);
@@ -1534,7 +1533,7 @@ xfs_iunlink_remove(
 	agino = XFS_INO_TO_AGINO(mp, ip->i_ino);
 	ASSERT(agino != 0);
 	bucket_index = agino % XFS_AGI_UNLINKED_BUCKETS;
-	ASSERT(be32_to_cpu(agi->agi_unlinked[bucket_index]) != NULLAGINO);
+	ASSERT(agi->agi_unlinked[bucket_index] != cpu_to_be32(NULLAGINO));
 	ASSERT(agi->agi_unlinked[bucket_index]);
 
 	if (be32_to_cpu(agi->agi_unlinked[bucket_index]) == agino) {
@@ -2659,7 +2658,7 @@ xfs_iflush_int(
 	 */
 	xfs_synchronize_times(ip);
 
-	if (XFS_TEST_ERROR(be16_to_cpu(dip->di_magic) != XFS_DINODE_MAGIC,
+	if (XFS_TEST_ERROR(dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC),
 			       mp, XFS_ERRTAG_IFLUSH_1, XFS_RANDOM_IFLUSH_1)) {
 		xfs_alert_tag(mp, XFS_PTAG_IFLUSH,
 			"%s: Bad inode %Lu magic number 0x%x, ptr 0x%p",

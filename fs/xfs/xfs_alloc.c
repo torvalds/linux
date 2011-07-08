@@ -2127,7 +2127,7 @@ xfs_read_agf(
 	 * Validate the magic number of the agf block.
 	 */
 	agf_ok =
-		be32_to_cpu(agf->agf_magicnum) == XFS_AGF_MAGIC &&
+		agf->agf_magicnum == cpu_to_be32(XFS_AGF_MAGIC) &&
 		XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
 		be32_to_cpu(agf->agf_freeblks) <= be32_to_cpu(agf->agf_length) &&
 		be32_to_cpu(agf->agf_flfirst) < XFS_AGFL_SIZE(mp) &&
