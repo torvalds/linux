@@ -75,6 +75,7 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
 			    struct path *dir, const char *type,
 			    unsigned long flags)
 {
+	struct tomoyo_obj_info obj = { };
 	struct path path;
 	struct file_system_type *fstype = NULL;
 	const char *requested_type = NULL;
@@ -85,6 +86,7 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
 	struct tomoyo_path_info rdir;
 	int need_dev = 0;
 	int error = -ENOMEM;
+	r->obj = &obj;
 
 	/* Get fstype. */
 	requested_type = tomoyo_encode(type);
@@ -94,6 +96,7 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
 	tomoyo_fill_path_info(&rtype);
 
 	/* Get mount point. */
+	obj.path2 = *dir;
 	requested_dir_name = tomoyo_realpath_from_path(dir);
 	if (!requested_dir_name) {
 		error = -ENOMEM;
@@ -129,8 +132,8 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
 			error = -ENOENT;
 			goto out;
 		}
+		obj.path1 = path;
 		requested_dev_name = tomoyo_realpath_from_path(&path);
-		path_put(&path);
 		if (!requested_dev_name) {
 			error = -ENOENT;
 			goto out;
@@ -163,6 +166,9 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
 	if (fstype)
 		put_filesystem(fstype);
 	kfree(requested_type);
+	/* Drop refcount obtained by kern_path(). */
+	if (obj.path1.dentry)
+		path_put(&obj.path1);
 	return error;
 }
 

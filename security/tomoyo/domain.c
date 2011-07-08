@@ -575,23 +575,27 @@ out:
  */
 int tomoyo_find_next_domain(struct linux_binprm *bprm)
 {
-	struct tomoyo_request_info r;
-	char *tmp = kzalloc(TOMOYO_EXEC_TMPSIZE, GFP_NOFS);
 	struct tomoyo_domain_info *old_domain = tomoyo_domain();
 	struct tomoyo_domain_info *domain = NULL;
 	const char *original_name = bprm->filename;
-	u8 mode;
-	bool is_enforce;
 	int retval = -ENOMEM;
 	bool need_kfree = false;
 	bool reject_on_transition_failure = false;
 	struct tomoyo_path_info rn = { }; /* real name */
-
-	mode = tomoyo_init_request_info(&r, NULL, TOMOYO_MAC_FILE_EXECUTE);
-	is_enforce = (mode == TOMOYO_CONFIG_ENFORCING);
-	if (!tmp)
-		goto out;
-
+	struct tomoyo_execve *ee = kzalloc(sizeof(*ee), GFP_NOFS);
+	if (!ee)
+		return -ENOMEM;
+	ee->tmp = kzalloc(TOMOYO_EXEC_TMPSIZE, GFP_NOFS);
+	if (!ee->tmp) {
+		kfree(ee);
+		return -ENOMEM;
+	}
+	/* ee->dump->data is allocated by tomoyo_dump_page(). */
+	tomoyo_init_request_info(&ee->r, NULL, TOMOYO_MAC_FILE_EXECUTE);
+	ee->r.ee = ee;
+	ee->bprm = bprm;
+	ee->r.obj = &ee->obj;
+	ee->obj.path1 = bprm->file->f_path;
  retry:
 	if (need_kfree) {
 		kfree(rn.name);
@@ -625,7 +629,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	}
 
 	/* Check execute permission. */
-	retval = tomoyo_path_permission(&r, TOMOYO_TYPE_EXECUTE, &rn);
+	retval = tomoyo_path_permission(&ee->r, TOMOYO_TYPE_EXECUTE, &rn);
 	if (retval == TOMOYO_RETRY_REQUEST)
 		goto retry;
 	if (retval < 0)
@@ -636,12 +640,12 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	 * wildcard) rather than the pathname passed to execve()
 	 * (which never contains wildcard).
 	 */
-	if (r.param.path.matched_path) {
+	if (ee->r.param.path.matched_path) {
 		if (need_kfree)
 			kfree(rn.name);
 		need_kfree = false;
 		/* This is OK because it is read only. */
-		rn = *r.param.path.matched_path;
+		rn = *ee->r.param.path.matched_path;
 	}
 
 	/* Calculate domain to transit to. */
@@ -649,7 +653,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 				       &rn)) {
 	case TOMOYO_TRANSITION_CONTROL_RESET:
 		/* Transit to the root of specified namespace. */
-		snprintf(tmp, TOMOYO_EXEC_TMPSIZE - 1, "<%s>", rn.name);
+		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "<%s>", rn.name);
 		/*
 		 * Make do_execve() fail if domain transition across namespaces
 		 * has failed.
@@ -658,7 +662,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 		break;
 	case TOMOYO_TRANSITION_CONTROL_INITIALIZE:
 		/* Transit to the child of current namespace's root. */
-		snprintf(tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
+		snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
 			 old_domain->ns->name, rn.name);
 		break;
 	case TOMOYO_TRANSITION_CONTROL_KEEP:
@@ -677,29 +681,30 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 			domain = old_domain;
 		} else {
 			/* Normal domain transition. */
-			snprintf(tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
+			snprintf(ee->tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
 				 old_domain->domainname->name, rn.name);
 		}
 		break;
 	}
 	if (!domain)
-		domain = tomoyo_assign_domain(tmp, true);
+		domain = tomoyo_assign_domain(ee->tmp, true);
 	if (domain)
 		retval = 0;
 	else if (reject_on_transition_failure) {
-		printk(KERN_WARNING "ERROR: Domain '%s' not ready.\n", tmp);
+		printk(KERN_WARNING "ERROR: Domain '%s' not ready.\n",
+		       ee->tmp);
 		retval = -ENOMEM;
-	} else if (r.mode == TOMOYO_CONFIG_ENFORCING)
+	} else if (ee->r.mode == TOMOYO_CONFIG_ENFORCING)
 		retval = -ENOMEM;
 	else {
 		retval = 0;
 		if (!old_domain->flags[TOMOYO_DIF_TRANSITION_FAILED]) {
 			old_domain->flags[TOMOYO_DIF_TRANSITION_FAILED] = true;
-			r.granted = false;
-			tomoyo_write_log(&r, "%s", tomoyo_dif
+			ee->r.granted = false;
+			tomoyo_write_log(&ee->r, "%s", tomoyo_dif
 					 [TOMOYO_DIF_TRANSITION_FAILED]);
 			printk(KERN_WARNING
-			       "ERROR: Domain '%s' not defined.\n", tmp);
+			       "ERROR: Domain '%s' not defined.\n", ee->tmp);
 		}
 	}
  out:
@@ -710,7 +715,9 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	bprm->cred->security = domain;
 	if (need_kfree)
 		kfree(rn.name);
-	kfree(tmp);
+	kfree(ee->tmp);
+	kfree(ee->dump.data);
+	kfree(ee);
 	return retval;
 }
 

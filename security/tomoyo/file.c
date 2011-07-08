@@ -667,6 +667,9 @@ int tomoyo_path_number_perm(const u8 type, struct path *path,
 			    unsigned long number)
 {
 	struct tomoyo_request_info r;
+	struct tomoyo_obj_info obj = {
+		.path1 = *path,
+	};
 	int error = -ENOMEM;
 	struct tomoyo_path_info buf;
 	int idx;
@@ -677,6 +680,7 @@ int tomoyo_path_number_perm(const u8 type, struct path *path,
 	idx = tomoyo_read_lock();
 	if (!tomoyo_get_realpath(&buf, path))
 		goto out;
+	r.obj = &obj;
 	if (type == TOMOYO_TYPE_MKDIR)
 		tomoyo_add_slash(&buf);
 	r.param_type = TOMOYO_TYPE_PATH_NUMBER_ACL;
@@ -711,6 +715,9 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 	int error = 0;
 	struct tomoyo_path_info buf;
 	struct tomoyo_request_info r;
+	struct tomoyo_obj_info obj = {
+		.path1 = *path,
+	};
 	int idx;
 
 	buf.name = NULL;
@@ -723,6 +730,7 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 			error = -ENOMEM;
 			goto out;
 		}
+		r.obj = &obj;
 		if (acc_mode & MAY_READ)
 			error = tomoyo_path_permission(&r, TOMOYO_TYPE_READ,
 						       &buf);
@@ -745,15 +753,21 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
  *
  * @operation: Type of operation.
  * @path:      Pointer to "struct path".
+ * @target:    Symlink's target if @operation is TOMOYO_TYPE_SYMLINK,
+ *             NULL otherwise.
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_path_perm(const u8 operation, struct path *path)
+int tomoyo_path_perm(const u8 operation, struct path *path, const char *target)
 {
 	struct tomoyo_request_info r;
+	struct tomoyo_obj_info obj = {
+		.path1 = *path,
+	};
 	int error;
 	struct tomoyo_path_info buf;
 	bool is_enforce;
+	struct tomoyo_path_info symlink_target;
 	int idx;
 
 	if (tomoyo_init_request_info(&r, NULL, tomoyo_p2mac[operation])
@@ -765,13 +779,23 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
 	idx = tomoyo_read_lock();
 	if (!tomoyo_get_realpath(&buf, path))
 		goto out;
+	r.obj = &obj;
 	switch (operation) {
 	case TOMOYO_TYPE_RMDIR:
 	case TOMOYO_TYPE_CHROOT:
 		tomoyo_add_slash(&buf);
 		break;
+	case TOMOYO_TYPE_SYMLINK:
+		symlink_target.name = tomoyo_encode(target);
+		if (!symlink_target.name)
+			goto out;
+		tomoyo_fill_path_info(&symlink_target);
+		obj.symlink_target = &symlink_target;
+		break;
 	}
 	error = tomoyo_path_permission(&r, operation, &buf);
+	if (operation == TOMOYO_TYPE_SYMLINK)
+		kfree(symlink_target.name);
  out:
 	kfree(buf.name);
 	tomoyo_read_unlock(idx);
@@ -794,6 +818,9 @@ int tomoyo_mkdev_perm(const u8 operation, struct path *path,
 		      const unsigned int mode, unsigned int dev)
 {
 	struct tomoyo_request_info r;
+	struct tomoyo_obj_info obj = {
+		.path1 = *path,
+	};
 	int error = -ENOMEM;
 	struct tomoyo_path_info buf;
 	int idx;
@@ -804,6 +831,7 @@ int tomoyo_mkdev_perm(const u8 operation, struct path *path,
 	idx = tomoyo_read_lock();
 	error = -ENOMEM;
 	if (tomoyo_get_realpath(&buf, path)) {
+		r.obj = &obj;
 		dev = new_decode_dev(dev);
 		r.param_type = TOMOYO_TYPE_MKDEV_ACL;
 		r.param.mkdev.filename = &buf;
@@ -837,6 +865,10 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 	struct tomoyo_path_info buf1;
 	struct tomoyo_path_info buf2;
 	struct tomoyo_request_info r;
+	struct tomoyo_obj_info obj = {
+		.path1 = *path1,
+		.path2 = *path2,
+	};
 	int idx;
 
 	if (tomoyo_init_request_info(&r, NULL, tomoyo_pp2mac[operation])
@@ -861,6 +893,7 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
                 tomoyo_add_slash(&buf2);
 		break;
         }
+	r.obj = &obj;
 	r.param_type = TOMOYO_TYPE_PATH2_ACL;
 	r.param.path2.operation = operation;
 	r.param.path2.filename1 = &buf1;

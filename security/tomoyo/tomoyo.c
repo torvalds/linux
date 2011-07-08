@@ -98,18 +98,18 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 static int tomoyo_inode_getattr(struct vfsmount *mnt, struct dentry *dentry)
 {
 	struct path path = { mnt, dentry };
-	return tomoyo_path_perm(TOMOYO_TYPE_GETATTR, &path);
+	return tomoyo_path_perm(TOMOYO_TYPE_GETATTR, &path, NULL);
 }
 
 static int tomoyo_path_truncate(struct path *path)
 {
-	return tomoyo_path_perm(TOMOYO_TYPE_TRUNCATE, path);
+	return tomoyo_path_perm(TOMOYO_TYPE_TRUNCATE, path, NULL);
 }
 
 static int tomoyo_path_unlink(struct path *parent, struct dentry *dentry)
 {
 	struct path path = { parent->mnt, dentry };
-	return tomoyo_path_perm(TOMOYO_TYPE_UNLINK, &path);
+	return tomoyo_path_perm(TOMOYO_TYPE_UNLINK, &path, NULL);
 }
 
 static int tomoyo_path_mkdir(struct path *parent, struct dentry *dentry,
@@ -123,14 +123,14 @@ static int tomoyo_path_mkdir(struct path *parent, struct dentry *dentry,
 static int tomoyo_path_rmdir(struct path *parent, struct dentry *dentry)
 {
 	struct path path = { parent->mnt, dentry };
-	return tomoyo_path_perm(TOMOYO_TYPE_RMDIR, &path);
+	return tomoyo_path_perm(TOMOYO_TYPE_RMDIR, &path, NULL);
 }
 
 static int tomoyo_path_symlink(struct path *parent, struct dentry *dentry,
 			       const char *old_name)
 {
 	struct path path = { parent->mnt, dentry };
-	return tomoyo_path_perm(TOMOYO_TYPE_SYMLINK, &path);
+	return tomoyo_path_perm(TOMOYO_TYPE_SYMLINK, &path, old_name);
 }
 
 static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
@@ -225,7 +225,7 @@ static int tomoyo_path_chown(struct path *path, uid_t uid, gid_t gid)
 
 static int tomoyo_path_chroot(struct path *path)
 {
-	return tomoyo_path_perm(TOMOYO_TYPE_CHROOT, path);
+	return tomoyo_path_perm(TOMOYO_TYPE_CHROOT, path, NULL);
 }
 
 static int tomoyo_sb_mount(char *dev_name, struct path *path,
@@ -237,7 +237,7 @@ static int tomoyo_sb_mount(char *dev_name, struct path *path,
 static int tomoyo_sb_umount(struct vfsmount *mnt, int flags)
 {
 	struct path path = { mnt, mnt->mnt_root };
-	return tomoyo_path_perm(TOMOYO_TYPE_UMOUNT, &path);
+	return tomoyo_path_perm(TOMOYO_TYPE_UMOUNT, &path, NULL);
 }
 
 static int tomoyo_sb_pivotroot(struct path *old_path, struct path *new_path)
