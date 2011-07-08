@@ -2079,16 +2079,13 @@ xfs_da_do_buf(
 	 * For read_buf, check the magic number.
 	 */
 	if (caller == 1) {
-		xfs_dir2_data_t		*data;
-		xfs_dir2_free_t		*free;
-		xfs_da_blkinfo_t	*info;
+		xfs_dir2_data_hdr_t	*hdr = rbp->data;
+		xfs_dir2_free_t		*free = rbp->data;
+		xfs_da_blkinfo_t	*info = rbp->data;
 		uint			magic, magic1;
 
-		info = rbp->data;
-		data = rbp->data;
-		free = rbp->data;
 		magic = be16_to_cpu(info->magic);
-		magic1 = be32_to_cpu(data->hdr.magic);
+		magic1 = be32_to_cpu(hdr->magic);
 		if (unlikely(
 		    XFS_TEST_ERROR((magic != XFS_DA_NODE_MAGIC) &&
 				   (magic != XFS_ATTR_LEAF_MAGIC) &&

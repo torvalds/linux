@@ -157,12 +157,10 @@ extern void xfs_dir2_data_check(struct xfs_inode *dp, struct xfs_dabuf *bp);
 #else
 #define	xfs_dir2_data_check(dp,bp)
 #endif
-extern xfs_dir2_data_free_t *xfs_dir2_data_freefind(xfs_dir2_data_t *d,
-				xfs_dir2_data_unused_t *dup);
-extern xfs_dir2_data_free_t *xfs_dir2_data_freeinsert(xfs_dir2_data_t *d,
+extern xfs_dir2_data_free_t *xfs_dir2_data_freeinsert(xfs_dir2_data_hdr_t *hdr,
 				xfs_dir2_data_unused_t *dup, int *loghead);
-extern void xfs_dir2_data_freescan(struct xfs_mount *mp, xfs_dir2_data_t *d,
-				int *loghead);
+extern void xfs_dir2_data_freescan(struct xfs_mount *mp,
+				xfs_dir2_data_hdr_t *hdr, int *loghead);
 extern int xfs_dir2_data_init(struct xfs_da_args *args, xfs_dir2_db_t blkno,
 				struct xfs_dabuf **bpp);
 extern void xfs_dir2_data_log_entry(struct xfs_trans *tp, struct xfs_dabuf *bp,

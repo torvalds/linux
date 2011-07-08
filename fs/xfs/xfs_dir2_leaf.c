@@ -132,7 +132,7 @@ xfs_dir2_block_to_leaf(
 	 */
 	hdr->magic = cpu_to_be32(XFS_DIR2_DATA_MAGIC);
 	if (needscan)
-		xfs_dir2_data_freescan(mp, (xfs_dir2_data_t *)hdr, &needlog);
+		xfs_dir2_data_freescan(mp, hdr, &needlog);
 	/*
 	 * Set up leaf tail and bests table.
 	 */
@@ -278,7 +278,7 @@ xfs_dir2_leaf_addname(
 {
 	__be16			*bestsp;	/* freespace table in leaf */
 	int			compact;	/* need to compact leaves */
-	xfs_dir2_data_t		*data;		/* data block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
 	xfs_dabuf_t		*dbp;		/* data block buffer */
 	xfs_dir2_data_entry_t	*dep;		/* data block entry */
 	xfs_inode_t		*dp;		/* incore directory inode */
@@ -486,8 +486,8 @@ xfs_dir2_leaf_addname(
 		 */
 		else
 			xfs_dir2_leaf_log_bests(tp, lbp, use_block, use_block);
-		data = dbp->data;
-		bestsp[use_block] = data->hdr.bestfree[0].length;
+		hdr = dbp->data;
+		bestsp[use_block] = hdr->bestfree[0].length;
 		grown = 1;
 	}
 	/*
@@ -501,7 +501,7 @@ xfs_dir2_leaf_addname(
 			xfs_da_brelse(tp, lbp);
 			return error;
 		}
-		data = dbp->data;
+		hdr = dbp->data;
 		grown = 0;
 	}
 	xfs_dir2_data_check(dp, dbp);
@@ -509,14 +509,14 @@ xfs_dir2_leaf_addname(
 	 * Point to the biggest freespace in our data block.
 	 */
 	dup = (xfs_dir2_data_unused_t *)
-	      ((char *)data + be16_to_cpu(data->hdr.bestfree[0].offset));
+	      ((char *)hdr + be16_to_cpu(hdr->bestfree[0].offset));
 	ASSERT(be16_to_cpu(dup->length) >= length);
 	needscan = needlog = 0;
 	/*
 	 * Mark the initial part of our freespace in use for the new entry.
 	 */
 	xfs_dir2_data_use_free(tp, dbp, dup,
-		(xfs_dir2_data_aoff_t)((char *)dup - (char *)data), length,
+		(xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr), length,
 		&needlog, &needscan);
 	/*
 	 * Initialize our new entry (at last).
@@ -526,12 +526,12 @@ xfs_dir2_leaf_addname(
 	dep->namelen = args->namelen;
 	memcpy(dep->name, args->name, dep->namelen);
 	tagp = xfs_dir2_data_entry_tag_p(dep);
-	*tagp = cpu_to_be16((char *)dep - (char *)data);
+	*tagp = cpu_to_be16((char *)dep - (char *)hdr);
 	/*
 	 * Need to scan fix up the bestfree table.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, data, &needlog);
+		xfs_dir2_data_freescan(mp, hdr, &needlog);
 	/*
 	 * Need to log the data block's header.
 	 */
@@ -542,8 +542,8 @@ xfs_dir2_leaf_addname(
 	 * If the bests table needs to be changed, do it.
 	 * Log the change unless we've already done that.
 	 */
-	if (be16_to_cpu(bestsp[use_block]) != be16_to_cpu(data->hdr.bestfree[0].length)) {
-		bestsp[use_block] = data->hdr.bestfree[0].length;
+	if (be16_to_cpu(bestsp[use_block]) != be16_to_cpu(hdr->bestfree[0].length)) {
+		bestsp[use_block] = hdr->bestfree[0].length;
 		if (!grown)
 			xfs_dir2_leaf_log_bests(tp, lbp, use_block, use_block);
 	}
@@ -786,6 +786,7 @@ xfs_dir2_leaf_getdents(
 	xfs_dir2_db_t		curdb;		/* db for current block */
 	xfs_dir2_off_t		curoff;		/* current overall offset */
 	xfs_dir2_data_t		*data;		/* data block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
 	xfs_dir2_data_entry_t	*dep;		/* data entry */
 	xfs_dir2_data_unused_t	*dup;		/* unused entry */
 	int			error = 0;	/* error return value */
@@ -1044,6 +1045,7 @@ xfs_dir2_leaf_getdents(
 				ASSERT(xfs_dir2_byte_to_db(mp, curoff) ==
 				       curdb);
 			data = bp->data;
+			hdr = &data->hdr;
 			xfs_dir2_data_check(dp, bp);
 			/*
 			 * Find our position in the block.
@@ -1054,12 +1056,12 @@ xfs_dir2_leaf_getdents(
 			 * Skip past the header.
 			 */
 			if (byteoff == 0)
-				curoff += (uint)sizeof(data->hdr);
+				curoff += (uint)sizeof(*hdr);
 			/*
 			 * Skip past entries until we reach our offset.
 			 */
 			else {
-				while ((char *)ptr - (char *)data < byteoff) {
+				while ((char *)ptr - (char *)hdr < byteoff) {
 					dup = (xfs_dir2_data_unused_t *)ptr;
 
 					if (be16_to_cpu(dup->freetag)
@@ -1080,8 +1082,8 @@ xfs_dir2_leaf_getdents(
 				curoff =
 					xfs_dir2_db_off_to_byte(mp,
 					    xfs_dir2_byte_to_db(mp, curoff),
-					    (char *)ptr - (char *)data);
-				if (ptr >= (char *)data + mp->m_dirblksize) {
+					    (char *)ptr - (char *)hdr);
+				if (ptr >= (char *)hdr + mp->m_dirblksize) {
 					continue;
 				}
 			}
@@ -1462,7 +1464,7 @@ xfs_dir2_leaf_removename(
 	xfs_da_args_t		*args)		/* operation arguments */
 {
 	__be16			*bestsp;	/* leaf block best freespace */
-	xfs_dir2_data_t		*data;		/* data block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
 	xfs_dir2_db_t		db;		/* data block number */
 	xfs_dabuf_t		*dbp;		/* data block buffer */
 	xfs_dir2_data_entry_t	*dep;		/* data entry structure */
@@ -1492,7 +1494,7 @@ xfs_dir2_leaf_removename(
 	tp = args->trans;
 	mp = dp->i_mount;
 	leaf = lbp->data;
-	data = dbp->data;
+	hdr = dbp->data;
 	xfs_dir2_data_check(dp, dbp);
 	/*
 	 * Point to the leaf entry, use that to point to the data entry.
@@ -1500,9 +1502,9 @@ xfs_dir2_leaf_removename(
 	lep = &leaf->ents[index];
 	db = xfs_dir2_dataptr_to_db(mp, be32_to_cpu(lep->address));
 	dep = (xfs_dir2_data_entry_t *)
-	      ((char *)data + xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address)));
+	      ((char *)hdr + xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address)));
 	needscan = needlog = 0;
-	oldbest = be16_to_cpu(data->hdr.bestfree[0].length);
+	oldbest = be16_to_cpu(hdr->bestfree[0].length);
 	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
 	bestsp = xfs_dir2_leaf_bests_p(ltp);
 	ASSERT(be16_to_cpu(bestsp[db]) == oldbest);
@@ -1510,7 +1512,7 @@ xfs_dir2_leaf_removename(
 	 * Mark the former data entry unused.
 	 */
 	xfs_dir2_data_make_free(tp, dbp,
-		(xfs_dir2_data_aoff_t)((char *)dep - (char *)data),
+		(xfs_dir2_data_aoff_t)((char *)dep - (char *)hdr),
 		xfs_dir2_data_entsize(dep->namelen), &needlog, &needscan);
 	/*
 	 * We just mark the leaf entry stale by putting a null in it.
@@ -1524,23 +1526,23 @@ xfs_dir2_leaf_removename(
 	 * log the data block header if necessary.
 	 */
 	if (needscan)
-		xfs_dir2_data_freescan(mp, data, &needlog);
+		xfs_dir2_data_freescan(mp, hdr, &needlog);
 	if (needlog)
 		xfs_dir2_data_log_header(tp, dbp);
 	/*
 	 * If the longest freespace in the data block has changed,
 	 * put the new value in the bests table and log that.
 	 */
-	if (be16_to_cpu(data->hdr.bestfree[0].length) != oldbest) {
-		bestsp[db] = data->hdr.bestfree[0].length;
+	if (be16_to_cpu(hdr->bestfree[0].length) != oldbest) {
+		bestsp[db] = hdr->bestfree[0].length;
 		xfs_dir2_leaf_log_bests(tp, lbp, db, db);
 	}
 	xfs_dir2_data_check(dp, dbp);
 	/*
 	 * If the data block is now empty then get rid of the data block.
 	 */
-	if (be16_to_cpu(data->hdr.bestfree[0].length) ==
-	    mp->m_dirblksize - (uint)sizeof(data->hdr)) {
+	if (be16_to_cpu(hdr->bestfree[0].length) ==
+	    mp->m_dirblksize - (uint)sizeof(*hdr)) {
 		ASSERT(db != mp->m_dirdatablk);
 		if ((error = xfs_dir2_shrink_inode(args, db, dbp))) {
 			/*
@@ -1711,9 +1713,6 @@ xfs_dir2_leaf_trim_data(
 	xfs_dir2_db_t		db)		/* data block number */
 {
 	__be16			*bestsp;	/* leaf bests table */
-#ifdef DEBUG
-	xfs_dir2_data_t		*data;		/* data block structure */
-#endif
 	xfs_dabuf_t		*dbp;		/* data block buffer */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	int			error;		/* error return value */
@@ -1732,20 +1731,21 @@ xfs_dir2_leaf_trim_data(
 			XFS_DATA_FORK))) {
 		return error;
 	}
-#ifdef DEBUG
-	data = dbp->data;
-	ASSERT(be32_to_cpu(data->hdr.magic) == XFS_DIR2_DATA_MAGIC);
-#endif
-	/* this seems to be an error
-	 * data is only valid if DEBUG is defined?
-	 * RMC 09/08/1999
-	 */
 
 	leaf = lbp->data;
 	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
-	ASSERT(be16_to_cpu(data->hdr.bestfree[0].length) ==
-	       mp->m_dirblksize - (uint)sizeof(data->hdr));
+
+#ifdef DEBUG
+{
+	struct xfs_dir2_data_hdr *hdr = dbp->data;
+
+	ASSERT(be32_to_cpu(hdr->magic) == XFS_DIR2_DATA_MAGIC);
+	ASSERT(be16_to_cpu(hdr->bestfree[0].length) ==
+	       mp->m_dirblksize - (uint)sizeof(*hdr));
 	ASSERT(db == be32_to_cpu(ltp->bestcount) - 1);
+}
+#endif
+
 	/*
 	 * Get rid of the data block.
 	 */
