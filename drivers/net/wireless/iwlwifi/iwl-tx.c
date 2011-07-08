@@ -157,14 +157,15 @@ static void iwlagn_unmap_tfd(struct iwl_priv *priv, struct iwl_cmd_meta *meta,
  * iwlagn_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
  * @priv - driver private data
  * @txq - tx queue
+ * @index - the index of the TFD to be freed
  *
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
-void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
+void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq,
+	int index)
 {
 	struct iwl_tfd *tfd_tmp = txq->tfds;
-	int index = txq->q.read_ptr;
 
 	iwlagn_unmap_tfd(priv, &txq->meta[index], &tfd_tmp[index],
 			 DMA_TO_DEVICE);
@@ -173,12 +174,12 @@ void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	if (txq->txb) {
 		struct sk_buff *skb;
 
-		skb = txq->txb[txq->q.read_ptr].skb;
+		skb = txq->txb[index].skb;
 
 		/* can be called from irqs-disabled context */
 		if (skb) {
 			dev_kfree_skb_any(skb);
-			txq->txb[txq->q.read_ptr].skb = NULL;
+			txq->txb[index].skb = NULL;
 		}
 	}
 }
@@ -232,106 +233,9 @@ void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id)
 		return;
 
 	 while (q->write_ptr != q->read_ptr) {
-		iwlagn_txq_free_tfd(priv, txq);
+		iwlagn_txq_free_tfd(priv, txq, get_cmd_index(q, q->read_ptr));
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
-}
-
-/**
- * iwl_tx_queue_free - Deallocate DMA queue.
- * @txq: Transmit queue to deallocate.
- *
- * Empty queue by removing and destroying all BD's.
- * Free all buffers.
- * 0-fill, but do not free "txq" descriptor structure.
- */
-void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
-{
-	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct device *dev = priv->bus.dev;
-	int i;
-
-	iwl_tx_queue_unmap(priv, txq_id);
-
-	/* De-alloc array of command/tx buffers */
-	for (i = 0; i < TFD_TX_CMD_SLOTS; i++)
-		kfree(txq->cmd[i]);
-
-	/* De-alloc circular buffer of TFDs */
-	if (txq->q.n_bd)
-		dma_free_coherent(dev, priv->hw_params.tfd_size *
-				  txq->q.n_bd, txq->tfds, txq->q.dma_addr);
-
-	/* De-alloc array of per-TFD driver data */
-	kfree(txq->txb);
-	txq->txb = NULL;
-
-	/* deallocate arrays */
-	kfree(txq->cmd);
-	kfree(txq->meta);
-	txq->cmd = NULL;
-	txq->meta = NULL;
-
-	/* 0-fill queue descriptor structure */
-	memset(txq, 0, sizeof(*txq));
-}
-
-/**
- * iwl_cmd_queue_unmap - Unmap any remaining DMA mappings from command queue
- */
-void iwl_cmd_queue_unmap(struct iwl_priv *priv)
-{
-	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
-	struct iwl_queue *q = &txq->q;
-	int i;
-
-	if (q->n_bd == 0)
-		return;
-
-	while (q->read_ptr != q->write_ptr) {
-		i = get_cmd_index(q, q->read_ptr);
-
-		iwlagn_unmap_tfd(priv, &txq->meta[i], &txq->tfds[i],
-				 DMA_BIDIRECTIONAL);
-		txq->meta[i].flags = 0;
-
-		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
-	}
-}
-
-/**
- * iwl_cmd_queue_free - Deallocate DMA queue.
- * @txq: Transmit queue to deallocate.
- *
- * Empty queue by removing and destroying all BD's.
- * Free all buffers.
- * 0-fill, but do not free "txq" descriptor structure.
- */
-void iwl_cmd_queue_free(struct iwl_priv *priv)
-{
-	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
-	struct device *dev = priv->bus.dev;
-	int i;
-
-	iwl_cmd_queue_unmap(priv);
-
-	/* De-alloc array of command/tx buffers */
-	for (i = 0; i < TFD_CMD_SLOTS; i++)
-		kfree(txq->cmd[i]);
-
-	/* De-alloc circular buffer of TFDs */
-	if (txq->q.n_bd)
-		dma_free_coherent(dev, priv->hw_params.tfd_size * txq->q.n_bd,
-				  txq->tfds, txq->q.dma_addr);
-
-	/* deallocate arrays */
-	kfree(txq->cmd);
-	kfree(txq->meta);
-	txq->cmd = NULL;
-	txq->meta = NULL;
-
-	/* 0-fill queue descriptor structure */
-	memset(txq, 0, sizeof(*txq));
 }
 
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****

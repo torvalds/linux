@@ -852,31 +852,6 @@ static inline void iwlagn_free_dma_ptr(struct iwl_priv *priv,
 }
 
 /**
- * iwlagn_hw_txq_ctx_free - Free TXQ Context
- *
- * Destroy all TX DMA queues and structures
- */
-void iwlagn_hw_txq_ctx_free(struct iwl_priv *priv)
-{
-	int txq_id;
-
-	/* Tx queues */
-	if (priv->txq) {
-		for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
-			if (txq_id == priv->cmd_queue)
-				iwl_cmd_queue_free(priv);
-			else
-				iwl_tx_queue_free(priv, txq_id);
-	}
-	iwlagn_free_dma_ptr(priv, &priv->kw);
-
-	iwlagn_free_dma_ptr(priv, &priv->scd_bc_tbls);
-
-	/* free tx queue structure */
-	iwl_free_txq_mem(priv);
-}
-
-/**
  * iwlagn_txq_ctx_stop - Stop all Tx DMA channels
  */
 void iwlagn_txq_ctx_stop(struct iwl_priv *priv)
@@ -906,10 +881,7 @@ void iwlagn_txq_ctx_stop(struct iwl_priv *priv)
 
 	/* Unmap DMA from host system and free skb's */
 	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
-		if (txq_id == priv->cmd_queue)
-			iwl_cmd_queue_unmap(priv);
-		else
-			iwl_tx_queue_unmap(priv, txq_id);
+		iwl_tx_queue_unmap(priv, txq_id);
 }
 
 /*
@@ -1170,7 +1142,7 @@ int iwlagn_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 
 		iwlagn_txq_inval_byte_cnt_tbl(priv, txq);
 
-		iwlagn_txq_free_tfd(priv, txq);
+		iwlagn_txq_free_tfd(priv, txq, txq->q.read_ptr);
 	}
 	return nfreed;
 }

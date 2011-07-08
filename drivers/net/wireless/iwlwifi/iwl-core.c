@@ -1370,12 +1370,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 
 }
 
-void iwl_free_txq_mem(struct iwl_priv *priv)
-{
-	kfree(priv->txq);
-	priv->txq = NULL;
-}
-
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 
 #define IWL_TRAFFIC_DUMP_SIZE	(IWL_TRAFFIC_ENTRY_SIZE * IWL_TRAFFIC_ENTRIES)

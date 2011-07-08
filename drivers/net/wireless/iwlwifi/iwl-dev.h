@@ -1233,11 +1233,14 @@ struct iwl_trans;
  * @rx_init: inits the rx memory, allocate it if needed
  * @rx_free: frees the rx memory
  * @tx_init:inits the tx memory, allocate if needed
+ * @tx_free: frees the tx memory
  */
 struct iwl_trans_ops {
 	int (*rx_init)(struct iwl_priv *priv);
 	void (*rx_free)(struct iwl_priv *priv);
+
 	int (*tx_init)(struct iwl_priv *priv);
+	void (*tx_free)(struct iwl_priv *priv);
 };
 
 struct iwl_trans {
