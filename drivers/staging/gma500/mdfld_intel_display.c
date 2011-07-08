@@ -1093,8 +1093,6 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 	memcpy(&psb_intel_crtc->saved_adjusted_mode, adjusted_mode, sizeof(struct drm_display_mode));
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		if(!connector)
-			continue;
 			
 		encoder = connector->encoder;
 		
