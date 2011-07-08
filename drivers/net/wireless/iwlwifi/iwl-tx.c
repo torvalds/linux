@@ -221,23 +221,6 @@ int iwlagn_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 	return 0;
 }
 
-/**
- * iwl_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
- */
-void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id)
-{
-	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct iwl_queue *q = &txq->q;
-
-	if (q->n_bd == 0)
-		return;
-
-	 while (q->write_ptr != q->read_ptr) {
-		iwlagn_txq_free_tfd(priv, txq, get_cmd_index(q, q->read_ptr));
-		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
-	}
-}
-
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****
  * DMA services
  *

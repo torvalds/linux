@@ -328,6 +328,24 @@ static int iwl_trans_txq_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 }
 
 /**
+ * iwl_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
+ */
+static void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id)
+{
+	struct iwl_tx_queue *txq = &priv->txq[txq_id];
+	struct iwl_queue *q = &txq->q;
+
+	if (!q->n_bd)
+		return;
+
+	while (q->write_ptr != q->read_ptr) {
+		/* The read_ptr needs to bound by q->n_window */
+		iwlagn_txq_free_tfd(priv, txq, get_cmd_index(q, q->read_ptr));
+		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
+	}
+}
+
+/**
  * iwl_tx_queue_free - Deallocate DMA queue.
  * @txq: Transmit queue to deallocate.
  *
@@ -497,12 +515,50 @@ error:
 	return ret;
 }
 
+/**
+ * iwlagn_txq_ctx_stop - Stop all Tx DMA channels
+ */
+static int iwl_trans_tx_stop(struct iwl_priv *priv)
+{
+	int ch, txq_id;
+	unsigned long flags;
+
+	/* Turn off all Tx DMA fifos */
+	spin_lock_irqsave(&priv->lock, flags);
+
+	iwlagn_txq_set_sched(priv, 0);
+
+	/* Stop each Tx DMA channel, and wait for it to be idle */
+	for (ch = 0; ch < priv->hw_params.dma_chnl_num; ch++) {
+		iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
+		if (iwl_poll_direct_bit(priv, FH_TSSR_TX_STATUS_REG,
+				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
+				    1000))
+			IWL_ERR(priv, "Failing on timeout while stopping"
+			    " DMA channel %d [0x%08x]", ch,
+			    iwl_read_direct32(priv, FH_TSSR_TX_STATUS_REG));
+	}
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (!priv->txq) {
+		IWL_WARN(priv, "Stopping tx queues that aren't allocated...");
+		return 0;
+	}
+
+	/* Unmap DMA from host system and free skb's */
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
+		iwl_tx_queue_unmap(priv, txq_id);
+
+	return 0;
+}
+
 static const struct iwl_trans_ops trans_ops = {
 	.rx_init = iwl_trans_rx_init,
 	.rx_stop = iwl_trans_rx_stop,
 	.rx_free = iwl_trans_rx_free,
 
 	.tx_init = iwl_trans_tx_init,
+	.tx_stop = iwl_trans_tx_stop,
 	.tx_free = iwl_trans_tx_free,
 };
 

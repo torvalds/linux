@@ -2310,7 +2310,7 @@ void iwlagn_stop_device(struct iwl_priv *priv)
 	 * already dead.
 	 */
 	if (test_bit(STATUS_DEVICE_ENABLED, &priv->status)) {
-		iwlagn_txq_ctx_stop(priv);
+		priv->trans.ops->tx_stop(priv);
 		priv->trans.ops->rx_stop(priv);
 
 		/* Power-down device's busmaster DMA clocks */

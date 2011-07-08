@@ -694,8 +694,6 @@ struct iwl_hw_params {
  ****************************************************************************/
 extern void iwl_update_chain_flags(struct iwl_priv *priv);
 extern const u8 iwl_bcast_addr[ETH_ALEN];
-extern int iwl_rxq_stop(struct iwl_priv *priv);
-extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
 extern int iwl_queue_space(const struct iwl_queue *q);
 static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 {
@@ -1234,6 +1232,7 @@ struct iwl_trans;
  * @rx_stop: stop the rx
  * @rx_free: frees the rx memory
  * @tx_init:inits the tx memory, allocate if needed
+ * @tx_stop: stop the tx
  * @tx_free: frees the tx memory
  */
 struct iwl_trans_ops {
@@ -1242,6 +1241,7 @@ struct iwl_trans_ops {
 	void (*rx_free)(struct iwl_priv *priv);
 
 	int (*tx_init)(struct iwl_priv *priv);
+	int (*tx_stop)(struct iwl_priv *priv);
 	void (*tx_free)(struct iwl_priv *priv);
 };
 

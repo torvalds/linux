@@ -851,39 +851,6 @@ static inline void iwlagn_free_dma_ptr(struct iwl_priv *priv,
 	memset(ptr, 0, sizeof(*ptr));
 }
 
-/**
- * iwlagn_txq_ctx_stop - Stop all Tx DMA channels
- */
-void iwlagn_txq_ctx_stop(struct iwl_priv *priv)
-{
-	int ch, txq_id;
-	unsigned long flags;
-
-	/* Turn off all Tx DMA fifos */
-	spin_lock_irqsave(&priv->lock, flags);
-
-	iwlagn_txq_set_sched(priv, 0);
-
-	/* Stop each Tx DMA channel, and wait for it to be idle */
-	for (ch = 0; ch < priv->hw_params.dma_chnl_num; ch++) {
-		iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
-		if (iwl_poll_direct_bit(priv, FH_TSSR_TX_STATUS_REG,
-				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
-				    1000))
-			IWL_ERR(priv, "Failing on timeout while stopping"
-			    " DMA channel %d [0x%08x]", ch,
-			    iwl_read_direct32(priv, FH_TSSR_TX_STATUS_REG));
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (!priv->txq)
-		return;
-
-	/* Unmap DMA from host system and free skb's */
-	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
-		iwl_tx_queue_unmap(priv, txq_id);
-}
-
 /*
  * Find first available (lowest unused) Tx Queue, mark it "active".
  * Called only when finding queue for aggregation.
