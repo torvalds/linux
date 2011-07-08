@@ -96,6 +96,7 @@ struct dw_spi {
 	struct spi_device	*cur_dev;
 	struct device		*parent_dev;
 	enum dw_ssi_type	type;
+	char			name[16];
 
 	void __iomem		*regs;
 	unsigned long		paddr;
