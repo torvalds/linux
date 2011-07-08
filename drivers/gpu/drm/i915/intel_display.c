@@ -6333,6 +6333,7 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 	drm_gem_object_unreference(&work->pending_flip_obj->base);
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 
+	intel_update_fbc(work->dev);
 	mutex_unlock(&work->dev->struct_mutex);
 	kfree(work);
 }
@@ -6697,6 +6698,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (ret)
 		goto cleanup_pending;
 
+	intel_disable_fbc(dev);
 	mutex_unlock(&dev->struct_mutex);
 
 	trace_i915_flip_request(intel_crtc->plane, obj);
