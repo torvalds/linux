@@ -33,6 +33,7 @@ MACHINE_START(PRIMA2_EVB, "prima2cb")
 	/* Maintainer: Barry Song <baohua.song@csr.com> */
 	.boot_params	= 0x00000100,
 	.init_early     = sirfsoc_of_clk_init,
+	.map_io         = sirfsoc_map_lluart,
 	.init_irq	= sirfsoc_of_irq_init,
 	.timer		= &sirfsoc_timer,
 	.init_machine	= sirfsoc_mach_init,
