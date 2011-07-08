@@ -11,6 +11,27 @@
 #include <media/v4l2-dev.h>
 #include <media/videobuf2-core.h>
 
+/*
+ * Create our own symbols for the supported buffer modes, but, for now,
+ * base them entirely on which videobuf2 options have been selected.
+ */
+#if defined(CONFIG_VIDEOBUF2_VMALLOC) || defined(CONFIG_VIDEOBUF2_VMALLOC_MODULE)
+#define MCAM_MODE_VMALLOC 1
+#endif
+
+#if defined(CONFIG_VIDEOBUF2_DMA_CONTIG) || defined(CONFIG_VIDEOBUF2_DMA_CONTIG_MODULE)
+#define MCAM_MODE_DMA_CONTIG 1
+#endif
+
+#if defined(CONFIG_VIDEOBUF2_DMA_SG) || defined(CONFIG_VIDEOBUF2_DMA_SG_MODULE)
+#define MCAM_MODE_DMA_SG 1
+#endif
+
+#if !defined(MCAM_MODE_VMALLOC) && !defined(MCAM_MODE_DMA_CONTIG) && \
+	!defined(MCAM_MODE_DMA_SG)
+#error One of the videobuf buffer modes must be selected in the config
+#endif
+
 
 enum mcam_state {
 	S_NOTREADY,	/* Not yet initialized */
@@ -27,9 +48,31 @@ enum mcam_state {
  */
 enum mcam_buffer_mode {
 	B_vmalloc = 0,
-	B_DMA_contig,
-	B_DMA_sg
+	B_DMA_contig = 1,
+	B_DMA_sg = 2
 };
+
+/*
+ * Is a given buffer mode supported by the current kernel configuration?
+ */
+static inline int mcam_buffer_mode_supported(enum mcam_buffer_mode mode)
+{
+	switch (mode) {
+#ifdef MCAM_MODE_VMALLOC
+	case B_vmalloc:
+#endif
+#ifdef MCAM_MODE_DMA_CONTIG
+	case B_DMA_contig:
+#endif
+#ifdef MCAM_MODE_DMA_SG
+	case B_DMA_sg:
+#endif
+		return 1;
+	default:
+		return 0;
+	}
+}
+
 
 /*
  * A description of one of our devices.
@@ -79,21 +122,27 @@ struct mcam_camera {
 	struct vb2_queue vb_queue;
 	struct list_head buffers;	/* Available frames */
 
-	/* DMA buffers - vmalloc mode */
 	unsigned int nbufs;		/* How many are alloc'd */
 	int next_buf;			/* Next to consume (dev_lock) */
+
+	/* DMA buffers - vmalloc mode */
+#ifdef MCAM_MODE_VMALLOC
 	unsigned int dma_buf_size;	/* allocated size */
 	void *dma_bufs[MAX_DMA_BUFS];	/* Internal buffer addresses */
 	dma_addr_t dma_handles[MAX_DMA_BUFS]; /* Buffer bus addresses */
+	struct tasklet_struct s_tasklet;
+#endif
 	unsigned int sequence;		/* Frame sequence number */
 	unsigned int buf_seq[MAX_DMA_BUFS]; /* Sequence for individual bufs */
 
-	/* DMA buffers - contiguous DMA mode */
+	/* DMA buffers - DMA modes */
 	struct mcam_vb_buffer *vb_bufs[MAX_DMA_BUFS];
 	struct vb2_alloc_ctx *vb_alloc_ctx;
 	unsigned short last_delivered;
 
-	struct tasklet_struct s_tasklet;
+	/* Mode-specific ops, set at open time */
+	void (*dma_setup)(struct mcam_camera *cam);
+	void (*frame_complete)(struct mcam_camera *cam, int frame);
 
 	/* Current operating parameters */
 	u32 sensor_type;		/* Currently ov7670 only */

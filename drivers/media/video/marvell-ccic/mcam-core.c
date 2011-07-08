@@ -37,6 +37,7 @@ static int frames;
 static int singles;
 static int delivered;
 
+#ifdef MCAM_MODE_VMALLOC
 /*
  * Internal DMA buffer management.  Since the controller cannot do S/G I/O,
  * we must have physically contiguous buffers to bring frames into.
@@ -71,6 +72,10 @@ MODULE_PARM_DESC(dma_buf_size,
 		"The size of the allocated DMA buffers.  If actual operating "
 		"parameters require larger buffers, an attempt to reallocate "
 		"will be made.");
+#else /* MCAM_MODE_VMALLOC */
+static const int alloc_bufs_at_read = 0;
+static const int n_dma_bufs = 3;  /* Used by S/G_PARM */
+#endif /* MCAM_MODE_VMALLOC */
 
 static int flip;
 module_param(flip, bool, 0444);
@@ -256,6 +261,8 @@ static void mcam_ctlr_stop(struct mcam_camera *cam)
 }
 
 /* ------------------------------------------------------------------- */
+
+#ifdef MCAM_MODE_VMALLOC
 /*
  * Code specific to the vmalloc buffer mode.
  */
@@ -381,6 +388,46 @@ static void mcam_frame_tasklet(unsigned long data)
 }
 
 
+/*
+ * Make sure our allocated buffers are up to the task.
+ */
+static int mcam_check_dma_buffers(struct mcam_camera *cam)
+{
+	if (cam->nbufs > 0 && cam->dma_buf_size < cam->pix_format.sizeimage)
+			mcam_free_dma_bufs(cam);
+	if (cam->nbufs == 0)
+		return mcam_alloc_dma_bufs(cam, 0);
+	return 0;
+}
+
+static void mcam_vmalloc_done(struct mcam_camera *cam, int frame)
+{
+	tasklet_schedule(&cam->s_tasklet);
+}
+
+#else /* MCAM_MODE_VMALLOC */
+
+static inline int mcam_alloc_dma_bufs(struct mcam_camera *cam, int loadtime)
+{
+	return 0;
+}
+
+static inline void mcam_free_dma_bufs(struct mcam_camera *cam)
+{
+	return;
+}
+
+static inline int mcam_check_dma_buffers(struct mcam_camera *cam)
+{
+	return 0;
+}
+
+
+
+#endif /* MCAM_MODE_VMALLOC */
+
+
+#ifdef MCAM_MODE_DMA_CONTIG
 /* ---------------------------------------------------------------------- */
 /*
  * DMA-contiguous code.
@@ -444,8 +491,9 @@ static void mcam_dma_contig_done(struct mcam_camera *cam, int frame)
 	mcam_set_contig_buffer(cam, frame);
 }
 
+#endif /* MCAM_MODE_DMA_CONTIG */
 
-
+#ifdef MCAM_MODE_DMA_SG
 /* ---------------------------------------------------------------------- */
 /*
  * Scatter/gather-specific code.
@@ -540,6 +588,14 @@ static void mcam_sg_restart(struct mcam_camera *cam)
 	clear_bit(CF_SG_RESTART, &cam->flags);
 }
 
+#else /* MCAM_MODE_DMA_SG */
+
+static inline void mcam_sg_restart(struct mcam_camera *cam)
+{
+	return;
+}
+
+#endif /* MCAM_MODE_DMA_SG */
 
 /* ---------------------------------------------------------------------- */
 /*
@@ -605,17 +661,7 @@ static int mcam_ctlr_configure(struct mcam_camera *cam)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
-	switch (cam->buffer_mode) {
-	case B_vmalloc:
-		mcam_ctlr_dma_vmalloc(cam);
-		break;
-	case B_DMA_contig:
-		mcam_ctlr_dma_contig(cam);
-		break;
-	case B_DMA_sg:
-		mcam_ctlr_dma_sg(cam);
-		break;
-	}
+	cam->dma_setup(cam);
 	mcam_ctlr_image(cam);
 	mcam_set_config_needed(cam, 0);
 	clear_bit(CF_SG_RESTART, &cam->flags);
@@ -948,6 +994,8 @@ static const struct vb2_ops mcam_vb2_ops = {
 	.wait_finish		= mcam_vb_wait_finish,
 };
 
+
+#ifdef MCAM_MODE_DMA_SG
 /*
  * Scatter/gather mode uses all of the above functions plus a
  * few extras to deal with DMA mapping.
@@ -1022,6 +1070,8 @@ static const struct vb2_ops mcam_vb2_sg_ops = {
 	.wait_finish		= mcam_vb_wait_finish,
 };
 
+#endif /* MCAM_MODE_DMA_SG */
+
 static int mcam_setup_vb2(struct mcam_camera *cam)
 {
 	struct vb2_queue *vq = &cam->vb_queue;
@@ -1032,21 +1082,35 @@ static int mcam_setup_vb2(struct mcam_camera *cam)
 	INIT_LIST_HEAD(&cam->buffers);
 	switch (cam->buffer_mode) {
 	case B_DMA_contig:
+#ifdef MCAM_MODE_DMA_CONTIG
 		vq->ops = &mcam_vb2_ops;
 		vq->mem_ops = &vb2_dma_contig_memops;
 		cam->vb_alloc_ctx = vb2_dma_contig_init_ctx(cam->dev);
 		vq->io_modes = VB2_MMAP | VB2_USERPTR;
+		cam->dma_setup = mcam_ctlr_dma_contig;
+		cam->frame_complete = mcam_dma_contig_done;
+#endif
 		break;
 	case B_DMA_sg:
+#ifdef MCAM_MODE_DMA_SG
 		vq->ops = &mcam_vb2_sg_ops;
 		vq->mem_ops = &vb2_dma_sg_memops;
 		vq->io_modes = VB2_MMAP | VB2_USERPTR;
+		cam->dma_setup = mcam_ctlr_dma_sg;
+		cam->frame_complete = mcam_dma_sg_done;
+#endif
 		break;
 	case B_vmalloc:
+#ifdef MCAM_MODE_VMALLOC
+		tasklet_init(&cam->s_tasklet, mcam_frame_tasklet,
+				(unsigned long) cam);
 		vq->ops = &mcam_vb2_ops;
 		vq->mem_ops = &vb2_vmalloc_memops;
 		vq->buf_struct_size = sizeof(struct mcam_vb_buffer);
 		vq->io_modes = VB2_MMAP;
+		cam->dma_setup = mcam_ctlr_dma_vmalloc;
+		cam->frame_complete = mcam_vmalloc_done;
+#endif
 		break;
 	}
 	return vb2_queue_init(vq);
@@ -1055,8 +1119,10 @@ static int mcam_setup_vb2(struct mcam_camera *cam)
 static void mcam_cleanup_vb2(struct mcam_camera *cam)
 {
 	vb2_queue_release(&cam->vb_queue);
+#ifdef MCAM_MODE_DMA_CONTIG
 	if (cam->buffer_mode == B_DMA_contig)
 		vb2_dma_contig_cleanup_ctx(cam->vb_alloc_ctx);
+#endif
 }
 
 
@@ -1258,15 +1324,10 @@ static int mcam_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 	/*
 	 * Make sure we have appropriate DMA buffers.
 	 */
-	ret = -ENOMEM;
 	if (cam->buffer_mode == B_vmalloc) {
-		if (cam->nbufs > 0 &&
-				cam->dma_buf_size < cam->pix_format.sizeimage)
-			mcam_free_dma_bufs(cam);
-		if (cam->nbufs == 0) {
-			if (mcam_alloc_dma_bufs(cam, 0))
-				goto out;
-		}
+		ret = mcam_check_dma_buffers(cam);
+		if (ret)
+			goto out;
 	}
 	mcam_set_config_needed(cam, 1);
 	ret = 0;
@@ -1587,17 +1648,7 @@ static void mcam_frame_complete(struct mcam_camera *cam, int frame)
 	/*
 	 * Process the frame and set up the next one.
 	 */
-	switch (cam->buffer_mode) {
-	case B_vmalloc:
-	    tasklet_schedule(&cam->s_tasklet);
-	    break;
-	case B_DMA_contig:
-	    mcam_dma_contig_done(cam, frame);
-	    break;
-	case B_DMA_sg:
-	    mcam_dma_sg_done(cam, frame);
-	    break;
-	}
+	cam->frame_complete(cam, frame);
 }
 
 
@@ -1663,6 +1714,22 @@ int mccic_register(struct mcam_camera *cam)
 	int ret;
 
 	/*
+	 * Validate the requested buffer mode.
+	 */
+	if (buffer_mode >= 0)
+		cam->buffer_mode = buffer_mode;
+	if (cam->buffer_mode == B_DMA_sg &&
+			cam->chip_id == V4L2_IDENT_CAFE) {
+		printk(KERN_ERR "marvell-cam: Cafe can't do S/G I/O, "
+			"attempting vmalloc mode instead\n");
+		cam->buffer_mode = B_vmalloc;
+	}
+	if (!mcam_buffer_mode_supported(cam->buffer_mode)) {
+		printk(KERN_ERR "marvell-cam: buffer mode %d unsupported\n",
+				cam->buffer_mode);
+		return -EINVAL;
+	}
+	/*
 	 * Register with V4L
 	 */
 	ret = v4l2_device_register(cam->dev, &cam->v4l2_dev);
@@ -1676,26 +1743,6 @@ int mccic_register(struct mcam_camera *cam)
 	cam->mbus_code = mcam_def_mbus_code;
 	INIT_LIST_HEAD(&cam->dev_list);
 	INIT_LIST_HEAD(&cam->buffers);
-	tasklet_init(&cam->s_tasklet, mcam_frame_tasklet, (unsigned long) cam);
-	/*
-	 * User space may want to override the asked-for buffer mode;
-	 * here's hoping they know what they're doing.
-	 */
-	if (buffer_mode == 0)
-		cam->buffer_mode = B_vmalloc;
-	else if (buffer_mode == 1)
-		cam->buffer_mode = B_DMA_contig;
-	else if (buffer_mode == 2) {
-		if (cam->chip_id == V4L2_IDENT_ARMADA610)
-			cam->buffer_mode = B_DMA_sg;
-		else {
-			printk(KERN_ERR "marvell-cam: Cafe can't do S/G I/O\n");
-			cam->buffer_mode = B_vmalloc;
-		}
-	} else if (buffer_mode != -1)
-		printk(KERN_ERR "marvell-cam: "
-				"Strange module buffer mode %d - ignoring\n",
-				buffer_mode);
 	mcam_ctlr_init(cam);
 
 	/*
