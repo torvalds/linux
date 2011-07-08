@@ -37,7 +37,6 @@
 #include <linux/swap.h>
 #include <linux/syscalls.h>
 #include <linux/jiffies.h>
-#include <linux/tracehook.h>
 #include <linux/futex.h>
 #include <linux/compat.h>
 #include <linux/kthread.h>
@@ -1520,17 +1519,6 @@ long do_fork(unsigned long clone_flags,
 		}
 
 		audit_finish_fork(p);
-
-		/*
-		 * Child is ready but hasn't started running yet.  Queue
-		 * SIGSTOP if it's gonna be ptraced - it doesn't matter who
-		 * attached/attaching to this task, the pending SIGSTOP is
-		 * right in any case.
-		 */
-		if (unlikely(p->ptrace)) {
-			sigaddset(&p->pending.signal, SIGSTOP);
-			set_tsk_thread_flag(p, TIF_SIGPENDING);
-		}
 
 		/*
 		 * We set PF_STARTING at creation in case tracing wants to

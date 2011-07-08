@@ -227,6 +227,9 @@ static inline void ptrace_init_task(struct task_struct *child, bool ptrace)
 	if (unlikely(ptrace) && current->ptrace) {
 		child->ptrace = current->ptrace;
 		__ptrace_link(child, current->parent);
+
+		sigaddset(&child->pending.signal, SIGSTOP);
+		set_tsk_thread_flag(child, TIF_SIGPENDING);
 	}
 }
 
