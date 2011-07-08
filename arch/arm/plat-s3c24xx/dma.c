@@ -1231,7 +1231,7 @@ static void s3c2410_dma_resume_chan(struct s3c2410_dma_chan *cp)
 	/* restore channel's hardware configuration */
 
 	if (!cp->in_use)
-		return 0;
+		return;
 
 	printk(KERN_INFO "dma%d: restoring configuration\n", cp->number);
 
@@ -1242,8 +1242,6 @@ static void s3c2410_dma_resume_chan(struct s3c2410_dma_chan *cp)
 
 	if (cp->map != NULL)
 		dma_sel.select(cp, cp->map);
-
-	return 0;
 }
 
 static void s3c2410_dma_resume(void)
