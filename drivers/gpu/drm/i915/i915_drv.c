@@ -55,7 +55,7 @@ module_param_named(semaphores, i915_semaphores, int, 0600);
 unsigned int i915_enable_rc6 = 1;
 module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
 
-unsigned int i915_enable_fbc = 0;
+unsigned int i915_enable_fbc = 1;
 module_param_named(i915_enable_fbc, i915_enable_fbc, int, 0600);
 
 unsigned int i915_lvds_downclock = 0;
