@@ -574,9 +574,14 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 				       uint64_t value)
 {
 	struct drm_encoder *encoder = connector->encoder;
-	struct drm_psb_private *dev_priv = encoder->dev->dev_private;
+	struct drm_psb_private *dev_priv;
+	
+	if (!encoder)
+	        return -1;
 
-	if (!strcmp(property->name, "scaling mode") && encoder) {
+	dev_priv = encoder->dev->dev_private;
+
+	if (!strcmp(property->name, "scaling mode")) {
 		struct psb_intel_crtc *pPsbCrtc =
 					to_psb_intel_crtc(encoder->crtc);
 		uint64_t curValue;
@@ -617,7 +622,7 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 						      encoder->crtc->fb))
 				goto set_prop_error;
 		}
-	} else if (!strcmp(property->name, "backlight") && encoder) {
+	} else if (!strcmp(property->name, "backlight")) {
 		if (drm_connector_property_set_value(connector,
 							property,
 							value))
@@ -631,7 +636,7 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
                         }
 #endif
 		}
-	} else if (!strcmp(property->name, "DPMS") && encoder) {
+	} else if (!strcmp(property->name, "DPMS")) {
 		struct drm_encoder_helper_funcs *pEncHFuncs
 						= encoder->helper_private;
 		pEncHFuncs->dpms(encoder, value);
