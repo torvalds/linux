@@ -816,26 +816,66 @@ nvd0_sor_commit(struct drm_encoder *encoder)
 }
 
 static void
-nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
-		  struct drm_display_mode *adjusted_mode)
+nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
+		  struct drm_display_mode *mode)
 {
+	struct drm_nouveau_private *dev_priv = encoder->dev->dev_private;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
+	struct nouveau_connector *nv_connector;
+	struct nvbios *bios = &dev_priv->vbios;
 	u32 mode_ctrl = (1 << nv_crtc->index);
 	u32 *push, or_config;
 
-	if (nv_encoder->dcb->sorconf.link & 1) {
-		if (adjusted_mode->clock < 165000)
-			mode_ctrl |= 0x00000100;
-		else
-			mode_ctrl |= 0x00000500;
-	} else {
-		mode_ctrl |= 0x00000200;
-	}
+	nv_connector = nouveau_encoder_connector_get(nv_encoder);
+	switch (nv_encoder->dcb->type) {
+	case OUTPUT_TMDS:
+		if (nv_encoder->dcb->sorconf.link & 1) {
+			if (mode->clock < 165000)
+				mode_ctrl |= 0x00000100;
+			else
+				mode_ctrl |= 0x00000500;
+		} else {
+			mode_ctrl |= 0x00000200;
+		}
 
-	or_config = (mode_ctrl & 0x00000f00) >> 8;
-	if (adjusted_mode->clock >= 165000)
-		or_config |= 0x0100;
+		or_config = (mode_ctrl & 0x00000f00) >> 8;
+		if (mode->clock >= 165000)
+			or_config |= 0x0100;
+		break;
+	case OUTPUT_LVDS:
+		or_config = (mode_ctrl & 0x00000f00) >> 8;
+		if (bios->fp_no_ddc) {
+			if (bios->fp.dual_link)
+				or_config |= 0x0100;
+			if (bios->fp.if_is_24bit)
+				or_config |= 0x0200;
+		} else {
+			if (nv_connector->dcb->type == DCB_CONNECTOR_LVDS_SPWG) {
+				if (((u8 *)nv_connector->edid)[121] == 2)
+					or_config |= 0x0100;
+			} else
+			if (mode->clock >= bios->fp.duallink_transition_clk) {
+				or_config |= 0x0100;
+			}
+
+			if (or_config & 0x0100) {
+				if (bios->fp.strapless_is_24bit & 2)
+					or_config |= 0x0200;
+			} else {
+				if (bios->fp.strapless_is_24bit & 1)
+					or_config |= 0x0200;
+			}
+
+			if (nv_connector->base.display_info.bpc == 8)
+				or_config |= 0x0200;
+
+		}
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
 
 	nvd0_sor_dpms(encoder, DRM_MODE_DPMS_ON);
 
@@ -932,8 +972,16 @@ lookup_dcb(struct drm_device *dev, int id, u32 mc)
 		type = OUTPUT_ANALOG;
 		or   = id;
 	} else {
-		type = OUTPUT_TMDS;
-		or   = id - 4;
+		switch (mc & 0x00000f00) {
+		case 0x00000000: type = OUTPUT_LVDS; break;
+		case 0x00000100: type = OUTPUT_TMDS; break;
+		case 0x00000200: type = OUTPUT_TMDS; break;
+		case 0x00000500: type = OUTPUT_TMDS; break;
+		default:
+			return NULL;
+		}
+
+		or = id - 4;
 	}
 
 	for (i = 0; i < dev_priv->vbios.dcb.entries; i++) {
@@ -1024,7 +1072,8 @@ nvd0_display_unk2_handler(struct drm_device *dev)
 		nv_wr32(dev, 0x612280 + (or * 0x800), 0x00000000);
 		break;
 	case OUTPUT_TMDS:
-		if (disp->irq.pclk >= 165000)
+	case OUTPUT_LVDS:
+		if (disp->irq.cfg & 0x00000100)
 			tmp = 0x00000101;
 		else
 			tmp = 0x00000000;
@@ -1298,6 +1347,7 @@ nvd0_display_create(struct drm_device *dev)
 
 		switch (dcbe->type) {
 		case OUTPUT_TMDS:
+		case OUTPUT_LVDS:
 			nvd0_sor_create(connector, dcbe);
 			break;
 		case OUTPUT_ANALOG:
