@@ -3168,7 +3168,8 @@ enum {
 
 #define IWL_MAX_PHY_CALIBRATE_TBL_SIZE		(253)
 
-#define IWL_CALIB_INIT_CFG_ALL	cpu_to_le32(0xffffffff)
+#define IWL_CALIB_INIT_CFG_ALL				cpu_to_le32(0xffffffff)
+#define IWL_CALIB_CFG_FLAG_SEND_COMPLETE_NTFY_MSK	cpu_to_le32(BIT(0))
 
 /* This enum defines the bitmap of various calibrations to enable in both
  * init ucode and runtime ucode through CALIBRATION_CFG_CMD.
