@@ -206,7 +206,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	cmd.data[1] = priv->beacon_skb->data;
 	cmd.dataflags[1] = IWL_HCMD_DFL_NOCOPY;
 
-	return priv->trans.ops->send_cmd(priv, &cmd);
+	return trans_send_cmd(priv, &cmd);
 }
 
 static void iwl_bg_beacon_update(struct work_struct *work)
@@ -580,7 +580,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 		if (reclaim) {
 			/* Invoke any callbacks, transfer the buffer to caller,
 			 * and fire off the (possibly) blocking
-			 * priv->trans.ops->send_cmd()
+			 * trans_send_cmd()
 			 * as we reclaim the driver command queue */
 			if (rxb->page)
 				iwl_tx_cmd_complete(priv, rxb);
@@ -1942,7 +1942,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 		adv_cmd.critical_temperature_exit =
 			cpu_to_le32(priv->hw_params.ct_kill_exit_threshold);
 
-		ret = priv->trans.ops->send_cmd_pdu(priv,
+		ret = trans_send_cmd_pdu(priv,
 				       REPLY_CT_KILL_CONFIG_CMD,
 				       CMD_SYNC, sizeof(adv_cmd), &adv_cmd);
 		if (ret)
@@ -1958,7 +1958,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 		cmd.critical_temperature_R =
 			cpu_to_le32(priv->hw_params.ct_kill_threshold);
 
-		ret = priv->trans.ops->send_cmd_pdu(priv,
+		ret = trans_send_cmd_pdu(priv,
 				       REPLY_CT_KILL_CONFIG_CMD,
 				       CMD_SYNC, sizeof(cmd), &cmd);
 		if (ret)
@@ -1984,7 +1984,7 @@ static int iwlagn_send_calib_cfg_rt(struct iwl_priv *priv, u32 cfg)
 	calib_cfg_cmd.ucd_calib_cfg.once.is_enable = IWL_CALIB_INIT_CFG_ALL;
 	calib_cfg_cmd.ucd_calib_cfg.once.start = cpu_to_le32(cfg);
 
-	return priv->trans.ops->send_cmd(priv, &cmd);
+	return trans_send_cmd(priv, &cmd);
 }
 
 
@@ -3713,8 +3713,8 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 
 	iwl_dealloc_ucode(priv);
 
-	priv->trans.ops->rx_free(priv);
-	priv->trans.ops->tx_free(priv);
+	trans_rx_free(priv);
+	trans_tx_free(priv);
 
 	iwl_eeprom_free(priv);
 

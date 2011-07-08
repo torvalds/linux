@@ -46,6 +46,7 @@
 #include "iwl-agn.h"
 #include "iwl-agn-hw.h"
 #include "iwl-5000-hw.h"
+#include "iwl-trans.h"
 
 /* Highest firmware API version supported */
 #define IWL5000_UCODE_API_MAX 5
@@ -314,7 +315,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 		return -EFAULT;
 	}
 
-	return priv->trans.ops->send_cmd(priv, &hcmd);
+	return trans_send_cmd(priv, &hcmd);
 }
 
 static struct iwl_lib_ops iwl5000_lib = {

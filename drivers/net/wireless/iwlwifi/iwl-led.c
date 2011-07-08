@@ -40,6 +40,7 @@
 #include "iwl-core.h"
 #include "iwl-agn.h"
 #include "iwl-io.h"
+#include "iwl-trans.h"
 
 /* Throughput		OFF time(ms)	ON time (ms)
  *	>300			25		25
@@ -111,7 +112,7 @@ static int iwl_send_led_cmd(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd)
 	if (reg != (reg & CSR_LED_BSM_CTRL_MSK))
 		iwl_write32(priv, CSR_LED_REG, reg & CSR_LED_BSM_CTRL_MSK);
 
-	return priv->trans.ops->send_cmd(priv, &cmd);
+	return trans_send_cmd(priv, &cmd);
 }
 
 /* Set led pattern command */

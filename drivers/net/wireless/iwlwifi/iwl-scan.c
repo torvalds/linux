@@ -37,6 +37,7 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 #include "iwl-agn.h"
+#include "iwl-trans.h"
 
 /* For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
  * sending probe req.  This should be set long enough to hear probe responses
@@ -74,7 +75,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	    test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EIO;
 
-	ret = priv->trans.ops->send_cmd(priv, &cmd);
+	ret = trans_send_cmd(priv, &cmd);
 	if (ret)
 		return ret;
 

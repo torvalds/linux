@@ -467,7 +467,7 @@ static int iwl_trans_tx_alloc(struct iwl_priv *priv)
 	return 0;
 
 error:
-	priv->trans.ops->tx_free(priv);
+	trans_tx_free(priv);
 
 	return ret;
 }
@@ -511,7 +511,7 @@ static int iwl_trans_tx_init(struct iwl_priv *priv)
 error:
 	/*Upon error, free only if we allocated something */
 	if (alloc)
-		priv->trans.ops->tx_free(priv);
+		trans_tx_free(priv);
 	return ret;
 }
 

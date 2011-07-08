@@ -76,7 +76,7 @@
 #include "iwl-io.h"
 #include "iwl-agn.h"
 #include "iwl-testmode.h"
-
+#include "iwl-trans.h"
 
 /* The TLVs used in the gnl message policy between the kernel module and
  * user space application. iwl_testmode_gnl_msg_policy is to be carried
@@ -239,7 +239,7 @@ static int iwl_testmode_ucode(struct ieee80211_hw *hw, struct nlattr **tb)
 	IWL_INFO(priv, "testmode ucode command ID 0x%x, flags 0x%x,"
 				" len %d\n", cmd.id, cmd.flags, cmd.len[0]);
 	/* ok, let's submit the command to ucode */
-	return priv->trans.ops->send_cmd(priv, &cmd);
+	return trans_send_cmd(priv, &cmd);
 }
 
 

@@ -36,6 +36,7 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-agn.h"
+#include "iwl-trans.h"
 
 int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 {
@@ -45,7 +46,7 @@ int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 
 	if (IWL_UCODE_API(priv->ucode_ver) > 1) {
 		IWL_DEBUG_HC(priv, "select valid tx ant: %u\n", valid_tx_ant);
-		return priv->trans.ops->send_cmd_pdu(priv,
+		return trans_send_cmd_pdu(priv,
 					TX_ANT_CONFIGURATION_CMD,
 					CMD_SYNC,
 					sizeof(struct iwl_tx_ant_config_cmd),
@@ -117,7 +118,7 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 			priv->_agn.phy_calib_chain_noise_gain_cmd);
 		cmd.delta_gain_1 = data->delta_gain_code[1];
 		cmd.delta_gain_2 = data->delta_gain_code[2];
-		priv->trans.ops->send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
+		trans_send_cmd_pdu(priv, REPLY_PHY_CALIBRATION_CMD,
 			CMD_ASYNC, sizeof(cmd), &cmd);
 
 		data->radio_write = 1;
@@ -146,7 +147,7 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 		memset(&cmd, 0, sizeof(cmd));
 		iwl_set_calib_hdr(&cmd.hdr,
 			priv->_agn.phy_calib_chain_noise_reset_cmd);
-		ret = priv->trans.ops->send_cmd_pdu(priv,
+		ret = trans_send_cmd_pdu(priv,
 					REPLY_PHY_CALIBRATION_CMD,
 					CMD_SYNC, sizeof(cmd), &cmd);
 		if (ret)
@@ -293,7 +294,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	cmd.slots[0].width = cpu_to_le16(slot0);
 	cmd.slots[1].width = cpu_to_le16(slot1);
 
-	ret = priv->trans.ops->send_cmd_pdu(priv, REPLY_WIPAN_PARAMS, CMD_SYNC,
+	ret = trans_send_cmd_pdu(priv, REPLY_WIPAN_PARAMS, CMD_SYNC,
 			sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(priv, "Error setting PAN parameters (%d)\n", ret);

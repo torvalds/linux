@@ -42,6 +42,7 @@
 #include "iwl-sta.h"
 #include "iwl-helpers.h"
 #include "iwl-agn.h"
+#include "iwl-trans.h"
 
 u32 iwl_debug_level;
 
@@ -375,7 +376,7 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 			le32_to_cpu(ctx->timing.beacon_init_val),
 			le16_to_cpu(ctx->timing.atim_window));
 
-	return priv->trans.ops->send_cmd_pdu(priv, ctx->rxon_timing_cmd,
+	return trans_send_cmd_pdu(priv, ctx->rxon_timing_cmd,
 				CMD_SYNC, sizeof(ctx->timing), &ctx->timing);
 }
 
@@ -1131,7 +1132,7 @@ void iwl_send_bt_config(struct iwl_priv *priv)
 	IWL_DEBUG_INFO(priv, "BT coex %s\n",
 		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
 
-	if (priv->trans.ops->send_cmd_pdu(priv, REPLY_BT_CONFIG,
+	if (trans_send_cmd_pdu(priv, REPLY_BT_CONFIG,
 			     CMD_SYNC, sizeof(struct iwl_bt_cmd), &bt_cmd))
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
 }
@@ -1144,12 +1145,12 @@ int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 	};
 
 	if (flags & CMD_ASYNC)
-		return priv->trans.ops->send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
+		return trans_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
 					      CMD_ASYNC,
 					       sizeof(struct iwl_statistics_cmd),
 					       &statistics_cmd);
 	else
-		return priv->trans.ops->send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
+		return trans_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
 					CMD_SYNC,
 					sizeof(struct iwl_statistics_cmd),
 					&statistics_cmd);
