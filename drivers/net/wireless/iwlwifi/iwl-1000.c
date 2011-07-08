@@ -182,7 +182,6 @@ static struct iwl_lib_ops iwl1000_lib = {
 			EEPROM_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
-		.query_addr = iwlagn_eeprom_query_addr,
 	},
 	.temp_ops = {
 		.temperature = iwlagn_temperature,

@@ -611,8 +611,7 @@ static u32 eeprom_indirect_address(const struct iwl_priv *priv, u32 address)
 	return (address & ADDRESS_MSK) + (offset << 1);
 }
 
-const u8 *iwlagn_eeprom_query_addr(const struct iwl_priv *priv,
-					   size_t offset)
+const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
 {
 	u32 address = eeprom_indirect_address(priv, offset);
 	BUG_ON(address >= priv->cfg->base_params->eeprom_size);
