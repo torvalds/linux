@@ -458,16 +458,6 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 extern struct lock_class_key xfs_iolock_reclaimable;
 
 /*
- * Flags for xfs_itruncate_start().
- */
-#define	XFS_ITRUNC_DEFINITE	0x1
-#define	XFS_ITRUNC_MAYBE	0x2
-
-#define XFS_ITRUNC_FLAGS \
-	{ XFS_ITRUNC_DEFINITE,	"DEFINITE" }, \
-	{ XFS_ITRUNC_MAYBE,	"MAYBE" }
-
-/*
  * For multiple groups support: if S_ISGID bit is set in the parent
  * directory, group of new file is set to that of the parent, and
  * new subdirectory gets S_ISGID bit from parent.
@@ -501,7 +491,6 @@ uint		xfs_ip2xflags(struct xfs_inode *);
 uint		xfs_dic2xflags(struct xfs_dinode *);
 int		xfs_ifree(struct xfs_trans *, xfs_inode_t *,
 			   struct xfs_bmap_free *);
-int		xfs_itruncate_start(xfs_inode_t *, uint, xfs_fsize_t);
 int		xfs_itruncate_finish(struct xfs_trans **, xfs_inode_t *,
 				     xfs_fsize_t, int, int);
 int		xfs_iunlink(struct xfs_trans *, xfs_inode_t *);

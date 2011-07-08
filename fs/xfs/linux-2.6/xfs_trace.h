@@ -1029,40 +1029,6 @@ DEFINE_SIMPLE_IO_EVENT(xfs_delalloc_enospc);
 DEFINE_SIMPLE_IO_EVENT(xfs_unwritten_convert);
 DEFINE_SIMPLE_IO_EVENT(xfs_get_blocks_notfound);
 
-
-TRACE_EVENT(xfs_itruncate_start,
-	TP_PROTO(struct xfs_inode *ip, xfs_fsize_t new_size, int flag,
-		 xfs_off_t toss_start, xfs_off_t toss_finish),
-	TP_ARGS(ip, new_size, flag, toss_start, toss_finish),
-	TP_STRUCT__entry(
-		__field(dev_t, dev)
-		__field(xfs_ino_t, ino)
-		__field(xfs_fsize_t, size)
-		__field(xfs_fsize_t, new_size)
-		__field(xfs_off_t, toss_start)
-		__field(xfs_off_t, toss_finish)
-		__field(int, flag)
-	),
-	TP_fast_assign(
-		__entry->dev = VFS_I(ip)->i_sb->s_dev;
-		__entry->ino = ip->i_ino;
-		__entry->size = ip->i_d.di_size;
-		__entry->new_size = new_size;
-		__entry->toss_start = toss_start;
-		__entry->toss_finish = toss_finish;
-		__entry->flag = flag;
-	),
-	TP_printk("dev %d:%d ino 0x%llx %s size 0x%llx new_size 0x%llx "
-		  "toss start 0x%llx toss finish 0x%llx",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->ino,
-		  __print_flags(__entry->flag, "|", XFS_ITRUNC_FLAGS),
-		  __entry->size,
-		  __entry->new_size,
-		  __entry->toss_start,
-		  __entry->toss_finish)
-);
-
 DECLARE_EVENT_CLASS(xfs_itrunc_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_fsize_t new_size),
 	TP_ARGS(ip, new_size),
