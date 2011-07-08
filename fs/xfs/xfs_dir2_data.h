@@ -98,14 +98,15 @@ typedef struct xfs_dir2_data_hdr {
 
 /*
  * Active entry in a data block.  Aligned to 8 bytes.
- * Tag appears as the last 2 bytes.
+ *
+ * After the variable length name field there is a 2 byte tag field, which
+ * can be accessed using xfs_dir2_data_entry_tag_p.
  */
 typedef struct xfs_dir2_data_entry {
 	__be64			inumber;	/* inode number */
 	__u8			namelen;	/* name length */
-	__u8			name[1];	/* name bytes, no null */
-						/* variable offset */
-	__be16			tag;		/* starting offset of us */
+	__u8			name[];		/* name bytes, no null */
+     /*	__be16                  tag; */		/* starting offset of us */
 } xfs_dir2_data_entry_t;
 
 /*
