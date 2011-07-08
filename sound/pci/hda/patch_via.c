@@ -1802,7 +1802,7 @@ static void mangle_smart51(struct hda_codec *codec)
 			for (j = 0; j < nums; j++)
 				if (ins[pins[j]].type < ins[i].type) {
 					memmove(pins + j + 1, pins + j,
-						(nums - j - 1) * sizeof(int));
+						(nums - j) * sizeof(int));
 					break;
 				}
 			pins[j] = i;
