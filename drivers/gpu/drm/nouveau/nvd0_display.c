@@ -31,12 +31,9 @@
 #include "nouveau_connector.h"
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
+#include "nouveau_dma.h"
 #include "nouveau_fb.h"
 #include "nv50_display.h"
-
-#define MEM_SYNC 0xe0000001
-#define MEM_VRAM 0xe0010000
-#include "nouveau_dma.h"
 
 struct nvd0_display {
 	struct nouveau_gpuobj *mem;
@@ -56,7 +53,7 @@ nvd0_display(struct drm_device *dev)
 	return dev_priv->engine.display.priv;
 }
 
-static int
+static inline int
 evo_icmd(struct drm_device *dev, int id, u32 mthd, u32 data)
 {
 	int ret = 0;
@@ -237,7 +234,7 @@ nvd0_crtc_cursor_show(struct nouveau_crtc *nv_crtc, bool show, bool update)
 			evo_data(push, 0x85000000);
 			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
 			evo_mthd(push, 0x048c + (nv_crtc->index * 0x300), 1);
-			evo_data(push, MEM_VRAM);
+			evo_data(push, NvEvoVRAM);
 		} else {
 			evo_mthd(push, 0x0480 + (nv_crtc->index * 0x300), 1);
 			evo_data(push, 0x05000000);
@@ -295,7 +292,7 @@ nvd0_crtc_commit(struct drm_crtc *crtc)
 		evo_data(push, 0x00000000);
 		evo_data(push, 0x00000000);
 		evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
-		evo_data(push, MEM_VRAM);
+		evo_data(push, NvEvoVRAM);
 		evo_mthd(push, 0x0430 + (nv_crtc->index * 0x300), 1);
 		evo_data(push, 0xffffff00);
 		evo_kick(push, crtc->dev, 0);
@@ -958,23 +955,6 @@ nvd0_sor_create(struct drm_connector *connector, struct dcb_entry *dcbe)
 /******************************************************************************
  * IRQ
  *****************************************************************************/
-static void
-debug_irq(struct drm_device *dev, int i)
-{
-	if (drm_debug & (DRM_UT_DRIVER | DRM_UT_KMS)) {
-		NV_INFO(dev, "PDISP: modeset req %d\n", i);
-		NV_INFO(dev, " STAT: 0x%08x 0x%08x 0x%08x\n",
-			 nv_rd32(dev, 0x6101d0),
-			 nv_rd32(dev, 0x6101d4), nv_rd32(dev, 0x6109d4));
-		for (i = 0; i < 8; i++) {
-			NV_INFO(dev, " %s%d: 0x%08x 0x%08x\n",
-				i < 4 ? "DAC" : "SOR", i,
-				nv_rd32(dev, 0x640180 + (i * 0x20)),
-				nv_rd32(dev, 0x660180 + (i * 0x20)));
-		}
-	}
-}
-
 static struct dcb_entry *
 lookup_dcb(struct drm_device *dev, int id, u32 mc)
 {
@@ -1009,19 +989,10 @@ lookup_dcb(struct drm_device *dev, int id, u32 mc)
 }
 
 static void
-nvd0_display_unk1_handler(struct drm_device *dev)
+nvd0_display_unk1_handler(struct drm_device *dev, u32 crtc, u32 mask)
 {
 	struct dcb_entry *dcb;
-	u32 mask, crtc;
 	int i;
-
-	mask = nv_rd32(dev, 0x6101d4);
-	crtc = 0;
-	if (!mask) {
-		mask = nv_rd32(dev, 0x6109d4);
-		crtc = 1;
-	}
-	debug_irq(dev, 1);
 
 	for (i = 0; mask && i < 8; i++) {
 		u32 mcc = nv_rd32(dev, 0x640180 + (i * 0x20));
@@ -1041,20 +1012,11 @@ nvd0_display_unk1_handler(struct drm_device *dev)
 }
 
 static void
-nvd0_display_unk2_handler(struct drm_device *dev)
+nvd0_display_unk2_handler(struct drm_device *dev, u32 crtc, u32 mask)
 {
 	struct dcb_entry *dcb;
-	u32 mask, crtc, pclk;
-	u32 or, tmp;
+	u32 or, tmp, pclk;
 	int i;
-
-	mask = nv_rd32(dev, 0x6101d4);
-	crtc = 0;
-	if (!mask) {
-		mask = nv_rd32(dev, 0x6109d4);
-		crtc = 1;
-	}
-	debug_irq(dev, 2);
 
 	for (i = 0; mask && i < 8; i++) {
 		u32 mcc = nv_rd32(dev, 0x640180 + (i * 0x20));
@@ -1113,19 +1075,10 @@ nvd0_display_unk2_handler(struct drm_device *dev)
 }
 
 static void
-nvd0_display_unk4_handler(struct drm_device *dev)
+nvd0_display_unk4_handler(struct drm_device *dev, u32 crtc, u32 mask)
 {
 	struct dcb_entry *dcb;
-	u32 mask, crtc;
 	int pclk, i;
-
-	mask = nv_rd32(dev, 0x6101d4);
-	crtc = 0;
-	if (!mask) {
-		mask = nv_rd32(dev, 0x6109d4);
-		crtc = 1;
-	}
-	debug_irq(dev, 4);
 
 	pclk = nv_rd32(dev, 0x660450 + (crtc * 0x300)) / 1000;
 
@@ -1152,13 +1105,35 @@ nvd0_display_bh(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	struct nvd0_display *disp = nvd0_display(dev);
+	u32 mask, crtc;
+	int i;
+
+	if (drm_debug & (DRM_UT_DRIVER | DRM_UT_KMS)) {
+		NV_INFO(dev, "PDISP: modeset req %d\n", disp->modeset);
+		NV_INFO(dev, " STAT: 0x%08x 0x%08x 0x%08x\n",
+			 nv_rd32(dev, 0x6101d0),
+			 nv_rd32(dev, 0x6101d4), nv_rd32(dev, 0x6109d4));
+		for (i = 0; i < 8; i++) {
+			NV_INFO(dev, " %s%d: 0x%08x 0x%08x\n",
+				i < 4 ? "DAC" : "SOR", i,
+				nv_rd32(dev, 0x640180 + (i * 0x20)),
+				nv_rd32(dev, 0x660180 + (i * 0x20)));
+		}
+	}
+
+	mask = nv_rd32(dev, 0x6101d4);
+	crtc = 0;
+	if (!mask) {
+		mask = nv_rd32(dev, 0x6109d4);
+		crtc = 1;
+	}
 
 	if (disp->modeset & 0x00000001)
-		nvd0_display_unk1_handler(dev);
+		nvd0_display_unk1_handler(dev, crtc, mask);
 	if (disp->modeset & 0x00000002)
-		nvd0_display_unk2_handler(dev);
+		nvd0_display_unk2_handler(dev, crtc, mask);
 	if (disp->modeset & 0x00000004)
-		nvd0_display_unk4_handler(dev);
+		nvd0_display_unk4_handler(dev, crtc, mask);
 }
 
 static void
@@ -1324,7 +1299,7 @@ nvd0_display_init(struct drm_device *dev)
 	if (!push)
 		return -EBUSY;
 	evo_mthd(push, 0x0088, 1);
-	evo_data(push, MEM_SYNC);
+	evo_data(push, NvEvoSync);
 	evo_mthd(push, 0x0084, 1);
 	evo_data(push, 0x00000000);
 	evo_mthd(push, 0x0084, 1);
@@ -1430,7 +1405,7 @@ nvd0_display_create(struct drm_device *dev)
 	nv_wo32(disp->mem, 0x100c, 0x00000000);
 	nv_wo32(disp->mem, 0x1010, 0x00000000);
 	nv_wo32(disp->mem, 0x1014, 0x00000000);
-	nv_wo32(disp->mem, 0x0000, MEM_SYNC);
+	nv_wo32(disp->mem, 0x0000, NvEvoSync);
 	nv_wo32(disp->mem, 0x0004, (0x1000 << 9) | 0x00000001);
 
 	nv_wo32(disp->mem, 0x1020, 0x00000049);
@@ -1439,7 +1414,7 @@ nvd0_display_create(struct drm_device *dev)
 	nv_wo32(disp->mem, 0x102c, 0x00000000);
 	nv_wo32(disp->mem, 0x1030, 0x00000000);
 	nv_wo32(disp->mem, 0x1034, 0x00000000);
-	nv_wo32(disp->mem, 0x0008, MEM_VRAM);
+	nv_wo32(disp->mem, 0x0008, NvEvoVRAM);
 	nv_wo32(disp->mem, 0x000c, (0x1020 << 9) | 0x00000001);
 
 	nv_wo32(disp->mem, 0x1040, 0x00000009);
