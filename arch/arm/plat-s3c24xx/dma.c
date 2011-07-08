@@ -1027,17 +1027,13 @@ int s3c2410_dma_config(unsigned int channel,
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 	unsigned int dcon;
 
-	pr_debug("%s: chan=%d, xfer_unit=%d, dcon=%08x\n",
-		 __func__, channel, xferunit, dcon);
+	pr_debug("%s: chan=%d, xfer_unit=%d\n", __func__, channel, xferunit);
 
 	if (chan == NULL)
 		return -EINVAL;
 
-	pr_debug("%s: Initial dcon is %08x\n", __func__, dcon);
-
 	dcon = chan->dcon & dma_sel.dcon_mask;
-
-	pr_debug("%s: New dcon is %08x\n", __func__, dcon);
+	pr_debug("%s: dcon is %08x\n", __func__, dcon);
 
 	switch (chan->req_ch) {
 	case DMACH_I2S_IN:
