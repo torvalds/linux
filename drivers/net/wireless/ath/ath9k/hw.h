@@ -143,6 +143,8 @@
 #define AR_KEYTABLE_SIZE            128
 #define POWER_UP_TIME               10000
 #define SPUR_RSSI_THRESH            40
+#define UPPER_5G_SUB_BAND_START		5700
+#define MID_5G_SUB_BAND_START		5400
 
 #define CAB_TIMEOUT_VAL             10
 #define BEACON_TIMEOUT_VAL          10
