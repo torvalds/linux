@@ -4193,119 +4193,6 @@ static int patch_alc882(struct hda_codec *codec)
 /*
  * ALC262 support
  */
-
-/* We use two mixers depending on the output pin; 0x16 is a mono output
- * and thus it's bound with a different mixer.
- * This function returns which mixer amp should be used.
- */
-static int alc262_check_volbit(hda_nid_t nid)
-{
-	if (!nid)
-		return 0;
-	else if (nid == 0x16)
-		return 2;
-	else
-		return 1;
-}
-
-static int alc262_add_out_vol_ctl(struct alc_spec *spec, hda_nid_t nid,
-				  const char *pfx, int *vbits, int idx)
-{
-	unsigned long val;
-	int vbit;
-
-	vbit = alc262_check_volbit(nid);
-	if (!vbit)
-		return 0;
-	if (*vbits & vbit) /* a volume control for this mixer already there */
-		return 0;
-	*vbits |= vbit;
-	if (vbit == 2)
-		val = HDA_COMPOSE_AMP_VAL(0x0e, 2, 0, HDA_OUTPUT);
-	else
-		val = HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT);
-	return __add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, pfx, idx, val);
-}
-
-static int alc262_add_out_sw_ctl(struct alc_spec *spec, hda_nid_t nid,
-				 const char *pfx, int idx)
-{
-	unsigned long val;
-
-	if (!nid)
-		return 0;
-	if (nid == 0x16)
-		val = HDA_COMPOSE_AMP_VAL(nid, 2, 0, HDA_OUTPUT);
-	else
-		val = HDA_COMPOSE_AMP_VAL(nid, 3, 0, HDA_OUTPUT);
-	return __add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx, idx, val);
-}
-
-/* add playback controls from the parsed DAC table */
-static int alc262_auto_create_multi_out_ctls(struct alc_spec *spec,
-					     const struct auto_pin_cfg *cfg)
-{
-	const char *pfx;
-	int vbits;
-	int i, index, err;
-
-	spec->multiout.num_dacs = 1;	/* only use one dac */
-	spec->multiout.dac_nids = spec->private_dac_nids;
-	spec->private_dac_nids[0] = 2;
-
-	for (i = 0; i < 2; i++) {
-		pfx = alc_get_line_out_pfx(spec, i, true, &index);
-		if (!pfx)
-			pfx = "PCM";
-		err = alc262_add_out_sw_ctl(spec, cfg->line_out_pins[i], pfx,
-					    index);
-		if (err < 0)
-			return err;
-		if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
-			err = alc262_add_out_sw_ctl(spec, cfg->speaker_pins[i],
-						    "Speaker", i);
-			if (err < 0)
-				return err;
-		}
-		if (cfg->line_out_type != AUTO_PIN_HP_OUT) {
-			err = alc262_add_out_sw_ctl(spec, cfg->hp_pins[i],
-						    "Headphone", i);
-			if (err < 0)
-				return err;
-		}
-	}
-
-	vbits = alc262_check_volbit(cfg->line_out_pins[0]) |
-		alc262_check_volbit(cfg->speaker_pins[0]) |
-		alc262_check_volbit(cfg->hp_pins[0]);
-	vbits = 0;
-	for (i = 0; i < 2; i++) {
-		pfx = alc_get_line_out_pfx(spec, i, true, &index);
-		if (!pfx)
-			pfx = "PCM";
-		err = alc262_add_out_vol_ctl(spec, cfg->line_out_pins[i], pfx,
-					     &vbits, i);
-		if (err < 0)
-			return err;
-		if (cfg->line_out_type != AUTO_PIN_SPEAKER_OUT) {
-			err = alc262_add_out_vol_ctl(spec, cfg->speaker_pins[i],
-						     "Speaker", &vbits, i);
-			if (err < 0)
-				return err;
-		}
-		if (cfg->line_out_type != AUTO_PIN_HP_OUT) {
-			err = alc262_add_out_vol_ctl(spec, cfg->hp_pins[i],
-						     "Headphone", &vbits, i);
-			if (err < 0)
-				return err;
-		}
-	}
-	return 0;
-}
-
-/*
- * BIOS auto configuration
- */
 static int alc262_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -4324,7 +4211,16 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 		}
 		return 0; /* can't find valid BIOS pin config */
 	}
-	err = alc262_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	err = alc_auto_fill_dac_nids(codec);
+	if (err < 0)
+		return err;
+	err = alc_auto_create_multi_out_ctls(codec, &spec->autocfg);
+	if (err < 0)
+		return err;
+	err = alc_auto_create_hp_out(codec);
+	if (err < 0)
+		return err;
+	err = alc_auto_create_speaker_out(codec);
 	if (err < 0)
 		return err;
 	err = alc_auto_create_input_ctls(codec);
