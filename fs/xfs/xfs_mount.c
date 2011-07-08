@@ -1566,15 +1566,9 @@ xfs_fs_writable(xfs_mount_t *mp)
 }
 
 /*
- * xfs_log_sbcount
- *
  * Called either periodically to keep the on disk superblock values
  * roughly up to date or from unmount to make sure the values are
  * correct on a clean unmount.
- *
- * Note this code can be called during the process of freezing, so
- * we may need to use the transaction allocator which does not not
- * block when the transaction subsystem is in its frozen state.
  */
 int
 xfs_log_sbcount(
@@ -1596,7 +1590,13 @@ xfs_log_sbcount(
 	if (!xfs_sb_version_haslazysbcount(&mp->m_sb))
 		return 0;
 
-	tp = _xfs_trans_alloc(mp, XFS_TRANS_SB_COUNT, KM_SLEEP);
+	/*
+	 * We can be called during the process of freezing, so make sure
+	 * we go ahead even if the frozen for new transactions.  We will
+	 * always use a sync transaction in the freeze path to make sure
+	 * the transaction has completed by the time we return.
+	 */
+	tp = _xfs_trans_alloc(mp, XFS_TRANS_SB_COUNT, KM_SLEEP, false);
 	error = xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
 					XFS_DEFAULT_LOG_COUNT);
 	if (error) {

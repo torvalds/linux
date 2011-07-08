@@ -566,30 +566,23 @@ xfs_trans_init(
 
 /*
  * This routine is called to allocate a transaction structure.
+ *
  * The type parameter indicates the type of the transaction.  These
  * are enumerated in xfs_trans.h.
- *
- * Dynamically allocate the transaction structure from the transaction
- * zone, initialize it, and return it to the caller.
  */
-xfs_trans_t *
-xfs_trans_alloc(
-	xfs_mount_t	*mp,
-	uint		type)
-{
-	xfs_wait_for_freeze(mp, SB_FREEZE_TRANS);
-	return _xfs_trans_alloc(mp, type, KM_SLEEP);
-}
-
-xfs_trans_t *
+struct xfs_trans *
 _xfs_trans_alloc(
-	xfs_mount_t	*mp,
-	uint		type,
-	uint		memflags)
+	struct xfs_mount	*mp,
+	uint			type,
+	uint			memflags,
+	bool			wait_for_freeze)
 {
-	xfs_trans_t	*tp;
+	struct xfs_trans	*tp;
 
 	atomic_inc(&mp->m_active_trans);
+
+	if (wait_for_freeze)
+		xfs_wait_for_freeze(mp, SB_FREEZE_TRANS);
 
 	tp = kmem_zone_zalloc(xfs_trans_zone, memflags);
 	tp->t_magic = XFS_TRANS_MAGIC;
