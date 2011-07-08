@@ -1482,8 +1482,7 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 
 	dpfc_ctl = I915_READ(DPFC_CONTROL);
 	if (dpfc_ctl & DPFC_CTL_EN) {
-		if (dev_priv->cfb_pitch == dev_priv->cfb_pitch / 64 - 1 &&
-		    dev_priv->cfb_fence == obj->fence_reg &&
+		if (dev_priv->cfb_fence == obj->fence_reg &&
 		    dev_priv->cfb_plane == intel_crtc->plane &&
 		    dev_priv->cfb_y == crtc->y)
 			return;
@@ -1492,7 +1491,6 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
-	dev_priv->cfb_pitch = (dev_priv->cfb_pitch / 64) - 1;
 	dev_priv->cfb_fence = obj->fence_reg;
 	dev_priv->cfb_plane = intel_crtc->plane;
 	dev_priv->cfb_y = crtc->y;
@@ -1572,8 +1570,7 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 
 	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
 	if (dpfc_ctl & DPFC_CTL_EN) {
-		if (dev_priv->cfb_pitch == dev_priv->cfb_pitch / 64 - 1 &&
-		    dev_priv->cfb_fence == obj->fence_reg &&
+		if (dev_priv->cfb_fence == obj->fence_reg &&
 		    dev_priv->cfb_plane == intel_crtc->plane &&
 		    dev_priv->cfb_offset == obj->gtt_offset &&
 		    dev_priv->cfb_y == crtc->y)
@@ -1583,7 +1580,6 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 	}
 
-	dev_priv->cfb_pitch = (dev_priv->cfb_pitch / 64) - 1;
 	dev_priv->cfb_fence = obj->fence_reg;
 	dev_priv->cfb_plane = intel_crtc->plane;
 	dev_priv->cfb_offset = obj->gtt_offset;
