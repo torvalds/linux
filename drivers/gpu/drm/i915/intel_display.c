@@ -1384,6 +1384,28 @@ static void intel_disable_pch_ports(struct drm_i915_private *dev_priv,
 	disable_pch_hdmi(dev_priv, pipe, HDMID);
 }
 
+static void i8xx_disable_fbc(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 fbc_ctl;
+
+	/* Disable compression */
+	fbc_ctl = I915_READ(FBC_CONTROL);
+	if ((fbc_ctl & FBC_CTL_EN) == 0)
+		return;
+
+	fbc_ctl &= ~FBC_CTL_EN;
+	I915_WRITE(FBC_CONTROL, fbc_ctl);
+
+	/* Wait for compressing bit to clear */
+	if (wait_for((I915_READ(FBC_STATUS) & FBC_STAT_COMPRESSING) == 0, 10)) {
+		DRM_DEBUG_KMS("FBC idle timed out\n");
+		return;
+	}
+
+	DRM_DEBUG_KMS("disabled FBC\n");
+}
+
 static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1437,28 +1459,6 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 
 	DRM_DEBUG_KMS("enabled FBC, pitch %ld, yoff %d, plane %d, ",
 		      dev_priv->cfb_pitch, crtc->y, dev_priv->cfb_plane);
-}
-
-void i8xx_disable_fbc(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 fbc_ctl;
-
-	/* Disable compression */
-	fbc_ctl = I915_READ(FBC_CONTROL);
-	if ((fbc_ctl & FBC_CTL_EN) == 0)
-		return;
-
-	fbc_ctl &= ~FBC_CTL_EN;
-	I915_WRITE(FBC_CONTROL, fbc_ctl);
-
-	/* Wait for compressing bit to clear */
-	if (wait_for((I915_READ(FBC_STATUS) & FBC_STAT_COMPRESSING) == 0, 10)) {
-		DRM_DEBUG_KMS("FBC idle timed out\n");
-		return;
-	}
-
-	DRM_DEBUG_KMS("disabled FBC\n");
 }
 
 static bool i8xx_fbc_enabled(struct drm_device *dev)
@@ -1516,7 +1516,7 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
 }
 
-void g4x_disable_fbc(struct drm_device *dev)
+static void g4x_disable_fbc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 dpfc_ctl;
@@ -1616,7 +1616,7 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
 }
 
-void ironlake_disable_fbc(struct drm_device *dev)
+static void ironlake_disable_fbc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 dpfc_ctl;
@@ -1648,7 +1648,7 @@ bool intel_fbc_enabled(struct drm_device *dev)
 	return dev_priv->display.fbc_enabled(dev);
 }
 
-void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
+static void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 {
 	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
 
