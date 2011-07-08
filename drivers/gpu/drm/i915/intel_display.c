@@ -1441,9 +1441,8 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		I915_WRITE(FBC_TAG + (i * 4), 0);
 
 	/* Set it up... */
-	fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM | plane;
-	if (obj->tiling_mode != I915_TILING_NONE)
-		fbc_ctl2 |= FBC_CTL_CPU_FENCE;
+	fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM | FBC_CTL_CPU_FENCE;
+	fbc_ctl2 |= plane;
 	I915_WRITE(FBC_CONTROL2, fbc_ctl2);
 	I915_WRITE(FBC_FENCE_OFF, crtc->y);
 
@@ -1453,8 +1452,7 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
 	fbc_ctl |= (dev_priv->cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
 	fbc_ctl |= (interval & 0x2fff) << FBC_CTL_INTERVAL_SHIFT;
-	if (obj->tiling_mode != I915_TILING_NONE)
-		fbc_ctl |= dev_priv->cfb_fence;
+	fbc_ctl |= dev_priv->cfb_fence;
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
 	DRM_DEBUG_KMS("enabled FBC, pitch %ld, yoff %d, plane %d, ",
@@ -1496,12 +1494,8 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	dev_priv->cfb_y = crtc->y;
 
 	dpfc_ctl = plane | DPFC_SR_EN | DPFC_CTL_LIMIT_1X;
-	if (obj->tiling_mode != I915_TILING_NONE) {
-		dpfc_ctl |= DPFC_CTL_FENCE_EN | dev_priv->cfb_fence;
-		I915_WRITE(DPFC_CHICKEN, DPFC_HT_MODIFY);
-	} else {
-		I915_WRITE(DPFC_CHICKEN, ~DPFC_HT_MODIFY);
-	}
+	dpfc_ctl |= DPFC_CTL_FENCE_EN | dev_priv->cfb_fence;
+	I915_WRITE(DPFC_CHICKEN, DPFC_HT_MODIFY);
 
 	I915_WRITE(DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
 		   (stall_watermark << DPFC_RECOMP_STALL_WM_SHIFT) |
@@ -1587,12 +1581,8 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 
 	dpfc_ctl &= DPFC_RESERVED;
 	dpfc_ctl |= (plane | DPFC_CTL_LIMIT_1X);
-	if (obj->tiling_mode != I915_TILING_NONE) {
-		dpfc_ctl |= (DPFC_CTL_FENCE_EN | dev_priv->cfb_fence);
-		I915_WRITE(ILK_DPFC_CHICKEN, DPFC_HT_MODIFY);
-	} else {
-		I915_WRITE(ILK_DPFC_CHICKEN, ~DPFC_HT_MODIFY);
-	}
+	dpfc_ctl |= (DPFC_CTL_FENCE_EN | dev_priv->cfb_fence);
+	I915_WRITE(ILK_DPFC_CHICKEN, DPFC_HT_MODIFY);
 
 	I915_WRITE(ILK_DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
 		   (stall_watermark << DPFC_RECOMP_STALL_WM_SHIFT) |
@@ -1760,8 +1750,13 @@ static void intel_update_fbc(struct drm_device *dev)
 		dev_priv->no_fbc_reason = FBC_BAD_PLANE;
 		goto out_disable;
 	}
-	if (obj->tiling_mode != I915_TILING_X) {
-		DRM_DEBUG_KMS("framebuffer not tiled, disabling compression\n");
+
+	/* The use of a CPU fence is mandatory in order to detect writes
+	 * by the CPU to the scanout and trigger updates to the FBC.
+	 */
+	if (obj->tiling_mode != I915_TILING_X ||
+	    obj->fence_reg == I915_FENCE_REG_NONE) {
+		DRM_DEBUG_KMS("framebuffer not tiled or fenced, disabling compression\n");
 		dev_priv->no_fbc_reason = FBC_NOT_TILED;
 		goto out_disable;
 	}
