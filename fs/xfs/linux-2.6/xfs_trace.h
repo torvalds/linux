@@ -293,7 +293,7 @@ DECLARE_EVENT_CLASS(xfs_buf_class,
 		__entry->buffer_length = bp->b_buffer_length;
 		__entry->hold = atomic_read(&bp->b_hold);
 		__entry->pincount = atomic_read(&bp->b_pin_count);
-		__entry->lockval = xfs_buf_lock_value(bp);
+		__entry->lockval = bp->b_sema.count;
 		__entry->flags = bp->b_flags;
 		__entry->caller_ip = caller_ip;
 	),
@@ -323,7 +323,7 @@ DEFINE_BUF_EVENT(xfs_buf_bawrite);
 DEFINE_BUF_EVENT(xfs_buf_bdwrite);
 DEFINE_BUF_EVENT(xfs_buf_lock);
 DEFINE_BUF_EVENT(xfs_buf_lock_done);
-DEFINE_BUF_EVENT(xfs_buf_cond_lock);
+DEFINE_BUF_EVENT(xfs_buf_trylock);
 DEFINE_BUF_EVENT(xfs_buf_unlock);
 DEFINE_BUF_EVENT(xfs_buf_iowait);
 DEFINE_BUF_EVENT(xfs_buf_iowait_done);
@@ -366,7 +366,7 @@ DECLARE_EVENT_CLASS(xfs_buf_flags_class,
 		__entry->flags = flags;
 		__entry->hold = atomic_read(&bp->b_hold);
 		__entry->pincount = atomic_read(&bp->b_pin_count);
-		__entry->lockval = xfs_buf_lock_value(bp);
+		__entry->lockval = bp->b_sema.count;
 		__entry->caller_ip = caller_ip;
 	),
 	TP_printk("dev %d:%d bno 0x%llx len 0x%zx hold %d pincount %d "
@@ -409,7 +409,7 @@ TRACE_EVENT(xfs_buf_ioerror,
 		__entry->buffer_length = bp->b_buffer_length;
 		__entry->hold = atomic_read(&bp->b_hold);
 		__entry->pincount = atomic_read(&bp->b_pin_count);
-		__entry->lockval = xfs_buf_lock_value(bp);
+		__entry->lockval = bp->b_sema.count;
 		__entry->error = error;
 		__entry->flags = bp->b_flags;
 		__entry->caller_ip = caller_ip;
@@ -454,7 +454,7 @@ DECLARE_EVENT_CLASS(xfs_buf_item_class,
 		__entry->buf_flags = bip->bli_buf->b_flags;
 		__entry->buf_hold = atomic_read(&bip->bli_buf->b_hold);
 		__entry->buf_pincount = atomic_read(&bip->bli_buf->b_pin_count);
-		__entry->buf_lockval = xfs_buf_lock_value(bip->bli_buf);
+		__entry->buf_lockval = bip->bli_buf->b_sema.count;
 		__entry->li_desc = bip->bli_item.li_desc;
 		__entry->li_flags = bip->bli_item.li_flags;
 	),

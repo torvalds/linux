@@ -499,16 +499,14 @@ found:
 	spin_unlock(&pag->pag_buf_lock);
 	xfs_perag_put(pag);
 
-	if (xfs_buf_cond_lock(bp)) {
-		/* failed, so wait for the lock if requested. */
-		if (!(flags & XBF_TRYLOCK)) {
-			xfs_buf_lock(bp);
-			XFS_STATS_INC(xb_get_locked_waited);
-		} else {
+	if (!xfs_buf_trylock(bp)) {
+		if (flags & XBF_TRYLOCK) {
 			xfs_buf_rele(bp);
 			XFS_STATS_INC(xb_busy_locked);
 			return NULL;
 		}
+		xfs_buf_lock(bp);
+		XFS_STATS_INC(xb_get_locked_waited);
 	}
 
 	/*
@@ -896,8 +894,8 @@ xfs_buf_rele(
  *	to push on stale inode buffers.
  */
 int
-xfs_buf_cond_lock(
-	xfs_buf_t		*bp)
+xfs_buf_trylock(
+	struct xfs_buf		*bp)
 {
 	int			locked;
 
@@ -907,15 +905,8 @@ xfs_buf_cond_lock(
 	else if (atomic_read(&bp->b_pin_count) && (bp->b_flags & XBF_STALE))
 		xfs_log_force(bp->b_target->bt_mount, 0);
 
-	trace_xfs_buf_cond_lock(bp, _RET_IP_);
-	return locked ? 0 : -EBUSY;
-}
-
-int
-xfs_buf_lock_value(
-	xfs_buf_t		*bp)
-{
-	return bp->b_sema.count;
+	trace_xfs_buf_trylock(bp, _RET_IP_);
+	return locked;
 }
 
 /*
@@ -929,7 +920,7 @@ xfs_buf_lock_value(
  */
 void
 xfs_buf_lock(
-	xfs_buf_t		*bp)
+	struct xfs_buf		*bp)
 {
 	trace_xfs_buf_lock(bp, _RET_IP_);
 
@@ -950,7 +941,7 @@ xfs_buf_lock(
  */
 void
 xfs_buf_unlock(
-	xfs_buf_t		*bp)
+	struct xfs_buf		*bp)
 {
 	if ((bp->b_flags & (XBF_DELWRI|_XBF_DELWRI_Q)) == XBF_DELWRI) {
 		atomic_inc(&bp->b_hold);
@@ -1694,7 +1685,7 @@ xfs_buf_delwri_split(
 	list_for_each_entry_safe(bp, n, dwq, b_list) {
 		ASSERT(bp->b_flags & XBF_DELWRI);
 
-		if (!XFS_BUF_ISPINNED(bp) && !xfs_buf_cond_lock(bp)) {
+		if (!XFS_BUF_ISPINNED(bp) && xfs_buf_trylock(bp)) {
 			if (!force &&
 			    time_before(jiffies, bp->b_queuetime + age)) {
 				xfs_buf_unlock(bp);

@@ -160,7 +160,7 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 	 */
 	bp = xfs_trans_buf_item_match(tp, target_dev, blkno, len);
 	if (bp != NULL) {
-		ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+		ASSERT(xfs_buf_islocked(bp));
 		if (XFS_FORCED_SHUTDOWN(tp->t_mountp))
 			XFS_BUF_SUPER_STALE(bp);
 
@@ -327,7 +327,7 @@ xfs_trans_read_buf(
 	 */
 	bp = xfs_trans_buf_item_match(tp, target, blkno, len);
 	if (bp != NULL) {
-		ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+		ASSERT(xfs_buf_islocked(bp));
 		ASSERT(XFS_BUF_FSPRIVATE2(bp, xfs_trans_t *) == tp);
 		ASSERT(XFS_BUF_FSPRIVATE(bp, void *) != NULL);
 		ASSERT((XFS_BUF_ISERROR(bp)) == 0);

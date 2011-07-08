@@ -187,10 +187,11 @@ extern void xfs_buf_free(xfs_buf_t *);
 extern void xfs_buf_rele(xfs_buf_t *);
 
 /* Locking and Unlocking Buffers */
-extern int xfs_buf_cond_lock(xfs_buf_t *);
-extern int xfs_buf_lock_value(xfs_buf_t *);
+extern int xfs_buf_trylock(xfs_buf_t *);
 extern void xfs_buf_lock(xfs_buf_t *);
 extern void xfs_buf_unlock(xfs_buf_t *);
+#define xfs_buf_islocked(bp) \
+	((bp)->b_sema.count <= 0)
 
 /* Buffer Read and Write Routines */
 extern int xfs_bwrite(struct xfs_mount *mp, struct xfs_buf *bp);
@@ -308,10 +309,6 @@ xfs_buf_set_ref(
 
 #define XFS_BUF_ISPINNED(bp)	atomic_read(&((bp)->b_pin_count))
 
-#define XFS_BUF_VALUSEMA(bp)	xfs_buf_lock_value(bp)
-#define XFS_BUF_CPSEMA(bp)	(xfs_buf_cond_lock(bp) == 0)
-#define XFS_BUF_VSEMA(bp)	xfs_buf_unlock(bp)
-#define XFS_BUF_PSEMA(bp,x)	xfs_buf_lock(bp)
 #define XFS_BUF_FINISH_IOWAIT(bp)	complete(&bp->b_iowait);
 
 #define XFS_BUF_SET_TARGET(bp, target)	((bp)->b_target = (target))

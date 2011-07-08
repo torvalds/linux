@@ -1941,22 +1941,19 @@ unwind:
  * the superblock buffer if it can be locked without sleeping.
  * If it can't then we'll return NULL.
  */
-xfs_buf_t *
+struct xfs_buf *
 xfs_getsb(
-	xfs_mount_t	*mp,
-	int		flags)
+	struct xfs_mount	*mp,
+	int			flags)
 {
-	xfs_buf_t	*bp;
+	struct xfs_buf		*bp = mp->m_sb_bp;
 
-	ASSERT(mp->m_sb_bp != NULL);
-	bp = mp->m_sb_bp;
-	if (flags & XBF_TRYLOCK) {
-		if (!XFS_BUF_CPSEMA(bp)) {
+	if (!xfs_buf_trylock(bp)) {
+		if (flags & XBF_TRYLOCK)
 			return NULL;
-		}
-	} else {
-		XFS_BUF_PSEMA(bp, PRIBIO);
+		xfs_buf_lock(bp);
 	}
+
 	XFS_BUF_HOLD(bp);
 	ASSERT(XFS_BUF_ISDONE(bp));
 	return bp;

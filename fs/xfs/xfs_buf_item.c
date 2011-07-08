@@ -420,7 +420,7 @@ xfs_buf_item_unpin(
 
 	if (freed && stale) {
 		ASSERT(bip->bli_flags & XFS_BLI_STALE);
-		ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+		ASSERT(xfs_buf_islocked(bp));
 		ASSERT(!(XFS_BUF_ISDELAYWRITE(bp)));
 		ASSERT(XFS_BUF_ISSTALE(bp));
 		ASSERT(bip->bli_format.blf_flags & XFS_BLF_CANCEL);
@@ -483,7 +483,7 @@ xfs_buf_item_trylock(
 
 	if (XFS_BUF_ISPINNED(bp))
 		return XFS_ITEM_PINNED;
-	if (!XFS_BUF_CPSEMA(bp))
+	if (!xfs_buf_trylock(bp))
 		return XFS_ITEM_LOCKED;
 
 	/* take a reference to the buffer.  */
@@ -905,7 +905,7 @@ xfs_buf_attach_iodone(
 	xfs_log_item_t	*head_lip;
 
 	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+	ASSERT(xfs_buf_islocked(bp));
 
 	lip->li_cb = cb;
 	if (XFS_BUF_FSPRIVATE(bp, void *) != NULL) {

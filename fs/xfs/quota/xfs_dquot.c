@@ -318,7 +318,7 @@ xfs_qm_init_dquot_blk(
 
 	ASSERT(tp);
 	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+	ASSERT(xfs_buf_islocked(bp));
 
 	d = (xfs_dqblk_t *)XFS_BUF_PTR(bp);
 
@@ -534,7 +534,7 @@ xfs_qm_dqtobp(
 	}
 
 	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+	ASSERT(xfs_buf_islocked(bp));
 
 	/*
 	 * calculate the location of the dquot inside the buffer.
@@ -622,7 +622,7 @@ xfs_qm_dqread(
 	 * brelse it because we have the changes incore.
 	 */
 	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+	ASSERT(xfs_buf_islocked(bp));
 	xfs_trans_brelse(tp, bp);
 
 	return (error);
