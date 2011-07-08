@@ -111,7 +111,7 @@ static int iwl_send_led_cmd(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd)
 	if (reg != (reg & CSR_LED_BSM_CTRL_MSK))
 		iwl_write32(priv, CSR_LED_REG, reg & CSR_LED_BSM_CTRL_MSK);
 
-	return iwl_send_cmd(priv, &cmd);
+	return priv->trans.ops->send_cmd(priv, &cmd);
 }
 
 /* Set led pattern command */

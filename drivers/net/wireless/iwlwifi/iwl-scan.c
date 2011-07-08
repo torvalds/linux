@@ -61,7 +61,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	struct iwl_rx_packet *pkt;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_ABORT_CMD,
-		.flags = CMD_WANT_SKB,
+		.flags = CMD_SYNC | CMD_WANT_SKB,
 	};
 
 	/* Exit instantly with error when device is not ready
@@ -74,7 +74,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	    test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EIO;
 
-	ret = iwl_send_cmd_sync(priv, &cmd);
+	ret = priv->trans.ops->send_cmd(priv, &cmd);
 	if (ret)
 		return ret;
 

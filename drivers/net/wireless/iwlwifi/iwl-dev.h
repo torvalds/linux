@@ -259,10 +259,8 @@ struct iwl_channel_info {
 
 enum {
 	CMD_SYNC = 0,
-	CMD_SIZE_NORMAL = 0,
-	CMD_NO_SKB = 0,
-	CMD_ASYNC = (1 << 1),
-	CMD_WANT_SKB = (1 << 2),
+	CMD_ASYNC = BIT(0),
+	CMD_WANT_SKB = BIT(1),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -295,6 +293,16 @@ enum iwl_hcmd_dataflag {
 	IWL_HCMD_DFL_NOCOPY	= BIT(0),
 };
 
+/**
+ * struct iwl_host_cmd - Host command to the uCode
+ * @data: array of chunks that composes the data of the host command
+ * @reply_page: pointer to the page that holds the response to the host command
+ * @callback:
+ * @flags: can be CMD_* note CMD_WANT_SKB is incompatible withe CMD_ASYNC
+ * @len: array of the lenths of the chunks in data
+ * @dataflags:
+ * @id: id of the host command
+ */
 struct iwl_host_cmd {
 	const void *data[IWL_MAX_CMD_TFDS];
 	unsigned long reply_page;
@@ -1234,6 +1242,8 @@ struct iwl_trans;
  * @tx_init:inits the tx memory, allocate if needed
  * @tx_stop: stop the tx
  * @tx_free: frees the tx memory
+ * @send_cmd:send a host command
+ * @send_cmd_pdu:send a host command: flags can be CMD_*
  */
 struct iwl_trans_ops {
 	int (*rx_init)(struct iwl_priv *priv);
@@ -1243,6 +1253,11 @@ struct iwl_trans_ops {
 	int (*tx_init)(struct iwl_priv *priv);
 	int (*tx_stop)(struct iwl_priv *priv);
 	void (*tx_free)(struct iwl_priv *priv);
+
+	int (*send_cmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+
+	int (*send_cmd_pdu)(struct iwl_priv *priv, u8 id, u32 flags, u16 len,
+		     const void *data);
 };
 
 struct iwl_trans {

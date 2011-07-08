@@ -223,7 +223,7 @@ static int iwlagn_send_calib_cfg(struct iwl_priv *priv)
 	calib_cfg_cmd.ucd_calib_cfg.once.send_res = IWL_CALIB_INIT_CFG_ALL;
 	calib_cfg_cmd.ucd_calib_cfg.flags = IWL_CALIB_INIT_CFG_ALL;
 
-	return iwl_send_cmd(priv, &cmd);
+	return priv->trans.ops->send_cmd(priv, &cmd);
 }
 
 void iwlagn_rx_calib_result(struct iwl_priv *priv,
@@ -321,7 +321,8 @@ static int iwlagn_send_wimax_coex(struct iwl_priv *priv)
 		/* coexistence is disabled */
 		memset(&coex_cmd, 0, sizeof(coex_cmd));
 	}
-	return iwl_send_cmd_pdu(priv, COEX_PRIORITY_TABLE_CMD,
+	return priv->trans.ops->send_cmd_pdu(priv,
+				COEX_PRIORITY_TABLE_CMD, CMD_SYNC,
 				sizeof(coex_cmd), &coex_cmd);
 }
 
@@ -353,7 +354,8 @@ void iwlagn_send_prio_tbl(struct iwl_priv *priv)
 
 	memcpy(prio_tbl_cmd.prio_tbl, iwlagn_bt_prio_tbl,
 		sizeof(iwlagn_bt_prio_tbl));
-	if (iwl_send_cmd_pdu(priv, REPLY_BT_COEX_PRIO_TABLE,
+	if (priv->trans.ops->send_cmd_pdu(priv,
+				REPLY_BT_COEX_PRIO_TABLE, CMD_SYNC,
 				sizeof(prio_tbl_cmd), &prio_tbl_cmd))
 		IWL_ERR(priv, "failed to send BT prio tbl command\n");
 }
@@ -365,7 +367,8 @@ int iwlagn_send_bt_env(struct iwl_priv *priv, u8 action, u8 type)
 
 	env_cmd.action = action;
 	env_cmd.type = type;
-	ret = iwl_send_cmd_pdu(priv, REPLY_BT_COEX_PROT_ENV,
+	ret = priv->trans.ops->send_cmd_pdu(priv,
+			       REPLY_BT_COEX_PROT_ENV, CMD_SYNC,
 			       sizeof(env_cmd), &env_cmd);
 	if (ret)
 		IWL_ERR(priv, "failed to send BT env command\n");

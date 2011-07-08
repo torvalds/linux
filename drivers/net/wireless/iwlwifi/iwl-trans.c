@@ -66,6 +66,7 @@
 #include "iwl-helpers.h"
 /*TODO remove uneeded includes when the transport layer tx_free will be here */
 #include "iwl-agn.h"
+#include "iwl-core.h"
 
 static int iwl_trans_rx_alloc(struct iwl_priv *priv)
 {
@@ -559,6 +560,9 @@ static const struct iwl_trans_ops trans_ops = {
 	.tx_init = iwl_trans_tx_init,
 	.tx_stop = iwl_trans_tx_stop,
 	.tx_free = iwl_trans_tx_free,
+
+	.send_cmd = iwl_send_cmd,
+	.send_cmd_pdu = iwl_send_cmd_pdu,
 };
 
 void iwl_trans_register(struct iwl_trans *trans)

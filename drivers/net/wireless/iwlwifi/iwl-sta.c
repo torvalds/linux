@@ -156,7 +156,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 	}
 
 	cmd.len[0] = priv->cfg->ops->utils->build_addsta_hcmd(sta, data);
-	ret = iwl_send_cmd(priv, &cmd);
+	ret = priv->trans.ops->send_cmd(priv, &cmd);
 
 	if (ret || (flags & CMD_ASYNC))
 		return ret;
@@ -412,7 +412,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 
 	cmd.flags |= CMD_WANT_SKB;
 
-	ret = iwl_send_cmd(priv, &cmd);
+	ret = priv->trans.ops->send_cmd(priv, &cmd);
 
 	if (ret)
 		return ret;
@@ -781,7 +781,7 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		return -EINVAL;
 
 	if (is_lq_table_valid(priv, ctx, lq))
-		ret = iwl_send_cmd(priv, &cmd);
+		ret = priv->trans.ops->send_cmd(priv, &cmd);
 	else
 		ret = -EINVAL;
 

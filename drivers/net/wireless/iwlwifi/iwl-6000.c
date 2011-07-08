@@ -255,7 +255,7 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 		return -EFAULT;
 	}
 
-	return iwl_send_cmd_sync(priv, &hcmd);
+	return priv->trans.ops->send_cmd(priv, &hcmd);
 }
 
 static struct iwl_lib_ops iwl6000_lib = {

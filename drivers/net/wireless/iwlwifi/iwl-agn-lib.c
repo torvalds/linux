@@ -540,8 +540,8 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	else
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD;
 
-	return iwl_send_cmd_pdu(priv, tx_ant_cfg_cmd, sizeof(tx_power_cmd),
-				&tx_power_cmd);
+	return priv->trans.ops->send_cmd_pdu(priv, tx_ant_cfg_cmd, CMD_SYNC,
+			sizeof(tx_power_cmd), &tx_power_cmd);
 }
 
 void iwlagn_temperature(struct iwl_priv *priv)
@@ -1063,6 +1063,7 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_CMD,
 		.len = { sizeof(struct iwl_scan_cmd), },
+		.flags = CMD_SYNC,
 	};
 	struct iwl_scan_cmd *scan;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
@@ -1359,7 +1360,7 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	if (ret)
 		return ret;
 
-	ret = iwl_send_cmd_sync(priv, &cmd);
+	ret = priv->trans.ops->send_cmd(priv, &cmd);
 	if (ret) {
 		clear_bit(STATUS_SCAN_HW, &priv->status);
 		iwlagn_set_pan_params(priv);
@@ -1465,7 +1466,7 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 		       flush_cmd.fifo_control);
 	flush_cmd.flush_control = cpu_to_le16(flush_control);
 
-	return iwl_send_cmd(priv, &cmd);
+	return priv->trans.ops->send_cmd(priv, &cmd);
 }
 
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
@@ -1657,13 +1658,13 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	if (priv->cfg->bt_params->bt_session_2) {
 		memcpy(&bt_cmd_2000.basic, &basic,
 			sizeof(basic));
-		ret = iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-			sizeof(bt_cmd_2000), &bt_cmd_2000);
+		ret = priv->trans.ops->send_cmd_pdu(priv, REPLY_BT_CONFIG,
+			CMD_SYNC, sizeof(bt_cmd_2000), &bt_cmd_2000);
 	} else {
 		memcpy(&bt_cmd_6000.basic, &basic,
 			sizeof(basic));
-		ret = iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-			sizeof(bt_cmd_6000), &bt_cmd_6000);
+		ret = priv->trans.ops->send_cmd_pdu(priv, REPLY_BT_CONFIG,
+			CMD_SYNC, sizeof(bt_cmd_6000), &bt_cmd_6000);
 	}
 	if (ret)
 		IWL_ERR(priv, "failed to send BT Coex Config\n");

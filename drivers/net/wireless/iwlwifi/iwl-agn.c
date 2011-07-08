@@ -129,6 +129,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	struct iwl_tx_beacon_cmd *tx_beacon_cmd;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_TX_BEACON,
+		.flags = CMD_SYNC,
 	};
 	struct ieee80211_tx_info *info;
 	u32 frame_size;
@@ -205,7 +206,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	cmd.data[1] = priv->beacon_skb->data;
 	cmd.dataflags[1] = IWL_HCMD_DFL_NOCOPY;
 
-	return iwl_send_cmd_sync(priv, &cmd);
+	return priv->trans.ops->send_cmd(priv, &cmd);
 }
 
 static void iwl_bg_beacon_update(struct work_struct *work)
@@ -578,7 +579,8 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 
 		if (reclaim) {
 			/* Invoke any callbacks, transfer the buffer to caller,
-			 * and fire off the (possibly) blocking iwl_send_cmd()
+			 * and fire off the (possibly) blocking
+			 * priv->trans.ops->send_cmd()
 			 * as we reclaim the driver command queue */
 			if (rxb->page)
 				iwl_tx_cmd_complete(priv, rxb);
@@ -1940,8 +1942,9 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 		adv_cmd.critical_temperature_exit =
 			cpu_to_le32(priv->hw_params.ct_kill_exit_threshold);
 
-		ret = iwl_send_cmd_pdu(priv, REPLY_CT_KILL_CONFIG_CMD,
-				       sizeof(adv_cmd), &adv_cmd);
+		ret = priv->trans.ops->send_cmd_pdu(priv,
+				       REPLY_CT_KILL_CONFIG_CMD,
+				       CMD_SYNC, sizeof(adv_cmd), &adv_cmd);
 		if (ret)
 			IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
 		else
@@ -1955,8 +1958,9 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 		cmd.critical_temperature_R =
 			cpu_to_le32(priv->hw_params.ct_kill_threshold);
 
-		ret = iwl_send_cmd_pdu(priv, REPLY_CT_KILL_CONFIG_CMD,
-				       sizeof(cmd), &cmd);
+		ret = priv->trans.ops->send_cmd_pdu(priv,
+				       REPLY_CT_KILL_CONFIG_CMD,
+				       CMD_SYNC, sizeof(cmd), &cmd);
 		if (ret)
 			IWL_ERR(priv, "REPLY_CT_KILL_CONFIG_CMD failed\n");
 		else
@@ -1980,7 +1984,7 @@ static int iwlagn_send_calib_cfg_rt(struct iwl_priv *priv, u32 cfg)
 	calib_cfg_cmd.ucd_calib_cfg.once.is_enable = IWL_CALIB_INIT_CFG_ALL;
 	calib_cfg_cmd.ucd_calib_cfg.once.start = cpu_to_le32(cfg);
 
-	return iwl_send_cmd(priv, &cmd);
+	return priv->trans.ops->send_cmd(priv, &cmd);
 }
 
 
