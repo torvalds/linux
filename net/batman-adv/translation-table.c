@@ -215,10 +215,13 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr)
 
 	tt_local_event(bat_priv, addr, tt_local_entry->flags);
 
+	/* The local entry has to be marked as NEW to avoid to send it in
+	 * a full table response going out before the next ttvn increment
+	 * (consistency check) */
+	tt_local_entry->flags |= TT_CLIENT_NEW;
+
 	hash_add(bat_priv->tt_local_hash, compare_ltt, choose_orig,
 		 tt_local_entry, &tt_local_entry->hash_entry);
-
-	atomic_inc(&bat_priv->num_local_tt);
 
 	/* remove address from global hash if present */
 	tt_global_entry = tt_global_hash_find(bat_priv, addr);
@@ -227,8 +230,9 @@ void tt_local_add(struct net_device *soft_iface, const uint8_t *addr)
 	if (tt_global_entry) {
 		/* This node is probably going to update its tt table */
 		tt_global_entry->orig_node->tt_poss_change = true;
-		_tt_global_del(bat_priv, tt_global_entry,
-			       "local tt received");
+		/* The global entry has to be marked as PENDING and has to be
+		 * kept for consistency purpose */
+		tt_global_entry->flags |= TT_CLIENT_PENDING;
 		send_roam_adv(bat_priv, tt_global_entry->addr,
 			      tt_global_entry->orig_node);
 	}
@@ -358,19 +362,17 @@ out:
 	return ret;
 }
 
-static void tt_local_del(struct bat_priv *bat_priv,
-			 struct tt_local_entry *tt_local_entry,
-			 const char *message)
+static void tt_local_set_pending(struct bat_priv *bat_priv,
+				 struct tt_local_entry *tt_local_entry,
+				 uint16_t flags)
 {
-	bat_dbg(DBG_TT, bat_priv, "Deleting local tt entry (%pM): %s\n",
-		tt_local_entry->addr, message);
+	tt_local_event(bat_priv, tt_local_entry->addr,
+		       tt_local_entry->flags | flags);
 
-	atomic_dec(&bat_priv->num_local_tt);
-
-	hash_remove(bat_priv->tt_local_hash, compare_ltt, choose_orig,
-		    tt_local_entry->addr);
-
-	tt_local_entry_free_ref(tt_local_entry);
+	/* The local client has to be merked as "pending to be removed" but has
+	 * to be kept in the table in order to send it in an full tables
+	 * response issued before the net ttvn increment (consistency check) */
+	tt_local_entry->flags |= TT_CLIENT_PENDING;
 }
 
 void tt_local_remove(struct bat_priv *bat_priv, const uint8_t *addr,
@@ -379,14 +381,14 @@ void tt_local_remove(struct bat_priv *bat_priv, const uint8_t *addr,
 	struct tt_local_entry *tt_local_entry = NULL;
 
 	tt_local_entry = tt_local_hash_find(bat_priv, addr);
-
 	if (!tt_local_entry)
 		goto out;
 
-	tt_local_event(bat_priv, tt_local_entry->addr,
-		       tt_local_entry->flags | TT_CLIENT_DEL |
-		       (roaming ? TT_CLIENT_ROAM : NO_FLAGS));
-	tt_local_del(bat_priv, tt_local_entry, message);
+	tt_local_set_pending(bat_priv, tt_local_entry, TT_CLIENT_DEL |
+			     (roaming ? TT_CLIENT_ROAM : NO_FLAGS));
+
+	bat_dbg(DBG_TT, bat_priv, "Local tt entry (%pM) pending to be removed: "
+		"%s\n", tt_local_entry->addr, message);
 out:
 	if (tt_local_entry)
 		tt_local_entry_free_ref(tt_local_entry);
@@ -411,18 +413,19 @@ static void tt_local_purge(struct bat_priv *bat_priv)
 			if (tt_local_entry->flags & TT_CLIENT_NOPURGE)
 				continue;
 
+			/* entry already marked for deletion */
+			if (tt_local_entry->flags & TT_CLIENT_PENDING)
+				continue;
+
 			if (!is_out_of_time(tt_local_entry->last_seen,
 					    TT_LOCAL_TIMEOUT * 1000))
 				continue;
 
-			tt_local_event(bat_priv, tt_local_entry->addr,
-				       tt_local_entry->flags | TT_CLIENT_DEL);
-			atomic_dec(&bat_priv->num_local_tt);
-			bat_dbg(DBG_TT, bat_priv, "Deleting local "
-				"tt entry (%pM): timed out\n",
+			tt_local_set_pending(bat_priv, tt_local_entry,
+					     TT_CLIENT_DEL);
+			bat_dbg(DBG_TT, bat_priv, "Local tt entry (%pM) "
+				"pending to be removed: timed out\n",
 				tt_local_entry->addr);
-			hlist_del_rcu(node);
-			tt_local_entry_free_ref(tt_local_entry);
 		}
 		spin_unlock_bh(list_lock);
 	}
@@ -785,6 +788,11 @@ struct orig_node *transtable_search(struct bat_priv *bat_priv,
 	if (!atomic_inc_not_zero(&tt_global_entry->orig_node->refcount))
 		goto free_tt;
 
+	/* A global client marked as PENDING has already moved from that
+	 * originator */
+	if (tt_global_entry->flags & TT_CLIENT_PENDING)
+		goto free_tt;
+
 	orig_node = tt_global_entry->orig_node;
 
 free_tt:
@@ -846,6 +854,10 @@ uint16_t tt_local_crc(struct bat_priv *bat_priv)
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(tt_local_entry, node,
 					 head, hash_entry) {
+			/* not yet committed clients have not to be taken into
+			 * account while computing the CRC */
+			if (tt_local_entry->flags & TT_CLIENT_NEW)
+				continue;
 			total_one = 0;
 			for (j = 0; j < ETH_ALEN; j++)
 				total_one = crc16_byte(total_one,
@@ -933,6 +945,16 @@ static struct tt_req_node *new_tt_req_node(struct bat_priv *bat_priv,
 unlock:
 	spin_unlock_bh(&bat_priv->tt_req_list_lock);
 	return tt_req_node;
+}
+
+/* data_ptr is useless here, but has to be kept to respect the prototype */
+static int tt_local_valid_entry(const void *entry_ptr, const void *data_ptr)
+{
+	const struct tt_local_entry *tt_local_entry = entry_ptr;
+
+	if (tt_local_entry->flags & TT_CLIENT_NEW)
+		return 0;
+	return 1;
 }
 
 static int tt_global_valid_entry(const void *entry_ptr, const void *data_ptr)
@@ -1275,7 +1297,8 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 
 		skb = tt_response_fill_table(tt_len, ttvn,
 					     bat_priv->tt_local_hash,
-					     primary_if, NULL, NULL);
+					     primary_if, tt_local_valid_entry,
+					     NULL);
 		if (!skb)
 			goto out;
 
@@ -1399,6 +1422,10 @@ bool is_my_client(struct bat_priv *bat_priv, const uint8_t *addr)
 
 	tt_local_entry = tt_local_hash_find(bat_priv, addr);
 	if (!tt_local_entry)
+		goto out;
+	/* Check if the client has been logically deleted (but is kept for
+	 * consistency purpose) */
+	if (tt_local_entry->flags & TT_CLIENT_PENDING)
 		goto out;
 	ret = true;
 out:
@@ -1619,4 +1646,77 @@ void tt_free(struct bat_priv *bat_priv)
 	tt_roam_list_free(bat_priv);
 
 	kfree(bat_priv->tt_buff);
+}
+
+/* This function will reset the specified flags from all the entries in
+ * the given hash table and will increment num_local_tt for each involved
+ * entry */
+static void tt_local_reset_flags(struct bat_priv *bat_priv, uint16_t flags)
+{
+	int i;
+	struct hashtable_t *hash = bat_priv->tt_local_hash;
+	struct hlist_head *head;
+	struct hlist_node *node;
+	struct tt_local_entry *tt_local_entry;
+
+	if (!hash)
+		return;
+
+	for (i = 0; i < hash->size; i++) {
+		head = &hash->table[i];
+
+		rcu_read_lock();
+		hlist_for_each_entry_rcu(tt_local_entry, node,
+					 head, hash_entry) {
+			tt_local_entry->flags &= ~flags;
+			atomic_inc(&bat_priv->num_local_tt);
+		}
+		rcu_read_unlock();
+	}
+
+}
+
+/* Purge out all the tt local entries marked with TT_CLIENT_PENDING */
+static void tt_local_purge_pending_clients(struct bat_priv *bat_priv)
+{
+	struct hashtable_t *hash = bat_priv->tt_local_hash;
+	struct tt_local_entry *tt_local_entry;
+	struct hlist_node *node, *node_tmp;
+	struct hlist_head *head;
+	spinlock_t *list_lock; /* protects write access to the hash lists */
+	int i;
+
+	if (!hash)
+		return;
+
+	for (i = 0; i < hash->size; i++) {
+		head = &hash->table[i];
+		list_lock = &hash->list_locks[i];
+
+		spin_lock_bh(list_lock);
+		hlist_for_each_entry_safe(tt_local_entry, node, node_tmp,
+					  head, hash_entry) {
+			if (!(tt_local_entry->flags & TT_CLIENT_PENDING))
+				continue;
+
+			bat_dbg(DBG_TT, bat_priv, "Deleting local tt entry "
+				"(%pM): pending\n", tt_local_entry->addr);
+
+			atomic_dec(&bat_priv->num_local_tt);
+			hlist_del_rcu(node);
+			tt_local_entry_free_ref(tt_local_entry);
+		}
+		spin_unlock_bh(list_lock);
+	}
+
+}
+
+void tt_commit_changes(struct bat_priv *bat_priv)
+{
+	tt_local_reset_flags(bat_priv, TT_CLIENT_NEW);
+	tt_local_purge_pending_clients(bat_priv);
+
+	/* Increment the TTVN only once per OGM interval */
+	atomic_inc(&bat_priv->ttvn);
+	bat_priv->tt_poss_change = false;
 }
