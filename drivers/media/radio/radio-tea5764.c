@@ -594,7 +594,7 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRIVER_VERSION);
 
-module_param(use_xtal, int, 1);
+module_param(use_xtal, int, 0);
 MODULE_PARM_DESC(use_xtal, "Chip have a xtal connected in board");
 module_param(radio_nr, int, 0);
 MODULE_PARM_DESC(radio_nr, "video4linux device number to use");
