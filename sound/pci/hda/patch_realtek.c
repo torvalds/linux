@@ -958,7 +958,7 @@ static bool alc_check_dyn_adc_switch(struct hda_codec *codec)
 				break;
 		}
 		if (i >= imux->num_items)
-			return false; /* no ADC-switch is needed */
+			return true; /* no ADC-switch is needed */
 	}
 
 	for (i = 0; i < imux->num_items; i++) {
