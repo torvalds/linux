@@ -10,6 +10,35 @@
 #include <linux/slab.h>
 
 /**
+ * tomoyo_filetype - Get string representation of file type.
+ *
+ * @mode: Mode value for stat().
+ *
+ * Returns file type string.
+ */
+static inline const char *tomoyo_filetype(const mode_t mode)
+{
+	switch (mode & S_IFMT) {
+	case S_IFREG:
+	case 0:
+		return tomoyo_condition_keyword[TOMOYO_TYPE_IS_FILE];
+	case S_IFDIR:
+		return tomoyo_condition_keyword[TOMOYO_TYPE_IS_DIRECTORY];
+	case S_IFLNK:
+		return tomoyo_condition_keyword[TOMOYO_TYPE_IS_SYMLINK];
+	case S_IFIFO:
+		return tomoyo_condition_keyword[TOMOYO_TYPE_IS_FIFO];
+	case S_IFSOCK:
+		return tomoyo_condition_keyword[TOMOYO_TYPE_IS_SOCKET];
+	case S_IFBLK:
+		return tomoyo_condition_keyword[TOMOYO_TYPE_IS_BLOCK_DEV];
+	case S_IFCHR:
+		return tomoyo_condition_keyword[TOMOYO_TYPE_IS_CHAR_DEV];
+	}
+	return "unknown"; /* This should not happen. */
+}
+
+/**
  * tomoyo_print_header - Get header line of audit log.
  *
  * @r: Pointer to "struct tomoyo_request_info".
@@ -23,9 +52,11 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 {
 	struct tomoyo_time stamp;
 	const pid_t gpid = task_pid_nr(current);
+	struct tomoyo_obj_info *obj = r->obj;
 	static const int tomoyo_buffer_len = 4096;
 	char *buffer = kmalloc(tomoyo_buffer_len, GFP_NOFS);
 	int pos;
+	u8 i;
 	if (!buffer)
 		return NULL;
 	{
@@ -44,6 +75,47 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 		       current_uid(), current_gid(), current_euid(),
 		       current_egid(), current_suid(), current_sgid(),
 		       current_fsuid(), current_fsgid());
+	if (!obj)
+		goto no_obj_info;
+	if (!obj->validate_done) {
+		tomoyo_get_attributes(obj);
+		obj->validate_done = true;
+	}
+	for (i = 0; i < TOMOYO_MAX_PATH_STAT; i++) {
+		struct tomoyo_mini_stat *stat;
+		unsigned int dev;
+		mode_t mode;
+		if (!obj->stat_valid[i])
+			continue;
+		stat = &obj->stat[i];
+		dev = stat->dev;
+		mode = stat->mode;
+		if (i & 1) {
+			pos += snprintf(buffer + pos,
+					tomoyo_buffer_len - 1 - pos,
+					" path%u.parent={ uid=%u gid=%u "
+					"ino=%lu perm=0%o }", (i >> 1) + 1,
+					stat->uid, stat->gid, (unsigned long)
+					stat->ino, stat->mode & S_IALLUGO);
+			continue;
+		}
+		pos += snprintf(buffer + pos, tomoyo_buffer_len - 1 - pos,
+				" path%u={ uid=%u gid=%u ino=%lu major=%u"
+				" minor=%u perm=0%o type=%s", (i >> 1) + 1,
+				stat->uid, stat->gid, (unsigned long)
+				stat->ino, MAJOR(dev), MINOR(dev),
+				mode & S_IALLUGO, tomoyo_filetype(mode));
+		if (S_ISCHR(mode) || S_ISBLK(mode)) {
+			dev = stat->rdev;
+			pos += snprintf(buffer + pos,
+					tomoyo_buffer_len - 1 - pos,
+					" dev_major=%u dev_minor=%u",
+					MAJOR(dev), MINOR(dev));
+		}
+		pos += snprintf(buffer + pos, tomoyo_buffer_len - 1 - pos,
+				" }");
+	}
+no_obj_info:
 	if (pos < tomoyo_buffer_len - 1)
 		return buffer;
 	kfree(buffer);

@@ -244,6 +244,54 @@ out:
 }
 
 /**
+ * tomoyo_get_attributes - Revalidate "struct inode".
+ *
+ * @obj: Pointer to "struct tomoyo_obj_info".
+ *
+ * Returns nothing.
+ */
+void tomoyo_get_attributes(struct tomoyo_obj_info *obj)
+{
+	u8 i;
+	struct dentry *dentry = NULL;
+
+	for (i = 0; i < TOMOYO_MAX_PATH_STAT; i++) {
+		struct inode *inode;
+		switch (i) {
+		case TOMOYO_PATH1:
+			dentry = obj->path1.dentry;
+			if (!dentry)
+				continue;
+			break;
+		case TOMOYO_PATH2:
+			dentry = obj->path2.dentry;
+			if (!dentry)
+				continue;
+			break;
+		default:
+			if (!dentry)
+				continue;
+			dentry = dget_parent(dentry);
+			break;
+		}
+		inode = dentry->d_inode;
+		if (inode) {
+			struct tomoyo_mini_stat *stat = &obj->stat[i];
+			stat->uid  = inode->i_uid;
+			stat->gid  = inode->i_gid;
+			stat->ino  = inode->i_ino;
+			stat->mode = inode->i_mode;
+			stat->dev  = inode->i_sb->s_dev;
+			stat->rdev = inode->i_rdev;
+			obj->stat_valid[i] = true;
+		}
+		if (i & 1) /* i == TOMOYO_PATH1_PARENT ||
+			      i == TOMOYO_PATH2_PARENT */
+			dput(dentry);
+	}
+}
+
+/**
  * tomoyo_condition - Check condition part.
  *
  * @r:    Pointer to "struct tomoyo_request_info".
@@ -261,16 +309,19 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 	unsigned long max_v[2] = { 0, 0 };
 	const struct tomoyo_condition_element *condp;
 	const struct tomoyo_number_union *numbers_p;
+	struct tomoyo_obj_info *obj;
 	u16 condc;
 	if (!cond)
 		return true;
 	condc = cond->condc;
+	obj = r->obj;
 	condp = (struct tomoyo_condition_element *) (cond + 1);
 	numbers_p = (const struct tomoyo_number_union *) (condp + condc);
 	for (i = 0; i < condc; i++) {
 		const bool match = condp->equals;
 		const u8 left = condp->left;
 		const u8 right = condp->right;
+		bool is_bitop[2] = { false, false };
 		u8 j;
 		condp++;
 		/* Check numeric or bit-op expressions. */
@@ -308,14 +359,185 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 			case TOMOYO_TASK_PPID:
 				value = tomoyo_sys_getppid();
 				break;
+			case TOMOYO_TYPE_IS_SOCKET:
+				value = S_IFSOCK;
+				break;
+			case TOMOYO_TYPE_IS_SYMLINK:
+				value = S_IFLNK;
+				break;
+			case TOMOYO_TYPE_IS_FILE:
+				value = S_IFREG;
+				break;
+			case TOMOYO_TYPE_IS_BLOCK_DEV:
+				value = S_IFBLK;
+				break;
+			case TOMOYO_TYPE_IS_DIRECTORY:
+				value = S_IFDIR;
+				break;
+			case TOMOYO_TYPE_IS_CHAR_DEV:
+				value = S_IFCHR;
+				break;
+			case TOMOYO_TYPE_IS_FIFO:
+				value = S_IFIFO;
+				break;
+			case TOMOYO_MODE_SETUID:
+				value = S_ISUID;
+				break;
+			case TOMOYO_MODE_SETGID:
+				value = S_ISGID;
+				break;
+			case TOMOYO_MODE_STICKY:
+				value = S_ISVTX;
+				break;
+			case TOMOYO_MODE_OWNER_READ:
+				value = S_IRUSR;
+				break;
+			case TOMOYO_MODE_OWNER_WRITE:
+				value = S_IWUSR;
+				break;
+			case TOMOYO_MODE_OWNER_EXECUTE:
+				value = S_IXUSR;
+				break;
+			case TOMOYO_MODE_GROUP_READ:
+				value = S_IRGRP;
+				break;
+			case TOMOYO_MODE_GROUP_WRITE:
+				value = S_IWGRP;
+				break;
+			case TOMOYO_MODE_GROUP_EXECUTE:
+				value = S_IXGRP;
+				break;
+			case TOMOYO_MODE_OTHERS_READ:
+				value = S_IROTH;
+				break;
+			case TOMOYO_MODE_OTHERS_WRITE:
+				value = S_IWOTH;
+				break;
+			case TOMOYO_MODE_OTHERS_EXECUTE:
+				value = S_IXOTH;
+				break;
 			case TOMOYO_NUMBER_UNION:
 				/* Fetch values later. */
 				break;
 			default:
+				if (!obj)
+					goto out;
+				if (!obj->validate_done) {
+					tomoyo_get_attributes(obj);
+					obj->validate_done = true;
+				}
+				{
+					u8 stat_index;
+					struct tomoyo_mini_stat *stat;
+					switch (index) {
+					case TOMOYO_PATH1_UID:
+					case TOMOYO_PATH1_GID:
+					case TOMOYO_PATH1_INO:
+					case TOMOYO_PATH1_MAJOR:
+					case TOMOYO_PATH1_MINOR:
+					case TOMOYO_PATH1_TYPE:
+					case TOMOYO_PATH1_DEV_MAJOR:
+					case TOMOYO_PATH1_DEV_MINOR:
+					case TOMOYO_PATH1_PERM:
+						stat_index = TOMOYO_PATH1;
+						break;
+					case TOMOYO_PATH2_UID:
+					case TOMOYO_PATH2_GID:
+					case TOMOYO_PATH2_INO:
+					case TOMOYO_PATH2_MAJOR:
+					case TOMOYO_PATH2_MINOR:
+					case TOMOYO_PATH2_TYPE:
+					case TOMOYO_PATH2_DEV_MAJOR:
+					case TOMOYO_PATH2_DEV_MINOR:
+					case TOMOYO_PATH2_PERM:
+						stat_index = TOMOYO_PATH2;
+						break;
+					case TOMOYO_PATH1_PARENT_UID:
+					case TOMOYO_PATH1_PARENT_GID:
+					case TOMOYO_PATH1_PARENT_INO:
+					case TOMOYO_PATH1_PARENT_PERM:
+						stat_index =
+							TOMOYO_PATH1_PARENT;
+						break;
+					case TOMOYO_PATH2_PARENT_UID:
+					case TOMOYO_PATH2_PARENT_GID:
+					case TOMOYO_PATH2_PARENT_INO:
+					case TOMOYO_PATH2_PARENT_PERM:
+						stat_index =
+							TOMOYO_PATH2_PARENT;
+						break;
+					default:
+						goto out;
+					}
+					if (!obj->stat_valid[stat_index])
+						goto out;
+					stat = &obj->stat[stat_index];
+					switch (index) {
+					case TOMOYO_PATH1_UID:
+					case TOMOYO_PATH2_UID:
+					case TOMOYO_PATH1_PARENT_UID:
+					case TOMOYO_PATH2_PARENT_UID:
+						value = stat->uid;
+						break;
+					case TOMOYO_PATH1_GID:
+					case TOMOYO_PATH2_GID:
+					case TOMOYO_PATH1_PARENT_GID:
+					case TOMOYO_PATH2_PARENT_GID:
+						value = stat->gid;
+						break;
+					case TOMOYO_PATH1_INO:
+					case TOMOYO_PATH2_INO:
+					case TOMOYO_PATH1_PARENT_INO:
+					case TOMOYO_PATH2_PARENT_INO:
+						value = stat->ino;
+						break;
+					case TOMOYO_PATH1_MAJOR:
+					case TOMOYO_PATH2_MAJOR:
+						value = MAJOR(stat->dev);
+						break;
+					case TOMOYO_PATH1_MINOR:
+					case TOMOYO_PATH2_MINOR:
+						value = MINOR(stat->dev);
+						break;
+					case TOMOYO_PATH1_TYPE:
+					case TOMOYO_PATH2_TYPE:
+						value = stat->mode & S_IFMT;
+						break;
+					case TOMOYO_PATH1_DEV_MAJOR:
+					case TOMOYO_PATH2_DEV_MAJOR:
+						value = MAJOR(stat->rdev);
+						break;
+					case TOMOYO_PATH1_DEV_MINOR:
+					case TOMOYO_PATH2_DEV_MINOR:
+						value = MINOR(stat->rdev);
+						break;
+					case TOMOYO_PATH1_PERM:
+					case TOMOYO_PATH2_PERM:
+					case TOMOYO_PATH1_PARENT_PERM:
+					case TOMOYO_PATH2_PARENT_PERM:
+						value = stat->mode & S_IALLUGO;
+						break;
+					}
+				}
 				break;
 			}
 			max_v[j] = value;
 			min_v[j] = value;
+			switch (index) {
+			case TOMOYO_MODE_SETUID:
+			case TOMOYO_MODE_SETGID:
+			case TOMOYO_MODE_STICKY:
+			case TOMOYO_MODE_OWNER_READ:
+			case TOMOYO_MODE_OWNER_WRITE:
+			case TOMOYO_MODE_OWNER_EXECUTE:
+			case TOMOYO_MODE_GROUP_READ:
+			case TOMOYO_MODE_GROUP_WRITE:
+			case TOMOYO_MODE_GROUP_EXECUTE:
+			case TOMOYO_MODE_OTHERS_READ:
+			case TOMOYO_MODE_OTHERS_WRITE:
+			case TOMOYO_MODE_OTHERS_EXECUTE:
+				is_bitop[j] = true;
+			}
 		}
 		if (left == TOMOYO_NUMBER_UNION) {
 			/* Fetch values now. */
@@ -335,6 +557,33 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 			} else {
 				if ((min_v[0] <= ptr->values[1] &&
 				     max_v[0] >= ptr->values[0]) == match)
+					continue;
+			}
+			goto out;
+		}
+		/*
+		 * Bit operation is valid only when counterpart value
+		 * represents permission.
+		 */
+		if (is_bitop[0] && is_bitop[1]) {
+			goto out;
+		} else if (is_bitop[0]) {
+			switch (right) {
+			case TOMOYO_PATH1_PERM:
+			case TOMOYO_PATH1_PARENT_PERM:
+			case TOMOYO_PATH2_PERM:
+			case TOMOYO_PATH2_PARENT_PERM:
+				if (!(max_v[0] & max_v[1]) == !match)
+					continue;
+			}
+			goto out;
+		} else if (is_bitop[1]) {
+			switch (left) {
+			case TOMOYO_PATH1_PERM:
+			case TOMOYO_PATH1_PARENT_PERM:
+			case TOMOYO_PATH2_PERM:
+			case TOMOYO_PATH2_PARENT_PERM:
+				if (!(max_v[0] & max_v[1]) == !match)
 					continue;
 			}
 			goto out;

@@ -54,8 +54,64 @@ enum tomoyo_conditions_index {
 	TOMOYO_TASK_FSGID,           /* current_fsgid() */
 	TOMOYO_TASK_PID,             /* sys_getpid()   */
 	TOMOYO_TASK_PPID,            /* sys_getppid()  */
+	TOMOYO_TYPE_IS_SOCKET,       /* S_IFSOCK */
+	TOMOYO_TYPE_IS_SYMLINK,      /* S_IFLNK */
+	TOMOYO_TYPE_IS_FILE,         /* S_IFREG */
+	TOMOYO_TYPE_IS_BLOCK_DEV,    /* S_IFBLK */
+	TOMOYO_TYPE_IS_DIRECTORY,    /* S_IFDIR */
+	TOMOYO_TYPE_IS_CHAR_DEV,     /* S_IFCHR */
+	TOMOYO_TYPE_IS_FIFO,         /* S_IFIFO */
+	TOMOYO_MODE_SETUID,          /* S_ISUID */
+	TOMOYO_MODE_SETGID,          /* S_ISGID */
+	TOMOYO_MODE_STICKY,          /* S_ISVTX */
+	TOMOYO_MODE_OWNER_READ,      /* S_IRUSR */
+	TOMOYO_MODE_OWNER_WRITE,     /* S_IWUSR */
+	TOMOYO_MODE_OWNER_EXECUTE,   /* S_IXUSR */
+	TOMOYO_MODE_GROUP_READ,      /* S_IRGRP */
+	TOMOYO_MODE_GROUP_WRITE,     /* S_IWGRP */
+	TOMOYO_MODE_GROUP_EXECUTE,   /* S_IXGRP */
+	TOMOYO_MODE_OTHERS_READ,     /* S_IROTH */
+	TOMOYO_MODE_OTHERS_WRITE,    /* S_IWOTH */
+	TOMOYO_MODE_OTHERS_EXECUTE,  /* S_IXOTH */
+	TOMOYO_PATH1_UID,
+	TOMOYO_PATH1_GID,
+	TOMOYO_PATH1_INO,
+	TOMOYO_PATH1_MAJOR,
+	TOMOYO_PATH1_MINOR,
+	TOMOYO_PATH1_PERM,
+	TOMOYO_PATH1_TYPE,
+	TOMOYO_PATH1_DEV_MAJOR,
+	TOMOYO_PATH1_DEV_MINOR,
+	TOMOYO_PATH2_UID,
+	TOMOYO_PATH2_GID,
+	TOMOYO_PATH2_INO,
+	TOMOYO_PATH2_MAJOR,
+	TOMOYO_PATH2_MINOR,
+	TOMOYO_PATH2_PERM,
+	TOMOYO_PATH2_TYPE,
+	TOMOYO_PATH2_DEV_MAJOR,
+	TOMOYO_PATH2_DEV_MINOR,
+	TOMOYO_PATH1_PARENT_UID,
+	TOMOYO_PATH1_PARENT_GID,
+	TOMOYO_PATH1_PARENT_INO,
+	TOMOYO_PATH1_PARENT_PERM,
+	TOMOYO_PATH2_PARENT_UID,
+	TOMOYO_PATH2_PARENT_GID,
+	TOMOYO_PATH2_PARENT_INO,
+	TOMOYO_PATH2_PARENT_PERM,
 	TOMOYO_MAX_CONDITION_KEYWORD,
 	TOMOYO_NUMBER_UNION,
+};
+
+
+/* Index numbers for stat(). */
+enum tomoyo_path_stat_index {
+	/* Do not change this order. */
+	TOMOYO_PATH1,
+	TOMOYO_PATH1_PARENT,
+	TOMOYO_PATH2,
+	TOMOYO_PATH2_PARENT,
+	TOMOYO_MAX_PATH_STAT
 };
 
 /* Index numbers for operation mode. */
@@ -290,6 +346,11 @@ struct tomoyo_policy_namespace;
 
 /* Structure for request info. */
 struct tomoyo_request_info {
+	/*
+	 * For holding parameters specific to operations which deal files.
+	 * NULL if not dealing files.
+	 */
+	struct tomoyo_obj_info *obj;
 	struct tomoyo_domain_info *domain;
 	/* For holding parameters. */
 	union {
@@ -386,6 +447,35 @@ struct tomoyo_path_group {
 struct tomoyo_number_group {
 	struct tomoyo_acl_head head;
 	struct tomoyo_number_union number;
+};
+
+/* Subset of "struct stat". Used by conditional ACL and audit logs. */
+struct tomoyo_mini_stat {
+	uid_t uid;
+	gid_t gid;
+	ino_t ino;
+	mode_t mode;
+	dev_t dev;
+	dev_t rdev;
+};
+
+/* Structure for attribute checks in addition to pathname checks. */
+struct tomoyo_obj_info {
+	/*
+	 * True if tomoyo_get_attributes() was already called, false otherwise.
+	 */
+	bool validate_done;
+	/* True if @stat[] is valid. */
+	bool stat_valid[TOMOYO_MAX_PATH_STAT];
+	/* First pathname. Initialized with { NULL, NULL } if no path. */
+	struct path path1;
+	/* Second pathname. Initialized with { NULL, NULL } if no path. */
+	struct path path2;
+	/*
+	 * Information on @path1, @path1's parent directory, @path2, @path2's
+	 * parent directory.
+	 */
+	struct tomoyo_mini_stat stat[TOMOYO_MAX_PATH_STAT];
 };
 
 /* Structure for entries which follows "struct tomoyo_condition". */
@@ -733,6 +823,7 @@ void tomoyo_check_profile(void);
 void tomoyo_convert_time(time_t time, struct tomoyo_time *stamp);
 void tomoyo_del_condition(struct list_head *element);
 void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
+void tomoyo_get_attributes(struct tomoyo_obj_info *obj);
 void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns);
 void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
 	 __printf(2, 3);
