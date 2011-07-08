@@ -956,8 +956,8 @@ static int load_keys(struct sock *sk, u16 index, unsigned char *data, u16 len)
 			if (key->dlen != sizeof(struct key_master_id))
 				continue;
 
-			hci_add_ltk(hdev, 0, &key->bdaddr, id->ediv,
-							id->rand, key->val);
+			hci_add_ltk(hdev, 0, &key->bdaddr, key->pin_len,
+						id->ediv, id->rand, key->val);
 
 			continue;
 		}
