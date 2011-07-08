@@ -622,6 +622,7 @@ static void disable_controller(struct r8a66597 *r8a66597)
 {
 	if (r8a66597->pdata->on_chip) {
 		r8a66597_bset(r8a66597, SCKE, SYSCFG0);
+		r8a66597_bclr(r8a66597, UTST, TESTMODE);
 
 		/* disable interrupts */
 		r8a66597_write(r8a66597, 0, INTENB0);
@@ -639,6 +640,7 @@ static void disable_controller(struct r8a66597 *r8a66597)
 		r8a66597_bclr(r8a66597, SCKE, SYSCFG0);
 
 	} else {
+		r8a66597_bclr(r8a66597, UTST, TESTMODE);
 		r8a66597_bclr(r8a66597, SCKE, SYSCFG0);
 		udelay(1);
 		r8a66597_bclr(r8a66597, PLLC, SYSCFG0);
@@ -1003,10 +1005,29 @@ static void clear_feature(struct r8a66597 *r8a66597,
 
 static void set_feature(struct r8a66597 *r8a66597, struct usb_ctrlrequest *ctrl)
 {
+	u16 tmp;
+	int timeout = 3000;
 
 	switch (ctrl->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		control_end(r8a66597, 1);
+		switch (le16_to_cpu(ctrl->wValue)) {
+		case USB_DEVICE_TEST_MODE:
+			control_end(r8a66597, 1);
+			/* Wait for the completion of status stage */
+			do {
+				tmp = r8a66597_read(r8a66597, INTSTS0) & CTSQ;
+				udelay(1);
+			} while (tmp != CS_IDST || timeout-- > 0);
+
+			if (tmp == CS_IDST)
+				r8a66597_bset(r8a66597,
+					      le16_to_cpu(ctrl->wIndex >> 8),
+					      TESTMODE);
+			break;
+		default:
+			pipe_stall(r8a66597, 0);
+			break;
+		}
 		break;
 	case USB_RECIP_INTERFACE:
 		control_end(r8a66597, 1);
