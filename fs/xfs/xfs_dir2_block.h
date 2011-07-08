@@ -19,10 +19,30 @@
 #define	__XFS_DIR2_BLOCK_H__
 
 /*
- * xfs_dir2_block.h
- * Directory version 2, single block format structures
+ * Directory version 2, single block format structures.
+ *
+ * The single block format looks like the following drawing on disk:
+ *
+ *    +-------------------------------------------------+
+ *    | xfs_dir2_data_hdr_t                             |
+ *    +-------------------------------------------------+
+ *    | xfs_dir2_data_entry_t OR xfs_dir2_data_unused_t |
+ *    | xfs_dir2_data_entry_t OR xfs_dir2_data_unused_t |
+ *    | xfs_dir2_data_entry_t OR xfs_dir2_data_unused_t |
+ *    | ...                                             |
+ *    +-------------------------------------------------+
+ *    | unused space                                    |
+ *    +-------------------------------------------------+
+ *    | ...                                             |
+ *    | xfs_dir2_leaf_entry_t                           |
+ *    | xfs_dir2_leaf_entry_t                           |
+ *    +-------------------------------------------------+
+ *    | xfs_dir2_block_tail_t                           |
+ *    +-------------------------------------------------+
+ *
+ * As all the entries are variable size structures the accessors in this
+ * file and xfs_dir2_data.h should be used to iterate over them.
  */
-
 struct uio;
 struct xfs_dabuf;
 struct xfs_da_args;
@@ -32,30 +52,12 @@ struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
 
-/*
- * The single block format is as follows:
- * xfs_dir2_data_hdr_t structure
- * xfs_dir2_data_entry_t and xfs_dir2_data_unused_t structures
- * xfs_dir2_leaf_entry_t structures
- * xfs_dir2_block_tail_t structure
- */
-
 #define	XFS_DIR2_BLOCK_MAGIC	0x58443242	/* XD2B: for one block dirs */
 
 typedef struct xfs_dir2_block_tail {
 	__be32		count;			/* count of leaf entries */
 	__be32		stale;			/* count of stale lf entries */
 } xfs_dir2_block_tail_t;
-
-/*
- * Generic single-block structure, for xfs_db.
- */
-typedef struct xfs_dir2_block {
-	xfs_dir2_data_hdr_t	hdr;		/* magic XFS_DIR2_BLOCK_MAGIC */
-	xfs_dir2_data_union_t	u[1];
-	xfs_dir2_leaf_entry_t	leaf[1];
-	xfs_dir2_block_tail_t	tail;
-} xfs_dir2_block_t;
 
 /*
  * Pointer to the leaf header embedded in a data block (1-block format)

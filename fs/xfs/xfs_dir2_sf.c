@@ -226,7 +226,7 @@ xfs_dir2_block_to_sf(
 	int			size,		/* shortform directory size */
 	xfs_dir2_sf_hdr_t	*sfhp)		/* shortform directory hdr */
 {
-	xfs_dir2_block_t	*block;		/* block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dir2_block_tail_t	*btp;		/* block tail pointer */
 	xfs_dir2_data_entry_t	*dep;		/* data entry pointer */
 	xfs_inode_t		*dp;		/* incore directory inode */
@@ -248,8 +248,8 @@ xfs_dir2_block_to_sf(
 	 * Make a copy of the block data, so we can shrink the inode
 	 * and add local data.
 	 */
-	block = kmem_alloc(mp->m_dirblksize, KM_SLEEP);
-	memcpy(block, bp->data, mp->m_dirblksize);
+	hdr = kmem_alloc(mp->m_dirblksize, KM_SLEEP);
+	memcpy(hdr, bp->data, mp->m_dirblksize);
 	logflags = XFS_ILOG_CORE;
 	if ((error = xfs_dir2_shrink_inode(args, mp->m_dirdatablk, bp))) {
 		ASSERT(error != ENOSPC);
@@ -277,8 +277,8 @@ xfs_dir2_block_to_sf(
 	/*
 	 * Set up to loop over the block's entries.
 	 */
-	btp = xfs_dir2_block_tail_p(mp, &block->hdr);
-	ptr = (char *)block->u;
+	btp = xfs_dir2_block_tail_p(mp, hdr);
+	ptr = (char *)(hdr + 1);
 	endptr = (char *)xfs_dir2_block_leaf_p(btp);
 	sfep = xfs_dir2_sf_firstentry(sfp);
 	/*
@@ -314,7 +314,7 @@ xfs_dir2_block_to_sf(
 			sfep->namelen = dep->namelen;
 			xfs_dir2_sf_put_offset(sfep,
 				(xfs_dir2_data_aoff_t)
-				((char *)dep - (char *)block));
+				((char *)dep - (char *)hdr));
 			memcpy(sfep->name, dep->name, dep->namelen);
 			xfs_dir2_sfe_put_ino(sfp, sfep,
 					     be64_to_cpu(dep->inumber));
@@ -327,7 +327,7 @@ xfs_dir2_block_to_sf(
 	xfs_dir2_sf_check(args);
 out:
 	xfs_trans_log_inode(args->trans, dp, logflags);
-	kmem_free(block);
+	kmem_free(hdr);
 	return error;
 }
 

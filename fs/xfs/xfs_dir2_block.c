@@ -437,7 +437,6 @@ xfs_dir2_block_getdents(
 	xfs_off_t		*offset,
 	filldir_t		filldir)
 {
-	xfs_dir2_block_t	*block;		/* directory block structure */
 	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dabuf_t		*bp;		/* buffer for block */
 	xfs_dir2_block_tail_t	*btp;		/* block tail */
@@ -471,14 +470,13 @@ xfs_dir2_block_getdents(
 	 * We'll skip entries before this.
 	 */
 	wantoff = xfs_dir2_dataptr_to_off(mp, *offset);
-	block = bp->data;
-	hdr = &block->hdr;
+	hdr = bp->data;
 	xfs_dir2_data_check(dp, bp);
 	/*
 	 * Set up values for the loop.
 	 */
 	btp = xfs_dir2_block_tail_p(mp, hdr);
-	ptr = (char *)block->u;
+	ptr = (char *)(hdr + 1);
 	endptr = (char *)xfs_dir2_block_leaf_p(btp);
 
 	/*
@@ -1020,7 +1018,6 @@ xfs_dir2_sf_to_block(
 	xfs_da_args_t		*args)		/* operation arguments */
 {
 	xfs_dir2_db_t		blkno;		/* dir-relative block # (0) */
-	xfs_dir2_block_t	*block;		/* block structure */
 	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dir2_leaf_entry_t	*blp;		/* block leaf entries */
 	xfs_dabuf_t		*bp;		/* block buffer */
@@ -1091,8 +1088,7 @@ xfs_dir2_sf_to_block(
 		kmem_free(sfp);
 		return error;
 	}
-	block = bp->data;
-	hdr = &block->hdr;
+	hdr = bp->data;
 	hdr->magic = cpu_to_be32(XFS_DIR2_BLOCK_MAGIC);
 	/*
 	 * Compute size of block "tail" area.
@@ -1103,7 +1099,7 @@ xfs_dir2_sf_to_block(
 	 * The whole thing is initialized to free by the init routine.
 	 * Say we're using the leaf and tail area.
 	 */
-	dup = (xfs_dir2_data_unused_t *)block->u;
+	dup = (xfs_dir2_data_unused_t *)(hdr + 1);
 	needlog = needscan = 0;
 	xfs_dir2_data_use_free(tp, bp, dup, mp->m_dirblksize - i, i, &needlog,
 		&needscan);
