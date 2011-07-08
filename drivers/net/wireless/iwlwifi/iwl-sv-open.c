@@ -105,6 +105,7 @@ struct nla_policy iwl_testmode_gnl_msg_policy[IWL_TM_ATTR_MAX] = {
 
 	[IWL_TM_ATTR_FIXRATE] = { .type = NLA_U32, },
 
+	[IWL_TM_ATTR_UCODE_OWNER] = { .type = NLA_U8, },
 };
 
 /*
@@ -587,6 +588,42 @@ static int iwl_testmode_trace_dump(struct ieee80211_hw *hw, struct nlattr **tb,
 	return -ENOBUFS;
 }
 
+/*
+ * This function handles the user application switch ucode ownership.
+ *
+ * It retrieves the mandatory fields IWL_TM_ATTR_UCODE_OWNER and
+ * decide who the current owner of the uCode
+ *
+ * If the current owner is OWNERSHIP_TM, then the only host command
+ * can deliver to uCode is from testmode, all the other host commands
+ * will dropped.
+ *
+ * default driver is the owner of uCode in normal operational mode
+ *
+ * @hw: ieee80211_hw object that represents the device
+ * @tb: gnl message fields from the user space
+ */
+static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
+{
+	struct iwl_priv *priv = hw->priv;
+	u8 owner;
+
+	if (!tb[IWL_TM_ATTR_UCODE_OWNER]) {
+		IWL_DEBUG_INFO(priv, "Error finding ucode owner\n");
+		return -ENOMSG;
+	}
+
+	owner = nla_get_u8(tb[IWL_TM_ATTR_UCODE_OWNER]);
+	if ((owner == IWL_OWNERSHIP_DRIVER) || (owner == IWL_OWNERSHIP_TM))
+		priv->ucode_owner = owner;
+	else {
+		IWL_DEBUG_INFO(priv, "Invalid owner\n");
+		return -EINVAL;
+	}
+	return 0;
+}
+
+
 /* The testmode gnl message handler that takes the gnl message from the
  * user space and parses it per the policy iwl_testmode_gnl_msg_policy, then
  * invoke the corresponding handlers.
@@ -654,6 +691,11 @@ int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 	case IWL_TM_CMD_APP2DEV_READ_TRACE:
 		IWL_DEBUG_INFO(priv, "testmode uCode trace cmd to driver\n");
 		result = iwl_testmode_trace(hw, tb);
+		break;
+
+	case IWL_TM_CMD_APP2DEV_OWNERSHIP:
+		IWL_DEBUG_INFO(priv, "testmode change uCode ownership\n");
+		result = iwl_testmode_ownership(hw, tb);
 		break;
 
 	default:

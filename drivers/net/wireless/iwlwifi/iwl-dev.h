@@ -1263,6 +1263,10 @@ struct iwl_trans {
 	const struct iwl_trans_ops *ops;
 };
 
+/* uCode ownership */
+#define IWL_OWNERSHIP_DRIVER	0
+#define IWL_OWNERSHIP_TM	1
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1351,6 +1355,10 @@ struct iwl_priv {
 	int fw_index;			/* firmware we're trying to load */
 	u32 ucode_ver;			/* version of ucode, copy of
 					   iwl_ucode.ver */
+
+	/* uCode owner: default: IWL_OWNERSHIP_DRIVER */
+	u8 ucode_owner;
+
 	struct fw_img ucode_rt;
 	struct fw_img ucode_init;
 
