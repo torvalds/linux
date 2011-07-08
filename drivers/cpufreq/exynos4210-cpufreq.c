@@ -191,17 +191,17 @@ static unsigned int exynos4_apll_pms_table[CPUFREQ_LEVEL_END] = {
 	((200 << 16) | (6 << 8) | 4),
 };
 
-int exynos4_verify_speed(struct cpufreq_policy *policy)
+static int exynos4_verify_speed(struct cpufreq_policy *policy)
 {
 	return cpufreq_frequency_table_verify(policy, exynos4_freq_table);
 }
 
-unsigned int exynos4_getspeed(unsigned int cpu)
+static unsigned int exynos4_getspeed(unsigned int cpu)
 {
 	return clk_get_rate(cpu_clk) / 1000;
 }
 
-void exynos4_set_clkdiv(unsigned int div_index)
+static void exynos4_set_clkdiv(unsigned int div_index)
 {
 	unsigned int tmp;
 
