@@ -4982,7 +4982,7 @@ F:	drivers/power/power_supply*
 
 PNP SUPPORT
 M:	Adam Belay <abelay@mit.edu>
-M:	Bjorn Helgaas <bjorn.helgaas@hp.com>
+M:	Bjorn Helgaas <bhelgaas@google.com>
 S:	Maintained
 F:	drivers/pnp/
 
