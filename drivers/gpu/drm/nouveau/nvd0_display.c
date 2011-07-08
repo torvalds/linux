@@ -49,7 +49,7 @@ struct nvd0_display {
 		struct dcb_entry *ena;
 		int crtc;
 		int pclk;
-		u16 script;
+		u16 cfg;
 	} irq;
 };
 
@@ -649,10 +649,11 @@ nvd0_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 	nvd0_dac_dpms(encoder, DRM_MODE_DPMS_ON);
 
-	push = evo_wait(encoder->dev, 0, 2);
+	push = evo_wait(encoder->dev, 0, 4);
 	if (push) {
-		evo_mthd(push, 0x0180 + (nv_encoder->or * 0x20), 1);
+		evo_mthd(push, 0x0180 + (nv_encoder->or * 0x20), 2);
 		evo_data(push, 1 << nv_crtc->index);
+		evo_data(push, 0x00ff);
 		evo_kick(push, encoder->dev, 0);
 	}
 
@@ -821,7 +822,7 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	u32 mode_ctrl = (1 << nv_crtc->index);
-	u32 *push;
+	u32 *push, or_config;
 
 	if (nv_encoder->dcb->sorconf.link & 1) {
 		if (adjusted_mode->clock < 165000)
@@ -832,12 +833,17 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		mode_ctrl |= 0x00000200;
 	}
 
+	or_config = (mode_ctrl & 0x00000f00) >> 8;
+	if (adjusted_mode->clock >= 165000)
+		or_config |= 0x0100;
+
 	nvd0_sor_dpms(encoder, DRM_MODE_DPMS_ON);
 
-	push = evo_wait(encoder->dev, 0, 2);
+	push = evo_wait(encoder->dev, 0, 4);
 	if (push) {
-		evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 1);
+		evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 2);
 		evo_data(push, mode_ctrl);
+		evo_data(push, or_config);
 		evo_kick(push, encoder->dev, 0);
 	}
 
@@ -971,20 +977,8 @@ nvd0_display_unk1_handler(struct drm_device *dev)
 			disp->irq.dis = lookup_dcb(dev, i, mcc);
 
 		if (mcp & (1 << crtc)) {
+			disp->irq.cfg = nv_rd32(dev, 0x660184 + (i * 0x20));
 			disp->irq.ena = lookup_dcb(dev, i, mcp);
-			switch (disp->irq.ena->type) {
-			case OUTPUT_ANALOG:
-				disp->irq.script = 0x00ff;
-				break;
-			case OUTPUT_TMDS:
-				disp->irq.script = (mcp & 0x00000f00) >> 8;
-				if (disp->irq.pclk >= 165000)
-					disp->irq.script |= 0x0100;
-				break;
-			default:
-				disp->irq.script = 0xbeef;
-				break;
-			}
 		}
 	}
 
@@ -1022,7 +1016,7 @@ nvd0_display_unk2_handler(struct drm_device *dev)
 		goto ack;
 	or = ffs(dcb->or) - 1;
 
-	nouveau_bios_run_display_table(dev, disp->irq.script, pclk, dcb, crtc);
+	nouveau_bios_run_display_table(dev, disp->irq.cfg, pclk, dcb, crtc);
 
 	nv_wr32(dev, 0x612200 + (crtc * 0x800), 0x00000000);
 	switch (dcb->type) {
@@ -1063,7 +1057,7 @@ nvd0_display_unk4_handler(struct drm_device *dev)
 	if (!dcb)
 		goto ack;
 
-	nouveau_bios_run_display_table(dev, disp->irq.script, pclk, dcb, crtc);
+	nouveau_bios_run_display_table(dev, disp->irq.cfg, pclk, dcb, crtc);
 
 ack:
 	nv_wr32(dev, 0x6101d4, 0x00000000);
