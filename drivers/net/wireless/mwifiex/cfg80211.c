@@ -960,7 +960,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 		ret = mwifiex_set_gen_ie(priv, sme->ie, sme->ie_len);
 
 	if (sme->key) {
-		if (mwifiex_is_alg_wep(0) | mwifiex_is_alg_wep(0)) {
+		if (mwifiex_is_alg_wep(priv->sec_info.encryption_mode)) {
 			dev_dbg(priv->adapter->dev,
 				"info: setting wep encryption"
 				" with key len %d\n", sme->key_len);
