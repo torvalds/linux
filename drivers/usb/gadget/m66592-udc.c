@@ -691,6 +691,7 @@ static void init_controller(struct m66592 *m66592)
 
 static void disable_controller(struct m66592 *m66592)
 {
+	m66592_bclr(m66592, M66592_UTST, M66592_TESTMODE);
 	if (!m66592->pdata->on_chip) {
 		m66592_bclr(m66592, M66592_SCKE, M66592_SYSCFG);
 		udelay(1);
@@ -1048,10 +1049,30 @@ static void clear_feature(struct m66592 *m66592, struct usb_ctrlrequest *ctrl)
 
 static void set_feature(struct m66592 *m66592, struct usb_ctrlrequest *ctrl)
 {
+	u16 tmp;
+	int timeout = 3000;
 
 	switch (ctrl->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		control_end(m66592, 1);
+		switch (le16_to_cpu(ctrl->wValue)) {
+		case USB_DEVICE_TEST_MODE:
+			control_end(m66592, 1);
+			/* Wait for the completion of status stage */
+			do {
+				tmp = m66592_read(m66592, M66592_INTSTS0) &
+								M66592_CTSQ;
+				udelay(1);
+			} while (tmp != M66592_CS_IDST || timeout-- > 0);
+
+			if (tmp == M66592_CS_IDST)
+				m66592_bset(m66592,
+					    le16_to_cpu(ctrl->wIndex >> 8),
+					    M66592_TESTMODE);
+			break;
+		default:
+			pipe_stall(m66592, 0);
+			break;
+		}
 		break;
 	case USB_RECIP_INTERFACE:
 		control_end(m66592, 1);
