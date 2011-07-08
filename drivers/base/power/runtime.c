@@ -389,7 +389,7 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 	retval = rpm_callback(callback, dev);
 	if (retval) {
 		__update_runtime_status(dev, RPM_ACTIVE);
-		dev->power.deferred_resume = 0;
+		dev->power.deferred_resume = false;
 		if (retval == -EAGAIN || retval == -EBUSY)
 			dev->power.runtime_error = 0;
 		else
