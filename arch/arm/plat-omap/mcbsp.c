@@ -869,9 +869,6 @@ void omap_mcbsp_start(unsigned int id, int tx, int rx)
 	if (cpu_is_omap34xx())
 		omap_st_start(mcbsp);
 
-	mcbsp->rx_word_length = (MCBSP_READ_CACHE(mcbsp, RCR1) >> 5) & 0x7;
-	mcbsp->tx_word_length = (MCBSP_READ_CACHE(mcbsp, XCR1) >> 5) & 0x7;
-
 	/* Only enable SRG, if McBSP is master */
 	w = MCBSP_READ_CACHE(mcbsp, PCR0);
 	if (w & (FSXM | FSRM | CLKXM | CLKRM))
