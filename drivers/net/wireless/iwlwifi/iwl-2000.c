@@ -168,6 +168,27 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 static struct iwl_lib_ops iwl2000_lib = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.rx_handler_setup = iwlagn_rx_handler_setup,
+	.setup_deferred_work = iwlagn_setup_deferred_work,
+	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
+	.nic_config = iwl2000_nic_config,
+	.eeprom_ops = {
+		.regulatory_bands = {
+			EEPROM_REG_BAND_1_CHANNELS,
+			EEPROM_REG_BAND_2_CHANNELS,
+			EEPROM_REG_BAND_3_CHANNELS,
+			EEPROM_REG_BAND_4_CHANNELS,
+			EEPROM_REG_BAND_5_CHANNELS,
+			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
+			EEPROM_REGULATORY_BAND_NO_HT40,
+		},
+		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
+	},
+	.temperature = iwlagn_temperature,
+};
+
+static struct iwl_lib_ops iwl2030_lib = {
+	.set_hw_params = iwl2000_hw_set_hw_params,
+	.rx_handler_setup = iwlagn_bt_rx_handler_setup,
 	.setup_deferred_work = iwlagn_bt_setup_deferred_work,
 	.cancel_deferred_work = iwlagn_bt_cancel_deferred_work,
 	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
@@ -193,7 +214,7 @@ static const struct iwl_ops iwl2000_ops = {
 };
 
 static const struct iwl_ops iwl2030_ops = {
-	.lib = &iwl2000_lib,
+	.lib = &iwl2030_lib,
 	.utils = &iwlagn_hcmd_utils,
 };
 
@@ -203,7 +224,7 @@ static const struct iwl_ops iwl105_ops = {
 };
 
 static const struct iwl_ops iwl135_ops = {
-	.lib = &iwl2000_lib,
+	.lib = &iwl2030_lib,
 	.utils = &iwlagn_hcmd_utils,
 };
 
