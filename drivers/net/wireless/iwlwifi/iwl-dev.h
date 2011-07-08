@@ -1605,7 +1605,7 @@ struct iwl_priv {
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 	struct iwl_testmode_trace testmode_trace;
 #endif
-	u32 dbg_fixed_rate;
+	u32 tm_fixed_rate;
 
 }; /*iwl_priv */
 
