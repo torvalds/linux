@@ -5714,137 +5714,6 @@ static int patch_alc861(struct hda_codec *codec)
 #define alc861vd_loopbacks	alc880_loopbacks
 #endif
 
-/*
- * BIOS auto configuration
- */
-#define alc861vd_is_fixed_pin(nid)	((nid) >= 0x14 && (nid) <= 0x17)
-#define alc861vd_fixed_pin_idx(nid)	((nid) - 0x14)
-#define alc861vd_is_multi_pin(nid)	((nid) >= 0x18)
-#define alc861vd_multi_pin_idx(nid)	((nid) - 0x18)
-#define alc861vd_idx_to_dac(nid)		((nid) + 0x02)
-#define alc861vd_dac_to_idx(nid)		((nid) - 0x02)
-#define alc861vd_idx_to_mixer_vol(nid)		((nid) + 0x02)
-#define alc861vd_idx_to_mixer_switch(nid)	((nid) + 0x0c)
-
-/* add playback controls from the parsed DAC table */
-/* Based on ALC880 version. But ALC861VD has separate,
- * different NIDs for mute/unmute switch and volume control */
-static int alc861vd_auto_create_multi_out_ctls(struct alc_spec *spec,
-					     const struct auto_pin_cfg *cfg)
-{
-	hda_nid_t nid_v, nid_s;
-	int i, err, noutputs;
-
-	noutputs = cfg->line_outs;
-	if (spec->multi_ios > 0)
-		noutputs += spec->multi_ios;
-
-	for (i = 0; i < noutputs; i++) {
-		const char *name;
-		int index;
-		if (!spec->multiout.dac_nids[i])
-			continue;
-		nid_v = alc861vd_idx_to_mixer_vol(
-				alc861vd_dac_to_idx(
-					spec->multiout.dac_nids[i]));
-		nid_s = alc861vd_idx_to_mixer_switch(
-				alc861vd_dac_to_idx(
-					spec->multiout.dac_nids[i]));
-
-		name = alc_get_line_out_pfx(spec, i, true, &index);
-		if (!name) {
-			/* Center/LFE */
-			err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL,
-					      "Center",
-					  HDA_COMPOSE_AMP_VAL(nid_v, 1, 0,
-							      HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL,
-					      "LFE",
-					  HDA_COMPOSE_AMP_VAL(nid_v, 2, 0,
-							      HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE,
-					     "Center",
-					  HDA_COMPOSE_AMP_VAL(nid_s, 1, 2,
-							      HDA_INPUT));
-			if (err < 0)
-				return err;
-			err = add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE,
-					     "LFE",
-					  HDA_COMPOSE_AMP_VAL(nid_s, 2, 2,
-							      HDA_INPUT));
-			if (err < 0)
-				return err;
-		} else {
-			err = __add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL,
-						name, index,
-					  HDA_COMPOSE_AMP_VAL(nid_v, 3, 0,
-							      HDA_OUTPUT));
-			if (err < 0)
-				return err;
-			err = __add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE,
-					       name, index,
-					  HDA_COMPOSE_AMP_VAL(nid_s, 3, 2,
-							      HDA_INPUT));
-			if (err < 0)
-				return err;
-		}
-	}
-	return 0;
-}
-
-/* add playback controls for speaker and HP outputs */
-/* Based on ALC880 version. But ALC861VD has separate,
- * different NIDs for mute/unmute switch and volume control */
-static int alc861vd_auto_create_extra_out(struct alc_spec *spec,
-					hda_nid_t pin, const char *pfx)
-{
-	hda_nid_t nid_v, nid_s;
-	int err;
-
-	if (!pin)
-		return 0;
-
-	if (alc861vd_is_fixed_pin(pin)) {
-		nid_v = alc861vd_idx_to_dac(alc861vd_fixed_pin_idx(pin));
-		/* specify the DAC as the extra output */
-		if (!spec->multiout.hp_nid)
-			spec->multiout.hp_nid = nid_v;
-		else
-			spec->multiout.extra_out_nid[0] = nid_v;
-		/* control HP volume/switch on the output mixer amp */
-		nid_v = alc861vd_idx_to_mixer_vol(
-				alc861vd_fixed_pin_idx(pin));
-		nid_s = alc861vd_idx_to_mixer_switch(
-				alc861vd_fixed_pin_idx(pin));
-
-		err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, pfx,
-				  HDA_COMPOSE_AMP_VAL(nid_v, 3, 0, HDA_OUTPUT));
-		if (err < 0)
-			return err;
-		err = add_pb_sw_ctrl(spec, ALC_CTL_BIND_MUTE, pfx,
-				  HDA_COMPOSE_AMP_VAL(nid_s, 3, 2, HDA_INPUT));
-		if (err < 0)
-			return err;
-	} else if (alc861vd_is_multi_pin(pin)) {
-		/* set manual connection */
-		/* we have only a switch on HP-out PIN */
-		err = add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx,
-				  HDA_COMPOSE_AMP_VAL(pin, 3, 0, HDA_OUTPUT));
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-
-/* parse the BIOS configuration and set up the alc_spec
- * return 1 if successful, 0 if the proper config is not found,
- * or a negative error code
- * Based on ALC880 version - had to change it to override
- * alc880_auto_create_extra_out and alc880_auto_create_multi_out_ctls */
 static int alc861vd_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -5864,17 +5733,13 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 	err = alc_auto_add_multi_channel_mode(codec, alc_auto_fill_dac_nids);
 	if (err < 0)
 		return err;
-	err = alc861vd_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	err = alc_auto_create_multi_out_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
-	err = alc861vd_auto_create_extra_out(spec,
-					     spec->autocfg.speaker_pins[0],
-					     "Speaker");
+	err = alc_auto_create_hp_out(codec);
 	if (err < 0)
 		return err;
-	err = alc861vd_auto_create_extra_out(spec,
-					     spec->autocfg.hp_pins[0],
-					     "Headphone");
+	err = alc_auto_create_speaker_out(codec);
 	if (err < 0)
 		return err;
 	err = alc_auto_create_input_ctls(codec);
