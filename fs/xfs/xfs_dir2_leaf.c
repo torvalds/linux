@@ -367,9 +367,12 @@ xfs_dir2_leaf_addname(
 	/*
 	 * How many bytes do we need in the leaf block?
 	 */
-	needbytes =
-		(leaf->hdr.stale ? 0 : (uint)sizeof(leaf->ents[0])) +
-		(use_block != -1 ? 0 : (uint)sizeof(leaf->bests[0]));
+	needbytes = 0;
+	if (!leaf->hdr.stale)
+		needbytes += sizeof(xfs_dir2_leaf_entry_t);
+	if (use_block == -1)
+		needbytes += sizeof(xfs_dir2_data_off_t);
+
 	/*
 	 * Now kill use_block if it refers to a missing block, so we
 	 * can use it as an indication of allocation needed.
@@ -1763,6 +1766,20 @@ xfs_dir2_leaf_trim_data(
 	return 0;
 }
 
+static inline size_t
+xfs_dir2_leaf_size(
+	struct xfs_dir2_leaf_hdr	*hdr,
+	int				counts)
+{
+	int			entries;
+
+	entries = be16_to_cpu(hdr->count) - be16_to_cpu(hdr->stale);
+	return sizeof(xfs_dir2_leaf_hdr_t) +
+	    entries * sizeof(xfs_dir2_leaf_entry_t) +
+	    counts * sizeof(xfs_dir2_data_off_t) +
+	    sizeof(xfs_dir2_leaf_tail_t);
+}
+
 /*
  * Convert node form directory to leaf form directory.
  * The root of the node form dir needs to already be a LEAFN block.
@@ -1844,18 +1861,17 @@ xfs_dir2_node_to_leaf(
 	free = fbp->data;
 	ASSERT(be32_to_cpu(free->hdr.magic) == XFS_DIR2_FREE_MAGIC);
 	ASSERT(!free->hdr.firstdb);
+
 	/*
 	 * Now see if the leafn and free data will fit in a leaf1.
 	 * If not, release the buffer and give up.
 	 */
-	if ((uint)sizeof(leaf->hdr) +
-	    (be16_to_cpu(leaf->hdr.count) - be16_to_cpu(leaf->hdr.stale)) * (uint)sizeof(leaf->ents[0]) +
-	    be32_to_cpu(free->hdr.nvalid) * (uint)sizeof(leaf->bests[0]) +
-	    (uint)sizeof(leaf->tail) >
-	    mp->m_dirblksize) {
+	if (xfs_dir2_leaf_size(&leaf->hdr, be32_to_cpu(free->hdr.nvalid)) >
+			mp->m_dirblksize) {
 		xfs_da_brelse(tp, fbp);
 		return 0;
 	}
+
 	/*
 	 * If the leaf has any stale entries in it, compress them out.
 	 * The compact routine will log the header.
@@ -1874,7 +1890,7 @@ xfs_dir2_node_to_leaf(
 	 * Set up the leaf bests table.
 	 */
 	memcpy(xfs_dir2_leaf_bests_p(ltp), free->bests,
-		be32_to_cpu(ltp->bestcount) * sizeof(leaf->bests[0]));
+		be32_to_cpu(ltp->bestcount) * sizeof(xfs_dir2_data_off_t));
 	xfs_dir2_leaf_log_bests(tp, lbp, 0, be32_to_cpu(ltp->bestcount) - 1);
 	xfs_dir2_leaf_log_tail(tp, lbp);
 	xfs_dir2_leaf_check(dp, lbp);

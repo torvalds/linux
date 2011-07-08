@@ -18,6 +18,36 @@
 #ifndef __XFS_DIR2_LEAF_H__
 #define	__XFS_DIR2_LEAF_H__
 
+/*
+ * Directory format 2, leaf block structures.
+ *
+ * A pure data block looks like the following drawing on disk:
+ *
+ *    +---------------------------+
+ *    | xfs_dir2_leaf_hdr_t       |
+ *    +---------------------------+
+ *    | xfs_dir2_leaf_entry_t     |
+ *    | xfs_dir2_leaf_entry_t     |
+ *    | xfs_dir2_leaf_entry_t     |
+ *    | xfs_dir2_leaf_entry_t     |
+ *    | ...                       |
+ *    +---------------------------+
+ *    | xfs_dir2_data_off_t       |
+ *    | xfs_dir2_data_off_t       |
+ *    | xfs_dir2_data_off_t       |
+ *    | ...                       |
+ *    +---------------------------+
+ *    | xfs_dir2_leaf_tail_t      |
+ *    +---------------------------+
+ *
+ * The bests (xfs_dir2_data_off_t members) and tail are at the end of the
+ * block for single-leaf only (magic = XFS_DIR2_LEAF1_MAGIC not
+ * XFS_DIR2_LEAFN_MAGIC).
+ *
+ * As all the entries are variable size structures the accessors in this
+ * file should be used to iterate over them.
+ */
+
 struct uio;
 struct xfs_dabuf;
 struct xfs_da_args;
@@ -67,15 +97,10 @@ typedef struct xfs_dir2_leaf_tail {
 
 /*
  * Leaf block.
- * bests and tail are at the end of the block for single-leaf only
- * (magic = XFS_DIR2_LEAF1_MAGIC not XFS_DIR2_LEAFN_MAGIC).
  */
 typedef struct xfs_dir2_leaf {
 	xfs_dir2_leaf_hdr_t	hdr;		/* leaf header */
-	xfs_dir2_leaf_entry_t	ents[1];	/* entries */
-						/* ... */
-	xfs_dir2_data_off_t	bests[1];	/* best free counts */
-	xfs_dir2_leaf_tail_t	tail;		/* leaf tail */
+	xfs_dir2_leaf_entry_t	ents[];	/* entries */
 } xfs_dir2_leaf_t;
 
 /*
