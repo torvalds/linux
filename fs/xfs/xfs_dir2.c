@@ -122,15 +122,15 @@ int
 xfs_dir_isempty(
 	xfs_inode_t	*dp)
 {
-	xfs_dir2_sf_t	*sfp;
+	xfs_dir2_sf_hdr_t	*sfp;
 
 	ASSERT((dp->i_d.di_mode & S_IFMT) == S_IFDIR);
 	if (dp->i_d.di_size == 0)	/* might happen during shutdown. */
 		return 1;
 	if (dp->i_d.di_size > XFS_IFORK_DSIZE(dp))
 		return 0;
-	sfp = (xfs_dir2_sf_t *)dp->i_df.if_u1.if_data;
-	return !sfp->hdr.count;
+	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
+	return !sfp->count;
 }
 
 /*

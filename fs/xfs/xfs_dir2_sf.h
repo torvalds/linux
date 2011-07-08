@@ -21,8 +21,12 @@
 /*
  * Directory layout when stored internal to an inode.
  *
- * Small directories are packed as tightly as possible so as to
- * fit into the literal area of the inode.
+ * Small directories are packed as tightly as possible so as to fit into the
+ * literal area of the inode.  They consist of a single xfs_dir2_sf_hdr header
+ * followed by zero or more xfs_dir2_sf_entry structures.  Due the different
+ * inode number storage size and the variable length name field in
+ * the xfs_dir2_sf_entry all these structure are variable length, and the
+ * accessors in this file should be used to iterate over them.
  */
 
 struct uio;
@@ -61,9 +65,9 @@ typedef struct { __uint8_t i[2]; } __arch_pack xfs_dir2_sf_off_t;
  * The parent directory has a dedicated field, and the self-pointer must
  * be calculated on the fly.
  *
- * Entries are packed toward the top as tightly as possible.  The header
- * and the elements must be memcpy'd out into a work area to get correct
- * alignment for the inode number fields.
+ * Entries are packed toward the top as tightly as possible, and thus may
+ * be misaligned.  Care needs to be taken to access them through special
+ * helpers or copy them into aligned variables first.
  */
 typedef struct xfs_dir2_sf_hdr {
 	__uint8_t		count;		/* count of entries */
@@ -77,11 +81,6 @@ typedef struct xfs_dir2_sf_entry {
 	__uint8_t		name[1];	/* name, variable size */
 	xfs_dir2_inou_t		inumber;	/* inode number, var. offset */
 } __arch_pack xfs_dir2_sf_entry_t; 
-
-typedef struct xfs_dir2_sf {
-	xfs_dir2_sf_hdr_t	hdr;		/* shortform header */
-	xfs_dir2_sf_entry_t	list[1];	/* shortform entries */
-} xfs_dir2_sf_t;
 
 static inline int xfs_dir2_sf_hdr_size(int i8count)
 {
@@ -102,39 +101,41 @@ xfs_dir2_sf_put_offset(xfs_dir2_sf_entry_t *sfep, xfs_dir2_data_aoff_t off)
 	INT_SET_UNALIGNED_16_BE(&(sfep)->offset.i, off);
 }
 
-static inline int xfs_dir2_sf_entsize_byname(xfs_dir2_sf_t *sfp, int len)
+static inline int xfs_dir2_sf_entsize_byname(xfs_dir2_sf_hdr_t *sfp, int len)
 {
 	return ((uint)sizeof(xfs_dir2_sf_entry_t) - 1 + (len) - \
-		((sfp)->hdr.i8count == 0) * \
+		((sfp)->i8count == 0) * \
 		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)));
 }
 
 static inline int
-xfs_dir2_sf_entsize_byentry(xfs_dir2_sf_t *sfp, xfs_dir2_sf_entry_t *sfep)
+xfs_dir2_sf_entsize_byentry(xfs_dir2_sf_hdr_t *sfp, xfs_dir2_sf_entry_t *sfep)
 {
 	return ((uint)sizeof(xfs_dir2_sf_entry_t) - 1 + (sfep)->namelen - \
-		((sfp)->hdr.i8count == 0) * \
+		((sfp)->i8count == 0) * \
 		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)));
 }
 
-static inline xfs_dir2_sf_entry_t *xfs_dir2_sf_firstentry(xfs_dir2_sf_t *sfp)
+static inline struct xfs_dir2_sf_entry *
+xfs_dir2_sf_firstentry(struct xfs_dir2_sf_hdr *hdr)
 {
-	return ((xfs_dir2_sf_entry_t *) \
-		((char *)(sfp) + xfs_dir2_sf_hdr_size(sfp->hdr.i8count)));
+	return (struct xfs_dir2_sf_entry *)
+		((char *)hdr + xfs_dir2_sf_hdr_size(hdr->i8count));
 }
 
-static inline xfs_dir2_sf_entry_t *
-xfs_dir2_sf_nextentry(xfs_dir2_sf_t *sfp, xfs_dir2_sf_entry_t *sfep)
+static inline struct xfs_dir2_sf_entry *
+xfs_dir2_sf_nextentry(struct xfs_dir2_sf_hdr *hdr,
+		struct xfs_dir2_sf_entry *sfep)
 {
-	return ((xfs_dir2_sf_entry_t *) \
-		((char *)(sfep) + xfs_dir2_sf_entsize_byentry(sfp,sfep)));
+	return (struct xfs_dir2_sf_entry *)
+		((char *)sfep + xfs_dir2_sf_entsize_byentry(hdr, sfep));
 }
 
 /*
  * Functions.
  */
-extern xfs_ino_t xfs_dir2_sf_get_parent_ino(struct xfs_dir2_sf *sfp);
-extern xfs_ino_t xfs_dir2_sfe_get_ino(struct xfs_dir2_sf *sfp,
+extern xfs_ino_t xfs_dir2_sf_get_parent_ino(struct xfs_dir2_sf_hdr *sfp);
+extern xfs_ino_t xfs_dir2_sfe_get_ino(struct xfs_dir2_sf_hdr *sfp,
 				      struct xfs_dir2_sf_entry *sfep);
 extern int xfs_dir2_block_sfsize(struct xfs_inode *dp,
 				 struct xfs_dir2_block *block,
