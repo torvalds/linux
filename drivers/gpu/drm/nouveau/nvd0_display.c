@@ -685,7 +685,22 @@ nvd0_dac_disconnect(struct drm_encoder *encoder)
 static enum drm_connector_status
 nvd0_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
-	return connector_status_disconnected;
+	enum drm_connector_status status = connector_status_disconnected;
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
+	int or = nv_encoder->or;
+	u32 load;
+
+	nv_wr32(dev, 0x61a00c + (or * 0x800), 0x00100000);
+	udelay(9500);
+	nv_wr32(dev, 0x61a00c + (or * 0x800), 0x80000000);
+
+	load = nv_rd32(dev, 0x61a00c + (or * 0x800));
+	if ((load & 0x38000000) == 0x38000000)
+		status = connector_status_connected;
+
+	nv_wr32(dev, 0x61a00c + (or * 0x800), 0x00000000);
+	return status;
 }
 
 static void
