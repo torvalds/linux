@@ -216,5 +216,7 @@ extern u16 BU92725GUW_get_data(u8 *buf);
 /* send frame data into fifo */
 extern void BU92725GUW_send_data(u8 *buf1, u16 len1, u8 *buf2, u16 len2);
 
+/*dump register*/
+extern void BU92725GUW_dump_register(void);
 
 #endif /*__BU92725GUW_H*/
