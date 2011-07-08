@@ -1371,15 +1371,21 @@ xlog_sync(xlog_t		*log,
 	bp->b_flags |= XBF_SYNCIO;
 
 	if (log->l_mp->m_flags & XFS_MOUNT_BARRIER) {
+		bp->b_flags |= XBF_FUA;
+
 		/*
-		 * If we have an external log device, flush the data device
-		 * before flushing the log to make sure all meta data
-		 * written back from the AIL actually made it to disk
-		 * before writing out the new log tail LSN in the log buffer.
+		 * Flush the data device before flushing the log to make
+		 * sure all meta data written back from the AIL actually made
+		 * it to disk before stamping the new log tail LSN into the
+		 * log buffer.  For an external log we need to issue the
+		 * flush explicitly, and unfortunately synchronously here;
+		 * for an internal log we can simply use the block layer
+		 * state machine for preflushes.
 		 */
 		if (log->l_mp->m_logdev_targp != log->l_mp->m_ddev_targp)
 			xfs_blkdev_issue_flush(log->l_mp->m_ddev_targp);
-		bp->b_flags |= XBF_FUA | XBF_FLUSH;
+		else
+			bp->b_flags |= XBF_FLUSH;
 	}
 
 	ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
@@ -1414,7 +1420,7 @@ xlog_sync(xlog_t		*log,
 		XFS_BUF_ASYNC(bp);
 		bp->b_flags |= XBF_SYNCIO;
 		if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
-			bp->b_flags |= XBF_FUA | XBF_FLUSH;
+			bp->b_flags |= XBF_FUA;
 		dptr = XFS_BUF_PTR(bp);
 		/*
 		 * Bump the cycle numbers at the start of each block
