@@ -26,6 +26,8 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <linux/wakelock.h>
+#include <linux/earlysuspend.h>
 
 #include <mach/iomux.h>
 #include <mach/gpio.h>
@@ -154,6 +156,8 @@ struct wm8994_priv {
 	/* call_vol:  save all kinds of system volume value. */
 	unsigned char call_vol;
 	unsigned char BT_call_vol;	
+
+	struct wake_lock 	wm8994_on_wake;
 };
 
 int reg_send_data(struct i2c_client *client, unsigned short *reg, unsigned short *data, u32 scl_rate)
@@ -213,13 +217,15 @@ int wm8994_set_status(void)
 	case wm8994_recorder_and_AP_to_headset:
 	case wm8994_handsetMIC_to_baseband_to_headset:
 	case wm8994_handsetMIC_to_baseband_to_headset_and_record:
+	case null:
 		ret = 1;
 		break;
 	default:
 		ret = -1;
 		break;
 	}
-
+	if(wm8994->work_type == SNDRV_PCM_TRIGGER_SUSPEND)
+		ret = -2;
 	mutex_unlock(&wm8994->route_lock);	
 	return ret;
 }
@@ -2692,6 +2698,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 {
 	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
 	char route = kcontrol->private_value & 0xff;
+	wake_lock(&wm8994->wm8994_on_wake);
 	mutex_lock(&wm8994->route_lock);
 	wm8994->kcontrol = kcontrol;//save rount
 
@@ -2795,6 +2802,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	}	
 out:	
 	mutex_unlock(&wm8994->route_lock);	
+	wake_unlock(&wm8994->wm8994_on_wake);	
 	return 0;
 }
 
@@ -3067,7 +3075,6 @@ static void wm8994_work_fun(struct work_struct *work)
 	default:
 		break;
 	}
-
 }
 
 #define WM8994_RATES SNDRV_PCM_RATE_8000_48000
@@ -3118,7 +3125,8 @@ static int wm8994_suspend(struct platform_device *pdev, pm_message_t state)
 		wm8994_current_mode< null )//incall status,wm8994 not suspend		
 		return 0;		
 	DBG("%s----%d\n",__FUNCTION__,__LINE__);
-
+	
+	wm8994->work_type = SNDRV_PCM_TRIGGER_SUSPEND;
 	PA_ctrl(GPIO_LOW);
 	wm8994_write(0x00, 0x00);
 	
@@ -3528,6 +3536,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	INIT_DELAYED_WORK(&wm8994->wm8994_delayed_work, wm8994_work_fun);
 	mutex_init(&wm8994->io_lock);	
 	mutex_init(&wm8994->route_lock);
+	wake_lock_init(&wm8994->wm8994_on_wake, WAKE_LOCK_SUSPEND, "wm8994_on_wake");
 	return wm8994_register(wm8994, SND_SOC_I2C);
 }
 
