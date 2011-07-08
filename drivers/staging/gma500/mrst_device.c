@@ -155,7 +155,7 @@ int mrst_backlight_init(struct drm_device *dev)
 
 	mrst_backlight_device = backlight_device_register("mrst-bl",
 					NULL, (void *)dev, &mrst_ops, &props);
-					
+
 	if (IS_ERR(mrst_backlight_device))
 		return PTR_ERR(mrst_backlight_device);
 
@@ -367,7 +367,7 @@ const struct psb_ops mrst_chip_ops = {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 	.backlight_init = mrst_backlight_init,
 #endif
-	
+
 	.init_pm = mrst_init_pm,
 	.save_regs = mrst_save_display_registers,
 	.restore_regs = mrst_restore_display_registers,
