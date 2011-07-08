@@ -336,9 +336,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
 	},
-	.temp_ops = {
-		.temperature = iwlagn_temperature,
-	 },
+	.temperature = iwlagn_temperature,
 };
 
 static struct iwl_lib_ops iwl5150_lib = {
@@ -359,9 +357,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
 	},
-	.temp_ops = {
-		.temperature = iwl5150_temperature,
-	 },
+	.temperature = iwl5150_temperature,
 };
 
 static const struct iwl_ops iwl5000_ops = {

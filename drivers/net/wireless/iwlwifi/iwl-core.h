@@ -96,10 +96,6 @@ struct iwl_hcmd_utils_ops {
 	int (*request_scan)(struct iwl_priv *priv, struct ieee80211_vif *vif);
 };
 
-struct iwl_temp_ops {
-	void (*temperature)(struct iwl_priv *priv);
-};
-
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
@@ -120,7 +116,7 @@ struct iwl_lib_ops {
 	struct iwl_eeprom_ops eeprom_ops;
 
 	/* temperature */
-	struct iwl_temp_ops temp_ops;
+	void (*temperature)(struct iwl_priv *priv);
 };
 
 /* NIC specific ops */

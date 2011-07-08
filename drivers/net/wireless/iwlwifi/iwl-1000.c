@@ -183,9 +183,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
 	},
-	.temp_ops = {
-		.temperature = iwlagn_temperature,
-	 },
+	.temperature = iwlagn_temperature,
 };
 
 static const struct iwl_ops iwl1000_ops = {

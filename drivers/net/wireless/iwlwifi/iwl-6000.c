@@ -277,9 +277,7 @@ static struct iwl_lib_ops iwl6000_lib = {
 		},
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.temp_ops = {
-		.temperature = iwlagn_temperature,
-	 },
+	.temperature = iwlagn_temperature,
 };
 
 static struct iwl_lib_ops iwl6030_lib = {
@@ -302,9 +300,7 @@ static struct iwl_lib_ops iwl6030_lib = {
 		},
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.temp_ops = {
-		.temperature = iwlagn_temperature,
-	 },
+	.temperature = iwlagn_temperature,
 };
 
 static struct iwl_nic_ops iwl6050_nic_ops = {

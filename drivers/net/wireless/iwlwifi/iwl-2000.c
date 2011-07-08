@@ -184,9 +184,7 @@ static struct iwl_lib_ops iwl2000_lib = {
 		},
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.temp_ops = {
-		.temperature = iwlagn_temperature,
-	},
+	.temperature = iwlagn_temperature,
 };
 
 static const struct iwl_ops iwl2000_ops = {
