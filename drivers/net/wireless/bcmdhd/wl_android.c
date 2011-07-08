@@ -59,6 +59,8 @@
 #define CMD_LINKSPEED		"LINKSPEED"
 #define CMD_RXFILTER_START	"RXFILTER-START"
 #define CMD_RXFILTER_STOP	"RXFILTER-STOP"
+#define CMD_RXFILTER_ADD	"RXFILTER-ADD"
+#define CMD_RXFILTER_REMOVE	"RXFILTER-REMOVE"
 #define CMD_BTCOEXSCAN_START	"BTCOEXSCAN-START"
 #define CMD_BTCOEXSCAN_STOP	"BTCOEXSCAN-STOP"
 #define CMD_BTCOEXMODE		"BTCOEXMODE"
@@ -287,10 +289,18 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 		bytes_written = wl_android_get_link_speed(net, command, priv_cmd->total_len);
 	}
 	else if (strnicmp(command, CMD_RXFILTER_START, strlen(CMD_RXFILTER_START)) == 0) {
-		/* TBD: RXFILTER-START */
+		bytes_written = net_os_set_packet_filter(net, 1);
 	}
 	else if (strnicmp(command, CMD_RXFILTER_STOP, strlen(CMD_RXFILTER_STOP)) == 0) {
-		/* TBD: RXFILTER-STOP */
+		bytes_written = net_os_set_packet_filter(net, 0);
+	}
+	else if (strnicmp(command, CMD_RXFILTER_ADD, strlen(CMD_RXFILTER_ADD)) == 0) {
+		int filter_num = *(command + strlen(CMD_RXFILTER_ADD) + 1) - '0';
+		bytes_written = net_os_rxfilter_add_remove(net, TRUE, filter_num);
+	}
+	else if (strnicmp(command, CMD_RXFILTER_REMOVE, strlen(CMD_RXFILTER_REMOVE)) == 0) {
+		int filter_num = *(command + strlen(CMD_RXFILTER_REMOVE) + 1) - '0';
+		bytes_written = net_os_rxfilter_add_remove(net, FALSE, filter_num);
 	}
 	else if (strnicmp(command, CMD_BTCOEXSCAN_START, strlen(CMD_BTCOEXSCAN_START)) == 0) {
 		/* TBD: BTCOEXSCAN-START */
