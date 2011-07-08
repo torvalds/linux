@@ -291,11 +291,9 @@ void iwl_cmd_queue_unmap(struct iwl_priv *priv)
 	while (q->read_ptr != q->write_ptr) {
 		i = get_cmd_index(q, q->read_ptr);
 
-		if (txq->meta[i].flags & CMD_MAPPED) {
-			iwlagn_unmap_tfd(priv, &txq->meta[i], &txq->tfds[i],
-					 DMA_BIDIRECTIONAL);
-			txq->meta[i].flags = 0;
-		}
+		iwlagn_unmap_tfd(priv, &txq->meta[i], &txq->tfds[i],
+				 DMA_BIDIRECTIONAL);
+		txq->meta[i].flags = 0;
 
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
@@ -496,11 +494,6 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	out_cmd = txq->cmd[idx];
 	out_meta = &txq->meta[idx];
 
-	if (WARN_ON(out_meta->flags & CMD_MAPPED)) {
-		spin_unlock_irqrestore(&priv->hcmd_lock, flags);
-		return -ENOSPC;
-	}
-
 	memset(out_meta, 0, sizeof(*out_meta));	/* re-initialize to NULL */
 	if (cmd->flags & CMD_WANT_SKB)
 		out_meta->source = cmd;
@@ -574,7 +567,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 #endif
 	}
 
-	out_meta->flags = cmd->flags | CMD_MAPPED;
+	out_meta->flags = cmd->flags;
 
 	txq->need_update = 1;
 
@@ -684,7 +677,6 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		wake_up_interruptible(&priv->wait_command_queue);
 	}
 
-	/* Mark as unmapped */
 	meta->flags = 0;
 
 	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
