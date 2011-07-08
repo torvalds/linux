@@ -44,9 +44,12 @@ struct nvd0_display {
 		dma_addr_t handle;
 		u32 *ptr;
 	} evo[1];
+
+	struct tasklet_struct tasklet;
 	struct {
 		struct dcb_entry *dis;
 		struct dcb_entry *ena;
+		u32 modeset;
 		int crtc;
 		int pclk;
 		u16 cfg;
@@ -1115,8 +1118,23 @@ ack:
 }
 
 static void
+nvd0_display_bh(unsigned long data)
+{
+	struct drm_device *dev = (struct drm_device *)data;
+	struct nvd0_display *disp = nvd0_display(dev);
+
+	if (disp->irq.modeset & 0x00000001)
+		nvd0_display_unk1_handler(dev);
+	if (disp->irq.modeset & 0x00000002)
+		nvd0_display_unk2_handler(dev);
+	if (disp->irq.modeset & 0x00000004)
+		nvd0_display_unk4_handler(dev);
+}
+
+static void
 nvd0_display_intr(struct drm_device *dev)
 {
+	struct nvd0_display *disp = nvd0_display(dev);
 	u32 intr = nv_rd32(dev, 0x610088);
 
 	if (intr & 0x00000002) {
@@ -1141,14 +1159,10 @@ nvd0_display_intr(struct drm_device *dev)
 		u32 stat = nv_rd32(dev, 0x6100ac);
 
 		if (stat & 0x00000007) {
-			nv_wr32(dev, 0x6100ac, (stat & 0x00000007));
+			disp->irq.modeset = stat;
+			tasklet_schedule(&disp->tasklet);
 
-			if (stat & 0x00000001)
-				nvd0_display_unk1_handler(dev);
-			if (stat & 0x00000002)
-				nvd0_display_unk2_handler(dev);
-			if (stat & 0x00000004)
-				nvd0_display_unk4_handler(dev);
+			nv_wr32(dev, 0x6100ac, (stat & 0x00000007));
 			stat &= ~0x00000007;
 		}
 
@@ -1371,6 +1385,7 @@ nvd0_display_create(struct drm_device *dev)
 	}
 
 	/* setup interrupt handling */
+	tasklet_init(&disp->tasklet, nvd0_display_bh, (unsigned long)dev);
 	nouveau_irq_register(dev, 26, nvd0_display_intr);
 
 	/* hash table and dma objects for the memory areas we care about */
