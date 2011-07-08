@@ -121,9 +121,6 @@ struct iwl_lib_ops {
 	/* power management */
 	struct iwl_apm_ops apm_ops;
 
-	/* power */
-	void (*update_chain_flags)(struct iwl_priv *priv);
-
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
 
