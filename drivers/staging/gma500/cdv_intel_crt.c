@@ -45,7 +45,7 @@ static void cdv_intel_crt_dpms(struct drm_encoder *encoder, int mode)
 	temp &= ~(ADPA_HSYNC_CNTL_DISABLE | ADPA_VSYNC_CNTL_DISABLE);
 	temp &= ~ADPA_DAC_ENABLE;
 
-	switch(mode) {
+	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 		temp |= ADPA_DAC_ENABLE;
 		break;
@@ -128,11 +128,10 @@ static void cdv_intel_crt_mode_set(struct drm_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
 		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
-	if (psb_intel_crtc->pipe == 0) {
+	if (psb_intel_crtc->pipe == 0)
 		adpa |= ADPA_PIPE_A_SELECT;
-	} else {
+	else
 		adpa |= ADPA_PIPE_B_SELECT;
-	}
 
 	REG_WRITE(adpa_reg, adpa);
 }
@@ -144,7 +143,8 @@ static void cdv_intel_crt_mode_set(struct drm_encoder *encoder,
  * \return true if CRT is connected.
  * \return false if CRT is disconnected.
  */
-static bool cdv_intel_crt_detect_hotplug(struct drm_connector *connector, bool force)
+static bool cdv_intel_crt_detect_hotplug(struct drm_connector *connector,
+								bool force)
 {
 	struct drm_device *dev = connector->dev;
 	u32 hotplug_en;
@@ -193,7 +193,8 @@ static bool cdv_intel_crt_detect_hotplug(struct drm_connector *connector, bool f
 	return ret;
 }
 
-static enum drm_connector_status cdv_intel_crt_detect(struct drm_connector *connector, bool force)
+static enum drm_connector_status cdv_intel_crt_detect(
+				struct drm_connector *connector, bool force)
 {
 	if (cdv_intel_crt_detect_hotplug(connector, force))
 		return connector_status_connected;
@@ -245,7 +246,8 @@ static const struct drm_connector_funcs cdv_intel_crt_connector_funcs = {
 	.set_property = cdv_intel_crt_set_property,
 };
 
-static const struct drm_connector_helper_funcs cdv_intel_crt_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs
+				cdv_intel_crt_connector_helper_funcs = {
 	.mode_valid = cdv_intel_crt_mode_valid,
 	.get_modes = cdv_intel_crt_get_modes,
 	.best_encoder = psb_intel_best_encoder,
@@ -277,11 +279,11 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	psb_intel_output->mode_dev = mode_dev;
 	connector = &psb_intel_output->base;
 	drm_connector_init(dev, connector,
-			   &cdv_intel_crt_connector_funcs, DRM_MODE_CONNECTOR_VGA);
+		&cdv_intel_crt_connector_funcs, DRM_MODE_CONNECTOR_VGA);
 
 	encoder = &psb_intel_output->enc;
 	drm_encoder_init(dev, encoder,
-				&cdv_intel_crt_enc_funcs, DRM_MODE_ENCODER_DAC);
+		&cdv_intel_crt_enc_funcs, DRM_MODE_ENCODER_DAC);
 
 	drm_mode_connector_attach_encoder(&psb_intel_output->base,
 					  &psb_intel_output->enc);
@@ -310,7 +312,8 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	connector->doublescan_allowed = 0;
 
 	drm_encoder_helper_add(encoder, &cdv_intel_crt_helper_funcs);
-	drm_connector_helper_add(connector, &cdv_intel_crt_connector_helper_funcs);
+	drm_connector_helper_add(connector,
+					&cdv_intel_crt_connector_helper_funcs);
 
 	drm_sysfs_connector_add(connector);
 

@@ -59,8 +59,8 @@ struct mid_intel_hdmi_priv {
 };
 
 static void cdv_hdmi_mode_set(struct drm_encoder *encoder,
-                        struct drm_display_mode *mode,
-                        struct drm_display_mode *adjusted_mode)
+			struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);
@@ -83,7 +83,7 @@ static void cdv_hdmi_mode_set(struct drm_encoder *encoder,
 		hdmib |= HDMI_AUDIO_ENABLE;
 		hdmib |= HDMI_NULL_PACKETS_DURING_VSYNC;
 	}
-		
+
 	REG_WRITE(hdmi_priv->hdmi_reg, hdmib);
 	REG_READ(hdmi_priv->hdmi_reg);
 }
@@ -92,8 +92,7 @@ static bool cdv_hdmi_mode_fixup(struct drm_encoder *encoder,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
-
-       return true;
+	return true;
 }
 
 static void cdv_hdmi_dpms(struct drm_encoder *encoder, int mode)
@@ -105,11 +104,10 @@ static void cdv_hdmi_dpms(struct drm_encoder *encoder, int mode)
 
 	hdmib = REG_READ(hdmi_priv->hdmi_reg);
 
-	if (mode != DRM_MODE_DPMS_ON) {
+	if (mode != DRM_MODE_DPMS_ON)
 		REG_WRITE(hdmi_priv->hdmi_reg, hdmib & ~HDMIB_PORT_EN);
-	} else {
+	else
 		REG_WRITE(hdmi_priv->hdmi_reg, hdmib | HDMIB_PORT_EN);
-	}
 	REG_READ(hdmi_priv->hdmi_reg);
 }
 
@@ -132,11 +130,12 @@ static void cdv_hdmi_restore(struct drm_connector *connector)
 	REG_READ(hdmi_priv->hdmi_reg);
 }
 
-static enum drm_connector_status cdv_hdmi_detect(struct drm_connector *connector, bool force)
+static enum drm_connector_status cdv_hdmi_detect(
+				struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_intel_output *psb_intel_output = to_psb_intel_output(connector);
+	struct psb_intel_output *psb_intel_output =
+						to_psb_intel_output(connector);
 	struct mid_intel_hdmi_priv *hdmi_priv = psb_intel_output->dev_priv;
 	struct edid *edid = NULL;
 	enum drm_connector_status status = connector_status_disconnected;
@@ -149,8 +148,10 @@ static enum drm_connector_status cdv_hdmi_detect(struct drm_connector *connector
 	if (edid) {
 		if (edid->input & DRM_EDID_INPUT_DIGITAL) {
 			status = connector_status_connected;
-			hdmi_priv->has_hdmi_sink = drm_detect_hdmi_monitor(edid);
-			hdmi_priv->has_hdmi_audio = drm_detect_monitor_audio(edid);
+			hdmi_priv->has_hdmi_sink =
+						drm_detect_hdmi_monitor(edid);
+			hdmi_priv->has_hdmi_audio =
+						drm_detect_monitor_audio(edid);
 		}
 
 		psb_intel_output->base.display_info.raw_edid = NULL;
@@ -171,7 +172,7 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 		uint64_t curValue;
 
 		if (!crtc)
-		        return -1;
+			return -1;
 
 		switch (value) {
 		case DRM_MODE_SCALE_FULLSCREEN:
@@ -181,17 +182,19 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 		case DRM_MODE_SCALE_ASPECT:
 			break;
 		default:
-		        return -1;
+			return -1;
 		}
 
-		if (drm_connector_property_get_value(connector, property, &curValue))
-		        return -1;
+		if (drm_connector_property_get_value(connector,
+							property, &curValue))
+			return -1;
 
 		if (curValue == value)
-		        return 0;
+			return 0;
 
-		if (drm_connector_property_set_value(connector, property, value))
-		        return -1;
+		if (drm_connector_property_set_value(connector,
+							property, value))
+			return -1;
 
 		centre = (curValue == DRM_MODE_SCALE_NO_SCALE) ||
 			(value == DRM_MODE_SCALE_NO_SCALE);
@@ -203,9 +206,10 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 					    encoder->crtc->x, encoder->crtc->y, encoder->crtc->fb))
 					return -1;
 			} else {
-				struct drm_encoder_helper_funcs *helpers  = encoder->helper_private;
+				struct drm_encoder_helper_funcs *helpers
+						    = encoder->helper_private;
 				helpers->mode_set(encoder, &crtc->saved_mode,
-						     &crtc->saved_adjusted_mode);
+					     &crtc->saved_adjusted_mode);
 			}
 		}
 	}
@@ -217,7 +221,8 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
  */
 static int cdv_hdmi_get_modes(struct drm_connector *connector)
 {
-	struct psb_intel_output *psb_intel_output = to_psb_intel_output(connector);
+	struct psb_intel_output *psb_intel_output =
+					to_psb_intel_output(connector);
 	struct edid *edid = NULL;
 	int ret = 0;
 
@@ -250,8 +255,8 @@ static int cdv_hdmi_mode_valid(struct drm_connector *connector,
 		return MODE_NO_INTERLACE;
 
 	/*
-	 * FIXME: fornow we limit the size to 1680x1050 on CDV, otherwise it will
-	 * go beyond the stolen memory size allocated to the Framebuffer
+	 * FIXME: for now we limit the size to 1680x1050 on CDV, otherwise it
+	 * will go beyond the stolen memory size allocated to the framebuffer
 	 */
 	if (mode->hdisplay > 1680)
 		return MODE_PANEL;
@@ -280,7 +285,8 @@ static const struct drm_encoder_helper_funcs cdv_hdmi_helper_funcs = {
 	.commit = psb_intel_encoder_commit,
 };
 
-static const struct drm_connector_helper_funcs cdv_hdmi_connector_helper_funcs = {
+static const struct drm_connector_helper_funcs
+					cdv_hdmi_connector_helper_funcs = {
 	.get_modes = cdv_hdmi_get_modes,
 	.mode_valid = cdv_hdmi_mode_valid,
 	.best_encoder = psb_intel_best_encoder,
@@ -296,7 +302,8 @@ static const struct drm_connector_funcs cdv_hdmi_connector_funcs = {
 	.destroy = cdv_hdmi_destroy,
 };
 
-void cdv_hdmi_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev, int reg)
+void cdv_hdmi_init(struct drm_device *dev,
+			struct psb_intel_mode_device *mode_dev, int reg)
 {
 	struct psb_intel_output *psb_intel_output;
 	struct drm_connector *connector;
@@ -334,7 +341,8 @@ void cdv_hdmi_init(struct drm_device *dev, struct psb_intel_mode_device *mode_de
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	drm_connector_attach_property(connector, dev->mode_config.scaling_mode_property, DRM_MODE_SCALE_FULLSCREEN);
+	drm_connector_attach_property(connector,
+	    dev->mode_config.scaling_mode_property, DRM_MODE_SCALE_FULLSCREEN);
 
 	switch (reg) {
 	case SDVOB:
@@ -350,19 +358,15 @@ void cdv_hdmi_init(struct drm_device *dev, struct psb_intel_mode_device *mode_de
 	}
 
 	psb_intel_output->ddc_bus = psb_intel_i2c_create(dev,
-						ddc_bus, (reg == SDVOB) ? "HDMIB":"HDMIC");
+				ddc_bus, (reg == SDVOB) ? "HDMIB" : "HDMIC");
 
-	if (psb_intel_output->ddc_bus) {
-     		/* HACKS_JLIU7 */
-		DRM_INFO("Enter cdv_hdmi_init, i2c_adapter is availabe.\n");
-
-	} else {
-		printk(KERN_ALERT "No ddc adapter available!\n");
+	if (!psb_intel_output->ddc_bus) {
+		dev_err(dev->dev, "No ddc adapter available!\n");
 		goto failed_ddc;
 	}
-	psb_intel_output->hdmi_i2c_adapter = &(psb_intel_output->ddc_bus->adapter);
-
-	hdmi_priv->dev = dev; 
+	psb_intel_output->hdmi_i2c_adapter =
+				&(psb_intel_output->ddc_bus->adapter);
+	hdmi_priv->dev = dev;
 	drm_sysfs_connector_add(connector);
 	return;
 

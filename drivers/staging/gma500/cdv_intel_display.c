@@ -11,7 +11,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 
+ * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors:
@@ -40,8 +40,7 @@ struct cdv_intel_p2_t {
 	int p2_slow, p2_fast;
 };
 
-struct cdv_intel_clock_t
-{
+struct cdv_intel_clock_t {
 	/* given values */
 	int n;
 	int m1, m2;
@@ -117,17 +116,18 @@ static const struct cdv_intel_limit_t cdv_intel_limits[] = {
 };
 
 #define _wait_for(COND, MS, W) ({ \
-        unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);       \
-        int ret__ = 0;                                                  \
-        while (! (COND)) {                                              \
-                if (time_after(jiffies, timeout__)) {                   \
-                        ret__ = -ETIMEDOUT;                             \
-                        break;                                          \
-                }                                                       \
-                if (W && !in_dbg_master()) msleep(W);                   \
-        }                                                               \
-        ret__;                                                          \
-})      
+	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS);	\
+	int ret__ = 0;							\
+	while (!(COND)) {						\
+		if (time_after(jiffies, timeout__)) {			\
+			ret__ = -ETIMEDOUT;				\
+			break;						\
+		}							\
+		if (W && !in_dbg_master())				\
+			msleep(W);					\
+	}								\
+	ret__;								\
+})
 
 #define wait_for(COND, MS) _wait_for(COND, MS, 1)
 
@@ -237,7 +237,7 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 	ref_value = 0x68A701;
 
 	cdv_sb_write(dev, SB_REF_SFR(pipe), ref_value);
-	
+
 	/* We don't know what the other fields of these regs are, so
 	 * leave them in place.
 	 */
@@ -324,14 +324,13 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 		lane_value |= LANE_PLL_ENABLE;
 		cdv_sb_write(dev, lane_reg, lane_value);
 
-		/* Program the Lane2/3 for HDMI C */	
+		/* Program the Lane2/3 for HDMI C */
 		lane_reg = PSB_LANE2;
 		cdv_sb_read(dev, lane_reg, &lane_value);
 		lane_value &= ~(LANE_PLL_MASK);
 		lane_value |= LANE_PLL_ENABLE;
 		cdv_sb_write(dev, lane_reg, lane_value);
 
-	
 		lane_reg = PSB_LANE3;
 		cdv_sb_read(dev, lane_reg, &lane_value);
 		lane_value &= ~(LANE_PLL_MASK);
@@ -362,17 +361,18 @@ bool cdv_intel_pipe_has_type(struct drm_crtc *crtc, int type)
 	return false;
 }
 
-static const struct cdv_intel_limit_t *cdv_intel_limit(struct drm_crtc *crtc, int refclk)
+static const struct cdv_intel_limit_t *cdv_intel_limit(struct drm_crtc *crtc,
+							int refclk)
 {
 	const struct cdv_intel_limit_t *limit;
 	if (cdv_intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
 		/*
- 		 * Now only single-channel LVDS is supported on CDV. If it is
- 		 * incorrect, please add the dual-channel LVDS.
- 		 */
+		 * Now only single-channel LVDS is supported on CDV. If it is
+		 * incorrect, please add the dual-channel LVDS.
+		 */
 		if (refclk == 96000)
 			limit = &cdv_intel_limits[CDV_LIMIT_SINGLE_LVDS_96];
-		else 
+		else
 			limit = &cdv_intel_limits[CDV_LIMIT_SINGLE_LVDS_100];
 	} else {
 		if (refclk == 27000)
@@ -384,7 +384,7 @@ static const struct cdv_intel_limit_t *cdv_intel_limit(struct drm_crtc *crtc, in
 }
 
 /* m1 is reserved as 0 in CDV, n is a ring counter */
-static void cdv_intel_clock(struct drm_device *dev, 
+static void cdv_intel_clock(struct drm_device *dev,
 			int refclk, struct cdv_intel_clock_t *clock)
 {
 	clock->m = clock->m2 + 2;
@@ -448,19 +448,22 @@ static bool cdv_intel_find_best_PLL(struct drm_crtc *crtc, int target,
 
 	memset(best_clock, 0, sizeof(*best_clock));
 	clock.m1 = 0;
-	/* m1 is reserved as 0 in CDV, n is a ring counter. So skip the m1 loop */
+	/* m1 is reserved as 0 in CDV, n is a ring counter.
+	   So skip the m1 loop */
 	for (clock.n = limit->n.min; clock.n <= limit->n.max; clock.n++) {
 		for (clock.m2 = limit->m2.min; clock.m2 <= limit->m2.max;
 					     clock.m2++) {
-			for (clock.p1 = limit->p1.min; clock.p1 <= limit->p1.max;
-				     clock.p1++) {
+			for (clock.p1 = limit->p1.min;
+					clock.p1 <= limit->p1.max;
+					clock.p1++) {
 				int this_err;
 
 				cdv_intel_clock(dev, refclk, &clock);
 
-				if (!cdv_intel_PLL_is_valid(crtc, limit, &clock))
+				if (!cdv_intel_PLL_is_valid(crtc,
+								limit, &clock))
 						continue;
-				
+
 				this_err = abs(clock.dot - target);
 				if (this_err < err) {
 					*best_clock = clock;
@@ -533,7 +536,7 @@ int cdv_intel_pipe_set_base(struct drm_crtc *crtc,
 	REG_WRITE(dspcntr_reg, dspcntr);
 
 	dev_dbg(dev->dev,
-	        "Writing base %08lX %08lX %d %d\n", start, offset, x, y);
+		"Writing base %08lX %08lX %d %d\n", start, offset, x, y);
 
 	REG_WRITE(dspbase, offset);
 	REG_READ(dspbase);
@@ -808,7 +811,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 		dpll |= DPLLB_MODE_LVDS;
 	else
 		dpll |= DPLLB_MODE_DAC_SERIAL;
-	//dpll |= (2 << 11);
+	/* dpll |= (2 << 11); */
 
 	/* setup pipeconf */
 	pipeconf = REG_READ(pipeconf_reg);
@@ -824,14 +827,12 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	dspcntr |= DISPLAY_PLANE_ENABLE;
 	pipeconf |= PIPEACONF_ENABLE;
 
-	REG_WRITE(dpll_reg,
-                   dpll | DPLL_VGA_MODE_DIS |
-                   DPLL_SYNCLOCK_ENABLE);
-        REG_READ(dpll_reg);
+	REG_WRITE(dpll_reg, dpll | DPLL_VGA_MODE_DIS | DPLL_SYNCLOCK_ENABLE);
+	REG_READ(dpll_reg);
 
 	cdv_dpll_set_clock_cdv(dev, crtc, &clock);
 
-        udelay(150);
+	udelay(150);
 
 
 	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
@@ -864,7 +865,6 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 
 	dpll |= DPLL_VCO_ENABLE;
 
-		
 	/* Disable the panel fitter if it was on our pipe */
 	if (cdv_intel_panel_fitter_pipe(dev) == pipe)
 		REG_WRITE(PFIT_CONTROL, 0);
@@ -873,24 +873,19 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	drm_mode_debug_printmodeline(mode);
 
 	REG_WRITE(dpll_reg,
-                   (REG_READ(dpll_reg) & ~DPLL_LOCK) |
-                   DPLL_VCO_ENABLE);
-        REG_READ(dpll_reg);
+		(REG_READ(dpll_reg) & ~DPLL_LOCK) | DPLL_VCO_ENABLE);
+	REG_READ(dpll_reg);
 	/* Wait for the clocks to stabilize. */
-        udelay(150); /* 42 usec w/o calibration, 110 with.  rounded up. */
+	udelay(150); /* 42 usec w/o calibration, 110 with.  rounded up. */
 
-        if (!(REG_READ(dpll_reg) & DPLL_LOCK)) {
-                dev_err(dev->dev, "Failed to get DPLL lock\n");
-                return -EBUSY;
-        }
+	if (!(REG_READ(dpll_reg) & DPLL_LOCK)) {
+		dev_err(dev->dev, "Failed to get DPLL lock\n");
+		return -EBUSY;
+	}
 
-        {
-        	int sdvo_pixel_multiply =
-		    adjusted_mode->clock / mode->clock;
-		REG_WRITE(dpll_md_reg,
-			  (0 << DPLL_MD_UDI_DIVIDER_SHIFT) |
-			  ((sdvo_pixel_multiply -
-			    1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
+	{
+		int sdvo_pixel_multiply = adjusted_mode->clock / mode->clock;
+		REG_WRITE(dpll_md_reg, (0 << DPLL_MD_UDI_DIVIDER_SHIFT) | ((sdvo_pixel_multiply - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT));
 	}
 
 	REG_WRITE(htot_reg, (adjusted_mode->crtc_hdisplay - 1) |
@@ -956,10 +951,10 @@ void cdv_intel_crtc_load_lut(struct drm_crtc *crtc)
 		palreg = PALETTE_C;
 		break;
 	default:
-		dev_err(dev->dev, "Illegal Pipe Number. \n");
+		dev_err(dev->dev, "Illegal Pipe Number.\n");
 		return;
 	}
-	
+
 	if (gma_power_begin(dev, false)) {
 		for (i = 0; i < 256; i++) {
 			REG_WRITE(palreg + 4 * i,
@@ -1276,7 +1271,7 @@ static int cdv_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 }
 
 static void cdv_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
-				 u16 *green, u16 *blue, uint32_t start, uint32_t size)
+			 u16 *green, u16 *blue, uint32_t start, uint32_t size)
 {
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int i;
@@ -1294,10 +1289,10 @@ static void cdv_intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red,
 static int cdv_crtc_set_config(struct drm_mode_set *set)
 {
 	int ret = 0;
-	struct drm_device * dev = set->crtc->dev;
-	struct drm_psb_private * dev_priv = dev->dev_private;
+	struct drm_device *dev = set->crtc->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	if(!dev_priv->rpm_enabled)
+	if (!dev_priv->rpm_enabled)
 		return drm_crtc_helper_set_config(set);
 
 	pm_runtime_forbid(&dev->pdev->dev);
@@ -1489,7 +1484,7 @@ void cdv_intel_cursor_init(struct drm_device *dev, int pipe)
 {
 	uint32_t control;
 	uint32_t base;
-      
+
 	switch (pipe) {
 	case 0:
 		control = CURACNTR;

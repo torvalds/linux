@@ -11,7 +11,7 @@
  * more details.
  *
  * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 
+ * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors:
@@ -200,7 +200,7 @@ static void cdv_intel_lvds_set_power(struct drm_device *dev,
 	u32 pp_status;
 
 	if (!gma_power_begin(dev, true))
-	        return;
+		return;
 
 	if (on) {
 		REG_WRITE(PP_CONTROL, REG_READ(PP_CONTROL) |
@@ -390,7 +390,8 @@ static void cdv_intel_lvds_mode_set(struct drm_encoder *encoder,
  * This connector should only have
  * been set up if the LVDS was actually connected anyway.
  */
-static enum drm_connector_status cdv_intel_lvds_detect(struct drm_connector *connector, bool force)
+static enum drm_connector_status cdv_intel_lvds_detect(
+				struct drm_connector *connector, bool force)
 {
 	return connector_status_connected;
 }
@@ -503,21 +504,24 @@ int cdv_intel_lvds_set_property(struct drm_connector *connector,
 			return -1;
 		else {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-                	struct drm_psb_private *dev_priv =
+			struct drm_psb_private *dev_priv =
 						encoder->dev->dev_private;
-			struct backlight_device *bd = dev_priv->backlight_device;
+			struct backlight_device *bd =
+						dev_priv->backlight_device;
 			bd->props.brightness = value;
 			backlight_update_status(bd);
 #endif
 		}
 	} else if (!strcmp(property->name, "DPMS") && encoder) {
-		struct drm_encoder_helper_funcs *helpers = encoder->helper_private;
+		struct drm_encoder_helper_funcs *helpers =
+					encoder->helper_private;
 		helpers->dpms(encoder, value);
 	}
 	return 0;
 }
 
-static const struct drm_encoder_helper_funcs cdv_intel_lvds_helper_funcs = {
+static const struct drm_encoder_helper_funcs
+					cdv_intel_lvds_helper_funcs = {
 	.dpms = cdv_intel_lvds_encoder_dpms,
 	.mode_fixup = cdv_intel_lvds_mode_fixup,
 	.prepare = cdv_intel_lvds_prepare,
@@ -526,7 +530,7 @@ static const struct drm_encoder_helper_funcs cdv_intel_lvds_helper_funcs = {
 };
 
 static const struct drm_connector_helper_funcs
-    cdv_intel_lvds_connector_helper_funcs = {
+				cdv_intel_lvds_connector_helper_funcs = {
 	.get_modes = cdv_intel_lvds_get_modes,
 	.mode_valid = cdv_intel_lvds_mode_valid,
 	.best_encoder = psb_intel_best_encoder,

@@ -129,7 +129,6 @@ static int cdv_backlight_setup(struct drm_device *dev)
 
 static int cdv_set_brightness(struct backlight_device *bd)
 {
-	struct drm_device *dev = bl_get_data(cdv_backlight_device);
 	int level = bd->props.brightness;
 
 	/* Percentage 1-100% being valid */
@@ -188,9 +187,9 @@ static inline u32 CDV_MSG_READ32(uint port, uint offset)
 {
 	int mcr = (0x10<<24) | (port << 16) | (offset << 8);
 	uint32_t ret_val = 0;
-	struct pci_dev *pci_root = pci_get_bus_and_slot (0, 0);
-	pci_write_config_dword (pci_root, 0xD0, mcr);
-	pci_read_config_dword (pci_root, 0xD4, &ret_val);
+	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	pci_write_config_dword(pci_root, 0xD0, mcr);
+	pci_read_config_dword(pci_root, 0xD4, &ret_val);
 	pci_dev_put(pci_root);
 	return ret_val;
 }
@@ -198,9 +197,9 @@ static inline u32 CDV_MSG_READ32(uint port, uint offset)
 static inline void CDV_MSG_WRITE32(uint port, uint offset, u32 value)
 {
 	int mcr = (0x11<<24) | (port << 16) | (offset << 8) | 0xF0;
-	struct pci_dev *pci_root = pci_get_bus_and_slot (0, 0);
-	pci_write_config_dword (pci_root, 0xD4, value);
-	pci_write_config_dword (pci_root, 0xD0, mcr);
+	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	pci_write_config_dword(pci_root, 0xD4, value);
+	pci_write_config_dword(pci_root, 0xD0, mcr);
 	pci_dev_put(pci_root);
 }
 
@@ -218,8 +217,10 @@ static void cdv_init_pm(struct drm_device *dev)
 	u32 pwr_cnt;
 	int i;
 
-	dev_priv->apm_base = CDV_MSG_READ32(PSB_PUNIT_PORT, PSB_APMBA) & 0xFFFF;
-	dev_priv->ospm_base = CDV_MSG_READ32(PSB_PUNIT_PORT, PSB_OSPMBA) & 0xFFFF;
+	dev_priv->apm_base = CDV_MSG_READ32(PSB_PUNIT_PORT,
+							PSB_APMBA) & 0xFFFF;
+	dev_priv->ospm_base = CDV_MSG_READ32(PSB_PUNIT_PORT,
+							PSB_OSPMBA) & 0xFFFF;
 
 	/* Force power on for now */
 	pwr_cnt = inl(dev_priv->apm_base + PSB_APM_CMD);
@@ -346,5 +347,5 @@ const struct psb_ops cdv_chip_ops = {
 	.save_regs = cdv_save_display_registers,
 	.restore_regs = cdv_restore_display_registers,
 	.power_down = cdv_power_down,
-	.power_up = cdv_power_up,	
+	.power_up = cdv_power_up,
 };
