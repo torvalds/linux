@@ -1285,13 +1285,11 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 			   mpic_read(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0))
 			   | MPIC_GREG_GCONF_MCK);
 
-	/* Read feature register, calculate num CPUs and, for non-ISU
-	 * MPICs, num sources as well. On ISU MPICs, sources are counted
-	 * as ISUs are added
+	/*
+	 * Read feature register.  For non-ISU MPICs, num sources as well. On
+	 * ISU MPICs, sources are counted as ISUs are added
 	 */
 	greg_feature = mpic_read(mpic->gregs, MPIC_INFO(GREG_FEATURE_0));
-	mpic->num_cpus = ((greg_feature & MPIC_GREG_FEATURE_LAST_CPU_MASK)
-			  >> MPIC_GREG_FEATURE_LAST_CPU_SHIFT) + 1;
 	if (isu_size == 0) {
 		if (flags & MPIC_BROKEN_FRR_NIRQS)
 			mpic->num_sources = mpic->irq_count;
@@ -1301,10 +1299,18 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 				 >> MPIC_GREG_FEATURE_LAST_SRC_SHIFT) + 1;
 	}
 
+	/*
+	 * The MPIC driver will crash if there are more cores than we
+	 * can initialize, so we may as well catch that problem here.
+	 */
+	BUG_ON(num_possible_cpus() > MPIC_MAX_CPUS);
+
 	/* Map the per-CPU registers */
-	for (i = 0; i < mpic->num_cpus; i++) {
-		mpic_map(mpic, node, paddr, &mpic->cpuregs[i],
-			 MPIC_INFO(CPU_BASE) + i * MPIC_INFO(CPU_STRIDE),
+	for_each_possible_cpu(i) {
+		unsigned int cpu = get_hard_smp_processor_id(i);
+
+		mpic_map(mpic, node, paddr, &mpic->cpuregs[cpu],
+			 MPIC_INFO(CPU_BASE) + cpu * MPIC_INFO(CPU_STRIDE),
 			 0x1000);
 	}
 
@@ -1343,7 +1349,7 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	}
 	printk(KERN_INFO "mpic: Setting up MPIC \"%s\" version %s at %llx,"
 	       " max %d CPUs\n",
-	       name, vers, (unsigned long long)paddr, mpic->num_cpus);
+	       name, vers, (unsigned long long)paddr, num_possible_cpus());
 	printk(KERN_INFO "mpic: ISU size: %d, shift: %d, mask: %x\n",
 	       mpic->isu_size, mpic->isu_shift, mpic->isu_mask);
 
