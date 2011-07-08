@@ -2344,7 +2344,7 @@ static bool sleeping_prematurely(pg_data_t *pgdat, int order, long remaining,
 		}
 
 		if (!zone_watermark_ok_safe(zone, order, high_wmark_pages(zone),
-							classzone_idx, 0))
+							i, 0))
 			all_zones_ok = false;
 		else
 			balanced += zone->present_pages;
