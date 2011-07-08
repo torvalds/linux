@@ -10,6 +10,104 @@
 #include <linux/slab.h>
 
 /**
+ * tomoyo_print_bprm - Print "struct linux_binprm" for auditing.
+ *
+ * @bprm: Pointer to "struct linux_binprm".
+ * @dump: Pointer to "struct tomoyo_page_dump".
+ *
+ * Returns the contents of @bprm on success, NULL otherwise.
+ *
+ * This function uses kzalloc(), so caller must kfree() if this function
+ * didn't return NULL.
+ */
+static char *tomoyo_print_bprm(struct linux_binprm *bprm,
+			       struct tomoyo_page_dump *dump)
+{
+	static const int tomoyo_buffer_len = 4096 * 2;
+	char *buffer = kzalloc(tomoyo_buffer_len, GFP_NOFS);
+	char *cp;
+	char *last_start;
+	int len;
+	unsigned long pos = bprm->p;
+	int offset = pos % PAGE_SIZE;
+	int argv_count = bprm->argc;
+	int envp_count = bprm->envc;
+	bool truncated = false;
+	if (!buffer)
+		return NULL;
+	len = snprintf(buffer, tomoyo_buffer_len - 1, "argv[]={ ");
+	cp = buffer + len;
+	if (!argv_count) {
+		memmove(cp, "} envp[]={ ", 11);
+		cp += 11;
+	}
+	last_start = cp;
+	while (argv_count || envp_count) {
+		if (!tomoyo_dump_page(bprm, pos, dump))
+			goto out;
+		pos += PAGE_SIZE - offset;
+		/* Read. */
+		while (offset < PAGE_SIZE) {
+			const char *kaddr = dump->data;
+			const unsigned char c = kaddr[offset++];
+			if (cp == last_start)
+				*cp++ = '"';
+			if (cp >= buffer + tomoyo_buffer_len - 32) {
+				/* Reserve some room for "..." string. */
+				truncated = true;
+			} else if (c == '\\') {
+				*cp++ = '\\';
+				*cp++ = '\\';
+			} else if (c > ' ' && c < 127) {
+				*cp++ = c;
+			} else if (!c) {
+				*cp++ = '"';
+				*cp++ = ' ';
+				last_start = cp;
+			} else {
+				*cp++ = '\\';
+				*cp++ = (c >> 6) + '0';
+				*cp++ = ((c >> 3) & 7) + '0';
+				*cp++ = (c & 7) + '0';
+			}
+			if (c)
+				continue;
+			if (argv_count) {
+				if (--argv_count == 0) {
+					if (truncated) {
+						cp = last_start;
+						memmove(cp, "... ", 4);
+						cp += 4;
+					}
+					memmove(cp, "} envp[]={ ", 11);
+					cp += 11;
+					last_start = cp;
+					truncated = false;
+				}
+			} else if (envp_count) {
+				if (--envp_count == 0) {
+					if (truncated) {
+						cp = last_start;
+						memmove(cp, "... ", 4);
+						cp += 4;
+					}
+				}
+			}
+			if (!argv_count && !envp_count)
+				break;
+		}
+		offset = 0;
+	}
+	*cp++ = '}';
+	*cp = '\0';
+	return buffer;
+out:
+	snprintf(buffer, tomoyo_buffer_len - 1,
+		 "argv[]={ ... } envp[]= { ... }");
+	return buffer;
+}
+
+/**
  * tomoyo_filetype - Get string representation of file type.
  *
  * @mode: Mode value for stat().
@@ -139,6 +237,7 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 		      va_list args)
 {
 	char *buf = NULL;
+	char *bprm_info = NULL;
 	const char *header = NULL;
 	char *realpath = NULL;
 	const char *symlink = NULL;
@@ -152,10 +251,11 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 	if (r->ee) {
 		struct file *file = r->ee->bprm->file;
 		realpath = tomoyo_realpath_from_path(&file->f_path);
-		if (!realpath)
+		bprm_info = tomoyo_print_bprm(r->ee->bprm, &r->ee->dump);
+		if (!realpath || !bprm_info)
 			goto out;
-		/* +80 is for " exec={ realpath=\"%s\" }" */
-		len += strlen(realpath) + 80;
+		/* +80 is for " exec={ realpath=\"%s\" argc=%d envc=%d %s }" */
+		len += strlen(realpath) + 80 + strlen(bprm_info);
 	} else if (r->obj && r->obj->symlink_target) {
 		symlink = r->obj->symlink_target->name;
 		/* +18 is for " symlink.target=\"%s\"" */
@@ -168,8 +268,10 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 	len--;
 	pos = snprintf(buf, len, "%s", header);
 	if (realpath) {
+		struct linux_binprm *bprm = r->ee->bprm;
 		pos += snprintf(buf + pos, len - pos,
-				" exec={ realpath=\"%s\" }", realpath);
+				" exec={ realpath=\"%s\" argc=%d envc=%d %s }",
+				realpath, bprm->argc, bprm->envc, bprm_info);
 	} else if (symlink)
 		pos += snprintf(buf + pos, len - pos, " symlink.target=\"%s\"",
 				symlink);
@@ -177,6 +279,7 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 	vsnprintf(buf + pos, len - pos, fmt, args);
 out:
 	kfree(realpath);
+	kfree(bprm_info);
 	kfree(header);
 	return buf;
 }

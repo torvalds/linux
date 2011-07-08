@@ -60,6 +60,8 @@ const char * const tomoyo_condition_keyword[TOMOYO_MAX_CONDITION_KEYWORD] = {
 	[TOMOYO_TASK_FSGID]           = "task.fsgid",
 	[TOMOYO_TASK_PID]             = "task.pid",
 	[TOMOYO_TASK_PPID]            = "task.ppid",
+	[TOMOYO_EXEC_ARGC]            = "exec.argc",
+	[TOMOYO_EXEC_ENVC]            = "exec.envc",
 	[TOMOYO_TYPE_IS_SOCKET]       = "socket",
 	[TOMOYO_TYPE_IS_SYMLINK]      = "symlink",
 	[TOMOYO_TYPE_IS_FILE]         = "file",
@@ -1127,12 +1129,22 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 			const struct tomoyo_name_union *names_p =
 				(typeof(names_p))
 				(numbers_p + cond->numbers_count);
+			const struct tomoyo_argv *argv =
+				(typeof(argv)) (names_p + cond->names_count);
+			const struct tomoyo_envp *envp =
+				(typeof(envp)) (argv + cond->argc);
 			u16 skip;
 			for (skip = 0; skip < head->r.cond_index; skip++) {
 				const u8 left = condp->left;
 				const u8 right = condp->right;
 				condp++;
 				switch (left) {
+				case TOMOYO_ARGV_ENTRY:
+					argv++;
+					continue;
+				case TOMOYO_ENVP_ENTRY:
+					envp++;
+					continue;
 				case TOMOYO_NUMBER_UNION:
 					numbers_p++;
 					break;
@@ -1156,6 +1168,34 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 				head->r.cond_index++;
 				tomoyo_set_space(head);
 				switch (left) {
+				case TOMOYO_ARGV_ENTRY:
+					tomoyo_io_printf(head,
+							 "exec.argv[%lu]%s=\"",
+							 argv->index, argv->
+							 is_not ? "!" : "");
+					tomoyo_set_string(head,
+							  argv->value->name);
+					tomoyo_set_string(head, "\"");
+					argv++;
+					continue;
+				case TOMOYO_ENVP_ENTRY:
+					tomoyo_set_string(head,
+							  "exec.envp[\"");
+					tomoyo_set_string(head,
+							  envp->name->name);
+					tomoyo_io_printf(head, "\"]%s=", envp->
+							 is_not ? "!" : "");
+					if (envp->value) {
+						tomoyo_set_string(head, "\"");
+						tomoyo_set_string(head, envp->
+								  value->name);
+						tomoyo_set_string(head, "\"");
+					} else {
+						tomoyo_set_string(head,
+								  "NULL");
+					}
+					envp++;
+					continue;
 				case TOMOYO_NUMBER_UNION:
 					tomoyo_print_number_union_nospace
 						(head, numbers_p++);
@@ -1726,6 +1766,7 @@ static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
 {
 	char *buffer;
 	char *realpath = NULL;
+	char *argv0 = NULL;
 	char *symlink = NULL;
 	char *cp = strchr(header, '\n');
 	int len;
@@ -1738,6 +1779,11 @@ static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
 	len = strlen(cp) + 1;
 	/* strstr() will return NULL if ordering is wrong. */
 	if (*cp == 'f') {
+		argv0 = strstr(header, " argv[]={ \"");
+		if (argv0) {
+			argv0 += 10;
+			len += tomoyo_truncate(argv0) + 14;
+		}
 		realpath = strstr(header, " exec={ realpath=\"");
 		if (realpath) {
 			realpath += 8;
@@ -1753,6 +1799,8 @@ static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
 	snprintf(buffer, len - 1, "%s", cp);
 	if (realpath)
 		tomoyo_addprintf(buffer, len, " exec.%s", realpath);
+	if (argv0)
+		tomoyo_addprintf(buffer, len, " exec.argv[0]=%s", argv0);
 	if (symlink)
 		tomoyo_addprintf(buffer, len, "%s", symlink);
 	tomoyo_normalize_line(buffer);

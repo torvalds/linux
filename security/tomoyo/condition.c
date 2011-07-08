@@ -11,6 +11,209 @@
 LIST_HEAD(tomoyo_condition_list);
 
 /**
+ * tomoyo_argv - Check argv[] in "struct linux_binbrm".
+ *
+ * @index:   Index number of @arg_ptr.
+ * @arg_ptr: Contents of argv[@index].
+ * @argc:    Length of @argv.
+ * @argv:    Pointer to "struct tomoyo_argv".
+ * @checked: Set to true if @argv[@index] was found.
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_argv(const unsigned int index, const char *arg_ptr,
+			const int argc, const struct tomoyo_argv *argv,
+			u8 *checked)
+{
+	int i;
+	struct tomoyo_path_info arg;
+	arg.name = arg_ptr;
+	for (i = 0; i < argc; argv++, checked++, i++) {
+		bool result;
+		if (index != argv->index)
+			continue;
+		*checked = 1;
+		tomoyo_fill_path_info(&arg);
+		result = tomoyo_path_matches_pattern(&arg, argv->value);
+		if (argv->is_not)
+			result = !result;
+		if (!result)
+			return false;
+	}
+	return true;
+}
+
+/**
+ * tomoyo_envp - Check envp[] in "struct linux_binbrm".
+ *
+ * @env_name:  The name of environment variable.
+ * @env_value: The value of environment variable.
+ * @envc:      Length of @envp.
+ * @envp:      Pointer to "struct tomoyo_envp".
+ * @checked:   Set to true if @envp[@env_name] was found.
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_envp(const char *env_name, const char *env_value,
+			const int envc, const struct tomoyo_envp *envp,
+			u8 *checked)
+{
+	int i;
+	struct tomoyo_path_info name;
+	struct tomoyo_path_info value;
+	name.name = env_name;
+	tomoyo_fill_path_info(&name);
+	value.name = env_value;
+	tomoyo_fill_path_info(&value);
+	for (i = 0; i < envc; envp++, checked++, i++) {
+		bool result;
+		if (!tomoyo_path_matches_pattern(&name, envp->name))
+			continue;
+		*checked = 1;
+		if (envp->value) {
+			result = tomoyo_path_matches_pattern(&value,
+							     envp->value);
+			if (envp->is_not)
+				result = !result;
+		} else {
+			result = true;
+			if (!envp->is_not)
+				result = !result;
+		}
+		if (!result)
+			return false;
+	}
+	return true;
+}
+
+/**
+ * tomoyo_scan_bprm - Scan "struct linux_binprm".
+ *
+ * @ee:   Pointer to "struct tomoyo_execve".
+ * @argc: Length of @argc.
+ * @argv: Pointer to "struct tomoyo_argv".
+ * @envc: Length of @envp.
+ * @envp: Poiner to "struct tomoyo_envp".
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_scan_bprm(struct tomoyo_execve *ee,
+			     const u16 argc, const struct tomoyo_argv *argv,
+			     const u16 envc, const struct tomoyo_envp *envp)
+{
+	struct linux_binprm *bprm = ee->bprm;
+	struct tomoyo_page_dump *dump = &ee->dump;
+	char *arg_ptr = ee->tmp;
+	int arg_len = 0;
+	unsigned long pos = bprm->p;
+	int offset = pos % PAGE_SIZE;
+	int argv_count = bprm->argc;
+	int envp_count = bprm->envc;
+	bool result = true;
+	u8 local_checked[32];
+	u8 *checked;
+	if (argc + envc <= sizeof(local_checked)) {
+		checked = local_checked;
+		memset(local_checked, 0, sizeof(local_checked));
+	} else {
+		checked = kzalloc(argc + envc, GFP_NOFS);
+		if (!checked)
+			return false;
+	}
+	while (argv_count || envp_count) {
+		if (!tomoyo_dump_page(bprm, pos, dump)) {
+			result = false;
+			goto out;
+		}
+		pos += PAGE_SIZE - offset;
+		while (offset < PAGE_SIZE) {
+			/* Read. */
+			const char *kaddr = dump->data;
+			const unsigned char c = kaddr[offset++];
+			if (c && arg_len < TOMOYO_EXEC_TMPSIZE - 10) {
+				if (c == '\\') {
+					arg_ptr[arg_len++] = '\\';
+					arg_ptr[arg_len++] = '\\';
+				} else if (c > ' ' && c < 127) {
+					arg_ptr[arg_len++] = c;
+				} else {
+					arg_ptr[arg_len++] = '\\';
+					arg_ptr[arg_len++] = (c >> 6) + '0';
+					arg_ptr[arg_len++] =
+						((c >> 3) & 7) + '0';
+					arg_ptr[arg_len++] = (c & 7) + '0';
+				}
+			} else {
+				arg_ptr[arg_len] = '\0';
+			}
+			if (c)
+				continue;
+			/* Check. */
+			if (argv_count) {
+				if (!tomoyo_argv(bprm->argc - argv_count,
+						 arg_ptr, argc, argv,
+						 checked)) {
+					result = false;
+					break;
+				}
+				argv_count--;
+			} else if (envp_count) {
+				char *cp = strchr(arg_ptr, '=');
+				if (cp) {
+					*cp = '\0';
+					if (!tomoyo_envp(arg_ptr, cp + 1,
+							 envc, envp,
+							 checked + argc)) {
+						result = false;
+						break;
+					}
+				}
+				envp_count--;
+			} else {
+				break;
+			}
+			arg_len = 0;
+		}
+		offset = 0;
+		if (!result)
+			break;
+	}
+out:
+	if (result) {
+		int i;
+		/* Check not-yet-checked entries. */
+		for (i = 0; i < argc; i++) {
+			if (checked[i])
+				continue;
+			/*
+			 * Return true only if all unchecked indexes in
+			 * bprm->argv[] are not matched.
+			 */
+			if (argv[i].is_not)
+				continue;
+			result = false;
+			break;
+		}
+		for (i = 0; i < envc; envp++, i++) {
+			if (checked[argc + i])
+				continue;
+			/*
+			 * Return true only if all unchecked environ variables
+			 * in bprm->envp[] are either undefined or not matched.
+			 */
+			if ((!envp->value && !envp->is_not) ||
+			    (envp->value && envp->is_not))
+				continue;
+			result = false;
+			break;
+		}
+	}
+	if (checked != local_checked)
+		kfree(checked);
+	return result;
+}
+
+/**
  * tomoyo_scan_exec_realpath - Check "exec.realpath" parameter of "struct tomoyo_condition".
  *
  * @file:  Pointer to "struct file".
@@ -73,6 +276,64 @@ static bool tomoyo_parse_name_union_quoted(struct tomoyo_acl_param *param,
 }
 
 /**
+ * tomoyo_parse_argv - Parse an argv[] condition part.
+ *
+ * @left:  Lefthand value.
+ * @right: Righthand value.
+ * @argv:  Pointer to "struct tomoyo_argv".
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_parse_argv(char *left, char *right,
+			      struct tomoyo_argv *argv)
+{
+	if (tomoyo_parse_ulong(&argv->index, &left) !=
+	    TOMOYO_VALUE_TYPE_DECIMAL || *left++ != ']' || *left)
+		return false;
+	argv->value = tomoyo_get_dqword(right);
+	return argv->value != NULL;
+}
+
+/**
+ * tomoyo_parse_envp - Parse an envp[] condition part.
+ *
+ * @left:  Lefthand value.
+ * @right: Righthand value.
+ * @envp:  Pointer to "struct tomoyo_envp".
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_parse_envp(char *left, char *right,
+			      struct tomoyo_envp *envp)
+{
+	const struct tomoyo_path_info *name;
+	const struct tomoyo_path_info *value;
+	char *cp = left + strlen(left) - 1;
+	if (*cp-- != ']' || *cp != '"')
+		goto out;
+	*cp = '\0';
+	if (!tomoyo_correct_word(left))
+		goto out;
+	name = tomoyo_get_name(left);
+	if (!name)
+		goto out;
+	if (!strcmp(right, "NULL")) {
+		value = NULL;
+	} else {
+		value = tomoyo_get_dqword(right);
+		if (!value) {
+			tomoyo_put_name(name);
+			goto out;
+		}
+	}
+	envp->name = name;
+	envp->value = value;
+	return true;
+out:
+	return false;
+}
+
+/**
  * tomoyo_same_condition - Check for duplicated "struct tomoyo_condition" entry.
  *
  * @a: Pointer to "struct tomoyo_condition".
@@ -86,6 +347,7 @@ static inline bool tomoyo_same_condition(const struct tomoyo_condition *a,
 	return a->size == b->size && a->condc == b->condc &&
 		a->numbers_count == b->numbers_count &&
 		a->names_count == b->names_count &&
+		a->argc == b->argc && a->envc == b->envc &&
 		!memcmp(a + 1, b + 1, a->size - sizeof(*a));
 }
 
@@ -178,6 +440,8 @@ struct tomoyo_condition *tomoyo_get_condition(struct tomoyo_acl_param *param)
 	struct tomoyo_condition_element *condp = NULL;
 	struct tomoyo_number_union *numbers_p = NULL;
 	struct tomoyo_name_union *names_p = NULL;
+	struct tomoyo_argv *argv = NULL;
+	struct tomoyo_envp *envp = NULL;
 	struct tomoyo_condition e = { };
 	char * const start_of_string = param->data;
 	char * const end_of_string = start_of_string + strlen(start_of_string);
@@ -222,6 +486,36 @@ rerun:
 			goto out;
 		dprintk(KERN_WARNING "%u: <%s>%s=<%s>\n", __LINE__, left_word,
 			is_not ? "!" : "", right_word);
+		if (!strncmp(left_word, "exec.argv[", 10)) {
+			if (!argv) {
+				e.argc++;
+				e.condc++;
+			} else {
+				e.argc--;
+				e.condc--;
+				left = TOMOYO_ARGV_ENTRY;
+				argv->is_not = is_not;
+				if (!tomoyo_parse_argv(left_word + 10,
+						       right_word, argv++))
+					goto out;
+			}
+			goto store_value;
+		}
+		if (!strncmp(left_word, "exec.envp[\"", 11)) {
+			if (!envp) {
+				e.envc++;
+				e.condc++;
+			} else {
+				e.envc--;
+				e.condc--;
+				left = TOMOYO_ENVP_ENTRY;
+				envp->is_not = is_not;
+				if (!tomoyo_parse_envp(left_word + 11,
+						       right_word, envp++))
+					goto out;
+			}
+			goto store_value;
+		}
 		left = tomoyo_condition_type(left_word);
 		dprintk(KERN_WARNING "%u: <%s> left=%u\n", __LINE__, left_word,
 			left);
@@ -283,16 +577,20 @@ store_value:
 			condp->equals);
 		condp++;
 	}
-	dprintk(KERN_INFO "%u: cond=%u numbers=%u names=%u\n",
-		__LINE__, e.condc, e.numbers_count, e.names_count);
+	dprintk(KERN_INFO "%u: cond=%u numbers=%u names=%u ac=%u ec=%u\n",
+		__LINE__, e.condc, e.numbers_count, e.names_count, e.argc,
+		e.envc);
 	if (entry) {
-		BUG_ON(e.names_count | e.numbers_count | e.condc);
+		BUG_ON(e.names_count | e.numbers_count | e.argc | e.envc |
+		       e.condc);
 		return tomoyo_commit_condition(entry);
 	}
 	e.size = sizeof(*entry)
 		+ e.condc * sizeof(struct tomoyo_condition_element)
 		+ e.numbers_count * sizeof(struct tomoyo_number_union)
-		+ e.names_count * sizeof(struct tomoyo_name_union);
+		+ e.names_count * sizeof(struct tomoyo_name_union)
+		+ e.argc * sizeof(struct tomoyo_argv)
+		+ e.envc * sizeof(struct tomoyo_envp);
 	entry = kzalloc(e.size, GFP_NOFS);
 	if (!entry)
 		return NULL;
@@ -300,6 +598,8 @@ store_value:
 	condp = (struct tomoyo_condition_element *) (entry + 1);
 	numbers_p = (struct tomoyo_number_union *) (condp + e.condc);
 	names_p = (struct tomoyo_name_union *) (numbers_p + e.numbers_count);
+	argv = (struct tomoyo_argv *) (names_p + e.names_count);
+	envp = (struct tomoyo_envp *) (argv + e.argc);
 	{
 		bool flag = false;
 		for (pos = start_of_string; pos < end_of_string; pos++) {
@@ -391,16 +691,29 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 	const struct tomoyo_condition_element *condp;
 	const struct tomoyo_number_union *numbers_p;
 	const struct tomoyo_name_union *names_p;
+	const struct tomoyo_argv *argv;
+	const struct tomoyo_envp *envp;
 	struct tomoyo_obj_info *obj;
 	u16 condc;
+	u16 argc;
+	u16 envc;
+	struct linux_binprm *bprm = NULL;
 	if (!cond)
 		return true;
 	condc = cond->condc;
+	argc = cond->argc;
+	envc = cond->envc;
 	obj = r->obj;
+	if (r->ee)
+		bprm = r->ee->bprm;
+	if (!bprm && (argc || envc))
+		return false;
 	condp = (struct tomoyo_condition_element *) (cond + 1);
 	numbers_p = (const struct tomoyo_number_union *) (condp + condc);
 	names_p = (const struct tomoyo_name_union *)
 		(numbers_p + cond->numbers_count);
+	argv = (const struct tomoyo_argv *) (names_p + cond->names_count);
+	envp = (const struct tomoyo_envp *) (argv + argc);
 	for (i = 0; i < condc; i++) {
 		const bool match = condp->equals;
 		const u8 left = condp->left;
@@ -408,6 +721,9 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 		bool is_bitop[2] = { false, false };
 		u8 j;
 		condp++;
+		/* Check argv[] and envp[] later. */
+		if (left == TOMOYO_ARGV_ENTRY || left == TOMOYO_ENVP_ENTRY)
+			continue;
 		/* Check string expressions. */
 		if (right == TOMOYO_NAME_UNION) {
 			const struct tomoyo_name_union *ptr = names_p++;
@@ -523,6 +839,16 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 				break;
 			case TOMOYO_MODE_OTHERS_EXECUTE:
 				value = S_IXOTH;
+				break;
+			case TOMOYO_EXEC_ARGC:
+				if (!bprm)
+					goto out;
+				value = bprm->argc;
+				break;
+			case TOMOYO_EXEC_ENVC:
+				if (!bprm)
+					goto out;
+				value = bprm->envc;
 				break;
 			case TOMOYO_NUMBER_UNION:
 				/* Fetch values later. */
@@ -702,5 +1028,8 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 out:
 		return false;
 	}
+	/* Check argv[] and envp[] now. */
+	if (r->ee && (argc || envc))
+		return tomoyo_scan_bprm(r->ee, argc, argv, envc, envp);
 	return true;
 }

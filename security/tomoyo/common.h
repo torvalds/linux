@@ -54,6 +54,8 @@ enum tomoyo_conditions_index {
 	TOMOYO_TASK_FSGID,           /* current_fsgid() */
 	TOMOYO_TASK_PID,             /* sys_getpid()   */
 	TOMOYO_TASK_PPID,            /* sys_getppid()  */
+	TOMOYO_EXEC_ARGC,            /* "struct linux_binprm *"->argc */
+	TOMOYO_EXEC_ENVC,            /* "struct linux_binprm *"->envc */
 	TOMOYO_TYPE_IS_SOCKET,       /* S_IFSOCK */
 	TOMOYO_TYPE_IS_SYMLINK,      /* S_IFLNK */
 	TOMOYO_TYPE_IS_FILE,         /* S_IFREG */
@@ -104,6 +106,8 @@ enum tomoyo_conditions_index {
 	TOMOYO_MAX_CONDITION_KEYWORD,
 	TOMOYO_NUMBER_UNION,
 	TOMOYO_NAME_UNION,
+	TOMOYO_ARGV_ENTRY,
+	TOMOYO_ENVP_ENTRY,
 };
 
 
@@ -467,6 +471,12 @@ struct tomoyo_mini_stat {
 	dev_t rdev;
 };
 
+/* Structure for dumping argv[] and envp[] of "struct linux_binprm". */
+struct tomoyo_page_dump {
+	struct page *page;    /* Previously dumped page. */
+	char *data;           /* Contents of "page". Size is PAGE_SIZE. */
+};
+
 /* Structure for attribute checks in addition to pathname checks. */
 struct tomoyo_obj_info {
 	/*
@@ -491,20 +501,45 @@ struct tomoyo_obj_info {
 	struct tomoyo_path_info *symlink_target;
 };
 
+/* Structure for argv[]. */
+struct tomoyo_argv {
+	unsigned long index;
+	const struct tomoyo_path_info *value;
+	bool is_not;
+};
+
+/* Structure for envp[]. */
+struct tomoyo_envp {
+	const struct tomoyo_path_info *name;
+	const struct tomoyo_path_info *value;
+	bool is_not;
+};
+
 /* Structure for execve() operation. */
 struct tomoyo_execve {
 	struct tomoyo_request_info r;
 	struct tomoyo_obj_info obj;
 	struct linux_binprm *bprm;
+	/* For dumping argv[] and envp[]. */
+	struct tomoyo_page_dump dump;
 	/* For temporary use. */
 	char *tmp; /* Size is TOMOYO_EXEC_TMPSIZE bytes */
 };
 
 /* Structure for entries which follows "struct tomoyo_condition". */
 struct tomoyo_condition_element {
-	/* Left hand operand. */
+	/*
+	 * Left hand operand. A "struct tomoyo_argv" for TOMOYO_ARGV_ENTRY, a
+	 * "struct tomoyo_envp" for TOMOYO_ENVP_ENTRY is attached to the tail
+	 * of the array of this struct.
+	 */
 	u8 left;
-	/* Right hand operand. */
+	/*
+	 * Right hand operand. A "struct tomoyo_number_union" for
+	 * TOMOYO_NUMBER_UNION, a "struct tomoyo_name_union" for
+	 * TOMOYO_NAME_UNION is attached to the tail of the array of this
+	 * struct.
+	 */
 	u8 right;
 	/* Equation operator. True if equals or overlaps, false otherwise. */
 	bool equals;
@@ -517,10 +552,14 @@ struct tomoyo_condition {
 	u16 condc; /* Number of conditions in this struct. */
 	u16 numbers_count; /* Number of "struct tomoyo_number_union values". */
 	u16 names_count; /* Number of "struct tomoyo_name_union names". */
+	u16 argc; /* Number of "struct tomoyo_argv". */
+	u16 envc; /* Number of "struct tomoyo_envp". */
 	/*
 	 * struct tomoyo_condition_element condition[condc];
 	 * struct tomoyo_number_union values[numbers_count];
 	 * struct tomoyo_name_union names[names_count];
+	 * struct tomoyo_argv argv[argc];
+	 * struct tomoyo_envp envp[envc];
 	 */
 };
 
@@ -751,6 +790,8 @@ bool tomoyo_correct_path(const char *filename);
 bool tomoyo_correct_word(const char *string);
 bool tomoyo_domain_def(const unsigned char *buffer);
 bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r);
+bool tomoyo_dump_page(struct linux_binprm *bprm, unsigned long pos,
+		      struct tomoyo_page_dump *dump);
 bool tomoyo_memory_ok(void *ptr);
 bool tomoyo_number_matches_group(const unsigned long min,
 				 const unsigned long max,
