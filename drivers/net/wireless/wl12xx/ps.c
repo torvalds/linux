@@ -193,24 +193,27 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
 
 static void wl1271_ps_filter_frames(struct wl1271 *wl, u8 hlid)
 {
-	int i, filtered = 0;
+	int i;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
 	unsigned long flags;
+	int filtered[NUM_TX_QUEUES];
 
 	/* filter all frames currently the low level queus for this hlid */
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
+		filtered[i] = 0;
 		while ((skb = skb_dequeue(&wl->links[hlid].tx_queue[i]))) {
 			info = IEEE80211_SKB_CB(skb);
 			info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 			info->status.rates[0].idx = -1;
 			ieee80211_tx_status_ni(wl->hw, skb);
-			filtered++;
+			filtered[i]++;
 		}
 	}
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
-	wl->tx_queue_count -= filtered;
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		wl->tx_queue_count[i] -= filtered[i];
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	wl1271_handle_tx_low_watermark(wl);
