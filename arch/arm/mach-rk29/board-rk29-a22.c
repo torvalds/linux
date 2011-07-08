@@ -217,6 +217,21 @@ static int rk29_lcd_io_init(void)
 	return ret;
 }
 
+#if defined (CONFIG_RK29_WORKING_POWER_MANAGEMENT)
+static int rk29_lcd_io_deinit(void)
+{
+	int ret = 0;
+	
+	gpio_direction_output(LCD_TXD_PIN, 1);
+	gpio_direction_output(LCD_CLK_PIN, 1);
+
+	gpio_free(LCD_CS_PIN);
+	gpio_free(LCD_CLK_PIN);
+	gpio_free(LCD_TXD_PIN);
+
+	return ret;
+}
+#else
 static int rk29_lcd_io_deinit(void)
 {
 	int ret = 0;
@@ -232,6 +247,8 @@ static int rk29_lcd_io_deinit(void)
 
 	return ret;
 }
+#endif
+
 
 static struct rk29lcd_info rk29_lcd_info = {
     .txd_pin  = LCD_TXD_PIN,
