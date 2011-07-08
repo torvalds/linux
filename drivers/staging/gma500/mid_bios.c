@@ -237,19 +237,17 @@ static void mid_get_vbt_data(struct drm_psb_private *dev_priv)
 		dev_err(dev->dev, "Unknown revision of GCT!\n");
 		vbt->size = 0;
 	}
-	if (IS_MFLD(dev_priv->dev)){
+	if (IS_MFLD(dev_priv->dev)) {
 		if (panel_id == GCT_DETECT) {
 			if (dev_priv->gct_data.bpi == 2) {
 				dev_info(dev->dev, "[GFX] PYR Panel Detected\n");
 				dev_priv->panel_id = PYR_CMD;
 				panel_id = PYR_CMD;
-			}
-			else if(dev_priv->gct_data.bpi == 0) {
+			} else if (dev_priv->gct_data.bpi == 0) {
 				dev_info(dev->dev, "[GFX] TMD Panel Detected.\n");
 				dev_priv->panel_id = TMD_VID;
 				panel_id = TMD_VID;
-			}
-			else {
+			} else {
 				dev_info(dev->dev, "[GFX] Default Panel (TPO)\n");
 				dev_priv->panel_id = TPO_CMD;
 				panel_id = TPO_CMD;
