@@ -3534,6 +3534,7 @@ static int patch_vt1812(struct hda_codec *codec)
 	spec->aa_mix_nid = 0x21;
 	override_mic_boost(codec, 0x2b, 0, 3, 40);
 	override_mic_boost(codec, 0x29, 0, 3, 40);
+	spec->dac_mixer_idx = 5;
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
