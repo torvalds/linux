@@ -728,8 +728,8 @@ extern void mdfld_disable_te(struct drm_device *dev, int pipe);
 /*
  * intel_opregion.c
  */
-extern int intel_opregion_init(struct drm_device *dev);
-extern int intel_opregion_exit(struct drm_device *dev);
+extern int gma_intel_opregion_init(struct drm_device *dev);
+extern int gma_intel_opregion_exit(struct drm_device *dev);
 
 /*
  * framebuffer.c
