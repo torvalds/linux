@@ -1638,7 +1638,6 @@ static void mcam_frame_complete(struct mcam_camera *cam, int frame)
 	clear_bit(CF_DMA_ACTIVE, &cam->flags);
 	cam->next_buf = frame;
 	cam->buf_seq[frame] = ++(cam->sequence);
-	cam->last_delivered = frame;
 	frames++;
 	/*
 	 * "This should never happen"
@@ -1741,7 +1740,6 @@ int mccic_register(struct mcam_camera *cam)
 	mcam_set_config_needed(cam, 1);
 	cam->pix_format = mcam_def_pix_format;
 	cam->mbus_code = mcam_def_mbus_code;
-	INIT_LIST_HEAD(&cam->dev_list);
 	INIT_LIST_HEAD(&cam->buffers);
 	mcam_ctlr_init(cam);
 

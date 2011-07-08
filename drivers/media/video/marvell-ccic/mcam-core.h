@@ -116,8 +116,6 @@ struct mcam_camera {
 	struct v4l2_subdev *sensor;
 	unsigned short sensor_addr;
 
-	struct list_head dev_list;	/* link to other devices */
-
 	/* Videobuf2 stuff */
 	struct vb2_queue vb_queue;
 	struct list_head buffers;	/* Available frames */
@@ -138,7 +136,6 @@ struct mcam_camera {
 	/* DMA buffers - DMA modes */
 	struct mcam_vb_buffer *vb_bufs[MAX_DMA_BUFS];
 	struct vb2_alloc_ctx *vb_alloc_ctx;
-	unsigned short last_delivered;
 
 	/* Mode-specific ops, set at open time */
 	void (*dma_setup)(struct mcam_camera *cam);
