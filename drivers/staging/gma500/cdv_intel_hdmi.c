@@ -133,7 +133,6 @@ static void cdv_hdmi_restore(struct drm_connector *connector)
 static enum drm_connector_status cdv_hdmi_detect(
 				struct drm_connector *connector, bool force)
 {
-	struct drm_device *dev = connector->dev;
 	struct psb_intel_output *psb_intel_output =
 						to_psb_intel_output(connector);
 	struct mid_intel_hdmi_priv *hdmi_priv = psb_intel_output->dev_priv;
