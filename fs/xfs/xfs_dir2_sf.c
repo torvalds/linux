@@ -59,11 +59,12 @@ static void xfs_dir2_sf_toino4(xfs_da_args_t *args);
 static void xfs_dir2_sf_toino8(xfs_da_args_t *args);
 #endif /* XFS_BIG_INUMS */
 
-
 /*
  * Inode numbers in short-form directories can come in two versions,
  * either 4 bytes or 8 bytes wide.  These helpers deal with the
  * two forms transparently by looking at the headers i8count field.
+ *
+ * For 64-bit inode number the most significant byte must be zero.
  */
 static xfs_ino_t
 xfs_dir2_sf_get_ino(
@@ -71,9 +72,9 @@ xfs_dir2_sf_get_ino(
 	xfs_dir2_inou_t		*from)
 {
 	if (hdr->i8count)
-		return XFS_GET_DIR_INO8(from->i8);
+		return get_unaligned_be64(&from->i8.i) & 0x00ffffffffffffffULL;
 	else
-		return XFS_GET_DIR_INO4(from->i4);
+		return get_unaligned_be32(&from->i4.i);
 }
 
 static void
@@ -82,10 +83,12 @@ xfs_dir2_sf_put_ino(
 	xfs_dir2_inou_t		*to,
 	xfs_ino_t		ino)
 {
+	ASSERT((ino & 0xff00000000000000ULL) == 0);
+
 	if (hdr->i8count)
-		XFS_PUT_DIR_INO8(ino, to->i8);
+		put_unaligned_be64(ino, &to->i8.i);
 	else
-		XFS_PUT_DIR_INO4(ino, to->i4);
+		put_unaligned_be32(ino, &to->i4.i);
 }
 
 xfs_ino_t

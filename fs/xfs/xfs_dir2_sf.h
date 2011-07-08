@@ -95,13 +95,13 @@ static inline int xfs_dir2_sf_hdr_size(int i8count)
 static inline xfs_dir2_data_aoff_t
 xfs_dir2_sf_get_offset(xfs_dir2_sf_entry_t *sfep)
 {
-	return INT_GET_UNALIGNED_16_BE(&(sfep)->offset.i);
+	return get_unaligned_be16(&sfep->offset.i);
 }
 
 static inline void
 xfs_dir2_sf_put_offset(xfs_dir2_sf_entry_t *sfep, xfs_dir2_data_aoff_t off)
 {
-	INT_SET_UNALIGNED_16_BE(&(sfep)->offset.i, off);
+	put_unaligned_be16(off, &sfep->offset.i);
 }
 
 static inline int
