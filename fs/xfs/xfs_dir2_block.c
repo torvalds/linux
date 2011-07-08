@@ -1146,7 +1146,7 @@ xfs_dir2_sf_to_block(
 	 */
 	dep = (xfs_dir2_data_entry_t *)
 		((char *)block + XFS_DIR2_DATA_DOTDOT_OFFSET);
-	dep->inumber = cpu_to_be64(xfs_dir2_sf_get_inumber(sfp, &sfp->hdr.parent));
+	dep->inumber = cpu_to_be64(xfs_dir2_sf_get_parent_ino(sfp));
 	dep->namelen = 2;
 	dep->name[0] = dep->name[1] = '.';
 	tagp = xfs_dir2_data_entry_tag_p(dep);
@@ -1195,8 +1195,7 @@ xfs_dir2_sf_to_block(
 		 * Copy a real entry.
 		 */
 		dep = (xfs_dir2_data_entry_t *)((char *)block + newoffset);
-		dep->inumber = cpu_to_be64(xfs_dir2_sf_get_inumber(sfp,
-				xfs_dir2_sf_inumberp(sfep)));
+		dep->inumber = cpu_to_be64(xfs_dir2_sfe_get_ino(sfp, sfep));
 		dep->namelen = sfep->namelen;
 		memcpy(dep->name, sfep->name, dep->namelen);
 		tagp = xfs_dir2_data_entry_tag_p(dep);

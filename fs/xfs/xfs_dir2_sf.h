@@ -90,28 +90,6 @@ static inline int xfs_dir2_sf_hdr_size(int i8count)
 		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)));
 }
 
-static inline xfs_dir2_inou_t *xfs_dir2_sf_inumberp(xfs_dir2_sf_entry_t *sfep)
-{
-	return (xfs_dir2_inou_t *)&(sfep)->name[(sfep)->namelen];
-}
-
-static inline xfs_intino_t
-xfs_dir2_sf_get_inumber(xfs_dir2_sf_t *sfp, xfs_dir2_inou_t *from)
-{
-	return ((sfp)->hdr.i8count == 0 ? \
-		(xfs_intino_t)XFS_GET_DIR_INO4((from)->i4) : \
-		(xfs_intino_t)XFS_GET_DIR_INO8((from)->i8));
-}
-
-static inline void xfs_dir2_sf_put_inumber(xfs_dir2_sf_t *sfp, xfs_ino_t *from,
-						xfs_dir2_inou_t *to)
-{
-	if ((sfp)->hdr.i8count == 0)
-		XFS_PUT_DIR_INO4(*(from), (to)->i4);
-	else
-		XFS_PUT_DIR_INO8(*(from), (to)->i8);
-}
-
 static inline xfs_dir2_data_aoff_t
 xfs_dir2_sf_get_offset(xfs_dir2_sf_entry_t *sfep)
 {
@@ -155,6 +133,9 @@ xfs_dir2_sf_nextentry(xfs_dir2_sf_t *sfp, xfs_dir2_sf_entry_t *sfep)
 /*
  * Functions.
  */
+extern xfs_ino_t xfs_dir2_sf_get_parent_ino(struct xfs_dir2_sf *sfp);
+extern xfs_ino_t xfs_dir2_sfe_get_ino(struct xfs_dir2_sf *sfp,
+				      struct xfs_dir2_sf_entry *sfep);
 extern int xfs_dir2_block_sfsize(struct xfs_inode *dp,
 				 struct xfs_dir2_block *block,
 				 xfs_dir2_sf_hdr_t *sfhp);

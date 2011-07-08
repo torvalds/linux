@@ -59,6 +59,79 @@ static void xfs_dir2_sf_toino4(xfs_da_args_t *args);
 static void xfs_dir2_sf_toino8(xfs_da_args_t *args);
 #endif /* XFS_BIG_INUMS */
 
+
+/*
+ * Inode numbers in short-form directories can come in two versions,
+ * either 4 bytes or 8 bytes wide.  These helpers deal with the
+ * two forms transparently by looking at the headers i8count field.
+ */
+static xfs_ino_t
+xfs_dir2_sf_get_ino(
+	struct xfs_dir2_sf	*sfp,
+	xfs_dir2_inou_t		*from)
+{
+	if (sfp->hdr.i8count)
+		return XFS_GET_DIR_INO8(from->i8);
+	else
+		return XFS_GET_DIR_INO4(from->i4);
+}
+
+static void
+xfs_dir2_sf_put_ino(
+	struct xfs_dir2_sf	*sfp,
+	xfs_dir2_inou_t		*to,
+	xfs_ino_t		ino)
+{
+	if (sfp->hdr.i8count)
+		XFS_PUT_DIR_INO8(ino, to->i8);
+	else
+		XFS_PUT_DIR_INO4(ino, to->i4);
+}
+
+xfs_ino_t
+xfs_dir2_sf_get_parent_ino(
+	struct xfs_dir2_sf	*sfp)
+{
+	return xfs_dir2_sf_get_ino(sfp, &sfp->hdr.parent);
+}
+
+static void
+xfs_dir2_sf_put_parent_ino(
+	struct xfs_dir2_sf	*sfp,
+	xfs_ino_t		ino)
+{
+	xfs_dir2_sf_put_ino(sfp, &sfp->hdr.parent, ino);
+}
+
+/*
+ * In short-form directory entries the inode numbers are stored at variable
+ * offset behind the entry name.  The inode numbers may only be accessed
+ * through the helpers below.
+ */
+static xfs_dir2_inou_t *
+xfs_dir2_sfe_inop(
+	struct xfs_dir2_sf_entry *sfep)
+{
+	return (xfs_dir2_inou_t *)&sfep->name[sfep->namelen];
+}
+
+xfs_ino_t
+xfs_dir2_sfe_get_ino(
+	struct xfs_dir2_sf	*sfp,
+	struct xfs_dir2_sf_entry *sfep)
+{
+	return xfs_dir2_sf_get_ino(sfp, xfs_dir2_sfe_inop(sfep));
+}
+
+static void
+xfs_dir2_sfe_put_ino(
+	struct xfs_dir2_sf	*sfp,
+	struct xfs_dir2_sf_entry *sfep,
+	xfs_ino_t		ino)
+{
+	xfs_dir2_sf_put_ino(sfp, xfs_dir2_sfe_inop(sfep), ino);
+}
+
 /*
  * Given a block directory (dp/block), calculate its size as a shortform (sf)
  * directory and a header for the sf directory, if it will fit it the
@@ -138,7 +211,7 @@ xfs_dir2_block_sfsize(
 	 */
 	sfhp->count = count;
 	sfhp->i8count = i8count;
-	xfs_dir2_sf_put_inumber((xfs_dir2_sf_t *)sfhp, &parent, &sfhp->parent);
+	xfs_dir2_sf_put_parent_ino((xfs_dir2_sf_t *)sfhp, parent);
 	return size;
 }
 
@@ -165,7 +238,6 @@ xfs_dir2_block_to_sf(
 	char			*ptr;		/* current data pointer */
 	xfs_dir2_sf_entry_t	*sfep;		/* shortform entry */
 	xfs_dir2_sf_t		*sfp;		/* shortform structure */
-	xfs_ino_t               temp;
 
 	trace_xfs_dir2_block_to_sf(args);
 
@@ -233,7 +305,7 @@ xfs_dir2_block_to_sf(
 		else if (dep->namelen == 2 &&
 			 dep->name[0] == '.' && dep->name[1] == '.')
 			ASSERT(be64_to_cpu(dep->inumber) ==
-			       xfs_dir2_sf_get_inumber(sfp, &sfp->hdr.parent));
+			       xfs_dir2_sf_get_parent_ino(sfp));
 		/*
 		 * Normal entry, copy it into shortform.
 		 */
@@ -243,9 +315,9 @@ xfs_dir2_block_to_sf(
 				(xfs_dir2_data_aoff_t)
 				((char *)dep - (char *)block));
 			memcpy(sfep->name, dep->name, dep->namelen);
-			temp = be64_to_cpu(dep->inumber);
-			xfs_dir2_sf_put_inumber(sfp, &temp,
-				xfs_dir2_sf_inumberp(sfep));
+			xfs_dir2_sfe_put_ino(sfp, sfep,
+					     be64_to_cpu(dep->inumber));
+
 			sfep = xfs_dir2_sf_nextentry(sfp, sfep);
 		}
 		ptr += xfs_dir2_data_entsize(dep->namelen);
@@ -406,8 +478,7 @@ xfs_dir2_sf_addname_easy(
 	sfep->namelen = args->namelen;
 	xfs_dir2_sf_put_offset(sfep, offset);
 	memcpy(sfep->name, args->name, sfep->namelen);
-	xfs_dir2_sf_put_inumber(sfp, &args->inumber,
-		xfs_dir2_sf_inumberp(sfep));
+	xfs_dir2_sfe_put_ino(sfp, sfep, args->inumber);
 	/*
 	 * Update the header and inode.
 	 */
@@ -498,8 +569,7 @@ xfs_dir2_sf_addname_hard(
 	sfep->namelen = args->namelen;
 	xfs_dir2_sf_put_offset(sfep, offset);
 	memcpy(sfep->name, args->name, sfep->namelen);
-	xfs_dir2_sf_put_inumber(sfp, &args->inumber,
-		xfs_dir2_sf_inumberp(sfep));
+	xfs_dir2_sfe_put_ino(sfp, sfep, args->inumber);
 	sfp->hdr.count++;
 #if XFS_BIG_INUMS
 	if (args->inumber > XFS_DIR2_MAX_SHORT_INUM && !objchange)
@@ -618,14 +688,14 @@ xfs_dir2_sf_check(
 
 	sfp = (xfs_dir2_sf_t *)dp->i_df.if_u1.if_data;
 	offset = XFS_DIR2_DATA_FIRST_OFFSET;
-	ino = xfs_dir2_sf_get_inumber(sfp, &sfp->hdr.parent);
+	ino = xfs_dir2_sf_get_parent_ino(sfp);
 	i8count = ino > XFS_DIR2_MAX_SHORT_INUM;
 
 	for (i = 0, sfep = xfs_dir2_sf_firstentry(sfp);
 	     i < sfp->hdr.count;
 	     i++, sfep = xfs_dir2_sf_nextentry(sfp, sfep)) {
 		ASSERT(xfs_dir2_sf_get_offset(sfep) >= offset);
-		ino = xfs_dir2_sf_get_inumber(sfp, xfs_dir2_sf_inumberp(sfep));
+		ino = xfs_dir2_sfe_get_ino(sfp, sfep);
 		i8count += ino > XFS_DIR2_MAX_SHORT_INUM;
 		offset =
 			xfs_dir2_sf_get_offset(sfep) +
@@ -686,7 +756,7 @@ xfs_dir2_sf_create(
 	/*
 	 * Now can put in the inode number, since i8count is set.
 	 */
-	xfs_dir2_sf_put_inumber(sfp, &pino, &sfp->hdr.parent);
+	xfs_dir2_sf_put_parent_ino(sfp, pino);
 	sfp->hdr.count = 0;
 	dp->i_d.di_size = size;
 	xfs_dir2_sf_check(args);
@@ -759,7 +829,7 @@ xfs_dir2_sf_getdents(
 	 * Put .. entry unless we're starting past it.
 	 */
 	if (*offset <= dotdot_offset) {
-		ino = xfs_dir2_sf_get_inumber(sfp, &sfp->hdr.parent);
+		ino = xfs_dir2_sf_get_parent_ino(sfp);
 		if (filldir(dirent, "..", 2, dotdot_offset & 0x7fffffff, ino, DT_DIR)) {
 			*offset = dotdot_offset & 0x7fffffff;
 			return 0;
@@ -779,7 +849,7 @@ xfs_dir2_sf_getdents(
 			continue;
 		}
 
-		ino = xfs_dir2_sf_get_inumber(sfp, xfs_dir2_sf_inumberp(sfep));
+		ino = xfs_dir2_sfe_get_ino(sfp, sfep);
 		if (filldir(dirent, (char *)sfep->name, sfep->namelen,
 			    off & 0x7fffffff, ino, DT_UNKNOWN)) {
 			*offset = off & 0x7fffffff;
@@ -839,7 +909,7 @@ xfs_dir2_sf_lookup(
 	 */
 	if (args->namelen == 2 &&
 	    args->name[0] == '.' && args->name[1] == '.') {
-		args->inumber = xfs_dir2_sf_get_inumber(sfp, &sfp->hdr.parent);
+		args->inumber = xfs_dir2_sf_get_parent_ino(sfp);
 		args->cmpresult = XFS_CMP_EXACT;
 		return XFS_ERROR(EEXIST);
 	}
@@ -858,8 +928,7 @@ xfs_dir2_sf_lookup(
 								sfep->namelen);
 		if (cmp != XFS_CMP_DIFFERENT && cmp != args->cmpresult) {
 			args->cmpresult = cmp;
-			args->inumber = xfs_dir2_sf_get_inumber(sfp,
-						xfs_dir2_sf_inumberp(sfep));
+			args->inumber = xfs_dir2_sfe_get_ino(sfp, sfep);
 			if (cmp == XFS_CMP_EXACT)
 				return XFS_ERROR(EEXIST);
 			ci_sfep = sfep;
@@ -918,9 +987,8 @@ xfs_dir2_sf_removename(
 				i++, sfep = xfs_dir2_sf_nextentry(sfp, sfep)) {
 		if (xfs_da_compname(args, sfep->name, sfep->namelen) ==
 								XFS_CMP_EXACT) {
-			ASSERT(xfs_dir2_sf_get_inumber(sfp,
-						xfs_dir2_sf_inumberp(sfep)) ==
-								args->inumber);
+			ASSERT(xfs_dir2_sfe_get_ino(sfp, sfep) ==
+			       args->inumber);
 			break;
 		}
 	}
@@ -1040,10 +1108,10 @@ xfs_dir2_sf_replace(
 	if (args->namelen == 2 &&
 	    args->name[0] == '.' && args->name[1] == '.') {
 #if XFS_BIG_INUMS || defined(DEBUG)
-		ino = xfs_dir2_sf_get_inumber(sfp, &sfp->hdr.parent);
+		ino = xfs_dir2_sf_get_parent_ino(sfp);
 		ASSERT(args->inumber != ino);
 #endif
-		xfs_dir2_sf_put_inumber(sfp, &args->inumber, &sfp->hdr.parent);
+		xfs_dir2_sf_put_parent_ino(sfp, args->inumber);
 	}
 	/*
 	 * Normal entry, look for the name.
@@ -1055,12 +1123,10 @@ xfs_dir2_sf_replace(
 			if (xfs_da_compname(args, sfep->name, sfep->namelen) ==
 								XFS_CMP_EXACT) {
 #if XFS_BIG_INUMS || defined(DEBUG)
-				ino = xfs_dir2_sf_get_inumber(sfp,
-					xfs_dir2_sf_inumberp(sfep));
+				ino = xfs_dir2_sfe_get_ino(sfp, sfep);
 				ASSERT(args->inumber != ino);
 #endif
-				xfs_dir2_sf_put_inumber(sfp, &args->inumber,
-					xfs_dir2_sf_inumberp(sfep));
+				xfs_dir2_sfe_put_ino(sfp, sfep, args->inumber);
 				break;
 			}
 		}
@@ -1121,7 +1187,6 @@ xfs_dir2_sf_toino4(
 	char			*buf;		/* old dir's buffer */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	int			i;		/* entry index */
-	xfs_ino_t		ino;		/* entry inode number */
 	int			newsize;	/* new inode size */
 	xfs_dir2_sf_entry_t	*oldsfep;	/* old sf entry */
 	xfs_dir2_sf_t		*oldsfp;	/* old sf directory */
@@ -1162,8 +1227,7 @@ xfs_dir2_sf_toino4(
 	 */
 	sfp->hdr.count = oldsfp->hdr.count;
 	sfp->hdr.i8count = 0;
-	ino = xfs_dir2_sf_get_inumber(oldsfp, &oldsfp->hdr.parent);
-	xfs_dir2_sf_put_inumber(sfp, &ino, &sfp->hdr.parent);
+	xfs_dir2_sf_put_parent_ino(sfp, xfs_dir2_sf_get_parent_ino(oldsfp));
 	/*
 	 * Copy the entries field by field.
 	 */
@@ -1175,9 +1239,8 @@ xfs_dir2_sf_toino4(
 		sfep->namelen = oldsfep->namelen;
 		sfep->offset = oldsfep->offset;
 		memcpy(sfep->name, oldsfep->name, sfep->namelen);
-		ino = xfs_dir2_sf_get_inumber(oldsfp,
-			xfs_dir2_sf_inumberp(oldsfep));
-		xfs_dir2_sf_put_inumber(sfp, &ino, xfs_dir2_sf_inumberp(sfep));
+		xfs_dir2_sfe_put_ino(sfp, sfep,
+			xfs_dir2_sfe_get_ino(oldsfp, oldsfep));
 	}
 	/*
 	 * Clean up the inode.
@@ -1199,7 +1262,6 @@ xfs_dir2_sf_toino8(
 	char			*buf;		/* old dir's buffer */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	int			i;		/* entry index */
-	xfs_ino_t		ino;		/* entry inode number */
 	int			newsize;	/* new inode size */
 	xfs_dir2_sf_entry_t	*oldsfep;	/* old sf entry */
 	xfs_dir2_sf_t		*oldsfp;	/* old sf directory */
@@ -1240,8 +1302,7 @@ xfs_dir2_sf_toino8(
 	 */
 	sfp->hdr.count = oldsfp->hdr.count;
 	sfp->hdr.i8count = 1;
-	ino = xfs_dir2_sf_get_inumber(oldsfp, &oldsfp->hdr.parent);
-	xfs_dir2_sf_put_inumber(sfp, &ino, &sfp->hdr.parent);
+	xfs_dir2_sf_put_parent_ino(sfp, xfs_dir2_sf_get_parent_ino(oldsfp));
 	/*
 	 * Copy the entries field by field.
 	 */
@@ -1253,9 +1314,8 @@ xfs_dir2_sf_toino8(
 		sfep->namelen = oldsfep->namelen;
 		sfep->offset = oldsfep->offset;
 		memcpy(sfep->name, oldsfep->name, sfep->namelen);
-		ino = xfs_dir2_sf_get_inumber(oldsfp,
-			xfs_dir2_sf_inumberp(oldsfep));
-		xfs_dir2_sf_put_inumber(sfp, &ino, xfs_dir2_sf_inumberp(sfep));
+		xfs_dir2_sfe_put_ino(sfp, sfep,
+			xfs_dir2_sfe_get_ino(oldsfp, oldsfep));
 	}
 	/*
 	 * Clean up the inode.
