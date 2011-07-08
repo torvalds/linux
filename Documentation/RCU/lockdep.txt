@@ -32,9 +32,27 @@ checking of rcu_dereference() primitives:
 	srcu_dereference(p, sp):
 		Check for SRCU read-side critical section.
 	rcu_dereference_check(p, c):
-		Use explicit check expression "c".  This is useful in
-		code that is invoked by both readers and updaters.
-	rcu_dereference_raw(p)
+		Use explicit check expression "c" along with
+		rcu_read_lock_held().  This is useful in code that is
+		invoked by both RCU readers and updaters.
+	rcu_dereference_bh_check(p, c):
+		Use explicit check expression "c" along with
+		rcu_read_lock_bh_held().  This is useful in code that
+		is invoked by both RCU-bh readers and updaters.
+	rcu_dereference_sched_check(p, c):
+		Use explicit check expression "c" along with
+		rcu_read_lock_sched_held().  This is useful in code that
+		is invoked by both RCU-sched readers and updaters.
+	srcu_dereference_check(p, c):
+		Use explicit check expression "c" along with
+		srcu_read_lock_held()().  This is useful in code that
+		is invoked by both SRCU readers and updaters.
+	rcu_dereference_index_check(p, c):
+		Use explicit check expression "c", but the caller
+		must supply one of the rcu_read_lock_held() functions.
+		This is useful in code that uses RCU-protected arrays
+		that is invoked by both RCU readers and updaters.
+	rcu_dereference_raw(p):
 		Don't check.  (Use sparingly, if at all.)
 	rcu_dereference_protected(p, c):
 		Use explicit check expression "c", and omit all barriers
