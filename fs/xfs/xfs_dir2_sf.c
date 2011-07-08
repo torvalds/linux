@@ -141,7 +141,7 @@ xfs_dir2_sfe_put_ino(
 int						/* size for sf form */
 xfs_dir2_block_sfsize(
 	xfs_inode_t		*dp,		/* incore inode pointer */
-	xfs_dir2_block_t	*block,		/* block directory data */
+	xfs_dir2_data_hdr_t	*hdr,		/* block directory data */
 	xfs_dir2_sf_hdr_t	*sfhp)		/* output: header for sf form */
 {
 	xfs_dir2_dataptr_t	addr;		/* data entry address */
@@ -161,7 +161,7 @@ xfs_dir2_block_sfsize(
 	mp = dp->i_mount;
 
 	count = i8count = namelen = 0;
-	btp = xfs_dir2_block_tail_p(mp, block);
+	btp = xfs_dir2_block_tail_p(mp, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
 
 	/*
@@ -174,7 +174,7 @@ xfs_dir2_block_sfsize(
 		 * Calculate the pointer to the entry at hand.
 		 */
 		dep = (xfs_dir2_data_entry_t *)
-		      ((char *)block + xfs_dir2_dataptr_to_off(mp, addr));
+		      ((char *)hdr + xfs_dir2_dataptr_to_off(mp, addr));
 		/*
 		 * Detect . and .., so we can special-case them.
 		 * . is not included in sf directories.
@@ -255,6 +255,7 @@ xfs_dir2_block_to_sf(
 		ASSERT(error != ENOSPC);
 		goto out;
 	}
+
 	/*
 	 * The buffer is now unconditionally gone, whether
 	 * xfs_dir2_shrink_inode worked or not.
@@ -276,7 +277,7 @@ xfs_dir2_block_to_sf(
 	/*
 	 * Set up to loop over the block's entries.
 	 */
-	btp = xfs_dir2_block_tail_p(mp, block);
+	btp = xfs_dir2_block_tail_p(mp, &block->hdr);
 	ptr = (char *)block->u;
 	endptr = (char *)xfs_dir2_block_leaf_p(btp);
 	sfep = xfs_dir2_sf_firstentry(sfp);

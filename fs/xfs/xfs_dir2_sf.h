@@ -32,7 +32,7 @@
 struct uio;
 struct xfs_dabuf;
 struct xfs_da_args;
-struct xfs_dir2_block;
+struct xfs_dir2_data_hdr;
 struct xfs_inode;
 struct xfs_mount;
 struct xfs_trans;
@@ -136,7 +136,7 @@ extern xfs_ino_t xfs_dir2_sf_get_parent_ino(struct xfs_dir2_sf_hdr *sfp);
 extern xfs_ino_t xfs_dir2_sfe_get_ino(struct xfs_dir2_sf_hdr *sfp,
 				      struct xfs_dir2_sf_entry *sfep);
 extern int xfs_dir2_block_sfsize(struct xfs_inode *dp,
-				 struct xfs_dir2_block *block,
+				 struct xfs_dir2_data_hdr *block,
 				 xfs_dir2_sf_hdr_t *sfhp);
 extern int xfs_dir2_block_to_sf(struct xfs_da_args *args, struct xfs_dabuf *bp,
 				int size, xfs_dir2_sf_hdr_t *sfhp);

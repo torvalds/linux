@@ -72,7 +72,7 @@ xfs_dir2_data_check(
 	bf = d->hdr.bestfree;
 	p = (char *)d->u;
 	if (be32_to_cpu(d->hdr.magic) == XFS_DIR2_BLOCK_MAGIC) {
-		btp = xfs_dir2_block_tail_p(mp, (xfs_dir2_block_t *)d);
+		btp = xfs_dir2_block_tail_p(mp, &d->hdr);
 		lep = xfs_dir2_block_leaf_p(btp);
 		endp = (char *)lep;
 	} else
@@ -348,7 +348,7 @@ xfs_dir2_data_freescan(
 	 */
 	p = (char *)d->u;
 	if (be32_to_cpu(d->hdr.magic) == XFS_DIR2_BLOCK_MAGIC) {
-		btp = xfs_dir2_block_tail_p(mp, (xfs_dir2_block_t *)d);
+		btp = xfs_dir2_block_tail_p(mp, &d->hdr);
 		endp = (char *)xfs_dir2_block_leaf_p(btp);
 	} else
 		endp = (char *)d + mp->m_dirblksize;
@@ -537,7 +537,7 @@ xfs_dir2_data_make_free(
 		xfs_dir2_block_tail_t	*btp;	/* block tail */
 
 		ASSERT(be32_to_cpu(d->hdr.magic) == XFS_DIR2_BLOCK_MAGIC);
-		btp = xfs_dir2_block_tail_p(mp, (xfs_dir2_block_t *)d);
+		btp = xfs_dir2_block_tail_p(mp, &d->hdr);
 		endptr = (char *)xfs_dir2_block_leaf_p(btp);
 	}
 	/*

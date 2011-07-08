@@ -61,10 +61,9 @@ typedef struct xfs_dir2_block {
  * Pointer to the leaf header embedded in a data block (1-block format)
  */
 static inline xfs_dir2_block_tail_t *
-xfs_dir2_block_tail_p(struct xfs_mount *mp, xfs_dir2_block_t *block)
+xfs_dir2_block_tail_p(struct xfs_mount *mp, xfs_dir2_data_hdr_t *hdr)
 {
-	return (((xfs_dir2_block_tail_t *)
-		((char *)(block) + (mp)->m_dirblksize)) - 1);
+	return ((xfs_dir2_block_tail_t *)((char *)hdr + mp->m_dirblksize)) - 1;
 }
 
 /*

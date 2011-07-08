@@ -64,7 +64,7 @@ xfs_dir2_block_to_leaf(
 {
 	__be16			*bestsp;	/* leaf's bestsp entries */
 	xfs_dablk_t		blkno;		/* leaf block's bno */
-	xfs_dir2_block_t	*block;		/* block structure */
+	xfs_dir2_data_hdr_t	*hdr;		/* block header */
 	xfs_dir2_leaf_entry_t	*blp;		/* block's leaf entries */
 	xfs_dir2_block_tail_t	*btp;		/* block's tail */
 	xfs_inode_t		*dp;		/* incore directory inode */
@@ -101,9 +101,9 @@ xfs_dir2_block_to_leaf(
 	}
 	ASSERT(lbp != NULL);
 	leaf = lbp->data;
-	block = dbp->data;
+	hdr = dbp->data;
 	xfs_dir2_data_check(dp, dbp);
-	btp = xfs_dir2_block_tail_p(mp, block);
+	btp = xfs_dir2_block_tail_p(mp, hdr);
 	blp = xfs_dir2_block_leaf_p(btp);
 	/*
 	 * Set the counts in the leaf header.
@@ -123,23 +123,23 @@ xfs_dir2_block_to_leaf(
 	 * tail be free.
 	 */
 	xfs_dir2_data_make_free(tp, dbp,
-		(xfs_dir2_data_aoff_t)((char *)blp - (char *)block),
-		(xfs_dir2_data_aoff_t)((char *)block + mp->m_dirblksize -
+		(xfs_dir2_data_aoff_t)((char *)blp - (char *)hdr),
+		(xfs_dir2_data_aoff_t)((char *)hdr + mp->m_dirblksize -
 				       (char *)blp),
 		&needlog, &needscan);
 	/*
 	 * Fix up the block header, make it a data block.
 	 */
-	block->hdr.magic = cpu_to_be32(XFS_DIR2_DATA_MAGIC);
+	hdr->magic = cpu_to_be32(XFS_DIR2_DATA_MAGIC);
 	if (needscan)
-		xfs_dir2_data_freescan(mp, (xfs_dir2_data_t *)block, &needlog);
+		xfs_dir2_data_freescan(mp, (xfs_dir2_data_t *)hdr, &needlog);
 	/*
 	 * Set up leaf tail and bests table.
 	 */
 	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
 	ltp->bestcount = cpu_to_be32(1);
 	bestsp = xfs_dir2_leaf_bests_p(ltp);
-	bestsp[0] =  block->hdr.bestfree[0].length;
+	bestsp[0] =  hdr->bestfree[0].length;
 	/*
 	 * Log the data header and leaf bests table.
 	 */
