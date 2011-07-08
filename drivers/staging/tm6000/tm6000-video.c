@@ -179,9 +179,6 @@ static inline void get_next_buf(struct tm6000_dmaqueue *dma_q,
 	*buf = list_entry(dma_q->active.next,
 			struct tm6000_buffer, vb.queue);
 
-	if (!buf)
-		return;
-
 	/* Cleans up buffer - Useful for testing for frame/URB loss */
 	outp = videobuf_to_vmalloc(&(*buf)->vb);
 
