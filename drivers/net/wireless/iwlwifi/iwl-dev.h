@@ -640,7 +640,6 @@ struct iwl_sensitivity_ranges {
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
- * @dma_chnl_num: Number of Tx DMA/FIFO channels
  * @scd_bc_tbls_size: size of scheduler byte count tables
  * @tfd_size: TFD size
  * @tx/rx_chains_num: Number of TX/RX chains
@@ -662,7 +661,6 @@ struct iwl_sensitivity_ranges {
  */
 struct iwl_hw_params {
 	u8 max_txq_num;
-	u8 dma_chnl_num;
 	u16 scd_bc_tbls_size;
 	u32 tfd_size;
 	u8  tx_chains_num;

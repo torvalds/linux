@@ -406,7 +406,7 @@ static int iwlagn_alive_notify(struct iwl_priv *priv)
 		       priv->scd_bc_tbls.dma >> 10);
 
 	/* Enable DMA channel */
-	for (chan = 0; chan < FH50_TCSR_CHNL_NUM ; chan++)
+	for (chan = 0; chan < FH_TCSR_CHNL_NUM ; chan++)
 		iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(chan),
 				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
 				FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE);
