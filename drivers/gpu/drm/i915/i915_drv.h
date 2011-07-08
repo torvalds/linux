@@ -331,10 +331,8 @@ typedef struct drm_i915_private {
 	uint32_t last_instdone1;
 
 	unsigned long cfb_size;
-	unsigned long cfb_pitch;
-	unsigned long cfb_offset;
-	int cfb_fence;
-	int cfb_plane;
+	unsigned int cfb_fb;
+	enum plane cfb_plane;
 	int cfb_y;
 	struct intel_fbc_work *fbc_work;
 

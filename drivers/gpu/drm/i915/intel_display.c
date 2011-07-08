@@ -1414,27 +1414,17 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int cfb_pitch;
 	int plane, i;
 	u32 fbc_ctl, fbc_ctl2;
 
-	if (fb->pitch == dev_priv->cfb_pitch &&
-	    obj->fence_reg == dev_priv->cfb_fence &&
-	    intel_crtc->plane == dev_priv->cfb_plane &&
-	    I915_READ(FBC_CONTROL) & FBC_CTL_EN)
-		return;
-
-	i8xx_disable_fbc(dev);
-
-	dev_priv->cfb_pitch = dev_priv->cfb_size / FBC_LL_SIZE;
-
-	if (fb->pitch < dev_priv->cfb_pitch)
-		dev_priv->cfb_pitch = fb->pitch;
+	cfb_pitch = dev_priv->cfb_size / FBC_LL_SIZE;
+	if (fb->pitch < cfb_pitch)
+		cfb_pitch = fb->pitch;
 
 	/* FBC_CTL wants 64B units */
-	dev_priv->cfb_pitch = (dev_priv->cfb_pitch / 64) - 1;
-	dev_priv->cfb_fence = obj->fence_reg;
-	dev_priv->cfb_plane = intel_crtc->plane;
-	plane = dev_priv->cfb_plane == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB;
+	cfb_pitch = (cfb_pitch / 64) - 1;
+	plane = intel_crtc->plane == 0 ? FBC_CTL_PLANEA : FBC_CTL_PLANEB;
 
 	/* Clear old tags */
 	for (i = 0; i < (FBC_LL_SIZE / 32) + 1; i++)
@@ -1450,13 +1440,13 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	fbc_ctl = FBC_CTL_EN | FBC_CTL_PERIODIC;
 	if (IS_I945GM(dev))
 		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
-	fbc_ctl |= (dev_priv->cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
+	fbc_ctl |= (cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
 	fbc_ctl |= (interval & 0x2fff) << FBC_CTL_INTERVAL_SHIFT;
-	fbc_ctl |= dev_priv->cfb_fence;
+	fbc_ctl |= obj->fence_reg;
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
-	DRM_DEBUG_KMS("enabled FBC, pitch %ld, yoff %d, plane %d, ",
-		      dev_priv->cfb_pitch, crtc->y, dev_priv->cfb_plane);
+	DRM_DEBUG_KMS("enabled FBC, pitch %d, yoff %d, plane %d, ",
+		      cfb_pitch, crtc->y, intel_crtc->plane);
 }
 
 static bool i8xx_fbc_enabled(struct drm_device *dev)
@@ -1478,23 +1468,8 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	unsigned long stall_watermark = 200;
 	u32 dpfc_ctl;
 
-	dpfc_ctl = I915_READ(DPFC_CONTROL);
-	if (dpfc_ctl & DPFC_CTL_EN) {
-		if (dev_priv->cfb_fence == obj->fence_reg &&
-		    dev_priv->cfb_plane == intel_crtc->plane &&
-		    dev_priv->cfb_y == crtc->y)
-			return;
-
-		I915_WRITE(DPFC_CONTROL, dpfc_ctl & ~DPFC_CTL_EN);
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
-	}
-
-	dev_priv->cfb_fence = obj->fence_reg;
-	dev_priv->cfb_plane = intel_crtc->plane;
-	dev_priv->cfb_y = crtc->y;
-
 	dpfc_ctl = plane | DPFC_SR_EN | DPFC_CTL_LIMIT_1X;
-	dpfc_ctl |= DPFC_CTL_FENCE_EN | dev_priv->cfb_fence;
+	dpfc_ctl |= DPFC_CTL_FENCE_EN | obj->fence_reg;
 	I915_WRITE(DPFC_CHICKEN, DPFC_HT_MODIFY);
 
 	I915_WRITE(DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
@@ -1563,27 +1538,11 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	u32 dpfc_ctl;
 
 	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
-	if (dpfc_ctl & DPFC_CTL_EN) {
-		if (dev_priv->cfb_fence == obj->fence_reg &&
-		    dev_priv->cfb_plane == intel_crtc->plane &&
-		    dev_priv->cfb_offset == obj->gtt_offset &&
-		    dev_priv->cfb_y == crtc->y)
-			return;
-
-		I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl & ~DPFC_CTL_EN);
-		intel_wait_for_vblank(dev, intel_crtc->pipe);
-	}
-
-	dev_priv->cfb_fence = obj->fence_reg;
-	dev_priv->cfb_plane = intel_crtc->plane;
-	dev_priv->cfb_offset = obj->gtt_offset;
-	dev_priv->cfb_y = crtc->y;
-
 	dpfc_ctl &= DPFC_RESERVED;
 	dpfc_ctl |= (plane | DPFC_CTL_LIMIT_1X);
 	/* Set persistent mode for front-buffer rendering, ala X. */
 	dpfc_ctl |= DPFC_CTL_PERSISTENT_MODE;
-	dpfc_ctl |= (DPFC_CTL_FENCE_EN | dev_priv->cfb_fence);
+	dpfc_ctl |= (DPFC_CTL_FENCE_EN | obj->fence_reg);
 	I915_WRITE(ILK_DPFC_CHICKEN, DPFC_HT_MODIFY);
 
 	I915_WRITE(ILK_DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
@@ -1596,7 +1555,7 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 
 	if (IS_GEN6(dev)) {
 		I915_WRITE(SNB_DPFC_CTL_SA,
-			   SNB_CPU_FENCE_ENABLE | dev_priv->cfb_fence);
+			   SNB_CPU_FENCE_ENABLE | obj->fence_reg);
 		I915_WRITE(DPFC_CPU_FENCE_OFFSET, crtc->y);
 		sandybridge_blit_fbc_update(dev);
 	}
@@ -1649,9 +1608,14 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 		/* Double check that we haven't switched fb without cancelling
 		 * the prior work.
 		 */
-		if (work->crtc->fb == work->fb)
+		if (work->crtc->fb == work->fb) {
 			dev_priv->display.enable_fbc(work->crtc,
 						     work->interval);
+
+			dev_priv->cfb_plane = to_intel_crtc(work->crtc)->plane;
+			dev_priv->cfb_fb = work->crtc->fb->base.id;
+			dev_priv->cfb_y = work->crtc->y;
+		}
 
 		dev_priv->fbc_work = NULL;
 	}
@@ -1710,7 +1674,10 @@ static void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	DRM_DEBUG_KMS("scheduling delayed FBC enable\n");
 
 	/* Delay the actual enabling to let pageflipping cease and the
-	 * display to settle before starting the compression.
+	 * display to settle before starting the compression. Note that
+	 * this delay also serves a second purpose: it allows for a
+	 * vblank to pass after disabling the FBC before we attempt
+	 * to modify the control registers.
 	 *
 	 * A more complicated solution would involve tracking vblanks
 	 * following the termination of the page-flipping sequence
@@ -1730,6 +1697,7 @@ void intel_disable_fbc(struct drm_device *dev)
 		return;
 
 	dev_priv->display.disable_fbc(dev);
+	dev_priv->cfb_plane = -1;
 }
 
 /**
@@ -1842,6 +1810,44 @@ static void intel_update_fbc(struct drm_device *dev)
 	/* If the kernel debugger is active, always disable compression */
 	if (in_dbg_master())
 		goto out_disable;
+
+	/* If the scanout has not changed, don't modify the FBC settings.
+	 * Note that we make the fundamental assumption that the fb->obj
+	 * cannot be unpinned (and have its GTT offset and fence revoked)
+	 * without first being decoupled from the scanout and FBC disabled.
+	 */
+	if (dev_priv->cfb_plane == intel_crtc->plane &&
+	    dev_priv->cfb_fb == fb->base.id &&
+	    dev_priv->cfb_y == crtc->y)
+		return;
+
+	if (intel_fbc_enabled(dev)) {
+		/* We update FBC along two paths, after changing fb/crtc
+		 * configuration (modeswitching) and after page-flipping
+		 * finishes. For the latter, we know that not only did
+		 * we disable the FBC at the start of the page-flip
+		 * sequence, but also more than one vblank has passed.
+		 *
+		 * For the former case of modeswitching, it is possible
+		 * to switch between two FBC valid configurations
+		 * instantaneously so we do need to disable the FBC
+		 * before we can modify its control registers. We also
+		 * have to wait for the next vblank for that to take
+		 * effect. However, since we delay enabling FBC we can
+		 * assume that a vblank has passed since disabling and
+		 * that we can safely alter the registers in the deferred
+		 * callback.
+		 *
+		 * In the scenario that we go from a valid to invalid
+		 * and then back to valid FBC configuration we have
+		 * no strict enforcement that a vblank occurred since
+		 * disabling the FBC. However, along all current pipe
+		 * disabling paths we do need to wait for a vblank at
+		 * some point. And we wait before enabling FBC anyway.
+		 */
+		DRM_DEBUG_KMS("disabling active FBC for update\n");
+		intel_disable_fbc(dev);
+	}
 
 	intel_enable_fbc(crtc, 500);
 	return;
