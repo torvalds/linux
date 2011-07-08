@@ -175,8 +175,7 @@ static int pmbus_write_byte(struct i2c_client *client, u8 page, u8 value)
 	return i2c_smbus_write_byte(client, value);
 }
 
-static int pmbus_write_word_data(struct i2c_client *client, u8 page, u8 reg,
-				 u16 word)
+int pmbus_write_word_data(struct i2c_client *client, u8 page, u8 reg, u16 word)
 {
 	int rv;
 
@@ -185,6 +184,28 @@ static int pmbus_write_word_data(struct i2c_client *client, u8 page, u8 reg,
 		return rv;
 
 	return i2c_smbus_write_word_data(client, reg, word);
+}
+EXPORT_SYMBOL_GPL(pmbus_write_word_data);
+
+/*
+ * _pmbus_write_word_data() is similar to pmbus_write_word_data(), but checks if
+ * a device specific mapping function exists and calls it if necessary.
+ */
+static int _pmbus_write_word_data(struct i2c_client *client, int page, int reg,
+				  u16 word)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	const struct pmbus_driver_info *info = data->info;
+	int status;
+
+	if (info->write_word_data) {
+		status = info->write_word_data(client, page, reg, word);
+		if (status != -ENODATA)
+			return status;
+	}
+	if (reg >= PMBUS_VIRT_BASE)
+		return -EINVAL;
+	return pmbus_write_word_data(client, page, reg, word);
 }
 
 int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 reg)
@@ -198,6 +219,24 @@ int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 reg)
 	return i2c_smbus_read_word_data(client, reg);
 }
 EXPORT_SYMBOL_GPL(pmbus_read_word_data);
+
+/*
+ * _pmbus_read_word_data() is similar to pmbus_read_word_data(), but checks if
+ * a device specific mapping function exists and calls it if necessary.
+ */
+static int _pmbus_read_word_data(struct i2c_client *client, int page, int reg)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	const struct pmbus_driver_info *info = data->info;
+	int status;
+
+	if (info->read_word_data) {
+		status = info->read_word_data(client, page, reg);
+		if (status != -ENODATA)
+			return status;
+	}
+	return pmbus_read_word_data(client, page, reg);
+}
 
 int pmbus_read_byte_data(struct i2c_client *client, u8 page, u8 reg)
 {
@@ -275,7 +314,7 @@ EXPORT_SYMBOL_GPL(pmbus_get_driver_info);
 
 /*
  * _pmbus_read_byte_data() is similar to pmbus_read_byte_data(), but checks if
- * a device specific mapping funcion exists and calls it if necessary.
+ * a device specific mapping function exists and calls it if necessary.
  */
 static int _pmbus_read_byte_data(struct i2c_client *client, int page, int reg)
 {
@@ -350,8 +389,9 @@ static struct pmbus_data *pmbus_update_device(struct device *dev)
 
 			if (!data->valid || sensor->update)
 				sensor->data
-				    = pmbus_read_word_data(client, sensor->page,
-							   sensor->reg);
+				    = _pmbus_read_word_data(client,
+							    sensor->page,
+							    sensor->reg);
 		}
 		pmbus_clear_faults(client);
 		data->last_updated = jiffies;
@@ -722,7 +762,7 @@ static ssize_t pmbus_set_sensor(struct device *dev,
 
 	mutex_lock(&data->update_lock);
 	regval = pmbus_data2reg(data, sensor->class, val);
-	ret = pmbus_write_word_data(client, sensor->page, sensor->reg, regval);
+	ret = _pmbus_write_word_data(client, sensor->page, sensor->reg, regval);
 	if (ret < 0)
 		rv = ret;
 	else

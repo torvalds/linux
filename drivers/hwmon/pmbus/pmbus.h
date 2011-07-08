@@ -286,6 +286,9 @@ struct pmbus_driver_info {
 	 * necessary.
 	 */
 	int (*read_byte_data)(struct i2c_client *client, int page, int reg);
+	int (*read_word_data)(struct i2c_client *client, int page, int reg);
+	int (*write_word_data)(struct i2c_client *client, int page, int reg,
+			       u16 word);
 	/*
 	 * The identify function determines supported PMBus functionality.
 	 * This function is only necessary if a chip driver supports multiple
@@ -299,6 +302,7 @@ struct pmbus_driver_info {
 
 int pmbus_set_page(struct i2c_client *client, u8 page);
 int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 reg);
+int pmbus_write_word_data(struct i2c_client *client, u8 page, u8 reg, u16 word);
 int pmbus_read_byte_data(struct i2c_client *client, u8 page, u8 reg);
 void pmbus_clear_faults(struct i2c_client *client);
 bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg);
