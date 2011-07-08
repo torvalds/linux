@@ -168,7 +168,7 @@ int pmbus_set_page(struct i2c_client *client, u8 page)
 }
 EXPORT_SYMBOL_GPL(pmbus_set_page);
 
-static int pmbus_write_byte(struct i2c_client *client, int page, u8 value)
+int pmbus_write_byte(struct i2c_client *client, int page, u8 value)
 {
 	int rv;
 
@@ -180,6 +180,7 @@ static int pmbus_write_byte(struct i2c_client *client, int page, u8 value)
 
 	return i2c_smbus_write_byte(client, value);
 }
+EXPORT_SYMBOL_GPL(pmbus_write_byte);
 
 int pmbus_write_word_data(struct i2c_client *client, u8 page, u8 reg, u16 word)
 {
