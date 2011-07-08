@@ -174,7 +174,7 @@ static void s5pv210_set_refresh(enum s5pv210_dmc_port ch, unsigned long freq)
 	__raw_writel(tmp1, reg);
 }
 
-int s5pv210_verify_speed(struct cpufreq_policy *policy)
+static int s5pv210_verify_speed(struct cpufreq_policy *policy)
 {
 	if (policy->cpu)
 		return -EINVAL;
@@ -182,7 +182,7 @@ int s5pv210_verify_speed(struct cpufreq_policy *policy)
 	return cpufreq_frequency_table_verify(policy, s5pv210_freq_table);
 }
 
-unsigned int s5pv210_getspeed(unsigned int cpu)
+static unsigned int s5pv210_getspeed(unsigned int cpu)
 {
 	if (cpu)
 		return 0;
