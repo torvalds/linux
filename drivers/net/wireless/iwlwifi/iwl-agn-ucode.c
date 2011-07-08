@@ -167,12 +167,12 @@ static int iwlagn_set_temperature_offset_calib(struct iwl_priv *priv)
 
 	memset(&cmd, 0, sizeof(cmd));
 	iwl_set_calib_hdr(&cmd.hdr, IWL_PHY_CALIBRATE_TEMP_OFFSET_CMD);
-	cmd.radio_sensor_offset = le16_to_cpu(offset_calib[1]);
+	memcpy(&cmd.radio_sensor_offset, offset_calib, sizeof(offset_calib));
 	if (!(cmd.radio_sensor_offset))
 		cmd.radio_sensor_offset = DEFAULT_RADIO_SENSOR_OFFSET;
 
 	IWL_DEBUG_CALIB(priv, "Radio sensor offset: %d\n",
-			cmd.radio_sensor_offset);
+			le16_to_cpu(cmd.radio_sensor_offset));
 	return iwl_calib_set(&priv->calib_results[IWL_CALIB_TEMP_OFFSET],
 			     (u8 *)&cmd, sizeof(cmd));
 }

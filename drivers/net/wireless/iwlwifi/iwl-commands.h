@@ -3237,11 +3237,11 @@ struct iwl_calib_xtal_freq_cmd {
 	u8 pad[2];
 } __packed;
 
-#define DEFAULT_RADIO_SENSOR_OFFSET    2700
+#define DEFAULT_RADIO_SENSOR_OFFSET    cpu_to_le16(2700)
 struct iwl_calib_temperature_offset_cmd {
 	struct iwl_calib_hdr hdr;
-	s16 radio_sensor_offset;
-	s16 reserved;
+	__le16 radio_sensor_offset;
+	__le16 reserved;
 } __packed;
 
 /* IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD */
