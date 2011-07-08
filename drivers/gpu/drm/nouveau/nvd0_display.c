@@ -189,8 +189,6 @@ nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, int type, bool update)
 		evo_data(push, (outY << 16) | outX);
 		evo_mthd(push, 0x0494 + (nv_crtc->index * 0x300), 1);
 		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x04b0 + (nv_crtc->index * 0x300), 1);
-		evo_data(push, 0x00000000);
 		evo_mthd(push, 0x04b8 + (nv_crtc->index * 0x300), 1);
 		evo_data(push, (mode->vdisplay << 16) | mode->hdisplay);
 		if (update) {
@@ -219,6 +217,8 @@ nvd0_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 		evo_data(push, nvfb->r_pitch);
 		evo_data(push, nvfb->r_format);
 		evo_data(push, nvfb->r_dma);
+		evo_mthd(push, 0x04b0 + (nv_crtc->index * 0x300), 1);
+		evo_data(push, (y << 16) | x);
 		if (update) {
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
