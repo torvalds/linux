@@ -59,7 +59,7 @@ xfs_trans_dqjoin(
 	xfs_trans_add_item(tp, &dqp->q_logitem.qli_item);
 
 	/*
-	 * Initialize i_transp so we can later determine if this dquot is
+	 * Initialize d_transp so we can later determine if this dquot is
 	 * associated with this transaction.
 	 */
 	dqp->q_transp = tp;

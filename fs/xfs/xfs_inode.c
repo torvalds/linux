@@ -1261,7 +1261,6 @@ xfs_itruncate_extents(
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_IOLOCK_EXCL));
 	ASSERT(new_size <= ip->i_size);
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
-	ASSERT(ip->i_transp == tp);
 	ASSERT(ip->i_itemp != NULL);
 	ASSERT(ip->i_itemp->ili_lock_flags == 0);
 	ASSERT(!XFS_NOT_DQATTACHED(mp, ip));
@@ -1436,7 +1435,6 @@ xfs_iunlink(
 
 	ASSERT(ip->i_d.di_nlink == 0);
 	ASSERT(ip->i_d.di_mode != 0);
-	ASSERT(ip->i_transp == tp);
 
 	mp = tp->t_mountp;
 
@@ -1828,7 +1826,6 @@ xfs_ifree(
 	xfs_buf_t       	*ibp;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-	ASSERT(ip->i_transp == tp);
 	ASSERT(ip->i_d.di_nlink == 0);
 	ASSERT(ip->i_d.di_nextents == 0);
 	ASSERT(ip->i_d.di_anextents == 0);
