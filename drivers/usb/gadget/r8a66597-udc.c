@@ -576,7 +576,11 @@ static void init_controller(struct r8a66597 *r8a66597)
 	u16 endian = r8a66597->pdata->endian ? BIGEND : 0;
 
 	if (r8a66597->pdata->on_chip) {
-		r8a66597_bset(r8a66597, 0x04, SYSCFG1);
+		if (r8a66597->pdata->buswait)
+			r8a66597_write(r8a66597, r8a66597->pdata->buswait,
+					SYSCFG1);
+		else
+			r8a66597_write(r8a66597, 0x0f, SYSCFG1);
 		r8a66597_bset(r8a66597, HSE, SYSCFG0);
 
 		r8a66597_bclr(r8a66597, USBE, SYSCFG0);
