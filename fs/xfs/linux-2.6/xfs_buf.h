@@ -91,11 +91,6 @@ typedef enum {
 	XBT_FORCE_FLUSH = 1,
 } xfs_buftarg_flags_t;
 
-typedef struct xfs_bufhash {
-	struct list_head	bh_list;
-	spinlock_t		bh_lock;
-} xfs_bufhash_t;
-
 typedef struct xfs_buftarg {
 	dev_t			bt_dev;
 	struct block_device	*bt_bdev;
