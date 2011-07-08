@@ -11,17 +11,6 @@
 #include <media/v4l2-dev.h>
 #include <media/videobuf2-core.h>
 
-/*
- * Tracking of streaming I/O buffers.
- * FIXME doesn't belong in this file
- */
-struct mcam_sio_buffer {
-	struct list_head list;
-	struct v4l2_buffer v4lbuf;
-	char *buffer;   /* Where it lives in kernel space */
-	int mapcount;
-	struct mcam_camera *cam;
-};
 
 enum mcam_state {
 	S_NOTREADY,	/* Not yet initialized */
