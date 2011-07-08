@@ -267,8 +267,8 @@ static int mmpcam_probe(struct platform_device *pdev)
 
 out_unregister:
 	mccic_shutdown(mcam);
-	mmpcam_power_down(mcam);
 out_gpio2:
+	mmpcam_power_down(mcam);
 	gpio_free(pdata->sensor_reset_gpio);
 out_gpio:
 	gpio_free(pdata->sensor_power_gpio);
