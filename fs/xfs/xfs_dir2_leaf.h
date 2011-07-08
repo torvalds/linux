@@ -248,6 +248,9 @@ extern int xfs_dir2_leaf_search_hash(struct xfs_da_args *args,
 				     struct xfs_dabuf *lbp);
 extern int xfs_dir2_leaf_trim_data(struct xfs_da_args *args,
 				   struct xfs_dabuf *lbp, xfs_dir2_db_t db);
+extern xfs_dir2_leaf_entry_t *xfs_dir2_leaf_find_entry(xfs_dir2_leaf_t *, int,
+						       int, int, int,
+						       int *, int *);
 extern int xfs_dir2_node_to_leaf(struct xfs_da_state *state);
 
 #endif	/* __XFS_DIR2_LEAF_H__ */

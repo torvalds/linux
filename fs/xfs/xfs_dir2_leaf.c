@@ -152,6 +152,123 @@ xfs_dir2_block_to_leaf(
 	return 0;
 }
 
+struct xfs_dir2_leaf_entry *
+xfs_dir2_leaf_find_entry(
+	xfs_dir2_leaf_t		*leaf,		/* leaf structure */
+	int			index,		/* leaf table position */
+	int			compact,	/* need to compact leaves */
+	int			lowstale,	/* index of prev stale leaf */
+	int			highstale,	/* index of next stale leaf */
+	int			*lfloglow,	/* low leaf logging index */
+	int			*lfloghigh)	/* high leaf logging index */
+{
+	if (!leaf->hdr.stale) {
+		xfs_dir2_leaf_entry_t	*lep;	/* leaf entry table pointer */
+
+		/*
+		 * Now we need to make room to insert the leaf entry.
+		 *
+		 * If there are no stale entries, just insert a hole at index.
+		 */
+		lep = &leaf->ents[index];
+		if (index < be16_to_cpu(leaf->hdr.count))
+			memmove(lep + 1, lep,
+				(be16_to_cpu(leaf->hdr.count) - index) *
+				 sizeof(*lep));
+
+		/*
+		 * Record low and high logging indices for the leaf.
+		 */
+		*lfloglow = index;
+		*lfloghigh = be16_to_cpu(leaf->hdr.count);
+		be16_add_cpu(&leaf->hdr.count, 1);
+		return lep;
+	}
+
+	/*
+	 * There are stale entries.
+	 *
+	 * We will use one of them for the new entry.  It's probably not at
+	 * the right location, so we'll have to shift some up or down first.
+	 *
+	 * If we didn't compact before, we need to find the nearest stale
+	 * entries before and after our insertion point.
+	 */
+	if (compact == 0) {
+		/*
+		 * Find the first stale entry before the insertion point,
+		 * if any.
+		 */
+		for (lowstale = index - 1;
+		     lowstale >= 0 &&
+			be32_to_cpu(leaf->ents[lowstale].address) !=
+			XFS_DIR2_NULL_DATAPTR;
+		     lowstale--)
+			continue;
+
+		/*
+		 * Find the next stale entry at or after the insertion point,
+		 * if any.   Stop if we go so far that the lowstale entry
+		 * would be better.
+		 */
+		for (highstale = index;
+		     highstale < be16_to_cpu(leaf->hdr.count) &&
+			be32_to_cpu(leaf->ents[highstale].address) !=
+			XFS_DIR2_NULL_DATAPTR &&
+			(lowstale < 0 ||
+			 index - lowstale - 1 >= highstale - index);
+		     highstale++)
+			continue;
+	}
+
+	/*
+	 * If the low one is better, use it.
+	 */
+	if (lowstale >= 0 &&
+	    (highstale == be16_to_cpu(leaf->hdr.count) ||
+	     index - lowstale - 1 < highstale - index)) {
+		ASSERT(index - lowstale - 1 >= 0);
+		ASSERT(be32_to_cpu(leaf->ents[lowstale].address) ==
+		       XFS_DIR2_NULL_DATAPTR);
+
+		/*
+		 * Copy entries up to cover the stale entry and make room
+		 * for the new entry.
+		 */
+		if (index - lowstale - 1 > 0) {
+			memmove(&leaf->ents[lowstale],
+				&leaf->ents[lowstale + 1],
+				(index - lowstale - 1) *
+				sizeof(xfs_dir2_leaf_entry_t));
+		}
+		*lfloglow = MIN(lowstale, *lfloglow);
+		*lfloghigh = MAX(index - 1, *lfloghigh);
+		be16_add_cpu(&leaf->hdr.stale, -1);
+		return &leaf->ents[index - 1];
+	}
+
+	/*
+	 * The high one is better, so use that one.
+	 */
+	ASSERT(highstale - index >= 0);
+	ASSERT(be32_to_cpu(leaf->ents[highstale].address) ==
+	       XFS_DIR2_NULL_DATAPTR);
+
+	/*
+	 * Copy entries down to cover the stale entry and make room for the
+	 * new entry.
+	 */
+	if (highstale - index > 0) {
+		memmove(&leaf->ents[index + 1],
+			&leaf->ents[index],
+			(highstale - index) * sizeof(xfs_dir2_leaf_entry_t));
+	}
+	*lfloglow = MIN(index, *lfloglow);
+	*lfloghigh = MAX(highstale, *lfloghigh);
+	be16_add_cpu(&leaf->hdr.stale, -1);
+	return &leaf->ents[index];
+}
+
 /*
  * Add an entry to a leaf form directory.
  */
@@ -430,102 +547,10 @@ xfs_dir2_leaf_addname(
 		if (!grown)
 			xfs_dir2_leaf_log_bests(tp, lbp, use_block, use_block);
 	}
-	/*
-	 * Now we need to make room to insert the leaf entry.
-	 * If there are no stale entries, we just insert a hole at index.
-	 */
-	if (!leaf->hdr.stale) {
-		/*
-		 * lep is still good as the index leaf entry.
-		 */
-		if (index < be16_to_cpu(leaf->hdr.count))
-			memmove(lep + 1, lep,
-				(be16_to_cpu(leaf->hdr.count) - index) * sizeof(*lep));
-		/*
-		 * Record low and high logging indices for the leaf.
-		 */
-		lfloglow = index;
-		lfloghigh = be16_to_cpu(leaf->hdr.count);
-		be16_add_cpu(&leaf->hdr.count, 1);
-	}
-	/*
-	 * There are stale entries.
-	 * We will use one of them for the new entry.
-	 * It's probably not at the right location, so we'll have to
-	 * shift some up or down first.
-	 */
-	else {
-		/*
-		 * If we didn't compact before, we need to find the nearest
-		 * stale entries before and after our insertion point.
-		 */
-		if (compact == 0) {
-			/*
-			 * Find the first stale entry before the insertion
-			 * point, if any.
-			 */
-			for (lowstale = index - 1;
-			     lowstale >= 0 &&
-				be32_to_cpu(leaf->ents[lowstale].address) !=
-				XFS_DIR2_NULL_DATAPTR;
-			     lowstale--)
-				continue;
-			/*
-			 * Find the next stale entry at or after the insertion
-			 * point, if any.   Stop if we go so far that the
-			 * lowstale entry would be better.
-			 */
-			for (highstale = index;
-			     highstale < be16_to_cpu(leaf->hdr.count) &&
-				be32_to_cpu(leaf->ents[highstale].address) !=
-				XFS_DIR2_NULL_DATAPTR &&
-				(lowstale < 0 ||
-				 index - lowstale - 1 >= highstale - index);
-			     highstale++)
-				continue;
-		}
-		/*
-		 * If the low one is better, use it.
-		 */
-		if (lowstale >= 0 &&
-		    (highstale == be16_to_cpu(leaf->hdr.count) ||
-		     index - lowstale - 1 < highstale - index)) {
-			ASSERT(index - lowstale - 1 >= 0);
-			ASSERT(be32_to_cpu(leaf->ents[lowstale].address) ==
-			       XFS_DIR2_NULL_DATAPTR);
-			/*
-			 * Copy entries up to cover the stale entry
-			 * and make room for the new entry.
-			 */
-			if (index - lowstale - 1 > 0)
-				memmove(&leaf->ents[lowstale],
-					&leaf->ents[lowstale + 1],
-					(index - lowstale - 1) * sizeof(*lep));
-			lep = &leaf->ents[index - 1];
-			lfloglow = MIN(lowstale, lfloglow);
-			lfloghigh = MAX(index - 1, lfloghigh);
-		}
-		/*
-		 * The high one is better, so use that one.
-		 */
-		else {
-			ASSERT(highstale - index >= 0);
-			ASSERT(be32_to_cpu(leaf->ents[highstale].address) ==
-			       XFS_DIR2_NULL_DATAPTR);
-			/*
-			 * Copy entries down to cover the stale entry
-			 * and make room for the new entry.
-			 */
-			if (highstale - index > 0)
-				memmove(&leaf->ents[index + 1],
-					&leaf->ents[index],
-					(highstale - index) * sizeof(*lep));
-			lep = &leaf->ents[index];
-			lfloglow = MIN(index, lfloglow);
-			lfloghigh = MAX(highstale, lfloghigh);
-		}
-		be16_add_cpu(&leaf->hdr.stale, -1);
-	}
+
+	lep = xfs_dir2_leaf_find_entry(leaf, index, compact, lowstale,
+				       highstale, &lfloglow, &lfloghigh);
+
 	/*
 	 * Fill in the new leaf entry.
 	 */
