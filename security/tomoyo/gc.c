@@ -357,13 +357,18 @@ void tomoyo_del_condition(struct list_head *element)
 						     head.list);
 	const u16 condc = cond->condc;
 	const u16 numbers_count = cond->numbers_count;
+	const u16 names_count = cond->names_count;
 	unsigned int i;
 	const struct tomoyo_condition_element *condp
 		= (const struct tomoyo_condition_element *) (cond + 1);
 	struct tomoyo_number_union *numbers_p
 		= (struct tomoyo_number_union *) (condp + condc);
+	struct tomoyo_name_union *names_p
+		= (struct tomoyo_name_union *) (numbers_p + numbers_count);
 	for (i = 0; i < numbers_count; i++)
 		tomoyo_put_number_union(numbers_p++);
+	for (i = 0; i < names_count; i++)
+		tomoyo_put_name_union(names_p++);
 }
 
 /**

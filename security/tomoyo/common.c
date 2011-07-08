@@ -79,6 +79,8 @@ const char * const tomoyo_condition_keyword[TOMOYO_MAX_CONDITION_KEYWORD] = {
 	[TOMOYO_MODE_OTHERS_READ]     = "others_read",
 	[TOMOYO_MODE_OTHERS_WRITE]    = "others_write",
 	[TOMOYO_MODE_OTHERS_EXECUTE]  = "others_execute",
+	[TOMOYO_EXEC_REALPATH]        = "exec.realpath",
+	[TOMOYO_SYMLINK_TARGET]       = "symlink.target",
 	[TOMOYO_PATH1_UID]            = "path1.uid",
 	[TOMOYO_PATH1_GID]            = "path1.gid",
 	[TOMOYO_PATH1_INO]            = "path1.ino",
@@ -349,6 +351,27 @@ static void tomoyo_print_name_union(struct tomoyo_io_buffer *head,
 		tomoyo_set_string(head, ptr->group->group_name->name);
 	} else {
 		tomoyo_set_string(head, ptr->filename->name);
+	}
+}
+
+/**
+ * tomoyo_print_name_union_quoted - Print a tomoyo_name_union with a quote.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ * @ptr:  Pointer to "struct tomoyo_name_union".
+ *
+ * Returns nothing.
+ */
+static void tomoyo_print_name_union_quoted(struct tomoyo_io_buffer *head,
+					   const struct tomoyo_name_union *ptr)
+{
+	if (ptr->group) {
+		tomoyo_set_string(head, "@");
+		tomoyo_set_string(head, ptr->group->group_name->name);
+	} else {
+		tomoyo_set_string(head, "\"");
+		tomoyo_set_string(head, ptr->filename->name);
+		tomoyo_set_string(head, "\"");
 	}
 }
 
@@ -1101,6 +1124,9 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 				(typeof(condp)) (cond + 1);
 			const struct tomoyo_number_union *numbers_p =
 				(typeof(numbers_p)) (condp + condc);
+			const struct tomoyo_name_union *names_p =
+				(typeof(names_p))
+				(numbers_p + cond->numbers_count);
 			u16 skip;
 			for (skip = 0; skip < head->r.cond_index; skip++) {
 				const u8 left = condp->left;
@@ -1112,6 +1138,9 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 					break;
 				}
 				switch (right) {
+				case TOMOYO_NAME_UNION:
+					names_p++;
+					break;
 				case TOMOYO_NUMBER_UNION:
 					numbers_p++;
 					break;
@@ -1138,6 +1167,10 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 				}
 				tomoyo_set_string(head, match ? "=" : "!=");
 				switch (right) {
+				case TOMOYO_NAME_UNION:
+					tomoyo_print_name_union_quoted
+						(head, names_p++);
+					break;
 				case TOMOYO_NUMBER_UNION:
 					tomoyo_print_number_union_nospace
 						(head, numbers_p++);
@@ -1666,6 +1699,22 @@ static DEFINE_SPINLOCK(tomoyo_query_list_lock);
 static atomic_t tomoyo_query_observers = ATOMIC_INIT(0);
 
 /**
+ * tomoyo_truncate - Truncate a line.
+ *
+ * @str: String to truncate.
+ *
+ * Returns length of truncated @str.
+ */
+static int tomoyo_truncate(char *str)
+{
+	char *start = str;
+	while (*(unsigned char *) str > (unsigned char) ' ')
+		str++;
+	*str = '\0';
+	return strlen(start) + 1;
+}
+
+/**
  * tomoyo_add_entry - Add an ACL to current thread's domain. Used by learning mode.
  *
  * @domain: Pointer to "struct tomoyo_domain_info".
@@ -1676,6 +1725,8 @@ static atomic_t tomoyo_query_observers = ATOMIC_INIT(0);
 static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
 {
 	char *buffer;
+	char *realpath = NULL;
+	char *symlink = NULL;
 	char *cp = strchr(header, '\n');
 	int len;
 	if (!cp)
@@ -1685,10 +1736,25 @@ static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
 		return;
 	*cp++ = '\0';
 	len = strlen(cp) + 1;
+	/* strstr() will return NULL if ordering is wrong. */
+	if (*cp == 'f') {
+		realpath = strstr(header, " exec={ realpath=\"");
+		if (realpath) {
+			realpath += 8;
+			len += tomoyo_truncate(realpath) + 6;
+		}
+		symlink = strstr(header, " symlink.target=\"");
+		if (symlink)
+			len += tomoyo_truncate(symlink + 1) + 1;
+	}
 	buffer = kmalloc(len, GFP_NOFS);
 	if (!buffer)
 		return;
 	snprintf(buffer, len - 1, "%s", cp);
+	if (realpath)
+		tomoyo_addprintf(buffer, len, " exec.%s", realpath);
+	if (symlink)
+		tomoyo_addprintf(buffer, len, "%s", symlink);
 	tomoyo_normalize_line(buffer);
 	if (!tomoyo_write_domain2(domain->ns, &domain->acl_info_list, buffer,
 				  false))

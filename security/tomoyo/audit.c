@@ -140,6 +140,8 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 {
 	char *buf = NULL;
 	const char *header = NULL;
+	char *realpath = NULL;
+	const char *symlink = NULL;
 	int pos;
 	const char *domainname = r->domain->domainname->name;
 	header = tomoyo_print_header(r);
@@ -147,15 +149,34 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 		return NULL;
 	/* +10 is for '\n' etc. and '\0'. */
 	len += strlen(domainname) + strlen(header) + 10;
+	if (r->ee) {
+		struct file *file = r->ee->bprm->file;
+		realpath = tomoyo_realpath_from_path(&file->f_path);
+		if (!realpath)
+			goto out;
+		/* +80 is for " exec={ realpath=\"%s\" }" */
+		len += strlen(realpath) + 80;
+	} else if (r->obj && r->obj->symlink_target) {
+		symlink = r->obj->symlink_target->name;
+		/* +18 is for " symlink.target=\"%s\"" */
+		len += 18 + strlen(symlink);
+	}
 	len = tomoyo_round2(len);
 	buf = kzalloc(len, GFP_NOFS);
 	if (!buf)
 		goto out;
 	len--;
 	pos = snprintf(buf, len, "%s", header);
+	if (realpath) {
+		pos += snprintf(buf + pos, len - pos,
+				" exec={ realpath=\"%s\" }", realpath);
+	} else if (symlink)
+		pos += snprintf(buf + pos, len - pos, " symlink.target=\"%s\"",
+				symlink);
 	pos += snprintf(buf + pos, len - pos, "\n%s\n", domainname);
 	vsnprintf(buf + pos, len - pos, fmt, args);
 out:
+	kfree(realpath);
 	kfree(header);
 	return buf;
 }

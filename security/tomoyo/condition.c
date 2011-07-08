@@ -11,6 +11,68 @@
 LIST_HEAD(tomoyo_condition_list);
 
 /**
+ * tomoyo_scan_exec_realpath - Check "exec.realpath" parameter of "struct tomoyo_condition".
+ *
+ * @file:  Pointer to "struct file".
+ * @ptr:   Pointer to "struct tomoyo_name_union".
+ * @match: True if "exec.realpath=", false if "exec.realpath!=".
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_scan_exec_realpath(struct file *file,
+				      const struct tomoyo_name_union *ptr,
+				      const bool match)
+{
+	bool result;
+	struct tomoyo_path_info exe;
+	if (!file)
+		return false;
+	exe.name = tomoyo_realpath_from_path(&file->f_path);
+	if (!exe.name)
+		return false;
+	tomoyo_fill_path_info(&exe);
+	result = tomoyo_compare_name_union(&exe, ptr);
+	kfree(exe.name);
+	return result == match;
+}
+
+/**
+ * tomoyo_get_dqword - tomoyo_get_name() for a quoted string.
+ *
+ * @start: String to save.
+ *
+ * Returns pointer to "struct tomoyo_path_info" on success, NULL otherwise.
+ */
+static const struct tomoyo_path_info *tomoyo_get_dqword(char *start)
+{
+	char *cp = start + strlen(start) - 1;
+	if (cp == start || *start++ != '"' || *cp != '"')
+		return NULL;
+	*cp = '\0';
+	if (*start && !tomoyo_correct_word(start))
+		return NULL;
+	return tomoyo_get_name(start);
+}
+
+/**
+ * tomoyo_parse_name_union_quoted - Parse a quoted word.
+ *
+ * @param: Pointer to "struct tomoyo_acl_param".
+ * @ptr:   Pointer to "struct tomoyo_name_union".
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_parse_name_union_quoted(struct tomoyo_acl_param *param,
+					   struct tomoyo_name_union *ptr)
+{
+	char *filename = param->data;
+	if (*filename == '@')
+		return tomoyo_parse_name_union(param, ptr);
+	ptr->filename = tomoyo_get_dqword(filename);
+	return ptr->filename != NULL;
+}
+
+/**
  * tomoyo_same_condition - Check for duplicated "struct tomoyo_condition" entry.
  *
  * @a: Pointer to "struct tomoyo_condition".
@@ -23,6 +85,7 @@ static inline bool tomoyo_same_condition(const struct tomoyo_condition *a,
 {
 	return a->size == b->size && a->condc == b->condc &&
 		a->numbers_count == b->numbers_count &&
+		a->names_count == b->names_count &&
 		!memcmp(a + 1, b + 1, a->size - sizeof(*a));
 }
 
@@ -114,6 +177,7 @@ struct tomoyo_condition *tomoyo_get_condition(struct tomoyo_acl_param *param)
 	struct tomoyo_condition *entry = NULL;
 	struct tomoyo_condition_element *condp = NULL;
 	struct tomoyo_number_union *numbers_p = NULL;
+	struct tomoyo_name_union *names_p = NULL;
 	struct tomoyo_condition e = { };
 	char * const start_of_string = param->data;
 	char * const end_of_string = start_of_string + strlen(start_of_string);
@@ -178,6 +242,20 @@ rerun:
 			e.condc++;
 		else
 			e.condc--;
+		if (left == TOMOYO_EXEC_REALPATH ||
+		    left == TOMOYO_SYMLINK_TARGET) {
+			if (!names_p) {
+				e.names_count++;
+			} else {
+				e.names_count--;
+				right = TOMOYO_NAME_UNION;
+				param->data = right_word;
+				if (!tomoyo_parse_name_union_quoted(param,
+								    names_p++))
+					goto out;
+			}
+			goto store_value;
+		}
 		right = tomoyo_condition_type(right_word);
 		if (right == TOMOYO_MAX_CONDITION_KEYWORD) {
 			if (!numbers_p) {
@@ -191,6 +269,7 @@ rerun:
 					goto out;
 			}
 		}
+store_value:
 		if (!condp) {
 			dprintk(KERN_WARNING "%u: dry_run left=%u right=%u "
 				"match=%u\n", __LINE__, left, right, !is_not);
@@ -204,21 +283,23 @@ rerun:
 			condp->equals);
 		condp++;
 	}
-	dprintk(KERN_INFO "%u: cond=%u numbers=%u\n",
-		__LINE__, e.condc, e.numbers_count);
+	dprintk(KERN_INFO "%u: cond=%u numbers=%u names=%u\n",
+		__LINE__, e.condc, e.numbers_count, e.names_count);
 	if (entry) {
-		BUG_ON(e.numbers_count | e.condc);
+		BUG_ON(e.names_count | e.numbers_count | e.condc);
 		return tomoyo_commit_condition(entry);
 	}
 	e.size = sizeof(*entry)
 		+ e.condc * sizeof(struct tomoyo_condition_element)
-		+ e.numbers_count * sizeof(struct tomoyo_number_union);
+		+ e.numbers_count * sizeof(struct tomoyo_number_union)
+		+ e.names_count * sizeof(struct tomoyo_name_union);
 	entry = kzalloc(e.size, GFP_NOFS);
 	if (!entry)
 		return NULL;
 	*entry = e;
 	condp = (struct tomoyo_condition_element *) (entry + 1);
 	numbers_p = (struct tomoyo_number_union *) (condp + e.condc);
+	names_p = (struct tomoyo_name_union *) (numbers_p + e.numbers_count);
 	{
 		bool flag = false;
 		for (pos = start_of_string; pos < end_of_string; pos++) {
@@ -309,6 +390,7 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 	unsigned long max_v[2] = { 0, 0 };
 	const struct tomoyo_condition_element *condp;
 	const struct tomoyo_number_union *numbers_p;
+	const struct tomoyo_name_union *names_p;
 	struct tomoyo_obj_info *obj;
 	u16 condc;
 	if (!cond)
@@ -317,6 +399,8 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 	obj = r->obj;
 	condp = (struct tomoyo_condition_element *) (cond + 1);
 	numbers_p = (const struct tomoyo_number_union *) (condp + condc);
+	names_p = (const struct tomoyo_name_union *)
+		(numbers_p + cond->numbers_count);
 	for (i = 0; i < condc; i++) {
 		const bool match = condp->equals;
 		const u8 left = condp->left;
@@ -324,6 +408,30 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 		bool is_bitop[2] = { false, false };
 		u8 j;
 		condp++;
+		/* Check string expressions. */
+		if (right == TOMOYO_NAME_UNION) {
+			const struct tomoyo_name_union *ptr = names_p++;
+			switch (left) {
+				struct tomoyo_path_info *symlink;
+				struct tomoyo_execve *ee;
+				struct file *file;
+			case TOMOYO_SYMLINK_TARGET:
+				symlink = obj ? obj->symlink_target : NULL;
+				if (!symlink ||
+				    !tomoyo_compare_name_union(symlink, ptr)
+				    == match)
+					goto out;
+				break;
+			case TOMOYO_EXEC_REALPATH:
+				ee = r->ee;
+				file = ee ? ee->bprm->file : NULL;
+				if (!tomoyo_scan_exec_realpath(file, ptr,
+							       match))
+					goto out;
+				break;
+			}
+			continue;
+		}
 		/* Check numeric or bit-op expressions. */
 		for (j = 0; j < 2; j++) {
 			const u8 index = j ? right : left;

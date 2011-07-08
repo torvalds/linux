@@ -73,6 +73,8 @@ enum tomoyo_conditions_index {
 	TOMOYO_MODE_OTHERS_READ,     /* S_IROTH */
 	TOMOYO_MODE_OTHERS_WRITE,    /* S_IWOTH */
 	TOMOYO_MODE_OTHERS_EXECUTE,  /* S_IXOTH */
+	TOMOYO_EXEC_REALPATH,
+	TOMOYO_SYMLINK_TARGET,
 	TOMOYO_PATH1_UID,
 	TOMOYO_PATH1_GID,
 	TOMOYO_PATH1_INO,
@@ -101,6 +103,7 @@ enum tomoyo_conditions_index {
 	TOMOYO_PATH2_PARENT_PERM,
 	TOMOYO_MAX_CONDITION_KEYWORD,
 	TOMOYO_NUMBER_UNION,
+	TOMOYO_NAME_UNION,
 };
 
 
@@ -351,6 +354,11 @@ struct tomoyo_request_info {
 	 * NULL if not dealing files.
 	 */
 	struct tomoyo_obj_info *obj;
+	/*
+	 * For holding parameters specific to execve() request.
+	 * NULL if not dealing do_execve().
+	 */
+	struct tomoyo_execve *ee;
 	struct tomoyo_domain_info *domain;
 	/* For holding parameters. */
 	union {
@@ -476,6 +484,20 @@ struct tomoyo_obj_info {
 	 * parent directory.
 	 */
 	struct tomoyo_mini_stat stat[TOMOYO_MAX_PATH_STAT];
+	/*
+	 * Content of symbolic link to be created. NULL for operations other
+	 * than symlink().
+	 */
+	struct tomoyo_path_info *symlink_target;
+};
+
+/* Structure for execve() operation. */
+struct tomoyo_execve {
+	struct tomoyo_request_info r;
+	struct tomoyo_obj_info obj;
+	struct linux_binprm *bprm;
+	/* For temporary use. */
+	char *tmp; /* Size is TOMOYO_EXEC_TMPSIZE bytes */
 };
 
 /* Structure for entries which follows "struct tomoyo_condition". */
@@ -494,9 +516,11 @@ struct tomoyo_condition {
 	u32 size; /* Memory size allocated for this entry. */
 	u16 condc; /* Number of conditions in this struct. */
 	u16 numbers_count; /* Number of "struct tomoyo_number_union values". */
+	u16 names_count; /* Number of "struct tomoyo_name_union names". */
 	/*
 	 * struct tomoyo_condition_element condition[condc];
 	 * struct tomoyo_number_union values[numbers_count];
+	 * struct tomoyo_name_union names[names_count];
 	 */
 };
 
