@@ -56,6 +56,7 @@
 #define BT_SECURITY	4
 struct bt_security {
 	__u8 level;
+	__u8 key_size;
 };
 #define BT_SECURITY_SDP		0
 #define BT_SECURITY_LOW		1
