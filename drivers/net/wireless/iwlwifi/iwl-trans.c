@@ -197,7 +197,6 @@ static int iwl_trans_rx_stop(struct iwl_priv *priv)
 			    FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
 }
 
-/* TODO:remove this code duplication */
 static inline int iwlagn_alloc_dma_ptr(struct iwl_priv *priv,
 				    struct iwl_dma_ptr *ptr, size_t size)
 {

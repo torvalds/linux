@@ -830,27 +830,6 @@ drop_unlock_priv:
 	return -1;
 }
 
-static inline int iwlagn_alloc_dma_ptr(struct iwl_priv *priv,
-				    struct iwl_dma_ptr *ptr, size_t size)
-{
-	ptr->addr = dma_alloc_coherent(priv->bus.dev, size,
-				       &ptr->dma, GFP_KERNEL);
-	if (!ptr->addr)
-		return -ENOMEM;
-	ptr->size = size;
-	return 0;
-}
-
-static inline void iwlagn_free_dma_ptr(struct iwl_priv *priv,
-				    struct iwl_dma_ptr *ptr)
-{
-	if (unlikely(!ptr->addr))
-		return;
-
-	dma_free_coherent(priv->bus.dev, ptr->size, ptr->addr, ptr->dma);
-	memset(ptr, 0, sizeof(*ptr));
-}
-
 /*
  * Find first available (lowest unused) Tx Queue, mark it "active".
  * Called only when finding queue for aggregation.
