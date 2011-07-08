@@ -20,6 +20,22 @@
 
 /*
  * Directory format 2, data block structures.
+ *
+ * A pure data block looks like the following drawing on disk:
+ *
+ *    +-------------------------------------------------+
+ *    | xfs_dir2_data_hdr_t                             |
+ *    +-------------------------------------------------+
+ *    | xfs_dir2_data_entry_t OR xfs_dir2_data_unused_t |
+ *    | xfs_dir2_data_entry_t OR xfs_dir2_data_unused_t |
+ *    | xfs_dir2_data_entry_t OR xfs_dir2_data_unused_t |
+ *    | ...                                             |
+ *    +-------------------------------------------------+
+ *    | unused space                                    |
+ *    +-------------------------------------------------+
+ *
+ * As all the entries are variable size structures the accessors in this
+ * file should be used to iterate over them.
  */
 
 struct xfs_dabuf;
@@ -102,23 +118,6 @@ typedef struct xfs_dir2_data_unused {
 						/* variable offset */
 	__be16			tag;		/* starting offset of us */
 } xfs_dir2_data_unused_t;
-
-typedef union {
-	xfs_dir2_data_entry_t	entry;
-	xfs_dir2_data_unused_t	unused;
-} xfs_dir2_data_union_t;
-
-/*
- * Generic data block structure, for xfs_db.
- */
-typedef struct xfs_dir2_data {
-	xfs_dir2_data_hdr_t	hdr;		/* magic XFS_DIR2_DATA_MAGIC */
-	xfs_dir2_data_union_t	u[1];
-} xfs_dir2_data_t;
-
-/*
- * Macros.
- */
 
 /*
  * Size of a data entry.

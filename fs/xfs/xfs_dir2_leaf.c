@@ -785,7 +785,6 @@ xfs_dir2_leaf_getdents(
 	int			byteoff;	/* offset in current block */
 	xfs_dir2_db_t		curdb;		/* db for current block */
 	xfs_dir2_off_t		curoff;		/* current overall offset */
-	xfs_dir2_data_t		*data;		/* data block structure */
 	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
 	xfs_dir2_data_entry_t	*dep;		/* data entry */
 	xfs_dir2_data_unused_t	*dup;		/* unused entry */
@@ -1044,13 +1043,12 @@ xfs_dir2_leaf_getdents(
 			else if (curoff > newoff)
 				ASSERT(xfs_dir2_byte_to_db(mp, curoff) ==
 				       curdb);
-			data = bp->data;
-			hdr = &data->hdr;
+			hdr = bp->data;
 			xfs_dir2_data_check(dp, bp);
 			/*
 			 * Find our position in the block.
 			 */
-			ptr = (char *)&data->u;
+			ptr = (char *)(hdr + 1);
 			byteoff = xfs_dir2_byte_to_off(mp, curoff);
 			/*
 			 * Skip past the header.

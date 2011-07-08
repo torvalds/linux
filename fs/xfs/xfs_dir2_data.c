@@ -53,7 +53,6 @@ xfs_dir2_data_check(
 	xfs_dir2_data_free_t	*bf;		/* bestfree table */
 	xfs_dir2_block_tail_t	*btp=NULL;	/* block tail */
 	int			count;		/* count of entries found */
-	xfs_dir2_data_t		*d;		/* data block pointer */
 	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
 	xfs_dir2_data_entry_t	*dep;		/* data entry */
 	xfs_dir2_data_free_t	*dfp;		/* bestfree entry */
@@ -70,10 +69,9 @@ xfs_dir2_data_check(
 	struct xfs_name		name;
 
 	mp = dp->i_mount;
-	d = bp->data;
-	hdr = &d->hdr;
+	hdr = bp->data;
 	bf = hdr->bestfree;
-	p = (char *)d->u;
+	p = (char *)(hdr + 1);
 
 	if (be32_to_cpu(hdr->magic) == XFS_DIR2_BLOCK_MAGIC) {
 		btp = xfs_dir2_block_tail_p(mp, hdr);
@@ -336,7 +334,6 @@ xfs_dir2_data_freescan(
 	xfs_dir2_data_hdr_t	*hdr,		/* data block header */
 	int			*loghead)	/* out: log data header */
 {
-	xfs_dir2_data_t		*d = (xfs_dir2_data_t *)hdr;
 	xfs_dir2_block_tail_t	*btp;		/* block tail */
 	xfs_dir2_data_entry_t	*dep;		/* active data entry */
 	xfs_dir2_data_unused_t	*dup;		/* unused data entry */
@@ -355,7 +352,7 @@ xfs_dir2_data_freescan(
 	/*
 	 * Set up pointers.
 	 */
-	p = (char *)d->u;
+	p = (char *)(hdr + 1);
 	if (be32_to_cpu(hdr->magic) == XFS_DIR2_BLOCK_MAGIC) {
 		btp = xfs_dir2_block_tail_p(mp, hdr);
 		endp = (char *)xfs_dir2_block_leaf_p(btp);
@@ -398,7 +395,6 @@ xfs_dir2_data_init(
 	xfs_dabuf_t		**bpp)		/* output block buffer */
 {
 	xfs_dabuf_t		*bp;		/* block buffer */
-	xfs_dir2_data_t		*d;		/* pointer to block */
 	xfs_dir2_data_hdr_t	*hdr;		/* data block header */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	xfs_dir2_data_unused_t	*dup;		/* unused entry pointer */
@@ -424,8 +420,7 @@ xfs_dir2_data_init(
 	/*
 	 * Initialize the header.
 	 */
-	d = bp->data;
-	hdr = &d->hdr;
+	hdr = bp->data;
 	hdr->magic = cpu_to_be32(XFS_DIR2_DATA_MAGIC);
 	hdr->bestfree[0].offset = cpu_to_be16(sizeof(*hdr));
 	for (i = 1; i < XFS_DIR2_DATA_FD_COUNT; i++) {
@@ -436,7 +431,7 @@ xfs_dir2_data_init(
 	/*
 	 * Set up an unused entry for the block's body.
 	 */
-	dup = &d->u[0].unused;
+	dup = (xfs_dir2_data_unused_t *)(hdr + 1);
 	dup->freetag = cpu_to_be16(XFS_DIR2_DATA_FREE_TAG);
 
 	t = mp->m_dirblksize - (uint)sizeof(*hdr);
