@@ -157,6 +157,7 @@ config USB_FSL_USB2
 
 config USB_FUSB300
 	tristate "Faraday FUSB300 USB Peripheral Controller"
+	depends on !PHYS_ADDR_T_64BIT
 	select USB_GADGET_DUALSPEED
 	help
 	   Faraday usb device controller FUSB300 driver
@@ -425,6 +426,7 @@ config USB_GOKU
 config USB_LANGWELL
 	tristate "Intel Langwell USB Device Controller"
 	depends on PCI
+	depends on !PHYS_ADDR_T_64BIT
 	select USB_GADGET_DUALSPEED
 	help
 	   Intel Langwell USB Device Controller is a High-Speed USB
