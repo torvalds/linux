@@ -72,19 +72,6 @@ MODULE_PARM_DESC(dma_buf_size,
 		"parameters require larger buffers, an attempt to reallocate "
 		"will be made.");
 
-static int min_buffers = 1;
-module_param(min_buffers, uint, 0644);
-MODULE_PARM_DESC(min_buffers,
-		"The minimum number of streaming I/O buffers we are willing "
-		"to work with.");
-
-static int max_buffers = 10;
-module_param(max_buffers, uint, 0644);
-MODULE_PARM_DESC(max_buffers,
-		"The maximum number of streaming I/O buffers an application "
-		"will be allowed to allocate.  These buffers are big and live "
-		"in vmalloc space.");
-
 static int flip;
 module_param(flip, bool, 0444);
 MODULE_PARM_DESC(flip,
