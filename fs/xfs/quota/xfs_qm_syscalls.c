@@ -263,7 +263,7 @@ xfs_qm_scall_trunc_qfile(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip);
 
-	error = xfs_itruncate_finish(&tp, ip, 0, XFS_DATA_FORK, 1);
+	error = xfs_itruncate_data(&tp, ip, 0);
 	if (error) {
 		xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES |
 				     XFS_TRANS_ABORT);

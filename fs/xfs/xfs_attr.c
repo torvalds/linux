@@ -822,17 +822,21 @@ xfs_attr_inactive(xfs_inode_t *dp)
 	error = xfs_attr_root_inactive(&trans, dp);
 	if (error)
 		goto out;
+
 	/*
-	 * signal synchronous inactive transactions unless this
-	 * is a synchronous mount filesystem in which case we
-	 * know that we're here because we've been called out of
-	 * xfs_inactive which means that the last reference is gone
-	 * and the unlink transaction has already hit the disk so
-	 * async inactive transactions are safe.
+	 * Signal synchronous inactive transactions unless this is a
+	 * synchronous mount filesystem in which case we know that we're here
+	 * because we've been called out of xfs_inactive which means that the
+	 * last reference is gone and the unlink transaction has already hit
+	 * the disk so async inactive transactions are safe.
 	 */
-	if ((error = xfs_itruncate_finish(&trans, dp, 0LL, XFS_ATTR_FORK,
-				(!(mp->m_flags & XFS_MOUNT_WSYNC)
-				 ? 1 : 0))))
+	if (!(mp->m_flags & XFS_MOUNT_WSYNC)) {
+		if (dp->i_d.di_anextents > 0)
+			xfs_trans_set_sync(trans);
+	}
+
+	error = xfs_itruncate_extents(&trans, dp, XFS_ATTR_FORK, 0);
+	if (error)
 		goto out;
 
 	/*

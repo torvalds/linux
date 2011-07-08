@@ -52,7 +52,7 @@ kmem_zone_t *xfs_ifork_zone;
 kmem_zone_t *xfs_inode_zone;
 
 /*
- * Used in xfs_itruncate().  This is the maximum number of extents
+ * Used in xfs_itruncate_extents().  This is the maximum number of extents
  * freed from a file in a single transaction.
  */
 #define	XFS_ITRUNC_MAX_EXTENTS	2
@@ -1179,15 +1179,15 @@ xfs_ialloc(
  * at least do it for regular files.
  */
 #ifdef DEBUG
-void
+STATIC void
 xfs_isize_check(
-	xfs_mount_t	*mp,
-	xfs_inode_t	*ip,
-	xfs_fsize_t	isize)
+	struct xfs_inode	*ip,
+	xfs_fsize_t		isize)
 {
-	xfs_fileoff_t	map_first;
-	int		nimaps;
-	xfs_bmbt_irec_t	imaps[2];
+	struct xfs_mount	*mp = ip->i_mount;
+	xfs_fileoff_t		map_first;
+	int			nimaps;
+	xfs_bmbt_irec_t		imaps[2];
 
 	if ((ip->i_d.di_mode & S_IFMT) != S_IFREG)
 		return;
@@ -1214,11 +1214,14 @@ xfs_isize_check(
 	ASSERT(nimaps == 1);
 	ASSERT(imaps[0].br_startblock == HOLESTARTBLOCK);
 }
+#else	/* DEBUG */
+#define xfs_isize_check(ip, isize)
 #endif	/* DEBUG */
 
 /*
- * Free up the underlying blocks past new_size.  The new size must be
- * smaller than the current size.
+ * Free up the underlying blocks past new_size.  The new size must be smaller
+ * than the current size.  This routine can be used both for the attribute and
+ * data fork, and does not modify the inode size, which is left to the caller.
  *
  * The transaction passed to this routine must have made a permanent log
  * reservation of at least XFS_ITRUNCATE_LOG_RES.  This routine may commit the
@@ -1230,31 +1233,6 @@ xfs_isize_check(
  * will be "held" within the returned transaction.  This routine does NOT
  * require any disk space to be reserved for it within the transaction.
  *
- * The fork parameter must be either XFS_ATTR_FORK or XFS_DATA_FORK, and it
- * indicates the fork which is to be truncated.  For the attribute fork we only
- * support truncation to size 0.
- *
- * We use the sync parameter to indicate whether or not the first transaction
- * we perform might have to be synchronous.  For the attr fork, it needs to be
- * so if the unlink of the inode is not yet known to be permanent in the log.
- * This keeps us from freeing and reusing the blocks of the attribute fork
- * before the unlink of the inode becomes permanent.
- *
- * For the data fork, we normally have to run synchronously if we're being
- * called out of the inactive path or we're being called out of the create path
- * where we're truncating an existing file.  Either way, the truncate needs to
- * be sync so blocks don't reappear in the file with altered data in case of a
- * crash.  wsync filesystems can run the first case async because anything that
- * shrinks the inode has to run sync so by the time we're called here from
- * inactive, the inode size is permanently set to 0.
- *
- * Calls from the truncate path always need to be sync unless we're in a wsync
- * filesystem and the file has already been unlinked.
- *
- * The caller is responsible for correctly setting the sync parameter.  It gets
- * too hard for us to guess here which path we're being called out of just
- * based on inode state.
- *
  * If we get an error, we must return with the inode locked and linked into the
  * current transaction. This keeps things simple for the higher level code,
  * because it always knows that the inode is locked and held in the transaction
@@ -1262,124 +1240,31 @@ xfs_isize_check(
  * dirty on error so that transactions can be easily aborted if possible.
  */
 int
-xfs_itruncate_finish(
-	xfs_trans_t	**tp,
-	xfs_inode_t	*ip,
-	xfs_fsize_t	new_size,
-	int		fork,
-	int		sync)
+xfs_itruncate_extents(
+	struct xfs_trans	**tpp,
+	struct xfs_inode	*ip,
+	int			whichfork,
+	xfs_fsize_t		new_size)
 {
-	xfs_fsblock_t	first_block;
-	xfs_fileoff_t	first_unmap_block;
-	xfs_fileoff_t	last_block;
-	xfs_filblks_t	unmap_len=0;
-	xfs_mount_t	*mp;
-	xfs_trans_t	*ntp;
-	int		done;
-	int		committed;
-	xfs_bmap_free_t	free_list;
-	int		error;
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp = *tpp;
+	struct xfs_trans	*ntp;
+	xfs_bmap_free_t		free_list;
+	xfs_fsblock_t		first_block;
+	xfs_fileoff_t		first_unmap_block;
+	xfs_fileoff_t		last_block;
+	xfs_filblks_t		unmap_len;
+	int			committed;
+	int			error = 0;
+	int			done = 0;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_IOLOCK_EXCL));
-	ASSERT((new_size == 0) || (new_size <= ip->i_size));
-	ASSERT(*tp != NULL);
-	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
-	ASSERT(ip->i_transp == *tp);
+	ASSERT(new_size <= ip->i_size);
+	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
+	ASSERT(ip->i_transp == tp);
 	ASSERT(ip->i_itemp != NULL);
 	ASSERT(ip->i_itemp->ili_lock_flags == 0);
-
-
-	ntp = *tp;
-	mp = (ntp)->t_mountp;
-	ASSERT(! XFS_NOT_DQATTACHED(mp, ip));
-
-	/*
-	 * We only support truncating the entire attribute fork.
-	 */
-	if (fork == XFS_ATTR_FORK) {
-		new_size = 0LL;
-	}
-	first_unmap_block = XFS_B_TO_FSB(mp, (xfs_ufsize_t)new_size);
-	trace_xfs_itruncate_finish_start(ip, new_size);
-
-	/*
-	 * The first thing we do is set the size to new_size permanently
-	 * on disk.  This way we don't have to worry about anyone ever
-	 * being able to look at the data being freed even in the face
-	 * of a crash.  What we're getting around here is the case where
-	 * we free a block, it is allocated to another file, it is written
-	 * to, and then we crash.  If the new data gets written to the
-	 * file but the log buffers containing the free and reallocation
-	 * don't, then we'd end up with garbage in the blocks being freed.
-	 * As long as we make the new_size permanent before actually
-	 * freeing any blocks it doesn't matter if they get written to.
-	 *
-	 * The callers must signal into us whether or not the size
-	 * setting here must be synchronous.  There are a few cases
-	 * where it doesn't have to be synchronous.  Those cases
-	 * occur if the file is unlinked and we know the unlink is
-	 * permanent or if the blocks being truncated are guaranteed
-	 * to be beyond the inode eof (regardless of the link count)
-	 * and the eof value is permanent.  Both of these cases occur
-	 * only on wsync-mounted filesystems.  In those cases, we're
-	 * guaranteed that no user will ever see the data in the blocks
-	 * that are being truncated so the truncate can run async.
-	 * In the free beyond eof case, the file may wind up with
-	 * more blocks allocated to it than it needs if we crash
-	 * and that won't get fixed until the next time the file
-	 * is re-opened and closed but that's ok as that shouldn't
-	 * be too many blocks.
-	 *
-	 * However, we can't just make all wsync xactions run async
-	 * because there's one call out of the create path that needs
-	 * to run sync where it's truncating an existing file to size
-	 * 0 whose size is > 0.
-	 *
-	 * It's probably possible to come up with a test in this
-	 * routine that would correctly distinguish all the above
-	 * cases from the values of the function parameters and the
-	 * inode state but for sanity's sake, I've decided to let the
-	 * layers above just tell us.  It's simpler to correctly figure
-	 * out in the layer above exactly under what conditions we
-	 * can run async and I think it's easier for others read and
-	 * follow the logic in case something has to be changed.
-	 * cscope is your friend -- rcc.
-	 *
-	 * The attribute fork is much simpler.
-	 *
-	 * For the attribute fork we allow the caller to tell us whether
-	 * the unlink of the inode that led to this call is yet permanent
-	 * in the on disk log.  If it is not and we will be freeing extents
-	 * in this inode then we make the first transaction synchronous
-	 * to make sure that the unlink is permanent by the time we free
-	 * the blocks.
-	 */
-	if (fork == XFS_DATA_FORK) {
-		if (ip->i_d.di_nextents > 0) {
-			/*
-			 * If we are not changing the file size then do
-			 * not update the on-disk file size - we may be
-			 * called from xfs_inactive_free_eofblocks().  If we
-			 * update the on-disk file size and then the system
-			 * crashes before the contents of the file are
-			 * flushed to disk then the files may be full of
-			 * holes (ie NULL files bug).
-			 */
-			if (ip->i_size != new_size) {
-				ip->i_d.di_size = new_size;
-				ip->i_size = new_size;
-				xfs_trans_log_inode(ntp, ip, XFS_ILOG_CORE);
-			}
-		}
-	} else if (sync) {
-		ASSERT(!(mp->m_flags & XFS_MOUNT_WSYNC));
-		if (ip->i_d.di_anextents > 0)
-			xfs_trans_set_sync(ntp);
-	}
-	ASSERT(fork == XFS_DATA_FORK ||
-		(fork == XFS_ATTR_FORK &&
-			((sync && !(mp->m_flags & XFS_MOUNT_WSYNC)) ||
-			 (sync == 0 && (mp->m_flags & XFS_MOUNT_WSYNC)))));
+	ASSERT(!XFS_NOT_DQATTACHED(mp, ip));
 
 	/*
 	 * Since it is possible for space to become allocated beyond
@@ -1390,128 +1275,142 @@ xfs_itruncate_finish(
 	 * beyond the maximum file size (ie it is the same as last_block),
 	 * then there is nothing to do.
 	 */
+	first_unmap_block = XFS_B_TO_FSB(mp, (xfs_ufsize_t)new_size);
 	last_block = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_MAXIOFFSET(mp));
-	ASSERT(first_unmap_block <= last_block);
-	done = 0;
-	if (last_block == first_unmap_block) {
-		done = 1;
-	} else {
-		unmap_len = last_block - first_unmap_block + 1;
-	}
+	if (first_unmap_block == last_block)
+		return 0;
+
+	ASSERT(first_unmap_block < last_block);
+	unmap_len = last_block - first_unmap_block + 1;
 	while (!done) {
-		/*
-		 * Free up up to XFS_ITRUNC_MAX_EXTENTS.  xfs_bunmapi()
-		 * will tell us whether it freed the entire range or
-		 * not.  If this is a synchronous mount (wsync),
-		 * then we can tell bunmapi to keep all the
-		 * transactions asynchronous since the unlink
-		 * transaction that made this inode inactive has
-		 * already hit the disk.  There's no danger of
-		 * the freed blocks being reused, there being a
-		 * crash, and the reused blocks suddenly reappearing
-		 * in this file with garbage in them once recovery
-		 * runs.
-		 */
 		xfs_bmap_init(&free_list, &first_block);
-		error = xfs_bunmapi(ntp, ip,
+		error = xfs_bunmapi(tp, ip,
 				    first_unmap_block, unmap_len,
-				    xfs_bmapi_aflag(fork),
+				    xfs_bmapi_aflag(whichfork),
 				    XFS_ITRUNC_MAX_EXTENTS,
 				    &first_block, &free_list,
 				    &done);
-		if (error) {
-			/*
-			 * If the bunmapi call encounters an error,
-			 * return to the caller where the transaction
-			 * can be properly aborted.  We just need to
-			 * make sure we're not holding any resources
-			 * that we were not when we came in.
-			 */
-			xfs_bmap_cancel(&free_list);
-			return error;
-		}
+		if (error)
+			goto out_bmap_cancel;
 
 		/*
 		 * Duplicate the transaction that has the permanent
 		 * reservation and commit the old transaction.
 		 */
-		error = xfs_bmap_finish(tp, &free_list, &committed);
-		ntp = *tp;
+		error = xfs_bmap_finish(&tp, &free_list, &committed);
 		if (committed)
-			xfs_trans_ijoin(ntp, ip);
-
-		if (error) {
-			/*
-			 * If the bmap finish call encounters an error, return
-			 * to the caller where the transaction can be properly
-			 * aborted.  We just need to make sure we're not
-			 * holding any resources that we were not when we came
-			 * in.
-			 *
-			 * Aborting from this point might lose some blocks in
-			 * the file system, but oh well.
-			 */
-			xfs_bmap_cancel(&free_list);
-			return error;
-		}
+			xfs_trans_ijoin(tp, ip);
+		if (error)
+			goto out_bmap_cancel;
 
 		if (committed) {
 			/*
 			 * Mark the inode dirty so it will be logged and
 			 * moved forward in the log as part of every commit.
 			 */
-			xfs_trans_log_inode(ntp, ip, XFS_ILOG_CORE);
+			xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 		}
 
-		ntp = xfs_trans_dup(ntp);
-		error = xfs_trans_commit(*tp, 0);
-		*tp = ntp;
+		ntp = xfs_trans_dup(tp);
+		error = xfs_trans_commit(tp, 0);
+		tp = ntp;
 
-		xfs_trans_ijoin(ntp, ip);
+		xfs_trans_ijoin(tp, ip);
 
 		if (error)
-			return error;
+			goto out;
+
 		/*
-		 * transaction commit worked ok so we can drop the extra ticket
+		 * Transaction commit worked ok so we can drop the extra ticket
 		 * reference that we gained in xfs_trans_dup()
 		 */
-		xfs_log_ticket_put(ntp->t_ticket);
-		error = xfs_trans_reserve(ntp, 0,
+		xfs_log_ticket_put(tp->t_ticket);
+		error = xfs_trans_reserve(tp, 0,
 					XFS_ITRUNCATE_LOG_RES(mp), 0,
 					XFS_TRANS_PERM_LOG_RES,
 					XFS_ITRUNCATE_LOG_COUNT);
 		if (error)
-			return error;
+			goto out;
 	}
+
+out:
+	*tpp = tp;
+	return error;
+out_bmap_cancel:
 	/*
-	 * Only update the size in the case of the data fork, but
-	 * always re-log the inode so that our permanent transaction
-	 * can keep on rolling it forward in the log.
+	 * If the bunmapi call encounters an error, return to the caller where
+	 * the transaction can be properly aborted.  We just need to make sure
+	 * we're not holding any resources that we were not when we came in.
 	 */
-	if (fork == XFS_DATA_FORK) {
-		xfs_isize_check(mp, ip, new_size);
+	xfs_bmap_cancel(&free_list);
+	goto out;
+}
+
+int
+xfs_itruncate_data(
+	struct xfs_trans	**tpp,
+	struct xfs_inode	*ip,
+	xfs_fsize_t		new_size)
+{
+	int			error;
+
+	trace_xfs_itruncate_data_start(ip, new_size);
+
+	/*
+	 * The first thing we do is set the size to new_size permanently on
+	 * disk.  This way we don't have to worry about anyone ever being able
+	 * to look at the data being freed even in the face of a crash.
+	 * What we're getting around here is the case where we free a block, it
+	 * is allocated to another file, it is written to, and then we crash.
+	 * If the new data gets written to the file but the log buffers
+	 * containing the free and reallocation don't, then we'd end up with
+	 * garbage in the blocks being freed.  As long as we make the new_size
+	 * permanent before actually freeing any blocks it doesn't matter if
+	 * they get written to.
+	 */
+	if (ip->i_d.di_nextents > 0) {
 		/*
-		 * If we are not changing the file size then do
-		 * not update the on-disk file size - we may be
-		 * called from xfs_inactive_free_eofblocks().  If we
-		 * update the on-disk file size and then the system
-		 * crashes before the contents of the file are
-		 * flushed to disk then the files may be full of
-		 * holes (ie NULL files bug).
+		 * If we are not changing the file size then do not update
+		 * the on-disk file size - we may be called from
+		 * xfs_inactive_free_eofblocks().  If we update the on-disk
+		 * file size and then the system crashes before the contents
+		 * of the file are flushed to disk then the files may be
+		 * full of holes (ie NULL files bug).
 		 */
 		if (ip->i_size != new_size) {
 			ip->i_d.di_size = new_size;
 			ip->i_size = new_size;
+			xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
 		}
 	}
-	xfs_trans_log_inode(ntp, ip, XFS_ILOG_CORE);
-	ASSERT((new_size != 0) ||
-	       (fork == XFS_ATTR_FORK) ||
-	       (ip->i_delayed_blks == 0));
-	ASSERT((new_size != 0) ||
-	       (fork == XFS_ATTR_FORK) ||
-	       (ip->i_d.di_nextents == 0));
-	trace_xfs_itruncate_finish_end(ip, new_size);
+
+	error = xfs_itruncate_extents(tpp, ip, XFS_DATA_FORK, new_size);
+	if (error)
+		return error;
+
+	/*
+	 * If we are not changing the file size then do not update the on-disk
+	 * file size - we may be called from xfs_inactive_free_eofblocks().
+	 * If we update the on-disk file size and then the system crashes
+	 * before the contents of the file are flushed to disk then the files
+	 * may be full of holes (ie NULL files bug).
+	 */
+	xfs_isize_check(ip, new_size);
+	if (ip->i_size != new_size) {
+		ip->i_d.di_size = new_size;
+		ip->i_size = new_size;
+	}
+
+	ASSERT(new_size != 0 || ip->i_delayed_blks == 0);
+	ASSERT(new_size != 0 || ip->i_d.di_nextents == 0);
+
+	/*
+	 * Always re-log the inode so that our permanent transaction can keep
+	 * on rolling it forward in the log.
+	 */
+	xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
+
+	trace_xfs_itruncate_data_end(ip, new_size);
 	return 0;
 }
 

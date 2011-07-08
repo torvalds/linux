@@ -1055,8 +1055,8 @@ DECLARE_EVENT_CLASS(xfs_itrunc_class,
 DEFINE_EVENT(xfs_itrunc_class, name, \
 	TP_PROTO(struct xfs_inode *ip, xfs_fsize_t new_size), \
 	TP_ARGS(ip, new_size))
-DEFINE_ITRUNC_EVENT(xfs_itruncate_finish_start);
-DEFINE_ITRUNC_EVENT(xfs_itruncate_finish_end);
+DEFINE_ITRUNC_EVENT(xfs_itruncate_data_start);
+DEFINE_ITRUNC_EVENT(xfs_itruncate_data_end);
 
 TRACE_EVENT(xfs_pagecache_inval,
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t start, xfs_off_t finish),

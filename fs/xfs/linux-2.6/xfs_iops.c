@@ -879,15 +879,7 @@ xfs_setattr_size(
 		ip->i_size = iattr->ia_size;
 	} else if (iattr->ia_size <= ip->i_size ||
 		   (iattr->ia_size == 0 && ip->i_d.di_nextents)) {
-		/*
-		 * Signal a sync transaction unless we are truncating an
-		 * already unlinked file on a wsync filesystem.
-		 */
-		error = xfs_itruncate_finish(&tp, ip, iattr->ia_size,
-				    XFS_DATA_FORK,
-				    ((ip->i_d.di_nlink != 0 ||
-				      !(mp->m_flags & XFS_MOUNT_WSYNC))
-				     ? 1 : 0));
+		error = xfs_itruncate_data(&tp, ip, iattr->ia_size);
 		if (error)
 			goto out_trans_abort;
 
