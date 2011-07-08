@@ -1792,7 +1792,7 @@ __apicdebuginit(int) print_ICs(void)
 	return 0;
 }
 
-fs_initcall(print_ICs);
+late_initcall(print_ICs);
 
 
 /* Where if anywhere is the i8259 connect in external int mode */
