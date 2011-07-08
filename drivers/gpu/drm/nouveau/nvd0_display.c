@@ -46,14 +46,7 @@ struct nvd0_display {
 	} evo[1];
 
 	struct tasklet_struct tasklet;
-	struct {
-		struct dcb_entry *dis;
-		struct dcb_entry *ena;
-		u32 modeset;
-		int crtc;
-		int pclk;
-		u16 cfg;
-	} irq;
+	u32 modeset;
 };
 
 static struct nvd0_display *
@@ -965,6 +958,23 @@ nvd0_sor_create(struct drm_connector *connector, struct dcb_entry *dcbe)
 /******************************************************************************
  * IRQ
  *****************************************************************************/
+static void
+debug_irq(struct drm_device *dev, int i)
+{
+	if (drm_debug & (DRM_UT_DRIVER | DRM_UT_KMS)) {
+		NV_INFO(dev, "PDISP: modeset req %d\n", i);
+		NV_INFO(dev, " STAT: 0x%08x 0x%08x 0x%08x\n",
+			 nv_rd32(dev, 0x6101d0),
+			 nv_rd32(dev, 0x6101d4), nv_rd32(dev, 0x6109d4));
+		for (i = 0; i < 8; i++) {
+			NV_INFO(dev, " %s%d: 0x%08x 0x%08x\n",
+				i < 4 ? "DAC" : "SOR", i,
+				nv_rd32(dev, 0x640180 + (i * 0x20)),
+				nv_rd32(dev, 0x660180 + (i * 0x20)));
+		}
+	}
+}
+
 static struct dcb_entry *
 lookup_dcb(struct drm_device *dev, int id, u32 mc)
 {
@@ -981,6 +991,7 @@ lookup_dcb(struct drm_device *dev, int id, u32 mc)
 		case 0x00000200: type = OUTPUT_TMDS; break;
 		case 0x00000500: type = OUTPUT_TMDS; break;
 		default:
+			NV_ERROR(dev, "PDISP: unknown SOR mc 0x%08x\n", mc);
 			return NULL;
 		}
 
@@ -993,49 +1004,36 @@ lookup_dcb(struct drm_device *dev, int id, u32 mc)
 			return dcb;
 	}
 
-	NV_INFO(dev, "PDISP: DCB for %d/0x%08x not found\n", id, mc);
+	NV_ERROR(dev, "PDISP: DCB for %d/0x%08x not found\n", id, mc);
 	return NULL;
 }
 
 static void
 nvd0_display_unk1_handler(struct drm_device *dev)
 {
-	struct nvd0_display *disp = nvd0_display(dev);
 	struct dcb_entry *dcb;
-	u32 unkn, crtc = 0;
+	u32 mask, crtc;
 	int i;
 
-	NV_INFO(dev, "PDISP: 1 0x%08x 0x%08x 0x%08x\n", nv_rd32(dev, 0x6101d0),
-		nv_rd32(dev, 0x6101d4), nv_rd32(dev, 0x6109d4));
-
-	unkn = nv_rd32(dev, 0x6101d4);
-	if (!unkn) {
-		unkn = nv_rd32(dev, 0x6109d4);
+	mask = nv_rd32(dev, 0x6101d4);
+	crtc = 0;
+	if (!mask) {
+		mask = nv_rd32(dev, 0x6109d4);
 		crtc = 1;
 	}
+	debug_irq(dev, 1);
 
-	disp->irq.ena = NULL;
-	disp->irq.dis = NULL;
-	disp->irq.crtc = crtc;
-	disp->irq.pclk = nv_rd32(dev, 0x660450 + (disp->irq.crtc * 0x300));
-	disp->irq.pclk /= 1000;
-
-	for (i = 0; i < 8; i++) {
+	for (i = 0; mask && i < 8; i++) {
 		u32 mcc = nv_rd32(dev, 0x640180 + (i * 0x20));
-		u32 mcp = nv_rd32(dev, 0x660180 + (i * 0x20));
+		if (!(mcc & (1 << crtc)))
+			continue;
 
-		if (mcc & (1 << crtc))
-			disp->irq.dis = lookup_dcb(dev, i, mcc);
+		dcb = lookup_dcb(dev, i, mcc);
+		if (!dcb)
+			continue;
 
-		if (mcp & (1 << crtc)) {
-			disp->irq.cfg = nv_rd32(dev, 0x660184 + (i * 0x20));
-			disp->irq.ena = lookup_dcb(dev, i, mcp);
-		}
-	}
-
-	dcb = disp->irq.dis;
-	if (dcb)
 		nouveau_bios_run_display_table(dev, 0x0000, -1, dcb, crtc);
+	}
 
 	nv_wr32(dev, 0x6101d4, 0x00000000);
 	nv_wr32(dev, 0x6109d4, 0x00000000);
@@ -1045,49 +1043,70 @@ nvd0_display_unk1_handler(struct drm_device *dev)
 static void
 nvd0_display_unk2_handler(struct drm_device *dev)
 {
-	struct nvd0_display *disp = nvd0_display(dev);
 	struct dcb_entry *dcb;
-	int crtc = disp->irq.crtc;
-	int pclk = disp->irq.pclk;
-	int or;
-	u32 tmp;
+	u32 mask, crtc, pclk;
+	u32 or, tmp;
+	int i;
 
-	NV_INFO(dev, "PDISP: 2 0x%08x 0x%08x 0x%08x\n", nv_rd32(dev, 0x6101d0),
-		nv_rd32(dev, 0x6101d4), nv_rd32(dev, 0x6109d4));
+	mask = nv_rd32(dev, 0x6101d4);
+	crtc = 0;
+	if (!mask) {
+		mask = nv_rd32(dev, 0x6109d4);
+		crtc = 1;
+	}
+	debug_irq(dev, 2);
 
-	dcb = disp->irq.dis;
-	disp->irq.dis = NULL;
-	if (dcb)
+	for (i = 0; mask && i < 8; i++) {
+		u32 mcc = nv_rd32(dev, 0x640180 + (i * 0x20));
+		if (!(mcc & (1 << crtc)))
+			continue;
+
+		dcb = lookup_dcb(dev, i, mcc);
+		if (!dcb)
+			continue;
+
 		nouveau_bios_run_display_table(dev, 0x0000, -2, dcb, crtc);
+	}
 
-	nv50_crtc_set_clock(dev, crtc, pclk);
+	pclk = nv_rd32(dev, 0x660450 + (crtc * 0x300)) / 1000;
+	if (mask & 0x00010000) {
+		nv50_crtc_set_clock(dev, crtc, pclk);
+	}
 
-	dcb = disp->irq.ena;
-	if (!dcb)
-		goto ack;
-	or = ffs(dcb->or) - 1;
+	for (i = 0; mask && i < 8; i++) {
+		u32 mcp = nv_rd32(dev, 0x660180 + (i * 0x20));
+		u32 cfg = nv_rd32(dev, 0x660184 + (i * 0x20));
+		if (!(mcp & (1 << crtc)))
+			continue;
 
-	nouveau_bios_run_display_table(dev, disp->irq.cfg, pclk, dcb, crtc);
+		dcb = lookup_dcb(dev, i, mcp);
+		if (!dcb)
+			continue;
+		or = ffs(dcb->or) - 1;
 
-	nv_wr32(dev, 0x612200 + (crtc * 0x800), 0x00000000);
-	switch (dcb->type) {
-	case OUTPUT_ANALOG:
-		nv_wr32(dev, 0x612280 + (or * 0x800), 0x00000000);
-		break;
-	case OUTPUT_TMDS:
-	case OUTPUT_LVDS:
-		if (disp->irq.cfg & 0x00000100)
-			tmp = 0x00000101;
-		else
-			tmp = 0x00000000;
+		nouveau_bios_run_display_table(dev, cfg, pclk, dcb, crtc);
 
-		nv_mask(dev, 0x612300 + (or * 0x800), 0x00000707, tmp);
-		break;
-	default:
+		nv_wr32(dev, 0x612200 + (crtc * 0x800), 0x00000000);
+		switch (dcb->type) {
+		case OUTPUT_ANALOG:
+			nv_wr32(dev, 0x612280 + (or * 0x800), 0x00000000);
+			break;
+		case OUTPUT_TMDS:
+		case OUTPUT_LVDS:
+			if (cfg & 0x00000100)
+				tmp = 0x00000101;
+			else
+				tmp = 0x00000000;
+
+			nv_mask(dev, 0x612300 + (or * 0x800), 0x00000707, tmp);
+			break;
+		default:
+			break;
+		}
+
 		break;
 	}
 
-ack:
 	nv_wr32(dev, 0x6101d4, 0x00000000);
 	nv_wr32(dev, 0x6109d4, 0x00000000);
 	nv_wr32(dev, 0x6101d0, 0x80000000);
@@ -1096,22 +1115,33 @@ ack:
 static void
 nvd0_display_unk4_handler(struct drm_device *dev)
 {
-	struct nvd0_display *disp = nvd0_display(dev);
 	struct dcb_entry *dcb;
-	int crtc = disp->irq.crtc;
-	int pclk = disp->irq.pclk;
+	u32 mask, crtc;
+	int pclk, i;
 
-	NV_INFO(dev, "PDISP: 4 0x%08x 0x%08x 0x%08x\n", nv_rd32(dev, 0x6101d0),
-		nv_rd32(dev, 0x6101d4), nv_rd32(dev, 0x6109d4));
+	mask = nv_rd32(dev, 0x6101d4);
+	crtc = 0;
+	if (!mask) {
+		mask = nv_rd32(dev, 0x6109d4);
+		crtc = 1;
+	}
+	debug_irq(dev, 4);
 
-	dcb = disp->irq.ena;
-	disp->irq.ena = NULL;
-	if (!dcb)
-		goto ack;
+	pclk = nv_rd32(dev, 0x660450 + (crtc * 0x300)) / 1000;
 
-	nouveau_bios_run_display_table(dev, disp->irq.cfg, pclk, dcb, crtc);
+	for (i = 0; mask && i < 8; i++) {
+		u32 mcp = nv_rd32(dev, 0x660180 + (i * 0x20));
+		u32 cfg = nv_rd32(dev, 0x660184 + (i * 0x20));
+		if (!(mcp & (1 << crtc)))
+			continue;
 
-ack:
+		dcb = lookup_dcb(dev, i, mcp);
+		if (!dcb)
+			continue;
+
+		nouveau_bios_run_display_table(dev, cfg, -pclk, dcb, crtc);
+	}
+
 	nv_wr32(dev, 0x6101d4, 0x00000000);
 	nv_wr32(dev, 0x6109d4, 0x00000000);
 	nv_wr32(dev, 0x6101d0, 0x80000000);
@@ -1123,11 +1153,11 @@ nvd0_display_bh(unsigned long data)
 	struct drm_device *dev = (struct drm_device *)data;
 	struct nvd0_display *disp = nvd0_display(dev);
 
-	if (disp->irq.modeset & 0x00000001)
+	if (disp->modeset & 0x00000001)
 		nvd0_display_unk1_handler(dev);
-	if (disp->irq.modeset & 0x00000002)
+	if (disp->modeset & 0x00000002)
 		nvd0_display_unk2_handler(dev);
-	if (disp->irq.modeset & 0x00000004)
+	if (disp->modeset & 0x00000004)
 		nvd0_display_unk4_handler(dev);
 }
 
@@ -1159,7 +1189,7 @@ nvd0_display_intr(struct drm_device *dev)
 		u32 stat = nv_rd32(dev, 0x6100ac);
 
 		if (stat & 0x00000007) {
-			disp->irq.modeset = stat;
+			disp->modeset = stat;
 			tasklet_schedule(&disp->tasklet);
 
 			nv_wr32(dev, 0x6100ac, (stat & 0x00000007));
