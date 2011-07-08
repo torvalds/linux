@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2006-2007 Renesas Solutions Corp.
  *
- * Author : Yoshihiro Shimoda <shimoda.yoshihiro@renesas.com>
+ * Author : Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -691,6 +691,7 @@ static void init_controller(struct m66592 *m66592)
 
 static void disable_controller(struct m66592 *m66592)
 {
+	m66592_bclr(m66592, M66592_UTST, M66592_TESTMODE);
 	if (!m66592->pdata->on_chip) {
 		m66592_bclr(m66592, M66592_SCKE, M66592_SYSCFG);
 		udelay(1);
@@ -780,7 +781,7 @@ static void irq_ep0_write(struct m66592_ep *ep, struct m66592_request *req)
 	/* write fifo */
 	if (req->req.buf) {
 		if (size > 0)
-			m66592_write_fifo(m66592, ep->fifoaddr, buf, size);
+			m66592_write_fifo(m66592, ep, buf, size);
 		if ((size == 0) || ((size % ep->ep.maxpacket) != 0))
 			m66592_bset(m66592, M66592_BVAL, ep->fifoctr);
 	}
@@ -826,7 +827,7 @@ static void irq_packet_write(struct m66592_ep *ep, struct m66592_request *req)
 
 	/* write fifo */
 	if (req->req.buf) {
-		m66592_write_fifo(m66592, ep->fifoaddr, buf, size);
+		m66592_write_fifo(m66592, ep, buf, size);
 		if ((size == 0)
 				|| ((size % ep->ep.maxpacket) != 0)
 				|| ((bufsize != ep->ep.maxpacket)
@@ -1048,10 +1049,30 @@ static void clear_feature(struct m66592 *m66592, struct usb_ctrlrequest *ctrl)
 
 static void set_feature(struct m66592 *m66592, struct usb_ctrlrequest *ctrl)
 {
+	u16 tmp;
+	int timeout = 3000;
 
 	switch (ctrl->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		control_end(m66592, 1);
+		switch (le16_to_cpu(ctrl->wValue)) {
+		case USB_DEVICE_TEST_MODE:
+			control_end(m66592, 1);
+			/* Wait for the completion of status stage */
+			do {
+				tmp = m66592_read(m66592, M66592_INTSTS0) &
+								M66592_CTSQ;
+				udelay(1);
+			} while (tmp != M66592_CS_IDST || timeout-- > 0);
+
+			if (tmp == M66592_CS_IDST)
+				m66592_bset(m66592,
+					    le16_to_cpu(ctrl->wIndex >> 8),
+					    M66592_TESTMODE);
+			break;
+		default:
+			pipe_stall(m66592, 0);
+			break;
+		}
 		break;
 	case USB_RECIP_INTERFACE:
 		control_end(m66592, 1);
@@ -1540,10 +1561,26 @@ static int m66592_get_frame(struct usb_gadget *_gadget)
 	return m66592_read(m66592, M66592_FRMNUM) & 0x03FF;
 }
 
+static int m66592_pullup(struct usb_gadget *gadget, int is_on)
+{
+	struct m66592 *m66592 = gadget_to_m66592(gadget);
+	unsigned long flags;
+
+	spin_lock_irqsave(&m66592->lock, flags);
+	if (is_on)
+		m66592_bset(m66592, M66592_DPRPU, M66592_SYSCFG);
+	else
+		m66592_bclr(m66592, M66592_DPRPU, M66592_SYSCFG);
+	spin_unlock_irqrestore(&m66592->lock, flags);
+
+	return 0;
+}
+
 static struct usb_gadget_ops m66592_gadget_ops = {
 	.get_frame		= m66592_get_frame,
 	.start			= m66592_start,
 	.stop			= m66592_stop,
+	.pullup			= m66592_pullup,
 };
 
 static int __exit m66592_remove(struct platform_device *pdev)

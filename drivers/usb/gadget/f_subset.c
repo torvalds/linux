@@ -201,6 +201,46 @@ static struct usb_descriptor_header *hs_eth_function[] __initdata = {
 	NULL,
 };
 
+/* super speed support: */
+
+static struct usb_endpoint_descriptor ss_subset_in_desc __initdata = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+};
+
+static struct usb_endpoint_descriptor ss_subset_out_desc __initdata = {
+	.bLength =		USB_DT_ENDPOINT_SIZE,
+	.bDescriptorType =	USB_DT_ENDPOINT,
+
+	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
+	.wMaxPacketSize =	cpu_to_le16(1024),
+};
+
+static struct usb_ss_ep_comp_descriptor ss_subset_bulk_comp_desc __initdata = {
+	.bLength =		sizeof ss_subset_bulk_comp_desc,
+	.bDescriptorType =	USB_DT_SS_ENDPOINT_COMP,
+
+	/* the following 2 values can be tweaked if necessary */
+	/* .bMaxBurst =		0, */
+	/* .bmAttributes =	0, */
+};
+
+static struct usb_descriptor_header *ss_eth_function[] __initdata = {
+	(struct usb_descriptor_header *) &subset_data_intf,
+	(struct usb_descriptor_header *) &mdlm_header_desc,
+	(struct usb_descriptor_header *) &mdlm_desc,
+	(struct usb_descriptor_header *) &mdlm_detail_desc,
+	(struct usb_descriptor_header *) &ether_desc,
+	(struct usb_descriptor_header *) &ss_subset_in_desc,
+	(struct usb_descriptor_header *) &ss_subset_bulk_comp_desc,
+	(struct usb_descriptor_header *) &ss_subset_out_desc,
+	(struct usb_descriptor_header *) &ss_subset_bulk_comp_desc,
+	NULL,
+};
+
 /* string descriptors: */
 
 static struct usb_string geth_string_defs[] = {
@@ -290,6 +330,8 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 
 	/* copy descriptors, and track endpoint copies */
 	f->descriptors = usb_copy_descriptors(fs_eth_function);
+	if (!f->descriptors)
+		goto fail;
 
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
@@ -303,6 +345,20 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 
 		/* copy descriptors, and track endpoint copies */
 		f->hs_descriptors = usb_copy_descriptors(hs_eth_function);
+		if (!f->hs_descriptors)
+			goto fail;
+	}
+
+	if (gadget_is_superspeed(c->cdev->gadget)) {
+		ss_subset_in_desc.bEndpointAddress =
+				fs_subset_in_desc.bEndpointAddress;
+		ss_subset_out_desc.bEndpointAddress =
+				fs_subset_out_desc.bEndpointAddress;
+
+		/* copy descriptors, and track endpoint copies */
+		f->ss_descriptors = usb_copy_descriptors(ss_eth_function);
+		if (!f->ss_descriptors)
+			goto fail;
 	}
 
 	/* NOTE:  all that is done without knowing or caring about
@@ -311,11 +367,17 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 	 */
 
 	DBG(cdev, "CDC Subset: %s speed IN/%s OUT/%s\n",
+			gadget_is_superspeed(c->cdev->gadget) ? "super" :
 			gadget_is_dualspeed(c->cdev->gadget) ? "dual" : "full",
 			geth->port.in_ep->name, geth->port.out_ep->name);
 	return 0;
 
 fail:
+	if (f->descriptors)
+		usb_free_descriptors(f->descriptors);
+	if (f->hs_descriptors)
+		usb_free_descriptors(f->hs_descriptors);
+
 	/* we might as well release our claims on endpoints */
 	if (geth->port.out_ep->desc)
 		geth->port.out_ep->driver_data = NULL;
@@ -330,6 +392,8 @@ fail:
 static void
 geth_unbind(struct usb_configuration *c, struct usb_function *f)
 {
+	if (gadget_is_superspeed(c->cdev->gadget))
+		usb_free_descriptors(f->ss_descriptors);
 	if (gadget_is_dualspeed(c->cdev->gadget))
 		usb_free_descriptors(f->hs_descriptors);
 	usb_free_descriptors(f->descriptors);

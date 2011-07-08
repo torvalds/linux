@@ -737,8 +737,8 @@ net2272_kick_dma(struct net2272_ep *ep, struct net2272_request *req)
 	if (req->req.length & 1)
 		return -EINVAL;
 
-	dev_vdbg(ep->dev->dev, "kick_dma %s req %p dma %08x\n",
-		ep->ep.name, req, req->req.dma);
+	dev_vdbg(ep->dev->dev, "kick_dma %s req %p dma %08llx\n",
+		ep->ep.name, req, (unsigned long long) req->req.dma);
 
 	net2272_ep_write(ep, EP_RSPSET, 1 << ALT_NAK_OUT_PACKETS);
 
@@ -856,9 +856,9 @@ net2272_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		req->mapped = 1;
 	}
 
-	dev_vdbg(dev->dev, "%s queue req %p, len %d buf %p dma %08x %s\n",
+	dev_vdbg(dev->dev, "%s queue req %p, len %d buf %p dma %08llx %s\n",
 		_ep->name, _req, _req->length, _req->buf,
-		_req->dma, _req->zero ? "zero" : "!zero");
+		(unsigned long long) _req->dma, _req->zero ? "zero" : "!zero");
 
 	spin_lock_irqsave(&dev->lock, flags);
 

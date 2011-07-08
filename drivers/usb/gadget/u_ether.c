@@ -97,16 +97,17 @@ struct eth_dev {
 
 static unsigned qmult = 5;
 module_param(qmult, uint, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(qmult, "queue length multiplier at high speed");
+MODULE_PARM_DESC(qmult, "queue length multiplier at high/super speed");
 
 #else	/* full speed (low speed doesn't do bulk) */
 #define qmult		1
 #endif
 
-/* for dual-speed hardware, use deeper queues at highspeed */
+/* for dual-speed hardware, use deeper queues at high/super speed */
 static inline int qlen(struct usb_gadget *gadget)
 {
-	if (gadget_is_dualspeed(gadget) && gadget->speed == USB_SPEED_HIGH)
+	if (gadget_is_dualspeed(gadget) && (gadget->speed == USB_SPEED_HIGH ||
+					    gadget->speed == USB_SPEED_SUPER))
 		return qmult * DEFAULT_QLEN;
 	else
 		return DEFAULT_QLEN;
@@ -598,9 +599,10 @@ static netdev_tx_t eth_start_xmit(struct sk_buff *skb,
 
 	req->length = length;
 
-	/* throttle highspeed IRQ rate back slightly */
+	/* throttle high/super speed IRQ rate back slightly */
 	if (gadget_is_dualspeed(dev->gadget))
-		req->no_interrupt = (dev->gadget->speed == USB_SPEED_HIGH)
+		req->no_interrupt = (dev->gadget->speed == USB_SPEED_HIGH ||
+				     dev->gadget->speed == USB_SPEED_SUPER)
 			? ((atomic_read(&dev->tx_qlen) % qmult) != 0)
 			: 0;
 
