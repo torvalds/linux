@@ -1716,18 +1716,21 @@ static int via_auto_fill_dac_nids(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	const struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i;
+	int i, dac_num;
 	hda_nid_t nid;
 
 	spec->multiout.dac_nids = spec->private_dac_nids;
-	spec->multiout.num_dacs = cfg->line_outs;
+	dac_num = 0;
 	for (i = 0; i < cfg->line_outs; i++) {
 		nid = cfg->line_out_pins[i];
 		if (!nid)
 			continue;
-		if (parse_output_path(codec, nid, 0, &spec->out_path[i]))
+		if (parse_output_path(codec, nid, 0, &spec->out_path[i])) {
 			spec->private_dac_nids[i] = spec->out_path[i].path[0];
+			dac_num++;
+		}
 	}
+	spec->multiout.num_dacs = dac_num;
 	return 0;
 }
 
@@ -1838,6 +1841,10 @@ static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
+	if (spec->multiout.num_dacs < 3) {
+		spec->smart51_nums = 0;
+		cfg->line_outs = old_line_outs;
+	}
 	for (i = 0; i < cfg->line_outs; i++) {
 		hda_nid_t pin, dac;
 		pin = cfg->line_out_pins[i];
@@ -3383,6 +3390,7 @@ static int patch_vt2002P(struct hda_codec *codec)
 		return -ENOMEM;
 
 	spec->aa_mix_nid = 0x21;
+	spec->dac_mixer_idx = 3;
 	override_mic_boost(codec, 0x2b, 0, 3, 40);
 	override_mic_boost(codec, 0x29, 0, 3, 40);
 
