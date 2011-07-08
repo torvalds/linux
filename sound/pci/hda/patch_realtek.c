@@ -3677,132 +3677,6 @@ static int patch_alc880(struct hda_codec *codec)
 /*
  * ALC260 support
  */
-
-/* convert from pin to volume-mixer widget */
-static hda_nid_t alc260_pin_to_vol_mix(hda_nid_t nid)
-{
-	if (nid >= 0x0f && nid <= 0x11)
-		return nid - 0x7;
-	else if (nid >= 0x12 && nid <= 0x15)
-		return 0x08;
-	else
-		return 0;
-}
-
-static int alc260_add_playback_controls(struct alc_spec *spec, hda_nid_t nid,
-					const char *pfx, int *vol_bits)
-{
-	hda_nid_t nid_vol;
-	unsigned long vol_val, sw_val;
-	int chs, err;
-
-	nid_vol = alc260_pin_to_vol_mix(nid);
-	if (!nid_vol)
-		return 0; /* N/A */
-	if (nid == 0x11)
-		chs = 2;
-	else
-		chs = 3;
-	vol_val = HDA_COMPOSE_AMP_VAL(nid_vol, chs, 0, HDA_OUTPUT);
-	sw_val = HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT);
-
-	if (!(*vol_bits & (1 << nid_vol))) {
-		/* first control for the volume widget */
-		err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, pfx, vol_val);
-		if (err < 0)
-			return err;
-		*vol_bits |= (1 << nid_vol);
-	}
-	err = add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, pfx, sw_val);
-	if (err < 0)
-		return err;
-	return 1;
-}
-
-/* add playback controls from the parsed DAC table */
-static int alc260_auto_create_multi_out_ctls(struct alc_spec *spec,
-					     const struct auto_pin_cfg *cfg)
-{
-	hda_nid_t nid;
-	int err;
-	int vols = 0;
-
-	spec->multiout.num_dacs = 1;
-	spec->multiout.dac_nids = spec->private_dac_nids;
-	spec->private_dac_nids[0] = 0x02;
-
-	nid = cfg->line_out_pins[0];
-	if (nid) {
-		const char *pfx;
-		int index;
-		pfx = alc_get_line_out_pfx(spec, 0, true, &index);
-		err = alc260_add_playback_controls(spec, nid, pfx, &vols);
-		if (err < 0)
-			return err;
-	}
-
-	nid = cfg->speaker_pins[0];
-	if (nid) {
-		err = alc260_add_playback_controls(spec, nid, "Speaker", &vols);
-		if (err < 0)
-			return err;
-	}
-
-	nid = cfg->hp_pins[0];
-	if (nid) {
-		err = alc260_add_playback_controls(spec, nid, "Headphone",
-						   &vols);
-		if (err < 0)
-			return err;
-	}
-	return 0;
-}
-
-static void alc260_auto_set_output_and_unmute(struct hda_codec *codec,
-					      hda_nid_t nid, int pin_type,
-					      int sel_idx)
-{
-	hda_nid_t mix;
-
-	alc_set_pin_output(codec, nid, pin_type);
-	/* need the manual connection? */
-	if (nid >= 0x12) {
-		int idx = nid - 0x12;
-		snd_hda_codec_write(codec, idx + 0x0b, 0,
-				    AC_VERB_SET_CONNECT_SEL, sel_idx);
-	}
-
-	mix = alc260_pin_to_vol_mix(nid);
-	if (!mix)
-		return;
-	snd_hda_codec_write(codec, mix, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_OUT_ZERO);
-	snd_hda_codec_write(codec, mix, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_IN_UNMUTE(0));
-	snd_hda_codec_write(codec, mix, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_IN_UNMUTE(1));
-}
-
-static void alc260_auto_init_multi_out(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	hda_nid_t nid;
-
-	nid = spec->autocfg.line_out_pins[0];
-	if (nid) {
-		int pin_type = get_pin_type(spec->autocfg.line_out_type);
-		alc260_auto_set_output_and_unmute(codec, nid, pin_type, 0);
-	}
-
-	nid = spec->autocfg.speaker_pins[0];
-	if (nid)
-		alc260_auto_set_output_and_unmute(codec, nid, PIN_OUT, 0);
-
-	nid = spec->autocfg.hp_pins[0];
-	if (nid)
-		alc260_auto_set_output_and_unmute(codec, nid, PIN_HP, 0);
-}
-
 static int alc260_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -3813,11 +3687,18 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 					   alc260_ignore);
 	if (err < 0)
 		return err;
-	err = alc260_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	err = alc_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
-	if (!spec->kctls.list)
-		return 0; /* can't find valid BIOS pin config */
+	err = alc_auto_create_multi_out_ctls(codec, &spec->autocfg);
+	if (err < 0)
+		return err;
+	err = alc_auto_create_hp_out(codec);
+	if (err < 0)
+		return err;
+	err = alc_auto_create_speaker_out(codec);
+	if (err < 0)
+		return err;
 	err = alc_auto_create_input_ctls(codec);
 	if (err < 0)
 		return err;
@@ -3835,18 +3716,6 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 	alc_auto_check_switches(codec);
 
 	return 1;
-}
-
-/* additional initialization for auto-configuration model */
-static void alc260_auto_init(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	alc260_auto_init_multi_out(codec);
-	alc_auto_init_analog_input(codec);
-	alc_auto_init_input_src(codec);
-	alc_auto_init_digital(codec);
-	if (spec->unsol_event)
-		alc_inithook(codec);
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -3954,7 +3823,7 @@ static int patch_alc260(struct hda_codec *codec)
 
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC_MODEL_AUTO)
-		spec->init_hook = alc260_auto_init;
+		spec->init_hook = alc_auto_init_std;
 	spec->shutup = alc_eapd_shutup;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
