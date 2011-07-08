@@ -206,6 +206,22 @@ struct alc_spec {
 
 #define ALC_MODEL_AUTO		0	/* common for all chips */
 
+static bool check_amp_caps(struct hda_codec *codec, hda_nid_t nid,
+			   int dir, unsigned int bits)
+{
+	if (!nid)
+		return false;
+	if (get_wcaps(codec, nid) & (1 << (dir + 1)))
+		if (query_amp_caps(codec, nid, dir) & bits)
+			return true;
+	return false;
+}
+
+#define nid_has_mute(codec, nid, dir) \
+	check_amp_caps(codec, nid, dir, AC_AMPCAP_MUTE)
+#define nid_has_volume(codec, nid, dir) \
+	check_amp_caps(codec, nid, dir, AC_AMPCAP_NUM_STEPS)
+
 /*
  * input MUX handling
  */
@@ -2637,7 +2653,8 @@ static void alc_set_pin_output(struct hda_codec *codec, hda_nid_t nid,
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
 			    pin_type);
 	/* unmute pin */
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+	if (nid_has_mute(codec, nid, HDA_OUTPUT))
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 			    AMP_OUT_UNMUTE);
 }
 
@@ -2877,11 +2894,6 @@ static int alc_auto_add_sw_ctl(struct hda_codec *codec,
 
 #define alc_auto_add_stereo_sw(codec, pfx, cidx, nid)	\
 	alc_auto_add_sw_ctl(codec, pfx, cidx, nid, 3)
-
-#define nid_has_mute(codec, nid, dir) \
-	(query_amp_caps(codec, nid, dir) & AC_AMPCAP_MUTE)
-#define nid_has_volume(codec, nid, dir) \
-	(query_amp_caps(codec, nid, dir) & AC_AMPCAP_NUM_STEPS)
 
 static hda_nid_t alc_look_for_out_mute_nid(struct hda_codec *codec,
 					   hda_nid_t pin, hda_nid_t dac)
@@ -3310,7 +3322,7 @@ static void alc_auto_init_adc(struct hda_codec *codec, int adc_idx)
 
 	nid = spec->adc_nids[adc_idx];
 	/* mute ADC */
-	if (query_amp_caps(codec, nid, HDA_INPUT) & AC_AMPCAP_MUTE) {
+	if (nid_has_mute(codec, nid, HDA_INPUT)) {
 		snd_hda_codec_write(codec, nid, 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_IN_MUTE(0));
@@ -3319,7 +3331,7 @@ static void alc_auto_init_adc(struct hda_codec *codec, int adc_idx)
 	if (!spec->capsrc_nids)
 		return;
 	nid = spec->capsrc_nids[adc_idx];
-	if (query_amp_caps(codec, nid, HDA_OUTPUT) & AC_AMPCAP_MUTE)
+	if (nid_has_mute(codec, nid, HDA_OUTPUT))
 		snd_hda_codec_write(codec, nid, 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_OUT_MUTE);
@@ -3436,12 +3448,10 @@ static void set_capture_mixer(struct hda_codec *codec)
 	};
 
 	/* check whether either of ADC or MUX has a volume control */
-	if (!(query_amp_caps(codec, spec->adc_nids[0], HDA_INPUT) &
-	      AC_AMPCAP_NUM_STEPS)) {
+	if (!nid_has_volume(codec, spec->adc_nids[0], HDA_INPUT)) {
 		if (!spec->capsrc_nids)
 			return; /* no volume */
-		if (!(query_amp_caps(codec, spec->capsrc_nids[0], HDA_OUTPUT) &
-		      AC_AMPCAP_NUM_STEPS))
+		if (!nid_has_volume(codec, spec->capsrc_nids[0], HDA_OUTPUT))
 			return; /* no volume in capsrc, too */
 		spec->vol_in_capsrc = 1;
 	}
