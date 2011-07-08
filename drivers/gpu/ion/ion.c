@@ -333,6 +333,18 @@ end:
 
 void ion_free(struct ion_client *client, struct ion_handle *handle)
 {
+	bool valid_handle;
+
+	BUG_ON(client != handle->client);
+
+	mutex_lock(&client->lock);
+	valid_handle = ion_handle_validate(client, handle);
+	mutex_unlock(&client->lock);
+
+	if (!valid_handle) {
+		WARN("%s: invalid handle passed to free.\n", __func__);
+		return;
+	}
 	ion_handle_put(handle);
 }
 
@@ -500,6 +512,16 @@ void ion_unmap_dma(struct ion_client *client, struct ion_handle *handle)
 struct ion_buffer *ion_share(struct ion_client *client,
 				 struct ion_handle *handle)
 {
+	bool valid_handle;
+
+	mutex_lock(&client->lock);
+	valid_handle = ion_handle_validate(client, handle);
+	mutex_unlock(&client->lock);
+	if (!valid_handle) {
+		WARN("%s: invalid handle passed to share.\n", __func__);
+		return ERR_PTR(-EINVAL);
+	}
+
 	/* don't not take an extra refernce here, the burden is on the caller
 	 * to make sure the buffer doesn't go away while it's passing it
 	 * to another client -- ion_free should not be called on this handle
