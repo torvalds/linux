@@ -2820,9 +2820,8 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	intel_disable_plane(dev_priv, plane, pipe);
 
-	if (dev_priv->cfb_plane == plane &&
-	    dev_priv->display.disable_fbc)
-		dev_priv->display.disable_fbc(dev);
+	if (dev_priv->cfb_plane == plane)
+		intel_disable_fbc(dev);
 
 	intel_disable_pipe(dev_priv, pipe);
 
@@ -2986,9 +2985,8 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	intel_crtc_dpms_overlay(intel_crtc, false);
 	intel_crtc_update_cursor(crtc, false);
 
-	if (dev_priv->cfb_plane == plane &&
-	    dev_priv->display.disable_fbc)
-		dev_priv->display.disable_fbc(dev);
+	if (dev_priv->cfb_plane == plane)
+		intel_disable_fbc(dev);
 
 	intel_disable_plane(dev_priv, plane, pipe);
 	intel_disable_pipe(dev_priv, pipe);
@@ -8217,8 +8215,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 		intel_increase_pllclock(crtc);
 	}
 
-	if (dev_priv->display.disable_fbc)
-		dev_priv->display.disable_fbc(dev);
+	intel_disable_fbc(dev);
 
 	if (IS_IRONLAKE_M(dev))
 		ironlake_disable_drps(dev);
