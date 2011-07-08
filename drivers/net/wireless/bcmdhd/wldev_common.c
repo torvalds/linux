@@ -288,3 +288,23 @@ int wldev_get_ssid(
 	pssid->SSID_len = dtoh32(pssid->SSID_len);
 	return error;
 }
+
+int wldev_get_band(
+	struct net_device *dev, uint *pband)
+{
+	int error;
+
+	error = wldev_ioctl(dev, WLC_GET_BAND, pband, sizeof(uint), 0);
+	return error;
+}
+
+int wldev_set_band(
+	struct net_device *dev, uint band)
+{
+	int error = -1;
+
+	if ((band == WLC_BAND_AUTO) || (band == WLC_BAND_5G) || (band == WLC_BAND_2G)) {
+		error = wldev_ioctl(dev, WLC_SET_BAND, &band, sizeof(band), 1);
+	}
+	return error;
+}

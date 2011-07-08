@@ -90,4 +90,8 @@ int wldev_get_rssi(struct net_device *dev, int *prssi);
 
 int wldev_get_ssid(struct net_device *dev, wlc_ssid_t *pssid);
 
+int wldev_get_band(struct net_device *dev, uint *pband);
+
+int wldev_set_band(struct net_device *dev, uint band);
+
 #endif /* __WLDEV_COMMON_H__ */

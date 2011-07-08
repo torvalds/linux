@@ -66,6 +66,8 @@
 #define CMD_BTCOEXMODE		"BTCOEXMODE"
 #define CMD_SETSUSPENDOPT	"SETSUSPENDOPT"
 #define CMD_SETFWPATH		"SETFWPATH"
+#define CMD_SETBAND		"SETBAND"
+#define CMD_GETBAND		"GETBAND"
 
 typedef struct android_wifi_priv_cmd {
 	char *buf;
@@ -159,6 +161,19 @@ static int wl_android_set_suspendopt(struct net_device *dev, char *command, int 
 			DHD_ERROR(("%s: failed %d\n", __FUNCTION__, ret));
 	}
 	return ret;
+}
+
+static int wl_android_get_band(struct net_device *dev, char *command, int total_len)
+{
+	uint band;
+	int bytes_written;
+	int error;
+
+	error = wldev_get_band(dev, &band);
+	if (error)
+		return -1;
+	bytes_written = snprintf(command, total_len, "Band %d", band);
+	return bytes_written;
 }
 
 /**
@@ -313,6 +328,13 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	}
 	else if (strnicmp(command, CMD_SETSUSPENDOPT, strlen(CMD_SETSUSPENDOPT)) == 0) {
 		bytes_written = wl_android_set_suspendopt(net, command, priv_cmd->total_len);
+	}
+	else if (strnicmp(command, CMD_SETBAND, strlen(CMD_SETBAND)) == 0) {
+		uint band = *(command + strlen(CMD_SETBAND) + 1) - '0';
+		bytes_written = wldev_set_band(net, band);
+	}
+	else if (strnicmp(command, CMD_GETBAND, strlen(CMD_GETBAND)) == 0) {
+		bytes_written = wl_android_get_band(net, command, priv_cmd->total_len);
 	} else {
 		DHD_ERROR(("Unknown PRIVATE command %s - ignored\n", command));
 		snprintf(command, 3, "OK");
