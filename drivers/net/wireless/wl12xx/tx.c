@@ -562,17 +562,29 @@ static void wl1271_skb_queue_head(struct wl1271 *wl, struct sk_buff *skb)
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 }
 
+static bool wl1271_tx_is_data_present(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)(skb->data);
+
+	return ieee80211_is_data_present(hdr->frame_control);
+}
+
 void wl1271_tx_work_locked(struct wl1271 *wl)
 {
 	struct sk_buff *skb;
 	u32 buf_offset = 0;
 	bool sent_packets = false;
+	bool had_data = false;
+	bool is_ap = (wl->bss_type == BSS_TYPE_AP_BSS);
 	int ret;
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		return;
 
 	while ((skb = wl1271_skb_dequeue(wl))) {
+		if (wl1271_tx_is_data_present(skb))
+			had_data = true;
+
 		ret = wl1271_prepare_tx_frame(wl, skb, buf_offset);
 		if (ret == -EAGAIN) {
 			/*
@@ -618,6 +630,19 @@ out_ack:
 				       wl->tx_packets_count);
 
 		wl1271_handle_tx_low_watermark(wl);
+	}
+	if (!is_ap && wl->conf.rx_streaming.interval && had_data &&
+	    (wl->conf.rx_streaming.always ||
+	     test_bit(WL1271_FLAG_SOFT_GEMINI, &wl->flags))) {
+		u32 timeout = wl->conf.rx_streaming.duration;
+
+		/* enable rx streaming */
+		if (!test_bit(WL1271_FLAG_RX_STREAMING_STARTED, &wl->flags))
+			ieee80211_queue_work(wl->hw,
+					     &wl->rx_streaming_enable_work);
+
+		mod_timer(&wl->rx_streaming_timer,
+			  jiffies + msecs_to_jiffies(timeout));
 	}
 }
 
@@ -702,7 +727,7 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 
 	/* return the packet to the stack */
 	skb_queue_tail(&wl->deferred_tx_queue, skb);
-	ieee80211_queue_work(wl->hw, &wl->netstack_work);
+	queue_work(wl->freezable_wq, &wl->netstack_work);
 	wl1271_free_tx_id(wl, result->id);
 }
 
@@ -757,7 +782,7 @@ void wl1271_tx_reset_link_queues(struct wl1271 *wl, u8 hlid)
 			info = IEEE80211_SKB_CB(skb);
 			info->status.rates[0].idx = -1;
 			info->status.rates[0].count = 0;
-			ieee80211_tx_status(wl->hw, skb);
+			ieee80211_tx_status_ni(wl->hw, skb);
 			total++;
 		}
 	}
@@ -795,7 +820,7 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 					info = IEEE80211_SKB_CB(skb);
 					info->status.rates[0].idx = -1;
 					info->status.rates[0].count = 0;
-					ieee80211_tx_status(wl->hw, skb);
+					ieee80211_tx_status_ni(wl->hw, skb);
 				}
 			}
 		}
@@ -838,7 +863,7 @@ void wl1271_tx_reset(struct wl1271 *wl, bool reset_tx_queues)
 			info->status.rates[0].idx = -1;
 			info->status.rates[0].count = 0;
 
-			ieee80211_tx_status(wl->hw, skb);
+			ieee80211_tx_status_ni(wl->hw, skb);
 		}
 	}
 }

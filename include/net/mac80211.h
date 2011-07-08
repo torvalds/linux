@@ -1628,6 +1628,10 @@ enum ieee80211_ampdu_mlme_action {
  *	ask the device to suspend. This is only invoked when WoWLAN is
  *	configured, otherwise the device is deconfigured completely and
  *	reconfigured at resume time.
+ *	The driver may also impose special conditions under which it
+ *	wants to use the "normal" suspend (deconfigure), say if it only
+ *	supports WoWLAN when the device is associated. In this case, it
+ *	must return 1 from this function.
  *
  * @resume: If WoWLAN was configured, this indicates that mac80211 is
  *	now resuming its operation, after this the device must be fully
@@ -1695,6 +1699,12 @@ enum ieee80211_ampdu_mlme_action {
  * 	This callback will be called in the context of Rx. Called for drivers
  * 	which set IEEE80211_KEY_FLAG_TKIP_REQ_RX_P1_KEY.
  *	The callback must be atomic.
+ *
+ * @set_rekey_data: If the device supports GTK rekeying, for example while the
+ *	host is suspended, it can assign this callback to retrieve the data
+ *	necessary to do GTK rekeying, this is the KEK, KCK and replay counter.
+ *	After rekeying was done it should (for example during resume) notify
+ *	userspace of the new replay counter using ieee80211_gtk_rekey_notify().
  *
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack. The scan must honour the channel
@@ -1908,6 +1918,9 @@ struct ieee80211_ops {
 				struct ieee80211_key_conf *conf,
 				struct ieee80211_sta *sta,
 				u32 iv32, u16 *phase1key);
+	void (*set_rekey_data)(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct cfg80211_gtk_rekey_data *data);
 	int (*hw_scan)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct cfg80211_scan_request *req);
 	void (*cancel_hw_scan)(struct ieee80211_hw *hw,
@@ -2581,6 +2594,17 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 void ieee80211_get_tkip_key(struct ieee80211_key_conf *keyconf,
 				struct sk_buff *skb,
 				enum ieee80211_tkip_key_type type, u8 *key);
+
+/**
+ * ieee80211_gtk_rekey_notify - notify userspace supplicant of rekeying
+ * @vif: virtual interface the rekeying was done on
+ * @bssid: The BSSID of the AP, for checking association
+ * @replay_ctr: the new replay counter after GTK rekeying
+ * @gfp: allocation flags
+ */
+void ieee80211_gtk_rekey_notify(struct ieee80211_vif *vif, const u8 *bssid,
+				const u8 *replay_ctr, gfp_t gfp);
+
 /**
  * ieee80211_wake_queue - wake specific queue
  * @hw: pointer as obtained from ieee80211_alloc_hw().
@@ -2844,6 +2868,29 @@ struct ieee80211_sta *ieee80211_find_sta_by_ifaddr(struct ieee80211_hw *hw,
  */
 void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
 			       struct ieee80211_sta *pubsta, bool block);
+
+/**
+ * ieee80211_iter_keys - iterate keys programmed into the device
+ * @hw: pointer obtained from ieee80211_alloc_hw()
+ * @vif: virtual interface to iterate, may be %NULL for all
+ * @iter: iterator function that will be called for each key
+ * @iter_data: custom data to pass to the iterator function
+ *
+ * This function can be used to iterate all the keys known to
+ * mac80211, even those that weren't previously programmed into
+ * the device. This is intended for use in WoWLAN if the device
+ * needs reprogramming of the keys during suspend. Note that due
+ * to locking reasons, it is also only safe to call this at few
+ * spots since it must hold the RTNL and be able to sleep.
+ */
+void ieee80211_iter_keys(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif,
+			 void (*iter)(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_sta *sta,
+				      struct ieee80211_key_conf *key,
+				      void *data),
+			 void *iter_data);
 
 /**
  * ieee80211_ap_probereq_get - retrieve a Probe Request template

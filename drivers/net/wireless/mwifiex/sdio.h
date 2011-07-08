@@ -54,10 +54,10 @@
 
 #define SDIO_MP_AGGR_DEF_PKT_LIMIT	8
 
-#define SDIO_MP_TX_AGGR_DEF_BUF_SIZE        (4096)	/* 4K */
+#define SDIO_MP_TX_AGGR_DEF_BUF_SIZE        (8192)	/* 8K */
 
 /* Multi port RX aggregation buffer size */
-#define SDIO_MP_RX_AGGR_DEF_BUF_SIZE        (4096)	/* 4K */
+#define SDIO_MP_RX_AGGR_DEF_BUF_SIZE        (16384)	/* 16K */
 
 /* Misc. Config Register : Auto Re-enable interrupts */
 #define AUTO_RE_ENABLE_INT              BIT(4)

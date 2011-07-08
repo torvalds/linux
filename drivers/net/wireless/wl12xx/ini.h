@@ -24,6 +24,9 @@
 #ifndef __INI_H__
 #define __INI_H__
 
+#define GENERAL_SETTINGS_DRPW_LPD 0xc0
+#define SCRATCH_ENABLE_LPD        BIT(25)
+
 #define WL1271_INI_MAX_SMART_REFLEX_PARAM 16
 
 struct wl1271_ini_general_params {

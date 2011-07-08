@@ -67,6 +67,8 @@
 
 #define PAYLOAD_MAX	(CARL9170_MAX_CMD_LEN / 4 - 1)
 
+static const u8 ar9170_qmap[__AR9170_NUM_TXQ] = { 3, 2, 1, 0 };
+
 enum carl9170_rf_init_mode {
 	CARL9170_RFI_NONE,
 	CARL9170_RFI_WARM,
@@ -440,7 +442,6 @@ struct ar9170 {
 enum carl9170_ps_off_override_reasons {
 	PS_OFF_VIF	= BIT(0),
 	PS_OFF_BCN	= BIT(1),
-	PS_OFF_5GHZ	= BIT(2),
 };
 
 struct carl9170_ba_stats {

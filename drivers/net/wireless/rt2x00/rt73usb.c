@@ -2314,6 +2314,7 @@ static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.set_antenna		= rt2x00mac_set_antenna,
 	.get_antenna		= rt2x00mac_get_antenna,
 	.get_ringparam		= rt2x00mac_get_ringparam,
+	.tx_frames_pending	= rt2x00mac_tx_frames_pending,
 };
 
 static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {

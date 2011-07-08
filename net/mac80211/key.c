@@ -61,6 +61,36 @@ static struct ieee80211_sta *get_sta_for_key(struct ieee80211_key *key)
 	return NULL;
 }
 
+static void increment_tailroom_need_count(struct ieee80211_sub_if_data *sdata)
+{
+	/*
+	 * When this count is zero, SKB resizing for allocating tailroom
+	 * for IV or MMIC is skipped. But, this check has created two race
+	 * cases in xmit path while transiting from zero count to one:
+	 *
+	 * 1. SKB resize was skipped because no key was added but just before
+	 * the xmit key is added and SW encryption kicks off.
+	 *
+	 * 2. SKB resize was skipped because all the keys were hw planted but
+	 * just before xmit one of the key is deleted and SW encryption kicks
+	 * off.
+	 *
+	 * In both the above case SW encryption will find not enough space for
+	 * tailroom and exits with WARN_ON. (See WARN_ONs at wpa.c)
+	 *
+	 * Solution has been explained at
+	 * http://mid.gmane.org/1308590980.4322.19.camel@jlt3.sipsolutions.net
+	 */
+
+	if (!sdata->crypto_tx_tailroom_needed_cnt++) {
+		/*
+		 * Flush all XMIT packets currently using HW encryption or no
+		 * encryption at all if the count transition is from 0 -> 1.
+		 */
+		synchronize_net();
+	}
+}
+
 static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 {
 	struct ieee80211_sub_if_data *sdata;
@@ -101,6 +131,11 @@ static int ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 
 	if (!ret) {
 		key->flags |= KEY_FLAG_UPLOADED_TO_HARDWARE;
+
+		if (!((key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) ||
+		      (key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)))
+			sdata->crypto_tx_tailroom_needed_cnt--;
+
 		return 0;
 	}
 
@@ -141,6 +176,10 @@ static void ieee80211_key_disable_hw_accel(struct ieee80211_key *key)
 
 	sta = get_sta_for_key(key);
 	sdata = key->sdata;
+
+	if (!((key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_MMIC) ||
+	      (key->conf.flags & IEEE80211_KEY_FLAG_GENERATE_IV)))
+		increment_tailroom_need_count(sdata);
 
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		sdata = container_of(sdata->bss,
@@ -394,8 +433,10 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key)
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
 	if (key->conf.cipher == WLAN_CIPHER_SUITE_AES_CMAC)
 		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
-	if (key->local)
+	if (key->local) {
 		ieee80211_debugfs_key_remove(key);
+		key->sdata->crypto_tx_tailroom_needed_cnt--;
+	}
 
 	kfree(key);
 }
@@ -452,6 +493,8 @@ int ieee80211_key_link(struct ieee80211_key *key,
 	else
 		old_key = key_mtx_dereference(sdata->local, sdata->keys[idx]);
 
+	increment_tailroom_need_count(sdata);
+
 	__ieee80211_key_replace(sdata, sta, pairwise, old_key, key);
 	__ieee80211_key_destroy(old_key);
 
@@ -498,11 +541,48 @@ void ieee80211_enable_keys(struct ieee80211_sub_if_data *sdata)
 
 	mutex_lock(&sdata->local->key_mtx);
 
-	list_for_each_entry(key, &sdata->key_list, list)
+	sdata->crypto_tx_tailroom_needed_cnt = 0;
+
+	list_for_each_entry(key, &sdata->key_list, list) {
+		increment_tailroom_need_count(sdata);
 		ieee80211_key_enable_hw_accel(key);
+	}
 
 	mutex_unlock(&sdata->local->key_mtx);
 }
+
+void ieee80211_iter_keys(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif,
+			 void (*iter)(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_sta *sta,
+				      struct ieee80211_key_conf *key,
+				      void *data),
+			 void *iter_data)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_key *key;
+	struct ieee80211_sub_if_data *sdata;
+
+	ASSERT_RTNL();
+
+	mutex_lock(&local->key_mtx);
+	if (vif) {
+		sdata = vif_to_sdata(vif);
+		list_for_each_entry(key, &sdata->key_list, list)
+			iter(hw, &sdata->vif,
+			     key->sta ? &key->sta->sta : NULL,
+			     &key->conf, iter_data);
+	} else {
+		list_for_each_entry(sdata, &local->interfaces, list)
+			list_for_each_entry(key, &sdata->key_list, list)
+				iter(hw, &sdata->vif,
+				     key->sta ? &key->sta->sta : NULL,
+				     &key->conf, iter_data);
+	}
+	mutex_unlock(&local->key_mtx);
+}
+EXPORT_SYMBOL(ieee80211_iter_keys);
 
 void ieee80211_disable_keys(struct ieee80211_sub_if_data *sdata)
 {
@@ -533,3 +613,15 @@ void ieee80211_free_keys(struct ieee80211_sub_if_data *sdata)
 
 	mutex_unlock(&sdata->local->key_mtx);
 }
+
+
+void ieee80211_gtk_rekey_notify(struct ieee80211_vif *vif, const u8 *bssid,
+				const u8 *replay_ctr, gfp_t gfp)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	trace_api_gtk_rekey_notify(sdata, bssid, replay_ctr);
+
+	cfg80211_gtk_rekey_notify(sdata->dev, bssid, replay_ctr, gfp);
+}
+EXPORT_SYMBOL_GPL(ieee80211_gtk_rekey_notify);

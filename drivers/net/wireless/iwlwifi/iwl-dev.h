@@ -666,7 +666,6 @@ struct iwl_hw_params {
 	u16 max_rxq_size;
 	u16 max_rxq_log;
 	u32 rx_page_order;
-	u32 rx_wrt_ptr_reg;
 	u8  max_stations;
 	u8  ht40_channel;
 	u8  max_beacon_itrvl;	/* in 1024 ms */
@@ -1228,6 +1227,25 @@ struct iwl_bus {
 	unsigned int irq;
 };
 
+struct iwl_trans;
+
+/**
+ * struct iwl_trans_ops - transport specific operations
+
+ * @rx_init: inits the rx memory, allocate it if needed
+ * @rx_free: frees the rx memory
+ * @tx_init:inits the tx memory, allocate if needed
+ */
+struct iwl_trans_ops {
+	int (*rx_init)(struct iwl_priv *priv);
+	void (*rx_free)(struct iwl_priv *priv);
+	int (*tx_init)(struct iwl_priv *priv);
+};
+
+struct iwl_trans {
+	const struct iwl_trans_ops *ops;
+};
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1296,13 +1314,13 @@ struct iwl_priv {
 	struct mutex mutex;
 
 	struct iwl_bus bus;	/* bus specific data */
+	struct iwl_trans trans;
 
 	/* microcode/device supports multiple contexts */
 	u8 valid_contexts;
 
 	/* command queue number */
 	u8 cmd_queue;
-	u8 last_sync_cmd_id;
 
 	/* max number of station keys */
 	u8 sta_key_max_num;

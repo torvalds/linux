@@ -158,7 +158,6 @@ struct rtl_pci {
 	bool first_init;
 	bool being_init_adapter;
 	bool init_ready;
-	bool irq_enabled;
 
 	/*Tx */
 	struct rtl8192_tx_ring tx_ring[RTL_PCI_MAX_TX_QUEUE_COUNT];

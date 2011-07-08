@@ -28,4 +28,8 @@ extern int __init bcma_host_pci_init(void);
 extern void __exit bcma_host_pci_exit(void);
 #endif /* CONFIG_BCMA_HOST_PCI */
 
+#ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
+void bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc);
+#endif /* CONFIG_BCMA_DRIVER_PCI_HOSTMODE */
+
 #endif

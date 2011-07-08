@@ -321,6 +321,20 @@ static int wl1271_init_beacon_broadcast(struct wl1271 *wl)
 	return 0;
 }
 
+static int wl12xx_init_fwlog(struct wl1271 *wl)
+{
+	int ret;
+
+	if (wl->quirks & WL12XX_QUIRK_FWLOG_NOT_IMPLEMENTED)
+		return 0;
+
+	ret = wl12xx_cmd_config_fwlog(wl);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int wl1271_sta_hw_init(struct wl1271 *wl)
 {
 	int ret;
@@ -379,6 +393,11 @@ static int wl1271_sta_hw_init(struct wl1271 *wl)
 		return ret;
 
 	ret = wl1271_acx_sta_mem_cfg(wl);
+	if (ret < 0)
+		return ret;
+
+	/* Configure the FW logger */
+	ret = wl12xx_init_fwlog(wl);
 	if (ret < 0)
 		return ret;
 

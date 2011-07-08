@@ -628,38 +628,6 @@ struct iwl_mod_params iwlagn_mod_params = {
 	/* the rest are 0 by default */
 };
 
-void iwlagn_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
-{
-	unsigned long flags;
-	int i;
-	spin_lock_irqsave(&rxq->lock, flags);
-	INIT_LIST_HEAD(&rxq->rx_free);
-	INIT_LIST_HEAD(&rxq->rx_used);
-	/* Fill the rx_used queue with _all_ of the Rx buffers */
-	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++) {
-		/* In the reset function, these buffers may have been allocated
-		 * to an SKB, so we need to unmap and free potential storage */
-		if (rxq->pool[i].page != NULL) {
-			dma_unmap_page(priv->bus.dev, rxq->pool[i].page_dma,
-				PAGE_SIZE << priv->hw_params.rx_page_order,
-				DMA_FROM_DEVICE);
-			__iwl_free_pages(priv, rxq->pool[i].page);
-			rxq->pool[i].page = NULL;
-		}
-		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
-	}
-
-	for (i = 0; i < RX_QUEUE_SIZE; i++)
-		rxq->queue[i] = NULL;
-
-	/* Set us so that we have processed and used all buffers, but have
-	 * not restocked the Rx queue with fresh buffers */
-	rxq->read = rxq->write = 0;
-	rxq->write_actual = 0;
-	rxq->free_count = 0;
-	spin_unlock_irqrestore(&rxq->lock, flags);
-}
-
 int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 {
 	u32 rb_size;
@@ -731,7 +699,6 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	struct iwl_rx_queue *rxq = &priv->rxq;
-	int ret;
 
 	/* nic_init */
 	spin_lock_irqsave(&priv->lock, flags);
@@ -747,14 +714,7 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 	priv->cfg->ops->lib->apm_ops.config(priv);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
-	if (!rxq->bd) {
-		ret = iwl_rx_queue_alloc(priv);
-		if (ret) {
-			IWL_ERR(priv, "Unable to initialize Rx queue\n");
-			return -ENOMEM;
-		}
-	} else
-		iwlagn_rx_queue_reset(priv, rxq);
+	priv->trans.ops->rx_init(priv);
 
 	iwlagn_rx_replenish(priv);
 
@@ -768,12 +728,8 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Allocate or reset and init all Tx and Command queues */
-	if (!priv->txq) {
-		ret = iwlagn_txq_ctx_alloc(priv);
-		if (ret)
-			return ret;
-	} else
-		iwlagn_txq_ctx_reset(priv);
+	if (priv->trans.ops->tx_init(priv))
+		return -ENOMEM;
 
 	if (priv->cfg->base_params->shadow_reg_enable) {
 		/* enable shadow regs in HW */
@@ -947,33 +903,6 @@ void iwlagn_rx_replenish_now(struct iwl_priv *priv)
 	iwlagn_rx_allocate(priv, GFP_ATOMIC);
 
 	iwlagn_rx_queue_restock(priv);
-}
-
-/* Assumes that the skb field of the buffers in 'pool' is kept accurate.
- * If an SKB has been detached, the POOL needs to have its SKB set to NULL
- * This free routine walks the list of POOL entries and if SKB is set to
- * non NULL it is unmapped and freed
- */
-void iwlagn_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
-{
-	int i;
-	for (i = 0; i < RX_QUEUE_SIZE + RX_FREE_BUFFERS; i++) {
-		if (rxq->pool[i].page != NULL) {
-			dma_unmap_page(priv->bus.dev, rxq->pool[i].page_dma,
-				PAGE_SIZE << priv->hw_params.rx_page_order,
-				DMA_FROM_DEVICE);
-			__iwl_free_pages(priv, rxq->pool[i].page);
-			rxq->pool[i].page = NULL;
-		}
-	}
-
-	dma_free_coherent(priv->bus.dev, 4 * RX_QUEUE_SIZE,
-			  rxq->bd, rxq->bd_dma);
-	dma_free_coherent(priv->bus.dev,
-			  sizeof(struct iwl_rb_status),
-			  rxq->rb_stts, rxq->rb_stts_dma);
-	rxq->bd = NULL;
-	rxq->rb_stts  = NULL;
 }
 
 int iwlagn_rxq_stop(struct iwl_priv *priv)
@@ -1437,17 +1366,14 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	/* set scan bit here for PAN params */
 	set_bit(STATUS_SCAN_HW, &priv->status);
 
-	if (priv->cfg->ops->hcmd->set_pan_params) {
-		ret = priv->cfg->ops->hcmd->set_pan_params(priv);
-		if (ret)
-			return ret;
-	}
+	ret = iwlagn_set_pan_params(priv);
+	if (ret)
+		return ret;
 
 	ret = iwl_send_cmd_sync(priv, &cmd);
 	if (ret) {
 		clear_bit(STATUS_SCAN_HW, &priv->status);
-		if (priv->cfg->ops->hcmd->set_pan_params)
-			priv->cfg->ops->hcmd->set_pan_params(priv);
+		iwlagn_set_pan_params(priv);
 	}
 
 	return ret;

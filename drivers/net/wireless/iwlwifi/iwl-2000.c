@@ -50,11 +50,13 @@
 #define IWL2030_UCODE_API_MAX 5
 #define IWL2000_UCODE_API_MAX 5
 #define IWL105_UCODE_API_MAX 5
+#define IWL135_UCODE_API_MAX 5
 
 /* Lowest firmware API version supported */
 #define IWL2030_UCODE_API_MIN 5
 #define IWL2000_UCODE_API_MIN 5
 #define IWL105_UCODE_API_MIN 5
+#define IWL135_UCODE_API_MIN 5
 
 #define IWL2030_FW_PRE "iwlwifi-2030-"
 #define IWL2030_MODULE_FIRMWARE(api) IWL2030_FW_PRE __stringify(api) ".ucode"
@@ -64,6 +66,9 @@
 
 #define IWL105_FW_PRE "iwlwifi-105-"
 #define IWL105_MODULE_FIRMWARE(api) IWL105_FW_PRE __stringify(api) ".ucode"
+
+#define IWL135_FW_PRE "iwlwifi-135-"
+#define IWL135_MODULE_FIRMWARE(api) IWL135_FW_PRE #api ".ucode"
 
 static void iwl2000_set_ct_threshold(struct iwl_priv *priv)
 {
@@ -131,7 +136,6 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
-	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
 
 	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
 	if (priv->cfg->rx_with_siso_diversity)
@@ -193,25 +197,21 @@ static struct iwl_lib_ops iwl2000_lib = {
 
 static const struct iwl_ops iwl2000_ops = {
 	.lib = &iwl2000_lib,
-	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 };
 
 static const struct iwl_ops iwl2030_ops = {
 	.lib = &iwl2000_lib,
-	.hcmd = &iwlagn_bt_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 };
 
 static const struct iwl_ops iwl105_ops = {
 	.lib = &iwl2000_lib,
-	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 };
 
 static const struct iwl_ops iwl135_ops = {
 	.lib = &iwl2000_lib,
-	.hcmd = &iwlagn_bt_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 };
 
@@ -344,9 +344,9 @@ struct iwl_cfg iwl105_bgn_cfg = {
 };
 
 #define IWL_DEVICE_135						\
-	.fw_name_pre = IWL105_FW_PRE,				\
-	.ucode_api_max = IWL105_UCODE_API_MAX,			\
-	.ucode_api_min = IWL105_UCODE_API_MIN,			\
+	.fw_name_pre = IWL135_FW_PRE,				\
+	.ucode_api_max = IWL135_UCODE_API_MAX,			\
+	.ucode_api_min = IWL135_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
 	.ops = &iwl135_ops,					\
@@ -359,12 +359,12 @@ struct iwl_cfg iwl105_bgn_cfg = {
 	.rx_with_siso_diversity = true				\
 
 struct iwl_cfg iwl135_bg_cfg = {
-	.name = "105 Series 1x1 BG/BT",
+	.name = "135 Series 1x1 BG/BT",
 	IWL_DEVICE_135,
 };
 
 struct iwl_cfg iwl135_bgn_cfg = {
-	.name = "105 Series 1x1 BGN/BT",
+	.name = "135 Series 1x1 BGN/BT",
 	IWL_DEVICE_135,
 	.ht_params = &iwl2000_ht_params,
 };
@@ -372,3 +372,4 @@ struct iwl_cfg iwl135_bgn_cfg = {
 MODULE_FIRMWARE(IWL2000_MODULE_FIRMWARE(IWL2000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL2030_MODULE_FIRMWARE(IWL2030_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL105_MODULE_FIRMWARE(IWL105_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL135_MODULE_FIRMWARE(IWL135_UCODE_API_MAX));

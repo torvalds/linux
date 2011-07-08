@@ -176,6 +176,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_WOWLAN_TRIGGERS] = { .type = NLA_NESTED },
 	[NL80211_ATTR_STA_PLINK_STATE] = { .type = NLA_U8 },
 	[NL80211_ATTR_SCHED_SCAN_INTERVAL] = { .type = NLA_U32 },
+	[NL80211_ATTR_REKEY_DATA] = { .type = NLA_NESTED },
 };
 
 /* policy for the key attributes */
@@ -204,6 +205,14 @@ nl80211_wowlan_policy[NUM_NL80211_WOWLAN_TRIG] = {
 	[NL80211_WOWLAN_TRIG_DISCONNECT] = { .type = NLA_FLAG },
 	[NL80211_WOWLAN_TRIG_MAGIC_PKT] = { .type = NLA_FLAG },
 	[NL80211_WOWLAN_TRIG_PKT_PATTERN] = { .type = NLA_NESTED },
+};
+
+/* policy for GTK rekey offload attributes */
+static const struct nla_policy
+nl80211_rekey_policy[NUM_NL80211_REKEY_DATA] = {
+	[NL80211_REKEY_DATA_KEK] = { .len = NL80211_KEK_LEN },
+	[NL80211_REKEY_DATA_KCK] = { .len = NL80211_KCK_LEN },
+	[NL80211_REKEY_DATA_REPLAY_CTR] = { .len = NL80211_REPLAY_CTR_LEN },
 };
 
 /* ifidx get helper */
@@ -5408,6 +5417,57 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+static int nl80211_set_rekey_data(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	struct nlattr *tb[NUM_NL80211_REKEY_DATA];
+	struct cfg80211_gtk_rekey_data rekey_data;
+	int err;
+
+	if (!info->attrs[NL80211_ATTR_REKEY_DATA])
+		return -EINVAL;
+
+	err = nla_parse(tb, MAX_NL80211_REKEY_DATA,
+			nla_data(info->attrs[NL80211_ATTR_REKEY_DATA]),
+			nla_len(info->attrs[NL80211_ATTR_REKEY_DATA]),
+			nl80211_rekey_policy);
+	if (err)
+		return err;
+
+	if (nla_len(tb[NL80211_REKEY_DATA_REPLAY_CTR]) != NL80211_REPLAY_CTR_LEN)
+		return -ERANGE;
+	if (nla_len(tb[NL80211_REKEY_DATA_KEK]) != NL80211_KEK_LEN)
+		return -ERANGE;
+	if (nla_len(tb[NL80211_REKEY_DATA_KCK]) != NL80211_KCK_LEN)
+		return -ERANGE;
+
+	memcpy(rekey_data.kek, nla_data(tb[NL80211_REKEY_DATA_KEK]),
+	       NL80211_KEK_LEN);
+	memcpy(rekey_data.kck, nla_data(tb[NL80211_REKEY_DATA_KCK]),
+	       NL80211_KCK_LEN);
+	memcpy(rekey_data.replay_ctr,
+	       nla_data(tb[NL80211_REKEY_DATA_REPLAY_CTR]),
+	       NL80211_REPLAY_CTR_LEN);
+
+	wdev_lock(wdev);
+	if (!wdev->current_bss) {
+		err = -ENOTCONN;
+		goto out;
+	}
+
+	if (!rdev->ops->set_rekey_data) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	err = rdev->ops->set_rekey_data(&rdev->wiphy, dev, &rekey_data);
+ out:
+	wdev_unlock(wdev);
+	return err;
+}
+
 #define NL80211_FLAG_NEED_WIPHY		0x01
 #define NL80211_FLAG_NEED_NETDEV	0x02
 #define NL80211_FLAG_NEED_RTNL		0x04
@@ -5937,6 +5997,14 @@ static struct genl_ops nl80211_ops[] = {
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 		.internal_flags = NL80211_FLAG_NEED_WIPHY |
+				  NL80211_FLAG_NEED_RTNL,
+	},
+	{
+		.cmd = NL80211_CMD_SET_REKEY_OFFLOAD,
+		.doit = nl80211_set_rekey_data,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 };
@@ -6868,6 +6936,51 @@ nl80211_send_cqm_rssi_notify(struct cfg80211_registered_device *rdev,
 		    rssi_event);
 
 	nla_nest_end(msg, pinfoattr);
+
+	if (genlmsg_end(msg, hdr) < 0) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+	return;
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	nlmsg_free(msg);
+}
+
+void nl80211_gtk_rekey_notify(struct cfg80211_registered_device *rdev,
+			      struct net_device *netdev, const u8 *bssid,
+			      const u8 *replay_ctr, gfp_t gfp)
+{
+	struct sk_buff *msg;
+	struct nlattr *rekey_attr;
+	void *hdr;
+
+	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_SET_REKEY_OFFLOAD);
+	if (!hdr) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx);
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex);
+	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, bssid);
+
+	rekey_attr = nla_nest_start(msg, NL80211_ATTR_REKEY_DATA);
+	if (!rekey_attr)
+		goto nla_put_failure;
+
+	NLA_PUT(msg, NL80211_REKEY_DATA_REPLAY_CTR,
+		NL80211_REPLAY_CTR_LEN, replay_ctr);
+
+	nla_nest_end(msg, rekey_attr);
 
 	if (genlmsg_end(msg, hdr) < 0) {
 		nlmsg_free(msg);

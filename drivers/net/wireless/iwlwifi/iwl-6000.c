@@ -157,7 +157,6 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
-	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
 
 	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
 	if (priv->cfg->rx_with_siso_diversity)
@@ -328,27 +327,23 @@ static struct iwl_nic_ops iwl6150_nic_ops = {
 
 static const struct iwl_ops iwl6000_ops = {
 	.lib = &iwl6000_lib,
-	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 };
 
 static const struct iwl_ops iwl6050_ops = {
 	.lib = &iwl6000_lib,
-	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 	.nic = &iwl6050_nic_ops,
 };
 
 static const struct iwl_ops iwl6150_ops = {
 	.lib = &iwl6000_lib,
-	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 	.nic = &iwl6150_nic_ops,
 };
 
 static const struct iwl_ops iwl6030_ops = {
 	.lib = &iwl6030_lib,
-	.hcmd = &iwlagn_bt_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 };
 

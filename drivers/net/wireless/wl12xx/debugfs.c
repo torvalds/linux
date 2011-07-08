@@ -71,6 +71,14 @@ static const struct file_operations name## _ops = {			\
 	if (!entry || IS_ERR(entry))					\
 		goto err;						\
 
+#define DEBUGFS_ADD_PREFIX(prefix, name, parent)			\
+	do {								\
+		entry = debugfs_create_file(#name, 0400, parent,	\
+				    wl, &prefix## _## name## _ops);	\
+		if (!entry || IS_ERR(entry))				\
+			goto err;					\
+	} while (0);
+
 #define DEBUGFS_FWSTATS_FILE(sub, name, fmt)				\
 static ssize_t sub## _ ##name## _read(struct file *file,		\
 				      char __user *userbuf,		\
@@ -298,7 +306,7 @@ static ssize_t start_recovery_write(struct file *file,
 	struct wl1271 *wl = file->private_data;
 
 	mutex_lock(&wl->mutex);
-	ieee80211_queue_work(wl->hw, &wl->recovery_work);
+	wl12xx_queue_recovery_work(wl);
 	mutex_unlock(&wl->mutex);
 
 	return count;
@@ -527,11 +535,129 @@ static const struct file_operations beacon_interval_ops = {
 	.llseek = default_llseek,
 };
 
+static ssize_t rx_streaming_interval_write(struct file *file,
+			   const char __user *user_buf,
+			   size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	char buf[10];
+	size_t len;
+	unsigned long value;
+	int ret;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+
+	ret = kstrtoul(buf, 0, &value);
+	if (ret < 0) {
+		wl1271_warning("illegal value in rx_streaming_interval!");
+		return -EINVAL;
+	}
+
+	/* valid values: 0, 10-100 */
+	if (value && (value < 10 || value > 100)) {
+		wl1271_warning("value is not in range!");
+		return -ERANGE;
+	}
+
+	mutex_lock(&wl->mutex);
+
+	wl->conf.rx_streaming.interval = value;
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	wl1271_recalc_rx_streaming(wl);
+
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+	return count;
+}
+
+static ssize_t rx_streaming_interval_read(struct file *file,
+			    char __user *userbuf,
+			    size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	return wl1271_format_buffer(userbuf, count, ppos,
+				    "%d\n", wl->conf.rx_streaming.interval);
+}
+
+static const struct file_operations rx_streaming_interval_ops = {
+	.read = rx_streaming_interval_read,
+	.write = rx_streaming_interval_write,
+	.open = wl1271_open_file_generic,
+	.llseek = default_llseek,
+};
+
+static ssize_t rx_streaming_always_write(struct file *file,
+			   const char __user *user_buf,
+			   size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	char buf[10];
+	size_t len;
+	unsigned long value;
+	int ret;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+
+	ret = kstrtoul(buf, 0, &value);
+	if (ret < 0) {
+		wl1271_warning("illegal value in rx_streaming_write!");
+		return -EINVAL;
+	}
+
+	/* valid values: 0, 10-100 */
+	if (!(value == 0 || value == 1)) {
+		wl1271_warning("value is not in valid!");
+		return -EINVAL;
+	}
+
+	mutex_lock(&wl->mutex);
+
+	wl->conf.rx_streaming.always = value;
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	wl1271_recalc_rx_streaming(wl);
+
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+	return count;
+}
+
+static ssize_t rx_streaming_always_read(struct file *file,
+			    char __user *userbuf,
+			    size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	return wl1271_format_buffer(userbuf, count, ppos,
+				    "%d\n", wl->conf.rx_streaming.always);
+}
+
+static const struct file_operations rx_streaming_always_ops = {
+	.read = rx_streaming_always_read,
+	.write = rx_streaming_always_write,
+	.open = wl1271_open_file_generic,
+	.llseek = default_llseek,
+};
+
 static int wl1271_debugfs_add_files(struct wl1271 *wl,
 				     struct dentry *rootdir)
 {
 	int ret = 0;
-	struct dentry *entry, *stats;
+	struct dentry *entry, *stats, *streaming;
 
 	stats = debugfs_create_dir("fw-statistics", rootdir);
 	if (!stats || IS_ERR(stats)) {
@@ -639,6 +765,14 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_ADD(driver_state, rootdir);
 	DEBUGFS_ADD(dtim_interval, rootdir);
 	DEBUGFS_ADD(beacon_interval, rootdir);
+
+	streaming = debugfs_create_dir("rx_streaming", rootdir);
+	if (!streaming || IS_ERR(streaming))
+		goto err;
+
+	DEBUGFS_ADD_PREFIX(rx_streaming, interval, streaming);
+	DEBUGFS_ADD_PREFIX(rx_streaming, always, streaming);
+
 
 	return 0;
 
