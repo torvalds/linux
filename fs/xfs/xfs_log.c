@@ -1268,7 +1268,6 @@ xlog_bdstrat(
 		return 0;
 	}
 
-	bp->b_flags |= _XBF_RUN_QUEUES;
 	xfs_buf_iorequest(bp);
 	return 0;
 }
@@ -1369,7 +1368,7 @@ xlog_sync(xlog_t		*log,
 	XFS_BUF_ZEROFLAGS(bp);
 	XFS_BUF_BUSY(bp);
 	XFS_BUF_ASYNC(bp);
-	bp->b_flags |= XBF_LOG_BUFFER;
+	bp->b_flags |= XBF_SYNCIO;
 
 	if (log->l_mp->m_flags & XFS_MOUNT_BARRIER) {
 		/*
@@ -1380,7 +1379,7 @@ xlog_sync(xlog_t		*log,
 		 */
 		if (log->l_mp->m_logdev_targp != log->l_mp->m_ddev_targp)
 			xfs_blkdev_issue_flush(log->l_mp->m_ddev_targp);
-		XFS_BUF_ORDERED(bp);
+		bp->b_flags |= XBF_FUA | XBF_FLUSH;
 	}
 
 	ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
@@ -1413,9 +1412,9 @@ xlog_sync(xlog_t		*log,
 		XFS_BUF_ZEROFLAGS(bp);
 		XFS_BUF_BUSY(bp);
 		XFS_BUF_ASYNC(bp);
-		bp->b_flags |= XBF_LOG_BUFFER;
+		bp->b_flags |= XBF_SYNCIO;
 		if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
-			XFS_BUF_ORDERED(bp);
+			bp->b_flags |= XBF_FUA | XBF_FLUSH;
 		dptr = XFS_BUF_PTR(bp);
 		/*
 		 * Bump the cycle numbers at the start of each block

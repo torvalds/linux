@@ -592,10 +592,8 @@ _xfs_buf_read(
 	ASSERT(!(flags & (XBF_DELWRI|XBF_WRITE)));
 	ASSERT(bp->b_bn != XFS_BUF_DADDR_NULL);
 
-	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_DELWRI | \
-			XBF_READ_AHEAD | _XBF_RUN_QUEUES);
-	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | \
-			XBF_READ_AHEAD | _XBF_RUN_QUEUES);
+	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_DELWRI | XBF_READ_AHEAD);
+	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
 
 	status = xfs_buf_iorequest(bp);
 	if (status || XFS_BUF_ISERROR(bp) || (flags & XBF_ASYNC))
@@ -1211,22 +1209,20 @@ _xfs_buf_ioapply(
 	total_nr_pages = bp->b_page_count;
 	map_i = 0;
 
-	if (bp->b_flags & XBF_ORDERED) {
-		ASSERT(!(bp->b_flags & XBF_READ));
-		rw = WRITE_FLUSH_FUA;
-	} else if (bp->b_flags & XBF_LOG_BUFFER) {
-		ASSERT(!(bp->b_flags & XBF_READ_AHEAD));
-		bp->b_flags &= ~_XBF_RUN_QUEUES;
-		rw = (bp->b_flags & XBF_WRITE) ? WRITE_SYNC : READ_SYNC;
-	} else if (bp->b_flags & _XBF_RUN_QUEUES) {
-		ASSERT(!(bp->b_flags & XBF_READ_AHEAD));
-		bp->b_flags &= ~_XBF_RUN_QUEUES;
-		rw = (bp->b_flags & XBF_WRITE) ? WRITE_META : READ_META;
+	if (bp->b_flags & XBF_WRITE) {
+		if (bp->b_flags & XBF_SYNCIO)
+			rw = WRITE_SYNC;
+		else
+			rw = WRITE;
+		if (bp->b_flags & XBF_FUA)
+			rw |= REQ_FUA;
+		if (bp->b_flags & XBF_FLUSH)
+			rw |= REQ_FLUSH;
+	} else if (bp->b_flags & XBF_READ_AHEAD) {
+		rw = READA;
 	} else {
-		rw = (bp->b_flags & XBF_WRITE) ? WRITE :
-		     (bp->b_flags & XBF_READ_AHEAD) ? READA : READ;
+		rw = READ;
 	}
-
 
 next_chunk:
 	atomic_inc(&bp->b_io_remaining);
@@ -1689,8 +1685,7 @@ xfs_buf_delwri_split(
 				break;
 			}
 
-			bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q|
-					 _XBF_RUN_QUEUES);
+			bp->b_flags &= ~(XBF_DELWRI | _XBF_DELWRI_Q);
 			bp->b_flags |= XBF_WRITE;
 			list_move_tail(&bp->b_list, list);
 			trace_xfs_buf_delwri_split(bp, _RET_IP_);

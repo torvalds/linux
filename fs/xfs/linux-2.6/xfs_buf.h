@@ -46,43 +46,46 @@ typedef enum {
 
 #define XBF_READ	(1 << 0) /* buffer intended for reading from device */
 #define XBF_WRITE	(1 << 1) /* buffer intended for writing to device */
-#define XBF_MAPPED	(1 << 2) /* buffer mapped (b_addr valid) */
+#define XBF_READ_AHEAD	(1 << 2) /* asynchronous read-ahead */
+#define XBF_MAPPED	(1 << 3) /* buffer mapped (b_addr valid) */
 #define XBF_ASYNC	(1 << 4) /* initiator will not wait for completion */
 #define XBF_DONE	(1 << 5) /* all pages in the buffer uptodate */
 #define XBF_DELWRI	(1 << 6) /* buffer has dirty pages */
 #define XBF_STALE	(1 << 7) /* buffer has been staled, do not find it */
-#define XBF_ORDERED	(1 << 11)/* use ordered writes */
-#define XBF_READ_AHEAD	(1 << 12)/* asynchronous read-ahead */
-#define XBF_LOG_BUFFER	(1 << 13)/* this is a buffer used for the log */
+
+/* I/O hints for the BIO layer */
+#define XBF_SYNCIO	(1 << 10)/* treat this buffer as synchronous I/O */
+#define XBF_FUA		(1 << 11)/* force cache write through mode */
+#define XBF_FLUSH	(1 << 12)/* flush the disk cache before a write */
 
 /* flags used only as arguments to access routines */
-#define XBF_LOCK	(1 << 14)/* lock requested */
-#define XBF_TRYLOCK	(1 << 15)/* lock requested, but do not wait */
-#define XBF_DONT_BLOCK	(1 << 16)/* do not block in current thread */
+#define XBF_LOCK	(1 << 15)/* lock requested */
+#define XBF_TRYLOCK	(1 << 16)/* lock requested, but do not wait */
+#define XBF_DONT_BLOCK	(1 << 17)/* do not block in current thread */
 
 /* flags used only internally */
-#define _XBF_PAGES	(1 << 18)/* backed by refcounted pages */
-#define	_XBF_RUN_QUEUES	(1 << 19)/* run block device task queue	*/
-#define	_XBF_KMEM	(1 << 20)/* backed by heap memory */
-#define _XBF_DELWRI_Q	(1 << 21)/* buffer on delwri queue */
+#define _XBF_PAGES	(1 << 20)/* backed by refcounted pages */
+#define _XBF_KMEM	(1 << 21)/* backed by heap memory */
+#define _XBF_DELWRI_Q	(1 << 22)/* buffer on delwri queue */
 
 typedef unsigned int xfs_buf_flags_t;
 
 #define XFS_BUF_FLAGS \
 	{ XBF_READ,		"READ" }, \
 	{ XBF_WRITE,		"WRITE" }, \
+	{ XBF_READ_AHEAD,	"READ_AHEAD" }, \
 	{ XBF_MAPPED,		"MAPPED" }, \
 	{ XBF_ASYNC,		"ASYNC" }, \
 	{ XBF_DONE,		"DONE" }, \
 	{ XBF_DELWRI,		"DELWRI" }, \
 	{ XBF_STALE,		"STALE" }, \
-	{ XBF_ORDERED,		"ORDERED" }, \
-	{ XBF_READ_AHEAD,	"READ_AHEAD" }, \
+	{ XBF_SYNCIO,		"SYNCIO" }, \
+	{ XBF_FUA,		"FUA" }, \
+	{ XBF_FLUSH,		"FLUSH" }, \
 	{ XBF_LOCK,		"LOCK" },  	/* should never be set */\
 	{ XBF_TRYLOCK,		"TRYLOCK" }, 	/* ditto */\
 	{ XBF_DONT_BLOCK,	"DONT_BLOCK" },	/* ditto */\
 	{ _XBF_PAGES,		"PAGES" }, \
-	{ _XBF_RUN_QUEUES,	"RUN_QUEUES" }, \
 	{ _XBF_KMEM,		"KMEM" }, \
 	{ _XBF_DELWRI_Q,	"DELWRI_Q" }
 
@@ -230,8 +233,9 @@ extern void xfs_buf_terminate(void);
 
 
 #define XFS_BUF_BFLAGS(bp)	((bp)->b_flags)
-#define XFS_BUF_ZEROFLAGS(bp)	((bp)->b_flags &= \
-		~(XBF_READ|XBF_WRITE|XBF_ASYNC|XBF_DELWRI|XBF_ORDERED))
+#define XFS_BUF_ZEROFLAGS(bp) \
+	((bp)->b_flags &= ~(XBF_READ|XBF_WRITE|XBF_ASYNC|XBF_DELWRI| \
+			    XBF_SYNCIO|XBF_FUA|XBF_FLUSH))
 
 void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_STALE(bp)	xfs_buf_stale(bp);
@@ -262,10 +266,6 @@ void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_ASYNC(bp)	((bp)->b_flags |= XBF_ASYNC)
 #define XFS_BUF_UNASYNC(bp)	((bp)->b_flags &= ~XBF_ASYNC)
 #define XFS_BUF_ISASYNC(bp)	((bp)->b_flags & XBF_ASYNC)
-
-#define XFS_BUF_ORDERED(bp)	((bp)->b_flags |= XBF_ORDERED)
-#define XFS_BUF_UNORDERED(bp)	((bp)->b_flags &= ~XBF_ORDERED)
-#define XFS_BUF_ISORDERED(bp)	((bp)->b_flags & XBF_ORDERED)
 
 #define XFS_BUF_HOLD(bp)	xfs_buf_hold(bp)
 #define XFS_BUF_READ(bp)	((bp)->b_flags |= XBF_READ)
