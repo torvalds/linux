@@ -5364,176 +5364,6 @@ static int patch_alc269(struct hda_codec *codec)
  * ALC861
  */
 
-static hda_nid_t alc861_look_for_dac(struct hda_codec *codec, hda_nid_t pin)
-{
-	struct alc_spec *spec = codec->spec;
-	hda_nid_t mix, srcs[5];
-	int i, num;
-
-	if (snd_hda_get_connections(codec, pin, &mix, 1) != 1)
-		return 0;
-	num = snd_hda_get_connections(codec, mix, srcs, ARRAY_SIZE(srcs));
-	if (num < 0)
-		return 0;
-	for (i = 0; i < num; i++) {
-		unsigned int type;
-		type = get_wcaps_type(get_wcaps(codec, srcs[i]));
-		if (type != AC_WID_AUD_OUT)
-			continue;
-		if (!found_in_nid_list(srcs[i], spec->multiout.dac_nids,
-				       spec->multiout.num_dacs))
-			return srcs[i];
-	}
-	return 0;
-}
-
-/* fill in the dac_nids table from the parsed pin configuration */
-static int alc861_auto_fill_dac_nids(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	const struct auto_pin_cfg *cfg = &spec->autocfg;
-	int i;
-	hda_nid_t nid, dac;
-
-	spec->multiout.dac_nids = spec->private_dac_nids;
-	for (i = 0; i < cfg->line_outs; i++) {
-		nid = cfg->line_out_pins[i];
-		dac = alc861_look_for_dac(codec, nid);
-		if (!dac)
-			continue;
-		spec->private_dac_nids[spec->multiout.num_dacs++] = dac;
-	}
-	return 0;
-}
-
-static int __alc861_create_out_sw(struct hda_codec *codec, const char *pfx,
-				  hda_nid_t nid, int idx, unsigned int chs)
-{
-	return __add_pb_sw_ctrl(codec->spec, ALC_CTL_WIDGET_MUTE, pfx, idx,
-			   HDA_COMPOSE_AMP_VAL(nid, chs, 0, HDA_OUTPUT));
-}
-
-#define alc861_create_out_sw(codec, pfx, nid, chs) \
-	__alc861_create_out_sw(codec, pfx, nid, 0, chs)
-
-/* add playback controls from the parsed DAC table */
-static int alc861_auto_create_multi_out_ctls(struct hda_codec *codec,
-					     const struct auto_pin_cfg *cfg)
-{
-	struct alc_spec *spec = codec->spec;
-	hda_nid_t nid;
-	int i, err, noutputs;
-
-	noutputs = cfg->line_outs;
-	if (spec->multi_ios > 0)
-		noutputs += spec->multi_ios;
-
-	for (i = 0; i < noutputs; i++) {
-		const char *name;
-		int index;
-		nid = spec->multiout.dac_nids[i];
-		if (!nid)
-			continue;
-		name = alc_get_line_out_pfx(spec, i, true, &index);
-		if (!name) {
-			/* Center/LFE */
-			err = alc861_create_out_sw(codec, "Center", nid, 1);
-			if (err < 0)
-				return err;
-			err = alc861_create_out_sw(codec, "LFE", nid, 2);
-			if (err < 0)
-				return err;
-		} else {
-			err = __alc861_create_out_sw(codec, name, nid, index, 3);
-			if (err < 0)
-				return err;
-		}
-	}
-	return 0;
-}
-
-static int alc861_auto_create_hp_ctls(struct hda_codec *codec, hda_nid_t pin)
-{
-	struct alc_spec *spec = codec->spec;
-	int err;
-	hda_nid_t nid;
-
-	if (!pin)
-		return 0;
-
-	if ((pin >= 0x0b && pin <= 0x10) || pin == 0x1f || pin == 0x20) {
-		nid = alc861_look_for_dac(codec, pin);
-		if (nid) {
-			err = alc861_create_out_sw(codec, "Headphone", nid, 3);
-			if (err < 0)
-				return err;
-			spec->multiout.hp_nid = nid;
-		}
-	}
-	return 0;
-}
-
-static void alc861_auto_set_output_and_unmute(struct hda_codec *codec,
-					      hda_nid_t nid,
-					      int pin_type, hda_nid_t dac)
-{
-	hda_nid_t mix, srcs[5];
-	int i, num;
-
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    pin_type);
-	snd_hda_codec_write(codec, dac, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-			    AMP_OUT_UNMUTE);
-	if (snd_hda_get_connections(codec, nid, &mix, 1) != 1)
-		return;
-	num = snd_hda_get_connections(codec, mix, srcs, ARRAY_SIZE(srcs));
-	if (num < 0)
-		return;
-	for (i = 0; i < num; i++) {
-		unsigned int mute;
-		if (srcs[i] == dac || srcs[i] == 0x15)
-			mute = AMP_IN_UNMUTE(i);
-		else
-			mute = AMP_IN_MUTE(i);
-		snd_hda_codec_write(codec, mix, 0, AC_VERB_SET_AMP_GAIN_MUTE,
-				    mute);
-	}
-}
-
-static void alc861_auto_init_multi_out(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	int i;
-
-	for (i = 0; i < spec->autocfg.line_outs + spec->multi_ios; i++) {
-		hda_nid_t nid = spec->autocfg.line_out_pins[i];
-		int pin_type = get_pin_type(spec->autocfg.line_out_type);
-		if (nid)
-			alc861_auto_set_output_and_unmute(codec, nid, pin_type,
-							  spec->multiout.dac_nids[i]);
-	}
-}
-
-static void alc861_auto_init_hp_out(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	if (spec->autocfg.hp_outs)
-		alc861_auto_set_output_and_unmute(codec,
-						  spec->autocfg.hp_pins[0],
-						  PIN_HP,
-						  spec->multiout.hp_nid);
-	if (spec->autocfg.speaker_outs)
-		alc861_auto_set_output_and_unmute(codec,
-						  spec->autocfg.speaker_pins[0],
-						  PIN_OUT,
-						  spec->multiout.dac_nids[0]);
-}
-
-/* parse the BIOS configuration and set up the alc_spec */
-/* return 1 if successful, 0 if the proper config is not found,
- * or a negative error code
- */
 static int alc861_parse_auto_config(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -5547,16 +5377,19 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 	if (!spec->autocfg.line_outs)
 		return 0; /* can't find valid BIOS pin config */
 
-	err = alc861_auto_fill_dac_nids(codec);
+	err = alc_auto_fill_dac_nids(codec);
 	if (err < 0)
 		return err;
-	err = alc_auto_add_multi_channel_mode(codec, alc861_auto_fill_dac_nids);
+	err = alc_auto_add_multi_channel_mode(codec, alc_auto_fill_dac_nids);
 	if (err < 0)
 		return err;
-	err = alc861_auto_create_multi_out_ctls(codec, &spec->autocfg);
+	err = alc_auto_create_multi_out_ctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
-	err = alc861_auto_create_hp_ctls(codec, spec->autocfg.hp_pins[0]);
+	err = alc_auto_create_hp_out(codec);
+	if (err < 0)
+		return err;
+	err = alc_auto_create_speaker_out(codec);
 	if (err < 0)
 		return err;
 	err = alc_auto_create_input_ctls(codec);
@@ -5578,18 +5411,6 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 	set_capture_mixer(codec);
 
 	return 1;
-}
-
-/* additional initialization for auto-configuration model */
-static void alc861_auto_init(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	alc861_auto_init_multi_out(codec);
-	alc861_auto_init_hp_out(codec);
-	alc_auto_init_analog_input(codec);
-	alc_auto_init_digital(codec);
-	if (spec->unsol_event)
-		alc_inithook(codec);
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
@@ -5700,7 +5521,7 @@ static int patch_alc861(struct hda_codec *codec)
 
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC_MODEL_AUTO) {
-		spec->init_hook = alc861_auto_init;
+		spec->init_hook = alc_auto_init_std;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 		spec->power_hook = alc_power_eapd;
 #endif
