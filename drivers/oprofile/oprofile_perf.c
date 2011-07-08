@@ -31,7 +31,7 @@ static int num_counters;
 /*
  * Overflow callback for oprofile.
  */
-static void op_overflow_handler(struct perf_event *event, int unused,
+static void op_overflow_handler(struct perf_event *event,
 			struct perf_sample_data *data, struct pt_regs *regs)
 {
 	int id;
