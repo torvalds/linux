@@ -657,4 +657,12 @@ static inline void drv_set_rekey_data(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline void drv_rssi_callback(struct ieee80211_local *local,
+				     const enum ieee80211_rssi_event event)
+{
+	trace_drv_rssi_callback(local, event);
+	if (local->ops->rssi_callback)
+		local->ops->rssi_callback(&local->hw, event);
+	trace_drv_return_void(local);
+}
 #endif /* __MAC80211_DRIVER_OPS */

@@ -1052,6 +1052,28 @@ TRACE_EVENT(drv_set_rekey_data,
 		  LOCAL_PR_ARG, VIF_PR_ARG)
 );
 
+TRACE_EVENT(drv_rssi_callback,
+	TP_PROTO(struct ieee80211_local *local,
+		 enum ieee80211_rssi_event rssi_event),
+
+	TP_ARGS(local, rssi_event),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u32, rssi_event)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->rssi_event = rssi_event;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " rssi_event:%d",
+		LOCAL_PR_ARG, __entry->rssi_event
+	)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */
@@ -1340,6 +1362,30 @@ TRACE_EVENT(api_gtk_rekey_notify,
 	),
 
 	TP_printk(VIF_PR_FMT, VIF_PR_ARG)
+);
+
+TRACE_EVENT(api_enable_rssi_reports,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata,
+		 int rssi_min_thold, int rssi_max_thold),
+
+	TP_ARGS(sdata, rssi_min_thold, rssi_max_thold),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+		__field(int, rssi_min_thold)
+		__field(int, rssi_max_thold)
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+		__entry->rssi_min_thold = rssi_min_thold;
+		__entry->rssi_max_thold = rssi_max_thold;
+	),
+
+	TP_printk(
+		VIF_PR_FMT " rssi_min_thold =%d, rssi_max_thold = %d",
+		VIF_PR_ARG, __entry->rssi_min_thold, __entry->rssi_max_thold
+	)
 );
 
 /*
