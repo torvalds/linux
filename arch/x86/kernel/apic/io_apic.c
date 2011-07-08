@@ -1337,9 +1337,9 @@ static void setup_ioapic_irq(int apic_id, int pin, unsigned int irq,
 
 	apic_printk(APIC_VERBOSE,KERN_DEBUG
 		    "IOAPIC[%d]: Set routing entry (%d-%d -> 0x%x -> "
-		    "IRQ %d Mode:%i Active:%i)\n",
+		    "IRQ %d Mode:%i Active:%i Dest:%d)\n",
 		    apic_id, mpc_ioapic_id(apic_id), pin, cfg->vector,
-		    irq, trigger, polarity);
+		    irq, trigger, polarity, dest);
 
 
 	if (setup_ioapic_entry(mpc_ioapic_id(apic_id), irq, &entry,
