@@ -642,7 +642,7 @@ void mdfld_dbi_dsr_exit(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct mdfld_dbi_dsr_info *dsr_info = dev_priv->dbi_dsr_info;
 
-	if (!dsr_info) {
+	if (dsr_info) {
 		del_timer_sync(&dsr_info->dsr_timer);
 		kfree(dsr_info);
 		dev_priv->dbi_dsr_info = NULL;
