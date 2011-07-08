@@ -393,6 +393,9 @@ int hci_conn_del(struct hci_conn *conn)
 
 	hci_dev_put(hdev);
 
+	if (conn->handle == 0)
+		kfree(conn);
+
 	return 0;
 }
 
