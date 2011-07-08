@@ -773,14 +773,15 @@ xfs_setattr_size(
 	 */
 	if (iattr->ia_size == 0 &&
 	    ip->i_size == 0 && ip->i_d.di_nextents == 0) {
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		lock_flags &= ~XFS_ILOCK_EXCL;
-		if (mask & ATTR_CTIME) {
-			inode->i_mtime = inode->i_ctime =
-					current_fs_time(inode->i_sb);
-			xfs_mark_inode_dirty_sync(ip);
-		}
-		goto out_unlock;
+		if (!(mask & (ATTR_CTIME|ATTR_MTIME)))
+			goto out_unlock;
+
+		/*
+		 * Use the regular setattr path to update the timestamps.
+		 */
+		xfs_iunlock(ip, lock_flags);
+		iattr->ia_valid &= ~ATTR_SIZE;
+		return xfs_setattr_nonsize(ip, iattr, 0);
 	}
 
 	/*
