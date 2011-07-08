@@ -188,6 +188,15 @@ static void iwl_trans_rx_free(struct iwl_priv *priv)
 	rxq->rb_stts = NULL;
 }
 
+static int iwl_trans_rx_stop(struct iwl_priv *priv)
+{
+
+	/* stop Rx DMA */
+	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+	return iwl_poll_direct_bit(priv, FH_MEM_RSSR_RX_STATUS_REG,
+			    FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
+}
+
 /* TODO:remove this code duplication */
 static inline int iwlagn_alloc_dma_ptr(struct iwl_priv *priv,
 				    struct iwl_dma_ptr *ptr, size_t size)
@@ -490,6 +499,7 @@ error:
 
 static const struct iwl_trans_ops trans_ops = {
 	.rx_init = iwl_trans_rx_init,
+	.rx_stop = iwl_trans_rx_stop,
 	.rx_free = iwl_trans_rx_free,
 
 	.tx_init = iwl_trans_tx_init,

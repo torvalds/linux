@@ -905,17 +905,6 @@ void iwlagn_rx_replenish_now(struct iwl_priv *priv)
 	iwlagn_rx_queue_restock(priv);
 }
 
-int iwlagn_rxq_stop(struct iwl_priv *priv)
-{
-
-	/* stop Rx DMA */
-	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-	iwl_poll_direct_bit(priv, FH_MEM_RSSR_RX_STATUS_REG,
-			    FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
-
-	return 0;
-}
-
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band)
 {
 	int idx = 0;
@@ -2321,13 +2310,14 @@ void iwlagn_stop_device(struct iwl_priv *priv)
 	 * already dead.
 	 */
 	if (test_bit(STATUS_DEVICE_ENABLED, &priv->status)) {
-                iwlagn_txq_ctx_stop(priv);
-                iwlagn_rxq_stop(priv);
+		iwlagn_txq_ctx_stop(priv);
+		priv->trans.ops->rx_stop(priv);
 
-                /* Power-down device's busmaster DMA clocks */
-                iwl_write_prph(priv, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
-                udelay(5);
-        }
+		/* Power-down device's busmaster DMA clocks */
+		iwl_write_prph(priv, APMG_CLK_DIS_REG,
+			       APMG_CLK_VAL_DMA_CLK_RQT);
+		udelay(5);
+	}
 
 	/* Make sure (redundant) we've released our request to stay awake */
 	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
