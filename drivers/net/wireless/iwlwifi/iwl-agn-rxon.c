@@ -731,6 +731,8 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			}
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		}
+
+		iwlagn_bt_coex_rssi_monitor(priv);
 	}
 
 	if (ctx->ht.enabled) {

@@ -1634,9 +1634,11 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	} else {
 		basic.flags = IWLAGN_BT_FLAG_COEX_MODE_3W <<
 					IWLAGN_BT_FLAG_COEX_MODE_SHIFT;
-		if (priv->cfg->bt_params &&
-		    priv->cfg->bt_params->bt_sco_disable)
+
+		if (!priv->bt_enable_pspoll)
 			basic.flags |= IWLAGN_BT_FLAG_SYNC_2_BT_DISABLE;
+		else
+			basic.flags &= ~IWLAGN_BT_FLAG_SYNC_2_BT_DISABLE;
 
 		if (priv->bt_ch_announce)
 			basic.flags |= IWLAGN_BT_FLAG_CHANNEL_INHIBITION;
@@ -1669,6 +1671,84 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	if (ret)
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
 
+}
+
+void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena)
+{
+	struct iwl_rxon_context *ctx, *found_ctx = NULL;
+	bool found_ap = false;
+
+	lockdep_assert_held(&priv->mutex);
+
+	/* Check whether AP or GO mode is active. */
+	if (rssi_ena) {
+		for_each_context(priv, ctx) {
+			if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_AP &&
+			    iwl_is_associated_ctx(ctx)) {
+				found_ap = true;
+				break;
+			}
+		}
+	}
+
+	/*
+	 * If disable was received or If GO/AP mode, disable RSSI
+	 * measurements.
+	 */
+	if (!rssi_ena || found_ap) {
+		if (priv->cur_rssi_ctx) {
+			ctx = priv->cur_rssi_ctx;
+			ieee80211_disable_rssi_reports(ctx->vif);
+			priv->cur_rssi_ctx = NULL;
+		}
+		return;
+	}
+
+	/*
+	 * If rssi measurements need to be enabled, consider all cases now.
+	 * Figure out how many contexts are active.
+	 */
+	for_each_context(priv, ctx) {
+		if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION &&
+		    iwl_is_associated_ctx(ctx)) {
+			found_ctx = ctx;
+			break;
+		}
+	}
+
+	/*
+	 * rssi monitor already enabled for the correct interface...nothing
+	 * to do.
+	 */
+	if (found_ctx == priv->cur_rssi_ctx)
+		return;
+
+	/*
+	 * Figure out if rssi monitor is currently enabled, and needs
+	 * to be changed. If rssi monitor is already enabled, disable
+	 * it first else just enable rssi measurements on the
+	 * interface found above.
+	 */
+	if (priv->cur_rssi_ctx) {
+		ctx = priv->cur_rssi_ctx;
+		if (ctx->vif)
+			ieee80211_disable_rssi_reports(ctx->vif);
+	}
+
+	priv->cur_rssi_ctx = found_ctx;
+
+	if (!found_ctx)
+		return;
+
+	ieee80211_enable_rssi_reports(found_ctx->vif,
+			IWLAGN_BT_PSP_MIN_RSSI_THRESHOLD,
+			IWLAGN_BT_PSP_MAX_RSSI_THRESHOLD);
+}
+
+static bool iwlagn_bt_traffic_is_sco(struct iwl_bt_uart_msg *uart_msg)
+{
+	return BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3 >>
+			BT_UART_MSG_FRAME3SCOESCO_POS;
 }
 
 static void iwlagn_bt_traffic_change_work(struct work_struct *work)
@@ -1732,8 +1812,28 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 				ieee80211_request_smps(ctx->vif, smps_request);
 		}
 	}
+
+	/*
+	 * Dynamic PS poll related functionality. Adjust RSSI measurements if
+	 * necessary.
+	 */
+	iwlagn_bt_coex_rssi_monitor(priv);
 out:
 	mutex_unlock(&priv->mutex);
+}
+
+/*
+ * If BT sco traffic, and RSSI monitor is enabled, move measurements to the
+ * correct interface or disable it if this is the last interface to be
+ * removed.
+ */
+void iwlagn_bt_coex_rssi_monitor(struct iwl_priv *priv)
+{
+	if (priv->bt_is_sco &&
+	    priv->bt_traffic_load == IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS)
+		iwlagn_bt_adjust_rssi_monitor(priv, true);
+	else
+		iwlagn_bt_adjust_rssi_monitor(priv, false);
 }
 
 static void iwlagn_print_uartmsg(struct iwl_priv *priv,
@@ -1851,6 +1951,8 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 	iwlagn_print_uartmsg(priv, uart_msg);
 
 	priv->last_bt_traffic_load = priv->bt_traffic_load;
+	priv->bt_is_sco = iwlagn_bt_traffic_is_sco(uart_msg);
+
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
 		if (priv->bt_status != coex->bt_status ||
 		    priv->last_bt_traffic_load != coex->bt_traffic_load) {

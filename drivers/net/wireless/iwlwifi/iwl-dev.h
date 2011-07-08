@@ -1525,6 +1525,9 @@ struct iwl_priv {
 	u16 dynamic_frag_thresh;
 	u8 bt_ci_compliance;
 	struct work_struct bt_traffic_change_work;
+	bool bt_enable_pspoll;
+	struct iwl_rxon_context *cur_rssi_ctx;
+	bool bt_is_sco;
 
 	struct iwl_hw_params hw_params;
 
