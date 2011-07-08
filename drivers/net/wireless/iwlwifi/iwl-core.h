@@ -80,14 +80,6 @@ struct iwl_cmd;
 
 #define IWL_CMD(x) case x: return #x
 
-struct iwl_hcmd_ops {
-	void (*set_rxon_chain)(struct iwl_priv *priv,
-			       struct iwl_rxon_context *ctx);
-	int (*set_tx_ant)(struct iwl_priv *priv, u8 valid_tx_ant);
-	void (*send_bt_config)(struct iwl_priv *priv);
-	int (*set_pan_params)(struct iwl_priv *priv);
-};
-
 struct iwl_hcmd_utils_ops {
 	u16 (*build_addsta_hcmd)(const struct iwl_addsta_cmd *cmd, u8 *data);
 	void (*gain_computation)(struct iwl_priv *priv,
@@ -146,7 +138,6 @@ struct iwl_nic_ops {
 
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
-	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
 	const struct iwl_nic_ops *nic;
 };
@@ -160,6 +151,7 @@ struct iwl_mod_params {
 	int restart_fw;		/* def: 1 = restart firmware */
 	bool plcp_check;	/* def: true = enable plcp health check */
 	bool ack_check;		/* def: false = disable ack health check */
+	bool wd_disable;	/* def: false = enable stuck queue check */
 	bool bt_coex_active;	/* def: true = enable bt coex */
 	int led_mode;		/* def: 0 = system default */
 	bool no_sleep_autoadjust; /* def: true = disable autoadjust */
@@ -336,7 +328,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 int iwl_mac_change_interface(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     enum nl80211_iftype newtype, bool newp2p);
-int iwl_alloc_txq_mem(struct iwl_priv *priv);
 void iwl_free_txq_mem(struct iwl_priv *priv);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -382,7 +373,6 @@ static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
 ******************************************************/
 void iwl_cmd_queue_free(struct iwl_priv *priv);
 void iwl_cmd_queue_unmap(struct iwl_priv *priv);
-int iwl_rx_queue_alloc(struct iwl_priv *priv);
 void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl_rx_queue *q);
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);
@@ -396,11 +386,9 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
 * TX
 ******************************************************/
 void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
-int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
-		      int slots_num, u32 txq_id);
-void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
-			int slots_num, u32 txq_id);
 void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id);
+int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
+			  int count, int slots_num, u32 id);
 void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id);
 void iwl_setup_watchdog(struct iwl_priv *priv);
 /*****************************************************

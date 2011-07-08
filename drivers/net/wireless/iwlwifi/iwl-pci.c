@@ -67,6 +67,7 @@
 #include "iwl-agn.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
+#include "iwl-trans.h"
 
 /* PCI registers */
 #define PCI_CFG_RETRY_TIMEOUT	0x041
@@ -93,7 +94,7 @@ static u16 iwl_pciexp_link_ctrl(struct iwl_bus *bus)
 	u16 pci_lnk_ctl;
 	struct pci_dev *pci_dev = IWL_BUS_GET_PCI_DEV(bus);
 
-	pos = pci_find_capability(pci_dev, PCI_CAP_ID_EXP);
+	pos = pci_pcie_cap(pci_dev);
 	pci_read_config_word(pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
 	return pci_lnk_ctl;
 }

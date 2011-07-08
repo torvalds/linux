@@ -436,11 +436,9 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (ret)
 		return ret;
 
-	if (priv->cfg->ops->hcmd->set_pan_params) {
-		ret = priv->cfg->ops->hcmd->set_pan_params(priv);
-		if (ret)
-			return ret;
-	}
+	ret = iwlagn_set_pan_params(priv);
+	if (ret)
+		return ret;
 
 	if (new_assoc)
 		return iwlagn_rxon_connect(priv, ctx);
@@ -483,9 +481,8 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 		 * set up the SM PS mode to OFF if an HT channel is
 		 * configured.
 		 */
-		if (priv->cfg->ops->hcmd->set_rxon_chain)
-			for_each_context(priv, ctx)
-				priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
+		for_each_context(priv, ctx)
+			iwlagn_set_rxon_chain(priv, ctx);
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
@@ -741,8 +738,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 		iwl_set_rxon_ht(priv, &priv->current_ht_config);
 	}
 
-	if (priv->cfg->ops->hcmd->set_rxon_chain)
-		priv->cfg->ops->hcmd->set_rxon_chain(priv, ctx);
+	iwlagn_set_rxon_chain(priv, ctx);
 
 	if (bss_conf->use_cts_prot && (priv->band != IEEE80211_BAND_5GHZ))
 		ctx->staging.flags |= RXON_FLG_TGG_PROTECT_MSK;
@@ -821,6 +817,5 @@ void iwlagn_post_scan(struct iwl_priv *priv)
 		if (memcmp(&ctx->staging, &ctx->active, sizeof(ctx->staging)))
 			iwlagn_commit_rxon(priv, ctx);
 
-	if (priv->cfg->ops->hcmd->set_pan_params)
-		priv->cfg->ops->hcmd->set_pan_params(priv);
+	iwlagn_set_pan_params(priv);
 }

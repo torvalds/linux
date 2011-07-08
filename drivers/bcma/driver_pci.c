@@ -157,9 +157,45 @@ static void bcma_pcicore_serdes_workaround(struct bcma_drv_pci *pc)
  * Init.
  **************************************************/
 
-void bcma_core_pci_init(struct bcma_drv_pci *pc)
+static void bcma_core_pci_clientmode_init(struct bcma_drv_pci *pc)
 {
 	bcma_pcicore_serdes_workaround(pc);
+}
+
+static bool bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
+{
+	struct bcma_bus *bus = pc->core->bus;
+	u16 chipid_top;
+
+	chipid_top = (bus->chipinfo.id & 0xFF00);
+	if (chipid_top != 0x4700 &&
+	    chipid_top != 0x5300)
+		return false;
+
+	if (bus->sprom.boardflags_lo & SSB_PCICORE_BFL_NOPCI)
+		return false;
+
+#if 0
+	/* TODO: on BCMA we use address from EROM instead of magic formula */
+	u32 tmp;
+	return !mips_busprobe32(tmp, (bus->mmio +
+		(pc->core->core_index * BCMA_CORE_SIZE)));
+#endif
+
+	return true;
+}
+
+void bcma_core_pci_init(struct bcma_drv_pci *pc)
+{
+	if (bcma_core_pci_is_in_hostmode(pc)) {
+#ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
+		bcma_core_pci_hostmode_init(pc);
+#else
+		pr_err("Driver compiled without support for hostmode PCI\n");
+#endif /* CONFIG_BCMA_DRIVER_PCI_HOSTMODE */
+	} else {
+		bcma_core_pci_clientmode_init(pc);
+	}
 }
 
 int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc, struct bcma_device *core,

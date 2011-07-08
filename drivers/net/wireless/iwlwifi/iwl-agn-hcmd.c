@@ -205,7 +205,7 @@ static int iwlagn_calc_rssi(struct iwl_priv *priv,
 	return max_rssi - agc - IWLAGN_RSSI_OFFSET;
 }
 
-static int iwlagn_set_pan_params(struct iwl_priv *priv)
+int iwlagn_set_pan_params(struct iwl_priv *priv)
 {
 	struct iwl_wipan_params_cmd cmd;
 	struct iwl_rxon_context *ctx_bss, *ctx_pan;
@@ -296,20 +296,6 @@ static int iwlagn_set_pan_params(struct iwl_priv *priv)
 
 	return ret;
 }
-
-struct iwl_hcmd_ops iwlagn_hcmd = {
-	.set_rxon_chain = iwlagn_set_rxon_chain,
-	.set_tx_ant = iwlagn_send_tx_ant_config,
-	.send_bt_config = iwl_send_bt_config,
-	.set_pan_params = iwlagn_set_pan_params,
-};
-
-struct iwl_hcmd_ops iwlagn_bt_hcmd = {
-	.set_rxon_chain = iwlagn_set_rxon_chain,
-	.set_tx_ant = iwlagn_send_tx_ant_config,
-	.send_bt_config = iwlagn_send_advance_bt_config,
-	.set_pan_params = iwlagn_set_pan_params,
-};
 
 struct iwl_hcmd_utils_ops iwlagn_hcmd_utils = {
 	.build_addsta_hcmd = iwlagn_build_addsta_hcmd,

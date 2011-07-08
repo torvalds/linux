@@ -1600,6 +1600,7 @@ void b43_dma_rx(struct b43_dmaring *ring)
 		dma_rx(ring, &slot);
 		update_max_used_slots(ring, ++used_slots);
 	}
+	wmb();
 	ops->set_current_rxslot(ring, slot);
 	ring->current_slot = slot;
 }

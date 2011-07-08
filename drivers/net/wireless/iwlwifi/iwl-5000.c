@@ -169,7 +169,6 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
-	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
 
 	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
 	priv->hw_params.rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
@@ -214,7 +213,6 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
-	priv->hw_params.rx_wrt_ptr_reg = FH_RSCSR_CHNL0_WPTR;
 
 	priv->hw_params.tx_chains_num = num_of_ant(priv->cfg->valid_tx_ant);
 	priv->hw_params.rx_chains_num = num_of_ant(priv->cfg->valid_rx_ant);
@@ -379,13 +377,11 @@ static struct iwl_lib_ops iwl5150_lib = {
 
 static const struct iwl_ops iwl5000_ops = {
 	.lib = &iwl5000_lib,
-	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 };
 
 static const struct iwl_ops iwl5150_ops = {
 	.lib = &iwl5150_lib,
-	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
 };
 

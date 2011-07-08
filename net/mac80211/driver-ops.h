@@ -647,4 +647,14 @@ static inline int drv_set_bitrate_mask(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline void drv_set_rekey_data(struct ieee80211_local *local,
+				      struct ieee80211_sub_if_data *sdata,
+				      struct cfg80211_gtk_rekey_data *data)
+{
+	trace_drv_set_rekey_data(local, sdata, data);
+	if (local->ops->set_rekey_data)
+		local->ops->set_rekey_data(&local->hw, &sdata->vif, data);
+	trace_drv_return_void(local);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

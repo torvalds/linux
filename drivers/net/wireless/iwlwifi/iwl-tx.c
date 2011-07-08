@@ -220,24 +220,6 @@ int iwlagn_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 	return 0;
 }
 
-/*
- * Tell nic where to find circular buffer of Tx Frame Descriptors for
- * given Tx queue, and enable the DMA channel used for that queue.
- *
- * supports up to 16 Tx queues in DRAM, mapped to up to 8 Tx DMA
- * channels supported in hardware.
- */
-static int iwlagn_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq)
-{
-	int txq_id = txq->q.id;
-
-	/* Circular buffer (TFD queue in DRAM) physical base address */
-	iwl_write_direct32(priv, FH_MEM_CBBC_QUEUE(txq_id),
-			     txq->q.dma_addr >> 8);
-
-	return 0;
-}
-
 /**
  * iwl_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
  */
@@ -392,11 +374,10 @@ int iwl_queue_space(const struct iwl_queue *q)
 	return s;
 }
 
-
 /**
  * iwl_queue_init - Initialize queue's high/low-water and read/write indexes
  */
-static int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
+int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 			  int count, int slots_num, u32 id)
 {
 	q->n_bd = count;
@@ -424,124 +405,6 @@ static int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 	q->write_ptr = q->read_ptr = 0;
 
 	return 0;
-}
-
-/**
- * iwl_tx_queue_alloc - Alloc driver data and TFD CB for one Tx/cmd queue
- */
-static int iwl_tx_queue_alloc(struct iwl_priv *priv,
-			      struct iwl_tx_queue *txq, u32 id)
-{
-	struct device *dev = priv->bus.dev;
-	size_t tfd_sz = priv->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX;
-
-	/* Driver private data, only for Tx (not command) queues,
-	 * not shared with device. */
-	if (id != priv->cmd_queue) {
-		txq->txb = kzalloc(sizeof(txq->txb[0]) *
-				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
-		if (!txq->txb) {
-			IWL_ERR(priv, "kmalloc for auxiliary BD "
-				  "structures failed\n");
-			goto error;
-		}
-	} else {
-		txq->txb = NULL;
-	}
-
-	/* Circular buffer of transmit frame descriptors (TFDs),
-	 * shared with device */
-	txq->tfds = dma_alloc_coherent(dev, tfd_sz, &txq->q.dma_addr,
-				       GFP_KERNEL);
-	if (!txq->tfds) {
-		IWL_ERR(priv, "dma_alloc_coherent(%zd) failed\n", tfd_sz);
-		goto error;
-	}
-	txq->q.id = id;
-
-	return 0;
-
- error:
-	kfree(txq->txb);
-	txq->txb = NULL;
-
-	return -ENOMEM;
-}
-
-/**
- * iwl_tx_queue_init - Allocate and initialize one tx/cmd queue
- */
-int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
-		      int slots_num, u32 txq_id)
-{
-	int i, len;
-	int ret;
-
-	txq->meta = kzalloc(sizeof(struct iwl_cmd_meta) * slots_num,
-			    GFP_KERNEL);
-	txq->cmd = kzalloc(sizeof(struct iwl_device_cmd *) * slots_num,
-			   GFP_KERNEL);
-
-	if (!txq->meta || !txq->cmd)
-		goto out_free_arrays;
-
-	len = sizeof(struct iwl_device_cmd);
-	for (i = 0; i < slots_num; i++) {
-		txq->cmd[i] = kmalloc(len, GFP_KERNEL);
-		if (!txq->cmd[i])
-			goto err;
-	}
-
-	/* Alloc driver data array and TFD circular buffer */
-	ret = iwl_tx_queue_alloc(priv, txq, txq_id);
-	if (ret)
-		goto err;
-
-	txq->need_update = 0;
-
-	/*
-	 * For the default queues 0-3, set up the swq_id
-	 * already -- all others need to get one later
-	 * (if they need one at all).
-	 */
-	if (txq_id < 4)
-		iwl_set_swq_id(txq, txq_id, txq_id);
-
-	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
-	 * iwl_queue_inc_wrap and iwl_queue_dec_wrap are broken. */
-	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
-
-	/* Initialize queue's high/low-water marks, and head/tail indexes */
-	ret = iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
-	if (ret)
-		return ret;
-
-	/* Tell device where to find queue */
-	iwlagn_tx_queue_init(priv, txq);
-
-	return 0;
-err:
-	for (i = 0; i < slots_num; i++)
-		kfree(txq->cmd[i]);
-out_free_arrays:
-	kfree(txq->meta);
-	kfree(txq->cmd);
-
-	return -ENOMEM;
-}
-
-void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
-			int slots_num, u32 txq_id)
-{
-	memset(txq->meta, 0, sizeof(struct iwl_cmd_meta) * slots_num);
-
-	txq->need_update = 0;
-
-	/* Initialize queue's high/low-water marks, and head/tail indexes */
-	iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
-
-	/* Tell device where to find queue */
-	iwlagn_tx_queue_init(priv, txq);
 }
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/

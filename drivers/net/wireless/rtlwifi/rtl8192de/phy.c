@@ -932,7 +932,7 @@ bool rtl92d_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 					  enum rf_content content,
 					  enum radio_path rfpath)
 {
-	int i, j;
+	int i;
 	u32 *radioa_array_table;
 	u32 *radiob_array_table;
 	u16 radioa_arraylen, radiob_arraylen;
@@ -974,13 +974,10 @@ bool rtl92d_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 				mdelay(50);
 			} else if (radioa_array_table[i] == 0xfd) {
 				/* delay_ms(5); */
-				for (j = 0; j < 100; j++)
-					udelay(MAX_STALL_TIME);
+				mdelay(5);
 			} else if (radioa_array_table[i] == 0xfc) {
 				/* delay_ms(1); */
-				for (j = 0; j < 20; j++)
-					udelay(MAX_STALL_TIME);
-
+				mdelay(1);
 			} else if (radioa_array_table[i] == 0xfb) {
 				udelay(50);
 			} else if (radioa_array_table[i] == 0xfa) {
@@ -1004,12 +1001,10 @@ bool rtl92d_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 				mdelay(50);
 			} else if (radiob_array_table[i] == 0xfd) {
 				/* delay_ms(5); */
-				for (j = 0; j < 100; j++)
-					udelay(MAX_STALL_TIME);
+				mdelay(5);
 			} else if (radiob_array_table[i] == 0xfc) {
 				/* delay_ms(1); */
-				for (j = 0; j < 20; j++)
-					udelay(MAX_STALL_TIME);
+				mdelay(1);
 			} else if (radiob_array_table[i] == 0xfb) {
 				udelay(50);
 			} else if (radiob_array_table[i] == 0xfa) {
@@ -1276,7 +1271,7 @@ static void rtl92d_phy_switch_wirelessband(struct ieee80211_hw *hw, u8 band)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	u8 i, value8;
+	u8 value8;
 
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, ("==>\n"));
 	rtlhal->bandset = band;
@@ -1321,8 +1316,7 @@ static void rtl92d_phy_switch_wirelessband(struct ieee80211_hw *hw, u8 band)
 		rtl_write_byte(rtlpriv, (rtlhal->interfaceindex ==
 			0 ? REG_MAC0 : REG_MAC1), value8);
 	}
-	for (i = 0; i < 20; i++)
-		udelay(MAX_STALL_TIME);
+	mdelay(1);
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, ("<==Switch Band OK.\n"));
 }
 
@@ -1684,7 +1678,7 @@ static u8 _rtl92d_phy_patha_iqk(struct ieee80211_hw *hw, bool configpathb)
 	RTPRINT(rtlpriv, FINIT, INIT_IQK,
 		("Delay %d ms for One shot, path A LOK & IQK.\n",
 		IQK_DELAY_TIME));
-	udelay(IQK_DELAY_TIME * 1000);
+	mdelay(IQK_DELAY_TIME);
 	/* Check failed */
 	regeac = rtl_get_bbreg(hw, 0xeac, BMASKDWORD);
 	RTPRINT(rtlpriv, FINIT, INIT_IQK, ("0xeac = 0x%x\n", regeac));
@@ -1755,7 +1749,7 @@ static u8 _rtl92d_phy_patha_iqk_5g_normal(struct ieee80211_hw *hw,
 		RTPRINT(rtlpriv, FINIT, INIT_IQK,
 			("Delay %d ms for One shot, path A LOK & IQK.\n",
 			IQK_DELAY_TIME));
-		udelay(IQK_DELAY_TIME * 1000 * 10);
+		mdelay(IQK_DELAY_TIME * 10);
 		/* Check failed */
 		regeac = rtl_get_bbreg(hw, 0xeac, BMASKDWORD);
 		RTPRINT(rtlpriv, FINIT, INIT_IQK, ("0xeac = 0x%x\n", regeac));
@@ -1808,7 +1802,7 @@ static u8 _rtl92d_phy_pathb_iqk(struct ieee80211_hw *hw)
 	RTPRINT(rtlpriv, FINIT, INIT_IQK,
 		("Delay %d ms for One shot, path B LOK & IQK.\n",
 		IQK_DELAY_TIME));
-	udelay(IQK_DELAY_TIME * 1000);
+	mdelay(IQK_DELAY_TIME);
 	/* Check failed */
 	regeac = rtl_get_bbreg(hw, 0xeac, BMASKDWORD);
 	RTPRINT(rtlpriv, FINIT, INIT_IQK, ("0xeac = 0x%x\n", regeac));
@@ -1875,7 +1869,7 @@ static u8 _rtl92d_phy_pathb_iqk_5g_normal(struct ieee80211_hw *hw)
 		/* delay x ms */
 		RTPRINT(rtlpriv, FINIT, INIT_IQK,
 			("Delay %d ms for One shot, path B LOK & IQK.\n", 10));
-		udelay(IQK_DELAY_TIME * 1000 * 10);
+		mdelay(IQK_DELAY_TIME * 10);
 
 		/* Check failed */
 		regeac = rtl_get_bbreg(hw, 0xeac, BMASKDWORD);
@@ -2206,7 +2200,7 @@ static void _rtl92d_phy_iq_calibrate_5g_normal(struct ieee80211_hw *hw,
 	 * PHY_REG.txt , and radio_a, radio_b.txt */
 
 	RTPRINT(rtlpriv, FINIT, INIT_IQK, ("IQK for 5G NORMAL:Start!!!\n"));
-	udelay(IQK_DELAY_TIME * 1000 * 20);
+	mdelay(IQK_DELAY_TIME * 20);
 	if (t == 0) {
 		bbvalue = rtl_get_bbreg(hw, RFPGA0_RFMOD, BMASKDWORD);
 		RTPRINT(rtlpriv, FINIT, INIT_IQK, ("==>0x%08x\n", bbvalue));
