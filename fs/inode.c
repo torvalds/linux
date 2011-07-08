@@ -73,7 +73,7 @@ __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_wb_list_lock);
  *
  * We don't actually need it to protect anything in the umount path,
  * but only need to cycle through it to make sure any inode that
- * prune_icache took off the LRU list has been fully torn down by the
+ * prune_icache_sb took off the LRU list has been fully torn down by the
  * time we are past evict_inodes.
  */
 static DECLARE_RWSEM(iprune_sem);
@@ -544,7 +544,7 @@ void evict_inodes(struct super_block *sb)
 	dispose_list(&dispose);
 
 	/*
-	 * Cycle through iprune_sem to make sure any inode that prune_icache
+	 * Cycle through iprune_sem to make sure any inode that prune_icache_sb
 	 * moved off the list before we took the lock has been fully torn
 	 * down.
 	 */
@@ -612,9 +612,10 @@ static int can_unuse(struct inode *inode)
 }
 
 /*
- * Scan `goal' inodes on the unused list for freeable ones. They are moved to a
- * temporary list and then are freed outside sb->s_inode_lru_lock by
- * dispose_list().
+ * Walk the superblock inode LRU for freeable inodes and attempt to free them.
+ * This is called from the superblock shrinker function with a number of inodes
+ * to trim from the LRU. Inodes to be freed are moved to a temporary list and
+ * then are freed outside inode_lock by dispose_list().
  *
  * Any inodes which are pinned purely because of attached pagecache have their
  * pagecache removed.  If the inode has metadata buffers attached to
@@ -628,14 +629,15 @@ static int can_unuse(struct inode *inode)
  * LRU does not have strict ordering. Hence we don't want to reclaim inodes
  * with this flag set because they are the inodes that are out of order.
  */
-static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
+void prune_icache_sb(struct super_block *sb, int nr_to_scan)
 {
 	LIST_HEAD(freeable);
 	int nr_scanned;
 	unsigned long reap = 0;
 
+	down_read(&iprune_sem);
 	spin_lock(&sb->s_inode_lru_lock);
-	for (nr_scanned = *nr_to_scan; nr_scanned >= 0; nr_scanned--) {
+	for (nr_scanned = nr_to_scan; nr_scanned >= 0; nr_scanned--) {
 		struct inode *inode;
 
 		if (list_empty(&sb->s_inode_lru))
@@ -707,110 +709,10 @@ static void shrink_icache_sb(struct super_block *sb, int *nr_to_scan)
 	else
 		__count_vm_events(PGINODESTEAL, reap);
 	spin_unlock(&sb->s_inode_lru_lock);
-	*nr_to_scan = nr_scanned;
 
 	dispose_list(&freeable);
-}
-
-static void prune_icache(int count)
-{
-	struct super_block *sb, *p = NULL;
-	int w_count;
-	int unused = inodes_stat.nr_unused;
-	int prune_ratio;
-	int pruned;
-
-	if (unused == 0 || count == 0)
-		return;
-	down_read(&iprune_sem);
-	if (count >= unused)
-		prune_ratio = 1;
-	else
-		prune_ratio = unused / count;
-	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (list_empty(&sb->s_instances))
-			continue;
-		if (sb->s_nr_inodes_unused == 0)
-			continue;
-		sb->s_count++;
-		/* Now, we reclaim unused dentrins with fairness.
-		 * We reclaim them same percentage from each superblock.
-		 * We calculate number of dentries to scan on this sb
-		 * as follows, but the implementation is arranged to avoid
-		 * overflows:
-		 * number of dentries to scan on this sb =
-		 * count * (number of dentries on this sb /
-		 * number of dentries in the machine)
-		 */
-		spin_unlock(&sb_lock);
-		if (prune_ratio != 1)
-			w_count = (sb->s_nr_inodes_unused / prune_ratio) + 1;
-		else
-			w_count = sb->s_nr_inodes_unused;
-		pruned = w_count;
-		/*
-		 * We need to be sure this filesystem isn't being unmounted,
-		 * otherwise we could race with generic_shutdown_super(), and
-		 * end up holding a reference to an inode while the filesystem
-		 * is unmounted.  So we try to get s_umount, and make sure
-		 * s_root isn't NULL.
-		 */
-		if (down_read_trylock(&sb->s_umount)) {
-			if ((sb->s_root != NULL) &&
-			    (!list_empty(&sb->s_dentry_lru))) {
-				shrink_icache_sb(sb, &w_count);
-				pruned -= w_count;
-			}
-			up_read(&sb->s_umount);
-		}
-		spin_lock(&sb_lock);
-		if (p)
-			__put_super(p);
-		count -= pruned;
-		p = sb;
-		/* more work left to do? */
-		if (count <= 0)
-			break;
-	}
-	if (p)
-		__put_super(p);
-	spin_unlock(&sb_lock);
 	up_read(&iprune_sem);
 }
-
-/*
- * shrink_icache_memory() will attempt to reclaim some unused inodes.  Here,
- * "unused" means that no dentries are referring to the inodes: the files are
- * not open and the dcache references to those inodes have already been
- * reclaimed.
- *
- * This function is passed the number of inodes to scan, and it returns the
- * total number of remaining possibly-reclaimable inodes.
- */
-static int shrink_icache_memory(struct shrinker *shrink,
-				struct shrink_control *sc)
-{
-	int nr = sc->nr_to_scan;
-	gfp_t gfp_mask = sc->gfp_mask;
-
-	if (nr) {
-		/*
-		 * Nasty deadlock avoidance.  We may hold various FS locks,
-		 * and we don't want to recurse into the FS that called us
-		 * in clear_inode() and friends..
-		 */
-		if (!(gfp_mask & __GFP_FS))
-			return -1;
-		prune_icache(nr);
-	}
-	return (get_nr_inodes_unused() / 100) * sysctl_vfs_cache_pressure;
-}
-
-static struct shrinker icache_shrinker = {
-	.shrink = shrink_icache_memory,
-	.seeks = DEFAULT_SEEKS,
-};
 
 static void __wait_on_freeing_inode(struct inode *inode);
 /*
@@ -1691,7 +1593,6 @@ void __init inode_init(void)
 					 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
 					 SLAB_MEM_SPREAD),
 					 init_once);
-	register_shrinker(&icache_shrinker);
 
 	/* Hash may have been set up in inode_init_early */
 	if (!hashdist)

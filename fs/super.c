@@ -38,6 +38,48 @@
 LIST_HEAD(super_blocks);
 DEFINE_SPINLOCK(sb_lock);
 
+/*
+ * One thing we have to be careful of with a per-sb shrinker is that we don't
+ * drop the last active reference to the superblock from within the shrinker.
+ * If that happens we could trigger unregistering the shrinker from within the
+ * shrinker path and that leads to deadlock on the shrinker_rwsem. Hence we
+ * take a passive reference to the superblock to avoid this from occurring.
+ */
+static int prune_super(struct shrinker *shrink, struct shrink_control *sc)
+{
+	struct super_block *sb;
+	int count;
+
+	sb = container_of(shrink, struct super_block, s_shrink);
+
+	/*
+	 * Deadlock avoidance.  We may hold various FS locks, and we don't want
+	 * to recurse into the FS that called us in clear_inode() and friends..
+	 */
+	if (sc->nr_to_scan && !(sc->gfp_mask & __GFP_FS))
+		return -1;
+
+	if (!grab_super_passive(sb))
+		return -1;
+
+	if (sc->nr_to_scan) {
+		/* proportion the scan between the two caches */
+		int total;
+
+		total = sb->s_nr_dentry_unused + sb->s_nr_inodes_unused + 1;
+		count = (sc->nr_to_scan * sb->s_nr_dentry_unused) / total;
+
+		/* prune dcache first as icache is pinned by it */
+		prune_dcache_sb(sb, count);
+		prune_icache_sb(sb, sc->nr_to_scan - count);
+	}
+
+	count = ((sb->s_nr_dentry_unused + sb->s_nr_inodes_unused) / 100)
+						* sysctl_vfs_cache_pressure;
+	drop_super(sb);
+	return count;
+}
+
 /**
  *	alloc_super	-	create new superblock
  *	@type:	filesystem type superblock should belong to
@@ -116,6 +158,9 @@ static struct super_block *alloc_super(struct file_system_type *type)
 		s->s_op = &default_op;
 		s->s_time_gran = 1000000000;
 		s->cleancache_poolid = -1;
+
+		s->s_shrink.seeks = DEFAULT_SEEKS;
+		s->s_shrink.shrink = prune_super;
 	}
 out:
 	return s;
@@ -183,6 +228,10 @@ void deactivate_locked_super(struct super_block *s)
 	if (atomic_dec_and_test(&s->s_active)) {
 		cleancache_flush_fs(s);
 		fs->kill_sb(s);
+
+		/* caches are now gone, we can safely kill the shrinker now */
+		unregister_shrinker(&s->s_shrink);
+
 		/*
 		 * We need to call rcu_barrier so all the delayed rcu free
 		 * inodes are flushed before we release the fs module.
@@ -311,7 +360,6 @@ void generic_shutdown_super(struct super_block *sb)
 {
 	const struct super_operations *sop = sb->s_op;
 
-
 	if (sb->s_root) {
 		shrink_dcache_for_umount(sb);
 		sync_filesystem(sb);
@@ -399,6 +447,7 @@ retry:
 	list_add(&s->s_instances, &type->fs_supers);
 	spin_unlock(&sb_lock);
 	get_filesystem(type);
+	register_shrinker(&s->s_shrink);
 	return s;
 }
 
