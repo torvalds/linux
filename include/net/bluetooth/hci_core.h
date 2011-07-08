@@ -261,6 +261,7 @@ struct hci_conn {
 	__u8		sec_level;
 	__u8		pending_sec_level;
 	__u8		pin_length;
+	__u8		enc_key_size;
 	__u8		io_capability;
 	__u8		power_save;
 	__u16		disc_timeout;
@@ -556,7 +557,7 @@ struct link_key *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8]);
 struct link_key *hci_find_link_key_type(struct hci_dev *hdev,
 					bdaddr_t *bdaddr, u8 type);
 int hci_add_ltk(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
-					__le16 ediv, u8 rand[8], u8 ltk[16]);
+			u8 key_size, __le16 ediv, u8 rand[8], u8 ltk[16]);
 int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
 
 int hci_remote_oob_data_clear(struct hci_dev *hdev);
