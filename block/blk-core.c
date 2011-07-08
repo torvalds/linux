@@ -1302,7 +1302,10 @@ get_rq:
 				plug->should_sort = 1;
 		}
 		list_add_tail(&req->queuelist, &plug->list);
+		plug->count++;
 		drive_stat_acct(req, 1);
+		if (plug->count >= BLK_MAX_REQUEST_COUNT)
+			blk_flush_plug_list(plug, false);
 	} else {
 		spin_lock_irq(q->queue_lock);
 		add_acct_request(q, req, where);
@@ -2626,6 +2629,7 @@ void blk_start_plug(struct blk_plug *plug)
 	INIT_LIST_HEAD(&plug->list);
 	INIT_LIST_HEAD(&plug->cb_list);
 	plug->should_sort = 0;
+	plug->count = 0;
 
 	/*
 	 * If this is a nested plug, don't actually assign it. It will be
@@ -2709,6 +2713,7 @@ void blk_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 		return;
 
 	list_splice_init(&plug->list, &list);
+	plug->count = 0;
 
 	if (plug->should_sort) {
 		list_sort(NULL, &list, plug_rq_cmp);
