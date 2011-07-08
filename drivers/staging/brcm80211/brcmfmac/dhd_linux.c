@@ -111,7 +111,7 @@ module_param(brcmf_pkt_filter_init, uint, 0);
 
 /* Pkt filter mode control */
 uint brcmf_master_mode = true;
-module_param(brcmf_master_mode, uint, 1);
+module_param(brcmf_master_mode, uint, 0);
 
 module_param(brcmf_dongle_memsize, int, 0);
 
