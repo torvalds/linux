@@ -266,6 +266,7 @@ enum intel_pch {
 #define QUIRK_PIPEA_FORCE (1<<0)
 
 struct intel_fbdev;
+struct intel_fbc_work;
 
 typedef struct drm_i915_private {
 	struct drm_device *dev;
@@ -335,6 +336,7 @@ typedef struct drm_i915_private {
 	int cfb_fence;
 	int cfb_plane;
 	int cfb_y;
+	struct intel_fbc_work *fbc_work;
 
 	struct intel_opregion opregion;
 

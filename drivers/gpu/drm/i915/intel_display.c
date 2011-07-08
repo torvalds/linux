@@ -1636,19 +1636,95 @@ bool intel_fbc_enabled(struct drm_device *dev)
 	return dev_priv->display.fbc_enabled(dev);
 }
 
+static void intel_fbc_work_fn(struct work_struct *__work)
+{
+	struct intel_fbc_work *work =
+		container_of(to_delayed_work(__work),
+			     struct intel_fbc_work, work);
+	struct drm_device *dev = work->crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	mutex_lock(&dev->struct_mutex);
+	if (work == dev_priv->fbc_work) {
+		/* Double check that we haven't switched fb without cancelling
+		 * the prior work.
+		 */
+		if (work->crtc->fb == work->fb)
+			dev_priv->display.enable_fbc(work->crtc,
+						     work->interval);
+
+		dev_priv->fbc_work = NULL;
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	kfree(work);
+}
+
+static void intel_cancel_fbc_work(struct drm_i915_private *dev_priv)
+{
+	if (dev_priv->fbc_work == NULL)
+		return;
+
+	DRM_DEBUG_KMS("cancelling pending FBC enable\n");
+
+	/* Synchronisation is provided by struct_mutex and checking of
+	 * dev_priv->fbc_work, so we can perform the cancellation
+	 * entirely asynchronously.
+	 */
+	if (cancel_delayed_work(&dev_priv->fbc_work->work))
+		/* tasklet was killed before being run, clean up */
+		kfree(dev_priv->fbc_work);
+
+	/* Mark the work as no longer wanted so that if it does
+	 * wake-up (because the work was already running and waiting
+	 * for our mutex), it will discover that is no longer
+	 * necessary to run.
+	 */
+	dev_priv->fbc_work = NULL;
+}
+
 static void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 {
-	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct intel_fbc_work *work;
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (!dev_priv->display.enable_fbc)
 		return;
 
-	dev_priv->display.enable_fbc(crtc, interval);
+	intel_cancel_fbc_work(dev_priv);
+
+	work = kzalloc(sizeof *work, GFP_KERNEL);
+	if (work == NULL) {
+		dev_priv->display.enable_fbc(crtc, interval);
+		return;
+	}
+
+	work->crtc = crtc;
+	work->fb = crtc->fb;
+	work->interval = interval;
+	INIT_DELAYED_WORK(&work->work, intel_fbc_work_fn);
+
+	dev_priv->fbc_work = work;
+
+	DRM_DEBUG_KMS("scheduling delayed FBC enable\n");
+
+	/* Delay the actual enabling to let pageflipping cease and the
+	 * display to settle before starting the compression.
+	 *
+	 * A more complicated solution would involve tracking vblanks
+	 * following the termination of the page-flipping sequence
+	 * and indeed performing the enable as a co-routine and not
+	 * waiting synchronously upon the vblank.
+	 */
+	schedule_delayed_work(&work->work, msecs_to_jiffies(50));
 }
 
 void intel_disable_fbc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_cancel_fbc_work(dev_priv);
 
 	if (!dev_priv->display.disable_fbc)
 		return;
@@ -8226,6 +8302,9 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	 * enqueue unpin/hotplug work. */
 	drm_irq_uninstall(dev);
 	cancel_work_sync(&dev_priv->hotplug_work);
+
+	/* flush any delayed tasks or pending work */
+	flush_scheduled_work();
 
 	/* Shut off idle work before the crtcs get freed. */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {

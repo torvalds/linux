@@ -234,6 +234,13 @@ struct intel_unpin_work {
 	bool enable_stall_check;
 };
 
+struct intel_fbc_work {
+	struct delayed_work work;
+	struct drm_crtc *crtc;
+	struct drm_framebuffer *fb;
+	int interval;
+};
+
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
 extern bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus);
 
