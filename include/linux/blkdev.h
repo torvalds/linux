@@ -857,6 +857,12 @@ struct request_queue *blk_alloc_queue(gfp_t);
 struct request_queue *blk_alloc_queue_node(gfp_t, int);
 extern void blk_put_queue(struct request_queue *);
 
+/*
+ * Note: Code in between changing the blk_plug list/cb_list or element of such
+ * lists is preemptable, but such code can't do sleep (or be very careful),
+ * otherwise data is corrupted. For details, please check schedule() where
+ * blk_schedule_flush_plug() is called.
+ */
 struct blk_plug {
 	unsigned long magic;
 	struct list_head list;
