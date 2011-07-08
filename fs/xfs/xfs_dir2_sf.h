@@ -76,10 +76,13 @@ typedef struct xfs_dir2_sf_hdr {
 } __arch_pack xfs_dir2_sf_hdr_t;
 
 typedef struct xfs_dir2_sf_entry {
-	__uint8_t		namelen;	/* actual name length */
+	__u8			namelen;	/* actual name length */
 	xfs_dir2_sf_off_t	offset;		/* saved offset */
-	__uint8_t		name[1];	/* name, variable size */
-	xfs_dir2_inou_t		inumber;	/* inode number, var. offset */
+	__u8			name[];		/* name, variable size */
+	/*
+	 * A xfs_dir2_ino8_t or xfs_dir2_ino4_t follows here, at a
+	 * variable offset after the name.
+	 */
 } __arch_pack xfs_dir2_sf_entry_t; 
 
 static inline int xfs_dir2_sf_hdr_size(int i8count)
@@ -101,19 +104,14 @@ xfs_dir2_sf_put_offset(xfs_dir2_sf_entry_t *sfep, xfs_dir2_data_aoff_t off)
 	INT_SET_UNALIGNED_16_BE(&(sfep)->offset.i, off);
 }
 
-static inline int xfs_dir2_sf_entsize_byname(xfs_dir2_sf_hdr_t *sfp, int len)
-{
-	return ((uint)sizeof(xfs_dir2_sf_entry_t) - 1 + (len) - \
-		((sfp)->i8count == 0) * \
-		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)));
-}
-
 static inline int
-xfs_dir2_sf_entsize_byentry(xfs_dir2_sf_hdr_t *sfp, xfs_dir2_sf_entry_t *sfep)
+xfs_dir2_sf_entsize(struct xfs_dir2_sf_hdr *hdr, int len)
 {
-	return ((uint)sizeof(xfs_dir2_sf_entry_t) - 1 + (sfep)->namelen - \
-		((sfp)->i8count == 0) * \
-		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)));
+	return sizeof(struct xfs_dir2_sf_entry) +	/* namelen + offset */
+		len +					/* name */
+		(hdr->i8count ?				/* ino */
+		 sizeof(xfs_dir2_ino8_t) :
+		 sizeof(xfs_dir2_ino4_t));
 }
 
 static inline struct xfs_dir2_sf_entry *
@@ -128,7 +126,7 @@ xfs_dir2_sf_nextentry(struct xfs_dir2_sf_hdr *hdr,
 		struct xfs_dir2_sf_entry *sfep)
 {
 	return (struct xfs_dir2_sf_entry *)
-		((char *)sfep + xfs_dir2_sf_entsize_byentry(hdr, sfep));
+		((char *)sfep + xfs_dir2_sf_entsize(hdr, sfep->namelen));
 }
 
 /*
