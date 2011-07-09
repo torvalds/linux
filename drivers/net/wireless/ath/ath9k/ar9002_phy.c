@@ -447,25 +447,26 @@ static void ar9002_olc_init(struct ath_hw *ah)
 static u32 ar9002_hw_compute_pll_control(struct ath_hw *ah,
 					 struct ath9k_channel *chan)
 {
+	int ref_div = 5;
+	int pll_div = 0x2c;
 	u32 pll;
 
-	pll = SM(0x5, AR_RTC_9160_PLL_REFDIV);
+	if (chan && IS_CHAN_5GHZ(chan) && !IS_CHAN_A_FAST_CLOCK(ah, chan)) {
+		if (AR_SREV_9280_20(ah)) {
+			ref_div = 10;
+			pll_div = 0x50;
+		} else {
+			pll_div = 0x28;
+		}
+	}
+
+	pll = SM(ref_div, AR_RTC_9160_PLL_REFDIV);
+	pll |= SM(pll_div, AR_RTC_9160_PLL_DIV);
 
 	if (chan && IS_CHAN_HALF_RATE(chan))
 		pll |= SM(0x1, AR_RTC_9160_PLL_CLKSEL);
 	else if (chan && IS_CHAN_QUARTER_RATE(chan))
 		pll |= SM(0x2, AR_RTC_9160_PLL_CLKSEL);
-
-	if (chan && IS_CHAN_5GHZ(chan)) {
-		if (IS_CHAN_A_FAST_CLOCK(ah, chan))
-			pll = 0x142c;
-		else if (AR_SREV_9280_20(ah))
-			pll = 0x2850;
-		else
-			pll |= SM(0x28, AR_RTC_9160_PLL_DIV);
-	} else {
-		pll |= SM(0x2c, AR_RTC_9160_PLL_DIV);
-	}
 
 	return pll;
 }
