@@ -4460,6 +4460,21 @@ static void alc271_fixup_dmic(struct hda_codec *codec,
 		snd_hda_sequence_write(codec, verbs);
 }
 
+static void alc269_fixup_pcm_44k(struct hda_codec *codec,
+				 const struct alc_fixup *fix, int action)
+{
+	struct alc_spec *spec = codec->spec;
+
+	if (action != ALC_FIXUP_ACT_PROBE)
+		return;
+
+	/* Due to a hardware problem on Lenovo Ideadpad, we need to
+	 * fix the sample rate of analog I/O to 44.1kHz
+	 */
+	spec->stream_analog_playback = &alc269_44k_pcm_analog_playback;
+	spec->stream_analog_capture = &alc269_44k_pcm_analog_capture;
+}
+
 enum {
 	ALC269_FIXUP_SONY_VAIO,
 	ALC275_FIXUP_SONY_VAIO_GPIO2,
@@ -4469,6 +4484,7 @@ enum {
 	ALC269_FIXUP_LENOVO_EAPD,
 	ALC275_FIXUP_SONY_HWEQ,
 	ALC271_FIXUP_DMIC,
+	ALC269_FIXUP_PCM_44K,
 };
 
 static const struct alc_fixup alc269_fixups[] = {
@@ -4527,9 +4543,14 @@ static const struct alc_fixup alc269_fixups[] = {
 		.type = ALC_FIXUP_FUNC,
 		.v.func = alc271_fixup_dmic,
 	},
+	[ALC269_FIXUP_PCM_44K] = {
+		.type = ALC_FIXUP_FUNC,
+		.v.func = alc269_fixup_pcm_44k,
+	},
 };
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
+	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
 	SND_PCI_QUIRK(0x104d, 0x9073, "Sony VAIO", ALC275_FIXUP_SONY_VAIO_GPIO2),
 	SND_PCI_QUIRK(0x104d, 0x907b, "Sony VAIO", ALC275_FIXUP_SONY_HWEQ),
 	SND_PCI_QUIRK(0x104d, 0x9084, "Sony VAIO", ALC275_FIXUP_SONY_HWEQ),
@@ -4541,7 +4562,7 @@ static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x21b8, "Thinkpad Edge 14", ALC269_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x17aa, 0x21ca, "Thinkpad L412", ALC269_FIXUP_SKU_IGNORE),
 	SND_PCI_QUIRK(0x17aa, 0x21e9, "Thinkpad Edge 15", ALC269_FIXUP_SKU_IGNORE),
-	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
+	SND_PCI_QUIRK(0x17aa, 0x3bf8, "Lenovo Ideapd", ALC269_FIXUP_PCM_44K),
 	SND_PCI_QUIRK(0x17aa, 0x9e54, "LENOVO NB", ALC269_FIXUP_LENOVO_EAPD),
 	{}
 };
@@ -4677,16 +4698,6 @@ static int patch_alc269(struct hda_codec *codec)
 
 	if (board_config != ALC_MODEL_AUTO)
 		setup_preset(codec, &alc269_presets[board_config]);
-
-#if 0
-	if (board_config == ALC269_QUANTA_FL1) {
-		/* Due to a hardware problem on Lenovo Ideadpad, we need to
-		 * fix the sample rate of analog I/O to 44.1kHz
-		 */
-		spec->stream_analog_playback = &alc269_44k_pcm_analog_playback;
-		spec->stream_analog_capture = &alc269_44k_pcm_analog_capture;
-	}
-#endif
 
 	if (!spec->no_analog && !spec->adc_nids && spec->input_mux) {
 		alc_auto_fill_adc_caps(codec);
