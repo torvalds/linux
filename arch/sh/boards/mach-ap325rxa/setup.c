@@ -188,7 +188,7 @@ static void ap320_wvga_power_off(void *board_data)
 	__raw_writew(0, FPGA_LCDREG);
 }
 
-const static struct fb_videomode ap325rxa_lcdc_modes[] = {
+static const struct fb_videomode ap325rxa_lcdc_modes[] = {
 	{
 		.name = "LB070WV1",
 		.xres = 800,
