@@ -873,6 +873,7 @@ int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_GET);
+	cmd.offset = cpu_to_le16(offset);
 
 	if (reg != CMD_MAC_REG_ACCESS &&
 	    reg != CMD_BBP_REG_ACCESS &&
@@ -882,7 +883,7 @@ int lbs_get_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 *value)
 	}
 
 	ret = lbs_cmd_with_response(priv, reg, &cmd);
-	if (ret) {
+	if (!ret) {
 		if (reg == CMD_BBP_REG_ACCESS || reg == CMD_RF_REG_ACCESS)
 			*value = cmd.value.bbp_rf;
 		else if (reg == CMD_MAC_REG_ACCESS)
@@ -915,6 +916,7 @@ int lbs_set_reg(struct lbs_private *priv, u16 reg, u16 offset, u32 value)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_SET);
+	cmd.offset = cpu_to_le16(offset);
 
 	if (reg == CMD_BBP_REG_ACCESS || reg == CMD_RF_REG_ACCESS)
 		cmd.value.bbp_rf = (u8) (value & 0xFF);
