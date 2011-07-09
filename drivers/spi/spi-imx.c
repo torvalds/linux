@@ -34,6 +34,9 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/types.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 
 #include <mach/spi.h>
 
@@ -604,6 +607,16 @@ static struct platform_device_id spi_imx_devtype[] = {
 	}
 };
 
+static const struct of_device_id spi_imx_dt_ids[] = {
+	{ .compatible = "fsl,imx1-cspi", .data = &imx1_cspi_devtype_data, },
+	{ .compatible = "fsl,imx21-cspi", .data = &imx21_cspi_devtype_data, },
+	{ .compatible = "fsl,imx27-cspi", .data = &imx27_cspi_devtype_data, },
+	{ .compatible = "fsl,imx31-cspi", .data = &imx31_cspi_devtype_data, },
+	{ .compatible = "fsl,imx35-cspi", .data = &imx35_cspi_devtype_data, },
+	{ .compatible = "fsl,imx51-ecspi", .data = &imx51_ecspi_devtype_data, },
+	{ /* sentinel */ }
+};
+
 static void spi_imx_chipselect(struct spi_device *spi, int is_active)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
@@ -737,19 +750,25 @@ static void spi_imx_cleanup(struct spi_device *spi)
 
 static int __devinit spi_imx_probe(struct platform_device *pdev)
 {
-	struct spi_imx_master *mxc_platform_info;
+	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *of_id =
+			of_match_device(spi_imx_dt_ids, &pdev->dev);
+	struct spi_imx_master *mxc_platform_info =
+			dev_get_platdata(&pdev->dev);
 	struct spi_master *master;
 	struct spi_imx_data *spi_imx;
 	struct resource *res;
 	int i, ret, num_cs;
 
-	mxc_platform_info = dev_get_platdata(&pdev->dev);
-	if (!mxc_platform_info) {
+	if (!np && !mxc_platform_info) {
 		dev_err(&pdev->dev, "can't get the platform data\n");
 		return -EINVAL;
 	}
 
-	num_cs = mxc_platform_info->num_chipselect;
+	ret = of_property_read_u32(np, "fsl,spi-num-chipselects", &num_cs);
+	if (ret < 0)
+		num_cs = mxc_platform_info->num_chipselect;
+
 	master = spi_alloc_master(&pdev->dev,
 			sizeof(struct spi_imx_data) + sizeof(int) * num_cs);
 	if (!master)
@@ -764,9 +783,12 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 	spi_imx->bitbang.master = spi_master_get(master);
 
 	for (i = 0; i < master->num_chipselect; i++) {
-		spi_imx->chipselect[i] = mxc_platform_info->chipselect[i];
-		if (spi_imx->chipselect[i] < 0)
+		int cs_gpio = of_get_named_gpio(np, "cs-gpios", i);
+		if (cs_gpio < 0)
+			cs_gpio = mxc_platform_info->chipselect[i];
+		if (cs_gpio < 0)
 			continue;
+		spi_imx->chipselect[i] = cs_gpio;
 		ret = gpio_request(spi_imx->chipselect[i], DRIVER_NAME);
 		if (ret) {
 			while (i > 0) {
@@ -788,7 +810,7 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 
 	init_completion(&spi_imx->xfer_done);
 
-	spi_imx->devtype_data =
+	spi_imx->devtype_data = of_id ? of_id->data :
 		(struct spi_imx_devtype_data *) pdev->id_entry->driver_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -836,6 +858,7 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 
 	spi_imx->devtype_data->intctrl(spi_imx, 0);
 
+	master->dev.of_node = pdev->dev.of_node;
 	ret = spi_bitbang_start(&spi_imx->bitbang);
 	if (ret) {
 		dev_err(&pdev->dev, "bitbang start failed with %d\n", ret);
@@ -898,6 +921,7 @@ static struct platform_driver spi_imx_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .owner = THIS_MODULE,
+		   .of_match_table = spi_imx_dt_ids,
 		   },
 	.id_table = spi_imx_devtype,
 	.probe = spi_imx_probe,
