@@ -4,7 +4,11 @@
 #include <linux/types.h>
 #include <linux/i2c.h>
 
-extern struct dvb_frontend *drxk_attach(struct i2c_adapter *i2c,
-					u8 adr,
+struct drxk_config {
+	u8 adr;
+};
+
+extern struct dvb_frontend *drxk_attach(const struct drxk_config *config,
+					struct i2c_adapter *i2c,
 					struct dvb_frontend **fe_t);
 #endif

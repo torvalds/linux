@@ -6341,10 +6341,12 @@ static struct dvb_frontend_ops drxk_t_ops = {
 	.read_ucblocks = drxk_read_ucblocks,
 };
 
-struct dvb_frontend *drxk_attach(struct i2c_adapter *i2c, u8 adr,
+struct dvb_frontend *drxk_attach(const struct drxk_config *config,
+				 struct i2c_adapter *i2c,
 				 struct dvb_frontend **fe_t)
 {
 	struct drxk_state *state = NULL;
+	u8 adr = config->adr;
 
 	dprintk(1, "\n");
 	state = kzalloc(sizeof(struct drxk_state), GFP_KERNEL);

@@ -213,9 +213,12 @@ static int port_has_drxk(struct i2c_adapter *i2c, int port)
 static int demod_attach_drxk(struct ngene_channel *chan,
 			     struct i2c_adapter *i2c)
 {
-	chan->fe = dvb_attach(drxk_attach,
-				   i2c, 0x29 + (chan->number^2),
-				   &chan->fe2);
+	struct drxk_config config;
+
+	memset(&config, 0, sizeof(config));
+	config.adr = 0x29 + (chan->number ^ 2);
+
+	chan->fe = dvb_attach(drxk_attach, &config, i2c, &chan->fe2);
 	if (!chan->fe) {
 		printk(KERN_ERR "No DRXK found!\n");
 		return -ENODEV;
