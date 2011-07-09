@@ -3562,6 +3562,11 @@ static int transport_generic_cmd_sequencer(
 		cmd->data_length = size;
 	}
 
+	/* Let's limit control cdbs to a page, for simplicity's sake. */
+	if ((cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB) &&
+	    size > PAGE_SIZE)
+		goto out_invalid_cdb_field;
+
 	transport_set_supported_SAM_opcode(cmd);
 	return ret;
 
