@@ -1067,7 +1067,6 @@ static void conf(struct menu *menu)
 	struct menu *submenu = 0;
 	const char *prompt = menu_get_prompt(menu);
 	struct symbol *sym;
-	struct menu *active_menu = NULL;
 	int res;
 	int current_index = 0;
 	int last_top_row = 0;
@@ -1152,7 +1151,6 @@ static void conf(struct menu *menu)
 			continue;
 
 		submenu = (struct menu *) item_data();
-		active_menu = (struct menu *)item_data();
 		if (!submenu || !menu_is_visible(submenu))
 			continue;
 		if (submenu)
