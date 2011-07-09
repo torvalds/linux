@@ -326,6 +326,11 @@ struct drxk_state {
 	u16               m_AntennaSwitchDVBTDVBC;
 
 	enum DRXPowerMode m_currentPowerMode;
+
+	/* Configurable parameters at the driver */
+
+	u32 single_master : 1;		/* Use single master i2c mode */
+
 };
 
 #define NEVER_LOCK 0

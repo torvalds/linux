@@ -375,9 +375,10 @@ static int i2c_read(struct i2c_adapter *adap,
 static int read16_flags(struct drxk_state *state, u32 reg, u16 *data, u8 flags)
 {
 	u8 adr = state->demod_address, mm1[4], mm2[2], len;
-#ifdef I2C_LONG_ADR
-	flags |= 0xC0;
-#endif
+
+	if (state->single_master)
+		flags |= 0xC0;
+
 	if (DRXDAP_FASI_LONG_FORMAT(reg) || (flags != 0)) {
 		mm1[0] = (((reg << 1) & 0xFF) | 0x01);
 		mm1[1] = ((reg >> 16) & 0xFF);
@@ -406,9 +407,10 @@ static int read16(struct drxk_state *state, u32 reg, u16 *data)
 static int read32_flags(struct drxk_state *state, u32 reg, u32 *data, u8 flags)
 {
 	u8 adr = state->demod_address, mm1[4], mm2[4], len;
-#ifdef I2C_LONG_ADR
-	flags |= 0xC0;
-#endif
+
+	if (state->single_master)
+		flags |= 0xC0;
+
 	if (DRXDAP_FASI_LONG_FORMAT(reg) || (flags != 0)) {
 		mm1[0] = (((reg << 1) & 0xFF) | 0x01);
 		mm1[1] = ((reg >> 16) & 0xFF);
@@ -438,9 +440,9 @@ static int read32(struct drxk_state *state, u32 reg, u32 *data)
 static int write16_flags(struct drxk_state *state, u32 reg, u16 data, u8 flags)
 {
 	u8 adr = state->demod_address, mm[6], len;
-#ifdef I2C_LONG_ADR
-	flags |= 0xC0;
-#endif
+
+	if (state->single_master)
+		flags |= 0xC0;
 	if (DRXDAP_FASI_LONG_FORMAT(reg) || (flags != 0)) {
 		mm[0] = (((reg << 1) & 0xFF) | 0x01);
 		mm[1] = ((reg >> 16) & 0xFF);
@@ -469,9 +471,9 @@ static int write16(struct drxk_state *state, u32 reg, u16 data)
 static int write32_flags(struct drxk_state *state, u32 reg, u32 data, u8 flags)
 {
 	u8 adr = state->demod_address, mm[8], len;
-#ifdef I2C_LONG_ADR
-	flags |= 0xC0;
-#endif
+
+	if (state->single_master)
+		flags |= 0xC0;
 	if (DRXDAP_FASI_LONG_FORMAT(reg) || (flags != 0)) {
 		mm[0] = (((reg << 1) & 0xFF) | 0x01);
 		mm[1] = ((reg >> 16) & 0xFF);
@@ -503,9 +505,10 @@ static int write_block(struct drxk_state *state, u32 Address,
 {
 	int status = 0, BlkSize = BlockSize;
 	u8 Flags = 0;
-#ifdef I2C_LONG_ADR
-	Flags |= 0xC0;
-#endif
+
+	if (state->single_master)
+		Flags |= 0xC0;
+
 	while (BlkSize > 0) {
 		int Chunk = BlkSize > state->m_ChunkSize ?
 		    state->m_ChunkSize : BlkSize;
@@ -6355,6 +6358,7 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 
 	state->i2c = i2c;
 	state->demod_address = adr;
+	state->single_master = config->single_master;
 
 	mutex_init(&state->mutex);
 	mutex_init(&state->ctlock);
