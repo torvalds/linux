@@ -131,8 +131,9 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 			channelSel = CHANSEL_5G(freq);
 
 			/* RefDivA setting */
-			REG_RMW_FIELD(ah, AR_AN_SYNTH9,
-				      AR_AN_SYNTH9_REFDIVA, refDivA);
+			ath9k_hw_analog_shift_rmw(ah, AR_AN_SYNTH9,
+				      AR_AN_SYNTH9_REFDIVA,
+				      AR_AN_SYNTH9_REFDIVA_S, refDivA);
 
 		}
 
