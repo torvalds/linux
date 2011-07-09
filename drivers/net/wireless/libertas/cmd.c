@@ -1069,16 +1069,34 @@ static void lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 
-void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
-			  int result)
+void __lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
+			    int result)
 {
+	/*
+	 * Normally, commands are removed from cmdpendingq before being
+	 * submitted. However, we can arrive here on alternative codepaths
+	 * where the command is still pending. Make sure the command really
+	 * isn't part of a list at this point.
+	 */
+	list_del_init(&cmd->list);
+
 	cmd->result = result;
 	cmd->cmdwaitqwoken = 1;
-	wake_up_interruptible(&cmd->cmdwait_q);
+	wake_up(&cmd->cmdwait_q);
 
 	if (!cmd->callback || cmd->callback == lbs_cmd_async_callback)
 		__lbs_cleanup_and_insert_cmd(priv, cmd);
 	priv->cur_cmd = NULL;
+	wake_up_interruptible(&priv->waitq);
+}
+
+void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
+			  int result)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&priv->driver_lock, flags);
+	__lbs_complete_command(priv, cmd, result);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 
 int lbs_set_radio(struct lbs_private *priv, u8 preamble, u8 radio_on)
@@ -1250,7 +1268,7 @@ static struct cmd_ctrl_node *lbs_get_free_cmd_node(struct lbs_private *priv)
 	if (!list_empty(&priv->cmdfreeq)) {
 		tempnode = list_first_entry(&priv->cmdfreeq,
 					    struct cmd_ctrl_node, list);
-		list_del(&tempnode->list);
+		list_del_init(&tempnode->list);
 	} else {
 		lbs_deb_host("GET_CMD_NODE: cmd_ctrl_node is not available\n");
 		tempnode = NULL;
@@ -1358,10 +1376,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				    cpu_to_le16(PS_MODE_ACTION_EXIT_PS)) {
 					lbs_deb_host(
 					       "EXEC_NEXT_CMD: ignore ENTER_PS cmd\n");
-					spin_lock_irqsave(&priv->driver_lock, flags);
-					list_del(&cmdnode->list);
 					lbs_complete_command(priv, cmdnode, 0);
-					spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 					ret = 0;
 					goto done;
@@ -1371,10 +1386,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				    (priv->psstate == PS_STATE_PRE_SLEEP)) {
 					lbs_deb_host(
 					       "EXEC_NEXT_CMD: ignore EXIT_PS cmd in sleep\n");
-					spin_lock_irqsave(&priv->driver_lock, flags);
-					list_del(&cmdnode->list);
 					lbs_complete_command(priv, cmdnode, 0);
-					spin_unlock_irqrestore(&priv->driver_lock, flags);
 					priv->needtowakeup = 1;
 
 					ret = 0;
@@ -1386,7 +1398,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 			}
 		}
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		list_del(&cmdnode->list);
+		list_del_init(&cmdnode->list);
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		lbs_deb_host("EXEC_NEXT_CMD: sending command 0x%04x\n",
 			    le16_to_cpu(cmd->command));
@@ -1669,7 +1681,13 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	}
 
 	might_sleep();
-	wait_event_interruptible(cmdnode->cmdwait_q, cmdnode->cmdwaitqwoken);
+
+	/*
+	 * Be careful with signals here. A signal may be received as the system
+	 * goes into suspend or resume. We do not want this to interrupt the
+	 * command, so we perform an uninterruptible sleep.
+	 */
+	wait_event(cmdnode->cmdwait_q, cmdnode->cmdwaitqwoken);
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	ret = cmdnode->result;
