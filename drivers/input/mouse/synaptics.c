@@ -207,27 +207,37 @@ static int synaptics_identify(struct psmouse *psmouse)
 static int synaptics_resolution(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv = psmouse->private;
-	unsigned char res[3];
-	unsigned char max[3];
+	unsigned char resp[3];
 
 	if (SYN_ID_MAJOR(priv->identity) < 4)
 		return 0;
 
-	if (synaptics_send_cmd(psmouse, SYN_QUE_RESOLUTION, res) == 0) {
-		if (res[0] != 0 && (res[1] & 0x80) && res[2] != 0) {
-			priv->x_res = res[0]; /* x resolution in units/mm */
-			priv->y_res = res[2]; /* y resolution in units/mm */
+	if (synaptics_send_cmd(psmouse, SYN_QUE_RESOLUTION, resp) == 0) {
+		if (resp[0] != 0 && (resp[1] & 0x80) && resp[2] != 0) {
+			priv->x_res = resp[0]; /* x resolution in units/mm */
+			priv->y_res = resp[2]; /* y resolution in units/mm */
 		}
 	}
 
 	if (SYN_EXT_CAP_REQUESTS(priv->capabilities) >= 5 &&
 	    SYN_CAP_MAX_DIMENSIONS(priv->ext_cap_0c)) {
-		if (synaptics_send_cmd(psmouse, SYN_QUE_EXT_DIMENSIONS, max)) {
-			printk(KERN_ERR "Synaptics claims to have dimensions query,"
-			       " but I'm not able to read it.\n");
+		if (synaptics_send_cmd(psmouse, SYN_QUE_EXT_MAX_COORDS, resp)) {
+			printk(KERN_ERR "Synaptics claims to have max coordinates"
+			       " query, but I'm not able to read it.\n");
 		} else {
-			priv->x_max = (max[0] << 5) | ((max[1] & 0x0f) << 1);
-			priv->y_max = (max[2] << 5) | ((max[1] & 0xf0) >> 3);
+			priv->x_max = (resp[0] << 5) | ((resp[1] & 0x0f) << 1);
+			priv->y_max = (resp[2] << 5) | ((resp[1] & 0xf0) >> 3);
+		}
+	}
+
+	if (SYN_EXT_CAP_REQUESTS(priv->capabilities) >= 7 &&
+	    SYN_CAP_MIN_DIMENSIONS(priv->ext_cap_0c)) {
+		if (synaptics_send_cmd(psmouse, SYN_QUE_EXT_MIN_COORDS, resp)) {
+			printk(KERN_ERR "Synaptics claims to have min coordinates"
+			       " query, but I'm not able to read it.\n");
+		} else {
+			priv->x_min = (resp[0] << 5) | ((resp[1] & 0x0f) << 1);
+			priv->y_min = (resp[2] << 5) | ((resp[1] & 0xf0) >> 3);
 		}
 	}
 
@@ -693,19 +703,27 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 	__set_bit(INPUT_PROP_POINTER, dev->propbit);
 
 	__set_bit(EV_ABS, dev->evbit);
-	input_set_abs_params(dev, ABS_X, XMIN_NOMINAL,
-			     priv->x_max ?: XMAX_NOMINAL, fuzz, 0);
-	input_set_abs_params(dev, ABS_Y, YMIN_NOMINAL,
-			     priv->y_max ?: YMAX_NOMINAL, fuzz, 0);
+	input_set_abs_params(dev, ABS_X,
+			     priv->x_min ?: XMIN_NOMINAL,
+			     priv->x_max ?: XMAX_NOMINAL,
+			     fuzz, 0);
+	input_set_abs_params(dev, ABS_Y,
+			     priv->y_min ?: YMIN_NOMINAL,
+			     priv->y_max ?: YMAX_NOMINAL,
+			     fuzz, 0);
 	input_set_abs_params(dev, ABS_PRESSURE, 0, 255, 0, 0);
 
 	if (SYN_CAP_ADV_GESTURE(priv->ext_cap_0c)) {
 		__set_bit(INPUT_PROP_SEMI_MT, dev->propbit);
 		input_mt_init_slots(dev, 2);
-		input_set_abs_params(dev, ABS_MT_POSITION_X, XMIN_NOMINAL,
-				     priv->x_max ?: XMAX_NOMINAL, fuzz, 0);
-		input_set_abs_params(dev, ABS_MT_POSITION_Y, YMIN_NOMINAL,
-				     priv->y_max ?: YMAX_NOMINAL, fuzz, 0);
+		input_set_abs_params(dev, ABS_MT_POSITION_X,
+				     priv->x_min ?: XMIN_NOMINAL,
+				     priv->x_max ?: XMAX_NOMINAL,
+				     fuzz, 0);
+		input_set_abs_params(dev, ABS_MT_POSITION_Y,
+				     priv->y_min ?: YMIN_NOMINAL,
+				     priv->y_max ?: YMAX_NOMINAL,
+				     fuzz, 0);
 
 		input_abs_set_res(dev, ABS_MT_POSITION_X, priv->x_res);
 		input_abs_set_res(dev, ABS_MT_POSITION_Y, priv->y_res);
