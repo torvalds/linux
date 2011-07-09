@@ -438,7 +438,7 @@ struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
 		/* zero memory only if kernel-allocated */
 		lksb = kzalloc(sizeof(*lksb), GFP_NOFS);
 		if (!lksb) {
-			kfree(lock);
+			kmem_cache_free(dlm_lock_cache, lock);
 			return NULL;
 		}
 		kernel_allocated = 1;
