@@ -1388,6 +1388,12 @@ static int DownloadMicrocode(struct drxk_state *state,
 		BlockCRC = (pSrc[0] << 8) | pSrc[1];
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
+
+		if (offset + BlockSize > Length) {
+			printk(KERN_ERR "drxk: Firmware is corrupted.\n");
+			return -EINVAL;
+		}
+
 		status = write_block(state, Address, BlockSize, pSrc);
 		if (status < 0)
 			break;
