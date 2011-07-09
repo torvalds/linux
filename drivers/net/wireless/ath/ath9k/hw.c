@@ -2079,10 +2079,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			pCap->hw_caps |= ATH9K_HW_CAP_PAPRD;
 	} else {
 		pCap->tx_desc_len = sizeof(struct ath_desc);
-		if (AR_SREV_9280_20(ah) &&
-		    ((ah->eep_ops->get_eeprom(ah, EEP_MINOR_REV) <=
-		      AR5416_EEP_MINOR_VER_16) ||
-		     ah->eep_ops->get_eeprom(ah, EEP_FSTCLK_5G)))
+		if (AR_SREV_9280_20(ah))
 			pCap->hw_caps |= ATH9K_HW_CAP_FASTCLOCK;
 	}
 
