@@ -89,6 +89,20 @@ static void vfp_thread_flush(struct thread_info *thread)
 	union vfp_state *vfp = &thread->vfpstate;
 	unsigned int cpu;
 
+	/*
+	 * Disable VFP to ensure we initialize it first.  We must ensure
+	 * that the modification of vfp_current_hw_state[] and hardware
+	 * disable are done for the same CPU and without preemption.
+	 *
+	 * Do this first to ensure that preemption won't overwrite our
+	 * state saving should access to the VFP be enabled at this point.
+	 */
+	cpu = get_cpu();
+	if (vfp_current_hw_state[cpu] == vfp)
+		vfp_current_hw_state[cpu] = NULL;
+	fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
+	put_cpu();
+
 	memset(vfp, 0, sizeof(union vfp_state));
 
 	vfp->hard.fpexc = FPEXC_EN;
@@ -96,17 +110,6 @@ static void vfp_thread_flush(struct thread_info *thread)
 #ifdef CONFIG_SMP
 	vfp->hard.cpu = NR_CPUS;
 #endif
-
-	/*
-	 * Disable VFP to ensure we initialize it first.  We must ensure
-	 * that the modification of vfp_current_hw_state[] and hardware disable
-	 * are done for the same CPU and without preemption.
-	 */
-	cpu = get_cpu();
-	if (vfp_current_hw_state[cpu] == vfp)
-		vfp_current_hw_state[cpu] = NULL;
-	fmxr(FPEXC, fmrx(FPEXC) & ~FPEXC_EN);
-	put_cpu();
 }
 
 static void vfp_thread_exit(struct thread_info *thread)
