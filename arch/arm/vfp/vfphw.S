@@ -81,11 +81,8 @@ ENTRY(vfp_support_entry)
 	orr	r1, r1, #FPEXC_EN	@ user FPEXC has the enable bit set
 	ldr	r4, [r3, r11, lsl #2]	@ vfp_current_hw_state pointer
 	bic	r5, r1, #FPEXC_EX	@ make sure exceptions are disabled
-	cmp	r4, r10
-	beq	check_for_exception	@ we are returning to the same
-					@ process, so the registers are
-					@ still there.  In this case, we do
-					@ not want to drop a pending exception.
+	cmp	r4, r10			@ this thread owns the hw context?
+	beq	vfp_hw_state_valid
 
 	VFPFMXR	FPEXC, r5		@ enable VFP, disable any pending
 					@ exceptions, so we can get at the
@@ -132,7 +129,8 @@ no_old_VFP_process:
 #endif
 	VFPFMXR	FPSCR, r5		@ restore status
 
-check_for_exception:
+@ The context stored in the VFP hardware is up to date with this thread
+vfp_hw_state_valid:
 	tst	r1, #FPEXC_EX
 	bne	process_exception	@ might as well handle the pending
 					@ exception before retrying branch
