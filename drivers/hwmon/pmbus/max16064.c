@@ -25,6 +25,55 @@
 #include <linux/i2c.h>
 #include "pmbus.h"
 
+#define MAX16064_MFR_VOUT_PEAK		0xd4
+#define MAX16064_MFR_TEMPERATURE_PEAK	0xd6
+
+static int max16064_read_word_data(struct i2c_client *client, int page, int reg)
+{
+	int ret;
+
+	switch (reg) {
+	case PMBUS_VIRT_READ_VOUT_MAX:
+		ret = pmbus_read_word_data(client, page,
+					   MAX16064_MFR_VOUT_PEAK);
+		break;
+	case PMBUS_VIRT_READ_TEMP_MAX:
+		ret = pmbus_read_word_data(client, page,
+					   MAX16064_MFR_TEMPERATURE_PEAK);
+		break;
+	case PMBUS_VIRT_RESET_VOUT_HISTORY:
+	case PMBUS_VIRT_RESET_TEMP_HISTORY:
+		ret = 0;
+		break;
+	default:
+		ret = -ENODATA;
+		break;
+	}
+	return ret;
+}
+
+static int max16064_write_word_data(struct i2c_client *client, int page,
+				    int reg, u16 word)
+{
+	int ret;
+
+	switch (reg) {
+	case PMBUS_VIRT_RESET_VOUT_HISTORY:
+		ret = pmbus_write_word_data(client, page,
+					    MAX16064_MFR_VOUT_PEAK, 0);
+		break;
+	case PMBUS_VIRT_RESET_TEMP_HISTORY:
+		ret = pmbus_write_word_data(client, page,
+					    MAX16064_MFR_TEMPERATURE_PEAK,
+					    0xffff);
+		break;
+	default:
+		ret = -ENODATA;
+		break;
+	}
+	return ret;
+}
+
 static struct pmbus_driver_info max16064_info = {
 	.pages = 4,
 	.format[PSC_VOLTAGE_IN] = direct,
@@ -44,6 +93,8 @@ static struct pmbus_driver_info max16064_info = {
 	.func[1] = PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT,
 	.func[2] = PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT,
 	.func[3] = PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT,
+	.read_word_data = max16064_read_word_data,
+	.write_word_data = max16064_write_word_data,
 };
 
 static int max16064_probe(struct i2c_client *client,
