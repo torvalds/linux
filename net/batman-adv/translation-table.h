@@ -49,7 +49,7 @@ uint16_t tt_local_crc(struct bat_priv *bat_priv);
 uint16_t tt_global_crc(struct bat_priv *bat_priv, struct orig_node *orig_node);
 void tt_free(struct bat_priv *bat_priv);
 int send_tt_request(struct bat_priv *bat_priv,
-		    struct orig_node *dst_orig_node, uint8_t hvn,
+		    struct orig_node *dst_orig_node, uint8_t ttvn,
 		    uint16_t tt_crc, bool full_table);
 bool send_tt_response(struct bat_priv *bat_priv,
 		      struct tt_query_packet *tt_request);

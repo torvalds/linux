@@ -249,7 +249,7 @@ static void hardif_activate_interface(struct hard_iface *hard_iface)
 
 	/**
 	 * the first active interface becomes our primary interface or
-	 * the next active interface after the old primay interface was removed
+	 * the next active interface after the old primary interface was removed
 	 */
 	primary_if = primary_if_get_selected(bat_priv);
 	if (!primary_if)
@@ -573,7 +573,7 @@ out:
 	return NOTIFY_DONE;
 }
 
-/* receive a packet with the batman ethertype coming on a hard
+/* incoming packets with the batman ethertype received on any active hard
  * interface */
 static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 			   struct packet_type *ptype,

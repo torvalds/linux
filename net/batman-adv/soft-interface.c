@@ -532,7 +532,7 @@ static int interface_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	/* only modify transtable if it has been initialised before */
+	/* only modify transtable if it has been initialized before */
 	if (atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE) {
 		tt_local_remove(bat_priv, dev->dev_addr,
 				"mac address changed", false);

@@ -369,8 +369,8 @@ static void tt_local_set_pending(struct bat_priv *bat_priv,
 	tt_local_event(bat_priv, tt_local_entry->addr,
 		       tt_local_entry->flags | flags);
 
-	/* The local client has to be merked as "pending to be removed" but has
-	 * to be kept in the table in order to send it in an full tables
+	/* The local client has to be marked as "pending to be removed" but has
+	 * to be kept in the table in order to send it in a full table
 	 * response issued before the net ttvn increment (consistency check) */
 	tt_local_entry->flags |= TT_CLIENT_PENDING;
 }
@@ -1137,12 +1137,12 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 	orig_ttvn = (uint8_t)atomic_read(&req_dst_orig_node->last_ttvn);
 	req_ttvn = tt_request->ttvn;
 
-	/* I have not the requested data */
+	/* I don't have the requested data */
 	if (orig_ttvn != req_ttvn ||
 	    tt_request->tt_data != req_dst_orig_node->tt_crc)
 		goto out;
 
-	/* If it has explicitly been requested the full table */
+	/* If the full table has been explicitly requested */
 	if (tt_request->flags & TT_FULL_TABLE ||
 	    !req_dst_orig_node->tt_buff)
 		full_table = true;

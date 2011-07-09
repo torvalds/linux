@@ -57,7 +57,7 @@ struct hard_iface {
  *	@batman_seqno_reset: time when the batman seqno window was reset
  *	@gw_flags: flags related to gateway class
  *	@flags: for now only VIS_SERVER flag
- *	@last_real_seqno: last and best known squence number
+ *	@last_real_seqno: last and best known sequence number
  *	@last_ttl: ttl of last received packet
  *	@last_bcast_seqno: last broadcast sequence number received by this host
  *
@@ -156,7 +156,7 @@ struct bat_priv {
 	atomic_t bcast_seqno;
 	atomic_t bcast_queue_left;
 	atomic_t batman_queue_left;
-	atomic_t ttvn; /* tranlation table version number */
+	atomic_t ttvn; /* translation table version number */
 	atomic_t tt_ogm_append_cnt;
 	atomic_t tt_local_changes; /* changes registered in a OGM interval */
 	/* The tt_poss_change flag is used to detect an ongoing roaming phase.

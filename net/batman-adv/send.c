@@ -135,7 +135,7 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 							    "Forwarding"));
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"%s %spacket (originator %pM, seqno %d, TQ %d, TTL %d,"
-			" IDF %s, hvn %d) on interface %s [%pM]\n",
+			" IDF %s, ttvn %d) on interface %s [%pM]\n",
 			fwd_str, (packet_num > 0 ? "aggregated " : ""),
 			batman_packet->orig, ntohl(batman_packet->seqno),
 			batman_packet->tq, batman_packet->ttl,
@@ -313,7 +313,7 @@ void schedule_own_packet(struct hard_iface *hard_iface)
 			prepare_packet_buffer(bat_priv, hard_iface);
 		}
 
-		/* if the changes have been sent enough times */
+		/* if the changes have been sent often enough */
 		if (!atomic_dec_not_zero(&bat_priv->tt_ogm_append_cnt))
 			reset_packet_buffer(bat_priv, hard_iface);
 	}
@@ -454,7 +454,7 @@ static void _add_bcast_packet_to_list(struct bat_priv *bat_priv,
 }
 
 /* add a broadcast packet to the queue and setup timers. broadcast packets
- * are sent multiple times to increase probability for beeing received.
+ * are sent multiple times to increase probability for being received.
  *
  * This function returns NETDEV_TX_OK on success and NETDEV_TX_BUSY on
  * errors.
@@ -612,7 +612,7 @@ void purge_outstanding_packets(struct bat_priv *bat_priv,
 				  &bat_priv->forw_bcast_list, list) {
 
 		/**
-		 * if purge_outstanding_packets() was called with an argmument
+		 * if purge_outstanding_packets() was called with an argument
 		 * we delete only packets belonging to the given interface
 		 */
 		if ((hard_iface) &&
@@ -641,7 +641,7 @@ void purge_outstanding_packets(struct bat_priv *bat_priv,
 				  &bat_priv->forw_bat_list, list) {
 
 		/**
-		 * if purge_outstanding_packets() was called with an argmument
+		 * if purge_outstanding_packets() was called with an argument
 		 * we delete only packets belonging to the given interface
 		 */
 		if ((hard_iface) &&

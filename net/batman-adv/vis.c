@@ -131,7 +131,7 @@ static void vis_data_insert_interface(const uint8_t *interface,
 			return;
 	}
 
-	/* its a new address, add it to the list */
+	/* it's a new address, add it to the list */
 	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
 		return;

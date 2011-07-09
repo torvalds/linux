@@ -75,10 +75,9 @@ static void update_transtable(struct bat_priv *bat_priv,
 
 	/* the ttvn increased by one -> we can apply the attached changes */
 	if (ttvn - orig_ttvn == 1) {
-		/* the OGM could not contain the changes because they were too
-		 * many to fit in one frame or because they have already been
-		 * sent TT_OGM_APPEND_MAX times. In this case send a tt
-		 * request */
+		/* the OGM could not contain the changes due to their size or
+		 * because they have already been sent TT_OGM_APPEND_MAX times.
+		 * In this case send a tt request */
 		if (!tt_num_changes) {
 			full_table = false;
 			goto request_table;
@@ -87,13 +86,13 @@ static void update_transtable(struct bat_priv *bat_priv,
 		tt_update_changes(bat_priv, orig_node, tt_num_changes, ttvn,
 				  (struct tt_change *)tt_buff);
 
-		/* Even if we received the crc into the OGM, we prefer
-		 * to recompute it to spot any possible inconsistency
+		/* Even if we received the precomputed crc with the OGM, we
+		 * prefer to recompute it to spot any possible inconsistency
 		 * in the global table */
 		orig_node->tt_crc = tt_global_crc(bat_priv, orig_node);
 
 		/* The ttvn alone is not enough to guarantee consistency
-		 * because a single value could repesent different states
+		 * because a single value could represent different states
 		 * (due to the wrap around). Thus a node has to check whether
 		 * the resulting table (after applying the changes) is still
 		 * consistent or not. E.g. a node could disconnect while its
@@ -228,7 +227,7 @@ static int is_bidirectional_neigh(struct orig_node *orig_node,
 	if (!neigh_node)
 		goto out;
 
-	/* if orig_node is direct neighbour update neigh_node last_valid */
+	/* if orig_node is direct neighbor update neigh_node last_valid */
 	if (orig_node == orig_neigh_node)
 		neigh_node->last_valid = jiffies;
 
@@ -473,7 +472,7 @@ static void update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	if (router && (router->tq_avg > neigh_node->tq_avg))
 		goto update_tt;
 
-	/* if the TQ is the same and the link not more symetric we
+	/* if the TQ is the same and the link not more symmetric we
 	 * won't consider it either */
 	if (router && (neigh_node->tq_avg == router->tq_avg)) {
 		orig_node_tmp = router->orig_node;
@@ -1243,7 +1242,7 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 		}
 		break;
 	case TT_RESPONSE:
-		/* packet needs to be linearised to access the TT changes */
+		/* packet needs to be linearized to access the TT changes */
 		if (skb_linearize(skb) < 0)
 			goto out;
 
