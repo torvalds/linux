@@ -185,6 +185,8 @@ nouveau_perf_init(struct drm_device *dev)
 	struct nouveau_pm_engine *pm = &dev_priv->engine.pm;
 	struct nvbios *bios = &dev_priv->vbios;
 	struct bit_entry P;
+	struct nouveau_pm_memtimings *memtimings = &pm->memtimings;
+	struct nouveau_pm_tbl_header mt_hdr;
 	u8 version, headerlen, recordlen, entries;
 	u8 *perf, *entry;
 	int vid, i;
@@ -232,6 +234,22 @@ nouveau_perf_init(struct drm_device *dev)
 	}
 
 	entry = perf + headerlen;
+
+	/* For version 0x15, initialize memtiming table */
+	if(version == 0x15) {
+		memtimings->timing =
+				kcalloc(entries, sizeof(*memtimings->timing), GFP_KERNEL);
+		if(!memtimings) {
+			NV_WARN(dev,"Could not allocate memtiming table\n");
+			return;
+		}
+
+		mt_hdr.entry_cnt = entries;
+		mt_hdr.entry_len = 14;
+		mt_hdr.version = version;
+		mt_hdr.header_len = 4;
+	}
+
 	for (i = 0; i < entries; i++) {
 		struct nouveau_pm_level *perflvl = &pm->perflvl[pm->nr_perflvl];
 
@@ -321,7 +339,11 @@ nouveau_perf_init(struct drm_device *dev)
 		}
 
 		/* get the corresponding memory timings */
-		if (version > 0x15) {
+		if (version == 0x15) {
+			memtimings->timing[i].id = i;
+			nv30_mem_timing_entry(dev,&mt_hdr,(struct nouveau_pm_tbl_entry*) &entry[41],0,&memtimings->timing[i]);
+			perflvl->timing = &memtimings->timing[i];
+		} else if (version > 0x15) {
 			/* last 3 args are for < 0x40, ignored for >= 0x40 */
 			perflvl->timing =
 				nouveau_perf_timing(dev, &P,

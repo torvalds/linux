@@ -429,16 +429,42 @@ struct nouveau_pm_voltage {
 
 struct nouveau_pm_memtiming {
 	int id;
-	u32 reg_100220;
-	u32 reg_100224;
-	u32 reg_100228;
-	u32 reg_10022c;
-	u32 reg_100230;
-	u32 reg_100234;
-	u32 reg_100238;
-	u32 reg_10023c;
-	u32 reg_100240;
+	u32 reg_0; /* 0x10f290 on Fermi, 0x100220 for older */
+	u32 reg_1;
+	u32 reg_2;
+	u32 reg_3;
+	u32 reg_4;
+	u32 reg_5;
+	u32 reg_6;
+	u32 reg_7;
+	u32 reg_8;
 };
+
+struct nouveau_pm_tbl_header{
+	u8 version;
+	u8 header_len;
+	u8 entry_cnt;
+	u8 entry_len;
+};
+
+struct nouveau_pm_tbl_entry{
+	u8 tUNK_0, tUNK_1, tUNK_2;
+	u8 tRP;		/* Byte 3 */
+	u8 empty_4;
+	u8 tRAS;	/* Byte 5 */
+	u8 empty_6;
+	u8 tRFC;	/* Byte 7 */
+	u8 empty_8;
+	u8 tRC;		/* Byte 9 */
+	u8 tUNK_10, tUNK_11, tUNK_12, tUNK_13, tUNK_14;
+	u8 empty_15,empty_16,empty_17;
+	u8 tUNK_18, tUNK_19, tUNK_20, tUNK_21;
+};
+
+/* nouveau_mem.c */
+void nv30_mem_timing_entry(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
+							struct nouveau_pm_tbl_entry *e, uint8_t magic_number,
+							struct nouveau_pm_memtiming *timing);
 
 #define NOUVEAU_PM_MAX_LEVEL 8
 struct nouveau_pm_level {
@@ -648,7 +674,6 @@ struct drm_nouveau_private {
 	enum nouveau_card_type card_type;
 	/* exact chipset, derived from NV_PMC_BOOT_0 */
 	int chipset;
-	int stepping;
 	int flags;
 
 	void __iomem *mmio;
