@@ -111,7 +111,9 @@ static int ar9002_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 
 		switch (ah->eep_ops->get_eeprom(ah, EEP_FRAC_N_5G)) {
 		case 0:
-			if ((freq % 20) == 0)
+			if (IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan))
+				aModeRefSel = 0;
+			else if ((freq % 20) == 0)
 				aModeRefSel = 3;
 			else if ((freq % 10) == 0)
 				aModeRefSel = 2;
