@@ -57,10 +57,12 @@ struct spi_imx_config {
 };
 
 enum spi_imx_devtype {
-	SPI_IMX_VER_IMX1,
-	SPI_IMX_VER_0_0,
-	SPI_IMX_VER_0_4,
-	SPI_IMX_VER_2_3,
+	IMX1_CSPI,
+	IMX21_CSPI,
+	IMX27_CSPI,
+	IMX31_CSPI,
+	IMX35_CSPI,	/* CSPI on all i.mx except above */
+	IMX51_ECSPI,	/* ECSPI on i.mx51 and later */
 };
 
 struct spi_imx_data;
@@ -71,7 +73,7 @@ struct spi_imx_devtype_data {
 	void (*trigger)(struct spi_imx_data *);
 	int (*rx_available)(struct spi_imx_data *);
 	void (*reset)(struct spi_imx_data *);
-	unsigned int fifosize;
+	enum spi_imx_devtype devtype;
 };
 
 struct spi_imx_data {
@@ -93,6 +95,21 @@ struct spi_imx_data {
 
 	struct spi_imx_devtype_data *devtype_data;
 };
+
+static inline int is_imx27_cspi(struct spi_imx_data *d)
+{
+	return d->devtype_data->devtype == IMX27_CSPI;
+}
+
+static inline int is_imx35_cspi(struct spi_imx_data *d)
+{
+	return d->devtype_data->devtype == IMX35_CSPI;
+}
+
+static inline unsigned spi_imx_get_fifosize(struct spi_imx_data *d)
+{
+	return (d->devtype_data->devtype == IMX51_ECSPI) ? 64 : 8;
+}
 
 #define MXC_SPI_BUF_RX(type)						\
 static void spi_imx_buf_rx_##type(struct spi_imx_data *spi_imx)		\
@@ -135,14 +152,9 @@ static int mxc_clkdivs[] = {0, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 192,
 
 /* MX21, MX27 */
 static unsigned int spi_imx_clkdiv_1(unsigned int fin,
-		unsigned int fspi)
+		unsigned int fspi, unsigned int max)
 {
-	int i, max;
-
-	if (cpu_is_mx21())
-		max = 18;
-	else
-		max = 16;
+	int i;
 
 	for (i = 2; i < max; i++)
 		if (fspi * mxc_clkdivs[i] >= fin)
@@ -347,7 +359,7 @@ static int __maybe_unused mx31_config(struct spi_imx_data *spi_imx,
 	reg |= spi_imx_clkdiv_2(spi_imx->spi_clk, config->speed_hz) <<
 		MX31_CSPICTRL_DR_SHIFT;
 
-	if (cpu_is_mx35()) {
+	if (is_imx35_cspi(spi_imx)) {
 		reg |= (config->bpw - 1) << MX35_CSPICTRL_BL_SHIFT;
 		reg |= MX31_CSPICTRL_SSCTL;
 	} else {
@@ -362,8 +374,8 @@ static int __maybe_unused mx31_config(struct spi_imx_data *spi_imx,
 		reg |= MX31_CSPICTRL_SSPOL;
 	if (cs < 0)
 		reg |= (cs + 32) <<
-			(cpu_is_mx35() ? MX35_CSPICTRL_CS_SHIFT :
-					 MX31_CSPICTRL_CS_SHIFT);
+			(is_imx35_cspi(spi_imx) ? MX35_CSPICTRL_CS_SHIFT :
+						  MX31_CSPICTRL_CS_SHIFT);
 
 	writel(reg, spi_imx->base + MXC_CSPICTRL);
 
@@ -421,8 +433,9 @@ static int __maybe_unused mx21_config(struct spi_imx_data *spi_imx,
 {
 	unsigned int reg = MX21_CSPICTRL_ENABLE | MX21_CSPICTRL_MASTER;
 	int cs = spi_imx->chipselect[config->cs];
+	unsigned int max = is_imx27_cspi(spi_imx) ? 16 : 18;
 
-	reg |= spi_imx_clkdiv_1(spi_imx->spi_clk, config->speed_hz) <<
+	reg |= spi_imx_clkdiv_1(spi_imx->spi_clk, config->speed_hz, max) <<
 		MX21_CSPICTRL_DR_SHIFT;
 	reg |= config->bpw - 1;
 
@@ -511,51 +524,84 @@ static void __maybe_unused mx1_reset(struct spi_imx_data *spi_imx)
 	writel(1, spi_imx->base + MXC_RESET);
 }
 
-/*
- * These version numbers are taken from the Freescale driver.  Unfortunately it
- * doesn't support i.MX1, so this entry doesn't match the scheme. :-(
- */
-static struct spi_imx_devtype_data spi_imx_devtype_data[] = {
-#ifdef CONFIG_SPI_IMX_VER_IMX1
-	[SPI_IMX_VER_IMX1] = {
-		.intctrl = mx1_intctrl,
-		.config = mx1_config,
-		.trigger = mx1_trigger,
-		.rx_available = mx1_rx_available,
-		.reset = mx1_reset,
-		.fifosize = 8,
-	},
-#endif
-#ifdef CONFIG_SPI_IMX_VER_0_0
-	[SPI_IMX_VER_0_0] = {
-		.intctrl = mx21_intctrl,
-		.config = mx21_config,
-		.trigger = mx21_trigger,
-		.rx_available = mx21_rx_available,
-		.reset = mx21_reset,
-		.fifosize = 8,
-	},
-#endif
-#ifdef CONFIG_SPI_IMX_VER_0_4
-	[SPI_IMX_VER_0_4] = {
-		.intctrl = mx31_intctrl,
-		.config = mx31_config,
-		.trigger = mx31_trigger,
-		.rx_available = mx31_rx_available,
-		.reset = mx31_reset,
-		.fifosize = 8,
-	},
-#endif
-#ifdef CONFIG_SPI_IMX_VER_2_3
-	[SPI_IMX_VER_2_3] = {
-		.intctrl = mx51_ecspi_intctrl,
-		.config = mx51_ecspi_config,
-		.trigger = mx51_ecspi_trigger,
-		.rx_available = mx51_ecspi_rx_available,
-		.reset = mx51_ecspi_reset,
-		.fifosize = 64,
-	},
-#endif
+static struct spi_imx_devtype_data imx1_cspi_devtype_data = {
+	.intctrl = mx1_intctrl,
+	.config = mx1_config,
+	.trigger = mx1_trigger,
+	.rx_available = mx1_rx_available,
+	.reset = mx1_reset,
+	.devtype = IMX1_CSPI,
+};
+
+static struct spi_imx_devtype_data imx21_cspi_devtype_data = {
+	.intctrl = mx21_intctrl,
+	.config = mx21_config,
+	.trigger = mx21_trigger,
+	.rx_available = mx21_rx_available,
+	.reset = mx21_reset,
+	.devtype = IMX21_CSPI,
+};
+
+static struct spi_imx_devtype_data imx27_cspi_devtype_data = {
+	/* i.mx27 cspi shares the functions with i.mx21 one */
+	.intctrl = mx21_intctrl,
+	.config = mx21_config,
+	.trigger = mx21_trigger,
+	.rx_available = mx21_rx_available,
+	.reset = mx21_reset,
+	.devtype = IMX27_CSPI,
+};
+
+static struct spi_imx_devtype_data imx31_cspi_devtype_data = {
+	.intctrl = mx31_intctrl,
+	.config = mx31_config,
+	.trigger = mx31_trigger,
+	.rx_available = mx31_rx_available,
+	.reset = mx31_reset,
+	.devtype = IMX31_CSPI,
+};
+
+static struct spi_imx_devtype_data imx35_cspi_devtype_data = {
+	/* i.mx35 and later cspi shares the functions with i.mx31 one */
+	.intctrl = mx31_intctrl,
+	.config = mx31_config,
+	.trigger = mx31_trigger,
+	.rx_available = mx31_rx_available,
+	.reset = mx31_reset,
+	.devtype = IMX35_CSPI,
+};
+
+static struct spi_imx_devtype_data imx51_ecspi_devtype_data = {
+	.intctrl = mx51_ecspi_intctrl,
+	.config = mx51_ecspi_config,
+	.trigger = mx51_ecspi_trigger,
+	.rx_available = mx51_ecspi_rx_available,
+	.reset = mx51_ecspi_reset,
+	.devtype = IMX51_ECSPI,
+};
+
+static struct platform_device_id spi_imx_devtype[] = {
+	{
+		.name = "imx1-cspi",
+		.driver_data = (kernel_ulong_t) &imx1_cspi_devtype_data,
+	}, {
+		.name = "imx21-cspi",
+		.driver_data = (kernel_ulong_t) &imx21_cspi_devtype_data,
+	}, {
+		.name = "imx27-cspi",
+		.driver_data = (kernel_ulong_t) &imx27_cspi_devtype_data,
+	}, {
+		.name = "imx31-cspi",
+		.driver_data = (kernel_ulong_t) &imx31_cspi_devtype_data,
+	}, {
+		.name = "imx35-cspi",
+		.driver_data = (kernel_ulong_t) &imx35_cspi_devtype_data,
+	}, {
+		.name = "imx51-ecspi",
+		.driver_data = (kernel_ulong_t) &imx51_ecspi_devtype_data,
+	}, {
+		/* sentinel */
+	}
 };
 
 static void spi_imx_chipselect(struct spi_device *spi, int is_active)
@@ -573,7 +619,7 @@ static void spi_imx_chipselect(struct spi_device *spi, int is_active)
 
 static void spi_imx_push(struct spi_imx_data *spi_imx)
 {
-	while (spi_imx->txfifo < spi_imx->devtype_data->fifosize) {
+	while (spi_imx->txfifo < spi_imx_get_fifosize(spi_imx)) {
 		if (!spi_imx->count)
 			break;
 		spi_imx->tx(spi_imx);
@@ -689,42 +735,6 @@ static void spi_imx_cleanup(struct spi_device *spi)
 {
 }
 
-static struct platform_device_id spi_imx_devtype[] = {
-	{
-		.name = "imx1-cspi",
-		.driver_data = SPI_IMX_VER_IMX1,
-	}, {
-		.name = "imx21-cspi",
-		.driver_data = SPI_IMX_VER_0_0,
-	}, {
-		.name = "imx25-cspi",
-		.driver_data = SPI_IMX_VER_0_4,
-	}, {
-		.name = "imx27-cspi",
-		.driver_data = SPI_IMX_VER_0_0,
-	}, {
-		.name = "imx31-cspi",
-		.driver_data = SPI_IMX_VER_0_4,
-	}, {
-		.name = "imx35-cspi",
-		.driver_data = SPI_IMX_VER_0_4,
-	}, {
-		.name = "imx51-cspi",
-		.driver_data = SPI_IMX_VER_0_4,
-	}, {
-		.name = "imx51-ecspi",
-		.driver_data = SPI_IMX_VER_2_3,
-	}, {
-		.name = "imx53-cspi",
-		.driver_data = SPI_IMX_VER_0_4,
-	}, {
-		.name = "imx53-ecspi",
-		.driver_data = SPI_IMX_VER_2_3,
-	}, {
-		/* sentinel */
-	}
-};
-
 static int __devinit spi_imx_probe(struct platform_device *pdev)
 {
 	struct spi_imx_master *mxc_platform_info;
@@ -777,7 +787,7 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 	init_completion(&spi_imx->xfer_done);
 
 	spi_imx->devtype_data =
-		&spi_imx_devtype_data[pdev->id_entry->driver_data];
+		(struct spi_imx_devtype_data *) pdev->id_entry->driver_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
