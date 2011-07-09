@@ -25,6 +25,9 @@
 #include <linux/i2c.h>
 #include "pmbus.h"
 
+#define MAX8688_MFR_VOUT_PEAK		0xd4
+#define MAX8688_MFR_IOUT_PEAK		0xd5
+#define MAX8688_MFR_TEMPERATURE_PEAK	0xd6
 #define MAX8688_MFG_STATUS		0xd8
 
 #define MAX8688_STATUS_OC_FAULT		(1 << 4)
@@ -36,6 +39,62 @@
 #define MAX8688_STATUS_OC_WARNING	(1 << 12)
 #define MAX8688_STATUS_OT_FAULT		(1 << 13)
 #define MAX8688_STATUS_OT_WARNING	(1 << 14)
+
+static int max8688_read_word_data(struct i2c_client *client, int page, int reg)
+{
+	int ret;
+
+	if (page)
+		return -EINVAL;
+
+	switch (reg) {
+	case PMBUS_VIRT_READ_VOUT_MAX:
+		ret = pmbus_read_word_data(client, 0, MAX8688_MFR_VOUT_PEAK);
+		break;
+	case PMBUS_VIRT_READ_IOUT_MAX:
+		ret = pmbus_read_word_data(client, 0, MAX8688_MFR_IOUT_PEAK);
+		break;
+	case PMBUS_VIRT_READ_TEMP_MAX:
+		ret = pmbus_read_word_data(client, 0,
+					   MAX8688_MFR_TEMPERATURE_PEAK);
+		break;
+	case PMBUS_VIRT_RESET_VOUT_HISTORY:
+	case PMBUS_VIRT_RESET_IOUT_HISTORY:
+	case PMBUS_VIRT_RESET_TEMP_HISTORY:
+		ret = 0;
+		break;
+	default:
+		ret = -ENODATA;
+		break;
+	}
+	return ret;
+}
+
+static int max8688_write_word_data(struct i2c_client *client, int page, int reg,
+				   u16 word)
+{
+	int ret;
+
+	switch (reg) {
+	case PMBUS_VIRT_RESET_VOUT_HISTORY:
+		ret = pmbus_write_word_data(client, 0, MAX8688_MFR_VOUT_PEAK,
+					    0);
+		break;
+	case PMBUS_VIRT_RESET_IOUT_HISTORY:
+		ret = pmbus_write_word_data(client, 0, MAX8688_MFR_IOUT_PEAK,
+					    0);
+		break;
+	case PMBUS_VIRT_RESET_TEMP_HISTORY:
+		ret = pmbus_write_word_data(client, 0,
+					    MAX8688_MFR_TEMPERATURE_PEAK,
+					    0xffff);
+		break;
+	default:
+		ret = -ENODATA;
+		break;
+	}
+	return ret;
+}
 
 static int max8688_read_byte_data(struct i2c_client *client, int page, int reg)
 {
@@ -111,6 +170,8 @@ static struct pmbus_driver_info max8688_info = {
 		| PMBUS_HAVE_STATUS_VOUT | PMBUS_HAVE_STATUS_IOUT
 		| PMBUS_HAVE_STATUS_TEMP,
 	.read_byte_data = max8688_read_byte_data,
+	.read_word_data = max8688_read_word_data,
+	.write_word_data = max8688_write_word_data,
 };
 
 static int max8688_probe(struct i2c_client *client,
