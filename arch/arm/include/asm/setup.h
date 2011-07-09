@@ -192,7 +192,11 @@ static struct tagtable __tagtable_##fn __tag = { tag, fn }
 /*
  * Memory map description
  */
-#define NR_BANKS 8
+#ifdef CONFIG_ARCH_EP93XX
+# define NR_BANKS 16
+#else
+# define NR_BANKS 8
+#endif
 
 struct membank {
 	phys_addr_t start;
