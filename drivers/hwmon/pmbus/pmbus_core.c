@@ -164,13 +164,15 @@ int pmbus_set_page(struct i2c_client *client, u8 page)
 }
 EXPORT_SYMBOL_GPL(pmbus_set_page);
 
-static int pmbus_write_byte(struct i2c_client *client, u8 page, u8 value)
+static int pmbus_write_byte(struct i2c_client *client, int page, u8 value)
 {
 	int rv;
 
-	rv = pmbus_set_page(client, page);
-	if (rv < 0)
-		return rv;
+	if (page >= 0) {
+		rv = pmbus_set_page(client, page);
+		if (rv < 0)
+			return rv;
+	}
 
 	return i2c_smbus_write_byte(client, value);
 }
@@ -238,13 +240,15 @@ static int _pmbus_read_word_data(struct i2c_client *client, int page, int reg)
 	return pmbus_read_word_data(client, page, reg);
 }
 
-int pmbus_read_byte_data(struct i2c_client *client, u8 page, u8 reg)
+int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg)
 {
 	int rv;
 
-	rv = pmbus_set_page(client, page);
-	if (rv < 0)
-		return rv;
+	if (page >= 0) {
+		rv = pmbus_set_page(client, page);
+		if (rv < 0)
+			return rv;
+	}
 
 	return i2c_smbus_read_byte_data(client, reg);
 }
@@ -265,13 +269,13 @@ void pmbus_clear_faults(struct i2c_client *client)
 }
 EXPORT_SYMBOL_GPL(pmbus_clear_faults);
 
-static int pmbus_check_status_cml(struct i2c_client *client, int page)
+static int pmbus_check_status_cml(struct i2c_client *client)
 {
 	int status, status2;
 
-	status = pmbus_read_byte_data(client, page, PMBUS_STATUS_BYTE);
+	status = pmbus_read_byte_data(client, -1, PMBUS_STATUS_BYTE);
 	if (status < 0 || (status & PB_STATUS_CML)) {
-		status2 = pmbus_read_byte_data(client, page, PMBUS_STATUS_CML);
+		status2 = pmbus_read_byte_data(client, -1, PMBUS_STATUS_CML);
 		if (status2 < 0 || (status2 & PB_CML_FAULT_INVALID_COMMAND))
 			return -EINVAL;
 	}
@@ -285,8 +289,8 @@ bool pmbus_check_byte_register(struct i2c_client *client, int page, int reg)
 
 	rv = pmbus_read_byte_data(client, page, reg);
 	if (rv >= 0 && !(data->flags & PMBUS_SKIP_STATUS_CHECK))
-		rv = pmbus_check_status_cml(client, page);
-	pmbus_clear_fault_page(client, page);
+		rv = pmbus_check_status_cml(client);
+	pmbus_clear_fault_page(client, -1);
 	return rv >= 0;
 }
 EXPORT_SYMBOL_GPL(pmbus_check_byte_register);
@@ -298,8 +302,8 @@ bool pmbus_check_word_register(struct i2c_client *client, int page, int reg)
 
 	rv = pmbus_read_word_data(client, page, reg);
 	if (rv >= 0 && !(data->flags & PMBUS_SKIP_STATUS_CHECK))
-		rv = pmbus_check_status_cml(client, page);
-	pmbus_clear_fault_page(client, page);
+		rv = pmbus_check_status_cml(client);
+	pmbus_clear_fault_page(client, -1);
 	return rv >= 0;
 }
 EXPORT_SYMBOL_GPL(pmbus_check_word_register);
@@ -1538,18 +1542,6 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	if (info->pages <= 0 || info->pages > PMBUS_PAGES) {
 		dev_err(&client->dev, "Bad number of PMBus pages: %d\n",
 			info->pages);
-		ret = -EINVAL;
-		goto out_data;
-	}
-	/*
-	 * Bail out if more than one page was configured, but we can not
-	 * select the highest page. This is an indication that the wrong
-	 * chip type was selected. Better bail out now than keep
-	 * returning errors later on.
-	 */
-	if (info->pages > 1 && pmbus_set_page(client, info->pages - 1) < 0) {
-		dev_err(&client->dev, "Failed to select page %d\n",
-			info->pages - 1);
 		ret = -EINVAL;
 		goto out_data;
 	}
