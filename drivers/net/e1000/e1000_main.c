@@ -2402,13 +2402,16 @@ bool e1000_has_link(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	bool link_active = false;
 
-	/* get_link_status is set on LSC (link status) interrupt or
-	 * rx sequence error interrupt.  get_link_status will stay
-	 * false until the e1000_check_for_link establishes link
-	 * for copper adapters ONLY
+	/* get_link_status is set on LSC (link status) interrupt or rx
+	 * sequence error interrupt (except on intel ce4100).
+	 * get_link_status will stay false until the
+	 * e1000_check_for_link establishes link for copper adapters
+	 * ONLY
 	 */
 	switch (hw->media_type) {
 	case e1000_media_type_copper:
+		if (hw->mac_type == e1000_ce4100)
+			hw->get_link_status = 1;
 		if (hw->get_link_status) {
 			e1000_check_for_link(hw);
 			link_active = !hw->get_link_status;
