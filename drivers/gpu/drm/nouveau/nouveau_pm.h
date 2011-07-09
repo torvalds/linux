@@ -55,7 +55,7 @@ void nv04_pm_clock_set(struct drm_device *, void *);
 /* nv40_pm.c */
 int nv40_pm_clocks_get(struct drm_device *, struct nouveau_pm_level *);
 void *nv40_pm_clocks_pre(struct drm_device *, struct nouveau_pm_level *);
-void nv40_pm_clocks_set(struct drm_device *, void *);
+int nv40_pm_clocks_set(struct drm_device *, void *);
 int nv40_pm_pwm_get(struct drm_device *, struct dcb_gpio_entry *, u32*, u32*);
 int nv40_pm_pwm_set(struct drm_device *, struct dcb_gpio_entry *, u32, u32);
 
@@ -70,7 +70,7 @@ int nv50_pm_pwm_set(struct drm_device *, struct dcb_gpio_entry *, u32, u32);
 /* nva3_pm.c */
 int nva3_pm_clocks_get(struct drm_device *, struct nouveau_pm_level *);
 void *nva3_pm_clocks_pre(struct drm_device *, struct nouveau_pm_level *);
-void nva3_pm_clocks_set(struct drm_device *, void *);
+int nva3_pm_clocks_set(struct drm_device *, void *);
 
 /* nvc0_pm.c */
 int nvc0_pm_clocks_get(struct drm_device *, struct nouveau_pm_level *);
