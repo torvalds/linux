@@ -25,7 +25,7 @@
  *
  * Here we setup descriptor pointers (rxdp/txdp) start/stop dma engine and
  * handle queue setup for 5210 chipset (rest are handled on qcu.c).
- * Also we setup interrupt mask register (IMR) and read the various iterrupt
+ * Also we setup interrupt mask register (IMR) and read the various interrupt
  * status registers (ISR).
  *
  * TODO: Handle SISR on 5211+ and introduce a function to return the queue
@@ -726,7 +726,7 @@ enum ath5k_int ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 			int_mask |= AR5K_IMR_RXDOPPLER;
 
 		/* Note: Per queue interrupt masks
-		 * are set via reset_tx_queue (qcu.c) */
+		 * are set via ath5k_hw_reset_tx_queue() (qcu.c) */
 		ath5k_hw_reg_write(ah, int_mask, AR5K_PIMR);
 		ath5k_hw_reg_write(ah, simr2, AR5K_SIMR2);
 
@@ -783,7 +783,7 @@ void ath5k_hw_dma_init(struct ath5k_hw *ah)
 	 * for all PCI-E cards to be safe).
 	 *
 	 * XXX: need to check 5210 for this
-	 * TODO: Check out tx triger level, it's always 64 on dumps but I
+	 * TODO: Check out tx trigger level, it's always 64 on dumps but I
 	 * guess we can tweak it and see how it goes ;-)
 	 */
 	if (ah->ah_version != AR5K_AR5210) {

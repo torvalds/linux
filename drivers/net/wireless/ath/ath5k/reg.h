@@ -170,7 +170,7 @@
 #define AR5K_TXCFG_SDMAMR_S		0
 #define AR5K_TXCFG_B_MODE		0x00000008	/* Set b mode for 5111 (enable 2111) */
 #define AR5K_TXCFG_TXFSTP		0x00000008	/* TX DMA full Stop [5210] */
-#define AR5K_TXCFG_TXFULL		0x000003f0	/* TX Triger level mask */
+#define AR5K_TXCFG_TXFULL		0x000003f0	/* TX Trigger level mask */
 #define AR5K_TXCFG_TXFULL_S		4
 #define AR5K_TXCFG_TXFULL_0B		0x00000000
 #define AR5K_TXCFG_TXFULL_64B		0x00000010
@@ -283,16 +283,16 @@
  */
 #define AR5K_ISR		0x001c			/* Register Address [5210] */
 #define AR5K_PISR		0x0080			/* Register Address [5211+] */
-#define AR5K_ISR_RXOK		0x00000001	/* Frame successfuly received */
+#define AR5K_ISR_RXOK		0x00000001	/* Frame successfully received */
 #define AR5K_ISR_RXDESC		0x00000002	/* RX descriptor request */
 #define AR5K_ISR_RXERR		0x00000004	/* Receive error */
 #define AR5K_ISR_RXNOFRM	0x00000008	/* No frame received (receive timeout) */
 #define AR5K_ISR_RXEOL		0x00000010	/* Empty RX descriptor */
 #define AR5K_ISR_RXORN		0x00000020	/* Receive FIFO overrun */
-#define AR5K_ISR_TXOK		0x00000040	/* Frame successfuly transmited */
+#define AR5K_ISR_TXOK		0x00000040	/* Frame successfully transmitted */
 #define AR5K_ISR_TXDESC		0x00000080	/* TX descriptor request */
 #define AR5K_ISR_TXERR		0x00000100	/* Transmit error */
-#define AR5K_ISR_TXNOFRM	0x00000200	/* No frame transmited (transmit timeout) */
+#define AR5K_ISR_TXNOFRM	0x00000200	/* No frame transmitted (transmit timeout) */
 #define AR5K_ISR_TXEOL		0x00000400	/* Empty TX descriptor */
 #define AR5K_ISR_TXURN		0x00000800	/* Transmit FIFO underrun */
 #define AR5K_ISR_MIB		0x00001000	/* Update MIB counters */
@@ -377,16 +377,16 @@
  */
 #define	AR5K_IMR		0x0020			/* Register Address [5210] */
 #define AR5K_PIMR		0x00a0			/* Register Address [5211+] */
-#define AR5K_IMR_RXOK		0x00000001	/* Frame successfuly received*/
+#define AR5K_IMR_RXOK		0x00000001	/* Frame successfully received*/
 #define AR5K_IMR_RXDESC		0x00000002	/* RX descriptor request*/
 #define AR5K_IMR_RXERR		0x00000004	/* Receive error*/
 #define AR5K_IMR_RXNOFRM	0x00000008	/* No frame received (receive timeout)*/
 #define AR5K_IMR_RXEOL		0x00000010	/* Empty RX descriptor*/
 #define AR5K_IMR_RXORN		0x00000020	/* Receive FIFO overrun*/
-#define AR5K_IMR_TXOK		0x00000040	/* Frame successfuly transmited*/
+#define AR5K_IMR_TXOK		0x00000040	/* Frame successfully transmitted*/
 #define AR5K_IMR_TXDESC		0x00000080	/* TX descriptor request*/
 #define AR5K_IMR_TXERR		0x00000100	/* Transmit error*/
-#define AR5K_IMR_TXNOFRM	0x00000200	/* No frame transmited (transmit timeout)*/
+#define AR5K_IMR_TXNOFRM	0x00000200	/* No frame transmitted (transmit timeout)*/
 #define AR5K_IMR_TXEOL		0x00000400	/* Empty TX descriptor*/
 #define AR5K_IMR_TXURN		0x00000800	/* Transmit FIFO underrun*/
 #define AR5K_IMR_MIB		0x00001000	/* Update MIB counters*/
@@ -601,7 +601,7 @@
  * QCU misc registers
  */
 #define AR5K_QCU_MISC_BASE		0x09c0			/* Register Address -Queue0 MISC */
-#define	AR5K_QCU_MISC_FRSHED_M		0x0000000f	/* Frame sheduling mask */
+#define	AR5K_QCU_MISC_FRSHED_M		0x0000000f	/* Frame scheduling mask */
 #define	AR5K_QCU_MISC_FRSHED_ASAP		0	/* ASAP */
 #define	AR5K_QCU_MISC_FRSHED_CBR		1	/* Constant Bit Rate */
 #define	AR5K_QCU_MISC_FRSHED_DBA_GT		2	/* DMA Beacon alert gated */
@@ -653,13 +653,13 @@
  * registers [5211+]
  *
  * These registers control the various characteristics of each queue
- * for 802.11e (WME) combatibility so they go together with
+ * for 802.11e (WME) compatibility so they go together with
  * QCU registers in pairs. For each queue we have a QCU mask register,
  * (0x1000 - 0x102c), a local-IFS settings register (0x1040 - 0x106c),
  * a retry limit register (0x1080 - 0x10ac), a channel time register
  * (0x10c0 - 0x10ec), a misc-settings register (0x1100 - 0x112c) and
  * a sequence number register (0x1140 - 0x116c). It seems that "global"
- * registers here afect all queues (see use of DCU_GBL_IFS_SLOT in ar5k).
+ * registers here affect all queues (see use of DCU_GBL_IFS_SLOT in ar5k).
  * We use the same macros here for easier register access.
  *
  */
@@ -779,7 +779,7 @@
  * and it's used for generating pseudo-random
  * number sequences.
  *
- * (If i understand corectly, random numbers are
+ * (If i understand correctly, random numbers are
  * used for idle sensing -multiplied with cwmin/max etc-)
  */
 #define AR5K_DCU_GBL_IFS_MISC			0x10f0			/* Register Address */
@@ -1007,7 +1007,7 @@
 #define	AR5K_PCIE_WAEN	0x407c
 
 /*
- * PCI-E Serializer/Desirializer
+ * PCI-E Serializer/Deserializer
  * registers
  */
 #define	AR5K_PCIE_SERDES	0x4080
@@ -1227,7 +1227,7 @@
 					AR5K_USEC_5210 : AR5K_USEC_5211)
 #define AR5K_USEC_1			0x0000007f	/* clock cycles for 1us */
 #define AR5K_USEC_1_S			0
-#define AR5K_USEC_32			0x00003f80	/* clock cycles for 1us while on 32Mhz clock */
+#define AR5K_USEC_32			0x00003f80	/* clock cycles for 1us while on 32MHz clock */
 #define AR5K_USEC_32_S			7
 #define AR5K_USEC_TX_LATENCY_5211	0x007fc000
 #define AR5K_USEC_TX_LATENCY_5211_S	14
@@ -1632,7 +1632,7 @@
 #define AR5K_SLEEP0_NEXT_DTIM		0x0007ffff	/* Mask for next DTIM (?) */
 #define AR5K_SLEEP0_NEXT_DTIM_S		0
 #define AR5K_SLEEP0_ASSUME_DTIM		0x00080000	/* Assume DTIM */
-#define AR5K_SLEEP0_ENH_SLEEP_EN	0x00100000	/* Enable enchanced sleep control */
+#define AR5K_SLEEP0_ENH_SLEEP_EN	0x00100000	/* Enable enhanced sleep control */
 #define AR5K_SLEEP0_CABTO		0xff000000	/* Mask for CAB Time Out */
 #define AR5K_SLEEP0_CABTO_S		24
 
@@ -1657,7 +1657,7 @@
 /*
  * TX power control (TPC) register
  *
- * XXX: PCDAC steps (0.5dbm) or DBM ?
+ * XXX: PCDAC steps (0.5dBm) or dBm ?
  *
  */
 #define AR5K_TXPC			0x80e8			/* Register Address */
@@ -1673,7 +1673,7 @@
 /*
  * Profile count registers
  *
- * These registers can be cleared and freezed with ATH5K_MIBC, but they do not
+ * These registers can be cleared and frozen with ATH5K_MIBC, but they do not
  * generate a MIB interrupt.
  * Instead of overflowing, they shift by one bit to the right. All registers
  * shift together, i.e. when one reaches the max, all shift at the same time by
@@ -1838,7 +1838,7 @@
 #define AR5K_PHY_TST2_TRIG_SEL		0x00000007	/* Trigger select (?)*/
 #define AR5K_PHY_TST2_TRIG		0x00000010	/* Trigger (?) */
 #define AR5K_PHY_TST2_CBUS_MODE		0x00000060	/* Cardbus mode (?) */
-#define AR5K_PHY_TST2_CLK32		0x00000400	/* CLK_OUT is CLK32 (32Khz external) */
+#define AR5K_PHY_TST2_CLK32		0x00000400	/* CLK_OUT is CLK32 (32kHz external) */
 #define AR5K_PHY_TST2_CHANCOR_DUMP_EN	0x00000800	/* Enable Chancor dump (?) */
 #define AR5K_PHY_TST2_EVEN_CHANCOR_DUMP	0x00001000	/* Even Chancor dump (?) */
 #define AR5K_PHY_TST2_RFSILENT_EN	0x00002000	/* Enable RFSILENT */
@@ -2002,7 +2002,7 @@
 #define	AR5K_PHY_AGCCTL_OFDM_DIV_DIS	0x00000008	/* Disable antenna diversity on OFDM modes */
 #define	AR5K_PHY_AGCCTL_NF_EN		0x00008000	/* Enable nf calibration to happen (?) */
 #define	AR5K_PHY_AGCTL_FLTR_CAL		0x00010000	/* Allow filter calibration (?) */
-#define	AR5K_PHY_AGCCTL_NF_NOUPDATE	0x00020000	/* Don't update nf automaticaly */
+#define	AR5K_PHY_AGCCTL_NF_NOUPDATE	0x00020000	/* Don't update nf automatically */
 
 /*
  * PHY noise floor status register (CCA = Clear Channel Assessment)
@@ -2089,7 +2089,7 @@
  *
  * It's obvious from the code that 0x989c is the buffer register but
  * for the other special registers that we write to after sending each
- * packet, i have no idea. So i'll name them BUFFER_CONTROL_X registers
+ * packet, i have no idea. So I'll name them BUFFER_CONTROL_X registers
  * for now. It's interesting that they are also used for some other operations.
  */
 
@@ -2340,7 +2340,7 @@
 #define AR5K_PHY_RESTART_DIV_GC_S	18
 
 /*
- * RF Bus access request register (for synth-oly channel switching)
+ * RF Bus access request register (for synth-only channel switching)
  */
 #define AR5K_PHY_RFBUS_REQ		0x997C
 #define AR5K_PHY_RFBUS_REQ_REQUEST	0x00000001
@@ -2382,7 +2382,7 @@
  */
 #define	AR5K_BB_GAIN_BASE		0x9b00	/* BaseBand Amplifier Gain table base address */
 #define AR5K_BB_GAIN(_n)		(AR5K_BB_GAIN_BASE + ((_n) << 2))
-#define	AR5K_RF_GAIN_BASE		0x9a00	/* RF Amplrifier Gain table base address */
+#define	AR5K_RF_GAIN_BASE		0x9a00	/* RF Amplifier Gain table base address */
 #define AR5K_RF_GAIN(_n)		(AR5K_RF_GAIN_BASE + ((_n) << 2))
 
 /*

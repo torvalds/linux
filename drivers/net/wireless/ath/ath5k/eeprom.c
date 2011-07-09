@@ -634,7 +634,7 @@ ath5k_eeprom_init_11bg_2413(struct ath5k_hw *ah, unsigned int mode, int offset)
 /* Used to match PCDAC steps with power values on RF5111 chips
  * (eeprom versions < 4). For RF5111 we have 11 pre-defined PCDAC
  * steps that match with the power values we read from eeprom. On
- * older eeprom versions (< 3.2) these steps are equaly spaced at
+ * older eeprom versions (< 3.2) these steps are equally spaced at
  * 10% of the pcdac curve -until the curve reaches its maximum-
  * (11 steps from 0 to 100%) but on newer eeprom versions (>= 3.2)
  * these 11 steps are spaced in a different way. This function returns
@@ -764,7 +764,7 @@ ath5k_eeprom_convert_pcal_info_5111(struct ath5k_hw *ah, int mode,
 
 		/* Fill raw dataset
 		 * (convert power to 0.25dB units
-		 * for RF5112 combatibility) */
+		 * for RF5112 compatibility) */
 		for (point = 0; point < pd->pd_points; point++) {
 
 			/* Absolute values */
@@ -884,7 +884,7 @@ ath5k_eeprom_read_pcal_info_5111(struct ath5k_hw *ah, int mode)
  * Read power calibration for RF5112 chips
  *
  * For RF5112 we have 4 XPD -eXternal Power Detector- curves
- * for each calibrated channel on 0, -6, -12 and -18dbm but we only
+ * for each calibrated channel on 0, -6, -12 and -18dBm but we only
  * use the higher (3) and the lower (0) curves. Each curve has 0.5dB
  * power steps on x axis and PCDAC steps on y axis and looks like a
  * linear function. To recreate the curve and pass the power values
@@ -1241,7 +1241,7 @@ ath5k_eeprom_convert_pcal_info_2413(struct ath5k_hw *ah, int mode,
 
 			/* Fill raw dataset
 			 * convert all pwr levels to
-			 * quarter dB for RF5112 combatibility */
+			 * quarter dB for RF5112 compatibility */
 			pd->pd_step[0] = pcinfo->pddac_i[pdg];
 			pd->pd_pwr[0] = 4 * pcinfo->pwr_i[pdg];
 

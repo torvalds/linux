@@ -363,7 +363,7 @@ int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah)
 	return 0;
 }
 
-/* Schedule a gain probe check on the next transmited packet.
+/* Schedule a gain probe check on the next transmitted packet.
  * That means our next packet is going to be sent with lower
  * tx power and a Peak to Average Power Detector (PAPD) will try
  * to measure the gain.
@@ -620,7 +620,7 @@ enum ath5k_rfgain ath5k_hw_gainf_calibrate(struct ath5k_hw *ah)
 
 		/* Check if measurement is ok and if we need
 		 * to adjust gain, schedule a gain adjustment,
-		 * else switch back to the acive state */
+		 * else switch back to the active state */
 		if (ath5k_hw_rf_check_gainf_readback(ah) &&
 		AR5K_GAIN_CHECK_ADJUST(&ah->ah_gain) &&
 		ath5k_hw_rf_gainf_adjust(ah)) {
@@ -807,7 +807,7 @@ static int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 		 * use b_OB and b_DB parameters stored
 		 * in eeprom on ee->ee_ob[ee_mode][0]
 		 *
-		 * For all other chips we use OB/DB for 2Ghz
+		 * For all other chips we use OB/DB for 2GHz
 		 * stored in the b/g modal section just like
 		 * 802.11a on ee->ee_ob[ee_mode][1] */
 		if ((ah->ah_radio == AR5K_RF5111) ||
@@ -1259,7 +1259,7 @@ static int ath5k_hw_channel(struct ath5k_hw *ah,
 {
 	int ret;
 	/*
-	 * Check bounds supported by the PHY (we don't care about regultory
+	 * Check bounds supported by the PHY (we don't care about regulatory
 	 * restrictions at this point). Note: hw_value already has the band
 	 * (CHANNEL_2GHZ, or CHANNEL_5GHZ) so we inform ath5k_channel_ok()
 	 * of the band by that */
@@ -1815,7 +1815,7 @@ ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
 
 	} else if (ath5k_hw_reg_read(ah, AR5K_PHY_IQ) &
 	AR5K_PHY_IQ_SPUR_FILT_EN) {
-		/* Clean up spur mitigation settings and disable fliter */
+		/* Clean up spur mitigation settings and disable filter */
 		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_BIN_MASK_CTL,
 					AR5K_PHY_BIN_MASK_CTL_RATE, 0);
 		AR5K_REG_DISABLE_BITS(ah, AR5K_PHY_IQ,
@@ -2510,8 +2510,8 @@ ath5k_combine_linear_pcdac_curves(struct ath5k_hw *ah, s16* table_min,
 	s16	max_pwr_idx;
 	s16	min_pwr_idx;
 	s16	mid_pwr_idx = 0;
-	/* Edge flag turs on the 7nth bit on the PCDAC
-	 * to delcare the higher power curve (force values
+	/* Edge flag turns on the 7nth bit on the PCDAC
+	 * to declare the higher power curve (force values
 	 * to be greater than 64). If we only have one curve
 	 * we don't need to set this, if we have 2 curves and
 	 * fill the table backwards this can also be used to
@@ -2568,7 +2568,7 @@ ath5k_combine_linear_pcdac_curves(struct ath5k_hw *ah, s16* table_min,
 		}
 
 		/* Don't go below 1, extrapolate below if we have
-		 * already swithced to the lower power curve -or
+		 * already switched to the lower power curve -or
 		 * we only have one curve and edge_flag is zero
 		 * anyway */
 		if (pcdac_tmp[pwr] < 1 && (edge_flag == 0x00)) {
@@ -2805,7 +2805,7 @@ ath5k_write_pwr_to_pdadc_table(struct ath5k_hw *ah, u8 ee_mode)
 /*
  * This is the main function that uses all of the above
  * to set PCDAC/PDADC table on hw for the current channel.
- * This table is used for tx power calibration on the basband,
+ * This table is used for tx power calibration on the baseband,
  * without it we get weird tx power levels and in some cases
  * distorted spectral mask
  */

@@ -244,7 +244,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	}
 
 
-	/* Return on unsuported chips (unsupported eeprom etc) */
+	/* Return on unsupported chips (unsupported eeprom etc) */
 	if ((srev >= AR5K_SREV_AR5416) && (srev < AR5K_SREV_AR2425)) {
 		ATH5K_ERR(sc, "Device not yet supported.\n");
 		ret = -ENODEV;
@@ -285,7 +285,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 		ath5k_hw_reg_write(ah, 0x28000039, AR5K_PCIE_SERDES);
 		ath5k_hw_reg_write(ah, 0x53160824, AR5K_PCIE_SERDES);
 
-		/* If serdes programing is enabled, increase PCI-E
+		/* If serdes programming is enabled, increase PCI-E
 		 * tx power for systems with long trace from host
 		 * to minicard connector. */
 		if (ee->ee_serdes)

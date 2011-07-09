@@ -1409,7 +1409,7 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool skip_pcu)
 	 * Write initial register settings
 	 */
 
-	/* For AR5212 and combatible */
+	/* For AR5212 and compatible */
 	if (ah->ah_version == AR5K_AR5212) {
 
 		/* First set of mode-specific settings */

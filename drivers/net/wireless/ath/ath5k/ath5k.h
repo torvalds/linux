@@ -18,9 +18,9 @@
 #ifndef _ATH5K_H
 #define _ATH5K_H
 
-/* TODO: Clean up channel debuging -doesn't work anyway- and start
+/* TODO: Clean up channel debugging (doesn't work anyway) and start
  * working on reg. control code using all available eeprom information
- * -rev. engineering needed- */
+ * (rev. engineering needed) */
 #define CHAN_DEBUG	0
 
 #include <linux/io.h>
@@ -156,7 +156,7 @@
 } while (0)
 
 /*
- * Some tuneable values (these should be changeable by the user)
+ * Some tunable values (these should be changeable by the user)
  * TODO: Make use of them and add more options OR use debug/configfs
  */
 #define AR5K_TUNE_DMA_BEACON_RESP		2
@@ -171,8 +171,8 @@
 #define AR5K_TUNE_RSSI_THRES			129
 /* This must be set when setting the RSSI threshold otherwise it can
  * prevent a reset. If AR5K_RSSI_THR is read after writing to it
- * the BMISS_THRES will be seen as 0, seems harware doesn't keep
- * track of it. Max value depends on harware. For AR5210 this is just 7.
+ * the BMISS_THRES will be seen as 0, seems hardware doesn't keep
+ * track of it. Max value depends on hardware. For AR5210 this is just 7.
  * For AR5211+ this seems to be up to 255. */
 #define AR5K_TUNE_BMISS_THRES			7
 #define AR5K_TUNE_REGISTER_DWELL_TIME		20000
@@ -380,7 +380,7 @@ struct ath5k_srev_name {
  * Modulation for Atheros' Turbo G and Turbo A, its supposed to provide a
  * throughput transmission speed up to 40Mbit/s-60Mbit/s at a 108Mbit/s
  * signaling rate achieved through the bonding of two 54Mbit/s 802.11g
- * channels. To use this feature your Access Point must also suport it.
+ * channels. To use this feature your Access Point must also support it.
  * There is also a distinction between "static" and "dynamic" turbo modes:
  *
  * - Static: is the dumb version: devices set to this mode stick to it until
@@ -496,7 +496,7 @@ enum ath5k_tx_queue {
  */
 enum ath5k_tx_queue_subtype {
 	AR5K_WME_AC_BK = 0,	/*Background traffic*/
-	AR5K_WME_AC_BE,		/*Best-effort (normal) traffic)*/
+	AR5K_WME_AC_BE,		/*Best-effort (normal) traffic*/
 	AR5K_WME_AC_VI,		/*Video traffic*/
 	AR5K_WME_AC_VO,		/*Voice traffic*/
 };
@@ -690,7 +690,7 @@ struct ath5k_gain {
 #define CHANNEL_MODES		CHANNEL_ALL
 
 /*
- * Used internaly for reset_tx_queue).
+ * Used internally for ath5k_hw_reset_tx_queue().
  * Also see struct struct ieee80211_channel.
  */
 #define IS_CHAN_XR(_c)	((_c->hw_value & CHANNEL_XR) != 0)
@@ -712,7 +712,7 @@ struct ath5k_athchan_2ghz {
 \******************/
 
 /**
- * Seems the ar5xxx harware supports up to 32 rates, indexed by 1-32.
+ * Seems the ar5xxx hardware supports up to 32 rates, indexed by 1-32.
  *
  * The rate code is used to get the RX rate or set the TX rate on the
  * hardware descriptors. It is also used for internal modulation control
@@ -802,7 +802,7 @@ extern int ath5k_modparam_nohwcrypt;
  *	http://www.freepatentsonline.com/20030225739.html
  * @AR5K_INT_RXORN: Indicates we got RX overrun (eg. no more descriptors).
  *	Note that Rx overrun is not always fatal, on some chips we can continue
- *	operation without reseting the card, that's why int_fatal is not
+ *	operation without resetting the card, that's why int_fatal is not
  *	common for all chips.
  * @AR5K_INT_TX: mask to identify received frame interrupts, of type
  *	AR5K_ISR_TXOK or AR5K_ISR_TXERR
@@ -832,13 +832,13 @@ extern int ath5k_modparam_nohwcrypt;
  *	AR5K_SIMR2_MCABT, AR5K_SIMR2_SSERR and AR5K_SIMR2_DPERR.
  * @AR5K_INT_GLOBAL: Used to clear and set the IER
  * @AR5K_INT_NOCARD: signals the card has been removed
- * @AR5K_INT_COMMON: common interrupts shared amogst MACs with the same
+ * @AR5K_INT_COMMON: common interrupts shared among MACs with the same
  *	bit value
  *
  * These are mapped to take advantage of some common bits
  * between the MACs, to be able to set intr properties
  * easier. Some of them are not used yet inside hw.c. Most map
- * to the respective hw interrupt value as they are common amogst different
+ * to the respective hw interrupt value as they are common among different
  * MACs.
  */
 enum ath5k_int {
@@ -1358,7 +1358,7 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 				u8 mode, bool fast);
 
 /*
- * Functions used internaly
+ * Functions used internally
  */
 
 static inline struct ath_common *ath5k_hw_common(struct ath5k_hw *ah)

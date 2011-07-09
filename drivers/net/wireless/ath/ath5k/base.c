@@ -531,7 +531,7 @@ ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
 	if (iter_data.n_stas > 1) {
 		/* If you have multiple STA interfaces connected to
 		 * different APs, ARPs are not received (most of the time?)
-		 * Enabling PROMISC appears to fix that probem.
+		 * Enabling PROMISC appears to fix that problem.
 		 */
 		sc->filter_flags |= AR5K_RX_FILTER_PROM;
 	}
@@ -1349,7 +1349,7 @@ ath5k_receive_frame(struct ath5k_softc *sc, struct sk_buff *skb,
 	 * timestamp (beginning of phy frame, data frame, end of rx?).
 	 * The only thing we know is that it is hardware specific...
 	 * On AR5213 it seems the rx timestamp is at the end of the
-	 * frame, but i'm not sure.
+	 * frame, but I'm not sure.
 	 *
 	 * NOTE: mac80211 defines mactime at the beginning of the first
 	 * data symbol. Since we don't have any time references it's
@@ -1764,7 +1764,7 @@ ath5k_beacon_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	 * 4 beacons to make sure everybody hears our AP.
 	 * When a client tries to associate, hw will keep
 	 * track of the tx antenna to be used for this client
-	 * automaticaly, based on ACKed packets.
+	 * automatically, based on ACKed packets.
 	 *
 	 * Note: AP still listens and transmits RTS on the
 	 * default antenna which is supposed to be an omni.
@@ -2099,11 +2099,11 @@ static void ath5k_tasklet_beacon(unsigned long data)
 	 *
 	 * In IBSS mode we use this interrupt just to
 	 * keep track of the next TBTT (target beacon
-	 * transmission time) in order to detect wether
+	 * transmission time) in order to detect whether
 	 * automatic TSF updates happened.
 	 */
 	if (sc->opmode == NL80211_IFTYPE_ADHOC) {
-		/* XXX: only if VEOL suppported */
+		/* XXX: only if VEOL supported */
 		u64 tsf = ath5k_hw_get_tsf64(sc->ah);
 		sc->nexttbtt += sc->bintval;
 		ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
@@ -2466,7 +2466,7 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 						sc->ah->ah_radio_5ghz_revision),
 						sc->ah->ah_radio_5ghz_revision);
 			/* No 2GHz support (5110 and some
-			 * 5Ghz only cards) -> report 5Ghz radio */
+			 * 5GHz only cards) -> report 5GHz radio */
 			} else if (!test_bit(AR5K_MODE_11B,
 				sc->ah->ah_capabilities.cap_mode)) {
 				ATH5K_INFO(sc, "RF%s 5GHz radio found (0x%x)\n",
@@ -2796,7 +2796,7 @@ ath5k_init(struct ieee80211_hw *hw)
 
 	/*
 	 * Collect the channel list.  The 802.11 layer
-	 * is resposible for filtering this list based
+	 * is responsible for filtering this list based
 	 * on settings like the phy mode and regulatory
 	 * domain restrictions.
 	 */

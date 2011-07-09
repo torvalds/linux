@@ -121,7 +121,7 @@ struct ath5k_statistics {
 	/* frame errors */
 	unsigned int rx_all_count;	/* all RX frames, including errors */
 	unsigned int tx_all_count;	/* all TX frames, including errors */
-	unsigned int rx_bytes_count;	/* all RX bytes, including errored pks
+	unsigned int rx_bytes_count;	/* all RX bytes, including errored pkts
 					 * and the MAC headers for each packet
 					 */
 	unsigned int tx_bytes_count;	/* all TX bytes, including errored pkts
@@ -250,7 +250,7 @@ struct ath5k_softc {
 	unsigned int		nexttbtt;	/* next beacon time in TU */
 	struct ath5k_txq	*cabq;		/* content after beacon */
 
-	int			power_level;	/* Requested tx power in dbm */
+	int			power_level;	/* Requested tx power in dBm */
 	bool			assoc;		/* associate state */
 	bool			enable_beacon;	/* true if beacons are on */
 
