@@ -343,10 +343,11 @@ static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
 static int i2c_read(struct i2c_adapter *adap,
 		    u8 adr, u8 *msg, int len, u8 *answ, int alen)
 {
-	struct i2c_msg msgs[2] = { {.addr = adr, .flags = 0,
+	struct i2c_msg msgs[2] = {
+		{.addr = adr, .flags = 0,
 				    .buf = msg, .len = len},
-	{.addr = adr, .flags = I2C_M_RD,
-	 .buf = answ, .len = alen}
+		{.addr = adr, .flags = I2C_M_RD,
+		 .buf = answ, .len = alen}
 	};
 	dprintk(3, ":");
 	if (debug > 2) {
@@ -5904,7 +5905,7 @@ static int PowerDownDevice(struct drxk_state *state)
 	return 0;
 }
 
-static int load_microcode(struct drxk_state *state, char *mc_name)
+static int load_microcode(struct drxk_state *state, const char *mc_name)
 {
 	const struct firmware *fw = NULL;
 	int err = 0;
@@ -6010,20 +6011,11 @@ static int init_drxk(struct drxk_state *state)
 			if (status < 0)
 				break;
 
-#if 0
-			if (state->m_DRXK_A3_PATCH_CODE)
-				status = DownloadMicrocode(state, DRXK_A3_microcode, DRXK_A3_microcode_length);
-				if (status < 0)
-					break;
-#else
-			load_microcode(state, "drxk_a3.mc");
-#endif
-#if NOA1ROM
-			if (state->m_DRXK_A2_PATCH_CODE)
-				status = DownloadMicrocode(state, DRXK_A2_microcode, DRXK_A2_microcode_length);
-				if (status < 0)
-					break;
-#endif
+			if (!state->microcode_name)
+				load_microcode(state, "drxk_a3.mc");
+			else
+				load_microcode(state, state->microcode_name);
+
 			/* disable token-ring bus through OFDM block for possible ucode upload */
 			status = write16(state, SIO_OFDM_SH_OFDM_RING_ENABLE__A, SIO_OFDM_SH_OFDM_RING_ENABLE_OFF);
 			if (status < 0)
@@ -6367,6 +6359,7 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	state->i2c = i2c;
 	state->demod_address = adr;
 	state->single_master = config->single_master;
+	state->microcode_name = config->microcode_name;
 
 	mutex_init(&state->mutex);
 	mutex_init(&state->ctlock);

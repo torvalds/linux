@@ -7,6 +7,7 @@
 struct drxk_config {
 	u8 adr;
 	u32 single_master : 1;
+	const char *microcode_name;
 };
 
 extern struct dvb_frontend *drxk_attach(const struct drxk_config *config,

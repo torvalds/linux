@@ -330,6 +330,7 @@ struct drxk_state {
 	/* Configurable parameters at the driver */
 
 	u32 single_master : 1;		/* Use single master i2c mode */
+	const char *microcode_name;
 
 };
 

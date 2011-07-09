@@ -301,10 +301,10 @@ static struct drxd_config em28xx_drxd = {
 	.disable_i2c_gate_ctrl = 1,
 };
 
-#define TERRATEC_H5_DRXK_I2C_ADDR	0x29
-
 struct drxk_config terratec_h5_drxk = {
 	.adr = 0x29,
+	.single_master = 1,
+	.microcode_name = "terratec_h5.fw",
 };
 
 static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
