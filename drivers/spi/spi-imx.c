@@ -84,7 +84,6 @@ struct spi_imx_data {
 	int irq;
 	struct clk *clk;
 	unsigned long spi_clk;
-	int *chipselect;
 
 	unsigned int count;
 	void (*tx)(struct spi_imx_data *);
@@ -94,6 +93,7 @@ struct spi_imx_data {
 	unsigned int txfifo; /* number of words pushed in tx FIFO */
 
 	struct spi_imx_devtype_data *devtype_data;
+	int chipselect[0];
 };
 
 static inline int is_imx27_cspi(struct spi_imx_data *d)
@@ -741,7 +741,7 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct spi_imx_data *spi_imx;
 	struct resource *res;
-	int i, ret;
+	int i, ret, num_cs;
 
 	mxc_platform_info = dev_get_platdata(&pdev->dev);
 	if (!mxc_platform_info) {
@@ -749,20 +749,22 @@ static int __devinit spi_imx_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	master = spi_alloc_master(&pdev->dev, sizeof(struct spi_imx_data));
+	num_cs = mxc_platform_info->num_chipselect;
+	master = spi_alloc_master(&pdev->dev,
+			sizeof(struct spi_imx_data) + sizeof(int) * num_cs);
 	if (!master)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, master);
 
 	master->bus_num = pdev->id;
-	master->num_chipselect = mxc_platform_info->num_chipselect;
+	master->num_chipselect = num_cs;
 
 	spi_imx = spi_master_get_devdata(master);
 	spi_imx->bitbang.master = spi_master_get(master);
-	spi_imx->chipselect = mxc_platform_info->chipselect;
 
 	for (i = 0; i < master->num_chipselect; i++) {
+		spi_imx->chipselect[i] = mxc_platform_info->chipselect[i];
 		if (spi_imx->chipselect[i] < 0)
 			continue;
 		ret = gpio_request(spi_imx->chipselect[i], DRIVER_NAME);
