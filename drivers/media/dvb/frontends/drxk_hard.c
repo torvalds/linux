@@ -1395,8 +1395,10 @@ static int DownloadMicrocode(struct drxk_state *state,
 		}
 
 		status = write_block(state, Address, BlockSize, pSrc);
-		if (status < 0)
+		if (status < 0) {
+			printk(KERN_ERR "drxk: Error %d while loading firmware\n", status);
 			break;
+		}
 		pSrc += BlockSize;
 		offset += BlockSize;
 	}
