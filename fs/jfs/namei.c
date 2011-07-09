@@ -1481,10 +1481,8 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, struc
 	}
 
 	ip = jfs_iget(dip->i_sb, inum);
-	if (IS_ERR(ip)) {
+	if (IS_ERR(ip))
 		jfs_err("jfs_lookup: iget failed on inum %d", (uint) inum);
-		return ERR_CAST(ip);
-	}
 
 	return d_splice_alias(ip, dentry);
 }

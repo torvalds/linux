@@ -1652,6 +1652,9 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 {
 	struct dentry *new = NULL;
 
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+
 	if (inode && S_ISDIR(inode->i_mode)) {
 		spin_lock(&inode->i_lock);
 		new = __d_find_alias(inode, 1);

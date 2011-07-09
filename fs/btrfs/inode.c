@@ -4079,13 +4079,7 @@ static int btrfs_dentry_delete(const struct dentry *dentry)
 static struct dentry *btrfs_lookup(struct inode *dir, struct dentry *dentry,
 				   struct nameidata *nd)
 {
-	struct inode *inode;
-
-	inode = btrfs_lookup_dentry(dir, dentry);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-
-	return d_splice_alias(inode, dentry);
+	return d_splice_alias(btrfs_lookup_dentry(dir, dentry), dentry);
 }
 
 unsigned char btrfs_filetype_table[] = {

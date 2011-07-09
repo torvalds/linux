@@ -183,14 +183,9 @@ struct dentry *isofs_lookup(struct inode *dir, struct dentry *dentry, struct nam
 				1024 + page_address(page));
 	__free_page(page);
 
-	inode = NULL;
-	if (found) {
-		inode = isofs_iget(dir->i_sb, block, offset);
-		if (IS_ERR(inode)) {
-			mutex_unlock(&sbi->s_mutex);
-			return ERR_CAST(inode);
-		}
-	}
+	inode = found ? isofs_iget(dir->i_sb, block, offset) : NULL;
+
 	mutex_unlock(&sbi->s_mutex);
+
 	return d_splice_alias(inode, dentry);
 }

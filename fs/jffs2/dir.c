@@ -102,10 +102,8 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 	mutex_unlock(&dir_f->sem);
 	if (ino) {
 		inode = jffs2_iget(dir_i->i_sb, ino);
-		if (IS_ERR(inode)) {
+		if (IS_ERR(inode))
 			printk(KERN_WARNING "iget() failed for ino #%u\n", ino);
-			return ERR_CAST(inode);
-		}
 	}
 
 	return d_splice_alias(inode, target);
