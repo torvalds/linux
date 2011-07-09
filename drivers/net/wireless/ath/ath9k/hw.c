@@ -99,6 +99,13 @@ static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 	if (conf_is_ht40(conf))
 		clockrate *= 2;
 
+	if (ah->curchan) {
+		if (IS_CHAN_HALF_RATE(ah->curchan))
+			clockrate /= 2;
+		if (IS_CHAN_QUARTER_RATE(ah->curchan))
+			clockrate /= 4;
+	}
+
 	common->clockrate = clockrate;
 }
 
