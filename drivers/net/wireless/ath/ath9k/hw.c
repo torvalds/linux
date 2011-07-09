@@ -87,7 +87,10 @@ static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	unsigned int clockrate;
 
-	if (!ah->curchan) /* should really check for CCK instead */
+	/* AR9287 v1.3+ uses async FIFO and runs the MAC at 117 MHz */
+	if (AR_SREV_9287(ah) && AR_SREV_9287_13_OR_LATER(ah))
+		clockrate = 117;
+	else if (!ah->curchan) /* should really check for CCK instead */
 		clockrate = ATH9K_CLOCK_RATE_CCK;
 	else if (conf->channel->band == IEEE80211_BAND_2GHZ)
 		clockrate = ATH9K_CLOCK_RATE_2GHZ_OFDM;
