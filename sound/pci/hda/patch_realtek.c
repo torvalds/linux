@@ -2719,7 +2719,7 @@ static int alc_cap_getput_caller(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct alc_spec *spec = codec->spec;
-	int i, err;
+	int i, err = 0;
 
 	mutex_lock(&codec->control_mutex);
 	if (check_adc_switch && spec->dual_adc_switch) {
