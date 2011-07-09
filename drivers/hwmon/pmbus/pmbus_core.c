@@ -74,8 +74,10 @@
 #define PB_STATUS_INPUT_BASE	(PB_STATUS_FAN34_BASE + PMBUS_PAGES)
 #define PB_STATUS_TEMP_BASE	(PB_STATUS_INPUT_BASE + 1)
 
+#define PMBUS_NAME_SIZE		24
+
 struct pmbus_sensor {
-	char name[I2C_NAME_SIZE];	/* sysfs sensor name */
+	char name[PMBUS_NAME_SIZE];	/* sysfs sensor name */
 	struct sensor_device_attribute attribute;
 	u8 page;		/* page number */
 	u8 reg;			/* register */
@@ -86,14 +88,14 @@ struct pmbus_sensor {
 };
 
 struct pmbus_boolean {
-	char name[I2C_NAME_SIZE];	/* sysfs boolean name */
+	char name[PMBUS_NAME_SIZE];	/* sysfs boolean name */
 	struct sensor_device_attribute attribute;
 };
 
 struct pmbus_label {
-	char name[I2C_NAME_SIZE];	/* sysfs label name */
+	char name[PMBUS_NAME_SIZE];	/* sysfs label name */
 	struct sensor_device_attribute attribute;
-	char label[I2C_NAME_SIZE];	/* label */
+	char label[PMBUS_NAME_SIZE];	/* label */
 };
 
 struct pmbus_data {
