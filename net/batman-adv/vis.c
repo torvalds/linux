@@ -465,7 +465,7 @@ static struct vis_info *add_packet(struct bat_priv *bat_priv,
 	/* try to add it */
 	hash_added = hash_add(bat_priv->vis_hash, vis_info_cmp, vis_info_choose,
 			      info, &info->hash_entry);
-	if (hash_added < 0) {
+	if (hash_added != 0) {
 		/* did not work (for some reason) */
 		kref_put(&info->refcount, free_info);
 		info = NULL;
@@ -920,7 +920,7 @@ int vis_init(struct bat_priv *bat_priv)
 	hash_added = hash_add(bat_priv->vis_hash, vis_info_cmp, vis_info_choose,
 			      bat_priv->my_vis_info,
 			      &bat_priv->my_vis_info->hash_entry);
-	if (hash_added < 0) {
+	if (hash_added != 0) {
 		pr_err("Can't add own vis packet into hash\n");
 		/* not in hash, need to remove it manually. */
 		kref_put(&bat_priv->my_vis_info->refcount, free_info);
