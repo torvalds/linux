@@ -905,6 +905,7 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 	u16 sioPdrOhwCfg = 0;
 	u32 sioTopJtagidLo = 0;
 	int status;
+	const char *spin = "";
 
 	dprintk(1, "\n");
 
@@ -954,12 +955,15 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 	switch ((sioTopJtagidLo >> 29) & 0xF) {
 	case 0:
 		state->m_deviceSpin = DRXK_SPIN_A1;
+		spin = "A1";
 		break;
 	case 2:
 		state->m_deviceSpin = DRXK_SPIN_A2;
+		spin = "A2";
 		break;
 	case 3:
 		state->m_deviceSpin = DRXK_SPIN_A3;
+		spin = "A3";
 		break;
 	default:
 		state->m_deviceSpin = DRXK_SPIN_UNKNOWN;
@@ -1078,6 +1082,12 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 		status = -EINVAL;
 		goto error2;
 	}
+
+	printk(KERN_INFO
+	       "drxk: detected a drx-39%02xk, spin %s, xtal %d.%03d MHz\n",
+	       ((sioTopJtagidLo >> 12) & 0xFF), spin,
+	       state->m_oscClockFreq / 1000,
+	       state->m_oscClockFreq % 1000);
 
 error:
 	if (status < 0)
