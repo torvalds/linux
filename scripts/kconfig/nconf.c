@@ -1221,19 +1221,7 @@ static void conf_message_callback(const char *fmt, va_list ap)
 static void show_help(struct menu *menu)
 {
 	struct gstr help = str_new();
-
-	if (menu && menu->sym && menu_has_help(menu)) {
-		if (menu->sym->name) {
-			str_printf(&help, "%s%s:\n\n", CONFIG_, menu->sym->name);
-			str_append(&help, _(menu_get_help(menu)));
-			str_append(&help, "\n");
-			get_symbol_str(&help, menu->sym);
-		} else {
-			str_append(&help, _(menu_get_help(menu)));
-		}
-	} else {
-		str_append(&help, nohelp_text);
-	}
+	menu_get_ext_help(menu, &help);
 	show_scroll_win(main_window, _(menu_get_prompt(menu)), str_get(&help));
 	str_free(&help);
 }
