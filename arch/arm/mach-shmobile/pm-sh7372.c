@@ -91,6 +91,36 @@ static int pd_power_up(struct generic_pm_domain *genpd)
 	return ret;
 }
 
+static int pd_power_up_a3rv(struct generic_pm_domain *genpd)
+{
+	int ret = pd_power_up(genpd);
+
+	/* force A4LC on after A3RV has been requested on */
+	pm_genpd_poweron(&sh7372_a4lc.genpd);
+
+	return ret;
+}
+
+static int pd_power_down_a3rv(struct generic_pm_domain *genpd)
+{
+	int ret = pd_power_down(genpd);
+
+	/* try to power down A4LC after A3RV is requested off */
+	pm_genpd_poweron(&sh7372_a4lc.genpd);
+	queue_work(pm_wq, &sh7372_a4lc.genpd.power_off_work);
+
+	return ret;
+}
+
+static int pd_power_down_a4lc(struct generic_pm_domain *genpd)
+{
+	/* only power down A4LC if A3RV is off */
+	if (!(__raw_readl(PSTR) & (1 << sh7372_a3rv.bit_shift)))
+		return pd_power_down(genpd);
+
+	return 0;
+}
+
 static bool pd_active_wakeup(struct device *dev)
 {
 	return true;
@@ -115,9 +145,18 @@ void sh7372_init_pm_domain(struct sh7372_pm_domain *sh7372_pd)
 	genpd->stop_device = pm_clk_suspend;
 	genpd->start_device = pm_clk_resume;
 	genpd->active_wakeup = pd_active_wakeup;
-	genpd->power_off = pd_power_down;
-	genpd->power_on = pd_power_up;
-	pd_power_up(&sh7372_pd->genpd);
+
+	if (sh7372_pd == &sh7372_a4lc) {
+		genpd->power_off = pd_power_down_a4lc;
+		genpd->power_on = pd_power_up;
+	} else if (sh7372_pd == &sh7372_a3rv) {
+		genpd->power_off = pd_power_down_a3rv;
+		genpd->power_on = pd_power_up_a3rv;
+	} else {
+		genpd->power_off = pd_power_down;
+		genpd->power_on = pd_power_up;
+	}
+	genpd->power_on(&sh7372_pd->genpd);
 
 	shmobile_runtime_pm_late_init = sh7372_late_pm_domain_off;
 }
