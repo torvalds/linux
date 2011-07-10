@@ -1713,6 +1713,8 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 		snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_1 + reg_offset,
 				    WM8994_FLL1_ENA | WM8994_FLL1_FRAC,
 				    reg);
+
+		msleep(5);
 	}
 
 	wm8994->fll[id].in = freq_in;
