@@ -1,7 +1,7 @@
 /*
  * omap_hwmod_2420_data.c - hardware modules present on the OMAP2420 chips
  *
- * Copyright (C) 2009-2010 Nokia Corporation
+ * Copyright (C) 2009-2011 Nokia Corporation
  * Paul Walmsley
  *
  * This program is free software; you can redistribute it and/or modify
@@ -120,6 +120,7 @@ static struct omap_hwmod_addr_space omap2420_mcspi1_addr_space[] = {
 		.pa_end		= 0x480980ff,
 		.flags		= ADDR_TYPE_RT,
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if omap2420_l4_core__mcspi1 = {
@@ -127,7 +128,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__mcspi1 = {
 	.slave		= &omap2420_mcspi1_hwmod,
 	.clk		= "mcspi1_ick",
 	.addr		= omap2420_mcspi1_addr_space,
-	.addr_cnt	= ARRAY_SIZE(omap2420_mcspi1_addr_space),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -138,6 +138,7 @@ static struct omap_hwmod_addr_space omap2420_mcspi2_addr_space[] = {
 		.pa_end		= 0x4809a0ff,
 		.flags		= ADDR_TYPE_RT,
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if omap2420_l4_core__mcspi2 = {
@@ -145,7 +146,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__mcspi2 = {
 	.slave		= &omap2420_mcspi2_hwmod,
 	.clk		= "mcspi2_ick",
 	.addr		= omap2420_mcspi2_addr_space,
-	.addr_cnt	= ARRAY_SIZE(omap2420_mcspi2_addr_space),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -163,6 +163,7 @@ static struct omap_hwmod_addr_space omap2420_uart1_addr_space[] = {
 		.pa_end		= OMAP2_UART1_BASE + SZ_8K - 1,
 		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if omap2_l4_core__uart1 = {
@@ -170,7 +171,6 @@ static struct omap_hwmod_ocp_if omap2_l4_core__uart1 = {
 	.slave		= &omap2420_uart1_hwmod,
 	.clk		= "uart1_ick",
 	.addr		= omap2420_uart1_addr_space,
-	.addr_cnt	= ARRAY_SIZE(omap2420_uart1_addr_space),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -181,6 +181,7 @@ static struct omap_hwmod_addr_space omap2420_uart2_addr_space[] = {
 		.pa_end		= OMAP2_UART2_BASE + SZ_1K - 1,
 		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if omap2_l4_core__uart2 = {
@@ -188,7 +189,6 @@ static struct omap_hwmod_ocp_if omap2_l4_core__uart2 = {
 	.slave		= &omap2420_uart2_hwmod,
 	.clk		= "uart2_ick",
 	.addr		= omap2420_uart2_addr_space,
-	.addr_cnt	= ARRAY_SIZE(omap2420_uart2_addr_space),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -199,6 +199,7 @@ static struct omap_hwmod_addr_space omap2420_uart3_addr_space[] = {
 		.pa_end		= OMAP2_UART3_BASE + SZ_1K - 1,
 		.flags		= ADDR_MAP_ON_INIT | ADDR_TYPE_RT,
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if omap2_l4_core__uart3 = {
@@ -206,7 +207,6 @@ static struct omap_hwmod_ocp_if omap2_l4_core__uart3 = {
 	.slave		= &omap2420_uart3_hwmod,
 	.clk		= "uart3_ick",
 	.addr		= omap2420_uart3_addr_space,
-	.addr_cnt	= ARRAY_SIZE(omap2420_uart3_addr_space),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -220,6 +220,7 @@ static struct omap_hwmod_addr_space omap2420_i2c1_addr_space[] = {
 		.pa_end		= 0x48070000 + OMAP2_I2C_AS_LEN - 1,
 		.flags		= ADDR_TYPE_RT,
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if omap2420_l4_core__i2c1 = {
@@ -227,7 +228,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__i2c1 = {
 	.slave		= &omap2420_i2c1_hwmod,
 	.clk		= "i2c1_ick",
 	.addr		= omap2420_i2c1_addr_space,
-	.addr_cnt	= ARRAY_SIZE(omap2420_i2c1_addr_space),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -238,6 +238,7 @@ static struct omap_hwmod_addr_space omap2420_i2c2_addr_space[] = {
 		.pa_end		= 0x48072000 + OMAP2_I2C_AS_LEN - 1,
 		.flags		= ADDR_TYPE_RT,
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if omap2420_l4_core__i2c2 = {
@@ -245,7 +246,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__i2c2 = {
 	.slave		= &omap2420_i2c2_hwmod,
 	.clk		= "i2c2_ick",
 	.addr		= omap2420_i2c2_addr_space,
-	.addr_cnt	= ARRAY_SIZE(omap2420_i2c2_addr_space),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -370,6 +370,7 @@ static struct omap_hwmod_addr_space omap2420_timer1_addrs[] = {
 		.pa_end		= 0x48028000 + SZ_1K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_wkup -> timer1 */
@@ -378,7 +379,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_wkup__timer1 = {
 	.slave		= &omap2420_timer1_hwmod,
 	.clk		= "gpt1_ick",
 	.addr		= omap2420_timer1_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_timer1_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -420,6 +420,7 @@ static struct omap_hwmod_addr_space omap2420_timer2_addrs[] = {
 		.pa_end		= 0x4802a000 + SZ_1K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> timer2 */
@@ -428,7 +429,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__timer2 = {
 	.slave		= &omap2420_timer2_hwmod,
 	.clk		= "gpt2_ick",
 	.addr		= omap2420_timer2_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_timer2_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -470,6 +470,7 @@ static struct omap_hwmod_addr_space omap2420_timer3_addrs[] = {
 		.pa_end		= 0x48078000 + SZ_1K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> timer3 */
@@ -478,7 +479,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__timer3 = {
 	.slave		= &omap2420_timer3_hwmod,
 	.clk		= "gpt3_ick",
 	.addr		= omap2420_timer3_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_timer3_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -520,6 +520,7 @@ static struct omap_hwmod_addr_space omap2420_timer4_addrs[] = {
 		.pa_end		= 0x4807a000 + SZ_1K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> timer4 */
@@ -528,7 +529,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__timer4 = {
 	.slave		= &omap2420_timer4_hwmod,
 	.clk		= "gpt4_ick",
 	.addr		= omap2420_timer4_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_timer4_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -570,6 +570,7 @@ static struct omap_hwmod_addr_space omap2420_timer5_addrs[] = {
 		.pa_end		= 0x4807c000 + SZ_1K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> timer5 */
@@ -578,7 +579,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__timer5 = {
 	.slave		= &omap2420_timer5_hwmod,
 	.clk		= "gpt5_ick",
 	.addr		= omap2420_timer5_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_timer5_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -621,6 +621,7 @@ static struct omap_hwmod_addr_space omap2420_timer6_addrs[] = {
 		.pa_end		= 0x4807e000 + SZ_1K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> timer6 */
@@ -629,7 +630,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__timer6 = {
 	.slave		= &omap2420_timer6_hwmod,
 	.clk		= "gpt6_ick",
 	.addr		= omap2420_timer6_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_timer6_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -671,6 +671,7 @@ static struct omap_hwmod_addr_space omap2420_timer7_addrs[] = {
 		.pa_end		= 0x48080000 + SZ_1K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> timer7 */
@@ -679,7 +680,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__timer7 = {
 	.slave		= &omap2420_timer7_hwmod,
 	.clk		= "gpt7_ick",
 	.addr		= omap2420_timer7_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_timer7_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -721,6 +721,7 @@ static struct omap_hwmod_addr_space omap2420_timer8_addrs[] = {
 		.pa_end		= 0x48082000 + SZ_1K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> timer8 */
@@ -729,7 +730,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__timer8 = {
 	.slave		= &omap2420_timer8_hwmod,
 	.clk		= "gpt8_ick",
 	.addr		= omap2420_timer8_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_timer8_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -771,6 +771,7 @@ static struct omap_hwmod_addr_space omap2420_timer9_addrs[] = {
 		.pa_end		= 0x48084000 + SZ_1K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> timer9 */
@@ -779,7 +780,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__timer9 = {
 	.slave		= &omap2420_timer9_hwmod,
 	.clk		= "gpt9_ick",
 	.addr		= omap2420_timer9_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_timer9_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -821,6 +821,7 @@ static struct omap_hwmod_addr_space omap2420_timer10_addrs[] = {
 		.pa_end		= 0x48086000 + SZ_1K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> timer10 */
@@ -829,7 +830,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__timer10 = {
 	.slave		= &omap2420_timer10_hwmod,
 	.clk		= "gpt10_ick",
 	.addr		= omap2420_timer10_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_timer10_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -871,6 +871,7 @@ static struct omap_hwmod_addr_space omap2420_timer11_addrs[] = {
 		.pa_end		= 0x48088000 + SZ_1K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> timer11 */
@@ -879,7 +880,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__timer11 = {
 	.slave		= &omap2420_timer11_hwmod,
 	.clk		= "gpt11_ick",
 	.addr		= omap2420_timer11_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_timer11_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -921,6 +921,7 @@ static struct omap_hwmod_addr_space omap2420_timer12_addrs[] = {
 		.pa_end		= 0x4808a000 + SZ_1K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> timer12 */
@@ -929,7 +930,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__timer12 = {
 	.slave		= &omap2420_timer12_hwmod,
 	.clk		= "gpt12_ick",
 	.addr		= omap2420_timer12_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_timer12_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -966,6 +966,7 @@ static struct omap_hwmod_addr_space omap2420_wd_timer2_addrs[] = {
 		.pa_end		= 0x4802207f,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if omap2420_l4_wkup__wd_timer2 = {
@@ -973,7 +974,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_wkup__wd_timer2 = {
 	.slave		= &omap2420_wd_timer2_hwmod,
 	.clk		= "mpu_wdt_ick",
 	.addr		= omap2420_wd_timer2_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_wd_timer2_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -1184,6 +1184,7 @@ static struct omap_hwmod_addr_space omap2420_dss_addrs[] = {
 		.pa_end		= 0x480503FF,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> dss */
@@ -1192,7 +1193,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__dss = {
 	.slave		= &omap2420_dss_core_hwmod,
 	.clk		= "dss_ick",
 	.addr		= omap2420_dss_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_dss_addrs),
 	.fw = {
 		.omap2 = {
 			.l4_fw_region  = OMAP2420_L4_CORE_FW_DSS_CORE_REGION,
@@ -1268,6 +1268,7 @@ static struct omap_hwmod_addr_space omap2420_dss_dispc_addrs[] = {
 		.pa_end		= 0x480507FF,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> dss_dispc */
@@ -1276,7 +1277,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__dss_dispc = {
 	.slave		= &omap2420_dss_dispc_hwmod,
 	.clk		= "dss_ick",
 	.addr		= omap2420_dss_dispc_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_dss_dispc_addrs),
 	.fw = {
 		.omap2 = {
 			.l4_fw_region  = OMAP2420_L4_CORE_FW_DSS_DISPC_REGION,
@@ -1338,6 +1338,7 @@ static struct omap_hwmod_addr_space omap2420_dss_rfbi_addrs[] = {
 		.pa_end		= 0x48050BFF,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> dss_rfbi */
@@ -1346,7 +1347,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__dss_rfbi = {
 	.slave		= &omap2420_dss_rfbi_hwmod,
 	.clk		= "dss_ick",
 	.addr		= omap2420_dss_rfbi_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_dss_rfbi_addrs),
 	.fw = {
 		.omap2 = {
 			.l4_fw_region  = OMAP2420_L4_CORE_FW_DSS_CORE_REGION,
@@ -1394,6 +1394,7 @@ static struct omap_hwmod_addr_space omap2420_dss_venc_addrs[] = {
 		.pa_end		= 0x48050FFF,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> dss_venc */
@@ -1402,7 +1403,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__dss_venc = {
 	.slave		= &omap2420_dss_venc_hwmod,
 	.clk		= "dss_54m_fck",
 	.addr		= omap2420_dss_venc_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_dss_venc_addrs),
 	.fw = {
 		.omap2 = {
 			.l4_fw_region  = OMAP2420_L4_CORE_FW_DSS_VENC_REGION,
@@ -1536,6 +1536,7 @@ static struct omap_hwmod_addr_space omap2420_gpio1_addr_space[] = {
 		.pa_end		= 0x480181ff,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if omap2420_l4_wkup__gpio1 = {
@@ -1543,7 +1544,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_wkup__gpio1 = {
 	.slave		= &omap2420_gpio1_hwmod,
 	.clk		= "gpios_ick",
 	.addr		= omap2420_gpio1_addr_space,
-	.addr_cnt	= ARRAY_SIZE(omap2420_gpio1_addr_space),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -1554,6 +1554,7 @@ static struct omap_hwmod_addr_space omap2420_gpio2_addr_space[] = {
 		.pa_end		= 0x4801a1ff,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if omap2420_l4_wkup__gpio2 = {
@@ -1561,7 +1562,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_wkup__gpio2 = {
 	.slave		= &omap2420_gpio2_hwmod,
 	.clk		= "gpios_ick",
 	.addr		= omap2420_gpio2_addr_space,
-	.addr_cnt	= ARRAY_SIZE(omap2420_gpio2_addr_space),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -1572,6 +1572,7 @@ static struct omap_hwmod_addr_space omap2420_gpio3_addr_space[] = {
 		.pa_end		= 0x4801c1ff,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if omap2420_l4_wkup__gpio3 = {
@@ -1579,7 +1580,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_wkup__gpio3 = {
 	.slave		= &omap2420_gpio3_hwmod,
 	.clk		= "gpios_ick",
 	.addr		= omap2420_gpio3_addr_space,
-	.addr_cnt	= ARRAY_SIZE(omap2420_gpio3_addr_space),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -1590,6 +1590,7 @@ static struct omap_hwmod_addr_space omap2420_gpio4_addr_space[] = {
 		.pa_end		= 0x4801e1ff,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 static struct omap_hwmod_ocp_if omap2420_l4_wkup__gpio4 = {
@@ -1597,7 +1598,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_wkup__gpio4 = {
 	.slave		= &omap2420_gpio4_hwmod,
 	.clk		= "gpios_ick",
 	.addr		= omap2420_gpio4_addr_space,
-	.addr_cnt	= ARRAY_SIZE(omap2420_gpio4_addr_space),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -1789,6 +1789,7 @@ static struct omap_hwmod_addr_space omap2420_dma_system_addrs[] = {
 		.pa_end		= 0x48056fff,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* dma_system -> L3 */
@@ -1810,7 +1811,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__dma_system = {
 	.slave		= &omap2420_dma_system_hwmod,
 	.clk		= "sdma_ick",
 	.addr		= omap2420_dma_system_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_dma_system_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -1868,6 +1868,7 @@ static struct omap_hwmod_addr_space omap2420_mailbox_addrs[] = {
 		.pa_end		= 0x480941ff,
 		.flags		= ADDR_TYPE_RT,
 	},
+	{ }
 };
 
 /* l4_core -> mailbox */
@@ -1875,7 +1876,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__mailbox = {
 	.master		= &omap2420_l4_core_hwmod,
 	.slave		= &omap2420_mailbox_hwmod,
 	.addr		= omap2420_mailbox_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_mailbox_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -2044,6 +2044,7 @@ static struct omap_hwmod_addr_space omap2420_mcbsp1_addrs[] = {
 		.pa_end		= 0x480740ff,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> mcbsp1 */
@@ -2052,7 +2053,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__mcbsp1 = {
 	.slave		= &omap2420_mcbsp1_hwmod,
 	.clk		= "mcbsp1_ick",
 	.addr		= omap2420_mcbsp1_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_mcbsp1_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -2101,6 +2101,7 @@ static struct omap_hwmod_addr_space omap2420_mcbsp2_addrs[] = {
 		.pa_end		= 0x480760ff,
 		.flags		= ADDR_TYPE_RT
 	},
+	{ }
 };
 
 /* l4_core -> mcbsp2 */
@@ -2109,7 +2110,6 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__mcbsp2 = {
 	.slave		= &omap2420_mcbsp2_hwmod,
 	.clk		= "mcbsp2_ick",
 	.addr		= omap2420_mcbsp2_addrs,
-	.addr_cnt	= ARRAY_SIZE(omap2420_mcbsp2_addrs),
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 

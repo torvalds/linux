@@ -220,7 +220,6 @@ struct omap_hwmod_addr_space {
  * @clk: interface clock: OMAP clock name
  * @_clk: pointer to the interface struct clk (filled in at runtime)
  * @fw: interface firewall data
- * @addr_cnt: ARRAY_SIZE(@addr)
  * @width: OCP data width
  * @user: initiators using this interface (see OCP_USER_* macros above)
  * @flags: OCP interface flags (see OCPIF_* macros above)
@@ -239,7 +238,6 @@ struct omap_hwmod_ocp_if {
 	union {
 		struct omap_hwmod_omap2_firewall omap2;
 	}				fw;
-	u8				addr_cnt;
 	u8				width;
 	u8				user;
 	u8				flags;

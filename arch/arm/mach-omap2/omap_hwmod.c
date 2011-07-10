@@ -2,6 +2,7 @@
  * omap_hwmod implementation for OMAP2/3/4
  *
  * Copyright (C) 2009-2011 Nokia Corporation
+ * Copyright (C) 2011 Texas Instruments, Inc.
  *
  * Paul Walmsley, Benoît Cousson, Kevin Hilman
  *
@@ -678,6 +679,29 @@ static void _disable_optional_clocks(struct omap_hwmod *oh)
 }
 
 /**
+ * _count_ocp_if_addr_spaces - count the number of address space entries for @oh
+ * @oh: struct omap_hwmod *oh
+ *
+ * Count and return the number of address space ranges associated with
+ * the hwmod @oh.  Used to allocate struct resource data.  Returns 0
+ * if @oh is NULL.
+ */
+static int _count_ocp_if_addr_spaces(struct omap_hwmod_ocp_if *os)
+{
+	struct omap_hwmod_addr_space *mem;
+	int i = 0;
+
+	if (!os || !os->addr)
+		return 0;
+
+	do {
+		mem = &os->addr[i++];
+	} while (mem->pa_start != mem->pa_end);
+
+	return i;
+}
+
+/**
  * _find_mpu_port_index - find hwmod OCP slave port ID intended for MPU use
  * @oh: struct omap_hwmod *
  *
@@ -722,8 +746,7 @@ static void __iomem * __init _find_mpu_rt_base(struct omap_hwmod *oh, u8 index)
 {
 	struct omap_hwmod_ocp_if *os;
 	struct omap_hwmod_addr_space *mem;
-	int i;
-	int found = 0;
+	int i = 0, found = 0;
 	void __iomem *va_start;
 
 	if (!oh || oh->slaves_cnt == 0)
@@ -731,12 +754,14 @@ static void __iomem * __init _find_mpu_rt_base(struct omap_hwmod *oh, u8 index)
 
 	os = oh->slaves[index];
 
-	for (i = 0, mem = os->addr; i < os->addr_cnt; i++, mem++) {
-		if (mem->flags & ADDR_TYPE_RT) {
+	if (!os->addr)
+		return NULL;
+
+	do {
+		mem = &os->addr[i++];
+		if (mem->flags & ADDR_TYPE_RT)
 			found = 1;
-			break;
-		}
-	}
+	} while (!found && mem->pa_start != mem->pa_end);
 
 	if (found) {
 		va_start = ioremap(mem->pa_start, mem->pa_end - mem->pa_start);
@@ -1942,7 +1967,7 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh)
 	ret = oh->mpu_irqs_cnt + oh->sdma_reqs_cnt;
 
 	for (i = 0; i < oh->slaves_cnt; i++)
-		ret += oh->slaves[i]->addr_cnt;
+		ret += _count_ocp_if_addr_spaces(oh->slaves[i]);
 
 	return ret;
 }
@@ -1982,10 +2007,12 @@ int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 
 	for (i = 0; i < oh->slaves_cnt; i++) {
 		struct omap_hwmod_ocp_if *os;
+		int addr_cnt;
 
 		os = oh->slaves[i];
+		addr_cnt = _count_ocp_if_addr_spaces(os);
 
-		for (j = 0; j < os->addr_cnt; j++) {
+		for (j = 0; j < addr_cnt; j++) {
 			(res + r)->name = (os->addr + j)->name;
 			(res + r)->start = (os->addr + j)->pa_start;
 			(res + r)->end = (os->addr + j)->pa_end;
