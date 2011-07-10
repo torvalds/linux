@@ -990,9 +990,40 @@ static struct omap_hwmod *_lookup(const char *name)
 
 	return oh;
 }
+/**
+ * _init_clkdm - look up a clockdomain name, store pointer in omap_hwmod
+ * @oh: struct omap_hwmod *
+ *
+ * Convert a clockdomain name stored in a struct omap_hwmod into a
+ * clockdomain pointer, and save it into the struct omap_hwmod.
+ * return -EINVAL if clkdm_name does not exist or if the lookup failed.
+ */
+static int _init_clkdm(struct omap_hwmod *oh)
+{
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		return 0;
+
+	if (!oh->clkdm_name) {
+		pr_warning("omap_hwmod: %s: no clkdm_name\n", oh->name);
+		return -EINVAL;
+	}
+
+	oh->clkdm = clkdm_lookup(oh->clkdm_name);
+	if (!oh->clkdm) {
+		pr_warning("omap_hwmod: %s: could not associate to clkdm %s\n",
+			oh->name, oh->clkdm_name);
+		return -EINVAL;
+	}
+
+	pr_debug("omap_hwmod: %s: associated to clkdm %s\n",
+		oh->name, oh->clkdm_name);
+
+	return 0;
+}
 
 /**
- * _init_clocks - clk_get() all clocks associated with this hwmod
+ * _init_clocks - clk_get() all clocks associated with this hwmod. Retrieve as
+ * well the clockdomain.
  * @oh: struct omap_hwmod *
  * @data: not used; pass NULL
  *
@@ -1012,6 +1043,7 @@ static int _init_clocks(struct omap_hwmod *oh, void *data)
 	ret |= _init_main_clk(oh);
 	ret |= _init_interface_clks(oh);
 	ret |= _init_opt_clks(oh);
+	ret |= _init_clkdm(oh);
 
 	if (!ret)
 		oh->_state = _HWMOD_STATE_CLKS_INITED;
