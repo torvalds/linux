@@ -903,6 +903,7 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 		info = tps65911_regs;
 	default:
 		pr_err("Invalid tps chip version\n");
+		kfree(pmic);
 		return -ENODEV;
 	}
 
