@@ -856,7 +856,6 @@ static int init_state(struct drxk_state *state)
 	state->m_agcFastClipCtrlDelay = 0;
 
 	state->m_GPIOCfg = (ulGPIOCfg);
-	state->m_GPIO = (ulGPIO == 0 ? 0 : 1);
 
 	state->m_bPowerDown = false;
 	state->m_currentPowerMode = DRX_POWER_DOWN;
@@ -5795,24 +5794,63 @@ static int WriteGPIO(struct drxk_state *state)
 		goto error;
 
 	if (state->m_hasSAWSW) {
-		/* write to io pad configuration register - output mode */
-		status = write16(state, SIO_PDR_SMA_TX_CFG__A, state->m_GPIOCfg);
-		if (status < 0)
-			goto error;
+		if (state->UIO_mask & 0x0001) { /* UIO-1 */
+			/* write to io pad configuration register - output mode */
+			status = write16(state, SIO_PDR_SMA_TX_CFG__A, state->m_GPIOCfg);
+			if (status < 0)
+				goto error;
 
-		/* use corresponding bit in io data output registar */
-		status = read16(state, SIO_PDR_UIO_OUT_LO__A, &value);
-		if (status < 0)
-			goto error;
-		if (state->m_GPIO == 0)
-			value &= 0x7FFF;	/* write zero to 15th bit - 1st UIO */
-		else
-			value |= 0x8000;	/* write one to 15th bit - 1st UIO */
-		/* write back to io data output register */
-		status = write16(state, SIO_PDR_UIO_OUT_LO__A, value);
-		if (status < 0)
-			goto error;
+			/* use corresponding bit in io data output registar */
+			status = read16(state, SIO_PDR_UIO_OUT_LO__A, &value);
+			if (status < 0)
+				goto error;
+			if ((state->m_GPIO & 0x0001) == 0)
+				value &= 0x7FFF;	/* write zero to 15th bit - 1st UIO */
+			else
+				value |= 0x8000;	/* write one to 15th bit - 1st UIO */
+			/* write back to io data output register */
+			status = write16(state, SIO_PDR_UIO_OUT_LO__A, value);
+			if (status < 0)
+				goto error;
+		}
+		if (state->UIO_mask & 0x0002) { /* UIO-2 */
+			/* write to io pad configuration register - output mode */
+			status = write16(state, SIO_PDR_SMA_TX_CFG__A, state->m_GPIOCfg);
+			if (status < 0)
+				goto error;
 
+			/* use corresponding bit in io data output registar */
+			status = read16(state, SIO_PDR_UIO_OUT_LO__A, &value);
+			if (status < 0)
+				goto error;
+			if ((state->m_GPIO & 0x0002) == 0)
+				value &= 0xBFFF;	/* write zero to 14th bit - 2st UIO */
+			else
+				value |= 0x4000;	/* write one to 14th bit - 2st UIO */
+			/* write back to io data output register */
+			status = write16(state, SIO_PDR_UIO_OUT_LO__A, value);
+			if (status < 0)
+				goto error;
+		}
+		if (state->UIO_mask & 0x0004) { /* UIO-3 */
+			/* write to io pad configuration register - output mode */
+			status = write16(state, SIO_PDR_SMA_TX_CFG__A, state->m_GPIOCfg);
+			if (status < 0)
+				goto error;
+
+			/* use corresponding bit in io data output registar */
+			status = read16(state, SIO_PDR_UIO_OUT_LO__A, &value);
+			if (status < 0)
+				goto error;
+			if ((state->m_GPIO & 0x0004) == 0)
+				value &= 0xFFFB;            /* write zero to 2nd bit - 3rd UIO */
+			else
+				value |= 0x0004;            /* write one to 2nd bit - 3rd UIO */
+			/* write back to io data output register */
+			status = write16(state, SIO_PDR_UIO_OUT_LO__A, value);
+			if (status < 0)
+				goto error;
+		}
 	}
 	/*  Write magic word to disable pdr reg write               */
 	status = write16(state, SIO_TOP_COMM_KEY__A, 0x0000);
@@ -5825,14 +5863,22 @@ error:
 static int SwitchAntennaToQAM(struct drxk_state *state)
 {
 	int status = 0;
+	bool gpio_state;
 
 	dprintk(1, "\n");
 
-	if (state->m_AntennaSwitchDVBTDVBC != 0) {
-		if (state->m_GPIO != state->m_AntennaDVBC) {
-			state->m_GPIO = state->m_AntennaDVBC;
-			status = WriteGPIO(state);
-		}
+	if (!state->antenna_gpio)
+		return 0;
+
+	gpio_state = state->m_GPIO & state->antenna_gpio;
+
+	if (state->antenna_dvbt ^ gpio_state) {
+		/* Antenna is on DVB-T mode. Switch */
+		if (state->antenna_dvbt)
+			state->m_GPIO &= ~state->antenna_gpio;
+		else
+			state->m_GPIO |= state->antenna_gpio;
+		status = WriteGPIO(state);
 	}
 	if (status < 0)
 		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
@@ -5842,13 +5888,22 @@ static int SwitchAntennaToQAM(struct drxk_state *state)
 static int SwitchAntennaToDVBT(struct drxk_state *state)
 {
 	int status = 0;
+	bool gpio_state;
 
 	dprintk(1, "\n");
-	if (state->m_AntennaSwitchDVBTDVBC != 0) {
-		if (state->m_GPIO != state->m_AntennaDVBT) {
-			state->m_GPIO = state->m_AntennaDVBT;
-			status = WriteGPIO(state);
-		}
+
+	if (!state->antenna_gpio)
+		return 0;
+
+	gpio_state = state->m_GPIO & state->antenna_gpio;
+
+	if (!(state->antenna_dvbt ^ gpio_state)) {
+		/* Antenna is on DVB-C mode. Switch */
+		if (state->antenna_dvbt)
+			state->m_GPIO |= state->antenna_gpio;
+		else
+			state->m_GPIO &= ~state->antenna_gpio;
+		status = WriteGPIO(state);
 	}
 	if (status < 0)
 		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
@@ -6350,9 +6405,17 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	state->single_master = config->single_master;
 	state->microcode_name = config->microcode_name;
 	state->no_i2c_bridge = config->no_i2c_bridge;
-	state->m_AntennaSwitchDVBTDVBC = config->antenna_uses_gpio;
-	state->m_AntennaDVBC = config->antenna_dvbc;
-	state->m_AntennaDVBT = config->antenna_dvbt;
+	state->antenna_gpio = config->antenna_gpio;
+	state->antenna_dvbt = config->antenna_dvbt;
+
+	/* NOTE: as more UIO bits will be used, add them to the mask */
+	state->UIO_mask = config->antenna_gpio;
+
+	/* Default gpio to DVB-C */
+	if (!state->antenna_dvbt && state->antenna_gpio)
+		state->m_GPIO |= state->antenna_gpio;
+	else
+		state->m_GPIO &= ~state->antenna_gpio;
 
 	mutex_init(&state->mutex);
 	mutex_init(&state->ctlock);

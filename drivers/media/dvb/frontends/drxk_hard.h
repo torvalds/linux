@@ -323,17 +323,19 @@ struct drxk_state {
 
 	enum DRXPowerMode m_currentPowerMode;
 
-	/* Configurable parameters at the driver */
+	/*
+	 * Configurable parameters at the driver. They stores the values found
+	 * at struct drxk_config.
+	 */
 
-	bool              m_AntennaSwitchDVBTDVBC;
-	u16               m_AntennaDVBC;
-	u16               m_AntennaDVBT;
+	u16	UIO_mask;	/* Bits used by UIO */
 
-	u32 single_master : 1;		/* Use single master i2c mode */
-	u32 no_i2c_bridge : 1;		/* Tuner is not on port 1, don't use I2C bridge */
+	bool	single_master;
+	bool	no_i2c_bridge;
+	bool	antenna_dvbt;
+	u16	antenna_gpio;
 
 	const char *microcode_name;
-
 };
 
 #define NEVER_LOCK 0

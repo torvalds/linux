@@ -10,18 +10,21 @@
  * adr:			I2C Address of the DRX-K
  * single_master:	Device is on the single master mode
  * no_i2c_bridge:	Don't switch the I2C bridge to talk with tuner
- * antenna_uses_gpio:	Use GPIO to control the antenna
- * antenna_dvbc:	GPIO for changing antenna to DVB-C
- * antenna_dvbt:	GPIO for changing antenna to DVB-T
+ * antenna_gpio:	GPIO bit used to control the antenna
+ * antenna_dvbt:	GPIO bit for changing antenna to DVB-C. A value of 1
+ *			means that 1=DVBC, 0 = DVBT. Zero means the opposite.
  * microcode_name:	Name of the firmware file with the microcode
+ *
+ * On the *_gpio vars, bit 0 is UIO-1, bit 1 is UIO-2 and bit 2 is
+ * UIO-3.
  */
 struct drxk_config {
 	u8	adr;
 	bool	single_master;
 	bool	no_i2c_bridge;
 
-	bool	antenna_uses_gpio;
-	u16	antenna_dvbc, antenna_dvbt;
+	bool	antenna_dvbt;
+	u16	antenna_gpio;
 
 	const char *microcode_name;
 };
