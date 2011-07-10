@@ -82,12 +82,4 @@ void rtllib_crypt_deinit_entries(struct rtllib_device *, int);
 void rtllib_crypt_deinit_handler(unsigned long);
 void rtllib_crypt_delayed_deinit(struct rtllib_device *ieee,
 				    struct rtllib_crypt_data **crypt);
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-#define offset_in_page(p) ((unsigned long)(p) & ~PAGE_MASK)
-#endif
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,31))
-#define crypto_alloc_tfm crypto_alloc_tfm_rsl
-#define crypto_free_tfm crypto_free_tfm_rsl
-#endif
-
 #endif

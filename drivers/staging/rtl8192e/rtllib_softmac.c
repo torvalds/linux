@@ -754,21 +754,13 @@ void rtllib_start_send_beacons(struct rtllib_device *ieee)
 
 void rtllib_softmac_stop_scan(struct rtllib_device *ieee)
 {
-
-
 	down(&ieee->scan_sem);
 	ieee->scan_watch_dog = 0;
-	if (ieee->scanning_continue == 1){
+	if (ieee->scanning_continue == 1) {
 		ieee->scanning_continue = 0;
 		ieee->actscanning = 0;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,40)
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,67)
 		cancel_delayed_work(&ieee->softmac_scan_wq);
-#endif
-#else
-		del_timer_sync(&ieee->scan_timer);
-#endif
 	}
 
 	up(&ieee->scan_sem);
@@ -836,18 +828,6 @@ void rtllib_start_scan(struct rtllib_device *ieee)
 	}
 
 }
-
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,40)
-void rtllib_softmac_scan_cb(unsigned long _dev)
-{
-	unsigned long flags;
-	struct rtllib_device *ieee = (struct rtllib_device *)_dev;
-
-	spin_lock_irqsave(&ieee->lock, flags);
-	rtllib_start_scan(ieee);
-	spin_unlock_irqrestore(&ieee->lock, flags);
-}
-#endif
 
 /* called with wx_sem held */
 void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
@@ -2903,28 +2883,16 @@ void rtllib_stop_queue(struct rtllib_device *ieee)
 
 void rtllib_stop_all_queues(struct rtllib_device *ieee)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30)
 	unsigned int i;
 	for (i=0; i < ieee->dev->num_tx_queues; i++)
                 netdev_get_tx_queue(ieee->dev,i)->trans_start = jiffies;
-#else
-	ieee->dev->trans_start = jiffies;
-#endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	netif_carrier_off(ieee->dev);
-#else
 	netif_tx_stop_all_queues(ieee->dev);
-#endif
 }
 
 void rtllib_wake_all_queues(struct rtllib_device *ieee)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-	netif_carrier_on(ieee->dev);
-#else
 	netif_tx_wake_all_queues(ieee->dev);
-#endif
 }
 
 inline void rtllib_randomize_cell(struct rtllib_device *ieee)
@@ -3436,11 +3404,6 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->sta_edca_param[3] = 0x002F3262;
 	ieee->aggregation = true;
 	ieee->enable_rx_imm_BA = 1;
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,40)
-	_setup_timer(&ieee->scan_timer,
-		    rtllib_softmac_scan_cb,
-		    (unsigned long) ieee);
-#endif
 	ieee->tx_pending.txb = NULL;
 
 	_setup_timer(&ieee->associate_timer,
@@ -3451,18 +3414,11 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 		    rtllib_send_beacon_cb,
 		    (unsigned long) ieee);
 
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-	_setup_timer(&ieee->ibss_wait_timer,
-		    rtllib_ibss_wait_timeout,
-		    (unsigned long) ieee);
-#endif
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 #ifdef PF_SYNCTHREAD
 	ieee->wq = create_workqueue(DRV_NAME,0);
 #else
 	ieee->wq = create_workqueue(DRV_NAME);
-#endif
 #endif
 
 	INIT_DELAYED_WORK_RSL(&ieee->link_change_wq,(void*)rtllib_link_change_wq,ieee);
@@ -3499,11 +3455,8 @@ void rtllib_softmac_free(struct rtllib_device *ieee)
 #endif
 	del_timer_sync(&ieee->associate_timer);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	cancel_delayed_work(&ieee->associate_retry_wq);
 	destroy_workqueue(ieee->wq);
-#endif
-
 	up(&ieee->wx_sem);
 }
 

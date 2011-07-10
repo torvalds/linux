@@ -170,9 +170,7 @@ void setKey(struct net_device *dev,
 			if (KeyContent != NULL) {
 				write_nic_dword(dev, WCAMI, (u32)(*(KeyContent+i-2)) );
 				write_nic_dword(dev, RWCAM, TargetCommand);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31))
 				udelay(100);
-#endif
 			}
 		}
 	}

@@ -20,13 +20,7 @@
 #include <linux/etherdevice.h>
 #include "rtl819x_TS.h"
 extern void _setup_timer( struct timer_list*, void*, unsigned long);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-#define list_for_each_entry_safe(pos, n, head, member) \
-	for (pos = list_entry((head)->next, typeof(*pos), member), \
-		n = list_entry(pos->member.next, typeof(*pos), member); \
-		&pos->member != (head); \
-		pos = n, n = list_entry(n->member.next, typeof(*n), member))
-#endif
+
 void TsSetupTimeOut(unsigned long data)
 {
 }

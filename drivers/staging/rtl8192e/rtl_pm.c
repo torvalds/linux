@@ -34,9 +34,7 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv = rtllib_priv(dev);
-#if !(defined RTL8192SE || defined RTL8192CE)
 	u32	ulRegRead;
-#endif
 
         RT_TRACE(COMP_POWER, "============> r8192E suspend call.\n");
         printk("============> r8192E suspend call.\n");
@@ -59,7 +57,6 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 #endif
 	netif_device_detach(dev);
 
-#if !(defined RTL8192SE || defined RTL8192CE)
 	if (!priv->rtllib->bSupportRemoteWakeUp) {
 		MgntActSet_RF_State(dev, eRfOff, RF_CHANGE_BY_INIT,true);
 		ulRegRead = read_nic_dword(dev, CPU_GEN);
@@ -69,18 +66,9 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 		write_nic_dword(dev, WFCRC0, 0xffffffff);
 		write_nic_dword(dev, WFCRC1, 0xffffffff);
 		write_nic_dword(dev, WFCRC2, 0xffffffff);
-#ifdef RTL8190P
-		{
-			u8	ucRegRead;
-			ucRegRead = read_nic_byte(dev, GPO);
-			ucRegRead |= BIT0;
-			write_nic_byte(dev, GPO, ucRegRead);
-		}
-#endif
 		write_nic_byte(dev, PMR, 0x5);
 		write_nic_byte(dev, MacBlkCtrl, 0xa);
 	}
-#endif
 out_pci_suspend:
 	RT_TRACE(COMP_POWER, "r8192E support WOL call??????????????????????\n");
 	printk("r8192E support WOL call??????????????????????\n");
@@ -101,9 +89,7 @@ out_pci_suspend:
 int rtl8192E_resume (struct pci_dev *pdev)
 {
     struct net_device *dev = pci_get_drvdata(pdev);
-#if defined ENABLE_GPIO_RADIO_CTL || !(defined RTL8192SE || defined RTL8192CE)
     struct r8192_priv *priv = rtllib_priv(dev);
-#endif
     int err;
     u32 val;
 
@@ -146,11 +132,9 @@ int rtl8192E_resume (struct pci_dev *pdev)
     dev->open(dev);
 #endif
 
-#if !(defined RTL8192SE || defined RTL8192CE)
     if (!priv->rtllib->bSupportRemoteWakeUp) {
 	    MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_INIT,true);
     }
-#endif
 
 out:
     RT_TRACE(COMP_POWER, "<================r8192E resume call.\n");

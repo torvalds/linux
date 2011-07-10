@@ -47,10 +47,6 @@
 #include "dot11d.h"
 #endif
 
-#if defined(RTLLIB_RADIOTAP) && (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,10))
-#include <net/ieee80211_radiotap.h>
-#endif
-
 #if defined CONFIG_CFG_80211
 #include <linux/crc32.h>
 
@@ -321,140 +317,17 @@ void ieee80211_scan_rx(struct rtllib_device *ieee, struct sk_buff *skb, struct r
 }
 #endif
 
-
-#if defined(RTLLIB_RADIOTAP) && (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,10))
-static int rtllib_rx_radiotap_len(struct rtllib_device *ieee, struct rtllib_rx_stats *rx_status)
-{
-	int len;
-
-	/* always present fields */
-	len = sizeof(struct ieee80211_radiotap_header) +
-		8 + /* TSFT */
-		1 + /* FLAGS */
-		1 + /* RATE */
-		2 + /* CHANNEL IN MHZ */
-		2 + /* CHANNEL BITFIELD */
-		1 + /* HW SIGNAL DBM */
-		1 + /* HW NOISE DBM */
-		1;  /* ANTENNA NUMBER */
-
-
-	if (len & 1) /* padding for RX_FLAGS if necessary */
-		len++;
-
-	/* make sure radiotap starts at a naturally aligned address */
-	if (len % 8)
-		len = roundup(len, 8);
-
-	return len;
-}
-
-static void rtllib_add_rx_radiotap_header(struct rtllib_device *ieee,
-		struct sk_buff *skb, int rtap_len, struct rtllib_rx_stats *rx_status)
-{
-	struct ieee80211_radiotap_header *rthdr;
-	unsigned char *pos;
-	printk("add header!\n");
-	rthdr = (struct ieee80211_radiotap_header *)skb_push(skb, rtap_len);
-	memset(rthdr, 0, rtap_len);
-
-	rthdr->it_version = PKTHDR_RADIOTAP_VERSION;
-	rthdr->it_pad = 0;
-	rthdr->it_len = cpu_to_le16(rtap_len);
-	/* radiotap header, set always present flags */
-	rthdr->it_present = cpu_to_le32(
-		(1 << IEEE80211_RADIOTAP_TSFT) |
-		(1 << IEEE80211_RADIOTAP_FLAGS) |
-		(1 << IEEE80211_RADIOTAP_RATE) |
-		(1 << IEEE80211_RADIOTAP_CHANNEL) |
-		(1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |
-		(1 << IEEE80211_RADIOTAP_DBM_ANTNOISE) |
-		(1 << IEEE80211_RADIOTAP_ANTENNA));
-
-	pos = (unsigned char *)(rthdr+1);
-	/* the order of the following fields is important */
-	/* IEEE80211_RADIOTAP_TSFT */
-	*(__le64 *)pos = cpu_to_le64(rx_status->TimeStampLow);
-	pos += 8;
-
-	/* IEEE80211_RADIOTAP_FLAGS */
-	if (rx_status->bCRC)
-		*pos |= IEEE80211_RADIOTAP_F_BADFCS;
-	if (rx_status->bShortPreamble)
-		*pos |= IEEE80211_RADIOTAP_F_SHORTPRE;
-	pos++;
-
-	/* IEEE80211_RADIOTAP_RATE */
-	*pos = rx_status->rate / 5;
-	pos++;
-
-	/* IEEE80211_RADIOTAP_CHANNEL */
-	*(__le16 *)pos = cpu_to_le16(rx_status->received_channel);
-	pos += 2;
-	pos += 2;
-
-
-	/* IEEE80211_RADIOTAP_DBM_ANTSIGNAL */
-	*pos = rx_status->RxPower;
-	pos++;
-
-	/* IEEE80211_RADIOTAP_DBM_ANTNOISE */
-	*pos = rx_status->noise;
-	pos++;
-
-	/* IEEE80211_RADIOTAP_ANTENNA */
-	*pos = rx_status->Antenna;
-	pos++;
-
-	/* IEEE80211_RADIOTAP_DB_ANTNOISE is not used */
-
-	/* IEEE80211_RADIOTAP_RX_FLAGS */
-	/* ensure 2 byte alignment for the 2 byte field as required */
-}
-#endif
-
 static inline void rtllib_monitor_rx(struct rtllib_device *ieee,
 				struct sk_buff *skb,struct rtllib_rx_stats *rx_status,
 				size_t hdr_length)
 {
-
-#if defined(RTLLIB_RADIOTAP) && (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,10))
-	int needed_headroom = 0;
-	struct sk_buff *radiotap_skb;
-
-	needed_headroom = rtllib_rx_radiotap_len(ieee, rx_status);
-	printk("needed_headroom = %d\n", needed_headroom);
-	radiotap_skb = skb_copy_expand(skb, needed_headroom, 0, GFP_ATOMIC);
-	dev_kfree_skb(skb);
-	if (!radiotap_skb) {
-		return;
-	}
-
-	rtllib_add_rx_radiotap_header(ieee, radiotap_skb, needed_headroom, rx_status);
-	radiotap_skb->dev = ieee->dev;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
-        skb_reset_mac_header(radiotap_skb);
-#else
-        radiotap_skb->mac.raw = radiotap_skb->data;
-#endif
-	radiotap_skb->ip_summed = CHECKSUM_UNNECESSARY;
-	radiotap_skb->pkt_type = PACKET_OTHERHOST;
-	radiotap_skb->protocol = htons(ETH_P_802_2);
-	memset(radiotap_skb->cb, 0, sizeof(radiotap_skb->cb));
-	netif_rx(radiotap_skb);
-#else
 	skb->dev = ieee->dev;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
         skb_reset_mac_header(skb);
-#else
-        skb->mac.raw = skb->data;
-#endif
 	skb_pull(skb, hdr_length);
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = __constant_htons(ETH_P_80211_RAW);
 	memset(skb->cb, 0, sizeof(skb->cb));
 	netif_rx(skb);
-#endif
 }
 
 /* Called only as a tasklet (software IRQ) */
@@ -3252,12 +3125,10 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 			{
 				RTLLIB_DEBUG_MGMT("MFIE_TYPE_WZC: %d bytes\n",
 						     info_element->len);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 				network->wzc_ie_len = min(info_element->len+2,
 							  MAX_WZC_IE_LEN);
 				memcpy(network->wzc_ie, info_element,
 						network->wzc_ie_len);
-#endif
 			}
 			break;
 
@@ -3489,9 +3360,7 @@ static inline int rtllib_network_init(
 
 	network->wpa_ie_len = 0;
 	network->rsn_ie_len = 0;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	network->wzc_ie_len = 0;
-#endif
 
         if (rtllib_parse_info_param(ieee,
 			beacon->info_element,
@@ -3624,10 +3493,8 @@ static inline void update_network(struct rtllib_network *dst,
 	dst->wpa_ie_len = src->wpa_ie_len;
 	memcpy(dst->rsn_ie, src->rsn_ie, src->rsn_ie_len);
 	dst->rsn_ie_len = src->rsn_ie_len;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	memcpy(dst->wzc_ie, src->wzc_ie, src->wzc_ie_len);
 	dst->wzc_ie_len = src->wzc_ie_len;
-#endif
 
 	dst->last_scanned = jiffies;
 	/* qos related parameters */
@@ -3945,16 +3812,10 @@ static inline void rtllib_process_probe_response(
 #endif
 	unsigned long flags;
 	short renew;
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,13))
 	struct rtllib_network *network = kzalloc(sizeof(struct rtllib_network), GFP_ATOMIC);
-#else
-	struct rtllib_network *network = kmalloc(sizeof(*network), GFP_ATOMIC);
-	memset(network,0,sizeof(*network));
-#endif
 
-	if (!network) {
+	if (!network)
 		return;
-	}
 
 	RTLLIB_DEBUG_SCAN(
 		"'%s' (" MAC_FMT "): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",

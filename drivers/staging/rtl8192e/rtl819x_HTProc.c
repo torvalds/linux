@@ -958,14 +958,6 @@ void HTConstructRT2RTAggElement(struct rtllib_device* ieee, u8* posRT2RTAgg, u8*
 	*len = 6 + 2;
 
 	return;
-
-#ifdef TODO
-	posRT2RTAgg->Length = 6;
-#endif
-
-
-
-
 }
 
 u8 HT_PickMCSRate(struct rtllib_device* ieee, u8* pOperateMCS)
@@ -1410,8 +1402,7 @@ void HTUseDefaultSetting(struct rtllib_device* ieee)
 {
 	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
 
-	if (pHTInfo->bEnableHT)
-	{
+	if (pHTInfo->bEnableHT) {
 		pHTInfo->bCurrentHTSupport = true;
 		pHTInfo->bCurSuppCCK = pHTInfo->bRegSuppCCK;
 
@@ -1434,27 +1425,15 @@ void HTUseDefaultSetting(struct rtllib_device* ieee)
 
 
 		HTFilterMCSRate(ieee, ieee->Regdot11TxHTOperationalRateSet, ieee->dot11HTOperationalRateSet);
-#ifdef TODO
-		Adapter->HalFunc.InitHalRATRTableHandler( Adapter, &pMgntInfo->dot11OperationalRateSet, pMgntInfo->dot11HTOperationalRateSet);
-#endif
 		ieee->HTHighestOperaRate = HTGetHighestMCSRate(ieee, ieee->dot11HTOperationalRateSet, MCS_FILTER_ALL);
 		ieee->HTCurrentOperaRate = ieee->HTHighestOperaRate;
 
-#if (defined RTL8192SE || defined RTL8192SU || defined RTL8192CE)
-		if (ieee->SetHwRegHandler != NULL) {
-			ieee->SetHwRegHandler( ieee->dev, HW_VAR_SHORTGI_DENSITY,  (u8*)(&ieee->MaxMssDensity));
-			ieee->SetHwRegHandler(ieee->dev, HW_VAR_AMPDU_FACTOR, &pHTInfo->CurrentAMPDUFactor);
-			ieee->SetHwRegHandler(ieee->dev, HW_VAR_AMPDU_MIN_SPACE, &pHTInfo->CurrentMPDUDensity);
-		}
-#endif
-
-	}
-	else
-	{
+	} else {
 		pHTInfo->bCurrentHTSupport = false;
 	}
 	return;
 }
+
 u8 HTCCheck(struct rtllib_device* ieee, u8*	pFrame)
 {
 	if (ieee->pHTInfo->bCurrentHTSupport)

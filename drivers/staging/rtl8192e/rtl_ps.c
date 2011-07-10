@@ -156,13 +156,6 @@ void InactivePsWorkItemCallback(struct net_device *dev)
 			RT_DISABLE_ASPM(dev);
 			RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM);
 		}
-#ifdef TODO
-		else if ((pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_PCI_D3) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_PCI_D3))
-		{
-			RT_LEAVE_D3(dev, false);
-			RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_PCI_D3);
-		}
-#endif
 	}
 #endif
 	MgntActSet_RF_State(dev, pPSC->eInactivePowerState, RF_CHANGE_BY_IPS,false);
@@ -175,13 +168,6 @@ void InactivePsWorkItemCallback(struct net_device *dev)
 			RT_ENABLE_ASPM(dev);
 			RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM);
 		}
-#ifdef TODO
-		else if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_PCI_D3)
-		{
-			RT_ENTER_D3(dev, false);
-			RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_PCI_D3);
-		}
-#endif
 	}
 #endif
 
@@ -466,18 +452,6 @@ bool PlatformSwitchClkReq(struct net_device *dev, u8 value)
 	pci_write_config_byte(priv->pdev,0x81,value);
 	bResult = true;
 
-#ifdef TODO
-	if (Buffer) {
-		priv->ClkReqState = true;
-	} else {
-		priv->ClkReqState = false;
-	}
-#endif
-
-#ifdef RTL8192SE
-	udelay(100);
-#endif
-
 	return bResult;
 }
 
@@ -542,15 +516,6 @@ void PlatformEnableASPM(struct net_device *dev)
 		return;
 	}
 
-#ifdef RTL8192SE
-	if (priv->NdisAdapter.PciBridgeVendor != PCI_BRIDGE_VENDOR_INTEL )
-	{
-		RT_TRACE(COMP_POWER, "%s(): Dont modify ASPM for non intel chipset. For Bridge Vendor %d.\n"
-			,__func__,priv->NdisAdapter.PciBridgeVendor);
-		return;
-	}
-#endif
-
 	ASPMLevel |= priv->RegDevicePciASPMSetting;
 	uDeviceASPMSetting = priv->NdisAdapter.LinkCtrlReg;
 
@@ -586,34 +551,6 @@ bool PlatformSetPMCSR(struct net_device *dev,u8 value,bool bTempSetting)
 
 	Buffer= value;
 	spin_lock_irqsave(&priv->D3_lock,flag);
-#ifdef TODO
-	if (bTempSetting)
-	{
-		if (Buffer==0x00)
-		{
-			priv->LeaveD3Cnt++;
-
-			{
-				bActuallySet =true;
-			}
-		}
-		else
-		{
-			priv->LeaveD3Cnt--;
-
-			if (priv->LeaveD3Cnt == 0)
-			{
-				bActuallySet=true;
-			}
-		}
-	}
-	else
-	{
-		priv->LeaveD3Cnt=0;
-		bActuallySet=true;
-		bSetFunc=true;
-	}
-#endif
 	if (bActuallySet) {
 		if (Buffer) {
 			PlatformSwitchClkReq(dev, 0x01);

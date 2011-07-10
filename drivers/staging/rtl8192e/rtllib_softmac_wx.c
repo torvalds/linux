@@ -311,13 +311,8 @@ int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 		goto out;
 
 	if (wrqu->mode == IW_MODE_MONITOR) {
-#if defined(RTLLIB_RADIOTAP) && (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,10))
-		ieee->dev->type = ARPHRD_IEEE80211_RADIOTAP;
-#else
 		ieee->dev->type = ARPHRD_IEEE80211;
-#endif
 		rtllib_EnableNetMonitorMode(ieee->dev,false);
-
 	} else {
 		ieee->dev->type = ARPHRD_ETHER;
 		if (ieee->iw_mode == IW_MODE_MONITOR)
@@ -461,11 +456,7 @@ int rtllib_wx_set_essid(struct rtllib_device *ieee,
 
 	proto_started = ieee->proto_started;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-	len = ((wrqu->essid.length-1) < IW_ESSID_MAX_SIZE) ? (wrqu->essid.length-1) : IW_ESSID_MAX_SIZE;
-#else
 	len = (wrqu->essid.length < IW_ESSID_MAX_SIZE) ? wrqu->essid.length : IW_ESSID_MAX_SIZE;
-#endif
 
 	if (len > IW_ESSID_MAX_SIZE){
 		ret= -E2BIG;

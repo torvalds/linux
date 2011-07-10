@@ -54,14 +54,6 @@
 #define BIT30                   0x40000000
 #define BIT31                   0x80000000
 
-#ifndef RTK_DMP_PLATFORM
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-#ifndef bool
-typedef enum{false = 0, true} bool;
-#endif
-#endif
-#endif
-
 typedef union _QOS_TSINFO{
 	u8		charData[3];
 	struct {

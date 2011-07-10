@@ -243,12 +243,7 @@ int rtl_debug_module_init(struct r8192_priv *priv, const char *name)
 	if (!rtl_debugfs_root)
 		return -ENOENT;
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,13))
 	debug = kzalloc(sizeof(rtl_fs_debug), GFP_KERNEL);
-#else
-	rtl_fs_debug = kmalloc(sizeof(*rtl_fs_debug), GFP_KERNEL);
-	memset(rtl_fs_debug,0,sizeof(*rtl_fs_debug));
-#endif
 	if (!debug) {
 		ret = -ENOMEM;
 		goto err;
@@ -1086,21 +1081,13 @@ static int proc_get_stats_rx(char *page, char **start,
 void rtl8192_proc_module_init(void)
 {
 	RT_TRACE(COMP_INIT, "Initializing proc filesystem");
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-	rtl8192_proc=create_proc_entry(DRV_NAME, S_IFDIR, proc_net);
-#else
 	rtl8192_proc=create_proc_entry(DRV_NAME, S_IFDIR, init_net.proc_net);
-#endif
 }
 
 
 void rtl8192_proc_module_remove(void)
 {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-	remove_proc_entry(DRV_NAME, proc_net);
-#else
 	remove_proc_entry(DRV_NAME, init_net.proc_net);
-#endif
 }
 
 

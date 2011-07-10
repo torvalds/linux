@@ -27,9 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,9))
 #include <linux/debugfs.h>
-#endif
 
 struct r8192_priv;
 struct _tx_desc_8192se;
@@ -272,11 +270,7 @@ typedef struct _rtl_fs_debug
 	struct dentry *debug_register;
 	u32 hw_type;
 	u32 hw_offset;
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,20))
 	bool hw_holding;
-#else
-	u8 hw_holding;
-#endif
 } rtl_fs_debug;
 
 void print_buffer(u32 *buffer, int len);

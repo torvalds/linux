@@ -25,41 +25,6 @@
 #include "r8192E_cmdpkt.h"
 
 /*---------------------------Define Local Constant---------------------------*/
-#ifdef  RTL8190P
-static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
-{ 0x5e4322,
-   0x5e4322,
-   0x5ea44f,
-   0x5e4322,
-   0x604322,
-   0xa44f,
-   0x5e4322,
-   0x5e4322
- };
-
-static u32 edca_setting_DL_GMode[HT_IOT_PEER_MAX] =
-{ 0x5e4322,
-   0x5e4322,
-   0x5e4322,
-   0x5e4322,
-   0x604322,
-   0xa44f,
-   0x5e4322,
-   0x5e4322
-};
-
-static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
-{ 0x5e4322,
-   0xa44f,
-   0x5ea44f,
-   0x5e4322,
-   0x604322,
-   0x5e4322,
-   0x5e4322,
-   0x5e4322
-};
-
-#elif defined RTL8192E
 static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
 { 0x5e4322,
    0x5e4322,
@@ -92,48 +57,6 @@ static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
    0x5e4322,
    0x5e4332
 };
-
-#elif defined(RTL8192SE)
-static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
-{ 0xa44f,
-   0x5ea44f,
-   0x5ea44f,
-   0xa630,
-   0xa44f,
-   0xa630,
-   0xa630,
-   0xa42b,
-   0x5e4322,
-   0x5e4322
- };
-
-static u32 edca_setting_DL_GMode[HT_IOT_PEER_MAX] =
-
-{ 0x4322,
-   0xa44f,
-   0x5ea44f,
-   0xa42b,
-   0x5e4322,
-   0x4322,
-   0xa430,
-   0x5ea44f,
-   0x5e4322,
-   0x5e4322
-};
-
-static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
-{ 0x5e4322,
-   0xa44f,
-   0x5ea44f,
-   0x5ea322,
-   0x5ea422,
-   0x5ea322,
-   0x3ea44f,
-   0x5ea44f,
-   0x5e4322,
-   0x5e4322
- };
-#endif
 
 #define RTK_UL_EDCA 0xa44f
 #define RTK_DL_EDCA 0x5e4322
@@ -1255,24 +1178,13 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 
 void	dm_txpower_trackingcallback(void *data)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	struct r8192_priv *priv = container_of_dwork_rsl(data,struct r8192_priv,txpower_tracking_wq);
 	struct net_device *dev = priv->rtllib->dev;
-#else
-	struct net_device *dev = (struct net_device *)data;
-	struct r8192_priv *priv = rtllib_priv(dev);
-#endif
 
-#ifdef RTL8190P
-	dm_TXPowerTrackingCallback_TSSI(dev);
-#elif defined(RTL8192E)
 	if (priv->IC_Cut >= IC_VersionCut_D)
 		dm_TXPowerTrackingCallback_TSSI(dev);
 	else
 		dm_TXPowerTrackingCallback_ThermalMeter(dev);
-#elif defined(RTL8192SE)
-	dm_TXPowerTrackingCallback_ThermalMeter(dev);
-#endif
 }
 
 #ifndef RTL8192SE
@@ -1776,16 +1688,10 @@ static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 
 }
 #endif
-#ifndef RTL8190P
 static void dm_InitializeTXPowerTracking_ThermalMeter(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-#ifdef RTL8192SE
-		priv->btxpower_tracking = false;
-		priv->txpower_count       = 0;
-		priv->btxpower_trackingInit = false;
-#else
 
 	if (priv->rtllib->FwRWRF)
 		priv->btxpower_tracking = true;
@@ -1793,16 +1699,12 @@ static void dm_InitializeTXPowerTracking_ThermalMeter(struct net_device *dev)
 		priv->btxpower_tracking = false;
 	priv->txpower_count       = 0;
 	priv->btxpower_trackingInit = false;
-#endif
 	RT_TRACE(COMP_POWER_TRACKING, "pMgntInfo->bTXPowerTracking = %d\n", priv->btxpower_tracking);
 }
-#endif
 
 void dm_initialize_txpower_tracking(struct net_device *dev)
 {
-#ifdef RTL8192E
 	struct r8192_priv *priv = rtllib_priv(dev);
-#endif
 #ifdef RTL8190P
 	dm_InitializeTXPowerTracking_TSSI(dev);
 #elif defined RTL8192E
@@ -3365,13 +3267,8 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 
 extern	void	dm_CheckRfCtrlGPIO(void *data)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
        struct r8192_priv *priv = container_of_dwork_rsl(data,struct r8192_priv,gpio_change_rf_wq);
        struct net_device *dev = priv->rtllib->dev;
-#else
-	struct r8192_priv *priv = rtllib_priv((struct net_device *)data);
-	struct net_device *dev = priv->rtllib->dev;
-#endif
 	u8 tmp1byte;
 	RT_RF_POWER_STATE	eRfPowerStateToSet;
 	bool bActuallySet = false;
@@ -3652,13 +3549,8 @@ u8 RfOnOffDetect(struct net_device *dev)
 
 extern void dm_CheckRfCtrlGPIO(void *data)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
-	struct r8192_priv *priv = container_of_dwork_rsl(data,struct r8192_priv,gpio_change_rf_wq);
-	struct net_device *dev = priv->rtllib->dev;
-#else
 	struct net_device *dev = (struct net_device *)data;
 	struct r8192_priv *priv = rtllib_priv(dev);
-#endif
 
 	RT_RF_POWER_STATE	eRfPowerStateToSet, CurRfState;
 	bool					bActuallySet = false;
@@ -3707,13 +3599,6 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 		RT_DISABLE_ASPM(dev);
 		RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM);
 	}
-	else if ((pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_PCI_D3) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_PCI_D3))
-	{
-#ifdef TODO
-		RT_LEAVE_D3(dev, false);
-		RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_PCI_D3);
-#endif
-	}
 
 #endif
 	if (RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
@@ -3753,20 +3638,12 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 	if (bActuallySet) {
 		priv->bHwRfOffAction = 1;
 #ifdef CONFIG_ASPM_OR_D3
-		if (eRfPowerStateToSet == eRfOn)
-		{
-			if ((pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM))
-			{
+		if (eRfPowerStateToSet == eRfOn) {
+			if ((pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM) &&
+			     RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM)) {
 				RT_DISABLE_ASPM(dev);
 				RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM);
 			}
-#ifdef TODO
-			else if ((pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_PCI_D3) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_PCI_D3))
-			{
-				RT_LEAVE_D3(dev, false);
-				RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_PCI_D3);
-			}
-#endif
 		}
 #endif
 		spin_lock_irqsave(&priv->rf_ps_lock,flag);
@@ -3797,54 +3674,33 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 
 		if (eRfPowerStateToSet == eRfOff)
 		{
-			if (priv->pwrdown){
-
+			if (priv->pwrdown)
 				write_nic_byte(dev, SYS_FUNC_EN+1, 0x31);
-			}
 #ifdef CONFIG_ASPM_OR_D3
-			if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM)
-			{
+			if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM) {
 				RT_ENABLE_ASPM(dev);
 				RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM);
 			}
-#ifdef TODO
-			else if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_PCI_D3)
-			{
-				RT_ENTER_D3(dev, false);
-				RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_PCI_D3);
-			}
-#endif
 #endif
 		}
-	}
-	else if (eRfPowerStateToSet == eRfOff || CurRfState == eRfOff || priv->bDriverIsGoingToUnload)
-	{
+	} else if (eRfPowerStateToSet == eRfOff || CurRfState == eRfOff ||
+		   priv->bDriverIsGoingToUnload) {
 
-		if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC && turnonbypowerdomain)
-		{
+		if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC &&
+		    turnonbypowerdomain) {
 			PHY_SetRtl8192seRfHalt(dev);
 			RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
 		}
 #ifdef CONFIG_ASPM_OR_D3
-		if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM)
-		{
+		if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM) {
 			RT_ENABLE_ASPM(dev);
 			RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM);
 		}
-#ifdef TODO
-		else if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_PCI_D3)
-		{
-			RT_ENTER_D3(dev, false);
-			RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_PCI_D3);
-		}
-#endif
 #endif
 		spin_lock_irqsave(&priv->rf_ps_lock,flag);
 		priv->RFChangeInProgress = false;
 		spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
-	}
-	else
-	{
+	} else {
 		spin_lock_irqsave(&priv->rf_ps_lock,flag);
 		priv->RFChangeInProgress = false;
 		spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
@@ -3854,20 +3710,13 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 #endif
 void	dm_rf_pathcheck_workitemcallback(void *data)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
 	struct r8192_priv *priv = container_of_dwork_rsl(data,struct r8192_priv,rfpath_check_wq);
 	struct net_device *dev =priv->rtllib->dev;
-#else
-	struct net_device *dev = (struct net_device *)data;
-	struct r8192_priv *priv = rtllib_priv(dev);
-#endif
 	u8 rfpath = 0, i;
-
 
 	rfpath = read_nic_byte(dev, 0xc04);
 
-	for (i = 0; i < RF90_PATH_MAX; i++)
-	{
+	for (i = 0; i < RF90_PATH_MAX; i++) {
 		if (rfpath & (0x01<<i))
 			priv->brfpath_rxenable[i] = 1;
 		else
@@ -4161,21 +4010,12 @@ static void dm_init_fsync (struct net_device *dev)
 	priv->rtllib->fsync_time_interval = 500;
 	priv->rtllib->fsync_rate_bitmap = 0x0f000800;
 	priv->rtllib->fsync_rssi_threshold = 30;
-#ifdef RTL8190P
-	priv->rtllib->bfsync_enable = true;
-#elif defined RTL8192E || defined RTL8192SE
 	priv->rtllib->bfsync_enable = false;
-#endif
 	priv->rtllib->fsync_multiple_timeinterval = 3;
 	priv->rtllib->fsync_firstdiff_ratethreshold= 100;
 	priv->rtllib->fsync_seconddiff_ratethreshold= 200;
 	priv->rtllib->fsync_state = Default_Fsync;
-
-#ifdef RTL8192SE
-	priv->framesyncMonitor = 0;
-#elif defined RTL8192E || defined RTL8190P
 	priv->framesyncMonitor = 1;
-#endif
 
 	init_timer(&priv->fsync_timer);
 	setup_timer(&priv->fsync_timer, dm_fsync_timer_callback,(unsigned long) dev);
@@ -4314,31 +4154,22 @@ extern void dm_fsync_timer_callback(unsigned long data)
 
 static void dm_StartHWFsync(struct net_device *dev)
 {
-#if defined RTL8192E
 	u8 rf_timing = 0x77;
 	struct r8192_priv *priv = rtllib_priv(dev);
 	RT_TRACE(COMP_HALDM, "%s\n", __func__);
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c12cf);
 	priv->rtllib->SetHwRegHandler(dev, HW_VAR_RF_TIMING, (u8*)(&rf_timing));
 	write_nic_byte(dev, 0xc3b, 0x41);
-#elif defined RTL8192SE
-	write_nic_byte(dev, rOFDM0_RxDetector3, 0x96);
-#endif
 }
 
 static void dm_EndHWFsync(struct net_device *dev)
 {
-#if defined RTL8192E
 	u8 rf_timing = 0xaa;
 	struct r8192_priv *priv = rtllib_priv(dev);
 	RT_TRACE(COMP_HALDM,"%s\n", __func__);
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	priv->rtllib->SetHwRegHandler(dev, HW_VAR_RF_TIMING, (u8*)(&rf_timing));
 	write_nic_byte(dev, 0xc3b, 0x49);
-#elif defined RTL8192SE
-	write_nic_byte(dev, rOFDM0_RxDetector3, 0x94);
-#endif
-
 }
 
 static void dm_EndSWFsync(struct net_device *dev)
@@ -4650,205 +4481,4 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 								DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
 }
 
-#if defined RTL8192SE
-/*-----------------------------------------------------------------------------
- * Function:	dm_RefreshRateAdaptiveMask()
- *
- * Overview:	Update rate table mask according to rssi
- *
- * Input:		NONE
- *
- * Output:		NONE
- *
- * Return:		NONE
- *
- * Revised History:
- *	When		Who		Remark
- *	05/27/2009	hpfan	Create Version 0.
- *
- *---------------------------------------------------------------------------*/
-static void dm_RefreshRateAdaptiveMask(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	prate_adaptive	pRA = (prate_adaptive)&priv->rate_adaptive;
-	u32	LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
-	u8	rssi_level;
-
-	if (IS_NIC_DOWN(priv)){
-		RT_TRACE(COMP_RATE,"<---- dm_RefreshRateAdaptiveMask(): driver is going to unload\n");
-		return;
-	}
-
-	if (!priv->rtllib->bUseRAMask){
-		return;
-	}
-
-	if (priv->pFirmware->FirmwareVersion >= 61 && !priv->bInformFWDriverControlDM){
-		RT_TRACE(COMP_RATE, "<---- dm_RefreshRateAdaptiveMask(): inform fw driver control dm\n");
-		priv->rtllib->SetFwCmdHandler(dev, FW_CMD_CTRL_DM_BY_DRIVER);
-		priv->bInformFWDriverControlDM = true;
-	}
-
-	if ((priv->rtllib->state == RTLLIB_LINKED &&
-	    (priv->rtllib->iw_mode == IW_MODE_INFRA))) {
-
-		switch (pRA->PreRATRState){
-		case DM_RATR_STA_HIGH:
-			HighRSSIThreshForRA = 50;
-			LowRSSIThreshForRA = 20;
-			break;
-		case DM_RATR_STA_MIDDLE:
-			HighRSSIThreshForRA = 55;
-			LowRSSIThreshForRA = 20;
-			break;
-		case DM_RATR_STA_LOW:
-			HighRSSIThreshForRA = 50;
-			LowRSSIThreshForRA = 25;
-			break;
-		default:
-			HighRSSIThreshForRA = 50;
-			LowRSSIThreshForRA = 20;
-			break;
-		}
-
-		if (priv->undecorated_smoothed_pwdb > (long)HighRSSIThreshForRA) {
-			pRA->ratr_state = DM_RATR_STA_HIGH;
-			rssi_level = 1;
-		} else if (priv->undecorated_smoothed_pwdb > (long)LowRSSIThreshForRA) {
-			pRA->ratr_state = DM_RATR_STA_MIDDLE;
-			rssi_level = 2;
-		} else {
-			pRA->ratr_state = DM_RATR_STA_LOW;
-			rssi_level = 3;
-		}
-		if ((pRA->PreRATRState != pRA->ratr_state) ||
-		    ((pRA->PreRATRState == pRA->ratr_state) &&
-		    (rssi_level != priv->rssi_level))) {
-			RT_TRACE(COMP_RATE, "Target AP addr : "MAC_FMT"\n",
-				 MAC_ARG(priv->rtllib->current_network.bssid));
-			RT_TRACE(COMP_RATE, "RSSI = %ld\n",
-				 priv->undecorated_smoothed_pwdb);
-			RT_TRACE(COMP_RATE, "RSSI_LEVEL = %d\n", rssi_level);
-			RT_TRACE(COMP_RATE, "PreState = %d, CurState = %d\n",
-				 pRA->PreRATRState, pRA->ratr_state);
-			priv->rtllib->UpdateHalRAMaskHandler(dev, false, 0,
-					 priv->rtllib->pHTInfo->PeerMimoPs,
-					 priv->rtllib->mode,
-					 priv->rtllib->pHTInfo->bCurTxBW40MHz,
-					 rssi_level);
-			priv->rssi_level = rssi_level;
-			pRA->PreRATRState = pRA->ratr_state;
-		}
-	}
-	if ((priv->rtllib->state == RTLLIB_LINKED) &&
-	    (priv->rtllib->iw_mode == IW_MODE_ADHOC)) {
-		int i;
-		struct sta_info *pEntry;
-
-		for (i = 0; i < PEER_MAX_ASSOC; i++) {
-			pEntry = priv->rtllib->peer_assoc_list[i];
-			if (NULL != pEntry) {
-				pRA = &pEntry->rate_adaptive;
-				switch (pRA->PreRATRState){
-				case DM_RATR_STA_HIGH:
-					HighRSSIThreshForRA = 50;
-					LowRSSIThreshForRA = 20;
-					break;
-				case DM_RATR_STA_MIDDLE:
-					HighRSSIThreshForRA = 55;
-					LowRSSIThreshForRA = 20;
-					break;
-				case DM_RATR_STA_LOW:
-					HighRSSIThreshForRA = 50;
-					LowRSSIThreshForRA = 25;
-					break;
-				default:
-					HighRSSIThreshForRA = 50;
-					LowRSSIThreshForRA = 20;
-					break;
-				}
-
-				if (pEntry->rssi_stat.UndecoratedSmoothedPWDB > HighRSSIThreshForRA) {
-					pRA->ratr_state = DM_RATR_STA_HIGH;
-					rssi_level = 1;
-				} else if (pEntry->rssi_stat.UndecoratedSmoothedPWDB > LowRSSIThreshForRA) {
-					pRA->ratr_state = DM_RATR_STA_MIDDLE;
-					rssi_level = 2;
-				} else {
-					pRA->ratr_state = DM_RATR_STA_LOW;
-					rssi_level = 3;
-				}
-
-				if (pRA->PreRATRState != pRA->ratr_state) {
-					RT_TRACE(COMP_RATE, "AsocEntry addr : "
-						 MAC_FMT"\n",
-						 MAC_ARG(pEntry->macaddr));
-					RT_TRACE(COMP_RATE, "RSSI = %ld\n",
-						 pEntry->rssi_stat.UndecoratedSmoothedPWDB);
-					RT_TRACE(COMP_RATE,
-						 "RSSI_LEVEL = %d\n",
-						 rssi_level);
-					RT_TRACE(COMP_RATE,
-						 "PreState = %d, CurState = %d\n",
-						 pRA->PreRATRState,
-						 pRA->ratr_state);
-					priv->rtllib->UpdateHalRAMaskHandler(
-							dev, false,
-							pEntry->aid+1,
-							pEntry->htinfo.MimoPs,
-							pEntry->wireless_mode,
-							pEntry->htinfo.bCurTxBW40MHz,
-							rssi_level);
-					pRA->PreRATRState = pRA->ratr_state;
-				}
-
-			}
-		}
-	}
-}
-
-void Adhoc_InitRateAdaptive(struct net_device *dev,struct sta_info  *pEntry)
-{
-	prate_adaptive	pRA = (prate_adaptive)&pEntry->rate_adaptive;
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	pRA->ratr_state = DM_RATR_STA_MAX;
-	pRA->high2low_rssi_thresh_for_ra = RateAdaptiveTH_High;
-	pRA->low2high_rssi_thresh_for_ra20M = RateAdaptiveTH_Low_20M+5;
-	pRA->low2high_rssi_thresh_for_ra40M = RateAdaptiveTH_Low_40M+5;
-
-	pRA->high_rssi_thresh_for_ra = RateAdaptiveTH_High+5;
-	pRA->low_rssi_thresh_for_ra20M = RateAdaptiveTH_Low_20M;
-	pRA->low_rssi_thresh_for_ra40M = RateAdaptiveTH_Low_40M;
-
-	if (priv->rf_type == RF_2T4R) {
-		/* 2008/01/11 MH Modify 2T RATR table for different RSSI. */
-		pRA->upper_rssi_threshold_ratr		=	0x8f0f0000;
-		pRA->middle_rssi_threshold_ratr		=	0x8d0ff000;
-		pRA->low_rssi_threshold_ratr		=	0x8f0ff003;
-		pRA->low_rssi_threshold_ratr_40M	=	0x8f0ff007;
-		pRA->low_rssi_threshold_ratr_20M	=	0x8f0ff003;
-	}
-	else if (priv->rf_type == RF_1T2R)
-	{
-		pRA->upper_rssi_threshold_ratr		=	0x000f0000;
-		pRA->middle_rssi_threshold_ratr		=	0x000ff000;
-		pRA->low_rssi_threshold_ratr		=	0x000ff003;
-		pRA->low_rssi_threshold_ratr_40M	=	0x000ff007;
-		pRA->low_rssi_threshold_ratr_20M	=	0x000ff003;
-	}
-
-}
-
-
-void Adhoc_InitRateAdaptiveState(struct net_device *dev,struct sta_info  *pEntry)
-{
-	prate_adaptive	pRA = (prate_adaptive)&pEntry->rate_adaptive;
-
-	pRA->ratr_state = DM_RATR_STA_MAX;
-	pRA->PreRATRState = DM_RATR_STA_MAX;
-}
-
-
-#endif
 /*---------------------------Define function prototype------------------------*/

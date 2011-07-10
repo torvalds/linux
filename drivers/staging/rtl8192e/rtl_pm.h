@@ -25,10 +25,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10))
-#define pm_message_t u32
-#endif
-
 int rtl8192E_save_state (struct pci_dev *dev, pm_message_t state);
 int rtl8192E_suspend (struct pci_dev *dev, pm_message_t state);
 int rtl8192E_resume (struct pci_dev *dev);

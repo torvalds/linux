@@ -28,12 +28,7 @@
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 #include <linux/jiffies.h>
-#else
-#include <linux/jffs.h>
-#include <linux/tqueue.h>
-#endif
 #include <linux/timer.h>
 #include <linux/sched.h>
 
@@ -73,27 +68,6 @@
 #define IW_CUSTOM_MAX	256	/* In bytes */
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-#define jiffies_to_msecs(t)  ((t) * 1000 / HZ)
-#ifndef __bitwise
-#define __bitwise __attribute__((bitwise))
-#endif
-typedef __u16  __le16;
-
-#if (WIRELESS_EXT < 16)
-struct iw_spy_data{
-	/* --- Standard spy support --- */
-	int			spy_number;
-	u_char			spy_address[IW_MAX_SPY][ETH_ALEN];
-	struct iw_quality	spy_stat[IW_MAX_SPY];
-	/* --- Enhanced spy support (event) */
-	struct iw_quality	spy_thr_low; /* Low threshold */
-	struct iw_quality	spy_thr_high; /* High threshold */
-	u_char			spy_thr_under[IW_MAX_SPY];
-};
-#endif
-#endif
-
 #ifndef container_of
 /**
  * container_of - cast a member of a structure out to the containing structure
@@ -108,115 +82,32 @@ struct iw_spy_data{
         (type *)( (char *)__mptr - offsetof(type,member) );})
 #endif
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,18))
 #define skb_tail_pointer_rsl(skb) skb_tail_pointer(skb)
-#else
-#define skb_tail_pointer_rsl(skb) skb->tail
-#endif
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
-	#define EXPORT_SYMBOL_RSL(x) EXPORT_SYMBOL(x)
-#else
-	#define EXPORT_SYMBOL_RSL(x) EXPORT_SYMBOL_NOVERS(x)
-#endif
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-static inline void tq_init(struct tq_struct * task, void(*func)(void *), void *data)
-{
-	task->routine = func;
-	task->data	= data;
-	INIT_LIST_HEAD(&task->list);
-	task->sync = 0;
-}
-#endif
+#define EXPORT_SYMBOL_RSL(x) EXPORT_SYMBOL(x)
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10))
-static inline void setup_timer(struct timer_list * timer, void(*function)(unsigned long), unsigned long data)
-{
-	timer->function = function;
-	timer->data	= data;
-}
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	typedef struct delayed_work delayed_work_struct_rsl;
 	#define queue_delayed_work_rsl(x,y,z) queue_delayed_work(x,y,z)
 	#define INIT_DELAYED_WORK_RSL(x,y,z) INIT_DELAYED_WORK(x,y)
-#elif LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,40)
-	typedef struct tq_struct delayed_work_struct_rsl;
-	#define queue_delayed_work_rsl(x,y,z) schedule_task(y)
-	#define INIT_DELAYED_WORK_RSL(x,y,z) tq_init(x,y,z)
-#else
-	typedef struct work_struct delayed_work_struct_rsl;
-	#define queue_delayed_work_rsl(x,y,z) queue_delayed_work(x,y,z)
-	#define INIT_DELAYED_WORK_RSL(x,y,z) INIT_WORK(x,y,z)
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	typedef struct work_struct work_struct_rsl;
 	#define queue_work_rsl(x,y) queue_work(x,y)
 	#define INIT_WORK_RSL(x,y,z) INIT_WORK(x,y)
-#elif LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,40)
-	typedef struct tq_struct work_struct_rsl;
-	#define queue_work_rsl(x,y) schedule_task(y)
-	#define INIT_WORK_RSL(x,y,z) tq_init(x,y,z)
-#else
-	typedef struct work_struct work_struct_rsl;
-	#define queue_work_rsl(x,y) queue_work(x,y)
-	#define INIT_WORK_RSL(x,y,z) INIT_WORK(x,y,z)
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 	#define container_of_work_rsl(x,y,z) container_of(x,y,z)
 	#define container_of_dwork_rsl(x,y,z) container_of(container_of(x, struct delayed_work, work), y, z)
-#else
-	#define container_of_work_rsl(x,y,z) (x)
-	#define container_of_dwork_rsl(x,y,z) (x)
-#endif
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,4,20)) && (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-static inline char *
-iwe_stream_add_event_rsl(struct iw_request_info *info,
-			char *     stream,         /* Stream of events */
-			char *     ends,           /* End of stream */
-			struct iw_event *iwe,      /* Payload */
-			int        event_len)      /* Real size of payload */
-{
-        /* Check if it's possible */
-        if ((stream + event_len) < ends) {
-                iwe->len = event_len;
-		ndelay(1);
-                memcpy(stream, (char *) iwe, event_len);
-                stream += event_len;
-        }
-        return stream;
-}
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	#define iwe_stream_add_event_rsl(info,start,stop,iwe,len) iwe_stream_add_event(info,start,stop,iwe,len)
-#else
-	#define iwe_stream_add_event_rsl(info,start,stop,iwe,len) iwe_stream_add_event(start,stop,iwe,len)
-#endif
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 	#define iwe_stream_add_point_rsl(info,start,stop,iwe,p) iwe_stream_add_point(info,start,stop,iwe,p)
-#else
-	#define iwe_stream_add_point_rsl(info,start,stop,iwe,p) iwe_stream_add_point(start,stop,iwe,p)
-#endif
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	#define usb_alloc_urb_rsl(x,y) usb_alloc_urb(x,y)
 	#define usb_submit_urb_rsl(x,y) usb_submit_urb(x,y)
-#else
-	#define usb_alloc_urb_rsl(x,y) usb_alloc_urb(x)
-	#define usb_submit_urb_rsl(x,y) usb_submit_urb(x)
-#endif
 
 static inline void *netdev_priv_rsl(struct net_device *dev)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	return netdev_priv(dev);
-#else
-	return dev->priv;
-#endif
 }
 
 #define KEY_TYPE_NA		0x0
@@ -645,34 +536,8 @@ typedef struct ieee_param {
 #define IW_QUAL_NOISE_UPDATED  0x4
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9))
-#define MSECS(t)	(HZ * ((t) / 1000) + (HZ * ((t) % 1000)) / 1000)
-static inline unsigned long msleep_interruptible_rsl(unsigned int msecs)
-{
-         unsigned long timeout = MSECS(msecs) + 1;
-
-         while (timeout) {
-                 set_current_state(TASK_INTERRUPTIBLE);
-                 timeout = schedule_timeout(timeout);
-         }
-         return timeout;
-}
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,4,31))
-static inline void msleep(unsigned int msecs)
-{
-         unsigned long timeout = MSECS(msecs) + 1;
-
-         while (timeout) {
-                 set_current_state(TASK_UNINTERRUPTIBLE);
-                 timeout = schedule_timeout(timeout);
-         }
-}
-#endif
-#else
 #define MSECS(t) msecs_to_jiffies(t)
 #define msleep_interruptible_rsl  msleep_interruptible
-#endif
 
 #define RTLLIB_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
@@ -1572,11 +1437,7 @@ typedef union _frameqos {
  * main rates information element... */
 #define MAX_RATES_LENGTH                  ((u8)12)
 #define MAX_RATES_EX_LENGTH               ((u8)16)
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0))
-#define MAX_NETWORK_COUNT                  16
-#else
 #define MAX_NETWORK_COUNT                  96
-#endif
 
 #define MAX_CHANNEL_NUMBER                 161
 #define RTLLIB_SOFTMAC_SCAN_TIME	   100
@@ -1980,21 +1841,6 @@ enum rtllib_state {
 #define RTLLIB_52GHZ_MAX_CHANNEL 165
 #define RTLLIB_52GHZ_CHANNELS (RTLLIB_52GHZ_MAX_CHANNEL - \
                                   RTLLIB_52GHZ_MIN_CHANNEL + 1)
-
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,11))
-extern inline int is_multicast_ether_addr(const u8 *addr)
-{
-        return ((addr[0] != 0xff) && (0x01 & addr[0]));
-}
-#endif
-
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,13))
-extern inline int is_broadcast_ether_addr(const u8 *addr)
-{
-	return ((addr[0] == 0xff) && (addr[1] == 0xff) && (addr[2] == 0xff) &&   \
-		(addr[3] == 0xff) && (addr[4] == 0xff) && (addr[5] == 0xff));
-}
-#endif
 #ifndef eqMacAddr
 #define eqMacAddr(a,b)		( ((a)[0]==(b)[0] && (a)[1]==(b)[1] && (a)[2]==(b)[2] && (a)[3]==(b)[3] && (a)[4]==(b)[4] && (a)[5]==(b)[5]) ? 1:0 )
 #endif
@@ -3079,17 +2925,6 @@ static inline int rtllib_is_cck_rate(u8 rate)
         return 0;
 }
 
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10))
-static inline unsigned compare_ether_addr(const u8 *addr1, const u8 *addr2)
-{
-	const u16 *a = (const u16 *) addr1;
-	const u16 *b = (const u16 *) addr2;
-
-	BUILD_BUG_ON(ETH_ALEN != 6);
-	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2])) != 0;
-}
-#endif
 
 /* rtllib.c */
 extern void free_rtllib(struct net_device *dev);

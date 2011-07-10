@@ -17,19 +17,11 @@
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
 
-#if (defined(RTL8192E) || defined(RTL8190P))
-
 #include "rtl_core.h"
 #include "r8192E_hw.h"
-#ifdef RTL8190P
-#include "r8190P_hwimg.h"
-#elif defined RTL8192E
 #include "r8192E_hwimg.h"
-#endif
 #include "r8192E_firmware.h"
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 #include <linux/firmware.h>
-#endif
 
 extern void firmware_init_param(struct net_device *dev)
 {
@@ -308,17 +300,12 @@ bool init_firmware(struct net_device *dev)
 		 RT_TRACE(COMP_FIRMWARE, "PlatformInitFirmware: undefined firmware state\n");
 	}
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0) && defined(USE_FW_SOURCE_IMG_FILE)
 	priv->firmware_source = FW_SOURCE_IMG_FILE;
-#else
-	priv->firmware_source = FW_SOURCE_HEADER_FILE;
-#endif
 	for (init_step = starting_state; init_step <= FW_INIT_STEP2_DATA; init_step++) {
 		if (rst_opt == OPT_SYSTEM_RESET) {
 			switch (priv->firmware_source) {
 			case FW_SOURCE_IMG_FILE:
 			{
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0) && defined(USE_FW_SOURCE_IMG_FILE)
 				if (pfirmware->firmware_buf_size[init_step] == 0) {
 					const char *fw_name[3] = { "RTL8192E/boot.img",
 						                   "RTL8192E/main.img",
@@ -352,7 +339,6 @@ bool init_firmware(struct net_device *dev)
 				}
 				mapped_file = pfirmware->firmware_buf[init_step];
 				file_length = pfirmware->firmware_buf_size[init_step];
-#endif
 				break;
 			}
 			case FW_SOURCE_HEADER_FILE:
@@ -393,4 +379,3 @@ download_firmware_fail:
 	return rt_status;
 
 }
-#endif

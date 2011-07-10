@@ -46,9 +46,6 @@
 #include <linux/random.h>
 #include <linux/version.h>
 #include <asm/io.h>
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27))
-#include <asm/semaphore.h>
-#endif
 #include "rtllib.h"
 
 #ifdef ENABLE_DOT11D
@@ -95,31 +92,8 @@
 	.driver_data = (kernel_ulong_t)&(cfg)
 	typedef irqreturn_t irqreturn_type;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10))
 
-#if !defined(PCI_CAP_ID_EXP)
-#define PCI_CAP_ID_EXP			    0x10
-#endif
-#if !defined(PCI_EXP_LNKCTL)
-#define PCI_EXP_LNKCTL			    0x10
-#endif
-
-typedef int __bitwise pci_power_t;
-#define PCI_D0		((pci_power_t __force) 0)
-#define PCI_D1		((pci_power_t __force) 1)
-#define PCI_D2		((pci_power_t __force) 2)
-#define PCI_D3hot	((pci_power_t __force) 3)
-#define PCI_D3cold	((pci_power_t __force) 4)
-#define PCI_UNKNOWN	((pci_power_t __force) 5)
-#define PCI_POWER_ERROR	((pci_power_t __force) -1)
-
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
-	#define rtl8192_interrupt(x,y,z) rtl8192_interrupt_rsl(x,y,z)
-#else
-	#define rtl8192_interrupt(x,y,z) rtl8192_interrupt_rsl(x,y)
-#endif
+#define rtl8192_interrupt(x,y,z) rtl8192_interrupt_rsl(x,y)
 
 #define RTL_MAX_SCAN_SIZE 128
 
@@ -592,10 +566,6 @@ typedef struct r8192_priv
 	struct pci_dev *pdev;
 	struct pci_dev *bridge_pdev;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10))
-	u32		pci_state;
-#endif
-
 	bool		bfirst_init;
 	bool		bfirst_after_down;
 	bool		initialized_at_probe;
@@ -684,11 +654,7 @@ typedef struct r8192_priv
 
 	struct semaphore			wx_sem;
 	struct semaphore			rf_sem;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16))
-	struct semaphore			mutex;
-#else
 	struct mutex				mutex;
-#endif
 
 	struct Stats				stats;
 	struct iw_statistics			wstats;

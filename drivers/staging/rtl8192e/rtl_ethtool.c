@@ -29,7 +29,6 @@
 
 #include "rtl_core.h"
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 static void rtl819x_ethtool_get_drvinfo(struct net_device *dev,
 		struct ethtool_drvinfo *info)
 {
@@ -37,10 +36,6 @@ static void rtl819x_ethtool_get_drvinfo(struct net_device *dev,
 
 	strcpy(info->driver, DRV_NAME);
 	strcpy(info->version, DRV_VERSION);
-#if defined RTL8192SE
-	snprintf(info->fw_version, sizeof(info->fw_version), "%d",
-			priv->pFirmware->FirmwareVersion);
-#endif
 	strcpy(info->bus_info, pci_name(priv->pdev));
 }
 
@@ -56,4 +51,3 @@ const struct ethtool_ops rtl819x_ethtool_ops = {
 	.get_drvinfo = rtl819x_ethtool_get_drvinfo,
 	.get_link = rtl819x_ethtool_get_link,
 };
-#endif

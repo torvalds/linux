@@ -114,56 +114,36 @@ cmpk_count_txstatistic(
 	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE, (pu1Byte)(&rtState));
 
 	if (rtState == eRfOff)
-	{
 		return;
-	}
 #endif
 
-#ifdef TODO
-	if (pAdapter->bInHctTest)
-		return;
-#endif
-	if (pstx_fb->tok)
-	{
+	if (pstx_fb->tok) {
 		priv->stats.txfeedbackok++;
 		priv->stats.txoktotal++;
 		priv->stats.txokbytestotal += pstx_fb->pkt_length;
 		priv->stats.txokinperiod++;
 
-		if (pstx_fb->pkt_type == PACKET_MULTICAST)
-		{
+		if (pstx_fb->pkt_type == PACKET_MULTICAST) {
 			priv->stats.txmulticast++;
 			priv->stats.txbytesmulticast += pstx_fb->pkt_length;
-		}
-		else if (pstx_fb->pkt_type == PACKET_BROADCAST)
-		{
+		} else if (pstx_fb->pkt_type == PACKET_BROADCAST) {
 			priv->stats.txbroadcast++;
 			priv->stats.txbytesbroadcast += pstx_fb->pkt_length;
-		}
-		else
-		{
+		} else {
 			priv->stats.txunicast++;
 			priv->stats.txbytesunicast += pstx_fb->pkt_length;
 		}
-	}
-	else
-	{
+	} else {
 		priv->stats.txfeedbackfail++;
 		priv->stats.txerrtotal++;
 		priv->stats.txerrbytestotal += pstx_fb->pkt_length;
 
 		if (pstx_fb->pkt_type == PACKET_MULTICAST)
-		{
 			priv->stats.txerrmulticast++;
-		}
 		else if (pstx_fb->pkt_type == PACKET_BROADCAST)
-		{
 			priv->stats.txerrbroadcast++;
-		}
 		else
-		{
 			priv->stats.txerrunicast++;
-		}
 	}
 
 	priv->stats.txretrycount += pstx_fb->retry_cnt;
