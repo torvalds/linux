@@ -2028,8 +2028,8 @@ static void drain_rx(struct net_device *dev)
 		np->rx_ring[i].cmd_status = 0;
 		np->rx_ring[i].addr = cpu_to_le32(0xBADF00D0); /* An invalid address. */
 		if (np->rx_skbuff[i]) {
-			pci_unmap_single(np->pci_dev,
-				np->rx_dma[i], buflen,
+			pci_unmap_single(np->pci_dev, np->rx_dma[i],
+				buflen + NATSEMI_PADDING,
 				PCI_DMA_FROMDEVICE);
 			dev_kfree_skb(np->rx_skbuff[i]);
 		}
