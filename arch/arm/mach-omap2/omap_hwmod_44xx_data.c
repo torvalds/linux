@@ -22,6 +22,7 @@
 
 #include <plat/omap_hwmod.h>
 #include <plat/cpu.h>
+#include <plat/i2c.h>
 #include <plat/gpio.h>
 #include <plat/dma.h>
 #include <plat/mcspi.h>
@@ -2162,6 +2163,7 @@ static struct omap_hwmod_class omap44xx_i2c_hwmod_class = {
 	.name	= "i2c",
 	.sysc	= &omap44xx_i2c_sysc,
 	.rev	= OMAP_I2C_IP_VERSION_2,
+	.reset	= &omap_i2c_reset,
 };
 
 static struct omap_i2c_dev_attr i2c_dev_attr = {
@@ -2207,7 +2209,7 @@ static struct omap_hwmod_ocp_if *omap44xx_i2c1_slaves[] = {
 static struct omap_hwmod omap44xx_i2c1_hwmod = {
 	.name		= "i2c1",
 	.class		= &omap44xx_i2c_hwmod_class,
-	.flags		= HWMOD_16BIT_REG | HWMOD_INIT_NO_RESET,
+	.flags		= HWMOD_16BIT_REG,
 	.mpu_irqs	= omap44xx_i2c1_irqs,
 	.sdma_reqs	= omap44xx_i2c1_sdma_reqs,
 	.main_clk	= "i2c1_fck",
@@ -2261,7 +2263,7 @@ static struct omap_hwmod_ocp_if *omap44xx_i2c2_slaves[] = {
 static struct omap_hwmod omap44xx_i2c2_hwmod = {
 	.name		= "i2c2",
 	.class		= &omap44xx_i2c_hwmod_class,
-	.flags		= HWMOD_16BIT_REG | HWMOD_INIT_NO_RESET,
+	.flags		= HWMOD_16BIT_REG,
 	.mpu_irqs	= omap44xx_i2c2_irqs,
 	.sdma_reqs	= omap44xx_i2c2_sdma_reqs,
 	.main_clk	= "i2c2_fck",
@@ -2315,7 +2317,7 @@ static struct omap_hwmod_ocp_if *omap44xx_i2c3_slaves[] = {
 static struct omap_hwmod omap44xx_i2c3_hwmod = {
 	.name		= "i2c3",
 	.class		= &omap44xx_i2c_hwmod_class,
-	.flags		= HWMOD_16BIT_REG | HWMOD_INIT_NO_RESET,
+	.flags		= HWMOD_16BIT_REG,
 	.mpu_irqs	= omap44xx_i2c3_irqs,
 	.sdma_reqs	= omap44xx_i2c3_sdma_reqs,
 	.main_clk	= "i2c3_fck",
@@ -2369,7 +2371,7 @@ static struct omap_hwmod_ocp_if *omap44xx_i2c4_slaves[] = {
 static struct omap_hwmod omap44xx_i2c4_hwmod = {
 	.name		= "i2c4",
 	.class		= &omap44xx_i2c_hwmod_class,
-	.flags		= HWMOD_16BIT_REG | HWMOD_INIT_NO_RESET,
+	.flags		= HWMOD_16BIT_REG,
 	.mpu_irqs	= omap44xx_i2c4_irqs,
 	.sdma_reqs	= omap44xx_i2c4_sdma_reqs,
 	.main_clk	= "i2c4_fck",

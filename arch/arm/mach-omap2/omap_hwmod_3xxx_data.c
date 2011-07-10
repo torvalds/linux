@@ -1306,9 +1306,10 @@ static struct omap_hwmod omap3xxx_uart4_hwmod = {
 };
 
 static struct omap_hwmod_class i2c_class = {
-	.name = "i2c",
-	.sysc = &i2c_sysc,
-	.rev  = OMAP_I2C_IP_VERSION_1,
+	.name	= "i2c",
+	.sysc	= &i2c_sysc,
+	.rev	= OMAP_I2C_IP_VERSION_1,
+	.reset	= &omap_i2c_reset,
 };
 
 static struct omap_hwmod_dma_info omap3xxx_dss_sdma_chs[] = {
