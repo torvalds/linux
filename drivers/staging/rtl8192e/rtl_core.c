@@ -3188,17 +3188,7 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 					}
 				}
 			}
-#ifdef JOHN_DEBUG
-			{
-				int i;
-				RT_TRACE(COMP_DBG, "@@ wrq->u pointer = ");
-				for (i=0;i<wrq->u.data.length;i++){
-					if (i%10==0) RT_TRACE(COMP_DBG, "\n");
-					RT_TRACE(COMP_DBG, "%8x|", ((u32*)wrq->u.data.pointer)[i] );
-				}
-				RT_TRACE(COMP_DBG, "\n");
-			}
-#endif
+
 			ret = rtllib_wpa_supplicant_ioctl(priv->rtllib, &wrq->u.data, 0);
 			kfree(ipw);
 			break;
