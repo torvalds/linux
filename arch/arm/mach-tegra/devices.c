@@ -22,6 +22,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/fsl_devices.h>
 #include <linux/serial_8250.h>
+#include <linux/i2c-tegra.h>
 #include <asm/pmu.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
@@ -79,13 +80,29 @@ static struct resource i2c_resource4[] = {
 	},
 };
 
+static struct tegra_i2c_platform_data tegra_i2c1_platform_data = {
+	.bus_clk_rate   = 400000,
+};
+
+static struct tegra_i2c_platform_data tegra_i2c2_platform_data = {
+	.bus_clk_rate   = 400000,
+};
+
+static struct tegra_i2c_platform_data tegra_i2c3_platform_data = {
+	.bus_clk_rate   = 400000,
+};
+
+static struct tegra_i2c_platform_data tegra_dvc_platform_data = {
+	.bus_clk_rate   = 400000,
+};
+
 struct platform_device tegra_i2c_device1 = {
 	.name		= "tegra-i2c",
 	.id		= 0,
 	.resource	= i2c_resource1,
 	.num_resources	= ARRAY_SIZE(i2c_resource1),
 	.dev = {
-		.platform_data = 0,
+		.platform_data = &tegra_i2c1_platform_data,
 	},
 };
 
@@ -95,7 +112,7 @@ struct platform_device tegra_i2c_device2 = {
 	.resource	= i2c_resource2,
 	.num_resources	= ARRAY_SIZE(i2c_resource2),
 	.dev = {
-		.platform_data = 0,
+		.platform_data = &tegra_i2c2_platform_data,
 	},
 };
 
@@ -105,7 +122,7 @@ struct platform_device tegra_i2c_device3 = {
 	.resource	= i2c_resource3,
 	.num_resources	= ARRAY_SIZE(i2c_resource3),
 	.dev = {
-		.platform_data = 0,
+		.platform_data = &tegra_i2c3_platform_data,
 	},
 };
 
@@ -115,7 +132,7 @@ struct platform_device tegra_i2c_device4 = {
 	.resource	= i2c_resource4,
 	.num_resources	= ARRAY_SIZE(i2c_resource4),
 	.dev = {
-		.platform_data = 0,
+		.platform_data = &tegra_dvc_platform_data,
 	},
 };
 

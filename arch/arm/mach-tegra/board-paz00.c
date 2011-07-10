@@ -26,7 +26,6 @@
 #include <linux/pda_power.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
-#include <linux/i2c-tegra.h>
 #include <linux/platform_data/tegra_usb.h>
 
 #include <asm/mach-types.h>
@@ -74,24 +73,8 @@ static struct platform_device *paz00_devices[] __initdata = {
 	&tegra_sdhci_device4,
 };
 
-static struct tegra_i2c_platform_data paz00_i2c1_platform_data = {
-	.bus_clk_rate   = 400000,
-};
-
-static struct tegra_i2c_platform_data paz00_i2c2_platform_data = {
-	.bus_clk_rate   = 400000,
-};
-
-static struct tegra_i2c_platform_data paz00_dvc_platform_data = {
-	.bus_clk_rate   = 400000,
-};
-
 static void paz00_i2c_init(void)
 {
-	tegra_i2c_device1.dev.platform_data = &paz00_i2c1_platform_data;
-	tegra_i2c_device2.dev.platform_data = &paz00_i2c2_platform_data;
-	tegra_i2c_device4.dev.platform_data = &paz00_dvc_platform_data;
-
 	platform_device_register(&tegra_i2c_device1);
 	platform_device_register(&tegra_i2c_device2);
 	platform_device_register(&tegra_i2c_device4);
