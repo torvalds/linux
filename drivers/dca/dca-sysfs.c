@@ -27,6 +27,7 @@
 #include <linux/err.h>
 #include <linux/dca.h>
 #include <linux/gfp.h>
+#include <linux/export.h>
 
 static struct class *dca_class;
 static struct idr dca_idr;
