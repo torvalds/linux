@@ -1220,7 +1220,12 @@ static void conf_message_callback(const char *fmt, va_list ap)
 
 static void show_help(struct menu *menu)
 {
-	struct gstr help = str_new();
+	struct gstr help;
+
+	if (!menu)
+		return;
+
+	help = str_new();
 	menu_get_ext_help(menu, &help);
 	show_scroll_win(main_window, _(menu_get_prompt(menu)), str_get(&help));
 	str_free(&help);
