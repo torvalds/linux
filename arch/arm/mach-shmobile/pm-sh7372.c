@@ -129,6 +129,10 @@ struct sh7372_pm_domain sh7372_a4mp = {
 	.bit_shift = 2,
 };
 
+struct sh7372_pm_domain sh7372_d4 = {
+	.bit_shift = 3,
+};
+
 struct sh7372_pm_domain sh7372_a3rv = {
 	.bit_shift = 6,
 };
