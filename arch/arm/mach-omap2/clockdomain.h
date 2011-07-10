@@ -17,6 +17,7 @@
 #define __ARCH_ARM_MACH_OMAP2_CLOCKDOMAIN_H
 
 #include <linux/init.h>
+#include <linux/spinlock.h>
 
 #include "powerdomain.h"
 #include <plat/clock.h>
@@ -128,6 +129,7 @@ struct clockdomain {
 	const struct omap_chip_id omap_chip;
 	atomic_t usecount;
 	struct list_head node;
+	spinlock_t lock;
 };
 
 /**
