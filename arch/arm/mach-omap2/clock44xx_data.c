@@ -1170,19 +1170,6 @@ static struct clk func_96m_fclk = {
 	.set_rate	= &omap2_clksel_set_rate,
 };
 
-static const struct clksel hsmmc6_fclk_sel[] = {
-	{ .parent = &func_64m_fclk, .rates = div_1_0_rates },
-	{ .parent = &func_96m_fclk, .rates = div_1_1_rates },
-	{ .parent = NULL },
-};
-
-static struct clk hsmmc6_fclk = {
-	.name		= "hsmmc6_fclk",
-	.parent		= &func_64m_fclk,
-	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
-};
-
 static const struct clksel_rate div2_1to8_rates[] = {
 	{ .div = 1, .val = 0, .flags = RATE_IN_4430 },
 	{ .div = 8, .val = 1, .flags = RATE_IN_4430 },
@@ -1265,6 +1252,21 @@ static struct clk l4_wkup_clk_mux_ck = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
+static struct clk ocp_abe_iclk = {
+	.name		= "ocp_abe_iclk",
+	.parent		= &aess_fclk,
+	.ops		= &clkops_null,
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk per_abe_24m_fclk = {
+	.name		= "per_abe_24m_fclk",
+	.parent		= &dpll_abe_m2_ck,
+	.ops		= &clkops_null,
+	.fixed_div	= 4,
+	.recalc		= &omap_fixed_divisor_recalc,
+};
+
 static const struct clksel per_abe_nc_fclk_div[] = {
 	{ .parent = &dpll_abe_m2_ck, .rates = div2_1to2_rates },
 	{ .parent = NULL },
@@ -1280,41 +1282,6 @@ static struct clk per_abe_nc_fclk = {
 	.recalc		= &omap2_clksel_recalc,
 	.round_rate	= &omap2_clksel_round_rate,
 	.set_rate	= &omap2_clksel_set_rate,
-};
-
-static const struct clksel mcasp2_fclk_sel[] = {
-	{ .parent = &func_96m_fclk, .rates = div_1_0_rates },
-	{ .parent = &per_abe_nc_fclk, .rates = div_1_1_rates },
-	{ .parent = NULL },
-};
-
-static struct clk mcasp2_fclk = {
-	.name		= "mcasp2_fclk",
-	.parent		= &func_96m_fclk,
-	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
-};
-
-static struct clk mcasp3_fclk = {
-	.name		= "mcasp3_fclk",
-	.parent		= &func_96m_fclk,
-	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
-};
-
-static struct clk ocp_abe_iclk = {
-	.name		= "ocp_abe_iclk",
-	.parent		= &aess_fclk,
-	.ops		= &clkops_null,
-	.recalc		= &followparent_recalc,
-};
-
-static struct clk per_abe_24m_fclk = {
-	.name		= "per_abe_24m_fclk",
-	.parent		= &dpll_abe_m2_ck,
-	.ops		= &clkops_null,
-	.fixed_div	= 4,
-	.recalc		= &omap_fixed_divisor_recalc,
 };
 
 static const struct clksel pmd_stm_clock_mux_sel[] = {
@@ -1996,10 +1963,16 @@ static struct clk mcbsp3_fck = {
 	.clkdm_name	= "abe_clkdm",
 };
 
+static const struct clksel mcbsp4_sync_mux_sel[] = {
+	{ .parent = &func_96m_fclk, .rates = div_1_0_rates },
+	{ .parent = &per_abe_nc_fclk, .rates = div_1_1_rates },
+	{ .parent = NULL },
+};
+
 static struct clk mcbsp4_sync_mux_ck = {
 	.name		= "mcbsp4_sync_mux_ck",
 	.parent		= &func_96m_fclk,
-	.clksel		= mcasp2_fclk_sel,
+	.clksel		= mcbsp4_sync_mux_sel,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP4430_CM_L4PER_MCBSP4_CLKCTRL,
 	.clksel_mask	= OMAP4430_CLKSEL_INTERNAL_SOURCE_MASK,
@@ -2078,11 +2051,17 @@ static struct clk mcspi4_fck = {
 	.recalc		= &followparent_recalc,
 };
 
+static const struct clksel hsmmc1_fclk_sel[] = {
+	{ .parent = &func_64m_fclk, .rates = div_1_0_rates },
+	{ .parent = &func_96m_fclk, .rates = div_1_1_rates },
+	{ .parent = NULL },
+};
+
 /* Merged hsmmc1_fclk into mmc1 */
 static struct clk mmc1_fck = {
 	.name		= "mmc1_fck",
 	.parent		= &func_64m_fclk,
-	.clksel		= hsmmc6_fclk_sel,
+	.clksel		= hsmmc1_fclk_sel,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP4430_CM_L3INIT_MMC1_CLKCTRL,
 	.clksel_mask	= OMAP4430_CLKSEL_MASK,
@@ -2097,7 +2076,7 @@ static struct clk mmc1_fck = {
 static struct clk mmc2_fck = {
 	.name		= "mmc2_fck",
 	.parent		= &func_64m_fclk,
-	.clksel		= hsmmc6_fclk_sel,
+	.clksel		= hsmmc1_fclk_sel,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP4430_CM_L3INIT_MMC2_CLKCTRL,
 	.clksel_mask	= OMAP4430_CLKSEL_MASK,
@@ -3094,17 +3073,14 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"func_48mc_fclk",		&func_48mc_fclk,	CK_443X),
 	CLK(NULL,	"func_64m_fclk",		&func_64m_fclk,	CK_443X),
 	CLK(NULL,	"func_96m_fclk",		&func_96m_fclk,	CK_443X),
-	CLK(NULL,	"hsmmc6_fclk",			&hsmmc6_fclk,	CK_443X),
 	CLK(NULL,	"init_60m_fclk",		&init_60m_fclk,	CK_443X),
 	CLK(NULL,	"l3_div_ck",			&l3_div_ck,	CK_443X),
 	CLK(NULL,	"l4_div_ck",			&l4_div_ck,	CK_443X),
 	CLK(NULL,	"lp_clk_div_ck",		&lp_clk_div_ck,	CK_443X),
 	CLK(NULL,	"l4_wkup_clk_mux_ck",		&l4_wkup_clk_mux_ck,	CK_443X),
-	CLK(NULL,	"per_abe_nc_fclk",		&per_abe_nc_fclk,	CK_443X),
-	CLK(NULL,	"mcasp2_fclk",			&mcasp2_fclk,	CK_443X),
-	CLK(NULL,	"mcasp3_fclk",			&mcasp3_fclk,	CK_443X),
 	CLK(NULL,	"ocp_abe_iclk",			&ocp_abe_iclk,	CK_443X),
 	CLK(NULL,	"per_abe_24m_fclk",		&per_abe_24m_fclk,	CK_443X),
+	CLK(NULL,	"per_abe_nc_fclk",		&per_abe_nc_fclk,	CK_443X),
 	CLK(NULL,	"pmd_stm_clock_mux_ck",		&pmd_stm_clock_mux_ck,	CK_443X),
 	CLK(NULL,	"pmd_trace_clk_mux_ck",		&pmd_trace_clk_mux_ck,	CK_443X),
 	CLK(NULL,	"syc_clk_div_ck",		&syc_clk_div_ck,	CK_443X),
