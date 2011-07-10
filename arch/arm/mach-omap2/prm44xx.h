@@ -755,8 +755,6 @@ extern u32 omap4_prm_set_inst_reg_bits(u32 bits, s16 inst, s16 idx);
 extern u32 omap4_prm_clear_inst_reg_bits(u32 bits, s16 inst, s16 idx);
 extern u32 omap4_prm_read_bits_shift(void __iomem *reg, u32 mask);
 
-extern void omap4_prm_global_warm_sw_reset(void);
-
 # endif
 
 #endif
