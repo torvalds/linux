@@ -3565,12 +3565,14 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 
 	err = ext4_ext_insert_extent(handle, inode, path, &newex, flags);
 	if (err) {
+		int fb_flags = flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE ?
+			EXT4_FREE_BLOCKS_NO_QUOT_UPDATE : 0;
 		/* free data blocks we just allocated */
 		/* not a good idea to call discard here directly,
 		 * but otherwise we'd need to call it every free() */
 		ext4_discard_preallocations(inode);
 		ext4_free_blocks(handle, inode, NULL, ext4_ext_pblock(&newex),
-				 ext4_ext_get_actual_len(&newex), 0);
+				 ext4_ext_get_actual_len(&newex), fb_flags);
 		goto out2;
 	}
 
