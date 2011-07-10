@@ -1153,10 +1153,7 @@ static void conf(struct menu *menu)
 		submenu = (struct menu *) item_data();
 		if (!submenu || !menu_is_visible(submenu))
 			continue;
-		if (submenu)
-			sym = submenu->sym;
-		else
-			sym = NULL;
+		sym = submenu->sym;
 
 		switch (res) {
 		case ' ':
