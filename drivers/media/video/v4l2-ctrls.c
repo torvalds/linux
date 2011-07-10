@@ -339,8 +339,6 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		NULL,
 	};
 
-	switch (id) {
-	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
 	static const char * const flash_led_mode[] = {
 		"Off",
 		"Flash",
