@@ -67,6 +67,7 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/vmalloc.h>
+#include <linux/export.h>
 
 static int check_pattern_no_oob(uint8_t *buf, struct nand_bbt_descr *td)
 {
