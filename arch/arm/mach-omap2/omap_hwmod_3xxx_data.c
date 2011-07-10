@@ -190,39 +190,21 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__l4_wkup = {
 };
 
 /* L4 CORE -> MMC1 interface */
-static struct omap_hwmod_addr_space omap3xxx_mmc1_addr_space[] = {
-	{
-		.pa_start	= 0x4809c000,
-		.pa_end		= 0x4809c1ff,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__mmc1 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_mmc1_hwmod,
 	.clk		= "mmchs1_ick",
-	.addr		= omap3xxx_mmc1_addr_space,
+	.addr		= omap2430_mmc1_addr_space,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 	.flags		= OMAP_FIREWALL_L4
 };
 
 /* L4 CORE -> MMC2 interface */
-static struct omap_hwmod_addr_space omap3xxx_mmc2_addr_space[] = {
-	{
-		.pa_start	= 0x480b4000,
-		.pa_end		= 0x480b41ff,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__mmc2 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_mmc2_hwmod,
 	.clk		= "mmchs2_ick",
-	.addr		= omap3xxx_mmc2_addr_space,
+	.addr		= omap2430_mmc2_addr_space,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 	.flags		= OMAP_FIREWALL_L4
 };
@@ -318,24 +300,12 @@ static struct omap_hwmod_ocp_if omap3_l4_per__uart4 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* I2C IP block address space length (in bytes) */
-#define OMAP2_I2C_AS_LEN		128
-
 /* L4 CORE -> I2C1 interface */
-static struct omap_hwmod_addr_space omap3xxx_i2c1_addr_space[] = {
-	{
-		.pa_start	= 0x48070000,
-		.pa_end		= 0x48070000 + OMAP2_I2C_AS_LEN - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 static struct omap_hwmod_ocp_if omap3_l4_core__i2c1 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_i2c1_hwmod,
 	.clk		= "i2c1_ick",
-	.addr		= omap3xxx_i2c1_addr_space,
+	.addr		= omap2_i2c1_addr_space,
 	.fw = {
 		.omap2 = {
 			.l4_fw_region  = OMAP3_L4_CORE_FW_I2C1_REGION,
@@ -347,20 +317,11 @@ static struct omap_hwmod_ocp_if omap3_l4_core__i2c1 = {
 };
 
 /* L4 CORE -> I2C2 interface */
-static struct omap_hwmod_addr_space omap3xxx_i2c2_addr_space[] = {
-	{
-		.pa_start	= 0x48072000,
-		.pa_end		= 0x48072000 + OMAP2_I2C_AS_LEN - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 static struct omap_hwmod_ocp_if omap3_l4_core__i2c2 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_i2c2_hwmod,
 	.clk		= "i2c2_ick",
-	.addr		= omap3xxx_i2c2_addr_space,
+	.addr		= omap2_i2c2_addr_space,
 	.fw = {
 		.omap2 = {
 			.l4_fw_region  = OMAP3_L4_CORE_FW_I2C2_REGION,
@@ -375,7 +336,7 @@ static struct omap_hwmod_ocp_if omap3_l4_core__i2c2 = {
 static struct omap_hwmod_addr_space omap3xxx_i2c3_addr_space[] = {
 	{
 		.pa_start	= 0x48060000,
-		.pa_end		= 0x48060000 + OMAP2_I2C_AS_LEN - 1,
+		.pa_end		= 0x48060000 + SZ_128 - 1,
 		.flags		= ADDR_TYPE_RT,
 	},
 	{ }
@@ -1065,21 +1026,12 @@ static struct omap_hwmod_irq_info omap3xxx_timer10_mpu_irqs[] = {
 	{ .irq = 46, },
 };
 
-static struct omap_hwmod_addr_space omap3xxx_timer10_addrs[] = {
-	{
-		.pa_start	= 0x48086000,
-		.pa_end		= 0x48086000 + SZ_1K - 1,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_core -> timer10 */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__timer10 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_timer10_hwmod,
 	.clk		= "gpt10_ick",
-	.addr		= omap3xxx_timer10_addrs,
+	.addr		= omap2_timer10_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -1115,21 +1067,12 @@ static struct omap_hwmod_irq_info omap3xxx_timer11_mpu_irqs[] = {
 	{ .irq = 47, },
 };
 
-static struct omap_hwmod_addr_space omap3xxx_timer11_addrs[] = {
-	{
-		.pa_start	= 0x48088000,
-		.pa_end		= 0x48088000 + SZ_1K - 1,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_core -> timer11 */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__timer11 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_timer11_hwmod,
 	.clk		= "gpt11_ick",
-	.addr		= omap3xxx_timer11_addrs,
+	.addr		= omap2_timer11_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -1491,21 +1434,12 @@ static struct omap_hwmod_ocp_if *omap3xxx_dss_masters[] = {
 	&omap3xxx_dss__l3,
 };
 
-static struct omap_hwmod_addr_space omap3xxx_dss_addrs[] = {
-	{
-		.pa_start	= 0x48050000,
-		.pa_end		= 0x480503FF,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_core -> dss */
 static struct omap_hwmod_ocp_if omap3430es1_l4_core__dss = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3430es1_dss_core_hwmod,
 	.clk		= "dss_ick",
-	.addr		= omap3xxx_dss_addrs,
+	.addr		= omap2_dss_addrs,
 	.fw = {
 		.omap2 = {
 			.l4_fw_region  = OMAP3ES1_L4_CORE_FW_DSS_CORE_REGION,
@@ -1520,7 +1454,7 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__dss = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_dss_core_hwmod,
 	.clk		= "dss_ick",
-	.addr		= omap3xxx_dss_addrs,
+	.addr		= omap2_dss_addrs,
 	.fw = {
 		.omap2 = {
 			.l4_fw_region  = OMAP3_L4_CORE_FW_DSS_CORE_REGION,
@@ -1625,21 +1559,12 @@ static struct omap_hwmod_irq_info omap3xxx_dispc_irqs[] = {
 	{ .irq = 25 },
 };
 
-static struct omap_hwmod_addr_space omap3xxx_dss_dispc_addrs[] = {
-	{
-		.pa_start	= 0x48050400,
-		.pa_end		= 0x480507FF,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_core -> dss_dispc */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__dss_dispc = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_dss_dispc_hwmod,
 	.clk		= "dss_ick",
-	.addr		= omap3xxx_dss_dispc_addrs,
+	.addr		= omap2_dss_dispc_addrs,
 	.fw = {
 		.omap2 = {
 			.l4_fw_region  = OMAP3_L4_CORE_FW_DSS_DISPC_REGION,
@@ -1760,21 +1685,12 @@ static struct omap_hwmod_class omap3xxx_rfbi_hwmod_class = {
 	.sysc = &omap3xxx_rfbi_sysc,
 };
 
-static struct omap_hwmod_addr_space omap3xxx_dss_rfbi_addrs[] = {
-	{
-		.pa_start	= 0x48050800,
-		.pa_end		= 0x48050BFF,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_core -> dss_rfbi */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__dss_rfbi = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_dss_rfbi_hwmod,
 	.clk		= "dss_ick",
-	.addr		= omap3xxx_dss_rfbi_addrs,
+	.addr		= omap2_dss_rfbi_addrs,
 	.fw = {
 		.omap2 = {
 			.l4_fw_region  = OMAP3_L4_CORE_FW_DSS_RFBI_REGION,
@@ -1818,22 +1734,12 @@ static struct omap_hwmod_class omap3xxx_venc_hwmod_class = {
 	.name = "venc",
 };
 
-/* dss_venc */
-static struct omap_hwmod_addr_space omap3xxx_dss_venc_addrs[] = {
-	{
-		.pa_start	= 0x48050C00,
-		.pa_end		= 0x48050FFF,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 /* l4_core -> dss_venc */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__dss_venc = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap3xxx_dss_venc_hwmod,
 	.clk		= "dss_tv_fck",
-	.addr		= omap3xxx_dss_venc_addrs,
+	.addr		= omap2_dss_venc_addrs,
 	.fw = {
 		.omap2 = {
 			.l4_fw_region  = OMAP3_L4_CORE_FW_DSS_VENC_REGION,
@@ -3070,56 +2976,29 @@ static struct omap_hwmod omap3xxx_mailbox_hwmod = {
 };
 
 /* l4 core -> mcspi1 interface */
-static struct omap_hwmod_addr_space omap34xx_mcspi1_addr_space[] = {
-	{
-		.pa_start	= 0x48098000,
-		.pa_end		= 0x480980ff,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 static struct omap_hwmod_ocp_if omap34xx_l4_core__mcspi1 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap34xx_mcspi1,
 	.clk		= "mcspi1_ick",
-	.addr		= omap34xx_mcspi1_addr_space,
+	.addr		= omap2_mcspi1_addr_space,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
 /* l4 core -> mcspi2 interface */
-static struct omap_hwmod_addr_space omap34xx_mcspi2_addr_space[] = {
-	{
-		.pa_start	= 0x4809a000,
-		.pa_end		= 0x4809a0ff,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 static struct omap_hwmod_ocp_if omap34xx_l4_core__mcspi2 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap34xx_mcspi2,
 	.clk		= "mcspi2_ick",
-	.addr		= omap34xx_mcspi2_addr_space,
+	.addr		= omap2_mcspi2_addr_space,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
 /* l4 core -> mcspi3 interface */
-static struct omap_hwmod_addr_space omap34xx_mcspi3_addr_space[] = {
-	{
-		.pa_start	= 0x480b8000,
-		.pa_end		= 0x480b80ff,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 static struct omap_hwmod_ocp_if omap34xx_l4_core__mcspi3 = {
 	.master		= &omap3xxx_l4_core_hwmod,
 	.slave		= &omap34xx_mcspi3,
 	.clk		= "mcspi3_ick",
-	.addr		= omap34xx_mcspi3_addr_space,
+	.addr		= omap2430_mcspi3_addr_space,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
