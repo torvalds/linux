@@ -221,7 +221,7 @@ int et131x_ioctl_mii(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
 		if (!capable(CAP_NET_ADMIN))
 			status = -EPERM;
 		else
-			status = MiRead(etdev,
+			status = et131x_mii_read(etdev,
 					data->reg_num, &data->val_out);
 		break;
 
@@ -229,7 +229,7 @@ int et131x_ioctl_mii(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
 		if (!capable(CAP_NET_ADMIN))
 			status = -EPERM;
 		else
-			status = MiWrite(etdev, data->reg_num,
+			status = et131x_mii_write(etdev, data->reg_num,
 					 data->val_in);
 		break;
 

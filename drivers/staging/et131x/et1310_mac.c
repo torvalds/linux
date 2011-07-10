@@ -451,11 +451,11 @@ void config_flow_control(struct et131x_adapter *etdev)
 	} else {
 		char remote_pause, remote_async_pause;
 
-		ET1310_PhyAccessMiBit(etdev,
-				      TRUEPHY_BIT_READ, 5, 10, &remote_pause);
-		ET1310_PhyAccessMiBit(etdev,
-				      TRUEPHY_BIT_READ, 5, 11,
-				      &remote_async_pause);
+		et1310_phy_access_mii_bit(etdev,
+				TRUEPHY_BIT_READ, 5, 10, &remote_pause);
+		et1310_phy_access_mii_bit(etdev,
+				TRUEPHY_BIT_READ, 5, 11,
+				&remote_async_pause);
 
 		if ((remote_pause == TRUEPHY_BIT_SET) &&
 		    (remote_async_pause == TRUEPHY_BIT_SET)) {

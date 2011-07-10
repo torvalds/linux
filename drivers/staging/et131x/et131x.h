@@ -90,14 +90,14 @@ void EnablePhyComa(struct et131x_adapter *adapter);
 void DisablePhyComa(struct et131x_adapter *adapter);
 
 /* et131x_phy.c */
-void ET1310_PhyInit(struct et131x_adapter *adapter);
-void ET1310_PhyReset(struct et131x_adapter *adapter);
-void ET1310_PhyPowerDown(struct et131x_adapter *adapter, bool down);
-void ET1310_PhyAdvertise1000BaseT(struct et131x_adapter *adapter,
-				  u16 duplex);
-void ET1310_PhyAccessMiBit(struct et131x_adapter *adapter,
-			   u16 action,
-			   u16 regnum, u16 bitnum, u8 *value);
+void et1310_phy_init(struct et131x_adapter *adapter);
+void et1310_phy_reset(struct et131x_adapter *adapter);
+void et1310_phy_power_down(struct et131x_adapter *adapter, bool down);
+void et1310_phy_advertise_1000BaseT(struct et131x_adapter *adapter,
+				    u16 duplex);
+void et1310_phy_access_mii_bit(struct et131x_adapter *adapter,
+			       u16 action,
+			       u16 regnum, u16 bitnum, u8 *value);
 
 int et131x_xcvr_find(struct et131x_adapter *adapter);
 void et131x_setphy_normal(struct et131x_adapter *adapter);
@@ -105,22 +105,17 @@ void et131x_setphy_normal(struct et131x_adapter *adapter);
 /* static inline function does not work because et131x_adapter is not always
  * defined
  */
-int PhyMiRead(struct et131x_adapter *adapter, u8 xcvrAddr,
+int et131x_phy_mii_read(struct et131x_adapter *adapter, u8 xcvrAddr,
 	      u8 xcvrReg, u16 *value);
-#define MiRead(adapter, xcvrReg, value) \
-	PhyMiRead((adapter), (adapter)->stats.xcvr_addr, (xcvrReg), (value))
+#define et131x_mii_read(adapter, xcvrReg, value) \
+	et131x_phy_mii_read((adapter), \
+			    (adapter)->stats.xcvr_addr, \
+			    (xcvrReg), (value))
 
-int32_t MiWrite(struct et131x_adapter *adapter,
+int32_t et131x_mii_write(struct et131x_adapter *adapter,
 		u8 xcvReg, u16 value);
-void et131x_Mii_check(struct et131x_adapter *pAdapter,
+void et131x_mii_check(struct et131x_adapter *pAdapter,
 		      u16 bmsr, u16 bmsr_ints);
-
-/* This last is not strictly required (the driver could call the TPAL
- * version instead), but this sets the adapter up correctly, and calls the
- * access routine indirectly.  This protects the driver from changes in TPAL.
- */
-void SetPhy_10BaseTHalfDuplex(struct et131x_adapter *adapter);
-
 
 /* et1310_rx.c */
 int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter);

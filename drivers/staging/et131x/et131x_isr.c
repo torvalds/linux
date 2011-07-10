@@ -385,11 +385,12 @@ void et131x_isr_handler(struct work_struct *work)
 			/* Read the PHY ISR to clear the reason for the
 			 * interrupt.
 			 */
-			MiRead(etdev, (uint8_t) offsetof(struct mi_regs, isr),
-			       &myisr);
+			et131x_mii_read(etdev,
+					(uint8_t) offsetof(struct mi_regs, isr),
+					&myisr);
 
 			if (!etdev->ReplicaPhyLoopbk) {
-				MiRead(etdev,
+				et131x_mii_read(etdev,
 				       (uint8_t) offsetof(struct mi_regs, bmsr),
 				       &bmsr_data);
 
@@ -397,7 +398,7 @@ void et131x_isr_handler(struct work_struct *work)
 				etdev->bmsr = bmsr_data;
 
 				/* Do all the cable in / cable out stuff */
-				et131x_Mii_check(etdev, bmsr_data, bmsr_ints);
+				et131x_mii_check(etdev, bmsr_data, bmsr_ints);
 			}
 		}
 

@@ -401,28 +401,28 @@ int et131x_adapter_setup(struct et131x_adapter *etdev)
 		dev_warn(&etdev->pdev->dev, "Could not find the xcvr\n");
 
 	/* Prepare the TRUEPHY library. */
-	ET1310_PhyInit(etdev);
+	et1310_phy_init(etdev);
 
 	/* Reset the phy now so changes take place */
-	ET1310_PhyReset(etdev);
+	et1310_phy_reset(etdev);
 
 	/* Power down PHY */
-	ET1310_PhyPowerDown(etdev, 1);
+	et1310_phy_power_down(etdev, 1);
 
 	/*
 	 * We need to turn off 1000 base half dulplex, the mac does not
 	 * support it. For the 10/100 part, turn off all gig advertisement
 	 */
 	if (etdev->pdev->device != ET131X_PCI_DEVICE_ID_FAST)
-		ET1310_PhyAdvertise1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_FULL);
+		et1310_phy_advertise_1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_FULL);
 	else
-		ET1310_PhyAdvertise1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_NONE);
+		et1310_phy_advertise_1000BaseT(etdev, TRUEPHY_ADV_DUPLEX_NONE);
 
 	/* Power up PHY */
-	ET1310_PhyPowerDown(etdev, 0);
+	et1310_phy_power_down(etdev, 0);
 
 	et131x_setphy_normal(etdev);
-;	return status;
+	return status;
 }
 
 /**
