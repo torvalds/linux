@@ -540,11 +540,11 @@ static int dell_get_intensity(struct backlight_device *bd)
 	else
 		dell_send_request(buffer, 0, 1);
 
+	ret = buffer->output[1];
+
 out:
 	release_buffer();
-	if (ret)
-		return ret;
-	return buffer->output[1];
+	return ret;
 }
 
 static const struct backlight_ops dell_ops = {
