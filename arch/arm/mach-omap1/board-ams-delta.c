@@ -138,7 +138,7 @@ void ams_delta_latch2_write(u16 mask, u16 value)
 static void __init ams_delta_init_irq(void)
 {
 	omap1_init_common_hw();
-	omap_init_irq();
+	omap1_init_irq();
 }
 
 static struct map_desc ams_delta_io_desc[] __initdata = {
@@ -391,7 +391,7 @@ MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	.reserve	= omap_reserve,
 	.init_irq	= ams_delta_init_irq,
 	.init_machine	= ams_delta_init,
-	.timer		= &omap_timer,
+	.timer		= &omap1_timer,
 MACHINE_END
 
 EXPORT_SYMBOL(ams_delta_latch1_write);

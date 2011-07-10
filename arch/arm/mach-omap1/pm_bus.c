@@ -56,9 +56,13 @@ static struct dev_power_domain default_power_domain = {
 		USE_PLATFORM_PM_SLEEP_OPS
 	},
 };
+#define OMAP1_PWR_DOMAIN (&default_power_domain)
+#else
+#define OMAP1_PWR_DOMAIN NULL
+#endif /* CONFIG_PM_RUNTIME */
 
 static struct pm_clk_notifier_block platform_bus_notifier = {
-	.pwr_domain = &default_power_domain,
+	.pwr_domain = OMAP1_PWR_DOMAIN,
 	.con_ids = { "ick", "fck", NULL, },
 };
 
@@ -72,4 +76,4 @@ static int __init omap1_pm_runtime_init(void)
 	return 0;
 }
 core_initcall(omap1_pm_runtime_init);
-#endif /* CONFIG_PM_RUNTIME */
+

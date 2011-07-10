@@ -19,15 +19,11 @@ enum nand_io {
 };
 
 struct omap_nand_platform_data {
-	unsigned int		options;
 	int			cs;
-	int			gpio_irq;
 	struct mtd_partition	*parts;
 	struct gpmc_timings	*gpmc_t;
 	int			nr_parts;
-	int			(*nand_setup)(void);
-	int			(*dev_ready)(struct omap_nand_platform_data *);
-	int			dma_channel;
+	bool			dev_ready;
 	int			gpmc_irq;
 	enum nand_io		xfer_type;
 	unsigned long		phys_base;

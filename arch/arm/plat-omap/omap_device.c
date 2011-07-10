@@ -84,6 +84,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/pm_runtime.h>
 
 #include <plat/omap_device.h>
 #include <plat/omap_hwmod.h>
@@ -235,11 +236,6 @@ static int _omap_device_deactivate(struct omap_device *od, u8 ignore_lat)
 	return 0;
 }
 
-static inline struct omap_device *_find_by_pdev(struct platform_device *pdev)
-{
-	return container_of(pdev, struct omap_device, pdev);
-}
-
 /**
  * _add_optional_clock_clkdev - Add clkdev entry for hwmod optional clocks
  * @od: struct omap_device *od
@@ -315,7 +311,7 @@ u32 omap_device_get_context_loss_count(struct platform_device *pdev)
 	struct omap_device *od;
 	u32 ret = 0;
 
-	od = _find_by_pdev(pdev);
+	od = to_omap_device(pdev);
 
 	if (od->hwmods_cnt)
 		ret = omap_hwmod_get_context_loss_count(od->hwmods[0]);
@@ -539,20 +535,34 @@ int omap_early_device_register(struct omap_device *od)
 static int _od_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	int ret;
 
-	return omap_device_idle(pdev);
+	ret = pm_generic_runtime_suspend(dev);
+
+	if (!ret)
+		omap_device_idle(pdev);
+
+	return ret;
+}
+
+static int _od_runtime_idle(struct device *dev)
+{
+	return pm_generic_runtime_idle(dev);
 }
 
 static int _od_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 
-	return omap_device_enable(pdev);
+	omap_device_enable(pdev);
+
+	return pm_generic_runtime_resume(dev);
 }
 
 static struct dev_power_domain omap_device_power_domain = {
 	.ops = {
 		.runtime_suspend = _od_runtime_suspend,
+		.runtime_idle = _od_runtime_idle,
 		.runtime_resume = _od_runtime_resume,
 		USE_PLATFORM_PM_SLEEP_OPS
 	}
@@ -596,7 +606,7 @@ int omap_device_enable(struct platform_device *pdev)
 	int ret;
 	struct omap_device *od;
 
-	od = _find_by_pdev(pdev);
+	od = to_omap_device(pdev);
 
 	if (od->_state == OMAP_DEVICE_STATE_ENABLED) {
 		WARN(1, "omap_device: %s.%d: %s() called from invalid state %d\n",
@@ -635,7 +645,7 @@ int omap_device_idle(struct platform_device *pdev)
 	int ret;
 	struct omap_device *od;
 
-	od = _find_by_pdev(pdev);
+	od = to_omap_device(pdev);
 
 	if (od->_state != OMAP_DEVICE_STATE_ENABLED) {
 		WARN(1, "omap_device: %s.%d: %s() called from invalid state %d\n",
@@ -666,7 +676,7 @@ int omap_device_shutdown(struct platform_device *pdev)
 	int ret, i;
 	struct omap_device *od;
 
-	od = _find_by_pdev(pdev);
+	od = to_omap_device(pdev);
 
 	if (od->_state != OMAP_DEVICE_STATE_ENABLED &&
 	    od->_state != OMAP_DEVICE_STATE_IDLE) {
@@ -707,7 +717,7 @@ int omap_device_align_pm_lat(struct platform_device *pdev,
 	int ret = -EINVAL;
 	struct omap_device *od;
 
-	od = _find_by_pdev(pdev);
+	od = to_omap_device(pdev);
 
 	if (new_wakeup_lat_limit == od->dev_wakeup_lat)
 		return 0;
