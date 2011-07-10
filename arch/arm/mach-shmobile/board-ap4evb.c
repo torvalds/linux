@@ -1414,6 +1414,7 @@ static void __init ap4evb_init(void)
 	hdmi_init_pm_clock();
 	fsi_init_pm_clock();
 	sh7372_pm_init();
+	pm_clk_add(&fsi_device.dev, "spu2");
 }
 
 static void __init ap4evb_timer_init(void)
