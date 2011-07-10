@@ -1450,8 +1450,6 @@ static int __init edma_probe(struct platform_device *pdev)
 							EDMA_MAX_CC);
 
 		edma_cc[j]->default_queue = info[j]->default_queue;
-		if (!edma_cc[j]->default_queue)
-			edma_cc[j]->default_queue = EVENTQ_1;
 
 		dev_dbg(&pdev->dev, "DMA REG BASE ADDR=%p\n",
 			edmacc_regs_base[j]);
