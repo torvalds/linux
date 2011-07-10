@@ -1694,6 +1694,7 @@ static struct clk gpmc_ick = {
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_L3_2_GPMC_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_HWCTRL,
+	.flags		= ENABLE_ON_INIT,
 	.clkdm_name	= "l3_2_clkdm",
 	.parent		= &l3_div_ck,
 	.recalc		= &followparent_recalc,
