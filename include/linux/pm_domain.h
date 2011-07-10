@@ -63,6 +63,7 @@ extern int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 				     struct generic_pm_domain *target);
 extern void pm_genpd_init(struct generic_pm_domain *genpd,
 			  struct dev_power_governor *gov, bool is_off);
+extern int pm_genpd_poweron(struct generic_pm_domain *genpd);
 #else
 static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
 				      struct device *dev)
@@ -86,6 +87,10 @@ static inline int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 }
 static inline void pm_genpd_init(struct generic_pm_domain *genpd,
 				 struct dev_power_governor *gov, bool is_off) {}
+static inline int pm_genpd_poweron(struct generic_pm_domain *genpd)
+{
+	return -ENOSYS;
+}
 #endif
 
 #endif /* _LINUX_PM_DOMAIN_H */

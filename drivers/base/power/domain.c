@@ -37,7 +37,7 @@ static void genpd_sd_counter_dec(struct generic_pm_domain *genpd)
  * Restore power to @genpd and all of its parents so that it is possible to
  * resume a device belonging to it.
  */
-static int pm_genpd_poweron(struct generic_pm_domain *genpd)
+int pm_genpd_poweron(struct generic_pm_domain *genpd)
 {
 	int ret = 0;
 
