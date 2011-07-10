@@ -56,3 +56,13 @@ static int __init sh_pm_runtime_init(void)
 	return 0;
 }
 core_initcall(sh_pm_runtime_init);
+
+void (*shmobile_runtime_pm_late_init)(void);
+
+static int __init sh_pm_runtime_late_init(void)
+{
+	if (shmobile_runtime_pm_late_init)
+		shmobile_runtime_pm_late_init();
+	return 0;
+}
+late_initcall(sh_pm_runtime_late_init);
