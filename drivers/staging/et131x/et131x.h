@@ -71,16 +71,16 @@ irqreturn_t et131x_isr(int irq, void *dev_id);
 void et131x_isr_handler(struct work_struct *work);
 
 /* et1310_mac.c */
-void ConfigMACRegs1(struct et131x_adapter *adapter);
-void ConfigMACRegs2(struct et131x_adapter *adapter);
-void ConfigRxMacRegs(struct et131x_adapter *adapter);
-void ConfigTxMacRegs(struct et131x_adapter *adapter);
-void ConfigMacStatRegs(struct et131x_adapter *adapter);
-void ConfigFlowControl(struct et131x_adapter *adapter);
-void UpdateMacStatHostCounters(struct et131x_adapter *adapter);
-void HandleMacStatInterrupt(struct et131x_adapter *adapter);
-void SetupDeviceForMulticast(struct et131x_adapter *adapter);
-void SetupDeviceForUnicast(struct et131x_adapter *adapter);
+void config_mac_regs1(struct et131x_adapter *adapter);
+void config_mac_regs2(struct et131x_adapter *adapter);
+void config_rxmac_regs(struct et131x_adapter *adapter);
+void config_txmac_regs(struct et131x_adapter *adapter);
+void config_macstat_regs(struct et131x_adapter *adapter);
+void config_flow_control(struct et131x_adapter *adapter);
+void update_macstat_host_counters(struct et131x_adapter *adapter);
+void handle_macstat_interrupt(struct et131x_adapter *adapter);
+void setup_device_for_multicast(struct et131x_adapter *adapter);
+void setup_device_for_unicast(struct et131x_adapter *adapter);
 
 /* et131x_netdev.c */
 struct net_device *et131x_device_alloc(void);

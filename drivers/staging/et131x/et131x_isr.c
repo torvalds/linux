@@ -460,7 +460,7 @@ void et131x_isr_handler(struct work_struct *work)
 			 * to maintain the top, software managed bits of the
 			 * counter(s).
 			 */
-			HandleMacStatInterrupt(etdev);
+			handle_macstat_interrupt(etdev);
 		}
 
 		/* Handle SLV Timeout Interrupt */

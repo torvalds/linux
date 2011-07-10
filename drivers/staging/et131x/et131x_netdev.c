@@ -301,14 +301,14 @@ int et131x_set_packet_filter(struct et131x_adapter *adapter)
 		if (filter & ET131X_PACKET_TYPE_ALL_MULTICAST)
 			pf_ctrl &= ~2;	/* Multicast filter bit */
 		else {
-			SetupDeviceForMulticast(adapter);
+			setup_device_for_multicast(adapter);
 			pf_ctrl |= 2;
 			ctrl &= ~0x04;
 		}
 
 		/* Set us up with Unicast packet filtering */
 		if (filter & ET131X_PACKET_TYPE_DIRECTED) {
-			SetupDeviceForUnicast(adapter);
+			setup_device_for_unicast(adapter);
 			pf_ctrl |= 4;
 			ctrl &= ~0x04;
 		}
