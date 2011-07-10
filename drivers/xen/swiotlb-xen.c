@@ -35,6 +35,7 @@
 
 #include <linux/bootmem.h>
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
 #include <xen/swiotlb-xen.h>
 #include <xen/page.h>
 #include <xen/xen-ops.h>
