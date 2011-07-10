@@ -834,7 +834,6 @@ int clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 		 clk->name);
 
 	arch_clkdm->clkdm_clk_enable(clkdm);
-	pwrdm_wait_transition(clkdm->pwrdm.ptr);
 	pwrdm_clkdm_state_switch(clkdm);
 
 	return 0;
