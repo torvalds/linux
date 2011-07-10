@@ -2784,6 +2784,8 @@ static int ConfigureI2CBridge(struct drxk_state *state, bool bEnableBridge)
 	if (state->m_DrxkState == DRXK_POWERED_DOWN)
 		return -1;
 
+	if (state->no_i2c_bridge)
+		return 0;
 	do {
 		status = write16(state, SIO_HI_RA_RAM_PAR_1__A, SIO_HI_RA_RAM_PAR_1_PAR1_SEC_KEY);
 		if (status < 0)
@@ -6360,6 +6362,7 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	state->demod_address = adr;
 	state->single_master = config->single_master;
 	state->microcode_name = config->microcode_name;
+	state->no_i2c_bridge = config->no_i2c_bridge;
 
 	mutex_init(&state->mutex);
 	mutex_init(&state->ctlock);

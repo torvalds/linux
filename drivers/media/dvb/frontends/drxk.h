@@ -7,6 +7,7 @@
 struct drxk_config {
 	u8 adr;
 	u32 single_master : 1;
+	u32 no_i2c_bridge : 1;
 	const char *microcode_name;
 };
 

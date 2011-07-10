@@ -304,6 +304,7 @@ static struct drxd_config em28xx_drxd = {
 struct drxk_config terratec_h5_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
+	.no_i2c_bridge = 1,
 	.microcode_name = "terratec_h5.fw",
 };
 

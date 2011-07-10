@@ -330,6 +330,7 @@ struct drxk_state {
 	/* Configurable parameters at the driver */
 
 	u32 single_master : 1;		/* Use single master i2c mode */
+	u32 no_i2c_bridge : 1;		/* Tuner is not on port 1, don't use I2C bridge */
 	const char *microcode_name;
 
 };
