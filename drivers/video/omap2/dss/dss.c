@@ -24,6 +24,7 @@
 
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/export.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>

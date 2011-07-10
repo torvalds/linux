@@ -27,6 +27,7 @@
 #include <linux/mm.h>
 #include <linux/omapfb.h>
 #include <linux/vmalloc.h>
+#include <linux/export.h>
 
 #include <video/omapdss.h>
 #include <plat/vrfb.h>

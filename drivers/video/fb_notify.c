@@ -12,6 +12,7 @@
  */
 #include <linux/fb.h>
 #include <linux/notifier.h>
+#include <linux/export.h>
 
 static BLOCKING_NOTIFIER_HEAD(fb_notifier_list);
 
