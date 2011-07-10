@@ -103,6 +103,7 @@ static struct omap_hwmod_ocp_if omap3xxx_l3_main__l4_per = {
 static struct omap_hwmod_irq_info omap3xxx_l3_main_irqs[] = {
 	{ .irq = INT_34XX_L3_DBG_IRQ },
 	{ .irq = INT_34XX_L3_APP_IRQ },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_l3_main_addrs[] = {
@@ -151,7 +152,6 @@ static struct omap_hwmod omap3xxx_l3_main_hwmod = {
 	.name		= "l3_main",
 	.class		= &l3_hwmod_class,
 	.mpu_irqs       = omap3xxx_l3_main_irqs,
-	.mpu_irqs_cnt   = ARRAY_SIZE(omap3xxx_l3_main_irqs),
 	.masters	= omap3xxx_l3_main_masters,
 	.masters_cnt	= ARRAY_SIZE(omap3xxx_l3_main_masters),
 	.slaves		= omap3xxx_l3_main_slaves,
@@ -574,6 +574,7 @@ static struct omap_hwmod_class omap3xxx_timer_hwmod_class = {
 static struct omap_hwmod omap3xxx_timer1_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_timer1_mpu_irqs[] = {
 	{ .irq = 37, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_timer1_addrs[] = {
@@ -603,7 +604,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_timer1_slaves[] = {
 static struct omap_hwmod omap3xxx_timer1_hwmod = {
 	.name		= "timer1",
 	.mpu_irqs	= omap3xxx_timer1_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_timer1_mpu_irqs),
 	.main_clk	= "gpt1_fck",
 	.prcm		= {
 		.omap2 = {
@@ -624,6 +624,7 @@ static struct omap_hwmod omap3xxx_timer1_hwmod = {
 static struct omap_hwmod omap3xxx_timer2_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_timer2_mpu_irqs[] = {
 	{ .irq = 38, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_timer2_addrs[] = {
@@ -653,7 +654,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_timer2_slaves[] = {
 static struct omap_hwmod omap3xxx_timer2_hwmod = {
 	.name		= "timer2",
 	.mpu_irqs	= omap3xxx_timer2_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_timer2_mpu_irqs),
 	.main_clk	= "gpt2_fck",
 	.prcm		= {
 		.omap2 = {
@@ -674,6 +674,7 @@ static struct omap_hwmod omap3xxx_timer2_hwmod = {
 static struct omap_hwmod omap3xxx_timer3_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_timer3_mpu_irqs[] = {
 	{ .irq = 39, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_timer3_addrs[] = {
@@ -703,7 +704,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_timer3_slaves[] = {
 static struct omap_hwmod omap3xxx_timer3_hwmod = {
 	.name		= "timer3",
 	.mpu_irqs	= omap3xxx_timer3_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_timer3_mpu_irqs),
 	.main_clk	= "gpt3_fck",
 	.prcm		= {
 		.omap2 = {
@@ -724,6 +724,7 @@ static struct omap_hwmod omap3xxx_timer3_hwmod = {
 static struct omap_hwmod omap3xxx_timer4_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_timer4_mpu_irqs[] = {
 	{ .irq = 40, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_timer4_addrs[] = {
@@ -753,7 +754,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_timer4_slaves[] = {
 static struct omap_hwmod omap3xxx_timer4_hwmod = {
 	.name		= "timer4",
 	.mpu_irqs	= omap3xxx_timer4_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_timer4_mpu_irqs),
 	.main_clk	= "gpt4_fck",
 	.prcm		= {
 		.omap2 = {
@@ -774,6 +774,7 @@ static struct omap_hwmod omap3xxx_timer4_hwmod = {
 static struct omap_hwmod omap3xxx_timer5_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_timer5_mpu_irqs[] = {
 	{ .irq = 41, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_timer5_addrs[] = {
@@ -803,7 +804,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_timer5_slaves[] = {
 static struct omap_hwmod omap3xxx_timer5_hwmod = {
 	.name		= "timer5",
 	.mpu_irqs	= omap3xxx_timer5_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_timer5_mpu_irqs),
 	.main_clk	= "gpt5_fck",
 	.prcm		= {
 		.omap2 = {
@@ -824,6 +824,7 @@ static struct omap_hwmod omap3xxx_timer5_hwmod = {
 static struct omap_hwmod omap3xxx_timer6_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_timer6_mpu_irqs[] = {
 	{ .irq = 42, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_timer6_addrs[] = {
@@ -853,7 +854,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_timer6_slaves[] = {
 static struct omap_hwmod omap3xxx_timer6_hwmod = {
 	.name		= "timer6",
 	.mpu_irqs	= omap3xxx_timer6_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_timer6_mpu_irqs),
 	.main_clk	= "gpt6_fck",
 	.prcm		= {
 		.omap2 = {
@@ -874,6 +874,7 @@ static struct omap_hwmod omap3xxx_timer6_hwmod = {
 static struct omap_hwmod omap3xxx_timer7_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_timer7_mpu_irqs[] = {
 	{ .irq = 43, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_timer7_addrs[] = {
@@ -903,7 +904,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_timer7_slaves[] = {
 static struct omap_hwmod omap3xxx_timer7_hwmod = {
 	.name		= "timer7",
 	.mpu_irqs	= omap3xxx_timer7_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_timer7_mpu_irqs),
 	.main_clk	= "gpt7_fck",
 	.prcm		= {
 		.omap2 = {
@@ -924,6 +924,7 @@ static struct omap_hwmod omap3xxx_timer7_hwmod = {
 static struct omap_hwmod omap3xxx_timer8_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_timer8_mpu_irqs[] = {
 	{ .irq = 44, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_timer8_addrs[] = {
@@ -953,7 +954,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_timer8_slaves[] = {
 static struct omap_hwmod omap3xxx_timer8_hwmod = {
 	.name		= "timer8",
 	.mpu_irqs	= omap3xxx_timer8_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_timer8_mpu_irqs),
 	.main_clk	= "gpt8_fck",
 	.prcm		= {
 		.omap2 = {
@@ -974,6 +974,7 @@ static struct omap_hwmod omap3xxx_timer8_hwmod = {
 static struct omap_hwmod omap3xxx_timer9_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_timer9_mpu_irqs[] = {
 	{ .irq = 45, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_timer9_addrs[] = {
@@ -1003,7 +1004,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_timer9_slaves[] = {
 static struct omap_hwmod omap3xxx_timer9_hwmod = {
 	.name		= "timer9",
 	.mpu_irqs	= omap3xxx_timer9_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_timer9_mpu_irqs),
 	.main_clk	= "gpt9_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1024,6 +1024,7 @@ static struct omap_hwmod omap3xxx_timer9_hwmod = {
 static struct omap_hwmod omap3xxx_timer10_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_timer10_mpu_irqs[] = {
 	{ .irq = 46, },
+	{ .irq = -1 }
 };
 
 /* l4_core -> timer10 */
@@ -1044,7 +1045,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_timer10_slaves[] = {
 static struct omap_hwmod omap3xxx_timer10_hwmod = {
 	.name		= "timer10",
 	.mpu_irqs	= omap3xxx_timer10_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_timer10_mpu_irqs),
 	.main_clk	= "gpt10_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1065,6 +1065,7 @@ static struct omap_hwmod omap3xxx_timer10_hwmod = {
 static struct omap_hwmod omap3xxx_timer11_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_timer11_mpu_irqs[] = {
 	{ .irq = 47, },
+	{ .irq = -1 }
 };
 
 /* l4_core -> timer11 */
@@ -1085,7 +1086,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_timer11_slaves[] = {
 static struct omap_hwmod omap3xxx_timer11_hwmod = {
 	.name		= "timer11",
 	.mpu_irqs	= omap3xxx_timer11_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_timer11_mpu_irqs),
 	.main_clk	= "gpt11_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1106,6 +1106,7 @@ static struct omap_hwmod omap3xxx_timer11_hwmod = {
 static struct omap_hwmod omap3xxx_timer12_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_timer12_mpu_irqs[] = {
 	{ .irq = 95, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_timer12_addrs[] = {
@@ -1135,7 +1136,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_timer12_slaves[] = {
 static struct omap_hwmod omap3xxx_timer12_hwmod = {
 	.name		= "timer12",
 	.mpu_irqs	= omap3xxx_timer12_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_timer12_mpu_irqs),
 	.main_clk	= "gpt12_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1256,6 +1256,7 @@ static struct omap_hwmod_class uart_class = {
 
 static struct omap_hwmod_irq_info uart1_mpu_irqs[] = {
 	{ .irq = INT_24XX_UART1_IRQ, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info uart1_sdma_reqs[] = {
@@ -1270,7 +1271,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_uart1_slaves[] = {
 static struct omap_hwmod omap3xxx_uart1_hwmod = {
 	.name		= "uart1",
 	.mpu_irqs	= uart1_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(uart1_mpu_irqs),
 	.sdma_reqs	= uart1_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(uart1_sdma_reqs),
 	.main_clk	= "uart1_fck",
@@ -1293,6 +1293,7 @@ static struct omap_hwmod omap3xxx_uart1_hwmod = {
 
 static struct omap_hwmod_irq_info uart2_mpu_irqs[] = {
 	{ .irq = INT_24XX_UART2_IRQ, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info uart2_sdma_reqs[] = {
@@ -1307,7 +1308,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_uart2_slaves[] = {
 static struct omap_hwmod omap3xxx_uart2_hwmod = {
 	.name		= "uart2",
 	.mpu_irqs	= uart2_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(uart2_mpu_irqs),
 	.sdma_reqs	= uart2_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(uart2_sdma_reqs),
 	.main_clk	= "uart2_fck",
@@ -1330,6 +1330,7 @@ static struct omap_hwmod omap3xxx_uart2_hwmod = {
 
 static struct omap_hwmod_irq_info uart3_mpu_irqs[] = {
 	{ .irq = INT_24XX_UART3_IRQ, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info uart3_sdma_reqs[] = {
@@ -1344,7 +1345,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_uart3_slaves[] = {
 static struct omap_hwmod omap3xxx_uart3_hwmod = {
 	.name		= "uart3",
 	.mpu_irqs	= uart3_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(uart3_mpu_irqs),
 	.sdma_reqs	= uart3_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(uart3_sdma_reqs),
 	.main_clk	= "uart3_fck",
@@ -1367,6 +1367,7 @@ static struct omap_hwmod omap3xxx_uart3_hwmod = {
 
 static struct omap_hwmod_irq_info uart4_mpu_irqs[] = {
 	{ .irq = INT_36XX_UART4_IRQ, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info uart4_sdma_reqs[] = {
@@ -1381,7 +1382,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_uart4_slaves[] = {
 static struct omap_hwmod omap3xxx_uart4_hwmod = {
 	.name		= "uart4",
 	.mpu_irqs	= uart4_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(uart4_mpu_irqs),
 	.sdma_reqs	= uart4_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(uart4_sdma_reqs),
 	.main_clk	= "uart4_fck",
@@ -1557,6 +1557,7 @@ static struct omap_hwmod_class omap3xxx_dispc_hwmod_class = {
 
 static struct omap_hwmod_irq_info omap3xxx_dispc_irqs[] = {
 	{ .irq = 25 },
+	{ .irq = -1 }
 };
 
 /* l4_core -> dss_dispc */
@@ -1584,7 +1585,6 @@ static struct omap_hwmod omap3xxx_dss_dispc_hwmod = {
 	.name		= "dss_dispc",
 	.class		= &omap3xxx_dispc_hwmod_class,
 	.mpu_irqs	= omap3xxx_dispc_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_dispc_irqs),
 	.main_clk	= "dss1_alwon_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1612,6 +1612,7 @@ static struct omap_hwmod_class omap3xxx_dsi_hwmod_class = {
 
 static struct omap_hwmod_irq_info omap3xxx_dsi1_irqs[] = {
 	{ .irq = 25 },
+	{ .irq = -1 }
 };
 
 /* dss_dsi1 */
@@ -1648,7 +1649,6 @@ static struct omap_hwmod omap3xxx_dss_dsi1_hwmod = {
 	.name		= "dss_dsi1",
 	.class		= &omap3xxx_dsi_hwmod_class,
 	.mpu_irqs	= omap3xxx_dsi1_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_dsi1_irqs),
 	.main_clk	= "dss1_alwon_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1783,6 +1783,7 @@ static struct omap_i2c_dev_attr i2c1_dev_attr = {
 
 static struct omap_hwmod_irq_info i2c1_mpu_irqs[] = {
 	{ .irq = INT_24XX_I2C1_IRQ, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info i2c1_sdma_reqs[] = {
@@ -1797,7 +1798,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_i2c1_slaves[] = {
 static struct omap_hwmod omap3xxx_i2c1_hwmod = {
 	.name		= "i2c1",
 	.mpu_irqs	= i2c1_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(i2c1_mpu_irqs),
 	.sdma_reqs	= i2c1_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(i2c1_sdma_reqs),
 	.main_clk	= "i2c1_fck",
@@ -1825,6 +1825,7 @@ static struct omap_i2c_dev_attr i2c2_dev_attr = {
 
 static struct omap_hwmod_irq_info i2c2_mpu_irqs[] = {
 	{ .irq = INT_24XX_I2C2_IRQ, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info i2c2_sdma_reqs[] = {
@@ -1839,7 +1840,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_i2c2_slaves[] = {
 static struct omap_hwmod omap3xxx_i2c2_hwmod = {
 	.name		= "i2c2",
 	.mpu_irqs	= i2c2_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(i2c2_mpu_irqs),
 	.sdma_reqs	= i2c2_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(i2c2_sdma_reqs),
 	.main_clk	= "i2c2_fck",
@@ -1867,6 +1867,7 @@ static struct omap_i2c_dev_attr i2c3_dev_attr = {
 
 static struct omap_hwmod_irq_info i2c3_mpu_irqs[] = {
 	{ .irq = INT_34XX_I2C3_IRQ, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info i2c3_sdma_reqs[] = {
@@ -1881,7 +1882,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_i2c3_slaves[] = {
 static struct omap_hwmod omap3xxx_i2c3_hwmod = {
 	.name		= "i2c3",
 	.mpu_irqs	= i2c3_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(i2c3_mpu_irqs),
 	.sdma_reqs	= i2c3_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(i2c3_sdma_reqs),
 	.main_clk	= "i2c3_fck",
@@ -2034,6 +2034,7 @@ static struct omap_gpio_dev_attr gpio_dev_attr = {
 /* gpio1 */
 static struct omap_hwmod_irq_info omap3xxx_gpio1_irqs[] = {
 	{ .irq = 29 }, /* INT_34XX_GPIO_BANK1 */
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_opt_clk gpio1_opt_clks[] = {
@@ -2048,7 +2049,6 @@ static struct omap_hwmod omap3xxx_gpio1_hwmod = {
 	.name		= "gpio1",
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap3xxx_gpio1_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_gpio1_irqs),
 	.main_clk	= "gpio1_ick",
 	.opt_clks	= gpio1_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio1_opt_clks),
@@ -2071,6 +2071,7 @@ static struct omap_hwmod omap3xxx_gpio1_hwmod = {
 /* gpio2 */
 static struct omap_hwmod_irq_info omap3xxx_gpio2_irqs[] = {
 	{ .irq = 30 }, /* INT_34XX_GPIO_BANK2 */
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_opt_clk gpio2_opt_clks[] = {
@@ -2085,7 +2086,6 @@ static struct omap_hwmod omap3xxx_gpio2_hwmod = {
 	.name		= "gpio2",
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap3xxx_gpio2_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_gpio2_irqs),
 	.main_clk	= "gpio2_ick",
 	.opt_clks	= gpio2_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio2_opt_clks),
@@ -2108,6 +2108,7 @@ static struct omap_hwmod omap3xxx_gpio2_hwmod = {
 /* gpio3 */
 static struct omap_hwmod_irq_info omap3xxx_gpio3_irqs[] = {
 	{ .irq = 31 }, /* INT_34XX_GPIO_BANK3 */
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_opt_clk gpio3_opt_clks[] = {
@@ -2122,7 +2123,6 @@ static struct omap_hwmod omap3xxx_gpio3_hwmod = {
 	.name		= "gpio3",
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap3xxx_gpio3_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_gpio3_irqs),
 	.main_clk	= "gpio3_ick",
 	.opt_clks	= gpio3_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio3_opt_clks),
@@ -2145,6 +2145,7 @@ static struct omap_hwmod omap3xxx_gpio3_hwmod = {
 /* gpio4 */
 static struct omap_hwmod_irq_info omap3xxx_gpio4_irqs[] = {
 	{ .irq = 32 }, /* INT_34XX_GPIO_BANK4 */
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_opt_clk gpio4_opt_clks[] = {
@@ -2159,7 +2160,6 @@ static struct omap_hwmod omap3xxx_gpio4_hwmod = {
 	.name		= "gpio4",
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap3xxx_gpio4_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_gpio4_irqs),
 	.main_clk	= "gpio4_ick",
 	.opt_clks	= gpio4_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio4_opt_clks),
@@ -2182,6 +2182,7 @@ static struct omap_hwmod omap3xxx_gpio4_hwmod = {
 /* gpio5 */
 static struct omap_hwmod_irq_info omap3xxx_gpio5_irqs[] = {
 	{ .irq = 33 }, /* INT_34XX_GPIO_BANK5 */
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_opt_clk gpio5_opt_clks[] = {
@@ -2196,7 +2197,6 @@ static struct omap_hwmod omap3xxx_gpio5_hwmod = {
 	.name		= "gpio5",
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap3xxx_gpio5_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_gpio5_irqs),
 	.main_clk	= "gpio5_ick",
 	.opt_clks	= gpio5_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio5_opt_clks),
@@ -2219,6 +2219,7 @@ static struct omap_hwmod omap3xxx_gpio5_hwmod = {
 /* gpio6 */
 static struct omap_hwmod_irq_info omap3xxx_gpio6_irqs[] = {
 	{ .irq = 34 }, /* INT_34XX_GPIO_BANK6 */
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_opt_clk gpio6_opt_clks[] = {
@@ -2233,7 +2234,6 @@ static struct omap_hwmod omap3xxx_gpio6_hwmod = {
 	.name		= "gpio6",
 	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
 	.mpu_irqs	= omap3xxx_gpio6_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_gpio6_irqs),
 	.main_clk	= "gpio6_ick",
 	.opt_clks	= gpio6_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio6_opt_clks),
@@ -2292,6 +2292,7 @@ static struct omap_hwmod_irq_info omap3xxx_dma_system_irqs[] = {
 	{ .name = "1", .irq = 13 }, /* INT_24XX_SDMA_IRQ1 */
 	{ .name = "2", .irq = 14 }, /* INT_24XX_SDMA_IRQ2 */
 	{ .name = "3", .irq = 15 }, /* INT_24XX_SDMA_IRQ3 */
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_dma_system_addrs[] = {
@@ -2326,7 +2327,6 @@ static struct omap_hwmod omap3xxx_dma_system_hwmod = {
 	.name		= "dma",
 	.class		= &omap3xxx_dma_hwmod_class,
 	.mpu_irqs	= omap3xxx_dma_system_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_dma_system_irqs),
 	.main_clk	= "core_l3_ick",
 	.prcm = {
 		.omap2 = {
@@ -2371,6 +2371,7 @@ static struct omap_hwmod_irq_info omap3xxx_mcbsp1_irqs[] = {
 	{ .name = "irq", .irq = 16 },
 	{ .name = "tx", .irq = 59 },
 	{ .name = "rx", .irq = 60 },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info omap3xxx_mcbsp1_sdma_chs[] = {
@@ -2406,7 +2407,6 @@ static struct omap_hwmod omap3xxx_mcbsp1_hwmod = {
 	.name		= "mcbsp1",
 	.class		= &omap3xxx_mcbsp_hwmod_class,
 	.mpu_irqs	= omap3xxx_mcbsp1_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_mcbsp1_irqs),
 	.sdma_reqs	= omap3xxx_mcbsp1_sdma_chs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap3xxx_mcbsp1_sdma_chs),
 	.main_clk	= "mcbsp1_fck",
@@ -2429,6 +2429,7 @@ static struct omap_hwmod_irq_info omap3xxx_mcbsp2_irqs[] = {
 	{ .name = "irq", .irq = 17 },
 	{ .name = "tx", .irq = 62 },
 	{ .name = "rx", .irq = 63 },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info omap3xxx_mcbsp2_sdma_chs[] = {
@@ -2469,7 +2470,6 @@ static struct omap_hwmod omap3xxx_mcbsp2_hwmod = {
 	.name		= "mcbsp2",
 	.class		= &omap3xxx_mcbsp_hwmod_class,
 	.mpu_irqs	= omap3xxx_mcbsp2_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_mcbsp2_irqs),
 	.sdma_reqs	= omap3xxx_mcbsp2_sdma_chs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap3xxx_mcbsp2_sdma_chs),
 	.main_clk	= "mcbsp2_fck",
@@ -2493,6 +2493,7 @@ static struct omap_hwmod_irq_info omap3xxx_mcbsp3_irqs[] = {
 	{ .name = "irq", .irq = 22 },
 	{ .name = "tx", .irq = 89 },
 	{ .name = "rx", .irq = 90 },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info omap3xxx_mcbsp3_sdma_chs[] = {
@@ -2532,7 +2533,6 @@ static struct omap_hwmod omap3xxx_mcbsp3_hwmod = {
 	.name		= "mcbsp3",
 	.class		= &omap3xxx_mcbsp_hwmod_class,
 	.mpu_irqs	= omap3xxx_mcbsp3_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_mcbsp3_irqs),
 	.sdma_reqs	= omap3xxx_mcbsp3_sdma_chs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap3xxx_mcbsp3_sdma_chs),
 	.main_clk	= "mcbsp3_fck",
@@ -2556,6 +2556,7 @@ static struct omap_hwmod_irq_info omap3xxx_mcbsp4_irqs[] = {
 	{ .name = "irq", .irq = 23 },
 	{ .name = "tx", .irq = 54 },
 	{ .name = "rx", .irq = 55 },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info omap3xxx_mcbsp4_sdma_chs[] = {
@@ -2591,7 +2592,6 @@ static struct omap_hwmod omap3xxx_mcbsp4_hwmod = {
 	.name		= "mcbsp4",
 	.class		= &omap3xxx_mcbsp_hwmod_class,
 	.mpu_irqs	= omap3xxx_mcbsp4_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_mcbsp4_irqs),
 	.sdma_reqs	= omap3xxx_mcbsp4_sdma_chs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap3xxx_mcbsp4_sdma_chs),
 	.main_clk	= "mcbsp4_fck",
@@ -2614,6 +2614,7 @@ static struct omap_hwmod_irq_info omap3xxx_mcbsp5_irqs[] = {
 	{ .name = "irq", .irq = 27 },
 	{ .name = "tx", .irq = 81 },
 	{ .name = "rx", .irq = 82 },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info omap3xxx_mcbsp5_sdma_chs[] = {
@@ -2649,7 +2650,6 @@ static struct omap_hwmod omap3xxx_mcbsp5_hwmod = {
 	.name		= "mcbsp5",
 	.class		= &omap3xxx_mcbsp_hwmod_class,
 	.mpu_irqs	= omap3xxx_mcbsp5_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_mcbsp5_irqs),
 	.sdma_reqs	= omap3xxx_mcbsp5_sdma_chs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap3xxx_mcbsp5_sdma_chs),
 	.main_clk	= "mcbsp5_fck",
@@ -2682,6 +2682,7 @@ static struct omap_hwmod_class omap3xxx_mcbsp_sidetone_hwmod_class = {
 /* mcbsp2_sidetone */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp2_sidetone_irqs[] = {
 	{ .name = "irq", .irq = 4 },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_mcbsp2_sidetone_addrs[] = {
@@ -2712,7 +2713,6 @@ static struct omap_hwmod omap3xxx_mcbsp2_sidetone_hwmod = {
 	.name		= "mcbsp2_sidetone",
 	.class		= &omap3xxx_mcbsp_sidetone_hwmod_class,
 	.mpu_irqs	= omap3xxx_mcbsp2_sidetone_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_mcbsp2_sidetone_irqs),
 	.main_clk	= "mcbsp2_fck",
 	.prcm		= {
 		.omap2 = {
@@ -2731,6 +2731,7 @@ static struct omap_hwmod omap3xxx_mcbsp2_sidetone_hwmod = {
 /* mcbsp3_sidetone */
 static struct omap_hwmod_irq_info omap3xxx_mcbsp3_sidetone_irqs[] = {
 	{ .name = "irq", .irq = 5 },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_mcbsp3_sidetone_addrs[] = {
@@ -2761,7 +2762,6 @@ static struct omap_hwmod omap3xxx_mcbsp3_sidetone_hwmod = {
 	.name		= "mcbsp3_sidetone",
 	.class		= &omap3xxx_mcbsp_sidetone_hwmod_class,
 	.mpu_irqs	= omap3xxx_mcbsp3_sidetone_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_mcbsp3_sidetone_irqs),
 	.main_clk	= "mcbsp3_fck",
 	.prcm		= {
 		.omap2 = {
@@ -2931,6 +2931,7 @@ static struct omap_hwmod_class omap3xxx_mailbox_hwmod_class = {
 static struct omap_hwmod omap3xxx_mailbox_hwmod;
 static struct omap_hwmod_irq_info omap3xxx_mailbox_irqs[] = {
 	{ .irq = 26 },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_addr_space omap3xxx_mailbox_addrs[] = {
@@ -2959,7 +2960,6 @@ static struct omap_hwmod omap3xxx_mailbox_hwmod = {
 	.name		= "mailbox",
 	.class		= &omap3xxx_mailbox_hwmod_class,
 	.mpu_irqs	= omap3xxx_mailbox_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_mailbox_irqs),
 	.main_clk	= "mailboxes_ick",
 	.prcm		= {
 		.omap2 = {
@@ -3046,6 +3046,7 @@ static struct omap_hwmod_class omap34xx_mcspi_class = {
 /* mcspi1 */
 static struct omap_hwmod_irq_info omap34xx_mcspi1_mpu_irqs[] = {
 	{ .name = "irq", .irq = 65 },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info omap34xx_mcspi1_sdma_reqs[] = {
@@ -3070,7 +3071,6 @@ static struct omap2_mcspi_dev_attr omap_mcspi1_dev_attr = {
 static struct omap_hwmod omap34xx_mcspi1 = {
 	.name		= "mcspi1",
 	.mpu_irqs	= omap34xx_mcspi1_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap34xx_mcspi1_mpu_irqs),
 	.sdma_reqs	= omap34xx_mcspi1_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap34xx_mcspi1_sdma_reqs),
 	.main_clk	= "mcspi1_fck",
@@ -3093,6 +3093,7 @@ static struct omap_hwmod omap34xx_mcspi1 = {
 /* mcspi2 */
 static struct omap_hwmod_irq_info omap34xx_mcspi2_mpu_irqs[] = {
 	{ .name = "irq", .irq = 66 },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info omap34xx_mcspi2_sdma_reqs[] = {
@@ -3113,7 +3114,6 @@ static struct omap2_mcspi_dev_attr omap_mcspi2_dev_attr = {
 static struct omap_hwmod omap34xx_mcspi2 = {
 	.name		= "mcspi2",
 	.mpu_irqs	= omap34xx_mcspi2_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap34xx_mcspi2_mpu_irqs),
 	.sdma_reqs	= omap34xx_mcspi2_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap34xx_mcspi2_sdma_reqs),
 	.main_clk	= "mcspi2_fck",
@@ -3136,6 +3136,7 @@ static struct omap_hwmod omap34xx_mcspi2 = {
 /* mcspi3 */
 static struct omap_hwmod_irq_info omap34xx_mcspi3_mpu_irqs[] = {
 	{ .name = "irq", .irq = 91 }, /* 91 */
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info omap34xx_mcspi3_sdma_reqs[] = {
@@ -3156,7 +3157,6 @@ static struct omap2_mcspi_dev_attr omap_mcspi3_dev_attr = {
 static struct omap_hwmod omap34xx_mcspi3 = {
 	.name		= "mcspi3",
 	.mpu_irqs	= omap34xx_mcspi3_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap34xx_mcspi3_mpu_irqs),
 	.sdma_reqs	= omap34xx_mcspi3_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap34xx_mcspi3_sdma_reqs),
 	.main_clk	= "mcspi3_fck",
@@ -3179,6 +3179,7 @@ static struct omap_hwmod omap34xx_mcspi3 = {
 /* SPI4 */
 static struct omap_hwmod_irq_info omap34xx_mcspi4_mpu_irqs[] = {
 	{ .name = "irq", .irq = INT_34XX_SPI4_IRQ }, /* 48 */
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info omap34xx_mcspi4_sdma_reqs[] = {
@@ -3197,7 +3198,6 @@ static struct omap2_mcspi_dev_attr omap_mcspi4_dev_attr = {
 static struct omap_hwmod omap34xx_mcspi4 = {
 	.name		= "mcspi4",
 	.mpu_irqs	= omap34xx_mcspi4_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap34xx_mcspi4_mpu_irqs),
 	.sdma_reqs	= omap34xx_mcspi4_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap34xx_mcspi4_sdma_reqs),
 	.main_clk	= "mcspi4_fck",
@@ -3241,12 +3241,12 @@ static struct omap_hwmod_irq_info omap3xxx_usbhsotg_mpu_irqs[] = {
 
 	{ .name = "mc", .irq = 92 },
 	{ .name = "dma", .irq = 93 },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod omap3xxx_usbhsotg_hwmod = {
 	.name		= "usb_otg_hs",
 	.mpu_irqs	= omap3xxx_usbhsotg_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap3xxx_usbhsotg_mpu_irqs),
 	.main_clk	= "hsotgusb_ick",
 	.prcm		= {
 		.omap2 = {
@@ -3278,6 +3278,7 @@ static struct omap_hwmod omap3xxx_usbhsotg_hwmod = {
 static struct omap_hwmod_irq_info am35xx_usbhsotg_mpu_irqs[] = {
 
 	{ .name = "mc", .irq = 71 },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_class am35xx_usbotg_class = {
@@ -3288,7 +3289,6 @@ static struct omap_hwmod_class am35xx_usbotg_class = {
 static struct omap_hwmod am35xx_usbhsotg_hwmod = {
 	.name		= "am35x_otg_hs",
 	.mpu_irqs	= am35xx_usbhsotg_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(am35xx_usbhsotg_mpu_irqs),
 	.main_clk	= NULL,
 	.prcm = {
 		.omap2 = {
@@ -3324,6 +3324,7 @@ static struct omap_hwmod_class omap34xx_mmc_class = {
 
 static struct omap_hwmod_irq_info omap34xx_mmc1_mpu_irqs[] = {
 	{ .irq = 83, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info omap34xx_mmc1_sdma_reqs[] = {
@@ -3346,7 +3347,6 @@ static struct omap_mmc_dev_attr mmc1_dev_attr = {
 static struct omap_hwmod omap3xxx_mmc1_hwmod = {
 	.name		= "mmc1",
 	.mpu_irqs	= omap34xx_mmc1_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap34xx_mmc1_mpu_irqs),
 	.sdma_reqs	= omap34xx_mmc1_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap34xx_mmc1_sdma_reqs),
 	.opt_clks	= omap34xx_mmc1_opt_clks,
@@ -3372,6 +3372,7 @@ static struct omap_hwmod omap3xxx_mmc1_hwmod = {
 
 static struct omap_hwmod_irq_info omap34xx_mmc2_mpu_irqs[] = {
 	{ .irq = INT_24XX_MMC2_IRQ, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info omap34xx_mmc2_sdma_reqs[] = {
@@ -3390,7 +3391,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_mmc2_slaves[] = {
 static struct omap_hwmod omap3xxx_mmc2_hwmod = {
 	.name		= "mmc2",
 	.mpu_irqs	= omap34xx_mmc2_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap34xx_mmc2_mpu_irqs),
 	.sdma_reqs	= omap34xx_mmc2_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap34xx_mmc2_sdma_reqs),
 	.opt_clks	= omap34xx_mmc2_opt_clks,
@@ -3415,6 +3415,7 @@ static struct omap_hwmod omap3xxx_mmc2_hwmod = {
 
 static struct omap_hwmod_irq_info omap34xx_mmc3_mpu_irqs[] = {
 	{ .irq = 94, },
+	{ .irq = -1 }
 };
 
 static struct omap_hwmod_dma_info omap34xx_mmc3_sdma_reqs[] = {
@@ -3433,7 +3434,6 @@ static struct omap_hwmod_ocp_if *omap3xxx_mmc3_slaves[] = {
 static struct omap_hwmod omap3xxx_mmc3_hwmod = {
 	.name		= "mmc3",
 	.mpu_irqs	= omap34xx_mmc3_mpu_irqs,
-	.mpu_irqs_cnt	= ARRAY_SIZE(omap34xx_mmc3_mpu_irqs),
 	.sdma_reqs	= omap34xx_mmc3_sdma_reqs,
 	.sdma_reqs_cnt	= ARRAY_SIZE(omap34xx_mmc3_sdma_reqs),
 	.opt_clks	= omap34xx_mmc3_opt_clks,

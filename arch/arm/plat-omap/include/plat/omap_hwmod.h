@@ -98,7 +98,7 @@ struct omap_hwmod_mux_info {
 /**
  * struct omap_hwmod_irq_info - MPU IRQs used by the hwmod
  * @name: name of the IRQ channel (module local name)
- * @irq_ch: IRQ channel ID
+ * @irq: IRQ channel ID (should be non-negative except -1 = terminator)
  *
  * @name should be something short, e.g., "tx" or "rx".  It is for use
  * by platform_get_resource_byname().  It is defined locally to the
@@ -106,7 +106,7 @@ struct omap_hwmod_mux_info {
  */
 struct omap_hwmod_irq_info {
 	const char	*name;
-	u16		irq;
+	s16		irq;
 };
 
 /**
@@ -466,7 +466,7 @@ struct omap_hwmod_class {
  * @name: name of the hwmod
  * @class: struct omap_hwmod_class * to the class of this hwmod
  * @od: struct omap_device currently associated with this hwmod (internal use)
- * @mpu_irqs: ptr to an array of MPU IRQs (see also mpu_irqs_cnt)
+ * @mpu_irqs: ptr to an array of MPU IRQs
  * @sdma_reqs: ptr to an array of System DMA request IDs (see sdma_reqs_cnt)
  * @prcm: PRCM data pertaining to this hwmod
  * @main_clk: main clock: OMAP clock name
@@ -480,7 +480,6 @@ struct omap_hwmod_class {
  * @_sysc_cache: internal-use hwmod flags
  * @_mpu_rt_va: cached register target start address (internal use)
  * @_mpu_port_index: cached MPU register target slave ID (internal use)
- * @mpu_irqs_cnt: number of @mpu_irqs
  * @sdma_reqs_cnt: number of @sdma_reqs
  * @opt_clks_cnt: number of @opt_clks
  * @master_cnt: number of @master entries
@@ -529,7 +528,6 @@ struct omap_hwmod {
 	u16				flags;
 	u8				_mpu_port_index;
 	u8				response_lat;
-	u8				mpu_irqs_cnt;
 	u8				sdma_reqs_cnt;
 	u8				rst_lines_cnt;
 	u8				opt_clks_cnt;

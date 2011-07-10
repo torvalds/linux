@@ -679,6 +679,29 @@ static void _disable_optional_clocks(struct omap_hwmod *oh)
 }
 
 /**
+ * _count_mpu_irqs - count the number of MPU IRQ lines associated with @oh
+ * @oh: struct omap_hwmod *oh
+ *
+ * Count and return the number of MPU IRQs associated with the hwmod
+ * @oh.  Used to allocate struct resource data.  Returns 0 if @oh is
+ * NULL.
+ */
+static int _count_mpu_irqs(struct omap_hwmod *oh)
+{
+	struct omap_hwmod_irq_info *ohii;
+	int i = 0;
+
+	if (!oh || !oh->mpu_irqs)
+		return 0;
+
+	do {
+		ohii = &oh->mpu_irqs[i++];
+	} while (ohii->irq != -1);
+
+	return i;
+}
+
+/**
  * _count_ocp_if_addr_spaces - count the number of address space entries for @oh
  * @oh: struct omap_hwmod *oh
  *
@@ -1964,7 +1987,7 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh)
 {
 	int ret, i;
 
-	ret = oh->mpu_irqs_cnt + oh->sdma_reqs_cnt;
+	ret = _count_mpu_irqs(oh) + oh->sdma_reqs_cnt;
 
 	for (i = 0; i < oh->slaves_cnt; i++)
 		ret += _count_ocp_if_addr_spaces(oh->slaves[i]);
@@ -1984,12 +2007,13 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh)
  */
 int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 {
-	int i, j;
+	int i, j, mpu_irqs_cnt;
 	int r = 0;
 
 	/* For each IRQ, DMA, memory area, fill in array.*/
 
-	for (i = 0; i < oh->mpu_irqs_cnt; i++) {
+	mpu_irqs_cnt = _count_mpu_irqs(oh);
+	for (i = 0; i < mpu_irqs_cnt; i++) {
 		(res + r)->name = (oh->mpu_irqs + i)->name;
 		(res + r)->start = (oh->mpu_irqs + i)->irq;
 		(res + r)->end = (oh->mpu_irqs + i)->irq;
