@@ -35,14 +35,8 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
-#include "iwl-sta.h"
 #include "iwl-helpers.h"
 #include "iwl-trans-int-pcie.h"
-
-/* TODO:this file should _not_ include the external API header file
- * (iwl-trans.h). This is needed as a W/A until reclaim functions will move to
- * the transport layer */
-#include "iwl-trans.h"
 
 /**
  * iwl_trans_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
@@ -339,7 +333,11 @@ int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 }
 
 /*TODO: this functions should NOT be exported from trans module - export it
- * until the reclaim flow will be brought to the transport module too */
+ * until the reclaim flow will be brought to the transport module too.
+ * Add a declaration to make sparse happy */
+void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
+					  struct iwl_tx_queue *txq);
+
 void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 					  struct iwl_tx_queue *txq)
 {

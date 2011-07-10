@@ -478,7 +478,7 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 	int ret;
 	enum iwlagn_ucode_type old_type;
 
-	ret = iwlagn_start_device(priv);
+	ret = trans_start_device(priv);
 	if (ret)
 		return ret;
 

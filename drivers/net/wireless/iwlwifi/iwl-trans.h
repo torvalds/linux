@@ -64,19 +64,14 @@
  /*This file includes the declaration that are exported from the transport
  * layer */
 
-static inline int trans_rx_init(struct iwl_priv *priv)
+static inline int trans_start_device(struct iwl_priv *priv)
 {
-	return priv->trans.ops->rx_init(priv);
+	return priv->trans.ops->start_device(priv);
 }
 
-static inline void trans_rx_free(struct iwl_priv *priv)
+static inline void trans_stop_device(struct iwl_priv *priv)
 {
-	priv->trans.ops->rx_free(priv);
-}
-
-static inline int trans_tx_init(struct iwl_priv *priv)
-{
-	return priv->trans.ops->tx_init(priv);
+	priv->trans.ops->stop_device(priv);
 }
 
 static inline void trans_tx_start(struct iwl_priv *priv)
@@ -84,14 +79,14 @@ static inline void trans_tx_start(struct iwl_priv *priv)
 	priv->trans.ops->tx_start(priv);
 }
 
+static inline void trans_rx_free(struct iwl_priv *priv)
+{
+	priv->trans.ops->rx_free(priv);
+}
+
 static inline void trans_tx_free(struct iwl_priv *priv)
 {
 	priv->trans.ops->tx_free(priv);
-}
-
-static inline void trans_stop_device(struct iwl_priv *priv)
-{
-	priv->trans.ops->stop_device(priv);
 }
 
 static inline int trans_send_cmd(struct iwl_priv *priv,

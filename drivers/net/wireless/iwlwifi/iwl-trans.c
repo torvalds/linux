@@ -177,7 +177,7 @@ static void iwl_trans_rx_hw_init(struct iwl_priv *priv,
 	iwl_write8(priv, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
 }
 
-static int iwl_trans_rx_init(struct iwl_priv *priv)
+static int iwl_rx_init(struct iwl_priv *priv)
 {
 	struct iwl_rx_queue *rxq = &priv->rxq;
 	int i, err;
@@ -530,7 +530,7 @@ error:
 
 	return ret;
 }
-static int iwl_trans_tx_init(struct iwl_priv *priv)
+static int iwl_tx_init(struct iwl_priv *priv)
 {
 	int ret;
 	int txq_id, slots_num;
@@ -572,6 +572,156 @@ error:
 	if (alloc)
 		trans_tx_free(priv);
 	return ret;
+}
+
+static void iwl_set_pwr_vmain(struct iwl_priv *priv)
+{
+/*
+ * (for documentation purposes)
+ * to set power to V_AUX, do:
+
+		if (pci_pme_capable(priv->pci_dev, PCI_D3cold))
+			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
+					       APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
+					       ~APMG_PS_CTRL_MSK_PWR_SRC);
+ */
+
+	iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
+			       APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
+			       ~APMG_PS_CTRL_MSK_PWR_SRC);
+}
+
+static int iwl_nic_init(struct iwl_priv *priv)
+{
+	unsigned long flags;
+
+	/* nic_init */
+	spin_lock_irqsave(&priv->lock, flags);
+	iwl_apm_init(priv);
+
+	/* Set interrupt coalescing calibration timer to default (512 usecs) */
+	iwl_write8(priv, CSR_INT_COALESCING, IWL_HOST_INT_CALIB_TIMEOUT_DEF);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	iwl_set_pwr_vmain(priv);
+
+	priv->cfg->lib->nic_config(priv);
+
+	/* Allocate the RX queue, or reset if it is already allocated */
+	iwl_rx_init(priv);
+
+	/* Allocate or reset and init all Tx and Command queues */
+	if (iwl_tx_init(priv))
+		return -ENOMEM;
+
+	if (priv->cfg->base_params->shadow_reg_enable) {
+		/* enable shadow regs in HW */
+		iwl_set_bit(priv, CSR_MAC_SHADOW_REG_CTRL,
+			0x800FFFFF);
+	}
+
+	set_bit(STATUS_INIT, &priv->status);
+
+	return 0;
+}
+
+#define HW_READY_TIMEOUT (50)
+
+/* Note: returns poll_bit return value, which is >= 0 if success */
+static int iwl_set_hw_ready(struct iwl_priv *priv)
+{
+	int ret;
+
+	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+		CSR_HW_IF_CONFIG_REG_BIT_NIC_READY);
+
+	/* See if we got it */
+	ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
+				CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
+				CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
+				HW_READY_TIMEOUT);
+
+	IWL_DEBUG_INFO(priv, "hardware%s ready\n", ret < 0 ? " not" : "");
+	return ret;
+}
+
+/* Note: returns standard 0/-ERROR code */
+int iwl_prepare_card_hw(struct iwl_priv *priv)
+{
+	int ret;
+
+	IWL_DEBUG_INFO(priv, "iwl_prepare_card_hw enter\n");
+
+	ret = iwl_set_hw_ready(priv);
+	if (ret >= 0)
+		return 0;
+
+	/* If HW is not ready, prepare the conditions to check again */
+	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+			CSR_HW_IF_CONFIG_REG_PREPARE);
+
+	ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
+			~CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE,
+			CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE, 150000);
+
+	if (ret < 0)
+		return ret;
+
+	/* HW should be ready by now, check again. */
+	ret = iwl_set_hw_ready(priv);
+	if (ret >= 0)
+		return 0;
+	return ret;
+}
+
+static int iwl_trans_start_device(struct iwl_priv *priv)
+{
+	int ret;
+
+	priv->ucode_owner = IWL_OWNERSHIP_DRIVER;
+
+	if ((priv->cfg->sku & EEPROM_SKU_CAP_AMT_ENABLE) &&
+	     iwl_prepare_card_hw(priv)) {
+		IWL_WARN(priv, "Exit HW not ready\n");
+		return -EIO;
+	}
+
+	/* If platform's RF_KILL switch is NOT set to KILL */
+	if (iwl_read32(priv, CSR_GP_CNTRL) &
+			CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
+		clear_bit(STATUS_RF_KILL_HW, &priv->status);
+	else
+		set_bit(STATUS_RF_KILL_HW, &priv->status);
+
+	if (iwl_is_rfkill(priv)) {
+		wiphy_rfkill_set_hw_state(priv->hw->wiphy, true);
+		iwl_enable_interrupts(priv);
+		return -ERFKILL;
+	}
+
+	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
+
+	ret = iwl_nic_init(priv);
+	if (ret) {
+		IWL_ERR(priv, "Unable to init nic\n");
+		return ret;
+	}
+
+	/* make sure rfkill handshake bits are cleared */
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR,
+		    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
+
+	/* clear (again), then enable host interrupts */
+	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
+	iwl_enable_interrupts(priv);
+
+	/* really make sure rfkill handshake bits are cleared */
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+	iwl_write32(priv, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
+
+	return 0;
 }
 
 /*
@@ -972,14 +1122,12 @@ static void iwl_trans_free(struct iwl_priv *priv)
 }
 
 static const struct iwl_trans_ops trans_ops = {
-	.rx_init = iwl_trans_rx_init,
-	.rx_free = iwl_trans_rx_free,
-
-	.tx_init = iwl_trans_tx_init,
-	.tx_start = iwl_trans_tx_start,
-	.tx_free = iwl_trans_tx_free,
-
+	.start_device = iwl_trans_start_device,
 	.stop_device = iwl_trans_stop_device,
+	.tx_start = iwl_trans_tx_start,
+
+	.rx_free = iwl_trans_rx_free,
+	.tx_free = iwl_trans_tx_free,
 
 	.send_cmd = iwl_send_cmd,
 	.send_cmd_pdu = iwl_send_cmd_pdu,

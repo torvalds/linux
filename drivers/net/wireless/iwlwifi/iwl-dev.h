@@ -1234,13 +1234,13 @@ struct iwl_trans;
 
 /**
  * struct iwl_trans_ops - transport specific operations
- * @rx_init: inits the rx memory, allocate it if needed
- * @rx_free: frees the rx memory
- * @tx_init:inits the tx memory, allocate if needed
+ * @start_device: allocates and inits all the resources for the transport
+ *                layer.
  * @tx_start: starts and configures all the Tx fifo - usually done once the fw
  *           is alive.
- * @tx_free: frees the tx memory
  * @stop_device:stops the whole device (embedded CPU put to reset)
+ * @rx_free: frees the rx memory
+ * @tx_free: frees the tx memory
  * @send_cmd:send a host command
  * @send_cmd_pdu:send a host command: flags can be CMD_*
  * @get_tx_cmd: returns a pointer to a new Tx cmd for the upper layer use
@@ -1257,14 +1257,12 @@ struct iwl_trans;
  *        irq, tasklet etc...
  */
 struct iwl_trans_ops {
-	int (*rx_init)(struct iwl_priv *priv);
-	void (*rx_free)(struct iwl_priv *priv);
 
-	int (*tx_init)(struct iwl_priv *priv);
+	int (*start_device)(struct iwl_priv *priv);
+	void (*stop_device)(struct iwl_priv *priv);
 	void (*tx_start)(struct iwl_priv *priv);
 	void (*tx_free)(struct iwl_priv *priv);
-
-	void (*stop_device)(struct iwl_priv *priv);
+	void (*rx_free)(struct iwl_priv *priv);
 
 	int (*send_cmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 

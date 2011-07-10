@@ -1798,55 +1798,6 @@ static void iwl_down(struct iwl_priv *priv)
 	iwl_cancel_deferred_work(priv);
 }
 
-#define HW_READY_TIMEOUT (50)
-
-/* Note: returns poll_bit return value, which is >= 0 if success */
-static int iwl_set_hw_ready(struct iwl_priv *priv)
-{
-	int ret;
-
-	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-		CSR_HW_IF_CONFIG_REG_BIT_NIC_READY);
-
-	/* See if we got it */
-	ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
-				CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
-				CSR_HW_IF_CONFIG_REG_BIT_NIC_READY,
-				HW_READY_TIMEOUT);
-
-	IWL_DEBUG_INFO(priv, "hardware%s ready\n", ret < 0 ? " not" : "");
-	return ret;
-}
-
-/* Note: returns standard 0/-ERROR code */
-int iwl_prepare_card_hw(struct iwl_priv *priv)
-{
-	int ret;
-
-	IWL_DEBUG_INFO(priv, "iwl_prepare_card_hw enter\n");
-
-	ret = iwl_set_hw_ready(priv);
-	if (ret >= 0)
-		return 0;
-
-	/* If HW is not ready, prepare the conditions to check again */
-	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
-			CSR_HW_IF_CONFIG_REG_PREPARE);
-
-	ret = iwl_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
-			~CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE,
-			CSR_HW_IF_CONFIG_REG_BIT_NIC_PREPARE_DONE, 150000);
-
-	if (ret < 0)
-		return ret;
-
-	/* HW should be ready by now, check again. */
-	ret = iwl_set_hw_ready(priv);
-	if (ret >= 0)
-		return 0;
-	return ret;
-}
-
 #define MAX_HW_RESTARTS 5
 
 static int __iwl_up(struct iwl_priv *priv)
