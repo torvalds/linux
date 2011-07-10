@@ -174,8 +174,8 @@ struct pkt_stat_desc {
  * DMA engine it sits in free memory, and is pointed to by 0x101c / 0x1020
  */
 struct rx_status_block {
-	u32 Word0;
-	u32 Word1;
+	u32 word0;
+	u32 word1;
 };
 
 /*
@@ -190,54 +190,54 @@ struct fbr_lookup {
 };
 
 /*
- * struct rx_ring is the ssructure representing the adaptor's local
+ * struct rx_ring is the sructure representing the adaptor's local
  * reference(s) to the rings
  */
 struct rx_ring {
 #ifdef USE_FBR0
-	void *pFbr0RingVa;
-	dma_addr_t pFbr0RingPa;
-	void *Fbr0MemVa[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
-	dma_addr_t Fbr0MemPa[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
-	uint64_t Fbr0Realpa;
-	uint64_t Fbr0offset;
-	u32 local_Fbr0_full;
-	u32 Fbr0NumEntries;
-	u32 Fbr0BufferSize;
+	void *fbr0_ring_virtaddr;
+	dma_addr_t fbr0_ring_physaddr;
+	void *fbr0_mem_virtaddrs[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
+	dma_addr_t fbr0_mem_physaddrs[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
+	uint64_t fbr0_real_physaddr;
+	uint64_t fbr0_offset;
+	u32 local_fbr0_full;
+	u32 fbr0_num_entries;
+	u32 fbr0_buffsize;
 #endif
-	void *pFbr1RingVa;
-	dma_addr_t pFbr1RingPa;
-	void *Fbr1MemVa[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
-	dma_addr_t Fbr1MemPa[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
-	uint64_t Fbr1Realpa;
-	uint64_t Fbr1offset;
+	void *fbr1_ring_virtaddr;
+	dma_addr_t fbr1_ring_physaddr;
+	void *fbr1_mem_virtaddrs[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
+	dma_addr_t fbr1_mem_physaddrs[MAX_DESC_PER_RING_RX / FBR_CHUNKS];
+	uint64_t fbr1_real_physaddr;
+	uint64_t fbr1_offset;
 	struct fbr_lookup *fbr[2];	/* One per ring */
-	u32 local_Fbr1_full;
-	u32 Fbr1NumEntries;
-	u32 Fbr1BufferSize;
+	u32 local_fbr1_full;
+	u32 fbr1_num_entries;
+	u32 fbr1_buffsize;
 
-	void *pPSRingVa;
-	dma_addr_t pPSRingPa;
+	void *ps_ring_virtaddr;
+	dma_addr_t ps_ring_physaddr;
 	u32 local_psr_full;
-	u32 PsrNumEntries;
+	u32 psr_num_entries;
 
 	struct rx_status_block *rx_status_block;
 	dma_addr_t rx_status_bus;
 
-	struct list_head RecvBufferPool;
+	struct list_head recv_buff_pool;
 
 	/* RECV */
-	struct list_head RecvList;
-	u32 nReadyRecv;
+	struct list_head recv_list;
+	u32 num_ready_recv;
 
-	u32 NumRfd;
+	u32 num_rfd;
 
-	bool UnfinishedReceives;
+	bool unfinished_receives;
 
-	struct list_head RecvPacketPool;
+	struct list_head recv_packet_pool;
 
 	/* lookaside lists */
-	struct kmem_cache *RecvLookaside;
+	struct kmem_cache *recv_lookaside;
 };
 
 #endif /* __ET1310_RX_H__ */

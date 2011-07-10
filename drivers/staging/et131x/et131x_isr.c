@@ -200,7 +200,7 @@ irqreturn_t et131x_isr(int irq, void *dev_id)
 			if (++tcb->stale > 1)
 				status |= ET_INTR_TXDMA_ISR;
 
-		if (adapter->rx_ring.UnfinishedReceives)
+		if (adapter->rx_ring.unfinished_receives)
 			status |= ET_INTR_RXDMA_XFR_DONE;
 		else if (tcb == NULL)
 			writel(0, &adapter->regs->global.watchdog_timer);
