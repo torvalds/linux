@@ -2160,6 +2160,7 @@ static struct omap_hwmod_class_sysconfig omap44xx_i2c_sysc = {
 static struct omap_hwmod_class omap44xx_i2c_hwmod_class = {
 	.name	= "i2c",
 	.sysc	= &omap44xx_i2c_sysc,
+	.rev	= OMAP_I2C_IP_VERSION_2,
 };
 
 /* i2c1 */
