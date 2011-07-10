@@ -309,3 +309,43 @@ int omap4_cminst_wait_module_idle(u8 part, u16 inst, s16 cdoffs, u16 clkctrl_off
 
 	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
 }
+
+/**
+ * omap4_cminst_module_enable - Enable the modulemode inside CLKCTRL
+ * @mode: Module mode (SW or HW)
+ * @part: PRCM partition ID that the CM_CLKCTRL register exists in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * No return value.
+ */
+void omap4_cminst_module_enable(u8 mode, u8 part, u16 inst, s16 cdoffs,
+			    u16 clkctrl_offs)
+{
+	u32 v;
+
+	v = omap4_cminst_read_inst_reg(part, inst, clkctrl_offs);
+	v &= ~OMAP4430_MODULEMODE_MASK;
+	v |= mode << OMAP4430_MODULEMODE_SHIFT;
+	omap4_cminst_write_inst_reg(v, part, inst, clkctrl_offs);
+}
+
+/**
+ * omap4_cminst_module_disable - Disable the module inside CLKCTRL
+ * @part: PRCM partition ID that the CM_CLKCTRL register exists in
+ * @inst: CM instance register offset (*_INST macro)
+ * @cdoffs: Clockdomain register offset (*_CDOFFS macro)
+ * @clkctrl_offs: Module clock control register offset (*_CLKCTRL macro)
+ *
+ * No return value.
+ */
+void omap4_cminst_module_disable(u8 part, u16 inst, s16 cdoffs,
+			     u16 clkctrl_offs)
+{
+	u32 v;
+
+	v = omap4_cminst_read_inst_reg(part, inst, clkctrl_offs);
+	v &= ~OMAP4430_MODULEMODE_MASK;
+	omap4_cminst_write_inst_reg(v, part, inst, clkctrl_offs);
+}
