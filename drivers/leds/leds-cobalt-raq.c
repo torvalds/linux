@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/export.h>
 
 #define LED_WEB		0x04
 #define LED_POWER_OFF	0x08
