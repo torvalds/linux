@@ -647,11 +647,11 @@ static int iwl_set_hw_ready(struct iwl_priv *priv)
 }
 
 /* Note: returns standard 0/-ERROR code */
-int iwl_prepare_card_hw(struct iwl_priv *priv)
+static int iwl_trans_prepare_card_hw(struct iwl_priv *priv)
 {
 	int ret;
 
-	IWL_DEBUG_INFO(priv, "iwl_prepare_card_hw enter\n");
+	IWL_DEBUG_INFO(priv, "iwl_trans_prepare_card_hw enter\n");
 
 	ret = iwl_set_hw_ready(priv);
 	if (ret >= 0)
@@ -682,7 +682,7 @@ static int iwl_trans_start_device(struct iwl_priv *priv)
 	priv->ucode_owner = IWL_OWNERSHIP_DRIVER;
 
 	if ((priv->cfg->sku & EEPROM_SKU_CAP_AMT_ENABLE) &&
-	     iwl_prepare_card_hw(priv)) {
+	     iwl_trans_prepare_card_hw(priv)) {
 		IWL_WARN(priv, "Exit HW not ready\n");
 		return -EIO;
 	}
@@ -1123,7 +1123,9 @@ static void iwl_trans_free(struct iwl_priv *priv)
 
 static const struct iwl_trans_ops trans_ops = {
 	.start_device = iwl_trans_start_device,
+	.prepare_card_hw = iwl_trans_prepare_card_hw,
 	.stop_device = iwl_trans_stop_device,
+
 	.tx_start = iwl_trans_tx_start,
 
 	.rx_free = iwl_trans_rx_free,

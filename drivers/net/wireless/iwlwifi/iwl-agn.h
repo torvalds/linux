@@ -122,9 +122,6 @@ static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 	hdr->data_valid = 1;
 }
 
-/* TODO: this one should be API of the transport layer */
-int iwl_prepare_card_hw(struct iwl_priv *priv);
-
 /* tx queue */
 void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 			    int sta_id, int tid, int freed);

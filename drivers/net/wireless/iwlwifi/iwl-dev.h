@@ -1236,6 +1236,8 @@ struct iwl_trans;
  * struct iwl_trans_ops - transport specific operations
  * @start_device: allocates and inits all the resources for the transport
  *                layer.
+ * @prepare_card_hw: claim the ownership on the HW. Will be called during
+ *                   probe.
  * @tx_start: starts and configures all the Tx fifo - usually done once the fw
  *           is alive.
  * @stop_device:stops the whole device (embedded CPU put to reset)
@@ -1259,6 +1261,7 @@ struct iwl_trans;
 struct iwl_trans_ops {
 
 	int (*start_device)(struct iwl_priv *priv);
+	int (*prepare_card_hw)(struct iwl_priv *priv);
 	void (*stop_device)(struct iwl_priv *priv);
 	void (*tx_start)(struct iwl_priv *priv);
 	void (*tx_free)(struct iwl_priv *priv);

@@ -69,6 +69,11 @@ static inline int trans_start_device(struct iwl_priv *priv)
 	return priv->trans.ops->start_device(priv);
 }
 
+static inline int trans_prepare_card_hw(struct iwl_priv *priv)
+{
+	return priv->trans.ops->prepare_card_hw(priv);
+}
+
 static inline void trans_stop_device(struct iwl_priv *priv)
 {
 	priv->trans.ops->stop_device(priv);
