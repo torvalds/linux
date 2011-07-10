@@ -540,7 +540,7 @@ void RemovePeerTS(struct rtllib_device* ieee, u8* Addr)
 {
 	PTS_COMMON_INFO	pTS, pTmpTS;
 	printk("===========>RemovePeerTS,"MAC_FMT"\n", MAC_ARG(Addr));
-#if 1
+
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
 	{
 		if (memcmp(pTS->Addr, Addr, 6) == 0)
@@ -581,13 +581,12 @@ void RemovePeerTS(struct rtllib_device* ieee, u8* Addr)
 			list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
 		}
 	}
-#endif
 }
 
 void RemoveAllTS(struct rtllib_device* ieee)
 {
 	PTS_COMMON_INFO pTS, pTmpTS;
-#if 1
+
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
 	{
 		RemoveTsEntry(ieee, pTS, TX_DIR);
@@ -615,7 +614,6 @@ void RemoveAllTS(struct rtllib_device* ieee)
 		list_del_init(&pTS->List);
 		list_add_tail(&pTS->List, &ieee->Rx_TS_Unused_List);
 	}
-#endif
 }
 
 void TsStartAddBaProcess(struct rtllib_device* ieee, PTX_TS_RECORD	pTxTS)
@@ -623,7 +621,7 @@ void TsStartAddBaProcess(struct rtllib_device* ieee, PTX_TS_RECORD	pTxTS)
 	if (pTxTS->bAddBaReqInProgress == false)
 	{
 		pTxTS->bAddBaReqInProgress = true;
-#if 1
+
 		if (pTxTS->bAddBaReqDelayed)
 		{
 			RTLLIB_DEBUG(RTLLIB_DL_BA, "TsStartAddBaProcess(): Delayed Start ADDBA after 60 sec!!\n");
@@ -634,7 +632,6 @@ void TsStartAddBaProcess(struct rtllib_device* ieee, PTX_TS_RECORD	pTxTS)
 			RTLLIB_DEBUG(RTLLIB_DL_BA,"TsStartAddBaProcess(): Immediately Start ADDBA now!!\n");
 			mod_timer(&pTxTS->TsAddBaTimer, jiffies+10);
 		}
-#endif
 	}
 	else
 		RTLLIB_DEBUG(RTLLIB_DL_BA, "%s()==>BA timer is already added\n", __func__);

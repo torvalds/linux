@@ -469,10 +469,8 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 			}
 		}
 
-#if 1
 		if (priv->rtllib->GetHalfNmodeSupportByAPsHandler(dev))
 			targetRATR &=  0xf00fffff;
-#endif
 
 		currentRATR = read_nic_dword(dev, RATR0);
 		if ( targetRATR !=  currentRATR )
@@ -2983,7 +2981,6 @@ extern void dm_init_edca_turbo(struct net_device * dev)
 	priv->bis_cur_rdlstate = false;
 }
 
-#if 1
 static void dm_check_edca_turbo(
 	struct net_device * dev)
 {
@@ -3086,7 +3083,6 @@ dm_CheckEdcaTurbo_EXIT:
 	lastTxOkCnt = priv->stats.txbytesunicast;
 	lastRxOkCnt = priv->stats.rxbytesunicast;
 }
-#endif
 
 extern void DM_CTSToSelfSetting(struct net_device * dev,u32 DM_Type, u32 DM_Value)
 {
@@ -3138,18 +3134,7 @@ static void dm_ctstoself(struct net_device *dev)
 		}
 		else
 		{
-		#if 1
 			pHTInfo->IOTAction |= HT_IOT_ACT_FORCED_CTS2SELF;
-		#else
-			if (priv->undecorated_smoothed_pwdb < priv->rtllib->CTSToSelfTH)
-			{
-				pHTInfo->IOTAction &= ~HT_IOT_ACT_FORCED_CTS2SELF;
-			}
-			else if (priv->undecorated_smoothed_pwdb >= (priv->rtllib->CTSToSelfTH+5))
-			{
-				pHTInfo->IOTAction |= HT_IOT_ACT_FORCED_CTS2SELF;
-			}
-		#endif
 		}
 
 		lastTxOkCnt = priv->stats.txbytesunicast;

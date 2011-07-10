@@ -978,7 +978,6 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
  success:
 	if (txb)
 	{
-#if 1
 		cb_desc *tcb_desc = (cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->bTxEnableFwCalcDur = 1;
 		tcb_desc->priority = skb->priority;
@@ -1086,7 +1085,6 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			rtllib_query_protectionmode(ieee, tcb_desc, txb->fragments[0]);
 #endif
 		}
-#endif
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 	dev_kfree_skb_any(skb);

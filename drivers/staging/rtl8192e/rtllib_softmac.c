@@ -2750,7 +2750,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 	if (tcb_desc->bMulticast) {
 		ieee->stats.multicast++;
 	}
-#if 1
+
 	/* if xmit available, just xmit it immediately, else just insert it to the wait queue */
 	for (i = 0; i < txb->nr_frags; i++) {
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
@@ -2785,7 +2785,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 					ieee->dev,ieee->rate);
 		}
 	}
-#endif
+
 	rtllib_txb_free(txb);
 
 	spin_unlock_irqrestore(&ieee->lock,flags);

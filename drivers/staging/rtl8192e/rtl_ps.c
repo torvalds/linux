@@ -460,10 +460,8 @@ PlatformDisableASPM(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
-#if 1
 	u32	PciCfgAddrPort=0;
 	u8	Num4Bytes;
-#endif
 	u8	LinkCtrlReg;
 	u16	PciBridgeLinkCtrlReg, ASPMLevel=0;
 

@@ -570,7 +570,7 @@ int rtllib_wx_set_power(struct rtllib_device *ieee,
 				 union iwreq_data *wrqu, char *extra)
 {
 	int ret = 0;
-#if 1
+
 	if (
 		(!ieee->sta_wake_up) ||
 		(!ieee->enter_sleep_state) ||
@@ -580,7 +580,7 @@ int rtllib_wx_set_power(struct rtllib_device *ieee,
 
 		return -1;
 	}
-#endif
+
 	down(&ieee->wx_sem);
 
 	if (wrqu->power.disabled){

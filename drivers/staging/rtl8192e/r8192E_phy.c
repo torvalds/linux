@@ -1394,7 +1394,6 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 
 	}
 
-#if 1
 	switch ( priv->rf_chip )
 	{
 		case RF_8225:
@@ -1417,7 +1416,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 			RT_TRACE(COMP_ERR, "Unknown RFChipID: %d\n", priv->rf_chip);
 			break;
 	}
-#endif
+
 	atomic_dec(&(priv->rtllib->atm_swbw));
 	priv->SetBWModeInProgress= false;
 

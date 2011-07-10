@@ -398,7 +398,7 @@ MgntActSet_RF_State(
 		{
 			spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
 			RT_TRACE((COMP_PS | COMP_RF), "MgntActSet_RF_State(): RF Change in progress! Wait to set..StateToSet(%d).\n", StateToSet);
-			#if 1
+
 			while(priv->RFChangeInProgress)
 			{
 				RFWaitCounter ++;
@@ -411,7 +411,6 @@ MgntActSet_RF_State(
 					return false;
 				}
 			}
-			#endif
 		}
 		else
 		{
@@ -2796,7 +2795,7 @@ void rtl8192_rx_normal(struct net_device *dev)
 			}else{
 				dev_kfree_skb_any(skb);
 			}
-#if 1
+
 			new_skb = dev_alloc_skb(priv->rxbuffersize);
 			if (unlikely(!new_skb))
 			{
@@ -2805,7 +2804,7 @@ void rtl8192_rx_normal(struct net_device *dev)
 			}
 			skb=new_skb;
                         skb->dev = dev;
-#endif
+
 			priv->rx_buf[rx_queue_idx][priv->rx_idx[rx_queue_idx]] = skb;
 			*((dma_addr_t *) skb->cb) = pci_map_single(priv->pdev, skb_tail_pointer_rsl(skb), priv->rxbuffersize, PCI_DMA_FROMDEVICE);
 
