@@ -321,16 +321,17 @@ struct drxk_state {
 	u8                m_deviceSpin;
 	u32               m_iqmRcRate;
 
-	u16               m_AntennaDVBC;
-	u16               m_AntennaDVBT;
-	u16               m_AntennaSwitchDVBTDVBC;
-
 	enum DRXPowerMode m_currentPowerMode;
 
 	/* Configurable parameters at the driver */
 
+	bool              m_AntennaSwitchDVBTDVBC;
+	u16               m_AntennaDVBC;
+	u16               m_AntennaDVBT;
+
 	u32 single_master : 1;		/* Use single master i2c mode */
 	u32 no_i2c_bridge : 1;		/* Tuner is not on port 1, don't use I2C bridge */
+
 	const char *microcode_name;
 
 };

@@ -618,6 +618,10 @@ error:
 
 static int init_state(struct drxk_state *state)
 {
+	/*
+	 * FIXME: most (all?) of the values bellow should be moved into
+	 * struct drxk_config, as they are probably board-specific
+	 */
 	u32 ulVSBIfAgcMode = DRXK_AGC_CTRL_AUTO;
 	u32 ulVSBIfAgcOutputLevel = 0;
 	u32 ulVSBIfAgcMinLevel = 0;
@@ -671,10 +675,6 @@ static int init_state(struct drxk_state *state)
 
 	u32 ulRfMirror = 1;
 	u32 ulPowerDown = 0;
-
-	u32 ulAntennaDVBT = 1;
-	u32 ulAntennaDVBC = 0;
-	u32 ulAntennaSwitchDVBTDVBC = 0;
 
 	dprintk(1, "\n");
 
@@ -857,11 +857,6 @@ static int init_state(struct drxk_state *state)
 
 	state->m_GPIOCfg = (ulGPIOCfg);
 	state->m_GPIO = (ulGPIO == 0 ? 0 : 1);
-
-	state->m_AntennaDVBT = (ulAntennaDVBT == 0 ? 0 : 1);
-	state->m_AntennaDVBC = (ulAntennaDVBC == 0 ? 0 : 1);
-	state->m_AntennaSwitchDVBTDVBC =
-	    (ulAntennaSwitchDVBTDVBC == 0 ? 0 : 1);
 
 	state->m_bPowerDown = false;
 	state->m_currentPowerMode = DRX_POWER_DOWN;
@@ -5819,9 +5814,10 @@ error:
 
 static int SwitchAntennaToQAM(struct drxk_state *state)
 {
-	int status = -EINVAL;
+	int status = 0;
 
 	dprintk(1, "\n");
+
 	if (state->m_AntennaSwitchDVBTDVBC != 0) {
 		if (state->m_GPIO != state->m_AntennaDVBC) {
 			state->m_GPIO = state->m_AntennaDVBC;
@@ -5835,7 +5831,7 @@ static int SwitchAntennaToQAM(struct drxk_state *state)
 
 static int SwitchAntennaToDVBT(struct drxk_state *state)
 {
-	int status = -EINVAL;
+	int status = 0;
 
 	dprintk(1, "\n");
 	if (state->m_AntennaSwitchDVBTDVBC != 0) {
@@ -6344,6 +6340,9 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	state->single_master = config->single_master;
 	state->microcode_name = config->microcode_name;
 	state->no_i2c_bridge = config->no_i2c_bridge;
+	state->m_AntennaSwitchDVBTDVBC = config->antenna_uses_gpio;
+	state->m_AntennaDVBC = config->antenna_dvbc;
+	state->m_AntennaDVBT = config->antenna_dvbt;
 
 	mutex_init(&state->mutex);
 	mutex_init(&state->ctlock);
