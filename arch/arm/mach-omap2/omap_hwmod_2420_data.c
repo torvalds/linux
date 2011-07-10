@@ -828,12 +828,6 @@ static struct omap_hwmod_class uart_class = {
 
 /* UART1 */
 
-static struct omap_hwmod_dma_info uart1_sdma_reqs[] = {
-	{ .name = "rx",	.dma_req = OMAP24XX_DMA_UART1_RX, },
-	{ .name = "tx",	.dma_req = OMAP24XX_DMA_UART1_TX, },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod_ocp_if *omap2420_uart1_slaves[] = {
 	&omap2_l4_core__uart1,
 };
@@ -841,7 +835,7 @@ static struct omap_hwmod_ocp_if *omap2420_uart1_slaves[] = {
 static struct omap_hwmod omap2420_uart1_hwmod = {
 	.name		= "uart1",
 	.mpu_irqs	= omap2_uart1_mpu_irqs,
-	.sdma_reqs	= uart1_sdma_reqs,
+	.sdma_reqs	= omap2_uart1_sdma_reqs,
 	.main_clk	= "uart1_fck",
 	.prcm		= {
 		.omap2 = {
@@ -860,12 +854,6 @@ static struct omap_hwmod omap2420_uart1_hwmod = {
 
 /* UART2 */
 
-static struct omap_hwmod_dma_info uart2_sdma_reqs[] = {
-	{ .name = "rx",	.dma_req = OMAP24XX_DMA_UART2_RX, },
-	{ .name = "tx",	.dma_req = OMAP24XX_DMA_UART2_TX, },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod_ocp_if *omap2420_uart2_slaves[] = {
 	&omap2_l4_core__uart2,
 };
@@ -873,7 +861,7 @@ static struct omap_hwmod_ocp_if *omap2420_uart2_slaves[] = {
 static struct omap_hwmod omap2420_uart2_hwmod = {
 	.name		= "uart2",
 	.mpu_irqs	= omap2_uart2_mpu_irqs,
-	.sdma_reqs	= uart2_sdma_reqs,
+	.sdma_reqs	= omap2_uart2_sdma_reqs,
 	.main_clk	= "uart2_fck",
 	.prcm		= {
 		.omap2 = {
@@ -892,12 +880,6 @@ static struct omap_hwmod omap2420_uart2_hwmod = {
 
 /* UART3 */
 
-static struct omap_hwmod_dma_info uart3_sdma_reqs[] = {
-	{ .name = "rx",	.dma_req = OMAP24XX_DMA_UART3_RX, },
-	{ .name = "tx",	.dma_req = OMAP24XX_DMA_UART3_TX, },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod_ocp_if *omap2420_uart3_slaves[] = {
 	&omap2_l4_core__uart3,
 };
@@ -905,7 +887,7 @@ static struct omap_hwmod_ocp_if *omap2420_uart3_slaves[] = {
 static struct omap_hwmod omap2420_uart3_hwmod = {
 	.name		= "uart3",
 	.mpu_irqs	= omap2_uart3_mpu_irqs,
-	.sdma_reqs	= uart3_sdma_reqs,
+	.sdma_reqs	= omap2_uart3_sdma_reqs,
 	.main_clk	= "uart3_fck",
 	.prcm		= {
 		.omap2 = {
@@ -938,11 +920,6 @@ static struct omap_hwmod_class_sysconfig omap2420_dss_sysc = {
 static struct omap_hwmod_class omap2420_dss_hwmod_class = {
 	.name = "dss",
 	.sysc = &omap2420_dss_sysc,
-};
-
-static struct omap_hwmod_dma_info omap2420_dss_sdma_chs[] = {
-	{ .name = "dispc", .dma_req = 5 },
-	{ .dma_req = -1 }
 };
 
 /* dss */
@@ -980,7 +957,7 @@ static struct omap_hwmod omap2420_dss_core_hwmod = {
 	.name		= "dss_core",
 	.class		= &omap2420_dss_hwmod_class,
 	.main_clk	= "dss1_fck", /* instead of dss_fck */
-	.sdma_reqs	= omap2420_dss_sdma_chs,
+	.sdma_reqs	= omap2xxx_dss_sdma_chs,
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,
@@ -1183,12 +1160,6 @@ static struct omap_i2c_dev_attr i2c_dev_attr;
 
 /* I2C1 */
 
-static struct omap_hwmod_dma_info i2c1_sdma_reqs[] = {
-	{ .name = "tx", .dma_req = OMAP24XX_DMA_I2C1_TX },
-	{ .name = "rx", .dma_req = OMAP24XX_DMA_I2C1_RX },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod_ocp_if *omap2420_i2c1_slaves[] = {
 	&omap2420_l4_core__i2c1,
 };
@@ -1196,7 +1167,7 @@ static struct omap_hwmod_ocp_if *omap2420_i2c1_slaves[] = {
 static struct omap_hwmod omap2420_i2c1_hwmod = {
 	.name		= "i2c1",
 	.mpu_irqs	= omap2_i2c1_mpu_irqs,
-	.sdma_reqs	= i2c1_sdma_reqs,
+	.sdma_reqs	= omap2_i2c1_sdma_reqs,
 	.main_clk	= "i2c1_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1217,12 +1188,6 @@ static struct omap_hwmod omap2420_i2c1_hwmod = {
 
 /* I2C2 */
 
-static struct omap_hwmod_dma_info i2c2_sdma_reqs[] = {
-	{ .name = "tx", .dma_req = OMAP24XX_DMA_I2C2_TX },
-	{ .name = "rx", .dma_req = OMAP24XX_DMA_I2C2_RX },
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod_ocp_if *omap2420_i2c2_slaves[] = {
 	&omap2420_l4_core__i2c2,
 };
@@ -1230,7 +1195,7 @@ static struct omap_hwmod_ocp_if *omap2420_i2c2_slaves[] = {
 static struct omap_hwmod omap2420_i2c2_hwmod = {
 	.name		= "i2c2",
 	.mpu_irqs	= omap2_i2c2_mpu_irqs,
-	.sdma_reqs	= i2c2_sdma_reqs,
+	.sdma_reqs	= omap2_i2c2_sdma_reqs,
 	.main_clk	= "i2c2_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1602,18 +1567,6 @@ static struct omap_hwmod_class omap2420_mcspi_class = {
 };
 
 /* mcspi1 */
-static struct omap_hwmod_dma_info omap2420_mcspi1_sdma_reqs[] = {
-	{ .name = "tx0", .dma_req = 35 }, /* DMA_SPI1_TX0 */
-	{ .name = "rx0", .dma_req = 36 }, /* DMA_SPI1_RX0 */
-	{ .name = "tx1", .dma_req = 37 }, /* DMA_SPI1_TX1 */
-	{ .name = "rx1", .dma_req = 38 }, /* DMA_SPI1_RX1 */
-	{ .name = "tx2", .dma_req = 39 }, /* DMA_SPI1_TX2 */
-	{ .name = "rx2", .dma_req = 40 }, /* DMA_SPI1_RX2 */
-	{ .name = "tx3", .dma_req = 41 }, /* DMA_SPI1_TX3 */
-	{ .name = "rx3", .dma_req = 42 }, /* DMA_SPI1_RX3 */
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod_ocp_if *omap2420_mcspi1_slaves[] = {
 	&omap2420_l4_core__mcspi1,
 };
@@ -1625,7 +1578,7 @@ static struct omap2_mcspi_dev_attr omap_mcspi1_dev_attr = {
 static struct omap_hwmod omap2420_mcspi1_hwmod = {
 	.name		= "mcspi1_hwmod",
 	.mpu_irqs	= omap2_mcspi1_mpu_irqs,
-	.sdma_reqs	= omap2420_mcspi1_sdma_reqs,
+	.sdma_reqs	= omap2_mcspi1_sdma_reqs,
 	.main_clk	= "mcspi1_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1644,14 +1597,6 @@ static struct omap_hwmod omap2420_mcspi1_hwmod = {
 };
 
 /* mcspi2 */
-static struct omap_hwmod_dma_info omap2420_mcspi2_sdma_reqs[] = {
-	{ .name = "tx0", .dma_req = 43 }, /* DMA_SPI2_TX0 */
-	{ .name = "rx0", .dma_req = 44 }, /* DMA_SPI2_RX0 */
-	{ .name = "tx1", .dma_req = 45 }, /* DMA_SPI2_TX1 */
-	{ .name = "rx1", .dma_req = 46 }, /* DMA_SPI2_RX1 */
-	{ .dma_req = -1 }
-};
-
 static struct omap_hwmod_ocp_if *omap2420_mcspi2_slaves[] = {
 	&omap2420_l4_core__mcspi2,
 };
@@ -1663,7 +1608,7 @@ static struct omap2_mcspi_dev_attr omap_mcspi2_dev_attr = {
 static struct omap_hwmod omap2420_mcspi2_hwmod = {
 	.name		= "mcspi2_hwmod",
 	.mpu_irqs	= omap2_mcspi2_mpu_irqs,
-	.sdma_reqs	= omap2420_mcspi2_sdma_reqs,
+	.sdma_reqs	= omap2_mcspi2_sdma_reqs,
 	.main_clk	= "mcspi2_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1697,12 +1642,6 @@ static struct omap_hwmod_irq_info omap2420_mcbsp1_irqs[] = {
 	{ .irq = -1 }
 };
 
-static struct omap_hwmod_dma_info omap2420_mcbsp1_sdma_chs[] = {
-	{ .name = "rx", .dma_req = 32 },
-	{ .name = "tx", .dma_req = 31 },
-	{ .dma_req = -1 }
-};
-
 /* l4_core -> mcbsp1 */
 static struct omap_hwmod_ocp_if omap2420_l4_core__mcbsp1 = {
 	.master		= &omap2420_l4_core_hwmod,
@@ -1721,7 +1660,7 @@ static struct omap_hwmod omap2420_mcbsp1_hwmod = {
 	.name		= "mcbsp1",
 	.class		= &omap2420_mcbsp_hwmod_class,
 	.mpu_irqs	= omap2420_mcbsp1_irqs,
-	.sdma_reqs	= omap2420_mcbsp1_sdma_chs,
+	.sdma_reqs	= omap2_mcbsp1_sdma_reqs,
 	.main_clk	= "mcbsp1_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1744,12 +1683,6 @@ static struct omap_hwmod_irq_info omap2420_mcbsp2_irqs[] = {
 	{ .irq = -1 }
 };
 
-static struct omap_hwmod_dma_info omap2420_mcbsp2_sdma_chs[] = {
-	{ .name = "rx", .dma_req = 34 },
-	{ .name = "tx", .dma_req = 33 },
-	{ .dma_req = -1 }
-};
-
 /* l4_core -> mcbsp2 */
 static struct omap_hwmod_ocp_if omap2420_l4_core__mcbsp2 = {
 	.master		= &omap2420_l4_core_hwmod,
@@ -1768,7 +1701,7 @@ static struct omap_hwmod omap2420_mcbsp2_hwmod = {
 	.name		= "mcbsp2",
 	.class		= &omap2420_mcbsp_hwmod_class,
 	.mpu_irqs	= omap2420_mcbsp2_irqs,
-	.sdma_reqs	= omap2420_mcbsp2_sdma_chs,
+	.sdma_reqs	= omap2_mcbsp2_sdma_reqs,
 	.main_clk	= "mcbsp2_fck",
 	.prcm		= {
 		.omap2 = {

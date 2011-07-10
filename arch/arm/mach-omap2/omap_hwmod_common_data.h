@@ -51,6 +51,21 @@ extern struct omap_hwmod_addr_space omap2_mcbsp1_addrs[];
 
 /* Common IP block data across OMAP2xxx */
 extern struct omap_hwmod_irq_info omap2xxx_timer12_mpu_irqs[];
+extern struct omap_hwmod_dma_info omap2xxx_dss_sdma_chs[];
+
+/* Common IP block data */
+extern struct omap_hwmod_dma_info omap2_uart1_sdma_reqs[];
+extern struct omap_hwmod_dma_info omap2_uart2_sdma_reqs[];
+extern struct omap_hwmod_dma_info omap2_uart3_sdma_reqs[];
+extern struct omap_hwmod_dma_info omap2_i2c1_sdma_reqs[];
+extern struct omap_hwmod_dma_info omap2_i2c2_sdma_reqs[];
+extern struct omap_hwmod_dma_info omap2_mcspi1_sdma_reqs[];
+extern struct omap_hwmod_dma_info omap2_mcspi2_sdma_reqs[];
+extern struct omap_hwmod_dma_info omap2_mcbsp1_sdma_reqs[];
+extern struct omap_hwmod_dma_info omap2_mcbsp2_sdma_reqs[];
+
+/* Common IP block data on OMAP2430/OMAP3 */
+extern struct omap_hwmod_dma_info omap2_mcbsp3_sdma_reqs[];
 
 /* Common IP block data across OMAP2/3 */
 extern struct omap_hwmod_irq_info omap2_timer1_mpu_irqs[];

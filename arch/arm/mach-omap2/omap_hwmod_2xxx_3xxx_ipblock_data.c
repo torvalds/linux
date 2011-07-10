@@ -10,10 +10,34 @@
  */
 #include <plat/omap_hwmod.h>
 #include <plat/serial.h>
+#include <plat/dma.h>
 
 #include <mach/irqs.h>
 
 #include "omap_hwmod_common_data.h"
+
+
+/*
+ * omap_hwmod class data
+ */
+
+struct omap_hwmod_class l3_hwmod_class = {
+	.name = "l3"
+};
+
+struct omap_hwmod_class l4_hwmod_class = {
+	.name = "l4"
+};
+
+struct omap_hwmod_class mpu_hwmod_class = {
+	.name = "mpu"
+};
+
+struct omap_hwmod_class iva_hwmod_class = {
+	.name = "iva"
+};
+
+/* Common MPU IRQ line data */
 
 struct omap_hwmod_irq_info omap2_timer1_mpu_irqs[] = {
 	{ .irq = 37, },
@@ -138,5 +162,73 @@ struct omap_hwmod_irq_info omap2_mcspi2_mpu_irqs[] = {
 	{ .irq = -1 }
 };
 
+/* Common DMA request line data */
+struct omap_hwmod_dma_info omap2_uart1_sdma_reqs[] = {
+	{ .name = "rx", .dma_req = OMAP24XX_DMA_UART1_RX, },
+	{ .name = "tx", .dma_req = OMAP24XX_DMA_UART1_TX, },
+	{ .dma_req = -1 }
+};
+
+struct omap_hwmod_dma_info omap2_uart2_sdma_reqs[] = {
+	{ .name = "rx", .dma_req = OMAP24XX_DMA_UART2_RX, },
+	{ .name = "tx", .dma_req = OMAP24XX_DMA_UART2_TX, },
+	{ .dma_req = -1 }
+};
+
+struct omap_hwmod_dma_info omap2_uart3_sdma_reqs[] = {
+	{ .name = "rx", .dma_req = OMAP24XX_DMA_UART3_RX, },
+	{ .name = "tx", .dma_req = OMAP24XX_DMA_UART3_TX, },
+	{ .dma_req = -1 }
+};
+
+struct omap_hwmod_dma_info omap2_i2c1_sdma_reqs[] = {
+	{ .name = "tx", .dma_req = OMAP24XX_DMA_I2C1_TX },
+	{ .name = "rx", .dma_req = OMAP24XX_DMA_I2C1_RX },
+	{ .dma_req = -1 }
+};
+
+struct omap_hwmod_dma_info omap2_i2c2_sdma_reqs[] = {
+	{ .name = "tx", .dma_req = OMAP24XX_DMA_I2C2_TX },
+	{ .name = "rx", .dma_req = OMAP24XX_DMA_I2C2_RX },
+	{ .dma_req = -1 }
+};
+
+struct omap_hwmod_dma_info omap2_mcspi1_sdma_reqs[] = {
+	{ .name = "tx0", .dma_req = 35 }, /* DMA_SPI1_TX0 */
+	{ .name = "rx0", .dma_req = 36 }, /* DMA_SPI1_RX0 */
+	{ .name = "tx1", .dma_req = 37 }, /* DMA_SPI1_TX1 */
+	{ .name = "rx1", .dma_req = 38 }, /* DMA_SPI1_RX1 */
+	{ .name = "tx2", .dma_req = 39 }, /* DMA_SPI1_TX2 */
+	{ .name = "rx2", .dma_req = 40 }, /* DMA_SPI1_RX2 */
+	{ .name = "tx3", .dma_req = 41 }, /* DMA_SPI1_TX3 */
+	{ .name = "rx3", .dma_req = 42 }, /* DMA_SPI1_RX3 */
+	{ .dma_req = -1 }
+};
+
+struct omap_hwmod_dma_info omap2_mcspi2_sdma_reqs[] = {
+	{ .name = "tx0", .dma_req = 43 }, /* DMA_SPI2_TX0 */
+	{ .name = "rx0", .dma_req = 44 }, /* DMA_SPI2_RX0 */
+	{ .name = "tx1", .dma_req = 45 }, /* DMA_SPI2_TX1 */
+	{ .name = "rx1", .dma_req = 46 }, /* DMA_SPI2_RX1 */
+	{ .dma_req = -1 }
+};
+
+struct omap_hwmod_dma_info omap2_mcbsp1_sdma_reqs[] = {
+	{ .name = "rx", .dma_req = 32 },
+	{ .name = "tx", .dma_req = 31 },
+	{ .dma_req = -1 }
+};
+
+struct omap_hwmod_dma_info omap2_mcbsp2_sdma_reqs[] = {
+	{ .name = "rx", .dma_req = 34 },
+	{ .name = "tx", .dma_req = 33 },
+	{ .dma_req = -1 }
+};
+
+struct omap_hwmod_dma_info omap2_mcbsp3_sdma_reqs[] = {
+	{ .name = "rx", .dma_req = 18 },
+	{ .name = "tx", .dma_req = 17 },
+	{ .dma_req = -1 }
+};
 
 

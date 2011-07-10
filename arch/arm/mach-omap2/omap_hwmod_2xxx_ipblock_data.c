@@ -10,6 +10,7 @@
  */
 #include <plat/omap_hwmod.h>
 #include <plat/serial.h>
+#include <plat/dma.h>
 
 #include <mach/irqs.h>
 
@@ -18,4 +19,9 @@
 struct omap_hwmod_irq_info omap2xxx_timer12_mpu_irqs[] = {
 	{ .irq = 48, },
 	{ .irq = -1 }
+};
+
+struct omap_hwmod_dma_info omap2xxx_dss_sdma_chs[] = {
+	{ .name = "dispc", .dma_req = 5 },
+	{ .dma_req = -1 }
 };
