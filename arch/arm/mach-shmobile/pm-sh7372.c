@@ -96,6 +96,17 @@ static bool pd_active_wakeup(struct device *dev)
 	return true;
 }
 
+static void sh7372_late_pm_domain_off(void)
+{
+	/* request power down of unused pm domains */
+	queue_work(pm_wq, &sh7372_a4lc.genpd.power_off_work);
+	queue_work(pm_wq, &sh7372_a4mp.genpd.power_off_work);
+	queue_work(pm_wq, &sh7372_d4.genpd.power_off_work);
+	queue_work(pm_wq, &sh7372_a3rv.genpd.power_off_work);
+	queue_work(pm_wq, &sh7372_a3ri.genpd.power_off_work);
+	queue_work(pm_wq, &sh7372_a3sg.genpd.power_off_work);
+}
+
 void sh7372_init_pm_domain(struct sh7372_pm_domain *sh7372_pd)
 {
 	struct generic_pm_domain *genpd = &sh7372_pd->genpd;
@@ -107,6 +118,8 @@ void sh7372_init_pm_domain(struct sh7372_pm_domain *sh7372_pd)
 	genpd->power_off = pd_power_down;
 	genpd->power_on = pd_power_up;
 	pd_power_up(&sh7372_pd->genpd);
+
+	shmobile_runtime_pm_late_init = sh7372_late_pm_domain_off;
 }
 
 void sh7372_add_device_to_domain(struct sh7372_pm_domain *sh7372_pd,
