@@ -1190,24 +1190,6 @@ static struct omap_hwmod omap3xxx_wd_timer2_hwmod = {
 	.flags		= HWMOD_SWSUP_SIDLE,
 };
 
-/* UART common */
-
-static struct omap_hwmod_class_sysconfig uart_sysc = {
-	.rev_offs	= 0x50,
-	.sysc_offs	= 0x54,
-	.syss_offs	= 0x58,
-	.sysc_flags	= (SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
-			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
-	.sysc_fields    = &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class uart_class = {
-	.name = "uart",
-	.sysc = &uart_sysc,
-};
-
 /* UART1 */
 
 static struct omap_hwmod_ocp_if *omap3xxx_uart1_slaves[] = {
@@ -1230,7 +1212,7 @@ static struct omap_hwmod omap3xxx_uart1_hwmod = {
 	},
 	.slaves		= omap3xxx_uart1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_uart1_slaves),
-	.class		= &uart_class,
+	.class		= &omap2_uart_class,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
 
@@ -1256,7 +1238,7 @@ static struct omap_hwmod omap3xxx_uart2_hwmod = {
 	},
 	.slaves		= omap3xxx_uart2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_uart2_slaves),
-	.class		= &uart_class,
+	.class		= &omap2_uart_class,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
 
@@ -1282,7 +1264,7 @@ static struct omap_hwmod omap3xxx_uart3_hwmod = {
 	},
 	.slaves		= omap3xxx_uart3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_uart3_slaves),
-	.class		= &uart_class,
+	.class		= &omap2_uart_class,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 };
 
@@ -1319,31 +1301,13 @@ static struct omap_hwmod omap3xxx_uart4_hwmod = {
 	},
 	.slaves		= omap3xxx_uart4_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_uart4_slaves),
-	.class		= &uart_class,
+	.class		= &omap2_uart_class,
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3630ES1),
 };
 
 static struct omap_hwmod_class i2c_class = {
 	.name = "i2c",
 	.sysc = &i2c_sysc,
-};
-
-/*
- * 'dss' class
- * display sub-system
- */
-
-static struct omap_hwmod_class_sysconfig omap3xxx_dss_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap3xxx_dss_hwmod_class = {
-	.name = "dss",
-	.sysc = &omap3xxx_dss_sysc,
 };
 
 static struct omap_hwmod_dma_info omap3xxx_dss_sdma_chs[] = {
@@ -1406,7 +1370,7 @@ static struct omap_hwmod_opt_clk dss_opt_clks[] = {
 
 static struct omap_hwmod omap3430es1_dss_core_hwmod = {
 	.name		= "dss_core",
-	.class		= &omap3xxx_dss_hwmod_class,
+	.class		= &omap2_dss_hwmod_class,
 	.main_clk	= "dss1_alwon_fck", /* instead of dss_fck */
 	.sdma_reqs	= omap3xxx_dss_sdma_chs,
 	.prcm		= {
@@ -1430,7 +1394,7 @@ static struct omap_hwmod omap3430es1_dss_core_hwmod = {
 
 static struct omap_hwmod omap3xxx_dss_core_hwmod = {
 	.name		= "dss_core",
-	.class		= &omap3xxx_dss_hwmod_class,
+	.class		= &omap2_dss_hwmod_class,
 	.main_clk	= "dss1_alwon_fck", /* instead of dss_fck */
 	.sdma_reqs	= omap3xxx_dss_sdma_chs,
 	.prcm		= {
@@ -1451,28 +1415,6 @@ static struct omap_hwmod omap3xxx_dss_core_hwmod = {
 	.masters_cnt	= ARRAY_SIZE(omap3xxx_dss_masters),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_GE_OMAP3430ES2 |
 				CHIP_IS_OMAP3630ES1 | CHIP_GE_OMAP3630ES1_1),
-};
-
-/*
- * 'dispc' class
- * display controller
- */
-
-static struct omap_hwmod_class_sysconfig omap3xxx_dispc_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_CLOCKACTIVITY |
-			   SYSC_HAS_MIDLEMODE | SYSC_HAS_ENAWAKEUP |
-			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap3xxx_dispc_hwmod_class = {
-	.name = "dispc",
-	.sysc = &omap3xxx_dispc_sysc,
 };
 
 /* l4_core -> dss_dispc */
@@ -1498,7 +1440,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_dss_dispc_slaves[] = {
 
 static struct omap_hwmod omap3xxx_dss_dispc_hwmod = {
 	.name		= "dss_dispc",
-	.class		= &omap3xxx_dispc_hwmod_class,
+	.class		= &omap2_dispc_hwmod_class,
 	.mpu_irqs	= omap2_dispc_irqs,
 	.main_clk	= "dss1_alwon_fck",
 	.prcm		= {
@@ -1580,26 +1522,6 @@ static struct omap_hwmod omap3xxx_dss_dsi1_hwmod = {
 	.flags		= HWMOD_NO_IDLEST,
 };
 
-/*
- * 'rfbi' class
- * remote frame buffer interface
- */
-
-static struct omap_hwmod_class_sysconfig omap3xxx_rfbi_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET |
-			   SYSC_HAS_AUTOIDLE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap3xxx_rfbi_hwmod_class = {
-	.name = "rfbi",
-	.sysc = &omap3xxx_rfbi_sysc,
-};
-
 /* l4_core -> dss_rfbi */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__dss_rfbi = {
 	.master		= &omap3xxx_l4_core_hwmod,
@@ -1623,7 +1545,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_dss_rfbi_slaves[] = {
 
 static struct omap_hwmod omap3xxx_dss_rfbi_hwmod = {
 	.name		= "dss_rfbi",
-	.class		= &omap3xxx_rfbi_hwmod_class,
+	.class		= &omap2_rfbi_hwmod_class,
 	.main_clk	= "dss1_alwon_fck",
 	.prcm		= {
 		.omap2 = {
@@ -1638,15 +1560,6 @@ static struct omap_hwmod omap3xxx_dss_rfbi_hwmod = {
 				CHIP_GE_OMAP3430ES2 | CHIP_IS_OMAP3630ES1 |
 				CHIP_GE_OMAP3630ES1_1),
 	.flags		= HWMOD_NO_IDLEST,
-};
-
-/*
- * 'venc' class
- * video encoder
- */
-
-static struct omap_hwmod_class omap3xxx_venc_hwmod_class = {
-	.name = "venc",
 };
 
 /* l4_core -> dss_venc */
@@ -1673,7 +1586,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_dss_venc_slaves[] = {
 
 static struct omap_hwmod omap3xxx_dss_venc_hwmod = {
 	.name		= "dss_venc",
-	.class		= &omap3xxx_venc_hwmod_class,
+	.class		= &omap2_venc_hwmod_class,
 	.main_clk	= "dss1_alwon_fck",
 	.prcm		= {
 		.omap2 = {
