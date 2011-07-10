@@ -258,8 +258,8 @@ static struct dpll_data dpll_abe_dd = {
 	.enable_mask	= OMAP4430_DPLL_EN_MASK,
 	.autoidle_mask	= OMAP4430_AUTO_DPLL_MODE_MASK,
 	.idlest_mask	= OMAP4430_ST_DPLL_CLK_MASK,
-	.max_multiplier	= OMAP4430_MAX_DPLL_MULT,
-	.max_divider	= OMAP4430_MAX_DPLL_DIV,
+	.max_multiplier	= 2047,
+	.max_divider	= 128,
 	.min_divider	= 1,
 };
 
@@ -434,8 +434,8 @@ static struct dpll_data dpll_core_dd = {
 	.enable_mask	= OMAP4430_DPLL_EN_MASK,
 	.autoidle_mask	= OMAP4430_AUTO_DPLL_MODE_MASK,
 	.idlest_mask	= OMAP4430_ST_DPLL_CLK_MASK,
-	.max_multiplier	= OMAP4430_MAX_DPLL_MULT,
-	.max_divider	= OMAP4430_MAX_DPLL_DIV,
+	.max_multiplier	= 2047,
+	.max_divider	= 128,
 	.min_divider	= 1,
 };
 
@@ -672,8 +672,8 @@ static struct dpll_data dpll_iva_dd = {
 	.enable_mask	= OMAP4430_DPLL_EN_MASK,
 	.autoidle_mask	= OMAP4430_AUTO_DPLL_MODE_MASK,
 	.idlest_mask	= OMAP4430_ST_DPLL_CLK_MASK,
-	.max_multiplier	= OMAP4430_MAX_DPLL_MULT,
-	.max_divider	= OMAP4430_MAX_DPLL_DIV,
+	.max_multiplier	= 2047,
+	.max_divider	= 128,
 	.min_divider	= 1,
 };
 
@@ -740,8 +740,8 @@ static struct dpll_data dpll_mpu_dd = {
 	.enable_mask	= OMAP4430_DPLL_EN_MASK,
 	.autoidle_mask	= OMAP4430_AUTO_DPLL_MODE_MASK,
 	.idlest_mask	= OMAP4430_ST_DPLL_CLK_MASK,
-	.max_multiplier	= OMAP4430_MAX_DPLL_MULT,
-	.max_divider	= OMAP4430_MAX_DPLL_DIV,
+	.max_multiplier	= 2047,
+	.max_divider	= 128,
 	.min_divider	= 1,
 };
 
@@ -813,8 +813,8 @@ static struct dpll_data dpll_per_dd = {
 	.enable_mask	= OMAP4430_DPLL_EN_MASK,
 	.autoidle_mask	= OMAP4430_AUTO_DPLL_MODE_MASK,
 	.idlest_mask	= OMAP4430_ST_DPLL_CLK_MASK,
-	.max_multiplier	= OMAP4430_MAX_DPLL_MULT,
-	.max_divider	= OMAP4430_MAX_DPLL_DIV,
+	.max_multiplier	= 2047,
+	.max_divider	= 128,
 	.min_divider	= 1,
 };
 
@@ -949,9 +949,8 @@ static struct dpll_data dpll_unipro_dd = {
 	.enable_mask	= OMAP4430_DPLL_EN_MASK,
 	.autoidle_mask	= OMAP4430_AUTO_DPLL_MODE_MASK,
 	.idlest_mask	= OMAP4430_ST_DPLL_CLK_MASK,
-	.sddiv_mask	= OMAP4430_DPLL_SD_DIV_MASK,
-	.max_multiplier	= OMAP4430_MAX_DPLL_MULT,
-	.max_divider	= OMAP4430_MAX_DPLL_DIV,
+	.max_multiplier	= 2047,
+	.max_divider	= 128,
 	.min_divider	= 1,
 };
 
@@ -1017,8 +1016,8 @@ static struct dpll_data dpll_usb_dd = {
 	.autoidle_mask	= OMAP4430_AUTO_DPLL_MODE_MASK,
 	.idlest_mask	= OMAP4430_ST_DPLL_CLK_MASK,
 	.sddiv_mask	= OMAP4430_DPLL_SD_DIV_MASK,
-	.max_multiplier	= OMAP4430_MAX_DPLL_MULT,
-	.max_divider	= OMAP4430_MAX_DPLL_DIV,
+	.max_multiplier	= 4095,
+	.max_divider	= 256,
 	.min_divider	= 1,
 };
 
