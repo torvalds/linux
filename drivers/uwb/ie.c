@@ -25,6 +25,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/export.h>
 #include "uwb-internal.h"
 
 /**
