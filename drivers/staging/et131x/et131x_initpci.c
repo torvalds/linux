@@ -288,7 +288,7 @@ void et131x_error_timer_handler(unsigned long data)
 				 *  interrupt'. How to do that under Linux?
 				 */
 				et131x_enable_interrupts(etdev);
-				EnablePhyComa(etdev);
+				et1310_enable_phy_coma(etdev);
 			}
 		}
 	}

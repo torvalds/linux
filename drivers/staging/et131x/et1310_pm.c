@@ -87,7 +87,7 @@
 #include "et131x.h"
 
 /**
- * EnablePhyComa - called when network cable is unplugged
+ * et1310_enable_phy_coma - called when network cable is unplugged
  * @etdev: pointer to our adapter structure
  *
  * driver receive an phy status change interrupt while in D0 and check that
@@ -106,7 +106,7 @@
  *       indicating linkup status, call the MPDisablePhyComa routine to
  *             restore JAGCore and gigE PHY
  */
-void EnablePhyComa(struct et131x_adapter *etdev)
+void et1310_enable_phy_coma(struct et131x_adapter *etdev)
 {
 	unsigned long flags;
 	u32 pmcsr;
@@ -136,10 +136,10 @@ void EnablePhyComa(struct et131x_adapter *etdev)
 }
 
 /**
- * DisablePhyComa - Disable the Phy Coma Mode
+ * et1310_disable_phy_coma - Disable the Phy Coma Mode
  * @etdev: pointer to our adapter structure
  */
-void DisablePhyComa(struct et131x_adapter *etdev)
+void et1310_disable_phy_coma(struct et131x_adapter *etdev)
 {
 	u32 pmcsr;
 

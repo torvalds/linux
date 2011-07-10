@@ -811,7 +811,7 @@ void et131x_mii_check(struct et131x_adapter *etdev,
 			 * plugged back in
 			 */
 			if (etdev->RegistryPhyComa == 1)
-				EnablePhyComa(etdev);
+				et1310_enable_phy_coma(etdev);
 		}
 	}
 

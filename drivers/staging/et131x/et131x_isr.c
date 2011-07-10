@@ -379,7 +379,7 @@ void et131x_isr_handler(struct work_struct *work)
 				 * so, disable it because we will not be able
 				 * to read PHY values until we are out.
 				 */
-				DisablePhyComa(etdev);
+				et1310_disable_phy_coma(etdev);
 			}
 
 			/* Read the PHY ISR to clear the reason for the

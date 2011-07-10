@@ -85,11 +85,11 @@ void setup_device_for_unicast(struct et131x_adapter *adapter);
 /* et131x_netdev.c */
 struct net_device *et131x_device_alloc(void);
 
-/* et131x_pm.c */
-void EnablePhyComa(struct et131x_adapter *adapter);
-void DisablePhyComa(struct et131x_adapter *adapter);
+/* et1310_pm.c */
+void et1310_enable_phy_coma(struct et131x_adapter *adapter);
+void et1310_disable_phy_coma(struct et131x_adapter *adapter);
 
-/* et131x_phy.c */
+/* et1310_phy.c */
 void et1310_phy_init(struct et131x_adapter *adapter);
 void et1310_phy_reset(struct et131x_adapter *adapter);
 void et1310_phy_power_down(struct et131x_adapter *adapter, bool down);
