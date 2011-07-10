@@ -20,6 +20,7 @@
 
 #include "powerdomain.h"
 #include <plat/clock.h>
+#include <plat/omap_hwmod.h>
 #include <plat/cpu.h>
 
 /*
@@ -183,6 +184,8 @@ int clkdm_sleep(struct clockdomain *clkdm);
 
 int clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk);
 int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk);
+int clkdm_hwmod_enable(struct clockdomain *clkdm, struct omap_hwmod *oh);
+int clkdm_hwmod_disable(struct clockdomain *clkdm, struct omap_hwmod *oh);
 
 extern void __init omap2xxx_clockdomains_init(void);
 extern void __init omap3xxx_clockdomains_init(void);
