@@ -1532,7 +1532,7 @@ static int __cpuinit rcu_spawn_one_cpu_kthread(int cpu)
 	struct sched_param sp;
 	struct task_struct *t;
 
-	if (!rcu_kthreads_spawnable ||
+	if (!rcu_scheduler_fully_active ||
 	    per_cpu(rcu_cpu_kthread_task, cpu) != NULL)
 		return 0;
 	t = kthread_create(rcu_cpu_kthread, (void *)(long)cpu, "rcuc%d", cpu);
@@ -1639,7 +1639,7 @@ static int __cpuinit rcu_spawn_one_node_kthread(struct rcu_state *rsp,
 	struct sched_param sp;
 	struct task_struct *t;
 
-	if (!rcu_kthreads_spawnable ||
+	if (!rcu_scheduler_fully_active ||
 	    rnp->qsmaskinit == 0)
 		return 0;
 	if (rnp->node_kthread_task == NULL) {
@@ -1665,7 +1665,7 @@ static int __init rcu_spawn_kthreads(void)
 	int cpu;
 	struct rcu_node *rnp;
 
-	rcu_kthreads_spawnable = 1;
+	rcu_scheduler_fully_active = 1;
 	for_each_possible_cpu(cpu) {
 		per_cpu(rcu_cpu_has_work, cpu) = 0;
 		if (cpu_online(cpu))
@@ -1687,7 +1687,7 @@ static void __cpuinit rcu_prepare_kthreads(int cpu)
 	struct rcu_node *rnp = rdp->mynode;
 
 	/* Fire up the incoming CPU's kthread and leaf rcu_node kthread. */
-	if (rcu_kthreads_spawnable) {
+	if (rcu_scheduler_fully_active) {
 		(void)rcu_spawn_one_cpu_kthread(cpu);
 		if (rnp->node_kthread_task == NULL)
 			(void)rcu_spawn_one_node_kthread(rcu_state, rnp);
@@ -1725,6 +1725,13 @@ static void rcu_node_kthread_setaffinity(struct rcu_node *rnp, int outgoingcpu)
 static void rcu_cpu_kthread_setrt(int cpu, int to_rt)
 {
 }
+
+static int __init rcu_scheduler_really_started(void)
+{
+	rcu_scheduler_fully_active = 1;
+	return 0;
+}
+early_initcall(rcu_scheduler_really_started);
 
 static void __cpuinit rcu_prepare_kthreads(int cpu)
 {
