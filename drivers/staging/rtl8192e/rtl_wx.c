@@ -480,10 +480,8 @@ static int rtl8192_wx_get_range(struct net_device *dev,
 	}
 	range->num_frequency = val;
 	range->num_channels = val;
-#if WIRELESS_EXT > 17
 	range->enc_capa = IW_ENC_CAPA_WPA|IW_ENC_CAPA_WPA2|
 			  IW_ENC_CAPA_CIPHER_TKIP|IW_ENC_CAPA_CIPHER_CCMP;
-#endif
 	range->scan_capa = IW_SCAN_CAPA_ESSID | IW_SCAN_CAPA_TYPE;
 
         /* Event capability (kernel + driver) */
@@ -521,7 +519,6 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	if (priv->rtllib->LinkDetectInfo.bBusyTraffic == true)
 		return -EAGAIN;
 
-#if WIRELESS_EXT > 17
 	if (wrqu->data.flags & IW_SCAN_THIS_ESSID)
 	{
 		struct iw_scan_req* req = (struct iw_scan_req*)b;
@@ -531,7 +528,6 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 			memcpy(ieee->current_network.ssid, req->essid, req->essid_len);
 		}
 	}
-#endif
 
 	down(&priv->wx_sem);
 
@@ -1018,8 +1014,6 @@ exit:
 	return err;
 }
 
-#if (WIRELESS_EXT >= 18)
-
 static int r8192_wx_set_enc_ext(struct net_device *dev,
                                         struct iw_request_info *info,
                                         union iwreq_data *wrqu, char *extra)
@@ -1176,7 +1170,6 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 	up(&priv->wx_sem);
 	return ret;
 }
-#endif
 
 static int r8192_wx_set_gen_ie(struct net_device *dev,
                                         struct iw_request_info *info,
@@ -1303,13 +1296,11 @@ static iw_handler r8192_wx_handlers[] =
         IW_IOCTL(SIOCGIWENCODE) = r8192_wx_get_enc,
         IW_IOCTL(SIOCSIWPOWER) = r8192_wx_set_power,
         IW_IOCTL(SIOCGIWPOWER) = r8192_wx_get_power,
-#if (WIRELESS_EXT >= 18)
-		IW_IOCTL(SIOCSIWGENIE) = r8192_wx_set_gen_ie,
-		IW_IOCTL(SIOCGIWGENIE) = r8192_wx_get_gen_ie,
-		IW_IOCTL(SIOCSIWMLME) = r8192_wx_set_mlme,
-		IW_IOCTL(SIOCSIWAUTH) = r8192_wx_set_auth,
-		IW_IOCTL(SIOCSIWENCODEEXT) = r8192_wx_set_enc_ext,
-#endif
+	IW_IOCTL(SIOCSIWGENIE) = r8192_wx_set_gen_ie,
+	IW_IOCTL(SIOCGIWGENIE) = r8192_wx_get_gen_ie,
+	IW_IOCTL(SIOCSIWMLME) = r8192_wx_set_mlme,
+	IW_IOCTL(SIOCSIWAUTH) = r8192_wx_set_auth,
+	IW_IOCTL(SIOCSIWENCODEEXT) = r8192_wx_set_enc_ext,
 };
 
 /*
@@ -1502,8 +1493,6 @@ struct iw_handler_def  r8192_wx_handlers_def={
 	.private = r8192_private_handler,
 	.num_private = sizeof(r8192_private_handler) / sizeof(iw_handler),
 	.num_private_args = sizeof(r8192_private_args) / sizeof(struct iw_priv_args),
-#if WIRELESS_EXT >= 17
 	.get_wireless_stats = r8192_get_wireless_stats,
-#endif
 	.private_args = (struct iw_priv_args *)r8192_private_args,
 };

@@ -3564,12 +3564,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	dev->hard_start_xmit = rtllib_xmit;
 #endif
 
-#if WIRELESS_EXT >= 12
-#if WIRELESS_EXT < 17
-        dev->get_wireless_stats = r8192_get_wireless_stats;
-#endif
         dev->wireless_handlers = (struct iw_handler_def *) &r8192_wx_handlers_def;
-#endif
 	dev->ethtool_ops = &rtl819x_ethtool_ops;
 
 	dev->type = ARPHRD_ETHER;
@@ -3817,8 +3812,6 @@ static int __init rtl8192_pci_module_init(void)
 #endif
 	printk(KERN_INFO "\nLinux kernel driver for RTL8192E WLAN cards\n");
 	printk(KERN_INFO "Copyright (c) 2007-2008, Realsil Wlan Driver\n");
-	RT_TRACE(COMP_INIT, "Initializing module");
-	RT_TRACE(COMP_INIT, "Wireless extensions version %d", WIRELESS_EXT);
 
 	error = rtl_create_debugfs_root();
 	if (error) {

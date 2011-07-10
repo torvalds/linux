@@ -195,36 +195,7 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
 		start = iwe_stream_add_point_rsl(info, start, stop, &iwe, custom);
-#if (WIRELESS_EXT < 18)
-	if (ieee->wpa_enabled && network->wpa_ie_len){
-		char buf[MAX_WPA_IE_LEN * 2 + 30];
-		u8 *p = buf;
-		p += sprintf(p, "wpa_ie=");
-		for (i = 0; i < network->wpa_ie_len; i++) {
-			p += sprintf(p, "%02x", network->wpa_ie[i]);
-		}
 
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVCUSTOM;
-		iwe.u.data.length = strlen(buf);
-		start = iwe_stream_add_point_rsl(info, start, stop, &iwe, buf);
-        }
-
-	if (ieee->wpa_enabled && network->rsn_ie_len){
-		char buf[MAX_WPA_IE_LEN * 2 + 30];
-
-		u8 *p = buf;
-		p += sprintf(p, "rsn_ie=");
-		for (i = 0; i < network->rsn_ie_len; i++) {
-			p += sprintf(p, "%02x", network->rsn_ie[i]);
-		}
-
-		memset(&iwe, 0, sizeof(iwe));
-		iwe.cmd = IWEVCUSTOM;
-		iwe.u.data.length = strlen(buf);
-		start = iwe_stream_add_point_rsl(info, start, stop, &iwe, buf);
-        }
-#else
 	memset(&iwe, 0, sizeof(iwe));
 	if (network->wpa_ie_len)
 	{
@@ -255,7 +226,6 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 		iwe.u.data.length = network->wzc_ie_len;
 		start = iwe_stream_add_point_rsl(info, start, stop, &iwe, buf);
         }
-#endif
 #endif
 
 	/* Add EXTRA: Age to display seconds since last beacon/probe response
@@ -531,7 +501,7 @@ int rtllib_wx_get_encode(struct rtllib_device *ieee,
 
 	return 0;
 }
-#if (WIRELESS_EXT >= 18)
+
 int rtllib_wx_set_encode_ext(struct rtllib_device *ieee,
                                struct iw_request_info *info,
                                union iwreq_data *wrqu, char *extra)
@@ -850,11 +820,9 @@ int rtllib_wx_set_auth(struct rtllib_device *ieee,
 	}
 	return 0;
 }
-#endif
 
 int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 {
-#if (WIRELESS_EXT >= 18 )
 	u8 *buf;
 	u8 eid, wps_oui[4]={0x0,0x50,0xf2,0x04};
 
@@ -896,6 +864,5 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 		ieee->wpa_ie = NULL;
 		ieee->wpa_ie_len = 0;
 	}
-#endif
 	return 0;
 }
