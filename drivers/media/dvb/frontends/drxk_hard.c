@@ -1521,6 +1521,8 @@ static int scu_command(struct drxk_state *state,
 	unsigned long end;
 	u8 buffer[34];
 	int cnt = 0, ii;
+	const char *p;
+	char errname[30];
 
 	dprintk(1, "\n");
 
@@ -1567,31 +1569,36 @@ static int scu_command(struct drxk_state *state,
 
 		/* Check if an error was reported by SCU */
 		err = (s16)result[0];
+		if (err >= 0)
+			goto error;
 
-		/* check a few fixed error codes */
-		if (err == SCU_RESULT_UNKSTD) {
-			printk(KERN_ERR "drxk: SCU_RESULT_UNKSTD\n");
-			status = -EINVAL;
-			goto error2;
-		} else if (err == SCU_RESULT_UNKCMD) {
-			printk(KERN_ERR "drxk: SCU_RESULT_UNKCMD\n");
-			status = -EINVAL;
-			goto error2;
-		} else if (err < 0) {
-			/*
-			 * here it is assumed that a nagative result means
-			 *  error, and positive no error
-			 */
-			printk(KERN_ERR "drxk: %s ERROR: %d\n", __func__, err);
-			status = -EINVAL;
-			goto error2;
+		/* check for the known error codes */
+		switch (err) {
+		case SCU_RESULT_UNKCMD:
+			p = "SCU_RESULT_UNKCMD";
+			break;
+		case SCU_RESULT_UNKSTD:
+			p = "SCU_RESULT_UNKSTD";
+			break;
+		case SCU_RESULT_SIZE:
+			p = "SCU_RESULT_SIZE";
+			break;
+		case SCU_RESULT_INVPAR:
+			p = "SCU_RESULT_INVPAR";
+			break;
+		default: /* Other negative values are errors */
+			sprintf(errname, "ERROR: %d\n", err);
+			p = errname;
 		}
+		printk(KERN_ERR "drxk: %s while sending cmd 0x%04x with params:", p, cmd);
+		print_hex_dump_bytes("drxk: ", DUMP_PREFIX_NONE, buffer, cnt);
+		status = -EINVAL;
+		goto error2;
 	}
 
 error:
 	if (status < 0)
 		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
-
 error2:
 	mutex_unlock(&state->mutex);
 	return status;

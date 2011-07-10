@@ -20,6 +20,8 @@
 #define DRX_SCU_READY   0
 #define DRXK_MAX_WAITTIME (200)
 #define SCU_RESULT_OK      0
+#define SCU_RESULT_SIZE   -4
+#define SCU_RESULT_INVPAR -3
 #define SCU_RESULT_UNKSTD -2
 #define SCU_RESULT_UNKCMD -1
 
