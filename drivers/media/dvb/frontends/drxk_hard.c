@@ -6431,6 +6431,18 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	if (init_drxk(state) < 0)
 		goto error;
 	*fe_t = &state->t_frontend;
+
+#ifdef CONFIG_MEDIA_ATTACH
+	/*
+	 * HACK: As this function initializes both DVB-T and DVB-C fe symbols,
+	 * and calling it twice would create the state twice, leading into
+	 * memory leaks, the right way is to call it only once. However, dvb
+	 * release functions will call symbol_put twice. So, the solution is to
+	 * artificially increment the usage count, in order to allow the
+	 * driver to be released.
+	 */
+	symbol_get(drxk_attach);
+#endif
 	return &state->c_frontend;
 
 error:
