@@ -732,7 +732,7 @@ void et131x_set_rx_dma_timer(struct et131x_adapter *etdev)
  * @etdev: pointer to our adapter
  * @rfd: pointer to the RFD
  */
-void nic_return_rfd(struct et131x_adapter *etdev, struct rfd *rfd)
+static void nic_return_rfd(struct et131x_adapter *etdev, struct rfd *rfd)
 {
 	struct rx_ring *rx_local = &etdev->rx_ring;
 	struct rxdma_regs __iomem *rx_dma = &etdev->regs->rxdma;
@@ -872,7 +872,7 @@ void et131x_rx_dma_enable(struct et131x_adapter *etdev)
  * the packet to it, puts the RFD in the RecvPendList, and also returns
  * the pointer to the RFD.
  */
-struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
+static struct rfd *nic_rx_pkts(struct et131x_adapter *etdev)
 {
 	struct rx_ring *rx_local = &etdev->rx_ring;
 	struct rx_status_block *status;
