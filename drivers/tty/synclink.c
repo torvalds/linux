@@ -2124,7 +2124,6 @@ static int mgsl_write(struct tty_struct * tty,
 	if ( info->params.mode == MGSL_MODE_HDLC ||
 			info->params.mode == MGSL_MODE_RAW ) {
 		/* operating in synchronous (frame oriented) mode */
-		/* operating in synchronous (frame oriented) mode */
 		if (info->tx_active) {
 
 			if ( info->params.mode == MGSL_MODE_HDLC ) {
