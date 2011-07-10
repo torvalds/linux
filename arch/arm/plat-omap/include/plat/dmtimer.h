@@ -34,6 +34,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #ifndef __ASM_ARCH_DMTIMER_H
 #define __ASM_ARCH_DMTIMER_H
