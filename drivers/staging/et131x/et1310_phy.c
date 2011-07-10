@@ -853,7 +853,7 @@ void et131x_mii_check(struct et131x_adapter *etdev,
 				et1310_phy_and_or_reg(etdev, 0x16, 0xcfff,
 								   0x2000);
 
-			SetRxDmaTimer(etdev);
+			et131x_set_rx_dma_timer(etdev);
 			config_mac_regs2(etdev);
 		}
 	}

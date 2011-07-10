@@ -389,7 +389,7 @@ int et131x_adapter_setup(struct et131x_adapter *etdev)
 	config_rxmac_regs(etdev);
 	config_txmac_regs(etdev);
 
-	ConfigRxDmaRegs(etdev);
+	et131x_config_rx_dma_regs(etdev);
 	ConfigTxDmaRegs(etdev);
 
 	config_macstat_regs(etdev);

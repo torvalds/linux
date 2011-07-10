@@ -126,8 +126,8 @@ void et131x_rfd_resources_free(struct et131x_adapter *adapter,
 			       struct rfd *rfd);
 int et131x_init_recv(struct et131x_adapter *adapter);
 
-void ConfigRxDmaRegs(struct et131x_adapter *adapter);
-void SetRxDmaTimer(struct et131x_adapter *adapter);
+void et131x_config_rx_dma_regs(struct et131x_adapter *adapter);
+void et131x_set_rx_dma_timer(struct et131x_adapter *adapter);
 void et131x_rx_dma_disable(struct et131x_adapter *adapter);
 void et131x_rx_dma_enable(struct et131x_adapter *adapter);
 
