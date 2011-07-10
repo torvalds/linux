@@ -3558,6 +3558,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 #endif
 	int err = 0;
 	bool bdma64 = false;
+	u8 revision_id;
 
 	RT_TRACE(COMP_INIT,"Configuring chip resources");
 
@@ -3680,6 +3681,11 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
         pci_write_config_byte(pdev,0x04,0x06);
         pci_write_config_byte(pdev,0x04,0x07);
 #endif
+
+	pci_read_config_byte(pdev, 0x08, &revision_id);
+	/* If the revisionid is 0x10, the device uses rtl8192se. */
+	if (pdev->device == 0x8192 && revision_id == 0x10)
+		goto fail1;
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	priv->ops = ops;
