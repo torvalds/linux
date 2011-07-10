@@ -1,8 +1,8 @@
 /*
  * OMAP2/3/4 clockdomain framework functions
  *
- * Copyright (C) 2008-2010 Texas Instruments, Inc.
- * Copyright (C) 2008-2010 Nokia Corporation
+ * Copyright (C) 2008-2011 Texas Instruments, Inc.
+ * Copyright (C) 2008-2011 Nokia Corporation
  *
  * Written by Paul Walmsley and Jouni Högander
  * Added OMAP4 specific support by Abhijit Pagare <abhijitpagare@ti.com>
@@ -704,6 +704,8 @@ int clkdm_sleep(struct clockdomain *clkdm)
 
 	pr_debug("clockdomain: forcing sleep on %s\n", clkdm->name);
 
+	clkdm->_flags &= ~_CLKDM_FLAG_HWSUP_ENABLED;
+
 	return arch_clkdm->clkdm_sleep(clkdm);
 }
 
@@ -731,6 +733,8 @@ int clkdm_wakeup(struct clockdomain *clkdm)
 		return -EINVAL;
 
 	pr_debug("clockdomain: forcing wakeup on %s\n", clkdm->name);
+
+	clkdm->_flags &= ~_CLKDM_FLAG_HWSUP_ENABLED;
 
 	return arch_clkdm->clkdm_wakeup(clkdm);
 }
@@ -762,6 +766,8 @@ void clkdm_allow_idle(struct clockdomain *clkdm)
 	pr_debug("clockdomain: enabling automatic idle transitions for %s\n",
 		 clkdm->name);
 
+	clkdm->_flags |= _CLKDM_FLAG_HWSUP_ENABLED;
+
 	arch_clkdm->clkdm_allow_idle(clkdm);
 	pwrdm_clkdm_state_switch(clkdm);
 }
@@ -792,9 +798,29 @@ void clkdm_deny_idle(struct clockdomain *clkdm)
 	pr_debug("clockdomain: disabling automatic idle transitions for %s\n",
 		 clkdm->name);
 
+	clkdm->_flags &= ~_CLKDM_FLAG_HWSUP_ENABLED;
+
 	arch_clkdm->clkdm_deny_idle(clkdm);
 }
 
+/**
+ * clkdm_in_hwsup - is clockdomain @clkdm have hardware-supervised idle enabled?
+ * @clkdm: struct clockdomain *
+ *
+ * Returns true if clockdomain @clkdm currently has
+ * hardware-supervised idle enabled, or false if it does not or if
+ * @clkdm is NULL.  It is only valid to call this function after
+ * clkdm_init() has been called.  This function does not actually read
+ * bits from the hardware; it instead tests an in-memory flag that is
+ * changed whenever the clockdomain code changes the auto-idle mode.
+ */
+bool clkdm_in_hwsup(struct clockdomain *clkdm)
+{
+	if (!clkdm)
+		return false;
+
+	return (clkdm->_flags & _CLKDM_FLAG_HWSUP_ENABLED) ? true : false;
+}
 
 /* Clockdomain-to-clock/hwmod framework interface code */
 

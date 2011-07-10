@@ -83,6 +83,9 @@ struct clkdm_dep {
 	const struct omap_chip_id omap_chip;
 };
 
+/* Possible flags for struct clockdomain._flags */
+#define _CLKDM_FLAG_HWSUP_ENABLED		BIT(0)
+
 /**
  * struct clockdomain - OMAP clockdomain
  * @name: clockdomain name
@@ -90,6 +93,7 @@ struct clkdm_dep {
  * @clktrctrl_reg: CLKSTCTRL reg for the given clock domain
  * @clktrctrl_mask: CLKTRCTRL/AUTOSTATE field mask in CM_CLKSTCTRL reg
  * @flags: Clockdomain capability flags
+ * @_flags: Flags for use only by internal clockdomain code
  * @dep_bit: Bit shift of this clockdomain's PM_WKDEP/CM_SLEEPDEP bit
  * @prcm_partition: (OMAP4 only) PRCM partition ID for this clkdm's registers
  * @cm_inst: (OMAP4 only) CM instance register offset
@@ -114,6 +118,7 @@ struct clockdomain {
 	} pwrdm;
 	const u16 clktrctrl_mask;
 	const u8 flags;
+	u8 _flags;
 	const u8 dep_bit;
 	const u8 prcm_partition;
 	const s16 cm_inst;
@@ -178,6 +183,7 @@ int clkdm_clear_all_sleepdeps(struct clockdomain *clkdm);
 
 void clkdm_allow_idle(struct clockdomain *clkdm);
 void clkdm_deny_idle(struct clockdomain *clkdm);
+bool clkdm_in_hwsup(struct clockdomain *clkdm);
 
 int clkdm_wakeup(struct clockdomain *clkdm);
 int clkdm_sleep(struct clockdomain *clkdm);
