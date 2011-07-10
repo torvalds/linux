@@ -1806,57 +1806,59 @@ static int SetOperationMode(struct drxk_state *state,
 	if (status < 0)
 		goto error;
 
-	if (state->m_OperationMode != oMode) {
-		switch (state->m_OperationMode) {
-			/* OM_NONE was added for start up */
-		case OM_NONE:
-			break;
-		case OM_DVBT:
-			status = MPEGTSStop(state);
-			if (status < 0)
-				goto error;
-			status = PowerDownDVBT(state, true);
-			if (status < 0)
-				goto error;
-			state->m_OperationMode = OM_NONE;
-			break;
-		case OM_QAM_ITU_A:	/* fallthrough */
-		case OM_QAM_ITU_C:
-			status = MPEGTSStop(state);
-			if (status < 0)
-				goto error;
-			status = PowerDownQAM(state);
-			if (status < 0)
-				goto error;
-			state->m_OperationMode = OM_NONE;
-			break;
-		case OM_QAM_ITU_B:
-		default:
-			status = -EINVAL;
-			goto error;
-		}
+	/* Device is already at the required mode */
+	if (state->m_OperationMode == oMode)
+		return 0;
 
-		/*
-			Power up new standard
-			*/
-		switch (oMode) {
-		case OM_DVBT:
-			state->m_OperationMode = oMode;
-			status = SetDVBTStandard(state, oMode);
-			if (status < 0)
-				goto error;
-			break;
-		case OM_QAM_ITU_A:	/* fallthrough */
-		case OM_QAM_ITU_C:
-			state->m_OperationMode = oMode;
-			status = SetQAMStandard(state, oMode);
-			if (status < 0)
-				goto error;
-			break;
-		case OM_QAM_ITU_B:
-		default:
-			status = -EINVAL;
-		}
+	switch (state->m_OperationMode) {
+		/* OM_NONE was added for start up */
+	case OM_NONE:
+		break;
+	case OM_DVBT:
+		status = MPEGTSStop(state);
+		if (status < 0)
+			goto error;
+		status = PowerDownDVBT(state, true);
+		if (status < 0)
+			goto error;
+		state->m_OperationMode = OM_NONE;
+		break;
+	case OM_QAM_ITU_A:	/* fallthrough */
+	case OM_QAM_ITU_C:
+		status = MPEGTSStop(state);
+		if (status < 0)
+			goto error;
+		status = PowerDownQAM(state);
+		if (status < 0)
+			goto error;
+		state->m_OperationMode = OM_NONE;
+		break;
+	case OM_QAM_ITU_B:
+	default:
+		status = -EINVAL;
+		goto error;
+	}
+
+	/*
+		Power up new standard
+		*/
+	switch (oMode) {
+	case OM_DVBT:
+		state->m_OperationMode = oMode;
+		status = SetDVBTStandard(state, oMode);
+		if (status < 0)
+			goto error;
+		break;
+	case OM_QAM_ITU_A:	/* fallthrough */
+	case OM_QAM_ITU_C:
+		state->m_OperationMode = oMode;
+		status = SetQAMStandard(state, oMode);
+		if (status < 0)
+			goto error;
+		break;
+	case OM_QAM_ITU_B:
+	default:
+		status = -EINVAL;
 	}
 error:
 	if (status < 0)
@@ -3086,35 +3088,28 @@ static int InitAGC(struct drxk_state *state, bool isDTV)
 	clpCyclen = 500;
 	clpSumMax = 1023;
 
-	if (IsQAM(state)) {
-		/* Standard specific settings */
-		clpSumMin = 8;
-		clpDirTo = (u16) -9;
-		clpCtrlMode = 0;
-		snsSumMin = 8;
-		snsDirTo = (u16) -9;
-		kiInnergainMin = (u16) -1030;
-	} else {
-		status = -EINVAL;
-		goto error;
+	/* AGCInit() not available for DVBT; init done in microcode */
+	if (!IsQAM(state)) {
+		printk(KERN_ERR "drxk: %s: mode %d is not DVB-C\n", __func__, state->m_OperationMode);
+		return -EINVAL;
 	}
-	if (IsQAM(state)) {
-		ifIaccuHiTgtMax = 0x2380;
-		ifIaccuHiTgt = 0x2380;
-		ingainTgtMin = 0x0511;
-		ingainTgt = 0x0511;
-		ingainTgtMax = 5119;
-		fastClpCtrlDelay =
-			state->m_qamIfAgcCfg.FastClipCtrlDelay;
-	} else {
-		ifIaccuHiTgtMax = 0x1200;
-		ifIaccuHiTgt = 0x1200;
-		ingainTgtMin = 13424;
-		ingainTgt = 13424;
-		ingainTgtMax = 30000;
-		fastClpCtrlDelay =
-			state->m_dvbtIfAgcCfg.FastClipCtrlDelay;
-	}
+
+	/* FIXME: Analog TV AGC require different settings */
+
+	/* Standard specific settings */
+	clpSumMin = 8;
+	clpDirTo = (u16) -9;
+	clpCtrlMode = 0;
+	snsSumMin = 8;
+	snsDirTo = (u16) -9;
+	kiInnergainMin = (u16) -1030;
+	ifIaccuHiTgtMax = 0x2380;
+	ifIaccuHiTgt = 0x2380;
+	ingainTgtMin = 0x0511;
+	ingainTgt = 0x0511;
+	ingainTgtMax = 5119;
+	fastClpCtrlDelay = state->m_qamIfAgcCfg.FastClipCtrlDelay;
+
 	status = write16(state, SCU_RAM_AGC_FAST_CLP_CTRL_DELAY__A, fastClpCtrlDelay);
 	if (status < 0)
 		goto error;
@@ -3238,13 +3233,13 @@ static int InitAGC(struct drxk_state *state, bool isDTV)
 	status = read16(state, SCU_RAM_AGC_KI__A, &data);
 	if (status < 0)
 		goto error;
-	if (IsQAM(state)) {
-		data = 0x0657;
-		data &= ~SCU_RAM_AGC_KI_RF__M;
-		data |= (DRXK_KI_RAGC_QAM << SCU_RAM_AGC_KI_RF__B);
-		data &= ~SCU_RAM_AGC_KI_IF__M;
-		data |= (DRXK_KI_IAGC_QAM << SCU_RAM_AGC_KI_IF__B);
-	}
+
+	data = 0x0657;
+	data &= ~SCU_RAM_AGC_KI_RF__M;
+	data |= (DRXK_KI_RAGC_QAM << SCU_RAM_AGC_KI_RF__B);
+	data &= ~SCU_RAM_AGC_KI_IF__M;
+	data |= (DRXK_KI_IAGC_QAM << SCU_RAM_AGC_KI_IF__B);
+
 	status = write16(state, SCU_RAM_AGC_KI__A, data);
 error:
 	if (status < 0)
@@ -5626,6 +5621,8 @@ static int SetQAMStandard(struct drxk_state *state,
 #include "drxk_filters.h"
 #undef DRXK_QAMA_TAPS_SELECT
 #endif
+
+	dprintk(1, "\n");
 
 	/* added antenna switch */
 	SwitchAntennaToQAM(state);
