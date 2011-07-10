@@ -119,6 +119,18 @@ static inline int trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
 	return priv->trans.ops->tx(priv, skb, tx_cmd, txq_id, fc, ampdu, ctx);
 }
 
+static inline int trans_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
+			  u16 ssn_idx, u8 tx_fifo)
+{
+	return priv->trans.ops->txq_agg_disable(priv, txq_id, ssn_idx, tx_fifo);
+}
+
+static inline void trans_txq_agg_setup(struct iwl_priv *priv, int sta_id,
+						int tid, int frame_limit)
+{
+	priv->trans.ops->txq_agg_setup(priv, sta_id, tid, frame_limit);
+}
+
 static inline void trans_kick_nic(struct iwl_priv *priv)
 {
 	priv->trans.ops->kick_nic(priv);
@@ -135,3 +147,8 @@ static inline void trans_free(struct iwl_priv *priv)
 }
 
 int iwl_trans_register(struct iwl_priv *priv);
+
+/*TODO: this functions should NOT be exported from trans module - export it
+ * until the reclaim flow will be brought to the transport module too */
+void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
+					  struct iwl_tx_queue *txq);

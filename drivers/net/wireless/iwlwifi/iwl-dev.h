@@ -1245,6 +1245,9 @@ struct iwl_trans;
  * @send_cmd_pdu:send a host command: flags can be CMD_*
  * @get_tx_cmd: returns a pointer to a new Tx cmd for the upper layer use
  * @tx: send an skb
+ * @txq_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
+ *                 ready and a successful ADDBA response has been received.
+ * @txq_agg_disable: de-configure a Tx queue to send AMPDUs
  * @kick_nic: remove the RESET from the embedded CPU and let it run
  * @sync_irq: the upper layer will typically disable interrupt and call this
  *            handler. After this handler returns, it is guaranteed that all
@@ -1271,6 +1274,11 @@ struct iwl_trans_ops {
 	int (*tx)(struct iwl_priv *priv, struct sk_buff *skb,
 		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
 		struct iwl_rxon_context *ctx);
+
+	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id,
+				  u16 ssn_idx, u8 tx_fifo);
+	void (*txq_agg_setup)(struct iwl_priv *priv, int sta_id, int tid,
+						int frame_limit);
 
 	void (*kick_nic)(struct iwl_priv *priv);
 

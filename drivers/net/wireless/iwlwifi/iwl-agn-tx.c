@@ -96,132 +96,8 @@ static inline int get_fifo_from_tid(struct iwl_rxon_context *ctx, u16 tid)
 	return -EINVAL;
 }
 
-/**
- * iwlagn_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
- */
-void iwlagn_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
-					   struct iwl_tx_queue *txq,
-					   u16 byte_cnt)
-{
-	struct iwlagn_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
-	int write_ptr = txq->q.write_ptr;
-	int txq_id = txq->q.id;
-	u8 sec_ctl = 0;
-	u8 sta_id = 0;
-	u16 len = byte_cnt + IWL_TX_CRC_SIZE + IWL_TX_DELIMITER_SIZE;
-	__le16 bc_ent;
-
-	WARN_ON(len > 0xFFF || write_ptr >= TFD_QUEUE_SIZE_MAX);
-
-	sta_id = txq->cmd[txq->q.write_ptr]->cmd.tx.sta_id;
-	sec_ctl = txq->cmd[txq->q.write_ptr]->cmd.tx.sec_ctl;
-
-	switch (sec_ctl & TX_CMD_SEC_MSK) {
-	case TX_CMD_SEC_CCM:
-		len += CCMP_MIC_LEN;
-		break;
-	case TX_CMD_SEC_TKIP:
-		len += TKIP_ICV_LEN;
-		break;
-	case TX_CMD_SEC_WEP:
-		len += WEP_IV_LEN + WEP_ICV_LEN;
-		break;
-	}
-
-	bc_ent = cpu_to_le16((len & 0xFFF) | (sta_id << 12));
-
-	scd_bc_tbl[txq_id].tfd_offset[write_ptr] = bc_ent;
-
-	if (write_ptr < TFD_QUEUE_SIZE_BC_DUP)
-		scd_bc_tbl[txq_id].
-			tfd_offset[TFD_QUEUE_SIZE_MAX + write_ptr] = bc_ent;
-}
-
-static void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
-					  struct iwl_tx_queue *txq)
-{
-	struct iwlagn_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
-	int txq_id = txq->q.id;
-	int read_ptr = txq->q.read_ptr;
-	u8 sta_id = 0;
-	__le16 bc_ent;
-
-	WARN_ON(read_ptr >= TFD_QUEUE_SIZE_MAX);
-
-	if (txq_id != priv->cmd_queue)
-		sta_id = txq->cmd[read_ptr]->cmd.tx.sta_id;
-
-	bc_ent = cpu_to_le16(1 | (sta_id << 12));
-	scd_bc_tbl[txq_id].tfd_offset[read_ptr] = bc_ent;
-
-	if (read_ptr < TFD_QUEUE_SIZE_BC_DUP)
-		scd_bc_tbl[txq_id].
-			tfd_offset[TFD_QUEUE_SIZE_MAX + read_ptr] = bc_ent;
-}
-
-static int iwlagn_tx_queue_set_q2ratid(struct iwl_priv *priv, u16 ra_tid,
-					u16 txq_id)
-{
-	u32 tbl_dw_addr;
-	u32 tbl_dw;
-	u16 scd_q2ratid;
-
-	scd_q2ratid = ra_tid & SCD_QUEUE_RA_TID_MAP_RATID_MSK;
-
-	tbl_dw_addr = priv->scd_base_addr +
-			SCD_TRANS_TBL_OFFSET_QUEUE(txq_id);
-
-	tbl_dw = iwl_read_targ_mem(priv, tbl_dw_addr);
-
-	if (txq_id & 0x1)
-		tbl_dw = (scd_q2ratid << 16) | (tbl_dw & 0x0000FFFF);
-	else
-		tbl_dw = scd_q2ratid | (tbl_dw & 0xFFFF0000);
-
-	iwl_write_targ_mem(priv, tbl_dw_addr, tbl_dw);
-
-	return 0;
-}
-
-static void iwlagn_tx_queue_stop_scheduler(struct iwl_priv *priv, u16 txq_id)
-{
-	/* Simply stop the queue, but don't change any configuration;
-	 * the SCD_ACT_EN bit is the write-enable mask for the ACTIVE bit. */
-	iwl_write_prph(priv,
-		SCD_QUEUE_STATUS_BITS(txq_id),
-		(0 << SCD_QUEUE_STTS_REG_POS_ACTIVE)|
-		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
-}
-
-void iwlagn_set_wr_ptrs(struct iwl_priv *priv,
-				int txq_id, u32 index)
-{
-	iwl_write_direct32(priv, HBUS_TARG_WRPTR,
-			(index & 0xff) | (txq_id << 8));
-	iwl_write_prph(priv, SCD_QUEUE_RDPTR(txq_id), index);
-}
-
-void iwlagn_tx_queue_set_status(struct iwl_priv *priv,
-					struct iwl_tx_queue *txq,
-					int tx_fifo_id, int scd_retry)
-{
-	int txq_id = txq->q.id;
-	int active = test_bit(txq_id, &priv->txq_ctx_active_msk) ? 1 : 0;
-
-	iwl_write_prph(priv, SCD_QUEUE_STATUS_BITS(txq_id),
-			(active << SCD_QUEUE_STTS_REG_POS_ACTIVE) |
-			(tx_fifo_id << SCD_QUEUE_STTS_REG_POS_TXF) |
-			(1 << SCD_QUEUE_STTS_REG_POS_WSL) |
-			SCD_QUEUE_STTS_REG_MSK);
-
-	txq->sched_retry = scd_retry;
-
-	IWL_DEBUG_INFO(priv, "%s %s Queue %d on FIFO %d\n",
-		       active ? "Activate" : "Deactivate",
-		       scd_retry ? "BA" : "AC/CMD", txq_id, tx_fifo_id);
-}
-
-static int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id, int sta_id, int tid)
+static int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id, int sta_id,
+				int tid)
 {
 	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWLAGN_FIRST_AMPDU_QUEUE +
@@ -236,99 +112,6 @@ static int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id, int sta_id, 
 
 	/* Modify device's station table to Tx this TID */
 	return iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
-}
-
-void iwlagn_txq_agg_queue_setup(struct iwl_priv *priv,
-				struct ieee80211_sta *sta,
-				int tid, int frame_limit)
-{
-	int sta_id, tx_fifo, txq_id, ssn_idx;
-	u16 ra_tid;
-	unsigned long flags;
-	struct iwl_tid_data *tid_data;
-
-	sta_id = iwl_sta_id(sta);
-	if (WARN_ON(sta_id == IWL_INVALID_STATION))
-		return;
-	if (WARN_ON(tid >= MAX_TID_COUNT))
-		return;
-
-	spin_lock_irqsave(&priv->sta_lock, flags);
-	tid_data = &priv->stations[sta_id].tid[tid];
-	ssn_idx = SEQ_TO_SN(tid_data->seq_number);
-	txq_id = tid_data->agg.txq_id;
-	tx_fifo = tid_data->agg.tx_fifo;
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
-
-	ra_tid = BUILD_RAxTID(sta_id, tid);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	/* Stop this Tx queue before configuring it */
-	iwlagn_tx_queue_stop_scheduler(priv, txq_id);
-
-	/* Map receiver-address / traffic-ID to this queue */
-	iwlagn_tx_queue_set_q2ratid(priv, ra_tid, txq_id);
-
-	/* Set this queue as a chain-building queue */
-	iwl_set_bits_prph(priv, SCD_QUEUECHAIN_SEL, (1<<txq_id));
-
-	/* enable aggregations for the queue */
-	iwl_set_bits_prph(priv, SCD_AGGR_SEL, (1<<txq_id));
-
-	/* Place first TFD at index corresponding to start sequence number.
-	 * Assumes that ssn_idx is valid (!= 0xFFF) */
-	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
-	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
-	iwlagn_set_wr_ptrs(priv, txq_id, ssn_idx);
-
-	/* Set up Tx window size and frame limit for this queue */
-	iwl_write_targ_mem(priv, priv->scd_base_addr +
-			SCD_CONTEXT_QUEUE_OFFSET(txq_id) +
-			sizeof(u32),
-			((frame_limit <<
-			SCD_QUEUE_CTX_REG2_WIN_SIZE_POS) &
-			SCD_QUEUE_CTX_REG2_WIN_SIZE_MSK) |
-			((frame_limit <<
-			SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS) &
-			SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK));
-
-	iwl_set_bits_prph(priv, SCD_INTERRUPT_MASK, (1 << txq_id));
-
-	/* Set up Status area in SRAM, map to Tx DMA/FIFO, activate the queue */
-	iwlagn_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-static int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
-				  u16 ssn_idx, u8 tx_fifo)
-{
-	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWLAGN_FIRST_AMPDU_QUEUE +
-		priv->cfg->base_params->num_of_ampdu_queues <= txq_id)) {
-		IWL_ERR(priv,
-			"queue number out of range: %d, must be %d to %d\n",
-			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
-			IWLAGN_FIRST_AMPDU_QUEUE +
-			priv->cfg->base_params->num_of_ampdu_queues - 1);
-		return -EINVAL;
-	}
-
-	iwlagn_tx_queue_stop_scheduler(priv, txq_id);
-
-	iwl_clear_bits_prph(priv, SCD_AGGR_SEL, (1 << txq_id));
-
-	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
-	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
-	/* supposes that ssn_idx is valid (!= 0xFFF) */
-	iwlagn_set_wr_ptrs(priv, txq_id, ssn_idx);
-
-	iwl_clear_bits_prph(priv, SCD_INTERRUPT_MASK, (1 << txq_id));
-	iwl_txq_ctx_deactivate(priv, txq_id);
-	iwlagn_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
-
-	return 0;
 }
 
 static void iwlagn_tx_cmd_protection(struct iwl_priv *priv,
@@ -850,7 +633,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	 * to deactivate the uCode queue, just return "success" to allow
 	 *  mac80211 to clean up it own data.
 	 */
-	iwlagn_txq_agg_disable(priv, txq_id, ssn, tx_fifo_id);
+	trans_txq_agg_disable(priv, txq_id, ssn, tx_fifo_id);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
@@ -879,7 +662,7 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
 			int tx_fifo = get_fifo_from_tid(ctx, tid);
 			IWL_DEBUG_HT(priv, "HW queue empty: continue DELBA flow\n");
-			iwlagn_txq_agg_disable(priv, txq_id, ssn, tx_fifo);
+			trans_txq_agg_disable(priv, txq_id, ssn, tx_fifo);
 			tid_data->agg.state = IWL_AGG_OFF;
 			ieee80211_stop_tx_ba_cb_irqsafe(ctx->vif, addr, tid);
 		}

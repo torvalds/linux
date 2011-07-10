@@ -686,7 +686,7 @@ static void iwl_trans_tx_start(struct iwl_priv *priv)
 	else
 		queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
 
-	iwlagn_set_wr_ptrs(priv, priv->cmd_queue, 0);
+	iwl_trans_set_wr_ptrs(priv, priv->cmd_queue, 0);
 
 	/* make sure all queue are not stopped */
 	memset(&priv->queue_stopped[0], 0, sizeof(priv->queue_stopped));
@@ -712,7 +712,7 @@ static void iwl_trans_tx_start(struct iwl_priv *priv)
 
 		if (ac != IWL_AC_UNSET)
 			iwl_set_swq_id(&priv->txq[i], ac, i);
-		iwlagn_tx_queue_set_status(priv, &priv->txq[i], fifo, 0);
+		iwl_trans_tx_queue_set_status(priv, &priv->txq[i], fifo, 0);
 	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -919,7 +919,7 @@ static int iwl_trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
 
 	/* Set up entry for this TFD in Tx byte-count array */
 	if (ampdu)
-		iwlagn_txq_update_byte_cnt_tbl(priv, txq,
+		iwl_trans_txq_update_byte_cnt_tbl(priv, txq,
 					       le16_to_cpu(tx_cmd->len));
 
 	dma_sync_single_for_device(priv->bus.dev, txcmd_phys, firstlen,
@@ -986,6 +986,10 @@ static const struct iwl_trans_ops trans_ops = {
 
 	.get_tx_cmd = iwl_trans_get_tx_cmd,
 	.tx = iwl_trans_tx,
+
+	.txq_agg_disable = iwl_trans_txq_agg_disable,
+	.txq_agg_setup = iwl_trans_txq_agg_setup,
+
 	.kick_nic = iwl_trans_kick_nic,
 
 	.sync_irq = iwl_trans_sync_irq,
