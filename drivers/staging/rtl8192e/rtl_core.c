@@ -312,36 +312,21 @@ u32 read_nic_io_dword(struct net_device *dev, int x)
 
 u8 read_nic_byte(struct net_device *dev, int x)
 {
-#ifdef CONFIG_RTL8192_IO_MAP
-	return read_nic_io_byte(dev, x);
-#else
         return 0xff&readb((u8*)dev->mem_start +x);
-#endif
 }
 
 u32 read_nic_dword(struct net_device *dev, int x)
 {
-#ifdef CONFIG_RTL8192_IO_MAP
-	return read_nic_io_dword(dev, x);
-#else
         return readl((u8*)dev->mem_start +x);
-#endif
 }
 
 u16 read_nic_word(struct net_device *dev, int x)
 {
-#ifdef CONFIG_RTL8192_IO_MAP
-	return read_nic_io_word(dev, x);
-#else
         return readw((u8*)dev->mem_start +x);
-#endif
 }
 
 void write_nic_byte(struct net_device *dev, int x,u8 y)
 {
-#ifdef CONFIG_RTL8192_IO_MAP
-	write_nic_io_byte(dev, x, y);
-#else
         writeb(y,(u8*)dev->mem_start +x);
 
 #if !(defined RTL8192SE || defined RTL8192CE)
@@ -351,15 +336,10 @@ void write_nic_byte(struct net_device *dev, int x,u8 y)
 #if defined RTL8192CE
 		read_nic_byte(dev, x);
 #endif
-
-#endif
 }
 
 void write_nic_dword(struct net_device *dev, int x,u32 y)
 {
-#ifdef CONFIG_RTL8192_IO_MAP
-	write_nic_io_dword(dev, x, y);
-#else
         writel(y,(u8*)dev->mem_start +x);
 
 #if !(defined RTL8192SE || defined RTL8192CE)
@@ -369,15 +349,10 @@ void write_nic_dword(struct net_device *dev, int x,u32 y)
 #if defined RTL8192CE
 		read_nic_dword(dev, x);
 #endif
-
-#endif
 }
 
 void write_nic_word(struct net_device *dev, int x,u16 y)
 {
-#ifdef CONFIG_RTL8192_IO_MAP
-	write_nic_io_word(dev, x, y);
-#else
         writew(y,(u8*)dev->mem_start +x);
 
 #if !(defined RTL8192SE || defined RTL8192CE)
@@ -386,8 +361,6 @@ void write_nic_word(struct net_device *dev, int x,u16 y)
 
 #if defined RTL8192CE
 		read_nic_word(dev, x);
-#endif
-
 #endif
 }
 
@@ -3475,12 +3448,7 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	struct net_device *dev = NULL;
 	struct r8192_priv *priv= NULL;
 	struct rtl819x_ops *ops = (struct rtl819x_ops *)(id->driver_data);
-
-#ifdef CONFIG_RTL8192_IO_MAP
-	unsigned long pio_start, pio_len, pio_flags;
-#else
 	unsigned long pmem_start, pmem_len, pmem_flags;
-#endif
 	int err = 0;
 	bool bdma64 = false;
 	u8 revision_id;
@@ -3533,25 +3501,6 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	else
 		priv->rtllib->bSupportRemoteWakeUp = 0;
 
-#ifdef CONFIG_RTL8192_IO_MAP
-	pio_start = (unsigned long)pci_resource_start (pdev, 0);
-	pio_len = (unsigned long)pci_resource_len (pdev, 0);
-	pio_flags = (unsigned long)pci_resource_flags (pdev, 0);
-
-	if (!(pio_flags & IORESOURCE_IO)) {
-		RT_TRACE(COMP_ERR,"region #0 not a PIO resource, aborting");
-		goto fail;
-	}
-
-	printk("Io mapped space start: 0x%08lx \n", pio_start );
-	if ( ! request_region( pio_start, pio_len, DRV_NAME ) ){
-		RT_TRACE(COMP_ERR,"request_region failed!");
-		goto fail;
-	}
-
-	ioaddr = pio_start;
-	dev->base_addr = ioaddr;
-#else
 #ifdef RTL8192CE
 	pmem_start = pci_resource_start(pdev, 2);
 	pmem_len = pci_resource_len(pdev, 2);
@@ -3583,7 +3532,6 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	dev->mem_start = ioaddr;
 	dev->mem_end = ioaddr + pci_resource_len(pdev, 0);
 
-#endif
 #if defined RTL8192SE || defined RTL8192CE
         pci_write_config_byte(pdev, 0x81,0);
         pci_write_config_byte(pdev,0x44,0);
@@ -3677,20 +3625,11 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 fail1:
-#ifdef CONFIG_RTL8192_IO_MAP
-
-	if ( dev->base_addr != 0 ){
-
-		release_region(dev->base_addr,
-	       pci_resource_len(pdev, 0) );
-	}
-#else
 	if ( dev->mem_start != (unsigned long)NULL ){
 		iounmap( (void *)dev->mem_start );
 		release_mem_region( pci_resource_start(pdev, 1),
 				    pci_resource_len(pdev, 1) );
 	}
-#endif
 
 fail:
 	if (dev){
@@ -3754,24 +3693,6 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 			priv->irq=0;
 
 		}
-#ifdef CONFIG_RTL8192_IO_MAP
-		if ( dev->base_addr != 0 ){
-
-			release_region(dev->base_addr,
-				       pci_resource_len(pdev, 0) );
-		}
-#else
-		if ( dev->mem_start != (unsigned long)NULL ){
-			iounmap( (void *)dev->mem_start );
-#ifdef RTL8192CE
-			release_mem_region( pci_resource_start(pdev, 2),
-				    pci_resource_len(pdev, 2) );
-#else
-			release_mem_region( pci_resource_start(pdev, 1),
-					    pci_resource_len(pdev, 1) );
-#endif
-		}
-#endif /*end #ifdef RTL_IO_MAP*/
 		free_rtllib(dev);
 
 		if (priv->scan_cmd)
