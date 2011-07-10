@@ -146,7 +146,7 @@
 #include <plat/prcm.h>
 
 #include "cm2xxx_3xxx.h"
-#include "cm44xx.h"
+#include "cminst44xx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
 #include "mux.h"
@@ -1060,7 +1060,7 @@ static int _init_clocks(struct omap_hwmod *oh, void *data)
  * Wait for a module @oh to leave slave idle.  Returns 0 if the module
  * does not have an IDLEST bit or if the module successfully leaves
  * slave idle; otherwise, pass along the return value of the
- * appropriate *_cm_wait_module_ready() function.
+ * appropriate *_cm*_wait_module_ready() function.
  */
 static int _wait_target_ready(struct omap_hwmod *oh)
 {
@@ -1087,7 +1087,13 @@ static int _wait_target_ready(struct omap_hwmod *oh)
 						 oh->prcm.omap2.idlest_reg_id,
 						 oh->prcm.omap2.idlest_idle_bit);
 	} else if (cpu_is_omap44xx()) {
-		ret = omap4_cm_wait_module_ready(oh->prcm.omap4.clkctrl_reg);
+		if (!oh->clkdm)
+			return -EINVAL;
+
+		ret = omap4_cminst_wait_module_ready(oh->clkdm->prcm_partition,
+						     oh->clkdm->cm_inst,
+						     oh->clkdm->clkdm_offs,
+						     oh->prcm.omap4.clkctrl_offs);
 	} else {
 		BUG();
 	};

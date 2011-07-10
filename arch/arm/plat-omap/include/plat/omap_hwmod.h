@@ -360,7 +360,7 @@ struct omap_hwmod_omap2_prcm {
  * @submodule_wkdep_bit: bit shift of the WKDEP range
  */
 struct omap_hwmod_omap4_prcm {
-	void __iomem	*clkctrl_reg;
+	u16		clkctrl_offs;
 	void __iomem	*rstctrl_reg;
 	u8		submodule_wkdep_bit;
 };
