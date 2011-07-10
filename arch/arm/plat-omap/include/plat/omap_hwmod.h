@@ -363,6 +363,7 @@ struct omap_hwmod_omap2_prcm {
 struct omap_hwmod_omap4_prcm {
 	u16		clkctrl_offs;
 	u16		rstctrl_offs;
+	u16		context_offs;
 	u8		submodule_wkdep_bit;
 };
 
