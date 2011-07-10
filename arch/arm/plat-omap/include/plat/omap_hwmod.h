@@ -80,6 +80,11 @@ extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2;
 #define HWMOD_IDLEMODE_SMART		(1 << 2)
 #define HWMOD_IDLEMODE_SMART_WKUP	(1 << 3)
 
+/* modulemode control type (SW or HW) */
+#define MODULEMODE_HWCTRL		1
+#define MODULEMODE_SWCTRL		2
+
+
 /**
  * struct omap_hwmod_mux_info - hwmod specific mux configuration
  * @pads:              array of omap_device_pad entries
@@ -365,6 +370,7 @@ struct omap_hwmod_omap4_prcm {
 	u16		rstctrl_offs;
 	u16		context_offs;
 	u8		submodule_wkdep_bit;
+	u8		modulemode;
 };
 
 
