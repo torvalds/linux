@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
+#include <linux/notifier.h>
 #include <linux/power_supply.h>
 #include <linux/pda_power.h>
 #include <linux/regulator/consumer.h>
@@ -38,9 +39,8 @@ static struct timer_list supply_timer;
 static struct timer_list polling_timer;
 static int polling;
 
-#ifdef CONFIG_USB_OTG_UTILS
 static struct otg_transceiver *transceiver;
-#endif
+static struct notifier_block otg_nb;
 static struct regulator *ac_draw;
 
 enum {
@@ -222,7 +222,42 @@ static void polling_timer_func(unsigned long unused)
 #ifdef CONFIG_USB_OTG_UTILS
 static int otg_is_usb_online(void)
 {
-	return (transceiver->state == OTG_STATE_B_PERIPHERAL);
+	return (transceiver->last_event == USB_EVENT_VBUS ||
+		transceiver->last_event == USB_EVENT_ENUMERATED);
+}
+
+static int otg_is_ac_online(void)
+{
+	return (transceiver->last_event == USB_EVENT_CHARGER);
+}
+
+static int otg_handle_notification(struct notifier_block *nb,
+		unsigned long event, void *unused)
+{
+	switch (event) {
+	case USB_EVENT_CHARGER:
+		ac_status = PDA_PSY_TO_CHANGE;
+		break;
+	case USB_EVENT_VBUS:
+	case USB_EVENT_ENUMERATED:
+		usb_status = PDA_PSY_TO_CHANGE;
+		break;
+	case USB_EVENT_NONE:
+		ac_status = PDA_PSY_TO_CHANGE;
+		usb_status = PDA_PSY_TO_CHANGE;
+		break;
+	default:
+		return NOTIFY_OK;
+	}
+
+	/*
+	 * Wait a bit before reading ac/usb line status and setting charger,
+	 * because ac/usb status readings may lag from irq.
+	 */
+	mod_timer(&charger_timer,
+		  jiffies + msecs_to_jiffies(pdata->wait_for_status));
+
+	return NOTIFY_OK;
 }
 #endif
 
@@ -282,6 +317,14 @@ static int pda_power_probe(struct platform_device *pdev)
 		ret = PTR_ERR(ac_draw);
 	}
 
+	transceiver = otg_get_transceiver();
+	if (transceiver && !pdata->is_usb_online) {
+		pdata->is_usb_online = otg_is_usb_online;
+	}
+	if (transceiver && !pdata->is_ac_online) {
+		pdata->is_ac_online = otg_is_ac_online;
+	}
+
 	if (pdata->is_ac_online) {
 		ret = power_supply_register(&pdev->dev, &pda_psy_ac);
 		if (ret) {
@@ -302,13 +345,6 @@ static int pda_power_probe(struct platform_device *pdev)
 			polling = 1;
 		}
 	}
-
-#ifdef CONFIG_USB_OTG_UTILS
-	transceiver = otg_get_transceiver();
-	if (transceiver && !pdata->is_usb_online) {
-		pdata->is_usb_online = otg_is_usb_online;
-	}
-#endif
 
 	if (pdata->is_usb_online) {
 		ret = power_supply_register(&pdev->dev, &pda_psy_usb);
@@ -331,6 +367,16 @@ static int pda_power_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (transceiver && pdata->use_otg_notifier) {
+		otg_nb.notifier_call = otg_handle_notification;
+		ret = otg_register_notifier(transceiver, &otg_nb);
+		if (ret) {
+			dev_err(dev, "failure to register otg notifier\n");
+			goto otg_reg_notifier_failed;
+		}
+		polling = 0;
+	}
+
 	if (polling) {
 		dev_dbg(dev, "will poll for status\n");
 		setup_timer(&polling_timer, polling_timer_func, 0);
@@ -343,16 +389,17 @@ static int pda_power_probe(struct platform_device *pdev)
 
 	return 0;
 
+otg_reg_notifier_failed:
+	if (pdata->is_usb_online && usb_irq)
+		free_irq(usb_irq->start, &pda_psy_usb);
 usb_irq_failed:
 	if (pdata->is_usb_online)
 		power_supply_unregister(&pda_psy_usb);
 usb_supply_failed:
 	if (pdata->is_ac_online && ac_irq)
 		free_irq(ac_irq->start, &pda_psy_ac);
-#ifdef CONFIG_USB_OTG_UTILS
 	if (transceiver)
 		otg_put_transceiver(transceiver);
-#endif
 ac_irq_failed:
 	if (pdata->is_ac_online)
 		power_supply_unregister(&pda_psy_ac);
