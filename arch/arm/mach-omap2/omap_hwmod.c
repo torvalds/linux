@@ -680,6 +680,56 @@ static void _disable_optional_clocks(struct omap_hwmod *oh)
 }
 
 /**
+ * _enable_module - enable CLKCTRL modulemode on OMAP4
+ * @oh: struct omap_hwmod *
+ *
+ * Enables the PRCM module mode related to the hwmod @oh.
+ * No return value.
+ */
+static void _enable_module(struct omap_hwmod *oh)
+{
+	/* The module mode does not exist prior OMAP4 */
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		return;
+
+	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
+		return;
+
+	pr_debug("omap_hwmod: %s: _enable_module: %d\n",
+		 oh->name, oh->prcm.omap4.modulemode);
+
+	omap4_cminst_module_enable(oh->prcm.omap4.modulemode,
+				   oh->clkdm->prcm_partition,
+				   oh->clkdm->cm_inst,
+				   oh->clkdm->clkdm_offs,
+				   oh->prcm.omap4.clkctrl_offs);
+}
+
+/**
+ * _disable_module - enable CLKCTRL modulemode on OMAP4
+ * @oh: struct omap_hwmod *
+ *
+ * Disable the PRCM module mode related to the hwmod @oh.
+ * No return value.
+ */
+static void _disable_module(struct omap_hwmod *oh)
+{
+	/* The module mode does not exist prior OMAP4 */
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		return;
+
+	if (!oh->clkdm || !oh->prcm.omap4.modulemode)
+		return;
+
+	pr_debug("omap_hwmod: %s: _disable_module\n", oh->name);
+
+	omap4_cminst_module_disable(oh->clkdm->prcm_partition,
+				    oh->clkdm->cm_inst,
+				    oh->clkdm->clkdm_offs,
+				    oh->prcm.omap4.clkctrl_offs);
+}
+
+/**
  * _count_mpu_irqs - count the number of MPU IRQ lines associated with @oh
  * @oh: struct omap_hwmod *oh
  *
@@ -1424,6 +1474,7 @@ static int _enable(struct omap_hwmod *oh)
 
 		return r;
 	}
+	_enable_module(oh);
 
 	oh->_state = _HWMOD_STATE_ENABLED;
 
@@ -1460,11 +1511,18 @@ static int _idle(struct omap_hwmod *oh)
 	if (oh->class->sysc)
 		_idle_sysc(oh);
 	_del_initiator_dep(oh, mpu_oh);
-	_disable_clocks(oh);
+	_disable_module(oh);
 	ret = _wait_target_disable(oh);
 	if (ret)
 		pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
 			oh->name);
+	/*
+	 * The module must be in idle mode before disabling any parents
+	 * clocks. Otherwise, the parent clock might be disabled before
+	 * the module transition is done, and thus will prevent the
+	 * transition to complete properly.
+	 */
+	_disable_clocks(oh);
 
 	/* Mux pins for device idle if populated */
 	if (oh->mux && oh->mux->pads_dynamic)
@@ -1556,11 +1614,12 @@ static int _shutdown(struct omap_hwmod *oh)
 	if (oh->_state == _HWMOD_STATE_ENABLED) {
 		_del_initiator_dep(oh, mpu_oh);
 		/* XXX what about the other system initiators here? dma, dsp */
-		_disable_clocks(oh);
+		_disable_module(oh);
 		ret = _wait_target_disable(oh);
 		if (ret)
 			pr_warn("omap_hwmod: %s: _wait_target_disable failed\n",
 				oh->name);
+		_disable_clocks(oh);
 	}
 	/* XXX Should this code also force-disable the optional clocks? */
 
