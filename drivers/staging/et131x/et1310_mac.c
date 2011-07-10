@@ -99,10 +99,10 @@
 #define COUNTER_MASK_12_BIT (COUNTER_WRAP_12_BIT - 1)
 
 /**
- * config_mac_regs1 - Initialize the first part of MAC regs
+ * et1310_config_mac_regs1 - Initialize the first part of MAC regs
  * @etdev: pointer to our adapter structure
  */
-void config_mac_regs1(struct et131x_adapter *etdev)
+void et1310_config_mac_regs1(struct et131x_adapter *etdev)
 {
 	struct mac_regs __iomem *macregs = &etdev->regs->mac;
 	u32 station1;
@@ -159,10 +159,10 @@ void config_mac_regs1(struct et131x_adapter *etdev)
 }
 
 /**
- * config_mac_regs2 - Initialize the second part of MAC regs
+ * et1310_config_mac_regs2 - Initialize the second part of MAC regs
  * @etdev: pointer to our adapter structure
  */
-void config_mac_regs2(struct et131x_adapter *etdev)
+void et1310_config_mac_regs2(struct et131x_adapter *etdev)
 {
 	int32_t delay = 0;
 	struct mac_regs __iomem *mac = &etdev->regs->mac;
@@ -235,7 +235,7 @@ void config_mac_regs2(struct et131x_adapter *etdev)
 	}
 }
 
-void config_rxmac_regs(struct et131x_adapter *etdev)
+void et1310_config_rxmac_regs(struct et131x_adapter *etdev)
 {
 	struct rxmac_regs __iomem *rxmac = &etdev->regs->rxmac;
 	u32 sa_lo;
@@ -295,7 +295,7 @@ void config_rxmac_regs(struct et131x_adapter *etdev)
 
 	/* Let's initialize the Unicast Packet filtering address */
 	if (etdev->PacketFilter & ET131X_PACKET_TYPE_DIRECTED) {
-		setup_device_for_unicast(etdev);
+		et1310_setup_device_for_unicast(etdev);
 		pf_ctrl |= 4;	/* Unicast filter */
 	} else {
 		writel(0, &rxmac->uni_pf_addr1);
@@ -306,7 +306,7 @@ void config_rxmac_regs(struct et131x_adapter *etdev)
 	/* Let's initialize the Multicast hash */
 	if (!(etdev->PacketFilter & ET131X_PACKET_TYPE_ALL_MULTICAST)) {
 		pf_ctrl |= 2;	/* Multicast filter */
-		setup_device_for_multicast(etdev);
+		et1310_setup_device_for_multicast(etdev);
 	}
 
 	/* Runt packet filtering.  Didn't work in version A silicon. */
@@ -365,7 +365,7 @@ void config_rxmac_regs(struct et131x_adapter *etdev)
 	writel(0x9, &rxmac->ctrl);
 }
 
-void config_txmac_regs(struct et131x_adapter *etdev)
+void et1310_config_txmac_regs(struct et131x_adapter *etdev)
 {
 	struct txmac_regs *txmac = &etdev->regs->txmac;
 
@@ -379,7 +379,7 @@ void config_txmac_regs(struct et131x_adapter *etdev)
 		writel(0x40, &txmac->cf_param);
 }
 
-void config_macstat_regs(struct et131x_adapter *etdev)
+void et1310_config_macstat_regs(struct et131x_adapter *etdev)
 {
 	struct macstat_regs __iomem *macstat =
 		&etdev->regs->macstat;
@@ -444,7 +444,7 @@ void config_macstat_regs(struct et131x_adapter *etdev)
 	writel(0xFFFE7E8B, &macstat->carry_reg2_mask);
 }
 
-void config_flow_control(struct et131x_adapter *etdev)
+void et1310_config_flow_control(struct et131x_adapter *etdev)
 {
 	if (etdev->duplex_mode == 0) {
 		etdev->flowcontrol = FLOW_NONE;
@@ -480,10 +480,10 @@ void config_flow_control(struct et131x_adapter *etdev)
 }
 
 /**
- * update_macstat_host_counters - Update the local copy of the statistics
+ * et1310_update_macstat_host_counters - Update the local copy of the statistics
  * @etdev: pointer to the adapter structure
  */
-void update_macstat_host_counters(struct et131x_adapter *etdev)
+void et1310_update_macstat_host_counters(struct et131x_adapter *etdev)
 {
 	struct ce_stats *stats = &etdev->stats;
 	struct macstat_regs __iomem *macstat =
@@ -508,14 +508,14 @@ void update_macstat_host_counters(struct et131x_adapter *etdev)
 }
 
 /**
- * handle_macstat_interrupt
+ * et1310_handle_macstat_interrupt
  * @etdev: pointer to the adapter structure
  *
  * One of the MACSTAT counters has wrapped.  Update the local copy of
  * the statistics held in the adapter structure, checking the "wrap"
  * bit for each counter.
  */
-void handle_macstat_interrupt(struct et131x_adapter *etdev)
+void et1310_handle_macstat_interrupt(struct et131x_adapter *etdev)
 {
 	u32 carry_reg1;
 	u32 carry_reg2;
@@ -565,7 +565,7 @@ void handle_macstat_interrupt(struct et131x_adapter *etdev)
 		etdev->stats.collisions           += COUNTER_WRAP_12_BIT;
 }
 
-void setup_device_for_multicast(struct et131x_adapter *etdev)
+void et1310_setup_device_for_multicast(struct et131x_adapter *etdev)
 {
 	struct rxmac_regs __iomem *rxmac = &etdev->regs->rxmac;
 	uint32_t nIndex;
@@ -613,7 +613,7 @@ void setup_device_for_multicast(struct et131x_adapter *etdev)
 	}
 }
 
-void setup_device_for_unicast(struct et131x_adapter *etdev)
+void et1310_setup_device_for_unicast(struct et131x_adapter *etdev)
 {
 	struct rxmac_regs __iomem *rxmac = &etdev->regs->rxmac;
 	u32 uni_pf1;

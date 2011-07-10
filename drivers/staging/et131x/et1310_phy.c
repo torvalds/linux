@@ -846,7 +846,7 @@ void et131x_mii_check(struct et131x_adapter *etdev,
 				et131x_mii_write(etdev, 0x12, register18);
 			}
 
-			config_flow_control(etdev);
+			et1310_config_flow_control(etdev);
 
 			if (etdev->linkspeed == TRUEPHY_SPEED_1000MBPS &&
 					etdev->RegistryJumboPacket > 2048)
@@ -854,7 +854,7 @@ void et131x_mii_check(struct et131x_adapter *etdev,
 								   0x2000);
 
 			et131x_set_rx_dma_timer(etdev);
-			config_mac_regs2(etdev);
+			et1310_config_mac_regs2(etdev);
 		}
 	}
 }

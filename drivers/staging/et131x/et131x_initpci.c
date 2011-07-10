@@ -269,7 +269,7 @@ void et131x_error_timer_handler(unsigned long data)
 	pm_csr = readl(&etdev->regs->global.pm_csr);
 
 	if ((pm_csr & ET_PM_PHY_SW_COMA) == 0)
-		update_macstat_host_counters(etdev);
+		et1310_update_macstat_host_counters(etdev);
 	else
 		dev_err(&etdev->pdev->dev,
 		    "No interrupts, in PHY coma, pm_csr = 0x%x\n", pm_csr);
@@ -380,19 +380,19 @@ int et131x_adapter_setup(struct et131x_adapter *etdev)
 	/* Configure the JAGCore */
 	ConfigGlobalRegs(etdev);
 
-	config_mac_regs1(etdev);
+	et1310_config_mac_regs1(etdev);
 
 	/* Configure the MMC registers */
 	/* All we need to do is initialize the Memory Control Register */
 	writel(ET_MMC_ENABLE, &etdev->regs->mmc.mmc_ctrl);
 
-	config_rxmac_regs(etdev);
-	config_txmac_regs(etdev);
+	et1310_config_rxmac_regs(etdev);
+	et1310_config_txmac_regs(etdev);
 
 	et131x_config_rx_dma_regs(etdev);
 	ConfigTxDmaRegs(etdev);
 
-	config_macstat_regs(etdev);
+	et1310_config_macstat_regs(etdev);
 
 	/* Move the following code to Timer function?? */
 	status = et131x_xcvr_find(etdev);
