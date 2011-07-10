@@ -5389,7 +5389,7 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 {
 	int status;
 	u8 parameterLen;
-	u16 setEnvParameters[5];
+	u16 setEnvParameters[5] = { 0, 0, 0, 0, 0 };
 	u16 setParamParameters[4] = { 0, 0, 0, 0 };
 	u16 cmdResult;
 
@@ -5456,9 +5456,25 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 	setParamParameters[1] = DRXK_QAM_I12_J17;	/* interleave mode   */
 
 	status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM, 4, setParamParameters, 1, &cmdResult);
+	if (status < 0) {
+		/* Fall-back to the simpler call */
+		setParamParameters[0] = QAM_TOP_ANNEX_A;
+		if (state->m_OperationMode == OM_QAM_ITU_C)
+			setEnvParameters[0] = QAM_TOP_ANNEX_C;	/* Annex */
+		else
+			setEnvParameters[0] = 0;
+
+		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_ENV, 1, setEnvParameters, 1, &cmdResult);
 	if (status < 0)
 		goto error;
 
+		setParamParameters[0] = state->m_Constellation; /* constellation     */
+		setParamParameters[1] = DRXK_QAM_I12_J17;       /* interleave mode   */
+
+		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM, 2, setParamParameters, 1, &cmdResult);
+	}
+	if (status < 0)
+		goto error;
 
 	/* STEP 3: enable the system in a mode where the ADC provides valid signal
 		setup constellation independent registers */
