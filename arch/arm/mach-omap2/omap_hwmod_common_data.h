@@ -49,6 +49,35 @@ extern struct omap_hwmod_addr_space omap2_dma_system_addrs[];
 extern struct omap_hwmod_addr_space omap2_mailbox_addrs[];
 extern struct omap_hwmod_addr_space omap2_mcbsp1_addrs[];
 
+/* Common IP block data across OMAP2xxx */
+extern struct omap_hwmod_irq_info omap2xxx_timer12_mpu_irqs[];
+
+/* Common IP block data across OMAP2/3 */
+extern struct omap_hwmod_irq_info omap2_timer1_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_timer2_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_timer3_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_timer4_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_timer5_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_timer6_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_timer7_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_timer8_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_timer9_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_timer10_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_timer11_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_uart1_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_uart2_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_uart3_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_dispc_irqs[];
+extern struct omap_hwmod_irq_info omap2_i2c1_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_i2c2_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_gpio1_irqs[];
+extern struct omap_hwmod_irq_info omap2_gpio2_irqs[];
+extern struct omap_hwmod_irq_info omap2_gpio3_irqs[];
+extern struct omap_hwmod_irq_info omap2_gpio4_irqs[];
+extern struct omap_hwmod_irq_info omap2_dma_system_irqs[];
+extern struct omap_hwmod_irq_info omap2_mcspi1_mpu_irqs[];
+extern struct omap_hwmod_irq_info omap2_mcspi2_mpu_irqs[];
+
 /* OMAP hwmod classes - forward declarations */
 extern struct omap_hwmod_class l3_hwmod_class;
 extern struct omap_hwmod_class l4_hwmod_class;
