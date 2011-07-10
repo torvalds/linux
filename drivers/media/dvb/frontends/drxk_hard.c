@@ -1837,17 +1837,17 @@ static int SetOperationMode(struct drxk_state *state,
 			*/
 		switch (oMode) {
 		case OM_DVBT:
+			state->m_OperationMode = oMode;
 			status = SetDVBTStandard(state, oMode);
 			if (status < 0)
 				goto error;
-			state->m_OperationMode = oMode;
 			break;
 		case OM_QAM_ITU_A:	/* fallthrough */
 		case OM_QAM_ITU_C:
+			state->m_OperationMode = oMode;
 			status = SetQAMStandard(state, oMode);
 			if (status < 0)
 				goto error;
-			state->m_OperationMode = oMode;
 			break;
 		case OM_QAM_ITU_B:
 		default:
