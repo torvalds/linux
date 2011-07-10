@@ -702,6 +702,29 @@ static int _count_mpu_irqs(struct omap_hwmod *oh)
 }
 
 /**
+ * _count_sdma_reqs - count the number of SDMA request lines associated with @oh
+ * @oh: struct omap_hwmod *oh
+ *
+ * Count and return the number of SDMA request lines associated with
+ * the hwmod @oh.  Used to allocate struct resource data.  Returns 0
+ * if @oh is NULL.
+ */
+static int _count_sdma_reqs(struct omap_hwmod *oh)
+{
+	struct omap_hwmod_dma_info *ohdi;
+	int i = 0;
+
+	if (!oh || !oh->sdma_reqs)
+		return 0;
+
+	do {
+		ohdi = &oh->sdma_reqs[i++];
+	} while (ohdi->dma_req != -1);
+
+	return i;
+}
+
+/**
  * _count_ocp_if_addr_spaces - count the number of address space entries for @oh
  * @oh: struct omap_hwmod *oh
  *
@@ -1987,7 +2010,7 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh)
 {
 	int ret, i;
 
-	ret = _count_mpu_irqs(oh) + oh->sdma_reqs_cnt;
+	ret = _count_mpu_irqs(oh) + _count_sdma_reqs(oh);
 
 	for (i = 0; i < oh->slaves_cnt; i++)
 		ret += _count_ocp_if_addr_spaces(oh->slaves[i]);
@@ -2007,7 +2030,7 @@ int omap_hwmod_count_resources(struct omap_hwmod *oh)
  */
 int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 {
-	int i, j, mpu_irqs_cnt;
+	int i, j, mpu_irqs_cnt, sdma_reqs_cnt;
 	int r = 0;
 
 	/* For each IRQ, DMA, memory area, fill in array.*/
@@ -2021,7 +2044,8 @@ int omap_hwmod_fill_resources(struct omap_hwmod *oh, struct resource *res)
 		r++;
 	}
 
-	for (i = 0; i < oh->sdma_reqs_cnt; i++) {
+	sdma_reqs_cnt = _count_sdma_reqs(oh);
+	for (i = 0; i < sdma_reqs_cnt; i++) {
 		(res + r)->name = (oh->sdma_reqs + i)->name;
 		(res + r)->start = (oh->sdma_reqs + i)->dma_req;
 		(res + r)->end = (oh->sdma_reqs + i)->dma_req;
