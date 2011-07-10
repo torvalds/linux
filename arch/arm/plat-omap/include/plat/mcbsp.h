@@ -33,7 +33,7 @@
 #define OMAP_MCBSP_PLATFORM_DEVICE(port_nr)		\
 static struct platform_device omap_mcbsp##port_nr = {	\
 	.name	= "omap-mcbsp-dai",			\
-	.id	= OMAP_MCBSP##port_nr,			\
+	.id	= port_nr - 1,			\
 }
 
 #define MCBSP_CONFIG_TYPE2	0x2
@@ -332,14 +332,6 @@ struct omap_mcbsp_reg_cfg {
 };
 
 typedef enum {
-	OMAP_MCBSP1 = 0,
-	OMAP_MCBSP2,
-	OMAP_MCBSP3,
-	OMAP_MCBSP4,
-	OMAP_MCBSP5
-} omap_mcbsp_id;
-
-typedef enum {
 	OMAP_MCBSP_WORD_8 = 0,
 	OMAP_MCBSP_WORD_12,
 	OMAP_MCBSP_WORD_16,
@@ -385,8 +377,6 @@ struct omap_mcbsp {
 	void __iomem *io_base;
 	u8 id;
 	u8 free;
-	omap_mcbsp_word_length rx_word_length;
-	omap_mcbsp_word_length tx_word_length;
 
 	int rx_irq;
 	int tx_irq;

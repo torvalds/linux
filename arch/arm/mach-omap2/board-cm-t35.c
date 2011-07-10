@@ -339,10 +339,6 @@ static struct regulator_consumer_supply cm_t35_vsim_supply[] = {
 	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply cm_t35_vdac_supply[] = {
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
-};
-
 static struct regulator_consumer_supply cm_t35_vdvi_supply[] = {
 	REGULATOR_SUPPLY("vdvi", "omapdss"),
 };
@@ -375,39 +371,6 @@ static struct regulator_init_data cm_t35_vsim = {
 	},
 	.num_consumer_supplies	= ARRAY_SIZE(cm_t35_vsim_supply),
 	.consumer_supplies	= cm_t35_vsim_supply,
-};
-
-/* VDAC for DSS driving S-Video (8 mA unloaded, max 65 mA) */
-static struct regulator_init_data cm_t35_vdac = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(cm_t35_vdac_supply),
-	.consumer_supplies	= cm_t35_vdac_supply,
-};
-
-/* VPLL2 for digital video outputs */
-static struct regulator_init_data cm_t35_vpll2 = {
-	.constraints = {
-		.name			= "VDVI",
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(cm_t35_vdvi_supply),
-	.consumer_supplies	= cm_t35_vdvi_supply,
-};
-
-static struct twl4030_usb_data cm_t35_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
 };
 
 static uint32_t cm_t35_keymap[] = {
@@ -488,21 +451,23 @@ static struct twl4030_gpio_platform_data cm_t35_gpio_data = {
 };
 
 static struct twl4030_platform_data cm_t35_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
-
 	/* platform_data for children goes here */
 	.keypad		= &cm_t35_kp_data,
-	.usb		= &cm_t35_usb_data,
 	.gpio		= &cm_t35_gpio_data,
 	.vmmc1		= &cm_t35_vmmc1,
 	.vsim		= &cm_t35_vsim,
-	.vdac		= &cm_t35_vdac,
-	.vpll2		= &cm_t35_vpll2,
 };
 
 static void __init cm_t35_init_i2c(void)
 {
+	omap3_pmic_get_config(&cm_t35_twldata, TWL_COMMON_PDATA_USB,
+			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
+
+	cm_t35_twldata.vpll2->constraints.name = "VDVI";
+	cm_t35_twldata.vpll2->num_consumer_supplies =
+						ARRAY_SIZE(cm_t35_vdvi_supply);
+	cm_t35_twldata.vpll2->consumer_supplies = cm_t35_vdvi_supply;
+
 	omap3_pmic_init("tps65930", &cm_t35_twldata);
 }
 
