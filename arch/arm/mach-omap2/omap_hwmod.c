@@ -149,6 +149,7 @@
 #include "cminst44xx.h"
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
+#include "prminst44xx.h"
 #include "mux.h"
 
 /* Maximum microseconds to wait for OMAP module to softreset */
@@ -1187,8 +1188,10 @@ static int _assert_hardreset(struct omap_hwmod *oh, const char *name)
 		return omap2_prm_assert_hardreset(oh->prcm.omap2.module_offs,
 						  ohri.rst_shift);
 	else if (cpu_is_omap44xx())
-		return omap4_prm_assert_hardreset(oh->prcm.omap4.rstctrl_reg,
-						  ohri.rst_shift);
+		return omap4_prminst_assert_hardreset(ohri.rst_shift,
+				  oh->clkdm->pwrdm.ptr->prcm_partition,
+				  oh->clkdm->pwrdm.ptr->prcm_offs,
+				  oh->prcm.omap4.rstctrl_offs);
 	else
 		return -EINVAL;
 }
@@ -1223,8 +1226,10 @@ static int _deassert_hardreset(struct omap_hwmod *oh, const char *name)
 		if (ohri.st_shift)
 			pr_err("omap_hwmod: %s: %s: hwmod data error: OMAP4 does not support st_shift\n",
 			       oh->name, name);
-		ret = omap4_prm_deassert_hardreset(oh->prcm.omap4.rstctrl_reg,
-						   ohri.rst_shift);
+		ret = omap4_prminst_deassert_hardreset(ohri.rst_shift,
+				  oh->clkdm->pwrdm.ptr->prcm_partition,
+				  oh->clkdm->pwrdm.ptr->prcm_offs,
+				  oh->prcm.omap4.rstctrl_offs);
 	} else {
 		return -EINVAL;
 	}
@@ -1259,8 +1264,10 @@ static int _read_hardreset(struct omap_hwmod *oh, const char *name)
 		return omap2_prm_is_hardreset_asserted(oh->prcm.omap2.module_offs,
 						       ohri.st_shift);
 	} else if (cpu_is_omap44xx()) {
-		return omap4_prm_is_hardreset_asserted(oh->prcm.omap4.rstctrl_reg,
-						       ohri.rst_shift);
+		return omap4_prminst_is_hardreset_asserted(ohri.rst_shift,
+				  oh->clkdm->pwrdm.ptr->prcm_partition,
+				  oh->clkdm->pwrdm.ptr->prcm_offs,
+				  oh->prcm.omap4.rstctrl_offs);
 	} else {
 		return -EINVAL;
 	}

@@ -2,6 +2,7 @@
  * omap_hwmod macros, structures
  *
  * Copyright (C) 2009-2011 Nokia Corporation
+ * Copyright (C) 2011 Texas Instruments, Inc.
  * Paul Walmsley
  *
  * Created in collaboration with (alphabetical order): Benoît Cousson,
@@ -361,7 +362,7 @@ struct omap_hwmod_omap2_prcm {
  */
 struct omap_hwmod_omap4_prcm {
 	u16		clkctrl_offs;
-	void __iomem	*rstctrl_reg;
+	u16		rstctrl_offs;
 	u8		submodule_wkdep_bit;
 };
 
