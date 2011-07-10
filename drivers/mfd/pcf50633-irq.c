@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 
 #include <linux/mfd/pcf50633/core.h>
