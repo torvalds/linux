@@ -26,7 +26,6 @@
 #include <linux/pda_power.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
-#include <linux/platform_data/tegra_usb.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -36,7 +35,6 @@
 #include <mach/iomap.h>
 #include <mach/irqs.h>
 #include <mach/sdhci.h>
-#include <mach/usb_phy.h>
 #include <mach/gpio.h>
 
 #include "board.h"
@@ -80,32 +78,8 @@ static void paz00_i2c_init(void)
 	platform_device_register(&tegra_i2c_device4);
 }
 
-static struct tegra_ulpi_config ulpi_phy_config = {
-		.reset_gpio = TEGRA_ULPI_RST,
-		.clk = "cdev2",
-};
-
-static struct tegra_ehci_platform_data tegra_ehci_pdata[] = {
-		[0] = {
-			.operating_mode = TEGRA_USB_OTG,
-			.power_down_on_bus_suspend = 1,
-		},
-		[1] = {
-			.phy_config = &ulpi_phy_config,
-			.operating_mode = TEGRA_USB_HOST,
-			.power_down_on_bus_suspend = 1,
-		},
-		[2] = {
-			.operating_mode = TEGRA_USB_HOST,
-			.power_down_on_bus_suspend = 1,
-		},
-};
-
 static void paz00_usb_init(void)
 {
-	tegra_ehci2_device.dev.platform_data = &tegra_ehci_pdata[1];
-	tegra_ehci3_device.dev.platform_data = &tegra_ehci_pdata[2];
-
 	platform_device_register(&tegra_ehci2_device);
 	platform_device_register(&tegra_ehci3_device);
 }

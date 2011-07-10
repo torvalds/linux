@@ -24,7 +24,6 @@
 #include <linux/serial_8250.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
-#include <linux/platform_data/tegra_usb.h>
 #include <linux/gpio.h>
 
 #include <asm/mach-types.h>
@@ -33,7 +32,6 @@
 
 #include <mach/iomap.h>
 #include <mach/sdhci.h>
-#include <mach/usb_phy.h>
 #include <mach/gpio.h>
 
 #include "board.h"
@@ -110,28 +108,12 @@ static void trimslice_i2c_init(void)
 				ARRAY_SIZE(trimslice_i2c3_board_info));
 }
 
-struct tegra_ulpi_config ehci2_phy_config = {
-	.reset_gpio = TRIMSLICE_GPIO_USB2_RST,
-	.clk = "cdev2",
-};
-
-static struct tegra_ehci_platform_data ehci_ulpi_data = {
-	.operating_mode = TEGRA_USB_HOST,
-	.phy_config = &ehci2_phy_config,
-};
-
-static struct tegra_ehci_platform_data ehci_utmi_data = {
-	.operating_mode = TEGRA_USB_HOST,
-};
-
 static void trimslice_usb_init(void)
 {
 	int err;
 
-	tegra_ehci3_device.dev.platform_data = &ehci_utmi_data;
 	platform_device_register(&tegra_ehci3_device);
 
-	tegra_ehci2_device.dev.platform_data = &ehci_ulpi_data;
 	platform_device_register(&tegra_ehci2_device);
 
 	err = gpio_request_one(TRIMSLICE_GPIO_USB1_MODE, GPIOF_OUT_INIT_HIGH,
@@ -141,7 +123,6 @@ static void trimslice_usb_init(void)
 		return;
 	}
 
-	tegra_ehci1_device.dev.platform_data = &ehci_utmi_data;
 	platform_device_register(&tegra_ehci1_device);
 }
 
