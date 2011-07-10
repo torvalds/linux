@@ -1,3 +1,4 @@
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/kernel.h>

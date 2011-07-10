@@ -9,6 +9,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
+#include <linux/export.h>
 
 #include "../iio.h"
 #include "../trigger.h"

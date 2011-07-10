@@ -5,6 +5,7 @@
  *
  * Licensed under the GPL-2.
  */
+#include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>

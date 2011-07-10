@@ -11,6 +11,7 @@
 
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <linux/export.h>
 
 #include "driver.h"
 #include "audio.h"
