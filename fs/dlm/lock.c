@@ -849,9 +849,7 @@ void dlm_scan_waiters(struct dlm_ls *ls)
 
 		if (!num_nodes) {
 			num_nodes = ls->ls_num_nodes;
-			warned = kmalloc(GFP_KERNEL, num_nodes * sizeof(int));
-			if (warned)
-				memset(warned, 0, num_nodes * sizeof(int));
+			warned = kzalloc(num_nodes * sizeof(int), GFP_KERNEL);
 		}
 		if (!warned)
 			continue;
@@ -863,9 +861,7 @@ void dlm_scan_waiters(struct dlm_ls *ls)
 			  dlm_config.ci_waitwarn_us, lkb->lkb_wait_nodeid);
 	}
 	mutex_unlock(&ls->ls_waiters_mutex);
-
-	if (warned)
-		kfree(warned);
+	kfree(warned);
 
 	if (debug_expired)
 		log_debug(ls, "scan_waiters %u warn %u over %d us max %lld us",
