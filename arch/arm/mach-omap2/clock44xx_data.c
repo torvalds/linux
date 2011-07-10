@@ -935,63 +935,6 @@ static struct clk dpll_per_m7x2_ck = {
 	.set_rate	= &omap2_clksel_set_rate,
 };
 
-/* DPLL_UNIPRO */
-static struct dpll_data dpll_unipro_dd = {
-	.mult_div1_reg	= OMAP4430_CM_CLKSEL_DPLL_UNIPRO,
-	.clk_bypass	= &sys_clkin_ck,
-	.clk_ref	= &sys_clkin_ck,
-	.control_reg	= OMAP4430_CM_CLKMODE_DPLL_UNIPRO,
-	.modes		= (1 << DPLL_LOW_POWER_BYPASS) | (1 << DPLL_LOCKED),
-	.autoidle_reg	= OMAP4430_CM_AUTOIDLE_DPLL_UNIPRO,
-	.idlest_reg	= OMAP4430_CM_IDLEST_DPLL_UNIPRO,
-	.mult_mask	= OMAP4430_DPLL_MULT_MASK,
-	.div1_mask	= OMAP4430_DPLL_DIV_MASK,
-	.enable_mask	= OMAP4430_DPLL_EN_MASK,
-	.autoidle_mask	= OMAP4430_AUTO_DPLL_MODE_MASK,
-	.idlest_mask	= OMAP4430_ST_DPLL_CLK_MASK,
-	.max_multiplier	= 2047,
-	.max_divider	= 128,
-	.min_divider	= 1,
-};
-
-
-static struct clk dpll_unipro_ck = {
-	.name		= "dpll_unipro_ck",
-	.parent		= &sys_clkin_ck,
-	.dpll_data	= &dpll_unipro_dd,
-	.init		= &omap2_init_dpll_parent,
-	.ops		= &clkops_omap3_noncore_dpll_ops,
-	.recalc		= &omap3_dpll_recalc,
-	.round_rate	= &omap2_dpll_round_rate,
-	.set_rate	= &omap3_noncore_dpll_set_rate,
-};
-
-static struct clk dpll_unipro_x2_ck = {
-	.name		= "dpll_unipro_x2_ck",
-	.parent		= &dpll_unipro_ck,
-	.clksel_reg	= OMAP4430_CM_DIV_M2_DPLL_UNIPRO,
-	.flags		= CLOCK_CLKOUTX2,
-	.ops		= &clkops_omap4_dpllmx_ops,
-	.recalc		= &omap3_clkoutx2_recalc,
-};
-
-static const struct clksel dpll_unipro_m2x2_div[] = {
-	{ .parent = &dpll_unipro_x2_ck, .rates = div31_1to31_rates },
-	{ .parent = NULL },
-};
-
-static struct clk dpll_unipro_m2x2_ck = {
-	.name		= "dpll_unipro_m2x2_ck",
-	.parent		= &dpll_unipro_x2_ck,
-	.clksel		= dpll_unipro_m2x2_div,
-	.clksel_reg	= OMAP4430_CM_DIV_M2_DPLL_UNIPRO,
-	.clksel_mask	= OMAP4430_DPLL_CLKOUT_DIV_MASK,
-	.ops		= &clkops_omap4_dpllmx_ops,
-	.recalc		= &omap2_clksel_recalc,
-	.round_rate	= &omap2_clksel_round_rate,
-	.set_rate	= &omap2_clksel_set_rate,
-};
-
 static struct clk usb_hs_clk_div_ck = {
 	.name		= "usb_hs_clk_div_ck",
 	.parent		= &dpll_abe_m3x2_ck,
@@ -3058,9 +3001,6 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"dpll_per_m5x2_ck",		&dpll_per_m5x2_ck,	CK_443X),
 	CLK(NULL,	"dpll_per_m6x2_ck",		&dpll_per_m6x2_ck,	CK_443X),
 	CLK(NULL,	"dpll_per_m7x2_ck",		&dpll_per_m7x2_ck,	CK_443X),
-	CLK(NULL,	"dpll_unipro_ck",		&dpll_unipro_ck,	CK_443X),
-	CLK(NULL,	"dpll_unipro_x2_ck",		&dpll_unipro_x2_ck,	CK_443X),
-	CLK(NULL,	"dpll_unipro_m2x2_ck",		&dpll_unipro_m2x2_ck,	CK_443X),
 	CLK(NULL,	"usb_hs_clk_div_ck",		&usb_hs_clk_div_ck,	CK_443X),
 	CLK(NULL,	"dpll_usb_ck",			&dpll_usb_ck,	CK_443X),
 	CLK(NULL,	"dpll_usb_clkdcoldo_ck",	&dpll_usb_clkdcoldo_ck,	CK_443X),
