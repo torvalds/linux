@@ -24,14 +24,14 @@
 #include <mach/iomux.h>
 #include <linux/wakelock.h>
 #include <linux/timer.h>
-
+#include <mach/board.h>
 #if 0
 #define DBG(x...)   printk(KERN_INFO x)
 #else
 #define DBG(x...)
 #endif
 
-#define BT_WAKE_HOST_SUPPORT 0
+#define BT_WAKE_HOST_SUPPORT 1
 
 struct bt_ctrl
 {
@@ -47,8 +47,8 @@ struct bt_ctrl
 #define IOMUX_BT_GPIO_POWER     rk29_mux_api_set(GPIO5D6_SDMMC1PWREN_NAME, GPIO5H_GPIO5D6);
 #define BT_GPIO_RESET          	RK29_PIN6_PC7
 #define BT_GPIO_WAKE_UP         RK29_PIN6_PD0
-#define BT_GPIO_WAKE_UP_HOST    //RK2818_PIN_PA7
-#define IOMUX_BT_GPIO_WAKE_UP_HOST() //rk2818_mux_api_set(GPIOA7_FLASHCS3_SEL_NAME,0);
+#define BT_GPIO_WAKE_UP_HOST    RK29_PIN4_PD4
+#define IOMUX_BT_GPIO_WAKE_UP_HOST() rk29_mux_api_set(GPIO4D4_CPUTRACECLK_NAME,GPIO4H_GPIO4D4);
 
 #define BT_WAKE_LOCK_TIMEOUT    10 //s
 
@@ -68,6 +68,7 @@ void btWakeupHostLock(void)
 {
     if(gBtCtrl.b_HostWake == false){
         DBG("*************************Lock\n");
+		rk28_send_wakeup_key();
         wake_lock(&(gBtCtrl.bt_wakelock));
         gBtCtrl.b_HostWake = true;
     }
