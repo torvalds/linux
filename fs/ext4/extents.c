@@ -1730,9 +1730,10 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 
 	/* probably next leaf has space for us? */
 	fex = EXT_LAST_EXTENT(eh);
-	next = ext4_ext_next_leaf_block(inode, path);
-	if (le32_to_cpu(newext->ee_block) > le32_to_cpu(fex->ee_block)
-	    && next != EXT_MAX_BLOCKS) {
+	next = EXT_MAX_BLOCKS;
+	if (le32_to_cpu(newext->ee_block) > le32_to_cpu(fex->ee_block))
+		next = ext4_ext_next_leaf_block(inode, path);
+	if (next != EXT_MAX_BLOCKS) {
 		ext_debug("next leaf block - %d\n", next);
 		BUG_ON(npath != NULL);
 		npath = ext4_ext_find_extent(inode, next, NULL);
