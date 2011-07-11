@@ -4811,7 +4811,7 @@ static void ext4_trim_extent(struct super_block *sb, int start, int count,
 /**
  * ext4_trim_all_free -- function to trim all free space in alloc. group
  * @sb:			super block for file system
- * @e4b:		ext4 buddy
+ * @group:		group to be trimmed
  * @start:		first group block to examine
  * @max:		last group block to examine
  * @minblocks:		minimum extent block count
