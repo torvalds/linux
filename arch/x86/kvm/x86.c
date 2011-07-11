@@ -4021,6 +4021,7 @@ static int vcpu_mmio_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
 		  vcpu->arch.access)) {
 		*gpa = vcpu->arch.mmio_gfn << PAGE_SHIFT |
 					(gva & (PAGE_SIZE - 1));
+		trace_vcpu_match_mmio(gva, *gpa, write, false);
 		return 1;
 	}
 
@@ -4036,8 +4037,10 @@ static int vcpu_mmio_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
 	if ((*gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
 		return 1;
 
-	if (vcpu_match_mmio_gpa(vcpu, *gpa))
+	if (vcpu_match_mmio_gpa(vcpu, *gpa)) {
+		trace_vcpu_match_mmio(gva, *gpa, write, true);
 		return 1;
+	}
 
 	return 0;
 }

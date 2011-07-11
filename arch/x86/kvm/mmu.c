@@ -211,6 +211,7 @@ static void mark_mmio_spte(u64 *sptep, u64 gfn, unsigned access)
 {
 	access &= ACC_WRITE_MASK | ACC_USER_MASK;
 
+	trace_mark_mmio_spte(sptep, gfn, access);
 	mmu_spte_set(sptep, shadow_mmio_mask | access | gfn << PAGE_SHIFT);
 }
 
@@ -1940,6 +1941,8 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 		kvm_mmu_isolate_pages(invalid_list);
 		sp = list_first_entry(invalid_list, struct kvm_mmu_page, link);
 		list_del_init(invalid_list);
+
+		trace_kvm_mmu_delay_free_pages(sp);
 		call_rcu(&sp->rcu, free_pages_rcu);
 		return;
 	}
@@ -2938,6 +2941,8 @@ int handle_mmio_page_fault_common(struct kvm_vcpu *vcpu, u64 addr, bool direct)
 
 		if (direct)
 			addr = 0;
+
+		trace_handle_mmio_page_fault(addr, gfn, access);
 		vcpu_cache_mmio_info(vcpu, addr, gfn, access);
 		return 1;
 	}
