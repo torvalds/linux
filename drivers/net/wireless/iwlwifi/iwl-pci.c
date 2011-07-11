@@ -508,6 +508,11 @@ static int iwl_pci_suspend(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct iwl_bus *bus = pci_get_drvdata(pdev);
 
+	/* Before you put code here, think about WoWLAN. You cannot check here
+	 * whether WoWLAN is enabled or not, and your code will run even if
+	 * WoWLAN is enabled - don't kill the NIC, someone may need it in Sx.
+	 */
+
 	return iwl_suspend(bus->drv_data);
 }
 
@@ -515,6 +520,11 @@ static int iwl_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct iwl_bus *bus = pci_get_drvdata(pdev);
+
+	/* Before you put code here, think about WoWLAN. You cannot check here
+	 * whether WoWLAN is enabled or not, and your code will run even if
+	 * WoWLAN is enabled - the NIC may be alive.
+	 */
 
 	/*
 	 * We disable the RETRY_TIMEOUT register (0x41) to keep
