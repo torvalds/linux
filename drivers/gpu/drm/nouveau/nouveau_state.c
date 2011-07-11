@@ -655,6 +655,7 @@ nouveau_card_init(struct drm_device *dev)
 			nv50_graph_create(dev);
 			break;
 		case NV_C0:
+		case NV_D0:
 			nvc0_graph_create(dev);
 			break;
 		default:
@@ -1111,13 +1112,11 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->noaccel = !!nouveau_noaccel;
 	if (nouveau_noaccel == -1) {
 		switch (dev_priv->chipset) {
-#if 0
-		case 0xXX: /* known broken */
+		case 0xd9: /* known broken */
 			NV_INFO(dev, "acceleration disabled by default, pass "
 				     "noaccel=0 to force enable\n");
 			dev_priv->noaccel = true;
 			break;
-#endif
 		default:
 			dev_priv->noaccel = false;
 			break;
