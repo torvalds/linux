@@ -775,9 +775,6 @@ struct ieee80211_local {
 
 	int tx_headroom; /* required headroom for hardware/radiotap */
 
-	/* count for keys needing tailroom space allocation */
-	int crypto_tx_tailroom_needed_cnt;
-
 	/* Tasklet and skb queue to process calls from IRQ mode. All frames
 	 * added to skb_queue will be processed, but frames in
 	 * skb_queue_unreliable may be dropped if the total length of these

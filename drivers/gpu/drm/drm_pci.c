@@ -251,7 +251,7 @@ err:
 }
 
 
-int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
+static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 {
 	if ((p->busnum >> 8) != drm_get_pci_domain(dev) ||
 	    (p->busnum & 0xff) != dev->pdev->bus->number ||
@@ -292,6 +292,7 @@ static struct drm_bus drm_pci_bus = {
 	.get_name = drm_pci_get_name,
 	.set_busid = drm_pci_set_busid,
 	.set_unique = drm_pci_set_unique,
+	.irq_by_busid = drm_pci_irq_by_busid,
 	.agp_init = drm_pci_agp_init,
 };
 

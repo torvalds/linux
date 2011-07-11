@@ -43,8 +43,6 @@ const struct file_operations coda_ioctl_operations = {
 /* the coda pioctl inode ops */
 static int coda_ioctl_permission(struct inode *inode, int mask, unsigned int flags)
 {
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
 	return (mask & MAY_EXEC) ? -EACCES : 0;
 }
 

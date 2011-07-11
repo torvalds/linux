@@ -270,7 +270,6 @@ static int usb6fire_fw_ezusb_upload(
 	data = 0x00; /* resume ezusb cpu */
 	ret = usb6fire_fw_ezusb_write(device, 0xa0, 0xe600, &data, 1);
 	if (ret < 0) {
-		release_firmware(fw);
 		snd_printk(KERN_ERR PREFIX "unable to upload ezusb "
 				"firmware %s: end message.\n", fwname);
 		return ret;

@@ -250,7 +250,8 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	if (ieee80211_flags & IEEE80211_CONF_CHANGE_CHANNEL)
 		rt2x00link_reset_tuner(rt2x00dev, false);
 
-	if (test_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags) &&
+	if (test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) &&
+	    test_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags) &&
 	    (ieee80211_flags & IEEE80211_CONF_CHANGE_PS) &&
 	    (conf->flags & IEEE80211_CONF_PS)) {
 		beacon_diff = (long)jiffies - (long)rt2x00dev->last_beacon;

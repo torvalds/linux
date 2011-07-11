@@ -103,6 +103,7 @@ static void __init footbridge_timer_init(void)
 	clockevents_calc_mult_shift(ce, mem_fclk_21285, 5);
 	ce->max_delta_ns = clockevent_delta2ns(0xffffff, ce);
 	ce->min_delta_ns = clockevent_delta2ns(0x000004, ce);
+	ce->cpumask = cpumask_of(smp_processor_id());
 
 	clockevents_register_device(ce);
 }

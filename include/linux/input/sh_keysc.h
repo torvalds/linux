@@ -1,7 +1,7 @@
 #ifndef __SH_KEYSC_H__
 #define __SH_KEYSC_H__
 
-#define SH_KEYSC_MAXKEYS 49
+#define SH_KEYSC_MAXKEYS 64
 
 struct sh_keysc_info {
 	enum { SH_KEYSC_MODE_1, SH_KEYSC_MODE_2, SH_KEYSC_MODE_3,

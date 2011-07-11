@@ -193,8 +193,17 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 				offset -= 0x02000000;
 			offset += sym->st_value - loc;
 
-			/* only Thumb addresses allowed (no interworking) */
-			if (!(offset & 1) ||
+			/*
+			 * For function symbols, only Thumb addresses are
+			 * allowed (no interworking).
+			 *
+			 * For non-function symbols, the destination
+			 * has no specific ARM/Thumb disposition, so
+			 * the branch is resolved under the assumption
+			 * that interworking is not required.
+			 */
+			if ((ELF32_ST_TYPE(sym->st_info) == STT_FUNC &&
+				!(offset & 1)) ||
 			    offset <= (s32)0xff000000 ||
 			    offset >= (s32)0x01000000) {
 				pr_err("%s: section %u reloc %u sym '%s': relocation %u out of range (%#lx -> %#x)\n",

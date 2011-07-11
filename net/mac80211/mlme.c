@@ -232,9 +232,6 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 		WARN_ON(!ieee80211_set_channel_type(local, sdata, channel_type));
 	}
 
-	ieee80211_stop_queues_by_reason(&sdata->local->hw,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
-
 	/* channel_type change automatically detected */
 	ieee80211_hw_config(local, 0);
 
@@ -247,9 +244,6 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 						 channel_type);
 		rcu_read_unlock();
 	}
-
-	ieee80211_wake_queues_by_reason(&sdata->local->hw,
-					IEEE80211_QUEUE_STOP_REASON_CSA);
 
 	ht_opmode = le16_to_cpu(hti->operation_mode);
 

@@ -111,7 +111,8 @@ static void evdev_event(struct input_handle *handle,
 
 	rcu_read_unlock();
 
-	wake_up_interruptible(&evdev->wait);
+	if (type == EV_SYN && code == SYN_REPORT)
+		wake_up_interruptible(&evdev->wait);
 }
 
 static int evdev_fasync(int fd, struct file *file, int on)

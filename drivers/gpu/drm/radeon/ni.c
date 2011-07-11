@@ -1581,6 +1581,7 @@ void cayman_fini(struct radeon_device *rdev)
 	cayman_cp_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_wb_fini(rdev);
+	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	cayman_pcie_gart_fini(rdev);
 	radeon_gem_fini(rdev);

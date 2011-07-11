@@ -385,6 +385,16 @@ config USB_NET_CX82310_ETH
 	  router with USB ethernet port. This driver is for routers only,
 	  it will not work with ADSL modems (use cxacru driver instead).
 
+config USB_NET_KALMIA
+	tristate "Samsung Kalmia based LTE USB modem"
+	depends on USB_USBNET
+	help
+	  Choose this option if you have a Samsung Kalmia based USB modem
+	  as Samsung GT-B3730.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called kalmia.
+
 config USB_HSO
 	tristate "Option USB High Speed Mobile Devices"
 	depends on USB && RFKILL

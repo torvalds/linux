@@ -233,7 +233,7 @@ static int __devinit hecubafb_probe(struct platform_device *dev)
 
 	videomemory = vzalloc(videomemorysize);
 	if (!videomemory)
-		return retval;
+		goto err_videomem_alloc;
 
 	info = framebuffer_alloc(sizeof(struct hecubafb_par), &dev->dev);
 	if (!info)
@@ -275,6 +275,7 @@ err_fbreg:
 	framebuffer_release(info);
 err_fballoc:
 	vfree(videomemory);
+err_videomem_alloc:
 	module_put(board->owner);
 	return retval;
 }

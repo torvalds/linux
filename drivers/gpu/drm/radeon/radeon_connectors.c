@@ -44,6 +44,8 @@ extern void
 radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
 			     struct drm_connector *drm_connector);
 
+bool radeon_connector_encoder_is_dp_bridge(struct drm_connector *connector);
+
 void radeon_connector_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -626,8 +628,14 @@ static int radeon_vga_get_modes(struct drm_connector *connector)
 static int radeon_vga_mode_valid(struct drm_connector *connector,
 				  struct drm_display_mode *mode)
 {
+	struct drm_device *dev = connector->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
 	/* XXX check mode bandwidth */
-	/* XXX verify against max DAC output frequency */
+
+	if ((mode->clock / 10) > rdev->clock.max_pixel_clock)
+		return MODE_CLOCK_HIGH;
+
 	return MODE_OK;
 }
 
@@ -830,6 +838,13 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 		if (!radeon_connector->edid) {
 			DRM_ERROR("%s: probed a monitor but no|invalid EDID\n",
 					drm_get_connector_name(connector));
+			/* rs690 seems to have a problem with connectors not existing and always
+			 * return a block of 0's. If we see this just stop polling on this output */
+			if ((rdev->family == CHIP_RS690 || rdev->family == CHIP_RS740) && radeon_connector->base.null_edid_counter) {
+				ret = connector_status_disconnected;
+				DRM_ERROR("%s: detected RS690 floating bus bug, stopping ddc detect\n", drm_get_connector_name(connector));
+				radeon_connector->ddc_bus = NULL;
+			}
 		} else {
 			radeon_connector->use_digital = !!(radeon_connector->edid->input & DRM_EDID_INPUT_DIGITAL);
 
@@ -1015,6 +1030,11 @@ static int radeon_dvi_mode_valid(struct drm_connector *connector,
 		} else
 			return MODE_CLOCK_HIGH;
 	}
+
+	/* check against the max pixel clock */
+	if ((mode->clock / 10) > rdev->clock.max_pixel_clock)
+		return MODE_CLOCK_HIGH;
+
 	return MODE_OK;
 }
 
@@ -1052,10 +1072,11 @@ static int radeon_dp_get_modes(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
+	struct drm_encoder *encoder = radeon_best_single_encoder(connector);
 	int ret;
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
-		struct drm_encoder *encoder;
+	if ((connector->connector_type == DRM_MODE_CONNECTOR_eDP) ||
+	    (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)) {
 		struct drm_display_mode *mode;
 
 		if (!radeon_dig_connector->edp_on)
@@ -1067,7 +1088,6 @@ static int radeon_dp_get_modes(struct drm_connector *connector)
 						     ATOM_TRANSMITTER_ACTION_POWER_OFF);
 
 		if (ret > 0) {
-			encoder = radeon_best_single_encoder(connector);
 			if (encoder) {
 				radeon_fixup_lvds_native_mode(encoder, connector);
 				/* add scaled modes */
@@ -1091,8 +1111,14 @@ static int radeon_dp_get_modes(struct drm_connector *connector)
 			/* add scaled modes */
 			radeon_add_common_modes(encoder, connector);
 		}
-	} else
+	} else {
+		/* need to setup ddc on the bridge */
+		if (radeon_connector_encoder_is_dp_bridge(connector)) {
+			if (encoder)
+				radeon_atom_ext_encoder_setup_ddc(encoder);
+		}
 		ret = radeon_ddc_get_modes(radeon_connector);
+	}
 
 	return ret;
 }
@@ -1176,14 +1202,15 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 	enum drm_connector_status ret = connector_status_disconnected;
 	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
+	struct drm_encoder *encoder = radeon_best_single_encoder(connector);
 
 	if (radeon_connector->edid) {
 		kfree(radeon_connector->edid);
 		radeon_connector->edid = NULL;
 	}
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
-		struct drm_encoder *encoder = radeon_best_single_encoder(connector);
+	if ((connector->connector_type == DRM_MODE_CONNECTOR_eDP) ||
+	    (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)) {
 		if (encoder) {
 			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 			struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
@@ -1203,6 +1230,11 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 			atombios_set_edp_panel_power(connector,
 						     ATOM_TRANSMITTER_ACTION_POWER_OFF);
 	} else {
+		/* need to setup ddc on the bridge */
+		if (radeon_connector_encoder_is_dp_bridge(connector)) {
+			if (encoder)
+				radeon_atom_ext_encoder_setup_ddc(encoder);
+		}
 		radeon_dig_connector->dp_sink_type = radeon_dp_getsinktype(radeon_connector);
 		if (radeon_hpd_sense(rdev, radeon_connector->hpd.hpd)) {
 			ret = connector_status_connected;
@@ -1215,6 +1247,16 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 			} else {
 				if (radeon_ddc_probe(radeon_connector))
 					ret = connector_status_connected;
+			}
+		}
+
+		if ((ret == connector_status_disconnected) &&
+		    radeon_connector->dac_load_detect) {
+			struct drm_encoder *encoder = radeon_best_single_encoder(connector);
+			struct drm_encoder_helper_funcs *encoder_funcs;
+			if (encoder) {
+				encoder_funcs = encoder->helper_private;
+				ret = encoder_funcs->detect(encoder, connector);
 			}
 		}
 	}
@@ -1231,7 +1273,8 @@ static int radeon_dp_mode_valid(struct drm_connector *connector,
 
 	/* XXX check mode bandwidth */
 
-	if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+	if ((connector->connector_type == DRM_MODE_CONNECTOR_eDP) ||
+	    (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)) {
 		struct drm_encoder *encoder = radeon_best_single_encoder(connector);
 
 		if ((mode->hdisplay < 320) || (mode->vdisplay < 240))
@@ -1241,7 +1284,7 @@ static int radeon_dp_mode_valid(struct drm_connector *connector,
 			struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 			struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
 
-		/* AVIVO hardware supports downscaling modes larger than the panel
+			/* AVIVO hardware supports downscaling modes larger than the panel
 			 * to the panel size, but I'm not sure this is desirable.
 			 */
 			if ((mode->hdisplay > native_mode->hdisplay) ||
@@ -1390,6 +1433,10 @@ radeon_add_atom_connector(struct drm_device *dev,
 		default:
 			connector->interlace_allowed = true;
 			connector->doublescan_allowed = true;
+			radeon_connector->dac_load_detect = true;
+			drm_connector_attach_property(&radeon_connector->base,
+						      rdev->mode_info.load_detect_property,
+						      1);
 			break;
 		case DRM_MODE_CONNECTOR_DVII:
 		case DRM_MODE_CONNECTOR_DVID:
@@ -1411,6 +1458,12 @@ radeon_add_atom_connector(struct drm_device *dev,
 				connector->doublescan_allowed = true;
 			else
 				connector->doublescan_allowed = false;
+			if (connector_type == DRM_MODE_CONNECTOR_DVII) {
+				radeon_connector->dac_load_detect = true;
+				drm_connector_attach_property(&radeon_connector->base,
+							      rdev->mode_info.load_detect_property,
+							      1);
+			}
 			break;
 		case DRM_MODE_CONNECTOR_LVDS:
 		case DRM_MODE_CONNECTOR_eDP:

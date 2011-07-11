@@ -1372,8 +1372,17 @@ xlog_sync(xlog_t		*log,
 	XFS_BUF_ASYNC(bp);
 	bp->b_flags |= XBF_LOG_BUFFER;
 
-	if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
+	if (log->l_mp->m_flags & XFS_MOUNT_BARRIER) {
+		/*
+		 * If we have an external log device, flush the data device
+		 * before flushing the log to make sure all meta data
+		 * written back from the AIL actually made it to disk
+		 * before writing out the new log tail LSN in the log buffer.
+		 */
+		if (log->l_mp->m_logdev_targp != log->l_mp->m_ddev_targp)
+			xfs_blkdev_issue_flush(log->l_mp->m_ddev_targp);
 		XFS_BUF_ORDERED(bp);
+	}
 
 	ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
 	ASSERT(XFS_BUF_ADDR(bp) + BTOBB(count) <= log->l_logBBsize);

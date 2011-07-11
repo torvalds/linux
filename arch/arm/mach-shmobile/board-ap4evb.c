@@ -913,7 +913,7 @@ static struct i2c_board_info imx074_info = {
 	I2C_BOARD_INFO("imx074", 0x1a),
 };
 
-struct soc_camera_link imx074_link = {
+static struct soc_camera_link imx074_link = {
 	.bus_id		= 0,
 	.board_info	= &imx074_info,
 	.i2c_adapter_id	= 0,

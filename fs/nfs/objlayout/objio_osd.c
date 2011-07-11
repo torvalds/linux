@@ -108,7 +108,6 @@ _dev_list_add(const struct nfs_server *nfss,
 		de = n;
 	}
 
-	atomic_inc(&de->id_node.ref);
 	return de;
 }
 
@@ -1000,6 +999,9 @@ static bool objio_pg_test(struct nfs_pageio_descriptor *pgio,
 {
 	if (!pnfs_generic_pg_test(pgio, prev, req))
 		return false;
+
+	if (pgio->pg_lseg == NULL)
+		return true;
 
 	return pgio->pg_count + req->wb_bytes <=
 			OBJIO_LSEG(pgio->pg_lseg)->max_io_size;

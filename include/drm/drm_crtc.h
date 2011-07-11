@@ -520,6 +520,8 @@ struct drm_connector {
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
 	uint32_t force_encoder_id;
 	struct drm_encoder *encoder; /* currently active encoder */
+
+	int null_edid_counter; /* needed to workaround some HW bugs where we get all 0s */
 };
 
 /**

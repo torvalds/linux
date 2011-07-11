@@ -32,8 +32,10 @@ void *memset(void *s, int c, size_t count)
 	temp = count >> 2;
 	if (temp) {
 		long *ls = s;
-#if defined(__mc68020__) || defined(__mc68030__) || \
-    defined(__mc68040__) || defined(__mc68060__) || defined(__mcpu32__)
+#if defined(CONFIG_M68000) || defined(CONFIG_COLDFIRE)
+		for (; temp; temp--)
+			*ls++ = c;
+#else
 		size_t temp1;
 		asm volatile (
 			"	movel %1,%2\n"
@@ -55,9 +57,6 @@ void *memset(void *s, int c, size_t count)
 			"	jpl   1b"
 			: "=a" (ls), "=d" (temp), "=&d" (temp1)
 			: "d" (c), "0" (ls), "1" (temp));
-#else
-		for (; temp; temp--)
-			*ls++ = c;
 #endif
 		s = ls;
 	}

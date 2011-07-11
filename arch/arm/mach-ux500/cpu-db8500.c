@@ -159,6 +159,9 @@ static void __init db8500_add_gpios(void)
 		/* No custom data yet */
 	};
 
+	if (cpu_is_u8500v2())
+		pdata.supports_sleepmode = true;
+
 	dbx500_add_gpios(ARRAY_AND_SIZE(db8500_gpio_base),
 			 IRQ_DB8500_GPIO0, &pdata);
 }

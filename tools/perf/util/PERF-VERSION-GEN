@@ -23,7 +23,7 @@ if test -d ../../.git -o -f ../../.git &&
 then
 	VN=$(echo "$VN" | sed -e 's/-/./g');
 else
-	VN=$(make -sC ../.. kernelversion)
+	VN=$(MAKEFLAGS= make -sC ../.. kernelversion)
 fi
 
 VN=$(expr "$VN" : v*'\(.*\)')

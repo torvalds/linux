@@ -824,8 +824,8 @@ static int tmio_mmc_get_ro(struct mmc_host *mmc)
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 	struct tmio_mmc_data *pdata = host->pdata;
 
-	return ((pdata->flags & TMIO_MMC_WRPROTECT_DISABLE) ||
-		!(sd_ctrl_read32(host, CTL_STATUS) & TMIO_STAT_WRPROTECT));
+	return !((pdata->flags & TMIO_MMC_WRPROTECT_DISABLE) ||
+		 (sd_ctrl_read32(host, CTL_STATUS) & TMIO_STAT_WRPROTECT));
 }
 
 static int tmio_mmc_get_cd(struct mmc_host *mmc)

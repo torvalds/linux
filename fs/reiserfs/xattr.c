@@ -954,8 +954,6 @@ static int xattr_mount_check(struct super_block *s)
 
 int reiserfs_permission(struct inode *inode, int mask, unsigned int flags)
 {
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
 	/*
 	 * We don't do permission checks on the internal objects.
 	 * Permissions are determined by the "owning" object.

@@ -1463,9 +1463,9 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 	struct c4iw_qp_attributes attrs;
 	int disconnect = 1;
 	int release = 0;
-	int abort = 0;
 	struct tid_info *t = dev->rdev.lldi.tids;
 	unsigned int tid = GET_TID(hdr);
+	int ret;
 
 	ep = lookup_tid(t, tid);
 	PDBG("%s ep %p tid %u\n", __func__, ep, ep->hwtid);
@@ -1501,10 +1501,12 @@ static int peer_close(struct c4iw_dev *dev, struct sk_buff *skb)
 		start_ep_timer(ep);
 		__state_set(&ep->com, CLOSING);
 		attrs.next_state = C4IW_QP_STATE_CLOSING;
-		abort = c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
+		ret = c4iw_modify_qp(ep->com.qp->rhp, ep->com.qp,
 				       C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
-		peer_close_upcall(ep);
-		disconnect = 1;
+		if (ret != -ECONNRESET) {
+			peer_close_upcall(ep);
+			disconnect = 1;
+		}
 		break;
 	case ABORTING:
 		disconnect = 0;
@@ -2109,15 +2111,16 @@ int c4iw_ep_disconnect(struct c4iw_ep *ep, int abrupt, gfp_t gfp)
 		break;
 	}
 
-	mutex_unlock(&ep->com.mutex);
 	if (close) {
-		if (abrupt)
-			ret = abort_connection(ep, NULL, gfp);
-		else
+		if (abrupt) {
+			close_complete_upcall(ep);
+			ret = send_abort(ep, NULL, gfp);
+		} else
 			ret = send_halfclose(ep, gfp);
 		if (ret)
 			fatal = 1;
 	}
+	mutex_unlock(&ep->com.mutex);
 	if (fatal)
 		release_ep_resources(ep);
 	return ret;
@@ -2301,6 +2304,31 @@ static int fw6_msg(struct c4iw_dev *dev, struct sk_buff *skb)
 	return 0;
 }
 
+static int peer_abort_intr(struct c4iw_dev *dev, struct sk_buff *skb)
+{
+	struct cpl_abort_req_rss *req = cplhdr(skb);
+	struct c4iw_ep *ep;
+	struct tid_info *t = dev->rdev.lldi.tids;
+	unsigned int tid = GET_TID(req);
+
+	ep = lookup_tid(t, tid);
+	if (is_neg_adv_abort(req->status)) {
+		PDBG("%s neg_adv_abort ep %p tid %u\n", __func__, ep,
+		     ep->hwtid);
+		kfree_skb(skb);
+		return 0;
+	}
+	PDBG("%s ep %p tid %u state %u\n", __func__, ep, ep->hwtid,
+	     ep->com.state);
+
+	/*
+	 * Wake up any threads in rdma_init() or rdma_fini().
+	 */
+	c4iw_wake_up(&ep->com.wr_wait, -ECONNRESET);
+	sched(dev, skb);
+	return 0;
+}
+
 /*
  * Most upcalls from the T4 Core go to sched() to
  * schedule the processing on a work queue.
@@ -2317,7 +2345,7 @@ c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS] = {
 	[CPL_PASS_ESTABLISH] = sched,
 	[CPL_PEER_CLOSE] = sched,
 	[CPL_CLOSE_CON_RPL] = sched,
-	[CPL_ABORT_REQ_RSS] = sched,
+	[CPL_ABORT_REQ_RSS] = peer_abort_intr,
 	[CPL_RDMA_TERMINATE] = sched,
 	[CPL_FW4_ACK] = sched,
 	[CPL_SET_TCB_RPL] = set_tcb_rpl,

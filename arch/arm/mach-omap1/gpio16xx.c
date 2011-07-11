@@ -44,7 +44,7 @@ static struct __initdata omap_gpio_platform_data omap16xx_mpu_gpio_config = {
 	.bank_stride		= 1,
 };
 
-static struct __initdata platform_device omap16xx_mpu_gpio = {
+static struct platform_device omap16xx_mpu_gpio = {
 	.name           = "omap_gpio",
 	.id             = 0,
 	.dev            = {
@@ -73,7 +73,7 @@ static struct __initdata omap_gpio_platform_data omap16xx_gpio1_config = {
 	.bank_width		= 16,
 };
 
-static struct __initdata platform_device omap16xx_gpio1 = {
+static struct platform_device omap16xx_gpio1 = {
 	.name           = "omap_gpio",
 	.id             = 1,
 	.dev            = {
@@ -102,7 +102,7 @@ static struct __initdata omap_gpio_platform_data omap16xx_gpio2_config = {
 	.bank_width		= 16,
 };
 
-static struct __initdata platform_device omap16xx_gpio2 = {
+static struct platform_device omap16xx_gpio2 = {
 	.name           = "omap_gpio",
 	.id             = 2,
 	.dev            = {
@@ -131,7 +131,7 @@ static struct __initdata omap_gpio_platform_data omap16xx_gpio3_config = {
 	.bank_width		= 16,
 };
 
-static struct __initdata platform_device omap16xx_gpio3 = {
+static struct platform_device omap16xx_gpio3 = {
 	.name           = "omap_gpio",
 	.id             = 3,
 	.dev            = {
@@ -160,7 +160,7 @@ static struct __initdata omap_gpio_platform_data omap16xx_gpio4_config = {
 	.bank_width		= 16,
 };
 
-static struct __initdata platform_device omap16xx_gpio4 = {
+static struct platform_device omap16xx_gpio4 = {
 	.name           = "omap_gpio",
 	.id             = 4,
 	.dev            = {

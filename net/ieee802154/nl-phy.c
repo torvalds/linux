@@ -44,7 +44,7 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 pid,
 	pr_debug("%s\n", __func__);
 
 	if (!buf)
-		goto out;
+		return -EMSGSIZE;
 
 	hdr = genlmsg_put(msg, 0, seq, &nl802154_family, flags,
 		IEEE802154_LIST_PHY);
@@ -65,6 +65,7 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 pid,
 				pages * sizeof(uint32_t), buf);
 
 	mutex_unlock(&phy->pib_lock);
+	kfree(buf);
 	return genlmsg_end(msg, hdr);
 
 nla_put_failure:

@@ -209,6 +209,7 @@ static void isight_packet(struct fw_iso_context *context, u32 cycle,
 		isight->packet_index = -1;
 		return;
 	}
+	fw_iso_context_queue_flush(isight->context);
 
 	if (++index >= QUEUE_LENGTH)
 		index = 0;

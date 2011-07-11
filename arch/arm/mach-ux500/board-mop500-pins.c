@@ -110,10 +110,18 @@ static pin_cfg_t mop500_pins_common[] = {
 	GPIO168_KP_O0,
 
 	/* UART */
-	GPIO0_U0_CTSn	| PIN_INPUT_PULLUP,
-	GPIO1_U0_RTSn	| PIN_OUTPUT_HIGH,
-	GPIO2_U0_RXD	| PIN_INPUT_PULLUP,
-	GPIO3_U0_TXD	| PIN_OUTPUT_HIGH,
+	/* uart-0 pins gpio configuration should be
+	 * kept intact to prevent glitch in tx line
+	 * when tty dev is opened. Later these pins
+	 * are configured to uart mop500_pins_uart0
+	 *
+	 * It will be replaced with uart configuration
+	 * once the issue is solved.
+	 */
+	GPIO0_GPIO	| PIN_INPUT_PULLUP,
+	GPIO1_GPIO	| PIN_OUTPUT_HIGH,
+	GPIO2_GPIO	| PIN_INPUT_PULLUP,
+	GPIO3_GPIO	| PIN_OUTPUT_HIGH,
 
 	GPIO29_U2_RXD	| PIN_INPUT_PULLUP,
 	GPIO30_U2_TXD	| PIN_OUTPUT_HIGH,

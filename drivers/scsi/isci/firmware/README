@@ -1,0 +1,36 @@
+This defines the temporary binary blow we are to pass to the SCU
+driver to emulate the binary firmware that we will eventually be
+able to access via NVRAM on the SCU controller.
+
+The current size of the binary blob is expected to be 149 bytes or larger
+
+Header Types:
+0x1: Phy Masks
+0x2: Phy Gens
+0x3: SAS Addrs
+0xff: End of Data
+
+ID string - u8[12]: "#SCU MAGIC#\0"
+Version - u8: 1
+SubVersion - u8: 0
+
+Header Type - u8: 0x1
+Size - u8: 8
+Phy Mask - u32[8]
+
+Header Type - u8: 0x2
+Size - u8: 8
+Phy Gen - u32[8]
+
+Header Type - u8: 0x3
+Size - u8: 8
+Sas Addr - u64[8]
+
+Header Type - u8: 0xf
+
+
+==============================================================================
+
+Place isci_firmware.bin in /lib/firmware
+Be sure to recreate the initramfs image to include the firmware.
+

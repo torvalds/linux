@@ -2365,7 +2365,7 @@ int sigprocmask(int how, sigset_t *set, sigset_t *oldset)
 /**
  *  sys_rt_sigprocmask - change the list of currently blocked signals
  *  @how: whether to add, remove, or set signals
- *  @set: stores pending signals
+ *  @nset: stores pending signals
  *  @oset: previous value of signal mask if non-null
  *  @sigsetsize: size of sigset_t type
  */

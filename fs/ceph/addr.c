@@ -453,7 +453,7 @@ static int ceph_writepage(struct page *page, struct writeback_control *wbc)
 	int err;
 	struct inode *inode = page->mapping->host;
 	BUG_ON(!inode);
-	igrab(inode);
+	ihold(inode);
 	err = writepage_nounlock(page, wbc);
 	unlock_page(page);
 	iput(inode);

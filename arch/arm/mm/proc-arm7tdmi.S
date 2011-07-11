@@ -146,7 +146,7 @@ __arm7tdmi_proc_info:
 		.long	0
 		.long	0
 		.long	v4_cache_fns
-		.size	__arm7tdmi_proc_info, . - __arm7dmi_proc_info
+		.size	__arm7tdmi_proc_info, . - __arm7tdmi_proc_info
 
 		.type	__triscenda7_proc_info, #object
 __triscenda7_proc_info:

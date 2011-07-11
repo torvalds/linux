@@ -252,8 +252,10 @@ static struct irq_chip gpio_irqchip = {
 static void
 gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	struct davinci_gpio_regs __iomem *g = irq2regs(irq);
+	struct davinci_gpio_regs __iomem *g;
 	u32 mask = 0xffff;
+
+	g = (__force struct davinci_gpio_regs __iomem *) irq_desc_get_handler_data(desc);
 
 	/* we only care about one bank */
 	if (irq & 1)
@@ -422,8 +424,7 @@ static int __init davinci_gpio_irq_setup(void)
 
 		/* set up all irqs in this bank */
 		irq_set_chained_handler(bank_irq, gpio_irq_handler);
-		irq_set_chip_data(bank_irq, (__force void *)g);
-		irq_set_handler_data(bank_irq, (void *)irq);
+		irq_set_handler_data(bank_irq, (__force void *)g);
 
 		for (i = 0; i < 16 && gpio < ngpio; i++, irq++, gpio++) {
 			irq_set_chip(irq, &gpio_irqchip);

@@ -1346,6 +1346,11 @@ static void nilfs_btree_shrink(struct nilfs_bmap *btree,
 	path[level].bp_bh = NULL;
 }
 
+static void nilfs_btree_nop(struct nilfs_bmap *btree,
+			    struct nilfs_btree_path *path,
+			    int level, __u64 *keyp, __u64 *ptrp)
+{
+}
 
 static int nilfs_btree_prepare_delete(struct nilfs_bmap *btree,
 				      struct nilfs_btree_path *path,
@@ -1356,20 +1361,19 @@ static int nilfs_btree_prepare_delete(struct nilfs_bmap *btree,
 	struct buffer_head *bh;
 	struct nilfs_btree_node *node, *parent, *sib;
 	__u64 sibptr;
-	int pindex, level, ncmin, ncmax, ncblk, ret;
+	int pindex, dindex, level, ncmin, ncmax, ncblk, ret;
 
 	ret = 0;
 	stats->bs_nblocks = 0;
 	ncmin = NILFS_BTREE_NODE_NCHILDREN_MIN(nilfs_btree_node_size(btree));
 	ncblk = nilfs_btree_nchildren_per_block(btree);
 
-	for (level = NILFS_BTREE_LEVEL_NODE_MIN;
+	for (level = NILFS_BTREE_LEVEL_NODE_MIN, dindex = path[level].bp_index;
 	     level < nilfs_btree_height(btree) - 1;
 	     level++) {
 		node = nilfs_btree_get_nonroot_node(path, level);
 		path[level].bp_oldreq.bpr_ptr =
-			nilfs_btree_node_get_ptr(node, path[level].bp_index,
-						 ncblk);
+			nilfs_btree_node_get_ptr(node, dindex, ncblk);
 		ret = nilfs_bmap_prepare_end_ptr(btree,
 						 &path[level].bp_oldreq, dat);
 		if (ret < 0)
@@ -1383,6 +1387,7 @@ static int nilfs_btree_prepare_delete(struct nilfs_bmap *btree,
 
 		parent = nilfs_btree_get_node(btree, path, level + 1, &ncmax);
 		pindex = path[level + 1].bp_index;
+		dindex = pindex;
 
 		if (pindex > 0) {
 			/* left sibling */
@@ -1421,6 +1426,14 @@ static int nilfs_btree_prepare_delete(struct nilfs_bmap *btree,
 				path[level].bp_sib_bh = bh;
 				path[level].bp_op = nilfs_btree_concat_right;
 				stats->bs_nblocks++;
+				/*
+				 * When merging right sibling node
+				 * into the current node, pointer to
+				 * the right sibling node must be
+				 * terminated instead.  The adjustment
+				 * below is required for that.
+				 */
+				dindex = pindex + 1;
 				/* continue; */
 			}
 		} else {
@@ -1431,28 +1444,30 @@ static int nilfs_btree_prepare_delete(struct nilfs_bmap *btree,
 			    NILFS_BTREE_ROOT_NCHILDREN_MAX) {
 				path[level].bp_op = nilfs_btree_shrink;
 				stats->bs_nblocks += 2;
+				level++;
+				path[level].bp_op = nilfs_btree_nop;
+				goto shrink_root_child;
 			} else {
 				path[level].bp_op = nilfs_btree_do_delete;
 				stats->bs_nblocks++;
+				goto out;
 			}
-
-			goto out;
-
 		}
 	}
 
+	/* child of the root node is deleted */
+	path[level].bp_op = nilfs_btree_do_delete;
+	stats->bs_nblocks++;
+
+shrink_root_child:
 	node = nilfs_btree_get_root(btree);
 	path[level].bp_oldreq.bpr_ptr =
-		nilfs_btree_node_get_ptr(node, path[level].bp_index,
+		nilfs_btree_node_get_ptr(node, dindex,
 					 NILFS_BTREE_ROOT_NCHILDREN_MAX);
 
 	ret = nilfs_bmap_prepare_end_ptr(btree, &path[level].bp_oldreq, dat);
 	if (ret < 0)
 		goto err_out_child_node;
-
-	/* child of the root node is deleted */
-	path[level].bp_op = nilfs_btree_do_delete;
-	stats->bs_nblocks++;
 
 	/* success */
  out:
