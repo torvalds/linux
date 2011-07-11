@@ -51,6 +51,10 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
+#include <mach/iomux.h>
+#include <mach/gpio.h>
+
+
 
 #define PORT_RK		90
 #define UART_USR	0x1F	/* UART Status Register */
@@ -90,37 +94,35 @@
 #define USE_TIMER 1           // use timer for dma transport
 #define THRE_MODE 0X00   //0yhh
 
+//define which uart the bluetooth use on which board
+#ifdef CONFIG_MACH_RK29_PHONESDK
+#define BLUETOOTH_UART  2
+#else
+#define BLUETOOTH_UART  2
+#endif
+
+
 static struct uart_driver serial_rk_reg;
 
 /*
  * Debugging.
  */
-#define DBG_PORT 1
+
+#define DBG_PORT  2    // 0,1,2,3,  other numbers is default
+#if 0
+#define DBG(msg...)	printk(msg);
+#define DEBUG_INTR(fmt...)	if (!uart_console(&up->port)) DBG(fmt)
+#else
+#define DBG(...)
+#define DEBUG_INTR(fmt...)	do { } while (0)
+#endif
+
 #ifdef CONFIG_SERIAL_CORE_CONSOLE
 #define uart_console(port)	((port)->cons && (port)->cons->index == (port)->line)
 #else
 #define uart_console(port)	(0)
 #endif
 
-#ifdef DEBUG
-extern void printascii(const char *);
-
-static void dbg(const char *fmt, ...)
-{
-	va_list va;
-	char buff[256];
-
-	va_start(va, fmt);
-	vsprintf(buff, fmt, va);
-	va_end(va);
-
-	printascii(buff);
-}
-
-#define DEBUG_INTR(fmt...)	if (!uart_console(&up->port)) dbg(fmt)
-#else
-#define DEBUG_INTR(fmt...)	do { } while (0)
-#endif
 
 
 /* added by hhb@rock-chips.com for uart dma transfer */
@@ -303,21 +305,9 @@ static void serial_rk_start_tx(struct uart_port *port)
 {
 	struct uart_rk_port *up =
 		container_of(port, struct uart_rk_port, port);
-/*
- *  struct circ_buf *xmit = &port->state->xmit;
-    int size = CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE);
-	if(size > 64){
-		serial_rk_start_tx_dma(port);
-	}
-	else{
-		serial_rk_enable_ier_thri(up);
-	}
-*/
-
 	if(0 == serial_rk_start_tx_dma(port)){
 		serial_rk_enable_ier_thri(up);
 	}
-
 }
 
 
@@ -721,9 +711,14 @@ static void
 receive_chars(struct uart_rk_port *up, unsigned int *status)
 {
 	struct tty_struct *tty = up->port.state->port.tty;
+	struct uart_port *port = &up->port;
 	unsigned char ch, lsr = *status;
 	int max_count = 256;
 	char flag;
+
+	if(DBG_PORT == port->line) {
+		DBG("RX:");
+	}
 
 	do {
 		if (likely(lsr & UART_LSR_DR))
@@ -784,7 +779,9 @@ receive_chars(struct uart_rk_port *up, unsigned int *status)
 			goto ignore_char;
 
 		uart_insert_char(&up->port, lsr, UART_LSR_OE, ch, flag);
-
+		if(DBG_PORT == port->line) {
+			DBG("0x%x, ", ch);
+		}
 ignore_char:
 		lsr = serial_in(up, UART_LSR);
 	} while ((lsr & (UART_LSR_DR | UART_LSR_BI)) && (max_count-- > 0));
@@ -792,11 +789,17 @@ ignore_char:
 	tty_flip_buffer_push(tty);
 	spin_lock(&up->port.lock);
 	*status = lsr;
+
+	if(DBG_PORT == port->line) {
+		DBG("\n");
+	}
+
 }
 
 static void transmit_chars(struct uart_rk_port *up)
 {
 	struct circ_buf *xmit = &up->port.state->xmit;
+	struct uart_port *port = &up->port;
 	int count;
 
 	if (up->port.x_char) {
@@ -814,17 +817,28 @@ static void transmit_chars(struct uart_rk_port *up)
 		return;
 	}
 
+	if(DBG_PORT == port->line) {
+		DBG("TX:");
+	}
+
 	count = up->tx_loadsz;
 	do {
 		serial_out(up, UART_TX, xmit->buf[xmit->tail]);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
 		up->port.icount.tx++;
+		if(DBG_PORT == port->line) {
+			DBG("0x%x, ", xmit->buf[xmit->tail]);
+		}
 		if (uart_circ_empty(xmit))
 			break;
 	} while (--count > 0);
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&up->port);
+
+	if(DBG_PORT == port->line) {
+		DBG("\n");
+	}
 
 	DEBUG_INTR("THRE...");
 
@@ -1230,43 +1244,32 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct uart_rk_port *up =
 		container_of(port, struct uart_rk_port, port);
 	unsigned char cval, fcr = 0;
-	unsigned long flags, bits;
+	unsigned long flags;
 	unsigned int baud, quot;
 
 	dev_dbg(port->dev, "+%s\n", __func__);
 
-	//start bit
-	bits += 1;
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
 		cval = UART_LCR_WLEN5;
-		bits += 5;
 		break;
 	case CS6:
 		cval = UART_LCR_WLEN6;
-		bits += 6;
 		break;
 	case CS7:
 		cval = UART_LCR_WLEN7;
-		bits += 7;
 		break;
 	default:
 	case CS8:
 		cval = UART_LCR_WLEN8;
-		bits += 8;
 		break;
 	}
 
 	if (termios->c_cflag & CSTOPB){
 		cval |= UART_LCR_STOP;
-		bits += 2;
-	}
-	else{
-		bits += 1;
 	}
 	if (termios->c_cflag & PARENB){
 		cval |= UART_LCR_PARITY;
-		bits += 1;
 	}
 	if (!(termios->c_cflag & PARODD)){
 		cval |= UART_LCR_EPAR;
@@ -1285,10 +1288,6 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	quot = uart_get_divisor(port, baud);
 
-
-	dev_info(up->port.dev, "*****baud:%d*******\n", baud);
-	dev_info(up->port.dev, "*****quot:%d*******\n", quot);
-
 	if (baud < 2400){
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_TRIGGER_1;
 	}
@@ -1296,19 +1295,6 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 		//added by hhb@rock-chips.com
 		if(up->prk29_uart_dma_t->use_timer == 1){
 			fcr = UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_00 | UART_FCR_T_TRIG_01;
-			//set time out value according to the baud rate
-/*
-			up->prk29_uart_dma_t->rx_timeout = bits*1000*1024/baud + 1;
-
-			if(up->prk29_uart_dma_t->rx_timeout < 10){
-				up->prk29_uart_dma_t->rx_timeout = 10;
-			}
-			if(up->prk29_uart_dma_t->rx_timeout > 25){
-				up->prk29_uart_dma_t->rx_timeout = 25;
-			}
-			printk("%s:time:%d, bits:%d, baud:%d\n", __func__, up->prk29_uart_dma_t->rx_timeout, bits, baud);
-			up->prk29_uart_dma_t->rx_timeout = 7;
-*/
 		}
 		else{
 			fcr = UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10 | UART_FCR_T_TRIG_01;
@@ -1326,9 +1312,7 @@ serial_rk_set_termios(struct uart_port *port, struct ktermios *termios,
 	up->mcr &= ~UART_MCR_AFE;
 	if (termios->c_cflag & CRTSCTS){
 		up->mcr |= UART_MCR_AFE;
-		//dev_info(up->port.dev, "*****UART_MCR_AFE*******\n");
 	}
-
 
 	/*
 	 * Ok, we're now changing the port state.  Do it with
@@ -1766,17 +1750,50 @@ static int serial_rk_suspend(struct platform_device *dev, pm_message_t state)
 {
 	struct uart_rk_port *up = platform_get_drvdata(dev);
 
-	if (up)
+	if (up){
 		uart_suspend_port(&serial_rk_reg, &up->port);
+		if(up->port.line == BLUETOOTH_UART){
+			rk29_mux_api_set(GPIO2A7_UART2RTSN_NAME, GPIO2L_GPIO2A7);
+			gpio_request(RK29_PIN2_PA7, "uart_rts");
+			gpio_direction_output(RK29_PIN2_PA7, 0);
+			gpio_set_value(RK29_PIN2_PA7, GPIO_HIGH);
+		}else{
+			serial_out(up, UART_MCR, 0);
+		}
+	}
 	return 0;
+}
+
+
+static struct timer_list uart2_tl;
+static bool timer_init = false;
+static void timer_resume_uart2(unsigned long arg)
+{
+	DBG("%s---\n", __FUNCTION__);
+	gpio_set_value(RK29_PIN2_PA7, GPIO_LOW);
+	rk29_mux_api_set(GPIO2A7_UART2RTSN_NAME, GPIO2L_UART2_RTS_N);
 }
 
 static int serial_rk_resume(struct platform_device *dev)
 {
 	struct uart_rk_port *up = platform_get_drvdata(dev);
 
-	if (up)
+	if (up){
 		uart_resume_port(&serial_rk_reg, &up->port);
+
+		if(up->port.line == BLUETOOTH_UART){
+			if(!timer_init){
+				init_timer(&uart2_tl);
+				uart2_tl.expires = jiffies + msecs_to_jiffies(30);
+				uart2_tl.function = timer_resume_uart2;
+				add_timer(&uart2_tl);
+				timer_init = true;
+			}
+			else{
+				mod_timer(&uart2_tl,jiffies + msecs_to_jiffies(30));
+			}
+		}
+	}
 	return 0;
 }
 
