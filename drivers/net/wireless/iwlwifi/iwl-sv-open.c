@@ -645,7 +645,7 @@ static int iwl_testmode_ownership(struct ieee80211_hw *hw, struct nlattr **tb)
  */
 int iwl_testmode_cmd(struct ieee80211_hw *hw, void *data, int len)
 {
-	struct nlattr *tb[IWL_TM_ATTR_MAX - 1];
+	struct nlattr *tb[IWL_TM_ATTR_MAX];
 	struct iwl_priv *priv = hw->priv;
 	int result;
 
