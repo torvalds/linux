@@ -756,6 +756,22 @@ static int sta32x_probe(struct snd_soc_codec *codec)
 	for (i = 0; i < STA32X_REGISTER_COUNT; i++)
 		snd_soc_cache_write(codec, i, sta32x_regs[i]);
 
+	/* preserve reset values of reserved register bits */
+	snd_soc_cache_write(codec, STA32X_CONFC,
+			    codec->hw_read(codec, STA32X_CONFC));
+	snd_soc_cache_write(codec, STA32X_CONFE,
+			    codec->hw_read(codec, STA32X_CONFE));
+	snd_soc_cache_write(codec, STA32X_CONFF,
+			    codec->hw_read(codec, STA32X_CONFF));
+	snd_soc_cache_write(codec, STA32X_MMUTE,
+			    codec->hw_read(codec, STA32X_MMUTE));
+	snd_soc_cache_write(codec, STA32X_AUTO1,
+			    codec->hw_read(codec, STA32X_AUTO1));
+	snd_soc_cache_write(codec, STA32X_AUTO3,
+			    codec->hw_read(codec, STA32X_AUTO3));
+	snd_soc_cache_write(codec, STA32X_C3CFG,
+			    codec->hw_read(codec, STA32X_C3CFG));
+
 	/* FIXME enable thermal warning adjustment and recovery  */
 	snd_soc_update_bits(codec, STA32X_CONFA,
 			    STA32X_CONFA_TWAB | STA32X_CONFA_TWRB, 0);
