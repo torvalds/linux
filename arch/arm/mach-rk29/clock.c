@@ -301,18 +301,42 @@ static struct clk otgphy1_clkin = {
 };
 
 
-static void delay_500ns(void)
+static noinline void delay_500ns(void)
 {
-	int delay = 2000;
-	while (delay--)
-		barrier();
+	if (system_state == SYSTEM_BOOTING) {
+		LOOP(LOOPS_PER_USEC * 1200 / 24);
+	} else {
+		udelay(1);
+	}
 }
 
-static void delay_300us(void)
+static noinline void delay_300us(void)
 {
-	int i;
-	for (i = 0; i < 600; i++)
-		delay_500ns();
+	if (system_state == SYSTEM_BOOTING) {
+		LOOP(LOOPS_PER_MSEC * 1200 / 24);
+	} else {
+		mdelay(1);
+	}
+}
+
+static noinline void arm_delay_500ns(void)
+{
+	static unsigned long loops = 0;
+	if (!loops) {
+		loops = general_pll_clk.rate / MHZ;
+		loops = loops * LOOPS_PER_USEC / 24;
+	}
+	LOOP(loops);
+}
+
+static noinline void arm_delay_300us(void)
+{
+	static unsigned long loops = 0;
+	if (!loops) {
+		loops = general_pll_clk.rate / MHZ;
+		loops = loops * LOOPS_PER_MSEC / 24;
+	}
+	LOOP(loops);
 }
 
 #define GENERAL_PLL_IDX     0
@@ -437,16 +461,16 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	/* power down */
 	cru_writel(cru_readl(CRU_APLL_CON) | PLL_PD, CRU_APLL_CON);
 
-	delay_500ns();
+	arm_delay_500ns();
 
 	cru_writel(ps->apll_con | PLL_PD, CRU_APLL_CON);
 
-	delay_500ns();
+	arm_delay_500ns();
 
 	/* power up */
 	cru_writel(ps->apll_con, CRU_APLL_CON);
 
-	delay_300us();
+	arm_delay_300us();
 	pll_wait_lock(ARM_PLL_IDX);
 
 	/* reparent to arm pll & set aclk/hclk/pclk */
@@ -2608,9 +2632,10 @@ void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate
 
 	rk29_clock_common_init(ppll_rate, cpll_rate);
 
-	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz (20110630)\n",
+	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz",
 	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
 	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
+	printk(KERN_CONT " (20110711)\n");
 }
 
 void __init rk29_clock_init(enum periph_pll ppll_rate)
