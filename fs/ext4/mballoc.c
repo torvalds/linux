@@ -4780,6 +4780,8 @@ static void ext4_trim_extent(struct super_block *sb, int start, int count,
 {
 	struct ext4_free_extent ex;
 
+	trace_ext4_trim_extent(sb, group, start, count);
+
 	assert_spin_locked(ext4_group_lock_ptr(sb, group));
 
 	ex.fe_start = start;
@@ -4824,6 +4826,8 @@ ext4_trim_all_free(struct super_block *sb, ext4_group_t group,
 	ext4_grpblk_t next, count = 0, free_count = 0;
 	struct ext4_buddy e4b;
 	int ret;
+
+	trace_ext4_trim_all_free(sb, group, start, max);
 
 	ret = ext4_mb_load_buddy(sb, group, &e4b);
 	if (ret) {
