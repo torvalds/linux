@@ -259,25 +259,81 @@ static gfn_t pse36_gfn_delta(u32 gpte)
 	return (gpte & PT32_DIR_PSE36_MASK) << shift;
 }
 
+#ifdef CONFIG_X86_64
 static void __set_spte(u64 *sptep, u64 spte)
 {
-	set_64bit(sptep, spte);
+	*sptep = spte;
 }
 
-static u64 __xchg_spte(u64 *sptep, u64 new_spte)
+static void __update_clear_spte_fast(u64 *sptep, u64 spte)
 {
-#ifdef CONFIG_X86_64
-	return xchg(sptep, new_spte);
-#else
-	u64 old_spte;
-
-	do {
-		old_spte = *sptep;
-	} while (cmpxchg64(sptep, old_spte, new_spte) != old_spte);
-
-	return old_spte;
-#endif
+	*sptep = spte;
 }
+
+static u64 __update_clear_spte_slow(u64 *sptep, u64 spte)
+{
+	return xchg(sptep, spte);
+}
+#else
+union split_spte {
+	struct {
+		u32 spte_low;
+		u32 spte_high;
+	};
+	u64 spte;
+};
+
+static void __set_spte(u64 *sptep, u64 spte)
+{
+	union split_spte *ssptep, sspte;
+
+	ssptep = (union split_spte *)sptep;
+	sspte = (union split_spte)spte;
+
+	ssptep->spte_high = sspte.spte_high;
+
+	/*
+	 * If we map the spte from nonpresent to present, We should store
+	 * the high bits firstly, then set present bit, so cpu can not
+	 * fetch this spte while we are setting the spte.
+	 */
+	smp_wmb();
+
+	ssptep->spte_low = sspte.spte_low;
+}
+
+static void __update_clear_spte_fast(u64 *sptep, u64 spte)
+{
+	union split_spte *ssptep, sspte;
+
+	ssptep = (union split_spte *)sptep;
+	sspte = (union split_spte)spte;
+
+	ssptep->spte_low = sspte.spte_low;
+
+	/*
+	 * If we map the spte from present to nonpresent, we should clear
+	 * present bit firstly to avoid vcpu fetch the old high bits.
+	 */
+	smp_wmb();
+
+	ssptep->spte_high = sspte.spte_high;
+}
+
+static u64 __update_clear_spte_slow(u64 *sptep, u64 spte)
+{
+	union split_spte *ssptep, sspte, orig;
+
+	ssptep = (union split_spte *)sptep;
+	sspte = (union split_spte)spte;
+
+	/* xchg acts as a barrier before the setting of the high bits */
+	orig.spte_low = xchg(&ssptep->spte_low, sspte.spte_low);
+	orig.spte_high = ssptep->spte_high = sspte.spte_high;
+
+	return orig.spte;
+}
+#endif
 
 static bool spte_has_volatile_bits(u64 spte)
 {
@@ -330,9 +386,9 @@ static void mmu_spte_update(u64 *sptep, u64 new_spte)
 		mask |= shadow_dirty_mask;
 
 	if (!spte_has_volatile_bits(old_spte) || (new_spte & mask) == mask)
-		__set_spte(sptep, new_spte);
+		__update_clear_spte_fast(sptep, new_spte);
 	else
-		old_spte = __xchg_spte(sptep, new_spte);
+		old_spte = __update_clear_spte_slow(sptep, new_spte);
 
 	if (!shadow_accessed_mask)
 		return;
@@ -354,9 +410,9 @@ static int mmu_spte_clear_track_bits(u64 *sptep)
 	u64 old_spte = *sptep;
 
 	if (!spte_has_volatile_bits(old_spte))
-		__set_spte(sptep, 0ull);
+		__update_clear_spte_fast(sptep, 0ull);
 	else
-		old_spte = __xchg_spte(sptep, 0ull);
+		old_spte = __update_clear_spte_slow(sptep, 0ull);
 
 	if (!is_rmap_spte(old_spte))
 		return 0;
@@ -376,7 +432,7 @@ static int mmu_spte_clear_track_bits(u64 *sptep)
  */
 static void mmu_spte_clear_no_track(u64 *sptep)
 {
-	__set_spte(sptep, 0ull);
+	__update_clear_spte_fast(sptep, 0ull);
 }
 
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
