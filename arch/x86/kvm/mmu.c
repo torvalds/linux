@@ -217,11 +217,6 @@ void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
 
-static bool is_write_protection(struct kvm_vcpu *vcpu)
-{
-	return kvm_read_cr0_bits(vcpu, X86_CR0_WP);
-}
-
 static int is_cpuid_PSE36(void)
 {
 	return 1;
@@ -241,11 +236,6 @@ static int is_shadow_present_pte(u64 pte)
 static int is_large_pte(u64 pte)
 {
 	return pte & PT_PAGE_SIZE_MASK;
-}
-
-static int is_writable_pte(unsigned long pte)
-{
-	return pte & PT_WRITABLE_MASK;
 }
 
 static int is_dirty_gpte(unsigned long pte)
@@ -2247,15 +2237,17 @@ static void kvm_send_hwpoison_signal(unsigned long address, struct task_struct *
 	send_sig_info(SIGBUS, &info, tsk);
 }
 
-static int kvm_handle_bad_page(struct kvm *kvm, gfn_t gfn, pfn_t pfn)
+static int kvm_handle_bad_page(struct kvm_vcpu *vcpu, gva_t gva,
+			       unsigned access, gfn_t gfn, pfn_t pfn)
 {
 	kvm_release_pfn_clean(pfn);
 	if (is_hwpoison_pfn(pfn)) {
-		kvm_send_hwpoison_signal(gfn_to_hva(kvm, gfn), current);
+		kvm_send_hwpoison_signal(gfn_to_hva(vcpu->kvm, gfn), current);
 		return 0;
 	} else if (is_fault_pfn(pfn))
 		return -EFAULT;
 
+	vcpu_cache_mmio_info(vcpu, gva, gfn, access);
 	return 1;
 }
 
@@ -2337,7 +2329,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn,
 
 	/* mmio */
 	if (is_error_pfn(pfn))
-		return kvm_handle_bad_page(vcpu->kvm, gfn, pfn);
+		return kvm_handle_bad_page(vcpu, v, ACC_ALL, gfn, pfn);
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu, mmu_seq))
@@ -2564,6 +2556,7 @@ static void mmu_sync_roots(struct kvm_vcpu *vcpu)
 	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
 		return;
 
+	vcpu_clear_mmio_info(vcpu, ~0ul);
 	trace_kvm_mmu_audit(vcpu, AUDIT_PRE_SYNC);
 	if (vcpu->arch.mmu.root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
@@ -2710,7 +2703,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa, u32 error_code,
 
 	/* mmio */
 	if (is_error_pfn(pfn))
-		return kvm_handle_bad_page(vcpu->kvm, gfn, pfn);
+		return kvm_handle_bad_page(vcpu, 0, 0, gfn, pfn);
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu, mmu_seq))
 		goto out_unlock;

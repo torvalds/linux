@@ -424,6 +424,11 @@ struct kvm_vcpu_arch {
 	u64 mcg_ctl;
 	u64 *mce_banks;
 
+	/* Cache MMIO info */
+	u64 mmio_gva;
+	unsigned access;
+	gfn_t mmio_gfn;
+
 	/* used for guest single stepping over the given code position */
 	unsigned long singlestep_rip;
 

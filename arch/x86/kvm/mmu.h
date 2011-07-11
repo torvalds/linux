@@ -76,4 +76,27 @@ static inline int is_present_gpte(unsigned long pte)
 	return pte & PT_PRESENT_MASK;
 }
 
+static inline int is_writable_pte(unsigned long pte)
+{
+	return pte & PT_WRITABLE_MASK;
+}
+
+static inline bool is_write_protection(struct kvm_vcpu *vcpu)
+{
+	return kvm_read_cr0_bits(vcpu, X86_CR0_WP);
+}
+
+static inline bool check_write_user_access(struct kvm_vcpu *vcpu,
+					   bool write_fault, bool user_fault,
+					   unsigned long pte)
+{
+	if (unlikely(write_fault && !is_writable_pte(pte)
+	      && (user_fault || is_write_protection(vcpu))))
+		return false;
+
+	if (unlikely(user_fault && !(pte & PT_USER_MASK)))
+		return false;
+
+	return true;
+}
 #endif

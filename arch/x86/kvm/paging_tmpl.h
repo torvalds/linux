@@ -208,11 +208,8 @@ retry_walk:
 			goto error;
 		}
 
-		if (unlikely(write_fault && !is_writable_pte(pte)
-			     && (user_fault || is_write_protection(vcpu))))
-			eperm = true;
-
-		if (unlikely(user_fault && !(pte & PT_USER_MASK)))
+		if (!check_write_user_access(vcpu, write_fault, user_fault,
+					  pte))
 			eperm = true;
 
 #if PTTYPE == 64
@@ -625,8 +622,16 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 		return 0;
 
 	/* mmio */
-	if (is_error_pfn(pfn))
-		return kvm_handle_bad_page(vcpu->kvm, walker.gfn, pfn);
+	if (is_error_pfn(pfn)) {
+		unsigned access = walker.pte_access;
+		bool dirty = is_dirty_gpte(walker.ptes[walker.level - 1]);
+
+		if (!dirty)
+			access &= ~ACC_WRITE_MASK;
+
+		return kvm_handle_bad_page(vcpu, mmu_is_nested(vcpu) ? 0 :
+					   addr, access, walker.gfn, pfn);
+	}
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu, mmu_seq))
@@ -665,6 +670,8 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 	int level;
 	u64 *sptep;
 	int need_flush = 0;
+
+	vcpu_clear_mmio_info(vcpu, gva);
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 
