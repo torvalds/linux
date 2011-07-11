@@ -219,7 +219,6 @@ static int __devinit da9052_gpio_probe(struct platform_device *pdev)
 	gpio->da9052 = dev_get_drvdata(pdev->dev.parent);
 	pdata = gpio->da9052->dev->platform_data;
 
-	gpio->da9052 = dev_get_drvdata(pdev->dev.parent);
 	gpio->gp = reference_gp;
 	if (pdata && pdata->gpio_base)
 		gpio->gp.base = pdata->gpio_base;
