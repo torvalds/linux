@@ -172,8 +172,8 @@ struct pte_list_desc {
 struct kvm_shadow_walk_iterator {
 	u64 addr;
 	hpa_t shadow_addr;
-	int level;
 	u64 *sptep;
+	int level;
 	unsigned index;
 };
 
