@@ -347,6 +347,6 @@ const struct psb_ops psb_chip_ops = {
 	.save_regs = psb_save_display_registers,
 	.restore_regs = psb_restore_display_registers,
 	.power_down = psb_power_down,
-	.power_up = psb_power_up,	
+	.power_up = psb_power_up,
 };
 

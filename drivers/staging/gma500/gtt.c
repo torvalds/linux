@@ -398,7 +398,7 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	dev_priv->gtt_initialized = 1;
 
 	pg->gtt_phys_start = dev_priv->pge_ctl & PAGE_MASK;
-	
+
 	/*
 	 *	FIXME: video mmu has hw bug to access 0x0D0000000,
 	 *	then make gatt start at 0x0e000,0000

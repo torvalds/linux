@@ -1284,9 +1284,9 @@ const struct drm_crtc_funcs psb_intel_crtc_funcs = {
  */
 static void psb_intel_cursor_init(struct drm_device *dev, int pipe)
 {
-        u32 control[3] = { CURACNTR, CURBCNTR, CURCCNTR };
-        u32 base[3] = { CURABASE, CURBBASE, CURCBASE };
-        
+	u32 control[3] = { CURACNTR, CURBCNTR, CURCCNTR };
+	u32 base[3] = { CURABASE, CURBBASE, CURCBASE };
+
 	REG_WRITE(control[pipe], 0);
 	REG_WRITE(base[pipe], 0);
 }
@@ -1341,7 +1341,7 @@ void psb_intel_crtc_init(struct drm_device *dev, int pipe,
 	psb_intel_crtc->cursor_addr = 0;
 
 	drm_crtc_helper_add(&psb_intel_crtc->base,
-	                                dev_priv->ops->crtc_helper);
+						dev_priv->ops->crtc_helper);
 
 	/* Setup the array of drm_connector pointer array */
 	psb_intel_crtc->mode_set.crtc = &psb_intel_crtc->base;
