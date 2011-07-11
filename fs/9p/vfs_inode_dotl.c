@@ -86,6 +86,38 @@ static struct dentry *v9fs_dentry_from_dir_inode(struct inode *inode)
 	return dentry;
 }
 
+static int v9fs_test_inode_dotl(struct inode *inode, void *data)
+{
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct p9_stat_dotl *st = (struct p9_stat_dotl *)data;
+
+	/* don't match inode of different type */
+	if ((inode->i_mode & S_IFMT) != (st->st_mode & S_IFMT))
+		return 0;
+
+	if (inode->i_generation != st->st_gen)
+		return 0;
+
+	/* compare qid details */
+	if (memcmp(&v9inode->qid.version,
+		   &st->qid.version, sizeof(v9inode->qid.version)))
+		return 0;
+
+	if (v9inode->qid.type != st->qid.type)
+		return 0;
+	return 1;
+}
+
+static int v9fs_set_inode_dotl(struct inode *inode,  void *data)
+{
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct p9_stat_dotl *st = (struct p9_stat_dotl *)data;
+
+	memcpy(&v9inode->qid, &st->qid, sizeof(st->qid));
+	inode->i_generation = st->st_gen;
+	return 0;
+}
+
 static struct inode *v9fs_qid_iget_dotl(struct super_block *sb,
 					struct p9_qid *qid,
 					struct p9_fid *fid,
@@ -97,7 +129,8 @@ static struct inode *v9fs_qid_iget_dotl(struct super_block *sb,
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
 
 	i_ino = v9fs_qid2ino(qid);
-	inode = iget_locked(sb, i_ino);
+	inode = iget5_locked(sb, i_ino, v9fs_test_inode_dotl,
+			     v9fs_set_inode_dotl, st);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	if (!(inode->i_state & I_NEW))
@@ -107,13 +140,13 @@ static struct inode *v9fs_qid_iget_dotl(struct super_block *sb,
 	 * FIXME!! we may need support for stale inodes
 	 * later.
 	 */
+	inode->i_ino = i_ino;
 	retval = v9fs_init_inode(v9ses, inode, st->st_mode);
 	if (retval)
 		goto error;
 
 	v9fs_stat2inode_dotl(st, inode);
 #ifdef CONFIG_9P_FSCACHE
-	v9fs_fscache_set_key(inode, &st->qid);
 	v9fs_cache_inode_get_cookie(inode);
 #endif
 	retval = v9fs_get_acl(inode, fid);
@@ -136,7 +169,7 @@ v9fs_inode_from_fid_dotl(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 	struct p9_stat_dotl *st;
 	struct inode *inode = NULL;
 
-	st = p9_client_getattr_dotl(fid, P9_STATS_BASIC);
+	st = p9_client_getattr_dotl(fid, P9_STATS_BASIC | P9_STATS_GEN);
 	if (IS_ERR(st))
 		return ERR_CAST(st);
 
@@ -547,7 +580,7 @@ v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode)
 			inode->i_blocks = stat->st_blocks;
 	}
 	if (stat->st_result_mask & P9_STATS_GEN)
-			inode->i_generation = stat->st_gen;
+		inode->i_generation = stat->st_gen;
 
 	/* Currently we don't support P9_STATS_BTIME and P9_STATS_DATA_VERSION
 	 * because the inode structure does not have fields for them.
