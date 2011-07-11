@@ -373,11 +373,14 @@ static int inet_peer_gc(struct inet_peer_base *base,
 	while (stackptr > stack) {
 		stackptr--;
 		p = rcu_deref_locked(**stackptr, base);
-		delta = (__u32)jiffies - p->dtime;
-		if (atomic_read(&p->refcnt) == 0 && delta >= ttl &&
-		    atomic_cmpxchg(&p->refcnt, 0, -1) == 0) {
-			p->gc_next = gchead;
-			gchead = p;
+		if (atomic_read(&p->refcnt) == 0) {
+			smp_rmb();
+			delta = (__u32)jiffies - p->dtime;
+			if (delta >= ttl &&
+			    atomic_cmpxchg(&p->refcnt, 0, -1) == 0) {
+				p->gc_next = gchead;
+				gchead = p;
+			}
 		}
 	}
 	while ((p = gchead) != NULL) {
@@ -456,6 +459,7 @@ EXPORT_SYMBOL_GPL(inet_getpeer);
 void inet_putpeer(struct inet_peer *p)
 {
 	p->dtime = (__u32)jiffies;
+	smp_mb__before_atomic_dec();
 	atomic_dec(&p->refcnt);
 }
 EXPORT_SYMBOL_GPL(inet_putpeer);
