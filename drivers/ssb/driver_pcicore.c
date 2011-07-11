@@ -516,8 +516,17 @@ static void ssb_pcicore_pcie_setup_workarounds(struct ssb_pcicore *pc)
 
 static void __devinit ssb_pcicore_init_clientmode(struct ssb_pcicore *pc)
 {
+	ssb_pcicore_fix_sprom_core_index(pc);
+
 	/* Disable PCI interrupts. */
 	ssb_write32(pc->dev, SSB_INTVEC, 0);
+
+	/* Additional PCIe always once-executed workarounds */
+	if (pc->dev->id.coreid == SSB_DEV_PCIE) {
+		ssb_pcicore_serdes_workaround(pc);
+		/* TODO: ASPM */
+		/* TODO: Clock Request Update */
+	}
 }
 
 void __devinit ssb_pcicore_init(struct ssb_pcicore *pc)
@@ -529,8 +538,6 @@ void __devinit ssb_pcicore_init(struct ssb_pcicore *pc)
 	if (!ssb_device_is_enabled(dev))
 		ssb_device_enable(dev, 0);
 
-	ssb_pcicore_fix_sprom_core_index(pc);
-
 #ifdef CONFIG_SSB_PCICORE_HOSTMODE
 	pc->hostmode = pcicore_is_in_hostmode(pc);
 	if (pc->hostmode)
@@ -538,13 +545,6 @@ void __devinit ssb_pcicore_init(struct ssb_pcicore *pc)
 #endif /* CONFIG_SSB_PCICORE_HOSTMODE */
 	if (!pc->hostmode)
 		ssb_pcicore_init_clientmode(pc);
-
-	/* Additional PCIe always once-executed workarounds */
-	if (dev->id.coreid == SSB_DEV_PCIE) {
-		ssb_pcicore_serdes_workaround(pc);
-		/* TODO: ASPM */
-		/* TODO: Clock Request Update */
-	}
 }
 
 static u32 ssb_pcie_read(struct ssb_pcicore *pc, u32 address)
