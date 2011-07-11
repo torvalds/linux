@@ -615,9 +615,6 @@ static struct platform_driver lirc_parallel_driver = {
 	},
 };
 
-static int pf(void *handle);
-static void kf(void *handle);
-
 static int pf(void *handle)
 {
 	parport_disable_irq(pport);
