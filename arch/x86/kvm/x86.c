@@ -4010,6 +4010,27 @@ out:
 }
 EXPORT_SYMBOL_GPL(kvm_write_guest_virt_system);
 
+static int vcpu_mmio_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
+				gpa_t *gpa, struct x86_exception *exception,
+				bool write)
+{
+	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
+
+	if (write)
+		access |= PFERR_WRITE_MASK;
+
+	*gpa = vcpu->arch.walk_mmu->gva_to_gpa(vcpu, gva, access, exception);
+
+	if (*gpa == UNMAPPED_GVA)
+		return -1;
+
+	/* For APIC access vmexit */
+	if ((*gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
+		return 1;
+
+	return 0;
+}
+
 static int emulator_read_emulated(struct x86_emulate_ctxt *ctxt,
 				  unsigned long addr,
 				  void *val,
@@ -4017,8 +4038,8 @@ static int emulator_read_emulated(struct x86_emulate_ctxt *ctxt,
 				  struct x86_exception *exception)
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
-	gpa_t                 gpa;
-	int handled;
+	gpa_t gpa;
+	int handled, ret;
 
 	if (vcpu->mmio_read_completed) {
 		memcpy(val, vcpu->mmio_data, bytes);
@@ -4028,13 +4049,12 @@ static int emulator_read_emulated(struct x86_emulate_ctxt *ctxt,
 		return X86EMUL_CONTINUE;
 	}
 
-	gpa = kvm_mmu_gva_to_gpa_read(vcpu, addr, exception);
+	ret = vcpu_mmio_gva_to_gpa(vcpu, addr, &gpa, exception, false);
 
-	if (gpa == UNMAPPED_GVA)
+	if (ret < 0)
 		return X86EMUL_PROPAGATE_FAULT;
 
-	/* For APIC access vmexit */
-	if ((gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
+	if (ret)
 		goto mmio;
 
 	if (kvm_read_guest_virt(ctxt, addr, val, bytes, exception)
@@ -4085,16 +4105,16 @@ static int emulator_write_emulated_onepage(unsigned long addr,
 					   struct x86_exception *exception,
 					   struct kvm_vcpu *vcpu)
 {
-	gpa_t                 gpa;
-	int handled;
+	gpa_t gpa;
+	int handled, ret;
 
-	gpa = kvm_mmu_gva_to_gpa_write(vcpu, addr, exception);
+	ret = vcpu_mmio_gva_to_gpa(vcpu, addr, &gpa, exception, true);
 
-	if (gpa == UNMAPPED_GVA)
+	if (ret < 0)
 		return X86EMUL_PROPAGATE_FAULT;
 
 	/* For APIC access vmexit */
-	if ((gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
+	if (ret)
 		goto mmio;
 
 	if (emulator_write_phys(vcpu, gpa, val, bytes))
