@@ -2023,7 +2023,7 @@ done:
 static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 			 unsigned pt_access, unsigned pte_access,
 			 int user_fault, int write_fault,
-			 int *ptwrite, int level, gfn_t gfn,
+			 int *emulate, int level, gfn_t gfn,
 			 pfn_t pfn, bool speculative,
 			 bool host_writable)
 {
@@ -2061,7 +2061,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		      level, gfn, pfn, speculative, true,
 		      host_writable)) {
 		if (write_fault)
-			*ptwrite = 1;
+			*emulate = 1;
 		kvm_mmu_flush_tlb(vcpu);
 	}
 
@@ -2184,7 +2184,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 {
 	struct kvm_shadow_walk_iterator iterator;
 	struct kvm_mmu_page *sp;
-	int pt_write = 0;
+	int emulate = 0;
 	gfn_t pseudo_gfn;
 
 	for_each_shadow_entry(vcpu, (u64)gfn << PAGE_SHIFT, iterator) {
@@ -2192,7 +2192,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 			unsigned pte_access = ACC_ALL;
 
 			mmu_set_spte(vcpu, iterator.sptep, ACC_ALL, pte_access,
-				     0, write, &pt_write,
+				     0, write, &emulate,
 				     level, gfn, pfn, prefault, map_writable);
 			direct_pte_prefetch(vcpu, iterator.sptep);
 			++vcpu->stat.pf_fixed;
@@ -2220,7 +2220,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 				   | shadow_accessed_mask);
 		}
 	}
-	return pt_write;
+	return emulate;
 }
 
 static void kvm_send_hwpoison_signal(unsigned long address, struct task_struct *tsk)
