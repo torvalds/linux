@@ -1989,18 +1989,11 @@ int ext4_orphan_add(handle_t *handle, struct inode *inode)
 	if (!list_empty(&EXT4_I(inode)->i_orphan))
 		goto out_unlock;
 
-	/* Orphan handling is only valid for files with data blocks
-	 * being truncated, or files being unlinked. */
-
-	/* @@@ FIXME: Observation from aviro:
-	 * I think I can trigger J_ASSERT in ext4_orphan_add().  We block
-	 * here (on s_orphan_lock), so race with ext4_link() which might bump
-	 * ->i_nlink. For, say it, character device. Not a regular file,
-	 * not a directory, not a symlink and ->i_nlink > 0.
-	 *
-	 * tytso, 4/25/2009: I'm not sure how that could happen;
-	 * shouldn't the fs core protect us from these sort of
-	 * unlink()/link() races?
+	/*
+	 * Orphan handling is only valid for files with data blocks
+	 * being truncated, or files being unlinked. Note that we either
+	 * hold i_mutex, or the inode can not be referenced from outside,
+	 * so i_nlink should not be bumped due to race
 	 */
 	J_ASSERT((S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 		  S_ISLNK(inode->i_mode)) || inode->i_nlink == 0);
