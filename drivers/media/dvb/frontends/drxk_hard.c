@@ -663,7 +663,6 @@ static int init_state(struct drxk_state *state)
 	/* io_pad_cfg_mode output mode is drive always */
 	/* io_pad_cfg_drive is set to power 2 (23 mA) */
 	u32 ulGPIOCfg = 0x0113;
-	u32 ulGPIO = 0;
 	u32 ulSerialMode = 1;
 	u32 ulInvertTSClock = 0;
 	u32 ulTSDataStrength = DRXK_MPEG_SERIAL_OUTPUT_PIN_DRIVE_STRENGTH;
