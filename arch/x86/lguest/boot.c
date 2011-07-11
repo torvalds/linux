@@ -467,7 +467,7 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
 	/*
 	 * PAE systems can mark pages as non-executable.  Linux calls this the
 	 * NX bit.  Intel calls it XD (eXecute Disable), AMD EVP (Enhanced
-	 * Virus Protection).  We just switch turn if off here, since we don't
+	 * Virus Protection).  We just switch it off here, since we don't
 	 * support it.
 	 */
 	case 0x80000001:

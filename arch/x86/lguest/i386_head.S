@@ -21,7 +21,7 @@
  * assigned number), then it calls us here.
  *
  * WARNING: be very careful here!  We're running at addresses equal to physical
- * addesses (around 0), not above PAGE_OFFSET as most code expects
+ * addresses (around 0), not above PAGE_OFFSET as most code expects
  * (eg. 0xC0000000).  Jumps are relative, so they're OK, but we can't touch any
  * data without remembering to subtract __PAGE_OFFSET!
  *
