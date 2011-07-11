@@ -216,12 +216,6 @@ inline static bool firmware_check_ready(struct net_device *dev, u8 load_fw_statu
 	switch (load_fw_status) {
 	case FW_INIT_STEP0_BOOT:
 		pfirmware->firmware_status = FW_STATUS_1_MOVE_BOOT_CODE;
-#ifdef RTL8190P
-		rt_status = fwSendNullPacket(dev, RTL8190_CPU_START_OFFSET);
-		if (!rt_status) {
-			RT_TRACE(COMP_INIT, "fwSendNullPacket() fail ! \n");
-		}
-#endif
 		break;
 
 	case FW_INIT_STEP1_MAIN:
@@ -262,15 +256,6 @@ bool init_firmware(struct net_device *dev)
 	struct r8192_priv	*priv = rtllib_priv(dev);
 	bool			rt_status = true;
 
-#ifdef RTL8190P
-	u8	*firmware_img_buf[3] = { &Rtl8190PciFwBootArray[0],
-					 &Rtl8190PciFwMainArray[0],
-					 &Rtl8190PciFwDataArray[0]};
-
-	u32	firmware_img_len[3] = { sizeof(Rtl8190PciFwBootArray),
-					sizeof(Rtl8190PciFwMainArray),
-					sizeof(Rtl8190PciFwDataArray)};
-#else
 	u8	*firmware_img_buf[3] = { &Rtl8192PciEFwBootArray[0],
 					 &Rtl8192PciEFwMainArray[0],
 					 &Rtl8192PciEFwDataArray[0]};
@@ -278,7 +263,6 @@ bool init_firmware(struct net_device *dev)
 	u32	firmware_img_len[3] = { sizeof(Rtl8192PciEFwBootArray),
 					sizeof(Rtl8192PciEFwMainArray),
 					sizeof(Rtl8192PciEFwDataArray)};
-#endif
 	u32	file_length = 0;
 	u8	*mapped_file = NULL;
 	u8	init_step = 0;

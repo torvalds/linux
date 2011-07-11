@@ -70,26 +70,12 @@ typedef enum _BaseBand_Config_Type {
 #define EEPROM_Default_TxPower			0x1010
 #define EEPROM_ICVersion_ChannelPlan	0x7C
 #define EEPROM_Customer_ID			0x7B
-#ifdef RTL8190P
-#define EEPROM_RFInd_PowerDiff			0x14
-#define EEPROM_ThermalMeter			0x15
-#define EEPROM_TxPwDiff_CrystalCap		0x16
-#define EEPROM_TxPwIndex_CCK			0x18
-#define EEPROM_TxPwIndex_OFDM_24G	0x26
-#define EEPROM_TxPwIndex_OFDM_5G		0x34
-#define EEPROM_C56_CrystalCap			0x17
-#define EEPROM_C56_RfA_CCK_Chnl1_TxPwIndex	0x80
-#define EEPROM_C56_RfA_HT_OFDM_TxPwIndex	0x81
-#define EEPROM_C56_RfC_CCK_Chnl1_TxPwIndex	0xbc
-#define EEPROM_C56_RfC_HT_OFDM_TxPwIndex	0xb9
-#else
 #ifdef RTL8192E
 #define EEPROM_RFInd_PowerDiff			0x28
 #define EEPROM_ThermalMeter			0x29
 #define EEPROM_TxPwDiff_CrystalCap		0x2A
 #define EEPROM_TxPwIndex_CCK			0x2C
 #define EEPROM_TxPwIndex_OFDM_24G	0x3A
-#endif
 #endif
 #define EEPROM_Default_TxPowerLevel		0x10
 #define EEPROM_IC_VER				0x7d

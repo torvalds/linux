@@ -345,10 +345,6 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 #endif
 	u16			i,usValue, IC_Version;
 	u16			EEPROMId;
-#ifdef RTL8190P
-	u8			offset;
-	u8			EepromTxPower[100];
-#endif
 	u8 bMac_Tmp_Addr[6] = {0x00, 0xe0, 0x4c, 0x00, 0x00, 0x01};
 	RT_TRACE(COMP_INIT, "====> rtl8192_read_eeprom_info\n");
 
@@ -376,9 +372,6 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 		priv->eeprom_ChannelPlan = usValue&0xff;
 		IC_Version = ((usValue&0xff00)>>8);
 
-#ifdef RTL8190P
-		priv->card_8192_version = (VERSION_8190)(IC_Version);
-#elif defined  RTL8192E
 		ICVer8192 = (IC_Version&0xf);
 		ICVer8256 = ((IC_Version&0xf0)>>4);
 		RT_TRACE(COMP_INIT, "\nICVer8192 = 0x%x\n", ICVer8192);
@@ -388,7 +381,6 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 			if (ICVer8256 == 0x5)
 				priv->card_8192_version= VERSION_8190_BE;
 		}
-#endif
 		switch (priv->card_8192_version)
 		{
 			case VERSION_8190_BD:
@@ -515,75 +507,6 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 		}
 		else if (priv->epromtype== EEPROM_93C56)
 		{
-#ifdef RTL8190P
-			if (!priv->AutoloadFailFlag)
-			{
-				priv->EEPROMAntPwDiff = EEPROM_Default_AntTxPowerDiff;
-				priv->EEPROMCrystalCap = (u8)(((eprom_read(dev, (EEPROM_C56_CrystalCap>>1))) & 0xf000)>>12);
-			}
-			else
-			{
-				priv->EEPROMAntPwDiff = EEPROM_Default_AntTxPowerDiff;
-				priv->EEPROMCrystalCap = EEPROM_Default_TxPwDiff_CrystalCap;
-			}
-			RT_TRACE(COMP_INIT,"EEPROMAntPwDiff = %d\n", priv->EEPROMAntPwDiff);
-			RT_TRACE(COMP_INIT, "EEPROMCrystalCap = %d\n", priv->EEPROMCrystalCap);
-
-			if (!priv->AutoloadFailFlag)
-			{
-				for (i = 0; i < 12; i+=2)
-				{
-					if (i <6)
-						offset = EEPROM_C56_RfA_CCK_Chnl1_TxPwIndex + i;
-					else
-						offset = EEPROM_C56_RfC_CCK_Chnl1_TxPwIndex + i - 6;
-					usValue = eprom_read(dev, (offset>>1));
-					*((u16*)(&EepromTxPower[i])) = usValue;
-				}
-
-				for (i = 0; i < 12; i++)
-				{
-					if (i <= 2)
-						priv->EEPROMRfACCKChnl1TxPwLevel[i] = EepromTxPower[i];
-					else if ((i >=3 )&&(i <= 5))
-						priv->EEPROMRfAOfdmChnlTxPwLevel[i-3] = EepromTxPower[i];
-					else if ((i >=6 )&&(i <= 8))
-						priv->EEPROMRfCCCKChnl1TxPwLevel[i-6] = EepromTxPower[i];
-					else
-						priv->EEPROMRfCOfdmChnlTxPwLevel[i-9] = EepromTxPower[i];
-				}
-			}
-			else
-			{
-				priv->EEPROMRfACCKChnl1TxPwLevel[0] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfACCKChnl1TxPwLevel[1] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfACCKChnl1TxPwLevel[2] = EEPROM_Default_TxPowerLevel;
-
-				priv->EEPROMRfAOfdmChnlTxPwLevel[0] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfAOfdmChnlTxPwLevel[1] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfAOfdmChnlTxPwLevel[2] = EEPROM_Default_TxPowerLevel;
-
-				priv->EEPROMRfCCCKChnl1TxPwLevel[0] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfCCCKChnl1TxPwLevel[1] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfCCCKChnl1TxPwLevel[2] = EEPROM_Default_TxPowerLevel;
-
-				priv->EEPROMRfCOfdmChnlTxPwLevel[0] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfCOfdmChnlTxPwLevel[1] = EEPROM_Default_TxPowerLevel;
-				priv->EEPROMRfCOfdmChnlTxPwLevel[2] = EEPROM_Default_TxPowerLevel;
-			}
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfACCKChnl1TxPwLevel[0] = 0x%x\n", priv->EEPROMRfACCKChnl1TxPwLevel[0]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfACCKChnl1TxPwLevel[1] = 0x%x\n", priv->EEPROMRfACCKChnl1TxPwLevel[1]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfACCKChnl1TxPwLevel[2] = 0x%x\n", priv->EEPROMRfACCKChnl1TxPwLevel[2]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfAOfdmChnlTxPwLevel[0] = 0x%x\n", priv->EEPROMRfAOfdmChnlTxPwLevel[0]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfAOfdmChnlTxPwLevel[1] = 0x%x\n", priv->EEPROMRfAOfdmChnlTxPwLevel[1]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfAOfdmChnlTxPwLevel[2] = 0x%x\n", priv->EEPROMRfAOfdmChnlTxPwLevel[2]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfCCCKChnl1TxPwLevel[0] = 0x%x\n", priv->EEPROMRfCCCKChnl1TxPwLevel[0]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfCCCKChnl1TxPwLevel[1] = 0x%x\n", priv->EEPROMRfCCCKChnl1TxPwLevel[1]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfCCCKChnl1TxPwLevel[2] = 0x%x\n", priv->EEPROMRfCCCKChnl1TxPwLevel[2]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfCOfdmChnlTxPwLevel[0] = 0x%x\n", priv->EEPROMRfCOfdmChnlTxPwLevel[0]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfCOfdmChnlTxPwLevel[1] = 0x%x\n", priv->EEPROMRfCOfdmChnlTxPwLevel[1]);
-			RT_TRACE(COMP_INIT, "priv->EEPROMRfCOfdmChnlTxPwLevel[2] = 0x%x\n", priv->EEPROMRfCOfdmChnlTxPwLevel[2]);
-#endif
 
 		}
 		if (priv->epromtype == EEPROM_93C46)
@@ -724,11 +647,7 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 	switch (priv->CustomerID)
 	{
 		case RT_CID_DEFAULT:
-#ifdef RTL8190P
-			priv->LedStrategy = HW_LED;
-#elif defined RTL8192E
 			priv->LedStrategy = SW_LED_MODE1;
-#endif
 			break;
 
 		case RT_CID_819x_CAMEO:
@@ -754,11 +673,7 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 		case RT_CID_TOSHIBA:
 
 		default:
-#ifdef RTL8190P
-			priv->LedStrategy = HW_LED;
-#elif defined RTL8192E
 			priv->LedStrategy = SW_LED_MODE1;
-#endif
 			break;
 	}
 	RT_TRACE(COMP_INIT, "LedStrategy = %d \n", priv->LedStrategy);
@@ -862,9 +777,6 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	u8 ICVersion,SwitchingRegulatorOutput;
 #endif
 	bool bfirmwareok = true;
-#ifdef RTL8190P
-	u8 ucRegRead;
-#endif
 	u32 tmpRegA, tmpRegC, TempCCk;
 	int i = 0;
 	u32 retry_times = 0;
@@ -900,9 +812,6 @@ start:
 	else
 		RT_TRACE(COMP_ERR, "ERROR in %s(): undefined firmware state(%d)\n", __func__,   priv->pFirmware->firmware_status);
 
-#ifdef RTL8190P
-	ulRegRead &= (~(CPU_GEN_GPIO_UART));
-#endif
 
 	write_nic_dword(dev, CPU_GEN, ulRegRead);
 
@@ -953,14 +862,8 @@ start:
 	rtl8192_hwconfig(dev);
 	write_nic_byte(dev, CMDR, CR_RE|CR_TE);
 
-#ifdef RTL8190P
-	write_nic_byte(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) | \
-				(MXDMA2_NoLimit<<MXDMA2_TX_SHIFT) | \
-				(1<<MULRW_SHIFT)));
-#elif defined RTL8192E
 	write_nic_byte(dev, PCIF, ((MXDMA2_NoLimit<<MXDMA2_RX_SHIFT) |\
 				(MXDMA2_NoLimit<<MXDMA2_TX_SHIFT) ));
-#endif
 	write_nic_dword(dev, MAC0, ((u32*)dev->dev_addr)[0]);
 	write_nic_word(dev, MAC4, ((u16*)(dev->dev_addr + 4))[0]);
 	write_nic_dword(dev, RCR, priv->ReceiveConfig);
@@ -1066,15 +969,6 @@ start:
 
 #ifdef RTL8192E
 	write_nic_byte(dev, 0x87, 0x0);
-#endif
-#ifdef RTL8190P
-	ucRegRead = read_nic_byte(dev, GPE);
-	ucRegRead |= BIT0;
-	write_nic_byte(dev, GPE, ucRegRead);
-
-	ucRegRead = read_nic_byte(dev, GPO);
-	ucRegRead &= ~BIT0;
-	write_nic_byte(dev, GPO, ucRegRead);
 #endif
 
 	if (priv->RegRfOff == true) {
@@ -1390,11 +1284,7 @@ void  rtl8192_tx_fill_desc(struct net_device* dev, tx_desc * pdesc, cb_desc * cb
         if (cb_desc->bPacketBW)
         {
             pTxFwInfo->TxBandwidth = 1;
-#ifdef RTL8190P
-            pTxFwInfo->TxSubCarrier = 3;
-#else
             pTxFwInfo->TxSubCarrier = 0;
-#endif
         }
         else
         {
@@ -1712,25 +1602,6 @@ void rtl8192_query_rxphystatus(
 	{
 
 		u8 report;
-#ifdef RTL8190P
-		u8 tmp_pwdb;
-		char cck_adc_pwdb[4];
-#endif
-		priv->stats.numqry_phystatusCCK++;
-
-#ifdef RTL8190P
-		if (priv->rf_type == RF_2T4R && DM_RxPathSelTable.Enable && bpacket_match_bssid)
-		{
-			for (i=RF90_PATH_A; i<RF90_PATH_MAX; i++)
-			{
-				tmp_pwdb = pcck_buf->adc_pwdb_X[i];
-				cck_adc_pwdb[i] = (char)tmp_pwdb;
-				cck_adc_pwdb[i] /= 2;
-				pstats->cck_adc_pwdb[i] = precord_stats->cck_adc_pwdb[i] = cck_adc_pwdb[i];
-			}
-		}
-#endif
-
 		if (!reg824_bit9)
 		{
 			report = pcck_buf->cck_agc_rpt & 0xc0;
@@ -1807,11 +1678,7 @@ void rtl8192_query_rxphystatus(
 			if (priv->brfpath_rxenable[i])
 				rf_rx_num++;
 
-#ifdef RTL8190P
-			rx_pwr[i] = ((pofdm_buf->trsw_gain_X[i]&0x3F)*2) - 106;
-#else
 			rx_pwr[i] = ((pofdm_buf->trsw_gain_X[i]&0x3F)*2) - 110;
-#endif
 
 			tmp_rxsnr = pofdm_buf->rxsnr_X[i];
 			rx_snrX = (char)(tmp_rxsnr);
@@ -2224,9 +2091,6 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 	u8	OpMode;
 	u8	u1bTmp;
 	u32	ulRegRead;
-#ifdef RTL8190P
-	u8	ucRegRead;
-#endif
 
 	OpMode = RT_OP_MODE_NO_LINK;
 	priv->rtllib->SetHwRegHandler(dev, HW_VAR_MEDIA_STATUS, &OpMode);
@@ -2254,15 +2118,9 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 
 		if (!priv->rtllib->bSupportRemoteWakeUp)
 		{
-#ifdef RTL8190P
-			{
-				PHY_SetRtl8190pRfOff(dev);
-			}
-#elif defined RTL8192E
 			{
 				PHY_SetRtl8192eRfOff(dev);
 			}
-#endif
 			ulRegRead = read_nic_dword(dev,CPU_GEN);
 			ulRegRead|=CPU_GEN_SYSTEM_RESET;
 			write_nic_dword(dev,CPU_GEN, ulRegRead);
@@ -2274,13 +2132,6 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 			write_nic_dword(dev, WFCRC2, 0xffffffff);
 
 
-#ifdef RTL8190P
-			{
-				ucRegRead = read_nic_byte(dev, GPO);
-				ucRegRead |= BIT0;
-				write_nic_byte(dev, GPO, ucRegRead);
-			}
-#endif
 			write_nic_byte(dev, PMR, 0x5);
 			write_nic_byte(dev, MacBlkCtrl, 0xa);
 		}
@@ -2348,11 +2199,7 @@ rtl8192_InitializeVariables(struct net_device  *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-#ifdef RTL8190P
-	strcpy(priv->nick, "rtl8190p");
-#elif defined(RTL8192E)
 	strcpy(priv->nick, "rtl8192E");
-#endif
 
 #ifdef _ENABLE_SW_BEACON
 	priv->rtllib->softmac_features  = IEEE_SOFTMAC_SCAN |
@@ -2576,14 +2423,7 @@ bool rtl8192_HalTxCheckStuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool	bStuck = false;
-#if defined(RTL8192E) || defined(RTL8190P)
 	u16    RegTxCounter = read_nic_word(dev, 0x128);
-#elif defined (RTL8192SE) || defined (RTL8192CE)
-	u16	RegTxCounter = read_nic_word(dev, 0x366);
-#else
-	u16	RegTxCounter = priv->TxCounter + 1;
-	WARN_ON(1);
-#endif
 
 	RT_TRACE(COMP_RESET, "%s():RegTxCounter is %d,TxCounter is %d\n",
 			__func__,RegTxCounter,priv->TxCounter);
@@ -2635,11 +2475,7 @@ u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)
 	u8   tmp_Short;
 
 	tmp_Short = (TxHT==1)?((tcb_desc->bUseShortGI)?1:0):((tcb_desc->bUseShortPreamble)?1:0);
-#if defined RTL8192SE || defined RTL8192CE
-	if (TxHT==1 && TxRate != DESC92S_RATEMCS15)
-#elif defined RTL8192E || defined RTL8190P
 	if (TxHT==1 && TxRate != DESC90_RATEMCS15)
-#endif
 		tmp_Short = 0;
 
 	return tmp_Short;

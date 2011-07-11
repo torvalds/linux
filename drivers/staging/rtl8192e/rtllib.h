@@ -118,7 +118,6 @@ static inline void *netdev_priv_rsl(struct net_device *dev)
 /* added for rtl819x tx procedure */
 #define MAX_QUEUE_SIZE		0x10
 
-#if defined(RTL8192SU) || defined(RTL8190P) ||defined(RTL8192U) ||defined(RTL8192E)
 #define BK_QUEUE                               0
 #define BE_QUEUE                               1
 #define VI_QUEUE                               2
@@ -128,18 +127,6 @@ static inline void *netdev_priv_rsl(struct net_device *dev)
 #define MGNT_QUEUE                             6
 #define HIGH_QUEUE                             7
 #define BEACON_QUEUE                           8
-#elif defined(RTL8192SE)
-#define BK_QUEUE                               0
-#define BE_QUEUE                               1
-#define VI_QUEUE                               2
-#define VO_QUEUE                               3
-#define BEACON_QUEUE                          4
-#define TXCMD_QUEUE                            5
-#define MGNT_QUEUE                             6
-#define HIGH_QUEUE                             7
-#define HCCA_QUEUE                             8
-
-#endif
 
 #define LOW_QUEUE                              BE_QUEUE
 #define NORMAL_QUEUE                           MGNT_QUEUE

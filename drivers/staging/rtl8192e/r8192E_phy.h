@@ -25,28 +25,6 @@
 #define MAX_RFDEPENDCMD_CNT 16
 #define MAX_POSTCMD_CNT 16
 
-#ifdef RTL8190P
-#define AGCTAB_ArrayLength				AGCTAB_ArrayLengthPci
-#define MACPHY_ArrayLength				MACPHY_ArrayLengthPci
-#define RadioA_ArrayLength				RadioA_ArrayLengthPci
-#define RadioB_ArrayLength				RadioB_ArrayLengthPci
-#define MACPHY_Array_PGLength			MACPHY_Array_PGLengthPci
-#define RadioC_ArrayLength				RadioC_ArrayLengthPci
-#define RadioD_ArrayLength				RadioD_ArrayLengthPci
-#define PHY_REGArrayLength				PHY_REGArrayLengthPci
-#define PHY_REG_1T2RArrayLength				PHY_REG_1T2RArrayLengthPci
-
-#define Rtl819XMACPHY_Array_PG			Rtl8190PciMACPHY_Array_PG
-#define Rtl819XMACPHY_Array				Rtl8190PciMACPHY_Array
-#define Rtl819XRadioA_Array					Rtl8190PciRadioA_Array
-#define Rtl819XRadioB_Array					Rtl8190PciRadioB_Array
-#define Rtl819XRadioC_Array					Rtl8190PciRadioC_Array
-#define Rtl819XRadioD_Array					Rtl8190PciRadioD_Array
-#define Rtl819XAGCTAB_Array				Rtl8190PciAGCTAB_Array
-#define Rtl819XPHY_REGArray				Rtl8190PciPHY_REGArray
-#define Rtl819XPHY_REG_1T2RArray		Rtl8190PciPHY_REG_1T2RArray
-#endif
-
 #ifdef RTL8192E
 #define AGCTAB_ArrayLength				AGCTAB_ArrayLengthPciE
 #define MACPHY_ArrayLength				MACPHY_ArrayLengthPciE
@@ -141,11 +119,6 @@ extern void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH	Bandwidth
 extern void rtl8192_SwChnl_WorkItem(struct net_device *dev);
 extern void rtl8192_SetBWModeWorkItem(struct net_device *dev);
 extern void InitialGain819xPci(struct net_device *dev, u8 Operation);
-
-#if defined RTL8190P
-extern	void
-PHY_SetRtl8190pRfOff(struct net_device* dev	);
-#endif
 
 #if defined RTL8192E
 extern	void

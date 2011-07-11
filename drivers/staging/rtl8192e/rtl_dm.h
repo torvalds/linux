@@ -40,11 +40,7 @@
 
 
 #define		DM_DIG_BACKOFF				12
-#ifdef RTL8192SE
-#define		DM_DIG_MAX					0x3e
-#elif defined RTL8190P || defined RTL8192E
 #define		DM_DIG_MAX					0x36
-#endif
 #define		DM_DIG_MIN					0x1c
 #define		DM_DIG_MIN_Netcore			0x12
 
@@ -59,11 +55,7 @@
 #define		RateAdaptiveTH_Low_40M		10
 #define		VeryLowRSSI					15
 
-#ifdef RTL8192SE
-#define		CTSToSelfTHVal				30
-#elif defined RTL8190P || defined RTL8192E
 #define		CTSToSelfTHVal					35
-#endif
 
 #define		WAIotTHVal						25
 

@@ -16,7 +16,6 @@
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
-#if (defined(RTL8192E) || defined(RTL8190P))
 
 #include "rtl_core.h"
 #include "r8192E_hw.h"
@@ -453,6 +452,3 @@ cmpk_message_handle_rx(
 
 	RT_TRACE(COMP_CMDPKT, "<----cmpk_message_handle_rx()\n");
 }
-
-
-#endif

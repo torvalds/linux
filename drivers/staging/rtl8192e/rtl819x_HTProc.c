@@ -476,14 +476,10 @@ u8 HTIOTActIsMgntUseCCK6M(struct rtllib_device* ieee,struct rtllib_network *netw
 	u8	retValue = 0;
 
 
-#if (defined RTL8192U || defined RTL8192E || defined RTL8190P)
-	{
 	if (ieee->pHTInfo->IOTPeer == HT_IOT_PEER_BROADCOM)
 	{
 		retValue = 1;
 	}
-	}
-#endif
 
 	return retValue;
 }
@@ -563,12 +559,10 @@ HTIOTActIsForcedAMSDU8K(struct rtllib_device *ieee, struct rtllib_network *netwo
 u8 HTIOTActIsCCDFsync(struct rtllib_device *ieee)
 {
 	u8	retValue = 0;
-#if (defined RTL8190P || defined RTL8192U  || defined RTL8192SU)
 	if (ieee->pHTInfo->IOTPeer == HT_IOT_PEER_BROADCOM)
 	{
 		retValue = 1;
 	}
-#endif
 	return retValue;
 }
 
@@ -1149,11 +1143,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
             ieee->SetHwRegHandler(ieee->dev, HW_VAR_AMPDU_MIN_SPACE, &pHTInfo->CurrentMPDUDensity);
         }
 #endif
-#ifndef RTL8190P
 	if (pHTInfo->IOTAction & HT_IOT_ACT_TX_USE_AMSDU_8K)
-#else
-	if ( 0 )
-#endif
 	{
 		pHTInfo->bCurrentAMPDUEnable = false;
 		pHTInfo->ForcedAMSDUMode = HT_AGG_FORCE_ENABLE;
@@ -1294,17 +1284,9 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device* ieee,	struct rtllib_net
 		if (bIOTAction)
 			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_EDCA_TURBO;
 
-#if defined(RTL8190P) || defined(RTL8192E) || defined(RTL8192U)
 		bIOTAction = HTIOTActIsMgntUseCCK6M(ieee,pNetwork);
 		if (bIOTAction)
 			pHTInfo->IOTAction |= HT_IOT_ACT_MGNT_USE_CCK_6M;
-#elif defined(RTL8192SE) || defined(RTL8192SU) || defined RTL8192CE
-		bIOTAction = HTIOTActWAIOTBroadcom(ieee);
-		if (bIOTAction)
-		{
-			pHTInfo->IOTAction |= HT_IOT_ACT_WA_IOT_Broadcom;
-		}
-#endif
 		bIOTAction = HTIOTActIsCCDFsync(ieee);
 		if (bIOTAction)
 			pHTInfo->IOTAction |= HT_IOT_ACT_CDD_FSYNC;

@@ -626,20 +626,12 @@ void rtl8192_update_cap(struct net_device* dev, u16 cap)
 		}
 	}
 
-#ifdef RTL8192CE
-	if ( net->mode & IEEE_G)
-#elif defined RTL8192SE || defined RTL8192E || defined RTL8190P
 	if (net->mode & (IEEE_G|IEEE_N_24G))
-#endif
 	{
 		u8	slot_time_val;
 		u8	CurSlotTime = priv->slot_time;
 
-#ifdef RTL8192CE
-		if ( (cap & WLAN_CAPABILITY_SHORT_SLOT_TIME) && (!(priv->rtllib->pHTInfo->RT2RT_HT_Mode & RT_HT_CAP_USE_LONG_PREAMBLE)))
-#elif defined RTL8192SE || defined RTL8192E || defined RTL8190P
 		if ((cap & WLAN_CAPABILITY_SHORT_SLOT_TIME) && (!priv->rtllib->pHTInfo->bCurrentRT2RTLongSlotTime))
-#endif
 		{
 			if (CurSlotTime != SHORT_SLOT_TIME)
 			{
@@ -1281,7 +1273,6 @@ static void rtl8192_init_priv_constant(struct net_device* dev)
 
 	priv->RegSupportPciASPM = 2;
 
-#elif defined RTL8190P
 #endif
 }
 
@@ -1883,9 +1874,6 @@ RESET_START:
 		dm_backup_dynamic_mechanism_state(dev);
 #endif
 
-#ifdef RTL8190P
-		priv->ops->stop_adapter(dev, true);
-#endif
 
 		up(&priv->wx_sem);
 		RT_TRACE(COMP_RESET,"%s():<==========down process is finished\n",__func__);
@@ -2608,56 +2596,6 @@ rtl819x_process_cck_rxpathsel(
 	struct rtllib_rx_stats * pprevious_stats
 	)
 {
-#ifdef RTL8190P
-	char				last_cck_adc_pwdb[4]={0,0,0,0};
-	u8				i;
-		if (priv->rf_type == RF_2T4R && DM_RxPathSelTable.Enable)
-		{
-			if (pprevious_stats->bIsCCK &&
-				(pprevious_stats->bPacketToSelf ||pprevious_stats->bPacketBeacon))
-			{
-				if (priv->stats.cck_adc_pwdb.TotalNum++ >= PHY_RSSI_SLID_WIN_MAX)
-				{
-					priv->stats.cck_adc_pwdb.TotalNum = PHY_RSSI_SLID_WIN_MAX;
-					for (i=RF90_PATH_A; i<RF90_PATH_MAX; i++)
-					{
-						last_cck_adc_pwdb[i] = priv->stats.cck_adc_pwdb.elements[i][priv->stats.cck_adc_pwdb.index];
-						priv->stats.cck_adc_pwdb.TotalVal[i] -= last_cck_adc_pwdb[i];
-					}
-				}
-				for (i=RF90_PATH_A; i<RF90_PATH_MAX; i++)
-				{
-					priv->stats.cck_adc_pwdb.TotalVal[i] += pprevious_stats->cck_adc_pwdb[i];
-					priv->stats.cck_adc_pwdb.elements[i][priv->stats.cck_adc_pwdb.index] = pprevious_stats->cck_adc_pwdb[i];
-				}
-				priv->stats.cck_adc_pwdb.index++;
-				if (priv->stats.cck_adc_pwdb.index >= PHY_RSSI_SLID_WIN_MAX)
-					priv->stats.cck_adc_pwdb.index = 0;
-
-				for (i=RF90_PATH_A; i<RF90_PATH_MAX; i++)
-				{
-					DM_RxPathSelTable.cck_pwdb_sta[i] = priv->stats.cck_adc_pwdb.TotalVal[i]/priv->stats.cck_adc_pwdb.TotalNum;
-				}
-
-				for (i=RF90_PATH_A; i<RF90_PATH_MAX; i++)
-				{
-					if (pprevious_stats->cck_adc_pwdb[i]  > (char)priv->undecorated_smoothed_cck_adc_pwdb[i])
-					{
-						priv->undecorated_smoothed_cck_adc_pwdb[i] =
-							( (priv->undecorated_smoothed_cck_adc_pwdb[i]*(Rx_Smooth_Factor-1)) +
-							(pprevious_stats->cck_adc_pwdb[i])) /(Rx_Smooth_Factor);
-						priv->undecorated_smoothed_cck_adc_pwdb[i] = priv->undecorated_smoothed_cck_adc_pwdb[i] + 1;
-					}
-					else
-					{
-						priv->undecorated_smoothed_cck_adc_pwdb[i] =
-							( (priv->undecorated_smoothed_cck_adc_pwdb[i]*(Rx_Smooth_Factor-1)) +
-							(pprevious_stats->cck_adc_pwdb[i])) /(Rx_Smooth_Factor);
-					}
-				}
-			}
-		}
-#endif
 }
 
 

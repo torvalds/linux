@@ -193,40 +193,6 @@ void PHY_SetRF8256CCKTxPower(struct net_device*	dev, u8	powerlevel)
 {
 	u32	TxAGC=0;
 	struct r8192_priv *priv = rtllib_priv(dev);
-#ifdef RTL8190P
-	u8				byte0, byte1;
-
-	TxAGC |= ((powerlevel<<8)|powerlevel);
-	TxAGC += priv->CCKTxPowerLevelOriginalOffset;
-
-	if (priv->bDynamicTxLowPower == true
-		/*pMgntInfo->bScanInProgress == true*/ )
-	{
-		if (priv->CustomerID == RT_CID_819x_Netcore)
-			TxAGC = 0x2222;
-		else
-		TxAGC += ((priv->CckPwEnl<<8)|priv->CckPwEnl);
-	}
-
-	byte0 = (u8)(TxAGC & 0xff);
-	byte1 = (u8)((TxAGC & 0xff00)>>8);
-	if (byte0 > 0x24)
-		byte0 = 0x24;
-	if (byte1 > 0x24)
-		byte1 = 0x24;
-	if (priv->rf_type == RF_2T4R)
-	{
-			if (priv->RF_C_TxPwDiff > 0)
-			{
-				if ( (byte0 + (u8)priv->RF_C_TxPwDiff) > 0x24)
-					byte0 = 0x24 - priv->RF_C_TxPwDiff;
-				if ( (byte1 + (u8)priv->RF_C_TxPwDiff) > 0x24)
-					byte1 = 0x24 - priv->RF_C_TxPwDiff;
-			}
-		}
-	TxAGC = (byte1<<8) |byte0;
-	write_nic_dword(dev, CCK_TXAGC, TxAGC);
-#else
 	#ifdef RTL8192E
 
 	TxAGC = powerlevel;
@@ -241,77 +207,12 @@ void PHY_SetRF8256CCKTxPower(struct net_device*	dev, u8	powerlevel)
 		TxAGC = 0x24;
 	rtl8192_setBBreg(dev, rTxAGC_CCK_Mcs32, bTxAGCRateCCK, TxAGC);
 	#endif
-#endif
 }
 
 
 void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-#ifdef RTL8190P
-	u32				TxAGC1=0, TxAGC2=0, TxAGC2_tmp = 0;
-	u8				i, byteVal1[4], byteVal2[4], byteVal3[4];
-
-	if (priv->bDynamicTxHighPower == true)
-	{
-		TxAGC1 |= ((powerlevel<<24)|(powerlevel<<16)|(powerlevel<<8)|powerlevel);
-		TxAGC2_tmp = TxAGC1;
-
-		TxAGC1 += priv->MCSTxPowerLevelOriginalOffset[0];
-		TxAGC2 =0x03030303;
-
-		TxAGC2_tmp += priv->MCSTxPowerLevelOriginalOffset[1];
-	}
-	else
-	{
-		TxAGC1 |= ((powerlevel<<24)|(powerlevel<<16)|(powerlevel<<8)|powerlevel);
-		TxAGC2 = TxAGC1;
-
-		TxAGC1 += priv->MCSTxPowerLevelOriginalOffset[0];
-		TxAGC2 += priv->MCSTxPowerLevelOriginalOffset[1];
-
-		TxAGC2_tmp = TxAGC2;
-
-	}
-	for (i=0; i<4; i++)
-	{
-		byteVal1[i] = (u8)(  (TxAGC1 & (0xff<<(i*8))) >>(i*8) );
-		if (byteVal1[i] > 0x24)
-			byteVal1[i] = 0x24;
-		byteVal2[i] = (u8)(  (TxAGC2 & (0xff<<(i*8))) >>(i*8) );
-		if (byteVal2[i] > 0x24)
-			byteVal2[i] = 0x24;
-
-		byteVal3[i] = (u8)(  (TxAGC2_tmp & (0xff<<(i*8))) >>(i*8) );
-		if (byteVal3[i] > 0x24)
-			byteVal3[i] = 0x24;
-	}
-
-	if (priv->rf_type == RF_2T4R)
-	{
-		if (priv->RF_C_TxPwDiff > 0)
-		{
-			for (i=0; i<4; i++)
-			{
-				if ( (byteVal1[i] + (u8)priv->RF_C_TxPwDiff) > 0x24)
-					byteVal1[i] = 0x24 - priv->RF_C_TxPwDiff;
-				if ( (byteVal2[i] + (u8)priv->RF_C_TxPwDiff) > 0x24)
-					byteVal2[i] = 0x24 - priv->RF_C_TxPwDiff;
-				if ( (byteVal3[i] + (u8)priv->RF_C_TxPwDiff) > 0x24)
-					byteVal3[i] = 0x24 - priv->RF_C_TxPwDiff;
-			}
-		}
-	}
-
-	TxAGC1 = (byteVal1[3]<<24) | (byteVal1[2]<<16) |(byteVal1[1]<<8) |byteVal1[0];
-	TxAGC2 = (byteVal2[3]<<24) | (byteVal2[2]<<16) |(byteVal2[1]<<8) |byteVal2[0];
-
-	TxAGC2_tmp = (byteVal3[3]<<24) | (byteVal3[2]<<16) |(byteVal3[1]<<8) |byteVal3[0];
-	priv->Pwr_Track = TxAGC2_tmp;
-
-	write_nic_dword(dev, MCS_TXAGC, TxAGC1);
-	write_nic_dword(dev, MCS_TXAGC+4, TxAGC2);
-#else
 #ifdef RTL8192E
 	u32 writeVal, powerBase0, powerBase1, writeVal_tmp;
 	u8 index = 0;
@@ -356,7 +257,6 @@ void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 		rtl8192_setBBreg(dev, RegOffset[index], 0x7f7f7f7f, writeVal);
 	}
 
-#endif
 #endif
 	return;
 }

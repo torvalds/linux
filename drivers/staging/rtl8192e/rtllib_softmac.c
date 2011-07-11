@@ -4051,9 +4051,7 @@ rtllib_MgntDisconnect(
 {
 	if (rtllib->ps != RTLLIB_PS_DISABLED)
 	{
-#ifndef RTL8190P
                 rtllib->sta_wake_up(rtllib->dev);
-#endif
 	}
 
 #ifdef TO_DO
