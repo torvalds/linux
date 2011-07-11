@@ -60,6 +60,10 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+
+ /*This file includes the declaration that are exported from the transport
+ * layer */
+
 static inline int trans_rx_init(struct iwl_priv *priv)
 {
 	return priv->trans.ops->rx_init(priv);

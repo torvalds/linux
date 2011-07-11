@@ -32,11 +32,31 @@
 /*This file includes the declaration that are internal to the
  * trans_pcie layer */
 
+/*****************************************************
+* RX
+******************************************************/
 void iwl_bg_rx_replenish(struct work_struct *data);
 void iwl_irq_tasklet(struct iwl_priv *priv);
 void iwlagn_rx_replenish(struct iwl_priv *priv);
 void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 			struct iwl_rx_queue *q);
+
+/*****************************************************
+* TX / HCMD
+******************************************************/
+void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
+void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq,
+				int index);
+int iwlagn_txq_attach_buf_to_tfd(struct iwl_priv *priv,
+				 struct iwl_tx_queue *txq,
+				 dma_addr_t addr, u16 len, u8 reset);
+int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
+			  int count, int slots_num, u32 id);
+int iwl_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+int __must_check iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags,
+			u16 len, const void *data);
+void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
+
 
 #endif /* __iwl_trans_int_pcie_h__ */
 

@@ -336,18 +336,8 @@ static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
 /*****************************************************
 * RX
 ******************************************************/
-void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
-
 void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
 
-/* TX helpers */
-
-/*****************************************************
-* TX
-******************************************************/
-void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
-int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
-			  int count, int slots_num, u32 id);
 void iwl_setup_watchdog(struct iwl_priv *priv);
 /*****************************************************
  * TX power
@@ -398,12 +388,6 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
  *****************************************************/
 
 const char *get_cmd_string(u8 cmd);
-int iwl_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
-int __must_check iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags,
-				  u16 len, const void *data);
-
-int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
-
 void iwl_bg_watchdog(unsigned long data);
 u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval);
 __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
