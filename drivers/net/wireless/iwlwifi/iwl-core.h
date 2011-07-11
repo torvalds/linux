@@ -398,6 +398,9 @@ int iwl_suspend(struct iwl_priv *priv);
 int iwl_resume(struct iwl_priv *priv);
 #endif /* !CONFIG_PM */
 
+int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg);
+void __devexit iwl_remove(struct iwl_priv * priv);
+
 /*****************************************************
 *  Error Handling Debugging
 ******************************************************/

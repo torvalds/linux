@@ -336,7 +336,4 @@ void iwl_testmode_cleanup(struct iwl_priv *priv)
 }
 #endif
 
-int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg);
-void __devexit iwl_remove(struct iwl_priv * priv);
-
 #endif /* __iwl_agn_h__ */

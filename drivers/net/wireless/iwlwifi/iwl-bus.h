@@ -67,10 +67,9 @@ struct iwl_bus;
 
 /**
  * struct iwl_bus_ops - bus specific operations
-
  * @get_pm_support: must returns true if the bus can go to sleep
  * @apm_config: will be called during the config of the APM configuration
- * @set_drv_data: set the priv pointer to the bus layer
+ * @set_drv_data: set the drv_data pointer to the bus layer
  * @get_hw_id: prints the hw_id in the provided buffer
  * @write8: write a byte to register at offset ofs
  * @write32: write a dword to register at offset ofs
@@ -88,9 +87,7 @@ struct iwl_bus_ops {
 
 struct iwl_bus {
 	/* Common data to all buses */
-
-	/*TODO: priv should be void * */
-	struct iwl_priv *priv; /* driver's context */
+	void *drv_data; /* driver's context */
 	struct device *dev;
 	struct iwl_bus_ops *ops;
 
