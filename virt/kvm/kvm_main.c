@@ -101,8 +101,8 @@ static bool largepages_enabled = true;
 static struct page *hwpoison_page;
 static pfn_t hwpoison_pfn;
 
-static struct page *fault_page;
-static pfn_t fault_pfn;
+struct page *fault_page;
+pfn_t fault_pfn;
 
 inline int kvm_is_mmio_pfn(pfn_t pfn)
 {
@@ -930,6 +930,18 @@ int is_fault_pfn(pfn_t pfn)
 	return pfn == fault_pfn;
 }
 EXPORT_SYMBOL_GPL(is_fault_pfn);
+
+int is_noslot_pfn(pfn_t pfn)
+{
+	return pfn == bad_pfn;
+}
+EXPORT_SYMBOL_GPL(is_noslot_pfn);
+
+int is_invalid_pfn(pfn_t pfn)
+{
+	return pfn == hwpoison_pfn || pfn == fault_pfn;
+}
+EXPORT_SYMBOL_GPL(is_invalid_pfn);
 
 static inline unsigned long bad_hva(void)
 {
