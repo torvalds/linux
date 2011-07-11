@@ -867,8 +867,8 @@ again:
 	/* step one, lock all the pages */
 	for (i = 0; i < num_pages; i++) {
 		struct page *page;
-		page = grab_cache_page(inode->i_mapping,
-					    start_index + i);
+		page = find_or_create_page(inode->i_mapping,
+					    start_index + i, GFP_NOFS);
 		if (!page)
 			break;
 

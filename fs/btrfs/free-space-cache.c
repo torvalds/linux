@@ -307,7 +307,7 @@ int __load_free_space_cache(struct btrfs_root *root, struct inode *inode,
 		if (!num_entries && !num_bitmaps)
 			break;
 
-		page = grab_cache_page(inode->i_mapping, index);
+		page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
 		if (!page)
 			goto free_cache;
 
@@ -594,7 +594,7 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	 * know and don't freak out.
 	 */
 	while (index < num_pages) {
-		page = grab_cache_page(inode->i_mapping, index);
+		page = find_or_create_page(inode->i_mapping, index, GFP_NOFS);
 		if (!page) {
 			int i;
 

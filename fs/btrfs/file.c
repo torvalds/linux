@@ -1081,7 +1081,8 @@ static noinline int prepare_pages(struct btrfs_root *root, struct file *file,
 
 again:
 	for (i = 0; i < num_pages; i++) {
-		pages[i] = grab_cache_page(inode->i_mapping, index + i);
+		pages[i] = find_or_create_page(inode->i_mapping, index + i,
+					       GFP_NOFS);
 		if (!pages[i]) {
 			faili = i - 1;
 			err = -ENOMEM;
