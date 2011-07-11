@@ -1171,7 +1171,7 @@ static __u32 get_ftdi_divisor(struct tty_struct *tty,
 	case FT2232H: /* FT2232H chip */
 	case FT4232H: /* FT4232H chip */
 	case FT232H:  /* FT232H chip */
-		if ((baud <= 12000000) & (baud >= 1200)) {
+		if ((baud <= 12000000) && (baud >= 1200)) {
 			div_value = ftdi_2232h_baud_to_divisor(baud);
 		} else if (baud < 1200) {
 			div_value = ftdi_232bm_baud_to_divisor(baud);
