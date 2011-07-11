@@ -334,6 +334,7 @@ static struct neigh_hash_table *neigh_hash_alloc(unsigned int shift)
 	ret->hash_buckets = buckets;
 	ret->hash_shift = shift;
 	get_random_bytes(&ret->hash_rnd, sizeof(ret->hash_rnd));
+	ret->hash_rnd |= 1;
 	return ret;
 }
 

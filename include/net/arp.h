@@ -8,6 +8,13 @@
 
 extern struct neigh_table arp_tbl;
 
+static inline u32 arp_hashfn(u32 key, const struct net_device *dev, u32 hash_rnd)
+{
+	u32 val = key ^ dev->ifindex;
+
+	return val * hash_rnd;
+}
+
 extern void	arp_init(void);
 extern int	arp_find(unsigned char *haddr, struct sk_buff *skb);
 extern int	arp_ioctl(struct net *net, unsigned int cmd, void __user *arg);

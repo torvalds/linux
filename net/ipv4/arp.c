@@ -97,7 +97,6 @@
 #include <linux/init.h>
 #include <linux/net.h>
 #include <linux/rcupdate.h>
-#include <linux/jhash.h>
 #include <linux/slab.h>
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
@@ -232,7 +231,7 @@ static u32 arp_hash(const void *pkey,
 		    const struct net_device *dev,
 		    __u32 hash_rnd)
 {
-	return jhash_2words(*(u32 *)pkey, dev->ifindex, hash_rnd);
+	return arp_hashfn(*(u32 *)pkey, dev, hash_rnd);
 }
 
 static int arp_constructor(struct neighbour *neigh)
