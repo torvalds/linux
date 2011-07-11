@@ -449,7 +449,6 @@ static int __devexit rk29_wdt_remove(struct platform_device *dev)
 
 static void rk29_wdt_shutdown(struct platform_device *dev)
 {
-	DBG("***%s***\n", __func__);
 	rk29_wdt_stop();
 }
 
@@ -457,14 +456,12 @@ static void rk29_wdt_shutdown(struct platform_device *dev)
 
 static int rk29_wdt_suspend(struct platform_device *dev, pm_message_t state)
 {
-	DBG("***%s***\n", __func__);
 	rk29_wdt_stop();
 	return 0;
 }
 
 static int rk29_wdt_resume(struct platform_device *dev)
 {
-	DBG("***%s***\n", __func__);
 	rk29_wdt_set_heartbeat(tmr_margin);
 	rk29_wdt_start();
 	return 0;
