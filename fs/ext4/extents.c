@@ -3560,10 +3560,9 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	}
 
 	err = check_eofblocks_fl(handle, inode, map->m_lblk, path, ar.len);
-	if (err)
-		goto out2;
-
-	err = ext4_ext_insert_extent(handle, inode, path, &newex, flags);
+	if (!err)
+		err = ext4_ext_insert_extent(handle, inode, path,
+					     &newex, flags);
 	if (err) {
 		int fb_flags = flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE ?
 			EXT4_FREE_BLOCKS_NO_QUOT_UPDATE : 0;
