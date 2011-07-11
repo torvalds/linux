@@ -14,6 +14,7 @@
 enum gpd_status {
 	GPD_STATE_ACTIVE = 0,	/* PM domain is active */
 	GPD_STATE_BUSY,		/* Something is happening to the PM domain */
+	GPD_STATE_REPEAT,	/* Power off in progress, to be repeated */
 	GPD_STATE_POWER_OFF,	/* PM domain is off */
 };
 
@@ -34,6 +35,8 @@ struct generic_pm_domain {
 	unsigned int sd_count;	/* Number of subdomains with power "on" */
 	enum gpd_status status;	/* Current state of the domain */
 	wait_queue_head_t status_wait_queue;
+	struct task_struct *poweroff_task;	/* Powering off task */
+	unsigned int resume_count;	/* Number of devices being resumed */
 	unsigned int device_count;	/* Number of devices */
 	unsigned int suspended_count;	/* System suspend device counter */
 	unsigned int prepared_count;	/* Suspend counter of prepared devices */
