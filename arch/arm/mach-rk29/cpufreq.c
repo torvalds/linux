@@ -16,7 +16,7 @@
 #ifdef CONFIG_CPU_FREQ_DEBUG
 #define DEBUG
 #endif
-#define pr_fmt(fmt) "cpufreq: %s: " fmt, __func__
+#define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
@@ -25,6 +25,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/suspend.h>
 #include <mach/cpufreq.h>
+
+#define dprintk(fmt, ...) printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 
 #define SLEEP_FREQ	(800 * 1000) /* Use 800MHz when entering sleep */
 
@@ -100,7 +102,9 @@ static int rk29_cpufreq_target(struct cpufreq_policy *policy, unsigned int targe
 	freqs.old = policy->cur;
 	freqs.new = freq->frequency;
 	freqs.cpu = 0;
-	pr_debug("%d r %d (%d-%d) selected %d (%duV)\n", target_freq, relation, policy->min, policy->max, freq->frequency, freq->index);
+	dprintk("%dHz r %d(%c) selected %dHz (%duV)\n",
+		target_freq, relation, relation == CPUFREQ_RELATION_L ? 'L' : 'H',
+		freq->frequency, freq->index);
 
 #ifdef CONFIG_REGULATOR
 	if (vcore && freqs.new > freqs.old && vcore_uV != freq->index) {
@@ -115,7 +119,9 @@ static int rk29_cpufreq_target(struct cpufreq_policy *policy, unsigned int targe
 #endif
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	dprintk("pre change\n");
 	clk_set_rate(arm_clk, freqs.new * 1000);
+	dprintk("post change\n");
 	freqs.new = clk_get_rate(arm_clk) / 1000;
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
@@ -129,6 +135,7 @@ static int rk29_cpufreq_target(struct cpufreq_policy *policy, unsigned int targe
 		vcore_uV = freq->index;
 	}
 #endif
+	dprintk("ok, got %dkHz\n", freqs.new);
 
 err_vol:
 	return err;
