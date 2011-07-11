@@ -869,9 +869,6 @@ void omap_mcbsp_start(unsigned int id, int tx, int rx)
 	if (cpu_is_omap34xx())
 		omap_st_start(mcbsp);
 
-	mcbsp->rx_word_length = (MCBSP_READ_CACHE(mcbsp, RCR1) >> 5) & 0x7;
-	mcbsp->tx_word_length = (MCBSP_READ_CACHE(mcbsp, XCR1) >> 5) & 0x7;
-
 	/* Only enable SRG, if McBSP is master */
 	w = MCBSP_READ_CACHE(mcbsp, PCR0);
 	if (w & (FSXM | FSRM | CLKXM | CLKRM))
@@ -968,6 +965,33 @@ void omap_mcbsp_stop(unsigned int id, int tx, int rx)
 		omap_st_stop(mcbsp);
 }
 EXPORT_SYMBOL(omap_mcbsp_stop);
+
+/*
+ * The following functions are only required on an OMAP1-only build.
+ * mach-omap2/mcbsp.c contains the real functions
+ */
+#ifndef CONFIG_ARCH_OMAP2PLUS
+int omap2_mcbsp_set_clks_src(u8 id, u8 fck_src_id)
+{
+	WARN(1, "%s: should never be called on an OMAP1-only kernel\n",
+	     __func__);
+	return -EINVAL;
+}
+
+void omap2_mcbsp1_mux_clkr_src(u8 mux)
+{
+	WARN(1, "%s: should never be called on an OMAP1-only kernel\n",
+	     __func__);
+	return;
+}
+
+void omap2_mcbsp1_mux_fsr_src(u8 mux)
+{
+	WARN(1, "%s: should never be called on an OMAP1-only kernel\n",
+	     __func__);
+	return;
+}
+#endif
 
 #ifdef CONFIG_ARCH_OMAP3
 #define max_thres(m)			(mcbsp->pdata->buffer_size)

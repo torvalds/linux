@@ -209,15 +209,6 @@ static struct omap_dss_board_info beagle_dss_data = {
 	.default_device = &beagle_dvi_device,
 };
 
-static struct regulator_consumer_supply beagle_vdac_supply[] = {
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
-};
-
-static struct regulator_consumer_supply beagle_vdvi_supplies[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
-	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
-};
-
 static void __init beagle_display_init(void)
 {
 	int r;
@@ -351,58 +342,11 @@ static struct regulator_init_data beagle_vsim = {
 	.consumer_supplies	= beagle_vsim_supply,
 };
 
-/* VDAC for DSS driving S-Video (8 mA unloaded, max 65 mA) */
-static struct regulator_init_data beagle_vdac = {
-	.constraints = {
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(beagle_vdac_supply),
-	.consumer_supplies	= beagle_vdac_supply,
-};
-
-/* VPLL2 for digital video outputs */
-static struct regulator_init_data beagle_vpll2 = {
-	.constraints = {
-		.name			= "VDVI",
-		.min_uV			= 1800000,
-		.max_uV			= 1800000,
-		.valid_modes_mask	= REGULATOR_MODE_NORMAL
-					| REGULATOR_MODE_STANDBY,
-		.valid_ops_mask		= REGULATOR_CHANGE_MODE
-					| REGULATOR_CHANGE_STATUS,
-	},
-	.num_consumer_supplies	= ARRAY_SIZE(beagle_vdvi_supplies),
-	.consumer_supplies	= beagle_vdvi_supplies,
-};
-
-static struct twl4030_usb_data beagle_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
-};
-
-static struct twl4030_codec_audio_data beagle_audio_data;
-
-static struct twl4030_codec_data beagle_codec_data = {
-	.audio_mclk = 26000000,
-	.audio = &beagle_audio_data,
-};
-
 static struct twl4030_platform_data beagle_twldata = {
-	.irq_base	= TWL4030_IRQ_BASE,
-	.irq_end	= TWL4030_IRQ_END,
-
 	/* platform_data for children goes here */
-	.usb		= &beagle_usb_data,
 	.gpio		= &beagle_gpio_data,
-	.codec		= &beagle_codec_data,
 	.vmmc1		= &beagle_vmmc1,
 	.vsim		= &beagle_vsim,
-	.vdac		= &beagle_vdac,
-	.vpll2		= &beagle_vpll2,
 };
 
 static struct i2c_board_info __initdata beagle_i2c_eeprom[] = {
@@ -413,6 +357,12 @@ static struct i2c_board_info __initdata beagle_i2c_eeprom[] = {
 
 static int __init omap3_beagle_i2c_init(void)
 {
+	omap3_pmic_get_config(&beagle_twldata,
+			TWL_COMMON_PDATA_USB | TWL_COMMON_PDATA_AUDIO,
+			TWL_COMMON_REGULATOR_VDAC | TWL_COMMON_REGULATOR_VPLL2);
+
+	beagle_twldata.vpll2->constraints.name = "VDVI";
+
 	omap3_pmic_init("twl4030", &beagle_twldata);
 	/* Bus 3 is attached to the DVI port where devices like the pico DLP
 	 * projector don't work reliably with 400kHz */

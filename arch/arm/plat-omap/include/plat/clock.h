@@ -152,7 +152,7 @@ struct dpll_data {
 	u16			max_multiplier;
 	u8			last_rounded_n;
 	u8			min_divider;
-	u8			max_divider;
+	u16			max_divider;
 	u8			modes;
 #if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 	void __iomem		*autoidle_reg;
