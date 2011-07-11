@@ -465,7 +465,7 @@ static struct gt801_platform_data gt801_info = {
 	.gpio_reset_active_low = 0,
 	.gpio_pendown		= GT801_GPIO_INT,
     .pendown_iomux_name = GPIO4D5_CPUTRACECTL_NAME,
-    .resetpin_iomux_name = NULL,
+    .resetpin_iomux_name = "",
     .pendown_iomux_mode = GPIO4H_GPIO4D5,
     .resetpin_iomux_mode = 0,
 };
@@ -487,7 +487,7 @@ static struct gt818_platform_data gt818_info = {
 	.gpio_reset_active_low = 0,
 	.gpio_pendown		= GT818_GPIO_INT,
     .pendown_iomux_name = GPIO4D5_CPUTRACECTL_NAME,
-    .resetpin_iomux_name = NULL,
+    .resetpin_iomux_name = "",
     .pendown_iomux_mode = GPIO4H_GPIO4D5,
     .resetpin_iomux_mode = 0,
 };
