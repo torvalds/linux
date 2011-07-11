@@ -42,6 +42,16 @@ void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 			struct iwl_rx_queue *q);
 
 /*****************************************************
+* ICT
+******************************************************/
+int iwl_reset_ict(struct iwl_priv *priv);
+void iwl_disable_ict(struct iwl_priv *priv);
+int iwl_alloc_isr_ict(struct iwl_priv *priv);
+void iwl_free_isr_ict(struct iwl_priv *priv);
+irqreturn_t iwl_isr_ict(int irq, void *data);
+
+
+/*****************************************************
 * TX / HCMD
 ******************************************************/
 void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);

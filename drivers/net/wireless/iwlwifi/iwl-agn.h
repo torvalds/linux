@@ -113,10 +113,6 @@ extern struct iwl_mod_params iwlagn_mod_params;
 extern struct ieee80211_ops iwlagn_hw_ops;
 
 int iwl_reset_ict(struct iwl_priv *priv);
-void iwl_disable_ict(struct iwl_priv *priv);
-int iwl_alloc_isr_ict(struct iwl_priv *priv);
-void iwl_free_isr_ict(struct iwl_priv *priv);
-irqreturn_t iwl_isr_ict(int irq, void *data);
 
 static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 {

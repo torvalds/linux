@@ -1643,6 +1643,7 @@ int iwl_alive_start(struct iwl_priv *priv)
 	int ret = 0;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
+	/*TODO: this should go to the transport layer */
 	iwl_reset_ict(priv);
 
 	IWL_DEBUG_INFO(priv, "Runtime Alive received.\n");
