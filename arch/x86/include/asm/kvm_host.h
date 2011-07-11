@@ -233,6 +233,12 @@ struct kvm_mmu_page {
 	unsigned int unsync_children;
 	unsigned long parent_ptes;	/* Reverse mapping for parent_pte */
 	DECLARE_BITMAP(unsync_child_bitmap, 512);
+
+#ifdef CONFIG_X86_32
+	int clear_spte_count;
+#endif
+
+	struct rcu_head rcu;
 };
 
 struct kvm_pv_mmu_op_buffer {
@@ -485,6 +491,8 @@ struct kvm_arch {
 	/* fields used by HYPER-V emulation */
 	u64 hv_guest_os_id;
 	u64 hv_hypercall;
+
+	atomic_t reader_counter;
 
 	#ifdef CONFIG_KVM_MMU_AUDIT
 	int audit_point;
