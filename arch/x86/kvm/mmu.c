@@ -186,8 +186,6 @@ static struct kmem_cache *pte_list_desc_cache;
 static struct kmem_cache *mmu_page_header_cache;
 static struct percpu_counter kvm_total_used_mmu_pages;
 
-static u64 __read_mostly shadow_trap_nonpresent_pte;
-static u64 __read_mostly shadow_notrap_nonpresent_pte;
 static u64 __read_mostly shadow_nx_mask;
 static u64 __read_mostly shadow_x_mask;	/* mutual exclusive with nx_mask */
 static u64 __read_mostly shadow_user_mask;
@@ -198,13 +196,6 @@ static inline u64 rsvd_bits(int s, int e)
 {
 	return ((1ULL << (e - s + 1)) - 1) << s;
 }
-
-void kvm_mmu_set_nonpresent_ptes(u64 trap_pte, u64 notrap_pte)
-{
-	shadow_trap_nonpresent_pte = trap_pte;
-	shadow_notrap_nonpresent_pte = notrap_pte;
-}
-EXPORT_SYMBOL_GPL(kvm_mmu_set_nonpresent_ptes);
 
 void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 		u64 dirty_mask, u64 nx_mask, u64 x_mask)
@@ -229,8 +220,7 @@ static int is_nx(struct kvm_vcpu *vcpu)
 
 static int is_shadow_present_pte(u64 pte)
 {
-	return pte != shadow_trap_nonpresent_pte
-		&& pte != shadow_notrap_nonpresent_pte;
+	return pte & PT_PRESENT_MASK;
 }
 
 static int is_large_pte(u64 pte)
@@ -777,9 +767,9 @@ static int set_spte_track_bits(u64 *sptep, u64 new_spte)
 	return 1;
 }
 
-static void drop_spte(struct kvm *kvm, u64 *sptep, u64 new_spte)
+static void drop_spte(struct kvm *kvm, u64 *sptep)
 {
-	if (set_spte_track_bits(sptep, new_spte))
+	if (set_spte_track_bits(sptep, 0ull))
 		rmap_remove(kvm, sptep);
 }
 
@@ -814,8 +804,7 @@ static int rmap_write_protect(struct kvm *kvm, u64 gfn)
 			BUG_ON((*spte & (PT_PAGE_SIZE_MASK|PT_PRESENT_MASK)) != (PT_PAGE_SIZE_MASK|PT_PRESENT_MASK));
 			pgprintk("rmap_write_protect(large): spte %p %llx %lld\n", spte, *spte, gfn);
 			if (is_writable_pte(*spte)) {
-				drop_spte(kvm, spte,
-					  shadow_trap_nonpresent_pte);
+				drop_spte(kvm, spte);
 				--kvm->stat.lpages;
 				spte = NULL;
 				write_protected = 1;
@@ -836,7 +825,7 @@ static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	while ((spte = rmap_next(kvm, rmapp, NULL))) {
 		BUG_ON(!(*spte & PT_PRESENT_MASK));
 		rmap_printk("kvm_rmap_unmap_hva: spte %p %llx\n", spte, *spte);
-		drop_spte(kvm, spte, shadow_trap_nonpresent_pte);
+		drop_spte(kvm, spte);
 		need_tlb_flush = 1;
 	}
 	return need_tlb_flush;
@@ -858,7 +847,7 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 		rmap_printk("kvm_set_pte_rmapp: spte %p %llx\n", spte, *spte);
 		need_flush = 1;
 		if (pte_write(*ptep)) {
-			drop_spte(kvm, spte, shadow_trap_nonpresent_pte);
+			drop_spte(kvm, spte);
 			spte = rmap_next(kvm, rmapp, NULL);
 		} else {
 			new_spte = *spte &~ (PT64_BASE_ADDR_MASK);
@@ -1088,7 +1077,7 @@ static void drop_parent_pte(struct kvm_mmu_page *sp,
 			    u64 *parent_pte)
 {
 	mmu_page_remove_parent_pte(sp, parent_pte);
-	__set_spte(parent_pte, shadow_trap_nonpresent_pte);
+	__set_spte(parent_pte, 0ull);
 }
 
 static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
@@ -1128,15 +1117,6 @@ static void mark_unsync(u64 *spte)
 	if (sp->unsync_children++)
 		return;
 	kvm_mmu_mark_parents_unsync(sp);
-}
-
-static void nonpaging_prefetch_page(struct kvm_vcpu *vcpu,
-				    struct kvm_mmu_page *sp)
-{
-	int i;
-
-	for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
-		sp->spt[i] = shadow_trap_nonpresent_pte;
 }
 
 static int nonpaging_sync_page(struct kvm_vcpu *vcpu,
@@ -1420,6 +1400,14 @@ static void mmu_sync_children(struct kvm_vcpu *vcpu,
 	}
 }
 
+static void init_shadow_page_table(struct kvm_mmu_page *sp)
+{
+	int i;
+
+	for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
+		sp->spt[i] = 0ull;
+}
+
 static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 					     gfn_t gfn,
 					     gva_t gaddr,
@@ -1482,10 +1470,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 
 		account_shadowed(vcpu->kvm, gfn);
 	}
-	if (shadow_trap_nonpresent_pte != shadow_notrap_nonpresent_pte)
-		vcpu->arch.mmu.prefetch_page(vcpu, sp);
-	else
-		nonpaging_prefetch_page(vcpu, sp);
+	init_shadow_page_table(sp);
 	trace_kvm_mmu_get_page(sp, true);
 	return sp;
 }
@@ -1546,7 +1531,7 @@ static void link_shadow_page(u64 *sptep, struct kvm_mmu_page *sp)
 static void drop_large_spte(struct kvm_vcpu *vcpu, u64 *sptep)
 {
 	if (is_large_pte(*sptep)) {
-		drop_spte(vcpu->kvm, sptep, shadow_trap_nonpresent_pte);
+		drop_spte(vcpu->kvm, sptep);
 		kvm_flush_remote_tlbs(vcpu->kvm);
 	}
 }
@@ -1582,13 +1567,13 @@ static void mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
 	pte = *spte;
 	if (is_shadow_present_pte(pte)) {
 		if (is_last_spte(pte, sp->role.level))
-			drop_spte(kvm, spte, shadow_trap_nonpresent_pte);
+			drop_spte(kvm, spte);
 		else {
 			child = page_header(pte & PT64_BASE_ADDR_MASK);
 			drop_parent_pte(child, spte);
 		}
 	}
-	__set_spte(spte, shadow_trap_nonpresent_pte);
+
 	if (is_large_pte(pte))
 		--kvm->stat.lpages;
 }
@@ -1769,20 +1754,6 @@ static void page_header_update_slot(struct kvm *kvm, void *pte, gfn_t gfn)
 	__set_bit(slot, sp->slot_bitmap);
 }
 
-static void mmu_convert_notrap(struct kvm_mmu_page *sp)
-{
-	int i;
-	u64 *pt = sp->spt;
-
-	if (shadow_trap_nonpresent_pte == shadow_notrap_nonpresent_pte)
-		return;
-
-	for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
-		if (pt[i] == shadow_notrap_nonpresent_pte)
-			__set_spte(&pt[i], shadow_trap_nonpresent_pte);
-	}
-}
-
 /*
  * The function is based on mtrr_type_lookup() in
  * arch/x86/kernel/cpu/mtrr/generic.c
@@ -1895,7 +1866,6 @@ static void __kvm_unsync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 	sp->unsync = 1;
 
 	kvm_mmu_mark_parents_unsync(sp);
-	mmu_convert_notrap(sp);
 }
 
 static void kvm_unsync_pages(struct kvm_vcpu *vcpu,  gfn_t gfn)
@@ -1980,7 +1950,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		if (level > PT_PAGE_TABLE_LEVEL &&
 		    has_wrprotected_page(vcpu->kvm, gfn, level)) {
 			ret = 1;
-			drop_spte(vcpu->kvm, sptep, shadow_trap_nonpresent_pte);
+			drop_spte(vcpu->kvm, sptep);
 			goto done;
 		}
 
@@ -2066,7 +2036,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		} else if (pfn != spte_to_pfn(*sptep)) {
 			pgprintk("hfn old %llx new %llx\n",
 				 spte_to_pfn(*sptep), pfn);
-			drop_spte(vcpu->kvm, sptep, shadow_trap_nonpresent_pte);
+			drop_spte(vcpu->kvm, sptep);
 			kvm_flush_remote_tlbs(vcpu->kvm);
 		} else
 			was_rmapped = 1;
@@ -2162,7 +2132,7 @@ static void __direct_pte_prefetch(struct kvm_vcpu *vcpu,
 	spte = sp->spt + i;
 
 	for (i = 0; i < PTE_PREFETCH_NUM; i++, spte++) {
-		if (*spte != shadow_trap_nonpresent_pte || spte == sptep) {
+		if (is_shadow_present_pte(*spte) || spte == sptep) {
 			if (!start)
 				continue;
 			if (direct_pte_prefetch_many(vcpu, sp, start, spte) < 0)
@@ -2214,7 +2184,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 			break;
 		}
 
-		if (*iterator.sptep == shadow_trap_nonpresent_pte) {
+		if (!is_shadow_present_pte(*iterator.sptep)) {
 			u64 base_addr = iterator.addr;
 
 			base_addr &= PT64_LVL_ADDR_MASK(iterator.level);
@@ -2748,7 +2718,6 @@ static int nonpaging_init_context(struct kvm_vcpu *vcpu,
 	context->page_fault = nonpaging_page_fault;
 	context->gva_to_gpa = nonpaging_gva_to_gpa;
 	context->free = nonpaging_free;
-	context->prefetch_page = nonpaging_prefetch_page;
 	context->sync_page = nonpaging_sync_page;
 	context->invlpg = nonpaging_invlpg;
 	context->update_pte = nonpaging_update_pte;
@@ -2878,7 +2847,6 @@ static int paging64_init_context_common(struct kvm_vcpu *vcpu,
 	context->new_cr3 = paging_new_cr3;
 	context->page_fault = paging64_page_fault;
 	context->gva_to_gpa = paging64_gva_to_gpa;
-	context->prefetch_page = paging64_prefetch_page;
 	context->sync_page = paging64_sync_page;
 	context->invlpg = paging64_invlpg;
 	context->update_pte = paging64_update_pte;
@@ -2907,7 +2875,6 @@ static int paging32_init_context(struct kvm_vcpu *vcpu,
 	context->page_fault = paging32_page_fault;
 	context->gva_to_gpa = paging32_gva_to_gpa;
 	context->free = paging_free;
-	context->prefetch_page = paging32_prefetch_page;
 	context->sync_page = paging32_sync_page;
 	context->invlpg = paging32_invlpg;
 	context->update_pte = paging32_update_pte;
@@ -2932,7 +2899,6 @@ static int init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
 	context->new_cr3 = nonpaging_new_cr3;
 	context->page_fault = tdp_page_fault;
 	context->free = nonpaging_free;
-	context->prefetch_page = nonpaging_prefetch_page;
 	context->sync_page = nonpaging_sync_page;
 	context->invlpg = nonpaging_invlpg;
 	context->update_pte = nonpaging_update_pte;
@@ -3443,8 +3409,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 				continue;
 
 			if (is_large_pte(pt[i])) {
-				drop_spte(kvm, &pt[i],
-					  shadow_trap_nonpresent_pte);
+				drop_spte(kvm, &pt[i]);
 				--kvm->stat.lpages;
 				continue;
 			}

@@ -49,9 +49,6 @@
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
 
-static int __read_mostly bypass_guest_pf = 1;
-module_param(bypass_guest_pf, bool, S_IRUGO);
-
 static int __read_mostly enable_vpid = 1;
 module_param_named(vpid, enable_vpid, bool, 0444);
 
@@ -3632,8 +3629,8 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		vmcs_write32(PLE_WINDOW, ple_window);
 	}
 
-	vmcs_write32(PAGE_FAULT_ERROR_CODE_MASK, !!bypass_guest_pf);
-	vmcs_write32(PAGE_FAULT_ERROR_CODE_MATCH, !!bypass_guest_pf);
+	vmcs_write32(PAGE_FAULT_ERROR_CODE_MASK, 0);
+	vmcs_write32(PAGE_FAULT_ERROR_CODE_MATCH, 0);
 	vmcs_write32(CR3_TARGET_COUNT, 0);           /* 22.2.1 */
 
 	vmcs_write16(HOST_FS_SELECTOR, 0);            /* 22.2.4 */
@@ -7103,15 +7100,11 @@ static int __init vmx_init(void)
 	vmx_disable_intercept_for_msr(MSR_IA32_SYSENTER_EIP, false);
 
 	if (enable_ept) {
-		bypass_guest_pf = 0;
 		kvm_mmu_set_mask_ptes(0ull, 0ull, 0ull, 0ull,
 				VMX_EPT_EXECUTABLE_MASK);
 		kvm_enable_tdp();
 	} else
 		kvm_disable_tdp();
-
-	if (bypass_guest_pf)
-		kvm_mmu_set_nonpresent_ptes(~0xffeull, 0ull);
 
 	return 0;
 

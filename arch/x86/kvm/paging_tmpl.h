@@ -337,16 +337,11 @@ static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
 				    struct kvm_mmu_page *sp, u64 *spte,
 				    pt_element_t gpte)
 {
-	u64 nonpresent = shadow_trap_nonpresent_pte;
-
 	if (is_rsvd_bits_set(&vcpu->arch.mmu, gpte, PT_PAGE_TABLE_LEVEL))
 		goto no_present;
 
-	if (!is_present_gpte(gpte)) {
-		if (!sp->unsync)
-			nonpresent = shadow_notrap_nonpresent_pte;
+	if (!is_present_gpte(gpte))
 		goto no_present;
-	}
 
 	if (!(gpte & PT_ACCESSED_MASK))
 		goto no_present;
@@ -354,7 +349,7 @@ static bool FNAME(prefetch_invalid_gpte)(struct kvm_vcpu *vcpu,
 	return false;
 
 no_present:
-	drop_spte(vcpu->kvm, spte, nonpresent);
+	drop_spte(vcpu->kvm, spte);
 	return true;
 }
 
@@ -437,7 +432,7 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 		if (spte == sptep)
 			continue;
 
-		if (*spte != shadow_trap_nonpresent_pte)
+		if (is_shadow_present_pte(*spte))
 			continue;
 
 		gpte = gptep[i];
@@ -687,11 +682,10 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 			if (is_shadow_present_pte(*sptep)) {
 				if (is_large_pte(*sptep))
 					--vcpu->kvm->stat.lpages;
-				drop_spte(vcpu->kvm, sptep,
-					  shadow_trap_nonpresent_pte);
+				drop_spte(vcpu->kvm, sptep);
 				need_flush = 1;
-			} else
-				__set_spte(sptep, shadow_trap_nonpresent_pte);
+			}
+
 			break;
 		}
 
@@ -751,36 +745,6 @@ static gpa_t FNAME(gva_to_gpa_nested)(struct kvm_vcpu *vcpu, gva_t vaddr,
 	return gpa;
 }
 
-static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
-				 struct kvm_mmu_page *sp)
-{
-	int i, j, offset, r;
-	pt_element_t pt[256 / sizeof(pt_element_t)];
-	gpa_t pte_gpa;
-
-	if (sp->role.direct
-	    || (PTTYPE == 32 && sp->role.level > PT_PAGE_TABLE_LEVEL)) {
-		nonpaging_prefetch_page(vcpu, sp);
-		return;
-	}
-
-	pte_gpa = gfn_to_gpa(sp->gfn);
-	if (PTTYPE == 32) {
-		offset = sp->role.quadrant << PT64_LEVEL_BITS;
-		pte_gpa += offset * sizeof(pt_element_t);
-	}
-
-	for (i = 0; i < PT64_ENT_PER_PAGE; i += ARRAY_SIZE(pt)) {
-		r = kvm_read_guest_atomic(vcpu->kvm, pte_gpa, pt, sizeof pt);
-		pte_gpa += ARRAY_SIZE(pt) * sizeof(pt_element_t);
-		for (j = 0; j < ARRAY_SIZE(pt); ++j)
-			if (r || is_present_gpte(pt[j]))
-				sp->spt[i+j] = shadow_trap_nonpresent_pte;
-			else
-				sp->spt[i+j] = shadow_notrap_nonpresent_pte;
-	}
-}
-
 /*
  * Using the cached information from sp->gfns is safe because:
  * - The spte has a reference to the struct page, so the pfn for a given gfn
@@ -833,8 +797,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		}
 
 		if (gfn != sp->gfns[i]) {
-			drop_spte(vcpu->kvm, &sp->spt[i],
-				      shadow_trap_nonpresent_pte);
+			drop_spte(vcpu->kvm, &sp->spt[i]);
 			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}

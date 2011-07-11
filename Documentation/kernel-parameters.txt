@@ -1159,10 +1159,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			for all guests.
 			Default is 1 (enabled) if in 64bit or 32bit-PAE mode
 
-	kvm-intel.bypass_guest_pf=
-			[KVM,Intel] Disables bypassing of guest page faults
-			on Intel chips. Default is 1 (enabled)
-
 	kvm-intel.ept=	[KVM,Intel] Disable extended page tables
 			(virtualized MMU) support on capable Intel chips.
 			Default is 1 (enabled)
