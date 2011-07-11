@@ -91,6 +91,7 @@ static void mrst_lvds_mode_set(struct drm_encoder *encoder,
 	struct psb_intel_mode_device *mode_dev =
 				enc_to_psb_intel_output(encoder)->mode_dev;
 	struct drm_device *dev = encoder->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 lvds_port;
 	uint64_t v = DRM_MODE_SCALE_FULLSCREEN;
 
@@ -107,7 +108,9 @@ static void mrst_lvds_mode_set(struct drm_encoder *encoder,
 		    LVDS_PORT_EN |
 		    LVDS_BORDER_EN;
 
-	if (mode_dev->panel_wants_dither)
+	/* If the firmware says dither on Moorestown, or the BIOS does
+	   on Oaktrail then enable dithering */
+	if (mode_dev->panel_wants_dither || dev_priv->lvds_dither)
 		lvds_port |= MRST_PANEL_8TO6_DITHER_ENABLE;
 
 	REG_WRITE(LVDS, lvds_port);

@@ -470,6 +470,7 @@ static void psb_intel_lvds_mode_set(struct drm_encoder *encoder,
 	struct psb_intel_mode_device *mode_dev =
 	    enc_to_psb_intel_output(encoder)->mode_dev;
 	struct drm_device *dev = encoder->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 pfit_control;
 
 	/*
@@ -491,7 +492,7 @@ static void psb_intel_lvds_mode_set(struct drm_encoder *encoder,
 	else
 		pfit_control = 0;
 
-	if (mode_dev->panel_wants_dither)
+	if (dev_priv->lvds_dither)
 		pfit_control |= PANEL_8TO6_DITHER_ENABLE;
 
 	REG_WRITE(PFIT_CONTROL, pfit_control);
