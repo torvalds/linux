@@ -125,8 +125,8 @@ struct v9fs_inode {
 #ifdef CONFIG_9P_FSCACHE
 	spinlock_t fscache_lock;
 	struct fscache_cookie *fscache;
-	struct p9_qid *fscache_key;
 #endif
+	struct p9_qid qid;
 	unsigned int cache_validity;
 	struct p9_fid *writeback_fid;
 	struct mutex v_mutex;

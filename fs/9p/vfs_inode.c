@@ -216,7 +216,6 @@ struct inode *v9fs_alloc_inode(struct super_block *sb)
 		return NULL;
 #ifdef CONFIG_9P_FSCACHE
 	v9inode->fscache = NULL;
-	v9inode->fscache_key = NULL;
 	spin_lock_init(&v9inode->fscache_lock);
 #endif
 	v9inode->writeback_fid = NULL;
@@ -433,6 +432,37 @@ void v9fs_evict_inode(struct inode *inode)
 	}
 }
 
+static int v9fs_test_inode(struct inode *inode, void *data)
+{
+	int umode;
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct p9_wstat *st = (struct p9_wstat *)data;
+	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
+
+	umode = p9mode2unixmode(v9ses, st->mode);
+	/* don't match inode of different type */
+	if ((inode->i_mode & S_IFMT) != (umode & S_IFMT))
+		return 0;
+
+	/* compare qid details */
+	if (memcmp(&v9inode->qid.version,
+		   &st->qid.version, sizeof(v9inode->qid.version)))
+		return 0;
+
+	if (v9inode->qid.type != st->qid.type)
+		return 0;
+	return 1;
+}
+
+static int v9fs_set_inode(struct inode *inode,  void *data)
+{
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+	struct p9_wstat *st = (struct p9_wstat *)data;
+
+	memcpy(&v9inode->qid, &st->qid, sizeof(st->qid));
+	return 0;
+}
+
 static struct inode *v9fs_qid_iget(struct super_block *sb,
 				   struct p9_qid *qid,
 				   struct p9_wstat *st)
@@ -443,7 +473,7 @@ static struct inode *v9fs_qid_iget(struct super_block *sb,
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
 
 	i_ino = v9fs_qid2ino(qid);
-	inode = iget_locked(sb, i_ino);
+	inode = iget5_locked(sb, i_ino, v9fs_test_inode, v9fs_set_inode, st);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 	if (!(inode->i_state & I_NEW))
@@ -453,6 +483,7 @@ static struct inode *v9fs_qid_iget(struct super_block *sb,
 	 * FIXME!! we may need support for stale inodes
 	 * later.
 	 */
+	inode->i_ino = i_ino;
 	umode = p9mode2unixmode(v9ses, st->mode);
 	retval = v9fs_init_inode(v9ses, inode, umode);
 	if (retval)
@@ -460,7 +491,6 @@ static struct inode *v9fs_qid_iget(struct super_block *sb,
 
 	v9fs_stat2inode(st, inode, sb);
 #ifdef CONFIG_9P_FSCACHE
-	v9fs_fscache_set_key(inode, &st->qid);
 	v9fs_cache_inode_get_cookie(inode);
 #endif
 	unlock_new_inode(inode);
