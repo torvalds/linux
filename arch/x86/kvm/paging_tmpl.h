@@ -577,6 +577,10 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 
 	pgprintk("%s: addr %lx err %x\n", __func__, addr, error_code);
 
+	if (unlikely(error_code & PFERR_RSVD_MASK))
+		return handle_mmio_page_fault(vcpu, addr, error_code,
+					      mmu_is_nested(vcpu));
+
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
 		return r;
@@ -684,7 +688,8 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 					--vcpu->kvm->stat.lpages;
 				drop_spte(vcpu->kvm, sptep);
 				need_flush = 1;
-			}
+			} else if (is_mmio_spte(*sptep))
+				mmu_spte_clear_no_track(sptep);
 
 			break;
 		}
@@ -780,7 +785,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		gpa_t pte_gpa;
 		gfn_t gfn;
 
-		if (!is_shadow_present_pte(sp->spt[i]))
+		if (!sp->spt[i])
 			continue;
 
 		pte_gpa = first_pte_gpa + i * sizeof(pt_element_t);
@@ -789,12 +794,17 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 					  sizeof(pt_element_t)))
 			return -EINVAL;
 
-		gfn = gpte_to_gfn(gpte);
-
 		if (FNAME(prefetch_invalid_gpte)(vcpu, sp, &sp->spt[i], gpte)) {
 			vcpu->kvm->tlbs_dirty++;
 			continue;
 		}
+
+		gfn = gpte_to_gfn(gpte);
+		pte_access = sp->role.access;
+		pte_access &= FNAME(gpte_access)(vcpu, gpte, true);
+
+		if (sync_mmio_spte(&sp->spt[i], gfn, pte_access, &nr_present))
+			continue;
 
 		if (gfn != sp->gfns[i]) {
 			drop_spte(vcpu->kvm, &sp->spt[i]);
@@ -803,8 +813,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		}
 
 		nr_present++;
-		pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte,
-								  true);
+
 		host_writable = sp->spt[i] & SPTE_HOST_WRITEABLE;
 
 		set_spte(vcpu, &sp->spt[i], pte_access, 0, 0,
