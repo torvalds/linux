@@ -155,6 +155,10 @@ struct conexant_spec {
 	unsigned int mic_boost; /* offset into cxt5066_analog_mic_boost */
 
 	unsigned int beep_amp;
+
+	/* extra EAPD pins */
+	unsigned int num_eapds;
+	hda_nid_t eapds[4];
 };
 
 static int conexant_playback_pcm_open(struct hda_pcm_stream *hinfo,
@@ -3901,6 +3905,38 @@ static void cx_auto_parse_beep(struct hda_codec *codec)
 #define cx_auto_parse_beep(codec)
 #endif
 
+static bool found_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
+{
+	int i;
+	for (i = 0; i < nums; i++)
+		if (list[i] == nid)
+			return true;
+	return false;
+}
+
+/* parse extra-EAPD that aren't assigned to any pins */
+static void cx_auto_parse_eapd(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	hda_nid_t nid, end_nid;
+
+	end_nid = codec->start_nid + codec->num_nodes;
+	for (nid = codec->start_nid; nid < end_nid; nid++) {
+		if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
+			continue;
+		if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_EAPD))
+			continue;
+		if (found_in_nid_list(nid, cfg->line_out_pins, cfg->line_outs) ||
+		    found_in_nid_list(nid, cfg->hp_pins, cfg->hp_outs) ||
+		    found_in_nid_list(nid, cfg->speaker_pins, cfg->speaker_outs))
+			continue;
+		spec->eapds[spec->num_eapds++] = nid;
+		if (spec->num_eapds >= ARRAY_SIZE(spec->eapds))
+			break;
+	}
+}
+
 static int cx_auto_parse_auto_config(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -3914,6 +3950,7 @@ static int cx_auto_parse_auto_config(struct hda_codec *codec)
 	cx_auto_parse_input(codec);
 	cx_auto_parse_digital(codec);
 	cx_auto_parse_beep(codec);
+	cx_auto_parse_eapd(codec);
 	return 0;
 }
 
@@ -4001,6 +4038,8 @@ static void cx_auto_init_output(struct hda_codec *codec)
 		}
 	}
 	cx_auto_update_speakers(codec);
+	/* turn on/off extra EAPDs, too */
+	cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, true);
 }
 
 static void cx_auto_init_input(struct hda_codec *codec)
