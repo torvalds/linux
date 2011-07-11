@@ -10,7 +10,7 @@
 
 static void __devinit quirk_intel_irqbalance(struct pci_dev *dev)
 {
-	u8 config, rev;
+	u8 config;
 	u16 word;
 
 	/* BIOS may enable hardware IRQ balancing for
@@ -18,8 +18,7 @@ static void __devinit quirk_intel_irqbalance(struct pci_dev *dev)
 	 * based platforms.
 	 * Disable SW irqbalance/affinity on those platforms.
 	 */
-	pci_read_config_byte(dev, PCI_CLASS_REVISION, &rev);
-	if (rev > 0x9)
+	if (dev->revision > 0x9)
 		return;
 
 	/* enable access to config space*/
