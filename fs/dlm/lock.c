@@ -4129,7 +4129,7 @@ void dlm_recover_waiters_pre(struct dlm_ls *ls)
 	struct dlm_message *ms_stub;
 	int wait_type, stub_unlock_result, stub_cancel_result;
 
-	ms_stub = kmalloc(GFP_KERNEL, sizeof(struct dlm_message));
+	ms_stub = kmalloc(sizeof(struct dlm_message), GFP_KERNEL);
 	if (!ms_stub) {
 		log_error(ls, "dlm_recover_waiters_pre no mem");
 		return;
