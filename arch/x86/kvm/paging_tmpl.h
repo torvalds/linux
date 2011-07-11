@@ -367,7 +367,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
 	pte_access = sp->role.access & FNAME(gpte_access)(vcpu, gpte, true);
 	pfn = gfn_to_pfn_atomic(vcpu->kvm, gpte_to_gfn(gpte));
-	if (is_error_pfn(pfn)) {
+	if (mmu_invalid_pfn(pfn)) {
 		kvm_release_pfn_clean(pfn);
 		return;
 	}
@@ -445,7 +445,7 @@ static void FNAME(pte_prefetch)(struct kvm_vcpu *vcpu, struct guest_walker *gw,
 		gfn = gpte_to_gfn(gpte);
 		pfn = pte_prefetch_gfn_to_pfn(vcpu, gfn,
 				      pte_access & ACC_WRITE_MASK);
-		if (is_error_pfn(pfn)) {
+		if (mmu_invalid_pfn(pfn)) {
 			kvm_release_pfn_clean(pfn);
 			break;
 		}
@@ -615,10 +615,10 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr, u32 error_code,
 			 &map_writable))
 		return 0;
 
-	/* mmio */
-	if (is_error_pfn(pfn))
-		return kvm_handle_bad_page(vcpu, mmu_is_nested(vcpu) ? 0 :
-				      addr, walker.pte_access, walker.gfn, pfn);
+	if (handle_abnormal_pfn(vcpu, mmu_is_nested(vcpu) ? 0 : addr,
+				walker.gfn, pfn, walker.pte_access, &r))
+		return r;
+
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu, mmu_seq))
 		goto out_unlock;
