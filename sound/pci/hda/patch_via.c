@@ -1606,12 +1606,10 @@ static void via_unsol_event(struct hda_codec *codec,
 
 	res &= ~VIA_JACK_EVENT;
 
-	if (res == VIA_HP_EVENT)
+	if (res == VIA_HP_EVENT || res == VIA_LINE_EVENT)
 		via_hp_automute(codec);
 	else if (res == VIA_GPIO_EVENT)
 		via_gpio_control(codec);
-	else if (res == VIA_LINE_EVENT)
-		via_line_automute(codec, false);
 }
 
 #ifdef SND_HDA_NEEDS_RESUME
@@ -2535,7 +2533,6 @@ static int via_init(struct hda_codec *codec)
 	via_auto_init_unsol_event(codec);
 
 	via_hp_automute(codec);
-	via_line_automute(codec, false);
 
 	return 0;
 }
