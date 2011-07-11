@@ -1786,11 +1786,7 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 	nv_wr32(dev, 0x40587c, 0x00000000);
 
 	if (1) {
-		const u8 chipset_tp_max[] = { 16, 4, 0, 4, 8, 0, 0, 0,
-					      16, 0, 0, 0, 0, 0, 8, 4 };
-		u8 max = chipset_tp_max[dev_priv->chipset & 0x0f];
-		u8 tpnr[GPC_MAX];
-		u8 data[TP_MAX];
+		u8 tpnr[GPC_MAX], data[TP_MAX];
 
 		memcpy(tpnr, priv->tp_nr, sizeof(priv->tp_nr));
 		memset(data, 0x1f, sizeof(data));
@@ -1804,7 +1800,7 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 			data[tp] = gpc;
 		}
 
-		for (i = 0; i < max / 4; i++)
+		for (i = 0; i < 4; i++)
 			nv_wr32(dev, 0x4060a8 + (i * 4), ((u32 *)data)[i]);
 	}
 
