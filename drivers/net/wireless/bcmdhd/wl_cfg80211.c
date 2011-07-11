@@ -4892,8 +4892,8 @@ static s32 wl_event_handler(void *data)
 			break;
 		e = wl_deq_event(wl);
 		if (unlikely(!e)) {
-			WL_ERR(("eqeue empty..\n"));
-			BUG();
+			WL_ERR(("equeue empty..\n"));
+			return 0;
 		}
 		WL_DBG(("event type (%d), if idx: %d\n", e->etype, e->emsg.ifidx));
 		netdev = dhd_idx2net((struct dhd_pub *)(wl->pub), e->emsg.ifidx);
