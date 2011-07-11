@@ -298,6 +298,10 @@ int ath6kl_access_datadiag(struct ath6kl *ar, u32 address,
 	return status;
 }
 
+/* FIXME: move to a better place, target.h? */
+#define AR6003_RESET_CONTROL_ADDRESS 0x00004000
+#define AR6004_RESET_CONTROL_ADDRESS 0x00004000
+
 static void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
 				bool wait_fot_compltn, bool cold_reset)
 {
@@ -305,12 +309,24 @@ static void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
 	u32 address;
 	u32 data;
 
-	if (target_type != TARGET_TYPE_AR6003)
+	if (target_type != TARGET_TYPE_AR6003 &&
+		target_type != TARGET_TYPE_AR6004)
 		return;
 
 	data = cold_reset ? RESET_CONTROL_COLD_RST : RESET_CONTROL_MBOX_RST;
 
-	address = RTC_BASE_ADDRESS;
+	switch (target_type) {
+	case TARGET_TYPE_AR6003:
+		address = AR6003_RESET_CONTROL_ADDRESS;
+		break;
+	case TARGET_TYPE_AR6004:
+		address = AR6004_RESET_CONTROL_ADDRESS;
+		break;
+	default:
+		address = AR6003_RESET_CONTROL_ADDRESS;
+		break;
+	}
+
 	status = ath6kl_write_reg_diag(ar, &address, &data);
 
 	if (status)

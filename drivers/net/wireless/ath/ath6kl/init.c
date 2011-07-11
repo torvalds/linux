@@ -114,7 +114,9 @@ static inline u32 ath6kl_get_hi_item_addr(struct ath6kl *ar,
 	u32 addr = 0;
 
 	if (ar->target_type == TARGET_TYPE_AR6003)
-		addr = ATH6KL_HI_START_ADDR + item_offset;
+		addr = ATH6KL_AR6003_HI_START_ADDR + item_offset;
+	else if (ar->target_type == TARGET_TYPE_AR6004)
+		addr = ATH6KL_AR6004_HI_START_ADDR + item_offset;
 
 	return addr;
 }
@@ -127,12 +129,12 @@ static int ath6kl_set_host_app_area(struct ath6kl *ar)
 	/* Fetch the address of the host_app_area_s
 	 * instance in the host interest area */
 	address = ath6kl_get_hi_item_addr(ar, HI_ITEM(hi_app_host_interest));
-	address = TARG_VTOP(address);
+	address = TARG_VTOP(ar->target_type, address);
 
 	if (ath6kl_read_reg_diag(ar, &address, &data))
 		return -EIO;
 
-	address = TARG_VTOP(data);
+	address = TARG_VTOP(ar->target_type, data);
 	host_app_area.wmi_protocol_ver = WMI_PROTOCOL_VERSION;
 	if (ath6kl_access_datadiag(ar, address,
 				(u8 *)&host_app_area,
@@ -370,7 +372,7 @@ static void ath6kl_dump_target_assert_info(struct ath6kl *ar)
 
 	/* the reg dump pointer is copied to the host interest area */
 	address = ath6kl_get_hi_item_addr(ar, HI_ITEM(hi_failure_state));
-	address = TARG_VTOP(address);
+	address = TARG_VTOP(ar->target_type, address);
 
 	/* read RAM location through diagnostic window */
 	status = ath6kl_read_reg_diag(ar, &address, &regdump_loc);
@@ -382,8 +384,7 @@ static void ath6kl_dump_target_assert_info(struct ath6kl *ar)
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "location of register dump data: 0x%X\n",
 		regdump_loc);
-
-	regdump_loc = TARG_VTOP(regdump_loc);
+	regdump_loc = TARG_VTOP(ar->target_type, regdump_loc);
 
 	/* fetch register dump data */
 	status = ath6kl_access_datadiag(ar,
@@ -518,10 +519,14 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	 * but possible in theory.
 	 */
 
-	if (ar->target_type == TARGET_TYPE_AR6003) {
+	if (ar->target_type == TARGET_TYPE_AR6003 ||
+	    ar->target_type == TARGET_TYPE_AR6004) {
 		if (ar->version.target_ver == AR6003_REV2_VERSION) {
 			param = AR6003_REV2_BOARD_EXT_DATA_ADDRESS;
 			ram_reserved_size =  AR6003_REV2_RAM_RESERVE_SIZE;
+		} else if (ar->version.target_ver == AR6004_REV1_VERSION) {
+			param = AR6004_REV1_BOARD_EXT_DATA_ADDRESS;
+			ram_reserved_size =  AR6004_REV1_RAM_RESERVE_SIZE;
 		} else {
 			param = AR6003_REV3_BOARD_EXT_DATA_ADDRESS;
 			ram_reserved_size =  AR6003_REV3_RAM_RESERVE_SIZE;
@@ -614,7 +619,8 @@ int ath6kl_unavail_ev(struct ath6kl *ar)
 static u32 ath6kl_get_load_address(u32 target_ver, enum addr_type type)
 {
 	WARN_ON(target_ver != AR6003_REV2_VERSION &&
-		target_ver != AR6003_REV3_VERSION);
+		target_ver != AR6003_REV3_VERSION &&
+		target_ver != AR6004_REV1_VERSION);
 
 	switch (type) {
 	case DATASET_PATCH_ADDR:
@@ -664,6 +670,9 @@ static int ath6kl_fetch_board_file(struct ath6kl *ar)
 	case AR6003_REV2_VERSION:
 		filename = AR6003_REV2_BOARD_DATA_FILE;
 		break;
+	case AR6004_REV1_VERSION:
+		filename = AR6004_REV1_BOARD_DATA_FILE;
+		break;
 	default:
 		filename = AR6003_REV3_BOARD_DATA_FILE;
 		break;
@@ -683,6 +692,9 @@ static int ath6kl_fetch_board_file(struct ath6kl *ar)
 	switch (ar->version.target_ver) {
 	case AR6003_REV2_VERSION:
 		filename = AR6003_REV2_DEFAULT_BOARD_DATA_FILE;
+		break;
+	case AR6004_REV1_VERSION:
+		filename = AR6004_REV1_DEFAULT_BOARD_DATA_FILE;
 		break;
 	default:
 		filename = AR6003_REV3_DEFAULT_BOARD_DATA_FILE;
@@ -707,6 +719,7 @@ static int ath6kl_fetch_board_file(struct ath6kl *ar)
 static int ath6kl_upload_board_file(struct ath6kl *ar)
 {
 	u32 board_address, board_ext_address, param;
+	u32 board_data_size, board_ext_data_size;
 	int ret;
 
 	if (ar->fw_board == NULL) {
@@ -715,11 +728,24 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 			return ret;
 	}
 
-	/* Determine where in Target RAM to write Board Data */
-	ath6kl_bmi_read(ar,
-			ath6kl_get_hi_item_addr(ar,
-			HI_ITEM(hi_board_data)),
-			(u8 *) &board_address, 4);
+	/*
+	 * Determine where in Target RAM to write Board Data.
+	 * For AR6004, host determine Target RAM address for
+	 * writing board data.
+	 */
+	if (ar->target_type == TARGET_TYPE_AR6004) {
+		board_address = AR6004_REV1_BOARD_DATA_ADDRESS;
+		ath6kl_bmi_write(ar,
+				ath6kl_get_hi_item_addr(ar,
+				HI_ITEM(hi_board_data)),
+				(u8 *) &board_address, 4);
+	} else {
+		ath6kl_bmi_read(ar,
+				ath6kl_get_hi_item_addr(ar,
+				HI_ITEM(hi_board_data)),
+				(u8 *) &board_address, 4);
+	}
+
 	ath6kl_dbg(ATH6KL_DBG_TRC, "board data download addr: 0x%x\n",
 		   board_address);
 
@@ -737,13 +763,28 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 		return -EINVAL;
 	}
 
-	if (ar->fw_board_len == (AR6003_BOARD_DATA_SZ +
-				 AR6003_BOARD_EXT_DATA_SZ)) {
+	switch (ar->target_type) {
+	case TARGET_TYPE_AR6003:
+		board_data_size = AR6003_BOARD_DATA_SZ;
+		board_ext_data_size = AR6003_BOARD_EXT_DATA_SZ;
+		break;
+	case TARGET_TYPE_AR6004:
+		board_data_size = AR6004_BOARD_DATA_SZ;
+		board_ext_data_size = AR6004_BOARD_EXT_DATA_SZ;
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+		break;
+	}
+
+	if (ar->fw_board_len == (board_data_size +
+				 board_ext_data_size)) {
+
 		/* write extended board data */
 		ret = ath6kl_bmi_write(ar, board_ext_address,
-				       ar->fw_board + AR6003_BOARD_DATA_SZ,
-				       AR6003_BOARD_EXT_DATA_SZ);
-
+				       ar->fw_board + board_data_size,
+				       board_ext_data_size);
 		if (ret) {
 			ath6kl_err("Failed to write extended board data: %d\n",
 				   ret);
@@ -751,21 +792,22 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 		}
 
 		/* record that extended board data is initialized */
-		param = (AR6003_BOARD_EXT_DATA_SZ << 16) | 1;
+		param = (board_ext_data_size << 16) | 1;
+
 		ath6kl_bmi_write(ar,
 				 ath6kl_get_hi_item_addr(ar,
 				 HI_ITEM(hi_board_ext_data_config)),
 				 (unsigned char *) &param, 4);
 	}
 
-	if (ar->fw_board_len < AR6003_BOARD_DATA_SZ) {
+	if (ar->fw_board_len < board_data_size) {
 		ath6kl_err("Too small board file: %zu\n", ar->fw_board_len);
 		ret = -EINVAL;
 		return ret;
 	}
 
 	ret = ath6kl_bmi_write(ar, board_address, ar->fw_board,
-			       AR6003_BOARD_DATA_SZ);
+			       board_data_size);
 
 	if (ret) {
 		ath6kl_err("Board file bmi write failed: %d\n", ret);
@@ -791,6 +833,10 @@ static int ath6kl_upload_otp(struct ath6kl *ar)
 	switch (ar->version.target_ver) {
 	case AR6003_REV2_VERSION:
 		filename = AR6003_REV2_OTP_FILE;
+		break;
+	case AR6004_REV1_VERSION:
+		ath6kl_dbg(ATH6KL_DBG_TRC, "AR6004 doesn't need OTP file\n");
+		return 0;
 		break;
 	default:
 		filename = AR6003_REV3_OTP_FILE;
@@ -836,6 +882,9 @@ static int ath6kl_upload_firmware(struct ath6kl *ar)
 	case AR6003_REV2_VERSION:
 		filename = AR6003_REV2_FIRMWARE_FILE;
 		break;
+	case AR6004_REV1_VERSION:
+		filename = AR6004_REV1_FIRMWARE_FILE;
+		break;
 	default:
 		filename = AR6003_REV3_FIRMWARE_FILE;
 		break;
@@ -860,11 +909,15 @@ static int ath6kl_upload_firmware(struct ath6kl *ar)
 		return ret;
 	}
 
-	/* Set starting address for firmware */
-	address = ath6kl_get_load_address(ar->version.target_ver,
-					  APP_START_OVERRIDE_ADDR);
-	ath6kl_bmi_set_app_start(ar, address);
-
+	/*
+	 * Set starting address for firmware
+	 * Don't need to setup app_start override addr on AR6004
+	 */
+	if (ar->target_type != TARGET_TYPE_AR6004) {
+		address = ath6kl_get_load_address(ar->version.target_ver,
+						  APP_START_OVERRIDE_ADDR);
+		ath6kl_bmi_set_app_start(ar, address);
+	}
 	return ret;
 }
 
@@ -877,6 +930,10 @@ static int ath6kl_upload_patch(struct ath6kl *ar)
 	switch (ar->version.target_ver) {
 	case AR6003_REV2_VERSION:
 		filename = AR6003_REV2_PATCH_FILE;
+		break;
+	case AR6004_REV1_VERSION:
+		/* FIXME: implement for AR6004 */
+		return 0;
 		break;
 	default:
 		filename = AR6003_REV3_PATCH_FILE;
@@ -916,7 +973,8 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 	u32 param, options, sleep, address;
 	int status = 0;
 
-	if (ar->target_type != TARGET_TYPE_AR6003)
+	if (ar->target_type != TARGET_TYPE_AR6003 &&
+		ar->target_type != TARGET_TYPE_AR6004)
 		return -EINVAL;
 
 	/* temporarily disable system sleep */
@@ -948,18 +1006,22 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 		   options, sleep);
 
 	/* program analog PLL register */
-	status = ath6kl_bmi_reg_write(ar, ATH6KL_ANALOG_PLL_REGISTER,
-				      0xF9104001);
-	if (status)
-		return status;
+	/* no need to control 40/44MHz clock on AR6004 */
+	if (ar->target_type != TARGET_TYPE_AR6004) {
+		status = ath6kl_bmi_reg_write(ar, ATH6KL_ANALOG_PLL_REGISTER,
+					      0xF9104001);
 
-	/* Run at 80/88MHz by default */
-	param = SM(CPU_CLOCK_STANDARD, 1);
+		if (status)
+			return status;
 
-	address = RTC_BASE_ADDRESS + CPU_CLOCK_ADDRESS;
-	status = ath6kl_bmi_reg_write(ar, address, param);
-	if (status)
-		return status;
+		/* Run at 80/88MHz by default */
+		param = SM(CPU_CLOCK_STANDARD, 1);
+
+		address = RTC_BASE_ADDRESS + CPU_CLOCK_ADDRESS;
+		status = ath6kl_bmi_reg_write(ar, address, param);
+		if (status)
+			return status;
+	}
 
 	param = 0;
 	address = RTC_BASE_ADDRESS + LPO_CAL_ADDRESS;

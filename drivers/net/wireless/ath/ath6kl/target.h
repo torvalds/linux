@@ -20,6 +20,9 @@
 #define AR6003_BOARD_DATA_SZ		1024
 #define AR6003_BOARD_EXT_DATA_SZ	768
 
+#define AR6004_BOARD_DATA_SZ     7168
+#define AR6004_BOARD_EXT_DATA_SZ 0
+
 #define RESET_CONTROL_ADDRESS		0x00000000
 #define RESET_CONTROL_COLD_RST		0x00000100
 #define RESET_CONTROL_MBOX_RST		0x00000004
@@ -135,7 +138,8 @@
  * between the two, and is intended to remain constant (with additions only
  * at the end).
  */
-#define ATH6KL_HI_START_ADDR           0x00540600
+#define ATH6KL_AR6003_HI_START_ADDR           0x00540600
+#define ATH6KL_AR6004_HI_START_ADDR           0x00400800
 
 /*
  * These are items that the Host may need to access
@@ -314,7 +318,12 @@ struct host_interest {
 #define HI_OPTION_FW_MODE_SHIFT        0xC
 
 /* Convert a Target virtual address into a Target physical address */
-#define TARG_VTOP(vaddr)   (vaddr & 0x001fffff)
+#define AR6003_VTOP(vaddr) ((vaddr) & 0x001fffff)
+#define AR6004_VTOP(vaddr) (vaddr)
+
+#define TARG_VTOP(target_type, vaddr) \
+	(((target_type) == TARGET_TYPE_AR6003) ? AR6003_VTOP(vaddr) : \
+	(((target_type) == TARGET_TYPE_AR6004) ? AR6004_VTOP(vaddr) : 0))
 
 #define AR6003_REV2_APP_START_OVERRIDE          0x944C00
 #define AR6003_REV2_APP_LOAD_ADDRESS            0x543180
@@ -328,4 +337,7 @@ struct host_interest {
 #define AR6003_REV3_DATASET_PATCH_ADDRESS       0x57FF74
 #define AR6003_REV3_RAM_RESERVE_SIZE            512
 
+#define AR6004_REV1_BOARD_DATA_ADDRESS          0x435400
+#define AR6004_REV1_BOARD_EXT_DATA_ADDRESS      0x437000
+#define AR6004_REV1_RAM_RESERVE_SIZE            11264
 #endif
