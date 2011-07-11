@@ -64,6 +64,7 @@
 #include "iwl-trans.h"
 #include "iwl-core.h"
 #include "iwl-helpers.h"
+#include "iwl-trans-int-pcie.h"
 /*TODO remove uneeded includes when the transport layer tx_free will be here */
 #include "iwl-agn.h"
 #include "iwl-core.h"
@@ -127,6 +128,55 @@ static void iwl_trans_rxq_free_rx_bufs(struct iwl_priv *priv)
 	}
 }
 
+static void iwl_trans_rx_hw_init(struct iwl_priv *priv,
+				 struct iwl_rx_queue *rxq)
+{
+	u32 rb_size;
+	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
+	u32 rb_timeout = 0; /* FIXME: RX_RB_TIMEOUT for all devices? */
+
+	rb_timeout = RX_RB_TIMEOUT;
+
+	if (iwlagn_mod_params.amsdu_size_8K)
+		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
+	else
+		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
+
+	/* Stop Rx DMA */
+	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+
+	/* Reset driver's Rx queue write index */
+	iwl_write_direct32(priv, FH_RSCSR_CHNL0_RBDCB_WPTR_REG, 0);
+
+	/* Tell device where to find RBD circular buffer in DRAM */
+	iwl_write_direct32(priv, FH_RSCSR_CHNL0_RBDCB_BASE_REG,
+			   (u32)(rxq->bd_dma >> 8));
+
+	/* Tell device where in DRAM to update its Rx status */
+	iwl_write_direct32(priv, FH_RSCSR_CHNL0_STTS_WPTR_REG,
+			   rxq->rb_stts_dma >> 4);
+
+	/* Enable Rx DMA
+	 * FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY is set because of HW bug in
+	 *      the credit mechanism in 5000 HW RX FIFO
+	 * Direct rx interrupts to hosts
+	 * Rx buffer size 4 or 8k
+	 * RB timeout 0x10
+	 * 256 RBDs
+	 */
+	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG,
+			   FH_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL |
+			   FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY |
+			   FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL |
+			   FH_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME_MSK |
+			   rb_size|
+			   (rb_timeout << FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS)|
+			   (rfdnlog << FH_RCSR_RX_CONFIG_RBDCB_SIZE_POS));
+
+	/* Set interrupt coalescing timer to default (2048 usecs) */
+	iwl_write8(priv, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
+}
+
 static int iwl_trans_rx_init(struct iwl_priv *priv)
 {
 	struct iwl_rx_queue *rxq = &priv->rxq;
@@ -154,6 +204,15 @@ static int iwl_trans_rx_init(struct iwl_priv *priv)
 	rxq->write_actual = 0;
 	rxq->free_count = 0;
 	spin_unlock_irqrestore(&rxq->lock, flags);
+
+	iwlagn_rx_replenish(priv);
+
+	iwl_trans_rx_hw_init(priv, rxq);
+
+	spin_lock_irqsave(&priv->lock, flags);
+	rxq->need_update = 1;
+	iwl_rx_queue_update_write_ptr(priv, rxq);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -755,6 +814,8 @@ int iwl_trans_register(struct iwl_priv *priv)
 
 	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
 		iwl_irq_tasklet, (unsigned long)priv);
+
+	INIT_WORK(&priv->rx_replenish, iwl_bg_rx_replenish);
 
 	return 0;
 }
