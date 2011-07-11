@@ -132,7 +132,6 @@ struct via_spec {
 	hda_nid_t hp_dac_nid;
 	bool hp_indep_shared;	/* indep HP-DAC is shared with side ch */
 	int num_active_streams;
-	int dac_mixer_idx;
 
 	struct nid_path out_path[HDA_SIDE + 1];
 	struct nid_path hp_path;
@@ -1881,8 +1880,6 @@ static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
 
 	idx = get_connection_index(codec, spec->aa_mix_nid,
 				   spec->multiout.dac_nids[0]);
-	if (idx < 0 && spec->dac_mixer_idx)
-		idx = spec->dac_mixer_idx;
 	if (idx >= 0) {
 		/* add control to mixer */
 		err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
@@ -3028,6 +3025,41 @@ static void set_widgets_power_state_vt1718S(struct hda_codec *codec)
 	}
 }
 
+/* Add a connection to the primary DAC from AA-mixer for some codecs
+ * This isn't listed from the raw info, but the chip has a secret connection.
+ */
+static int add_secret_dac_path(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	int i, nums;
+	hda_nid_t conn[8];
+	hda_nid_t nid;
+
+	if (!spec->aa_mix_nid)
+		return 0;
+	nums = snd_hda_get_connections(codec, spec->aa_mix_nid, conn,
+				       ARRAY_SIZE(conn) - 1);
+	for (i = 0; i < nums; i++) {
+		if (get_wcaps_type(get_wcaps(codec, conn[i])) == AC_WID_AUD_OUT)
+			return 0;
+	}
+
+	/* find the primary DAC and add to the connection list */
+	nid = codec->start_nid;
+	for (i = 0; i < codec->num_nodes; i++, nid++) {
+		unsigned int caps = get_wcaps(codec, nid);
+		if (get_wcaps_type(caps) == AC_WID_AUD_OUT &&
+		    !(caps & AC_WCAP_DIGITAL)) {
+			conn[nums++] = nid;
+			return snd_hda_override_conn_list(codec,
+							  spec->aa_mix_nid,
+							  nums, conn);
+		}
+	}
+	return 0;
+}
+
+
 static int patch_vt1718S(struct hda_codec *codec)
 {
 	struct via_spec *spec;
@@ -3041,7 +3073,7 @@ static int patch_vt1718S(struct hda_codec *codec)
 	spec->aa_mix_nid = 0x21;
 	override_mic_boost(codec, 0x2b, 0, 3, 40);
 	override_mic_boost(codec, 0x29, 0, 3, 40);
-	spec->dac_mixer_idx = 5;
+	add_secret_dac_path(codec);
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
@@ -3402,9 +3434,9 @@ static int patch_vt2002P(struct hda_codec *codec)
 		return -ENOMEM;
 
 	spec->aa_mix_nid = 0x21;
-	spec->dac_mixer_idx = 3;
 	override_mic_boost(codec, 0x2b, 0, 3, 40);
 	override_mic_boost(codec, 0x29, 0, 3, 40);
+	add_secret_dac_path(codec);
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
@@ -3540,7 +3572,7 @@ static int patch_vt1812(struct hda_codec *codec)
 	spec->aa_mix_nid = 0x21;
 	override_mic_boost(codec, 0x2b, 0, 3, 40);
 	override_mic_boost(codec, 0x29, 0, 3, 40);
-	spec->dac_mixer_idx = 5;
+	add_secret_dac_path(codec);
 
 	/* automatic parse from the BIOS config */
 	err = via_parse_auto_config(codec);
