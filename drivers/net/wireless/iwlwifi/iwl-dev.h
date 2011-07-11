@@ -47,6 +47,7 @@
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
+#include "iwl-bus.h"
 #include "iwl-trans.h"
 
 #define DRV_NAME        "iwlagn"
@@ -1193,44 +1194,6 @@ struct iwl_testmode_trace {
 };
 #endif
 
-struct iwl_bus;
-
-/**
- * struct iwl_bus_ops - bus specific operations
-
- * @get_pm_support: must returns true if the bus can go to sleep
- * @apm_config: will be called during the config of the APM configuration
- * @set_drv_data: set the priv pointer to the bus layer
- * @get_dev: returns the device struct
- * @get_irq: returns the irq number
- * @get_hw_id: prints the hw_id in the provided buffer
- * @write8: write a byte to register at offset ofs
- * @write32: write a dword to register at offset ofs
- * @wread32: read a dword at register at offset ofs
- */
-struct iwl_bus_ops {
-	bool (*get_pm_support)(struct iwl_bus *bus);
-	void (*apm_config)(struct iwl_bus *bus);
-	void (*set_drv_data)(struct iwl_bus *bus, void *priv);
-	struct device *(*get_dev)(const struct iwl_bus *bus);
-	unsigned int (*get_irq)(const struct iwl_bus *bus);
-	void (*get_hw_id)(struct iwl_bus *bus, char buf[], int buf_len);
-	void (*write8)(struct iwl_bus *bus, u32 ofs, u8 val);
-	void (*write32)(struct iwl_bus *bus, u32 ofs, u32 val);
-	u32 (*read32)(struct iwl_bus *bus, u32 ofs);
-};
-
-struct iwl_bus {
-	/* pointer to bus specific struct */
-	void *bus_specific;
-
-	/* Common data to all buses */
-	struct iwl_priv *priv; /* driver's context */
-	struct device *dev;
-	struct iwl_bus_ops *ops;
-	unsigned int irq;
-};
-
 /* uCode ownership */
 #define IWL_OWNERSHIP_DRIVER	0
 #define IWL_OWNERSHIP_TM	1
@@ -1302,7 +1265,7 @@ struct iwl_priv {
 	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
 
-	struct iwl_bus bus;	/* bus specific data */
+	struct iwl_bus *bus;	/* bus specific data */
 	struct iwl_trans trans;
 
 	/* microcode/device supports multiple contexts */

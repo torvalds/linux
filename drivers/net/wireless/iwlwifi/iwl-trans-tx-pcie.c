@@ -182,14 +182,14 @@ static void iwlagn_unmap_tfd(struct iwl_priv *priv, struct iwl_cmd_meta *meta,
 
 	/* Unmap tx_cmd */
 	if (num_tbs)
-		dma_unmap_single(priv->bus.dev,
+		dma_unmap_single(priv->bus->dev,
 				dma_unmap_addr(meta, mapping),
 				dma_unmap_len(meta, len),
 				DMA_BIDIRECTIONAL);
 
 	/* Unmap chunks, if any. */
 	for (i = 1; i < num_tbs; i++)
-		dma_unmap_single(priv->bus.dev, iwl_tfd_tb_get_addr(tfd, i),
+		dma_unmap_single(priv->bus->dev, iwl_tfd_tb_get_addr(tfd, i),
 				iwl_tfd_tb_get_len(tfd, i), dma_dir);
 }
 
@@ -640,9 +640,9 @@ static int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 			le16_to_cpu(out_cmd->hdr.sequence), cmd_size,
 			q->write_ptr, idx, priv->cmd_queue);
 
-	phys_addr = dma_map_single(priv->bus.dev, &out_cmd->hdr, copy_size,
+	phys_addr = dma_map_single(priv->bus->dev, &out_cmd->hdr, copy_size,
 				DMA_BIDIRECTIONAL);
-	if (unlikely(dma_mapping_error(priv->bus.dev, phys_addr))) {
+	if (unlikely(dma_mapping_error(priv->bus->dev, phys_addr))) {
 		idx = -ENOMEM;
 		goto out;
 	}
@@ -662,9 +662,9 @@ static int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 			continue;
 		if (!(cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY))
 			continue;
-		phys_addr = dma_map_single(priv->bus.dev, (void *)cmd->data[i],
+		phys_addr = dma_map_single(priv->bus->dev, (void *)cmd->data[i],
 					   cmd->len[i], DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(priv->bus.dev, phys_addr)) {
+		if (dma_mapping_error(priv->bus->dev, phys_addr)) {
 			iwlagn_unmap_tfd(priv, out_meta,
 					 &txq->tfds[q->write_ptr],
 					 DMA_BIDIRECTIONAL);

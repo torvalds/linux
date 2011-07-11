@@ -72,7 +72,7 @@
 static int iwl_trans_rx_alloc(struct iwl_priv *priv)
 {
 	struct iwl_rx_queue *rxq = &priv->rxq;
-	struct device *dev = priv->bus.dev;
+	struct device *dev = priv->bus->dev;
 
 	memset(&priv->rxq, 0, sizeof(priv->rxq));
 
@@ -118,7 +118,7 @@ static void iwl_trans_rxq_free_rx_bufs(struct iwl_priv *priv)
 		/* In the reset function, these buffers may have been allocated
 		 * to an SKB, so we need to unmap and free potential storage */
 		if (rxq->pool[i].page != NULL) {
-			dma_unmap_page(priv->bus.dev, rxq->pool[i].page_dma,
+			dma_unmap_page(priv->bus->dev, rxq->pool[i].page_dma,
 				PAGE_SIZE << priv->hw_params.rx_page_order,
 				DMA_FROM_DEVICE);
 			__iwl_free_pages(priv, rxq->pool[i].page);
@@ -233,13 +233,13 @@ static void iwl_trans_rx_free(struct iwl_priv *priv)
 	iwl_trans_rxq_free_rx_bufs(priv);
 	spin_unlock_irqrestore(&rxq->lock, flags);
 
-	dma_free_coherent(priv->bus.dev, sizeof(__le32) * RX_QUEUE_SIZE,
+	dma_free_coherent(priv->bus->dev, sizeof(__le32) * RX_QUEUE_SIZE,
 			  rxq->bd, rxq->bd_dma);
 	memset(&rxq->bd_dma, 0, sizeof(rxq->bd_dma));
 	rxq->bd = NULL;
 
 	if (rxq->rb_stts)
-		dma_free_coherent(priv->bus.dev,
+		dma_free_coherent(priv->bus->dev,
 				  sizeof(struct iwl_rb_status),
 				  rxq->rb_stts, rxq->rb_stts_dma);
 	else
@@ -263,7 +263,7 @@ static inline int iwlagn_alloc_dma_ptr(struct iwl_priv *priv,
 	if (WARN_ON(ptr->addr))
 		return -EINVAL;
 
-	ptr->addr = dma_alloc_coherent(priv->bus.dev, size,
+	ptr->addr = dma_alloc_coherent(priv->bus->dev, size,
 				       &ptr->dma, GFP_KERNEL);
 	if (!ptr->addr)
 		return -ENOMEM;
@@ -277,7 +277,7 @@ static inline void iwlagn_free_dma_ptr(struct iwl_priv *priv,
 	if (unlikely(!ptr->addr))
 		return;
 
-	dma_free_coherent(priv->bus.dev, ptr->size, ptr->addr, ptr->dma);
+	dma_free_coherent(priv->bus->dev, ptr->size, ptr->addr, ptr->dma);
 	memset(ptr, 0, sizeof(*ptr));
 }
 
@@ -324,7 +324,7 @@ static int iwl_trans_txq_alloc(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 
 	/* Circular buffer of transmit frame descriptors (TFDs),
 	 * shared with device */
-	txq->tfds = dma_alloc_coherent(priv->bus.dev, tfd_sz, &txq->q.dma_addr,
+	txq->tfds = dma_alloc_coherent(priv->bus->dev, tfd_sz, &txq->q.dma_addr,
 				       GFP_KERNEL);
 	if (!txq->tfds) {
 		IWL_ERR(priv, "dma_alloc_coherent(%zd) failed\n", tfd_sz);
@@ -415,7 +415,7 @@ static void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id)
 static void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
 {
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct device *dev = priv->bus.dev;
+	struct device *dev = priv->bus->dev;
 	int i;
 	if (WARN_ON(!txq))
 		return;
@@ -1016,10 +1016,10 @@ static int iwl_trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
 
 	/* Physical address of this Tx command's header (not MAC header!),
 	 * within command buffer array. */
-	txcmd_phys = dma_map_single(priv->bus.dev,
+	txcmd_phys = dma_map_single(priv->bus->dev,
 				    &dev_cmd->hdr, firstlen,
 				    DMA_BIDIRECTIONAL);
-	if (unlikely(dma_mapping_error(priv->bus.dev, txcmd_phys)))
+	if (unlikely(dma_mapping_error(priv->bus->dev, txcmd_phys)))
 		return -1;
 	dma_unmap_addr_set(out_meta, mapping, txcmd_phys);
 	dma_unmap_len_set(out_meta, len, firstlen);
@@ -1035,10 +1035,10 @@ static int iwl_trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
 	 * if any (802.11 null frames have no payload). */
 	secondlen = skb->len - hdr_len;
 	if (secondlen > 0) {
-		phys_addr = dma_map_single(priv->bus.dev, skb->data + hdr_len,
+		phys_addr = dma_map_single(priv->bus->dev, skb->data + hdr_len,
 					   secondlen, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(priv->bus.dev, phys_addr))) {
-			dma_unmap_single(priv->bus.dev,
+		if (unlikely(dma_mapping_error(priv->bus->dev, phys_addr))) {
+			dma_unmap_single(priv->bus->dev,
 					 dma_unmap_addr(out_meta, mapping),
 					 dma_unmap_len(out_meta, len),
 					 DMA_BIDIRECTIONAL);
@@ -1056,7 +1056,7 @@ static int iwl_trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
 				offsetof(struct iwl_tx_cmd, scratch);
 
 	/* take back ownership of DMA buffer to enable update */
-	dma_sync_single_for_cpu(priv->bus.dev, txcmd_phys, firstlen,
+	dma_sync_single_for_cpu(priv->bus->dev, txcmd_phys, firstlen,
 			DMA_BIDIRECTIONAL);
 	tx_cmd->dram_lsb_ptr = cpu_to_le32(scratch_phys);
 	tx_cmd->dram_msb_ptr = iwl_get_dma_hi_addr(scratch_phys);
@@ -1072,7 +1072,7 @@ static int iwl_trans_tx(struct iwl_priv *priv, struct sk_buff *skb,
 		iwl_trans_txq_update_byte_cnt_tbl(priv, txq,
 					       le16_to_cpu(tx_cmd->len));
 
-	dma_sync_single_for_device(priv->bus.dev, txcmd_phys, firstlen,
+	dma_sync_single_for_device(priv->bus->dev, txcmd_phys, firstlen,
 			DMA_BIDIRECTIONAL);
 
 	trace_iwlwifi_dev_tx(priv,
@@ -1111,13 +1111,13 @@ static void iwl_trans_kick_nic(struct iwl_priv *priv)
 static void iwl_trans_sync_irq(struct iwl_priv *priv)
 {
 	/* wait to make sure we flush pending tasklet*/
-	synchronize_irq(priv->bus.irq);
+	synchronize_irq(priv->bus->irq);
 	tasklet_kill(&priv->irq_tasklet);
 }
 
 static void iwl_trans_free(struct iwl_priv *priv)
 {
-	free_irq(priv->bus.irq, priv);
+	free_irq(priv->bus->irq, priv);
 	iwl_free_isr_ict(priv);
 }
 
@@ -1155,10 +1155,10 @@ int iwl_trans_register(struct iwl_trans *trans, struct iwl_priv *priv)
 
 	iwl_alloc_isr_ict(priv);
 
-	err = request_irq(priv->bus.irq, iwl_isr_ict, IRQF_SHARED,
+	err = request_irq(priv->bus->irq, iwl_isr_ict, IRQF_SHARED,
 		DRV_NAME, priv);
 	if (err) {
-		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->bus.irq);
+		IWL_ERR(priv, "Error allocating IRQ %d\n", priv->bus->irq);
 		iwl_free_isr_ict(priv);
 		return err;
 	}

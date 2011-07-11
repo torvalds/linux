@@ -55,7 +55,7 @@
 #include "iwl-sta.h"
 #include "iwl-agn-calib.h"
 #include "iwl-agn.h"
-#include "iwl-pci.h"
+#include "iwl-bus.h"
 #include "iwl-trans.h"
 
 /******************************************************************************
@@ -580,7 +580,7 @@ static struct attribute_group iwl_attribute_group = {
 static void iwl_free_fw_desc(struct iwl_priv *priv, struct fw_desc *desc)
 {
 	if (desc->v_addr)
-		dma_free_coherent(priv->bus.dev, desc->len,
+		dma_free_coherent(priv->bus->dev, desc->len,
 				  desc->v_addr, desc->p_addr);
 	desc->v_addr = NULL;
 	desc->len = 0;
@@ -606,7 +606,7 @@ static int iwl_alloc_fw_desc(struct iwl_priv *priv, struct fw_desc *desc,
 		return -EINVAL;
 	}
 
-	desc->v_addr = dma_alloc_coherent(priv->bus.dev, len,
+	desc->v_addr = dma_alloc_coherent(priv->bus->dev, len,
 					  &desc->p_addr, GFP_KERNEL);
 	if (!desc->v_addr)
 		return -ENOMEM;
@@ -660,7 +660,7 @@ static int __must_check iwl_request_firmware(struct iwl_priv *priv, bool first)
 		       priv->firmware_name);
 
 	return request_firmware_nowait(THIS_MODULE, 1, priv->firmware_name,
-				       priv->bus.dev,
+				       priv->bus->dev,
 				       GFP_KERNEL, priv, iwl_ucode_callback);
 }
 
@@ -1163,7 +1163,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	if (err)
 		IWL_ERR(priv, "failed to create debugfs files. Ignoring error: %d\n", err);
 
-	err = sysfs_create_group(&(priv->bus.dev->kobj),
+	err = sysfs_create_group(&(priv->bus->dev->kobj),
 					&iwl_attribute_group);
 	if (err) {
 		IWL_ERR(priv, "failed to create sysfs device attributes\n");
@@ -1187,7 +1187,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	iwl_dealloc_ucode(priv);
  out_unbind:
 	complete(&priv->_agn.firmware_loading_complete);
-	device_release_driver(priv->bus.dev);
+	device_release_driver(priv->bus->dev);
 	release_firmware(ucode_raw);
 }
 
@@ -3102,8 +3102,7 @@ static void iwl_init_context(struct iwl_priv *priv)
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 }
 
-int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
-		struct iwl_cfg *cfg)
+int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 {
 	int err = 0;
 	struct iwl_priv *priv;
@@ -3121,17 +3120,12 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 	}
 
 	priv = hw->priv;
-
-	priv->bus.priv = priv;
-	priv->bus.bus_specific = bus_specific;
-	priv->bus.ops = bus_ops;
-	priv->bus.irq = priv->bus.ops->get_irq(&priv->bus);
-	priv->bus.ops->set_drv_data(&priv->bus, priv);
-	priv->bus.dev = priv->bus.ops->get_dev(&priv->bus);
+	priv->bus = bus;
+	bus_set_drv_data(priv->bus, priv);
 
 	/* At this point both hw and priv are allocated. */
 
-	SET_IEEE80211_DEV(hw, priv->bus.dev);
+	SET_IEEE80211_DEV(hw, priv->bus->dev);
 
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 	priv->cfg = cfg;
@@ -3153,7 +3147,6 @@ int iwl_probe(void *bus_specific, struct iwl_bus_ops *bus_ops,
 
 	if (iwl_alloc_traffic_mem(priv))
 		IWL_ERR(priv, "Not enough memory to generate traffic log\n");
-
 
 	/* these spin locks will be used in apm_ops.init and EEPROM access
 	 * we should init now
@@ -3289,7 +3282,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 	IWL_DEBUG_INFO(priv, "*** UNLOAD DRIVER ***\n");
 
 	iwl_dbgfs_unregister(priv);
-	sysfs_remove_group(&priv->bus.dev->kobj,
+	sysfs_remove_group(&priv->bus->dev->kobj,
 			   &iwl_attribute_group);
 
 	/* ieee80211_unregister_hw call wil cause iwl_mac_stop to
@@ -3339,7 +3332,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 
 	trans_free(&priv->trans);
 
-	priv->bus.ops->set_drv_data(&priv->bus, NULL);
+	bus_set_drv_data(priv->bus, NULL);
 
 	iwl_uninit_drv(priv);
 

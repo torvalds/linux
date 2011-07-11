@@ -305,7 +305,7 @@ static void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 		BUG_ON(rxb->page);
 		rxb->page = page;
 		/* Get physical address of the RB */
-		rxb->page_dma = dma_map_page(priv->bus.dev, page, 0,
+		rxb->page_dma = dma_map_page(priv->bus->dev, page, 0,
 				PAGE_SIZE << priv->hw_params.rx_page_order,
 				DMA_FROM_DEVICE);
 		/* dma address must be no more than 36 bits */
@@ -404,7 +404,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 
 		rxq->queue[i] = NULL;
 
-		dma_unmap_page(priv->bus.dev, rxb->page_dma,
+		dma_unmap_page(priv->bus->dev, rxb->page_dma,
 			       PAGE_SIZE << priv->hw_params.rx_page_order,
 			       DMA_FROM_DEVICE);
 		pkt = rxb_addr(rxb);
@@ -455,7 +455,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 		 * rx_free list for reuse later. */
 		spin_lock_irqsave(&rxq->lock, flags);
 		if (rxb->page != NULL) {
-			rxb->page_dma = dma_map_page(priv->bus.dev, rxb->page,
+			rxb->page_dma = dma_map_page(priv->bus->dev, rxb->page,
 				0, PAGE_SIZE << priv->hw_params.rx_page_order,
 				DMA_FROM_DEVICE);
 			list_add_tail(&rxb->list, &rxq->rx_free);
@@ -704,7 +704,7 @@ void iwl_irq_tasklet(struct iwl_priv *priv)
 void iwl_free_isr_ict(struct iwl_priv *priv)
 {
 	if (priv->_agn.ict_tbl_vir) {
-		dma_free_coherent(priv->bus.dev,
+		dma_free_coherent(priv->bus->dev,
 				  (sizeof(u32) * ICT_COUNT) + PAGE_SIZE,
 				  priv->_agn.ict_tbl_vir,
 				  priv->_agn.ict_tbl_dma);
@@ -725,7 +725,7 @@ int iwl_alloc_isr_ict(struct iwl_priv *priv)
 
 	/* allocate shrared data table */
 	priv->_agn.ict_tbl_vir =
-		dma_alloc_coherent(priv->bus.dev,
+		dma_alloc_coherent(priv->bus->dev,
 				   (sizeof(u32) * ICT_COUNT) + PAGE_SIZE,
 				   &priv->_agn.ict_tbl_dma, GFP_KERNEL);
 	if (!priv->_agn.ict_tbl_vir)
