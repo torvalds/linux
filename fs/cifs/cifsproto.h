@@ -154,9 +154,9 @@ extern int set_cifs_acl(struct cifs_ntsd *, __u32, struct inode *,
 extern void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 			       struct cifs_sb_info *cifs_sb);
 extern int cifs_match_super(struct super_block *, void *);
-extern void cifs_cleanup_volume_info(struct smb_vol **pvolume_info);
-extern int cifs_setup_volume_info(struct smb_vol **pvolume_info,
-				  char *mount_data, const char *devname);
+extern void cifs_cleanup_volume_info(struct smb_vol *pvolume_info);
+extern struct smb_vol *cifs_get_volume_info(char *mount_data,
+					    const char *devname);
 extern int cifs_mount(struct cifs_sb_info *, struct smb_vol *);
 extern void cifs_umount(struct cifs_sb_info *);
 extern void cifs_dfs_release_automount_timer(void);
