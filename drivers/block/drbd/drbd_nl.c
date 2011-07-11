@@ -2731,14 +2731,18 @@ next_tconn:
 			goto out;
 
 		if (!mdev) {
-			/* this is a tconn without a single volume */
+			/* This is a tconn without a single volume.
+			 * Suprisingly enough, it may have a network
+			 * configuration. */
+			struct net_conf *nc;
 			dh->minor = -1U;
 			dh->ret_code = NO_ERROR;
 			if (nla_put_drbd_cfg_context(skb, tconn, VOLUME_UNSPECIFIED))
-				genlmsg_cancel(skb, dh);
-			else
-				genlmsg_end(skb, dh);
-			goto out;
+				goto cancel;
+			nc = rcu_dereference(tconn->net_conf);
+			if (nc && net_conf_to_skb(skb, nc, 1) != 0)
+				goto cancel;
+			goto done;
 		}
 
 		D_ASSERT(mdev->vnr == volume);
@@ -2748,9 +2752,11 @@ next_tconn:
 		dh->ret_code = NO_ERROR;
 
 		if (nla_put_status_info(skb, mdev, NULL)) {
+cancel:
 			genlmsg_cancel(skb, dh);
 			goto out;
 		}
+done:
 		genlmsg_end(skb, dh);
         }
 
