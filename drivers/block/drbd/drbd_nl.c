@@ -1095,7 +1095,8 @@ static void conn_reconfig_done(struct drbd_tconn *tconn)
 {
 	bool stop_threads;
 	spin_lock_irq(&tconn->req_lock);
-	stop_threads = conn_all_vols_unconf(tconn);
+	stop_threads = conn_all_vols_unconf(tconn) &&
+		tconn->cstate == C_STANDALONE;
 	spin_unlock_irq(&tconn->req_lock);
 	if (stop_threads) {
 		/* asender is implicitly stopped by receiver

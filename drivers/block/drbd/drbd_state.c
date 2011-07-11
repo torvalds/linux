@@ -1491,9 +1491,15 @@ static int w_after_conn_state_ch(struct drbd_work *w, int unused)
 void conn_old_common_state(struct drbd_tconn *tconn, union drbd_state *pcs, enum chg_state_flags *pf)
 {
 	enum chg_state_flags flags = ~0;
-	union drbd_dev_state os, cs = {}; /* old_state, common_state */
 	struct drbd_conf *mdev;
 	int vnr, first_vol = 1;
+	union drbd_dev_state os, cs = {
+		{ .role = R_SECONDARY,
+		  .peer = R_UNKNOWN,
+		  .conn = tconn->cstate,
+		  .disk = D_DISKLESS,
+		  .pdsk = D_UNKNOWN,
+		} };
 
 	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
@@ -1574,10 +1580,17 @@ void
 conn_set_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
 	       union drbd_state *pns_min, union drbd_state *pns_max, enum chg_state_flags flags)
 {
-	union drbd_state ns, os, ns_max = { };
+	union drbd_state ns, os, ns_max = {
+		{ .role = R_SECONDARY,
+		  .peer = R_UNKNOWN,
+		  .conn = val.conn,
+		  .disk = D_DISKLESS,
+		  .pdsk = D_UNKNOWN
+		} };
 	union drbd_state ns_min = {
 		{ .role = R_MASK,
 		  .peer = R_MASK,
+		  .conn = val.conn,
 		  .disk = D_MASK,
 		  .pdsk = D_MASK
 		} };
