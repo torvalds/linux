@@ -1723,7 +1723,6 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 		goto merge;
 	}
 
-repeat:
 	depth = ext_depth(inode);
 	eh = path[depth].p_hdr;
 	if (le16_to_cpu(eh->eh_entries) < le16_to_cpu(eh->eh_max))
@@ -1745,7 +1744,7 @@ repeat:
 			ext_debug("next leaf isn't full(%d)\n",
 				  le16_to_cpu(eh->eh_entries));
 			path = npath;
-			goto repeat;
+			goto has_space;
 		}
 		ext_debug("next leaf has no free space(%d,%d)\n",
 			  le16_to_cpu(eh->eh_entries), le16_to_cpu(eh->eh_max));
