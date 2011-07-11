@@ -213,6 +213,19 @@ static bool genpd_abort_poweroff(struct generic_pm_domain *genpd)
 }
 
 /**
+ * genpd_queue_power_off_work - Queue up the execution of pm_genpd_poweroff().
+ * @genpd: PM domait to power off.
+ *
+ * Queue up the execution of pm_genpd_poweroff() unless it's already been done
+ * before.
+ */
+static void genpd_queue_power_off_work(struct generic_pm_domain *genpd)
+{
+	if (!work_pending(&genpd->power_off_work))
+		queue_work(pm_wq, &genpd->power_off_work);
+}
+
+/**
  * pm_genpd_poweroff - Remove power from a given PM domain.
  * @genpd: PM domain to power down.
  *
@@ -304,7 +317,7 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 	if (parent) {
 		genpd_sd_counter_dec(parent);
 		if (parent->sd_count == 0)
-			queue_work(pm_wq, &parent->power_off_work);
+			genpd_queue_power_off_work(parent);
 
 		genpd_release_lock(parent);
 	}
