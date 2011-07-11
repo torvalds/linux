@@ -2242,8 +2242,8 @@ cifs_match_super(struct super_block *sb, void *data)
 
 	rc = compare_mount_options(sb, mnt_data);
 out:
-	cifs_put_tlink(tlink);
 	spin_unlock(&cifs_tcp_ses_lock);
+	cifs_put_tlink(tlink);
 	return rc;
 }
 
