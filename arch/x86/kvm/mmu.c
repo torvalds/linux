@@ -743,9 +743,6 @@ static int rmap_add(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
 	struct kvm_mmu_page *sp;
 	unsigned long *rmapp;
 
-	if (!is_rmap_spte(*spte))
-		return 0;
-
 	sp = page_header(__pa(spte));
 	kvm_mmu_page_set_gfn(sp, spte - sp->spt, gfn);
 	rmapp = gfn_to_rmap(vcpu->kvm, gfn, sp->role.level);
@@ -2087,11 +2084,13 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	if (!was_rmapped && is_large_pte(*sptep))
 		++vcpu->kvm->stat.lpages;
 
-	page_header_update_slot(vcpu->kvm, sptep, gfn);
-	if (!was_rmapped) {
-		rmap_count = rmap_add(vcpu, sptep, gfn);
-		if (rmap_count > RMAP_RECYCLE_THRESHOLD)
-			rmap_recycle(vcpu, sptep, gfn);
+	if (is_shadow_present_pte(*sptep)) {
+		page_header_update_slot(vcpu->kvm, sptep, gfn);
+		if (!was_rmapped) {
+			rmap_count = rmap_add(vcpu, sptep, gfn);
+			if (rmap_count > RMAP_RECYCLE_THRESHOLD)
+				rmap_recycle(vcpu, sptep, gfn);
+		}
 	}
 	kvm_release_pfn_clean(pfn);
 	if (speculative) {
