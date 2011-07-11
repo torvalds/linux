@@ -18,6 +18,21 @@
 #define INVALID_EVTCHN_IRQ  (-1)
 struct workqueue_struct *xen_pcibk_wq;
 
+static int __read_mostly passthrough;
+module_param(passthrough, bool, S_IRUGO);
+MODULE_PARM_DESC(passthrough,
+	"Option to specify how to export PCI topology to guest:\n"\
+	" 0 - (default) Hide the true PCI topology and makes the frontend\n"\
+	"   there is a single PCI bus with only the exported devices on it.\n"\
+	"   For example, a device at 03:05.0 will be re-assigned to 00:00.0\n"\
+	"   while second device at 02:1a.1 will be re-assigned to 00:01.1.\n"\
+	" 1 - Passthrough provides a real view of the PCI topology to the\n"\
+	"   frontend (for example, a device at 06:01.b will still appear at\n"\
+	"   06:01.b to the frontend). This is similar to how Xen 2.0.x\n"\
+	"   exposed PCI devices to its driver domains. This may be required\n"\
+	"   for drivers which depend on finding their hardward in certain\n"\
+	"   bus/slot locations.");
+
 static struct xen_pcibk_device *alloc_pdev(struct xenbus_device *xdev)
 {
 	struct xen_pcibk_device *pdev;
@@ -710,6 +725,8 @@ static struct xenbus_driver xenbus_xen_pcibk_driver = {
 	.otherend_changed	= xen_pcibk_frontend_changed,
 };
 
+struct xen_pcibk_backend *xen_pcibk_backend;
+
 int __init xen_pcibk_xenbus_register(void)
 {
 	xen_pcibk_wq = create_workqueue("xen_pciback_workqueue");
@@ -718,6 +735,10 @@ int __init xen_pcibk_xenbus_register(void)
 			"xen_pciback_workqueue failed\n", __func__);
 		return -EFAULT;
 	}
+	xen_pcibk_backend = &xen_pcibk_vpci_backend;
+	if (passthrough)
+		xen_pcibk_backend = &xen_pcibk_passthrough_backend;
+	pr_info(DRV_NAME ": backend is %s\n", xen_pcibk_backend->name);
 	return xenbus_register_backend(&xenbus_xen_pcibk_driver);
 }
 

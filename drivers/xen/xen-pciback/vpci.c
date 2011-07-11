@@ -25,9 +25,10 @@ static inline struct list_head *list_first(struct list_head *head)
 	return head->next;
 }
 
-struct pci_dev *xen_pcibk_get_pci_dev(struct xen_pcibk_device *pdev,
-				      unsigned int domain, unsigned int bus,
-				      unsigned int devfn)
+static struct pci_dev *__xen_pcibk_get_pci_dev(struct xen_pcibk_device *pdev,
+					       unsigned int domain,
+					       unsigned int bus,
+					       unsigned int devfn)
 {
 	struct pci_dev_entry *entry;
 	struct pci_dev *dev = NULL;
@@ -63,8 +64,9 @@ static inline int match_slot(struct pci_dev *l, struct pci_dev *r)
 	return 0;
 }
 
-int xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev, struct pci_dev *dev,
-			  int devid, publish_pci_dev_cb publish_cb)
+static int __xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev,
+				   struct pci_dev *dev, int devid,
+				   publish_pci_dev_cb publish_cb)
 {
 	int err = 0, slot, func = -1;
 	struct pci_dev_entry *t, *dev_entry;
@@ -137,8 +139,8 @@ out:
 	return err;
 }
 
-void xen_pcibk_release_pci_dev(struct xen_pcibk_device *pdev,
-			       struct pci_dev *dev)
+static void __xen_pcibk_release_pci_dev(struct xen_pcibk_device *pdev,
+					struct pci_dev *dev)
 {
 	int slot;
 	struct vpci_dev_data *vpci_dev = pdev->pci_dev_data;
@@ -167,7 +169,7 @@ out:
 		pcistub_put_pci_dev(found_dev);
 }
 
-int xen_pcibk_init_devices(struct xen_pcibk_device *pdev)
+static int __xen_pcibk_init_devices(struct xen_pcibk_device *pdev)
 {
 	int slot;
 	struct vpci_dev_data *vpci_dev;
@@ -186,14 +188,14 @@ int xen_pcibk_init_devices(struct xen_pcibk_device *pdev)
 	return 0;
 }
 
-int xen_pcibk_publish_pci_roots(struct xen_pcibk_device *pdev,
-				publish_pci_root_cb publish_cb)
+static int __xen_pcibk_publish_pci_roots(struct xen_pcibk_device *pdev,
+					 publish_pci_root_cb publish_cb)
 {
 	/* The Virtual PCI bus has only one root */
 	return publish_cb(pdev, 0, 0);
 }
 
-void xen_pcibk_release_devices(struct xen_pcibk_device *pdev)
+static void __xen_pcibk_release_devices(struct xen_pcibk_device *pdev)
 {
 	int slot;
 	struct vpci_dev_data *vpci_dev = pdev->pci_dev_data;
@@ -212,10 +214,10 @@ void xen_pcibk_release_devices(struct xen_pcibk_device *pdev)
 	pdev->pci_dev_data = NULL;
 }
 
-int xen_pcibk_get_pcifront_dev(struct pci_dev *pcidev,
-			       struct xen_pcibk_device *pdev,
-			       unsigned int *domain, unsigned int *bus,
-			       unsigned int *devfn)
+static int __xen_pcibk_get_pcifront_dev(struct pci_dev *pcidev,
+					struct xen_pcibk_device *pdev,
+					unsigned int *domain, unsigned int *bus,
+					unsigned int *devfn)
 {
 	struct pci_dev_entry *entry;
 	struct pci_dev *dev = NULL;
@@ -244,3 +246,14 @@ int xen_pcibk_get_pcifront_dev(struct pci_dev *pcidev,
 	spin_unlock_irqrestore(&vpci_dev->lock, flags);
 	return found;
 }
+
+struct xen_pcibk_backend xen_pcibk_vpci_backend = {
+	.name		= "vpci",
+	.init		= __xen_pcibk_init_devices,
+	.free		= __xen_pcibk_release_devices,
+	.find		= __xen_pcibk_get_pcifront_dev,
+	.publish	= __xen_pcibk_publish_pci_roots,
+	.release	= __xen_pcibk_release_pci_dev,
+	.add		= __xen_pcibk_add_pci_dev,
+	.get		= __xen_pcibk_get_pci_dev,
+};

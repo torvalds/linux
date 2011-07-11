@@ -109,34 +109,22 @@ config XEN_PCIDEV_BACKEND
 	tristate "Xen PCI-device backend driver"
 	depends on PCI && X86 && XEN
 	depends on XEN_BACKEND
+	default m
 	help
 	  The PCI device backend driver allows the kernel to export arbitrary
 	  PCI devices to other guests. If you select this to be a module, you
 	  will need to make sure no other driver has bound to the device(s)
 	  you want to make visible to other guests.
 
-choice
-	prompt "PCI Backend Mode"
-	depends on XEN_PCIDEV_BACKEND
+	  The parameter "passthrough" allows you specify how you want the PCI
+	  devices to appear in the guest. You can choose the default (0) where
+	  PCI topology starts at 00.00.0, or (1) for passthrough if you want
+	  the PCI devices topology appear the same as in the host.
 
-config XEN_PCIDEV_BACKEND_VPCI
-	bool "Virtual PCI"
-	help
-	  This PCI Backend hides the true PCI topology and makes the frontend
-	  think there is a single PCI bus with only the exported devices on it.
-	  For example, a device at 03:05.0 will be re-assigned to 00:00.0. A
-	  second device at 02:1a.1 will be re-assigned to 00:01.1.
+	  The "hide" parameter (only applicable if backend driver is compiled
+	  into the kernel) allows you to bind the PCI devices to this module
+	  from the default device drivers. The argument is the list of PCI BDFs:
+	  xen-pciback.hide=(03:00.0)(04:00.0)
 
-config XEN_PCIDEV_BACKEND_PASS
-	bool "Passthrough"
-	help
-	  This PCI Backend provides a real view of the PCI topology to the
-	  frontend (for example, a device at 06:01.b will still appear at
-	  06:01.b to the frontend). This is similar to how Xen 2.0.x exposed
-	  PCI devices to its driver domains. This may be required for drivers
-	  which depend on finding their hardward in certain bus/slot
-	  locations.
-
-endchoice
-
+	  If in doubt, say m.
 endmenu
