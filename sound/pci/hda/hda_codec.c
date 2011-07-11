@@ -308,9 +308,6 @@ int snd_hda_get_sub_nodes(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_HDA(snd_hda_get_sub_nodes);
 
-static int _hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
-				hda_nid_t *conn_list, int max_conns);
-
 /* look up the cached results */
 static hda_nid_t *lookup_conn_list(struct snd_array *array, hda_nid_t nid)
 {
@@ -357,7 +354,7 @@ int snd_hda_get_conn_list(struct hda_codec *codec, hda_nid_t nid,
 		return -EINVAL;
 
 	/* read the connection and add to the cache */
-	len = _hda_get_connections(codec, nid, list, HDA_MAX_CONNECTIONS);
+	len = snd_hda_get_raw_connections(codec, nid, list, HDA_MAX_CONNECTIONS);
 	if (len < 0)
 		return len;
 	err = snd_hda_override_conn_list(codec, nid, len, list);
@@ -399,8 +396,19 @@ int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 }
 EXPORT_SYMBOL_HDA(snd_hda_get_connections);
 
-static int _hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
-			     hda_nid_t *conn_list, int max_conns)
+/**
+ * snd_hda_get_raw_connections - copy connection list without cache
+ * @codec: the HDA codec
+ * @nid: NID to parse
+ * @conn_list: connection list array
+ * @max_conns: max. number of connections to store
+ *
+ * Like snd_hda_get_connections(), copy the connection list but without
+ * checking through the connection-list cache.
+ * Currently called only from hda_proc.c, so not exported.
+ */
+int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
+				hda_nid_t *conn_list, int max_conns)
 {
 	unsigned int parm;
 	int i, conn_len, conns;

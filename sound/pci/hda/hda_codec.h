@@ -903,6 +903,8 @@ int snd_hda_get_sub_nodes(struct hda_codec *codec, hda_nid_t nid,
 			  hda_nid_t *start_id);
 int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 			    hda_nid_t *conn_list, int max_conns);
+int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
+			    hda_nid_t *conn_list, int max_conns);
 int snd_hda_get_conn_list(struct hda_codec *codec, hda_nid_t nid,
 			  const hda_nid_t **listp);
 int snd_hda_override_conn_list(struct hda_codec *codec, hda_nid_t nid, int nums,
