@@ -47,6 +47,7 @@
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
+#include "iwl-trans.h"
 
 #define DRV_NAME        "iwlagn"
 
@@ -1228,67 +1229,6 @@ struct iwl_bus {
 	struct device *dev;
 	struct iwl_bus_ops *ops;
 	unsigned int irq;
-};
-
-struct iwl_trans;
-
-/**
- * struct iwl_trans_ops - transport specific operations
- * @start_device: allocates and inits all the resources for the transport
- *                layer.
- * @prepare_card_hw: claim the ownership on the HW. Will be called during
- *                   probe.
- * @tx_start: starts and configures all the Tx fifo - usually done once the fw
- *           is alive.
- * @stop_device:stops the whole device (embedded CPU put to reset)
- * @rx_free: frees the rx memory
- * @tx_free: frees the tx memory
- * @send_cmd:send a host command
- * @send_cmd_pdu:send a host command: flags can be CMD_*
- * @get_tx_cmd: returns a pointer to a new Tx cmd for the upper layer use
- * @tx: send an skb
- * @txq_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
- *                 ready and a successful ADDBA response has been received.
- * @txq_agg_disable: de-configure a Tx queue to send AMPDUs
- * @kick_nic: remove the RESET from the embedded CPU and let it run
- * @sync_irq: the upper layer will typically disable interrupt and call this
- *            handler. After this handler returns, it is guaranteed that all
- *            the ISR / tasklet etc... have finished running and the transport
- *            layer shall not pass any Rx.
- * @free: release all the ressource for the transport layer itself such as
- *        irq, tasklet etc...
- */
-struct iwl_trans_ops {
-
-	int (*start_device)(struct iwl_priv *priv);
-	int (*prepare_card_hw)(struct iwl_priv *priv);
-	void (*stop_device)(struct iwl_priv *priv);
-	void (*tx_start)(struct iwl_priv *priv);
-	void (*tx_free)(struct iwl_priv *priv);
-	void (*rx_free)(struct iwl_priv *priv);
-
-	int (*send_cmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
-
-	int (*send_cmd_pdu)(struct iwl_priv *priv, u8 id, u32 flags, u16 len,
-		     const void *data);
-	struct iwl_tx_cmd * (*get_tx_cmd)(struct iwl_priv *priv, int txq_id);
-	int (*tx)(struct iwl_priv *priv, struct sk_buff *skb,
-		struct iwl_tx_cmd *tx_cmd, int txq_id, __le16 fc, bool ampdu,
-		struct iwl_rxon_context *ctx);
-
-	int (*txq_agg_disable)(struct iwl_priv *priv, u16 txq_id,
-				  u16 ssn_idx, u8 tx_fifo);
-	void (*txq_agg_setup)(struct iwl_priv *priv, int sta_id, int tid,
-						int frame_limit);
-
-	void (*kick_nic)(struct iwl_priv *priv);
-
-	void (*sync_irq)(struct iwl_priv *priv);
-	void (*free)(struct iwl_priv *priv);
-};
-
-struct iwl_trans {
-	const struct iwl_trans_ops *ops;
 };
 
 /* uCode ownership */

@@ -519,7 +519,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	else
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD;
 
-	return trans_send_cmd_pdu(priv, tx_ant_cfg_cmd, CMD_SYNC,
+	return trans_send_cmd_pdu(&priv->trans, tx_ant_cfg_cmd, CMD_SYNC,
 			sizeof(tx_power_cmd), &tx_power_cmd);
 }
 
@@ -1061,7 +1061,7 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	if (ret)
 		return ret;
 
-	ret = trans_send_cmd(priv, &cmd);
+	ret = trans_send_cmd(&priv->trans, &cmd);
 	if (ret) {
 		clear_bit(STATUS_SCAN_HW, &priv->status);
 		iwlagn_set_pan_params(priv);
@@ -1167,7 +1167,7 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 		       flush_cmd.fifo_control);
 	flush_cmd.flush_control = cpu_to_le16(flush_control);
 
-	return trans_send_cmd(priv, &cmd);
+	return trans_send_cmd(&priv->trans, &cmd);
 }
 
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
@@ -1361,12 +1361,12 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	if (priv->cfg->bt_params->bt_session_2) {
 		memcpy(&bt_cmd_2000.basic, &basic,
 			sizeof(basic));
-		ret = trans_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+		ret = trans_send_cmd_pdu(&priv->trans, REPLY_BT_CONFIG,
 			CMD_SYNC, sizeof(bt_cmd_2000), &bt_cmd_2000);
 	} else {
 		memcpy(&bt_cmd_6000.basic, &basic,
 			sizeof(basic));
-		ret = trans_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+		ret = trans_send_cmd_pdu(&priv->trans, REPLY_BT_CONFIG,
 			CMD_SYNC, sizeof(bt_cmd_6000), &bt_cmd_6000);
 	}
 	if (ret)

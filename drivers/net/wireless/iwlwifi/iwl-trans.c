@@ -526,7 +526,7 @@ static int iwl_trans_tx_alloc(struct iwl_priv *priv)
 	return 0;
 
 error:
-	trans_tx_free(priv);
+	trans_tx_free(&priv->trans);
 
 	return ret;
 }
@@ -570,7 +570,7 @@ static int iwl_tx_init(struct iwl_priv *priv)
 error:
 	/*Upon error, free only if we allocated something */
 	if (alloc)
-		trans_tx_free(priv);
+		trans_tx_free(&priv->trans);
 	return ret;
 }
 
@@ -920,7 +920,7 @@ static void iwl_trans_stop_device(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
-	trans_sync_irq(priv);
+	trans_sync_irq(&priv->trans);
 
 	/* device going down, Stop using ICT table */
 	iwl_disable_ict(priv);
@@ -1146,11 +1146,12 @@ static const struct iwl_trans_ops trans_ops = {
 	.free = iwl_trans_free,
 };
 
-int iwl_trans_register(struct iwl_priv *priv)
+int iwl_trans_register(struct iwl_trans *trans, struct iwl_priv *priv)
 {
 	int err;
 
 	priv->trans.ops = &trans_ops;
+	priv->trans.priv = priv;
 
 	iwl_alloc_isr_ict(priv);
 

@@ -335,7 +335,7 @@ static int iwl_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
 			le32_to_cpu(cmd->sleep_interval[3]),
 			le32_to_cpu(cmd->sleep_interval[4]));
 
-	return trans_send_cmd_pdu(priv, POWER_TABLE_CMD, CMD_SYNC,
+	return trans_send_cmd_pdu(&priv->trans, POWER_TABLE_CMD, CMD_SYNC,
 				sizeof(struct iwl_powertable_cmd), cmd);
 }
 

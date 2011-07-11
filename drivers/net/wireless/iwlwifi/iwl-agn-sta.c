@@ -181,7 +181,7 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv,
 	cmd.len[0] = cmd_size;
 
 	if (not_empty || send_if_empty)
-		return trans_send_cmd(priv, &cmd);
+		return trans_send_cmd(&priv->trans, &cmd);
 	else
 		return 0;
 }
