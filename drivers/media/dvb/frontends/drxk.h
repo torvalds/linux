@@ -29,7 +29,19 @@ struct drxk_config {
 	const char *microcode_name;
 };
 
+#if defined(CONFIG_DVB_DRXK) || (defined(CONFIG_DVB_DRXK_MODULE) \
+        && defined(MODULE))
 extern struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 					struct i2c_adapter *i2c,
 					struct dvb_frontend **fe_t);
+#else
+static inline struct dvb_frontend *drxk_attach(const struct drxk_config *config,
+					struct i2c_adapter *i2c,
+					struct dvb_frontend **fe_t)
+{
+        printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
+        return NULL;
+}
+#endif
+
 #endif
