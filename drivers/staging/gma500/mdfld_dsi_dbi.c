@@ -769,7 +769,7 @@ struct mdfld_dsi_encoder *mdfld_dsi_dbi_init(struct drm_device *dev,
 	struct drm_connector *connector = NULL;
 	struct drm_encoder *encoder = NULL;
 	struct drm_display_mode *fixed_mode = NULL;
-	struct psb_gtt *pg = dev_priv ? (dev_priv->pg) : NULL;
+	struct psb_gtt *pg = dev_priv ? (&dev_priv->gtt) : NULL;
 
 #ifdef CONFIG_MDFLD_DSI_DPU
 	struct mdfld_dbi_dpu_info *dpu_info = dev_priv ? (dev_priv->dbi_dpu_info) : NULL;

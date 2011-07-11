@@ -176,7 +176,7 @@ static int psb_do_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv =
 	    (struct drm_psb_private *) dev->dev_private;
-	struct psb_gtt *pg = dev_priv->pg;
+	struct psb_gtt *pg = &dev_priv->gtt;
 
 	uint32_t stolen_gtt;
 
@@ -255,7 +255,7 @@ static int psb_driver_unload(struct drm_device *dev)
 			dev_priv->pf_pd = NULL;
 		}
 		if (dev_priv->mmu) {
-			struct psb_gtt *pg = dev_priv->pg;
+			struct psb_gtt *pg = &dev_priv->gtt;
 
 			down_read(&pg->sem);
 			psb_mmu_remove_pfn_sequence(
@@ -352,7 +352,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (!dev_priv->mmu)
 		goto out_err;
 
-	pg = dev_priv->pg;
+	pg = &dev_priv->gtt;
 
 	tt_pages = (pg->gatt_pages < PSB_TT_PRIV0_PLIMIT) ?
 		(pg->gatt_pages) : PSB_TT_PRIV0_PLIMIT;

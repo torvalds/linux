@@ -287,10 +287,10 @@ struct gtt_range *psb_gtt_alloc_range(struct drm_device *dev, int len,
 	if (backed) {
 		/* The start of the GTT is the stolen pages */
 		start = r->start;
-		end = r->start + dev_priv->pg->stolen_size - 1;
+		end = r->start + dev_priv->gtt.stolen_size - 1;
 	} else {
 		/* The rest we will use for GEM backed objects */
-		start = r->start + dev_priv->pg->stolen_size;
+		start = r->start + dev_priv->gtt.stolen_size;
 		end = r->end;
 	}
 
@@ -332,17 +332,10 @@ void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
 	kfree(gt);
 }
 
-struct psb_gtt *psb_gtt_alloc(struct drm_device *dev)
+void psb_gtt_alloc(struct drm_device *dev)
 {
-	struct psb_gtt *tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
-
-	if (!tmp)
-		return NULL;
-
-	init_rwsem(&tmp->sem);
-	tmp->dev = dev;
-
-	return tmp;
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	init_rwsem(&dev_priv->gtt.sem);
 }
 
 void psb_gtt_takedown(struct drm_device *dev)
@@ -361,8 +354,6 @@ void psb_gtt_takedown(struct drm_device *dev)
 	}
 	if (dev_priv->vram_addr)
 		iounmap(dev_priv->gtt_map);
-	kfree(dev_priv->pg);
-	dev_priv->pg = NULL;
 }
 
 int psb_gtt_init(struct drm_device *dev, int resume)
@@ -381,9 +372,8 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 
 	mutex_init(&dev_priv->gtt_mutex);
 
-	dev_priv->pg = pg = psb_gtt_alloc(dev);
-	if (pg == NULL)
-		return -ENOMEM;
+	psb_gtt_alloc(dev);
+	pg = &dev_priv->gtt;
 
 	/* Enable the GTT */
 	pci_read_config_word(dev->pdev, PSB_GMCH_CTRL, &dev_priv->gmch_ctrl);

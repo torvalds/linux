@@ -953,7 +953,7 @@ int mdfld_dsi_pkg_sender_init(struct mdfld_dsi_connector *dsi_connector,
 					mdfld_dsi_get_config(dsi_connector);
 	struct drm_device *dev = dsi_config->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct psb_gtt *pg = dev_priv->pg;
+	struct psb_gtt *pg = &dev_priv->gtt;
 	int i;
 	struct mdfld_dsi_pkg *pkg, *tmp;
 

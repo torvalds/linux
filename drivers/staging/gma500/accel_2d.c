@@ -69,7 +69,7 @@ void psb_spank(struct drm_psb_private *dev_priv)
 	PSB_WSGX32(PSB_RSGX32(PSB_CR_BIF_CTRL) & ~_PSB_CB_CTRL_CLEAR_FAULT,
 		   PSB_CR_BIF_CTRL);
 	(void) PSB_RSGX32(PSB_CR_BIF_CTRL);
-	PSB_WSGX32(dev_priv->pg->gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
+	PSB_WSGX32(dev_priv->gtt.gatt_start, PSB_CR_BIF_TWOD_REQ_BASE);
 }
 
 /**

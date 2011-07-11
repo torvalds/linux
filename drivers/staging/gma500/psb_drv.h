@@ -263,7 +263,7 @@ struct drm_psb_private {
 	struct drm_device *dev;
 	const struct psb_ops *ops;
 
-	struct psb_gtt *pg;
+	struct psb_gtt gtt;
 
 	/* GTT Memory manager */
 	struct psb_gtt_mm *gtt_mm;

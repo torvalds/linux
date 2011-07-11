@@ -24,7 +24,6 @@
 
 /* This wants cleaning up with respect to the psb_dev and un-needed stuff */
 struct psb_gtt {
-	struct drm_device *dev;
 	uint32_t gatt_start;
 	uint32_t mmu_gatt_start;
 	uint32_t gtt_start;
@@ -36,7 +35,7 @@ struct psb_gtt {
 	struct rw_semaphore sem;
 };
 
-/*Exported functions*/
+/* Exported functions */
 extern int psb_gtt_init(struct drm_device *dev, int resume);
 extern void psb_gtt_takedown(struct drm_device *dev);
 
