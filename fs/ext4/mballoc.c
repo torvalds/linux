@@ -4821,7 +4821,7 @@ ext4_trim_all_free(struct super_block *sb, ext4_group_t group,
 		   ext4_grpblk_t minblocks)
 {
 	void *bitmap;
-	ext4_grpblk_t next, count = 0;
+	ext4_grpblk_t next, count = 0, free_count = 0;
 	struct ext4_buddy e4b;
 	int ret;
 
@@ -4848,6 +4848,7 @@ ext4_trim_all_free(struct super_block *sb, ext4_group_t group,
 					 next - start, group, &e4b);
 			count += next - start;
 		}
+		free_count += next - start;
 		start = next + 1;
 
 		if (fatal_signal_pending(current)) {
@@ -4861,7 +4862,7 @@ ext4_trim_all_free(struct super_block *sb, ext4_group_t group,
 			ext4_lock_group(sb, group);
 		}
 
-		if ((e4b.bd_info->bb_free - count) < minblocks)
+		if ((e4b.bd_info->bb_free - free_count) < minblocks)
 			break;
 	}
 	ext4_unlock_group(sb, group);
