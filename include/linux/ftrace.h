@@ -19,6 +19,8 @@
 
 #include <asm/ftrace.h>
 
+struct ftrace_hash;
+
 #ifdef CONFIG_FUNCTION_TRACER
 
 extern int ftrace_enabled;
@@ -28,8 +30,6 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 		     loff_t *ppos);
 
 typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip);
-
-struct ftrace_hash;
 
 enum {
 	FTRACE_OPS_FL_ENABLED		= 1 << 0,
