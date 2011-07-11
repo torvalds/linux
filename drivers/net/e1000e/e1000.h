@@ -199,11 +199,6 @@ enum e1000_boards {
 	board_pch2lan,
 };
 
-struct e1000_queue_stats {
-	u64 packets;
-	u64 bytes;
-};
-
 struct e1000_ps_page {
 	struct page *page;
 	u64 dma; /* must be u64 - written to hw */
@@ -257,8 +252,6 @@ struct e1000_ring {
 	int set_itr;
 
 	struct sk_buff *rx_skb_top;
-
-	struct e1000_queue_stats stats;
 };
 
 /* PHY register snapshot values */
