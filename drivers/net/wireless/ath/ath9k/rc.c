@@ -379,7 +379,30 @@ static const struct ath_rate_table ar5416_11g_ratetable = {
 };
 
 static int ath_rc_get_rateindex(const struct ath_rate_table *rate_table,
-				struct ieee80211_tx_rate *rate);
+				struct ieee80211_tx_rate *rate)
+{
+	int rix = 0, i = 0;
+	static const int mcs_rix_off[] = { 7, 15, 20, 21, 22, 23 };
+
+	if (!(rate->flags & IEEE80211_TX_RC_MCS))
+		return rate->idx;
+
+	while (i < ARRAY_SIZE(mcs_rix_off) && rate->idx > mcs_rix_off[i]) {
+		rix++; i++;
+	}
+
+	rix += rate->idx + rate_table->mcs_start;
+
+	if ((rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
+	    (rate->flags & IEEE80211_TX_RC_SHORT_GI))
+		rix = rate_table->info[rix].ht_index;
+	else if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
+		rix = rate_table->info[rix].sgi_index;
+	else if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
+		rix = rate_table->info[rix].cw40index;
+
+	return rix;
+}
 
 static void ath_rc_sort_validrates(const struct ath_rate_table *rate_table,
 				   struct ath_rate_priv *ath_rc_priv)
@@ -1080,31 +1103,6 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 
 }
 
-static int ath_rc_get_rateindex(const struct ath_rate_table *rate_table,
-				struct ieee80211_tx_rate *rate)
-{
-	int rix = 0, i = 0;
-	static const int mcs_rix_off[] = { 7, 15, 20, 21, 22, 23 };
-
-	if (!(rate->flags & IEEE80211_TX_RC_MCS))
-		return rate->idx;
-
-	while (i < ARRAY_SIZE(mcs_rix_off) && rate->idx > mcs_rix_off[i]) {
-		rix++; i++;
-	}
-
-	rix += rate->idx + rate_table->mcs_start;
-
-	if ((rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH) &&
-	    (rate->flags & IEEE80211_TX_RC_SHORT_GI))
-		rix = rate_table->info[rix].ht_index;
-	else if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
-		rix = rate_table->info[rix].sgi_index;
-	else if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
-		rix = rate_table->info[rix].cw40index;
-
-	return rix;
-}
 
 static void ath_rc_tx_status(struct ath_softc *sc,
 			     struct ath_rate_priv *ath_rc_priv,
