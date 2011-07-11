@@ -1509,10 +1509,18 @@ static void toggle_output_mutes(struct hda_codec *codec, int num_pins,
 				hda_nid_t *pins, bool mute)
 {
 	int i;
-	for (i = 0; i < num_pins; i++)
+	for (i = 0; i < num_pins; i++) {
+		unsigned int parm = snd_hda_codec_read(codec, pins[i], 0,
+					  AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		if (parm & AC_PINCTL_IN_EN)
+			continue;
+		if (mute)
+			parm &= ~AC_PINCTL_OUT_EN;
+		else
+			parm |= AC_PINCTL_OUT_EN;
 		snd_hda_codec_write(codec, pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    mute ? 0 : PIN_OUT);
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, parm);
+	}
 }
 
 /* mute internal speaker if line-out is plugged */
