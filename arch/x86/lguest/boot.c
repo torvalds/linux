@@ -400,7 +400,7 @@ static void lguest_load_tr_desc(void)
  * giant ball of hair.  Its entry in the current Intel manual runs to 28 pages.
  *
  * This instruction even it has its own Wikipedia entry.  The Wikipedia entry
- * has been translated into 5 languages.  I am not making this up!
+ * has been translated into 6 languages.  I am not making this up!
  *
  * We could get funky here and identify ourselves as "GenuineLguest", but
  * instead we just use the real "cpuid" instruction.  Then I pretty much turned
