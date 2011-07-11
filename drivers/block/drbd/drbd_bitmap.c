@@ -955,7 +955,7 @@ static void bm_async_io_complete(struct bio *bio, int error)
 static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must_hold(local)
 {
 	/* we are process context. we always get a bio */
-	struct bio *bio = bio_alloc(GFP_KERNEL, 1);
+	struct bio *bio = bio_alloc(GFP_NOIO, 1);
 	struct drbd_conf *mdev = ctx->mdev;
 	struct drbd_bitmap *b = mdev->bitmap;
 	struct page *page;
@@ -1029,7 +1029,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 	 * as we submit copies of pages anyways.
 	 */
 
-	ctx = kmalloc(sizeof(struct bm_aio_ctx), GFP_KERNEL);
+	ctx = kmalloc(sizeof(struct bm_aio_ctx), GFP_NOIO);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -1175,7 +1175,7 @@ int drbd_bm_write_page(struct drbd_conf *mdev, unsigned int idx) __must_hold(loc
 		return 0;
 	}
 
-	ctx = kmalloc(sizeof(struct bm_aio_ctx), GFP_KERNEL);
+	ctx = kmalloc(sizeof(struct bm_aio_ctx), GFP_NOIO);
 	if (!ctx)
 		return -ENOMEM;
 
