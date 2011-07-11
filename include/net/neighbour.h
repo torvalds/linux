@@ -142,7 +142,7 @@ struct pneigh_entry {
 
 struct neigh_hash_table {
 	struct neighbour __rcu	**hash_buckets;
-	unsigned int		hash_mask;
+	unsigned int		hash_shift;
 	__u32			hash_rnd;
 	struct rcu_head		rcu;
 };
