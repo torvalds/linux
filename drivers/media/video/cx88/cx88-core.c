@@ -636,6 +636,9 @@ int cx88_reset(struct cx88_core *core)
 	cx_write(MO_PCI_INTSTAT,   0xFFFFFFFF); // Clear PCI int
 	cx_write(MO_INT1_STAT,     0xFFFFFFFF); // Clear RISC int
 
+	/* set default notch filter */
+	cx_andor(MO_HTOTAL, 0x1800, (HLNotchFilter4xFsc << 11));
+
 	/* Reset on-board parts */
 	cx_write(MO_SRST_IO, 0);
 	msleep(10);
@@ -994,10 +997,10 @@ int cx88_set_tvnorm(struct cx88_core *core, v4l2_std_id norm)
 	// htotal
 	tmp64 = norm_htotal(norm) * (u64)vdec_clock;
 	do_div(tmp64, fsc8);
-	htotal = (u32)tmp64 | (HLNotchFilter4xFsc << 11);
+	htotal = (u32)tmp64;
 	dprintk(1,"set_tvnorm: MO_HTOTAL        0x%08x [old=0x%08x,htotal=%d]\n",
 		htotal, cx_read(MO_HTOTAL), (u32)tmp64);
-	cx_write(MO_HTOTAL, htotal);
+	cx_andor(MO_HTOTAL, 0x07ff, htotal);
 
 	// vbi stuff, set vbi offset to 10 (for 20 Clk*2 pixels), this makes
 	// the effective vbi offset ~244 samples, the same as the Bt8x8

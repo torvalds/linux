@@ -262,6 +262,20 @@ static const struct cx88_ctrl cx8800_ctls[] = {
 		.mask                  = 1 << 9,
 		.shift                 = 9,
 	}, {
+		.v = {
+			.id            = V4L2_CID_BAND_STOP_FILTER,
+			.name          = "Notch filter",
+			.minimum       = 0,
+			.maximum       = 3,
+			.step          = 1,
+			.default_value = 0x0,
+			.type          = V4L2_CTRL_TYPE_INTEGER,
+		},
+		.off                   = 0,
+		.reg                   = MO_HTOTAL,
+		.mask                  = 3 << 11,
+		.shift                 = 11,
+	}, {
 	/* --- audio --- */
 		.v = {
 			.id            = V4L2_CID_AUDIO_MUTE,
@@ -320,6 +334,7 @@ const u32 cx88_user_ctrls[] = {
 	V4L2_CID_SHARPNESS,
 	V4L2_CID_CHROMA_AGC,
 	V4L2_CID_COLOR_KILLER,
+	V4L2_CID_BAND_STOP_FILTER,
 	0
 };
 EXPORT_SYMBOL(cx88_user_ctrls);
