@@ -17,6 +17,7 @@
 #include <linux/buffer_head.h>
 #include <linux/rcupdate.h>
 #include <linux/rculist_bl.h>
+#include <linux/completion.h>
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
@@ -546,6 +547,7 @@ struct gfs2_sbd {
 	struct gfs2_glock *sd_trans_gl;
 	wait_queue_head_t sd_glock_wait;
 	atomic_t sd_glock_disposal;
+	struct completion sd_locking_init;
 
 	/* Inode Stuff */
 
