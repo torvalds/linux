@@ -615,6 +615,7 @@ static void via_auto_init_speaker_out(struct hda_codec *codec)
 }
 
 static bool is_smart51_pins(struct hda_codec *codec, hda_nid_t pin);
+static void via_hp_automute(struct hda_codec *codec);
 
 static void via_auto_init_analog_input(struct hda_codec *codec)
 {
@@ -801,6 +802,7 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 
 	/* update jack power state */
 	set_widgets_power_state(codec);
+	via_hp_automute(codec);
 	return 1;
 }
 
@@ -1532,19 +1534,18 @@ static void via_line_automute(struct hda_codec *codec, int present)
 static void via_hp_automute(struct hda_codec *codec)
 {
 	int present = 0;
+	int nums;
 	struct via_spec *spec = codec->spec;
 
-	if (!spec->hp_independent_mode && spec->autocfg.hp_pins[0]) {
-		int nums;
+	if (!spec->hp_independent_mode && spec->autocfg.hp_pins[0])
 		present = snd_hda_jack_detect(codec, spec->autocfg.hp_pins[0]);
-		if (spec->smart51_enabled)
-			nums = spec->autocfg.line_outs + spec->smart51_nums;
-		else
-			nums = spec->autocfg.line_outs;
-		toggle_output_mutes(codec, nums,
-				    spec->autocfg.line_out_pins,
-				    present);
-	}
+
+	if (spec->smart51_enabled)
+		nums = spec->autocfg.line_outs + spec->smart51_nums;
+	else
+		nums = spec->autocfg.line_outs;
+	toggle_output_mutes(codec, nums, spec->autocfg.line_out_pins, present);
+
 	via_line_automute(codec, present);
 }
 
