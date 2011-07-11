@@ -759,8 +759,8 @@ int cx88_set_scale(struct cx88_core *core, unsigned int width, unsigned int heig
 	if (nocomb)
 		value |= (3 << 5); // disable comb filter
 
-	cx_write(MO_FILTER_EVEN,  value);
-	cx_write(MO_FILTER_ODD,   value);
+	cx_andor(MO_FILTER_EVEN,  0x7ffc7f, value); /* preserve PEAKEN, PSEL */
+	cx_andor(MO_FILTER_ODD,   0x7ffc7f, value);
 	dprintk(1,"set_scale: filter  0x%04x\n", value);
 
 	return 0;

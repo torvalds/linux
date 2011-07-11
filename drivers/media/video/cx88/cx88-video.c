@@ -221,7 +221,23 @@ static const struct cx88_ctrl cx8800_ctls[] = {
 		.reg                   = MO_UV_SATURATION,
 		.mask                  = 0x00ff,
 		.shift                 = 0,
-	},{
+	}, {
+		.v = {
+			.id            = V4L2_CID_SHARPNESS,
+			.name          = "Sharpness",
+			.minimum       = 0,
+			.maximum       = 4,
+			.step          = 1,
+			.default_value = 0x0,
+			.type          = V4L2_CTRL_TYPE_INTEGER,
+		},
+		.off                   = 0,
+		/* NOTE: the value is converted and written to both even
+		   and odd registers in the code */
+		.reg                   = MO_FILTER_ODD,
+		.mask                  = 7 << 7,
+		.shift                 = 7,
+	}, {
 		.v = {
 			.id            = V4L2_CID_CHROMA_AGC,
 			.name          = "Chroma AGC",
@@ -301,6 +317,7 @@ const u32 cx88_user_ctrls[] = {
 	V4L2_CID_AUDIO_VOLUME,
 	V4L2_CID_AUDIO_BALANCE,
 	V4L2_CID_AUDIO_MUTE,
+	V4L2_CID_SHARPNESS,
 	V4L2_CID_CHROMA_AGC,
 	V4L2_CID_COLOR_KILLER,
 	0
@@ -963,6 +980,10 @@ int cx88_get_control (struct cx88_core  *core, struct v4l2_control *ctl)
 	case V4L2_CID_AUDIO_VOLUME:
 		ctl->value = 0x3f - (value & 0x3f);
 		break;
+	case V4L2_CID_SHARPNESS:
+		ctl->value = ((value & 0x0200) ? (((value & 0x0180) >> 7) + 1)
+						 : 0);
+		break;
 	default:
 		ctl->value = ((value + (c->off << c->shift)) & c->mask) >> c->shift;
 		break;
@@ -1039,6 +1060,12 @@ int cx88_set_control(struct cx88_core *core, struct v4l2_control *ctl)
 			value=(value*0x5a)/0x7f<<8|value;
 		}
 		mask=0xffff;
+		break;
+	case V4L2_CID_SHARPNESS:
+		/* 0b000, 0b100, 0b101, 0b110, or 0b111 */
+		value = (ctl->value < 1 ? 0 : ((ctl->value + 3) << 7));
+		/* needs to be set for both fields */
+		cx_andor(MO_FILTER_EVEN, mask, value);
 		break;
 	case V4L2_CID_CHROMA_AGC:
 		/* Do not allow chroma AGC to be enabled for SECAM */
