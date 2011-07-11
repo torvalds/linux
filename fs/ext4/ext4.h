@@ -1215,6 +1215,9 @@ struct ext4_sb_info {
 
 	/* Kernel thread for multiple mount protection */
 	struct task_struct *s_mmp_tsk;
+
+	/* record the last minlen when FITRIM is called. */
+	atomic_t s_last_trim_minblks;
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
@@ -2080,10 +2083,18 @@ struct ext4_group_info {
 					 * 5 free 8-block regions. */
 };
 
-#define EXT4_GROUP_INFO_NEED_INIT_BIT	0
+#define EXT4_GROUP_INFO_NEED_INIT_BIT		0
+#define EXT4_GROUP_INFO_WAS_TRIMMED_BIT		1
 
 #define EXT4_MB_GRP_NEED_INIT(grp)	\
 	(test_bit(EXT4_GROUP_INFO_NEED_INIT_BIT, &((grp)->bb_state)))
+
+#define EXT4_MB_GRP_WAS_TRIMMED(grp)	\
+	(test_bit(EXT4_GROUP_INFO_WAS_TRIMMED_BIT, &((grp)->bb_state)))
+#define EXT4_MB_GRP_SET_TRIMMED(grp)	\
+	(set_bit(EXT4_GROUP_INFO_WAS_TRIMMED_BIT, &((grp)->bb_state)))
+#define EXT4_MB_GRP_CLEAR_TRIMMED(grp)	\
+	(clear_bit(EXT4_GROUP_INFO_WAS_TRIMMED_BIT, &((grp)->bb_state)))
 
 #define EXT4_MAX_CONTENTION		8
 #define EXT4_CONTENTION_THRESHOLD	2

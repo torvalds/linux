@@ -2628,6 +2628,15 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 		rb_erase(&entry->node, &(db->bb_free_root));
 		mb_free_blocks(NULL, &e4b, entry->start_blk, entry->count);
 
+		/*
+		 * Clear the trimmed flag for the group so that the next
+		 * ext4_trim_fs can trim it.
+		 * If the volume is mounted with -o discard, online discard
+		 * is supported and the free blocks will be trimmed online.
+		 */
+		if (!test_opt(sb, DISCARD))
+			EXT4_MB_GRP_CLEAR_TRIMMED(db);
+
 		if (!db->bb_free_root.rb_node) {
 			/* No more items in the per group rb tree
 			 * balance refcounts from ext4_mb_free_metadata()
@@ -4838,6 +4847,10 @@ ext4_trim_all_free(struct super_block *sb, ext4_group_t group,
 	bitmap = e4b.bd_bitmap;
 
 	ext4_lock_group(sb, group);
+	if (EXT4_MB_GRP_WAS_TRIMMED(e4b.bd_info) &&
+	    minblocks >= atomic_read(&EXT4_SB(sb)->s_last_trim_minblks))
+		goto out;
+
 	start = (e4b.bd_info->bb_first_free > start) ?
 		e4b.bd_info->bb_first_free : start;
 
@@ -4869,6 +4882,10 @@ ext4_trim_all_free(struct super_block *sb, ext4_group_t group,
 		if ((e4b.bd_info->bb_free - free_count) < minblocks)
 			break;
 	}
+
+	if (!ret)
+		EXT4_MB_GRP_SET_TRIMMED(e4b.bd_info);
+out:
 	ext4_unlock_group(sb, group);
 	ext4_mb_unload_buddy(&e4b);
 
@@ -4956,6 +4973,9 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		first_block = 0;
 	}
 	range->len = trimmed * sb->s_blocksize;
+
+	if (!ret)
+		atomic_set(&EXT4_SB(sb)->s_last_trim_minblks, minlen);
 
 out:
 	return ret;
