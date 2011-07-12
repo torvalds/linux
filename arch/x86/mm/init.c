@@ -81,7 +81,7 @@ static void __init find_early_table_space(unsigned long end, int use_pse,
 
 void __init native_pagetable_reserve(u64 start, u64 end)
 {
-	memblock_x86_reserve_range(start, end, "PGTABLE");
+	memblock_reserve(start, end - start);
 }
 
 struct map_range {
@@ -280,8 +280,8 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	 * pgt_buf_end) and free the other ones (pgt_buf_end - pgt_buf_top)
 	 * so that they can be reused for other purposes.
 	 *
-	 * On native it just means calling memblock_x86_reserve_range, on Xen it
-	 * also means marking RW the pagetable pages that we allocated before
+	 * On native it just means calling memblock_reserve, on Xen it also
+	 * means marking RW the pagetable pages that we allocated before
 	 * but that haven't been used.
 	 *
 	 * In fact on xen we mark RO the whole range pgt_buf_start -

@@ -280,8 +280,7 @@ void __init efi_memblock_x86_reserve_range(void)
 		boot_params.efi_info.efi_memdesc_size;
 	memmap.desc_version = boot_params.efi_info.efi_memdesc_version;
 	memmap.desc_size = boot_params.efi_info.efi_memdesc_size;
-	memblock_x86_reserve_range(pmap, pmap + memmap.nr_map * memmap.desc_size,
-		      "EFI memmap");
+	memblock_reserve(pmap, memmap.nr_map * memmap.desc_size);
 }
 
 #if EFI_DEBUG
@@ -332,8 +331,7 @@ void __init efi_reserve_boot_services(void)
 					"[0x%010llx-0x%010llx]\n",
 						start, start+size-1);
 		} else
-			memblock_x86_reserve_range(start, start+size,
-							"EFI Boot");
+			memblock_reserve(start, size);
 	}
 }
 

@@ -94,7 +94,7 @@ static u32 __init allocate_aperture(void)
 				addr, aper_size>>10);
 		return 0;
 	}
-	memblock_x86_reserve_range(addr, addr + aper_size, "aperture64");
+	memblock_reserve(addr, aper_size);
 	/*
 	 * Kmemleak should not scan this block as it may not be mapped via the
 	 * kernel direct mapping.

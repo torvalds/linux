@@ -91,7 +91,7 @@ void __init setup_bios_corruption_check(void)
 		if (start >= end)
 			continue;
 
-		memblock_x86_reserve_range(start, end, "SCAN RAM");
+		memblock_reserve(start, end - start);
 		scan_areas[num_scan_areas].addr = start;
 		scan_areas[num_scan_areas].size = end - start;
 

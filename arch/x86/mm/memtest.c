@@ -34,7 +34,7 @@ static void __init reserve_bad_mem(u64 pattern, u64 start_bad, u64 end_bad)
 	       (unsigned long long) pattern,
 	       (unsigned long long) start_bad,
 	       (unsigned long long) end_bad);
-	memblock_x86_reserve_range(start_bad, end_bad, "BAD RAM");
+	memblock_reserve(start_bad, end_bad - start_bad);
 }
 
 static void __init memtest(u64 pattern, u64 start_phys, u64 size)

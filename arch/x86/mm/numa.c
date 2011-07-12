@@ -364,8 +364,7 @@ void __init numa_reset_distance(void)
 
 	/* numa_distance could be 1LU marking allocation failure, test cnt */
 	if (numa_distance_cnt)
-		memblock_x86_free_range(__pa(numa_distance),
-					__pa(numa_distance) + size);
+		memblock_free(__pa(numa_distance), size);
 	numa_distance_cnt = 0;
 	numa_distance = NULL;	/* enable table creation */
 }
@@ -394,7 +393,7 @@ static int __init numa_alloc_distance(void)
 		numa_distance = (void *)1LU;
 		return -ENOMEM;
 	}
-	memblock_x86_reserve_range(phys, phys + size, "NUMA DIST");
+	memblock_reserve(phys, size);
 
 	numa_distance = __va(phys);
 	numa_distance_cnt = cnt;

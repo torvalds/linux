@@ -47,7 +47,7 @@ static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
 
 	ptr = phys_to_virt(addr);
 	memset(ptr, 0, size);
-	memblock_x86_reserve_range(addr, addr + size, "BOOTMEM");
+	memblock_reserve(addr, size);
 	/*
 	 * The min_count is set to 0 so that bootmem allocated blocks
 	 * are never reported as leaks.
@@ -175,7 +175,7 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 			      unsigned long size)
 {
 	kmemleak_free_part(__va(physaddr), size);
-	memblock_x86_free_range(physaddr, physaddr + size);
+	memblock_free(physaddr, size);
 }
 
 /**
@@ -190,7 +190,7 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 void __init free_bootmem(unsigned long addr, unsigned long size)
 {
 	kmemleak_free_part(__va(addr), size);
-	memblock_x86_free_range(addr, addr + size);
+	memblock_free(addr, size);
 }
 
 static void * __init ___alloc_bootmem_nopanic(unsigned long size,

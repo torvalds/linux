@@ -17,8 +17,6 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 
-#include <asm/memblock.h>
-
 #define INIT_MEMBLOCK_REGIONS	128
 
 struct memblock_region {
