@@ -2876,11 +2876,9 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 							setKey(dev, ipw->u.crypt.idx, ipw->u.crypt.idx, ieee->pairwise_key_type, (u8*)ieee->ap_mac_addr, 0, key);
 						}
 					}
-#ifdef RTL8192E
 					if ((ieee->pairwise_key_type == KEY_TYPE_CCMP) && ieee->pHTInfo->bCurrentHTSupport){
 						write_nic_byte(dev, 0x173, 1);
 					}
-#endif
 
 				}
 				else

@@ -1,6 +1,3 @@
-NIC_SELECT = RTL8192E
-
-ccflags-y += -DRTL8192E
 ccflags-y += -DEEPROM_OLD_FORMAT_SUPPORT=1
 ccflags-y += -DUSE_FW_SOURCE_IMG_FILE
 ccflags-y += -DENABLE_GPIO_RADIO_CTL

@@ -187,7 +187,6 @@ void PHY_SetRF8256CCKTxPower(struct net_device*	dev, u8	powerlevel)
 {
 	u32	TxAGC=0;
 	struct r8192_priv *priv = rtllib_priv(dev);
-	#ifdef RTL8192E
 
 	TxAGC = powerlevel;
 	if (priv->bDynamicTxLowPower == true)
@@ -200,14 +199,12 @@ void PHY_SetRF8256CCKTxPower(struct net_device*	dev, u8	powerlevel)
 	if (TxAGC > 0x24)
 		TxAGC = 0x24;
 	rtl8192_setBBreg(dev, rTxAGC_CCK_Mcs32, bTxAGCRateCCK, TxAGC);
-	#endif
 }
 
 
 void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-#ifdef RTL8192E
 	u32 writeVal, powerBase0, powerBase1, writeVal_tmp;
 	u8 index = 0;
 	u16 RegOffset[6] = {0xe00, 0xe04, 0xe10, 0xe14, 0xe18, 0xe1c};
@@ -251,6 +248,5 @@ void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 		rtl8192_setBBreg(dev, RegOffset[index], 0x7f7f7f7f, writeVal);
 	}
 
-#endif
 	return;
 }

@@ -322,10 +322,8 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 
                 case HW_VAR_RF_TIMING:
 		{
-#ifdef RTL8192E
 			u8 Rf_Timing = *((u8*)val);
 			write_nic_byte(dev, rFPGA0_RFTiming1, Rf_Timing);
-#endif
 		}
 		break;
 
@@ -340,9 +338,7 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	u8			tempval;
-#ifdef RTL8192E
 	u8			ICVer8192, ICVer8256;
-#endif
 	u16			i,usValue, IC_Version;
 	u16			EEPROMId;
 	u8 bMac_Tmp_Addr[6] = {0x00, 0xe0, 0x4c, 0x00, 0x00, 0x01};
@@ -773,9 +769,7 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	u32 ulRegRead;
 	bool rtStatus = true;
 	u8 tmpvalue;
-#ifdef RTL8192E
 	u8 ICVersion,SwitchingRegulatorOutput;
-#endif
 	bool bfirmwareok = true;
 	u32 tmpRegA, tmpRegC, TempCCk;
 	int i = 0;
@@ -791,13 +785,11 @@ bool rtl8192_adapter_start(struct net_device *dev)
 start:
         rtl8192_pci_resetdescring(dev);
 	priv->Rf_Mode = RF_OP_By_SW_3wire;
-#ifdef RTL8192E
         if (priv->ResetProgress == RESET_TYPE_NORESET)
         {
             write_nic_byte(dev, ANAPAR, 0x37);
             mdelay(500);
         }
-#endif
 	priv->pFirmware->firmware_status = FW_STATUS_0_INIT;
 
 	if (priv->RegRfOff == true)
@@ -815,7 +807,6 @@ start:
 
 	write_nic_dword(dev, CPU_GEN, ulRegRead);
 
-#ifdef RTL8192E
 
 	ICVersion = read_nic_byte(dev, IC_VERRSION);
 	if (ICVersion >= 0x4)
@@ -828,7 +819,6 @@ start:
 			write_nic_byte(dev, SWREGULATOR, 0xb8);
 		}
 	}
-#endif
 	RT_TRACE(COMP_INIT, "BB Config Start!\n");
 	rtStatus = rtl8192_BBConfig(dev);
 	if (rtStatus != true)
@@ -967,9 +957,7 @@ start:
 	rtl8192_setBBreg(dev, rFPGA0_RFMOD, bCCKEn, 0x1);
 	rtl8192_setBBreg(dev, rFPGA0_RFMOD, bOFDMEn, 0x1);
 
-#ifdef RTL8192E
 	write_nic_byte(dev, 0x87, 0x0);
-#endif
 
 	if (priv->RegRfOff == true) {
 		RT_TRACE((COMP_INIT|COMP_RF|COMP_POWER), "%s(): Turn off RF for RegRfOff ----------\n",__func__);
@@ -2057,9 +2045,7 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 	{
 		mdelay(150);
 
-#ifdef RTL8192E
-			priv->bHwRfOffAction = 2;
-#endif
+		priv->bHwRfOffAction = 2;
 
 		if (!priv->rtllib->bSupportRemoteWakeUp)
 		{

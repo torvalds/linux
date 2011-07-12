@@ -25,7 +25,6 @@
 #define MAX_RFDEPENDCMD_CNT 16
 #define MAX_POSTCMD_CNT 16
 
-#ifdef RTL8192E
 #define AGCTAB_ArrayLength				AGCTAB_ArrayLengthPciE
 #define MACPHY_ArrayLength				MACPHY_ArrayLengthPciE
 #define RadioA_ArrayLength				RadioA_ArrayLengthPciE
@@ -45,11 +44,10 @@
 #define Rtl819XAGCTAB_Array				Rtl8192PciEAGCTAB_Array
 #define Rtl819XPHY_REGArray				Rtl8192PciEPHY_REGArray
 #define Rtl819XPHY_REG_1T2RArray			Rtl8192PciEPHY_REG_1T2RArray
-#endif
 
 
 
-typedef enum _SwChnlCmdID{
+typedef enum _SwChnlCmdID {
 	CmdID_End,
 	CmdID_SetTxPowerLevel,
 	CmdID_BBRegWrite10,
@@ -57,15 +55,15 @@ typedef enum _SwChnlCmdID{
 	CmdID_WritePortUshort,
 	CmdID_WritePortUchar,
 	CmdID_RF_WriteReg,
-}SwChnlCmdID;
+} SwChnlCmdID;
 
 /*--------------------------------Define structure--------------------------------*/
-typedef struct _SwChnlCmd{
+typedef struct _SwChnlCmd {
 	SwChnlCmdID	CmdID;
 	u32			Para1;
 	u32			Para2;
 	u32			msDelay;
-}__attribute__ ((packed)) SwChnlCmd;
+} __attribute__ ((packed)) SwChnlCmd;
 
 extern u32 rtl819XMACPHY_Array_PG[];
 extern u32 rtl819XPHY_REG_1T2RArray[];
@@ -75,13 +73,13 @@ extern u32 rtl819XRadioB_Array[];
 extern u32 rtl819XRadioC_Array[];
 extern u32 rtl819XRadioD_Array[];
 
-typedef enum _HW90_BLOCK{
+typedef enum _HW90_BLOCK {
 	HW90_BLOCK_MAC = 0,
 	HW90_BLOCK_PHY0 = 1,
 	HW90_BLOCK_PHY1 = 2,
 	HW90_BLOCK_RF = 3,
 	HW90_BLOCK_MAXIMUM = 4,
-}HW90_BLOCK_E, *PHW90_BLOCK_E;
+} HW90_BLOCK_E, *PHW90_BLOCK_E;
 
 typedef enum _RF90_RADIO_PATH{
 	RF90_PATH_A = 0,
@@ -120,10 +118,7 @@ extern void rtl8192_SwChnl_WorkItem(struct net_device *dev);
 extern void rtl8192_SetBWModeWorkItem(struct net_device *dev);
 extern void InitialGain819xPci(struct net_device *dev, u8 Operation);
 
-#if defined RTL8192E
-extern	void
-PHY_SetRtl8192eRfOff(struct net_device* dev	);
-#endif
+extern	void PHY_SetRtl8192eRfOff(struct net_device *dev);
 
 bool
 SetRFPowerState(
