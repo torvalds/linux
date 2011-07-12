@@ -247,7 +247,7 @@ static int sl_realloc_bufs(struct slip *sl, int mtu)
 #else
 	if (xbuff == NULL || rbuff == NULL)  {
 #endif
-		if (mtu >= sl->mtu) {
+		if (mtu > sl->mtu) {
 			printk(KERN_WARNING "%s: unable to grow slip buffers, MTU change cancelled.\n",
 			       dev->name);
 			err = -ENOBUFS;
