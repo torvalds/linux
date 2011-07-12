@@ -836,10 +836,8 @@ early_param("alloc_mptable", parse_alloc_mptable_opt);
 
 void __init early_reserve_e820_mpc_new(void)
 {
-	if (enable_update_mptable && alloc_mptable) {
-		u64 startt = 0;
-		mpc_new_phys = early_reserve_e820(startt, mpc_new_length, 4);
-	}
+	if (enable_update_mptable && alloc_mptable)
+		mpc_new_phys = early_reserve_e820(mpc_new_length, 4);
 }
 
 static int __init update_mp_table(void)
