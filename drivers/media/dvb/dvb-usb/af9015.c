@@ -766,6 +766,8 @@ static const struct af9015_rc_setup af9015_rc_setup_usbids[] = {
 		RC_MAP_DIGITALNOW_TINYTWIN },
 	{ (USB_VID_GTEK << 16) + USB_PID_TINYTWIN_3,
 		RC_MAP_DIGITALNOW_TINYTWIN },
+	{ (USB_VID_KWORLD_2 << 16) + USB_PID_SVEON_STV22,
+		RC_MAP_MSI_DIGIVOX_III },
 	{ }
 };
 
@@ -1282,6 +1284,7 @@ static struct usb_device_id af9015_usb_table[] = {
 		USB_PID_TERRATEC_CINERGY_T_STICK_DUAL_RC)},
 /* 35 */{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A850T)},
 	{USB_DEVICE(USB_VID_GTEK,      USB_PID_TINYTWIN_3)},
+	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_SVEON_STV22)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1475,7 +1478,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 9, /* check max from dvb-usb.h */
+		.num_device_descs = 10, /* check max from dvb-usb.h */
 		.devices = {
 			{
 				.name = "Xtensions XD-380",
@@ -1525,6 +1528,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 				.name = "AverMedia AVerTV Volar Black HD " \
 					"(A850)",
 				.cold_ids = {&af9015_usb_table[20], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "Sveon STV22 Dual USB DVB-T Tuner HDTV",
+				.cold_ids = {&af9015_usb_table[37], NULL},
 				.warm_ids = {NULL},
 			},
 		}
