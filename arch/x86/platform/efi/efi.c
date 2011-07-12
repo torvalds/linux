@@ -325,8 +325,7 @@ void __init efi_reserve_boot_services(void)
 		if ((start+size >= virt_to_phys(_text)
 				&& start <= virt_to_phys(_end)) ||
 			!e820_all_mapped(start, start+size, E820_RAM) ||
-			memblock_x86_check_reserved_size(&start, &size,
-							1<<EFI_PAGE_SHIFT)) {
+			memblock_is_region_reserved(start, size)) {
 			/* Could not reserve, skip it */
 			md->num_pages = 0;
 			memblock_dbg(PFX "Could not reserve boot range "
