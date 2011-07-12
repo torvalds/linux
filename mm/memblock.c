@@ -508,7 +508,7 @@ phys_addr_t __init memblock_alloc(phys_addr_t size, phys_addr_t align)
  * have been done to populate it.
  */
 
-phys_addr_t __weak __init memblock_nid_range(phys_addr_t start, phys_addr_t end, int *nid)
+static phys_addr_t __init memblock_nid_range(phys_addr_t start, phys_addr_t end, int *nid)
 {
 #ifdef CONFIG_ARCH_POPULATES_NODE_MAP
 	unsigned long start_pfn, end_pfn;

@@ -89,7 +89,6 @@ extern int memblock_is_region_reserved(phys_addr_t base, phys_addr_t size);
 extern void memblock_dump_all(void);
 
 /* Provided by the architecture */
-extern phys_addr_t memblock_nid_range(phys_addr_t start, phys_addr_t end, int *nid);
 extern int memblock_memory_can_coalesce(phys_addr_t addr1, phys_addr_t size1,
 				   phys_addr_t addr2, phys_addr_t size2);
 
