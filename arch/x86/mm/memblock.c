@@ -7,68 +7,6 @@
 #include <linux/mm.h>
 #include <linux/range.h>
 
-/* Check for already reserved areas */
-bool __init memblock_x86_check_reserved_size(u64 *addrp, u64 *sizep, u64 align)
-{
-	struct memblock_region *r;
-	u64 addr = *addrp, last;
-	u64 size = *sizep;
-	bool changed = false;
-
-again:
-	last = addr + size;
-	for_each_memblock(reserved, r) {
-		if (last > r->base && addr < r->base) {
-			size = r->base - addr;
-			changed = true;
-			goto again;
-		}
-		if (last > (r->base + r->size) && addr < (r->base + r->size)) {
-			addr = round_up(r->base + r->size, align);
-			size = last - addr;
-			changed = true;
-			goto again;
-		}
-		if (last <= (r->base + r->size) && addr >= r->base) {
-			*sizep = 0;
-			return false;
-		}
-	}
-	if (changed) {
-		*addrp = addr;
-		*sizep = size;
-	}
-	return changed;
-}
-
-/*
- * Find next free range after start, and size is returned in *sizep
- */
-u64 __init memblock_x86_find_in_range_size(u64 start, u64 *sizep, u64 align)
-{
-	struct memblock_region *r;
-
-	for_each_memblock(memory, r) {
-		u64 ei_start = r->base;
-		u64 ei_last = ei_start + r->size;
-		u64 addr;
-
-		addr = round_up(ei_start, align);
-		if (addr < start)
-			addr = round_up(start, align);
-		if (addr >= ei_last)
-			continue;
-		*sizep = ei_last - addr;
-		while (memblock_x86_check_reserved_size(&addr, sizep, align))
-			;
-
-		if (*sizep)
-			return addr;
-	}
-
-	return 0;
-}
-
 static __init struct range *find_range_array(int count)
 {
 	u64 end, size, mem;
