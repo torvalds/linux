@@ -1519,7 +1519,6 @@ int rtllib_rx_decrypt(
 }
 void rtllib_rx_check_leave_lps(struct rtllib_device *ieee, u8 unicast, u8 nr_subframes)
 {
-#if !defined(RTL8192SU) && !defined(RTL8192U)
 	if (unicast){
 
 		if ((ieee->state == RTLLIB_LINKED) /*&& !MgntInitAdapterInProgress(pMgntInfo)*/)
@@ -1532,7 +1531,6 @@ void rtllib_rx_check_leave_lps(struct rtllib_device *ieee, u8 unicast, u8 nr_sub
 			}
 		}
 	}
-#endif
 	ieee->last_rx_ps_time = jiffies;
 }
 void rtllib_rx_indicate_pkt_legacy(

@@ -56,9 +56,6 @@ static u8 AIRLINK_RALINK[3] = {0x00, 0x18, 0x02};
 static u8 DLINK_ATHEROS_1[3] = {0x00, 0x1c, 0xf0};
 static u8 DLINK_ATHEROS_2[3] = {0x00, 0x21, 0x91};
 static u8 CISCO_BROADCOM[3] = {0x00, 0x17, 0x94};
-#if defined(RTL8192SU)
-static u8 NETGEAR_BROADCOM[3] = {0x00, 0x1f, 0x33};
-#endif
 static u8 LINKSYS_MARVELL_4400N[3] = {0x00, 0x14, 0xa4};
 void HTUpdateDefaultSetting(struct rtllib_device* ieee)
 {
@@ -101,18 +98,10 @@ void HTUpdateDefaultSetting(struct rtllib_device* ieee)
 	pHTInfo->UsbTxAggrNum = 4;
 #endif
 #ifdef USB_RX_AGGREGATION_SUPPORT
-#ifdef RTL8192SU
-	pHTInfo->UsbRxFwAggrEn = 1;
-	pHTInfo->UsbRxFwAggrPageNum = 48;
-	pHTInfo->UsbRxFwAggrPacketNum = 8;
-	pHTInfo->UsbRxFwAggrTimeout = 4;
-	pHTInfo->UsbRxPageSize= 128;
-#else
 	pHTInfo->UsbRxFwAggrEn = 1;
 	pHTInfo->UsbRxFwAggrPageNum = 24;
 	pHTInfo->UsbRxFwAggrPacketNum = 8;
 	pHTInfo->UsbRxFwAggrTimeout = 8;
-#endif
 #endif
 
 
@@ -433,11 +422,6 @@ bool HTIOTActIsEnableBETxOPLimit(struct rtllib_device* ieee)
 {
 	bool	retValue = false;
 
-#if defined RTL8192SU
-	if (ieee->mode == IEEE_G)
-		retValue = true;
-#endif
-
 	return retValue;
 }
 
@@ -535,16 +519,7 @@ u8
   HTIOTActIsEDCABiasRx(struct rtllib_device* ieee,struct rtllib_network *network)
 {
 	u8	retValue = 0;
-#ifdef RTL8192SU
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	{
-		if (pHTInfo->IOTPeer==HT_IOT_PEER_ATHEROS ||
-		   pHTInfo->IOTPeer==HT_IOT_PEER_BROADCOM ||
-		   pHTInfo->IOTPeer==HT_IOT_PEER_RALINK)
-			return 1;
 
-	}
-#endif
 	return retValue;
 }
 
@@ -567,14 +542,6 @@ HTIOTActDisableHighPower(struct rtllib_device* ieee,struct rtllib_network *netwo
 {
 	u8	retValue = 0;
 
-#ifdef RTL8192SU
-	if (pHTInfo->IOTPeer==HT_IOT_PEER_RALINK ||
-		pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK ||
-		pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK_92SE)
-	{
-			retValue = 1;
-	}
-#endif
 	return retValue;
 }
 
@@ -622,15 +589,6 @@ HTIOTActIsDisableTx2SS(struct rtllib_device* ieee,struct rtllib_network *network
 bool HTIOCActIsDisableCckRate(struct rtllib_device* ieee,struct rtllib_network *network)
 {
 	bool	retValue = false;
-#if defined(RTL8192SU)
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	if (pHTInfo->IOTPeer == HT_IOT_PEER_BROADCOM)
-	{
-		if ((memcmp(network->bssid, NETGEAR_BROADCOM, 3)==0)
-			&& (network->bssht.bdBandWidth == HT_CHANNEL_WIDTH_20_40))
-			return true;
-	}
-#endif
 	return retValue;
 }
 
