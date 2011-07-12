@@ -373,27 +373,32 @@ static int soc_camera_open(struct file *file)
 				.colorspace	= icd->current_fmt->colorspace,
 			},
 		};
+        /* ddl@rock-chips.com : accelerate device open  */
+        if ((file->f_flags & O_ACCMODE) == O_RDWR) {
+    		if (icl->power) {
+    			ret = icl->power(icd->pdev, 1);
+    			if (ret < 0)
+    				goto epower;
+    		}
 
-		if (icl->power) {
-			ret = icl->power(icd->pdev, 1);
-			if (ret < 0)
-				goto epower;
-		}
-
-		/* The camera could have been already on, try to reset */
-		if (icl->reset)
-			icl->reset(icd->pdev);
+    		/* The camera could have been already on, try to reset */
+    		if (icl->reset)
+    			icl->reset(icd->pdev);
+       }
 
 		ret = ici->ops->add(icd);
 		if (ret < 0) {
 			dev_err(&icd->dev, "Couldn't activate the camera: %d\n", ret);
 			goto eiciadd;
 		}
-
+               
 		/* Try to configure with default parameters */
-		ret = soc_camera_set_fmt(icf, &f);
-		if (ret < 0)
-			goto esfmt;
+        if ((file->f_flags & O_ACCMODE) == O_RDWR) {
+    		ret = soc_camera_set_fmt(icf, &f);
+    		if (ret < 0)
+    			goto esfmt;
+        }
+        
 	}
 
 	file->private_data = icf;
@@ -435,8 +440,10 @@ static int soc_camera_close(struct file *file)
 		struct soc_camera_link *icl = to_soc_camera_link(icd);
 
 		ici->ops->remove(icd);
-		if (icl->power)
-			icl->power(icd->pdev, 0);
+        if ((file->f_flags & O_ACCMODE) == O_RDWR) {
+    		if (icl->power)
+    			icl->power(icd->pdev, 0);
+        }
 	}
 
 	mutex_unlock(&icd->video_lock);
