@@ -876,7 +876,7 @@ int gelic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	result = gelic_descr_prepare_tx(card, descr, skb);
 	if (result) {
 		/*
-		 * DMA map failed.  As chanses are that failure
+		 * DMA map failed.  As chances are that failure
 		 * would continue, just release skb and return
 		 */
 		netdev->stats.tx_dropped++;
@@ -1041,7 +1041,7 @@ static int gelic_card_decode_one_descr(struct gelic_card *card)
 		goto refill;
 	}
 	/*
-	 * descriptoers any other than FRAME_END here should
+	 * descriptors any other than FRAME_END here should
 	 * be treated as error.
 	 */
 	if (status != GELIC_DESCR_DMA_FRAME_END) {
@@ -1200,7 +1200,7 @@ void gelic_net_poll_controller(struct net_device *netdev)
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 
 /**
- * gelic_net_open - called upon ifonfig up
+ * gelic_net_open - called upon ifconfig up
  * @netdev: interface device structure
  *
  * returns 0 on success, <0 on failure
