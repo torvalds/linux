@@ -897,12 +897,16 @@ int gelic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (gelic_card_kick_txdma(card, descr)) {
 		/*
 		 * kick failed.
-		 * release descriptors which were just prepared
+		 * release descriptor which was just prepared
 		 */
 		netdev->stats.tx_dropped++;
+		/* don't trigger BUG_ON() in gelic_descr_release_tx */
+		descr->data_status = cpu_to_be32(GELIC_DESCR_TX_TAIL);
 		gelic_descr_release_tx(card, descr);
-		gelic_descr_release_tx(card, descr->next);
-		card->tx_chain.tail = descr->next->next;
+		/* reset head */
+		card->tx_chain.head = descr;
+		/* reset hw termination */
+		descr->prev->next_descr_addr = 0;
 		dev_info(ctodev(card), "%s: kick failure\n", __func__);
 	}
 
