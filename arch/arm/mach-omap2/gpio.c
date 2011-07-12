@@ -87,6 +87,8 @@ static int omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 		return PTR_ERR(od);
 	}
 
+	omap_device_disable_idle_on_suspend(od);
+
 	gpio_bank_count++;
 	return 0;
 }
