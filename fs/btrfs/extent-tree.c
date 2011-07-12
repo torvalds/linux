@@ -3277,6 +3277,9 @@ again:
 	}
 
 	ret = btrfs_alloc_chunk(trans, extent_root, flags);
+	if (ret < 0 && ret != -ENOSPC)
+		goto out;
+
 	spin_lock(&space_info->lock);
 	if (ret)
 		space_info->full = 1;
@@ -3286,6 +3289,7 @@ again:
 	space_info->force_alloc = CHUNK_ALLOC_NO_FORCE;
 	space_info->chunk_alloc = 0;
 	spin_unlock(&space_info->lock);
+out:
 	mutex_unlock(&extent_root->fs_info->chunk_mutex);
 	return ret;
 }
