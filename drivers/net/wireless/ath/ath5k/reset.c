@@ -1287,11 +1287,16 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	ath5k_hw_dma_init(ah);
 
 
-	/* Enable 32KHz clock function for AR5212+ chips
+	/*
+	 * Enable 32KHz clock function for AR5212+ chips
 	 * Set clocks to 32KHz operation and use an
 	 * external 32KHz crystal when sleeping if one
-	 * exists */
-	if (ah->ah_version == AR5K_AR5212 &&
+	 * exists.
+	 * Disabled by default because it is also disabled in
+	 * other drivers and it is known to cause stability
+	 * issues on some devices
+	 */
+	if (ah->ah_use_32khz_clock && ah->ah_version == AR5K_AR5212 &&
 	    op_mode != NL80211_IFTYPE_AP)
 		ath5k_hw_set_sleep_clock(ah, true);
 

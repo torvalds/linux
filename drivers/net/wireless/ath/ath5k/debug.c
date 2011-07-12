@@ -922,6 +922,9 @@ ath5k_debug_init_device(struct ath5k_softc *sc)
 
 	debugfs_create_file("queue", S_IWUSR | S_IRUSR, phydir, sc,
 			    &fops_queue);
+
+	debugfs_create_bool("32khz_clock", S_IWUSR | S_IRUSR, phydir,
+			    &sc->ah->ah_use_32khz_clock);
 }
 
 /* functions used in other places */
