@@ -43,7 +43,7 @@ static void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
 
 	addr = find_memory_core_early(nid, size, align, goal, limit);
 
-	if (addr == MEMBLOCK_ERROR)
+	if (!addr)
 		return NULL;
 
 	ptr = phys_to_virt(addr);

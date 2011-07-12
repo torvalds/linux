@@ -66,7 +66,7 @@ u64 __init memblock_x86_find_in_range_size(u64 start, u64 *sizep, u64 align)
 			return addr;
 	}
 
-	return MEMBLOCK_ERROR;
+	return 0;
 }
 
 static __init struct range *find_range_array(int count)
@@ -78,7 +78,7 @@ static __init struct range *find_range_array(int count)
 	end = memblock.current_limit;
 
 	mem = memblock_find_in_range(0, end, size, sizeof(struct range));
-	if (mem == MEMBLOCK_ERROR)
+	if (!mem)
 		panic("can not find more space for range array");
 
 	/*
@@ -274,7 +274,7 @@ u64 __init memblock_x86_find_in_range_node(int nid, u64 start, u64 end, u64 size
 {
 	u64 addr;
 	addr = find_memory_core_early(nid, size, align, start, end);
-	if (addr != MEMBLOCK_ERROR)
+	if (addr)
 		return addr;
 
 	/* Fallback, should already have start end within node range */

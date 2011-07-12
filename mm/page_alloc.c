@@ -3878,13 +3878,13 @@ u64 __init find_memory_core_early(int nid, u64 size, u64 align,
 
 		addr = memblock_find_in_range(final_start, final_end, size, align);
 
-		if (addr == MEMBLOCK_ERROR)
+		if (!addr)
 			continue;
 
 		return addr;
 	}
 
-	return MEMBLOCK_ERROR;
+	return 0;
 }
 #endif
 

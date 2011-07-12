@@ -68,7 +68,7 @@ static void __init find_early_table_space(unsigned long end, int use_pse,
 #endif
 
 	base = memblock_find_in_range(start, good_end, tables, PAGE_SIZE);
-	if (base == MEMBLOCK_ERROR)
+	if (!base)
 		panic("Cannot find space for the kernel page tables");
 
 	pgt_buf_start = base >> PAGE_SHIFT;

@@ -74,7 +74,7 @@ static phys_addr_t __init_memblock memblock_find_region(phys_addr_t start, phys_
 
 	/* In case, huge size is requested */
 	if (end < size)
-		return MEMBLOCK_ERROR;
+		return 0;
 
 	base = round_down(end - size, align);
 
@@ -94,7 +94,7 @@ static phys_addr_t __init_memblock memblock_find_region(phys_addr_t start, phys_
 		base = round_down(res_base - size, align);
 	}
 
-	return MEMBLOCK_ERROR;
+	return 0;
 }
 
 static phys_addr_t __init_memblock memblock_find_base(phys_addr_t size,
@@ -126,10 +126,10 @@ static phys_addr_t __init_memblock memblock_find_base(phys_addr_t size,
 		if (bottom >= top)
 			continue;
 		found = memblock_find_region(bottom, top, size, align);
-		if (found != MEMBLOCK_ERROR)
+		if (found)
 			return found;
 	}
-	return MEMBLOCK_ERROR;
+	return 0;
 }
 
 /*
@@ -214,10 +214,10 @@ static int __init_memblock memblock_double_array(struct memblock_type *type)
 	 */
 	if (use_slab) {
 		new_array = kmalloc(new_size, GFP_KERNEL);
-		addr = new_array == NULL ? MEMBLOCK_ERROR : __pa(new_array);
+		addr = new_array ? __pa(new_array) : 0;
 	} else
 		addr = memblock_find_base(new_size, sizeof(phys_addr_t), 0, MEMBLOCK_ALLOC_ACCESSIBLE);
-	if (addr == MEMBLOCK_ERROR) {
+	if (!addr) {
 		pr_err("memblock: Failed to double %s array from %ld to %ld entries !\n",
 		       memblock_type_name(type), type->max, type->max * 2);
 		return -1;
@@ -478,8 +478,7 @@ phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, ph
 	size = round_up(size, align);
 
 	found = memblock_find_base(size, align, 0, max_addr);
-	if (found != MEMBLOCK_ERROR &&
-	    !memblock_add_region(&memblock.reserved, found, size))
+	if (found && !memblock_add_region(&memblock.reserved, found, size))
 		return found;
 
 	return 0;
@@ -559,14 +558,14 @@ static phys_addr_t __init memblock_alloc_nid_region(struct memblock_region *mp,
 		this_end = memblock_nid_range(start, end, &this_nid);
 		if (this_nid == nid) {
 			phys_addr_t ret = memblock_find_region(start, this_end, size, align);
-			if (ret != MEMBLOCK_ERROR &&
+			if (ret &&
 			    !memblock_add_region(&memblock.reserved, ret, size))
 				return ret;
 		}
 		start = this_end;
 	}
 
-	return MEMBLOCK_ERROR;
+	return 0;
 }
 
 phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
@@ -588,7 +587,7 @@ phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int n
 	for (i = 0; i < mem->cnt; i++) {
 		phys_addr_t ret = memblock_alloc_nid_region(&mem->regions[i],
 					       size, align, nid);
-		if (ret != MEMBLOCK_ERROR)
+		if (ret)
 			return ret;
 	}
 

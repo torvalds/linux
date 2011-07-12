@@ -745,7 +745,7 @@ u64 __init early_reserve_e820(u64 startt, u64 sizet, u64 align)
 
 	for (start = startt; ; start += size) {
 		start = memblock_x86_find_in_range_size(start, &size, align);
-		if (start == MEMBLOCK_ERROR)
+		if (!start)
 			return 0;
 		if (size >= sizet)
 			break;

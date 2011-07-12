@@ -86,7 +86,7 @@ void __init setup_bios_corruption_check(void)
 		u64 size;
 		addr = memblock_x86_find_in_range_size(addr, &size, PAGE_SIZE);
 
-		if (addr == MEMBLOCK_ERROR)
+		if (!addr)
 			break;
 
 		if (addr >= corruption_check_size)
