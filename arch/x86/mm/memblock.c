@@ -89,16 +89,6 @@ int __init __get_free_all_memory_range(struct range **rangep, int nodeid,
 	return nr_range;
 }
 
-int __init get_free_all_memory_range(struct range **rangep, int nodeid)
-{
-	unsigned long end_pfn = -1UL;
-
-#ifdef CONFIG_X86_32
-	end_pfn = max_low_pfn;
-#endif
-	return __get_free_all_memory_range(rangep, nodeid, 0, end_pfn);
-}
-
 static u64 __init __memblock_x86_memory_in_range(u64 addr, u64 limit, bool get_free)
 {
 	int i, count;

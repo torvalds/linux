@@ -106,7 +106,7 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
 		__free_pages_bootmem(pfn_to_page(i), 0);
 }
 
-unsigned long __init free_all_memory_core_early(int nodeid)
+unsigned long __init free_low_memory_core_early(int nodeid)
 {
 	int i;
 	u64 start, end;
@@ -114,7 +114,7 @@ unsigned long __init free_all_memory_core_early(int nodeid)
 	struct range *range = NULL;
 	int nr_range;
 
-	nr_range = get_free_all_memory_range(&range, nodeid);
+	nr_range = __get_free_all_memory_range(&range, nodeid, 0, max_low_pfn);
 
 	for (i = 0; i < nr_range; i++) {
 		start = range[i].start;
@@ -136,7 +136,7 @@ unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
 {
 	register_page_bootmem_info_node(pgdat);
 
-	/* free_all_memory_core_early(MAX_NUMNODES) will be called later */
+	/* free_low_memory_core_early(MAX_NUMNODES) will be called later */
 	return 0;
 }
 
@@ -154,7 +154,7 @@ unsigned long __init free_all_bootmem(void)
 	 * Use MAX_NUMNODES will make sure all ranges in early_node_map[]
 	 *  will be used instead of only Node0 related
 	 */
-	return free_all_memory_core_early(MAX_NUMNODES);
+	return free_low_memory_core_early(MAX_NUMNODES);
 }
 
 /**
