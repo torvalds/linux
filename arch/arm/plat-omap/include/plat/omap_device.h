@@ -44,6 +44,9 @@ extern struct device omap_device_parent;
 #define OMAP_DEVICE_STATE_IDLE		2
 #define OMAP_DEVICE_STATE_SHUTDOWN	3
 
+/* omap_device.flags values */
+#define OMAP_DEVICE_SUSPENDED BIT(0)
+
 /**
  * struct omap_device - omap_device wrapper for platform_devices
  * @pdev: platform_device
@@ -73,6 +76,7 @@ struct omap_device {
 	s8				pm_lat_level;
 	u8				hwmods_cnt;
 	u8				_state;
+	u8                              flags;
 };
 
 /* Device driver interface (call via platform_data fn ptrs) */
