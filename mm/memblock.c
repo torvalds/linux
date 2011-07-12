@@ -97,8 +97,11 @@ static phys_addr_t __init_memblock memblock_find_region(phys_addr_t start, phys_
 	return 0;
 }
 
-static phys_addr_t __init_memblock memblock_find_base(phys_addr_t size,
-			phys_addr_t align, phys_addr_t start, phys_addr_t end)
+/*
+ * Find a free area with specified alignment in a specific range.
+ */
+phys_addr_t __init_memblock memblock_find_in_range(phys_addr_t start, phys_addr_t end,
+					phys_addr_t size, phys_addr_t align)
 {
 	long i;
 
@@ -130,14 +133,6 @@ static phys_addr_t __init_memblock memblock_find_base(phys_addr_t size,
 			return found;
 	}
 	return 0;
-}
-
-/*
- * Find a free area with specified alignment in a specific range.
- */
-u64 __init_memblock memblock_find_in_range(u64 start, u64 end, u64 size, u64 align)
-{
-	return memblock_find_base(size, align, start, end);
 }
 
 /*
@@ -216,7 +211,7 @@ static int __init_memblock memblock_double_array(struct memblock_type *type)
 		new_array = kmalloc(new_size, GFP_KERNEL);
 		addr = new_array ? __pa(new_array) : 0;
 	} else
-		addr = memblock_find_base(new_size, sizeof(phys_addr_t), 0, MEMBLOCK_ALLOC_ACCESSIBLE);
+		addr = memblock_find_in_range(0, MEMBLOCK_ALLOC_ACCESSIBLE, new_size, sizeof(phys_addr_t));
 	if (!addr) {
 		pr_err("memblock: Failed to double %s array from %ld to %ld entries !\n",
 		       memblock_type_name(type), type->max, type->max * 2);
@@ -477,7 +472,7 @@ phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, ph
 	 */
 	size = round_up(size, align);
 
-	found = memblock_find_base(size, align, 0, max_addr);
+	found = memblock_find_in_range(0, max_addr, size, align);
 	if (found && !memblock_add_region(&memblock.reserved, found, size))
 		return found;
 
