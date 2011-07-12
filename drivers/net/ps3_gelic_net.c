@@ -838,9 +838,11 @@ static int gelic_card_kick_txdma(struct gelic_card *card,
 		card->tx_dma_progress = 1;
 		status = lv1_net_start_tx_dma(bus_id(card), dev_id(card),
 					      descr->bus_addr, 0);
-		if (status)
+		if (status) {
+			card->tx_dma_progress = 0;
 			dev_info(ctodev(card), "lv1_net_start_txdma failed," \
 				 "status=%d\n", status);
+		}
 	}
 	return status;
 }
