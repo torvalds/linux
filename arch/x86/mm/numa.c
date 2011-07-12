@@ -475,8 +475,8 @@ static bool __init numa_meminfo_cover_memory(const struct numa_meminfo *mi)
 			numaram = 0;
 	}
 
-	e820ram = max_pfn - (memblock_x86_hole_size(0,
-					PFN_PHYS(max_pfn)) >> PAGE_SHIFT);
+	e820ram = max_pfn - absent_pages_in_range(0, max_pfn);
+
 	/* We seem to lose 3 pages somewhere. Allow 1M of slack. */
 	if ((s64)(e820ram - numaram) >= (1 << (20 - PAGE_SHIFT))) {
 		printk(KERN_ERR "NUMA: nodes only cover %LuMB of your %LuMB e820 RAM. Not used.\n",
