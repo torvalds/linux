@@ -239,22 +239,7 @@ int rtllib_wx_get_rate(struct rtllib_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	u32 tmp_rate = 0;
-#if defined RTL8192SU
-	if (ieee->mode & (IEEE_A | IEEE_B | IEEE_G))
-		tmp_rate = ieee->rate;
-	else if (ieee->mode & IEEE_N_5G)
-		tmp_rate = 580;
-	else if (ieee->mode & IEEE_N_24G) {
-		if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
-			tmp_rate = HTHalfMcsToDataRate(ieee, 15);
-		else
-			tmp_rate = HTMcsToDataRate(ieee, 15);
-	}
-#elif defined RTL8192SE || defined RTL8192CE
-	tmp_rate = ieee->rtl_11n_user_show_rates(ieee->dev);
-#else
         tmp_rate = TxCountToDataRate(ieee, ieee->softmac_stats.CurrentShowTxate);
-#endif
 	wrqu->bitrate.value = tmp_rate * 500000;
 
 	return 0;

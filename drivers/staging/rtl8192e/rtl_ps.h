@@ -47,13 +47,11 @@ void PlatformEnableASPM(struct net_device *dev);
 u32 PlatformResetPciSpace(struct net_device *dev,u8 Value);
 #endif
 
-#if defined(RTL8192E) || defined(RTL8192SE) || defined RTL8192CE
 void rtl8192_hw_wakeup(struct net_device *dev);
 void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl);
 void rtllib_ips_leave_wq(struct net_device *dev);
 void rtllib_ips_leave(struct net_device *dev);
 void IPSLeave_wq (void *data);
-#endif
 
 void IPSEnter(struct net_device *dev);
 void IPSLeave(struct net_device *dev);

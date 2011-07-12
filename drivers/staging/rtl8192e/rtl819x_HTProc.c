@@ -436,14 +436,6 @@ bool HTIOTActIsDisableMCSTwoSpatialStream(struct rtllib_device* ieee)
 			(pHTInfo->IOTPeer != HT_IOT_PEER_RALINK) )
 			retValue = true;
 	}
-#elif defined(RTL8192SE)
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	if (ieee->rtllib_ap_sec_type &&
-		(ieee->rtllib_ap_sec_type(ieee)&SEC_ALG_TKIP)) {
-			if (pHTInfo->IOTPeer == HT_IOT_PEER_RALINK){
-				retValue = true;
-			}
-		}
 #endif
 	return retValue;
 }
@@ -519,11 +511,7 @@ HTIOTActWAIOTBroadcom(struct rtllib_device* ieee)
 u8 HTIOTActIsForcedCTS2Self(struct rtllib_device *ieee, struct rtllib_network *network)
 {
 	u8	retValue = 0;
-#if (defined RTL8192SE || defined RTL8192SU || defined RTL8192CE)
-	if ((ieee->pHTInfo->IOTPeer == HT_IOT_PEER_MARVELL) ||(ieee->pHTInfo->IOTPeer == HT_IOT_PEER_ATHEROS) )
-#else
 	if (ieee->pHTInfo->IOTPeer == HT_IOT_PEER_MARVELL)
-#endif
 	{
 		retValue = 1;
 	}
@@ -534,17 +522,6 @@ u8 HTIOTActIsForcedCTS2Self(struct rtllib_device *ieee, struct rtllib_network *n
 u8 HTIOTActIsForcedRTSCTS(struct rtllib_device *ieee, struct rtllib_network *network)
 {
 	u8	retValue = 0;
-#if defined(RTL8192SE) || defined(RTL8192SU)
-	if (ieee->pHTInfo->bCurrentHTSupport)
-	{
-		if ((ieee->pHTInfo->IOTPeer != HT_IOT_PEER_REALTEK)&&
-		   (ieee->pHTInfo->IOTPeer != HT_IOT_PEER_REALTEK_92SE))
-	{
-			if ((ieee->pHTInfo->IOTAction & HT_IOT_ACT_TX_NO_AGGREGATION) == 0)
-				retValue = 1;
-		}
-	}
-#endif
 	return retValue;
 }
 
@@ -570,12 +547,6 @@ u8
 HTIOCActRejcectADDBARequest(struct rtllib_network *network)
 {
 	u8	retValue = 0;
-#if (defined RTL8192SE || defined RTL8192SU || defined RTL8192CE)
-	{
-
-
-	}
-#endif
 
 	return retValue;
 
@@ -602,16 +573,6 @@ u8
 			return 1;
 
 	}
-#elif defined RTL8192SE
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	{
-            if (ieee->rtllib_ap_sec_type != NULL)
-                if (ieee->rtllib_ap_sec_type(ieee) == SEC_ALG_CCMP)
-                    if (pHTInfo->IOTPeer==HT_IOT_PEER_RALINK){
-                        return 1;
-                    }
-
-	}
 #endif
 	return retValue;
 }
@@ -634,20 +595,11 @@ u8
 HTIOTActDisableHighPower(struct rtllib_device* ieee,struct rtllib_network *network)
 {
 	u8	retValue = 0;
-#if (defined RTL8192SE || defined RTL8192SU || defined RTL8192CE)
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-#endif
 
 #ifdef RTL8192SU
 	if (pHTInfo->IOTPeer==HT_IOT_PEER_RALINK ||
 		pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK ||
 		pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK_92SE)
-	{
-			retValue = 1;
-	}
-#elif defined RTL8192SE || defined RTL8192CE
-	if (pHTInfo->IOTPeer==HT_IOT_PEER_RALINK ||
-		pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK )
 	{
 			retValue = 1;
 	}
@@ -675,19 +627,6 @@ HTIOTActIsDisableTx40MHz(struct rtllib_device* ieee,struct rtllib_network *netwo
 {
 	u8	retValue = 0;
 
-#if (defined RTL8192SU || defined RTL8192SE || defined RTL8192CE)
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	if (	(KEY_TYPE_WEP104 == ieee->pairwise_key_type) ||
-		(KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
-		(KEY_TYPE_WEP104 == ieee->group_key_type) ||
-		(KEY_TYPE_WEP40 == ieee->group_key_type) ||
-		(KEY_TYPE_TKIP == ieee->pairwise_key_type) )
-	{
-		if ((pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK) && (network->bssht.bdSupportHT))
-			retValue = 1;
-	}
-#endif
-
 	return retValue;
 }
 
@@ -695,19 +634,6 @@ u8
 HTIOTActIsTxNoAggregation(struct rtllib_device* ieee,struct rtllib_network *network)
 {
 	u8 retValue = 0;
-
-#if (defined RTL8192SU || defined RTL8192SE || defined RTL8192CE)
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	if (	(KEY_TYPE_WEP104 == ieee->pairwise_key_type) ||
-		(KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
-		(KEY_TYPE_WEP104 == ieee->group_key_type) ||
-		(KEY_TYPE_WEP40 == ieee->group_key_type) ||
-		(KEY_TYPE_TKIP == ieee->pairwise_key_type) )
-	{
-		if (pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK)
-			retValue = 1;
-	}
-#endif
 
 	return retValue;
 }
@@ -717,19 +643,6 @@ u8
 HTIOTActIsDisableTx2SS(struct rtllib_device* ieee,struct rtllib_network *network)
 {
 	u8	retValue = 0;
-
-#if (defined RTL8192SU || defined RTL8192SE || defined RTL8192CE)
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	if (	(KEY_TYPE_WEP104 == ieee->pairwise_key_type) ||
-		(KEY_TYPE_WEP40 == ieee->pairwise_key_type) ||
-		(KEY_TYPE_WEP104 == ieee->group_key_type) ||
-		(KEY_TYPE_WEP40 == ieee->group_key_type) ||
-		(KEY_TYPE_TKIP == ieee->pairwise_key_type) )
-	{
-		if ((pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK) && (network->bssht.bdSupportHT))
-			retValue = 1;
-	}
-#endif
 
 	return retValue;
 }
@@ -753,15 +666,6 @@ bool HTIOCActIsDisableCckRate(struct rtllib_device* ieee,struct rtllib_network *
 bool HTIOCActAllowPeerAggOnePacket(struct rtllib_device* ieee,struct rtllib_network *network)
 {
 	bool	retValue = false;
-#if defined(RTL8192SE) || defined(RTL8192SU)
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	{
-		if (ieee->VersionID<2)
-		if (pHTInfo->IOTPeer == HT_IOT_PEER_MARVELL)
-			return true;
-
-	}
-#endif
 	return retValue;
 }
 
@@ -769,14 +673,6 @@ bool
 HTIOTActIsNullDataPowerSaving(struct rtllib_device* ieee,struct rtllib_network *network)
 {
 	bool	retValue = false;
-#if defined(RTL8192SE) || defined(RTL8192SU)
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	{
-		if (pHTInfo->IOTPeer == HT_IOT_PEER_BROADCOM)
-			return true;
-
-	}
-#endif
 	return retValue;
 }
 
@@ -826,9 +722,6 @@ void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* 
 	pCapELE->ShortGI40Mhz		= 1;
 
 	pCapELE->TxSTBC			= 1;
-#if defined RTL8192SE || defined RTL8192CE
-	pCapELE->TxSTBC			= 0;
-#endif
 	pCapELE->RxSTBC			= 0;
 	pCapELE->DelayBA		= 0;
 	pCapELE->MaxAMSDUSize	= (MAX_RECEIVE_BUFFER_SIZE>=7935)?1:0;
@@ -1131,18 +1024,6 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 		pHTInfo->CurrentMPDUDensity = pHTInfo->MPDU_Density;
 	else
 		pHTInfo->CurrentMPDUDensity = pPeerHTCap->MPDUDensity;
-#if (defined RTL8192SE || defined RTL8192SU || defined RTL8192CE)
-        if (ieee->SetHwRegHandler != NULL) {
-            ieee->SetHwRegHandler( ieee->dev, HW_VAR_SHORTGI_DENSITY,  (u8*)(&ieee->MaxMssDensity));
-            ieee->SetHwRegHandler(ieee->dev, HW_VAR_AMPDU_FACTOR, &pHTInfo->CurrentAMPDUFactor);
-            ieee->SetHwRegHandler(ieee->dev, HW_VAR_AMPDU_MIN_SPACE, &pHTInfo->CurrentMPDUDensity);
-        }
-#elif defined RTL8192CE
-        if (ieee->SetHwRegHandler != NULL) {
-            ieee->SetHwRegHandler(ieee->dev, HW_VAR_AMPDU_FACTOR, &pHTInfo->CurrentAMPDUFactor);
-            ieee->SetHwRegHandler(ieee->dev, HW_VAR_AMPDU_MIN_SPACE, &pHTInfo->CurrentMPDUDensity);
-        }
-#endif
 	if (pHTInfo->IOTAction & HT_IOT_ACT_TX_USE_AMSDU_8K)
 	{
 		pHTInfo->bCurrentAMPDUEnable = false;
@@ -1290,71 +1171,6 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device* ieee,	struct rtllib_net
 		bIOTAction = HTIOTActIsCCDFsync(ieee);
 		if (bIOTAction)
 			pHTInfo->IOTAction |= HT_IOT_ACT_CDD_FSYNC;
-#if defined(RTL8192SU) || defined(RTL8192SE) || defined RTL8192CE
-		bIOTAction = HTIOTActIsForcedCTS2Self(ieee,pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_FORCED_CTS2SELF;
-
-
-		bIOTAction = HTIOTActIsEnableBETxOPLimit(ieee);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_FORCED_ENABLE_BE_TXOP;
-
-#if defined(RTL8192SU)
-		bIOTAction = HTIOCActRejcectADDBARequest(pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_REJECT_ADDBA_REQ;
-#endif
-
-		bIOTAction = HTIOCActAllowPeerAggOnePacket(ieee, pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_ALLOW_PEER_AGG_ONE_PKT;
-
-		bIOTAction = HTIOTActIsEDCABiasRx(ieee, pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_EDCA_BIAS_ON_RX;
-
-#if defined(RTL8192SU)
-		bIOTAction = HTIOCActIsDisableCckRate(ieee, pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_CCK_RATE;
-#endif
-		bIOTAction = HTIOTActDisableShortGI(ieee, pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_SHORT_GI;
-
-		bIOTAction = HTIOTActDisableHighPower(ieee, pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_HIGH_POWER;
-
-
-		bIOTAction = HTIOTActIsForcedAMSDU8K(ieee, pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_TX_USE_AMSDU_8K;
-
-#if defined(RTL8192SU)
-		bIOTAction = HTIOTActIsTxNoAggregation(ieee, pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_TX_NO_AGGREGATION;
-
-		bIOTAction = HTIOTActIsDisableTx40MHz(ieee, pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_TX_40_MHZ;
-
-		bIOTAction = HTIOTActIsDisableTx2SS(ieee, pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_TX_2SS;
-#endif
-
-		bIOTAction = HTIOTActIsForcedRTSCTS(ieee, pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_FORCED_RTS;
-
-		bIOTAction = HTIOTActIsNullDataPowerSaving(ieee, pNetwork);
-		if (bIOTAction)
-			pHTInfo->IOTAction |= HT_IOT_ACT_NULL_DATA_POWER_SAVING;
-#endif
-
 	} else {
 		pHTInfo->bCurrentHTSupport = false;
 		pHTInfo->bCurrentRT2RTAggregation = false;

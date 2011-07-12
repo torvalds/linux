@@ -183,21 +183,6 @@ static ssize_t rtl_dbgfs_register_read(struct file *file,
 
 	if (!priv->debug->hw_type) {
 		page_no = (priv->debug->hw_offset > 0x0f)? 0x0f: priv->debug->hw_offset;
-#ifdef RTL8192SE
-		if (page_no >= 0x08 ) {
-			len += snprintf(buf + len, count - len,
-					"\n#################### BB page- %x##################\n ", page_no);
-			for (n=0;n<=max;)
-			{
-				len += snprintf(buf + len, count - len, "\nD:  %2x > ",n);
-				for (i=0;i<4 && n<=max;n+=4,i++)
-					len += snprintf(buf + len, count - len,
-							"%8.8x ",rtl8192_QueryBBReg(dev,(page_no << 8|n),
-								bMaskDWord));
-			}
-
-		} else
-#endif
 		{
 			len += snprintf(buf + len,count - len,
 					"\n#################### MAC page- %x##################\n ", page_no);
@@ -347,21 +332,6 @@ static int proc_get_registers_0(char *page, char **start,
 	int max=0xff;
 	page0 = 0x000;
 
-#ifdef RTL8192SE
-	/* This dump the current register page */
-	if (!IS_BB_REG_OFFSET_92S(page0)){
-		len += snprintf(page + len, count - len,
-				"\n####################page %x##################\n ", (page0>>8));
-		for (n=0;n<=max;)
-		{
-			len += snprintf(page + len, count - len,
-					"\nD:  %2x > ",n);
-			for (i=0;i<16 && n<=max;i++,n++)
-				len += snprintf(page + len, count - len,
-						"%2.2x ",read_nic_byte(dev,(page0|n)));
-		}
-	}else
-#endif
 	{
 		len += snprintf(page + len, count - len,
 				"\n####################page %x##################\n ", (page0>>8));

@@ -1436,61 +1436,6 @@ rtl8192_signal_scale_mapping(struct r8192_priv * priv,
 {
 	long retsig;
 
-#if defined RTL8192SE || defined RTL8192CE
-	if (priv->CustomerID == RT_CID_819x_Lenovo)
-	{
-		return currsig;
-	}
-	else if (priv->CustomerID == RT_CID_819x_Netcore)
-	{
-		if (currsig >= 31 && currsig <= 100)
-		{
-			retsig = 100;
-		}
-		else if (currsig >= 21 && currsig <= 30)
-		{
-			retsig = 90 + ((currsig - 20) / 1);
-		}
-		else if (currsig >= 11 && currsig <= 20)
-		{
-			retsig = 80 + ((currsig - 10) / 1);
-		}
-		else if (currsig >= 7 && currsig <= 10)
-		{
-			retsig = 69 + (currsig - 7);
-		}
-		else if (currsig == 6)
-		{
-			retsig = 54;
-		}
-		else if (currsig == 5)
-		{
-			retsig = 45;
-		}
-		else if (currsig == 4)
-		{
-			retsig = 36;
-		}
-		else if (currsig == 3)
-		{
-			retsig = 27;
-		}
-		else if (currsig == 2)
-		{
-			retsig = 18;
-		}
-		else if (currsig == 1)
-		{
-			retsig = 9;
-		}
-		else
-		{
-			retsig = currsig;
-		}
-		return retsig;
-	}
-#endif
-
 	if (currsig >= 61 && currsig <= 100)
 	{
 		retsig = 90 + ((currsig - 60) / 4);
@@ -2257,10 +2202,6 @@ void rtl8192_EnableInterrupt(struct net_device *dev)
 	write_nic_dword(dev,INTA_MASK, priv->irq_mask[0]);
 #endif
 
-#ifdef RTL8192SE
-	write_nic_dword(dev,INTA_MASK+4, priv->irq_mask[1]&0x3F);
-#endif
-
 }
 
 void rtl8192_DisableInterrupt(struct net_device *dev)
@@ -2273,9 +2214,6 @@ void rtl8192_DisableInterrupt(struct net_device *dev)
 	write_nic_dword(dev,INTA_MASK,0);
 #endif
 
-#ifdef RTL8192SE
-	write_nic_dword(dev,INTA_MASK + 4,0);
-#endif
 	priv->irq_enabled = 0;
 }
 
@@ -2290,10 +2228,6 @@ void rtl8192_ClearInterrupt(struct net_device *dev)
 	write_nic_dword(dev, ISR, tmp);
 #endif
 
-#ifdef RTL8192SE
-	tmp = read_nic_dword(dev, ISR+4);
-	write_nic_dword(dev, ISR+4, tmp);
-#endif
 }
 
 
@@ -2334,17 +2268,8 @@ void rtl8192_beacon_disable(struct net_device *dev)
 
 void rtl8192_interrupt_recognized(struct net_device *dev, u32 *p_inta, u32 *p_intb)
 {
-#ifdef RTL8192SE
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	*p_inta = read_nic_dword(dev, ISR) & priv->irq_mask[0];
-#else
 	*p_inta = read_nic_dword(dev, ISR) ;
-#endif
 	write_nic_dword(dev,ISR,*p_inta);
-#ifdef RTL8192SE
-	*p_intb = read_nic_dword(dev, ISR+4);
-	write_nic_dword(dev, ISR+4, *p_intb);
-#endif
 }
 
 bool rtl8192_HalRxCheckStuck(struct net_device *dev)
@@ -2438,9 +2363,6 @@ bool rtl8192_HalTxCheckStuck(struct net_device *dev)
 
 bool rtl8192_GetNmodeSupportBySecCfg(struct net_device *dev)
 {
-#ifdef RTL8192SE
-	return true;
-#else
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device *ieee = priv->rtllib;
 	if (ieee->rtllib_ap_sec_type &&
@@ -2449,14 +2371,10 @@ bool rtl8192_GetNmodeSupportBySecCfg(struct net_device *dev)
 	} else {
 		return true;
 	}
-#endif
 }
 
 bool rtl8192_GetHalfNmodeSupportByAPs(struct net_device* dev)
 {
-#ifdef RTL8192SE
-	return false;
-#else
 	bool			Reval;
 	struct r8192_priv* priv = rtllib_priv(dev);
 	struct rtllib_device* ieee = priv->rtllib;
@@ -2467,7 +2385,6 @@ bool rtl8192_GetHalfNmodeSupportByAPs(struct net_device* dev)
 		Reval =  false;
 
 	return Reval;
-#endif
 }
 
 u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)

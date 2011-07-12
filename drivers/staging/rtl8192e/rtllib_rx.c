@@ -1608,9 +1608,6 @@ int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	struct net_device *dev = ieee->dev;
 	struct rtllib_hdr_4addr *hdr = (struct rtllib_hdr_4addr *)skb->data;
 	struct rtllib_crypt_data *crypt = NULL;
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-	struct sta_info * psta = NULL;
-#endif
 	struct rtllib_rxb* rxb = NULL;
 	PRX_TS_RECORD pTS = NULL;
 	u16 fc, sc, SeqNum = 0;
@@ -1694,14 +1691,6 @@ int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 			ieee->polling =  false;
 		}
 	}
-
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-	if (ieee->iw_mode == IW_MODE_ADHOC){
-		psta = GetStaInfo(ieee, src);
-		if (NULL != psta)
-			psta->LastActiveTime = jiffies;
-	}
-#endif
 
 	/* Get crypt if encrypted */
 	ret = rtllib_rx_get_crypt(ieee, skb, &crypt, hdrlen);
@@ -2935,231 +2924,6 @@ static inline int is_beacon(__le16 fc)
 	return (WLAN_FC_GET_STYPE(le16_to_cpu(fc)) == RTLLIB_STYPE_BEACON);
 }
 
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-u8 AsocEntry_ComputeSum(u8 *paddr)
-{
-	u32 sum;
-
-	sum =	paddr[0]+
-			paddr[1]+
-			paddr[2]+
-			paddr[3]+
-			paddr[4]+
-			paddr[5];
-
-	return (u8)(sum % PEER_MAX_ASSOC);
-}
-u8 AsocEntry_AssignAvailableAID(struct rtllib_device *ieee, u8 *paddr)
-{
-	int		i;
-
-	for (i = 0; i < PEER_MAX_ASSOC; i++)
-	{
-		if (ieee->AvailableAIDTable[i] == 99)
-		{
-			ieee->AvailableAIDTable[i] = AsocEntry_ComputeSum(paddr);
-			return i+1;
-		}
-	}
-
-	return 1;
-}
-
-void InitStaInfo(struct rtllib_device *ieee,int index)
-{
-	int idx = index;
-	ieee->peer_assoc_list[idx]->StaDataRate = 0;
-	ieee->peer_assoc_list[idx]->StaSS = 0;
-	ieee->peer_assoc_list[idx]->RetryFrameCnt = 0;
-	ieee->peer_assoc_list[idx]->NoRetryFrameCnt = 0;
-	ieee->peer_assoc_list[idx]->LastRetryCnt = 0;
-	ieee->peer_assoc_list[idx]->LastNoRetryCnt = 0;
-	ieee->peer_assoc_list[idx]->AvgRetryRate = 0;
-	ieee->peer_assoc_list[idx]->LastRetryRate = 0;
-	ieee->peer_assoc_list[idx]->txRateIndex = 11;
-	ieee->peer_assoc_list[idx]->APDataRate = 0x2;
-	ieee->peer_assoc_list[idx]->ForcedDataRate = 0x2;
-
-}
-static u8 IsStaInfoExist(struct rtllib_device *ieee, u8 *addr)
-{
-	int k=0;
-	struct sta_info * psta = NULL;
-	u8 sta_idx = PEER_MAX_ASSOC;
-
-	for (k=0; k<PEER_MAX_ASSOC; k++)
-	{
-		psta = ieee->peer_assoc_list[k];
-		if (NULL != psta)
-		{
-			if (memcmp(addr, psta->macaddr, ETH_ALEN) == 0)
-			{
-				sta_idx = k;
-				break;
-			}
-		}
-	}
-	return sta_idx;
-}
-static u8 GetFreeStaInfoIdx(struct rtllib_device *ieee, u8 *addr)
-{
-	int k = 0;
-	while((ieee->peer_assoc_list[k] != NULL) && (k < PEER_MAX_ASSOC))
-		k++;
-	printk("%s: addr:"MAC_FMT" index: %d\n", __func__, MAC_ARG(addr), k);
-	return k;
-}
-struct sta_info *GetStaInfo(struct rtllib_device *ieee, u8 *addr)
-{
-	int k=0;
-	struct sta_info * psta = NULL;
-	struct sta_info * psta_find = NULL;
-
-	for (k=0; k<PEER_MAX_ASSOC; k++)
-	{
-		psta = ieee->peer_assoc_list[k];
-		if (NULL != psta)
-		{
-			if (memcmp(addr, psta->macaddr, ETH_ALEN) == 0)
-			{
-				psta_find = psta;
-				break;
-			}
-		}
-	}
-	return psta_find;
-}
-void DelStaInfoList(struct rtllib_device *ieee)
-{
-	int idx = 0;
-	struct sta_info * AsocEntry = NULL;
-
-	atomic_set(&ieee->AsocEntryNum, 0);
-	for (idx=0; idx<PEER_MAX_ASSOC; idx++){
-		AsocEntry = ieee->peer_assoc_list[idx];
-		if (NULL != AsocEntry){
-			kfree(AsocEntry);
-			ieee->peer_assoc_list[idx] = NULL;
-		}
-		ieee->AvailableAIDTable[idx] = 99;
-	}
-}
-void DelStaInfo(struct rtllib_device *ieee, u8 *addr)
-{
-	struct sta_info * psta = NULL;
-	int k=0;
-
-	for (k=0; k<PEER_MAX_ASSOC; k++)
-	{
-		psta = ieee->peer_assoc_list[k];
-		if (NULL != psta){
-			if (memcmp(addr, psta->macaddr, ETH_ALEN) == 0){
-				if (psta->aid > 0 && psta->aid-1 < PEER_MAX_ASSOC)
-					ieee->AvailableAIDTable[psta->aid-1] = 99;
-				else
-					printk("%s(): clear non-existing entry AID\n", __func__);
-
-				kfree(psta);
-				ieee->peer_assoc_list[k] = NULL;
-				atomic_dec(&ieee->AsocEntryNum);
-			}
-		}
-	}
-}
-void IbssAgeFunction(struct rtllib_device *ieee)
-{
-	struct sta_info*	AsocEntry = NULL;
-	int				idx;
-	unsigned long		CurrentTime;
-	signed long		TimeDifference;
-	struct rtllib_network *target;
-
-	CurrentTime = jiffies;
-
-	for (idx = 0; idx < PEER_MAX_ASSOC; idx++)
-	{
-		AsocEntry = ieee->peer_assoc_list[idx];
-		if (AsocEntry)
-		{
-			TimeDifference = jiffies_to_msecs(CurrentTime - AsocEntry->LastActiveTime);
-
-			if (TimeDifference > 20000)
-			{
-				printk("IbssAgeFunction(): "MAC_FMT" timeout\n", MAC_ARG(AsocEntry->macaddr));
-				kfree(AsocEntry);
-				ieee->peer_assoc_list[idx] = NULL;
-				atomic_dec(&ieee->AsocEntryNum);
-
-				if (atomic_read(&ieee->AsocEntryNum) == 0){
-
-					down(&ieee->wx_sem);
-					rtllib_stop_protocol(ieee,true);
-
-					list_for_each_entry(target, &ieee->network_list, list) {
-						if (is_same_network(target, &ieee->current_network,(target->ssid_len?1:0))){
-							printk("delete sta of previous Ad-hoc\n");
-							list_del(&target->list);
-							break;
-						}
-					}
-
-					rtllib_start_protocol(ieee);
-					up(&ieee->wx_sem);
-				}
-			}
-		}
-	}
-
-#ifdef TO_DO_LIST
-	if (AsocEntry_AnyStationAssociated(pMgntInfo)==false)
-		DrvIFIndicateDisassociation(Adapter, unspec_reason);
-
-	if (pMgntInfo->dot11CurrentWirelessMode == WIRELESS_MODE_G ||
-		(IS_WIRELESS_MODE_N_24G(Adapter) && pMgntInfo->pHTInfo->bCurSuppCCK)	)
-	{
-		if (nBModeStaCnt == 0)
-		{
-			pMgntInfo->bUseProtection = false;
-			ActUpdate_mCapInfo(Adapter, pMgntInfo->mCap);
-		}
-	}
-
-	if (IS_WIRELESS_MODE_N_24G(Adapter) || IS_WIRELESS_MODE_N_5G(Adapter) )
-	{
-		if (nLegacyStaCnt > 0)
-		{
-			pMgntInfo->pHTInfo->CurrentOpMode = HT_OPMODE_MIXED;
-		}
-		else
-		{
-			if ((pMgntInfo->pHTInfo->bCurBW40MHz) && (n20MHzStaCnt > 0))
-				pMgntInfo->pHTInfo->CurrentOpMode = HT_OPMODE_40MHZ_PROTECT;
-			else
-				pMgntInfo->pHTInfo->CurrentOpMode = HT_OPMODE_NO_PROTECT;
-
-		}
-	}
-
-	if (IS_WIRELESS_MODE_G(Adapter) ||
-		(IS_WIRELESS_MODE_N_24G(Adapter) && pMgntInfo->pHTInfo->bCurSuppCCK))
-	{
-		if (pMgntInfo->bUseProtection)
-		{
-			u8 CckRate[4] = { MGN_1M, MGN_2M, MGN_5_5M, MGN_11M };
-			OCTET_STRING osCckRate;
-			FillOctetString(osCckRate, CckRate, 4);
-			FilterSupportRate(pMgntInfo->mBrates, &osCckRate, false);
-			Adapter->HalFunc.SetHwRegHandler(Adapter, HW_VAR_BASIC_RATE, (pu1Byte)&osCckRate);
-		}
-		else
-		{
-			Adapter->HalFunc.SetHwRegHandler( Adapter, HW_VAR_BASIC_RATE, (pu1Byte)(&pMgntInfo->mBrates) );
-		}
-	}
-#endif
-}
-#endif
-
 static int IsPassiveChannel( struct rtllib_device *rtllib, u8 channel)
 {
 	if (MAX_CHANNEL_NUMBER < channel) {
@@ -3258,76 +3022,6 @@ static inline void rtllib_process_probe_response(
 	 * already there. */
 
 	spin_lock_irqsave(&ieee->lock, flags);
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-	if (is_beacon(beacon->header.frame_ctl)){
-		if ((ieee->iw_mode == IW_MODE_ADHOC) && (ieee->state == RTLLIB_LINKED))
-		{
-			if ((network->ssid_len == ieee->current_network.ssid_len)
-				&& (!memcmp(network->ssid,ieee->current_network.ssid,ieee->current_network.ssid_len))
-				&& (network->channel == ieee->current_network.channel)
-				&& (ieee->current_network.channel > 0)
-				&& (ieee->current_network.channel <= 14))
-			{
-				if (!memcmp(ieee->current_network.bssid,network->bssid,6))
-				{
-					int idx = 0;
-					struct rtllib_hdr_3addr* header = NULL;
-					int idx_exist = 0;
-					if (timer_pending(&ieee->ibss_wait_timer))
-						del_timer_sync(&ieee->ibss_wait_timer);
-					header = (struct rtllib_hdr_3addr*)&(beacon->header);
-					idx_exist = IsStaInfoExist(ieee,header->addr2);
-					if (idx_exist >= PEER_MAX_ASSOC) {
-						idx = GetFreeStaInfoIdx(ieee, header->addr2);
-					} else {
-						ieee->peer_assoc_list[idx_exist]->LastActiveTime = jiffies;
-						goto no_alloc;
-					}
-					if (idx >= PEER_MAX_ASSOC - 1) {
-						printk("\n%s():ERR!!!Buffer overflow - could not append!!!",__func__);
-						goto free_network;
-					} else {
-						ieee->peer_assoc_list[idx] = (struct sta_info *)kmalloc(sizeof(struct sta_info), GFP_ATOMIC);
-						memset(ieee->peer_assoc_list[idx], 0, sizeof(struct sta_info));
-						ieee->peer_assoc_list[idx]->LastActiveTime = jiffies;
-						memcpy(ieee->peer_assoc_list[idx]->macaddr,header->addr2,ETH_ALEN);
-						ieee->peer_assoc_list[idx]->ratr_index = 8;
-						InitStaInfo(ieee,idx);
-						atomic_inc(&ieee->AsocEntryNum);
-						ieee->peer_assoc_list[idx]->aid = AsocEntry_AssignAvailableAID(ieee, ieee->peer_assoc_list[idx]->macaddr);
-						ieee->check_ht_cap(ieee->dev,ieee->peer_assoc_list[idx],network);
-						queue_delayed_work_rsl(ieee->wq, &ieee->update_assoc_sta_info_wq, 0);
-						ieee->Adhoc_InitRateAdaptive(ieee->dev,ieee->peer_assoc_list[idx]);
-					}
-				}
-			}
-		}
-	}
-	if (ieee->iw_mode == IW_MODE_ADHOC){
-		if ((network->ssid_len == ieee->current_network.ssid_len)
-			&& (!memcmp(network->ssid,ieee->current_network.ssid,ieee->current_network.ssid_len))
-			&& (network->capability & WLAN_CAPABILITY_IBSS)
-			&& (ieee->state == RTLLIB_LINKED_SCANNING))
-		{
-			if (memcmp(ieee->current_network.bssid,network->bssid,6))
-			{
-				printk("%s(): SSID matched but BSSID mismatched.\n",__func__);
-
-				ieee->TargetTsf = beacon->time_stamp[1];
-				ieee->TargetTsf <<= 32;
-				ieee->TargetTsf |= beacon->time_stamp[0];
-
-				ieee->CurrTsf = stats->TimeStampLow;
-
-				queue_delayed_work_rsl(ieee->wq, &ieee->check_tsf_wq, 0);
-			}
-		}
-	}
-#endif
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-no_alloc:
-	if (ieee->iw_mode == IW_MODE_INFRA)
-#endif
 	{
 		if (is_same_network(&ieee->current_network, network, (network->ssid_len?1:0))) {
 			update_network(&ieee->current_network, network);
@@ -3345,14 +3039,6 @@ no_alloc:
 			}
 		}
 	}
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-	else if (ieee->iw_mode == IW_MODE_ADHOC)
-	{
-		if (is_same_network(&ieee->current_network, network, (network->ssid_len?1:0))) {
-			update_ibss_network(&ieee->current_network, network);
-		}
-	}
-#endif
 	list_for_each_entry(target, &ieee->network_list, list) {
 		if (is_same_network(target, network,(target->ssid_len?1:0)))
 			break;

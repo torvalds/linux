@@ -103,19 +103,8 @@ extern	void dm_check_fsync(struct net_device *dev);
 extern	void	dm_shadow_init(struct net_device *dev);
 extern	void dm_initialize_txpower_tracking(struct net_device *dev);
 
-#if (defined RTL8192E || defined RTL8192SE)
 extern  void    dm_CheckRfCtrlGPIO(void *data);
-#endif
 
-#ifdef RTL8192SE
-extern	void DM_TXPowerTracking92SDirectCall(struct net_device *dev);
-static	void dm_CtrlInitGainByTwoPort(struct net_device *dev);
-static	void dm_CtrlInitGainBeforeConnectByRssiAndFalseAlarm(struct net_device *dev);
-static	void	dm_initial_gain_STABeforeConnect(struct net_device *dev);
-
-void	dm_InitRateAdaptiveMask(struct net_device *dev);
-void		Adhoc_InitRateAdaptive(struct net_device *dev,struct sta_info  *pEntry);
-#endif
 
 /*--------------------Define export function prototype-----------------------*/
 
@@ -149,9 +138,6 @@ static	void dm_cs_ratio(struct net_device *dev);
 
 static	void dm_init_ctstoself(struct net_device *dev);
 static	void dm_Init_WA_Broadcom_IOT(struct net_device *dev);
-#ifdef RTL8192SE
-static	void dm_WA_Broadcom_IOT(struct net_device *dev);
-#endif
 
 static	void	dm_check_edca_turbo(struct net_device *dev);
 
@@ -177,9 +163,6 @@ static	void	dm_dynamic_txpower(struct net_device *dev);
 
 static	void dm_send_rssi_tofw(struct net_device *dev);
 static	void	dm_ctstoself(struct net_device *dev);
-#if defined RTL8192SE
-static	void dm_RefreshRateAdaptiveMask(struct net_device *dev);
-#endif
 /*---------------------------Define function prototype------------------------*/
 
 extern	void
@@ -192,12 +175,7 @@ init_hal_dm(struct net_device *dev)
 
 	dm_init_dynamic_txpower(dev);
 
-#ifdef RTL8192SE
-	if (IS_HARDWARE_TYPE_8192SE(dev))
-		dm_InitRateAdaptiveMask(dev);
-	else
-#endif
-		init_rate_adaptive(dev);
+	init_rate_adaptive(dev);
 
 	dm_dig_init(dev);
 	dm_init_edca_turbo(dev);
@@ -208,10 +186,7 @@ init_hal_dm(struct net_device *dev)
         if (IS_HARDWARE_TYPE_8192SE(dev))
 	dm_Init_WA_Broadcom_IOT(dev);
 
-#if (defined RTL8192E || defined RTL8192SE)
 	INIT_DELAYED_WORK_RSL(&priv->gpio_change_rf_wq, (void *)dm_CheckRfCtrlGPIO,dev);
-#endif
-
 }
 
 extern void deinit_hal_dm(struct net_device *dev)
@@ -272,13 +247,6 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
 	dm_check_txrateandretrycount(dev);
 	dm_check_edca_turbo(dev);
 
-	if (IS_HARDWARE_TYPE_8192SE(dev)){
-#ifdef RTL8192SE
-		dm_RefreshRateAdaptiveMask(dev);
-		dm_WA_Broadcom_IOT(dev);
-		return;
-#endif
-	}
 	dm_check_rate_adaptive(dev);
 	dm_dynamic_txpower(dev);
 	dm_check_txpower_tracking(dev);
@@ -693,7 +661,6 @@ static u8	CCKSwingTable_Ch14[CCK_Table_length][8] = {
 #define		Tssi_Report_Value2			0x13e
 #define		FW_Busy_Flag				0x13f
 
-#ifndef RTL8192SE
 static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 	{
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -984,7 +951,6 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 		priv->rtllib->bdynamic_txpower_enable = true;
 		write_nic_byte(dev, Pw_Track_Flag, 0);
 }
-#endif
 
 #ifdef RTL8192E
 static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
@@ -1093,38 +1059,6 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	}
 	priv->txpower_count = 0;
 }
-#elif defined (RTL8192SE)
-static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-        u8	ThermalValue=0;
-	u32	FwCmdVal=0;
-
-	priv->btxpower_trackingInit = true;
-
-
-	ThermalValue = (u8)rtl8192_phy_QueryRFReg(dev, RF90_PATH_A, RF_T_METER, 0x1f);
-	RT_TRACE(COMP_POWER_TRACKING, "Readback Thermal Meter = 0x%x\n", ThermalValue);
-	printk("%s()Readback Thermal Meter = 0x%x\n", __func__,ThermalValue);
-	if (ThermalValue)
-	{
-		priv->ThermalValue = ThermalValue;
-		if (priv->pFirmware->FirmwareVersion >= 0x35)
-		{
-			priv->rtllib->SetFwCmdHandler(dev, FW_CMD_TXPWR_TRACK_THERMAL);
-		}
-		else
-		{
-		FwCmdVal = (FW_TXPWR_TRACK_THERMAL|
-		(priv->ThermalMeter[0]<<8)|(ThermalValue<<16));
-		RT_TRACE(COMP_POWER_TRACKING, "Write to FW Thermal Val = 0x%x\n", FwCmdVal);
-		write_nic_dword(dev, WFM5, FwCmdVal);
-				ChkFwCmdIoDone(dev);
-		}
-	}
-
-	priv->txpower_count = 0;
-}
 #endif
 
 void	dm_txpower_trackingcallback(void *data)
@@ -1138,7 +1072,6 @@ void	dm_txpower_trackingcallback(void *data)
 		dm_TXPowerTrackingCallback_ThermalMeter(dev);
 }
 
-#ifndef RTL8192SE
 static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 {
 
@@ -1638,7 +1571,7 @@ static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 	priv->btxpower_trackingInit = false;
 
 }
-#endif
+
 static void dm_InitializeTXPowerTracking_ThermalMeter(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1702,14 +1635,6 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 
 	if (!TM_Trigger)
 	{
-#ifdef RTL8192SE
-		if (IS_HARDWARE_TYPE_8192SE(dev))
-		{
-                    rtl8192_phy_SetRFReg(dev, RF90_PATH_A, RF_T_METER, bRFRegOffsetMask, 0x60);
-                    RT_TRACE(COMP_POWER_TRACKING, "Trigger 92S Thermal Meter!!\n");
-                }
-                else
-#endif
                 {
 		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
 		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4f);
@@ -1720,36 +1645,23 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 		return;
 	} else {
             printk("===============>Schedule TxPowerTrackingWorkItem\n");
-#ifdef RTL8192SE
-		DM_TXPowerTracking92SDirectCall(dev);
-#else
 
 		queue_delayed_work_rsl(priv->priv_wq,&priv->txpower_tracking_wq,0);
-#endif
 		TM_Trigger = 0;
 		}
 
 	}
 
-#ifdef RTL8192SE
-void DM_TXPowerTracking92SDirectCall(struct net_device *dev)
-{
-	dm_TXPowerTrackingCallback_ThermalMeter(dev);
-	}
-#endif
-
 static void dm_check_txpower_tracking(struct net_device *dev)
 {
-#ifdef RTL8192E
 	struct r8192_priv *priv = rtllib_priv(dev);
-#endif
+
 	if (priv->IC_Cut >= IC_VersionCut_D)
 		dm_CheckTXPowerTracking_TSSI(dev);
 	else
 		dm_CheckTXPowerTracking_ThermalMeter(dev);
 }
 
-#ifndef RTL8192SE
 static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
 {
 	u32 TempVal;
@@ -1793,7 +1705,6 @@ static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
 
 
 }
-#endif
 #ifdef RTL8192E
 static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH14)
 {
@@ -1851,7 +1762,6 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 	}
 #endif
 
-#ifndef RTL8192SE
 extern void dm_cck_txpower_adjust(
 	struct net_device *dev,
 	bool  binch14
@@ -1863,7 +1773,6 @@ extern void dm_cck_txpower_adjust(
 	else
 		dm_CCKTxPowerAdjust_ThermalMeter(dev, binch14);
 }
-#endif
 
 static void dm_txpower_reset_recovery(
 	struct net_device *dev
@@ -1984,14 +1893,6 @@ extern void dm_change_dynamic_initgain_thresh(struct net_device *dev,
 								u32		dm_type,
 								u32		dm_value)
 {
-#ifdef RTL8192SE
-	struct r8192_priv *priv = rtllib_priv(dev);
-	if (dm_type == DIG_TYPE_THRESH_HIGHPWR_HIGH)
-		priv->MidHighPwrTHR_L2 = (u8)dm_value;
-	else if (dm_type == DIG_TYPE_THRESH_HIGHPWR_LOW)
-		priv->MidHighPwrTHR_L1 = (u8)dm_value;
-	return;
-#endif
 	if (dm_type == DIG_TYPE_THRESH_HIGH)
 	{
 		dm_digtable.rssi_high_thresh = dm_value;
@@ -2157,14 +2058,7 @@ static void dm_dig_init(struct net_device *dev)
 	dm_digtable.dig_enable_flag	= true;
 	dm_digtable.Backoff_Enable_Flag = true;
 
-#ifdef RTL8192SE
-	if ((priv->DM_Type  == DM_Type_ByDriver) && (priv->pFirmware->FirmwareVersion >= 0x3c))
-		dm_digtable.dig_algorithm = DIG_ALGO_BY_TOW_PORT;
-	else
-		dm_digtable.dig_algorithm = DIG_ALGO_BEFORE_CONNECT_BY_RSSI_AND_ALARM;
-#else
 	dm_digtable.dig_algorithm = DIG_ALGO_BY_RSSI;
-#endif
 
 	dm_digtable.Dig_TwoPort_Algorithm = DIG_TWO_PORT_ALGO_RSSI;
 	dm_digtable.Dig_Ext_Port_Stage = DIG_EXT_PORT_STAGE_MAX;
@@ -2228,19 +2122,6 @@ void dm_FalseAlarmCounterStatistics(struct net_device *dev)
 				FalseAlmCnt->Cnt_Ofdm_fail, FalseAlmCnt->Cnt_Cck_fail , FalseAlmCnt->Cnt_all);
 }
 
-#ifdef RTL8192SE
-static void dm_CtrlInitGainAPByFalseAlarm(struct net_device *dev)
-{
-	static u8		binitialized = false;
-
-	{
-		binitialized = false;
-		dm_digtable.Dig_Ext_Port_Stage = DIG_EXT_PORT_STAGE_MAX;
-		return;
-	}
-}
-#endif
-
 static void dm_ctrl_initgain_byrssi(struct net_device *dev)
 {
 
@@ -2251,49 +2132,9 @@ static void dm_ctrl_initgain_byrssi(struct net_device *dev)
 		dm_ctrl_initgain_byrssi_by_fwfalse_alarm(dev);
 	else if (dm_digtable.dig_algorithm == DIG_ALGO_BY_RSSI)
 		dm_ctrl_initgain_byrssi_by_driverrssi(dev);
-#ifdef RTL8192SE
-	else if (dm_digtable.dig_algorithm == DIG_ALGO_BEFORE_CONNECT_BY_RSSI_AND_ALARM)
-		dm_CtrlInitGainBeforeConnectByRssiAndFalseAlarm(dev);
-	else if (dm_digtable.dig_algorithm == DIG_ALGO_BY_TOW_PORT)
-		dm_CtrlInitGainByTwoPort(dev);
-#endif
 	else
 		return;
 }
-
-#ifdef RTL8192SE
-static void dm_CtrlInitGainByTwoPort(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	if (rtllib_act_scanning(priv->rtllib,true) == true)
-		return;
-
-	if ((priv->rtllib->state > RTLLIB_NOLINK) && (priv->rtllib->state < RTLLIB_LINKED))
-		dm_digtable.CurSTAConnectState = DIG_STA_BEFORE_CONNECT;
-	else if ((priv->rtllib->state == RTLLIB_LINKED) ||(priv->rtllib->state == RTLLIB_LINKED_SCANNING))
-		dm_digtable.CurSTAConnectState = DIG_STA_CONNECT;
-	else
-		dm_digtable.CurSTAConnectState = DIG_STA_DISCONNECT;
-
-	dm_digtable.rssi_val = priv->undecorated_smoothed_pwdb;
-
-	if (dm_digtable.CurSTAConnectState != DIG_STA_DISCONNECT)
-	{
-		if (dm_digtable.Dig_TwoPort_Algorithm == DIG_TWO_PORT_ALGO_FALSE_ALARM)
-		{
-			dm_digtable.Dig_TwoPort_Algorithm = DIG_TWO_PORT_ALGO_RSSI;
-			priv->rtllib->SetFwCmdHandler(dev, FW_CMD_DIG_MODE_SS);
-		}
-	}
-
-	dm_FalseAlarmCounterStatistics(dev);
-	dm_initial_gain_STABeforeConnect(dev);
-	dm_CtrlInitGainAPByFalseAlarm(dev);
-
-	dm_digtable.PreSTAConnectState = dm_digtable.CurSTAConnectState;
-}
-#endif
 
 /*-----------------------------------------------------------------------------
  * Function:	dm_CtrlInitGainBeforeConnectByRssiAndFalseAlarm()
@@ -2313,30 +2154,6 @@ static void dm_CtrlInitGainByTwoPort(struct net_device *dev)
  *
  *---------------------------------------------------------------------------*/
 
-#ifdef RTL8192SE
-static void dm_CtrlInitGainBeforeConnectByRssiAndFalseAlarm(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	if (rtllib_act_scanning(priv->rtllib,true) == true)
-		return;
-
-	if ((priv->rtllib->state > RTLLIB_NOLINK) && (priv->rtllib->state < RTLLIB_LINKED))
-		dm_digtable.CurSTAConnectState = DIG_STA_BEFORE_CONNECT;
-	else if ((priv->rtllib->state == RTLLIB_LINKED) ||(priv->rtllib->state == RTLLIB_LINKED_SCANNING))
-		dm_digtable.CurSTAConnectState = DIG_STA_CONNECT;
-	else
-		dm_digtable.CurSTAConnectState = DIG_STA_DISCONNECT;
-
-	if (dm_digtable.dbg_mode == DM_DBG_OFF)
-		dm_digtable.rssi_val = priv->undecorated_smoothed_pwdb;
-
-	dm_FalseAlarmCounterStatistics(dev);
-	dm_initial_gain_STABeforeConnect(dev);
-	dm_digtable.PreSTAConnectState = dm_digtable.CurSTAConnectState;
-
-}
-#endif
 static void dm_ctrl_initgain_byrssi_by_driverrssi(
 	struct net_device *dev)
 {
@@ -3024,81 +2841,6 @@ dm_Init_WA_Broadcom_IOT(struct net_device * dev)
 	pHTInfo->WAIotTH = WAIotTHVal;
 }
 
-#ifdef RTL8192SE
-static	void
-dm_WA_Broadcom_IOT(struct net_device * dev)
-{
-	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
-	PRT_HIGH_THROUGHPUT	pHTInfo = priv->rtllib->pHTInfo;
-	u8					update=0;
-	static enum rtllib_state connectState = RTLLIB_NOLINK;
-
-	if ( (pHTInfo->bWAIotBroadcom != true) ||
-		(priv->rtllib->mode == WIRELESS_MODE_B) ||
-		(pHTInfo->bCurBW40MHz))
-	{
-		if (pHTInfo->IOTAction & HT_IOT_ACT_WA_IOT_Broadcom)
-		{
-			pHTInfo->IOTAction &= ~HT_IOT_ACT_WA_IOT_Broadcom;
-			update = 1;
-			printk(" dm_WA_Broadcom_IOT(), disable HT_IOT_ACT_WA_IOT_Broadcom\n");
-		}
-		else
-			return;
-	}
-
-	if (connectState == RTLLIB_LINKED && priv->rtllib->state == RTLLIB_LINKED)
-	{
-		if (pHTInfo->IOTAction & HT_IOT_ACT_WA_IOT_Broadcom)
-		{
-			pHTInfo->IOTAction &= ~HT_IOT_ACT_WA_IOT_Broadcom;
-			update = 1;
-			pHTInfo->bWAIotBroadcom = false;
-			printk("dm_WA_Broadcom_IOT(), from connect to disconnected, disable HT_IOT_ACT_WA_IOT_Broadcom\n");
-		}
-	}
-	connectState = priv->rtllib->state;
-
-	if (!update && pHTInfo->IOTPeer == HT_IOT_PEER_BROADCOM)
-	{
-		if (priv->undecorated_smoothed_pwdb < pHTInfo->WAIotTH)
-		{
-			if (pHTInfo->IOTAction & HT_IOT_ACT_WA_IOT_Broadcom)
-			{
-				pHTInfo->IOTAction &= ~HT_IOT_ACT_WA_IOT_Broadcom;
-				update = 1;
-				printk("dm_WA_Broadcom_IOT() ==> WA_IOT enable cck rates\n");
-			}
-		}
-		else if (priv->undecorated_smoothed_pwdb >= (priv->rtllib->CTSToSelfTH+5))
-		{
-			if ((pHTInfo->IOTAction & HT_IOT_ACT_WA_IOT_Broadcom) == 0)
-			{
-				pHTInfo->IOTAction |= HT_IOT_ACT_WA_IOT_Broadcom;
-				update = 1;
-				printk("dm_WA_Broadcom_IOT() ==> WA_IOT disable cck rates\n");
-			}
-		}
-	}
-
-	if (update){
-		if (priv->rtllib->bUseRAMask){
-			priv->rtllib->UpdateHalRAMaskHandler(
-										dev,
-										false,
-										0,
-										priv->rtllib->pHTInfo->PeerMimoPs,
-										priv->rtllib->mode,
-										priv->rtllib->pHTInfo->bCurTxBW40MHz,
-										0);
-		}else{
-			priv->ops->update_ratr_table(dev, priv->rtllib->dot11HTOperationalRateSet, NULL);
-		}
-		priv->rtllib->SetHwRegHandler( dev, HW_VAR_BASIC_RATE, (u8*)(&priv->basic_rate));
-	}
-}
-#endif
-
 static	void	dm_check_pbc_gpio(struct net_device *dev)
 {
 #ifdef RTL8192U
@@ -3186,382 +2928,6 @@ extern	void	dm_CheckRfCtrlGPIO(void *data)
 		}
 	}
 
-}
-#elif defined RTL8192SE
-extern void Power_DomainInit92SE(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u8				tmpU1b;
-	u16				tmpU2b;
-
-
-
-	priv->PwrDomainProtect = true;
-
-	tmpU1b = read_nic_byte(dev, (SYS_CLKR + 1));
-	if (tmpU1b & BIT7)
-	{
-		tmpU1b &= ~(BIT6 | BIT7);
-		if (!HalSetSysClk8192SE(dev, tmpU1b)){
-			priv->PwrDomainProtect = false;
-			return;
-	}
-	}
-
-	write_nic_byte(dev, AFE_PLL_CTRL, 0x0);
-	write_nic_byte(dev, LDOA15_CTRL, 0x34);
-
-	tmpU1b = read_nic_byte(dev, SYS_FUNC_EN+1);
-	if (priv->rtllib->RfOffReason & (RF_CHANGE_BY_IPS | RF_CHANGE_BY_HW)) {
-		tmpU1b &= 0xFB;
-	} else {
-		tmpU1b &= 0x73;
-	}
-
-	write_nic_byte(dev, SYS_FUNC_EN+1, tmpU1b);
-	udelay(1000);
-
-	write_nic_byte(dev, CMDR, 0);
-	write_nic_byte(dev, TCR, 0);
-
-	tmpU1b = read_nic_byte(dev, 0x562);
-	tmpU1b |= 0x08;
-	write_nic_byte(dev, 0x562, tmpU1b);
-	tmpU1b &= ~(BIT3);
-	write_nic_byte(dev, 0x562, tmpU1b);
-
-	tmpU1b = read_nic_byte(dev, AFE_XTAL_CTRL);
-	write_nic_byte(dev, AFE_XTAL_CTRL, (tmpU1b|0x01));
-	udelay(1500);
-	tmpU1b = read_nic_byte(dev, AFE_XTAL_CTRL+1);
-	write_nic_byte(dev, AFE_XTAL_CTRL+1, (tmpU1b&0xfb));
-
-
-	tmpU1b = read_nic_byte(dev, AFE_MISC);
-	write_nic_byte(dev, AFE_MISC, (tmpU1b|BIT0));
-	udelay(1000);
-
-	tmpU1b = read_nic_byte(dev, AFE_MISC);
-	write_nic_byte(dev, AFE_MISC, (tmpU1b|0x02));
-	udelay(1000);
-
-	tmpU1b = read_nic_byte(dev, LDOA15_CTRL);
-	write_nic_byte(dev, LDOA15_CTRL, (tmpU1b|BIT0));
-
-	tmpU2b = read_nic_word(dev, SYS_ISO_CTRL);
-	write_nic_word(dev, SYS_ISO_CTRL, (tmpU2b|BIT11));
-
-
-	tmpU2b = read_nic_word(dev, SYS_FUNC_EN);
-	write_nic_word(dev, SYS_FUNC_EN, (tmpU2b |BIT13));
-
-	write_nic_byte(dev, SYS_ISO_CTRL+1, 0x68);
-
-	tmpU1b = read_nic_byte(dev, AFE_PLL_CTRL);
-	write_nic_byte(dev, AFE_PLL_CTRL, (tmpU1b|BIT0|BIT4));
-	tmpU1b = read_nic_byte(dev, AFE_PLL_CTRL+1);
-	write_nic_byte(dev, AFE_PLL_CTRL+1, (tmpU1b|BIT0));
-	udelay(1000);
-
-	write_nic_byte(dev, SYS_ISO_CTRL, 0xA6);
-
-	tmpU2b = read_nic_word(dev, SYS_CLKR);
-	write_nic_word(dev, SYS_CLKR, (tmpU2b|BIT12|BIT11));
-
-	tmpU2b = read_nic_word(dev, SYS_FUNC_EN);
-	write_nic_word(dev, SYS_FUNC_EN, (tmpU2b|BIT11));
-	write_nic_word(dev, SYS_FUNC_EN, (tmpU2b|BIT11|BIT15));
-
-	 tmpU2b = read_nic_word(dev, SYS_CLKR);
-	write_nic_word(dev, SYS_CLKR, (tmpU2b&(~BIT2)));
-
-	tmpU1b = read_nic_byte(dev, (SYS_CLKR + 1));
-	tmpU1b = ((tmpU1b | BIT7) & (~BIT6));
-	if (!HalSetSysClk8192SE(dev, tmpU1b))
-	{
-		priv->PwrDomainProtect = false;
-		return;
-	}
-
-	write_nic_word(dev, CMDR, 0x37FC);
-
-	gen_RefreshLedState(dev);
-
-	priv->PwrDomainProtect = false;
-
-}
-
-void	SET_RTL8192SE_RF_HALT(struct net_device *dev)
-{
-	u8		u1bTmp;
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	if (priv->rtllib->RfOffReason == RF_CHANGE_BY_IPS && priv->LedStrategy == SW_LED_MODE8)
-	{
-		SET_RTL8192SE_RF_SLEEP(dev);
-		return;
-	}
-
-	u1bTmp = read_nic_byte(dev, LDOV12D_CTRL);
-	u1bTmp |= BIT0;
-	write_nic_byte(dev, LDOV12D_CTRL, u1bTmp);
-	write_nic_byte(dev, SPS1_CTRL, 0x0);
-	write_nic_byte(dev, TXPAUSE, 0xFF);
-	write_nic_word(dev, CMDR, 0x57FC);
-	udelay(100);
-	write_nic_word(dev, CMDR, 0x77FC);
-	write_nic_byte(dev, PHY_CCA, 0x0);
-	udelay(10);
-	write_nic_word(dev, CMDR, 0x37FC);
-	udelay(10);
-	write_nic_word(dev, CMDR, 0x77FC);
-	udelay(10);
-	write_nic_word(dev, CMDR, 0x57FC);
-	write_nic_word(dev, CMDR, 0x0000);
-	u1bTmp = read_nic_byte(dev, (SYS_CLKR + 1));
-	if (u1bTmp & BIT7)
-	{
-		u1bTmp &= ~(BIT6 | BIT7);
-		if (!HalSetSysClk8192SE(dev, u1bTmp))
-			return;
-	}
-	if (priv->rtllib->RfOffReason==RF_CHANGE_BY_IPS )
-	{
-		write_nic_byte(dev, 0x03, 0xF9);
-	}
-	else
-	{
-		write_nic_byte(dev, 0x03, 0x71);
-	}
-	write_nic_byte(dev, SYS_CLKR+1, 0x70);
-	write_nic_byte(dev, AFE_PLL_CTRL+1, 0x68);
-	write_nic_byte(dev, AFE_PLL_CTRL, 0x00);
-	write_nic_byte(dev, LDOA15_CTRL, 0x34);
-	write_nic_byte(dev, AFE_XTAL_CTRL, 0x0E);
-
-}
-
-u8 RfOnOffDetect(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u8	u1Tmp;
-	u8	retval=eRfOn;
-
-	if (priv->pwrdown)
-	{
-		u1Tmp = read_nic_byte(dev, 0x06);
-		printk("pwrdown, 0x6(BIT6)=%02x\n", u1Tmp);
-		retval = (u1Tmp & BIT6) ? eRfOn: eRfOff;
-	}
-	else
-	{
-#ifdef CONFIG_BT_COEXIST
-		if (pHalData->bt_coexist.BluetoothCoexist)
-		{
-			if (pHalData->bt_coexist.BT_CoexistType == BT_2Wire)
-			{
-				PlatformEFIOWrite1Byte(pAdapter, MAC_PINMUX_CFG, 0xa);
-				u1Tmp = PlatformEFIORead1Byte(pAdapter, GPIO_IO_SEL);
-				delay_us(100);
-				u1Tmp = PlatformEFIORead1Byte(pAdapter, GPIO_IN);
-				RTPRINT(FPWR, PWRHW, ("GPIO_IN=%02x\n", u1Tmp));
-				retval = (u1Tmp & HAL_8192S_HW_GPIO_OFF_BIT) ? eRfOn : eRfOff;
-			}
-			else if ( (pHalData->bt_coexist.BT_CoexistType == BT_ISSC_3Wire) ||
-					(pHalData->bt_coexist.BT_CoexistType == BT_Accel) ||
-					(pHalData->bt_coexist.BT_CoexistType == BT_CSR) )
-			{
-				u4tmp = PHY_QueryBBReg(pAdapter, 0x87c, bMaskDWord);
-				if ((u4tmp & BIT17) != 0)
-				{
-					PHY_SetBBReg(pAdapter, 0x87c, bMaskDWord, u4tmp & ~BIT17);
-					delay_us(50);
-					RTPRINT(FBT, BT_RFPoll, ("BT write 0x87c (~BIT17) = 0x%x\n", u4tmp &~BIT17));
-				}
-				u4tmp = PHY_QueryBBReg(pAdapter, 0x8e0, bMaskDWord);
-				RTPRINT(FBT, BT_RFPoll, ("BT read 0x8e0 (BIT24)= 0x%x\n", u4tmp));
-				retval = (u4tmp & BIT24) ? eRfOn : eRfOff;
-				RTPRINT(FBT, BT_RFPoll, ("BT check RF state to %s\n", (retval==eRfOn)? "ON":"OFF"));
-			}
-		}
-		else
-#endif
-		{
-			write_nic_byte(dev, MAC_PINMUX_CFG, (GPIOMUX_EN | GPIOSEL_GPIO));
-			u1Tmp = read_nic_byte(dev, GPIO_IO_SEL);
-
-			u1Tmp &= HAL_8192S_HW_GPIO_OFF_MASK;
-			write_nic_byte(dev, GPIO_IO_SEL, u1Tmp);
-
-			mdelay(10);
-
-			u1Tmp = read_nic_byte(dev, GPIO_IN);
-			retval = (u1Tmp & HAL_8192S_HW_GPIO_OFF_BIT) ? eRfOn : eRfOff;
-		}
-	}
-
-	return retval;
-}
-
-extern void dm_CheckRfCtrlGPIO(void *data)
-{
-	struct net_device *dev = (struct net_device *)data;
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	RT_RF_POWER_STATE	eRfPowerStateToSet, CurRfState;
-	bool					bActuallySet = false;
-	PRT_POWER_SAVE_CONTROL		pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
-	unsigned long flag = 0;
-	bool			turnonbypowerdomain = false;
-
-
-#ifdef CONFIG_RTL_RFKILL
-	return;
-#endif
-	if ((priv->up_first_time == 1) || (priv->being_init_adapter))
-	{
-		;
-		return;
-	}
-
-	if (priv->ResetProgress == RESET_TYPE_SILENT)
-	{
-		RT_TRACE((COMP_INIT | COMP_POWER | COMP_RF), "GPIOChangeRFWorkItemCallBack(): Silent Reseting!!!!!!!\n");
-		return;
-	}
-
-
-	if (pPSC->bSwRfProcessing)
-	{
-		RT_TRACE(COMP_SCAN, "GPIOChangeRFWorkItemCallBack(): Rf is in switching state.\n");
-		return;
-	}
-
-	RT_TRACE(COMP_RF, "GPIOChangeRFWorkItemCallBack() ---------> \n");
-
-	spin_lock_irqsave(&priv->rf_ps_lock,flag);
-	if (priv->RFChangeInProgress) {
-		spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
-		RT_TRACE(COMP_RF, "GPIOChangeRFWorkItemCallBack(): RF Change in progress! \n");
-		return;
-	} else {
-		priv->RFChangeInProgress = true;
-		spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
-	}
-	CurRfState = priv->rtllib->eRFPowerState;
-#ifdef CONFIG_ASPM_OR_D3
-	if ((pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM))
-	{
-		RT_DISABLE_ASPM(dev);
-		RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM);
-	}
-
-#endif
-	if (RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
-	{
-		Power_DomainInit92SE(dev);
-		turnonbypowerdomain = true;
-	}
-
-	eRfPowerStateToSet = RfOnOffDetect(dev);
-	if (priv->bResetInProgress) {
-		spin_lock_irqsave(&priv->rf_ps_lock,flag);
-		priv->RFChangeInProgress = false;
-		spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
-		return;
-	}
-
-	if ( (priv->bHwRadioOff == true) && \
-	   (((eRfPowerStateToSet == eRfOn)&&(priv->sw_radio_on == true))
-#ifdef CONFIG_RTLWIFI_DEBUGFS
-	    ||priv->debug->hw_holding
-#endif
-	    ))
-	{
-		RT_TRACE(COMP_RF, "GPIOChangeRF  - HW Radio ON, RF ON\n");
-		printk("GPIOChangeRF  - HW Radio ON, RF ON\n");
-                eRfPowerStateToSet = eRfOn;
-		bActuallySet = true;
-	} else if ((priv->bHwRadioOff == false) &&
-		 ((eRfPowerStateToSet == eRfOff) || (priv->sw_radio_on == false)))
-	{
-		RT_TRACE(COMP_RF, "GPIOChangeRF  - HW Radio OFF\n");
-		printk("GPIOChangeRF  - HW Radio OFF\n");
-                eRfPowerStateToSet = eRfOff;
-		bActuallySet = true;
-	}
-
-	if (bActuallySet) {
-		priv->bHwRfOffAction = 1;
-#ifdef CONFIG_ASPM_OR_D3
-		if (eRfPowerStateToSet == eRfOn) {
-			if ((pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM) &&
-			     RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM)) {
-				RT_DISABLE_ASPM(dev);
-				RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM);
-			}
-		}
-#endif
-		spin_lock_irqsave(&priv->rf_ps_lock,flag);
-		priv->RFChangeInProgress = false;
-		spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
-		MgntActSet_RF_State(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW,true);
-
-		{
-#ifdef CONFIG_CFG_80211
-			struct wireless_dev *wdev = &priv->rtllib->wdev;
-			wiphy_rfkill_set_hw_state(wdev->wiphy, priv->bHwRadioOff);
-#else
-			char *argv[3];
-			static char *RadioPowerPath = "/etc/acpi/events/RadioPower.sh";
-			static char *envp[] = {"HOME=/", "TERM=linux", "PATH=/usr/bin:/bin", NULL};
-
-			if (priv->bHwRadioOff == true)
-				argv[1] = "RFOFF";
-			else
-				argv[1] = "RFON";
-
-			argv[0] = RadioPowerPath;
-			argv[2] = NULL;
-			call_usermodehelper(RadioPowerPath,argv,envp,1);
-
-#endif
-		}
-
-		if (eRfPowerStateToSet == eRfOff)
-		{
-			if (priv->pwrdown)
-				write_nic_byte(dev, SYS_FUNC_EN+1, 0x31);
-#ifdef CONFIG_ASPM_OR_D3
-			if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM) {
-				RT_ENABLE_ASPM(dev);
-				RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM);
-			}
-#endif
-		}
-	} else if (eRfPowerStateToSet == eRfOff || CurRfState == eRfOff ||
-		   priv->bDriverIsGoingToUnload) {
-
-		if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC &&
-		    turnonbypowerdomain) {
-			PHY_SetRtl8192seRfHalt(dev);
-			RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
-		}
-#ifdef CONFIG_ASPM_OR_D3
-		if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM) {
-			RT_ENABLE_ASPM(dev);
-			RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM);
-		}
-#endif
-		spin_lock_irqsave(&priv->rf_ps_lock,flag);
-		priv->RFChangeInProgress = false;
-		spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
-	} else {
-		spin_lock_irqsave(&priv->rf_ps_lock,flag);
-		priv->RFChangeInProgress = false;
-		spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
-	}
-	RT_TRACE(COMP_RF, "GPIOChangeRFWorkItemCallBack() <--------- \n");
 }
 #endif
 void	dm_rf_pathcheck_workitemcallback(void *data)

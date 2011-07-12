@@ -3210,12 +3210,6 @@ extern int rtllib_parse_info_param(struct rtllib_device *ieee,
 		struct rtllib_rx_stats *stats);
 
 void rtllib_indicate_packets(struct rtllib_device *ieee, struct rtllib_rxb** prxbIndicateArray,u8  index);
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-extern void IbssAgeFunction(struct rtllib_device *ieee);
-extern struct sta_info *GetStaInfo(struct rtllib_device *ieee, u8 *addr);
-extern void DelStaInfoList(struct rtllib_device *ieee);
-extern void DelStaInfo(struct rtllib_device *ieee, u8 *addr);
-#endif
 extern u8 HTFilterMCSRate( struct rtllib_device* ieee, u8* pSupportMCS, u8* pOperateMCS);
 extern void HTUseDefaultSetting(struct rtllib_device* ieee);
 #define RT_ASOC_RETRY_LIMIT	5

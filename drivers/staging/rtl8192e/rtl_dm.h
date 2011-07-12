@@ -285,9 +285,7 @@ extern void hal_dm_watchdog(struct net_device *dev);
 extern  void    init_rate_adaptive(struct net_device *dev);
 extern  void    dm_txpower_trackingcallback(void *data);
 
-#ifndef RTL8192SE
 extern  void dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
-#endif
 
 extern  void    dm_restore_dynamic_mechanism_state(struct net_device *dev);
 extern  void    dm_backup_dynamic_mechanism_state(struct net_device *dev);
@@ -308,13 +306,7 @@ extern  void dm_check_fsync(struct net_device *dev);
 extern  void    dm_shadow_init(struct net_device *dev);
 extern  void dm_initialize_txpower_tracking(struct net_device *dev);
 
-#if (defined RTL8192E || defined RTL8192SE)
 extern  void    dm_CheckRfCtrlGPIO(void *data);
-#endif
-
-#ifdef RTL8192SE
-extern void Power_DomainInit92SE(struct net_device *dev);
-#endif
 
 extern void dm_InitRateAdaptiveMask(struct net_device * dev);
 

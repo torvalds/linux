@@ -1066,29 +1066,12 @@ static struct sk_buff* rtllib_probe_resp(struct rtllib_device *ieee, u8 *dest)
 		*(tag++) = 1;
 		*(tag++) = erpinfo_content;
 	}
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-	if (tmp_ht_cap_len){
-		*(tag++) = MFIE_TYPE_HT_CAP;
-		*(tag++) = tmp_ht_cap_len - 2;
-		memcpy(tag, tmp_ht_cap_buf, tmp_ht_cap_len - 2);
-		tag += tmp_ht_cap_len - 2;
-	}
-#endif
 	if (rate_ex_len){
 		*(tag++) = MFIE_TYPE_RATES_EX;
 		*(tag++) = rate_ex_len-2;
 		memcpy(tag,ieee->current_network.rates_ex,rate_ex_len-2);
 		tag+=rate_ex_len-2;
 	}
-
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-	if (tmp_ht_info_len){
-		*(tag++) = MFIE_TYPE_HT_INFO;
-		*(tag++) = tmp_ht_info_len - 2;
-		memcpy(tag, tmp_ht_info_buf, tmp_ht_info_len -2);
-		tag += tmp_ht_info_len - 2;
-	}
-#endif
 
 	if (wpa_ie_len)
 	{
@@ -1100,23 +1083,6 @@ static struct sk_buff* rtllib_probe_resp(struct rtllib_device *ieee, u8 *dest)
 		tag += ieee->wpa_ie_len;
 	}
 
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-	if (tmp_generic_ie_len)
-	{
-		(*tag++) = 0xdd;
-		(*tag++) = tmp_generic_ie_len - 2;
-		memcpy(tag,tmp_generic_ie_buf,tmp_generic_ie_len -2);
-		tag += tmp_generic_ie_len -2;
-
-	}
-#endif
-
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-	if (wmm_len) {
-		memcpy(tag,wmmie,wmm_len);
-		tag += wmm_len;
-	}
-#endif
 	return skb;
 }
 
@@ -2154,20 +2120,10 @@ static inline u16 assoc_parse(struct rtllib_device *ieee, struct sk_buff *skb, i
 void rtllib_rx_probe_rq(struct rtllib_device *ieee, struct sk_buff *skb)
 {
 	u8 dest[ETH_ALEN];
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-	struct sta_info *psta = NULL;
-#endif
 	ieee->softmac_stats.rx_probe_rq++;
 	if (probe_rq_parse(ieee, skb, dest) > 0){
 		ieee->softmac_stats.tx_probe_rs++;
 		rtllib_resp_to_probe(ieee, dest);
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-		if (ieee->iw_mode == IW_MODE_ADHOC){
-			psta = GetStaInfo(ieee, dest);
-			if (NULL != psta)
-				psta->LastActiveTime = jiffies;
-		}
-#endif
 	}
 }
 
@@ -3040,17 +2996,8 @@ void rtllib_start_ibss_wq(void *data)
 			ieee->rate = 22;
 		}
 
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
-#ifdef ADHOC_11N
-		ieee->current_network.qos_data.supported = 1;
-#else
-		ieee->current_network.qos_data.supported = 0;
-#endif
-		ieee->SetWirelessMode(ieee->dev, ieee->mode);
-#else
 		ieee->current_network.qos_data.supported = 0;
 		ieee->SetWirelessMode(ieee->dev, IEEE_G);
-#endif
 		ieee->current_network.mode = ieee->mode;
 		ieee->current_network.atim_window = 0;
 		ieee->current_network.capability = WLAN_CAPABILITY_IBSS;

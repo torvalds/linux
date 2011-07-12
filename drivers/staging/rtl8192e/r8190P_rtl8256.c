@@ -18,13 +18,8 @@
 ******************************************************************************/
 
 #include "rtl_core.h"
-#ifdef RTL8192SE
-#include "rtl8192s/r8192S_phyreg.h"
-#include "rtl8192s/r8192S_phy.h"
-#else
 #include "r8192E_phyreg.h"
 #include "r8192E_phy.h"
-#endif
 #include "r8190P_rtl8256.h"
 
 void PHY_SetRF8256Bandwidth(struct net_device* dev , HT_CHANNEL_WIDTH Bandwidth)
@@ -188,7 +183,6 @@ phy_RF8256_Config_ParaFile_Fail:
 	return false;
 }
 
-#ifndef RTL8192SE
 void PHY_SetRF8256CCKTxPower(struct net_device*	dev, u8	powerlevel)
 {
 	u32	TxAGC=0;
@@ -260,7 +254,3 @@ void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 #endif
 	return;
 }
-
-
-
-#endif

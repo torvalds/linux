@@ -1444,7 +1444,6 @@ PHY_SetRtl8192eRfOff(struct net_device* dev	)
 }
 #endif
 
-#ifndef RTL8192SE
 bool
 SetRFPowerState8190(
 	struct net_device* dev,
@@ -1695,7 +1694,6 @@ SetRFPowerState(
 
 	return bResult;
 }
-#endif
 
 extern void
 PHY_ScanOperationBackup8192(
