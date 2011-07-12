@@ -92,10 +92,6 @@ extern int memblock_is_region_reserved(phys_addr_t base, phys_addr_t size);
 
 extern void memblock_dump_all(void);
 
-/* Provided by the architecture */
-extern int memblock_memory_can_coalesce(phys_addr_t addr1, phys_addr_t size1,
-				   phys_addr_t addr2, phys_addr_t size2);
-
 /**
  * memblock_set_current_limit - Set the current allocation limit to allow
  *                         limiting allocations to what is currently

@@ -251,12 +251,6 @@ static int __init_memblock memblock_double_array(struct memblock_type *type)
 	return 0;
 }
 
-extern int __init_memblock __weak memblock_memory_can_coalesce(phys_addr_t addr1, phys_addr_t size1,
-					  phys_addr_t addr2, phys_addr_t size2)
-{
-	return 1;
-}
-
 static long __init_memblock memblock_add_region(struct memblock_type *type,
 						phys_addr_t base, phys_addr_t size)
 {
@@ -282,17 +276,6 @@ static long __init_memblock memblock_add_region(struct memblock_type *type,
 		 * of a block.
 		 */
 		if (base < rgn->base && end >= rgn->base) {
-			/* If we can't coalesce, create a new block */
-			if (!memblock_memory_can_coalesce(base, size,
-							  rgn->base,
-							  rgn->size)) {
-				/* Overlap & can't coalesce are mutually
-				 * exclusive, if you do that, be prepared
-				 * for trouble
-				 */
-				WARN_ON(end != rgn->base);
-				goto new_block;
-			}
 			/* We extend the bottom of the block down to our
 			 * base
 			 */
@@ -316,17 +299,6 @@ static long __init_memblock memblock_add_region(struct memblock_type *type,
 		 * top of a block
 		 */
 		if (base <= rend && end >= rend) {
-			/* If we can't coalesce, create a new block */
-			if (!memblock_memory_can_coalesce(rgn->base,
-							  rgn->size,
-							  base, size)) {
-				/* Overlap & can't coalesce are mutually
-				 * exclusive, if you do that, be prepared
-				 * for trouble
-				 */
-				WARN_ON(rend != base);
-				goto new_block;
-			}
 			/* We adjust our base down to enclose the
 			 * original block and destroy it. It will be
 			 * part of our new allocation. Since we've
@@ -349,7 +321,6 @@ static long __init_memblock memblock_add_region(struct memblock_type *type,
 		return 0;
 	}
 
- new_block:
 	/* If we are out of space, we fail. It's too late to resize the array
 	 * but then this shouldn't have happened in the first place.
 	 */
