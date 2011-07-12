@@ -1615,8 +1615,6 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 					     sizeof (intel_dp->dpcd));
 	if (ret && intel_dp->dpcd[DP_DPCD_REV] != 0)
 		status = connector_status_connected;
-	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", intel_dp->dpcd[0],
-		      intel_dp->dpcd[1], intel_dp->dpcd[2], intel_dp->dpcd[3]);
 	return status;
 }
 
@@ -1679,6 +1677,10 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 		status = ironlake_dp_detect(intel_dp);
 	else
 		status = g4x_dp_detect(intel_dp);
+
+	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", intel_dp->dpcd[0],
+		      intel_dp->dpcd[1], intel_dp->dpcd[2], intel_dp->dpcd[3]);
+
 	if (status != connector_status_connected)
 		return status;
 
