@@ -1554,7 +1554,8 @@ ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 		goto drop_packet;
 	}
 
-	if (txq->txq_len >= txq->txq_max)
+	if (txq->txq_len >= txq->txq_max &&
+	    txq->qnum <= AR5K_TX_QUEUE_ID_DATA_MAX)
 		ieee80211_stop_queue(hw, txq->qnum);
 
 	spin_lock_irqsave(&sc->txbuflock, flags);
@@ -1930,6 +1931,10 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 	skb = ieee80211_get_buffered_bc(sc->hw, vif);
 	while (skb) {
 		ath5k_tx_queue(sc->hw, skb, sc->cabq);
+
+		if (sc->cabq->txq_len >= sc->cabq->txq_max)
+			break;
+
 		skb = ieee80211_get_buffered_bc(sc->hw, vif);
 	}
 
