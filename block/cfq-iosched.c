@@ -211,6 +211,7 @@ struct cfq_group {
 #endif
 	/* number of requests that are on the dispatch list or inside driver */
 	int dispatched;
+	struct cfq_ttime ttime;
 };
 
 /*
@@ -1066,6 +1067,8 @@ static struct cfq_group * cfq_alloc_cfqg(struct cfq_data *cfqd)
 	for_each_cfqg_st(cfqg, i, j, st)
 		*st = CFQ_RB_ROOT;
 	RB_CLEAR_NODE(&cfqg->rb_node);
+
+	cfqg->ttime.last_end_request = jiffies;
 
 	/*
 	 * Take the initial reference that will be released on destroy
@@ -2381,8 +2384,9 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 	 * this group, wait for requests to complete.
 	 */
 check_group_idle:
-	if (cfqd->cfq_group_idle && cfqq->cfqg->nr_cfqq == 1
-	    && cfqq->cfqg->dispatched) {
+	if (cfqd->cfq_group_idle && cfqq->cfqg->nr_cfqq == 1 &&
+	    cfqq->cfqg->dispatched &&
+	    !cfq_io_thinktime_big(cfqd, &cfqq->cfqg->ttime, true)) {
 		cfqq = NULL;
 		goto keep_queue;
 	}
@@ -3239,6 +3243,9 @@ cfq_update_io_thinktime(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		__cfq_update_io_thinktime(&cfqq->service_tree->ttime,
 			cfqd->cfq_slice_idle);
 	}
+#ifdef CONFIG_CFQ_GROUP_IOSCHED
+	__cfq_update_io_thinktime(&cfqq->cfqg->ttime, cfqd->cfq_group_idle);
+#endif
 }
 
 static void
@@ -3521,6 +3528,10 @@ static bool cfq_should_wait_busy(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	if (cfqq->cfqg->nr_cfqq > 1)
 		return false;
 
+	/* the only queue in the group, but think time is big */
+	if (cfq_io_thinktime_big(cfqd, &cfqq->cfqg->ttime, true))
+		return false;
+
 	if (cfq_slice_used(cfqq))
 		return true;
 
@@ -3580,6 +3591,10 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 		if (!time_after(rq->start_time + cfqd->cfq_fifo_expire[1], now))
 			cfqd->last_delayed_sync = now;
 	}
+
+#ifdef CONFIG_CFQ_GROUP_IOSCHED
+	cfqq->cfqg->ttime.last_end_request = now;
+#endif
 
 	/*
 	 * If this is the active queue, check if it needs to be expired,
