@@ -108,21 +108,25 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
 
 unsigned long __init free_low_memory_core_early(int nodeid)
 {
-	int i;
-	u64 start, end;
 	unsigned long count = 0;
-	struct range *range = NULL;
-	int nr_range;
+	phys_addr_t start, end;
+	u64 i;
 
-	nr_range = __get_free_all_memory_range(&range, nodeid, 0, max_low_pfn);
+	/* free reserved array temporarily so that it's treated as free area */
+	memblock_free_reserved_regions();
 
-	for (i = 0; i < nr_range; i++) {
-		start = range[i].start;
-		end = range[i].end;
-		count += end - start;
-		__free_pages_memory(start, end);
+	for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL) {
+		unsigned long start_pfn = PFN_UP(start);
+		unsigned long end_pfn = min_t(unsigned long,
+					      PFN_DOWN(end), max_low_pfn);
+		if (start_pfn < end_pfn) {
+			__free_pages_memory(start_pfn, end_pfn);
+			count += end_pfn - start_pfn;
+		}
 	}
 
+	/* put region array back? */
+	memblock_reserve_reserved_regions();
 	return count;
 }
 

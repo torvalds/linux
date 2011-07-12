@@ -30,65 +30,6 @@ static __init struct range *find_range_array(int count)
 	return range;
 }
 
-static void __init memblock_x86_subtract_reserved(struct range *range, int az)
-{
-	u64 final_start, final_end;
-	struct memblock_region *r;
-
-	/* Take out region array itself at first*/
-	memblock_free_reserved_regions();
-
-	memblock_dbg("Subtract (%ld early reservations)\n", memblock.reserved.cnt);
-
-	for_each_memblock(reserved, r) {
-		memblock_dbg("  [%010llx-%010llx]\n", (u64)r->base, (u64)r->base + r->size - 1);
-		final_start = PFN_DOWN(r->base);
-		final_end = PFN_UP(r->base + r->size);
-		if (final_start >= final_end)
-			continue;
-		subtract_range(range, az, final_start, final_end);
-	}
-
-	/* Put region array back ? */
-	memblock_reserve_reserved_regions();
-}
-
-static int __init count_early_node_map(int nodeid)
-{
-	int i, cnt = 0;
-
-	for_each_mem_pfn_range(i, nodeid, NULL, NULL, NULL)
-		cnt++;
-	return cnt;
-}
-
-int __init __get_free_all_memory_range(struct range **rangep, int nodeid,
-			 unsigned long start_pfn, unsigned long end_pfn)
-{
-	int count;
-	struct range *range;
-	int nr_range;
-
-	count = (memblock.reserved.cnt + count_early_node_map(nodeid)) * 2;
-
-	range = find_range_array(count);
-	nr_range = 0;
-
-	/*
-	 * Use early_node_map[] and memblock.reserved.region to get range array
-	 * at first
-	 */
-	nr_range = add_from_early_node_map(range, count, nr_range, nodeid);
-	subtract_range(range, count, 0, start_pfn);
-	subtract_range(range, count, end_pfn, -1ULL);
-
-	memblock_x86_subtract_reserved(range, count);
-	nr_range = clean_sort_range(range, count);
-
-	*rangep = range;
-	return nr_range;
-}
-
 static u64 __init __memblock_x86_memory_in_range(u64 addr, u64 limit, bool get_free)
 {
 	int i, count;
