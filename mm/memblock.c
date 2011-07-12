@@ -521,49 +521,56 @@ static phys_addr_t __init memblock_nid_range_rev(phys_addr_t start,
 	return start;
 }
 
-static phys_addr_t __init memblock_alloc_nid_region(struct memblock_region *mp,
+phys_addr_t __init memblock_find_in_range_node(phys_addr_t start,
+					       phys_addr_t end,
 					       phys_addr_t size,
 					       phys_addr_t align, int nid)
-{
-	phys_addr_t start, end;
-
-	start = mp->base;
-	end = start + mp->size;
-
-	while (start < end) {
-		phys_addr_t this_start;
-		int this_nid;
-
-		this_start = memblock_nid_range_rev(start, end, &this_nid);
-		if (this_nid == nid) {
-			phys_addr_t ret = memblock_find_region(this_start, end, size, align);
-			if (ret &&
-			    !memblock_add_region(&memblock.reserved, ret, size))
-				return ret;
-		}
-		end = this_start;
-	}
-	return 0;
-}
-
-phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
 {
 	struct memblock_type *mem = &memblock.memory;
 	int i;
 
 	BUG_ON(0 == size);
 
-	/* We align the size to limit fragmentation. Without this, a lot of
+	/* Pump up max_addr */
+	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
+		end = memblock.current_limit;
+
+	for (i = mem->cnt - 1; i >= 0; i--) {
+		struct memblock_region *r = &mem->regions[i];
+		phys_addr_t base = max(start, r->base);
+		phys_addr_t top = min(end, r->base + r->size);
+
+		while (base < top) {
+			phys_addr_t tbase, ret;
+			int tnid;
+
+			tbase = memblock_nid_range_rev(base, top, &tnid);
+			if (nid == MAX_NUMNODES || tnid == nid) {
+				ret = memblock_find_region(tbase, top, size, align);
+				if (ret)
+					return ret;
+			}
+			top = tbase;
+		}
+	}
+
+	return 0;
+}
+
+phys_addr_t __init memblock_alloc_nid(phys_addr_t size, phys_addr_t align, int nid)
+{
+	phys_addr_t found;
+
+	/*
+	 * We align the size to limit fragmentation. Without this, a lot of
 	 * small allocs quickly eat up the whole reserve array on sparc
 	 */
 	size = round_up(size, align);
 
-	for (i = mem->cnt - 1; i >= 0; i--) {
-		phys_addr_t ret = memblock_alloc_nid_region(&mem->regions[i],
-					       size, align, nid);
-		if (ret)
-			return ret;
-	}
+	found = memblock_find_in_range_node(0, MEMBLOCK_ALLOC_ACCESSIBLE,
+					    size, align, nid);
+	if (found && !memblock_add_region(&memblock.reserved, found, size))
+		return found;
 
 	return 0;
 }
