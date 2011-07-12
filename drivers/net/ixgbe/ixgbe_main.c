@@ -5155,8 +5155,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
 		if (hw->device_id == IXGBE_DEV_ID_82599_T3_LOM)
 			adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_CAPABLE;
-		/* n-tuple support exists, always init our spinlock */
-		spin_lock_init(&adapter->fdir_perfect_lock);
 		/* Flow Director hash filters enabled */
 		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
 		adapter->atr_sample_rate = 20;
@@ -5176,6 +5174,9 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	default:
 		break;
 	}
+
+	/* n-tuple support exists, always init our spinlock */
+	spin_lock_init(&adapter->fdir_perfect_lock);
 
 #ifdef CONFIG_IXGBE_DCB
 	/* Configure DCB traffic classes */
