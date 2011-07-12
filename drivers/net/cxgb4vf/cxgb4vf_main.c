@@ -2421,7 +2421,6 @@ static int __devinit enable_msix(struct adapter *adapter)
 	return err;
 }
 
-#ifdef HAVE_NET_DEVICE_OPS
 static const struct net_device_ops cxgb4vf_netdev_ops	= {
 	.ndo_open		= cxgb4vf_open,
 	.ndo_stop		= cxgb4vf_stop,
@@ -2437,7 +2436,6 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
 	.ndo_poll_controller	= cxgb4vf_poll_controller,
 #endif
 };
-#endif
 
 /*
  * "Probe" a device: initialize a device and construct all kernel and driver
@@ -2611,22 +2609,7 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
 
-#ifdef HAVE_NET_DEVICE_OPS
 		netdev->netdev_ops = &cxgb4vf_netdev_ops;
-#else
-		netdev->vlan_rx_register = cxgb4vf_vlan_rx_register;
-		netdev->open = cxgb4vf_open;
-		netdev->stop = cxgb4vf_stop;
-		netdev->hard_start_xmit = t4vf_eth_xmit;
-		netdev->get_stats = cxgb4vf_get_stats;
-		netdev->set_rx_mode = cxgb4vf_set_rxmode;
-		netdev->do_ioctl = cxgb4vf_do_ioctl;
-		netdev->change_mtu = cxgb4vf_change_mtu;
-		netdev->set_mac_address = cxgb4vf_set_mac_addr;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-		netdev->poll_controller = cxgb4vf_poll_controller;
-#endif
-#endif
 		SET_ETHTOOL_OPS(netdev, &cxgb4vf_ethtool_ops);
 
 		/*

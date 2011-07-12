@@ -750,7 +750,6 @@ out:
 	return;
 }
 
-#ifdef HAVE_NET_DEVICE_OPS
 static const struct net_device_ops bat_netdev_ops = {
 	.ndo_open = interface_open,
 	.ndo_stop = interface_release,
@@ -760,7 +759,6 @@ static const struct net_device_ops bat_netdev_ops = {
 	.ndo_start_xmit = interface_tx,
 	.ndo_validate_addr = eth_validate_addr
 };
-#endif
 
 static void interface_setup(struct net_device *dev)
 {
@@ -769,16 +767,7 @@ static void interface_setup(struct net_device *dev)
 
 	ether_setup(dev);
 
-#ifdef HAVE_NET_DEVICE_OPS
 	dev->netdev_ops = &bat_netdev_ops;
-#else
-	dev->open = interface_open;
-	dev->stop = interface_release;
-	dev->get_stats = interface_stats;
-	dev->set_mac_address = interface_set_mac_addr;
-	dev->change_mtu = interface_change_mtu;
-	dev->hard_start_xmit = interface_tx;
-#endif
 	dev->destructor = free_netdev;
 	dev->tx_queue_len = 0;
 
@@ -885,13 +874,8 @@ void softif_destroy(struct net_device *soft_iface)
 
 int softif_is_valid(const struct net_device *net_dev)
 {
-#ifdef HAVE_NET_DEVICE_OPS
 	if (net_dev->netdev_ops->ndo_start_xmit == interface_tx)
 		return 1;
-#else
-	if (net_dev->hard_start_xmit == interface_tx)
-		return 1;
-#endif
 
 	return 0;
 }
