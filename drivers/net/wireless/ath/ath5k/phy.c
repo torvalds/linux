@@ -970,17 +970,20 @@ static int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 			}
 
 			/* Lower synth voltage on Rev 2 */
-			ath5k_hw_rfb_op(ah, rf_regs, 2,
-					AR5K_RF_HIGH_VC_CP, true);
+			if (ah->ah_radio == AR5K_RF5112 &&
+			    (ah->ah_radio_5ghz_revision & AR5K_SREV_REV) > 0) {
+				ath5k_hw_rfb_op(ah, rf_regs, 2,
+						AR5K_RF_HIGH_VC_CP, true);
 
-			ath5k_hw_rfb_op(ah, rf_regs, 2,
-					AR5K_RF_MID_VC_CP, true);
+				ath5k_hw_rfb_op(ah, rf_regs, 2,
+						AR5K_RF_MID_VC_CP, true);
 
-			ath5k_hw_rfb_op(ah, rf_regs, 2,
-					AR5K_RF_LOW_VC_CP, true);
+				ath5k_hw_rfb_op(ah, rf_regs, 2,
+						AR5K_RF_LOW_VC_CP, true);
 
-			ath5k_hw_rfb_op(ah, rf_regs, 2,
-					AR5K_RF_PUSH_UP, true);
+				ath5k_hw_rfb_op(ah, rf_regs, 2,
+						AR5K_RF_PUSH_UP, true);
+			}
 
 			/* Decrease power consumption on 5213+ BaseBand */
 			if (ah->ah_phy_revision >= AR5K_SREV_PHY_5212A) {
