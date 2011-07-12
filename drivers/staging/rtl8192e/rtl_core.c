@@ -51,9 +51,7 @@
 #include "r8192E_cmdpkt.h"
 
 #include "rtl_wx.h"
-#ifndef RTL8192CE
 #include "rtl_dm.h"
-#endif
 
 #ifdef CONFIG_PM_RTL
 #include "rtl_pm.h"
@@ -330,10 +328,6 @@ void write_nic_byte(struct net_device *dev, int x,u8 y)
         writeb(y,(u8*)dev->mem_start +x);
 
 	udelay(20);
-
-#if defined RTL8192CE
-		read_nic_byte(dev, x);
-#endif
 }
 
 void write_nic_dword(struct net_device *dev, int x,u32 y)
@@ -341,10 +335,6 @@ void write_nic_dword(struct net_device *dev, int x,u32 y)
         writel(y,(u8*)dev->mem_start +x);
 
 	udelay(20);
-
-#if defined RTL8192CE
-		read_nic_dword(dev, x);
-#endif
 }
 
 void write_nic_word(struct net_device *dev, int x,u16 y)
@@ -352,10 +342,6 @@ void write_nic_word(struct net_device *dev, int x,u16 y)
         writew(y,(u8*)dev->mem_start +x);
 
 	udelay(20);
-
-#if defined RTL8192CE
-		read_nic_word(dev, x);
-#endif
 }
 
 /****************************************************************************
@@ -378,9 +364,7 @@ MgntActSet_RF_State(
 	unsigned long flag;
 	RT_TRACE((COMP_PS | COMP_RF), "===>MgntActSet_RF_State(): StateToSet(%d)\n",StateToSet);
 
-#ifndef RTL8192CE
 	ProtectOrNot = false;
-#endif
 
 
 	if (!ProtectOrNot)
@@ -957,12 +941,6 @@ void rtl8192_refresh_supportrate(struct r8192_priv* priv)
 		memcpy(ieee->Regdot11HTOperationalRateSet, ieee->RegHTSuppRateSet, 16);
 		memcpy(ieee->Regdot11TxHTOperationalRateSet, ieee->RegHTSuppRateSet, 16);
 
-#ifdef RTL8192CE
-		if (priv->rf_type == RF_1T1R) {
-			ieee->Regdot11HTOperationalRateSet[1] = 0;
-		}
-#endif
-
 	} else {
 		memset(ieee->Regdot11HTOperationalRateSet, 0, 16);
 	}
@@ -1208,23 +1186,6 @@ static void rtl8192_init_priv_constant(struct net_device* dev)
 
 	pPSC->RegMaxLPSAwakeIntvl = 5;
 
-#ifdef RTL8192CE
-	priv->bWEPinNmodeFromReg = 0;
-	priv->bTKIPinNmodeFromReg = 0;
-
-	priv->RegAMDPciASPM = 0;
-
-	priv->RegPciASPM = 3;
-
-	priv->RegDevicePciASPMSetting = 0x03;
-
-	priv->RegHostPciASPMSetting = 0x02;
-
-	priv->RegHwSwRfOffD3 = 0;
-
-	priv->RegSupportPciASPM = 1;
-
-#elif defined RTL8192E
 	priv->RegPciASPM = 2;
 
 	priv->RegDevicePciASPMSetting = 0x03;
@@ -1234,8 +1195,6 @@ static void rtl8192_init_priv_constant(struct net_device* dev)
 	priv->RegHwSwRfOffD3 = 2;
 
 	priv->RegSupportPciASPM = 2;
-
-#endif
 }
 
 
@@ -2326,15 +2285,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 	spin_unlock_irqrestore(&priv->irq_th_lock,flags);
 	dev->trans_start = jiffies;
 
-#ifdef RTL8192CE
-	if (tcb_desc->queue_index == BEACON_QUEUE){
-		write_nic_word(dev, REG_PCIE_CTRL_REG, BIT4);
-	}else{
-		write_nic_word(dev, REG_PCIE_CTRL_REG, BIT0<<(tcb_desc->queue_index));
-	}
-#else
-		write_nic_word(dev,TPPoll,0x01<<tcb_desc->queue_index);
-#endif
+	write_nic_word(dev,TPPoll,0x01<<tcb_desc->queue_index);
 	return 0;
 }
 
@@ -2641,11 +2592,7 @@ void rtl8192_rx_normal(struct net_device *dev)
 
 			skb_len = skb->len;
 
-#ifdef RTL8192CE
-			if (!stats.bCRC)
-#else
 			if (1)
-#endif
 			{
 			if (!rtllib_rx(priv->rtllib, skb, &stats)){
 				dev_kfree_skb_any(skb);
@@ -2716,9 +2663,7 @@ void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 	if (MAX_RX_QUEUE > 1)
 		rtl8192_rx_cmd(priv->rtllib->dev);
 
-#ifndef RTL8192CE
        write_nic_dword(priv->rtllib->dev, INTA_MASK,read_nic_dword(priv->rtllib->dev, INTA_MASK) | IMR_RDU);
-#endif
 }
 
 /****************************************************************************
@@ -3100,12 +3045,10 @@ irqreturn_type rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs)
 		spin_lock_irqsave(&priv->irq_th_lock,flags);
 	}
 
-#ifndef RTL8192CE
 	if (inta & IMR_COMDOK) {
 		priv->stats.txcmdpktokint++;
 		rtl8192_tx_isr(dev,TXCMD_QUEUE);
 	}
-#endif
 
 	if (inta & IMR_HIGHDOK) {
 		rtl8192_tx_isr(dev,HIGH_QUEUE);
@@ -3128,9 +3071,7 @@ irqreturn_type rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs)
 	if (inta & IMR_RDU) {
 		RT_TRACE(COMP_INTR, "rx descriptor unavailable!\n");
 		priv->stats.rxrdu++;
-#ifndef RTL8192CE
 		write_nic_dword(dev,INTA_MASK,read_nic_dword(dev, INTA_MASK) & ~IMR_RDU);
-#endif
 		tasklet_schedule(&priv->irq_rx_tasklet);
 	}
 
@@ -3256,15 +3197,9 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	else
 		priv->rtllib->bSupportRemoteWakeUp = 0;
 
-#ifdef RTL8192CE
-	pmem_start = pci_resource_start(pdev, 2);
-	pmem_len = pci_resource_len(pdev, 2);
-	pmem_flags = pci_resource_flags (pdev, 2);
-#else
 	pmem_start = pci_resource_start(pdev, 1);
 	pmem_len = pci_resource_len(pdev, 1);
 	pmem_flags = pci_resource_flags (pdev, 1);
-#endif
 
 	if (!(pmem_flags & IORESOURCE_MEM)) {
 		RT_TRACE(COMP_ERR,"region #1 not a MMIO resource, aborting");

@@ -64,10 +64,6 @@ void HTUpdateDefaultSetting(struct rtllib_device* ieee)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 
-#ifdef RTL8192CE
-	pHTInfo->bRDGEnable = 0;
-#endif
-
 	pHTInfo->bAcceptAddbaReq = 1;
 
 	pHTInfo->bRegShortGI20MHz= 1;
@@ -424,19 +420,6 @@ bool HTIOTActIsDisableMCSTwoSpatialStream(struct rtllib_device* ieee)
 		}
 	}
 #endif
-#if defined(RTL8192SU) || defined RTL8192CE
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	if (ieee->rtllib_ap_sec_type &&
-		(ieee->rtllib_ap_sec_type(ieee)&(SEC_ALG_WEP|SEC_ALG_TKIP)))
-	{
-		if ( (pHTInfo->IOTPeer != HT_IOT_PEER_ATHEROS) &&
-			(pHTInfo->IOTPeer != HT_IOT_PEER_UNKNOWN) &&
-			(pHTInfo->IOTPeer != HT_IOT_PEER_MARVELL) &&
-			(pHTInfo->IOTPeer != HT_IOT_PEER_REALTEK_92SE) &&
-			(pHTInfo->IOTPeer != HT_IOT_PEER_RALINK) )
-			retValue = true;
-	}
-#endif
 	return retValue;
 }
 
@@ -452,10 +435,6 @@ bool HTIOTActIsEnableBETxOPLimit(struct rtllib_device* ieee)
 
 #if defined RTL8192SU
 	if (ieee->mode == IEEE_G)
-		retValue = true;
-#elif defined RTL8192CE
-	if (ieee->mode == IEEE_G ||
-		(ieee->rtllib_ap_sec_type(ieee)&(SEC_ALG_WEP|SEC_ALG_TKIP)))
 		retValue = true;
 #endif
 
@@ -561,14 +540,6 @@ u8
 	{
 		if (pHTInfo->IOTPeer==HT_IOT_PEER_ATHEROS ||
 		   pHTInfo->IOTPeer==HT_IOT_PEER_BROADCOM ||
-		   pHTInfo->IOTPeer==HT_IOT_PEER_RALINK)
-			return 1;
-
-	}
-#elif defined RTL8192CE
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	{
-		if (pHTInfo->IOTPeer==HT_IOT_PEER_ATHEROS ||
 		   pHTInfo->IOTPeer==HT_IOT_PEER_RALINK)
 			return 1;
 
@@ -832,11 +803,7 @@ void HTConstructRT2RTAggElement(struct rtllib_device* ieee, u8* posRT2RTAgg, u8*
 	*posRT2RTAgg++ = 0x02;
 	*posRT2RTAgg++ = 0x01;
 
-#ifdef RTL8192CE
-	*posRT2RTAgg = 0x70;
-#else
 	*posRT2RTAgg = 0x30;
-#endif
 
 	if (ieee->bSupportRemoteWakeUp) {
 		*posRT2RTAgg |= RT_HT_CAP_USE_WOW;

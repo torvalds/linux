@@ -305,10 +305,6 @@ typedef struct _RT_HIGH_THROUGHPUT{
 	u8	bWAIotBroadcom;
 	u8	WAIotTH;
 
-#ifdef RTL8192CE
-	u8				bRDGEnable;
-#endif
-
 	u8				bAcceptAddbaReq;
 } __attribute__ ((packed)) RT_HIGH_THROUGHPUT, *PRT_HIGH_THROUGHPUT;
 

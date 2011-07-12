@@ -2196,11 +2196,7 @@ void rtl8192_EnableInterrupt(struct net_device *dev)
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	priv->irq_enabled = 1;
 
-#ifdef RTL8192CE
-	write_nic_dword(dev, REG_HIMR, priv->irq_mask[0]&0xFFFFFFFF);
-#else
 	write_nic_dword(dev,INTA_MASK, priv->irq_mask[0]);
-#endif
 
 }
 
@@ -2208,11 +2204,7 @@ void rtl8192_DisableInterrupt(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 
-#ifdef RTL8192CE
-	write_nic_dword(dev, REG_HIMR, IMR8190_DISABLED);
-#else
 	write_nic_dword(dev,INTA_MASK,0);
-#endif
 
 	priv->irq_enabled = 0;
 }
@@ -2220,14 +2212,8 @@ void rtl8192_DisableInterrupt(struct net_device *dev)
 void rtl8192_ClearInterrupt(struct net_device *dev)
 {
 	u32 tmp = 0;
-#ifdef RTL8192CE
-	tmp = read_nic_dword(dev, REG_HISR);
-	write_nic_dword(dev, REG_HISR, tmp);
-#else
 	tmp = read_nic_dword(dev, ISR);
 	write_nic_dword(dev, ISR, tmp);
-#endif
-
 }
 
 
@@ -2253,17 +2239,10 @@ void rtl8192_beacon_disable(struct net_device *dev)
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	u32 reg;
 
-#ifdef RTL8192CE
-	reg = read_nic_dword(priv->rtllib->dev,REG_HIMR);
-
-	reg &= ~(IMR_BcnInt | IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
-	write_nic_dword(priv->rtllib->dev, REG_HIMR, reg);
-#else
 	reg = read_nic_dword(priv->rtllib->dev,INTA_MASK);
 
 	reg &= ~(IMR_BcnInt | IMR_BcnInt | IMR_TBDOK | IMR_TBDER);
 	write_nic_dword(priv->rtllib->dev, INTA_MASK, reg);
-#endif
 }
 
 void rtl8192_interrupt_recognized(struct net_device *dev, u32 *p_inta, u32 *p_intb)
