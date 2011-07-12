@@ -1093,15 +1093,30 @@ void __init memblock_x86_fill(void)
 void __init memblock_find_dma_reserve(void)
 {
 #ifdef CONFIG_X86_64
-	u64 free_size_pfn;
-	u64 mem_size_pfn;
+	u64 nr_pages = 0, nr_free_pages = 0;
+	unsigned long start_pfn, end_pfn;
+	phys_addr_t start, end;
+	int i;
+	u64 u;
+
 	/*
 	 * need to find out used area below MAX_DMA_PFN
 	 * need to use memblock to get free size in [0, MAX_DMA_PFN]
 	 * at first, and assume boot_mem will not take below MAX_DMA_PFN
 	 */
-	mem_size_pfn = memblock_x86_memory_in_range(0, MAX_DMA_PFN << PAGE_SHIFT) >> PAGE_SHIFT;
-	free_size_pfn = memblock_x86_free_memory_in_range(0, MAX_DMA_PFN << PAGE_SHIFT) >> PAGE_SHIFT;
-	set_dma_reserve(mem_size_pfn - free_size_pfn);
+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, NULL) {
+		start_pfn = min_t(unsigned long, start_pfn, MAX_DMA_PFN);
+		end_pfn = min_t(unsigned long, end_pfn, MAX_DMA_PFN);
+		nr_pages += end_pfn - start_pfn;
+	}
+
+	for_each_free_mem_range(u, MAX_NUMNODES, &start, &end, NULL) {
+		start_pfn = min_t(unsigned long, PFN_UP(start), MAX_DMA_PFN);
+		end_pfn = min_t(unsigned long, PFN_DOWN(end), MAX_DMA_PFN);
+		if (start_pfn < end_pfn)
+			nr_free_pages += end_pfn - start_pfn;
+	}
+
+	set_dma_reserve(nr_pages - nr_free_pages);
 #endif
 }
