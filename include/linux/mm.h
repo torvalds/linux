@@ -1325,8 +1325,6 @@ extern void free_bootmem_with_active_regions(int nid,
 						unsigned long max_low_pfn);
 int add_from_early_node_map(struct range *range, int az,
 				   int nr_range, int nid);
-u64 __init find_memory_core_early(int nid, u64 size, u64 align,
-					u64 goal, u64 limit);
 extern void sparse_memory_present_with_active_regions(int nid);
 
 extern void __next_mem_pfn_range(int *idx, int nid,

@@ -192,8 +192,6 @@ int __init numa_add_memblk(int nid, u64 start, u64 end)
 /* Initialize NODE_DATA for a node on the local memory */
 static void __init setup_node_data(int nid, u64 start, u64 end)
 {
-	const u64 nd_low = PFN_PHYS(MAX_DMA_PFN);
-	const u64 nd_high = PFN_PHYS(max_pfn_mapped);
 	const size_t nd_size = roundup(sizeof(pg_data_t), PAGE_SIZE);
 	bool remapped = false;
 	u64 nd_pa;
@@ -224,17 +222,12 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
 		nd_pa = __pa(nd);
 		remapped = true;
 	} else {
-		nd_pa = memblock_x86_find_in_range_node(nid, nd_low, nd_high,
-						nd_size, SMP_CACHE_BYTES);
-		if (!nd_pa)
-			nd_pa = memblock_find_in_range(nd_low, nd_high,
-						nd_size, SMP_CACHE_BYTES);
+		nd_pa = memblock_alloc_nid(nd_size, SMP_CACHE_BYTES, nid);
 		if (!nd_pa) {
 			pr_err("Cannot find %zu bytes in node %d\n",
 			       nd_size, nid);
 			return;
 		}
-		memblock_x86_reserve_range(nd_pa, nd_pa + nd_size, "NODE_DATA");
 		nd = __va(nd_pa);
 	}
 
