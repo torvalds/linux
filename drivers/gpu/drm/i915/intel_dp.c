@@ -52,7 +52,7 @@ struct intel_dp {
 	uint32_t color_range;
 	uint8_t link_bw;
 	uint8_t lane_count;
-	uint8_t dpcd[4];
+	uint8_t dpcd[8];
 	struct i2c_adapter adapter;
 	struct i2c_algo_dp_aux_data algo;
 	bool is_pch_edp;
@@ -1678,8 +1678,10 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	else
 		status = g4x_dp_detect(intel_dp);
 
-	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", intel_dp->dpcd[0],
-		      intel_dp->dpcd[1], intel_dp->dpcd[2], intel_dp->dpcd[3]);
+	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx%hx%hx%hx%hx\n", intel_dp->dpcd[0],
+		      intel_dp->dpcd[1], intel_dp->dpcd[2], intel_dp->dpcd[3],
+		      intel_dp->dpcd[4], intel_dp->dpcd[5], intel_dp->dpcd[6],
+		      intel_dp->dpcd[7]);
 
 	if (status != connector_status_connected)
 		return status;
