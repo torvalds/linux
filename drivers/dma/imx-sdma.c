@@ -1281,8 +1281,10 @@ static int __init sdma_probe(struct platform_device *pdev)
 		goto err_request_irq;
 
 	sdma->script_addrs = kzalloc(sizeof(*sdma->script_addrs), GFP_KERNEL);
-	if (!sdma->script_addrs)
+	if (!sdma->script_addrs) {
+		ret = -ENOMEM;
 		goto err_alloc;
+	}
 
 	sdma->version = pdata->sdma_version;
 
