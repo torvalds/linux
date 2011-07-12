@@ -1604,11 +1604,13 @@ int ath5k_hw_phy_calibrate(struct ath5k_hw *ah,
 	int ret;
 
 	if (ah->ah_radio == AR5K_RF5110)
-		ret = ath5k_hw_rf5110_calibrate(ah, channel);
-	else {
-		ret = ath5k_hw_rf511x_iq_calibrate(ah);
+		return ath5k_hw_rf5110_calibrate(ah, channel);
+
+	ret = ath5k_hw_rf511x_iq_calibrate(ah);
+
+	if ((ah->ah_radio == AR5K_RF5111 || ah->ah_radio == AR5K_RF5112) &&
+	    (channel->hw_value & CHANNEL_OFDM))
 		ath5k_hw_request_rfgain_probe(ah);
-	}
 
 	return ret;
 }
