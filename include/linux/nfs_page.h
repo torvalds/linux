@@ -68,7 +68,8 @@ struct nfs_pageio_descriptor {
 	size_t			pg_count;
 	size_t			pg_bsize;
 	unsigned int		pg_base;
-	char			pg_moreio;
+	unsigned char		pg_moreio : 1,
+				pg_recoalesce : 1;
 
 	struct inode		*pg_inode;
 	const struct nfs_pageio_ops *pg_ops;
