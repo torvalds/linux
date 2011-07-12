@@ -6021,9 +6021,7 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 	       (flow_tx ? "TX" : "None"))));
 
 	netif_carrier_on(netdev);
-#ifdef HAVE_IPLINK_VF_CONFIG
 	ixgbe_check_vf_rate_limit(adapter);
-#endif /* HAVE_IPLINK_VF_CONFIG */
 }
 
 /**
