@@ -71,41 +71,53 @@ struct hvterm_priv {
 	u32			termno;	/* HV term number */
 	hv_protocol_t		proto;	/* Raw data or HVSI packets */
 	struct hvsi_priv	hvsi;	/* HVSI specific data */
+	spinlock_t		buf_lock;
+	char			buf[SIZE_VIO_GET_CHARS];
+	int			left;
+	int			offset;
 };
 static struct hvterm_priv *hvterm_privs[MAX_NR_HVC_CONSOLES];
-
 /* For early boot console */
 static struct hvterm_priv hvterm_priv0;
 
 static int hvterm_raw_get_chars(uint32_t vtermno, char *buf, int count)
 {
 	struct hvterm_priv *pv = hvterm_privs[vtermno];
-	unsigned long got, i;
+	unsigned long i;
+	unsigned long flags;
+	int got;
 
 	if (WARN_ON(!pv))
 		return 0;
 
-	/*
-	 * Vio firmware will read up to SIZE_VIO_GET_CHARS at its own discretion
-	 * so we play safe and avoid the situation where got > count which could
-	 * overload the flip buffer.
-	 */
-	if (count < SIZE_VIO_GET_CHARS)
-		return -EAGAIN;
+	spin_lock_irqsave(&pv->buf_lock, flags);
 
-	got = hvc_get_chars(pv->termno, buf, count);
+	if (pv->left == 0) {
+		pv->offset = 0;
+		pv->left = hvc_get_chars(pv->termno, pv->buf, count);
 
-	/*
-	 * Work around a HV bug where it gives us a null
-	 * after every \r.  -- paulus
-	 */
-	for (i = 1; i < got; ++i) {
-		if (buf[i] == 0 && buf[i-1] == '\r') {
-			--got;
-			if (i < got)
-				memmove(&buf[i], &buf[i+1], got - i);
+		/*
+		 * Work around a HV bug where it gives us a null
+		 * after every \r.  -- paulus
+		 */
+		for (i = 1; i < pv->left; ++i) {
+			if (pv->buf[i] == 0 && pv->buf[i-1] == '\r') {
+				--pv->left;
+				if (i < pv->left) {
+					memmove(&pv->buf[i], &pv->buf[i+1],
+						pv->left - i);
+				}
+			}
 		}
 	}
+
+	got = min(count, pv->left);
+	memcpy(buf, &pv->buf[pv->offset], got);
+	pv->offset += got;
+	pv->left -= got;
+
+	spin_unlock_irqrestore(&pv->buf_lock, flags);
+
 	return got;
 }
 
@@ -266,6 +278,7 @@ static int __devinit hvc_vio_probe(struct vio_dev *vdev,
 			return -ENOMEM;
 		pv->termno = vdev->unit_address;
 		pv->proto = proto;
+		spin_lock_init(&pv->buf_lock);
 		hvterm_privs[termno] = pv;
 		hvsilib_init(&pv->hvsi, hvc_get_chars, hvc_put_chars,
 			     pv->termno, 0);
@@ -406,6 +419,7 @@ void __init hvc_vio_init_early(void)
 	if (termno == NULL)
 		goto out;
 	hvterm_priv0.termno = *termno;
+	spin_lock_init(&hvterm_priv0.buf_lock);
 	hvterm_privs[0] = &hvterm_priv0;
 
 	/* Check the protocol */
@@ -447,6 +461,7 @@ void __init udbg_init_debug_lpar(void)
 	hvterm_privs[0] = &hvterm_priv0;
 	hvterm_priv0.termno = 0;
 	hvterm_priv0.proto = HV_PROTOCOL_RAW;
+	spin_lock_init(&hvterm_priv0.buf_lock)
 	udbg_putc = udbg_hvc_putc;
 	udbg_getc = udbg_hvc_getc;
 	udbg_getc_poll = udbg_hvc_getc_poll;
@@ -459,6 +474,7 @@ void __init udbg_init_debug_lpar_hvsi(void)
 	hvterm_privs[0] = &hvterm_priv0;
 	hvterm_priv0.termno = CONFIG_PPC_EARLY_DEBUG_HVSI_VTERMNO;
 	hvterm_priv0.proto = HV_PROTOCOL_HVSI;
+	spin_lock_init(&hvterm_priv0.buf_lock)
 	udbg_putc = udbg_hvc_putc;
 	udbg_getc = udbg_hvc_getc;
 	udbg_getc_poll = udbg_hvc_getc_poll;
