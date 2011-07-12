@@ -213,17 +213,14 @@ EXPORT_SYMBOL_GPL(nfs_initiate_read);
 /*
  * Set up the NFS read request struct
  */
-static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
-		const struct rpc_call_ops *call_ops,
-		unsigned int count, unsigned int offset,
-		struct pnfs_layout_segment *lseg)
+static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
+		unsigned int count, unsigned int offset)
 {
 	struct inode *inode = req->wb_context->path.dentry->d_inode;
 
 	data->req	  = req;
 	data->inode	  = inode;
 	data->cred	  = req->wb_context->cred;
-	data->lseg	  = get_lseg(lseg);
 
 	data->args.fh     = NFS_FH(inode);
 	data->args.offset = req_offset(req) + offset;
@@ -237,10 +234,21 @@ static int nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	data->res.count   = count;
 	data->res.eof     = 0;
 	nfs_fattr_init(&data->fattr);
+}
 
-	if (data->lseg &&
-	    (pnfs_try_to_read_data(data, call_ops) == PNFS_ATTEMPTED))
-		return 0;
+static int nfs_do_read(struct nfs_read_data *data,
+		const struct rpc_call_ops *call_ops,
+		struct pnfs_layout_segment *lseg)
+{
+	struct inode *inode = data->args.context->path.dentry->d_inode;
+
+	if (lseg) {
+		data->lseg = get_lseg(lseg);
+		if (pnfs_try_to_read_data(data, call_ops) == PNFS_ATTEMPTED)
+			return 0;
+		put_lseg(data->lseg);
+		data->lseg = NULL;
+	}
 
 	return nfs_initiate_read(data, NFS_CLIENT(inode), call_ops);
 }
@@ -292,7 +300,7 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc)
 		data = nfs_readdata_alloc(1);
 		if (!data)
 			goto out_bad;
-		list_add(&data->pages, &list);
+		list_add(&data->list, &list);
 		requests++;
 		nbytes -= len;
 	} while(nbytes != 0);
@@ -304,15 +312,15 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc)
 	do {
 		int ret2;
 
-		data = list_entry(list.next, struct nfs_read_data, pages);
-		list_del_init(&data->pages);
+		data = list_entry(list.next, struct nfs_read_data, list);
+		list_del_init(&data->list);
 
 		data->pagevec[0] = page;
 
 		if (nbytes < rsize)
 			rsize = nbytes;
-		ret2 = nfs_read_rpcsetup(req, data, &nfs_read_partial_ops,
-					 rsize, offset, lseg);
+		nfs_read_rpcsetup(req, data, rsize, offset);
+		ret2 = nfs_do_read(data, &nfs_read_partial_ops, lseg);
 		if (ret == 0)
 			ret = ret2;
 		offset += rsize;
@@ -325,8 +333,8 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc)
 
 out_bad:
 	while (!list_empty(&list)) {
-		data = list_entry(list.next, struct nfs_read_data, pages);
-		list_del(&data->pages);
+		data = list_entry(list.next, struct nfs_read_data, list);
+		list_del(&data->list);
 		nfs_readdata_free(data);
 	}
 	SetPageError(page);
@@ -362,8 +370,8 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc)
 	}
 	req = nfs_list_entry(data->pages.next);
 
-	ret = nfs_read_rpcsetup(req, data, &nfs_read_full_ops, desc->pg_count,
-				0, lseg);
+	nfs_read_rpcsetup(req, data, desc->pg_count, 0);
+	ret = nfs_do_read(data, &nfs_read_full_ops, lseg);
 out:
 	put_lseg(lseg);
 	desc->pg_lseg = NULL;

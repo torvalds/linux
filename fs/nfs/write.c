@@ -845,11 +845,9 @@ EXPORT_SYMBOL_GPL(nfs_initiate_write);
 /*
  * Set up the argument/result storage required for the RPC call.
  */
-static int nfs_write_rpcsetup(struct nfs_page *req,
+static void nfs_write_rpcsetup(struct nfs_page *req,
 		struct nfs_write_data *data,
-		const struct rpc_call_ops *call_ops,
 		unsigned int count, unsigned int offset,
-		struct pnfs_layout_segment *lseg,
 		int how)
 {
 	struct inode *inode = req->wb_context->path.dentry->d_inode;
@@ -860,7 +858,6 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
 	data->req = req;
 	data->inode = inode = req->wb_context->path.dentry->d_inode;
 	data->cred = req->wb_context->cred;
-	data->lseg = get_lseg(lseg);
 
 	data->args.fh     = NFS_FH(inode);
 	data->args.offset = req_offset(req) + offset;
@@ -886,10 +883,22 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
 	data->res.count   = count;
 	data->res.verf    = &data->verf;
 	nfs_fattr_init(&data->fattr);
+}
 
-	if (data->lseg &&
-	    (pnfs_try_to_write_data(data, call_ops, how) == PNFS_ATTEMPTED))
-		return 0;
+static int nfs_do_write(struct nfs_write_data *data,
+		const struct rpc_call_ops *call_ops,
+		struct pnfs_layout_segment *lseg,
+		int how)
+{
+	struct inode *inode = data->args.context->path.dentry->d_inode;
+
+	if (lseg != NULL) {
+		data->lseg = get_lseg(lseg);
+		if (pnfs_try_to_write_data(data, call_ops, how) == PNFS_ATTEMPTED)
+			return 0;
+		put_lseg(data->lseg);
+		data->lseg = NULL;
+	}
 
 	return nfs_initiate_write(data, NFS_CLIENT(inode), call_ops, how);
 }
@@ -938,7 +947,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc)
 		data = nfs_writedata_alloc(1);
 		if (!data)
 			goto out_bad;
-		list_add(&data->pages, &list);
+		list_add(&data->list, &list);
 		requests++;
 		nbytes -= len;
 	} while (nbytes != 0);
@@ -950,15 +959,16 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc)
 	do {
 		int ret2;
 
-		data = list_entry(list.next, struct nfs_write_data, pages);
-		list_del_init(&data->pages);
+		data = list_entry(list.next, struct nfs_write_data, list);
+		list_del_init(&data->list);
 
 		data->pagevec[0] = page;
 
 		if (nbytes < wsize)
 			wsize = nbytes;
-		ret2 = nfs_write_rpcsetup(req, data, &nfs_write_partial_ops,
-					  wsize, offset, lseg, desc->pg_ioflags);
+		nfs_write_rpcsetup(req, data, wsize, offset, desc->pg_ioflags);
+		ret2 = nfs_do_write(data, &nfs_write_partial_ops, lseg,
+				desc->pg_ioflags);
 		if (ret == 0)
 			ret = ret2;
 		offset += wsize;
@@ -971,8 +981,8 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc)
 
 out_bad:
 	while (!list_empty(&list)) {
-		data = list_entry(list.next, struct nfs_write_data, pages);
-		list_del(&data->pages);
+		data = list_entry(list.next, struct nfs_write_data, list);
+		list_del(&data->list);
 		nfs_writedata_free(data);
 	}
 	nfs_redirty_request(req);
@@ -1024,7 +1034,8 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc)
 		desc->pg_ioflags &= ~FLUSH_COND_STABLE;
 
 	/* Set up the argument struct */
-	ret = nfs_write_rpcsetup(req, data, &nfs_write_full_ops, desc->pg_count, 0, lseg, desc->pg_ioflags);
+	nfs_write_rpcsetup(req, data, desc->pg_count, 0, desc->pg_ioflags);
+	ret = nfs_do_write(data, &nfs_write_full_ops, lseg, desc->pg_ioflags);
 out:
 	put_lseg(lseg); /* Cleans any gotten in ->pg_test */
 	desc->pg_lseg = NULL;
