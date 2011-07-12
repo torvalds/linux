@@ -334,7 +334,7 @@ struct e1000_adapter {
 			  int *work_done, int work_to_do)
 						____cacheline_aligned_in_smp;
 	void (*alloc_rx_buf) (struct e1000_adapter *adapter,
-			      int cleaned_count);
+			      int cleaned_count, gfp_t gfp);
 	struct e1000_ring *rx_ring;
 
 	u32 rx_int_delay;
