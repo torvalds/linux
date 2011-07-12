@@ -39,6 +39,7 @@
 #include <linux/delay.h>
 #include <linux/freezer.h>
 #include <linux/slab.h>
+#include <linux/serial_core.h>
 
 #include <asm/uaccess.h>
 
@@ -766,6 +767,39 @@ static int hvc_tiocmset(struct tty_struct *tty,
 	return hp->ops->tiocmset(hp, set, clear);
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+int hvc_poll_init(struct tty_driver *driver, int line, char *options)
+{
+	return 0;
+}
+
+static int hvc_poll_get_char(struct tty_driver *driver, int line)
+{
+	struct tty_struct *tty = driver->ttys[0];
+	struct hvc_struct *hp = tty->driver_data;
+	int n;
+	char ch;
+
+	n = hp->ops->get_chars(hp->vtermno, &ch, 1);
+
+	if (n == 0)
+		return NO_POLL_CHAR;
+
+	return ch;
+}
+
+static void hvc_poll_put_char(struct tty_driver *driver, int line, char ch)
+{
+	struct tty_struct *tty = driver->ttys[0];
+	struct hvc_struct *hp = tty->driver_data;
+	int n;
+
+	do {
+		n = hp->ops->put_chars(hp->vtermno, &ch, 1);
+	} while (n <= 0);
+}
+#endif
+
 static const struct tty_operations hvc_ops = {
 	.open = hvc_open,
 	.close = hvc_close,
@@ -776,6 +810,11 @@ static const struct tty_operations hvc_ops = {
 	.chars_in_buffer = hvc_chars_in_buffer,
 	.tiocmget = hvc_tiocmget,
 	.tiocmset = hvc_tiocmset,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_init = hvc_poll_init,
+	.poll_get_char = hvc_poll_get_char,
+	.poll_put_char = hvc_poll_put_char,
+#endif
 };
 
 struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
