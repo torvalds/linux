@@ -769,6 +769,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	memset(intel_dp->link_configuration, 0, DP_LINK_CONFIGURATION_SIZE);
 	intel_dp->link_configuration[0] = intel_dp->link_bw;
 	intel_dp->link_configuration[1] = intel_dp->lane_count;
+	intel_dp->link_configuration[8] = DP_SET_ANSI_8B10B;
 
 	/*
 	 * Check for DPCD version > 1.1 and enhanced framing support
