@@ -872,10 +872,14 @@ static int nfs_write_rpcsetup(struct nfs_page *req,
 	data->args.context = get_nfs_open_context(req->wb_context);
 	data->args.lock_context = req->wb_lock_context;
 	data->args.stable  = NFS_UNSTABLE;
-	if (how & (FLUSH_STABLE | FLUSH_COND_STABLE)) {
-		data->args.stable = NFS_DATA_SYNC;
-		if (!nfs_need_commit(NFS_I(inode)))
-			data->args.stable = NFS_FILE_SYNC;
+	switch (how & (FLUSH_STABLE | FLUSH_COND_STABLE)) {
+	case 0:
+		break;
+	case FLUSH_COND_STABLE:
+		if (nfs_need_commit(NFS_I(inode)))
+			break;
+	default:
+		data->args.stable = NFS_FILE_SYNC;
 	}
 
 	data->res.fattr   = &data->fattr;
