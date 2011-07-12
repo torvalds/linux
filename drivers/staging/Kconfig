@@ -124,8 +124,6 @@ source "drivers/staging/tidspbridge/Kconfig"
 
 source "drivers/staging/quickstart/Kconfig"
 
-source "drivers/staging/westbridge/Kconfig"
-
 source "drivers/staging/sbe-2t3e3/Kconfig"
 
 source "drivers/staging/ath6kl/Kconfig"
