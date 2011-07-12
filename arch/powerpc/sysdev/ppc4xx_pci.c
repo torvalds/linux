@@ -679,9 +679,6 @@ static int __init ppc4xx_pciex_wait_on_sdr(struct ppc4xx_pciex_port *port,
 
 static int __init ppc4xx_pciex_port_reset_sdr(struct ppc4xx_pciex_port *port)
 {
-	printk(KERN_INFO "PCIE%d: Checking link...\n",
-	       port->index);
-
 	/* Wait for reset to complete */
 	if (ppc4xx_pciex_wait_on_sdr(port, PESDRn_RCSSTS, 1 << 20, 0, 10)) {
 		printk(KERN_WARNING "PCIE%d: PGRST failed\n",
@@ -693,6 +690,8 @@ static int __init ppc4xx_pciex_port_reset_sdr(struct ppc4xx_pciex_port *port)
 
 static void __init ppc4xx_pciex_check_link_sdr(struct ppc4xx_pciex_port *port)
 {
+	printk(KERN_INFO "PCIE%d: Checking link...\n", port->index);
+
 	/* Check for card presence detect if supported, if not, just wait for
 	 * link unconditionally.
 	 *
