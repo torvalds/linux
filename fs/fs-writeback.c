@@ -593,7 +593,7 @@ static long writeback_sb_inodes(struct super_block *sb,
 		spin_lock(&inode->i_lock);
 		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
 			spin_unlock(&inode->i_lock);
-			requeue_io(inode, wb);
+			redirty_tail(inode, wb);
 			continue;
 		}
 		__iget(inode);
