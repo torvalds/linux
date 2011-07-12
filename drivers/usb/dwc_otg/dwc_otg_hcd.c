@@ -625,7 +625,7 @@ static void reset_tasklet_func (unsigned long data)
 	dwc_otg_hcd_t *dwc_otg_hcd = (dwc_otg_hcd_t*)data;
 	dwc_otg_core_if_t *core_if = dwc_otg_hcd->core_if;
 	hprt0_data_t hprt0;
-
+    
 	DWC_DEBUGPL(DBG_HCDV, "USB RESET tasklet called\n");
 
 	hprt0.d32 = dwc_otg_read_hprt0 (core_if);
@@ -2522,8 +2522,13 @@ int dwc_otg_hcd_hub_control(struct usb_hcd *_hcd,
                                 hprt0.b.prtrst = 1;
                                 dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
                         }
+            spin_unlock_irqrestore(&dwc_otg_hcd->global_lock, flags);
 			/* Clear reset bit in 10ms (FS/LS) or 50ms (HS) */
-			MDELAY (60);
+			// kever @rk 20110712
+			// can not use mdelay(60) while irq disable
+			//MDELAY (60);
+			msleep(60);
+            spin_lock_irqsave(&dwc_otg_hcd->global_lock, flags);
 			hprt0.b.prtrst = 0;
 			dwc_write_reg32(core_if->host_if->hprt0, hprt0.d32);
 			break;
