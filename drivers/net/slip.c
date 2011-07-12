@@ -726,9 +726,6 @@ static struct slip *sl_alloc(dev_t line)
 	struct net_device *dev = NULL;
 	struct slip       *sl;
 
-	if (slip_devs == NULL)
-		return NULL;	/* Master array missing ! */
-
 	for (i = 0; i < slip_maxdev; i++) {
 		dev = slip_devs[i];
 		if (dev == NULL)
