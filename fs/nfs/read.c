@@ -30,8 +30,6 @@
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
-static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc);
-static int nfs_pagein_one(struct nfs_pageio_descriptor *desc);
 static const struct nfs_pageio_ops nfs_pageio_read_ops;
 static const struct rpc_call_ops nfs_read_partial_ops;
 static const struct rpc_call_ops nfs_read_full_ops;
@@ -253,6 +251,27 @@ static int nfs_do_read(struct nfs_read_data *data,
 	return nfs_initiate_read(data, NFS_CLIENT(inode), call_ops);
 }
 
+static int
+nfs_do_multiple_reads(struct list_head *head,
+		const struct rpc_call_ops *call_ops,
+		struct pnfs_layout_segment *lseg)
+{
+	struct nfs_read_data *data;
+	int ret = 0;
+
+	while (!list_empty(head)) {
+		int ret2;
+
+		data = list_entry(head->next, struct nfs_read_data, list);
+		list_del_init(&data->list);
+
+		ret2 = nfs_do_read(data, call_ops, lseg);
+		if (ret == 0)
+			ret = ret2;
+	}
+	return ret;
+}
+
 static void
 nfs_async_read_error(struct list_head *head)
 {
@@ -279,7 +298,7 @@ nfs_async_read_error(struct list_head *head)
  * won't see the new data until our attribute cache is updated.  This is more
  * or less conventional NFS client behavior.
  */
-static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc)
+static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc, struct list_head *res)
 {
 	struct nfs_page *req = nfs_list_entry(desc->pg_list.next);
 	struct page *page = req->wb_page;
@@ -288,11 +307,10 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc)
 	unsigned int offset;
 	int requests = 0;
 	int ret = 0;
-	struct pnfs_layout_segment *lseg = desc->pg_lseg;
-	LIST_HEAD(list);
 
 	nfs_list_remove_request(req);
 
+	offset = 0;
 	nbytes = desc->pg_count;
 	do {
 		size_t len = min(nbytes,rsize);
@@ -300,57 +318,33 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc)
 		data = nfs_readdata_alloc(1);
 		if (!data)
 			goto out_bad;
-		list_add(&data->list, &list);
+		data->pagevec[0] = page;
+		nfs_read_rpcsetup(req, data, len, offset);
+		list_add(&data->list, res);
 		requests++;
 		nbytes -= len;
+		offset += len;
 	} while(nbytes != 0);
 	atomic_set(&req->wb_complete, requests);
-
 	ClearPageError(page);
-	offset = 0;
-	nbytes = desc->pg_count;
-	do {
-		int ret2;
-
-		data = list_entry(list.next, struct nfs_read_data, list);
-		list_del_init(&data->list);
-
-		data->pagevec[0] = page;
-
-		if (nbytes < rsize)
-			rsize = nbytes;
-		nfs_read_rpcsetup(req, data, rsize, offset);
-		ret2 = nfs_do_read(data, &nfs_read_partial_ops, lseg);
-		if (ret == 0)
-			ret = ret2;
-		offset += rsize;
-		nbytes -= rsize;
-	} while (nbytes != 0);
-	put_lseg(lseg);
-	desc->pg_lseg = NULL;
-
 	return ret;
-
 out_bad:
-	while (!list_empty(&list)) {
-		data = list_entry(list.next, struct nfs_read_data, list);
+	while (!list_empty(res)) {
+		data = list_entry(res->next, struct nfs_read_data, list);
 		list_del(&data->list);
 		nfs_readdata_free(data);
 	}
 	SetPageError(page);
 	nfs_readpage_release(req);
-	put_lseg(lseg);
-	desc->pg_lseg = NULL;
 	return -ENOMEM;
 }
 
-static int nfs_pagein_one(struct nfs_pageio_descriptor *desc)
+static int nfs_pagein_one(struct nfs_pageio_descriptor *desc, struct list_head *res)
 {
 	struct nfs_page		*req;
 	struct page		**pages;
 	struct nfs_read_data	*data;
 	struct list_head *head = &desc->pg_list;
-	struct pnfs_layout_segment *lseg = desc->pg_lseg;
 	int ret = 0;
 
 	data = nfs_readdata_alloc(nfs_page_array_len(desc->pg_base,
@@ -372,18 +366,32 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc)
 	req = nfs_list_entry(data->pages.next);
 
 	nfs_read_rpcsetup(req, data, desc->pg_count, 0);
-	ret = nfs_do_read(data, &nfs_read_full_ops, lseg);
+	list_add(&data->list, res);
 out:
-	put_lseg(lseg);
-	desc->pg_lseg = NULL;
 	return ret;
 }
 
 int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 {
-	if (desc->pg_bsize < PAGE_CACHE_SIZE)
-		return nfs_pagein_multi(desc);
-	return nfs_pagein_one(desc);
+	LIST_HEAD(head);
+	int ret;
+
+	if (desc->pg_bsize < PAGE_CACHE_SIZE) {
+		ret = nfs_pagein_multi(desc, &head);
+		if (ret == 0)
+			ret = nfs_do_multiple_reads(&head,
+					&nfs_read_partial_ops,
+					desc->pg_lseg);
+	} else {
+		ret = nfs_pagein_one(desc, &head);
+		if (ret == 0)
+			ret = nfs_do_multiple_reads(&head,
+					&nfs_read_full_ops,
+					desc->pg_lseg);
+	}
+	put_lseg(desc->pg_lseg);
+	desc->pg_lseg = NULL;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nfs_generic_pg_readpages);
 
