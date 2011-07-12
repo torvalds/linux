@@ -946,7 +946,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc, struct list_head 
 	struct nfs_page *req = nfs_list_entry(desc->pg_list.next);
 	struct page *page = req->wb_page;
 	struct nfs_write_data *data;
-	size_t wsize = NFS_SERVER(desc->pg_inode)->wsize, nbytes;
+	size_t wsize = desc->pg_bsize, nbytes;
 	unsigned int offset;
 	int requests = 0;
 	int ret = 0;

@@ -303,7 +303,7 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc, struct list_head
 	struct nfs_page *req = nfs_list_entry(desc->pg_list.next);
 	struct page *page = req->wb_page;
 	struct nfs_read_data *data;
-	size_t rsize = NFS_SERVER(desc->pg_inode)->rsize, nbytes;
+	size_t rsize = desc->pg_bsize, nbytes;
 	unsigned int offset;
 	int requests = 0;
 	int ret = 0;
