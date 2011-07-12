@@ -41,9 +41,11 @@ struct sta_info;
  *
  * @KEY_FLAG_UPLOADED_TO_HARDWARE: Indicates that this key is present
  *	in the hardware for TX crypto hardware acceleration.
+ * @KEY_FLAG_TAINTED: Key is tainted and packets should be dropped.
  */
 enum ieee80211_internal_key_flags {
 	KEY_FLAG_UPLOADED_TO_HARDWARE	= BIT(0),
+	KEY_FLAG_TAINTED		= BIT(1),
 };
 
 enum ieee80211_internal_tkip_state {

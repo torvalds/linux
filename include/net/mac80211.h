@@ -3024,6 +3024,29 @@ void ieee80211_beacon_loss(struct ieee80211_vif *vif);
 void ieee80211_connection_loss(struct ieee80211_vif *vif);
 
 /**
+ * ieee80211_resume_disconnect - disconnect from AP after resume
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Instructs mac80211 to disconnect from the AP after resume.
+ * Drivers can use this after WoWLAN if they know that the
+ * connection cannot be kept up, for example because keys were
+ * used while the device was asleep but the replay counters or
+ * similar cannot be retrieved from the device during resume.
+ *
+ * Note that due to implementation issues, if the driver uses
+ * the reconfiguration functionality during resume the interface
+ * will still be added as associated first during resume and then
+ * disconnect normally later.
+ *
+ * This function can only be called from the resume callback and
+ * the driver must not be holding any of its own locks while it
+ * calls this function, or at least not any locks it needs in the
+ * key configuration paths (if it supports HW crypto).
+ */
+void ieee80211_resume_disconnect(struct ieee80211_vif *vif);
+
+/**
  * ieee80211_disable_dyn_ps - force mac80211 to temporarily disable dynamic psm
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.

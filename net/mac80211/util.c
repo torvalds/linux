@@ -1334,6 +1334,33 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	return 0;
 }
 
+void ieee80211_resume_disconnect(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_local *local;
+	struct ieee80211_key *key;
+
+	if (WARN_ON(!vif))
+		return;
+
+	sdata = vif_to_sdata(vif);
+	local = sdata->local;
+
+	if (WARN_ON(!local->resuming))
+		return;
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION))
+		return;
+
+	sdata->flags |= IEEE80211_SDATA_DISCONNECT_RESUME;
+
+	mutex_lock(&local->key_mtx);
+	list_for_each_entry(key, &sdata->key_list, list)
+		key->flags |= KEY_FLAG_TAINTED;
+	mutex_unlock(&local->key_mtx);
+}
+EXPORT_SYMBOL_GPL(ieee80211_resume_disconnect);
+
 static int check_mgd_smps(struct ieee80211_if_managed *ifmgd,
 			  enum ieee80211_smps_mode *smps_mode)
 {

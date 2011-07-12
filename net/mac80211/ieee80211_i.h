@@ -538,12 +538,14 @@ struct ieee80211_if_mesh {
  * @IEEE80211_SDATA_DONT_BRIDGE_PACKETS: bridge packets between
  *	associated stations and deliver multicast frames both
  *	back to wireless media and to the local net stack.
+ * @IEEE80211_SDATA_DISCONNECT_RESUME: Disconnect after resume.
  */
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
 	IEEE80211_SDATA_PROMISC			= BIT(1),
 	IEEE80211_SDATA_OPERATING_GMODE		= BIT(2),
 	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
+	IEEE80211_SDATA_DISCONNECT_RESUME	= BIT(4),
 };
 
 /**
