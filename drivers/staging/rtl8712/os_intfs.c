@@ -375,6 +375,12 @@ static void enable_video_mode(struct _adapter *padapter, int cbw40_value)
 	r8712_fw_cmd(padapter, intcmd);
 }
 
+/**
+ *
+ * This function intends to handle the activation of an interface
+ * i.e. when it is brought Up/Active from a Down state.
+ *
+ */
 static int netdev_open(struct net_device *pnetdev)
 {
 	struct _adapter *padapter = (struct _adapter *)_netdev_priv(pnetdev);
@@ -434,6 +440,12 @@ netdev_open_error:
 	return -1;
 }
 
+/**
+ *
+ * This function intends to handle the shutdown of an interface
+ * i.e. when it is brought Down from an Up/Active state.
+ *
+ */
 static int netdev_close(struct net_device *pnetdev)
 {
 	struct _adapter *padapter = (struct _adapter *) _netdev_priv(pnetdev);
@@ -458,6 +470,8 @@ static int netdev_close(struct net_device *pnetdev)
 	r8712_free_network_queue(padapter);
 	/*Stop driver mlme relation timer*/
 	stop_drv_timers(padapter);
+	/* The interface is no longer Up: */
+	padapter->bup = false;
 	return 0;
 }
 
