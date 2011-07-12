@@ -139,13 +139,4 @@ config XEN_PCIDEV_BACKEND_PASS
 
 endchoice
 
-config XEN_PCIDEV_BE_DEBUG
-	bool "Xen PCI Backend Debugging"
-	depends on XEN_PCIDEV_BACKEND
-	default n
-	help
-	  Allows to observe all of the traffic from the frontend/backend
-	  when reading and writting to the configuration registers.
-	  If in doubt, say no.
-
 endmenu
