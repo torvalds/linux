@@ -250,7 +250,9 @@ static int mt9m111_reg_clear(struct i2c_client *client, const u16 reg,
 	int ret;
 
 	ret = mt9m111_reg_read(client, reg);
-	return mt9m111_reg_write(client, reg, ret & ~data);
+	if (ret >= 0)
+		ret = mt9m111_reg_write(client, reg, ret & ~data);
+	return ret;
 }
 
 static int mt9m111_set_context(struct mt9m111 *mt9m111,
