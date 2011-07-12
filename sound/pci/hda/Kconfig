@@ -19,10 +19,10 @@ config SND_HDA_PREALLOC_SIZE
 	range 0 32768
 	default 64
 	help
-	  Speficies the default pre-allocated buffer-size in kB for
+	  Specifies the default pre-allocated buffer-size in kB for the
 	  HD-audio driver.  A larger buffer (e.g. 2048) is preferred
-	  for systems with PulseAudio.  The default 64 is chosen just
-	  from the compatibility reason.
+	  for systems using PulseAudio.  The default 64 is chosen just
+	  for compatibility reasons.
 
 	  Note that the pre-allocation size can be changed dynamically
 	  via a proc file (/proc/asound/card*/pcm*/sub*/prealloc), too.
