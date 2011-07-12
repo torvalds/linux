@@ -2075,6 +2075,8 @@ static void azx_pcm_free(struct snd_pcm *pcm)
 	}
 }
 
+#define MAX_PREALLOC_SIZE	(32 * 1024 * 1024)
+
 static int
 azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 		      struct hda_pcm *cpcm)
@@ -2083,6 +2085,7 @@ azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 	struct snd_pcm *pcm;
 	struct azx_pcm *apcm;
 	int pcm_dev = cpcm->device;
+	unsigned int size;
 	int s, err;
 
 	if (pcm_dev >= HDA_MAX_PCMS) {
@@ -2118,9 +2121,12 @@ azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 			snd_pcm_set_ops(pcm, s, &azx_pcm_ops);
 	}
 	/* buffer pre-allocation */
+	size = CONFIG_SND_HDA_PREALLOC_SIZE * 1024;
+	if (size > MAX_PREALLOC_SIZE)
+		size = MAX_PREALLOC_SIZE;
 	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
 					      snd_dma_pci_data(chip->pci),
-					      1024 * 64, 32 * 1024 * 1024);
+					      size, MAX_PREALLOC_SIZE);
 	return 0;
 }
 
