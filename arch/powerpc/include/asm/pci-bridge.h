@@ -17,45 +17,45 @@ enum {
 	/* Force re-assigning all resources (ignore firmware
 	 * setup completely)
 	 */
-	PPC_PCI_REASSIGN_ALL_RSRC	= 0x00000001,
+	PCI_REASSIGN_ALL_RSRC	= 0x00000001,
 
 	/* Re-assign all bus numbers */
-	PPC_PCI_REASSIGN_ALL_BUS	= 0x00000002,
+	PCI_REASSIGN_ALL_BUS	= 0x00000002,
 
 	/* Do not try to assign, just use existing setup */
-	PPC_PCI_PROBE_ONLY		= 0x00000004,
+	PCI_PROBE_ONLY		= 0x00000004,
 
 	/* Don't bother with ISA alignment unless the bridge has
 	 * ISA forwarding enabled
 	 */
-	PPC_PCI_CAN_SKIP_ISA_ALIGN	= 0x00000008,
+	PCI_CAN_SKIP_ISA_ALIGN	= 0x00000008,
 
 	/* Enable domain numbers in /proc */
-	PPC_PCI_ENABLE_PROC_DOMAINS	= 0x00000010,
+	PCI_ENABLE_PROC_DOMAINS	= 0x00000010,
 	/* ... except for domain 0 */
-	PPC_PCI_COMPAT_DOMAIN_0		= 0x00000020,
+	PCI_COMPAT_DOMAIN_0		= 0x00000020,
 };
 #ifdef CONFIG_PCI
-extern unsigned int ppc_pci_flags;
+extern unsigned int pci_flags;
 
-static inline void ppc_pci_set_flags(int flags)
+static inline void pci_set_flags(int flags)
 {
-	ppc_pci_flags = flags;
+	pci_flags = flags;
 }
 
-static inline void ppc_pci_add_flags(int flags)
+static inline void pci_add_flags(int flags)
 {
-	ppc_pci_flags |= flags;
+	pci_flags |= flags;
 }
 
-static inline int ppc_pci_has_flag(int flag)
+static inline int pci_has_flag(int flag)
 {
-	return (ppc_pci_flags & flag);
+	return (pci_flags & flag);
 }
 #else
-static inline void ppc_pci_set_flags(int flags) { }
-static inline void ppc_pci_add_flags(int flags) { }
-static inline int ppc_pci_has_flag(int flag)
+static inline void pci_set_flags(int flags) { }
+static inline void pci_add_flags(int flags) { }
+static inline int pci_has_flag(int flag)
 {
 	return 0;
 }
