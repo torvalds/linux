@@ -194,8 +194,7 @@ static int sl_alloc_bufs(struct slip *sl, int mtu)
 err_exit:
 #ifdef SL_INCLUDE_CSLIP
 	kfree(cbuff);
-	if (slcomp)
-		slhc_free(slcomp);
+	slhc_free(slcomp);
 #endif
 	kfree(xbuff);
 	kfree(rbuff);
