@@ -502,6 +502,9 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	/* This host supports the Auto CMD12 */
 	host->quirks |= SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12;
 
+	/* Samsung SoCs need BROKEN_ADMA_ZEROLEN_DESC */
+	host->quirks |= SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC;
+
 	if (pdata->cd_type == S3C_SDHCI_CD_NONE ||
 	    pdata->cd_type == S3C_SDHCI_CD_PERMANENT)
 		host->quirks |= SDHCI_QUIRK_BROKEN_CARD_DETECTION;
