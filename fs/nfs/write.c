@@ -975,6 +975,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc, struct list_head 
 		offset += len;
 	} while (nbytes != 0);
 	atomic_set(&req->wb_complete, requests);
+	desc->pg_rpc_callops = &nfs_write_partial_ops;
 	return ret;
 
 out_bad:
@@ -1031,6 +1032,7 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc, struct list_head *r
 	/* Set up the argument struct */
 	nfs_write_rpcsetup(req, data, desc->pg_count, 0, desc->pg_ioflags);
 	list_add(&data->list, res);
+	desc->pg_rpc_callops = &nfs_write_full_ops;
 out:
 	return ret;
 }
@@ -1040,21 +1042,13 @@ int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 	LIST_HEAD(head);
 	int ret;
 
-	if (desc->pg_bsize < PAGE_CACHE_SIZE) {
+	if (desc->pg_bsize < PAGE_CACHE_SIZE)
 		ret = nfs_flush_multi(desc, &head);
-		if (ret == 0)
-			ret = nfs_do_multiple_writes(&head,
-					&nfs_write_partial_ops,
-					desc->pg_lseg,
-					desc->pg_ioflags);
-	} else {
+	else
 		ret = nfs_flush_one(desc, &head);
-		if (ret == 0)
-			ret = nfs_do_multiple_writes(&head,
-					&nfs_write_full_ops,
-					desc->pg_lseg,
-					desc->pg_ioflags);
-	}
+	if (ret == 0)
+		ret = nfs_do_multiple_writes(&head, desc->pg_rpc_callops,
+				desc->pg_lseg, desc->pg_ioflags);
 	put_lseg(desc->pg_lseg);
 	desc->pg_lseg = NULL;
 	return ret;

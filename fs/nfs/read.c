@@ -327,6 +327,7 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc, struct list_head
 	} while(nbytes != 0);
 	atomic_set(&req->wb_complete, requests);
 	ClearPageError(page);
+	desc->pg_rpc_callops = &nfs_read_partial_ops;
 	return ret;
 out_bad:
 	while (!list_empty(res)) {
@@ -367,6 +368,7 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc, struct list_head *
 
 	nfs_read_rpcsetup(req, data, desc->pg_count, 0);
 	list_add(&data->list, res);
+	desc->pg_rpc_callops = &nfs_read_full_ops;
 out:
 	return ret;
 }
@@ -376,19 +378,14 @@ int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 	LIST_HEAD(head);
 	int ret;
 
-	if (desc->pg_bsize < PAGE_CACHE_SIZE) {
+	if (desc->pg_bsize < PAGE_CACHE_SIZE)
 		ret = nfs_pagein_multi(desc, &head);
-		if (ret == 0)
-			ret = nfs_do_multiple_reads(&head,
-					&nfs_read_partial_ops,
-					desc->pg_lseg);
-	} else {
+	else
 		ret = nfs_pagein_one(desc, &head);
-		if (ret == 0)
-			ret = nfs_do_multiple_reads(&head,
-					&nfs_read_full_ops,
-					desc->pg_lseg);
-	}
+
+	if (ret == 0)
+		ret = nfs_do_multiple_reads(&head, desc->pg_rpc_callops,
+				desc->pg_lseg);
 	put_lseg(desc->pg_lseg);
 	desc->pg_lseg = NULL;
 	return ret;

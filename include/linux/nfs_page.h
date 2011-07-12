@@ -74,6 +74,7 @@ struct nfs_pageio_descriptor {
 	const struct nfs_pageio_ops *pg_ops;
 	int 			pg_ioflags;
 	int			pg_error;
+	const struct rpc_call_ops *pg_rpc_callops;
 	struct pnfs_layout_segment *pg_lseg;
 };
 
