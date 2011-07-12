@@ -359,6 +359,10 @@ static int cma_acquire_dev(struct rdma_id_private *id_priv)
 	enum rdma_link_layer dev_ll = dev_addr->dev_type == ARPHRD_INFINIBAND ?
 		IB_LINK_LAYER_INFINIBAND : IB_LINK_LAYER_ETHERNET;
 
+	if (dev_ll != IB_LINK_LAYER_INFINIBAND &&
+	    id_priv->id.ps == RDMA_PS_IPOIB)
+		return -EINVAL;
+
 	mutex_lock(&lock);
 	iboe_addr_get_sgid(dev_addr, &iboe_gid);
 	memcpy(&gid, dev_addr->src_dev_addr +
