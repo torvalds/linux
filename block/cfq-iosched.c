@@ -87,9 +87,10 @@ struct cfq_rb_root {
 	unsigned count;
 	unsigned total_weight;
 	u64 min_vdisktime;
+	struct cfq_ttime ttime;
 };
-#define CFQ_RB_ROOT	(struct cfq_rb_root) { .rb = RB_ROOT, .left = NULL, \
-			.count = 0, .min_vdisktime = 0, }
+#define CFQ_RB_ROOT	(struct cfq_rb_root) { .rb = RB_ROOT, \
+			.ttime = {.last_end_request = jiffies,},}
 
 /*
  * Per process-grouping structure
@@ -391,6 +392,18 @@ CFQ_CFQQ_FNS(wait_busy);
 			j++, st = i < IDLE_WORKLOAD ? \
 			&cfqg->service_trees[i][j]: NULL) \
 
+static inline bool cfq_io_thinktime_big(struct cfq_data *cfqd,
+	struct cfq_ttime *ttime, bool group_idle)
+{
+	unsigned long slice;
+	if (!sample_valid(ttime->ttime_samples))
+		return false;
+	if (group_idle)
+		slice = cfqd->cfq_group_idle;
+	else
+		slice = cfqd->cfq_slice_idle;
+	return ttime->ttime_mean > slice;
+}
 
 static inline bool iops_mode(struct cfq_data *cfqd)
 {
@@ -1955,7 +1968,8 @@ static bool cfq_should_idle(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * Otherwise, we do only if they are the last ones
 	 * in their service tree.
 	 */
-	if (service_tree->count == 1 && cfq_cfqq_sync(cfqq))
+	if (service_tree->count == 1 && cfq_cfqq_sync(cfqq) &&
+	   !cfq_io_thinktime_big(cfqd, &service_tree->ttime, false))
 		return true;
 	cfq_log_cfqq(cfqd, cfqq, "Not idling. st->count:%d",
 			service_tree->count);
@@ -3220,8 +3234,11 @@ static void
 cfq_update_io_thinktime(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	struct cfq_io_context *cic)
 {
-	if (cfq_cfqq_sync(cfqq))
+	if (cfq_cfqq_sync(cfqq)) {
 		__cfq_update_io_thinktime(&cic->ttime, cfqd->cfq_slice_idle);
+		__cfq_update_io_thinktime(&cfqq->service_tree->ttime,
+			cfqd->cfq_slice_idle);
+	}
 }
 
 static void
@@ -3550,7 +3567,16 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 	cfqd->rq_in_flight[cfq_cfqq_sync(cfqq)]--;
 
 	if (sync) {
+		struct cfq_rb_root *service_tree;
+
 		RQ_CIC(rq)->ttime.last_end_request = now;
+
+		if (cfq_cfqq_on_rr(cfqq))
+			service_tree = cfqq->service_tree;
+		else
+			service_tree = service_tree_for(cfqq->cfqg,
+				cfqq_prio(cfqq), cfqq_type(cfqq));
+		service_tree->ttime.last_end_request = now;
 		if (!time_after(rq->start_time + cfqd->cfq_fifo_expire[1], now))
 			cfqd->last_delayed_sync = now;
 	}
