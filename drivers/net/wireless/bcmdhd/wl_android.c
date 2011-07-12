@@ -68,6 +68,7 @@
 #define CMD_SETFWPATH		"SETFWPATH"
 #define CMD_SETBAND		"SETBAND"
 #define CMD_GETBAND		"GETBAND"
+#define CMD_COUNTRY		"COUNTRY"
 
 typedef struct android_wifi_priv_cmd {
 	char *buf;
@@ -335,6 +336,10 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	}
 	else if (strnicmp(command, CMD_GETBAND, strlen(CMD_GETBAND)) == 0) {
 		bytes_written = wl_android_get_band(net, command, priv_cmd->total_len);
+	}
+	else if (strnicmp(command, CMD_COUNTRY, strlen(CMD_COUNTRY)) == 0) {
+		char *country_code = command + strlen(CMD_COUNTRY) + 1;
+		bytes_written = wldev_set_country(net, country_code);
 	} else {
 		DHD_ERROR(("Unknown PRIVATE command %s - ignored\n", command));
 		snprintf(command, 3, "OK");

@@ -83,6 +83,10 @@ s32 wldev_iovar_getint_bsscfg(
 s32 wldev_iovar_setint_bsscfg(
 	struct net_device *dev, s8 *iovar, s32 val, s32 bssidx);
 
+void get_customized_country_code(char *country_iso_code, wl_country_t *cspec);
+void dhd_bus_country_set(struct net_device *dev, wl_country_t *cspec);
+int wldev_set_country(struct net_device *dev, char *country_code);
+
 /* Get the link speed from dongle, speed is in kpbs */
 int wldev_get_link_speed(struct net_device *dev, int *plink_speed);
 
