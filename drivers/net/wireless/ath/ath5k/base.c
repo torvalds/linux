@@ -2420,6 +2420,7 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 	common->ah = sc->ah;
 	common->hw = hw;
 	common->priv = sc;
+	common->clockrate = 40;
 
 	/*
 	 * Cache line size is used to size and align various
