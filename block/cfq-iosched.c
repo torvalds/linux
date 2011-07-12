@@ -2008,10 +2008,10 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	 * slice, then don't idle. This avoids overrunning the allotted
 	 * time slice.
 	 */
-	if (sample_valid(cic->ttime_samples) &&
-	    (cfqq->slice_end - jiffies < cic->ttime_mean)) {
+	if (sample_valid(cic->ttime.ttime_samples) &&
+	    (cfqq->slice_end - jiffies < cic->ttime.ttime_mean)) {
 		cfq_log_cfqq(cfqd, cfqq, "Not idling. think_time:%lu",
-			     cic->ttime_mean);
+			     cic->ttime.ttime_mean);
 		return;
 	}
 
@@ -2819,7 +2819,7 @@ cfq_alloc_io_context(struct cfq_data *cfqd, gfp_t gfp_mask)
 	cic = kmem_cache_alloc_node(cfq_ioc_pool, gfp_mask | __GFP_ZERO,
 							cfqd->queue->node);
 	if (cic) {
-		cic->last_end_request = jiffies;
+		cic->ttime.last_end_request = jiffies;
 		INIT_LIST_HEAD(&cic->queue_list);
 		INIT_HLIST_NODE(&cic->cic_list);
 		cic->dtor = cfq_free_io_context;
@@ -3206,14 +3206,22 @@ err:
 }
 
 static void
-cfq_update_io_thinktime(struct cfq_data *cfqd, struct cfq_io_context *cic)
+__cfq_update_io_thinktime(struct cfq_ttime *ttime, unsigned long slice_idle)
 {
-	unsigned long elapsed = jiffies - cic->last_end_request;
-	unsigned long ttime = min(elapsed, 2UL * cfqd->cfq_slice_idle);
+	unsigned long elapsed = jiffies - ttime->last_end_request;
+	elapsed = min(elapsed, 2UL * slice_idle);
 
-	cic->ttime_samples = (7*cic->ttime_samples + 256) / 8;
-	cic->ttime_total = (7*cic->ttime_total + 256*ttime) / 8;
-	cic->ttime_mean = (cic->ttime_total + 128) / cic->ttime_samples;
+	ttime->ttime_samples = (7*ttime->ttime_samples + 256) / 8;
+	ttime->ttime_total = (7*ttime->ttime_total + 256*elapsed) / 8;
+	ttime->ttime_mean = (ttime->ttime_total + 128) / ttime->ttime_samples;
+}
+
+static void
+cfq_update_io_thinktime(struct cfq_data *cfqd, struct cfq_queue *cfqq,
+	struct cfq_io_context *cic)
+{
+	if (cfq_cfqq_sync(cfqq))
+		__cfq_update_io_thinktime(&cic->ttime, cfqd->cfq_slice_idle);
 }
 
 static void
@@ -3262,8 +3270,8 @@ cfq_update_idle_window(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	else if (!atomic_read(&cic->ioc->nr_tasks) || !cfqd->cfq_slice_idle ||
 	    (!cfq_cfqq_deep(cfqq) && CFQQ_SEEKY(cfqq)))
 		enable_idle = 0;
-	else if (sample_valid(cic->ttime_samples)) {
-		if (cic->ttime_mean > cfqd->cfq_slice_idle)
+	else if (sample_valid(cic->ttime.ttime_samples)) {
+		if (cic->ttime.ttime_mean > cfqd->cfq_slice_idle)
 			enable_idle = 0;
 		else
 			enable_idle = 1;
@@ -3389,7 +3397,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 
 	cfqd->rq_queued++;
 
-	cfq_update_io_thinktime(cfqd, cic);
+	cfq_update_io_thinktime(cfqd, cfqq, cic);
 	cfq_update_io_seektime(cfqd, cfqq, rq);
 	cfq_update_idle_window(cfqd, cfqq, cic);
 
@@ -3500,8 +3508,8 @@ static bool cfq_should_wait_busy(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 		return true;
 
 	/* if slice left is less than think time, wait busy */
-	if (cic && sample_valid(cic->ttime_samples)
-	    && (cfqq->slice_end - jiffies < cic->ttime_mean))
+	if (cic && sample_valid(cic->ttime.ttime_samples)
+	    && (cfqq->slice_end - jiffies < cic->ttime.ttime_mean))
 		return true;
 
 	/*
@@ -3542,7 +3550,7 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 	cfqd->rq_in_flight[cfq_cfqq_sync(cfqq)]--;
 
 	if (sync) {
-		RQ_CIC(rq)->last_end_request = now;
+		RQ_CIC(rq)->ttime.last_end_request = now;
 		if (!time_after(rq->start_time + cfqd->cfq_fifo_expire[1], now))
 			cfqd->last_delayed_sync = now;
 	}
