@@ -1599,11 +1599,6 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.device         = 0x800D,
 		.init		= pci_eg20t_init,
 	},
-	{
-		.vendor         = 0x10DB,
-		.device         = 0x800D,
-		.init		= pci_eg20t_init,
-	},
 	/*
 	 * Cronyx Omega PCI (PLX-chip based)
 	 */
