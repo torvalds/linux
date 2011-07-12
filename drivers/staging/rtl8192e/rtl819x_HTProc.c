@@ -382,33 +382,12 @@ bool HTIOTActIsDisableMCS15(struct rtllib_device* ieee)
 {
 	bool retValue = false;
 
-#if defined(RTL8192U)
-	if (ieee->current_network.bssht.bdBandWidth == HT_CHANNEL_WIDTH_20_40)
-	retValue = true;
-	else
-		retValue = false;
-#endif
-
-
 	return retValue;
 }
 
 bool HTIOTActIsDisableMCSTwoSpatialStream(struct rtllib_device* ieee)
 {
 	bool retValue = false;
-#ifdef RTL8192U
-	struct rtllib_network* net = &ieee->current_network;
-
-	if ((ieee->pHTInfo->bCurrentHTSupport == true) && (ieee->pairwise_key_type == KEY_TYPE_CCMP))
-	{
-		if ((memcmp(net->bssid, BELKINF5D8233V1_RALINK, 3)==0) ||
-				(memcmp(net->bssid, PCI_RALINK, 3)==0) ||
-				(memcmp(net->bssid, EDIMAX_RALINK, 3)==0))
-		{
-			retValue = false;
-		}
-	}
-#endif
 	return retValue;
 }
 

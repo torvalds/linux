@@ -2378,10 +2378,6 @@ struct rtllib_device {
 	/* Probe / Beacon management */
 	struct list_head network_free_list;
 	struct list_head network_list;
-#ifdef RTL8192U
-	struct list_head network_bssid_free_list;
-	struct list_head network_bssid_list;
-#endif
 	struct rtllib_network *networks;
 	int scans;
 	int scan_age;

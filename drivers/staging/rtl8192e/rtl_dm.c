@@ -672,9 +672,6 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 	u32						Value;
 	u8						Pwr_Flag;
 	u16					Avg_TSSI_Meas, TSSI_13dBm, Avg_TSSI_Meas_from_driver=0;
-#ifdef RTL8192U
-	RT_STATUS				rtStatus = RT_STATUS_SUCCESS;
-#endif
 	u32						delta=0;
 	RT_TRACE(COMP_POWER_TRACKING,"%s()\n",__func__);
 	write_nic_byte(dev, Pw_Track_Flag, 0);
@@ -695,15 +692,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 	tx_cmd.Op		= TXCMD_SET_TX_PWR_TRACKING;
 	tx_cmd.Length	= 4;
 	tx_cmd.Value		= Value;
-#ifdef RTL8192U
-	rtStatus = SendTxCommandPacket(dev, &tx_cmd, 12);
-	if (rtStatus == RT_STATUS_FAILURE)
-	{
-		RT_TRACE(COMP_POWER_TRACKING, "Set configuration with tx cmd queue fail!\n");
-	}
-#else
 	cmpk_message_handle_tx(dev, (u8*)&tx_cmd, DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
-#endif
 	mdelay(1);
 	for (i = 0;i <= 30; i++)
 	{
@@ -2843,22 +2832,6 @@ dm_Init_WA_Broadcom_IOT(struct net_device * dev)
 
 static	void	dm_check_pbc_gpio(struct net_device *dev)
 {
-#ifdef RTL8192U
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u8 tmp1byte;
-
-
-	tmp1byte = read_nic_byte(dev,GPI);
-	if (tmp1byte == 0xff)
-	return;
-
-	if (tmp1byte&BIT6 || tmp1byte&BIT0)
-	{
-		RT_TRACE(COMP_IO, "CheckPbcGPIO - PBC is pressed\n");
-		priv->bpbc_pressed = true;
-	}
-#endif
-
 }
 
 #ifdef RTL8192E
