@@ -1673,6 +1673,7 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	struct edid *edid = NULL;
 
 	intel_dp->has_audio = false;
+	memset(intel_dp->dpcd, 0, sizeof(intel_dp->dpcd));
 
 	if (HAS_PCH_SPLIT(dev))
 		status = ironlake_dp_detect(intel_dp);
