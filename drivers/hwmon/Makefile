@@ -122,15 +122,7 @@ obj-$(CONFIG_SENSORS_W83L786NG)	+= w83l786ng.o
 obj-$(CONFIG_SENSORS_WM831X)	+= wm831x-hwmon.o
 obj-$(CONFIG_SENSORS_WM8350)	+= wm8350-hwmon.o
 
-# PMBus drivers
-obj-$(CONFIG_PMBUS)		+= pmbus_core.o
-obj-$(CONFIG_SENSORS_PMBUS)	+= pmbus.o
-obj-$(CONFIG_SENSORS_ADM1275)	+= adm1275.o
-obj-$(CONFIG_SENSORS_MAX16064)	+= max16064.o
-obj-$(CONFIG_SENSORS_MAX34440)	+= max34440.o
-obj-$(CONFIG_SENSORS_MAX8688)	+= max8688.o
-obj-$(CONFIG_SENSORS_UCD9000)	+= ucd9000.o
-obj-$(CONFIG_SENSORS_UCD9200)	+= ucd9200.o
+obj-$(CONFIG_PMBUS)		+= pmbus/
 
 ccflags-$(CONFIG_HWMON_DEBUG_CHIP) := -DDEBUG
 
