@@ -626,10 +626,10 @@ int snd_rawmidi_output_params(struct snd_rawmidi_substream *substream,
 		return -EINVAL;
 	}
 	if (params->buffer_size != runtime->buffer_size) {
-		newbuf = kmalloc(params->buffer_size, GFP_KERNEL);
+		newbuf = krealloc(runtime->buffer, params->buffer_size,
+				  GFP_KERNEL);
 		if (!newbuf)
 			return -ENOMEM;
-		kfree(runtime->buffer);
 		runtime->buffer = newbuf;
 		runtime->buffer_size = params->buffer_size;
 		runtime->avail = runtime->buffer_size;
@@ -653,10 +653,10 @@ int snd_rawmidi_input_params(struct snd_rawmidi_substream *substream,
 		return -EINVAL;
 	}
 	if (params->buffer_size != runtime->buffer_size) {
-		newbuf = kmalloc(params->buffer_size, GFP_KERNEL);
+		newbuf = krealloc(runtime->buffer, params->buffer_size,
+				  GFP_KERNEL);
 		if (!newbuf)
 			return -ENOMEM;
-		kfree(runtime->buffer);
 		runtime->buffer = newbuf;
 		runtime->buffer_size = params->buffer_size;
 	}

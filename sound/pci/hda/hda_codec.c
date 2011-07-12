@@ -4957,17 +4957,14 @@ void *snd_array_new(struct snd_array *array)
 {
 	if (array->used >= array->alloced) {
 		int num = array->alloced + array->alloc_align;
+		int size = (num + 1) * array->elem_size;
 		void *nlist;
 		if (snd_BUG_ON(num >= 4096))
 			return NULL;
-		nlist = kcalloc(num + 1, array->elem_size, GFP_KERNEL);
+		nlist = krealloc(array->list, size, GFP_KERNEL);
 		if (!nlist)
 			return NULL;
-		if (array->list) {
-			memcpy(nlist, array->list,
-			       array->elem_size * array->alloced);
-			kfree(array->list);
-		}
+		memset(nlist, 0, size - array->alloced * array->elem_size);
 		array->list = nlist;
 		array->alloced = num;
 	}
