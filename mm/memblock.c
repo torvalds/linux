@@ -511,28 +511,14 @@ phys_addr_t __init memblock_alloc(phys_addr_t size, phys_addr_t align)
 phys_addr_t __weak __init memblock_nid_range(phys_addr_t start, phys_addr_t end, int *nid)
 {
 #ifdef CONFIG_ARCH_POPULATES_NODE_MAP
-	/*
-	 * This code originates from sparc which really wants use to walk by addresses
-	 * and returns the nid. This is not very convenient for early_pfn_map[] users
-	 * as the map isn't sorted yet, and it really wants to be walked by nid.
-	 *
-	 * For now, I implement the inefficient method below which walks the early
-	 * map multiple times. Eventually we may want to use an ARCH config option
-	 * to implement a completely different method for both case.
-	 */
 	unsigned long start_pfn, end_pfn;
 	int i;
 
-	for (i = 0; i < MAX_NUMNODES; i++) {
-		get_pfn_range_for_nid(i, &start_pfn, &end_pfn);
-		if (start < PFN_PHYS(start_pfn) || start >= PFN_PHYS(end_pfn))
-			continue;
-		*nid = i;
-		return min(end, PFN_PHYS(end_pfn));
-	}
+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, nid)
+		if (start >= PFN_PHYS(start_pfn) && start < PFN_PHYS(end_pfn))
+			return min(end, PFN_PHYS(end_pfn));
 #endif
 	*nid = 0;
-
 	return end;
 }
 
