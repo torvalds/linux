@@ -934,8 +934,8 @@ int mnt_had_events(struct proc_mounts *p)
 	int res = 0;
 
 	br_read_lock(vfsmount_lock);
-	if (p->event != ns->event) {
-		p->event = ns->event;
+	if (p->m.poll_event != ns->event) {
+		p->m.poll_event = ns->event;
 		res = 1;
 	}
 	br_read_unlock(vfsmount_lock);
