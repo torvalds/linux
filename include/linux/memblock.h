@@ -61,6 +61,26 @@ extern long memblock_remove(phys_addr_t base, phys_addr_t size);
 extern long memblock_free(phys_addr_t base, phys_addr_t size);
 extern long memblock_reserve(phys_addr_t base, phys_addr_t size);
 
+extern void __next_free_mem_range(u64 *idx, int nid, phys_addr_t *out_start,
+				  phys_addr_t *out_end, int *out_nid);
+
+/**
+ * for_each_free_mem_range - iterate through free memblock areas
+ * @i: u64 used as loop variable
+ * @nid: node selector, %MAX_NUMNODES for all nodes
+ * @p_start: ptr to phys_addr_t for start address of the range, can be %NULL
+ * @p_end: ptr to phys_addr_t for end address of the range, can be %NULL
+ * @p_nid: ptr to int for nid of the range, can be %NULL
+ *
+ * Walks over free (memory && !reserved) areas of memblock.  Available as
+ * soon as memblock is initialized.
+ */
+#define for_each_free_mem_range(i, nid, p_start, p_end, p_nid)		\
+	for (i = 0,							\
+	     __next_free_mem_range(&i, nid, p_start, p_end, p_nid);	\
+	     i != (u64)ULLONG_MAX;					\
+	     __next_free_mem_range(&i, nid, p_start, p_end, p_nid))
+
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 extern int memblock_set_node(phys_addr_t base, phys_addr_t size, int nid);
 
