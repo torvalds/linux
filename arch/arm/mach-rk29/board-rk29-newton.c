@@ -571,16 +571,12 @@ struct platform_device rk29_device_newton = {
 		}    	    
 	};
 #endif
-#if defined (CONFIG_TOUCHSCREEN_FT5406)|| defined (CONFIG_TOUCHSCREEN_GOODIX_NEWTON)
+#if defined (CONFIG_TOUCHSCREEN_FT5406)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN0_PA2
-
-//#define TOUCH_POER_PIN   RK29_PIN6_PB2
-
 int ft5406_init_platform_hw(void)
 {
-       printk("ft5406_init_platform_hw\n");
-
+	printk("ft5406_init_platform_hw\n");
     if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
       gpio_free(TOUCH_RESET_PIN);
       printk("ft5406_init_platform_hw gpio_request error\n");
@@ -593,49 +589,109 @@ int ft5406_init_platform_hw(void)
       return -EIO;
     }
 
- //   if(gpio_request(TOUCH_POER_PIN,NULL) != 0){
- //     gpio_free(TOUCH_POER_PIN);
- //     printk("ft5406_init_platform_hw gpio_power error\n");
-//      return -EIO;
- //   }	
-
-#if 1
-       gpio_direction_output(TOUCH_RESET_PIN, 0);
-	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
-	msleep(100);
+	gpio_direction_output(TOUCH_RESET_PIN, 0);
 	gpio_direction_output(TOUCH_INT_PIN, 0);
-	gpio_set_value(TOUCH_INT_PIN,GPIO_LOW);
-	mdelay(10);
-//	gpio_direction_output(TOUCH_POER_PIN, 0);
-//	gpio_set_value(TOUCH_POER_PIN,GPIO_HIGH);
-
-	//msleep(3000);
-	msleep(50);                             //harry 2011.04.20
-	
+	gpio_set_value(TOUCH_INT_PIN,GPIO_HIGH);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
-	msleep(100);
-	gpio_direction_output(TOUCH_INT_PIN, 1);
 	gpio_pull_updown(TOUCH_INT_PIN, 0);  
-#endif
-
-
     return 0;
 }
-#endif
 
-#if defined (CONFIG_TOUCHSCREEN_FT5406)
+int ft5406_exit_platform_hw(void)
+{
+	printk("ft5406_exit_platform_hw\n");
+	gpio_free(TOUCH_RESET_PIN);
+	gpio_free(TOUCH_INT_PIN);
+	return 0;
+}
+
+int ft5406_platform_sleep(void)
+{
+	printk("ft5406_platform_sleep\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	return 0;
+}
+
+int ft5406_platform_wakeup(void)
+{
+	printk("ft5406_platform_wakeup\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	return 0;
+}
 
 struct ft5406_platform_data ft5406_info = {
 
   .init_platform_hw= ft5406_init_platform_hw,
+  .exit_platform_hw= ft5406_exit_platform_hw,
+  .platform_sleep  = ft5406_platform_sleep,
+  .platform_wakeup = ft5406_platform_wakeup,
 
 };
 #endif
 
 #if defined(CONFIG_TOUCHSCREEN_GOODIX_NEWTON)
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+int gt819_init_platform_hw(void)
+{
+	printk("gt819_init_platform_hw\n");
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("gt819_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("gt819_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+	gpio_direction_output(TOUCH_RESET_PIN, 0);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	msleep(100);
+	gpio_direction_output(TOUCH_INT_PIN, 0);
+	gpio_set_value(TOUCH_INT_PIN,GPIO_LOW);
+	mdelay(10);
+	msleep(50);
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(100);
+	gpio_direction_output(TOUCH_INT_PIN, 1);
+	gpio_pull_updown(TOUCH_INT_PIN, 0);  
+    return 0;
+}
+
+
+int gt819_exit_platform_hw(void)
+{
+	printk("gt819_exit_platform_hw\n");
+	gpio_free(TOUCH_RESET_PIN);
+	gpio_free(TOUCH_INT_PIN);
+	return 0;
+}
+
+int gt819_platform_sleep(void)
+{
+	printk("gt819_platform_sleep\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+	return 0;
+}
+
+int gt819_platform_wakeup(void)
+{
+	printk("gt819_platform_wakeup\n");
+	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(5);
+	gpio_set_value(TOUCH_INT_PIN, GPIO_LOW); 
+	msleep(20);
+	gpio_set_value(TOUCH_INT_PIN, GPIO_HIGH);
+	return 0;
+}
 struct goodix_platform_data goodix_info = {
 
-  .init_platform_hw= ft5406_init_platform_hw,
+  .init_platform_hw= gt819_init_platform_hw,
+  .exit_platform_hw= gt819_exit_platform_hw,
+  .platform_sleep  = gt819_platform_sleep,
+  .platform_wakeup = gt819_platform_wakeup,
 
 };
 #endif
@@ -962,37 +1018,23 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
       .platform_data  = &eeti_egalax_info,
     },
 #endif
-
-
 #if defined (CONFIG_TOUCHSCREEN_GOODIX_NEWTON)
 {
-	.type	= "Goodix-TS",
+		.type	= "Goodix-TS",
 		.addr 	= 0x55,
 		.flags      =0,
-		//.irq		=RK29_PIN0_PA2,
+		.irq		=RK29_PIN0_PA2,
 		.platform_data = &goodix_info,
 },
 #endif
-
-
-
 #if defined (CONFIG_TOUCHSCREEN_FT5406)
 {
-	.type	="ft5x0x_ts",
+		.type	="ft5x0x_ts",
 		.addr 	= 0x38,    //0x70,
 		.flags      =0,
-		//.irq		=RK29_PIN0_PA2, // support goodix tp detect, 20110706
+		.irq		=RK29_PIN0_PA2, // support goodix tp detect, 20110706
 		.platform_data = &ft5406_info,
 },
-	//added by koffu
-	{
-		.type	="ft_rw_iic_drv",
-			.addr	= 0x38,    //0x70,
-			.flags		=0,
-			//.irq		=RK29_PIN0_PA2,
-			//.platform_data = &ft5406_info,
-	},
-
 #endif
 };
 #endif
