@@ -2550,12 +2550,18 @@ void rtl8192_rx_normal(struct net_device *dev)
 		rx_desc *pdesc = &priv->rx_ring[rx_queue_idx][priv->rx_idx[rx_queue_idx]];
 		struct sk_buff *skb = priv->rx_buf[rx_queue_idx][priv->rx_idx[rx_queue_idx]];
 
-		if (pdesc->OWN){
+		if (pdesc->OWN) {
 			return;
 		} else {
+			struct sk_buff *new_skb;
 
-			struct sk_buff *new_skb = NULL;
-			if (!priv->ops->rx_query_status_descriptor(dev, &stats, pdesc, skb))
+			if (!priv->ops->rx_query_status_descriptor(dev, &stats,
+			    pdesc, skb))
+				goto done;
+			new_skb = dev_alloc_skb(priv->rxbuffersize);
+			/* if allocation of new skb failed - drop current packet
+			 * and reuse skb */
+			if (unlikely(!new_skb))
 				goto done;
 
 			pci_unmap_single(priv->pdev,
@@ -2564,24 +2570,24 @@ void rtl8192_rx_normal(struct net_device *dev)
 					PCI_DMA_FROMDEVICE);
 
 			skb_put(skb, pdesc->Length);
-			skb_reserve(skb, stats.RxDrvInfoSize + stats.RxBufShift);
+			skb_reserve(skb, stats.RxDrvInfoSize +
+				    stats.RxBufShift);
 			skb_trim(skb, skb->len - 4/*sCrcLng*/);
 			rtllib_hdr = (struct rtllib_hdr_1addr *)skb->data;
-			if (is_broadcast_ether_addr(rtllib_hdr->addr1)) {
-			}else if (is_multicast_ether_addr(rtllib_hdr->addr1)){
-			}else {
+			if (!is_broadcast_ether_addr(rtllib_hdr->addr1) &&
+			    !is_multicast_ether_addr(rtllib_hdr->addr1)) {
 				/* unicast packet */
 				unicast_packet = true;
 			}
 			fc = le16_to_cpu(rtllib_hdr->frame_ctl);
 			type = WLAN_FC_GET_TYPE(fc);
 			if (type == RTLLIB_FTYPE_MGMT)
-			{
 				bLedBlinking = false;
-			}
+
 			if (bLedBlinking)
 				if (priv->rtllib->LedControlHandler)
-				priv->rtllib->LedControlHandler(dev, LED_CTL_RX);
+					priv->rtllib->LedControlHandler(dev,
+								 LED_CTL_RX);
 
 			if (stats.bCRC) {
 				if (type != RTLLIB_FTYPE_MGMT)
@@ -2592,28 +2598,16 @@ void rtl8192_rx_normal(struct net_device *dev)
 
 			skb_len = skb->len;
 
-			if (1)
-			{
 			if (!rtllib_rx(priv->rtllib, skb, &stats)){
 				dev_kfree_skb_any(skb);
 			} else {
 				priv->stats.rxok++;
-				if (unicast_packet) {
+				if (unicast_packet)
 					priv->stats.rxbytesunicast += skb_len;
-				}
-			}
-			}else{
-				dev_kfree_skb_any(skb);
 			}
 
-			new_skb = dev_alloc_skb(priv->rxbuffersize);
-			if (unlikely(!new_skb))
-			{
-				printk("==========>can't alloc skb for rx\n");
-				goto done;
-			}
-			skb=new_skb;
-                        skb->dev = dev;
+			skb = new_skb;
+			skb->dev = dev;
 
 			priv->rx_buf[rx_queue_idx][priv->rx_idx[rx_queue_idx]] = skb;
 			*((dma_addr_t *) skb->cb) = pci_map_single(priv->pdev, skb_tail_pointer_rsl(skb), priv->rxbuffersize, PCI_DMA_FROMDEVICE);
