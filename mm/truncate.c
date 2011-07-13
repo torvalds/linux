@@ -304,6 +304,11 @@ EXPORT_SYMBOL(truncate_inode_pages_range);
  * @lstart: offset from which to truncate
  *
  * Called under (and serialised by) inode->i_mutex.
+ *
+ * Note: When this function returns, there can be a page in the process of
+ * deletion (inside __delete_from_page_cache()) in the specified range.  Thus
+ * mapping->nrpages can be non-zero when this function returns even after
+ * truncation of the whole mapping.
  */
 void truncate_inode_pages(struct address_space *mapping, loff_t lstart)
 {
@@ -603,3 +608,27 @@ int vmtruncate(struct inode *inode, loff_t offset)
 	return 0;
 }
 EXPORT_SYMBOL(vmtruncate);
+
+int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
+{
+	struct address_space *mapping = inode->i_mapping;
+
+	/*
+	 * If the underlying filesystem is not going to provide
+	 * a way to truncate a range of blocks (punch a hole) -
+	 * we should return failure right now.
+	 */
+	if (!inode->i_op->truncate_range)
+		return -ENOSYS;
+
+	mutex_lock(&inode->i_mutex);
+	down_write(&inode->i_alloc_sem);
+	unmap_mapping_range(mapping, offset, (end - offset), 1);
+	inode->i_op->truncate_range(inode, offset, end);
+	/* unmap again to remove racily COWed private pages */
+	unmap_mapping_range(mapping, offset, (end - offset), 1);
+	up_write(&inode->i_alloc_sem);
+	mutex_unlock(&inode->i_mutex);
+
+	return 0;
+}

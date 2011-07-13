@@ -767,7 +767,6 @@ static irqreturn_t s3c2410fb_irq(int irq, void *dev_id)
 static int s3c2410fb_cpufreq_transition(struct notifier_block *nb,
 					unsigned long val, void *data)
 {
-	struct cpufreq_freqs *freqs = data;
 	struct s3c2410fb_info *info;
 	struct fb_info *fbinfo;
 	long delta_f;

@@ -28,6 +28,7 @@
 #include <linux/poison.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
+#include <linux/memory.h>
 #include <linux/memory_hotplug.h>
 #include <linux/nmi.h>
 #include <linux/gfp.h>
@@ -895,8 +896,6 @@ const char *arch_vma_name(struct vm_area_struct *vma)
 }
 
 #ifdef CONFIG_X86_UV
-#define MIN_MEMORY_BLOCK_SIZE   (1 << SECTION_SIZE_BITS)
-
 unsigned long memory_block_size_bytes(void)
 {
 	if (is_uv_system()) {

@@ -245,30 +245,32 @@ recalibrate:
 
 void __cpuinit calibrate_delay(void)
 {
+	unsigned long lpj;
 	static bool printed;
 
 	if (preset_lpj) {
-		loops_per_jiffy = preset_lpj;
+		lpj = preset_lpj;
 		if (!printed)
 			pr_info("Calibrating delay loop (skipped) "
 				"preset value.. ");
 	} else if ((!printed) && lpj_fine) {
-		loops_per_jiffy = lpj_fine;
+		lpj = lpj_fine;
 		pr_info("Calibrating delay loop (skipped), "
 			"value calculated using timer frequency.. ");
-	} else if ((loops_per_jiffy = calibrate_delay_direct()) != 0) {
+	} else if ((lpj = calibrate_delay_direct()) != 0) {
 		if (!printed)
 			pr_info("Calibrating delay using timer "
 				"specific routine.. ");
 	} else {
 		if (!printed)
 			pr_info("Calibrating delay loop... ");
-		loops_per_jiffy = calibrate_delay_converge();
+		lpj = calibrate_delay_converge();
 	}
 	if (!printed)
 		pr_cont("%lu.%02lu BogoMIPS (lpj=%lu)\n",
-			loops_per_jiffy/(500000/HZ),
-			(loops_per_jiffy/(5000/HZ)) % 100, loops_per_jiffy);
+			lpj/(500000/HZ),
+			(lpj/(5000/HZ)) % 100, lpj);
 
+	loops_per_jiffy = lpj;
 	printed = true;
 }
