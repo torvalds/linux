@@ -16,7 +16,7 @@
 #define DEBUG_RANGE_CHECK 0
 
 #define DRBD_MINOR_COUNT_MIN 1
-#define DRBD_MINOR_COUNT_MAX 256
+#define DRBD_MINOR_COUNT_MAX (1U << 20)
 #define DRBD_MINOR_COUNT_DEF 32
 
 #define DRBD_VOLUME_MAX 65535
@@ -99,7 +99,7 @@
    * 200 should be more than enough even for very short timeouts */
 #define DRBD_KO_COUNT_MIN  0
 #define DRBD_KO_COUNT_MAX  200
-#define DRBD_KO_COUNT_DEF  0
+#define DRBD_KO_COUNT_DEF  7
 /* } */
 
 /* syncer { */
@@ -117,7 +117,7 @@
    * 919 * 7 = 6433 */
 #define DRBD_AL_EXTENTS_MIN  7
 #define DRBD_AL_EXTENTS_MAX  6433
-#define DRBD_AL_EXTENTS_DEF  127
+#define DRBD_AL_EXTENTS_DEF  1237
 
 #define DRBD_MINOR_NUMBER_MIN  -1
 #define DRBD_MINOR_NUMBER_MAX  (1<<30)
@@ -151,7 +151,7 @@
 
 #define DRBD_C_PLAN_AHEAD_MIN  0
 #define DRBD_C_PLAN_AHEAD_MAX  300
-#define DRBD_C_PLAN_AHEAD_DEF  0 /* RS rate controller disabled by default */
+#define DRBD_C_PLAN_AHEAD_DEF  20
 
 #define DRBD_C_DELAY_TARGET_MIN 1
 #define DRBD_C_DELAY_TARGET_MAX 100
@@ -159,7 +159,7 @@
 
 #define DRBD_C_FILL_TARGET_MIN 0
 #define DRBD_C_FILL_TARGET_MAX (1<<20) /* 500MByte in sec */
-#define DRBD_C_FILL_TARGET_DEF 0 /* By default disabled -> controlled by delay_target */
+#define DRBD_C_FILL_TARGET_DEF 100 /* Try to place 50KiB in socket send buffer during resync */
 
 #define DRBD_C_MAX_RATE_MIN     250 /* kByte/sec */
 #define DRBD_C_MAX_RATE_MAX     (4 << 20)
@@ -167,7 +167,7 @@
 
 #define DRBD_C_MIN_RATE_MIN     0 /* kByte/sec */
 #define DRBD_C_MIN_RATE_MAX     (4 << 20)
-#define DRBD_C_MIN_RATE_DEF     4096
+#define DRBD_C_MIN_RATE_DEF     250
 
 #define DRBD_CONG_FILL_MIN	0
 #define DRBD_CONG_FILL_MAX	(10<<21) /* 10GByte in sectors */
@@ -187,6 +187,6 @@
 
 #define DRBD_ALLOW_TWO_PRIMARIES_DEF	0
 #define DRBD_ALWAYS_ASBP_DEF	0
-#define DRBD_USE_RLE_DEF	0
+#define DRBD_USE_RLE_DEF	1
 
 #endif
