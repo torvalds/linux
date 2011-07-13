@@ -408,7 +408,7 @@ xfs_dir2_leafn_lookup_for_addname(
 				ASSERT(be32_to_cpu(free->hdr.magic) ==
 					XFS_DIR2_FREE_MAGIC);
 				ASSERT((be32_to_cpu(free->hdr.firstdb) %
-					XFS_DIR2_MAX_FREE_BESTS(mp)) == 0);
+					xfs_dir2_free_max_bests(mp)) == 0);
 				ASSERT(be32_to_cpu(free->hdr.firstdb) <= curdb);
 				ASSERT(curdb < be32_to_cpu(free->hdr.firstdb) +
 					be32_to_cpu(free->hdr.nvalid));
@@ -924,7 +924,7 @@ xfs_dir2_leafn_remove(
 		free = fbp->data;
 		ASSERT(free->hdr.magic == cpu_to_be32(XFS_DIR2_FREE_MAGIC));
 		ASSERT(be32_to_cpu(free->hdr.firstdb) ==
-		       XFS_DIR2_MAX_FREE_BESTS(mp) *
+		       xfs_dir2_free_max_bests(mp) *
 		       (fdb - XFS_DIR2_FREE_FIRSTDB(mp)));
 		/*
 		 * Calculate which entry we need to fix.
@@ -1603,7 +1603,7 @@ xfs_dir2_node_addname_int(
 			free->hdr.magic = cpu_to_be32(XFS_DIR2_FREE_MAGIC);
 			free->hdr.firstdb = cpu_to_be32(
 				(fbno - XFS_DIR2_FREE_FIRSTDB(mp)) *
-				XFS_DIR2_MAX_FREE_BESTS(mp));
+				xfs_dir2_free_max_bests(mp));
 			free->hdr.nvalid = 0;
 			free->hdr.nused = 0;
 		} else {
@@ -1620,7 +1620,7 @@ xfs_dir2_node_addname_int(
 		 * freespace block, extend that table.
 		 */
 		if (findex >= be32_to_cpu(free->hdr.nvalid)) {
-			ASSERT(findex < XFS_DIR2_MAX_FREE_BESTS(mp));
+			ASSERT(findex < xfs_dir2_free_max_bests(mp));
 			free->hdr.nvalid = cpu_to_be32(findex + 1);
 			/*
 			 * Tag new entry so nused will go up.

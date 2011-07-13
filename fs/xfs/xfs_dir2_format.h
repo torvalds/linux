@@ -516,13 +516,15 @@ typedef	struct xfs_dir2_free_hdr {
 
 typedef struct xfs_dir2_free {
 	xfs_dir2_free_hdr_t	hdr;		/* block header */
-	__be16			bests[1];	/* best free counts */
+	__be16			bests[];	/* best free counts */
 						/* unused entries are -1 */
 } xfs_dir2_free_t;
 
-#define	XFS_DIR2_MAX_FREE_BESTS(mp)	\
-	(((mp)->m_dirblksize - (uint)sizeof(struct xfs_dir2_free_hdr)) / \
-	 (uint)sizeof(xfs_dir2_data_off_t))
+static inline int xfs_dir2_free_max_bests(struct xfs_mount *mp)
+{
+	return (mp->m_dirblksize - sizeof(struct xfs_dir2_free_hdr)) /
+		sizeof(xfs_dir2_data_off_t);
+}
 
 /*
  * Convert data space db to the corresponding free db.
@@ -530,7 +532,7 @@ typedef struct xfs_dir2_free {
 static inline xfs_dir2_db_t
 xfs_dir2_db_to_fdb(struct xfs_mount *mp, xfs_dir2_db_t db)
 {
-	return XFS_DIR2_FREE_FIRSTDB(mp) + db / XFS_DIR2_MAX_FREE_BESTS(mp);
+	return XFS_DIR2_FREE_FIRSTDB(mp) + db / xfs_dir2_free_max_bests(mp);
 }
 
 /*
@@ -539,7 +541,7 @@ xfs_dir2_db_to_fdb(struct xfs_mount *mp, xfs_dir2_db_t db)
 static inline int
 xfs_dir2_db_to_fdindex(struct xfs_mount *mp, xfs_dir2_db_t db)
 {
-	return db % XFS_DIR2_MAX_FREE_BESTS(mp);
+	return db % xfs_dir2_free_max_bests(mp);
 }
 
 /*
