@@ -60,9 +60,12 @@ static u64 current_sessionid = 1;
 
 /* forward declarations */
 static struct nfs4_stateid * find_stateid(stateid_t *stid, int flags);
+static struct nfs4_stateid * search_for_stateid(stateid_t *stid);
+static struct nfs4_delegation * search_for_delegation(stateid_t *stid);
 static struct nfs4_delegation * find_delegation_stateid(struct inode *ino, stateid_t *stid);
 static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
 static void nfs4_set_recdir(char *recdir);
+static int check_for_locks(struct nfs4_file *filp, struct nfs4_stateowner *lowner);
 
 /* Locking: */
 
@@ -3137,6 +3140,11 @@ static int is_delegation_stateid(stateid_t *stateid)
 	return stateid->si_fileid == 0;
 }
 
+static int is_open_stateid(struct nfs4_stateid *stateid)
+{
+	return stateid->st_openstp == NULL;
+}
+
 /*
 * Checks for stateid operations
 */
@@ -3214,6 +3222,70 @@ nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 	status = nfs_ok;
 out:
 	return status;
+}
+
+static __be32
+nfsd4_free_delegation_stateid(stateid_t *stateid)
+{
+	struct nfs4_delegation *dp = search_for_delegation(stateid);
+	if (dp)
+		return nfserr_locks_held;
+	return nfserr_bad_stateid;
+}
+
+static __be32
+nfsd4_free_lock_stateid(struct nfs4_stateid *stp)
+{
+	if (check_for_locks(stp->st_file, stp->st_stateowner))
+		return nfserr_locks_held;
+	release_lock_stateid(stp);
+	return nfs_ok;
+}
+
+/*
+ * Free a state id
+ */
+__be32
+nfsd4_free_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+		   struct nfsd4_free_stateid *free_stateid)
+{
+	stateid_t *stateid = &free_stateid->fr_stateid;
+	struct nfs4_stateid *stp;
+	__be32 ret;
+
+	nfs4_lock_state();
+	if (is_delegation_stateid(stateid)) {
+		ret = nfsd4_free_delegation_stateid(stateid);
+		goto out;
+	}
+
+	stp = search_for_stateid(stateid);
+	if (!stp) {
+		ret = nfserr_bad_stateid;
+		goto out;
+	}
+	if (stateid->si_generation != 0) {
+		if (stateid->si_generation < stp->st_stateid.si_generation) {
+			ret = nfserr_old_stateid;
+			goto out;
+		}
+		if (stateid->si_generation > stp->st_stateid.si_generation) {
+			ret = nfserr_bad_stateid;
+			goto out;
+		}
+	}
+
+	if (is_open_stateid(stp)) {
+		ret = nfserr_locks_held;
+		goto out;
+	} else {
+		ret = nfsd4_free_lock_stateid(stp);
+		goto out;
+	}
+
+out:
+	nfs4_unlock_state();
+	return ret;
 }
 
 static inline int
@@ -3594,6 +3666,14 @@ static struct list_head lock_ownerid_hashtbl[LOCK_HASH_SIZE];
 static struct list_head	lock_ownerstr_hashtbl[LOCK_HASH_SIZE];
 static struct list_head lockstateid_hashtbl[STATEID_HASH_SIZE];
 
+static int
+same_stateid(stateid_t *id_one, stateid_t *id_two)
+{
+	if (id_one->si_stateownerid != id_two->si_stateownerid)
+		return 0;
+	return id_one->si_fileid == id_two->si_fileid;
+}
+
 static struct nfs4_stateid *
 find_stateid(stateid_t *stid, int flags)
 {
@@ -3618,6 +3698,44 @@ find_stateid(stateid_t *stid, int flags)
 			if ((local->st_stateid.si_stateownerid == st_id) &&
 			    (local->st_stateid.si_fileid == f_id))
 				return local;
+		}
+	}
+	return NULL;
+}
+
+static struct nfs4_stateid *
+search_for_stateid(stateid_t *stid)
+{
+	struct nfs4_stateid *local;
+	unsigned int hashval = stateid_hashval(stid->si_stateownerid, stid->si_fileid);
+
+	list_for_each_entry(local, &lockstateid_hashtbl[hashval], st_hash) {
+		if (same_stateid(&local->st_stateid, stid))
+			return local;
+	}
+
+	list_for_each_entry(local, &stateid_hashtbl[hashval], st_hash) {
+		if (same_stateid(&local->st_stateid, stid))
+			return local;
+	}
+	return NULL;
+}
+
+static struct nfs4_delegation *
+search_for_delegation(stateid_t *stid)
+{
+	struct nfs4_file *fp;
+	struct nfs4_delegation *dp;
+	struct list_head *pos;
+	int i;
+
+	for (i = 0; i < FILE_HASH_SIZE; i++) {
+		list_for_each_entry(fp, &file_hashtbl[i], fi_hash) {
+			list_for_each(pos, &fp->fi_delegations) {
+				dp = list_entry(pos, struct nfs4_delegation, dl_perfile);
+				if (same_stateid(&dp->dl_stateid, stid))
+					return dp;
+			}
 		}
 	}
 	return NULL;
