@@ -24,10 +24,10 @@
 #include <linux/backlight.h>
 #include <linux/gpio.h>
 #include <video/sh_mobile_lcdc.h>
+#include <video/sh_mobile_meram.h>
 #include <linux/atomic.h>
 
 #include "sh_mobile_lcdcfb.h"
-#include "sh_mobile_meram.h"
 
 #define SIDE_B_OFFSET 0x1000
 #define MIRROR_OFFSET 0x2000

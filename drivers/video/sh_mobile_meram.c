@@ -16,8 +16,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
-
-#include "sh_mobile_meram.h"
+#include <video/sh_mobile_meram.h>
 
 /* meram registers */
 #define MEVCR1			0x4
@@ -81,6 +80,8 @@
 	(((rcnt) << MExxBSIZE_RCNT_SHIFT) | \
 	 ((yszm1) << MExxBSIZE_YSZM1_SHIFT) | \
 	 ((xszm1) << MExxBSIZE_XSZM1_SHIFT))
+
+#define SH_MOBILE_MERAM_ICB_NUM		32
 
 static unsigned long common_regs[] = {
 	MEVCR1,
