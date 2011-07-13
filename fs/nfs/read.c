@@ -112,19 +112,19 @@ static void nfs_readpage_truncate_uninitialised_page(struct nfs_read_data *data)
 	}
 }
 
-void nfs_pageio_init_read_mds(struct nfs_pageio_descriptor *pgio,
+static void nfs_pageio_init_read_mds(struct nfs_pageio_descriptor *pgio,
 		struct inode *inode)
 {
 	nfs_pageio_init(pgio, inode, &nfs_pageio_read_ops,
 			NFS_SERVER(inode)->rsize, 0);
 }
-EXPORT_SYMBOL_GPL(nfs_pageio_init_read_mds);
 
 void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio)
 {
 	pgio->pg_ops = &nfs_pageio_read_ops;
 	pgio->pg_bsize = NFS_SERVER(pgio->pg_inode)->rsize;
 }
+EXPORT_SYMBOL_GPL(nfs_pageio_reset_read_mds);
 
 static void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 		struct inode *inode)

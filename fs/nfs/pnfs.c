@@ -1075,7 +1075,7 @@ pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *r
 					   GFP_KERNEL);
 	/* If no lseg, fall back to read through mds */
 	if (pgio->pg_lseg == NULL)
-		nfs_pageio_init_read_mds(pgio, pgio->pg_inode);
+		nfs_pageio_reset_read_mds(pgio);
 
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_init_read);
@@ -1093,7 +1093,7 @@ pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *
 					   GFP_NOFS);
 	/* If no lseg, fall back to write through mds */
 	if (pgio->pg_lseg == NULL)
-		nfs_pageio_init_write_mds(pgio, pgio->pg_inode, pgio->pg_ioflags);
+		nfs_pageio_reset_write_mds(pgio);
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_init_write);
 
