@@ -496,9 +496,6 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 		u16 val = len_vals[data_vals[i]];
 		single_len = redrat3_len_to_us((u32)be16_to_cpu(val));
 
-		/* cap the value to IR_MAX_DURATION */
-		single_len &= IR_MAX_DURATION;
-
 		/* we should always get pulse/space/pulse/space samples */
 		if (i % 2)
 			rawir.pulse = false;
@@ -506,6 +503,9 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 			rawir.pulse = true;
 
 		rawir.duration = US_TO_NS(single_len);
+		/* cap the value to IR_MAX_DURATION */
+		rawir.duration &= IR_MAX_DURATION;
+
 		rr3_dbg(dev, "storing %s with duration %d (i: %d)\n",
 			rawir.pulse ? "pulse" : "space", rawir.duration, i);
 		ir_raw_event_store_with_filter(rr3->rc, &rawir);
