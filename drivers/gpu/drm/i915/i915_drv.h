@@ -988,16 +988,16 @@ struct drm_i915_file_private {
 
 extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
-extern unsigned int i915_fbpercrtc;
-extern int i915_panel_ignore_lid;
-extern unsigned int i915_powersave;
-extern unsigned int i915_semaphores;
-extern unsigned int i915_lvds_downclock;
-extern unsigned int i915_panel_use_ssc;
-extern int i915_vbt_sdvo_panel_type;
-extern unsigned int i915_enable_rc6;
-extern unsigned int i915_enable_fbc;
-extern bool i915_enable_hangcheck;
+extern unsigned int i915_fbpercrtc __always_unused;
+extern int i915_panel_ignore_lid __read_mostly;
+extern unsigned int i915_powersave __read_mostly;
+extern unsigned int i915_semaphores __read_mostly;
+extern unsigned int i915_lvds_downclock __read_mostly;
+extern unsigned int i915_panel_use_ssc __read_mostly;
+extern int i915_vbt_sdvo_panel_type __read_mostly;
+extern unsigned int i915_enable_rc6 __read_mostly;
+extern unsigned int i915_enable_fbc __read_mostly;
+extern bool i915_enable_hangcheck __read_mostly;
 
 extern int i915_suspend(struct drm_device *dev, pm_message_t state);
 extern int i915_resume(struct drm_device *dev);
