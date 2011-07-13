@@ -80,6 +80,12 @@ void __init at91_add_device_usbh(struct at91_usbh_data *data)
 			at91_set_gpio_output(data->vbus_pin[i], 0);
 	}
 
+	/* Enable overcurrent notification */
+	for (i = 0; i < data->ports; i++) {
+		if (data->overcurrent_pin[i])
+			at91_set_gpio_input(data->overcurrent_pin[i], 1);
+	}
+
 	usbh_data = *data;
 	platform_device_register(&at91_usbh_device);
 }
