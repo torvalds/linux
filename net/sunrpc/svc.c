@@ -1300,7 +1300,7 @@ bc_svc_process(struct svc_serv *serv, struct rpc_rqst *req,
 		return 0;
 	}
 }
-EXPORT_SYMBOL(bc_svc_process);
+EXPORT_SYMBOL_GPL(bc_svc_process);
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
 /*

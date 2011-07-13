@@ -172,7 +172,7 @@ out_free:
 	dprintk("RPC:       setup backchannel transport failed\n");
 	return -1;
 }
-EXPORT_SYMBOL(xprt_setup_backchannel);
+EXPORT_SYMBOL_GPL(xprt_setup_backchannel);
 
 /*
  * Destroys the backchannel preallocated structures.
@@ -202,7 +202,7 @@ void xprt_destroy_backchannel(struct rpc_xprt *xprt, unsigned int max_reqs)
 	dprintk("RPC:        backchannel list empty= %s\n",
 		list_empty(&xprt->bc_pa_list) ? "true" : "false");
 }
-EXPORT_SYMBOL(xprt_destroy_backchannel);
+EXPORT_SYMBOL_GPL(xprt_destroy_backchannel);
 
 /*
  * One or more rpc_rqst structure have been preallocated during the
