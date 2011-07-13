@@ -1095,9 +1095,6 @@ struct rtllib_rx_stats {
 	char   cck_adc_pwdb[4];
 	u16    Seq_Num;
 	u8     nTotalAggPkt;
-#ifdef TCP_CSUM_OFFLOAD_RX
-	u8	tcp_csum_valid;
-#endif
 #endif
 
 };
@@ -1398,9 +1395,6 @@ struct rtllib_rxb {
 	struct sk_buff *subframes[MAX_SUBFRAME_COUNT];
 	u8 dst[ETH_ALEN];
 	u8 src[ETH_ALEN];
-#ifdef TCP_CSUM_OFFLOAD_RX
-	u8 tcp_csum_valid;
-#endif
 }__attribute__((packed));
 
 typedef union _frameqos {

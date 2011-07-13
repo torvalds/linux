@@ -846,15 +846,7 @@ void rtllib_indicate_packets(struct rtllib_device *ieee, struct rtllib_rxb** prx
 				sub_skb->dev = ieee->dev;
 				sub_skb->dev->stats.rx_packets++;
 				sub_skb->dev->stats.rx_bytes += sub_skb->len;
-#ifdef TCP_CSUM_OFFLOAD_RX
-				if ( prxb->tcp_csum_valid)
-					sub_skb->ip_summed = CHECKSUM_UNNECESSARY;
-				else
-					sub_skb->ip_summed = CHECKSUM_NONE;
-
-#else
 				sub_skb->ip_summed = CHECKSUM_NONE; /* 802.11 crc not sufficient */
-#endif
 				ieee->last_rx_ps_time = jiffies;
 				netif_rx(sub_skb);
 			}
@@ -1581,14 +1573,7 @@ void rtllib_rx_indicate_pkt_legacy(
 			sub_skb->dev = dev;
 			sub_skb->dev->stats.rx_packets++;
 			sub_skb->dev->stats.rx_bytes += sub_skb->len;
-#ifdef TCP_CSUM_OFFLOAD_RX
-			if ( rx_stats->tcp_csum_valid)
-				sub_skb->ip_summed = CHECKSUM_UNNECESSARY;
-			else
-				sub_skb->ip_summed = CHECKSUM_NONE;
-#else
 			sub_skb->ip_summed = CHECKSUM_NONE; /* 802.11 crc not sufficient */
-#endif
 			netif_rx(sub_skb);
 		}
 	}
@@ -1749,9 +1734,6 @@ int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	if (ieee->pHTInfo->bCurRxReorderEnable == false ||pTS == NULL || bToOtherSTA){
 		rtllib_rx_indicate_pkt_legacy(ieee, rx_stats, rxb, dst, src);
 	}else{
-#ifdef TCP_CSUM_OFFLOAD_RX
-		rxb->tcp_csum_valid = rx_stats->tcp_csum_valid;
-#endif
 		RxReorderIndicatePacket(ieee, rxb, pTS, SeqNum);
 	}
 
