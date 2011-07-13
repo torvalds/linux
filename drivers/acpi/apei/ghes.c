@@ -681,6 +681,16 @@ static int __init ghes_init(void)
 	if (rc)
 		goto err_ioremap_exit;
 
+	rc = apei_osc_setup();
+	if (rc == 0 && osc_sb_apei_support_acked)
+		pr_info(GHES_PFX "APEI firmware first mode is enabled by APEI bit and WHEA _OSC.\n");
+	else if (rc == 0 && !osc_sb_apei_support_acked)
+		pr_info(GHES_PFX "APEI firmware first mode is enabled by WHEA _OSC.\n");
+	else if (rc && osc_sb_apei_support_acked)
+		pr_info(GHES_PFX "APEI firmware first mode is enabled by APEI bit.\n");
+	else
+		pr_info(GHES_PFX "Failed to enable APEI firmware first mode.\n");
+
 	return 0;
 err_ioremap_exit:
 	ghes_ioremap_exit();
