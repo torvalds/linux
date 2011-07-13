@@ -38,6 +38,7 @@
 
 #include <asm/vsyscall.h>
 #include <asm/pgtable.h>
+#include <asm/compat.h>
 #include <asm/page.h>
 #include <asm/unistd.h>
 #include <asm/fixmap.h>
@@ -97,33 +98,63 @@ static void warn_bad_vsyscall(const char *level, struct pt_regs *regs,
 
 	tsk = current;
 
-	printk("%s%s[%d] %s ip:%lx sp:%lx ax:%lx si:%lx di:%lx\n",
+	printk("%s%s[%d] %s ip:%lx cs:%lx sp:%lx ax:%lx si:%lx di:%lx\n",
 	       level, tsk->comm, task_pid_nr(tsk),
-	       message, regs->ip - 2, regs->sp, regs->ax, regs->si, regs->di);
+	       message, regs->ip - 2, regs->cs,
+	       regs->sp, regs->ax, regs->si, regs->di);
+}
+
+static int addr_to_vsyscall_nr(unsigned long addr)
+{
+	int nr;
+
+	if ((addr & ~0xC00UL) != VSYSCALL_START)
+		return -EINVAL;
+
+	nr = (addr & 0xC00UL) >> 10;
+	if (nr >= 3)
+		return -EINVAL;
+
+	return nr;
 }
 
 void dotraplinkage do_emulate_vsyscall(struct pt_regs *regs, long error_code)
 {
-	const char *vsyscall_name;
 	struct task_struct *tsk;
 	unsigned long caller;
 	int vsyscall_nr;
 	long ret;
 
-	/* Kernel code must never get here. */
-	BUG_ON(!user_mode(regs));
-
 	local_irq_enable();
+
+	/*
+	 * Real 64-bit user mode code has cs == __USER_CS.  Anything else
+	 * is bogus.
+	 */
+	if (regs->cs != __USER_CS) {
+		/*
+		 * If we trapped from kernel mode, we might as well OOPS now
+		 * instead of returning to some random address and OOPSing
+		 * then.
+		 */
+		BUG_ON(!user_mode(regs));
+
+		/* Compat mode and non-compat 32-bit CS should both segfault. */
+		warn_bad_vsyscall(KERN_WARNING, regs,
+				  "illegal int 0xcc from 32-bit mode");
+		goto sigsegv;
+	}
 
 	/*
 	 * x86-ism here: regs->ip points to the instruction after the int 0xcc,
 	 * and int 0xcc is two bytes long.
 	 */
-	if (!is_vsyscall_entry(regs->ip - 2)) {
-		warn_bad_vsyscall(KERN_WARNING, regs, "illegal int 0xcc (exploit attempt?)");
+	vsyscall_nr = addr_to_vsyscall_nr(regs->ip - 2);
+	if (vsyscall_nr < 0) {
+		warn_bad_vsyscall(KERN_WARNING, regs,
+				  "illegal int 0xcc (exploit attempt?)");
 		goto sigsegv;
 	}
-	vsyscall_nr = vsyscall_entry_nr(regs->ip - 2);
 
 	if (get_user(caller, (unsigned long __user *)regs->sp) != 0) {
 		warn_bad_vsyscall(KERN_WARNING, regs, "int 0xcc with bad stack (exploit attempt?)");
@@ -136,31 +167,20 @@ void dotraplinkage do_emulate_vsyscall(struct pt_regs *regs, long error_code)
 
 	switch (vsyscall_nr) {
 	case 0:
-		vsyscall_name = "gettimeofday";
 		ret = sys_gettimeofday(
 			(struct timeval __user *)regs->di,
 			(struct timezone __user *)regs->si);
 		break;
 
 	case 1:
-		vsyscall_name = "time";
 		ret = sys_time((time_t __user *)regs->di);
 		break;
 
 	case 2:
-		vsyscall_name = "getcpu";
 		ret = sys_getcpu((unsigned __user *)regs->di,
 				 (unsigned __user *)regs->si,
 				 0);
 		break;
-
-	default:
-		/*
-		 * If we get here, then vsyscall_nr indicates that int 0xcc
-		 * happened at an address in the vsyscall page that doesn't
-		 * contain int 0xcc.  That can't happen.
-		 */
-		BUG();
 	}
 
 	if (ret == -EFAULT) {
@@ -188,6 +208,7 @@ void dotraplinkage do_emulate_vsyscall(struct pt_regs *regs, long error_code)
 sigsegv:
 	regs->ip -= 2;  /* The faulting instruction should be the int 0xcc. */
 	force_sig(SIGSEGV, current);
+	local_irq_disable();
 }
 
 /*
