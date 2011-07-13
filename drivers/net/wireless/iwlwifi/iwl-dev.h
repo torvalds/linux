@@ -1535,8 +1535,8 @@ struct iwl_priv {
 	bool led_registered;
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 	struct iwl_testmode_trace testmode_trace;
-#endif
 	u32 tm_fixed_rate;
+#endif
 
 }; /*iwl_priv */
 
