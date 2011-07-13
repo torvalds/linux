@@ -2357,7 +2357,7 @@ static void tg3_pwrsrc_switch_to_vaux(struct tg3 *tp)
 	}
 }
 
-static void tg3_frob_aux_power_5717(struct tg3 *tp)
+static void tg3_frob_aux_power_5717(struct tg3 *tp, bool wol_enable)
 {
 	u32 msg = 0;
 
@@ -2365,8 +2365,7 @@ static void tg3_frob_aux_power_5717(struct tg3 *tp)
 	if (tg3_ape_lock(tp, TG3_APE_LOCK_GPIO))
 		return;
 
-	if (tg3_flag(tp, ENABLE_ASF) || tg3_flag(tp, ENABLE_APE) ||
-	    tg3_flag(tp, WOL_ENABLE))
+	if (tg3_flag(tp, ENABLE_ASF) || tg3_flag(tp, ENABLE_APE) || wol_enable)
 		msg = TG3_GPIO_MSG_NEED_VAUX;
 
 	msg = tg3_set_function_status(tp, msg);
@@ -2383,7 +2382,7 @@ done:
 	tg3_ape_unlock(tp, TG3_APE_LOCK_GPIO);
 }
 
-static void tg3_frob_aux_power(struct tg3 *tp)
+static void tg3_frob_aux_power(struct tg3 *tp, bool include_wol)
 {
 	bool need_vaux = false;
 
@@ -2395,7 +2394,8 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720) {
-		tg3_frob_aux_power_5717(tp);
+		tg3_frob_aux_power_5717(tp, include_wol ?
+					tg3_flag(tp, WOL_ENABLE) != 0 : 0);
 		return;
 	}
 
@@ -2411,13 +2411,14 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 			if (tg3_flag(tp_peer, INIT_COMPLETE))
 				return;
 
-			if (tg3_flag(tp_peer, WOL_ENABLE) ||
+			if ((include_wol && tg3_flag(tp_peer, WOL_ENABLE)) ||
 			    tg3_flag(tp_peer, ENABLE_ASF))
 				need_vaux = true;
 		}
 	}
 
-	if (tg3_flag(tp, WOL_ENABLE) || tg3_flag(tp, ENABLE_ASF))
+	if ((include_wol && tg3_flag(tp, WOL_ENABLE)) ||
+	    tg3_flag(tp, ENABLE_ASF))
 		need_vaux = true;
 
 	if (need_vaux)
@@ -3000,7 +3001,7 @@ static int tg3_power_down_prepare(struct tg3 *tp)
 	if (!(device_should_wake) && !tg3_flag(tp, ENABLE_ASF))
 		tg3_power_down_phy(tp, do_low_power);
 
-	tg3_frob_aux_power(tp);
+	tg3_frob_aux_power(tp, true);
 
 	/* Workaround for unstable PLL clock */
 	if ((GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5750_AX) ||
@@ -9556,6 +9557,8 @@ err_out2:
 
 err_out1:
 	tg3_ints_fini(tp);
+	tg3_frob_aux_power(tp, false);
+	pci_set_power_state(tp->pdev, PCI_D3hot);
 	return err;
 }
 
@@ -15399,6 +15402,11 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	tg3_init_coal(tp);
 
 	pci_set_drvdata(pdev, dev);
+
+	if (tg3_flag(tp, 5717_PLUS)) {
+		/* Resume a low-power mode */
+		tg3_frob_aux_power(tp, false);
+	}
 
 	err = register_netdev(dev);
 	if (err) {
