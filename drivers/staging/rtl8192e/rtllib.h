@@ -1741,10 +1741,8 @@ struct rtllib_network {
         u8 wmm_info;
         struct rtllib_wmm_ac_param wmm_param[4];
 	u8 Turbo_Enable;
-#ifdef ENABLE_DOT11D
 	u16 CountryIeLen;
 	u8 CountryIeBuf[MAX_IE_LEN];
-#endif
 	BSS_HT	bssht;
 	bool broadcom_cap_exist;
 	bool realtek_cap_exit;
@@ -2485,12 +2483,8 @@ struct rtllib_device {
         u16 prev_seq_ctl;       /* used to drop duplicate frames */
 
 	/* map of allowed channels. 0 is dummy */
-#ifdef ENABLE_DOT11D
 	void* pDot11dInfo;
 	bool bGlobalDomain;
-#else
-	u8 channel_map[MAX_CHANNEL_NUMBER+1];
-#endif
 	u8 active_channel_map[MAX_CHANNEL_NUMBER+1];
 
 	u8   IbssStartChnl;

@@ -609,9 +609,7 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 
 	if (priv->ChannelPlan > CHANNEL_PLAN_LEN - 1)
 		priv->ChannelPlan = 0;
-#ifdef ENABLE_DOT11D
 	priv->ChannelPlan = COUNTRY_CODE_WORLD_WIDE_13;
-#endif
 
 	if ( priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
 		priv->rtllib->bSupportRemoteWakeUp = true;

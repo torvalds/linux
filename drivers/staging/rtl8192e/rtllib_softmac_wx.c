@@ -16,9 +16,7 @@
 
 #include "rtllib.h"
 #include "rtl_core.h"
-#ifdef ENABLE_DOT11D
 #include "dot11d.h"
-#endif
 /* FIXME: add A freqs */
 
 const long rtllib_wlan_frequencies[] = {
@@ -64,12 +62,10 @@ int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 
 	}else { /* Set the channel */
 
-#ifdef ENABLE_DOT11D
 		if (ieee->active_channel_map[fwrq->m] != 1) {
 			ret = -EINVAL;
 			goto out;
 		}
-#endif
 		ieee->current_network.channel = fwrq->m;
 		ieee->set_chan(ieee->dev, ieee->current_network.channel);
 

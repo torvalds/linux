@@ -19,9 +19,7 @@
 
 #include <linux/string.h>
 #include "rtl_core.h"
-#ifdef ENABLE_DOT11D
 #include "dot11d.h"
-#endif
 
 #define RATE_COUNT 12
 u32 rtl8192_rates[] = {1000000,2000000,5500000,11000000,

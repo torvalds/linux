@@ -48,9 +48,7 @@
 #include <asm/io.h>
 #include "rtllib.h"
 
-#ifdef ENABLE_DOT11D
 #include "dot11d.h"
-#endif
 
 #include "r8192E_firmware.h"
 #include "r8192E_hw.h"

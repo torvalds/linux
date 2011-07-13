@@ -1347,7 +1347,6 @@ short rtl8192_get_channel_map(struct net_device * dev)
 {
 	int i;
 
-#ifdef ENABLE_DOT11D
 	struct r8192_priv *priv = rtllib_priv(dev);
 	if ((priv->rf_chip != RF_8225) && (priv->rf_chip != RF_8256)
 			&& (priv->rf_chip != RF_6052)) {
@@ -1363,23 +1362,6 @@ short rtl8192_get_channel_map(struct net_device * dev)
 	Dot11d_Init(priv->rtllib);
 #ifndef CONFIG_CRDA
 	Dot11d_Channelmap(priv->ChannelPlan, priv->rtllib);
-#endif
-#else
-	struct r8192_priv *priv = rtllib_priv(dev);
-	int ch;
-	if (!channels){
-		DMESG("No channels, aborting");
-		return -1;
-	}
-
-	ch = channels;
-	priv->ChannelPlan = 0;
-	for (i = 1; i <= 14; i++) {
-		(priv->rtllib->channel_map)[i] = (u8)(ch & 0x01);
-		ch >>= 1;
-	}
-	priv->rtllib->IbssStartChnl= 10;
-	priv->rtllib->ibss_maxjoin_chal = 11;
 #endif
 	for (i = 1; i <= 11; i++) {
 		(priv->rtllib->active_channel_map)[i] = 1;
