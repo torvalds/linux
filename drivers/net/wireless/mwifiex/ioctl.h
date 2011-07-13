@@ -20,6 +20,7 @@
 #ifndef _MWIFIEX_IOCTL_H_
 #define _MWIFIEX_IOCTL_H_
 
+#include <linux/wireless.h>
 #include <net/mac80211.h>
 
 enum {
