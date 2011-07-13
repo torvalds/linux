@@ -3091,8 +3091,8 @@ wl_check_wpa2ie(struct net_device *dev, bcm_tlv_t *wpa2ie, s32 bssidx)
 	u16 wpa_auth = 0;
 	u16 count;
 	u32 wsec;
-	u32 pval;
-	u32 gval;
+	u32 pval = 0;
+	u32 gval = 0;
 	u8* tmp;
 	wpa_suite_mcast_t *mcast;
 	wpa_suite_ucast_t *ucast;
