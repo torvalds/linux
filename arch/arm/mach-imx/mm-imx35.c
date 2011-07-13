@@ -86,7 +86,6 @@ static struct sdma_script_start_addrs imx35_to2_sdma_script __initdata = {
 };
 
 static struct sdma_platform_data imx35_sdma_pdata __initdata = {
-	.sdma_version = 2,
 	.fw_name = "sdma-imx35-to2.bin",
 	.script_addrs = &imx35_to2_sdma_script,
 };
@@ -106,5 +105,5 @@ void __init imx35_soc_init(void)
 		imx35_sdma_pdata.script_addrs = &imx35_to1_sdma_script;
 	}
 
-	imx_add_imx_sdma(MX35_SDMA_BASE_ADDR, MX35_INT_SDMA, &imx35_sdma_pdata);
+	imx_add_imx_sdma("imx35-sdma", MX35_SDMA_BASE_ADDR, MX35_INT_SDMA, &imx35_sdma_pdata);
 }

@@ -79,7 +79,6 @@ static struct sdma_script_start_addrs imx25_sdma_script __initdata = {
 };
 
 static struct sdma_platform_data imx25_sdma_pdata __initdata = {
-	.sdma_version = 2,
 	.fw_name = "sdma-imx25.bin",
 	.script_addrs = &imx25_sdma_script,
 };
@@ -92,5 +91,6 @@ void __init imx25_soc_init(void)
 	mxc_register_gpio("imx31-gpio", 2, MX25_GPIO3_BASE_ADDR, SZ_16K, MX25_INT_GPIO3, 0);
 	mxc_register_gpio("imx31-gpio", 3, MX25_GPIO4_BASE_ADDR, SZ_16K, MX25_INT_GPIO4, 0);
 
-	imx_add_imx_sdma(MX25_SDMA_BASE_ADDR, MX25_INT_SDMA, &imx25_sdma_pdata);
+	/* i.mx25 has the i.mx35 type sdma */
+	imx_add_imx_sdma("imx35-sdma", MX25_SDMA_BASE_ADDR, MX25_INT_SDMA, &imx25_sdma_pdata);
 }

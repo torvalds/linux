@@ -565,7 +565,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "ata", ata_clk)
 	_REGISTER_CLOCK(NULL, "rtic", rtic_clk)
 	_REGISTER_CLOCK(NULL, "rng", rng_clk)
-	_REGISTER_CLOCK("imx-sdma", NULL, sdma_clk1)
+	_REGISTER_CLOCK("imx31-sdma", NULL, sdma_clk1)
 	_REGISTER_CLOCK(NULL, "sdma_ipg", sdma_clk2)
 	_REGISTER_CLOCK(NULL, "mstick", mstick1_clk)
 	_REGISTER_CLOCK(NULL, "mstick", mstick2_clk)

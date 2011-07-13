@@ -65,8 +65,8 @@
 #define SDMA_ONCE_RTB		0x060
 #define SDMA_XTRIG_CONF1	0x070
 #define SDMA_XTRIG_CONF2	0x074
-#define SDMA_CHNENBL0_V2	0x200
-#define SDMA_CHNENBL0_V1	0x080
+#define SDMA_CHNENBL0_IMX35	0x200
+#define SDMA_CHNENBL0_IMX31	0x080
 #define SDMA_CHNPRI_0		0x100
 
 /*
@@ -299,13 +299,18 @@ struct sdma_firmware_header {
 	u32	ram_code_size;
 };
 
+enum sdma_devtype {
+	IMX31_SDMA,	/* runs on i.mx31 */
+	IMX35_SDMA,	/* runs on i.mx35 and later */
+};
+
 struct sdma_engine {
 	struct device			*dev;
 	struct device_dma_parameters	dma_parms;
 	struct sdma_channel		channel[MAX_DMA_CHANNELS];
 	struct sdma_channel_control	*channel_control;
 	void __iomem			*regs;
-	unsigned int			version;
+	enum sdma_devtype		devtype;
 	unsigned int			num_events;
 	struct sdma_context_data	*context;
 	dma_addr_t			context_phys;
@@ -314,6 +319,19 @@ struct sdma_engine {
 	struct sdma_script_start_addrs	*script_addrs;
 };
 
+static struct platform_device_id sdma_devtypes[] = {
+	{
+		.name = "imx31-sdma",
+		.driver_data = IMX31_SDMA,
+	}, {
+		.name = "imx35-sdma",
+		.driver_data = IMX35_SDMA,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, sdma_devtypes);
+
 #define SDMA_H_CONFIG_DSPDMA	(1 << 12) /* indicates if the DSPDMA is used */
 #define SDMA_H_CONFIG_RTD_PINS	(1 << 11) /* indicates if Real-Time Debug pins are enabled */
 #define SDMA_H_CONFIG_ACR	(1 << 4)  /* indicates if AHB freq /core freq = 2 or 1 */
@@ -321,8 +339,8 @@ struct sdma_engine {
 
 static inline u32 chnenbl_ofs(struct sdma_engine *sdma, unsigned int event)
 {
-	u32 chnenbl0 = (sdma->version == 2 ? SDMA_CHNENBL0_V2 : SDMA_CHNENBL0_V1);
-
+	u32 chnenbl0 = (sdma->devtype == IMX31_SDMA ? SDMA_CHNENBL0_IMX31 :
+						      SDMA_CHNENBL0_IMX35);
 	return chnenbl0 + event * 4;
 }
 
@@ -1162,15 +1180,16 @@ static int __init sdma_init(struct sdma_engine *sdma)
 	int i, ret;
 	dma_addr_t ccb_phys;
 
-	switch (sdma->version) {
-	case 1:
+	switch (sdma->devtype) {
+	case IMX31_SDMA:
 		sdma->num_events = 32;
 		break;
-	case 2:
+	case IMX35_SDMA:
 		sdma->num_events = 48;
 		break;
 	default:
-		dev_err(sdma->dev, "Unknown version %d. aborting\n", sdma->version);
+		dev_err(sdma->dev, "Unknown sdma type %d. aborting\n",
+			sdma->devtype);
 		return -ENODEV;
 	}
 
@@ -1284,7 +1303,7 @@ static int __init sdma_probe(struct platform_device *pdev)
 	if (!sdma->script_addrs)
 		goto err_alloc;
 
-	sdma->version = pdata->sdma_version;
+	sdma->devtype = pdev->id_entry->driver_data;
 
 	dma_cap_set(DMA_SLAVE, sdma->dma_device.cap_mask);
 	dma_cap_set(DMA_CYCLIC, sdma->dma_device.cap_mask);
@@ -1366,6 +1385,7 @@ static struct platform_driver sdma_driver = {
 	.driver		= {
 		.name	= "imx-sdma",
 	},
+	.id_table	= sdma_devtypes,
 	.remove		= __exit_p(sdma_remove),
 };
 

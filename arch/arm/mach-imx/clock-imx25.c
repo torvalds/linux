@@ -308,7 +308,8 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "audmux", audmux_clk)
 	_REGISTER_CLOCK("flexcan.0", NULL, can1_clk)
 	_REGISTER_CLOCK("flexcan.1", NULL, can2_clk)
-	_REGISTER_CLOCK("imx-sdma", NULL, sdma_clk)
+	/* i.mx25 has the i.mx35 type sdma */
+	_REGISTER_CLOCK("imx35-sdma", NULL, sdma_clk)
 };
 
 int __init mx25_clocks_init(void)

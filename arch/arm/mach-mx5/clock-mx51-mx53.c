@@ -1448,7 +1448,8 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK("imx-ssi.0", NULL, ssi1_clk)
 	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
 	_REGISTER_CLOCK("imx-ssi.2", NULL, ssi3_clk)
-	_REGISTER_CLOCK("imx-sdma", NULL, sdma_clk)
+	/* i.mx51 has the i.mx35 type sdma */
+	_REGISTER_CLOCK("imx35-sdma", NULL, sdma_clk)
 	_REGISTER_CLOCK(NULL, "ckih", ckih_clk)
 	_REGISTER_CLOCK(NULL, "ckih2", ckih2_clk)
 	_REGISTER_CLOCK(NULL, "gpt_32k", gpt_32k_clk)
@@ -1496,7 +1497,8 @@ static struct clk_lookup mx53_lookups[] = {
 	_REGISTER_CLOCK("sdhci-esdhc-imx53.3", NULL, esdhc4_mx53_clk)
 	_REGISTER_CLOCK("imx2-wdt.0", NULL, dummy_clk)
 	_REGISTER_CLOCK("imx2-wdt.1", NULL, dummy_clk)
-	_REGISTER_CLOCK("imx-sdma", NULL, sdma_clk)
+	/* i.mx53 has the i.mx35 type sdma */
+	_REGISTER_CLOCK("imx35-sdma", NULL, sdma_clk)
 	_REGISTER_CLOCK("imx-ssi.0", NULL, ssi1_clk)
 	_REGISTER_CLOCK("imx-ssi.1", NULL, ssi2_clk)
 	_REGISTER_CLOCK("imx-ssi.2", NULL, ssi3_clk)
