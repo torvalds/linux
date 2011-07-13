@@ -100,11 +100,11 @@ struct rpc_rqst {
 	ktime_t			rq_xtime;	/* transmit time stamp */
 	int			rq_ntrans;
 
-#if defined(CONFIG_NFS_V4_1)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	struct list_head	rq_bc_list;	/* Callback service list */
 	unsigned long		rq_bc_pa_state;	/* Backchannel prealloc state */
 	struct list_head	rq_bc_pa_list;	/* Backchannel prealloc list */
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_SUNRPC_BACKCHANEL */
 };
 #define rq_svec			rq_snd_buf.head
 #define rq_slen			rq_snd_buf.len
@@ -200,7 +200,7 @@ struct rpc_xprt {
 	u32			xid;		/* Next XID value to use */
 	struct rpc_task *	snd_task;	/* Task blocked in send */
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
-#if defined(CONFIG_NFS_V4_1)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	struct svc_serv		*bc_serv;       /* The RPC service which will */
 						/* process the callback */
 	unsigned int		bc_alloc_count;	/* Total number of preallocs */
@@ -208,7 +208,7 @@ struct rpc_xprt {
 						 * items */
 	struct list_head	bc_pa_list;	/* List of preallocated
 						 * backchannel rpc_rqst's */
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_SUNRPC_BACKCHANNEL */
 	struct list_head	recv;
 
 	struct {
@@ -228,15 +228,15 @@ struct rpc_xprt {
 	const char		*address_strings[RPC_DISPLAY_MAX];
 };
 
-#if defined(CONFIG_NFS_V4_1)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 /*
  * Backchannel flags
  */
 #define	RPC_BC_PA_IN_USE	0x0001		/* Preallocated backchannel */
 						/* buffer in use */
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
-#if defined(CONFIG_NFS_V4_1)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 static inline int bc_prealloc(struct rpc_rqst *req)
 {
 	return test_bit(RPC_BC_PA_IN_USE, &req->rq_bc_pa_state);
@@ -246,7 +246,7 @@ static inline int bc_prealloc(struct rpc_rqst *req)
 {
 	return 0;
 }
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
 struct xprt_create {
 	int			ident;		/* XPRT_TRANSPORT identifier */

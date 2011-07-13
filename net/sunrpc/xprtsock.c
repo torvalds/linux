@@ -37,7 +37,7 @@
 #include <linux/sunrpc/svcsock.h>
 #include <linux/sunrpc/xprtsock.h>
 #include <linux/file.h>
-#ifdef CONFIG_NFS_V4_1
+#ifdef CONFIG_SUNRPC_BACKCHANNEL
 #include <linux/sunrpc/bc_xprt.h>
 #endif
 
@@ -1236,7 +1236,7 @@ static inline int xs_tcp_read_reply(struct rpc_xprt *xprt,
 	return 0;
 }
 
-#if defined(CONFIG_NFS_V4_1)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 /*
  * Obtains an rpc_rqst previously allocated and invokes the common
  * tcp read code to read the data.  The result is placed in the callback
@@ -1299,7 +1299,7 @@ static inline int _xs_tcp_read_data(struct rpc_xprt *xprt,
 {
 	return xs_tcp_read_reply(xprt, desc);
 }
-#endif /* CONFIG_NFS_V4_1 */
+#endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
 /*
  * Read data off the transport.  This can be either an RPC_CALL or an

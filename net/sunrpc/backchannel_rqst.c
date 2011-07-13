@@ -29,8 +29,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define RPCDBG_FACILITY	RPCDBG_TRANS
 #endif
 
-#if defined(CONFIG_NFS_V4_1)
-
 /*
  * Helper routines that track the number of preallocation elements
  * on the transport.
@@ -279,4 +277,3 @@ void xprt_free_bc_request(struct rpc_rqst *req)
 	spin_unlock_bh(&xprt->bc_pa_lock);
 }
 
-#endif /* CONFIG_NFS_V4_1 */
