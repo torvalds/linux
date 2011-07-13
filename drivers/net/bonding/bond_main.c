@@ -1297,6 +1297,7 @@ static inline int slave_enable_netpoll(struct slave *slave)
 		goto out;
 
 	np->dev = slave->dev;
+	strlcpy(np->dev_name, slave->dev->name, IFNAMSIZ);
 	err = __netpoll_setup(np);
 	if (err) {
 		kfree(np);

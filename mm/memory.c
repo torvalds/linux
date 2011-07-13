@@ -305,6 +305,7 @@ int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 	if (batch->nr == batch->max) {
 		if (!tlb_next_batch(tlb))
 			return 0;
+		batch = tlb->active;
 	}
 	VM_BUG_ON(batch->nr > batch->max);
 
@@ -2797,30 +2798,6 @@ void unmap_mapping_range(struct address_space *mapping,
 	mutex_unlock(&mapping->i_mmap_mutex);
 }
 EXPORT_SYMBOL(unmap_mapping_range);
-
-int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
-{
-	struct address_space *mapping = inode->i_mapping;
-
-	/*
-	 * If the underlying filesystem is not going to provide
-	 * a way to truncate a range of blocks (punch a hole) -
-	 * we should return failure right now.
-	 */
-	if (!inode->i_op->truncate_range)
-		return -ENOSYS;
-
-	mutex_lock(&inode->i_mutex);
-	down_write(&inode->i_alloc_sem);
-	unmap_mapping_range(mapping, offset, (end - offset), 1);
-	truncate_inode_pages_range(mapping, offset, end);
-	unmap_mapping_range(mapping, offset, (end - offset), 1);
-	inode->i_op->truncate_range(inode, offset, end);
-	up_write(&inode->i_alloc_sem);
-	mutex_unlock(&inode->i_mutex);
-
-	return 0;
-}
 
 /*
  * We enter with non-exclusive mmap_sem (to exclude vma changes,

@@ -1111,7 +1111,7 @@ bnad_mbox_irq_alloc(struct bnad *bnad,
 		    struct bna_intr_info *intr_info)
 {
 	int 		err = 0;
-	unsigned long 	flags;
+	unsigned long 	irq_flags = 0, flags;
 	u32	irq;
 	irq_handler_t 	irq_handler;
 
@@ -1125,18 +1125,17 @@ bnad_mbox_irq_alloc(struct bnad *bnad,
 	if (bnad->cfg_flags & BNAD_CF_MSIX) {
 		irq_handler = (irq_handler_t)bnad_msix_mbox_handler;
 		irq = bnad->msix_table[bnad->msix_num - 1].vector;
-		flags = 0;
 		intr_info->intr_type = BNA_INTR_T_MSIX;
 		intr_info->idl[0].vector = bnad->msix_num - 1;
 	} else {
 		irq_handler = (irq_handler_t)bnad_isr;
 		irq = bnad->pcidev->irq;
-		flags = IRQF_SHARED;
+		irq_flags = IRQF_SHARED;
 		intr_info->intr_type = BNA_INTR_T_INTX;
 		/* intr_info->idl.vector = 0 ? */
 	}
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
-
+	flags = irq_flags;
 	sprintf(bnad->mbox_irq_name, "%s", BNAD_NAME);
 
 	/*

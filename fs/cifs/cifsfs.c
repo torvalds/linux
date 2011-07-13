@@ -104,8 +104,7 @@ cifs_sb_deactive(struct super_block *sb)
 }
 
 static int
-cifs_read_super(struct super_block *sb, struct smb_vol *volume_info,
-		const char *devname, int silent)
+cifs_read_super(struct super_block *sb)
 {
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb;
@@ -113,22 +112,16 @@ cifs_read_super(struct super_block *sb, struct smb_vol *volume_info,
 
 	cifs_sb = CIFS_SB(sb);
 
-	spin_lock_init(&cifs_sb->tlink_tree_lock);
-	cifs_sb->tlink_tree = RB_ROOT;
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIXACL)
+		sb->s_flags |= MS_POSIXACL;
 
-	rc = bdi_setup_and_register(&cifs_sb->bdi, "cifs", BDI_CAP_MAP_COPY);
-	if (rc)
-		return rc;
+	if (cifs_sb_master_tcon(cifs_sb)->ses->capabilities & CAP_LARGE_FILES)
+		sb->s_maxbytes = MAX_LFS_FILESIZE;
+	else
+		sb->s_maxbytes = MAX_NON_LFS;
 
-	cifs_sb->bdi.ra_pages = default_backing_dev_info.ra_pages;
-
-	rc = cifs_mount(sb, cifs_sb, volume_info, devname);
-
-	if (rc) {
-		if (!silent)
-			cERROR(1, "cifs_mount failed w/return code = %d", rc);
-		goto out_mount_failed;
-	}
+	/* BB FIXME fix time_gran to be larger for LANMAN sessions */
+	sb->s_time_gran = 100;
 
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
@@ -170,37 +163,14 @@ out_no_root:
 	if (inode)
 		iput(inode);
 
-	cifs_umount(sb, cifs_sb);
-
-out_mount_failed:
-	bdi_destroy(&cifs_sb->bdi);
 	return rc;
 }
 
-static void
-cifs_put_super(struct super_block *sb)
+static void cifs_kill_sb(struct super_block *sb)
 {
-	int rc = 0;
-	struct cifs_sb_info *cifs_sb;
-
-	cFYI(1, "In cifs_put_super");
-	cifs_sb = CIFS_SB(sb);
-	if (cifs_sb == NULL) {
-		cFYI(1, "Empty cifs superblock info passed to unmount");
-		return;
-	}
-
-	rc = cifs_umount(sb, cifs_sb);
-	if (rc)
-		cERROR(1, "cifs_umount failed with return code %d", rc);
-	if (cifs_sb->mountdata) {
-		kfree(cifs_sb->mountdata);
-		cifs_sb->mountdata = NULL;
-	}
-
-	unload_nls(cifs_sb->local_nls);
-	bdi_destroy(&cifs_sb->bdi);
-	kfree(cifs_sb);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	kill_anon_super(sb);
+	cifs_umount(cifs_sb);
 }
 
 static int
@@ -256,9 +226,6 @@ cifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int cifs_permission(struct inode *inode, int mask, unsigned int flags)
 {
 	struct cifs_sb_info *cifs_sb;
-
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 
@@ -551,7 +518,6 @@ static int cifs_drop_inode(struct inode *inode)
 }
 
 static const struct super_operations cifs_super_ops = {
-	.put_super = cifs_put_super,
 	.statfs = cifs_statfs,
 	.alloc_inode = cifs_alloc_inode,
 	.destroy_inode = cifs_destroy_inode,
@@ -588,7 +554,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 	full_path = cifs_build_path_to_root(vol, cifs_sb,
 					    cifs_sb_master_tcon(cifs_sb));
 	if (full_path == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	cFYI(1, "Get root dentry for %s", full_path);
 
@@ -617,7 +583,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 			dchild = d_alloc(dparent, &name);
 			if (dchild == NULL) {
 				dput(dparent);
-				dparent = NULL;
+				dparent = ERR_PTR(-ENOMEM);
 				goto out;
 			}
 		}
@@ -635,7 +601,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 			if (rc) {
 				dput(dchild);
 				dput(dparent);
-				dparent = NULL;
+				dparent = ERR_PTR(rc);
 				goto out;
 			}
 			alias = d_materialise_unique(dchild, inode);
@@ -643,7 +609,7 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 				dput(dchild);
 				if (IS_ERR(alias)) {
 					dput(dparent);
-					dparent = NULL;
+					dparent = ERR_PTR(-EINVAL); /* XXX */
 					goto out;
 				}
 				dchild = alias;
@@ -663,6 +629,13 @@ out:
 	return dparent;
 }
 
+static int cifs_set_super(struct super_block *sb, void *data)
+{
+	struct cifs_mnt_data *mnt_data = data;
+	sb->s_fs_info = mnt_data->cifs_sb;
+	return set_anon_super(sb, NULL);
+}
+
 static struct dentry *
 cifs_do_mount(struct file_system_type *fs_type,
 	      int flags, const char *dev_name, void *data)
@@ -676,82 +649,80 @@ cifs_do_mount(struct file_system_type *fs_type,
 
 	cFYI(1, "Devname: %s flags: %d ", dev_name, flags);
 
-	rc = cifs_setup_volume_info(&volume_info, (char *)data, dev_name);
-	if (rc)
-		return ERR_PTR(rc);
+	volume_info = cifs_get_volume_info((char *)data, dev_name);
+	if (IS_ERR(volume_info))
+		return ERR_CAST(volume_info);
 
 	cifs_sb = kzalloc(sizeof(struct cifs_sb_info), GFP_KERNEL);
 	if (cifs_sb == NULL) {
 		root = ERR_PTR(-ENOMEM);
-		goto out;
+		goto out_nls;
+	}
+
+	cifs_sb->mountdata = kstrndup(data, PAGE_SIZE, GFP_KERNEL);
+	if (cifs_sb->mountdata == NULL) {
+		root = ERR_PTR(-ENOMEM);
+		goto out_cifs_sb;
 	}
 
 	cifs_setup_cifs_sb(volume_info, cifs_sb);
+
+	rc = cifs_mount(cifs_sb, volume_info);
+	if (rc) {
+		if (!(flags & MS_SILENT))
+			cERROR(1, "cifs_mount failed w/return code = %d", rc);
+		root = ERR_PTR(rc);
+		goto out_mountdata;
+	}
 
 	mnt_data.vol = volume_info;
 	mnt_data.cifs_sb = cifs_sb;
 	mnt_data.flags = flags;
 
-	sb = sget(fs_type, cifs_match_super, set_anon_super, &mnt_data);
+	sb = sget(fs_type, cifs_match_super, cifs_set_super, &mnt_data);
 	if (IS_ERR(sb)) {
 		root = ERR_CAST(sb);
-		goto out_cifs_sb;
+		cifs_umount(cifs_sb);
+		goto out;
 	}
 
-	if (sb->s_fs_info) {
+	if (sb->s_root) {
 		cFYI(1, "Use existing superblock");
-		goto out_shared;
+		cifs_umount(cifs_sb);
+	} else {
+		sb->s_flags = flags;
+		/* BB should we make this contingent on mount parm? */
+		sb->s_flags |= MS_NODIRATIME | MS_NOATIME;
+
+		rc = cifs_read_super(sb);
+		if (rc) {
+			root = ERR_PTR(rc);
+			goto out_super;
+		}
+
+		sb->s_flags |= MS_ACTIVE;
 	}
-
-	/*
-	 * Copy mount params for use in submounts. Better to do
-	 * the copy here and deal with the error before cleanup gets
-	 * complicated post-mount.
-	 */
-	cifs_sb->mountdata = kstrndup(data, PAGE_SIZE, GFP_KERNEL);
-	if (cifs_sb->mountdata == NULL) {
-		root = ERR_PTR(-ENOMEM);
-		goto out_super;
-	}
-
-	sb->s_flags = flags;
-	/* BB should we make this contingent on mount parm? */
-	sb->s_flags |= MS_NODIRATIME | MS_NOATIME;
-	sb->s_fs_info = cifs_sb;
-
-	rc = cifs_read_super(sb, volume_info, dev_name,
-			     flags & MS_SILENT ? 1 : 0);
-	if (rc) {
-		root = ERR_PTR(rc);
-		goto out_super;
-	}
-
-	sb->s_flags |= MS_ACTIVE;
 
 	root = cifs_get_root(volume_info, sb);
-	if (root == NULL)
+	if (IS_ERR(root))
 		goto out_super;
 
 	cFYI(1, "dentry root is: %p", root);
 	goto out;
 
-out_shared:
-	root = cifs_get_root(volume_info, sb);
-	if (root)
-		cFYI(1, "dentry root is: %p", root);
-	goto out;
-
 out_super:
-	kfree(cifs_sb->mountdata);
 	deactivate_locked_super(sb);
-
-out_cifs_sb:
-	unload_nls(cifs_sb->local_nls);
-	kfree(cifs_sb);
-
 out:
-	cifs_cleanup_volume_info(&volume_info);
+	cifs_cleanup_volume_info(volume_info);
 	return root;
+
+out_mountdata:
+	kfree(cifs_sb->mountdata);
+out_cifs_sb:
+	kfree(cifs_sb);
+out_nls:
+	unload_nls(volume_info->local_nls);
+	goto out;
 }
 
 static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
@@ -840,7 +811,7 @@ struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "cifs",
 	.mount = cifs_do_mount,
-	.kill_sb = kill_anon_super,
+	.kill_sb = cifs_kill_sb,
 	/*  .fs_flags */
 };
 const struct inode_operations cifs_dir_inode_ops = {

@@ -337,3 +337,5 @@ static void __exit snd_imx_pcm_exit(void)
 	platform_driver_unregister(&imx_pcm_driver);
 }
 module_exit(snd_imx_pcm_exit);
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:imx-pcm-audio");

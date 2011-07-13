@@ -294,6 +294,14 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "VersaLogic Menlow board"),
 		},
 	},
+	{ /* Handle reboot issue on Acer Aspire one */
+		.callback = set_bios_reboot,
+		.ident = "Acer Aspire One A110",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AOA110"),
+		},
+	},
 	{ }
 };
 

@@ -61,7 +61,9 @@ static enum hrtimer_restart timerfd_tmrproc(struct hrtimer *htmr)
 
 /*
  * Called when the clock was set to cancel the timers in the cancel
- * list.
+ * list. This will wake up processes waiting on these timers. The
+ * wake-up requires ctx->ticks to be non zero, therefore we increment
+ * it before calling wake_up_locked().
  */
 void timerfd_clock_was_set(void)
 {
@@ -76,6 +78,7 @@ void timerfd_clock_was_set(void)
 		spin_lock_irqsave(&ctx->wqh.lock, flags);
 		if (ctx->moffs.tv64 != moffs.tv64) {
 			ctx->moffs.tv64 = KTIME_MAX;
+			ctx->ticks++;
 			wake_up_locked(&ctx->wqh);
 		}
 		spin_unlock_irqrestore(&ctx->wqh.lock, flags);

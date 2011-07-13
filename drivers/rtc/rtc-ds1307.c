@@ -149,6 +149,7 @@ static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1340", ds_1340 },
 	{ "ds3231", ds_3231 },
 	{ "m41t00", m41t00 },
+	{ "pt7c4338", ds_1307 },
 	{ "rx8025", rx_8025 },
 	{ }
 };

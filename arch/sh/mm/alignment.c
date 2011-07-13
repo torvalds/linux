@@ -13,6 +13,7 @@
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
+#include <linux/ratelimit.h>
 #include <asm/alignment.h>
 #include <asm/processor.h>
 
@@ -95,13 +96,13 @@ int set_unalign_ctl(struct task_struct *tsk, unsigned int val)
 void unaligned_fixups_notify(struct task_struct *tsk, insn_size_t insn,
 			     struct pt_regs *regs)
 {
-	if (user_mode(regs) && (se_usermode & UM_WARN) && printk_ratelimit())
-		pr_notice("Fixing up unaligned userspace access "
+	if (user_mode(regs) && (se_usermode & UM_WARN))
+		pr_notice_ratelimited("Fixing up unaligned userspace access "
 			  "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
 			  tsk->comm, task_pid_nr(tsk),
 			  (void *)instruction_pointer(regs), insn);
-	else if (se_kernmode_warn && printk_ratelimit())
-		pr_notice("Fixing up unaligned kernel access "
+	else if (se_kernmode_warn)
+		pr_notice_ratelimited("Fixing up unaligned kernel access "
 			  "in \"%s\" pid=%d pc=0x%p ins=0x%04hx\n",
 			  tsk->comm, task_pid_nr(tsk),
 			  (void *)instruction_pointer(regs), insn);

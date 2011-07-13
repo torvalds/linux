@@ -1288,6 +1288,8 @@ int mwifiex_register_cfg80211(struct net_device *dev, u8 *mac,
 
 	*(unsigned long *) wdev_priv = (unsigned long) priv;
 
+	set_wiphy_dev(wdev->wiphy, (struct device *) priv->adapter->dev);
+
 	ret = wiphy_register(wdev->wiphy);
 	if (ret < 0) {
 		dev_err(priv->adapter->dev, "%s: registering cfg80211 device\n",

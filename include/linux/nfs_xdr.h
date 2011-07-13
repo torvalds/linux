@@ -158,7 +158,6 @@ struct nfs_seqid;
 
 /* nfs41 sessions channel attributes */
 struct nfs4_channel_attrs {
-	u32			headerpadsz;
 	u32			max_rqst_sz;
 	u32			max_resp_sz;
 	u32			max_resp_sz_cached;

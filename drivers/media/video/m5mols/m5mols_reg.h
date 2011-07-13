@@ -2,10 +2,10 @@
  * Register map for M-5MOLS 8M Pixel camera sensor with ISP
  *
  * Copyright (C) 2011 Samsung Electronics Co., Ltd.
- * Author: HeungJun Kim, riverful.kim@samsung.com
+ * Author: HeungJun Kim <riverful.kim@samsung.com>
  *
  * Copyright (C) 2009 Samsung Electronics Co., Ltd.
- * Author: Dongsoo Nathaniel Kim, dongsoo45.kim@samsung.com
+ * Author: Dongsoo Nathaniel Kim <dongsoo45.kim@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -56,12 +56,23 @@
  * more specific contents, see definition if file m5mols.h.
  */
 #define CAT0_VER_CUSTOMER	0x00	/* customer version */
-#define CAT0_VER_AWB		0x09	/* Auto WB version */
+#define CAT0_VER_PROJECT	0x01	/* project version */
+#define CAT0_VER_FIRMWARE	0x02	/* Firmware version */
+#define CAT0_VER_HARDWARE	0x04	/* Hardware version */
+#define CAT0_VER_PARAMETER	0x06	/* Parameter version */
+#define CAT0_VER_AWB		0x08	/* Auto WB version */
 #define CAT0_VER_STRING		0x0a	/* string including M-5MOLS */
 #define CAT0_SYSMODE		0x0b	/* SYSTEM mode register */
 #define CAT0_STATUS		0x0c	/* SYSTEM mode status register */
 #define CAT0_INT_FACTOR		0x10	/* interrupt pending register */
 #define CAT0_INT_ENABLE		0x11	/* interrupt enable register */
+
+#define SYSTEM_VER_CUSTOMER	I2C_REG(CAT_SYSTEM, CAT0_VER_CUSTOMER, 1)
+#define SYSTEM_VER_PROJECT	I2C_REG(CAT_SYSTEM, CAT0_VER_PROJECT, 1)
+#define SYSTEM_VER_FIRMWARE	I2C_REG(CAT_SYSTEM, CAT0_VER_FIRMWARE, 2)
+#define SYSTEM_VER_HARDWARE	I2C_REG(CAT_SYSTEM, CAT0_VER_HARDWARE, 2)
+#define SYSTEM_VER_PARAMETER	I2C_REG(CAT_SYSTEM, CAT0_VER_PARAMETER, 2)
+#define SYSTEM_VER_AWB		I2C_REG(CAT_SYSTEM, CAT0_VER_AWB, 2)
 
 #define SYSTEM_SYSMODE		I2C_REG(CAT_SYSTEM, CAT0_SYSMODE, 1)
 #define REG_SYSINIT		0x00	/* SYSTEM mode */
@@ -382,8 +393,8 @@
 #define REG_CAP_START_MAIN	0x01
 #define REG_CAP_START_THUMB	0x03
 
-#define CAPC_IMAGE_SIZE		I2C_REG(CAT_CAPT_CTRL, CATC_CAP_IMAGE_SIZE, 1)
-#define CAPC_THUMB_SIZE		I2C_REG(CAT_CAPT_CTRL, CATC_CAP_THUMB_SIZE, 1)
+#define CAPC_IMAGE_SIZE		I2C_REG(CAT_CAPT_CTRL, CATC_CAP_IMAGE_SIZE, 4)
+#define CAPC_THUMB_SIZE		I2C_REG(CAT_CAPT_CTRL, CATC_CAP_THUMB_SIZE, 4)
 
 /*
  * Category F - Flash

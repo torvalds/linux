@@ -874,6 +874,8 @@ struct xhci_transfer_event {
 #define COMP_PING_ERR	20
 /* Event Ring is full */
 #define COMP_ER_FULL	21
+/* Incompatible Device Error */
+#define COMP_DEV_ERR	22
 /* Missed Service Error - HC couldn't service an isoc ep within interval */
 #define COMP_MISSED_INT	23
 /* Successfully stopped command ring */
@@ -1308,6 +1310,7 @@ struct xhci_hcd {
  */
 #define XHCI_EP_LIMIT_QUIRK	(1 << 5)
 #define XHCI_BROKEN_MSI		(1 << 6)
+#define XHCI_RESET_ON_RESUME	(1 << 7)
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
 	/* There are two roothubs to keep track of bus suspend info for */

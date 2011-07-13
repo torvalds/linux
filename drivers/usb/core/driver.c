@@ -375,7 +375,7 @@ static int usb_unbind_interface(struct device *dev)
 		 * Just re-enable it without affecting the endpoint toggles.
 		 */
 		usb_enable_interface(udev, intf, false);
-	} else if (!error && !intf->dev.power.in_suspend) {
+	} else if (!error && !intf->dev.power.is_prepared) {
 		r = usb_set_interface(udev, intf->altsetting[0].
 				desc.bInterfaceNumber, 0);
 		if (r < 0)
@@ -960,7 +960,7 @@ void usb_rebind_intf(struct usb_interface *intf)
 	}
 
 	/* Try to rebind the interface */
-	if (!intf->dev.power.in_suspend) {
+	if (!intf->dev.power.is_prepared) {
 		intf->needs_binding = 0;
 		rc = device_attach(&intf->dev);
 		if (rc < 0)
@@ -1107,7 +1107,7 @@ static int usb_resume_interface(struct usb_device *udev,
 	if (intf->condition == USB_INTERFACE_UNBOUND) {
 
 		/* Carry out a deferred switch to altsetting 0 */
-		if (intf->needs_altsetting0 && !intf->dev.power.in_suspend) {
+		if (intf->needs_altsetting0 && !intf->dev.power.is_prepared) {
 			usb_set_interface(udev, intf->altsetting[0].
 					desc.bInterfaceNumber, 0);
 			intf->needs_altsetting0 = 0;
@@ -1187,12 +1187,21 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 		for (i = n - 1; i >= 0; --i) {
 			intf = udev->actconfig->interface[i];
 			status = usb_suspend_interface(udev, intf, msg);
+
+			/* Ignore errors during system sleep transitions */
+			if (!(msg.event & PM_EVENT_AUTO))
+				status = 0;
 			if (status != 0)
 				break;
 		}
 	}
-	if (status == 0)
+	if (status == 0) {
 		status = usb_suspend_device(udev, msg);
+
+		/* Again, ignore errors during system sleep transitions */
+		if (!(msg.event & PM_EVENT_AUTO))
+			status = 0;
+	}
 
 	/* If the suspend failed, resume interfaces that did get suspended */
 	if (status != 0) {

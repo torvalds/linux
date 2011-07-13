@@ -104,7 +104,7 @@ static bool radeon_read_bios(struct radeon_device *rdev)
 static bool radeon_atrm_get_bios(struct radeon_device *rdev)
 {
 	int ret;
-	int size = 64 * 1024;
+	int size = 256 * 1024;
 	int i;
 
 	if (!radeon_atrm_supported(rdev->pdev))

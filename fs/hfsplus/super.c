@@ -500,7 +500,7 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 out_put_hidden_dir:
 	iput(sbi->hidden_dir);
 out_put_root:
-	iput(sbi->alloc_file);
+	iput(root);
 out_put_alloc_file:
 	iput(sbi->alloc_file);
 out_close_cat_tree:

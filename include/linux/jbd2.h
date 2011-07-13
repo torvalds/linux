@@ -1024,7 +1024,6 @@ struct journal_s
 
 /* Filing buffers */
 extern void jbd2_journal_unfile_buffer(journal_t *, struct journal_head *);
-extern void __jbd2_journal_unfile_buffer(struct journal_head *);
 extern void __jbd2_journal_refile_buffer(struct journal_head *);
 extern void jbd2_journal_refile_buffer(journal_t *, struct journal_head *);
 extern void __jbd2_journal_file_buffer(struct journal_head *, transaction_t *, int);
@@ -1165,7 +1164,6 @@ extern void	   jbd2_journal_release_jbd_inode(journal_t *journal, struct jbd2_in
  */
 struct journal_head *jbd2_journal_add_journal_head(struct buffer_head *bh);
 struct journal_head *jbd2_journal_grab_journal_head(struct buffer_head *bh);
-void jbd2_journal_remove_journal_head(struct buffer_head *bh);
 void jbd2_journal_put_journal_head(struct journal_head *jh);
 
 /*

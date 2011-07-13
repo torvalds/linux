@@ -222,11 +222,17 @@ static int tegra_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (i2sclock % (2 * srate))
 		reg |= TEGRA_I2S_TIMING_NON_SYM_ENABLE;
 
+	if (!i2s->clk_refs)
+		clk_enable(i2s->clk_i2s);
+
 	tegra_i2s_write(i2s, TEGRA_I2S_TIMING, reg);
 
 	tegra_i2s_write(i2s, TEGRA_I2S_FIFO_SCR,
 		TEGRA_I2S_FIFO_SCR_FIFO2_ATN_LVL_FOUR_SLOTS |
 		TEGRA_I2S_FIFO_SCR_FIFO1_ATN_LVL_FOUR_SLOTS);
+
+	if (!i2s->clk_refs)
+		clk_disable(i2s->clk_i2s);
 
 	return 0;
 }
