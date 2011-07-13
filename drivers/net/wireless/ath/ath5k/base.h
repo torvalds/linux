@@ -43,7 +43,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/list.h>
-#include <linux/wireless.h>
 #include <linux/if_ether.h>
 #include <linux/rfkill.h>
 #include <linux/workqueue.h>
