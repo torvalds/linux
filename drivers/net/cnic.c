@@ -4834,7 +4834,7 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 			cp->port_mode = CHIP_4_PORT_MODE;
 			cp->pfid = func >> 1;
 		} else {
-			cp->port_mode = CHIP_4_PORT_MODE;
+			cp->port_mode = CHIP_2_PORT_MODE;
 			cp->pfid = func & 0x6;
 		}
 	} else {
