@@ -158,14 +158,22 @@ config WIFI_CONTROL_FUNC
 menu "RK29 VPU (Video Processing Unit) support"
 
 config RK29_VPU
-	tristate "Support for RK29 VPU (Video Processing Unit)"
+	bool
 	depends on ARCH_RK29
 	default y
+
+config RK29_VPU_SERVICE
+	bool "VPU service driver in kernel"
+	depends on ARCH_RK29
+	default y
+
+config RK29_VPU_OLD
+	bool "Old version for RK29 VPU (Video Processing Unit)"
+	depends on ARCH_RK29 && !RK29_VPU_SERVICE
 
 config RK29_VPU_DEBUG
 	bool "RK29 VPU debugging"
         depends on RK29_VPU != n
-	default n
         help
           This is an option for the developers; most people should
           say N here.  This enables RK29 VPU driver debugging.
