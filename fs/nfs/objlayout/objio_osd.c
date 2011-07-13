@@ -1013,7 +1013,7 @@ static const struct nfs_pageio_ops objio_pg_read_ops = {
 static const struct nfs_pageio_ops objio_pg_write_ops = {
 	.pg_init = pnfs_generic_pg_init_write,
 	.pg_test = objio_pg_test,
-	.pg_doio = nfs_generic_pg_writepages,
+	.pg_doio = pnfs_generic_pg_writepages,
 };
 
 static struct pnfs_layoutdriver_type objlayout_type = {

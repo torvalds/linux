@@ -741,7 +741,7 @@ static const struct nfs_pageio_ops filelayout_pg_read_ops = {
 static const struct nfs_pageio_ops filelayout_pg_write_ops = {
 	.pg_init = filelayout_pg_init_write,
 	.pg_test = filelayout_pg_test,
-	.pg_doio = nfs_generic_pg_writepages,
+	.pg_doio = pnfs_generic_pg_writepages,
 };
 
 static bool filelayout_mark_pnfs_commit(struct pnfs_layout_segment *lseg)

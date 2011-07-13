@@ -108,9 +108,6 @@ extern	void nfs_unlock_request(struct nfs_page *req);
 extern	int nfs_set_page_tag_locked(struct nfs_page *req);
 extern  void nfs_clear_page_tag_locked(struct nfs_page *req);
 
-extern	int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc);
-
-
 /*
  * Lock the page of an asynchronous request without getting a new reference
  */

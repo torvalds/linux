@@ -97,7 +97,7 @@ void nfs_writedata_free(struct nfs_write_data *p)
 	mempool_free(p, nfs_wdata_mempool);
 }
 
-static void nfs_writedata_release(struct nfs_write_data *wdata)
+void nfs_writedata_release(struct nfs_write_data *wdata)
 {
 	put_lseg(wdata->lseg);
 	put_nfs_open_context(wdata->args.context);
@@ -887,25 +887,15 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 
 static int nfs_do_write(struct nfs_write_data *data,
 		const struct rpc_call_ops *call_ops,
-		struct pnfs_layout_segment *lseg,
 		int how)
 {
 	struct inode *inode = data->args.context->path.dentry->d_inode;
-
-	if (lseg != NULL) {
-		data->lseg = get_lseg(lseg);
-		if (pnfs_try_to_write_data(data, call_ops, how) == PNFS_ATTEMPTED)
-			return 0;
-		put_lseg(data->lseg);
-		data->lseg = NULL;
-	}
 
 	return nfs_initiate_write(data, NFS_CLIENT(inode), call_ops, how);
 }
 
 static int nfs_do_multiple_writes(struct list_head *head,
 		const struct rpc_call_ops *call_ops,
-		struct pnfs_layout_segment *lseg,
 		int how)
 {
 	struct nfs_write_data *data;
@@ -917,7 +907,7 @@ static int nfs_do_multiple_writes(struct list_head *head,
 		data = list_entry(head->next, struct nfs_write_data, list);
 		list_del_init(&data->list);
 		
-		ret2 = nfs_do_write(data, call_ops, lseg, how);
+		ret2 = nfs_do_write(data, call_ops, how);
 		 if (ret == 0)
 			 ret = ret2;
 	}
@@ -1037,23 +1027,24 @@ out:
 	return ret;
 }
 
-int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
+int nfs_generic_flush(struct nfs_pageio_descriptor *desc, struct list_head *head)
+{
+	if (desc->pg_bsize < PAGE_CACHE_SIZE)
+		return nfs_flush_multi(desc, head);
+	return nfs_flush_one(desc, head);
+}
+
+static int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 {
 	LIST_HEAD(head);
 	int ret;
 
-	if (desc->pg_bsize < PAGE_CACHE_SIZE)
-		ret = nfs_flush_multi(desc, &head);
-	else
-		ret = nfs_flush_one(desc, &head);
+	ret = nfs_generic_flush(desc, &head);
 	if (ret == 0)
 		ret = nfs_do_multiple_writes(&head, desc->pg_rpc_callops,
-				desc->pg_lseg, desc->pg_ioflags);
-	put_lseg(desc->pg_lseg);
-	desc->pg_lseg = NULL;
+				desc->pg_ioflags);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nfs_generic_pg_writepages);
 
 static const struct nfs_pageio_ops nfs_pageio_write_ops = {
 	.pg_test = nfs_generic_pg_test,
@@ -1067,6 +1058,12 @@ void nfs_pageio_init_write_mds(struct nfs_pageio_descriptor *pgio,
 				NFS_SERVER(inode)->wsize, ioflags);
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init_write_mds);
+
+void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio)
+{
+	pgio->pg_ops = &nfs_pageio_write_ops;
+	pgio->pg_bsize = NFS_SERVER(pgio->pg_inode)->wsize;
+}
 
 static void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
 				  struct inode *inode, int ioflags)
