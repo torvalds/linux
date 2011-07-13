@@ -489,17 +489,6 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	skb_pull(skb, 8);
 	skb_trim(skb, skb->len - 4);
 
-#ifdef JOHN_DUMP
-if ( ((u16*)skb->data)[0] & 0x4000){
-        printk("@@ rx decrypted skb->data");
-        int i;
-        for (i = 0; i < skb->len; i++) {
-                if ( (i%24)==0 ) printk("\n");
-                printk("%2x ", ((u8*)skb->data)[i]);
-        }
-        printk("\n");
-}
-#endif /*JOHN_DUMP*/
 	return keyidx;
 }
 
