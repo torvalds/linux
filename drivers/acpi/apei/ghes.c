@@ -360,11 +360,8 @@ static void ghes_do_proc(struct ghes *ghes)
 	}
 }
 
-static void ghes_print_estatus(const char *pfx, struct ghes *ghes)
+static void __ghes_print_estatus(const char *pfx, struct ghes *ghes)
 {
-	/* Not more than 2 messages every 5 seconds */
-	static DEFINE_RATELIMIT_STATE(ratelimit, 5*HZ, 2);
-
 	if (pfx == NULL) {
 		if (ghes_severity(ghes->estatus->error_severity) <=
 		    GHES_SEV_CORRECTED)
@@ -372,12 +369,18 @@ static void ghes_print_estatus(const char *pfx, struct ghes *ghes)
 		else
 			pfx = KERN_ERR HW_ERR;
 	}
-	if (__ratelimit(&ratelimit)) {
-		printk(
-	"%s""Hardware error from APEI Generic Hardware Error Source: %d\n",
-	pfx, ghes->generic->header.source_id);
-		apei_estatus_print(pfx, ghes->estatus);
-	}
+	printk("%s""Hardware error from APEI Generic Hardware Error Source: %d\n",
+	       pfx, ghes->generic->header.source_id);
+	apei_estatus_print(pfx, ghes->estatus);
+}
+
+static void ghes_print_estatus(const char *pfx, struct ghes *ghes)
+{
+	/* Not more than 2 messages every 5 seconds */
+	static DEFINE_RATELIMIT_STATE(ratelimit, 5*HZ, 2);
+
+	if (__ratelimit(&ratelimit))
+		__ghes_print_estatus(pfx, ghes);
 }
 
 static int ghes_proc(struct ghes *ghes)
@@ -476,7 +479,7 @@ static int ghes_notify_nmi(struct notifier_block *this,
 
 	if (sev_global >= GHES_SEV_PANIC) {
 		oops_begin();
-		ghes_print_estatus(KERN_EMERG HW_ERR, ghes_global);
+		__ghes_print_estatus(KERN_EMERG HW_ERR, ghes_global);
 		/* reboot to log the error! */
 		if (panic_timeout == 0)
 			panic_timeout = ghes_panic_timeout;
