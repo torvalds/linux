@@ -764,7 +764,7 @@ static void atombios_crtc_set_dcpll(struct drm_crtc *crtc,
 }
 
 static void atombios_crtc_program_pll(struct drm_crtc *crtc,
-				      int crtc_id,
+				      u32 crtc_id,
 				      int pll_id,
 				      u32 encoder_mode,
 				      u32 encoder_id,
@@ -851,8 +851,7 @@ static void atombios_crtc_program_pll(struct drm_crtc *crtc,
 			args.v5.ucPpll = pll_id;
 			break;
 		case 6:
-			args.v6.ulCrtcPclkFreq.ucCRTC = crtc_id;
-			args.v6.ulCrtcPclkFreq.ulPixelClock = cpu_to_le32(clock / 10);
+			args.v6.ulDispEngClkFreq = cpu_to_le32(crtc_id << 24 | clock / 10);
 			args.v6.ucRefDiv = ref_div;
 			args.v6.usFbDiv = cpu_to_le16(fb_div);
 			args.v6.ulFbDivDecFrac = cpu_to_le32(frac_fb_div * 100000);
