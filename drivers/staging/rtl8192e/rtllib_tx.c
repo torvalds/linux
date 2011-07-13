@@ -243,10 +243,6 @@ void rtllib_txb_free(struct rtllib_txb *txb) {
 struct rtllib_txb *rtllib_alloc_txb(int nr_frags, int txb_size,
 					  int gfp_mask)
 {
-#ifdef USB_USE_ALIGNMENT
-	u32 Tmpaddr=0;
-	int alignment=0;
-#endif
 	struct rtllib_txb *txb;
 	int i;
 	txb = kmalloc(
@@ -260,20 +256,11 @@ struct rtllib_txb *rtllib_alloc_txb(int nr_frags, int txb_size,
 	txb->frag_size = txb_size;
 
 	for (i = 0; i < nr_frags; i++) {
-#ifdef USB_USE_ALIGNMENT
-		txb->fragments[i] = dev_alloc_skb(txb_size+USB_512B_ALIGNMENT_SIZE);
-#else
 		txb->fragments[i] = dev_alloc_skb(txb_size);
-#endif
 		if (unlikely(!txb->fragments[i])) {
 			i--;
 			break;
 		}
-#ifdef USB_USE_ALIGNMENT
-		Tmpaddr = (u32)(txb->fragments[i]->data);
-		alignment = Tmpaddr & 0x1ff;
-		skb_reserve(txb->fragments[i],(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 		memset(txb->fragments[i]->cb, 0, sizeof(txb->fragments[i]->cb));
 	}
 	if (unlikely(i != nr_frags)) {

@@ -91,13 +91,7 @@ static struct sk_buff* rtllib_ADDBA(struct rtllib_device* ieee, u8* Dst, PBA_REC
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "pBA(%p) is NULL or ieee(%p) is NULL\n", pBA, ieee);
 		return NULL;
 	}
-#ifdef USB_USE_ALIGNMENT
-        u32 Tmpaddr=0;
-        int alignment=0;
-        skb = dev_alloc_skb(len + sizeof( struct rtllib_hdr_3addr) + USB_512B_ALIGNMENT_SIZE);
-#else
 	skb = dev_alloc_skb(len + sizeof( struct rtllib_hdr_3addr));
-#endif
 	if (skb == NULL)
 	{
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
@@ -105,12 +99,6 @@ static struct sk_buff* rtllib_ADDBA(struct rtllib_device* ieee, u8* Dst, PBA_REC
 	}
 
 	memset(skb->data, 0, sizeof( struct rtllib_hdr_3addr));
-
-#ifdef USB_USE_ALIGNMENT
-        Tmpaddr = (u32)skb->data;
-        alignment = Tmpaddr & 0x1ff;
-        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 
 	skb_reserve(skb, ieee->tx_headroom);
 
@@ -174,24 +162,13 @@ static struct sk_buff* rtllib_DELBA(
 	DelbaParamSet.field.Initiator	= (TxRxSelect==TX_DIR)?1:0;
 	DelbaParamSet.field.TID	= pBA->BaParamSet.field.TID;
 
-#ifdef USB_USE_ALIGNMENT
-        u32 Tmpaddr=0;
-        int alignment=0;
-	skb = dev_alloc_skb(len + sizeof( struct rtllib_hdr_3addr) + USB_512B_ALIGNMENT_SIZE);
-#else
 	skb = dev_alloc_skb(len + sizeof( struct rtllib_hdr_3addr));
-#endif
 	if (skb == NULL)
 	{
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "can't alloc skb for ADDBA_REQ\n");
 		return NULL;
 	}
 
-#ifdef USB_USE_ALIGNMENT
-        Tmpaddr = (u32)skb->data;
-        alignment = Tmpaddr & 0x1ff;
-        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 	skb_reserve(skb, ieee->tx_headroom);
 
 	Delba = ( struct rtllib_hdr_3addr *) skb_put(skb,sizeof( struct rtllib_hdr_3addr));

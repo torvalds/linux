@@ -382,24 +382,11 @@ inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
 
 	rate_len = rtllib_MFIE_rate_len(ieee);
 
-#ifdef USB_USE_ALIGNMENT
-        u32 Tmpaddr;
-        int alignment;
-        skb = dev_alloc_skb(sizeof(struct rtllib_probe_request) +
-                            2 + len + rate_len + ieee->tx_headroom + USB_512B_ALIGNMENT_SIZE);
-#else
 	skb = dev_alloc_skb(sizeof(struct rtllib_probe_request) +
 			    2 + len + rate_len + ieee->tx_headroom);
-#endif
 
 	if (!skb)
 		return NULL;
-
-#ifdef USB_USE_ALIGNMENT
-        Tmpaddr = (u32)skb->data;
-        alignment = Tmpaddr & 0x1ff;
-        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 
 	skb_reserve(skb, ieee->tx_headroom);
 
@@ -858,21 +845,9 @@ inline struct sk_buff *rtllib_authentication_req(struct rtllib_network *beacon,
 	struct rtllib_authentication *auth;
 	int  len = 0;
 	len = sizeof(struct rtllib_authentication) + challengelen + ieee->tx_headroom + 4;
-#ifdef USB_USE_ALIGNMENT
-        u32 Tmpaddr;
-        int alignment;
-        skb = dev_alloc_skb(len + USB_512B_ALIGNMENT_SIZE);
-#else
 	skb = dev_alloc_skb(len);
-#endif
 
 	if (!skb) return NULL;
-
-#ifdef USB_USE_ALIGNMENT
-        Tmpaddr = (u32)skb->data;
-        alignment = Tmpaddr & 0x1ff;
-        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 
 	skb_reserve(skb, ieee->tx_headroom);
 
@@ -994,21 +969,9 @@ static struct sk_buff* rtllib_probe_resp(struct rtllib_device *ieee, u8 *dest)
 		+erp_len
 		+wpa_ie_len
 		+ieee->tx_headroom;
-#ifdef USB_USE_ALIGNMENT
-        u32 Tmpaddr=0;
-        int alignment=0;
-        skb = dev_alloc_skb(beacon_size + USB_512B_ALIGNMENT_SIZE);
-#else
 	skb = dev_alloc_skb(beacon_size);
-#endif
 	if (!skb)
 		return NULL;
-
-#ifdef USB_USE_ALIGNMENT
-        Tmpaddr = (u32)skb->data;
-        alignment = Tmpaddr & 0x1ff;
-        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 
 	skb_reserve(skb, ieee->tx_headroom);
 
@@ -1098,22 +1061,10 @@ struct sk_buff* rtllib_assoc_resp(struct rtllib_device *ieee, u8 *dest)
 	unsigned int rate_len = rtllib_MFIE_rate_len(ieee);
 	int len = sizeof(struct rtllib_assoc_response_frame) + rate_len + ieee->tx_headroom;
 
-#ifdef USB_USE_ALIGNMENT
-        u32 Tmpaddr=0;
-        int alignment=0;
-        skb = dev_alloc_skb(len + USB_512B_ALIGNMENT_SIZE);
-#else
 	skb = dev_alloc_skb(len);
-#endif
 
 	if (!skb)
 		return NULL;
-
-#ifdef USB_USE_ALIGNMENT
-        Tmpaddr = (u32)skb->data;
-        alignment = Tmpaddr & 0x1ff;
-        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 
 	skb_reserve(skb, ieee->tx_headroom);
 
@@ -1160,23 +1111,11 @@ struct sk_buff* rtllib_auth_resp(struct rtllib_device *ieee,int status, u8 *dest
 	struct sk_buff *skb = NULL;
 	struct rtllib_authentication *auth;
 	int len = ieee->tx_headroom + sizeof(struct rtllib_authentication)+1;
-#ifdef USB_USE_ALIGNMENT
-        u32 Tmpaddr=0;
-        int alignment=0;
-        skb = dev_alloc_skb(len + USB_512B_ALIGNMENT_SIZE);
-#else
 	skb = dev_alloc_skb(len);
-#endif
 	if (!skb)
 		return NULL;
 
 	skb->len = sizeof(struct rtllib_authentication);
-
-#ifdef USB_USE_ALIGNMENT
-        Tmpaddr = (u32)skb->data;
-        alignment = Tmpaddr & 0x1ff;
-        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 
 	skb_reserve(skb, ieee->tx_headroom);
 
@@ -1201,21 +1140,10 @@ struct sk_buff* rtllib_null_func(struct rtllib_device *ieee,short pwr)
 	struct sk_buff *skb;
 	struct rtllib_hdr_3addr* hdr;
 
-#ifdef USB_USE_ALIGNMENT
-        u32 Tmpaddr=0;
-        int alignment=0;
-        skb = dev_alloc_skb(sizeof(struct rtllib_hdr_3addr) + ieee->tx_headroom + USB_512B_ALIGNMENT_SIZE);
-#else
 	skb = dev_alloc_skb(sizeof(struct rtllib_hdr_3addr)+ieee->tx_headroom);
-#endif
 	if (!skb)
 		return NULL;
 
-#ifdef USB_USE_ALIGNMENT
-        Tmpaddr = (u32)skb->data;
-        alignment = Tmpaddr & 0x1ff;
-        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 	skb_reserve(skb, ieee->tx_headroom);
 
 	hdr = (struct rtllib_hdr_3addr*)skb_put(skb,sizeof(struct rtllib_hdr_3addr));
@@ -1238,21 +1166,10 @@ struct sk_buff* rtllib_pspoll_func(struct rtllib_device *ieee)
 	struct sk_buff *skb;
 	struct rtllib_pspoll_hdr* hdr;
 
-#ifdef USB_USE_ALIGNMENT
-        u32 Tmpaddr=0;
-        int alignment=0;
-        skb = dev_alloc_skb(sizeof(struct rtllib_pspoll_hdr) + ieee->tx_headroom + USB_512B_ALIGNMENT_SIZE);
-#else
 	skb = dev_alloc_skb(sizeof(struct rtllib_pspoll_hdr)+ieee->tx_headroom);
-#endif
 	if (!skb)
 		return NULL;
 
-#ifdef USB_USE_ALIGNMENT
-        Tmpaddr = (u32)skb->data;
-        alignment = Tmpaddr & 0x1ff;
-        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 	skb_reserve(skb, ieee->tx_headroom);
 
 	hdr = (struct rtllib_pspoll_hdr*)skb_put(skb,sizeof(struct rtllib_pspoll_hdr));
@@ -1412,22 +1329,10 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,stru
 		+ cxvernum_ie_len
 		+ ieee->tx_headroom;
 
-#ifdef USB_USE_ALIGNMENT
-	u32 Tmpaddr=0;
-	int alignment=0;
-	skb = dev_alloc_skb(len + USB_512B_ALIGNMENT_SIZE);
-#else
 	skb = dev_alloc_skb(len);
-#endif
 
 	if (!skb)
 		return NULL;
-
-#ifdef USB_USE_ALIGNMENT
-        Tmpaddr = (u32)skb->data;
-        alignment = Tmpaddr & 0x1ff;
-        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 
 	skb_reserve(skb, ieee->tx_headroom);
 
@@ -3743,24 +3648,13 @@ inline struct sk_buff *rtllib_disauth_skb( struct rtllib_network *beacon,
 {
 	struct sk_buff *skb;
 	struct rtllib_disauth *disauth;
-#ifdef USB_USE_ALIGNMENT
-        u32 Tmpaddr=0;
-        int alignment=0;
-	int len = sizeof(struct rtllib_disauth) + ieee->tx_headroom + USB_512B_ALIGNMENT_SIZE;
-#else
 	int len = sizeof(struct rtllib_disauth) + ieee->tx_headroom;
 
-#endif
 	skb = dev_alloc_skb(len);
 	if (!skb) {
 		return NULL;
 	}
 
-#ifdef USB_USE_ALIGNMENT
-        Tmpaddr = (u32)skb->data;
-        alignment = Tmpaddr & 0x1ff;
-        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 	skb_reserve(skb, ieee->tx_headroom);
 
 	disauth = (struct rtllib_disauth *) skb_put(skb,sizeof(struct rtllib_disauth));
@@ -3780,24 +3674,13 @@ inline struct sk_buff *rtllib_disassociate_skb( struct rtllib_network *beacon,
 {
 	struct sk_buff *skb;
 	struct rtllib_disassoc *disass;
-#ifdef USB_USE_ALIGNMENT
-        u32 Tmpaddr=0;
-        int alignment=0;
-	int len = sizeof(struct rtllib_disassoc) + ieee->tx_headroom + USB_512B_ALIGNMENT_SIZE;
-#else
 	int len = sizeof(struct rtllib_disassoc) + ieee->tx_headroom;
-#endif
 	skb = dev_alloc_skb(len);
 
 	if (!skb) {
 		return NULL;
 	}
 
-#ifdef USB_USE_ALIGNMENT
-        Tmpaddr = (u32)skb->data;
-        alignment = Tmpaddr & 0x1ff;
-        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
-#endif
 	skb_reserve(skb, ieee->tx_headroom);
 
 	disass = (struct rtllib_disassoc *) skb_put(skb,sizeof(struct rtllib_disassoc));
