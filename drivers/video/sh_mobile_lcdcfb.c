@@ -32,20 +32,6 @@
 #define SIDE_B_OFFSET 0x1000
 #define MIRROR_OFFSET 0x2000
 
-/* shared registers */
-#define _LDDCKR 0x410
-#define _LDDCKSTPR 0x414
-#define _LDINTR 0x468
-#define _LDSR 0x46c
-#define _LDCNT1R 0x470
-#define _LDCNT2R 0x474
-#define _LDRCNTR 0x478
-#define _LDDDSR 0x47c
-#define _LDDWD0R 0x800
-#define _LDDRDR 0x840
-#define _LDDWAR 0x900
-#define _LDDRAR 0x904
-
 /* shared registers and their order for context save/restore */
 static int lcdc_shared_regs[] = {
 	_LDDCKR,
@@ -97,22 +83,6 @@ static unsigned long lcdc_offs_sublcd[NR_CH_REGS] = {
 	[LDVSYNR] = 0x630,
 	[LDPMR] = 0x63c,
 };
-
-#define START_LCDC	0x00000001
-#define LCDC_RESET	0x00000100
-#define DISPLAY_BEU	0x00000008
-#define LCDC_ENABLE	0x00000001
-#define LDINTR_FE	0x00000400
-#define LDINTR_VSE	0x00000200
-#define LDINTR_VEE	0x00000100
-#define LDINTR_FS	0x00000004
-#define LDINTR_VSS	0x00000002
-#define LDINTR_VES	0x00000001
-#define LDRCNTR_SRS	0x00020000
-#define LDRCNTR_SRC	0x00010000
-#define LDRCNTR_MRS	0x00000002
-#define LDRCNTR_MRC	0x00000001
-#define LDSR_MRS	0x00000100
 
 static const struct fb_videomode default_720p = {
 	.name = "HDMI 720p",
@@ -218,33 +188,36 @@ static void lcdc_sys_write_index(void *handle, unsigned long data)
 {
 	struct sh_mobile_lcdc_chan *ch = handle;
 
-	lcdc_write(ch->lcdc, _LDDWD0R, data | 0x10000000);
-	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
-	lcdc_write(ch->lcdc, _LDDWAR, 1 | (lcdc_chan_is_sublcd(ch) ? 2 : 0));
-	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
+	lcdc_write(ch->lcdc, _LDDWD0R, data | LDDWDxR_WDACT);
+	lcdc_wait_bit(ch->lcdc, _LDSR, LDSR_AS, 0);
+	lcdc_write(ch->lcdc, _LDDWAR, LDDWAR_WA |
+		   (lcdc_chan_is_sublcd(ch) ? 2 : 0));
+	lcdc_wait_bit(ch->lcdc, _LDSR, LDSR_AS, 0);
 }
 
 static void lcdc_sys_write_data(void *handle, unsigned long data)
 {
 	struct sh_mobile_lcdc_chan *ch = handle;
 
-	lcdc_write(ch->lcdc, _LDDWD0R, data | 0x11000000);
-	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
-	lcdc_write(ch->lcdc, _LDDWAR, 1 | (lcdc_chan_is_sublcd(ch) ? 2 : 0));
-	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
+	lcdc_write(ch->lcdc, _LDDWD0R, data | LDDWDxR_WDACT | LDDWDxR_RSW);
+	lcdc_wait_bit(ch->lcdc, _LDSR, LDSR_AS, 0);
+	lcdc_write(ch->lcdc, _LDDWAR, LDDWAR_WA |
+		   (lcdc_chan_is_sublcd(ch) ? 2 : 0));
+	lcdc_wait_bit(ch->lcdc, _LDSR, LDSR_AS, 0);
 }
 
 static unsigned long lcdc_sys_read_data(void *handle)
 {
 	struct sh_mobile_lcdc_chan *ch = handle;
 
-	lcdc_write(ch->lcdc, _LDDRDR, 0x01000000);
-	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
-	lcdc_write(ch->lcdc, _LDDRAR, 1 | (lcdc_chan_is_sublcd(ch) ? 2 : 0));
+	lcdc_write(ch->lcdc, _LDDRDR, LDDRDR_RSR);
+	lcdc_wait_bit(ch->lcdc, _LDSR, LDSR_AS, 0);
+	lcdc_write(ch->lcdc, _LDDRAR, LDDRAR_RA |
+		   (lcdc_chan_is_sublcd(ch) ? 2 : 0));
 	udelay(1);
-	lcdc_wait_bit(ch->lcdc, _LDSR, 2, 0);
+	lcdc_wait_bit(ch->lcdc, _LDSR, LDSR_AS, 0);
 
-	return lcdc_read(ch->lcdc, _LDDRDR) & 0x3ffff;
+	return lcdc_read(ch->lcdc, _LDDRDR) & LDDRDR_DRD_MASK;
 }
 
 struct sh_mobile_lcdc_sys_bus_ops sh_mobile_lcdc_sys_bus_ops = {
@@ -323,13 +296,13 @@ static void sh_mobile_lcdc_deferred_io(struct fb_info *info,
 		if (bcfg->start_transfer)
 			bcfg->start_transfer(bcfg->board_data, ch,
 					     &sh_mobile_lcdc_sys_bus_ops);
-		lcdc_write_chan(ch, LDSM2R, 1);
+		lcdc_write_chan(ch, LDSM2R, LDSM2R_OSTRG);
 		dma_unmap_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
 	} else {
 		if (bcfg->start_transfer)
 			bcfg->start_transfer(bcfg->board_data, ch,
 					     &sh_mobile_lcdc_sys_bus_ops);
-		lcdc_write_chan(ch, LDSM2R, 1);
+		lcdc_write_chan(ch, LDSM2R, LDSM2R_OSTRG);
 	}
 }
 
@@ -356,11 +329,11 @@ static irqreturn_t sh_mobile_lcdc_irq(int irq, void *data)
 	 * disable further VSYNC End IRQs, preserve all other enabled IRQs,
 	 * write 0 to bits 0-6 to ack all triggered IRQs.
 	 */
-	tmp &= 0xffffff00 & ~LDINTR_VEE;
+	tmp &= ~LDINTR_STATUS_MASK & ~LDINTR_VEE;
 	lcdc_write(priv, _LDINTR, tmp);
 
 	/* figure out if this interrupt is for main or sub lcd */
-	is_sub = (lcdc_read(priv, _LDSR) & (1 << 10)) ? 1 : 0;
+	is_sub = (lcdc_read(priv, _LDSR) & LDSR_MSS) ? 1 : 0;
 
 	/* wake up channel and disable clocks */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
@@ -395,16 +368,17 @@ static void sh_mobile_lcdc_start_stop(struct sh_mobile_lcdc_priv *priv,
 
 	/* start or stop the lcdc */
 	if (start)
-		lcdc_write(priv, _LDCNT2R, tmp | START_LCDC);
+		lcdc_write(priv, _LDCNT2R, tmp | LDCNT2R_DO);
 	else
-		lcdc_write(priv, _LDCNT2R, tmp & ~START_LCDC);
+		lcdc_write(priv, _LDCNT2R, tmp & ~LDCNT2R_DO);
 
 	/* wait until power is applied/stopped on all channels */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++)
 		if (lcdc_read(priv, _LDCNT2R) & priv->ch[k].enabled)
 			while (1) {
-				tmp = lcdc_read_chan(&priv->ch[k], LDPMR) & 3;
-				if (start && tmp == 3)
+				tmp = lcdc_read_chan(&priv->ch[k], LDPMR)
+				    & LDPMR_LPS;
+				if (start && tmp == LDPMR_LPS)
 					break;
 				if (!start && tmp == 0)
 					break;
@@ -422,13 +396,13 @@ static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 	u32 tmp;
 
 	tmp = ch->ldmt1r_value;
-	tmp |= (var->sync & FB_SYNC_VERT_HIGH_ACT) ? 0 : 1 << 28;
-	tmp |= (var->sync & FB_SYNC_HOR_HIGH_ACT) ? 0 : 1 << 27;
-	tmp |= (ch->cfg.flags & LCDC_FLAGS_DWPOL) ? 1 << 26 : 0;
-	tmp |= (ch->cfg.flags & LCDC_FLAGS_DIPOL) ? 1 << 25 : 0;
-	tmp |= (ch->cfg.flags & LCDC_FLAGS_DAPOL) ? 1 << 24 : 0;
-	tmp |= (ch->cfg.flags & LCDC_FLAGS_HSCNT) ? 1 << 17 : 0;
-	tmp |= (ch->cfg.flags & LCDC_FLAGS_DWCNT) ? 1 << 16 : 0;
+	tmp |= (var->sync & FB_SYNC_VERT_HIGH_ACT) ? 0 : LDMT1R_VPOL;
+	tmp |= (var->sync & FB_SYNC_HOR_HIGH_ACT) ? 0 : LDMT1R_HPOL;
+	tmp |= (ch->cfg.flags & LCDC_FLAGS_DWPOL) ? LDMT1R_DWPOL : 0;
+	tmp |= (ch->cfg.flags & LCDC_FLAGS_DIPOL) ? LDMT1R_DIPOL : 0;
+	tmp |= (ch->cfg.flags & LCDC_FLAGS_DAPOL) ? LDMT1R_DAPOL : 0;
+	tmp |= (ch->cfg.flags & LCDC_FLAGS_HSCNT) ? LDMT1R_HSCNT : 0;
+	tmp |= (ch->cfg.flags & LCDC_FLAGS_DWCNT) ? LDMT1R_DWCNT : 0;
 	lcdc_write_chan(ch, LDMT1R, tmp);
 
 	/* setup SYS bus */
@@ -486,8 +460,8 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	}
 
 	/* reset */
-	lcdc_write(priv, _LDCNT2R, lcdc_read(priv, _LDCNT2R) | LCDC_RESET);
-	lcdc_wait_bit(priv, _LDCNT2R, LCDC_RESET, 0);
+	lcdc_write(priv, _LDCNT2R, lcdc_read(priv, _LDCNT2R) | LDCNT2R_BR);
+	lcdc_wait_bit(priv, _LDCNT2R, LDCNT2R_BR, 0);
 
 	/* enable LCDC channels */
 	tmp = lcdc_read(priv, _LDCNT2R);
@@ -496,7 +470,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	lcdc_write(priv, _LDCNT2R, tmp);
 
 	/* read data from external memory, avoid using the BEU for now */
-	lcdc_write(priv, _LDCNT2R, lcdc_read(priv, _LDCNT2R) & ~DISPLAY_BEU);
+	lcdc_write(priv, _LDCNT2R, lcdc_read(priv, _LDCNT2R) & ~LDCNT2R_MD);
 
 	/* stop the lcdc first */
 	sh_mobile_lcdc_start_stop(priv, 0);
@@ -514,7 +488,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			continue;
 
 		if (m == 1)
-			m = 1 << 6;
+			m = LDDCKR_MOSEL;
 		tmp |= m << (lcdc_chan_is_sublcd(ch) ? 8 : 0);
 
 		/* FIXME: sh7724 can only use 42, 48, 54 and 60 for the divider denominator */
@@ -554,20 +528,21 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	/* word and long word swap */
 	ldddsr = lcdc_read(priv, _LDDDSR);
 	if  (priv->ch[0].info->var.nonstd)
-		lcdc_write(priv, _LDDDSR, ldddsr | 7);
+		ldddsr |= LDDDSR_LS | LDDDSR_WS | LDDDSR_BS;
 	else {
 		switch (bpp) {
 		case 16:
-			lcdc_write(priv, _LDDDSR, ldddsr | 6);
+			ldddsr |= LDDDSR_LS | LDDDSR_WS;
 			break;
 		case 24:
-			lcdc_write(priv, _LDDDSR, ldddsr | 7);
+			ldddsr |= LDDDSR_LS | LDDDSR_WS | LDDDSR_BS;
 			break;
 		case 32:
-			lcdc_write(priv, _LDDDSR, ldddsr | 4);
+			ldddsr |= LDDDSR_LS;
 			break;
 		}
 	}
+	lcdc_write(priv, _LDDDSR, ldddsr);
 
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
 		unsigned long base_addr_y;
@@ -580,28 +555,29 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 		/* set bpp format in PKF[4:0] */
 		tmp = lcdc_read_chan(ch, LDDFR);
-		tmp &= ~0x0003031f;
+		tmp &= ~(LDDFR_CF0 | LDDFR_CC | LDDFR_YF_MASK | LDDFR_PKF_MASK);
 		if (ch->info->var.nonstd) {
 			tmp |= (ch->info->var.nonstd << 16);
 			switch (ch->info->var.bits_per_pixel) {
 			case 12:
 				break;
 			case 16:
-				tmp |= (0x1 << 8);
+				tmp |= LDDFR_YF_422;
 				break;
 			case 24:
-				tmp |= (0x2 << 8);
+				tmp |= LDDFR_YF_444;
 				break;
 			}
 		} else {
 			switch (ch->info->var.bits_per_pixel) {
 			case 16:
-				tmp |= 0x03;
+				tmp |= LDDFR_PKF_RGB16;
 				break;
 			case 24:
-				tmp |= 0x0b;
+				tmp |= LDDFR_PKF_RGB24;
 				break;
 			case 32:
+				tmp |= LDDFR_PKF_ARGB32;
 				break;
 			}
 		}
@@ -672,14 +648,14 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 		/* setup deferred io if SYS bus */
 		tmp = ch->cfg.sys_bus_cfg.deferred_io_msec;
-		if (ch->ldmt1r_value & (1 << 12) && tmp) {
+		if (ch->ldmt1r_value & LDMT1R_IFM && tmp) {
 			ch->defio.deferred_io = sh_mobile_lcdc_deferred_io;
 			ch->defio.delay = msecs_to_jiffies(tmp);
 			ch->info->fbdefio = &ch->defio;
 			fb_deferred_io_init(ch->info);
 
 			/* one-shot mode */
-			lcdc_write_chan(ch, LDSM1R, 1);
+			lcdc_write_chan(ch, LDSM1R, LDSM1R_OS);
 
 			/* enable "Frame End Interrupt Enable" bit */
 			lcdc_write(priv, _LDINTR, LDINTR_FE);
@@ -691,7 +667,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	}
 
 	/* display output */
-	lcdc_write(priv, _LDCNT1R, LCDC_ENABLE);
+	lcdc_write(priv, _LDCNT1R, LDCNT1R_DE);
 
 	/* start the lcdc */
 	sh_mobile_lcdc_start_stop(priv, 1);
@@ -780,42 +756,42 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 
 static int sh_mobile_lcdc_check_interface(struct sh_mobile_lcdc_chan *ch)
 {
-	int ifm, miftyp;
+	int interface_type = ch->cfg.interface_type;
 
-	switch (ch->cfg.interface_type) {
-	case RGB8: ifm = 0; miftyp = 0; break;
-	case RGB9: ifm = 0; miftyp = 4; break;
-	case RGB12A: ifm = 0; miftyp = 5; break;
-	case RGB12B: ifm = 0; miftyp = 6; break;
-	case RGB16: ifm = 0; miftyp = 7; break;
-	case RGB18: ifm = 0; miftyp = 10; break;
-	case RGB24: ifm = 0; miftyp = 11; break;
-	case SYS8A: ifm = 1; miftyp = 0; break;
-	case SYS8B: ifm = 1; miftyp = 1; break;
-	case SYS8C: ifm = 1; miftyp = 2; break;
-	case SYS8D: ifm = 1; miftyp = 3; break;
-	case SYS9: ifm = 1; miftyp = 4; break;
-	case SYS12: ifm = 1; miftyp = 5; break;
-	case SYS16A: ifm = 1; miftyp = 7; break;
-	case SYS16B: ifm = 1; miftyp = 8; break;
-	case SYS16C: ifm = 1; miftyp = 9; break;
-	case SYS18: ifm = 1; miftyp = 10; break;
-	case SYS24: ifm = 1; miftyp = 11; break;
-	default: goto bad;
+	switch (interface_type) {
+	case RGB8:
+	case RGB9:
+	case RGB12A:
+	case RGB12B:
+	case RGB16:
+	case RGB18:
+	case RGB24:
+	case SYS8A:
+	case SYS8B:
+	case SYS8C:
+	case SYS8D:
+	case SYS9:
+	case SYS12:
+	case SYS16A:
+	case SYS16B:
+	case SYS16C:
+	case SYS18:
+	case SYS24:
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	/* SUBLCD only supports SYS interface */
 	if (lcdc_chan_is_sublcd(ch)) {
-		if (ifm == 0)
-			goto bad;
-		else
-			ifm = 0;
+		if (!(interface_type & LDMT1R_IFM))
+			return -EINVAL;
+
+		interface_type &= ~LDMT1R_IFM;
 	}
 
-	ch->ldmt1r_value = (ifm << 12) | miftyp;
+	ch->ldmt1r_value = interface_type;
 	return 0;
- bad:
-	return -EINVAL;
 }
 
 static int sh_mobile_lcdc_setup_clocks(struct platform_device *pdev,
@@ -823,17 +799,23 @@ static int sh_mobile_lcdc_setup_clocks(struct platform_device *pdev,
 				       struct sh_mobile_lcdc_priv *priv)
 {
 	char *str;
-	int icksel;
 
 	switch (clock_source) {
-	case LCDC_CLK_BUS: str = "bus_clk"; icksel = 0; break;
-	case LCDC_CLK_PERIPHERAL: str = "peripheral_clk"; icksel = 1; break;
-	case LCDC_CLK_EXTERNAL: str = NULL; icksel = 2; break;
+	case LCDC_CLK_BUS:
+		str = "bus_clk";
+		priv->lddckr = LDDCKR_ICKSEL_BUS;
+		break;
+	case LCDC_CLK_PERIPHERAL:
+		str = "peripheral_clk";
+		priv->lddckr = LDDCKR_ICKSEL_MIPI;
+		break;
+	case LCDC_CLK_EXTERNAL:
+		str = NULL;
+		priv->lddckr = LDDCKR_ICKSEL_HDMI;
+		break;
 	default:
 		return -EINVAL;
 	}
-
-	priv->lddckr = icksel << 16;
 
 	if (str) {
 		priv->dot_clk = clk_get(&pdev->dev, str);
@@ -1476,12 +1458,12 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 
 		switch (pdata->ch[i].chan) {
 		case LCDC_CHAN_MAINLCD:
-			ch->enabled = 1 << 1;
+			ch->enabled = LDCNT2R_ME;
 			ch->reg_offs = lcdc_offs_mainlcd;
 			j++;
 			break;
 		case LCDC_CHAN_SUBLCD:
-			ch->enabled = 1 << 2;
+			ch->enabled = LDCNT2R_SE;
 			ch->reg_offs = lcdc_offs_sublcd;
 			j++;
 			break;
