@@ -14,7 +14,6 @@
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_driver_chipcommon.h>
 
-#include <linux/wireless.h>
 #include <net/mac80211.h>
 
 #include "debugfs.h"
