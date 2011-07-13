@@ -159,7 +159,7 @@ static int __devinit ad7476_probe(struct spi_device *spi)
 	else
 		dev_warn(&spi->dev, "reference voltage unspecified\n");
 
-	spi_set_drvdata(spi, st);
+	spi_set_drvdata(spi, indio_dev);
 
 	st->spi = spi;
 
