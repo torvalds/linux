@@ -7370,4 +7370,12 @@ struct bnx2_rv2p_fw_file {
 
 #define HOST_VIEW_SHMEM_BASE			0x167c00
 
+#define DP_SHMEM_LINE(bp, offset)					\
+	netdev_err(bp->dev, "DEBUG: %08x: %08x %08x %08x %08x\n",	\
+		   offset,						\
+		   bnx2_shmem_rd(bp, offset),				\
+		   bnx2_shmem_rd(bp, offset + 4),			\
+		   bnx2_shmem_rd(bp, offset + 8),			\
+		   bnx2_shmem_rd(bp, offset + 12))
+
 #endif
