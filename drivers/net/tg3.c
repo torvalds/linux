@@ -2657,14 +2657,19 @@ static void tg3_enable_register_access(struct tg3 *tp)
 
 static int tg3_power_up(struct tg3 *tp)
 {
+	int err;
+
 	tg3_enable_register_access(tp);
 
-	pci_set_power_state(tp->pdev, PCI_D0);
+	err = pci_set_power_state(tp->pdev, PCI_D0);
+	if (!err) {
+		/* Switch out of Vaux if it is a NIC */
+		tg3_pwrsrc_switch_to_vmain(tp);
+	} else {
+		netdev_err(tp->dev, "Transition to D0 failed\n");
+	}
 
-	/* Switch out of Vaux if it is a NIC */
-	tg3_pwrsrc_switch_to_vmain(tp);
-
-	return 0;
+	return err;
 }
 
 static int tg3_power_down_prepare(struct tg3 *tp)
@@ -11433,8 +11438,12 @@ static void tg3_self_test(struct net_device *dev, struct ethtool_test *etest,
 {
 	struct tg3 *tp = netdev_priv(dev);
 
-	if (tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER)
-		tg3_power_up(tp);
+	if ((tp->phy_flags & TG3_PHYFLG_IS_LOW_POWER) &&
+	    tg3_power_up(tp)) {
+		etest->flags |= ETH_TEST_FL_FAILED;
+		memset(data, 1, sizeof(u64) * TG3_NUM_TEST);
+		return;
+	}
 
 	memset(data, 0, sizeof(u64) * TG3_NUM_TEST);
 
@@ -15571,10 +15580,8 @@ static pci_ers_result_t tg3_io_slot_reset(struct pci_dev *pdev)
 	}
 
 	err = tg3_power_up(tp);
-	if (err) {
-		netdev_err(netdev, "Failed to restore register access.\n");
+	if (err)
 		goto done;
-	}
 
 	rc = PCI_ERS_RESULT_RECOVERED;
 
