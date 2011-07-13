@@ -561,13 +561,7 @@ bool PlatformSetPMCSR(struct net_device *dev,u8 value,bool bTempSetting)
 
 		if (bSetFunc) {
 			if (Buffer) {
-#ifdef TO_DO_LIST
-				RT_DISABLE_FUNC(Adapter, DF_IO_D3_BIT);
-#endif
 			} else {
-#ifdef TO_DO_LIST
-				RT_ENABLE_FUNC(Adapter, DF_IO_D3_BIT);
-#endif
 			}
 		}
 

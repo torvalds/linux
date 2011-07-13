@@ -355,15 +355,6 @@ void rtl8192_phy_configmac(struct net_device* dev)
 	u32 dwArrayLen = 0, i = 0;
 	u32* pdwArray = NULL;
 	struct r8192_priv *priv = rtllib_priv(dev);
-#ifdef TO_DO_LIST
-if (dev->bInHctTest)
-	{
-		RT_TRACE(COMP_PHY, "Rtl819XMACPHY_ArrayDTM\n");
-		dwArrayLen = MACPHY_ArrayLengthDTM;
-		pdwArray = Rtl819XMACPHY_ArrayDTM;
-	}
-	else if (priv->bTXPowerDataReadFromEEPORM)
-#endif
 	 if (priv->bTXPowerDataReadFromEEPORM)
 	{
 		RT_TRACE(COMP_PHY, "Rtl819XMACPHY_Array_PG\n");
@@ -397,26 +388,6 @@ void rtl8192_phyConfigBB(struct net_device* dev, u8 ConfigType)
 	u32*	Rtl819XAGCTAB_Array_Table = NULL;
 	u16	AGCTAB_ArrayLen, PHY_REGArrayLen = 0;
 	struct r8192_priv *priv = rtllib_priv(dev);
-#ifdef TO_DO_LIST
-	u32 *rtl8192PhyRegArrayTable = NULL, *rtl8192AgcTabArrayTable = NULL;
-	if (dev->bInHctTest)
-	{
-		AGCTAB_ArrayLen = AGCTAB_ArrayLengthDTM;
-		Rtl819XAGCTAB_Array_Table = Rtl819XAGCTAB_ArrayDTM;
-
-		if (priv->RF_Type == RF_2T4R)
-		{
-			PHY_REGArrayLen = PHY_REGArrayLengthDTM;
-			Rtl819XPHY_REGArray_Table = Rtl819XPHY_REGArrayDTM;
-		}
-		else if (priv->RF_Type == RF_1T2R)
-		{
-			PHY_REGArrayLen = PHY_REG_1T2RArrayLengthDTM;
-			Rtl819XPHY_REGArray_Table = Rtl819XPHY_REG_1T2RArrayDTM;
-		}
-	}
-	else
-#endif
 	{
 		AGCTAB_ArrayLen = AGCTAB_ArrayLength;
 		Rtl819XAGCTAB_Array_Table = Rtl819XAGCTAB_Array;
@@ -839,10 +810,6 @@ void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 	switch (priv->rf_chip)
 	{
 	case RF_8225:
-#ifdef TO_DO_LIST
-		PHY_SetRF8225CckTxPower(dev, powerlevel);
-		PHY_SetRF8225OfdmTxPower(dev, powerlevelOFDM24G);
-#endif
 		break;
 
 	case RF_8256:
@@ -1278,9 +1245,6 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	switch ( priv->rf_chip )
 	{
 		case RF_8225:
-#ifdef TO_DO_LIST
-			PHY_SetRF8225Bandwidth(dev, pHalData->CurrentChannelBW);
-#endif
 			break;
 
 		case RF_8256:
@@ -1489,13 +1453,6 @@ SetRFPowerState8190(
 								QueueID++;
 								continue;
 							}
-#ifdef TO_DO_LIST
-							else if (IsLowPowerState(Adapter))
-							{
-								RT_TRACE((COMP_POWER|COMP_RF), "eRf Off/Sleep: %d times TcbBusyQueue[%d] !=0 but lower power state!\n", (i+1), QueueID);
-								break;
-							}
-#endif
 							else
 							{
 								RT_TRACE((COMP_POWER|COMP_RF), "eRf Off/Sleep: %d times TcbBusyQueue[%d] !=0 before doze!\n", (i+1), QueueID);
@@ -1528,14 +1485,6 @@ SetRFPowerState8190(
 							QueueID++;
 							continue;
 					}
-#ifdef TO_DO_LIST
-					else if (IsLowPowerState(Adapter))
-					{
-						RT_TRACE(COMP_POWER,
-						"eRf Off/Sleep: %d times TcbBusyQueue[%d] !=0 but lower power state!\n", (i+1), QueueID);
-						break;
-					}
-#endif
 						else
 						{
 						RT_TRACE(COMP_POWER,
@@ -1562,16 +1511,6 @@ SetRFPowerState8190(
 					{
 						PHY_SetRtl8192eRfOff(dev);
 					}
-#ifdef TO_DO_LIST
-					if (pMgntInfo->RfOffReason == RF_CHANGE_BY_IPS )
-					{
-						Adapter->HalFunc.LedControlHandler(dev,LED_CTL_NO_LINK);
-					}
-					else
-					{
-						Adapter->HalFunc.LedControlHandler(dev, LED_CTL_POWER_OFF);
-					}
-#endif
 				}
 
 					break;

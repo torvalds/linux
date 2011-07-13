@@ -333,12 +333,6 @@ void rtllib_tx_query_agg_cap(struct rtllib_device* ieee, struct sk_buff* skb, cb
 		return;
 	if (is_multicast_ether_addr(hdr->addr1) || is_broadcast_ether_addr(hdr->addr1))
 		return;
-#ifdef TO_DO_LIST
-	if (pTcb->PacketLength >= 4096)
-		return;
-	if (!Adapter->HalFunc.GetNmodeSupportBySecCfgHandler(Adapter))
-		return;
-#endif
 
 	if (tcb_desc->bdhcp || ieee->CntAfterLink<2)
 		return;
@@ -552,22 +546,6 @@ NO_PROTECTION:
 
 void rtllib_txrate_selectmode(struct rtllib_device* ieee, cb_desc* tcb_desc)
 {
-#ifdef TO_DO_LIST
-	if (!IsDataFrame(pFrame))
-	{
-		pTcb->bTxDisableRateFallBack = true;
-		pTcb->bTxUseDriverAssingedRate = true;
-		pTcb->RATRIndex = 7;
-		return;
-	}
-
-	if (pMgntInfo->ForcedDataRate!= 0)
-	{
-		pTcb->bTxDisableRateFallBack = true;
-		pTcb->bTxUseDriverAssingedRate = true;
-		return;
-	}
-#endif
 	if (ieee->bTxDisableRateFallBack)
 		tcb_desc->bTxDisableRateFallBack = true;
 

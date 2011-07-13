@@ -613,42 +613,6 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 	priv->ChannelPlan = COUNTRY_CODE_WORLD_WIDE_13;
 #endif
 
-#ifdef TO_DO_LIST
-	switch (priv->CustomerID)
-	{
-		case RT_CID_DEFAULT:
-			priv->LedStrategy = SW_LED_MODE1;
-			break;
-
-		case RT_CID_819x_CAMEO:
-			priv->LedStrategy = SW_LED_MODE2;
-			break;
-
-		case RT_CID_819x_RUNTOP:
-			priv->LedStrategy = SW_LED_MODE3;
-			break;
-
-		case RT_CID_819x_Netcore:
-			priv->LedStrategy = SW_LED_MODE4;
-			break;
-
-		case RT_CID_Nettronix:
-			priv->LedStrategy = SW_LED_MODE5;
-			break;
-
-		case RT_CID_PRONET:
-			priv->LedStrategy = SW_LED_MODE6;
-			break;
-
-		case RT_CID_TOSHIBA:
-
-		default:
-			priv->LedStrategy = SW_LED_MODE1;
-			break;
-	}
-	RT_TRACE(COMP_INIT, "LedStrategy = %d \n", priv->LedStrategy);
-#endif
-
 	if ( priv->eeprom_vid == 0x1186 &&  priv->eeprom_did == 0x3304)
 		priv->rtllib->bSupportRemoteWakeUp = true;
 	else
@@ -832,20 +796,6 @@ start:
 	write_nic_word(dev, MAC4, ((u16*)(dev->dev_addr + 4))[0]);
 	write_nic_dword(dev, RCR, priv->ReceiveConfig);
 
-#ifdef TO_DO_LIST
-	if (priv->bInHctTest)
-	{
-		write_nic_dword(dev, RQPN1,  NUM_OF_PAGE_IN_FW_QUEUE_BK_DTM << RSVD_FW_QUEUE_PAGE_BK_SHIFT |\
-				NUM_OF_PAGE_IN_FW_QUEUE_BE_DTM << RSVD_FW_QUEUE_PAGE_BE_SHIFT | \
-				NUM_OF_PAGE_IN_FW_QUEUE_VI_DTM << RSVD_FW_QUEUE_PAGE_VI_SHIFT | \
-				NUM_OF_PAGE_IN_FW_QUEUE_VO_DTM <<RSVD_FW_QUEUE_PAGE_VO_SHIFT);
-		write_nic_dword(dev, RQPN2, NUM_OF_PAGE_IN_FW_QUEUE_MGNT << RSVD_FW_QUEUE_PAGE_MGNT_SHIFT);
-		write_nic_dword(dev, RQPN3, APPLIED_RESERVED_QUEUE_IN_FW| \
-				NUM_OF_PAGE_IN_FW_QUEUE_BCN<<RSVD_FW_QUEUE_PAGE_BCN_SHIFT|\
-				NUM_OF_PAGE_IN_FW_QUEUE_PUB_DTM<<RSVD_FW_QUEUE_PAGE_PUB_SHIFT);
-	}
-	else
-#endif
 	{
 		write_nic_dword(dev, RQPN1,  NUM_OF_PAGE_IN_FW_QUEUE_BK << RSVD_FW_QUEUE_PAGE_BK_SHIFT |\
 					NUM_OF_PAGE_IN_FW_QUEUE_BE << RSVD_FW_QUEUE_PAGE_BE_SHIFT | \

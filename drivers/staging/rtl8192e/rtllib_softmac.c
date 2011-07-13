@@ -4018,9 +4018,6 @@ rtllib_MgntDisconnect(
 		}
 		if ( rtllib->iw_mode == IW_MODE_INFRA )
 		{
-#ifdef TO_DO_LIST
-			SecClearAllKeys(Adapter);
-#endif
 			rtllib_MgntDisconnectAP(rtllib, asRsn);
 		}
 
