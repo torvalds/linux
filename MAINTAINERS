@@ -3344,6 +3344,12 @@ F:	drivers/net/ixgb/
 F:	drivers/net/ixgbe/
 F:	drivers/net/ixgbevf/
 
+INTEL MRST PMU DRIVER
+M:	Len Brown <len.brown@intel.com>
+L:	linux-pm@lists.linux-foundation.org
+S:	Supported
+F:	arch/x86/platform/mrst/pmu.*
+
 INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
 L:	linux-wireless@vger.kernel.org
 S:	Orphan
