@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/swap.h>
+#include <linux/pagemap.h>
 #include <linux/sunrpc/svcauth_gss.h>
 #include <linux/sunrpc/clnt.h>
 #include "xdr4.h"
@@ -3145,6 +3146,32 @@ static int is_open_stateid(struct nfs4_stateid *stateid)
 	return stateid->st_openstp == NULL;
 }
 
+__be32 nfs4_validate_stateid(stateid_t *stateid, int flags)
+{
+	struct nfs4_stateid *stp = NULL;
+	__be32 status = nfserr_stale_stateid;
+
+	if (STALE_STATEID(stateid))
+		goto out;
+
+	status = nfserr_expired;
+	stp = search_for_stateid(stateid);
+	if (!stp)
+		goto out;
+	status = nfserr_bad_stateid;
+
+	if (!stp->st_stateowner->so_confirmed)
+		goto out;
+
+	status = check_stateid_generation(stateid, &stp->st_stateid, flags);
+	if (status)
+		goto out;
+
+	status = nfs_ok;
+out:
+	return status;
+}
+
 /*
 * Checks for stateid operations
 */
@@ -3239,6 +3266,17 @@ nfsd4_free_lock_stateid(struct nfs4_stateid *stp)
 	if (check_for_locks(stp->st_file, stp->st_stateowner))
 		return nfserr_locks_held;
 	release_lock_stateid(stp);
+	return nfs_ok;
+}
+
+/*
+ * Test if the stateid is valid
+ */
+__be32
+nfsd4_test_stateid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
+		   struct nfsd4_test_stateid *test_stateid)
+{
+	test_stateid->ts_has_session = nfsd4_has_session(cstate);
 	return nfs_ok;
 }
 
