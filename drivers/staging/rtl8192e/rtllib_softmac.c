@@ -3262,11 +3262,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 		    (unsigned long) ieee);
 
 
-#ifdef PF_SYNCTHREAD
-	ieee->wq = create_workqueue(DRV_NAME,0);
-#else
 	ieee->wq = create_workqueue(DRV_NAME);
-#endif
 
 	INIT_DELAYED_WORK_RSL(&ieee->link_change_wq,(void*)rtllib_link_change_wq,ieee);
 	INIT_DELAYED_WORK_RSL(&ieee->start_ibss_wq,(void*)rtllib_start_ibss_wq,ieee);
