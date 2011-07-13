@@ -2561,11 +2561,6 @@ inline int rtllib_rx_frame_softmac(struct rtllib_device *ieee, struct sk_buff *s
 		case RTLLIB_STYPE_MANAGE_ACT:
 			rtllib_process_action(ieee,skb);
 			break;
-#ifdef COMPATIBLE_WITH_RALINK_MESH
-		case RTLLIB_STYPE_MESH_ACT:
-			rtllib_process_action_mesh(ieee,skb,rx_stats);
-			break;
-#endif
 		default:
 			return -1;
 			break;
