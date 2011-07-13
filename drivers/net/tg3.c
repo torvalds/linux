@@ -13446,10 +13446,15 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 	else
 		return;
 
-	if (!tg3_flag(tp, ENABLE_ASF) || tg3_flag(tp, ENABLE_APE) || vpd_vers)
+	if (vpd_vers)
 		goto done;
 
-	tg3_read_mgmtfw_ver(tp);
+	if (tg3_flag(tp, ENABLE_APE)) {
+		if (tg3_flag(tp, ENABLE_ASF))
+			tg3_read_dash_ver(tp);
+	} else if (tg3_flag(tp, ENABLE_ASF)) {
+		tg3_read_mgmtfw_ver(tp);
+	}
 
 done:
 	tp->fw_ver[TG3_VER_SIZE - 1] = 0;
@@ -13971,6 +13976,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 				 PCISTATE_ALLOW_APE_PSPACE_WR;
 		pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE,
 				       pci_state_reg);
+
+		tg3_ape_lock_init(tp);
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
@@ -15083,6 +15090,24 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		goto err_out_free_dev;
 	}
 
+	if (tp->pdev->device == PCI_DEVICE_ID_TIGON3_5761 ||
+	    tp->pdev->device == PCI_DEVICE_ID_TIGON3_5761E ||
+	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5761S ||
+	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5761SE ||
+	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5717 ||
+	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5718 ||
+	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5719 ||
+	    tp->pdev->device == TG3PCI_DEVICE_TIGON3_5720) {
+		tg3_flag_set(tp, ENABLE_APE);
+		tp->aperegs = pci_ioremap_bar(pdev, BAR_2);
+		if (!tp->aperegs) {
+			dev_err(&pdev->dev,
+				"Cannot map APE registers, aborting\n");
+			err = -ENOMEM;
+			goto err_out_iounmap;
+		}
+	}
+
 	tp->rx_pending = TG3_DEF_RX_RING_PENDING;
 	tp->rx_jumbo_pending = TG3_DEF_RX_JUMBO_RING_PENDING;
 
@@ -15095,7 +15120,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	if (err) {
 		dev_err(&pdev->dev,
 			"Problem fetching invariants of chip, aborting\n");
-		goto err_out_iounmap;
+		goto err_out_apeunmap;
 	}
 
 	/* The EPB bridge inside 5714, 5715, and 5780 and any
@@ -15124,7 +15149,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 			if (err < 0) {
 				dev_err(&pdev->dev, "Unable to obtain 64 bit "
 					"DMA for consistent allocations\n");
-				goto err_out_iounmap;
+				goto err_out_apeunmap;
 			}
 		}
 	}
@@ -15133,7 +15158,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		if (err) {
 			dev_err(&pdev->dev,
 				"No usable DMA configuration, aborting\n");
-			goto err_out_iounmap;
+			goto err_out_apeunmap;
 		}
 	}
 
@@ -15198,22 +15223,7 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	if (err) {
 		dev_err(&pdev->dev,
 			"Could not obtain valid ethernet address, aborting\n");
-		goto err_out_iounmap;
-	}
-
-	if (tg3_flag(tp, ENABLE_APE)) {
-		tp->aperegs = pci_ioremap_bar(pdev, BAR_2);
-		if (!tp->aperegs) {
-			dev_err(&pdev->dev,
-				"Cannot map APE registers, aborting\n");
-			err = -ENOMEM;
-			goto err_out_iounmap;
-		}
-
-		tg3_ape_lock_init(tp);
-
-		if (tg3_flag(tp, ENABLE_ASF))
-			tg3_read_dash_ver(tp);
+		goto err_out_apeunmap;
 	}
 
 	/*
