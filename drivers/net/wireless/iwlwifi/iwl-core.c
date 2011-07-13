@@ -840,12 +840,12 @@ static void iwlagn_abort_notification_waits(struct iwl_priv *priv)
 	unsigned long flags;
 	struct iwl_notification_wait *wait_entry;
 
-	spin_lock_irqsave(&priv->_agn.notif_wait_lock, flags);
-	list_for_each_entry(wait_entry, &priv->_agn.notif_waits, list)
+	spin_lock_irqsave(&priv->notif_wait_lock, flags);
+	list_for_each_entry(wait_entry, &priv->notif_waits, list)
 		wait_entry->aborted = true;
-	spin_unlock_irqrestore(&priv->_agn.notif_wait_lock, flags);
+	spin_unlock_irqrestore(&priv->notif_wait_lock, flags);
 
-	wake_up_all(&priv->_agn.notif_waitq);
+	wake_up_all(&priv->notif_waitq);
 }
 
 void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)

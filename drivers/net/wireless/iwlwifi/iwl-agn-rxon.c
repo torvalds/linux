@@ -337,9 +337,9 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	cmd.slots[0].type = 0; /* BSS */
 	cmd.slots[1].type = 1; /* PAN */
 
-	if (priv->_agn.hw_roc_channel) {
+	if (priv->hw_roc_channel) {
 		/* both contexts must be used for this to happen */
-		slot1 = priv->_agn.hw_roc_duration;
+		slot1 = priv->hw_roc_duration;
 		slot0 = IWL_MIN_SLOT_TIME;
 	} else if (ctx_bss->vif && ctx_pan->vif) {
 		int bcnint = ctx_pan->vif->bss_conf.beacon_int;
@@ -438,8 +438,8 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	/* always get timestamp with Rx frame */
 	ctx->staging.flags |= RXON_FLG_TSF2HOST_MSK;
 
-	if (ctx->ctxid == IWL_RXON_CTX_PAN && priv->_agn.hw_roc_channel) {
-		struct ieee80211_channel *chan = priv->_agn.hw_roc_channel;
+	if (ctx->ctxid == IWL_RXON_CTX_PAN && priv->hw_roc_channel) {
+		struct ieee80211_channel *chan = priv->hw_roc_channel;
 
 		iwl_set_rxon_channel(priv, chan, ctx);
 		iwl_set_flags_for_band(priv, ctx, chan->band, NULL);
@@ -787,7 +787,7 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 
 		memset(&cmd, 0, sizeof(cmd));
 		iwl_set_calib_hdr(&cmd.hdr,
-			priv->_agn.phy_calib_chain_noise_reset_cmd);
+			priv->phy_calib_chain_noise_reset_cmd);
 		ret = trans_send_cmd_pdu(&priv->trans,
 					REPLY_PHY_CALIBRATION_CMD,
 					CMD_SYNC, sizeof(cmd), &cmd);

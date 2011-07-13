@@ -1103,20 +1103,20 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 * for each event, which is of mode 1 (including timestamp) for all
 	 * new microcodes that include this information.
 	 */
-	priv->_agn.init_evtlog_ptr = pieces.init_evtlog_ptr;
+	priv->init_evtlog_ptr = pieces.init_evtlog_ptr;
 	if (pieces.init_evtlog_size)
-		priv->_agn.init_evtlog_size = (pieces.init_evtlog_size - 16)/12;
+		priv->init_evtlog_size = (pieces.init_evtlog_size - 16)/12;
 	else
-		priv->_agn.init_evtlog_size =
+		priv->init_evtlog_size =
 			priv->cfg->base_params->max_event_log_size;
-	priv->_agn.init_errlog_ptr = pieces.init_errlog_ptr;
-	priv->_agn.inst_evtlog_ptr = pieces.inst_evtlog_ptr;
+	priv->init_errlog_ptr = pieces.init_errlog_ptr;
+	priv->inst_evtlog_ptr = pieces.inst_evtlog_ptr;
 	if (pieces.inst_evtlog_size)
-		priv->_agn.inst_evtlog_size = (pieces.inst_evtlog_size - 16)/12;
+		priv->inst_evtlog_size = (pieces.inst_evtlog_size - 16)/12;
 	else
-		priv->_agn.inst_evtlog_size =
+		priv->inst_evtlog_size =
 			priv->cfg->base_params->max_event_log_size;
-	priv->_agn.inst_errlog_ptr = pieces.inst_errlog_ptr;
+	priv->inst_errlog_ptr = pieces.inst_errlog_ptr;
 
 	priv->new_scan_threshold_behaviour =
 		!!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
@@ -1142,9 +1142,9 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		ucode_capa.standard_phy_calibration_size =
 			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE;
 
-	priv->_agn.phy_calib_chain_noise_reset_cmd =
+	priv->phy_calib_chain_noise_reset_cmd =
 		ucode_capa.standard_phy_calibration_size;
-	priv->_agn.phy_calib_chain_noise_gain_cmd =
+	priv->phy_calib_chain_noise_gain_cmd =
 		ucode_capa.standard_phy_calibration_size + 1;
 
 	/**************************************************
@@ -1169,7 +1169,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	/* We have our copies now, allow OS release its copies */
 	release_firmware(ucode_raw);
-	complete(&priv->_agn.firmware_loading_complete);
+	complete(&priv->firmware_loading_complete);
 	return;
 
  try_again:
@@ -1183,7 +1183,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	IWL_ERR(priv, "failed to allocate pci memory\n");
 	iwl_dealloc_ucode(priv);
  out_unbind:
-	complete(&priv->_agn.firmware_loading_complete);
+	complete(&priv->firmware_loading_complete);
 	device_release_driver(priv->bus->dev);
 	release_firmware(ucode_raw);
 }
@@ -1265,10 +1265,10 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	base = priv->device_pointers.error_event_table;
 	if (priv->ucode_type == IWL_UCODE_INIT) {
 		if (!base)
-			base = priv->_agn.init_errlog_ptr;
+			base = priv->init_errlog_ptr;
 	} else {
 		if (!base)
-			base = priv->_agn.inst_errlog_ptr;
+			base = priv->inst_errlog_ptr;
 	}
 
 	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
@@ -1341,10 +1341,10 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	base = priv->device_pointers.log_event_table;
 	if (priv->ucode_type == IWL_UCODE_INIT) {
 		if (!base)
-			base = priv->_agn.init_evtlog_ptr;
+			base = priv->init_evtlog_ptr;
 	} else {
 		if (!base)
-			base = priv->_agn.inst_evtlog_ptr;
+			base = priv->inst_evtlog_ptr;
 	}
 
 	if (mode == 0)
@@ -1453,13 +1453,13 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 
 	base = priv->device_pointers.log_event_table;
 	if (priv->ucode_type == IWL_UCODE_INIT) {
-		logsize = priv->_agn.init_evtlog_size;
+		logsize = priv->init_evtlog_size;
 		if (!base)
-			base = priv->_agn.init_evtlog_ptr;
+			base = priv->init_evtlog_ptr;
 	} else {
-		logsize = priv->_agn.inst_evtlog_size;
+		logsize = priv->inst_evtlog_size;
 		if (!base)
-			base = priv->_agn.inst_evtlog_ptr;
+			base = priv->inst_evtlog_ptr;
 	}
 
 	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
@@ -1964,7 +1964,7 @@ static int iwl_mac_offchannel_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	/* TODO: queue up if scanning? */
 	if (test_bit(STATUS_SCANNING, &priv->status) ||
-	    priv->_agn.offchan_tx_skb) {
+	    priv->offchan_tx_skb) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -1978,14 +1978,14 @@ static int iwl_mac_offchannel_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		goto out;
 	}
 
-	priv->_agn.offchan_tx_skb = skb;
-	priv->_agn.offchan_tx_timeout = wait;
-	priv->_agn.offchan_tx_chan = chan;
+	priv->offchan_tx_skb = skb;
+	priv->offchan_tx_timeout = wait;
+	priv->offchan_tx_chan = chan;
 
 	ret = iwl_scan_initiate(priv, priv->contexts[IWL_RXON_CTX_PAN].vif,
 				IWL_SCAN_OFFCH_TX, chan->band);
 	if (ret)
-		priv->_agn.offchan_tx_skb = NULL;
+		priv->offchan_tx_skb = NULL;
  out:
 	mutex_unlock(&priv->mutex);
  free:
@@ -2002,12 +2002,12 @@ static int iwl_mac_offchannel_tx_cancel_wait(struct ieee80211_hw *hw)
 
 	mutex_lock(&priv->mutex);
 
-	if (!priv->_agn.offchan_tx_skb) {
+	if (!priv->offchan_tx_skb) {
 		ret = -EINVAL;
 		goto unlock;
 	}
 
-	priv->_agn.offchan_tx_skb = NULL;
+	priv->offchan_tx_skb = NULL;
 
 	ret = iwl_scan_cancel_timeout(priv, 200);
 	if (ret)
@@ -2380,18 +2380,18 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);
 		if (ret == 0) {
-			priv->_agn.agg_tids_count++;
-			IWL_DEBUG_HT(priv, "priv->_agn.agg_tids_count = %u\n",
-				     priv->_agn.agg_tids_count);
+			priv->agg_tids_count++;
+			IWL_DEBUG_HT(priv, "priv->agg_tids_count = %u\n",
+				     priv->agg_tids_count);
 		}
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
 		ret = iwlagn_tx_agg_stop(priv, vif, sta, tid);
-		if ((ret == 0) && (priv->_agn.agg_tids_count > 0)) {
-			priv->_agn.agg_tids_count--;
-			IWL_DEBUG_HT(priv, "priv->_agn.agg_tids_count = %u\n",
-				     priv->_agn.agg_tids_count);
+		if ((ret == 0) && (priv->agg_tids_count > 0)) {
+			priv->agg_tids_count--;
+			IWL_DEBUG_HT(priv, "priv->agg_tids_count = %u\n",
+				     priv->agg_tids_count);
 		}
 		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 			ret = 0;
@@ -2698,7 +2698,7 @@ static void iwlagn_disable_roc(struct iwl_priv *priv)
 	iwl_set_rxon_channel(priv, chan, ctx);
 	iwl_set_flags_for_band(priv, ctx, chan->band, NULL);
 
-	priv->_agn.hw_roc_channel = NULL;
+	priv->hw_roc_channel = NULL;
 
 	iwlagn_commit_rxon(priv, ctx);
 
@@ -2708,7 +2708,7 @@ static void iwlagn_disable_roc(struct iwl_priv *priv)
 static void iwlagn_bg_roc_done(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
-					     _agn.hw_roc_work.work);
+					     hw_roc_work.work);
 
 	mutex_lock(&priv->mutex);
 	ieee80211_remain_on_channel_expired(priv->hw);
@@ -2740,11 +2740,11 @@ static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 	}
 
 	priv->contexts[IWL_RXON_CTX_PAN].is_active = true;
-	priv->_agn.hw_roc_channel = channel;
-	priv->_agn.hw_roc_chantype = channel_type;
-	priv->_agn.hw_roc_duration = DIV_ROUND_UP(duration * 1000, 1024);
+	priv->hw_roc_channel = channel;
+	priv->hw_roc_chantype = channel_type;
+	priv->hw_roc_duration = DIV_ROUND_UP(duration * 1000, 1024);
 	iwlagn_commit_rxon(priv, &priv->contexts[IWL_RXON_CTX_PAN]);
-	queue_delayed_work(priv->workqueue, &priv->_agn.hw_roc_work,
+	queue_delayed_work(priv->workqueue, &priv->hw_roc_work,
 			   msecs_to_jiffies(duration + 20));
 
 	msleep(IWL_MIN_SLOT_TIME); /* TU is almost ms */
@@ -2763,7 +2763,7 @@ static int iwl_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
 		return -EOPNOTSUPP;
 
-	cancel_delayed_work_sync(&priv->_agn.hw_roc_work);
+	cancel_delayed_work_sync(&priv->hw_roc_work);
 
 	mutex_lock(&priv->mutex);
 	iwlagn_disable_roc(priv);
@@ -2790,7 +2790,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->tx_flush, iwl_bg_tx_flush);
 	INIT_WORK(&priv->bt_full_concurrency, iwl_bg_bt_full_concurrency);
 	INIT_WORK(&priv->bt_runtime_config, iwl_bg_bt_runtime_config);
-	INIT_DELAYED_WORK(&priv->_agn.hw_roc_work, iwlagn_bg_roc_done);
+	INIT_DELAYED_WORK(&priv->hw_roc_work, iwlagn_bg_roc_done);
 
 	iwl_setup_scan_deferred_work(priv);
 
@@ -2864,7 +2864,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	priv->iw_mode = NL80211_IFTYPE_STATION;
 	priv->current_ht_config.smps = IEEE80211_SMPS_STATIC;
 	priv->missed_beacon_threshold = IWL_MISSED_BEACON_THRESHOLD_DEF;
-	priv->_agn.agg_tids_count = 0;
+	priv->agg_tids_count = 0;
 
 	/* initialize force reset */
 	priv->force_reset[IWL_RF_RESET].reset_duration =
@@ -3247,7 +3247,7 @@ int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 	iwl_power_initialize(priv);
 	iwl_tt_initialize(priv);
 
-	init_completion(&priv->_agn.firmware_loading_complete);
+	init_completion(&priv->firmware_loading_complete);
 
 	err = iwl_request_firmware(priv, true);
 	if (err)
@@ -3274,7 +3274,7 @@ void __devexit iwl_remove(struct iwl_priv * priv)
 {
 	unsigned long flags;
 
-	wait_for_completion(&priv->_agn.firmware_loading_complete);
+	wait_for_completion(&priv->firmware_loading_complete);
 
 	IWL_DEBUG_INFO(priv, "*** UNLOAD DRIVER ***\n");
 

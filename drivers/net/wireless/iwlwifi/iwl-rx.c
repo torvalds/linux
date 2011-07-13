@@ -170,7 +170,7 @@ static bool iwl_good_ack_health(struct iwl_priv *priv,
 	int actual_delta, expected_delta, ba_timeout_delta;
 	struct statistics_tx *old;
 
-	if (priv->_agn.agg_tids_count)
+	if (priv->agg_tids_count)
 		return true;
 
 	old = &priv->statistics.tx;
@@ -592,8 +592,8 @@ static void iwl_rx_reply_rx_phy(struct iwl_priv *priv,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
-	priv->_agn.last_phy_res_valid = true;
-	memcpy(&priv->_agn.last_phy_res, pkt->u.raw,
+	priv->last_phy_res_valid = true;
+	memcpy(&priv->last_phy_res, pkt->u.raw,
 	       sizeof(struct iwl_rx_phy_res));
 }
 
@@ -841,11 +841,11 @@ static void iwl_rx_reply_rx(struct iwl_priv *priv,
 				phy_res->cfg_phy_cnt + len);
 		ampdu_status = le32_to_cpu(rx_pkt_status);
 	} else {
-		if (!priv->_agn.last_phy_res_valid) {
+		if (!priv->last_phy_res_valid) {
 			IWL_ERR(priv, "MPDU frame without cached PHY data\n");
 			return;
 		}
-		phy_res = &priv->_agn.last_phy_res;
+		phy_res = &priv->last_phy_res;
 		amsdu = (struct iwl_rx_mpdu_res_start *)pkt->u.raw;
 		header = (struct ieee80211_hdr *)(pkt->u.raw + sizeof(*amsdu));
 		len = le16_to_cpu(amsdu->byte_count);
@@ -972,9 +972,9 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	priv->rx_handlers[REPLY_TX] = iwlagn_rx_reply_tx;
 
 	/* set up notification wait support */
-	spin_lock_init(&priv->_agn.notif_wait_lock);
-	INIT_LIST_HEAD(&priv->_agn.notif_waits);
-	init_waitqueue_head(&priv->_agn.notif_waitq);
+	spin_lock_init(&priv->notif_wait_lock);
+	INIT_LIST_HEAD(&priv->notif_waits);
+	init_waitqueue_head(&priv->notif_waitq);
 
 	/* Set up BT Rx handlers */
 	if (priv->cfg->lib->bt_rx_handler_setup)
@@ -991,11 +991,11 @@ void iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	 * even if the RX handler consumes the RXB we have
 	 * access to it in the notification wait entry.
 	 */
-	if (!list_empty(&priv->_agn.notif_waits)) {
+	if (!list_empty(&priv->notif_waits)) {
 		struct iwl_notification_wait *w;
 
-		spin_lock(&priv->_agn.notif_wait_lock);
-		list_for_each_entry(w, &priv->_agn.notif_waits, list) {
+		spin_lock(&priv->notif_wait_lock);
+		list_for_each_entry(w, &priv->notif_waits, list) {
 			if (w->cmd != pkt->hdr.cmd)
 				continue;
 			IWL_DEBUG_RX(priv,
@@ -1006,9 +1006,9 @@ void iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 			if (w->fn)
 				w->fn(priv, pkt, w->fn_data);
 		}
-		spin_unlock(&priv->_agn.notif_wait_lock);
+		spin_unlock(&priv->notif_wait_lock);
 
-		wake_up_all(&priv->_agn.notif_waitq);
+		wake_up_all(&priv->notif_waitq);
 	}
 
 	if (priv->pre_rx_handler)

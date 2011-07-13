@@ -889,7 +889,7 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 		memset(&cmd, 0, sizeof(cmd));
 
 		iwl_set_calib_hdr(&cmd.hdr,
-			priv->_agn.phy_calib_chain_noise_gain_cmd);
+			priv->phy_calib_chain_noise_gain_cmd);
 		cmd.delta_gain_1 = data->delta_gain_code[1];
 		cmd.delta_gain_2 = data->delta_gain_code[2];
 		trans_send_cmd_pdu(&priv->trans, REPLY_PHY_CALIBRATION_CMD,

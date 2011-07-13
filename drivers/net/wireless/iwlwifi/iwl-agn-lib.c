@@ -53,73 +53,73 @@ static void iwlagn_count_tx_err_status(struct iwl_priv *priv, u16 status)
 
 	switch (status) {
 	case TX_STATUS_POSTPONE_DELAY:
-		priv->_agn.reply_tx_stats.pp_delay++;
+		priv->reply_tx_stats.pp_delay++;
 		break;
 	case TX_STATUS_POSTPONE_FEW_BYTES:
-		priv->_agn.reply_tx_stats.pp_few_bytes++;
+		priv->reply_tx_stats.pp_few_bytes++;
 		break;
 	case TX_STATUS_POSTPONE_BT_PRIO:
-		priv->_agn.reply_tx_stats.pp_bt_prio++;
+		priv->reply_tx_stats.pp_bt_prio++;
 		break;
 	case TX_STATUS_POSTPONE_QUIET_PERIOD:
-		priv->_agn.reply_tx_stats.pp_quiet_period++;
+		priv->reply_tx_stats.pp_quiet_period++;
 		break;
 	case TX_STATUS_POSTPONE_CALC_TTAK:
-		priv->_agn.reply_tx_stats.pp_calc_ttak++;
+		priv->reply_tx_stats.pp_calc_ttak++;
 		break;
 	case TX_STATUS_FAIL_INTERNAL_CROSSED_RETRY:
-		priv->_agn.reply_tx_stats.int_crossed_retry++;
+		priv->reply_tx_stats.int_crossed_retry++;
 		break;
 	case TX_STATUS_FAIL_SHORT_LIMIT:
-		priv->_agn.reply_tx_stats.short_limit++;
+		priv->reply_tx_stats.short_limit++;
 		break;
 	case TX_STATUS_FAIL_LONG_LIMIT:
-		priv->_agn.reply_tx_stats.long_limit++;
+		priv->reply_tx_stats.long_limit++;
 		break;
 	case TX_STATUS_FAIL_FIFO_UNDERRUN:
-		priv->_agn.reply_tx_stats.fifo_underrun++;
+		priv->reply_tx_stats.fifo_underrun++;
 		break;
 	case TX_STATUS_FAIL_DRAIN_FLOW:
-		priv->_agn.reply_tx_stats.drain_flow++;
+		priv->reply_tx_stats.drain_flow++;
 		break;
 	case TX_STATUS_FAIL_RFKILL_FLUSH:
-		priv->_agn.reply_tx_stats.rfkill_flush++;
+		priv->reply_tx_stats.rfkill_flush++;
 		break;
 	case TX_STATUS_FAIL_LIFE_EXPIRE:
-		priv->_agn.reply_tx_stats.life_expire++;
+		priv->reply_tx_stats.life_expire++;
 		break;
 	case TX_STATUS_FAIL_DEST_PS:
-		priv->_agn.reply_tx_stats.dest_ps++;
+		priv->reply_tx_stats.dest_ps++;
 		break;
 	case TX_STATUS_FAIL_HOST_ABORTED:
-		priv->_agn.reply_tx_stats.host_abort++;
+		priv->reply_tx_stats.host_abort++;
 		break;
 	case TX_STATUS_FAIL_BT_RETRY:
-		priv->_agn.reply_tx_stats.bt_retry++;
+		priv->reply_tx_stats.bt_retry++;
 		break;
 	case TX_STATUS_FAIL_STA_INVALID:
-		priv->_agn.reply_tx_stats.sta_invalid++;
+		priv->reply_tx_stats.sta_invalid++;
 		break;
 	case TX_STATUS_FAIL_FRAG_DROPPED:
-		priv->_agn.reply_tx_stats.frag_drop++;
+		priv->reply_tx_stats.frag_drop++;
 		break;
 	case TX_STATUS_FAIL_TID_DISABLE:
-		priv->_agn.reply_tx_stats.tid_disable++;
+		priv->reply_tx_stats.tid_disable++;
 		break;
 	case TX_STATUS_FAIL_FIFO_FLUSHED:
-		priv->_agn.reply_tx_stats.fifo_flush++;
+		priv->reply_tx_stats.fifo_flush++;
 		break;
 	case TX_STATUS_FAIL_INSUFFICIENT_CF_POLL:
-		priv->_agn.reply_tx_stats.insuff_cf_poll++;
+		priv->reply_tx_stats.insuff_cf_poll++;
 		break;
 	case TX_STATUS_FAIL_PASSIVE_NO_RX:
-		priv->_agn.reply_tx_stats.fail_hw_drop++;
+		priv->reply_tx_stats.fail_hw_drop++;
 		break;
 	case TX_STATUS_FAIL_NO_BEACON_ON_RADAR:
-		priv->_agn.reply_tx_stats.sta_color_mismatch++;
+		priv->reply_tx_stats.sta_color_mismatch++;
 		break;
 	default:
-		priv->_agn.reply_tx_stats.unknown++;
+		priv->reply_tx_stats.unknown++;
 		break;
 	}
 }
@@ -130,43 +130,43 @@ static void iwlagn_count_agg_tx_err_status(struct iwl_priv *priv, u16 status)
 
 	switch (status) {
 	case AGG_TX_STATE_UNDERRUN_MSK:
-		priv->_agn.reply_agg_tx_stats.underrun++;
+		priv->reply_agg_tx_stats.underrun++;
 		break;
 	case AGG_TX_STATE_BT_PRIO_MSK:
-		priv->_agn.reply_agg_tx_stats.bt_prio++;
+		priv->reply_agg_tx_stats.bt_prio++;
 		break;
 	case AGG_TX_STATE_FEW_BYTES_MSK:
-		priv->_agn.reply_agg_tx_stats.few_bytes++;
+		priv->reply_agg_tx_stats.few_bytes++;
 		break;
 	case AGG_TX_STATE_ABORT_MSK:
-		priv->_agn.reply_agg_tx_stats.abort++;
+		priv->reply_agg_tx_stats.abort++;
 		break;
 	case AGG_TX_STATE_LAST_SENT_TTL_MSK:
-		priv->_agn.reply_agg_tx_stats.last_sent_ttl++;
+		priv->reply_agg_tx_stats.last_sent_ttl++;
 		break;
 	case AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK:
-		priv->_agn.reply_agg_tx_stats.last_sent_try++;
+		priv->reply_agg_tx_stats.last_sent_try++;
 		break;
 	case AGG_TX_STATE_LAST_SENT_BT_KILL_MSK:
-		priv->_agn.reply_agg_tx_stats.last_sent_bt_kill++;
+		priv->reply_agg_tx_stats.last_sent_bt_kill++;
 		break;
 	case AGG_TX_STATE_SCD_QUERY_MSK:
-		priv->_agn.reply_agg_tx_stats.scd_query++;
+		priv->reply_agg_tx_stats.scd_query++;
 		break;
 	case AGG_TX_STATE_TEST_BAD_CRC32_MSK:
-		priv->_agn.reply_agg_tx_stats.bad_crc32++;
+		priv->reply_agg_tx_stats.bad_crc32++;
 		break;
 	case AGG_TX_STATE_RESPONSE_MSK:
-		priv->_agn.reply_agg_tx_stats.response++;
+		priv->reply_agg_tx_stats.response++;
 		break;
 	case AGG_TX_STATE_DUMP_TX_MSK:
-		priv->_agn.reply_agg_tx_stats.dump_tx++;
+		priv->reply_agg_tx_stats.dump_tx++;
 		break;
 	case AGG_TX_STATE_DELAY_TX_MSK:
-		priv->_agn.reply_agg_tx_stats.delay_tx++;
+		priv->reply_agg_tx_stats.delay_tx++;
 		break;
 	default:
-		priv->_agn.reply_agg_tx_stats.unknown++;
+		priv->reply_agg_tx_stats.unknown++;
 		break;
 	}
 }
@@ -749,7 +749,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 
 static int iwl_fill_offch_tx(struct iwl_priv *priv, void *data, size_t maxlen)
 {
-	struct sk_buff *skb = priv->_agn.offchan_tx_skb;
+	struct sk_buff *skb = priv->offchan_tx_skb;
 
 	if (skb->len < maxlen)
 		maxlen = skb->len;
@@ -835,7 +835,7 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	} else if (priv->scan_type == IWL_SCAN_OFFCH_TX) {
 		scan->suspend_time = 0;
 		scan->max_out_time =
-			cpu_to_le32(1024 * priv->_agn.offchan_tx_timeout);
+			cpu_to_le32(1024 * priv->offchan_tx_timeout);
 	}
 
 	switch (priv->scan_type) {
@@ -1023,9 +1023,9 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		scan_ch = (void *)&scan->data[cmd_len];
 		scan_ch->type = SCAN_CHANNEL_TYPE_ACTIVE;
 		scan_ch->channel =
-			cpu_to_le16(priv->_agn.offchan_tx_chan->hw_value);
+			cpu_to_le16(priv->offchan_tx_chan->hw_value);
 		scan_ch->active_dwell =
-			cpu_to_le16(priv->_agn.offchan_tx_timeout);
+			cpu_to_le16(priv->offchan_tx_timeout);
 		scan_ch->passive_dwell = 0;
 
 		/* Set txpower levels to defaults */
@@ -1035,7 +1035,7 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		 * power level:
 		 * scan_ch->tx_gain = ((1 << 5) | (2 << 3)) | 3;
 		 */
-		if (priv->_agn.offchan_tx_chan->band == IEEE80211_BAND_5GHZ)
+		if (priv->offchan_tx_chan->band == IEEE80211_BAND_5GHZ)
 			scan_ch->tx_gain = ((1 << 5) | (3 << 3)) | 3;
 		else
 			scan_ch->tx_gain = ((1 << 5) | (5 << 3));
@@ -2004,9 +2004,9 @@ void iwlagn_init_notification_wait(struct iwl_priv *priv,
 	wait_entry->triggered = false;
 	wait_entry->aborted = false;
 
-	spin_lock_bh(&priv->_agn.notif_wait_lock);
-	list_add(&wait_entry->list, &priv->_agn.notif_waits);
-	spin_unlock_bh(&priv->_agn.notif_wait_lock);
+	spin_lock_bh(&priv->notif_wait_lock);
+	list_add(&wait_entry->list, &priv->notif_waits);
+	spin_unlock_bh(&priv->notif_wait_lock);
 }
 
 int iwlagn_wait_notification(struct iwl_priv *priv,
@@ -2015,13 +2015,13 @@ int iwlagn_wait_notification(struct iwl_priv *priv,
 {
 	int ret;
 
-	ret = wait_event_timeout(priv->_agn.notif_waitq,
+	ret = wait_event_timeout(priv->notif_waitq,
 				 wait_entry->triggered || wait_entry->aborted,
 				 timeout);
 
-	spin_lock_bh(&priv->_agn.notif_wait_lock);
+	spin_lock_bh(&priv->notif_wait_lock);
 	list_del(&wait_entry->list);
-	spin_unlock_bh(&priv->_agn.notif_wait_lock);
+	spin_unlock_bh(&priv->notif_wait_lock);
 
 	if (wait_entry->aborted)
 		return -EIO;
@@ -2035,7 +2035,7 @@ int iwlagn_wait_notification(struct iwl_priv *priv,
 void iwlagn_remove_notification(struct iwl_priv *priv,
 				struct iwl_notification_wait *wait_entry)
 {
-	spin_lock_bh(&priv->_agn.notif_wait_lock);
+	spin_lock_bh(&priv->notif_wait_lock);
 	list_del(&wait_entry->list);
-	spin_unlock_bh(&priv->_agn.notif_wait_lock);
+	spin_unlock_bh(&priv->notif_wait_lock);
 }

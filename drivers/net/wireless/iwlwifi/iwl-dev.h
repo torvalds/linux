@@ -1391,56 +1391,54 @@ struct iwl_priv {
 	} accum_stats, delta_stats, max_delta_stats;
 #endif
 
-	struct {
-		/* INT ICT Table */
-		__le32 *ict_tbl;
-		void *ict_tbl_vir;
-		dma_addr_t ict_tbl_dma;
-		dma_addr_t aligned_ict_tbl_dma;
-		int ict_index;
-		u32 inta;
-		bool use_ict;
-		/*
-		 * reporting the number of tids has AGG on. 0 means
-		 * no AGGREGATION
-		 */
-		u8 agg_tids_count;
+	/* INT ICT Table */
+	__le32 *ict_tbl;
+	void *ict_tbl_vir;
+	dma_addr_t ict_tbl_dma;
+	dma_addr_t aligned_ict_tbl_dma;
+	int ict_index;
+	u32 inta;
+	bool use_ict;
+	/*
+	 * reporting the number of tids has AGG on. 0 means
+	 * no AGGREGATION
+	 */
+	u8 agg_tids_count;
 
-		struct iwl_rx_phy_res last_phy_res;
-		bool last_phy_res_valid;
+	struct iwl_rx_phy_res last_phy_res;
+	bool last_phy_res_valid;
 
-		struct completion firmware_loading_complete;
+	struct completion firmware_loading_complete;
 
-		u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
-		u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
+	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
+	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 
-		/*
-		 * chain noise reset and gain commands are the
-		 * two extra calibration commands follows the standard
-		 * phy calibration commands
-		 */
-		u8 phy_calib_chain_noise_reset_cmd;
-		u8 phy_calib_chain_noise_gain_cmd;
+	/*
+	 * chain noise reset and gain commands are the
+	 * two extra calibration commands follows the standard
+	 * phy calibration commands
+	 */
+	u8 phy_calib_chain_noise_reset_cmd;
+	u8 phy_calib_chain_noise_gain_cmd;
 
-		/* counts reply_tx error */
-		struct reply_tx_error_statistics reply_tx_stats;
-		struct reply_agg_tx_error_statistics reply_agg_tx_stats;
-		/* notification wait support */
-		struct list_head notif_waits;
-		spinlock_t notif_wait_lock;
-		wait_queue_head_t notif_waitq;
+	/* counts reply_tx error */
+	struct reply_tx_error_statistics reply_tx_stats;
+	struct reply_agg_tx_error_statistics reply_agg_tx_stats;
+	/* notification wait support */
+	struct list_head notif_waits;
+	spinlock_t notif_wait_lock;
+	wait_queue_head_t notif_waitq;
 
-		/* remain-on-channel offload support */
-		struct ieee80211_channel *hw_roc_channel;
-		struct delayed_work hw_roc_work;
-		enum nl80211_channel_type hw_roc_chantype;
-		int hw_roc_duration;
-		bool hw_roc_setup;
+	/* remain-on-channel offload support */
+	struct ieee80211_channel *hw_roc_channel;
+	struct delayed_work hw_roc_work;
+	enum nl80211_channel_type hw_roc_chantype;
+	int hw_roc_duration;
+	bool hw_roc_setup;
 
-		struct sk_buff *offchan_tx_skb;
-		int offchan_tx_timeout;
-		struct ieee80211_channel *offchan_tx_chan;
-	} _agn;
+	struct sk_buff *offchan_tx_skb;
+	int offchan_tx_timeout;
+	struct ieee80211_channel *offchan_tx_chan;
 
 	/* bt coex */
 	u8 bt_enable_flag;
