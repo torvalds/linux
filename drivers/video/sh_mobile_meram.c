@@ -410,24 +410,22 @@ static int sh_mobile_meram_register(struct sh_mobile_meram_info *pdata,
 		xres, yres, (!pixelformat) ? "yuv" : "rgb",
 		base_addr_y, base_addr_c);
 
-	mutex_lock(&priv->lock);
-
 	/* we can't handle wider than 8192px */
 	if (xres > 8192) {
 		dev_err(&pdev->dev, "width exceeding the limit (> 8192).");
-		error = -EINVAL;
-		goto err;
-	}
-
-	if (priv->used_meram_cache_regions + 2 > SH_MOBILE_MERAM_ICB_NUM) {
-		dev_err(&pdev->dev, "no more ICB available.");
-		error = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	/* do we have at least one ICB config? */
 	if (cfg->icb[0].marker_icb < 0 || cfg->icb[0].cache_icb < 0) {
 		dev_err(&pdev->dev, "at least one ICB is required.");
+		return -EINVAL;
+	}
+
+	mutex_lock(&priv->lock);
+
+	if (priv->used_meram_cache_regions + 2 > SH_MOBILE_MERAM_ICB_NUM) {
+		dev_err(&pdev->dev, "no more ICB available.");
 		error = -EINVAL;
 		goto err;
 	}
