@@ -41,6 +41,9 @@
 #define ADIS16350_YTEMP_OUT 0x12 /* Y-axis gyroscope temperature measurement */
 #define ADIS16350_ZTEMP_OUT 0x14 /* Z-axis gyroscope temperature measurement */
 
+#define ADIS16300_PITCH_OUT 0x12 /* X axis inclinometer output measurement */
+#define ADIS16300_ROLL_OUT  0x12 /* Y axis inclinometer output measurement */
+
 /* Calibration parameters */
 #define ADIS16400_XGYRO_OFF 0x1A /* X-axis gyroscope bias offset factor */
 #define ADIS16400_YGYRO_OFF 0x1C /* Y-axis gyroscope bias offset factor */
