@@ -32,7 +32,6 @@ struct sh_mobile_lcdc_chan {
 	unsigned long enabled; /* ME and SE in LDCNT2R */
 	struct sh_mobile_lcdc_chan_cfg cfg;
 	u32 pseudo_palette[PALETTE_NR];
-	unsigned long saved_ch_regs[NR_CH_REGS];
 	struct fb_info *info;
 	struct backlight_device *bl;
 	dma_addr_t dma_handle;
