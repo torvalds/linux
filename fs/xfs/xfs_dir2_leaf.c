@@ -148,6 +148,38 @@ xfs_dir2_block_to_leaf(
 	return 0;
 }
 
+STATIC void
+xfs_dir2_leaf_find_stale(
+	struct xfs_dir2_leaf	*leaf,
+	int			index,
+	int			*lowstale,
+	int			*highstale)
+{
+	/*
+	 * Find the first stale entry before our index, if any.
+	 */
+	for (*lowstale = index - 1; *lowstale >= 0; --*lowstale) {
+		if (leaf->ents[*lowstale].address ==
+		    cpu_to_be32(XFS_DIR2_NULL_DATAPTR))
+			break;
+	}
+
+	/*
+	 * Find the first stale entry at or after our index, if any.
+	 * Stop if the result would require moving more entries than using
+	 * lowstale.
+	 */
+	for (*highstale = index;
+	     *highstale < be16_to_cpu(leaf->hdr.count);
+	     ++*highstale) {
+		if (leaf->ents[*highstale].address ==
+		    cpu_to_be32(XFS_DIR2_NULL_DATAPTR))
+			break;
+		if (*lowstale >= 0 && index - *lowstale <= *highstale - index)
+			break;
+	}
+}
+
 struct xfs_dir2_leaf_entry *
 xfs_dir2_leaf_find_entry(
 	xfs_dir2_leaf_t		*leaf,		/* leaf structure */
@@ -190,32 +222,8 @@ xfs_dir2_leaf_find_entry(
 	 * If we didn't compact before, we need to find the nearest stale
 	 * entries before and after our insertion point.
 	 */
-	if (compact == 0) {
-		/*
-		 * Find the first stale entry before the insertion point,
-		 * if any.
-		 */
-		for (lowstale = index - 1;
-		     lowstale >= 0 &&
-			leaf->ents[lowstale].address !=
-			cpu_to_be32(XFS_DIR2_NULL_DATAPTR);
-		     lowstale--)
-			continue;
-
-		/*
-		 * Find the next stale entry at or after the insertion point,
-		 * if any.   Stop if we go so far that the lowstale entry
-		 * would be better.
-		 */
-		for (highstale = index;
-		     highstale < be16_to_cpu(leaf->hdr.count) &&
-			leaf->ents[highstale].address !=
-			cpu_to_be32(XFS_DIR2_NULL_DATAPTR) &&
-			(lowstale < 0 ||
-			 index - lowstale - 1 >= highstale - index);
-		     highstale++)
-			continue;
-	}
+	if (compact == 0)
+		xfs_dir2_leaf_find_stale(leaf, index, &lowstale, &highstale);
 
 	/*
 	 * If the low one is better, use it.
@@ -689,26 +697,9 @@ xfs_dir2_leaf_compact_x1(
 	leaf = bp->data;
 	ASSERT(be16_to_cpu(leaf->hdr.stale) > 1);
 	index = *indexp;
-	/*
-	 * Find the first stale entry before our index, if any.
-	 */
-	for (lowstale = index - 1;
-	     lowstale >= 0 &&
-		leaf->ents[lowstale].address !=
-		cpu_to_be32(XFS_DIR2_NULL_DATAPTR);
-	     lowstale--)
-		continue;
-	/*
-	 * Find the first stale entry at or after our index, if any.
-	 * Stop if the answer would be worse than lowstale.
-	 */
-	for (highstale = index;
-	     highstale < be16_to_cpu(leaf->hdr.count) &&
-		leaf->ents[highstale].address !=
-		cpu_to_be32(XFS_DIR2_NULL_DATAPTR) &&
-		(lowstale < 0 || index - lowstale > highstale - index);
-	     highstale++)
-		continue;
+
+	xfs_dir2_leaf_find_stale(leaf, index, &lowstale, &highstale);
+
 	/*
 	 * Pick the better of lowstale and highstale.
 	 */
