@@ -2339,6 +2339,7 @@
 /* APE convenience enumerations. */
 #define TG3_APE_LOCK_GRC                1
 #define TG3_APE_LOCK_MEM                4
+#define TG3_APE_LOCK_GPIO               7
 
 #define TG3_EEPROM_SB_F1R2_MBA_OFF	0x10
 

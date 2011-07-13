@@ -608,7 +608,7 @@ static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
 static void tg3_ape_lock_init(struct tg3 *tp)
 {
 	int i;
-	u32 regbase;
+	u32 regbase, bit;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
 		regbase = TG3_APE_LOCK_GRANT;
@@ -616,20 +616,34 @@ static void tg3_ape_lock_init(struct tg3 *tp)
 		regbase = TG3_APE_PER_LOCK_GRANT;
 
 	/* Make sure the driver hasn't any stale locks. */
-	for (i = 0; i < 8; i++)
+	for (i = 0; i < 8; i++) {
+		if (i == TG3_APE_LOCK_GPIO)
+			continue;
 		tg3_ape_write32(tp, regbase + 4 * i, APE_LOCK_GRANT_DRIVER);
+	}
+
+	/* Clear the correct bit of the GPIO lock too. */
+	if (!tp->pci_fn)
+		bit = APE_LOCK_GRANT_DRIVER;
+	else
+		bit = 1 << tp->pci_fn;
+
+	tg3_ape_write32(tp, regbase + 4 * TG3_APE_LOCK_GPIO, bit);
 }
 
 static int tg3_ape_lock(struct tg3 *tp, int locknum)
 {
 	int i, off;
 	int ret = 0;
-	u32 status, req, gnt;
+	u32 status, req, gnt, bit;
 
 	if (!tg3_flag(tp, ENABLE_APE))
 		return 0;
 
 	switch (locknum) {
+	case TG3_APE_LOCK_GPIO:
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
+			return 0;
 	case TG3_APE_LOCK_GRC:
 	case TG3_APE_LOCK_MEM:
 		break;
@@ -647,21 +661,24 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 
 	off = 4 * locknum;
 
-	tg3_ape_write32(tp, req + off, APE_LOCK_REQ_DRIVER);
+	if (locknum != TG3_APE_LOCK_GPIO || !tp->pci_fn)
+		bit = APE_LOCK_REQ_DRIVER;
+	else
+		bit = 1 << tp->pci_fn;
+
+	tg3_ape_write32(tp, req + off, bit);
 
 	/* Wait for up to 1 millisecond to acquire lock. */
 	for (i = 0; i < 100; i++) {
 		status = tg3_ape_read32(tp, gnt + off);
-		if (status == APE_LOCK_GRANT_DRIVER)
+		if (status == bit)
 			break;
 		udelay(10);
 	}
 
-	if (status != APE_LOCK_GRANT_DRIVER) {
+	if (status != bit) {
 		/* Revoke the lock request. */
-		tg3_ape_write32(tp, gnt + off,
-				APE_LOCK_GRANT_DRIVER);
-
+		tg3_ape_write32(tp, gnt + off, bit);
 		ret = -EBUSY;
 	}
 
@@ -670,12 +687,15 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 
 static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 {
-	u32 gnt;
+	u32 gnt, bit;
 
 	if (!tg3_flag(tp, ENABLE_APE))
 		return;
 
 	switch (locknum) {
+	case TG3_APE_LOCK_GPIO:
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
+			return;
 	case TG3_APE_LOCK_GRC:
 	case TG3_APE_LOCK_MEM:
 		break;
@@ -688,7 +708,12 @@ static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 	else
 		gnt = TG3_APE_PER_LOCK_GRANT;
 
-	tg3_ape_write32(tp, gnt + 4 * locknum, APE_LOCK_GRANT_DRIVER);
+	if (locknum != TG3_APE_LOCK_GPIO || !tp->pci_fn)
+		bit = APE_LOCK_GRANT_DRIVER;
+	else
+		bit = 1 << tp->pci_fn;
+
+	tg3_ape_write32(tp, gnt + 4 * locknum, bit);
 }
 
 static void tg3_disable_ints(struct tg3 *tp)
@@ -2170,10 +2195,15 @@ out:
 static inline int tg3_pwrsrc_switch_to_vmain(struct tg3 *tp)
 {
 	if (!tg3_flag(tp, IS_NIC))
+		return;
+
+	if (tg3_ape_lock(tp, TG3_APE_LOCK_GPIO))
 		return 0;
 
 	tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl,
 		    TG3_GRC_LCLCTL_PWRSW_DELAY);
+
+	tg3_ape_unlock(tp, TG3_APE_LOCK_GPIO);
 
 	return 0;
 }
@@ -2185,6 +2215,10 @@ static void tg3_pwrsrc_die_with_vmain(struct tg3 *tp)
 	if (!tg3_flag(tp, IS_NIC) ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701)
+		return;
+
+
+	if (tg3_ape_lock(tp, TG3_APE_LOCK_GPIO))
 		return;
 
 	grc_local_ctrl = tp->grc_local_ctrl | GRC_LCLCTRL_GPIO_OE1;
@@ -2200,11 +2234,16 @@ static void tg3_pwrsrc_die_with_vmain(struct tg3 *tp)
 	tw32_wait_f(GRC_LOCAL_CTRL,
 		    grc_local_ctrl | GRC_LCLCTRL_GPIO_OUTPUT1,
 		    TG3_GRC_LCLCTL_PWRSW_DELAY);
+
+	tg3_ape_unlock(tp, TG3_APE_LOCK_GPIO);
 }
 
 static void tg3_pwrsrc_switch_to_vaux(struct tg3 *tp)
 {
 	if (!tg3_flag(tp, IS_NIC))
+		return;
+
+	if (tg3_ape_lock(tp, TG3_APE_LOCK_GPIO))
 		return;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
@@ -2277,6 +2316,8 @@ static void tg3_pwrsrc_switch_to_vaux(struct tg3 *tp)
 				    TG3_GRC_LCLCTL_PWRSW_DELAY);
 		}
 	}
+
+	tg3_ape_unlock(tp, TG3_APE_LOCK_GPIO);
 }
 
 static void tg3_frob_aux_power(struct tg3 *tp)
