@@ -166,24 +166,6 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 			priv->slot_time = val[0];
 			write_nic_byte(dev, SLOT_TIME, val[0]);
 
-#ifdef MERGE_TO_DO
-			if (priv->rtllib->current_network.qos_data.supported !=0)
-			{
-				for (eACI = 0; eACI < AC_MAX; eACI++)
-				{
-					priv->rtllib->SetHwRegHandler(dev, HW_VAR_AC_PARAM, (u8*)(&eACI));
-				}
-			}
-			else
-			{
-				u8	u1bAIFS = aSifsTime + (2 * priv->slot_time);
-
-				write_nic_byte(dev, EDCAPARA_VO, u1bAIFS);
-				write_nic_byte(dev, EDCAPARA_VI, u1bAIFS);
-				write_nic_byte(dev, EDCAPARA_BE, u1bAIFS);
-				write_nic_byte(dev, EDCAPARA_BK, u1bAIFS);
-			}
-#endif
 		}
 		break;
 
@@ -205,11 +187,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 		case HW_VAR_AC_PARAM:
 		{
 			u8	pAcParam = *((u8*)val);
-#ifdef MERGE_TO_DO
-			u32	eACI = GET_WMM_AC_PARAM_ACI(pAcParam);
-#else
 			u32	eACI = pAcParam;
-#endif
 			u8		u1bAIFS;
 			u32		u4bAcParam;
 			u8 mode = priv->rtllib->mode;
@@ -256,11 +234,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 		{
 			struct rtllib_qos_parameters *qos_parameters = &priv->rtllib->current_network.qos_data.parameters;
 			u8	pAcParam = *((u8*)val);
-#ifdef MERGE_TO_DO
-			u32	eACI = GET_WMM_AC_PARAM_ACI(pAciAifsn);
-#else
 			u32	eACI = pAcParam;
-#endif
 			PACI_AIFSN	pAciAifsn = (PACI_AIFSN)&(qos_parameters->aifs[0]);
 			u8		ACM = pAciAifsn->f.ACM;
 			u8		AcmCtrl = read_nic_byte( dev, AcmHwCtrl);

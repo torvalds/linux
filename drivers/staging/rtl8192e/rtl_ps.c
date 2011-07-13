@@ -443,12 +443,6 @@ bool PlatformSwitchClkReq(struct net_device *dev, u8 value)
 
 	Buffer= value;
 
-#ifdef MERGE_TO_DO
-	if (Adapter->bDriverIsGoingToPnpSetPowerSleep && pDevice->RegSupportLowPowerState
-		&& value == 0x0)
-		return false;
-#endif
-
 	pci_write_config_byte(priv->pdev,0x81,value);
 	bResult = true;
 

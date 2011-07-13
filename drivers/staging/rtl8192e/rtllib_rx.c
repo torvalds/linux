@@ -894,9 +894,6 @@ rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	PRX_TS_RECORD pTS)
 	rtllib_indicate_packets(ieee, RfdArray, RfdCnt);
 
 	pTS->RxIndicateSeq = 0xffff;
-
-#ifdef MERGE_TO_DO
-#endif
 }
 
 
