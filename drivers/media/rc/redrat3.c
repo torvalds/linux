@@ -414,20 +414,10 @@ static u32 redrat3_us_to_len(u32 microsec)
 
 }
 
-/* timer callback to send long trailing space on receive timeout */
+/* timer callback to send reset event */
 static void redrat3_rx_timeout(unsigned long data)
 {
 	struct redrat3_dev *rr3 = (struct redrat3_dev *)data;
-	DEFINE_IR_RAW_EVENT(rawir);
-
-	rawir.pulse = false;
-	rawir.duration = rr3->rc->timeout;
-	rr3_dbg(rr3->dev, "storing trailing space with duration %d\n",
-		rawir.duration);
-	ir_raw_event_store_with_filter(rr3->rc, &rawir);
-
-	rr3_dbg(rr3->dev, "calling ir_raw_event_handle\n");
-	ir_raw_event_handle(rr3->rc);
 
 	rr3_dbg(rr3->dev, "calling ir_raw_event_reset\n");
 	ir_raw_event_reset(rr3->rc);
