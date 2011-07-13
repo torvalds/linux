@@ -84,9 +84,9 @@ static int cy8ctmg110_write_regs(struct cy8ctmg110 *tsc, unsigned char reg,
 	memcpy(i2c_data + 1, value, len);
 
 	ret = i2c_master_send(client, i2c_data, len + 1);
-	if (ret != 1) {
+	if (ret != len + 1) {
 		dev_err(&client->dev, "i2c write data cmd failed\n");
-		return ret ? ret : -EIO;
+		return ret < 0 ? ret : -EIO;
 	}
 
 	return 0;
