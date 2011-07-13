@@ -70,9 +70,6 @@ asmlinkage irqreturn_t inthandler7(void);
 
 extern e_vector *_ramvec;
 
-/* The number of spurious interrupts */
-volatile unsigned int num_spurious;
-
 /* The 68k family did not have a good way to determine the source
  * of interrupts until later in the family.  The EC000 core does
  * not provide the vector number on the stack, we vector everything

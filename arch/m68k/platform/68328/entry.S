@@ -236,7 +236,7 @@ ret_from_interrupt:
  * Handler for uninitialized and spurious interrupts.
  */
 ENTRY(bad_interrupt)
-	addql	#1,num_spurious
+	addql	#1,irq_err_count
 	rte
 
 /*

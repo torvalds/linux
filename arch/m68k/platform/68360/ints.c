@@ -34,9 +34,6 @@ asmlinkage void inthandler(void);
 
 extern void *_ramvec[];
 
-/* The number of spurious interrupts */
-volatile unsigned int num_spurious;
-
 static void intc_irq_unmask(struct irq_data *d)
 {
 	pquicc->intr_cimr |= (1 << d->irq);
