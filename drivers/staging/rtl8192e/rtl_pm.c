@@ -38,11 +38,9 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 
         RT_TRACE(COMP_POWER, "============> r8192E suspend call.\n");
         printk("============> r8192E suspend call.\n");
-#ifdef ENABLE_GPIO_RADIO_CTL
 	del_timer_sync(&priv->gpio_polling_timer);
 	cancel_delayed_work(&priv->gpio_change_rf_wq);
 	priv->polling_timer_on = 0;
-#endif
 
         if (!netif_running(dev)){
             printk("RTL819XE:UI is open out of suspend function\n");
@@ -113,11 +111,9 @@ int rtl8192E_resume (struct pci_dev *pdev)
 
     pci_enable_wake(pdev, PCI_D0, 0);
 
-#ifdef ENABLE_GPIO_RADIO_CTL
     if (priv->polling_timer_on == 0){
         check_rfctrl_gpio_timer((unsigned long)dev);
     }
-#endif
 
     if (!netif_running(dev)){
         printk("RTL819XE:UI is open out of resume function\n");

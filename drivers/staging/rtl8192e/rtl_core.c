@@ -1037,11 +1037,9 @@ int _rtl8192_sta_up(struct net_device *dev,bool is_silent_reset)
 	RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
 	priv->bfirst_init = false;
 
-#ifdef ENABLE_GPIO_RADIO_CTL
 	if (priv->polling_timer_on == 0){
 		check_rfctrl_gpio_timer((unsigned long)dev);
 	}
-#endif
 
 	if (priv->rtllib->state != RTLLIB_LINKED)
 	rtllib_softmac_start_protocol(priv->rtllib, 0);
@@ -3131,11 +3129,9 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	}
 	rtl8192_proc_init_one(dev);
 
-#ifdef ENABLE_GPIO_RADIO_CTL
 	if (priv->polling_timer_on == 0){
 		check_rfctrl_gpio_timer((unsigned long)dev);
 	}
-#endif
 #ifdef CONFIG_RTL_RFKILL
 	if (priv->ops->init_before_adapter_start) {
 		priv->ops->init_before_adapter_start(dev);
@@ -3186,11 +3182,9 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 
 		priv = rtllib_priv(dev);
 
-#ifdef ENABLE_GPIO_RADIO_CTL
 		del_timer_sync(&priv->gpio_polling_timer);
 		cancel_delayed_work(&priv->gpio_change_rf_wq);
 		priv->polling_timer_on = 0;
-#endif
 		rtl_debug_module_remove(priv);
 		rtl8192_proc_remove_one(dev);
 		rtl8192_down(dev,true);
