@@ -70,6 +70,29 @@
 #define CMD_GETBAND		"GETBAND"
 #define CMD_COUNTRY		"COUNTRY"
 
+#ifdef PNO_SUPPORT
+#define CMD_PNOSSIDCLR_SET	"PNOSSIDCLR"
+#define CMD_PNOSETUP_SET	"PNOSETUP "
+#define CMD_PNOENABLE_SET	"PNOFORCE"
+#define CMD_PNODEBUG_SET	"PNODEBUG"
+
+#define PNO_TLV_PREFIX			'S'
+#define PNO_TLV_VERSION			'1'
+#define PNO_TLV_SUBVERSION 		'2'
+#define PNO_TLV_RESERVED		'0'
+#define PNO_TLV_TYPE_SSID_IE		'S'
+#define PNO_TLV_TYPE_TIME		'T'
+#define PNO_TLV_FREQ_REPEAT		'R'
+#define PNO_TLV_FREQ_EXPO_MAX		'M'
+
+typedef struct cmd_tlv {
+	char prefix;
+	char version;
+	char subver;
+	char reserved;
+} cmd_tlv_t;
+#endif
+
 typedef struct android_wifi_priv_cmd {
 	char *buf;
 	int used_len;
@@ -82,9 +105,6 @@ typedef struct android_wifi_priv_cmd {
 void dhd_customer_gpio_wlan_ctrl(int onoff);
 uint dhd_dev_reset(struct net_device *dev, uint8 flag);
 void dhd_dev_init_ioctl(struct net_device *dev);
-int net_os_set_dtim_skip(struct net_device *dev, int val);
-int net_os_set_suspend_disable(struct net_device *dev, int val);
-int net_os_set_suspend(struct net_device *dev, int val);
 
 extern bool ap_fw_loaded;
 #ifdef CUSTOMER_HW2
@@ -177,6 +197,85 @@ static int wl_android_get_band(struct net_device *dev, char *command, int total_
 	return bytes_written;
 }
 
+#ifdef PNO_SUPPORT
+static int wl_android_set_pno_setup(struct net_device *dev, char *command, int total_len)
+{
+	wlc_ssid_t ssids_local[MAX_PFN_LIST_COUNT];
+	int res = -1;
+	int nssid = 0;
+	cmd_tlv_t *cmd_tlv_temp;
+	char *str_ptr;
+	int tlv_size_left;
+	int pno_time = 0;
+	int pno_repeat = 0;
+	int pno_freq_expo_max = 0;
+
+	DHD_ERROR(("%s: command=%s, len=%d\n", __FUNCTION__, command, total_len));
+
+	if (total_len < (strlen(CMD_PNOSETUP_SET) + sizeof(cmd_tlv_t))) {
+		DHD_ERROR(("%s argument=%d less min size\n", __FUNCTION__, total_len));
+		goto exit_proc;
+	}
+
+	str_ptr = command + strlen(CMD_PNOSETUP_SET);
+	tlv_size_left = total_len - strlen(CMD_PNOSETUP_SET);
+
+	cmd_tlv_temp = (cmd_tlv_t *)str_ptr;
+	memset(ssids_local, 0, sizeof(ssids_local));
+
+	if ((cmd_tlv_temp->prefix == PNO_TLV_PREFIX) &&
+		(cmd_tlv_temp->version == PNO_TLV_VERSION) &&
+		(cmd_tlv_temp->subver == PNO_TLV_SUBVERSION)) {
+
+		str_ptr += sizeof(cmd_tlv_t);
+		tlv_size_left -= sizeof(cmd_tlv_t);
+
+		if ((nssid = wl_iw_parse_ssid_list_tlv(&str_ptr, ssids_local,
+			MAX_PFN_LIST_COUNT, &tlv_size_left)) <= 0) {
+			DHD_ERROR(("SSID is not presented or corrupted ret=%d\n", nssid));
+			goto exit_proc;
+		} else {
+			if ((str_ptr[0] != PNO_TLV_TYPE_TIME) || (tlv_size_left <= 1)) {
+				DHD_ERROR(("%s scan duration corrupted field size %d\n",
+					__FUNCTION__, tlv_size_left));
+				goto exit_proc;
+			}
+			str_ptr++;
+			pno_time = simple_strtoul(str_ptr, &str_ptr, 16);
+			DHD_INFO(("%s: pno_time=%d\n", __FUNCTION__, pno_time));
+
+			if (str_ptr[0] != 0) {
+				if ((str_ptr[0] != PNO_TLV_FREQ_REPEAT)) {
+					DHD_ERROR(("%s pno repeat : corrupted field\n",
+						__FUNCTION__));
+					goto exit_proc;
+				}
+				str_ptr++;
+				pno_repeat = simple_strtoul(str_ptr, &str_ptr, 16);
+				DHD_INFO(("%s :got pno_repeat=%d\n", __FUNCTION__, pno_repeat));
+				if (str_ptr[0] != PNO_TLV_FREQ_EXPO_MAX) {
+					DHD_ERROR(("%s FREQ_EXPO_MAX corrupted field size\n",
+						__FUNCTION__));
+					goto exit_proc;
+				}
+				str_ptr++;
+				pno_freq_expo_max = simple_strtoul(str_ptr, &str_ptr, 16);
+				DHD_INFO(("%s: pno_freq_expo_max=%d\n",
+					__FUNCTION__, pno_freq_expo_max));
+			}
+		}
+	} else {
+		DHD_ERROR(("%s get wrong TLV command\n", __FUNCTION__));
+		goto exit_proc;
+	}
+
+	res = dhd_dev_pno_set(dev, ssids_local, nssid, pno_time, pno_repeat, pno_freq_expo_max);
+
+exit_proc:
+	return res;
+}
+#endif
+
 /**
  * Global function definitions (declared in wl_android.h)
  */
@@ -252,7 +351,7 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	int bytes_written = 0;
 	android_wifi_priv_cmd *priv_cmd;
 
-	/* net_os_wake_lock(dev); */
+	net_os_wake_lock(net);
 
 	priv_cmd = (android_wifi_priv_cmd*)ifr->ifr_data;
 	if (!priv_cmd)
@@ -340,6 +439,18 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	else if (strnicmp(command, CMD_COUNTRY, strlen(CMD_COUNTRY)) == 0) {
 		char *country_code = command + strlen(CMD_COUNTRY) + 1;
 		bytes_written = wldev_set_country(net, country_code);
+#ifdef PNO_SUPPORT
+	}
+	else if (strnicmp(command, CMD_PNOSSIDCLR_SET, strlen(CMD_PNOSSIDCLR_SET)) == 0) {
+		bytes_written = dhd_dev_pno_reset(net);
+	}
+	else if (strnicmp(command, CMD_PNOSETUP_SET, strlen(CMD_PNOSETUP_SET)) == 0) {
+		bytes_written = wl_android_set_pno_setup(net, command, priv_cmd->total_len);
+	}
+	else if (strnicmp(command, CMD_PNOENABLE_SET, strlen(CMD_PNOENABLE_SET)) == 0) {
+		uint pfn_enabled = *(command + strlen(CMD_PNOENABLE_SET) + 1) - '0';
+		bytes_written = dhd_dev_pno_enable(net, pfn_enabled);
+#endif
 	} else {
 		DHD_ERROR(("Unknown PRIVATE command %s - ignored\n", command));
 		snprintf(command, 3, "OK");
@@ -358,7 +469,7 @@ int wl_android_priv_cmd(struct net_device *net, struct ifreq *ifr, int cmd)
 	}
 
 exit:
-	/* net_os_wake_unlock(dev); */
+	net_os_wake_unlock(net);
 	if (command) {
 		kfree(command);
 	}
