@@ -1317,6 +1317,9 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 
 	hid_cancel_delayed_stuff(usbhid);
 	hid_cease_io(usbhid);
+    usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+            USB_REQ_SET_FEATURE, USB_TYPE_STANDARD | USB_RECIP_DEVICE, USB_DEVICE_REMOTE_WAKEUP,
+            0, NULL, 0, USB_CTRL_SET_TIMEOUT);
 
 	if (udev->auto_pm && test_bit(HID_KEYS_PRESSED, &usbhid->iofl)) {
 		/* lost race against keypresses */
@@ -1334,6 +1337,7 @@ static int hid_resume(struct usb_interface *intf)
 {
 	struct hid_device *hid = usb_get_intfdata (intf);
 	struct usbhid_device *usbhid = hid->driver_data;
+	struct usb_device *udev = interface_to_usbdev(intf);
 	int status;
 
 	if (!test_bit(HID_STARTED, &usbhid->iofl))
@@ -1346,6 +1350,13 @@ static int hid_resume(struct usb_interface *intf)
 	    test_bit(HID_RESET_PENDING, &usbhid->iofl))
 		schedule_work(&usbhid->reset_work);
 	usbhid->retry_delay = 0;
+	
+    usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+            USB_REQ_CLEAR_FEATURE, USB_TYPE_STANDARD | USB_RECIP_DEVICE, USB_DEVICE_REMOTE_WAKEUP,
+            0, NULL, 0, USB_CTRL_SET_TIMEOUT);
+            
+	hid_set_idle(udev, intf->cur_altsetting->desc.bInterfaceNumber, 0, 0);
+		
 	status = hid_start_in(hid);
 	if (status < 0)
 		hid_io_error(hid);

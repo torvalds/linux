@@ -217,6 +217,21 @@ static int rk29_lcd_io_init(void)
 	return ret;
 }
 
+#if defined (CONFIG_RK29_WORKING_POWER_MANAGEMENT)
+static int rk29_lcd_io_deinit(void)
+{
+	int ret = 0;
+	
+	gpio_direction_output(LCD_TXD_PIN, 1);
+	gpio_direction_output(LCD_CLK_PIN, 1);
+
+	gpio_free(LCD_CS_PIN);
+	gpio_free(LCD_CLK_PIN);
+	gpio_free(LCD_TXD_PIN);
+
+	return ret;
+}
+#else
 static int rk29_lcd_io_deinit(void)
 {
 	int ret = 0;
@@ -232,6 +247,8 @@ static int rk29_lcd_io_deinit(void)
 
 	return ret;
 }
+#endif
+
 
 static struct rk29lcd_info rk29_lcd_info = {
     .txd_pin  = LCD_TXD_PIN,
@@ -830,7 +847,7 @@ struct wm831x_battery_pdata wm831x_battery_platdata = {
 	.trickle_ilim = 200,   /** Trickle charge current limit, in mA */
 	.vsel = 4200,           /** Target voltage, in mV */
 	.eoc_iterm = 90,      /** End of trickle charge current, in mA */
-	.fast_ilim = 500,      /** Fast charge current limit, in mA */
+	.fast_ilim = 600,      /** Fast charge current limit, in mA */
 	.timeout = 240,        /** Charge cycle timeout, in minutes */
 	.syslo = 3300,    /* syslo threshold, in mV*/
 	.sysok = 3500,    /* sysko threshold, in mV*/
@@ -1520,7 +1537,7 @@ struct wm8994_pdata wm8994_platdata = {
 	
 	.speaker_incall_vol = 0,
 	.speaker_incall_mic_vol = -9,
-	.speaker_normal_vol = -26,
+	.speaker_normal_vol = -10,
 	.earpiece_incall_vol = 0,
 	.headset_incall_vol = 6,
 	.headset_incall_mic_vol = -6,

@@ -37,6 +37,8 @@
 #include <asm/mach-types.h>
 #include "rk_headset.h"
 #include <linux/earlysuspend.h>
+#include <linux/gpio.h>
+#include <mach/board.h>
 
 /* Debug */
 #if 1
@@ -229,7 +231,7 @@ static void headsetobserve_work(struct work_struct *work)
 		DBG("---- ERROR: on headset headset_in_type error -----\n");
 		break;			
 	}
-	
+	rk28_send_wakeup_key();
 	switch_set_state(&headset_info->sdev, headset_info->cur_headset_status);	
 	DBG("headset_info->cur_headset_status = %d\n",headset_info->cur_headset_status);
 RE_ERROR:
@@ -240,7 +242,7 @@ static void Hook_work(struct work_struct *work)
 {
 	int i,level = 0;
 	struct rk_headset_pdata *pdata = headset_info->pdata;
-	static unsigned int old_status = 0;
+	static unsigned int old_status = HOOK_UP;
 
 //	DBG("---Hook_work---\n");
 	mutex_lock(&headset_info->mutex_lock[HOOK]);
@@ -252,7 +254,7 @@ static void Hook_work(struct work_struct *work)
 	#ifdef CONFIG_SND_SOC_WM8994
 	if(wm8994_set_status() < 0)
 	{
-		DBG("wm8994 is not set on heatset channel\n");
+		DBG("wm8994 is not set on heatset channel or suspend\n");
 		goto RE_ERROR;
 	}
 	#endif		
@@ -438,6 +440,7 @@ static int rockchip_headsetobserve_probe(struct platform_device *pdev)
 	ret = request_irq(headset->irq[HEADSET], headset_interrupt, headset->irq_type[HEADSET], NULL, NULL);
 	if (ret) 
 		goto failed_free;
+	enable_irq_wake(headset->irq[HEADSET]);
 //------------------------------------------------------------------
 	ret = gpio_request(pdata->Hook_gpio , NULL);
 	if (ret) 
@@ -508,8 +511,28 @@ failed_free:
 	return ret;
 }
 
+static int rockchip_headsetobserve_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	DBG("%s----%d\n",__FUNCTION__,__LINE__);
+	disable_irq(headset_info->irq[HEADSET]);
+	disable_irq(headset_info->irq[HOOK]);
+
+	return 0;
+}
+
+static int rockchip_headsetobserve_resume(struct platform_device *pdev)
+{
+	DBG("%s----%d\n",__FUNCTION__,__LINE__);	
+	enable_irq(headset_info->irq[HEADSET]);
+	enable_irq(headset_info->irq[HOOK]);
+	
+	return 0;
+}
+
 static struct platform_driver rockchip_headsetobserve_driver = {
 	.probe	= rockchip_headsetobserve_probe,
+//	.resume = 	rockchip_headsetobserve_resume,	
+//	.suspend = 	rockchip_headsetobserve_suspend,	
 	.driver	= {
 		.name	= "rk_headsetdet",
 		.owner	= THIS_MODULE,

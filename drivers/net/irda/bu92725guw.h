@@ -162,6 +162,10 @@ enum eThrans_Way {
 	BU92725GUW_IDLE = 0,
 	BU92725GUW_REV, /* SIR use */
 	BU92725GUW_SEND, /* SIR use */
+	BU92725GUW_MIR_REV, /* MIR use */
+	BU92725GUW_MIR_SEND, /* MIR use */
+	BU92725GUW_FIR_REV, /* FIR use */
+	BU92725GUW_FIR_SEND, /* FIR use */
 	BU92725GUW_AUTO_MULTI_REV, /* M/FIR use */
 	BU92725GUW_MULTI_REV, /* not used */
 	BU92725GUW_MULTI_SEND, /* M/FIR use */
@@ -212,5 +216,7 @@ extern u16 BU92725GUW_get_data(u8 *buf);
 /* send frame data into fifo */
 extern void BU92725GUW_send_data(u8 *buf1, u16 len1, u8 *buf2, u16 len2);
 
+/*dump register*/
+extern void BU92725GUW_dump_register(void);
 
 #endif /*__BU92725GUW_H*/

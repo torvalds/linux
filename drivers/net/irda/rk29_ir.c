@@ -59,7 +59,7 @@ struct irda_driver {
 };
 
 #define IS_FIR(si)		((si)->speed >= 4000000)
-static int max_rate = 115200;
+static int max_rate = 4000000;
 #define IRDA_FRAME_SIZE_LIMIT	BU92725GUW_FIFO_SIZE
 
 #define RK29_MAX_RXLEN 2047
@@ -124,7 +124,7 @@ static int rk29_irda_set_speed(struct rk29_irda *si, int speed)
 		si->speed = speed;
 		
 		irda_hw_set_speed(speed);
-		
+		//irda_hw_set_speed(1152000);//MIR
 		rk29_irda_rx_alloc(si);
 
 		local_irq_restore(flags);
@@ -154,15 +154,17 @@ static irqreturn_t rk29_irda_irq(int irq, void *dev_id)
 	
 	//disable_irq(dev->irq);
    
-        /* EIR 1, 3, 11, 12 */
-	irda_setptn |= irq_src & (REG_INT_EOFRX | REG_INT_TXE | REG_INT_WRE | REG_INT_RDE |
-	                          REG_INT_CRC | REG_INT_OE | REG_INT_FE | REG_INT_AC | 
-	                          REG_INT_DECE | REG_INT_RDOE | REG_INT_DEX) ;
+        /* EIR 1, 3, 11, 12 
+	irda_setptn |= irq_src & (REG_INT_EOFRX | REG_INT_TXE | REG_INT_WRE | REG_INT_RDE\
+	                          | REG_INT_CRC | REG_INT_OE | REG_INT_FE | REG_INT_AC\
+	                          | REG_INT_DECE | REG_INT_RDOE | REG_INT_DEX) ;*/
+	irda_setptn = irq_src;
 
 	/* error */
-	if (irq_src & (REG_INT_TO| REG_INT_CRC | REG_INT_OE | REG_INT_FE | 
-		REG_INT_AC | REG_INT_DECE | REG_INT_RDOE | REG_INT_DEX)) {
+	if (irq_src & (REG_INT_TO| REG_INT_CRC | REG_INT_OE | REG_INT_FE
+		| REG_INT_AC | REG_INT_DECE | REG_INT_RDOE | REG_INT_DEX)) {
         RK29IR_DBG("[%s][%d]: do err\n",__FUNCTION__,__LINE__);
+		//BU92725GUW_dump_register();
 		BU92725GUW_clr_fifo();
 		BU92725GUW_reset();
     }
@@ -182,11 +184,11 @@ static irqreturn_t rk29_irda_irq(int irq, void *dev_id)
                     dev->stats.rx_errors++;
                 }
             }
-            if ((irda_setptn & (FRM_EVT_RX_EOFRX | FRM_EVT_RX_RDE | REG_INT_EOF))) {
+            if (irda_setptn & (FRM_EVT_RX_EOFRX | FRM_EVT_RX_RDE)) {
 				tmp_len = BU92725GUW_get_data(skb->data+skb->len);
 				skb->len += tmp_len;			
             }
-			if (irda_setptn & (REG_INT_EOF | FRM_EVT_RX_EOFRX)) {				
+			if (irda_setptn & REG_INT_EOF) {				
 				RK29IR_DBG("[%s][%d]: report data:\n",__FUNCTION__,__LINE__);
 				si->rxskb = NULL;
 				RK29IR_DATA_DBG("[%s][%d]: fir report data:\n",__FUNCTION__,__LINE__);
@@ -377,6 +379,8 @@ static int rk29_irda_start(struct net_device *dev)
 err_irlap:
 	si->open = 0;
 	irda_hw_shutdown(si);
+	if (si->pdata->irda_pwr_ctl)
+		si->pdata->irda_pwr_ctl(0);
 err_startup:
 	free_irq(dev->irq, dev);
 err_irq:
@@ -471,7 +475,6 @@ static int rk29_irda_hard_xmit(struct sk_buff *skb, struct net_device *dev)
 		dev->trans_start = jiffies;
 		BU92725GUW_send_data(si->tx_buff.data, si->tx_buff.len, NULL, 0);
 		si->tx_buff.len = 0;
-
     } 
 	else {
         unsigned long mtt = irda_get_mtt(skb);
@@ -559,7 +562,7 @@ static int rk29_irda_init_iobuf(iobuff_t *io, int size)
 
 static void rk29_irda_fir_test(struct work_struct *work)
 {
-	char send_data[4] = {0,0,0,0};
+	char send_data[4] = {1,0,1,0};
 	irda_hw_tx_enable_irq(BU92725GUW_FIR);
 	
 	BU92725GUW_send_data(send_data, 4, NULL, 0);
@@ -678,6 +681,78 @@ static int rk29_irda_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+/*
+ * Suspend the IrDA interface.
+ */
+static int rk29_irda_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct rk29_irda *si;
+
+	if (!dev)
+		return 0;
+
+	si = netdev_priv(dev);
+	if (si->open) {
+		/*
+		 * Stop the transmit queue
+		 */
+		netif_device_detach(dev);
+		disable_irq(dev->irq);
+		irda_hw_shutdown(si);
+		if (si->pdata->irda_pwr_ctl)
+			si->pdata->irda_pwr_ctl(0);
+	}
+
+	return 0;
+}
+
+/*
+ * Resume the IrDA interface.
+ */
+static int rk29_irda_resume(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct rk29_irda *si;
+
+	if (!dev)
+		return 0;
+
+	si = netdev_priv(dev);
+	if (si->open) {
+		
+		if (si->pdata->irda_pwr_ctl)
+			si->pdata->irda_pwr_ctl(1);
+
+		/*
+		 * If we missed a speed change, initialise at the new speed
+		 * directly.  It is debatable whether this is actually
+		 * required, but in the interests of continuing from where
+		 * we left off it is desireable.  The converse argument is
+		 * that we should re-negotiate at 9600 baud again.
+		 */
+		if (si->newspeed) {
+			si->speed = si->newspeed;
+			si->newspeed = 0;
+		}
+		
+		irda_hw_startup(si);
+		enable_irq(dev->irq);
+
+		/*
+		 * This automatically wakes up the queue
+		 */
+		netif_device_attach(dev);
+	}
+
+	return 0;
+}
+#else
+#define rk29_irda_suspend	NULL
+#define rk29_irda_resume	NULL
+#endif
+
 
 static struct platform_driver irda_driver = {
 	.driver = {
@@ -686,8 +761,8 @@ static struct platform_driver irda_driver = {
 	},
 	.probe = rk29_irda_probe,
 	.remove = rk29_irda_remove,
-	//.suspend = rk29_irda_suspend,
-	//.resume = rk29_irda_resume,
+	.suspend = rk29_irda_suspend,
+	.resume = rk29_irda_resume,
 };
 
 static int __init irda_init(void)

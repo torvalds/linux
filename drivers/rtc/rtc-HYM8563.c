@@ -93,9 +93,11 @@ static int hym8563_read_datetime(struct i2c_client *client, struct rtc_time *tm)
 	u8 i,regs[HYM8563_RTC_SECTION_LEN] = { 0, };
     
 	mutex_lock(&hym8563->mutex);
-	for (i = 0; i < HYM8563_RTC_SECTION_LEN; i++) {
-		hym8563_i2c_read_regs(client, RTC_SEC+i, &regs[i], 1);
-	}	
+//	for (i = 0; i < HYM8563_RTC_SECTION_LEN; i++) {
+//		hym8563_i2c_read_regs(client, RTC_SEC+i, &regs[i], 1);
+//	}
+	hym8563_i2c_read_regs(client, RTC_SEC, regs, HYM8563_RTC_SECTION_LEN);
+
 	mutex_unlock(&hym8563->mutex);
 	
 	tm->tm_sec = bcd2bin(regs[0x00] & 0x7F);
@@ -181,9 +183,11 @@ static int hym8563_set_time(struct i2c_client *client, struct rtc_time *tm)
 	regs[0x05] = (regs[0x05] & 0x80)| (bin2bcd(tm->tm_mon + 1) & 0x7F);		//set  the  month
 	
 	mutex_lock(&hym8563->mutex);
-	for(i=0;i<HYM8563_RTC_SECTION_LEN;i++){
-		ret = hym8563_i2c_set_regs(client, RTC_SEC+i, &regs[i], 1);
-	}
+//	for(i=0;i<HYM8563_RTC_SECTION_LEN;i++){
+//		ret = hym8563_i2c_set_regs(client, RTC_SEC+i, &regs[i], 1);
+//	}
+	hym8563_i2c_set_regs(client, RTC_SEC, regs, HYM8563_RTC_SECTION_LEN);
+
 	mutex_unlock(&hym8563->mutex);
 
 	return 0;

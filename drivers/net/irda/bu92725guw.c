@@ -51,7 +51,7 @@
 */
 static u32 curTrans_mode;  /* SIR, MIR, FIR */
 static u32 curTrans_speed; /* 2.4kbps, 9.6kbps,..., 4Mbps */
-static u32 curTrans_way;   /* idle, send, receive, auto-multi-receive, multi-receive, multi-send */
+static u32 curTrans_way;   /* idle, send, receive, mir-receive, mir-send, fir-receive, fir-send, auto-multi-receive, multi-receive, multi-send */
 static u16 curFIT;         /* FIT2,1,0 in PWR/FIT register */
 
 /*---------------------------------------------------------------------------
@@ -128,8 +128,8 @@ int irda_hw_shutdown(struct rk29_irda *si)
 //PWR/FIT (default)
 	BU92725GUW_WRITE_REG(REG_PWR_FIT_ADDR, REG_PWR_FIT_MPW_3 | REG_PWR_FIT_FPW_2 | REG_PWR_FIT_FIT_0);
 
-//TRCR (idle, clr fifo, IrDA power down)
-	BU92725GUW_WRITE_REG(REG_TRCR_ADDR, REG_TRCR_FCLR | REG_TRCR_IRPD);
+//TRCR (idle, clr fifo, IrDA , rx, tx power down)
+	BU92725GUW_WRITE_REG(REG_TRCR_ADDR, REG_TRCR_FCLR | REG_TRCR_IRPD |REG_TRCR_TXPWD | REG_TRCR_RXPWD);
 
 //FTLV
 	BU92725GUW_WRITE_REG(REG_FTLV_ADDR, 0x0000);
@@ -189,25 +189,49 @@ int irda_hw_set_speed(u32 speed)
 	case BU92725GUW_IDLE:
 		break;
 	case BU92725GUW_REV:
-		if (mode != BU92725GUW_SIR)
+		if (mode == BU92725GUW_MIR)
+			curTrans_way = BU92725GUW_MIR_REV;
+		else if (mode == BU92725GUW_FIR)
 			curTrans_way = BU92725GUW_AUTO_MULTI_REV;
 			//curTrans_way = BU92725GUW_MULTI_REV;
+			//curTrans_way = BU92725GUW_FIR_REV;
 		break;
 	case BU92725GUW_SEND:
-		if (mode != BU92725GUW_SIR)
+		if (mode == BU92725GUW_MIR)
+			curTrans_way = BU92725GUW_MIR_SEND;
+		else if (mode == BU92725GUW_FIR)
 			curTrans_way = BU92725GUW_MULTI_SEND;
+			//curTrans_way = BU92725GUW_FIR_SEND;
 		break;
+	case BU92725GUW_MIR_REV:
+		if (mode == BU92725GUW_SIR)
+			curTrans_way = BU92725GUW_REV;
+		else if (mode == BU92725GUW_FIR)
+			curTrans_way = BU92725GUW_AUTO_MULTI_REV;
+			//curTrans_way = BU92725GUW_MULTI_REV;
+			//curTrans_way = BU92725GUW_FIR_REV;
+		break;
+	case BU92725GUW_MIR_SEND:
+		if (mode == BU92725GUW_SIR)
+			curTrans_way = BU92725GUW_SEND;
+		else if (mode == BU92725GUW_FIR)
+			curTrans_way = BU92725GUW_MULTI_SEND;
+			//curTrans_way = BU92725GUW_FIR_SEND;
+		break;
+	case BU92725GUW_FIR_REV:
 	case BU92725GUW_AUTO_MULTI_REV:
+	case BU92725GUW_MULTI_REV:
 		if (mode == BU92725GUW_SIR)
 			curTrans_way = BU92725GUW_REV;
+		else if (mode == BU92725GUW_MIR)
+			curTrans_way = BU92725GUW_MIR_REV;
 		break;
-	case BU92725GUW_MULTI_REV: //not used now
-		if (mode == BU92725GUW_SIR)
-			curTrans_way = BU92725GUW_REV;
-		break;
+	case BU92725GUW_FIR_SEND:
 	case BU92725GUW_MULTI_SEND:
 		if (mode == BU92725GUW_SIR)
 			curTrans_way = BU92725GUW_SEND;
+		else if (mode == BU92725GUW_MIR)
+			curTrans_way = BU92725GUW_MIR_SEND;
 		break;
 	}
 
@@ -233,9 +257,11 @@ int irda_hw_tx_enable_irq(enum eTrans_Mode mode)
 	*/
 	if (mode == BU92725GUW_SIR)
 		BU92725GUW_set_trans_way(BU92725GUW_SEND);
+	else if (mode == BU92725GUW_MIR)
+		BU92725GUW_set_trans_way(BU92725GUW_MIR_SEND);
 	else
 		BU92725GUW_set_trans_way(BU92725GUW_MULTI_SEND);
-
+		//BU92725GUW_set_trans_way(BU92725GUW_FIR_SEND);
 	//BU92725GUW_clr_fifo();
 
     return 0;
@@ -289,20 +315,24 @@ void irda_hw_set_moderx(void)
 
 	if (curTrans_mode == BU92725GUW_SIR)
 		BU92725GUW_set_trans_way(BU92725GUW_REV);
+	else if (curTrans_mode == BU92725GUW_MIR)
+		BU92725GUW_set_trans_way(BU92725GUW_MIR_REV);
 	else
 		BU92725GUW_set_trans_way(BU92725GUW_AUTO_MULTI_REV);
 		//BU92725GUW_set_trans_way(BU92725GUW_MULTI_REV);
+		//BU92725GUW_set_trans_way(BU92725GUW_FIR_REV);
 }
 
 int irda_hw_get_mode(void)
 {
 	return curTrans_way;
-		
+#if	0	
     u16 val = 0;
     val = BU92725GUW_READ_REG(REG_TRCR_ADDR);
 	RK29IR_DBG("line %d: enter %s, REG_TRCR_ADDR = 0x%x\n", __LINE__, __FUNCTION__, val);
 
     return (val& (REG_TRCR_TX_EN | REG_TRCR_RX_EN));
+#endif
 }
 
 /*
@@ -362,8 +392,13 @@ u16 BU92725GUW_get_data(u8 *buf)
 
 	RK29IR_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
 
+	if (curTrans_way == BU92725GUW_MULTI_REV) {
+		BU92725GUW_WRITE_REG(REG_TRCR_ADDR, REG_TRCR_FLV_CP|REG_TRCR_RX_CON|REG_TRCR_RX_EN);
+	}
+
 	/* get data count from FLV or FLVII */
-	if (curTrans_way == BU92725GUW_REV)
+	if ((curTrans_way == BU92725GUW_REV) || (curTrans_way == BU92725GUW_MIR_REV)
+		|| (curTrans_way == BU92725GUW_FIR_REV))
 		len = BU92725GUW_READ_REG(REG_FLV_ADDR);
 	else
 		len = BU92725GUW_READ_REG(REG_FLVII_ADDR);
@@ -378,7 +413,8 @@ u16 BU92725GUW_get_data(u8 *buf)
 	}
 
 	 /* restart receive mode under SIR */
-	if (curTrans_way == BU92725GUW_REV) {
+	if ((curTrans_way == BU92725GUW_REV) || (curTrans_way == BU92725GUW_MIR_REV)
+		|| (curTrans_way == BU92725GUW_FIR_REV)){
 		BU92725GUW_WRITE_REG(REG_TRCR_ADDR, 0x0000);
 		BU92725GUW_WRITE_REG(REG_TRCR_ADDR, REG_TRCR_RX_EN);
 	}
@@ -414,7 +450,8 @@ u16 BU92725GUW_get_data(u8 *buf)
 	BU92725GUW_WRITE_REG(REG_FTLV_ADDR, len);
 
 	/* set TRCR:TX_EN under normal send mode */
-	if (curTrans_way == BU92725GUW_SEND)  {//SIR
+	if ((curTrans_way == BU92725GUW_SEND) || (curTrans_way == BU92725GUW_MIR_SEND)
+		|| (curTrans_way == BU92725GUW_FIR_SEND))  {
 		BU92725GUW_WRITE_REG(REG_TRCR_ADDR, REG_TRCR_TX_EN);
 	}
 
@@ -626,24 +663,28 @@ static void internal_set(u8 modeChg)
 			val = BU92725GUW_READ_REG(REG_TRCR_ADDR);
 		}
 	}
-
+	
 	/* TRCR */
 	switch (curTrans_way) {
 	case BU92725GUW_IDLE:
 		val = 0x0000;
 		break;
 	case BU92725GUW_REV:
+	case BU92725GUW_MIR_REV: 
+	case BU92725GUW_FIR_REV:
 		val = REG_TRCR_RX_EN;
-		break;
-	case BU92725GUW_SEND:
-		val = 0x0000;
 		break;
 	case BU92725GUW_AUTO_MULTI_REV:
 		val = REG_TRCR_RX_EN | REG_TRCR_AUTO_FLV_CP;
 		break;
-	case BU92725GUW_MULTI_REV: //not used
-		val = REG_TRCR_RX_EN | REG_TRCR_RX_CON;
+	case BU92725GUW_MULTI_REV: 
+		val = REG_TRCR_RX_EN | REG_TRCR_RX_CON;//FIR
 		break;
+	case BU92725GUW_SEND:
+	case BU92725GUW_MIR_SEND:
+	case BU92725GUW_FIR_SEND:
+		val = 0x0000;
+		break;		
 	case BU92725GUW_MULTI_SEND:
 		val = REG_TRCR_TX_CON;
 		break;
@@ -660,28 +701,51 @@ static void internal_set(u8 modeChg)
 	case BU92725GUW_REV: /* SIR use */
 		val = REG_INT_EOFRX | REG_INT_TO | REG_INT_OE | REG_INT_FE; //IER1, 2, 5, 7
 		break;
-
+		
+	case BU92725GUW_MIR_REV: /* MIR use */
+		val = REG_INT_STFRX | REG_INT_TO | REG_INT_OE | REG_INT_EOF 
+			| REG_INT_AC | REG_INT_DECE; //IER1,2, 5, 6, 7
+		break;
+		
+	case BU92725GUW_FIR_REV: /* FIR use */
+		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF \
+			| REG_INT_AC | REG_INT_DECE; //IER1,2, 4, 5, 6, 7
+		break;
+		
+	case BU92725GUW_MULTI_REV: /* not used */
+		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE\ 
+			 | REG_INT_RDOE | REG_INT_DEX | REG_INT_RDUE; //IER1,2, 4, 5, 6, 7, 8, 9, 10
+		break;
+	
+	case BU92725GUW_AUTO_MULTI_REV: /* M/FIR use */
+		val = REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE\
+			 | REG_INT_RDOE | REG_INT_DEX | REG_INT_RDE; //IER2, 4, 5, 6, 7, 8, 9, 12
+		break;
+		
 	case BU92725GUW_SEND: /* SIR use */
 		val = REG_INT_TXE; //IER3
 		break;
-
-	case BU92725GUW_MULTI_REV: /* not used */
-		val = REG_INT_STFRX | REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE | 
-			  REG_INT_RDOE | REG_INT_DEX | REG_INT_RDUE; //IER1,2, 4, 5, 6, 7, 8, 9, 10
-		break;
-
-	case BU92725GUW_AUTO_MULTI_REV: /* M/FIR use */
-		val = REG_INT_TO | REG_INT_CRC | REG_INT_OE | REG_INT_EOF | REG_INT_AC | REG_INT_DECE | 
-			  REG_INT_RDOE | REG_INT_DEX | REG_INT_RDE; //IER2, 4, 5, 6, 7, 8, 9, 12
-		break;
+		
+	case BU92725GUW_MIR_SEND:
+	case BU92725GUW_FIR_SEND:
+		val = REG_INT_TXE | REG_INT_TO; //IER2, 3
+		break;	
 
 	case BU92725GUW_MULTI_SEND: /* M/FIR use */
 		val = REG_INT_TO | REG_INT_TXE | REG_INT_WRE; //IER2, 3, 11
 		break;
 	}
 	BU92725GUW_WRITE_REG(REG_IER_ADDR, val);
-	RK29IR_DBG("REG_IER_ADDR: 0x%x\n", val);
+	RK29IR_DBG("REG_IER_ADDR: 0x%x\n", val);	
 }
 
+void BU92725GUW_dump_register(void)
+{
+	printk("bu92725 register value:\n");
+	printk("MCR: 0x%x\n", BU92725GUW_READ_REG(REG_MCR_ADDR));
+	printk("FIT: 0x%x\n", BU92725GUW_READ_REG(REG_PWR_FIT_ADDR));
+	printk("TRCR: 0x%x\n", BU92725GUW_READ_REG(REG_TRCR_ADDR));
+	printk("IER: 0x%x\n", BU92725GUW_READ_REG(REG_IER_ADDR));
+}
 
 
