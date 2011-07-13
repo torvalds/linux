@@ -4045,13 +4045,12 @@ static int vcpu_mmio_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
 	return 0;
 }
 
-static int emulator_read_emulated(struct x86_emulate_ctxt *ctxt,
-				  unsigned long addr,
-				  void *val,
-				  unsigned int bytes,
-				  struct x86_exception *exception)
+static int emulator_read_emulated_onepage(unsigned long addr,
+					  void *val,
+					  unsigned int bytes,
+					  struct x86_exception *exception,
+					  struct kvm_vcpu *vcpu)
 {
-	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
 	gpa_t gpa;
 	int handled, ret;
 
@@ -4071,8 +4070,7 @@ static int emulator_read_emulated(struct x86_emulate_ctxt *ctxt,
 	if (ret)
 		goto mmio;
 
-	if (kvm_read_guest_virt(ctxt, addr, val, bytes, exception)
-	    == X86EMUL_CONTINUE)
+	if (!kvm_read_guest(vcpu->kvm, gpa, val, bytes))
 		return X86EMUL_CONTINUE;
 
 mmio:
@@ -4099,6 +4097,31 @@ mmio:
 	vcpu->mmio_index = 0;
 
 	return X86EMUL_IO_NEEDED;
+}
+
+static int emulator_read_emulated(struct x86_emulate_ctxt *ctxt,
+				  unsigned long addr,
+				  void *val,
+				  unsigned int bytes,
+				  struct x86_exception *exception)
+{
+	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
+
+	/* Crossing a page boundary? */
+	if (((addr + bytes - 1) ^ addr) & PAGE_MASK) {
+		int rc, now;
+
+		now = -addr & ~PAGE_MASK;
+		rc = emulator_read_emulated_onepage(addr, val, now, exception,
+							vcpu);
+		if (rc != X86EMUL_CONTINUE)
+			return rc;
+		addr += now;
+		val += now;
+		bytes -= now;
+	}
+	return emulator_read_emulated_onepage(addr, val, bytes, exception,
+						vcpu);
 }
 
 int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
