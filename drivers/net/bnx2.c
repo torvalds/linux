@@ -56,8 +56,8 @@
 #include "bnx2_fw.h"
 
 #define DRV_MODULE_NAME		"bnx2"
-#define DRV_MODULE_VERSION	"2.1.6"
-#define DRV_MODULE_RELDATE	"Mar 7, 2011"
+#define DRV_MODULE_VERSION	"2.1.10"
+#define DRV_MODULE_RELDATE	"July 12, 2011"
 #define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-6.2.1.fw"
 #define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-6.0.15.fw"
 #define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-6.2.1a.fw"
@@ -384,6 +384,9 @@ static int bnx2_register_cnic(struct net_device *dev, struct cnic_ops *ops,
 
 	if (cp->drv_state & CNIC_DRV_STATE_REGD)
 		return -EBUSY;
+
+	if (!bnx2_reg_rd_ind(bp, BNX2_FW_MAX_ISCSI_CONN))
+		return -ENODEV;
 
 	bp->cnic_data = data;
 	rcu_assign_pointer(bp->cnic_ops, ops);
@@ -8215,8 +8218,10 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->timer.function = bnx2_timer;
 
 #ifdef BCM_CNIC
-	bp->cnic_eth_dev.max_iscsi_conn =
-		bnx2_reg_rd_ind(bp, BNX2_FW_MAX_ISCSI_CONN);
+	if (bnx2_shmem_rd(bp, BNX2_ISCSI_INITIATOR) & BNX2_ISCSI_INITIATOR_EN)
+		bp->cnic_eth_dev.max_iscsi_conn =
+			(bnx2_shmem_rd(bp, BNX2_ISCSI_MAX_CONN) &
+			 BNX2_ISCSI_MAX_CONN_MASK) >> BNX2_ISCSI_MAX_CONN_SHIFT;
 #endif
 	pci_save_state(pdev);
 
