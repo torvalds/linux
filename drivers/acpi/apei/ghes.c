@@ -77,6 +77,9 @@ struct ghes {
 	};
 };
 
+int ghes_disable;
+module_param_named(disable, ghes_disable, bool, 0);
+
 static int ghes_panic_timeout	__read_mostly = 30;
 
 /*
@@ -662,6 +665,11 @@ static int __init ghes_init(void)
 
 	if (hest_disable) {
 		pr_info(GHES_PFX "HEST is not enabled!\n");
+		return -EINVAL;
+	}
+
+	if (ghes_disable) {
+		pr_info(GHES_PFX "GHES is not enabled!\n");
 		return -EINVAL;
 	}
 
