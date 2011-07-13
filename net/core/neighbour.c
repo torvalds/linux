@@ -1247,7 +1247,7 @@ static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
 	hh->hh_type = protocol;
 	atomic_set(&hh->hh_refcnt, 2);
 
-	if (dev->header_ops->cache(n, hh)) {
+	if (dev->header_ops->cache(n, hh, protocol)) {
 		kfree(hh);
 		return;
 	}

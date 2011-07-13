@@ -233,9 +233,8 @@ EXPORT_SYMBOL(eth_header_parse);
  * @hh: destination cache entry
  * Create an Ethernet header template from the neighbour.
  */
-int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh)
+int eth_header_cache(const struct neighbour *neigh, struct hh_cache *hh, __be16 type)
 {
-	__be16 type = hh->hh_type;
 	struct ethhdr *eth;
 	const struct net_device *dev = neigh->dev;
 
