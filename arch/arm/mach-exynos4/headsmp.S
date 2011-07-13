@@ -13,7 +13,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
-	__INIT
+	__CPUINIT
 
 /*
  * exynos4 specific entry point for secondary CPUs.  This provides

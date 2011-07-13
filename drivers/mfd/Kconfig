@@ -728,6 +728,9 @@ config MFD_TPS65910
 	  if you say yes here you get support for the TPS65910 series of
 	  Power Management chips.
 
+config TPS65911_COMPARATOR
+	tristate
+
 endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"

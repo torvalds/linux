@@ -2098,7 +2098,8 @@ int btrfs_balance(struct btrfs_root *dev_root)
 					   chunk_root->root_key.objectid,
 					   found_key.objectid,
 					   found_key.offset);
-		BUG_ON(ret && ret != -ENOSPC);
+		if (ret && ret != -ENOSPC)
+			goto error;
 		key.offset = found_key.offset - 1;
 	}
 	ret = 0;
