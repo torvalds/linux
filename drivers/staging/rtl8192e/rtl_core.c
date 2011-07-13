@@ -1044,13 +1044,9 @@ int _rtl8192_sta_up(struct net_device *dev,bool is_silent_reset)
 #endif
 
 	if (priv->rtllib->state != RTLLIB_LINKED)
-#ifndef CONFIG_MP
 	rtllib_softmac_start_protocol(priv->rtllib, 0);
-#endif
 	rtllib_reset_queue(priv->rtllib);
-#ifndef CONFIG_MP
 	watch_dog_timer_callback((unsigned long) dev);
-#endif
 
 
 	if (!netif_queue_stopped(dev))
@@ -1411,9 +1407,6 @@ short rtl8192_init(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	memset(&(priv->stats),0,sizeof(struct Stats));
-#ifdef CONFIG_MP
-	rtl8192_init_mp(dev);
-#endif
 
 	rtl8192_dbgp_flag_init(dev);
 
@@ -2724,27 +2717,9 @@ int rtl8192_close(struct net_device *dev)
 
 int rtl8192_down(struct net_device *dev, bool shutdownrf)
 {
-#ifdef CONFIG_MP
-	struct r8192_priv *priv = rtllib_priv(dev);
-#endif
-
 	if (rtl8192_sta_down(dev, shutdownrf) == -1)
 		return -1;
 
-#ifdef CONFIG_MP
-	if (priv->bCckContTx) {
-		RT_TRACE(COMP_DBG, "####RTL819X MP####stop single cck continious TX\n");
-		mpt_StopCckCoNtTx(dev);
-	}
-	if (priv->bOfdmContTx) {
-		RT_TRACE(COMP_DBG, "####RTL819X MP####stop single ofdm continious TX\n");
-		mpt_StopOfdmContTx(dev);
-	}
-	if (priv->bSingleCarrier) {
-		RT_TRACE(COMP_DBG, "####RTL819X MP####stop single carrier mode\n");
-		MPT_ProSetSingleCarrier(dev, false);
-	}
-#endif
 	return 0;
 }
 

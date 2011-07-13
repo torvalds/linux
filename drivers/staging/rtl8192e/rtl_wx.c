@@ -23,10 +23,6 @@
 #include "dot11d.h"
 #endif
 
-#ifdef CONFIG_MP
-#include "r8192S_mp.h"
-#endif
-
 #define RATE_COUNT 12
 u32 rtl8192_rates[] = {1000000,2000000,5500000,11000000,
 	6000000,9000000,12000000,18000000,24000000,36000000,48000000,54000000};
@@ -458,10 +454,6 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	RT_RF_POWER_STATE	rtState;
 	int ret;
 
-#ifdef CONFIG_MP
-	printk("######################%s(): In MP Test Can not Scan\n",__func__);
-	return 0;
-#endif
 	if (!(ieee->softmac_features & IEEE_SOFTMAC_SCAN)){
 		if ((ieee->state >= RTLLIB_ASSOCIATING) && (ieee->state <= RTLLIB_ASSOCIATING_AUTHENTICATED)){
 			return 0;
@@ -567,10 +559,6 @@ static int r8192_wx_set_essid(struct net_device *dev,
 	if ((rtllib_act_scanning(priv->rtllib, false)) && !(priv->rtllib->softmac_features & IEEE_SOFTMAC_SCAN)){
 		;
 	}
-#ifdef CONFIG_MP
-	printk("######################%s(): In MP Test Can not Set Essid\n",__func__);
-	return 0;
-#endif
 	if (priv->bHwRadioOff == true){
 		printk("=========>%s():hw radio off,or Rf state is eRfOff, return\n",__func__);
 		return 0;
@@ -759,10 +747,6 @@ static int r8192_wx_set_enc(struct net_device *dev,
 	if ((rtllib_act_scanning(priv->rtllib, false)) && !(priv->rtllib->softmac_features & IEEE_SOFTMAC_SCAN)){
 		;
 	}
-#ifdef CONFIG_MP
-	printk("######################%s(): In MP Test Can not Set Enc\n",__func__);
-	return 0;
-#endif
 	if (priv->bHwRadioOff == true)
 		return 0;
 
@@ -1325,48 +1309,6 @@ static const struct iw_priv_args r8192_private_args[] = {
 		SIOCIWFIRSTPRIV + 0xc,
 		0, IW_PRIV_TYPE_CHAR|2047, "adhoc_peer_list"
 	}
-#ifdef CONFIG_MP
-	,
-	{
-		SIOCIWFIRSTPRIV + 0xe,
-                IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "SetChan"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0xf,
-                IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "SetRate"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x10,
-                IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "SetTxPower"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x11,
-                IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "SetBW"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x12,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "TxStart"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x13,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,0, "SetSingleCarrier"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x14,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3, 0, "WriteRF"
-	}
-	,
-	{
-		SIOCIWFIRSTPRIV + 0x15,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3, 0, "WriteMAC"
-	}
-#endif
 	,
 	{
 		SIOCIWFIRSTPRIV + 0x16,
@@ -1395,16 +1337,6 @@ static iw_handler r8192_private_handler[] = {
 	(iw_handler)r8192se_wx_set_force_lps,
 	(iw_handler)r8192_wx_get_adhoc_peers,
 	(iw_handler)NULL,
-#ifdef CONFIG_MP
-	(iw_handler)r8192_wx_mp_set_chan,
-	(iw_handler)r8192_wx_mp_set_txrate,
-	(iw_handler)r8192_wx_mp_set_txpower,
-	(iw_handler)r8192_wx_mp_set_bw,
-        (iw_handler)r8192_wx_mp_set_txstart,
-        (iw_handler)r8192_wx_mp_set_singlecarrier,
-        (iw_handler)r8192_wx_mp_write_rf,
-	(iw_handler)r8192_wx_mp_write_mac,
-#else
 	(iw_handler)NULL,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
@@ -1413,7 +1345,6 @@ static iw_handler r8192_private_handler[] = {
 	(iw_handler)NULL,
 	(iw_handler)NULL,
 	(iw_handler)NULL,
-#endif
 	(iw_handler)r8192_wx_set_PromiscuousMode,
 	(iw_handler)r8192_wx_get_PromiscuousMode,
 };
