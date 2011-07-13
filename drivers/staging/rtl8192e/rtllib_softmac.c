@@ -1273,11 +1273,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,stru
 		encrypt = 0;
 	}
 
-#ifdef ENABLE_TKIP11N
-	if (ieee->bForcedBgMode == true)
-#else
 	if ((ieee->rtllib_ap_sec_type && (ieee->rtllib_ap_sec_type(ieee)&SEC_ALG_TKIP)) ||(ieee->bForcedBgMode == true))
-#endif
 	{
 		ieee->pHTInfo->bEnableHT = 0;
 		ieee->mode = WIRELESS_MODE_G;
