@@ -28,6 +28,7 @@
  */
 
 #include <linux/nfs_fs.h>
+#include <linux/nfs_page.h>
 #include "internal.h"
 #include "pnfs.h"
 #include "iostat.h"
@@ -1216,18 +1217,32 @@ pnfs_ld_read_done(struct nfs_read_data *data)
 }
 EXPORT_SYMBOL_GPL(pnfs_ld_read_done);
 
+static void
+pnfs_read_through_mds(struct nfs_pageio_descriptor *desc,
+		struct nfs_read_data *data)
+{
+	list_splice_tail_init(&data->pages, &desc->pg_list);
+	if (data->req && list_empty(&data->req->wb_list))
+		nfs_list_add_request(data->req, &desc->pg_list);
+	nfs_pageio_reset_read_mds(desc);
+	desc->pg_recoalesce = 1;
+	nfs_readdata_release(data);
+}
+
 /*
  * Call the appropriate parallel I/O subsystem read function.
  */
-enum pnfs_try_status
+static enum pnfs_try_status
 pnfs_try_to_read_data(struct nfs_read_data *rdata,
-		       const struct rpc_call_ops *call_ops)
+		       const struct rpc_call_ops *call_ops,
+		       struct pnfs_layout_segment *lseg)
 {
 	struct inode *inode = rdata->inode;
 	struct nfs_server *nfss = NFS_SERVER(inode);
 	enum pnfs_try_status trypnfs;
 
 	rdata->mds_ops = call_ops;
+	rdata->lseg = get_lseg(lseg);
 
 	dprintk("%s: Reading ino:%lu %u@%llu\n",
 		__func__, inode->i_ino, rdata->args.count, rdata->args.offset);
@@ -1242,6 +1257,44 @@ pnfs_try_to_read_data(struct nfs_read_data *rdata,
 	dprintk("%s End (trypnfs:%d)\n", __func__, trypnfs);
 	return trypnfs;
 }
+
+static void
+pnfs_do_multiple_reads(struct nfs_pageio_descriptor *desc, struct list_head *head)
+{
+	struct nfs_read_data *data;
+	const struct rpc_call_ops *call_ops = desc->pg_rpc_callops;
+	struct pnfs_layout_segment *lseg = desc->pg_lseg;
+
+	desc->pg_lseg = NULL;
+	while (!list_empty(head)) {
+		enum pnfs_try_status trypnfs;
+
+		data = list_entry(head->next, struct nfs_read_data, list);
+		list_del_init(&data->list);
+
+		trypnfs = pnfs_try_to_read_data(data, call_ops, lseg);
+		if (trypnfs == PNFS_NOT_ATTEMPTED)
+			pnfs_read_through_mds(desc, data);
+	}
+	put_lseg(lseg);
+}
+
+int
+pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
+{
+	LIST_HEAD(head);
+	int ret;
+
+	ret = nfs_generic_pagein(desc, &head);
+	if (ret != 0) {
+		put_lseg(desc->pg_lseg);
+		desc->pg_lseg = NULL;
+		return ret;
+	}
+	pnfs_do_multiple_reads(desc, &head);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pnfs_generic_pg_readpages);
 
 /*
  * Currently there is only one (whole file) write lseg.

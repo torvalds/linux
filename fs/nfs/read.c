@@ -67,7 +67,7 @@ void nfs_readdata_free(struct nfs_read_data *p)
 	mempool_free(p, nfs_rdata_mempool);
 }
 
-static void nfs_readdata_release(struct nfs_read_data *rdata)
+void nfs_readdata_release(struct nfs_read_data *rdata)
 {
 	put_lseg(rdata->lseg);
 	put_nfs_open_context(rdata->args.context);
@@ -119,6 +119,12 @@ void nfs_pageio_init_read_mds(struct nfs_pageio_descriptor *pgio,
 			NFS_SERVER(inode)->rsize, 0);
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_init_read_mds);
+
+void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio)
+{
+	pgio->pg_ops = &nfs_pageio_read_ops;
+	pgio->pg_bsize = NFS_SERVER(pgio->pg_inode)->rsize;
+}
 
 static void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 		struct inode *inode)
@@ -235,26 +241,16 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 }
 
 static int nfs_do_read(struct nfs_read_data *data,
-		const struct rpc_call_ops *call_ops,
-		struct pnfs_layout_segment *lseg)
+		const struct rpc_call_ops *call_ops)
 {
 	struct inode *inode = data->args.context->path.dentry->d_inode;
-
-	if (lseg) {
-		data->lseg = get_lseg(lseg);
-		if (pnfs_try_to_read_data(data, call_ops) == PNFS_ATTEMPTED)
-			return 0;
-		put_lseg(data->lseg);
-		data->lseg = NULL;
-	}
 
 	return nfs_initiate_read(data, NFS_CLIENT(inode), call_ops);
 }
 
 static int
 nfs_do_multiple_reads(struct list_head *head,
-		const struct rpc_call_ops *call_ops,
-		struct pnfs_layout_segment *lseg)
+		const struct rpc_call_ops *call_ops)
 {
 	struct nfs_read_data *data;
 	int ret = 0;
@@ -265,7 +261,7 @@ nfs_do_multiple_reads(struct list_head *head,
 		data = list_entry(head->next, struct nfs_read_data, list);
 		list_del_init(&data->list);
 
-		ret2 = nfs_do_read(data, call_ops, lseg);
+		ret2 = nfs_do_read(data, call_ops);
 		if (ret == 0)
 			ret = ret2;
 	}
@@ -373,25 +369,23 @@ out:
 	return ret;
 }
 
-int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
+int nfs_generic_pagein(struct nfs_pageio_descriptor *desc, struct list_head *head)
+{
+	if (desc->pg_bsize < PAGE_CACHE_SIZE)
+		return nfs_pagein_multi(desc, head);
+	return nfs_pagein_one(desc, head);
+}
+
+static int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 {
 	LIST_HEAD(head);
 	int ret;
 
-	if (desc->pg_bsize < PAGE_CACHE_SIZE)
-		ret = nfs_pagein_multi(desc, &head);
-	else
-		ret = nfs_pagein_one(desc, &head);
-
+	ret = nfs_generic_pagein(desc, &head);
 	if (ret == 0)
-		ret = nfs_do_multiple_reads(&head, desc->pg_rpc_callops,
-				desc->pg_lseg);
-	put_lseg(desc->pg_lseg);
-	desc->pg_lseg = NULL;
+		ret = nfs_do_multiple_reads(&head, desc->pg_rpc_callops);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(nfs_generic_pg_readpages);
-
 
 static const struct nfs_pageio_ops nfs_pageio_read_ops = {
 	.pg_test = nfs_generic_pg_test,

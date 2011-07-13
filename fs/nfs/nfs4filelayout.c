@@ -735,7 +735,7 @@ filelayout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 static const struct nfs_pageio_ops filelayout_pg_read_ops = {
 	.pg_init = filelayout_pg_init_read,
 	.pg_test = filelayout_pg_test,
-	.pg_doio = nfs_generic_pg_readpages,
+	.pg_doio = pnfs_generic_pg_readpages,
 };
 
 static const struct nfs_pageio_ops filelayout_pg_write_ops = {

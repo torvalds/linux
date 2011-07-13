@@ -157,9 +157,8 @@ void set_pnfs_layoutdriver(struct nfs_server *, u32 id);
 void unset_pnfs_layoutdriver(struct nfs_server *);
 enum pnfs_try_status pnfs_try_to_write_data(struct nfs_write_data *,
 					     const struct rpc_call_ops *, int);
-enum pnfs_try_status pnfs_try_to_read_data(struct nfs_read_data *,
-					    const struct rpc_call_ops *);
 void pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *, struct nfs_page *);
+int pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc);
 void pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *, struct nfs_page *);
 bool pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev, struct nfs_page *req);
 int pnfs_layout_process(struct nfs4_layoutget *lgp);
@@ -327,13 +326,6 @@ get_lseg(struct pnfs_layout_segment *lseg)
 
 static inline void put_lseg(struct pnfs_layout_segment *lseg)
 {
-}
-
-static inline enum pnfs_try_status
-pnfs_try_to_read_data(struct nfs_read_data *data,
-		      const struct rpc_call_ops *call_ops)
-{
-	return PNFS_NOT_ATTEMPTED;
 }
 
 static inline enum pnfs_try_status
