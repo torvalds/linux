@@ -1543,79 +1543,62 @@ const struct xfs_nameops xfs_default_nameops = {
 	.compname	= xfs_da_compname
 };
 
-/*
- * Add a block to the btree ahead of the file.
- * Return the new block number to the caller.
- */
 int
-xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
+xfs_da_grow_inode_int(
+	struct xfs_da_args	*args,
+	xfs_fileoff_t		*bno,
+	int			count)
 {
-	xfs_fileoff_t bno, b;
-	xfs_bmbt_irec_t map;
-	xfs_bmbt_irec_t	*mapp;
-	xfs_inode_t *dp;
-	int nmap, error, w, count, c, got, i, mapi;
-	xfs_trans_t *tp;
-	xfs_mount_t *mp;
-	xfs_drfsbno_t	nblks;
+	struct xfs_trans	*tp = args->trans;
+	struct xfs_inode	*dp = args->dp;
+	int			w = args->whichfork;
+	xfs_drfsbno_t		nblks = dp->i_d.di_nblocks;
+	struct xfs_bmbt_irec	map, *mapp;
+	int			nmap, error, got, i, mapi;
 
-	dp = args->dp;
-	mp = dp->i_mount;
-	w = args->whichfork;
-	tp = args->trans;
-	nblks = dp->i_d.di_nblocks;
-
-	/*
-	 * For new directories adjust the file offset and block count.
-	 */
-	if (w == XFS_DATA_FORK) {
-		bno = mp->m_dirleafblk;
-		count = mp->m_dirblkfsbs;
-	} else {
-		bno = 0;
-		count = 1;
-	}
 	/*
 	 * Find a spot in the file space to put the new block.
 	 */
-	if ((error = xfs_bmap_first_unused(tp, dp, count, &bno, w)))
+	error = xfs_bmap_first_unused(tp, dp, count, bno, w);
+	if (error)
 		return error;
-	if (w == XFS_DATA_FORK)
-		ASSERT(bno >= mp->m_dirleafblk && bno < mp->m_dirfreeblk);
+
 	/*
 	 * Try mapping it in one filesystem block.
 	 */
 	nmap = 1;
 	ASSERT(args->firstblock != NULL);
-	if ((error = xfs_bmapi(tp, dp, bno, count,
+	error = xfs_bmapi(tp, dp, *bno, count,
 			xfs_bmapi_aflag(w)|XFS_BMAPI_WRITE|XFS_BMAPI_METADATA|
 			XFS_BMAPI_CONTIG,
 			args->firstblock, args->total, &map, &nmap,
-			args->flist))) {
+			args->flist);
+	if (error)
 		return error;
-	}
+
 	ASSERT(nmap <= 1);
 	if (nmap == 1) {
 		mapp = &map;
 		mapi = 1;
-	}
-	/*
-	 * If we didn't get it and the block might work if fragmented,
-	 * try without the CONTIG flag.  Loop until we get it all.
-	 */
-	else if (nmap == 0 && count > 1) {
+	} else if (nmap == 0 && count > 1) {
+		xfs_fileoff_t		b;
+		int			c;
+
+		/*
+		 * If we didn't get it and the block might work if fragmented,
+		 * try without the CONTIG flag.  Loop until we get it all.
+		 */
 		mapp = kmem_alloc(sizeof(*mapp) * count, KM_SLEEP);
-		for (b = bno, mapi = 0; b < bno + count; ) {
+		for (b = *bno, mapi = 0; b < *bno + count; ) {
 			nmap = MIN(XFS_BMAP_MAX_NMAP, count);
-			c = (int)(bno + count - b);
-			if ((error = xfs_bmapi(tp, dp, b, c,
+			c = (int)(*bno + count - b);
+			error = xfs_bmapi(tp, dp, b, c,
 					xfs_bmapi_aflag(w)|XFS_BMAPI_WRITE|
 					XFS_BMAPI_METADATA,
 					args->firstblock, args->total,
-					&mapp[mapi], &nmap, args->flist))) {
-				kmem_free(mapp);
-				return error;
-			}
+					&mapp[mapi], &nmap, args->flist);
+			if (error)
+				goto out_free_map;
 			if (nmap < 1)
 				break;
 			mapi += nmap;
@@ -1626,24 +1609,53 @@ xfs_da_grow_inode(xfs_da_args_t *args, xfs_dablk_t *new_blkno)
 		mapi = 0;
 		mapp = NULL;
 	}
+
 	/*
 	 * Count the blocks we got, make sure it matches the total.
 	 */
 	for (i = 0, got = 0; i < mapi; i++)
 		got += mapp[i].br_blockcount;
-	if (got != count || mapp[0].br_startoff != bno ||
+	if (got != count || mapp[0].br_startoff != *bno ||
 	    mapp[mapi - 1].br_startoff + mapp[mapi - 1].br_blockcount !=
-	    bno + count) {
-		if (mapp != &map)
-			kmem_free(mapp);
-		return XFS_ERROR(ENOSPC);
+	    *bno + count) {
+		error = XFS_ERROR(ENOSPC);
+		goto out_free_map;
 	}
-	if (mapp != &map)
-		kmem_free(mapp);
+
 	/* account for newly allocated blocks in reserved blocks total */
 	args->total -= dp->i_d.di_nblocks - nblks;
-	*new_blkno = (xfs_dablk_t)bno;
-	return 0;
+
+out_free_map:
+	if (mapp != &map)
+		kmem_free(mapp);
+	return error;
+}
+
+/*
+ * Add a block to the btree ahead of the file.
+ * Return the new block number to the caller.
+ */
+int
+xfs_da_grow_inode(
+	struct xfs_da_args	*args,
+	xfs_dablk_t		*new_blkno)
+{
+	xfs_fileoff_t		bno;
+	int			count;
+	int			error;
+
+	if (args->whichfork == XFS_DATA_FORK) {
+		bno = args->dp->i_mount->m_dirleafblk;
+		count = args->dp->i_mount->m_dirblkfsbs;
+	} else {
+		bno = 0;
+		count = 1;
+	}
+
+	error = xfs_da_grow_inode_int(args, &bno, count);
+	if (!error)
+		*new_blkno = (xfs_dablk_t)bno;
+	return error;
 }
 
 /*
