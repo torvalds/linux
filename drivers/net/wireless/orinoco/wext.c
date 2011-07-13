@@ -87,7 +87,7 @@ nomem:
 static struct iw_statistics *orinoco_get_wireless_stats(struct net_device *dev)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	hermes_t *hw = &priv->hw;
+	struct hermes *hw = &priv->hw;
 	struct iw_statistics *wstats = &priv->wstats;
 	int err;
 	unsigned long flags;
@@ -448,7 +448,7 @@ static int orinoco_ioctl_setfreq(struct net_device *dev,
 	}
 
 	if ((chan < 1) || (chan > NUM_CHANNELS) ||
-	     !(priv->channel_mask & (1 << (chan-1))))
+	     !(priv->channel_mask & (1 << (chan - 1))))
 		return -EINVAL;
 
 	if (orinoco_lock(priv, &flags) != 0)
@@ -457,7 +457,7 @@ static int orinoco_ioctl_setfreq(struct net_device *dev,
 	priv->channel = chan;
 	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
 		/* Fast channel change - no commit if successful */
-		hermes_t *hw = &priv->hw;
+		struct hermes *hw = &priv->hw;
 		err = hw->ops->cmd_wait(hw, HERMES_CMD_TEST |
 					    HERMES_TEST_SET_CHANNEL,
 					chan, NULL);
@@ -492,7 +492,7 @@ static int orinoco_ioctl_getsens(struct net_device *dev,
 				 char *extra)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	hermes_t *hw = &priv->hw;
+	struct hermes *hw = &priv->hw;
 	u16 val;
 	int err;
 	unsigned long flags;
@@ -668,7 +668,7 @@ static int orinoco_ioctl_getpower(struct net_device *dev,
 				  char *extra)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	hermes_t *hw = &priv->hw;
+	struct hermes *hw = &priv->hw;
 	int err = 0;
 	u16 enable, period, timeout, mcast;
 	unsigned long flags;
@@ -873,7 +873,7 @@ static int orinoco_ioctl_set_auth(struct net_device *dev,
 				  union iwreq_data *wrqu, char *extra)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	hermes_t *hw = &priv->hw;
+	struct hermes *hw = &priv->hw;
 	struct iw_param *param = &wrqu->param;
 	unsigned long flags;
 	int ret = -EINPROGRESS;
@@ -1269,7 +1269,7 @@ static int orinoco_ioctl_getrid(struct net_device *dev,
 				char *extra)
 {
 	struct orinoco_private *priv = ndev_priv(dev);
-	hermes_t *hw = &priv->hw;
+	struct hermes *hw = &priv->hw;
 	int rid = data->flags;
 	u16 length;
 	int err;
