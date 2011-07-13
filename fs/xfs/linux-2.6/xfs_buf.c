@@ -1721,14 +1721,6 @@ xfs_buf_cmp(
 	return 0;
 }
 
-void
-xfs_buf_delwri_sort(
-	xfs_buftarg_t	*target,
-	struct list_head *list)
-{
-	list_sort(NULL, list, xfs_buf_cmp);
-}
-
 STATIC int
 xfsbufd(
 	void		*data)
