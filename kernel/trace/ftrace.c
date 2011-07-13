@@ -88,6 +88,7 @@ static struct ftrace_ops ftrace_list_end __read_mostly = {
 static struct ftrace_ops *ftrace_global_list __read_mostly = &ftrace_list_end;
 static struct ftrace_ops *ftrace_ops_list __read_mostly = &ftrace_list_end;
 ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
+static ftrace_func_t __ftrace_trace_function_delay __read_mostly = ftrace_stub;
 ftrace_func_t __ftrace_trace_function __read_mostly = ftrace_stub;
 ftrace_func_t ftrace_pid_function __read_mostly = ftrace_stub;
 static struct ftrace_ops global_ops;
@@ -146,9 +147,11 @@ void clear_ftrace_function(void)
 {
 	ftrace_trace_function = ftrace_stub;
 	__ftrace_trace_function = ftrace_stub;
+	__ftrace_trace_function_delay = ftrace_stub;
 	ftrace_pid_function = ftrace_stub;
 }
 
+#undef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 #ifndef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 /*
  * For those archs that do not test ftrace_trace_stop in their
@@ -208,7 +211,12 @@ static void update_ftrace_function(void)
 #ifdef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	ftrace_trace_function = func;
 #else
+#ifdef CONFIG_DYNAMIC_FTRACE
+	/* do not update till all functions have been modified */
+	__ftrace_trace_function_delay = func;
+#else
 	__ftrace_trace_function = func;
+#endif
 	ftrace_trace_function = ftrace_test_stop_func;
 #endif
 }
@@ -1607,6 +1615,12 @@ static int __ftrace_modify_code(void *data)
 {
 	int *command = data;
 
+	/*
+	 * Do not call function tracer while we update the code.
+	 * We are in stop machine, no worrying about races.
+	 */
+	function_trace_stop++;
+
 	if (*command & FTRACE_ENABLE_CALLS)
 		ftrace_replace_code(1);
 	else if (*command & FTRACE_DISABLE_CALLS)
@@ -1619,6 +1633,18 @@ static int __ftrace_modify_code(void *data)
 		ftrace_enable_ftrace_graph_caller();
 	else if (*command & FTRACE_STOP_FUNC_RET)
 		ftrace_disable_ftrace_graph_caller();
+
+#ifndef CONFIG_HAVE_FUNCTION_TRACE_MCOUNT_TEST
+	/*
+	 * For archs that call ftrace_test_stop_func(), we must
+	 * wait till after we update all the function callers
+	 * before we update the callback. This keeps different
+	 * ops that record different functions from corrupting
+	 * each other.
+	 */
+	__ftrace_trace_function = __ftrace_trace_function_delay;
+#endif
+	function_trace_stop--;
 
 	return 0;
 }
