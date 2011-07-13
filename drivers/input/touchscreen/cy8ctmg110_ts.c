@@ -328,7 +328,7 @@ static int __devexit cy8ctmg110_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id cy8ctmg110_idtable[] = {
+static const struct i2c_device_id cy8ctmg110_idtable[] = {
 	{ CY8CTMG110_DRIVER_NAME, 1 },
 	{ }
 };
