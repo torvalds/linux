@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
-#include <linux/wireless.h>
 #include <linux/device.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
