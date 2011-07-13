@@ -3974,15 +3974,6 @@ rtllib_MgntDisconnectAP(
 {
 	bool bFilterOutNonAssociatedBSSID = false;
 
-
-#ifdef TO_DO
-	if (   pMgntInfo->SecurityInfo.AuthMode > RT_802_11AuthModeAutoSwitch ||
-		(pMgntInfo->bAPSuportCCKM && pMgntInfo->bCCX8021xenable) )
-	{
-		SecClearAllKeys(rtllib->dev);
-		RT_TRACE(COMP_SEC, DBG_LOUD,("======>CCKM clear key..."))
-	}
-#endif
 	bFilterOutNonAssociatedBSSID = false;
 	rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_CECHK_BSSID, (u8*)(&bFilterOutNonAssociatedBSSID));
 	rtllib_MlmeDisassociateRequest( rtllib, rtllib->current_network.bssid, asRsn );
@@ -4000,15 +3991,6 @@ rtllib_MgntDisconnect(
 	{
                 rtllib->sta_wake_up(rtllib->dev);
 	}
-
-#ifdef TO_DO
-	if (pMgntInfo->mActingAsAp)
-	{
-		RT_TRACE(COMP_MLME, DBG_LOUD, ("MgntDisconnect() ===> AP_DisassociateAllStation\n"));
-		AP_DisassociateAllStation(rtllib->dev, unspec_reason);
-		return true;
-	}
-#endif
 
 	if ( rtllib->state == RTLLIB_LINKED )
 	{

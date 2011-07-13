@@ -1531,44 +1531,13 @@ SetRFPowerState8190(
 	if (bResult) {
 		priv->rtllib->eRFPowerState = eRFPowerState;
 
-		switch (priv->rf_chip )
-		{
-			case RF_8256:
-			switch (priv->rtllib->eRFPowerState)
-			{
-				case eRfOff:
-					if (priv->rtllib->RfOffReason==RF_CHANGE_BY_IPS ) {
-						#ifdef TO_DO
-						dev->HalFunc.LedControlHandler(dev,LED_CTL_NO_LINK);
-						#endif
-					} else {
-						#ifdef TO_DO
-						dev->HalFunc.LedControlHandler(dev, LED_CTL_POWER_OFF);
-						#endif
-					}
-					break;
-
-				case eRfOn:
-					if ( priv->rtllib->state == RTLLIB_LINKED) {
-						#ifdef TO_DO
-						dev->HalFunc.LedControlHandler(dev, LED_CTL_LINK);
-						#endif
-					} else {
-						#ifdef TO_DO
-						dev->HalFunc.LedControlHandler(dev, LED_CTL_NO_LINK);
-						#endif
-					}
-					break;
-
-				default:
-					break;
-			}
-
+		switch (priv->rf_chip) {
+		case RF_8256:
 			break;
 
-			default:
-				RT_TRACE(COMP_ERR, "SetRFPowerState8190(): Unknown RF type\n");
-				break;
+		default:
+			RT_TRACE(COMP_ERR, "SetRFPowerState8190(): Unknown RF type\n");
+			break;
 		}
 	}
 
