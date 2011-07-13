@@ -27,7 +27,6 @@
 #include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
-#include <linux/wireless.h>
 #include <net/mac80211.h>
 
 #include <linux/netdevice.h>
