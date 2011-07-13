@@ -433,6 +433,8 @@ static int unlazy_walk(struct nameidata *nd, struct dentry *dentry)
 			goto err_parent;
 		BUG_ON(nd->inode != parent->d_inode);
 	} else {
+		if (dentry->d_parent != parent)
+			goto err_parent;
 		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 		if (!__d_rcu_to_refcount(dentry, nd->seq))
 			goto err_child;
