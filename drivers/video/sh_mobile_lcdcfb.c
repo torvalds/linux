@@ -915,32 +915,28 @@ static int sh_mobile_fb_pan_display(struct fb_var_screeninfo *var,
 			base_addr_c += 2 * var->xoffset;
 		else
 			base_addr_c += var->xoffset;
-	} else
-		base_addr_c = 0;
+	}
 
-	if (!ch->meram_enabled) {
-		lcdc_write_chan_mirror(ch, LDSA1R, base_addr_y);
-		if (base_addr_c)
-			lcdc_write_chan_mirror(ch, LDSA2R, base_addr_c);
-	} else {
+	if (ch->meram_enabled) {
 		struct sh_mobile_meram_cfg *cfg;
 		struct sh_mobile_meram_info *mdev;
-		unsigned long icb_addr_y, icb_addr_c;
 		int ret;
 
 		cfg = ch->cfg.meram_cfg;
 		mdev = priv->meram_dev;
 		ret = mdev->ops->meram_update(mdev, cfg,
 					base_addr_y, base_addr_c,
-					&icb_addr_y, &icb_addr_c);
+					&base_addr_y, &base_addr_c);
 		if (ret)
 			return ret;
-
-		lcdc_write_chan_mirror(ch, LDSA1R, icb_addr_y);
-		if (icb_addr_c)
-			lcdc_write_chan_mirror(ch, LDSA2R, icb_addr_c);
-
 	}
+
+	ch->base_addr_y = base_addr_y;
+	ch->base_addr_c = base_addr_c;
+
+	lcdc_write_chan_mirror(ch, LDSA1R, base_addr_y);
+	if (var->nonstd)
+		lcdc_write_chan_mirror(ch, LDSA2R, base_addr_c);
 
 	if (lcdc_chan_is_sublcd(ch))
 		lcdc_write(ch->lcdc, _LDRCNTR, ldrcntr ^ LDRCNTR_SRS);
