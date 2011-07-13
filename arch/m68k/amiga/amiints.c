@@ -4,35 +4,6 @@
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
- *
- * 11/07/96: rewritten interrupt handling, irq lists are exists now only for
- *           this sources where it makes sense (VERTB/PORTS/EXTER) and you must
- *           be careful that dev_id for this sources is unique since this the
- *           only possibility to distinguish between different handlers for
- *           free_irq. irq lists also have different irq flags:
- *           - IRQ_FLG_FAST: handler is inserted at top of list (after other
- *                           fast handlers)
- *           - IRQ_FLG_SLOW: handler is inserted at bottom of list and before
- *                           they're executed irq level is set to the previous
- *                           one, but handlers don't need to be reentrant, if
- *                           reentrance occurred, slow handlers will be just
- *                           called again.
- *           The whole interrupt handling for CIAs is moved to cia.c
- *           /Roman Zippel
- *
- * 07/08/99: rewamp of the interrupt handling - we now have two types of
- *           interrupts, normal and fast handlers, fast handlers being
- *           marked with IRQF_DISABLED and runs with all other interrupts
- *           disabled. Normal interrupts disable their own source but
- *           run with all other interrupt sources enabled.
- *           PORTS and EXTER interrupts are always shared even if the
- *           drivers do not explicitly mark this when calling
- *           request_irq which they really should do.
- *           This is similar to the way interrupts are handled on all
- *           other architectures and makes a ton of sense besides
- *           having the advantage of making it easier to share
- *           drivers.
- *           /Jes
  */
 
 #include <linux/init.h>

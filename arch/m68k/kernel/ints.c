@@ -4,25 +4,6 @@
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
  * for more details.
- *
- * 07/03/96: Timer initialization, and thus mach_sched_init(),
- *           removed from request_irq() and moved to init_time().
- *           We should therefore consider renaming our add_isr() and
- *           remove_isr() to request_irq() and free_irq()
- *           respectively, so they are compliant with the other
- *           architectures.                                     /Jes
- * 11/07/96: Changed all add_/remove_isr() to request_/free_irq() calls.
- *           Removed irq list support, if any machine needs an irq server
- *           it must implement this itself (as it's already done), instead
- *           only default handler are used with mach_default_handler.
- *           request_irq got some flags different from other architectures:
- *           - IRQ_FLG_REPLACE : Replace an existing handler (the default one
- *                               can be replaced without this flag)
- *           - IRQ_FLG_LOCK : handler can't be replaced
- *           There are other machine depending flags, see there
- *           If you want to replace a default handler you should know what
- *           you're doing, since it might handle different other irq sources
- *           which must be served                               /Roman Zippel
  */
 
 #include <linux/module.h>
