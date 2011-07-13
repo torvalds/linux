@@ -1114,9 +1114,6 @@ int rtl8192_sta_down(struct net_device *dev, bool shutdownrf)
 	spin_unlock_irqrestore(&priv->rf_ps_lock,flags);
 	udelay(100);
 	memset(&priv->rtllib->current_network, 0 , offsetof(struct rtllib_network, list));
-#ifdef CONFIG_ASPM_OR_D3
-	RT_ENABLE_ASPM(dev);
-#endif
 	RT_TRACE(COMP_DOWN, "<==========%s()\n", __func__);
 
 	return 0;
@@ -1318,9 +1315,6 @@ static void rtl8192_init_priv_lock(struct r8192_priv* priv)
 	spin_lock_init(&priv->ps_lock);
 	spin_lock_init(&priv->rf_lock);
 	spin_lock_init(&priv->rt_h2c_lock);
-#ifdef CONFIG_ASPM_OR_D3
-	spin_lock_init(&priv->D3_lock);
-#endif
 	sema_init(&priv->wx_sem,1);
 	sema_init(&priv->rf_sem,1);
 	mutex_init(&priv->mutex);
@@ -1460,112 +1454,6 @@ short rtl8192_init(struct net_device *dev)
 
 	return 0;
 }
-
-#if defined CONFIG_ASPM_OR_D3
-static void
-rtl8192_update_default_setting(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
-
-	pPSC->RegRfPsLevel = 0;
-	priv->bSupportASPM = 0;
-
-
-	pPSC->RegAMDPciASPM = priv->RegAMDPciASPM ;
-	switch (priv->RegPciASPM)
-	{
-	case 0:
-		break;
-
-	case 1:
-		pPSC->RegRfPsLevel |= RT_RF_LPS_LEVEL_ASPM;
-		break;
-
-	case 2:
-		pPSC->RegRfPsLevel |= (RT_RF_LPS_LEVEL_ASPM | RT_RF_OFF_LEVL_CLK_REQ);
-		break;
-
-	case 3:
-		pPSC->RegRfPsLevel &= ~(RT_RF_LPS_LEVEL_ASPM);
-		pPSC->RegRfPsLevel |= (RT_RF_PS_LEVEL_ALWAYS_ASPM | RT_RF_OFF_LEVL_CLK_REQ);
-		break;
-
-	case 4:
-		pPSC->RegRfPsLevel &= ~(RT_RF_LPS_LEVEL_ASPM | RT_RF_OFF_LEVL_CLK_REQ);
-		pPSC->RegRfPsLevel |= RT_RF_PS_LEVEL_ALWAYS_ASPM;
-		break;
-	}
-
-	pPSC->RegRfPsLevel |= RT_RF_OFF_LEVL_HALT_NIC;
-
-	switch (priv->RegHwSwRfOffD3)
-	{
-	case 1:
-		if (pPSC->RegRfPsLevel & RT_RF_LPS_LEVEL_ASPM)
-			pPSC->RegRfPsLevel |= RT_RF_OFF_LEVL_ASPM;
-		break;
-
-	case 2:
-		if (pPSC->RegRfPsLevel & RT_RF_LPS_LEVEL_ASPM)
-			pPSC->RegRfPsLevel |= RT_RF_OFF_LEVL_ASPM;
-		pPSC->RegRfPsLevel |= RT_RF_OFF_LEVL_HALT_NIC;
-		break;
-
-	case 3:
-		pPSC->RegRfPsLevel |= RT_RF_OFF_LEVL_PCI_D3;
-		break;
-	}
-
-
-	switch (priv->RegSupportPciASPM)
-	{
-	case 0:
-		{
-			bool		bSupportASPM = false;
-			priv->bSupportASPM = bSupportASPM;
-		}
-		break;
-
-	case 1:
-		{
-			bool		bSupportASPM = true;
-			priv->bSupportASPM = bSupportASPM;
-		}
-		break;
-
-	case 2:
-		if (priv->NdisAdapter.PciBridgeVendor == PCI_BRIDGE_VENDOR_INTEL)
-		{
-			bool		bSupportASPM = true;
-			priv->bSupportASPM = bSupportASPM;
-		}
-		break;
-
-	default:
-		break;
-	}
-}
-#endif
-
-#if defined CONFIG_ASPM_OR_D3
-static void
-rtl8192_initialize_adapter_common(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
-
-	rtl8192_update_default_setting(dev);
-
-#ifdef CONFIG_ASPM_OR_D3
-	if (pPSC->RegRfPsLevel & RT_RF_PS_LEVEL_ALWAYS_ASPM)
-	{
-		RT_ENABLE_ASPM(dev);
-		RT_SET_PS_LEVEL(pPSC, RT_RF_PS_LEVEL_ALWAYS_ASPM);
-	}
-#endif
-}
-#endif
 
 /***************************************************************************
     -------------------------------WATCHDOG STUFF---------------------------
@@ -3262,10 +3150,6 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	}
 #endif
 
-#if defined CONFIG_ASPM_OR_D3
-	rtl8192_initialize_adapter_common(dev);
-#endif
-
 	RT_TRACE(COMP_INIT, "Driver probe completed\n");
 	return 0;
 
@@ -3315,9 +3199,6 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 		rtl8192_proc_remove_one(dev);
 		rtl8192_down(dev,true);
 		deinit_hal_dm(dev);
-#ifdef CONFIG_ASPM_OR_D3
-		;
-#endif
 		if (priv->pFirmware) {
 			vfree(priv->pFirmware);
 			priv->pFirmware = NULL;

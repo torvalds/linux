@@ -639,9 +639,6 @@ typedef struct r8192_priv
 	spinlock_t				rf_ps_lock;
 	spinlock_t				rw_lock;
 	spinlock_t				rt_h2c_lock;
-#ifdef CONFIG_ASPM_OR_D3
-	spinlock_t				D3_lock;
-#endif
 	spinlock_t				rf_lock;
 	spinlock_t				ps_lock;
 

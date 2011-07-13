@@ -716,10 +716,6 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	RT_TRACE(COMP_INIT, "====>%s()\n", __func__);
 	priv->being_init_adapter = true;
 
-#ifdef CONFIG_ASPM_OR_D3
-	RT_DISABLE_ASPM(dev);
-#endif
-
 start:
         rtl8192_pci_resetdescring(dev);
 	priv->Rf_Mode = RF_OP_By_SW_3wire;

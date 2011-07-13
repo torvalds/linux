@@ -33,9 +33,6 @@ void rtl8192_hw_sleep_down(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags = 0;
-#ifdef CONFIG_ASPM_OR_D3
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
-#endif
 	spin_lock_irqsave(&priv->rf_ps_lock,flags);
 	if (priv->RFChangeInProgress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock,flags);
@@ -51,13 +48,6 @@ void rtl8192_hw_sleep_down(struct net_device *dev)
 	}
 #endif
 	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS,false);
-#ifdef CONFIG_ASPM_OR_D3
-	if (pPSC->RegRfPsLevel & RT_RF_LPS_LEVEL_ASPM)
-	{
-		RT_ENABLE_ASPM(dev);
-		RT_SET_PS_LEVEL(pPSC, RT_RF_LPS_LEVEL_ASPM);
-	}
-#endif
 }
 
 void rtl8192_hw_sleep_wq(void *data)
@@ -71,9 +61,6 @@ void rtl8192_hw_wakeup(struct net_device* dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	unsigned long flags = 0;
-#ifdef CONFIG_ASPM_OR_D3
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
-#endif
 	spin_lock_irqsave(&priv->rf_ps_lock,flags);
 	if (priv->RFChangeInProgress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock,flags);
@@ -82,12 +69,6 @@ void rtl8192_hw_wakeup(struct net_device* dev)
 		return;
 	}
 	spin_unlock_irqrestore(&priv->rf_ps_lock,flags);
-#ifdef CONFIG_ASPM_OR_D3
-	if (pPSC->RegRfPsLevel & RT_RF_LPS_LEVEL_ASPM) {
-		RT_DISABLE_ASPM(dev);
-		RT_CLEAR_PS_LEVEL(pPSC, RT_RF_LPS_LEVEL_ASPM);
-	}
-#endif
 	RT_TRACE(COMP_PS, "%s()============>come to wake up\n", __func__);
 	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS,false);
 }
@@ -147,29 +128,7 @@ void InactivePsWorkItemCallback(struct net_device *dev)
 
 	RT_TRACE(COMP_PS, "InactivePsWorkItemCallback(): Set RF to %s.\n", \
 			pPSC->eInactivePowerState == eRfOff?"OFF":"ON");
-#ifdef CONFIG_ASPM_OR_D3
-	if (pPSC->eInactivePowerState == eRfOn)
-	{
-
-		if ((pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM))
-		{
-			RT_DISABLE_ASPM(dev);
-			RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM);
-		}
-	}
-#endif
 	MgntActSet_RF_State(dev, pPSC->eInactivePowerState, RF_CHANGE_BY_IPS,false);
-
-#ifdef CONFIG_ASPM_OR_D3
-	if (pPSC->eInactivePowerState == eRfOff)
-	{
-		if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM)
-		{
-			RT_ENABLE_ASPM(dev);
-			RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM);
-		}
-	}
-#endif
 
 	pPSC->bSwRfProcessing = false;
 	RT_TRACE(COMP_PS, "InactivePsWorkItemCallback() <--------- \n");
@@ -329,13 +288,6 @@ void LeisurePSLeave(struct net_device *dev)
 	{
 		if (priv->rtllib->ps != RTLLIB_PS_DISABLED)
 		{
-#ifdef CONFIG_ASPM_OR_D3
-			if (pPSC->RegRfPsLevel & RT_RF_LPS_LEVEL_ASPM && RT_IN_PS_LEVEL(pPSC, RT_RF_LPS_LEVEL_ASPM))
-			{
-				RT_DISABLE_ASPM(dev);
-				RT_CLEAR_PS_LEVEL(pPSC, RT_RF_LPS_LEVEL_ASPM);
-			}
-#endif
 			RT_TRACE(COMP_LPS, "LeisurePSLeave(): Busy Traffic , Leave 802.11 power save..\n");
 			MgntActSet_802_11_PowerSaveMode(dev, RTLLIB_PS_DISABLED);
 
@@ -349,224 +301,3 @@ void LeisurePSLeave(struct net_device *dev)
 		}
 	}
 }
-
-#ifdef CONFIG_ASPM_OR_D3
-
-void
-PlatformDisableHostL0s(struct net_device *dev)
-{
-	struct r8192_priv	*priv = (struct r8192_priv *)rtllib_priv(dev);
-	u32				PciCfgAddrPort=0;
-	u8				Num4Bytes;
-	u8				uPciBridgeASPMSetting = 0;
-
-
-	if ( (priv->NdisAdapter.BusNumber == 0xff && priv->NdisAdapter.DevNumber == 0xff && priv->NdisAdapter.FuncNumber == 0xff) ||
-		(priv->NdisAdapter.PciBridgeBusNum == 0xff && priv->NdisAdapter.PciBridgeDevNum == 0xff && priv->NdisAdapter.PciBridgeFuncNum == 0xff) )
-	{
-		printk("PlatformDisableHostL0s(): Fail to enable ASPM. Cannot find the Bus of PCI(Bridge).\n");
-		return;
-	}
-
-	PciCfgAddrPort= (priv->NdisAdapter.PciBridgeBusNum << 16)|(priv->NdisAdapter.PciBridgeDevNum<< 11)|(priv->NdisAdapter.PciBridgeFuncNum <<  8)|(1 << 31);
-	Num4Bytes = (priv->NdisAdapter.PciBridgePCIeHdrOffset+0x10)/4;
-
-
-	NdisRawWritePortUlong(PCI_CONF_ADDRESS , PciCfgAddrPort+(Num4Bytes << 2));
-
-	NdisRawReadPortUchar(PCI_CONF_DATA, &uPciBridgeASPMSetting);
-
-	if (uPciBridgeASPMSetting & BIT0)
-		uPciBridgeASPMSetting &=  ~(BIT0);
-
-	NdisRawWritePortUlong(PCI_CONF_ADDRESS , PciCfgAddrPort+(Num4Bytes << 2));
-	NdisRawWritePortUchar(PCI_CONF_DATA, uPciBridgeASPMSetting);
-
-	udelay(50);
-
-	printk("PlatformDisableHostL0s():PciBridge BusNumber[%x], DevNumbe[%x], FuncNumber[%x], Write reg[%x] = %x\n",
-		priv->NdisAdapter.PciBridgeBusNum, priv->NdisAdapter.PciBridgeDevNum, priv->NdisAdapter.PciBridgeFuncNum,
-		(priv->NdisAdapter.PciBridgePCIeHdrOffset+0x10), (priv->NdisAdapter.PciBridgeLinkCtrlReg | (priv->RegDevicePciASPMSetting&~BIT0)));
-}
-
-bool
-PlatformEnable92CEBackDoor(struct net_device *dev)
-{
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	bool			bResult = true;
-	u8			value;
-
-	if ( (priv->NdisAdapter.BusNumber == 0xff && priv->NdisAdapter.DevNumber == 0xff && priv->NdisAdapter.FuncNumber == 0xff) ||
-		(priv->NdisAdapter.PciBridgeBusNum == 0xff && priv->NdisAdapter.PciBridgeDevNum == 0xff && priv->NdisAdapter.PciBridgeFuncNum == 0xff) )
-	{
-		RT_TRACE(COMP_INIT, "PlatformEnableASPM(): Fail to enable ASPM. Cannot find the Bus of PCI(Bridge).\n");
-		return false;
-	}
-
-	pci_read_config_byte(priv->pdev, 0x70f, &value);
-
-	if (priv->NdisAdapter.PciBridgeVendor == PCI_BRIDGE_VENDOR_INTEL)
-	{
-	value |= BIT7;
-	}
-	else
-	{
-		value = 0x23;
-	}
-
-	pci_write_config_byte(priv->pdev, 0x70f, value);
-
-
-	pci_read_config_byte(priv->pdev, 0x719, &value);
-	value |= (BIT3|BIT4);
-	pci_write_config_byte(priv->pdev, 0x719, value);
-
-
-	return bResult;
-}
-
-bool PlatformSwitchDevicePciASPM(struct net_device *dev, u8 value)
-{
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	bool bResult = false;
-
-	pci_write_config_byte(priv->pdev, 0x80, value);
-
-	return bResult;
-}
-
-bool PlatformSwitchClkReq(struct net_device *dev, u8 value)
-{
-	bool bResult = false;
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	u8	Buffer;
-
-	Buffer= value;
-
-	pci_write_config_byte(priv->pdev,0x81,value);
-	bResult = true;
-
-	return bResult;
-}
-
-void
-PlatformDisableASPM(struct net_device *dev)
-{
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
-	u32	PciCfgAddrPort=0;
-	u8	Num4Bytes;
-	u8	LinkCtrlReg;
-	u16	PciBridgeLinkCtrlReg, ASPMLevel=0;
-
-	if (priv->NdisAdapter.PciBridgeVendor == PCI_BRIDGE_VENDOR_UNKNOWN)
-	{
-		RT_TRACE(COMP_POWER,  "%s(): Disable ASPM. Recognize the Bus of PCI(Bridge) as UNKNOWN.\n",__func__);
-	}
-
-
-	LinkCtrlReg = priv->NdisAdapter.LinkCtrlReg;
-	PciBridgeLinkCtrlReg = priv->NdisAdapter.PciBridgeLinkCtrlReg;
-
-	ASPMLevel |= BIT0|BIT1;
-	LinkCtrlReg &=~ASPMLevel;
-	PciBridgeLinkCtrlReg &=~(BIT0|BIT1);
-
-	if ( (priv->NdisAdapter.BusNumber == 0xff && priv->NdisAdapter.DevNumber == 0xff && priv->NdisAdapter.FuncNumber == 0xff) ||
-		(priv->NdisAdapter.PciBridgeBusNum == 0xff && priv->NdisAdapter.PciBridgeDevNum == 0xff && priv->NdisAdapter.PciBridgeFuncNum == 0xff) )
-	{
-	} else  {
-		PciCfgAddrPort= (priv->NdisAdapter.PciBridgeBusNum << 16)|(priv->NdisAdapter.PciBridgeDevNum<< 11)|(priv->NdisAdapter.PciBridgeFuncNum <<  8)|(1 << 31);
-		Num4Bytes = (priv->NdisAdapter.PciBridgePCIeHdrOffset+0x10)/4;
-
-		NdisRawWritePortUlong(PCI_CONF_ADDRESS , PciCfgAddrPort+(Num4Bytes << 2));
-
-		NdisRawWritePortUchar(PCI_CONF_DATA, PciBridgeLinkCtrlReg);
-		RT_TRACE(COMP_POWER, "PlatformDisableASPM():PciBridge BusNumber[%x], DevNumbe[%x], FuncNumber[%x], Write reg[%x] = %x\n",
-			priv->NdisAdapter.PciBridgeBusNum, priv->NdisAdapter.PciBridgeDevNum, priv->NdisAdapter.PciBridgeFuncNum,
-			(priv->NdisAdapter.PciBridgePCIeHdrOffset+0x10), PciBridgeLinkCtrlReg);
-
-		udelay(50);
-	}
-}
-
-void PlatformEnableASPM(struct net_device *dev)
-{
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
-	u16	ASPMLevel = 0;
-	u32	PciCfgAddrPort=0;
-	u8	Num4Bytes;
-	u8	uPciBridgeASPMSetting = 0;
-	u8	uDeviceASPMSetting = 0;
-
-
-	if ( (priv->NdisAdapter.BusNumber == 0xff && priv->NdisAdapter.DevNumber == 0xff && priv->NdisAdapter.FuncNumber == 0xff) ||
-		(priv->NdisAdapter.PciBridgeBusNum == 0xff && priv->NdisAdapter.PciBridgeDevNum == 0xff && priv->NdisAdapter.PciBridgeFuncNum == 0xff) )
-	{
-		RT_TRACE(COMP_INIT, "PlatformEnableASPM(): Fail to enable ASPM. Cannot find the Bus of PCI(Bridge).\n");
-		return;
-	}
-
-	ASPMLevel |= priv->RegDevicePciASPMSetting;
-	uDeviceASPMSetting = priv->NdisAdapter.LinkCtrlReg;
-
-	uDeviceASPMSetting |= ASPMLevel;
-
-	PlatformSwitchDevicePciASPM(dev, uDeviceASPMSetting);
-
-	if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_CLK_REQ) {
-		PlatformSwitchClkReq(dev,(pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_CLK_REQ) ? 1 : 0);
-		RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_CLK_REQ);
-	}
-	udelay(100);
-
-	udelay(100);
-}
-
-u32 PlatformResetPciSpace(struct net_device *dev,u8 Value)
-{
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-
-	pci_write_config_byte(priv->pdev,0x04,Value);
-
-	return 1;
-
-}
-bool PlatformSetPMCSR(struct net_device *dev,u8 value,bool bTempSetting)
-{
-	bool bResult = false;
-	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	u8  Buffer;
-	bool bActuallySet=false, bSetFunc=false;
-	unsigned long flag;
-
-	Buffer= value;
-	spin_lock_irqsave(&priv->D3_lock,flag);
-	if (bActuallySet) {
-		if (Buffer) {
-			PlatformSwitchClkReq(dev, 0x01);
-		} else {
-			PlatformSwitchClkReq(dev, 0x00);
-		}
-
-		pci_write_config_byte(priv->pdev,0x44,Buffer);
-		RT_TRACE(COMP_POWER, "PlatformSetPMCSR(): D3(value: %d)\n", Buffer);
-
-		bResult = true;
-		if (!Buffer) {
-			PlatformResetPciSpace(dev, 0x06);
-			PlatformResetPciSpace(dev, 0x07);
-		}
-
-		if (bSetFunc) {
-			if (Buffer) {
-			} else {
-			}
-		}
-
-	}
-	spin_unlock_irqrestore(&priv->D3_lock,flag);
-	return bResult;
-}
-#endif
