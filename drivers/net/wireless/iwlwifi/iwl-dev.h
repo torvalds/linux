@@ -397,13 +397,6 @@ struct iwl_tid_data {
 	struct iwl_ht_agg agg;
 };
 
-struct iwl_hw_key {
-	u32 cipher;
-	int keylen;
-	u8 keyidx;
-	u8 key[32];
-};
-
 union iwl_ht_rate_supp {
 	u16 rates;
 	struct {
@@ -456,7 +449,6 @@ struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used, ctxid;
-	struct iwl_hw_key keyinfo;
 	struct iwl_link_quality_cmd *lq;
 };
 
