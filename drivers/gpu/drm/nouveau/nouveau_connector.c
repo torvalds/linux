@@ -871,7 +871,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 					dev->mode_config.scaling_mode_property,
 					nv_connector->scaling_mode);
 		}
-		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		/* fall-through */
 	case DCB_CONNECTOR_TV_0:
 	case DCB_CONNECTOR_TV_1:
@@ -888,19 +887,16 @@ nouveau_connector_create(struct drm_device *dev, int index)
 				dev->mode_config.dithering_mode_property,
 				nv_connector->use_dithering ?
 				DRM_MODE_DITHERING_ON : DRM_MODE_DITHERING_OFF);
-
-		if (connector->connector_type != DRM_MODE_CONNECTOR_LVDS) {
-			if (dev_priv->card_type >= NV_50)
-				connector->polled = DRM_CONNECTOR_POLL_HPD;
-			else
-				connector->polled = DRM_CONNECTOR_POLL_CONNECT;
-		}
 		break;
 	}
 
-	if (pgpio->irq_register) {
+	if (nv_connector->dcb->gpio_tag != 0xff && pgpio->irq_register) {
 		pgpio->irq_register(dev, nv_connector->dcb->gpio_tag,
 				    nouveau_connector_hotplug, connector);
+
+		connector->polled = DRM_CONNECTOR_POLL_HPD;
+	} else {
+		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	}
 
 	drm_sysfs_connector_add(connector);
