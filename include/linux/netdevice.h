@@ -252,7 +252,6 @@ struct netdev_hw_addr_list {
 	netdev_hw_addr_list_for_each(ha, &(dev)->mc)
 
 struct hh_cache {
-	struct hh_cache *hh_next;	/* Next entry			     */
 	atomic_t	hh_refcnt;	/* number of users                   */
 /*
  * We want hh_output, hh_len, hh_lock and hh_data be a in a separate
@@ -260,12 +259,8 @@ struct hh_cache {
  * They are mostly read, but hh_refcnt may be changed quite frequently,
  * incurring cache line ping pongs.
  */
-	__be16		hh_type ____cacheline_aligned_in_smp;
-					/* protocol identifier, f.e ETH_P_IP
-                                         *  NOTE:  For VLANs, this will be the
-                                         *  encapuslated type. --BLG
-                                         */
-	u16		hh_len;		/* length of header */
+	u16		hh_len ____cacheline_aligned_in_smp;
+	u16		__pad;
 	int		(*hh_output)(struct sk_buff *skb);
 	seqlock_t	hh_lock;
 
