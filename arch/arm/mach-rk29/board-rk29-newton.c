@@ -629,7 +629,7 @@ struct ft5406_platform_data ft5406_info = {
 };
 #endif
 
-#if defined(CONFIG_TOUCHSCREEN_GOODIX_NEWTON)
+#if defined(CONFIG_TOUCHSCREEN_GT819)
 #define TOUCH_RESET_PIN RK29_PIN6_PC3
 #define TOUCH_INT_PIN   RK29_PIN0_PA2
 int gt819_init_platform_hw(void)
@@ -1018,7 +1018,7 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
       .platform_data  = &eeti_egalax_info,
     },
 #endif
-#if defined (CONFIG_TOUCHSCREEN_GOODIX_NEWTON)
+#if defined (CONFIG_TOUCHSCREEN_GT819)
 {
 		.type	= "Goodix-TS",
 		.addr 	= 0x55,
@@ -1623,6 +1623,11 @@ static void __init rk29_board_iomux_init(void)
 }
 
 static struct platform_device *devices[] __initdata = {
+
+#ifdef CONFIG_RK29_WATCHDOG
+	&rk29_device_wdt,
+#endif
+
 #ifdef CONFIG_UART1_RK29
 	&rk29_device_uart1,
 #endif

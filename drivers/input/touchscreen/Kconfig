@@ -758,8 +758,8 @@ config TOUCHSCREEN_GT818_IIC
 config D70_L3188A
 	tristate "D70-L3188A based touchscreens"
 	depends on I2C2_RK29
-config TOUCHSCREEN_GOODIX_NEWTON
-	tristate "GOODIX based touchscreens"
+config TOUCHSCREEN_GT819
+	tristate "GT819 based touchscreens"
 	depends on I2C2_RK29
 config TOUCHSCREEN_FT5406
 	tristate "FT5406 based touchscreens: FT5406 Interface"
