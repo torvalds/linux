@@ -460,17 +460,12 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 
 pflip_cleanup1:
-	r = radeon_bo_reserve(rbo, false);
-	if (unlikely(r != 0)) {
+	if (unlikely(radeon_bo_reserve(rbo, false) != 0)) {
 		DRM_ERROR("failed to reserve new rbo in error path\n");
 		goto pflip_cleanup;
 	}
-	r = radeon_bo_unpin(rbo);
-	if (unlikely(r != 0)) {
-		radeon_bo_unreserve(rbo);
-		r = -EINVAL;
+	if (unlikely(radeon_bo_unpin(rbo) != 0)) {
 		DRM_ERROR("failed to unpin new rbo in error path\n");
-		goto pflip_cleanup;
 	}
 	radeon_bo_unreserve(rbo);
 
