@@ -1039,17 +1039,10 @@ static unsigned int
 vivi_poll(struct file *file, struct poll_table_struct *wait)
 {
 	struct vivi_dev *dev = video_drvdata(file);
-	struct v4l2_fh *fh = file->private_data;
 	struct vb2_queue *q = &dev->vb_vidq;
-	unsigned int res;
 
 	dprintk(dev, 1, "%s\n", __func__);
-	res = vb2_poll(q, file, wait);
-	if (v4l2_event_pending(fh))
-		res |= POLLPRI;
-	else
-		poll_wait(file, &fh->wait, wait);
-	return res;
+	return vb2_poll(q, file, wait);
 }
 
 static int vivi_close(struct file *file)
