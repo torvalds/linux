@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/sh_clk.h>
@@ -57,12 +58,9 @@ static int __init sh_pm_runtime_init(void)
 }
 core_initcall(sh_pm_runtime_init);
 
-void (*shmobile_runtime_pm_late_init)(void);
-
 static int __init sh_pm_runtime_late_init(void)
 {
-	if (shmobile_runtime_pm_late_init)
-		shmobile_runtime_pm_late_init();
+	pm_genpd_poweroff_unused();
 	return 0;
 }
 late_initcall(sh_pm_runtime_late_init);

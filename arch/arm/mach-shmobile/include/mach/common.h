@@ -12,7 +12,6 @@ extern struct platform_suspend_ops shmobile_suspend_ops;
 struct cpuidle_device;
 extern void (*shmobile_cpuidle_modes[])(void);
 extern void (*shmobile_cpuidle_setup)(struct cpuidle_device *dev);
-extern void (*shmobile_runtime_pm_late_init)(void);
 
 extern void sh7367_init_irq(void);
 extern void sh7367_add_early_devices(void);
