@@ -549,7 +549,7 @@ static int sh_mobile_meram_runtime_suspend(struct device *dev)
 				meram_read_icb(priv->base, j, icb_regs[k]);
 			/* Reset ICB on resume */
 			if (icb_regs[k] == MExxCTL)
-				priv->icb_saved_regs[j * ICB_REGS_SIZE + k] =
+				priv->icb_saved_regs[j * ICB_REGS_SIZE + k] |=
 					MExxCTL_WBF | MExxCTL_WF | MExxCTL_RF;
 		}
 	}
