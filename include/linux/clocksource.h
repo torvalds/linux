@@ -171,13 +171,6 @@ struct clocksource {
 	u32 shift;
 	u64 max_idle_ns;
 
-#ifdef CONFIG_IA64
-	void *fsys_mmio;        /* used by fsyscall asm code */
-#define CLKSRC_FSYS_MMIO_SET(mmio, addr)      ((mmio) = (addr))
-#else
-#define CLKSRC_FSYS_MMIO_SET(mmio, addr)      do { } while (0)
-#endif
-
 #ifdef __ARCH_HAS_CLOCKSOURCE_DATA
 	struct arch_clocksource_data archdata;
 #endif
