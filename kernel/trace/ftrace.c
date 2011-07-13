@@ -1182,8 +1182,14 @@ alloc_and_copy_ftrace_hash(int size_bits, struct ftrace_hash *hash)
 	return NULL;
 }
 
+static void
+ftrace_hash_rec_disable(struct ftrace_ops *ops, int filter_hash);
+static void
+ftrace_hash_rec_enable(struct ftrace_ops *ops, int filter_hash);
+
 static int
-ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
+ftrace_hash_move(struct ftrace_ops *ops, int enable,
+		 struct ftrace_hash **dst, struct ftrace_hash *src)
 {
 	struct ftrace_func_entry *entry;
 	struct hlist_node *tp, *tn;
@@ -1193,7 +1199,14 @@ ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
 	unsigned long key;
 	int size = src->count;
 	int bits = 0;
+	int ret;
 	int i;
+
+	/*
+	 * Remove the current set, update the hash and add
+	 * them back.
+	 */
+	ftrace_hash_rec_disable(ops, enable);
 
 	/*
 	 * If the new source is empty, just free dst and assign it
@@ -1215,9 +1228,10 @@ ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
 	if (bits > FTRACE_HASH_MAX_BITS)
 		bits = FTRACE_HASH_MAX_BITS;
 
+	ret = -ENOMEM;
 	new_hash = alloc_ftrace_hash(bits);
 	if (!new_hash)
-		return -ENOMEM;
+		goto out;
 
 	size = 1 << src->size_bits;
 	for (i = 0; i < size; i++) {
@@ -1236,7 +1250,16 @@ ftrace_hash_move(struct ftrace_hash **dst, struct ftrace_hash *src)
 	rcu_assign_pointer(*dst, new_hash);
 	free_ftrace_hash_rcu(old_hash);
 
-	return 0;
+	ret = 0;
+ out:
+	/*
+	 * Enable regardless of ret:
+	 *  On success, we enable the new hash.
+	 *  On failure, we re-enable the original hash.
+	 */
+	ftrace_hash_rec_enable(ops, enable);
+
+	return ret;
 }
 
 /*
@@ -2877,7 +2900,7 @@ ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
 		ftrace_match_records(hash, buf, len);
 
 	mutex_lock(&ftrace_lock);
-	ret = ftrace_hash_move(orig_hash, hash);
+	ret = ftrace_hash_move(ops, enable, orig_hash, hash);
 	mutex_unlock(&ftrace_lock);
 
 	mutex_unlock(&ftrace_regex_lock);
@@ -3060,18 +3083,12 @@ ftrace_regex_release(struct inode *inode, struct file *file)
 			orig_hash = &iter->ops->notrace_hash;
 
 		mutex_lock(&ftrace_lock);
-		/*
-		 * Remove the current set, update the hash and add
-		 * them back.
-		 */
-		ftrace_hash_rec_disable(iter->ops, filter_hash);
-		ret = ftrace_hash_move(orig_hash, iter->hash);
-		if (!ret) {
-			ftrace_hash_rec_enable(iter->ops, filter_hash);
-			if (iter->ops->flags & FTRACE_OPS_FL_ENABLED
-			    && ftrace_enabled)
-				ftrace_run_update_code(FTRACE_ENABLE_CALLS);
-		}
+		ret = ftrace_hash_move(iter->ops, filter_hash,
+				       orig_hash, iter->hash);
+		if (!ret && (iter->ops->flags & FTRACE_OPS_FL_ENABLED)
+		    && ftrace_enabled)
+			ftrace_run_update_code(FTRACE_ENABLE_CALLS);
+
 		mutex_unlock(&ftrace_lock);
 	}
 	free_ftrace_hash(iter->hash);
