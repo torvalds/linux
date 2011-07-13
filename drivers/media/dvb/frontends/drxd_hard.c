@@ -909,14 +909,16 @@ static int load_firmware(struct drxd_state *state, const char *fw_name)
 		return -EIO;
 	}
 
-	state->microcode = kzalloc(fw->size, GFP_KERNEL);
+	state->microcode = kmalloc(fw->size, GFP_KERNEL);
 	if (state->microcode == NULL) {
-		printk(KERN_ERR "drxd: firmware load failure: nomemory\n");
+		release_firmware(fw);
+		printk(KERN_ERR "drxd: firmware load failure: no memory\n");
 		return -ENOMEM;
 	}
 
 	memcpy(state->microcode, fw->data, fw->size);
 	state->microcode_length = fw->size;
+	release_firmware(fw);
 	return 0;
 }
 
