@@ -481,13 +481,15 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		if (!m)
 			continue;
 
+		/* FIXME: sh7724 can only use 42, 48, 54 and 60 for the divider
+		 * denominator.
+		 */
+		lcdc_write_chan(ch, LDDCKPAT1R, 0);
+		lcdc_write_chan(ch, LDDCKPAT2R, (1 << (m/2)) - 1);
+
 		if (m == 1)
 			m = LDDCKR_MOSEL;
 		tmp |= m << (lcdc_chan_is_sublcd(ch) ? 8 : 0);
-
-		/* FIXME: sh7724 can only use 42, 48, 54 and 60 for the divider denominator */
-		lcdc_write_chan(ch, LDDCKPAT1R, 0);
-		lcdc_write_chan(ch, LDDCKPAT2R, (1 << (m/2)) - 1);
 	}
 
 	lcdc_write(priv, _LDDCKR, tmp);
