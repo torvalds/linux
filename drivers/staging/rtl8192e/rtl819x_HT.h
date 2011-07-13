@@ -285,9 +285,6 @@ typedef struct _RT_HIGH_THROUGHPUT{
 	u8				RxReorderPendingTime;
 	u16				RxReorderDropCounter;
 
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-	u8				UsbTxAggrNum;
-#endif
 #ifdef USB_RX_AGGREGATION_SUPPORT
 	u8				UsbRxFwAggrEn;
 	u8				UsbRxFwAggrPageNum;

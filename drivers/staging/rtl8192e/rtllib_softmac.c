@@ -2591,11 +2591,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 
 	/* if xmit available, just xmit it immediately, else just insert it to the wait queue */
 	for (i = 0; i < txb->nr_frags; i++) {
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-		queue_len = skb_queue_len(&ieee->skb_drv_aggQ[queue_index]);
-#else
 		queue_len = skb_queue_len(&ieee->skb_waitQ[queue_index]);
-#endif
 		if ((queue_len  != 0) ||\
 			(!ieee->check_nic_enough_desc(ieee->dev,queue_index))||\
 		       (ieee->queue_stop)) {
@@ -2609,11 +2605,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 			if (queue_len < 200)
 #endif
 			{
-#ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
-				skb_queue_tail(&ieee->skb_drv_aggQ[queue_index], txb->fragments[i]);
-#else
 				skb_queue_tail(&ieee->skb_waitQ[queue_index], txb->fragments[i]);
-#endif
 			}else{
 				kfree_skb(txb->fragments[i]);
 			}
