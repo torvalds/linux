@@ -529,6 +529,8 @@ typedef struct _gcsHAL_INTERFACE
         }
         WriteRegisterData;
 
+// dkm : add "#if VIVANTE_PROFILER" to invalidate the unions for reduce the sizeof(gcsHAL_INTERFACE)
+#if VIVANTE_PROFILER
         /* gcvHAL_GET_PROFILE_SETTING */
         struct _gcsHAL_GET_PROFILE_SETTING
         {
@@ -566,6 +568,7 @@ typedef struct _gcsHAL_INTERFACE
             OUT gcs2D_PROFILE_PTR       hwProfile2D;
         }
         RegisterProfileData2D;
+#endif
 
         /* Power management. */
         /* gcvHAL_SET_POWER_MANAGEMENT_STATE */
@@ -606,6 +609,8 @@ typedef struct _gcsHAL_INTERFACE
         }
         MapPhysical;
 
+// dkm : add "#if gcdDUMP_IN_KERNEL" to invalidate the union for reduce the sizeof(gcsHAL_INTERFACE)
+#if gcdDUMP_IN_KERNEL
         /* gcvHAL_DEBUG */
         struct _gcsHAL_DEBUG
         {
@@ -619,6 +624,7 @@ typedef struct _gcsHAL_INTERFACE
             IN gctCHAR                  message[80];
         }
         Debug;
+#endif
 
         struct _gcsHAL_CACHE
         {

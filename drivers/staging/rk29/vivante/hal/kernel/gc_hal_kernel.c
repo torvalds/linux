@@ -942,6 +942,8 @@ gckKERNEL_Dispatch(
         break;
 
     case gcvHAL_DEBUG:
+// dkm : add "#if gcdDUMP_IN_KERNEL" to invalidate the code.
+#if gcdDUMP_IN_KERNEL
         /* Set debug level and zones. */
         if (Interface->u.Debug.set)
         {
@@ -955,6 +957,7 @@ gckKERNEL_Dispatch(
             /* Print a message to the debugger. */
             gcmkPRINT(Interface->u.Debug.message);
         }
+#endif
         status = gcvSTATUS_OK;
         break;
 
