@@ -25,7 +25,8 @@
 #include <linux/wakelock.h>
 #include <linux/timer.h>
 #include <mach/board.h>
-#if 0
+
+#if 1
 #define DBG(x...)   printk(KERN_INFO x)
 #else
 #define DBG(x...)
@@ -93,6 +94,11 @@ static void timer_hostSleep(unsigned long arg)
 #ifdef CONFIG_PM
 static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t state)
 {   
+	rk29_mux_api_set(GPIO2A7_UART2RTSN_NAME, GPIO2L_GPIO2A7);
+	gpio_request(RK29_PIN2_PA7, "uart2_rts");
+	gpio_direction_output(RK29_PIN2_PA7, 0);
+	gpio_set_value(RK29_PIN2_PA7, GPIO_HIGH);
+			
     DBG("%s\n",__FUNCTION__);  	
     return 0;
 }
@@ -102,6 +108,10 @@ static int bcm4329_rfkill_resume(struct platform_device *pdev)
     DBG("%s\n",__FUNCTION__);     
     btWakeupHostLock();
     resetBtHostSleepTimer();
+
+	gpio_set_value(RK29_PIN2_PA7, GPIO_LOW);
+	rk29_mux_api_set(GPIO2A7_UART2RTSN_NAME, GPIO2L_UART2_RTS_N);
+	
     return 0;
 }
 #else
