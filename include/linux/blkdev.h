@@ -260,8 +260,7 @@ struct queue_limits {
 	unsigned char		discard_zeroes_data;
 };
 
-struct request_queue
-{
+struct request_queue {
 	/*
 	 * Together with queue_head for cacheline sharing
 	 */
@@ -304,14 +303,14 @@ struct request_queue
 	void			*queuedata;
 
 	/*
-	 * queue needs bounce pages for pages above this limit
-	 */
-	gfp_t			bounce_gfp;
-
-	/*
 	 * various queue flags, see QUEUE_* below
 	 */
 	unsigned long		queue_flags;
+
+	/*
+	 * queue needs bounce pages for pages above this limit
+	 */
+	gfp_t			bounce_gfp;
 
 	/*
 	 * protects queue structures from reentrancy. ->__queue_lock should
@@ -334,8 +333,8 @@ struct request_queue
 	unsigned int		nr_congestion_off;
 	unsigned int		nr_batching;
 
-	void			*dma_drain_buffer;
 	unsigned int		dma_drain_size;
+	void			*dma_drain_buffer;
 	unsigned int		dma_pad_mask;
 	unsigned int		dma_alignment;
 
