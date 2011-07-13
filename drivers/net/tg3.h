@@ -1065,6 +1065,8 @@
 #define  RCVLSC_STATUS_ERROR_ATTN	 0x00000004
 /* 0x3408 --> 0x3600 unused */
 
+#define TG3_CPMU_DRV_STATUS		0x0000344c
+
 /* CPMU registers */
 #define TG3_CPMU_CTRL			0x00003600
 #define  CPMU_CTRL_LINK_IDLE_MODE	 0x00000200
@@ -2277,6 +2279,8 @@
 
 
 /* APE registers.  Accessible through BAR1 */
+#define TG3_APE_GPIO_MSG		0x0008
+#define TG3_APE_GPIO_MSG_SHIFT		4
 #define TG3_APE_EVENT			0x000c
 #define  APE_EVENT_1			 0x00000001
 #define TG3_APE_LOCK_REQ		0x002c

@@ -2192,18 +2192,66 @@ out:
 	return 0;
 }
 
+#define TG3_GPIO_MSG_DRVR_PRES		 0x00000001
+#define TG3_GPIO_MSG_NEED_VAUX		 0x00000002
+#define TG3_GPIO_MSG_MASK		 (TG3_GPIO_MSG_DRVR_PRES | \
+					  TG3_GPIO_MSG_NEED_VAUX)
+#define TG3_GPIO_MSG_ALL_DRVR_PRES_MASK \
+	((TG3_GPIO_MSG_DRVR_PRES << 0) | \
+	 (TG3_GPIO_MSG_DRVR_PRES << 4) | \
+	 (TG3_GPIO_MSG_DRVR_PRES << 8) | \
+	 (TG3_GPIO_MSG_DRVR_PRES << 12))
+
+#define TG3_GPIO_MSG_ALL_NEED_VAUX_MASK \
+	((TG3_GPIO_MSG_NEED_VAUX << 0) | \
+	 (TG3_GPIO_MSG_NEED_VAUX << 4) | \
+	 (TG3_GPIO_MSG_NEED_VAUX << 8) | \
+	 (TG3_GPIO_MSG_NEED_VAUX << 12))
+
+static inline u32 tg3_set_function_status(struct tg3 *tp, u32 newstat)
+{
+	u32 status, shift;
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
+		status = tg3_ape_read32(tp, TG3_APE_GPIO_MSG);
+	else
+		status = tr32(TG3_CPMU_DRV_STATUS);
+
+	shift = TG3_APE_GPIO_MSG_SHIFT + 4 * tp->pci_fn;
+	status &= ~(TG3_GPIO_MSG_MASK << shift);
+	status |= (newstat << shift);
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719)
+		tg3_ape_write32(tp, TG3_APE_GPIO_MSG, status);
+	else
+		tw32(TG3_CPMU_DRV_STATUS, status);
+
+	return status >> TG3_APE_GPIO_MSG_SHIFT;
+}
+
 static inline int tg3_pwrsrc_switch_to_vmain(struct tg3 *tp)
 {
 	if (!tg3_flag(tp, IS_NIC))
-		return;
-
-	if (tg3_ape_lock(tp, TG3_APE_LOCK_GPIO))
 		return 0;
 
-	tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl,
-		    TG3_GRC_LCLCTL_PWRSW_DELAY);
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720) {
+		if (tg3_ape_lock(tp, TG3_APE_LOCK_GPIO))
+			return -EIO;
 
-	tg3_ape_unlock(tp, TG3_APE_LOCK_GPIO);
+		tg3_set_function_status(tp, TG3_GPIO_MSG_DRVR_PRES);
+
+		tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl,
+			    TG3_GRC_LCLCTL_PWRSW_DELAY);
+
+		tg3_ape_unlock(tp, TG3_APE_LOCK_GPIO);
+	} else {
+		tw32_wait_f(GRC_LOCAL_CTRL, tp->grc_local_ctrl,
+			    TG3_GRC_LCLCTL_PWRSW_DELAY);
+	}
 
 	return 0;
 }
@@ -2215,10 +2263,6 @@ static void tg3_pwrsrc_die_with_vmain(struct tg3 *tp)
 	if (!tg3_flag(tp, IS_NIC) ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701)
-		return;
-
-
-	if (tg3_ape_lock(tp, TG3_APE_LOCK_GPIO))
 		return;
 
 	grc_local_ctrl = tp->grc_local_ctrl | GRC_LCLCTRL_GPIO_OE1;
@@ -2234,16 +2278,11 @@ static void tg3_pwrsrc_die_with_vmain(struct tg3 *tp)
 	tw32_wait_f(GRC_LOCAL_CTRL,
 		    grc_local_ctrl | GRC_LCLCTRL_GPIO_OUTPUT1,
 		    TG3_GRC_LCLCTL_PWRSW_DELAY);
-
-	tg3_ape_unlock(tp, TG3_APE_LOCK_GPIO);
 }
 
 static void tg3_pwrsrc_switch_to_vaux(struct tg3 *tp)
 {
 	if (!tg3_flag(tp, IS_NIC))
-		return;
-
-	if (tg3_ape_lock(tp, TG3_APE_LOCK_GPIO))
 		return;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
@@ -2316,7 +2355,31 @@ static void tg3_pwrsrc_switch_to_vaux(struct tg3 *tp)
 				    TG3_GRC_LCLCTL_PWRSW_DELAY);
 		}
 	}
+}
 
+static void tg3_frob_aux_power_5717(struct tg3 *tp)
+{
+	u32 msg = 0;
+
+	/* Serialize power state transitions */
+	if (tg3_ape_lock(tp, TG3_APE_LOCK_GPIO))
+		return;
+
+	if (tg3_flag(tp, ENABLE_ASF) || tg3_flag(tp, ENABLE_APE) ||
+	    tg3_flag(tp, WOL_ENABLE))
+		msg = TG3_GPIO_MSG_NEED_VAUX;
+
+	msg = tg3_set_function_status(tp, msg);
+
+	if (msg & TG3_GPIO_MSG_ALL_DRVR_PRES_MASK)
+		goto done;
+
+	if (msg & TG3_GPIO_MSG_ALL_NEED_VAUX_MASK)
+		tg3_pwrsrc_switch_to_vaux(tp);
+	else
+		tg3_pwrsrc_die_with_vmain(tp);
+
+done:
 	tg3_ape_unlock(tp, TG3_APE_LOCK_GPIO);
 }
 
@@ -2326,15 +2389,17 @@ static void tg3_frob_aux_power(struct tg3 *tp)
 
 	/* The GPIOs do something completely different on 57765. */
 	if (!tg3_flag(tp, IS_NIC) ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765)
 		return;
 
-	if ((GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
-	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714 ||
-	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
-	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720) &&
-	    tp->pdev_peer != tp->pdev) {
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720) {
+		tg3_frob_aux_power_5717(tp);
+		return;
+	}
+
+	if (tp->pdev_peer && tp->pdev_peer != tp->pdev) {
 		struct net_device *dev_peer;
 
 		dev_peer = pci_get_drvdata(tp->pdev_peer);
@@ -13692,9 +13757,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5720)
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5714)
 		tp->pdev_peer = tg3_find_peer(tp);
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 ||
