@@ -254,9 +254,7 @@ static int tm6000_fillbuf(struct tm6000_core *core, char *buf, int size)
 		memcpy(runtime->dma_area + buf_pos * stride, buf,
 			length * stride);
 
-#ifndef NO_PCM_LOCK
        snd_pcm_stream_lock(substream);
-#endif
 
 	chip->buf_pos += length;
 	if (chip->buf_pos >= runtime->buffer_size)
@@ -268,9 +266,7 @@ static int tm6000_fillbuf(struct tm6000_core *core, char *buf, int size)
 		period_elapsed = 1;
 	}
 
-#ifndef NO_PCM_LOCK
        snd_pcm_stream_unlock(substream);
-#endif
 
 	if (period_elapsed)
 		snd_pcm_period_elapsed(substream);
