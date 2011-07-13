@@ -142,28 +142,9 @@ config DDR_TYPE_DDR3_DEFAULT
 
 endchoice
 
-choice RK29_MEM_SIZE
-	prompt "DDR Memory Size"
-	default RK29_MEM_SIZE_512M
-	help
-	  Select High Memory Support (from Kernel Features) for 1G memory.
-	  Deselect High Memory Support for 512MB memory.
-
-config RK29_MEM_SIZE_512M
-	bool "512MB"
-	depends on !HIGHMEM
-
-config RK29_MEM_SIZE_1G
-	bool "1GB"
-	depends on HIGHMEM
-	select ZONE_DMA
-
-endchoice
-
 config RK29_MEM_SIZE_M
-	int
-	default 512 if RK29_MEM_SIZE_512M
-	default 1024 if RK29_MEM_SIZE_1G
+	int "DDR Memory size (in MB)"
+	default 512
 
 config DDR_SDRAM_FREQ
 	int "DDR SDRAM frequence (in MHz)"
