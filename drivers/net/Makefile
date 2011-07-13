@@ -130,35 +130,18 @@ obj-$(CONFIG_MACVLAN) += macvlan.o
 obj-$(CONFIG_MACVTAP) += macvtap.o
 obj-$(CONFIG_DE600) += de600.o
 obj-$(CONFIG_DE620) += de620.o
-obj-$(CONFIG_SUN3_82586) += sun3_82586.o
 obj-$(CONFIG_DEFXX) += defxx.o
 obj-$(CONFIG_SGISEEQ) += sgiseeq.o
 obj-$(CONFIG_SGI_O2MACE_ETH) += meth.o
 obj-$(CONFIG_AT1700) += at1700.o
-obj-$(CONFIG_EL16) += 3c507.o
-obj-$(CONFIG_ELMC) += 3c523.o
 obj-$(CONFIG_IBMLANA) += ibmlana.o
-obj-$(CONFIG_ELMC_II) += 3c527.o
-obj-$(CONFIG_EEXPRESS) += eexpress.o
-obj-$(CONFIG_EEXPRESS_PRO) += eepro.o
 obj-$(CONFIG_8139CP) += 8139cp.o
 obj-$(CONFIG_8139TOO) += 8139too.o
-obj-$(CONFIG_ZNET) += znet.o
 obj-$(CONFIG_CPMAC) += cpmac.o
 obj-$(CONFIG_EWRK3) += ewrk3.o
 obj-$(CONFIG_ATP) += atp.o
 obj-$(CONFIG_NI5010) += ni5010.o
-obj-$(CONFIG_NI52) += ni52.o
-obj-$(CONFIG_ELPLUS) += 3c505.o
-obj-$(CONFIG_APRICOT) += 82596.o
-obj-$(CONFIG_LASI_82596) += lasi_82596.o
-obj-$(CONFIG_SNI_82596) += sni_82596.o
-obj-$(CONFIG_MVME16x_NET) += 82596.o
-obj-$(CONFIG_BVME6000_NET) += 82596.o
 obj-$(CONFIG_SC92031) += sc92031.o
-
-# This is also a 82596 and should probably be merged
-obj-$(CONFIG_LP486E) += lp486e.o
 
 obj-$(CONFIG_ETH16I) += eth16i.o
 obj-$(CONFIG_EQUALIZER) += eql.o

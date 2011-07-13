@@ -3,13 +3,6 @@
 #  These are for Acorn's Expansion card network interfaces
 #
 
-config ARM_ETHER1
-	tristate "Acorn Ether1 support"
-	depends on ARM && ARCH_ACORN
-	help
-	  If you have an Acorn system with one of these (AKA25) network cards,
-	  you should say Y to this option if you wish to use it with Linux.
-
 config ARM_ETHER3
 	tristate "Acorn/ANT Ether3 support"
 	depends on ARM && ARCH_ACORN
