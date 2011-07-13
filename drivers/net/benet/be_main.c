@@ -431,6 +431,7 @@ void netdev_stats_update(struct be_adapter *adapter)
 		pkts += rx_stats(rxo)->rx_pkts;
 		bytes += rx_stats(rxo)->rx_bytes;
 		mcast += rx_stats(rxo)->rx_mcast_pkts;
+		drops += rx_stats(rxo)->rx_dropped;
 		/*  no space in linux buffers: best possible approximation */
 		if (adapter->generation == BE_GEN3) {
 			if (!(lancer_chip(adapter))) {
@@ -1181,8 +1182,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 
 	skb = netdev_alloc_skb_ip_align(netdev, BE_HDR_LEN);
 	if (unlikely(!skb)) {
-		if (net_ratelimit())
-			dev_warn(&adapter->pdev->dev, "skb alloc failed\n");
+		rxo->stats.rx_dropped++;
 		be_rx_compl_discard(adapter, rxo, rxcp);
 		return;
 	}

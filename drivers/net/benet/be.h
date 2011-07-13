@@ -199,6 +199,7 @@ struct be_rx_stats {
 	u32 rx_polls;	/* number of times NAPI called poll function */
 	u32 rx_events;	/* number of ucast rx completion events  */
 	u32 rx_compl;	/* number of rx completion entries processed */
+	ulong rx_dropped; /* number of skb allocation errors */
 	ulong rx_jiffies;
 	u64 rx_bytes;
 	u64 rx_bytes_prev;
