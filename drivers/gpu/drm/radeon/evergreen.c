@@ -2759,6 +2759,9 @@ int evergreen_irq_process(struct radeon_device *rdev)
 		return IRQ_NONE;
 	}
 restart_ih:
+	/* Order reading of wptr vs. reading of IH ring data */
+	rmb();
+
 	/* display interrupts */
 	evergreen_irq_ack(rdev);
 
