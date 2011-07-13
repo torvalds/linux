@@ -11,6 +11,9 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#ifdef CONFIG_GENERIC_HARDIRQS
+#include <linux/irq.h>
+#endif
 
 #include <asm/traps.h>
 #include <asm/bootinfo.h>

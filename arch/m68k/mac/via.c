@@ -28,6 +28,9 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#ifdef CONFIG_GENERIC_HARDIRQS
+#include <linux/irq.h>
+#endif
 
 #include <asm/bootinfo.h>
 #include <asm/macintosh.h>
