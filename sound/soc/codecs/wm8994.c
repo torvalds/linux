@@ -195,10 +195,6 @@ static int configure_aif_clock(struct snd_soc_codec *codec, int aif)
 			aif + 1, rate);
 	}
 
-	if (rate && rate < 3000000)
-		dev_warn(codec->dev, "AIF%dCLK is %dHz, should be >=3MHz for optimal performance\n",
-			 aif + 1, rate);
-
 	wm8994->aifclk[aif] = rate;
 
 	snd_soc_update_bits(codec, WM8994_AIF1_CLOCKING_1 + offset,
