@@ -731,6 +731,8 @@ config ARCH_RK29
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_GIC
 	select PL330
+	select HIGHMEM
+	select ZONE_DMA
 	help
 	  Support for Rockchip RK29 soc.
 
