@@ -1997,7 +1997,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	wl1271_power_off(wl);
 
 	memset(wl->bssid, 0, ETH_ALEN);
-	memset(wl->ssid, 0, IW_ESSID_MAX_SIZE + 1);
+	memset(wl->ssid, 0, IEEE80211_MAX_SSID_LEN + 1);
 	wl->ssid_len = 0;
 	wl->bss_type = MAX_BSS_TYPE;
 	wl->set_bss_type = MAX_BSS_TYPE;

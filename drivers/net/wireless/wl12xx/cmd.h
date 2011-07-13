@@ -239,7 +239,7 @@ struct wl1271_cmd_join {
 	u8 bss_type;
 	u8 channel;
 	u8 ssid_len;
-	u8 ssid[IW_ESSID_MAX_SIZE];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 ctrl; /* JOIN_CMD_CTRL_* */
 	u8 reserved[3];
 } __packed;
@@ -528,7 +528,7 @@ struct wl1271_cmd_bss_start {
 	/* wl1271_ssid_type */
 	u8 ssid_type;
 	u8 ssid_len;
-	u8 ssid[IW_ESSID_MAX_SIZE];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 padding_1[2];
 
 	/* Basic rate set */
