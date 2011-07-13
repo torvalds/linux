@@ -874,7 +874,7 @@ xfs_iflush_done(
 	 * Scan the buffer IO completions for other inodes being completed and
 	 * attach them to the current inode log item.
 	 */
-	blip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
+	blip = bp->b_fspriv;
 	prev = NULL;
 	while (blip != NULL) {
 		if (lip->li_cb != xfs_iflush_done) {
@@ -886,7 +886,7 @@ xfs_iflush_done(
 		/* remove from list */
 		next = blip->li_bio_list;
 		if (!prev) {
-			XFS_BUF_SET_FSPRIVATE(bp, next);
+			bp->b_fspriv = next;
 		} else {
 			prev->li_bio_list = next;
 		}

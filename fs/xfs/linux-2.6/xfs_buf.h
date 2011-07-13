@@ -280,8 +280,6 @@ void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_SET_IODONE_FUNC(bp, func)	((bp)->b_iodone = (func))
 #define XFS_BUF_CLR_IODONE_FUNC(bp)		((bp)->b_iodone = NULL)
 
-#define XFS_BUF_FSPRIVATE(bp, type)		((type)(bp)->b_fspriv)
-#define XFS_BUF_SET_FSPRIVATE(bp, val)		((bp)->b_fspriv = (void*)(val))
 #define XFS_BUF_SET_START(bp)			do { } while (0)
 
 #define XFS_BUF_PTR(bp)			(xfs_caddr_t)((bp)->b_addr)

@@ -1698,7 +1698,7 @@ xfs_ifree_cluster(
 		 * stale first, we will not attempt to lock them in the loop
 		 * below as the XFS_ISTALE flag will be set.
 		 */
-		lip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
+		lip = bp->b_fspriv;
 		while (lip) {
 			if (lip->li_type == XFS_LI_INODE) {
 				iip = (xfs_inode_log_item_t *)lip;
@@ -2811,7 +2811,7 @@ xfs_iflush_int(
 		 */
 		xfs_buf_attach_iodone(bp, xfs_iflush_done, &iip->ili_item);
 
-		ASSERT(XFS_BUF_FSPRIVATE(bp, void *) != NULL);
+		ASSERT(bp->b_fspriv != NULL);
 		ASSERT(XFS_BUF_IODONE_FUNC(bp) != NULL);
 	} else {
 		/*
