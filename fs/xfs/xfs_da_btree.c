@@ -86,7 +86,7 @@ STATIC void xfs_da_node_unbalance(xfs_da_state_t *state,
  */
 STATIC uint	xfs_da_node_lasthash(xfs_dabuf_t *bp, int *count);
 STATIC int	xfs_da_node_order(xfs_dabuf_t *node1_bp, xfs_dabuf_t *node2_bp);
-STATIC xfs_dabuf_t *xfs_da_buf_make(int nbuf, xfs_buf_t **bps, inst_t *ra);
+STATIC xfs_dabuf_t *xfs_da_buf_make(int nbuf, xfs_buf_t **bps);
 STATIC int	xfs_da_blk_unlink(xfs_da_state_t *state,
 				  xfs_da_state_blk_t *drop_blk,
 				  xfs_da_state_blk_t *save_blk);
@@ -1939,8 +1939,7 @@ xfs_da_do_buf(
 	xfs_daddr_t	*mappedbnop,
 	xfs_dabuf_t	**bpp,
 	int		whichfork,
-	int		caller,
-	inst_t		*ra)
+	int		caller)
 {
 	xfs_buf_t	*bp = NULL;
 	xfs_buf_t	**bplist;
@@ -2079,9 +2078,9 @@ xfs_da_do_buf(
 	 * Build a dabuf structure.
 	 */
 	if (bplist) {
-		rbp = xfs_da_buf_make(nbplist, bplist, ra);
+		rbp = xfs_da_buf_make(nbplist, bplist);
 	} else if (bp)
-		rbp = xfs_da_buf_make(1, &bp, ra);
+		rbp = xfs_da_buf_make(1, &bp);
 	else
 		rbp = NULL;
 	/*
@@ -2149,8 +2148,7 @@ xfs_da_get_buf(
 	xfs_dabuf_t	**bpp,
 	int		whichfork)
 {
-	return xfs_da_do_buf(trans, dp, bno, &mappedbno, bpp, whichfork, 0,
-						 (inst_t *)__return_address);
+	return xfs_da_do_buf(trans, dp, bno, &mappedbno, bpp, whichfork, 0);
 }
 
 /*
@@ -2165,8 +2163,7 @@ xfs_da_read_buf(
 	xfs_dabuf_t	**bpp,
 	int		whichfork)
 {
-	return xfs_da_do_buf(trans, dp, bno, &mappedbno, bpp, whichfork, 1,
-		(inst_t *)__return_address);
+	return xfs_da_do_buf(trans, dp, bno, &mappedbno, bpp, whichfork, 1);
 }
 
 /*
@@ -2182,8 +2179,7 @@ xfs_da_reada_buf(
 	xfs_daddr_t		rval;
 
 	rval = -1;
-	if (xfs_da_do_buf(trans, dp, bno, &rval, NULL, whichfork, 3,
-			(inst_t *)__return_address))
+	if (xfs_da_do_buf(trans, dp, bno, &rval, NULL, whichfork, 3))
 		return -1;
 	else
 		return rval;
@@ -2241,17 +2237,12 @@ xfs_da_state_free(xfs_da_state_t *state)
 	kmem_zone_free(xfs_da_state_zone, state);
 }
 
-#ifdef XFS_DABUF_DEBUG
-xfs_dabuf_t	*xfs_dabuf_global_list;
-static DEFINE_SPINLOCK(xfs_dabuf_global_lock);
-#endif
-
 /*
  * Create a dabuf.
  */
 /* ARGSUSED */
 STATIC xfs_dabuf_t *
-xfs_da_buf_make(int nbuf, xfs_buf_t **bps, inst_t *ra)
+xfs_da_buf_make(int nbuf, xfs_buf_t **bps)
 {
 	xfs_buf_t	*bp;
 	xfs_dabuf_t	*dabuf;
@@ -2263,11 +2254,6 @@ xfs_da_buf_make(int nbuf, xfs_buf_t **bps, inst_t *ra)
 	else
 		dabuf = kmem_alloc(XFS_DA_BUF_SIZE(nbuf), KM_NOFS);
 	dabuf->dirty = 0;
-#ifdef XFS_DABUF_DEBUG
-	dabuf->ra = ra;
-	dabuf->target = XFS_BUF_TARGET(bps[0]);
-	dabuf->blkno = XFS_BUF_ADDR(bps[0]);
-#endif
 	if (nbuf == 1) {
 		dabuf->nbuf = 1;
 		bp = bps[0];
@@ -2287,23 +2273,6 @@ xfs_da_buf_make(int nbuf, xfs_buf_t **bps, inst_t *ra)
 				XFS_BUF_COUNT(bp));
 		}
 	}
-#ifdef XFS_DABUF_DEBUG
-	{
-		xfs_dabuf_t	*p;
-
-		spin_lock(&xfs_dabuf_global_lock);
-		for (p = xfs_dabuf_global_list; p; p = p->next) {
-			ASSERT(p->blkno != dabuf->blkno ||
-			       p->target != dabuf->target);
-		}
-		dabuf->prev = NULL;
-		if (xfs_dabuf_global_list)
-			xfs_dabuf_global_list->prev = dabuf;
-		dabuf->next = xfs_dabuf_global_list;
-		xfs_dabuf_global_list = dabuf;
-		spin_unlock(&xfs_dabuf_global_lock);
-	}
-#endif
 	return dabuf;
 }
 
@@ -2339,25 +2308,12 @@ xfs_da_buf_done(xfs_dabuf_t *dabuf)
 	ASSERT(dabuf->nbuf && dabuf->data && dabuf->bbcount && dabuf->bps[0]);
 	if (dabuf->dirty)
 		xfs_da_buf_clean(dabuf);
-	if (dabuf->nbuf > 1)
+	if (dabuf->nbuf > 1) {
 		kmem_free(dabuf->data);
-#ifdef XFS_DABUF_DEBUG
-	{
-		spin_lock(&xfs_dabuf_global_lock);
-		if (dabuf->prev)
-			dabuf->prev->next = dabuf->next;
-		else
-			xfs_dabuf_global_list = dabuf->next;
-		if (dabuf->next)
-			dabuf->next->prev = dabuf->prev;
-		spin_unlock(&xfs_dabuf_global_lock);
-	}
-	memset(dabuf, 0, XFS_DA_BUF_SIZE(dabuf->nbuf));
-#endif
-	if (dabuf->nbuf == 1)
-		kmem_zone_free(xfs_dabuf_zone, dabuf);
-	else
 		kmem_free(dabuf);
+	} else {
+		kmem_zone_free(xfs_dabuf_zone, dabuf);
+	}
 }
 
 /*
