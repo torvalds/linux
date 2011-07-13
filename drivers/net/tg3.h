@@ -3020,6 +3020,7 @@ struct tg3 {
 	u8				pci_cacheline_sz;
 	u8				pci_lat_timer;
 
+	int				pci_fn;
 	int				pm_cap;
 	int				msi_cap;
 	int				pcix_cap;

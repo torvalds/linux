@@ -1170,7 +1170,7 @@ static int tg3_mdio_init(struct tg3 *tp)
 	if (tg3_flag(tp, 5717_PLUS)) {
 		u32 is_serdes;
 
-		tp->phy_addr = PCI_FUNC(tp->pdev->devfn) + 1;
+		tp->phy_addr = tp->pci_fn + 1;
 
 		if (tp->pci_chip_rev_id != CHIPREV_ID_5717_A0)
 			is_serdes = tr32(SG_DIG_STATUS) & SG_DIG_IS_SERDES;
@@ -13951,6 +13951,14 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	val = tr32(MEMARB_MODE);
 	tw32(MEMARB_MODE, val | MEMARB_MODE_ENABLE);
 
+	if (tg3_flag(tp, PCIX_MODE)) {
+		pci_read_config_dword(tp->pdev,
+				      tp->pcix_cap + PCI_X_STATUS, &val);
+		tp->pci_fn = val & 0x7;
+	} else {
+		tp->pci_fn = PCI_FUNC(tp->pdev->devfn) & 3;
+	}
+
 	/* Get eeprom hw config before calling tg3_set_power_state().
 	 * In particular, the TG3_FLAG_IS_NIC flag must be
 	 * determined before calling tg3_set_power_state() so that
@@ -14316,9 +14324,9 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 		else
 			tg3_nvram_unlock(tp);
 	} else if (tg3_flag(tp, 5717_PLUS)) {
-		if (PCI_FUNC(tp->pdev->devfn) & 1)
+		if (tp->pci_fn & 1)
 			mac_offset = 0xcc;
-		if (PCI_FUNC(tp->pdev->devfn) > 1)
+		if (tp->pci_fn > 1)
 			mac_offset += 0x18c;
 	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
 		mac_offset = 0x10;
