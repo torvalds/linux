@@ -328,7 +328,7 @@ static int cnic_send_nlmsg(struct cnic_local *cp, u32 type,
 		msleep(100);
 		retry++;
 	}
-	return 0;
+	return rc;
 }
 
 static void cnic_cm_upcall(struct cnic_local *, struct cnic_sock *, u8);
