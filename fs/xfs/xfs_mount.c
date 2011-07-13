@@ -1089,10 +1089,6 @@ xfs_mount_reset_sbqflags(
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return 0;
 
-#ifdef QUOTADEBUG
-	xfs_notice(mp, "Writing superblock quota changes");
-#endif
-
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
 	error = xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
 				      XFS_DEFAULT_LOG_COUNT);

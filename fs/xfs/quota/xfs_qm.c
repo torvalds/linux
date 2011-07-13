@@ -67,32 +67,6 @@ static struct shrinker xfs_qm_shaker = {
 	.seeks = DEFAULT_SEEKS,
 };
 
-#ifdef DEBUG
-extern struct mutex	qcheck_lock;
-#endif
-
-#ifdef QUOTADEBUG
-static void
-xfs_qm_dquot_list_print(
-	struct xfs_mount *mp)
-{
-	xfs_dquot_t	*dqp;
-	int		i = 0;
-
-	list_for_each_entry(dqp, &mp->m_quotainfo->qi_dqlist_lock, qi_mplist) {
-		xfs_debug(mp, "   %d. \"%d (%s)\"   "
-				  "bcnt = %lld, icnt = %lld, refs = %d",
-			i++, be32_to_cpu(dqp->q_core.d_id),
-			DQFLAGTO_TYPESTR(dqp),
-			(long long)be64_to_cpu(dqp->q_core.d_bcount),
-			(long long)be64_to_cpu(dqp->q_core.d_icount),
-			dqp->q_nrefs);
-	}
-}
-#else
-static void xfs_qm_dquot_list_print(struct xfs_mount *mp) { }
-#endif
-
 /*
  * Initialize the XQM structure.
  * Note that there is not one quota manager per file system.
@@ -165,9 +139,6 @@ xfs_Gqm_init(void)
 	atomic_set(&xqm->qm_totaldquots, 0);
 	xqm->qm_dqfree_ratio = XFS_QM_DQFREE_RATIO;
 	xqm->qm_nrefs = 0;
-#ifdef DEBUG
-	mutex_init(&qcheck_lock);
-#endif
 	return xqm;
 
  out_free_udqhash:
@@ -204,9 +175,6 @@ xfs_qm_destroy(
 	mutex_lock(&xqm->qm_dqfrlist_lock);
 	list_for_each_entry_safe(dqp, n, &xqm->qm_dqfrlist, q_freelist) {
 		xfs_dqlock(dqp);
-#ifdef QUOTADEBUG
-		xfs_debug(dqp->q_mount, "FREELIST destroy 0x%p", dqp);
-#endif
 		list_del_init(&dqp->q_freelist);
 		xfs_Gqm->qm_dqfrlist_cnt--;
 		xfs_dqunlock(dqp);
@@ -214,9 +182,6 @@ xfs_qm_destroy(
 	}
 	mutex_unlock(&xqm->qm_dqfrlist_lock);
 	mutex_destroy(&xqm->qm_dqfrlist_lock);
-#ifdef DEBUG
-	mutex_destroy(&qcheck_lock);
-#endif
 	kmem_free(xqm);
 }
 
@@ -409,11 +374,6 @@ xfs_qm_mount_quotas(
 		xfs_warn(mp, "Failed to initialize disk quotas.");
 		return;
 	}
-
-#ifdef QUOTADEBUG
-	if (XFS_IS_QUOTA_ON(mp))
-		xfs_qm_internalqcheck(mp);
-#endif
 }
 
 /*
@@ -866,8 +826,8 @@ xfs_qm_dqattach_locked(
 	}
 
  done:
-#ifdef QUOTADEBUG
-	if (! error) {
+#ifdef DEBUG
+	if (!error) {
 		if (XFS_IS_UQUOTA_ON(mp))
 			ASSERT(ip->i_udquot);
 		if (XFS_IS_OQUOTA_ON(mp))
@@ -1733,8 +1693,6 @@ xfs_qm_quotacheck(
 	mp->m_qflags &= ~(XFS_OQUOTA_CHKD | XFS_UQUOTA_CHKD);
 	mp->m_qflags |= flags;
 
-	xfs_qm_dquot_list_print(mp);
-
  error_return:
 	if (error) {
 		xfs_warn(mp,
@@ -2096,9 +2054,6 @@ xfs_qm_write_sb_changes(
 	xfs_trans_t	*tp;
 	int		error;
 
-#ifdef QUOTADEBUG
-	xfs_notice(mp, "Writing superblock quota changes");
-#endif
 	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
 	if ((error = xfs_trans_reserve(tp, 0,
 				      mp->m_sb.sb_sectsize + 128, 0,
