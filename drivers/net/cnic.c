@@ -4923,7 +4923,7 @@ static void cnic_init_rings(struct cnic_dev *dev)
 		struct client_init_ramrod_data *data;
 		union l5cm_specific_data l5_data;
 		struct ustorm_eth_rx_producers rx_prods = {0};
-		u32 off, i;
+		u32 off, i, *cid_ptr;
 
 		rx_prods.bd_prod = 0;
 		rx_prods.cqe_prod = BNX2X_MAX_RCQ_DESC_CNT;
@@ -4942,6 +4942,7 @@ static void cnic_init_rings(struct cnic_dev *dev)
 		set_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags);
 
 		data = udev->l2_buf;
+		cid_ptr = udev->l2_buf + 12;
 
 		memset(data, 0, sizeof(*data));
 
@@ -4966,12 +4967,15 @@ static void cnic_init_rings(struct cnic_dev *dev)
 				"iSCSI CLIENT_SETUP did not complete\n");
 		cnic_spq_completion(dev, DRV_CTL_RET_L2_SPQ_CREDIT_CMD, 1);
 		cnic_ring_ctl(dev, cid, cli, 1);
+		*cid_ptr = cid;
 	}
 }
 
 static void cnic_shutdown_rings(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
+	struct cnic_uio_dev *udev = cp->udev;
+	void *rx_ring;
 
 	if (!test_bit(CNIC_LCL_FL_RINGS_INITED, &cp->cnic_local_flags))
 		return;
@@ -4979,7 +4983,6 @@ static void cnic_shutdown_rings(struct cnic_dev *dev)
 	if (test_bit(CNIC_F_BNX2_CLASS, &dev->flags)) {
 		cnic_shutdown_bnx2_rx_ring(dev);
 	} else if (test_bit(CNIC_F_BNX2X_CLASS, &dev->flags)) {
-		struct cnic_local *cp = dev->cnic_priv;
 		u32 cli = cp->ethdev->iscsi_l2_client_id;
 		u32 cid = cp->ethdev->iscsi_l2_cid;
 		union l5cm_specific_data l5_data;
@@ -5009,6 +5012,8 @@ static void cnic_shutdown_rings(struct cnic_dev *dev)
 		msleep(10);
 	}
 	clear_bit(CNIC_LCL_FL_RINGS_INITED, &cp->cnic_local_flags);
+	rx_ring = udev->l2_ring + BCM_PAGE_SIZE;
+	memset(rx_ring, 0, BCM_PAGE_SIZE);
 }
 
 static int cnic_register_netdev(struct cnic_dev *dev)
