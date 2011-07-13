@@ -1568,38 +1568,6 @@ static unsigned long cpu_avg_load_per_task(int cpu)
 	return rq->avg_load_per_task;
 }
 
-#ifdef CONFIG_FAIR_GROUP_SCHED
-
-/*
- * Compute the cpu's hierarchical load factor for each task group.
- * This needs to be done in a top-down fashion because the load of a child
- * group is a fraction of its parents load.
- */
-static int tg_load_down(struct task_group *tg, void *data)
-{
-	unsigned long load;
-	long cpu = (long)data;
-
-	if (!tg->parent) {
-		load = cpu_rq(cpu)->load.weight;
-	} else {
-		load = tg->parent->cfs_rq[cpu]->h_load;
-		load *= tg->se[cpu]->load.weight;
-		load /= tg->parent->cfs_rq[cpu]->load.weight + 1;
-	}
-
-	tg->cfs_rq[cpu]->h_load = load;
-
-	return 0;
-}
-
-static void update_h_load(long cpu)
-{
-	walk_tg_tree(tg_load_down, tg_nop, (void *)cpu);
-}
-
-#endif
-
 #ifdef CONFIG_PREEMPT
 
 static void double_rq_lock(struct rq *rq1, struct rq *rq2);
