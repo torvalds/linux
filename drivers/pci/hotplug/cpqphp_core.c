@@ -840,8 +840,9 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* Need to read VID early b/c it's used to differentiate CPQ and INTC
 	 * discovery
 	 */
-	rc = pci_read_config_word(pdev, PCI_VENDOR_ID, &vendor_id);
-	if (rc || ((vendor_id != PCI_VENDOR_ID_COMPAQ) && (vendor_id != PCI_VENDOR_ID_INTEL))) {
+	vendor_id = pdev->vendor;
+	if ((vendor_id != PCI_VENDOR_ID_COMPAQ) &&
+	    (vendor_id != PCI_VENDOR_ID_INTEL)) {
 		err(msg_HPC_non_compaq_or_intel);
 		rc = -ENODEV;
 		goto err_disable_device;
