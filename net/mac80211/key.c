@@ -278,7 +278,7 @@ static void __ieee80211_key_replace(struct ieee80211_sub_if_data *sdata,
 	bool defunikey, defmultikey, defmgmtkey;
 
 	if (new)
-		list_add(&new->list, &sdata->key_list);
+		list_add_tail(&new->list, &sdata->key_list);
 
 	if (sta && pairwise) {
 		rcu_assign_pointer(sta->ptk, new);

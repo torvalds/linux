@@ -2987,6 +2987,10 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
  * needs reprogramming of the keys during suspend. Note that due
  * to locking reasons, it is also only safe to call this at few
  * spots since it must hold the RTNL and be able to sleep.
+ *
+ * The order in which the keys are iterated matches the order
+ * in which they were originally installed and handed to the
+ * set_key callback.
  */
 void ieee80211_iter_keys(struct ieee80211_hw *hw,
 			 struct ieee80211_vif *vif,
