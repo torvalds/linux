@@ -93,15 +93,6 @@ void HTUpdateDefaultSetting(struct rtllib_device* ieee)
 	pHTInfo->bRegRxReorderEnable = 1;
 	pHTInfo->RxReorderWinSize = 64;
 	pHTInfo->RxReorderPendingTime = 30;
-
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	pHTInfo->UsbRxFwAggrEn = 1;
-	pHTInfo->UsbRxFwAggrPageNum = 24;
-	pHTInfo->UsbRxFwAggrPacketNum = 8;
-	pHTInfo->UsbRxFwAggrTimeout = 8;
-#endif
-
-
 }
 void HTDebugHTCapability(u8* CapIE, u8* TitleString )
 {

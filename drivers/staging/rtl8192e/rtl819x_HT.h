@@ -285,14 +285,6 @@ typedef struct _RT_HIGH_THROUGHPUT{
 	u8				RxReorderPendingTime;
 	u16				RxReorderDropCounter;
 
-#ifdef USB_RX_AGGREGATION_SUPPORT
-	u8				UsbRxFwAggrEn;
-	u8				UsbRxFwAggrPageNum;
-	u8				UsbRxFwAggrPacketNum;
-	u8				UsbRxFwAggrTimeout;
-	u8				UsbRxPageSize;
-#endif
-
 	u8				bIsPeerBcm;
 
 	u8				IOTPeer;
