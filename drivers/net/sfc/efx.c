@@ -2476,7 +2476,7 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 		goto fail1;
 
 	netif_info(efx, probe, efx->net_dev,
-		   "Solarflare Communications NIC detected\n");
+		   "Solarflare NIC detected\n");
 
 	/* Set up basic I/O (BAR mappings etc) */
 	rc = efx_init_io(efx);

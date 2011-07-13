@@ -7,8 +7,7 @@ config SFC
 	select I2C_ALGOBIT
 	help
 	  This driver supports 10-gigabit Ethernet cards based on
-	  the Solarflare Communications SFC4000 and SFC9000-family
-	  controllers.
+	  the Solarflare SFC4000 and SFC9000-family controllers.
 
 	  To compile this driver as a module, choose M here.  The module
 	  will be called sfc.
