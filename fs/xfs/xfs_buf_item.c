@@ -443,7 +443,7 @@ xfs_buf_item_unpin(
 			 * Since the transaction no longer refers to the buffer,
 			 * the buffer should no longer refer to the transaction.
 			 */
-			XFS_BUF_SET_FSPRIVATE2(bp, NULL);
+			bp->b_transp = NULL;
 		}
 
 		/*
@@ -525,7 +525,7 @@ xfs_buf_item_unlock(
 	uint			hold;
 
 	/* Clear the buffer's association with this transaction. */
-	XFS_BUF_SET_FSPRIVATE2(bp, NULL);
+	bp->b_transp = NULL;
 
 	/*
 	 * If this is a transaction abort, don't return early.  Instead, allow
