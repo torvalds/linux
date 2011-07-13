@@ -2613,6 +2613,20 @@ static inline void ieee80211_get_tkip_p1k(struct ieee80211_key_conf *keyconf,
 }
 
 /**
+ * ieee80211_get_tkip_rx_p1k - get a TKIP phase 1 key for RX
+ *
+ * This function returns the TKIP phase 1 key for the given IV32
+ * and transmitter address.
+ *
+ * @keyconf: the parameter passed with the set key
+ * @ta: TA that will be used with the key
+ * @iv32: IV32 to get the P1K for
+ * @p1k: a buffer to which the key will be written, as 5 u16 values
+ */
+void ieee80211_get_tkip_rx_p1k(struct ieee80211_key_conf *keyconf,
+			       const u8 *ta, u32 iv32, u16 *p1k);
+
+/**
  * ieee80211_get_tkip_p2k - get a TKIP phase 2 key
  *
  * This function computes the TKIP RC4 key for the IV values
