@@ -1463,7 +1463,7 @@ struct nfs_client *nfs4_set_ds_client(struct nfs_client* mds_clp,
 	dprintk("<-- %s %p\n", __func__, clp);
 	return clp;
 }
-EXPORT_SYMBOL(nfs4_set_ds_client);
+EXPORT_SYMBOL_GPL(nfs4_set_ds_client);
 
 /*
  * Session has been established, and the client marked ready.
