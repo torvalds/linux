@@ -2901,6 +2901,10 @@ ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
 
 	mutex_lock(&ftrace_lock);
 	ret = ftrace_hash_move(ops, enable, orig_hash, hash);
+	if (!ret && ops->flags & FTRACE_OPS_FL_ENABLED
+	    && ftrace_enabled)
+		ftrace_run_update_code(FTRACE_ENABLE_CALLS);
+
 	mutex_unlock(&ftrace_lock);
 
 	mutex_unlock(&ftrace_regex_lock);
