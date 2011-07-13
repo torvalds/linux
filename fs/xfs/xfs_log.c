@@ -1050,7 +1050,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	bp = xfs_buf_get_empty(log->l_iclog_size, mp->m_logdev_targp);
 	if (!bp)
 		goto out_free_log;
-	XFS_BUF_SET_IODONE_FUNC(bp, xlog_iodone);
+	bp->b_iodone = xlog_iodone;
 	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(xfs_buf_islocked(bp));
 	log->l_xbuf = bp;
@@ -1084,7 +1084,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		if (!bp)
 			goto out_free_iclog;
 
-		XFS_BUF_SET_IODONE_FUNC(bp, xlog_iodone);
+		bp->b_iodone = xlog_iodone;
 		iclog->ic_bp = bp;
 		iclog->ic_data = bp->b_addr;
 #ifdef DEBUG

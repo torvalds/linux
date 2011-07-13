@@ -453,7 +453,7 @@ xfs_buf_item_unpin(
 		if (bip->bli_flags & XFS_BLI_STALE_INODE) {
 			xfs_buf_do_callbacks(bp);
 			bp->b_fspriv = NULL;
-			XFS_BUF_CLR_IODONE_FUNC(bp);
+			bp->b_iodone = NULL;
 		} else {
 			spin_lock(&ailp->xa_lock);
 			xfs_trans_ail_delete(ailp, (xfs_log_item_t *)bip);
@@ -870,8 +870,8 @@ xfs_buf_item_relse(
 
 	bip = bp->b_fspriv;
 	bp->b_fspriv = bip->bli_item.li_bio_list;
-	if (bp->b_fspriv == NULL && XFS_BUF_IODONE_FUNC(bp) != NULL)
-		XFS_BUF_CLR_IODONE_FUNC(bp);
+	if (bp->b_fspriv == NULL)
+		bp->b_iodone = NULL;
 
 	xfs_buf_rele(bp);
 	xfs_buf_item_free(bip);
@@ -907,9 +907,9 @@ xfs_buf_attach_iodone(
 		bp->b_fspriv = lip;
 	}
 
-	ASSERT((XFS_BUF_IODONE_FUNC(bp) == xfs_buf_iodone_callbacks) ||
-	       (XFS_BUF_IODONE_FUNC(bp) == NULL));
-	XFS_BUF_SET_IODONE_FUNC(bp, xfs_buf_iodone_callbacks);
+	ASSERT(bp->b_iodone == NULL ||
+	       bp->b_iodone == xfs_buf_iodone_callbacks);
+	bp->b_iodone = xfs_buf_iodone_callbacks;
 }
 
 /*
@@ -998,7 +998,7 @@ xfs_buf_iodone_callbacks(
 			XFS_BUF_DONE(bp);
 			XFS_BUF_SET_START(bp);
 		}
-		ASSERT(XFS_BUF_IODONE_FUNC(bp));
+		ASSERT(bp->b_iodone != NULL);
 		trace_xfs_buf_item_iodone_async(bp, _RET_IP_);
 		xfs_buf_relse(bp);
 		return;
@@ -1018,7 +1018,7 @@ xfs_buf_iodone_callbacks(
 do_callbacks:
 	xfs_buf_do_callbacks(bp);
 	bp->b_fspriv = NULL;
-	XFS_BUF_CLR_IODONE_FUNC(bp);
+	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }
 

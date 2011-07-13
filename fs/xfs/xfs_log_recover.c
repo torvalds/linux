@@ -371,7 +371,7 @@ xlog_recover_iodone(
 		xfs_force_shutdown(bp->b_target->bt_mount,
 					SHUTDOWN_META_IO_ERROR);
 	}
-	XFS_BUF_CLR_IODONE_FUNC(bp);
+	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }
 
@@ -2178,7 +2178,7 @@ xlog_recover_buffer_pass2(
 		error = xfs_bwrite(mp, bp);
 	} else {
 		ASSERT(bp->b_target->bt_mount == mp);
-		XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
+		bp->b_iodone = xlog_recover_iodone;
 		xfs_bdwrite(mp, bp);
 	}
 
@@ -2438,7 +2438,7 @@ xlog_recover_inode_pass2(
 
 write_inode_buffer:
 	ASSERT(bp->b_target->bt_mount == mp);
-	XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
+	bp->b_iodone = xlog_recover_iodone;
 	xfs_bdwrite(mp, bp);
 error:
 	if (need_free)
@@ -2560,7 +2560,7 @@ xlog_recover_dquot_pass2(
 
 	ASSERT(dq_f->qlf_size == 2);
 	ASSERT(bp->b_target->bt_mount == mp);
-	XFS_BUF_SET_IODONE_FUNC(bp, xlog_recover_iodone);
+	bp->b_iodone = xlog_recover_iodone;
 	xfs_bdwrite(mp, bp);
 
 	return (0);
