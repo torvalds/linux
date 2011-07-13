@@ -1535,6 +1535,8 @@ void rtl8192_query_rxphystatus(
 	{
 
 		u8 report;
+
+		priv->stats.numqry_phystatusCCK++;
 		if (!reg824_bit9)
 		{
 			report = pcck_buf->cck_agc_rpt & 0xc0;
