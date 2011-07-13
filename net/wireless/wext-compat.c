@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <net/iw_handler.h>
 #include <net/cfg80211.h>
+#include <net/cfg80211-wext.h>
 #include "wext-compat.h"
 #include "core.h"
 

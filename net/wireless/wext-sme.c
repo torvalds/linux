@@ -9,6 +9,7 @@
 #include <linux/if_arp.h>
 #include <linux/slab.h>
 #include <net/cfg80211.h>
+#include <net/cfg80211-wext.h>
 #include "wext-compat.h"
 #include "nl80211.h"
 
