@@ -16,6 +16,9 @@
 #include <linux/sched.h>
 #include <linux/suspend.h>
 
+static LIST_HEAD(gpd_list);
+static DEFINE_MUTEX(gpd_list_lock);
+
 #ifdef CONFIG_PM
 
 static struct generic_pm_domain *dev_to_genpd(struct device *dev)
@@ -1241,4 +1244,22 @@ void pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->domain.ops.restore_noirq = pm_genpd_restore_noirq;
 	genpd->domain.ops.restore = pm_genpd_restore;
 	genpd->domain.ops.complete = pm_genpd_complete;
+	mutex_lock(&gpd_list_lock);
+	list_add(&genpd->gpd_list_node, &gpd_list);
+	mutex_unlock(&gpd_list_lock);
+}
+
+/**
+ * pm_genpd_poweroff_unused - Power off all PM domains with no devices in use.
+ */
+void pm_genpd_poweroff_unused(void)
+{
+	struct generic_pm_domain *genpd;
+
+	mutex_lock(&gpd_list_lock);
+
+	list_for_each_entry(genpd, &gpd_list, gpd_list_node)
+		genpd_queue_power_off_work(genpd);
+
+	mutex_unlock(&gpd_list_lock);
 }

@@ -24,6 +24,7 @@ struct dev_power_governor {
 
 struct generic_pm_domain {
 	struct dev_pm_domain domain;	/* PM domain operations */
+	struct list_head gpd_list_node;	/* Node in the global PM domains list */
 	struct list_head sd_node;	/* Node in the parent's subdomain list */
 	struct generic_pm_domain *parent;	/* Parent PM domain */
 	struct list_head sd_list;	/* List of dubdomains */
@@ -71,6 +72,7 @@ extern int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 extern void pm_genpd_init(struct generic_pm_domain *genpd,
 			  struct dev_power_governor *gov, bool is_off);
 extern int pm_genpd_poweron(struct generic_pm_domain *genpd);
+extern void pm_genpd_poweroff_unused(void);
 #else
 static inline int pm_genpd_add_device(struct generic_pm_domain *genpd,
 				      struct device *dev)
@@ -98,6 +100,7 @@ static inline int pm_genpd_poweron(struct generic_pm_domain *genpd)
 {
 	return -ENOSYS;
 }
+static inline void pm_genpd_poweroff_unused(void) {}
 #endif
 
 #endif /* _LINUX_PM_DOMAIN_H */
