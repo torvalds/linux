@@ -333,7 +333,6 @@ struct be_adapter {
 	u8 eq_next_idx;
 	struct be_drv_stats drv_stats;
 
-	struct vlan_group *vlan_grp;
 	u16 vlans_added;
 	u16 max_vlans;	/* Number of vlans supported */
 	u8 vlan_tag[VLAN_N_VID];
