@@ -145,11 +145,7 @@ int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 		*template++ = __le32_to_cpu(*tmp_buf++);
 
 	tmpl_hdr = ahw->fw_dump.tmpl_hdr;
-	if (tmpl_hdr->cap_mask > QLCNIC_DUMP_MASK_DEF &&
-		tmpl_hdr->cap_mask <= QLCNIC_DUMP_MASK_MAX)
-		tmpl_hdr->drv_cap_mask = tmpl_hdr->cap_mask;
-	else
-		tmpl_hdr->drv_cap_mask = QLCNIC_DUMP_MASK_DEF;
+	tmpl_hdr->drv_cap_mask = QLCNIC_DUMP_MASK_DEF;
 	ahw->fw_dump.enable = 1;
 error:
 	dma_free_coherent(&adapter->pdev->dev, temp_size, tmp_addr, tmp_addr_t);
