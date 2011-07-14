@@ -1185,7 +1185,7 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 
 	if (netif_msg_timer(bp)) {
 		struct bnx2x_eth_stats *estats = &bp->eth_stats;
-		int i;
+		int i, cos;
 
 		netdev_dbg(bp->dev, "brb drops %u  brb truncate %u\n",
 		       estats->brb_drop_lo, estats->brb_truncate_lo);
@@ -1206,20 +1206,32 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 
 		for_each_eth_queue(bp, i) {
 			struct bnx2x_fastpath *fp = &bp->fp[i];
+			struct bnx2x_fp_txdata *txdata;
 			struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
-			struct netdev_queue *txq =
-				netdev_get_tx_queue(bp->dev, i);
+			struct netdev_queue *txq;
 
-			printk(KERN_DEBUG "%s: tx avail(%4u)  *tx_cons_sb(%u)"
-					  "  tx pkt(%lu) tx calls (%lu)"
-					  "  %s (Xoff events %u)\n",
-			       fp->name, bnx2x_tx_avail(fp),
-			       le16_to_cpu(*fp->tx_cons_sb),
-			       bnx2x_hilo(&qstats->
-					  total_unicast_packets_transmitted_hi),
-			       fp->tx_pkt,
-			       (netif_tx_queue_stopped(txq) ? "Xoff" : "Xon"),
-			       qstats->driver_xoff);
+			printk(KERN_DEBUG "%s: tx pkt(%lu) (Xoff events %u)",
+				fp->name, bnx2x_hilo(
+				&qstats->total_unicast_packets_transmitted_hi),
+				qstats->driver_xoff);
+
+			for_each_cos_in_tx_queue(fp, cos) {
+				txdata = &fp->txdata[cos];
+				txq = netdev_get_tx_queue(bp->dev,
+						FP_COS_TO_TXQ(fp, cos));
+
+				printk(KERN_DEBUG "%d: tx avail(%4u)"
+				       "  *tx_cons_sb(%u)"
+				       "  tx calls (%lu)"
+				       "  %s\n",
+				       cos,
+				       bnx2x_tx_avail(bp, txdata),
+				       le16_to_cpu(*txdata->tx_cons_sb),
+				       txdata->tx_pkt,
+				       (netif_tx_queue_stopped(txq) ?
+					"Xoff" : "Xon")
+				       );
+			}
 		}
 	}
 

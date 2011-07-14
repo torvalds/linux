@@ -128,11 +128,10 @@ enum {
 	MODE_MF_NIV                    = 0x00000800,
 	MODE_E3_A0                     = 0x00001000,
 	MODE_E3_B0                     = 0x00002000,
-	MODE_COS_BC                    = 0x00004000,
-	MODE_COS3                      = 0x00008000,
-	MODE_COS6                      = 0x00010000,
-	MODE_LITTLE_ENDIAN             = 0x00020000,
-	MODE_BIG_ENDIAN                = 0x00040000,
+	MODE_COS3                      = 0x00004000,
+	MODE_COS6                      = 0x00008000,
+	MODE_LITTLE_ENDIAN             = 0x00010000,
+	MODE_BIG_ENDIAN                = 0x00020000,
 };
 
 /* Init Blocks */
@@ -179,7 +178,7 @@ enum {
 #define BNX2X_TOE_Q		3
 #define BNX2X_TOE_ACK_Q		6
 #define BNX2X_ISCSI_Q		9
-#define BNX2X_ISCSI_ACK_Q	8
+#define BNX2X_ISCSI_ACK_Q	11
 #define BNX2X_FCOE_Q		10
 
 /* Vnics per mode */
@@ -257,14 +256,16 @@ static inline void bnx2x_map_q_cos(struct bnx2x *bp, u32 q_num, u32 new_cos)
 }
 
 /* Configures the QM according to the specified per-traffic-type COSes */
-static inline void bnx2x_dcb_config_qm(struct bnx2x *bp,
+static inline void bnx2x_dcb_config_qm(struct bnx2x *bp, enum cos_mode mode,
 				       struct priority_cos *traffic_cos)
 {
 	bnx2x_map_q_cos(bp, BNX2X_FCOE_Q,
 			traffic_cos[LLFC_TRAFFIC_TYPE_FCOE].cos);
 	bnx2x_map_q_cos(bp, BNX2X_ISCSI_Q,
 			traffic_cos[LLFC_TRAFFIC_TYPE_ISCSI].cos);
-	if (INIT_MODE_FLAGS(bp) & MODE_COS_BC) {
+	bnx2x_map_q_cos(bp, BNX2X_ISCSI_ACK_Q,
+		traffic_cos[LLFC_TRAFFIC_TYPE_ISCSI].cos);
+	if (mode != STATIC_COS) {
 		/* required only in backward compatible COS mode */
 		bnx2x_map_q_cos(bp, BNX2X_ETH_Q,
 				traffic_cos[LLFC_TRAFFIC_TYPE_NW].cos);
@@ -272,8 +273,6 @@ static inline void bnx2x_dcb_config_qm(struct bnx2x *bp,
 				traffic_cos[LLFC_TRAFFIC_TYPE_NW].cos);
 		bnx2x_map_q_cos(bp, BNX2X_TOE_ACK_Q,
 				traffic_cos[LLFC_TRAFFIC_TYPE_NW].cos);
-		bnx2x_map_q_cos(bp, BNX2X_ISCSI_ACK_Q,
-				traffic_cos[LLFC_TRAFFIC_TYPE_ISCSI].cos);
 	}
 }
 

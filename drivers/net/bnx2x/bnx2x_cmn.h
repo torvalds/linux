@@ -439,6 +439,9 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode);
 /* hard_xmit callback */
 netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev);
 
+/* setup_tc callback */
+int bnx2x_setup_tc(struct net_device *dev, u8 num_tc);
+
 /* select_queue callback */
 u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb);
 
@@ -454,7 +457,7 @@ void bnx2x_update_rx_prod(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			u16 bd_prod, u16 rx_comp_prod, u16 rx_sge_prod);
 
 /* NAPI poll Tx part */
-int bnx2x_tx_int(struct bnx2x_fastpath *fp);
+int bnx2x_tx_int(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata);
 
 /* suspend/resume callbacks */
 int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state);
@@ -715,21 +718,22 @@ static inline u16 bnx2x_ack_int(struct bnx2x *bp)
 		return bnx2x_igu_ack_int(bp);
 }
 
-static inline int bnx2x_has_tx_work_unload(struct bnx2x_fastpath *fp)
+static inline int bnx2x_has_tx_work_unload(struct bnx2x_fp_txdata *txdata)
 {
 	/* Tell compiler that consumer and producer can change */
 	barrier();
-	return fp->tx_pkt_prod != fp->tx_pkt_cons;
+	return txdata->tx_pkt_prod != txdata->tx_pkt_cons;
 }
 
-static inline u16 bnx2x_tx_avail(struct bnx2x_fastpath *fp)
+static inline u16 bnx2x_tx_avail(struct bnx2x *bp,
+				 struct bnx2x_fp_txdata *txdata)
 {
 	s16 used;
 	u16 prod;
 	u16 cons;
 
-	prod = fp->tx_bd_prod;
-	cons = fp->tx_bd_cons;
+	prod = txdata->tx_bd_prod;
+	cons = txdata->tx_bd_cons;
 
 	/* NUM_TX_RINGS = number of "next-page" entries
 	   It will be used as a threshold */
@@ -737,21 +741,30 @@ static inline u16 bnx2x_tx_avail(struct bnx2x_fastpath *fp)
 
 #ifdef BNX2X_STOP_ON_ERROR
 	WARN_ON(used < 0);
-	WARN_ON(used > fp->bp->tx_ring_size);
-	WARN_ON((fp->bp->tx_ring_size - used) > MAX_TX_AVAIL);
+	WARN_ON(used > bp->tx_ring_size);
+	WARN_ON((bp->tx_ring_size - used) > MAX_TX_AVAIL);
 #endif
 
-	return (s16)(fp->bp->tx_ring_size) - used;
+	return (s16)(bp->tx_ring_size) - used;
 }
 
-static inline int bnx2x_has_tx_work(struct bnx2x_fastpath *fp)
+static inline int bnx2x_tx_queue_has_work(struct bnx2x_fp_txdata *txdata)
 {
 	u16 hw_cons;
 
 	/* Tell compiler that status block fields can change */
 	barrier();
-	hw_cons = le16_to_cpu(*fp->tx_cons_sb);
-	return hw_cons != fp->tx_pkt_cons;
+	hw_cons = le16_to_cpu(*txdata->tx_cons_sb);
+	return hw_cons != txdata->tx_pkt_cons;
+}
+
+static inline bool bnx2x_has_tx_work(struct bnx2x_fastpath *fp)
+{
+	u8 cos;
+	for_each_cos_in_tx_queue(fp, cos)
+		if (bnx2x_tx_queue_has_work(&fp->txdata[cos]))
+			return true;
+	return false;
 }
 
 static inline int bnx2x_has_rx_work(struct bnx2x_fastpath *fp)
@@ -963,7 +976,10 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	/* Function parameters */
 	start_params->mf_mode = bp->mf_mode;
 	start_params->sd_vlan_tag = bp->mf_ov;
+	if (CHIP_IS_E1x(bp))
 		start_params->network_cos_mode = OVERRIDE_COS;
+	else
+		start_params->network_cos_mode = STATIC_COS;
 
 	return bnx2x_func_state_change(bp, &func_params);
 }
@@ -1023,39 +1039,41 @@ static inline void bnx2x_free_tpa_pool(struct bnx2x *bp,
 	}
 }
 
-static inline void bnx2x_init_tx_ring_one(struct bnx2x_fastpath *fp)
+static inline void bnx2x_init_tx_ring_one(struct bnx2x_fp_txdata *txdata)
 {
 	int i;
 
 	for (i = 1; i <= NUM_TX_RINGS; i++) {
 		struct eth_tx_next_bd *tx_next_bd =
-			&fp->tx_desc_ring[TX_DESC_CNT * i - 1].next_bd;
+			&txdata->tx_desc_ring[TX_DESC_CNT * i - 1].next_bd;
 
 		tx_next_bd->addr_hi =
-			cpu_to_le32(U64_HI(fp->tx_desc_mapping +
+			cpu_to_le32(U64_HI(txdata->tx_desc_mapping +
 				    BCM_PAGE_SIZE*(i % NUM_TX_RINGS)));
 		tx_next_bd->addr_lo =
-			cpu_to_le32(U64_LO(fp->tx_desc_mapping +
+			cpu_to_le32(U64_LO(txdata->tx_desc_mapping +
 				    BCM_PAGE_SIZE*(i % NUM_TX_RINGS)));
 	}
 
-	SET_FLAG(fp->tx_db.data.header.header, DOORBELL_HDR_DB_TYPE, 1);
-	fp->tx_db.data.zero_fill1 = 0;
-	fp->tx_db.data.prod = 0;
+	SET_FLAG(txdata->tx_db.data.header.header, DOORBELL_HDR_DB_TYPE, 1);
+	txdata->tx_db.data.zero_fill1 = 0;
+	txdata->tx_db.data.prod = 0;
 
-	fp->tx_pkt_prod = 0;
-	fp->tx_pkt_cons = 0;
-	fp->tx_bd_prod = 0;
-	fp->tx_bd_cons = 0;
-	fp->tx_pkt = 0;
+	txdata->tx_pkt_prod = 0;
+	txdata->tx_pkt_cons = 0;
+	txdata->tx_bd_prod = 0;
+	txdata->tx_bd_cons = 0;
+	txdata->tx_pkt = 0;
 }
 
 static inline void bnx2x_init_tx_rings(struct bnx2x *bp)
 {
 	int i;
+	u8 cos;
 
 	for_each_tx_queue(bp, i)
-		bnx2x_init_tx_ring_one(&bp->fp[i]);
+		for_each_cos_in_tx_queue(&bp->fp[i], cos)
+			bnx2x_init_tx_ring_one(&bp->fp[i].txdata[cos]);
 }
 
 static inline void bnx2x_set_next_page_rx_bd(struct bnx2x_fastpath *fp)
@@ -1257,12 +1275,23 @@ static inline u32 bnx2x_rx_ustorm_prods_offset(struct bnx2x_fastpath *fp)
 		return USTORM_RX_PRODS_E1X_OFFSET(BP_PORT(bp), fp->cl_id);
 }
 
+static inline void bnx2x_init_txdata(struct bnx2x *bp,
+	struct bnx2x_fp_txdata *txdata, u32 cid, int txq_index,
+	__le16 *tx_cons_sb)
+{
+	txdata->cid = cid;
+	txdata->txq_index = txq_index;
+	txdata->tx_cons_sb = tx_cons_sb;
+
+	DP(BNX2X_MSG_SP, "created tx data cid %d, txq %d",
+	   txdata->cid, txdata->txq_index);
+}
 
 #ifdef BCM_CNIC
 static inline u8 bnx2x_cnic_eth_cl_id(struct bnx2x *bp, u8 cl_idx)
 {
 	return bp->cnic_base_cl_id + cl_idx +
-		(bp->pf_num >> 1) * NONE_ETH_CONTEXT_USE;
+		(bp->pf_num >> 1) * NON_ETH_CONTEXT_USE;
 }
 
 static inline u8 bnx2x_cnic_fw_sb_id(struct bnx2x *bp)
@@ -1293,10 +1322,13 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 	bnx2x_fcoe(bp, cid) = BNX2X_FCOE_ETH_CID;
 	bnx2x_fcoe(bp, fw_sb_id) = DEF_SB_ID;
 	bnx2x_fcoe(bp, igu_sb_id) = bp->igu_dsb_id;
-	bnx2x_fcoe(bp, bp) = bp;
-	bnx2x_fcoe(bp, index) = FCOE_IDX;
 	bnx2x_fcoe(bp, rx_cons_sb) = BNX2X_FCOE_L2_RX_INDEX;
-	bnx2x_fcoe(bp, tx_cons_sb) = BNX2X_FCOE_L2_TX_INDEX;
+
+	bnx2x_init_txdata(bp, &bnx2x_fcoe(bp, txdata[0]),
+			  fp->cid, FCOE_TXQ_IDX(bp), BNX2X_FCOE_L2_TX_INDEX);
+
+	DP(BNX2X_MSG_SP, "created fcoe tx data (fp index %d)", fp->index);
+
 	/* qZone id equals to FW (per path) client id */
 	bnx2x_fcoe(bp, cl_qzone_id) = bnx2x_fp_qzone_id(fp);
 	/* init shortcut */
@@ -1306,9 +1338,13 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 	/* Configure Queue State object */
 	__set_bit(BNX2X_Q_TYPE_HAS_RX, &q_type);
 	__set_bit(BNX2X_Q_TYPE_HAS_TX, &q_type);
-	bnx2x_init_queue_obj(bp, &fp->q_obj, fp->cl_id, fp->cid, BP_FUNC(bp),
-		bnx2x_sp(bp, q_rdata), bnx2x_sp_mapping(bp, q_rdata),
-			      q_type);
+
+	/* No multi-CoS for FCoE L2 client */
+	BUG_ON(fp->max_cos != 1);
+
+	bnx2x_init_queue_obj(bp, &fp->q_obj, fp->cl_id, &fp->cid, 1,
+			     BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
+			     bnx2x_sp_mapping(bp, q_rdata), q_type);
 
 	DP(NETIF_MSG_IFUP, "queue[%d]: bnx2x_init_sb(%p,%p) cl_id %d fw_sb %d "
 			   "igu_sb %d\n",
@@ -1318,15 +1354,16 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 #endif
 
 static inline int bnx2x_clean_tx_queue(struct bnx2x *bp,
-				       struct bnx2x_fastpath *fp)
+				       struct bnx2x_fp_txdata *txdata)
 {
 	int cnt = 1000;
 
-	while (bnx2x_has_tx_work_unload(fp)) {
+	while (bnx2x_has_tx_work_unload(txdata)) {
 		if (!cnt) {
 			BNX2X_ERR("timeout waiting for queue[%d]: "
-				 "fp->tx_pkt_prod(%d) != fp->tx_pkt_cons(%d)\n",
-				  fp->index, fp->tx_pkt_prod, fp->tx_pkt_cons);
+				 "txdata->tx_pkt_prod(%d) != txdata->tx_pkt_cons(%d)\n",
+				  txdata->txq_index, txdata->tx_pkt_prod,
+				  txdata->tx_pkt_cons);
 #ifdef BNX2X_STOP_ON_ERROR
 			bnx2x_panic();
 			return -EBUSY;

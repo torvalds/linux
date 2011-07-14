@@ -721,6 +721,8 @@ enum bnx2x_q_state {
 	BNX2X_Q_STATE_RESET,
 	BNX2X_Q_STATE_INITIALIZED,
 	BNX2X_Q_STATE_ACTIVE,
+	BNX2X_Q_STATE_MULTI_COS,
+	BNX2X_Q_STATE_MCOS_TERMINATED,
 	BNX2X_Q_STATE_INACTIVE,
 	BNX2X_Q_STATE_STOPPED,
 	BNX2X_Q_STATE_TERMINATED,
@@ -732,6 +734,7 @@ enum bnx2x_q_state {
 enum bnx2x_queue_cmd {
 	BNX2X_Q_CMD_INIT,
 	BNX2X_Q_CMD_SETUP,
+	BNX2X_Q_CMD_SETUP_TX_ONLY,
 	BNX2X_Q_CMD_DEACTIVATE,
 	BNX2X_Q_CMD_ACTIVATE,
 	BNX2X_Q_CMD_UPDATE,
@@ -774,6 +777,13 @@ enum bnx2x_q_type {
 	BNX2X_Q_TYPE_HAS_TX,
 };
 
+#define BNX2X_PRIMARY_CID_INDEX			0
+#define BNX2X_MULTI_TX_COS_E1X			1
+#define BNX2X_MULTI_TX_COS_E2_E3A0		2
+#define BNX2X_MULTI_TX_COS_E3B0			3
+#define BNX2X_MULTI_TX_COS			BNX2X_MULTI_TX_COS_E3B0
+
+
 struct bnx2x_queue_init_params {
 	struct {
 		unsigned long	flags;
@@ -790,7 +800,20 @@ struct bnx2x_queue_init_params {
 	} rx;
 
 	/* CID context in the host memory */
-	struct eth_context *cxt;
+	struct eth_context *cxts[BNX2X_MULTI_TX_COS];
+
+	/* maximum number of cos supported by hardware */
+	u8 max_cos;
+};
+
+struct bnx2x_queue_terminate_params {
+	/* index within the tx_only cids of this queue object */
+	u8 cid_index;
+};
+
+struct bnx2x_queue_cfc_del_params {
+	/* index within the tx_only cids of this queue object */
+	u8 cid_index;
 };
 
 struct bnx2x_queue_update_params {
@@ -798,6 +821,8 @@ struct bnx2x_queue_update_params {
 	u16		def_vlan;
 	u16		silent_removal_value;
 	u16		silent_removal_mask;
+/* index within the tx_only cids of this queue object */
+	u8		cid_index;
 };
 
 struct rxq_pause_params {
@@ -817,6 +842,7 @@ struct bnx2x_general_setup_params {
 
 	u8		spcl_id;
 	u16		mtu;
+	u8		cos;
 };
 
 struct bnx2x_rxq_setup_params {
@@ -863,13 +889,20 @@ struct bnx2x_txq_setup_params {
 };
 
 struct bnx2x_queue_setup_params {
-	struct rxq_pause_params pause;
 	struct bnx2x_general_setup_params gen_params;
-	struct bnx2x_rxq_setup_params rxq_params;
 	struct bnx2x_txq_setup_params txq_params;
+	struct bnx2x_rxq_setup_params rxq_params;
+	struct rxq_pause_params pause_params;
 	unsigned long flags;
 };
 
+struct bnx2x_queue_setup_tx_only_params {
+	struct bnx2x_general_setup_params	gen_params;
+	struct bnx2x_txq_setup_params		txq_params;
+	unsigned long				flags;
+	/* index within the tx_only cids of this queue object */
+	u8					cid_index;
+};
 
 struct bnx2x_queue_state_params {
 	struct bnx2x_queue_sp_obj *q_obj;
@@ -878,20 +911,35 @@ struct bnx2x_queue_state_params {
 	enum bnx2x_queue_cmd cmd;
 
 	/* may have RAMROD_COMP_WAIT set only */
-	unsigned long	ramrod_flags;
+	unsigned long ramrod_flags;
 
 	/* Params according to the current command */
 	union {
-		struct bnx2x_queue_update_params update;
-		struct bnx2x_queue_setup_params   setup;
-		struct bnx2x_queue_init_params	  init;
+		struct bnx2x_queue_update_params	update;
+		struct bnx2x_queue_setup_params		setup;
+		struct bnx2x_queue_init_params		init;
+		struct bnx2x_queue_setup_tx_only_params	tx_only;
+		struct bnx2x_queue_terminate_params	terminate;
+		struct bnx2x_queue_cfc_del_params	cfc_del;
 	} params;
 };
 
 struct bnx2x_queue_sp_obj {
-	u32		cid;
+	u32		cids[BNX2X_MULTI_TX_COS];
 	u8		cl_id;
 	u8		func_id;
+
+	/*
+	 * number of traffic classes supported by queue.
+	 * The primary connection of the queue suppotrs the first traffic
+	 * class. Any further traffic class is suppoted by a tx-only
+	 * connection.
+	 *
+	 * Therefore max_cos is also a number of valid entries in the cids
+	 * array.
+	 */
+	u8 max_cos;
+	u8 num_tx_only, next_tx_only;
 
 	enum bnx2x_q_state state, next_state;
 
@@ -1106,9 +1154,9 @@ int bnx2x_func_state_change(struct bnx2x *bp,
 
 /******************* Queue State **************/
 void bnx2x_init_queue_obj(struct bnx2x *bp,
-			  struct bnx2x_queue_sp_obj *obj, u8 cl_id, u32 cid,
-			  u8 func_id, void *rdata, dma_addr_t rdata_mapping,
-			  unsigned long type);
+			  struct bnx2x_queue_sp_obj *obj, u8 cl_id, u32 *cids,
+			  u8 cid_cnt, u8 func_id, void *rdata,
+			  dma_addr_t rdata_mapping, unsigned long type);
 
 int bnx2x_queue_state_change(struct bnx2x *bp,
 			     struct bnx2x_queue_state_params *params);

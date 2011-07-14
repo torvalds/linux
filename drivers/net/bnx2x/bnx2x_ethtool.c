@@ -1616,6 +1616,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	unsigned char *packet;
 	struct bnx2x_fastpath *fp_rx = &bp->fp[0];
 	struct bnx2x_fastpath *fp_tx = &bp->fp[0];
+	struct bnx2x_fp_txdata *txdata = &fp_tx->txdata[0];
 	u16 tx_start_idx, tx_idx;
 	u16 rx_start_idx, rx_idx;
 	u16 pkt_prod, bd_prod, rx_comp_cons;
@@ -1670,17 +1671,17 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 
 	/* send the loopback packet */
 	num_pkts = 0;
-	tx_start_idx = le16_to_cpu(*fp_tx->tx_cons_sb);
+	tx_start_idx = le16_to_cpu(*txdata->tx_cons_sb);
 	rx_start_idx = le16_to_cpu(*fp_rx->rx_cons_sb);
 
-	pkt_prod = fp_tx->tx_pkt_prod++;
-	tx_buf = &fp_tx->tx_buf_ring[TX_BD(pkt_prod)];
-	tx_buf->first_bd = fp_tx->tx_bd_prod;
+	pkt_prod = txdata->tx_pkt_prod++;
+	tx_buf = &txdata->tx_buf_ring[TX_BD(pkt_prod)];
+	tx_buf->first_bd = txdata->tx_bd_prod;
 	tx_buf->skb = skb;
 	tx_buf->flags = 0;
 
-	bd_prod = TX_BD(fp_tx->tx_bd_prod);
-	tx_start_bd = &fp_tx->tx_desc_ring[bd_prod].start_bd;
+	bd_prod = TX_BD(txdata->tx_bd_prod);
+	tx_start_bd = &txdata->tx_desc_ring[bd_prod].start_bd;
 	tx_start_bd->addr_hi = cpu_to_le32(U64_HI(mapping));
 	tx_start_bd->addr_lo = cpu_to_le32(U64_LO(mapping));
 	tx_start_bd->nbd = cpu_to_le16(2); /* start + pbd */
@@ -1697,27 +1698,27 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 	/* turn on parsing and get a BD */
 	bd_prod = TX_BD(NEXT_TX_IDX(bd_prod));
 
-	pbd_e1x = &fp_tx->tx_desc_ring[bd_prod].parse_bd_e1x;
-	pbd_e2 = &fp_tx->tx_desc_ring[bd_prod].parse_bd_e2;
+	pbd_e1x = &txdata->tx_desc_ring[bd_prod].parse_bd_e1x;
+	pbd_e2 = &txdata->tx_desc_ring[bd_prod].parse_bd_e2;
 
 	memset(pbd_e2, 0, sizeof(struct eth_tx_parse_bd_e2));
 	memset(pbd_e1x, 0, sizeof(struct eth_tx_parse_bd_e1x));
 
 	wmb();
 
-	fp_tx->tx_db.data.prod += 2;
+	txdata->tx_db.data.prod += 2;
 	barrier();
-	DOORBELL(bp, fp_tx->index, fp_tx->tx_db.raw);
+	DOORBELL(bp, txdata->cid, txdata->tx_db.raw);
 
 	mmiowb();
 	barrier();
 
 	num_pkts++;
-	fp_tx->tx_bd_prod += 2; /* start + pbd */
+	txdata->tx_bd_prod += 2; /* start + pbd */
 
 	udelay(100);
 
-	tx_idx = le16_to_cpu(*fp_tx->tx_cons_sb);
+	tx_idx = le16_to_cpu(*txdata->tx_cons_sb);
 	if (tx_idx != tx_start_idx + num_pkts)
 		goto test_loopback_exit;
 
@@ -1731,7 +1732,7 @@ static int bnx2x_run_loopback(struct bnx2x *bp, int loopback_mode)
 		 * bnx2x_tx_int()), as both are taking netif_tx_lock().
 		 */
 		local_bh_disable();
-		bnx2x_tx_int(fp_tx);
+		bnx2x_tx_int(bp, txdata);
 		local_bh_enable();
 	}
 
