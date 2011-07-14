@@ -182,28 +182,31 @@ static unsigned long __meminitdata nr_all_pages;
 static unsigned long __meminitdata dma_reserve;
 
 #ifdef CONFIG_ARCH_POPULATES_NODE_MAP
-  /*
-   * MAX_ACTIVE_REGIONS determines the maximum number of distinct
-   * ranges of memory (RAM) that may be registered with add_active_range().
-   * Ranges passed to add_active_range() will be merged if possible
-   * so the number of times add_active_range() can be called is
-   * related to the number of nodes and the number of holes
-   */
-  #ifdef CONFIG_MAX_ACTIVE_REGIONS
-    /* Allow an architecture to set MAX_ACTIVE_REGIONS to save memory */
-    #define MAX_ACTIVE_REGIONS CONFIG_MAX_ACTIVE_REGIONS
-  #else
-    #if MAX_NUMNODES >= 32
-      /* If there can be many nodes, allow up to 50 holes per node */
-      #define MAX_ACTIVE_REGIONS (MAX_NUMNODES*50)
+  #ifndef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+    /*
+     * MAX_ACTIVE_REGIONS determines the maximum number of distinct ranges
+     * of memory (RAM) that may be registered with add_active_range().
+     * Ranges passed to add_active_range() will be merged if possible so
+     * the number of times add_active_range() can be called is related to
+     * the number of nodes and the number of holes
+     */
+    #ifdef CONFIG_MAX_ACTIVE_REGIONS
+      /* Allow an architecture to set MAX_ACTIVE_REGIONS to save memory */
+      #define MAX_ACTIVE_REGIONS CONFIG_MAX_ACTIVE_REGIONS
     #else
-      /* By default, allow up to 256 distinct regions */
-      #define MAX_ACTIVE_REGIONS 256
+      #if MAX_NUMNODES >= 32
+        /* If there can be many nodes, allow up to 50 holes per node */
+        #define MAX_ACTIVE_REGIONS (MAX_NUMNODES*50)
+      #else
+        /* By default, allow up to 256 distinct regions */
+        #define MAX_ACTIVE_REGIONS 256
+      #endif
     #endif
-  #endif
 
-  static struct node_active_region __meminitdata early_node_map[MAX_ACTIVE_REGIONS];
-  static int __meminitdata nr_nodemap_entries;
+    static struct node_active_region __meminitdata early_node_map[MAX_ACTIVE_REGIONS];
+    static int __meminitdata nr_nodemap_entries;
+#endif /* !CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+
   static unsigned long __meminitdata arch_zone_lowest_possible_pfn[MAX_NR_ZONES];
   static unsigned long __meminitdata arch_zone_highest_possible_pfn[MAX_NR_ZONES];
   static unsigned long __initdata required_kernelcore;
@@ -4268,6 +4271,7 @@ static inline void setup_nr_node_ids(void)
 }
 #endif
 
+#ifndef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 /*
  * Common iterator interface used to define for_each_mem_pfn_range().
  */
@@ -4456,6 +4460,11 @@ void __init sort_node_map(void)
 			sizeof(struct node_active_region),
 			cmp_node_active_region, NULL);
 }
+#else /* !CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+static inline void sort_node_map(void)
+{
+}
+#endif
 
 /**
  * node_map_pfn_alignment - determine the maximum internode alignment

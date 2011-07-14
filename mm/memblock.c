@@ -161,12 +161,8 @@ int __init_memblock memblock_reserve_reserved_regions(void)
 
 static void __init_memblock memblock_remove_region(struct memblock_type *type, unsigned long r)
 {
-	unsigned long i;
-
-	for (i = r; i < type->cnt - 1; i++) {
-		type->regions[i].base = type->regions[i + 1].base;
-		type->regions[i].size = type->regions[i + 1].size;
-	}
+	memmove(&type->regions[r], &type->regions[r + 1],
+		(type->cnt - (r + 1)) * sizeof(type->regions[r]));
 	type->cnt--;
 
 	/* Special case for empty arrays */
@@ -174,6 +170,7 @@ static void __init_memblock memblock_remove_region(struct memblock_type *type, u
 		type->cnt = 1;
 		type->regions[0].base = 0;
 		type->regions[0].size = 0;
+		memblock_set_region_node(&type->regions[0], MAX_NUMNODES);
 	}
 }
 
@@ -266,7 +263,9 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
 		struct memblock_region *this = &type->regions[i];
 		struct memblock_region *next = &type->regions[i + 1];
 
-		if (this->base + this->size != next->base) {
+		if (this->base + this->size != next->base ||
+		    memblock_get_region_node(this) !=
+		    memblock_get_region_node(next)) {
 			BUG_ON(this->base + this->size > next->base);
 			i++;
 			continue;
@@ -290,7 +289,7 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
  */
 static void __init_memblock memblock_insert_region(struct memblock_type *type,
 						   int idx, phys_addr_t base,
-						   phys_addr_t size)
+						   phys_addr_t size, int nid)
 {
 	struct memblock_region *rgn = &type->regions[idx];
 
@@ -298,6 +297,7 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
 	memmove(rgn + 1, rgn, (type->cnt - idx) * sizeof(*rgn));
 	rgn->base = base;
 	rgn->size = size;
+	memblock_set_region_node(rgn, nid);
 	type->cnt++;
 }
 
@@ -327,6 +327,7 @@ static long __init_memblock memblock_add_region(struct memblock_type *type,
 		WARN_ON(type->cnt != 1);
 		type->regions[0].base = base;
 		type->regions[0].size = size;
+		memblock_set_region_node(&type->regions[0], MAX_NUMNODES);
 		return 0;
 	}
 repeat:
@@ -355,7 +356,7 @@ repeat:
 			nr_new++;
 			if (insert)
 				memblock_insert_region(type, i++, base,
-						       rbase - base);
+						rbase - base, MAX_NUMNODES);
 		}
 		/* area below @rend is dealt with, forget about it */
 		base = min(rend, end);
@@ -365,7 +366,8 @@ repeat:
 	if (base < end) {
 		nr_new++;
 		if (insert)
-			memblock_insert_region(type, i, base, end - base);
+			memblock_insert_region(type, i, base, end - base,
+					       MAX_NUMNODES);
 	}
 
 	/*
@@ -458,6 +460,101 @@ long __init_memblock memblock_reserve(phys_addr_t base, phys_addr_t size)
 
 	return memblock_add_region(_rgn, base, size);
 }
+
+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+/*
+ * Common iterator interface used to define for_each_mem_range().
+ */
+void __init_memblock __next_mem_pfn_range(int *idx, int nid,
+				unsigned long *out_start_pfn,
+				unsigned long *out_end_pfn, int *out_nid)
+{
+	struct memblock_type *type = &memblock.memory;
+	struct memblock_region *r;
+
+	while (++*idx < type->cnt) {
+		r = &type->regions[*idx];
+
+		if (PFN_UP(r->base) >= PFN_DOWN(r->base + r->size))
+			continue;
+		if (nid == MAX_NUMNODES || nid == r->nid)
+			break;
+	}
+	if (*idx >= type->cnt) {
+		*idx = -1;
+		return;
+	}
+
+	if (out_start_pfn)
+		*out_start_pfn = PFN_UP(r->base);
+	if (out_end_pfn)
+		*out_end_pfn = PFN_DOWN(r->base + r->size);
+	if (out_nid)
+		*out_nid = r->nid;
+}
+
+/**
+ * memblock_set_node - set node ID on memblock regions
+ * @base: base of area to set node ID for
+ * @size: size of area to set node ID for
+ * @nid: node ID to set
+ *
+ * Set the nid of memblock memory regions in [@base,@base+@size) to @nid.
+ * Regions which cross the area boundaries are split as necessary.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
+ */
+int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
+				      int nid)
+{
+	struct memblock_type *type = &memblock.memory;
+	phys_addr_t end = base + size;
+	int i;
+
+	/* we'll create at most two more regions */
+	while (type->cnt + 2 > type->max)
+		if (memblock_double_array(type) < 0)
+			return -ENOMEM;
+
+	for (i = 0; i < type->cnt; i++) {
+		struct memblock_region *rgn = &type->regions[i];
+		phys_addr_t rbase = rgn->base;
+		phys_addr_t rend = rbase + rgn->size;
+
+		if (rbase >= end)
+			break;
+		if (rend <= base)
+			continue;
+
+		if (rbase < base) {
+			/*
+			 * @rgn intersects from below.  Split and continue
+			 * to process the next region - the new top half.
+			 */
+			rgn->base = base;
+			rgn->size = rend - rgn->base;
+			memblock_insert_region(type, i, rbase, base - rbase,
+					       rgn->nid);
+		} else if (rend > end) {
+			/*
+			 * @rgn intersects from above.  Split and redo the
+			 * current region - the new bottom half.
+			 */
+			rgn->base = end;
+			rgn->size = rend - rgn->base;
+			memblock_insert_region(type, i--, rbase, end - rbase,
+					       rgn->nid);
+		} else {
+			/* @rgn is fully contained, set ->nid */
+			rgn->nid = nid;
+		}
+	}
+
+	memblock_merge_regions(type);
+	return 0;
+}
+#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
 
 phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, phys_addr_t max_addr)
 {
@@ -689,19 +786,26 @@ void __init_memblock memblock_set_current_limit(phys_addr_t limit)
 	memblock.current_limit = limit;
 }
 
-static void __init_memblock memblock_dump(struct memblock_type *region, char *name)
+static void __init_memblock memblock_dump(struct memblock_type *type, char *name)
 {
 	unsigned long long base, size;
 	int i;
 
-	pr_info(" %s.cnt  = 0x%lx\n", name, region->cnt);
+	pr_info(" %s.cnt  = 0x%lx\n", name, type->cnt);
 
-	for (i = 0; i < region->cnt; i++) {
-		base = region->regions[i].base;
-		size = region->regions[i].size;
+	for (i = 0; i < type->cnt; i++) {
+		struct memblock_region *rgn = &type->regions[i];
+		char nid_buf[32] = "";
 
-		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes\n",
-		    name, i, base, base + size - 1, size);
+		base = rgn->base;
+		size = rgn->size;
+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+		if (memblock_get_region_node(rgn) != MAX_NUMNODES)
+			snprintf(nid_buf, sizeof(nid_buf), " on node %d",
+				 memblock_get_region_node(rgn));
+#endif
+		pr_info(" %s[%#x]\t[%#016llx-%#016llx], %#llx bytes%s\n",
+			name, i, base, base + size - 1, size, nid_buf);
 	}
 }
 
@@ -759,11 +863,13 @@ void __init memblock_init(void)
 	 */
 	memblock.memory.regions[0].base = 0;
 	memblock.memory.regions[0].size = 0;
+	memblock_set_region_node(&memblock.memory.regions[0], MAX_NUMNODES);
 	memblock.memory.cnt = 1;
 
 	/* Ditto. */
 	memblock.reserved.regions[0].base = 0;
 	memblock.reserved.regions[0].size = 0;
+	memblock_set_region_node(&memblock.reserved.regions[0], MAX_NUMNODES);
 	memblock.reserved.cnt = 1;
 
 	memblock.current_limit = MEMBLOCK_ALLOC_ANYWHERE;

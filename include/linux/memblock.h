@@ -24,6 +24,9 @@
 struct memblock_region {
 	phys_addr_t base;
 	phys_addr_t size;
+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+	int nid;
+#endif
 };
 
 struct memblock_type {
@@ -57,6 +60,29 @@ extern long memblock_add(phys_addr_t base, phys_addr_t size);
 extern long memblock_remove(phys_addr_t base, phys_addr_t size);
 extern long memblock_free(phys_addr_t base, phys_addr_t size);
 extern long memblock_reserve(phys_addr_t base, phys_addr_t size);
+
+#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+extern int memblock_set_node(phys_addr_t base, phys_addr_t size, int nid);
+
+static inline void memblock_set_region_node(struct memblock_region *r, int nid)
+{
+	r->nid = nid;
+}
+
+static inline int memblock_get_region_node(const struct memblock_region *r)
+{
+	return r->nid;
+}
+#else
+static inline void memblock_set_region_node(struct memblock_region *r, int nid)
+{
+}
+
+static inline int memblock_get_region_node(const struct memblock_region *r)
+{
+	return 0;
+}
+#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
 
 /* The numa aware allocator is only available if
  * CONFIG_ARCH_POPULATES_NODE_MAP is set
