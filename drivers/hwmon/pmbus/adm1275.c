@@ -23,6 +23,8 @@
 #include <linux/i2c.h>
 #include "pmbus.h"
 
+enum chips { adm1275, adm1276 };
+
 #define ADM1275_PEAK_IOUT		0xd0
 #define ADM1275_PEAK_VIN		0xd1
 #define ADM1275_PEAK_VOUT		0xd2
@@ -36,9 +38,12 @@
 
 #define ADM1275_IOUT_WARN2_SELECT	(1 << 4)
 
+#define ADM1276_PEAK_PIN		0xda
+
 #define ADM1275_MFR_STATUS_IOUT_WARN2	(1 << 0)
 
 struct adm1275_data {
+	int id;
 	bool have_oc_fault;
 	struct pmbus_driver_info info;
 };
@@ -49,7 +54,7 @@ static int adm1275_read_word_data(struct i2c_client *client, int page, int reg)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
 	const struct adm1275_data *data = to_adm1275_data(info);
-	int ret;
+	int ret = 0;
 
 	if (page)
 		return -ENXIO;
@@ -78,10 +83,20 @@ static int adm1275_read_word_data(struct i2c_client *client, int page, int reg)
 	case PMBUS_VIRT_READ_VIN_MAX:
 		ret = pmbus_read_word_data(client, 0, ADM1275_PEAK_VIN);
 		break;
+	case PMBUS_VIRT_READ_PIN_MAX:
+		if (data->id != adm1276) {
+			ret = -ENXIO;
+			break;
+		}
+		ret = pmbus_read_word_data(client, 0, ADM1276_PEAK_PIN);
+		break;
 	case PMBUS_VIRT_RESET_IOUT_HISTORY:
 	case PMBUS_VIRT_RESET_VOUT_HISTORY:
 	case PMBUS_VIRT_RESET_VIN_HISTORY:
-		ret = 0;
+		break;
+	case PMBUS_VIRT_RESET_PIN_HISTORY:
+		if (data->id != adm1276)
+			ret = -ENXIO;
 		break;
 	default:
 		ret = -ENODATA;
@@ -112,6 +127,9 @@ static int adm1275_write_word_data(struct i2c_client *client, int page, int reg,
 		break;
 	case PMBUS_VIRT_RESET_VIN_HISTORY:
 		ret = pmbus_write_word_data(client, 0, ADM1275_PEAK_VIN, 0);
+		break;
+	case PMBUS_VIRT_RESET_PIN_HISTORY:
+		ret = pmbus_write_word_data(client, 0, ADM1276_PEAK_PIN, 0);
 		break;
 	default:
 		ret = -ENODATA;
@@ -180,6 +198,7 @@ static int adm1275_probe(struct i2c_client *client,
 		goto err_mem;
 	}
 
+	data->id = id->driver_data;
 	info = &data->info;
 
 	info->pages = 1;
@@ -214,10 +233,33 @@ static int adm1275_probe(struct i2c_client *client,
 	if (device_config & ADM1275_IOUT_WARN2_SELECT)
 		data->have_oc_fault = true;
 
-	if (config & ADM1275_VIN_VOUT_SELECT)
-		info->func[0] |= PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
-	else
-		info->func[0] |= PMBUS_HAVE_VIN | PMBUS_HAVE_STATUS_INPUT;
+	switch (id->driver_data) {
+	case adm1275:
+		if (config & ADM1275_VIN_VOUT_SELECT)
+			info->func[0] |=
+			  PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
+		else
+			info->func[0] |=
+			  PMBUS_HAVE_VIN | PMBUS_HAVE_STATUS_INPUT;
+		break;
+	case adm1276:
+		info->format[PSC_POWER] = direct;
+		info->func[0] |= PMBUS_HAVE_VIN | PMBUS_HAVE_PIN
+		  | PMBUS_HAVE_STATUS_INPUT;
+		if (config & ADM1275_VIN_VOUT_SELECT)
+			info->func[0] |=
+			  PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
+		if (config & ADM1275_VRANGE) {
+			info->m[PSC_POWER] = 6043;
+			info->b[PSC_POWER] = 0;
+			info->R[PSC_POWER] = -2;
+		} else {
+			info->m[PSC_POWER] = 2115;
+			info->b[PSC_POWER] = 0;
+			info->R[PSC_POWER] = -1;
+		}
+		break;
+	}
 
 	ret = pmbus_do_probe(client, id, info);
 	if (ret)
@@ -240,7 +282,8 @@ static int adm1275_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adm1275_id[] = {
-	{"adm1275", 0},
+	{ "adm1275", adm1275 },
+	{ "adm1276", adm1276 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adm1275_id);
@@ -265,7 +308,7 @@ static void __exit adm1275_exit(void)
 }
 
 MODULE_AUTHOR("Guenter Roeck");
-MODULE_DESCRIPTION("PMBus driver for Analog Devices ADM1275");
+MODULE_DESCRIPTION("PMBus driver for Analog Devices ADM1275 and compatibles");
 MODULE_LICENSE("GPL");
 module_init(adm1275_init);
 module_exit(adm1275_exit);
