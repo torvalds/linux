@@ -3034,8 +3034,7 @@ int drbd_adm_add_minor(struct sk_buff *skb, struct genl_info *info)
 	if (retcode != NO_ERROR)
 		goto out;
 
-	/* FIXME drop minor_count parameter, limit to MINORMASK */
-	if (dh->minor >= minor_count) {
+	if (dh->minor > MINORMASK) {
 		drbd_msg_put_info("requested minor out of range");
 		retcode = ERR_INVALID_REQUEST;
 		goto out;
