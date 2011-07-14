@@ -29,6 +29,7 @@
 #include "../../../staging/altera-stapl/altera.h"
 #include "cx23885.h"
 #include "tuner-xc2028.h"
+#include "netup-eeprom.h"
 #include "netup-init.h"
 #include "altera-ci.h"
 #include "xc4000.h"
@@ -1430,6 +1431,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		const struct firmware *fw;
 		const char *filename = "dvb-netup-altera-01.fw";
 		char *action = "configure";
+		static struct netup_card_info cinfo;
 		struct altera_config netup_config = {
 			.dev = dev,
 			.action = action,
@@ -1437,6 +1439,18 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		};
 
 		netup_initialize(dev);
+
+		netup_get_card_info(&dev->i2c_bus[0].i2c_adap, &cinfo);
+		switch (cinfo.rev) {
+		case 0x4:
+			filename = "dvb-netup-altera-04.fw";
+			break;
+		default:
+			filename = "dvb-netup-altera-01.fw";
+			break;
+		}
+		printk(KERN_INFO "NetUP card rev=0x%x fw_filename=%s\n",
+				cinfo.rev, filename);
 
 		ret = request_firmware(&fw, filename, &dev->pci->dev);
 		if (ret != 0)
