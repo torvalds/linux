@@ -51,10 +51,6 @@
 #endif
 #include <net/iw_handler.h>
 
-#ifndef IEEE80211_RADIOTAP_F_BADFCS
-#define IEEE80211_RADIOTAP_F_BADFCS	0x40	/* bad FCS */
-#endif
-
 #ifndef IW_MODE_MONITOR
 #define IW_MODE_MONITOR 6
 #endif
