@@ -1109,7 +1109,7 @@ bnad_mbox_irq_alloc(struct bnad *bnad,
 		    struct bna_intr_info *intr_info)
 {
 	int 		err = 0;
-	unsigned long 	irq_flags = 0, flags;
+	unsigned long 	irq_flags, flags;
 	u32	irq;
 	irq_handler_t 	irq_handler;
 
@@ -1123,6 +1123,7 @@ bnad_mbox_irq_alloc(struct bnad *bnad,
 	if (bnad->cfg_flags & BNAD_CF_MSIX) {
 		irq_handler = (irq_handler_t)bnad_msix_mbox_handler;
 		irq = bnad->msix_table[bnad->msix_num - 1].vector;
+		irq_flags = 0;
 		intr_info->intr_type = BNA_INTR_T_MSIX;
 		intr_info->idl[0].vector = bnad->msix_num - 1;
 	} else {
@@ -1133,7 +1134,6 @@ bnad_mbox_irq_alloc(struct bnad *bnad,
 		/* intr_info->idl.vector = 0 ? */
 	}
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
-	flags = irq_flags;
 	sprintf(bnad->mbox_irq_name, "%s", BNAD_NAME);
 
 	/*
@@ -1144,7 +1144,7 @@ bnad_mbox_irq_alloc(struct bnad *bnad,
 
 	BNAD_UPDATE_CTR(bnad, mbox_intr_disabled);
 
-	err = request_irq(irq, irq_handler, flags,
+	err = request_irq(irq, irq_handler, irq_flags,
 			  bnad->mbox_irq_name, bnad);
 
 	if (err) {
