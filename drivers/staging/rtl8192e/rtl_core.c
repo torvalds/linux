@@ -1136,13 +1136,8 @@ static void rtl8192_init_priv_handler(struct net_device* dev)
 	priv->rtllib->SetBWModeHandler		= rtl8192_SetBWMode;
 	priv->rf_set_chan			= rtl8192_phy_SwChnl;
 
-#ifdef _ENABLE_SW_BEACON
-	priv->rtllib->start_send_beacons = NULL;
-	priv->rtllib->stop_send_beacons = NULL;
-#else
 	priv->rtllib->start_send_beacons = rtl8192e_start_beacon;
 	priv->rtllib->stop_send_beacons = rtl8192_stop_beacon;
-#endif
 
 	priv->rtllib->sta_wake_up = rtl8192_hw_wakeup;
 	priv->rtllib->enter_sleep_state = rtl8192_hw_to_sleep;
@@ -2100,11 +2095,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 	if (tcb_desc->queue_index != BEACON_QUEUE) {
 		idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
 	} else {
-#ifdef _ENABLE_SW_BEACON
-		idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
-#else
 		idx = 0;
-#endif
 	}
 
 	pdesc = &ring->desc[idx];
@@ -2843,9 +2834,6 @@ irqreturn_type rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs)
 
 	if (inta & IMR_BDOK) {
 		RT_TRACE(COMP_INTR, "beacon interrupt!\n");
-#ifdef _ENABLE_SW_BEACON
-		rtl8192_tx_isr(dev, BEACON_QUEUE);
-#endif
 	}
 
 	if (inta  & IMR_MGNTDOK ) {
@@ -2880,9 +2868,7 @@ irqreturn_type rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs)
 
 	if (inta & IMR_BcnInt) {
 		RT_TRACE(COMP_INTR, "prepare beacon for interrupt!\n");
-#ifndef _ENABLE_SW_BEACON
 		tasklet_schedule(&priv->irq_prepare_beacon_tasklet);
-#endif
 	}
 
 	if (inta & IMR_RDU) {

@@ -2052,17 +2052,10 @@ rtl8192_InitializeVariables(struct net_device  *dev)
 
 	strcpy(priv->nick, "rtl8192E");
 
-#ifdef _ENABLE_SW_BEACON
-	priv->rtllib->softmac_features  = IEEE_SOFTMAC_SCAN |
-		IEEE_SOFTMAC_ASSOCIATE | IEEE_SOFTMAC_PROBERQ |
-		IEEE_SOFTMAC_PROBERS | IEEE_SOFTMAC_TX_QUEUE  |
-		IEEE_SOFTMAC_BEACONS;
-#else
 	priv->rtllib->softmac_features  = IEEE_SOFTMAC_SCAN |
 		IEEE_SOFTMAC_ASSOCIATE | IEEE_SOFTMAC_PROBERQ |
 		IEEE_SOFTMAC_PROBERS | IEEE_SOFTMAC_TX_QUEUE /* |
 		IEEE_SOFTMAC_BEACONS*/;
-#endif
 
 	priv->rtllib->tx_headroom = sizeof(TX_FWINFO_8190PCI);
 
