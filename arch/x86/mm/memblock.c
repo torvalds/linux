@@ -283,20 +283,6 @@ static int __init memblock_x86_find_active_region(const struct memblock_region *
 	return 1;
 }
 
-/* Walk the memblock.memory map and register active regions within a node */
-void __init memblock_x86_register_active_regions(int nid, unsigned long start_pfn,
-					 unsigned long last_pfn)
-{
-	unsigned long ei_startpfn;
-	unsigned long ei_endpfn;
-	struct memblock_region *r;
-
-	for_each_memblock(memory, r)
-		if (memblock_x86_find_active_region(r, start_pfn, last_pfn,
-					   &ei_startpfn, &ei_endpfn))
-			add_active_range(nid, ei_startpfn, ei_endpfn);
-}
-
 /*
  * Find the hole size (in bytes) in the memory range.
  * @start: starting address of the memory range to scan
