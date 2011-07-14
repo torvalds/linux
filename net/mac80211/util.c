@@ -799,6 +799,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 
 		qparam.uapsd = false;
 
+		local->tx_conf[queue] = qparam;
 		drv_conf_tx(local, queue, &qparam);
 	}
 
@@ -1134,7 +1135,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	struct ieee80211_hw *hw = &local->hw;
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
-	int res;
+	int res, i;
 
 #ifdef CONFIG_PM
 	if (local->suspended)
@@ -1210,6 +1211,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 	}
 	mutex_unlock(&local->sta_mtx);
+
+	/* reconfigure tx conf */
+	for (i = 0; i < hw->queues; i++)
+		drv_conf_tx(local, i, &local->tx_conf[i]);
 
 	/* reconfigure hardware */
 	ieee80211_hw_config(local, ~0);
