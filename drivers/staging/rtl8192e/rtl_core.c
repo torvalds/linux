@@ -2975,17 +2975,6 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-#ifdef CONFIG_64BIT_DMA
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		printk("RTL819xCE: Using 64bit DMA\n");
-		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64))) {
-			printk( "Unable to obtain 64bit DMA for consistent allocations\n");
-			pci_disable_device(pdev);
-			return -ENOMEM;
-		}
-		bdma64 = true;
-	} else
-#endif
 	{
 		if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 			if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32))) {
