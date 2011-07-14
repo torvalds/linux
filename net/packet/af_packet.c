@@ -1129,7 +1129,6 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 	else
 		sll->sll_ifindex = dev->ifindex;
 
-	__packet_set_status(po, h.raw, status);
 	smp_mb();
 #if ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE == 1
 	{
@@ -1138,8 +1137,10 @@ static int tpacket_rcv(struct sk_buff *skb, struct net_device *dev,
 		end = (u8 *)PAGE_ALIGN((unsigned long)h.raw + macoff + snaplen);
 		for (start = h.raw; start < end; start += PAGE_SIZE)
 			flush_dcache_page(pgv_to_page(start));
+		smp_wmb();
 	}
 #endif
+	__packet_set_status(po, h.raw, status);
 
 	sk->sk_data_ready(sk, 0);
 
