@@ -822,6 +822,7 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_FW_CAPABILITY_BDG		BIT_8
 #define QLCNIC_FW_CAPABILITY_FVLANTX		BIT_9
 #define QLCNIC_FW_CAPABILITY_HW_LRO		BIT_10
+#define QLCNIC_FW_CAPABILITY_MULTI_LOOPBACK	BIT_27
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -936,6 +937,12 @@ struct qlcnic_ipaddr {
 #define QLCNIC_READD_AGE	20
 #define QLCNIC_LB_MAX_FILTERS	64
 
+/* QLCNIC Driver Error Code */
+#define QLCNIC_FW_NOT_RESPOND		51
+#define QLCNIC_TEST_IN_PROGRESS		52
+#define QLCNIC_UNDEFINED_ERROR		53
+#define QLCNIC_LB_CABLE_NOT_CONN	54
+
 struct qlcnic_filter {
 	struct hlist_node fnode;
 	u8 faddr[ETH_ALEN];
@@ -1007,7 +1014,7 @@ struct qlcnic_adapter {
 	u8 max_mac_filters;
 	u8 dev_state;
 	u8 diag_test;
-	u8 diag_cnt;
+	char diag_cnt;
 	u8 reset_ack_timeo;
 	u8 dev_init_timeo;
 	u16 msg_enable;

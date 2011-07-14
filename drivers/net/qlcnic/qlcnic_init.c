@@ -1354,10 +1354,16 @@ qlcnic_handle_fw_message(int desc_cnt, int index,
 			break;
 		case 1:
 			dev_info(dev, "loopback already in progress\n");
+			adapter->diag_cnt = -QLCNIC_TEST_IN_PROGRESS;
+			break;
+		case 2:
+			dev_info(dev, "loopback cable is not connected\n");
+			adapter->diag_cnt = -QLCNIC_LB_CABLE_NOT_CONN;
 			break;
 		default:
 			dev_info(dev, "loopback configure request failed,"
 					" ret %x\n", ret);
+			adapter->diag_cnt = -QLCNIC_UNDEFINED_ERROR;
 			break;
 		}
 		break;
