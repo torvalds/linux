@@ -20,7 +20,6 @@
 #ifndef _MWIFIEX_IOCTL_H_
 #define _MWIFIEX_IOCTL_H_
 
-#include <linux/wireless.h>
 #include <net/mac80211.h>
 
 enum {
@@ -308,10 +307,12 @@ struct mwifiex_ds_read_eeprom {
 	u8 value[MAX_EEPROM_DATA];
 };
 
+#define IEEE_MAX_IE_SIZE		256
+
 struct mwifiex_ds_misc_gen_ie {
 	u32 type;
 	u32 len;
-	u8 ie_data[IW_CUSTOM_MAX];
+	u8 ie_data[IEEE_MAX_IE_SIZE];
 };
 
 struct mwifiex_ds_misc_cmd {

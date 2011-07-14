@@ -2308,7 +2308,7 @@ int mwifiex_scan_networks(struct mwifiex_private *priv,
 
 	if (!keep_previous_scan) {
 		memset(adapter->scan_table, 0x00,
-		       sizeof(struct mwifiex_bssdescriptor) * IW_MAX_AP);
+		       sizeof(struct mwifiex_bssdescriptor) * MWIFIEX_MAX_AP);
 		adapter->num_in_scan_table = 0;
 		adapter->bcn_buf_end = adapter->bcn_buf;
 	}
@@ -2430,7 +2430,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		scan_rsp = &resp->params.scan_resp;
 
 
-	if (scan_rsp->number_of_sets > IW_MAX_AP) {
+	if (scan_rsp->number_of_sets > MWIFIEX_MAX_AP) {
 		dev_err(adapter->dev, "SCAN_RESP: too many AP returned (%d)\n",
 		       scan_rsp->number_of_sets);
 		ret = -1;
@@ -2542,7 +2542,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		if (bss_idx == num_in_table) {
 			/* Range check the bss_idx, keep it limited to
 			   the last entry */
-			if (bss_idx == IW_MAX_AP)
+			if (bss_idx == MWIFIEX_MAX_AP)
 				bss_idx--;
 			else
 				num_in_table++;

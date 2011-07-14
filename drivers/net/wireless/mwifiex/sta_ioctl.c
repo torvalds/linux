@@ -1280,9 +1280,9 @@ int mwifiex_get_signal_info(struct mwifiex_private *priv,
 
 	if (!status) {
 		if (signal->selector & BCN_RSSI_AVG_MASK)
-			priv->w_stats.qual.level = signal->bcn_rssi_avg;
+			priv->qual_level = signal->bcn_rssi_avg;
 		if (signal->selector & BCN_NF_AVG_MASK)
-			priv->w_stats.qual.noise = signal->bcn_nf_avg;
+			priv->qual_noise = signal->bcn_nf_avg;
 	}
 
 	return status;
@@ -1341,18 +1341,8 @@ int
 mwifiex_get_stats_info(struct mwifiex_private *priv,
 		       struct mwifiex_ds_get_stats *log)
 {
-	int ret;
-
-	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_GET_LOG,
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_GET_LOG,
 				    HostCmd_ACT_GEN_GET, 0, log);
-
-	if (!ret) {
-		priv->w_stats.discard.fragment = log->fcs_error;
-		priv->w_stats.discard.retries = log->retry;
-		priv->w_stats.discard.misc = log->ack_failure;
-	}
-
-	return ret;
 }
 
 /*
@@ -1594,7 +1584,7 @@ mwifiex_set_gen_ie(struct mwifiex_private *priv, u8 *ie, int ie_len)
 {
 	struct mwifiex_ds_misc_gen_ie gen_ie;
 
-	if (ie_len > IW_CUSTOM_MAX)
+	if (ie_len > IEEE_MAX_IE_SIZE)
 		return -EFAULT;
 
 	gen_ie.type = MWIFIEX_IE_TYPE_GEN_IE;

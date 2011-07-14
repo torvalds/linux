@@ -156,7 +156,7 @@ static int mwifiex_allocate_adapter(struct mwifiex_adapter *adapter)
 	struct mwifiex_bssdescriptor *temp_scan_table;
 
 	/* Allocate buffer to store the BSSID list */
-	buf_size = sizeof(struct mwifiex_bssdescriptor) * IW_MAX_AP;
+	buf_size = sizeof(struct mwifiex_bssdescriptor) * MWIFIEX_MAX_AP;
 	temp_scan_table = kzalloc(buf_size, GFP_KERNEL);
 	if (!temp_scan_table) {
 		dev_err(adapter->dev, "%s: failed to alloc temp_scan_table\n",
@@ -224,7 +224,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 
 	adapter->num_in_scan_table = 0;
 	memset(adapter->scan_table, 0,
-	       (sizeof(struct mwifiex_bssdescriptor) * IW_MAX_AP));
+	       (sizeof(struct mwifiex_bssdescriptor) * MWIFIEX_MAX_AP));
 	adapter->scan_probes = 1;
 
 	memset(adapter->bcn_buf, 0, sizeof(adapter->bcn_buf));

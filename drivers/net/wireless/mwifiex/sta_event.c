@@ -130,8 +130,8 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);
 	/* Reset wireless stats signal info */
-	priv->w_stats.qual.level = 0;
-	priv->w_stats.qual.noise = 0;
+	priv->qual_level = 0;
+	priv->qual_noise = 0;
 }
 
 /*
@@ -301,7 +301,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		dev_dbg(adapter->dev, "event: BGS_REPORT\n");
 		/* Clear the previous scan result */
 		memset(adapter->scan_table, 0x00,
-		       sizeof(struct mwifiex_bssdescriptor) * IW_MAX_AP);
+		       sizeof(struct mwifiex_bssdescriptor) * MWIFIEX_MAX_AP);
 		adapter->num_in_scan_table = 0;
 		adapter->bcn_buf_end = adapter->bcn_buf;
 		ret = mwifiex_send_cmd_async(priv,

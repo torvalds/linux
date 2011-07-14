@@ -54,6 +54,8 @@ struct mwifiex_drv_mode {
 };
 
 
+#define MWIFIEX_MAX_AP				64
+
 #define MWIFIEX_DEFAULT_WATCHDOG_TIMEOUT	(5 * HZ)
 
 #define MWIFIEX_TIMER_10S			10000
@@ -245,8 +247,6 @@ struct ieee_types_obss_scan_param {
 #define MWIFIEX_SUPPORTED_RATES                 14
 
 #define MWIFIEX_SUPPORTED_RATES_EXT             32
-
-#define IEEE_MAX_IE_SIZE			256
 
 struct ieee_types_vendor_specific {
 	struct ieee_types_vendor_header vend_hdr;
@@ -468,7 +468,7 @@ struct mwifiex_private {
 	struct dentry *dfs_dev_dir;
 #endif
 	u8 nick_name[16];
-	struct iw_statistics w_stats;
+	u8 qual_level, qual_noise;
 	u16 current_key_index;
 	struct semaphore async_sem;
 	u8 scan_pending_on_block;

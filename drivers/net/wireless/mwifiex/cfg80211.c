@@ -547,7 +547,7 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 	sinfo->tx_bytes = priv->stats.tx_bytes;
 	sinfo->rx_packets = priv->stats.rx_packets;
 	sinfo->tx_packets = priv->stats.tx_packets;
-	sinfo->signal = priv->w_stats.qual.level;
+	sinfo->signal = priv->qual_level;
 	sinfo->txrate.legacy = rate.rate;
 
 	return ret;
