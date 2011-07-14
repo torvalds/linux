@@ -291,6 +291,15 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (open->op_create && open->op_claim_type != NFS4_OPEN_CLAIM_NULL)
 		return nfserr_inval;
 
+	/*
+	 * RFC5661 18.51.3
+	 * Before RECLAIM_COMPLETE done, server should deny new lock
+	 */
+	if (nfsd4_has_session(cstate) &&
+	    !cstate->session->se_client->cl_firststate &&
+	    open->op_claim_type != NFS4_OPEN_CLAIM_PREVIOUS)
+		return nfserr_grace;
+
 	if (nfsd4_has_session(cstate))
 		copy_clientid(&open->op_clientid, cstate->session);
 
