@@ -923,15 +923,10 @@ static void iTCO_wdt_shutdown(struct platform_device *dev)
 	iTCO_wdt_stop();
 }
 
-#define iTCO_wdt_suspend NULL
-#define iTCO_wdt_resume  NULL
-
 static struct platform_driver iTCO_wdt_driver = {
 	.probe          = iTCO_wdt_probe,
 	.remove         = __devexit_p(iTCO_wdt_remove),
 	.shutdown       = iTCO_wdt_shutdown,
-	.suspend        = iTCO_wdt_suspend,
-	.resume         = iTCO_wdt_resume,
 	.driver         = {
 		.owner  = THIS_MODULE,
 		.name   = DRV_NAME,
