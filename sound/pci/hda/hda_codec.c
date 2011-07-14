@@ -4958,13 +4958,14 @@ void *snd_array_new(struct snd_array *array)
 	if (array->used >= array->alloced) {
 		int num = array->alloced + array->alloc_align;
 		int size = (num + 1) * array->elem_size;
+		int oldsize = array->alloced * array->elem_size;
 		void *nlist;
 		if (snd_BUG_ON(num >= 4096))
 			return NULL;
 		nlist = krealloc(array->list, size, GFP_KERNEL);
 		if (!nlist)
 			return NULL;
-		memset(nlist, 0, size - array->alloced * array->elem_size);
+		memset(nlist + oldsize, 0, size - oldsize);
 		array->list = nlist;
 		array->alloced = num;
 	}
