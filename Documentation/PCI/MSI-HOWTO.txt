@@ -137,8 +137,8 @@ interrupt number and frees the previously allocated message signaled
 interrupt(s).  The interrupt may subsequently be assigned to another
 device, so drivers should not cache the value of dev->irq.
 
-A device driver must always call free_irq() on the interrupt(s)
-for which it has called request_irq() before calling this function.
+Before calling this function, a device driver must always call free_irq()
+on any interrupt for which it previously called request_irq().
 Failure to do so results in a BUG_ON(), leaving the device with
 MSI enabled and thus leaking its vector.
 
@@ -217,8 +217,8 @@ the previously allocated message signaled interrupts.  The interrupts may
 subsequently be assigned to another device, so drivers should not cache
 the value of the 'vector' elements over a call to pci_disable_msix().
 
-A device driver must always call free_irq() on the interrupt(s)
-for which it has called request_irq() before calling this function.
+Before calling this function, a device driver must always call free_irq()
+on any interrupt for which it previously called request_irq().
 Failure to do so results in a BUG_ON(), leaving the device with
 MSI-X enabled and thus leaking its vector.
 
