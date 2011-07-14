@@ -24,16 +24,6 @@
 #include <asm/page.h>
 #include <asm/errno.h>
 
-#ifdef BUILT_IN_CRYPTO
-#ifdef CONFIG_CRYPTO_HMAC
-#undef CONFIG_CRYPTO_HMAC
-#endif
-
-#ifdef CONFIG_KMOD
-#undef CONFIG_KMOD
-#endif
-#endif /* BUILT_IN_CRYPTO */
-
 #define crypto_register_alg crypto_register_alg_rsl
 #define crypto_unregister_alg crypto_unregister_alg_rsl
 #define crypto_alloc_tfm crypto_alloc_tfm_rsl

@@ -23,16 +23,6 @@
 #include <linux/sched.h>
 #include <asm/kmap_types.h>
 
-#ifdef BUILT_IN_CRYPTO
-#ifdef CONFIG_CRYPTO_HMAC
-#undef CONFIG_CRYPTO_HMAC
-#endif
-
-#ifdef CONFIG_KMOD
-#undef CONFIG_KMOD
-#endif
-#endif /* BUILT_IN_CRYPTO */
-
 extern enum km_type crypto_km_types[];
 
 static inline enum km_type crypto_kmap_type(int out)
