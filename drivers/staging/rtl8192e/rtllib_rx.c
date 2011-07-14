@@ -301,18 +301,6 @@ rtllib_rx_frame_decrypt(struct rtllib_device* ieee, struct sk_buff *skb,
 	hdr = (struct rtllib_hdr_4addr *) skb->data;
 	hdrlen = rtllib_get_hdrlen(le16_to_cpu(hdr->frame_ctl));
 
-#ifdef CONFIG_RTLLIB_CRYPT_TKIP
-	if (ieee->tkip_countermeasures &&
-	    strcmp(crypt->ops->name, "TKIP") == 0) {
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "received packet from " MAC_FMT "\n",
-			       ieee->dev->name, MAC_ARG(hdr->addr2));
-		}
-		return -1;
-	}
-#endif
-
 	atomic_inc(&crypt->refcnt);
 	res = crypt->ops->decrypt_mpdu(skb, hdrlen, crypt->priv);
 	atomic_dec(&crypt->refcnt);

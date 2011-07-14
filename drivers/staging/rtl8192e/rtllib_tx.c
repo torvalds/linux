@@ -192,20 +192,6 @@ int rtllib_encrypt_fragment(
 		printk("=========>%s(), crypt is null\n", __func__);
 		return -1;
 	}
-#ifdef CONFIG_RTLLIB_CRYPT_TKIP
-	struct rtllib_hdr_1addr *header;
-
-	if (ieee->tkip_countermeasures &&
-	    crypt && crypt->ops && strcmp(crypt->ops->name, "TKIP") == 0) {
-		header = (struct rtllib_hdr_1addr *) frag->data;
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "TX packet to " MAC_FMT "\n",
-			       ieee->dev->name, MAC_ARG(header->addr1));
-		}
-		return -1;
-	}
-#endif
 	/* To encrypt, frame format is:
 	 * IV (4 bytes), clear payload (including SNAP), ICV (4 bytes) */
 
