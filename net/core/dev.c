@@ -5488,12 +5488,9 @@ int register_netdevice(struct net_device *dev)
 		dev->features |= NETIF_F_NOCACHE_COPY;
 	}
 
-	/* Enable GSO, GRO and NETIF_F_HIGHDMA for vlans by default,
-	 * vlan_dev_fix_features() will do the features check,
-	 * so NETIF_F_HIGHDMA feature is enabled only if supported
-	 * by underlying device.
+	/* Make NETIF_F_HIGHDMA inheritable to VLAN devices.
 	 */
-	dev->vlan_features |= (NETIF_F_SOFT_FEATURES | NETIF_F_HIGHDMA);
+	dev->vlan_features |= NETIF_F_HIGHDMA;
 
 	ret = call_netdevice_notifiers(NETDEV_POST_INIT, dev);
 	ret = notifier_to_errno(ret);
