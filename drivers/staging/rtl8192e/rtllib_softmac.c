@@ -608,13 +608,11 @@ out:
 
 	ieee->be_scan_inprogress = false;
 
-#ifndef FOR_MOBLIN
 	{
 	union iwreq_data wrqu;
 	memset(&wrqu, 0, sizeof(wrqu));
 	wireless_send_event(ieee->dev,SIOCGIWSCAN,&wrqu,NULL);
 	}
-#endif
 }
 
 void rtllib_softmac_scan_wq(void *data)
@@ -2942,10 +2940,7 @@ void rtllib_disassociate(struct rtllib_device *ieee)
 
 	queue_delayed_work_rsl(ieee->wq, &ieee->link_change_wq, 0);
 
-
-#ifndef FOR_ANDROID_X86
 	notify_wx_assoc_event(ieee);
-#endif
 }
 
 void rtllib_associate_retry_wq(void *data)
