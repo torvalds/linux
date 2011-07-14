@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-at91/include/mach/at91_wdt.h
+ * drivers/watchdog/at91sam9_wdt.h
  *
  * Copyright (C) 2007 Andrew Victor
  * Copyright (C) 2007 Atmel Corporation.
