@@ -171,7 +171,8 @@ which should be at least 'nvec' entries in size.  On success, the
 device is switched into MSI-X mode and the function returns 0.
 The 'vector' member in each entry is populated with the interrupt number;
 the driver should then call request_irq() for each 'vector' that it
-decides to use.
+decides to use.  The device driver is responsible for keeping track of the
+interrupts assigned to the MSI-X vectors so it can free them again later.
 
 If this function returns a negative number, it indicates an error and
 the driver should not attempt to allocate any more MSI-X interrupts for
@@ -181,9 +182,7 @@ below.
 
 This function, in contrast with pci_enable_msi(), does not adjust
 dev->irq.  The device will not generate interrupts for this interrupt
-number once MSI-X is enabled.  The device driver is responsible for
-keeping track of the interrupts assigned to the MSI-X vectors so it can
-free them again later.
+number once MSI-X is enabled.
 
 Device drivers should normally call this function once per device
 during the initialization phase.
