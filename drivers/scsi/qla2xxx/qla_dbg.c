@@ -11,18 +11,18 @@
  * -----------------------------------------------------
  * |             Level            |   Last Value Used  |
  * -----------------------------------------------------
- * | Module Init and Probe        |       0x0109       |
- * | Mailbox commands             |       0x1120       |
- * | Device Discovery             |       0x207d       |
- * | Queue Command and IO tracing |       0x304f       |
+ * | Module Init and Probe        |       0x0116       |
+ * | Mailbox commands             |       0x111e       |
+ * | Device Discovery             |       0x2083       |
+ * | Queue Command and IO tracing |       0x302e       |
  * | DPC Thread                   |       0x401c       |
- * | Async Events                 |       0x5058       |
+ * | Async Events                 |       0x5059       |
  * | Timer Routines               |       0x600d       |
- * | User Space Interactions      |       0x70a1       |
- * | Task Management              |       0x8032       |
- * | AER/EEH                      |       0x9010       |
+ * | User Space Interactions      |       0x709c       |
+ * | Task Management              |       0x8043       |
+ * | AER/EEH                      |       0x900f       |
  * | Virtual Port                 |       0xa007       |
- * | ISP82XX Specific             |       0xb028       |
+ * | ISP82XX Specific             |       0xb027       |
  * | MultiQ                       |       0xc00b       |
  * | Misc                         |       0xd00b       |
  * -----------------------------------------------------
@@ -409,11 +409,11 @@ qla2xxx_dump_post_process(scsi_qla_host_t *vha, int rval)
 	struct qla_hw_data *ha = vha->hw;
 
 	if (rval != QLA_SUCCESS) {
-		qla_printk(KERN_WARNING, ha,
-		    "Failed to dump firmware (%x)!!!\n", rval);
+		ql_log(ql_log_warn, vha, 0xd000,
+		    "Failed to dump firmware (%x).\n", rval);
 		ha->fw_dumped = 0;
 	} else {
-		qla_printk(KERN_INFO, ha,
+		ql_log(ql_log_info, vha, 0xd001,
 		    "Firmware dump saved to temp buffer (%ld/%p).\n",
 		    vha->host_no, ha->fw_dump);
 		ha->fw_dumped = 1;
@@ -445,15 +445,16 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 
 	if (!ha->fw_dump) {
-		qla_printk(KERN_WARNING, ha,
-		    "No buffer available for dump!!!\n");
+		ql_log(ql_log_warn, vha, 0xd002,
+		    "No buffer available for dump.\n");
 		goto qla2300_fw_dump_failed;
 	}
 
 	if (ha->fw_dumped) {
-		qla_printk(KERN_WARNING, ha,
-		    "Firmware has been previously dumped (%p) -- ignoring "
-		    "request...\n", ha->fw_dump);
+		ql_log(ql_log_warn, vha, 0xd003,
+		    "Firmware has been previously dumped (%p) "
+		    "-- ignoring request.\n",
+		    ha->fw_dump);
 		goto qla2300_fw_dump_failed;
 	}
 	fw = &ha->fw_dump->isp.isp23;
@@ -608,15 +609,16 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 
 	if (!ha->fw_dump) {
-		qla_printk(KERN_WARNING, ha,
-		    "No buffer available for dump!!!\n");
+		ql_log(ql_log_warn, vha, 0xd004,
+		    "No buffer available for dump.\n");
 		goto qla2100_fw_dump_failed;
 	}
 
 	if (ha->fw_dumped) {
-		qla_printk(KERN_WARNING, ha,
-		    "Firmware has been previously dumped (%p) -- ignoring "
-		    "request...\n", ha->fw_dump);
+		ql_log(ql_log_warn, vha, 0xd005,
+		    "Firmware has been previously dumped (%p) "
+		    "-- ignoring request.\n",
+		    ha->fw_dump);
 		goto qla2100_fw_dump_failed;
 	}
 	fw = &ha->fw_dump->isp.isp21;
@@ -805,15 +807,16 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 
 	if (!ha->fw_dump) {
-		qla_printk(KERN_WARNING, ha,
-		    "No buffer available for dump!!!\n");
+		ql_log(ql_log_warn, vha, 0xd006,
+		    "No buffer available for dump.\n");
 		goto qla24xx_fw_dump_failed;
 	}
 
 	if (ha->fw_dumped) {
-		qla_printk(KERN_WARNING, ha,
-		    "Firmware has been previously dumped (%p) -- ignoring "
-		    "request...\n", ha->fw_dump);
+		ql_log(ql_log_warn, vha, 0xd007,
+		    "Firmware has been previously dumped (%p) "
+		    "-- ignoring request.\n",
+		    ha->fw_dump);
 		goto qla24xx_fw_dump_failed;
 	}
 	fw = &ha->fw_dump->isp.isp24;
@@ -1043,15 +1046,16 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 
 	if (!ha->fw_dump) {
-		qla_printk(KERN_WARNING, ha,
-		    "No buffer available for dump!!!\n");
+		ql_log(ql_log_warn, vha, 0xd008,
+		    "No buffer available for dump.\n");
 		goto qla25xx_fw_dump_failed;
 	}
 
 	if (ha->fw_dumped) {
-		qla_printk(KERN_WARNING, ha,
-		    "Firmware has been previously dumped (%p) -- ignoring "
-		    "request...\n", ha->fw_dump);
+		ql_log(ql_log_warn, vha, 0xd009,
+		    "Firmware has been previously dumped (%p) "
+		    "-- ignoring request.\n",
+		    ha->fw_dump);
 		goto qla25xx_fw_dump_failed;
 	}
 	fw = &ha->fw_dump->isp.isp25;
@@ -1354,15 +1358,16 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 
 	if (!ha->fw_dump) {
-		qla_printk(KERN_WARNING, ha,
-		    "No buffer available for dump!!!\n");
+		ql_log(ql_log_warn, vha, 0xd00a,
+		    "No buffer available for dump.\n");
 		goto qla81xx_fw_dump_failed;
 	}
 
 	if (ha->fw_dumped) {
-		qla_printk(KERN_WARNING, ha,
-		    "Firmware has been previously dumped (%p) -- ignoring "
-		    "request...\n", ha->fw_dump);
+		ql_log(ql_log_warn, vha, 0xd00b,
+		    "Firmware has been previously dumped (%p) "
+		    "-- ignoring request.\n",
+		    ha->fw_dump);
 		goto qla81xx_fw_dump_failed;
 	}
 	fw = &ha->fw_dump->isp.isp81;
