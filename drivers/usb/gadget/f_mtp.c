@@ -94,8 +94,8 @@ struct mtp_dev {
 	struct usb_request *rx_req[RX_REQ_MAX];
 	int rx_done;
 
-	/* for processing MTP_SEND_FILE and MTP_RECEIVE_FILE
-	 * ioctls on a work queue
+	/* for processing MTP_SEND_FILE, MTP_RECEIVE_FILE and
+	 * MTP_SEND_FILE_WITH_HEADER ioctls on a work queue
 	 */
 	struct workqueue_struct *wq;
 	struct work_struct send_file_work;
@@ -103,6 +103,9 @@ struct mtp_dev {
 	struct file *xfer_file;
 	loff_t xfer_file_offset;
 	int64_t xfer_file_length;
+	unsigned xfer_send_header;
+	uint16_t xfer_command;
+	uint32_t xfer_transaction_id;
 	int xfer_result;
 };
 
@@ -629,10 +632,11 @@ static void send_file_work(struct work_struct *data) {
 	struct mtp_dev	*dev = container_of(data, struct mtp_dev, send_file_work);
 	struct usb_composite_dev *cdev = dev->cdev;
 	struct usb_request *req = 0;
+	struct mtp_data_header *header;
 	struct file *filp;
 	loff_t offset;
 	int64_t count;
-	int xfer, ret;
+	int xfer, ret, hdr_size;
 	int r = 0;
 	int sendZLP = 0;
 
@@ -644,10 +648,17 @@ static void send_file_work(struct work_struct *data) {
 
 	DBG(cdev, "send_file_work(%lld %lld)\n", offset, count);
 
+	if (dev->xfer_send_header) {
+		hdr_size = sizeof(struct mtp_data_header);
+		count += hdr_size;
+	} else {
+		hdr_size = 0;
+	}
+
 	/* we need to send a zero length packet to signal the end of transfer
 	 * if the transfer size is aligned to a packet boundary.
 	 */
-	if ((dev->xfer_file_length & (dev->ep_in->maxpacket - 1)) == 0) {
+	if ((count & (dev->ep_in->maxpacket - 1)) == 0) {
 		sendZLP = 1;
 	}
 
@@ -674,12 +685,23 @@ static void send_file_work(struct work_struct *data) {
 			xfer = MTP_BULK_BUFFER_SIZE;
 		else
 			xfer = count;
-		ret = vfs_read(filp, req->buf, xfer, &offset);
+
+		if (hdr_size) {
+			/* prepend MTP data header */
+			header = (struct mtp_data_header *)req->buf;
+			header->length = __cpu_to_le32(count);
+			header->type = __cpu_to_le16(2); /* data packet */
+			header->command = __cpu_to_le16(dev->xfer_command);
+			header->transaction_id = __cpu_to_le32(dev->xfer_transaction_id);
+		}
+
+		ret = vfs_read(filp, req->buf + hdr_size, xfer - hdr_size, &offset);
 		if (ret < 0) {
 			r = ret;
 			break;
 		}
-		xfer = ret;
+		xfer = ret + hdr_size;
+		hdr_size = 0;
 
 		req->length = xfer;
 		ret = usb_ep_queue(dev->ep_in, req, GFP_KERNEL);
@@ -829,6 +851,7 @@ static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 	switch (code) {
 	case MTP_SEND_FILE:
 	case MTP_RECEIVE_FILE:
+	case MTP_SEND_FILE_WITH_HEADER:
 	{
 		struct mtp_file_range	mfr;
 		struct work_struct *work;
@@ -866,10 +889,17 @@ static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 		dev->xfer_file_length = mfr.length;
 		smp_wmb();
 
-		if (code == MTP_SEND_FILE)
+		if (code == MTP_SEND_FILE_WITH_HEADER) {
 			work = &dev->send_file_work;
-		else
+			dev->xfer_send_header = 1;
+			dev->xfer_command = mfr.command;
+			dev->xfer_transaction_id = mfr.transaction_id;
+		} else if (code == MTP_SEND_FILE) {
+			work = &dev->send_file_work;
+			dev->xfer_send_header = 0;
+		} else {
 			work = &dev->receive_file_work;
+		}
 
 		/* We do the file transfer on a work queue so it will run
 		 * in kernel context, which is necessary for vfs_read and
