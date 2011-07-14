@@ -398,9 +398,9 @@ static ssize_t ade7753_read_frequency(struct device *dev,
 		char *buf)
 {
 	int ret, len = 0;
-	u8 t;
+	u16 t;
 	int sps;
-	ret = ade7753_spi_read_reg_8(dev, ADE7753_MODE,	&t);
+	ret = ade7753_spi_read_reg_16(dev, ADE7753_MODE, &t);
 	if (ret)
 		return ret;
 
