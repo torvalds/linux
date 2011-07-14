@@ -246,8 +246,8 @@ static int trace_event__id(const char *evname)
 	int err = -1, fd;
 
 	if (asprintf(&filename,
-		     "/sys/kernel/debug/tracing/events/syscalls/%s/id",
-		     evname) < 0)
+		     "%s/syscalls/%s/id",
+		     debugfs_path, evname) < 0)
 		return -1;
 
 	fd = open(filename, O_RDONLY);
