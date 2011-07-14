@@ -62,6 +62,9 @@
 
 #define MAX_CHAN_NR			8
 
+#define DMA_MASK_CTL0_MODE	0x33333333
+#define DMA_MASK_CTL2_MODE	0x00003333
+
 static unsigned int init_nr_desc_per_channel = 64;
 module_param(init_nr_desc_per_channel, uint, 0644);
 MODULE_PARM_DESC(init_nr_desc_per_channel,
@@ -210,10 +213,17 @@ static void pdc_set_dir(struct dma_chan *chan)
 	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
 	struct pch_dma *pd = to_pd(chan->device);
 	u32 val;
+	u32 mask_mode;
+	u32 mask_ctl;
 
 	if (chan->chan_id < 8) {
 		val = dma_readl(pd, CTL0);
 
+		mask_mode = DMA_CTL0_MODE_MASK_BITS <<
+					(DMA_CTL0_BITS_PER_CH * chan->chan_id);
+		mask_ctl = DMA_MASK_CTL0_MODE & ~(DMA_CTL0_MODE_MASK_BITS <<
+				       (DMA_CTL0_BITS_PER_CH * chan->chan_id));
+		val &= mask_mode;
 		if (pd_chan->dir == DMA_TO_DEVICE)
 			val |= 0x1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +
 				       DMA_CTL0_DIR_SHIFT_BITS);
@@ -221,18 +231,24 @@ static void pdc_set_dir(struct dma_chan *chan)
 			val &= ~(0x1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +
 					 DMA_CTL0_DIR_SHIFT_BITS));
 
+		val |= mask_ctl;
 		dma_writel(pd, CTL0, val);
 	} else {
 		int ch = chan->chan_id - 8; /* ch8-->0 ch9-->1 ... ch11->3 */
 		val = dma_readl(pd, CTL3);
 
+		mask_mode = DMA_CTL0_MODE_MASK_BITS <<
+						(DMA_CTL0_BITS_PER_CH * ch);
+		mask_ctl = DMA_MASK_CTL2_MODE & ~(DMA_CTL0_MODE_MASK_BITS <<
+						 (DMA_CTL0_BITS_PER_CH * ch));
+		val &= mask_mode;
 		if (pd_chan->dir == DMA_TO_DEVICE)
 			val |= 0x1 << (DMA_CTL0_BITS_PER_CH * ch +
 				       DMA_CTL0_DIR_SHIFT_BITS);
 		else
 			val &= ~(0x1 << (DMA_CTL0_BITS_PER_CH * ch +
 					 DMA_CTL0_DIR_SHIFT_BITS));
-
+		val |= mask_ctl;
 		dma_writel(pd, CTL3, val);
 	}
 
@@ -244,26 +260,30 @@ static void pdc_set_mode(struct dma_chan *chan, u32 mode)
 {
 	struct pch_dma *pd = to_pd(chan->device);
 	u32 val;
+	u32 mask_ctl;
+	u32 mask_dir;
 
 	if (chan->chan_id < 8) {
+		mask_ctl = DMA_MASK_CTL0_MODE & ~(DMA_CTL0_MODE_MASK_BITS <<
+			   (DMA_CTL0_BITS_PER_CH * chan->chan_id));
+		mask_dir = 1 << (DMA_CTL0_BITS_PER_CH * chan->chan_id +\
+				 DMA_CTL0_DIR_SHIFT_BITS);
 		val = dma_readl(pd, CTL0);
-
-		val &= ~(DMA_CTL0_MODE_MASK_BITS <<
-			(DMA_CTL0_BITS_PER_CH * chan->chan_id));
+		val &= mask_dir;
 		val |= mode << (DMA_CTL0_BITS_PER_CH * chan->chan_id);
-
+		val |= mask_ctl;
 		dma_writel(pd, CTL0, val);
 	} else {
 		int ch = chan->chan_id - 8; /* ch8-->0 ch9-->1 ... ch11->3 */
-
+		mask_ctl = DMA_MASK_CTL2_MODE & ~(DMA_CTL0_MODE_MASK_BITS <<
+						 (DMA_CTL0_BITS_PER_CH * ch));
+		mask_dir = 1 << (DMA_CTL0_BITS_PER_CH * ch +\
+				 DMA_CTL0_DIR_SHIFT_BITS);
 		val = dma_readl(pd, CTL3);
-
-		val &= ~(DMA_CTL0_MODE_MASK_BITS <<
-			(DMA_CTL0_BITS_PER_CH * ch));
+		val &= mask_dir;
 		val |= mode << (DMA_CTL0_BITS_PER_CH * ch);
-
+		val |= mask_ctl;
 		dma_writel(pd, CTL3, val);
-
 	}
 
 	dev_dbg(chan2dev(chan), "pdc_set_mode: chan %d -> %x\n",
