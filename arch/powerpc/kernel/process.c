@@ -650,6 +650,8 @@ void show_regs(struct pt_regs * regs)
 	printbits(regs->msr, msr_bits);
 	printk("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
 	trap = TRAP(regs);
+	if ((regs->trap != 0xc00) && cpu_has_feature(CPU_FTR_CFAR))
+		printk("CFAR: "REG"\n", regs->orig_gpr3);
 	if (trap == 0x300 || trap == 0x600)
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 		printk("DEAR: "REG", ESR: "REG"\n", regs->dar, regs->dsisr);
