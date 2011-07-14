@@ -1015,6 +1015,7 @@ struct qlcnic_adapter {
 	u8 mac_addr[ETH_ALEN];
 
 	u64 dev_rst_time;
+	u8 mac_learn;
 	unsigned long vlans[BITS_TO_LONGS(VLAN_N_VID)];
 
 	struct qlcnic_npar_info *npars;
@@ -1460,6 +1461,7 @@ netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 int qlcnic_validate_max_rss(struct net_device *netdev, u8 max_hw, u8 val);
 int qlcnic_set_max_rss(struct qlcnic_adapter *adapter, u8 data);
 void qlcnic_dev_request_reset(struct qlcnic_adapter *);
+void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
 
 /* Management functions */
 int qlcnic_get_mac_address(struct qlcnic_adapter *, u8*);

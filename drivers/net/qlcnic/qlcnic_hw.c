@@ -446,6 +446,13 @@ void qlcnic_set_multi(struct net_device *netdev)
 	}
 
 send_fw_cmd:
+	if (mode == VPORT_MISS_MODE_ACCEPT_ALL) {
+		qlcnic_alloc_lb_filters_mem(adapter);
+		adapter->mac_learn = 1;
+	} else {
+		adapter->mac_learn = 0;
+	}
+
 	qlcnic_nic_set_promisc(adapter, mode);
 }
 

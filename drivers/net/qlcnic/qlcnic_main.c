@@ -90,7 +90,6 @@ static struct net_device_stats *qlcnic_get_stats(struct net_device *netdev);
 static void qlcnic_restore_indev_addr(struct net_device *dev, unsigned long);
 static int qlcnic_start_firmware(struct qlcnic_adapter *);
 
-static void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter);
 static void qlcnic_free_lb_filters_mem(struct qlcnic_adapter *adapter);
 static void qlcnic_dev_set_npar_ready(struct qlcnic_adapter *);
 static int qlcnicvf_config_led(struct qlcnic_adapter *, u32, u32);
@@ -1578,6 +1577,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->dev_rst_time = jiffies;
 	revision_id = pdev->revision;
 	adapter->ahw->revision_id = revision_id;
+	adapter->mac_learn = qlcnic_mac_learn;
 
 	rwlock_init(&adapter->ahw->crb_lock);
 	mutex_init(&adapter->ahw->mem_lock);
@@ -1654,7 +1654,9 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
-	qlcnic_alloc_lb_filters_mem(adapter);
+	if (adapter->mac_learn)
+		qlcnic_alloc_lb_filters_mem(adapter);
+
 	qlcnic_create_diag_entries(adapter);
 
 	return 0;
@@ -1850,13 +1852,12 @@ static int qlcnic_close(struct net_device *netdev)
 	return 0;
 }
 
-static void
-qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
+void qlcnic_alloc_lb_filters_mem(struct qlcnic_adapter *adapter)
 {
 	void *head;
 	int i;
 
-	if (!qlcnic_mac_learn)
+	if (adapter->fhash.fmax && adapter->fhash.fhead)
 		return;
 
 	spin_lock_init(&adapter->mac_learn_lock);
@@ -2286,7 +2287,7 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (unlikely(qlcnic_tx_pkt(adapter, first_desc, skb)))
 		goto unwind_buff;
 
-	if (qlcnic_mac_learn)
+	if (adapter->mac_learn)
 		qlcnic_send_filter(adapter, tx_ring, first_desc, skb);
 
 	qlcnic_update_cmd_producer(adapter, tx_ring);
