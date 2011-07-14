@@ -23,9 +23,6 @@
 #include <asm/uaccess.h>
 #include "dot11d.h"
 
-#ifdef RTK_DMP_PLATFORM
-#include <linux/usb_setting.h>
-#endif
 extern void _setup_timer( struct timer_list*, void*, unsigned long );
 u8 rsn_authen_cipher_suite[16][4] = {
 	{0x00,0x0F,0xAC,0x00},
@@ -1634,9 +1631,6 @@ void rtllib_associate_complete_wq(void *data)
 	if (ieee->data_hard_resume)
 		ieee->data_hard_resume(ieee->dev);
 
-#ifdef RTK_DMP_PLATFORM
-	kobject_hotplug(&ieee->dev->class_dev.kobj, KOBJ_LINKUP);
-#endif
 }
 
 static void rtllib_sta_send_associnfo(struct rtllib_device *ieee)

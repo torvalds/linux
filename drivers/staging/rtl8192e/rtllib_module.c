@@ -88,13 +88,9 @@ static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 	if (ieee->networks)
 		return 0;
 
-#ifndef RTK_DMP_PLATFORM
 	ieee->networks = kmalloc(
 		MAX_NETWORK_COUNT * sizeof(struct rtllib_network),
 		GFP_KERNEL);
-#else
-	ieee->networks = dvr_malloc(MAX_NETWORK_COUNT * sizeof(struct rtllib_network));
-#endif
 	if (!ieee->networks) {
 		printk(KERN_WARNING "%s: Out of memory allocating beacons\n",
 		       ieee->dev->name);
@@ -111,11 +107,7 @@ static inline void rtllib_networks_free(struct rtllib_device *ieee)
 {
 	if (!ieee->networks)
 		return;
-#ifndef RTK_DMP_PLATFORM
 	kfree(ieee->networks);
-#else
-	dvr_free(ieee->networks);
-#endif
 	ieee->networks = NULL;
 }
 

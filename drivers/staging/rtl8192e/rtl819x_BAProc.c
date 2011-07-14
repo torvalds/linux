@@ -19,9 +19,6 @@
 #include "rtllib.h"
 #include "rtl819x_BA.h"
 #include "rtl_core.h"
-#ifdef RTK_DMP_PLATFORM
-#include <linux/usb_setting.h>
-#endif
 
 void ActivateBAEntry(struct rtllib_device* ieee, PBA_RECORD pBA, u16 Time)
 {

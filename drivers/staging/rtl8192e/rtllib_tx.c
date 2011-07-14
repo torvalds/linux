@@ -54,10 +54,6 @@
 
 #include "rtllib.h"
 
-#ifdef RTK_DMP_PLATFORM
-#include <linux/usb_setting.h>
-#endif
-
 /*
 
 
