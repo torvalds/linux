@@ -108,8 +108,6 @@ struct extent_state {
 	wait_queue_head_t wq;
 	atomic_t refs;
 	unsigned long state;
-	u64 split_start;
-	u64 split_end;
 
 	/* for use by the FS */
 	u64 private;
