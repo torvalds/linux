@@ -351,11 +351,10 @@ struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root
 }
 
 /* wait for a transaction commit to be fully complete */
-static noinline int wait_for_commit(struct btrfs_root *root,
+static noinline void wait_for_commit(struct btrfs_root *root,
 				    struct btrfs_transaction *commit)
 {
 	wait_event(commit->commit_wait, commit->commit_done);
-	return 0;
 }
 
 int btrfs_wait_for_commit(struct btrfs_root *root, u64 transid)
@@ -1189,8 +1188,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		atomic_inc(&cur_trans->use_count);
 		btrfs_end_transaction(trans, root);
 
-		ret = wait_for_commit(root, cur_trans);
-		BUG_ON(ret);
+		wait_for_commit(root, cur_trans);
 
 		put_transaction(cur_trans);
 
