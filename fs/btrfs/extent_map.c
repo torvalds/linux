@@ -379,23 +379,12 @@ struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
 		em = rb_entry(next, struct extent_map, rb_node);
 		goto found;
 	}
-	if (!rb_node) {
-		em = NULL;
-		goto out;
-	}
-	if (IS_ERR(rb_node)) {
-		em = ERR_CAST(rb_node);
-		goto out;
-	}
+	if (!rb_node)
+		return NULL;
+
 	em = rb_entry(rb_node, struct extent_map, rb_node);
-	goto found;
-
-	em = NULL;
-	goto out;
-
 found:
 	atomic_inc(&em->refs);
-out:
 	return em;
 }
 
