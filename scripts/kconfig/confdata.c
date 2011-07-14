@@ -487,27 +487,43 @@ static struct conf_printer kconfig_printer_cb =
 static void
 header_print_symbol(FILE *fp, struct symbol *sym, const char *value, void *arg)
 {
-	const char *suffix = "";
 
 	switch (sym->type) {
 	case S_BOOLEAN:
-	case S_TRISTATE:
+	case S_TRISTATE: {
+		const char *suffix = "";
+
 		switch (*value) {
 		case 'n':
 			return;
 		case 'm':
 			suffix = "_MODULE";
-			/* FALLTHROUGH */
+			/* fall through */
 		default:
 			value = "1";
 		}
+		fprintf(fp, "#define %s%s%s %s\n",
+		    CONFIG_, sym->name, suffix, value);
+		break;
+	}
+	case S_HEX: {
+		const char *prefix = "";
+
+		if (value[0] != '0' || (value[1] != 'x' && value[1] != 'X'))
+			prefix = "0x";
+		fprintf(fp, "#define %s%s %s%s\n",
+		    CONFIG_, sym->name, prefix, value);
+		break;
+	}
+	case S_STRING:
+	case S_INT:
+		fprintf(fp, "#define %s%s %s\n",
+		    CONFIG_, sym->name, value);
 		break;
 	default:
 		break;
 	}
 
-	fprintf(fp, "#define %s%s%s %s\n",
-	    CONFIG_, sym->name, suffix, value);
 }
 
 static void
