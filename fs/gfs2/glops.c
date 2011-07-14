@@ -47,10 +47,10 @@ static void __gfs2_ail_flush(struct gfs2_glock *gl)
 				bd_ail_gl_list);
 		bh = bd->bd_bh;
 		gfs2_remove_from_ail(bd);
-		spin_unlock(&sdp->sd_ail_lock);
-
 		bd->bd_bh = NULL;
 		bh->b_private = NULL;
+		spin_unlock(&sdp->sd_ail_lock);
+
 		bd->bd_blkno = bh->b_blocknr;
 		gfs2_log_lock(sdp);
 		gfs2_assert_withdraw(sdp, !buffer_busy(bh));
