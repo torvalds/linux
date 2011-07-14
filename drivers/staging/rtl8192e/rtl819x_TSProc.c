@@ -130,54 +130,6 @@ void ResetRxTsEntry(PRX_TS_RECORD pTS)
 	pTS->RxTimeoutIndicateSeq = 0xffff;
 	ResetBaEntry(&pTS->RxAdmittedBARecord);
 }
-#ifdef _RTL8192_EXT_PATCH_
-void ResetAdmitTRStream(struct rtllib_device *ieee, u8 *Addr)
-{
-	u8	dir;
-	bool				search_dir[4] = {0, 0, 0, 0};
-	struct list_head*		psearch_list;
-	PTS_COMMON_INFO	pRet = NULL;
-	PRX_TS_RECORD pRxTS = NULL;
-	PTX_TS_RECORD pTxTS = NULL;
-
-	if (ieee->iw_mode != IW_MODE_MESH)
-		return;
-
-	search_dir[DIR_DOWN]	= true;
-	psearch_list = &ieee->Rx_TS_Admit_List;
-	for (dir = 0; dir <= DIR_BI_DIR; dir++)
-	{
-		if (search_dir[dir] ==false )
-			continue;
-		list_for_each_entry(pRet, psearch_list, List){
-			if ((memcmp(pRet->Addr, Addr, 6) == 0) && (pRet->TSpec.f.TSInfo.field.ucDirection == dir))
-			{
-				pRxTS = (PRX_TS_RECORD)pRet;
-				pRxTS->RxIndicateSeq = 0xffff;
-				pRxTS->RxTimeoutIndicateSeq = 0xffff;
-			}
-
-		}
-	}
-	search_dir[DIR_UP]	= true;
-	psearch_list = &ieee->Tx_TS_Admit_List;
-	for (dir = 0; dir <= DIR_BI_DIR; dir++)
-	{
-		if (search_dir[dir] ==false )
-			continue;
-		list_for_each_entry(pRet, psearch_list, List){
-			if ((memcmp(pRet->Addr, Addr, 6) == 0) && (pRet->TSpec.f.TSInfo.field.ucDirection == dir))
-			{
-				pTxTS = (PTX_TS_RECORD)pRet;
-				pTxTS->TxCurSeq = 0xffff;
-			}
-
-		}
-	}
-
-	return;
-}
-#endif
 
 void TSInitialize(struct rtllib_device *ieee)
 {
@@ -363,19 +315,6 @@ void MakeTSEntry(
 	pTsCommonInfo->TClasProc = TCLAS_Proc;
 	pTsCommonInfo->TClasNum = TCLAS_Num;
 }
-
-#ifdef _RTL8192_EXT_PATCH_
-void dump_ts_list(struct list_head * ts_list)
-{
-	PTS_COMMON_INFO	pRet = NULL;
-	u8 i=0;
-	list_for_each_entry(pRet, ts_list, List){
-		printk("i=%d ADD:"MAC_FMT", TID:%d, dir:%d\n",i,MAC_ARG(pRet->Addr), pRet->TSpec.f.TSInfo.field.ucTSID, pRet->TSpec.f.TSInfo.field.ucDirection);
-		i++;
-	}
-
-}
-#endif
 
 bool GetTs(
 	struct rtllib_device*	ieee,
