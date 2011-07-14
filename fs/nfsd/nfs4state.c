@@ -1762,6 +1762,14 @@ static bool nfsd4_session_too_many_ops(struct svc_rqst *rqstp, struct nfsd4_sess
 	return args->opcnt > session->se_fchannel.maxops;
 }
 
+static bool nfsd4_request_too_big(struct svc_rqst *rqstp,
+				  struct nfsd4_session *session)
+{
+	struct xdr_buf *xb = &rqstp->rq_arg;
+
+	return xb->len > session->se_fchannel.maxreq_sz;
+}
+
 __be32
 nfsd4_sequence(struct svc_rqst *rqstp,
 	       struct nfsd4_compound_state *cstate,
@@ -1792,6 +1800,10 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 
 	status = nfserr_too_many_ops;
 	if (nfsd4_session_too_many_ops(rqstp, session))
+		goto out;
+
+	status = nfserr_req_too_big;
+	if (nfsd4_request_too_big(rqstp, session))
 		goto out;
 
 	status = nfserr_badslot;
