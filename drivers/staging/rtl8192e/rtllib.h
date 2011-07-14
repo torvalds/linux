@@ -454,27 +454,8 @@ typedef enum _RT_OP_MODE{
 #define	IEEE_CRYPT_ALG_NAME_LEN			16
 
 #define MAX_IE_LEN  0xff
-#ifdef ENABLE_NULL_PT_DEBUG
-#define RT_ASSERT_RET(_Exp)								\
-		if (!(_Exp))									\
-		{											\
-			printk("Rtl819x: ");					\
-			printk( "Assertion failed! %s,%s,line=%d\n", \
-			#_Exp,__func__,__LINE__);          \
-			return;						\
-		}
-#define RT_ASSERT_RET_VALUE(_Exp,Ret)								\
-		if (!(_Exp))									\
-		{											\
-			printk("Rtl819x: ");					\
-			printk( "Assertion failed! %s,%s,line=%d\n", \
-			#_Exp,__func__,__LINE__);          \
-			return (Ret);						\
-		}
-#else
 #define RT_ASSERT_RET(_Exp) do {} while(0)
 #define RT_ASSERT_RET_VALUE(_Exp,Ret) do {} while(0)
-#endif
 
 typedef struct ieee_param {
 	u32 cmd;
