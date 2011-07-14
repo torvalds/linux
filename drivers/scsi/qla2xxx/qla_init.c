@@ -2382,8 +2382,13 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	/*
 	 * Set host adapter parameters.
 	 */
+
+	/*
+	 * BIT_7 in the host-parameters section allows for modification to
+	 * internal driver logging.
+	 */
 	if (nv->host_p[0] & BIT_7)
-		ql2xextended_error_logging = 1;
+		ql2xextended_error_logging = 0x7fffffff;
 	ha->flags.disable_risc_code_load = ((nv->host_p[0] & BIT_4) ? 1 : 0);
 	/* Always load RISC code on non ISP2[12]00 chips. */
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha))

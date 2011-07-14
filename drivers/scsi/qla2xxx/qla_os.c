@@ -35,6 +35,10 @@ static struct kmem_cache *srb_cachep;
  * CT6 CTX allocation cache
  */
 static struct kmem_cache *ctx_cachep;
+/*
+ * error level for logging
+ */
+int ql_errlev = ql_log_all;
 
 int ql2xlogintimeout = 20;
 module_param(ql2xlogintimeout, int, S_IRUGO);
@@ -69,8 +73,17 @@ MODULE_PARM_DESC(ql2xallocfwdump,
 int ql2xextended_error_logging;
 module_param(ql2xextended_error_logging, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(ql2xextended_error_logging,
-		"Option to enable extended error logging, "
-		"Default is 0 - no logging. 1 - log errors.");
+		"Option to enable extended error logging,\n"
+		"\t\tDefault is 0 - no logging.  0x40000000 - Module Init & Probe.\n"
+		"\t\t0x20000000 - Mailbox Cmnds. 0x10000000 - Device Discovery.\n"
+		"\t\t0x08000000 - IO tracing.    0x04000000 - DPC Thread.\n"
+		"\t\t0x02000000 - Async events.  0x01000000 - Timer routines.\n"
+		"\t\t0x00800000 - User space.    0x00400000 - Task Management.\n"
+		"\t\t0x00200000 - AER/EEH.       0x00100000 - Multi Q.\n"
+		"\t\t0x00080000 - P3P Specific.  0x00040000 - Virtual Port.\n"
+		"\t\t0x00020000 - Buffer Dump.   0x00010000 - Misc.\n"
+		"\t\t0x7fffffff - For enabling all logs, can be too many logs.\n"
+		"\t\tDo LOGICAL OR of the value to enable more than one level");
 
 int ql2xshiftctondsd = 6;
 module_param(ql2xshiftctondsd, int, S_IRUGO);
