@@ -2650,12 +2650,21 @@ do {								\
 /* acl.c */
 #ifdef CONFIG_BTRFS_FS_POSIX_ACL
 int btrfs_check_acl(struct inode *inode, int mask, unsigned int flags);
-#else
-#define btrfs_check_acl NULL
-#endif
 int btrfs_init_acl(struct btrfs_trans_handle *trans,
 		   struct inode *inode, struct inode *dir);
 int btrfs_acl_chmod(struct inode *inode);
+#else
+#define btrfs_check_acl NULL
+static inline int btrfs_init_acl(struct btrfs_trans_handle *trans,
+				 struct inode *inode, struct inode *dir)
+{
+	return 0;
+}
+static inline int btrfs_acl_chmod(struct inode *inode)
+{
+	return 0;
+}
+#endif
 
 /* relocation.c */
 int btrfs_relocate_block_group(struct btrfs_root *root, u64 group_start);

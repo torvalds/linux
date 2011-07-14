@@ -28,8 +28,6 @@
 #include "btrfs_inode.h"
 #include "xattr.h"
 
-#ifdef CONFIG_BTRFS_FS_POSIX_ACL
-
 static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 {
 	int size;
@@ -318,18 +316,3 @@ const struct xattr_handler btrfs_xattr_acl_access_handler = {
 	.get	= btrfs_xattr_acl_get,
 	.set	= btrfs_xattr_acl_set,
 };
-
-#else /* CONFIG_BTRFS_FS_POSIX_ACL */
-
-int btrfs_acl_chmod(struct inode *inode)
-{
-	return 0;
-}
-
-int btrfs_init_acl(struct btrfs_trans_handle *trans,
-		   struct inode *inode, struct inode *dir)
-{
-	return 0;
-}
-
-#endif /* CONFIG_BTRFS_FS_POSIX_ACL */
