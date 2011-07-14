@@ -1,9 +1,7 @@
 /*
  * security/tomoyo/file.c
  *
- * Pathname restriction functions.
- *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #include "common.h"
@@ -154,7 +152,7 @@ static bool tomoyo_get_realpath(struct tomoyo_path_info *buf, struct path *path)
 		tomoyo_fill_path_info(buf);
 		return true;
 	}
-        return false;
+	return false;
 }
 
 /**
@@ -883,16 +881,16 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 	switch (operation) {
 		struct dentry *dentry;
 	case TOMOYO_TYPE_RENAME:
-        case TOMOYO_TYPE_LINK:
+	case TOMOYO_TYPE_LINK:
 		dentry = path1->dentry;
-	        if (!dentry->d_inode || !S_ISDIR(dentry->d_inode->i_mode))
-                        break;
-                /* fall through */
-        case TOMOYO_TYPE_PIVOT_ROOT:
-                tomoyo_add_slash(&buf1);
-                tomoyo_add_slash(&buf2);
+		if (!dentry->d_inode || !S_ISDIR(dentry->d_inode->i_mode))
+			break;
+		/* fall through */
+	case TOMOYO_TYPE_PIVOT_ROOT:
+		tomoyo_add_slash(&buf1);
+		tomoyo_add_slash(&buf2);
 		break;
-        }
+	}
 	r.obj = &obj;
 	r.param_type = TOMOYO_TYPE_PATH2_ACL;
 	r.param.path2.operation = operation;

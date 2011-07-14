@@ -1,9 +1,7 @@
 /*
  * security/tomoyo/util.c
  *
- * Utility functions for TOMOYO.
- *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #include <linux/slab.h>
@@ -378,7 +376,7 @@ void tomoyo_normalize_line(unsigned char *buffer)
 /**
  * tomoyo_correct_word2 - Validate a string.
  *
- * @string: The string to check. May be non-'\0'-terminated.
+ * @string: The string to check. Maybe non-'\0'-terminated.
  * @len:    Length of @string.
  *
  * Check whether the given string follows the naming rules.

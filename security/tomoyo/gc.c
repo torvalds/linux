@@ -1,10 +1,7 @@
 /*
  * security/tomoyo/gc.c
  *
- * Implementation of the Domain-Based Mandatory Access Control.
- *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
- *
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #include "common.h"
@@ -455,7 +452,7 @@ static bool tomoyo_collect_member(const enum tomoyo_policy_id id,
 		if (!tomoyo_add_to_gc(id, &member->list))
 			return false;
 	}
-        return true;
+	return true;
 }
 
 /**

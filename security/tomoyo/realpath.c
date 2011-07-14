@@ -1,9 +1,7 @@
 /*
  * security/tomoyo/realpath.c
  *
- * Pathname calculation functions for TOMOYO.
- *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #include <linux/types.h>

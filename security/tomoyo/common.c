@@ -1,9 +1,7 @@
 /*
  * security/tomoyo/common.c
  *
- * Common functions for TOMOYO.
- *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #include <linux/uaccess.h>
@@ -775,6 +773,14 @@ static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 		goto next;
 }
 
+/**
+ * tomoyo_same_manager - Check for duplicated "struct tomoyo_manager" entry.
+ *
+ * @a: Pointer to "struct tomoyo_acl_head".
+ * @b: Pointer to "struct tomoyo_acl_head".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
 static bool tomoyo_same_manager(const struct tomoyo_acl_head *a,
 				const struct tomoyo_acl_head *b)
 {
@@ -1516,6 +1522,7 @@ static void tomoyo_read_pid(struct tomoyo_io_buffer *head)
 	tomoyo_set_string(head, domain->domainname->name);
 }
 
+/* String table for domain transition control keywords. */
 static const char *tomoyo_transition_type[TOMOYO_MAX_TRANSITION_TYPE] = {
 	[TOMOYO_TRANSITION_CONTROL_NO_RESET]      = "no_reset_domain ",
 	[TOMOYO_TRANSITION_CONTROL_RESET]         = "reset_domain ",
@@ -1525,6 +1532,7 @@ static const char *tomoyo_transition_type[TOMOYO_MAX_TRANSITION_TYPE] = {
 	[TOMOYO_TRANSITION_CONTROL_KEEP]          = "keep_domain ",
 };
 
+/* String table for grouping keywords. */
 static const char *tomoyo_group_name[TOMOYO_MAX_GROUP] = {
 	[TOMOYO_PATH_GROUP]   = "path_group ",
 	[TOMOYO_NUMBER_GROUP] = "number_group ",

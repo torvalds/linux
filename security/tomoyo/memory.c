@@ -1,9 +1,7 @@
 /*
  * security/tomoyo/memory.c
  *
- * Memory management functions for TOMOYO.
- *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #include <linux/hash.h>

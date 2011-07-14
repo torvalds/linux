@@ -1,21 +1,37 @@
 /*
  * security/tomoyo/group.c
  *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #include <linux/slab.h>
 #include "common.h"
 
+/**
+ * tomoyo_same_path_group - Check for duplicated "struct tomoyo_path_group" entry.
+ *
+ * @a: Pointer to "struct tomoyo_acl_head".
+ * @b: Pointer to "struct tomoyo_acl_head".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
 static bool tomoyo_same_path_group(const struct tomoyo_acl_head *a,
-				const struct tomoyo_acl_head *b)
+				   const struct tomoyo_acl_head *b)
 {
 	return container_of(a, struct tomoyo_path_group, head)->member_name ==
 		container_of(b, struct tomoyo_path_group, head)->member_name;
 }
 
+/**
+ * tomoyo_same_number_group - Check for duplicated "struct tomoyo_number_group" entry.
+ *
+ * @a: Pointer to "struct tomoyo_acl_head".
+ * @b: Pointer to "struct tomoyo_acl_head".
+ *
+ * Returns true if @a == @b, false otherwise.
+ */
 static bool tomoyo_same_number_group(const struct tomoyo_acl_head *a,
-				  const struct tomoyo_acl_head *b)
+				     const struct tomoyo_acl_head *b)
 {
 	return !memcmp(&container_of(a, struct tomoyo_number_group, head)
 		       ->number,
@@ -29,7 +45,7 @@ static bool tomoyo_same_number_group(const struct tomoyo_acl_head *a,
  * tomoyo_write_group - Write "struct tomoyo_path_group"/"struct tomoyo_number_group" list.
  *
  * @param: Pointer to "struct tomoyo_acl_param".
- * @type:      Type of this group.
+ * @type:  Type of this group.
  *
  * Returns 0 on success, negative value otherwise.
  */
@@ -70,8 +86,8 @@ out:
 /**
  * tomoyo_path_matches_group - Check whether the given pathname matches members of the given pathname group.
  *
- * @pathname:        The name of pathname.
- * @group:           Pointer to "struct tomoyo_path_group".
+ * @pathname: The name of pathname.
+ * @group:    Pointer to "struct tomoyo_path_group".
  *
  * Returns matched member's pathname if @pathname matches pathnames in @group,
  * NULL otherwise.

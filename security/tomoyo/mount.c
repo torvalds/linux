@@ -1,7 +1,7 @@
 /*
  * security/tomoyo/mount.c
  *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #include <linux/slab.h>
@@ -62,7 +62,7 @@ static bool tomoyo_check_mount_acl(struct tomoyo_request_info *r,
  * tomoyo_mount_acl - Check permission for mount() operation.
  *
  * @r:        Pointer to "struct tomoyo_request_info".
- * @dev_name: Name of device file.
+ * @dev_name: Name of device file. Maybe NULL.
  * @dir:      Pointer to "struct path".
  * @type:     Name of filesystem type.
  * @flags:    Mount options.
@@ -175,11 +175,11 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
 /**
  * tomoyo_mount_permission - Check permission for mount() operation.
  *
- * @dev_name:  Name of device file.
+ * @dev_name:  Name of device file. Maybe NULL.
  * @path:      Pointer to "struct path".
- * @type:      Name of filesystem type. May be NULL.
+ * @type:      Name of filesystem type. Maybe NULL.
  * @flags:     Mount options.
- * @data_page: Optional data. May be NULL.
+ * @data_page: Optional data. Maybe NULL.
  *
  * Returns 0 on success, negative value otherwise.
  */

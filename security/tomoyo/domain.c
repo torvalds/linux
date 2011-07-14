@@ -1,9 +1,7 @@
 /*
  * security/tomoyo/domain.c
  *
- * Domain transition functions for TOMOYO.
- *
- * Copyright (C) 2005-2010  NTT DATA CORPORATION
+ * Copyright (C) 2005-2011  NTT DATA CORPORATION
  */
 
 #include "common.h"
@@ -182,10 +180,10 @@ LIST_HEAD(tomoyo_domain_list);
  */
 static const char *tomoyo_last_word(const char *name)
 {
-        const char *cp = strrchr(name, ' ');
-        if (cp)
-                return cp + 1;
-        return name;
+	const char *cp = strrchr(name, ' ');
+	if (cp)
+		return cp + 1;
+	return name;
 }
 
 /**
