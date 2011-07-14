@@ -667,7 +667,7 @@ struct rtl8169_private {
 	u32 saved_wolopts;
 
 	const struct firmware *fw;
-#define RTL_FIRMWARE_UNKNOWN	ERR_PTR(-EAGAIN);
+#define RTL_FIRMWARE_UNKNOWN	ERR_PTR(-EAGAIN)
 };
 
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");

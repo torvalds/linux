@@ -1382,7 +1382,7 @@ static int find_mii(struct net_device *dev)
 /* WCSR bits [0:4] [9:10] */
 #define WCSR_RESET_SAVE 0x61f
 /* RFCR bits [20] [22] [27:31] */
-#define RFCR_RESET_SAVE 0xf8500000;
+#define RFCR_RESET_SAVE 0xf8500000
 
 static void natsemi_reset(struct net_device *dev)
 {

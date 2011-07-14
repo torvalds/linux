@@ -2624,8 +2624,8 @@ struct iwl_scanstart_notification {
 	__le32 status;
 } __packed;
 
-#define  SCAN_OWNER_STATUS 0x1;
-#define  MEASURE_OWNER_STATUS 0x2;
+#define  SCAN_OWNER_STATUS 0x1
+#define  MEASURE_OWNER_STATUS 0x2
 
 #define IWL_PROBE_STATUS_OK		0
 #define IWL_PROBE_STATUS_TX_FAILED	BIT(0)
