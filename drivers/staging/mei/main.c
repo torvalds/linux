@@ -151,11 +151,20 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 		err = -ENOMEM;
 		goto free_device;
 	}
-	/* request and enable interrupt   */
-	err = request_threaded_irq(pdev->irq,
+	pci_enable_msi(pdev);
+
+	 /* request and enable interrupt */
+	if (pci_dev_msi_enabled(pdev))
+		err = request_threaded_irq(pdev->irq,
+			NULL,
+			mei_interrupt_thread_handler,
+			0, mei_driver_name, dev);
+	else
+		err = request_threaded_irq(pdev->irq,
 			mei_interrupt_quick_handler,
 			mei_interrupt_thread_handler,
 			IRQF_SHARED, mei_driver_name, dev);
+
 	if (err) {
 		printk(KERN_ERR "mei: request_threaded_irq failure. irq = %d\n",
 		       pdev->irq);
@@ -183,6 +192,7 @@ release_irq:
 	mei_disable_interrupts(dev);
 	flush_scheduled_work();
 	free_irq(pdev->irq, dev);
+	pci_disable_msi(pdev);
 unmap_memory:
 	pci_iounmap(pdev, dev->mem_addr);
 free_device:
@@ -247,6 +257,7 @@ static void __devexit mei_remove(struct pci_dev *pdev)
 	mei_disable_interrupts(dev);
 
 	free_irq(pdev->irq, dev);
+	pci_disable_msi(pdev);
 	pci_set_drvdata(pdev, NULL);
 
 	if (dev->mem_addr)
@@ -1096,7 +1107,7 @@ static int mei_pci_suspend(struct device *device)
 	mutex_unlock(&dev->device_lock);
 
 	free_irq(pdev->irq, dev);
-
+	pci_disable_msi(pdev);
 
 	return err;
 }
@@ -1111,11 +1122,20 @@ static int mei_pci_resume(struct device *device)
 	if (!dev)
 		return -ENODEV;
 
-	/* request and enable interrupt   */
-	err = request_threaded_irq(pdev->irq,
+	pci_enable_msi(pdev);
+
+	/* request and enable interrupt */
+	if (pci_dev_msi_enabled(pdev))
+		err = request_threaded_irq(pdev->irq,
+			NULL,
+			mei_interrupt_thread_handler,
+			0, mei_driver_name, dev);
+	else
+		err = request_threaded_irq(pdev->irq,
 			mei_interrupt_quick_handler,
 			mei_interrupt_thread_handler,
 			IRQF_SHARED, mei_driver_name, dev);
+
 	if (err) {
 		printk(KERN_ERR "mei: Request_irq failure. irq = %d\n",
 		       pdev->irq);

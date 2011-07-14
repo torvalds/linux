@@ -1540,6 +1540,12 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 	mutex_lock(&dev->device_lock);
 	mei_io_list_init(&complete_list);
 	dev->host_hw_state = mei_hcsr_read(dev);
+
+	/* Ack the interrupt here
+	 * In case of MSI we don't go throuhg the quick handler */
+	if (pci_dev_msi_enabled(dev->pdev))
+		mei_reg_write(dev, H_CSR, dev->host_hw_state);
+
 	dev->me_hw_state = mei_mecsr_read(dev);
 
 	/* check if ME wants a reset */
