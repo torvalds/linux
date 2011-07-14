@@ -56,10 +56,6 @@
 #include "r8190P_def.h"
 #include "r8192E_dev.h"
 
-#ifdef CONFIG_CFG_80211
-#include "rtl_regd.h"
-#endif
-
 #ifdef CONFIG_RTL_RFKILL
 #include "rtl_rfkill.h"
 #endif
@@ -660,11 +656,6 @@ typedef struct r8192_priv
 	void (*rf_close)(struct net_device *dev);
 	void (*rf_init)(struct net_device *dev);
 
-#ifdef CONFIG_CFG_80211
-	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][RTL_RATE_MAX];
-	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
-#endif
-
 	rx_desc			*rx_ring[MAX_RX_QUEUE];
 	struct sk_buff	*rx_buf[MAX_RX_QUEUE][MAX_RX_COUNT];
 	dma_addr_t	rx_ring_dma[MAX_RX_QUEUE];
@@ -1143,9 +1134,5 @@ ActUpdateChannelAccessSetting(
 	WIRELESS_MODE			WirelessMode,
 	PCHANNEL_ACCESS_SETTING	ChnlAccessSetting
 	);
-
-#ifdef CONFIG_CFG_80211
-struct net_device *wiphy_to_net_device(struct wiphy *wiphy);
-#endif
 
 #endif

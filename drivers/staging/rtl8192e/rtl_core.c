@@ -1387,14 +1387,6 @@ short rtl8192_init(struct net_device *dev)
 	priv->ops->init_adapter_variable(dev);
 	rtl8192_get_channel_map(dev);
 
-#ifdef CONFIG_CFG_80211
-	/* channel map setting for the cfg80211 style */
-	{
-		struct r8192_priv* priv = rtllib_priv(dev);
-		rtllib_set_geo(priv);
-	}
-#endif
-
 	init_hal_dm(dev);
 
 	init_timer(&priv->watch_dog_timer);
@@ -3092,11 +3084,6 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 		RT_TRACE(COMP_ERR, "Initialization failed");
 		goto fail1;
 	}
-
-#ifdef CONFIG_CFG_80211
-	if (!rtl8192_register_wiphy_dev(dev))
-		goto fail1;
-#endif
 
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);

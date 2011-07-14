@@ -56,26 +56,6 @@
 
 #define DRV_NAME "rtllib_92e"
 
-#ifdef CONFIG_CFG_80211
-#ifdef CONFIG_RTL_RFKILL
-static inline void rtllib_rfkill_poll(struct wiphy *wiphy)
-{
-	struct rtllib_device *rtllib = NULL;
-
-	rtllib = (struct rtllib_device *)wiphy_priv(wiphy);
-
-	rtllib = (struct rtllib_device *)netdev_priv_rsl(rtllib->dev);
-
-	if (rtllib->rtllib_rfkill_poll)
-		rtllib->rtllib_rfkill_poll(rtllib->dev);
-}
-#else
-static inline void rtllib_rfkill_poll(struct wiphy *wiphy) {}
-#endif
-struct cfg80211_ops rtllib_config_ops = {.rfkill_poll = rtllib_rfkill_poll };
-void *rtllib_wiphy_privid = &rtllib_wiphy_privid;
-#endif
-
 void _setup_timer( struct timer_list* ptimer, void* fun, unsigned long data )
 {
    ptimer->function = fun;
@@ -121,43 +101,6 @@ static inline void rtllib_networks_initialize(struct rtllib_device *ieee)
 		list_add_tail(&ieee->networks[i].list, &ieee->network_free_list);
 }
 
-#if defined CONFIG_CFG_80211
-static bool rtllib_wdev_alloc(struct rtllib_device *ieee, int sizeof_priv)
-{
-	int priv_size;
-	struct rtllib_device *rtllib = NULL;
-
-	priv_size = ALIGN(sizeof(struct rtllib_device),NETDEV_ALIGN) + sizeof_priv;
-
-	ieee->wdev.wiphy = wiphy_new(&rtllib_config_ops, priv_size);
-	if (!ieee->wdev.wiphy) {
-		RTLLIB_ERROR("Unable to allocate wiphy.\n");
-		goto out_err_new;
-	}
-
-	rtllib = (struct rtllib_device *)wiphy_priv(ieee->wdev.wiphy);
-	rtllib->dev = ieee->dev;
-
-	ieee->dev->ieee80211_ptr = &ieee->wdev;
-	ieee->wdev.iftype = NL80211_IFTYPE_STATION;
-
-	/* Fill-out wiphy structure bits we know...  Not enough info
-	 *            here to call set_wiphy_dev or set MAC address or channel info
-	 *                       -- have to do that in ->ndo_init... */
-	ieee->wdev.wiphy->privid = rtllib_wiphy_privid;
-
-	ieee->wdev.wiphy->max_scan_ssids = 1;
-	ieee->wdev.wiphy->max_scan_ie_len = 0;
-	ieee->wdev.wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION)	| BIT(NL80211_IFTYPE_ADHOC);
-
-	return true;
-
-out_err_new:
-	wiphy_free(ieee->wdev.wiphy);
-	return false;
-}
-#endif
-
 struct net_device *alloc_rtllib(int sizeof_priv)
 {
 	struct rtllib_device *ieee = NULL;
@@ -175,10 +118,6 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	memset(ieee, 0, sizeof(struct rtllib_device)+sizeof_priv);
 	ieee->dev = dev;
 
-#ifdef CONFIG_CFG_80211
-	if (!rtllib_wdev_alloc(ieee, sizeof_priv))
-		goto failed;
-#endif
 	err = rtllib_networks_allocate(ieee);
 	if (err) {
 		RTLLIB_ERROR("Unable to allocate beacon storage: %d\n",
@@ -277,10 +216,6 @@ void free_rtllib(struct net_device *dev)
 	}
 
 	rtllib_networks_free(ieee);
-#ifdef CONFIG_CFG_80211
-	wiphy_unregister(ieee->wdev.wiphy);
-	wiphy_free(ieee->wdev.wiphy);
-#endif
 	free_netdev(dev);
 }
 

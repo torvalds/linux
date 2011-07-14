@@ -35,10 +35,6 @@
 #include <linux/delay.h>
 #include <linux/wireless.h>
 
-#ifdef CONFIG_CFG_80211
-#include <net/cfg80211.h>
-#endif
-
 #include "rtl819x_HT.h"
 #include "rtl819x_BA.h"
 #include "rtl819x_TS.h"
@@ -854,7 +850,6 @@ enum _REG_PREAMBLE_MODE{
 #define WLAN_GET_SEQ_FRAG(seq) ((seq) & RTLLIB_SCTL_FRAG)
 #define WLAN_GET_SEQ_SEQ(seq)  (((seq) & RTLLIB_SCTL_SEQ) >> 4)
 
-#ifndef CONFIG_CFG_80211
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN 0
 #define WLAN_AUTH_SHARED_KEY 1
@@ -942,7 +937,6 @@ enum rtllib_reasoncode {
         WLAN_REASON_IEEE8021X_FAILED = 23,
         WLAN_REASON_CIPHER_SUITE_REJECTED = 24,
 };
-#endif
 
 #define RTLLIB_STATMASK_SIGNAL (1<<0)
 #define RTLLIB_STATMASK_RSSI (1<<1)
@@ -2106,145 +2100,6 @@ typedef struct _RT_PMKID_LIST
 	u16					ssid_length;
 } RT_PMKID_LIST, *PRT_PMKID_LIST;
 
-#ifdef CONFIG_CFG_80211
-enum {
-	LIBIPW_CH_PASSIVE_ONLY		= (1 << 0),
-	LIBIPW_CH_80211H_RULES		= (1 << 1),
-	LIBIPW_CH_B_ONLY		= (1 << 2),
-	LIBIPW_CH_NO_IBSS		= (1 << 3),
-	LIBIPW_CH_UNIFORM_SPREADING	= (1 << 4),
-	LIBIPW_CH_RADAR_DETECT		= (1 << 5),
-	LIBIPW_CH_INVALID		= (1 << 6),
-};
-struct rtllib_channel {
-	u32 freq;
-	u8 channel;
-	u8 flags;
-	u8 max_power;
-};
-
-#define RTLLIB_24GHZ_MIN_CHANNEL 1
-#define RTLLIB_24GHZ_MAX_CHANNEL 14
-#define RTLLIB_24GHZ_CHANNELS (RTLLIB_24GHZ_MAX_CHANNEL - \
-		RTLLIB_24GHZ_MIN_CHANNEL + 1)
-
-struct reg_dmn_pair_mapping {
-	u16 regDmnEnum;
-	u16 reg_5ghz_ctl;
-	u16 reg_2ghz_ctl;
-};
-
-struct rtl_regulatory {
-	char alpha2[2];
-	u16 country_code;
-	u16 max_power_level;
-	u32 tp_scale;
-	u16 current_rd;
-	u16 current_rd_ext;
-	int16_t power_limit;
-	struct reg_dmn_pair_mapping *regpair;
-};
-
-struct ieee80211_bss {
-	/* Yes, this is a hack */
-	struct cfg80211_bss cbss;
-
-	/* don't want to look up all the time */
-	size_t ssid_len;
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-
-	u8 dtim_period;
-
-	bool wmm_used;
-
-	unsigned long last_probe_resp;
-
-#ifdef CONFIG_MAC80211_MESH
-	u8 *mesh_id;
-	size_t mesh_id_len;
-	u8 *mesh_cfg;
-#endif
-
-	#define IEEE80211_MAX_SUPP_RATES 32
-	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
-	size_t supp_rates_len;
-
-	/*
-	 * During assocation, we save an ERP value from a probe response so
-	 * that we can feed ERP info to the driver when handling the
-	 * association completes. these fields probably won't be up-to-date
-	 * otherwise, you probably don't want to use them.
-	 */
-	bool has_erp_value;
-	u8 erp_value;
-};
-
-/* Parsed Information Elements */
-struct ieee802_11_elems {
-	u8 *ie_start;
-	size_t total_len;
-
-	/* pointers to IEs */
-	u8 *ssid;
-	u8 *supp_rates;
-	u8 *fh_params;
-	u8 *ds_params;
-	u8 *cf_params;
-	struct ieee80211_tim_ie *tim;
-	u8 *ibss_params;
-	u8 *challenge;
-	u8 *wpa;
-	u8 *rsn;
-	u8 *erp_info;
-	u8 *ext_supp_rates;
-	u8 *wmm_info;
-	u8 *wmm_param;
-	struct ieee80211_ht_cap *ht_cap_elem;
-	struct ieee80211_ht_info *ht_info_elem;
-	u8 *mesh_config;
-	u8 *mesh_id;
-	u8 *peer_link;
-	u8 *preq;
-	u8 *prep;
-	u8 *perr;
-	u8 *ch_switch_elem;
-	u8 *country_elem;
-	u8 *pwr_constr_elem;
-	u8 *quiet_elem;		/* first quite element */
-	u8 *timeout_int;
-
-	/* length of them, respectively */
-	u8 ssid_len;
-	u8 supp_rates_len;
-	u8 fh_params_len;
-	u8 ds_params_len;
-	u8 cf_params_len;
-	u8 tim_len;
-	u8 ibss_params_len;
-	u8 challenge_len;
-	u8 wpa_len;
-	u8 rsn_len;
-	u8 erp_info_len;
-	u8 ext_supp_rates_len;
-	u8 wmm_info_len;
-	u8 wmm_param_len;
-	u8 mesh_config_len;
-	u8 mesh_id_len;
-	u8 peer_link_len;
-	u8 preq_len;
-	u8 prep_len;
-	u8 perr_len;
-	u8 ch_switch_elem_len;
-	u8 country_elem_len;
-	u8 pwr_constr_elem_len;
-	u8 quiet_elem_len;
-	u8 num_of_quiet_elem;	/* can be more the one */
-	u8 timeout_int_len;
-};
-
-#endif
-
-
 typedef struct _RT_INTEL_PROMISCUOUS_MODE_INFO {
      bool bPromiscuousOn;
      bool bFilterSourceStationFrame;
@@ -2283,10 +2138,6 @@ struct rtllib_device {
 	HT_EXTCHNL_OFFSET chan_offset_bk;
 	HT_CHANNEL_WIDTH bandwidth_bk;
 	u8 hwscan_sem_up;
-#ifdef CONFIG_CFG_80211
-	struct wireless_dev wdev;
-	struct rtl_regulatory regulatory;
-#endif
 	u8	CntAfterLink;
 
 	RT_OP_MODE	OpMode;
