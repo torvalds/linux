@@ -139,6 +139,8 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 	.no_ade		= 1,
+	.rpadir		= 1,
+	.rpadir_value   = 2 << 16,
 };
 
 #define SH_GIGA_ETH_BASE	0xfee00000
@@ -1185,8 +1187,8 @@ static void sh_eth_adjust_link(struct net_device *ndev)
 				mdp->cd->set_rate(ndev);
 		}
 		if (mdp->link == PHY_DOWN) {
-			sh_eth_write(ndev, (sh_eth_read(ndev, ECMR) & ~ECMR_TXF)
-					| ECMR_DM, ECMR);
+			sh_eth_write(ndev,
+				(sh_eth_read(ndev, ECMR) & ~ECMR_TXF), ECMR);
 			new_state = 1;
 			mdp->link = phydev->link;
 		}

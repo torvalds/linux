@@ -65,6 +65,8 @@ static int ip_connect(struct TCP_Server_Info *server);
 static int generic_ip_connect(struct TCP_Server_Info *server);
 static void tlink_rb_insert(struct rb_root *root, struct tcon_link *new_tlink);
 static void cifs_prune_tlinks(struct work_struct *work);
+static int cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
+					const char *devname);
 
 /*
  * cifs tcp session reconnection
@@ -2240,8 +2242,8 @@ cifs_match_super(struct super_block *sb, void *data)
 
 	rc = compare_mount_options(sb, mnt_data);
 out:
-	cifs_put_tlink(tlink);
 	spin_unlock(&cifs_tcp_ses_lock);
+	cifs_put_tlink(tlink);
 	return rc;
 }
 
@@ -2474,14 +2476,6 @@ generic_ip_connect(struct TCP_Server_Info *server)
 	if (rc < 0)
 		return rc;
 
-	rc = socket->ops->connect(socket, saddr, slen, 0);
-	if (rc < 0) {
-		cFYI(1, "Error %d connecting to server", rc);
-		sock_release(socket);
-		server->ssocket = NULL;
-		return rc;
-	}
-
 	/*
 	 * Eventually check for other socket options to change from
 	 * the default. sock_setsockopt not used because it expects
@@ -2509,6 +2503,14 @@ generic_ip_connect(struct TCP_Server_Info *server)
 	 cFYI(1, "sndbuf %d rcvbuf %d rcvtimeo 0x%lx",
 		 socket->sk->sk_sndbuf,
 		 socket->sk->sk_rcvbuf, socket->sk->sk_rcvtimeo);
+
+	rc = socket->ops->connect(socket, saddr, slen, 0);
+	if (rc < 0) {
+		cFYI(1, "Error %d connecting to server", rc);
+		sock_release(socket);
+		server->ssocket = NULL;
+		return rc;
+	}
 
 	if (sport == htons(RFC1001_PORT))
 		rc = ip_rfc1001_connect(server);
@@ -2830,15 +2832,9 @@ is_path_accessible(int xid, struct cifs_tcon *tcon,
 	return rc;
 }
 
-void
-cifs_cleanup_volume_info(struct smb_vol **pvolume_info)
+static void
+cleanup_volume_info_contents(struct smb_vol *volume_info)
 {
-	struct smb_vol *volume_info;
-
-	if (!pvolume_info || !*pvolume_info)
-		return;
-
-	volume_info = *pvolume_info;
 	kfree(volume_info->username);
 	kzfree(volume_info->password);
 	kfree(volume_info->UNC);
@@ -2846,28 +2842,44 @@ cifs_cleanup_volume_info(struct smb_vol **pvolume_info)
 	kfree(volume_info->domainname);
 	kfree(volume_info->iocharset);
 	kfree(volume_info->prepath);
-	kfree(volume_info);
-	*pvolume_info = NULL;
-	return;
 }
+
+void
+cifs_cleanup_volume_info(struct smb_vol *volume_info)
+{
+	if (!volume_info)
+		return;
+	cleanup_volume_info_contents(volume_info);
+	kfree(volume_info);
+}
+
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
 /* build_path_to_root returns full path to root when
  * we do not have an exiting connection (tcon) */
 static char *
-build_unc_path_to_root(const struct smb_vol *volume_info,
+build_unc_path_to_root(const struct smb_vol *vol,
 		const struct cifs_sb_info *cifs_sb)
 {
-	char *full_path;
+	char *full_path, *pos;
+	unsigned int pplen = vol->prepath ? strlen(vol->prepath) : 0;
+	unsigned int unc_len = strnlen(vol->UNC, MAX_TREE_SIZE + 1);
 
-	int unc_len = strnlen(volume_info->UNC, MAX_TREE_SIZE + 1);
-	full_path = kmalloc(unc_len + 1, GFP_KERNEL);
+	full_path = kmalloc(unc_len + pplen + 1, GFP_KERNEL);
 	if (full_path == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	strncpy(full_path, volume_info->UNC, unc_len);
-	full_path[unc_len] = 0; /* add trailing null */
+	strncpy(full_path, vol->UNC, unc_len);
+	pos = full_path + unc_len;
+
+	if (pplen) {
+		strncpy(pos, vol->prepath, pplen);
+		pos += pplen;
+	}
+
+	*pos = '\0'; /* add trailing null */
 	convert_delimiter(full_path, CIFS_DIR_SEP(cifs_sb));
+	cFYI(1, "%s: full_path=%s", __func__, full_path);
 	return full_path;
 }
 
@@ -2910,15 +2922,18 @@ expand_dfs_referral(int xid, struct cifs_ses *pSesInfo,
 						   &fake_devname);
 
 		free_dfs_info_array(referrals, num_referrals);
-		kfree(fake_devname);
-
-		if (cifs_sb->mountdata != NULL)
-			kfree(cifs_sb->mountdata);
 
 		if (IS_ERR(mdata)) {
 			rc = PTR_ERR(mdata);
 			mdata = NULL;
+		} else {
+			cleanup_volume_info_contents(volume_info);
+			memset(volume_info, '\0', sizeof(*volume_info));
+			rc = cifs_setup_volume_info(volume_info, mdata,
+							fake_devname);
 		}
+		kfree(fake_devname);
+		kfree(cifs_sb->mountdata);
 		cifs_sb->mountdata = mdata;
 	}
 	kfree(full_path);
@@ -2926,33 +2941,20 @@ expand_dfs_referral(int xid, struct cifs_ses *pSesInfo,
 }
 #endif
 
-int cifs_setup_volume_info(struct smb_vol **pvolume_info, char *mount_data,
-			   const char *devname)
+static int
+cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
+			const char *devname)
 {
-	struct smb_vol *volume_info;
 	int rc = 0;
 
-	*pvolume_info = NULL;
-
-	volume_info = kzalloc(sizeof(struct smb_vol), GFP_KERNEL);
-	if (!volume_info) {
-		rc = -ENOMEM;
-		goto out;
-	}
-
-	if (cifs_parse_mount_options(mount_data, devname,
-				     volume_info)) {
-		rc = -EINVAL;
-		goto out;
-	}
+	if (cifs_parse_mount_options(mount_data, devname, volume_info))
+		return -EINVAL;
 
 	if (volume_info->nullauth) {
 		cFYI(1, "null user");
 		volume_info->username = kzalloc(1, GFP_KERNEL);
-		if (volume_info->username == NULL) {
-			rc = -ENOMEM;
-			goto out;
-		}
+		if (volume_info->username == NULL)
+			return -ENOMEM;
 	} else if (volume_info->username) {
 		/* BB fixme parse for domain name here */
 		cFYI(1, "Username: %s", volume_info->username);
@@ -2960,8 +2962,7 @@ int cifs_setup_volume_info(struct smb_vol **pvolume_info, char *mount_data,
 		cifserror("No username specified");
 	/* In userspace mount helper we can get user name from alternate
 	   locations such as env variables and files on disk */
-		rc = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	/* this is needed for ASCII cp to Unicode converts */
@@ -2973,16 +2974,30 @@ int cifs_setup_volume_info(struct smb_vol **pvolume_info, char *mount_data,
 		if (volume_info->local_nls == NULL) {
 			cERROR(1, "CIFS mount error: iocharset %s not found",
 				 volume_info->iocharset);
-			rc = -ELIBACC;
-			goto out;
+			return -ELIBACC;
 		}
 	}
 
-	*pvolume_info = volume_info;
 	return rc;
-out:
-	cifs_cleanup_volume_info(&volume_info);
-	return rc;
+}
+
+struct smb_vol *
+cifs_get_volume_info(char *mount_data, const char *devname)
+{
+	int rc;
+	struct smb_vol *volume_info;
+
+	volume_info = kzalloc(sizeof(struct smb_vol), GFP_KERNEL);
+	if (!volume_info)
+		return ERR_PTR(-ENOMEM);
+
+	rc = cifs_setup_volume_info(volume_info, mount_data, devname);
+	if (rc) {
+		cifs_cleanup_volume_info(volume_info);
+		volume_info = ERR_PTR(rc);
+	}
+
+	return volume_info;
 }
 
 int
@@ -2997,6 +3012,7 @@ cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 	struct tcon_link *tlink;
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	int referral_walks_count = 0;
+#endif
 
 	rc = bdi_setup_and_register(&cifs_sb->bdi, "cifs", BDI_CAP_MAP_COPY);
 	if (rc)
@@ -3004,6 +3020,7 @@ cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 
 	cifs_sb->bdi.ra_pages = default_backing_dev_info.ra_pages;
 
+#ifdef CONFIG_CIFS_DFS_UPCALL
 try_mount_again:
 	/* cleanup activities if we're chasing a referral */
 	if (referral_walks_count) {
@@ -3012,7 +3029,6 @@ try_mount_again:
 		else if (pSesInfo)
 			cifs_put_smb_ses(pSesInfo);
 
-		cifs_cleanup_volume_info(&volume_info);
 		FreeXid(xid);
 	}
 #endif

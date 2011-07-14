@@ -649,9 +649,9 @@ cifs_do_mount(struct file_system_type *fs_type,
 
 	cFYI(1, "Devname: %s flags: %d ", dev_name, flags);
 
-	rc = cifs_setup_volume_info(&volume_info, (char *)data, dev_name);
-	if (rc)
-		return ERR_PTR(rc);
+	volume_info = cifs_get_volume_info((char *)data, dev_name);
+	if (IS_ERR(volume_info))
+		return ERR_CAST(volume_info);
 
 	cifs_sb = kzalloc(sizeof(struct cifs_sb_info), GFP_KERNEL);
 	if (cifs_sb == NULL) {
@@ -713,7 +713,7 @@ cifs_do_mount(struct file_system_type *fs_type,
 out_super:
 	deactivate_locked_super(sb);
 out:
-	cifs_cleanup_volume_info(&volume_info);
+	cifs_cleanup_volume_info(volume_info);
 	return root;
 
 out_mountdata:

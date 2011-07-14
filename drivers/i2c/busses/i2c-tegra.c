@@ -40,8 +40,10 @@
 #define I2C_CNFG_NEW_MASTER_FSM			(1<<11)
 #define I2C_STATUS				0x01C
 #define I2C_SL_CNFG				0x020
+#define I2C_SL_CNFG_NACK			(1<<1)
 #define I2C_SL_CNFG_NEWSL			(1<<2)
 #define I2C_SL_ADDR1				0x02c
+#define I2C_SL_ADDR2				0x030
 #define I2C_TX_FIFO				0x050
 #define I2C_RX_FIFO				0x054
 #define I2C_PACKET_TRANSFER_STATUS		0x058
@@ -337,7 +339,11 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 
 	if (!i2c_dev->is_dvc) {
 		u32 sl_cfg = i2c_readl(i2c_dev, I2C_SL_CNFG);
-		i2c_writel(i2c_dev, sl_cfg | I2C_SL_CNFG_NEWSL, I2C_SL_CNFG);
+		sl_cfg |= I2C_SL_CNFG_NACK | I2C_SL_CNFG_NEWSL;
+		i2c_writel(i2c_dev, sl_cfg, I2C_SL_CNFG);
+		i2c_writel(i2c_dev, 0xfc, I2C_SL_ADDR1);
+		i2c_writel(i2c_dev, 0x00, I2C_SL_ADDR2);
+
 	}
 
 	val = 7 << I2C_FIFO_CONTROL_TX_TRIG_SHIFT |
