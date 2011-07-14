@@ -118,8 +118,8 @@ switched into MSI mode.
 
 The device driver must decide what action to take if
 pci_enable_msi_block() returns a value less than the number requested.
-Some devices can make use of fewer interrupts than the maximum they
-request; in this case the driver should call pci_enable_msi_block()
+For instance, the driver could still make use of fewer interrupts;
+in this case the driver should call pci_enable_msi_block()
 again.  Note that it is not guaranteed to succeed, even when the
 'count' has been reduced to the value returned from a previous call to
 pci_enable_msi_block().  This is because there are multiple constraints
