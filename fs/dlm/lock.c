@@ -2421,9 +2421,6 @@ static int do_convert(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	if (deadlk) {
 		/* it's left on the granted queue */
-		log_debug(r->res_ls, "deadlock %x node %d sts%d g%d r%d %s",
-			  lkb->lkb_id, lkb->lkb_nodeid, lkb->lkb_status,
-			  lkb->lkb_grmode, lkb->lkb_rqmode, r->res_name);
 		revert_lock(r, lkb);
 		queue_cast(r, lkb, -EDEADLK);
 		error = -EDEADLK;
