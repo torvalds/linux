@@ -1319,7 +1319,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 				if (!(card->mp_wr_bitmap &
 						(1 << card->curr_wr_port))
 						|| !MP_TX_AGGR_BUF_HAS_ROOM(
-							card, next_pkt_len))
+						card, pkt_len + next_pkt_len))
 					f_send_aggr_buf = 1;
 			} else {
 				/* No room in Aggr buf, send it */
