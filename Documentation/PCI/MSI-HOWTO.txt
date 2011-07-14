@@ -155,10 +155,10 @@ struct msix_entry {
 };
 
 This allows for the device to use these interrupts in a sparse fashion;
-for example it could use interrupts 3 and 1027 and allocate only a
+for example, it could use interrupts 3 and 1027 and yet allocate only a
 two-element array.  The driver is expected to fill in the 'entry' value
-in each element of the array to indicate which entries it wants the kernel
-to assign interrupts for.  It is invalid to fill in two entries with the
+in each element of the array to indicate for which entries the kernel
+should assign interrupts; it is invalid to fill in two entries with the
 same number.
 
 4.3.1 pci_enable_msix
