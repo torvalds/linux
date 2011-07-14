@@ -252,14 +252,7 @@ struct netdev_hw_addr_list {
 	netdev_hw_addr_list_for_each(ha, &(dev)->mc)
 
 struct hh_cache {
-	atomic_t	hh_refcnt;	/* number of users                   */
-/*
- * We want hh_output, hh_len, hh_lock and hh_data be a in a separate
- * cache line on SMP.
- * They are mostly read, but hh_refcnt may be changed quite frequently,
- * incurring cache line ping pongs.
- */
-	u16		hh_len ____cacheline_aligned_in_smp;
+	u16		hh_len;
 	u16		__pad;
 	int		(*hh_output)(struct sk_buff *skb);
 	seqlock_t	hh_lock;
@@ -272,12 +265,6 @@ struct hh_cache {
 	(((__len)+(HH_DATA_MOD-1))&~(HH_DATA_MOD - 1))
 	unsigned long	hh_data[HH_DATA_ALIGN(LL_MAX_HEADER) / sizeof(long)];
 };
-
-static inline void hh_cache_put(struct hh_cache *hh)
-{
-	if (atomic_dec_and_test(&hh->hh_refcnt))
-		kfree(hh);
-}
 
 /* Reserve HH_DATA_MOD byte aligned hard_header_len, but at least that much.
  * Alternative is:

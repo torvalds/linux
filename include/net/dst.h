@@ -38,7 +38,6 @@ struct dst_entry {
 	unsigned long		expires;
 	struct dst_entry	*path;
 	struct neighbour	*neighbour;
-	struct hh_cache		*hh;
 #ifdef CONFIG_XFRM
 	struct xfrm_state	*xfrm;
 #else
@@ -46,6 +45,14 @@ struct dst_entry {
 #endif
 	int			(*input)(struct sk_buff*);
 	int			(*output)(struct sk_buff*);
+
+	int			flags;
+#define DST_HOST		0x0001
+#define DST_NOXFRM		0x0002
+#define DST_NOPOLICY		0x0004
+#define DST_NOHASH		0x0008
+#define DST_NOCACHE		0x0010
+#define DST_NOCOUNT		0x0020
 
 	short			error;
 	short			obsolete;
@@ -62,7 +69,7 @@ struct dst_entry {
 	 * (L1_CACHE_SIZE would be too much)
 	 */
 #ifdef CONFIG_64BIT
-	long			__pad_to_align_refcnt[1];
+	long			__pad_to_align_refcnt[2];
 #endif
 	/*
 	 * __refcnt wants to be on a different cache line from
@@ -71,13 +78,6 @@ struct dst_entry {
 	atomic_t		__refcnt;	/* client references	*/
 	int			__use;
 	unsigned long		lastuse;
-	int			flags;
-#define DST_HOST		0x0001
-#define DST_NOXFRM		0x0002
-#define DST_NOPOLICY		0x0004
-#define DST_NOHASH		0x0008
-#define DST_NOCACHE		0x0010
-#define DST_NOCOUNT		0x0020
 	union {
 		struct dst_entry	*next;
 		struct rtable __rcu	*rt_next;

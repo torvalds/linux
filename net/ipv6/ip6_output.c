@@ -100,6 +100,7 @@ static int ip6_finish_output2(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct net_device *dev = dst->dev;
+	struct neighbour *neigh;
 
 	skb->protocol = htons(ETH_P_IPV6);
 	skb->dev = dev;
@@ -134,11 +135,14 @@ static int ip6_finish_output2(struct sk_buff *skb)
 				skb->len);
 	}
 
-	if (dst->hh)
-		return neigh_hh_output(dst->hh, skb);
-	else if (dst->neighbour)
-		return dst->neighbour->output(skb);
-
+	neigh = dst->neighbour;
+	if (neigh) {
+		struct hh_cache *hh = &neigh->hh;
+		if (hh->hh_len)
+			return neigh_hh_output(hh, skb);
+		else
+			return dst->neighbour->output(skb);
+	}
 	IP6_INC_STATS_BH(dev_net(dst->dev),
 			 ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
 	kfree_skb(skb);

@@ -297,6 +297,7 @@ static struct neighbour *neigh_alloc(struct neigh_table *tbl)
 	n->updated	  = n->used = now;
 	n->nud_state	  = NUD_NONE;
 	n->output	  = neigh_blackhole;
+	seqlock_init(&n->hh.hh_lock);
 	n->parms	  = neigh_parms_clone(&tbl->parms);
 	setup_timer(&n->timer, neigh_timer_handler, (unsigned long)n);
 
@@ -702,14 +703,11 @@ void neigh_destroy(struct neighbour *neigh)
 	if (neigh_del_timer(neigh))
 		printk(KERN_WARNING "Impossible event.\n");
 
-	hh = neigh->hh;
-	if (hh) {
-		neigh->hh = NULL;
-
+	hh = &neigh->hh;
+	if (hh->hh_len) {
 		write_seqlock_bh(&hh->hh_lock);
 		hh->hh_output = neigh_blackhole;
 		write_sequnlock_bh(&hh->hh_lock);
-		hh_cache_put(hh);
 	}
 
 	skb_queue_purge(&neigh->arp_queue);
@@ -737,8 +735,8 @@ static void neigh_suspect(struct neighbour *neigh)
 
 	neigh->output = neigh->ops->output;
 
-	hh = neigh->hh;
-	if (hh)
+	hh = &neigh->hh;
+	if (hh->hh_len)
 		hh->hh_output = neigh->ops->output;
 }
 
@@ -755,8 +753,8 @@ static void neigh_connect(struct neighbour *neigh)
 
 	neigh->output = neigh->ops->connected_output;
 
-	hh = neigh->hh;
-	if (hh)
+	hh = &neigh->hh;
+	if (hh->hh_len)
 		hh->hh_output = neigh->ops->hh_output;
 }
 
@@ -1017,7 +1015,7 @@ out_unlock_bh:
 }
 EXPORT_SYMBOL(__neigh_event_send);
 
-static void neigh_update_hhs(const struct neighbour *neigh)
+static void neigh_update_hhs(struct neighbour *neigh)
 {
 	struct hh_cache *hh;
 	void (*update)(struct hh_cache*, const struct net_device*, const unsigned char *)
@@ -1027,8 +1025,8 @@ static void neigh_update_hhs(const struct neighbour *neigh)
 		update = neigh->dev->header_ops->cache_update;
 
 	if (update) {
-		hh = neigh->hh;
-		if (hh) {
+		hh = &neigh->hh;
+		if (hh->hh_len) {
 			write_seqlock_bh(&hh->hh_lock);
 			update(hh, neigh->dev, neigh->ha);
 			write_sequnlock_bh(&hh->hh_lock);
@@ -1214,62 +1212,29 @@ struct neighbour *neigh_event_ns(struct neigh_table *tbl,
 }
 EXPORT_SYMBOL(neigh_event_ns);
 
-static inline bool neigh_hh_lookup(struct neighbour *n, struct dst_entry *dst)
-{
-	struct hh_cache *hh;
-
-	smp_rmb(); /* paired with smp_wmb() in neigh_hh_init() */
-	hh = n->hh;
-	if (hh) {
-		atomic_inc(&hh->hh_refcnt);
-		if (unlikely(cmpxchg(&dst->hh, NULL, hh) != NULL))
-			hh_cache_put(hh);
-		return true;
-	}
-	return false;
-}
-
 /* called with read_lock_bh(&n->lock); */
-static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst,
-			  __be16 protocol)
+static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst)
 {
-	struct hh_cache	*hh;
 	struct net_device *dev = dst->dev;
-
-	if (likely(neigh_hh_lookup(n, dst)))
-		return;
-
-	/* slow path */
-	hh = kzalloc(sizeof(*hh), GFP_ATOMIC);
-	if (!hh)
-		return;
-
-	seqlock_init(&hh->hh_lock);
-	atomic_set(&hh->hh_refcnt, 2);
-
-	if (dev->header_ops->cache(n, hh, protocol)) {
-		kfree(hh);
-		return;
-	}
+	__be16 prot = dst->ops->protocol;
+	struct hh_cache	*hh = &n->hh;
 
 	write_lock_bh(&n->lock);
 
-	/* must check if another thread already did the insert */
-	if (neigh_hh_lookup(n, dst)) {
-		kfree(hh);
+	/* Only one thread can come in here and initialize the
+	 * hh_cache entry.
+	 */
+	if (hh->hh_len)
 		goto end;
-	}
+
+	if (dev->header_ops->cache(n, hh, prot))
+		goto end;
 
 	if (n->nud_state & NUD_CONNECTED)
 		hh->hh_output = n->ops->hh_output;
 	else
 		hh->hh_output = n->ops->output;
 
-	smp_wmb(); /* paired with smp_rmb() in neigh_hh_lookup() */
-	n->hh	    = hh;
-
-	if (unlikely(cmpxchg(&dst->hh, NULL, hh) != NULL))
-		hh_cache_put(hh);
 end:
 	write_unlock_bh(&n->lock);
 }
@@ -1312,10 +1277,8 @@ int neigh_resolve_output(struct sk_buff *skb)
 		struct net_device *dev = neigh->dev;
 		unsigned int seq;
 
-		if (dev->header_ops->cache &&
-		    !dst->hh &&
-		    !(dst->flags & DST_NOCACHE))
-			neigh_hh_init(neigh, dst, dst->ops->protocol);
+		if (dev->header_ops->cache && !neigh->hh.hh_len)
+			neigh_hh_init(neigh, dst);
 
 		do {
 			seq = read_seqbegin(&neigh->ha_lock);

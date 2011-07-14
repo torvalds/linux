@@ -108,7 +108,7 @@ struct neighbour {
 	__u8			dead;
 	seqlock_t		ha_lock;
 	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
-	struct hh_cache		*hh;
+	struct hh_cache		hh;
 	int			(*output)(struct sk_buff *skb);
 	const struct neigh_ops	*ops;
 	struct rcu_head		rcu;

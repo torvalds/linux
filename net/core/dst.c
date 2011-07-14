@@ -172,7 +172,6 @@ void *dst_alloc(struct dst_ops *ops, struct net_device *dev,
 	dst->expires = 0UL;
 	dst->path = dst;
 	dst->neighbour = NULL;
-	dst->hh = NULL;
 #ifdef CONFIG_XFRM
 	dst->xfrm = NULL;
 #endif
@@ -226,18 +225,12 @@ struct dst_entry *dst_destroy(struct dst_entry * dst)
 {
 	struct dst_entry *child;
 	struct neighbour *neigh;
-	struct hh_cache *hh;
 
 	smp_rmb();
 
 again:
 	neigh = dst->neighbour;
-	hh = dst->hh;
 	child = dst->child;
-
-	dst->hh = NULL;
-	if (hh)
-		hh_cache_put(hh);
 
 	if (neigh) {
 		dst->neighbour = NULL;
