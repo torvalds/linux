@@ -1360,9 +1360,7 @@ short rtl8192_get_channel_map(struct net_device * dev)
 	}
 	RT_TRACE(COMP_INIT, "Channel plan is %d\n",priv->ChannelPlan);
 	Dot11d_Init(priv->rtllib);
-#ifndef CONFIG_CRDA
 	Dot11d_Channelmap(priv->ChannelPlan, priv->rtllib);
-#endif
 	for (i = 1; i <= 11; i++) {
 		(priv->rtllib->active_channel_map)[i] = 1;
 	}

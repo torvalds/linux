@@ -215,7 +215,6 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 		start = iwe_stream_add_point_rsl(info, start, stop, &iwe, buf);
         }
 
-#ifndef CUSTOMER_ID_INTEL_CMPC
 	/* add info for WZC */
 	memset(&iwe, 0, sizeof(iwe));
 	if (network->wzc_ie_len)
@@ -226,7 +225,6 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 		iwe.u.data.length = network->wzc_ie_len;
 		start = iwe_stream_add_point_rsl(info, start, stop, &iwe, buf);
         }
-#endif
 
 	/* Add EXTRA: Age to display seconds since last beacon/probe response
 	 * for given network. */

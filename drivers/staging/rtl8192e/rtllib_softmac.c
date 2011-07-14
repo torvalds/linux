@@ -525,13 +525,6 @@ void rtllib_send_probe_requests(struct rtllib_device *ieee, u8 is_mesh)
 
 void rtllib_softmac_hint11d_wq(void *data)
 {
-#ifdef CONFIG_CRDA
-	struct rtllib_device *ieee = container_of_dwork_rsl(data, struct rtllib_device, softmac_hint11d_wq);
-	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(ieee);
-	struct wireless_dev *wdev = &ieee->wdev;
-
-	regulatory_hint_11d(wdev->wiphy, pDot11dInfo->CountryIeBuf, pDot11dInfo->CountryIeLen);
-#endif
 }
 
 void rtllib_update_active_chan_map(struct rtllib_device *ieee)
