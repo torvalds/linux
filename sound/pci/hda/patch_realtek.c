@@ -3196,6 +3196,8 @@ static int alc_auto_ch_mode_put(struct snd_kcontrol *kcontrol,
 	for (i = 0; i < spec->multi_ios; i++)
 		alc_set_multi_io(codec, i, i < ch);
 	spec->multiout.max_channels = spec->ext_channel_count;
+	if (spec->need_dac_fix && !spec->const_channel_count)
+		spec->multiout.num_dacs = spec->multiout.max_channels / 2;
 	return 1;
 }
 
@@ -3642,6 +3644,7 @@ static int patch_alc880(struct hda_codec *codec)
 	codec->spec = spec;
 
 	spec->mixer_nid = 0x0b;
+	spec->need_dac_fix = 1;
 
 	board_config = alc_board_config(codec, ALC880_MODEL_LAST,
 					alc880_models, alc880_cfg_tbl);
