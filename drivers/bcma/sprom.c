@@ -112,7 +112,7 @@ static int bcma_sprom_valid(const u16 *sprom)
 		return err;
 
 	revision = sprom[SSB_SPROMSIZE_WORDS_R4 - 1] & SSB_SPROM_REVISION_REV;
-	if (revision != 8) {
+	if (revision != 8 && revision != 9) {
 		pr_err("Unsupported SPROM revision: %d\n", revision);
 		return -ENOENT;
 	}
