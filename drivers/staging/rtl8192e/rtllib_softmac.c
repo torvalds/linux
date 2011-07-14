@@ -2780,11 +2780,7 @@ void rtllib_start_ibss_wq(void *data)
 	}
 
 	ieee->state = RTLLIB_NOLINK;
-#ifdef ADHOC_11N
-	ieee->mode = IEEE_N_24G;
-#else
 	ieee->mode = IEEE_G;
-#endif
 	/* check if we have this cell in our network list */
 	rtllib_softmac_check_all_nets(ieee);
 
