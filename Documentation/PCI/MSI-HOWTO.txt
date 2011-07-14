@@ -187,7 +187,7 @@ number once MSI-X is enabled.
 Device drivers should normally call this function once per device
 during the initialization phase.
 
-It is ideal if drivers can cope with a variable number of MSI-X interrupts,
+It is ideal if drivers can cope with a variable number of MSI-X interrupts;
 there are many reasons why the platform may not be able to provide the
 exact number that a driver asks for.
 
