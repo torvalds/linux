@@ -107,7 +107,7 @@ static int pd_power_down_a3rv(struct generic_pm_domain *genpd)
 
 	/* try to power down A4LC after A3RV is requested off */
 	pm_genpd_poweron(&sh7372_a4lc.genpd);
-	queue_work(pm_wq, &sh7372_a4lc.genpd.power_off_work);
+	genpd_queue_power_off_work(&sh7372_a4lc.genpd);
 
 	return ret;
 }
