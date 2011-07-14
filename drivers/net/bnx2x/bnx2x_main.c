@@ -4020,7 +4020,7 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 	if (bnx2x_chk_parity_attn(bp, &global, true)) {
 #ifndef BNX2X_STOP_ON_ERROR
 		bp->recovery_state = BNX2X_RECOVERY_INIT;
-		schedule_delayed_work(&bp->reset_task, 0);
+		schedule_delayed_work(&bp->sp_rtnl_task, 0);
 		/* Disable HW interrupts */
 		bnx2x_int_disable(bp);
 		/* In case of parity errors don't handle attentions so that
@@ -7963,7 +7963,7 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 					/* Wait until all other functions get
 					 * down.
 					 */
-					schedule_delayed_work(&bp->reset_task,
+					schedule_delayed_work(&bp->sp_rtnl_task,
 								HZ/10);
 					return;
 				} else {
@@ -8000,7 +8000,7 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 						break;
 					}
 
-					schedule_delayed_work(&bp->reset_task,
+					schedule_delayed_work(&bp->sp_rtnl_task,
 								HZ/10);
 					return;
 
@@ -8011,7 +8011,8 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 					 */
 					if (bnx2x_reset_is_global(bp)) {
 						schedule_delayed_work(
-							&bp->reset_task, HZ/10);
+							&bp->sp_rtnl_task,
+							HZ/10);
 						return;
 					}
 
@@ -8035,30 +8036,39 @@ static void bnx2x_parity_recover(struct bnx2x *bp)
 /* bnx2x_nic_unload() flushes the bnx2x_wq, thus reset task is
  * scheduled on a general queue in order to prevent a dead lock.
  */
-static void bnx2x_reset_task(struct work_struct *work)
+static void bnx2x_sp_rtnl_task(struct work_struct *work)
 {
-	struct bnx2x *bp = container_of(work, struct bnx2x, reset_task.work);
-
-#ifdef BNX2X_STOP_ON_ERROR
-	BNX2X_ERR("reset task called but STOP_ON_ERROR defined"
-		  " so reset not done to allow debug dump,\n"
-	 KERN_ERR " you will need to reboot when done\n");
-	return;
-#endif
+	struct bnx2x *bp = container_of(work, struct bnx2x, sp_rtnl_task.work);
 
 	rtnl_lock();
 
 	if (!netif_running(bp->dev))
-		goto reset_task_exit;
+		goto sp_rtnl_exit;
 
-	if (unlikely(bp->recovery_state != BNX2X_RECOVERY_DONE))
+	/* if stop on error is defined no recovery flows should be executed */
+#ifdef BNX2X_STOP_ON_ERROR
+	BNX2X_ERR("recovery flow called but STOP_ON_ERROR defined "
+		  "so reset not done to allow debug dump,\n"
+		  "you will need to reboot when done\n");
+	goto sp_rtnl_exit;
+#endif
+
+	if (unlikely(bp->recovery_state != BNX2X_RECOVERY_DONE)) {
+		/*
+		 * Clear TX_TIMEOUT bit as we are going to reset the function
+		 * anyway.
+		 */
+		smp_mb__before_clear_bit();
+		clear_bit(BNX2X_SP_RTNL_TX_TIMEOUT, &bp->sp_rtnl_state);
+		smp_mb__after_clear_bit();
 		bnx2x_parity_recover(bp);
-	else {
+	} else if (test_and_clear_bit(BNX2X_SP_RTNL_TX_TIMEOUT,
+				    &bp->sp_rtnl_state)){
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
 		bnx2x_nic_load(bp, LOAD_NORMAL);
 	}
 
-reset_task_exit:
+sp_rtnl_exit:
 	rtnl_unlock();
 }
 
@@ -9291,7 +9301,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 #endif
 
 	INIT_DELAYED_WORK(&bp->sp_task, bnx2x_sp_task);
-	INIT_DELAYED_WORK(&bp->reset_task, bnx2x_reset_task);
+	INIT_DELAYED_WORK(&bp->sp_rtnl_task, bnx2x_sp_rtnl_task);
 	INIT_DELAYED_WORK(&bp->period_task, bnx2x_period_task);
 	rc = bnx2x_get_hwinfo(bp);
 	if (rc)
@@ -10342,7 +10352,7 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 	bnx2x_set_power_state(bp, PCI_D3hot);
 
 	/* Make sure RESET task is not scheduled before continuing */
-	cancel_delayed_work_sync(&bp->reset_task);
+	cancel_delayed_work_sync(&bp->sp_rtnl_task);
 
 	if (bp->regview)
 		iounmap(bp->regview);

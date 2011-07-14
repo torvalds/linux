@@ -3233,8 +3233,13 @@ void bnx2x_tx_timeout(struct net_device *dev)
 	if (!bp->panic)
 		bnx2x_panic();
 #endif
+
+	smp_mb__before_clear_bit();
+	set_bit(BNX2X_SP_RTNL_TX_TIMEOUT, &bp->sp_rtnl_state);
+	smp_mb__after_clear_bit();
+
 	/* This allows the netif to be shutdown gracefully before resetting */
-	schedule_delayed_work(&bp->reset_task, 0);
+	schedule_delayed_work(&bp->sp_rtnl_task, 0);
 }
 
 int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)

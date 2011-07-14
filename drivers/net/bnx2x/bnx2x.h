@@ -1046,6 +1046,12 @@ struct bnx2x_fw_stats_data {
 	struct per_queue_stats  queue_stats[1];
 };
 
+/* Public slow path states */
+enum {
+	BNX2X_SP_RTNL_TX_TIMEOUT,
+};
+
+
 struct bnx2x {
 	/* Fields used in the tx and intr/napi performance paths
 	 * are grouped together in the beginning of the structure
@@ -1159,7 +1165,7 @@ struct bnx2x {
 	int			mrrs;
 
 	struct delayed_work	sp_task;
-	struct delayed_work	reset_task;
+	struct delayed_work	sp_rtnl_task;
 
 	struct delayed_work	period_task;
 	struct timer_list	timer;
@@ -1402,6 +1408,9 @@ struct bnx2x {
 	struct bnx2x_func_sp_obj		func_obj;
 
 	unsigned long				sp_state;
+
+	/* operation indication for the sp_rtnl task */
+	unsigned long				sp_rtnl_state;
 
 	/* DCBX Negotation results */
 	struct dcbx_features			dcbx_local_feat;
