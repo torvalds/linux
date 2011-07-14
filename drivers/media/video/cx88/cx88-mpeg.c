@@ -614,13 +614,17 @@ static int cx8802_request_acquire(struct cx8802_driver *drv)
 	    core->active_type_id != drv->type_id)
 		return -EBUSY;
 
-	core->input = 0;
-	for (i = 0;
-	     i < (sizeof(core->board.input) / sizeof(struct cx88_input));
-	     i++) {
-		if (core->board.input[i].type == CX88_VMUX_DVB) {
-			core->input = i;
-			break;
+	if (drv->type_id == CX88_MPEG_DVB) {
+		/* When switching to DVB, always set the input to the tuner */
+		core->last_analog_input = core->input;
+		core->input = 0;
+		for (i = 0;
+		     i < (sizeof(core->board.input) / sizeof(struct cx88_input));
+		     i++) {
+			if (core->board.input[i].type == CX88_VMUX_DVB) {
+				core->input = i;
+				break;
+			}
 		}
 	}
 
@@ -645,6 +649,12 @@ static int cx8802_request_release(struct cx8802_driver *drv)
 
 	if (drv->advise_release && --core->active_ref == 0)
 	{
+		if (drv->type_id == CX88_MPEG_DVB) {
+			/* If the DVB driver is releasing, reset the input
+			   state to the last configured analog input */
+			core->input = core->last_analog_input;
+		}
+
 		drv->advise_release(drv);
 		core->active_type_id = CX88_BOARD_NONE;
 		mpeg_dbg(1,"%s() Post release GPIO=%x\n", __func__, cx_read(MO_GP0_IO));

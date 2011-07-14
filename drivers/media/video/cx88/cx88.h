@@ -377,6 +377,7 @@ struct cx88_core {
 	u32                        audiomode_manual;
 	u32                        audiomode_current;
 	u32                        input;
+	u32                        last_analog_input;
 	u32                        astat;
 	u32			   use_nicam;
 	unsigned long		   last_change;
