@@ -250,10 +250,16 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 /* called with host->lock held, interrupts disabled */
 static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 {
-	struct mmc_request *mrq = host->mrq;
+	struct mmc_request *mrq;
+	unsigned long flags;
 
-	if (!mrq)
+	spin_lock_irqsave(&host->lock, flags);
+
+	mrq = host->mrq;
+	if (IS_ERR_OR_NULL(mrq)) {
+		spin_unlock_irqrestore(&host->lock, flags);
 		return;
+	}
 
 	host->cmd = NULL;
 	host->data = NULL;
@@ -262,9 +268,16 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	cancel_delayed_work(&host->delayed_reset_work);
 
 	host->mrq = NULL;
+	spin_unlock_irqrestore(&host->lock, flags);
 
-	/* FIXME: mmc_request_done() can schedule! */
 	mmc_request_done(host->mmc, mrq);
+}
+
+static void tmio_mmc_done_work(struct work_struct *work)
+{
+	struct tmio_mmc_host *host = container_of(work, struct tmio_mmc_host,
+						  done);
+	tmio_mmc_finish_request(host);
 }
 
 /* These are the bitmasks the tmio chip requires to implement the MMC response
@@ -433,7 +446,7 @@ void tmio_mmc_do_data_irq(struct tmio_mmc_host *host)
 			BUG();
 	}
 
-	tmio_mmc_finish_request(host);
+	schedule_work(&host->done);
 }
 
 static void tmio_mmc_data_irq(struct tmio_mmc_host *host)
@@ -523,7 +536,7 @@ static void tmio_mmc_cmd_irq(struct tmio_mmc_host *host,
 				tasklet_schedule(&host->dma_issue);
 		}
 	} else {
-		tmio_mmc_finish_request(host);
+		schedule_work(&host->done);
 	}
 
 out:
@@ -573,7 +586,8 @@ irqreturn_t tmio_mmc_irq(int irq, void *devid)
 	if (ireg & (TMIO_STAT_CARD_INSERT | TMIO_STAT_CARD_REMOVE)) {
 		tmio_mmc_ack_mmc_irqs(host, TMIO_STAT_CARD_INSERT |
 			TMIO_STAT_CARD_REMOVE);
-		mmc_detect_change(host->mmc, msecs_to_jiffies(100));
+		if (!work_pending(&host->mmc->detect.work))
+			mmc_detect_change(host->mmc, msecs_to_jiffies(100));
 		goto out;
 	}
 
@@ -703,6 +717,8 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct tmio_mmc_data *pdata = host->pdata;
 	unsigned long flags;
 
+	mutex_lock(&host->ios_lock);
+
 	spin_lock_irqsave(&host->lock, flags);
 	if (host->mrq) {
 		if (IS_ERR(host->mrq)) {
@@ -718,6 +734,8 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 				host->mrq->cmd->opcode, host->last_req_ts, jiffies);
 		}
 		spin_unlock_irqrestore(&host->lock, flags);
+
+		mutex_unlock(&host->ios_lock);
 		return;
 	}
 
@@ -771,6 +789,8 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			current->comm, task_pid_nr(current),
 			ios->clock, ios->power_mode);
 	host->mrq = NULL;
+
+	mutex_unlock(&host->ios_lock);
 }
 
 static int tmio_mmc_get_ro(struct mmc_host *mmc)
@@ -867,9 +887,11 @@ int __devinit tmio_mmc_host_probe(struct tmio_mmc_host **host,
 		tmio_mmc_enable_sdio_irq(mmc, 0);
 
 	spin_lock_init(&_host->lock);
+	mutex_init(&_host->ios_lock);
 
 	/* Init delayed work for request timeouts */
 	INIT_DELAYED_WORK(&_host->delayed_reset_work, tmio_mmc_reset_work);
+	INIT_WORK(&_host->done, tmio_mmc_done_work);
 
 	/* See if we also get DMA */
 	tmio_mmc_request_dma(_host, pdata);
@@ -917,6 +939,7 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 		pm_runtime_get_sync(&pdev->dev);
 
 	mmc_remove_host(host->mmc);
+	cancel_work_sync(&host->done);
 	cancel_delayed_work_sync(&host->delayed_reset_work);
 	tmio_mmc_release_dma(host);
 

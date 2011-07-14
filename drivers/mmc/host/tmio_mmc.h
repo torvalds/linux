@@ -18,6 +18,7 @@
 
 #include <linux/highmem.h>
 #include <linux/mmc/tmio.h>
+#include <linux/mutex.h>
 #include <linux/pagemap.h>
 #include <linux/spinlock.h>
 
@@ -73,8 +74,11 @@ struct tmio_mmc_host {
 
 	/* Track lost interrupts */
 	struct delayed_work	delayed_reset_work;
-	spinlock_t		lock;
+	struct work_struct	done;
+
+	spinlock_t		lock;		/* protect host private data */
 	unsigned long		last_req_ts;
+	struct mutex		ios_lock;	/* protect set_ios() context */
 };
 
 int tmio_mmc_host_probe(struct tmio_mmc_host **host,
