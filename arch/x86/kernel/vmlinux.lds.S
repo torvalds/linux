@@ -169,9 +169,6 @@ SECTIONS
 	.vsyscall : AT(VLOAD(.vsyscall)) {
 		*(.vsyscall_0)
 
-		. = ALIGN(L1_CACHE_BYTES);
-		*(.vsyscall_fn)
-
 		. = 1024;
 		*(.vsyscall_1)
 
