@@ -3903,18 +3903,6 @@ int __init add_from_early_node_map(struct range *range, int az,
 	return nr_range;
 }
 
-void __init work_with_active_regions(int nid, work_fn_t work_fn, void *data)
-{
-	int i;
-	int ret;
-
-	for_each_active_range_index_in_nid(i, nid) {
-		ret = work_fn(early_node_map[i].start_pfn,
-			      early_node_map[i].end_pfn, data);
-		if (ret)
-			break;
-	}
-}
 /**
  * sparse_memory_present_with_active_regions - Call memory_present for each active range
  * @nid: The node to call memory_present for. If MAX_NUMNODES, all nodes will be used.
@@ -4420,6 +4408,34 @@ static inline void setup_nr_node_ids(void)
 {
 }
 #endif
+
+/*
+ * Common iterator interface used to define for_each_mem_pfn_range().
+ */
+void __meminit __next_mem_pfn_range(int *idx, int nid,
+				    unsigned long *out_start_pfn,
+				    unsigned long *out_end_pfn, int *out_nid)
+{
+	struct node_active_region *r = NULL;
+
+	while (++*idx < nr_nodemap_entries) {
+		if (nid == MAX_NUMNODES || nid == early_node_map[*idx].nid) {
+			r = &early_node_map[*idx];
+			break;
+		}
+	}
+	if (!r) {
+		*idx = -1;
+		return;
+	}
+
+	if (out_start_pfn)
+		*out_start_pfn = r->start_pfn;
+	if (out_end_pfn)
+		*out_end_pfn = r->end_pfn;
+	if (out_nid)
+		*out_nid = r->nid;
+}
 
 /**
  * add_active_range - Register a range of PFNs backed by physical memory

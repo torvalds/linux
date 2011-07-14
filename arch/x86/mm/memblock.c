@@ -115,28 +115,13 @@ static void __init memblock_x86_subtract_reserved(struct range *range, int az)
 	memblock_reserve_reserved_regions();
 }
 
-struct count_data {
-	int nr;
-};
-
-static int __init count_work_fn(unsigned long start_pfn,
-				unsigned long end_pfn, void *datax)
-{
-	struct count_data *data = datax;
-
-	data->nr++;
-
-	return 0;
-}
-
 static int __init count_early_node_map(int nodeid)
 {
-	struct count_data data;
+	int i, cnt = 0;
 
-	data.nr = 0;
-	work_with_active_regions(nodeid, count_work_fn, &data);
-
-	return data.nr;
+	for_each_mem_pfn_range(i, nodeid, NULL, NULL, NULL)
+		cnt++;
+	return cnt;
 }
 
 int __init __get_free_all_memory_range(struct range **rangep, int nodeid,
