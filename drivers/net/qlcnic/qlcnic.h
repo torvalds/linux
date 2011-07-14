@@ -1510,6 +1510,8 @@ static const struct qlcnic_brdinfo qlcnic_boards[] = {
 		"NC523SFP 10Gb 2-port Server Adapter"},
 	{0x1077, 0x8020, 0x103c, 0x3346,
 		"CN1000Q Dual Port Converged Network Adapter"},
+	{0x1077, 0x8020, 0x1077, 0x210,
+		"QME8242-k 10GbE Dual Port Mezzanine Card"},
 	{0x1077, 0x8020, 0x0, 0x0, "cLOM8214 1/10GbE Controller"},
 };
 
