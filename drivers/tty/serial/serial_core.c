@@ -72,7 +72,7 @@ void uart_write_wakeup(struct uart_port *port)
 	 * closed.  No cookie for you.
 	 */
 	BUG_ON(!state);
-	tasklet_schedule(&state->tlet);
+	tty_wakeup(state->port.tty);
 }
 
 static void uart_stop(struct tty_struct *tty)
@@ -105,12 +105,6 @@ static void uart_start(struct tty_struct *tty)
 	spin_lock_irqsave(&port->lock, flags);
 	__uart_start(tty);
 	spin_unlock_irqrestore(&port->lock, flags);
-}
-
-static void uart_tasklet_action(unsigned long data)
-{
-	struct uart_state *state = (struct uart_state *)data;
-	tty_wakeup(state->port.tty);
 }
 
 static inline void
@@ -248,11 +242,6 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 		 */
 		synchronize_irq(uport->irq);
 	}
-
-	/*
-	 * kill off our tasklet
-	 */
-	tasklet_kill(&state->tlet);
 
 	/*
 	 * Free the transmit buffer page.
@@ -2277,8 +2266,6 @@ int uart_register_driver(struct uart_driver *drv)
 		port->ops = &uart_port_ops;
 		port->close_delay     = 500;	/* .5 seconds */
 		port->closing_wait    = 30000;	/* 30 seconds */
-		tasklet_init(&state->tlet, uart_tasklet_action,
-			     (unsigned long)state);
 	}
 
 	retval = tty_register_driver(normal);
@@ -2438,11 +2425,6 @@ int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 	 * Indicate that there isn't a port here anymore.
 	 */
 	uport->type = PORT_UNKNOWN;
-
-	/*
-	 * Kill the tasklet, and free resources.
-	 */
-	tasklet_kill(&state->tlet);
 
 	state->uart_port = NULL;
 	mutex_unlock(&port_mutex);
