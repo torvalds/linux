@@ -993,10 +993,6 @@ static int gelic_card_decode_one_descr(struct gelic_card *card)
 	int dmac_chain_ended;
 
 	status = gelic_descr_get_status(descr);
-	/* is this descriptor terminated with next_descr == NULL? */
-	dmac_chain_ended =
-		be32_to_cpu(descr->dmac_cmd_status) &
-		GELIC_DESCR_RX_DMA_CHAIN_END;
 
 	if (status == GELIC_DESCR_DMA_CARDOWNED)
 		return 0;
@@ -1059,6 +1055,11 @@ static int gelic_card_decode_one_descr(struct gelic_card *card)
 	/* ok, we've got a packet in descr */
 	gelic_net_pass_skb_up(descr, card, netdev);
 refill:
+
+	/* is the current descriptor terminated with next_descr == NULL? */
+	dmac_chain_ended =
+		be32_to_cpu(descr->dmac_cmd_status) &
+		GELIC_DESCR_RX_DMA_CHAIN_END;
 	/*
 	 * So that always DMAC can see the end
 	 * of the descriptor chain to avoid
@@ -1087,10 +1088,9 @@ refill:
 	 * If dmac chain was met, DMAC stopped.
 	 * thus re-enable it
 	 */
-	if (dmac_chain_ended) {
-		card->rx_dma_restart_required = 1;
-		dev_dbg(ctodev(card), "reenable rx dma scheduled\n");
-	}
+
+	if (dmac_chain_ended)
+		gelic_card_enable_rxdmac(card);
 
 	return 1;
 }
@@ -1155,11 +1155,6 @@ static irqreturn_t gelic_card_interrupt(int irq, void *ptr)
 		return IRQ_NONE;
 
 	status &= card->irq_mask;
-
-	if (card->rx_dma_restart_required) {
-		card->rx_dma_restart_required = 0;
-		gelic_card_enable_rxdmac(card);
-	}
 
 	if (status & GELIC_CARD_RXINT) {
 		gelic_card_rx_irq_off(card);
