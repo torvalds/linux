@@ -34,6 +34,9 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 
+	if (!local->open_count)
+		goto suspend;
+
 	ieee80211_scan_cancel(local);
 
 	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
