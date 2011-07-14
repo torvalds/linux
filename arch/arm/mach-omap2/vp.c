@@ -50,13 +50,34 @@ void __init omap_vp_init(struct voltagedomain *voltdm)
 {
 	struct omap_vp_instance *vp = voltdm->vp;
 	struct omap_vdd_info *vdd = voltdm->vdd;
-	u32 vp_val;
+	u32 vp_val, sys_clk_rate, timeout_val, waittime;
 
 	if (!voltdm->read || !voltdm->write) {
 		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
 			__func__, voltdm->name);
 		return;
 	}
+
+	vp->enabled = false;
+
+	/* Divide to avoid overflow */
+	sys_clk_rate = voltdm->sys_clk.rate / 1000;
+
+	vdd->vp_rt_data.vpconfig_erroroffset =
+		(voltdm->pmic->vp_erroroffset <<
+		 __ffs(voltdm->vp->common->vpconfig_erroroffset_mask));
+
+	timeout_val = (sys_clk_rate * voltdm->pmic->vp_timeout_us) / 1000;
+	vdd->vp_rt_data.vlimitto_timeout = timeout_val;
+	vdd->vp_rt_data.vlimitto_vddmin = voltdm->pmic->vp_vddmin;
+	vdd->vp_rt_data.vlimitto_vddmax = voltdm->pmic->vp_vddmax;
+
+	waittime = ((voltdm->pmic->step_size / voltdm->pmic->slew_rate) *
+		    sys_clk_rate) / 1000;
+	vdd->vp_rt_data.vstepmin_smpswaittimemin = waittime;
+	vdd->vp_rt_data.vstepmax_smpswaittimemax = waittime;
+	vdd->vp_rt_data.vstepmin_stepmin = voltdm->pmic->vp_vstepmin;
+	vdd->vp_rt_data.vstepmax_stepmax = voltdm->pmic->vp_vstepmax;
 
 	vp_val = vdd->vp_rt_data.vpconfig_erroroffset |
 		(vdd->vp_rt_data.vpconfig_errorgain <<

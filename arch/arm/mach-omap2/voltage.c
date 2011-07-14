@@ -46,31 +46,9 @@ static LIST_HEAD(voltdm_list);
 static int __init _config_common_vdd_data(struct voltagedomain *voltdm)
 {
 	struct omap_vdd_info *vdd = voltdm->vdd;
-	u32 sys_clk_rate, timeout_val, waittime;
-
-	/* Divide to avoid overflow */
-	sys_clk_rate = voltdm->sys_clk.rate / 1000;
-	WARN_ON(!sys_clk_rate);
 
 	/* Generic voltage parameters */
 	vdd->volt_scale = omap_vp_forceupdate_scale;
-	voltdm->vp->enabled = false;
-
-	vdd->vp_rt_data.vpconfig_erroroffset =
-		(voltdm->pmic->vp_erroroffset <<
-		 __ffs(voltdm->vp->common->vpconfig_erroroffset_mask));
-
-	timeout_val = (sys_clk_rate * voltdm->pmic->vp_timeout_us) / 1000;
-	vdd->vp_rt_data.vlimitto_timeout = timeout_val;
-	vdd->vp_rt_data.vlimitto_vddmin = voltdm->pmic->vp_vddmin;
-	vdd->vp_rt_data.vlimitto_vddmax = voltdm->pmic->vp_vddmax;
-
-	waittime = ((voltdm->pmic->step_size / voltdm->pmic->slew_rate) *
-		    sys_clk_rate) / 1000;
-	vdd->vp_rt_data.vstepmin_smpswaittimemin = waittime;
-	vdd->vp_rt_data.vstepmax_smpswaittimemax = waittime;
-	vdd->vp_rt_data.vstepmin_stepmin = voltdm->pmic->vp_vstepmin;
-	vdd->vp_rt_data.vstepmax_stepmax = voltdm->pmic->vp_vstepmax;
 
 	return 0;
 }
