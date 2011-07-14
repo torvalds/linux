@@ -115,9 +115,6 @@ struct btrfs_inode {
 	 */
 	u64 disk_i_size;
 
-	/* flags field from the on disk inode */
-	u32 flags;
-
 	/*
 	 * if this is a directory then index_cnt is the counter for the index
 	 * number for new files that are created
@@ -130,6 +127,9 @@ struct btrfs_inode {
 	 * details
 	 */
 	u64 last_unlink_trans;
+
+	/* flags field from the on disk inode */
+	u32 flags;
 
 	/*
 	 * Counters to keep track of the number of extent item's we may use due
