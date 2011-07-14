@@ -663,14 +663,12 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			stats->tx_dropped++;
 			goto success;
 		}
-	#ifdef CONFIG_RTLLIB_DEBUG
 		if (crypt && !encrypt && ether_type == ETH_P_PAE) {
 			struct eapol *eap = (struct eapol *)(skb->data +
 				sizeof(struct ethhdr) - SNAP_SIZE - sizeof(u16));
 			RTLLIB_DEBUG_EAP("TX: IEEE 802.11 EAPOL frame: %s\n",
 				eap_get_type(eap->type));
 		}
-	#endif
 
 		/* Advance the SKB to the start of the payload */
 		skb_pull(skb, sizeof(struct ethhdr));

@@ -219,8 +219,6 @@ void free_rtllib(struct net_device *dev)
 	free_netdev(dev);
 }
 
-#ifdef CONFIG_RTLLIB_DEBUG
-
 u32 rtllib_debug_level = 0;
 static int debug = \
 			    RTLLIB_DL_ERR
@@ -262,7 +260,6 @@ static int store_debug_level(struct file *file, const char *buffer,
 
 int __init rtllib_init(void)
 {
-#ifdef CONFIG_RTLLIB_DEBUG
 	struct proc_dir_entry *e;
 
 	rtllib_debug_level = debug;
@@ -282,20 +279,15 @@ int __init rtllib_init(void)
 	e->read_proc = show_debug_level;
 	e->write_proc = store_debug_level;
 	e->data = NULL;
-#endif
 
 	return 0;
 }
 
 void __exit rtllib_exit(void)
 {
-#ifdef CONFIG_RTLLIB_DEBUG
 	if (rtllib_proc) {
 		remove_proc_entry("debug_level", rtllib_proc);
 		remove_proc_entry(DRV_NAME, init_net.proc_net);
 		rtllib_proc = NULL;
 	}
-#endif
 }
-
-#endif
