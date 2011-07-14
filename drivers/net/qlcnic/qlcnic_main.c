@@ -2290,10 +2290,10 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (adapter->mac_learn)
 		qlcnic_send_filter(adapter, tx_ring, first_desc, skb);
 
-	qlcnic_update_cmd_producer(adapter, tx_ring);
-
 	adapter->stats.txbytes += skb->len;
 	adapter->stats.xmitcalled++;
+
+	qlcnic_update_cmd_producer(adapter, tx_ring);
 
 	return NETDEV_TX_OK;
 
