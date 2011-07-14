@@ -1633,10 +1633,6 @@ enum {WMM_all_frame, WMM_two_frame, WMM_four_frame, WMM_six_frame};
 #define RTLLIB_PS_UNICAST RTLLIB_DTIM_UCAST
 #define RTLLIB_PS_MBCAST RTLLIB_DTIM_MBCAST
 
-#ifdef WMM_Hang_8187
-#undef WMM_Hang_8187
-#endif
-
 #define WME_AC_BK   0x00
 #define WME_AC_BE   0x01
 #define WME_AC_VI   0x02
@@ -1647,14 +1643,13 @@ enum {WMM_all_frame, WMM_two_frame, WMM_four_frame, WMM_six_frame};
 
 #define MAX_RECEIVE_BUFFER_SIZE 9100
 
-#if 1
 #define UP2AC(up) (		   \
 	((up) < 1) ? WME_AC_BE : \
 	((up) < 3) ? WME_AC_BK : \
 	((up) < 4) ? WME_AC_BE : \
 	((up) < 6) ? WME_AC_VI : \
 	WME_AC_VO)
-#endif
+
 #define AC2UP(_ac)	(       \
 	((_ac) == WME_AC_VO) ? 6 : \
 	((_ac) == WME_AC_VI) ? 5 : \
