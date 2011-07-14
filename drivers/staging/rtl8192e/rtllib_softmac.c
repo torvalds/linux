@@ -2585,11 +2585,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 			/* as for the completion function, it does not need
 			 * to check it any more.
 			 * */
-#ifdef WIFI_TEST
-			if (1)
-#else
 			if (queue_len < 200)
-#endif
 			{
 				skb_queue_tail(&ieee->skb_waitQ[queue_index], txb->fragments[i]);
 			}else{
