@@ -2406,8 +2406,8 @@ int btrfs_find_last_root(struct btrfs_root *root, u64 objectid, struct
 			 btrfs_root_item *item, struct btrfs_key *key);
 int btrfs_find_dead_roots(struct btrfs_root *root, u64 objectid);
 int btrfs_find_orphan_roots(struct btrfs_root *tree_root);
-int btrfs_set_root_node(struct btrfs_root_item *item,
-			struct extent_buffer *node);
+void btrfs_set_root_node(struct btrfs_root_item *item,
+			 struct extent_buffer *node);
 void btrfs_check_and_init_root_item(struct btrfs_root_item *item);
 
 /* dir-item.c */
