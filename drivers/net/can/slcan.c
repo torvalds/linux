@@ -473,11 +473,9 @@ static void slc_sync(void)
 static struct slcan *slc_alloc(dev_t line)
 {
 	int i;
+	char name[IFNAMSIZ];
 	struct net_device *dev = NULL;
 	struct slcan       *sl;
-
-	if (slcan_devs == NULL)
-		return NULL;	/* Master array missing ! */
 
 	for (i = 0; i < maxdev; i++) {
 		dev = slcan_devs[i];
@@ -490,25 +488,12 @@ static struct slcan *slc_alloc(dev_t line)
 	if (i >= maxdev)
 		return NULL;
 
-	if (dev) {
-		sl = netdev_priv(dev);
-		if (test_bit(SLF_INUSE, &sl->flags)) {
-			unregister_netdevice(dev);
-			dev = NULL;
-			slcan_devs[i] = NULL;
-		}
-	}
+	sprintf(name, "slcan%d", i);
+	dev = alloc_netdev(sizeof(*sl), name, slc_setup);
+	if (!dev)
+		return NULL;
 
-	if (!dev) {
-		char name[IFNAMSIZ];
-		sprintf(name, "slcan%d", i);
-
-		dev = alloc_netdev(sizeof(*sl), name, slc_setup);
-		if (!dev)
-			return NULL;
-		dev->base_addr  = i;
-	}
-
+	dev->base_addr  = i;
 	sl = netdev_priv(dev);
 
 	/* Initialize channel control data */
