@@ -43,34 +43,6 @@
 
 static LIST_HEAD(voltdm_list);
 
-static int __init _config_common_vdd_data(struct voltagedomain *voltdm)
-{
-	/* Generic voltage parameters */
-	voltdm->scale = omap_vp_forceupdate_scale;
-
-	return 0;
-}
-
-static int __init omap_vdd_data_configure(struct voltagedomain *voltdm)
-{
-	int ret = -EINVAL;
-
-	if (!voltdm->pmic) {
-		pr_err("%s: PMIC info requried to configure vdd_%s not"
-			"populated.Hence cannot initialize vdd_%s\n",
-			__func__, voltdm->name, voltdm->name);
-		goto ovdc_out;
-	}
-
-	if (IS_ERR_VALUE(_config_common_vdd_data(voltdm)))
-		goto ovdc_out;
-
-	ret = 0;
-
-ovdc_out:
-	return ret;
-}
-
 /* Public functions */
 /**
  * omap_voltage_get_nom_volt() - Gets the current non-auto-compensated voltage
@@ -155,18 +127,14 @@ void voltdm_reset(struct voltagedomain *voltdm)
  *
  */
 void omap_voltage_get_volttable(struct voltagedomain *voltdm,
-		struct omap_volt_data **volt_data)
+				struct omap_volt_data **volt_data)
 {
-	struct omap_vdd_info *vdd;
-
 	if (!voltdm || IS_ERR(voltdm)) {
 		pr_warning("%s: VDD specified does not exist!\n", __func__);
 		return;
 	}
 
-	vdd = voltdm->vdd;
-
-	*volt_data = vdd->volt_data;
+	*volt_data = voltdm->volt_data;
 }
 
 /**
@@ -185,9 +153,8 @@ void omap_voltage_get_volttable(struct voltagedomain *voltdm,
  * domain or if there is no matching entry.
  */
 struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
-		unsigned long volt)
+						 unsigned long volt)
 {
-	struct omap_vdd_info *vdd;
 	int i;
 
 	if (!voltdm || IS_ERR(voltdm)) {
@@ -195,17 +162,15 @@ struct omap_volt_data *omap_voltage_get_voltdata(struct voltagedomain *voltdm,
 		return ERR_PTR(-EINVAL);
 	}
 
-	vdd = voltdm->vdd;
-
-	if (!vdd->volt_data) {
+	if (!voltdm->volt_data) {
 		pr_warning("%s: voltage table does not exist for vdd_%s\n",
 			__func__, voltdm->name);
 		return ERR_PTR(-ENODATA);
 	}
 
-	for (i = 0; vdd->volt_data[i].volt_nominal != 0; i++) {
-		if (vdd->volt_data[i].volt_nominal == volt)
-			return &vdd->volt_data[i];
+	for (i = 0; voltdm->volt_data[i].volt_nominal != 0; i++) {
+		if (voltdm->volt_data[i].volt_nominal == volt)
+			return &voltdm->volt_data[i];
 	}
 
 	pr_notice("%s: Unable to match the current voltage with the voltage"
@@ -304,9 +269,8 @@ int __init omap_voltage_late_init(void)
 			omap_vc_init_channel(voltdm);
 		}
 
-		if (voltdm->vdd) {
-			if (omap_vdd_data_configure(voltdm))
-				continue;
+		if (voltdm->vp) {
+			voltdm->scale = omap_vp_forceupdate_scale;
 			omap_vp_init(voltdm);
 		}
 	}

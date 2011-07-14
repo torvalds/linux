@@ -33,8 +33,6 @@ struct powerdomain;
 #define OMAP3_VOLTOFFSET	0xff
 #define OMAP3_VOLTSETUP2	0xff
 
-struct omap_vdd_info;
-
 /**
  * struct omap_vfsm_instance - per-voltage manager FSM register/bitfield
  * data
@@ -60,9 +58,10 @@ struct omap_vfsm_instance {
  * @write: write a VC/VP register
  * @read: read-modify-write a VC/VP register
  * @sys_clk: system clock name/frequency, used for various timing calculations
- * @vdd: to be removed
  * @scale: function used to scale the voltage of the voltagedomain
  * @nominal_volt: current nominal voltage for this voltage domain
+ * @volt_data: voltage table having the distinct voltages supported
+ *             by the domain and other associated per voltage data.
  */
 struct voltagedomain {
 	char *name;
@@ -86,9 +85,9 @@ struct voltagedomain {
 
 	int (*scale) (struct voltagedomain *voltdm,
 		      unsigned long target_volt);
-	u32 nominal_volt;
 
-	struct omap_vdd_info *vdd;
+	u32 nominal_volt;
+	struct omap_volt_data *volt_data;
 };
 
 /**
@@ -143,16 +142,6 @@ struct omap_voltdm_pmic {
 	u8 i2c_mcode;
 	unsigned long (*vsel_to_uv) (const u8 vsel);
 	u8 (*uv_to_vsel) (unsigned long uV);
-};
-
-/**
- * omap_vdd_info - Per Voltage Domain info
- *
- * @volt_data		: voltage table having the distinct voltages supported
- *			  by the domain and other associated per voltage data.
- */
-struct omap_vdd_info {
-	struct omap_volt_data *volt_data;
 };
 
 void omap_voltage_get_volttable(struct voltagedomain *voltdm,
