@@ -804,8 +804,6 @@ static int __init msm_console_setup(struct console *co, char *options)
 	if (unlikely(!port->membase))
 		return -ENXIO;
 
-	port->cons = co;
-
 	msm_init_clock(port);
 
 	if (options)
