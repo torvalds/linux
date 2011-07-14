@@ -237,8 +237,6 @@ do { if (rt_global_debug_component & component) \
 	       ##args);\
 }while(0);
 
-#define RTL819x_DEBUG
-#ifdef RTL819x_DEBUG
 #define assert(expr) \
         if (!(expr)) {                                  \
                 printk( "Assertion failed! %s,%s,%s,line=%d\n", \
@@ -258,10 +256,6 @@ do { if (rt_global_debug_component & component) \
                         printk("\n");                   \
                 }                                       \
         } while (0)
-#else
-#define assert(expr) do {} while (0)
-#define RT_DEBUG_DATA(level, data, datalen) do {} while(0)
-#endif
 
 typedef struct _rtl_fs_debug
 {
