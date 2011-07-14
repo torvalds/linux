@@ -168,9 +168,6 @@ struct digest_tfm {
 	                   unsigned int nsg, u8 *out);
 	int (*dit_setkey)(struct crypto_tfm *tfm,
 	                  const u8 *key, unsigned int keylen);
-#ifdef CONFIG_CRYPTO_HMAC
-	void *dit_hmac_block;
-#endif
 };
 
 struct compress_tfm {
@@ -381,18 +378,5 @@ static inline int crypto_comp_decompress(struct crypto_tfm *tfm,
 	BUG_ON(crypto_tfm_alg_type(tfm) != CRYPTO_ALG_TYPE_COMPRESS);
 	return tfm->crt_compress.cot_decompress(tfm, src, slen, dst, dlen);
 }
-
-/*
- * HMAC support.
- */
-#ifdef CONFIG_CRYPTO_HMAC
-void crypto_hmac_init(struct crypto_tfm *tfm, u8 *key, unsigned int *keylen);
-void crypto_hmac_update(struct crypto_tfm *tfm,
-                        struct scatterlist *sg, unsigned int nsg);
-void crypto_hmac_final(struct crypto_tfm *tfm, u8 *key,
-                       unsigned int *keylen, u8 *out);
-void crypto_hmac(struct crypto_tfm *tfm, u8 *key, unsigned int *keylen,
-                 struct scatterlist *sg, unsigned int nsg, u8 *out);
-#endif	/* CONFIG_CRYPTO_HMAC */
 
 #endif	/* _LINUX_CRYPTO_H */
