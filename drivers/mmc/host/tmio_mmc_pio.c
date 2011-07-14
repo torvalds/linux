@@ -984,7 +984,7 @@ int tmio_mmc_host_resume(struct device *dev)
 	if (host->pm_global) {
 		/* Runtime PM resume callback didn't run */
 		tmio_mmc_reset(host);
-		tmio_mmc_request_dma(host, host->pdata);
+		tmio_mmc_enable_dma(host, true);
 		host->pm_global = false;
 	}
 
@@ -1007,7 +1007,7 @@ int tmio_mmc_host_runtime_resume(struct device *dev)
 	struct tmio_mmc_data *pdata = host->pdata;
 
 	tmio_mmc_reset(host);
-	tmio_mmc_request_dma(host, host->pdata);
+	tmio_mmc_enable_dma(host, true);
 
 	if (pdata->power) {
 		/* Only entered after a card-insert interrupt */

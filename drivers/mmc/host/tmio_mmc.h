@@ -109,11 +109,16 @@ static inline void tmio_mmc_kunmap_atomic(struct scatterlist *sg,
 
 #if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
 void tmio_mmc_start_dma(struct tmio_mmc_host *host, struct mmc_data *data);
+void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable);
 void tmio_mmc_request_dma(struct tmio_mmc_host *host, struct tmio_mmc_data *pdata);
 void tmio_mmc_release_dma(struct tmio_mmc_host *host);
 #else
 static inline void tmio_mmc_start_dma(struct tmio_mmc_host *host,
 			       struct mmc_data *data)
+{
+}
+
+static inline void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
 }
 
