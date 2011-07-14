@@ -519,10 +519,10 @@ void nv40_mem_timing_entry(struct drm_device *dev, struct nouveau_pm_tbl_header 
 
 	/* XXX: I don't trust the -1's and +1's... they must come
 	 *      from somewhere! */
-	timing->reg_1 = (e->tUNK_0 + 2 + magic_number) << 24 |
+	timing->reg_1 = (e->tWR + 2 + magic_number) << 24 |
 				  1 << 16 |
 				  (e->tUNK_1 + 2 + magic_number) << 8 |
-				  (e->tUNK_2 + 2 - magic_number);
+				  (e->tCL + 2 - magic_number);
 	timing->reg_2 = (magic_number << 24 | e->tUNK_12 << 16 | e->tUNK_11 << 8 | e->tUNK_10);
 	timing->reg_2 |= 0x20200000;
 
@@ -555,13 +555,13 @@ void nv50_mem_timing_entry(struct drm_device *dev, struct bit_entry *P, struct n
 
 	/* XXX: I don't trust the -1's and +1's... they must come
 	 *      from somewhere! */
-	timing->reg_1 = (e->tUNK_0 + unk19 + 1 + magic_number) << 24 |
+	timing->reg_1 = (e->tWR + unk19 + 1 + magic_number) << 24 |
 				  max(unk18, (u8) 1) << 16 |
 				  (e->tUNK_1 + unk19 + 1 + magic_number) << 8;
 	if (dev_priv->chipset == 0xa8) {
-		timing->reg_1 |= (e->tUNK_2 - 1);
+		timing->reg_1 |= (e->tCL - 1);
 	} else {
-		timing->reg_1 |= (e->tUNK_2 + 2 - magic_number);
+		timing->reg_1 |= (e->tCL + 2 - magic_number);
 	}
 	timing->reg_2 = (e->tUNK_12 << 16 | e->tUNK_11 << 8 | e->tUNK_10);
 
@@ -570,17 +570,17 @@ void nv50_mem_timing_entry(struct drm_device *dev, struct bit_entry *P, struct n
 
 	if (P->version == 1) {
 		timing->reg_2 |= magic_number << 24;
-		timing->reg_3 = (0x14 + e->tUNK_2) << 24 |
+		timing->reg_3 = (0x14 + e->tCL) << 24 |
 						0x16 << 16 |
-						(e->tUNK_2 - 1) << 8 |
-						(e->tUNK_2 - 1);
+						(e->tCL - 1) << 8 |
+						(e->tCL - 1);
 		timing->reg_4 = (nv_rd32(dev,0x10022c) & 0xffff0000) | e->tUNK_13 << 8  | e->tUNK_13;
-		timing->reg_5 |= (e->tUNK_2 + 2) << 8;
-		timing->reg_7 = 0x4000202 | (e->tUNK_2 - 1) << 16;
+		timing->reg_5 |= (e->tCL + 2) << 8;
+		timing->reg_7 = 0x4000202 | (e->tCL - 1) << 16;
 	} else {
 		timing->reg_2 |= (unk19 - 1) << 24;
 		/* XXX: reg_10022c for recentish cards pretty much unknown*/
-		timing->reg_3 = e->tUNK_2 - 1;
+		timing->reg_3 = e->tCL - 1;
 		timing->reg_4 = (unk20 << 24 | unk21 << 16 |
 							e->tUNK_13 << 8  | e->tUNK_13);
 		/* XXX: +6? */
@@ -603,8 +603,8 @@ void nv50_mem_timing_entry(struct drm_device *dev, struct bit_entry *P, struct n
 void nvc0_mem_timing_entry(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
 							struct nouveau_pm_tbl_entry *e, struct nouveau_pm_memtiming *timing) {
 	timing->reg_0 = (e->tRC << 24 | (e->tRFC & 0x7f) << 17 | e->tRAS << 8 | e->tRP);
-	timing->reg_1 = (nv_rd32(dev,0x10f294) & 0xff000000) | (e->tUNK_11&0x0f) << 20 | (e->tUNK_19 << 7) | (e->tUNK_2 & 0x0f);
-	timing->reg_2 = (nv_rd32(dev,0x10f298) & 0xff0000ff) | e->tUNK_0 << 16 | e->tUNK_1 << 8;
+	timing->reg_1 = (nv_rd32(dev,0x10f294) & 0xff000000) | (e->tUNK_11&0x0f) << 20 | (e->tUNK_19 << 7) | (e->tCL & 0x0f);
+	timing->reg_2 = (nv_rd32(dev,0x10f298) & 0xff0000ff) | e->tWR << 16 | e->tUNK_1 << 8;
 	timing->reg_3 = e->tUNK_20 << 9 | e->tUNK_13;
 	timing->reg_4 = (nv_rd32(dev,0x10f2a0) & 0xfff000ff) | e->tUNK_12 << 15;
 	NV_DEBUG(dev, "Entry %d: 290: %08x %08x %08x %08x\n", timing->id,
@@ -686,6 +686,8 @@ nouveau_mem_timing_init(struct drm_device *dev)
 			continue;
 
 		timing->id = i;
+		timing->WR = entry[0];
+		timing->CL = entry[2];
 
 		if(dev_priv->card_type <= NV_40) {
 			nv40_mem_timing_entry(dev,hdr,(struct nouveau_pm_tbl_entry*) entry,magic_number,&pm->memtimings.timing[i]);

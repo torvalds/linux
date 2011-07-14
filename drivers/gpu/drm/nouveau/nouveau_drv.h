@@ -438,6 +438,9 @@ struct nouveau_pm_memtiming {
 	u32 reg_6;
 	u32 reg_7;
 	u32 reg_8;
+	/* To be written to 0x1002c0 */
+	u8 CL;
+	u8 WR;
 };
 
 struct nouveau_pm_tbl_header{
@@ -448,7 +451,9 @@ struct nouveau_pm_tbl_header{
 };
 
 struct nouveau_pm_tbl_entry{
-	u8 tUNK_0, tUNK_1, tUNK_2;
+	u8 tWR;
+	u8 tUNK_1;
+	u8 tCL;
 	u8 tRP;		/* Byte 3 */
 	u8 empty_4;
 	u8 tRAS;	/* Byte 5 */
