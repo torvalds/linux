@@ -117,7 +117,7 @@ been allocated.  In neither case is the irq value updated or the device
 switched into MSI mode.
 
 The device driver must decide what action to take if
-pci_enable_msi_block() returns a value less than the number asked for.
+pci_enable_msi_block() returns a value less than the number requested.
 Some devices can make use of fewer interrupts than the maximum they
 request; in this case the driver should call pci_enable_msi_block()
 again.  Note that it is not guaranteed to succeed, even when the
