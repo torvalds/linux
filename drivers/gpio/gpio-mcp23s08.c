@@ -4,7 +4,6 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
-#include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
@@ -59,8 +58,6 @@ struct mcp23s08 {
 	struct mutex		lock;
 
 	struct gpio_chip	chip;
-
-	struct work_struct	work;
 
 	const struct mcp23s08_ops	*ops;
 };
