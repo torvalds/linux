@@ -106,7 +106,6 @@ static int pd_power_down_a3rv(struct generic_pm_domain *genpd)
 	int ret = pd_power_down(genpd);
 
 	/* try to power down A4LC after A3RV is requested off */
-	pm_genpd_poweron(&sh7372_a4lc.genpd);
 	genpd_queue_power_off_work(&sh7372_a4lc.genpd);
 
 	return ret;
@@ -118,7 +117,7 @@ static int pd_power_down_a4lc(struct generic_pm_domain *genpd)
 	if (!(__raw_readl(PSTR) & (1 << sh7372_a3rv.bit_shift)))
 		return pd_power_down(genpd);
 
-	return 0;
+	return -EBUSY;
 }
 
 static bool pd_active_wakeup(struct device *dev)
