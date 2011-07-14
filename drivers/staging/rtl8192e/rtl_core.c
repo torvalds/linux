@@ -1400,11 +1400,7 @@ short rtl8192_init(struct net_device *dev)
 		    (unsigned long)dev);
 
 	rtl8192_irq_disable(dev);
-#if defined(IRQF_SHARED)
         if (request_irq(dev->irq, (void*)rtl8192_interrupt_rsl, IRQF_SHARED, dev->name, dev))
-#else
-        if (request_irq(dev->irq, (void *)rtl8192_interrupt_rsl, SA_SHIRQ, dev->name, dev))
-#endif
 	{
 		printk("Error allocating IRQ %d",dev->irq);
 		return -1;
