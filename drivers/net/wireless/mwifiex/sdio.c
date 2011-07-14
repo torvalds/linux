@@ -133,6 +133,9 @@ mwifiex_sdio_remove(struct sdio_func *func)
 					adapter->priv[i]->media_connected)
 				mwifiex_deauthenticate(adapter->priv[i], NULL);
 
+		mwifiex_disable_auto_ds(mwifiex_get_priv(adapter,
+							 MWIFIEX_BSS_ROLE_ANY));
+
 		mwifiex_init_shutdown_fw(mwifiex_get_priv(adapter,
 						MWIFIEX_BSS_ROLE_ANY),
 					 MWIFIEX_FUNC_SHUTDOWN);
