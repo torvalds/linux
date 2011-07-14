@@ -211,7 +211,7 @@ static int foo_driver_enable_msix(struct foo_adapter *adapter, int nvec)
 
 void pci_disable_msix(struct pci_dev *dev)
 
-This API should be used to undo the effect of pci_enable_msix().  It frees
+This function should be used to undo the effect of pci_enable_msix().  It frees
 the previously allocated message signaled interrupts.  The interrupts may
 subsequently be assigned to another device, so drivers should not cache
 the value of the 'vector' elements over a call to pci_disable_msix().
