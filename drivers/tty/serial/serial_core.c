@@ -57,7 +57,7 @@ static struct lock_class_key port_lock_key;
 
 static void uart_change_speed(struct tty_struct *tty, struct uart_state *state,
 					struct ktermios *old_termios);
-static void __uart_wait_until_sent(struct uart_port *port, int timeout);
+static void uart_wait_until_sent(struct tty_struct *tty, int timeout);
 static void uart_change_pm(struct uart_state *state, int pm_state);
 
 /*
@@ -1304,16 +1304,8 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	tty->closing = 1;
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	if (port->closing_wait != ASYNC_CLOSING_WAIT_NONE) {
-		/*
-		 * hack: open-coded tty_wait_until_sent to avoid
-		 * recursive tty_lock
-		 */
-		long timeout = msecs_to_jiffies(port->closing_wait);
-		if (wait_event_interruptible_timeout(tty->write_wait,
-				!tty_chars_in_buffer(tty), timeout) >= 0)
-			__uart_wait_until_sent(uport, timeout);
-	}
+	if (port->closing_wait != ASYNC_CLOSING_WAIT_NONE)
+		tty_wait_until_sent(tty, msecs_to_jiffies(port->closing_wait));
 
 	/*
 	 * At this point, we stop accepting input.  To do this, we
@@ -1329,7 +1321,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 		 * has completely drained; this is especially
 		 * important if there is a transmit FIFO!
 		 */
-		__uart_wait_until_sent(uport, uport->timeout);
+		uart_wait_until_sent(tty, uport->timeout);
 	}
 
 	uart_shutdown(tty, state);
@@ -1363,8 +1355,10 @@ done:
 	mutex_unlock(&port->mutex);
 }
 
-static void __uart_wait_until_sent(struct uart_port *port, int timeout)
+static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 {
+	struct uart_state *state = tty->driver_data;
+	struct uart_port *port = state->uart_port;
 	unsigned long char_time, expire;
 
 	if (port->type == PORT_UNKNOWN || port->fifosize == 0)
@@ -1414,16 +1408,6 @@ static void __uart_wait_until_sent(struct uart_port *port, int timeout)
 		if (time_after(jiffies, expire))
 			break;
 	}
-}
-
-static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
-{
-	struct uart_state *state = tty->driver_data;
-	struct uart_port *port = state->uart_port;
-
-	tty_lock();
-	__uart_wait_until_sent(port, timeout);
-	tty_unlock();
 }
 
 /*
