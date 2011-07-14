@@ -334,9 +334,26 @@ int lcd_standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 		spi_screenreg_set(0x28, 0xffff, 0xffff);
 	} else { 
 		printk("lcd standby...0 means resume\n");
+		
+		/* reinit, changed by phc */
+#ifdef RESET_PORT
+    gpio_request(RESET_PORT, NULL);
+    gpio_direction_output(RESET_PORT, 0);
+    mdelay(2);
+    gpio_set_value(RESET_PORT, 1);
+    mdelay(10);
+    gpio_free(RESET_PORT);
+#endif
+		
 		spi_screenreg_set(0x29, 0xffff, 0xffff);
 		spi_screenreg_set(0x11, 0xffff, 0xffff);
-		//mdelay(150);
+		mdelay(130);
+		spi_screenreg_set(0x36, 0x0000, 0xffff);      //set address mode
+		spi_screenreg_set(0x3a, 0x0070, 0xffff);      //set pixel format
+		spi_screenreg_set(0xb0, 0x0000, 0xffff);      //enable command acess
+		spi_screenreg_set(0xb8, 0x0001, 0xffff);      //BLC setting
+		spi_screenreg_set(0xb9, 0x0001, 0x00ff);      //LED PWM
+		spi_screenreg_set(0xb0, 0x0003, 0xffff);      //disable command acess
 	}
 
     if(gLcd_info)
