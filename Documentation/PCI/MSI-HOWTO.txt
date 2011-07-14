@@ -45,7 +45,7 @@ arrived in memory (this becomes more likely with devices behind PCI-PCI
 bridges).  In order to ensure that all the data has arrived in memory,
 the interrupt handler must read a register on the device which raised
 the interrupt.  PCI transaction ordering rules require that all the data
-arrives in memory before the value can be returned from the register.
+arrive in memory before the value may be returned from the register.
 Using MSIs avoids this problem as the interrupt-generating write cannot
 pass the data writes, so by the time the interrupt is raised, the driver
 knows that all the data has arrived in memory.
