@@ -162,7 +162,7 @@ static void __init select_disp_freq(void)
 				"frequency\n");
 	} else {
 		gpio_direction_output(35, 1);
-		gpio_free(104);
+		gpio_free(35);
 	}
 
 	if (unlikely(gpio_request(85, "DISP_FREQ_SEL_2"))) {
@@ -170,7 +170,7 @@ static void __init select_disp_freq(void)
 				"frequency\n");
 	} else {
 		gpio_direction_output(85, 0);
-		gpio_free(104);
+		gpio_free(85);
 	}
 }
 
