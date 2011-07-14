@@ -312,8 +312,16 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 		}
 	}
 
-	if (genpd->power_off)
-		genpd->power_off(genpd);
+	if (genpd->power_off) {
+		ret = genpd->power_off(genpd);
+		if (ret == -EBUSY) {
+			genpd_set_active(genpd);
+			if (parent)
+				genpd_release_lock(parent);
+
+			goto out;
+		}
+	}
 
 	genpd->status = GPD_STATE_POWER_OFF;
 
