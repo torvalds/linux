@@ -45,10 +45,8 @@ static LIST_HEAD(voltdm_list);
 
 static int __init _config_common_vdd_data(struct voltagedomain *voltdm)
 {
-	struct omap_vdd_info *vdd = voltdm->vdd;
-
 	/* Generic voltage parameters */
-	vdd->volt_scale = omap_vp_forceupdate_scale;
+	voltdm->scale = omap_vp_forceupdate_scale;
 
 	return 0;
 }
@@ -107,22 +105,18 @@ unsigned long omap_voltage_get_nom_volt(struct voltagedomain *voltdm)
 int omap_voltage_scale_vdd(struct voltagedomain *voltdm,
 		unsigned long target_volt)
 {
-	struct omap_vdd_info *vdd;
-
 	if (!voltdm || IS_ERR(voltdm)) {
 		pr_warning("%s: VDD specified does not exist!\n", __func__);
 		return -EINVAL;
 	}
 
-	vdd = voltdm->vdd;
-
-	if (!vdd->volt_scale) {
+	if (!voltdm->scale) {
 		pr_err("%s: No voltage scale API registered for vdd_%s\n",
 			__func__, voltdm->name);
 		return -ENODATA;
 	}
 
-	return vdd->volt_scale(voltdm, target_volt);
+	return voltdm->scale(voltdm, target_volt);
 }
 
 /**
@@ -258,23 +252,19 @@ int omap_voltage_register_pmic(struct voltagedomain *voltdm,
  * defined in voltage.h
  */
 void omap_change_voltscale_method(struct voltagedomain *voltdm,
-		int voltscale_method)
+				  int voltscale_method)
 {
-	struct omap_vdd_info *vdd;
-
 	if (!voltdm || IS_ERR(voltdm)) {
 		pr_warning("%s: VDD specified does not exist!\n", __func__);
 		return;
 	}
 
-	vdd = voltdm->vdd;
-
 	switch (voltscale_method) {
 	case VOLTSCALE_VPFORCEUPDATE:
-		vdd->volt_scale = omap_vp_forceupdate_scale;
+		voltdm->scale = omap_vp_forceupdate_scale;
 		return;
 	case VOLTSCALE_VCBYPASS:
-		vdd->volt_scale = omap_vc_bypass_scale;
+		voltdm->scale = omap_vc_bypass_scale;
 		return;
 	default:
 		pr_warning("%s: Trying to change the method of voltage scaling"
@@ -315,7 +305,7 @@ int __init omap_voltage_late_init(void)
 		clk_put(sys_ck);
 
 		if (voltdm->vc) {
-			voltdm->vdd->volt_scale = omap_vc_bypass_scale;
+			voltdm->scale = omap_vc_bypass_scale;
 			omap_vc_init_channel(voltdm);
 		}
 
