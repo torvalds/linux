@@ -303,6 +303,9 @@ static void clear_state_cb(struct extent_io_tree *tree,
 		tree->ops->clear_bit_hook(tree->mapping->host, state, bits);
 }
 
+static void set_state_bits(struct extent_io_tree *tree,
+			   struct extent_state *state, int *bits);
+
 /*
  * insert an extent_state struct into the tree.  'bits' are set on the
  * struct before it is inserted.
@@ -318,7 +321,6 @@ static int insert_state(struct extent_io_tree *tree,
 			int *bits)
 {
 	struct rb_node *node;
-	int bits_to_set = *bits & ~EXTENT_CTLBITS;
 
 	if (end < start) {
 		printk(KERN_ERR "btrfs end < start %llu %llu\n",
@@ -328,11 +330,9 @@ static int insert_state(struct extent_io_tree *tree,
 	}
 	state->start = start;
 	state->end = end;
-	set_state_cb(tree, state, bits);
 
-	if (bits_to_set & EXTENT_DIRTY)
-		tree->dirty_bytes += end - start + 1;
-	state->state |= bits_to_set;
+	set_state_bits(tree, state, bits);
+
 	node = tree_insert(&tree->state, end, &state->rb_node);
 	if (node) {
 		struct extent_state *found;
