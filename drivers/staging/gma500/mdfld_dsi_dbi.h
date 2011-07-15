@@ -69,6 +69,12 @@ struct mdfld_dsi_dbi_output {
 	bool dbi_panel_on;
 	bool first_boot;
 	struct panel_funcs *p_funcs;
+
+	/* DPU */
+	u32 *dbi_cb_addr;
+	u32 dbi_cb_phy;
+	spinlock_t cb_lock;
+	u32 cb_write;
 };
 
 #define MDFLD_DSI_DBI_OUTPUT(dsi_encoder) \

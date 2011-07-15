@@ -418,7 +418,7 @@ static int mdfld_dpu_update_pipe(struct mdfld_dsi_dbi_output *dbi_output,
 		 * added it so that text console could boot smoothly
 		 */
 		/* Clean pending flags on this pipe */
-		if (!ret && dev_priv->b_dsr_enable) {
+		if (!ret && dev_priv->dsr_enable) {
 			dpu_info->pending &= ~plane_mask;
 			/* Reset overlay pipe damage rect */
 			mdfld_dpu_init_damage(dpu_info, pipe);
@@ -527,7 +527,7 @@ static int __mdfld_dbi_exit_dsr(struct mdfld_dsi_dbi_output *dbi_output,
 	if (!dbi_output)
 		return 0;
 
-	/*if mode setting on-going, back off*/
+	/* If mode setting on-going, back off */
 	if ((dbi_output->mode_flags & MODE_SETTING_ON_GOING) ||
 		(psb_crtc && psb_crtc->mode_flags & MODE_SETTING_ON_GOING))
 		return -EAGAIN;
@@ -542,7 +542,7 @@ static int __mdfld_dbi_exit_dsr(struct mdfld_dsi_dbi_output *dbi_output,
 		reg_offset = MIPIC_REG_OFFSET;
 	}
 
-	if (!ospm_power_using_hw_begin(OSPM_DISPLAY_ISLAND, true))
+	if (!gma_power_begin(dev, true))
 		return -EAGAIN;
 
 	/* Enable DPLL */
@@ -585,9 +585,9 @@ static int __mdfld_dbi_exit_dsr(struct mdfld_dsi_dbi_output *dbi_output,
 		udelay(500);
 	}
 
-	ospm_power_using_hw_end(OSPM_DISPLAY_ISLAND);
+	gma_power_end(dev);
 
-	/*clean IN_DSR flag*/
+	/* Clean IN_DSR flag */
 	dbi_output->mode_flags &= ~MODE_SETTING_IN_DSR;
 
 	return 0;
