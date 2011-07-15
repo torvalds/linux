@@ -1901,6 +1901,7 @@ static int bnx2i_queue_scsi_cmd_resp(struct iscsi_session *session,
 	struct iscsi_task *task;
 	struct scsi_cmnd *sc;
 	int rc = 0;
+	int cpu;
 
 	spin_lock(&session->lock);
 	task = iscsi_itt_to_task(bnx2i_conn->cls_conn->dd_data,
@@ -1912,7 +1913,12 @@ static int bnx2i_queue_scsi_cmd_resp(struct iscsi_session *session,
 	sc = task->sc;
 	spin_unlock(&session->lock);
 
-	p = &per_cpu(bnx2i_percpu, sc->request->cpu);
+	if (!blk_rq_cpu_valid(sc->request))
+		cpu = smp_processor_id();
+	else
+		cpu = sc->request->cpu;
+
+	p = &per_cpu(bnx2i_percpu, cpu);
 	spin_lock(&p->p_work_lock);
 	if (unlikely(!p->iothread)) {
 		rc = -EINVAL;
