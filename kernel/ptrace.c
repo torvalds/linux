@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <linux/regset.h>
 #include <linux/hw_breakpoint.h>
+#include <linux/cn_proc.h>
 
 
 static int ptrace_trapping_sleep_fn(void *flags)
@@ -305,9 +306,12 @@ unlock_tasklist:
 unlock_creds:
 	mutex_unlock(&task->signal->cred_guard_mutex);
 out:
-	if (!retval)
+	if (!retval) {
 		wait_on_bit(&task->jobctl, JOBCTL_TRAPPING_BIT,
 			    ptrace_trapping_sleep_fn, TASK_UNINTERRUPTIBLE);
+		proc_ptrace_connector(task, PTRACE_ATTACH);
+	}
+
 	return retval;
 }
 
@@ -415,6 +419,7 @@ static int ptrace_detach(struct task_struct *child, unsigned int data)
 	}
 	write_unlock_irq(&tasklist_lock);
 
+	proc_ptrace_connector(child, PTRACE_DETACH);
 	if (unlikely(dead))
 		release_task(child);
 
