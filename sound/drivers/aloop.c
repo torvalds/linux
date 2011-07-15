@@ -34,7 +34,7 @@
 #include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/wait.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
 #include <sound/control.h>

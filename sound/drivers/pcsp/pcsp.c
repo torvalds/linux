@@ -6,7 +6,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
 #include <sound/initval.h>

@@ -35,7 +35,7 @@
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/pnp.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/initval.h>
 #include <sound/wss.h>

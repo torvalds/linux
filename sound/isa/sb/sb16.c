@@ -24,7 +24,7 @@
 #include <linux/pnp.h>
 #include <linux/err.h>
 #include <linux/isa.h>
-#include <linux/moduleparam.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/sb.h>
 #include <sound/sb16_csp.h>
