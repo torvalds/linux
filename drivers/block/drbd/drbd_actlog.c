@@ -112,7 +112,7 @@ struct drbd_atodb_wait {
 };
 
 
-static int w_al_write_transaction(struct drbd_work *, int);
+static int al_write_transaction(struct drbd_conf *mdev);
 
 void *drbd_md_get_buffer(struct drbd_conf *mdev)
 {
@@ -272,18 +272,13 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 		/* Double check: it may have been committed by someone else,
 		 * while we have been waiting for the lock. */
 		if (mdev->act_log->pending_changes) {
-			struct update_al_work al_work;
-			init_completion(&al_work.event);
-			al_work.w.cb = w_al_write_transaction;
-			al_work.w.mdev = mdev;
-			drbd_queue_work_front(&mdev->tconn->data.work, &al_work.w);
-			wait_for_completion(&al_work.event);
-
+			int err;
+			err = al_write_transaction(mdev);
 			mdev->al_writ_cnt++;
 
 			spin_lock_irq(&mdev->al_lock);
 			/* FIXME
-			if (al_work.err)
+			if (err)
 				we need an "lc_cancel" here;
 			*/
 			lc_committed(mdev->act_log);
@@ -348,23 +343,20 @@ static unsigned int rs_extent_to_bm_page(unsigned int rs_enr)
 }
 
 static int
-w_al_write_transaction(struct drbd_work *w, int unused)
+_al_write_transaction(struct drbd_conf *mdev)
 {
-	struct update_al_work *aw = container_of(w, struct update_al_work, w);
-	struct drbd_conf *mdev = w->mdev;
 	struct al_transaction_on_disk *buffer;
 	struct lc_element *e;
 	sector_t sector;
 	int i, mx;
 	unsigned extent_nr;
 	unsigned crc = 0;
+	int err = 0;
 
 	if (!get_ldev(mdev)) {
 		dev_err(DEV, "disk is %s, cannot start al transaction\n",
 			drbd_disk_str(mdev->state.disk));
-		aw->err = -EIO;
-		complete(&((struct update_al_work *)w)->event);
-		return 0;
+		return -EIO;
 	}
 
 	/* The bitmap write may have failed, causing a state change. */
@@ -372,19 +364,15 @@ w_al_write_transaction(struct drbd_work *w, int unused)
 		dev_err(DEV,
 			"disk is %s, cannot write al transaction\n",
 			drbd_disk_str(mdev->state.disk));
-		aw->err = -EIO;
-		complete(&((struct update_al_work *)w)->event);
 		put_ldev(mdev);
-		return 0;
+		return -EIO;
 	}
 
 	buffer = drbd_md_get_buffer(mdev); /* protects md_io_buffer, al_tr_cycle, ... */
 	if (!buffer) {
 		dev_err(DEV, "disk failed while waiting for md_io buffer\n");
-		aw->err = -EIO;
-		complete(&((struct update_al_work *)w)->event);
 		put_ldev(mdev);
-		return 1;
+		return -ENODEV;
 	}
 
 	memset(buffer, 0, sizeof(*buffer));
@@ -444,10 +432,10 @@ w_al_write_transaction(struct drbd_work *w, int unused)
 	buffer->crc32c = cpu_to_be32(crc);
 
 	if (drbd_bm_write_hinted(mdev))
-		aw->err = -EIO;
+		err = -EIO;
 		/* drbd_chk_io_error done already */
 	else if (drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
-		aw->err = -EIO;
+		err = -EIO;
 		drbd_chk_io_error(mdev, 1, true);
 	} else {
 		/* advance ringbuffer position and transaction counter */
@@ -456,10 +444,42 @@ w_al_write_transaction(struct drbd_work *w, int unused)
 	}
 
 	drbd_md_put_buffer(mdev);
-	complete(&((struct update_al_work *)w)->event);
 	put_ldev(mdev);
 
-	return 0;
+	return err;
+}
+
+
+static int w_al_write_transaction(struct drbd_work *w, int unused)
+{
+	struct update_al_work *aw = container_of(w, struct update_al_work, w);
+	struct drbd_conf *mdev = w->mdev;
+	int err;
+
+	err = _al_write_transaction(mdev);
+	aw->err = err;
+	complete(&aw->event);
+
+	return err != -EIO ? err : 0;
+}
+
+/* Calls from worker context (see w_restart_disk_io()) need to write the
+   transaction directly. Others came through generic_make_request(),
+   those need to delegate it to the worker. */
+static int al_write_transaction(struct drbd_conf *mdev)
+{
+	struct update_al_work al_work;
+
+	if (current == mdev->tconn->worker.task)
+		return _al_write_transaction(mdev);
+
+	init_completion(&al_work.event);
+	al_work.w.cb = w_al_write_transaction;
+	al_work.w.mdev = mdev;
+	drbd_queue_work_front(&mdev->tconn->data.work, &al_work.w);
+	wait_for_completion(&al_work.event);
+
+	return al_work.err;
 }
 
 static int _try_lc_del(struct drbd_conf *mdev, struct lc_element *al_ext)

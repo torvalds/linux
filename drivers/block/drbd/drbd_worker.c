@@ -1333,10 +1333,6 @@ int w_restart_disk_io(struct drbd_work *w, int cancel)
 
 	if (bio_data_dir(req->master_bio) == WRITE && req->rq_state & RQ_IN_ACT_LOG)
 		drbd_al_begin_io(mdev, &req->i);
-	/* Calling drbd_al_begin_io() out of the worker might deadlocks
-	   theoretically. Practically it can not deadlock, since this is
-	   only used when unfreezing IOs. All the extents of the requests
-	   that made it into the TL are already active */
 
 	drbd_req_make_private_bio(req, req->master_bio);
 	req->private_bio->bi_bdev = mdev->ldev->backing_bdev;
