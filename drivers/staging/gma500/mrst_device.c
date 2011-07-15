@@ -157,14 +157,12 @@ static int device_backlight_init(struct drm_device *dev)
 	value /= bl_max_freq;
 	value /= blc_pwm_precision_factor;
 
+	if (value > (unsigned long long)MRST_BLC_MAX_PWM_REG_FREQ)
+			return -ERANGE;
+
 	if (gma_power_begin(dev, false)) {
-		if (value > (unsigned long long)MRST_BLC_MAX_PWM_REG_FREQ)
-				return -ERANGE;
-		else {
-			REG_WRITE(BLC_PWM_CTL2,
-					(0x80000000 | REG_READ(BLC_PWM_CTL2)));
-			REG_WRITE(BLC_PWM_CTL, value | (value << 16));
-		}
+		REG_WRITE(BLC_PWM_CTL2, (0x80000000 | REG_READ(BLC_PWM_CTL2)));
+		REG_WRITE(BLC_PWM_CTL, value | (value << 16));
 		gma_power_end(dev);
 	}
 	return 0;
