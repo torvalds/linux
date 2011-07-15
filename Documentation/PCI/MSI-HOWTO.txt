@@ -250,7 +250,7 @@ the MSI-X facilities in preference to the MSI facilities.  As mentioned
 above, MSI-X supports any number of interrupts between 1 and 2048.
 In constrast, MSI is restricted to a maximum of 32 interrupts (and
 must be a power of two).  In addition, the MSI interrupt vectors must
-be allocated consecutively, so the system may not be able to allocate
+be allocated consecutively, so the system might not be able to allocate
 as many vectors for MSI as it could for MSI-X.  On some platforms, MSI
 interrupts must all be targeted at the same set of CPUs whereas MSI-X
 interrupts can all be targeted at different CPUs.
