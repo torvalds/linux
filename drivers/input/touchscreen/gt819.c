@@ -40,18 +40,45 @@
 #define GOODIX_I2C_NAME "Goodix-TS"
 //define default resolution of the touchscreen
 #define GOODIX_MULTI_TOUCH
-#define GT819_IIC_SPEED              400*1000    //400*1000
+#define GT819_IIC_SPEED              350*1000    //400*1000
 #define TOUCH_MAX_WIDTH              800
 #define TOUCH_MAX_HEIGHT             480
 #define TOUCH_MAJOR_MAX              200
 #define WIDTH_MAJOR_MAX              200
-#define MAX_POINT                    10
+#define MAX_POINT                    5
 #define INT_TRIGGER_EDGE_RISING      0
 #define INT_TRIGGER_EDGE_FALLING     1
 #define INT_TRIGGER_EDGE_LOW         2
 #define INT_TRIGGER_EDGE_HIGH        3
 #define INT_TRIGGER                  INT_TRIGGER_EDGE_FALLING
 #define I2C_DELAY                    0x0f
+
+#define PACK_SIZE                    64					//update file package size
+#define MAX_TIMEOUT                  60000				//update time out conut
+#define MAX_I2C_RETRIES	             20					//i2c retry times
+
+//I2C buf address
+#define ADDR_CMD                     80
+#define ADDR_STA                     81
+#define ADDR_DAT                     0
+//moudle state
+#define NEW_UPDATE_START			0x01
+#define UPDATE_START				0x02
+#define SLAVE_READY					0x08
+#define UNKNOWN_ERROR				0x00
+#define FRAME_ERROR					0x10
+#define CHECKSUM_ERROR				0x20
+#define TRANSLATE_ERROR				0x40
+#define FLASH_ERROR					0X80
+//error no
+#define ERROR_NO_FILE				2	//ENOENT
+#define ERROR_FILE_READ				23	//ENFILE
+#define ERROR_FILE_TYPE				21	//EISDIR
+#define ERROR_GPIO_REQUEST			4	//EINTR
+#define ERROR_I2C_TRANSFER			5	//EIO
+#define ERROR_NO_RESPONSE			16	//EBUSY
+#define ERROR_TIMEOUT				110	//ETIMEDOUT
+
 struct goodix_ts_data {
 	struct workqueue_struct *goodix_wq;
 	struct i2c_client *client;
@@ -66,12 +93,39 @@ struct goodix_ts_data {
 };
 
 static const char *goodix_ts_name = "Goodix Capacitive TouchScreen";
-
+unsigned int crc32_table[256];
+unsigned int oldcrc32 = 0xFFFFFFFF;
+unsigned int ulPolynomial = 0x04c11db7;
+struct i2c_client * i2c_connect_client = NULL;
+static u8 gt819_fw[]=
+{
+#include "gt819_fw.bin"
+};
+#if 0
+uint8_t config_info[] = {
+0x02,(TOUCH_MAX_WIDTH>>8),(TOUCH_MAX_WIDTH&0xff),
+(TOUCH_MAX_HEIGHT>>8),(TOUCH_MAX_HEIGHT&0xff),MAX_POINT,(0xa0 | INT_TRIGGER),
+0x20,0x00,0x00,0x0f,0x20,0x08,0x14,0x00,
+0x00,0x20,0x00,0x00,0x88,0x88,0x88,0x00,0x37,0x00,0x00,0x00,0x01,0x02,0x03,0x04,
+0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0xff,0xff,0x00,0x01,0x02,0x03,0x04,
+0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0xff,0xff,0xff,0x00,0x00,0x3c,0x64,0x00,
+0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x40
+};
+#else
+static u8 config_info[]=
+{
+#include "gt819.cfg"
+};
+#endif
 static int gt819_read_regs(struct i2c_client *client, u8 reg, u8 buf[], unsigned len)
 {
-	int ret; 
+	int ret;
 	ret = i2c_master_reg8_recv(client, reg, buf, len, GT819_IIC_SPEED);
-	return ret; 
+	if(ret>0)
+		return ret; 
+	ret = i2c_master_reg8_recv(client, reg, buf, len, GT819_IIC_SPEED);
+	return ret;
 }
 
 
@@ -79,8 +133,214 @@ static int gt819_set_regs(struct i2c_client *client, u8 reg, u8 const buf[], uns
 {
 	int ret; 
 	ret = i2c_master_reg8_send(client, reg, buf, (int)len, GT819_IIC_SPEED);
+	if(ret>0)
+		return ret; 
+	ret = i2c_master_reg8_send(client, reg, buf, (int)len, GT819_IIC_SPEED);
 	return ret;
 }
+
+int gt819_printf(char *buf, int len)
+{
+	int x, y, row = len/8,mod = len%8;
+	for (y=0; y<row; y++) {
+		for (x=0; x<8; x++) {
+			printk("0x%02x, ",buf[y*8+x]);
+		}
+		printk("\n");
+	}
+	for (x=0; x<mod; x++) {
+		printk("0x%02x, ",buf[row*8+x]);
+	}
+	printk("\n");
+	return 0;
+}
+
+int gt189_wait_for_slave(struct i2c_client *client)
+{
+	unsigned char i2c_state_buf[2];
+	int ret,i = 0;
+	while(i < MAX_I2C_RETRIES)
+	{
+		ret = gt819_read_regs(client,ADDR_STA, i2c_state_buf, 1);
+		if(ret < 0)
+			return ERROR_I2C_TRANSFER;
+		if((i2c_state_buf[0] & SLAVE_READY) || (i2c_state_buf[0] & UPDATE_START))
+			return i2c_state_buf[0];
+		msleep(10);
+		i++;
+	}
+	return ERROR_TIMEOUT;
+}
+
+int gt819_update_write_config(struct i2c_client *client)
+{
+	int i,ret,len = sizeof(config_info);
+	ret = gt819_set_regs(client, 101, config_info, len);
+	if(ret < 0)
+		return ret;
+	for (i=0; i<len; i++) {
+		//printk("buf[%d] = 0x%x \n", i, config_info[i]);
+	}
+	return 0;
+}
+
+static int  gt819_read_version(struct i2c_client *client)
+{
+	int ret, count = 0;
+	char version[17],*p;
+	
+	ret = gt819_read_regs(client,240, version, 16);
+	if (ret < 0) 
+		return ret;
+	version[16]='\0';
+	p = version;
+	do 					
+	{
+		if((*p > 122) || (*p < 48 && *p != 32) || (*p >57 && *p  < 65) 
+			||(*p > 90 && *p < 97 && *p  != '_'))		//check illeqal character
+			count++;
+	}while(*++p != '\0' );
+	if(count > 2)
+		return -1;
+	dev_info(&client->dev, "fw version is %s\n",version);
+	return ret;
+}
+
+int gt819_update_write_fw(struct i2c_client *client, char *fw_buf, int len)
+{
+	int ret,data_len,i,check_len,frame_checksum,frame_number = 0;
+	unsigned char *p,i2c_data_buf[PACK_SIZE+8];
+	if(!client || !fw_buf)
+		return -1;
+
+	while(len){
+		frame_checksum = 0;
+		check_len = (len >= PACK_SIZE) ? PACK_SIZE : len;
+		data_len = check_len+8;
+		dev_info(&client->dev, "PACK[%d]:prepare data,len = %d\n",frame_number,check_len);
+		p = fw_buf;
+		for(i=0; i<check_len; i++)
+			frame_checksum += *p++;
+		frame_checksum = 0 - frame_checksum;
+		p = i2c_data_buf;
+		*p++ = (frame_number>>24)&0xff;
+		*p++ = (frame_number>>16)&0xff;
+		*p++ = (frame_number>>8)&0xff;
+		*p++ = frame_number&0xff;
+		memcpy(p,fw_buf,check_len);
+		p += check_len;
+		*p++ = frame_checksum&0xff;
+		*p++ = (frame_checksum>>8)&0xff;
+		*p++ = (frame_checksum>>16)&0xff;
+		*p++ = (frame_checksum>>24)&0xff;
+		gt819_printf(i2c_data_buf, data_len);
+		dev_info(&client->dev, "PACK[%d]:write to slave\n",frame_number);
+		ret = gt819_set_regs(client,ADDR_DAT, i2c_data_buf, data_len);
+		if(ret < 0)
+			return ret;
+		gt819_printf(i2c_data_buf, data_len);
+		dev_info(&client->dev, "PACK[%d]:read data\n",frame_number);
+		memset(i2c_data_buf, 0, sizeof(i2c_data_buf));
+		ret = gt819_read_regs(client,ADDR_DAT, i2c_data_buf, data_len);
+		if(ret < 0)
+			return ret;
+		gt819_printf(i2c_data_buf, data_len);
+		dev_info(&client->dev, "PACK[%d]:check data\n",frame_number);
+		if(memcmp(&i2c_data_buf[4],&fw_buf[frame_number*PACK_SIZE],data_len))
+			return -1;
+		//if(frame_number != (*((int*)i2c_data_buf)))
+		//	return -1;
+		dev_info(&client->dev, "PACK[%d]:tell slave check data pass\n",frame_number);
+		i2c_data_buf[0] = 0x04;
+		ret = gt819_set_regs(client,ADDR_CMD, i2c_data_buf, 1);
+		if(ret < 0)
+			return ret;
+		dev_info(&client->dev, "PACK[%d]:wait for slave to start next frame\n",frame_number);
+		ret = gt189_wait_for_slave(client);
+		if((ret & CHECKSUM_ERROR) || (ret & FRAME_ERROR) || (ret & ERROR_I2C_TRANSFER) || (ret & ERROR_TIMEOUT))
+			return ret;
+		dev_info(&client->dev, "PACK[%d]:frame transfer finished\n",frame_number);
+		if(len < PACK_SIZE)
+			return 0;
+		frame_number++;
+		len -= check_len;
+	}
+	return 0;
+}
+
+int gt819_update_fw(struct i2c_client *client)
+{
+	int ret,file_len,update_need_config;
+	unsigned char i2c_control_buf[10];
+	
+	dev_info(&client->dev, "gt819 firmware update start...\n");
+	dev_info(&client->dev, "step 1:read version...\n");
+	ret = gt819_read_version(client);
+	if (ret < 0) 
+		return ret;
+	dev_info(&client->dev, "done!\n");
+	dev_info(&client->dev, "step 2:disable irq...\n");
+	disable_irq(client->irq);
+	dev_info(&client->dev, "done!\n");
+	dev_info(&client->dev, "step 3:set update start...\n");
+	i2c_control_buf[0] = UPDATE_START;
+	ret = gt819_set_regs(client,ADDR_CMD, i2c_control_buf, 1);
+	if(ret < 0)
+		return ret;
+	//the time include time(APROM -> LDROM) and time(LDROM init)
+	msleep(1000);
+	dev_info(&client->dev, "done!\n");
+	dev_info(&client->dev, "step 4:wait for slave start...\n");
+	ret = gt189_wait_for_slave(client);
+	if(ret < 0)
+		return ret;
+	if(!(ret & UPDATE_START))
+		return -1;
+	if(!(ret & NEW_UPDATE_START))
+		update_need_config = 1;
+	dev_info(&client->dev, "done!\n");
+	dev_info(&client->dev, "step 5:write the fw length...\n");
+	file_len = sizeof(gt819_fw) + 4;
+	i2c_control_buf[0] = (file_len>>24) & 0xff;
+	i2c_control_buf[1] = (file_len>>16) & 0xff;
+	i2c_control_buf[2] = (file_len>>8) & 0xff;
+	i2c_control_buf[3] = file_len & 0xff;
+	ret = gt819_set_regs(client,ADDR_DAT, i2c_control_buf, 4);
+	if(ret < 0)
+		return ret;
+	dev_info(&client->dev, "done!\n");
+	dev_info(&client->dev, "step 6:wait for slave ready\n");
+	ret = gt189_wait_for_slave(client);
+	if(ret < 0)
+		return ret;
+	dev_info(&client->dev, "done!\n");
+	dev_info(&client->dev, "step 7:write data\n");
+	ret = gt819_update_write_fw(client, gt819_fw, sizeof(gt819_fw));
+	if(ret < 0)
+		return ret;
+	dev_info(&client->dev, "done!\n");
+	dev_info(&client->dev, "step 8:write config\n");
+	ret = gt819_update_write_config(client);
+	if(ret < 0)
+		return ret;
+	dev_info(&client->dev, "done!\n");
+	dev_info(&client->dev, "step 9:wait for slave ready\n");
+	ret = gt189_wait_for_slave(client);
+	if(ret < 0)
+		return ret;
+	if(ret & SLAVE_READY)
+		dev_info(&client->dev, "The firmware updating succeed!update state:0x%x\n",ret);
+	dev_info(&client->dev, "step 10:enable irq...\n");
+	enable_irq(client->irq);
+	dev_info(&client->dev, "done!\n");
+	dev_info(&client->dev, "step 11:read version...\n");
+	ret = gt819_read_version(client);
+	if (ret < 0) 
+		return ret;
+	dev_info(&client->dev, "done!\n");
+	return 0;
+}
+
 
 static void gt819_queue_work(struct work_struct *work)
 {
@@ -211,23 +471,7 @@ static int gt819_init_panel(struct goodix_ts_data *ts)
 {
 	int ret,I2cDelay;
 	uint8_t rd_cfg_buf[10];
-	#if 0
-	int i;
-	uint8_t config_info[] = {
-	0x02,(TOUCH_MAX_WIDTH>>8),(TOUCH_MAX_WIDTH&0xff),
-	(TOUCH_MAX_HEIGHT>>8),(TOUCH_MAX_HEIGHT&0xff),MAX_POINT,(0xa0 | INT_TRIGGER),
-	0x20,0x00,0x32,0x0f,0x20,0x08,0x14,0x00,
-	0x00,0x20,0x00,0x00,0x88,0x88,0x88,0x00,0x37,0x00,0x00,0x00,0x01,0x02,0x03,0x04,
-	0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0x0d,0xff,0xff,0x00,0x01,0x02,0x03,0x04,
-	0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0x0c,0xff,0xff,0xff,0x00,0x00,0x3c,0x64,0x00,
-	0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-	0x00,0x00,0x00,0x00
-	};
-	ret = gt819_set_regs(ts->client, 101, config_info, sizeof(config_info));
-	for (i=0; i<sizeof(config_info); i++) {
-		//printk("buf[%d] = 0x%x \n", i, config_info[i]);
-	}
-	#endif
+
 	ret = gt819_read_regs(ts->client, 101, rd_cfg_buf, 10);
 	if (ret < 0)
 		return ret;
@@ -298,14 +542,15 @@ static int gt819_probe(struct i2c_client *client, const struct i2c_device_id *id
 	if (ts == NULL) {
 		return -ENOMEM;
 	}
-	ts->client = client;
-
+	
+	ts->client = i2c_connect_client = client;
+	
 	ret = gt819_init_panel(ts);
 	if(ret != 0){
 	  dev_err(&client->dev,"init panel fail,ret = %d\n",ret);
 	  goto err_init_panel_fail;
 	}
-	
+	//gt819_update_fw(client);
 	if (!client->irq){
 		dev_err(&client->dev,"no irq fail\n");
 		ret = -ENODEV;
