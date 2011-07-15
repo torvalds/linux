@@ -3319,7 +3319,7 @@ F:	arch/arm/mach-ixp4xx/include/mach/qmgr.h
 F:	arch/arm/mach-ixp4xx/include/mach/npe.h
 F:	arch/arm/mach-ixp4xx/ixp4xx_qmgr.c
 F:	arch/arm/mach-ixp4xx/ixp4xx_npe.c
-F:	drivers/net/arm/ixp4xx_eth.c
+F:	drivers/net/ethernet/xscale/ixp4xx_eth.c
 F:	drivers/net/wan/ixp4xx_hss.c
 
 INTEL IXP4XX RANDOM NUMBER GENERATOR SUPPORT
@@ -3331,7 +3331,7 @@ INTEL IXP2000 ETHERNET DRIVER
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/ixp2000/
+F:	drivers/net/ethernet/xscale/ixp2000/
 
 INTEL ETHERNET DRIVERS (e100/e1000/e1000e/igb/igbvf/ixgb/ixgbe/ixgbevf)
 M:	Jeff Kirsher <jeffrey.t.kirsher@intel.com>
