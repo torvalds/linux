@@ -250,3 +250,14 @@ fail:
 		return VM_FAULT_SIGBUS;
 	}
 }
+
+/*
+ *	GEM interfaces for our specific client
+ */
+int psb_gem_create_ioctl(struct drm_device *dev, void *data,
+					struct drm_file *file)
+{
+	struct drm_psb_gem_create *args = data;
+	return psb_gem_create(file, dev, args->size, &args->handle);
+}
+

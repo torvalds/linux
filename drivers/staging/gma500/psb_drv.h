@@ -782,18 +782,20 @@ extern const struct drm_connector_helper_funcs
 					psb_intel_lvds_connector_helper_funcs;
 extern const struct drm_connector_funcs psb_intel_lvds_connector_funcs;
 
-/* psb_gem.c */
+/* gem.c */
 extern int psb_gem_init_object(struct drm_gem_object *obj);
 extern void psb_gem_free_object(struct drm_gem_object *obj);
 extern int psb_gem_get_aperture(struct drm_device *dev, void *data,
-				struct drm_file *file);
+			struct drm_file *file);
 extern int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
 extern int psb_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
 			uint32_t handle);
 extern int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
-			 uint32_t handle, uint64_t *offset);
+			uint32_t handle, uint64_t *offset);
 extern int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
+extern int psb_gem_create_ioctl(struct drm_device *dev, void *data,
+			struct drm_file *file);
 
 /* psb_device.c */
 extern const struct psb_ops psb_chip_ops;

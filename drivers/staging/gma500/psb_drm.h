@@ -159,18 +159,11 @@ struct drm_psb_register_rw_arg {
  * corresponding defines where they're
  * defined elsewhere.
  */
-#define DRM_PVR_RESERVED1	0x12
-#define DRM_PVR_RESERVED2	0x13
-#define DRM_PVR_RESERVED3	0x14
-#define DRM_PVR_RESERVED4	0x15
-#define DRM_PVR_RESERVED5	0x16
 
+#define DRM_PSB_GEM_CREATE	0x10
 #define DRM_PSB_DPST		0x1B
 #define DRM_PSB_GAMMA		0x1C
 #define DRM_PSB_DPST_BL		0x1D
-
-#define DRM_PVR_RESERVED6	0x1E
-
 #define DRM_PSB_GET_PIPE_FROM_CRTC_ID 0x1F
 
 #define PSB_MODE_OPERATION_MODE_VALID	0x01
@@ -190,5 +183,11 @@ struct psb_drm_dpu_rect {
 	int x, y;             
 	int width, height;    
 };  
+
+struct drm_psb_gem_create {
+	__u64 size;
+	__u32 handle;
+	__u32 pad;
+};
 
 #endif
