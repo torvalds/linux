@@ -127,6 +127,9 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define DRM_IOCTL_PSB_2D_OP	\
 		DRM_IOW(DRM_PSB_2D_OP + DRM_COMMAND_BASE, \
 			 struct drm_psb_2d_op)
+#define DRM_IOCTL_PSB_GEM_MMAP	\
+		DRM_IOWR(DRM_PSB_GEM_MMAP + DRM_COMMAND_BASE, \
+			 struct drm_psb_gem_mmap)
 
 static int psb_sizes_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
@@ -167,7 +170,10 @@ static struct drm_ioctl_desc psb_ioctls[] = {
 					psb_intel_get_pipe_from_crtc_id, 0),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GEM_CREATE, psb_gem_create_ioctl,
 						DRM_UNLOCKED | DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_2D_OP, psb_accel_ioctl, DRM_UNLOCKED),
+	PSB_IOCTL_DEF(DRM_IOCTL_PSB_2D_OP, psb_accel_ioctl,
+						DRM_UNLOCKED| DRM_AUTH),
+	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GEM_MMAP, psb_gem_mmap_ioctl,
+						DRM_UNLOCKED | DRM_AUTH),
 };
 
 static void psb_lastclose(struct drm_device *dev)

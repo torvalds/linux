@@ -162,6 +162,7 @@ struct drm_psb_register_rw_arg {
 
 #define DRM_PSB_GEM_CREATE	0x10
 #define DRM_PSB_2D_OP		0x11
+#define DRM_PSB_GEM_MMAP	0x12
 #define DRM_PSB_DPST		0x1B
 #define DRM_PSB_GAMMA		0x1C
 #define DRM_PSB_DPST_BL		0x1D
@@ -201,6 +202,17 @@ struct drm_psb_2d_op {
 	__u32 size;		/* In dwords of command */
 	__u32 spare;		/* And bumps array to u64 align */
 	__u32 cmd[PSB_2D_OP_BUFLEN];
+};
+
+struct drm_psb_gem_mmap {
+	__u32 handle;
+	__u32 pad;
+	/**
+	 * Fake offset to use for subsequent mmap call
+	 *
+	 * This is a fixed-size type for 32/64 compatibility.
+	 */
+	__u64 offset;
 };
 
 #endif

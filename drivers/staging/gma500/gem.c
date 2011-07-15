@@ -261,3 +261,11 @@ int psb_gem_create_ioctl(struct drm_device *dev, void *data,
 	return psb_gem_create(file, dev, args->size, &args->handle);
 }
 
+int psb_gem_mmap_ioctl(struct drm_device *dev, void *data,
+					struct drm_file *file)
+{
+	struct drm_psb_gem_mmap *args = data;
+	return dev->driver->dumb_map_offset(file, dev,
+						args->handle, &args->offset);
+}
+
