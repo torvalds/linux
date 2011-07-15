@@ -904,11 +904,10 @@ static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
  **/
 static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 {
-	s32 status = 0;
-	u32 ctrl;
-	u32 i;
-	u32 autoc;
-	u32 autoc2;
+	ixgbe_link_speed link_speed;
+	s32 status;
+	u32 ctrl, i, autoc, autoc2;
+	bool link_up = false;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	hw->mac.ops.stop_adapter(hw);
@@ -942,39 +941,46 @@ static s32 ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 
 mac_reset_top:
 	/*
-	 * Issue global reset to the MAC.  This needs to be a SW reset.
-	 * If link reset is used, it might reset the MAC when mng is using it
+	 * Issue global reset to the MAC. Needs to be SW reset if link is up.
+	 * If link reset is used when link is up, it might reset the PHY when
+	 * mng is using it.  If link is down or the flag to force full link
+	 * reset is set, then perform link reset.
 	 */
-	ctrl = IXGBE_READ_REG(hw, IXGBE_CTRL);
-	IXGBE_WRITE_REG(hw, IXGBE_CTRL, (ctrl | IXGBE_CTRL_RST));
+	ctrl = IXGBE_CTRL_LNK_RST;
+	if (!hw->force_full_reset) {
+		hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
+		if (link_up)
+			ctrl = IXGBE_CTRL_RST;
+	}
+
+	ctrl |= IXGBE_READ_REG(hw, IXGBE_CTRL);
+	IXGBE_WRITE_REG(hw, IXGBE_CTRL, ctrl);
 	IXGBE_WRITE_FLUSH(hw);
 
 	/* Poll for reset bit to self-clear indicating reset is complete */
 	for (i = 0; i < 10; i++) {
 		udelay(1);
 		ctrl = IXGBE_READ_REG(hw, IXGBE_CTRL);
-		if (!(ctrl & IXGBE_CTRL_RST))
+		if (!(ctrl & IXGBE_CTRL_RST_MASK))
 			break;
 	}
-	if (ctrl & IXGBE_CTRL_RST) {
+
+	if (ctrl & IXGBE_CTRL_RST_MASK) {
 		status = IXGBE_ERR_RESET_FAILED;
 		hw_dbg(hw, "Reset polling failed to complete.\n");
 	}
 
+	msleep(50);
+
 	/*
 	 * Double resets are required for recovery from certain error
 	 * conditions.  Between resets, it is necessary to stall to allow time
-	 * for any pending HW events to complete.  We use 1usec since that is
-	 * what is needed for ixgbe_disable_pcie_master().  The second reset
-	 * then clears out any effects of those events.
+	 * for any pending HW events to complete.
 	 */
 	if (hw->mac.flags & IXGBE_FLAGS_DOUBLE_RESET_REQUIRED) {
 		hw->mac.flags &= ~IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
-		udelay(1);
 		goto mac_reset_top;
 	}
-
-	msleep(50);
 
 	/*
 	 * Store the original AUTOC/AUTOC2 values if they have not been

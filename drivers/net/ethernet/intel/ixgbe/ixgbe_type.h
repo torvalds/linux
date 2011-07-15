@@ -982,6 +982,7 @@
 #define IXGBE_CTRL_GIO_DIS      0x00000004 /* Global IO Master Disable bit */
 #define IXGBE_CTRL_LNK_RST      0x00000008 /* Link Reset. Resets everything. */
 #define IXGBE_CTRL_RST          0x04000000 /* Reset (SW) */
+#define IXGBE_CTRL_RST_MASK     (IXGBE_CTRL_LNK_RST | IXGBE_CTRL_RST)
 
 /* FACTPS */
 #define IXGBE_FACTPS_LFS        0x40000000 /* LAN Function Select */
