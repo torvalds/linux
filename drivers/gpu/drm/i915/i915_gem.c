@@ -2072,8 +2072,8 @@ i915_wait_request(struct intel_ring_buffer *ring,
 		if (!ier) {
 			DRM_ERROR("something (likely vbetool) disabled "
 				  "interrupts, re-enabling\n");
-			i915_driver_irq_preinstall(ring->dev);
-			i915_driver_irq_postinstall(ring->dev);
+			ring->dev->driver->irq_preinstall(ring->dev);
+			ring->dev->driver->irq_postinstall(ring->dev);
 		}
 
 		trace_i915_gem_request_wait_begin(ring, seqno);

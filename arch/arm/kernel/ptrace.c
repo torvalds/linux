@@ -228,34 +228,12 @@ static struct undef_hook thumb_break_hook = {
 	.fn		= break_trap,
 };
 
-static int thumb2_break_trap(struct pt_regs *regs, unsigned int instr)
-{
-	unsigned int instr2;
-	void __user *pc;
-
-	/* Check the second half of the instruction.  */
-	pc = (void __user *)(instruction_pointer(regs) + 2);
-
-	if (processor_mode(regs) == SVC_MODE) {
-		instr2 = *(u16 *) pc;
-	} else {
-		get_user(instr2, (u16 __user *)pc);
-	}
-
-	if (instr2 == 0xa000) {
-		ptrace_break(current, regs);
-		return 0;
-	} else {
-		return 1;
-	}
-}
-
 static struct undef_hook thumb2_break_hook = {
-	.instr_mask	= 0xffff,
-	.instr_val	= 0xf7f0,
+	.instr_mask	= 0xffffffff,
+	.instr_val	= 0xf7f0a000,
 	.cpsr_mask	= PSR_T_BIT,
 	.cpsr_val	= PSR_T_BIT,
-	.fn		= thumb2_break_trap,
+	.fn		= break_trap,
 };
 
 static int __init ptrace_break_init(void)

@@ -250,6 +250,7 @@ static int oaktrail_backlight_init(void)
 	struct backlight_properties props;
 
 	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_PLATFORM;
 	props.max_brightness = OT_EC_BL_BRIGHTNESS_MAX;
 	bd = backlight_device_register(DRIVER_NAME,
 				       &oaktrail_device->dev, NULL,

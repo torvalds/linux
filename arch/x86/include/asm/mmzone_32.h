@@ -57,6 +57,8 @@ static inline int pfn_valid(int pfn)
 	return 0;
 }
 
+#define early_pfn_valid(pfn)	pfn_valid((pfn))
+
 #endif /* CONFIG_DISCONTIGMEM */
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES

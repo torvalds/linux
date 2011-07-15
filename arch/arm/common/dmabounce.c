@@ -255,7 +255,7 @@ static inline dma_addr_t map_single(struct device *dev, void *ptr, size_t size,
 		if (buf == 0) {
 			dev_err(dev, "%s: unable to map unsafe buffer %p!\n",
 			       __func__, ptr);
-			return 0;
+			return ~0;
 		}
 
 		dev_dbg(dev,
