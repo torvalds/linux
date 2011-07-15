@@ -335,7 +335,7 @@ special handling.
 5.3. Disabling MSIs on a single device
 
 Some devices are known to have faulty MSI implementations.  Usually this
-is handled in the individual device driver but occasionally it's necessary
+is handled in the individual device driver, but occasionally it's necessary
 to handle this with a quirk.  Some drivers have an option to disable use
 of MSI.  While this is a convenient workaround for the driver author,
 it is not good practise, and should not be emulated.
