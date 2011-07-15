@@ -790,6 +790,7 @@ int drbd_resync_finished(struct drbd_conf *mdev)
 		w = kmalloc(sizeof(struct drbd_work), GFP_ATOMIC);
 		if (w) {
 			w->cb = w_resync_finished;
+			w->mdev = mdev;
 			drbd_queue_work(&mdev->tconn->data.work, w);
 			return 1;
 		}
