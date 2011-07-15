@@ -349,7 +349,7 @@ for your machine.  You should also check your .config to be sure you
 have enabled CONFIG_PCI_MSI.
 
 Then, 'lspci -t' gives the list of bridges above a device.  Reading
-/sys/bus/pci/devices/*/msi_bus will tell you whether MSI are enabled (1)
+/sys/bus/pci/devices/*/msi_bus will tell you whether MSIs are enabled (1)
 or disabled (0).  If 0 is found in any of the msi_bus files belonging
 to bridges between the PCI root and the device, MSIs are disabled.
 
