@@ -491,7 +491,6 @@ struct ixgbe_adapter {
 	int node;
 	u32 led_reg;
 	u32 interrupt_event;
-	char lsc_int_name[IFNAMSIZ + 9];
 
 	/* SR-IOV */
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);
