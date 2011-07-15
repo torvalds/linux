@@ -2526,6 +2526,8 @@ static void __init rk29_clock_common_init(unsigned long ppll_rate, unsigned long
 	clk_set_rate_nolock(&pclk_periph, pclk_p);
 	clk_set_parent_nolock(&clk_uhost, &general_pll_clk);
 	clk_set_rate_nolock(&clk_uhost, 48 * MHZ);
+	if (clk_uhost.rate != 48 * MHZ)
+		clk_set_parent_nolock(&clk_uhost, &otgphy1_clkin);
 	clk_set_parent_nolock(&clk_i2s0_div, &general_pll_clk);
 	clk_set_parent_nolock(&clk_i2s1_div, &general_pll_clk);
 	clk_set_parent_nolock(&clk_spdif_div, &general_pll_clk);
@@ -2636,7 +2638,7 @@ void __init rk29_clock_init2(enum periph_pll ppll_rate, enum codec_pll cpll_rate
 	printk(KERN_INFO "Clocking rate (apll/dpll/cpll/gpll/core/aclk_cpu/hclk_cpu/pclk_cpu/aclk_periph/hclk_periph/pclk_periph): %ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld/%ld MHz",
 	       arm_pll_clk.rate / MHZ, ddr_pll_clk.rate / MHZ, codec_pll_clk.rate / MHZ, general_pll_clk.rate / MHZ, clk_core.rate / MHZ,
 	       aclk_cpu.rate / MHZ, hclk_cpu.rate / MHZ, pclk_cpu.rate / MHZ, aclk_periph.rate / MHZ, hclk_periph.rate / MHZ, pclk_periph.rate / MHZ);
-	printk(KERN_CONT " (20110714)\n");
+	printk(KERN_CONT " (20110715)\n");
 }
 
 void __init rk29_clock_init(enum periph_pll ppll_rate)
