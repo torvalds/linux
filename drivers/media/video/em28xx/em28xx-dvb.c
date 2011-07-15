@@ -76,9 +76,10 @@ struct em28xx_dvb {
 	struct dmx_frontend        fe_mem;
 	struct dvb_net             net;
 
-	/* Due to DRX-D - probably need changes */
+	/* Due to DRX-K - probably need changes */
 	int (*gate_ctrl)(struct dvb_frontend *, int);
 	struct semaphore      pll_mutex;
+	bool			dont_attach_fe1;
 };
 
 
@@ -595,7 +596,7 @@ static void unregister_dvb(struct em28xx_dvb *dvb)
 	if (dvb->fe[1])
 		dvb_unregister_frontend(dvb->fe[1]);
 	dvb_unregister_frontend(dvb->fe[0]);
-	if (dvb->fe[1])
+	if (dvb->fe[1] && !dvb->dont_attach_fe1)
 		dvb_frontend_detach(dvb->fe[1]);
 	dvb_frontend_detach(dvb->fe[0]);
 	dvb_unregister_adapter(&dvb->adapter);
@@ -771,21 +772,22 @@ static int dvb_init(struct em28xx *dev)
 	case EM2884_BOARD_TERRATEC_H5:
 		terratec_h5_init(dev);
 
-		/* dvb->fe[1] will be DVB-C, and dvb->fe[0] will be DVB-T */
+		dvb->dont_attach_fe1 = 1;
+
 		dvb->fe[0] = dvb_attach(drxk_attach, &terratec_h5_drxk, &dev->i2c_adap, &dvb->fe[1]);
-		if (!dvb->fe[0] || !dvb->fe[1]) {
+		if (!dvb->fe[0]) {
 			result = -EINVAL;
 			goto out_free;
 		}
+
 		/* FIXME: do we need a pll semaphore? */
 		dvb->fe[0]->sec_priv = dvb;
 		sema_init(&dvb->pll_mutex, 1);
 		dvb->gate_ctrl = dvb->fe[0]->ops.i2c_gate_ctrl;
 		dvb->fe[0]->ops.i2c_gate_ctrl = drxk_gate_ctrl;
-		dvb->fe[1]->ops.i2c_gate_ctrl = drxk_gate_ctrl;
 		dvb->fe[1]->id = 1;
 
-		/* Attach tda18271 */
+		/* Attach tda18271 to DVB-C frontend */
 		if (dvb->fe[0]->ops.i2c_gate_ctrl)
 			dvb->fe[0]->ops.i2c_gate_ctrl(dvb->fe[0], 1);
 		if (!dvb_attach(tda18271c2dd_attach, dvb->fe[0], &dev->i2c_adap, 0x60)) {
@@ -794,8 +796,12 @@ static int dvb_init(struct em28xx *dev)
 		}
 		if (dvb->fe[0]->ops.i2c_gate_ctrl)
 			dvb->fe[0]->ops.i2c_gate_ctrl(dvb->fe[0], 0);
-		if (dvb->fe[1]->ops.i2c_gate_ctrl)
-			dvb->fe[1]->ops.i2c_gate_ctrl(dvb->fe[1], 1);
+
+		/* Hack - needed by drxk/tda18271c2dd */
+		dvb->fe[1]->tuner_priv = dvb->fe[0]->tuner_priv;
+		memcpy(&dvb->fe[1]->ops.tuner_ops,
+		       &dvb->fe[0]->ops.tuner_ops,
+		       sizeof(dvb->fe[0]->ops.tuner_ops));
 
 		break;
 	default:

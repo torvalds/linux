@@ -6313,12 +6313,10 @@ static int drxk_c_get_tune_settings(struct dvb_frontend *fe, struct dvb_frontend
 
 static void drxk_t_release(struct dvb_frontend *fe)
 {
-#if 0
-	struct drxk_state *state = fe->demodulator_priv;
-
-	dprintk(1, "\n");
-	kfree(state);
-#endif
+	/*
+	 * There's nothing to release here, as the state struct
+	 * is already freed by drxk_c_release.
+	 */
 }
 
 static int drxk_t_init(struct dvb_frontend *fe)
@@ -6451,17 +6449,6 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 		goto error;
 	*fe_t = &state->t_frontend;
 
-#ifdef CONFIG_MEDIA_ATTACH
-	/*
-	 * HACK: As this function initializes both DVB-T and DVB-C fe symbols,
-	 * and calling it twice would create the state twice, leading into
-	 * memory leaks, the right way is to call it only once. However, dvb
-	 * release functions will call symbol_put twice. So, the solution is to
-	 * artificially increment the usage count, in order to allow the
-	 * driver to be released.
-	 */
-	symbol_get(drxk_attach);
-#endif
 	return &state->c_frontend;
 
 error:
