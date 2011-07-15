@@ -299,10 +299,15 @@ void __init board_power_init(void);
 int board_boot_mode(void);
 
 enum periph_pll {
-	periph_pll_96mhz = 96000000,
+	periph_pll_96mhz = 96000000, /* save more power */
 	periph_pll_144mhz = 144000000,
 	periph_pll_288mhz = 288000000, /* for USB 1.1 */
 	periph_pll_300mhz = 300000000, /* for Ethernet */
+#if defined(CONFIG_RK29_VMAC) && defined(CONFIG_USB20_HOST_EN)
+	periph_pll_default = periph_pll_300mhz,
+#else
+	periph_pll_default = periph_pll_288mhz,
+#endif
 };
 
 enum codec_pll {

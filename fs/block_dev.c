@@ -1480,7 +1480,7 @@ static const struct address_space_operations def_blk_aops = {
 ssize_t mydo_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
 {
     unsigned long buf_addr = (unsigned long)buf;
-    if(memcmp(filp->f_mapping->host->i_bdev->bd_disk->disk_name, "mtdblock", 8) == 0 )// kernel mem is usb tran &&(buf_addr >= 0xc0000000)
+    if((memcmp(filp->f_mapping->host->i_bdev->bd_disk->disk_name, "mtdblock", 8) == 0) &&(buf_addr >= 0xc0000000))// kernel mem is usb tran &&(buf_addr >= 0xc0000000)
     {
         struct mtd_blktrans_dev *dev;
         struct mtd_blktrans_ops *tr;
@@ -1488,10 +1488,10 @@ ssize_t mydo_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *
         
         dev = (filp->f_mapping->host->i_bdev->bd_disk->private_data);
         mtd = dev->mtd;
-        if((buf_addr < 0xc0000000)&&(mtd->name[0]=='u' &&mtd->name[3]=='r' && mtd->name[4]==0)) // user part 
+        /*if((buf_addr < 0xc0000000)&&(mtd->name[0]=='u' &&mtd->name[3]=='r' && mtd->name[4]==0)) // user part 
         {
             return(do_sync_read(filp, buf,len,ppos));
-        }
+        }*/
         tr = dev->tr;
 		if (!tr->readsect)
 		{
@@ -1515,7 +1515,7 @@ ssize_t mydo_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *
 ssize_t mydo_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
 {
     unsigned long buf_addr = (unsigned long)buf;
-    if(memcmp(filp->f_mapping->host->i_bdev->bd_disk->disk_name, "mtdblock", 8) == 0)// kernel mem is usb tran &&(buf_addr >= 0xc0000000)
+    if((memcmp(filp->f_mapping->host->i_bdev->bd_disk->disk_name, "mtdblock", 8) == 0) &&(buf_addr >= 0xc0000000))// kernel mem is usb tran &&(buf_addr >= 0xc0000000)
     {
         struct mtd_blktrans_dev *dev;
         struct mtd_blktrans_ops *tr;
@@ -1524,10 +1524,10 @@ ssize_t mydo_sync_write(struct file *filp, const char __user *buf, size_t len, l
         dev = (filp->f_mapping->host->i_bdev->bd_disk->private_data);
         
         mtd = dev->mtd;
-        if((buf_addr < 0xc0000000)&&(mtd->name[0]=='u' &&mtd->name[3]=='r' && mtd->name[4]==0))
+        /*if((buf_addr < 0xc0000000)&&(mtd->name[0]=='u' &&mtd->name[3]=='r' && mtd->name[4]==0))
         {
             return(do_sync_write(filp, buf,len,ppos));
-        }
+        }*/
 
         tr = dev->tr;
 

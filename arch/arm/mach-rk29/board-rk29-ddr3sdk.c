@@ -1746,7 +1746,7 @@ static void __init machine_rk29_mapio(void)
 	rk29_map_common_io();
 	rk29_setup_early_printk();
 	rk29_sram_init();
-	rk29_clock_init(periph_pll_288mhz);
+	rk29_clock_init(periph_pll_default);
 	rk29_iomux_init();
 	ddr_init(DDR_TYPE, DDR_FREQ);
 }

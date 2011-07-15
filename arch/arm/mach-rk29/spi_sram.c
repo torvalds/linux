@@ -568,7 +568,7 @@ void __sramfunc pm_clk_switch_32k(void)
 	asm("wfi");
 	
 	pm_gpio_out_low(RK29_PIN4_PC5);//enable 24M 
-	sram_udelay(1000,24);
+	sram_udelay(20,24);
 	cru_writel(crumode, CRU_MODE_CON); //externel clk 24M
 
 	#if defined (CONFIG_RK29_WORKING_POWER_MANAGEMENT)
@@ -576,7 +576,7 @@ void __sramfunc pm_clk_switch_32k(void)
 	#else
 	pm_gpio_out_low(RK29_PIN4_PC0); //enable 27M
 	#endif
-	sram_udelay(1000,27);
+	//sram_udelay(1000,27);
 	sram_printch('7');
 
 
