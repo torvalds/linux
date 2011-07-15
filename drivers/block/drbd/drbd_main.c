@@ -1494,11 +1494,11 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	}
 
 	if (ns.pdsk < D_INCONSISTENT && get_ldev(mdev)) {
-		if (ns.peer == R_PRIMARY && mdev->ldev->md.uuid[UI_BITMAP] == 0) {
+		if (os.peer == R_SECONDARY && ns.peer == R_PRIMARY &&
+		    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE) {
 			drbd_uuid_new_current(mdev);
 			drbd_send_uuids(mdev);
 		}
-
 		/* D_DISKLESS Peer becomes secondary */
 		if (os.peer == R_PRIMARY && ns.peer == R_SECONDARY)
 			/* We may still be Primary ourselves.
