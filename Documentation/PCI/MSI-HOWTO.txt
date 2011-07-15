@@ -326,7 +326,7 @@ where $bridge is the PCI address of the bridge you've enabled (eg
 0000:00:0e.0).
 
 To disable MSIs, echo 0 instead of 1.  Changing this value should be
-done with caution as it can break interrupt handling for all devices
+done with caution as it could break interrupt handling for all devices
 below this bridge.
 
 Again, please notify linux-pci@vger.kernel.org of any bridges that need
