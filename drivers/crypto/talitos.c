@@ -1429,7 +1429,6 @@ static void ablkcipher_done(struct device *dev,
 
 static int common_nonsnoop(struct talitos_edesc *edesc,
 			   struct ablkcipher_request *areq,
-			   u8 *giv,
 			   void (*callback) (struct device *dev,
 					     struct talitos_desc *desc,
 					     void *context, int error))
@@ -1449,7 +1448,7 @@ static int common_nonsnoop(struct talitos_edesc *edesc,
 
 	/* cipher iv */
 	ivsize = crypto_ablkcipher_ivsize(cipher);
-	map_single_talitos_ptr(dev, &desc->ptr[1], ivsize, giv ?: areq->info, 0,
+	map_single_talitos_ptr(dev, &desc->ptr[1], ivsize, areq->info, 0,
 			       DMA_TO_DEVICE);
 
 	/* cipher key */
@@ -1552,7 +1551,7 @@ static int ablkcipher_encrypt(struct ablkcipher_request *areq)
 	/* set encrypt */
 	edesc->desc.hdr = ctx->desc_hdr_template | DESC_HDR_MODE0_ENCRYPT;
 
-	return common_nonsnoop(edesc, areq, NULL, ablkcipher_done);
+	return common_nonsnoop(edesc, areq, ablkcipher_done);
 }
 
 static int ablkcipher_decrypt(struct ablkcipher_request *areq)
@@ -1568,7 +1567,7 @@ static int ablkcipher_decrypt(struct ablkcipher_request *areq)
 
 	edesc->desc.hdr = ctx->desc_hdr_template | DESC_HDR_DIR_INBOUND;
 
-	return common_nonsnoop(edesc, areq, NULL, ablkcipher_done);
+	return common_nonsnoop(edesc, areq, ablkcipher_done);
 }
 
 static void common_nonsnoop_hash_unmap(struct device *dev,
