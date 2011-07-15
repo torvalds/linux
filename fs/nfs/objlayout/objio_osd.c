@@ -1065,5 +1065,7 @@ objlayout_exit(void)
 	       __func__);
 }
 
+MODULE_ALIAS("nfs-layouttype4-2");
+
 module_init(objlayout_init);
 module_exit(objlayout_exit);

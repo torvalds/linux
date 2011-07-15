@@ -964,5 +964,7 @@ static void __exit nfs4filelayout_exit(void)
 	pnfs_unregister_layoutdriver(&filelayout_type);
 }
 
+MODULE_ALIAS("nfs-layouttype4-1");
+
 module_init(nfs4filelayout_init);
 module_exit(nfs4filelayout_exit);
