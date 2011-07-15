@@ -231,7 +231,7 @@ mask or unmask an interrupt, it should call disable_irq() / enable_irq().
 4.4 Handling devices implementing both MSI and MSI-X capabilities
 
 If a device implements both MSI and MSI-X capabilities, it can
-run in either MSI mode or MSI-X mode but not both simultaneously.
+run in either MSI mode or MSI-X mode, but not both simultaneously.
 This is a requirement of the PCI spec, and it is enforced by the
 PCI layer.  Calling pci_enable_msi() when MSI-X is already enabled or
 pci_enable_msix() when MSI is already enabled results in an error.
