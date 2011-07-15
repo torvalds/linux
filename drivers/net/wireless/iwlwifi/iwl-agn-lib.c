@@ -400,6 +400,7 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	struct iwl_tx_queue *txq = &priv->txq[txq_id];
 	struct ieee80211_tx_info *info;
 	struct iwlagn_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
+	struct ieee80211_hdr *hdr;
 	struct iwl_tx_info *txb;
 	u32 status = le16_to_cpu(tx_resp->status.status);
 	int tid;
@@ -426,6 +427,11 @@ void iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		IWLAGN_TX_RES_RA_POS;
 
 	spin_lock_irqsave(&priv->sta_lock, flags);
+
+	hdr = (void *)txb->skb->data;
+	if (!ieee80211_is_data_qos(hdr->frame_control))
+		priv->last_seq_ctl = tx_resp->seq_ctl;
+
 	if (txq->sched_retry) {
 		const u32 scd_ssn = iwlagn_get_scd_ssn(tx_resp);
 		struct iwl_ht_agg *agg;

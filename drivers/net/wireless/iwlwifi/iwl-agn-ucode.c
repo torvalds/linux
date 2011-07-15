@@ -513,14 +513,21 @@ int iwlagn_load_ucode_wait_alive(struct iwl_priv *priv,
 		return -EIO;
 	}
 
-	ret = iwl_verify_ucode(priv, image);
-	if (ret) {
-		priv->ucode_type = old_type;
-		return ret;
-	}
+	/*
+	 * This step takes a long time (60-80ms!!) and
+	 * WoWLAN image should be loaded quickly, so
+	 * skip it for WoWLAN.
+	 */
+	if (ucode_type != IWL_UCODE_WOWLAN) {
+		ret = iwl_verify_ucode(priv, image);
+		if (ret) {
+			priv->ucode_type = old_type;
+			return ret;
+		}
 
-	/* delay a bit to give rfkill time to run */
-	msleep(5);
+		/* delay a bit to give rfkill time to run */
+		msleep(5);
+	}
 
 	ret = iwlagn_alive_notify(priv);
 	if (ret) {

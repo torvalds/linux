@@ -1903,8 +1903,12 @@ int iwl_suspend(struct iwl_priv *priv)
 	 * first but since iwl_mac_stop() has no knowledge of who the caller is,
 	 * it will not call apm_ops.stop() to stop the DMA operation.
 	 * Calling apm_ops.stop here to make sure we stop the DMA.
+	 *
+	 * But of course ... if we have configured WoWLAN then we did other
+	 * things already :-)
 	 */
-	iwl_apm_stop(priv);
+	if (!priv->wowlan)
+		iwl_apm_stop(priv);
 
 	return 0;
 }

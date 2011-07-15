@@ -855,6 +855,9 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 				iwl_wake_any_queue(priv, ctx);
 			}
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+
+			if (ctx->ctxid == IWL_RXON_CTX_BSS)
+				priv->have_rekey_data = false;
 		}
 
 		iwlagn_bt_coex_rssi_monitor(priv);

@@ -188,6 +188,13 @@ enum {
 	REPLY_WIPAN_NOA_NOTIFICATION = 0xbc,
 	REPLY_WIPAN_DEACTIVATION_COMPLETE = 0xbd,
 
+	REPLY_WOWLAN_PATTERNS = 0xe0,
+	REPLY_WOWLAN_WAKEUP_FILTER = 0xe1,
+	REPLY_WOWLAN_TSC_RSC_PARAMS = 0xe2,
+	REPLY_WOWLAN_TKIP_PARAMS = 0xe3,
+	REPLY_WOWLAN_KEK_KCK_MATERIAL = 0xe4,
+	REPLY_WOWLAN_GET_STATUS = 0xe5,
+
 	REPLY_MAX = 0xff
 };
 
@@ -3763,6 +3770,127 @@ struct iwl_bt_coex_prot_env_cmd {
 	u8 type; /* 0 .. 15 */
 	u8 reserved[2];
 } __attribute__((packed));
+
+/*
+ * REPLY_WOWLAN_PATTERNS
+ */
+#define IWLAGN_WOWLAN_MIN_PATTERN_LEN	16
+#define IWLAGN_WOWLAN_MAX_PATTERN_LEN	128
+
+struct iwlagn_wowlan_pattern {
+	u8 mask[IWLAGN_WOWLAN_MAX_PATTERN_LEN / 8];
+	u8 pattern[IWLAGN_WOWLAN_MAX_PATTERN_LEN];
+	u8 mask_size;
+	u8 pattern_size;
+	__le16 reserved;
+} __packed;
+
+#define IWLAGN_WOWLAN_MAX_PATTERNS	20
+
+struct iwlagn_wowlan_patterns_cmd {
+	__le32 n_patterns;
+	struct iwlagn_wowlan_pattern patterns[];
+} __packed;
+
+/*
+ * REPLY_WOWLAN_WAKEUP_FILTER
+ */
+enum iwlagn_wowlan_wakeup_filters {
+	IWLAGN_WOWLAN_WAKEUP_MAGIC_PACKET	= BIT(0),
+	IWLAGN_WOWLAN_WAKEUP_PATTERN_MATCH	= BIT(1),
+	IWLAGN_WOWLAN_WAKEUP_BEACON_MISS	= BIT(2),
+	IWLAGN_WOWLAN_WAKEUP_LINK_CHANGE	= BIT(3),
+	IWLAGN_WOWLAN_WAKEUP_GTK_REKEY_FAIL	= BIT(4),
+	IWLAGN_WOWLAN_WAKEUP_RFKILL		= BIT(5),
+	IWLAGN_WOWLAN_WAKEUP_UCODE_ERROR	= BIT(6),
+	IWLAGN_WOWLAN_WAKEUP_EAP_IDENT_REQ	= BIT(7),
+	IWLAGN_WOWLAN_WAKEUP_4WAY_HANDSHAKE	= BIT(8),
+	IWLAGN_WOWLAN_WAKEUP_ALWAYS		= BIT(9),
+	IWLAGN_WOWLAN_WAKEUP_ENABLE_NET_DETECT	= BIT(10),
+};
+
+struct iwlagn_wowlan_wakeup_filter_cmd {
+	__le32 enabled;
+	__le16 non_qos_seq;
+	u8 min_sleep_seconds;
+	u8 reserved;
+	__le16 qos_seq[8];
+};
+
+/*
+ * REPLY_WOWLAN_TSC_RSC_PARAMS
+ */
+#define IWLAGN_NUM_RSC	16
+
+struct tkip_sc {
+	__le16 iv16;
+	__le16 pad;
+	__le32 iv32;
+} __packed;
+
+struct iwlagn_tkip_rsc_tsc {
+	struct tkip_sc unicast_rsc[IWLAGN_NUM_RSC];
+	struct tkip_sc multicast_rsc[IWLAGN_NUM_RSC];
+	struct tkip_sc tsc;
+} __packed;
+
+struct aes_sc {
+	__le64 pn;
+} __packed;
+
+struct iwlagn_aes_rsc_tsc {
+	struct aes_sc unicast_rsc[IWLAGN_NUM_RSC];
+	struct aes_sc multicast_rsc[IWLAGN_NUM_RSC];
+	struct aes_sc tsc;
+} __packed;
+
+union iwlagn_all_tsc_rsc {
+	struct iwlagn_tkip_rsc_tsc tkip;
+	struct iwlagn_aes_rsc_tsc aes;
+};
+
+struct iwlagn_wowlan_rsc_tsc_params_cmd {
+	union iwlagn_all_tsc_rsc all_tsc_rsc;
+} __packed;
+
+/*
+ * REPLY_WOWLAN_TKIP_PARAMS
+ */
+#define IWLAGN_MIC_KEY_SIZE	8
+#define IWLAGN_P1K_SIZE		5
+struct iwlagn_mic_keys {
+	u8 tx[IWLAGN_MIC_KEY_SIZE];
+	u8 rx_unicast[IWLAGN_MIC_KEY_SIZE];
+	u8 rx_mcast[IWLAGN_MIC_KEY_SIZE];
+} __packed;
+
+struct iwlagn_p1k_cache {
+	__le16 p1k[IWLAGN_P1K_SIZE];
+} __packed;
+
+#define IWLAGN_NUM_RX_P1K_CACHE	2
+
+struct iwlagn_wowlan_tkip_params_cmd {
+	struct iwlagn_mic_keys mic_keys;
+	struct iwlagn_p1k_cache tx;
+	struct iwlagn_p1k_cache rx_uni[IWLAGN_NUM_RX_P1K_CACHE];
+	struct iwlagn_p1k_cache rx_multi[IWLAGN_NUM_RX_P1K_CACHE];
+} __packed;
+
+/*
+ * REPLY_WOWLAN_KEK_KCK_MATERIAL
+ */
+
+#define IWLAGN_KCK_MAX_SIZE	32
+#define IWLAGN_KEK_MAX_SIZE	32
+
+struct iwlagn_wowlan_kek_kck_material_cmd {
+	u8	kck[IWLAGN_KCK_MAX_SIZE];
+	u8	kek[IWLAGN_KEK_MAX_SIZE];
+	__le16	kck_len;
+	__le16	kek_len;
+	__le64	replay_ctr;
+} __packed;
 
 /******************************************************************************
  * (13)
