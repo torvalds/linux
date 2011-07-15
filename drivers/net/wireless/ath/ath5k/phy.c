@@ -561,7 +561,7 @@ static s8 ath5k_hw_rf_gainf_adjust(struct ath5k_hw *ah)
 	}
 
 done:
-	ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+	ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
 		"ret %d, gain step %u, current gain %u, target gain %u\n",
 		ret, ah->ah_gain.g_step_idx, ah->ah_gain.g_current,
 		ah->ah_gain.g_target);
@@ -773,7 +773,7 @@ static int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 		ah->ah_rf_banks = kmalloc(sizeof(u32) * ah->ah_rf_banks_size,
 								GFP_KERNEL);
 		if (ah->ah_rf_banks == NULL) {
-			ATH5K_ERR(ah->ah_sc, "out of memory\n");
+			ATH5K_ERR(ah, "out of memory\n");
 			return -ENOMEM;
 		}
 	}
@@ -783,7 +783,7 @@ static int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 
 	for (i = 0; i < ah->ah_rf_banks_size; i++) {
 		if (ini_rfb[i].rfb_bank >= AR5K_MAX_RF_BANKS) {
-			ATH5K_ERR(ah->ah_sc, "invalid bank\n");
+			ATH5K_ERR(ah, "invalid bank\n");
 			return -EINVAL;
 		}
 
@@ -1268,7 +1268,7 @@ static int ath5k_hw_channel(struct ath5k_hw *ah,
 	 * (CHANNEL_2GHZ, or CHANNEL_5GHZ) so we inform ath5k_channel_ok()
 	 * of the band by that */
 	if (!ath5k_channel_ok(ah, channel->center_freq, channel->hw_value)) {
-		ATH5K_ERR(ah->ah_sc,
+		ATH5K_ERR(ah,
 			"channel frequency (%u MHz) out of supported "
 			"band range\n",
 			channel->center_freq);
@@ -1356,7 +1356,7 @@ static s16 ath5k_hw_get_median_noise_floor(struct ath5k_hw *ah)
 		}
 	}
 	for (i = 0; i < ATH5K_NF_CAL_HIST_MAX; i++) {
-		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+		ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
 			"cal %d:%d\n", i, sort[i]);
 	}
 	return sort[(ATH5K_NF_CAL_HIST_MAX - 1) / 2];
@@ -1382,7 +1382,7 @@ void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 
 	/* keep last value if calibration hasn't completed */
 	if (ath5k_hw_reg_read(ah, AR5K_PHY_AGCCTL) & AR5K_PHY_AGCCTL_NF) {
-		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+		ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
 			"NF did not complete in calibration window\n");
 
 		return;
@@ -1395,7 +1395,7 @@ void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 	threshold = ee->ee_noise_floor_thr[ee_mode];
 
 	if (nf > threshold) {
-		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+		ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
 			"noise floor failure detected; "
 			"read %d, threshold %d\n",
 			nf, threshold);
@@ -1432,7 +1432,7 @@ void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 
 	ah->ah_noise_floor = nf;
 
-	ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+	ATH5K_DBG(ah, ATH5K_DEBUG_CALIBRATE,
 		"noise floor calibrated: %d\n", nf);
 }
 
@@ -1520,7 +1520,7 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 	ath5k_hw_reg_write(ah, phy_sat, AR5K_PHY_ADCSAT);
 
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "calibration timeout (%uMHz)\n",
+		ATH5K_ERR(ah, "calibration timeout (%uMHz)\n",
 				channel->center_freq);
 		return ret;
 	}
@@ -1555,7 +1555,7 @@ ath5k_hw_rf511x_iq_calibrate(struct ath5k_hw *ah)
 		iq_corr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_CORR);
 		i_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_I);
 		q_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_Q);
-		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+		ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_CALIBRATE,
 			"iq_corr:%x i_pwr:%x q_pwr:%x", iq_corr, i_pwr, q_pwr);
 		if (i_pwr && q_pwr)
 			break;
@@ -1581,7 +1581,7 @@ ath5k_hw_rf511x_iq_calibrate(struct ath5k_hw *ah)
 		q_coff = (i_pwr / q_coffd) - 128;
 	q_coff = clamp(q_coff, -16, 15); /* signed 5 bit */
 
-	ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+	ATH5K_DBG_UNLIMIT(ah, ATH5K_DEBUG_CALIBRATE,
 			"new I:%d Q:%d (i_coffd:%x q_coffd:%x)",
 			i_coff, q_coff, i_coffd, q_coffd);
 
@@ -1966,7 +1966,7 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 
 	ee_mode = ath5k_eeprom_mode_from_channel(channel);
 	if (ee_mode < 0) {
-		ATH5K_ERR(ah->ah_sc,
+		ATH5K_ERR(ah,
 			"invalid channel: %d\n", channel->center_freq);
 		return;
 	}
@@ -3122,13 +3122,13 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	int ret;
 
 	if (txpower > AR5K_TUNE_MAX_TXPOWER) {
-		ATH5K_ERR(ah->ah_sc, "invalid tx power: %u\n", txpower);
+		ATH5K_ERR(ah, "invalid tx power: %u\n", txpower);
 		return -EINVAL;
 	}
 
 	ee_mode = ath5k_eeprom_mode_from_channel(channel);
 	if (ee_mode < 0) {
-		ATH5K_ERR(ah->ah_sc,
+		ATH5K_ERR(ah,
 			"invalid channel: %d\n", channel->center_freq);
 		return -EINVAL;
 	}
@@ -3229,7 +3229,7 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 
 int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 {
-	ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_TXPOWER,
+	ATH5K_DBG(ah, ATH5K_DEBUG_TXPOWER,
 		"changing txpower to %d\n", txpower);
 
 	return ath5k_hw_txpower(ah, ah->ah_current_channel, txpower);
@@ -3440,7 +3440,7 @@ int ath5k_hw_phy_init(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	 * during ath5k_phy_calibrate) */
 	if (ath5k_hw_register_timeout(ah, AR5K_PHY_AGCCTL,
 			AR5K_PHY_AGCCTL_CAL, 0, false)) {
-		ATH5K_ERR(ah->ah_sc, "gain calibration timeout (%uMHz)\n",
+		ATH5K_ERR(ah, "gain calibration timeout (%uMHz)\n",
 			channel->center_freq);
 	}
 

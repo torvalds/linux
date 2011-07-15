@@ -390,7 +390,7 @@ static int ath5k_hw_wisoc_reset(struct ath5k_hw *ah, u32 flags)
 	u32 val = 0;
 
 	/* ah->ah_mac_srev is not available at this point yet */
-	if (ah->ah_sc->devid >= AR5K_SREV_AR2315_R6) {
+	if (ah->devid >= AR5K_SREV_AR2315_R6) {
 		reg = (u32 __iomem *) AR5K_AR2315_RESET;
 		if (mask & AR5K_RESET_CTL_PCU)
 			val |= AR5K_AR2315_RESET_WMAC;
@@ -398,7 +398,7 @@ static int ath5k_hw_wisoc_reset(struct ath5k_hw *ah, u32 flags)
 			val |= AR5K_AR2315_RESET_BB_WARM;
 	} else {
 		reg = (u32 __iomem *) AR5K_AR5312_RESET;
-		if (to_platform_device(ah->ah_sc->dev)->id == 0) {
+		if (to_platform_device(ah->dev)->id == 0) {
 			if (mask & AR5K_RESET_CTL_PCU)
 				val |= AR5K_AR5312_RESET_WMAC0;
 			if (mask & AR5K_RESET_CTL_BASEBAND)
@@ -530,7 +530,7 @@ commit:
  */
 int ath5k_hw_on_hold(struct ath5k_hw *ah)
 {
-	struct pci_dev *pdev = ah->ah_sc->pdev;
+	struct pci_dev *pdev = ah->pdev;
 	u32 bus_flags;
 	int ret;
 
@@ -540,7 +540,7 @@ int ath5k_hw_on_hold(struct ath5k_hw *ah)
 	/* Make sure device is awake */
 	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to wakeup the MAC Chip\n");
+		ATH5K_ERR(ah, "failed to wakeup the MAC Chip\n");
 		return ret;
 	}
 
@@ -565,14 +565,14 @@ int ath5k_hw_on_hold(struct ath5k_hw *ah)
 	}
 
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to put device on warm reset\n");
+		ATH5K_ERR(ah, "failed to put device on warm reset\n");
 		return -EIO;
 	}
 
 	/* ...wakeup again!*/
 	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to put device on hold\n");
+		ATH5K_ERR(ah, "failed to put device on hold\n");
 		return ret;
 	}
 
@@ -584,7 +584,7 @@ int ath5k_hw_on_hold(struct ath5k_hw *ah)
  */
 int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 {
-	struct pci_dev *pdev = ah->ah_sc->pdev;
+	struct pci_dev *pdev = ah->pdev;
 	u32 turbo, mode, clock, bus_flags;
 	int ret;
 
@@ -596,7 +596,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 		/* Wakeup the device */
 		ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
 		if (ret) {
-			ATH5K_ERR(ah->ah_sc, "failed to wakeup the MAC Chip\n");
+			ATH5K_ERR(ah, "failed to wakeup the MAC Chip\n");
 			return ret;
 		}
 	}
@@ -626,14 +626,14 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 	}
 
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to reset the MAC Chip\n");
+		ATH5K_ERR(ah, "failed to reset the MAC Chip\n");
 		return -EIO;
 	}
 
 	/* ...wakeup again!...*/
 	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to resume the MAC Chip\n");
+		ATH5K_ERR(ah, "failed to resume the MAC Chip\n");
 		return ret;
 	}
 
@@ -646,7 +646,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 		ret = ath5k_hw_nic_reset(ah, 0);
 
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc, "failed to warm reset the MAC Chip\n");
+		ATH5K_ERR(ah, "failed to warm reset the MAC Chip\n");
 		return -EIO;
 	}
 
@@ -687,7 +687,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 				else
 					mode |= AR5K_PHY_MODE_MOD_DYN;
 			} else {
-				ATH5K_ERR(ah->ah_sc,
+				ATH5K_ERR(ah,
 					"invalid radio modulation mode\n");
 				return -EINVAL;
 			}
@@ -703,12 +703,12 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 			if (flags & CHANNEL_OFDM)
 				mode |= AR5K_PHY_MODE_MOD_OFDM;
 			else {
-				ATH5K_ERR(ah->ah_sc,
+				ATH5K_ERR(ah,
 					"invalid radio modulation mode\n");
 				return -EINVAL;
 			}
 		} else {
-			ATH5K_ERR(ah->ah_sc, "invalid radio frequency mode\n");
+			ATH5K_ERR(ah, "invalid radio frequency mode\n");
 			return -EINVAL;
 		}
 
@@ -1076,7 +1076,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	/* RF Bus grant won't work if we have pending
 	 * frames */
 	if (ret && fast) {
-		ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_RESET,
+		ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
 			"DMA didn't stop, falling back to normal reset\n");
 		fast = 0;
 		/* Non fatal, just continue with
@@ -1091,7 +1091,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	case CHANNEL_G:
 
 		if (ah->ah_version <= AR5K_AR5211) {
-			ATH5K_ERR(ah->ah_sc,
+			ATH5K_ERR(ah,
 				"G mode not available on 5210/5211");
 			return -EINVAL;
 		}
@@ -1101,7 +1101,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	case CHANNEL_B:
 
 		if (ah->ah_version < AR5K_AR5211) {
-			ATH5K_ERR(ah->ah_sc,
+			ATH5K_ERR(ah,
 				"B mode not available on 5210");
 			return -EINVAL;
 		}
@@ -1110,14 +1110,14 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		break;
 	case CHANNEL_XR:
 		if (ah->ah_version == AR5K_AR5211) {
-			ATH5K_ERR(ah->ah_sc,
+			ATH5K_ERR(ah,
 				"XR mode not available on 5211");
 			return -EINVAL;
 		}
 		mode = AR5K_MODE_XR;
 		break;
 	default:
-		ATH5K_ERR(ah->ah_sc,
+		ATH5K_ERR(ah,
 			"invalid channel: %d\n", channel->center_freq);
 		return -EINVAL;
 	}
@@ -1129,13 +1129,13 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	if (fast) {
 		ret = ath5k_hw_phy_init(ah, channel, mode, true);
 		if (ret) {
-			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_RESET,
+			ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
 				"fast chan change failed, falling back to normal reset\n");
 			/* Non fatal, can happen eg.
 			 * on mode change */
 			ret = 0;
 		} else {
-			ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_RESET,
+			ATH5K_DBG(ah, ATH5K_DEBUG_RESET,
 				"fast chan change successful\n");
 			return 0;
 		}
@@ -1268,7 +1268,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 */
 	ret = ath5k_hw_phy_init(ah, channel, mode, false);
 	if (ret) {
-		ATH5K_ERR(ah->ah_sc,
+		ATH5K_ERR(ah,
 			"failed to initialize PHY (%i) !\n", ret);
 		return ret;
 	}
