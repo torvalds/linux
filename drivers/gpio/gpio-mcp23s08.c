@@ -1,11 +1,12 @@
 /*
- * MCP23S08 SPI gpio expander driver
+ * MCP23S08 SPI/GPIO gpio expander driver
  */
 
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/gpio.h>
+#include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/mcp23s08.h>
 #include <linux/slab.h>
@@ -16,13 +17,13 @@
  */
 #define MCP_TYPE_S08	0
 #define MCP_TYPE_S17	1
+#define MCP_TYPE_008	2
+#define MCP_TYPE_017	3
 
 /* Registers are all 8 bits wide.
  *
  * The mcp23s17 has twice as many bits, and can be configured to work
  * with either 16 bit registers or with two adjacent 8 bit banks.
- *
- * Also, there are I2C versions of both chips.
  */
 #define MCP_IODIR	0x00		/* init/reset:  all ones */
 #define MCP_IPOL	0x01
@@ -72,6 +73,72 @@ struct mcp23s08_driver_data {
 	struct mcp23s08		*mcp[8];
 	struct mcp23s08		chip[];
 };
+
+/*----------------------------------------------------------------------*/
+
+#ifdef CONFIG_I2C
+
+static int mcp23008_read(struct mcp23s08 *mcp, unsigned reg)
+{
+	return i2c_smbus_read_byte_data(mcp->data, reg);
+}
+
+static int mcp23008_write(struct mcp23s08 *mcp, unsigned reg, unsigned val)
+{
+	return i2c_smbus_write_byte_data(mcp->data, reg, val);
+}
+
+static int
+mcp23008_read_regs(struct mcp23s08 *mcp, unsigned reg, u16 *vals, unsigned n)
+{
+	while (n--) {
+		int ret = mcp23008_read(mcp, reg++);
+		if (ret < 0)
+			return ret;
+		*vals++ = ret;
+	}
+
+	return 0;
+}
+
+static int mcp23017_read(struct mcp23s08 *mcp, unsigned reg)
+{
+	return i2c_smbus_read_word_data(mcp->data, reg << 1);
+}
+
+static int mcp23017_write(struct mcp23s08 *mcp, unsigned reg, unsigned val)
+{
+	return i2c_smbus_write_word_data(mcp->data, reg << 1, val);
+}
+
+static int
+mcp23017_read_regs(struct mcp23s08 *mcp, unsigned reg, u16 *vals, unsigned n)
+{
+	while (n--) {
+		int ret = mcp23017_read(mcp, reg++);
+		if (ret < 0)
+			return ret;
+		*vals++ = ret;
+	}
+
+	return 0;
+}
+
+static const struct mcp23s08_ops mcp23008_ops = {
+	.read		= mcp23008_read,
+	.write		= mcp23008_write,
+	.read_regs	= mcp23008_read_regs,
+};
+
+static const struct mcp23s08_ops mcp23017_ops = {
+	.read		= mcp23017_read,
+	.write		= mcp23017_write,
+	.read_regs	= mcp23017_read_regs,
+};
+
+#endif /* CONFIG_I2C */
+
+/*----------------------------------------------------------------------*/
 
 #ifdef CONFIG_SPI_MASTER
 
@@ -331,6 +398,20 @@ static int mcp23s08_probe_one(struct mcp23s08 *mcp, struct device *dev,
 		break;
 #endif /* CONFIG_SPI_MASTER */
 
+#ifdef CONFIG_I2C
+	case MCP_TYPE_008:
+		mcp->ops = &mcp23008_ops;
+		mcp->chip.ngpio = 8;
+		mcp->chip.label = "mcp23008";
+		break;
+
+	case MCP_TYPE_017:
+		mcp->ops = &mcp23017_ops;
+		mcp->chip.ngpio = 16;
+		mcp->chip.label = "mcp23017";
+		break;
+#endif /* CONFIG_I2C */
+
 	default:
 		dev_err(dev, "invalid device type (%d)\n", type);
 		return -EINVAL;
@@ -388,6 +469,91 @@ fail:
 			addr, status);
 	return status;
 }
+
+/*----------------------------------------------------------------------*/
+
+#ifdef CONFIG_I2C
+
+static int __devinit mcp230xx_probe(struct i2c_client *client,
+				    const struct i2c_device_id *id)
+{
+	struct mcp23s08_platform_data *pdata;
+	struct mcp23s08 *mcp;
+	int status;
+
+	pdata = client->dev.platform_data;
+	if (!pdata || !gpio_is_valid(pdata->base)) {
+		dev_dbg(&client->dev, "invalid or missing platform data\n");
+		return -EINVAL;
+	}
+
+	mcp = kzalloc(sizeof *mcp, GFP_KERNEL);
+	if (!mcp)
+		return -ENOMEM;
+
+	status = mcp23s08_probe_one(mcp, &client->dev, client, client->addr,
+				    id->driver_data, pdata->base,
+				    pdata->chip[0].pullups);
+	if (status)
+		goto fail;
+
+	i2c_set_clientdata(client, mcp);
+
+	return 0;
+
+fail:
+	kfree(mcp);
+
+	return status;
+}
+
+static int __devexit mcp230xx_remove(struct i2c_client *client)
+{
+	struct mcp23s08 *mcp = i2c_get_clientdata(client);
+	int status;
+
+	status = gpiochip_remove(&mcp->chip);
+	if (status == 0)
+		kfree(mcp);
+
+	return status;
+}
+
+static const struct i2c_device_id mcp230xx_id[] = {
+	{ "mcp23008", MCP_TYPE_008 },
+	{ "mcp23017", MCP_TYPE_017 },
+	{ },
+};
+MODULE_DEVICE_TABLE(i2c, mcp230xx_id);
+
+static struct i2c_driver mcp230xx_driver = {
+	.driver = {
+		.name	= "mcp230xx",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= mcp230xx_probe,
+	.remove		= __devexit_p(mcp230xx_remove),
+	.id_table	= mcp230xx_id,
+};
+
+static int __init mcp23s08_i2c_init(void)
+{
+	return i2c_add_driver(&mcp230xx_driver);
+}
+
+static void mcp23s08_i2c_exit(void)
+{
+	i2c_del_driver(&mcp230xx_driver);
+}
+
+#else
+
+static int __init mcp23s08_i2c_init(void) { return 0; }
+static void mcp23s08_i2c_exit(void) { }
+
+#endif /* CONFIG_I2C */
+
+/*----------------------------------------------------------------------*/
 
 #ifdef CONFIG_SPI_MASTER
 
@@ -525,9 +691,24 @@ static void mcp23s08_spi_exit(void) { }
 
 static int __init mcp23s08_init(void)
 {
-	return mcp23s08_spi_init();
+	int ret;
+
+	ret = mcp23s08_spi_init();
+	if (ret)
+		goto spi_fail;
+
+	ret = mcp23s08_i2c_init();
+	if (ret)
+		goto i2c_fail;
+
+	return 0;
+
+ i2c_fail:
+	mcp23s08_spi_exit();
+ spi_fail:
+	return ret;
 }
-/* register after spi postcore initcall and before
+/* register after spi/i2c postcore initcall and before
  * subsys initcalls that may rely on these GPIOs
  */
 subsys_initcall(mcp23s08_init);
@@ -535,6 +716,7 @@ subsys_initcall(mcp23s08_init);
 static void __exit mcp23s08_exit(void)
 {
 	mcp23s08_spi_exit();
+	mcp23s08_i2c_exit();
 }
 module_exit(mcp23s08_exit);
 

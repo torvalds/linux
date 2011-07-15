@@ -412,10 +412,11 @@ config GPIO_MAX7301
 	  GPIO driver for Maxim MAX7301 SPI-based GPIO expander.
 
 config GPIO_MCP23S08
-	tristate "Microchip MCP23Sxx I/O expander"
-	depends on SPI_MASTER
+	tristate "Microchip MCP23xxx I/O expander"
+	depends on SPI_MASTER || I2C
 	help
-	  SPI driver for Microchip MCP23S08/MPC23S17 I/O expanders.
+	  SPI/I2C driver for Microchip MCP23S08/MCP23S17/MCP23008/MCP23017
+	  I/O expanders.
 	  This provides a GPIO interface supporting inputs and outputs.
 
 config GPIO_MC33880
