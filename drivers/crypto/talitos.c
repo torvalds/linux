@@ -302,9 +302,6 @@ static int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
 	unsigned long flags;
 	int head;
 
-	/* select done notification */
-	desc->hdr |= DESC_HDR_DONE_NOTIFY;
-
 	spin_lock_irqsave(&priv->chan[ch].head_lock, flags);
 
 	if (!atomic_inc_not_zero(&priv->chan[ch].submit_count)) {
@@ -2263,6 +2260,9 @@ static int talitos_cra_init(struct crypto_tfm *tfm)
 
 	/* copy descriptor header template value */
 	ctx->desc_hdr_template = talitos_alg->algt.desc_hdr_template;
+
+	/* select done notification */
+	ctx->desc_hdr_template |= DESC_HDR_DONE_NOTIFY;
 
 	return 0;
 }
