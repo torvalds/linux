@@ -1378,22 +1378,11 @@ static int ablkcipher_setkey(struct crypto_ablkcipher *cipher,
 			     const u8 *key, unsigned int keylen)
 {
 	struct talitos_ctx *ctx = crypto_ablkcipher_ctx(cipher);
-	struct ablkcipher_alg *alg = crypto_ablkcipher_alg(cipher);
-
-	if (keylen > TALITOS_MAX_KEY_SIZE)
-		goto badkey;
-
-	if (keylen < alg->min_keysize || keylen > alg->max_keysize)
-		goto badkey;
 
 	memcpy(&ctx->key, key, keylen);
 	ctx->keylen = keylen;
 
 	return 0;
-
-badkey:
-	crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-	return -EINVAL;
 }
 
 static void common_nonsnoop_unmap(struct device *dev,
