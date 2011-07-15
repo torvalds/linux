@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <asm/unaligned.h>
 #include "htc.h"
 
 /* identify firmware images */
@@ -557,8 +558,8 @@ static void ath9k_hif_usb_rx_stream(struct hif_device_usb *hif_dev,
 
 		ptr = (u8 *) skb->data;
 
-		pkt_len = ptr[index] + (ptr[index+1] << 8);
-		pkt_tag = ptr[index+2] + (ptr[index+3] << 8);
+		pkt_len = get_unaligned_le16(ptr + index);
+		pkt_tag = get_unaligned_le16(ptr + index + 2);
 
 		if (pkt_tag != ATH_USB_RX_STREAM_MODE_TAG) {
 			RX_STAT_INC(skb_dropped);

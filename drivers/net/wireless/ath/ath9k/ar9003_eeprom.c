@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <asm/unaligned.h>
 #include "hw.h"
 #include "ar9003_phy.h"
 #include "ar9003_eeprom.h"
@@ -3006,11 +3007,11 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 
 	switch (param) {
 	case EEP_MAC_LSW:
-		return eep->macAddr[0] << 8 | eep->macAddr[1];
+		return get_unaligned_be16(eep->macAddr);
 	case EEP_MAC_MID:
-		return eep->macAddr[2] << 8 | eep->macAddr[3];
+		return get_unaligned_be16(eep->macAddr + 2);
 	case EEP_MAC_MSW:
-		return eep->macAddr[4] << 8 | eep->macAddr[5];
+		return get_unaligned_be16(eep->macAddr + 4);
 	case EEP_REG_0:
 		return le16_to_cpu(pBase->regDmn[0]);
 	case EEP_REG_1:
@@ -3380,8 +3381,7 @@ found:
 		osize = length;
 		read(ah, cptr, word, COMP_HDR_LEN + osize + COMP_CKSUM_LEN);
 		checksum = ar9300_comp_cksum(&word[COMP_HDR_LEN], length);
-		mchecksum = word[COMP_HDR_LEN + osize] |
-		    (word[COMP_HDR_LEN + osize + 1] << 8);
+		mchecksum = get_unaligned_le16(&word[COMP_HDR_LEN + osize]);
 		ath_dbg(common, ATH_DBG_EEPROM,
 			"checksum %x %x\n", checksum, mchecksum);
 		if (checksum == mchecksum) {
