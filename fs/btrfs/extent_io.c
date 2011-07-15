@@ -2421,6 +2421,7 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 	pgoff_t index;
 	pgoff_t end;		/* Inclusive */
 	int scanned = 0;
+	int tag;
 
 	pagevec_init(&pvec, 0);
 	if (wbc->range_cyclic) {
@@ -2431,11 +2432,16 @@ static int extent_write_cache_pages(struct extent_io_tree *tree,
 		end = wbc->range_end >> PAGE_CACHE_SHIFT;
 		scanned = 1;
 	}
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		tag = PAGECACHE_TAG_TOWRITE;
+	else
+		tag = PAGECACHE_TAG_DIRTY;
 retry:
+	if (wbc->sync_mode == WB_SYNC_ALL)
+		tag_pages_for_writeback(mapping, index, end);
 	while (!done && !nr_to_write_done && (index <= end) &&
-	       (nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
-			      PAGECACHE_TAG_DIRTY, min(end - index,
-				  (pgoff_t)PAGEVEC_SIZE-1) + 1))) {
+	       (nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
+			min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1))) {
 		unsigned i;
 
 		scanned = 1;
