@@ -768,7 +768,7 @@ MODULE_DEVICE_TABLE(pci, microsoft_hv_pci_table);
 
 static int __init hv_acpi_init(void)
 {
-	int ret;
+	int ret, t;
 
 	init_completion(&probe_event);
 
@@ -781,16 +781,25 @@ static int __init hv_acpi_init(void)
 	if (ret)
 		return ret;
 
-	wait_for_completion(&probe_event);
+	t = wait_for_completion_timeout(&probe_event, 5*HZ);
+	if (t == 0) {
+		ret = -ETIMEDOUT;
+		goto cleanup;
+	}
 
 	if (irq <= 0) {
-		acpi_bus_unregister_driver(&vmbus_acpi_driver);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto cleanup;
 	}
 
 	ret = vmbus_bus_init(irq);
 	if (ret)
-		acpi_bus_unregister_driver(&vmbus_acpi_driver);
+		goto cleanup;
+
+	return 0;
+
+cleanup:
+	acpi_bus_unregister_driver(&vmbus_acpi_driver);
 	return ret;
 }
 
