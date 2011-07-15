@@ -1516,6 +1516,12 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 
 	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
+	/* Populate MSIX to EITR Select */
+	if (adapter->num_vfs > 32) {
+		u32 eitrsel = (1 << (adapter->num_vfs - 32)) - 1;
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITRSEL, eitrsel);
+	}
+
 	/*
 	 * Populate the IVAR table and set the ITR values to the
 	 * corresponding register.
@@ -2130,11 +2136,6 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 		ixgbe_irq_enable_queues(adapter, ~0);
 	if (flush)
 		IXGBE_WRITE_FLUSH(&adapter->hw);
-
-	if (adapter->num_vfs > 32) {
-		u32 eitrsel = (1 << (adapter->num_vfs - 32)) - 1;
-		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITRSEL, eitrsel);
-	}
 }
 
 /**
@@ -2313,8 +2314,6 @@ static inline void ixgbe_irq_disable(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, 0xFFFF0000);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(0), ~0);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC_EX(1), ~0);
-		if (adapter->num_vfs > 32)
-			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITRSEL, 0);
 		break;
 	default:
 		break;
@@ -3863,17 +3862,19 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 	del_timer_sync(&adapter->service_timer);
 
-	/* disable receive for all VFs and wait one second */
 	if (adapter->num_vfs) {
+		/* Clear EITR Select mapping */
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITRSEL, 0);
+
+		/* Mark all the VFs as inactive */
+		for (i = 0 ; i < adapter->num_vfs; i++)
+			adapter->vfinfo[i].clear_to_send = 0;
+
 		/* ping all the active vfs to let them know we are going down */
 		ixgbe_ping_all_vfs(adapter);
 
 		/* Disable all VFTE/VFRE TX/RX */
 		ixgbe_disable_tx_rx(adapter);
-
-		/* Mark all the VFs as inactive */
-		for (i = 0 ; i < adapter->num_vfs; i++)
-			adapter->vfinfo[i].clear_to_send = 0;
 	}
 
 	/* disable transmits in the hardware now that interrupts are off */
