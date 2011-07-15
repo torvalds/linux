@@ -624,8 +624,8 @@ static void iwl_rx_statistics(struct iwl_priv *priv,
 		iwl_rx_calc_noise(priv);
 		queue_work(priv->workqueue, &priv->run_time_calib_work);
 	}
-	if (priv->cfg->ops->lib->temp_ops.temperature && change)
-		priv->cfg->ops->lib->temp_ops.temperature(priv);
+	if (priv->cfg->ops->lib->temperature && change)
+		priv->cfg->ops->lib->temperature(priv);
 }
 
 static void iwl_rx_reply_statistics(struct iwl_priv *priv,
@@ -902,6 +902,47 @@ static u32 iwl_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)
 	return decrypt_out;
 }
 
+/* Calc max signal level (dBm) among 3 possible receivers */
+static int iwlagn_calc_rssi(struct iwl_priv *priv,
+			     struct iwl_rx_phy_res *rx_resp)
+{
+	/* data from PHY/DSP regarding signal strength, etc.,
+	 *   contents are always there, not configurable by host
+	 */
+	struct iwlagn_non_cfg_phy *ncphy =
+		(struct iwlagn_non_cfg_phy *)rx_resp->non_cfg_phy_buf;
+	u32 val, rssi_a, rssi_b, rssi_c, max_rssi;
+	u8 agc;
+
+	val  = le32_to_cpu(ncphy->non_cfg_phy[IWLAGN_RX_RES_AGC_IDX]);
+	agc = (val & IWLAGN_OFDM_AGC_MSK) >> IWLAGN_OFDM_AGC_BIT_POS;
+
+	/* Find max rssi among 3 possible receivers.
+	 * These values are measured by the digital signal processor (DSP).
+	 * They should stay fairly constant even as the signal strength varies,
+	 *   if the radio's automatic gain control (AGC) is working right.
+	 * AGC value (see below) will provide the "interesting" info.
+	 */
+	val = le32_to_cpu(ncphy->non_cfg_phy[IWLAGN_RX_RES_RSSI_AB_IDX]);
+	rssi_a = (val & IWLAGN_OFDM_RSSI_INBAND_A_BITMSK) >>
+		IWLAGN_OFDM_RSSI_A_BIT_POS;
+	rssi_b = (val & IWLAGN_OFDM_RSSI_INBAND_B_BITMSK) >>
+		IWLAGN_OFDM_RSSI_B_BIT_POS;
+	val = le32_to_cpu(ncphy->non_cfg_phy[IWLAGN_RX_RES_RSSI_C_IDX]);
+	rssi_c = (val & IWLAGN_OFDM_RSSI_INBAND_C_BITMSK) >>
+		IWLAGN_OFDM_RSSI_C_BIT_POS;
+
+	max_rssi = max_t(u32, rssi_a, rssi_b);
+	max_rssi = max_t(u32, max_rssi, rssi_c);
+
+	IWL_DEBUG_STATS(priv, "Rssi In A %d B %d C %d Max %d AGC dB %d\n",
+		rssi_a, rssi_b, rssi_c, max_rssi, agc);
+
+	/* dBm = max_rssi dB - agc dB - constant.
+	 * Higher AGC (higher radio gain) means lower signal. */
+	return max_rssi - agc - IWLAGN_RSSI_OFFSET;
+}
+
 /* Called for REPLY_RX (legacy ABG frames), or
  * REPLY_RX_MPDU_CMD (HT high-throughput N frames). */
 static void iwl_rx_reply_rx(struct iwl_priv *priv,
@@ -983,7 +1024,7 @@ static void iwl_rx_reply_rx(struct iwl_priv *priv,
 	priv->ucode_beacon_time = le32_to_cpu(phy_res->beacon_time_stamp);
 
 	/* Find max signal strength (dBm) among 3 antenna/receiver chains */
-	rx_status.signal = priv->cfg->ops->utils->calc_rssi(priv, phy_res);
+	rx_status.signal = iwlagn_calc_rssi(priv, phy_res);
 
 	iwl_dbg_log_rx_data_frame(priv, len, header);
 	IWL_DEBUG_STATS_LIMIT(priv, "Rssi %d, TSF %llu\n",

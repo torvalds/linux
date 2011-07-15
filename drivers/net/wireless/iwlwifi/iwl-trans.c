@@ -66,6 +66,7 @@
 #include "iwl-helpers.h"
 /*TODO remove uneeded includes when the transport layer tx_free will be here */
 #include "iwl-agn.h"
+#include "iwl-core.h"
 
 static int iwl_trans_rx_alloc(struct iwl_priv *priv)
 {
@@ -188,7 +189,15 @@ static void iwl_trans_rx_free(struct iwl_priv *priv)
 	rxq->rb_stts = NULL;
 }
 
-/* TODO:remove this code duplication */
+static int iwl_trans_rx_stop(struct iwl_priv *priv)
+{
+
+	/* stop Rx DMA */
+	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+	return iwl_poll_direct_bit(priv, FH_MEM_RSSR_RX_STATUS_REG,
+			    FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
+}
+
 static inline int iwlagn_alloc_dma_ptr(struct iwl_priv *priv,
 				    struct iwl_dma_ptr *ptr, size_t size)
 {
@@ -203,6 +212,16 @@ static inline int iwlagn_alloc_dma_ptr(struct iwl_priv *priv,
 	return 0;
 }
 
+static inline void iwlagn_free_dma_ptr(struct iwl_priv *priv,
+				    struct iwl_dma_ptr *ptr)
+{
+	if (unlikely(!ptr->addr))
+		return;
+
+	dma_free_coherent(priv->bus.dev, ptr->size, ptr->addr, ptr->dma);
+	memset(ptr, 0, sizeof(*ptr));
+}
+
 static int iwl_trans_txq_alloc(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 		      int slots_num, u32 txq_id)
 {
@@ -211,6 +230,8 @@ static int iwl_trans_txq_alloc(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 
 	if (WARN_ON(txq->meta || txq->cmd || txq->txb || txq->tfds))
 		return -EINVAL;
+
+	txq->q.n_window = slots_num;
 
 	txq->meta = kzalloc(sizeof(txq->meta[0]) * slots_num,
 			    GFP_KERNEL);
@@ -307,6 +328,90 @@ static int iwl_trans_txq_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 }
 
 /**
+ * iwl_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
+ */
+static void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id)
+{
+	struct iwl_tx_queue *txq = &priv->txq[txq_id];
+	struct iwl_queue *q = &txq->q;
+
+	if (!q->n_bd)
+		return;
+
+	while (q->write_ptr != q->read_ptr) {
+		/* The read_ptr needs to bound by q->n_window */
+		iwlagn_txq_free_tfd(priv, txq, get_cmd_index(q, q->read_ptr));
+		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
+	}
+}
+
+/**
+ * iwl_tx_queue_free - Deallocate DMA queue.
+ * @txq: Transmit queue to deallocate.
+ *
+ * Empty queue by removing and destroying all BD's.
+ * Free all buffers.
+ * 0-fill, but do not free "txq" descriptor structure.
+ */
+static void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
+{
+	struct iwl_tx_queue *txq = &priv->txq[txq_id];
+	struct device *dev = priv->bus.dev;
+	int i;
+	if (WARN_ON(!txq))
+		return;
+
+	iwl_tx_queue_unmap(priv, txq_id);
+
+	/* De-alloc array of command/tx buffers */
+	for (i = 0; i < txq->q.n_window; i++)
+		kfree(txq->cmd[i]);
+
+	/* De-alloc circular buffer of TFDs */
+	if (txq->q.n_bd) {
+		dma_free_coherent(dev, priv->hw_params.tfd_size *
+				  txq->q.n_bd, txq->tfds, txq->q.dma_addr);
+		memset(&txq->q.dma_addr, 0, sizeof(txq->q.dma_addr));
+	}
+
+	/* De-alloc array of per-TFD driver data */
+	kfree(txq->txb);
+	txq->txb = NULL;
+
+	/* deallocate arrays */
+	kfree(txq->cmd);
+	kfree(txq->meta);
+	txq->cmd = NULL;
+	txq->meta = NULL;
+
+	/* 0-fill queue descriptor structure */
+	memset(txq, 0, sizeof(*txq));
+}
+
+/**
+ * iwl_trans_tx_free - Free TXQ Context
+ *
+ * Destroy all TX DMA queues and structures
+ */
+static void iwl_trans_tx_free(struct iwl_priv *priv)
+{
+	int txq_id;
+
+	/* Tx queues */
+	if (priv->txq) {
+		for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
+			iwl_tx_queue_free(priv, txq_id);
+	}
+
+	kfree(priv->txq);
+	priv->txq = NULL;
+
+	iwlagn_free_dma_ptr(priv, &priv->kw);
+
+	iwlagn_free_dma_ptr(priv, &priv->scd_bc_tbls);
+}
+
+/**
  * iwl_trans_tx_alloc - allocate TX context
  * Allocate all Tx DMA structures and initialize them
  *
@@ -362,7 +467,7 @@ static int iwl_trans_tx_alloc(struct iwl_priv *priv)
 	return 0;
 
 error:
-	iwlagn_hw_txq_ctx_free(priv);
+	trans_tx_free(priv);
 
 	return ret;
 }
@@ -406,15 +511,58 @@ static int iwl_trans_tx_init(struct iwl_priv *priv)
 error:
 	/*Upon error, free only if we allocated something */
 	if (alloc)
-		iwlagn_hw_txq_ctx_free(priv);
+		trans_tx_free(priv);
 	return ret;
+}
+
+/**
+ * iwlagn_txq_ctx_stop - Stop all Tx DMA channels
+ */
+static int iwl_trans_tx_stop(struct iwl_priv *priv)
+{
+	int ch, txq_id;
+	unsigned long flags;
+
+	/* Turn off all Tx DMA fifos */
+	spin_lock_irqsave(&priv->lock, flags);
+
+	iwlagn_txq_set_sched(priv, 0);
+
+	/* Stop each Tx DMA channel, and wait for it to be idle */
+	for (ch = 0; ch < FH_TCSR_CHNL_NUM; ch++) {
+		iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
+		if (iwl_poll_direct_bit(priv, FH_TSSR_TX_STATUS_REG,
+				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
+				    1000))
+			IWL_ERR(priv, "Failing on timeout while stopping"
+			    " DMA channel %d [0x%08x]", ch,
+			    iwl_read_direct32(priv, FH_TSSR_TX_STATUS_REG));
+	}
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	if (!priv->txq) {
+		IWL_WARN(priv, "Stopping tx queues that aren't allocated...");
+		return 0;
+	}
+
+	/* Unmap DMA from host system and free skb's */
+	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
+		iwl_tx_queue_unmap(priv, txq_id);
+
+	return 0;
 }
 
 static const struct iwl_trans_ops trans_ops = {
 	.rx_init = iwl_trans_rx_init,
+	.rx_stop = iwl_trans_rx_stop,
 	.rx_free = iwl_trans_rx_free,
 
 	.tx_init = iwl_trans_tx_init,
+	.tx_stop = iwl_trans_tx_stop,
+	.tx_free = iwl_trans_tx_free,
+
+	.send_cmd = iwl_send_cmd,
+	.send_cmd_pdu = iwl_send_cmd_pdu,
 };
 
 void iwl_trans_register(struct iwl_trans *trans)

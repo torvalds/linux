@@ -603,17 +603,33 @@ static void b43_nphy_tx_lp_fbw(struct b43_wldev *dev)
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/BmacPhyClkFgc */
 static void b43_nphy_bmac_clock_fgc(struct b43_wldev *dev, bool force)
 {
-	u32 tmslow;
+	u32 tmp;
 
 	if (dev->phy.type != B43_PHYTYPE_N)
 		return;
 
-	tmslow = ssb_read32(dev->sdev, SSB_TMSLOW);
-	if (force)
-		tmslow |= SSB_TMSLOW_FGC;
-	else
-		tmslow &= ~SSB_TMSLOW_FGC;
-	ssb_write32(dev->sdev, SSB_TMSLOW, tmslow);
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+	case B43_BUS_BCMA:
+		tmp = bcma_read32(dev->dev->bdev, BCMA_IOCTL);
+		if (force)
+			tmp |= BCMA_IOCTL_FGC;
+		else
+			tmp &= ~BCMA_IOCTL_FGC;
+		bcma_write32(dev->dev->bdev, BCMA_IOCTL, tmp);
+		break;
+#endif
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		tmp = ssb_read32(dev->dev->sdev, SSB_TMSLOW);
+		if (force)
+			tmp |= SSB_TMSLOW_FGC;
+		else
+			tmp &= ~SSB_TMSLOW_FGC;
+		ssb_write32(dev->dev->sdev, SSB_TMSLOW, tmp);
+		break;
+#endif
+	}
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/CCA */
@@ -958,8 +974,21 @@ static void b43_nphy_superswitch_init(struct b43_wldev *dev, bool init)
 		b43_phy_write(dev, B43_NPHY_GPIO_LOOEN, 0);
 		b43_phy_write(dev, B43_NPHY_GPIO_HIOEN, 0);
 
-		ssb_chipco_gpio_control(&dev->sdev->bus->chipco, 0xFC00,
-					0xFC00);
+		switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+		case B43_BUS_BCMA:
+			bcma_chipco_gpio_control(&dev->dev->bdev->bus->drv_cc,
+						 0xFC00, 0xFC00);
+			break;
+#endif
+#ifdef CONFIG_B43_SSB
+		case B43_BUS_SSB:
+			ssb_chipco_gpio_control(&dev->dev->sdev->bus->chipco,
+						0xFC00, 0xFC00);
+			break;
+#endif
+		}
+
 		b43_write32(dev, B43_MMIO_MACCTL,
 			b43_read32(dev, B43_MMIO_MACCTL) &
 			~B43_MACCTL_GPOUTSMSK);
@@ -3600,7 +3629,20 @@ int b43_phy_initn(struct b43_wldev *dev)
 	if ((dev->phy.rev >= 3) &&
 	   (sprom->boardflags_lo & B43_BFL_EXTLNA) &&
 	   (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)) {
-		chipco_set32(&dev->sdev->bus->chipco, SSB_CHIPCO_CHIPCTL, 0x40);
+		switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_BCMA
+		case B43_BUS_BCMA:
+			bcma_cc_set32(&dev->dev->bdev->bus->drv_cc,
+				      BCMA_CC_CHIPCTL, 0x40);
+			break;
+#endif
+#ifdef CONFIG_B43_SSB
+		case B43_BUS_SSB:
+			chipco_set32(&dev->dev->sdev->bus->chipco,
+				     SSB_CHIPCO_CHIPCTL, 0x40);
+			break;
+#endif
+		}
 	}
 	nphy->deaf_count = 0;
 	b43_nphy_tables_init(dev);

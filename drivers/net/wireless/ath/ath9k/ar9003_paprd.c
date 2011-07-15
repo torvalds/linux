@@ -21,6 +21,36 @@ void ar9003_paprd_enable(struct ath_hw *ah, bool val)
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	struct ath9k_channel *chan = ah->curchan;
+	struct ar9300_eeprom *eep = &ah->eeprom.ar9300_eep;
+
+	/*
+	 * 3 bits for modalHeader5G.papdRateMaskHt20
+	 * is used for sub-band disabling of PAPRD.
+	 * 5G band is divided into 3 sub-bands -- upper,
+	 * middle, lower.
+	 * if bit 30 of modalHeader5G.papdRateMaskHt20 is set
+	 * -- disable PAPRD for upper band 5GHz
+	 * if bit 29 of modalHeader5G.papdRateMaskHt20 is set
+	 * -- disable PAPRD for middle band 5GHz
+	 * if bit 28 of modalHeader5G.papdRateMaskHt20 is set
+	 * -- disable PAPRD for lower band 5GHz
+	 */
+
+	if (IS_CHAN_5GHZ(chan)) {
+		if (chan->channel >= UPPER_5G_SUB_BAND_START) {
+			if (le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20)
+								  & BIT(30))
+				val = false;
+		} else if (chan->channel >= MID_5G_SUB_BAND_START) {
+			if (le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20)
+								  & BIT(29))
+				val = false;
+		} else {
+			if (le32_to_cpu(eep->modalHeader5G.papdRateMaskHt20)
+								  & BIT(28))
+				val = false;
+		}
+	}
 
 	if (val) {
 		ah->paprd_table_write_done = true;

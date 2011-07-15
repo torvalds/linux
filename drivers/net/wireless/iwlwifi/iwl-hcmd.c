@@ -143,9 +143,6 @@ static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	int ret;
 
-	if (WARN_ON(!(cmd->flags & CMD_ASYNC)))
-		return -EINVAL;
-
 	/* An asynchronous command can not expect an SKB to be set. */
 	if (WARN_ON(cmd->flags & CMD_WANT_SKB))
 		return -EINVAL;
@@ -166,15 +163,12 @@ static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	return 0;
 }
 
-int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
+static int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	int cmd_idx;
 	int ret;
 
 	lockdep_assert_held(&priv->mutex);
-
-	if (WARN_ON(cmd->flags & CMD_ASYNC))
-		return -EINVAL;
 
 	 /* A synchronous command can not have a callback set. */
 	if (WARN_ON(cmd->callback))
@@ -263,31 +257,15 @@ int iwl_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	return iwl_send_cmd_sync(priv, cmd);
 }
 
-int iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len, const void *data)
+int iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags, u16 len,
+		     const void *data)
 {
 	struct iwl_host_cmd cmd = {
 		.id = id,
 		.len = { len, },
 		.data = { data, },
+		.flags = flags,
 	};
 
-	return iwl_send_cmd_sync(priv, &cmd);
-}
-
-int iwl_send_cmd_pdu_async(struct iwl_priv *priv,
-			   u8 id, u16 len, const void *data,
-			   void (*callback)(struct iwl_priv *priv,
-					    struct iwl_device_cmd *cmd,
-					    struct iwl_rx_packet *pkt))
-{
-	struct iwl_host_cmd cmd = {
-		.id = id,
-		.len = { len, },
-		.data = { data, },
-	};
-
-	cmd.flags |= CMD_ASYNC;
-	cmd.callback = callback;
-
-	return iwl_send_cmd_async(priv, &cmd);
+	return iwl_send_cmd(priv, &cmd);
 }

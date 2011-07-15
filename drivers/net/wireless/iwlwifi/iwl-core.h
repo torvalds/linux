@@ -80,31 +80,6 @@ struct iwl_cmd;
 
 #define IWL_CMD(x) case x: return #x
 
-struct iwl_hcmd_utils_ops {
-	u16 (*build_addsta_hcmd)(const struct iwl_addsta_cmd *cmd, u8 *data);
-	void (*gain_computation)(struct iwl_priv *priv,
-			u32 *average_noise,
-			u16 min_average_noise_antennat_i,
-			u32 min_average_noise,
-			u8 default_chain);
-	void (*chain_noise_reset)(struct iwl_priv *priv);
-	void (*tx_cmd_protection)(struct iwl_priv *priv,
-				  struct ieee80211_tx_info *info,
-				  __le16 fc, __le32 *tx_flags);
-	int  (*calc_rssi)(struct iwl_priv *priv,
-			  struct iwl_rx_phy_res *rx_resp);
-	int (*request_scan)(struct iwl_priv *priv, struct ieee80211_vif *vif);
-};
-
-struct iwl_apm_ops {
-	int (*init)(struct iwl_priv *priv);
-	void (*config)(struct iwl_priv *priv);
-};
-
-struct iwl_temp_ops {
-	void (*temperature)(struct iwl_priv *priv);
-};
-
 struct iwl_lib_ops {
 	/* set hw dependent parameters */
 	int (*set_hw_params)(struct iwl_priv *priv);
@@ -118,17 +93,14 @@ struct iwl_lib_ops {
 	int (*is_valid_rtc_data_addr)(u32 addr);
 	int (*set_channel_switch)(struct iwl_priv *priv,
 				  struct ieee80211_channel_switch *ch_switch);
-	/* power management */
-	struct iwl_apm_ops apm_ops;
-
-	/* power */
-	void (*update_chain_flags)(struct iwl_priv *priv);
+	/* device specific configuration */
+	void (*nic_config)(struct iwl_priv *priv);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
 	struct iwl_eeprom_ops eeprom_ops;
 
 	/* temperature */
-	struct iwl_temp_ops temp_ops;
+	void (*temperature)(struct iwl_priv *priv);
 };
 
 /* NIC specific ops */
@@ -138,7 +110,6 @@ struct iwl_nic_ops {
 
 struct iwl_ops {
 	const struct iwl_lib_ops *lib;
-	const struct iwl_hcmd_utils_ops *utils;
 	const struct iwl_nic_ops *nic;
 };
 
@@ -328,8 +299,6 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 int iwl_mac_change_interface(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     enum nl80211_iftype newtype, bool newp2p);
-void iwl_free_txq_mem(struct iwl_priv *priv);
-
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_alloc_traffic_mem(struct iwl_priv *priv);
 void iwl_free_traffic_mem(struct iwl_priv *priv);
@@ -371,8 +340,6 @@ static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
 /*****************************************************
 * RX
 ******************************************************/
-void iwl_cmd_queue_free(struct iwl_priv *priv);
-void iwl_cmd_queue_unmap(struct iwl_priv *priv);
 void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl_rx_queue *q);
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);
@@ -386,10 +353,8 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
 * TX
 ******************************************************/
 void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq);
-void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id);
 int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 			  int count, int slots_num, u32 id);
-void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id);
 void iwl_setup_watchdog(struct iwl_priv *priv);
 /*****************************************************
  * TX power
@@ -440,16 +405,9 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
  *****************************************************/
 
 const char *get_cmd_string(u8 cmd);
-int __must_check iwl_send_cmd_sync(struct iwl_priv *priv,
-				   struct iwl_host_cmd *cmd);
 int iwl_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
-int __must_check iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id,
+int __must_check iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags,
 				  u16 len, const void *data);
-int iwl_send_cmd_pdu_async(struct iwl_priv *priv, u8 id, u16 len,
-			   const void *data,
-			   void (*callback)(struct iwl_priv *priv,
-					    struct iwl_device_cmd *cmd,
-					    struct iwl_rx_packet *pkt));
 
 int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
 

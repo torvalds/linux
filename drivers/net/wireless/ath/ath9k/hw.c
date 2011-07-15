@@ -87,7 +87,10 @@ static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	unsigned int clockrate;
 
-	if (!ah->curchan) /* should really check for CCK instead */
+	/* AR9287 v1.3+ uses async FIFO and runs the MAC at 117 MHz */
+	if (AR_SREV_9287(ah) && AR_SREV_9287_13_OR_LATER(ah))
+		clockrate = 117;
+	else if (!ah->curchan) /* should really check for CCK instead */
 		clockrate = ATH9K_CLOCK_RATE_CCK;
 	else if (conf->channel->band == IEEE80211_BAND_2GHZ)
 		clockrate = ATH9K_CLOCK_RATE_2GHZ_OFDM;
@@ -98,6 +101,13 @@ static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 
 	if (conf_is_ht40(conf))
 		clockrate *= 2;
+
+	if (ah->curchan) {
+		if (IS_CHAN_HALF_RATE(ah->curchan))
+			clockrate /= 2;
+		if (IS_CHAN_QUARTER_RATE(ah->curchan))
+			clockrate /= 4;
+	}
 
 	common->clockrate = clockrate;
 }
@@ -895,6 +905,13 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 	}
 }
 
+static void ath9k_hw_set_sifs_time(struct ath_hw *ah, u32 us)
+{
+	u32 val = ath9k_hw_mac_to_clks(ah, us - 2);
+	val = min(val, (u32) 0xFFFF);
+	REG_WRITE(ah, AR_D_GBL_IFS_SIFS, val);
+}
+
 static void ath9k_hw_setslottime(struct ath_hw *ah, u32 us)
 {
 	u32 val = ath9k_hw_mac_to_clks(ah, us);
@@ -932,25 +949,60 @@ static bool ath9k_hw_set_global_txtimeout(struct ath_hw *ah, u32 tu)
 
 void ath9k_hw_init_global_settings(struct ath_hw *ah)
 {
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ieee80211_conf *conf = &common->hw->conf;
+	const struct ath9k_channel *chan = ah->curchan;
 	int acktimeout;
 	int slottime;
 	int sifstime;
+	int rx_lat = 0, tx_lat = 0, eifs = 0;
+	u32 reg;
 
 	ath_dbg(ath9k_hw_common(ah), ATH_DBG_RESET, "ah->misc_mode 0x%x\n",
 		ah->misc_mode);
 
+	if (!chan)
+		return;
+
 	if (ah->misc_mode != 0)
 		REG_SET_BIT(ah, AR_PCU_MISC, ah->misc_mode);
 
-	if (conf->channel && conf->channel->band == IEEE80211_BAND_5GHZ)
-		sifstime = 16;
-	else
-		sifstime = 10;
+	rx_lat = 37;
+	tx_lat = 54;
+
+	if (IS_CHAN_HALF_RATE(chan)) {
+		eifs = 175;
+		rx_lat *= 2;
+		tx_lat *= 2;
+		if (IS_CHAN_A_FAST_CLOCK(ah, chan))
+		    tx_lat += 11;
+
+		slottime = 13;
+		sifstime = 32;
+	} else if (IS_CHAN_QUARTER_RATE(chan)) {
+		eifs = 340;
+		rx_lat *= 4;
+		tx_lat *= 4;
+		if (IS_CHAN_A_FAST_CLOCK(ah, chan))
+		    tx_lat += 22;
+
+		slottime = 21;
+		sifstime = 64;
+	} else {
+		eifs = REG_READ(ah, AR_D_GBL_IFS_EIFS);
+		reg = REG_READ(ah, AR_USEC);
+		rx_lat = MS(reg, AR_USEC_RX_LAT);
+		tx_lat = MS(reg, AR_USEC_TX_LAT);
+
+		slottime = ah->slottime;
+		if (IS_CHAN_5GHZ(chan))
+			sifstime = 16;
+		else
+			sifstime = 10;
+	}
 
 	/* As defined by IEEE 802.11-2007 17.3.8.6 */
-	slottime = ah->slottime + 3 * ah->coverage_class;
-	acktimeout = slottime + sifstime;
+	acktimeout = slottime + sifstime + 3 * ah->coverage_class;
 
 	/*
 	 * Workaround for early ACK timeouts, add an offset to match the
@@ -962,11 +1014,20 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	if (conf->channel && conf->channel->band == IEEE80211_BAND_2GHZ)
 		acktimeout += 64 - sifstime - ah->slottime;
 
-	ath9k_hw_setslottime(ah, ah->slottime);
+	ath9k_hw_set_sifs_time(ah, sifstime);
+	ath9k_hw_setslottime(ah, slottime);
 	ath9k_hw_set_ack_timeout(ah, acktimeout);
 	ath9k_hw_set_cts_timeout(ah, acktimeout);
 	if (ah->globaltxtimeout != (u32) -1)
 		ath9k_hw_set_global_txtimeout(ah, ah->globaltxtimeout);
+
+	REG_WRITE(ah, AR_D_GBL_IFS_EIFS, ath9k_hw_mac_to_clks(ah, eifs));
+	REG_RMW(ah, AR_USEC,
+		(common->clockrate - 1) |
+		SM(rx_lat, AR_USEC_RX_LAT) |
+		SM(tx_lat, AR_USEC_TX_LAT),
+		AR_USEC_TX_LAT | AR_USEC_RX_LAT | AR_USEC_USEC);
+
 }
 EXPORT_SYMBOL(ath9k_hw_init_global_settings);
 
@@ -1570,9 +1631,13 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	ath9k_hw_init_global_settings(ah);
 
-	if (!AR_SREV_9300_20_OR_LATER(ah)) {
-		ar9002_hw_update_async_fifo(ah);
-		ar9002_hw_enable_wep_aggregation(ah);
+	if (AR_SREV_9287(ah) && AR_SREV_9287_13_OR_LATER(ah)) {
+		REG_SET_BIT(ah, AR_MAC_PCU_LOGIC_ANALYZER,
+			    AR_MAC_PCU_LOGIC_ANALYZER_DISBUG20768);
+		REG_RMW_FIELD(ah, AR_AHB_MODE, AR_AHB_CUSTOM_BURST_EN,
+			      AR_AHB_CUSTOM_BURST_ASYNC_FIFO_VAL);
+		REG_SET_BIT(ah, AR_PCU_MISC_MODE2,
+			    AR_PCU_MISC_MODE2_ENABLE_AGGWEP);
 	}
 
 	REG_SET_BIT(ah, AR_STA_ID1, AR_STA_ID1_PRESERVE_SEQNUM);
@@ -2079,10 +2144,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			pCap->hw_caps |= ATH9K_HW_CAP_PAPRD;
 	} else {
 		pCap->tx_desc_len = sizeof(struct ath_desc);
-		if (AR_SREV_9280_20(ah) &&
-		    ((ah->eep_ops->get_eeprom(ah, EEP_MINOR_REV) <=
-		      AR5416_EEP_MINOR_VER_16) ||
-		     ah->eep_ops->get_eeprom(ah, EEP_FSTCLK_5G)))
+		if (AR_SREV_9280_20(ah))
 			pCap->hw_caps |= ATH9K_HW_CAP_FASTCLOCK;
 	}
 

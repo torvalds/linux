@@ -90,6 +90,12 @@ config B43_SDIO
 
 #Data transfers to the device via PIO. We want it as a fallback even
 # if we can do DMA.
+config B43_BCMA_PIO
+	bool
+	depends on B43_BCMA
+	select BCMA_BLOCKIO
+	default y
+
 config B43_PIO
 	bool
 	depends on B43
@@ -122,6 +128,14 @@ config B43_PHY_HT
 	depends on B43 && BROKEN
 	---help---
 	  Support for the HT-PHY.
+
+	  Say N, this is BROKEN and crashes driver.
+
+config B43_PHY_LCN
+	bool "Support for LCN-PHY devices (BROKEN)"
+	depends on B43 && BROKEN
+	---help---
+	  Support for the LCN-PHY.
 
 	  Say N, this is BROKEN and crashes driver.
 

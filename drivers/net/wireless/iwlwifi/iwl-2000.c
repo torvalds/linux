@@ -123,7 +123,6 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
-	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
 		priv->cfg->base_params->num_of_queues *
 		sizeof(struct iwlagn_scd_bc_tbl);
@@ -169,14 +168,9 @@ static int iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 static struct iwl_lib_ops iwl2000_lib = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.rx_handler_setup = iwlagn_rx_handler_setup,
-	.setup_deferred_work = iwlagn_bt_setup_deferred_work,
-	.cancel_deferred_work = iwlagn_bt_cancel_deferred_work,
+	.setup_deferred_work = iwlagn_setup_deferred_work,
 	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
-	.update_chain_flags = iwl_update_chain_flags,
-	.apm_ops = {
-		.init = iwl_apm_init,
-		.config = iwl2000_nic_config,
-	},
+	.nic_config = iwl2000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {
 			EEPROM_REG_BAND_1_CHANNELS,
@@ -187,32 +181,47 @@ static struct iwl_lib_ops iwl2000_lib = {
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
-		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.temp_ops = {
-		.temperature = iwlagn_temperature,
+	.temperature = iwlagn_temperature,
+};
+
+static struct iwl_lib_ops iwl2030_lib = {
+	.set_hw_params = iwl2000_hw_set_hw_params,
+	.rx_handler_setup = iwlagn_bt_rx_handler_setup,
+	.setup_deferred_work = iwlagn_bt_setup_deferred_work,
+	.cancel_deferred_work = iwlagn_bt_cancel_deferred_work,
+	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
+	.nic_config = iwl2000_nic_config,
+	.eeprom_ops = {
+		.regulatory_bands = {
+			EEPROM_REG_BAND_1_CHANNELS,
+			EEPROM_REG_BAND_2_CHANNELS,
+			EEPROM_REG_BAND_3_CHANNELS,
+			EEPROM_REG_BAND_4_CHANNELS,
+			EEPROM_REG_BAND_5_CHANNELS,
+			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
+			EEPROM_REGULATORY_BAND_NO_HT40,
+		},
+		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
+	.temperature = iwlagn_temperature,
 };
 
 static const struct iwl_ops iwl2000_ops = {
 	.lib = &iwl2000_lib,
-	.utils = &iwlagn_hcmd_utils,
 };
 
 static const struct iwl_ops iwl2030_ops = {
-	.lib = &iwl2000_lib,
-	.utils = &iwlagn_hcmd_utils,
+	.lib = &iwl2030_lib,
 };
 
 static const struct iwl_ops iwl105_ops = {
 	.lib = &iwl2000_lib,
-	.utils = &iwlagn_hcmd_utils,
 };
 
 static const struct iwl_ops iwl135_ops = {
-	.lib = &iwl2000_lib,
-	.utils = &iwlagn_hcmd_utils,
+	.lib = &iwl2030_lib,
 };
 
 static struct iwl_base_params iwl2000_base_params = {

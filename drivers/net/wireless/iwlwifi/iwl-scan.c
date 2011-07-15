@@ -37,6 +37,7 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 #include "iwl-agn.h"
+#include "iwl-trans.h"
 
 /* For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
  * sending probe req.  This should be set long enough to hear probe responses
@@ -61,7 +62,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	struct iwl_rx_packet *pkt;
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_ABORT_CMD,
-		.flags = CMD_WANT_SKB,
+		.flags = CMD_SYNC | CMD_WANT_SKB,
 	};
 
 	/* Exit instantly with error when device is not ready
@@ -74,7 +75,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	    test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EIO;
 
-	ret = iwl_send_cmd_sync(priv, &cmd);
+	ret = trans_send_cmd(priv, &cmd);
 	if (ret)
 		return ret;
 
@@ -349,9 +350,6 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 
 	lockdep_assert_held(&priv->mutex);
 
-	if (WARN_ON(!priv->cfg->ops->utils->request_scan))
-		return -EOPNOTSUPP;
-
 	cancel_delayed_work(&priv->scan_check);
 
 	if (!iwl_is_ready_rf(priv)) {
@@ -380,7 +378,7 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 	priv->scan_start = jiffies;
 	priv->scan_band = band;
 
-	ret = priv->cfg->ops->utils->request_scan(priv, vif);
+	ret = iwlagn_request_scan(priv, vif);
 	if (ret) {
 		clear_bit(STATUS_SCANNING, &priv->status);
 		priv->scan_type = IWL_SCAN_NORMAL;

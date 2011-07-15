@@ -33,6 +33,7 @@
 #include "iwl-core.h"
 #include "iwl-sta.h"
 #include "iwl-agn.h"
+#include "iwl-trans.h"
 
 static struct iwl_link_quality_cmd *
 iwl_sta_alloc_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx, u8 sta_id)
@@ -180,7 +181,7 @@ static int iwl_send_static_wepkey_cmd(struct iwl_priv *priv,
 	cmd.len[0] = cmd_size;
 
 	if (not_empty || send_if_empty)
-		return iwl_send_cmd(priv, &cmd);
+		return trans_send_cmd(priv, &cmd);
 	else
 		return 0;
 }

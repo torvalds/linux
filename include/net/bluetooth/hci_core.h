@@ -75,12 +75,28 @@ struct bt_uuid {
 	u8 svc_hint;
 };
 
+struct key_master_id {
+	__le16 ediv;
+	u8 rand[8];
+} __packed;
+
+struct link_key_data {
+	bdaddr_t bdaddr;
+	u8 type;
+	u8 val[16];
+	u8 pin_len;
+	u8 dlen;
+	u8 data[0];
+} __packed;
+
 struct link_key {
 	struct list_head list;
 	bdaddr_t bdaddr;
 	u8 type;
 	u8 val[16];
 	u8 pin_len;
+	u8 dlen;
+	u8 data[0];
 };
 
 struct oob_data {
@@ -114,6 +130,7 @@ struct hci_dev {
 	__u8		major_class;
 	__u8		minor_class;
 	__u8		features[8];
+	__u8		extfeatures[8];
 	__u8		commands[64];
 	__u8		ssp_mode;
 	__u8		hci_ver;
@@ -224,7 +241,6 @@ struct hci_conn {
 	struct list_head list;
 
 	atomic_t	refcnt;
-	spinlock_t	lock;
 
 	bdaddr_t	dst;
 	__u8		dst_type;
@@ -246,11 +262,11 @@ struct hci_conn {
 	__u8		sec_level;
 	__u8		pending_sec_level;
 	__u8		pin_length;
+	__u8		enc_key_size;
 	__u8		io_capability;
 	__u8		power_save;
 	__u16		disc_timeout;
 	unsigned long	pend;
-	__u8		ltk[16];
 
 	__u8		remote_cap;
 	__u8		remote_oob;
@@ -273,7 +289,6 @@ struct hci_conn {
 	struct hci_dev	*hdev;
 	void		*l2cap_data;
 	void		*sco_data;
-	void		*priv;
 
 	struct hci_conn	*link;
 
@@ -539,6 +554,11 @@ int hci_link_keys_clear(struct hci_dev *hdev);
 struct link_key *hci_find_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
 int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 			bdaddr_t *bdaddr, u8 *val, u8 type, u8 pin_len);
+struct link_key *hci_find_ltk(struct hci_dev *hdev, __le16 ediv, u8 rand[8]);
+struct link_key *hci_find_link_key_type(struct hci_dev *hdev,
+					bdaddr_t *bdaddr, u8 type);
+int hci_add_ltk(struct hci_dev *hdev, int new_key, bdaddr_t *bdaddr,
+			u8 key_size, __le16 ediv, u8 rand[8], u8 ltk[16]);
 int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr);
 
 int hci_remote_oob_data_clear(struct hci_dev *hdev);
@@ -579,6 +599,9 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_ssp_capable(dev)       ((dev)->features[6] & LMP_SIMPLE_PAIR)
 #define lmp_no_flush_capable(dev)  ((dev)->features[6] & LMP_NO_FLUSH)
 #define lmp_le_capable(dev)        ((dev)->features[4] & LMP_LE)
+
+/* ----- Extended LMP capabilities ----- */
+#define lmp_host_le_capable(dev)   ((dev)->extfeatures[0] & LMP_HOST_LE)
 
 /* ----- HCI protocols ----- */
 struct hci_proto {

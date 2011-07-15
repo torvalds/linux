@@ -103,6 +103,10 @@
  * @IWL_TM_CMD_DEV2APP_EEPROM_RSP:
  *	commands from kernel space to carry the eeprom response
  *	to user application
+ * @IWL_TM_CMD_APP2DEV_OWNERSHIP:
+ *	commands from user application to own change the ownership of the uCode
+ *	if application has the ownership, the only host command from
+ *	testmode will deliver to uCode. Default owner is driver
  */
 enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_UCODE		= 1,
@@ -121,7 +125,8 @@ enum iwl_tm_cmd_t {
 	IWL_TM_CMD_DEV2APP_SYNC_RSP		= 14,
 	IWL_TM_CMD_DEV2APP_UCODE_RX_PKT		= 15,
 	IWL_TM_CMD_DEV2APP_EEPROM_RSP		= 16,
-	IWL_TM_CMD_MAX				= 17,
+	IWL_TM_CMD_APP2DEV_OWNERSHIP		= 17,
+	IWL_TM_CMD_MAX				= 18,
 };
 
 /*
@@ -187,6 +192,10 @@ enum iwl_tm_cmd_t {
  *	The mandatory fields are:
  *	IWL_TM_ATTR_FIXRATE for the fixed rate
  *
+ * @IWL_TM_ATTR_UCODE_OWNER:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_OWNERSHIP,
+ *	The mandatory fields are:
+ *	IWL_TM_ATTR_UCODE_OWNER for the new owner
  */
 enum iwl_tm_attr_t {
 	IWL_TM_ATTR_NOT_APPLICABLE		= 0,
@@ -203,7 +212,8 @@ enum iwl_tm_attr_t {
 	IWL_TM_ATTR_TRACE_SIZE			= 11,
 	IWL_TM_ATTR_TRACE_DUMP			= 12,
 	IWL_TM_ATTR_FIXRATE			= 13,
-	IWL_TM_ATTR_MAX				= 14,
+	IWL_TM_ATTR_UCODE_OWNER			= 14,
+	IWL_TM_ATTR_MAX				= 15,
 };
 
 /* uCode trace buffer */

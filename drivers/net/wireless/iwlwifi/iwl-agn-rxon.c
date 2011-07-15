@@ -30,6 +30,7 @@
 #include "iwl-core.h"
 #include "iwl-agn-calib.h"
 #include "iwl-helpers.h"
+#include "iwl-trans.h"
 
 static int iwlagn_disable_bss(struct iwl_priv *priv,
 			      struct iwl_rxon_context *ctx,
@@ -39,7 +40,8 @@ static int iwlagn_disable_bss(struct iwl_priv *priv,
 	int ret;
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd, sizeof(*send), send);
+	ret = trans_send_cmd_pdu(priv, ctx->rxon_cmd,
+				CMD_SYNC, sizeof(*send), send);
 
 	send->filter_flags = old_filter;
 
@@ -64,7 +66,8 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 	send->dev_type = RXON_DEV_TYPE_P2P;
-	ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd, sizeof(*send), send);
+	ret = trans_send_cmd_pdu(priv, ctx->rxon_cmd,
+				CMD_SYNC, sizeof(*send), send);
 
 	send->filter_flags = old_filter;
 	send->dev_type = old_dev_type;
@@ -89,7 +92,8 @@ static int iwlagn_disconn_pan(struct iwl_priv *priv,
 	int ret;
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd, sizeof(*send), send);
+	ret = trans_send_cmd_pdu(priv, ctx->rxon_cmd, CMD_SYNC,
+				sizeof(*send), send);
 
 	send->filter_flags = old_filter;
 
@@ -117,7 +121,7 @@ static void iwlagn_update_qos(struct iwl_priv *priv,
 		      ctx->qos_data.qos_active,
 		      ctx->qos_data.def_qos_parm.qos_flags);
 
-	ret = iwl_send_cmd_pdu(priv, ctx->qos_cmd,
+	ret = trans_send_cmd_pdu(priv, ctx->qos_cmd, CMD_SYNC,
 			       sizeof(struct iwl_qosparam_cmd),
 			       &ctx->qos_data.def_qos_parm);
 	if (ret)
@@ -176,8 +180,8 @@ static int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
 		 ctx->staging.ofdm_ht_triple_stream_basic_rates;
 	rxon_assoc.acquisition_data = ctx->staging.acquisition_data;
 
-	ret = iwl_send_cmd_pdu_async(priv, ctx->rxon_assoc_cmd,
-				     sizeof(rxon_assoc), &rxon_assoc, NULL);
+	ret = trans_send_cmd_pdu(priv, ctx->rxon_assoc_cmd,
+				CMD_ASYNC, sizeof(rxon_assoc), &rxon_assoc);
 	return ret;
 }
 
@@ -262,7 +266,7 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 	 * Associated RXON doesn't clear the station table in uCode,
 	 * so we don't need to restore stations etc. after this.
 	 */
-	ret = iwl_send_cmd_pdu(priv, ctx->rxon_cmd,
+	ret = trans_send_cmd_pdu(priv, ctx->rxon_cmd, CMD_SYNC,
 		      sizeof(struct iwl_rxon_cmd), &ctx->staging);
 	if (ret) {
 		IWL_ERR(priv, "Error setting new RXON (%d)\n", ret);
@@ -670,6 +674,38 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 	ht_conf->single_chain_sufficient = !need_multiple;
 }
 
+static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
+{
+	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
+	int ret;
+
+	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
+	    iwl_is_any_associated(priv)) {
+		struct iwl_calib_chain_noise_reset_cmd cmd;
+
+		/* clear data for chain noise calibration algorithm */
+		data->chain_noise_a = 0;
+		data->chain_noise_b = 0;
+		data->chain_noise_c = 0;
+		data->chain_signal_a = 0;
+		data->chain_signal_b = 0;
+		data->chain_signal_c = 0;
+		data->beacon_count = 0;
+
+		memset(&cmd, 0, sizeof(cmd));
+		iwl_set_calib_hdr(&cmd.hdr,
+			priv->_agn.phy_calib_chain_noise_reset_cmd);
+		ret = trans_send_cmd_pdu(priv,
+					REPLY_PHY_CALIBRATION_CMD,
+					CMD_SYNC, sizeof(cmd), &cmd);
+		if (ret)
+			IWL_ERR(priv,
+				"Could not send REPLY_PHY_CALIBRATION_CMD\n");
+		data->state = IWL_CHAIN_NOISE_ACCUMULATE;
+		IWL_DEBUG_CALIB(priv, "Run chain_noise_calibrate\n");
+	}
+}
+
 void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *bss_conf,
@@ -727,6 +763,8 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			}
 			ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		}
+
+		iwlagn_bt_coex_rssi_monitor(priv);
 	}
 
 	if (ctx->ht.enabled) {
@@ -776,7 +814,8 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			iwl_power_update_mode(priv, false);
 
 		/* Enable RX differential gain and sensitivity calibrations */
-		iwl_chain_noise_reset(priv);
+		if (!priv->disable_chain_noise_cal)
+			iwlagn_chain_noise_reset(priv);
 		priv->start_calib = 1;
 	}
 

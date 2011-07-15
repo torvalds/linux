@@ -109,9 +109,6 @@ extern struct iwl_cfg iwl135_bg_cfg;
 extern struct iwl_cfg iwl135_bgn_cfg;
 
 extern struct iwl_mod_params iwlagn_mod_params;
-extern struct iwl_hcmd_ops iwlagn_hcmd;
-extern struct iwl_hcmd_ops iwlagn_bt_hcmd;
-extern struct iwl_hcmd_utils_ops iwlagn_hcmd_utils;
 
 extern struct ieee80211_ops iwlagn_hw_ops;
 
@@ -180,8 +177,6 @@ int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 int iwlagn_send_tx_power(struct iwl_priv *priv);
 void iwlagn_temperature(struct iwl_priv *priv);
 u16 iwlagn_eeprom_calib_version(struct iwl_priv *priv);
-const u8 *iwlagn_eeprom_query_addr(const struct iwl_priv *priv,
-				   size_t offset);
 int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_hw_nic_init(struct iwl_priv *priv);
 int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv);
@@ -193,12 +188,12 @@ void iwlagn_rx_queue_restock(struct iwl_priv *priv);
 void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority);
 void iwlagn_rx_replenish(struct iwl_priv *priv);
 void iwlagn_rx_replenish_now(struct iwl_priv *priv);
-int iwlagn_rxq_stop(struct iwl_priv *priv);
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
 void iwl_setup_rx_handlers(struct iwl_priv *priv);
 
 /* tx */
-void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq);
+void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq,
+				int index);
 int iwlagn_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 				 struct iwl_tx_queue *txq,
 				 dma_addr_t addr, u16 len, u8 reset);
@@ -217,8 +212,6 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb);
 int iwlagn_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
-void iwlagn_hw_txq_ctx_free(struct iwl_priv *priv);
-void iwlagn_txq_ctx_stop(struct iwl_priv *priv);
 
 static inline u32 iwl_tx_status_to_mac80211(u32 status)
 {
@@ -257,6 +250,12 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
 int iwlagn_set_pan_params(struct iwl_priv *priv);
+void iwlagn_gain_computation(struct iwl_priv *priv,
+                u32 average_noise[NUM_RX_CHAINS],
+                u16 min_average_noise_antenna_i,
+                u32 min_average_noise,
+                u8 default_chain);
+
 
 /* bt coex */
 void iwlagn_send_advance_bt_config(struct iwl_priv *priv);
@@ -265,6 +264,8 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 void iwlagn_bt_rx_handler_setup(struct iwl_priv *priv);
 void iwlagn_bt_setup_deferred_work(struct iwl_priv *priv);
 void iwlagn_bt_cancel_deferred_work(struct iwl_priv *priv);
+void iwlagn_bt_coex_rssi_monitor(struct iwl_priv *priv);
+void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena);
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 const char *iwl_get_tx_fail_reason(u32 status);

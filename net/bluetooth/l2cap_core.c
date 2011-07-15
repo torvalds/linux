@@ -61,12 +61,8 @@ int disable_ertm;
 static u32 l2cap_feat_mask = L2CAP_FEAT_FIXED_CHAN;
 static u8 l2cap_fixed_chan[8] = { 0x02, };
 
-static struct workqueue_struct *_busy_wq;
-
 static LIST_HEAD(chan_list);
 static DEFINE_RWLOCK(chan_list_lock);
-
-static void l2cap_busy_work(struct work_struct *work);
 
 static struct sk_buff *l2cap_build_cmd(struct l2cap_conn *conn,
 				u8 code, u8 ident, u16 dlen, void *data);
@@ -223,18 +219,18 @@ static u16 l2cap_alloc_cid(struct l2cap_conn *conn)
 
 static void l2cap_set_timer(struct l2cap_chan *chan, struct timer_list *timer, long timeout)
 {
-       BT_DBG("chan %p state %d timeout %ld", chan->sk, chan->state, timeout);
+	BT_DBG("chan %p state %d timeout %ld", chan->sk, chan->state, timeout);
 
-       if (!mod_timer(timer, jiffies + timeout))
-	       chan_hold(chan);
+	if (!mod_timer(timer, jiffies + msecs_to_jiffies(timeout)))
+		chan_hold(chan);
 }
 
 static void l2cap_clear_timer(struct l2cap_chan *chan, struct timer_list *timer)
 {
-       BT_DBG("chan %p state %d", chan, chan->state);
+	BT_DBG("chan %p state %d", chan, chan->state);
 
-       if (timer_pending(timer) && del_timer(timer))
-	       chan_put(chan);
+	if (timer_pending(timer) && del_timer(timer))
+		chan_put(chan);
 }
 
 static void l2cap_state_change(struct l2cap_chan *chan, int state)
@@ -395,7 +391,6 @@ static void l2cap_chan_del(struct l2cap_chan *chan, int err)
 		__clear_ack_timer(chan);
 
 		skb_queue_purge(&chan->srej_q);
-		skb_queue_purge(&chan->busy_q);
 
 		list_for_each_entry_safe(l, tmp, &chan->srej_l, list) {
 			list_del(&l->list);
@@ -741,9 +736,9 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 					&chan->conf_state)) {
 				/* l2cap_chan_close() calls list_del(chan)
 				 * so release the lock */
-				read_unlock_bh(&conn->chan_lock);
+				read_unlock(&conn->chan_lock);
 				l2cap_chan_close(chan, ECONNRESET);
-				read_lock_bh(&conn->chan_lock);
+				read_lock(&conn->chan_lock);
 				bh_unlock_sock(sk);
 				continue;
 			}
@@ -1873,11 +1868,9 @@ static inline void l2cap_ertm_init(struct l2cap_chan *chan)
 	setup_timer(&chan->ack_timer, l2cap_ack_timeout, (unsigned long) chan);
 
 	skb_queue_head_init(&chan->srej_q);
-	skb_queue_head_init(&chan->busy_q);
 
 	INIT_LIST_HEAD(&chan->srej_l);
 
-	INIT_WORK(&chan->busy_work, l2cap_busy_work);
 
 	sk->sk_backlog_rcv = l2cap_ertm_data_rcv;
 }
@@ -2284,9 +2277,9 @@ done:
 
 static inline int l2cap_command_rej(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd, u8 *data)
 {
-	struct l2cap_cmd_rej *rej = (struct l2cap_cmd_rej *) data;
+	struct l2cap_cmd_rej_unk *rej = (struct l2cap_cmd_rej_unk *) data;
 
-	if (rej->reason != 0x0000)
+	if (rej->reason != L2CAP_REJ_NOT_UNDERSTOOD)
 		return 0;
 
 	if ((conn->info_state & L2CAP_INFO_FEAT_MASK_REQ_SENT) &&
@@ -2532,9 +2525,12 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 
 	if ((bt_sk(sk)->defer_setup && chan->state != BT_CONNECT2) ||
 		 (!bt_sk(sk)->defer_setup && chan->state != BT_CONFIG)) {
-		struct l2cap_cmd_rej rej;
+		struct l2cap_cmd_rej_cid rej;
 
-		rej.reason = cpu_to_le16(0x0002);
+		rej.reason = cpu_to_le16(L2CAP_REJ_INVALID_CID);
+		rej.scid = cpu_to_le16(chan->scid);
+		rej.dcid = cpu_to_le16(chan->dcid);
+
 		l2cap_send_cmd(conn, cmd->ident, L2CAP_COMMAND_REJ,
 				sizeof(rej), &rej);
 		goto unlock;
@@ -3025,12 +3021,12 @@ static inline void l2cap_sig_channel(struct l2cap_conn *conn,
 			err = l2cap_bredr_sig_cmd(conn, &cmd, cmd_len, data);
 
 		if (err) {
-			struct l2cap_cmd_rej rej;
+			struct l2cap_cmd_rej_unk rej;
 
 			BT_ERR("Wrong link type (%d)", err);
 
 			/* FIXME: Map err to a valid reason */
-			rej.reason = cpu_to_le16(0);
+			rej.reason = cpu_to_le16(L2CAP_REJ_NOT_UNDERSTOOD);
 			l2cap_send_cmd(conn, cmd.ident, L2CAP_COMMAND_REJ, sizeof(rej), &rej);
 		}
 
@@ -3183,32 +3179,27 @@ static int l2cap_ertm_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *sk
 		if (!chan->sdu)
 			goto disconnect;
 
-		if (!test_bit(CONN_SAR_RETRY, &chan->conn_state)) {
-			chan->partial_sdu_len += skb->len;
+		chan->partial_sdu_len += skb->len;
 
-			if (chan->partial_sdu_len > chan->imtu)
-				goto drop;
+		if (chan->partial_sdu_len > chan->imtu)
+			goto drop;
 
-			if (chan->partial_sdu_len != chan->sdu_len)
-				goto drop;
+		if (chan->partial_sdu_len != chan->sdu_len)
+			goto drop;
 
-			memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
-		}
+		memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
 
 		_skb = skb_clone(chan->sdu, GFP_ATOMIC);
 		if (!_skb) {
-			set_bit(CONN_SAR_RETRY, &chan->conn_state);
 			return -ENOMEM;
 		}
 
 		err = chan->ops->recv(chan->data, _skb);
 		if (err < 0) {
 			kfree_skb(_skb);
-			set_bit(CONN_SAR_RETRY, &chan->conn_state);
 			return err;
 		}
 
-		clear_bit(CONN_SAR_RETRY, &chan->conn_state);
 		clear_bit(CONN_SAR_SDU, &chan->conn_state);
 
 		kfree_skb(chan->sdu);
@@ -3228,22 +3219,26 @@ disconnect:
 	return 0;
 }
 
-static int l2cap_try_push_rx_skb(struct l2cap_chan *chan)
+static void l2cap_ertm_enter_local_busy(struct l2cap_chan *chan)
 {
-	struct sk_buff *skb;
 	u16 control;
-	int err;
 
-	while ((skb = skb_dequeue(&chan->busy_q))) {
-		control = bt_cb(skb)->sar << L2CAP_CTRL_SAR_SHIFT;
-		err = l2cap_ertm_reassembly_sdu(chan, skb, control);
-		if (err < 0) {
-			skb_queue_head(&chan->busy_q, skb);
-			return -EBUSY;
-		}
+	BT_DBG("chan %p, Enter local busy", chan);
 
-		chan->buffer_seq = (chan->buffer_seq + 1) % 64;
-	}
+	set_bit(CONN_LOCAL_BUSY, &chan->conn_state);
+
+	control = chan->buffer_seq << L2CAP_CTRL_REQSEQ_SHIFT;
+	control |= L2CAP_SUPER_RCV_NOT_READY;
+	l2cap_send_sframe(chan, control);
+
+	set_bit(CONN_RNR_SENT, &chan->conn_state);
+
+	__clear_ack_timer(chan);
+}
+
+static void l2cap_ertm_exit_local_busy(struct l2cap_chan *chan)
+{
+	u16 control;
 
 	if (!test_bit(CONN_RNR_SENT, &chan->conn_state))
 		goto done;
@@ -3263,93 +3258,16 @@ done:
 	clear_bit(CONN_RNR_SENT, &chan->conn_state);
 
 	BT_DBG("chan %p, Exit local busy", chan);
-
-	return 0;
 }
 
-static void l2cap_busy_work(struct work_struct *work)
+void l2cap_chan_busy(struct l2cap_chan *chan, int busy)
 {
-	DECLARE_WAITQUEUE(wait, current);
-	struct l2cap_chan *chan =
-		container_of(work, struct l2cap_chan, busy_work);
-	struct sock *sk = chan->sk;
-	int n_tries = 0, timeo = HZ/5, err;
-	struct sk_buff *skb;
-
-	lock_sock(sk);
-
-	add_wait_queue(sk_sleep(sk), &wait);
-	while ((skb = skb_peek(&chan->busy_q))) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
-		if (n_tries++ > L2CAP_LOCAL_BUSY_TRIES) {
-			err = -EBUSY;
-			l2cap_send_disconn_req(chan->conn, chan, EBUSY);
-			break;
-		}
-
-		if (!timeo)
-			timeo = HZ/5;
-
-		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
-			break;
-		}
-
-		release_sock(sk);
-		timeo = schedule_timeout(timeo);
-		lock_sock(sk);
-
-		err = sock_error(sk);
-		if (err)
-			break;
-
-		if (l2cap_try_push_rx_skb(chan) == 0)
-			break;
+	if (chan->mode == L2CAP_MODE_ERTM) {
+		if (busy)
+			l2cap_ertm_enter_local_busy(chan);
+		else
+			l2cap_ertm_exit_local_busy(chan);
 	}
-
-	set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk_sleep(sk), &wait);
-
-	release_sock(sk);
-}
-
-static int l2cap_push_rx_skb(struct l2cap_chan *chan, struct sk_buff *skb, u16 control)
-{
-	int sctrl, err;
-
-	if (test_bit(CONN_LOCAL_BUSY, &chan->conn_state)) {
-		bt_cb(skb)->sar = control >> L2CAP_CTRL_SAR_SHIFT;
-		__skb_queue_tail(&chan->busy_q, skb);
-		return l2cap_try_push_rx_skb(chan);
-
-
-	}
-
-	err = l2cap_ertm_reassembly_sdu(chan, skb, control);
-	if (err >= 0) {
-		chan->buffer_seq = (chan->buffer_seq + 1) % 64;
-		return err;
-	}
-
-	/* Busy Condition */
-	BT_DBG("chan %p, Enter local busy", chan);
-
-	set_bit(CONN_LOCAL_BUSY, &chan->conn_state);
-	bt_cb(skb)->sar = control >> L2CAP_CTRL_SAR_SHIFT;
-	__skb_queue_tail(&chan->busy_q, skb);
-
-	sctrl = chan->buffer_seq << L2CAP_CTRL_REQSEQ_SHIFT;
-	sctrl |= L2CAP_SUPER_RCV_NOT_READY;
-	l2cap_send_sframe(chan, sctrl);
-
-	set_bit(CONN_RNR_SENT, &chan->conn_state);
-
-	__clear_ack_timer(chan);
-
-	queue_work(_busy_wq, &chan->busy_work);
-
-	return err;
 }
 
 static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *skb, u16 control)
@@ -3450,13 +3368,22 @@ static void l2cap_check_srej_gap(struct l2cap_chan *chan, u8 tx_seq)
 	struct sk_buff *skb;
 	u16 control;
 
-	while ((skb = skb_peek(&chan->srej_q))) {
+	while ((skb = skb_peek(&chan->srej_q)) &&
+			!test_bit(CONN_LOCAL_BUSY, &chan->conn_state)) {
+		int err;
+
 		if (bt_cb(skb)->tx_seq != tx_seq)
 			break;
 
 		skb = skb_dequeue(&chan->srej_q);
 		control = bt_cb(skb)->sar << L2CAP_CTRL_SAR_SHIFT;
-		l2cap_ertm_reassembly_sdu(chan, skb, control);
+		err = l2cap_ertm_reassembly_sdu(chan, skb, control);
+
+		if (err < 0) {
+			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
+			break;
+		}
+
 		chan->buffer_seq_srej =
 			(chan->buffer_seq_srej + 1) % 64;
 		tx_seq = (tx_seq + 1) % 64;
@@ -3523,9 +3450,6 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 	chan->expected_ack_seq = req_seq;
 	l2cap_drop_acked_frames(chan);
 
-	if (tx_seq == chan->expected_tx_seq)
-		goto expected;
-
 	tx_seq_offset = (tx_seq - chan->buffer_seq) % 64;
 	if (tx_seq_offset < 0)
 		tx_seq_offset += 64;
@@ -3538,6 +3462,9 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 
 	if (test_bit(CONN_LOCAL_BUSY, &chan->conn_state))
 		goto drop;
+
+	if (tx_seq == chan->expected_tx_seq)
+		goto expected;
 
 	if (test_bit(CONN_SREJ_SENT, &chan->conn_state)) {
 		struct srej_list *first;
@@ -3590,7 +3517,6 @@ static inline int l2cap_data_channel_iframe(struct l2cap_chan *chan, u16 rx_cont
 		chan->buffer_seq_srej = chan->buffer_seq;
 
 		__skb_queue_head_init(&chan->srej_q);
-		__skb_queue_head_init(&chan->busy_q);
 		l2cap_add_to_srej_queue(chan, skb, tx_seq, sar);
 
 		set_bit(CONN_SEND_PBIT, &chan->conn_state);
@@ -3611,9 +3537,12 @@ expected:
 		return 0;
 	}
 
-	err = l2cap_push_rx_skb(chan, skb, rx_control);
-	if (err < 0)
-		return 0;
+	err = l2cap_ertm_reassembly_sdu(chan, skb, rx_control);
+	chan->buffer_seq = (chan->buffer_seq + 1) % 64;
+	if (err < 0) {
+		l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
+		return err;
+	}
 
 	if (rx_control & L2CAP_CTRL_FINAL) {
 		if (!test_and_clear_bit(CONN_REJ_ACT, &chan->conn_state))
@@ -4108,7 +4037,7 @@ static int l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 		if (conn)
 			l2cap_conn_ready(conn);
 	} else
-		l2cap_conn_del(hcon, bt_err(status));
+		l2cap_conn_del(hcon, bt_to_errno(status));
 
 	return 0;
 }
@@ -4132,7 +4061,7 @@ static int l2cap_disconn_cfm(struct hci_conn *hcon, u8 reason)
 	if (!(hcon->type == ACL_LINK || hcon->type == LE_LINK))
 		return -EINVAL;
 
-	l2cap_conn_del(hcon, bt_err(reason));
+	l2cap_conn_del(hcon, bt_to_errno(reason));
 
 	return 0;
 }
@@ -4178,6 +4107,7 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 				chan->sec_level = hcon->sec_level;
 				del_timer(&conn->security_timer);
 				l2cap_chan_ready(sk);
+				smp_distribute_keys(conn, 0);
 			}
 
 			bh_unlock_sock(sk);
@@ -4415,12 +4345,6 @@ int __init l2cap_init(void)
 	if (err < 0)
 		return err;
 
-	_busy_wq = create_singlethread_workqueue("l2cap");
-	if (!_busy_wq) {
-		err = -ENOMEM;
-		goto error;
-	}
-
 	err = hci_register_proto(&l2cap_hci_proto);
 	if (err < 0) {
 		BT_ERR("L2CAP protocol registration failed");
@@ -4438,7 +4362,6 @@ int __init l2cap_init(void)
 	return 0;
 
 error:
-	destroy_workqueue(_busy_wq);
 	l2cap_cleanup_sockets();
 	return err;
 }
@@ -4446,9 +4369,6 @@ error:
 void l2cap_exit(void)
 {
 	debugfs_remove(l2cap_debugfs);
-
-	flush_workqueue(_busy_wq);
-	destroy_workqueue(_busy_wq);
 
 	if (hci_unregister_proto(&l2cap_hci_proto) < 0)
 		BT_ERR("L2CAP protocol unregistration failed");

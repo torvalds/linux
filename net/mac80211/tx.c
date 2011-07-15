@@ -589,6 +589,9 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 			break;
 		}
 
+		if (unlikely(tx->key && tx->key->flags & KEY_FLAG_TAINTED))
+			return TX_DROP;
+
 		if (!skip_hw && tx->key &&
 		    tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE)
 			info->control.hw_key = &tx->key->conf;
