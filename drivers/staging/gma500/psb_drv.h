@@ -388,6 +388,11 @@ struct drm_psb_private {
 	uint32_t dspcntr1;
 	uint32_t dspcntr2;
 
+	/* Moorestown MM backlight cache */
+	uint8_t saveBKLTCNT;
+	uint8_t saveBKLTREQ;
+	uint8_t saveBKLTBRTL;
+
 	/*
 	 * Register state
 	 */
@@ -644,10 +649,13 @@ struct psb_ops {
 	int (*restore_regs)(struct drm_device *dev);
 	int (*power_up)(struct drm_device *dev);
 	int (*power_down)(struct drm_device *dev);
+
+	void (*lvds_bl_power)(struct drm_device *dev, bool on);
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 	/* Backlight */
 	int (*backlight_init)(struct drm_device *dev);
 #endif
+	int i2c_bus;		/* I2C bus identifier for Moorestown */
 };
 
 

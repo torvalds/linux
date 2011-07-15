@@ -58,7 +58,11 @@ static void mrst_lvds_set_power(struct drm_device *dev,
 			pp_status = REG_READ(PP_STATUS);
 		} while ((pp_status & (PP_ON | PP_READY)) == PP_READY);
 		dev_priv->is_lvds_on = true;
+	        if (dev_priv->ops->lvds_bl_power)
+	                dev_priv->ops->lvds_bl_power(dev, true);
 	} else {
+	        if (dev_priv->ops->lvds_bl_power)
+	                dev_priv->ops->lvds_bl_power(dev, false);
 		REG_WRITE(PP_CONTROL, REG_READ(PP_CONTROL) &
 			  ~POWER_TARGET_ON);
 		do {
@@ -67,7 +71,6 @@ static void mrst_lvds_set_power(struct drm_device *dev,
 		dev_priv->is_lvds_on = false;
 		pm_request_idle(&dev->pdev->dev);
 	}
-
 	gma_power_end(dev);
 }
 
