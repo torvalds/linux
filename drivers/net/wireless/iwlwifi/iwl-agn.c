@@ -2259,14 +2259,8 @@ static void iwlagn_mac_update_tkip_key(struct ieee80211_hw *hw,
 				       u32 iv32, u16 *phase1key)
 {
 	struct iwl_priv *priv = hw->priv;
-	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 
-	IWL_DEBUG_MAC80211(priv, "enter\n");
-
-	iwl_update_tkip_key(priv, vif_priv->ctx, keyconf, sta,
-			    iv32, phase1key);
-
-	IWL_DEBUG_MAC80211(priv, "leave\n");
+	iwl_update_tkip_key(priv, vif, keyconf, sta, iv32, phase1key);
 }
 
 static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -2278,7 +2272,6 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
 	struct iwl_rxon_context *ctx = vif_priv->ctx;
 	int ret;
-	u8 sta_id;
 	bool is_default_wep_key = false;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
@@ -2289,19 +2282,26 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	}
 
 	/*
-	 * To support IBSS RSN, don't program group keys in IBSS, the
-	 * hardware will then not attempt to decrypt the frames.
+	 * We could program these keys into the hardware as well, but we
+	 * don't expect much multicast traffic in IBSS and having keys
+	 * for more stations is probably more useful.
+	 *
+	 * Mark key TX-only and return 0.
 	 */
 	if (vif->type == NL80211_IFTYPE_ADHOC &&
-	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
-		return -EOPNOTSUPP;
+	    !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
+		key->hw_key_idx = WEP_INVALID_OFFSET;
+		return 0;
+	}
 
-	sta_id = iwl_sta_id_or_broadcast(priv, vif_priv->ctx, sta);
-	if (sta_id == IWL_INVALID_STATION)
-		return -EINVAL;
+	/* If they key was TX-only, accept deletion */
+	if (cmd == DISABLE_KEY && key->hw_key_idx == WEP_INVALID_OFFSET)
+		return 0;
 
 	mutex_lock(&priv->mutex);
 	iwl_scan_cancel_timeout(priv, 100);
+
+	BUILD_BUG_ON(WEP_INVALID_OFFSET == IWLAGN_HW_KEY_DEFAULT);
 
 	/*
 	 * If we are getting WEP group key and we didn't receive any key mapping
@@ -2310,22 +2310,30 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * In legacy wep mode, we use another host command to the uCode.
 	 */
 	if ((key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
-	     key->cipher == WLAN_CIPHER_SUITE_WEP104) &&
-	    !sta) {
+	     key->cipher == WLAN_CIPHER_SUITE_WEP104) && !sta) {
 		if (cmd == SET_KEY)
 			is_default_wep_key = !ctx->key_mapping_keys;
 		else
 			is_default_wep_key =
-					(key->hw_key_idx == HW_KEY_DEFAULT);
+				key->hw_key_idx == IWLAGN_HW_KEY_DEFAULT;
 	}
+
 
 	switch (cmd) {
 	case SET_KEY:
-		if (is_default_wep_key)
+		if (is_default_wep_key) {
 			ret = iwl_set_default_wep_key(priv, vif_priv->ctx, key);
-		else
-			ret = iwl_set_dynamic_key(priv, vif_priv->ctx,
-						  key, sta_id);
+			break;
+		}
+		ret = iwl_set_dynamic_key(priv, vif_priv->ctx, key, sta);
+		if (ret) {
+			/*
+			 * can't add key for RX, but we don't need it
+			 * in the device for TX so still return 0
+			 */
+			ret = 0;
+			key->hw_key_idx = WEP_INVALID_OFFSET;
+		}
 
 		IWL_DEBUG_MAC80211(priv, "enable hwcrypto key\n");
 		break;
@@ -2333,7 +2341,7 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		if (is_default_wep_key)
 			ret = iwl_remove_default_wep_key(priv, ctx, key);
 		else
-			ret = iwl_remove_dynamic_key(priv, ctx, key, sta_id);
+			ret = iwl_remove_dynamic_key(priv, ctx, key, sta);
 
 		IWL_DEBUG_MAC80211(priv, "disable hwcrypto key\n");
 		break;

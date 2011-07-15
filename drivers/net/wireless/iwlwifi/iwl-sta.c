@@ -669,7 +669,7 @@ void iwl_reprogram_ap_sta(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	iwl_send_lq_cmd(priv, ctx, &lq, CMD_SYNC, true);
 }
 
-int iwl_get_free_ucode_key_index(struct iwl_priv *priv)
+int iwl_get_free_ucode_key_offset(struct iwl_priv *priv)
 {
 	int i;
 

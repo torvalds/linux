@@ -246,11 +246,13 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 int iwl_restore_default_wep_keys(struct iwl_priv *priv,
 				 struct iwl_rxon_context *ctx);
 int iwl_set_dynamic_key(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
-			struct ieee80211_key_conf *key, u8 sta_id);
+			struct ieee80211_key_conf *key,
+			struct ieee80211_sta *sta);
 int iwl_remove_dynamic_key(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
-			   struct ieee80211_key_conf *key, u8 sta_id);
+			   struct ieee80211_key_conf *key,
+			   struct ieee80211_sta *sta);
 void iwl_update_tkip_key(struct iwl_priv *priv,
-			 struct iwl_rxon_context *ctx,
+			 struct ieee80211_vif *vif,
 			 struct ieee80211_key_conf *keyconf,
 			 struct ieee80211_sta *sta, u32 iv32, u16 *phase1key);
 int iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);
