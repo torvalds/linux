@@ -3451,13 +3451,13 @@ static int DVBTCtrlSetEchoThreshold(struct drxk_state *state,
 		data |= ((echoThres->threshold <<
 			OFDM_SC_RA_RAM_ECHO_THRES_2K__B)
 			& (OFDM_SC_RA_RAM_ECHO_THRES_2K__M));
-		goto error;
+		break;
 	case DRX_FFTMODE_8K:
 		data &= ~OFDM_SC_RA_RAM_ECHO_THRES_8K__M;
 		data |= ((echoThres->threshold <<
 			OFDM_SC_RA_RAM_ECHO_THRES_8K__B)
 			& (OFDM_SC_RA_RAM_ECHO_THRES_8K__M));
-		goto error;
+		break;
 	default:
 		return -EINVAL;
 		goto error;
@@ -3825,10 +3825,10 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 		/* fall through , try first guess DRX_FFTMODE_8K */
 	case TRANSMISSION_MODE_8K:
 		transmissionParams |= OFDM_SC_RA_RAM_OP_PARAM_MODE_8K;
-		goto error;
+		break;
 	case TRANSMISSION_MODE_2K:
 		transmissionParams |= OFDM_SC_RA_RAM_OP_PARAM_MODE_2K;
-		goto error;
+		break;
 	}
 
 	/* guard */
@@ -3839,16 +3839,16 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 		/* fall through , try first guess DRX_GUARD_1DIV4 */
 	case GUARD_INTERVAL_1_4:
 		transmissionParams |= OFDM_SC_RA_RAM_OP_PARAM_GUARD_4;
-		goto error;
+		break;
 	case GUARD_INTERVAL_1_32:
 		transmissionParams |= OFDM_SC_RA_RAM_OP_PARAM_GUARD_32;
-		goto error;
+		break;
 	case GUARD_INTERVAL_1_16:
 		transmissionParams |= OFDM_SC_RA_RAM_OP_PARAM_GUARD_16;
-		goto error;
+		break;
 	case GUARD_INTERVAL_1_8:
 		transmissionParams |= OFDM_SC_RA_RAM_OP_PARAM_GUARD_8;
-		goto error;
+		break;
 	}
 
 	/* hierarchy */
