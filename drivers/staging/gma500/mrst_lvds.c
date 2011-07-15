@@ -347,16 +347,10 @@ void mrst_lvds_init(struct drm_device *dev,
 	 *    if closed, act like it's not there for now
 	 */
 
-	 /* This ifdef can go once the cpu ident stuff is cleaned up in arch */
-#if defined(CONFIG_X86_MRST)
-	if (mrst_identify_cpu())
-		i2c_adap = i2c_get_adapter(2);
-	else	/* Oaktrail uses I2C 1 */
-#endif
-		i2c_adap = i2c_get_adapter(1);
+	i2c_adap = i2c_get_adapter(dev_priv->ops->i2c_bus);
 
 	if (i2c_adap == NULL)
-		printk(KERN_ALERT "No ddc adapter available!\n");
+		dev_err(dev->dev, "No ddc adapter available!\n");
 	/*
 	 * Attempt to get the fixed panel mode from DDC.  Assume that the
 	 * preferred mode is the right one.
@@ -378,7 +372,6 @@ void mrst_lvds_init(struct drm_device *dev,
 			}
 		}
 	}
-
 	/*
 	 * If we didn't get EDID, try geting panel timing
 	 * from configuration data
@@ -386,8 +379,7 @@ void mrst_lvds_init(struct drm_device *dev,
 	mode_dev->panel_fixed_mode = mrst_lvds_get_configuration_mode(dev);
 
 	if (mode_dev->panel_fixed_mode) {
-		mode_dev->panel_fixed_mode->type |=
-		    DRM_MODE_TYPE_PREFERRED;
+		mode_dev->panel_fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 		goto out;	/* FIXME: check for quirks */
 	}
 
