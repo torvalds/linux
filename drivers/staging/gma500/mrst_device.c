@@ -38,12 +38,13 @@ static const struct psb_ops oaktrail_chip_ops;
 static int mrst_output_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	if (dev_priv->iLVDS_enable) {
+	if (dev_priv->iLVDS_enable)
 		mrst_lvds_init(dev, &dev_priv->mode_dev);
-		return 0;
-	}
-	dev_err(dev->dev, "DSI is not supported\n");
-	return -ENODEV;
+	else
+		dev_err(dev->dev, "DSI is not supported\n");
+	if (dev_priv->hdmi_priv)
+		mrst_hdmi_init(dev, &dev_priv->mode_dev);
+	return 0;
 }
 
 /*
@@ -195,8 +196,8 @@ static void mrst_init_pm(struct drm_device *dev)
 static int mrst_save_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
-	struct drm_connector *connector;
+	int i;
+	u32 pp_stat;
 
 	/* Display arbitration control + watermarks */
 	dev_priv->saveDSPARB = PSB_RVDC32(DSPARB);
@@ -208,17 +209,91 @@ static int mrst_save_display_registers(struct drm_device *dev)
 	dev_priv->saveDSPFW6 = PSB_RVDC32(DSPFW6);
 	dev_priv->saveCHICKENBIT = PSB_RVDC32(DSPCHICKENBIT);
 
-	/* Save crtc and output state */
-	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (drm_helper_crtc_in_use(crtc))
-			crtc->funcs->save(crtc);
+	/* Pipe & plane A info */
+	dev_priv->savePIPEACONF = PSB_RVDC32(PIPEACONF);
+	dev_priv->savePIPEASRC = PSB_RVDC32(PIPEASRC);
+	dev_priv->saveFPA0 = PSB_RVDC32(MRST_FPA0);
+	dev_priv->saveFPA1 = PSB_RVDC32(MRST_FPA1);
+	dev_priv->saveDPLL_A = PSB_RVDC32(MRST_DPLL_A);
+	dev_priv->saveHTOTAL_A = PSB_RVDC32(HTOTAL_A);
+	dev_priv->saveHBLANK_A = PSB_RVDC32(HBLANK_A);
+	dev_priv->saveHSYNC_A = PSB_RVDC32(HSYNC_A);
+	dev_priv->saveVTOTAL_A = PSB_RVDC32(VTOTAL_A);
+	dev_priv->saveVBLANK_A = PSB_RVDC32(VBLANK_A);
+	dev_priv->saveVSYNC_A = PSB_RVDC32(VSYNC_A);
+	dev_priv->saveBCLRPAT_A = PSB_RVDC32(BCLRPAT_A);
+	dev_priv->saveDSPACNTR = PSB_RVDC32(DSPACNTR);
+	dev_priv->saveDSPASTRIDE = PSB_RVDC32(DSPASTRIDE);
+	dev_priv->saveDSPAADDR = PSB_RVDC32(DSPABASE);
+	dev_priv->saveDSPASURF = PSB_RVDC32(DSPASURF);
+	dev_priv->saveDSPALINOFF = PSB_RVDC32(DSPALINOFF);
+	dev_priv->saveDSPATILEOFF = PSB_RVDC32(DSPATILEOFF);
+
+	/* Save cursor regs */
+	dev_priv->saveDSPACURSOR_CTRL = PSB_RVDC32(CURACNTR);
+	dev_priv->saveDSPACURSOR_BASE = PSB_RVDC32(CURABASE);
+	dev_priv->saveDSPACURSOR_POS = PSB_RVDC32(CURAPOS);
+
+	/* Save palette (gamma) */
+	for (i = 0; i < 256; i++)
+		dev_priv->save_palette_a[i] = PSB_RVDC32(PALETTE_A + (i << 2));
+
+	if (dev_priv->hdmi_priv)
+		mrst_hdmi_save(dev);
+
+	/* Save performance state */
+	dev_priv->savePERF_MODE = PSB_RVDC32(MRST_PERF_MODE);
+
+	/* LVDS state */
+	dev_priv->savePP_CONTROL = PSB_RVDC32(PP_CONTROL);
+	dev_priv->savePFIT_PGM_RATIOS = PSB_RVDC32(PFIT_PGM_RATIOS);
+	dev_priv->savePFIT_AUTO_RATIOS = PSB_RVDC32(PFIT_AUTO_RATIOS);
+	dev_priv->saveBLC_PWM_CTL = PSB_RVDC32(BLC_PWM_CTL);
+	dev_priv->saveBLC_PWM_CTL2 = PSB_RVDC32(BLC_PWM_CTL2);
+	dev_priv->saveLVDS = PSB_RVDC32(LVDS);
+	dev_priv->savePFIT_CONTROL = PSB_RVDC32(PFIT_CONTROL);
+	dev_priv->savePP_ON_DELAYS = PSB_RVDC32(LVDSPP_ON);
+	dev_priv->savePP_OFF_DELAYS = PSB_RVDC32(LVDSPP_OFF);
+	dev_priv->savePP_DIVISOR = PSB_RVDC32(PP_CYCLE);
+
+	/* HW overlay */
+	dev_priv->saveOV_OVADD = PSB_RVDC32(OV_OVADD);
+	dev_priv->saveOV_OGAMC0 = PSB_RVDC32(OV_OGAMC0);
+	dev_priv->saveOV_OGAMC1 = PSB_RVDC32(OV_OGAMC1);
+	dev_priv->saveOV_OGAMC2 = PSB_RVDC32(OV_OGAMC2);
+	dev_priv->saveOV_OGAMC3 = PSB_RVDC32(OV_OGAMC3);
+	dev_priv->saveOV_OGAMC4 = PSB_RVDC32(OV_OGAMC4);
+	dev_priv->saveOV_OGAMC5 = PSB_RVDC32(OV_OGAMC5);
+
+	/* DPST registers */
+	dev_priv->saveHISTOGRAM_INT_CONTROL_REG = PSB_RVDC32(HISTOGRAM_INT_CONTROL);
+	dev_priv->saveHISTOGRAM_LOGIC_CONTROL_REG = PSB_RVDC32(HISTOGRAM_LOGIC_CONTROL);
+	dev_priv->savePWM_CONTROL_LOGIC = PSB_RVDC32(PWM_CONTROL_LOGIC);
+
+	if (dev_priv->iLVDS_enable) {
+		/* Shut down the panel */
+		PSB_WVDC32(0, PP_CONTROL);
+
+		do {
+			pp_stat = PSB_RVDC32(PP_STATUS);
+		} while (pp_stat & 0x80000000);
+
+		/* Turn off the plane */
+		PSB_WVDC32(0x58000000, DSPACNTR);
+		/* Trigger the plane disable */
+		PSB_WVDC32(0, DSPASURF);
+		
+		/* Wait ~4 ticks */
+		msleep(4);
+
+		/* Turn off pipe */
+		PSB_WVDC32(0x0, PIPEACONF);
+		/* Wait ~8 ticks */
+		msleep(8);
+
+		/* Turn off PLLs */
+		PSB_WVDC32(0, MRST_DPLL_A);
 	}
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		connector->funcs->save(connector);
-
-	mutex_unlock(&dev->mode_config.mutex);
 	return 0;
 }
 
@@ -231,18 +306,8 @@ static int mrst_save_display_registers(struct drm_device *dev)
 static int mrst_restore_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct drm_crtc *crtc;
-	struct drm_connector *connector;
-	int pp_stat;
-
-	if (!dev_priv->iLVDS_enable) {
-#ifdef CONFIG_X86_MRST
-		intel_scu_ipc_simple_command(IPC_MSG_PANEL_ON_OFF,
-							IPC_CMD_PANEL_ON);
-		/* FIXME: can we avoid this delay ? */
-		msleep(2000); /* wait 2 seconds */
-#endif
-	}
+	u32 pp_stat;
+	int i;
 
 	/* Display arbitration + watermarks */
 	PSB_WVDC32(dev_priv->saveDSPARB, DSPARB);
@@ -254,54 +319,92 @@ static int mrst_restore_display_registers(struct drm_device *dev)
 	PSB_WVDC32(dev_priv->saveDSPFW6, DSPFW6);
 	PSB_WVDC32(dev_priv->saveCHICKENBIT, DSPCHICKENBIT);
 
-	/*make sure VGA plane is off. it initializes to on after reset!*/
+	/* Make sure VGA plane is off. it initializes to on after reset!*/
 	PSB_WVDC32(0x80000000, VGACNTRL);
 
-	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		if (drm_helper_crtc_in_use(crtc))
-			crtc->funcs->restore(crtc);
+	/* set the plls */
+	PSB_WVDC32(dev_priv->saveFPA0, MRST_FPA0);
+	PSB_WVDC32(dev_priv->saveFPA1, MRST_FPA1);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
-		connector->funcs->restore(connector);
+	/* Actually enable it */
+	PSB_WVDC32(dev_priv->saveDPLL_A, MRST_DPLL_A);
+	DRM_UDELAY(150);
 
-	mutex_unlock(&dev->mode_config.mutex);
+	/* Restore mode */
+	PSB_WVDC32(dev_priv->saveHTOTAL_A, HTOTAL_A);
+	PSB_WVDC32(dev_priv->saveHBLANK_A, HBLANK_A);
+	PSB_WVDC32(dev_priv->saveHSYNC_A, HSYNC_A);
+	PSB_WVDC32(dev_priv->saveVTOTAL_A, VTOTAL_A);
+	PSB_WVDC32(dev_priv->saveVBLANK_A, VBLANK_A);
+	PSB_WVDC32(dev_priv->saveVSYNC_A, VSYNC_A);
+	PSB_WVDC32(dev_priv->savePIPEASRC, PIPEASRC);
+	PSB_WVDC32(dev_priv->saveBCLRPAT_A, BCLRPAT_A);
+
+	/* Restore performance mode*/
+	PSB_WVDC32(dev_priv->savePERF_MODE, MRST_PERF_MODE);
+
+	/* Enable the pipe*/
+	if (dev_priv->iLVDS_enable)
+		PSB_WVDC32(dev_priv->savePIPEACONF, PIPEACONF);
+
+	/* Set up the plane*/
+	PSB_WVDC32(dev_priv->saveDSPALINOFF, DSPALINOFF);
+	PSB_WVDC32(dev_priv->saveDSPASTRIDE, DSPASTRIDE);
+	PSB_WVDC32(dev_priv->saveDSPATILEOFF, DSPATILEOFF);
+
+	/* Enable the plane */
+	PSB_WVDC32(dev_priv->saveDSPACNTR, DSPACNTR);
+	PSB_WVDC32(dev_priv->saveDSPASURF, DSPASURF);
+
+	/* Enable Cursor A */
+	PSB_WVDC32(dev_priv->saveDSPACURSOR_CTRL, CURACNTR);
+	PSB_WVDC32(dev_priv->saveDSPACURSOR_POS, CURAPOS);
+	PSB_WVDC32(dev_priv->saveDSPACURSOR_BASE, CURABASE);
+
+	/* Restore palette (gamma) */
+	for (i = 0; i < 256; i++)
+		PSB_WVDC32(dev_priv->save_palette_a[i], PALETTE_A + (i << 2));
+
+	if (dev_priv->hdmi_priv)
+		mrst_hdmi_restore(dev);
 
 	if (dev_priv->iLVDS_enable) {
-		/*shutdown the panel*/
-		PSB_WVDC32(0, PP_CONTROL);
-		do {
-			pp_stat = PSB_RVDC32(PP_STATUS);
-		} while (pp_stat & 0x80000000);
-
-		/* Turn off the plane */
-		PSB_WVDC32(0x58000000, DSPACNTR);
-		PSB_WVDC32(0, DSPASURF);/*trigger the plane disable*/
-		/* Wait ~4 ticks */
-		msleep(4);
-		/* Turn off pipe */
-		PSB_WVDC32(0x0, PIPEACONF);
-		/* Wait ~8 ticks */
-		msleep(8);
-
-		/* Turn off PLLs */
-		PSB_WVDC32(0, MRST_DPLL_A);
-	} else {
-		PSB_WVDC32(DPI_SHUT_DOWN, DPI_CONTROL_REG);
-		PSB_WVDC32(0x0, PIPEACONF);
-		PSB_WVDC32(0x2faf0000, BLC_PWM_CTL);
-		while (REG_READ(0x70008) & 0x40000000)
-			cpu_relax();
-		while ((PSB_RVDC32(GEN_FIFO_STAT_REG) & DPI_FIFO_EMPTY)
-			!= DPI_FIFO_EMPTY)
-			cpu_relax();
-		PSB_WVDC32(0, DEVICE_READY_REG);
-		/* Turn off panel power */
-#ifdef CONFIG_X86_MRST	/* FIXME: kill define once modular */
-		intel_scu_ipc_simple_command(IPC_MSG_PANEL_ON_OFF,
-							IPC_CMD_PANEL_OFF);
-#endif
+		PSB_WVDC32(dev_priv->saveBLC_PWM_CTL2, BLC_PWM_CTL2);
+		PSB_WVDC32(dev_priv->saveLVDS, LVDS); /*port 61180h*/
+		PSB_WVDC32(dev_priv->savePFIT_CONTROL, PFIT_CONTROL);
+		PSB_WVDC32(dev_priv->savePFIT_PGM_RATIOS, PFIT_PGM_RATIOS);
+		PSB_WVDC32(dev_priv->savePFIT_AUTO_RATIOS, PFIT_AUTO_RATIOS);
+		PSB_WVDC32(dev_priv->saveBLC_PWM_CTL, BLC_PWM_CTL);
+		PSB_WVDC32(dev_priv->savePP_ON_DELAYS, LVDSPP_ON);
+		PSB_WVDC32(dev_priv->savePP_OFF_DELAYS, LVDSPP_OFF);
+		PSB_WVDC32(dev_priv->savePP_DIVISOR, PP_CYCLE);
+		PSB_WVDC32(dev_priv->savePP_CONTROL, PP_CONTROL);
 	}
+
+	/* Wait for cycle delay */
+	do {
+		pp_stat = PSB_RVDC32(PP_STATUS);
+	} while (pp_stat & 0x08000000);
+
+	/* Wait for panel power up */
+	do {
+		pp_stat = PSB_RVDC32(PP_STATUS);
+	} while (pp_stat & 0x10000000);
+
+	/* Restore HW overlay */
+	PSB_WVDC32(dev_priv->saveOV_OVADD, OV_OVADD);
+	PSB_WVDC32(dev_priv->saveOV_OGAMC0, OV_OGAMC0);
+	PSB_WVDC32(dev_priv->saveOV_OGAMC1, OV_OGAMC1);
+	PSB_WVDC32(dev_priv->saveOV_OGAMC2, OV_OGAMC2);
+	PSB_WVDC32(dev_priv->saveOV_OGAMC3, OV_OGAMC3);
+	PSB_WVDC32(dev_priv->saveOV_OGAMC4, OV_OGAMC4);
+	PSB_WVDC32(dev_priv->saveOV_OGAMC5, OV_OGAMC5);
+
+	/* DPST registers */
+	PSB_WVDC32(dev_priv->saveHISTOGRAM_INT_CONTROL_REG, HISTOGRAM_INT_CONTROL);
+	PSB_WVDC32(dev_priv->saveHISTOGRAM_LOGIC_CONTROL_REG, HISTOGRAM_LOGIC_CONTROL);
+	PSB_WVDC32(dev_priv->savePWM_CONTROL_LOGIC, PWM_CONTROL_LOGIC);
+
 	return 0;
 }
 
@@ -364,8 +467,14 @@ static int mrst_chip_setup(struct drm_device *dev)
 		return mid_chip_setup(dev);
 #endif
 	dev_priv->ops = &oaktrail_chip_ops;
+	mrst_hdmi_setup(dev);
 	/* Check - may be better to go via BIOS paths ? */
 	return mid_chip_setup(dev);
+}
+
+static void oaktrail_teardown(struct drm_device *dev)
+{
+	mrst_hdmi_teardown(dev);
 }
 	
 const struct psb_ops mrst_chip_ops = {
@@ -400,6 +509,7 @@ static const struct psb_ops oaktrail_chip_ops = {
 	.sgx_offset = MRST_SGX_OFFSET,
 
 	.chip_setup = mid_chip_setup,
+	.chip_teardown = oaktrail_teardown,
 	.crtc_helper = &mrst_helper_funcs,
 	.crtc_funcs = &psb_intel_crtc_funcs,
 

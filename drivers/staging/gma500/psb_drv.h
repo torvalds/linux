@@ -375,6 +375,9 @@ struct drm_psb_private {
 	bool dbi_panel_on2;	/* The DBI panel power is on */
 	u32 dsr_fb_update;	/* DSR FB update counter */
 
+	/* Moorestown HDMI state */
+	struct mrst_hdmi_dev *hdmi_priv;
+
 	/* Moorestown pipe config register value cache */
 	uint32_t pipeconf;
 	uint32_t pipeconf1;
@@ -631,6 +634,7 @@ struct psb_ops {
 
 	/* Setup hooks */
 	int (*chip_setup)(struct drm_device *dev);
+	void (*chip_teardown)(struct drm_device *dev);
 
 	/* Display management hooks */
 	int (*output_init)(struct drm_device *dev);

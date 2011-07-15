@@ -32,7 +32,9 @@ psb_gfx-$(CONFIG_DRM_PSB_CDV) +=  cdv_device.o \
 
 psb_gfx-$(CONFIG_DRM_PSB_MRST) += mrst_device.o \
 	  mrst_crtc.o \
-	  mrst_lvds.o
+	  mrst_lvds.o \
+	  mrst_hdmi.o \
+	  mrst_hdmi_i2c.o
 
 psb_gfx-$(CONFIG_DRM_PSB_MFLD) += mdfld_device.o \
 	  mdfld_output.o \

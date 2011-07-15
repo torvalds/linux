@@ -215,3 +215,38 @@ struct mrst_gct_data {
 
 #define GCT_R10_HEADER_SIZE		16
 #define GCT_R10_DISPLAY_DESC_SIZE	28
+
+/*
+ *	Moorestown HDMI interfaces
+ */
+
+struct mrst_hdmi_dev {
+	struct pci_dev *dev;
+	void __iomem *regs;
+	unsigned int mmio, mmio_len;
+	int dpms_mode;
+	struct hdmi_i2c_dev *i2c_dev;
+
+	/* register state */
+	u32 saveDPLL_CTRL;
+	u32 saveDPLL_DIV_CTRL;
+	u32 saveDPLL_ADJUST;
+	u32 saveDPLL_UPDATE;
+	u32 saveDPLL_CLK_ENABLE;
+	u32 savePCH_HTOTAL_B;
+	u32 savePCH_HBLANK_B;
+	u32 savePCH_HSYNC_B;
+	u32 savePCH_VTOTAL_B;
+	u32 savePCH_VBLANK_B;
+	u32 savePCH_VSYNC_B;
+	u32 savePCH_PIPEBCONF;
+	u32 savePCH_PIPEBSRC;
+};
+
+extern void mrst_hdmi_setup(struct drm_device *dev);
+extern void mrst_hdmi_teardown(struct drm_device *dev);
+extern int  mrst_hdmi_i2c_init(struct pci_dev *dev);
+extern void mrst_hdmi_i2c_exit(struct pci_dev *dev);
+extern void mrst_hdmi_save(struct drm_device *dev);
+extern void mrst_hdmi_restore(struct drm_device *dev);
+extern void mrst_hdmi_init(struct drm_device *dev, struct psb_intel_mode_device *mode_dev);

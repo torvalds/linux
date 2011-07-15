@@ -261,6 +261,8 @@ static int psb_driver_unload(struct drm_device *dev)
 		psb_lid_timer_takedown(dev_priv);
 		gma_intel_opregion_exit(dev);
 
+		if (dev_priv->ops->chip_teardown)
+			dev_priv->ops->chip_teardown(dev);
 		psb_do_takedown(dev);
 
 
