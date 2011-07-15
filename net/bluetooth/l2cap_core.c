@@ -2323,8 +2323,7 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 
 	sk = chan->sk;
 
-	if ((bt_sk(sk)->defer_setup && sk->sk_state != BT_CONNECT2) ||
-		 (!bt_sk(sk)->defer_setup && sk->sk_state != BT_CONFIG)) {
+	if (sk->sk_state != BT_CONFIG && sk->sk_state != BT_CONNECT2) {
 		struct l2cap_cmd_rej rej;
 
 		rej.reason = cpu_to_le16(0x0002);
