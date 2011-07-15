@@ -42,11 +42,6 @@ void rtl8192_hw_sleep_down(struct net_device *dev)
 	spin_unlock_irqrestore(&priv->rf_ps_lock,flags);
 	RT_TRACE(COMP_DBG, "%s()============>come to sleep down\n", __func__);
 
-#ifdef CONFIG_RTLWIFI_DEBUGFS
-	if (priv->debug->hw_holding) {
-		return;
-	}
-#endif
 	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS,false);
 }
 

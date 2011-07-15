@@ -590,10 +590,6 @@ typedef struct r8192_priv
 	struct rtl819x_ops			*ops;
 	struct rtllib_device			*rtllib;
 
-#ifdef CONFIG_RTLWIFI_DEBUGFS
-	rtl_fs_debug				*debug;
-#endif /* CONFIG_IWLWIFI_DEBUGFS */
-
 	work_struct_rsl				reset_wq;
 
 	LOG_INTERRUPT_8190_T	InterruptLog;
