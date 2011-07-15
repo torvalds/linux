@@ -114,6 +114,66 @@ static int tmd_vid_get_panel_info(struct drm_device *dev,
 	return 0;
 }
 
+/*
+ *	mdfld_init_TMD_MIPI	-	initialise a TMD interface
+ *	@dsi_config: configuration
+ *	@pipe: pipe to configure
+ *
+ *	This function is called only by mrst_dsi_mode_set and
+ *	restore_display_registers.  since this function does not
+ *	acquire the mutex, it is important that the calling function
+ *	does!
+ */
+
+
+static void mdfld_dsi_tmd_drv_ic_init(struct mdfld_dsi_config *dsi_config,
+				      int pipe)
+{
+	static u32 tmd_cmd_mcap_off[] = {0x000000b2};
+	static u32 tmd_cmd_enable_lane_switch[] = {0x000101ef};
+	static u32 tmd_cmd_set_lane_num[] = {0x006360ef};
+	static u32 tmd_cmd_pushing_clock0[] = {0x00cc2fef};
+	static u32 tmd_cmd_pushing_clock1[] = {0x00dd6eef};
+	static u32 tmd_cmd_set_mode[] = {0x000000b3};
+	static u32 tmd_cmd_set_sync_pulse_mode[] = {0x000961ef};
+	static u32 tmd_cmd_set_column[] = {0x0100002a, 0x000000df};
+	static u32 tmd_cmd_set_page[] = {0x0300002b, 0x00000055};
+	static u32 tmd_cmd_set_video_mode[] = {0x00000153};
+	/*no auto_bl,need add in furture*/
+	static u32 tmd_cmd_enable_backlight[] = {0x00005ab4};
+	static u32 tmd_cmd_set_backlight_dimming[] = {0x00000ebd};
+
+	struct mdfld_dsi_pkg_sender *sender
+			= mdfld_dsi_get_pkg_sender(dsi_config);
+
+	DRM_INFO("Enter mdfld init TMD MIPI display.\n");
+
+	if (!sender) {
+		DRM_ERROR("Cannot get sender\n");
+		return;
+	}
+
+	if (dsi_config->dvr_ic_inited)
+		return;
+
+	msleep(3);
+
+	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_mcap_off, 1, 0);
+	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_enable_lane_switch, 1, 0);
+	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_set_lane_num, 1, 0);
+	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_pushing_clock0, 1, 0);
+	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_pushing_clock1, 1, 0);
+	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_set_mode, 1, 0);
+	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_set_sync_pulse_mode, 1, 0);
+	mdfld_dsi_send_mcs_long_lp(sender, tmd_cmd_set_column, 2, 0);
+	mdfld_dsi_send_mcs_long_lp(sender, tmd_cmd_set_page, 2, 0);
+	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_set_video_mode, 1, 0);
+	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_enable_backlight, 1, 0);
+	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_set_backlight_dimming, 1, 0);
+
+	dsi_config->dvr_ic_inited = 1;
+}
+
 /* TMD DPI encoder helper funcs */
 static const struct drm_encoder_helper_funcs
 					mdfld_tpo_dpi_encoder_helper_funcs = {
@@ -141,4 +201,6 @@ void tmd_vid_init(struct drm_device *dev, struct panel_funcs *p_funcs)
 	p_funcs->get_config_mode = &tmd_vid_get_config_mode;
 	p_funcs->update_fb = NULL;
 	p_funcs->get_panel_info = tmd_vid_get_panel_info;
+	p_funcs->reset = mdfld_dsi_panel_reset;
+	p_funcs->drv_ic_init = mdfld_dsi_tmd_drv_ic_init;
 }

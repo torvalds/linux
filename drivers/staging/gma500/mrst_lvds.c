@@ -58,11 +58,11 @@ static void mrst_lvds_set_power(struct drm_device *dev,
 			pp_status = REG_READ(PP_STATUS);
 		} while ((pp_status & (PP_ON | PP_READY)) == PP_READY);
 		dev_priv->is_lvds_on = true;
-	        if (dev_priv->ops->lvds_bl_power)
-	                dev_priv->ops->lvds_bl_power(dev, true);
+		if (dev_priv->ops->lvds_bl_power)
+			dev_priv->ops->lvds_bl_power(dev, true);
 	} else {
-	        if (dev_priv->ops->lvds_bl_power)
-	                dev_priv->ops->lvds_bl_power(dev, false);
+		if (dev_priv->ops->lvds_bl_power)
+			dev_priv->ops->lvds_bl_power(dev, false);
 		REG_WRITE(PP_CONTROL, REG_READ(PP_CONTROL) &
 			  ~POWER_TARGET_ON);
 		do {
@@ -151,6 +151,7 @@ static void mrst_lvds_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);
+	struct psb_intel_mode_device *mode_dev = output->mode_dev;
 
 	if (!gma_power_begin(dev, true))
 		return;
@@ -162,23 +163,43 @@ static void mrst_lvds_prepare(struct drm_encoder *encoder)
 	gma_power_end(dev);
 }
 
+static u32 mrst_lvds_get_max_backlight(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	u32 ret;
+
+	if (gma_power_begin(dev, false)) {
+		ret = ((REG_READ(BLC_PWM_CTL) &
+			  BACKLIGHT_MODULATION_FREQ_MASK) >>
+			  BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
+
+		gma_power_end(dev);
+	} else
+		ret = ((dev_priv->saveBLC_PWM_CTL &
+			  BACKLIGHT_MODULATION_FREQ_MASK) >>
+			  BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
+
+	return ret;
+}
+
 static void mrst_lvds_commit(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);
+	struct psb_intel_mode_device *mode_dev = output->mode_dev;
 
 	if (mode_dev->backlight_duty_cycle == 0)
 		mode_dev->backlight_duty_cycle =
-		    psb_intel_lvds_get_max_backlight(dev);
+					mrst_lvds_get_max_backlight(dev);
 	mrst_lvds_set_power(dev, output, true);
 }
 
 static const struct drm_encoder_helper_funcs mrst_lvds_helper_funcs = {
 	.dpms = mrst_lvds_dpms,
 	.mode_fixup = psb_intel_lvds_mode_fixup,
-	.prepare = mrst_intel_lvds_prepare,
+	.prepare = mrst_lvds_prepare,
 	.mode_set = mrst_lvds_mode_set,
-	.commit = mrst_intel_lvds_commit,
+	.commit = mrst_lvds_commit,
 };
 
 static struct drm_display_mode lvds_configuration_modes[] = {

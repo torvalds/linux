@@ -126,11 +126,15 @@ static void mdfld_dsi_dbi_set_power(struct drm_encoder *encoder, bool on)
 	struct mdfld_dsi_encoder *dsi_encoder = MDFLD_DSI_ENCODER(encoder);
 	struct mdfld_dsi_dbi_output *dbi_output =
 				MDFLD_DSI_DBI_OUTPUT(dsi_encoder);
-	/*struct drm_device *dev = dbi_output->dev;*/
+	struct mdfld_dsi_config *dsi_config =
+		mdfld_dsi_encoder_get_config(dsi_encoder);
+	struct mdfld_dsi_pkg_sender *sender =
+		mdfld_dsi_encoder_get_pkg_sender(dsi_encoder);
 	struct drm_device *dev = encoder->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 reg_offset = 0;
 	int pipe = (dbi_output->channel_num == 0) ? 0 : 2;
+	u32 data = 0;
 
 	dev_dbg(dev->dev, "pipe %d : %s, panel on: %s\n",
 			pipe, on ? "On" : "Off",
@@ -190,9 +194,33 @@ static void mdfld_dsi_dbi_set_power(struct drm_encoder *encoder, bool on)
 		}
 	}
 
+	/*
+	 * FIXME: this is a WA for TPO panel crash on DPMS on & off around
+	 * 83 times. the root cause of this issue is that Booster in
+	 * drvIC crashed. Add this WA so that we can resume the driver IC
+	 * once we found that booster has a fault
+	 */
+	mdfld_dsi_get_power_mode(dsi_config,
+				&data,
+				MDFLD_DSI_HS_TRANSMISSION);
+
+	if (on && data && !(data & (1 << 7))) {
+		/* Soft reset */
+		mdfld_dsi_send_dcs(sender,
+				   DCS_SOFT_RESET,
+				   NULL,
+				   0,
+				   CMD_DATA_SRC_PIPE,
+				   MDFLD_DSI_SEND_PACKAGE);
+
+		/* Init drvIC */
+		if (dbi_output->p_funcs->drv_ic_init)
+			dbi_output->p_funcs->drv_ic_init(dsi_config,
+							 pipe);
+	}
+ 
 out_err:
 	gma_power_end(dev);
-
 	if (ret)
 		dev_err(dev->dev, "failed\n");
 }
@@ -253,14 +281,6 @@ static void mdfld_dsi_dbi_mode_set(struct drm_encoder *encoder,
 		return;
 	}
 
-	/* Set up pipe related registers */
-	REG_WRITE(mipi_reg, mipi_val);
-	REG_READ(mipi_reg);
-
-	mdfld_dsi_controller_dbi_init(dsi_config, pipe);
-
-	msleep(20);
-
 	REG_WRITE(dspcntr_reg, dspcntr_val);
 	REG_READ(dspcntr_reg);
 
@@ -268,7 +288,7 @@ static void mdfld_dsi_dbi_mode_set(struct drm_encoder *encoder,
 	msleep(20);
 
 	/* Send exit_sleep_mode DCS */
-	ret = mdfld_dsi_dbi_send_dcs(dsi_output, exit_sleep_mode,
+	ret = mdfld_dsi_dbi_send_dcs(dsi_output, DCS_EXIT_SLEEP_MODE,
 					NULL, 0, CMD_DATA_SRC_SYSTEM_MEM);
 	if (ret) {
 		dev_err(dev->dev, "sent exit_sleep_mode faild\n");
@@ -276,7 +296,7 @@ static void mdfld_dsi_dbi_mode_set(struct drm_encoder *encoder,
 	}
 
 	/* Send set_tear_on DCS */
-	ret = mdfld_dsi_dbi_send_dcs(dsi_output, set_tear_on,
+	ret = mdfld_dsi_dbi_send_dcs(dsi_output, DCS_SET_TEAR_ON,
 					&param, 1, CMD_DATA_SRC_SYSTEM_MEM);
 	if (ret) {
 		dev_err(dev->dev, "%s - sent set_tear_on faild\n", __func__);
@@ -284,11 +304,6 @@ static void mdfld_dsi_dbi_mode_set(struct drm_encoder *encoder,
 	}
 
 	/* Do some init stuff */
-	mdfld_dsi_brightness_init(dsi_config, pipe);
-
-	mdfld_dsi_gen_fifo_ready(dev, (MIPIA_GEN_FIFO_STAT_REG + reg_offset),
-				HS_CTRL_FIFO_EMPTY | HS_DATA_FIFO_EMPTY);
-
 	REG_WRITE(pipeconf_reg, pipeconf_val | PIPEACONF_DSR);
 	REG_READ(pipeconf_reg);
 
@@ -375,23 +390,24 @@ static void mdfld_dsi_dbi_dpms(struct drm_encoder *encoder, int mode)
 		 * if everything goes right, hw_begin will resume them all
 		 * during set_power.
 		 */
-		if (bdispoff)
-			mdfld_dsi_dbi_exit_dsr(dev, MDFLD_DSR_2D_3D, 0, 0);
+		if (bdispoff /* FIXME && gbgfxsuspended */) {
+			mdfld_dsi_dbi_exit_dsr(dev, MDFLD_DSR_2D_3D);
+			bdispoff = false;
+			dev_priv->dispstatus = true;
+		}
 
 		mdfld_dsi_dbi_set_power(encoder, true);
 		/* FIXME if (gbgfxsuspended)
 			gbgfxsuspended = false; */
-		bdispoff = false;
-		dev_priv->dispstatus = true;
 	} else {
 		/*
 		 * I am not sure whether this is the perfect place to
 		 * turn rpm on since we still have a lot of CRTC turnning
 		 * on work to do.
 		 */
-		mdfld_dsi_dbi_set_power(encoder, false);
 		bdispoff = true;
 		dev_priv->dispstatus = false;
+		mdfld_dsi_dbi_set_power(encoder, false);
 	}
 }
 
@@ -446,7 +462,7 @@ static void mdfld_dsi_dbi_update_fb(struct mdfld_dsi_dbi_output *dbi_output,
 	REG_READ(dspsurf_reg);
 
 	mdfld_dsi_send_dcs(sender,
-			   write_mem_start,
+			   DCS_WRITE_MEM_START,
 			   NULL,
 			   0,
 			   CMD_DATA_SRC_PIPE,
@@ -492,4 +508,6 @@ void tpo_cmd_init(struct drm_device *dev, struct panel_funcs *p_funcs)
 	p_funcs->get_config_mode = &tpo_cmd_get_config_mode;
 	p_funcs->update_fb = mdfld_dsi_dbi_update_fb;
 	p_funcs->get_panel_info = tpo_cmd_get_panel_info;
+	p_funcs->reset = mdfld_dsi_panel_reset;
+	p_funcs->drv_ic_init = mdfld_dsi_brightness_init;
 }

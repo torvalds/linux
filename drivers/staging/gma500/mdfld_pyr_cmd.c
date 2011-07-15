@@ -188,7 +188,7 @@ static void pyr_dsi_controller_dbi_init(struct mdfld_dsi_config *dsi_config,
 
 	dev_dbg(dev->dev, "Init DBI interface on pipe %d...\n", pipe);
 
-	/* In-ready device */
+	/* Un-ready device */
 	REG_WRITE((MIPIA_DEVICE_READY_REG + reg_offset), 0x00000000);
 
 	/* Init dsi adapter before kicking off */
@@ -394,25 +394,13 @@ static void pyr_dsi_dbi_dpms(struct drm_encoder *encoder, int mode)
 	struct mdfld_dsi_dbi_output *dbi_output =
 					MDFLD_DSI_DBI_OUTPUT(dsi_encoder);
 	struct drm_device *dev = dbi_output->dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	static bool bdispoff;
 
 	dev_dbg(dev->dev, "%s\n",  (mode == DRM_MODE_DPMS_ON ? "on" : "off"));
 
-	if (mode == DRM_MODE_DPMS_ON) {
-		if (/*gbgfxsuspended && */bdispoff) {
-			bdispoff = false;
-			dev_priv->dispstatus = true;
-			/*gbgfxsuspended = false;
-			*/
-			mdfld_dsi_dbi_exit_dsr(dev, MDFLD_DSR_2D_3D, 0, 0);
-		}
+	if (mode == DRM_MODE_DPMS_ON)
 		pyr_dsi_dbi_set_power(encoder, true);
-	} else {
-		bdispoff = true;
-		dev_priv->dispstatus = false;
+	else
 		pyr_dsi_dbi_set_power(encoder, false);
-	}
 }
 
 /*

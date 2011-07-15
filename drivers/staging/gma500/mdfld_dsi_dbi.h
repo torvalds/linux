@@ -59,9 +59,6 @@ struct mdfld_dsi_dbi_output {
 	/* Backlight operations */
 
 	/* DSR timer */
-	spinlock_t dsr_timer_lock;
-	struct timer_list dsr_timer;
-	void(*dsi_timer_func)(unsigned long data);
 	u32 dsr_idle_count;
 	bool dsr_fb_update_done;
 
@@ -81,21 +78,10 @@ struct mdfld_dbi_dsr_info {
 	int dbi_output_num;
 	struct mdfld_dsi_dbi_output *dbi_outputs[2];
 
-	spinlock_t dsr_timer_lock;
-	struct timer_list dsr_timer;
 	u32 dsr_idle_count;
 };
 
 #define DBI_CB_TIMEOUT_COUNT	0xffff
-
-/* DCS commands */
-#define enter_sleep_mode	0x10
-#define exit_sleep_mode		0x11
-#define set_display_off		0x28
-#define	set_dispaly_on		0x29
-#define set_column_address	0x2a
-#define set_page_addr		0x2b
-#define write_mem_start		0x2c
 
 /* Offsets */
 #define CMD_MEM_ADDR_OFFSET	0
@@ -132,7 +118,7 @@ static inline int mdfld_dsi_dbi_cmd_sent(struct mdfld_dsi_dbi_output *dbi_output
 
 	/* Query the command execution status */
 	while (retry--)
-		if (!(REG_READ(MIPIA_CMD_ADD_REG + reg_offset) & (1 << 10)))
+		if (!(REG_READ(MIPIA_CMD_ADD_REG + reg_offset) & (1 << 0)))
 			break;
 
 	if (!retry) {
@@ -164,13 +150,11 @@ static inline int mdfld_dsi_dbi_cb_ready(struct mdfld_dsi_dbi_output *dbi_output
 
 extern void mdfld_dsi_dbi_output_init(struct drm_device *dev,
 			struct psb_intel_mode_device *mode_dev, int pipe);
-extern void mdfld_dsi_dbi_exit_dsr(struct drm_device *dev, u32 update_src,
-			void *p_surfaceAddr, bool check_hw_on_only);
+extern void mdfld_dsi_dbi_exit_dsr(struct drm_device *dev, u32 update_src);
 extern void mdfld_dsi_dbi_enter_dsr(struct mdfld_dsi_dbi_output *dbi_output,
 			int pipe);
 extern int mdfld_dbi_dsr_init(struct drm_device *dev);
 extern void mdfld_dbi_dsr_exit(struct drm_device *dev);
-extern void mdfld_dbi_dsr_timer_start(struct mdfld_dbi_dsr_info *dsr_info);
 extern struct mdfld_dsi_encoder *mdfld_dsi_dbi_init(struct drm_device *dev,
 			struct mdfld_dsi_connector *dsi_connector,
 			struct panel_funcs *p_funcs);
@@ -178,7 +162,6 @@ extern int mdfld_dsi_dbi_send_dcs(struct mdfld_dsi_dbi_output *dbi_output,
 			u8 dcs, u8 *param, u32 num, u8 data_src);
 extern int mdfld_dsi_dbi_update_area(struct mdfld_dsi_dbi_output *dbi_output,
 			u16 x1, u16 y1, u16 x2, u16 y2);
-extern void mdfld_dbi_dsr_timer_start(struct mdfld_dbi_dsr_info *dsr_info);
 extern int mdfld_dsi_dbi_update_power(struct mdfld_dsi_dbi_output *dbi_output,
 			int mode);
 extern void mdfld_dsi_controller_dbi_init(struct mdfld_dsi_config *dsi_config,

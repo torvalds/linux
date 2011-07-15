@@ -36,9 +36,13 @@ enum {
 	MDFLD_DSI_PKG_GEN_SHORT_WRITE_0 = 0x03,
 	MDFLD_DSI_PKG_GEN_SHORT_WRITE_1 = 0x13,
 	MDFLD_DSI_PKG_GEN_SHORT_WRITE_2 = 0x23,
+	MDFLD_DSI_PKG_GEN_READ_0 = 0x04,
+	MDFLD_DSI_PKG_GEN_READ_1 = 0x14,
+	MDFLD_DSI_PKG_GEN_READ_2 = 0x24,
 	MDFLD_DSI_PKG_GEN_LONG_WRITE = 0x29,
 	MDFLD_DSI_PKG_MCS_SHORT_WRITE_0 = 0x05,
 	MDFLD_DSI_PKG_MCS_SHORT_WRITE_1 = 0x15,
+	MDFLD_DSI_PKG_MCS_READ = 0x06,
 	MDFLD_DSI_PKG_MCS_LONG_WRITE = 0x39,
 };
 
@@ -132,6 +136,18 @@ struct mdfld_dsi_pkg_sender {
 	u32 mipi_cmd_len_reg;
 };
 
+/* DCS definitions */
+#define DCS_SOFT_RESET			0x01
+#define DCS_ENTER_SLEEP_MODE		0x10
+#define DCS_EXIT_SLEEP_MODE		0x11
+#define DCS_SET_DISPLAY_OFF		0x28
+#define DCS_SET_DISPLAY_ON		0x29
+#define DCS_SET_COLUMN_ADDRESS		0x2a
+#define DCS_SET_PAGE_ADDRESS		0x2b
+#define DCS_WRITE_MEM_START		0x2c
+#define DCS_SET_TEAR_OFF		0x34
+#define DCS_SET_TEAR_ON 		0x35
+
 extern int mdfld_dsi_pkg_sender_init(struct mdfld_dsi_connector *dsi_connector,
 			int pipe);
 extern void mdfld_dsi_pkg_sender_destroy(struct mdfld_dsi_pkg_sender *sender);
@@ -153,6 +169,16 @@ extern int mdfld_dsi_send_gen_long_hs(struct mdfld_dsi_pkg_sender *sender,
 			u32 *data, u32 len, int delay);
 extern int mdfld_dsi_send_gen_long_lp(struct mdfld_dsi_pkg_sender *sender,
 			u32 *data, u32 len, int delay);
+
+extern int mdfld_dsi_read_gen_hs(struct mdfld_dsi_pkg_sender *sender,
+			u8 param0, u8 param1, u8 param_num, u32 *data, u16 len);
+extern int mdfld_dsi_read_gen_lp(struct mdfld_dsi_pkg_sender *sender,
+			u8 param0, u8 param1, u8 param_num, u32 *data, u16 len);
+extern int mdfld_dsi_read_mcs_hs(struct mdfld_dsi_pkg_sender *sender,
+			u8 cmd, u32 *data, u16 len);
+extern int mdfld_dsi_read_mcs_lp(struct mdfld_dsi_pkg_sender *sender,
+			u8 cmd, u32 *data, u16 len);
+
 extern void mdfld_dsi_cmds_kick_out(struct mdfld_dsi_pkg_sender *sender);
 
 #endif /* __MDFLD_DSI_PKG_SENDER_H__ */

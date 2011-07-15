@@ -47,6 +47,8 @@ struct mdfld_dsi_dpi_output {
 
 	int panel_on;
 	int first_boot;
+
+	struct panel_funcs *p_funcs;
 };
 
 #define MDFLD_DSI_DPI_OUTPUT(dsi_encoder) \
@@ -73,8 +75,4 @@ extern void mdfld_dsi_dpi_turn_on(struct mdfld_dsi_dpi_output *output,
 			int pipe);
 extern void mdfld_dsi_dpi_controller_init(struct mdfld_dsi_config *si_config,
 			int pipe);
-extern void mid_enable_pipe_event(struct drm_psb_private *dev_priv, int pipe);
-extern void psb_enable_pipestat(struct drm_psb_private *dev_priv, int pipe,
-			u32 mask);
-
 #endif /*__MDFLD_DSI_DPI_H__*/

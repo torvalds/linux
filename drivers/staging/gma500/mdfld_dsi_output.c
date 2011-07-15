@@ -35,55 +35,18 @@
 
 #define MDFLD_DSI_BRIGHTNESS_MAX_LEVEL 100
 
-/* get the CABC LABC from command line. */
 static int CABC_control = 1;
 static int LABC_control = 1;
 
-#ifdef MODULE
 module_param (CABC_control, int, 0644);
 module_param (LABC_control, int, 0644);
-#else
-static int __init parse_CABC_control(char *arg)
-{
-	/* CABC control can be passed in as a cmdline parameter */
-	/* to enable this feature add CABC=1 to cmdline */
-	/* to disable this feature add CABC=0 to cmdline */
-	if (!arg)
-		return -EINVAL;
-
-	if (!strcasecmp(arg, "0"))
-		CABC_control = 0;
-	else if (!strcasecmp (arg, "1"))
-		CABC_control = 1;
-
-	return 0;
-}
-early_param ("CABC", parse_CABC_control);
-
-static int __init parse_LABC_control(char *arg)
-{
-	/* LABC control can be passed in as a cmdline parameter */
-	/* to enable this feature add LABC=1 to cmdline */
-	/* to disable this feature add LABC=0 to cmdline */
-	if (!arg)
-		return -EINVAL;
-
-	if (!strcasecmp(arg, "0"))
-		LABC_control = 0;
-	else if (!strcasecmp (arg, "1"))
-		LABC_control = 1;
-
-	return 0;
-}
-early_param ("LABC", parse_LABC_control);
-#endif
 
 /**
  * make these MCS command global 
  * we don't need 'movl' everytime we send them.
  * FIXME: these datas were provided by OEM, we should get them from GCT.
  **/
-static u32 mdfld_dbi_mcs_hysteresis[] = {
+static const u32 mdfld_dbi_mcs_hysteresis[] = {
 	0x42000f57, 0x8c006400, 0xff00bf00, 0xffffffff,
 	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,
 	0x38000aff, 0x82005000, 0xff00ab00, 0xffffffff,
@@ -91,25 +54,26 @@ static u32 mdfld_dbi_mcs_hysteresis[] = {
 	0x000000ff,
 };
 
-static u32 mdfld_dbi_mcs_display_profile[] = {
+static const u32 mdfld_dbi_mcs_display_profile[] = {
 	0x50281450, 0x0000c882, 0x00000000, 0x00000000,
 	0x00000000,
 };
 
-static u32 mdfld_dbi_mcs_kbbc_profile[] = {
+static const u32 mdfld_dbi_mcs_kbbc_profile[] = {
 	0x00ffcc60, 0x00000000, 0x00000000, 0x00000000,
 }; 
 	
-static u32 mdfld_dbi_mcs_gamma_profile[] = {
+static const u32 mdfld_dbi_mcs_gamma_profile[] = {
 	0x81111158, 0x88888888, 0x88888888,
 }; 
 
 /*
  * write hysteresis values.
  */
-static void mdfld_dsi_write_hysteresis (struct mdfld_dsi_config * dsi_config, int pipe)
+static void mdfld_dsi_write_hysteresis (struct mdfld_dsi_config *dsi_config,
+                                                                int pipe)
 {
-	struct mdfld_dsi_pkg_sender * sender = mdfld_dsi_get_pkg_sender(dsi_config);
+	struct mdfld_dsi_pkg_sender *sender = mdfld_dsi_get_pkg_sender(dsi_config);
 
 	if(!sender) {
 	        WARN_ON(1);
@@ -124,9 +88,9 @@ static void mdfld_dsi_write_hysteresis (struct mdfld_dsi_config * dsi_config, in
 /*
  * write display profile values.
  */
-static void mdfld_dsi_write_display_profile (struct mdfld_dsi_config * dsi_config, int pipe)
+static void mdfld_dsi_write_display_profile(struct mdfld_dsi_config *dsi_config, int pipe)
 {
-	struct mdfld_dsi_pkg_sender * sender = mdfld_dsi_get_pkg_sender(dsi_config);
+	struct mdfld_dsi_pkg_sender *sender = mdfld_dsi_get_pkg_sender(dsi_config);
 
 	if(!sender) {
 	        WARN_ON(1);
@@ -143,7 +107,7 @@ static void mdfld_dsi_write_display_profile (struct mdfld_dsi_config * dsi_confi
  */
 static void mdfld_dsi_write_kbbc_profile (struct mdfld_dsi_config * dsi_config, int pipe)
 {
-	struct mdfld_dsi_pkg_sender * sender = mdfld_dsi_get_pkg_sender(dsi_config);
+	struct mdfld_dsi_pkg_sender *sender = mdfld_dsi_get_pkg_sender(dsi_config);
 
 	if(!sender) {
 	        WARN_ON(1);
@@ -155,12 +119,12 @@ static void mdfld_dsi_write_kbbc_profile (struct mdfld_dsi_config * dsi_config, 
 				   MDFLD_DSI_SEND_PACKAGE);
 }
 
-/**
+/*
  * write gamma setting.
  */
-static void mdfld_dsi_write_gamma_setting (struct mdfld_dsi_config * dsi_config, int pipe)
+static void mdfld_dsi_write_gamma_setting (struct mdfld_dsi_config *dsi_config, int pipe)
 {
-	struct mdfld_dsi_pkg_sender * sender = mdfld_dsi_get_pkg_sender(dsi_config);
+	struct mdfld_dsi_pkg_sender *sender = mdfld_dsi_get_pkg_sender(dsi_config);
 
 	if(!sender) {
 	        WARN_ON(1);
@@ -172,7 +136,7 @@ static void mdfld_dsi_write_gamma_setting (struct mdfld_dsi_config * dsi_config,
 				   MDFLD_DSI_SEND_PACKAGE);
 }
 
-/**
+/*
  * Check and see if the generic control or data buffer is empty and ready.
  */
 void mdfld_dsi_gen_fifo_ready (struct drm_device *dev, u32 gen_fifo_stat_reg, u32 fifo_stat)
@@ -193,16 +157,16 @@ void mdfld_dsi_gen_fifo_ready (struct drm_device *dev, u32 gen_fifo_stat_reg, u3
                                                 gen_fifo_stat_reg);
 }
 
-/**
+/*
  * Manage the DSI MIPI keyboard and display brightness.
  * FIXME: this is exported to OSPM code. should work out an specific 
  * display interface to OSPM. 
  */
-void mdfld_dsi_brightness_init (struct mdfld_dsi_config * dsi_config, int pipe)
+void mdfld_dsi_brightness_init(struct mdfld_dsi_config *dsi_config, int pipe)
 {
-	struct mdfld_dsi_pkg_sender * sender = mdfld_dsi_get_pkg_sender(dsi_config);
-	struct drm_device * dev = sender->dev;
-	struct drm_psb_private * dev_priv = dev->dev_private;
+	struct mdfld_dsi_pkg_sender *sender = mdfld_dsi_get_pkg_sender(dsi_config);
+	struct drm_device *dev = sender->dev;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 gen_ctrl_val;
 	
 	if(!sender) {
@@ -223,7 +187,7 @@ void mdfld_dsi_brightness_init (struct mdfld_dsi_config * dsi_config, int pipe)
 				    1,
 				    MDFLD_DSI_SEND_PACKAGE);
 
-	mdfld_dsi_write_hysteresis (dsi_config, pipe);
+	mdfld_dsi_write_hysteresis(dsi_config, pipe);
 	mdfld_dsi_write_display_profile (dsi_config, pipe);
 	mdfld_dsi_write_kbbc_profile (dsi_config, pipe);
 	mdfld_dsi_write_gamma_setting (dsi_config, pipe);
@@ -253,7 +217,7 @@ void mdfld_dsi_brightness_init (struct mdfld_dsi_config * dsi_config, int pipe)
 				    MDFLD_DSI_SEND_PACKAGE);
 }
 
-/**
+/*
  * Manage the mipi display brightness.
  * TODO: refine this interface later
  */
@@ -262,8 +226,8 @@ void mdfld_dsi_brightness_control(struct drm_device *dev, int pipe, int level)
 	struct mdfld_dsi_pkg_sender *sender;
 	struct drm_psb_private *dev_priv;
 	struct mdfld_dsi_config *dsi_config;
-	u32 gen_ctrl_val = 0;
-	int p_type = TMD_VID;	
+	u32 gen_ctrl_val;
+	int p_type;	
 	
 	if (!dev || (pipe != 0 && pipe != 2)) {
 		dev_err(dev->dev, "Invalid parameter\n");
@@ -288,7 +252,8 @@ void mdfld_dsi_brightness_control(struct drm_device *dev, int pipe, int level)
 
 	gen_ctrl_val = ((level * 0xff) / MDFLD_DSI_BRIGHTNESS_MAX_LEVEL) & 0xff;
 
-	dev_dbg(dev->dev, "pipe = %d, gen_ctrl_val = %d.  \n", pipe, gen_ctrl_val);
+	dev_dbg(dev->dev,
+                "pipe = %d, gen_ctrl_val = %d.  \n", pipe, gen_ctrl_val);
 	
 	if(p_type == TMD_VID || p_type == TMD_CMD){
 		/* Set display backlight value */
@@ -344,7 +309,7 @@ void mdfld_dsi_controller_shutdown(struct mdfld_dsi_config * dsi_config, int pip
 	if(!(REG_READ(MIPIA_DEVICE_READY_REG + reg_offset) &  DSI_DEVICE_READY)) 
 		goto shutdown_out;
 	
-	/*send shut down package, clean packet send bit first*/
+	/* Send shut down package, clean packet send bit first */
 	if(REG_READ(MIPIA_INTR_STAT_REG + reg_offset) & DSI_INTR_STATE_SPL_PKG_SENT) {
 		REG_WRITE((MIPIA_INTR_STAT_REG + reg_offset), 
 				(REG_READ(MIPIA_INTR_STAT_REG + reg_offset) | DSI_INTR_STATE_SPL_PKG_SENT));
@@ -432,6 +397,53 @@ startup_out:
 	gma_power_end(dev);
 }
 
+
+static int mdfld_dsi_get_panel_status(struct mdfld_dsi_config *dsi_config,
+					u8 dcs,
+					u32 *data,
+					u8 transmission)
+{
+	struct mdfld_dsi_pkg_sender *sender
+		= mdfld_dsi_get_pkg_sender(dsi_config);
+
+	if (!sender || !data) {
+		DRM_ERROR("Invalid parameter\n");
+		return -EINVAL;
+	}
+
+	if (transmission == MDFLD_DSI_HS_TRANSMISSION)
+		return mdfld_dsi_read_mcs_hs(sender, dcs, data, 1);
+	else if (transmission == MDFLD_DSI_LP_TRANSMISSION)
+		return mdfld_dsi_read_mcs_lp(sender, dcs, data, 1);
+	else
+		return -EINVAL;
+}
+
+int mdfld_dsi_get_power_mode(struct mdfld_dsi_config *dsi_config,
+				u32 *mode,
+				u8 transmission)
+{
+	if (!dsi_config || !mode) {
+		DRM_ERROR("Invalid parameter\n");
+		return -EINVAL;
+	}
+
+	return mdfld_dsi_get_panel_status(dsi_config, 0x0a, mode, transmission);
+}
+
+int mdfld_dsi_get_diagnostic_result(struct mdfld_dsi_config *dsi_config,
+					u32 *result,
+					u8 transmission)
+{
+	if (!dsi_config || !result) {
+		DRM_ERROR("Invalid parameter\n");
+		return -EINVAL;
+	}
+
+	return mdfld_dsi_get_panel_status(dsi_config, 0x0f, result,
+					  transmission);
+}
+
 /*
  * NOTE: this function was used by OSPM.
  * TODO: will be removed later, should work out display interfaces for OSPM
@@ -459,14 +471,18 @@ static void mdfld_dsi_connector_restore(struct drm_connector * connector)
 
 static enum drm_connector_status mdfld_dsi_connector_detect(struct drm_connector * connector, bool force)
 {
-	return connector_status_connected;
+	struct psb_intel_output *psb_output
+					= to_psb_intel_output(connector);
+	struct mdfld_dsi_connector *dsi_connector
+	                                = MDFLD_DSI_CONNECTOR(psb_output);
+	return dsi_connector->status;
 }
 
-static int mdfld_dsi_connector_set_property(struct drm_connector * connector,
-											struct drm_property * property,
-											uint64_t value)
+static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
+					struct drm_property *property,
+					uint64_t value)
 {
-	struct drm_encoder * encoder = connector->encoder;
+	struct drm_encoder *encoder = connector->encoder;
 
 	if (!strcmp(property->name, "scaling mode") && encoder) {
 		struct psb_intel_crtc * psb_crtc = to_psb_intel_crtc(encoder->crtc);
@@ -633,9 +649,12 @@ static void mdfld_dsi_connector_dpms(struct drm_connector *connector, int mode)
 	}
 
 	/* Then check all display panels + monitors status */
+	/* Make sure that the Display (B) sub-system status isn't i3 when
+	 * R/W the DC register, otherwise "Fabric error" issue would occur
+	 * during S0i3 state. */
 	if(!panel_on && !panel_on2 && !(REG_READ(HDMIB_CONTROL)
 	                                        & HDMIB_PORT_EN)) {
-		/*request rpm idle*/
+		/* Request rpm idle */
 		if(dev_priv->rpm_enabled)
 			pm_request_idle(&dev->pdev->dev);
 	}
@@ -652,8 +671,8 @@ static void mdfld_dsi_connector_dpms(struct drm_connector *connector, int mode)
 #endif
 }
 
-static struct drm_encoder * mdfld_dsi_connector_best_encoder(
-                                        struct drm_connector * connector) 
+static struct drm_encoder *mdfld_dsi_connector_best_encoder(
+                                        struct drm_connector *connector) 
 {
 	struct psb_intel_output * psb_output = to_psb_intel_output(connector);
 	struct mdfld_dsi_connector * dsi_connector = MDFLD_DSI_CONNECTOR(psb_output);
@@ -755,16 +774,6 @@ mdfld_dsi_get_configuration_mode(struct mdfld_dsi_config * dsi_config, int pipe)
 		mode->vtotal = mode->vdisplay + \
 				((ti->vblank_hi << 8) | ti->vblank_lo);
 		mode->clock = ti->pixel_clock * 10;
-
-		dev_dbg(dev->dev, "hdisplay is %d\n", mode->hdisplay);
-		dev_dbg(dev->dev, "vdisplay is %d\n", mode->vdisplay);
-		dev_dbg(dev->dev, "HSS is %d\n", mode->hsync_start);
-		dev_dbg(dev->dev, "HSE is %d\n", mode->hsync_end);
-		dev_dbg(dev->dev, "htotal is %d\n", mode->htotal);
-		dev_dbg(dev->dev, "VSS is %d\n", mode->vsync_start);
-		dev_dbg(dev->dev, "VSE is %d\n", mode->vsync_end);
-		dev_dbg(dev->dev, "vtotal is %d\n", mode->vtotal);
-		dev_dbg(dev->dev, "clock is %d\n", mode->clock);
 	} else {
 		if(dsi_config->type == MDFLD_DSI_ENCODER_DPI) { 
 			if (mdfld_get_panel_type(dev, pipe) == TMD_VID) {
@@ -810,6 +819,44 @@ mdfld_dsi_get_configuration_mode(struct mdfld_dsi_config * dsi_config, int pipe)
 	return mode;
 }
 
+int mdfld_dsi_panel_reset(int pipe)
+{
+	unsigned gpio;
+	int ret = 0;
+
+	switch (pipe) {
+	case 0:
+		gpio = 128;
+		break;
+	case 2:
+		gpio = 34;
+		break;
+	default:
+		DRM_ERROR("Invalid output\n");
+		return -EINVAL;
+	}
+
+	ret = gpio_request(gpio, "gfx");
+	if (ret) {
+		DRM_ERROR("gpio_rqueset failed\n");
+		return ret;
+	}
+
+	ret = gpio_direction_output(gpio, 1);
+	if (ret) {
+		DRM_ERROR("gpio_direction_output failed\n");
+		goto gpio_error;
+	}
+
+	gpio_get_value(128);
+
+gpio_error:
+	if (gpio_is_valid(gpio))
+		gpio_free(gpio);
+
+	return ret;
+}
+
 /*
  * MIPI output init
  * @dev drm device
@@ -819,9 +866,9 @@ mdfld_dsi_get_configuration_mode(struct mdfld_dsi_config * dsi_config, int pipe)
  * Do the initialization of a MIPI output, including create DRM mode objects
  * initialization of DSI output on @pipe 
  */
-void mdfld_dsi_output_init(struct drm_device * dev,
+void mdfld_dsi_output_init(struct drm_device *dev,
 			   int pipe, 
-			   struct mdfld_dsi_config * config,
+			   struct mdfld_dsi_config *config,
 			   struct panel_funcs* p_cmd_funcs,
 			   struct panel_funcs* p_vid_funcs)
 {
@@ -869,7 +916,7 @@ void mdfld_dsi_output_init(struct drm_device * dev,
 	dsi_config->changed = 1;
 	dsi_config->dev = dev;
 	
-	/*init fixed mode basing on DSI config type*/
+	/* Init fixed mode basing on DSI config type */
 	if(dsi_config->type == MDFLD_DSI_ENCODER_DBI) {
 		dsi_config->fixed_mode = p_cmd_funcs->get_config_mode(dev);
 		if(p_cmd_funcs->get_panel_info(dev, pipe, &dsi_panel_info))
@@ -917,12 +964,18 @@ void mdfld_dsi_output_init(struct drm_device * dev,
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 	
-	/*attach properties*/
+	/* Attach properties */
 	drm_connector_attach_property(connector, dev->mode_config.scaling_mode_property, DRM_MODE_SCALE_FULLSCREEN);
 	drm_connector_attach_property(connector, dev_priv->backlight_property, MDFLD_DSI_BRIGHTNESS_MAX_LEVEL);
 
-	/*init DBI & DPI encoders*/
-	if(p_cmd_funcs) {
+	/* Init DSI package sender on this output */
+	if (mdfld_dsi_pkg_sender_init(dsi_connector, pipe)) {
+		DRM_ERROR("Package Sender initialization failed on pipe %d\n", pipe);
+		goto dsi_init_err0;
+	}
+
+	/* Init DBI & DPI encoders */
+	if (p_cmd_funcs) {
 		encoder = mdfld_dsi_dbi_init(dev, dsi_connector, p_cmd_funcs);
 		if(!encoder) {
 			dev_err(dev->dev, "Create DBI encoder failed\n");
@@ -930,12 +983,6 @@ void mdfld_dsi_output_init(struct drm_device * dev,
 		}
 		encoder->private = dsi_config;
 		dsi_config->encoders[MDFLD_DSI_ENCODER_DBI] = encoder;
-		if(pipe == 2)
-			dev_priv->encoder2 = encoder;
-	
-		if(pipe == 0)
-			dev_priv->encoder0 = encoder;
-			
 	}
 	
 	if(p_vid_funcs) {
@@ -946,31 +993,16 @@ void mdfld_dsi_output_init(struct drm_device * dev,
 		}
 		encoder->private = dsi_config;
 		dsi_config->encoders[MDFLD_DSI_ENCODER_DPI] = encoder;
-
-        if(pipe == 2)
-            dev_priv->encoder2 = encoder;
-
-		if(pipe == 0)
-            dev_priv->encoder0 = encoder;
 	}
 	
 	drm_sysfs_connector_add(connector);
-	
-	/*init DSI package sender on this output*/
-	if(mdfld_dsi_pkg_sender_init(dsi_connector, pipe)) {
-		dev_err(dev->dev, 
-		        "Package Sender initialization failed on pipe %d\n",
-		                                                pipe);
-		goto dsi_init_err2;
-	}
-
-	dev_dbg(dev->dev, "successfully\n");
 	return;
 	
 	/*TODO: add code to destroy outputs on error*/
-dsi_init_err2:
-	drm_sysfs_connector_remove(connector);
 dsi_init_err1:
+	/*destroy sender*/
+	mdfld_dsi_pkg_sender_destroy(dsi_connector->pkg_sender);
+
 	drm_connector_cleanup(connector);
 	kfree(dsi_config->fixed_mode);
 	kfree(dsi_config);

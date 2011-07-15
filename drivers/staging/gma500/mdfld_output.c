@@ -100,7 +100,6 @@ static int init_panel(struct drm_device *dev, int mipi_pipe, int p_type)
 		mdfld_dsi_output_init(dev, mipi_pipe, NULL, p_cmd_funcs, NULL);
 		break;
 	case PYR_VID:
-		/*pyr_vid_init(dev, p_vid_funcs); */
 		mdfld_dsi_output_init(dev, mipi_pipe, NULL, NULL, p_vid_funcs);
 		break;
 	case TPO:	/* TPO panel supports both cmd & vid interfaces */
@@ -135,10 +134,15 @@ int mdfld_output_init(struct drm_device *dev)
 	dev_info(dev->dev, "panel 1: type is %d\n", type);
 	init_panel(dev, 0, type);
 
+#ifdef CONFIG_MDFD_DUAL_MIPI
 	/* MIPI panel 2 */
 	type = mdfld_get_panel_type(dev, 2);
 	dev_info(dev->dev, "panel 2: type is %d\n", type);
 	init_panel(dev, 2, type);
-
+#endif
+#ifdef CONFIG_MDFD_HDMI
+	/* HDMI panel */
+	init_panel(dev, 0, HDMI);
+#endif
 	return 0;
 }

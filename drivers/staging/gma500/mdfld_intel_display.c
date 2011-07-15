@@ -140,7 +140,6 @@ static int mdfld_intel_crtc_cursor_set(struct drm_crtc *crtc,
 				 uint32_t width, uint32_t height)
 {
 	struct drm_device *dev = crtc->dev;
-	struct drm_psb_private * dev_priv = (struct drm_psb_private *)dev->dev_private;
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
 	uint32_t control = CURACNTR;
@@ -263,7 +262,7 @@ static int mdfld_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	case 0:
 #ifndef CONFIG_MDFLD_DSI_DPU
 		if (!(dev_priv->dsr_fb_update & MDFLD_DSR_CURSOR_0))
-			mdfld_dsi_dbi_exit_dsr (dev, MDFLD_DSR_CURSOR_0, 0, 0);
+			mdfld_dsi_dbi_exit_dsr (dev, MDFLD_DSR_CURSOR_0);
 #else /*CONFIG_MDFLD_DSI_DPU*/
 		rect.x = x;
 		rect.y = y;
@@ -279,7 +278,7 @@ static int mdfld_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	case 2:
 #ifndef CONFIG_MDFLD_DSI_DPU
 		if (!(dev_priv->dsr_fb_update & MDFLD_DSR_CURSOR_2))
-			mdfld_dsi_dbi_exit_dsr (dev, MDFLD_DSR_CURSOR_2, 0, 0);
+			mdfld_dsi_dbi_exit_dsr (dev, MDFLD_DSR_CURSOR_2);
 #else /*CONFIG_MDFLD_DSI_DPU*/
 		mdfld_dbi_dpu_report_damage(dev, MDFLD_CURSORC, &rect);
 		mdfld_dpu_exit_dsr(dev);
@@ -354,7 +353,6 @@ int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y, struct drm_f
 	/* struct drm_i915_master_private *master_priv; */
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	struct psb_framebuffer *psbfb = to_psb_fb(crtc->fb);
-	struct psb_intel_mode_device *mode_dev = psb_intel_crtc->mode_dev;
 	int pipe = psb_intel_crtc->pipe;
 	unsigned long start, offset;
 	int dsplinoff = DSPALINOFF;

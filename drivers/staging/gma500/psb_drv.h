@@ -31,6 +31,7 @@
 #include "gtt.h"
 #include "power.h"
 #include "mrst.h"
+#include "medfield.h"
 
 /* Append new drm mode definition here, align with libdrm definition */
 #define DRM_MODE_SCALE_NO_SCALE   	2
@@ -216,8 +217,8 @@ enum {
 #define MDFLD_DSR_OVERLAY_0 	(1 << 4)
 #define MDFLD_DSR_OVERLAY_2 	(1 << 5)
 #define MDFLD_DSR_MIPI_CONTROL	(1 << 6)
-#define MDFLD_DSR_DAMAGE_MASK_0	(1 << 0) | (1 << 2) | (1 << 4)
-#define MDFLD_DSR_DAMAGE_MASK_2	(1 << 1) | (1 << 3) | (1 << 5)
+#define MDFLD_DSR_DAMAGE_MASK_0	((1 << 0) | (1 << 2) | (1 << 4))
+#define MDFLD_DSR_DAMAGE_MASK_2	((1 << 1) | (1 << 3) | (1 << 5))
 #define MDFLD_DSR_2D_3D 	(MDFLD_DSR_2D_3D_0 | MDFLD_DSR_2D_3D_2)
 
 #define MDFLD_DSR_RR		45
@@ -605,7 +606,7 @@ struct drm_psb_private {
 	uint32_t dsr_idle_count;
 	bool is_in_idle;
 	bool dsr_enable;
-	void (*exit_idle)(struct drm_device *dev, u32 update_src, void *p_surfaceAddr, bool check_hw_on_only);
+	void (*exit_idle)(struct drm_device *dev, u32 update_src);
 
 	/* 2D acceleration */
 	struct mutex mutex_2d;

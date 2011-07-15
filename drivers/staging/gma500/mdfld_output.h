@@ -28,47 +28,6 @@
 #ifndef MDFLD_OUTPUT_H
 #define MDFLD_OUTPUT_H
 
-#include "psb_drv.h"
-
-/* Panel types */
-enum {
-	TPO_CMD,
-	TPO_VID,
-	TMD_CMD,
-	TMD_VID,
-	PYR_CMD,
-	PYR_VID,
-	TPO,
-	TMD,
-	PYR,
-	HDMI,
-	GCT_DETECT
-};
-
-/* Junk that belongs elsewhere */
-#define TPO_PANEL_WIDTH		84
-#define TPO_PANEL_HEIGHT	46
-#define TMD_PANEL_WIDTH		39
-#define TMD_PANEL_HEIGHT	71
-#define PYR_PANEL_WIDTH		53
-#define PYR_PANEL_HEIGHT	95
-
-/* Panel interface */
-struct panel_info {
-	u32 width_mm;
-	u32 height_mm;
-};
-
-struct mdfld_dsi_dbi_output;
-
-struct panel_funcs {
-	const struct drm_encoder_funcs *encoder_funcs;
-	const struct drm_encoder_helper_funcs *encoder_helper_funcs;
-	struct drm_display_mode *(*get_config_mode) (struct drm_device *);
-	void (*update_fb) (struct mdfld_dsi_dbi_output *, int);
-	int (*get_panel_info) (struct drm_device *, int, struct panel_info *);
-};
-
 int mdfld_output_init(struct drm_device *dev);
 int mdfld_panel_dpi(struct drm_device *dev);
 int mdfld_get_panel_type(struct drm_device *dev, int pipe);

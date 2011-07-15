@@ -90,9 +90,6 @@ static inline int mdfld_dpu_region_extent(struct psb_drm_dpu_rect *origin,
 {
 	int x1, y1, x2, y2;
 
-	/* PSB_DEBUG_ENTRY("rect (%d, %d, %d, %d)\n",
-		rect->x, rect->y, rect->width, rect->height); */
-
 	x1 = origin->x + origin->width;
 	y1 = origin->y + origin->height;
 

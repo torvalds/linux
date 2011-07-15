@@ -29,8 +29,11 @@
 #include "mdfld_dsi_output.h"
 #include "mdfld_dsi_pkg_sender.h"
 #include "mdfld_dsi_dbi.h"
+#include "mdfld_dsi_dpi.h"
 
-#define MDFLD_DSI_DBI_FIFO_TIMEOUT	100
+#define MDFLD_DSI_DBI_FIFO_TIMEOUT		100
+#define MDFLD_DSI_MAX_RETURN_PACKET_SIZE	512
+#define MDFLD_DSI_READ_MAX_COUNT		5000
 
 static const char * const dsi_errors[] = {
 	"RX SOT Error",
@@ -404,8 +407,10 @@ static int send_pkg_prepare(struct mdfld_dsi_pkg_sender *sender,
 	}
 
 	/* Wait for 120 milliseconds in case exit_sleep_mode just be sent */
-	if (cmd == enter_sleep_mode)
+	if (cmd == DCS_ENTER_SLEEP_MODE) {
+ 		/*TODO: replace it with msleep later*/
 		mdelay(120);
+	}
 	return 0;
 }
 
@@ -432,16 +437,18 @@ static int send_pkg_done(struct mdfld_dsi_pkg_sender *sender,
 	}
 
 	/* Update panel status */
-	if (cmd == enter_sleep_mode) {
+	if (cmd == DCS_ENTER_SLEEP_MODE) {
 		sender->panel_mode |= MDFLD_DSI_PANEL_MODE_SLEEP;
 		/*TODO: replace it with msleep later*/
 		mdelay(120);
-	} else if (cmd == exit_sleep_mode) {
+	} else if (cmd == DCS_EXIT_SLEEP_MODE) {
 		sender->panel_mode &= ~MDFLD_DSI_PANEL_MODE_SLEEP;
 		/*TODO: replace it with msleep later*/
 		mdelay(120);
-	}
-
+	} else if (unlikely(cmd == DCS_SOFT_RESET)) {
+		/*TODO: replace it with msleep later*/
+		mdelay(5);
+ 	}
 	sender->status = MDFLD_DSI_PKG_SENDER_FREE;
 	return 0;
 
@@ -470,6 +477,9 @@ static int do_send_pkg(struct mdfld_dsi_pkg_sender *sender,
 	case MDFLD_DSI_PKG_GEN_SHORT_WRITE_0:
 	case MDFLD_DSI_PKG_GEN_SHORT_WRITE_1:
 	case MDFLD_DSI_PKG_GEN_SHORT_WRITE_2:
+	case MDFLD_DSI_PKG_GEN_READ_0:
+	case MDFLD_DSI_PKG_GEN_READ_1:
+	case MDFLD_DSI_PKG_GEN_READ_2:
 		ret = send_gen_short_pkg(sender, pkg);
 		break;
 	case MDFLD_DSI_PKG_GEN_LONG_WRITE:
@@ -477,6 +487,7 @@ static int do_send_pkg(struct mdfld_dsi_pkg_sender *sender,
 		break;
 	case MDFLD_DSI_PKG_MCS_SHORT_WRITE_0:
 	case MDFLD_DSI_PKG_MCS_SHORT_WRITE_1:
+	case MDFLD_DSI_PKG_MCS_READ:
 		ret = send_mcs_short_pkg(sender, pkg);
 		break;
 	case MDFLD_DSI_PKG_MCS_LONG_WRITE:
@@ -548,6 +559,7 @@ static int mdfld_dbi_cb_init(struct mdfld_dsi_pkg_sender *sender,
 
 	switch (pipe) {
 	case 0:
+		/* FIXME: Doesn't this collide with stolen space ? */
 		phys = pg->gtt_phys_start - 0x1000;
 		break;
 	case 2:
@@ -735,6 +747,292 @@ static int mdfld_dsi_send_gen_long(struct mdfld_dsi_pkg_sender *sender,
 	return 0;
 }
 
+static int __read_panel_data(struct mdfld_dsi_pkg_sender *sender,
+				struct mdfld_dsi_pkg *pkg,
+				u32 *data,
+				u16 len)
+{
+	unsigned long flags;
+	struct drm_device *dev = sender->dev;
+	int i;
+	u32 gen_data_reg;
+	int retry = MDFLD_DSI_READ_MAX_COUNT;
+	u8 transmission = pkg->transmission_type;
+
+	/*
+	 * do reading.
+	 * 0) send out generic read request
+	 * 1) polling read data avail interrupt
+	 * 2) read data
+	 */
+	spin_lock_irqsave(&sender->lock, flags);
+
+	REG_WRITE(sender->mipi_intr_stat_reg, 1 << 29);
+
+	if ((REG_READ(sender->mipi_intr_stat_reg) & (1 << 29)))
+		DRM_ERROR("Can NOT clean read data valid interrupt\n");
+
+	/*send out read request*/
+	send_pkg(sender, pkg);
+
+	pkg_sender_put_pkg_locked(sender, pkg);
+
+	/*polling read data avail interrupt*/
+	while (retry && !(REG_READ(sender->mipi_intr_stat_reg) & (1 << 29))) {
+		udelay(100);
+		retry--;
+	}
+
+	if (!retry) {
+		spin_unlock_irqrestore(&sender->lock, flags);
+		return -ETIMEDOUT;
+	}
+
+	REG_WRITE(sender->mipi_intr_stat_reg, (1 << 29));
+
+	/*read data*/
+	if (transmission == MDFLD_DSI_HS_TRANSMISSION)
+		gen_data_reg = sender->mipi_hs_gen_data_reg;
+	else if (transmission == MDFLD_DSI_LP_TRANSMISSION)
+		gen_data_reg = sender->mipi_lp_gen_data_reg;
+	else {
+		DRM_ERROR("Unknown transmission");
+		spin_unlock_irqrestore(&sender->lock, flags);
+		return -EINVAL;
+	}
+
+	for (i=0; i<len; i++)
+		*(data + i) = REG_READ(gen_data_reg);
+
+ 	spin_unlock_irqrestore(&sender->lock, flags);
+ 
+	return 0;
+}
+
+static int mdfld_dsi_read_gen(struct mdfld_dsi_pkg_sender *sender,
+				u8 param0,
+				u8 param1,
+				u8 param_num,
+				u32 *data,
+				u16 len,
+				u8 transmission)
+{
+	struct mdfld_dsi_pkg *pkg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sender->lock, flags);
+
+	pkg = pkg_sender_get_pkg_locked(sender);
+
+	spin_unlock_irqrestore(&sender->lock,flags);
+
+	if (!pkg) {
+		dev_err(sender->dev->dev, "No pkg memory\n");
+		return -ENOMEM;
+	}
+
+	switch (param_num) {
+	case 0:
+		pkg->pkg_type = MDFLD_DSI_PKG_GEN_READ_0;
+		pkg->pkg.short_pkg.cmd = 0;
+		pkg->pkg.short_pkg.param = 0;
+		break;
+	case 1:
+		pkg->pkg_type = MDFLD_DSI_PKG_GEN_READ_1;
+		pkg->pkg.short_pkg.cmd = param0;
+		pkg->pkg.short_pkg.param = 0;
+		break;
+ 	case 2:
+		pkg->pkg_type = MDFLD_DSI_PKG_GEN_READ_2;
+		pkg->pkg.short_pkg.cmd = param0;
+		pkg->pkg.short_pkg.param = param1;
+		break;
+	}
+
+	pkg->transmission_type = transmission;
+
+	INIT_LIST_HEAD(&pkg->entry);
+
+	return __read_panel_data(sender, pkg, data, len);
+}
+ 
+static int mdfld_dsi_read_mcs(struct mdfld_dsi_pkg_sender *sender,
+				u8 cmd,
+				u32 *data,
+				u16 len,
+				u8 transmission)
+{
+	struct mdfld_dsi_pkg *pkg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sender->lock, flags);
+
+	pkg = pkg_sender_get_pkg_locked(sender);
+
+ 	spin_unlock_irqrestore(&sender->lock, flags);
+ 
+ 	if (!pkg) {
+		dev_err(sender->dev->dev, "No pkg memory\n");
+ 		return -ENOMEM;
+	}
+
+	pkg->pkg_type = MDFLD_DSI_PKG_MCS_READ;
+	pkg->pkg.short_pkg.cmd = cmd;
+	pkg->pkg.short_pkg.param = 0;
+
+	pkg->transmission_type = transmission;
+ 
+	INIT_LIST_HEAD(&pkg->entry);
+
+	return __read_panel_data(sender, pkg, data, len);
+}
+
+void dsi_controller_dbi_init(struct mdfld_dsi_config * dsi_config, int pipe)
+{
+	struct drm_device * dev = dsi_config->dev;
+	u32 reg_offset = pipe ? MIPIC_REG_OFFSET : 0;
+	int lane_count = dsi_config->lane_count;
+	u32 val = 0;
+
+	/*un-ready device*/
+	REG_WRITE((MIPIA_DEVICE_READY_REG + reg_offset), 0x00000000);
+
+	/*init dsi adapter before kicking off*/
+	REG_WRITE((MIPIA_CONTROL_REG + reg_offset), 0x00000018);
+
+	/*TODO: figure out how to setup these registers*/
+	REG_WRITE((MIPIA_DPHY_PARAM_REG + reg_offset), 0x150c3408);
+	REG_WRITE((MIPIA_CLK_LANE_SWITCH_TIME_CNT_REG + reg_offset), 0x000a0014);
+	REG_WRITE((MIPIA_DBI_BW_CTRL_REG + reg_offset), 0x00000400);
+	REG_WRITE((MIPIA_DBI_FIFO_THROTTLE_REG + reg_offset), 0x00000001);
+	REG_WRITE((MIPIA_HS_LS_DBI_ENABLE_REG + reg_offset), 0x00000000);
+
+	/*enable all interrupts*/
+	REG_WRITE((MIPIA_INTR_EN_REG + reg_offset), 0xffffffff);
+	/*max value: 20 clock cycles of txclkesc*/
+	REG_WRITE((MIPIA_TURN_AROUND_TIMEOUT_REG + reg_offset), 0x0000001f);
+	/*min 21 txclkesc, max: ffffh*/
+	REG_WRITE((MIPIA_DEVICE_RESET_TIMER_REG + reg_offset), 0x0000ffff);
+	/*min: 7d0 max: 4e20*/
+	REG_WRITE((MIPIA_INIT_COUNT_REG + reg_offset), 0x00000fa0);
+
+	/*set up max return packet size*/
+	REG_WRITE((MIPIA_MAX_RETURN_PACK_SIZE_REG + reg_offset),
+			MDFLD_DSI_MAX_RETURN_PACKET_SIZE);
+
+	/*set up func_prg*/
+	val |= lane_count;
+	val |= (dsi_config->channel_num << DSI_DBI_VIRT_CHANNEL_OFFSET);
+	val |= DSI_DBI_COLOR_FORMAT_OPTION2;
+	REG_WRITE((MIPIA_DSI_FUNC_PRG_REG + reg_offset), val);
+
+	REG_WRITE((MIPIA_HS_TX_TIMEOUT_REG + reg_offset), 0x3fffff);
+	REG_WRITE((MIPIA_LP_RX_TIMEOUT_REG + reg_offset), 0xffff);
+
+	REG_WRITE((MIPIA_HIGH_LOW_SWITCH_COUNT_REG + reg_offset), 0x46);
+	REG_WRITE((MIPIA_EOT_DISABLE_REG + reg_offset), 0x00000000);
+	REG_WRITE((MIPIA_LP_BYTECLK_REG + reg_offset), 0x00000004);
+	REG_WRITE((MIPIA_DEVICE_READY_REG + reg_offset), 0x00000001);
+}
+
+void dsi_controller_dpi_init(struct mdfld_dsi_config * dsi_config, int pipe)
+{
+	struct drm_device * dev = dsi_config->dev;
+	u32 reg_offset = pipe ? MIPIC_REG_OFFSET : 0;
+	int lane_count = dsi_config->lane_count;
+	struct mdfld_dsi_dpi_timing dpi_timing;
+	struct drm_display_mode * mode = dsi_config->mode;
+	u32 val = 0;
+
+	/*un-ready device*/
+	REG_WRITE((MIPIA_DEVICE_READY_REG + reg_offset), 0x00000000);
+
+	/*init dsi adapter before kicking off*/
+	REG_WRITE((MIPIA_CONTROL_REG + reg_offset), 0x00000018);
+
+	/*enable all interrupts*/
+	REG_WRITE((MIPIA_INTR_EN_REG + reg_offset), 0xffffffff);
+
+	/*set up func_prg*/
+	val |= lane_count;
+	val |= dsi_config->channel_num << DSI_DPI_VIRT_CHANNEL_OFFSET;
+
+	switch(dsi_config->bpp) {
+	case 16:
+		val |= DSI_DPI_COLOR_FORMAT_RGB565;
+		break;
+	case 18:
+		val |= DSI_DPI_COLOR_FORMAT_RGB666;
+		break;
+	case 24:
+		val |= DSI_DPI_COLOR_FORMAT_RGB888;
+		break;
+	default:
+		DRM_ERROR("unsupported color format, bpp = %d\n", dsi_config->bpp);
+	}
+
+	REG_WRITE((MIPIA_DSI_FUNC_PRG_REG + reg_offset), val);
+
+	REG_WRITE((MIPIA_HS_TX_TIMEOUT_REG + reg_offset),
+			(mode->vtotal * mode->htotal * dsi_config->bpp / (8 * lane_count)) & DSI_HS_TX_TIMEOUT_MASK);
+	REG_WRITE((MIPIA_LP_RX_TIMEOUT_REG + reg_offset), 0xffff & DSI_LP_RX_TIMEOUT_MASK);
+
+	/*max value: 20 clock cycles of txclkesc*/
+	REG_WRITE((MIPIA_TURN_AROUND_TIMEOUT_REG + reg_offset), 0x14 & DSI_TURN_AROUND_TIMEOUT_MASK);
+
+	/*min 21 txclkesc, max: ffffh*/
+	REG_WRITE((MIPIA_DEVICE_RESET_TIMER_REG + reg_offset), 0xffff & DSI_RESET_TIMER_MASK);
+
+	REG_WRITE((MIPIA_DPI_RESOLUTION_REG + reg_offset), mode->vdisplay << 16 | mode->hdisplay);
+
+	/*set DPI timing registers*/
+	mdfld_dsi_dpi_timing_calculation(mode, &dpi_timing, dsi_config->lane_count, dsi_config->bpp);
+
+	REG_WRITE((MIPIA_HSYNC_COUNT_REG + reg_offset), dpi_timing.hsync_count & DSI_DPI_TIMING_MASK);
+	REG_WRITE((MIPIA_HBP_COUNT_REG + reg_offset), dpi_timing.hbp_count & DSI_DPI_TIMING_MASK);
+	REG_WRITE((MIPIA_HFP_COUNT_REG + reg_offset), dpi_timing.hfp_count & DSI_DPI_TIMING_MASK);
+	REG_WRITE((MIPIA_HACTIVE_COUNT_REG + reg_offset), dpi_timing.hactive_count & DSI_DPI_TIMING_MASK);
+	REG_WRITE((MIPIA_VSYNC_COUNT_REG + reg_offset), dpi_timing.vsync_count & DSI_DPI_TIMING_MASK);
+	REG_WRITE((MIPIA_VBP_COUNT_REG + reg_offset), dpi_timing.vbp_count & DSI_DPI_TIMING_MASK);
+	REG_WRITE((MIPIA_VFP_COUNT_REG + reg_offset), dpi_timing.vfp_count & DSI_DPI_TIMING_MASK);
+
+	REG_WRITE((MIPIA_HIGH_LOW_SWITCH_COUNT_REG + reg_offset), 0x46);
+
+	/*min: 7d0 max: 4e20*/
+	REG_WRITE((MIPIA_INIT_COUNT_REG + reg_offset), 0x000007d0);
+
+	/*set up video mode*/
+	val = dsi_config->video_mode | DSI_DPI_COMPLETE_LAST_LINE;
+	REG_WRITE((MIPIA_VIDEO_MODE_FORMAT_REG + reg_offset), val);
+
+	REG_WRITE((MIPIA_EOT_DISABLE_REG + reg_offset), 0x00000000);
+
+	REG_WRITE((MIPIA_LP_BYTECLK_REG + reg_offset), 0x00000004);
+
+	/*TODO: figure out how to setup these registers*/
+	REG_WRITE((MIPIA_DPHY_PARAM_REG + reg_offset), 0x150c3408);
+
+	REG_WRITE((MIPIA_CLK_LANE_SWITCH_TIME_CNT_REG + reg_offset), (0xa << 16) | 0x14);
+
+	/*set device ready*/
+	REG_WRITE((MIPIA_DEVICE_READY_REG + reg_offset), 0x00000001);
+}
+
+static void dsi_controller_init(struct mdfld_dsi_config * dsi_config, int pipe)
+{
+	if (!dsi_config || ((pipe != 0) && (pipe != 2))) {
+		DRM_ERROR("Invalid parameters\n");
+		return;
+	}
+
+	if (dsi_config->type == MDFLD_DSI_ENCODER_DPI)
+		dsi_controller_dpi_init(dsi_config, pipe);
+	else if (dsi_config->type == MDFLD_DSI_ENCODER_DBI)
+		dsi_controller_dbi_init(dsi_config, pipe);
+	else
+		DRM_ERROR("Bad DSI encoder type\n");
+}
+
 void mdfld_dsi_cmds_kick_out(struct mdfld_dsi_pkg_sender *sender)
 {
 	process_pkg_list(sender);
@@ -774,7 +1072,7 @@ int mdfld_dsi_send_dcs(struct mdfld_dsi_pkg_sender *sender,
 	 * If dcs is write_mem_start, send it directly using DSI adapter
 	 * interface
 	 */
-	if (dcs == write_mem_start) {
+	if (dcs == DCS_WRITE_MEM_START) {
 		if (!spin_trylock(&sender->lock))
 			return -EAGAIN;
 
@@ -944,6 +1242,69 @@ int mdfld_dsi_send_gen_long_lp(struct mdfld_dsi_pkg_sender *sender,
 					MDFLD_DSI_LP_TRANSMISSION, delay);
 }
 
+int mdfld_dsi_read_gen_hs(struct mdfld_dsi_pkg_sender *sender,
+			u8 param0,
+			u8 param1,
+			u8 param_num,
+			u32 *data,
+			u16 len)
+{
+	if (!sender || !data || param_num < 0 || param_num > 2
+		|| !data || !len) {
+		DRM_ERROR("Invalid parameters\n");
+		return -EINVAL;
+	}
+
+	return mdfld_dsi_read_gen(sender, param0, param1, param_num,
+				data, len, MDFLD_DSI_HS_TRANSMISSION);
+
+}
+
+int mdfld_dsi_read_gen_lp(struct mdfld_dsi_pkg_sender *sender,
+			u8 param0,
+			u8 param1,
+			u8 param_num,
+			u32 *data,
+			u16 len)
+{
+	if (!sender || !data || param_num < 0 || param_num > 2
+		|| !data || !len) {
+		DRM_ERROR("Invalid parameters\n");
+		return -EINVAL;
+	}
+
+	return mdfld_dsi_read_gen(sender, param0, param1, param_num,
+				data, len, MDFLD_DSI_LP_TRANSMISSION);
+}
+
+int mdfld_dsi_read_mcs_hs(struct mdfld_dsi_pkg_sender *sender,
+			u8 cmd,
+			u32 *data,
+			u16 len)
+{
+	if (!sender || !data || !len) {
+		DRM_ERROR("Invalid parameters\n");
+		return -EINVAL;
+	}
+
+	return mdfld_dsi_read_mcs(sender, cmd, data, len,
+				MDFLD_DSI_HS_TRANSMISSION);
+}
+
+int mdfld_dsi_read_mcs_lp(struct mdfld_dsi_pkg_sender *sender,
+			u8 cmd,
+			u32 *data,
+			u16 len)
+{
+	if (!sender || !data || !len) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	return mdfld_dsi_read_mcs(sender, cmd, data, len,
+				MDFLD_DSI_LP_TRANSMISSION);
+}
+ 
 int mdfld_dsi_pkg_sender_init(struct mdfld_dsi_connector *dsi_connector,
 								int pipe)
 {
@@ -956,6 +1317,7 @@ int mdfld_dsi_pkg_sender_init(struct mdfld_dsi_connector *dsi_connector,
 	struct psb_gtt *pg = &dev_priv->gtt;
 	int i;
 	struct mdfld_dsi_pkg *pkg, *tmp;
+	u32 mipi_val = 0;
 
 	if (!dsi_connector) {
 		WARN_ON(1);
@@ -1018,7 +1380,7 @@ int mdfld_dsi_pkg_sender_init(struct mdfld_dsi_connector *dsi_connector,
 		pkg_sender->pipeconf_reg = PIPECCONF;
 		pkg_sender->dsplinoff_reg = DSPCLINOFF;
 		pkg_sender->dspsurf_reg = DSPCSURF;
-		pkg_sender->pipestat_reg = 72024;
+		pkg_sender->pipestat_reg = PIPECSTAT;
 
 		pkg_sender->mipi_intr_stat_reg =
 				MIPIA_INTR_STAT_REG + MIPIC_REG_OFFSET;
@@ -1059,6 +1421,31 @@ int mdfld_dsi_pkg_sender_init(struct mdfld_dsi_connector *dsi_connector,
 		INIT_LIST_HEAD(&pkg->entry);
 		list_add_tail(&pkg->entry, &pkg_sender->free_list);
 	}
+
+	/*
+	 * For video mode, don't enable DPI timing output here,
+	 * will init the DPI timing output during mode setting.
+	 */
+	if (dsi_config->type == MDFLD_DSI_ENCODER_DPI)
+		mipi_val = PASS_FROM_SPHY_TO_AFE | SEL_FLOPPED_HSTX;
+	else if (dsi_config->type == MDFLD_DSI_ENCODER_DBI)
+		mipi_val = PASS_FROM_SPHY_TO_AFE | SEL_FLOPPED_HSTX
+			| TE_TRIGGER_GPIO_PIN;
+	else
+		DRM_ERROR("Bad DSI encoder type\n");
+
+	if (pipe == 0) {
+		mipi_val |= 0x2;
+		REG_WRITE(MIPI, mipi_val);
+		REG_READ(MIPI);
+	} else if (pipe == 2) {
+		REG_WRITE(MIPI_C, mipi_val);
+		REG_READ(MIPI_C);
+	}
+
+	/*do dsi controller init*/
+	dsi_controller_init(dsi_config, pipe);
+	
 	return 0;
 
 pkg_alloc_err:

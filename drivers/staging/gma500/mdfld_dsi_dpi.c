@@ -69,26 +69,6 @@ static void mdfld_wait_for_HS_CTRL_FIFO(struct drm_device *dev, u32 pipe)
 		dev_warn(dev->dev, "MIPI: HS CMD FIFO was never cleared!\n");
 }
 
-static void mdfld_wait_for_PIPEA_DISABLE(struct drm_device *dev, u32 pipe)
-{
-        u32 pipeconf_reg = PIPEACONF;
-        int timeout = 0;
-
-        if (pipe == 2)
-                pipeconf_reg = PIPECCONF;
-
-        udelay(500);
-
-        /* This will time out after approximately 2+ seconds */
-        while ((timeout < 20000) && (REG_READ(pipeconf_reg) & 0x40000000)) {
-                udelay(100);
-                timeout++;
-        }
-
-        if (timeout == 20000)
-                dev_warn(dev->dev, "MIPI: PIPE was not disabled!\n");
-}
-
 static void mdfld_wait_for_DPI_CTRL_FIFO(struct drm_device *dev, u32 pipe)
 {
 	u32 gen_fifo_stat_reg = MIPIA_GEN_FIFO_STAT_REG;
@@ -146,8 +126,6 @@ void mdfld_dsi_tpo_ic_init(struct mdfld_dsi_config *dsi_config, u32 pipe)
 	u32 gen_data_reg = MIPIA_HS_GEN_DATA_REG; 
 	u32 gen_ctrl_reg = MIPIA_HS_GEN_CTRL_REG;
 	u32 gen_ctrl_val = GEN_LONG_WRITE;
-
-	dev_warn(dev->dev, "Enter mrst init TPO MIPI display.\n");
 
 	if (pipe == 2) {
 		gen_data_reg = HS_GEN_DATA_REG + MIPIC_REG_OFFSET; 
@@ -331,51 +309,8 @@ void mdfld_dsi_tpo_ic_init(struct mdfld_dsi_config *dsi_config, u32 pipe)
 	REG_WRITE(gen_ctrl_reg, gen_ctrl_val | (0x03 << WORD_COUNTS_POS));
 }
 
-/* ************************************************************************* *\
- * FUNCTION: mdfld_init_TMD_MIPI
- *
- * DESCRIPTION:  This function is called only by mrst_dsi_mode_set and
- *               restore_display_registers.  since this function does not
- *               acquire the mutex, it is important that the calling function
- *               does!
-\* ************************************************************************* */
-
-static u32 tmd_cmd_mcap_off[] = {0x000000b2};
-static u32 tmd_cmd_enable_lane_switch[] = {0x000101ef};
-static u32 tmd_cmd_set_lane_num[] = {0x006360ef};
-static u32 tmd_cmd_set_mode[] = {0x000000b3};
-static u32 tmd_cmd_set_sync_pulse_mode[] = {0x000961ef};
-static u32 tmd_cmd_set_video_mode[] = {0x00000153};
-static u32 tmd_cmd_enable_backlight[] = {0x00005ab4};//no auto_bl,need add in furtrue
-static u32 tmd_cmd_set_backlight_dimming[] = {0x00000ebd}; 
-
-void mdfld_dsi_tmd_drv_ic_init(struct mdfld_dsi_config *dsi_config, u32 pipe)
-{
-	struct mdfld_dsi_pkg_sender *sender = mdfld_dsi_get_pkg_sender(dsi_config);
-
-	if(!sender) {
-		WARN_ON(1);
-		return;
-	}
-
-	if(dsi_config->dvr_ic_inited)
-		return;
-
-	msleep(3);
-
-	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_mcap_off, 1, 0);
-	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_enable_lane_switch, 1, 0);
-	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_set_lane_num, 1, 0);
-	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_set_mode, 1, 0);
-	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_set_sync_pulse_mode, 1, 0);
-	/*TODO: set page and column here*/
-	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_set_video_mode, 1, 0);
-	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_enable_backlight, 1, 0);
-	mdfld_dsi_send_gen_long_lp(sender, tmd_cmd_set_backlight_dimming,1,0);
-	dsi_config->dvr_ic_inited = 1;
-}
-
-static u16 mdfld_dsi_dpi_to_byte_clock_count(int pixel_clock_count, int num_lane, int bpp)
+static u16 mdfld_dsi_dpi_to_byte_clock_count(int pixel_clock_count,
+						int num_lane, int bpp)
 {
 	return (u16)((pixel_clock_count * bpp) / (num_lane * 8)); 
 }
@@ -387,8 +322,8 @@ static u16 mdfld_dsi_dpi_to_byte_clock_count(int pixel_clock_count, int num_lane
  * use crtc mode values later 
  */
 int mdfld_dsi_dpi_timing_calculation(struct drm_display_mode *mode, 
-									struct mdfld_dsi_dpi_timing *dpi_timing,
-									int num_lane, int bpp)
+			struct mdfld_dsi_dpi_timing *dpi_timing,
+			int num_lane, int bpp)
 {
 	int pclk_hsync, pclk_hfp, pclk_hbp, pclk_hactive;
 	int pclk_vsync, pclk_vfp, pclk_vbp, pclk_vactive;
@@ -408,16 +343,6 @@ int mdfld_dsi_dpi_timing_calculation(struct drm_display_mode *mode,
 	pclk_vsync = mode->vsync_end - mode->vsync_start;
 	pclk_vbp = mode->vtotal - mode->vsync_end;
 
-#ifdef MIPI_DEBUG_LOG
-	printk(KERN_ALERT "[DISPLAY] %s: pclk_hactive = %d\n", __func__, pclk_hactive);
-	printk(KERN_ALERT "[DISPLAY] %s: pclk_hfp = %d\n", __func__, pclk_hfp);
-	printk(KERN_ALERT "[DISPLAY] %s: pclk_hsync = %d\n", __func__, pclk_hsync);
-	printk(KERN_ALERT "[DISPLAY] %s: pclk_hbp = %d\n", __func__, pclk_hbp);
-	printk(KERN_ALERT "[DISPLAY] %s: pclk_vactive = %d\n", __func__, pclk_vactive);
-	printk(KERN_ALERT "[DISPLAY] %s: pclk_vfp = %d\n", __func__, pclk_vfp);
-	printk(KERN_ALERT "[DISPLAY] %s: pclk_vsync = %d\n", __func__, pclk_vsync);
-	printk(KERN_ALERT "[DISPLAY] %s: pclk_vbp = %d\n", __func__, pclk_vbp);
-#endif
 	/*
 	 * byte clock counts were calculated by following formula
 	 * bclock_count = pclk_count * bpp / num_lane / 8
@@ -519,7 +444,6 @@ void mdfld_dsi_dpi_controller_init(struct mdfld_dsi_config *dsi_config, int pipe
 void mdfld_dsi_dpi_turn_on(struct mdfld_dsi_dpi_output *output, int pipe)
 {
 	struct drm_device *dev = output->dev;
-	/* struct drm_psb_private *dev_priv = dev->dev_private; */
 	u32 reg_offset = 0;
 	
 	if(output->panel_on) 
@@ -555,7 +479,6 @@ void mdfld_dsi_dpi_turn_on(struct mdfld_dsi_dpi_output *output, int pipe)
 static void mdfld_dsi_dpi_shut_down(struct mdfld_dsi_dpi_output *output, int pipe)
 {
 	struct drm_device *dev = output->dev;
-	/* struct drm_psb_private *dev_priv = dev->dev_private; */
 	u32 reg_offset = 0;
 	
 	/*if output is on, or mode setting didn't happen, ignore this*/
@@ -576,6 +499,7 @@ static void mdfld_dsi_dpi_shut_down(struct mdfld_dsi_dpi_output *output, int pip
 	}
 	
 	if(REG_READ(MIPIA_DPI_CONTROL_REG + reg_offset) == DSI_DPI_CTRL_HS_SHUTDOWN) {
+		dev_warn(dev->dev, "try to send the same package again, abort!");
 		goto shutdown_out;
 	}
 	
@@ -590,6 +514,14 @@ shutdown_out:
 	/* 	dev_priv->dpi_panel_on2 = false; */
 	/* else if (pipe == 0) */
 	/* 	dev_priv->dpi_panel_on = false;	 */
+	/* #ifdef CONFIG_PM_RUNTIME*/ 
+	/*	if (drm_psb_ospm && !enable_gfx_rtpm) { */
+	/*		pm_runtime_allow(&gpDrmDevice->pdev->dev); */
+	/*	schedule_delayed_work(&dev_priv->rtpm_work, 30 * 1000); */
+	/* } */
+	/*if (enable_gfx_rtpm) */
+	/*		pm_schedule_suspend(&dev->pdev->dev, gfxrtdelay); */
+	/* #endif */
 }
 
 void mdfld_dsi_dpi_set_power(struct drm_encoder *encoder, bool on)
@@ -616,7 +548,7 @@ void mdfld_dsi_dpi_set_power(struct drm_encoder *encoder, bool on)
 		if (mdfld_get_panel_type(dev, pipe) == TMD_VID){
  			mdfld_dsi_dpi_turn_on(dpi_output, pipe);
  		} else {
-			/*enable mipi port*/
+			/* Enable mipi port */
 			REG_WRITE(mipi_reg, (REG_READ(mipi_reg) | (1 << 31)));
 			REG_READ(mipi_reg);
 
@@ -636,7 +568,7 @@ void mdfld_dsi_dpi_set_power(struct drm_encoder *encoder, bool on)
  			mdfld_dsi_dpi_shut_down(dpi_output, pipe);
  		} else {
 			mdfld_dsi_dpi_shut_down(dpi_output, pipe);
-			/*disable mipi port*/
+			/* Disable mipi port */
 			REG_WRITE(mipi_reg, (REG_READ(mipi_reg) & ~(1<<31)));
 			REG_READ(mipi_reg);
 		}
@@ -656,8 +588,15 @@ void mdfld_dsi_dpi_dpms(struct drm_encoder *encoder, int mode)
 
 	if (mode == DRM_MODE_DPMS_ON)
 		mdfld_dsi_dpi_set_power(encoder, true);
-	else
+	else {
 		mdfld_dsi_dpi_set_power(encoder, false);
+#if 0 /* FIXME */
+#ifdef CONFIG_PM_RUNTIME
+		if (enable_gfx_rtpm)
+			pm_schedule_suspend(&gpDrmDevice->pdev->dev, gfxrtdelay);
+#endif
+#endif
+	}
 }
 
 bool mdfld_dsi_dpi_mode_fixup(struct drm_encoder *encoder,
@@ -692,77 +631,6 @@ void mdfld_dsi_dpi_prepare(struct drm_encoder *encoder)
 void mdfld_dsi_dpi_commit(struct drm_encoder *encoder) 
 {
 	mdfld_dsi_dpi_set_power(encoder, true);
-}
-
-void dsi_debug_MIPI_reg(struct drm_device *dev)
-{
-	u32 temp_val = 0;
-
-	temp_val = REG_READ(MIPI);
-	printk(KERN_ALERT "[DISPLAY] MIPI = %x\n", temp_val);
-
-	/* set the lane speed */
-	temp_val = REG_READ(MIPI_CONTROL_REG);
-	printk(KERN_ALERT "[DISPLAY] MIPI_CONTROL_REG = %x\n", temp_val);
-
-	/* Enable all the error interrupt */
-	temp_val = REG_READ(INTR_EN_REG);
-	printk(KERN_ALERT "[DISPLAY] INTR_EN_REG = %x\n", temp_val);
-	temp_val = REG_READ(TURN_AROUND_TIMEOUT_REG);
-	printk(KERN_ALERT "[DISPLAY] TURN_AROUND_TIMEOUT_REG = %x\n", temp_val);
-	temp_val = REG_READ(DEVICE_RESET_REG);
-	printk(KERN_ALERT "[DISPLAY] DEVICE_RESET_REG = %x\n", temp_val);
-	temp_val = REG_READ(INIT_COUNT_REG);
-	printk(KERN_ALERT "[DISPLAY] INIT_COUNT_REG = %x\n", temp_val);
-
-	temp_val = REG_READ(DSI_FUNC_PRG_REG);
-	printk(KERN_ALERT "[DISPLAY] DSI_FUNC_PRG_REG = %x\n", temp_val);
-
-	temp_val = REG_READ(DPI_RESOLUTION_REG);
-	printk(KERN_ALERT "[DISPLAY] DPI_RESOLUTION_REG = %x\n", temp_val);
-
-	temp_val = REG_READ(VERT_SYNC_PAD_COUNT_REG);
-	printk(KERN_ALERT "[DISPLAY] VERT_SYNC_PAD_COUNT_REG = %x\n", temp_val);
-	temp_val = REG_READ(VERT_BACK_PORCH_COUNT_REG);
-	printk(KERN_ALERT "[DISPLAY] VERT_BACK_PORCH_COUNT_REG = %x\n", temp_val);
-	temp_val = REG_READ(VERT_FRONT_PORCH_COUNT_REG);
-	printk(KERN_ALERT "[DISPLAY] VERT_FRONT_PORCH_COUNT_REG = %x\n", temp_val);
-
-	temp_val = REG_READ(HORIZ_SYNC_PAD_COUNT_REG);
-	printk(KERN_ALERT "[DISPLAY] HORIZ_SYNC_PAD_COUNT_REG = %x\n", temp_val);
-	temp_val = REG_READ(HORIZ_BACK_PORCH_COUNT_REG);
-	printk(KERN_ALERT "[DISPLAY] HORIZ_BACK_PORCH_COUNT_REG = %x\n", temp_val);
-	temp_val = REG_READ(HORIZ_FRONT_PORCH_COUNT_REG);
-	printk(KERN_ALERT "[DISPLAY] HORIZ_FRONT_PORCH_COUNT_REG = %x\n", temp_val);
-	temp_val = REG_READ(HORIZ_ACTIVE_AREA_COUNT_REG);
-	printk(KERN_ALERT "[DISPLAY] HORIZ_ACTIVE_AREA_COUNT_REG = %x\n", temp_val);
-
-	temp_val = REG_READ(VIDEO_FMT_REG);
-	printk(KERN_ALERT "[DISPLAY] VIDEO_FMT_REG = %x\n", temp_val);
-
-	temp_val = REG_READ(HS_TX_TIMEOUT_REG);
-	printk(KERN_ALERT "[DISPLAY] HS_TX_TIMEOUT_REG = %x\n", temp_val);
-	temp_val = REG_READ(LP_RX_TIMEOUT_REG);
-	printk(KERN_ALERT "[DISPLAY] LP_RX_TIMEOUT_REG = %x\n", temp_val);
-
-	temp_val = REG_READ(HIGH_LOW_SWITCH_COUNT_REG);
-	printk(KERN_ALERT "[DISPLAY] HIGH_LOW_SWITCH_COUNT_REG = %x\n", temp_val);
-
-	temp_val = REG_READ(EOT_DISABLE_REG);
-	printk(KERN_ALERT "[DISPLAY] EOT_DISABLE_REG = %x\n", temp_val);
-
-	temp_val = REG_READ(LP_BYTECLK_REG);
-	printk(KERN_ALERT "[DISPLAY] LP_BYTECLK_REG = %x\n", temp_val);
-	temp_val = REG_READ(MAX_RET_PAK_REG);
-	printk(KERN_ALERT "[DISPLAY] MAX_RET_PAK_REG = %x\n", temp_val);
-	temp_val = REG_READ(DPI_CONTROL_REG);
-	printk(KERN_ALERT "[DISPLAY] DPI_CONTROL_REG = %x\n", temp_val);
-	temp_val = REG_READ(DPHY_PARAM_REG);
-	printk(KERN_ALERT "[DISPLAY] DPHY_PARAM_REG = %x\n", temp_val);
-//	temp_val = REG_READ(PIPEACONF);
-//	printk(KERN_INFO "[DISPLAY] PIPEACONF = %x\n", temp_val);
-//	temp_val = REG_READ(DSPACNTR);
-//	printk(KERN_INFO "[DISPLAY] DSPACNTR = %x\n", temp_val);
 }
 
 void mdfld_dsi_dpi_mode_set(struct drm_encoder *encoder,
@@ -804,14 +672,11 @@ void mdfld_dsi_dpi_mode_set(struct drm_encoder *encoder,
 	REG_WRITE(mipi_reg, mipi);
 	REG_READ(mipi_reg);
 
-	/* Set up DSI controller DPI interface*/
+	/* Set up DSI controller DPI interface */
 	mdfld_dsi_dpi_controller_init(dsi_config, pipe);
 
-	if (mdfld_get_panel_type(dev, pipe) == TMD_VID) {
- 		/* init driver ic */
- 		mdfld_dsi_tmd_drv_ic_init(dsi_config, pipe);
-	} else {
-		/*turn on DPI interface*/
+	if (mdfld_get_panel_type(dev, pipe) != TMD_VID) {
+		/* Turn on DPI interface */
 		mdfld_dsi_dpi_turn_on(dpi_output, pipe);
 	}
 	
@@ -829,81 +694,15 @@ void mdfld_dsi_dpi_mode_set(struct drm_encoder *encoder,
 		REG_READ(MIPIA_INTR_STAT_REG + reg_offset),
 		dpi_output->panel_on);
 
-	if (mdfld_get_panel_type(dev, pipe) == TMD_VID) {
-		//mdfld_dsi_dpi_turn_on(dpi_output, pipe);
-	} else {
-		/* init driver ic */
+	if (mdfld_get_panel_type(dev, pipe) != TMD_VID) {
+		/* Init driver ic */
 		mdfld_dsi_tpo_ic_init(dsi_config, pipe);
-		/*init backlight*/
+		/* Init backlight */
 		mdfld_dsi_brightness_init(dsi_config, pipe);
 	}
-	
-#ifdef MIPI_DEBUG_LOG
-	dsi_debug_MIPI_reg(dev);
-#endif
 	gma_power_end(dev);
 }
 
-static int mdfld_dpi_panel_reset(int pipe)
-{
-	unsigned gpio;
-	int ret = 0;
-	
-	switch(pipe) {
-	case 0:
-		gpio = 128;
-		break;
-	case 2:
-		gpio = 34;
-		break;
-	default:
-		DRM_ERROR("Invalid output\n");
-		return -EINVAL;
-	}
-	
-	ret = gpio_request(gpio, "gfx");
-	if(ret) {
-		DRM_ERROR("gpio_rqueset failed\n");
-		return ret;
-	}
-	ret = gpio_direction_output(gpio, 1);
-	if(ret) {
-		DRM_ERROR("gpio_direction_output failed\n");
-		goto gpio_error;
-	}
-	
-	gpio_get_value(128);
-	
-gpio_error:
-	if(gpio_is_valid(gpio))
-		gpio_free(gpio);
-	return ret;
-}
-
-/**
- * Exit from DSR
- */
-void mdfld_dsi_dpi_exit_idle (struct drm_device *dev, u32 update_src, void *p_surfaceAddr, bool check_hw_on_only)
-{
-	struct drm_psb_private *dev_priv = dev->dev_private;
-
-	if (!gma_power_begin(dev, true)) {
-		DRM_ERROR("hw begin failed\n");
-		return;
-	}
-
-	/* update the surface base address. */
-	if (p_surfaceAddr) {
-		REG_WRITE(DSPASURF, *((u32 *)p_surfaceAddr));
-#if defined(CONFIG_MDFD_DUAL_MIPI)
-		REG_WRITE(DSPCSURF, *((u32 *)p_surfaceAddr));
-#endif
-	}
-	mid_enable_pipe_event(dev_priv, 0);
-	psb_enable_pipestat(dev_priv, 0, PIPE_VBLANK_INTERRUPT_ENABLE);
-	dev_priv->is_in_idle = false;
-	dev_priv->dsr_idle_count = 0;
-}
 
 /*
  * Init DSI DPI encoder. 
@@ -912,19 +711,48 @@ void mdfld_dsi_dpi_exit_idle (struct drm_device *dev, u32 update_src, void *p_su
  */ 
 struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev, 
 				struct mdfld_dsi_connector *dsi_connector,
-				struct panel_funcs*p_funcs)
+				struct panel_funcs *p_funcs)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct mdfld_dsi_dpi_output *dpi_output = NULL;
 	struct mdfld_dsi_config *dsi_config;
 	struct drm_connector *connector = NULL;
 	struct drm_encoder *encoder = NULL;
 	struct drm_display_mode *fixed_mode = NULL;
+	int pipe;
+	u32 data;
 	int ret;
 
-	if (!dsi_connector) {
+	if (!dsi_connector || !p_funcs) {
 		WARN_ON(1);
 		return NULL;
+	}
+
+	dsi_config = mdfld_dsi_get_config(dsi_connector);
+	pipe = dsi_connector->pipe;
+
+	/* Panel hard-reset */
+	if (p_funcs->reset) {
+		ret = p_funcs->reset(pipe);
+		if (ret) {
+			DRM_ERROR("Panel %d hard-reset failed\n", pipe);
+			return NULL;
+		}
+	}
+
+	/* Panel drvIC init */
+	if (p_funcs->drv_ic_init)
+		p_funcs->drv_ic_init(dsi_config, pipe);
+
+	/* Panel power mode detect */
+	ret = mdfld_dsi_get_power_mode(dsi_config,
+					&data,
+					MDFLD_DSI_LP_TRANSMISSION);
+	if (ret) {
+		DRM_ERROR("Panel %d get power mode failed\n", pipe);
+		dsi_connector->status = connector_status_disconnected;
+	} else {
+		DRM_INFO("pipe %d power mode 0x%x\n", pipe, data);
+		dsi_connector->status = connector_status_connected;
 	}
 
 	dpi_output = kzalloc(sizeof(struct mdfld_dsi_dpi_output), GFP_KERNEL);
@@ -932,20 +760,14 @@ struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 		dev_err(dev->dev, "No memory for dsi_dpi_output\n");
 		return NULL;
 	}
-	/* Panel reset */
-	ret = mdfld_dpi_panel_reset(dsi_connector->pipe);
-	if(ret) {
-		DRM_ERROR("reset panel error\n");
-		goto out_err1;
-	}
-	
+
 	if(dsi_connector->pipe) 
 		dpi_output->panel_on = 0;
-
+	else
 		dpi_output->panel_on = 0;
 	
-	
 	dpi_output->dev = dev;
+	dpi_output->p_funcs = p_funcs;
 	dpi_output->first_boot = 1;
 	
 	/* Get fixed mode */
@@ -973,19 +795,6 @@ struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 		encoder->possible_crtcs = (1 << 0);
 		encoder->possible_clones = (1 << 0);
 	}
-
-	dev_priv->dsr_fb_update = 0;
-	dev_priv->dsr_enable = false;
-	dev_priv->exit_idle = mdfld_dsi_dpi_exit_idle;
-#if defined(CONFIG_MDFLD_DSI_DPU) || defined(CONFIG_MDFLD_DSI_DSR)
-	dev_priv->dsr_enable_config = true;
-#endif /*CONFIG_MDFLD_DSI_DSR*/
-
 	return &dpi_output->base;
-	
-out_err1: 
-	if(dpi_output)
-		kfree(dpi_output);
-	return NULL;	
 }
 
