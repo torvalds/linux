@@ -521,7 +521,8 @@ static int psb_intel_lvds_get_modes(struct drm_connector *connector)
 					psb_intel_output->mode_dev;
 	int ret = 0;
 
-	ret = psb_intel_ddc_get_modes(psb_intel_output);
+	if (!IS_MRST(dev))
+		ret = psb_intel_ddc_get_modes(psb_intel_output);
 
 	if (ret)
 		return ret;
