@@ -1713,6 +1713,9 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 			    (fll.clk_ref_div << WM8994_FLL1_REFCLK_DIV_SHIFT) |
 			    (src - 1));
 
+	/* Clear any pending completion from a previous failure */
+	try_wait_for_completion(&wm8994->fll_locked[id]);
+
 	/* Enable (with fractional mode if required) */
 	if (freq_out) {
 		if (fll.k)
