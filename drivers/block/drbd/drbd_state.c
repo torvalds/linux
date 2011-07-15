@@ -1180,7 +1180,8 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		if (os.conn < C_CONNECTED && conn_lowest_conn(mdev->tconn) >= C_CONNECTED)
 			what = RESEND;
 
-		if (os.disk == D_ATTACHING && conn_lowest_disk(mdev->tconn) > D_ATTACHING)
+		if ((os.disk == D_ATTACHING || os.disk == D_NEGOTIATING) &&
+		    conn_lowest_disk(mdev->tconn) > D_NEGOTIATING)
 			what = RESTART_FROZEN_DISK_IO;
 
 		if (what != NOTHING) {
