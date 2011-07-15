@@ -19,6 +19,8 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/i2c.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -377,6 +379,44 @@ static struct i2c_board_info mxs_i2c0_board_info[] __initdata = {
 	},
 };
 
+#if defined(CONFIG_REGULATOR_FIXED_VOLTAGE) || defined(CONFIG_REGULATOR_FIXED_VOLTAGE_MODULE)
+static struct regulator_consumer_supply mx28evk_audio_consumer_supplies[] = {
+	REGULATOR_SUPPLY("VDDA", "0-000a"),
+	REGULATOR_SUPPLY("VDDIO", "0-000a"),
+};
+
+static struct regulator_init_data mx28evk_vdd_reg_init_data = {
+	.constraints	= {
+		.name	= "3V3",
+		.always_on = 1,
+	},
+	.consumer_supplies = mx28evk_audio_consumer_supplies,
+	.num_consumer_supplies = ARRAY_SIZE(mx28evk_audio_consumer_supplies),
+};
+
+static struct fixed_voltage_config mx28evk_vdd_pdata = {
+	.supply_name	= "board-3V3",
+	.microvolts	= 3300000,
+	.gpio		= -EINVAL,
+	.enabled_at_boot = 1,
+	.init_data	= &mx28evk_vdd_reg_init_data,
+};
+static struct platform_device mx28evk_voltage_regulator = {
+	.name		= "reg-fixed-voltage",
+	.id		= -1,
+	.num_resources	= 0,
+	.dev		= {
+		.platform_data	= &mx28evk_vdd_pdata,
+	},
+};
+static void __init mx28evk_add_regulators(void)
+{
+	platform_device_register(&mx28evk_voltage_regulator);
+}
+#else
+static void __init mx28evk_add_regulators(void) {}
+#endif
+
 static void __init mx28evk_init(void)
 {
 	int ret;
@@ -423,6 +463,8 @@ static void __init mx28evk_init(void)
 	mx28_add_mxs_i2c(0);
 	i2c_register_board_info(0, mxs_i2c0_board_info,
 				ARRAY_SIZE(mxs_i2c0_board_info));
+
+	mx28evk_add_regulators();
 
 	mxs_add_platform_device("mxs-sgtl5000", 0, NULL, 0,
 			NULL, 0);
