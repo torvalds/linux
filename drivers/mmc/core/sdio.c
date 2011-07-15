@@ -241,7 +241,10 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	 */
 	err = mmc_send_io_op_cond(host, host->ocr, &ocr);
 	if (err)
+	{
+	    printk("%s..%d..  ====*Identify the card as SDIO , but OCR error, so fail to initialize.===xbw[%s]===\n", __FUNCTION__, __LINE__, mmc_hostname(host));
 		goto err;
+	}
 
 	/*
 	 * For SPI, enable CRC as appropriate.
@@ -277,14 +280,6 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_send_relative_addr(host, &card->rca);
 		if (err)
 			goto remove;
-
-		/*
-		 * Update oldcard with the new RCA received from the SDIO
-		 * device -- we're doing this so that it's updated in the
-		 * "card" struct when oldcard overwrites that later.
-		 */
-		if (oldcard)
-			oldcard->rca = card->rca;
 
 		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
 	}
