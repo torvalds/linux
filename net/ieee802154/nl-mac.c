@@ -30,6 +30,7 @@
 #include <net/genetlink.h>
 #include <net/sock.h>
 #include <linux/nl802154.h>
+#include <linux/export.h>
 #include <net/af_ieee802154.h>
 #include <net/nl802154.h>
 #include <net/ieee802154.h>

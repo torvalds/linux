@@ -24,6 +24,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <linux/tcp.h>
 #include <linux/slab.h>
 #include <linux/sunrpc/xprt.h>
+#include <linux/export.h>
 
 #ifdef RPC_DEBUG
 #define RPCDBG_FACILITY	RPCDBG_TRANS

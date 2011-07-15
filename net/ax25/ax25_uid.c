@@ -37,6 +37,7 @@
 #include <linux/stat.h>
 #include <linux/netfilter.h>
 #include <linux/sysctl.h>
+#include <linux/export.h>
 #include <net/ip.h>
 #include <net/arp.h>
 

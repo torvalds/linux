@@ -16,6 +16,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/rcupdate.h>
+#include <linux/export.h>
 #include <net/mac80211.h>
 #include <net/ieee80211_radiotap.h>
 

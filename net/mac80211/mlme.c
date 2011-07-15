@@ -21,6 +21,7 @@
 #include <linux/pm_qos.h>
 #include <linux/crc32.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <net/mac80211.h>
 #include <asm/unaligned.h>
 

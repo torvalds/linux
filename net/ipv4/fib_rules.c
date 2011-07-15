@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/rcupdate.h>
+#include <linux/export.h>
 #include <net/ip.h>
 #include <net/route.h>
 #include <net/tcp.h>

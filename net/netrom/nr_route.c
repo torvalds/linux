@@ -37,6 +37,7 @@
 #include <linux/spinlock.h>
 #include <net/netrom.h>
 #include <linux/seq_file.h>
+#include <linux/export.h>
 
 static unsigned int nr_neigh_no = 1;
 

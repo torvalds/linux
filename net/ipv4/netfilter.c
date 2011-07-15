@@ -5,6 +5,7 @@
 #include <linux/ip.h>
 #include <linux/skbuff.h>
 #include <linux/gfp.h>
+#include <linux/export.h>
 #include <net/route.h>
 #include <net/xfrm.h>
 #include <net/ip.h>

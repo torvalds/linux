@@ -42,6 +42,7 @@
 #include <linux/inetdevice.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/export.h>
 #include <net/sock.h>
 #include <net/raw.h>
 

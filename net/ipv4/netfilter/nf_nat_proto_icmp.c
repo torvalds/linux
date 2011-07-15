@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/export.h>
 #include <linux/ip.h>
 #include <linux/icmp.h>
 

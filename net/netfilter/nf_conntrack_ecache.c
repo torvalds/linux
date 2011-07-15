@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>

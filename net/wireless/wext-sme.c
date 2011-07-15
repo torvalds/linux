@@ -5,6 +5,7 @@
  * Copyright (C) 2009   Intel Corporation. All rights reserved.
  */
 
+#include <linux/export.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 #include <linux/slab.h>

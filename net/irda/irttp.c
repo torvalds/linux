@@ -29,6 +29,7 @@
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>

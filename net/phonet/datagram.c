@@ -30,6 +30,7 @@
 #include <net/sock.h>
 
 #include <linux/phonet.h>
+#include <linux/export.h>
 #include <net/phonet/phonet.h>
 
 static int pn_backlog_rcv(struct sock *sk, struct sk_buff *skb);

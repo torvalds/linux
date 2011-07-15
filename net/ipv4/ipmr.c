@@ -61,6 +61,7 @@
 #include <linux/if_arp.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/compat.h>
+#include <linux/export.h>
 #include <net/ipip.h>
 #include <net/checksum.h>
 #include <net/netlink.h>

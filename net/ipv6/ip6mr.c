@@ -51,6 +51,7 @@
 #include <linux/pim.h>
 #include <net/addrconf.h>
 #include <linux/netfilter_ipv6.h>
+#include <linux/export.h>
 #include <net/ip6_checksum.h>
 
 struct mr6_table {

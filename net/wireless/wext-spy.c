@@ -10,6 +10,7 @@
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/export.h>
 #include <net/iw_handler.h>
 #include <net/arp.h>
 #include <net/wext.h>
