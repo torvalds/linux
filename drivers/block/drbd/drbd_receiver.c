@@ -1611,7 +1611,7 @@ find_request(struct drbd_conf *mdev, struct rb_root *root, u64 id,
 	if (drbd_contains_interval(root, sector, &req->i) && req->i.local)
 		return req;
 	if (!missing_ok) {
-		dev_err(DEV, "%s: failed to find request %lu, sector %llus\n", func,
+		dev_err(DEV, "%s: failed to find request 0x%lx, sector %llus\n", func,
 			(unsigned long)id, (unsigned long long)sector);
 	}
 	return NULL;
