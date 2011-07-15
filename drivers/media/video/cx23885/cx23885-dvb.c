@@ -1270,7 +1270,7 @@ int cx23885_dvb_unregister(struct cx23885_tsport *port)
 	 * implement MFE support.
 	 */
 	fe0 = videobuf_dvb_get_frontend(&port->frontends, 1);
-	if (fe0->dvb.frontend)
+	if (fe0 && fe0->dvb.frontend)
 		videobuf_dvb_unregister_bus(&port->frontends);
 
 	switch (port->dev->board) {
