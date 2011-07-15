@@ -316,7 +316,7 @@ Some bridges allow you to enable MSIs by changing some bits in their
 PCI configuration space (especially the Hypertransport chipsets such
 as the nVidia nForce and Serverworks HT2000).  As with host chipsets,
 Linux mostly knows about them and automatically enables MSIs if it can.
-If you have a bridge which Linux doesn't yet know about, you can enable
+If you have a bridge unknown to Linux, you can enable
 MSIs in configuration space using whatever method you know works, then
 enable MSIs on that bridge by doing:
 
