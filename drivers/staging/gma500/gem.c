@@ -251,6 +251,21 @@ fail:
 	}
 }
 
+static int psb_gem_create_stolen(struct drm_file *file, struct drm_device *dev,
+						int size, u32 *handle)
+{
+	struct gtt_range *gtt = psb_gtt_alloc_range(dev, size, "gem", 1);
+	if (gtt == NULL)
+		return -ENOMEM;
+	if (drm_gem_private_object_init(dev, &gtt->gem, size) != 0)
+		goto free_gtt;
+	if (drm_gem_handle_create(file, &gtt->gem, handle) == 0)
+		return 0;
+free_gtt:
+	psb_gtt_free_range(dev, gtt);
+	return -ENOMEM;
+}
+
 /*
  *	GEM interfaces for our specific client
  */
@@ -258,6 +273,15 @@ int psb_gem_create_ioctl(struct drm_device *dev, void *data,
 					struct drm_file *file)
 {
 	struct drm_psb_gem_create *args = data;
+	int ret;
+	if (args->flags & PSB_GEM_CREATE_STOLEN) {
+		ret = psb_gem_create_stolen(file, dev, args->size,
+							&args->handle);
+		if (ret == 0)
+			return 0;
+		/* Fall throguh */
+		args->flags &= ~PSB_GEM_CREATE_STOLEN;
+	}
 	return psb_gem_create(file, dev, args->size, &args->handle);
 }
 

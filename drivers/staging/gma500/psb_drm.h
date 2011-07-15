@@ -189,7 +189,8 @@ struct psb_drm_dpu_rect {
 struct drm_psb_gem_create {
 	__u64 size;
 	__u32 handle;
-	__u32 pad;
+	__u32 flags;
+#define PSB_GEM_CREATE_STOLEN		1	/* Stolen memory can be used */
 };
 
 #define PSB_2D_OP_BUFLEN		16
