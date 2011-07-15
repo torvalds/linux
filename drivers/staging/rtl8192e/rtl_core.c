@@ -22,7 +22,6 @@
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
-#undef LOOP_TEST
 #undef RX_DONT_PASS_UL
 #undef DEBUG_EPROM
 #undef DEBUG_RX_VERBOSE
@@ -559,14 +558,8 @@ void rtl8192_set_chan(struct net_device *dev,short ch)
 
     priv->chan = ch;
 
-
-#ifndef LOOP_TEST
-
-
     if (priv->rf_set_chan)
         priv->rf_set_chan(dev,priv->chan);
-
-#endif
 }
 
 void rtl8192_update_cap(struct net_device* dev, u16 cap)
