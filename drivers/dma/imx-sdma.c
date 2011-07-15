@@ -1126,22 +1126,14 @@ static int __init sdma_get_firmware(struct sdma_engine *sdma,
 		const char *fw_name)
 {
 	const struct firmware *fw;
-	char *fwname;
 	const struct sdma_firmware_header *header;
 	int ret;
 	const struct sdma_script_start_addrs *addr;
 	unsigned short *ram_code;
 
-	fwname = kasprintf(GFP_KERNEL, "%s", fw_name);
-	if (!fwname)
-		return -ENOMEM;
-
-	ret = request_firmware(&fw, fwname, sdma->dev);
-	if (ret) {
-		kfree(fwname);
+	ret = request_firmware(&fw, fw_name, sdma->dev);
+	if (ret)
 		return ret;
-	}
-	kfree(fwname);
 
 	if (fw->size < sizeof(*header))
 		goto err_firmware;
