@@ -45,13 +45,13 @@ static LIST_HEAD(voltdm_list);
 
 /* Public functions */
 /**
- * omap_voltage_get_nom_volt() - Gets the current non-auto-compensated voltage
- * @voltdm:	pointer to the VDD for which current voltage info is needed
+ * voltdm_get_voltage() - Gets the current non-auto-compensated voltage
+ * @voltdm:	pointer to the voltdm for which current voltage info is needed
  *
- * API to get the current non-auto-compensated voltage for a VDD.
- * Returns 0 in case of error else returns the current voltage for the VDD.
+ * API to get the current non-auto-compensated voltage for a voltage domain.
+ * Returns 0 in case of error else returns the current voltage.
  */
-unsigned long omap_voltage_get_nom_volt(struct voltagedomain *voltdm)
+unsigned long voltdm_get_voltage(struct voltagedomain *voltdm)
 {
 	if (!voltdm || IS_ERR(voltdm)) {
 		pr_warning("%s: VDD specified does not exist!\n", __func__);
@@ -72,6 +72,8 @@ unsigned long omap_voltage_get_nom_volt(struct voltagedomain *voltdm)
 int voltdm_scale(struct voltagedomain *voltdm,
 		 unsigned long target_volt)
 {
+	int ret;
+
 	if (!voltdm || IS_ERR(voltdm)) {
 		pr_warning("%s: VDD specified does not exist!\n", __func__);
 		return -EINVAL;
@@ -104,7 +106,7 @@ void voltdm_reset(struct voltagedomain *voltdm)
 		return;
 	}
 
-	target_volt = omap_voltage_get_nom_volt(voltdm);
+	target_volt = voltdm_get_voltage(voltdm);
 	if (!target_volt) {
 		pr_err("%s: unable to find current voltage for vdd_%s\n",
 			__func__, voltdm->name);
