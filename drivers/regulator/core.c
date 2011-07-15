@@ -794,7 +794,6 @@ static int machine_constraints_voltage(struct regulator_dev *rdev,
 		if (ret < 0) {
 			rdev_err(rdev, "failed to apply %duV constraint\n",
 				 rdev->constraints->min_uV);
-			rdev->constraints = NULL;
 			return ret;
 		}
 	}
@@ -897,7 +896,6 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		ret = suspend_prepare(rdev, rdev->constraints->initial_state);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to set suspend state\n");
-			rdev->constraints = NULL;
 			goto out;
 		}
 	}
@@ -924,13 +922,15 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		ret = ops->enable(rdev);
 		if (ret < 0) {
 			rdev_err(rdev, "failed to enable\n");
-			rdev->constraints = NULL;
 			goto out;
 		}
 	}
 
 	print_constraints(rdev);
+	return 0;
 out:
+	kfree(rdev->constraints);
+	rdev->constraints = NULL;
 	return ret;
 }
 
@@ -2701,6 +2701,7 @@ unset_supplies:
 	unset_regulator_supplies(rdev);
 
 scrub:
+	kfree(rdev->constraints);
 	device_unregister(&rdev->dev);
 	/* device core frees rdev */
 	rdev = ERR_PTR(ret);
