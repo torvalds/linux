@@ -34,6 +34,9 @@ struct btrfs_inode {
 	 */
 	struct btrfs_key location;
 
+	/* Lock for counters */
+	spinlock_t lock;
+
 	/* the extent_tree has caches of all the extent mappings to disk */
 	struct extent_map_tree extent_tree;
 
@@ -134,8 +137,8 @@ struct btrfs_inode {
 	 * items we think we'll end up using, and reserved_extents is the number
 	 * of extent items we've reserved metadata for.
 	 */
-	atomic_t outstanding_extents;
-	atomic_t reserved_extents;
+	unsigned outstanding_extents;
+	unsigned reserved_extents;
 
 	/*
 	 * ordered_data_close is set by truncate when a file that used

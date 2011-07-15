@@ -2134,7 +2134,7 @@ static inline bool btrfs_mixed_space_info(struct btrfs_space_info *space_info)
 
 /* extent-tree.c */
 static inline u64 btrfs_calc_trans_metadata_size(struct btrfs_root *root,
-						 int num_items)
+						 unsigned num_items)
 {
 	return (root->leafsize + root->nodesize * (BTRFS_MAX_LEVEL - 1)) *
 		3 * num_items;

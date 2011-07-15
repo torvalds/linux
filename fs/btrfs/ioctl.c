@@ -938,7 +938,9 @@ again:
 			  GFP_NOFS);
 
 	if (i_done != num_pages) {
-		atomic_inc(&BTRFS_I(inode)->outstanding_extents);
+		spin_lock(&BTRFS_I(inode)->lock);
+		BTRFS_I(inode)->outstanding_extents++;
+		spin_unlock(&BTRFS_I(inode)->lock);
 		btrfs_delalloc_release_space(inode,
 				     (num_pages - i_done) << PAGE_CACHE_SHIFT);
 	}

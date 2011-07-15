@@ -3726,7 +3726,6 @@ int btrfs_block_rsv_check(struct btrfs_trans_handle *trans,
 	if (commit_trans) {
 		if (trans)
 			return -EAGAIN;
-
 		trans = btrfs_join_transaction(root);
 		BUG_ON(IS_ERR(trans));
 		ret = btrfs_commit_transaction(trans, root);
@@ -3946,6 +3945,30 @@ int btrfs_snap_reserve_metadata(struct btrfs_trans_handle *trans,
 	return block_rsv_migrate_bytes(src_rsv, dst_rsv, num_bytes);
 }
 
+static unsigned drop_outstanding_extent(struct inode *inode)
+{
+	unsigned dropped_extents = 0;
+
+	spin_lock(&BTRFS_I(inode)->lock);
+	BUG_ON(!BTRFS_I(inode)->outstanding_extents);
+	BTRFS_I(inode)->outstanding_extents--;
+
+	/*
+	 * If we have more or the same amount of outsanding extents than we have
+	 * reserved then we need to leave the reserved extents count alone.
+	 */
+	if (BTRFS_I(inode)->outstanding_extents >=
+	    BTRFS_I(inode)->reserved_extents)
+		goto out;
+
+	dropped_extents = BTRFS_I(inode)->reserved_extents -
+		BTRFS_I(inode)->outstanding_extents;
+	BTRFS_I(inode)->reserved_extents -= dropped_extents;
+out:
+	spin_unlock(&BTRFS_I(inode)->lock);
+	return dropped_extents;
+}
+
 static u64 calc_csum_metadata_size(struct inode *inode, u64 num_bytes)
 {
 	return num_bytes >>= 3;
@@ -3955,9 +3978,8 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_block_rsv *block_rsv = &root->fs_info->delalloc_block_rsv;
-	u64 to_reserve;
-	int nr_extents;
-	int reserved_extents;
+	u64 to_reserve = 0;
+	unsigned nr_extents = 0;
 	int ret;
 
 	if (btrfs_transaction_in_commit(root->fs_info))
@@ -3965,24 +3987,31 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 	num_bytes = ALIGN(num_bytes, root->sectorsize);
 
-	nr_extents = atomic_read(&BTRFS_I(inode)->outstanding_extents) + 1;
-	reserved_extents = atomic_read(&BTRFS_I(inode)->reserved_extents);
+	spin_lock(&BTRFS_I(inode)->lock);
+	BTRFS_I(inode)->outstanding_extents++;
 
-	if (nr_extents > reserved_extents) {
-		nr_extents -= reserved_extents;
+	if (BTRFS_I(inode)->outstanding_extents >
+	    BTRFS_I(inode)->reserved_extents) {
+		nr_extents = BTRFS_I(inode)->outstanding_extents -
+			BTRFS_I(inode)->reserved_extents;
+		BTRFS_I(inode)->reserved_extents += nr_extents;
+
 		to_reserve = btrfs_calc_trans_metadata_size(root, nr_extents);
-	} else {
-		nr_extents = 0;
-		to_reserve = 0;
 	}
+	spin_unlock(&BTRFS_I(inode)->lock);
 
 	to_reserve += calc_csum_metadata_size(inode, num_bytes);
 	ret = reserve_metadata_bytes(NULL, root, block_rsv, to_reserve, 1);
-	if (ret)
+	if (ret) {
+		unsigned dropped;
+		/*
+		 * We don't need the return value since our reservation failed,
+		 * we just need to clean up our counter.
+		 */
+		dropped = drop_outstanding_extent(inode);
+		WARN_ON(dropped > 1);
 		return ret;
-
-	atomic_add(nr_extents, &BTRFS_I(inode)->reserved_extents);
-	atomic_inc(&BTRFS_I(inode)->outstanding_extents);
+	}
 
 	block_rsv_add_bytes(block_rsv, to_reserve, 1);
 
@@ -3992,36 +4021,15 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	u64 to_free;
-	int nr_extents;
-	int reserved_extents;
+	u64 to_free = 0;
+	unsigned dropped;
 
 	num_bytes = ALIGN(num_bytes, root->sectorsize);
-	atomic_dec(&BTRFS_I(inode)->outstanding_extents);
-	WARN_ON(atomic_read(&BTRFS_I(inode)->outstanding_extents) < 0);
-
-	reserved_extents = atomic_read(&BTRFS_I(inode)->reserved_extents);
-	do {
-		int old, new;
-
-		nr_extents = atomic_read(&BTRFS_I(inode)->outstanding_extents);
-		if (nr_extents >= reserved_extents) {
-			nr_extents = 0;
-			break;
-		}
-		old = reserved_extents;
-		nr_extents = reserved_extents - nr_extents;
-		new = reserved_extents - nr_extents;
-		old = atomic_cmpxchg(&BTRFS_I(inode)->reserved_extents,
-				     reserved_extents, new);
-		if (likely(old == reserved_extents))
-			break;
-		reserved_extents = old;
-	} while (1);
+	dropped = drop_outstanding_extent(inode);
 
 	to_free = calc_csum_metadata_size(inode, num_bytes);
-	if (nr_extents > 0)
-		to_free += btrfs_calc_trans_metadata_size(root, nr_extents);
+	if (dropped > 0)
+		to_free += btrfs_calc_trans_metadata_size(root, dropped);
 
 	btrfs_block_rsv_release(root, &root->fs_info->delalloc_block_rsv,
 				to_free);

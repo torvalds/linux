@@ -1298,7 +1298,9 @@ static int btrfs_split_extent_hook(struct inode *inode,
 	if (!(orig->state & EXTENT_DELALLOC))
 		return 0;
 
-	atomic_inc(&BTRFS_I(inode)->outstanding_extents);
+	spin_lock(&BTRFS_I(inode)->lock);
+	BTRFS_I(inode)->outstanding_extents++;
+	spin_unlock(&BTRFS_I(inode)->lock);
 	return 0;
 }
 
@@ -1316,7 +1318,9 @@ static int btrfs_merge_extent_hook(struct inode *inode,
 	if (!(other->state & EXTENT_DELALLOC))
 		return 0;
 
-	atomic_dec(&BTRFS_I(inode)->outstanding_extents);
+	spin_lock(&BTRFS_I(inode)->lock);
+	BTRFS_I(inode)->outstanding_extents--;
+	spin_unlock(&BTRFS_I(inode)->lock);
 	return 0;
 }
 
@@ -1339,10 +1343,13 @@ static int btrfs_set_bit_hook(struct inode *inode,
 		u64 len = state->end + 1 - state->start;
 		bool do_list = !is_free_space_inode(root, inode);
 
-		if (*bits & EXTENT_FIRST_DELALLOC)
+		if (*bits & EXTENT_FIRST_DELALLOC) {
 			*bits &= ~EXTENT_FIRST_DELALLOC;
-		else
-			atomic_inc(&BTRFS_I(inode)->outstanding_extents);
+		} else {
+			spin_lock(&BTRFS_I(inode)->lock);
+			BTRFS_I(inode)->outstanding_extents++;
+			spin_unlock(&BTRFS_I(inode)->lock);
+		}
 
 		spin_lock(&root->fs_info->delalloc_lock);
 		BTRFS_I(inode)->delalloc_bytes += len;
@@ -1372,10 +1379,13 @@ static int btrfs_clear_bit_hook(struct inode *inode,
 		u64 len = state->end + 1 - state->start;
 		bool do_list = !is_free_space_inode(root, inode);
 
-		if (*bits & EXTENT_FIRST_DELALLOC)
+		if (*bits & EXTENT_FIRST_DELALLOC) {
 			*bits &= ~EXTENT_FIRST_DELALLOC;
-		else if (!(*bits & EXTENT_DO_ACCOUNTING))
-			atomic_dec(&BTRFS_I(inode)->outstanding_extents);
+		} else if (!(*bits & EXTENT_DO_ACCOUNTING)) {
+			spin_lock(&BTRFS_I(inode)->lock);
+			BTRFS_I(inode)->outstanding_extents--;
+			spin_unlock(&BTRFS_I(inode)->lock);
+		}
 
 		if (*bits & EXTENT_DO_ACCOUNTING)
 			btrfs_delalloc_release_metadata(inode, len);
@@ -6735,8 +6745,9 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->index_cnt = (u64)-1;
 	ei->last_unlink_trans = 0;
 
-	atomic_set(&ei->outstanding_extents, 0);
-	atomic_set(&ei->reserved_extents, 0);
+	spin_lock_init(&ei->lock);
+	ei->outstanding_extents = 0;
+	ei->reserved_extents = 0;
 
 	ei->ordered_data_close = 0;
 	ei->orphan_meta_reserved = 0;
@@ -6774,8 +6785,8 @@ void btrfs_destroy_inode(struct inode *inode)
 
 	WARN_ON(!list_empty(&inode->i_dentry));
 	WARN_ON(inode->i_data.nrpages);
-	WARN_ON(atomic_read(&BTRFS_I(inode)->outstanding_extents));
-	WARN_ON(atomic_read(&BTRFS_I(inode)->reserved_extents));
+	WARN_ON(BTRFS_I(inode)->outstanding_extents);
+	WARN_ON(BTRFS_I(inode)->reserved_extents);
 
 	/*
 	 * This can happen where we create an inode, but somebody else also
