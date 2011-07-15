@@ -1667,7 +1667,6 @@ static int CtrlPowerMode(struct drxk_state *state, enum DRXPowerMode *mode)
 	default:
 		/* Unknow sleep mode */
 		return -EINVAL;
-		break;
 	}
 
 	/* If already in requested power mode, do nothing */
@@ -3460,7 +3459,6 @@ static int DVBTCtrlSetEchoThreshold(struct drxk_state *state,
 		break;
 	default:
 		return -EINVAL;
-		goto error;
 	}
 
 	status = write16(state, OFDM_SC_RA_RAM_ECHO_THRES__A, data);
