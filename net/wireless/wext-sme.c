@@ -366,7 +366,6 @@ int cfg80211_wext_siwgenie(struct net_device *dev,
 	wdev_unlock(wdev);
 	return err;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwgenie);
 
 int cfg80211_wext_siwmlme(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -403,4 +402,3 @@ int cfg80211_wext_siwmlme(struct net_device *dev,
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(cfg80211_wext_siwmlme);
