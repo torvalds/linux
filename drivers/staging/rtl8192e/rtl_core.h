@@ -786,15 +786,9 @@ typedef struct r8192_priv
 	u8		EEPROMPwrGroup[2][3];
 	u8		EEPROMOptional;
 
-#if (EEPROM_OLD_FORMAT_SUPPORT == 1)
 	u8		EEPROMTxPowerLevelCCK[14];
 	u8		EEPROMTxPowerLevelOFDM24G[14];
 	u8		EEPROMTxPowerLevelOFDM5G[24];
-#else
-	u8		RfCckChnlAreaTxPwr[2][3];
-	u8		RfOfdmChnlAreaTxPwr1T[2][3];
-	u8		RfOfdmChnlAreaTxPwr2T[2][3];
-#endif
 	u8		EEPROMRfACCKChnl1TxPwLevel[3];
 	u8		EEPROMRfAOfdmChnlTxPwLevel[3];
 	u8		EEPROMRfCCCKChnl1TxPwLevel[3];

@@ -1,4 +1,3 @@
-ccflags-y += -DEEPROM_OLD_FORMAT_SUPPORT=1
 ccflags-y += -DUSE_FW_SOURCE_IMG_FILE
 ccflags-y += -DCONFIG_PM_RTL
 ccflags-y += -DCONFIG_PM
