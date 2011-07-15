@@ -1884,10 +1884,10 @@ struct usb_device_id em28xx_id_table[] = {
 	{ USB_DEVICE(0x0ccd, 0x0042),
 			.driver_info = EM2882_BOARD_TERRATEC_HYBRID_XS },
 	{ USB_DEVICE(0x0ccd, 0x0043),
-			.driver_info = EM2870_BOARD_TERRATEC_XS },
-	{ USB_DEVICE(0x0ccd, 0x10a2),
 			.driver_info = EM2884_BOARD_TERRATEC_H5 },
-	{ USB_DEVICE(0x0ccd, 0x0047),
+	{ USB_DEVICE(0x0ccd, 0x10a2),	/* Rev. 1 */
+			.driver_info = EM2884_BOARD_TERRATEC_H5 },
+	{ USB_DEVICE(0x0ccd, 0x10ad),	/* Rev. 2 */
 			.driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
 	{ USB_DEVICE(0x0ccd, 0x0084),
 			.driver_info = EM2860_BOARD_TERRATEC_AV350 },
