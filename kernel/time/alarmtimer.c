@@ -53,27 +53,6 @@ static struct rtc_device	*rtcdev;
 static DEFINE_SPINLOCK(rtcdev_lock);
 
 /**
- * has_wakealarm - check rtc device has wakealarm ability
- * @dev: current device
- * @name_ptr: name to be returned
- *
- * This helper function checks to see if the rtc device can wake
- * from suspend.
- */
-static int has_wakealarm(struct device *dev, void *name_ptr)
-{
-	struct rtc_device *candidate = to_rtc_device(dev);
-
-	if (!candidate->ops->set_alarm)
-		return 0;
-	if (!device_may_wakeup(candidate->dev.parent))
-		return 0;
-
-	*(const char **)name_ptr = dev_name(dev);
-	return 1;
-}
-
-/**
  * alarmtimer_get_rtcdev - Return selected rtcdevice
  *
  * This function returns the rtc device to use for wakealarms.
@@ -82,35 +61,56 @@ static int has_wakealarm(struct device *dev, void *name_ptr)
  */
 static struct rtc_device *alarmtimer_get_rtcdev(void)
 {
-	struct device *dev;
-	char *str;
 	unsigned long flags;
 	struct rtc_device *ret;
 
 	spin_lock_irqsave(&rtcdev_lock, flags);
-	if (!rtcdev) {
-		/* Find an rtc device and init the rtc_timer */
-		dev = class_find_device(rtc_class, NULL, &str, has_wakealarm);
-		/* If we have a device then str is valid. See has_wakealarm() */
-		if (dev) {
-			rtcdev = rtc_class_open(str);
-			/*
-			 * Drop the reference we got in class_find_device,
-			 * rtc_open takes its own.
-			 */
-			put_device(dev);
-			rtc_timer_init(&rtctimer, NULL, NULL);
-		}
-	}
 	ret = rtcdev;
 	spin_unlock_irqrestore(&rtcdev_lock, flags);
 
 	return ret;
 }
+
+
+static int alarmtimer_rtc_add_device(struct device *dev,
+				struct class_interface *class_intf)
+{
+	unsigned long flags;
+	struct rtc_device *rtc = to_rtc_device(dev);
+
+	if (rtcdev)
+		return -EBUSY;
+
+	if (!rtc->ops->set_alarm)
+		return -1;
+	if (!device_may_wakeup(rtc->dev.parent))
+		return -1;
+
+	spin_lock_irqsave(&rtcdev_lock, flags);
+	if (!rtcdev) {
+		rtcdev = rtc;
+		/* hold a reference so it doesn't go away */
+		get_device(dev);
+	}
+	spin_unlock_irqrestore(&rtcdev_lock, flags);
+	return 0;
+}
+
+static struct class_interface alarmtimer_rtc_interface = {
+	.add_dev = &alarmtimer_rtc_add_device,
+};
+
+static void alarmtimer_rtc_interface_setup(void)
+{
+	alarmtimer_rtc_interface.class = rtc_class;
+	class_interface_register(&alarmtimer_rtc_interface);
+}
 #else
 #define alarmtimer_get_rtcdev() (0)
 #define rtcdev (0)
+#define alarmtimer_rtc_interface_setup()
 #endif
+
 
 
 /**
@@ -244,7 +244,7 @@ static int alarmtimer_suspend(struct device *dev)
 	freezer_delta = ktime_set(0, 0);
 	spin_unlock_irqrestore(&freezer_delta_lock, flags);
 
-	rtc = rtcdev;
+	rtc = alarmtimer_get_rtcdev();
 	/* If we have no rtcdev, just return */
 	if (!rtc)
 		return 0;
@@ -792,6 +792,8 @@ static int __init alarmtimer_init(void)
 				HRTIMER_MODE_ABS);
 		alarm_bases[i].timer.function = alarmtimer_fired;
 	}
+
+	alarmtimer_rtc_interface_setup();
 	error = platform_driver_register(&alarmtimer_driver);
 	platform_device_register_simple("alarmtimer", -1, NULL, 0);
 
