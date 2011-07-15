@@ -1003,6 +1003,7 @@ struct r600_asic {
 	unsigned		tiling_npipes;
 	unsigned		tiling_group_size;
 	unsigned		tile_config;
+	unsigned		backend_map;
 	struct r100_gpu_lockup	lockup;
 };
 
@@ -1028,6 +1029,7 @@ struct rv770_asic {
 	unsigned		tiling_npipes;
 	unsigned		tiling_group_size;
 	unsigned		tile_config;
+	unsigned		backend_map;
 	struct r100_gpu_lockup	lockup;
 };
 
@@ -1054,6 +1056,7 @@ struct evergreen_asic {
 	unsigned tiling_npipes;
 	unsigned tiling_group_size;
 	unsigned tile_config;
+	unsigned backend_map;
 	struct r100_gpu_lockup	lockup;
 };
 
