@@ -17,13 +17,14 @@
 #include <linux/mutex.h>
 #include <linux/err.h>
 #include <linux/math64.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
-
 
 /*
  * DataFlash is a kind of SPI flash.  Most AT45 chips have two buffers in
@@ -97,6 +98,16 @@ struct dataflash {
 
 	struct mtd_info		mtd;
 };
+
+#ifdef CONFIG_OF
+static const struct of_device_id dataflash_dt_ids[] = {
+	{ .compatible = "atmel,at45", },
+	{ .compatible = "atmel,dataflash", },
+	{ /* sentinel */ }
+};
+#else
+#define dataflash_dt_ids NULL
+#endif
 
 /* ......................................................................... */
 
@@ -634,6 +645,7 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 {
 	struct dataflash		*priv;
 	struct mtd_info			*device;
+	struct mtd_part_parser_data	ppdata;
 	struct flash_platform_data	*pdata = spi->dev.platform_data;
 	char				*otp_tag = "";
 	int				err = 0;
@@ -675,7 +687,8 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 			pagesize, otp_tag);
 	dev_set_drvdata(&spi->dev, priv);
 
-	err = mtd_device_parse_register(device, NULL, 0,
+	ppdata.of_node = spi->dev.of_node;
+	err = mtd_device_parse_register(device, NULL, &ppdata,
 			pdata ? pdata->parts : NULL,
 			pdata ? pdata->nr_parts : 0);
 
@@ -926,6 +939,7 @@ static struct spi_driver dataflash_driver = {
 		.name		= "mtd_dataflash",
 		.bus		= &spi_bus_type,
 		.owner		= THIS_MODULE,
+		.of_match_table = dataflash_dt_ids,
 	},
 
 	.probe		= dataflash_probe,
