@@ -982,7 +982,7 @@ static void dtv_property_dump(struct dtv_property *tvp)
 {
 	int i;
 
-	if (tvp->cmd <= 0 || tvp->cmd >= DTV_MAX_COMMAND) {
+	if (tvp->cmd <= 0 || tvp->cmd > DTV_MAX_COMMAND) {
 		printk(KERN_WARNING "%s: tvp.cmd = 0x%08x undefined\n",
 			__func__, tvp->cmd);
 		return;
