@@ -77,6 +77,7 @@ struct dst_entry {
 #define DST_NOPOLICY		0x0004
 #define DST_NOHASH		0x0008
 #define DST_NOCACHE		0x0010
+#define DST_NOCOUNT		0x0020
 	union {
 		struct dst_entry	*next;
 		struct rtable __rcu	*rt_next;

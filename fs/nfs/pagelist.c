@@ -204,7 +204,7 @@ nfs_wait_on_request(struct nfs_page *req)
 			TASK_UNINTERRUPTIBLE);
 }
 
-static bool nfs_generic_pg_test(struct nfs_pageio_descriptor *desc, struct nfs_page *prev, struct nfs_page *req)
+bool nfs_generic_pg_test(struct nfs_pageio_descriptor *desc, struct nfs_page *prev, struct nfs_page *req)
 {
 	/*
 	 * FIXME: ideally we should be able to coalesce all requests
@@ -218,6 +218,7 @@ static bool nfs_generic_pg_test(struct nfs_pageio_descriptor *desc, struct nfs_p
 
 	return desc->pg_count + req->wb_bytes <= desc->pg_bsize;
 }
+EXPORT_SYMBOL_GPL(nfs_generic_pg_test);
 
 /**
  * nfs_pageio_init - initialise a page io descriptor

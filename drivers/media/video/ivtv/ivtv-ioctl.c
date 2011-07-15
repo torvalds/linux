@@ -1184,14 +1184,10 @@ static int ivtv_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 
 	ivtv_call_all(itv, tuner, g_tuner, vt);
 
-	if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags)) {
+	if (vt->type == V4L2_TUNER_RADIO)
 		strlcpy(vt->name, "ivtv Radio Tuner", sizeof(vt->name));
-		vt->type = V4L2_TUNER_RADIO;
-	} else {
+	else
 		strlcpy(vt->name, "ivtv TV Tuner", sizeof(vt->name));
-		vt->type = V4L2_TUNER_ANALOG_TV;
-	}
-
 	return 0;
 }
 

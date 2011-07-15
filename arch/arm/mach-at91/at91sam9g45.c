@@ -217,11 +217,11 @@ static struct clk *periph_clocks[] __initdata = {
 static struct clk_lookup periph_clocks_lookups[] = {
 	/* One additional fake clock for ohci */
 	CLKDEV_CON_ID("ohci_clk", &uhphs_clk),
-	CLKDEV_CON_DEV_ID("ehci_clk", "atmel-ehci.0", &uhphs_clk),
-	CLKDEV_CON_DEV_ID("hclk", "atmel_usba_udc.0", &utmi_clk),
-	CLKDEV_CON_DEV_ID("pclk", "atmel_usba_udc.0", &udphs_clk),
-	CLKDEV_CON_DEV_ID("mci_clk", "at91_mci.0", &mmc0_clk),
-	CLKDEV_CON_DEV_ID("mci_clk", "at91_mci.1", &mmc1_clk),
+	CLKDEV_CON_DEV_ID("ehci_clk", "atmel-ehci", &uhphs_clk),
+	CLKDEV_CON_DEV_ID("hclk", "atmel_usba_udc", &utmi_clk),
+	CLKDEV_CON_DEV_ID("pclk", "atmel_usba_udc", &udphs_clk),
+	CLKDEV_CON_DEV_ID("mci_clk", "atmel_mci.0", &mmc0_clk),
+	CLKDEV_CON_DEV_ID("mci_clk", "atmel_mci.1", &mmc1_clk),
 	CLKDEV_CON_DEV_ID("spi_clk", "atmel_spi.0", &spi0_clk),
 	CLKDEV_CON_DEV_ID("spi_clk", "atmel_spi.1", &spi1_clk),
 	CLKDEV_CON_DEV_ID("t0_clk", "atmel_tcb.0", &tcb0_clk),

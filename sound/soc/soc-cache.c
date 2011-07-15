@@ -409,9 +409,6 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 	codec->bulk_write_raw = snd_soc_hw_bulk_write_raw;
 
 	switch (control) {
-	case SND_SOC_CUSTOM:
-		break;
-
 	case SND_SOC_I2C:
 #if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
 		codec->hw_write = (hw_write_t)i2c_master_send;

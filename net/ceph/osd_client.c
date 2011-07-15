@@ -477,8 +477,9 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	calc_layout(osdc, vino, layout, off, plen, req, ops);
 	req->r_file_layout = *layout;  /* keep a copy */
 
-	/* in case it differs from natural alignment that calc_layout
-	   filled in for us */
+	/* in case it differs from natural (file) alignment that
+	   calc_layout filled in for us */
+	req->r_num_pages = calc_pages_for(page_align, *plen);
 	req->r_page_alignment = page_align;
 
 	ceph_osdc_build_request(req, off, plen, ops,
@@ -2027,8 +2028,9 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 		int want = calc_pages_for(req->r_page_alignment, data_len);
 
 		if (unlikely(req->r_num_pages < want)) {
-			pr_warning("tid %lld reply %d > expected %d pages\n",
-				   tid, want, m->nr_pages);
+			pr_warning("tid %lld reply has %d bytes %d pages, we"
+				   " had only %d pages ready\n", tid, data_len,
+				   want, req->r_num_pages);
 			*skip = 1;
 			ceph_msg_put(m);
 			m = NULL;

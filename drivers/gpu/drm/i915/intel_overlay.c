@@ -1409,6 +1409,11 @@ void intel_setup_overlay(struct drm_device *dev)
 	overlay = kzalloc(sizeof(struct intel_overlay), GFP_KERNEL);
 	if (!overlay)
 		return;
+
+	mutex_lock(&dev->struct_mutex);
+	if (WARN_ON(dev_priv->overlay))
+		goto out_free;
+
 	overlay->dev = dev;
 
 	reg_bo = i915_gem_alloc_object(dev, PAGE_SIZE);
@@ -1448,7 +1453,7 @@ void intel_setup_overlay(struct drm_device *dev)
 
 	regs = intel_overlay_map_regs(overlay);
 	if (!regs)
-		goto out_free_bo;
+		goto out_unpin_bo;
 
 	memset(regs, 0, sizeof(struct overlay_registers));
 	update_polyphase_filter(regs);
@@ -1457,14 +1462,17 @@ void intel_setup_overlay(struct drm_device *dev)
 	intel_overlay_unmap_regs(overlay, regs);
 
 	dev_priv->overlay = overlay;
+	mutex_unlock(&dev->struct_mutex);
 	DRM_INFO("initialized overlay support\n");
 	return;
 
 out_unpin_bo:
-	i915_gem_object_unpin(reg_bo);
+	if (!OVERLAY_NEEDS_PHYSICAL(dev))
+		i915_gem_object_unpin(reg_bo);
 out_free_bo:
 	drm_gem_object_unreference(&reg_bo->base);
 out_free:
+	mutex_unlock(&dev->struct_mutex);
 	kfree(overlay);
 	return;
 }
