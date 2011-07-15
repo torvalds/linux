@@ -501,6 +501,8 @@ void tl_abort_disk_io(struct drbd_conf *mdev)
 	while (b) {
 		list_for_each_safe(le, tle, &b->requests) {
 			req = list_entry(le, struct drbd_request, tl_requests);
+			if (!(req->rq_state & RQ_LOCAL_PENDING))
+				continue;
 			if (req->w.mdev == mdev)
 				_req_mod(req, ABORT_DISK_IO);
 		}
@@ -509,6 +511,8 @@ void tl_abort_disk_io(struct drbd_conf *mdev)
 
 	list_for_each_safe(le, tle, &tconn->barrier_acked_requests) {
 		req = list_entry(le, struct drbd_request, tl_requests);
+		if (!(req->rq_state & RQ_LOCAL_PENDING))
+			continue;
 		if (req->w.mdev == mdev)
 			_req_mod(req, ABORT_DISK_IO);
 	}

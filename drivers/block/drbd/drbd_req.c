@@ -436,6 +436,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		/* so we can verify the handle in the answer packet
 		 * corresponding hlist_del is in _req_may_be_done() */
+		D_ASSERT(drbd_interval_empty(&req->i));
 		drbd_insert_interval(&mdev->read_requests, &req->i);
 
 		set_bit(UNPLUG_REMOTE, &mdev->flags);
@@ -453,6 +454,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		/* from __drbd_make_request only */
 
 		/* corresponding hlist_del is in _req_may_be_done() */
+		D_ASSERT(drbd_interval_empty(&req->i));
 		drbd_insert_interval(&mdev->write_requests, &req->i);
 
 		/* NOTE
