@@ -277,7 +277,7 @@ static void mx2_camera_deactivate(struct mx2_camera_dev *pcdev)
  */
 static int mx2_camera_add_device(struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
 	int ret;
 	u32 csicr1;
@@ -302,7 +302,7 @@ static int mx2_camera_add_device(struct soc_camera_device *icd)
 
 	pcdev->icd = icd;
 
-	dev_info(icd->dev.parent, "Camera driver attached to camera %d\n",
+	dev_info(icd->parent, "Camera driver attached to camera %d\n",
 		 icd->devnum);
 
 	return 0;
@@ -310,12 +310,12 @@ static int mx2_camera_add_device(struct soc_camera_device *icd)
 
 static void mx2_camera_remove_device(struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
 
 	BUG_ON(icd != pcdev->icd);
 
-	dev_info(icd->dev.parent, "Camera driver detached from camera %d\n",
+	dev_info(icd->parent, "Camera driver detached from camera %d\n",
 		 icd->devnum);
 
 	mx2_camera_deactivate(pcdev);
@@ -436,7 +436,7 @@ static int mx2_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
 			icd->current_fmt->host_fmt);
 
-	dev_dbg(&icd->dev, "count=%d, size=%d\n", *count, *size);
+	dev_dbg(icd->parent, "count=%d, size=%d\n", *count, *size);
 
 	if (bytes_per_line < 0)
 		return bytes_per_line;
@@ -456,7 +456,7 @@ static void free_buffer(struct videobuf_queue *vq, struct mx2_buffer *buf)
 	struct soc_camera_device *icd = vq->priv_data;
 	struct videobuf_buffer *vb = &buf->vb;
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(icd->parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	/*
@@ -466,7 +466,7 @@ static void free_buffer(struct videobuf_queue *vq, struct mx2_buffer *buf)
 	videobuf_waiton(vq, vb, 0, 0);
 
 	videobuf_dma_contig_free(vq, vb);
-	dev_dbg(&icd->dev, "%s freed\n", __func__);
+	dev_dbg(icd->parent, "%s freed\n", __func__);
 
 	vb->state = VIDEOBUF_NEEDS_INIT;
 }
@@ -480,7 +480,7 @@ static int mx2_videobuf_prepare(struct videobuf_queue *vq,
 			icd->current_fmt->host_fmt);
 	int ret = 0;
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(icd->parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	if (bytes_per_line < 0)
@@ -532,12 +532,12 @@ static void mx2_videobuf_queue(struct videobuf_queue *vq,
 {
 	struct soc_camera_device *icd = vq->priv_data;
 	struct soc_camera_host *ici =
-		to_soc_camera_host(icd->dev.parent);
+		to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
 	struct mx2_buffer *buf = container_of(vb, struct mx2_buffer, vb);
 	unsigned long flags;
 
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(icd->parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	spin_lock_irqsave(&pcdev->lock, flags);
@@ -610,27 +610,27 @@ static void mx2_videobuf_release(struct videobuf_queue *vq,
 				 struct videobuf_buffer *vb)
 {
 	struct soc_camera_device *icd = vq->priv_data;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
 	struct mx2_buffer *buf = container_of(vb, struct mx2_buffer, vb);
 	unsigned long flags;
 
 #ifdef DEBUG
-	dev_dbg(&icd->dev, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
+	dev_dbg(icd->parent, "%s (vb=0x%p) 0x%08lx %d\n", __func__,
 		vb, vb->baddr, vb->bsize);
 
 	switch (vb->state) {
 	case VIDEOBUF_ACTIVE:
-		dev_info(&icd->dev, "%s (active)\n", __func__);
+		dev_info(icd->parent, "%s (active)\n", __func__);
 		break;
 	case VIDEOBUF_QUEUED:
-		dev_info(&icd->dev, "%s (queued)\n", __func__);
+		dev_info(icd->parent, "%s (queued)\n", __func__);
 		break;
 	case VIDEOBUF_PREPARED:
-		dev_info(&icd->dev, "%s (prepared)\n", __func__);
+		dev_info(icd->parent, "%s (prepared)\n", __func__);
 		break;
 	default:
-		dev_info(&icd->dev, "%s (unknown) %d\n", __func__,
+		dev_info(icd->parent, "%s (unknown) %d\n", __func__,
 				vb->state);
 		break;
 	}
@@ -677,7 +677,7 @@ static struct videobuf_queue_ops mx2_videobuf_ops = {
 static void mx2_camera_init_videobuf(struct videobuf_queue *q,
 			      struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
 
 	videobuf_queue_dma_contig_init(q, &mx2_videobuf_ops, pcdev->dev,
@@ -718,7 +718,7 @@ static void mx27_camera_emma_buf_init(struct soc_camera_device *icd,
 		int bytesperline)
 {
 	struct soc_camera_host *ici =
-		to_soc_camera_host(icd->dev.parent);
+		to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
 
 	writel(pcdev->discard_buffer_dma,
@@ -771,7 +771,7 @@ static int mx2_camera_set_bus_param(struct soc_camera_device *icd,
 		__u32 pixfmt)
 {
 	struct soc_camera_host *ici =
-		to_soc_camera_host(icd->dev.parent);
+		to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
 	unsigned long camera_flags, common_flags;
 	int ret = 0;
@@ -890,7 +890,7 @@ static int mx2_camera_set_crop(struct soc_camera_device *icd,
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(icd->dev.parent, "Sensor cropped %dx%d\n",
+	dev_dbg(icd->parent, "Sensor cropped %dx%d\n",
 		mf.width, mf.height);
 
 	icd->user_width		= mf.width;
@@ -910,7 +910,7 @@ static int mx2_camera_set_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
 	if (!xlate) {
-		dev_warn(icd->dev.parent, "Format %x not found\n",
+		dev_warn(icd->parent, "Format %x not found\n",
 				pix->pixelformat);
 		return -EINVAL;
 	}
@@ -950,7 +950,7 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (pixfmt && !xlate) {
-		dev_warn(icd->dev.parent, "Format %x not found\n", pixfmt);
+		dev_warn(icd->parent, "Format %x not found\n", pixfmt);
 		return -EINVAL;
 	}
 
@@ -1000,7 +1000,7 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 	if (mf.field == V4L2_FIELD_ANY)
 		mf.field = V4L2_FIELD_NONE;
 	if (mf.field != V4L2_FIELD_NONE) {
-		dev_err(icd->dev.parent, "Field type %d unsupported.\n",
+		dev_err(icd->parent, "Field type %d unsupported.\n",
 				mf.field);
 		return -EINVAL;
 	}

@@ -253,7 +253,7 @@ static int queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 				void *alloc_ctxs[])
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 	unsigned long size;
 	int ret, bytes_per_line;
@@ -261,7 +261,7 @@ static int queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 	/* Reset ISI */
 	ret = atmel_isi_wait_status(isi, WAIT_ISI_RESET);
 	if (ret < 0) {
-		dev_err(icd->dev.parent, "Reset ISI timed out\n");
+		dev_err(icd->parent, "Reset ISI timed out\n");
 		return ret;
 	}
 	/* Disable all interrupts */
@@ -288,7 +288,7 @@ static int queue_setup(struct vb2_queue *vq, unsigned int *nbuffers,
 	isi->sequence = 0;
 	isi->active = NULL;
 
-	dev_dbg(icd->dev.parent, "%s, count=%d, size=%ld\n", __func__,
+	dev_dbg(icd->parent, "%s, count=%d, size=%ld\n", __func__,
 		*nbuffers, size);
 
 	return 0;
@@ -308,7 +308,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
 	struct frame_buffer *buf = container_of(vb, struct frame_buffer, vb);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 	unsigned long size;
 	struct isi_dma_desc *desc;
@@ -321,7 +321,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 	size = bytes_per_line * icd->user_height;
 
 	if (vb2_plane_size(vb, 0) < size) {
-		dev_err(icd->dev.parent, "%s data will not fit into plane (%lu < %lu)\n",
+		dev_err(icd->parent, "%s data will not fit into plane (%lu < %lu)\n",
 				__func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
 	}
@@ -330,7 +330,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 
 	if (!buf->p_dma_desc) {
 		if (list_empty(&isi->dma_desc_head)) {
-			dev_err(icd->dev.parent, "Not enough dma descriptors.\n");
+			dev_err(icd->parent, "Not enough dma descriptors.\n");
 			return -EINVAL;
 		} else {
 			/* Get an available descriptor */
@@ -354,7 +354,7 @@ static int buffer_prepare(struct vb2_buffer *vb)
 static void buffer_cleanup(struct vb2_buffer *vb)
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 	struct frame_buffer *buf = container_of(vb, struct frame_buffer, vb);
 
@@ -374,7 +374,7 @@ static void start_dma(struct atmel_isi *isi, struct frame_buffer *buffer)
 
 	/* Check if already in a frame */
 	if (isi_readl(isi, ISI_STATUS) & ISI_CTRL_CDC) {
-		dev_err(isi->icd->dev.parent, "Already in frame handling.\n");
+		dev_err(isi->icd->parent, "Already in frame handling.\n");
 		return;
 	}
 
@@ -394,7 +394,7 @@ static void start_dma(struct atmel_isi *isi, struct frame_buffer *buffer)
 static void buffer_queue(struct vb2_buffer *vb)
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 	struct frame_buffer *buf = container_of(vb, struct frame_buffer, vb);
 	unsigned long flags = 0;
@@ -412,7 +412,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 static int start_streaming(struct vb2_queue *vq)
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 
 	u32 sr = 0;
@@ -427,7 +427,7 @@ static int start_streaming(struct vb2_queue *vq)
 	isi_writel(isi, ISI_CTRL, ISI_CTRL_EN);
 	spin_unlock_irq(&isi->lock);
 
-	dev_dbg(icd->dev.parent, "Waiting for SOF\n");
+	dev_dbg(icd->parent, "Waiting for SOF\n");
 	ret = wait_event_interruptible(isi->vsync_wq,
 				       isi->state != ISI_STATE_IDLE);
 	if (ret)
@@ -448,7 +448,7 @@ static int start_streaming(struct vb2_queue *vq)
 static int stop_streaming(struct vb2_queue *vq)
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 	struct frame_buffer *buf, *node;
 	int ret = 0;
@@ -470,7 +470,7 @@ static int stop_streaming(struct vb2_queue *vq)
 		msleep(1);
 
 	if (time_after(jiffies, timeout)) {
-		dev_err(icd->dev.parent,
+		dev_err(icd->parent,
 			"Timeout waiting for finishing codec request\n");
 		return -ETIMEDOUT;
 	}
@@ -482,7 +482,7 @@ static int stop_streaming(struct vb2_queue *vq)
 	/* Disable ISI and wait for it is done */
 	ret = atmel_isi_wait_status(isi, WAIT_ISI_DISABLE);
 	if (ret < 0)
-		dev_err(icd->dev.parent, "Disable ISI timed out\n");
+		dev_err(icd->parent, "Disable ISI timed out\n");
 
 	return ret;
 }
@@ -518,7 +518,7 @@ static int isi_camera_init_videobuf(struct vb2_queue *q,
 static int isi_camera_set_fmt(struct soc_camera_device *icd,
 			      struct v4l2_format *f)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
@@ -528,12 +528,12 @@ static int isi_camera_set_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
 	if (!xlate) {
-		dev_warn(icd->dev.parent, "Format %x not found\n",
+		dev_warn(icd->parent, "Format %x not found\n",
 			 pix->pixelformat);
 		return -EINVAL;
 	}
 
-	dev_dbg(icd->dev.parent, "Plan to set format %dx%d\n",
+	dev_dbg(icd->parent, "Plan to set format %dx%d\n",
 			pix->width, pix->height);
 
 	mf.width	= pix->width;
@@ -559,7 +559,7 @@ static int isi_camera_set_fmt(struct soc_camera_device *icd,
 	pix->colorspace		= mf.colorspace;
 	icd->current_fmt	= xlate;
 
-	dev_dbg(icd->dev.parent, "Finally set format %dx%d\n",
+	dev_dbg(icd->parent, "Finally set format %dx%d\n",
 		pix->width, pix->height);
 
 	return ret;
@@ -577,7 +577,7 @@ static int isi_camera_try_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (pixfmt && !xlate) {
-		dev_warn(icd->dev.parent, "Format %x not found\n", pixfmt);
+		dev_warn(icd->parent, "Format %x not found\n", pixfmt);
 		return -EINVAL;
 	}
 
@@ -609,7 +609,7 @@ static int isi_camera_try_fmt(struct soc_camera_device *icd,
 	case V4L2_FIELD_NONE:
 		break;
 	default:
-		dev_err(icd->dev.parent, "Field type %d unsupported.\n",
+		dev_err(icd->parent, "Field type %d unsupported.\n",
 			mf.field);
 		ret = -EINVAL;
 	}
@@ -670,7 +670,7 @@ static unsigned long make_bus_param(struct atmel_isi *isi)
 static int isi_camera_try_bus_param(struct soc_camera_device *icd,
 				    unsigned char buswidth)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 	unsigned long camera_flags;
 	int ret;
@@ -702,7 +702,7 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 
 	fmt = soc_mbus_get_fmtdesc(code);
 	if (!fmt) {
-		dev_err(icd->dev.parent,
+		dev_err(icd->parent,
 			"Invalid format code #%u: %d\n", idx, code);
 		return 0;
 	}
@@ -710,7 +710,7 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 	/* This also checks support for the requested bits-per-sample */
 	ret = isi_camera_try_bus_param(icd, fmt->bits_per_sample);
 	if (ret < 0) {
-		dev_err(icd->dev.parent,
+		dev_err(icd->parent,
 			"Fail to try the bus parameters.\n");
 		return 0;
 	}
@@ -725,7 +725,7 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 			xlate->host_fmt	= &isi_camera_formats[0];
 			xlate->code	= code;
 			xlate++;
-			dev_dbg(icd->dev.parent, "Providing format %s using code %d\n",
+			dev_dbg(icd->parent, "Providing format %s using code %d\n",
 				isi_camera_formats[0].name, code);
 		}
 		break;
@@ -733,7 +733,7 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 		if (!isi_camera_packing_supported(fmt))
 			return 0;
 		if (xlate)
-			dev_dbg(icd->dev.parent,
+			dev_dbg(icd->parent,
 				"Providing format %s in pass-through mode\n",
 				fmt->name);
 	}
@@ -752,7 +752,7 @@ static int isi_camera_get_formats(struct soc_camera_device *icd,
 /* Called with .video_lock held */
 static int isi_camera_add_device(struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 	int ret;
 
@@ -764,14 +764,14 @@ static int isi_camera_add_device(struct soc_camera_device *icd)
 		return ret;
 
 	isi->icd = icd;
-	dev_dbg(icd->dev.parent, "Atmel ISI Camera driver attached to camera %d\n",
+	dev_dbg(icd->parent, "Atmel ISI Camera driver attached to camera %d\n",
 		 icd->devnum);
 	return 0;
 }
 /* Called with .video_lock held */
 static void isi_camera_remove_device(struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 
 	BUG_ON(icd != isi->icd);
@@ -779,7 +779,7 @@ static void isi_camera_remove_device(struct soc_camera_device *icd)
 	clk_disable(isi->pclk);
 	isi->icd = NULL;
 
-	dev_dbg(icd->dev.parent, "Atmel ISI Camera driver detached from camera %d\n",
+	dev_dbg(icd->parent, "Atmel ISI Camera driver detached from camera %d\n",
 		 icd->devnum);
 }
 
@@ -802,7 +802,7 @@ static int isi_camera_querycap(struct soc_camera_host *ici,
 
 static int isi_camera_set_bus_param(struct soc_camera_device *icd, u32 pixfmt)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct atmel_isi *isi = ici->priv;
 	unsigned long bus_flags, camera_flags, common_flags;
 	int ret;
@@ -812,7 +812,7 @@ static int isi_camera_set_bus_param(struct soc_camera_device *icd, u32 pixfmt)
 
 	bus_flags = make_bus_param(isi);
 	common_flags = soc_camera_bus_param_compatible(camera_flags, bus_flags);
-	dev_dbg(icd->dev.parent, "Flags cam: 0x%lx host: 0x%lx common: 0x%lx\n",
+	dev_dbg(icd->parent, "Flags cam: 0x%lx host: 0x%lx common: 0x%lx\n",
 		camera_flags, bus_flags, common_flags);
 	if (!common_flags)
 		return -EINVAL;
@@ -844,7 +844,7 @@ static int isi_camera_set_bus_param(struct soc_camera_device *icd, u32 pixfmt)
 
 	ret = icd->ops->set_bus_param(icd, common_flags);
 	if (ret < 0) {
-		dev_dbg(icd->dev.parent, "Camera set_bus_param(%lx) returned %d\n",
+		dev_dbg(icd->parent, "Camera set_bus_param(%lx) returned %d\n",
 			common_flags, ret);
 		return ret;
 	}

@@ -207,7 +207,7 @@ static int omap1_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	struct soc_camera_device *icd = vq->priv_data;
 	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
 			icd->current_fmt->host_fmt);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct omap1_cam_dev *pcdev = ici->priv;
 
 	if (bytes_per_line < 0)
@@ -221,7 +221,7 @@ static int omap1_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	if (*size * *count > MAX_VIDEO_MEM * 1024 * 1024)
 		*count = (MAX_VIDEO_MEM * 1024 * 1024) / *size;
 
-	dev_dbg(icd->dev.parent,
+	dev_dbg(icd->parent,
 			"%s: count=%d, size=%d\n", __func__, *count, *size);
 
 	return 0;
@@ -240,7 +240,7 @@ static void free_buffer(struct videobuf_queue *vq, struct omap1_cam_buf *buf,
 		videobuf_dma_contig_free(vq, vb);
 	} else {
 		struct soc_camera_device *icd = vq->priv_data;
-		struct device *dev = icd->dev.parent;
+		struct device *dev = icd->parent;
 		struct videobuf_dmabuf *dma = videobuf_to_dma(vb);
 
 		videobuf_dma_unmap(dev, dma);
@@ -257,7 +257,7 @@ static int omap1_videobuf_prepare(struct videobuf_queue *vq,
 	struct omap1_cam_buf *buf = container_of(vb, struct omap1_cam_buf, vb);
 	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
 			icd->current_fmt->host_fmt);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct omap1_cam_dev *pcdev = ici->priv;
 	int ret;
 
@@ -489,7 +489,7 @@ static void omap1_videobuf_queue(struct videobuf_queue *vq,
 						struct videobuf_buffer *vb)
 {
 	struct soc_camera_device *icd = vq->priv_data;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct omap1_cam_dev *pcdev = ici->priv;
 	struct omap1_cam_buf *buf;
 	u32 mode;
@@ -518,7 +518,7 @@ static void omap1_videobuf_queue(struct videobuf_queue *vq,
 	pcdev->active = buf;
 	pcdev->ready = NULL;
 
-	dev_dbg(icd->dev.parent,
+	dev_dbg(icd->parent,
 		"%s: capture not active, setup FIFO, start DMA\n", __func__);
 	mode = CAM_READ_CACHE(pcdev, MODE) & ~THRESHOLD_MASK;
 	mode |= THRESHOLD_LEVEL(pcdev->vb_mode) << THRESHOLD_SHIFT;
@@ -542,8 +542,8 @@ static void omap1_videobuf_release(struct videobuf_queue *vq,
 	struct omap1_cam_buf *buf =
 			container_of(vb, struct omap1_cam_buf, vb);
 	struct soc_camera_device *icd = vq->priv_data;
-	struct device *dev = icd->dev.parent;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct device *dev = icd->parent;
+	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct omap1_cam_dev *pcdev = ici->priv;
 
 	switch (vb->state) {
@@ -572,7 +572,7 @@ static void videobuf_done(struct omap1_cam_dev *pcdev,
 {
 	struct omap1_cam_buf *buf = pcdev->active;
 	struct videobuf_buffer *vb;
-	struct device *dev = pcdev->icd->dev.parent;
+	struct device *dev = pcdev->icd->parent;
 
 	if (WARN_ON(!buf)) {
 		suspend_capture(pcdev);
@@ -798,7 +798,7 @@ out:
 static irqreturn_t cam_isr(int irq, void *data)
 {
 	struct omap1_cam_dev *pcdev = data;
-	struct device *dev = pcdev->icd->dev.parent;
+	struct device *dev = pcdev->icd->parent;
 	struct omap1_cam_buf *buf = pcdev->active;
 	u32 it_status;
 	unsigned long flags;
@@ -908,7 +908,7 @@ static void sensor_reset(struct omap1_cam_dev *pcdev, bool reset)
  */
 static int omap1_cam_add_device(struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct omap1_cam_dev *pcdev = ici->priv;
 	u32 ctrlclock;
 
@@ -951,14 +951,14 @@ static int omap1_cam_add_device(struct soc_camera_device *icd)
 
 	pcdev->icd = icd;
 
-	dev_dbg(icd->dev.parent, "OMAP1 Camera driver attached to camera %d\n",
+	dev_dbg(icd->parent, "OMAP1 Camera driver attached to camera %d\n",
 			icd->devnum);
 	return 0;
 }
 
 static void omap1_cam_remove_device(struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct omap1_cam_dev *pcdev = ici->priv;
 	u32 ctrlclock;
 
@@ -984,7 +984,7 @@ static void omap1_cam_remove_device(struct soc_camera_device *icd)
 
 	pcdev->icd = NULL;
 
-	dev_dbg(icd->dev.parent,
+	dev_dbg(icd->parent,
 		"OMAP1 Camera driver detached from camera %d\n", icd->devnum);
 }
 
@@ -1069,7 +1069,7 @@ static int omap1_cam_get_formats(struct soc_camera_device *icd,
 		unsigned int idx, struct soc_camera_format_xlate *xlate)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct device *dev = icd->dev.parent;
+	struct device *dev = icd->parent;
 	int formats = 0, ret;
 	enum v4l2_mbus_pixelcode code;
 	const struct soc_mbus_pixelfmt *fmt;
@@ -1221,9 +1221,9 @@ static int omap1_cam_set_crop(struct soc_camera_device *icd,
 	struct v4l2_rect *rect = &crop->c;
 	const struct soc_camera_format_xlate *xlate = icd->current_fmt;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct device *dev = icd->parent;
+	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct omap1_cam_dev *pcdev = ici->priv;
-	struct device *dev = icd->dev.parent;
 	struct v4l2_mbus_framefmt mf;
 	int ret;
 
@@ -1269,8 +1269,8 @@ static int omap1_cam_set_fmt(struct soc_camera_device *icd,
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	const struct soc_camera_format_xlate *xlate;
-	struct device *dev = icd->dev.parent;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct device *dev = icd->parent;
+	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct omap1_cam_dev *pcdev = ici->priv;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	struct v4l2_mbus_framefmt mf;
@@ -1325,7 +1325,7 @@ static int omap1_cam_try_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
 	if (!xlate) {
-		dev_warn(icd->dev.parent, "Format %#x not found\n",
+		dev_warn(icd->parent, "Format %#x not found\n",
 			 pix->pixelformat);
 		return -EINVAL;
 	}
@@ -1361,7 +1361,7 @@ static int omap1_cam_mmap_mapper(struct videobuf_queue *q,
 				  struct vm_area_struct *vma)
 {
 	struct soc_camera_device *icd = q->priv_data;
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct omap1_cam_dev *pcdev = ici->priv;
 	int ret;
 
@@ -1376,17 +1376,17 @@ static int omap1_cam_mmap_mapper(struct videobuf_queue *q,
 static void omap1_cam_init_videobuf(struct videobuf_queue *q,
 				     struct soc_camera_device *icd)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct omap1_cam_dev *pcdev = ici->priv;
 
 	if (!sg_mode)
 		videobuf_queue_dma_contig_init(q, &omap1_videobuf_ops,
-				icd->dev.parent, &pcdev->lock,
+				icd->parent, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
 				sizeof(struct omap1_cam_buf), icd, &icd->video_lock);
 	else
 		videobuf_queue_sg_init(q, &omap1_videobuf_ops,
-				icd->dev.parent, &pcdev->lock,
+				icd->parent, &pcdev->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
 				sizeof(struct omap1_cam_buf), icd, &icd->video_lock);
 
@@ -1438,9 +1438,9 @@ static int omap1_cam_querycap(struct soc_camera_host *ici,
 static int omap1_cam_set_bus_param(struct soc_camera_device *icd,
 		__u32 pixfmt)
 {
-	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
+	struct device *dev = icd->parent;
+	struct soc_camera_host *ici = to_soc_camera_host(dev);
 	struct omap1_cam_dev *pcdev = ici->priv;
-	struct device *dev = icd->dev.parent;
 	const struct soc_camera_format_xlate *xlate;
 	const struct soc_mbus_pixelfmt *fmt;
 	unsigned long camera_flags, common_flags;

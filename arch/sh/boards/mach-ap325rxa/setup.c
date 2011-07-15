@@ -332,8 +332,8 @@ static int camera_set_capture(struct soc_camera_platform_info *info,
 	return ret;
 }
 
-static int ap325rxa_camera_add(struct soc_camera_link *icl, struct device *dev);
-static void ap325rxa_camera_del(struct soc_camera_link *icl);
+static int ap325rxa_camera_add(struct soc_camera_device *icd);
+static void ap325rxa_camera_del(struct soc_camera_device *icd);
 
 static struct soc_camera_platform_info camera_info = {
 	.format_name = "UYVY",
@@ -366,24 +366,23 @@ static void ap325rxa_camera_release(struct device *dev)
 	soc_camera_platform_release(&camera_device);
 }
 
-static int ap325rxa_camera_add(struct soc_camera_link *icl,
-			       struct device *dev)
+static int ap325rxa_camera_add(struct soc_camera_device *icd)
 {
-	int ret = soc_camera_platform_add(icl, dev, &camera_device, &camera_link,
+	int ret = soc_camera_platform_add(icd, &camera_device, &camera_link,
 					  ap325rxa_camera_release, 0);
 	if (ret < 0)
 		return ret;
 
 	ret = camera_probe();
 	if (ret < 0)
-		soc_camera_platform_del(icl, camera_device, &camera_link);
+		soc_camera_platform_del(icd, camera_device, &camera_link);
 
 	return ret;
 }
 
-static void ap325rxa_camera_del(struct soc_camera_link *icl)
+static void ap325rxa_camera_del(struct soc_camera_device *icd)
 {
-	soc_camera_platform_del(icl, camera_device, &camera_link);
+	soc_camera_platform_del(icd, camera_device, &camera_link);
 }
 #endif /* CONFIG_I2C */
 

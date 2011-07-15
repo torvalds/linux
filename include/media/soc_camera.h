@@ -21,11 +21,14 @@
 #include <media/v4l2-device.h>
 
 struct file;
+struct soc_camera_link;
 
 struct soc_camera_device {
 	struct list_head list;		/* list of all registered devices */
-	struct device dev;
+	struct soc_camera_link *link;
 	struct device *pdev;		/* Platform device */
+	struct device *parent;		/* Camera host device */
+	struct device *control;		/* E.g., the i2c client */
 	s32 user_width;
 	s32 user_height;
 	u32 bytesperline;		/* for padding, zero if unused */
@@ -127,8 +130,8 @@ struct soc_camera_link {
 	 * For non-I2C devices platform has to provide methods to add a device
 	 * to the system and to remove it
 	 */
-	int (*add_device)(struct soc_camera_link *, struct device *);
-	void (*del_device)(struct soc_camera_link *);
+	int (*add_device)(struct soc_camera_device *);
+	void (*del_device)(struct soc_camera_device *);
 	/* Optional callbacks to power on or off and reset the sensor */
 	int (*power)(struct device *, int);
 	int (*reset)(struct device *);
@@ -142,12 +145,6 @@ struct soc_camera_link {
 	void (*free_bus)(struct soc_camera_link *);
 };
 
-static inline struct soc_camera_device *to_soc_camera_dev(
-	const struct device *dev)
-{
-	return container_of(dev, struct soc_camera_device, dev);
-}
-
 static inline struct soc_camera_host *to_soc_camera_host(
 	const struct device *dev)
 {
@@ -159,13 +156,13 @@ static inline struct soc_camera_host *to_soc_camera_host(
 static inline struct soc_camera_link *to_soc_camera_link(
 	const struct soc_camera_device *icd)
 {
-	return icd->dev.platform_data;
+	return icd->link;
 }
 
 static inline struct device *to_soc_camera_control(
 	const struct soc_camera_device *icd)
 {
-	return dev_get_drvdata(&icd->dev);
+	return icd->control;
 }
 
 static inline struct v4l2_subdev *soc_camera_to_subdev(
