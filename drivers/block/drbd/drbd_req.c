@@ -1083,7 +1083,7 @@ void request_timer_fn(unsigned long data)
 	struct drbd_request *req; /* oldest request */
 	struct list_head *le;
 	struct net_conf *nc;
-	unsigned long ent = 0, dt = 0, et; /* effective timeout = ko_count * timeout */
+	unsigned long ent = 0, dt = 0, et, nt; /* effective timeout = ko_count * timeout */
 
 	rcu_read_lock();
 	nc = rcu_dereference(tconn->net_conf);
@@ -1122,6 +1122,7 @@ void request_timer_fn(unsigned long data)
 			__drbd_chk_io_error(mdev, 1);
 		}
 	}
+	nt = (time_is_before_eq_jiffies(req->start_time + et) ? jiffies : req->start_time) + et;
 	spin_unlock_irq(&tconn->req_lock);
-	mod_timer(&mdev->request_timer, req->start_time + et);
+	mod_timer(&mdev->request_timer, nt);
 }
