@@ -105,19 +105,20 @@ static int psb_2d_wait_available(struct drm_psb_private *dev_priv,
  *	Issue one or more 2D commands to the accelerator. This needs to be
  *	serialized later when we add the GEM interfaces for acceleration
  */
-int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
+static int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
 								unsigned size)
 {
 	int ret = 0;
 	int i;
 	unsigned submit_size;
 
+	mutex_lock(&dev_priv->mutex_2d);
 	while (size > 0) {
 		submit_size = (size < 0x60) ? size : 0x60;
 		size -= submit_size;
 		ret = psb_2d_wait_available(dev_priv, submit_size);
 		if (ret)
-			return ret;
+		        break;
 
 		submit_size <<= 2;
 
@@ -126,7 +127,8 @@ int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
 
 		(void)PSB_RSGX32(PSB_SGX_2D_SLAVE_PORT + i - 4);
 	}
-	return 0;
+	mutex_unlock(&dev_priv->mutex_2d);
+	return ret;
 }
 
 
@@ -326,6 +328,7 @@ int psbfb_sync(struct fb_info *info)
 	unsigned long _end = jiffies + DRM_HZ;
 	int busy = 0;
 
+	mutex_lock(&dev_priv->mutex_2d);
 	/*
 	 * First idle the 2D engine.
 	 */
@@ -354,5 +357,56 @@ int psbfb_sync(struct fb_info *info)
 					_PSB_C2B_STATUS_BUSY) != 0);
 
 out:
+	mutex_unlock(&dev_priv->mutex_2d);
 	return (busy) ? -EBUSY : 0;
+}
+
+int psb_accel_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_2d_op *op = data;
+	u32 *op_ptr = &op->cmd[0];
+	int i;
+	struct drm_gem_object *obj;
+	struct gtt_range *gtt;
+	int err = -EINVAL;
+
+	if (!dev_priv->ops->accel_2d)
+		return -EOPNOTSUPP;
+	if (op->size > PSB_2D_OP_BUFLEN)
+		return -EINVAL;
+
+	/* The GEM object being used. We need to support separate src/dst/etc
+	   in the end but for now keep them all the same */
+	obj = drm_gem_object_lookup(dev, file, op->src);
+	if (obj == NULL)
+		return -ENOENT;
+	gtt = container_of(obj, struct gtt_range, gem);
+
+	if (psb_gtt_pin(gtt) < 0)
+		goto bad_2;
+	for (i = 0; i < op->size; i++, op_ptr++) {
+		u32 r = *op_ptr & 0xF0000000;
+		/* Fill in the GTT offsets for the command buffer */
+        	if (r == PSB_2D_SRC_SURF_BH ||
+			r == PSB_2D_DST_SURF_BH || 
+			r == PSB_2D_MASK_SURF_BH ||
+			r == PSB_2D_PAT_SURF_BH) {
+			i++;
+			op_ptr++;
+			if (i == op->size)
+				goto bad;
+                        if (*op_ptr)
+				goto bad;
+                        *op_ptr = gtt->offset;
+                        continue;
+                }
+	}
+	psbfb_2d_submit(dev_priv, op->cmd, op->size);
+	err = 0;
+bad:
+	psb_gtt_unpin(gtt);
+bad_2:
+	drm_gem_object_unreference(obj);
+	return err;
 }

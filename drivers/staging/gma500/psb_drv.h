@@ -599,6 +599,9 @@ struct drm_psb_private {
 	bool dsr_enable;
 	void (*exit_idle)(struct drm_device *dev, u32 update_src, void *p_surfaceAddr, bool check_hw_on_only);
 
+	/* 2D acceleration */
+	struct mutex mutex_2d;
+
 	/* FIXME: Arrays anyone ? */
 	struct mdfld_dsi_encoder *encoder0;	
 	struct mdfld_dsi_encoder *encoder2;	
@@ -744,8 +747,8 @@ extern void psbfb_copyarea(struct fb_info *info,
 					const struct fb_copyarea *region);
 extern int psbfb_sync(struct fb_info *info);
 extern void psb_spank(struct drm_psb_private *dev_priv);
-extern int psbfb_2d_submit(struct drm_psb_private *dev_priv, uint32_t *cmdbuf,
-					unsigned size);
+extern int psb_accel_ioctl(struct drm_device *dev, void *data,
+							struct drm_file *file);
 
 /*
  * psb_reset.c

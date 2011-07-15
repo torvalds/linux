@@ -200,30 +200,7 @@ static int psbfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 static int psbfb_ioctl(struct fb_info *info, unsigned int cmd,
 						unsigned long arg)
 {
-	struct psb_fbdev *fbdev = info->par;
-	struct psb_framebuffer *psbfb = &fbdev->pfb;
-	struct drm_device *dev = psbfb->base.dev;
-	struct drm_psb_private *dev_priv = dev->dev_private;
-	u32 __user *p = (u32 __user *)arg;
-	u32 l;
-	u32 buf[32];
-	switch (cmd) {
-	case 0x12345678:
-		if (!capable(CAP_SYS_RAWIO))
-			return -EPERM;
-		if (!dev_priv->ops->accel_2d)
-			return -EOPNOTSUPP;
-		if (get_user(l, p))
-			return -EFAULT;
-		if (l > 32)
-			return -EMSGSIZE;
-		if (copy_from_user(buf, p + 1, l * sizeof(u32)))
-			return -EFAULT;
-		psbfb_2d_submit(dev_priv, buf, l);
-		return 0;
-	default:
-		return -ENOTTY;
-	}
+	return -ENOTTY;
 }
 
 static struct fb_ops psbfb_ops = {

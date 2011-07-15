@@ -124,6 +124,9 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define DRM_IOCTL_PSB_GEM_CREATE	\
 		DRM_IOWR(DRM_PSB_GEM_CREATE + DRM_COMMAND_BASE, \
 			 struct drm_psb_gem_create)
+#define DRM_IOCTL_PSB_2D_OP	\
+		DRM_IOW(DRM_PSB_2D_OP + DRM_COMMAND_BASE, \
+			 struct drm_psb_2d_op)
 
 static int psb_sizes_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv);
@@ -164,7 +167,7 @@ static struct drm_ioctl_desc psb_ioctls[] = {
 					psb_intel_get_pipe_from_crtc_id, 0),
 	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GEM_CREATE, psb_gem_create_ioctl,
 						DRM_UNLOCKED | DRM_AUTH),
-
+	PSB_IOCTL_DEF(DRM_IOCTL_PSB_2D_OP, psb_accel_ioctl, DRM_UNLOCKED),
 };
 
 static void psb_lastclose(struct drm_device *dev)
@@ -179,8 +182,7 @@ static void psb_do_takedown(struct drm_device *dev)
 
 static int psb_do_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv =
-	    (struct drm_psb_private *) dev->dev_private;
+	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_gtt *pg = &dev_priv->gtt;
 
 	uint32_t stolen_gtt;
@@ -221,6 +223,7 @@ static int psb_do_init(struct drm_device *dev)
 
 
 	spin_lock_init(&dev_priv->irqmask_lock);
+	mutex_init(&dev_priv->mutex_2d);
 
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK0);
 	PSB_WSGX32(0x00000000, PSB_CR_BIF_BANK1);
