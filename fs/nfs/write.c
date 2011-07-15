@@ -1006,7 +1006,7 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc)
 	struct nfs_write_data	*data;
 	struct list_head *head = &desc->pg_list;
 	struct pnfs_layout_segment *lseg = desc->pg_lseg;
-	int ret;
+	int ret = 0;
 
 	data = nfs_writedata_alloc(nfs_page_array_len(desc->pg_base,
 						      desc->pg_count));

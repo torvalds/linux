@@ -351,12 +351,13 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc)
 	struct nfs_read_data	*data;
 	struct list_head *head = &desc->pg_list;
 	struct pnfs_layout_segment *lseg = desc->pg_lseg;
-	int ret = -ENOMEM;
+	int ret = 0;
 
 	data = nfs_readdata_alloc(nfs_page_array_len(desc->pg_base,
 						     desc->pg_count));
 	if (!data) {
 		nfs_async_read_error(head);
+		ret = -ENOMEM;
 		goto out;
 	}
 
