@@ -501,6 +501,14 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
  * and only performs the unlink once the last reference to it is put.
  *
  * The final cleanup is done during dentry_iput.
+ *
+ * (Note: NFSv4 is stateful, and has opens, so in theory an NFSv4 server
+ * could take responsibility for keeping open files referenced.  The server
+ * would also need to ensure that opened-but-deleted files were kept over
+ * reboots.  However, we may not assume a server does so.  (RFC 5661
+ * does provide an OPEN4_RESULT_PRESERVE_UNLINKED flag that a server can
+ * use to advertise that it does this; some day we may take advantage of
+ * it.))
  */
 int
 nfs_sillyrename(struct inode *dir, struct dentry *dentry)
