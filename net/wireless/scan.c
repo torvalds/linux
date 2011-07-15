@@ -137,7 +137,7 @@ int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 	lockdep_assert_held(&rdev->sched_scan_mtx);
 
 	if (!rdev->sched_scan_req)
-		return 0;
+		return -ENOENT;
 
 	dev = rdev->sched_scan_req->dev;
 

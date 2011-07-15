@@ -202,7 +202,22 @@ struct ieee80211_rx_data {
 	struct ieee80211_key *key;
 
 	unsigned int flags;
-	int queue;
+
+	/*
+	 * Index into sequence numbers array, 0..16
+	 * since the last (16) is used for non-QoS,
+	 * will be 16 on non-QoS frames.
+	 */
+	int seqno_idx;
+
+	/*
+	 * Index into the security IV/PN arrays, 0..16
+	 * since the last (16) is used for CCMP-encrypted
+	 * management frames, will be set to 16 on mgmt
+	 * frames and 0 on non-QoS frames.
+	 */
+	int security_idx;
+
 	u32 tkip_iv32;
 	u16 tkip_iv16;
 };
@@ -417,6 +432,14 @@ struct ieee80211_if_managed {
 	 * generated for the current association.
 	 */
 	int last_cqm_event_signal;
+
+	/*
+	 * State variables for keeping track of RSSI of the AP currently
+	 * connected to and informing driver when RSSI has gone
+	 * below/above a certain threshold.
+	 */
+	int rssi_min_thold, rssi_max_thold;
+	int last_ave_beacon_signal;
 };
 
 struct ieee80211_if_ibss {
@@ -515,12 +538,14 @@ struct ieee80211_if_mesh {
  * @IEEE80211_SDATA_DONT_BRIDGE_PACKETS: bridge packets between
  *	associated stations and deliver multicast frames both
  *	back to wireless media and to the local net stack.
+ * @IEEE80211_SDATA_DISCONNECT_RESUME: Disconnect after resume.
  */
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
 	IEEE80211_SDATA_PROMISC			= BIT(1),
 	IEEE80211_SDATA_OPERATING_GMODE		= BIT(2),
 	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
+	IEEE80211_SDATA_DISCONNECT_RESUME	= BIT(4),
 };
 
 /**

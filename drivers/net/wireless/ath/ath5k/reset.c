@@ -25,7 +25,7 @@
 
 #include <asm/unaligned.h>
 
-#include <linux/pci.h> 		/* To determine if a card is pci-e */
+#include <linux/pci.h>		/* To determine if a card is pci-e */
 #include <linux/log2.h>
 #include <linux/platform_device.h>
 #include "ath5k.h"
@@ -142,10 +142,11 @@ static void ath5k_hw_init_core_clock(struct ath5k_hw *ah)
 
 	/* Set 32MHz USEC counter */
 	if ((ah->ah_radio == AR5K_RF5112) ||
-		(ah->ah_radio == AR5K_RF5413) ||
-		(ah->ah_radio == AR5K_RF2316) ||
-		(ah->ah_radio == AR5K_RF2317))
-	/* Remain on 40MHz clock ? */
+	    (ah->ah_radio == AR5K_RF2413) ||
+	    (ah->ah_radio == AR5K_RF5413) ||
+	    (ah->ah_radio == AR5K_RF2316) ||
+	    (ah->ah_radio == AR5K_RF2317))
+		/* Remain on 40MHz clock ? */
 		sclock = 40 - 1;
 	else
 		sclock = 32 - 1;
@@ -213,7 +214,7 @@ static void ath5k_hw_init_core_clock(struct ath5k_hw *ah)
 	usec_reg = (usec | sclock | txlat | rxlat);
 	ath5k_hw_reg_write(ah, usec_reg, AR5K_USEC);
 
-	/* On 5112 set tx frane to tx data start delay */
+	/* On 5112 set tx frame to tx data start delay */
 	if (ah->ah_radio == AR5K_RF5112) {
 		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_RF_CTL2,
 					AR5K_PHY_RF_CTL2_TXF2TXD_START,
@@ -233,7 +234,7 @@ static void ath5k_hw_init_core_clock(struct ath5k_hw *ah)
 static void ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
-	u32 scal, spending;
+	u32 scal, spending, sclock;
 
 	/* Only set 32KHz settings if we have an external
 	 * 32KHz crystal present */
@@ -317,6 +318,15 @@ static void ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
 
 		/* Set up tsf increment on each cycle */
 		AR5K_REG_WRITE_BITS(ah, AR5K_TSF_PARM, AR5K_TSF_PARM_INC, 1);
+
+		if ((ah->ah_radio == AR5K_RF5112) ||
+			(ah->ah_radio == AR5K_RF5413) ||
+			(ah->ah_radio == AR5K_RF2316) ||
+			(ah->ah_radio == AR5K_RF2317))
+			sclock = 40 - 1;
+		else
+			sclock = 32 - 1;
+		AR5K_REG_WRITE_BITS(ah, AR5K_USEC_5211, AR5K_USEC_32, sclock);
 	}
 }
 
@@ -375,7 +385,7 @@ static int ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
 static int ath5k_hw_wisoc_reset(struct ath5k_hw *ah, u32 flags)
 {
 	u32 mask = flags ? flags : ~0U;
-	volatile __iomem u32 *reg;
+	u32 __iomem *reg;
 	u32 regval;
 	u32 val = 0;
 
@@ -539,7 +549,7 @@ int ath5k_hw_on_hold(struct ath5k_hw *ah)
 	 *
 	 * Note: putting PCI core on warm reset on PCI-E cards
 	 * results card to hang and always return 0xffff... so
-	 * we ingore that flag for PCI-E cards. On PCI cards
+	 * we ignore that flag for PCI-E cards. On PCI cards
 	 * this flag gets cleared after 64 PCI clocks.
 	 */
 	bus_flags = (pdev && pci_is_pcie(pdev)) ? 0 : AR5K_RESET_CTL_PCI;
@@ -596,7 +606,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 	 *
 	 * Note: putting PCI core on warm reset on PCI-E cards
 	 * results card to hang and always return 0xffff... so
-	 * we ingore that flag for PCI-E cards. On PCI cards
+	 * we ignore that flag for PCI-E cards. On PCI cards
 	 * this flag gets cleared after 64 PCI clocks.
 	 */
 	bus_flags = (pdev && pci_is_pcie(pdev)) ? 0 : AR5K_RESET_CTL_PCI;
@@ -627,7 +637,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 		return ret;
 	}
 
-	/* ...reset configuration regiter on Wisoc ...
+	/* ...reset configuration register on Wisoc ...
 	 * ...clear reset control register and pull device out of
 	 * warm reset on others */
 	if (ath5k_get_bus_type(ah) == ATH_AHB)
@@ -704,7 +714,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 
 		/*XXX: Can bwmode be used with dynamic mode ?
 		 * (I don't think it supports 44MHz) */
-		/* On 2425 initvals TURBO_SHORT is not pressent */
+		/* On 2425 initvals TURBO_SHORT is not present */
 		if (ah->ah_bwmode == AR5K_BWMODE_40MHZ) {
 			turbo = AR5K_PHY_TURBO_MODE |
 				(ah->ah_radio == AR5K_RF2425) ? 0 :
@@ -1277,11 +1287,16 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	ath5k_hw_dma_init(ah);
 
 
-	/* Enable 32KHz clock function for AR5212+ chips
+	/*
+	 * Enable 32KHz clock function for AR5212+ chips
 	 * Set clocks to 32KHz operation and use an
 	 * external 32KHz crystal when sleeping if one
-	 * exists */
-	if (ah->ah_version == AR5K_AR5212 &&
+	 * exists.
+	 * Disabled by default because it is also disabled in
+	 * other drivers and it is known to cause stability
+	 * issues on some devices
+	 */
+	if (ah->ah_use_32khz_clock && ah->ah_version == AR5K_AR5212 &&
 	    op_mode != NL80211_IFTYPE_AP)
 		ath5k_hw_set_sleep_clock(ah, true);
 

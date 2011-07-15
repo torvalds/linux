@@ -260,11 +260,9 @@ struct iwl_channel_info {
 
 enum {
 	CMD_SYNC = 0,
-	CMD_SIZE_NORMAL = 0,
-	CMD_NO_SKB = 0,
-	CMD_ASYNC = (1 << 1),
-	CMD_WANT_SKB = (1 << 2),
-	CMD_MAPPED = (1 << 3),
+	CMD_ASYNC = BIT(0),
+	CMD_WANT_SKB = BIT(1),
+	CMD_ON_DEMAND = BIT(2),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -297,6 +295,16 @@ enum iwl_hcmd_dataflag {
 	IWL_HCMD_DFL_NOCOPY	= BIT(0),
 };
 
+/**
+ * struct iwl_host_cmd - Host command to the uCode
+ * @data: array of chunks that composes the data of the host command
+ * @reply_page: pointer to the page that holds the response to the host command
+ * @callback:
+ * @flags: can be CMD_* note CMD_WANT_SKB is incompatible withe CMD_ASYNC
+ * @len: array of the lenths of the chunks in data
+ * @dataflags:
+ * @id: id of the host command
+ */
 struct iwl_host_cmd {
 	const void *data[IWL_MAX_CMD_TFDS];
 	unsigned long reply_page;
@@ -634,7 +642,6 @@ struct iwl_sensitivity_ranges {
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
- * @dma_chnl_num: Number of Tx DMA/FIFO channels
  * @scd_bc_tbls_size: size of scheduler byte count tables
  * @tfd_size: TFD size
  * @tx/rx_chains_num: Number of TX/RX chains
@@ -656,7 +663,6 @@ struct iwl_sensitivity_ranges {
  */
 struct iwl_hw_params {
 	u8 max_txq_num;
-	u8 dma_chnl_num;
 	u16 scd_bc_tbls_size;
 	u32 tfd_size;
 	u8  tx_chains_num;
@@ -696,8 +702,6 @@ struct iwl_hw_params {
  ****************************************************************************/
 extern void iwl_update_chain_flags(struct iwl_priv *priv);
 extern const u8 iwl_bcast_addr[ETH_ALEN];
-extern int iwl_rxq_stop(struct iwl_priv *priv);
-extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
 extern int iwl_queue_space(const struct iwl_queue *q);
 static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 {
@@ -1233,18 +1237,36 @@ struct iwl_trans;
  * struct iwl_trans_ops - transport specific operations
 
  * @rx_init: inits the rx memory, allocate it if needed
+ * @rx_stop: stop the rx
  * @rx_free: frees the rx memory
  * @tx_init:inits the tx memory, allocate if needed
+ * @tx_stop: stop the tx
+ * @tx_free: frees the tx memory
+ * @send_cmd:send a host command
+ * @send_cmd_pdu:send a host command: flags can be CMD_*
  */
 struct iwl_trans_ops {
 	int (*rx_init)(struct iwl_priv *priv);
+	int (*rx_stop)(struct iwl_priv *priv);
 	void (*rx_free)(struct iwl_priv *priv);
+
 	int (*tx_init)(struct iwl_priv *priv);
+	int (*tx_stop)(struct iwl_priv *priv);
+	void (*tx_free)(struct iwl_priv *priv);
+
+	int (*send_cmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+
+	int (*send_cmd_pdu)(struct iwl_priv *priv, u8 id, u32 flags, u16 len,
+		     const void *data);
 };
 
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
 };
+
+/* uCode ownership */
+#define IWL_OWNERSHIP_DRIVER	0
+#define IWL_OWNERSHIP_TM	1
 
 struct iwl_priv {
 
@@ -1334,6 +1356,10 @@ struct iwl_priv {
 	int fw_index;			/* firmware we're trying to load */
 	u32 ucode_ver;			/* version of ucode, copy of
 					   iwl_ucode.ver */
+
+	/* uCode owner: default: IWL_OWNERSHIP_DRIVER */
+	u8 ucode_owner;
+
 	struct fw_img ucode_rt;
 	struct fw_img ucode_init;
 
@@ -1509,6 +1535,9 @@ struct iwl_priv {
 	u16 dynamic_frag_thresh;
 	u8 bt_ci_compliance;
 	struct work_struct bt_traffic_change_work;
+	bool bt_enable_pspoll;
+	struct iwl_rxon_context *cur_rssi_ctx;
+	bool bt_is_sco;
 
 	struct iwl_hw_params hw_params;
 
@@ -1577,7 +1606,7 @@ struct iwl_priv {
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 	struct iwl_testmode_trace testmode_trace;
 #endif
-	u32 dbg_fixed_rate;
+	u32 tm_fixed_rate;
 
 }; /*iwl_priv */
 

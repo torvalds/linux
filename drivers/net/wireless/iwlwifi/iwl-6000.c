@@ -45,6 +45,7 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-6000-hw.h"
+#include "iwl-trans.h"
 
 /* Highest firmware API version supported */
 #define IWL6000_UCODE_API_MAX 4
@@ -144,7 +145,6 @@ static int iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
-	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
 			priv->cfg->base_params->num_of_queues *
 			sizeof(struct iwlagn_scd_bc_tbl);
@@ -255,7 +255,7 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 		return -EFAULT;
 	}
 
-	return iwl_send_cmd_sync(priv, &hcmd);
+	return trans_send_cmd(priv, &hcmd);
 }
 
 static struct iwl_lib_ops iwl6000_lib = {
@@ -263,12 +263,8 @@ static struct iwl_lib_ops iwl6000_lib = {
 	.rx_handler_setup = iwlagn_rx_handler_setup,
 	.setup_deferred_work = iwlagn_setup_deferred_work,
 	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
-	.update_chain_flags = iwl_update_chain_flags,
 	.set_channel_switch = iwl6000_hw_channel_switch,
-	.apm_ops = {
-		.init = iwl_apm_init,
-		.config = iwl6000_nic_config,
-	},
+	.nic_config = iwl6000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {
 			EEPROM_REG_BAND_1_CHANNELS,
@@ -279,12 +275,9 @@ static struct iwl_lib_ops iwl6000_lib = {
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
-		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.temp_ops = {
-		.temperature = iwlagn_temperature,
-	 },
+	.temperature = iwlagn_temperature,
 };
 
 static struct iwl_lib_ops iwl6030_lib = {
@@ -293,12 +286,8 @@ static struct iwl_lib_ops iwl6030_lib = {
 	.setup_deferred_work = iwlagn_bt_setup_deferred_work,
 	.cancel_deferred_work = iwlagn_bt_cancel_deferred_work,
 	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
-	.update_chain_flags = iwl_update_chain_flags,
 	.set_channel_switch = iwl6000_hw_channel_switch,
-	.apm_ops = {
-		.init = iwl_apm_init,
-		.config = iwl6000_nic_config,
-	},
+	.nic_config = iwl6000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {
 			EEPROM_REG_BAND_1_CHANNELS,
@@ -309,12 +298,9 @@ static struct iwl_lib_ops iwl6030_lib = {
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
-		.query_addr = iwlagn_eeprom_query_addr,
 		.update_enhanced_txpower = iwlcore_eeprom_enhanced_txpower,
 	},
-	.temp_ops = {
-		.temperature = iwlagn_temperature,
-	 },
+	.temperature = iwlagn_temperature,
 };
 
 static struct iwl_nic_ops iwl6050_nic_ops = {
@@ -327,24 +313,20 @@ static struct iwl_nic_ops iwl6150_nic_ops = {
 
 static const struct iwl_ops iwl6000_ops = {
 	.lib = &iwl6000_lib,
-	.utils = &iwlagn_hcmd_utils,
 };
 
 static const struct iwl_ops iwl6050_ops = {
 	.lib = &iwl6000_lib,
-	.utils = &iwlagn_hcmd_utils,
 	.nic = &iwl6050_nic_ops,
 };
 
 static const struct iwl_ops iwl6150_ops = {
 	.lib = &iwl6000_lib,
-	.utils = &iwlagn_hcmd_utils,
 	.nic = &iwl6150_nic_ops,
 };
 
 static const struct iwl_ops iwl6030_ops = {
 	.lib = &iwl6030_lib,
-	.utils = &iwlagn_hcmd_utils,
 };
 
 static struct iwl_base_params iwl6000_base_params = {

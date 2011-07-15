@@ -1055,7 +1055,14 @@ int b43_dma_init(struct b43_wldev *dev)
 	err = b43_dma_set_mask(dev, dmamask);
 	if (err)
 		return err;
-	dma->translation = ssb_dma_translation(dev->sdev);
+
+	switch (dev->dev->bus_type) {
+#ifdef CONFIG_B43_SSB
+	case B43_BUS_SSB:
+		dma->translation = ssb_dma_translation(dev->dev->sdev);
+		break;
+#endif
+	}
 
 	err = -ENOMEM;
 	/* setup TX DMA channels. */

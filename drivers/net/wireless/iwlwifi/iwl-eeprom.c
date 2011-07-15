@@ -407,11 +407,6 @@ static int iwl_find_otp_image(struct iwl_priv *priv,
 	return -EINVAL;
 }
 
-const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
-{
-	return priv->cfg->ops->lib->eeprom_ops.query_addr(priv, offset);
-}
-
 u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset)
 {
 	if (!priv->eeprom)
@@ -449,7 +444,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 	}
 	e = (__le16 *)priv->eeprom;
 
-	priv->cfg->ops->lib->apm_ops.init(priv);
+	iwl_apm_init(priv);
 
 	ret = iwl_eeprom_verify_signature(priv);
 	if (ret < 0) {

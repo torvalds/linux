@@ -143,6 +143,8 @@
 #define AR_KEYTABLE_SIZE            128
 #define POWER_UP_TIME               10000
 #define SPUR_RSSI_THRESH            40
+#define UPPER_5G_SUB_BAND_START		5700
+#define MID_5G_SUB_BAND_START		5400
 
 #define CAB_TIMEOUT_VAL             10
 #define BEACON_TIMEOUT_VAL          10
@@ -983,8 +985,6 @@ void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 void ar9002_hw_cck_chan14_spread(struct ath_hw *ah);
 int ar9002_hw_rf_claim(struct ath_hw *ah);
 void ar9002_hw_enable_async_fifo(struct ath_hw *ah);
-void ar9002_hw_update_async_fifo(struct ath_hw *ah);
-void ar9002_hw_enable_wep_aggregation(struct ath_hw *ah);
 
 /*
  * Code specific to AR9003, we stuff these here to avoid callbacks

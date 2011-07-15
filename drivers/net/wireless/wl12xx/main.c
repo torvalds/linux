@@ -210,7 +210,8 @@ static struct conf_drv_settings default_conf = {
 				.tx_op_limit = 1504,
 			},
 		},
-		.ap_max_tx_retries = 100,
+		.max_tx_retries = 100,
+		.ap_aging_period = 300,
 		.tid_conf_count = 4,
 		.tid_conf = {
 			[CONF_TX_AC_BE] = {
@@ -823,13 +824,24 @@ static void wl1271_irq_update_links_status(struct wl1271 *wl,
 	}
 }
 
+static u32 wl1271_tx_allocated_blocks(struct wl1271 *wl)
+{
+	int i;
+	u32 total_alloc_blocks = 0;
+
+	for (i = 0; i < NUM_TX_QUEUES; i++)
+		total_alloc_blocks += wl->tx_allocated_blocks[i];
+
+	return total_alloc_blocks;
+}
+
 static void wl1271_fw_status(struct wl1271 *wl,
 			     struct wl1271_fw_full_status *full_status)
 {
 	struct wl1271_fw_common_status *status = &full_status->common;
 	struct timespec ts;
 	u32 old_tx_blk_count = wl->tx_blocks_available;
-	u32 freed_blocks = 0;
+	u32 freed_blocks = 0, ac_freed_blocks;
 	int i;
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
@@ -849,21 +861,23 @@ static void wl1271_fw_status(struct wl1271 *wl,
 
 	/* update number of available TX blocks */
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
-		freed_blocks += le32_to_cpu(status->tx_released_blks[i]) -
-				wl->tx_blocks_freed[i];
+		ac_freed_blocks = le32_to_cpu(status->tx_released_blks[i]) -
+				  wl->tx_blocks_freed[i];
+		freed_blocks += ac_freed_blocks;
+
+		wl->tx_allocated_blocks[i] -= ac_freed_blocks;
 
 		wl->tx_blocks_freed[i] =
 			le32_to_cpu(status->tx_released_blks[i]);
 	}
-
-	wl->tx_allocated_blocks -= freed_blocks;
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS) {
 		/* Update num of allocated TX blocks per link and ps status */
 		wl1271_irq_update_links_status(wl, &full_status->ap);
 		wl->tx_blocks_available += freed_blocks;
 	} else {
-		int avail = full_status->sta.tx_total - wl->tx_allocated_blocks;
+		int avail = full_status->sta.tx_total -
+			    wl1271_tx_allocated_blocks(wl);
 
 		/*
 		 * The FW might change the total number of TX memblocks before
@@ -978,7 +992,7 @@ irqreturn_t wl1271_irq(int irq, void *cookie)
 			/* Check if any tx blocks were freed */
 			spin_lock_irqsave(&wl->wl_lock, flags);
 			if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
-			    wl->tx_queue_count) {
+			    wl1271_tx_total_queue_count(wl) > 0) {
 				spin_unlock_irqrestore(&wl->wl_lock, flags);
 				/*
 				 * In order to avoid starvation of the TX path,
@@ -1026,7 +1040,7 @@ out:
 	/* In case TX was not handled here, queue TX work */
 	clear_bit(WL1271_FLAG_TX_PENDING, &wl->flags);
 	if (!test_bit(WL1271_FLAG_FW_TX_BUSY, &wl->flags) &&
-	    wl->tx_queue_count)
+	    wl1271_tx_total_queue_count(wl) > 0)
 		ieee80211_queue_work(wl->hw, &wl->tx_work);
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
@@ -1226,6 +1240,15 @@ static void wl1271_recovery_work(struct work_struct *work)
 
 	wl1271_info("Hardware recovery in progress. FW ver: %s pc: 0x%x",
 		    wl->chip.fw_ver_str, wl1271_read32(wl, SCR_PAD4));
+
+	/*
+	 * Advance security sequence number to overcome potential progress
+	 * in the firmware during recovery. This doens't hurt if the network is
+	 * not encrypted.
+	 */
+	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags) ||
+	    test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
+		wl->tx_security_seq += WL1271_TX_SQN_POST_RECOVERY_PADDING;
 
 	if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
 		ieee80211_connection_loss(wl->vif);
@@ -1474,26 +1497,27 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct wl1271 *wl = hw->priv;
 	unsigned long flags;
-	int q;
+	int q, mapping;
 	u8 hlid = 0;
 
-	q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
+	mapping = skb_get_queue_mapping(skb);
+	q = wl1271_tx_get_queue(mapping);
 
 	if (wl->bss_type == BSS_TYPE_AP_BSS)
 		hlid = wl1271_tx_get_hlid(skb);
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 
-	wl->tx_queue_count++;
+	wl->tx_queue_count[q]++;
 
 	/*
 	 * The workqueue is slow to process the tx_queue and we need stop
 	 * the queue here, otherwise the queue will get too long.
 	 */
-	if (wl->tx_queue_count >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
-		wl1271_debug(DEBUG_TX, "op_tx: stopping queues");
-		ieee80211_stop_queues(wl->hw);
-		set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
+	if (wl->tx_queue_count[q] >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
+		wl1271_debug(DEBUG_TX, "op_tx: stopping queues for q %d", q);
+		ieee80211_stop_queue(wl->hw, mapping);
+		set_bit(q, &wl->stopped_queues_map);
 	}
 
 	/* queue the packet */
@@ -1519,10 +1543,11 @@ static void wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 int wl1271_tx_dummy_packet(struct wl1271 *wl)
 {
 	unsigned long flags;
+	int q = wl1271_tx_get_queue(skb_get_queue_mapping(wl->dummy_packet));
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
 	set_bit(WL1271_FLAG_DUMMY_PACKET_PENDING, &wl->flags);
-	wl->tx_queue_count++;
+	wl->tx_queue_count[q]++;
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	/* The FW is low on RX memory blocks, so send the dummy packet asap */
@@ -1586,9 +1611,12 @@ static struct notifier_block wl1271_dev_notifier = {
 #ifdef CONFIG_PM
 static int wl1271_configure_suspend_sta(struct wl1271 *wl)
 {
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&wl->mutex);
+
+	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+		goto out_unlock;
 
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
@@ -1634,9 +1662,12 @@ out:
 
 static int wl1271_configure_suspend_ap(struct wl1271 *wl)
 {
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&wl->mutex);
+
+	if (!test_bit(WL1271_FLAG_AP_STARTED, &wl->flags))
+		goto out_unlock;
 
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
@@ -1705,7 +1736,6 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 	}
 	/* flush any remaining work */
 	wl1271_debug(DEBUG_MAC80211, "flushing remaining works");
-	flush_delayed_work(&wl->scan_complete_work);
 
 	/*
 	 * disable and re-enable interrupts in order to flush
@@ -1977,11 +2007,8 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	wl->psm_entry_retry = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->tx_blocks_available = 0;
-	wl->tx_allocated_blocks = 0;
 	wl->tx_results_count = 0;
 	wl->tx_packets_count = 0;
-	wl->tx_security_last_seq = 0;
-	wl->tx_security_seq = 0;
 	wl->time_offset = 0;
 	wl->session_counter = 0;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
@@ -2000,8 +2027,10 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 	 */
 	wl->flags = 0;
 
-	for (i = 0; i < NUM_TX_QUEUES; i++)
+	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		wl->tx_blocks_freed[i] = 0;
+		wl->tx_allocated_blocks[i] = 0;
+	}
 
 	wl1271_debugfs_reset(wl);
 
@@ -2154,6 +2183,10 @@ static int wl1271_unjoin(struct wl1271 *wl)
 	clear_bit(WL1271_FLAG_JOINED, &wl->flags);
 	memset(wl->bssid, 0, ETH_ALEN);
 
+	/* reset TX security counters on a clean disconnect */
+	wl->tx_security_last_seq_lsb = 0;
+	wl->tx_security_seq = 0;
+
 	/* stop filtering packets based on bssid */
 	wl1271_configure_filters(wl, FIF_OTHER_BSS);
 
@@ -2245,6 +2278,9 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 			wl->band = conf->channel->band;
 			wl->channel = channel;
 		}
+
+		if ((changed & IEEE80211_CONF_CHANGE_POWER))
+			wl->power_level = conf->power_level;
 
 		goto out;
 	}
@@ -2751,6 +2787,44 @@ out:
 	mutex_unlock(&wl->mutex);
 
 	return ret;
+}
+
+static void wl1271_op_cancel_hw_scan(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif)
+{
+	struct wl1271 *wl = hw->priv;
+	int ret;
+
+	wl1271_debug(DEBUG_MAC80211, "mac80211 cancel hw scan");
+
+	mutex_lock(&wl->mutex);
+
+	if (wl->state == WL1271_STATE_OFF)
+		goto out;
+
+	if (wl->scan.state == WL1271_SCAN_STATE_IDLE)
+		goto out;
+
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	if (wl->scan.state != WL1271_SCAN_STATE_DONE) {
+		ret = wl1271_scan_stop(wl);
+		if (ret < 0)
+			goto out_sleep;
+	}
+	wl->scan.state = WL1271_SCAN_STATE_IDLE;
+	memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
+	wl->scan.req = NULL;
+	ieee80211_scan_completed(wl->hw, true);
+
+out_sleep:
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+
+	cancel_delayed_work_sync(&wl->scan_complete_work);
 }
 
 static int wl1271_op_sched_scan_start(struct ieee80211_hw *hw,
@@ -3515,6 +3589,12 @@ static void wl1271_free_sta(struct wl1271 *wl, u8 hlid)
 	__clear_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
 }
 
+bool wl1271_is_active_sta(struct wl1271 *wl, u8 hlid)
+{
+	int id = hlid - WL1271_AP_STA_HLID_START;
+	return test_bit(id, wl->ap_hlid_map);
+}
+
 static int wl1271_op_sta_add(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_sta *sta)
@@ -3673,7 +3753,7 @@ static bool wl1271_tx_frames_pending(struct ieee80211_hw *hw)
 		goto out;
 
 	/* packets are considered pending if in the TX queue or the FW */
-	ret = (wl->tx_queue_count > 0) || (wl->tx_frames_cnt > 0);
+	ret = (wl1271_tx_total_queue_count(wl) > 0) || (wl->tx_frames_cnt > 0);
 
 	/* the above is appropriate for STA mode for PS purposes */
 	WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
@@ -3836,40 +3916,40 @@ static struct ieee80211_rate wl1271_rates_5ghz[] = {
 
 /* 5 GHz band channels for WL1273 */
 static struct ieee80211_channel wl1271_channels_5ghz[] = {
-	{ .hw_value = 7, .center_freq = 5035},
-	{ .hw_value = 8, .center_freq = 5040},
-	{ .hw_value = 9, .center_freq = 5045},
-	{ .hw_value = 11, .center_freq = 5055},
-	{ .hw_value = 12, .center_freq = 5060},
-	{ .hw_value = 16, .center_freq = 5080},
-	{ .hw_value = 34, .center_freq = 5170},
-	{ .hw_value = 36, .center_freq = 5180},
-	{ .hw_value = 38, .center_freq = 5190},
-	{ .hw_value = 40, .center_freq = 5200},
-	{ .hw_value = 42, .center_freq = 5210},
-	{ .hw_value = 44, .center_freq = 5220},
-	{ .hw_value = 46, .center_freq = 5230},
-	{ .hw_value = 48, .center_freq = 5240},
-	{ .hw_value = 52, .center_freq = 5260},
-	{ .hw_value = 56, .center_freq = 5280},
-	{ .hw_value = 60, .center_freq = 5300},
-	{ .hw_value = 64, .center_freq = 5320},
-	{ .hw_value = 100, .center_freq = 5500},
-	{ .hw_value = 104, .center_freq = 5520},
-	{ .hw_value = 108, .center_freq = 5540},
-	{ .hw_value = 112, .center_freq = 5560},
-	{ .hw_value = 116, .center_freq = 5580},
-	{ .hw_value = 120, .center_freq = 5600},
-	{ .hw_value = 124, .center_freq = 5620},
-	{ .hw_value = 128, .center_freq = 5640},
-	{ .hw_value = 132, .center_freq = 5660},
-	{ .hw_value = 136, .center_freq = 5680},
-	{ .hw_value = 140, .center_freq = 5700},
-	{ .hw_value = 149, .center_freq = 5745},
-	{ .hw_value = 153, .center_freq = 5765},
-	{ .hw_value = 157, .center_freq = 5785},
-	{ .hw_value = 161, .center_freq = 5805},
-	{ .hw_value = 165, .center_freq = 5825},
+	{ .hw_value = 7, .center_freq = 5035, .max_power = 25 },
+	{ .hw_value = 8, .center_freq = 5040, .max_power = 25 },
+	{ .hw_value = 9, .center_freq = 5045, .max_power = 25 },
+	{ .hw_value = 11, .center_freq = 5055, .max_power = 25 },
+	{ .hw_value = 12, .center_freq = 5060, .max_power = 25 },
+	{ .hw_value = 16, .center_freq = 5080, .max_power = 25 },
+	{ .hw_value = 34, .center_freq = 5170, .max_power = 25 },
+	{ .hw_value = 36, .center_freq = 5180, .max_power = 25 },
+	{ .hw_value = 38, .center_freq = 5190, .max_power = 25 },
+	{ .hw_value = 40, .center_freq = 5200, .max_power = 25 },
+	{ .hw_value = 42, .center_freq = 5210, .max_power = 25 },
+	{ .hw_value = 44, .center_freq = 5220, .max_power = 25 },
+	{ .hw_value = 46, .center_freq = 5230, .max_power = 25 },
+	{ .hw_value = 48, .center_freq = 5240, .max_power = 25 },
+	{ .hw_value = 52, .center_freq = 5260, .max_power = 25 },
+	{ .hw_value = 56, .center_freq = 5280, .max_power = 25 },
+	{ .hw_value = 60, .center_freq = 5300, .max_power = 25 },
+	{ .hw_value = 64, .center_freq = 5320, .max_power = 25 },
+	{ .hw_value = 100, .center_freq = 5500, .max_power = 25 },
+	{ .hw_value = 104, .center_freq = 5520, .max_power = 25 },
+	{ .hw_value = 108, .center_freq = 5540, .max_power = 25 },
+	{ .hw_value = 112, .center_freq = 5560, .max_power = 25 },
+	{ .hw_value = 116, .center_freq = 5580, .max_power = 25 },
+	{ .hw_value = 120, .center_freq = 5600, .max_power = 25 },
+	{ .hw_value = 124, .center_freq = 5620, .max_power = 25 },
+	{ .hw_value = 128, .center_freq = 5640, .max_power = 25 },
+	{ .hw_value = 132, .center_freq = 5660, .max_power = 25 },
+	{ .hw_value = 136, .center_freq = 5680, .max_power = 25 },
+	{ .hw_value = 140, .center_freq = 5700, .max_power = 25 },
+	{ .hw_value = 149, .center_freq = 5745, .max_power = 25 },
+	{ .hw_value = 153, .center_freq = 5765, .max_power = 25 },
+	{ .hw_value = 157, .center_freq = 5785, .max_power = 25 },
+	{ .hw_value = 161, .center_freq = 5805, .max_power = 25 },
+	{ .hw_value = 165, .center_freq = 5825, .max_power = 25 },
 };
 
 /* mapping to indexes for wl1271_rates_5ghz */
@@ -3930,6 +4010,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.tx = wl1271_op_tx,
 	.set_key = wl1271_op_set_key,
 	.hw_scan = wl1271_op_hw_scan,
+	.cancel_hw_scan = wl1271_op_cancel_hw_scan,
 	.sched_scan_start = wl1271_op_sched_scan_start,
 	.sched_scan_stop = wl1271_op_sched_scan_stop,
 	.bss_info_changed = wl1271_op_bss_info_changed,
@@ -4327,6 +4408,9 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->quirks = 0;
 	wl->platform_quirks = 0;
 	wl->sched_scanning = false;
+	wl->tx_security_seq = 0;
+	wl->tx_security_last_seq_lsb = 0;
+
 	setup_timer(&wl->rx_streaming_timer, wl1271_rx_streaming_timer,
 		    (unsigned long) wl);
 	wl->fwlog_size = 0;

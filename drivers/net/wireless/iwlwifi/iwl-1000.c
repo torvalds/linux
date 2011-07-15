@@ -125,7 +125,6 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 			iwlagn_mod_params.num_of_queues;
 
 	priv->hw_params.max_txq_num = priv->cfg->base_params->num_of_queues;
-	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
 			priv->cfg->base_params->num_of_queues *
 			sizeof(struct iwlagn_scd_bc_tbl);
@@ -172,11 +171,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 	.rx_handler_setup = iwlagn_rx_handler_setup,
 	.setup_deferred_work = iwlagn_setup_deferred_work,
 	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
-	.update_chain_flags = iwl_update_chain_flags,
-	.apm_ops = {
-		.init = iwl_apm_init,
-		.config = iwl1000_nic_config,
-	},
+	.nic_config = iwl1000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {
 			EEPROM_REG_BAND_1_CHANNELS,
@@ -187,16 +182,12 @@ static struct iwl_lib_ops iwl1000_lib = {
 			EEPROM_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
-		.query_addr = iwlagn_eeprom_query_addr,
 	},
-	.temp_ops = {
-		.temperature = iwlagn_temperature,
-	 },
+	.temperature = iwlagn_temperature,
 };
 
 static const struct iwl_ops iwl1000_ops = {
 	.lib = &iwl1000_lib,
-	.utils = &iwlagn_hcmd_utils,
 };
 
 static struct iwl_base_params iwl1000_base_params = {

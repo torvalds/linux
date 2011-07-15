@@ -1113,6 +1113,7 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 	struct mwifiex_ds_11n_amsdu_aggr_ctrl amsdu_aggr_ctrl;
 	struct mwifiex_ds_auto_ds auto_ds;
 	enum state_11d_t state_11d;
+	struct mwifiex_ds_11n_tx_cfg tx_cfg;
 
 	if (first_sta) {
 
@@ -1198,8 +1199,15 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 	if (ret)
 		dev_err(priv->adapter->dev, "11D: failed to enable 11D\n");
 
+	/* Send cmd to FW to configure 11n specific configuration
+	 * (Short GI, Channel BW, Green field support etc.) for transmit
+	 */
+	tx_cfg.tx_htcap = MWIFIEX_FW_DEF_HTTXCFG;
+	ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_11N_CFG,
+				     HostCmd_ACT_GEN_SET, 0, &tx_cfg);
+
 	/* set last_init_cmd */
-	priv->adapter->last_init_cmd = HostCmd_CMD_802_11_SNMP_MIB;
+	priv->adapter->last_init_cmd = HostCmd_CMD_11N_CFG;
 	ret = -EINPROGRESS;
 
 	return ret;

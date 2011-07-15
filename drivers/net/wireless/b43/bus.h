@@ -2,12 +2,16 @@
 #define B43_BUS_H_
 
 enum b43_bus_type {
+#ifdef CONFIG_B43_BCMA
+	B43_BUS_BCMA,
+#endif
 	B43_BUS_SSB,
 };
 
 struct b43_bus_dev {
 	enum b43_bus_type bus_type;
 	union {
+		struct bcma_device *bdev;
 		struct ssb_device *sdev;
 	};
 
@@ -57,6 +61,10 @@ static inline bool b43_bus_host_is_sdio(struct b43_bus_dev *dev)
 		dev->sdev->bus->bustype == SSB_BUSTYPE_SDIO);
 }
 
+struct b43_bus_dev *b43_bus_dev_bcma_init(struct bcma_device *core);
 struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev);
+
+void *b43_bus_get_wldev(struct b43_bus_dev *dev);
+void b43_bus_set_wldev(struct b43_bus_dev *dev, void *data);
 
 #endif /* B43_BUS_H_ */

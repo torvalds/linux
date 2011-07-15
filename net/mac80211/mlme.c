@@ -1763,6 +1763,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		ifmgd->ave_beacon_signal = rx_status->signal * 16;
 		ifmgd->last_cqm_event_signal = 0;
 		ifmgd->count_beacon_signal = 1;
+		ifmgd->last_ave_beacon_signal = 0;
 	} else {
 		ifmgd->ave_beacon_signal =
 			(IEEE80211_SIGNAL_AVE_WEIGHT * rx_status->signal * 16 +
@@ -1770,6 +1771,28 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 			 ifmgd->ave_beacon_signal) / 16;
 		ifmgd->count_beacon_signal++;
 	}
+
+	if (ifmgd->rssi_min_thold != ifmgd->rssi_max_thold &&
+	    ifmgd->count_beacon_signal >= IEEE80211_SIGNAL_AVE_MIN_COUNT) {
+		int sig = ifmgd->ave_beacon_signal;
+		int last_sig = ifmgd->last_ave_beacon_signal;
+
+		/*
+		 * if signal crosses either of the boundaries, invoke callback
+		 * with appropriate parameters
+		 */
+		if (sig > ifmgd->rssi_max_thold &&
+		    (last_sig <= ifmgd->rssi_min_thold || last_sig == 0)) {
+			ifmgd->last_ave_beacon_signal = sig;
+			drv_rssi_callback(local, RSSI_EVENT_HIGH);
+		} else if (sig < ifmgd->rssi_min_thold &&
+			   (last_sig >= ifmgd->rssi_max_thold ||
+			   last_sig == 0)) {
+			ifmgd->last_ave_beacon_signal = sig;
+			drv_rssi_callback(local, RSSI_EVENT_LOW);
+		}
+	}
+
 	if (bss_conf->cqm_rssi_thold &&
 	    ifmgd->count_beacon_signal >= IEEE80211_SIGNAL_AVE_MIN_COUNT &&
 	    !(local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)) {
@@ -2029,7 +2052,7 @@ static void ieee80211_sta_timer(unsigned long data)
 }
 
 static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
-					  u8 *bssid)
+					  u8 *bssid, u8 reason)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
@@ -2047,8 +2070,7 @@ static void ieee80211_sta_connection_lost(struct ieee80211_sub_if_data *sdata,
 	 * but that's not a problem.
 	 */
 	ieee80211_send_deauth_disassoc(sdata, bssid,
-			IEEE80211_STYPE_DEAUTH,
-			WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
+			IEEE80211_STYPE_DEAUTH, reason,
 			NULL, true);
 	mutex_lock(&ifmgd->mtx);
 }
@@ -2094,7 +2116,8 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 					    " AP %pM, disconnecting.\n",
 					    sdata->name, bssid);
 #endif
-				ieee80211_sta_connection_lost(sdata, bssid);
+				ieee80211_sta_connection_lost(sdata, bssid,
+					WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY);
 			}
 		} else if (time_is_after_jiffies(ifmgd->probe_timeout))
 			run_again(ifmgd, ifmgd->probe_timeout);
@@ -2106,7 +2129,8 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 				    sdata->name,
 				    bssid, probe_wait_ms);
 #endif
-			ieee80211_sta_connection_lost(sdata, bssid);
+			ieee80211_sta_connection_lost(sdata, bssid,
+				WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY);
 		} else if (ifmgd->probe_send_count < max_tries) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 			wiphy_debug(local->hw.wiphy,
@@ -2128,7 +2152,8 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 				    sdata->name,
 				    bssid, probe_wait_ms);
 
-			ieee80211_sta_connection_lost(sdata, bssid);
+			ieee80211_sta_connection_lost(sdata, bssid,
+				WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY);
 		}
 	}
 
@@ -2214,6 +2239,27 @@ void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata)
 void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	if (!ifmgd->associated)
+		return;
+
+	if (sdata->flags & IEEE80211_SDATA_DISCONNECT_RESUME) {
+		sdata->flags &= ~IEEE80211_SDATA_DISCONNECT_RESUME;
+		mutex_lock(&ifmgd->mtx);
+		if (ifmgd->associated) {
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+			wiphy_debug(sdata->local->hw.wiphy,
+				    "%s: driver requested disconnect after resume.\n",
+				    sdata->name);
+#endif
+			ieee80211_sta_connection_lost(sdata,
+				ifmgd->associated->bssid,
+				WLAN_REASON_UNSPECIFIED);
+			mutex_unlock(&ifmgd->mtx);
+			return;
+		}
+		mutex_unlock(&ifmgd->mtx);
+	}
 
 	if (test_and_clear_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running))
 		add_timer(&ifmgd->timer);

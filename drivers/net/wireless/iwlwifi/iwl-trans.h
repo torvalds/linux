@@ -60,5 +60,46 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+static inline int trans_rx_init(struct iwl_priv *priv)
+{
+	return priv->trans.ops->rx_init(priv);
+}
+
+static inline int trans_rx_stop(struct iwl_priv *priv)
+{
+	return priv->trans.ops->rx_stop(priv);
+}
+
+static inline void trans_rx_free(struct iwl_priv *priv)
+{
+	priv->trans.ops->rx_free(priv);
+}
+
+static inline int trans_tx_init(struct iwl_priv *priv)
+{
+	return priv->trans.ops->tx_init(priv);
+}
+
+static inline int trans_tx_stop(struct iwl_priv *priv)
+{
+	return priv->trans.ops->tx_stop(priv);
+}
+
+static inline void trans_tx_free(struct iwl_priv *priv)
+{
+	priv->trans.ops->tx_free(priv);
+}
+
+static inline int trans_send_cmd(struct iwl_priv *priv,
+				struct iwl_host_cmd *cmd)
+{
+	return priv->trans.ops->send_cmd(priv, cmd);
+}
+
+static inline int trans_send_cmd_pdu(struct iwl_priv *priv, u8 id, u32 flags,
+					u16 len, const void *data)
+{
+	return priv->trans.ops->send_cmd_pdu(priv, id, flags, len, data);
+}
 
 void iwl_trans_register(struct iwl_trans *trans);

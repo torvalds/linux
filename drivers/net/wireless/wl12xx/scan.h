@@ -28,6 +28,7 @@
 
 int wl1271_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 		struct cfg80211_scan_request *req);
+int wl1271_scan_stop(struct wl1271 *wl);
 int wl1271_scan_build_probe_req(struct wl1271 *wl,
 				const u8 *ssid, size_t ssid_len,
 				const u8 *ie, size_t ie_len, u8 band);

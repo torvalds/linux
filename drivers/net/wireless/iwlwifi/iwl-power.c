@@ -42,6 +42,7 @@
 #include "iwl-commands.h"
 #include "iwl-debug.h"
 #include "iwl-power.h"
+#include "iwl-trans.h"
 
 /*
  * Setting power level allows the card to go to sleep when not busy.
@@ -334,7 +335,7 @@ static int iwl_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
 			le32_to_cpu(cmd->sleep_interval[3]),
 			le32_to_cpu(cmd->sleep_interval[4]));
 
-	return iwl_send_cmd_pdu(priv, POWER_TABLE_CMD,
+	return trans_send_cmd_pdu(priv, POWER_TABLE_CMD, CMD_SYNC,
 				sizeof(struct iwl_powertable_cmd), cmd);
 }
 
@@ -405,9 +406,9 @@ int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 		if (!(cmd->flags & IWL_POWER_DRIVER_ALLOW_SLEEP_MSK))
 			clear_bit(STATUS_POWER_PMI, &priv->status);
 
-		if (priv->cfg->ops->lib->update_chain_flags && update_chains)
-			priv->cfg->ops->lib->update_chain_flags(priv);
-		else if (priv->cfg->ops->lib->update_chain_flags)
+		if (update_chains)
+			iwl_update_chain_flags(priv);
+		else
 			IWL_DEBUG_POWER(priv,
 					"Cannot update the power, chain noise "
 					"calibration running: %d\n",

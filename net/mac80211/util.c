@@ -1334,6 +1334,33 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	return 0;
 }
 
+void ieee80211_resume_disconnect(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_local *local;
+	struct ieee80211_key *key;
+
+	if (WARN_ON(!vif))
+		return;
+
+	sdata = vif_to_sdata(vif);
+	local = sdata->local;
+
+	if (WARN_ON(!local->resuming))
+		return;
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION))
+		return;
+
+	sdata->flags |= IEEE80211_SDATA_DISCONNECT_RESUME;
+
+	mutex_lock(&local->key_mtx);
+	list_for_each_entry(key, &sdata->key_list, list)
+		key->flags |= KEY_FLAG_TAINTED;
+	mutex_unlock(&local->key_mtx);
+}
+EXPORT_SYMBOL_GPL(ieee80211_resume_disconnect);
+
 static int check_mgd_smps(struct ieee80211_if_managed *ifmgd,
 			  enum ieee80211_smps_mode *smps_mode)
 {
@@ -1450,3 +1477,43 @@ size_t ieee80211_ie_split_vendor(const u8 *ies, size_t ielen, size_t offset)
 
 	return pos;
 }
+
+static void _ieee80211_enable_rssi_reports(struct ieee80211_sub_if_data *sdata,
+					    int rssi_min_thold,
+					    int rssi_max_thold)
+{
+	trace_api_enable_rssi_reports(sdata, rssi_min_thold, rssi_max_thold);
+
+	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
+		return;
+
+	/*
+	 * Scale up threshold values before storing it, as the RSSI averaging
+	 * algorithm uses a scaled up value as well. Change this scaling
+	 * factor if the RSSI averaging algorithm changes.
+	 */
+	sdata->u.mgd.rssi_min_thold = rssi_min_thold*16;
+	sdata->u.mgd.rssi_max_thold = rssi_max_thold*16;
+}
+
+void ieee80211_enable_rssi_reports(struct ieee80211_vif *vif,
+				    int rssi_min_thold,
+				    int rssi_max_thold)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	WARN_ON(rssi_min_thold == rssi_max_thold ||
+		rssi_min_thold > rssi_max_thold);
+
+	_ieee80211_enable_rssi_reports(sdata, rssi_min_thold,
+				       rssi_max_thold);
+}
+EXPORT_SYMBOL(ieee80211_enable_rssi_reports);
+
+void ieee80211_disable_rssi_reports(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	_ieee80211_enable_rssi_reports(sdata, 0, 0);
+}
+EXPORT_SYMBOL(ieee80211_disable_rssi_reports);

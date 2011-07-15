@@ -339,6 +339,16 @@ void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask)
 	iwl_write_prph(priv, IWLAGN_SCD_TXFACT, mask);
 }
 
+static void iwlagn_tx_cmd_protection(struct iwl_priv *priv,
+				     struct ieee80211_tx_info *info,
+				     __le16 fc, __le32 *tx_flags)
+{
+	if (info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS ||
+	    info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT ||
+	    info->flags & IEEE80211_TX_CTL_AMPDU)
+		*tx_flags |= TX_CMD_FLG_PROT_REQUIRE_MSK;
+}
+
 /*
  * handle build REPLY_TX command notification.
  */
@@ -388,7 +398,7 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
 	}
 
-	priv->cfg->ops->utils->tx_cmd_protection(priv, info, fc, &tx_flags);
+	iwlagn_tx_cmd_protection(priv, info, fc, &tx_flags);
 
 	tx_flags &= ~(TX_CMD_FLG_ANT_SEL_MSK);
 	if (ieee80211_is_mgmt(fc)) {
@@ -436,6 +446,16 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	if (ieee80211_is_data(fc)) {
 		tx_cmd->initial_rate_index = 0;
 		tx_cmd->tx_flags |= TX_CMD_FLG_STA_RATE_MSK;
+		if (priv->tm_fixed_rate) {
+			/*
+			 * rate overwrite by testmode
+			 * we not only send lq command to change rate
+			 * we also re-enforce per data pkt base.
+			 */
+			tx_cmd->tx_flags &= ~TX_CMD_FLG_STA_RATE_MSK;
+			memcpy(&tx_cmd->rate_n_flags, &priv->tm_fixed_rate,
+			       sizeof(tx_cmd->rate_n_flags));
+		}
 		return;
 	}
 
@@ -497,8 +517,7 @@ static void iwlagn_tx_cmd_build_hwcrypto(struct iwl_priv *priv,
 
 	case WLAN_CIPHER_SUITE_TKIP:
 		tx_cmd->sec_ctl = TX_CMD_SEC_TKIP;
-		ieee80211_get_tkip_key(keyconf, skb_frag,
-			IEEE80211_TKIP_P2_KEY, tx_cmd->key);
+		ieee80211_get_tkip_p2k(keyconf, skb_frag, tx_cmd->key);
 		IWL_DEBUG_TX(priv, "tx_cmd with tkip hwcrypto\n");
 		break;
 
@@ -831,88 +850,6 @@ drop_unlock_priv:
 	return -1;
 }
 
-static inline int iwlagn_alloc_dma_ptr(struct iwl_priv *priv,
-				    struct iwl_dma_ptr *ptr, size_t size)
-{
-	ptr->addr = dma_alloc_coherent(priv->bus.dev, size,
-				       &ptr->dma, GFP_KERNEL);
-	if (!ptr->addr)
-		return -ENOMEM;
-	ptr->size = size;
-	return 0;
-}
-
-static inline void iwlagn_free_dma_ptr(struct iwl_priv *priv,
-				    struct iwl_dma_ptr *ptr)
-{
-	if (unlikely(!ptr->addr))
-		return;
-
-	dma_free_coherent(priv->bus.dev, ptr->size, ptr->addr, ptr->dma);
-	memset(ptr, 0, sizeof(*ptr));
-}
-
-/**
- * iwlagn_hw_txq_ctx_free - Free TXQ Context
- *
- * Destroy all TX DMA queues and structures
- */
-void iwlagn_hw_txq_ctx_free(struct iwl_priv *priv)
-{
-	int txq_id;
-
-	/* Tx queues */
-	if (priv->txq) {
-		for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
-			if (txq_id == priv->cmd_queue)
-				iwl_cmd_queue_free(priv);
-			else
-				iwl_tx_queue_free(priv, txq_id);
-	}
-	iwlagn_free_dma_ptr(priv, &priv->kw);
-
-	iwlagn_free_dma_ptr(priv, &priv->scd_bc_tbls);
-
-	/* free tx queue structure */
-	iwl_free_txq_mem(priv);
-}
-
-/**
- * iwlagn_txq_ctx_stop - Stop all Tx DMA channels
- */
-void iwlagn_txq_ctx_stop(struct iwl_priv *priv)
-{
-	int ch, txq_id;
-	unsigned long flags;
-
-	/* Turn off all Tx DMA fifos */
-	spin_lock_irqsave(&priv->lock, flags);
-
-	iwlagn_txq_set_sched(priv, 0);
-
-	/* Stop each Tx DMA channel, and wait for it to be idle */
-	for (ch = 0; ch < priv->hw_params.dma_chnl_num; ch++) {
-		iwl_write_direct32(priv, FH_TCSR_CHNL_TX_CONFIG_REG(ch), 0x0);
-		if (iwl_poll_direct_bit(priv, FH_TSSR_TX_STATUS_REG,
-				    FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(ch),
-				    1000))
-			IWL_ERR(priv, "Failing on timeout while stopping"
-			    " DMA channel %d [0x%08x]", ch,
-			    iwl_read_direct32(priv, FH_TSSR_TX_STATUS_REG));
-	}
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (!priv->txq)
-		return;
-
-	/* Unmap DMA from host system and free skb's */
-	for (txq_id = 0; txq_id < priv->hw_params.max_txq_num; txq_id++)
-		if (txq_id == priv->cmd_queue)
-			iwl_cmd_queue_unmap(priv);
-		else
-			iwl_tx_queue_unmap(priv, txq_id);
-}
-
 /*
  * Find first available (lowest unused) Tx Queue, mark it "active".
  * Called only when finding queue for aggregation.
@@ -1171,7 +1108,7 @@ int iwlagn_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 
 		iwlagn_txq_inval_byte_cnt_tbl(priv, txq);
 
-		iwlagn_txq_free_tfd(priv, txq);
+		iwlagn_txq_free_tfd(priv, txq, txq->q.read_ptr);
 	}
 	return nfreed;
 }

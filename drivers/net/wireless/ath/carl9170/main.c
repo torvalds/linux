@@ -1484,6 +1484,13 @@ static void carl9170_op_sta_notify(struct ieee80211_hw *hw,
 	}
 }
 
+static bool carl9170_tx_frames_pending(struct ieee80211_hw *hw)
+{
+	struct ar9170 *ar = hw->priv;
+
+	return !!atomic_read(&ar->tx_total_queued);
+}
+
 static const struct ieee80211_ops carl9170_ops = {
 	.start			= carl9170_op_start,
 	.stop			= carl9170_op_stop,
@@ -1504,6 +1511,7 @@ static const struct ieee80211_ops carl9170_ops = {
 	.get_survey		= carl9170_op_get_survey,
 	.get_stats		= carl9170_op_get_stats,
 	.ampdu_action		= carl9170_op_ampdu_action,
+	.tx_frames_pending	= carl9170_tx_frames_pending,
 };
 
 void *carl9170_alloc(size_t priv_size)

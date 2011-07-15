@@ -167,8 +167,8 @@ static int ath_ahb_probe(struct platform_device *pdev)
 		 * driver for it
 		 */
 		if (to_platform_device(sc->dev)->id == 0 &&
-		    (bcfg->config->flags & (BD_WLAN0|BD_WLAN1)) ==
-		     (BD_WLAN1|BD_WLAN0))
+		    (bcfg->config->flags & (BD_WLAN0 | BD_WLAN1)) ==
+		     (BD_WLAN1 | BD_WLAN0))
 			__set_bit(ATH_STAT_2G_DISABLED, sc->status);
 	}
 

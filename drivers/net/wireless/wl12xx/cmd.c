@@ -400,10 +400,6 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 
 	join->ctrl |= wl->session_counter << WL1271_JOIN_CMD_TX_SESSION_OFFSET;
 
-	/* reset TX security counters */
-	wl->tx_security_last_seq = 0;
-	wl->tx_security_seq = 0;
-
 	wl1271_debug(DEBUG_CMD, "cmd join: basic_rate_set=0x%x, rate_set=0x%x",
 		join->basic_rate_set, join->supported_rate_set);
 
@@ -1084,7 +1080,7 @@ int wl1271_cmd_start_bss(struct wl1271 *wl)
 
 	memcpy(cmd->bssid, bss_conf->bssid, ETH_ALEN);
 
-	cmd->aging_period = cpu_to_le16(WL1271_AP_DEF_INACTIV_SEC);
+	cmd->aging_period = cpu_to_le16(wl->conf.tx.ap_aging_period);
 	cmd->bss_index = WL1271_AP_BSS_INDEX;
 	cmd->global_hlid = WL1271_AP_GLOBAL_HLID;
 	cmd->broadcast_hlid = WL1271_AP_BROADCAST_HLID;
