@@ -642,6 +642,7 @@ config ARCH_SHMOBILE
 	select NO_IOPORT
 	select SPARSE_IRQ
 	select MULTI_IRQ_HANDLER
+	select PM_GENERIC_DOMAINS if PM
 	help
 	  Support for Renesas's SH-Mobile and R-Mobile ARM platforms.
 

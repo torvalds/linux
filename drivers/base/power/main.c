@@ -425,9 +425,9 @@ static int device_resume_noirq(struct device *dev, pm_message_t state)
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
 
-	if (dev->pwr_domain) {
+	if (dev->pm_domain) {
 		pm_dev_dbg(dev, state, "EARLY power domain ");
-		error = pm_noirq_op(dev, &dev->pwr_domain->ops, state);
+		error = pm_noirq_op(dev, &dev->pm_domain->ops, state);
 	} else if (dev->type && dev->type->pm) {
 		pm_dev_dbg(dev, state, "EARLY type ");
 		error = pm_noirq_op(dev, dev->type->pm, state);
@@ -521,9 +521,9 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 	if (!dev->power.is_suspended)
 		goto Unlock;
 
-	if (dev->pwr_domain) {
+	if (dev->pm_domain) {
 		pm_dev_dbg(dev, state, "power domain ");
-		error = pm_op(dev, &dev->pwr_domain->ops, state);
+		error = pm_op(dev, &dev->pm_domain->ops, state);
 		goto End;
 	}
 
@@ -641,10 +641,10 @@ static void device_complete(struct device *dev, pm_message_t state)
 {
 	device_lock(dev);
 
-	if (dev->pwr_domain) {
+	if (dev->pm_domain) {
 		pm_dev_dbg(dev, state, "completing power domain ");
-		if (dev->pwr_domain->ops.complete)
-			dev->pwr_domain->ops.complete(dev);
+		if (dev->pm_domain->ops.complete)
+			dev->pm_domain->ops.complete(dev);
 	} else if (dev->type && dev->type->pm) {
 		pm_dev_dbg(dev, state, "completing type ");
 		if (dev->type->pm->complete)
@@ -744,9 +744,9 @@ static int device_suspend_noirq(struct device *dev, pm_message_t state)
 {
 	int error;
 
-	if (dev->pwr_domain) {
+	if (dev->pm_domain) {
 		pm_dev_dbg(dev, state, "LATE power domain ");
-		error = pm_noirq_op(dev, &dev->pwr_domain->ops, state);
+		error = pm_noirq_op(dev, &dev->pm_domain->ops, state);
 		if (error)
 			return error;
 	} else if (dev->type && dev->type->pm) {
@@ -853,9 +853,9 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 		goto Unlock;
 	}
 
-	if (dev->pwr_domain) {
+	if (dev->pm_domain) {
 		pm_dev_dbg(dev, state, "power domain ");
-		error = pm_op(dev, &dev->pwr_domain->ops, state);
+		error = pm_op(dev, &dev->pm_domain->ops, state);
 		goto End;
 	}
 
@@ -982,11 +982,11 @@ static int device_prepare(struct device *dev, pm_message_t state)
 
 	device_lock(dev);
 
-	if (dev->pwr_domain) {
+	if (dev->pm_domain) {
 		pm_dev_dbg(dev, state, "preparing power domain ");
-		if (dev->pwr_domain->ops.prepare)
-			error = dev->pwr_domain->ops.prepare(dev);
-		suspend_report_result(dev->pwr_domain->ops.prepare, error);
+		if (dev->pm_domain->ops.prepare)
+			error = dev->pm_domain->ops.prepare(dev);
+		suspend_report_result(dev->pm_domain->ops.prepare, error);
 		if (error)
 			goto End;
 	} else if (dev->type && dev->type->pm) {
