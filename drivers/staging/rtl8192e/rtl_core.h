@@ -773,11 +773,6 @@ typedef struct r8192_priv
 	u16		EfuseUsedBytes;
 	u8		EfuseUsedPercentage;
 
-#ifdef EFUSE_REPG_WORKAROUND
-	bool		efuse_RePGSec1Flag;
-	u8		efuse_RePGData[8];
-#endif
-
 	short	epromtype;
 	u16		eeprom_vid;
 	u16		eeprom_did;
