@@ -792,8 +792,6 @@ extern const struct drm_crtc_helper_funcs psb_intel_helper_funcs;
 extern const struct drm_crtc_funcs psb_intel_crtc_funcs;
 
 /* psb_intel_lvds.c */
-extern void psb_intel_lvds_prepare(struct drm_encoder *encoder);
-extern void psb_intel_lvds_commit(struct drm_encoder *encoder);
 extern const struct drm_connector_helper_funcs
 					psb_intel_lvds_connector_helper_funcs;
 extern const struct drm_connector_funcs psb_intel_lvds_connector_funcs;

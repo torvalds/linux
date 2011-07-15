@@ -432,7 +432,7 @@ bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
-void psb_intel_lvds_prepare(struct drm_encoder *encoder)
+static void psb_intel_lvds_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);
@@ -450,7 +450,7 @@ void psb_intel_lvds_prepare(struct drm_encoder *encoder)
 	gma_power_end(dev);
 }
 
-void psb_intel_lvds_commit(struct drm_encoder *encoder)
+static void psb_intel_lvds_commit(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);

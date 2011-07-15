@@ -147,13 +147,38 @@ static void mrst_lvds_mode_set(struct drm_encoder *encoder,
 	gma_power_end(dev);
 }
 
+static void mrst_lvds_prepare(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);
+
+	if (!gma_power_begin(dev, true))
+		return;
+
+	mode_dev->saveBLC_PWM_CTL = REG_READ(BLC_PWM_CTL);
+	mode_dev->backlight_duty_cycle = (mode_dev->saveBLC_PWM_CTL &
+					  BACKLIGHT_DUTY_CYCLE_MASK);
+	mrst_lvds_set_power(dev, output, false);
+	gma_power_end(dev);
+}
+
+static void mrst_lvds_commit(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct psb_intel_output *output = enc_to_psb_intel_output(encoder);
+
+	if (mode_dev->backlight_duty_cycle == 0)
+		mode_dev->backlight_duty_cycle =
+		    psb_intel_lvds_get_max_backlight(dev);
+	mrst_lvds_set_power(dev, output, true);
+}
 
 static const struct drm_encoder_helper_funcs mrst_lvds_helper_funcs = {
 	.dpms = mrst_lvds_dpms,
 	.mode_fixup = psb_intel_lvds_mode_fixup,
-	.prepare = psb_intel_lvds_prepare,
+	.prepare = mrst_intel_lvds_prepare,
 	.mode_set = mrst_lvds_mode_set,
-	.commit = psb_intel_lvds_commit,
+	.commit = mrst_intel_lvds_commit,
 };
 
 static struct drm_display_mode lvds_configuration_modes[] = {
