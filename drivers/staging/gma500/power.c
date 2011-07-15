@@ -185,8 +185,9 @@ static bool gma_resume_pci(struct pci_dev *pdev)
  *	perform the necessary shut down steps and save enough state that
  *	we can undo this when resume is called.
  */
-int gma_power_suspend(struct pci_dev *pdev, pm_message_t state)
+int gma_power_suspend(struct device *_dev)
 {
+	struct pci_dev *pdev = container_of(_dev, struct pci_dev, dev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
@@ -210,8 +211,9 @@ int gma_power_suspend(struct pci_dev *pdev, pm_message_t state)
  *
  *	Resume the PCI side of the graphics and then the displays
  */
-int gma_power_resume(struct pci_dev *pdev)
+int gma_power_resume(struct device *_dev)
 {
+	struct pci_dev *pdev = container_of(_dev, struct pci_dev, dev);
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
 	mutex_lock(&power_mutex);
@@ -295,8 +297,7 @@ void gma_power_end(struct drm_device *dev)
 
 int psb_runtime_suspend(struct device *dev)
 {
-	static pm_message_t dummy;
-	return gma_power_suspend(to_pci_dev(dev), dummy);
+	return gma_power_suspend(dev);
 }
 
 int psb_runtime_resume(struct device *dev)

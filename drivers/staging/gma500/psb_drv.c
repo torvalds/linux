@@ -1144,6 +1144,8 @@ static void psb_remove(struct pci_dev *pdev)
 }
 
 static const struct dev_pm_ops psb_pm_ops = {
+	.resume = gma_power_resume,
+	.suspend = gma_power_suspend,
 	.runtime_suspend = psb_runtime_suspend,
 	.runtime_resume = psb_runtime_resume,
 	.runtime_idle = psb_runtime_idle,
@@ -1205,13 +1207,9 @@ static struct drm_driver driver = {
 static struct pci_driver psb_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = pciidlist,
-	.resume = gma_power_resume,
-	.suspend = gma_power_suspend,
 	.probe = psb_probe,
 	.remove = psb_remove,
-#ifdef CONFIG_PM
 	.driver.pm = &psb_pm_ops,
-#endif
 };
 
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)

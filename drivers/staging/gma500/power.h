@@ -39,8 +39,8 @@ void gma_power_uninit(struct drm_device *dev);
 /*
  * The kernel bus power management  will call these functions
  */
-int gma_power_suspend(struct pci_dev *pdev, pm_message_t state);
-int gma_power_resume(struct pci_dev *pdev);
+int gma_power_suspend(struct device *dev);
+int gma_power_resume(struct device *dev);
 
 /*
  * These are the functions the driver should use to wrap all hw access
