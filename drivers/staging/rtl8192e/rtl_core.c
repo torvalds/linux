@@ -566,10 +566,6 @@ void rtl8192_set_chan(struct net_device *dev,short ch)
     if (priv->rf_set_chan)
         priv->rf_set_chan(dev,priv->chan);
 
-#ifdef CONFIG_FW_SETCHAN
-    priv->rtllib->SetFwCmdHandler(dev, FW_CMD_CHAN_SET);
-#endif
-
 #endif
 }
 
