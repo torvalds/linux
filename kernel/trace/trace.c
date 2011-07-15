@@ -4385,6 +4385,9 @@ tracing_stats_read(struct file *filp, char __user *ubuf,
 	usec_rem = do_div(t, USEC_PER_SEC);
 	trace_seq_printf(s, "now ts: %5llu.%06lu\n", t, usec_rem);
 
+	cnt = ring_buffer_dropped_events_cpu(tr->buffer, cpu);
+	trace_seq_printf(s, "dropped events: %ld\n", cnt);
+
 	count = simple_read_from_buffer(ubuf, count, ppos, s->buffer, s->len);
 
 	kfree(s);
