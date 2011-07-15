@@ -6342,6 +6342,7 @@ static void
 bnx2_reset_task(struct work_struct *work)
 {
 	struct bnx2 *bp = container_of(work, struct bnx2, reset_task);
+	int rc;
 
 	rtnl_lock();
 	if (!netif_running(bp->dev)) {
@@ -6351,7 +6352,14 @@ bnx2_reset_task(struct work_struct *work)
 
 	bnx2_netif_stop(bp, true);
 
-	bnx2_init_nic(bp, 1);
+	rc = bnx2_init_nic(bp, 1);
+	if (rc) {
+		netdev_err(bp->dev, "failed to reset NIC, closing\n");
+		bnx2_napi_enable(bp);
+		dev_close(bp->dev);
+		rtnl_unlock();
+		return;
+	}
 
 	atomic_set(&bp->intr_sem, 1);
 	bnx2_netif_start(bp, true);
@@ -6572,8 +6580,6 @@ static int
 bnx2_close(struct net_device *dev)
 {
 	struct bnx2 *bp = netdev_priv(dev);
-
-	cancel_work_sync(&bp->reset_task);
 
 	bnx2_disable_int_sync(bp);
 	bnx2_napi_disable(bp);
@@ -8404,6 +8410,7 @@ bnx2_remove_one(struct pci_dev *pdev)
 	unregister_netdev(dev);
 
 	del_timer_sync(&bp->timer);
+	cancel_work_sync(&bp->reset_task);
 
 	if (bp->mips_firmware)
 		release_firmware(bp->mips_firmware);
