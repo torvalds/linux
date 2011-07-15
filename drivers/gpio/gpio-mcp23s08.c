@@ -432,14 +432,6 @@ static int mcp23s08_probe(struct spi_device *spi)
 	 * handled here...
 	 */
 
-	if (pdata->setup) {
-		status = pdata->setup(spi,
-				pdata->base, data->ngpio,
-				pdata->context);
-		if (status < 0)
-			dev_dbg(&spi->dev, "setup --> %d\n", status);
-	}
-
 	return 0;
 
 fail:
@@ -459,19 +451,8 @@ fail:
 static int mcp23s08_remove(struct spi_device *spi)
 {
 	struct mcp23s08_driver_data	*data = spi_get_drvdata(spi);
-	struct mcp23s08_platform_data	*pdata = spi->dev.platform_data;
 	unsigned			addr;
 	int				status = 0;
-
-	if (pdata->teardown) {
-		status = pdata->teardown(spi,
-				pdata->base, data->ngpio,
-				pdata->context);
-		if (status < 0) {
-			dev_err(&spi->dev, "%s --> %d\n", "teardown", status);
-			return status;
-		}
-	}
 
 	for (addr = 0; addr < ARRAY_SIZE(data->mcp); addr++) {
 		int tmp;
