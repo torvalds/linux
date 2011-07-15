@@ -87,7 +87,7 @@ struct caam_ctx {
 	u32 class2_alg_type;
 	u32 alg_op;
 	u8 *key;
-	dma_addr_t key_phys;
+	dma_addr_t key_dma;
 	unsigned int enckeylen;
 	unsigned int split_key_len;
 	unsigned int split_key_pad_len;
@@ -263,9 +263,9 @@ static int build_sh_desc_ipsec(struct caam_ctx *ctx)
 				  ctx->split_key_pad_len, ctx->enckeylen,
 				  ctx->enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
 	} else {
-		append_key(sh_desc, ctx->key_phys, ctx->split_key_len, CLASS_2 |
+		append_key(sh_desc, ctx->key_dma, ctx->split_key_len, CLASS_2 |
 			   KEY_DEST_MDHA_SPLIT | KEY_ENC);
-		append_key(sh_desc, ctx->key_phys + ctx->split_key_pad_len,
+		append_key(sh_desc, ctx->key_dma + ctx->split_key_pad_len,
 			   ctx->enckeylen, CLASS_1 | KEY_DEST_CLASS_REG);
 	}
 
@@ -342,9 +342,9 @@ static int aead_setkey(struct crypto_aead *aead,
 	/* postpend encryption key to auth split key */
 	memcpy(ctx->key + ctx->split_key_pad_len, key + authkeylen, enckeylen);
 
-	ctx->key_phys = dma_map_single(jrdev, ctx->key, ctx->split_key_pad_len +
+	ctx->key_dma = dma_map_single(jrdev, ctx->key, ctx->split_key_pad_len +
 				       enckeylen, DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, ctx->key_phys)) {
+	if (dma_mapping_error(jrdev, ctx->key_dma)) {
 		dev_err(jrdev, "unable to map key i/o memory\n");
 		kfree(ctx->key);
 		return -ENOMEM;
@@ -359,7 +359,7 @@ static int aead_setkey(struct crypto_aead *aead,
 
 	ret = build_sh_desc_ipsec(ctx);
 	if (ret) {
-		dma_unmap_single(jrdev, ctx->key_phys, ctx->split_key_pad_len +
+		dma_unmap_single(jrdev, ctx->key_dma, ctx->split_key_pad_len +
 				 enckeylen, DMA_TO_DEVICE);
 		kfree(ctx->key);
 	}
@@ -884,11 +884,20 @@ static int aead_givencrypt(struct aead_givcrypt_request *areq)
 	return init_aead_job(edesc, req, OP_ALG_ENCRYPT, aead_encrypt_done);
 }
 
+#define template_aead		template_u.aead
 struct caam_alg_template {
 	char name[CRYPTO_MAX_ALG_NAME];
 	char driver_name[CRYPTO_MAX_ALG_NAME];
 	unsigned int blocksize;
-	struct aead_alg aead;
+	u32 type;
+	union {
+		struct ablkcipher_alg ablkcipher;
+		struct aead_alg aead;
+		struct blkcipher_alg blkcipher;
+		struct cipher_alg cipher;
+		struct compress_alg compress;
+		struct rng_alg rng;
+	} template_u;
 	u32 class1_alg_type;
 	u32 class2_alg_type;
 	u32 alg_op;
@@ -900,7 +909,8 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha1),cbc(aes))",
 		.driver_name = "authenc-hmac-sha1-cbc-aes-caam",
 		.blocksize = AES_BLOCK_SIZE,
-		.aead = {
+		.type = CRYPTO_ALG_TYPE_AEAD,
+		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
@@ -918,7 +928,8 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha256),cbc(aes))",
 		.driver_name = "authenc-hmac-sha256-cbc-aes-caam",
 		.blocksize = AES_BLOCK_SIZE,
-		.aead = {
+		.type = CRYPTO_ALG_TYPE_AEAD,
+		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
@@ -937,7 +948,8 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha512),cbc(aes))",
 		.driver_name = "authenc-hmac-sha512-cbc-aes-caam",
 		.blocksize = AES_BLOCK_SIZE,
-		.aead = {
+		.type = CRYPTO_ALG_TYPE_AEAD,
+		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
@@ -956,7 +968,8 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha1),cbc(des3_ede))",
 		.driver_name = "authenc-hmac-sha1-cbc-des3_ede-caam",
 		.blocksize = DES3_EDE_BLOCK_SIZE,
-		.aead = {
+		.type = CRYPTO_ALG_TYPE_AEAD,
+		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
@@ -974,7 +987,8 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha256),cbc(des3_ede))",
 		.driver_name = "authenc-hmac-sha256-cbc-des3_ede-caam",
 		.blocksize = DES3_EDE_BLOCK_SIZE,
-		.aead = {
+		.type = CRYPTO_ALG_TYPE_AEAD,
+		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
@@ -993,7 +1007,8 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha512),cbc(des3_ede))",
 		.driver_name = "authenc-hmac-sha512-cbc-des3_ede-caam",
 		.blocksize = DES3_EDE_BLOCK_SIZE,
-		.aead = {
+		.type = CRYPTO_ALG_TYPE_AEAD,
+		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
@@ -1012,7 +1027,8 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha1),cbc(des))",
 		.driver_name = "authenc-hmac-sha1-cbc-des-caam",
 		.blocksize = DES_BLOCK_SIZE,
-		.aead = {
+		.type = CRYPTO_ALG_TYPE_AEAD,
+		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
@@ -1030,7 +1046,8 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha256),cbc(des))",
 		.driver_name = "authenc-hmac-sha256-cbc-des-caam",
 		.blocksize = DES_BLOCK_SIZE,
-		.aead = {
+		.type = CRYPTO_ALG_TYPE_AEAD,
+		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
@@ -1049,7 +1066,8 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha512),cbc(des))",
 		.driver_name = "authenc-hmac-sha512-cbc-des-caam",
 		.blocksize = DES_BLOCK_SIZE,
-		.aead = {
+		.type = CRYPTO_ALG_TYPE_AEAD,
+		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
 			.encrypt = aead_encrypt,
@@ -1107,8 +1125,8 @@ static void caam_cra_exit(struct crypto_tfm *tfm)
 				 desc_bytes(ctx->sh_desc), DMA_TO_DEVICE);
 	kfree(ctx->sh_desc);
 
-	if (!dma_mapping_error(ctx->jrdev, ctx->key_phys))
-		dma_unmap_single(ctx->jrdev, ctx->key_phys,
+	if (!dma_mapping_error(ctx->jrdev, ctx->key_dma))
+		dma_unmap_single(ctx->jrdev, ctx->key_dma,
 				 ctx->split_key_pad_len + ctx->enckeylen,
 				 DMA_TO_DEVICE);
 	kfree(ctx->key);
@@ -1175,12 +1193,16 @@ static struct caam_crypto_alg *caam_alg_alloc(struct device *ctrldev,
 	alg->cra_init = caam_cra_init;
 	alg->cra_exit = caam_cra_exit;
 	alg->cra_priority = CAAM_CRA_PRIORITY;
-	alg->cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC;
 	alg->cra_blocksize = template->blocksize;
 	alg->cra_alignmask = 0;
-	alg->cra_type = &crypto_aead_type;
 	alg->cra_ctxsize = sizeof(struct caam_ctx);
-	alg->cra_u.aead = template->aead;
+	alg->cra_flags = CRYPTO_ALG_ASYNC | template->type;
+	switch (template->type) {
+	case CRYPTO_ALG_TYPE_AEAD:
+		alg->cra_type = &crypto_aead_type;
+		alg->cra_aead = template->template_aead;
+		break;
+	}
 
 	t_alg->class1_alg_type = template->class1_alg_type;
 	t_alg->class2_alg_type = template->class2_alg_type;
