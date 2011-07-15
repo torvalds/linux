@@ -711,6 +711,11 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "IN1L PGA", "IN1LP Switch", "IN1LP" },
 	{ "IN1L PGA", "IN1LN Switch", "IN1LN" },
 
+	{ "IN1L PGA", NULL, "VMID" },
+	{ "IN1R PGA", NULL, "VMID" },
+	{ "IN2L PGA", NULL, "VMID" },
+	{ "IN2R PGA", NULL, "VMID" },
+
 	{ "IN1R PGA", "IN1RP Switch", "IN1RP" },
 	{ "IN1R PGA", "IN1RN Switch", "IN1RN" },
 
@@ -728,12 +733,14 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "MIXINL", NULL, "Direct Voice" },
 	{ "MIXINL", NULL, "IN1LP" },
 	{ "MIXINL", NULL, "Left Output Mixer" },
+	{ "MIXINL", NULL, "VMID" },
 
 	{ "MIXINR", "IN1R Switch", "IN1R PGA" },
 	{ "MIXINR", "IN2R Switch", "IN2R PGA" },
 	{ "MIXINR", NULL, "Direct Voice" },
 	{ "MIXINR", NULL, "IN1RP" },
 	{ "MIXINR", NULL, "Right Output Mixer" },
+	{ "MIXINR", NULL, "VMID" },
 
 	{ "ADCL", NULL, "MIXINL" },
 	{ "ADCR", NULL, "MIXINR" },
@@ -764,6 +771,7 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "Earpiece Mixer", "Left Output Switch", "Left Output PGA" },
 	{ "Earpiece Mixer", "Right Output Switch", "Right Output PGA" },
 
+	{ "Earpiece Driver", NULL, "VMID" },
 	{ "Earpiece Driver", NULL, "Earpiece Mixer" },
 	{ "HPOUT2N", NULL, "Earpiece Driver" },
 	{ "HPOUT2P", NULL, "Earpiece Driver" },
@@ -786,9 +794,11 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "SPKR Boost", "SPKR Switch", "SPKR" },
 	{ "SPKR Boost", "SPKL Switch", "SPKL" },
 
+	{ "SPKL Driver", NULL, "VMID" },
 	{ "SPKL Driver", NULL, "SPKL Boost" },
 	{ "SPKL Driver", NULL, "CLK_SYS" },
 
+	{ "SPKR Driver", NULL, "VMID" },
 	{ "SPKR Driver", NULL, "SPKR Boost" },
 	{ "SPKR Driver", NULL, "CLK_SYS" },
 
@@ -802,11 +812,17 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 
 	{ "Headphone PGA", NULL, "Left Headphone Mux" },
 	{ "Headphone PGA", NULL, "Right Headphone Mux" },
+	{ "Headphone PGA", NULL, "VMID" },
 	{ "Headphone PGA", NULL, "CLK_SYS" },
 	{ "Headphone PGA", NULL, "Headphone Supply" },
 
 	{ "HPOUT1L", NULL, "Headphone PGA" },
 	{ "HPOUT1R", NULL, "Headphone PGA" },
+
+	{ "LINEOUT1N Driver", NULL, "VMID" },
+	{ "LINEOUT1P Driver", NULL, "VMID" },
+	{ "LINEOUT2N Driver", NULL, "VMID" },
+	{ "LINEOUT2P Driver", NULL, "VMID" },
 
 	{ "LINEOUT1N", NULL, "LINEOUT1N Driver" },
 	{ "LINEOUT1P", NULL, "LINEOUT1P Driver" },

@@ -1209,6 +1209,7 @@ SND_SOC_DAPM_INPUT("Clock"),
 
 SND_SOC_DAPM_SUPPLY_S("MICBIAS Supply", 1, SND_SOC_NOPM, 0, 0, micbias_ev,
 		      SND_SOC_DAPM_PRE_PMU),
+SND_SOC_DAPM_SUPPLY("VMID", SND_SOC_NOPM, 0, 0, NULL, 0),
 
 SND_SOC_DAPM_SUPPLY("CLK_SYS", SND_SOC_NOPM, 0, 0, clk_sys_event,
 		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
@@ -1526,6 +1527,8 @@ static const struct snd_soc_dapm_route wm8994_revd_intercon[] = {
 static const struct snd_soc_dapm_route wm8994_intercon[] = {
 	{ "AIF2DACL", NULL, "AIF2DAC Mux" },
 	{ "AIF2DACR", NULL, "AIF2DAC Mux" },
+	{ "MICBIAS1", NULL, "VMID" },
+	{ "MICBIAS2", NULL, "VMID" },
 };
 
 static const struct snd_soc_dapm_route wm8958_intercon[] = {
