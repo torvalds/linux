@@ -35,6 +35,8 @@
 #define OHCI_INTRSTATUS		0x0c
 #define OHCI_INTRENABLE		0x10
 #define OHCI_INTRDISABLE	0x14
+#define OHCI_FMINTERVAL		0x34
+#define OHCI_HCR		(1 << 0)	/* host controller reset */
 #define OHCI_OCR		(1 << 3)	/* ownership change request */
 #define OHCI_CTRL_RWC		(1 << 9)	/* remote wakeup connected */
 #define OHCI_CTRL_IR		(1 << 8)	/* interrupt routing */
@@ -497,6 +499,32 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 
 	/* reset controller, preserving RWC (and possibly IR) */
 	writel(control & OHCI_CTRL_MASK, base + OHCI_CONTROL);
+	readl(base + OHCI_CONTROL);
+
+	/* Some NVIDIA controllers stop working if kept in RESET for too long */
+	if (pdev->vendor == PCI_VENDOR_ID_NVIDIA) {
+		u32 fminterval;
+		int cnt;
+
+		/* drive reset for at least 50 ms (7.1.7.5) */
+		msleep(50);
+
+		/* software reset of the controller, preserving HcFmInterval */
+		fminterval = readl(base + OHCI_FMINTERVAL);
+		writel(OHCI_HCR, base + OHCI_CMDSTATUS);
+
+		/* reset requires max 10 us delay */
+		for (cnt = 30; cnt > 0; --cnt) {	/* ... allow extra time */
+			if ((readl(base + OHCI_CMDSTATUS) & OHCI_HCR) == 0)
+				break;
+			udelay(1);
+		}
+		writel(fminterval, base + OHCI_FMINTERVAL);
+
+		/* Now we're in the SUSPEND state with all devices reset
+		 * and wakeups and interrupts disabled
+		 */
+	}
 
 	/*
 	 * disable interrupts
