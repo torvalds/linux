@@ -29,6 +29,7 @@
 #include <linux/firmware.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/snd_wavefront.h>
 #include <sound/initval.h>

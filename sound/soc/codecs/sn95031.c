@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <asm/intel_scu_ipc.h>
 #include <sound/pcm.h>

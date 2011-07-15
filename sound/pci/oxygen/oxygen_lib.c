@@ -22,6 +22,7 @@
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/module.h>
 #include <sound/ac97_codec.h>
 #include <sound/asoundef.h>
 #include <sound/core.h>

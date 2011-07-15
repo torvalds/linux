@@ -10,6 +10,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/module.h>
 #include <sound/sh_fsi.h>
 
 struct fsi_hdmi_data {

@@ -47,6 +47,7 @@
 #include <linux/usb.h>
 #include <linux/wait.h>
 #include <linux/usb/audio.h>
+#include <linux/module.h>
 
 #include <sound/core.h>
 #include <sound/control.h>

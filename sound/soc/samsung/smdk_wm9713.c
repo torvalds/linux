@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <sound/soc.h>
 
 static struct snd_soc_card smdk;

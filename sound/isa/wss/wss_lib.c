@@ -30,6 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
+#include <linux/module.h>
 #include <sound/core.h>
 #include <sound/wss.h>
 #include <sound/pcm_params.h>
