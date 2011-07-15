@@ -209,40 +209,6 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 }
 
 /**
- * omap_vp_get_curr_volt() - API to get the current vp voltage.
- * @voltdm:	pointer to the VDD.
- *
- * This API returns the current voltage for the specified voltage processor
- */
-unsigned long omap_vp_get_curr_volt(struct voltagedomain *voltdm)
-{
-	struct omap_vp_instance *vp = voltdm->vp;
-	u8 curr_vsel;
-
-	if (!voltdm || IS_ERR(voltdm)) {
-		pr_warning("%s: VDD specified does not exist!\n", __func__);
-		return 0;
-	}
-
-	if (!voltdm->read) {
-		pr_err("%s: No read API for reading vdd_%s regs\n",
-			__func__, voltdm->name);
-		return 0;
-	}
-
-	curr_vsel = (voltdm->read(vp->voltage) & vp->common->vpvoltage_mask)
-		>> __ffs(vp->common->vpvoltage_mask);
-
-	if (!voltdm->pmic || !voltdm->pmic->vsel_to_uv) {
-		pr_warning("%s: PMIC function to convert vsel to voltage"
-			"in uV not registerd\n", __func__);
-		return 0;
-	}
-
-	return voltdm->pmic->vsel_to_uv(curr_vsel);
-}
-
-/**
  * omap_vp_enable() - API to enable a particular VP
  * @voltdm:	pointer to the VDD whose VP is to be enabled.
  *
