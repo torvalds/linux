@@ -3122,6 +3122,11 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 		if (priv->scan_cmd)
 			kfree(priv->scan_cmd);
 
+		if (dev->mem_start != 0) {
+			iounmap((void *)dev->mem_start);
+			release_mem_region(pci_resource_start(pdev, 1),
+					   pci_resource_len(pdev, 1));
+		}
 	} else{
 		priv=rtllib_priv(dev);
         }
