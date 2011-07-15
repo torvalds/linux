@@ -1014,7 +1014,8 @@ F:	arch/arm/include/asm/hardware/ioc.h
 F:	arch/arm/include/asm/hardware/iomd.h
 F:	arch/arm/include/asm/hardware/memc.h
 F:	arch/arm/mach-rpc/
-F:	drivers/net/arm/ether3*
+F:	drivers/net/ethernet/i825xx/ether1*
+F:	drivers/net/ethernet/seeq/ether3*
 F:	drivers/scsi/arm/
 
 ARM/SHARK MACHINE SUPPORT

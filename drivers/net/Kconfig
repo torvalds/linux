@@ -489,17 +489,6 @@ config ETH16I
 	  To compile this driver as a module, choose M here. The module
 	  will be called eth16i.
 
-config SEEQ8005
-	tristate "SEEQ8005 support (EXPERIMENTAL)"
-	depends on NET_ISA && EXPERIMENTAL
-	help
-	  This is a driver for the SEEQ 8005 network (Ethernet) card.  If this
-	  is for you, read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called seeq8005.
-
 config NET_PCI
 	bool "EISA, VLB, PCI and on board controllers"
 	depends on ISA || EISA || PCI
@@ -689,13 +678,6 @@ config NET_POCKET
 	  kernel: saying N will just cause the configurator to skip all
 	  the questions about this class of network devices. If you say Y, you
 	  will be asked for your specific device in the following questions.
-
-config SGISEEQ
-	tristate "SGI Seeq ethernet controller support"
-	depends on SGI_HAS_SEEQ
-	help
-	  Say Y here if you have an Seeq based Ethernet network card. This is
-	  used in many Silicon Graphics machines.
 
 config FEC
 	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"

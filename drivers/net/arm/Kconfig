@@ -3,13 +3,6 @@
 #  These are for Acorn's Expansion card network interfaces
 #
 
-config ARM_ETHER3
-	tristate "Acorn/ANT Ether3 support"
-	depends on ARM && ARCH_ACORN
-	help
-	  If you have an Acorn system with one of these network cards, you
-	  should say Y to this option if you wish to use it with Linux.
-
 config ARM_AT91_ETHER
 	tristate "AT91RM9200 Ethernet support"
 	depends on ARM && ARCH_AT91RM9200
