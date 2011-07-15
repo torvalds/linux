@@ -6526,14 +6526,27 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 	return flags;
 }
 
-static int set_block_group_ro(struct btrfs_block_group_cache *cache)
+static int set_block_group_ro(struct btrfs_block_group_cache *cache, int force)
 {
 	struct btrfs_space_info *sinfo = cache->space_info;
 	u64 num_bytes;
+	u64 min_allocable_bytes;
 	int ret = -ENOSPC;
 
 	if (cache->ro)
 		return 0;
+
+	/*
+	 * We need some metadata space and system metadata space for
+	 * allocating chunks in some corner cases until we force to set
+	 * it to be readonly.
+	 */
+	if ((sinfo->flags &
+	     (BTRFS_BLOCK_GROUP_SYSTEM | BTRFS_BLOCK_GROUP_METADATA)) &&
+	    !force)
+		min_allocable_bytes = 1 * 1024 * 1024;
+	else
+		min_allocable_bytes = 0;
 
 	spin_lock(&sinfo->lock);
 	spin_lock(&cache->lock);
@@ -6542,7 +6555,8 @@ static int set_block_group_ro(struct btrfs_block_group_cache *cache)
 
 	if (sinfo->bytes_used + sinfo->bytes_reserved + sinfo->bytes_pinned +
 	    sinfo->bytes_may_use + sinfo->bytes_readonly +
-	    cache->reserved_pinned + num_bytes <= sinfo->total_bytes) {
+	    cache->reserved_pinned + num_bytes + min_allocable_bytes <=
+	    sinfo->total_bytes) {
 		sinfo->bytes_readonly += num_bytes;
 		sinfo->bytes_reserved += cache->reserved_pinned;
 		cache->reserved_pinned = 0;
@@ -6573,7 +6587,7 @@ int btrfs_set_block_group_ro(struct btrfs_root *root,
 		do_chunk_alloc(trans, root, 2 * 1024 * 1024, alloc_flags,
 			       CHUNK_ALLOC_FORCE);
 
-	ret = set_block_group_ro(cache);
+	ret = set_block_group_ro(cache, 0);
 	if (!ret)
 		goto out;
 	alloc_flags = get_alloc_profile(root, cache->space_info->flags);
@@ -6581,7 +6595,7 @@ int btrfs_set_block_group_ro(struct btrfs_root *root,
 			     CHUNK_ALLOC_FORCE);
 	if (ret < 0)
 		goto out;
-	ret = set_block_group_ro(cache);
+	ret = set_block_group_ro(cache, 0);
 out:
 	btrfs_end_transaction(trans, root);
 	return ret;
@@ -7018,7 +7032,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 
 		set_avail_alloc_bits(root->fs_info, cache->flags);
 		if (btrfs_chunk_readonly(root, cache->key.objectid))
-			set_block_group_ro(cache);
+			set_block_group_ro(cache, 1);
 	}
 
 	list_for_each_entry_rcu(space_info, &root->fs_info->space_info, list) {
@@ -7032,9 +7046,9 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		 * mirrored block groups.
 		 */
 		list_for_each_entry(cache, &space_info->block_groups[3], list)
-			set_block_group_ro(cache);
+			set_block_group_ro(cache, 1);
 		list_for_each_entry(cache, &space_info->block_groups[4], list)
-			set_block_group_ro(cache);
+			set_block_group_ro(cache, 1);
 	}
 
 	init_global_block_rsv(info);
