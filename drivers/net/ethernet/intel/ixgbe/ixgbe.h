@@ -209,6 +209,7 @@ enum ixbge_ring_state_t {
 #define clear_ring_rsc_enabled(ring) \
 	clear_bit(__IXGBE_RX_RSC_ENABLED, &(ring)->state)
 struct ixgbe_ring {
+	struct ixgbe_ring *next;	/* pointer to next ring in q_vector */
 	void *desc;			/* descriptor ring memory */
 	struct device *dev;             /* device for DMA mapping */
 	struct net_device *netdev;      /* netdev ring belongs to */
@@ -277,11 +278,7 @@ struct ixgbe_ring_feature {
 } ____cacheline_internodealigned_in_smp;
 
 struct ixgbe_ring_container {
-#if MAX_RX_QUEUES > MAX_TX_QUEUES
-	DECLARE_BITMAP(idx, MAX_RX_QUEUES);
-#else
-	DECLARE_BITMAP(idx, MAX_TX_QUEUES);
-#endif
+	struct ixgbe_ring *ring;	/* pointer to linked list of rings */
 	unsigned int total_bytes;	/* total bytes processed this int */
 	unsigned int total_packets;	/* total packets processed this int */
 	u16 work_limit;			/* total work allowed per interrupt */

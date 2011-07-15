@@ -974,26 +974,17 @@ static void ixgbe_update_tx_dca(struct ixgbe_adapter *adapter,
 static void ixgbe_update_dca(struct ixgbe_q_vector *q_vector)
 {
 	struct ixgbe_adapter *adapter = q_vector->adapter;
+	struct ixgbe_ring *ring;
 	int cpu = get_cpu();
-	long r_idx;
-	int i;
 
 	if (q_vector->cpu == cpu)
 		goto out_no_update;
 
-	r_idx = find_first_bit(q_vector->tx.idx, adapter->num_tx_queues);
-	for (i = 0; i < q_vector->tx.count; i++) {
-		ixgbe_update_tx_dca(adapter, adapter->tx_ring[r_idx], cpu);
-		r_idx = find_next_bit(q_vector->tx.idx, adapter->num_tx_queues,
-				      r_idx + 1);
-	}
+	for (ring = q_vector->tx.ring; ring != NULL; ring = ring->next)
+		ixgbe_update_tx_dca(adapter, ring, cpu);
 
-	r_idx = find_first_bit(q_vector->rx.idx, adapter->num_rx_queues);
-	for (i = 0; i < q_vector->rx.count; i++) {
-		ixgbe_update_rx_dca(adapter, adapter->rx_ring[r_idx], cpu);
-		r_idx = find_next_bit(q_vector->rx.idx, adapter->num_rx_queues,
-				      r_idx + 1);
-	}
+	for (ring = q_vector->rx.ring; ring != NULL; ring = ring->next)
+		ixgbe_update_rx_dca(adapter, ring, cpu);
 
 	q_vector->cpu = cpu;
 out_no_update:
@@ -1546,7 +1537,7 @@ static int ixgbe_clean_rxonly(struct napi_struct *, int);
 static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_q_vector *q_vector;
-	int i, q_vectors, v_idx, r_idx;
+	int q_vectors, v_idx;
 	u32 mask;
 
 	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
@@ -1556,33 +1547,19 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 	 * corresponding register.
 	 */
 	for (v_idx = 0; v_idx < q_vectors; v_idx++) {
+		struct ixgbe_ring *ring;
 		q_vector = adapter->q_vector[v_idx];
-		/* XXX for_each_set_bit(...) */
-		r_idx = find_first_bit(q_vector->rx.idx,
-				       adapter->num_rx_queues);
 
-		for (i = 0; i < q_vector->rx.count; i++) {
-			u8 reg_idx = adapter->rx_ring[r_idx]->reg_idx;
-			ixgbe_set_ivar(adapter, 0, reg_idx, v_idx);
-			r_idx = find_next_bit(q_vector->rx.idx,
-					      adapter->num_rx_queues,
-					      r_idx + 1);
-		}
-		r_idx = find_first_bit(q_vector->tx.idx,
-				       adapter->num_tx_queues);
+		for (ring = q_vector->rx.ring; ring != NULL; ring = ring->next)
+			ixgbe_set_ivar(adapter, 0, ring->reg_idx, v_idx);
 
-		for (i = 0; i < q_vector->tx.count; i++) {
-			u8 reg_idx = adapter->tx_ring[r_idx]->reg_idx;
-			ixgbe_set_ivar(adapter, 1, reg_idx, v_idx);
-			r_idx = find_next_bit(q_vector->tx.idx,
-					      adapter->num_tx_queues,
-					      r_idx + 1);
-		}
+		for (ring = q_vector->tx.ring; ring != NULL; ring = ring->next)
+			ixgbe_set_ivar(adapter, 1, ring->reg_idx, v_idx);
 
-		if (q_vector->tx.count && !q_vector->rx.count)
+		if (q_vector->tx.ring && !q_vector->rx.ring)
 			/* tx only */
 			q_vector->eitr = adapter->tx_eitr_param;
-		else if (q_vector->rx.count)
+		else if (q_vector->rx.ring)
 			/* rx or mixed */
 			q_vector->eitr = adapter->rx_eitr_param;
 
@@ -2006,19 +1983,9 @@ static inline void ixgbe_irq_disable_queues(struct ixgbe_adapter *adapter,
 static irqreturn_t ixgbe_msix_clean_tx(int irq, void *data)
 {
 	struct ixgbe_q_vector *q_vector = data;
-	struct ixgbe_adapter  *adapter = q_vector->adapter;
-	struct ixgbe_ring     *tx_ring;
-	int i, r_idx;
 
 	if (!q_vector->tx.count)
 		return IRQ_HANDLED;
-
-	r_idx = find_first_bit(q_vector->tx.idx, adapter->num_tx_queues);
-	for (i = 0; i < q_vector->tx.count; i++) {
-		tx_ring = adapter->tx_ring[r_idx];
-		r_idx = find_next_bit(q_vector->tx.idx, adapter->num_tx_queues,
-				      r_idx + 1);
-	}
 
 	/* EIAM disabled interrupts (on this vector) for us */
 	napi_schedule(&q_vector->napi);
@@ -2034,22 +2001,6 @@ static irqreturn_t ixgbe_msix_clean_tx(int irq, void *data)
 static irqreturn_t ixgbe_msix_clean_rx(int irq, void *data)
 {
 	struct ixgbe_q_vector *q_vector = data;
-	struct ixgbe_adapter  *adapter = q_vector->adapter;
-	struct ixgbe_ring  *rx_ring;
-	int r_idx;
-	int i;
-
-#ifdef CONFIG_IXGBE_DCA
-	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
-		ixgbe_update_dca(q_vector);
-#endif
-
-	r_idx = find_first_bit(q_vector->rx.idx, adapter->num_rx_queues);
-	for (i = 0; i < q_vector->rx.count; i++) {
-		rx_ring = adapter->rx_ring[r_idx];
-		r_idx = find_next_bit(q_vector->rx.idx, adapter->num_rx_queues,
-				      r_idx + 1);
-	}
 
 	if (!q_vector->rx.count)
 		return IRQ_HANDLED;
@@ -2063,27 +2014,9 @@ static irqreturn_t ixgbe_msix_clean_rx(int irq, void *data)
 static irqreturn_t ixgbe_msix_clean_many(int irq, void *data)
 {
 	struct ixgbe_q_vector *q_vector = data;
-	struct ixgbe_adapter  *adapter = q_vector->adapter;
-	struct ixgbe_ring  *ring;
-	int r_idx;
-	int i;
 
 	if (!q_vector->tx.count && !q_vector->rx.count)
 		return IRQ_HANDLED;
-
-	r_idx = find_first_bit(q_vector->tx.idx, adapter->num_tx_queues);
-	for (i = 0; i < q_vector->tx.count; i++) {
-		ring = adapter->tx_ring[r_idx];
-		r_idx = find_next_bit(q_vector->tx.idx, adapter->num_tx_queues,
-				      r_idx + 1);
-	}
-
-	r_idx = find_first_bit(q_vector->rx.idx, adapter->num_rx_queues);
-	for (i = 0; i < q_vector->rx.count; i++) {
-		ring = adapter->rx_ring[r_idx];
-		r_idx = find_next_bit(q_vector->rx.idx, adapter->num_rx_queues,
-				      r_idx + 1);
-	}
 
 	/* EIAM disabled interrupts (on this vector) for us */
 	napi_schedule(&q_vector->napi);
@@ -2104,19 +2037,14 @@ static int ixgbe_clean_rxonly(struct napi_struct *napi, int budget)
 	struct ixgbe_q_vector *q_vector =
 			       container_of(napi, struct ixgbe_q_vector, napi);
 	struct ixgbe_adapter *adapter = q_vector->adapter;
-	struct ixgbe_ring *rx_ring = NULL;
 	int work_done = 0;
-	long r_idx;
 
 #ifdef CONFIG_IXGBE_DCA
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
 		ixgbe_update_dca(q_vector);
 #endif
 
-	r_idx = find_first_bit(q_vector->rx.idx, adapter->num_rx_queues);
-	rx_ring = adapter->rx_ring[r_idx];
-
-	ixgbe_clean_rx_irq(q_vector, rx_ring, &work_done, budget);
+	ixgbe_clean_rx_irq(q_vector, q_vector->rx.ring, &work_done, budget);
 
 	/* If all Rx work done, exit the polling mode */
 	if (work_done < budget) {
@@ -2144,38 +2072,29 @@ static int ixgbe_clean_rxtx_many(struct napi_struct *napi, int budget)
 	struct ixgbe_q_vector *q_vector =
 			       container_of(napi, struct ixgbe_q_vector, napi);
 	struct ixgbe_adapter *adapter = q_vector->adapter;
-	struct ixgbe_ring *ring = NULL;
-	int work_done = 0, i;
-	long r_idx;
-	bool tx_clean_complete = true;
+	struct ixgbe_ring *ring;
+	int work_done = 0;
+	bool clean_complete = true;
 
 #ifdef CONFIG_IXGBE_DCA
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
 		ixgbe_update_dca(q_vector);
 #endif
 
-	r_idx = find_first_bit(q_vector->tx.idx, adapter->num_tx_queues);
-	for (i = 0; i < q_vector->tx.count; i++) {
-		ring = adapter->tx_ring[r_idx];
-		tx_clean_complete &= ixgbe_clean_tx_irq(q_vector, ring);
-		r_idx = find_next_bit(q_vector->tx.idx, adapter->num_tx_queues,
-				      r_idx + 1);
-	}
+	for (ring = q_vector->tx.ring; ring != NULL; ring = ring->next)
+		clean_complete &= ixgbe_clean_tx_irq(q_vector, ring);
 
 	/* attempt to distribute budget to each queue fairly, but don't allow
 	 * the budget to go below 1 because we'll exit polling */
 	budget /= (q_vector->rx.count ?: 1);
 	budget = max(budget, 1);
-	r_idx = find_first_bit(q_vector->rx.idx, adapter->num_rx_queues);
-	for (i = 0; i < q_vector->rx.count; i++) {
-		ring = adapter->rx_ring[r_idx];
-		ixgbe_clean_rx_irq(q_vector, ring, &work_done, budget);
-		r_idx = find_next_bit(q_vector->rx.idx, adapter->num_rx_queues,
-				      r_idx + 1);
-	}
 
-	r_idx = find_first_bit(q_vector->rx.idx, adapter->num_rx_queues);
-	ring = adapter->rx_ring[r_idx];
+	for (ring = q_vector->rx.ring; ring != NULL; ring = ring->next)
+		ixgbe_clean_rx_irq(q_vector, ring, &work_done, budget);
+
+	if (!clean_complete)
+		work_done = budget;
+
 	/* If all Rx work done, exit the polling mode */
 	if (work_done < budget) {
 		napi_complete(napi);
@@ -2203,32 +2122,23 @@ static int ixgbe_clean_txonly(struct napi_struct *napi, int budget)
 	struct ixgbe_q_vector *q_vector =
 			       container_of(napi, struct ixgbe_q_vector, napi);
 	struct ixgbe_adapter *adapter = q_vector->adapter;
-	struct ixgbe_ring *tx_ring = NULL;
-	int work_done = 0;
-	long r_idx;
 
 #ifdef CONFIG_IXGBE_DCA
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
 		ixgbe_update_dca(q_vector);
 #endif
 
-	r_idx = find_first_bit(q_vector->tx.idx, adapter->num_tx_queues);
-	tx_ring = adapter->tx_ring[r_idx];
-
-	if (!ixgbe_clean_tx_irq(q_vector, tx_ring))
-		work_done = budget;
+	if (!ixgbe_clean_tx_irq(q_vector, q_vector->tx.ring))
+		return budget;
 
 	/* If all Tx work done, exit the polling mode */
-	if (work_done < budget) {
-		napi_complete(napi);
-		if (adapter->tx_itr_setting & 1)
-			ixgbe_set_itr(q_vector);
-		if (!test_bit(__IXGBE_DOWN, &adapter->state))
-			ixgbe_irq_enable_queues(adapter,
-						((u64)1 << q_vector->v_idx));
-	}
+	napi_complete(napi);
+	if (adapter->tx_itr_setting & 1)
+		ixgbe_set_itr(q_vector);
+	if (!test_bit(__IXGBE_DOWN, &adapter->state))
+		ixgbe_irq_enable_queues(adapter, ((u64)1 << q_vector->v_idx));
 
-	return work_done;
+	return 0;
 }
 
 static inline void map_vector_to_rxq(struct ixgbe_adapter *a, int v_idx,
@@ -2237,9 +2147,10 @@ static inline void map_vector_to_rxq(struct ixgbe_adapter *a, int v_idx,
 	struct ixgbe_q_vector *q_vector = a->q_vector[v_idx];
 	struct ixgbe_ring *rx_ring = a->rx_ring[r_idx];
 
-	set_bit(r_idx, q_vector->rx.idx);
-	q_vector->rx.count++;
 	rx_ring->q_vector = q_vector;
+	rx_ring->next = q_vector->rx.ring;
+	q_vector->rx.ring = rx_ring;
+	q_vector->rx.count++;
 }
 
 static inline void map_vector_to_txq(struct ixgbe_adapter *a, int v_idx,
@@ -2248,9 +2159,10 @@ static inline void map_vector_to_txq(struct ixgbe_adapter *a, int v_idx,
 	struct ixgbe_q_vector *q_vector = a->q_vector[v_idx];
 	struct ixgbe_ring *tx_ring = a->tx_ring[t_idx];
 
-	set_bit(t_idx, q_vector->tx.idx);
-	q_vector->tx.count++;
 	tx_ring->q_vector = q_vector;
+	tx_ring->next = q_vector->tx.ring;
+	q_vector->tx.ring = tx_ring;
+	q_vector->tx.count++;
 	q_vector->tx.work_limit = a->tx_work_limit;
 }
 
@@ -2508,14 +2420,26 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 
 static inline void ixgbe_reset_q_vectors(struct ixgbe_adapter *adapter)
 {
-	int i, q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	int q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	int i;
+
+	/* legacy and MSI only use one vector */
+	if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED))
+		q_vectors = 1;
+
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		adapter->rx_ring[i]->q_vector = NULL;
+		adapter->rx_ring[i]->next = NULL;
+	}
+	for (i = 0; i < adapter->num_tx_queues; i++) {
+		adapter->tx_ring[i]->q_vector = NULL;
+		adapter->tx_ring[i]->next = NULL;
+	}
 
 	for (i = 0; i < q_vectors; i++) {
 		struct ixgbe_q_vector *q_vector = adapter->q_vector[i];
-		bitmap_zero(q_vector->rx.idx, MAX_RX_QUEUES);
-		bitmap_zero(q_vector->tx.idx, MAX_TX_QUEUES);
-		q_vector->rx.count = 0;
-		q_vector->tx.count = 0;
+		memset(&q_vector->rx, 0, sizeof(struct ixgbe_ring_container));
+		memset(&q_vector->tx, 0, sizeof(struct ixgbe_ring_container));
 	}
 }
 
@@ -5923,7 +5847,7 @@ static void ixgbe_check_hang_subtask(struct ixgbe_adapter *adapter)
 		/* get one bit for every active tx/rx interrupt vector */
 		for (i = 0; i < adapter->num_msix_vectors - NON_Q_VECTORS; i++) {
 			struct ixgbe_q_vector *qv = adapter->q_vector[i];
-			if (qv->rx.count || qv->tx.count)
+			if (qv->rx.ring || qv->tx.ring)
 				eics |= ((u64)1 << i);
 		}
 	}
