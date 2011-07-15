@@ -691,6 +691,7 @@ const struct psb_ops mdfld_chip_ops = {
 	.name = "Medfield",
 	.accel_2d = 0,
 	.pipes = 3,
+	.crtcs = 2,
 	.sgx_offset = MRST_SGX_OFFSET,
 
 	.chip_setup = mid_chip_setup,

@@ -24,8 +24,11 @@
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
+#include <asm/mrst.h>
 #include <asm/intel_scu_ipc.h>
 #include "mid_bios.h"
+
+static const struct psb_ops oaktrail_chip_ops;
 
 /* IPC message and command defines used to enable/disable mipi panel voltages */
 #define IPC_MSG_PANEL_ON_OFF    0xE9
@@ -352,10 +355,48 @@ static int mrst_power_up(struct drm_device *dev)
 	return 0;
 }
 
+static int mrst_chip_setup(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+
+#if defined(CONFIG_X86_MRST)
+	if (mrst_identify_cpu())
+		return mid_chip_setup(dev);
+#endif
+	dev_priv->ops = &oaktrail_chip_ops;
+	/* Check - may be better to go via BIOS paths ? */
+	return mid_chip_setup(dev);
+}
+	
 const struct psb_ops mrst_chip_ops = {
 	.name = "Moorestown",
 	.accel_2d = 1,
 	.pipes = 1,
+	.crtcs = 1,
+	.sgx_offset = MRST_SGX_OFFSET,
+
+	.chip_setup = mrst_chip_setup,
+	.crtc_helper = &mrst_helper_funcs,
+	.crtc_funcs = &psb_intel_crtc_funcs,
+
+	.output_init = mrst_output_init,
+
+#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
+	.backlight_init = mrst_backlight_init,
+#endif
+
+	.init_pm = mrst_init_pm,
+	.save_regs = mrst_save_display_registers,
+	.restore_regs = mrst_restore_display_registers,
+	.power_down = mrst_power_down,
+	.power_up = mrst_power_up,
+};
+
+static const struct psb_ops oaktrail_chip_ops = {
+	.name = "Oaktrail",
+	.accel_2d = 1,
+	.pipes = 2,
+	.crtcs = 2,
 	.sgx_offset = MRST_SGX_OFFSET,
 
 	.chip_setup = mid_chip_setup,

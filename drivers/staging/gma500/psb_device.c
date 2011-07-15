@@ -331,6 +331,7 @@ const struct psb_ops psb_chip_ops = {
 	.name = "Poulsbo",
 	.accel_2d = 1,
 	.pipes = 2,
+	.crtcs = 2,
 	.sgx_offset = PSB_SGX_OFFSET,
 	.chip_setup = psb_chip_setup,
 

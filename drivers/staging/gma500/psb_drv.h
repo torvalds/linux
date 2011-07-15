@@ -622,6 +622,7 @@ struct psb_ops {
 	const char *name;
 	unsigned int accel_2d:1;
 	int pipes;		/* Number of output pipes */
+	int crtcs;		/* Number of CRTCs */
 	int sgx_offset;		/* Base offset of SGX device */
 
 	/* Sub functions */

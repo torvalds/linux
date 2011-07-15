@@ -578,7 +578,7 @@ int psb_fbdev_init(struct drm_device *dev)
 	dev_priv->fbdev = fbdev;
 	fbdev->psb_fb_helper.funcs = &psb_fb_helper_funcs;
 
-	drm_fb_helper_init(dev, &fbdev->psb_fb_helper, 2,
+	drm_fb_helper_init(dev, &fbdev->psb_fb_helper, dev_priv->ops->crtcs,
 							INTELFB_CONN_LIMIT);
 
 	drm_fb_helper_single_add_all_connectors(&fbdev->psb_fb_helper);
