@@ -3615,7 +3615,7 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 
 	/* reconfigure the hardware */
 	if (adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE) {
-#ifdef CONFIG_FCOE
+#ifdef IXGBE_FCOE
 		if (adapter->netdev->features & NETIF_F_FCOE_MTU)
 			max_frame = max(max_frame, IXGBE_FCOE_JUMBO_FRAME_SIZE);
 #endif
