@@ -31,6 +31,8 @@ int gma_backlight_init(struct drm_device *dev)
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	return dev_priv->ops->backlight_init(dev);
+#else
+	return 0;
 #endif
 }
 

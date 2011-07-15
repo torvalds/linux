@@ -467,8 +467,6 @@ static void psb_intel_lvds_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
-	struct psb_intel_mode_device *mode_dev =
-	    enc_to_psb_intel_output(encoder)->mode_dev;
 	struct drm_device *dev = encoder->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 pfit_control;
@@ -571,17 +569,14 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 				       uint64_t value)
 {
 	struct drm_encoder *encoder = connector->encoder;
-	struct drm_psb_private *dev_priv;
 
 	if (!encoder)
 		return -1;
 
-	dev_priv = encoder->dev->dev_private;
-
 	if (!strcmp(property->name, "scaling mode")) {
 		struct psb_intel_crtc *crtc =
 					to_psb_intel_crtc(encoder->crtc);
-		uint64_t curValue;
+		uint64_t curval;
 
 		if (!crtc)
 			goto set_prop_error;
@@ -599,10 +594,10 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 
 		if (drm_connector_property_get_value(connector,
 						     property,
-						     &curValue))
+						     &curval))
 			goto set_prop_error;
 
-		if (curValue == value)
+		if (curval == value)
 			goto set_prop_done;
 
 		if (drm_connector_property_set_value(connector,
@@ -626,8 +621,8 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 			goto set_prop_error;
 		else {
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-			struct backlight_device *bd =
-					dev_priv->backlight_device;
+			struct drm_psb_private *devp = encoder->dev->dev_private;
+			struct backlight_device *bd = devp->backlight_device;
 			if (bd) {
 				bd->props.brightness = value;
 				backlight_update_status(bd);
@@ -635,9 +630,9 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 #endif
 		}
 	} else if (!strcmp(property->name, "DPMS")) {
-		struct drm_encoder_helper_funcs *pEncHFuncs
+		struct drm_encoder_helper_funcs *hfuncs
 						= encoder->helper_private;
-		pEncHFuncs->dpms(encoder, value);
+		hfuncs->dpms(encoder, value);
 	}
 
 set_prop_done:

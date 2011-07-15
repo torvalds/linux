@@ -536,20 +536,24 @@ static int psb_dc_state_ioctl(struct drm_device *dev, void * data,
 	return -EINVAL;
 }
 
-static int psb_dpst_bl_ioctl(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv)
+static inline void get_brightness(struct backlight_device *bd)
 {
-	struct drm_psb_private *dev_priv = psb_priv(dev);
-	uint32_t *arg = data;
-	struct backlight_device *bd = dev_priv->backlight_device;
-	dev_priv->blc_adj2 = *arg;
-
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 	if (bd) {
 		bd->props.brightness = bd->ops->get_brightness(bd);
 		backlight_update_status(bd);
 	}
 #endif
+}
+
+static int psb_dpst_bl_ioctl(struct drm_device *dev, void *data,
+		       struct drm_file *file_priv)
+{
+	struct drm_psb_private *dev_priv = psb_priv(dev);
+	uint32_t *arg = data;
+
+	dev_priv->blc_adj2 = *arg;
+	get_brightness(dev_priv->backlight_device);
 	return 0;
 }
 
@@ -558,15 +562,9 @@ static int psb_adb_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_psb_private *dev_priv = psb_priv(dev);
 	uint32_t *arg = data;
-	struct backlight_device *bd = dev_priv->backlight_device;
-	dev_priv->blc_adj1 = *arg;
 
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-	if (bd) {
-		bd->props.brightness = bd->ops->get_brightness(bd);
-		backlight_update_status(bd);
-	}
-#endif
+	dev_priv->blc_adj1 = *arg;
+	get_brightness(dev_priv->backlight_device);
 	return 0;
 }
 
