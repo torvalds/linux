@@ -3093,37 +3093,37 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 		nc = rcu_dereference(tconn->net_conf);
 
 		if (p_proto != nc->wire_protocol) {
-			conn_err(tconn, "incompatible communication protocols\n");
+			conn_err(tconn, "incompatible %s settings\n", "protocol");
 			goto disconnect_rcu_unlock;
 		}
 
 		if (convert_after_sb(p_after_sb_0p) != nc->after_sb_0p) {
-			conn_err(tconn, "incompatible after-sb-0pri settings\n");
+			conn_err(tconn, "incompatible %s settings\n", "after-sb-0pri");
 			goto disconnect_rcu_unlock;
 		}
 
 		if (convert_after_sb(p_after_sb_1p) != nc->after_sb_1p) {
-			conn_err(tconn, "incompatible after-sb-1pri settings\n");
+			conn_err(tconn, "incompatible %s settings\n", "after-sb-1pri");
 			goto disconnect_rcu_unlock;
 		}
 
 		if (convert_after_sb(p_after_sb_2p) != nc->after_sb_2p) {
-			conn_err(tconn, "incompatible after-sb-2pri settings\n");
+			conn_err(tconn, "incompatible %s settings\n", "after-sb-2pri");
 			goto disconnect_rcu_unlock;
 		}
 
 		if (p_discard_my_data && nc->discard_my_data) {
-			conn_err(tconn, "both sides have the 'discard_my_data' flag set\n");
+			conn_err(tconn, "incompatible %s settings\n", "discard-my-data");
 			goto disconnect_rcu_unlock;
 		}
 
 		if (p_two_primaries != nc->two_primaries) {
-			conn_err(tconn, "incompatible setting of the two-primaries options\n");
+			conn_err(tconn, "incompatible %s settings\n", "allow-two-primaries");
 			goto disconnect_rcu_unlock;
 		}
 
 		if (strcmp(integrity_alg, nc->integrity_alg)) {
-			conn_err(tconn, "incompatible setting of the data-integrity-alg\n");
+			conn_err(tconn, "incompatible %s settings\n", "data-integrity-alg");
 			goto disconnect_rcu_unlock;
 		}
 
