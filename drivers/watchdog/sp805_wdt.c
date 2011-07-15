@@ -134,6 +134,8 @@ static void wdt_enable(void)
 	writel(INT_ENABLE | RESET_ENABLE, wdt->base + WDTCONTROL);
 	writel(LOCK, wdt->base + WDTLOCK);
 
+	/* Flush posted writes. */
+	readl(wdt->base + WDTLOCK);
 	spin_unlock(&wdt->lock);
 }
 
@@ -146,6 +148,8 @@ static void wdt_disable(void)
 	writel(0, wdt->base + WDTCONTROL);
 	writel(LOCK, wdt->base + WDTLOCK);
 
+	/* Flush posted writes. */
+	readl(wdt->base + WDTLOCK);
 	spin_unlock(&wdt->lock);
 }
 
