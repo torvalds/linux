@@ -2763,7 +2763,7 @@ static void wm8958_default_micdet(u16 status, void *data)
 	report = SND_JACK_MICROPHONE;
 
 	/* Everything else is buttons; just assign slots */
-	if (status & 0x1c0)
+	if (status & 0x1c)
 		report |= SND_JACK_BTN_0;
 
 done:
