@@ -421,15 +421,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 #if defined(CONFIG_DRM_PSB_MFLD)
 	/* FIXME: this is not the right place for this stuff ! */
-	if (IS_MFLD(dev)) {
-#ifdef CONFIG_MDFLD_DSI_DPU
-		/*init dpu info*/
-		mdfld_dbi_dpu_init(dev);
-#else
-		mdfld_dbi_dsr_init(dev);
-#endif /*CONFIG_MDFLD_DSI_DPU*/
-		/* INIT_WORK(&dev_priv->te_work, mdfld_te_handler_work);*/
-	}
+	mdfld_output_setup(dev);
 #endif
 	if (drm_psb_no_fb == 0) {
 		psb_modeset_init(dev);
@@ -444,6 +436,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 		switch (psb_intel_output->type) {
 		case INTEL_OUTPUT_LVDS:
+		case INTEL_OUTPUT_MIPI:
 			ret = gma_backlight_init(dev);
 			break;
 		}

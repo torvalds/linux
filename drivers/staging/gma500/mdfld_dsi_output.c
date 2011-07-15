@@ -46,7 +46,7 @@ module_param (LABC_control, int, 0644);
  * we don't need 'movl' everytime we send them.
  * FIXME: these datas were provided by OEM, we should get them from GCT.
  **/
-static const u32 mdfld_dbi_mcs_hysteresis[] = {
+static u32 mdfld_dbi_mcs_hysteresis[] = {
 	0x42000f57, 0x8c006400, 0xff00bf00, 0xffffffff,
 	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,
 	0x38000aff, 0x82005000, 0xff00ab00, 0xffffffff,
@@ -54,16 +54,16 @@ static const u32 mdfld_dbi_mcs_hysteresis[] = {
 	0x000000ff,
 };
 
-static const u32 mdfld_dbi_mcs_display_profile[] = {
+static u32 mdfld_dbi_mcs_display_profile[] = {
 	0x50281450, 0x0000c882, 0x00000000, 0x00000000,
 	0x00000000,
 };
 
-static const u32 mdfld_dbi_mcs_kbbc_profile[] = {
+static u32 mdfld_dbi_mcs_kbbc_profile[] = {
 	0x00ffcc60, 0x00000000, 0x00000000, 0x00000000,
 }; 
 	
-static const u32 mdfld_dbi_mcs_gamma_profile[] = {
+static u32 mdfld_dbi_mcs_gamma_profile[] = {
 	0x81111158, 0x88888888, 0x88888888,
 }; 
 

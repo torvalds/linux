@@ -46,6 +46,7 @@ psb_gfx-$(CONFIG_DRM_PSB_MFLD) += mdfld_device.o \
 	  mdfld_dsi_dpi.o \
 	  mdfld_dsi_output.o \
 	  mdfld_dsi_dbi.o \
+	  mdfld_dsi_dbi_dpu.o \
 	  mdfld_intel_display.o
 
 obj-$(CONFIG_DRM_PSB) += psb_gfx.o

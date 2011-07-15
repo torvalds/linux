@@ -30,6 +30,7 @@
 #include "mdfld_dsi_dpi.h"
 #include "mdfld_dsi_output.h"
 #include "mdfld_output.h"
+#include "mdfld_dsi_dbi_dpu.h"
 
 #include "displays/tpo_cmd.h"
 #include "displays/tpo_vid.h"
@@ -38,6 +39,17 @@
 #include "displays/pyr_cmd.h"
 #include "displays/pyr_vid.h"
 /* #include "displays/hdmi.h" */
+
+static int mdfld_dual_mipi;
+static int mdfld_hdmi;
+static int mdfld_dpu;
+
+module_param(mdfld_dual_mipi, int, 0600);
+MODULE_PARM_DESC(mdfld_dual_mipi, "Enable dual MIPI configuration");
+module_param(mdfld_hdmi, int, 0600);
+MODULE_PARM_DESC(mdfld_hdmi, "Enable Medfield HDMI");
+module_param(mdfld_dpu, int, 0600);
+MODULE_PARM_DESC(mdfld_dpu, "Enable Medfield DPU");
 
 /* For now a single type per device is all we cope with */
 int mdfld_get_panel_type(struct drm_device *dev, int pipe)
@@ -134,15 +146,25 @@ int mdfld_output_init(struct drm_device *dev)
 	dev_info(dev->dev, "panel 1: type is %d\n", type);
 	init_panel(dev, 0, type);
 
-#ifdef CONFIG_MDFD_DUAL_MIPI
-	/* MIPI panel 2 */
-	type = mdfld_get_panel_type(dev, 2);
-	dev_info(dev->dev, "panel 2: type is %d\n", type);
-	init_panel(dev, 2, type);
-#endif
-#ifdef CONFIG_MDFD_HDMI
-	/* HDMI panel */
-	init_panel(dev, 0, HDMI);
-#endif
+	if (mdfld_dual_mipi) {
+		/* MIPI panel 2 */
+		type = mdfld_get_panel_type(dev, 2);
+		dev_info(dev->dev, "panel 2: type is %d\n", type);
+		init_panel(dev, 2, type);
+	}
+	if (mdfld_hdmi)
+		/* HDMI panel */
+		init_panel(dev, 0, HDMI);
 	return 0;
+}
+
+void mdfld_output_setup(struct drm_device *dev)
+{
+	/* FIXME: this is not the right place for this stuff ! */
+	if (IS_MFLD(dev)) {
+		if (mdfld_dpu)
+			mdfld_dbi_dpu_init(dev);
+		else
+			mdfld_dbi_dsr_init(dev);
+	}
 }

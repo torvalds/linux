@@ -28,10 +28,7 @@
 #include "psb_intel_display.h"
 #include "mdfld_dsi_dbi.h"
 #include "mdfld_dsi_dpi.h"
-//#include "mdfld_dsi_output.h"
-#ifdef CONFIG_MDFLD_DSI_DPU
 #include "mdfld_dsi_dbi_dpu.h"
-#endif
 
 #include <linux/pm_runtime.h>
 
@@ -232,25 +229,23 @@ static int mdfld_intel_crtc_cursor_set(struct drm_crtc *crtc,
 		REG_WRITE(base, addr);
 		gma_power_end(dev);
 	}
-#if 0
-        /* FIXME: COnvert to GEM */
-	/* unpin the old bo */
-	if (psb_intel_crtc->cursor_bo && psb_intel_crtc->cursor_bo != bo) {
-		mode_dev->bo_unpin_for_scanout(dev, psb_intel_crtc->cursor_bo);
-		psb_intel_crtc->cursor_bo = bo;
+	/* unpin the old GEM object */
+	if (psb_intel_crtc->cursor_obj) {
+		gt = container_of(psb_intel_crtc->cursor_obj,
+							struct gtt_range, gem);
+		psb_gtt_unpin(gt);
+		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
+		psb_intel_crtc->cursor_obj = obj;
 	}
-#endif
 	return 0;
 }
 
 static int mdfld_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 {
 	struct drm_device *dev = crtc->dev;
-#ifndef CONFIG_MDFLD_DSI_DPU
 	struct drm_psb_private * dev_priv = (struct drm_psb_private *)dev->dev_private;
-#else
+	struct mdfld_dbi_dpu_info *dpu_info = dev_priv->dbi_dpu_info;
 	struct psb_drm_dpu_rect rect;
-#endif
 	struct psb_intel_crtc *psb_intel_crtc = to_psb_intel_crtc(crtc);
 	int pipe = psb_intel_crtc->pipe;
 	uint32_t pos = CURAPOS;
@@ -260,29 +255,25 @@ static int mdfld_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 
 	switch (pipe) {
 	case 0:
-#ifndef CONFIG_MDFLD_DSI_DPU
-		if (!(dev_priv->dsr_fb_update & MDFLD_DSR_CURSOR_0))
-			mdfld_dsi_dbi_exit_dsr (dev, MDFLD_DSR_CURSOR_0);
-#else /*CONFIG_MDFLD_DSI_DPU*/
-		rect.x = x;
-		rect.y = y;
+		if (dpu_info) {
+			rect.x = x;
+			rect.y = y;
 		
-		mdfld_dbi_dpu_report_damage(dev, MDFLD_CURSORA, &rect);
-		mdfld_dpu_exit_dsr(dev);
-#endif
+			mdfld_dbi_dpu_report_damage(dev, MDFLD_CURSORA, &rect);
+			mdfld_dpu_exit_dsr(dev);
+		} else if (!(dev_priv->dsr_fb_update & MDFLD_DSR_CURSOR_0))
+			mdfld_dsi_dbi_exit_dsr(dev, MDFLD_DSR_CURSOR_0);
 		break;
 	case 1:
 		pos = CURBPOS;
 		base = CURBBASE;
 		break;
 	case 2:
-#ifndef CONFIG_MDFLD_DSI_DPU
-		if (!(dev_priv->dsr_fb_update & MDFLD_DSR_CURSOR_2))
-			mdfld_dsi_dbi_exit_dsr (dev, MDFLD_DSR_CURSOR_2);
-#else /*CONFIG_MDFLD_DSI_DPU*/
-		mdfld_dbi_dpu_report_damage(dev, MDFLD_CURSORC, &rect);
-		mdfld_dpu_exit_dsr(dev);
-#endif
+		if (dpu_info) {
+			mdfld_dbi_dpu_report_damage(dev, MDFLD_CURSORC, &rect);
+			mdfld_dpu_exit_dsr(dev);
+		} else if (!(dev_priv->dsr_fb_update & MDFLD_DSR_CURSOR_2))
+			mdfld_dsi_dbi_exit_dsr(dev, MDFLD_DSR_CURSOR_2);
 		pos = CURCPOS;
 		base = CURCBASE;
 		break;

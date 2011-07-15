@@ -29,7 +29,7 @@
 #include "mdfld_dsi_dpi.h"
 #include "mdfld_dsi_output.h"
 #include "mdfld_output.h"
-
+#include "mdfld_dsi_dbi_dpu.h"
 #include "mdfld_dsi_pkg_sender.h"
 
 #include "displays/tpo_cmd.h"
@@ -359,15 +359,11 @@ static void mdfld_dsi_dbi_commit(struct drm_encoder *encoder)
 
 	if (dbi_output->channel_num == 1) {
 		dev_priv->dsr_fb_update |= MDFLD_DSR_2D_3D_2;
-#ifdef CONFIG_MDFLD_DSI_DPU
 		/*if dpu enabled report a fullscreen damage*/
 		mdfld_dbi_dpu_report_damage(dev, MDFLD_PLANEC, &rect);
-#endif
 	} else {
 		dev_priv->dsr_fb_update |= MDFLD_DSR_2D_3D_0;
-#ifdef CONFIG_MDFLD_DSI_DPU
 		mdfld_dbi_dpu_report_damage(dev, MDFLD_PLANEA, &rect);
-#endif
 	}
 	dbi_output->mode_flags |= MODE_SETTING_ENCODER_DONE;
 }

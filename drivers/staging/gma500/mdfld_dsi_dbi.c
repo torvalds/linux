@@ -327,7 +327,6 @@ void mdfld_dsi_dbi_enter_dsr(struct mdfld_dsi_dbi_output *dbi_output, int pipe)
 	}
 }
 
-#ifndef CONFIG_MDFLD_DSI_DPU
 static void mdfld_dbi_output_exit_dsr(struct mdfld_dsi_dbi_output *dbi_output,
 			int pipe)
 {
@@ -562,7 +561,6 @@ void mdfld_dbi_dsr_exit(struct drm_device *dev)
 		dev_priv->dbi_dsr_info = NULL;
 	}
 }
-#endif
 
 void mdfld_dsi_controller_dbi_init(struct mdfld_dsi_config *dsi_config,
 								int pipe)
@@ -648,12 +646,8 @@ struct mdfld_dsi_encoder *mdfld_dsi_dbi_init(struct drm_device *dev,
 	struct drm_encoder *encoder = NULL;
 	struct drm_display_mode *fixed_mode = NULL;
 	struct psb_gtt *pg = dev_priv ? (&dev_priv->gtt) : NULL;
-
-#ifdef CONFIG_MDFLD_DSI_DPU
 	struct mdfld_dbi_dpu_info *dpu_info = dev_priv ? (dev_priv->dbi_dpu_info) : NULL;
-#else
 	struct mdfld_dbi_dsr_info *dsr_info = dev_priv ? (dev_priv->dbi_dsr_info) : NULL;
-#endif
 	u32 data = 0;
 	int pipe;
 	int ret;
@@ -742,20 +736,16 @@ struct mdfld_dsi_encoder *mdfld_dsi_dbi_init(struct drm_device *dev,
 	dbi_output->first_boot = true;
 	dbi_output->mode_flags = MODE_SETTING_IN_ENCODER;
 
-#ifdef CONFIG_MDFLD_DSI_DPU
-	/* Add this output to dpu_info */
-	if (dsi_connector->status == connector_status_connected) {
+	/* Add this output to dpu_info if in DPU mode */
+	if (dpu_info && dsi_connector->status == connector_status_connected) {
 		if (dsi_connector->pipe == 0)
 			dpu_info->dbi_outputs[0] = dbi_output;
 		else
 			dpu_info->dbi_outputs[1] = dbi_output;
 
 		dpu_info->dbi_output_num++;
-	}
-
-#else /*CONFIG_MDFLD_DSI_DPU*/
-	if (dsi_connector->status == connector_status_connected) {
-		/* Add this output to dsr_info */
+	} else if (dsi_connector->status == connector_status_connected) {
+		/* Add this output to dsr_info if not */
 		if (dsi_connector->pipe == 0)
 			dsr_info->dbi_outputs[0] = dbi_output;
 		else
@@ -763,7 +753,6 @@ struct mdfld_dsi_encoder *mdfld_dsi_dbi_init(struct drm_device *dev,
 
 		dsr_info->dbi_output_num++;
 	}
-#endif
 	return &dbi_output->base;
 out_err1:
 	kfree(dbi_output);
