@@ -1147,11 +1147,7 @@ static void rtl8192_init_priv_handler(struct net_device* dev)
 
 	priv->rtllib->ScanOperationBackupHandler = PHY_ScanOperationBackup8192;
 
-#ifdef CONFIG_RTL_RFKILL
-	priv->rtllib->rtllib_rfkill_poll = rtl8192_rfkill_poll;
-#else
 	priv->rtllib->rtllib_rfkill_poll = NULL;
-#endif
 }
 
 static void rtl8192_init_priv_constant(struct net_device* dev)
@@ -3056,15 +3052,6 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	if (priv->polling_timer_on == 0){
 		check_rfctrl_gpio_timer((unsigned long)dev);
 	}
-#ifdef CONFIG_RTL_RFKILL
-	if (priv->ops->init_before_adapter_start) {
-		priv->ops->init_before_adapter_start(dev);
-		priv->initialized_at_probe = true;
-	}
-	if (!rtl8192_rfkill_init(dev)) {
-		goto fail1;
-	}
-#endif
 
 	RT_TRACE(COMP_INIT, "Driver probe completed\n");
 	return 0;
@@ -3099,9 +3086,6 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv ;
 	if (dev){
-#ifdef CONFIG_RTL_RFKILL
-		rtl8192_rfkill_exit(dev);
-#endif
 		unregister_netdev(dev);
 
 		priv = rtllib_priv(dev);

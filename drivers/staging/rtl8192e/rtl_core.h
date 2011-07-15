@@ -56,10 +56,6 @@
 #include "r8190P_def.h"
 #include "r8192E_dev.h"
 
-#ifdef CONFIG_RTL_RFKILL
-#include "rtl_rfkill.h"
-#endif
-
 #include "rtl_debug.h"
 #include "rtl_eeprom.h"
 #include "rtl_ps.h"
@@ -678,9 +674,6 @@ typedef struct r8192_priv
 	u8		RegCWinMin;
 	u8		keepAliveLevel;
 
-#ifdef CONFIG_RTL_RFKILL
-	bool		rfkill_off;
-#endif
 	bool		sw_radio_on;
 	bool		bHwRadioOff;
 	bool		pwrdown;
