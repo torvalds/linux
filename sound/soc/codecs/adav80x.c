@@ -456,7 +456,7 @@ static int adav80x_set_capture_pcm_format(struct snd_soc_codec *codec,
 		val = ADAV80X_CAPTURE_WORD_LEN24;
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
 	snd_soc_update_bits(codec, adav80x_port_ctrl_regs[dai->id][0],
@@ -488,7 +488,7 @@ static int adav80x_set_playback_pcm_format(struct snd_soc_codec *codec,
 		val = ADAV80X_PLAYBACK_MODE_RIGHT_J_24;
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
 	snd_soc_update_bits(codec, adav80x_port_ctrl_regs[dai->id][1],
