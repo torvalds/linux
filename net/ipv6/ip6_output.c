@@ -141,7 +141,7 @@ static int ip6_finish_output2(struct sk_buff *skb)
 		if (hh->hh_len)
 			return neigh_hh_output(hh, skb);
 		else
-			return dst->neighbour->output(skb);
+			return neigh->output(skb);
 	}
 	IP6_INC_STATS_BH(dev_net(dst->dev),
 			 ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
