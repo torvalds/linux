@@ -210,7 +210,7 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		if (hh->hh_len)
 			return neigh_hh_output(hh, skb);
 		else
-			return dst->neighbour->output(skb);
+			return neigh->output(skb);
 	}
 	if (net_ratelimit())
 		printk(KERN_DEBUG "ip_finish_output2: No header cache and no neighbour!\n");
