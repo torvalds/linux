@@ -103,7 +103,6 @@ int ath6kldev_rw_comp_handler(void *context, int status);
 int ath6kldev_intr_bh_handler(struct ath6kl *ar);
 
 /* Scatter Function and Definitions */
-int ath6kldev_setup_msg_bndl(struct ath6kl_device *dev, int max_msg_per_xfer);
 int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 			    struct hif_scatter_req *scat_req, bool read);
 

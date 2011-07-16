@@ -216,11 +216,6 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 	return status;
 }
 
-int ath6kldev_setup_msg_bndl(struct ath6kl_device *dev, int max_msg_per_trans)
-{
-	return ath6kl_hif_enable_scatter(dev->ar, &dev->hif_scat_info);
-}
-
 static int ath6kldev_proc_counter_intr(struct ath6kl_device *dev)
 {
 	u8 counter_int_status;

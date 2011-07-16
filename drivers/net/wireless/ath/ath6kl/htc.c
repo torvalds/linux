@@ -2175,7 +2175,7 @@ static void htc_setup_msg_bndl(struct htc_target *target)
 	target->msg_per_bndl_max = min(HTC_HOST_MAX_MSG_PER_BUNDLE,
 				       target->msg_per_bndl_max);
 
-	if (ath6kldev_setup_msg_bndl(target->dev, target->msg_per_bndl_max)) {
+	if (ath6kl_hif_enable_scatter(target->dev->ar, scat_info)) {
 		target->msg_per_bndl_max = 0;
 		return;
 	}
