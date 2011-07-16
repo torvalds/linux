@@ -16,6 +16,7 @@
 
 #include <asm/proc-fns.h>
 #include <asm/hardware/cache-l2x0.h>
+#include <asm/hardware/gic.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
@@ -160,11 +161,20 @@ void __init exynos4_init_clocks(int xtal)
 	exynos4_setup_clocks();
 }
 
+static void exynos4_gic_irq_eoi(struct irq_data *d)
+{
+	struct gic_chip_data *gic_data = irq_data_get_irq_chip_data(d);
+
+	gic_data->cpu_base = S5P_VA_GIC_CPU +
+			    (EXYNOS4_GIC_BANK_OFFSET * smp_processor_id());
+}
+
 void __init exynos4_init_irq(void)
 {
 	int irq;
 
 	gic_init(0, IRQ_LOCALTIMER, S5P_VA_GIC_DIST, S5P_VA_GIC_CPU);
+	gic_arch_extn.irq_eoi = exynos4_gic_irq_eoi;
 
 	for (irq = 0; irq < MAX_COMBINER_NR; irq++) {
 

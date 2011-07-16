@@ -10,6 +10,7 @@
 */
 
 #include <mach/hardware.h>
+#include <mach/map.h>
 #include <asm/hardware/gic.h>
 
 		.macro	disable_fiq
@@ -18,6 +19,10 @@
 		.macro  get_irqnr_preamble, base, tmp
 		ldr	\base, =gic_cpu_base_addr
 		ldr	\base, [\base]
+		mrc     p15, 0, \tmp, c0, c0, 5
+		and     \tmp, \tmp, #3
+		cmp     \tmp, #1
+		addeq   \base, \base, #EXYNOS4_GIC_BANK_OFFSET
 		.endm
 
 		.macro  arch_ret_to_user, tmp1, tmp2
