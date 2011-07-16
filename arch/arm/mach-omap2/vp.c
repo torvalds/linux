@@ -9,31 +9,18 @@
 #include "prm-regbits-44xx.h"
 #include "prm44xx.h"
 
-static void vp_latch_vsel(struct voltagedomain *voltdm)
+static u32 _vp_set_init_voltage(struct voltagedomain *voltdm, u32 volt)
 {
 	struct omap_vp_instance *vp = voltdm->vp;
 	u32 vpconfig;
-	unsigned long uvdc;
 	char vsel;
 
-	uvdc = omap_voltage_get_nom_volt(voltdm);
-	if (!uvdc) {
-		pr_warning("%s: unable to find current voltage for vdd_%s\n",
-			__func__, voltdm->name);
-		return;
-	}
-
-	if (!voltdm->pmic || !voltdm->pmic->uv_to_vsel) {
-		pr_warning("%s: PMIC function to convert voltage in uV to"
-			" vsel not registered\n", __func__);
-		return;
-	}
-
-	vsel = voltdm->pmic->uv_to_vsel(uvdc);
+	vsel = voltdm->pmic->uv_to_vsel(volt);
 
 	vpconfig = voltdm->read(vp->vpconfig);
 	vpconfig &= ~(vp->common->vpconfig_initvoltage_mask |
-			vp->common->vpconfig_initvdd);
+		      vp->common->vpconfig_forceupdate |
+		      vp->common->vpconfig_initvdd);
 	vpconfig |= vsel << __ffs(vp->common->vpconfig_initvoltage_mask);
 	voltdm->write(vpconfig, vp->vpconfig);
 
@@ -43,6 +30,8 @@ static void vp_latch_vsel(struct voltagedomain *voltdm)
 
 	/* Clear initVDD copy trigger bit */
 	voltdm->write(vpconfig, vp->vpconfig);
+
+	return vpconfig;
 }
 
 /* Generic voltage init functions */
@@ -149,22 +138,11 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 		return -ETIMEDOUT;
 	}
 
-	/* Configure for VP-Force Update */
-	vpconfig = voltdm->read(vp->vpconfig);
-	vpconfig &= ~(vp->common->vpconfig_initvdd |
-			vp->common->vpconfig_forceupdate |
-			vp->common->vpconfig_initvoltage_mask);
-	vpconfig |= ((target_vsel <<
-		      __ffs(vp->common->vpconfig_initvoltage_mask)));
-	voltdm->write(vpconfig, vp->vpconfig);
-
-	/* Trigger initVDD value copy to voltage processor */
-	vpconfig |= vp->common->vpconfig_initvdd;
-	voltdm->write(vpconfig, vp->vpconfig);
+	vpconfig = _vp_set_init_voltage(voltdm, target_volt);
 
 	/* Force update of voltage */
-	vpconfig |= vp->common->vpconfig_forceupdate;
-	voltdm->write(vpconfig, vp->vpconfig);
+	voltdm->write(vpconfig | vp->common->vpconfig_forceupdate,
+		      voltdm->vp->vpconfig);
 
 	/*
 	 * Wait for TransactionDone. Typical latency is <200us.
@@ -197,12 +175,7 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 			"to clear the TRANXDONE status\n",
 			__func__, voltdm->name);
 
-	vpconfig = voltdm->read(vp->vpconfig);
-	/* Clear initVDD copy trigger bit */
-	vpconfig &= ~vp->common->vpconfig_initvdd;
-	voltdm->write(vpconfig, vp->vpconfig);
 	/* Clear force bit */
-	vpconfig &= ~vp->common->vpconfig_forceupdate;
 	voltdm->write(vpconfig, vp->vpconfig);
 
 	return 0;
@@ -218,7 +191,7 @@ int omap_vp_forceupdate_scale(struct voltagedomain *voltdm,
 void omap_vp_enable(struct voltagedomain *voltdm)
 {
 	struct omap_vp_instance *vp;
-	u32 vpconfig;
+	u32 vpconfig, volt;
 
 	if (!voltdm || IS_ERR(voltdm)) {
 		pr_warning("%s: VDD specified does not exist!\n", __func__);
@@ -236,12 +209,19 @@ void omap_vp_enable(struct voltagedomain *voltdm)
 	if (vp->enabled)
 		return;
 
-	vp_latch_vsel(voltdm);
+	volt = voltdm_get_voltage(voltdm);
+	if (!volt) {
+		pr_warning("%s: unable to find current voltage for %s\n",
+			   __func__, voltdm->name);
+		return;
+	}
+
+	vpconfig = _vp_set_init_voltage(voltdm, volt);
 
 	/* Enable VP */
-	vpconfig = voltdm->read(vp->vpconfig);
 	vpconfig |= vp->common->vpconfig_vpenable;
 	voltdm->write(vpconfig, vp->vpconfig);
+
 	vp->enabled = true;
 }
 
