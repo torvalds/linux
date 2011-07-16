@@ -177,7 +177,8 @@ struct hif_scatter_req {
 	struct htc_endpoint *ep;
 	int scat_entries;
 
-	struct hif_scatter_req_priv *req_priv;
+	struct bus_request *busrequest;
+	struct scatterlist *sgentries;
 
 	/* bounce buffer for upper layers to copy to/from */
 	u8 *virt_dma_buf;
@@ -188,11 +189,6 @@ struct hif_scatter_req {
 struct hif_dev_scat_sup_info {
 	int max_scat_entries;
 	int max_xfer_szper_scatreq;
-};
-
-struct hif_scatter_req_priv {
-	struct bus_request *busrequest;
-	struct scatterlist sgentries[MAX_SCATTER_ENTRIES_PER_REQ];
 };
 
 struct ath6kl_hif_ops {
