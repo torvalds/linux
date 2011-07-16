@@ -43,7 +43,6 @@
 
 MODULE_ALIAS("mmc:block");
 
-static DEFINE_MUTEX(block_mutex); //added by xbw at 2011-04-21
 /*
  * max 8 partitions per card
  */
@@ -107,7 +106,6 @@ static int mmc_blk_open(struct block_device *bdev, fmode_t mode)
 	struct mmc_blk_data *md = mmc_blk_get(bdev->bd_disk);
 	int ret = -ENXIO;
 
-	mutex_lock(&block_mutex); //added by xbw at 2011-04-21
 	if (md) {
 		if (md->usage == 2)
 			check_disk_change(bdev);
@@ -118,7 +116,6 @@ static int mmc_blk_open(struct block_device *bdev, fmode_t mode)
 			ret = -EROFS;
 		}
 	}
-	mutex_unlock(&block_mutex);
 
 	return ret;
 }
@@ -127,9 +124,7 @@ static int mmc_blk_release(struct gendisk *disk, fmode_t mode)
 {
 	struct mmc_blk_data *md = disk->private_data;
 
-	mutex_lock(&block_mutex); //added by xbw at 2011-04-21
 	mmc_blk_put(md);
-	mutex_unlock(&block_mutex);
 	return 0;
 }
 
@@ -229,7 +224,6 @@ static u32 mmc_sd_num_wr_blocks(struct mmc_card *card)
 	return result;
 }
 
-#if 0 //Deleted by xbw@2011-03-21
 static u32 get_card_status(struct mmc_card *card, struct request *req)
 {
 	struct mmc_command cmd;
@@ -246,7 +240,6 @@ static u32 get_card_status(struct mmc_card *card, struct request *req)
 		       req->rq_disk->disk_name, err);
 	return cmd.resp[0];
 }
-#endif
 
 static int
 mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card)
@@ -290,17 +283,14 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 #endif
 
 	mmc_claim_host(card->host);
-	//card->host->re_initialized_flags = 0; //added by xbw@2011-04-07
 
 	do {
-		//struct mmc_command cmd;//Deleted by xbw@2011-03-21
+		struct mmc_command cmd;
 		u32 readcmd, writecmd, status = 0;
 
 		memset(&brq, 0, sizeof(struct mmc_blk_request));
 		brq.mrq.cmd = &brq.cmd;
 		brq.mrq.data = &brq.data;
-		
-		brq.cmd.retries = 2; //suppot retry read-write; added by xbw@2011-03-21
 
 		brq.cmd.arg = blk_rq_pos(req);
 		if (!mmc_card_blockaddr(card))
@@ -381,8 +371,6 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 		mmc_queue_bounce_post(mq);
 
-        #if 0 //not turn CMD18 to CMD17. deleted by xbw at 2011-04-21
-
 		/*
 		 * Check for errors here, but don't jump to cmd_err
 		 * until later as we need to wait for the card to leave
@@ -396,13 +384,10 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 				disable_multi = 1;
 				continue;
 			}
-			
-			//status = get_card_status(card, req); //Deleted by xbw@2011-03-21
-			
+			status = get_card_status(card, req);
 		} else if (disable_multi == 1) {
 			disable_multi = 0;
-		}   
-        #endif
+		}
 
 		if (brq.cmd.error) {
 			printk(KERN_DEBUG "%s: error %d sending read/write "
@@ -429,10 +414,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			       brq.stop.resp[0], status);
 		}
 
- #if 0 //Deleted by xbw@2011-03-21
 		if (!mmc_host_is_spi(card->host) && rq_data_dir(req) != READ) {
-
-		   
 			do {
 				int err;
 
@@ -453,7 +435,6 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			} while (!(cmd.resp[0] & R1_READY_FOR_DATA) ||
 				(R1_CURRENT_STATE(cmd.resp[0]) == 7));
 
-
 #if 0
 			if (cmd.resp[0] & ~0x00000900)
 				printk(KERN_ERR "%s: status = %08x\n",
@@ -462,9 +443,8 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 				goto cmd_err;
 #endif
 		}
-#endif		
 
-		if (brq.cmd.error || brq.stop.error || brq.data.error) {		
+		if (brq.cmd.error || brq.stop.error || brq.data.error) {
 			if (rq_data_dir(req) == READ) {
 				/*
 				 * After an error, we redo I/O one sector at a
@@ -591,7 +571,6 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	 */
 
 	sprintf(md->disk->disk_name, "mmcblk%d", devidx);
-	printk("%s..%d **** devidx=%d, dev_use[0]=%lu, disk_name=%s *** ==xbw[%s]==\n",__FUNCTION__,__LINE__, devidx, dev_use[0], md->disk->disk_name,mmc_hostname(card->host));
 
 	blk_queue_logical_block_size(md->queue.queue, 512);
 

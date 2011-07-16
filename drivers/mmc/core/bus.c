@@ -279,6 +279,7 @@ void mmc_remove_card(struct mmc_card *card)
 #endif
 
 	if (mmc_card_present(card)) {
+		mmc_card_clr_present(card);
 		if (mmc_host_is_spi(card->host)) {
 			printk(KERN_INFO "%s: SPI card removed\n",
 				mmc_hostname(card->host));

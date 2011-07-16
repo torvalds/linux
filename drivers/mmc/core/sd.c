@@ -362,10 +362,7 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 
 	err = mmc_send_app_op_cond(host, ocr, NULL);
 	if (err)
-	{
-	    printk("%s..%d..  ====*Identify the card as SD , but OCR error, so fail to initialize.===xbw[%s]===\n", __FUNCTION__, __LINE__, mmc_hostname(host));
 		goto err;
-	}
 
 	/*
 	 * Fetch CID from card.
@@ -461,11 +458,6 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 				printk(KERN_WARNING
 				       "%s: read switch failed (attempt %d)\n",
 				       mmc_hostname(host), retries);
-				
-				if(0 == host->re_initialized_flags)
-				{
-					 break; //Added by xbw at 2011-06-21
-				}       
 			}
 		}
 #else
@@ -504,7 +496,6 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		if (max_dtr > card->sw_caps.hs_max_dtr)
 			max_dtr = card->sw_caps.hs_max_dtr;
 	} else if (max_dtr > card->csd.max_dtr) {
-	    card->csd.max_dtr = (card->csd.max_dtr > SD_FPP_FREQ) ? SD_FPP_FREQ : (card->csd.max_dtr); //in order to expand the compatibility of card. Added by xbw@2011-03-21
 		max_dtr = card->csd.max_dtr;
 	}
 
@@ -585,13 +576,6 @@ static void mmc_sd_detect(struct mmc_host *host)
 		err = mmc_send_status(host->card, NULL);
 		if (err) {
 			retries--;
-		  
-		  if(0 == host->re_initialized_flags)
-			{
-				 retries = 0;
-				 break; //Added by xbw at 2011-06-21
-			}
-			
 			udelay(5);
 			continue;
 		}
@@ -652,7 +636,6 @@ static int mmc_sd_resume(struct mmc_host *host)
 #ifdef CONFIG_MMC_PARANOID_SD_INIT
 	retries = 5;
 	while (retries) {
-
 		err = mmc_sd_init_card(host, host->ocr, host->card);
 
 		if (err) {
@@ -660,11 +643,6 @@ static int mmc_sd_resume(struct mmc_host *host)
 			       mmc_hostname(host), err, retries);
 			mdelay(5);
 			retries--;
-						
-			if(0 == host->re_initialized_flags)
-			{
-				 break; //Added by xbw at 2011-06-21
-			}
 			continue;
 		}
 		break;
@@ -737,8 +715,6 @@ static void mmc_sd_attach_bus_ops(struct mmc_host *host)
 int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 {
 	int err;
-	int retry_times = 3;
-	
 #ifdef CONFIG_MMC_PARANOID_SD_INIT
 	int retries;
 #endif
@@ -796,12 +772,6 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 		err = mmc_sd_init_card(host, host->ocr, NULL);
 		if (err) {
 			retries--;
-			
-			if(0 == host->re_initialized_flags)
-			{
-				 retries = 0;
-				 break; //Added by xbw at 2011-06-21
-			}
 			continue;
 		}
 		break;
@@ -820,32 +790,9 @@ int mmc_attach_sd(struct mmc_host *host, u32 ocr)
 
 	mmc_release_host(host);
 
-#if 0 // Deleted by xbw at 2011-04-09
-    err = mmc_add_card(host->card);
-	if (err)
-		goto remove_card;
-
-#else //modifyed by xbw at 2011--04-11
-
-Retry_add:
 	err = mmc_add_card(host->card);
 	if (err)
-	{
-	    //retry add the card; Added by xbw
-        if((--retry_times >= 0))
-        {        
-            printk("\n%s..%s..%d   ****error in add partition, so retry.  ===xbw[%s]===\n",__FUNCTION__,__FILE__,__LINE__, mmc_hostname(host));   
-            /* sleep some time */
-            set_current_state(TASK_INTERRUPTIBLE);
-            schedule_timeout(HZ/2);
-            
-            goto Retry_add;
-        }
-
 		goto remove_card;
-    
-	}
-#endif	
 
 	return 0;
 

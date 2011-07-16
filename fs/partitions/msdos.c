@@ -440,11 +440,6 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 		return 0;
 	}
 
-    if(179 == MAJOR(bdev->bd_dev))
-    {
-	    printk("\n%s..%d... ==== Begin to parse sdcard-partition.  ====xbw[mmc0]===\n",__FUNCTION__, __LINE__);
-	}
-
 	/*
 	 * Now that the 55aa signature is present, this is probably
 	 * either the boot sector of a FAT filesystem or a DOS-type
@@ -454,12 +449,6 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 	p = (struct partition *) (data + 0x1be);
 	for (slot = 1; slot <= 4; slot++, p++) {
 		if (p->boot_ind != 0 && p->boot_ind != 0x80) {
-
-		    if(179 == MAJOR(bdev->bd_dev))
-		    {
-			    printk("%s..%d... ==== The sdcard has not MBR.  ====xbw[mmc0]===\n",__FUNCTION__, __LINE__);
-			}
-
 			/*
 			 * Even without a valid boot inidicator value
 			 * its still possible this is valid FAT filesystem
@@ -470,21 +459,9 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 				&& fat_valid_media(fb->media)) {
 				printk("\n");
 				put_dev_sector(sect);
-
-				if(179 == MAJOR(bdev->bd_dev))
-				{
-				    printk("%s..%d... ==== The DBR(slot=%d) is valid. ====xbw[mmc0]===\n",__FUNCTION__, __LINE__, slot);
-				}
-
 				return 1;
 			} else {
 				put_dev_sector(sect);
-
-				if(179 == MAJOR(bdev->bd_dev))
-				{
-				    printk("%s..%d... ==== The DBR is invalid. ====xbw[mmc0]===\n",__FUNCTION__, __LINE__);
-				}
-
 				return 0;
 			}
 		}
@@ -496,7 +473,6 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 		/* If this is an EFI GPT disk, msdos should ignore it. */
 		if (SYS_IND(p) == EFI_PMBR_OSTYPE_EFI_GPT) {
 			put_dev_sector(sect);
-
 			return 0;
 		}
 	}
@@ -509,24 +485,12 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 	 * On the second pass look inside *BSD, Unixware and Solaris partitions.
 	 */
 
-    if(179 == MAJOR(bdev->bd_dev))
-    {
-        printk("%s..%d... ==== The sdcard has MBR. ====xbw[mmc0]===\n", __FUNCTION__, __LINE__);
-    }
 	state->next = 5;
 	for (slot = 1 ; slot <= 4 ; slot++, p++) {
 		sector_t start = start_sect(p)*sector_size;
 		sector_t size = nr_sects(p)*sector_size;
-
 		if (!size)
 			continue;
-
-	    if(179 == MAJOR(bdev->bd_dev))
-	    {
-		    printk("%s..%d... ==== partition-%d, size=%luKB  ====xbw[mmc0]===\n",\
-		        __FUNCTION__, __LINE__, slot, size/2);
-		}
-	
 		if (is_extended_partition(p)) {
 			/*
 			 * prevent someone doing mkfs or mkswap on an
@@ -536,11 +500,6 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 			 */
 			sector_t n = 2;
 			n = min(size, max(sector_size, n));
-			
-            if(179 == MAJOR(bdev->bd_dev))
-            {
-			    printk("%s...%d... ==== extend partition-%d....====xbw[mmc0]===\n",__FUNCTION__, __LINE__, slot);
-			}
 			put_partition(state, slot, start, n);
 
 			printk(" <");
@@ -548,12 +507,6 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 			printk(" >");
 			continue;
 		}
-
-		if(179 == MAJOR(bdev->bd_dev))
-		{
-		    printk("%s..%d... ==== main partition-%d....====xbw[mmc0]===\n",__FUNCTION__, __LINE__, slot);
-		}
-		
 		put_partition(state, slot, start, size);
 		if (SYS_IND(p) == LINUX_RAID_PARTITION)
 			state->parts[slot].flags = 1;
