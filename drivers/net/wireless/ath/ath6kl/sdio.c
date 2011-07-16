@@ -269,6 +269,55 @@ static int ath6kl_sdio_scat_rw(struct ath6kl_sdio *ar_sdio,
 	return status;
 }
 
+static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
+					   int n_scat_entry, int n_scat_req,
+					   bool virt_scat)
+{
+	struct hif_scatter_req *s_req;
+	struct bus_request *bus_req;
+	int i, scat_req_sz, scat_list_sz, sg_sz = 0;
+
+	scat_list_sz = (n_scat_entry - 1) * sizeof(struct hif_scatter_item);
+	scat_req_sz = sizeof(*s_req) + scat_list_sz;
+
+	if (!virt_scat)
+		sg_sz = sizeof(struct scatterlist) * n_scat_entry;
+
+	for (i = 0; i < n_scat_req; i++) {
+		/* allocate the scatter request */
+		s_req = kzalloc(scat_req_sz, GFP_KERNEL);
+		if (!s_req)
+			return -ENOMEM;
+
+		if (sg_sz) {
+			/* allocate sglist */
+			s_req->sgentries = kzalloc(sg_sz, GFP_KERNEL);
+
+			if (!s_req->sgentries) {
+				kfree(s_req);
+				return -ENOMEM;
+			}
+		}
+
+		/* allocate a bus request for this scatter request */
+		bus_req = ath6kl_sdio_alloc_busreq(ar_sdio);
+		if (!bus_req) {
+			kfree(s_req->sgentries);
+			kfree(s_req);
+			return -ENOMEM;
+		}
+
+		/* assign the scatter request to this bus request */
+		bus_req->scat_req = s_req;
+		s_req->busrequest = bus_req;
+
+		/* add it to the scatter pool */
+		hif_scatter_req_add(ar_sdio->ar, s_req);
+	}
+
+	return 0;
+}
+
 /* clean up scatter support */
 static void ath6kl_sdio_cleanup_scat_resource(struct ath6kl_sdio *ar_sdio)
 {
@@ -296,9 +345,7 @@ static void ath6kl_sdio_cleanup_scat_resource(struct ath6kl_sdio *ar_sdio)
 static int ath6kl_sdio_setup_scat_resource(struct ath6kl_sdio *ar_sdio,
 					   struct hif_dev_scat_sup_info *pinfo)
 {
-	struct hif_scatter_req *s_req;
-	struct bus_request *bus_req;
-	int i, scat_req_sz, scat_list_sz, sg_sz;
+	int ret = 0;
 
 	/* check if host supports scatter and it meets our requirements */
 	if (ar_sdio->func->card->host->max_segs < MAX_SCATTER_ENTRIES_PER_REQ) {
@@ -312,51 +359,19 @@ static int ath6kl_sdio_setup_scat_resource(struct ath6kl_sdio *ar_sdio,
 		   "hif-scatter enabled: max scatter req : %d entries: %d\n",
 		   MAX_SCATTER_REQUESTS, MAX_SCATTER_ENTRIES_PER_REQ);
 
-	scat_list_sz = (MAX_SCATTER_ENTRIES_PER_REQ - 1) *
-		       sizeof(struct hif_scatter_item);
-	scat_req_sz = sizeof(*s_req) + scat_list_sz;
-
-	sg_sz = sizeof(struct scatterlist) * MAX_SCATTER_ENTRIES_PER_REQ;
-
-	for (i = 0; i < MAX_SCATTER_REQUESTS; i++) {
-		/* allocate the scatter request */
-		s_req = kzalloc(scat_req_sz, GFP_KERNEL);
-		if (!s_req)
-			goto fail_setup_scat;
-
-		/* allocate sglist */
-		s_req->sgentries = kzalloc(sg_sz, GFP_KERNEL);
-
-		if (!s_req->sgentries) {
-			kfree(s_req);
-			goto fail_setup_scat;
-		}
-
-		/* allocate a bus request for this scatter request */
-		bus_req = ath6kl_sdio_alloc_busreq(ar_sdio);
-		if (!bus_req) {
-			kfree(s_req->sgentries);
-			kfree(s_req);
-			goto fail_setup_scat;
-		}
-
-		/* assign the scatter request to this bus request */
-		bus_req->scat_req = s_req;
-		s_req->busrequest = bus_req;
-		/* add it to the scatter pool */
-		hif_scatter_req_add(ar_sdio->ar, s_req);
+	ret = ath6kl_sdio_alloc_prep_scat_req(ar_sdio,
+					      MAX_SCATTER_ENTRIES_PER_REQ,
+					      MAX_SCATTER_REQUESTS, 0);
+	if (ret) {
+		ath6kl_err("hif-scatter: failed to alloc scatter resources !\n");
+		ath6kl_sdio_cleanup_scat_resource(ar_sdio);
+		return ret;
 	}
 
 	pinfo->max_scat_entries = MAX_SCATTER_ENTRIES_PER_REQ;
 	pinfo->max_xfer_szper_scatreq = MAX_SCATTER_REQ_TRANSFER_SIZE;
 
 	return 0;
-
-fail_setup_scat:
-	ath6kl_err("hif-scatter: failed to alloc scatter resources !\n");
-	ath6kl_sdio_cleanup_scat_resource(ar_sdio);
-
-	return -ENOMEM;
 }
 
 static int ath6kl_sdio_read_write_sync(struct ath6kl *ar, u32 addr, u8 *buf,
