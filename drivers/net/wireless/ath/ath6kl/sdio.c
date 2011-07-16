@@ -319,8 +319,9 @@ static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
 }
 
 /* clean up scatter support */
-static void ath6kl_sdio_cleanup_scat_resource(struct ath6kl_sdio *ar_sdio)
+static void ath6kl_sdio_cleanup_scatter(struct ath6kl *ar)
 {
+	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
 	struct hif_scatter_req *s_req, *tmp_req;
 	unsigned long flag;
 
@@ -365,7 +366,7 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar,
 					      MAX_SCATTER_REQUESTS, 0);
 	if (ret) {
 		ath6kl_err("hif-scatter: failed to alloc scatter resources !\n");
-		ath6kl_sdio_cleanup_scat_resource(ar_sdio);
+		ath6kl_sdio_cleanup_scatter(ar);
 		return ret;
 	}
 
@@ -655,13 +656,6 @@ static int ath6kl_sdio_async_rw_scatter(struct ath6kl *ar,
 	}
 
 	return status;
-}
-
-static void ath6kl_sdio_cleanup_scatter(struct ath6kl *ar)
-{
-	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
-
-	ath6kl_sdio_cleanup_scat_resource(ar_sdio);
 }
 
 static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
