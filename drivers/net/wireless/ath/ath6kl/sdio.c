@@ -275,13 +275,17 @@ static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
 {
 	struct hif_scatter_req *s_req;
 	struct bus_request *bus_req;
-	int i, scat_req_sz, scat_list_sz, sg_sz = 0;
+	int i, scat_req_sz, scat_list_sz, sg_sz, buf_sz;
+	u8 *virt_buf;
 
 	scat_list_sz = (n_scat_entry - 1) * sizeof(struct hif_scatter_item);
 	scat_req_sz = sizeof(*s_req) + scat_list_sz;
 
 	if (!virt_scat)
 		sg_sz = sizeof(struct scatterlist) * n_scat_entry;
+	else
+		buf_sz =  2 * L1_CACHE_BYTES +
+			  ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER;
 
 	for (i = 0; i < n_scat_req; i++) {
 		/* allocate the scatter request */
@@ -289,7 +293,16 @@ static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
 		if (!s_req)
 			return -ENOMEM;
 
-		if (sg_sz) {
+		if (virt_scat) {
+			virt_buf = kzalloc(buf_sz, GFP_KERNEL);
+			if (!virt_buf) {
+				kfree(s_req);
+				return -ENOMEM;
+			}
+
+			s_req->virt_dma_buf =
+				(u8 *)L1_CACHE_ALIGN((unsigned long)virt_buf);
+		} else {
 			/* allocate sglist */
 			s_req->sgentries = kzalloc(sg_sz, GFP_KERNEL);
 
@@ -303,6 +316,7 @@ static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
 		bus_req = ath6kl_sdio_alloc_busreq(ar_sdio);
 		if (!bus_req) {
 			kfree(s_req->sgentries);
+			kfree(s_req->virt_dma_buf);
 			kfree(s_req);
 			return -ENOMEM;
 		}
@@ -629,31 +643,58 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar,
 				      struct hif_dev_scat_sup_info *pinfo)
 {
 	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
-	int ret = 0;
+	int ret;
+	bool virt_scat = false;
 
 	/* check if host supports scatter and it meets our requirements */
 	if (ar_sdio->func->card->host->max_segs < MAX_SCATTER_ENTRIES_PER_REQ) {
-		ath6kl_err("hif-scatter: host only supports scatter of : %d entries, need: %d\n",
+		ath6kl_err("host only supports scatter of :%d entries, need: %d\n",
 			   ar_sdio->func->card->host->max_segs,
 			   MAX_SCATTER_ENTRIES_PER_REQ);
-		return -EINVAL;
+		virt_scat = true;
 	}
 
-	ath6kl_dbg(ATH6KL_DBG_ANY,
-		   "hif-scatter enabled: max scatter req : %d entries: %d\n",
-		   MAX_SCATTER_REQUESTS, MAX_SCATTER_ENTRIES_PER_REQ);
+	if (!virt_scat) {
+		ret = ath6kl_sdio_alloc_prep_scat_req(ar_sdio,
+				MAX_SCATTER_ENTRIES_PER_REQ,
+				MAX_SCATTER_REQUESTS, virt_scat);
 
-	ret = ath6kl_sdio_alloc_prep_scat_req(ar_sdio,
-					      MAX_SCATTER_ENTRIES_PER_REQ,
-					      MAX_SCATTER_REQUESTS, 0);
-	if (ret) {
-		ath6kl_err("hif-scatter: failed to alloc scatter resources !\n");
-		ath6kl_sdio_cleanup_scatter(ar);
-		return ret;
+		if (!ret) {
+			ath6kl_dbg(ATH6KL_DBG_ANY,
+				   "hif-scatter enabled: max scatter req : %d entries: %d\n",
+				   MAX_SCATTER_REQUESTS,
+				   MAX_SCATTER_ENTRIES_PER_REQ);
+
+			pinfo->max_scat_entries = MAX_SCATTER_ENTRIES_PER_REQ;
+			pinfo->max_xfer_szper_scatreq =
+						MAX_SCATTER_REQ_TRANSFER_SIZE;
+		} else {
+			ath6kl_sdio_cleanup_scatter(ar);
+			ath6kl_warn("hif scatter resource setup failed, trying virtual scatter method\n");
+		}
 	}
 
-	pinfo->max_scat_entries = MAX_SCATTER_ENTRIES_PER_REQ;
-	pinfo->max_xfer_szper_scatreq = MAX_SCATTER_REQ_TRANSFER_SIZE;
+	if (virt_scat || ret) {
+		ret = ath6kl_sdio_alloc_prep_scat_req(ar_sdio,
+				ATH6KL_SCATTER_ENTRIES_PER_REQ,
+				ATH6KL_SCATTER_REQS, virt_scat);
+
+		if (ret) {
+			ath6kl_err("failed to alloc virtual scatter resources !\n");
+			ath6kl_sdio_cleanup_scatter(ar);
+			return ret;
+		}
+
+		ath6kl_dbg(ATH6KL_DBG_ANY,
+			   "Vitual scatter enabled, max_scat_req:%d, entries:%d\n",
+			   ATH6KL_SCATTER_REQS, ATH6KL_SCATTER_ENTRIES_PER_REQ);
+
+		pinfo->max_scat_entries = ATH6KL_SCATTER_ENTRIES_PER_REQ;
+		pinfo->max_xfer_szper_scatreq =
+					ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER;
+	}
+
+	pinfo->virt_scat = virt_scat;
 
 	return 0;
 }

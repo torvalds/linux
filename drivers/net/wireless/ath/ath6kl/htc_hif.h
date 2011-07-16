@@ -87,7 +87,6 @@ struct ath6kl_device {
 	int (*msg_pending) (struct htc_target *target, u32 lk_ahds[],
 			    int *npkts_fetched);
 	struct hif_dev_scat_sup_info hif_scat_info;
-	bool virt_scat;
 	int max_rx_bndl_sz;
 	int max_tx_bndl_sz;
 	int chk_irq_status_cnt;

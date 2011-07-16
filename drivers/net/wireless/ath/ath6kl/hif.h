@@ -187,6 +187,7 @@ struct hif_scatter_req {
 struct hif_dev_scat_sup_info {
 	int max_scat_entries;
 	int max_xfer_szper_scatreq;
+	bool virt_scat;
 };
 
 struct ath6kl_hif_ops {

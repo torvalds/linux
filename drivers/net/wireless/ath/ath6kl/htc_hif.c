@@ -273,7 +273,7 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 		   scat_req->addr, !read ? "async" : "sync",
 		   (read) ? "rd" : "wr");
 
-	if (!read && dev->virt_scat)
+	if (!read && dev->hif_scat_info.virt_scat)
 		status = ath6kldev_cp_scat_dma_buf(scat_req, false);
 
 	if (status) {
@@ -285,7 +285,7 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 		return status;
 	}
 
-	if (dev->virt_scat)
+	if (dev->hif_scat_info.virt_scat)
 		status =  ath6kldev_rw_scatter(dev->ar, scat_req);
 	else
 		status = ath6kl_hif_scat_req_rw(dev->ar, scat_req);
@@ -293,7 +293,7 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 	if (read) {
 		/* in sync mode, we can touch the scatter request */
 		scat_req->status = status;
-		if (!status && dev->virt_scat)
+		if (!status && dev->hif_scat_info.virt_scat)
 			scat_req->status =
 				ath6kldev_cp_scat_dma_buf(scat_req, true);
 	}
@@ -301,78 +301,9 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 	return status;
 }
 
-/*
- * function to set up virtual scatter support if HIF
- * layer has not implemented the interface.
- */
-static int ath6kldev_setup_virt_scat_sup(struct ath6kl_device *dev)
-{
-	struct hif_scatter_req *scat_req;
-	int buf_sz, scat_req_sz, scat_list_sz;
-	int i, status = 0;
-	u8 *virt_dma_buf;
-
-	buf_sz = 2 * L1_CACHE_BYTES + ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER;
-
-	scat_list_sz = (ATH6KL_SCATTER_ENTRIES_PER_REQ - 1) *
-		       sizeof(struct hif_scatter_item);
-	scat_req_sz = sizeof(*scat_req) + scat_list_sz;
-
-	for (i = 0; i < ATH6KL_SCATTER_REQS; i++) {
-		scat_req = kzalloc(scat_req_sz, GFP_KERNEL);
-
-		if (!scat_req) {
-			status = -ENOMEM;
-			break;
-		}
-
-		virt_dma_buf = kzalloc(buf_sz, GFP_KERNEL);
-		if (!virt_dma_buf) {
-			kfree(scat_req);
-			status = -ENOMEM;
-			break;
-		}
-
-		scat_req->virt_dma_buf =
-			(u8 *)L1_CACHE_ALIGN((unsigned long)virt_dma_buf);
-
-		/* we emulate a DMA bounce interface */
-		hif_scatter_req_add(dev->ar, scat_req);
-	}
-
-	if (status)
-		ath6kl_hif_cleanup_scatter(dev->ar);
-	else {
-		dev->hif_scat_info.max_scat_entries =
-			ATH6KL_SCATTER_ENTRIES_PER_REQ;
-		dev->hif_scat_info.max_xfer_szper_scatreq =
-			ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER;
-		dev->virt_scat = true;
-	}
-
-	return status;
-}
-
 int ath6kldev_setup_msg_bndl(struct ath6kl_device *dev, int max_msg_per_trans)
 {
-	int status;
-
-	status = ath6kl_hif_enable_scatter(dev->ar, &dev->hif_scat_info);
-
-	if (status) {
-		ath6kl_warn("hif does not support scatter requests (%d)\n",
-			    status);
-
-		/* we can try to use a virtual DMA scatter mechanism */
-		status = ath6kldev_setup_virt_scat_sup(dev);
-	}
-
-	if (!status)
-		ath6kl_dbg(ATH6KL_DBG_ANY, "max scatter items:%d: maxlen:%d\n",
-			   dev->hif_scat_info.max_scat_entries,
-			   dev->hif_scat_info.max_xfer_szper_scatreq);
-
-	return status;
+	return ath6kl_hif_enable_scatter(dev->ar, &dev->hif_scat_info);
 }
 
 static int ath6kldev_proc_counter_intr(struct ath6kl_device *dev)
