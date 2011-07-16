@@ -69,17 +69,6 @@ static inline void write_sequnlock(seqlock_t *sl)
 	spin_unlock(&sl->lock);
 }
 
-static inline int write_tryseqlock(seqlock_t *sl)
-{
-	int ret = spin_trylock(&sl->lock);
-
-	if (ret) {
-		++sl->sequence;
-		smp_wmb();
-	}
-	return ret;
-}
-
 /* Start of read calculation -- fetch last complete writer token */
 static __always_inline unsigned read_seqbegin(const seqlock_t *sl)
 {
@@ -268,15 +257,5 @@ static inline void write_seqcount_barrier(seqcount_t *s)
 	do { write_sequnlock(lock); local_irq_enable(); } while(0)
 #define write_sequnlock_bh(lock)					\
 	do { write_sequnlock(lock); local_bh_enable(); } while(0)
-
-#define read_seqbegin_irqsave(lock, flags)				\
-	({ local_irq_save(flags);   read_seqbegin(lock); })
-
-#define read_seqretry_irqrestore(lock, iv, flags)			\
-	({								\
-		int ret = read_seqretry(lock, iv);			\
-		local_irq_restore(flags);				\
-		ret;							\
-	})
 
 #endif /* __LINUX_SEQLOCK_H */
