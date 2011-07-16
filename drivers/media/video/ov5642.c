@@ -4545,6 +4545,8 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
                         sensor_af_single(client);
             		}
         		}
+            } else {
+                msleep(600);    /* ddl@rock-chips.com : whitebalance auto must delay */
             }
     	    #endif
 			sensor->info_priv.video2preview = false;
