@@ -1,6 +1,25 @@
 #ifndef LINUX_BCMA_REGS_H_
 #define LINUX_BCMA_REGS_H_
 
+/* Some single registers are shared between many cores */
+/* BCMA_CLKCTLST: ChipCommon (rev >= 20), PCIe, 80211 */
+#define BCMA_CLKCTLST			0x01E0 /* Clock control and status */
+#define  BCMA_CLKCTLST_FORCEALP		0x00000001 /* Force ALP request */
+#define  BCMA_CLKCTLST_FORCEHT		0x00000002 /* Force HT request */
+#define  BCMA_CLKCTLST_FORCEILP		0x00000004 /* Force ILP request */
+#define  BCMA_CLKCTLST_HAVEALPREQ	0x00000008 /* ALP available request */
+#define  BCMA_CLKCTLST_HAVEHTREQ	0x00000010 /* HT available request */
+#define  BCMA_CLKCTLST_HWCROFF		0x00000020 /* Force HW clock request off */
+#define  BCMA_CLKCTLST_EXTRESREQ	0x00000700 /* Mask of external resource requests */
+#define  BCMA_CLKCTLST_HAVEALP		0x00010000 /* ALP available */
+#define  BCMA_CLKCTLST_HAVEHT		0x00020000 /* HT available */
+#define  BCMA_CLKCTLST_BP_ON_ALP	0x00040000 /* RO: running on ALP clock */
+#define  BCMA_CLKCTLST_BP_ON_HT		0x00080000 /* RO: running on HT clock */
+#define  BCMA_CLKCTLST_EXTRESST		0x07000000 /* Mask of external resource status */
+/* Is there any BCM4328 on BCMA bus? */
+#define  BCMA_CLKCTLST_4328A0_HAVEHT	0x00010000 /* 4328a0 has reversed bits */
+#define  BCMA_CLKCTLST_4328A0_HAVEALP	0x00020000 /* 4328a0 has reversed bits */
+
 /* Agent registers (common for every core) */
 #define BCMA_IOCTL			0x0408 /* IO control */
 #define  BCMA_IOCTL_CLK			0x0001
