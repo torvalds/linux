@@ -24,29 +24,6 @@
 
 #define ATH6KL_TIME_QUANTUM	10  /* in ms */
 
-static void ath6kl_add_io_pkt(struct ath6kl_device *dev,
-			      struct htc_packet *packet)
-{
-	spin_lock_bh(&dev->lock);
-	list_add_tail(&packet->list, &dev->reg_io);
-	spin_unlock_bh(&dev->lock);
-}
-
-static struct htc_packet *ath6kl_get_io_pkt(struct ath6kl_device *dev)
-{
-	struct htc_packet *packet = NULL;
-
-	spin_lock_bh(&dev->lock);
-	if (!list_empty(&dev->reg_io)) {
-		packet = list_first_entry(&dev->reg_io,
-					 struct htc_packet, list);
-		list_del(&packet->list);
-	}
-	spin_unlock_bh(&dev->lock);
-
-	return packet;
-}
-
 static int ath6kldev_cp_scat_dma_buf(struct hif_scatter_req *req, bool from_dma)
 {
 	u8 *buf;
@@ -191,65 +168,6 @@ int ath6kldev_rx_control(struct ath6kl_device *dev, bool enable_rx)
 	return status;
 }
 
-static void ath6kldev_rw_async_handler(struct htc_target *target,
-				       struct htc_packet *packet)
-{
-	struct ath6kl_device *dev = target->dev;
-	struct hif_scatter_req *req = packet->pkt_cntxt;
-
-	req->status = packet->status;
-
-	ath6kl_add_io_pkt(dev, packet);
-
-	req->complete(target, req);
-}
-
-static int ath6kldev_rw_scatter(struct ath6kl *ar, struct hif_scatter_req *req)
-{
-	struct ath6kl_device *dev = ar->htc_target->dev;
-	struct htc_packet *packet = NULL;
-	int status = 0;
-	u32 request = req->req;
-	u8 *virt_dma_buf;
-
-	if (!req->len)
-		return 0;
-
-	if (request & HIF_ASYNCHRONOUS) {
-		/* use an I/O packet to carry this request */
-		packet = ath6kl_get_io_pkt(dev);
-		if (!packet) {
-			status = -ENOMEM;
-			goto out;
-		}
-
-		packet->pkt_cntxt = req;
-		packet->completion = ath6kldev_rw_async_handler;
-		packet->context = ar->htc_target;
-	}
-
-	virt_dma_buf = req->virt_dma_buf;
-
-	if (request & HIF_ASYNCHRONOUS)
-		status = hif_write_async(dev->ar, req->addr, virt_dma_buf,
-					 req->len, request, packet);
-	else
-		status = hif_read_write_sync(dev->ar, req->addr, virt_dma_buf,
-					     req->len, request);
-
-out:
-	if (status)
-		if (request & HIF_ASYNCHRONOUS) {
-			if (packet != NULL)
-				ath6kl_add_io_pkt(dev, packet);
-			req->status = status;
-			req->complete(ar->htc_target, req);
-			status = 0;
-		}
-
-	return status;
-}
-
 int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 			      struct hif_scatter_req *scat_req, bool read)
 {
@@ -285,10 +203,7 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 		return status;
 	}
 
-	if (scat_req->virt_scat)
-		status =  ath6kldev_rw_scatter(dev->ar, scat_req);
-	else
-		status = ath6kl_hif_scat_req_rw(dev->ar, scat_req);
+	status = ath6kl_hif_scat_req_rw(dev->ar, scat_req);
 
 	if (read) {
 		/* in sync mode, we can touch the scatter request */
@@ -699,20 +614,8 @@ int ath6kldev_mask_intrs(struct ath6kl_device *dev)
 int ath6kldev_setup(struct ath6kl_device *dev)
 {
 	int status = 0;
-	int i;
-	struct htc_packet *packet;
 
-	/* initialize our free list of IO packets */
-	INIT_LIST_HEAD(&dev->reg_io);
 	spin_lock_init(&dev->lock);
-
-	/* carve up register I/O packets (these are for ASYNC register I/O ) */
-	for (i = 0; i < ATH6KL_MAX_REG_IO_BUFFERS; i++) {
-		packet = &dev->reg_io_buf[i].packet;
-		set_htc_rxpkt_info(packet, dev, dev->reg_io_buf[i].buf,
-				   ATH6KL_REG_IO_BUFFER_SIZE, 0);
-		ath6kl_add_io_pkt(dev, packet);
-	}
 
 	/*
 	 * NOTE: we actually get the block size of a mailbox other than 0,

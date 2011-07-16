@@ -244,9 +244,20 @@ static int ath6kl_sdio_scat_rw(struct ath6kl_sdio *ar_sdio,
 	struct mmc_data data;
 	struct hif_scatter_req *scat_req;
 	u8 opcode, rw;
-	int status;
+	int status, len;
 
 	scat_req = req->scat_req;
+
+	if (scat_req->virt_scat) {
+		len = scat_req->len;
+		if (scat_req->req & HIF_BLOCK_BASIS)
+			len = round_down(len, HIF_MBOX_BLOCK_SIZE);
+
+		status = ath6kl_sdio_io(ar_sdio->func, scat_req->req,
+					scat_req->addr, scat_req->virt_dma_buf,
+					len);
+		goto scat_complete;
+	}
 
 	memset(&mmc_req, 0, sizeof(struct mmc_request));
 	memset(&cmd, 0, sizeof(struct mmc_command));
@@ -284,6 +295,8 @@ static int ath6kl_sdio_scat_rw(struct ath6kl_sdio *ar_sdio,
 	mmc_wait_for_req(ar_sdio->func->card->host, &mmc_req);
 
 	status = cmd.error ? cmd.error : data.error;
+
+scat_complete:
 	scat_req->status = status;
 
 	if (scat_req->status)

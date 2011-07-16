@@ -82,8 +82,6 @@ struct ath6kl_device {
 	u32 block_sz;
 	u32 block_mask;
 	struct htc_target *htc_cnxt;
-	struct list_head reg_io;
-	struct ath6kl_async_reg_io_buffer reg_io_buf[ATH6KL_MAX_REG_IO_BUFFERS];
 	int (*msg_pending) (struct htc_target *target, u32 lk_ahds[],
 			    int *npkts_fetched);
 	struct hif_dev_scat_sup_info hif_scat_info;
