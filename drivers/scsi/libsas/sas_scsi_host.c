@@ -207,7 +207,7 @@ int sas_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	task = sas_create_task(cmd, dev, GFP_ATOMIC);
 	if (!task)
-		return -ENOMEM;
+		return SCSI_MLQUEUE_HOST_BUSY;
 
 	/* Queue up, Direct Mode or Task Collector Mode. */
 	if (sas_ha->lldd_max_execute_num < 2)
@@ -223,9 +223,10 @@ out_free_task:
 	SAS_DPRINTK("lldd_execute_task returned: %d\n", res);
 	ASSIGN_SAS_TASK(cmd, NULL);
 	sas_free_task(task);
-	if (res != -SAS_QUEUE_FULL)
-		return res;
-	cmd->result = DID_SOFT_ERROR << 16; /* retry */
+	if (res == -SAS_QUEUE_FULL)
+		cmd->result = DID_SOFT_ERROR << 16; /* retry */
+	else
+		cmd->result = DID_ERROR << 16;
 out_done:
 	cmd->scsi_done(cmd);
 	return 0;
