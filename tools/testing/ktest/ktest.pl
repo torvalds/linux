@@ -87,6 +87,7 @@ my $post_install;
 my $noclean;
 my $minconfig;
 my $start_minconfig;
+my $start_minconfig_defined;
 my $output_minconfig;
 my $ignore_config;
 my $addconfig;
@@ -217,6 +218,26 @@ $config_help{"REBOOT_SCRIPT"} = << "EOF"
 EOF
     ;
 
+sub read_yn {
+    my ($prompt) = @_;
+
+    my $ans;
+
+    for (;;) {
+	print "$prompt [Y/n] ";
+	$ans = <STDIN>;
+	chomp $ans;
+	if ($ans =~ /^\s*$/) {
+	    $ans = "y";
+	}
+	last if ($ans =~ /^y$/i || $ans =~ /^n$/i);
+	print "Please answer either 'y' or 'n'.\n";
+    }
+    if ($ans !~ /^y$/i) {
+	return 0;
+    }
+    return 1;
+}
 
 sub get_ktest_config {
     my ($config) = @_;
@@ -2445,9 +2466,22 @@ sub make_min_config {
     if (!defined($output_minconfig)) {
 	fail "OUTPUT_MIN_CONFIG not defined" and return;
     }
+
+    # If output_minconfig exists, and the start_minconfig
+    # came from min_config, than ask if we should use
+    # that instead.
+    if (-f $output_minconfig && !$start_minconfig_defined) {
+	print "$output_minconfig exists\n";
+	if (read_yn " Use it as minconfig?") {
+	    $start_minconfig = $output_minconfig;
+	}
+    }
+
     if (!defined($start_minconfig)) {
 	fail "START_MIN_CONFIG or MIN_CONFIG not defined" and return;
     }
+
+    my $temp_config = "$tmpdir/temp_config";
 
     # First things first. We build an allnoconfig to find
     # out what the defaults are that we can't touch.
@@ -2581,6 +2615,19 @@ sub make_min_config {
 	    # this config is needed, add it to the ignore list.
 	    $keep_configs{$config} = $min_configs{$config};
 	    delete $min_configs{$config};
+
+	    # update new ignore configs
+	    if (defined($ignore_config)) {
+		open (OUT, ">$temp_config")
+		    or die "Can't write to $temp_config";
+		foreach my $config (keys %keep_configs) {
+		    print OUT "$keep_configs{$config}\n";
+		}
+		close OUT;
+		run_command "mv $temp_config $ignore_config" or
+		    dodie "failed to copy update to $ignore_config";
+	    }
+
 	} else {
 	    # We booted without this config, remove it from the minconfigs.
 	    doprint "$config is not needed, disabling\n";
@@ -2599,8 +2646,8 @@ sub make_min_config {
 	    }
 
 	    # Save off all the current mandidory configs
-	    open (OUT, ">$output_minconfig")
-		or die "Can't write to $output_minconfig";
+	    open (OUT, ">$temp_config")
+		or die "Can't write to $temp_config";
 	    foreach my $config (keys %keep_configs) {
 		print OUT "$keep_configs{$config}\n";
 	    }
@@ -2608,6 +2655,9 @@ sub make_min_config {
 		print OUT "$min_configs{$config}\n";
 	    }
 	    close OUT;
+
+	    run_command "mv $temp_config $output_minconfig" or
+		dodie "failed to copy update to $output_minconfig";
 	}
 
 	doprint "Reboot and wait $sleep_time seconds\n";
@@ -2627,18 +2677,7 @@ if ($#ARGV == 0) {
     $ktest_config = $ARGV[0];
     if (! -f $ktest_config) {
 	print "$ktest_config does not exist.\n";
-	my $ans;
-        for (;;) {
-	    print "Create it? [Y/n] ";
-	    $ans = <STDIN>;
-	    chomp $ans;
-	    if ($ans =~ /^\s*$/) {
-		$ans = "y";
-	    }
-	    last if ($ans =~ /^y$/i || $ans =~ /^n$/i);
-	    print "Please answer either 'y' or 'n'.\n";
-	}
-	if ($ans !~ /^y$/i) {
+	if (!read_yn "Create it?") {
 	    exit 0;
 	}
     }
@@ -2804,7 +2843,10 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     $target_image = set_test_option("TARGET_IMAGE", $i);
     $localversion = set_test_option("LOCALVERSION", $i);
 
+    $start_minconfig_defined = 1;
+
     if (!defined($start_minconfig)) {
+	$start_minconfig_defined = 0;
 	$start_minconfig = $minconfig;
     }
 
