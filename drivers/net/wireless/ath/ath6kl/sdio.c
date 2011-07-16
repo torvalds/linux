@@ -342,9 +342,10 @@ static void ath6kl_sdio_cleanup_scat_resource(struct ath6kl_sdio *ar_sdio)
 }
 
 /* setup of HIF scatter resources */
-static int ath6kl_sdio_setup_scat_resource(struct ath6kl_sdio *ar_sdio,
-					   struct hif_dev_scat_sup_info *pinfo)
+static int ath6kl_sdio_enable_scatter(struct ath6kl *ar,
+				      struct hif_dev_scat_sup_info *pinfo)
 {
+	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
 	int ret = 0;
 
 	/* check if host supports scatter and it meets our requirements */
@@ -624,17 +625,6 @@ static void ath6kl_sdio_scatter_req_add(struct ath6kl *ar,
 
 	spin_unlock_irqrestore(&ar_sdio->scat_lock, flag);
 
-}
-
-static int ath6kl_sdio_enable_scatter(struct ath6kl *ar,
-				      struct hif_dev_scat_sup_info *info)
-{
-	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
-	int ret;
-
-	ret = ath6kl_sdio_setup_scat_resource(ar_sdio, info);
-
-	return ret;
 }
 
 /* scatter gather read write request */
