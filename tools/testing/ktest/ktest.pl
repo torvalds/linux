@@ -1970,12 +1970,6 @@ sub config_bisect {
 	unlink $tmpconfig;
     }
 
-    # Add other configs
-    if (defined($addconfig)) {
-	run_command "cat $addconfig >> $tmpconfig" or
-	    dodie "failed to append $addconfig";
-    }
-
     if (-f $tmpconfig) {
 	load_force_config($tmpconfig);
 	process_config_ignore $tmpconfig;
@@ -1997,7 +1991,7 @@ sub config_bisect {
     }
     close(IN);
 
-    # Now run oldconfig with the minconfig (and addconfigs)
+    # Now run oldconfig with the minconfig
     make_oldconfig;
 
     # check to see what we lost (or gained)
@@ -2901,11 +2895,12 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
     unlink $dmesg;
     unlink $buildlog;
 
-    if (!defined($minconfig)) {
-	$minconfig = $addconfig;
-
-    } elsif (defined($addconfig)) {
-	run_command "cat $addconfig $minconfig > $tmpdir/add_config" or
+    if (defined($addconfig)) {
+	my $min = $minconfig;
+	if (!defined($minconfig)) {
+	    $min = "";
+	}
+	run_command "cat $addconfig $min > $tmpdir/add_config" or
 	    dodie "Failed to create temp config";
 	$minconfig = "$tmpdir/add_config";
     }
