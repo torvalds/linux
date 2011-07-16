@@ -449,8 +449,7 @@ static int coda_venus_readdir(struct file *coda_file, void *buf,
 	struct file *host_file;
 	struct dentry *de;
 	struct venus_dirent *vdir;
-	unsigned long vdir_size =
-	    (unsigned long)(&((struct venus_dirent *)0)->d_name);
+	unsigned long vdir_size = offsetof(struct venus_dirent, d_name);
 	unsigned int type;
 	struct qstr name;
 	ino_t ino;
