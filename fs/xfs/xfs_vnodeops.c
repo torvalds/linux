@@ -960,8 +960,11 @@ xfs_release(
 		 * be exposed to that problem.
 		 */
 		truncated = xfs_iflags_test_and_clear(ip, XFS_ITRUNCATED);
-		if (truncated && VN_DIRTY(VFS_I(ip)) && ip->i_delayed_blks > 0)
-			xfs_flush_pages(ip, 0, -1, XBF_ASYNC, FI_NONE);
+		if (truncated) {
+			xfs_iflags_clear(ip, XFS_IDIRTY_RELEASE);
+			if (VN_DIRTY(VFS_I(ip)) && ip->i_delayed_blks > 0)
+				xfs_flush_pages(ip, 0, -1, XBF_ASYNC, FI_NONE);
+		}
 	}
 
 	if (ip->i_d.di_nlink == 0)

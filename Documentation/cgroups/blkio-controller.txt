@@ -77,7 +77,7 @@ Throttling/Upper Limit policy
 - Specify a bandwidth rate on particular device for root group. The format
   for policy is "<major>:<minor>  <byes_per_second>".
 
-        echo "8:16  1048576" > /sys/fs/cgroup/blkio/blkio.read_bps_device
+        echo "8:16  1048576" > /sys/fs/cgroup/blkio/blkio.throttle.read_bps_device
 
   Above will put a limit of 1MB/second on reads happening for root group
   on device having major/minor number 8:16.
@@ -90,7 +90,7 @@ Throttling/Upper Limit policy
         1024+0 records out
         4194304 bytes (4.2 MB) copied, 4.0001 s, 1.0 MB/s
 
- Limits for writes can be put using blkio.write_bps_device file.
+ Limits for writes can be put using blkio.throttle.write_bps_device file.
 
 Hierarchical Cgroups
 ====================
@@ -286,28 +286,28 @@ Throttling/Upper limit policy files
 	  specified in bytes per second. Rules are per deivce. Following is
 	  the format.
 
-  echo "<major>:<minor>  <rate_bytes_per_second>" > /cgrp/blkio.read_bps_device
+  echo "<major>:<minor>  <rate_bytes_per_second>" > /cgrp/blkio.throttle.read_bps_device
 
 - blkio.throttle.write_bps_device
 	- Specifies upper limit on WRITE rate to the device. IO rate is
 	  specified in bytes per second. Rules are per deivce. Following is
 	  the format.
 
-  echo "<major>:<minor>  <rate_bytes_per_second>" > /cgrp/blkio.write_bps_device
+  echo "<major>:<minor>  <rate_bytes_per_second>" > /cgrp/blkio.throttle.write_bps_device
 
 - blkio.throttle.read_iops_device
 	- Specifies upper limit on READ rate from the device. IO rate is
 	  specified in IO per second. Rules are per deivce. Following is
 	  the format.
 
-  echo "<major>:<minor>  <rate_io_per_second>" > /cgrp/blkio.read_iops_device
+  echo "<major>:<minor>  <rate_io_per_second>" > /cgrp/blkio.throttle.read_iops_device
 
 - blkio.throttle.write_iops_device
 	- Specifies upper limit on WRITE rate to the device. IO rate is
 	  specified in io per second. Rules are per deivce. Following is
 	  the format.
 
-  echo "<major>:<minor>  <rate_io_per_second>" > /cgrp/blkio.write_iops_device
+  echo "<major>:<minor>  <rate_io_per_second>" > /cgrp/blkio.throttle.write_iops_device
 
 Note: If both BW and IOPS rules are specified for a device, then IO is
       subjectd to both the constraints.

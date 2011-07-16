@@ -875,7 +875,8 @@ static int gsm_dlci_data_output_framed(struct gsm_mux *gsm,
 		*dp++ = last << 7 | first << 6 | 1;	/* EA */
 		len--;
 	}
-	memcpy(dp, skb_pull(dlci->skb, len), len);
+	memcpy(dp, dlci->skb->data, len);
+	skb_pull(dlci->skb, len);
 	__gsm_data_queue(dlci, msg);
 	if (last)
 		dlci->skb = NULL;
@@ -984,10 +985,22 @@ static void gsm_control_reply(struct gsm_mux *gsm, int cmd, u8 *data,
  */
 
 static void gsm_process_modem(struct tty_struct *tty, struct gsm_dlci *dlci,
-							u32 modem)
+							u32 modem, int clen)
 {
 	int  mlines = 0;
-	u8 brk = modem >> 6;
+	u8 brk = 0;
+
+	/* The modem status command can either contain one octet (v.24 signals)
+	   or two octets (v.24 signals + break signals). The length field will
+	   either be 2 or 3 respectively. This is specified in section
+	   5.4.6.3.7 of the  27.010 mux spec. */
+
+	if (clen == 2)
+		modem = modem & 0x7f;
+	else {
+		brk = modem & 0x7f;
+		modem = (modem >> 7) & 0x7f;
+	};
 
 	/* Flow control/ready to communicate */
 	if (modem & MDM_FC) {
@@ -1061,7 +1074,7 @@ static void gsm_control_modem(struct gsm_mux *gsm, u8 *data, int clen)
 			return;
 	}
 	tty = tty_port_tty_get(&dlci->port);
-	gsm_process_modem(tty, dlci, modem);
+	gsm_process_modem(tty, dlci, modem, clen);
 	if (tty) {
 		tty_wakeup(tty);
 		tty_kref_put(tty);
@@ -1482,12 +1495,13 @@ static void gsm_dlci_begin_close(struct gsm_dlci *dlci)
  *	open we shovel the bits down it, if not we drop them.
  */
 
-static void gsm_dlci_data(struct gsm_dlci *dlci, u8 *data, int len)
+static void gsm_dlci_data(struct gsm_dlci *dlci, u8 *data, int clen)
 {
 	/* krefs .. */
 	struct tty_port *port = &dlci->port;
 	struct tty_struct *tty = tty_port_tty_get(port);
 	unsigned int modem = 0;
+	int len = clen;
 
 	if (debug & 16)
 		pr_debug("%d bytes for tty %p\n", len, tty);
@@ -1507,7 +1521,7 @@ static void gsm_dlci_data(struct gsm_dlci *dlci, u8 *data, int len)
 				if (len == 0)
 					return;
 			}
-			gsm_process_modem(tty, dlci, modem);
+			gsm_process_modem(tty, dlci, modem, clen);
 		/* Line state will go via DLCI 0 controls only */
 		case 1:
 		default:

@@ -57,6 +57,9 @@ struct ite_dev_params {
 	/* size of the I/O region */
 	int io_region_size;
 
+	/* IR pnp I/O resource number */
+	int io_rsrc_no;
+
 	/* true if the hardware supports transmission */
 	bool hw_tx_capable;
 

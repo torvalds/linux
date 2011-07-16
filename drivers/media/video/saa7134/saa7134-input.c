@@ -963,7 +963,7 @@ static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 	 * to work with other protocols.
 	 */
 	if (!ir->active) {
-		timeout = jiffies + jiffies_to_msecs(15);
+		timeout = jiffies + msecs_to_jiffies(15);
 		mod_timer(&ir->timer, timeout);
 		ir->active = true;
 	}

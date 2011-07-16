@@ -238,9 +238,9 @@ static int build_sh_desc_ipsec(struct caam_ctx *ctx)
 
 	/* build shared descriptor for this session */
 	sh_desc = kmalloc(CAAM_CMD_SZ * DESC_AEAD_SHARED_TEXT_LEN +
-			  keys_fit_inline ?
-			  ctx->split_key_pad_len + ctx->enckeylen :
-			  CAAM_PTR_SZ * 2, GFP_DMA | GFP_KERNEL);
+			  (keys_fit_inline ?
+			   ctx->split_key_pad_len + ctx->enckeylen :
+			   CAAM_PTR_SZ * 2), GFP_DMA | GFP_KERNEL);
 	if (!sh_desc) {
 		dev_err(jrdev, "could not allocate shared descriptor\n");
 		return -ENOMEM;

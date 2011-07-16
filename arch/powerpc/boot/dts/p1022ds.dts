@@ -209,8 +209,10 @@
 			wm8776:codec@1a {
 				compatible = "wlf,wm8776";
 				reg = <0x1a>;
-				/* MCLK source is a stand-alone oscillator */
-				clock-frequency = <12288000>;
+				/*
+				 * clock-frequency will be set by U-Boot if
+				 * the clock is enabled.
+				 */
 			};
 		};
 
@@ -280,7 +282,8 @@
 			codec-handle = <&wm8776>;
 			fsl,playback-dma = <&dma00>;
 			fsl,capture-dma = <&dma01>;
-			fsl,fifo-depth = <16>;
+			fsl,fifo-depth = <15>;
+			fsl,ssi-asynchronous;
 		};
 
 		dma@c300 {
