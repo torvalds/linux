@@ -325,6 +325,8 @@ static int ath6kl_sdio_alloc_prep_scat_req(struct ath6kl_sdio *ar_sdio,
 		bus_req->scat_req = s_req;
 		s_req->busrequest = bus_req;
 
+		s_req->virt_scat = virt_scat;
+
 		/* add it to the scatter pool */
 		hif_scatter_req_add(ar_sdio->ar, s_req);
 	}
@@ -693,8 +695,6 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar,
 		pinfo->max_xfer_szper_scatreq =
 					ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER;
 	}
-
-	pinfo->virt_scat = virt_scat;
 
 	return 0;
 }

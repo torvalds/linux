@@ -273,7 +273,7 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 		   scat_req->addr, !read ? "async" : "sync",
 		   (read) ? "rd" : "wr");
 
-	if (!read && dev->hif_scat_info.virt_scat)
+	if (!read && scat_req->virt_scat)
 		status = ath6kldev_cp_scat_dma_buf(scat_req, false);
 
 	if (status) {
@@ -285,7 +285,7 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 		return status;
 	}
 
-	if (dev->hif_scat_info.virt_scat)
+	if (scat_req->virt_scat)
 		status =  ath6kldev_rw_scatter(dev->ar, scat_req);
 	else
 		status = ath6kl_hif_scat_req_rw(dev->ar, scat_req);
@@ -293,7 +293,7 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 	if (read) {
 		/* in sync mode, we can touch the scatter request */
 		scat_req->status = status;
-		if (!status && dev->hif_scat_info.virt_scat)
+		if (!status && scat_req->virt_scat)
 			scat_req->status =
 				ath6kldev_cp_scat_dma_buf(scat_req, true);
 	}

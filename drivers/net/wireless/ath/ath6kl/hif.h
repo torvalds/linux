@@ -171,6 +171,8 @@ struct hif_scatter_req {
 	/* total length of entire transfer */
 	u32 len;
 
+	bool virt_scat;
+
 	void (*complete) (struct htc_target *, struct hif_scatter_req *);
 	int status;
 	int scat_entries;
@@ -187,7 +189,6 @@ struct hif_scatter_req {
 struct hif_dev_scat_sup_info {
 	int max_scat_entries;
 	int max_xfer_szper_scatreq;
-	bool virt_scat;
 };
 
 struct ath6kl_hif_ops {
