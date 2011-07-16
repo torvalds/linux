@@ -1403,8 +1403,8 @@ void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw)
 
 u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
-#ifdef BCM_CNIC
 	struct bnx2x *bp = netdev_priv(dev);
+#ifdef BCM_CNIC
 	if (NO_FCOE(bp))
 		return skb_tx_hash(dev, skb);
 	else {
