@@ -304,6 +304,17 @@ static int verify_coord(struct ili2102_ts_data *ts,unsigned int *x,unsigned int 
 	if((*y< ts->y_min) || (*y > ts->y_max))
 		return -1;
 
+	/*android do not support min and max value*/
+	if(*x == ts->x_min)
+		*x = ts->x_min + 1;
+	if(*y == ts->y_min)
+		*y = ts->y_min + 1;
+	if(*x == ts->x_max)
+		*x = ts->x_max - 1;
+	if(*y == ts->y_max)
+		*y = ts->y_max - 1;
+	
+
 	return 0;
 }
 static int ili2102_init_panel(struct ili2102_ts_data *ts)
