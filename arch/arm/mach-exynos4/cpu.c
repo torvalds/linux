@@ -173,7 +173,7 @@ void __init exynos4_init_irq(void)
 {
 	int irq;
 
-	gic_init(0, IRQ_LOCALTIMER, S5P_VA_GIC_DIST, S5P_VA_GIC_CPU);
+	gic_init(0, IRQ_SPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU);
 	gic_arch_extn.irq_eoi = exynos4_gic_irq_eoi;
 
 	for (irq = 0; irq < MAX_COMBINER_NR; irq++) {

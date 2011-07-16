@@ -16,7 +16,8 @@ config CPU_EXYNOS4210
 	  Enable EXYNOS4210 CPU support
 
 config EXYNOS4_MCT
-	bool "Kernel timer support by MCT"
+	bool
+	default y
 	help
 	  Use MCT (Multi Core Timer) as kernel timers
 

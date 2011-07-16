@@ -19,8 +19,6 @@
 
 #define IRQ_PPI(x)		S5P_IRQ(x+16)
 
-#define IRQ_LOCALTIMER		IRQ_PPI(13)
-
 /* SPI: Shared Peripheral Interrupt */
 
 #define IRQ_SPI(x)		S5P_IRQ(x+32)
