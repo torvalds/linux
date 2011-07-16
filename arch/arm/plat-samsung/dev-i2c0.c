@@ -48,7 +48,7 @@ struct platform_device s3c_device_i2c0 = {
 	.resource	  = s3c_i2c_resource,
 };
 
-static struct s3c2410_platform_i2c default_i2c_data0 __initdata = {
+struct s3c2410_platform_i2c default_i2c_data __initdata = {
 	.flags		= 0,
 	.slave_addr	= 0x10,
 	.frequency	= 100*1000,
@@ -60,7 +60,7 @@ void __init s3c_i2c0_set_platdata(struct s3c2410_platform_i2c *pd)
 	struct s3c2410_platform_i2c *npd;
 
 	if (!pd)
-		pd = &default_i2c_data0;
+		pd = &default_i2c_data;
 
 	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
 			       &s3c_device_i2c0);
