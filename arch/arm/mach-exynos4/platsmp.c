@@ -28,8 +28,11 @@
 
 #include <mach/hardware.h>
 #include <mach/regs-clock.h>
+#include <mach/regs-pmu.h>
 
 extern void exynos4_secondary_startup(void);
+
+#define CPU1_BOOT_REG S5P_VA_SYSRAM
 
 /*
  * control for which core is the next to come out of the secondary
@@ -125,16 +128,41 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 */
 	write_pen_release(cpu);
 
+	if (!(__raw_readl(S5P_ARM_CORE1_STATUS) & S5P_CORE_LOCAL_PWR_EN)) {
+		__raw_writel(S5P_CORE_LOCAL_PWR_EN,
+			     S5P_ARM_CORE1_CONFIGURATION);
+
+		timeout = 10;
+
+		/* wait max 10 ms until cpu1 is on */
+		while ((__raw_readl(S5P_ARM_CORE1_STATUS)
+			& S5P_CORE_LOCAL_PWR_EN) != S5P_CORE_LOCAL_PWR_EN) {
+			if (timeout-- == 0)
+				break;
+
+			mdelay(1);
+		}
+
+		if (timeout == 0) {
+			printk(KERN_ERR "cpu1 power enable failed");
+			spin_unlock(&boot_lock);
+			return -ETIMEDOUT;
+		}
+	}
 	/*
 	 * Send the secondary CPU a soft interrupt, thereby causing
 	 * the boot monitor to read the system wide flags register,
 	 * and branch to the address found there.
 	 */
-	gic_raise_softirq(cpumask_of(cpu), 1);
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
 		smp_rmb();
+
+		__raw_writel(BSYM(virt_to_phys(exynos4_secondary_startup)),
+			CPU1_BOOT_REG);
+		gic_raise_softirq(cpumask_of(cpu), 1);
+
 		if (pen_release == -1)
 			break;
 
