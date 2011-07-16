@@ -532,7 +532,6 @@ int carl9170_set_ampdu_settings(struct ar9170 *ar);
 int carl9170_set_slot_time(struct ar9170 *ar);
 int carl9170_set_mac_rates(struct ar9170 *ar);
 int carl9170_set_hwretry_limit(struct ar9170 *ar, const u32 max_retry);
-int carl9170_update_beacon(struct ar9170 *ar, const bool submit);
 int carl9170_upload_key(struct ar9170 *ar, const u8 id, const u8 *mac,
 	const u8 ktype, const u8 keyidx, const u8 *keydata, const int keylen);
 int carl9170_disable_key(struct ar9170 *ar, const u8 id);
@@ -553,6 +552,7 @@ void carl9170_tx_drop(struct ar9170 *ar, struct sk_buff *skb);
 void carl9170_tx_scheduler(struct ar9170 *ar);
 void carl9170_tx_get_skb(struct sk_buff *skb);
 int carl9170_tx_put_skb(struct sk_buff *skb);
+int carl9170_update_beacon(struct ar9170 *ar, const bool submit);
 
 /* LEDs */
 #ifdef CONFIG_CARL9170_LEDS
