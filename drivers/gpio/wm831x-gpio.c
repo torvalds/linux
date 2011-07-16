@@ -180,6 +180,7 @@ static void wm831x_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			break;
 		case WM831X_GPIO_PULL_UP:
 			pull = "pullup";
+			break;
 		default:
 			pull = "INVALID PULL";
 			break;
