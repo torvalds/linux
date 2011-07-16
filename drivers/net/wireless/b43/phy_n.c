@@ -611,12 +611,12 @@ static void b43_nphy_bmac_clock_fgc(struct b43_wldev *dev, bool force)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		tmp = bcma_read32(dev->dev->bdev, BCMA_IOCTL);
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOCTL);
 		if (force)
 			tmp |= BCMA_IOCTL_FGC;
 		else
 			tmp &= ~BCMA_IOCTL_FGC;
-		bcma_write32(dev->dev->bdev, BCMA_IOCTL, tmp);
+		bcma_awrite32(dev->dev->bdev, BCMA_IOCTL, tmp);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
