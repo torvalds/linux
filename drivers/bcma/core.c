@@ -50,3 +50,34 @@ int bcma_core_enable(struct bcma_device *core, u32 flags)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bcma_core_enable);
+
+void bcma_core_set_clockmode(struct bcma_device *core,
+			     enum bcma_clkmode clkmode)
+{
+	u16 i;
+
+	WARN_ON(core->id.id != BCMA_CORE_CHIPCOMMON &&
+		core->id.id != BCMA_CORE_PCIE &&
+		core->id.id != BCMA_CORE_80211);
+
+	switch (clkmode) {
+	case BCMA_CLKMODE_FAST:
+		bcma_set32(core, BCMA_CLKCTLST, BCMA_CLKCTLST_FORCEHT);
+		udelay(64);
+		for (i = 0; i < 1500; i++) {
+			if (bcma_read32(core, BCMA_CLKCTLST) &
+			    BCMA_CLKCTLST_HAVEHT) {
+				i = 0;
+				break;
+			}
+			udelay(10);
+		}
+		if (i)
+			pr_err("HT force timeout\n");
+		break;
+	case BCMA_CLKMODE_DYNAMIC:
+		pr_warn("Dynamic clockmode not supported yet!\n");
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(bcma_core_set_clockmode);
