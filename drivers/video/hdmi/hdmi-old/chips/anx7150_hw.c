@@ -1,9 +1,11 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/hdmi.h>
-
-
-#include "anx7150.h"
+#if 1 // eboda twp
+#include <mach/gpio.h>
+#include <mach/iomux.h>
+#endif
+#include "linux/anx7150.h"
 #include "anx7150_hw.h"
 //#ifdef ITU656
 struct ANX7150_video_timingtype ANX7150_video_timingtype_table =
@@ -292,7 +294,7 @@ static void ANX7150_Variable_Initial(void)
     //********************end of video config*********
 
     //********************for edid parse***********
-    ANX7150_edid_result.is_HDMI = 0;
+    ANX7150_edid_result.is_HDMI = 1;//  0->1,eboda zlj add for test 110413
     ANX7150_edid_result.ycbcr422_supported = 0;
     ANX7150_edid_result.ycbcr444_supported = 0;
     ANX7150_edid_result.supported_720p_60Hz = 0;
@@ -520,7 +522,12 @@ int anx7150_unplug(struct i2c_client *client)
     ANX7150_parse_edid_done = 0;
 //    ANX7150_system_config_done = 0;
     ANX7150_srm_checked = 0;
-
+	#if 1 //eboda twp 
+       	// gpio_direction_output(RK29_PIN6_PD1, 0);
+		//gpio_set_value(RK29_PIN6_PD1, 1);
+		 rk29_mux_api_set(GPIO1B5_PWM0_NAME, GPIO1L_PWM0);
+		//printk("turn on LCD\n");
+	#endif	
 	return rc;
 }
 int anx7150_plug(struct i2c_client *client)
@@ -1678,7 +1685,7 @@ static void ANX7150_Parse_VendorSTD(void)
     }
     else
     {
-        ANX7150_edid_result.is_HDMI = 0;
+        ANX7150_edid_result.is_HDMI = 1;// 0->1,eboda zlj add for test 110413
         //ANX7150_i2c_read_p0_reg(ANX7150_SYS_CTRL1_REG, &c);
         //ANX7150_i2c_write_p0_reg(ANX7150_SYS_CTRL1_REG, c & (~ANX7150_SYS_CTRL1_HDMI));
     }
@@ -2818,6 +2825,16 @@ int ANX7150_Config_Video(struct i2c_client *client)
 		c |= (0x02);
 		rc = anx7150_i2c_write_p0_reg(client, ANX7150_SYS_CTRL1_REG, &c);
         hdmi_dbg(&client->dev,"ANX7150 is set to HDMI mode\n");
+	#if 1 //eboda twp 
+        	//gpio_direction_output(RK29_PIN6_PD1, GPIO1L_GPIO1B5);
+		//gpio_set_value(RK29_PIN6_PD1, 0);
+	rk29_mux_api_set(GPIO1B5_PWM0_NAME, 0);
+	if (gpio_request(RK29_PIN1_PB5, NULL)) {
+		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
+	}
+	gpio_direction_output(RK29_PIN1_PB5, 0);
+		//printk("turn off LCD\n");
+	#endif	
     }
 	rc = anx7150_i2c_read_p0_reg(client, ANX7150_SYS_CTRL1_REG, &c);
     TX_is_HDMI = c & 0x02;

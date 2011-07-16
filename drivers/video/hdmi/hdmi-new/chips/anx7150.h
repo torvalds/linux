@@ -81,6 +81,7 @@ struct anx7150_pdata {
 	int init;
 	int is_early_suspend;
 	int is_changed;
+	int edid_read_ok;
 	struct delayed_work		work;
 	struct hdmi *hdmi;
 	struct i2c_client *client;

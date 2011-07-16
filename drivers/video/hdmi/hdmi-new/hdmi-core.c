@@ -4,6 +4,8 @@
 #include <linux/err.h>
 
 #include <linux/hdmi-new.h>
+#include <linux/input.h>
+
 
 struct class *hdmi_class;
 struct hdmi_id_ref_info {
@@ -24,7 +26,7 @@ static inline void hdmi_remove_attrs(struct hdmi *hdmi) {}
 
 #endif /* CONFIG_SYSFS */
 
-
+extern struct input_dev *gsensor_input_dev;
 void hdmi_changed(struct hdmi *hdmi, int msec)
 {
 	schedule_delayed_work(&hdmi->changed_work, msecs_to_jiffies(msec));
@@ -55,7 +57,7 @@ static void hdmi_changed_work(struct work_struct *work)
 	else
 		ret = hdmi->ops->remove(hdmi);
 	if(ret < 0)
-		dev_dbg(hdmi->dev, "hdmi changed error\n");
+		dev_warn(hdmi->dev, "hdmi changed error\n");
 	kobject_uevent(&hdmi->dev->kobj, KOBJ_CHANGE);
 }
 
@@ -113,6 +115,7 @@ dev_create_failed:
 	kfree(hdmi);
 	return NULL;
 success:
+	hdmi->scale = 100;
 	return hdmi;
 }
 void hdmi_unregister(struct hdmi *hdmi)
@@ -147,6 +150,40 @@ int hdmi_is_insert(void)
 	else
 		return 0;
 }
+int hdmi_get_scale(void)
+{
+	struct hdmi* hdmi = get_hdmi_struct(0);
+	if(!hdmi)
+		return 100;
+	else if(!hdmi->display_on || !hdmi->ops->hdmi_precent(hdmi))
+		return 100;
+	else
+		return hdmi->scale;
+}
+
+int hdmi_set_scale(int event, char *data, int len)
+{
+	int result;
+	struct hdmi* hdmi = get_hdmi_struct(0);
+
+	if(!hdmi)
+		return -1;
+	if(len != 4)
+		return -1;
+	if(fb_get_video_mode() || !hdmi->display_on || !hdmi->ops->hdmi_precent(hdmi))
+		return -1;
+
+	result = data[0] | data[1]<<1 | data[2]<<2;
+	if(event != MOUSE_NONE && (result & event) != event)
+		return -1;
+
+	hdmi->scale += data[3];
+	
+	hdmi->scale = (hdmi->scale>100)?100:hdmi->scale;
+	hdmi->scale = (hdmi->scale<MIN_SCALE)?MIN_SCALE:hdmi->scale;
+	return 0;	
+}
+
 static int __init hdmi_class_init(void)
 {
 	int i;
