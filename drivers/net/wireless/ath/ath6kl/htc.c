@@ -1563,12 +1563,6 @@ static int htc_issue_rxpkt_bundle(struct htc_target *target,
 	if (scat_req == NULL)
 		goto fail_rx_pkt;
 
-	scat_req->flags = 0;
-
-	if (part_bundle)
-		scat_req->flags |=
-		    HTC_SCAT_REQ_FLG_PART_BNDL;
-
 	for (i = 0; i < n_scat_pkt; i++) {
 		int pad_len;
 

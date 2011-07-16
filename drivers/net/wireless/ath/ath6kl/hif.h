@@ -171,7 +171,6 @@ struct hif_scatter_req {
 	/* total length of entire transfer */
 	u32 len;
 
-	u32 flags;
 	void (*complete) (struct hif_scatter_req *);
 	int status;
 	struct htc_endpoint *ep;

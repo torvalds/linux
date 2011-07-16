@@ -119,10 +119,6 @@
 #define HTC_RX_PKT_PART_OF_BUNDLE        (1 << 2)
 #define HTC_RX_PKT_NO_RECYCLE            (1 << 3)
 
-/* scatter request flags */
-
-#define HTC_SCAT_REQ_FLG_PART_BNDL  (1 << 0)
-
 #define NUM_CONTROL_BUFFERS     8
 #define NUM_CONTROL_TX_BUFFERS  2
 #define NUM_CONTROL_RX_BUFFERS  (NUM_CONTROL_BUFFERS - NUM_CONTROL_TX_BUFFERS)
