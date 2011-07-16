@@ -264,7 +264,7 @@ static int ath6kl_sdio_scat_rw(struct ath6kl_sdio *ar_sdio,
 			   scat_req->status);
 
 	if (scat_req->req & HIF_ASYNCHRONOUS)
-		scat_req->complete(scat_req);
+		scat_req->complete(ar_sdio->ar->htc_target, scat_req);
 
 	return status;
 }

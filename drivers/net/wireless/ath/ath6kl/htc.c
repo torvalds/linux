@@ -127,10 +127,10 @@ static void htc_tx_comp_handler(struct htc_target *target,
 	htc_tx_complete(endpoint, &container);
 }
 
-static void htc_async_tx_scat_complete(struct hif_scatter_req *scat_req)
+static void htc_async_tx_scat_complete(struct htc_target *target,
+				       struct hif_scatter_req *scat_req)
 {
-	struct htc_endpoint *endpoint = scat_req->ep;
-	struct htc_target *target = endpoint->target;
+	struct htc_endpoint *endpoint;
 	struct htc_packet *packet;
 	struct list_head tx_compq;
 	int i;
@@ -143,6 +143,9 @@ static void htc_async_tx_scat_complete(struct hif_scatter_req *scat_req)
 
 	if (scat_req->status)
 		ath6kl_err("send scatter req failed: %d\n", scat_req->status);
+
+	packet = scat_req->scat_list[0].packet;
+	endpoint = &target->endpoint[packet->endpoint];
 
 	/* walk through the scatter list and process */
 	for (i = 0; i < scat_req->scat_entries; i++) {
@@ -465,7 +468,6 @@ static void htc_issue_send_bundle(struct htc_endpoint *endpoint,
 
 		/* send path is always asynchronous */
 		scat_req->complete = htc_async_tx_scat_complete;
-		scat_req->ep = endpoint;
 		n_sent_bundle++;
 		tot_pkts_bundle += scat_req->scat_entries;
 

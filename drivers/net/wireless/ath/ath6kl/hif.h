@@ -171,9 +171,8 @@ struct hif_scatter_req {
 	/* total length of entire transfer */
 	u32 len;
 
-	void (*complete) (struct hif_scatter_req *);
+	void (*complete) (struct htc_target *, struct hif_scatter_req *);
 	int status;
-	struct htc_endpoint *ep;
 	int scat_entries;
 
 	struct bus_request *busrequest;

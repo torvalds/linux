@@ -201,7 +201,7 @@ static void ath6kldev_rw_async_handler(struct htc_target *target,
 
 	ath6kl_add_io_pkt(dev, packet);
 
-	req->complete(req);
+	req->complete(target, req);
 }
 
 static int ath6kldev_rw_scatter(struct ath6kl *ar, struct hif_scatter_req *req)
@@ -243,7 +243,7 @@ out:
 			if (packet != NULL)
 				ath6kl_add_io_pkt(dev, packet);
 			req->status = status;
-			req->complete(req);
+			req->complete(ar->htc_target, req);
 			status = 0;
 		}
 
@@ -279,7 +279,7 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 	if (status) {
 		if (!read) {
 			scat_req->status = status;
-			scat_req->complete(scat_req);
+			scat_req->complete(dev->ar->htc_target, scat_req);
 			return 0;
 		}
 		return status;
