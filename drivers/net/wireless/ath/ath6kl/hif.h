@@ -186,7 +186,6 @@ struct hif_scatter_req {
 };
 
 struct hif_dev_scat_sup_info {
-	int (*rw_scat_func) (struct ath6kl *ar, struct hif_scatter_req *);
 	int max_scat_entries;
 	int max_xfer_szper_scatreq;
 };
@@ -210,6 +209,8 @@ struct ath6kl_hif_ops {
 				struct hif_scatter_req *s_req);
 	int (*enable_scatter)(struct ath6kl *ar,
 			      struct hif_dev_scat_sup_info *info);
+	int (*scat_req_rw) (struct ath6kl *ar,
+			    struct hif_scatter_req *scat_req);
 	void (*cleanup_scatter)(struct ath6kl *ar);
 };
 

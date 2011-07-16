@@ -271,9 +271,9 @@ static int ath6kl_sdio_scat_rw(struct ath6kl_sdio *ar_sdio,
 }
 
 
-/* callback to issue a read-write scatter request */
+/* scatter gather read write request */
 static int ath6kl_sdio_async_rw_scatter(struct ath6kl *ar,
-					struct hif_scatter_req *scat_req)
+				 struct hif_scatter_req *scat_req)
 {
 	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
 	struct hif_scatter_req_priv *req_priv = scat_req->req_priv;
@@ -379,8 +379,6 @@ static int ath6kl_sdio_setup_scat_resource(struct ath6kl_sdio *ar_sdio,
 		hif_scatter_req_add(ar_sdio->ar, s_req);
 	}
 
-	/* set scatter function pointers */
-	pinfo->rw_scat_func = ath6kl_sdio_async_rw_scatter;
 	pinfo->max_scat_entries = MAX_SCATTER_ENTRIES_PER_REQ;
 	pinfo->max_xfer_szper_scatreq = MAX_SCATTER_REQ_TRANSFER_SIZE;
 
@@ -671,6 +669,7 @@ static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.scatter_req_get = ath6kl_sdio_scatter_req_get,
 	.scatter_req_add = ath6kl_sdio_scatter_req_add,
 	.enable_scatter = ath6kl_sdio_enable_scatter,
+	.scat_req_rw = ath6kl_sdio_async_rw_scatter,
 	.cleanup_scatter = ath6kl_sdio_cleanup_scatter,
 };
 

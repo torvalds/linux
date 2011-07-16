@@ -285,7 +285,10 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 		return status;
 	}
 
-	status = dev->hif_scat_info.rw_scat_func(dev->ar, scat_req);
+	if (dev->virt_scat)
+		status =  ath6kldev_rw_scatter(dev->ar, scat_req);
+	else
+		status = ath6kl_hif_scat_req_rw(dev->ar, scat_req);
 
 	if (read) {
 		/* in sync mode, we can touch the scatter request */
@@ -340,7 +343,6 @@ static int ath6kldev_setup_virt_scat_sup(struct ath6kl_device *dev)
 	if (status)
 		ath6kl_hif_cleanup_scatter(dev->ar);
 	else {
-		dev->hif_scat_info.rw_scat_func = ath6kldev_rw_scatter;
 		dev->hif_scat_info.max_scat_entries =
 			ATH6KL_SCATTER_ENTRIES_PER_REQ;
 		dev->hif_scat_info.max_xfer_szper_scatreq =
