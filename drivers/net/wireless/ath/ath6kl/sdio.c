@@ -128,6 +128,33 @@ static int ath6kl_sdio_func0_cmd52_wr_byte(struct mmc_card *card,
 	return mmc_wait_for_cmd(card->host, &io_cmd, 0);
 }
 
+static int ath6kl_sdio_io(struct sdio_func *func, u32 request, u32 addr,
+			  u8 *buf, u32 len)
+{
+	int ret = 0;
+
+	if (request & HIF_WRITE) {
+		if (addr >= HIF_MBOX_BASE_ADDR &&
+		    addr <= HIF_MBOX_END_ADDR)
+			addr += (HIF_MBOX_WIDTH - len);
+
+		if (addr == HIF_MBOX0_EXT_BASE_ADDR)
+			addr += HIF_MBOX0_EXT_WIDTH - len;
+
+		if (request & HIF_FIXED_ADDRESS)
+			ret = sdio_writesb(func, addr, buf, len);
+		else
+			ret = sdio_memcpy_toio(func, addr, buf, len);
+	} else {
+		if (request & HIF_FIXED_ADDRESS)
+			ret = sdio_readsb(func, buf, addr, len);
+		else
+			ret = sdio_memcpy_fromio(func, buf, addr, len);
+	}
+
+	return ret;
+}
+
 static struct bus_request *ath6kl_sdio_alloc_busreq(struct ath6kl_sdio *ar_sdio)
 {
 	struct bus_request *bus_req;
@@ -355,27 +382,9 @@ static int ath6kl_sdio_read_write_sync(struct ath6kl *ar, u32 addr, u8 *buf,
 		tbuf = buf;
 
 	sdio_claim_host(ar_sdio->func);
-	if (request & HIF_WRITE) {
-		if (addr >= HIF_MBOX_BASE_ADDR &&
-		    addr <= HIF_MBOX_END_ADDR)
-			addr += (HIF_MBOX_WIDTH - len);
-
-		if (addr == HIF_MBOX0_EXT_BASE_ADDR)
-			addr += HIF_MBOX0_EXT_WIDTH - len;
-
-		if (request & HIF_FIXED_ADDRESS)
-			ret = sdio_writesb(ar_sdio->func, addr, tbuf, len);
-		else
-			ret = sdio_memcpy_toio(ar_sdio->func, addr, tbuf, len);
-	} else {
-		if (request & HIF_FIXED_ADDRESS)
-			ret = sdio_readsb(ar_sdio->func, tbuf, addr, len);
-		else
-			ret = sdio_memcpy_fromio(ar_sdio->func, tbuf,
-						 addr, len);
-		if (bounced)
-			memcpy(buf, tbuf, len);
-	}
+	ret = ath6kl_sdio_io(ar_sdio->func, request, addr, tbuf, len);
+	if ((request & HIF_READ) && bounced)
+		memcpy(buf, tbuf, len);
 	sdio_release_host(ar_sdio->func);
 
 	return ret;
