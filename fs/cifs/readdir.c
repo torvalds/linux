@@ -478,66 +478,18 @@ static int is_dir_changed(struct file *file)
 }
 
 static int cifs_save_resume_key(const char *current_entry,
-	struct cifsFileInfo *cifsFile)
+	struct cifsFileInfo *file_info)
 {
-	int rc = 0;
-	unsigned int len = 0;
-	__u16 level;
-	char *filename;
+	struct cifs_dirent de;
+	int rc;
 
-	if ((cifsFile == NULL) || (current_entry == NULL))
-		return -EINVAL;
-
-	level = cifsFile->srch_inf.info_level;
-
-	if (level == SMB_FIND_FILE_UNIX) {
-		FILE_UNIX_INFO *pFindData = (FILE_UNIX_INFO *)current_entry;
-
-		filename = &pFindData->FileName[0];
-		if (cifsFile->srch_inf.unicode) {
-			len = cifs_unicode_bytelen(filename);
-		} else {
-			/* BB should we make this strnlen of PATH_MAX? */
-			len = strnlen(filename, PATH_MAX);
-		}
-		cifsFile->srch_inf.resume_key = pFindData->ResumeKey;
-	} else if (level == SMB_FIND_FILE_DIRECTORY_INFO) {
-		FILE_DIRECTORY_INFO *pFindData =
-			(FILE_DIRECTORY_INFO *)current_entry;
-		filename = &pFindData->FileName[0];
-		len = le32_to_cpu(pFindData->FileNameLength);
-		cifsFile->srch_inf.resume_key = pFindData->FileIndex;
-	} else if (level == SMB_FIND_FILE_FULL_DIRECTORY_INFO) {
-		FILE_FULL_DIRECTORY_INFO *pFindData =
-			(FILE_FULL_DIRECTORY_INFO *)current_entry;
-		filename = &pFindData->FileName[0];
-		len = le32_to_cpu(pFindData->FileNameLength);
-		cifsFile->srch_inf.resume_key = pFindData->FileIndex;
-	} else if (level == SMB_FIND_FILE_ID_FULL_DIR_INFO) {
-		SEARCH_ID_FULL_DIR_INFO *pFindData =
-			(SEARCH_ID_FULL_DIR_INFO *)current_entry;
-		filename = &pFindData->FileName[0];
-		len = le32_to_cpu(pFindData->FileNameLength);
-		cifsFile->srch_inf.resume_key = pFindData->FileIndex;
-	} else if (level == SMB_FIND_FILE_BOTH_DIRECTORY_INFO) {
-		FILE_BOTH_DIRECTORY_INFO *pFindData =
-			(FILE_BOTH_DIRECTORY_INFO *)current_entry;
-		filename = &pFindData->FileName[0];
-		len = le32_to_cpu(pFindData->FileNameLength);
-		cifsFile->srch_inf.resume_key = pFindData->FileIndex;
-	} else if (level == SMB_FIND_FILE_INFO_STANDARD) {
-		FIND_FILE_STANDARD_INFO *pFindData =
-			(FIND_FILE_STANDARD_INFO *)current_entry;
-		filename = &pFindData->FileName[0];
-		/* one byte length, no name conversion */
-		len = (unsigned int)pFindData->FileNameLength;
-		cifsFile->srch_inf.resume_key = pFindData->ResumeKey;
-	} else {
-		cFYI(1, "Unknown findfirst level %d", level);
-		return -EINVAL;
+	rc = cifs_fill_dirent(&de, current_entry, file_info->srch_inf.info_level,
+			      file_info->srch_inf.unicode);
+	if (!rc) {
+		file_info->srch_inf.presume_name = de.name;
+		file_info->srch_inf.resume_name_len = de.namelen;
+		file_info->srch_inf.resume_key = de.resume_key;
 	}
-	cifsFile->srch_inf.resume_name_len = len;
-	cifsFile->srch_inf.presume_name = filename;
 	return rc;
 }
 
