@@ -636,15 +636,12 @@ static struct dentry *clk_debugfs_register_dir(struct clk *c,
 						struct dentry *p_dentry)
 {
 	struct dentry *d, *clk_d;
-	char s[255];
-	char *p = s;
+	const char *p = c->name;
 
-	if (c->name == NULL)
-		p += sprintf(p, "BUG");
-	else
-		p += sprintf(p, "%s", c->name);
+	if (!p)
+		p = "BUG";
 
-	clk_d = debugfs_create_dir(s, p_dentry);
+	clk_d = debugfs_create_dir(p, p_dentry);
 	if (!clk_d)
 		return NULL;
 
