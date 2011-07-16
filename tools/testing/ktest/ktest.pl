@@ -2405,6 +2405,7 @@ sub get_depends {
 
 my %min_configs;
 my %keep_configs;
+my %save_configs;
 my %processed_configs;
 my %nochange_config;
 
@@ -2496,14 +2497,16 @@ sub make_min_config {
 
     process_config_ignore $output_config;
 
-    undef %keep_configs;
+    undef %save_configs;
     undef %min_configs;
 
     if (defined($ignore_config)) {
 	# make sure the file exists
 	`touch $ignore_config`;
-	assign_configs \%keep_configs, $ignore_config;
+	assign_configs \%save_configs, $ignore_config;
     }
+
+    %keep_configs = %save_configs;
 
     doprint "Load initial configs from $start_minconfig\n";
 
@@ -2614,14 +2617,15 @@ sub make_min_config {
 	    doprint "$min_configs{$config} is needed to boot the box... keeping\n";
 	    # this config is needed, add it to the ignore list.
 	    $keep_configs{$config} = $min_configs{$config};
+	    $save_configs{$config} = $min_configs{$config};
 	    delete $min_configs{$config};
 
 	    # update new ignore configs
 	    if (defined($ignore_config)) {
 		open (OUT, ">$temp_config")
 		    or die "Can't write to $temp_config";
-		foreach my $config (keys %keep_configs) {
-		    print OUT "$keep_configs{$config}\n";
+		foreach my $config (keys %save_configs) {
+		    print OUT "$save_configs{$config}\n";
 		}
 		close OUT;
 		run_command "mv $temp_config $ignore_config" or
