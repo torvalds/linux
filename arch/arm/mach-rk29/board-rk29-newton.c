@@ -522,44 +522,6 @@ static struct  bu92747guw_platform_data bu92747guw_pdata = {
 	.cir_pwr_ctl = bu92747guw_power_ctl,
 };  
 #endif
-
-
-static struct android_pmem_platform_data android_pmem_pdata = {
-	.name		= "pmem",
-	.start		= PMEM_UI_BASE,
-	.size		= PMEM_UI_SIZE,
-	.no_allocator	= 0,
-	.cached		= 1,
-};
-
-static struct platform_device android_pmem_device = {
-	.name		= "android_pmem",
-	.id		= 0,
-	.dev		= {
-		.platform_data = &android_pmem_pdata,
-	},
-};
-
-
-static struct vpu_mem_platform_data vpu_mem_pdata = {
-	.name		= "vpu_mem",
-	.start		= PMEM_VPU_BASE,
-	.size		= PMEM_VPU_SIZE,
-	.cached		= 1,
-};
-
-static struct platform_device rk29_vpu_mem_device = {
-	.name		= "vpu_mem",
-	.id		    = 2,
-	.dev		= {
-	.platform_data = &vpu_mem_pdata,
-	},
-};
-#ifdef CONFIG_VIDEO_RK29XX_VOUT
-static struct platform_device rk29_v4l2_output_devce = {
-	.name		= "rk29_vout",
-};
-#endif
 #ifdef CONFIG_RK29_NEWTON
 struct rk29_newton_data rk29_newton_info = {	
 };
@@ -717,6 +679,114 @@ struct cs42l52_platform_data cs42l52_info = {
 };
 #endif
 
+static struct android_pmem_platform_data android_pmem_pdata = {
+	.name		= "pmem",
+	.start		= PMEM_UI_BASE,
+	.size		= PMEM_UI_SIZE,
+	.no_allocator	= 0,
+	.cached		= 1,
+};
+
+static struct platform_device android_pmem_device = {
+	.name		= "android_pmem",
+	.id		= 0,
+	.dev		= {
+		.platform_data = &android_pmem_pdata,
+	},
+};
+
+
+static struct vpu_mem_platform_data vpu_mem_pdata = {
+	.name		= "vpu_mem",
+	.start		= PMEM_VPU_BASE,
+	.size		= PMEM_VPU_SIZE,
+	.cached		= 1,
+};
+
+static struct platform_device rk29_vpu_mem_device = {
+	.name		= "vpu_mem",
+	.id		    = 2,
+	.dev		= {
+	.platform_data = &vpu_mem_pdata,
+	},
+};
+#ifdef CONFIG_VIDEO_RK29XX_VOUT
+static struct platform_device rk29_v4l2_output_devce = {
+	.name		= "rk29_vout",
+};
+#endif
+/*HANNSTAR_P1003 touch*/
+#if defined (CONFIG_HANNSTAR_P1003)
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+
+int p1003_init_platform_hw(void)
+{
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("p1003_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("p1003_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+    gpio_pull_updown(TOUCH_INT_PIN, 1);
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    msleep(500);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    msleep(500);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+
+    return 0;
+}
+
+
+struct p1003_platform_data p1003_info = {
+  .model= 1003,
+  .init_platform_hw= p1003_init_platform_hw,
+
+};
+#endif
+#if defined (CONFIG_EETI_EGALAX)
+#define TOUCH_RESET_PIN RK29_PIN6_PC3
+#define TOUCH_INT_PIN   RK29_PIN0_PA2
+
+static int EETI_EGALAX_init_platform_hw(void)
+{
+    if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+      gpio_free(TOUCH_RESET_PIN);
+      printk("p1003_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+
+    if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+      gpio_free(TOUCH_INT_PIN);
+      printk("p1003_init_platform_hw gpio_request error\n");
+      return -EIO;
+    }
+    gpio_pull_updown(TOUCH_INT_PIN, 1);
+    gpio_direction_output(TOUCH_RESET_PIN, 0);
+    msleep(500);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+    msleep(500);
+    gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+
+    return 0;
+}
+
+
+static struct eeti_egalax_platform_data eeti_egalax_info = {
+  .model= 1003,
+  .init_platform_hw= EETI_EGALAX_init_platform_hw,
+  .standby_pin = TOUCH_SCREEN_STANDBY_PIN,
+  .standby_value = TOUCH_SCREEN_STANDBY_VALUE,
+  .disp_on_pin = TOUCH_SCREEN_DISPLAY_PIN,
+  .disp_on_value = TOUCH_SCREEN_DISPLAY_VALUE,
+};
+#endif
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK29_PIN0_PA3
@@ -742,6 +812,25 @@ static struct mma8452_platform_data mma8452_info = {
 };
 #endif
 
+#if defined (CONFIG_BATTERY_BQ27510)
+#define	DC_CHECK_PIN	RK29_PIN4_PA1
+#define	LI_LION_BAT_NUM	2
+static int bq27510_init_dc_check_pin(void){	
+	if(gpio_request(DC_CHECK_PIN,"dc_check") != 0){      
+		gpio_free(DC_CHECK_PIN);      
+		printk("bq27510 init dc check pin request error\n");      
+		return -EIO;    
+	}	
+	gpio_direction_input(DC_CHECK_PIN);	
+	return 0;
+}
+
+struct bq27510_platform_data bq27510_info = {	
+	.init_dc_check_pin = bq27510_init_dc_check_pin,	
+	.dc_check_pin =  DC_CHECK_PIN,		
+	.bat_num = LI_LION_BAT_NUM,
+};
+#endif
 
 
 /*****************************************************************************************
@@ -907,27 +996,19 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
-#if defined (CONFIG_SND_SOC_CS42L52)
-	{
-		.type    		= "cs42l52",
-		.addr           = 0x4A,
-		.flags			= 0,
-		.platform_data	= &cs42l52_info,
-	},
-#endif
-#if defined (CONFIG_RTC_M41T66)
-	{
-		.type           = "rtc-M41T66",
-		.addr           = 0x68,
-		.flags          = 0,
-		.irq            = RK29_PIN0_PA1,
-	},
-#endif
 #if defined (CONFIG_BATTERY_STC3100)
 	{
 		.type    		= "stc3100",
 		.addr           = 0x70,
 		.flags			= 0,
+	},
+#endif
+#if defined (CONFIG_BATTERY_BQ27510)
+	{
+		.type    		= "bq27510",
+		.addr           = 0x55,
+		.flags			= 0,
+		.platform_data  = &bq27510_info,
 	},
 #endif
 #if defined (CONFIG_RTC_HYM8563)
@@ -963,6 +1044,22 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.irq			= RK29_PIN0_PA4,
 	},
 #endif
+#if defined (CONFIG_SND_SOC_CS42L52)
+	{
+		.type    		= "cs42l52",
+		.addr           = 0x4A,
+		.flags			= 0,
+		.platform_data	= &cs42l52_info,
+	},
+#endif
+#if defined (CONFIG_RTC_M41T66)
+	{
+		.type           = "rtc-M41T66",
+		.addr           = 0x68,
+		.flags          = 0,
+		.irq            = RK29_PIN0_PA1,
+	},
+#endif
 };
 #endif
 
@@ -991,7 +1088,6 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
     	.irq		= BU92747_CIR_IRQ_PIN,
     	.platform_data = &bu92747guw_pdata,
     },
-
 #endif
 
 };
@@ -1019,22 +1115,22 @@ static struct i2c_board_info __initdata board_i2c2_devices[] = {
     },
 #endif
 #if defined (CONFIG_TOUCHSCREEN_GT819)
-{
+    {
 		.type	= "Goodix-TS",
 		.addr 	= 0x55,
 		.flags      =0,
 		.irq		=RK29_PIN0_PA2,
 		.platform_data = &goodix_info,
-},
+    },
 #endif
 #if defined (CONFIG_TOUCHSCREEN_FT5406)
-{
+    {
 		.type	="ft5x0x_ts",
 		.addr 	= 0x38,    //0x70,
 		.flags      =0,
 		.irq		=RK29_PIN0_PA2, // support goodix tp detect, 20110706
 		.platform_data = &ft5406_info,
-},
+    },
 #endif
 };
 #endif
@@ -1706,9 +1802,6 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
 #endif
-#ifdef CONFIG_LEDS_GPIO_PLATFORM
-	&rk29_device_gpio_leds,
-#endif
 #ifdef CONFIG_RK29_VMAC
 	&rk29_device_vmac,
 #endif
@@ -1749,6 +1842,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_RK_IRDA
     &irda_device,
+#endif
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+	&rk29_device_gpio_leds,
 #endif
 };
 
@@ -1901,8 +1997,89 @@ struct rk29xx_spi_platform_data rk29xx_spi1_platdata = {
 	.io_resume_leakage_bug = spi_io_resume_leakage_bug,
 };
 
+/*****************************************************************************************
+ * xpt2046 touch panel
+ * author: cmc@rock-chips.com
+ *****************************************************************************************/
+#define XPT2046_GPIO_INT           RK29_PIN0_PA3
+#define DEBOUNCE_REPTIME  3
+
+#if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI)
+static struct xpt2046_platform_data xpt2046_info = {
+	.model			= 2046,
+	.keep_vref_on 	= 1,
+	.swap_xy		= 0,
+	.x_min			= 0,
+	.x_max			= 320,
+	.y_min			= 0,
+	.y_max			= 480,
+	.debounce_max		= 7,
+	.debounce_rep		= DEBOUNCE_REPTIME,
+	.debounce_tol		= 20,
+	.gpio_pendown		= XPT2046_GPIO_INT,
+	.penirq_recheck_delay_usecs = 1,
+};
+#elif defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)
+static struct xpt2046_platform_data xpt2046_info = {
+	.model			= 2046,
+	.keep_vref_on 	= 1,
+	.swap_xy		= 0,
+	.x_min			= 0,
+	.x_max			= 320,
+	.y_min			= 0,
+	.y_max			= 480,
+	.debounce_max		= 7,
+	.debounce_rep		= DEBOUNCE_REPTIME,
+	.debounce_tol		= 20,
+	.gpio_pendown		= XPT2046_GPIO_INT,
+	.penirq_recheck_delay_usecs = 1,
+};
+#elif defined(CONFIG_TOUCHSCREEN_XPT2046_SPI)
+static struct xpt2046_platform_data xpt2046_info = {
+	.model			= 2046,
+	.keep_vref_on 	= 1,
+	.swap_xy		= 1,
+	.x_min			= 0,
+	.x_max			= 800,
+	.y_min			= 0,
+	.y_max			= 480,
+	.debounce_max		= 7,
+	.debounce_rep		= DEBOUNCE_REPTIME,
+	.debounce_tol		= 20,
+	.gpio_pendown		= XPT2046_GPIO_INT,
+
+	.penirq_recheck_delay_usecs = 1,
+};
+#elif defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
+static struct xpt2046_platform_data xpt2046_info = {
+	.model			= 2046,
+	.keep_vref_on 	= 1,
+	.swap_xy		= 1,
+	.x_min			= 0,
+	.x_max			= 800,
+	.y_min			= 0,
+	.y_max			= 480,
+	.debounce_max		= 7,
+	.debounce_rep		= DEBOUNCE_REPTIME,
+	.debounce_tol		= 20,
+	.gpio_pendown		= XPT2046_GPIO_INT,
+
+	.penirq_recheck_delay_usecs = 1,
+};
+#endif
 
 static struct spi_board_info board_spi_devices[] = {
+#if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)\
+    ||defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
+	{
+		.modalias	= "xpt2046_ts",
+		.chip_select	= 0,
+		.max_speed_hz	= 125 * 1000 * 26,/* (max sample rate @ 3V) * (cmd + data + overhead) */
+		.bus_num	= 0,
+		.irq = XPT2046_GPIO_INT,
+		.platform_data = &xpt2046_info,
+	},
+#endif
 };
 
 
@@ -1985,7 +2162,7 @@ static void __init machine_rk29_mapio(void)
 	rk29_map_common_io();
 	rk29_setup_early_printk();
 	rk29_sram_init();
-	rk29_clock_init(periph_pll_288mhz);
+	rk29_clock_init(periph_pll_default);
 	rk29_iomux_init();
 	ddr_init(DDR_TYPE, DDR_FREQ);
 }
