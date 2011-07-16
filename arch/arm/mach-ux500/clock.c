@@ -635,7 +635,7 @@ static const struct file_operations set_rate_fops = {
 static struct dentry *clk_debugfs_register_dir(struct clk *c,
 						struct dentry *p_dentry)
 {
-	struct dentry *d, *clk_d, *child, *child_tmp;
+	struct dentry *d, *clk_d;
 	char s[255];
 	char *p = s;
 
@@ -666,22 +666,8 @@ static struct dentry *clk_debugfs_register_dir(struct clk *c,
 	return clk_d;
 
 err_out:
-	d = clk_d;
-	list_for_each_entry_safe(child, child_tmp, &d->d_subdirs, d_u.d_child)
-		debugfs_remove(child);
-	debugfs_remove(clk_d);
+	debugfs_remove_recursive(clk_d);
 	return NULL;
-}
-
-static void clk_debugfs_remove_dir(struct dentry *cdentry)
-{
-	struct dentry *d, *child, *child_tmp;
-
-	d = cdentry;
-	list_for_each_entry_safe(child, child_tmp, &d->d_subdirs, d_u.d_child)
-		debugfs_remove(child);
-	debugfs_remove(cdentry);
-	return ;
 }
 
 static int clk_debugfs_register_one(struct clk *c)
@@ -700,7 +686,7 @@ static int clk_debugfs_register_one(struct clk *c)
 		c->dent_bus = clk_debugfs_register_dir(c,
 				bpa->dent_bus ? bpa->dent_bus : bpa->dent);
 		if ((!c->dent_bus) &&  (c->dent)) {
-			clk_debugfs_remove_dir(c->dent);
+			debugfs_remove_recursive(c->dent);
 			c->dent = NULL;
 			return -ENOMEM;
 		}
