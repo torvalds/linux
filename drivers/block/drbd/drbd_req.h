@@ -235,10 +235,8 @@ enum drbd_req_state_bits {
 
 /* For waking up the frozen transfer log mod_req() has to return if the request
    should be counted in the epoch object*/
-#define MR_WRITE_SHIFT 0
-#define MR_WRITE       (1 << MR_WRITE_SHIFT)
-#define MR_READ_SHIFT  1
-#define MR_READ        (1 << MR_READ_SHIFT)
+#define MR_WRITE       1
+#define MR_READ        2
 
 static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
 {

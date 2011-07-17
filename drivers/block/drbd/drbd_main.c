@@ -368,8 +368,10 @@ void _tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what)
 			req = list_entry(le, struct drbd_request, tl_requests);
 			rv = _req_mod(req, what);
 
-			n_writes += (rv & MR_WRITE) >> MR_WRITE_SHIFT;
-			n_reads  += (rv & MR_READ) >> MR_READ_SHIFT;
+			if (rv & MR_WRITE)
+				n_writes++;
+			if (rv & MR_READ)
+				n_reads++;
 		}
 		tmp = b->next;
 
