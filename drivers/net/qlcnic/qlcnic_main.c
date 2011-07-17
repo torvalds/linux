@@ -4198,13 +4198,18 @@ static void
 qlcnic_restore_indev_addr(struct net_device *netdev, unsigned long event)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct vlan_group *grp;
 	struct net_device *dev;
 	u16 vid;
 
 	qlcnic_config_indev_addr(adapter, netdev, event);
 
+	grp = rcu_dereference_rtnl(netdev->vlgrp);
+	if (!grp)
+		return;
+
 	for_each_set_bit(vid, adapter->vlans, VLAN_N_VID) {
-		dev = vlan_find_dev(netdev, vid);
+		dev = vlan_group_get_device(grp, vid);
 		if (!dev)
 			continue;
 		qlcnic_config_indev_addr(adapter, dev, event);

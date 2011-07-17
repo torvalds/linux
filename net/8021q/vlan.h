@@ -74,6 +74,18 @@ static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)
 	return netdev_priv(dev);
 }
 
+/* Must be invoked with rcu_read_lock or with RTNL. */
+static inline struct net_device *vlan_find_dev(struct net_device *real_dev,
+					       u16 vlan_id)
+{
+	struct vlan_group *grp = rcu_dereference_rtnl(real_dev->vlgrp);
+
+	if (grp)
+		return vlan_group_get_device(grp, vlan_id);
+
+	return NULL;
+}
+
 /* found in vlan_dev.c */
 void vlan_dev_set_ingress_priority(const struct net_device *dev,
 				   u32 skb_prio, u16 vlan_prio);
