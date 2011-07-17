@@ -40,6 +40,7 @@ struct plat_stmmacenet_data {
 	int tx_coe;
 	int bugged_jumbo;
 	int pmt;
+	int force_sf_dma_mode;
 	void (*fix_mac_speed)(void *priv, unsigned int speed);
 	void (*bus_setup)(void __iomem *ioaddr);
 	int (*init)(struct platform_device *pdev);
