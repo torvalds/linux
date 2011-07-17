@@ -1257,7 +1257,7 @@ int neigh_resolve_output(struct sk_buff *skb)
 		} while (read_seqretry(&neigh->ha_lock, seq));
 
 		if (err >= 0)
-			rc = neigh->ops->queue_xmit(skb);
+			rc = dev_queue_xmit(skb);
 		else
 			goto out_kfree_skb;
 	}
@@ -1292,7 +1292,7 @@ int neigh_connected_output(struct sk_buff *skb)
 	} while (read_seqretry(&neigh->ha_lock, seq));
 
 	if (err >= 0)
-		err = neigh->ops->queue_xmit(skb);
+		err = dev_queue_xmit(skb);
 	else {
 		err = -EINVAL;
 		kfree_skb(skb);

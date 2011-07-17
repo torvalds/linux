@@ -273,7 +273,6 @@ static const struct neigh_ops clip_neigh_ops = {
 	.error_report =		clip_neigh_error,
 	.output =		dev_queue_xmit,
 	.connected_output =	dev_queue_xmit,
-	.queue_xmit =		dev_queue_xmit,
 };
 
 static int clip_constructor(struct neighbour *neigh)
