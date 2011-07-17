@@ -1105,7 +1105,7 @@ static void sdma_add_scripts(struct sdma_engine *sdma,
 }
 
 static int __init sdma_get_firmware(struct sdma_engine *sdma,
-		const char *cpu_name, int to_version)
+		const char *fw_name)
 {
 	const struct firmware *fw;
 	char *fwname;
@@ -1114,7 +1114,7 @@ static int __init sdma_get_firmware(struct sdma_engine *sdma,
 	const struct sdma_script_start_addrs *addr;
 	unsigned short *ram_code;
 
-	fwname = kasprintf(GFP_KERNEL, "sdma-%s-to%d.bin", cpu_name, to_version);
+	fwname = kasprintf(GFP_KERNEL, "%s", fw_name);
 	if (!fwname)
 		return -ENOMEM;
 
@@ -1317,7 +1317,7 @@ static int __init sdma_probe(struct platform_device *pdev)
 	if (pdata->script_addrs)
 		sdma_add_scripts(sdma, pdata->script_addrs);
 
-	sdma_get_firmware(sdma, pdata->cpu_name, pdata->to_version);
+	sdma_get_firmware(sdma, pdata->fw_name);
 
 	sdma->dma_device.dev = &pdev->dev;
 

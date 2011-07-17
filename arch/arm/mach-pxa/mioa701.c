@@ -794,6 +794,7 @@ MACHINE_START(MIOA701, "MIO A701")
 	.boot_params	= 0xa0000100,
 	.map_io		= &pxa27x_map_io,
 	.init_irq	= &pxa27x_init_irq,
+	.handle_irq	= &pxa27x_handle_irq,
 	.init_machine	= mioa701_machine_init,
 	.timer		= &pxa_timer,
 MACHINE_END

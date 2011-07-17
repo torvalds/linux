@@ -25,6 +25,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pda_power.h>
 #include <linux/io.h>
+#include <linux/i2c.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -34,6 +35,7 @@
 #include <mach/iomap.h>
 #include <mach/irqs.h>
 #include <mach/sdhci.h>
+#include <mach/gpio.h>
 
 #include "board.h"
 #include "board-paz00.h"
@@ -66,9 +68,21 @@ static struct platform_device debug_uart = {
 static struct platform_device *paz00_devices[] __initdata = {
 	&debug_uart,
 	&tegra_sdhci_device1,
-	&tegra_sdhci_device2,
 	&tegra_sdhci_device4,
 };
+
+static void paz00_i2c_init(void)
+{
+	platform_device_register(&tegra_i2c_device1);
+	platform_device_register(&tegra_i2c_device2);
+	platform_device_register(&tegra_i2c_device4);
+}
+
+static void paz00_usb_init(void)
+{
+	platform_device_register(&tegra_ehci2_device);
+	platform_device_register(&tegra_ehci3_device);
+}
 
 static void __init tegra_paz00_fixup(struct machine_desc *desc,
 	struct tag *tags, char **cmdline, struct meminfo *mi)
@@ -84,23 +98,16 @@ static __initdata struct tegra_clk_init_table paz00_clk_init_table[] = {
 	{ NULL,		NULL,		0,		0},
 };
 
-
 static struct tegra_sdhci_platform_data sdhci_pdata1 = {
 	.cd_gpio	= TEGRA_GPIO_SD1_CD,
 	.wp_gpio	= TEGRA_GPIO_SD1_WP,
 	.power_gpio	= TEGRA_GPIO_SD1_POWER,
 };
 
-static struct tegra_sdhci_platform_data sdhci_pdata2 = {
+static struct tegra_sdhci_platform_data sdhci_pdata4 = {
 	.cd_gpio	= -1,
 	.wp_gpio	= -1,
 	.power_gpio	= -1,
-};
-
-static struct tegra_sdhci_platform_data sdhci_pdata4 = {
-	.cd_gpio	= TEGRA_GPIO_SD4_CD,
-	.wp_gpio	= TEGRA_GPIO_SD4_WP,
-	.power_gpio	= TEGRA_GPIO_SD4_POWER,
 	.is_8bit	= 1,
 };
 
@@ -111,13 +118,15 @@ static void __init tegra_paz00_init(void)
 	paz00_pinmux_init();
 
 	tegra_sdhci_device1.dev.platform_data = &sdhci_pdata1;
-	tegra_sdhci_device2.dev.platform_data = &sdhci_pdata2;
 	tegra_sdhci_device4.dev.platform_data = &sdhci_pdata4;
 
 	platform_add_devices(paz00_devices, ARRAY_SIZE(paz00_devices));
+
+	paz00_i2c_init();
+	paz00_usb_init();
 }
 
-MACHINE_START(PAZ00, "paz00")
+MACHINE_START(PAZ00, "Toshiba AC100 / Dynabook AZ")
 	.boot_params	= 0x00000100,
 	.fixup		= tegra_paz00_fixup,
 	.map_io         = tegra_map_common_io,

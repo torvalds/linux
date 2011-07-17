@@ -244,12 +244,13 @@
 #define PSC_STATE_ENABLE	3
 
 #define MDSTAT_STATE_MASK 0x1f
+#define MDCTL_FORCE		BIT(31)
 
 #ifndef __ASSEMBLER__
 
 extern int davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id);
 extern void davinci_psc_config(unsigned int domain, unsigned int ctlr,
-		unsigned int id, u32 next_state);
+		unsigned int id, bool enable, u32 flags);
 
 #endif
 

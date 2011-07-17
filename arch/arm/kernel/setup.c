@@ -73,6 +73,7 @@ __setup("fpe=", fpe_setup);
 #endif
 
 extern void paging_init(struct machine_desc *desc);
+extern void sanity_check_meminfo(void);
 extern void reboot_setup(char *str);
 
 unsigned int processor_id;
@@ -900,6 +901,7 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
+	sanity_check_meminfo();
 	arm_memblock_init(&meminfo, mdesc);
 
 	paging_init(mdesc);

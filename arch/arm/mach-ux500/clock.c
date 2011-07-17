@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/clkdev.h>
+#include <linux/cpufreq.h>
 
 #include <plat/mtu.h>
 #include <mach/hardware.h>
@@ -759,6 +760,51 @@ err_out:
 late_initcall(clk_debugfs_init);
 #endif /* defined(CONFIG_DEBUG_FS) */
 
+unsigned long clk_smp_twd_rate = 400000000;
+
+unsigned long clk_smp_twd_get_rate(struct clk *clk)
+{
+	return clk_smp_twd_rate;
+}
+
+static struct clk clk_smp_twd = {
+	.get_rate = clk_smp_twd_get_rate,
+	.name =  "smp_twd",
+};
+
+static struct clk_lookup clk_smp_twd_lookup = {
+	.dev_id = "smp_twd",
+	.clk = &clk_smp_twd,
+};
+
+#ifdef CONFIG_CPU_FREQ
+
+static int clk_twd_cpufreq_transition(struct notifier_block *nb,
+				      unsigned long state, void *data)
+{
+	struct cpufreq_freqs *f = data;
+
+	if (state == CPUFREQ_PRECHANGE) {
+		/* Save frequency in simple Hz */
+		clk_smp_twd_rate = f->new * 1000;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block clk_twd_cpufreq_nb = {
+	.notifier_call = clk_twd_cpufreq_transition,
+};
+
+static int clk_init_smp_twd_cpufreq(void)
+{
+	return cpufreq_register_notifier(&clk_twd_cpufreq_nb,
+				  CPUFREQ_TRANSITION_NOTIFIER);
+}
+late_initcall(clk_init_smp_twd_cpufreq);
+
+#endif
+
 int __init clk_init(void)
 {
 	if (cpu_is_u8500ed()) {
@@ -778,6 +824,8 @@ int __init clk_init(void)
 		clkdev_add_table(u8500_ed_clks, ARRAY_SIZE(u8500_ed_clks));
 	else
 		clkdev_add_table(u8500_v1_clks, ARRAY_SIZE(u8500_v1_clks));
+
+	clkdev_add(&clk_smp_twd_lookup);
 
 #ifdef CONFIG_DEBUG_FS
 	clk_debugfs_add_table(u8500_common_clks, ARRAY_SIZE(u8500_common_clks));

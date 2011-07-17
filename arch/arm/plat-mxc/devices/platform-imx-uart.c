@@ -123,6 +123,8 @@ const struct imx_imx_uart_1irq_data imx53_imx_uart_data[] __initconst = {
 	imx53_imx_uart_data_entry(0, 1),
 	imx53_imx_uart_data_entry(1, 2),
 	imx53_imx_uart_data_entry(2, 3),
+	imx53_imx_uart_data_entry(3, 4),
+	imx53_imx_uart_data_entry(4, 5),
 };
 #endif /* ifdef CONFIG_SOC_IMX53 */
 

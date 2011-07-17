@@ -305,6 +305,7 @@ int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 	if (batch->nr == batch->max) {
 		if (!tlb_next_batch(tlb))
 			return 0;
+		batch = tlb->active;
 	}
 	VM_BUG_ON(batch->nr > batch->max);
 

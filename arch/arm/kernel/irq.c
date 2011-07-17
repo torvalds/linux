@@ -67,12 +67,12 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 }
 
 /*
- * do_IRQ handles all hardware IRQ's.  Decoded IRQs should not
- * come via this function.  Instead, they should provide their
- * own 'handler'
+ * handle_IRQ handles all hardware IRQ's.  Decoded IRQs should
+ * not come via this function.  Instead, they should provide their
+ * own 'handler'.  Used by platform code implementing C-based 1st
+ * level decoding.
  */
-asmlinkage void __exception_irq_entry
-asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
+void handle_IRQ(unsigned int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -95,6 +95,15 @@ asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 
 	irq_exit();
 	set_irq_regs(old_regs);
+}
+
+/*
+ * asm_do_IRQ is the interface to be used from assembly code.
+ */
+asmlinkage void __exception_irq_entry
+asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
+{
+	handle_IRQ(irq, regs);
 }
 
 void set_irq_flags(unsigned int irq, unsigned int iflags)

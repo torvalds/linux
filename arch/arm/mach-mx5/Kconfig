@@ -109,6 +109,7 @@ config MACH_EUKREA_MBIMX51_BASEBOARD
 	bool
 	select IMX_HAVE_PLATFORM_IMX_KEYPAD
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select LEDS_GPIO_REGISTER
 	help
 	  This adds board specific devices that can be found on Eukrea's
 	  MBIMX51 evaluation board.
@@ -135,6 +136,7 @@ config MACH_EUKREA_MBIMXSD51_BASEBOARD
 	prompt "Eukrea MBIMXSD development board"
 	bool
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select LEDS_GPIO_REGISTER
 	help
 	  This adds board specific devices that can be found on Eukrea's
 	  MBIMXSD evaluation board.
@@ -151,6 +153,7 @@ config MX51_EFIKA_COMMON
 
 config MACH_MX51_EFIKAMX
 	bool "Support MX51 Genesi Efika MX nettop"
+	select LEDS_GPIO_REGISTER
 	select MX51_EFIKA_COMMON
 	help
 	  Include support for Genesi Efika MX nettop. This includes specific
@@ -158,6 +161,7 @@ config MACH_MX51_EFIKAMX
 
 config MACH_MX51_EFIKASB
 	bool "Support MX51 Genesi Efika Smartbook"
+	select LEDS_GPIO_REGISTER
 	select MX51_EFIKA_COMMON
 	help
 	  Include support for Genesi Efika Smartbook. This includes specific
@@ -176,6 +180,7 @@ config MACH_MX53_EVK
 	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	select IMX_HAVE_PLATFORM_SPI_IMX
+	select LEDS_GPIO_REGISTER
 	help
 	  Include support for MX53 EVK platform. This includes specific
 	  configurations for the board and its peripherals.
@@ -199,8 +204,21 @@ config MACH_MX53_LOCO
 	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	select IMX_HAVE_PLATFORM_GPIO_KEYS
+	select LEDS_GPIO_REGISTER
 	help
 	  Include support for MX53 LOCO platform. This includes specific
+	  configurations for the board and its peripherals.
+
+config MACH_MX53_ARD
+	bool "Support MX53 ARD platforms"
+	select SOC_IMX53
+	select IMX_HAVE_PLATFORM_IMX2_WDT
+	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
+	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
+	select IMX_HAVE_PLATFORM_GPIO_KEYS
+	help
+	  Include support for MX53 ARD platform. This includes specific
 	  configurations for the board and its peripherals.
 
 endif # ARCH_MX53_SUPPORTED

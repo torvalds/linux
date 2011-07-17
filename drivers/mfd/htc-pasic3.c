@@ -99,6 +99,7 @@ static int ds1wm_disable(struct platform_device *pdev)
 
 static struct ds1wm_driver_data ds1wm_pdata = {
 	.active_high = 0,
+	.reset_recover_delay = 1,
 };
 
 static struct resource ds1wm_resources[] __initdata = {
