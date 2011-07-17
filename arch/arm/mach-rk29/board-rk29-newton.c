@@ -445,7 +445,8 @@ static int bu92747guw_power_ctl(int enable)
 	}
 	else {
 		nPowerOnCount--;
-		if (nPowerOnCount == 0) {//power down final
+		if (nPowerOnCount <= 0) {//power down final
+			nPowerOnCount = 0;
 			//smc0_exit();
 			gpio_set_value(BU92747GUW_PWDN_PIN, GPIO_LOW);
 		}
@@ -495,7 +496,11 @@ static struct irda_info rk29_irda_info = {
 };
 
 static struct platform_device irda_device = {
-	.name		= "rk_irda",
+#ifdef CONFIG_RK_IRDA_NET
+			.name	= "rk_irda",
+#else
+			.name = "bu92747_irda",
+#endif
     .id		  = -1,
 	.dev            = {
 		.platform_data  = &rk29_irda_info,

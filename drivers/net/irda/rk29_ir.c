@@ -344,7 +344,7 @@ static int rk29_irda_start(struct net_device *dev)
 	/*
 	 * Setup the smc port for the specified speed.
 	 */
-	err = irda_hw_startup(si);
+	err = irda_hw_startup();
 	if (err) {		
 		printk("line %d: %s irda_hw_startup err\n", __LINE__, __func__);
 		goto err_startup;
@@ -378,7 +378,7 @@ static int rk29_irda_start(struct net_device *dev)
 
 err_irlap:
 	si->open = 0;
-	irda_hw_shutdown(si);
+	irda_hw_shutdown();
 	if (si->pdata->irda_pwr_ctl)
 		si->pdata->irda_pwr_ctl(0);
 err_startup:
@@ -394,7 +394,7 @@ static int rk29_irda_stop(struct net_device *dev)
 	RK29IR_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
 
 	disable_irq(dev->irq);
-	irda_hw_shutdown(si);
+	irda_hw_shutdown();
 
 	/*
 	 * If we have been doing DMA receive, make sure we
@@ -637,8 +637,6 @@ static int rk29_irda_probe(struct platform_device *pdev)
 	 * Initially enable HP-SIR modulation, and ensure that the port
 	 * is disabled.
 	 */
-    irda_hw_init(si);
-
 	err = register_netdev(dev);
 	if (err) {	
 		printk("line %d: rk29_ir register_netdev failed\n", __LINE__);
@@ -653,7 +651,6 @@ static int rk29_irda_probe(struct platform_device *pdev)
 	return 0;
 	
 err_register:
-	irda_hw_deinit(si);
 	kfree(si->tx_buff.head);
 err_mem_3:
 	kfree(si->rx_buff.head);
@@ -675,7 +672,6 @@ static int rk29_irda_remove(struct platform_device *pdev)
 		kfree(si->tx_buff.head);
 		kfree(si->rx_buff.head);
 		free_netdev(dev);
-        irda_hw_deinit(si);
 	}
 
 	return 0;
@@ -700,7 +696,7 @@ static int rk29_irda_suspend(struct platform_device *pdev, pm_message_t state)
 		 */
 		netif_device_detach(dev);
 		disable_irq(dev->irq);
-		irda_hw_shutdown(si);
+		irda_hw_shutdown();
 		if (si->pdata->irda_pwr_ctl)
 			si->pdata->irda_pwr_ctl(0);
 	}
@@ -737,7 +733,7 @@ static int rk29_irda_resume(struct platform_device *pdev)
 			si->newspeed = 0;
 		}
 		
-		irda_hw_startup(si);
+		irda_hw_startup();
 		enable_irq(dev->irq);
 
 		/*

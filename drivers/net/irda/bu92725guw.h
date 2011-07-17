@@ -219,4 +219,13 @@ extern void BU92725GUW_send_data(u8 *buf1, u16 len1, u8 *buf2, u16 len2);
 /*dump register*/
 extern void BU92725GUW_dump_register(void);
 
+int irda_hw_tx_enable_irq(enum eTrans_Mode mode);
+int irda_hw_get_mode(void);
+void irda_hw_set_moderx(void);
+int irda_hw_get_irqsrc(void);
+int irda_hw_shutdown(void);
+int irda_hw_startup(void);
+int irda_hw_set_speed(u32 speed);
+
+
 #endif /*__BU92725GUW_H*/

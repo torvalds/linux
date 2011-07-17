@@ -80,7 +80,7 @@ void irda_hw_deinit(struct rk29_irda *si)
    // smc0_init(&si->irda_base_addr);
 }
 
-int irda_hw_startup(struct rk29_irda *si)
+int irda_hw_startup(void)
 {
     volatile u16 val;
     int i=0;
@@ -115,7 +115,7 @@ int irda_hw_startup(struct rk29_irda *si)
     return 0;
 }
 
-int irda_hw_shutdown(struct rk29_irda *si)
+int irda_hw_shutdown(void)
 {
 	RK29IR_DBG("line %d: enter %s\n", __LINE__, __FUNCTION__);
 

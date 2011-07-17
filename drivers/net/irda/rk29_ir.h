@@ -35,18 +35,5 @@ struct rk29_irda {
 	iobuff_t		tx_buff;
 	iobuff_t		rx_buff;
 };
-extern void irda_hw_init(struct rk29_irda *si);
-extern int irda_hw_get_mode(void);
-extern void irda_hw_deinit(struct rk29_irda *si);
-extern int irda_hw_startup(struct rk29_irda *si);
-extern int irda_hw_shutdown(struct rk29_irda *si);
-extern int irda_hw_set_speed(u32 speed);
-extern int irda_hw_tx_enable_irq(enum eTrans_Mode mode);
-extern int irda_hw_tx_enable(int len);
-extern int irda_hw_get_irqsrc(void);
-extern int irda_hw_get_data16(char* data8);
-extern void irda_hw_set_moderx(void);
-extern int irda_hw_get_mode(void);
-
 
 #endif //__DRIVERS_NET_IRDA_RK29_IR_H

@@ -395,6 +395,15 @@ config RK_IRDA
 	  built-in IRDA interface which can support both SIR, MIR and FIR.
 
 choice
+	depends on RK_IRDA
+	prompt "irda device driver"
+config RK_IRDA_UART
+	bool "uses irda as a serial device"
+config RK_IRDA_NET
+	bool "uses irda as a network device"
+endchoice
+
+choice
     depends on RK_IRDA
 	prompt  "irda module select"
 config BU92725GUW
