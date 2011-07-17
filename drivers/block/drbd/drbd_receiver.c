@@ -3024,72 +3024,7 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 		integrity_alg[SHARED_SECRET_MAX - 1] = 0;
 	}
 
-	if (pi->cmd == P_PROTOCOL_UPDATE) {
-		if (integrity_alg[0]) {
-			int hash_size;
-
-			/*
-			 * We can only change the peer data integrity algorithm
-			 * here.  Changing our own data integrity algorithm
-			 * requires that we send a P_PROTOCOL_UPDATE packet at
-			 * the same time; otherwise, the peer has no way to
-			 * tell between which packets the algorithm should
-			 * change.
-			 */
-
-			peer_integrity_tfm = crypto_alloc_hash(integrity_alg, 0, CRYPTO_ALG_ASYNC);
-			if (!peer_integrity_tfm) {
-				conn_err(tconn, "peer data-integrity-alg %s not supported\n",
-					 integrity_alg);
-				goto disconnect;
-			}
-
-			hash_size = crypto_hash_digestsize(peer_integrity_tfm);
-			int_dig_in = kmalloc(hash_size, GFP_KERNEL);
-			int_dig_vv = kmalloc(hash_size, GFP_KERNEL);
-			if (!(int_dig_in && int_dig_vv)) {
-				conn_err(tconn, "Allocation of buffers for data integrity checking failed\n");
-				goto disconnect;
-			}
-		}
-
-		new_net_conf = kmalloc(sizeof(struct net_conf), GFP_KERNEL);
-		if (!new_net_conf) {
-			conn_err(tconn, "Allocation of new net_conf failed\n");
-			goto disconnect;
-		}
-
-		mutex_lock(&tconn->data.mutex);
-		mutex_lock(&tconn->conf_update);
-		old_net_conf = tconn->net_conf;
-		*new_net_conf = *old_net_conf;
-
-		new_net_conf->wire_protocol = p_proto;
-		new_net_conf->after_sb_0p = convert_after_sb(p_after_sb_0p);
-		new_net_conf->after_sb_1p = convert_after_sb(p_after_sb_1p);
-		new_net_conf->after_sb_2p = convert_after_sb(p_after_sb_2p);
-		new_net_conf->two_primaries = p_two_primaries;
-		strcpy(new_net_conf->integrity_alg, integrity_alg);
-		new_net_conf->integrity_alg_len = strlen(integrity_alg) + 1;
-
-		rcu_assign_pointer(tconn->net_conf, new_net_conf);
-		mutex_unlock(&tconn->conf_update);
-		mutex_unlock(&tconn->data.mutex);
-
-		crypto_free_hash(tconn->peer_integrity_tfm);
-		kfree(tconn->int_dig_in);
-		kfree(tconn->int_dig_vv);
-		tconn->peer_integrity_tfm = peer_integrity_tfm;
-		tconn->int_dig_in = int_dig_in;
-		tconn->int_dig_vv = int_dig_vv;
-
-		if (strcmp(old_net_conf->integrity_alg, integrity_alg))
-			conn_info(tconn, "peer data-integrity-alg: %s\n",
-				  integrity_alg[0] ? integrity_alg : "(none)");
-
-		synchronize_rcu();
-		kfree(old_net_conf);
-	} else {
+	if (pi->cmd != P_PROTOCOL_UPDATE) {
 		clear_bit(CONN_DRY_RUN, &tconn->flags);
 
 		if (cf & CF_DRY_RUN)
@@ -3135,6 +3070,69 @@ static int receive_protocol(struct drbd_tconn *tconn, struct packet_info *pi)
 
 		rcu_read_unlock();
 	}
+
+	if (integrity_alg[0]) {
+		int hash_size;
+
+		/*
+		 * We can only change the peer data integrity algorithm
+		 * here.  Changing our own data integrity algorithm
+		 * requires that we send a P_PROTOCOL_UPDATE packet at
+		 * the same time; otherwise, the peer has no way to
+		 * tell between which packets the algorithm should
+		 * change.
+		 */
+
+		peer_integrity_tfm = crypto_alloc_hash(integrity_alg, 0, CRYPTO_ALG_ASYNC);
+		if (!peer_integrity_tfm) {
+			conn_err(tconn, "peer data-integrity-alg %s not supported\n",
+				 integrity_alg);
+			goto disconnect;
+		}
+
+		hash_size = crypto_hash_digestsize(peer_integrity_tfm);
+		int_dig_in = kmalloc(hash_size, GFP_KERNEL);
+		int_dig_vv = kmalloc(hash_size, GFP_KERNEL);
+		if (!(int_dig_in && int_dig_vv)) {
+			conn_err(tconn, "Allocation of buffers for data integrity checking failed\n");
+			goto disconnect;
+		}
+	}
+
+	new_net_conf = kmalloc(sizeof(struct net_conf), GFP_KERNEL);
+	if (!new_net_conf) {
+		conn_err(tconn, "Allocation of new net_conf failed\n");
+		goto disconnect;
+	}
+
+	mutex_lock(&tconn->data.mutex);
+	mutex_lock(&tconn->conf_update);
+	old_net_conf = tconn->net_conf;
+	*new_net_conf = *old_net_conf;
+
+	new_net_conf->wire_protocol = p_proto;
+	new_net_conf->after_sb_0p = convert_after_sb(p_after_sb_0p);
+	new_net_conf->after_sb_1p = convert_after_sb(p_after_sb_1p);
+	new_net_conf->after_sb_2p = convert_after_sb(p_after_sb_2p);
+	new_net_conf->two_primaries = p_two_primaries;
+
+	rcu_assign_pointer(tconn->net_conf, new_net_conf);
+	mutex_unlock(&tconn->conf_update);
+	mutex_unlock(&tconn->data.mutex);
+
+	crypto_free_hash(tconn->peer_integrity_tfm);
+	kfree(tconn->int_dig_in);
+	kfree(tconn->int_dig_vv);
+	tconn->peer_integrity_tfm = peer_integrity_tfm;
+	tconn->int_dig_in = int_dig_in;
+	tconn->int_dig_vv = int_dig_vv;
+
+	if (strcmp(old_net_conf->integrity_alg, integrity_alg))
+		conn_info(tconn, "peer data-integrity-alg: %s\n",
+			  integrity_alg[0] ? integrity_alg : "(none)");
+
+	synchronize_rcu();
+	kfree(old_net_conf);
 	return 0;
 
 disconnect_rcu_unlock:
