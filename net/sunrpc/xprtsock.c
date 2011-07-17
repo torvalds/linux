@@ -54,7 +54,8 @@ static void xs_close(struct rpc_xprt *xprt);
  * xprtsock tunables
  */
 unsigned int xprt_udp_slot_table_entries = RPC_DEF_SLOT_TABLE;
-unsigned int xprt_tcp_slot_table_entries = RPC_DEF_SLOT_TABLE;
+unsigned int xprt_tcp_slot_table_entries = RPC_MIN_SLOT_TABLE;
+unsigned int xprt_max_tcp_slot_table_entries = RPC_MAX_SLOT_TABLE;
 
 unsigned int xprt_min_resvport = RPC_DEF_MIN_RESVPORT;
 unsigned int xprt_max_resvport = RPC_DEF_MAX_RESVPORT;
@@ -75,6 +76,7 @@ static unsigned int xs_tcp_fin_timeout __read_mostly = XS_TCP_LINGER_TO;
 
 static unsigned int min_slot_table_size = RPC_MIN_SLOT_TABLE;
 static unsigned int max_slot_table_size = RPC_MAX_SLOT_TABLE;
+static unsigned int max_tcp_slot_table_limit = RPC_MAX_SLOT_TABLE_LIMIT;
 static unsigned int xprt_min_resvport_limit = RPC_MIN_RESVPORT;
 static unsigned int xprt_max_resvport_limit = RPC_MAX_RESVPORT;
 
@@ -102,6 +104,15 @@ static ctl_table xs_tunables_table[] = {
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &min_slot_table_size,
 		.extra2		= &max_slot_table_size
+	},
+	{
+		.procname	= "tcp_max_slot_table_entries",
+		.data		= &xprt_max_tcp_slot_table_entries,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &min_slot_table_size,
+		.extra2		= &max_tcp_slot_table_limit
 	},
 	{
 		.procname	= "min_resvport",
@@ -2491,7 +2502,8 @@ static int xs_init_anyaddr(const int family, struct sockaddr *sap)
 }
 
 static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
-				      unsigned int slot_table_size)
+				      unsigned int slot_table_size,
+				      unsigned int max_slot_table_size)
 {
 	struct rpc_xprt *xprt;
 	struct sock_xprt *new;
@@ -2501,7 +2513,8 @@ static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
 		return ERR_PTR(-EBADF);
 	}
 
-	xprt = xprt_alloc(args->net, sizeof(*new), slot_table_size);
+	xprt = xprt_alloc(args->net, sizeof(*new), slot_table_size,
+			max_slot_table_size);
 	if (xprt == NULL) {
 		dprintk("RPC:       xs_setup_xprt: couldn't allocate "
 				"rpc_xprt\n");
@@ -2543,7 +2556,8 @@ static struct rpc_xprt *xs_setup_local(struct xprt_create *args)
 	struct rpc_xprt *xprt;
 	struct rpc_xprt *ret;
 
-	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries);
+	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries,
+			xprt_max_tcp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
 	transport = container_of(xprt, struct sock_xprt, xprt);
@@ -2607,7 +2621,8 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 	struct sock_xprt *transport;
 	struct rpc_xprt *ret;
 
-	xprt = xs_setup_xprt(args, xprt_udp_slot_table_entries);
+	xprt = xs_setup_xprt(args, xprt_udp_slot_table_entries,
+			xprt_udp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
 	transport = container_of(xprt, struct sock_xprt, xprt);
@@ -2683,7 +2698,8 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 	struct sock_xprt *transport;
 	struct rpc_xprt *ret;
 
-	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries);
+	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries,
+			xprt_max_tcp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
 	transport = container_of(xprt, struct sock_xprt, xprt);
@@ -2762,7 +2778,8 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 		 */
 		 return args->bc_xprt->xpt_bc_xprt;
 	}
-	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries);
+	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries,
+			xprt_tcp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
 	transport = container_of(xprt, struct sock_xprt, xprt);
@@ -2949,8 +2966,26 @@ static struct kernel_param_ops param_ops_slot_table_size = {
 #define param_check_slot_table_size(name, p) \
 	__param_check(name, p, unsigned int);
 
+static int param_set_max_slot_table_size(const char *val,
+				     const struct kernel_param *kp)
+{
+	return param_set_uint_minmax(val, kp,
+			RPC_MIN_SLOT_TABLE,
+			RPC_MAX_SLOT_TABLE_LIMIT);
+}
+
+static struct kernel_param_ops param_ops_max_slot_table_size = {
+	.set = param_set_max_slot_table_size,
+	.get = param_get_uint,
+};
+
+#define param_check_max_slot_table_size(name, p) \
+	__param_check(name, p, unsigned int);
+
 module_param_named(tcp_slot_table_entries, xprt_tcp_slot_table_entries,
 		   slot_table_size, 0644);
+module_param_named(tcp_max_slot_table_entries, xprt_max_tcp_slot_table_entries,
+		   max_slot_table_size, 0644);
 module_param_named(udp_slot_table_entries, xprt_udp_slot_table_entries,
 		   slot_table_size, 0644);
 

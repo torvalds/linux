@@ -22,6 +22,7 @@
 #define RPC_MIN_SLOT_TABLE	(2U)
 #define RPC_DEF_SLOT_TABLE	(16U)
 #define RPC_MAX_SLOT_TABLE	(128U)
+#define RPC_MAX_SLOT_TABLE_LIMIT	(65536U)
 
 /*
  * This describes a timeout strategy
@@ -168,7 +169,9 @@ struct rpc_xprt {
 	struct rpc_wait_queue	pending;	/* requests in flight */
 	struct rpc_wait_queue	backlog;	/* waiting for slot */
 	struct list_head	free;		/* free slots */
-	unsigned int		max_reqs;	/* total slots */
+	unsigned int		max_reqs;	/* max number of slots */
+	unsigned int		min_reqs;	/* min number of slots */
+	atomic_t		num_reqs;	/* total slots */
 	unsigned long		state;		/* transport state */
 	unsigned char		shutdown   : 1,	/* being shut down */
 				resvport   : 1; /* use a reserved port */
@@ -281,7 +284,9 @@ void			xprt_release_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task);
 void			xprt_release(struct rpc_task *task);
 struct rpc_xprt *	xprt_get(struct rpc_xprt *xprt);
 void			xprt_put(struct rpc_xprt *xprt);
-struct rpc_xprt *	xprt_alloc(struct net *net, int size, int max_req);
+struct rpc_xprt *	xprt_alloc(struct net *net, size_t size,
+				unsigned int num_prealloc,
+				unsigned int max_req);
 void			xprt_free(struct rpc_xprt *);
 
 static inline __be32 *xprt_skip_transport_header(struct rpc_xprt *xprt, __be32 *p)

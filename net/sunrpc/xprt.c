@@ -935,25 +935,66 @@ void xprt_transmit(struct rpc_task *task)
 	spin_unlock_bh(&xprt->transport_lock);
 }
 
+static struct rpc_rqst *xprt_dynamic_alloc_slot(struct rpc_xprt *xprt, gfp_t gfp_flags)
+{
+	struct rpc_rqst *req = ERR_PTR(-EAGAIN);
+
+	if (!atomic_add_unless(&xprt->num_reqs, 1, xprt->max_reqs))
+		goto out;
+	req = kzalloc(sizeof(struct rpc_rqst), gfp_flags);
+	if (req != NULL)
+		goto out;
+	atomic_dec(&xprt->num_reqs);
+	req = ERR_PTR(-ENOMEM);
+out:
+	return req;
+}
+
+static bool xprt_dynamic_free_slot(struct rpc_xprt *xprt, struct rpc_rqst *req)
+{
+	if (atomic_add_unless(&xprt->num_reqs, -1, xprt->min_reqs)) {
+		kfree(req);
+		return true;
+	}
+	return false;
+}
+
 static void xprt_alloc_slot(struct rpc_task *task)
 {
 	struct rpc_xprt	*xprt = task->tk_xprt;
+	struct rpc_rqst *req;
 
-	task->tk_status = 0;
 	if (!list_empty(&xprt->free)) {
-		struct rpc_rqst	*req = list_entry(xprt->free.next, struct rpc_rqst, rq_list);
-		list_del_init(&req->rq_list);
-		task->tk_rqstp = req;
-		xprt_request_init(task, xprt);
-		return;
+		req = list_entry(xprt->free.next, struct rpc_rqst, rq_list);
+		list_del(&req->rq_list);
+		goto out_init_req;
 	}
-	dprintk("RPC:       waiting for request slot\n");
+	req = xprt_dynamic_alloc_slot(xprt, GFP_NOWAIT);
+	if (!IS_ERR(req))
+		goto out_init_req;
+	switch (PTR_ERR(req)) {
+	case -ENOMEM:
+		rpc_delay(task, HZ >> 2);
+		dprintk("RPC:       dynamic allocation of request slot "
+				"failed! Retrying\n");
+		break;
+	case -EAGAIN:
+		rpc_sleep_on(&xprt->backlog, task, NULL);
+		dprintk("RPC:       waiting for request slot\n");
+	}
 	task->tk_status = -EAGAIN;
-	rpc_sleep_on(&xprt->backlog, task, NULL);
+	return;
+out_init_req:
+	task->tk_status = 0;
+	task->tk_rqstp = req;
+	xprt_request_init(task, xprt);
 }
 
 static void xprt_free_slot(struct rpc_xprt *xprt, struct rpc_rqst *req)
 {
+	if (xprt_dynamic_free_slot(xprt, req))
+		return;
+
 	memset(req, 0, sizeof(*req));	/* mark unused */
 
 	spin_lock(&xprt->reserve_lock);
@@ -972,7 +1013,9 @@ static void xprt_free_all_slots(struct rpc_xprt *xprt)
 	}
 }
 
-struct rpc_xprt *xprt_alloc(struct net *net, int size, int num_prealloc)
+struct rpc_xprt *xprt_alloc(struct net *net, size_t size,
+		unsigned int num_prealloc,
+		unsigned int max_alloc)
 {
 	struct rpc_xprt *xprt;
 	struct rpc_rqst *req;
@@ -992,7 +1035,12 @@ struct rpc_xprt *xprt_alloc(struct net *net, int size, int num_prealloc)
 	}
 	if (i < num_prealloc)
 		goto out_free;
-	xprt->max_reqs = num_prealloc;
+	if (max_alloc > num_prealloc)
+		xprt->max_reqs = max_alloc;
+	else
+		xprt->max_reqs = num_prealloc;
+	xprt->min_reqs = num_prealloc;
+	atomic_set(&xprt->num_reqs, num_prealloc);
 
 	return xprt;
 
@@ -1036,7 +1084,6 @@ void xprt_reserve(struct rpc_task *task)
 	if (!xprt_lock_write(xprt, task))
 		return;
 
-	task->tk_status = -EIO;
 	spin_lock(&xprt->reserve_lock);
 	xprt_alloc_slot(task);
 	spin_unlock(&xprt->reserve_lock);
@@ -1057,6 +1104,7 @@ static void xprt_request_init(struct rpc_task *task, struct rpc_xprt *xprt)
 {
 	struct rpc_rqst	*req = task->tk_rqstp;
 
+	INIT_LIST_HEAD(&req->rq_list);
 	req->rq_timeout = task->tk_client->cl_timeout->to_initval;
 	req->rq_task	= task;
 	req->rq_xprt    = xprt;
