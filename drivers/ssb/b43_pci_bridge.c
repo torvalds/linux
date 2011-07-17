@@ -11,6 +11,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/module.h>
 #include <linux/ssb/ssb.h>
 
 #include "ssb_private.h"
