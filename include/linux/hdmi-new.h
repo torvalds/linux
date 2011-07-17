@@ -31,15 +31,35 @@ typedef int 		BOOL;
 #define FALSE 		0
 #define HDMI_DISABLE   0
 #define HDMI_ENABLE    1
+
+#define MIN_SCALE		80
+/* mouse event */
+#define MOUSE_NONE			0x00
+#define MOUSE_LEFT_PRESS	0x01
+#define MOUSE_RIGHT_PRESS	0x02
+#define MOUSE_MIDDLE_PRESS	0x04
+#define HDMI_MOUSE_EVENT	MOUSE_NONE	
+/* mode */
+#define DISP_ON_LCD				0
+#define DISP_ON_HDMI			1
+#define DISP_ON_LCD_AND_HDMI	2
+/* dual display */
+#ifdef CONFIG_HDMI_DUAL_DISP
+#define DUAL_DISP_CAP		HDMI_ENABLE 
+#define HDMI_DEFAULT_MODE	DISP_ON_LCD_AND_HDMI
+#else
+#define DUAL_DISP_CAP		HDMI_DISABLE 
+#define HDMI_DEFAULT_MODE	DISP_ON_HDMI
+#endif
 /* resolution */
-#define HDMI_1280x720p_50Hz 	0
-#define HDMI_1280x720p_60Hz		1
-#define HDMI_720x576p_50Hz_4x3	2
-#define HDMI_720x576p_50Hz_16x9	3
-#define HDMI_720x480p_60Hz_4x3	4
-#define HDMI_720x480p_60Hz_16x9	5
-#define HDMI_1920x1080p_50Hz	6
-#define HDMI_1920x1080p_60Hz	7
+#define HDMI_1920x1080p_50Hz	0
+#define HDMI_1920x1080p_60Hz	1
+#define HDMI_1280x720p_50Hz 	2
+#define HDMI_1280x720p_60Hz		3
+#define HDMI_720x576p_50Hz_4x3	4
+#define HDMI_720x576p_50Hz_16x9	5
+#define HDMI_720x480p_60Hz_4x3	6
+#define HDMI_720x480p_60Hz_16x9	7
 
 /* HDMI default resolution */
 #define HDMI_DEFAULT_RESOLUTION HDMI_1280x720p_50Hz
@@ -72,7 +92,10 @@ struct hdmi {
 	BOOL param_conf;
 
 	u8 resolution;
+	u8 scale;
 	u8 audio_fs;
+	int mode;
+	int dual_disp;
 
 	int hdmi_stay_awake;
 
@@ -102,5 +125,7 @@ extern struct hdmi *get_hdmi_struct(int nr);
 extern int hdmi_get_default_resolution(void *screen);
 extern void hdmi_set_spk(int on);
 extern void hdmi_set_backlight(int on);
-
+extern int hdmi_get_scale(void);
+extern int hdmi_set_scale(int event, char *data, int len);
+extern int fb_get_video_mode(void);
 #endif

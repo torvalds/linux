@@ -8,7 +8,7 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 
-#include "anx7150.h"
+#include "linux/anx7150.h"
 #include "anx7150_hw.h"
 
 int anx7150_i2c_read_p0_reg(struct i2c_client *client, char reg, char *val)
@@ -99,7 +99,13 @@ static irqreturn_t anx7150_detect_irq(int irq, void *dev_id)
 
     return IRQ_HANDLED;
 }
-
+#if 1//eboda zlj add for test 110518
+struct anx7150_dev_s *anx7150_dev;
+int anx7150_get_output_status(void)
+{
+    return anx7150_dev->rk29_output_status;
+}
+#endif
 void anx7150_task(struct anx7150_pdata *anx)
 {
 	int state;

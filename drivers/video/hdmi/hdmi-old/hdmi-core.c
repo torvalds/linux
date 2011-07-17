@@ -115,6 +115,10 @@ struct hdmi *get_hdmi_struct(int nr)
 	else
 		return ref_info[nr].hdmi;
 }
+int hdmi_get_scale(void)
+{
+	return 100;
+}
 static int __init hdmi_class_init(void)
 {
 	int i;
