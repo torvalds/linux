@@ -195,6 +195,7 @@ EXPORT_SYMBOL_GPL(xprt_load_transport);
 int xprt_reserve_xprt(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
+	int priority;
 
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->state)) {
 		if (task == xprt->snd_task)
@@ -214,10 +215,13 @@ out_sleep:
 			task->tk_pid, xprt);
 	task->tk_timeout = 0;
 	task->tk_status = -EAGAIN;
-	if (req != NULL && req->rq_ntrans)
-		rpc_sleep_on(&xprt->resend, task, NULL);
+	if (req == NULL)
+		priority = RPC_PRIORITY_LOW;
+	else if (!req->rq_ntrans)
+		priority = RPC_PRIORITY_NORMAL;
 	else
-		rpc_sleep_on(&xprt->sending, task, NULL);
+		priority = RPC_PRIORITY_HIGH;
+	rpc_sleep_on_priority(&xprt->sending, task, NULL, priority);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xprt_reserve_xprt);
@@ -244,6 +248,7 @@ static void xprt_clear_locked(struct rpc_xprt *xprt)
 int xprt_reserve_xprt_cong(struct rpc_xprt *xprt, struct rpc_task *task)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
+	int priority;
 
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->state)) {
 		if (task == xprt->snd_task)
@@ -265,10 +270,13 @@ out_sleep:
 	dprintk("RPC: %5u failed to lock transport %p\n", task->tk_pid, xprt);
 	task->tk_timeout = 0;
 	task->tk_status = -EAGAIN;
-	if (req != NULL && req->rq_ntrans)
-		rpc_sleep_on(&xprt->resend, task, NULL);
+	if (req == NULL)
+		priority = RPC_PRIORITY_LOW;
+	else if (!req->rq_ntrans)
+		priority = RPC_PRIORITY_NORMAL;
 	else
-		rpc_sleep_on(&xprt->sending, task, NULL);
+		priority = RPC_PRIORITY_HIGH;
+	rpc_sleep_on_priority(&xprt->sending, task, NULL, priority);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xprt_reserve_xprt_cong);
@@ -291,12 +299,9 @@ static void __xprt_lock_write_next(struct rpc_xprt *xprt)
 	if (test_and_set_bit(XPRT_LOCKED, &xprt->state))
 		return;
 
-	task = rpc_wake_up_next(&xprt->resend);
-	if (!task) {
-		task = rpc_wake_up_next(&xprt->sending);
-		if (task == NULL)
-			goto out_unlock;
-	}
+	task = rpc_wake_up_next(&xprt->sending);
+	if (task == NULL)
+		goto out_unlock;
 
 	req = task->tk_rqstp;
 	xprt->snd_task = task;
@@ -319,12 +324,9 @@ static void __xprt_lock_write_next_cong(struct rpc_xprt *xprt)
 		return;
 	if (RPCXPRT_CONGESTED(xprt))
 		goto out_unlock;
-	task = rpc_wake_up_next(&xprt->resend);
-	if (!task) {
-		task = rpc_wake_up_next(&xprt->sending);
-		if (task == NULL)
-			goto out_unlock;
-	}
+	task = rpc_wake_up_next(&xprt->sending);
+	if (task == NULL)
+		goto out_unlock;
 
 	req = task->tk_rqstp;
 	if (req == NULL) {
@@ -1177,8 +1179,7 @@ static void xprt_init(struct rpc_xprt *xprt, struct net *net)
 
 	rpc_init_wait_queue(&xprt->binding, "xprt_binding");
 	rpc_init_wait_queue(&xprt->pending, "xprt_pending");
-	rpc_init_wait_queue(&xprt->sending, "xprt_sending");
-	rpc_init_wait_queue(&xprt->resend, "xprt_resend");
+	rpc_init_priority_wait_queue(&xprt->sending, "xprt_sending");
 	rpc_init_priority_wait_queue(&xprt->backlog, "xprt_backlog");
 
 	xprt_init_xid(xprt);
@@ -1240,7 +1241,6 @@ static void xprt_destroy(struct rpc_xprt *xprt)
 	rpc_destroy_wait_queue(&xprt->binding);
 	rpc_destroy_wait_queue(&xprt->pending);
 	rpc_destroy_wait_queue(&xprt->sending);
-	rpc_destroy_wait_queue(&xprt->resend);
 	rpc_destroy_wait_queue(&xprt->backlog);
 	cancel_work_sync(&xprt->task_cleanup);
 	/*
