@@ -288,6 +288,8 @@ static void b43_phy_ht_op_software_rfkill(struct b43_wldev *dev,
 			b43_radio_2059_init(dev);
 		else
 			B43_WARN_ON(1);
+
+		b43_switch_channel(dev, dev->phy.channel);
 	}
 }
 
@@ -329,7 +331,7 @@ static int b43_phy_ht_op_switch_channel(struct b43_wldev *dev,
 static unsigned int b43_phy_ht_op_get_default_chan(struct b43_wldev *dev)
 {
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
-		return 1;
+		return 11;
 	return 36;
 }
 
