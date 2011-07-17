@@ -10,12 +10,3 @@ config ARM_AT91_ETHER
 	help
 	  If you wish to compile a kernel for the AT91RM9200 and enable
 	  ethernet support, then you should always answer Y to this.
-
-config W90P910_ETH
-	tristate "Nuvoton w90p910 Ethernet support"
-	depends on ARM && ARCH_W90X900
-	select PHYLIB
-	select MII
-	help
-	  Say Y here if you want to use built-in Ethernet ports
-	  on w90p910 processor.

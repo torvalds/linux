@@ -4,4 +4,3 @@
 #
 
 obj-$(CONFIG_ARM_AT91_ETHER)	+= at91_ether.o
-obj-$(CONFIG_W90P910_ETH)	+= w90p910_ether.o
