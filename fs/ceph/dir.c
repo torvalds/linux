@@ -1118,7 +1118,8 @@ static ssize_t ceph_read_dir(struct file *file, char __user *buf, size_t size,
  * an fsync() on a dir will wait for any uncommitted directory
  * operations to commit.
  */
-static int ceph_dir_fsync(struct file *file, int datasync)
+static int ceph_dir_fsync(struct file *file, loff_t start, loff_t end,
+			  int datasync)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -1128,6 +1129,11 @@ static int ceph_dir_fsync(struct file *file, int datasync)
 	int ret = 0;
 
 	dout("dir_fsync %p\n", inode);
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (ret)
+		return ret;
+	mutex_lock(&inode->i_mutex);
+
 	spin_lock(&ci->i_unsafe_lock);
 	if (list_empty(head))
 		goto out;
@@ -1161,6 +1167,8 @@ static int ceph_dir_fsync(struct file *file, int datasync)
 	} while (req->r_tid < last_tid);
 out:
 	spin_unlock(&ci->i_unsafe_lock);
+	mutex_unlock(&inode->i_mutex);
+
 	return ret;
 }
 

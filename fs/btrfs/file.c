@@ -1452,7 +1452,7 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
  * important optimization for directories because holding the mutex prevents
  * new operations on the dir while we write to disk.
  */
-int btrfs_sync_file(struct file *file, int datasync)
+int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
@@ -1462,9 +1462,13 @@ int btrfs_sync_file(struct file *file, int datasync)
 
 	trace_btrfs_sync_file(file, datasync);
 
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (ret)
+		return ret;
+	mutex_lock(&inode->i_mutex);
+
 	/* we wait first, since the writeback may change the inode */
 	root->log_batch++;
-	/* the VFS called filemap_fdatawrite for us */
 	btrfs_wait_ordered_range(inode, 0, (u64)-1);
 	root->log_batch++;
 
@@ -1472,8 +1476,10 @@ int btrfs_sync_file(struct file *file, int datasync)
 	 * check the transaction that last modified this inode
 	 * and see if its already been committed
 	 */
-	if (!BTRFS_I(inode)->last_trans)
+	if (!BTRFS_I(inode)->last_trans) {
+		mutex_unlock(&inode->i_mutex);
 		goto out;
+	}
 
 	/*
 	 * if the last transaction that changed this file was before
@@ -1484,6 +1490,7 @@ int btrfs_sync_file(struct file *file, int datasync)
 	if (BTRFS_I(inode)->last_trans <=
 	    root->fs_info->last_trans_committed) {
 		BTRFS_I(inode)->last_trans = 0;
+		mutex_unlock(&inode->i_mutex);
 		goto out;
 	}
 
@@ -1496,12 +1503,15 @@ int btrfs_sync_file(struct file *file, int datasync)
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
+		mutex_unlock(&inode->i_mutex);
 		goto out;
 	}
 
 	ret = btrfs_log_dentry_safe(trans, root, dentry);
-	if (ret < 0)
+	if (ret < 0) {
+		mutex_unlock(&inode->i_mutex);
 		goto out;
+	}
 
 	/* we've logged all the items and now have a consistent
 	 * version of the file in the log.  It is possible that
@@ -1513,7 +1523,7 @@ int btrfs_sync_file(struct file *file, int datasync)
 	 * file again, but that will end up using the synchronization
 	 * inside btrfs_sync_log to keep things safe.
 	 */
-	mutex_unlock(&dentry->d_inode->i_mutex);
+	mutex_unlock(&inode->i_mutex);
 
 	if (ret != BTRFS_NO_LOG_SYNC) {
 		if (ret > 0) {
@@ -1528,7 +1538,6 @@ int btrfs_sync_file(struct file *file, int datasync)
 	} else {
 		ret = btrfs_end_transaction(trans, root);
 	}
-	mutex_lock(&dentry->d_inode->i_mutex);
 out:
 	return ret > 0 ? -EIO : ret;
 }

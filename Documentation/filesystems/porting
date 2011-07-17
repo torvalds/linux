@@ -421,3 +421,10 @@ data and there is a virtual hole at the end of the file.  So if the provided
 offset is less than i_size and SEEK_DATA is specified, return the same offset.
 If the above is true for the offset and you are given SEEK_HOLE, return the end
 of the file.  If the offset is i_size or greater return -ENXIO in either case.
+
+[mandatory]
+	If you have your own ->fsync() you must make sure to call
+filemap_write_and_wait_range() so that all dirty pages are synced out properly.
+You must also keep in mind that ->fsync() is not called with i_mutex held
+anymore, so if you require i_mutex locking you must make sure to take it and
+release it yourself.

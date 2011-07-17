@@ -171,7 +171,8 @@ static int ocfs2_dir_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ocfs2_sync_file(struct file *file, int datasync)
+static int ocfs2_sync_file(struct file *file, loff_t start, loff_t end,
+			   int datasync)
 {
 	int err = 0;
 	journal_t *journal;
@@ -184,6 +185,16 @@ static int ocfs2_sync_file(struct file *file, int datasync)
 			      file->f_path.dentry->d_name.name,
 			      (unsigned long long)datasync);
 
+	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (err)
+		return err;
+
+	/*
+	 * Probably don't need the i_mutex at all in here, just putting it here
+	 * to be consistent with how fsync used to be called, someone more
+	 * familiar with the fs could possibly remove it.
+	 */
+	mutex_lock(&inode->i_mutex);
 	if (datasync && !(inode->i_state & I_DIRTY_DATASYNC)) {
 		/*
 		 * We still have to flush drive's caches to get data to the
@@ -200,6 +211,7 @@ static int ocfs2_sync_file(struct file *file, int datasync)
 bail:
 	if (err)
 		mlog_errno(err);
+	mutex_unlock(&inode->i_mutex);
 
 	return (err < 0) ? -EIO : 0;
 }

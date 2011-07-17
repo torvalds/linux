@@ -2152,12 +2152,19 @@ static ssize_t ntfs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
  * with this inode but since we have no simple way of getting to them we ignore
  * this problem for now.
  */
-static int ntfs_file_fsync(struct file *filp, int datasync)
+static int ntfs_file_fsync(struct file *filp, loff_t start, loff_t end,
+			   int datasync)
 {
 	struct inode *vi = filp->f_mapping->host;
 	int err, ret = 0;
 
 	ntfs_debug("Entering for inode 0x%lx.", vi->i_ino);
+
+	err = filemap_write_and_wait_range(vi->i_mapping, start, end);
+	if (err)
+		return err;
+	mutex_lock(&vi->i_mutex);
+
 	BUG_ON(S_ISDIR(vi->i_mode));
 	if (!datasync || !NInoNonResident(NTFS_I(vi)))
 		ret = __ntfs_write_inode(vi, 1);
@@ -2175,6 +2182,7 @@ static int ntfs_file_fsync(struct file *filp, int datasync)
 	else
 		ntfs_warning(vi->i_sb, "Failed to f%ssync inode 0x%lx.  Error "
 				"%u.", datasync ? "data" : "", vi->i_ino, -ret);
+	mutex_unlock(&vi->i_mutex);
 	return ret;
 }
 

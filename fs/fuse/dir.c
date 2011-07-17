@@ -1176,9 +1176,10 @@ static int fuse_dir_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int fuse_dir_fsync(struct file *file, int datasync)
+static int fuse_dir_fsync(struct file *file, loff_t start, loff_t end,
+			  int datasync)
 {
-	return fuse_fsync_common(file, datasync, 1);
+	return fuse_fsync_common(file, start, end, datasync, 1);
 }
 
 static bool update_mtime(unsigned ivalid)

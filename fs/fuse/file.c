@@ -400,7 +400,8 @@ static void fuse_sync_writes(struct inode *inode)
 	fuse_release_nowrite(inode);
 }
 
-int fuse_fsync_common(struct file *file, int datasync, int isdir)
+int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
+		      int datasync, int isdir)
 {
 	struct inode *inode = file->f_mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -412,8 +413,14 @@ int fuse_fsync_common(struct file *file, int datasync, int isdir)
 	if (is_bad_inode(inode))
 		return -EIO;
 
+	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (err)
+		return err;
+
 	if ((!isdir && fc->no_fsync) || (isdir && fc->no_fsyncdir))
 		return 0;
+
+	mutex_lock(&inode->i_mutex);
 
 	/*
 	 * Start writeback against all dirty pages of the inode, then
@@ -422,13 +429,15 @@ int fuse_fsync_common(struct file *file, int datasync, int isdir)
 	 */
 	err = write_inode_now(inode, 0);
 	if (err)
-		return err;
+		goto out;
 
 	fuse_sync_writes(inode);
 
 	req = fuse_get_req(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto out;
+	}
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.fh = ff->fh;
@@ -448,12 +457,15 @@ int fuse_fsync_common(struct file *file, int datasync, int isdir)
 			fc->no_fsync = 1;
 		err = 0;
 	}
+out:
+	mutex_unlock(&inode->i_mutex);
 	return err;
 }
 
-static int fuse_fsync(struct file *file, int datasync)
+static int fuse_fsync(struct file *file, loff_t start, loff_t end,
+		      int datasync)
 {
-	return fuse_fsync_common(file, datasync, 0);
+	return fuse_fsync_common(file, start, end, datasync, 0);
 }
 
 void fuse_read_fill(struct fuse_req *req, struct file *file, loff_t pos,
