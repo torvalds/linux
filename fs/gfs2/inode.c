@@ -792,13 +792,8 @@ static int gfs2_create(struct inode *dir, struct dentry *dentry,
 static struct dentry *gfs2_lookup(struct inode *dir, struct dentry *dentry,
 				  struct nameidata *nd)
 {
-	struct inode *inode = NULL;
-
-	inode = gfs2_lookupi(dir, &dentry->d_name, 0);
-	if (inode && IS_ERR(inode))
-		return ERR_CAST(inode);
-
-	if (inode) {
+	struct inode *inode = gfs2_lookupi(dir, &dentry->d_name, 0);
+	if (inode && !IS_ERR(inode)) {
 		struct gfs2_glock *gl = GFS2_I(inode)->i_gl;
 		struct gfs2_holder gh;
 		int error;
@@ -808,11 +803,8 @@ static struct dentry *gfs2_lookup(struct inode *dir, struct dentry *dentry,
 			return ERR_PTR(error);
 		}
 		gfs2_glock_dq_uninit(&gh);
-		return d_splice_alias(inode, dentry);
 	}
-	d_add(dentry, inode);
-
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 /**
