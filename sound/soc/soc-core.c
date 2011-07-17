@@ -1141,7 +1141,7 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num, int order)
 			}
 		}
 		cpu_dai->probed = 1;
-		/* mark cpu_dai as probed and add to card cpu_dai list */
+		/* mark cpu_dai as probed and add to card dai list */
 		list_add(&cpu_dai->card_list, &card->dai_dev_list);
 	}
 
@@ -1172,7 +1172,7 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num, int order)
 			}
 		}
 
-		/* mark cpu_dai as probed and add to card cpu_dai list */
+		/* mark codec_dai as probed and add to card dai list */
 		codec_dai->probed = 1;
 		list_add(&codec_dai->card_list, &card->dai_dev_list);
 	}
