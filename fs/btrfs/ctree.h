@@ -1335,6 +1335,11 @@ struct btrfs_ioctl_defrag_range_args {
  */
 #define BTRFS_STRING_ITEM_KEY	253
 
+/*
+ * Flags for mount options.
+ *
+ * Note: don't forget to add new options to btrfs_show_options()
+ */
 #define BTRFS_MOUNT_NODATASUM		(1 << 0)
 #define BTRFS_MOUNT_NODATACOW		(1 << 1)
 #define BTRFS_MOUNT_NOBARRIER		(1 << 2)

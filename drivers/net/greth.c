@@ -1015,11 +1015,10 @@ static int greth_set_mac_add(struct net_device *dev, void *p)
 		return -EINVAL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	GRETH_REGSAVE(regs->esa_msb, dev->dev_addr[0] << 8 | dev->dev_addr[1]);
+	GRETH_REGSAVE(regs->esa_lsb, dev->dev_addr[2] << 24 | dev->dev_addr[3] << 16 |
+		      dev->dev_addr[4] << 8 | dev->dev_addr[5]);
 
-	GRETH_REGSAVE(regs->esa_msb, addr->sa_data[0] << 8 | addr->sa_data[1]);
-	GRETH_REGSAVE(regs->esa_lsb,
-		      addr->sa_data[2] << 24 | addr->
-		      sa_data[3] << 16 | addr->sa_data[4] << 8 | addr->sa_data[5]);
 	return 0;
 }
 
