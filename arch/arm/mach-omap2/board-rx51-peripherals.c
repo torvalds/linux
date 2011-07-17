@@ -358,14 +358,17 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 	{}	/* Terminator */
 };
 
-static struct regulator_consumer_supply rx51_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
+static struct regulator_consumer_supply rx51_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
+};
 
-static struct regulator_consumer_supply rx51_vaux3_supply =
-	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
+static struct regulator_consumer_supply rx51_vaux3_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
+};
 
-static struct regulator_consumer_supply rx51_vsim_supply =
-	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1");
+static struct regulator_consumer_supply rx51_vsim_supply[] = {
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.1"),
+};
 
 static struct regulator_consumer_supply rx51_vmmc2_supplies[] = {
 	/* tlv320aic3x analog supplies */
@@ -452,8 +455,8 @@ static struct regulator_init_data rx51_vaux3_mmc = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &rx51_vaux3_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(rx51_vaux3_supply),
+	.consumer_supplies	= rx51_vaux3_supply,
 };
 
 static struct regulator_init_data rx51_vaux4 = {
@@ -479,8 +482,8 @@ static struct regulator_init_data rx51_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &rx51_vmmc1_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(rx51_vmmc1_supply),
+	.consumer_supplies	= rx51_vmmc1_supply,
 };
 
 static struct regulator_init_data rx51_vmmc2 = {
@@ -511,8 +514,8 @@ static struct regulator_init_data rx51_vsim = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &rx51_vsim_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(rx51_vsim_supply),
+	.consumer_supplies	= rx51_vsim_supply,
 };
 
 static struct regulator_init_data rx51_vdac = {
@@ -526,7 +529,7 @@ static struct regulator_init_data rx51_vdac = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
+	.num_consumer_supplies	= ARRAY_SIZE(rx51_vdac_supply),
 	.consumer_supplies	= rx51_vdac_supply,
 };
 

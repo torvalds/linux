@@ -1486,6 +1486,40 @@ static struct clk dss_dss_clk = {
 	.recalc		= &followparent_recalc,
 };
 
+static const struct clksel_rate div3_8to32_rates[] = {
+	{ .div = 8, .val = 0, .flags = RATE_IN_44XX },
+	{ .div = 16, .val = 1, .flags = RATE_IN_44XX },
+	{ .div = 32, .val = 2, .flags = RATE_IN_44XX },
+	{ .div = 0 },
+};
+
+static const struct clksel div_ts_div[] = {
+	{ .parent = &l4_wkup_clk_mux_ck, .rates = div3_8to32_rates },
+	{ .parent = NULL },
+};
+
+static struct clk div_ts_ck = {
+	.name		= "div_ts_ck",
+	.parent		= &l4_wkup_clk_mux_ck,
+	.clksel		= div_ts_div,
+	.clksel_reg	= OMAP4430_CM_WKUP_BANDGAP_CLKCTRL,
+	.clksel_mask	= OMAP4430_CLKSEL_24_25_MASK,
+	.ops		= &clkops_null,
+	.recalc		= &omap2_clksel_recalc,
+	.round_rate	= &omap2_clksel_round_rate,
+	.set_rate	= &omap2_clksel_set_rate,
+};
+
+static struct clk bandgap_ts_fclk = {
+	.name		= "bandgap_ts_fclk",
+	.ops		= &clkops_omap2_dflt,
+	.enable_reg	= OMAP4430_CM_WKUP_BANDGAP_CLKCTRL,
+	.enable_bit	= OMAP4460_OPTFCLKEN_TS_FCLK_SHIFT,
+	.clkdm_name	= "l4_wkup_clkdm",
+	.parent		= &div_ts_ck,
+	.recalc		= &followparent_recalc,
+};
+
 static struct clk dss_48mhz_clk = {
 	.name		= "dss_48mhz_clk",
 	.ops		= &clkops_omap2_dflt,
@@ -3110,7 +3144,9 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"aes2_fck",			&aes2_fck,	CK_443X),
 	CLK(NULL,	"aess_fck",			&aess_fck,	CK_443X),
 	CLK(NULL,	"bandgap_fclk",			&bandgap_fclk,	CK_443X),
+	CLK(NULL,	"bandgap_ts_fclk",		&bandgap_ts_fclk,	CK_446X),
 	CLK(NULL,	"des3des_fck",			&des3des_fck,	CK_443X),
+	CLK(NULL,	"div_ts_ck",			&div_ts_ck,	CK_446X),
 	CLK(NULL,	"dmic_sync_mux_ck",		&dmic_sync_mux_ck,	CK_443X),
 	CLK(NULL,	"dmic_fck",			&dmic_fck,	CK_443X),
 	CLK(NULL,	"dsp_fck",			&dsp_fck,	CK_443X),
@@ -3293,6 +3329,9 @@ int __init omap4xxx_clk_init(void)
 	if (cpu_is_omap44xx()) {
 		cpu_mask = RATE_IN_4430;
 		cpu_clkflg = CK_443X;
+	} else if (cpu_is_omap446x()) {
+		cpu_mask = RATE_IN_4460;
+		cpu_clkflg = CK_446X;
 	}
 
 	clk_init(&omap2_clk_functions);

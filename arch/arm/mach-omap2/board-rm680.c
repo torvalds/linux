@@ -163,7 +163,7 @@ MACHINE_START(NOKIA_RM680, "Nokia RM-680 board")
 	.reserve	= omap_reserve,
 	.map_io		= rm680_map_io,
 	.init_early	= rm680_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= rm680_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

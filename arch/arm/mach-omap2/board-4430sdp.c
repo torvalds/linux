@@ -40,7 +40,6 @@
 
 #include "mux.h"
 #include "hsmmc.h"
-#include "timer-gp.h"
 #include "control.h"
 #include "common-board-devices.h"
 
@@ -295,9 +294,6 @@ static void __init omap_4430sdp_init_early(void)
 {
 	omap2_init_common_infrastructure();
 	omap2_init_common_devices(NULL, NULL);
-#ifdef CONFIG_OMAP_32K_TIMER
-	omap2_gp_clockevent_set_gptimer(1);
-#endif
 }
 
 static struct omap_musb_board_data musb_board_data = {
@@ -333,16 +329,11 @@ static struct omap2_hsmmc_info mmc[] = {
 };
 
 static struct regulator_consumer_supply sdp4430_vaux_supply[] = {
-	{
-		.supply = "vmmc",
-		.dev_name = "omap_hsmmc.1",
-	},
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
+
 static struct regulator_consumer_supply sdp4430_vmmc_supply[] = {
-	{
-		.supply = "vmmc",
-		.dev_name = "omap_hsmmc.0",
-	},
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
 static int omap4_twl6030_hsmmc_late_init(struct device *dev)
@@ -399,7 +390,7 @@ static struct regulator_init_data sdp4430_vaux1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
+	.num_consumer_supplies  = ARRAY_SIZE(sdp4430_vaux_supply),
 	.consumer_supplies      = sdp4430_vaux_supply,
 };
 
@@ -773,5 +764,5 @@ MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")
 	.init_early	= omap_4430sdp_init_early,
 	.init_irq	= gic_init_irq,
 	.init_machine	= omap_4430sdp_init,
-	.timer		= &omap_timer,
+	.timer		= &omap4_timer,
 MACHINE_END

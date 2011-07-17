@@ -320,17 +320,21 @@ static struct twl4030_gpio_platform_data omap3pandora_gpio_data = {
 	.setup		= omap3pandora_twl_gpio_setup,
 };
 
-static struct regulator_consumer_supply pandora_vmmc1_supply =
-	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0");
+static struct regulator_consumer_supply pandora_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
+};
 
-static struct regulator_consumer_supply pandora_vmmc2_supply =
-	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
+static struct regulator_consumer_supply pandora_vmmc2_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1")
+};
 
-static struct regulator_consumer_supply pandora_vmmc3_supply =
-	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.2");
+static struct regulator_consumer_supply pandora_vmmc3_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.2"),
+};
 
-static struct regulator_consumer_supply pandora_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
+static struct regulator_consumer_supply pandora_vdda_dac_supply[] = {
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
+};
 
 static struct regulator_consumer_supply pandora_vdds_supplies[] = {
 	REGULATOR_SUPPLY("vdds_sdi", "omapdss"),
@@ -338,11 +342,13 @@ static struct regulator_consumer_supply pandora_vdds_supplies[] = {
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss_dsi1"),
 };
 
-static struct regulator_consumer_supply pandora_vcc_lcd_supply =
-	REGULATOR_SUPPLY("vcc", "display0");
+static struct regulator_consumer_supply pandora_vcc_lcd_supply[] = {
+	REGULATOR_SUPPLY("vcc", "display0"),
+};
 
-static struct regulator_consumer_supply pandora_usb_phy_supply =
-	REGULATOR_SUPPLY("hsusb0", "ehci-omap.0");
+static struct regulator_consumer_supply pandora_usb_phy_supply[] = {
+	REGULATOR_SUPPLY("hsusb0", "ehci-omap.0"),
+};
 
 /* ads7846 on SPI and 2 nub controllers on I2C */
 static struct regulator_consumer_supply pandora_vaux4_supplies[] = {
@@ -351,8 +357,9 @@ static struct regulator_consumer_supply pandora_vaux4_supplies[] = {
 	REGULATOR_SUPPLY("vcc", "3-0067"),
 };
 
-static struct regulator_consumer_supply pandora_adac_supply =
-	REGULATOR_SUPPLY("vcc", "soc-audio");
+static struct regulator_consumer_supply pandora_adac_supply[] = {
+	REGULATOR_SUPPLY("vcc", "soc-audio"),
+};
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
 static struct regulator_init_data pandora_vmmc1 = {
@@ -365,8 +372,8 @@ static struct regulator_init_data pandora_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_vmmc1_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_vmmc1_supply),
+	.consumer_supplies	= pandora_vmmc1_supply,
 };
 
 /* VMMC2 for MMC2 pins CMD, CLK, DAT0..DAT3 (max 100 mA) */
@@ -380,8 +387,8 @@ static struct regulator_init_data pandora_vmmc2 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_vmmc2_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_vmmc2_supply),
+	.consumer_supplies	= pandora_vmmc2_supply,
 };
 
 /* VDAC for DSS driving S-Video */
@@ -395,8 +402,8 @@ static struct regulator_init_data pandora_vdac = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_vdda_dac_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_vdda_dac_supply),
+	.consumer_supplies	= pandora_vdda_dac_supply,
 };
 
 /* VPLL2 for digital video outputs */
@@ -425,8 +432,8 @@ static struct regulator_init_data pandora_vaux1 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_vcc_lcd_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_vcc_lcd_supply),
+	.consumer_supplies	= pandora_vcc_lcd_supply,
 };
 
 /* VAUX2 for USB host PHY */
@@ -440,8 +447,8 @@ static struct regulator_init_data pandora_vaux2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_usb_phy_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_usb_phy_supply),
+	.consumer_supplies	= pandora_usb_phy_supply,
 };
 
 /* VAUX4 for ads7846 and nubs */
@@ -470,8 +477,8 @@ static struct regulator_init_data pandora_vsim = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_adac_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_adac_supply),
+	.consumer_supplies	= pandora_adac_supply,
 };
 
 /* Fixed regulator internal to Wifi module */
@@ -479,8 +486,8 @@ static struct regulator_init_data pandora_vmmc3 = {
 	.constraints = {
 		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &pandora_vmmc3_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(pandora_vmmc3_supply),
+	.consumer_supplies	= pandora_vmmc3_supply,
 };
 
 static struct fixed_voltage_config pandora_vwlan = {
@@ -643,7 +650,7 @@ MACHINE_START(OMAP3_PANDORA, "Pandora Handheld Console")
 	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap3pandora_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= omap3pandora_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

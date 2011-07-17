@@ -50,7 +50,6 @@
 
 #include "mux.h"
 #include "hsmmc.h"
-#include "timer-gp.h"
 #include "pm.h"
 #include "common-board-devices.h"
 
@@ -210,8 +209,9 @@ static struct omap_dss_board_info beagle_dss_data = {
 	.default_device = &beagle_dvi_device,
 };
 
-static struct regulator_consumer_supply beagle_vdac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
+static struct regulator_consumer_supply beagle_vdac_supply[] = {
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc"),
+};
 
 static struct regulator_consumer_supply beagle_vdvi_supplies[] = {
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss"),
@@ -239,12 +239,12 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
-static struct regulator_consumer_supply beagle_vmmc1_supply = {
-	.supply			= "vmmc",
+static struct regulator_consumer_supply beagle_vmmc1_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply beagle_vsim_supply = {
-	.supply			= "vmmc_aux",
+static struct regulator_consumer_supply beagle_vsim_supply[] = {
+	REGULATOR_SUPPLY("vmmc_aux", "omap_hsmmc.0"),
 };
 
 static struct gpio_led gpio_leds[];
@@ -266,10 +266,6 @@ static int beagle_twl_gpio_setup(struct device *dev,
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
 	omap2_hsmmc_init(mmc);
-
-	/* link regulators to MMC adapters */
-	beagle_vmmc1_supply.dev = mmc[0].dev;
-	beagle_vsim_supply.dev = mmc[0].dev;
 
 	/*
 	 * TWL4030_GPIO_MAX + 0 == ledA, EHCI nEN_USB_PWR (out, XM active
@@ -336,8 +332,8 @@ static struct regulator_init_data beagle_vmmc1 = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &beagle_vmmc1_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(beagle_vmmc1_supply),
+	.consumer_supplies	= beagle_vmmc1_supply,
 };
 
 /* VSIM for MMC1 pins DAT4..DAT7 (2 mA, plus card == max 50 mA) */
@@ -351,8 +347,8 @@ static struct regulator_init_data beagle_vsim = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &beagle_vsim_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(beagle_vsim_supply),
+	.consumer_supplies	= beagle_vsim_supply,
 };
 
 /* VDAC for DSS driving S-Video (8 mA unloaded, max 65 mA) */
@@ -365,8 +361,8 @@ static struct regulator_init_data beagle_vdac = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &beagle_vdac_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(beagle_vdac_supply),
+	.consumer_supplies	= beagle_vdac_supply,
 };
 
 /* VPLL2 for digital video outputs */
@@ -486,10 +482,7 @@ static void __init omap3_beagle_init_early(void)
 
 static void __init omap3_beagle_init_irq(void)
 {
-	omap_init_irq();
-#ifdef CONFIG_OMAP_32K_TIMER
-	omap2_gp_clockevent_set_gptimer(12);
-#endif
+	omap3_init_irq();
 }
 
 static struct platform_device *omap3_beagle_devices[] __initdata = {
@@ -599,5 +592,5 @@ MACHINE_START(OMAP3_BEAGLE, "OMAP3 Beagle Board")
 	.init_early	= omap3_beagle_init_early,
 	.init_irq	= omap3_beagle_init_irq,
 	.init_machine	= omap3_beagle_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_secure_timer,
 MACHINE_END

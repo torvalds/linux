@@ -41,7 +41,6 @@
 #include <plat/usb.h>
 #include <plat/mmc.h>
 #include <video/omap-panel-generic-dpi.h>
-#include "timer-gp.h"
 
 #include "hsmmc.h"
 #include "control.h"
@@ -183,23 +182,19 @@ static struct omap2_hsmmc_info mmc[] = {
 };
 
 static struct regulator_consumer_supply omap4_panda_vmmc_supply[] = {
-	{
-		.supply = "vmmc",
-		.dev_name = "omap_hsmmc.0",
-	},
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.0"),
 };
 
-static struct regulator_consumer_supply omap4_panda_vmmc5_supply = {
-	.supply = "vmmc",
-	.dev_name = "omap_hsmmc.4",
+static struct regulator_consumer_supply omap4_panda_vmmc5_supply[] = {
+	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.4"),
 };
 
 static struct regulator_init_data panda_vmmc5 = {
 	.constraints = {
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies = 1,
-	.consumer_supplies = &omap4_panda_vmmc5_supply,
+	.num_consumer_supplies = ARRAY_SIZE(omap4_panda_vmmc5_supply),
+	.consumer_supplies = omap4_panda_vmmc5_supply,
 };
 
 static struct fixed_voltage_config panda_vwlan = {
@@ -312,7 +307,7 @@ static struct regulator_init_data omap4_panda_vmmc = {
 					| REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies  = 1,
+	.num_consumer_supplies  = ARRAY_SIZE(omap4_panda_vmmc_supply),
 	.consumer_supplies      = omap4_panda_vmmc_supply,
 };
 
@@ -716,5 +711,5 @@ MACHINE_START(OMAP4_PANDA, "OMAP4 Panda board")
 	.init_early	= omap4_panda_init_early,
 	.init_irq	= gic_init_irq,
 	.init_machine	= omap4_panda_init,
-	.timer		= &omap_timer,
+	.timer		= &omap4_timer,
 MACHINE_END
