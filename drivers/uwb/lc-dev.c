@@ -28,6 +28,7 @@
 #include <linux/err.h>
 #include <linux/kdev_t.h>
 #include <linux/random.h>
+#include <linux/stat.h>
 #include "uwb-internal.h"
 
 /* We initialize addresses to 0xff (invalid, as it is bcast) */
