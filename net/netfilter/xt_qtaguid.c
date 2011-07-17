@@ -10,6 +10,7 @@
 
 /* TODO: support ipv6 for iface_stat.
  * Currently if an iface is only v6 it will not have stats collected. */
+#define DEBUG
 
 #include <linux/file.h>
 #include <linux/inetdevice.h>
@@ -28,6 +29,49 @@
 #define XT_SOCKET_SUPPORTED_HOOKS \
 	((1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_IN))
 
+
+static const char *module_procdirname = "xt_qtaguid";
+static struct proc_dir_entry *xt_qtaguid_procdir;
+
+static unsigned int proc_iface_perms = S_IRUGO;
+module_param_named(iface_perms, proc_iface_perms, uint, S_IRUGO | S_IWUSR);
+
+static struct proc_dir_entry *xt_qtaguid_stats_file;
+static unsigned int proc_stats_perms = S_IRUGO;
+module_param_named(stats_perms, proc_stats_perms, uint, S_IRUGO | S_IWUSR);
+
+static struct proc_dir_entry *xt_qtaguid_ctrl_file;
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
+static unsigned int proc_ctrl_perms = S_IRUGO | S_IWUGO;
+#else
+static unsigned int proc_ctrl_perms = S_IRUGO | S_IWUSR;
+#endif
+module_param_named(ctrl_perms, proc_ctrl_perms, uint, S_IRUGO | S_IWUSR);
+
+#ifdef CONFIG_ANDROID_PARANOID_NETWORK
+#include <linux/android_aid.h>
+static gid_t proc_stats_readall_gid = AID_NET_BW_STATS;
+static gid_t proc_ctrl_write_gid = AID_NET_BW_ACCT;
+#else
+/* 0 means, don't limit anybody */
+static gid_t proc_stats_readall_gid;
+static gid_t proc_ctrl_write_gid;
+#endif
+module_param_named(stats_readall_gid, proc_stats_readall_gid, uint,
+		   S_IRUGO | S_IWUSR);
+module_param_named(ctrl_write_gid, proc_ctrl_write_gid, uint,
+		   S_IRUGO | S_IWUSR);
+
+/* After the kernel has initiallized this module, it is still possible
+ * to make it passive:
+ *  - do not register it via iptables.
+ *   the matching code will not be invoked.
+ *  - set passive to 0
+ *   the iface stats handling will not be act on notifications.
+ * This is mostly usefull when a bug is suspected.
+ */
+static bool module_passive;
+module_param_named(passive, module_passive, bool, S_IRUGO | S_IWUSR);
 
 /*---------------------------------------------------------------------------*/
 /*
@@ -429,15 +473,15 @@ void iface_stat_create(const struct net_device *net_dev)
 	new_iface->proc_ptr = proc_entry;
 
 	/* TODO: make root access only */
-	create_proc_read_entry("tx_bytes", S_IRUGO, proc_entry,
+	create_proc_read_entry("tx_bytes", proc_iface_perms, proc_entry,
 			read_proc_u64, &new_iface->tx_bytes);
-	create_proc_read_entry("rx_bytes", S_IRUGO, proc_entry,
+	create_proc_read_entry("rx_bytes", proc_iface_perms, proc_entry,
 			read_proc_u64, &new_iface->rx_bytes);
-	create_proc_read_entry("tx_packets", S_IRUGO, proc_entry,
+	create_proc_read_entry("tx_packets", proc_iface_perms, proc_entry,
 			read_proc_u64, &new_iface->tx_packets);
-	create_proc_read_entry("rx_packets", S_IRUGO, proc_entry,
+	create_proc_read_entry("rx_packets", proc_iface_perms, proc_entry,
 			read_proc_u64, &new_iface->rx_packets);
-	create_proc_read_entry("active", S_IRUGO, proc_entry,
+	create_proc_read_entry("active", proc_iface_perms, proc_entry,
 			read_proc_bool, &new_iface->active);
 
 	pr_debug("iface_stat: create(): done entry=%p dev=%s ip=%pI4\n",
@@ -655,6 +699,9 @@ static int iface_netdev_event_handler(struct notifier_block *nb,
 				      unsigned long event, void *ptr) {
 	struct net_device *dev = ptr;
 
+	if (unlikely(module_passive))
+		return NOTIFY_DONE;
+
 	pr_debug("iface_stat: netdev_event(): ev=0x%lx netdev=%p->name=%s\n",
 		 event, dev, dev ? dev->name : "");
 
@@ -681,6 +728,9 @@ static int iface_inetaddr_event_handler(struct notifier_block *nb,
 	struct in_ifaddr *ifa = ptr;
 	struct in_device *in_dev = ifa->ifa_dev;
 	struct net_device *dev = in_dev->dev;
+
+	if (unlikely(module_passive))
+		return NOTIFY_DONE;
 
 	pr_debug("iface_stat: inetaddr_event(): ev=0x%lx netdev=%p->name=%s\n",
 		 event, dev, dev ? dev->name : "");
@@ -817,8 +867,10 @@ static bool qtaguid_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	struct sock *sk;
 	uid_t sock_uid;
 	bool res;
+
 	pr_debug("xt_qtaguid[%d]: entered skb=%p par->in=%p/out=%p fam=%d\n",
 		 par->hooknum, skb, par->in, par->out, par->family);
+
 	if (skb == NULL) {
 		res = (info->match ^ info->invert) == 0;
 		goto ret_res;
@@ -928,6 +980,11 @@ static int qtaguid_ctrl_proc_read(char *page, char **num_items_returned,
 	struct rb_node *node;
 	int item_index = 0;
 
+	if (unlikely(module_passive)) {
+		*eof = 1;
+		return 0;
+	}
+
 	pr_debug("xt_qtaguid: proc ctrl page=%p off=%ld char_count=%d *eof=%d\n",
 		page, items_to_skip, char_count, *eof);
 
@@ -963,6 +1020,20 @@ static int qtaguid_ctrl_proc_read(char *page, char **num_items_returned,
 	return outp - page;
 }
 
+int can_impersonate_uid(uid_t uid)
+{
+	return uid == current_fsuid()
+		|| !proc_ctrl_write_gid
+		|| in_egroup_p(proc_ctrl_write_gid);
+}
+
+int can_read_other_uid_stats(uid_t uid)
+{
+	return uid == current_fsuid()
+		|| !proc_ctrl_write_gid
+		|| in_egroup_p(proc_stats_readall_gid);
+}
+
 /* Delete socket tags, and stat tags associated with a given
  * accouting tag and uid. */
 static int ctrl_cmd_delete(const char *input)
@@ -993,11 +1064,14 @@ static int ctrl_cmd_delete(const char *input)
 		res = -EINVAL;
 		goto err;
 	}
-	if (argc < 3)
+	if (argc < 3) {
 		uid = current_fsuid();
-
-	/* TODO: check that the uid == current_fsuid()
-	 * except for special uid/gid. */
+	} else if (!can_impersonate_uid(uid)) {
+		pr_info("xt_qtaguid: ctrl_delete(%s): insuficient priv\n",
+			input);
+		res = -EPERM;
+		goto err;
+	}
 
 	spin_lock_irqsave(&sock_tag_list_lock, flags);
 	node = rb_first(&sock_tag_tree);
@@ -1092,14 +1166,18 @@ static int ctrl_cmd_tag(const char *input)
 		res = -EINVAL;
 		goto err;
 	}
-	if (argc < 4)
+	if (argc < 4) {
 		uid = current_fsuid();
+	} else if (!can_impersonate_uid(uid)) {
+		pr_info("xt_qtaguid: ctrl_tag(%s): insuficient priv\n",
+			input);
+		res = -EPERM;
+		goto err;
+	}
 
 	spin_lock_irqsave(&sock_tag_list_lock, flags);
 	sock_tag_entry = get_sock_stat_nl(el_socket->sk);
 	if (sock_tag_entry) {
-		/* TODO: check that the uid == current_fsuid()
-		 * except for special uid/gid. */
 		sock_tag_entry->tag = combine_atag_with_uid(acct_tag,
 							    uid);
 	} else {
@@ -1111,8 +1189,6 @@ static int ctrl_cmd_tag(const char *input)
 			goto err;
 		}
 		sock_tag_entry->sk = el_socket->sk;
-		/* TODO: check that uid==current_fsuid() except
-		 * for special uid/gid. */
 		sock_tag_entry->tag = combine_atag_with_uid(acct_tag,
 							    uid);
 		spin_lock_irqsave(&sock_tag_list_lock, flags);
@@ -1162,9 +1238,8 @@ static int ctrl_cmd_untag(const char *input)
 		res = -EINVAL;
 		goto err;
 	}
-
-	/* TODO: check that the uid==current_fsuid()
-	 * except for special uid/gid. */
+	/* The socket already belongs to the current process
+	 * so it can do whatever it wants to it. */
 	rb_erase(&sock_tag_entry->node, &sock_tag_tree);
 	spin_unlock_irqrestore(&sock_tag_list_lock, flags);
 	kfree(sock_tag_entry);
@@ -1213,6 +1288,9 @@ static int qtaguid_ctrl_proc_write(struct file *file, const char __user *buffer,
 {
 	char input_buf[MAX_QTAGUID_CTRL_INPUT_LEN];
 
+	if (unlikely(module_passive))
+		return count;
+
 	if (count >= MAX_QTAGUID_CTRL_INPUT_LEN)
 		return -EINVAL;
 
@@ -1228,18 +1306,25 @@ static int print_stats_line(char *outp, int char_count, int item_index,
 			    struct data_counters *counters)
 {
 	int len;
-	if (!item_index)
+	if (!item_index) {
 		len = snprintf(outp, char_count,
-			 "idx iface acct_tag_hex uid_tag_int "
-			 "rx_bytes rx_packets "
-			 "tx_bytes tx_packets "
-			 "rx_tcp_packets rx_tcp_bytes "
-			 "rx_udp_packets rx_udp_bytes "
-			 "rx_other_packets rx_other_bytes "
-			 "tx_tcp_packets tx_tcp_bytes "
-			 "tx_udp_packets tx_udp_bytes "
-			 "tx_other_packets tx_other_bytes\n");
-	else
+			       "idx iface acct_tag_hex uid_tag_int "
+			       "rx_bytes rx_packets "
+			       "tx_bytes tx_packets "
+			       "rx_tcp_packets rx_tcp_bytes "
+			       "rx_udp_packets rx_udp_bytes "
+			       "rx_other_packets rx_other_bytes "
+			       "tx_tcp_packets tx_tcp_bytes "
+			       "tx_udp_packets tx_udp_bytes "
+			       "tx_other_packets tx_other_bytes\n");
+	} else {
+		uid_t stat_uid = get_uid_from_tag(tag);
+		if (!can_read_other_uid_stats(stat_uid)) {
+			pr_debug("xt_qtaguid: insufficient priv for stat line:"
+				 "%s 0x%llx %u\n",
+				 ifname, get_atag_from_tag(tag), stat_uid);
+			return 0;
+		}
 		len = snprintf(outp, char_count,
 			       "%d %s 0x%llx %u "
 			       "%llu %llu "
@@ -1253,7 +1338,7 @@ static int print_stats_line(char *outp, int char_count, int item_index,
 			       item_index,
 			       ifname,
 			       get_atag_from_tag(tag),
-			       get_uid_from_tag(tag),
+			       stat_uid,
 			       dc_sum_bytes(counters, IFS_RX),
 			       dc_sum_packets(counters, IFS_RX),
 			       dc_sum_bytes(counters, IFS_TX),
@@ -1270,6 +1355,7 @@ static int print_stats_line(char *outp, int char_count, int item_index,
 			       counters->bpc[IFS_TX][IFS_UDP].packets,
 			       counters->bpc[IFS_TX][IFS_PROTO_OTHER].bytes,
 			       counters->bpc[IFS_TX][IFS_PROTO_OTHER].packets);
+	}
 	return len;
 }
 
@@ -1290,7 +1376,10 @@ static int qtaguid_stats_proc_read(char *page, char **num_items_returned,
 	struct tag_stat *ts_entry;
 	int item_index = 0;
 
-	/* TODO: make root access only */
+	if (unlikely(module_passive)) {
+		*eof = 1;
+		return 0;
+	}
 
 	pr_debug("xt_qtaguid:proc stats page=%p *num_items_returned=%p off=%ld "
 		"char_count=%d *eof=%d\n", page, *num_items_returned,
@@ -1335,9 +1424,11 @@ static int qtaguid_stats_proc_read(char *page, char **num_items_returned,
 					&iface_stat_list_lock, flags);
 				return outp - page;
 			}
-			outp += len;
-			char_count -= len;
-			(*num_items_returned)++;
+			if (len) {
+				outp += len;
+				char_count -= len;
+				(*num_items_returned)++;
+			}
 		}
 		spin_unlock_irqrestore(&iface_entry->tag_stat_list_lock,
 				flags2);
@@ -1349,11 +1440,6 @@ static int qtaguid_stats_proc_read(char *page, char **num_items_returned,
 }
 
 /*------------------------------------------*/
-static const char *module_procdirname = "xt_qtaguid";
-static struct proc_dir_entry *xt_qtaguid_procdir;
-static struct proc_dir_entry *xt_qtaguid_ctrl_file;
-static struct proc_dir_entry *xt_qtaguid_stats_file;
-
 static int __init qtaguid_proc_register(struct proc_dir_entry **res_procdir)
 {
 	int ret;
@@ -1364,7 +1450,7 @@ static int __init qtaguid_proc_register(struct proc_dir_entry **res_procdir)
 		goto no_dir;
 	}
 
-	xt_qtaguid_ctrl_file = create_proc_entry("ctrl", 0666,
+	xt_qtaguid_ctrl_file = create_proc_entry("ctrl", proc_ctrl_perms,
 						*res_procdir);
 	if (!xt_qtaguid_ctrl_file) {
 		pr_err("xt_qtaguid: failed to create xt_qtaguid/ctrl "
@@ -1375,7 +1461,7 @@ static int __init qtaguid_proc_register(struct proc_dir_entry **res_procdir)
 	xt_qtaguid_ctrl_file->read_proc = qtaguid_ctrl_proc_read;
 	xt_qtaguid_ctrl_file->write_proc = qtaguid_ctrl_proc_write;
 
-	xt_qtaguid_stats_file = create_proc_entry("stats", 0666,
+	xt_qtaguid_stats_file = create_proc_entry("stats", proc_stats_perms,
 						*res_procdir);
 	if (!xt_qtaguid_stats_file) {
 		pr_err("xt_qtaguid: failed to create xt_qtaguid/stats "
@@ -1383,10 +1469,6 @@ static int __init qtaguid_proc_register(struct proc_dir_entry **res_procdir)
 		ret = -ENOMEM;
 		goto no_stats_entry;
 	}
-	/*
-	 * TODO: add extra read_proc for full stats with protocol
-	 * breakout
-	 */
 	xt_qtaguid_stats_file->read_proc = qtaguid_stats_proc_read;
 	/*
 	 * TODO: add support counter hacking
