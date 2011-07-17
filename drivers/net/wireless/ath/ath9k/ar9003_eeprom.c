@@ -3039,7 +3039,7 @@ static u32 ath9k_hw_ar9300_get_eeprom(struct ath_hw *ah,
 	case EEP_CHAIN_MASK_REDUCE:
 		return (pBase->miscConfiguration >> 0x3) & 0x1;
 	case EEP_ANT_DIV_CTL1:
-		return le32_to_cpu(eep->base_ext1.ant_div_control);
+		return eep->base_ext1.ant_div_control;
 	default:
 		return 0;
 	}

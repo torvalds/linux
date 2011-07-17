@@ -196,6 +196,19 @@ static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
 	return val;
 }
 
+static unsigned int __ath9k_reg_rmw(struct ath_softc *sc, u32 reg_offset,
+				    u32 set, u32 clr)
+{
+	u32 val;
+
+	val = ioread32(sc->mem + reg_offset);
+	val &= ~clr;
+	val |= set;
+	iowrite32(val, sc->mem + reg_offset);
+
+	return val;
+}
+
 static unsigned int ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 clr)
 {
 	struct ath_hw *ah = (struct ath_hw *) hw_priv;
@@ -204,16 +217,12 @@ static unsigned int ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 cl
 	unsigned long uninitialized_var(flags);
 	u32 val;
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON)
+	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		spin_lock_irqsave(&sc->sc_serial_rw, flags);
-
-	val = ioread32(sc->mem + reg_offset);
-	val &= ~clr;
-	val |= set;
-	iowrite32(val, sc->mem + reg_offset);
-
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON)
+		val = __ath9k_reg_rmw(sc, reg_offset, set, clr);
 		spin_unlock_irqrestore(&sc->sc_serial_rw, flags);
+	} else
+		val = __ath9k_reg_rmw(sc, reg_offset, set, clr);
 
 	return val;
 }

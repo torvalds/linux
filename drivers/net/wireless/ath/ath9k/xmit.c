@@ -1147,6 +1147,8 @@ static bool bf_is_ampdu_not_probing(struct ath_buf *bf)
 
 static void ath_drain_txq_list(struct ath_softc *sc, struct ath_txq *txq,
 			       struct list_head *list, bool retry_tx)
+	__releases(txq->axq_lock)
+	__acquires(txq->axq_lock)
 {
 	struct ath_buf *bf, *lastbf;
 	struct list_head bf_head;
@@ -2035,6 +2037,8 @@ static void ath_tx_rc_status(struct ath_softc *sc, struct ath_buf *bf,
 static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 				  struct ath_tx_status *ts, struct ath_buf *bf,
 				  struct list_head *bf_head)
+	__releases(txq->axq_lock)
+	__acquires(txq->axq_lock)
 {
 	int txok;
 
