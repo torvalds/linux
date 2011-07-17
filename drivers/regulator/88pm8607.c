@@ -16,6 +16,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/mfd/88pm860x.h>
+#include <linux/module.h>
 
 struct pm8607_regulator_info {
 	struct regulator_desc	desc;

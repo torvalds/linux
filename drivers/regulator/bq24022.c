@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
+#include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/regulator/bq24022.h>
 #include <linux/regulator/driver.h>
