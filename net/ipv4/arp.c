@@ -150,8 +150,8 @@ static const struct neigh_ops arp_hh_ops = {
 
 static const struct neigh_ops arp_direct_ops = {
 	.family =		AF_INET,
-	.output =		dev_queue_xmit,
-	.connected_output =	dev_queue_xmit,
+	.output =		neigh_direct_output,
+	.connected_output =	neigh_direct_output,
 };
 
 static const struct neigh_ops arp_broken_ops = {
@@ -250,7 +250,7 @@ static int arp_constructor(struct neighbour *neigh)
 	if (!dev->header_ops) {
 		neigh->nud_state = NUD_NOARP;
 		neigh->ops = &arp_direct_ops;
-		neigh->output = dev_queue_xmit;
+		neigh->output = neigh_direct_output;
 	} else {
 		/* Good devices (checked by reading texts, but only Ethernet is
 		   tested)

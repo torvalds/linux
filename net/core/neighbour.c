@@ -98,7 +98,7 @@ static const struct file_operations neigh_stat_seq_fops;
 
 static DEFINE_RWLOCK(neigh_tbl_lock);
 
-static int neigh_blackhole(struct sk_buff *skb)
+static int neigh_blackhole(struct neighbour *neigh, struct sk_buff *skb)
 {
 	kfree_skb(skb);
 	return -ENETDOWN;
@@ -1158,7 +1158,7 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 			/* On shaper/eql skb->dst->neighbour != neigh :( */
 			if (skb_dst(skb) && skb_dst(skb)->neighbour)
 				n1 = skb_dst(skb)->neighbour;
-			n1->output(skb);
+			n1->output(n1, skb);
 			write_lock_bh(&neigh->lock);
 		}
 		skb_queue_purge(&neigh->arp_queue);
@@ -1214,7 +1214,7 @@ static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst)
  * but resolution is not made yet.
  */
 
-int neigh_compat_output(struct sk_buff *skb)
+int neigh_compat_output(struct neighbour *neigh, struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
 
@@ -1231,13 +1231,12 @@ EXPORT_SYMBOL(neigh_compat_output);
 
 /* Slow and careful. */
 
-int neigh_resolve_output(struct sk_buff *skb)
+int neigh_resolve_output(struct neighbour *neigh, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *neigh;
 	int rc = 0;
 
-	if (!dst || !(neigh = dst->neighbour))
+	if (!dst)
 		goto discard;
 
 	__skb_pull(skb, skb_network_offset(skb));
@@ -1265,7 +1264,7 @@ out:
 	return rc;
 discard:
 	NEIGH_PRINTK1("neigh_resolve_output: dst=%p neigh=%p\n",
-		      dst, dst ? dst->neighbour : NULL);
+		      dst, neigh);
 out_kfree_skb:
 	rc = -EINVAL;
 	kfree_skb(skb);
@@ -1275,13 +1274,11 @@ EXPORT_SYMBOL(neigh_resolve_output);
 
 /* As fast as possible without hh cache */
 
-int neigh_connected_output(struct sk_buff *skb)
+int neigh_connected_output(struct neighbour *neigh, struct sk_buff *skb)
 {
-	int err;
-	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *neigh = dst->neighbour;
 	struct net_device *dev = neigh->dev;
 	unsigned int seq;
+	int err;
 
 	__skb_pull(skb, skb_network_offset(skb));
 
@@ -1300,6 +1297,12 @@ int neigh_connected_output(struct sk_buff *skb)
 	return err;
 }
 EXPORT_SYMBOL(neigh_connected_output);
+
+int neigh_direct_output(struct neighbour *neigh, struct sk_buff *skb)
+{
+	return dev_queue_xmit(skb);
+}
+EXPORT_SYMBOL(neigh_direct_output);
 
 static void neigh_proxy_process(unsigned long arg)
 {

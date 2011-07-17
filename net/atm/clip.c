@@ -271,8 +271,8 @@ static const struct neigh_ops clip_neigh_ops = {
 	.family =		AF_INET,
 	.solicit =		clip_neigh_solicit,
 	.error_report =		clip_neigh_error,
-	.output =		dev_queue_xmit,
-	.connected_output =	dev_queue_xmit,
+	.output =		neigh_direct_output,
+	.connected_output =	neigh_direct_output,
 };
 
 static int clip_constructor(struct neighbour *neigh)

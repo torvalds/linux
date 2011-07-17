@@ -705,6 +705,14 @@ out:
 	return NET_RX_DROP;
 }
 
+static int dn_to_neigh_output(struct sk_buff *skb)
+{
+	struct dst_entry *dst = skb_dst(skb);
+	struct neighbour *n = dst->neighbour;
+
+	return n->output(n, skb);
+}
+
 static int dn_output(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
@@ -733,7 +741,7 @@ static int dn_output(struct sk_buff *skb)
 	cb->hops = 0;
 
 	return NF_HOOK(NFPROTO_DECNET, NF_DN_LOCAL_OUT, skb, NULL, dev,
-		       neigh->output);
+		       dn_to_neigh_output);
 
 error:
 	if (net_ratelimit())
@@ -750,7 +758,6 @@ static int dn_forward(struct sk_buff *skb)
 	struct dst_entry *dst = skb_dst(skb);
 	struct dn_dev *dn_db = rcu_dereference(dst->dev->dn_ptr);
 	struct dn_route *rt;
-	struct neighbour *neigh = dst->neighbour;
 	int header_len;
 #ifdef CONFIG_NETFILTER
 	struct net_device *dev = skb->dev;
@@ -783,7 +790,7 @@ static int dn_forward(struct sk_buff *skb)
 		cb->rt_flags |= DN_RT_F_IE;
 
 	return NF_HOOK(NFPROTO_DECNET, NF_DN_FORWARD, skb, dev, skb->dev,
-		       neigh->output);
+		       dn_to_neigh_output);
 
 drop:
 	kfree_skb(skb);

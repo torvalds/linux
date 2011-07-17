@@ -51,9 +51,9 @@
 static int dn_neigh_construct(struct neighbour *);
 static void dn_long_error_report(struct neighbour *, struct sk_buff *);
 static void dn_short_error_report(struct neighbour *, struct sk_buff *);
-static int dn_long_output(struct sk_buff *);
-static int dn_short_output(struct sk_buff *);
-static int dn_phase3_output(struct sk_buff *);
+static int dn_long_output(struct neighbour *, struct sk_buff *);
+static int dn_short_output(struct neighbour *, struct sk_buff *);
+static int dn_phase3_output(struct neighbour *, struct sk_buff *);
 
 
 /*
@@ -218,10 +218,8 @@ static int dn_neigh_output_packet(struct sk_buff *skb)
 	return -EINVAL;
 }
 
-static int dn_long_output(struct sk_buff *skb)
+static int dn_long_output(struct neighbour *neigh, struct sk_buff *skb)
 {
-	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *neigh = dst->neighbour;
 	struct net_device *dev = neigh->dev;
 	int headroom = dev->hard_header_len + sizeof(struct dn_long_packet) + 3;
 	unsigned char *data;
@@ -265,10 +263,8 @@ static int dn_long_output(struct sk_buff *skb)
 		       neigh->dev, dn_neigh_output_packet);
 }
 
-static int dn_short_output(struct sk_buff *skb)
+static int dn_short_output(struct neighbour *neigh, struct sk_buff *skb)
 {
-	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *neigh = dst->neighbour;
 	struct net_device *dev = neigh->dev;
 	int headroom = dev->hard_header_len + sizeof(struct dn_short_packet) + 2;
 	struct dn_short_packet *sp;
@@ -309,10 +305,8 @@ static int dn_short_output(struct sk_buff *skb)
  * Phase 3 output is the same is short output, execpt that
  * it clears the area bits before transmission.
  */
-static int dn_phase3_output(struct sk_buff *skb)
+static int dn_phase3_output(struct neighbour *neigh, struct sk_buff *skb)
 {
-	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *neigh = dst->neighbour;
 	struct net_device *dev = neigh->dev;
 	int headroom = dev->hard_header_len + sizeof(struct dn_short_packet) + 2;
 	struct dn_short_packet *sp;
