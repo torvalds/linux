@@ -344,6 +344,15 @@ static inline int neigh_hh_output(struct hh_cache *hh, struct sk_buff *skb)
 	return hh->hh_output(skb);
 }
 
+static inline int neigh_output(struct neighbour *n, struct sk_buff *skb)
+{
+	struct hh_cache *hh = &n->hh;
+	if (hh->hh_len)
+		return neigh_hh_output(hh, skb);
+	else
+		return n->output(skb);
+}
+
 static inline struct neighbour *
 __neigh_lookup(struct neigh_table *tbl, const void *pkey, struct net_device *dev, int creat)
 {
