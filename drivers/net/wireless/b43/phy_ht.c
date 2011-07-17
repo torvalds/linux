@@ -148,7 +148,7 @@ static void b43_radio_2059_init(struct b43_wldev *dev)
 		b43_radio_mask(dev, 0x17F, ~0x1);
 	}
 
-	b43_radio_mask(dev, 0x11, 0x0008);
+	b43_radio_mask(dev, 0x11, ~0x0008);
 }
 
 /**************************************************
