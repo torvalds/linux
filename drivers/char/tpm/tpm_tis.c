@@ -726,6 +726,29 @@ out_err:
 	tpm_remove_hardware(chip->dev);
 	return rc;
 }
+
+static void tpm_tis_reenable_interrupts(struct tpm_chip *chip)
+{
+	u32 intmask;
+
+	/* reenable interrupts that device may have lost or
+	   BIOS/firmware may have disabled */
+	iowrite8(chip->vendor.irq, chip->vendor.iobase +
+		 TPM_INT_VECTOR(chip->vendor.locality));
+
+	intmask =
+	    ioread32(chip->vendor.iobase +
+		     TPM_INT_ENABLE(chip->vendor.locality));
+
+	intmask |= TPM_INTF_CMD_READY_INT
+	    | TPM_INTF_LOCALITY_CHANGE_INT | TPM_INTF_DATA_AVAIL_INT
+	    | TPM_INTF_STS_VALID_INT | TPM_GLOBAL_INT_ENABLE;
+
+	iowrite32(intmask,
+		  chip->vendor.iobase + TPM_INT_ENABLE(chip->vendor.locality));
+}
+
+
 #ifdef CONFIG_PNP
 static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,
 				      const struct pnp_device_id *pnp_id)
@@ -751,28 +774,6 @@ static int tpm_tis_pnp_suspend(struct pnp_dev *dev, pm_message_t msg)
 {
 	return tpm_pm_suspend(&dev->dev, msg);
 }
-
-static void tpm_tis_reenable_interrupts(struct tpm_chip *chip)
-{
-	u32 intmask;
-
-	/* reenable interrupts that device may have lost or
-	   BIOS/firmware may have disabled */
-	iowrite8(chip->vendor.irq, chip->vendor.iobase +
-		 TPM_INT_VECTOR(chip->vendor.locality));
-
-	intmask =
-	    ioread32(chip->vendor.iobase +
-		     TPM_INT_ENABLE(chip->vendor.locality));
-
-	intmask |= TPM_INTF_CMD_READY_INT
-	    | TPM_INTF_LOCALITY_CHANGE_INT | TPM_INTF_DATA_AVAIL_INT
-	    | TPM_INTF_STS_VALID_INT | TPM_GLOBAL_INT_ENABLE;
-
-	iowrite32(intmask,
-		  chip->vendor.iobase + TPM_INT_ENABLE(chip->vendor.locality));
-}
-
 
 static int tpm_tis_pnp_resume(struct pnp_dev *dev)
 {
