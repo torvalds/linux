@@ -252,7 +252,7 @@ static int ceph_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		off = 1;
 	}
 	if (filp->f_pos == 1) {
-		ino_t ino = filp->f_dentry->d_parent->d_inode->i_ino;
+		ino_t ino = parent_ino(filp->f_dentry);
 		dout("readdir off 1 -> '..'\n");
 		if (filldir(dirent, "..", 2, ceph_make_fpos(0, 1),
 			    ceph_translate_ino(inode->i_sb, ino),

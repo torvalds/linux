@@ -473,7 +473,7 @@ static int coda_venus_readdir(struct file *coda_file, void *buf,
 		coda_file->f_pos++;
 	}
 	if (coda_file->f_pos == 1) {
-		ret = filldir(buf, "..", 2, 1, de->d_parent->d_inode->i_ino, DT_DIR);
+		ret = filldir(buf, "..", 2, 1, parent_ino(de), DT_DIR);
 		if (ret < 0)
 			goto out;
 		result++;
