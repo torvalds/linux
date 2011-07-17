@@ -40,6 +40,8 @@ struct max1111_data {
 	struct spi_transfer	xfer[2];
 	uint8_t *tx_buf;
 	uint8_t *rx_buf;
+	struct mutex		drvdata_lock;
+	/* protect msg, xfer and buffers from multiple access */
 };
 
 static int max1111_read(struct device *dev, int channel)
@@ -48,6 +50,9 @@ static int max1111_read(struct device *dev, int channel)
 	uint8_t v1, v2;
 	int err;
 
+	/* writing to drvdata struct is not thread safe, wait on mutex */
+	mutex_lock(&data->drvdata_lock);
+
 	data->tx_buf[0] = (channel << MAX1111_CTRL_SEL_SH) |
 		MAX1111_CTRL_PD0 | MAX1111_CTRL_PD1 |
 		MAX1111_CTRL_SGL | MAX1111_CTRL_UNI | MAX1111_CTRL_STR;
@@ -55,11 +60,14 @@ static int max1111_read(struct device *dev, int channel)
 	err = spi_sync(data->spi, &data->msg);
 	if (err < 0) {
 		dev_err(dev, "spi_sync failed with %d\n", err);
+		mutex_unlock(&data->drvdata_lock);
 		return err;
 	}
 
 	v1 = data->rx_buf[0];
 	v2 = data->rx_buf[1];
+
+	mutex_unlock(&data->drvdata_lock);
 
 	if ((v1 & 0xc0) || (v2 & 0x3f))
 		return -EINVAL;
@@ -176,6 +184,8 @@ static int __devinit max1111_probe(struct spi_device *spi)
 	if (err)
 		goto err_free_data;
 
+	mutex_init(&data->drvdata_lock);
+
 	data->spi = spi;
 	spi_set_drvdata(spi, data);
 
@@ -213,6 +223,7 @@ static int __devexit max1111_remove(struct spi_device *spi)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&spi->dev.kobj, &max1111_attr_group);
+	mutex_destroy(&data->drvdata_lock);
 	kfree(data->rx_buf);
 	kfree(data->tx_buf);
 	kfree(data);
