@@ -33,22 +33,22 @@ struct imx_imx_sdma_data {
 
 #ifdef CONFIG_SOC_IMX25
 struct imx_imx_sdma_data imx25_imx_sdma_data __initconst =
-	imx_imx_sdma_data_entry_single(MX25, 1, "imx25", 0);
+	imx_imx_sdma_data_entry_single(MX25, 2, "imx25", 1);
 #endif /* ifdef CONFIG_SOC_IMX25 */
 
 #ifdef CONFIG_SOC_IMX31
 struct imx_imx_sdma_data imx31_imx_sdma_data __initdata =
-	imx_imx_sdma_data_entry_single(MX31, 1, "imx31", 0);
+	imx_imx_sdma_data_entry_single(MX31, 1, "imx31", 1);
 #endif /* ifdef CONFIG_SOC_IMX31 */
 
 #ifdef CONFIG_SOC_IMX35
 struct imx_imx_sdma_data imx35_imx_sdma_data __initdata =
-	imx_imx_sdma_data_entry_single(MX35, 2, "imx35", 0);
+	imx_imx_sdma_data_entry_single(MX35, 2, "imx35", 1);
 #endif /* ifdef CONFIG_SOC_IMX35 */
 
 #ifdef CONFIG_SOC_IMX51
 struct imx_imx_sdma_data imx51_imx_sdma_data __initconst =
-	imx_imx_sdma_data_entry_single(MX51, 2, "imx51", 0);
+	imx_imx_sdma_data_entry_single(MX51, 2, "imx51", 1);
 #endif /* ifdef CONFIG_SOC_IMX51 */
 
 static struct platform_device __init __maybe_unused *imx_add_imx_sdma(
@@ -57,7 +57,7 @@ static struct platform_device __init __maybe_unused *imx_add_imx_sdma(
 	struct resource res[] = {
 		{
 			.start = data->iobase,
-			.end = data->iobase + SZ_4K - 1,
+			.end = data->iobase + SZ_16K - 1,
 			.flags = IORESOURCE_MEM,
 		}, {
 			.start = data->irq,
@@ -77,7 +77,7 @@ static struct platform_device __init __maybe_unused *imx_add_imx_dma(void)
 }
 
 #ifdef CONFIG_ARCH_MX25
-static struct sdma_script_start_addrs addr_imx25_to1 = {
+static struct sdma_script_start_addrs addr_imx25 = {
 	.ap_2_ap_addr = 729,
 	.uart_2_mcu_addr = 904,
 	.per_2_app_addr = 1255,
@@ -165,7 +165,7 @@ static int __init imxXX_add_imx_dma(void)
 
 #if defined(CONFIG_SOC_IMX25)
 	if (cpu_is_mx25()) {
-		imx25_imx_sdma_data.pdata.script_addrs = &addr_imx25_to1;
+		imx25_imx_sdma_data.pdata.script_addrs = &addr_imx25;
 		ret = imx_add_imx_sdma(&imx25_imx_sdma_data);
 	} else
 #endif

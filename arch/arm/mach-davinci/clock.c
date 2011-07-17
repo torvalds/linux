@@ -368,6 +368,12 @@ static unsigned long clk_leafclk_recalc(struct clk *clk)
 	return clk->parent->rate;
 }
 
+int davinci_simple_set_rate(struct clk *clk, unsigned long rate)
+{
+	clk->rate = rate;
+	return 0;
+}
+
 static unsigned long clk_pllclk_recalc(struct clk *clk)
 {
 	u32 ctrl, mult = 1, prediv = 1, postdiv = 1;
@@ -505,6 +511,38 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 	return 0;
 }
 EXPORT_SYMBOL(davinci_set_pllrate);
+
+/**
+ * davinci_set_refclk_rate() - Set the reference clock rate
+ * @rate:	The new rate.
+ *
+ * Sets the reference clock rate to a given value. This will most likely
+ * result in the entire clock tree getting updated.
+ *
+ * This is used to support boards which use a reference clock different
+ * than that used by default in <soc>.c file. The reference clock rate
+ * should be updated early in the boot process; ideally soon after the
+ * clock tree has been initialized once with the default reference clock
+ * rate (davinci_common_init()).
+ *
+ * Returns 0 on success, error otherwise.
+ */
+int davinci_set_refclk_rate(unsigned long rate)
+{
+	struct clk *refclk;
+
+	refclk = clk_get(NULL, "ref");
+	if (IS_ERR(refclk)) {
+		pr_err("%s: failed to get reference clock.\n", __func__);
+		return PTR_ERR(refclk);
+	}
+
+	clk_set_rate(refclk, rate);
+
+	clk_put(refclk);
+
+	return 0;
+}
 
 int __init davinci_clk_init(struct clk_lookup *clocks)
   {

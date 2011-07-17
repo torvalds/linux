@@ -101,14 +101,6 @@ static const iomux_cfg_t tx28_stk5v3_pads[] __initconst = {
 		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
 	MX28_PAD_SSP0_DATA3__SSP0_D3 |
 		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
-	MX28_PAD_SSP0_DATA4__SSP0_D4 |
-		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
-	MX28_PAD_SSP0_DATA5__SSP0_D5 |
-		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
-	MX28_PAD_SSP0_DATA6__SSP0_D6 |
-		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
-	MX28_PAD_SSP0_DATA7__SSP0_D7 |
-		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
 	MX28_PAD_SSP0_CMD__SSP0_CMD |
 		(MXS_PAD_8MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
 	MX28_PAD_SSP0_DETECT__SSP0_CARD_DETECT |
@@ -117,7 +109,7 @@ static const iomux_cfg_t tx28_stk5v3_pads[] __initconst = {
 		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_NOPULL),
 };
 
-static struct gpio_led tx28_stk5v3_leds[] = {
+static const struct gpio_led tx28_stk5v3_leds[] __initconst = {
 	{
 		.name = "GPIO-LED",
 		.default_trigger = "heartbeat",
@@ -159,8 +151,7 @@ static void __init tx28_stk5v3_init(void)
 	/* spi via ssp will be added when available */
 	spi_register_board_info(tx28_spi_board_info,
 			ARRAY_SIZE(tx28_spi_board_info));
-	mxs_add_platform_device("leds-gpio", 0, NULL, 0,
-			&tx28_stk5v3_led_data, sizeof(tx28_stk5v3_led_data));
+	gpio_led_register_device(0, &tx28_stk5v3_led_data);
 	mx28_add_mxs_i2c(0);
 	i2c_register_board_info(0, tx28_stk5v3_i2c_boardinfo,
 			ARRAY_SIZE(tx28_stk5v3_i2c_boardinfo));
