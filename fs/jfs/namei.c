@@ -1456,33 +1456,24 @@ static struct dentry *jfs_lookup(struct inode *dip, struct dentry *dentry, struc
 	ino_t inum;
 	struct inode *ip;
 	struct component_name key;
-	const char *name = dentry->d_name.name;
-	int len = dentry->d_name.len;
 	int rc;
 
-	jfs_info("jfs_lookup: name = %s", name);
+	jfs_info("jfs_lookup: name = %s", dentry->d_name.name);
 
-	if ((name[0] == '.') && (len == 1))
-		inum = dip->i_ino;
-	else if (strcmp(name, "..") == 0)
-		inum = PARENT(dip);
-	else {
-		if ((rc = get_UCSname(&key, dentry)))
-			return ERR_PTR(rc);
-		rc = dtSearch(dip, &key, &inum, &btstack, JFS_LOOKUP);
-		free_UCSname(&key);
-		if (rc == -ENOENT) {
-			d_add(dentry, NULL);
-			return NULL;
-		} else if (rc) {
-			jfs_err("jfs_lookup: dtSearch returned %d", rc);
-			return ERR_PTR(rc);
-		}
+	if ((rc = get_UCSname(&key, dentry)))
+		return ERR_PTR(rc);
+	rc = dtSearch(dip, &key, &inum, &btstack, JFS_LOOKUP);
+	free_UCSname(&key);
+	if (rc == -ENOENT) {
+		ip = NULL;
+	} else if (rc) {
+		jfs_err("jfs_lookup: dtSearch returned %d", rc);
+		ip = ERR_PTR(rc);
+	} else {
+		ip = jfs_iget(dip->i_sb, inum);
+		if (IS_ERR(ip))
+			jfs_err("jfs_lookup: iget failed on inum %d", (uint)inum);
 	}
-
-	ip = jfs_iget(dip->i_sb, inum);
-	if (IS_ERR(ip))
-		jfs_err("jfs_lookup: iget failed on inum %d", (uint) inum);
 
 	return d_splice_alias(ip, dentry);
 }
