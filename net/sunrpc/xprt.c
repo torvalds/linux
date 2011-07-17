@@ -1091,38 +1091,9 @@ void xprt_release(struct rpc_task *task)
 		xprt_free_bc_request(req);
 }
 
-/**
- * xprt_create_transport - create an RPC transport
- * @args: rpc transport creation arguments
- *
- */
-struct rpc_xprt *xprt_create_transport(struct xprt_create *args)
+static void xprt_init(struct rpc_xprt *xprt)
 {
-	struct rpc_xprt	*xprt;
 	struct rpc_rqst	*req;
-	struct xprt_class *t;
-
-	spin_lock(&xprt_list_lock);
-	list_for_each_entry(t, &xprt_list, list) {
-		if (t->ident == args->ident) {
-			spin_unlock(&xprt_list_lock);
-			goto found;
-		}
-	}
-	spin_unlock(&xprt_list_lock);
-	printk(KERN_ERR "RPC: transport (%d) not supported\n", args->ident);
-	return ERR_PTR(-EIO);
-
-found:
-	xprt = t->setup(args);
-	if (IS_ERR(xprt)) {
-		dprintk("RPC:       xprt_create_transport: failed, %ld\n",
-				-PTR_ERR(xprt));
-		return xprt;
-	}
-	if (test_and_set_bit(XPRT_INITIALIZED, &xprt->state))
-		/* ->setup returned a pre-initialized xprt: */
-		return xprt;
 
 	spin_lock_init(&xprt->transport_lock);
 	spin_lock_init(&xprt->reserve_lock);
@@ -1155,6 +1126,42 @@ found:
 		list_add(&req->rq_list, &xprt->free);
 
 	xprt_init_xid(xprt);
+
+}
+
+/**
+ * xprt_create_transport - create an RPC transport
+ * @args: rpc transport creation arguments
+ *
+ */
+struct rpc_xprt *xprt_create_transport(struct xprt_create *args)
+{
+	struct rpc_xprt	*xprt;
+	struct xprt_class *t;
+
+	spin_lock(&xprt_list_lock);
+	list_for_each_entry(t, &xprt_list, list) {
+		if (t->ident == args->ident) {
+			spin_unlock(&xprt_list_lock);
+			goto found;
+		}
+	}
+	spin_unlock(&xprt_list_lock);
+	printk(KERN_ERR "RPC: transport (%d) not supported\n", args->ident);
+	return ERR_PTR(-EIO);
+
+found:
+	xprt = t->setup(args);
+	if (IS_ERR(xprt)) {
+		dprintk("RPC:       xprt_create_transport: failed, %ld\n",
+				-PTR_ERR(xprt));
+		return xprt;
+	}
+	if (test_and_set_bit(XPRT_INITIALIZED, &xprt->state))
+		/* ->setup returned a pre-initialized xprt: */
+		return xprt;
+
+	xprt_init(xprt);
 
 	dprintk("RPC:       created transport %p with %u slots\n", xprt,
 			xprt->max_reqs);
