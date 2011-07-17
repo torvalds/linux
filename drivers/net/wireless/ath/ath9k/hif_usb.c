@@ -130,11 +130,13 @@ static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
 static void hif_usb_mgmt_cb(struct urb *urb)
 {
 	struct cmd_buf *cmd = (struct cmd_buf *)urb->context;
-	struct hif_device_usb *hif_dev = cmd->hif_dev;
+	struct hif_device_usb *hif_dev;
 	bool txok = true;
 
 	if (!cmd || !cmd->skb || !cmd->hif_dev)
 		return;
+
+	hif_dev = cmd->hif_dev;
 
 	switch (urb->status) {
 	case 0:
