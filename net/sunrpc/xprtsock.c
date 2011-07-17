@@ -755,6 +755,8 @@ static void xs_tcp_release_xprt(struct rpc_xprt *xprt, struct rpc_task *task)
 	if (task == NULL)
 		goto out_release;
 	req = task->tk_rqstp;
+	if (req == NULL)
+		goto out_release;
 	if (req->rq_bytes_sent == 0)
 		goto out_release;
 	if (req->rq_bytes_sent == req->rq_snd_buf.len)

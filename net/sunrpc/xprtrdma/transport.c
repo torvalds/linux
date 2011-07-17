@@ -452,9 +452,8 @@ xprt_rdma_connect(struct rpc_task *task)
 }
 
 static int
-xprt_rdma_reserve_xprt(struct rpc_task *task)
+xprt_rdma_reserve_xprt(struct rpc_xprt *xprt, struct rpc_task *task)
 {
-	struct rpc_xprt *xprt = task->tk_xprt;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	int credits = atomic_read(&r_xprt->rx_buf.rb_credits);
 
@@ -466,7 +465,7 @@ xprt_rdma_reserve_xprt(struct rpc_task *task)
 		BUG_ON(r_xprt->rx_buf.rb_cwndscale <= 0);
 	}
 	xprt->cwnd = credits * r_xprt->rx_buf.rb_cwndscale;
-	return xprt_reserve_xprt_cong(task);
+	return xprt_reserve_xprt_cong(xprt, task);
 }
 
 /*
