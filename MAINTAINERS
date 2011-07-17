@@ -1768,7 +1768,7 @@ CIRRUS LOGIC EP93XX ETHERNET DRIVER
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/arm/ep93xx_eth.c
+F:	drivers/net/ethernet/cirrus/ep93xx_eth.c
 
 CIRRUS LOGIC EP93XX OHCI USB HOST DRIVER
 M:	Lennert Buytenhek <kernel@wantstofly.org>

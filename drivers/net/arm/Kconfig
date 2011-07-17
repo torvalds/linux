@@ -11,14 +11,6 @@ config ARM_AT91_ETHER
 	  If you wish to compile a kernel for the AT91RM9200 and enable
 	  ethernet support, then you should always answer Y to this.
 
-config EP93XX_ETH
-	tristate "EP93xx Ethernet support"
-	depends on ARM && ARCH_EP93XX
-	select MII
-	help
-	  This is a driver for the ethernet hardware included in EP93xx CPUs.
-	  Say Y if you are building a kernel for EP93xx based devices.
-
 config W90P910_ETH
 	tristate "Nuvoton w90p910 Ethernet support"
 	depends on ARM && ARCH_W90X900
