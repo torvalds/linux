@@ -79,20 +79,14 @@ static struct twl4030_gpio_platform_data rm680_gpio_data = {
 	.pulldowns		= BIT(1) | BIT(2) | BIT(8) | BIT(15),
 };
 
-static struct twl4030_usb_data rm680_usb_data = {
-	.usb_mode		= T2_USB_MODE_ULPI,
-};
-
 static struct twl4030_platform_data rm680_twl_data = {
-	.irq_base		= TWL4030_IRQ_BASE,
-	.irq_end		= TWL4030_IRQ_END,
 	.gpio			= &rm680_gpio_data,
-	.usb			= &rm680_usb_data,
 	/* add rest of the children here */
 };
 
 static void __init rm680_i2c_init(void)
 {
+	omap3_pmic_get_config(&rm680_twl_data, TWL_COMMON_PDATA_USB, 0);
 	omap_pmic_init(1, 2900, "twl5031", INT_34XX_SYS_NIRQ, &rm680_twl_data);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
@@ -163,7 +157,7 @@ MACHINE_START(NOKIA_RM680, "Nokia RM-680 board")
 	.reserve	= omap_reserve,
 	.map_io		= rm680_map_io,
 	.init_early	= rm680_init_early,
-	.init_irq	= omap_init_irq,
+	.init_irq	= omap3_init_irq,
 	.init_machine	= rm680_init,
-	.timer		= &omap_timer,
+	.timer		= &omap3_timer,
 MACHINE_END

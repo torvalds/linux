@@ -497,8 +497,6 @@ console_still_active:
 
 int omap3_can_sleep(void)
 {
-	if (!sleep_while_idle)
-		return 0;
 	if (!omap_uart_can_sleep())
 		return 0;
 	return 1;
@@ -533,10 +531,6 @@ static int omap3_pm_suspend(void)
 {
 	struct power_state *pwrst;
 	int state, ret = 0;
-
-	if (wakeup_timer_seconds || wakeup_timer_milliseconds)
-		omap2_pm_wakeup_on_timer(wakeup_timer_seconds,
-					 wakeup_timer_milliseconds);
 
 	/* Read current next_pwrsts */
 	list_for_each_entry(pwrst, &pwrst_list, node)
