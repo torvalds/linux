@@ -20,12 +20,12 @@
  * R/W ops.
  **************************************************/
 
-static void bcma_sprom_read(struct bcma_bus *bus, u16 *sprom)
+static void bcma_sprom_read(struct bcma_bus *bus, u16 offset, u16 *sprom)
 {
 	int i;
 	for (i = 0; i < SSB_SPROMSIZE_WORDS_R4; i++)
 		sprom[i] = bcma_read16(bus->drv_cc.core,
-				       BCMA_CC_SPROM + (i * 2));
+				       offset + (i * 2));
 }
 
 /**************************************************
@@ -137,6 +137,7 @@ static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 
 int bcma_sprom_get(struct bcma_bus *bus)
 {
+	u16 offset;
 	u16 *sprom;
 	int err = 0;
 
@@ -151,7 +152,12 @@ int bcma_sprom_get(struct bcma_bus *bus)
 	if (!sprom)
 		return -ENOMEM;
 
-	bcma_sprom_read(bus, sprom);
+	/* Most cards have SPROM moved by additional offset 0x30 (48 dwords).
+	 * According to brcm80211 this applies to cards with PCIe rev >= 6
+	 * TODO: understand this condition and use it */
+	offset = (bus->chipinfo.id == 0x4331) ? BCMA_CC_SPROM :
+		BCMA_CC_SPROM_PCIE6;
+	bcma_sprom_read(bus, offset, sprom);
 
 	err = bcma_sprom_valid(sprom);
 	if (err)
