@@ -301,15 +301,16 @@ static u8 iwlagn_key_sta_id(struct iwl_priv *priv,
 	return sta_id;
 }
 
-static int iwlagn_set_dynamic_key(struct iwl_priv *priv,
-				  struct ieee80211_key_conf *keyconf,
-				  u8 sta_id, u32 tkip_iv32, u16 *tkip_p1k,
-				  u32 cmd_flags)
+static int iwlagn_send_sta_key(struct iwl_priv *priv,
+			       struct ieee80211_key_conf *keyconf,
+			       u8 sta_id, u32 tkip_iv32, u16 *tkip_p1k,
+			       u32 cmd_flags)
 {
 	unsigned long flags;
 	__le16 key_flags;
 	struct iwl_addsta_cmd sta_cmd;
 	int i;
+
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(sta_cmd));
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
@@ -370,8 +371,8 @@ void iwl_update_tkip_key(struct iwl_priv *priv,
 		return;
 	}
 
-	iwlagn_set_dynamic_key(priv, keyconf, sta_id,
-			       iv32, phase1key, CMD_ASYNC);
+	iwlagn_send_sta_key(priv, keyconf, sta_id,
+			    iv32, phase1key, CMD_ASYNC);
 }
 
 int iwl_remove_dynamic_key(struct iwl_priv *priv,
@@ -450,16 +451,16 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 		/* pre-fill phase 1 key into device cache */
 		ieee80211_get_key_rx_seq(keyconf, 0, &seq);
 		ieee80211_get_tkip_rx_p1k(keyconf, addr, seq.tkip.iv32, p1k);
-		ret = iwlagn_set_dynamic_key(priv, keyconf, sta_id,
-					     seq.tkip.iv32, p1k, CMD_SYNC);
+		ret = iwlagn_send_sta_key(priv, keyconf, sta_id,
+					  seq.tkip.iv32, p1k, CMD_SYNC);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		keyconf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 		/* fall through */
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-		ret = iwlagn_set_dynamic_key(priv, keyconf, sta_id,
-					     0, NULL, CMD_SYNC);
+		ret = iwlagn_send_sta_key(priv, keyconf, sta_id,
+					  0, NULL, CMD_SYNC);
 		break;
 	default:
 		IWL_ERR(priv, "Unknown cipher %x\n", keyconf->cipher);
