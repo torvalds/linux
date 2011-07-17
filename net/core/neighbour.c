@@ -720,15 +720,9 @@ EXPORT_SYMBOL(neigh_destroy);
  */
 static void neigh_suspect(struct neighbour *neigh)
 {
-	struct hh_cache *hh;
-
 	NEIGH_PRINTK2("neigh %p is suspected.\n", neigh);
 
 	neigh->output = neigh->ops->output;
-
-	hh = &neigh->hh;
-	if (hh->hh_len)
-		hh->hh_output = neigh->ops->output;
 }
 
 /* Neighbour state is OK;
@@ -738,15 +732,9 @@ static void neigh_suspect(struct neighbour *neigh)
  */
 static void neigh_connect(struct neighbour *neigh)
 {
-	struct hh_cache *hh;
-
 	NEIGH_PRINTK2("neigh %p is connected.\n", neigh);
 
 	neigh->output = neigh->ops->connected_output;
-
-	hh = &neigh->hh;
-	if (hh->hh_len)
-		hh->hh_output = dev_queue_xmit;
 }
 
 static void neigh_periodic_work(struct work_struct *work)
@@ -1215,18 +1203,9 @@ static void neigh_hh_init(struct neighbour *n, struct dst_entry *dst)
 	/* Only one thread can come in here and initialize the
 	 * hh_cache entry.
 	 */
-	if (hh->hh_len)
-		goto end;
+	if (!hh->hh_len)
+		dev->header_ops->cache(n, hh, prot);
 
-	if (dev->header_ops->cache(n, hh, prot))
-		goto end;
-
-	if (n->nud_state & NUD_CONNECTED)
-		hh->hh_output = dev_queue_xmit;
-	else
-		hh->hh_output = n->ops->output;
-
-end:
 	write_unlock_bh(&n->lock);
 }
 

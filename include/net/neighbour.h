@@ -340,13 +340,13 @@ static inline int neigh_hh_output(struct hh_cache *hh, struct sk_buff *skb)
 	} while (read_seqretry(&hh->hh_lock, seq));
 
 	skb_push(skb, hh_len);
-	return hh->hh_output(skb);
+	return dev_queue_xmit(skb);
 }
 
 static inline int neigh_output(struct neighbour *n, struct sk_buff *skb)
 {
 	struct hh_cache *hh = &n->hh;
-	if (hh->hh_len)
+	if ((n->nud_state & NUD_CONNECTED) && hh->hh_len)
 		return neigh_hh_output(hh, skb);
 	else
 		return n->output(skb);

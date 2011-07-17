@@ -254,7 +254,6 @@ struct netdev_hw_addr_list {
 struct hh_cache {
 	u16		hh_len;
 	u16		__pad;
-	int		(*hh_output)(struct sk_buff *skb);
 	seqlock_t	hh_lock;
 
 	/* cached hardware header; allow for machine alignment needs.        */

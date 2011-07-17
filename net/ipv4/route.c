@@ -427,9 +427,9 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			      dst_metric(&r->dst, RTAX_RTTVAR)),
 			r->rt_key_tos,
 			-1,
-			(r->dst.neighbour ?
-			 (r->dst.neighbour->hh.hh_output ==
-			  dev_queue_xmit) : 0),
+			(r->dst.neighbour &&
+			 (r->dst.neighbour->nud_state & NUD_CONNECTED)) ?
+			   1 : 0,
 			r->rt_spec_dst, &len);
 
 		seq_printf(seq, "%*s\n", 127 - len, "");
