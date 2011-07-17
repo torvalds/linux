@@ -64,7 +64,6 @@ static const struct neigh_ops dn_long_ops = {
 	.error_report =		dn_long_error_report,
 	.output =		dn_long_output,
 	.connected_output =	dn_long_output,
-	.hh_output =		dev_queue_xmit,
 	.queue_xmit =		dev_queue_xmit,
 };
 
@@ -76,7 +75,6 @@ static const struct neigh_ops dn_short_ops = {
 	.error_report =		dn_short_error_report,
 	.output =		dn_short_output,
 	.connected_output =	dn_short_output,
-	.hh_output =		dev_queue_xmit,
 	.queue_xmit =		dev_queue_xmit,
 };
 
@@ -88,7 +86,6 @@ static const struct neigh_ops dn_phase3_ops = {
 	.error_report =		dn_short_error_report, /* Can use short version here */
 	.output =		dn_phase3_output,
 	.connected_output =	dn_phase3_output,
-	.hh_output =		dev_queue_xmit,
 	.queue_xmit =		dev_queue_xmit
 };
 

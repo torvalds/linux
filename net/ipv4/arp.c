@@ -138,7 +138,6 @@ static const struct neigh_ops arp_generic_ops = {
 	.error_report =		arp_error_report,
 	.output =		neigh_resolve_output,
 	.connected_output =	neigh_connected_output,
-	.hh_output =		dev_queue_xmit,
 	.queue_xmit =		dev_queue_xmit,
 };
 
@@ -148,7 +147,6 @@ static const struct neigh_ops arp_hh_ops = {
 	.error_report =		arp_error_report,
 	.output =		neigh_resolve_output,
 	.connected_output =	neigh_resolve_output,
-	.hh_output =		dev_queue_xmit,
 	.queue_xmit =		dev_queue_xmit,
 };
 
@@ -156,7 +154,6 @@ static const struct neigh_ops arp_direct_ops = {
 	.family =		AF_INET,
 	.output =		dev_queue_xmit,
 	.connected_output =	dev_queue_xmit,
-	.hh_output =		dev_queue_xmit,
 	.queue_xmit =		dev_queue_xmit,
 };
 
@@ -166,7 +163,6 @@ static const struct neigh_ops arp_broken_ops = {
 	.error_report =		arp_error_report,
 	.output =		neigh_compat_output,
 	.connected_output =	neigh_compat_output,
-	.hh_output =		dev_queue_xmit,
 	.queue_xmit =		dev_queue_xmit,
 };
 

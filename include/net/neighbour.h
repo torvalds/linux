@@ -122,7 +122,6 @@ struct neigh_ops {
 	void			(*error_report)(struct neighbour *, struct sk_buff*);
 	int			(*output)(struct sk_buff*);
 	int			(*connected_output)(struct sk_buff*);
-	int			(*hh_output)(struct sk_buff*);
 	int			(*queue_xmit)(struct sk_buff*);
 };
 
