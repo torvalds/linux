@@ -857,6 +857,7 @@ void se_dev_set_default_attribs(
 	dev->se_sub_dev->se_dev_attrib.emulate_alua = DA_EMULATE_ALUA;
 	dev->se_sub_dev->se_dev_attrib.enforce_pr_isids = DA_ENFORCE_PR_ISIDS;
 	dev->se_sub_dev->se_dev_attrib.is_nonrot = DA_IS_NONROT;
+	dev->se_sub_dev->se_dev_attrib.emulate_rest_reord = DA_EMULATE_REST_REORD;
 	/*
 	 * The TPU=1 and TPWS=1 settings will be set in TCM/IBLOCK
 	 * iblock_create_virtdevice() from struct queue_limits values
@@ -1128,8 +1129,20 @@ int se_dev_set_is_nonrot(struct se_device *dev, int flag)
 		return -EINVAL;
 	}
 	dev->se_sub_dev->se_dev_attrib.is_nonrot = flag;
-	printk(KERN_INFO "dev[%p]: SE Device is_nonrot bit: %d\n",
+	pr_debug("dev[%p]: SE Device is_nonrot bit: %d\n",
 	       dev, flag);
+	return 0;
+}
+
+int se_dev_set_emulate_rest_reord(struct se_device *dev, int flag)
+{
+	if (flag != 0) {
+		printk(KERN_ERR "dev[%p]: SE Device emulatation of restricted"
+			" reordering not implemented\n", dev);
+		return -ENOSYS;
+	}
+	dev->se_sub_dev->se_dev_attrib.emulate_rest_reord = flag;
+	pr_debug("dev[%p]: SE Device emulate_rest_reord: %d\n", dev, flag);
 	return 0;
 }
 

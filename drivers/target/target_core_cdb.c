@@ -775,6 +775,35 @@ target_modesense_control(struct se_device *dev, unsigned char *p)
 	p[1] = 0x0a;
 	p[2] = 2;
 	/*
+	 * From spc4r23, 7.4.7 Control mode page
+	 *
+	 * The QUEUE ALGORITHM MODIFIER field (see table 368) specifies
+	 * restrictions on the algorithm used for reordering commands
+	 * having the SIMPLE task attribute (see SAM-4).
+	 *
+	 *                    Table 368 -- QUEUE ALGORITHM MODIFIER field
+	 *                         Code      Description
+	 *                          0h       Restricted reordering
+	 *                          1h       Unrestricted reordering allowed
+	 *                          2h to 7h    Reserved
+	 *                          8h to Fh    Vendor specific
+	 *
+	 * A value of zero in the QUEUE ALGORITHM MODIFIER field specifies that
+	 * the device server shall order the processing sequence of commands
+	 * having the SIMPLE task attribute such that data integrity is maintained
+	 * for that I_T nexus (i.e., if the transmission of new SCSI transport protocol
+	 * requests is halted at any time, the final value of all data observable
+	 * on the medium shall be the same as if all the commands had been processed
+	 * with the ORDERED task attribute).
+	 *
+	 * A value of one in the QUEUE ALGORITHM MODIFIER field specifies that the
+	 * device server may reorder the processing sequence of commands having the
+	 * SIMPLE task attribute in any manner. Any data integrity exposures related to
+	 * command sequence order shall be explicitly handled by the application client
+	 * through the selection of appropriate ommands and task attributes.
+	 */
+	p[3] = (dev->se_sub_dev->se_dev_attrib.emulate_rest_reord == 1) ? 0x00 : 0x10;
+	/*
 	 * From spc4r17, section 7.4.6 Control mode Page
 	 *
 	 * Unit Attention interlocks control (UN_INTLCK_CTRL) to code 00b
