@@ -30,7 +30,7 @@
 #include "drbd_req.h"
 
 /* in drbd_main.c */
-extern void tl_apply(struct drbd_conf *mdev, enum drbd_req_event what);
+extern void tl_abort_disk_io(struct drbd_conf *mdev);
 
 struct after_state_chg_work {
 	struct drbd_work w;
@@ -1319,7 +1319,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 		/* Immediately allow completion of all application IO, that waits
 		   for completion from the local disk. */
-		tl_apply(mdev, ABORT_DISK_IO);
+		tl_abort_disk_io(mdev);
 
 		/* current state still has to be D_FAILED,
 		 * there is only one way out: to D_DISKLESS,

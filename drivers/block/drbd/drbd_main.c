@@ -484,20 +484,15 @@ void tl_restart(struct drbd_tconn *tconn, enum drbd_req_event what)
 }
 
 /**
- * tl_apply() - Applies an event to all requests for a certain mdev in the TL
+ * tl_abort_disk_io() - Abort disk I/O for all requests for a certain mdev in the TL
  * @mdev:	DRBD device.
- * @what:       The action/event to perform with all request objects
- *
- * @what might ony be ABORT_DISK_IO.
  */
-void tl_apply(struct drbd_conf *mdev, enum drbd_req_event what)
+void tl_abort_disk_io(struct drbd_conf *mdev)
 {
 	struct drbd_tconn *tconn = mdev->tconn;
 	struct drbd_tl_epoch *b;
 	struct list_head *le, *tle;
 	struct drbd_request *req;
-
-	D_ASSERT(what == ABORT_DISK_IO);
 
 	spin_lock_irq(&tconn->req_lock);
 	b = tconn->oldest_tle;
@@ -505,7 +500,7 @@ void tl_apply(struct drbd_conf *mdev, enum drbd_req_event what)
 		list_for_each_safe(le, tle, &b->requests) {
 			req = list_entry(le, struct drbd_request, tl_requests);
 			if (req->w.mdev == mdev)
-				_req_mod(req, what);
+				_req_mod(req, ABORT_DISK_IO);
 		}
 		b = b->next;
 	}
@@ -513,7 +508,7 @@ void tl_apply(struct drbd_conf *mdev, enum drbd_req_event what)
 	list_for_each_safe(le, tle, &tconn->barrier_acked_requests) {
 		req = list_entry(le, struct drbd_request, tl_requests);
 		if (req->w.mdev == mdev)
-			_req_mod(req, what);
+			_req_mod(req, ABORT_DISK_IO);
 	}
 
 	spin_unlock_irq(&tconn->req_lock);
