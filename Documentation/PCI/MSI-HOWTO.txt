@@ -190,7 +190,7 @@ during the initialization phase.
 
 It is ideal if drivers can cope with a variable number of MSI-X interrupts,
 there are many reasons why the platform may not be able to provide the
-exact number a driver asks for.
+exact number that a driver asks for.
 
 A request loop to achieve that might look like:
 
