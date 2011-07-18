@@ -55,6 +55,7 @@ build_path_from_dentry(struct dentry *direntry)
 	char dirsep;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(direntry->d_sb);
 	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+	unsigned seq;
 
 	if (direntry == NULL)
 		return NULL;  /* not much we can do if dentry is freed and
@@ -68,22 +69,29 @@ build_path_from_dentry(struct dentry *direntry)
 		dfsplen = 0;
 cifs_bp_rename_retry:
 	namelen = dfsplen;
+	seq = read_seqbegin(&rename_lock);
+	rcu_read_lock();
 	for (temp = direntry; !IS_ROOT(temp);) {
 		namelen += (1 + temp->d_name.len);
 		temp = temp->d_parent;
 		if (temp == NULL) {
 			cERROR(1, "corrupt dentry");
+			rcu_read_unlock();
 			return NULL;
 		}
 	}
+	rcu_read_unlock();
 
 	full_path = kmalloc(namelen+1, GFP_KERNEL);
 	if (full_path == NULL)
 		return full_path;
 	full_path[namelen] = 0;	/* trailing null */
+	rcu_read_lock();
 	for (temp = direntry; !IS_ROOT(temp);) {
+		spin_lock(&temp->d_lock);
 		namelen -= 1 + temp->d_name.len;
 		if (namelen < 0) {
+			spin_unlock(&temp->d_lock);
 			break;
 		} else {
 			full_path[namelen] = dirsep;
@@ -91,14 +99,17 @@ cifs_bp_rename_retry:
 				temp->d_name.len);
 			cFYI(0, "name: %s", full_path + namelen);
 		}
+		spin_unlock(&temp->d_lock);
 		temp = temp->d_parent;
 		if (temp == NULL) {
 			cERROR(1, "corrupt dentry");
+			rcu_read_unlock();
 			kfree(full_path);
 			return NULL;
 		}
 	}
-	if (namelen != dfsplen) {
+	rcu_read_unlock();
+	if (namelen != dfsplen || read_seqretry(&rename_lock, seq)) {
 		cERROR(1, "did not end path lookup where expected namelen is %d",
 			namelen);
 		/* presumably this is only possible if racing with a rename
