@@ -1576,13 +1576,7 @@ void
 conn_set_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state val,
 	       union drbd_state *pns_min, union drbd_state *pns_max, enum chg_state_flags flags)
 {
-	union drbd_state ns, os, ns_max = {
-		{ .role = R_SECONDARY,
-		  .peer = R_UNKNOWN,
-		  .conn = val.conn,
-		  .disk = D_DISKLESS,
-		  .pdsk = D_UNKNOWN
-		} };
+	union drbd_state ns, os, ns_max = { };
 	union drbd_state ns_min = {
 		{ .role = R_MASK,
 		  .peer = R_MASK,
@@ -1592,13 +1586,14 @@ conn_set_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state
 		} };
 	struct drbd_conf *mdev;
 	enum drbd_state_rv rv;
-	int vnr;
+	int vnr, number_of_volumes = 0;
 
 	if (mask.conn == C_MASK)
 		tconn->cstate = val.conn;
 
 	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
+		number_of_volumes++;
 		os = drbd_read_state(mdev);
 		ns = apply_mask_val(os, mask, val);
 		ns = sanitize_state(mdev, ns, NULL);
@@ -1624,6 +1619,16 @@ conn_set_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state
 		ns_min.pdsk = min_t(enum drbd_disk_state, ns.pdsk, ns_min.pdsk);
 	}
 	rcu_read_unlock();
+
+	if (number_of_volumes == 0) {
+		ns_min = ns_max = (union drbd_state) { {
+				.role = R_SECONDARY,
+				.peer = R_UNKNOWN,
+				.conn = val.conn,
+				.disk = D_DISKLESS,
+				.pdsk = D_UNKNOWN
+			} };
+	}
 
 	ns_min.susp = ns_max.susp = tconn->susp;
 	ns_min.susp_nod = ns_max.susp_nod = tconn->susp_nod;
