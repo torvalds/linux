@@ -802,8 +802,10 @@ int __init omap_voltage_late_init(void)
 		if (!voltdm->scalable)
 			continue;
 
-		if (voltdm->vc)
+		if (voltdm->vc) {
+			voltdm->vdd->volt_scale = omap_vc_bypass_scale;
 			omap_vc_init_channel(voltdm);
+		}
 
 		if (voltdm->vdd) {
 			if (omap_vdd_data_configure(voltdm))
