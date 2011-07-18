@@ -28,7 +28,6 @@
 #include <asm/sizes.h>
 #include <asm/tlb.h>
 #include <asm/fixmap.h>
-#include <asm/memory.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -214,11 +213,7 @@ static void __init arm_bootmem_init(unsigned long start_pfn,
 
 #ifdef CONFIG_ZONE_DMA
 
-#ifdef ARM_DMA_ZONE_SIZE
-unsigned long arm_dma_zone_size = ARM_DMA_ZONE_SIZE;
-#else
 unsigned long arm_dma_zone_size __read_mostly;
-#endif
 EXPORT_SYMBOL(arm_dma_zone_size);
 
 /*
