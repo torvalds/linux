@@ -74,7 +74,7 @@ struct inode_defrag {
  * If an existing record is found the defrag item you
  * pass in is freed
  */
-static int __btrfs_add_inode_defrag(struct inode *inode,
+static void __btrfs_add_inode_defrag(struct inode *inode,
 				    struct inode_defrag *defrag)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -106,11 +106,11 @@ static int __btrfs_add_inode_defrag(struct inode *inode,
 	BTRFS_I(inode)->in_defrag = 1;
 	rb_link_node(&defrag->rb_node, parent, p);
 	rb_insert_color(&defrag->rb_node, &root->fs_info->defrag_inodes);
-	return 0;
+	return;
 
 exists:
 	kfree(defrag);
-	return 0;
+	return;
 
 }
 
@@ -123,7 +123,6 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct inode_defrag *defrag;
-	int ret = 0;
 	u64 transid;
 
 	if (!btrfs_test_opt(root, AUTO_DEFRAG))
@@ -150,9 +149,9 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 
 	spin_lock(&root->fs_info->defrag_inodes_lock);
 	if (!BTRFS_I(inode)->in_defrag)
-		ret = __btrfs_add_inode_defrag(inode, defrag);
+		__btrfs_add_inode_defrag(inode, defrag);
 	spin_unlock(&root->fs_info->defrag_inodes_lock);
-	return ret;
+	return 0;
 }
 
 /*
