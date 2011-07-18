@@ -526,7 +526,7 @@ void et1310_handle_macstat_interrupt(struct et131x_adapter *etdev)
 	carry_reg1 = readl(&etdev->regs->macstat.carry_reg1);
 	carry_reg2 = readl(&etdev->regs->macstat.carry_reg2);
 
-	writel(carry_reg2, &etdev->regs->macstat.carry_reg1);
+	writel(carry_reg1, &etdev->regs->macstat.carry_reg1);
 	writel(carry_reg2, &etdev->regs->macstat.carry_reg2);
 
 	/* We need to do update the host copy of all the MAC_STAT counters.
