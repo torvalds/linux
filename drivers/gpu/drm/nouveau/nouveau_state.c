@@ -286,9 +286,9 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->gpio.get		= nv10_gpio_get;
 		engine->gpio.set		= nv10_gpio_set;
 		engine->gpio.irq_enable		= NULL;
-		engine->pm.clock_get		= nv04_pm_clock_get;
-		engine->pm.clock_pre		= nv04_pm_clock_pre;
-		engine->pm.clock_set		= nv04_pm_clock_set;
+		engine->pm.clocks_get		= nv40_pm_clocks_get;
+		engine->pm.clocks_pre		= nv40_pm_clocks_pre;
+		engine->pm.clocks_set		= nv40_pm_clocks_set;
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
 		engine->pm.temp_get		= nv40_temp_get;
