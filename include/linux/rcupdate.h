@@ -578,26 +578,6 @@ extern int rcu_my_thread_group_empty(void);
 #define rcu_dereference_protected(p, c) \
 	__rcu_dereference_protected((p), (c), __rcu)
 
-/**
- * rcu_dereference_bh_protected() - fetch RCU-bh pointer when updates prevented
- * @p: The pointer to read, prior to dereferencing
- * @c: The conditions under which the dereference will take place
- *
- * This is the RCU-bh counterpart to rcu_dereference_protected().
- */
-#define rcu_dereference_bh_protected(p, c) \
-	__rcu_dereference_protected((p), (c), __rcu)
-
-/**
- * rcu_dereference_sched_protected() - fetch RCU-sched pointer when updates prevented
- * @p: The pointer to read, prior to dereferencing
- * @c: The conditions under which the dereference will take place
- *
- * This is the RCU-sched counterpart to rcu_dereference_protected().
- */
-#define rcu_dereference_sched_protected(p, c) \
-	__rcu_dereference_protected((p), (c), __rcu)
-
 
 /**
  * rcu_dereference() - fetch RCU-protected pointer for dereferencing
