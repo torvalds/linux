@@ -433,6 +433,12 @@ enum {
 #define  B43_BCMA_IOCTL_PHY_BW_40MHZ	0x00000080	/* 40 MHz bandwidth, 160 MHz PHY */
 #define B43_BCMA_IOCTL_GMODE		0x00002000	/* G Mode Enable */
 
+/* BCMA 802.11 core specific IO status (BCMA_IOST) flags */
+#define B43_BCMA_IOST_2G_PHY		0x00000001	/* 2.4G capable phy */
+#define B43_BCMA_IOST_5G_PHY		0x00000002	/* 5G capable phy */
+#define B43_BCMA_IOST_FASTCLKA		0x00000004	/* Fast Clock Available */
+#define B43_BCMA_IOST_DUALB_PHY		0x00000008	/* Dualband phy */
+
 /* 802.11 core specific TM State Low (SSB_TMSLOW) flags */
 #define B43_TMSLOW_GMODE		0x20000000	/* G Mode Enable */
 #define B43_TMSLOW_PHY_BANDWIDTH	0x00C00000	/* PHY band width and clock speed mask (N-PHY only) */
