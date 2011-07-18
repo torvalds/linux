@@ -1723,9 +1723,8 @@ static int htc_fetch_rxpkts(struct htc_target *target,
 	return status;
 }
 
-static int htc_rxmsg_pending_handler(struct htc_target *target,
-				     u32 msg_look_ahead[],
-				     int *num_pkts)
+int htc_rxmsg_pending_handler(struct htc_target *target, u32 msg_look_ahead[],
+			      int *num_pkts)
 {
 	struct htc_packet *packets, *tmp_pkt;
 	struct htc_endpoint *endpoint;
@@ -2388,7 +2387,6 @@ void *htc_create(struct ath6kl *ar)
 
 	target->dev->ar = ar;
 	target->dev->htc_cnxt = target;
-	target->dev->msg_pending = htc_rxmsg_pending_handler;
 	target->ep_waiting = ENDPOINT_MAX;
 
 	reset_ep_state(target);
