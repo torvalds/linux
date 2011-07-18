@@ -63,15 +63,6 @@ struct ath6kl_irq_enable_reg {
 	u8 cntr_int_status_en;
 } __packed;
 
-/* buffers for ASYNC I/O */
-struct ath6kl_async_reg_io_buffer {
-	struct htc_packet packet;
-	u8 pad1[A_CACHE_LINE_PAD];
-	/* cache-line safe with pads around */
-	u8 buf[ATH6KL_REG_IO_BUFFER_SIZE];
-	u8 pad2[A_CACHE_LINE_PAD];
-};
-
 struct ath6kl_device {
 	spinlock_t lock;
 	u8 pad1[A_CACHE_LINE_PAD];
