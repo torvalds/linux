@@ -460,17 +460,42 @@ static int lcd_cfg_frame_buffer(struct da8xx_fb_par *par, u32 width, u32 height,
 
 	/* Set the Panel Width */
 	/* Pixels per line = (PPL + 1)*16 */
-	/*0x3F in bits 4..9 gives max horisontal resolution = 1024 pixels*/
-	width &= 0x3f0;
+	if (lcd_revision == LCD_VERSION_1) {
+		/*
+		 * 0x3F in bits 4..9 gives max horizontal resolution = 1024
+		 * pixels.
+		 */
+		width &= 0x3f0;
+	} else {
+		/*
+		 * 0x7F in bits 4..10 gives max horizontal resolution = 2048
+		 * pixels.
+		 */
+		width &= 0x7f0;
+	}
+
 	reg = lcdc_read(LCD_RASTER_TIMING_0_REG);
 	reg &= 0xfffffc00;
-	reg |= ((width >> 4) - 1) << 4;
+	if (lcd_revision == LCD_VERSION_1) {
+		reg |= ((width >> 4) - 1) << 4;
+	} else {
+		width = (width >> 4) - 1;
+		reg |= ((width & 0x3f) << 4) | ((width & 0x40) >> 3);
+	}
 	lcdc_write(reg, LCD_RASTER_TIMING_0_REG);
 
 	/* Set the Panel Height */
+	/* Set bits 9:0 of Lines Per Pixel */
 	reg = lcdc_read(LCD_RASTER_TIMING_1_REG);
 	reg = ((height - 1) & 0x3ff) | (reg & 0xfffffc00);
 	lcdc_write(reg, LCD_RASTER_TIMING_1_REG);
+
+	/* Set bit 10 of Lines Per Pixel */
+	if (lcd_revision == LCD_VERSION_2) {
+		reg = lcdc_read(LCD_RASTER_TIMING_2_REG);
+		reg |= ((height - 1) & 0x400) << 16;
+		lcdc_write(reg, LCD_RASTER_TIMING_2_REG);
+	}
 
 	/* Set the Raster Order of the Frame Buffer */
 	reg = lcdc_read(LCD_RASTER_CTRL_REG) & ~(1 << 8);
