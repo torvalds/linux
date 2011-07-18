@@ -275,8 +275,9 @@ nouveau_perf_init(struct drm_device *dev)
 		case 0x24:
 			perflvl->fanspeed = entry[4];
 			perflvl->volt_min = entry[5];
-			perflvl->core = ROM16(entry[6]) * 1000;
-
+			perflvl->shader = ROM16(entry[6]) * 1000;
+			perflvl->core = perflvl->shader;
+			perflvl->core += (signed char)entry[8] * 1000;
 			if (dev_priv->chipset == 0x49 ||
 			    dev_priv->chipset == 0x4b)
 				perflvl->memory = ROM16(entry[11]) * 1000;
