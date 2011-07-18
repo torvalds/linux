@@ -4948,6 +4948,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	struct b43_wl *wl = dev->wl;
 	struct pci_dev *pdev = NULL;
 	int err;
+	u32 tmp;
 	bool have_2ghz_phy = 0, have_5ghz_phy = 0;
 
 	/* Do NOT do any device initialization here.
@@ -4973,17 +4974,17 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		/* FIXME */
-		have_2ghz_phy = 1;
-		have_5ghz_phy = 0;
+		tmp = bcma_aread32(dev->dev->bdev, BCMA_IOST);
+		have_2ghz_phy = !!(tmp & B43_BCMA_IOST_2G_PHY);
+		have_5ghz_phy = !!(tmp & B43_BCMA_IOST_5G_PHY);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
 	case B43_BUS_SSB:
 		if (dev->dev->core_rev >= 5) {
-			u32 tmshigh = ssb_read32(dev->dev->sdev, SSB_TMSHIGH);
-			have_2ghz_phy = !!(tmshigh & B43_TMSHIGH_HAVE_2GHZ_PHY);
-			have_5ghz_phy = !!(tmshigh & B43_TMSHIGH_HAVE_5GHZ_PHY);
+			tmp = ssb_read32(dev->dev->sdev, SSB_TMSHIGH);
+			have_2ghz_phy = !!(tmp & B43_TMSHIGH_HAVE_2GHZ_PHY);
+			have_5ghz_phy = !!(tmp & B43_TMSHIGH_HAVE_5GHZ_PHY);
 		} else
 			B43_WARN_ON(1);
 		break;
