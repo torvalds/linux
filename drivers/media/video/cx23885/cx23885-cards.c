@@ -36,6 +36,10 @@
 #include "xc5000.h"
 #include "cx23888-ir.h"
 
+static unsigned int netup_card_rev = 1;
+module_param(netup_card_rev, int, 0644);
+MODULE_PARM_DESC(netup_card_rev,
+		"NetUP Dual DVB-T/C CI card revision");
 static unsigned int enable_885_ir;
 module_param(enable_885_ir, int, 0644);
 MODULE_PARM_DESC(enable_885_ir,
@@ -1441,6 +1445,9 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		netup_initialize(dev);
 
 		netup_get_card_info(&dev->i2c_bus[0].i2c_adap, &cinfo);
+		if (netup_card_rev)
+			cinfo.rev = netup_card_rev;
+
 		switch (cinfo.rev) {
 		case 0x4:
 			filename = "dvb-netup-altera-04.fw";
