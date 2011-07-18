@@ -116,6 +116,7 @@ static void dn_dst_destroy(struct dst_entry *);
 static struct dst_entry *dn_dst_negative_advice(struct dst_entry *);
 static void dn_dst_link_failure(struct sk_buff *);
 static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu);
+static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst, const void *daddr);
 static int dn_route_input(struct sk_buff *);
 static void dn_run_flush(unsigned long dummy);
 
@@ -139,6 +140,7 @@ static struct dst_ops dn_dst_ops = {
 	.negative_advice =	dn_dst_negative_advice,
 	.link_failure =		dn_dst_link_failure,
 	.update_pmtu =		dn_dst_update_pmtu,
+	.neigh_lookup =		dn_dst_neigh_lookup,
 };
 
 static void dn_dst_destroy(struct dst_entry *dst)
@@ -825,6 +827,11 @@ static unsigned int dn_dst_default_advmss(const struct dst_entry *dst)
 static unsigned int dn_dst_default_mtu(const struct dst_entry *dst)
 {
 	return dst->dev->mtu;
+}
+
+static struct neighbour *dn_dst_neigh_lookup(const struct dst_entry *dst, const void *daddr)
+{
+	return __neigh_lookup_errno(&dn_neigh_table, daddr, dst->dev);
 }
 
 static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)

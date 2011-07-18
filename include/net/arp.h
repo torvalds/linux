@@ -38,15 +38,6 @@ static inline struct neighbour *__ipv4_neigh_lookup(struct neigh_table *tbl, str
 	return n;
 }
 
-static inline struct neighbour *ipv4_neigh_lookup(struct neigh_table *tbl, struct net_device *dev, const __be32 *pkey)
-{
-	struct neighbour *n = __ipv4_neigh_lookup(tbl, dev,
-						  *(__force u32 *)pkey);
-	if (n)
-		return n;
-	return neigh_create(tbl, pkey, dev);
-}
-
 extern void	arp_init(void);
 extern int	arp_find(unsigned char *haddr, struct sk_buff *skb);
 extern int	arp_ioctl(struct net *net, unsigned int cmd, void __user *arg);
