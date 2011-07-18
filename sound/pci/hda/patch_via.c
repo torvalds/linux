@@ -130,13 +130,28 @@ struct via_spec {
 	struct hda_multi_out multiout;
 	hda_nid_t slave_dig_outs[2];
 	hda_nid_t hp_dac_nid;
-	bool hp_indep_shared;	/* indep HP-DAC is shared with side ch */
+	hda_nid_t speaker_dac_nid;
+	int hp_indep_shared;	/* indep HP-DAC is shared with side ch */
 	int num_active_streams;
+	int aamix_mode;		/* loopback is enabled for output-path? */
 
+	/* Output-paths:
+	 * There are different output-paths depending on the setup.
+	 * out_path, hp_path and speaker_path are primary paths.  If both
+	 * direct DAC and aa-loopback routes are available, these contain
+	 * the former paths.  Meanwhile *_mix_path contain the paths with
+	 * loopback mixer.  (Since the loopback is only for front channel,
+	 * no out_mix_path for surround channels.)
+	 * The HP output has another path, hp_indep_path, which is used in
+	 * the independent-HP mode.
+	 */
 	struct nid_path out_path[HDA_SIDE + 1];
+	struct nid_path out_mix_path;
 	struct nid_path hp_path;
-	struct nid_path hp_dep_path;
+	struct nid_path hp_mix_path;
+	struct nid_path hp_indep_path;
 	struct nid_path speaker_path;
+	struct nid_path speaker_mix_path;
 
 	/* capture */
 	unsigned int num_adc_nids;
@@ -437,50 +452,20 @@ static bool check_amp_caps(struct hda_codec *codec, hda_nid_t nid, int dir,
 #define have_mute(codec, nid, dir) \
 	check_amp_caps(codec, nid, dir, AC_AMPCAP_MUTE)
 
-static bool is_node_in_path(struct nid_path *path, hda_nid_t nid)
-{
-	int i;
-	if (!nid)
-		return false;
-	for (i = 0; i < path->depth; i++) {
-		if (path->path[i] == nid)
-			return true;
-	}
-	return false;
-}
-
 /* enable/disable the output-route mixers */
 static void activate_output_mix(struct hda_codec *codec, struct nid_path *path,
-				 hda_nid_t mix_nid, int aa_mix_idx, bool enable)
+				hda_nid_t mix_nid, int idx, bool enable)
 {
 	int i, num, val;
-	bool hp_path, front_path;
-	struct via_spec *spec = codec->spec;
 
 	if (!path)
 		return;
 	num = snd_hda_get_conn_list(codec, mix_nid, NULL);
-	hp_path = is_node_in_path(path, spec->hp_dac_nid);
-	front_path = is_node_in_path(path, spec->multiout.dac_nids[0]);
-
 	for (i = 0; i < num; i++) {
-		if (i == aa_mix_idx) {
-			if (hp_path)
-				val = enable ? AMP_IN_MUTE(i) :
-				AMP_IN_UNMUTE(i);
-			else if (front_path)
-				val = AMP_IN_UNMUTE(i);
-			else
-				val = AMP_IN_MUTE(i);
-		} else {
-			if (hp_path)
-				val = enable ? AMP_IN_UNMUTE(i) :
-				AMP_IN_MUTE(i);
-			else if (front_path)
-				val = AMP_IN_MUTE(i);
-			else
-				val = AMP_IN_UNMUTE(i);
-		}
+		if (i == idx)
+			val = AMP_IN_UNMUTE(i);
+		else
+			val = AMP_IN_MUTE(i);
 		snd_hda_codec_write(codec, mix_nid, 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE, val);
 	}
@@ -490,9 +475,8 @@ static void activate_output_mix(struct hda_codec *codec, struct nid_path *path,
 static void activate_output_path(struct hda_codec *codec, struct nid_path *path,
 				 bool enable, bool force)
 {
-	int i, val;
 	struct via_spec *spec = codec->spec;
-	hda_nid_t aa_mix_nid = spec->aa_mix_nid;
+	int i;
 	for (i = 0; i < path->depth; i++) {
 		hda_nid_t src, dst;
 		int idx = path->idx[i];
@@ -504,25 +488,10 @@ static void activate_output_path(struct hda_codec *codec, struct nid_path *path,
 		if (enable && path->multi[i])
 			snd_hda_codec_write(codec, dst, 0,
 					    AC_VERB_SET_CONNECT_SEL, idx);
-		if (!force
-		    && get_wcaps_type(get_wcaps(codec, src)) == AC_WID_AUD_OUT
-		    && get_wcaps_type(get_wcaps(codec, dst)) == AC_WID_AUD_MIX)
+		if (!force && (dst == spec->aa_mix_nid))
 			continue;
-		if (have_mute(codec, dst, HDA_INPUT)) {
-			if (dst == aa_mix_nid) {
-				val = enable ? AMP_IN_UNMUTE(idx) :
-					AMP_IN_MUTE(idx);
-				snd_hda_codec_write(codec, dst, 0,
-					AC_VERB_SET_AMP_GAIN_MUTE, val);
-			} else {
-				idx = get_connection_index(codec, dst,
-							   aa_mix_nid);
-				if (idx >= 0) {
-					activate_output_mix(codec, path,
-							    dst, idx, enable);
-				}
-			}
-		}
+		if (have_mute(codec, dst, HDA_INPUT))
+			activate_output_mix(codec, path, dst, idx, enable);
 		if (!force && (src == path->vol_ctl || src == path->mute_ctl))
 			continue;
 		if (have_mute(codec, src, HDA_OUTPUT)) {
@@ -548,9 +517,8 @@ static void init_output_pin(struct hda_codec *codec, hda_nid_t pin,
 
 static void via_auto_init_output(struct hda_codec *codec,
 				 struct nid_path *path, int pin_type,
-				 bool with_aa_mix, bool force)
+				 bool force)
 {
-	struct via_spec *spec = codec->spec;
 	unsigned int caps;
 	hda_nid_t pin;
 
@@ -566,41 +534,45 @@ static void via_auto_init_output(struct hda_codec *codec,
 		snd_hda_codec_write(codec, pin, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_OUT_MUTE | val);
 	}
-
-	/* initialize the AA-path */
-	if (!spec->aa_mix_nid)
-		return;
 	activate_output_path(codec, path, true, force);
 }
 
 static void via_auto_init_multi_out(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
+	struct nid_path *path;
 	int i;
 
-	for (i = 0; i < spec->autocfg.line_outs + spec->smart51_nums; i++)
-		/* enable aa-mute only for the front channel */
-		via_auto_init_output(codec, &spec->out_path[i], PIN_OUT,
-				     i == 0, true);
+	for (i = 0; i < spec->autocfg.line_outs + spec->smart51_nums; i++) {
+		path = &spec->out_path[i];
+		if (!i && spec->aamix_mode && spec->out_mix_path.depth)
+			path = &spec->out_mix_path;
+		via_auto_init_output(codec, path, PIN_OUT, true);
+	}
 }
 
 static void via_auto_init_hp_out(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
+	int shared = spec->hp_indep_shared;
 
-	if (!spec->hp_dac_nid) {
-		via_auto_init_output(codec, &spec->hp_dep_path, PIN_HP,
-				     true, true);
+	if (!spec->hp_path.depth) {
+		via_auto_init_output(codec, &spec->hp_mix_path, PIN_HP, true);
 		return;
 	}
 	if (spec->hp_independent_mode) {
-		activate_output_path(codec, &spec->hp_dep_path, false, false);
-		via_auto_init_output(codec, &spec->hp_path, PIN_HP,
-				     true, true);
-	} else {
 		activate_output_path(codec, &spec->hp_path, false, false);
-		via_auto_init_output(codec, &spec->hp_dep_path, PIN_HP,
-				     true, true);
+		activate_output_path(codec, &spec->hp_mix_path, false, false);
+		if (shared)
+			activate_output_path(codec, &spec->out_path[shared],
+					     false, false);
+		via_auto_init_output(codec, &spec->hp_indep_path, PIN_HP, true);
+	} else if (spec->aamix_mode) {
+		activate_output_path(codec, &spec->hp_path, false, false);
+		via_auto_init_output(codec, &spec->hp_mix_path, PIN_HP, true);
+	} else {
+		activate_output_path(codec, &spec->hp_mix_path, false, false);
+		via_auto_init_output(codec, &spec->hp_path, PIN_HP, true);
 	}
 }
 
@@ -608,9 +580,23 @@ static void via_auto_init_speaker_out(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 
-	if (spec->autocfg.speaker_outs)
+	if (!spec->autocfg.speaker_outs)
+		return;
+	if (!spec->speaker_path.depth) {
+		via_auto_init_output(codec, &spec->speaker_mix_path, PIN_OUT,
+				     true);
+		return;
+	}
+	if (!spec->aamix_mode) {
+		activate_output_path(codec, &spec->speaker_mix_path,
+				     false, false);
 		via_auto_init_output(codec, &spec->speaker_path, PIN_OUT,
-				     true, true);
+				     true);
+	} else {
+		activate_output_path(codec, &spec->speaker_path, false, false);
+		via_auto_init_output(codec, &spec->speaker_mix_path, PIN_OUT,
+				     true);
+	}
 }
 
 static bool is_smart51_pins(struct hda_codec *codec, hda_nid_t pin);
@@ -775,7 +761,7 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct via_spec *spec = codec->spec;
-	int cur;
+	int cur, shared;
 
 	/* no independent-hp status change during PCM playback is running */
 	if (spec->num_active_streams)
@@ -785,18 +771,19 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 	if (spec->hp_independent_mode == cur)
 		return 0;
 	spec->hp_independent_mode = cur;
+	shared = spec->hp_indep_shared;
 	if (cur) {
-		activate_output_path(codec, &spec->hp_dep_path, false, false);
-		activate_output_path(codec, &spec->hp_path, true, false);
-		if (spec->hp_indep_shared)
-			activate_output_path(codec, &spec->out_path[HDA_SIDE],
+		activate_output_path(codec, &spec->hp_mix_path, false, false);
+		if (shared)
+			activate_output_path(codec, &spec->out_path[shared],
 					     false, false);
+		activate_output_path(codec, &spec->hp_path, true, false);
 	} else {
 		activate_output_path(codec, &spec->hp_path, false, false);
-		activate_output_path(codec, &spec->hp_dep_path, true, false);
-		if (spec->hp_indep_shared)
-			activate_output_path(codec, &spec->out_path[HDA_SIDE],
+		if (shared)
+			activate_output_path(codec, &spec->out_path[shared],
 					     true, false);
+		activate_output_path(codec, &spec->hp_mix_path, true, false);
 	}
 
 	/* update jack power state */
@@ -1671,29 +1658,38 @@ static bool is_empty_dac(struct hda_codec *codec, hda_nid_t dac)
 }
 
 static bool __parse_output_path(struct hda_codec *codec, hda_nid_t nid,
-			      hda_nid_t target_dac, struct nid_path *path,
-			      int depth, int wid_type)
+				hda_nid_t target_dac, int with_aa_mix,
+				struct nid_path *path, int depth)
 {
+	struct via_spec *spec = codec->spec;
 	hda_nid_t conn[8];
 	int i, nums;
+
+	if (nid == spec->aa_mix_nid) {
+		if (!with_aa_mix)
+			return false;
+		with_aa_mix = 2; /* mark aa-mix is included */
+	}
 
 	nums = snd_hda_get_connections(codec, nid, conn, ARRAY_SIZE(conn));
 	for (i = 0; i < nums; i++) {
 		if (get_wcaps_type(get_wcaps(codec, conn[i])) != AC_WID_AUD_OUT)
 			continue;
-		if (conn[i] == target_dac || is_empty_dac(codec, conn[i]))
-			goto found;
+		if (conn[i] == target_dac || is_empty_dac(codec, conn[i])) {
+			/* aa-mix is requested but not included? */
+			if (!(spec->aa_mix_nid && with_aa_mix == 1))
+				goto found;
+		}
 	}
 	if (depth >= MAX_NID_PATH_DEPTH)
 		return false;
 	for (i = 0; i < nums; i++) {
 		unsigned int type;
 		type = get_wcaps_type(get_wcaps(codec, conn[i]));
-		if (type == AC_WID_AUD_OUT ||
-		    (wid_type != -1 && type != wid_type))
+		if (type == AC_WID_AUD_OUT)
 			continue;
 		if (__parse_output_path(codec, conn[i], target_dac,
-				      path, depth + 1, AC_WID_AUD_SEL))
+					with_aa_mix, path, depth + 1))
 			goto found;
 	}
 	return false;
@@ -1708,11 +1704,15 @@ static bool __parse_output_path(struct hda_codec *codec, hda_nid_t nid,
 }
 
 static bool parse_output_path(struct hda_codec *codec, hda_nid_t nid,
-			      hda_nid_t target_dac, struct nid_path *path)
+			      hda_nid_t target_dac, int with_aa_mix,
+			      struct nid_path *path)
 {
-	if (__parse_output_path(codec, nid, target_dac, path, 1, -1)) {
+	if (__parse_output_path(codec, nid, target_dac, with_aa_mix, path, 1)) {
 		path->path[path->depth] = nid;
 		path->depth++;
+		snd_printdd("output-path: depth=%d, %02x/%02x/%02x/%02x/%02x\n",
+			    path->depth, path->path[0], path->path[1],
+			    path->path[2], path->path[3], path->path[4]);
 		return true;
 	}
 	return false;
@@ -1728,13 +1728,23 @@ static int via_auto_fill_dac_nids(struct hda_codec *codec)
 	spec->multiout.dac_nids = spec->private_dac_nids;
 	dac_num = 0;
 	for (i = 0; i < cfg->line_outs; i++) {
+		hda_nid_t dac = 0;
 		nid = cfg->line_out_pins[i];
 		if (!nid)
 			continue;
-		if (parse_output_path(codec, nid, 0, &spec->out_path[i])) {
-			spec->private_dac_nids[i] = spec->out_path[i].path[0];
+		if (parse_output_path(codec, nid, 0, 0, &spec->out_path[i]))
+			dac = spec->out_path[i].path[0];
+		if (!i && parse_output_path(codec, nid, dac, 1,
+					    &spec->out_mix_path))
+			dac = spec->out_mix_path.path[0];
+		if (dac) {
+			spec->private_dac_nids[i] = dac;
 			dac_num++;
 		}
+	}
+	if (!spec->out_path[0].depth && spec->out_mix_path.depth) {
+		spec->out_path[0] = spec->out_mix_path;
+		spec->out_mix_path.depth = 0;
 	}
 	spec->multiout.num_dacs = dac_num;
 	return 0;
@@ -1832,6 +1842,7 @@ static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
+	struct nid_path *path;
 	static const char * const chname[4] = {
 		"Front", "Surround", "C/LFE", "Side"
 	};
@@ -1857,13 +1868,12 @@ static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
 		dac = spec->multiout.dac_nids[i];
 		if (!pin || !dac)
 			continue;
+		path = spec->out_path + i;
 		if (i == HDA_CLFE) {
-			err = create_ch_ctls(codec, "Center", 1, true,
-					     &spec->out_path[i]);
+			err = create_ch_ctls(codec, "Center", 1, true, path);
 			if (err < 0)
 				return err;
-			err = create_ch_ctls(codec, "LFE", 2, true,
-					     &spec->out_path[i]);
+			err = create_ch_ctls(codec, "LFE", 2, true, path);
 			if (err < 0)
 				return err;
 		} else {
@@ -1871,10 +1881,17 @@ static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
 			if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT &&
 			    cfg->line_outs == 1)
 				pfx = "Speaker";
-			err = create_ch_ctls(codec, pfx, 3, true,
-					     &spec->out_path[i]);
+			err = create_ch_ctls(codec, pfx, 3, true, path);
 			if (err < 0)
 				return err;
+		}
+		if (path != spec->out_path + i) {
+			spec->out_path[i].vol_ctl = path->vol_ctl;
+			spec->out_path[i].mute_ctl = path->mute_ctl;
+		}
+		if (path == spec->out_path && spec->out_mix_path.depth) {
+			spec->out_mix_path.vol_ctl = path->vol_ctl;
+			spec->out_mix_path.mute_ctl = path->mute_ctl;
 		}
 	}
 
@@ -1882,14 +1899,17 @@ static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
 				   spec->multiout.dac_nids[0]);
 	if (idx >= 0) {
 		/* add control to mixer */
-		err = via_add_control(spec, VIA_CTL_WIDGET_VOL,
-				      "PCM Playback Volume",
+		const char *name;
+		name = spec->out_mix_path.depth ?
+			"PCM Loopback Playback Volume" : "PCM Playback Volume";
+		err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
 				      HDA_COMPOSE_AMP_VAL(spec->aa_mix_nid, 3,
 							  idx, HDA_INPUT));
 		if (err < 0)
 			return err;
-		err = via_add_control(spec, VIA_CTL_WIDGET_MUTE,
-				      "PCM Playback Switch",
+		name = spec->out_mix_path.depth ?
+			"PCM Loopback Playback Switch" : "PCM Playback Switch";
+		err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
 				      HDA_COMPOSE_AMP_VAL(spec->aa_mix_nid, 3,
 							  idx, HDA_INPUT));
 		if (err < 0)
@@ -1906,70 +1926,167 @@ static int via_auto_create_hp_ctls(struct hda_codec *codec, hda_nid_t pin)
 	struct via_spec *spec = codec->spec;
 	struct nid_path *path;
 	bool check_dac;
-	int err;
+	int i, err;
 
 	if (!pin)
 		return 0;
 
-	if (parse_output_path(codec, pin, 0, &spec->hp_path))
-		spec->hp_dac_nid = spec->hp_path.path[0];
-	else if (spec->multiout.dac_nids[HDA_SIDE] &&
-		 parse_output_path(codec, pin,
-				   spec->multiout.dac_nids[HDA_SIDE],
-				   &spec->hp_path)) {
-		spec->hp_dac_nid = spec->hp_path.path[0];
-		spec->hp_indep_shared = true;
-	} else if (spec->multiout.dac_nids[HDA_CLFE] &&
-		 parse_output_path(codec, pin,
-				   spec->multiout.dac_nids[HDA_CLFE],
-				   &spec->hp_path)) {
-		spec->hp_dac_nid = spec->hp_path.path[0];
-		spec->hp_indep_shared = true;
+	if (!parse_output_path(codec, pin, 0, 0, &spec->hp_indep_path)) {
+		for (i = HDA_SIDE; i >= HDA_CLFE; i--) {
+			if (i < spec->multiout.num_dacs &&
+			    parse_output_path(codec, pin,
+					      spec->multiout.dac_nids[i], 0,
+					      &spec->hp_indep_path)) {
+				spec->hp_indep_shared = i;
+				break;
+			}
+		}
 	}
+	if (spec->hp_indep_path.depth) {
+		spec->hp_dac_nid = spec->hp_indep_path.path[0];
+		if (!spec->hp_indep_shared)
+			spec->hp_path = spec->hp_indep_path;
+	}
+	/* optionally check front-path w/o AA-mix */
+	if (!spec->hp_path.depth)
+		parse_output_path(codec, pin,
+				  spec->multiout.dac_nids[HDA_FRONT], 0,
+				  &spec->hp_path);
 
 	if (!parse_output_path(codec, pin, spec->multiout.dac_nids[HDA_FRONT],
-			       &spec->hp_dep_path) &&
-	    !spec->hp_dac_nid)
+			       1, &spec->hp_mix_path) && !spec->hp_path.depth)
 		return 0;
 
-	if (spec->hp_dac_nid && !spec->hp_indep_shared) {
+	if (spec->hp_path.depth) {
 		path = &spec->hp_path;
 		check_dac = true;
 	} else {
-		path = &spec->hp_dep_path;
+		path = &spec->hp_mix_path;
 		check_dac = false;
 	}
 	err = create_ch_ctls(codec, "Headphone", 3, check_dac, path);
 	if (err < 0)
 		return err;
-	if (spec->hp_dac_nid) {
-		spec->hp_dep_path.vol_ctl = spec->hp_path.vol_ctl;
-		spec->hp_dep_path.mute_ctl = spec->hp_path.mute_ctl;
+	if (check_dac) {
+		spec->hp_mix_path.vol_ctl = path->vol_ctl;
+		spec->hp_mix_path.mute_ctl = path->mute_ctl;
+	} else {
+		spec->hp_path.vol_ctl = path->vol_ctl;
+		spec->hp_path.mute_ctl = path->mute_ctl;
 	}
-
 	return 0;
 }
 
 static int via_auto_create_speaker_ctls(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
+	struct nid_path *path;
+	bool check_dac;
 	hda_nid_t pin, dac;
+	int err;
 
 	pin = spec->autocfg.speaker_pins[0];
 	if (!spec->autocfg.speaker_outs || !pin)
 		return 0;
 
-	if (parse_output_path(codec, pin, 0, &spec->speaker_path)) {
+	if (parse_output_path(codec, pin, 0, 0, &spec->speaker_path))
 		dac = spec->speaker_path.path[0];
-		spec->multiout.extra_out_nid[0] = dac;
-		return create_ch_ctls(codec, "Speaker", 3, true,
-				      &spec->speaker_path);
-	}
-	if (parse_output_path(codec, pin, spec->multiout.dac_nids[HDA_FRONT],
-			      &spec->speaker_path))
-		return create_ch_ctls(codec, "Speaker", 3, false,
-				      &spec->speaker_path);
+	if (!dac)
+		parse_output_path(codec, pin,
+				  spec->multiout.dac_nids[HDA_FRONT], 0,
+				  &spec->speaker_path);
+	if (!parse_output_path(codec, pin, spec->multiout.dac_nids[HDA_FRONT],
+			       1, &spec->speaker_mix_path) && !dac)
+		return 0;
 
+	/* no AA-path for front? */
+	if (!spec->out_mix_path.depth && spec->speaker_mix_path.depth)
+		dac = 0;
+
+	spec->speaker_dac_nid = dac;
+	spec->multiout.extra_out_nid[0] = dac;
+	if (dac) {
+		path = &spec->speaker_path;
+		check_dac = true;
+	} else {
+		path = &spec->speaker_mix_path;
+		check_dac = false;
+	}
+	err = create_ch_ctls(codec, "Speaker", 3, check_dac, path);
+	if (err < 0)
+		return err;
+	if (check_dac) {
+		spec->speaker_mix_path.vol_ctl = path->vol_ctl;
+		spec->speaker_mix_path.mute_ctl = path->mute_ctl;
+	} else {
+		spec->speaker_path.vol_ctl = path->vol_ctl;
+		spec->speaker_path.mute_ctl = path->mute_ctl;
+	}
+	return 0;
+}
+
+#define via_aamix_ctl_info	via_pin_power_ctl_info
+
+static int via_aamix_ctl_get(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct via_spec *spec = codec->spec;
+	ucontrol->value.enumerated.item[0] = spec->aamix_mode;
+	return 0;
+}
+
+static void update_aamix_paths(struct hda_codec *codec, int do_mix,
+			       struct nid_path *nomix, struct nid_path *mix)
+{
+	if (do_mix) {
+		activate_output_path(codec, nomix, false, false);
+		activate_output_path(codec, mix, true, false);
+	} else {
+		activate_output_path(codec, mix, false, false);
+		activate_output_path(codec, nomix, true, false);
+	}
+}
+
+static int via_aamix_ctl_put(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct via_spec *spec = codec->spec;
+	unsigned int val = ucontrol->value.enumerated.item[0];
+
+	if (val == spec->aamix_mode)
+		return 0;
+	spec->aamix_mode = val;
+	/* update front path */
+	update_aamix_paths(codec, val, &spec->out_path[0], &spec->out_mix_path);
+	/* update HP path */
+	if (!spec->hp_independent_mode) {
+		update_aamix_paths(codec, val, &spec->hp_path,
+				   &spec->hp_mix_path);
+	}
+	/* update speaker path */
+	update_aamix_paths(codec, val, &spec->speaker_path,
+			   &spec->speaker_mix_path);
+	return 1;
+}
+
+static const struct snd_kcontrol_new via_aamix_ctl_enum = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Loopback Mixing",
+	.info = via_aamix_ctl_info,
+	.get = via_aamix_ctl_get,
+	.put = via_aamix_ctl_put,
+};
+
+static int via_auto_create_loopback_switch(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+
+	if (!spec->aa_mix_nid || !spec->out_mix_path.depth)
+		return 0; /* no loopback switching available */
+	if (!via_clone_control(spec, &via_aamix_ctl_enum))
+		return -ENOMEM;
 	return 0;
 }
 
@@ -2440,6 +2557,9 @@ static int via_parse_auto_config(struct hda_codec *codec)
 	err = via_auto_create_speaker_ctls(codec);
 	if (err < 0)
 		return err;
+	err = via_auto_create_loopback_switch(codec);
+	if (err < 0)
+		return err;
 	err = via_auto_create_analog_input_ctls(codec);
 	if (err < 0)
 		return err;
@@ -2453,7 +2573,7 @@ static int via_parse_auto_config(struct hda_codec *codec)
 		spec->mixers[spec->num_mixers++] = spec->kctls.list;
 
 
-	if (spec->hp_dac_nid && spec->hp_dep_path.depth) {
+	if (spec->hp_dac_nid && spec->hp_mix_path.depth) {
 		err = via_hp_build(codec);
 		if (err < 0)
 			return err;
