@@ -614,7 +614,7 @@ static int bu92747_irda_suspend(struct platform_device *pdev, pm_message_t state
 	s->suspending = 1;
 	uart_suspend_port(&bu92747_irda_uart_driver, &s->port);
 
-	irda_hw_shutdown();
+	//irda_hw_shutdown();
 	if (s->pdata->irda_pwr_ctl)
 		s->pdata->irda_pwr_ctl(0);
 
@@ -631,7 +631,8 @@ static int bu92747_irda_resume(struct platform_device *pdev)
 	if (s->pdata->irda_pwr_ctl)
 		s->pdata->irda_pwr_ctl(1);
 	
-	irda_hw_startup();
+	//irda_hw_startup();
+	irda_hw_set_speed(s->baud);
 
 	uart_resume_port(&bu92747_irda_uart_driver, &s->port);
 	s->suspending = 0;
