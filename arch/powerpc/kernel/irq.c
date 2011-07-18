@@ -451,11 +451,18 @@ static inline void do_softirq_onstack(void)
 	curtp = current_thread_info();
 	irqtp = softirq_ctx[smp_processor_id()];
 	irqtp->task = curtp->task;
+	irqtp->flags = 0;
 	current->thread.ksp_limit = (unsigned long)irqtp +
 				    _ALIGN_UP(sizeof(struct thread_info), 16);
 	call_do_softirq(irqtp);
 	current->thread.ksp_limit = saved_sp_limit;
 	irqtp->task = NULL;
+
+	/* Set any flag that may have been set on the
+	 * alternate stack
+	 */
+	if (irqtp->flags)
+		set_bits(irqtp->flags, &curtp->flags);
 }
 
 void do_softirq(void)
