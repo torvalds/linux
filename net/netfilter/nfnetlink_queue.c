@@ -619,39 +619,26 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	struct nfqnl_instance *queue;
 	unsigned int verdict;
 	struct nf_queue_entry *entry;
-	int err;
 
-	rcu_read_lock();
 	queue = instance_lookup(queue_num);
-	if (!queue) {
-		err = -ENODEV;
-		goto err_out_unlock;
-	}
+	if (!queue)
+		return -ENODEV;
 
-	if (queue->peer_pid != NETLINK_CB(skb).pid) {
-		err = -EPERM;
-		goto err_out_unlock;
-	}
+	if (queue->peer_pid != NETLINK_CB(skb).pid)
+		return -EPERM;
 
-	if (!nfqa[NFQA_VERDICT_HDR]) {
-		err = -EINVAL;
-		goto err_out_unlock;
-	}
+	if (!nfqa[NFQA_VERDICT_HDR])
+		return -EINVAL;
 
 	vhdr = nla_data(nfqa[NFQA_VERDICT_HDR]);
 	verdict = ntohl(vhdr->verdict);
 
-	if ((verdict & NF_VERDICT_MASK) > NF_MAX_VERDICT) {
-		err = -EINVAL;
-		goto err_out_unlock;
-	}
+	if ((verdict & NF_VERDICT_MASK) > NF_MAX_VERDICT)
+		return -EINVAL;
 
 	entry = find_dequeue_entry(queue, ntohl(vhdr->id));
-	if (entry == NULL) {
-		err = -ENOENT;
-		goto err_out_unlock;
-	}
-	rcu_read_unlock();
+	if (entry == NULL)
+		return -ENOENT;
 
 	if (nfqa[NFQA_PAYLOAD]) {
 		if (nfqnl_mangle(nla_data(nfqa[NFQA_PAYLOAD]),
@@ -664,10 +651,6 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 
 	nf_reinject(entry, verdict);
 	return 0;
-
-err_out_unlock:
-	rcu_read_unlock();
-	return err;
 }
 
 static int
@@ -780,9 +763,9 @@ err_out_unlock:
 }
 
 static const struct nfnl_callback nfqnl_cb[NFQNL_MSG_MAX] = {
-	[NFQNL_MSG_PACKET]	= { .call = nfqnl_recv_unsupp,
+	[NFQNL_MSG_PACKET]	= { .call_rcu = nfqnl_recv_unsupp,
 				    .attr_count = NFQA_MAX, },
-	[NFQNL_MSG_VERDICT]	= { .call = nfqnl_recv_verdict,
+	[NFQNL_MSG_VERDICT]	= { .call_rcu = nfqnl_recv_verdict,
 				    .attr_count = NFQA_MAX,
 				    .policy = nfqa_verdict_policy },
 	[NFQNL_MSG_CONFIG]	= { .call = nfqnl_recv_config,
