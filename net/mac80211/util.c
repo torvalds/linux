@@ -1017,7 +1017,7 @@ int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
 }
 
 struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
-					  u8 *dst,
+					  u8 *dst, u32 ratemask,
 					  const u8 *ssid, size_t ssid_len,
 					  const u8 *ie, size_t ie_len,
 					  bool directed)
@@ -1050,9 +1050,7 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 
 	buf_len = ieee80211_build_preq_ies(local, buf, ie, ie_len,
 					   local->hw.conf.channel->band,
-					   sdata->rc_rateidx_mask
-					   [local->hw.conf.channel->band],
-					   chan);
+					   ratemask, chan);
 
 	skb = ieee80211_probereq_get(&local->hw, &sdata->vif,
 				     ssid, ssid_len,
@@ -1073,12 +1071,12 @@ struct sk_buff *ieee80211_build_probe_req(struct ieee80211_sub_if_data *sdata,
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
-			      bool directed)
+			      u32 ratemask, bool directed)
 {
 	struct sk_buff *skb;
 
-	skb = ieee80211_build_probe_req(sdata, dst, ssid, ssid_len, ie, ie_len,
-					directed);
+	skb = ieee80211_build_probe_req(sdata, dst, ratemask, ssid, ssid_len,
+					ie, ie_len, directed);
 	if (skb)
 		ieee80211_tx_skb(sdata, skb);
 }
