@@ -436,6 +436,8 @@ struct mceusb_dev {
 	char name[128];
 	char phys[64];
 	enum mceusb_model_type model;
+
+	bool need_reset;	/* flag to issue a device resume cmd */
 };
 
 /* MCE Device Command Strings, generally a port and command pair */
@@ -735,6 +737,14 @@ static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 
 static void mce_async_out(struct mceusb_dev *ir, unsigned char *data, int size)
 {
+	int rsize = sizeof(DEVICE_RESUME);
+
+	if (ir->need_reset) {
+		ir->need_reset = false;
+		mce_request_packet(ir, DEVICE_RESUME, rsize, MCEUSB_TX);
+		msleep(10);
+	}
+
 	mce_request_packet(ir, data, size, MCEUSB_TX);
 	msleep(10);
 }
@@ -908,6 +918,9 @@ static void mceusb_handle_command(struct mceusb_dev *ir, int index)
 		break;
 	case MCE_RSP_EQIRRXPORTEN:
 		ir->learning_enabled = ((hi & 0x02) == 0x02);
+		break;
+	case MCE_RSP_CMD_ILLEGAL:
+		ir->need_reset = true;
 		break;
 	default:
 		break;
