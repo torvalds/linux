@@ -99,7 +99,7 @@ unsigned int ulPolynomial = 0x04c11db7;
 struct i2c_client * i2c_connect_client = NULL;
 static u8 gt819_fw[]=
 {
-#include "gt819_fw.bin"
+#include "gt819_fw.i"
 };
 #if 0
 uint8_t config_info[] = {
