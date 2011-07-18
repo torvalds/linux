@@ -123,7 +123,14 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 	for (j = 0 ; j < nalloc; j++) {
 		bio = r10_bio->devs[j].bio;
 		for (i = 0; i < RESYNC_PAGES; i++) {
-			page = alloc_page(gfp_flags);
+			if (j == 1 && !test_bit(MD_RECOVERY_SYNC,
+						&conf->mddev->recovery)) {
+				/* we can share bv_page's during recovery */
+				struct bio *rbio = r10_bio->devs[0].bio;
+				page = rbio->bi_io_vec[i].bv_page;
+				get_page(page);
+			} else
+				page = alloc_page(gfp_flags);
 			if (unlikely(!page))
 				goto out_free_pages;
 
@@ -1360,20 +1367,14 @@ done:
 static void recovery_request_write(mddev_t *mddev, r10bio_t *r10_bio)
 {
 	conf_t *conf = mddev->private;
-	int i, d;
-	struct bio *bio, *wbio;
+	int d;
+	struct bio *wbio;
 
-
-	/* move the pages across to the second bio
+	/*
+	 * share the pages with the first bio
 	 * and submit the write request
 	 */
-	bio = r10_bio->devs[0].bio;
 	wbio = r10_bio->devs[1].bio;
-	for (i=0; i < wbio->bi_vcnt; i++) {
-		struct page *p = bio->bi_io_vec[i].bv_page;
-		bio->bi_io_vec[i].bv_page = wbio->bi_io_vec[i].bv_page;
-		wbio->bi_io_vec[i].bv_page = p;
-	}
 	d = r10_bio->devs[1].devnum;
 
 	atomic_inc(&conf->mirrors[d].rdev->nr_pending);
