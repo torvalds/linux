@@ -10,7 +10,7 @@
 #define OUT_TYPE		SCREEN_RGB
 #define OUT_FACE		OUT_P888
 #define OUT_CLK		26*1000*1000	//***27
-#define LCDC_ACLK       150000000     //29 lcdc axi DMA Ƶ��           //rk29
+#define LCDC_ACLK       300000000     //29 lcdc axi DMA Ƶ��           //rk29
 
 /* Timing */
 #define H_PW			4 //8ǰ��Ӱ
