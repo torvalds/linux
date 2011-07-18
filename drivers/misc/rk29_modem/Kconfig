@@ -4,7 +4,7 @@
 
 menuconfig RK29_SUPPORT_MODEM
 	tristate "RK29 support Modem"
-	depends on USB11_HOST_EN
+#	depends on USB11_HOST_EN
 	---help---
 	  Say Y here if you have a support modem
 
@@ -12,35 +12,14 @@ choice
 	depends on RK29_SUPPORT_MODEM
 	prompt  "Select 3G Modem"
 
- config MODEM_ROCKCHIP_DEMO
+    config MODEM_ROCKCHIP_DEMO
   	bool "ROCKCHIP_GENERAL_MODEM_DEVICE"
 
-#    config MODEM_ZTE_MG3732
-#        bool "ZTE_MG3732"
+    config MODEM_LONGCHEER_U6300V
+  	bool "LONGCHEER_U6300V"
 
-#config MODEM_ZTE_MF210
-#	bool "ZTE_MF210"
-	
-#config MODEM_ZTE_AD3812
-#	bool "ZTE_AD3812"
-
-#config MODEM_THINKWILL_ME800
-#	bool "THINKWILL_ME800"
-
-#config MODEM_HUAWEI_EM660
-#	bool "HUAWEI_EM660"
-	
-#config MODEM_HUAWEI_EM770
-#	bool "HUAWEI_EM770"
-
-#config MODEM_HUAWEI_EM660C
- #        bool "HUAWEI_EM660C"
-
-#config MODEM_ZTE_MU301	
-#	bool "ZTE_MU301"
-
-#config MODEM_TDM_330
-#	bool "TDM_330"
+    config MODEM_THINKWILL_MW100G
+        bool "THINKWILL_MW100G"
 
 endchoice
 
