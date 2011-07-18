@@ -516,6 +516,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 	u8 cmd, subcmd, data1, data2, data3, data4, data5;
 	struct device *dev = ir->dev;
 	int i, start, skip = 0;
+	u32 carrier, period;
 
 	if (!debug)
 		return;
@@ -613,9 +614,14 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 			dev_info(dev, "Resp to 9f 05 of 0x%02x 0x%02x\n",
 				 data1, data2);
 			break;
-		case MCE_CMD_SETIRCFS:
-			dev_info(dev, "%s carrier mode and freq of "
-				 "0x%02x 0x%02x\n", inout, data1, data2);
+		case MCE_RSP_EQIRCFS:
+			period = DIV_ROUND_CLOSEST(
+					(1 << data1 * 2) * (data2 + 1), 10);
+			if (!period)
+				break;
+			carrier = (1000 * 1000) / period;
+			dev_info(dev, "%s carrier of %u Hz (period %uus)\n",
+				 inout, carrier, period);
 			break;
 		case MCE_CMD_GETIRCFS:
 			dev_info(dev, "Get carrier mode and freq\n");
@@ -626,9 +632,9 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 			break;
 		case MCE_RSP_EQIRTIMEOUT:
 			/* value is in units of 50us, so x*50/1000 ms */
+			period = ((data1 << 8) | data2) * MCE_TIME_UNIT / 1000;
 			dev_info(dev, "%s receive timeout of %d ms\n",
-				 inout,
-				 ((data1 << 8) | data2) * MCE_TIME_UNIT / 1000);
+				 inout, period);
 			break;
 		case MCE_CMD_GETIRTIMEOUT:
 			dev_info(dev, "Get receive timeout\n");
