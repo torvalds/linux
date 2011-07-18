@@ -998,7 +998,8 @@ DECLARE_EVENT_CLASS(xfs_simple_io_class,
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
-		__field(loff_t, size)
+		__field(loff_t, isize)
+		__field(loff_t, disize)
 		__field(loff_t, new_size)
 		__field(loff_t, offset)
 		__field(size_t, count)
@@ -1006,16 +1007,18 @@ DECLARE_EVENT_CLASS(xfs_simple_io_class,
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
-		__entry->size = ip->i_d.di_size;
+		__entry->isize = ip->i_size;
+		__entry->disize = ip->i_d.di_size;
 		__entry->new_size = ip->i_new_size;
 		__entry->offset = offset;
 		__entry->count = count;
 	),
-	TP_printk("dev %d:%d ino 0x%llx size 0x%llx new_size 0x%llx "
+	TP_printk("dev %d:%d ino 0x%llx isize 0x%llx disize 0x%llx new_size 0x%llx "
 		  "offset 0x%llx count %zd",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
-		  __entry->size,
+		  __entry->isize,
+		  __entry->disize,
 		  __entry->new_size,
 		  __entry->offset,
 		  __entry->count)
@@ -1028,6 +1031,7 @@ DEFINE_EVENT(xfs_simple_io_class, name,	\
 DEFINE_SIMPLE_IO_EVENT(xfs_delalloc_enospc);
 DEFINE_SIMPLE_IO_EVENT(xfs_unwritten_convert);
 DEFINE_SIMPLE_IO_EVENT(xfs_get_blocks_notfound);
+DEFINE_SIMPLE_IO_EVENT(xfs_setfilesize);
 
 DECLARE_EVENT_CLASS(xfs_itrunc_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_fsize_t new_size),

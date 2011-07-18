@@ -181,6 +181,7 @@ xfs_setfilesize(
 
 	isize = xfs_ioend_new_eof(ioend);
 	if (isize) {
+		trace_xfs_setfilesize(ip, ioend->io_offset, ioend->io_size);
 		ip->i_d.di_size = isize;
 		xfs_mark_inode_dirty(ip);
 	}
