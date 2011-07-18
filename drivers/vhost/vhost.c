@@ -37,6 +37,8 @@ enum {
 	VHOST_MEMORY_F_LOG = 0x1,
 };
 
+static unsigned vhost_zcopy_mask __read_mostly;
+
 #define vhost_used_event(vq) ((u16 __user *)&vq->avail->ring[vq->num])
 #define vhost_avail_event(vq) ((u16 __user *)&vq->used->ring[vq->num])
 
@@ -179,6 +181,9 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->call_ctx = NULL;
 	vq->call = NULL;
 	vq->log_ctx = NULL;
+	vq->upend_idx = 0;
+	vq->done_idx = 0;
+	vq->ubufs = NULL;
 }
 
 static int vhost_worker(void *data)
@@ -225,10 +230,28 @@ static int vhost_worker(void *data)
 	return 0;
 }
 
+static void vhost_vq_free_iovecs(struct vhost_virtqueue *vq)
+{
+	kfree(vq->indirect);
+	vq->indirect = NULL;
+	kfree(vq->log);
+	vq->log = NULL;
+	kfree(vq->heads);
+	vq->heads = NULL;
+	kfree(vq->ubuf_info);
+	vq->ubuf_info = NULL;
+}
+
+void vhost_enable_zcopy(int vq)
+{
+	vhost_zcopy_mask |= 0x1 << vq;
+}
+
 /* Helper to allocate iovec buffers for all vqs. */
 static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 {
 	int i;
+	bool zcopy;
 
 	for (i = 0; i < dev->nvqs; ++i) {
 		dev->vqs[i].indirect = kmalloc(sizeof *dev->vqs[i].indirect *
@@ -237,19 +260,21 @@ static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 					  GFP_KERNEL);
 		dev->vqs[i].heads = kmalloc(sizeof *dev->vqs[i].heads *
 					    UIO_MAXIOV, GFP_KERNEL);
-
+		zcopy = vhost_zcopy_mask & (0x1 << i);
+		if (zcopy)
+			dev->vqs[i].ubuf_info =
+				kmalloc(sizeof *dev->vqs[i].ubuf_info *
+					UIO_MAXIOV, GFP_KERNEL);
 		if (!dev->vqs[i].indirect || !dev->vqs[i].log ||
-			!dev->vqs[i].heads)
+			!dev->vqs[i].heads ||
+			(zcopy && !dev->vqs[i].ubuf_info))
 			goto err_nomem;
 	}
 	return 0;
 
 err_nomem:
-	for (; i >= 0; --i) {
-		kfree(dev->vqs[i].indirect);
-		kfree(dev->vqs[i].log);
-		kfree(dev->vqs[i].heads);
-	}
+	for (; i >= 0; --i)
+		vhost_vq_free_iovecs(&dev->vqs[i]);
 	return -ENOMEM;
 }
 
@@ -257,14 +282,8 @@ static void vhost_dev_free_iovecs(struct vhost_dev *dev)
 {
 	int i;
 
-	for (i = 0; i < dev->nvqs; ++i) {
-		kfree(dev->vqs[i].indirect);
-		dev->vqs[i].indirect = NULL;
-		kfree(dev->vqs[i].log);
-		dev->vqs[i].log = NULL;
-		kfree(dev->vqs[i].heads);
-		dev->vqs[i].heads = NULL;
-	}
+	for (i = 0; i < dev->nvqs; ++i)
+		vhost_vq_free_iovecs(&dev->vqs[i]);
 }
 
 long vhost_dev_init(struct vhost_dev *dev,
@@ -287,6 +306,7 @@ long vhost_dev_init(struct vhost_dev *dev,
 		dev->vqs[i].log = NULL;
 		dev->vqs[i].indirect = NULL;
 		dev->vqs[i].heads = NULL;
+		dev->vqs[i].ubuf_info = NULL;
 		dev->vqs[i].dev = dev;
 		mutex_init(&dev->vqs[i].mutex);
 		vhost_vq_reset(dev, dev->vqs + i);
@@ -390,6 +410,30 @@ long vhost_dev_reset_owner(struct vhost_dev *dev)
 	return 0;
 }
 
+/* In case of DMA done not in order in lower device driver for some reason.
+ * upend_idx is used to track end of used idx, done_idx is used to track head
+ * of used idx. Once lower device DMA done contiguously, we will signal KVM
+ * guest used idx.
+ */
+int vhost_zerocopy_signal_used(struct vhost_virtqueue *vq)
+{
+	int i;
+	int j = 0;
+
+	for (i = vq->done_idx; i != vq->upend_idx; i = (i + 1) % UIO_MAXIOV) {
+		if ((vq->heads[i].len == VHOST_DMA_DONE_LEN)) {
+			vq->heads[i].len = VHOST_DMA_CLEAR_LEN;
+			vhost_add_used_and_signal(vq->dev, vq,
+						  vq->heads[i].id, 0);
+			++j;
+		} else
+			break;
+	}
+	if (j)
+		vq->done_idx = i;
+	return j;
+}
+
 /* Caller should have device mutex */
 void vhost_dev_cleanup(struct vhost_dev *dev)
 {
@@ -400,6 +444,13 @@ void vhost_dev_cleanup(struct vhost_dev *dev)
 			vhost_poll_stop(&dev->vqs[i].poll);
 			vhost_poll_flush(&dev->vqs[i].poll);
 		}
+		/* Wait for all lower device DMAs done. */
+		if (dev->vqs[i].ubufs)
+			vhost_ubuf_put_and_wait(dev->vqs[i].ubufs);
+
+		/* Signal guest as appropriate. */
+		vhost_zerocopy_signal_used(&dev->vqs[i]);
+
 		if (dev->vqs[i].error_ctx)
 			eventfd_ctx_put(dev->vqs[i].error_ctx);
 		if (dev->vqs[i].error)
@@ -1485,4 +1536,51 @@ void vhost_disable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 			vq_err(vq, "Failed to enable notification at %p: %d\n",
 			       &vq->used->flags, r);
 	}
+}
+
+static void vhost_zerocopy_done_signal(struct kref *kref)
+{
+	struct vhost_ubuf_ref *ubufs = container_of(kref, struct vhost_ubuf_ref,
+						    kref);
+	wake_up(&ubufs->wait);
+}
+
+struct vhost_ubuf_ref *vhost_ubuf_alloc(struct vhost_virtqueue *vq,
+					bool zcopy)
+{
+	struct vhost_ubuf_ref *ubufs;
+	/* No zero copy backend? Nothing to count. */
+	if (!zcopy)
+		return NULL;
+	ubufs = kmalloc(sizeof *ubufs, GFP_KERNEL);
+	if (!ubufs)
+		return ERR_PTR(-ENOMEM);
+	kref_init(&ubufs->kref);
+	kref_get(&ubufs->kref);
+	init_waitqueue_head(&ubufs->wait);
+	ubufs->vq = vq;
+	return ubufs;
+}
+
+void vhost_ubuf_put(struct vhost_ubuf_ref *ubufs)
+{
+	kref_put(&ubufs->kref, vhost_zerocopy_done_signal);
+}
+
+void vhost_ubuf_put_and_wait(struct vhost_ubuf_ref *ubufs)
+{
+	kref_put(&ubufs->kref, vhost_zerocopy_done_signal);
+	wait_event(ubufs->wait, !atomic_read(&ubufs->kref.refcount));
+	kfree(ubufs);
+}
+
+void vhost_zerocopy_callback(void *arg)
+{
+	struct ubuf_info *ubuf = arg;
+	struct vhost_ubuf_ref *ubufs = ubuf->arg;
+	struct vhost_virtqueue *vq = ubufs->vq;
+
+	/* set len = 1 to mark this desc buffers done DMA */
+	vq->heads[ubuf->desc].len = VHOST_DMA_DONE_LEN;
+	kref_put(&ubufs->kref, vhost_zerocopy_done_signal);
 }
