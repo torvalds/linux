@@ -96,10 +96,6 @@ struct slcan {
 	unsigned long		flags;		/* Flag values/ mode etc     */
 #define SLF_INUSE		0		/* Channel in use            */
 #define SLF_ERROR		1               /* Parity, etc. error        */
-
-	unsigned char		leased;
-	dev_t			line;
-	pid_t			pid;
 };
 
 static struct net_device **slcan_devs;
@@ -446,7 +442,7 @@ static void slc_sync(void)
 			break;
 
 		sl = netdev_priv(dev);
-		if (sl->tty || sl->leased)
+		if (sl->tty)
 			continue;
 		if (dev->flags & IFF_UP)
 			dev_close(dev);
@@ -534,8 +530,6 @@ static int slcan_open(struct tty_struct *tty)
 
 	sl->tty = tty;
 	tty->disc_data = sl;
-	sl->line = tty_devnum(tty);
-	sl->pid = current->pid;
 
 	if (!test_bit(SLF_INUSE, &sl->flags)) {
 		/* Perform the low-level SLCAN initialization. */
@@ -586,8 +580,6 @@ static void slcan_close(struct tty_struct *tty)
 
 	tty->disc_data = NULL;
 	sl->tty = NULL;
-	if (!sl->leased)
-		sl->line = 0;
 
 	/* Flush network side */
 	unregister_netdev(sl->dev);
