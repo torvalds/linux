@@ -735,6 +735,7 @@ static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
 static void mce_async_out(struct mceusb_dev *ir, unsigned char *data, int size)
 {
 	mce_request_packet(ir, data, size, MCEUSB_TX);
+	msleep(10);
 }
 
 static void mce_flush_rx_buffer(struct mceusb_dev *ir, int size)
