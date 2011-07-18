@@ -109,6 +109,11 @@ struct via_input {
 
 #define VIA_MAX_ADCS	3
 
+enum {
+	STREAM_MULTI_OUT = (1 << 0),
+	STREAM_INDEP_HP = (1 << 1),
+};
+
 struct via_spec {
 	/* codec parameterization */
 	const struct snd_kcontrol_new *mixers[6];
@@ -132,7 +137,8 @@ struct via_spec {
 	hda_nid_t hp_dac_nid;
 	hda_nid_t speaker_dac_nid;
 	int hp_indep_shared;	/* indep HP-DAC is shared with side ch */
-	int num_active_streams;
+	int opened_streams;	/* STREAM_* bits */
+	int active_streams;	/* STREAM_* bits */
 	int aamix_mode;		/* loopback is enabled for output-path? */
 
 	/* Output-paths:
@@ -165,6 +171,12 @@ struct via_spec {
 	int num_inputs;
 	struct via_input inputs[AUTO_CFG_MAX_INS + 1];
 	unsigned int cur_mux[VIA_MAX_ADCS];
+
+	/* dynamic DAC switching */
+	unsigned int cur_dac_stream_tag;
+	unsigned int cur_dac_format;
+	unsigned int cur_hp_stream_tag;
+	unsigned int cur_hp_format;
 
 	/* dynamic ADC switching */
 	hda_nid_t cur_adc;
@@ -207,6 +219,8 @@ struct via_spec {
 	/* bind capture-volume */
 	struct hda_bind_ctls *bind_cap_vol;
 	struct hda_bind_ctls *bind_cap_sw;
+
+	struct mutex config_mutex;
 };
 
 static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec);
@@ -218,6 +232,7 @@ static struct via_spec * via_new_spec(struct hda_codec *codec)
 	if (spec == NULL)
 		return NULL;
 
+	mutex_init(&spec->config_mutex);
 	codec->spec = spec;
 	spec->codec = codec;
 	spec->codec_type = get_codec_type(codec);
@@ -756,6 +771,67 @@ static int via_independent_hp_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+/* adjust spec->multiout setup according to the current flags */
+static void setup_playback_multi_pcm(struct via_spec *spec)
+{
+	const struct auto_pin_cfg *cfg = &spec->autocfg;
+	spec->multiout.num_dacs = cfg->line_outs + spec->smart51_nums;
+	spec->multiout.hp_nid = 0;
+	if (!spec->hp_independent_mode) {
+		if (!spec->hp_indep_shared)
+			spec->multiout.hp_nid = spec->hp_dac_nid;
+	} else {
+		if (spec->hp_indep_shared)
+			spec->multiout.num_dacs = cfg->line_outs - 1;
+	}
+}
+
+/* update DAC setups according to indep-HP switch;
+ * this function is called only when indep-HP is modified
+ */
+static void switch_indep_hp_dacs(struct hda_codec *codec)
+{
+	struct via_spec *spec = codec->spec;
+	int shared = spec->hp_indep_shared;
+	hda_nid_t shared_dac, hp_dac;
+
+	if (!spec->opened_streams)
+		return;
+
+	shared_dac = shared ? spec->multiout.dac_nids[shared] : 0;
+	hp_dac = spec->hp_dac_nid;
+	if (spec->hp_independent_mode) {
+		/* switch to indep-HP mode */
+		if (spec->active_streams & STREAM_MULTI_OUT) {
+			__snd_hda_codec_cleanup_stream(codec, hp_dac, 1);
+			__snd_hda_codec_cleanup_stream(codec, shared_dac, 1);
+		}
+		if (spec->active_streams & STREAM_INDEP_HP)
+			snd_hda_codec_setup_stream(codec, hp_dac,
+						   spec->cur_hp_stream_tag, 0,
+						   spec->cur_hp_format);
+	} else {
+		/* back to HP or shared-DAC */
+		if (spec->active_streams & STREAM_INDEP_HP)
+			__snd_hda_codec_cleanup_stream(codec, hp_dac, 1);
+		if (spec->active_streams & STREAM_MULTI_OUT) {
+			hda_nid_t dac;
+			int ch;
+			if (shared_dac) { /* reset mutli-ch DAC */
+				dac = shared_dac;
+				ch = shared * 2;
+			} else { /* reset HP DAC */
+				dac = hp_dac;
+				ch = 0;
+			}
+			snd_hda_codec_setup_stream(codec, dac,
+						   spec->cur_dac_stream_tag, ch,
+						   spec->cur_dac_format);
+		}
+	}
+	setup_playback_multi_pcm(spec);
+}
+
 static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
@@ -763,13 +839,12 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 	struct via_spec *spec = codec->spec;
 	int cur, shared;
 
-	/* no independent-hp status change during PCM playback is running */
-	if (spec->num_active_streams)
-		return -EBUSY;
-
+	mutex_lock(&spec->config_mutex);
 	cur = !!ucontrol->value.enumerated.item[0];
-	if (spec->hp_independent_mode == cur)
+	if (spec->hp_independent_mode == cur) {
+		mutex_unlock(&spec->config_mutex);
 		return 0;
+	}
 	spec->hp_independent_mode = cur;
 	shared = spec->hp_indep_shared;
 	if (cur) {
@@ -785,6 +860,9 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 					     true, false);
 		activate_output_path(codec, &spec->hp_mix_path, true, false);
 	}
+
+	switch_indep_hp_dacs(codec);
+	mutex_unlock(&spec->config_mutex);
 
 	/* update jack power state */
 	set_widgets_power_state(codec);
@@ -948,7 +1026,7 @@ static void analog_low_current_mode(struct hda_codec *codec)
 	bool enable;
 	unsigned int verb, parm;
 
-	enable = is_aa_path_mute(codec) && (spec->num_active_streams > 0);
+	enable = is_aa_path_mute(codec) && (spec->opened_streams != 0);
 
 	/* decide low current mode's verb & parameter */
 	switch (spec->codec_type) {
@@ -989,14 +1067,14 @@ static const struct hda_verb vt1708_init_verbs[] = {
 	{ }
 };
 
-static void set_stream_active(struct hda_codec *codec, bool active)
+static void set_stream_open(struct hda_codec *codec, int bit, bool active)
 {
 	struct via_spec *spec = codec->spec;
 
 	if (active)
-		spec->num_active_streams++;
+		spec->opened_streams |= bit;
 	else
-		spec->num_active_streams--;
+		spec->opened_streams &= ~bit;
 	analog_low_current_mode(codec);
 }
 
@@ -1008,22 +1086,13 @@ static int via_playback_multi_pcm_open(struct hda_pcm_stream *hinfo,
 	const struct auto_pin_cfg *cfg = &spec->autocfg;
 	int err;
 
-	spec->multiout.hp_nid = 0;
 	spec->multiout.num_dacs = cfg->line_outs + spec->smart51_nums;
-	if (!spec->hp_independent_mode) {
-		if (!spec->hp_indep_shared)
-			spec->multiout.hp_nid = spec->hp_dac_nid;
-	} else {
-		if (spec->hp_indep_shared)
-			spec->multiout.num_dacs = cfg->line_outs - 1;
-	}
 	spec->multiout.max_channels = spec->multiout.num_dacs * 2;
-	set_stream_active(codec, true);
+	set_stream_open(codec, STREAM_MULTI_OUT, true);
 	err = snd_hda_multi_out_analog_open(codec, &spec->multiout, substream,
 					    hinfo);
 	if (err < 0) {
-		spec->multiout.hp_nid = 0;
-		set_stream_active(codec, false);
+		set_stream_open(codec, STREAM_MULTI_OUT, false);
 		return err;
 	}
 	return 0;
@@ -1033,10 +1102,7 @@ static int via_playback_multi_pcm_close(struct hda_pcm_stream *hinfo,
 				  struct hda_codec *codec,
 				  struct snd_pcm_substream *substream)
 {
-	struct via_spec *spec = codec->spec;
-
-	spec->multiout.hp_nid = 0;
-	set_stream_active(codec, false);
+	set_stream_open(codec, STREAM_MULTI_OUT, false);
 	return 0;
 }
 
@@ -1048,9 +1114,7 @@ static int via_playback_hp_pcm_open(struct hda_pcm_stream *hinfo,
 
 	if (snd_BUG_ON(!spec->hp_dac_nid))
 		return -EINVAL;
-	if (!spec->hp_independent_mode || spec->multiout.hp_nid)
-		return -EBUSY;
-	set_stream_active(codec, true);
+	set_stream_open(codec, STREAM_INDEP_HP, true);
 	return 0;
 }
 
@@ -1058,7 +1122,7 @@ static int via_playback_hp_pcm_close(struct hda_pcm_stream *hinfo,
 				     struct hda_codec *codec,
 				     struct snd_pcm_substream *substream)
 {
-	set_stream_active(codec, false);
+	set_stream_open(codec, STREAM_INDEP_HP, false);
 	return 0;
 }
 
@@ -1070,8 +1134,15 @@ static int via_playback_multi_pcm_prepare(struct hda_pcm_stream *hinfo,
 {
 	struct via_spec *spec = codec->spec;
 
+	mutex_lock(&spec->config_mutex);
+	setup_playback_multi_pcm(spec);
 	snd_hda_multi_out_analog_prepare(codec, &spec->multiout, stream_tag,
 					 format, substream);
+	/* remember for dynamic DAC switch with indep-HP */
+	spec->active_streams |= STREAM_MULTI_OUT;
+	spec->cur_dac_stream_tag = stream_tag;
+	spec->cur_dac_format = format;
+	mutex_unlock(&spec->config_mutex);
 	vt1708_start_hp_work(spec);
 	return 0;
 }
@@ -1084,8 +1155,14 @@ static int via_playback_hp_pcm_prepare(struct hda_pcm_stream *hinfo,
 {
 	struct via_spec *spec = codec->spec;
 
-	snd_hda_codec_setup_stream(codec, spec->hp_dac_nid,
-				   stream_tag, 0, format);
+	mutex_lock(&spec->config_mutex);
+	if (spec->hp_independent_mode)
+		snd_hda_codec_setup_stream(codec, spec->hp_dac_nid,
+					   stream_tag, 0, format);
+	spec->active_streams |= STREAM_INDEP_HP;
+	spec->cur_hp_stream_tag = stream_tag;
+	spec->cur_hp_format = format;
+	mutex_unlock(&spec->config_mutex);
 	vt1708_start_hp_work(spec);
 	return 0;
 }
@@ -1096,7 +1173,10 @@ static int via_playback_multi_pcm_cleanup(struct hda_pcm_stream *hinfo,
 {
 	struct via_spec *spec = codec->spec;
 
+	mutex_lock(&spec->config_mutex);
 	snd_hda_multi_out_analog_cleanup(codec, &spec->multiout);
+	spec->active_streams &= ~STREAM_MULTI_OUT;
+	mutex_unlock(&spec->config_mutex);
 	vt1708_stop_hp_work(spec);
 	return 0;
 }
@@ -1107,7 +1187,11 @@ static int via_playback_hp_pcm_cleanup(struct hda_pcm_stream *hinfo,
 {
 	struct via_spec *spec = codec->spec;
 
-	snd_hda_codec_setup_stream(codec, spec->hp_dac_nid, 0, 0, 0);
+	mutex_lock(&spec->config_mutex);
+	if (spec->hp_independent_mode)
+		snd_hda_codec_setup_stream(codec, spec->hp_dac_nid, 0, 0, 0);
+	spec->active_streams &= ~STREAM_INDEP_HP;
+	mutex_unlock(&spec->config_mutex);
 	vt1708_stop_hp_work(spec);
 	return 0;
 }
@@ -1186,10 +1270,12 @@ static int via_dyn_adc_capture_pcm_prepare(struct hda_pcm_stream *hinfo,
 	struct via_spec *spec = codec->spec;
 	int adc_idx = spec->inputs[spec->cur_mux[0]].adc_idx;
 
+	mutex_lock(&spec->config_mutex);
 	spec->cur_adc = spec->adc_nids[adc_idx];
 	spec->cur_adc_stream_tag = stream_tag;
 	spec->cur_adc_format = format;
 	snd_hda_codec_setup_stream(codec, spec->cur_adc, stream_tag, 0, format);
+	mutex_unlock(&spec->config_mutex);
 	return 0;
 }
 
@@ -1199,8 +1285,10 @@ static int via_dyn_adc_capture_pcm_cleanup(struct hda_pcm_stream *hinfo,
 {
 	struct via_spec *spec = codec->spec;
 
+	mutex_lock(&spec->config_mutex);
 	snd_hda_codec_cleanup_stream(codec, spec->cur_adc);
 	spec->cur_adc = 0;
+	mutex_unlock(&spec->config_mutex);
 	return 0;
 }
 
@@ -1210,7 +1298,9 @@ static bool via_dyn_adc_pcm_resetup(struct hda_codec *codec, int cur)
 	struct via_spec *spec = codec->spec;
 	int adc_idx = spec->inputs[cur].adc_idx;
 	hda_nid_t adc = spec->adc_nids[adc_idx];
+	bool ret = false;
 
+	mutex_lock(&spec->config_mutex);
 	if (spec->cur_adc && spec->cur_adc != adc) {
 		/* stream is running, let's swap the current ADC */
 		__snd_hda_codec_cleanup_stream(codec, spec->cur_adc, 1);
@@ -1218,9 +1308,10 @@ static bool via_dyn_adc_pcm_resetup(struct hda_codec *codec, int cur)
 		snd_hda_codec_setup_stream(codec, adc,
 					   spec->cur_adc_stream_tag, 0,
 					   spec->cur_adc_format);
-		return true;
+		ret = true;
 	}
-	return false;
+	mutex_unlock(&spec->config_mutex);
+	return ret;
 }
 
 static const struct hda_pcm_stream via_pcm_analog_playback = {
