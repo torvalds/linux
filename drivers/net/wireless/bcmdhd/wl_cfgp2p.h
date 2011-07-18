@@ -91,16 +91,20 @@ enum wl_cfgp2p_status {
 };
 
 
-#define wl_to_p2p_bss_ndev(w, type) 	((wl)->p2p.bss_idx[type].dev)
-#define wl_to_p2p_bss_bssidx(w, type) 	((wl)->p2p.bss_idx[type].bssidx)
-#define wl_to_p2p_bss_saved_ie(w, type) 	((wl)->p2p.bss_idx[type].saved_ie)
-#define wl_to_p2p_bss(wl, type) ((wl)->p2p.bss_idx[type])
-#define wl_get_p2p_status(wl, stat)   (test_bit(WLP2P_STATUS_ ## stat, &(wl)->p2p.status))
-#define wl_set_p2p_status(wl, stat)   (set_bit(WLP2P_STATUS_ ## stat, &(wl)->p2p.status))
-#define wl_clr_p2p_status(wl, stat)   (clear_bit(WLP2P_STATUS_ ## stat, &(wl)->p2p.status))
-#define wl_chg_p2p_status(wl, stat)   (change_bit(WLP2P_STATUS_ ## stat, &(wl)->p2p.status))
-#define p2p_on(wl) ((wl)->p2p.on)
-#define p2p_scan(wl) ((wl)->p2p.scan)
+#define wl_to_p2p_bss_ndev(w, type) 	((wl)->p2p->bss_idx[type].dev)
+#define wl_to_p2p_bss_bssidx(w, type) 	((wl)->p2p->bss_idx[type].bssidx)
+#define wl_to_p2p_bss_saved_ie(w, type) 	((wl)->p2p->bss_idx[type].saved_ie)
+#define wl_to_p2p_bss(wl, type) ((wl)->p2p->bss_idx[type])
+#define wl_get_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0 : test_bit(WLP2P_STATUS_ ## stat, \
+									&(wl)->p2p->status))
+#define wl_set_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? : set_bit(WLP2P_STATUS_ ## stat, \
+									&(wl)->p2p->status))
+#define wl_clr_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? : clear_bit(WLP2P_STATUS_ ## stat, \
+									&(wl)->p2p->status))
+#define wl_chg_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? : change_bit(WLP2P_STATUS_ ## stat, \
+									&(wl)->p2p->status))
+#define p2p_on(wl) ((wl)->p2p->on)
+#define p2p_scan(wl) ((wl)->p2p->scan)
 
 
 /* dword align allocation */
@@ -131,8 +135,10 @@ enum wl_cfgp2p_status {
 	} while (0)
 
 
-extern void
+extern s32
 wl_cfgp2p_init_priv(struct wl_priv *wl);
+extern void
+wl_cfgp2p_deinit_priv(struct wl_priv *wl);
 extern s32
 wl_cfgp2p_set_firm_p2p(struct wl_priv *wl);
 extern s32
@@ -171,7 +177,7 @@ wl_cfgp2p_find_p2pie(u8 *parse, u32 len);
 
 extern s32
 wl_cfgp2p_set_managment_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssidx,
-            s32 pktflag, const u8 *p2p_ie, u32 p2p_ie_len);
+            s32 pktflag, const u8 *vndr_ie, u32 vndr_ie_len);
 extern s32
 wl_cfgp2p_clear_management_ie(struct wl_priv *wl, s32 bssidx);
 
@@ -220,5 +226,7 @@ wl_cfgp2p_down(struct wl_priv *wl);
 #define SOCIAL_CHAN_3 11
 #define WL_P2P_WILDCARD_SSID "DIRECT-"
 #define WL_P2P_WILDCARD_SSID_LEN 7
+#define WL_P2P_INTERFACE_PREFIX "p2p"
+#define WL_P2P_TEMP_CHAN "11"
 #define IS_P2P_SSID(ssid) (memcmp(ssid, WL_P2P_WILDCARD_SSID, WL_P2P_WILDCARD_SSID_LEN) == 0)
 #endif				/* _wl_cfgp2p_h_ */

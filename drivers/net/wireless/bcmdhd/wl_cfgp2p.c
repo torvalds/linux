@@ -65,14 +65,13 @@ wl_cfgp2p_vndr_ie(struct net_device *ndev, s32 bssidx, s32 pktflag,
  *  Initialize variables related to P2P
  *
  */
-void
+s32
 wl_cfgp2p_init_priv(struct wl_priv *wl)
 {
-	wl->p2p.on = 0;
-	wl->p2p.scan = 0; /* by default , legacy scan */
-	wl->p2p.status = 0;
-	wl->p2p.listen_timer = NULL;
-
+	if (!(wl->p2p = kzalloc(sizeof(struct p2p_info), GFP_KERNEL))) {
+		CFGP2P_ERR(("struct p2p_info allocation failed\n"));
+		return -ENOMEM;
+	}
 #define INIT_IE(IE_TYPE, BSS_TYPE)		\
 	do {							\
 		memset(wl_to_p2p_bss_saved_ie(wl, BSS_TYPE).p2p_ ## IE_TYPE ## _ie, 0, \
@@ -103,17 +102,38 @@ wl_cfgp2p_init_priv(struct wl_priv *wl)
 	wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_CONNECTION) = NULL;
 	wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_CONNECTION) = 0;
 
-}
+	return BCME_OK;
 
+}
+/*
+ *  Deinitialize variables related to P2P
+ *
+ */
+void
+wl_cfgp2p_deinit_priv(struct wl_priv *wl)
+{
+	if (wl->p2p) {
+		kfree(wl->p2p);
+	}
+	wl->p2p_supported = 0;
+}
 /*
  * Set P2P functions into firmware
  */
 s32
 wl_cfgp2p_set_firm_p2p(struct wl_priv *wl)
 {
+	struct net_device *ndev = wl_to_prmry_ndev(wl);
 	s32 ret = BCME_OK;
-
-	/* TODO : Do we have to check whether APSTA is enabled or not ? */
+	s32 val = 0;
+	/* Do we have to check whether APSTA is enabled or not ? */
+	wldev_iovar_getint(ndev, "apsta", &val);
+	if (val == 0) {
+		val = 1;
+		wldev_ioctl(ndev, WLC_DOWN, &val, sizeof(s32), false);
+		wldev_iovar_setint(ndev, "apsta", val);
+		wldev_ioctl(ndev, WLC_UP, &val, sizeof(s32), false);
+	}
 	return ret;
 }
 
@@ -130,7 +150,7 @@ wl_cfgp2p_ifadd(struct wl_priv *wl, struct ether_addr *mac, u8 if_type,
 {
 	wl_p2p_if_t ifreq;
 	s32 err;
-	struct net_device *netdev = wl_to_prmry_ndev(wl);
+	struct net_device *ndev = wl_to_prmry_ndev(wl);
 
 	ifreq.type = if_type;
 	ifreq.chspec = chspec;
@@ -142,7 +162,7 @@ wl_cfgp2p_ifadd(struct wl_priv *wl, struct ether_addr *mac, u8 if_type,
 		(if_type == WL_P2P_IF_GO) ? "go" : "client",
 	        (chspec & WL_CHANSPEC_CHAN_MASK) >> WL_CHANSPEC_CHAN_SHIFT));
 
-	err = wldev_iovar_setbuf(netdev, "p2p_ifadd", &ifreq, sizeof(ifreq),
+	err = wldev_iovar_setbuf(ndev, "p2p_ifadd", &ifreq, sizeof(ifreq),
 		ioctlbuf, sizeof(ioctlbuf));
 	return err;
 }
@@ -571,21 +591,21 @@ wl_cfgp2p_escan(struct wl_priv *wl, struct net_device *dev, u16 active,
 /* Check whether the given IE looks like WFA P2P IE. */
 #define wl_cfgp2p_is_p2p_ie(ie, tlvs, len)	wl_cfgp2p_has_ie(ie, tlvs, len, \
 		(const uint8 *)WFA_OUI, WFA_OUI_LEN, WFA_OUI_TYPE_P2P)
-/* Delete and Set a management ie to firmware
+/* Delete and Set a management vndr ie to firmware
  * Parameters:
  * @wl       : wl_private data
  * @ndev     : net device for bssidx
  * @bssidx   : bssidx for BSS
  * @pktflag  : packet flag for IE (VNDR_IE_PRBREQ_FLAG,VNDR_IE_PRBRSP_FLAG, VNDR_IE_ASSOCRSP_FLAG,
  *                                 VNDR_IE_ASSOCREQ_FLAG)
- * @ie       : probe request ie (WPS IE + P2P IE)
- * @ie_len   : probe request ie length
+ * @ie       :  VNDR IE (such as P2P IE , WPS IE)
+ * @ie_len   : VNDR IE Length
  * Returns 0 if success.
  */
 
 s32
 wl_cfgp2p_set_managment_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssidx,
-    s32 pktflag, const u8 *p2p_ie, u32 p2p_ie_len)
+    s32 pktflag, const u8 *vndr_ie, u32 vndr_ie_len)
 {
 	/* Vendor-specific Information Element ID */
 #define VNDR_SPEC_ELEMENT_ID 0xdd
@@ -601,50 +621,70 @@ wl_cfgp2p_set_managment_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssi
 #define IE_TYPE_LEN(type, bsstype) (wl_to_p2p_bss_saved_ie(wl, bsstype).p2p_ ## type ## _ie_len)
 	if (bssidx == -1)
 		return BCME_BADARG;
-	if (bssidx == P2PAPI_BSSCFG_PRIMARY)
-		bssidx =  wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE);
-	switch (pktflag) {
-		case VNDR_IE_PRBREQ_FLAG :
-			mgmt_ie_buf = IE_TYPE(probe_req, bssidx);
-			mgmt_ie_len = &IE_TYPE_LEN(probe_req, bssidx);
-			mgmt_ie_buf_len = sizeof(IE_TYPE(probe_req, bssidx));
-			break;
-		case VNDR_IE_PRBRSP_FLAG :
-			mgmt_ie_buf = IE_TYPE(probe_res, bssidx);
-			mgmt_ie_len = &IE_TYPE_LEN(probe_res, bssidx);
-			mgmt_ie_buf_len = sizeof(IE_TYPE(probe_res, bssidx));
-			break;
-		case VNDR_IE_ASSOCREQ_FLAG :
-			mgmt_ie_buf = IE_TYPE(assoc_req, bssidx);
-			mgmt_ie_len = &IE_TYPE_LEN(assoc_req, bssidx);
-			mgmt_ie_buf_len = sizeof(IE_TYPE(assoc_req, bssidx));
-			break;
-		case VNDR_IE_ASSOCRSP_FLAG :
-			mgmt_ie_buf = IE_TYPE(assoc_res, bssidx);
-			mgmt_ie_len = &IE_TYPE_LEN(assoc_res, bssidx);
-			mgmt_ie_buf_len = sizeof(IE_TYPE(assoc_res, bssidx));
-			break;
-		case VNDR_IE_BEACON_FLAG :
-			mgmt_ie_buf = IE_TYPE(beacon, bssidx);
-			mgmt_ie_len = &IE_TYPE_LEN(beacon, bssidx);
-			mgmt_ie_buf_len = sizeof(IE_TYPE(beacon, bssidx));
-			break;
-		default:
-			mgmt_ie_buf = NULL;
-			mgmt_ie_len = NULL;
-			CFGP2P_ERR(("not suitable type\n"));
-			return -1;
+	if (wl->p2p_supported && p2p_on(wl)) {
+		if (bssidx == P2PAPI_BSSCFG_PRIMARY)
+			bssidx =  wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE);
+		switch (pktflag) {
+			case VNDR_IE_PRBREQ_FLAG :
+				mgmt_ie_buf = IE_TYPE(probe_req, bssidx);
+				mgmt_ie_len = &IE_TYPE_LEN(probe_req, bssidx);
+				mgmt_ie_buf_len = sizeof(IE_TYPE(probe_req, bssidx));
+				break;
+			case VNDR_IE_PRBRSP_FLAG :
+				mgmt_ie_buf = IE_TYPE(probe_res, bssidx);
+				mgmt_ie_len = &IE_TYPE_LEN(probe_res, bssidx);
+				mgmt_ie_buf_len = sizeof(IE_TYPE(probe_res, bssidx));
+				break;
+			case VNDR_IE_ASSOCREQ_FLAG :
+				mgmt_ie_buf = IE_TYPE(assoc_req, bssidx);
+				mgmt_ie_len = &IE_TYPE_LEN(assoc_req, bssidx);
+				mgmt_ie_buf_len = sizeof(IE_TYPE(assoc_req, bssidx));
+				break;
+			case VNDR_IE_ASSOCRSP_FLAG :
+				mgmt_ie_buf = IE_TYPE(assoc_res, bssidx);
+				mgmt_ie_len = &IE_TYPE_LEN(assoc_res, bssidx);
+				mgmt_ie_buf_len = sizeof(IE_TYPE(assoc_res, bssidx));
+				break;
+			case VNDR_IE_BEACON_FLAG :
+				mgmt_ie_buf = IE_TYPE(beacon, bssidx);
+				mgmt_ie_len = &IE_TYPE_LEN(beacon, bssidx);
+				mgmt_ie_buf_len = sizeof(IE_TYPE(beacon, bssidx));
+				break;
+			default:
+				mgmt_ie_buf = NULL;
+				mgmt_ie_len = NULL;
+				CFGP2P_ERR(("not suitable type\n"));
+				return -1;
+		}
+	} else {
+		switch (pktflag) {
+			case VNDR_IE_PRBRSP_FLAG :
+				mgmt_ie_buf = wl->ap_info->probe_res_ie;
+				mgmt_ie_len = &wl->ap_info->probe_res_ie_len;
+				mgmt_ie_buf_len = sizeof(wl->ap_info->probe_res_ie);
+				break;
+			case VNDR_IE_BEACON_FLAG :
+				mgmt_ie_buf = wl->ap_info->beacon_ie;
+				mgmt_ie_len = &wl->ap_info->beacon_ie_len;
+				mgmt_ie_buf_len = sizeof(wl->ap_info->beacon_ie);
+				break;
+			default:
+				mgmt_ie_buf = NULL;
+				mgmt_ie_len = NULL;
+				CFGP2P_ERR(("not suitable type\n"));
+				return -1;
+		}
 	}
 	/* Add if there is any extra IE */
-	if (p2p_ie && p2p_ie_len) {
-		CFGP2P_INFO(("Request has extra IE"));
-		if (p2p_ie_len > mgmt_ie_buf_len) {
+	if (vndr_ie && vndr_ie_len) {
+		CFGP2P_ERR(("Request has extra IE"));
+		if (vndr_ie_len > mgmt_ie_buf_len) {
 			CFGP2P_ERR(("extra IE size too big\n"));
 			ret = -ENOMEM;
 		} else {
 			if (mgmt_ie_buf != NULL) {
-				if ((p2p_ie_len == *mgmt_ie_len) &&
-				     (memcmp(mgmt_ie_buf, p2p_ie, p2p_ie_len) == 0)) {
+				if ((vndr_ie_len == *mgmt_ie_len) &&
+				     (memcmp(mgmt_ie_buf, vndr_ie, vndr_ie_len) == 0)) {
 					CFGP2P_INFO(("Previous mgmt IE is equals to current IE"));
 					goto exit;
 				}
@@ -666,12 +706,12 @@ wl_cfgp2p_set_managment_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssi
 
 			}
 			/* save the current IE in wl struct */
-			memcpy(mgmt_ie_buf, p2p_ie, p2p_ie_len);
-			*mgmt_ie_len = p2p_ie_len;
+			memcpy(mgmt_ie_buf, vndr_ie, vndr_ie_len);
+			*mgmt_ie_len = vndr_ie_len;
 			pos = 0;
-			ie_buf = (u8 *) p2p_ie;
+			ie_buf = (u8 *) vndr_ie;
 			delete = 0;
-			while (pos < p2p_ie_len) {
+			while (pos < vndr_ie_len) {
 				ie_id = ie_buf[pos++];
 				ie_len = ie_buf[pos++];
 				if ((ie_id == DOT11_MNG_VS_ID) &&
@@ -719,8 +759,6 @@ wl_cfgp2p_clear_management_ie(struct wl_priv *wl, s32 bssidx)
 	INIT_IE(assoc_req, bssidx);
 	INIT_IE(assoc_res, bssidx);
 	INIT_IE(beacon, bssidx);
-
-
 	return BCME_OK;
 }
 
@@ -749,6 +787,7 @@ wl_cfgp2p_has_ie(u8 *ie, u8 **tlvs, u32 *tlvs_len, const u8 *oui, u32 oui_len, u
 
 	return FALSE;
 }
+
 wpa_ie_fixed_t *
 wl_cfgp2p_find_wpaie(u8 *parse, u32 len)
 {
@@ -855,12 +894,17 @@ wl_cfgp2p_find_idx(struct wl_priv *wl, struct net_device *ndev)
 		CFGP2P_ERR((" ndev is NULL\n"));
 		goto exit;
 	}
+	if (!wl->p2p_supported) {
+		return P2PAPI_BSSCFG_PRIMARY;
+	}
 	for (i = 0; i < P2PAPI_BSSCFG_MAX; i++) {
 	    if (ndev == wl_to_p2p_bss_ndev(wl, i)) {
 			index = wl_to_p2p_bss_bssidx(wl, i);
 			break;
 		}
 	}
+	if (index == -1)
+		return P2PAPI_BSSCFG_PRIMARY;
 exit:
 	return index;
 }
@@ -874,12 +918,11 @@ wl_cfgp2p_listen_complete(struct wl_priv *wl, struct net_device *ndev,
 	s32 ret = BCME_OK;
 
 	CFGP2P_DBG((" Enter\n"));
-	/* TODO : have to acquire bottom half lock ? */
 	if (wl_get_p2p_status(wl, LISTEN_EXPIRED) == 0) {
 		wl_set_p2p_status(wl, LISTEN_EXPIRED);
 
-		if (wl->p2p.listen_timer)
-			del_timer_sync(wl->p2p.listen_timer);
+		if (wl->p2p->listen_timer)
+			del_timer_sync(wl->p2p->listen_timer);
 
 		cfg80211_remain_on_channel_expired(ndev, wl->cache_cookie, &wl->remain_on_chan,
 		    wl->remain_on_chan_type, GFP_KERNEL);
@@ -944,12 +987,12 @@ wl_cfgp2p_discover_listen(struct wl_priv *wl, s32 channel, u32 duration_ms)
 	wl_cfgp2p_set_p2p_mode(wl, WL_P2P_DISC_ST_LISTEN, channel, (u16) duration_ms,
 	            wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE));
 
-	if (wl->p2p.listen_timer)
-		del_timer_sync(wl->p2p.listen_timer);
+	if (wl->p2p->listen_timer)
+		del_timer_sync(wl->p2p->listen_timer);
 
-	wl->p2p.listen_timer = kmalloc(sizeof(struct timer_list), GFP_KERNEL);
+	wl->p2p->listen_timer = kmalloc(sizeof(struct timer_list), GFP_KERNEL);
 
-	if (wl->p2p.listen_timer == NULL) {
+	if (wl->p2p->listen_timer == NULL) {
 		CFGP2P_ERR(("listen_timer allocation failed\n"));
 		return -ENOMEM;
 	}
@@ -957,7 +1000,7 @@ wl_cfgp2p_discover_listen(struct wl_priv *wl, s32 channel, u32 duration_ms)
 	/*  We will wait to receive WLC_E_P2P_DISC_LISTEN_COMPLETE from dongle , 
 	 *  otherwise we will wait up to duration_ms + 10ms
 	 */
-	INIT_TIMER(wl->p2p.listen_timer, wl_cfgp2p_listen_expired, duration_ms, 20);
+	INIT_TIMER(wl->p2p->listen_timer, wl_cfgp2p_listen_expired, duration_ms, 20);
 
 #undef INIT_TIMER
 exit:
@@ -986,7 +1029,7 @@ wl_cfgp2p_discover_enable_search(struct wl_priv *wl, u8 enable)
 	 */
 	if (!enable) {
 		wl_clr_p2p_status(wl, SCANNING);
-		(void) wl_cfgp2p_set_p2p_mode(wl, WL_P2P_DISC_ST_SCAN, 0, 0,
+		ret = wl_cfgp2p_set_p2p_mode(wl, WL_P2P_DISC_ST_SCAN, 0, 0,
 		            wl_to_p2p_bss_bssidx(wl, P2PAPI_BSSCFG_DEVICE));
 	}
 
@@ -1214,16 +1257,19 @@ wl_cfgp2p_supported(struct wl_priv *wl, struct net_device *ndev)
 	    CFGP2P_ERR(("wl p2p error %d\n", ret));
 		return 0;
 	}
-	if (p2p_supported)
+	if (p2p_supported == 1) {
 		CFGP2P_INFO(("p2p is supported\n"));
-
+	} else {
+		CFGP2P_INFO(("p2p is unsupported\n"));
+		p2p_supported = 0;
+	}
 	return p2p_supported;
 }
 /* Cleanup P2P resources */
 s32
 wl_cfgp2p_down(struct wl_priv *wl)
 {
-	if (wl->p2p.listen_timer)
-		del_timer_sync(wl->p2p.listen_timer);
+	if (wl->p2p->listen_timer)
+		del_timer_sync(wl->p2p->listen_timer);
 	return 0;
 }

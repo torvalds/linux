@@ -1889,6 +1889,12 @@ iwpriv_set_ap_config(struct net_device *dev,
 		info->cmd, info->flags,
 		wrqu->data.pointer, wrqu->data.length));
 
+	if (!ap_fw_loaded) {
+		WL_ERROR(("Can't execute %s(), SOFTAP fw is not Loaded\n",
+			__FUNCTION__));
+		return -1;
+	}
+
 	if (wrqu->data.length != 0) {
 
 		char *str_ptr;
@@ -1955,12 +1961,13 @@ static int iwpriv_get_assoc_list(struct net_device *dev,
 
 	iw = *(wl_iw_t **)netdev_priv(dev);
 
-	MUTEX_LOCK_SOFTAP_SET(iw->pub);
-	DHD_OS_WAKE_LOCK(iw->pub);
+	net_os_wake_lock(dev);
+	DHD_OS_MUTEX_LOCK(&wl_softap_lock);
 
 	WL_TRACE(("\n %s: IWPRIV IOCTL: cmd:%hx, flags:%hx, extra:%p, iwp.len:%d,"
 		"iwp.len:%p, iwp.flags:%x  \n", __FUNCTION__, info->cmd, info->flags,
 		extra, p_iwrq->data.length, p_iwrq->data.pointer, p_iwrq->data.flags));
+
 
 	memset(sta_maclist, 0, sizeof(mac_buf));
 
@@ -2028,8 +2035,9 @@ static int iwpriv_get_assoc_list(struct net_device *dev,
 	}
 
 func_exit:
-	DHD_OS_WAKE_UNLOCK(iw->pub);
-	MUTEX_UNLOCK_SOFTAP_SET(iw->pub);
+
+	DHD_OS_MUTEX_UNLOCK(&wl_softap_lock);
+	net_os_wake_unlock(dev);
 
 	WL_SOFTAP(("%s: Exited\n", __FUNCTION__));
 	return ret;
@@ -4320,6 +4328,10 @@ wl_iw_iscan_get_scan(
 
 	WL_TRACE(("%s return to WE %d bytes APs=%d\n", __FUNCTION__, dwrq->length, counter));
 
+
+	if (!dwrq->length)
+		return -EAGAIN;
+
 	return 0;
 }
 #endif 
@@ -6266,7 +6278,7 @@ thr_wait_for_2nd_eth_dev(void *data)
 	}
 	DHD_OS_WAKE_LOCK(iw->pub);
 	complete(&tsk_ctl->completed);
-	if (down_timeout(&tsk_ctl->sema,  msecs_to_jiffies(5000)) != 0) {
+	if (down_timeout(&tsk_ctl->sema,  msecs_to_jiffies(1000)) != 0) {
 #else
 	if (down_interruptible(&tsk_ctl->sema) != 0) {
 #endif 
@@ -6289,7 +6301,7 @@ thr_wait_for_2nd_eth_dev(void *data)
 		goto fail;
 	}
 
-	WL_TRACE(("\n>%s: Thread:'softap ethdev IF:%s is detected !!!'\n\n",
+	WL_SOFTAP(("\n>%s: Thread:'softap ethdev IF:%s is detected!'\n\n",
 		__FUNCTION__, ap_net_dev->name));
 
 	ap_cfg_running = TRUE;
@@ -6304,7 +6316,7 @@ fail:
 
 	DHD_OS_WAKE_UNLOCK(iw->pub);
 
-	WL_TRACE(("\n>%s, thread completed\n", __FUNCTION__));
+	WL_SOFTAP(("\n>%s, thread completed\n", __FUNCTION__));
 
 	complete_and_exit(&tsk_ctl->completed, 0);
 	return ret;

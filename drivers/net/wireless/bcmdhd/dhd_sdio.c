@@ -392,6 +392,11 @@ static bool dhd_readahead;
 
 /* To check if there's window offered */
 #define DATAOK(bus) \
+	(((uint8)(bus->tx_max - bus->tx_seq) > 1) && \
+	(((uint8)(bus->tx_max - bus->tx_seq) & 0x80) == 0))
+
+/* To check if there's window offered for ctrl frame*/
+#define TXCTLOK(bus) \
 	(((uint8)(bus->tx_max - bus->tx_seq) != 0) && \
 	(((uint8)(bus->tx_max - bus->tx_seq) & 0x80) == 0))
 
@@ -1364,7 +1369,7 @@ dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 	htol32_ua_store(swheader, frame + SDPCM_FRAMETAG_LEN);
 	htol32_ua_store(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
 
-	if (!DATAOK(bus)) {
+	if (!TXCTLOK(bus)) {
 		DHD_INFO(("%s: No bus credit bus->tx_max %d, bus->tx_seq %d\n",
 			__FUNCTION__, bus->tx_max, bus->tx_seq));
 		bus->ctrl_frame_stat = TRUE;
@@ -2602,46 +2607,44 @@ dhdsdio_doiovar(dhd_bus_t *bus, const bcm_iovar_t *vi, uint32 actionid, const ch
 
 		break;
 #ifdef SOFTAP
-        case IOV_GVAL(IOV_FWPATH):
-        {
-            uint32  fw_path_len;
-    
-            fw_path_len = strlen(bus->fw_path);
-    
-            DHD_INFO(("[softap] get fwpath, l=%d\n", len));
-    
-            if ( fw_path_len > len-1 ) {
-                bcmerror = BCME_BUFTOOSHORT;
-                break;
-            }
-    
-            if ( fw_path_len )
-                bcopy(bus->fw_path, arg, fw_path_len);
-    
-            ((uchar*)arg)[fw_path_len] = 0;
-        }
-        break;
-    
-        case IOV_SVAL(IOV_FWPATH):
-            {
-                DHD_INFO(("[softap] set fwpath, idx=%d\n", int_val));
-    
-                switch(int_val) {
-                case 1:
-                    bus->fw_path = fw_path; /* ordinary one */
-                    break;
-                case 2:
-                    bus->fw_path = fw_path2;
-                    break;
-                default:
-                    bcmerror = BCME_BADARG;
-                    return bcmerror;
-                }
-                
-                DHD_INFO(("[softap] new fw path: %s\n", (bus->fw_path[0]?bus->fw_path:"NULL")));
-            }
-            break;
-#endif
+	case IOV_GVAL(IOV_FWPATH):
+	{
+		uint32  fw_path_len;
+
+		fw_path_len = strlen(bus->fw_path);
+		DHD_INFO(("[softap] get fwpath, l=%d\n", len));
+
+		if (fw_path_len > len-1) {
+			bcmerror = BCME_BUFTOOSHORT;
+			break;
+		}
+
+		if (fw_path_len) {
+			bcopy(bus->fw_path, arg, fw_path_len);
+			((uchar*)arg)[fw_path_len] = 0;
+		}
+		break;
+	}
+
+	case IOV_SVAL(IOV_FWPATH):
+		DHD_INFO(("[softap] set fwpath, idx=%d\n", int_val));
+
+		switch (int_val) {
+		case 1:
+			bus->fw_path = fw_path; /* ordinary one */
+			break;
+		case 2:
+			bus->fw_path = fw_path2;
+			break;
+		default:
+			bcmerror = BCME_BADARG;
+			break;
+		}
+
+		DHD_INFO(("[softap] new fw path: %s\n", (bus->fw_path[0] ? bus->fw_path : "NULL")));
+		break;
+
+#endif /* SOFTAP */
 	case IOV_GVAL(IOV_DEVRESET):
 		DHD_TRACE(("%s: Called get IOV_DEVRESET\n", __FUNCTION__));
 
@@ -4386,6 +4389,12 @@ dhdsdio_dpc(dhd_bus_t *bus)
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
+	if (bus->dhd->busstate == DHD_BUS_DOWN) {
+		DHD_ERROR(("%s: Bus down, ret\n", __FUNCTION__));
+		bus->intstatus = 0;
+		return 0;
+	}
+
 	/* Start with leftover status bits */
 	intstatus = bus->intstatus;
 
@@ -4544,7 +4553,7 @@ clkwait:
 		bcmsdh_intr_enable(sdh);
 	}
 
-	if (DATAOK(bus) && bus->ctrl_frame_stat && (bus->clkstate == CLK_AVAIL))  {
+	if (TXCTLOK(bus) && bus->ctrl_frame_stat && (bus->clkstate == CLK_AVAIL))  {
 		int ret, i;
 
 		ret = dhd_bcmsdh_send_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2, F2SYNC,
@@ -4589,6 +4598,9 @@ clkwait:
 		framecnt = dhdsdio_sendfromq(bus, framecnt);
 		txlimit -= framecnt;
 	}
+	/* Resched the DPC if ctrl cmd is pending on bus credit*/
+	if (bus->ctrl_frame_stat)
+		resched = TRUE;
 
 	/* Resched if events or tx frames are pending, else await next interrupt */
 	/* On failed register access, all bets are off: no resched or interrupts */
@@ -5176,7 +5188,7 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 	sd1idle = TRUE;
 	dhd_readahead = TRUE;
 	retrydata = FALSE;
-	dhd_doflow = TRUE;
+	dhd_doflow = FALSE;
 	dhd_dongle_memsize = 0;
 	dhd_txminmax = DHD_TXMINMAX;
 
@@ -5291,15 +5303,20 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 		goto fail;
 	}
 
-	/* Register interrupt callback, but mask it (not operational yet). */
-	DHD_INTR(("%s: disable SDIO interrupts (not interested yet)\n", __FUNCTION__));
-	bcmsdh_intr_disable(sdh);
-	if ((ret = bcmsdh_intr_reg(sdh, dhdsdio_isr, bus)) != 0) {
-		DHD_ERROR(("%s: FAILED: bcmsdh_intr_reg returned %d\n",
-		           __FUNCTION__, ret));
-		goto fail;
+	if (bus->intr) {
+		/* Register interrupt callback, but mask it (not operational yet). */
+		DHD_INTR(("%s: disable SDIO interrupts (not interested yet)\n", __FUNCTION__));
+		bcmsdh_intr_disable(sdh);
+		if ((ret = bcmsdh_intr_reg(sdh, dhdsdio_isr, bus)) != 0) {
+			DHD_ERROR(("%s: FAILED: bcmsdh_intr_reg returned %d\n",
+			           __FUNCTION__, ret));
+			goto fail;
+		}
+		DHD_INTR(("%s: registered SDIO interrupt function ok\n", __FUNCTION__));
+	} else {
+		DHD_INFO(("%s: SDIO interrupt function is NOT registered due to polling mode\n",
+		           __FUNCTION__));
 	}
-	DHD_INTR(("%s: registered SDIO interrupt function ok\n", __FUNCTION__));
 
 	DHD_INFO(("%s: completed!!\n", __FUNCTION__));
 

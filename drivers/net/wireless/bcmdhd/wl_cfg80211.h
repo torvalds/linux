@@ -114,12 +114,6 @@ do {									\
 				 */
 #define WL_FILE_NAME_MAX		256
 #define WL_DWELL_TIME 	200
-
-/* WiFi Direct */
-#define WL_P2P_WILDCARD_SSID "DIRECT-"
-#define WL_P2P_WILDCARD_SSID_LEN 7
-#define WL_P2P_INTERFACE_PREFIX "p2p"
-#define WL_P2P_TEMP_CHAN "11"
 #define VWDEV_CNT 3
 /* dongle status */
 enum wl_status {
@@ -127,7 +121,9 @@ enum wl_status {
 	WL_STATUS_SCANNING,
 	WL_STATUS_SCAN_ABORTING,
 	WL_STATUS_CONNECTING,
-	WL_STATUS_CONNECTED
+	WL_STATUS_CONNECTED,
+	WL_STATUS_AP_CREATING,
+	WL_STATUS_AP_CREATED
 };
 
 /* wi-fi mode */
@@ -315,6 +311,17 @@ struct escan_info {
     struct wiphy *wiphy;
 };
 
+struct ap_info {
+/* Structure to hold WPS, WPA IEs for a AP */
+	u8   probe_res_ie[IE_MAX_LEN];
+	u8   beacon_ie[IE_MAX_LEN];
+	u32 probe_res_ie_len;
+	u32 beacon_ie_len;
+	u8 *wpa_ie;
+	u8 *rsn_ie;
+	u8 *wps_ie;
+	bool security_mode;
+};
 /* dongle private data of cfg80211 interface */
 struct wl_priv {
 	struct wireless_dev *wdev;	/* representing wl cfg80211 device */
@@ -373,12 +380,13 @@ struct wl_priv {
 	struct dentry *debugfsdir;
 	struct rfkill *rfkill;
 	bool rf_blocked;
-
 	struct ieee80211_channel remain_on_chan;
 	enum nl80211_channel_type remain_on_chan_type;
 	u64 cache_cookie;
 	wait_queue_head_t dongle_event_wait;
-	struct p2p_info p2p;
+	struct ap_info *ap_info;
+	struct p2p_info *p2p;
+	bool p2p_supported;
 	s8 last_eventmask[WL_EVENTING_MASK_LEN];
 	u8 ci[0] __attribute__ ((__aligned__(NETDEV_ALIGN)));
 };
@@ -398,6 +406,10 @@ struct wl_priv {
 #define wl_to_iscan(w) (w->iscan)
 #define wl_to_conn(w) (&w->conn_info)
 #define wiphy_from_scan(w) (w->escan_info.wiphy)
+#define wl_get_drv_status(wl, stat)   (test_bit(WL_STATUS_ ## stat, &(wl)->status))
+#define wl_set_drv_status(wl, stat)   (set_bit(WL_STATUS_ ## stat, &(wl)->status))
+#define wl_clr_drv_status(wl, stat)   (clear_bit(WL_STATUS_ ## stat, &(wl)->status))
+#define wl_chg_drv_status(wl, stat)   (change_bit(WL_STATUS_ ## stat, &(wl)->status))
 
 static inline struct wl_bss_info *next_bss(struct wl_scan_results *list, struct wl_bss_info *bss)
 {
@@ -488,6 +500,7 @@ extern struct sdio_func *wl_cfg80211_get_sdio_func(void);	/* set sdio function i
 extern s32 wl_cfg80211_up(void);	/* dongle up */
 extern s32 wl_cfg80211_down(void);	/* dongle down */
 extern s32 wl_cfg80211_notify_ifadd(struct net_device *net);
+extern s32 wl_cfg80211_ifdel_ops(struct net_device *net);
 extern s32 wl_cfg80211_notify_ifdel(struct net_device *net);
 extern s32 wl_cfg80211_is_progress_ifadd(void);
 extern s32 wl_cfg80211_is_progress_ifchange(void);
@@ -499,6 +512,7 @@ extern s32 wl_cfg80211_read_fw(s8 *buf, u32 size);
 extern void wl_cfg80211_release_fw(void);
 extern s8 *wl_cfg80211_get_fwname(void);
 extern s8 *wl_cfg80211_get_nvramname(void);
+extern s32 wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr);
 #ifdef CONFIG_SYSCTL
 extern s32 wl_cfg80211_sysctl_export_devaddr(void *data);
 #endif
