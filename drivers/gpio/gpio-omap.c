@@ -1090,6 +1090,11 @@ omap_mpuio_alloc_gc(struct gpio_bank *bank, unsigned int irq_start,
 
 	gc = irq_alloc_generic_chip("MPUIO", 1, irq_start, bank->base,
 				    handle_simple_irq);
+	if (!gc) {
+		dev_err(bank->dev, "Memory alloc failed for gc\n");
+		return;
+	}
+
 	ct = gc->chip_types;
 
 	/* NOTE: No ack required, reading IRQ status clears it. */
