@@ -28,6 +28,7 @@
 #include <asm/sizes.h>
 #include <asm/tlb.h>
 #include <asm/fixmap.h>
+#include <asm/memory.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -212,6 +213,14 @@ static void __init arm_bootmem_init(unsigned long start_pfn,
 }
 
 #ifdef CONFIG_ZONE_DMA
+
+#ifdef ARM_DMA_ZONE_SIZE
+unsigned long arm_dma_zone_size = ARM_DMA_ZONE_SIZE;
+#else
+unsigned long arm_dma_zone_size __read_mostly;
+#endif
+EXPORT_SYMBOL(arm_dma_zone_size);
+
 /*
  * The DMA mask corresponding to the maximum bus address allocatable
  * using GFP_DMA.  The default here places no restriction on DMA
@@ -275,19 +284,17 @@ static void __init arm_bootmem_free(unsigned long min, unsigned long max_low,
 #endif
 	}
 
-#ifdef ARM_DMA_ZONE_SIZE
-#ifndef CONFIG_ZONE_DMA
-#error ARM_DMA_ZONE_SIZE set but no DMA zone to limit allocations
-#endif
-
+#ifdef CONFIG_ZONE_DMA
 	/*
 	 * Adjust the sizes according to any special requirements for
 	 * this machine type.
 	 */
-	arm_adjust_dma_zone(zone_size, zhole_size,
-		ARM_DMA_ZONE_SIZE >> PAGE_SHIFT);
-
-	arm_dma_limit = PHYS_OFFSET + ARM_DMA_ZONE_SIZE - 1;
+	if (arm_dma_zone_size) {
+		arm_adjust_dma_zone(zone_size, zhole_size,
+			arm_dma_zone_size >> PAGE_SHIFT);
+		arm_dma_limit = PHYS_OFFSET + arm_dma_zone_size - 1;
+	} else
+		arm_dma_limit = 0xffffffff;
 #endif
 
 	free_area_init_node(0, zone_size, min, zhole_size);
