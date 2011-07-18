@@ -127,7 +127,7 @@ static struct platform_device *samsungq10_device;
 static int __init dmi_check_callback(const struct dmi_system_id *id)
 {
 	printk(KERN_INFO KBUILD_MODNAME ": found model '%s'\n", id->ident);
-	return 0;
+	return 1;
 }
 
 static struct dmi_system_id __initdata samsungq10_dmi_table[] = {
