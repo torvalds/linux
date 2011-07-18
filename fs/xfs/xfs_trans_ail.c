@@ -189,20 +189,6 @@ xfs_trans_ail_cursor_init(
 }
 
 /*
- * Set the cursor to the next item, because when we look
- * up the cursor the current item may have been freed.
- */
-STATIC void
-xfs_trans_ail_cursor_set(
-	struct xfs_ail		*ailp,
-	struct xfs_ail_cursor	*cur,
-	struct xfs_log_item	*lip)
-{
-	if (lip)
-		cur->item = xfs_ail_next(ailp, lip);
-}
-
-/*
  * Get the next item in the traversal and advance the cursor.
  * If the cursor was invalidated (inidicated by a lip of 1),
  * restart the traversal.
@@ -216,7 +202,8 @@ xfs_trans_ail_cursor_next(
 
 	if ((__psint_t)lip & 1)
 		lip = xfs_ail_min(ailp);
-	xfs_trans_ail_cursor_set(ailp, cur, lip);
+	if (lip)
+		cur->item = xfs_ail_next(ailp, lip);
 	return lip;
 }
 
@@ -272,9 +259,10 @@ xfs_trans_ail_cursor_clear(
 }
 
 /*
- * Initialise the cursor to the first item in the AIL with the given @lsn.
- * This searches the list from lowest LSN to highest. Pass a @lsn of zero
- * to initialise the cursor to the first item in the AIL.
+ * Find the first item in the AIL with the given @lsn by searching in ascending
+ * LSN order and initialise the cursor to point to the next item for a
+ * ascending traversal.  Pass a @lsn of zero to initialise the cursor to the
+ * first item in the AIL. Returns NULL if the list is empty.
  */
 xfs_log_item_t *
 xfs_trans_ail_cursor_first(
@@ -285,26 +273,24 @@ xfs_trans_ail_cursor_first(
 	xfs_log_item_t		*lip;
 
 	xfs_trans_ail_cursor_init(ailp, cur);
-	lip = xfs_ail_min(ailp);
-	if (lsn == 0)
+
+	if (lsn == 0) {
+		lip = xfs_ail_min(ailp);
 		goto out;
+	}
 
 	list_for_each_entry(lip, &ailp->xa_ail, li_ail) {
 		if (XFS_LSN_CMP(lip->li_lsn, lsn) >= 0)
 			goto out;
 	}
-	lip = NULL;
+	return NULL;
+
 out:
-	xfs_trans_ail_cursor_set(ailp, cur, lip);
+	if (lip)
+		cur->item = xfs_ail_next(ailp, lip);
 	return lip;
 }
 
-/*
- * Initialise the cursor to the last item in the AIL with the given @lsn.
- * This searches the list from highest LSN to lowest. If there is no item with
- * the value of @lsn, then it sets the cursor to the last item with an LSN lower
- * than @lsn.
- */
 static struct xfs_log_item *
 __xfs_trans_ail_cursor_last(
 	struct xfs_ail		*ailp,
@@ -320,8 +306,10 @@ __xfs_trans_ail_cursor_last(
 }
 
 /*
- * Initialise the cursor to the last item in the AIL with the given @lsn.
- * This searches the list from highest LSN to lowest.
+ * Find the last item in the AIL with the given @lsn by searching in descending
+ * LSN order and initialise the cursor to point to that item.  If there is no
+ * item with the value of @lsn, then it sets the cursor to the last item with an
+ * LSN lower than @lsn.  Returns NULL if the list is empty.
  */
 struct xfs_log_item *
 xfs_trans_ail_cursor_last(
@@ -335,7 +323,7 @@ xfs_trans_ail_cursor_last(
 }
 
 /*
- * splice the log item list into the AIL at the given LSN. We splice to the
+ * Splice the log item list into the AIL at the given LSN. We splice to the
  * tail of the given LSN to maintain insert order for push traversals. The
  * cursor is optional, allowing repeated updates to the same LSN to avoid
  * repeated traversals.
