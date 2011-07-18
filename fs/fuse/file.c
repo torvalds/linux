@@ -1600,15 +1600,32 @@ static loff_t fuse_file_llseek(struct file *file, loff_t offset, int origin)
 	struct inode *inode = file->f_path.dentry->d_inode;
 
 	mutex_lock(&inode->i_mutex);
-	switch (origin) {
-	case SEEK_END:
+	if (origin != SEEK_CUR || origin != SEEK_SET) {
 		retval = fuse_update_attributes(inode, NULL, file, NULL);
 		if (retval)
 			goto exit;
+	}
+
+	switch (origin) {
+	case SEEK_END:
 		offset += i_size_read(inode);
 		break;
 	case SEEK_CUR:
 		offset += file->f_pos;
+		break;
+	case SEEK_DATA:
+		if (offset >= i_size_read(inode)) {
+			retval = -ENXIO;
+			goto exit;
+		}
+		break;
+	case SEEK_HOLE:
+		if (offset >= i_size_read(inode)) {
+			retval = -ENXIO;
+			goto exit;
+		}
+		offset = i_size_read(inode);
+		break;
 	}
 	retval = -EINVAL;
 	if (offset >= 0 && offset <= inode->i_sb->s_maxbytes) {
