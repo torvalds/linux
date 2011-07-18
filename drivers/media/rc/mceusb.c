@@ -1,7 +1,7 @@
 /*
  * Driver for USB Windows Media Center Ed. eHome Infrared Transceivers
  *
- * Copyright (c) 2010 by Jarod Wilson <jarod@redhat.com>
+ * Copyright (c) 2010-2011, Jarod Wilson <jarod@redhat.com>
  *
  * Based on the original lirc_mceusb and lirc_mceusb2 drivers, by Dan
  * Conti, Martin Blatter and Daniel Melander, the latter of which was
@@ -14,6 +14,11 @@
  * partially on a port to an earlier proposed IR infrastructure by
  * Jon Smirl, which included enhancements and simplifications to the
  * incoming IR buffer parsing routines.
+ *
+ * Updated in July of 2011 with the aid of Microsoft's official
+ * remote/transceiver requirements and specification document, found at
+ * download.microsoft.com, title
+ * Windows-Media-Center-RC-IR-Collection-Green-Button-Specification-03-08-2011-V2.pdf
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -40,8 +45,8 @@
 #include <linux/pm_wakeup.h>
 #include <media/rc-core.h>
 
-#define DRIVER_VERSION	"1.91"
-#define DRIVER_AUTHOR	"Jarod Wilson <jarod@wilsonet.com>"
+#define DRIVER_VERSION	"1.92"
+#define DRIVER_AUTHOR	"Jarod Wilson <jarod@redhat.com>"
 #define DRIVER_DESC	"Windows Media Center Ed. eHome Infrared Transceiver " \
 			"device driver"
 #define DRIVER_NAME	"mceusb"
