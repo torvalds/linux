@@ -807,7 +807,6 @@ static int slip_open(struct tty_struct *tty)
 
 	sl->tty = tty;
 	tty->disc_data = sl;
-	sl->line = tty_devnum(tty);
 	sl->pid = current->pid;
 
 	if (!test_bit(SLF_INUSE, &sl->flags)) {
@@ -874,8 +873,6 @@ static void slip_close(struct tty_struct *tty)
 
 	tty->disc_data = NULL;
 	sl->tty = NULL;
-	if (!sl->leased)
-		sl->line = 0;
 
 	/* VSV = very important to remove timers */
 #ifdef CONFIG_SLIP_SMART
