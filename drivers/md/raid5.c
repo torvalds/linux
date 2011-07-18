@@ -4014,7 +4014,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 				}
 			}
 
-			if (bio_data_dir(bi) == WRITE &&
+			if (rw == WRITE &&
 			    logical_sector >= mddev->suspend_lo &&
 			    logical_sector < mddev->suspend_hi) {
 				release_stripe(sh);
@@ -4032,7 +4032,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 			}
 
 			if (test_bit(STRIPE_EXPANDING, &sh->state) ||
-			    !add_stripe_bio(sh, bi, dd_idx, (bi->bi_rw&RW_MASK))) {
+			    !add_stripe_bio(sh, bi, dd_idx, rw)) {
 				/* Stripe is busy expanding or
 				 * add failed due to overlap.  Flush everything
 				 * and wait a while
