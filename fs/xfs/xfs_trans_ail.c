@@ -272,9 +272,9 @@ xfs_trans_ail_cursor_clear(
 }
 
 /*
- * Return the item in the AIL with the current lsn.
- * Return the current tree generation number for use
- * in calls to xfs_trans_next_ail().
+ * Initialise the cursor to the first item in the AIL with the given @lsn.
+ * This searches the list from lowest LSN to highest. Pass a @lsn of zero
+ * to initialise the cursor to the first item in the AIL.
  */
 xfs_log_item_t *
 xfs_trans_ail_cursor_first(
@@ -300,31 +300,97 @@ out:
 }
 
 /*
- * splice the log item list into the AIL at the given LSN.
+ * Initialise the cursor to the last item in the AIL with the given @lsn.
+ * This searches the list from highest LSN to lowest. If there is no item with
+ * the value of @lsn, then it sets the cursor to the last item with an LSN lower
+ * than @lsn.
+ */
+static struct xfs_log_item *
+__xfs_trans_ail_cursor_last(
+	struct xfs_ail		*ailp,
+	xfs_lsn_t		lsn)
+{
+	xfs_log_item_t		*lip;
+
+	list_for_each_entry_reverse(lip, &ailp->xa_ail, li_ail) {
+		if (XFS_LSN_CMP(lip->li_lsn, lsn) <= 0)
+			return lip;
+	}
+	return NULL;
+}
+
+/*
+ * Initialise the cursor to the last item in the AIL with the given @lsn.
+ * This searches the list from highest LSN to lowest.
+ */
+struct xfs_log_item *
+xfs_trans_ail_cursor_last(
+	struct xfs_ail		*ailp,
+	struct xfs_ail_cursor	*cur,
+	xfs_lsn_t		lsn)
+{
+	xfs_trans_ail_cursor_init(ailp, cur);
+	cur->item = __xfs_trans_ail_cursor_last(ailp, lsn);
+	return cur->item;
+}
+
+/*
+ * splice the log item list into the AIL at the given LSN. We splice to the
+ * tail of the given LSN to maintain insert order for push traversals. The
+ * cursor is optional, allowing repeated updates to the same LSN to avoid
+ * repeated traversals.
  */
 static void
 xfs_ail_splice(
-	struct xfs_ail  *ailp,
-	struct list_head *list,
-	xfs_lsn_t       lsn)
+	struct xfs_ail		*ailp,
+	struct xfs_ail_cursor	*cur,
+	struct list_head	*list,
+	xfs_lsn_t		lsn)
 {
-	xfs_log_item_t  *next_lip;
+	struct xfs_log_item	*lip = cur ? cur->item : NULL;
+	struct xfs_log_item	*next_lip;
 
-	/* If the list is empty, just insert the item.  */
-	if (list_empty(&ailp->xa_ail)) {
-		list_splice(list, &ailp->xa_ail);
-		return;
+	/*
+	 * Get a new cursor if we don't have a placeholder or the existing one
+	 * has been invalidated.
+	 */
+	if (!lip || (__psint_t)lip & 1) {
+		lip = __xfs_trans_ail_cursor_last(ailp, lsn);
+
+		if (!lip) {
+			/* The list is empty, so just splice and return.  */
+			if (cur)
+				cur->item = NULL;
+			list_splice(list, &ailp->xa_ail);
+			return;
+		}
 	}
 
-	list_for_each_entry_reverse(next_lip, &ailp->xa_ail, li_ail) {
-		if (XFS_LSN_CMP(next_lip->li_lsn, lsn) <= 0)
-			break;
+	/*
+	 * Our cursor points to the item we want to insert _after_, so we have
+	 * to update the cursor to point to the end of the list we are splicing
+	 * in so that it points to the correct location for the next splice.
+	 * i.e. before the splice
+	 *
+	 *  lsn -> lsn -> lsn + x -> lsn + x ...
+	 *          ^
+	 *          | cursor points here
+	 *
+	 * After the splice we have:
+	 *
+	 *  lsn -> lsn -> lsn -> lsn -> .... -> lsn -> lsn + x -> lsn + x ...
+	 *          ^                            ^
+	 *          | cursor points here         | needs to move here
+	 *
+	 * So we set the cursor to the last item in the list to be spliced
+	 * before we execute the splice, resulting in the cursor pointing to
+	 * the correct item after the splice occurs.
+	 */
+	if (cur) {
+		next_lip = list_entry(list->prev, struct xfs_log_item, li_ail);
+		cur->item = next_lip;
 	}
-
-	ASSERT(&next_lip->li_ail == &ailp->xa_ail ||
-	       XFS_LSN_CMP(next_lip->li_lsn, lsn) <= 0);
-
-	list_splice_init(list, &next_lip->li_ail);
+	list_splice(list, &lip->li_ail);
 }
 
 /*
@@ -645,6 +711,7 @@ xfs_trans_unlocked_item(
 void
 xfs_trans_ail_update_bulk(
 	struct xfs_ail		*ailp,
+	struct xfs_ail_cursor	*cur,
 	struct xfs_log_item	**log_items,
 	int			nr_items,
 	xfs_lsn_t		lsn) __releases(ailp->xa_lock)
@@ -674,7 +741,7 @@ xfs_trans_ail_update_bulk(
 		list_add(&lip->li_ail, &tmp);
 	}
 
-	xfs_ail_splice(ailp, &tmp, lsn);
+	xfs_ail_splice(ailp, cur, &tmp, lsn);
 
 	if (!mlip_changed) {
 		spin_unlock(&ailp->xa_lock);
