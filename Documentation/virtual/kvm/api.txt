@@ -175,10 +175,17 @@ Parameters: vcpu id (apic id on x86)
 Returns: vcpu fd on success, -1 on error
 
 This API adds a vcpu to a virtual machine.  The vcpu id is a small integer
-in the range [0, max_vcpus).  You can use KVM_CAP_NR_VCPUS of the
-KVM_CHECK_EXTENSION ioctl() to determine the value for max_vcpus at run-time.
+in the range [0, max_vcpus).
+
+The recommended max_vcpus value can be retrieved using the KVM_CAP_NR_VCPUS of
+the KVM_CHECK_EXTENSION ioctl() at run-time.
+The maximum possible value for max_vcpus can be retrieved using the
+KVM_CAP_MAX_VCPUS of the KVM_CHECK_EXTENSION ioctl() at run-time.
+
 If the KVM_CAP_NR_VCPUS does not exist, you should assume that max_vcpus is 4
 cpus max.
+If the KVM_CAP_MAX_VCPUS does not exist, you should assume that max_vcpus is
+same as the value returned from KVM_CAP_NR_VCPUS.
 
 On powerpc using book3s_hv mode, the vcpus are mapped onto virtual
 threads in one or more virtual CPU cores.  (This is because the

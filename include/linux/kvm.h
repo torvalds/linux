@@ -463,7 +463,7 @@ struct kvm_ppc_pvinfo {
 #define KVM_CAP_VAPIC 6
 #define KVM_CAP_EXT_CPUID 7
 #define KVM_CAP_CLOCKSOURCE 8
-#define KVM_CAP_NR_VCPUS 9       /* returns max vcpus per vm */
+#define KVM_CAP_NR_VCPUS 9       /* returns recommended max vcpus per vm */
 #define KVM_CAP_NR_MEMSLOTS 10   /* returns max memory slots per vm */
 #define KVM_CAP_PIT 11
 #define KVM_CAP_NOP_IO_DELAY 12
@@ -553,6 +553,7 @@ struct kvm_ppc_pvinfo {
 #define KVM_CAP_SPAPR_TCE 63
 #define KVM_CAP_PPC_SMT 64
 #define KVM_CAP_PPC_RMA	65
+#define KVM_CAP_MAX_VCPUS 66       /* returns max vcpus per vm */
 #define KVM_CAP_S390_GMAP 71
 
 #ifdef KVM_CAP_IRQ_ROUTING
