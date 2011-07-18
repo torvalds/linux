@@ -13,6 +13,7 @@
 #include <linux/fs.h>
 #include <linux/mutex.h>
 #include <linux/buffer_head.h>
+#include <linux/blkdev.h>
 #include "hfsplus_raw.h"
 
 #define DBG_BNODE_REFS	0x00000001
@@ -110,7 +111,9 @@ struct hfsplus_vh;
 struct hfs_btree;
 
 struct hfsplus_sb_info {
+	void *s_vhdr_buf;
 	struct hfsplus_vh *s_vhdr;
+	void *s_backup_vhdr_buf;
 	struct hfsplus_vh *s_backup_vhdr;
 	struct hfs_btree *ext_tree;
 	struct hfs_btree *cat_tree;
@@ -257,6 +260,15 @@ struct hfsplus_readdir_data {
 	struct file *file;
 	struct hfsplus_cat_key key;
 };
+
+/*
+ * Find minimum acceptible I/O size for an hfsplus sb.
+ */
+static inline unsigned short hfsplus_min_io_size(struct super_block *sb)
+{
+	return max_t(unsigned short, bdev_logical_block_size(sb->s_bdev),
+		     HFSPLUS_SECTOR_SIZE);
+}
 
 #define hfs_btree_open hfsplus_btree_open
 #define hfs_btree_close hfsplus_btree_close
@@ -436,8 +448,8 @@ int hfsplus_compare_dentry(const struct dentry *parent,
 /* wrapper.c */
 int hfsplus_read_wrapper(struct super_block *);
 int hfs_part_find(struct super_block *, sector_t *, sector_t *);
-int hfsplus_submit_bio(struct block_device *bdev, sector_t sector,
-		void *data, int rw);
+int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
+		void *buf, void **data, int rw);
 
 /* time macros */
 #define __hfsp_mt2ut(t)		(be32_to_cpu(t) - 2082844800U)
