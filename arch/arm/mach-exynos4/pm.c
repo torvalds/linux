@@ -207,7 +207,10 @@ static struct sleep_save exynos4_l2cc_save[] = {
 	SAVE_ITEM(S5P_VA_L2CC + L2X0_AUX_CTRL),
 };
 
-void exynos4_cpu_suspend(void)
+/* For Cortex-A9 Diagnostic and Power control register */
+static unsigned int save_arm_register[2];
+
+void exynos4_cpu_suspend(unsigned long arg)
 {
 	outer_flush_all();
 
@@ -301,6 +304,16 @@ static int exynos4_pm_suspend(void)
 	tmp &= ~S5P_CENTRAL_LOWPWR_CFG;
 	__raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
 
+	/* Save Power control register */
+	asm ("mrc p15, 0, %0, c15, c0, 0"
+	     : "=r" (tmp) : : "cc");
+	save_arm_register[0] = tmp;
+
+	/* Save Diagnostic register */
+	asm ("mrc p15, 0, %0, c15, c0, 1"
+	     : "=r" (tmp) : : "cc");
+	save_arm_register[1] = tmp;
+
 	return 0;
 }
 
@@ -321,6 +334,17 @@ static void exynos4_pm_resume(void)
 		/* No need to perform below restore code */
 		goto early_wakeup;
 	}
+	/* Restore Power control register */
+	tmp = save_arm_register[0];
+	asm volatile ("mcr p15, 0, %0, c15, c0, 0"
+		      : : "r" (tmp)
+		      : "cc");
+
+	/* Restore Diagnostic register */
+	tmp = save_arm_register[1];
+	asm volatile ("mcr p15, 0, %0, c15, c0, 1"
+		      : : "r" (tmp)
+		      : "cc");
 
 	/* For release retention */
 
