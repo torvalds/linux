@@ -267,7 +267,10 @@ void dlm_callback_work(struct work_struct *work)
 int dlm_callback_start(struct dlm_ls *ls)
 {
 	ls->ls_callback_wq = alloc_workqueue("dlm_callback",
-					     WQ_UNBOUND | WQ_MEM_RECLAIM, 1);
+					     WQ_UNBOUND |
+					     WQ_MEM_RECLAIM |
+					     WQ_NON_REENTRANT,
+					     0);
 	if (!ls->ls_callback_wq) {
 		log_print("can't start dlm_callback workqueue");
 		return -ENOMEM;
