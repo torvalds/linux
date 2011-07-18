@@ -33,8 +33,8 @@
 #include <linux/delay.h>
 #include <linux/edac.h>
 #include <linux/mmzone.h>
-#include <linux/edac_mce.h>
 #include <linux/smp.h>
+#include <asm/mce.h>
 #include <asm/processor.h>
 
 #include "edac_core.h"
@@ -264,9 +264,6 @@ struct i7core_pvt {
 	int		rdimm_last_ce_count[NUM_CHANS][MAX_DIMMS];
 
 	bool		is_registered, enable_scrub;
-
-	/* mcelog glue */
-	struct edac_mce		edac_mce;
 
 	/* Fifo double buffers */
 	struct mce		mce_entry[MCE_LOG_LEN];
@@ -1899,33 +1896,43 @@ check_ce_error:
  * WARNING: As this routine should be called at NMI time, extra care should
  * be taken to avoid deadlocks, and to be as fast as possible.
  */
-static int i7core_mce_check_error(void *priv, struct mce *mce)
+static int i7core_mce_check_error(struct notifier_block *nb, unsigned long val,
+				  void *data)
 {
-	struct mem_ctl_info *mci = priv;
-	struct i7core_pvt *pvt = mci->pvt_info;
+	struct mce *mce = (struct mce *)data;
+	struct i7core_dev *i7_dev;
+	struct mem_ctl_info *mci;
+	struct i7core_pvt *pvt;
+
+	i7_dev = get_i7core_dev(mce->socketid);
+	if (!i7_dev)
+		return NOTIFY_BAD;
+
+	mci = i7_dev->mci;
+	pvt = mci->pvt_info;
 
 	/*
 	 * Just let mcelog handle it if the error is
 	 * outside the memory controller
 	 */
 	if (((mce->status & 0xffff) >> 7) != 1)
-		return 0;
+		return NOTIFY_DONE;
 
 	/* Bank 8 registers are the only ones that we know how to handle */
 	if (mce->bank != 8)
-		return 0;
+		return NOTIFY_DONE;
 
 #ifdef CONFIG_SMP
 	/* Only handle if it is the right mc controller */
 	if (mce->socketid != pvt->i7core_dev->socket)
-		return 0;
+		return NOTIFY_DONE;
 #endif
 
 	smp_rmb();
 	if ((pvt->mce_out + 1) % MCE_LOG_LEN == pvt->mce_in) {
 		smp_wmb();
 		pvt->mce_overrun++;
-		return 0;
+		return NOTIFY_DONE;
 	}
 
 	/* Copy memory error at the ringbuffer */
@@ -1938,8 +1945,12 @@ static int i7core_mce_check_error(void *priv, struct mce *mce)
 		i7core_check_error(mci);
 
 	/* Advise mcelog that the errors were handled */
-	return 1;
+	return NOTIFY_STOP;
 }
+
+static struct notifier_block i7_mce_dec = {
+	.notifier_call	= i7core_mce_check_error,
+};
 
 /*
  * set_sdram_scrub_rate		This routine sets byte/sec bandwidth scrub rate
@@ -2093,8 +2104,7 @@ static void i7core_unregister_mci(struct i7core_dev *i7core_dev)
 	if (pvt->enable_scrub)
 		disable_sdram_scrub_setting(mci);
 
-	/* Disable MCE NMI handler */
-	edac_mce_unregister(&pvt->edac_mce);
+	atomic_notifier_chain_unregister(&x86_mce_decoder_chain, &i7_mce_dec);
 
 	/* Disable EDAC polling */
 	i7core_pci_ctl_release(pvt);
@@ -2193,21 +2203,10 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	/* allocating generic PCI control info */
 	i7core_pci_ctl_create(pvt);
 
-	/* Registers on edac_mce in order to receive memory errors */
-	pvt->edac_mce.priv = mci;
-	pvt->edac_mce.check_error = i7core_mce_check_error;
-	rc = edac_mce_register(&pvt->edac_mce);
-	if (unlikely(rc < 0)) {
-		debugf0("MC: " __FILE__
-			": %s(): failed edac_mce_register()\n", __func__);
-		goto fail1;
-	}
+	atomic_notifier_chain_register(&x86_mce_decoder_chain, &i7_mce_dec);
 
 	return 0;
 
-fail1:
-	i7core_pci_ctl_release(pvt);
-	edac_mc_del_mc(mci->dev);
 fail0:
 	kfree(mci->ctl_name);
 	edac_mc_free(mci);
