@@ -533,6 +533,9 @@ struct htc_target {
 
 	u32 block_sz;
 	u32 block_mask;
+
+	int max_scat_entries;
+	int max_xfer_szper_scatreq;
 };
 
 void *htc_create(struct ath6kl *ar);

@@ -663,10 +663,10 @@ static void ath6kl_sdio_cleanup_scatter(struct ath6kl *ar)
 }
 
 /* setup of HIF scatter resources */
-static int ath6kl_sdio_enable_scatter(struct ath6kl *ar,
-				      struct hif_dev_scat_sup_info *pinfo)
+static int ath6kl_sdio_enable_scatter(struct ath6kl *ar)
 {
 	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
+	struct htc_target *target = ar->htc_target;
 	int ret;
 	bool virt_scat = false;
 
@@ -689,8 +689,8 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar,
 				   MAX_SCATTER_REQUESTS,
 				   MAX_SCATTER_ENTRIES_PER_REQ);
 
-			pinfo->max_scat_entries = MAX_SCATTER_ENTRIES_PER_REQ;
-			pinfo->max_xfer_szper_scatreq =
+			target->max_scat_entries = MAX_SCATTER_ENTRIES_PER_REQ;
+			target->max_xfer_szper_scatreq =
 						MAX_SCATTER_REQ_TRANSFER_SIZE;
 		} else {
 			ath6kl_sdio_cleanup_scatter(ar);
@@ -713,8 +713,8 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar,
 			   "Vitual scatter enabled, max_scat_req:%d, entries:%d\n",
 			   ATH6KL_SCATTER_REQS, ATH6KL_SCATTER_ENTRIES_PER_REQ);
 
-		pinfo->max_scat_entries = ATH6KL_SCATTER_ENTRIES_PER_REQ;
-		pinfo->max_xfer_szper_scatreq =
+		target->max_scat_entries = ATH6KL_SCATTER_ENTRIES_PER_REQ;
+		target->max_xfer_szper_scatreq =
 					ATH6KL_MAX_TRANSFER_SIZE_PER_SCATTER;
 	}
 

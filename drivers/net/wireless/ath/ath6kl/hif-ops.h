@@ -53,10 +53,9 @@ static inline void hif_scatter_req_add(struct ath6kl *ar,
 	return ar->hif_ops->scatter_req_add(ar, s_req);
 }
 
-static inline int ath6kl_hif_enable_scatter(struct ath6kl *ar,
-					    struct hif_dev_scat_sup_info *info)
+static inline int ath6kl_hif_enable_scatter(struct ath6kl *ar)
 {
-	return ar->hif_ops->enable_scatter(ar, info);
+	return ar->hif_ops->enable_scatter(ar);
 }
 
 static inline int ath6kl_hif_scat_req_rw(struct ath6kl *ar,

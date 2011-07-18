@@ -432,10 +432,7 @@ static void htc_issue_send_bundle(struct htc_endpoint *endpoint,
 {
 	struct htc_target *target = endpoint->target;
 	struct hif_scatter_req *scat_req = NULL;
-	struct hif_dev_scat_sup_info hif_info;
 	int n_scat, n_sent_bundle = 0, tot_pkts_bundle = 0;
-
-	hif_info = target->dev->hif_scat_info;
 
 	while (true) {
 		n_scat = get_queue_depth(queue);
@@ -2168,19 +2165,17 @@ int htc_get_rxbuf_num(struct htc_target *target, enum htc_endpoint_id endpoint)
 
 static void htc_setup_msg_bndl(struct htc_target *target)
 {
-	struct hif_dev_scat_sup_info *scat_info = &target->dev->hif_scat_info;
-
 	/* limit what HTC can handle */
 	target->msg_per_bndl_max = min(HTC_HOST_MAX_MSG_PER_BUNDLE,
 				       target->msg_per_bndl_max);
 
-	if (ath6kl_hif_enable_scatter(target->dev->ar, scat_info)) {
+	if (ath6kl_hif_enable_scatter(target->dev->ar)) {
 		target->msg_per_bndl_max = 0;
 		return;
 	}
 
 	/* limit bundle what the device layer can handle */
-	target->msg_per_bndl_max = min(scat_info->max_scat_entries,
+	target->msg_per_bndl_max = min(target->max_scat_entries,
 				       target->msg_per_bndl_max);
 
 	ath6kl_dbg(ATH6KL_DBG_TRC,
@@ -2188,10 +2183,10 @@ static void htc_setup_msg_bndl(struct htc_target *target)
 		   target->msg_per_bndl_max);
 
 	/* Max rx bundle size is limited by the max tx bundle size */
-	target->max_rx_bndl_sz = scat_info->max_xfer_szper_scatreq;
+	target->max_rx_bndl_sz = target->max_xfer_szper_scatreq;
 	/* Max tx bundle size if limited by the extended mbox address range */
 	target->max_tx_bndl_sz = min(HIF_MBOX0_EXT_WIDTH,
-				     scat_info->max_xfer_szper_scatreq);
+				     target->max_xfer_szper_scatreq);
 
 	ath6kl_dbg(ATH6KL_DBG_ANY, "max recv: %d max send: %d\n",
 		   target->max_rx_bndl_sz, target->max_tx_bndl_sz);
