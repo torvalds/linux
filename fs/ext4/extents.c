@@ -3320,8 +3320,8 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	trace_ext4_ext_map_blocks_enter(inode, map->m_lblk, map->m_len, flags);
 
 	/* check in cache */
-	if (ext4_ext_in_cache(inode, map->m_lblk, &newex) &&
-		((flags & EXT4_GET_BLOCKS_PUNCH_OUT_EXT) == 0)) {
+	if (!(flags & EXT4_GET_BLOCKS_PUNCH_OUT_EXT) &&
+		ext4_ext_in_cache(inode, map->m_lblk, &newex)) {
 		if (!newex.ee_start_lo && !newex.ee_start_hi) {
 			if ((flags & EXT4_GET_BLOCKS_CREATE) == 0) {
 				/*
