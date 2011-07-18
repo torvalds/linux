@@ -469,7 +469,8 @@ out:
 	ath6kl_dbg(ATH6KL_DBG_IRQ,
 		   "bypassing irq status re-check, forcing done\n");
 
-	*done = true;
+	if (!dev->chk_irq_status_cnt)
+		*done = true;
 
 	ath6kl_dbg(ATH6KL_DBG_IRQ,
 		   "proc_pending_irqs: (done:%d, status=%d\n", *done, status);
