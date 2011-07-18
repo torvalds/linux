@@ -1541,10 +1541,10 @@ struct wm8994_pdata wm8994_platdata = {
 	.earpiece_incall_vol = 0,
 	.headset_incall_vol = 6,
 	.headset_incall_mic_vol = -6,
-	.headset_normal_vol = 6,
+	.headset_normal_vol = -6,
 	.BT_incall_vol = 0,
 	.BT_incall_mic_vol = 0,
-	.recorder_vol = 50,
+	.recorder_vol = 30,
 		
 };
 //#endif 

@@ -586,8 +586,9 @@ static int wm8994_sysclk_config(void)
 
 static void wm8994_set_AIF1DAC_EQ(void)
 {
-	int bank_vol[6] = {0,0,-3,3,-6,3};
-	
+	//100HZ. 300HZ.  875HZ  2400HZ    6900HZ
+//	int bank_vol[6] = {0,0,-3,3,-6,3};//-12DB ~ 12DB   default 0DB
+	int bank_vol[6] = {6,2,0,0,0,0};//-12DB ~ 12DB   default 0DB	
 	wm8994_write(0x0480, 0x0001|((bank_vol[1]+12)<<11)|
 		((bank_vol[2]+12)<<6)|((bank_vol[3]+12)<<1));
 	wm8994_write(0x0481, 0x0000|((bank_vol[4]+12)<<11)|
@@ -674,6 +675,7 @@ static void wm8994_set_channel_vol(void)
 		vol = pdata->headset_normal_vol;
 		wm8994_write(0x1C,  320+vol+57);  //-57dB~6dB
 		wm8994_write(0x1D,  320+vol+57);  //-57dB~6dB
+	//	wm8994_set_AIF1DAC_EQ();
 		break;
 
 	case wm8994_recorder_and_AP_to_speakers:
@@ -1153,7 +1155,38 @@ void FM_to_speakers_and_record(void)
 	wm8994_write(0x620,  0x0000);
 }
 
+void record_only(void)
+{
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+	wm8994_write(0,0);
+	msleep(WM8994_DELAY);
 
+	wm8994_write(0x01,  0x0003);
+	msleep(WM8994_DELAY);
+//clk
+	wm8994_sysclk_config();
+	wm8994_write(0x300, 0xC010); //AIF1ADCL_SRC=1, AIF1ADCR_SRC=1, AIF1_WL=00, AIF1_FMT=10
+//	wm8994_write(0x300, 0xC050); // AIF1ADCL_SRC=1, AIF1ADCR_SRC=1, AIF1_WL=10, AIF1_FMT=10
+	
+//path
+	wm8994_write(0x28,  0x0003); // IN1RP_TO_IN1R=1, IN1RN_TO_IN1R=1
+	wm8994_write(0x2A,  0x0030); //IN1R_TO_MIXINR   IN1R_MIXINR_VOL
+	wm8994_write(0x606, 0x0002); // ADC1L_TO_AIF1ADC1L=1
+	wm8994_write(0x607, 0x0002); // ADC1R_TO_AIF1ADC1R=1
+	wm8994_write(0x620, 0x0000); //ADC_OSR128=0, DAC_OSR128=0	
+//DRC
+	wm8994_write(0x440, 0x01BF);
+	wm8994_write(0x450, 0x01BF);	
+//valume
+	wm8994_write(0x1A,  0x014B);//IN1_VU=1, IN1R_MUTE=0, IN1R_ZC=1, IN1R_VOL=0_1011
+	wm8994_write(0x402, 0x01FF); // AIF1ADC1L_VOL [7:0]
+	wm8994_write(0x403, 0x01FF); // AIF1ADC1R_VOL [7:0]
+	
+//power
+	wm8994_write(0x02,  0x6110); // TSHUT_ENA=1, TSHUT_OPDIS=1, MIXINR_ENA=1,IN1R_ENA=1
+	wm8994_write(0x04,  0x0303); // AIF1ADC1L_ENA=1, AIF1ADC1R_ENA=1, ADCL_ENA=1, ADCR_ENA=1	
+	wm8994_write(0x01,  0x3033);
+}
 
 void AP_to_speakers_and_headset(void)
 {
@@ -1229,23 +1262,23 @@ void recorder_and_AP_to_headset(void)
 	wm8994_write(0x28,  0x0003); // IN1RP_TO_IN1R=1, IN1RN_TO_IN1R=1
 	wm8994_write(0x606, 0x0002); // ADC1L_TO_AIF1ADC1L=1
 	wm8994_write(0x607, 0x0002); // ADC1R_TO_AIF1ADC1R=1
-	wm8994_write(0x620, 0x0000); 
+	wm8994_write(0x620, 0x0001); 
 	wm8994_write(0x402, 0x01FF); // AIF1ADC1L_VOL [7:0]
 	wm8994_write(0x403, 0x01FF); // AIF1ADC1R_VOL [7:0]
 //DRC	
 	wm8994_write(0x440, 0x01BF);
 	wm8994_write(0x450, 0x01BF);
 //path	
-	wm8994_write(0x2D,  0x0100); // DAC1L_TO_HPOUT1L=1
-	wm8994_write(0x2E,  0x0100); // DAC1R_TO_HPOUT1R=1
+	wm8994_write(0x2D,  0x0100); // DAC1L_TO_HPOUT1L=1   
+	wm8994_write(0x2E,  0x0100); // DAC1R_TO_HPOUT1R=1   
 	wm8994_write(0x60,  0x0022);
 	wm8994_write(0x60,  0x00FF);
 	wm8994_write(0x420, 0x0000); 
 	wm8994_write(0x601, 0x0001); // AIF1DAC1L_TO_DAC1L=1
 	wm8994_write(0x602, 0x0001); // AIF1DAC1R_TO_DAC1R=1
 //volume	
-	wm8994_write(0x610, 0x01A0); // DAC1_VU=1, DAC1L_VOL=1100_0000
-	wm8994_write(0x611, 0x01A0); // DAC1_VU=1, DAC1R_VOL=1100_0000
+	wm8994_write(0x610, 0x01FF); // DAC1_VU=1, DAC1L_VOL=1100_0000
+	wm8994_write(0x611, 0x01FF); // DAC1_VU=1, DAC1R_VOL=1100_0000
 	wm8994_set_channel_vol();	
 //other
 //	wm8994_write(0x4C,  0x9F25);		
@@ -1602,7 +1635,7 @@ void mainMIC_to_baseband_to_speakers(void)
 	wm8994_write(0x420, 0x0000);
 	wm8994_write(0x601, 0x0001);
 	wm8994_write(0x602, 0x0001);
-//	wm8994_write(0x24,  0x0011);	
+	wm8994_write(0x24,  0x0011);	
 //volume
 //	wm8994_write(0x25,  0x003F);
 	wm8994_write(0x610, 0x01C0);  //DAC1 Left Volume bit0~7	
@@ -2793,7 +2826,7 @@ int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 		case HEADSET_INCALL:
 		case BLUETOOTH_A2DP_NORMAL:	
 		case BLUETOOTH_A2DP_INCALL:
-		case BLUETOOTH_SCO_NORMAL:		
+		case BLUETOOTH_SCO_NORMAL:	
 			break;
 		default:
 			msleep(50);
