@@ -2,12 +2,18 @@
 #define LINUX_BCMA_REGS_H_
 
 /* Agent registers (common for every core) */
-#define BCMA_IOCTL			0x0408
+#define BCMA_IOCTL			0x0408 /* IO control */
 #define  BCMA_IOCTL_CLK			0x0001
 #define  BCMA_IOCTL_FGC			0x0002
 #define  BCMA_IOCTL_CORE_BITS		0x3FFC
 #define  BCMA_IOCTL_PME_EN		0x4000
 #define  BCMA_IOCTL_BIST_EN		0x8000
+#define BCMA_IOST			0x0500 /* IO status */
+#define  BCMA_IOST_CORE_BITS		0x0FFF
+#define  BCMA_IOST_DMA64		0x1000
+#define  BCMA_IOST_GATED_CLK		0x2000
+#define  BCMA_IOST_BIST_ERROR		0x4000
+#define  BCMA_IOST_BIST_DONE		0x8000
 #define BCMA_RESET_CTL			0x0800
 #define  BCMA_RESET_CTL_RESET		0x0001
 
