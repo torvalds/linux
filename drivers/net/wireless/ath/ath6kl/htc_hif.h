@@ -79,8 +79,6 @@ struct ath6kl_device {
 	u8 pad2[A_CACHE_LINE_PAD];
 	struct ath6kl_irq_enable_reg irq_en_reg;
 	u8 pad3[A_CACHE_LINE_PAD];
-	u32 block_sz;
-	u32 block_mask;
 	struct htc_target *htc_cnxt;
 	struct hif_dev_scat_sup_info hif_scat_info;
 	int chk_irq_status_cnt;

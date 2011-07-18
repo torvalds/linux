@@ -181,7 +181,7 @@ static int htc_issue_send(struct htc_target *target, struct htc_packet *packet)
 	ath6kl_dbg(ATH6KL_DBG_HTC_SEND, "%s: transmit len : %d (%s)\n",
 		   __func__, send_len, sync ? "sync" : "async");
 
-	padded_len = CALC_TXRX_PADDED_LEN(target->dev, send_len);
+	padded_len = CALC_TXRX_PADDED_LEN(target, send_len);
 
 	ath6kl_dbg(ATH6KL_DBG_HTC_SEND,
 		"DevSendPacket, padded len: %d mbox:0x%X (mode:%s)\n",
@@ -287,7 +287,7 @@ static void htc_tx_pkts_get(struct htc_target *target,
 			"got head pkt:0x%p , queue depth: %d\n",
 			packet, get_queue_depth(&endpoint->txq));
 
-		len = CALC_TXRX_PADDED_LEN(target->dev,
+		len = CALC_TXRX_PADDED_LEN(target,
 					   packet->act_len + HTC_HDR_LENGTH);
 
 		if (htc_check_credits(target, endpoint, &flags,
@@ -365,7 +365,7 @@ static int htc_setup_send_scat_list(struct htc_target *target,
 			break;
 
 		packet = list_first_entry(queue, struct htc_packet, list);
-		len = CALC_TXRX_PADDED_LEN(target->dev,
+		len = CALC_TXRX_PADDED_LEN(target,
 					   packet->act_len + HTC_HDR_LENGTH);
 
 		cred_pad = htc_get_credit_padding(target->tgt_cred_sz,
@@ -904,7 +904,7 @@ static int dev_rx_pkt(struct htc_target *target, struct htc_packet *packet,
 	u32 padded_len;
 	int status;
 
-	padded_len = CALC_TXRX_PADDED_LEN(dev, rx_len);
+	padded_len = CALC_TXRX_PADDED_LEN(target, rx_len);
 
 	if (padded_len > packet->buf_len) {
 		ath6kl_err("not enough receive space for packet - padlen:%d recvlen:%d bufferlen:%d\n",
@@ -972,7 +972,7 @@ static int htc_setup_rxpkts(struct htc_target *target, struct htc_endpoint *ep,
 	int status = 0, j, full_len;
 	bool no_recycle;
 
-	full_len = CALC_TXRX_PADDED_LEN(target->dev,
+	full_len = CALC_TXRX_PADDED_LEN(target,
 					le16_to_cpu(htc_hdr->payld_len) +
 					sizeof(*htc_hdr));
 
@@ -1571,7 +1571,7 @@ static int htc_issue_rxpkt_bundle(struct htc_target *target,
 		packet = list_first_entry(rxq, struct htc_packet, list);
 		list_del(&packet->list);
 
-		pad_len = CALC_TXRX_PADDED_LEN(target->dev,
+		pad_len = CALC_TXRX_PADDED_LEN(target,
 						   packet->act_len);
 
 		if ((rem_space - pad_len) < 0) {
@@ -2202,7 +2202,7 @@ static void htc_setup_msg_bndl(struct htc_target *target)
 	if (target->max_rx_bndl_sz)
 		target->rx_bndl_enable = true;
 
-	if ((target->tgt_cred_sz % target->dev->block_sz) != 0) {
+	if ((target->tgt_cred_sz % target->block_sz) != 0) {
 		ath6kl_warn("credit size: %d is not block aligned! Disabling send bundling\n",
 			    target->tgt_cred_sz);
 

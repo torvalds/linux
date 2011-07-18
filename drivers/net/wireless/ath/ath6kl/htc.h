@@ -530,6 +530,9 @@ struct htc_target {
 	int rx_bndl_enable;
 	int max_rx_bndl_sz;
 	int max_tx_bndl_sz;
+
+	u32 block_sz;
+	u32 block_mask;
 };
 
 void *htc_create(struct ath6kl *ar);

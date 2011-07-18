@@ -615,19 +615,19 @@ int ath6kldev_setup(struct ath6kl_device *dev)
 	 * for SDIO the block size on mailbox 0 is artificially set to 1.
 	 * So we use the block size that is set for the other 3 mailboxes.
 	 */
-	dev->block_sz = dev->ar->mbox_info.block_size;
+	dev->htc_cnxt->block_sz = dev->ar->mbox_info.block_size;
 
 	/* must be a power of 2 */
-	if ((dev->block_sz & (dev->block_sz - 1)) != 0) {
+	if ((dev->htc_cnxt->block_sz & (dev->htc_cnxt->block_sz - 1)) != 0) {
 		WARN_ON(1);
 		goto fail_setup;
 	}
 
 	/* assemble mask, used for padding to a block */
-	dev->block_mask = dev->block_sz - 1;
+	dev->htc_cnxt->block_mask = dev->htc_cnxt->block_sz - 1;
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "block size: %d, mbox addr:0x%X\n",
-		   dev->block_sz, dev->ar->mbox_info.htc_addr);
+		   dev->htc_cnxt->block_sz, dev->ar->mbox_info.htc_addr);
 
 	ath6kl_dbg(ATH6KL_DBG_TRC,
 		   "hif interrupt processing is sync only\n");
