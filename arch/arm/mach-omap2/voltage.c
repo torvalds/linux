@@ -85,7 +85,11 @@ int voltdm_scale(struct voltagedomain *voltdm,
 		return -ENODATA;
 	}
 
-	return voltdm->scale(voltdm, target_volt);
+	ret = voltdm->scale(voltdm, target_volt);
+	if (!ret)
+		voltdm->nominal_volt = target_volt;
+
+	return ret;
 }
 
 /**

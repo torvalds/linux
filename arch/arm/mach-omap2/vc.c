@@ -152,8 +152,6 @@ void omap_vc_post_scale(struct voltagedomain *voltdm,
 	smps_delay = ((smps_steps * voltdm->pmic->step_size) /
 			voltdm->pmic->slew_rate) + 2;
 	udelay(smps_delay);
-
-	voltdm->nominal_volt = target_volt;
 }
 
 /* vc_bypass_scale - VC bypass method of voltage scaling */
