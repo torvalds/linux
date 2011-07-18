@@ -438,12 +438,14 @@ struct mceusb_dev {
 	enum mceusb_model_type model;
 
 	bool need_reset;	/* flag to issue a device resume cmd */
+	u8 emver;		/* emulator interface version */
 };
 
 /* MCE Device Command Strings, generally a port and command pair */
 static char DEVICE_RESUME[]	= {MCE_CMD_NULL, MCE_CMD_PORT_SYS,
 				   MCE_CMD_RESUME};
 static char GET_REVISION[]	= {MCE_CMD_PORT_SYS, MCE_CMD_G_REVISION};
+static char GET_EMVER[]		= {MCE_CMD_PORT_SYS, MCE_CMD_GETEMVER};
 static char GET_WAKEVERSION[]	= {MCE_CMD_PORT_SYS, MCE_CMD_GETWAKEVERSION};
 static char GET_UNKNOWN2[]	= {MCE_CMD_PORT_IR, MCE_CMD_UNKNOWN2};
 static char GET_CARRIER_FREQ[]	= {MCE_CMD_PORT_IR, MCE_CMD_GETIRCFS};
@@ -913,6 +915,9 @@ static void mceusb_handle_command(struct mceusb_dev *ir, int index)
 		break;
 
 	/* 1-byte return value commands */
+	case MCE_RSP_EQEMVER:
+		ir->emver = hi;
+		break;
 	case MCE_RSP_EQIRTXPORTS:
 		ir->tx_mask = hi;
 		break;
@@ -1033,6 +1038,13 @@ static void mceusb_dev_recv(struct urb *urb, struct pt_regs *regs)
 	}
 
 	usb_submit_urb(urb, GFP_ATOMIC);
+}
+
+static void mceusb_get_emulator_version(struct mceusb_dev *ir)
+{
+	/* If we get no reply or an illegal command reply, its ver 1, says MS */
+	ir->emver = 1;
+	mce_async_out(ir, GET_EMVER, sizeof(GET_EMVER));
 }
 
 static void mceusb_gen1_init(struct mceusb_dev *ir)
@@ -1288,6 +1300,9 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	mce_dbg(&intf->dev, "Flushing receive buffers\n");
 	mce_flush_rx_buffer(ir, maxp);
 
+	/* figure out which firmware/emulator version this hardware has */
+	mceusb_get_emulator_version(ir);
+
 	/* initialize device */
 	if (ir->flags.microsoft_gen1)
 		mceusb_gen1_init(ir);
@@ -1305,8 +1320,8 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	device_set_wakeup_capable(ir->dev, true);
 	device_set_wakeup_enable(ir->dev, true);
 
-	dev_info(&intf->dev, "Registered %s on usb%d:%d\n", name,
-		 dev->bus->busnum, dev->devnum);
+	dev_info(&intf->dev, "Registered %s with mce emulator interface "
+		 "version %x\n", name, ir->emver);
 
 	return 0;
 
