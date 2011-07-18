@@ -25,22 +25,7 @@ static int coalesced_mmio_in_range(struct kvm_coalesced_mmio_dev *dev,
 				   gpa_t addr, int len)
 {
 	struct kvm_coalesced_mmio_zone *zone;
-	struct kvm_coalesced_mmio_ring *ring;
-	unsigned avail;
 	int i;
-
-	/* Are we able to batch it ? */
-
-	/* last is the first free entry
-	 * check if we don't meet the first used entry
-	 * there is always one unused entry in the buffer
-	 */
-	ring = dev->kvm->coalesced_mmio_ring;
-	avail = (ring->first - ring->last - 1) % KVM_COALESCED_MMIO_MAX;
-	if (avail < KVM_MAX_VCPUS) {
-		/* full */
-		return 0;
-	}
 
 	/* is it in a batchable area ? */
 
@@ -58,15 +43,42 @@ static int coalesced_mmio_in_range(struct kvm_coalesced_mmio_dev *dev,
 	return 0;
 }
 
+static int coalesced_mmio_has_room(struct kvm_coalesced_mmio_dev *dev)
+{
+	struct kvm_coalesced_mmio_ring *ring;
+	unsigned avail;
+
+	/* Are we able to batch it ? */
+
+	/* last is the first free entry
+	 * check if we don't meet the first used entry
+	 * there is always one unused entry in the buffer
+	 */
+	ring = dev->kvm->coalesced_mmio_ring;
+	avail = (ring->first - ring->last - 1) % KVM_COALESCED_MMIO_MAX;
+	if (avail == 0) {
+		/* full */
+		return 0;
+	}
+
+	return 1;
+}
+
 static int coalesced_mmio_write(struct kvm_io_device *this,
 				gpa_t addr, int len, const void *val)
 {
 	struct kvm_coalesced_mmio_dev *dev = to_mmio(this);
 	struct kvm_coalesced_mmio_ring *ring = dev->kvm->coalesced_mmio_ring;
+
 	if (!coalesced_mmio_in_range(dev, addr, len))
 		return -EOPNOTSUPP;
 
 	spin_lock(&dev->lock);
+
+	if (!coalesced_mmio_has_room(dev)) {
+		spin_unlock(&dev->lock);
+		return -EOPNOTSUPP;
+	}
 
 	/* copy data in first free entry of the ring */
 
