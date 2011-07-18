@@ -23,6 +23,10 @@ struct machine_desc {
 
 	unsigned int		nr_irqs;	/* number of IRQs */
 
+#ifdef CONFIG_ZONE_DMA
+	unsigned long		dma_zone_size;	/* size of DMA-able area */
+#endif
+
 	unsigned int		video_start;	/* start of video RAM	*/
 	unsigned int		video_end;	/* end of video RAM	*/
 
