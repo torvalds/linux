@@ -319,7 +319,8 @@ struct iwl_cfg iwl2030_2bg_cfg = {
 	.need_temp_offset_calib = true,				\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.adv_pm = true,						\
-	.rx_with_siso_diversity = true				\
+	.rx_with_siso_diversity = true,				\
+	.iq_invert = true					\
 
 struct iwl_cfg iwl105_bg_cfg = {
 	.name = "105 Series 1x1 BG",
@@ -345,7 +346,8 @@ struct iwl_cfg iwl105_bgn_cfg = {
 	.need_temp_offset_calib = true,				\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.adv_pm = true,						\
-	.rx_with_siso_diversity = true				\
+	.rx_with_siso_diversity = true,				\
+	.iq_invert = true					\
 
 struct iwl_cfg iwl135_bg_cfg = {
 	.name = "135 Series 1x1 BG/BT",
