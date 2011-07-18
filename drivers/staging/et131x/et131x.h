@@ -52,8 +52,7 @@
 int et131x_init_eeprom(struct et131x_adapter *etdev);
 
 /* et131x_initpci.c */
-void ConfigGlobalRegs(struct et131x_adapter *pAdapter);
-void ConfigMMCRegs(struct et131x_adapter *pAdapter);
+void et131x_config_global_regs(struct et131x_adapter *pAdapter);
 void et131x_enable_interrupts(struct et131x_adapter *adapter);
 void et131x_disable_interrupts(struct et131x_adapter *adapter);
 void et131x_align_allocated_memory(struct et131x_adapter *adapter,

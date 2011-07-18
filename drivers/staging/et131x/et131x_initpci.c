@@ -325,7 +325,7 @@ void et131x_link_detection_handler(unsigned long data)
  *
  * Used to configure the global registers on the JAGCore
  */
-void ConfigGlobalRegs(struct et131x_adapter *etdev)
+void et131x_configure_global_regs(struct et131x_adapter *etdev)
 {
 	struct global_regs __iomem *regs = &etdev->regs->global;
 
@@ -366,7 +366,6 @@ void ConfigGlobalRegs(struct et131x_adapter *etdev)
 	writel(0, &regs->watchdog_timer);
 }
 
-
 /**
  * et131x_adapter_setup - Set the adapter up as per cassini+ documentation
  * @etdev: pointer to our private adapter structure
@@ -378,7 +377,7 @@ int et131x_adapter_setup(struct et131x_adapter *etdev)
 	int status = 0;
 
 	/* Configure the JAGCore */
-	ConfigGlobalRegs(etdev);
+	et131x_configure_global_regs(etdev);
 
 	et1310_config_mac_regs1(etdev);
 
@@ -517,8 +516,6 @@ void et131x_adapter_memory_free(struct et131x_adapter *adapter)
 	et131x_rx_dma_memory_free(adapter);
 }
 
-
-
 /**
  * et131x_adapter_init
  * @etdev: pointer to the private adapter struct
@@ -527,8 +524,6 @@ void et131x_adapter_memory_free(struct et131x_adapter *adapter)
  * Initialize the data structures for the et131x_adapter object and link
  * them together with the platform provided device structures.
  */
-
-
 static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
 		struct pci_dev *pdev)
 {
@@ -602,7 +597,6 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
  * contained in the pci_device_id table. This routine is the equivalent to
  * a device insertion routine.
  */
-
 static int __devinit et131x_pci_setup(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
@@ -774,7 +768,6 @@ err_disable:
  * PCI subsystem detects that a PCI device which matches the information
  * contained in the pci_device_id table has been removed.
  */
-
 static void __devexit et131x_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev;
@@ -814,7 +807,6 @@ static struct pci_driver et131x_driver = {
 	.suspend	= NULL,		/* et131x_pci_suspend */
 	.resume		= NULL,		/* et131x_pci_resume */
 };
-
 
 /**
  * et131x_init_module - The "main" entry point called on driver initialization
