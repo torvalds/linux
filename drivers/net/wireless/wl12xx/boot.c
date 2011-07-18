@@ -549,13 +549,13 @@ static void wl1271_boot_hw_version(struct wl1271 *wl)
 {
 	u32 fuse;
 
-	fuse = wl1271_top_reg_read(wl, REG_FUSE_DATA_2_1);
+	if (wl->chip.id == CHIP_ID_1283_PG20)
+		fuse = wl1271_top_reg_read(wl, WL128X_REG_FUSE_DATA_2_1);
+	else
+		fuse = wl1271_top_reg_read(wl, WL127X_REG_FUSE_DATA_2_1);
 	fuse = (fuse & PG_VER_MASK) >> PG_VER_OFFSET;
 
 	wl->hw_pg_ver = (s8)fuse;
-
-	if (((wl->hw_pg_ver & PG_MAJOR_VER_MASK) >> PG_MAJOR_VER_OFFSET) < 3)
-		wl->quirks |= WL12XX_QUIRK_END_OF_TRANSACTION;
 }
 
 static int wl128x_switch_tcxo_to_fref(struct wl1271 *wl)
@@ -696,7 +696,8 @@ static int wl127x_boot_clk(struct wl1271 *wl)
 	u32 pause;
 	u32 clk;
 
-	wl1271_boot_hw_version(wl);
+	if (((wl->hw_pg_ver & PG_MAJOR_VER_MASK) >> PG_MAJOR_VER_OFFSET) < 3)
+		wl->quirks |= WL12XX_QUIRK_END_OF_TRANSACTION;
 
 	if (wl->ref_clock == CONF_REF_CLK_19_2_E ||
 	    wl->ref_clock == CONF_REF_CLK_38_4_E ||
@@ -749,6 +750,8 @@ int wl1271_load_firmware(struct wl1271 *wl)
 	int ret = 0;
 	u32 tmp, clk;
 	int selected_clock = -1;
+
+	wl1271_boot_hw_version(wl);
 
 	if (wl->chip.id == CHIP_ID_1283_PG20) {
 		ret = wl128x_boot_clk(wl, &selected_clock);

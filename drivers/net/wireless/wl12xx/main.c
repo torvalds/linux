@@ -1395,6 +1395,7 @@ out:
 int wl1271_plt_start(struct wl1271 *wl)
 {
 	int retries = WL1271_BOOT_RETRIES;
+	struct wiphy *wiphy = wl->hw->wiphy;
 	int ret;
 
 	mutex_lock(&wl->mutex);
@@ -1427,6 +1428,11 @@ int wl1271_plt_start(struct wl1271 *wl)
 		wl->state = WL1271_STATE_PLT;
 		wl1271_notice("firmware booted in PLT mode (%s)",
 			      wl->chip.fw_ver_str);
+
+		/* update hw/fw version info in wiphy struct */
+		wiphy->hw_version = wl->chip.id;
+		strncpy(wiphy->fw_version, wl->chip.fw_ver_str,
+			sizeof(wiphy->fw_version));
 
 		goto out;
 
@@ -4126,7 +4132,7 @@ static ssize_t wl1271_sysfs_show_hw_pg_ver(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(hw_pg_ver, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(hw_pg_ver, S_IRUGO,
 		   wl1271_sysfs_show_hw_pg_ver, NULL);
 
 static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
@@ -4522,6 +4528,10 @@ int wl1271_free_hw(struct wl1271 *wl)
 	mutex_unlock(&wl->mutex);
 
 	device_remove_bin_file(&wl->plat_dev->dev, &fwlog_attr);
+
+	device_remove_file(&wl->plat_dev->dev, &dev_attr_hw_pg_ver);
+
+	device_remove_file(&wl->plat_dev->dev, &dev_attr_bt_coex_state);
 	platform_device_unregister(wl->plat_dev);
 	free_page((unsigned long)wl->fwlog);
 	dev_kfree_skb(wl->dummy_packet);
