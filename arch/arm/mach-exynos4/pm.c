@@ -18,12 +18,15 @@
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
 #include <linux/io.h>
+#include <linux/err.h>
+#include <linux/clk.h>
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
+#include <plat/pll.h>
 
 #include <mach/regs-irq.h>
 #include <mach/regs-gpio.h>
@@ -45,16 +48,22 @@ static struct sleep_save exynos4_set_clksrc[] = {
 	{ .reg = S5P_CLKSRC_MASK_DMC			, .val = 0x00010000, },
 };
 
+static struct sleep_save exynos4_epll_save[] = {
+	SAVE_ITEM(S5P_EPLL_CON0),
+	SAVE_ITEM(S5P_EPLL_CON1),
+};
+
+static struct sleep_save exynos4_vpll_save[] = {
+	SAVE_ITEM(S5P_VPLL_CON0),
+	SAVE_ITEM(S5P_VPLL_CON1),
+};
+
 static struct sleep_save exynos4_core_save[] = {
 	/* CMU side */
 	SAVE_ITEM(S5P_CLKDIV_LEFTBUS),
 	SAVE_ITEM(S5P_CLKGATE_IP_LEFTBUS),
 	SAVE_ITEM(S5P_CLKDIV_RIGHTBUS),
 	SAVE_ITEM(S5P_CLKGATE_IP_RIGHTBUS),
-	SAVE_ITEM(S5P_EPLL_CON0),
-	SAVE_ITEM(S5P_EPLL_CON1),
-	SAVE_ITEM(S5P_VPLL_CON0),
-	SAVE_ITEM(S5P_VPLL_CON1),
 	SAVE_ITEM(S5P_CLKSRC_TOP0),
 	SAVE_ITEM(S5P_CLKSRC_TOP1),
 	SAVE_ITEM(S5P_CLKSRC_CAM),
@@ -227,6 +236,8 @@ static void exynos4_pm_prepare(void)
 
 	s3c_pm_do_save(exynos4_core_save, ARRAY_SIZE(exynos4_core_save));
 	s3c_pm_do_save(exynos4_l2cc_save, ARRAY_SIZE(exynos4_l2cc_save));
+	s3c_pm_do_save(exynos4_epll_save, ARRAY_SIZE(exynos4_epll_save));
+	s3c_pm_do_save(exynos4_vpll_save, ARRAY_SIZE(exynos4_vpll_save));
 
 	tmp = __raw_readl(S5P_INFORM1);
 
@@ -274,12 +285,80 @@ void exynos4_scu_enable(void __iomem *scu_base)
 	flush_cache_all();
 }
 
+static unsigned long pll_base_rate;
+
+static void exynos4_restore_pll(void)
+{
+	unsigned long pll_con, locktime, lockcnt;
+	unsigned long pll_in_rate;
+	unsigned int p_div, epll_wait = 0, vpll_wait = 0;
+
+	if (pll_base_rate == 0)
+		return;
+
+	pll_in_rate = pll_base_rate;
+
+	/* EPLL */
+	pll_con = exynos4_epll_save[0].val;
+
+	if (pll_con & (1 << 31)) {
+		pll_con &= (PLL46XX_PDIV_MASK << PLL46XX_PDIV_SHIFT);
+		p_div = (pll_con >> PLL46XX_PDIV_SHIFT);
+
+		pll_in_rate /= 1000000;
+
+		locktime = (3000 / pll_in_rate) * p_div;
+		lockcnt = locktime * 10000 / (10000 / pll_in_rate);
+
+		__raw_writel(lockcnt, S5P_EPLL_LOCK);
+
+		s3c_pm_do_restore_core(exynos4_epll_save,
+					ARRAY_SIZE(exynos4_epll_save));
+		epll_wait = 1;
+	}
+
+	pll_in_rate = pll_base_rate;
+
+	/* VPLL */
+	pll_con = exynos4_vpll_save[0].val;
+
+	if (pll_con & (1 << 31)) {
+		pll_in_rate /= 1000000;
+		/* 750us */
+		locktime = 750;
+		lockcnt = locktime * 10000 / (10000 / pll_in_rate);
+
+		__raw_writel(lockcnt, S5P_VPLL_LOCK);
+
+		s3c_pm_do_restore_core(exynos4_vpll_save,
+					ARRAY_SIZE(exynos4_vpll_save));
+		vpll_wait = 1;
+	}
+
+	/* Wait PLL locking */
+
+	do {
+		if (epll_wait) {
+			pll_con = __raw_readl(S5P_EPLL_CON0);
+			if (pll_con & (1 << S5P_EPLLCON0_LOCKED_SHIFT))
+				epll_wait = 0;
+		}
+
+		if (vpll_wait) {
+			pll_con = __raw_readl(S5P_VPLL_CON0);
+			if (pll_con & (1 << S5P_VPLLCON0_LOCKED_SHIFT))
+				vpll_wait = 0;
+		}
+	} while (epll_wait || vpll_wait);
+}
+
 static struct sysdev_driver exynos4_pm_driver = {
 	.add		= exynos4_pm_add,
 };
 
 static __init int exynos4_pm_drvinit(void)
 {
+	struct clk *pll_base;
 	unsigned int tmp;
 
 	s3c_pm_init();
@@ -289,6 +368,13 @@ static __init int exynos4_pm_drvinit(void)
 	tmp = __raw_readl(S5P_WAKEUP_MASK);
 	tmp |= ((0xFF << 8) | (0x1F << 1));
 	__raw_writel(tmp, S5P_WAKEUP_MASK);
+
+	pll_base = clk_get(NULL, "xtal");
+
+	if (!IS_ERR(pll_base)) {
+		pll_base_rate = clk_get_rate(pll_base);
+		clk_put(pll_base);
+	}
 
 	return sysdev_driver_register(&exynos4_sysclass, &exynos4_pm_driver);
 }
@@ -357,6 +443,8 @@ static void exynos4_pm_resume(void)
 	__raw_writel((1 << 28), S5P_PAD_RET_EBIB_OPTION);
 
 	s3c_pm_do_restore_core(exynos4_core_save, ARRAY_SIZE(exynos4_core_save));
+
+	exynos4_restore_pll();
 
 	exynos4_scu_enable(S5P_VA_SCU);
 
