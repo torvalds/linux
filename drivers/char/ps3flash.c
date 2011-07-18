@@ -101,12 +101,16 @@ static loff_t ps3flash_llseek(struct file *file, loff_t offset, int origin)
 
 	mutex_lock(&file->f_mapping->host->i_mutex);
 	switch (origin) {
+	case 0:
+		break;
 	case 1:
 		offset += file->f_pos;
 		break;
 	case 2:
 		offset += dev->regions[dev->region_idx].size*dev->blk_size;
 		break;
+	default:
+		offset = -1;
 	}
 	if (offset < 0) {
 		res = -EINVAL;
