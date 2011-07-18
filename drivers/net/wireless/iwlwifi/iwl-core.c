@@ -363,6 +363,8 @@ int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		ctx->timing.beacon_interval = cpu_to_le16(beacon_int);
 	}
 
+	ctx->beacon_int = beacon_int;
+
 	tsf = priv->timestamp; /* tsf is modifed by do_div: copy it */
 	interval_tm = beacon_int * TIME_UNIT;
 	rem = do_div(tsf, interval_tm);

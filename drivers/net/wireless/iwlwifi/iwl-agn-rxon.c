@@ -342,7 +342,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 		slot1 = priv->hw_roc_duration;
 		slot0 = IWL_MIN_SLOT_TIME;
 	} else if (ctx_bss->vif && ctx_pan->vif) {
-		int bcnint = ctx_pan->vif->bss_conf.beacon_int;
+		int bcnint = ctx_pan->beacon_int;
 		int dtim = ctx_pan->vif->bss_conf.dtim_period ?: 1;
 
 		/* should be set, but seems unused?? */
@@ -350,14 +350,13 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 
 		if (ctx_pan->vif->type == NL80211_IFTYPE_AP &&
 		    bcnint &&
-		    bcnint != ctx_bss->vif->bss_conf.beacon_int) {
+		    bcnint != ctx_bss->beacon_int) {
 			IWL_ERR(priv,
 				"beacon intervals don't match (%d, %d)\n",
-				ctx_bss->vif->bss_conf.beacon_int,
-				ctx_pan->vif->bss_conf.beacon_int);
+				ctx_bss->beacon_int, ctx_pan->beacon_int);
 		} else
 			bcnint = max_t(int, bcnint,
-				       ctx_bss->vif->bss_conf.beacon_int);
+				       ctx_bss->beacon_int);
 		if (!bcnint)
 			bcnint = DEFAULT_BEACON_INTERVAL;
 		slot0 = bcnint / 2;
@@ -376,7 +375,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	} else if (ctx_pan->vif) {
 		slot0 = 0;
 		slot1 = max_t(int, 1, ctx_pan->vif->bss_conf.dtim_period) *
-					ctx_pan->vif->bss_conf.beacon_int;
+					ctx_pan->beacon_int;
 		slot1 = max_t(int, DEFAULT_BEACON_INTERVAL, slot1);
 
 		if (test_bit(STATUS_SCAN_HW, &priv->status)) {

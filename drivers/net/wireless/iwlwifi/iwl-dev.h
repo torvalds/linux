@@ -1152,6 +1152,8 @@ struct iwl_rxon_context {
 
 	__le32 station_flags;
 
+	int beacon_int;
+
 	struct {
 		bool non_gf_sta_present;
 		u8 protection;
