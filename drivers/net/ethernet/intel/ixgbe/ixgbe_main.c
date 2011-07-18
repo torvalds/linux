@@ -7065,11 +7065,11 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	/* If DCB is anabled do not remove traffic classes, multiple
-	 * traffic classes are required to implement DCB
-	 */
-	if (!tc && (adapter->flags & IXGBE_FLAG_DCB_ENABLED))
-		return 0;
+	/* Multiple traffic classes requires multiple queues */
+	if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED)) {
+		e_err(drv, "Enable failed, needs MSI-X\n");
+		return -EINVAL;
+	}
 
 	/* Hardware supports up to 8 traffic classes */
 	if (tc > MAX_TRAFFIC_CLASS ||
@@ -7084,10 +7084,26 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 		ixgbe_close(dev);
 	ixgbe_clear_interrupt_scheme(adapter);
 
-	if (tc)
+	if (tc) {
 		netdev_set_num_tc(dev, tc);
-	else
+		adapter->last_lfc_mode = adapter->hw.fc.current_mode;
+
+		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
+		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
+
+		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+			adapter->hw.fc.requested_mode = ixgbe_fc_none;
+	} else {
 		netdev_reset_tc(dev);
+
+		adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
+
+		adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
+		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
+
+		adapter->temp_dcb_cfg.pfc_mode_enable = false;
+		adapter->dcb_cfg.pfc_mode_enable = false;
+	}
 
 	ixgbe_init_interrupt_scheme(adapter);
 	ixgbe_validate_rtr(adapter, tc);
