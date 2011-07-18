@@ -2545,7 +2545,8 @@ static void __init rk29_clock_common_init(unsigned long ppll_rate, unsigned long
 	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
 	clk_set_parent_nolock(&clk_gpu, &codec_pll_clk);
 
-	clk_set_parent_nolock(&aclk_lcdc, cpll_rate > ppll_rate ? &codec_pll_clk : &general_pll_clk);
+	/* ddr pll */
+	clk_set_parent_nolock(&aclk_lcdc, &ddr_pll_clk);
 
 	/* arm pll */
 	clk_set_rate_nolock(&arm_pll_clk, armclk);
