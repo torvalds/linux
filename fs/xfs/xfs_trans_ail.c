@@ -163,17 +163,11 @@ xfs_ail_max_lsn(
 }
 
 /*
- * AIL traversal cursor initialisation.
- *
- * The cursor keeps track of where our current traversal is up
- * to by tracking the next ƣtem in the list for us. However, for
- * this to be safe, removing an object from the AIL needs to invalidate
- * any cursor that points to it. hence the traversal cursor needs to
- * be linked to the struct xfs_ail so that deletion can search all the
- * active cursors for invalidation.
- *
- * We don't link the push cursor because it is embedded in the struct
- * xfs_ail and hence easily findable.
+ * The cursor keeps track of where our current traversal is up to by tracking
+ * the next item in the list for us. However, for this to be safe, removing an
+ * object from the AIL needs to invalidate any cursor that points to it. hence
+ * the traversal cursor needs to be linked to the struct xfs_ail so that
+ * deletion can search all the active cursors for invalidation.
  */
 STATIC void
 xfs_trans_ail_cursor_init(
@@ -181,17 +175,12 @@ xfs_trans_ail_cursor_init(
 	struct xfs_ail_cursor	*cur)
 {
 	cur->item = NULL;
-	if (cur == &ailp->xa_cursors)
-		return;
-
-	cur->next = ailp->xa_cursors.next;
-	ailp->xa_cursors.next = cur;
+	list_add_tail(&cur->list, &ailp->xa_cursors);
 }
 
 /*
- * Get the next item in the traversal and advance the cursor.
- * If the cursor was invalidated (inidicated by a lip of 1),
- * restart the traversal.
+ * Get the next item in the traversal and advance the cursor.  If the cursor
+ * was invalidated (indicated by a lip of 1), restart the traversal.
  */
 struct xfs_log_item *
 xfs_trans_ail_cursor_next(
@@ -208,40 +197,25 @@ xfs_trans_ail_cursor_next(
 }
 
 /*
- * Now that the traversal is complete, we need to remove the cursor
- * from the list of traversing cursors. Avoid removing the embedded
- * push cursor, but use the fact it is always present to make the
- * list deletion simple.
+ * When the traversal is complete, we need to remove the cursor from the list
+ * of traversing cursors.
  */
 void
 xfs_trans_ail_cursor_done(
 	struct xfs_ail		*ailp,
-	struct xfs_ail_cursor	*done)
+	struct xfs_ail_cursor	*cur)
 {
-	struct xfs_ail_cursor	*prev = NULL;
-	struct xfs_ail_cursor	*cur;
-
-	done->item = NULL;
-	if (done == &ailp->xa_cursors)
-		return;
-	prev = &ailp->xa_cursors;
-	for (cur = prev->next; cur; prev = cur, cur = prev->next) {
-		if (cur == done) {
-			prev->next = cur->next;
-			break;
-		}
-	}
-	ASSERT(cur);
+	cur->item = NULL;
+	list_del_init(&cur->list);
 }
 
 /*
- * Invalidate any cursor that is pointing to this item. This is
- * called when an item is removed from the AIL. Any cursor pointing
- * to this object is now invalid and the traversal needs to be
- * terminated so it doesn't reference a freed object. We set the
- * cursor item to a value of 1 so we can distinguish between an
- * invalidation and the end of the list when getting the next item
- * from the cursor.
+ * Invalidate any cursor that is pointing to this item. This is called when an
+ * item is removed from the AIL. Any cursor pointing to this object is now
+ * invalid and the traversal needs to be terminated so it doesn't reference a
+ * freed object. We set the low bit of the cursor item pointer so we can
+ * distinguish between an invalidation and the end of the list when getting the
+ * next item from the cursor.
  */
 STATIC void
 xfs_trans_ail_cursor_clear(
@@ -250,8 +224,7 @@ xfs_trans_ail_cursor_clear(
 {
 	struct xfs_ail_cursor	*cur;
 
-	/* need to search all cursors */
-	for (cur = &ailp->xa_cursors; cur; cur = cur->next) {
+	list_for_each_entry(cur, &ailp->xa_cursors, list) {
 		if (cur->item == lip)
 			cur->item = (struct xfs_log_item *)
 					((__psint_t)cur->item | 1);
@@ -405,7 +378,7 @@ xfs_ail_worker(
 	struct xfs_ail		*ailp = container_of(to_delayed_work(work),
 					struct xfs_ail, xa_work);
 	xfs_mount_t		*mp = ailp->xa_mount;
-	struct xfs_ail_cursor	*cur = &ailp->xa_cursors;
+	struct xfs_ail_cursor	cur;
 	xfs_log_item_t		*lip;
 	xfs_lsn_t		lsn;
 	xfs_lsn_t		target;
@@ -417,13 +390,12 @@ xfs_ail_worker(
 
 	spin_lock(&ailp->xa_lock);
 	target = ailp->xa_target;
-	xfs_trans_ail_cursor_init(ailp, cur);
-	lip = xfs_trans_ail_cursor_first(ailp, cur, ailp->xa_last_pushed_lsn);
+	lip = xfs_trans_ail_cursor_first(ailp, &cur, ailp->xa_last_pushed_lsn);
 	if (!lip || XFS_FORCED_SHUTDOWN(mp)) {
 		/*
 		 * AIL is empty or our push has reached the end.
 		 */
-		xfs_trans_ail_cursor_done(ailp, cur);
+		xfs_trans_ail_cursor_done(ailp, &cur);
 		spin_unlock(&ailp->xa_lock);
 		goto out_done;
 	}
@@ -511,12 +483,12 @@ xfs_ail_worker(
 		if (stuck > 100)
 			break;
 
-		lip = xfs_trans_ail_cursor_next(ailp, cur);
+		lip = xfs_trans_ail_cursor_next(ailp, &cur);
 		if (lip == NULL)
 			break;
 		lsn = lip->li_lsn;
 	}
-	xfs_trans_ail_cursor_done(ailp, cur);
+	xfs_trans_ail_cursor_done(ailp, &cur);
 	spin_unlock(&ailp->xa_lock);
 
 	if (flush_log) {
@@ -848,6 +820,7 @@ xfs_trans_ail_init(
 
 	ailp->xa_mount = mp;
 	INIT_LIST_HEAD(&ailp->xa_ail);
+	INIT_LIST_HEAD(&ailp->xa_cursors);
 	spin_lock_init(&ailp->xa_lock);
 	INIT_DELAYED_WORK(&ailp->xa_work, xfs_ail_worker);
 	mp->m_ail = ailp;
