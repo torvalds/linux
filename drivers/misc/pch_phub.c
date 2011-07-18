@@ -601,8 +601,7 @@ static ssize_t show_pch_mac(struct device *dev, struct device_attribute *attr,
 
 	pch_phub_read_gbe_mac_addr(chip, mac);
 
-	return sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	return sprintf(buf, "%pM\n", mac);
 }
 
 static ssize_t store_pch_mac(struct device *dev, struct device_attribute *attr,
