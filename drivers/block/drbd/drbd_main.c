@@ -344,7 +344,7 @@ bail:
  * @what:       The action/event to perform with all request objects
  *
  * @what might be one of connection_lost_while_pending, resend, fail_frozen_disk_io,
- * restart_frozen_disk_io, abort_disk_io.
+ * restart_frozen_disk_io.
  */
 static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 {
@@ -367,12 +367,6 @@ static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 			n_reads  += (rv & MR_READ) >> MR_READ_SHIFT;
 		}
 		tmp = b->next;
-
-		if (what == abort_disk_io) {
-			/* Only walk the TL, leave barrier objects in place */
-			b = tmp;
-			continue;
-		}
 
 		if (n_writes) {
 			if (what == resend) {
@@ -422,7 +416,6 @@ static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 	/* Actions operating on the disk state, also want to work on
 	   requests that got barrier acked. */
 	switch (what) {
-	case abort_disk_io:
 	case fail_frozen_disk_io:
 	case restart_frozen_disk_io:
 		list_for_each_safe(le, tle, &mdev->barrier_acked_requests) {
@@ -479,6 +472,38 @@ void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
 {
 	spin_lock_irq(&mdev->req_lock);
 	_tl_restart(mdev, what);
+	spin_unlock_irq(&mdev->req_lock);
+}
+
+/**
+ * tl_abort_disk_io() - Abort disk I/O for all requests for a certain mdev in the TL
+ * @mdev:	DRBD device.
+ */
+void tl_abort_disk_io(struct drbd_conf *mdev)
+{
+	struct drbd_tl_epoch *b;
+	struct list_head *le, *tle;
+	struct drbd_request *req;
+
+	spin_lock_irq(&mdev->req_lock);
+	b = mdev->oldest_tle;
+	while (b) {
+		list_for_each_safe(le, tle, &b->requests) {
+			req = list_entry(le, struct drbd_request, tl_requests);
+			if (!(req->rq_state & RQ_LOCAL_PENDING))
+				continue;
+			_req_mod(req, abort_disk_io);
+		}
+		b = b->next;
+	}
+
+	list_for_each_safe(le, tle, &mdev->barrier_acked_requests) {
+		req = list_entry(le, struct drbd_request, tl_requests);
+		if (!(req->rq_state & RQ_LOCAL_PENDING))
+			continue;
+		_req_mod(req, abort_disk_io);
+	}
+
 	spin_unlock_irq(&mdev->req_lock);
 }
 
@@ -1577,7 +1602,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 		/* Immediately allow completion of all application IO, that waits
 		   for completion from the local disk. */
-		tl_restart(mdev, abort_disk_io);
+		tl_abort_disk_io(mdev);
 
 		/* current state still has to be D_FAILED,
 		 * there is only one way out: to D_DISKLESS,
