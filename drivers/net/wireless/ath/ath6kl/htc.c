@@ -356,7 +356,7 @@ static int htc_setup_send_scat_list(struct htc_target *target,
 	int i, len, rem_scat, cred_pad;
 	int status = 0;
 
-	rem_scat = target->dev->max_tx_bndl_sz;
+	rem_scat = target->max_tx_bndl_sz;
 
 	for (i = 0; i < n_scat; i++) {
 		scat_req->scat_list[i].packet = NULL;
@@ -1532,7 +1532,7 @@ static int htc_issue_rxpkt_bundle(struct htc_target *target,
 {
 	struct hif_scatter_req *scat_req;
 	struct htc_packet *packet;
-	int rem_space = target->dev->max_rx_bndl_sz;
+	int rem_space = target->max_rx_bndl_sz;
 	int n_scat_pkt, status = 0, i, len;
 
 	n_scat_pkt = get_queue_depth(rxq);
@@ -2188,18 +2188,18 @@ static void htc_setup_msg_bndl(struct htc_target *target)
 		   target->msg_per_bndl_max);
 
 	/* Max rx bundle size is limited by the max tx bundle size */
-	target->dev->max_rx_bndl_sz = scat_info->max_xfer_szper_scatreq;
+	target->max_rx_bndl_sz = scat_info->max_xfer_szper_scatreq;
 	/* Max tx bundle size if limited by the extended mbox address range */
-	target->dev->max_tx_bndl_sz = min(HIF_MBOX0_EXT_WIDTH,
-					  scat_info->max_xfer_szper_scatreq);
+	target->max_tx_bndl_sz = min(HIF_MBOX0_EXT_WIDTH,
+				     scat_info->max_xfer_szper_scatreq);
 
 	ath6kl_dbg(ATH6KL_DBG_ANY, "max recv: %d max send: %d\n",
-		   target->dev->max_rx_bndl_sz, target->dev->max_tx_bndl_sz);
+		   target->max_rx_bndl_sz, target->max_tx_bndl_sz);
 
-	if (target->dev->max_tx_bndl_sz)
+	if (target->max_tx_bndl_sz)
 		target->tx_bndl_enable = true;
 
-	if (target->dev->max_rx_bndl_sz)
+	if (target->max_rx_bndl_sz)
 		target->rx_bndl_enable = true;
 
 	if ((target->tgt_cred_sz % target->dev->block_sz) != 0) {

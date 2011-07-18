@@ -83,8 +83,6 @@ struct ath6kl_device {
 	u32 block_mask;
 	struct htc_target *htc_cnxt;
 	struct hif_dev_scat_sup_info hif_scat_info;
-	int max_rx_bndl_sz;
-	int max_tx_bndl_sz;
 	int chk_irq_status_cnt;
 	struct ath6kl *ar;
 };
