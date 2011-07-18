@@ -451,6 +451,7 @@ static char DEVICE_RESUME[]	= {MCE_CMD_NULL, MCE_CMD_PORT_SYS,
 static char GET_REVISION[]	= {MCE_CMD_PORT_SYS, MCE_CMD_G_REVISION};
 static char GET_EMVER[]		= {MCE_CMD_PORT_SYS, MCE_CMD_GETEMVER};
 static char GET_WAKEVERSION[]	= {MCE_CMD_PORT_SYS, MCE_CMD_GETWAKEVERSION};
+static char FLASH_LED[]		= {MCE_CMD_PORT_SYS, MCE_CMD_FLASHLED};
 static char GET_UNKNOWN2[]	= {MCE_CMD_PORT_IR, MCE_CMD_UNKNOWN2};
 static char GET_CARRIER_FREQ[]	= {MCE_CMD_PORT_IR, MCE_CMD_GETIRCFS};
 static char GET_RX_TIMEOUT[]	= {MCE_CMD_PORT_IR, MCE_CMD_GETIRTIMEOUT};
@@ -590,6 +591,9 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 				/* We use data1 + 1 here, to match hw labels */
 				dev_info(dev, "TX port %d: blaster is%s connected\n",
 					 data1 + 1, data4 ? " not" : "");
+			break;
+		case MCE_CMD_FLASHLED:
+			dev_info(dev, "Attempting to flash LED\n");
 			break;
 		default:
 			dev_info(dev, "Unknown command 0x%02x 0x%02x\n",
@@ -1163,6 +1167,14 @@ static void mceusb_get_parameters(struct mceusb_dev *ir)
 	}
 }
 
+static void mceusb_flash_led(struct mceusb_dev *ir)
+{
+	if (ir->emver < 2)
+		return;
+
+	mce_async_out(ir, FLASH_LED, sizeof(FLASH_LED));
+}
+
 static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 {
 	struct device *dev = ir->dev;
@@ -1344,6 +1356,8 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 		mceusb_gen2_init(ir);
 
 	mceusb_get_parameters(ir);
+
+	mceusb_flash_led(ir);
 
 	if (!ir->flags.no_tx)
 		mceusb_set_tx_mask(ir->rc, MCE_DEFAULT_TX_MASK);
