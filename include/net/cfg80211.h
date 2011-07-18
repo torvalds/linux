@@ -777,6 +777,7 @@ struct cfg80211_ssid {
  * @n_channels: total number of channels to scan
  * @ie: optional information element(s) to add into Probe Request or %NULL
  * @ie_len: length of ie in octets
+ * @rates: bitmap of rates to advertise for each band
  * @wiphy: the wiphy this was for
  * @dev: the interface
  * @aborted: (internal) scan request was notified as aborted
@@ -787,6 +788,8 @@ struct cfg80211_scan_request {
 	u32 n_channels;
 	const u8 *ie;
 	size_t ie_len;
+
+	u32 rates[IEEE80211_NUM_BANDS];
 
 	/* internal */
 	struct wiphy *wiphy;
