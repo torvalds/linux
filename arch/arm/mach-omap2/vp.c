@@ -103,6 +103,9 @@ int omap_vp_update_errorgain(struct voltagedomain *voltdm,
 {
 	struct omap_volt_data *volt_data;
 
+	if (!voltdm->vp)
+		return -EINVAL;
+
 	/* Get volt_data corresponding to target_volt */
 	volt_data = omap_voltage_get_voltdata(voltdm, target_volt);
 	if (IS_ERR(volt_data))
