@@ -536,6 +536,8 @@ struct htc_target {
 
 	int max_scat_entries;
 	int max_xfer_szper_scatreq;
+
+	int chk_irq_status_cnt;
 };
 
 void *htc_create(struct ath6kl *ar);

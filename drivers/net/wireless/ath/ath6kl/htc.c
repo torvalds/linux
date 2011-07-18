@@ -1774,7 +1774,7 @@ int htc_rxmsg_pending_handler(struct htc_target *target, u32 msg_look_ahead[],
 			 * A recv bundle was detected, force IRQ status
 			 * re-check again
 			 */
-			target->dev->chk_irq_status_cnt = 1;
+			target->chk_irq_status_cnt = 1;
 
 		n_fetched += get_queue_depth(&rx_pktq);
 
@@ -1799,7 +1799,7 @@ int htc_rxmsg_pending_handler(struct htc_target *target, u32 msg_look_ahead[],
 		 * before leaving IRQ processing, this can net better
 		 * performance in high throughput situations.
 		 */
-		target->dev->chk_irq_status_cnt = 1;
+		target->chk_irq_status_cnt = 1;
 	}
 
 	if (status) {

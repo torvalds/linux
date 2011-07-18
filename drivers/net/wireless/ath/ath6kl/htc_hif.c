@@ -426,7 +426,7 @@ static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 			 * HTC could not pull any messages out due to lack
 			 * of resources.
 			 */
-			dev->chk_irq_status_cnt = 0;
+			dev->htc_cnxt->chk_irq_status_cnt = 0;
 	}
 
 	/* now handle the rest of them */
@@ -469,7 +469,7 @@ out:
 	ath6kl_dbg(ATH6KL_DBG_IRQ,
 		   "bypassing irq status re-check, forcing done\n");
 
-	if (!dev->chk_irq_status_cnt)
+	if (!dev->htc_cnxt->chk_irq_status_cnt)
 		*done = true;
 
 	ath6kl_dbg(ATH6KL_DBG_IRQ,
@@ -489,7 +489,7 @@ int ath6kldev_intr_bh_handler(struct ath6kl *ar)
 	 * Reset counter used to flag a re-scan of IRQ status registers on
 	 * the target.
 	 */
-	dev->chk_irq_status_cnt = 0;
+	dev->htc_cnxt->chk_irq_status_cnt = 0;
 
 	/*
 	 * IRQ processing is synchronous, interrupt status registers can be
