@@ -168,6 +168,41 @@ unsigned long s5p_epll_get_rate(struct clk *clk)
 	return clk->rate;
 }
 
+int s5p_spdif_set_rate(struct clk *clk, unsigned long rate)
+{
+	struct clk *pclk;
+	int ret;
+
+	pclk = clk_get_parent(clk);
+	if (IS_ERR(pclk))
+		return -EINVAL;
+
+	ret = pclk->ops->set_rate(pclk, rate);
+	clk_put(pclk);
+
+	return ret;
+}
+
+unsigned long s5p_spdif_get_rate(struct clk *clk)
+{
+	struct clk *pclk;
+	int rate;
+
+	pclk = clk_get_parent(clk);
+	if (IS_ERR(pclk))
+		return -EINVAL;
+
+	rate = pclk->ops->get_rate(clk);
+	clk_put(pclk);
+
+	return rate;
+}
+
+struct clk_ops s5p_sclk_spdif_ops = {
+	.set_rate	= s5p_spdif_set_rate,
+	.get_rate	= s5p_spdif_get_rate,
+};
+
 static struct clk *s5p_clks[] __initdata = {
 	&clk_ext_xtal_mux,
 	&clk_48m,
