@@ -80,7 +80,7 @@ enum tis_defaults {
 static LIST_HEAD(tis_chips);
 static DEFINE_SPINLOCK(tis_lock);
 
-#ifdef CONFIG_ACPI
+#ifdef CONFIG_PNP
 static int is_itpm(struct pnp_dev *dev)
 {
 	struct acpi_device *acpi = pnp_acpi_device(dev);
@@ -91,11 +91,6 @@ static int is_itpm(struct pnp_dev *dev)
 			return 1;
 	}
 
-	return 0;
-}
-#else
-static int is_itpm(struct pnp_dev *dev)
-{
 	return 0;
 }
 #endif
