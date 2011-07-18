@@ -191,16 +191,13 @@ int ath6kldev_submit_scat_req(struct ath6kl_device *dev,
 		   scat_req->addr, !read ? "async" : "sync",
 		   (read) ? "rd" : "wr");
 
-	if (!read && scat_req->virt_scat)
+	if (!read && scat_req->virt_scat) {
 		status = ath6kldev_cp_scat_dma_buf(scat_req, false);
-
-	if (status) {
-		if (!read) {
+		if (status) {
 			scat_req->status = status;
 			scat_req->complete(dev->ar->htc_target, scat_req);
 			return 0;
 		}
-		return status;
 	}
 
 	status = ath6kl_hif_scat_req_rw(dev->ar, scat_req);
