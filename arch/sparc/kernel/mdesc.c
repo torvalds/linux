@@ -11,6 +11,7 @@
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/bootmem.h>
+#include <linux/export.h>
 
 #include <asm/cpudata.h>
 #include <asm/hypervisor.h>

@@ -13,6 +13,7 @@
 
 #include <linux/kernel_stat.h>
 #include <linux/seq_file.h>
+#include <linux/export.h>
 
 #include <asm/cacheflush.h>
 #include <asm/cpudata.h>

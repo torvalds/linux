@@ -7,6 +7,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/msi.h>
+#include <linux/export.h>
 #include <linux/irq.h>
 #include <linux/of_device.h>
 

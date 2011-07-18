@@ -24,6 +24,7 @@
  */
 #include <linux/mm.h>
 #include <linux/highmem.h>
+#include <linux/export.h>
 #include <asm/pgalloc.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
