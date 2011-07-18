@@ -541,7 +541,16 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 	int p, highest, res;
 
 	if (bdev->bd_part_count)
+	{
+	#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
+	    if(179 == MAJOR(bdev->bd_dev))
+	    {
+	        printk("%s..%d.. The sdcard partition have been using.So device busy! ====xbw===\n",__FUNCTION__, __LINE__);
+	    }
+	#endif    
+	    
 		return -EBUSY;
+	}
 	res = invalidate_partition(disk, 0);
 	if (res)
 		return res;
@@ -556,7 +565,15 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 	check_disk_size_change(disk, bdev);
 	bdev->bd_invalidated = 0;
 	if (!get_capacity(disk) || !(state = check_partition(disk, bdev)))
+	{
+	#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
+	    if(179 == MAJOR(bdev->bd_dev))
+	    {
+	        printk("%s..%d... ==== check partition fail. partitionAddr=%x ====xbw===\n",__FUNCTION__, __LINE__, state);
+	    }
+	 #endif   	    
 		return 0;
+	}
 	if (IS_ERR(state))	/* I/O error reading the partition table */
 		return -EIO;
 

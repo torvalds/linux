@@ -440,6 +440,13 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 		return 0;
 	}
 
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
+    if(179 == MAJOR(bdev->bd_dev))
+    {
+	    printk("\n%s..%d... ==== Begin to parse sdcard-partition.  ====xbw[mmc0]===\n",__FUNCTION__, __LINE__);
+	}
+#endif
+
 	/*
 	 * Now that the 55aa signature is present, this is probably
 	 * either the boot sector of a FAT filesystem or a DOS-type
@@ -449,6 +456,12 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 	p = (struct partition *) (data + 0x1be);
 	for (slot = 1; slot <= 4; slot++, p++) {
 		if (p->boot_ind != 0 && p->boot_ind != 0x80) {
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
+		    if(179 == MAJOR(bdev->bd_dev))
+		    {
+			    printk("%s..%d... ==== The sdcard has not MBR.  ====xbw[mmc0]===\n",__FUNCTION__, __LINE__);
+			}
+#endif
 			/*
 			 * Even without a valid boot inidicator value
 			 * its still possible this is valid FAT filesystem
@@ -459,9 +472,21 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 				&& fat_valid_media(fb->media)) {
 				printk("\n");
 				put_dev_sector(sect);
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
+				if(179 == MAJOR(bdev->bd_dev))
+				{
+				    printk("%s..%d... ==== The DBR(slot=%d) is valid. ====xbw[mmc0]===\n",__FUNCTION__, __LINE__, slot);
+				}
+#endif
 				return 1;
 			} else {
 				put_dev_sector(sect);
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
+				if(179 == MAJOR(bdev->bd_dev))
+				{
+				    printk("%s..%d... ==== The DBR is invalid. ====xbw[mmc0]===\n",__FUNCTION__, __LINE__);
+				}
+#endif
 				return 0;
 			}
 		}
@@ -484,13 +509,25 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 	 * First find the primary and DOS-type extended partitions.
 	 * On the second pass look inside *BSD, Unixware and Solaris partitions.
 	 */
-
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
+    if(179 == MAJOR(bdev->bd_dev))
+    {
+        printk("%s..%d... ==== The sdcard has MBR. ====xbw[mmc0]===\n", __FUNCTION__, __LINE__);
+    }
+#endif    
 	state->next = 5;
 	for (slot = 1 ; slot <= 4 ; slot++, p++) {
 		sector_t start = start_sect(p)*sector_size;
 		sector_t size = nr_sects(p)*sector_size;
 		if (!size)
 			continue;
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
+	    if(179 == MAJOR(bdev->bd_dev))
+	    {
+		    printk("%s..%d... ==== partition-%d, size=%luKB  ====xbw[mmc0]===\n",\
+		        __FUNCTION__, __LINE__, slot, size/2);
+		}
+#endif	
 		if (is_extended_partition(p)) {
 			/*
 			 * prevent someone doing mkfs or mkswap on an
@@ -500,6 +537,12 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 			 */
 			sector_t n = 2;
 			n = min(size, max(sector_size, n));
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 			
+            if(179 == MAJOR(bdev->bd_dev))
+            {
+			    printk("%s...%d... ==== extend partition-%d....====xbw[mmc0]===\n",__FUNCTION__, __LINE__, slot);
+			}
+#endif			
 			put_partition(state, slot, start, n);
 
 			printk(" <");
@@ -507,6 +550,12 @@ int msdos_partition(struct parsed_partitions *state, struct block_device *bdev)
 			printk(" >");
 			continue;
 		}
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
+		if(179 == MAJOR(bdev->bd_dev))
+		{
+		    printk("%s..%d... ==== main partition-%d....====xbw[mmc0]===\n",__FUNCTION__, __LINE__, slot);
+		}
+#endif		
 		put_partition(state, slot, start, size);
 		if (SYS_IND(p) == LINUX_RAID_PARTITION)
 			state->parts[slot].flags = 1;

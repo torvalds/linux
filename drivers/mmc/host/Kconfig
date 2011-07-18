@@ -35,18 +35,24 @@ config SDMMC_RK29
 		SDMMC0 used for sd/mmc card, and SDMMC1 used for sdio.
 if SDMMC_RK29
     comment "Now, there are two SDMMC controllers selected, SDMMC0 and SDMMC1."
+	config SDMMC_RK29_OLD
+		bool "Old driver (DEPRECATED)"
+		help
+			 You will select old,origin driver for your project if you say Yes.
+			 It is not good to select the driver.
+
 	config SDMMC0_RK29
 		tristate "RK29 SDMMC0 controller support(sdmmc)"
 		default y
 		depends on ARCH_RK29 
 		help
 			This supports the use of the SDMMC0 controller on Rk29 processors.
-	config EMMC_RK29
-		tristate "RK29 EMMC controller support(sdmmc)"
-		default y
-		depends on SDMMC0_RK29
-		help
-			This supports the use of the EMMC controller on Rk29 processors.
+#	config EMMC_RK29
+#		tristate "RK29 EMMC controller support(sdmmc)"
+#		default y
+#		depends on SDMMC0_RK29
+#		help
+#			This supports the use of the EMMC controller on Rk29 processors.
 	config SDMMC1_RK29
 		tristate "RK29 SDMMC1 controller support(sdio)"
 		default y

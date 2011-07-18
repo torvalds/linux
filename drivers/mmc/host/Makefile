@@ -6,7 +6,12 @@ ifeq ($(CONFIG_MMC_DEBUG),y)
 	EXTRA_CFLAGS		+= -DDEBUG
 endif
 
+ifeq ($(CONFIG_SDMMC_RK29_OLD),y)
+obj-$(CONFIG_SDMMC_RK29)	+= rk29_sdmmc_old.o
+else
 obj-$(CONFIG_SDMMC_RK29)	+= rk29_sdmmc.o
+endif
+
 obj-$(CONFIG_SDMMC_RK2818)	+= rk2818-sdmmc.o
 obj-$(CONFIG_MMC_ARMMMCI)	+= mmci.o
 obj-$(CONFIG_MMC_PXA)		+= pxamci.o
