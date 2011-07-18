@@ -37,6 +37,7 @@
 #include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/input.h>
+#include <linux/pm_wakeup.h>
 #include <media/rc-core.h>
 
 #define DRIVER_VERSION	"1.91"
@@ -1286,6 +1287,10 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 		mceusb_set_tx_mask(ir->rc, MCE_DEFAULT_TX_MASK);
 
 	usb_set_intfdata(intf, ir);
+
+	/* enable wake via this device */
+	device_set_wakeup_capable(ir->dev, true);
+	device_set_wakeup_enable(ir->dev, true);
 
 	dev_info(&intf->dev, "Registered %s on usb%d:%d\n", name,
 		 dev->bus->busnum, dev->devnum);
