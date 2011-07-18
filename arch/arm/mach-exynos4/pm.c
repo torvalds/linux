@@ -209,14 +209,6 @@ static struct sleep_save exynos4_l2cc_save[] = {
 
 void exynos4_cpu_suspend(void)
 {
-	unsigned long tmp;
-
-	/* Setting Central Sequence Register for power down mode */
-
-	tmp = __raw_readl(S5P_CENTRAL_SEQ_CONFIGURATION);
-	tmp &= ~(S5P_CENTRAL_LOWPWR_CFG);
-	__raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
-
 	outer_flush_all();
 
 	/* issue the standby signal into the pm unit. */
@@ -299,6 +291,19 @@ static __init int exynos4_pm_drvinit(void)
 }
 arch_initcall(exynos4_pm_drvinit);
 
+static int exynos4_pm_suspend(void)
+{
+	unsigned long tmp;
+
+	/* Setting Central Sequence Register for power down mode */
+
+	tmp = __raw_readl(S5P_CENTRAL_SEQ_CONFIGURATION);
+	tmp &= ~S5P_CENTRAL_LOWPWR_CFG;
+	__raw_writel(tmp, S5P_CENTRAL_SEQ_CONFIGURATION);
+
+	return 0;
+}
+
 static void exynos4_pm_resume(void)
 {
 	unsigned long tmp;
@@ -343,6 +348,7 @@ early_wakeup:
 }
 
 static struct syscore_ops exynos4_pm_syscore_ops = {
+	.suspend	= exynos4_pm_suspend,
 	.resume		= exynos4_pm_resume,
 };
 
