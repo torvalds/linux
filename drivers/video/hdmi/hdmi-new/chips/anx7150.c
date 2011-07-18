@@ -12,6 +12,7 @@
 
 #include "anx7150.h"
 #include "anx7150_hw.h"
+
 int anx7150_i2c_read_p0_reg(struct i2c_client *client, char reg, char *val)
 {
 	client->addr = ANX7150_I2C_ADDR0;
@@ -33,22 +34,13 @@ int anx7150_i2c_write_p1_reg(struct i2c_client *client, char reg, char *val)
 	return i2c_master_reg8_send(client, reg, val, 1, ANX7150_SCL_RATE) > 0? 0: -EINVAL;
 }
 
-static int anx7150_hdmi_precent(struct hdmi *hdmi)
-{
-	struct anx7150_pdata *anx = hdmi_priv(hdmi);
-
-	return gpio_get_value(anx->client->irq)?0:1;
-}
 static int anx7150_param_chg(struct anx7150_pdata *anx)
 {
-	int resolution_real, enable;
-	
-	if(anx->hdmi->mode == DISP_ON_LCD)
-		anx->hdmi->scale = 100;
-	enable = ((anx->hdmi->mode!= DISP_ON_LCD) && anx->hdmi->display_on && anx7150_hdmi_precent(anx->hdmi))?1:0;
-	hdmi_set_spk(!enable);  //if(hdmi mode) turn off spk
-	hdmi_set_backlight(!enable); //if(hdmi mode) trun off backlight
-	hdmi_switch_fb(anx->hdmi, enable);
+	int resolution_real;
+
+	hdmi_set_spk(anx->hdmi->display_on);
+	hdmi_set_backlight(!anx->hdmi->display_on);
+	hdmi_switch_fb(anx->hdmi, anx->hdmi->display_on);
 	resolution_real = ANX7150_Get_Optimal_resolution(anx->hdmi->resolution);
 	HDMI_Set_Video_Format(resolution_real);
 	HDMI_Set_Audio_Fs(anx->hdmi->audio_fs);
@@ -69,24 +61,23 @@ static int anx7150_insert(struct hdmi *hdmi)
 	int tmo = 10;
 	struct anx7150_pdata *anx = hdmi_priv(hdmi);
 
-	if(anx->edid_read_ok == 0) {
-		anx7150_plug(anx->client);
-		if(ANX7150_Parse_EDID(anx->client,&anx->dev) < 0)
-		{
-			dev_info(&anx->client->dev, "parse EDID error\n");
-			anx7150_unplug(anx->client);
-			return -1;
-		}
-		
-		while(--tmo && ANX7150_GET_SENSE_STATE(anx->client) != 1)
-			mdelay(10);
-		if(tmo <= 0)
-		{
-			anx7150_unplug(anx->client);
-			return -1;
-		}
-		anx->edid_read_ok = 1;
+	anx7150_plug(anx->client);
+	if(ANX7150_Parse_EDID(anx->client,&anx->dev) < 0)
+	{
+		dev_info(&anx->client->dev, "parse EDID error\n");
+		anx7150_unplug(anx->client);
+		return -1;
 	}
+		
+	while(--tmo && ANX7150_GET_SENSE_STATE(anx->client) != 1)
+		mdelay(10);
+	if(tmo <= 0)
+	{
+		anx7150_unplug(anx->client);
+		return -1;
+	}
+	if(!hdmi->display_on)
+		return 0;
 	anx7150_param_chg(anx);
 	return 0;
 }
@@ -95,11 +86,9 @@ static int anx7150_remove(struct hdmi *hdmi)
 	struct anx7150_pdata *anx = hdmi_priv(hdmi);
 
 	anx7150_unplug(anx->client);
-	anx->edid_read_ok = 0;
-	hdmi->scale = 100;
-	hdmi_set_spk(HDMI_ENABLE);
-	hdmi_switch_fb(hdmi, HDMI_DISABLE);
+	hdmi_set_spk(HDMI_DISABLE);
 	hdmi_set_backlight(HDMI_ENABLE);
+	hdmi_switch_fb(hdmi, HDMI_DISABLE);
 
 	return 0;
 }
@@ -108,23 +97,26 @@ static int anx7150_shutdown(struct hdmi *hdmi)
 	struct anx7150_pdata *anx = hdmi_priv(hdmi);
 	
 	anx7150_unplug(anx->client);
-	anx->edid_read_ok = 0;
-	hdmi->scale = 100;
 
 	return 0;
 }
 static int anx7150_display_on(struct hdmi* hdmi)
 {
+	struct anx7150_pdata *anx = hdmi_priv(hdmi);
+
 	hdmi->display_on = HDMI_ENABLE;
 	hdmi_dbg(hdmi->dev, "hdmi display on\n");
-	anx7150_insert(hdmi);
+	anx7150_param_chg(anx);
 	return 0;
 }
 static int anx7150_display_off(struct hdmi* hdmi)
 {
+	struct anx7150_pdata *anx = hdmi_priv(hdmi);
+
 	hdmi->display_on = HDMI_DISABLE;
+	anx->dev.hdmi_enable = HDMI_DISABLE;
 	hdmi_dbg(hdmi->dev, "hdmi display off\n");
-	anx7150_remove(hdmi);
+	anx7150_param_chg(anx);
 	return 0;
 }
 static int anx7150_set_param(struct hdmi *hdmi)
@@ -135,6 +127,12 @@ static int anx7150_set_param(struct hdmi *hdmi)
 	return 0;
 }
 
+static int anx7150_hdmi_precent(struct hdmi *hdmi)
+{
+	struct anx7150_pdata *anx = hdmi_priv(hdmi);
+
+	return gpio_get_value(anx->client->irq)?0:1;
+}
 static struct hdmi_ops anx7150_ops = {
 	.display_on = anx7150_display_on,
 	.display_off = anx7150_display_off,
@@ -153,12 +151,10 @@ static void anx7150_detect_work(struct work_struct *work)
 	free_irq(anx->irq, anx);
 	ret = request_irq(anx->irq, anx7150_detect_irq,
 		anx7150_hdmi_precent(anx->hdmi)? IRQF_TRIGGER_RISING : IRQF_TRIGGER_FALLING,NULL,anx);
-	dev_dbg(&anx->client->dev, "det = %d,hpd_status = %d\n", 
+	dev_info(&anx->client->dev, "det = %d,hpd_status = %d\n", 
 		gpio_get_value(anx->client->irq), anx7150_get_hpd(anx->client));
-	if(gpio_get_value(anx->client->irq) == anx7150_get_hpd(anx->client))
-		return;
 	anx->is_changed = 1;
-	if(!anx->is_early_suspend && anx->hdmi->display_on == HDMI_ENABLE)
+	if(!anx->is_early_suspend)
 		hdmi_changed(anx->hdmi, 0);
 }
 
@@ -220,11 +216,8 @@ static int anx7150_i2c_probe(struct i2c_client *client,const struct i2c_device_i
 	hdmi->hdcp_on = HDMI_DISABLE;
 	hdmi->audio_fs = HDMI_I2S_DEFAULT_Fs;
 	hdmi->resolution = HDMI_DEFAULT_RESOLUTION;
-	hdmi->dual_disp = DUAL_DISP_CAP;
-	hdmi->mode = HDMI_DEFAULT_MODE;
 	
 	anx = hdmi_priv(hdmi);
-	anx->edid_read_ok = 0;
 	anx->hdmi = hdmi;
 	i2c_set_clientdata(client, anx);
 	anx->client = client;
@@ -260,9 +253,8 @@ static int anx7150_i2c_probe(struct i2c_client *client,const struct i2c_device_i
 #endif
 	anx->is_early_suspend = 0;
 	anx->is_changed = 1;
-	anx7150_initial(anx->client);
 
-	//hdmi_changed(hdmi, 200);
+	hdmi_changed(hdmi, 200);
     dev_info(&client->dev, "anx7150 i2c probe ok\n");
     return 0;
 err_free_irq:

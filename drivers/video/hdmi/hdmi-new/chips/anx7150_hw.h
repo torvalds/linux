@@ -1263,6 +1263,6 @@ void  HDMI_Set_Audio_Fs( u8 audio_fs);
 int ANX7150_PLAYBACK_Process(void);
 int ANX7150_Blue_Screen(struct anx7150_pdata *anx);
 int anx7150_set_avmute(struct i2c_client *client);
-int anx7150_initial(struct i2c_client *client);
+
 
 #endif

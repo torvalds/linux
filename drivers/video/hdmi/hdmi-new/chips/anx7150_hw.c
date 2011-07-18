@@ -494,14 +494,6 @@ int anx7150_rst_ddcchannel(struct i2c_client *client)
 	return rc;
 }
 
-int anx7150_initial(struct i2c_client *client)
-{
-    ANX7150_Variable_Initial();   //simon
-    ANX7150_HW_Interface_Variable_Initial();  //simon
-    
-    anx7150_hardware_initial(client);   //simon
-	return 0;
-}
 int anx7150_unplug(struct i2c_client *client)
 {
 	int rc = 0;
@@ -1306,7 +1298,7 @@ static int ANX7150_Read_EDID(struct i2c_client *client)
     u8 edid_segment,segmentpointer,k;
 
     rc = anx7150_rst_ddcchannel(client);
-	mdelay(5);
+	mdelay(1);
 
     edid_segment = ANX7150_edid_length / 256;
     if (edid_segment==0)																			//update
@@ -1318,11 +1310,11 @@ static int ANX7150_Read_EDID(struct i2c_client *client)
     for (k = 0; k <= segmentpointer; k ++)
     {
         rc =anx7150_initddc_read(client, 0xa0, k, 0x00, 0x80, 0x00);
-		mdelay(10);
+		mdelay(1);
         rc = ANX7150_DDC_Mass_Read(client, 128, k);
 		//mdelay(10);
         rc = anx7150_initddc_read(client, 0xa0, k, 0x80, 0x80, 0x00);
-		mdelay(10);
+		mdelay(1);
         rc = ANX7150_DDC_Mass_Read(client, 128, k + 1);
 		//mdelay(10);
     }

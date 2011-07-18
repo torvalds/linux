@@ -90,5 +90,4 @@ int anx7150_i2c_write_p0_reg(struct i2c_client *client, char reg, char *val);
 int anx7150_i2c_read_p1_reg(struct i2c_client *client, char reg, char *val);
 int anx7150_i2c_write_p1_reg(struct i2c_client *client, char reg, char *val);
 
-int anx7150_get_output_status(void);//eboda zlj add for test 110518
 #endif

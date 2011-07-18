@@ -40,7 +40,7 @@
 #include <linux/irq.h>
 #include <linux/async.h>
 #include <mach/board.h>
-#include <linux/hdmi-new.h>
+
 //#define DEBUG
 #ifdef CONFIG_EETI_EGALAX_DEBUG
 	#define TS_DEBUG(fmt,args...)  printk( KERN_DEBUG "[egalax_i2c]: " fmt, ## args)
@@ -338,7 +338,6 @@ static void ProcessReport(unsigned char *buf, int buflen)
 {
 	int i;
 	short X=0, Y=0, ContactID=0, Status=0;
-	int x, y, scale;
 	if(buflen!=MAX_I2C_LEN || buf[0]!=0x04) // check buffer len & header
 		return;
 
@@ -363,20 +362,9 @@ static void ProcessReport(unsigned char *buf, int buflen)
 				input_report_abs(input_dev, ABS_MT_TRACKING_ID, i);			
 				input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR, PointBuf[i].Status);
 				input_report_abs(input_dev, ABS_MT_WIDTH_MAJOR, 0);
-#if 1 //mod by kfx
-				scale = hdmi_get_scale();
-				x = PointBuf[i].X * 100 / scale;
-				x -= CONFIG_EETI_EGALAX_MAX_X * (100-scale)/200;
-				x = (x<0)?0:x;
-				y = PointBuf[i].Y * 100 / scale;
-				y -= CONFIG_EETI_EGALAX_MAX_Y * (100-scale)/200;
-				y = (y<0)?0:y;
-				input_report_abs(input_dev, ABS_MT_POSITION_X, x);
-				input_report_abs(input_dev, ABS_MT_POSITION_Y, y);
-#else
 				input_report_abs(input_dev, ABS_MT_POSITION_X, PointBuf[i].X);
 				input_report_abs(input_dev, ABS_MT_POSITION_Y, PointBuf[i].Y);
-#endif
+
 				input_mt_sync(input_dev);
 
 				if(PointBuf[i].Status == 0)
