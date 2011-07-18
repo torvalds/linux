@@ -1153,11 +1153,12 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 
 		while (neigh->nud_state & NUD_VALID &&
 		       (skb = __skb_dequeue(&neigh->arp_queue)) != NULL) {
-			struct neighbour *n1 = neigh;
+			struct dst_entry *dst = skb_dst(skb);
+			struct neighbour *n2, *n1 = neigh;
 			write_unlock_bh(&neigh->lock);
 			/* On shaper/eql skb->dst->neighbour != neigh :( */
-			if (skb_dst(skb) && skb_dst(skb)->neighbour)
-				n1 = skb_dst(skb)->neighbour;
+			if (dst && (n2 = dst_get_neighbour(dst)) != NULL)
+				n1 = n2;
 			n1->output(n1, skb);
 			write_lock_bh(&neigh->lock);
 		}

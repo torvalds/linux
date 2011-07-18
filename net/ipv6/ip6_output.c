@@ -135,7 +135,7 @@ static int ip6_finish_output2(struct sk_buff *skb)
 				skb->len);
 	}
 
-	neigh = dst->neighbour;
+	neigh = dst_get_neighbour(dst);
 	if (neigh)
 		return neigh_output(neigh, skb);
 
@@ -385,6 +385,7 @@ int ip6_forward(struct sk_buff *skb)
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct inet6_skb_parm *opt = IP6CB(skb);
 	struct net *net = dev_net(dst->dev);
+	struct neighbour *n;
 	u32 mtu;
 
 	if (net->ipv6.devconf_all->forwarding == 0)
@@ -459,11 +460,10 @@ int ip6_forward(struct sk_buff *skb)
 	   send redirects to source routed frames.
 	   We don't send redirects to frames decapsulated from IPsec.
 	 */
-	if (skb->dev == dst->dev && dst->neighbour && opt->srcrt == 0 &&
-	    !skb_sec_path(skb)) {
+	n = dst_get_neighbour(dst);
+	if (skb->dev == dst->dev && n && opt->srcrt == 0 && !skb_sec_path(skb)) {
 		struct in6_addr *target = NULL;
 		struct rt6_info *rt;
-		struct neighbour *n = dst->neighbour;
 
 		/*
 		 *	incoming and outgoing devices are the same
@@ -920,8 +920,11 @@ out:
 static int ip6_dst_lookup_tail(struct sock *sk,
 			       struct dst_entry **dst, struct flowi6 *fl6)
 {
-	int err;
 	struct net *net = sock_net(sk);
+#ifdef CONFIG_IPV6_OPTIMISTIC_DAD
+	struct neighbour *n;
+#endif
+	int err;
 
 	if (*dst == NULL)
 		*dst = ip6_route_output(net, sk, fl6);
@@ -947,7 +950,8 @@ static int ip6_dst_lookup_tail(struct sock *sk,
 	 * dst entry and replace it instead with the
 	 * dst entry of the nexthop router
 	 */
-	if ((*dst)->neighbour && !((*dst)->neighbour->nud_state & NUD_VALID)) {
+	n = dst_get_neighbour(*dst);
+	if (n && !(n->nud_state & NUD_VALID)) {
 		struct inet6_ifaddr *ifp;
 		struct flowi6 fl_gw6;
 		int redirect;

@@ -241,9 +241,11 @@ static int dn_dst_gc(struct dst_ops *ops)
  */
 static void dn_dst_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
+	struct neighbour *n = dst_get_neighbour(dst);
 	u32 min_mtu = 230;
-	struct dn_dev *dn = dst->neighbour ?
-			    rcu_dereference_raw(dst->neighbour->dev->dn_ptr) : NULL;
+	struct dn_dev *dn;
+
+	dn = n ? rcu_dereference_raw(n->dev->dn_ptr) : NULL;
 
 	if (dn && dn->use_long == 0)
 		min_mtu -= 6;
@@ -708,7 +710,7 @@ out:
 static int dn_to_neigh_output(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *n = dst->neighbour;
+	struct neighbour *n = dst_get_neighbour(dst);
 
 	return n->output(n, skb);
 }
@@ -723,7 +725,7 @@ static int dn_output(struct sk_buff *skb)
 
 	int err = -EINVAL;
 
-	if ((neigh = dst->neighbour) == NULL)
+	if ((neigh = dst_get_neighbour(dst)) == NULL)
 		goto error;
 
 	skb->dev = dev;
@@ -840,11 +842,11 @@ static int dn_rt_set_next_hop(struct dn_route *rt, struct dn_fib_res *res)
 	}
 	rt->rt_type = res->type;
 
-	if (dev != NULL && rt->dst.neighbour == NULL) {
+	if (dev != NULL && dst_get_neighbour(&rt->dst) == NULL) {
 		n = __neigh_lookup_errno(&dn_neigh_table, &rt->rt_gateway, dev);
 		if (IS_ERR(n))
 			return PTR_ERR(n);
-		rt->dst.neighbour = n;
+		dst_set_neighbour(&rt->dst, n);
 	}
 
 	if (dst_metric(&rt->dst, RTAX_MTU) > rt->dst.dev->mtu)
@@ -1151,7 +1153,7 @@ make_route:
 	rt->rt_dst_map    = fld.daddr;
 	rt->rt_src_map    = fld.saddr;
 
-	rt->dst.neighbour = neigh;
+	dst_set_neighbour(&rt->dst, neigh);
 	neigh = NULL;
 
 	rt->dst.lastuse = jiffies;
@@ -1423,7 +1425,7 @@ make_route:
 	rt->fld.flowidn_iif  = in_dev->ifindex;
 	rt->fld.flowidn_mark = fld.flowidn_mark;
 
-	rt->dst.neighbour = neigh;
+	dst_set_neighbour(&rt->dst, neigh);
 	rt->dst.lastuse = jiffies;
 	rt->dst.output = dn_rt_bug;
 	switch (res.type) {

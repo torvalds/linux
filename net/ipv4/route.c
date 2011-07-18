@@ -412,8 +412,10 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			   "HHUptod\tSpecDst");
 	else {
 		struct rtable *r = v;
+		struct neighbour *n;
 		int len;
 
+		n = dst_get_neighbour(&r->dst);
 		seq_printf(seq, "%s\t%08X\t%08X\t%8X\t%d\t%u\t%d\t"
 			      "%08X\t%d\t%u\t%u\t%02X\t%d\t%1d\t%08X%n",
 			r->dst.dev ? r->dst.dev->name : "*",
@@ -427,9 +429,7 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 			      dst_metric(&r->dst, RTAX_RTTVAR)),
 			r->rt_key_tos,
 			-1,
-			(r->dst.neighbour &&
-			 (r->dst.neighbour->nud_state & NUD_CONNECTED)) ?
-			   1 : 0,
+			(n && (n->nud_state & NUD_CONNECTED)) ? 1 : 0,
 			r->rt_spec_dst, &len);
 
 		seq_printf(seq, "%*s\n", 127 - len, "");
@@ -1026,7 +1026,7 @@ static int rt_bind_neighbour(struct rtable *rt)
 	n = ipv4_neigh_lookup(tbl, dev, nexthop);
 	if (IS_ERR(n))
 		return PTR_ERR(n);
-	rt->dst.neighbour = n;
+	dst_set_neighbour(&rt->dst, n);
 
 	return 0;
 }
@@ -1617,23 +1617,24 @@ static int check_peer_redir(struct dst_entry *dst, struct inet_peer *peer)
 {
 	struct rtable *rt = (struct rtable *) dst;
 	__be32 orig_gw = rt->rt_gateway;
+	struct neighbour *n;
 
 	dst_confirm(&rt->dst);
 
-	neigh_release(rt->dst.neighbour);
-	rt->dst.neighbour = NULL;
+	neigh_release(dst_get_neighbour(&rt->dst));
+	dst_set_neighbour(&rt->dst, NULL);
 
 	rt->rt_gateway = peer->redirect_learned.a4;
-	if (rt_bind_neighbour(rt) ||
-	    !(rt->dst.neighbour->nud_state & NUD_VALID)) {
-		if (rt->dst.neighbour)
-			neigh_event_send(rt->dst.neighbour, NULL);
+	rt_bind_neighbour(rt);
+	n = dst_get_neighbour(&rt->dst);
+	if (!n || !(n->nud_state & NUD_VALID)) {
+		if (n)
+			neigh_event_send(n, NULL);
 		rt->rt_gateway = orig_gw;
 		return -EAGAIN;
 	} else {
 		rt->rt_flags |= RTCF_REDIRECTED;
-		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE,
-					rt->dst.neighbour);
+		call_netevent_notifiers(NETEVENT_NEIGH_UPDATE, n);
 	}
 	return 0;
 }

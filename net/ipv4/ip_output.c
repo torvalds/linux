@@ -204,7 +204,7 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 		skb = skb2;
 	}
 
-	neigh = dst->neighbour;
+	neigh = dst_get_neighbour(dst);
 	if (neigh)
 		return neigh_output(neigh, skb);
 
