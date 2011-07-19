@@ -321,7 +321,6 @@ static void pcmciamtd_release(struct pcmcia_device *link)
 }
 
 
-#ifdef CONFIG_MTD_DEBUG
 static int pcmciamtd_cistpl_format(struct pcmcia_device *p_dev,
 				tuple_t *tuple,
 				void *priv_data)
@@ -352,7 +351,6 @@ static int pcmciamtd_cistpl_jedec(struct pcmcia_device *p_dev,
 	}
 	return -ENOSPC;
 }
-#endif
 
 static int pcmciamtd_cistpl_device(struct pcmcia_device *p_dev,
 				tuple_t *tuple,
@@ -419,10 +417,8 @@ static void card_settings(struct pcmciamtd_dev *dev, struct pcmcia_device *p_dev
 		pr_debug("Found name: %s\n", dev->mtd_name);
 	}
 
-#ifdef CONFIG_MTD_DEBUG
 	pcmcia_loop_tuple(p_dev, CISTPL_FORMAT, pcmciamtd_cistpl_format, NULL);
 	pcmcia_loop_tuple(p_dev, CISTPL_JEDEC_C, pcmciamtd_cistpl_jedec, NULL);
-#endif
 	pcmcia_loop_tuple(p_dev, CISTPL_DEVICE, pcmciamtd_cistpl_device, dev);
 	pcmcia_loop_tuple(p_dev, CISTPL_DEVICE_GEO, pcmciamtd_cistpl_geo, dev);
 

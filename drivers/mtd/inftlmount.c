@@ -139,24 +139,20 @@ static int find_boot_record(struct INFTLrecord *inftl)
 		mh->FormatFlags = le32_to_cpu(mh->FormatFlags);
 		mh->PercentUsed = le32_to_cpu(mh->PercentUsed);
 
-#ifdef CONFIG_MTD_DEBUG_VERBOSE
-		if (CONFIG_MTD_DEBUG_VERBOSE >= 2) {
-			printk("INFTL: Media Header ->\n"
-				"    bootRecordID          = %s\n"
-				"    NoOfBootImageBlocks   = %d\n"
-				"    NoOfBinaryPartitions  = %d\n"
-				"    NoOfBDTLPartitions    = %d\n"
-				"    BlockMultiplerBits    = %d\n"
-				"    FormatFlgs            = %d\n"
-				"    OsakVersion           = 0x%x\n"
-				"    PercentUsed           = %d\n",
-				mh->bootRecordID, mh->NoOfBootImageBlocks,
-				mh->NoOfBinaryPartitions,
-				mh->NoOfBDTLPartitions,
-				mh->BlockMultiplierBits, mh->FormatFlags,
-				mh->OsakVersion, mh->PercentUsed);
-		}
-#endif
+		pr_debug("INFTL: Media Header ->\n"
+			 "    bootRecordID          = %s\n"
+			 "    NoOfBootImageBlocks   = %d\n"
+			 "    NoOfBinaryPartitions  = %d\n"
+			 "    NoOfBDTLPartitions    = %d\n"
+			 "    BlockMultiplerBits    = %d\n"
+			 "    FormatFlgs            = %d\n"
+			 "    OsakVersion           = 0x%x\n"
+			 "    PercentUsed           = %d\n",
+			 mh->bootRecordID, mh->NoOfBootImageBlocks,
+			 mh->NoOfBinaryPartitions,
+			 mh->NoOfBDTLPartitions,
+			 mh->BlockMultiplierBits, mh->FormatFlags,
+			 mh->OsakVersion, mh->PercentUsed);
 
 		if (mh->NoOfBDTLPartitions == 0) {
 			printk(KERN_WARNING "INFTL: Media Header sanity check "
@@ -200,19 +196,15 @@ static int find_boot_record(struct INFTLrecord *inftl)
 			ip->spareUnits = le32_to_cpu(ip->spareUnits);
 			ip->Reserved0 = le32_to_cpu(ip->Reserved0);
 
-#ifdef CONFIG_MTD_DEBUG_VERBOSE
-			if (CONFIG_MTD_DEBUG_VERBOSE >= 2) {
-				printk("    PARTITION[%d] ->\n"
-					"        virtualUnits    = %d\n"
-					"        firstUnit       = %d\n"
-					"        lastUnit        = %d\n"
-					"        flags           = 0x%x\n"
-					"        spareUnits      = %d\n",
-					i, ip->virtualUnits, ip->firstUnit,
-					ip->lastUnit, ip->flags,
-					ip->spareUnits);
-			}
-#endif
+			pr_debug("    PARTITION[%d] ->\n"
+				 "        virtualUnits    = %d\n"
+				 "        firstUnit       = %d\n"
+				 "        lastUnit        = %d\n"
+				 "        flags           = 0x%x\n"
+				 "        spareUnits      = %d\n",
+				 i, ip->virtualUnits, ip->firstUnit,
+				 ip->lastUnit, ip->flags,
+				 ip->spareUnits);
 
 			if (ip->Reserved0 != ip->firstUnit) {
 				struct erase_info *instr = &inftl->instr;
@@ -475,30 +467,30 @@ void INFTL_dumptables(struct INFTLrecord *s)
 {
 	int i;
 
-	printk("-------------------------------------------"
+	pr_debug("-------------------------------------------"
 		"----------------------------------\n");
 
-	printk("VUtable[%d] ->", s->nb_blocks);
+	pr_debug("VUtable[%d] ->", s->nb_blocks);
 	for (i = 0; i < s->nb_blocks; i++) {
 		if ((i % 8) == 0)
-			printk("\n%04x: ", i);
-		printk("%04x ", s->VUtable[i]);
+			pr_debug("\n%04x: ", i);
+		pr_debug("%04x ", s->VUtable[i]);
 	}
 
-	printk("\n-------------------------------------------"
+	pr_debug("\n-------------------------------------------"
 		"----------------------------------\n");
 
-	printk("PUtable[%d-%d=%d] ->", s->firstEUN, s->lastEUN, s->nb_blocks);
+	pr_debug("PUtable[%d-%d=%d] ->", s->firstEUN, s->lastEUN, s->nb_blocks);
 	for (i = 0; i <= s->lastEUN; i++) {
 		if ((i % 8) == 0)
-			printk("\n%04x: ", i);
-		printk("%04x ", s->PUtable[i]);
+			pr_debug("\n%04x: ", i);
+		pr_debug("%04x ", s->PUtable[i]);
 	}
 
-	printk("\n-------------------------------------------"
+	pr_debug("\n-------------------------------------------"
 		"----------------------------------\n");
 
-	printk("INFTL ->\n"
+	pr_debug("INFTL ->\n"
 		"  EraseSize       = %d\n"
 		"  h/s/c           = %d/%d/%d\n"
 		"  numvunits       = %d\n"
@@ -512,7 +504,7 @@ void INFTL_dumptables(struct INFTLrecord *s)
 		s->numvunits, s->firstEUN, s->lastEUN, s->numfreeEUNs,
 		s->LastFreeEUN, s->nb_blocks, s->nb_boot_blocks);
 
-	printk("\n-------------------------------------------"
+	pr_debug("\n-------------------------------------------"
 		"----------------------------------\n");
 }
 
@@ -520,25 +512,25 @@ void INFTL_dumpVUchains(struct INFTLrecord *s)
 {
 	int logical, block, i;
 
-	printk("-------------------------------------------"
+	pr_debug("-------------------------------------------"
 		"----------------------------------\n");
 
-	printk("INFTL Virtual Unit Chains:\n");
+	pr_debug("INFTL Virtual Unit Chains:\n");
 	for (logical = 0; logical < s->nb_blocks; logical++) {
 		block = s->VUtable[logical];
 		if (block > s->nb_blocks)
 			continue;
-		printk("  LOGICAL %d --> %d ", logical, block);
+		pr_debug("  LOGICAL %d --> %d ", logical, block);
 		for (i = 0; i < s->nb_blocks; i++) {
 			if (s->PUtable[block] == BLOCK_NIL)
 				break;
 			block = s->PUtable[block];
-			printk("%d ", block);
+			pr_debug("%d ", block);
 		}
-		printk("\n");
+		pr_debug("\n");
 	}
 
-	printk("-------------------------------------------"
+	pr_debug("-------------------------------------------"
 		"----------------------------------\n");
 }
 
@@ -716,10 +708,7 @@ int INFTL_mount(struct INFTLrecord *s)
 		logical_block = BLOCK_NIL;
 	}
 
-#ifdef CONFIG_MTD_DEBUG_VERBOSE
-	if (CONFIG_MTD_DEBUG_VERBOSE >= 2)
-		INFTL_dumptables(s);
-#endif
+	INFTL_dumptables(s);
 
 	/*
 	 * Second pass, check for infinite loops in chains. These are
@@ -771,12 +760,8 @@ int INFTL_mount(struct INFTLrecord *s)
 		}
 	}
 
-#ifdef CONFIG_MTD_DEBUG_VERBOSE
-	if (CONFIG_MTD_DEBUG_VERBOSE >= 2)
-		INFTL_dumptables(s);
-	if (CONFIG_MTD_DEBUG_VERBOSE >= 2)
-		INFTL_dumpVUchains(s);
-#endif
+	INFTL_dumptables(s);
+	INFTL_dumpVUchains(s);
 
 	/*
 	 * Third pass, format unreferenced blocks and init free block count.
