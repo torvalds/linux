@@ -251,7 +251,7 @@ typedef	u8		AC_UAPSD, *PAC_UAPSD;
 #define	GET_BE_UAPSD(_apsd) ((_apsd) & BIT3)
 #define	SET_BE_UAPSD(_apsd) ((_apsd) |= BIT3)
 
-typedef union _QOS_TCLAS{
+union qos_tclas {
 
 	struct _TYPE_GENERAL{
 		u8		Priority;
@@ -300,7 +300,7 @@ typedef union _QOS_TCLAS{
 		u8		Mask;
 		u16		TagType;
 	} TYPE2_8021Q;
-} QOS_TCLAS, *PQOS_TCLAS;
+};
 
 struct qos_tstream {
 

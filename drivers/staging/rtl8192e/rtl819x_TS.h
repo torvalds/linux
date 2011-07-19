@@ -37,7 +37,7 @@ struct ts_common_info {
 	struct timer_list		InactTimer;
 	u8				Addr[6];
 	union tspec_body TSpec;
-	QOS_TCLAS			TClass[TCLAS_NUM];
+	union qos_tclas TClass[TCLAS_NUM];
 	u8				TClasProc;
 	u8				TClasNum;
 };

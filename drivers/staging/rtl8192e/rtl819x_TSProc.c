@@ -106,7 +106,7 @@ void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 {
 	memset(pTsCommonInfo->Addr, 0, 6);
 	memset(&pTsCommonInfo->TSpec, 0, sizeof(union tspec_body));
-	memset(&pTsCommonInfo->TClass, 0, sizeof(QOS_TCLAS)*TCLAS_NUM);
+	memset(&pTsCommonInfo->TClass, 0, sizeof(union qos_tclas)*TCLAS_NUM);
 	pTsCommonInfo->TClasProc = 0;
 	pTsCommonInfo->TClasNum = 0;
 }
@@ -294,7 +294,7 @@ void MakeTSEntry(
 		struct ts_common_info *pTsCommonInfo,
 		u8*		Addr,
 		union tspec_body *pTSPEC,
-		PQOS_TCLAS	pTCLAS,
+		union qos_tclas *pTCLAS,
 		u8		TCLAS_Num,
 		u8		TCLAS_Proc
 	)
@@ -310,7 +310,7 @@ void MakeTSEntry(
 		memcpy((u8*)(&(pTsCommonInfo->TSpec)), (u8*)pTSPEC, sizeof(union tspec_body));
 
 	for (count = 0; count < TCLAS_Num; count++)
-		memcpy((u8*)(&(pTsCommonInfo->TClass[count])), (u8*)pTCLAS, sizeof(QOS_TCLAS));
+		memcpy((u8*)(&(pTsCommonInfo->TClass[count])), (u8*)pTCLAS, sizeof(union qos_tclas));
 
 	pTsCommonInfo->TClasProc = TCLAS_Proc;
 	pTsCommonInfo->TClasNum = TCLAS_Num;
