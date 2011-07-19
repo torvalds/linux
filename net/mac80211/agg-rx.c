@@ -104,14 +104,22 @@ void ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, u16 ba_rx_bitmap,
 				  const u8 *addr)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	struct sta_info *sta = sta_info_get(sdata, addr);
+	struct sta_info *sta;
 	int i;
+
+	rcu_read_lock();
+	sta = sta_info_get(sdata, addr);
+	if (!sta) {
+		rcu_read_unlock();
+		return;
+	}
 
 	for (i = 0; i < STA_TID_NUM; i++)
 		if (ba_rx_bitmap & BIT(i))
 			set_bit(i, sta->ampdu_mlme.tid_rx_stop_requested);
 
 	ieee80211_queue_work(&sta->local->hw, &sta->ampdu_mlme.work);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL(ieee80211_stop_rx_ba_session);
 
