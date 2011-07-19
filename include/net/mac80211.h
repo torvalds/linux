@@ -1586,6 +1586,20 @@ enum ieee80211_ampdu_mlme_action {
 };
 
 /**
+ * enum ieee80211_tx_sync_type - TX sync type
+ * @IEEE80211_TX_SYNC_AUTH: sync TX for authentication
+ *	(and possibly also before direct probe)
+ * @IEEE80211_TX_SYNC_ASSOC: sync TX for association
+ * @IEEE80211_TX_SYNC_ACTION: sync TX for action frame
+ *	(not implemented yet)
+ */
+enum ieee80211_tx_sync_type {
+	IEEE80211_TX_SYNC_AUTH,
+	IEEE80211_TX_SYNC_ASSOC,
+	IEEE80211_TX_SYNC_ACTION,
+};
+
+/**
  * struct ieee80211_ops - callbacks from mac80211 to the driver
  *
  * This structure contains various callbacks that the driver may
@@ -1673,6 +1687,26 @@ enum ieee80211_ampdu_mlme_action {
  *	for association indication. The @changed parameter indicates which
  *	of the bss parameters has changed when a call is made. The callback
  *	can sleep.
+ *
+ * @tx_sync: Called before a frame is sent to an AP/GO. In the GO case, the
+ *	driver should sync with the GO's powersaving so the device doesn't
+ *	transmit the frame while the GO is asleep. In the regular AP case
+ *	it may be used by drivers for devices implementing other restrictions
+ *	on talking to APs, e.g. due to regulatory enforcement or just HW
+ *	restrictions.
+ *	This function is called for every authentication, association and
+ *	action frame separately since applications might attempt to auth
+ *	with multiple APs before chosing one to associate to. If it returns
+ *	an error, the corresponding authentication, association or frame
+ *	transmission is aborted and reported as having failed. It is always
+ *	called after tuning to the correct channel.
+ *	The callback might be called multiple times before @finish_tx_sync
+ *	(but @finish_tx_sync will be called once for each) but in practice
+ *	this is unlikely to happen. It can also refuse in that case if the
+ *	driver cannot handle that situation.
+ *	This callback can sleep.
+ * @finish_tx_sync: Called as a counterpart to @tx_sync, unless that returned
+ *	an error. This callback can sleep.
  *
  * @prepare_multicast: Prepare for multicast filter configuration.
  *	This callback is optional, and its return value is passed
@@ -1901,6 +1935,14 @@ struct ieee80211_ops {
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
+
+	int (*tx_sync)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       const u8 *bssid, enum ieee80211_tx_sync_type type);
+	void (*finish_tx_sync)(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       const u8 *bssid,
+			       enum ieee80211_tx_sync_type type);
+
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
 				 struct netdev_hw_addr_list *mc_list);
 	void (*configure_filter)(struct ieee80211_hw *hw,

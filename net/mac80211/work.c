@@ -25,6 +25,7 @@
 
 #include "ieee80211_i.h"
 #include "rate.h"
+#include "driver-ops.h"
 
 #define IEEE80211_AUTH_TIMEOUT (HZ / 5)
 #define IEEE80211_AUTH_MAX_TRIES 3
@@ -427,6 +428,14 @@ ieee80211_direct_probe(struct ieee80211_work *wk)
 	struct ieee80211_sub_if_data *sdata = wk->sdata;
 	struct ieee80211_local *local = sdata->local;
 
+	if (!wk->probe_auth.synced) {
+		int ret = drv_tx_sync(local, sdata, wk->filter_ta,
+				      IEEE80211_TX_SYNC_AUTH);
+		if (ret)
+			return WORK_ACT_TIMEOUT;
+	}
+	wk->probe_auth.synced = true;
+
 	wk->probe_auth.tries++;
 	if (wk->probe_auth.tries > IEEE80211_AUTH_MAX_TRIES) {
 		printk(KERN_DEBUG "%s: direct probe to %pM timed out\n",
@@ -466,6 +475,14 @@ ieee80211_authenticate(struct ieee80211_work *wk)
 	struct ieee80211_sub_if_data *sdata = wk->sdata;
 	struct ieee80211_local *local = sdata->local;
 
+	if (!wk->probe_auth.synced) {
+		int ret = drv_tx_sync(local, sdata, wk->filter_ta,
+				      IEEE80211_TX_SYNC_AUTH);
+		if (ret)
+			return WORK_ACT_TIMEOUT;
+	}
+	wk->probe_auth.synced = true;
+
 	wk->probe_auth.tries++;
 	if (wk->probe_auth.tries > IEEE80211_AUTH_MAX_TRIES) {
 		printk(KERN_DEBUG "%s: authentication with %pM"
@@ -498,6 +515,14 @@ ieee80211_associate(struct ieee80211_work *wk)
 {
 	struct ieee80211_sub_if_data *sdata = wk->sdata;
 	struct ieee80211_local *local = sdata->local;
+
+	if (!wk->assoc.synced) {
+		int ret = drv_tx_sync(local, sdata, wk->filter_ta,
+				      IEEE80211_TX_SYNC_ASSOC);
+		if (ret)
+			return WORK_ACT_TIMEOUT;
+	}
+	wk->assoc.synced = true;
 
 	wk->assoc.tries++;
 	if (wk->assoc.tries > IEEE80211_ASSOC_MAX_TRIES) {

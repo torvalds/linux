@@ -323,6 +323,7 @@ struct ieee80211_work {
 			u8 key[WLAN_KEY_LEN_WEP104];
 			u8 key_len, key_idx;
 			bool privacy;
+			bool synced;
 		} probe_auth;
 		struct {
 			struct cfg80211_bss *bss;
@@ -336,6 +337,7 @@ struct ieee80211_work {
 			u8 ssid_len;
 			u8 supp_rates_len;
 			bool wmm_used, use_11n, uapsd_used;
+			bool synced;
 		} assoc;
 		struct {
 			u32 duration;
