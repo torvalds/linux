@@ -193,6 +193,8 @@ static int __devinit cy8ctmg110_probe(struct i2c_client *client,
 
 	ts->client = client;
 	ts->input = input_dev;
+	ts->reset_pin = pdata->reset_pin;
+	ts->irq_pin = pdata->irq_pin;
 
 	snprintf(ts->phys, sizeof(ts->phys),
 		 "%s/input0", dev_name(&client->dev));
