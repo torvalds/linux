@@ -748,7 +748,7 @@ u8 parse_subframe(struct rtllib_device* ieee,struct sk_buff *skb,
 	/* just for debug purpose */
 	SeqNum = WLAN_GET_SEQ_SEQ(le16_to_cpu(hdr->seq_ctl));
 	if ((RTLLIB_QOS_HAS_SEQ(fc))&&\
-			(((frameqos *)(skb->data + RTLLIB_3ADDR_LEN))->field.reserved)) {
+			(((union frameqos *)(skb->data + RTLLIB_3ADDR_LEN))->field.reserved)) {
 		bIsAggregateFrame = true;
 	}
 

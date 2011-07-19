@@ -1351,7 +1351,7 @@ struct rtllib_rxb {
 	u8 src[ETH_ALEN];
 }__attribute__((packed));
 
-typedef union _frameqos {
+union frameqos {
 	u16 shortdata;
 	u8  chardata[2];
 	struct {
@@ -1361,7 +1361,7 @@ typedef union _frameqos {
 		u16 reserved:1;
 		u16 txop:8;
 	}field;
-}frameqos,*pframeqos;
+};
 
 /* SWEEP TABLE ENTRIES NUMBER*/
 #define MAX_SWEEP_TAB_ENTRIES		  42
@@ -1511,7 +1511,7 @@ static inline u8 Frame_QoSTID(u8* buf)
 	u16 fc;
 	hdr = (struct rtllib_hdr_3addr *)buf;
 	fc = le16_to_cpu(hdr->frame_ctl);
-	return (u8)((frameqos*)(buf + (((fc & RTLLIB_FCTL_TODS)&&(fc & RTLLIB_FCTL_FROMDS))? 30 : 24)))->field.tid;
+	return (u8)((union frameqos *)(buf + (((fc & RTLLIB_FCTL_TODS)&&(fc & RTLLIB_FCTL_FROMDS))? 30 : 24)))->field.tid;
 }
 
 
