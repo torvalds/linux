@@ -93,7 +93,7 @@ typedef union _TSPEC_BODY{
 	} f;
 }TSPEC_BODY, *PTSPEC_BODY;
 
-typedef struct _WMM_TSPEC{
+struct wmm_tspec {
 	u8		ID;
 	u8		Length;
 	u8		OUI[3];
@@ -101,7 +101,7 @@ typedef struct _WMM_TSPEC{
 	u8		OUI_SubType;
 	u8		Version;
 	TSPEC_BODY	Body;
-} WMM_TSPEC, *PWMM_TSPEC;
+};
 
 typedef struct _OCTET_STRING{
         u8		*Octet;
@@ -308,8 +308,8 @@ typedef struct _QOS_TSTREAM{
 	bool			bEstablishing;
 	u8			TimeSlotCount;
 	u8			DialogToken;
-	WMM_TSPEC	TSpec;
-	WMM_TSPEC	OutStandingTSpec;
+	struct wmm_tspec TSpec;
+	struct wmm_tspec OutStandingTSpec;
 	u8			NominalPhyRate;
 } QOS_TSTREAM, *PQOS_TSTREAM;
 
@@ -334,7 +334,7 @@ typedef struct _STA_QOS{
 
 	QOS_TSTREAM		StaTsArray[MAX_STA_TS_COUNT];
 	u8				DialogToken;
-	WMM_TSPEC		TSpec;
+	struct wmm_tspec TSpec;
 
 	u8				QBssWirelessMode;
 
