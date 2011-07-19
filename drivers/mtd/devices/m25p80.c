@@ -208,9 +208,8 @@ static int wait_till_ready(struct m25p *flash)
  */
 static int erase_chip(struct m25p *flash)
 {
-	pr_debug("%s: %s %lldKiB\n",
-	      dev_name(&flash->spi->dev), __func__,
-	      (long long)(flash->mtd.size >> 10));
+	pr_debug("%s: %s %lldKiB\n", dev_name(&flash->spi->dev), __func__,
+			(long long)(flash->mtd.size >> 10));
 
 	/* Wait until finished previous write command. */
 	if (wait_till_ready(flash))
@@ -249,9 +248,8 @@ static int m25p_cmdsz(struct m25p *flash)
  */
 static int erase_sector(struct m25p *flash, u32 offset)
 {
-	pr_debug("%s: %s %dKiB at 0x%08x\n",
-			dev_name(&flash->spi->dev), __func__,
-			flash->mtd.erasesize / 1024, offset);
+	pr_debug("%s: %s %dKiB at 0x%08x\n", dev_name(&flash->spi->dev),
+			__func__, flash->mtd.erasesize / 1024, offset);
 
 	/* Wait until finished previous write command. */
 	if (wait_till_ready(flash))
@@ -285,9 +283,9 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 	u32 addr,len;
 	uint32_t rem;
 
-	pr_debug("%s: %s %s 0x%llx, len %lld\n",
-	      dev_name(&flash->spi->dev), __func__, "at",
-	      (long long)instr->addr, (long long)instr->len);
+	pr_debug("%s: %s at 0x%llx, len %lld\n", dev_name(&flash->spi->dev),
+			__func__, (long long)instr->addr,
+			(long long)instr->len);
 
 	/* sanity checks */
 	if (instr->addr + instr->len > flash->mtd.size)
@@ -347,9 +345,8 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	struct spi_transfer t[2];
 	struct spi_message m;
 
-	pr_debug("%s: %s %s 0x%08x, len %zd\n",
-			dev_name(&flash->spi->dev), __func__, "from",
-			(u32)from, len);
+	pr_debug("%s: %s from 0x%08x, len %zd\n", dev_name(&flash->spi->dev),
+			__func__, (u32)from, len);
 
 	/* sanity checks */
 	if (!len)
@@ -416,9 +413,8 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct spi_transfer t[2];
 	struct spi_message m;
 
-	pr_debug("%s: %s %s 0x%08x, len %zd\n",
-			dev_name(&flash->spi->dev), __func__, "to",
-			(u32)to, len);
+	pr_debug("%s: %s to 0x%08x, len %zd\n", dev_name(&flash->spi->dev),
+			__func__, (u32)to, len);
 
 	*retlen = 0;
 
@@ -509,9 +505,8 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	size_t actual;
 	int cmd_sz, ret;
 
-	pr_debug("%s: %s %s 0x%08x, len %zd\n",
-			dev_name(&flash->spi->dev), __func__, "to",
-			(u32)to, len);
+	pr_debug("%s: %s to 0x%08x, len %zd\n", dev_name(&flash->spi->dev),
+			__func__, (u32)to, len);
 
 	*retlen = 0;
 
@@ -788,7 +783,7 @@ static const struct spi_device_id *__devinit jedec_probe(struct spi_device *spi)
 	tmp = spi_write_then_read(spi, &code, 1, id, 5);
 	if (tmp < 0) {
 		pr_debug("%s: error %d reading JEDEC ID\n",
-			dev_name(&spi->dev), tmp);
+				dev_name(&spi->dev), tmp);
 		return ERR_PTR(tmp);
 	}
 	jedec = id[0];

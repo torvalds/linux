@@ -763,8 +763,8 @@ static int omap_compare_ecc(u8 *ecc_data1,	/* read from NAND memory */
 
 		find_bit = (ecc_bit[5] << 2) + (ecc_bit[3] << 1) + ecc_bit[1];
 
-		pr_debug("Correcting single bit ECC error at "
-				"offset: %d, bit: %d\n", find_byte, find_bit);
+		pr_debug("Correcting single bit ECC error at offset: "
+				"%d, bit: %d\n", find_byte, find_bit);
 
 		page_data[find_byte] ^= (1 << find_bit);
 

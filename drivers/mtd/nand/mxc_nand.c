@@ -349,8 +349,7 @@ static void wait_op_done(struct mxc_nand_host *host, int useirq)
 			udelay(1);
 		}
 		if (max_retries < 0)
-			pr_debug("%s: INT not set\n",
-			      __func__);
+			pr_debug("%s: INT not set\n", __func__);
 	}
 }
 
@@ -386,8 +385,7 @@ static void send_cmd_v1_v2(struct mxc_nand_host *host, uint16_t cmd, int useirq)
 			udelay(1);
 		}
 		if (max_retries < 0)
-			pr_debug("%s: RESET failed\n",
-			      __func__);
+			pr_debug("%s: RESET failed\n", __func__);
 	} else {
 		/* Wait for operation to complete */
 		wait_op_done(host, useirq);

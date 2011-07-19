@@ -249,8 +249,8 @@ static int dataflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	uint8_t			*command;
 	int			status;
 
-	pr_debug("%s: read 0x%x..0x%x\n",
-		dev_name(&priv->spi->dev), (unsigned)from, (unsigned)(from + len));
+	pr_debug("%s: read 0x%x..0x%x\n", dev_name(&priv->spi->dev),
+			(unsigned)from, (unsigned)(from + len));
 
 	*retlen = 0;
 
@@ -384,7 +384,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 			status = spi_sync(spi, &msg);
 			if (status < 0)
-				pr_debug("%s: xfer %u -> %d \n",
+				pr_debug("%s: xfer %u -> %d\n",
 					dev_name(&spi->dev), addr, status);
 
 			(void) dataflash_waitready(priv->spi);
@@ -406,7 +406,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		status = spi_sync(spi, &msg);
 		spi_transfer_del(x + 1);
 		if (status < 0)
-			pr_debug("%s: pgm %u/%u -> %d \n",
+			pr_debug("%s: pgm %u/%u -> %d\n",
 				dev_name(&spi->dev), addr, writelen, status);
 
 		(void) dataflash_waitready(priv->spi);
@@ -426,7 +426,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 		status = spi_sync(spi, &msg);
 		if (status < 0)
-			pr_debug("%s: compare %u -> %d \n",
+			pr_debug("%s: compare %u -> %d\n",
 				dev_name(&spi->dev), addr, status);
 
 		status = dataflash_waitready(priv->spi);
@@ -906,14 +906,14 @@ static int __devinit dataflash_probe(struct spi_device *spi)
 		break;
 	/* obsolete AT45DB1282 not (yet?) supported */
 	default:
-		pr_debug("%s: unsupported device (%x)\n",
-				dev_name(&spi->dev), status & 0x3c);
+		pr_debug("%s: unsupported device (%x)\n", dev_name(&spi->dev),
+				status & 0x3c);
 		status = -ENODEV;
 	}
 
 	if (status < 0)
-		pr_debug("%s: add_dataflash --> %d\n",
-				dev_name(&spi->dev), status);
+		pr_debug("%s: add_dataflash --> %d\n", dev_name(&spi->dev),
+				status);
 
 	return status;
 }

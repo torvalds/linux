@@ -1122,8 +1122,8 @@ static int onenand_mlc_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 	int ret = 0;
 	int writesize = this->writesize;
 
-	pr_debug("%s: from = 0x%08x, len = %i\n",
-	      __func__, (unsigned int) from, (int) len);
+	pr_debug("%s: from = 0x%08x, len = %i\n", __func__, (unsigned int)from,
+			(int)len);
 
 	if (ops->mode == MTD_OOB_AUTO)
 		oobsize = this->ecclayout->oobavail;
@@ -1226,8 +1226,8 @@ static int onenand_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 	int ret = 0, boundary = 0;
 	int writesize = this->writesize;
 
-	pr_debug("%s: from = 0x%08x, len = %i\n",
-			__func__, (unsigned int) from, (int) len);
+	pr_debug("%s: from = 0x%08x, len = %i\n", __func__, (unsigned int)from,
+			(int)len);
 
 	if (ops->mode == MTD_OOB_AUTO)
 		oobsize = this->ecclayout->oobavail;
@@ -1357,8 +1357,8 @@ static int onenand_read_oob_nolock(struct mtd_info *mtd, loff_t from,
 
 	from += ops->ooboffs;
 
-	pr_debug("%s: from = 0x%08x, len = %i\n",
-		__func__, (unsigned int) from, (int) len);
+	pr_debug("%s: from = 0x%08x, len = %i\n", __func__, (unsigned int)from,
+			(int)len);
 
 	/* Initialize return length value */
 	ops->oobretlen = 0;
@@ -1576,8 +1576,8 @@ int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from,
 	size_t len = ops->ooblen;
 	u_char *buf = ops->oobbuf;
 
-	pr_debug("%s: from = 0x%08x, len = %zi\n",
-		__func__, (unsigned int) from, len);
+	pr_debug("%s: from = 0x%08x, len = %zi\n", __func__, (unsigned int)from,
+			len);
 
 	/* Initialize return value */
 	ops->oobretlen = 0;
@@ -1750,8 +1750,8 @@ static int onenand_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Wait for any existing operation to clear */
 	onenand_panic_wait(mtd);
 
-	pr_debug("%s: to = 0x%08x, len = %i\n",
-		__func__, (unsigned int) to, (int) len);
+	pr_debug("%s: to = 0x%08x, len = %i\n", __func__, (unsigned int)to,
+			(int)len);
 
 	/* Initialize retlen, in case of early exit */
 	*retlen = 0;
@@ -1883,8 +1883,8 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 	u_char *oobbuf;
 	int ret = 0, cmd;
 
-	pr_debug("%s: to = 0x%08x, len = %i\n",
-		__func__, (unsigned int) to, (int) len);
+	pr_debug("%s: to = 0x%08x, len = %i\n", __func__, (unsigned int)to,
+			(int)len);
 
 	/* Initialize retlen, in case of early exit */
 	ops->retlen = 0;
@@ -2078,8 +2078,8 @@ static int onenand_write_oob_nolock(struct mtd_info *mtd, loff_t to,
 
 	to += ops->ooboffs;
 
-	pr_debug("%s: to = 0x%08x, len = %i\n",
-		__func__, (unsigned int) to, (int) len);
+	pr_debug("%s: to = 0x%08x, len = %i\n", __func__, (unsigned int)to,
+			(int)len);
 
 	/* Initialize retlen, in case of early exit */
 	ops->oobretlen = 0;
@@ -2490,7 +2490,8 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	loff_t region_offset = 0;
 
 	pr_debug("%s: start=0x%012llx, len=%llu\n", __func__,
-	      (unsigned long long) instr->addr, (unsigned long long) instr->len);
+			(unsigned long long)instr->addr,
+			(unsigned long long)instr->len);
 
 	/* Do not allow erase past end of device */
 	if (unlikely((len + addr) > mtd->size)) {

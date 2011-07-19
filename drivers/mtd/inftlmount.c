@@ -385,8 +385,7 @@ int INFTL_formatblock(struct INFTLrecord *inftl, int block)
 	struct mtd_info *mtd = inftl->mbd.mtd;
 	int physblock;
 
-	pr_debug("INFTL: INFTL_formatblock(inftl=%p,"
-		"block=%d)\n", inftl, block);
+	pr_debug("INFTL: INFTL_formatblock(inftl=%p,block=%d)\n", inftl, block);
 
 	memset(instr, 0, sizeof(struct erase_info));
 

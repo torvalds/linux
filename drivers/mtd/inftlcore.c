@@ -213,16 +213,16 @@ static u16 INFTL_findfreeblock(struct INFTLrecord *inftl, int desperate)
 	u16 pot = inftl->LastFreeEUN;
 	int silly = inftl->nb_blocks;
 
-	pr_debug("INFTL: INFTL_findfreeblock(inftl=%p,"
-		"desperate=%d)\n", inftl, desperate);
+	pr_debug("INFTL: INFTL_findfreeblock(inftl=%p,desperate=%d)\n",
+			inftl, desperate);
 
 	/*
 	 * Normally, we force a fold to happen before we run out of free
 	 * blocks completely.
 	 */
 	if (!desperate && inftl->numfreeEUNs < 2) {
-		pr_debug("INFTL: there are too few free "
-			"EUNs (%d)\n", inftl->numfreeEUNs);
+		pr_debug("INFTL: there are too few free EUNs (%d)\n",
+				inftl->numfreeEUNs);
 		return BLOCK_NIL;
 	}
 
@@ -257,8 +257,8 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 	struct inftl_oob oob;
 	size_t retlen;
 
-	pr_debug("INFTL: INFTL_foldchain(inftl=%p,thisVUC=%d,"
-		"pending=%d)\n", inftl, thisVUC, pendingblock);
+	pr_debug("INFTL: INFTL_foldchain(inftl=%p,thisVUC=%d,pending=%d)\n",
+			inftl, thisVUC, pendingblock);
 
 	memset(BlockMap, 0xff, sizeof(BlockMap));
 	memset(BlockDeleted, 0, sizeof(BlockDeleted));
@@ -321,8 +321,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 	 * Chain, and the Erase Unit into which we are supposed to be copying.
 	 * Go for it.
 	 */
-	pr_debug("INFTL: folding chain %d into unit %d\n",
-		thisVUC, targetEUN);
+	pr_debug("INFTL: folding chain %d into unit %d\n", thisVUC, targetEUN);
 
 	for (block = 0; block < inftl->EraseSize/SECTORSIZE ; block++) {
 		unsigned char movebuf[SECTORSIZE];
@@ -353,8 +352,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 					(block * SECTORSIZE), SECTORSIZE,
 					&retlen, movebuf);
 			if (ret != -EIO)
-				pr_debug("INFTL: error went "
-				      "away on retry?\n");
+				pr_debug("INFTL: error went away on retry?\n");
 		}
 		memset(&oob, 0xff, sizeof(struct inftl_oob));
 		oob.b.Status = oob.b.Status1 = SECTOR_USED;
@@ -370,8 +368,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 	 * is important, by doing oldest first if we crash/reboot then it
 	 * it is relatively simple to clean up the mess).
 	 */
-	pr_debug("INFTL: want to erase virtual chain %d\n",
-		thisVUC);
+	pr_debug("INFTL: want to erase virtual chain %d\n", thisVUC);
 
 	for (;;) {
 		/* Find oldest unit in chain. */
@@ -482,8 +479,8 @@ static inline u16 INFTL_findwriteunit(struct INFTLrecord *inftl, unsigned block)
 	size_t retlen;
 	int silly, silly2 = 3;
 
-	pr_debug("INFTL: INFTL_findwriteunit(inftl=%p,"
-		"block=%d)\n", inftl, block);
+	pr_debug("INFTL: INFTL_findwriteunit(inftl=%p,block=%d)\n",
+			inftl, block);
 
 	do {
 		/*
@@ -499,8 +496,8 @@ static inline u16 INFTL_findwriteunit(struct INFTLrecord *inftl, unsigned block)
 				       blockofs, 8, &retlen, (char *)&bci);
 
 			status = bci.Status | bci.Status1;
-			pr_debug("INFTL: status of block %d in "
-				"EUN %d is %x\n", block , writeEUN, status);
+			pr_debug("INFTL: status of block %d in EUN %d is %x\n",
+					block , writeEUN, status);
 
 			switch(status) {
 			case SECTOR_FREE:
@@ -553,9 +550,9 @@ hitused:
 			 * Hopefully we free something, lets try again.
 			 * This time we are desperate...
 			 */
-			pr_debug("INFTL: using desperate==1 "
-				"to find free EUN to accommodate write to "
-				"VUC %d\n", thisVUC);
+			pr_debug("INFTL: using desperate==1 to find free EUN "
+					"to accommodate write to VUC %d\n",
+					thisVUC);
 			writeEUN = INFTL_findfreeblock(inftl, 1);
 			if (writeEUN == BLOCK_NIL) {
 				/*
