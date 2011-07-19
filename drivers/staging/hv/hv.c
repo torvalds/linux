@@ -111,7 +111,7 @@ static u64 do_hypercall(u64 control, void *input, void *output)
 	u64 hv_status = 0;
 	u64 input_address = (input) ? virt_to_phys(input) : 0;
 	u64 output_address = (output) ? virt_to_phys(output) : 0;
-	volatile void *hypercall_page = hv_context.hypercall_page;
+	void *hypercall_page = hv_context.hypercall_page;
 
 	__asm__ __volatile__("mov %0, %%r8" : : "r" (output_address) : "r8");
 	__asm__ __volatile__("call *%3" : "=a" (hv_status) :
@@ -132,7 +132,7 @@ static u64 do_hypercall(u64 control, void *input, void *output)
 	u64 output_address = (output) ? virt_to_phys(output) : 0;
 	u32 output_address_hi = output_address >> 32;
 	u32 output_address_lo = output_address & 0xFFFFFFFF;
-	volatile void *hypercall_page = hv_context.hypercall_page;
+	void *hypercall_page = hv_context.hypercall_page;
 
 	__asm__ __volatile__ ("call *%8" : "=d"(hv_status_hi),
 			      "=a"(hv_status_lo) : "d" (control_hi),
