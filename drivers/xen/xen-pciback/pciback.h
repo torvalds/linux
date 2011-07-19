@@ -45,8 +45,14 @@ struct pciback_device {
 
 struct pciback_dev_data {
 	struct list_head config_fields;
-	int permissive;
-	int warned_on_write;
+	unsigned int permissive:1;
+	unsigned int warned_on_write:1;
+	unsigned int enable_intx:1;
+	unsigned int isr_on:1; /* Whether the IRQ handler is installed. */
+	unsigned int ack_intr:1; /* .. and ACK-ing */
+	unsigned long handled;
+	unsigned int irq; /* Saved in case device transitions to MSI/MSI-X */
+	char irq_name[0]; /* pciback[000:04:00.0] */
 };
 
 /* Used by XenBus and pciback_ops.c */
@@ -131,3 +137,6 @@ extern int verbose_request;
 void test_and_schedule_op(struct pciback_device *pdev);
 #endif
 
+/* Handles shared IRQs that can to device domain and control domain. */
+void pciback_irq_handler(struct pci_dev *dev, int reset);
+irqreturn_t pciback_guest_interrupt(int irq, void *dev_id);

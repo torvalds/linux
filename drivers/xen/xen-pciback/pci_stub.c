@@ -21,6 +21,8 @@
 #include "conf_space.h"
 #include "conf_space_quirks.h"
 
+#define DRV_NAME	"pciback"
+
 static char *pci_devs_to_hide;
 wait_queue_head_t aer_wait_queue;
 /*Add sem for sync AER handling and pciback remove/reconfigue ops,
@@ -290,12 +292,19 @@ static int __devinit pcistub_init_device(struct pci_dev *dev)
 	 * would need to be called somewhere to free the memory allocated
 	 * here and then to call kfree(pci_get_drvdata(psdev->dev)).
 	 */
-	dev_data = kzalloc(sizeof(*dev_data), GFP_ATOMIC);
+	dev_data = kzalloc(sizeof(*dev_data) +  strlen(DRV_NAME "[]")
+				+ strlen(pci_name(dev)) + 1, GFP_ATOMIC);
 	if (!dev_data) {
 		err = -ENOMEM;
 		goto out;
 	}
 	pci_set_drvdata(dev, dev_data);
+
+	/*
+	 * Setup name for fake IRQ handler. It will only be enabled
+	 * once the device is turned on by the guest.
+	 */
+	sprintf(dev_data->irq_name, DRV_NAME "[%s]", pci_name(dev));
 
 	dev_dbg(&dev->dev, "initializing config\n");
 
@@ -837,7 +846,7 @@ static struct pci_error_handlers pciback_error_handler = {
  */
 
 static struct pci_driver pciback_pci_driver = {
-	.name = "pciback",
+	.name = DRV_NAME,
 	.id_table = pcistub_ids,
 	.probe = pcistub_probe,
 	.remove = pcistub_remove,
@@ -1029,6 +1038,72 @@ static ssize_t pcistub_slot_show(struct device_driver *drv, char *buf)
 
 DRIVER_ATTR(slots, S_IRUSR, pcistub_slot_show, NULL);
 
+static ssize_t pcistub_irq_handler_show(struct device_driver *drv, char *buf)
+{
+	struct pcistub_device *psdev;
+	struct pciback_dev_data *dev_data;
+	size_t count = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pcistub_devices_lock, flags);
+	list_for_each_entry(psdev, &pcistub_devices, dev_list) {
+		if (count >= PAGE_SIZE)
+			break;
+		if (!psdev->dev)
+			continue;
+		dev_data = pci_get_drvdata(psdev->dev);
+		if (!dev_data)
+			continue;
+		count +=
+		    scnprintf(buf + count, PAGE_SIZE - count,
+			      "%s:%s:%sing:%ld\n",
+			      pci_name(psdev->dev),
+			      dev_data->isr_on ? "on" : "off",
+			      dev_data->ack_intr ? "ack" : "not ack",
+			      dev_data->handled);
+	}
+	spin_unlock_irqrestore(&pcistub_devices_lock, flags);
+	return count;
+}
+
+DRIVER_ATTR(irq_handlers, S_IRUSR, pcistub_irq_handler_show, NULL);
+
+static ssize_t pcistub_irq_handler_switch(struct device_driver *drv,
+					  const char *buf,
+					  size_t count)
+{
+	struct pcistub_device *psdev;
+	struct pciback_dev_data *dev_data;
+	int domain, bus, slot, func;
+	int err = -ENOENT;
+
+	err = str_to_slot(buf, &domain, &bus, &slot, &func);
+	if (err)
+		goto out;
+
+	psdev = pcistub_device_find(domain, bus, slot, func);
+
+	if (!psdev)
+		goto out;
+
+	dev_data = pci_get_drvdata(psdev->dev);
+	if (!dev_data)
+		goto out;
+
+	dev_dbg(&psdev->dev->dev, "%s fake irq handler: %d->%d\n",
+		dev_data->irq_name, dev_data->isr_on,
+		!dev_data->isr_on);
+
+	dev_data->isr_on = !(dev_data->isr_on);
+	if (dev_data->isr_on)
+		dev_data->ack_intr = 1;
+out:
+	if (!err)
+		err = count;
+	return err;
+}
+DRIVER_ATTR(irq_handler_state, S_IWUSR, NULL, pcistub_irq_handler_switch);
+
 static ssize_t pcistub_quirk_add(struct device_driver *drv, const char *buf,
 				 size_t count)
 {
@@ -1168,7 +1243,10 @@ static void pcistub_exit(void)
 	driver_remove_file(&pciback_pci_driver.driver, &driver_attr_slots);
 	driver_remove_file(&pciback_pci_driver.driver, &driver_attr_quirks);
 	driver_remove_file(&pciback_pci_driver.driver, &driver_attr_permissive);
-
+	driver_remove_file(&pciback_pci_driver.driver,
+			   &driver_attr_irq_handlers);
+	driver_remove_file(&pciback_pci_driver.driver,
+			   &driver_attr_irq_handler_state);
 	pci_unregister_driver(&pciback_pci_driver);
 }
 
@@ -1227,6 +1305,12 @@ static int __init pcistub_init(void)
 		err = driver_create_file(&pciback_pci_driver.driver,
 					 &driver_attr_permissive);
 
+	if (!err)
+		err = driver_create_file(&pciback_pci_driver.driver,
+					 &driver_attr_irq_handlers);
+	if (!err)
+		err = driver_create_file(&pciback_pci_driver.driver,
+					&driver_attr_irq_handler_state);
 	if (err)
 		pcistub_exit();
 

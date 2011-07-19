@@ -13,6 +13,77 @@
 int verbose_request;
 module_param(verbose_request, int, 0644);
 
+/* Ensure a device is has the fake IRQ handler "turned on/off" and is
+ * ready to be exported. This MUST be run after pciback_reset_device
+ * which does the actual PCI device enable/disable.
+ */
+void pciback_control_isr(struct pci_dev *dev, int reset)
+{
+	struct pciback_dev_data *dev_data;
+	int rc;
+	int enable = 0;
+
+	dev_data = pci_get_drvdata(dev);
+	if (!dev_data)
+		return;
+
+	/* We don't deal with bridges */
+	if (dev->hdr_type != PCI_HEADER_TYPE_NORMAL)
+		return;
+
+	if (reset) {
+		dev_data->enable_intx = 0;
+		dev_data->ack_intr = 0;
+	}
+	enable =  dev_data->enable_intx;
+
+	/* Asked to disable, but ISR isn't runnig */
+	if (!enable && !dev_data->isr_on)
+		return;
+
+	/* Squirrel away the IRQs in the dev_data. We need this
+	 * b/c when device transitions to MSI, the dev->irq is
+	 * overwritten with the MSI vector.
+	 */
+	if (enable)
+		dev_data->irq = dev->irq;
+
+	dev_dbg(&dev->dev, "%s: #%d %s %s%s %s-> %s\n",
+		dev_data->irq_name,
+		dev_data->irq,
+		pci_is_enabled(dev) ? "on" : "off",
+		dev->msi_enabled ? "MSI" : "",
+		dev->msix_enabled ? "MSI/X" : "",
+		dev_data->isr_on ? "enable" : "disable",
+		enable ? "enable" : "disable");
+
+	if (enable) {
+		rc = request_irq(dev_data->irq,
+				pciback_guest_interrupt, IRQF_SHARED,
+				dev_data->irq_name, dev);
+		if (rc) {
+			dev_err(&dev->dev, "%s: failed to install fake IRQ " \
+				"handler for IRQ %d! (rc:%d)\n",
+				dev_data->irq_name, dev_data->irq, rc);
+			goto out;
+		}
+	} else {
+		free_irq(dev_data->irq, dev);
+		dev_data->irq = 0;
+	}
+	dev_data->isr_on = enable;
+	dev_data->ack_intr = enable;
+out:
+	dev_dbg(&dev->dev, "%s: #%d %s %s%s %s\n",
+		dev_data->irq_name,
+		dev_data->irq,
+		pci_is_enabled(dev) ? "on" : "off",
+		dev->msi_enabled ? "MSI" : "",
+		dev->msix_enabled ? "MSI/X" : "",
+		enable ? (dev_data->isr_on ? "enabled" : "failed to enable") :
+			(dev_data->isr_on ? "failed to disable" : "disabled"));
+}
+
 /* Ensure a device is "turned off" and ready to be exported.
  * (Also see pciback_config_reset to ensure virtual configuration space is
  * ready to be re-exported)
@@ -20,6 +91,8 @@ module_param(verbose_request, int, 0644);
 void pciback_reset_device(struct pci_dev *dev)
 {
 	u16 cmd;
+
+	pciback_control_isr(dev, 1 /* reset device */);
 
 	/* Disable devices (but not bridges) */
 	if (dev->hdr_type == PCI_HEADER_TYPE_NORMAL) {
@@ -78,13 +151,18 @@ void pciback_do_op(struct work_struct *data)
 	struct pciback_device *pdev =
 		container_of(data, struct pciback_device, op_work);
 	struct pci_dev *dev;
+	struct pciback_dev_data *dev_data = NULL;
 	struct xen_pci_op *op = &pdev->sh_info->op;
+	int test_intx = 0;
 
 	dev = pciback_get_pci_dev(pdev, op->domain, op->bus, op->devfn);
 
 	if (dev == NULL)
 		op->err = XEN_PCI_ERR_dev_not_found;
 	else {
+		dev_data = pci_get_drvdata(dev);
+		if (dev_data)
+			test_intx = dev_data->enable_intx;
 		switch (op->cmd) {
 		case XEN_PCI_OP_conf_read:
 			op->err = pciback_config_read(dev,
@@ -113,6 +191,11 @@ void pciback_do_op(struct work_struct *data)
 			break;
 		}
 	}
+	if (!op->err && dev && dev_data) {
+		/* Transition detected */
+		if ((dev_data->enable_intx != test_intx))
+			pciback_control_isr(dev, 0 /* no reset */);
+	}
 	/* Tell the driver domain that we're done. */
 	wmb();
 	clear_bit(_XEN_PCIF_active, (unsigned long *)&pdev->sh_info->flags);
@@ -136,4 +219,23 @@ irqreturn_t pciback_handle_event(int irq, void *dev_id)
 	test_and_schedule_op(pdev);
 
 	return IRQ_HANDLED;
+}
+irqreturn_t pciback_guest_interrupt(int irq, void *dev_id)
+{
+	struct pci_dev *dev = (struct pci_dev *)dev_id;
+	struct pciback_dev_data *dev_data = pci_get_drvdata(dev);
+
+	if (dev_data->isr_on && dev_data->ack_intr) {
+		dev_data->handled++;
+		if ((dev_data->handled % 1000) == 0) {
+			if (xen_test_irq_shared(irq)) {
+				printk(KERN_INFO "%s IRQ line is not shared "
+					"with other domains. Turning ISR off\n",
+					 dev_data->irq_name);
+				dev_data->ack_intr = 0;
+			}
+		}
+		return IRQ_HANDLED;
+	}
+	return IRQ_NONE;
 }

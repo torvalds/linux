@@ -12,6 +12,7 @@
 int pciback_enable_msi(struct pciback_device *pdev,
 		struct pci_dev *dev, struct xen_pci_op *op)
 {
+	struct pciback_dev_data *dev_data;
 	int otherend = pdev->xdev->otherend_id;
 	int status;
 
@@ -28,21 +29,29 @@ int pciback_enable_msi(struct pciback_device *pdev,
 	 * the local domain's IRQ number. */
 
 	op->value = dev->irq ? xen_pirq_from_irq(dev->irq) : 0;
+	dev_data = pci_get_drvdata(dev);
+	if (dev_data)
+		dev_data->ack_intr = 0;
 	return 0;
 }
 
 int pciback_disable_msi(struct pciback_device *pdev,
 		struct pci_dev *dev, struct xen_pci_op *op)
 {
+	struct pciback_dev_data *dev_data;
 	pci_disable_msi(dev);
 
 	op->value = dev->irq ? xen_pirq_from_irq(dev->irq) : 0;
+	dev_data = pci_get_drvdata(dev);
+	if (dev_data)
+		dev_data->ack_intr = 1;
 	return 0;
 }
 
 int pciback_enable_msix(struct pciback_device *pdev,
 		struct pci_dev *dev, struct xen_pci_op *op)
 {
+	struct pciback_dev_data *dev_data;
 	int i, result;
 	struct msix_entry *entries;
 
@@ -74,6 +83,9 @@ int pciback_enable_msix(struct pciback_device *pdev,
 	kfree(entries);
 
 	op->value = result;
+	dev_data = pci_get_drvdata(dev);
+	if (dev_data)
+		dev_data->ack_intr = 0;
 
 	return result;
 }
@@ -81,6 +93,7 @@ int pciback_enable_msix(struct pciback_device *pdev,
 int pciback_disable_msix(struct pciback_device *pdev,
 		struct pci_dev *dev, struct xen_pci_op *op)
 {
+	struct pciback_dev_data *dev_data;
 
 	pci_disable_msix(dev);
 
@@ -89,6 +102,10 @@ int pciback_disable_msix(struct pciback_device *pdev,
 	 * an undefined IRQ value of zero.
 	 */
 	op->value = dev->irq ? xen_pirq_from_irq(dev->irq) : 0;
+	dev_data = pci_get_drvdata(dev);
+	if (dev_data)
+		dev_data->ack_intr = 1;
+
 	return 0;
 }
 
