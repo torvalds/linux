@@ -3454,7 +3454,9 @@ static int nl80211_trigger_scan(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++)
-		request->rates[i] = (1 << wiphy->bands[i]->n_bitrates) - 1;
+		if (wiphy->bands[i])
+			request->rates[i] =
+				(1 << wiphy->bands[i]->n_bitrates) - 1;
 
 	if (info->attrs[NL80211_ATTR_SCAN_SUPP_RATES]) {
 		nla_for_each_nested(attr,

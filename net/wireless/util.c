@@ -1013,6 +1013,9 @@ int ieee80211_get_ratemask(struct ieee80211_supported_band *sband,
 {
 	int i, j;
 
+	if (!sband)
+		return -EINVAL;
+
 	if (n_rates == 0 || n_rates > NL80211_MAX_SUPP_RATES)
 		return -EINVAL;
 
