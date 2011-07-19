@@ -113,7 +113,7 @@ extern void rtl8192_phy_updateInitGain(struct net_device* dev);
 extern u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, enum rf90_radio_path eRFPath);
 
 extern u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel);
-extern void rtl8192_SetBWMode(struct net_device *dev, enum ht_channel_width Bandwidth, HT_EXTCHNL_OFFSET Offset);
+extern void rtl8192_SetBWMode(struct net_device *dev, enum ht_channel_width Bandwidth, enum ht_extchnl_offset Offset);
 extern void rtl8192_SwChnl_WorkItem(struct net_device *dev);
 extern void rtl8192_SetBWModeWorkItem(struct net_device *dev);
 extern void InitialGain819xPci(struct net_device *dev, u8 Operation);

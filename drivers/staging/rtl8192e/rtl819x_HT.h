@@ -63,12 +63,12 @@ enum ht_channel_width {
 	HT_CHANNEL_WIDTH_20_40 = 1,
 };
 
-typedef enum _HT_EXTCHNL_OFFSET{
+enum ht_extchnl_offset {
 	HT_EXTCHNL_OFFSET_NO_EXT = 0,
 	HT_EXTCHNL_OFFSET_UPPER = 1,
 	HT_EXTCHNL_OFFSET_NO_DEF = 2,
 	HT_EXTCHNL_OFFSET_LOWER = 3,
-} HT_EXTCHNL_OFFSET, *PHT_EXTCHNL_OFFSET;
+};
 
 typedef enum _CHNLOP{
 	CHNLOP_NONE = 0,
@@ -265,7 +265,7 @@ struct rt_hi_throughput {
 	u8				SelfMimoPs;
 	u8				PeerMimoPs;
 
-	HT_EXTCHNL_OFFSET	CurSTAExtChnlOffset;
+	enum ht_extchnl_offset CurSTAExtChnlOffset;
 	u8				bCurTxBW40MHz;
 	u8				PeerBandwidth;
 

@@ -2094,7 +2094,7 @@ struct rtllib_device {
 
 	unsigned long status;
 	short hwscan_ch_bk;
-	HT_EXTCHNL_OFFSET chan_offset_bk;
+	enum ht_extchnl_offset chan_offset_bk;
 	enum ht_channel_width bandwidth_bk;
 	u8 hwscan_sem_up;
 	u8	CntAfterLink;
@@ -2512,7 +2512,7 @@ struct rtllib_device {
 	/* check whether Tx hw resouce available */
 	short (*check_nic_enough_desc)(struct net_device *dev, int queue_index);
 	short (*get_nic_desc_num)(struct net_device *dev, int queue_index);
-	void (*SetBWModeHandler)(struct net_device *dev, enum ht_channel_width Bandwidth, HT_EXTCHNL_OFFSET Offset);
+	void (*SetBWModeHandler)(struct net_device *dev, enum ht_channel_width Bandwidth, enum ht_extchnl_offset Offset);
 	bool (*GetNmodeSupportBySecCfg)(struct net_device* dev);
 	void (*SetWirelessMode)(struct net_device* dev, u8 wireless_mode);
 	bool (*GetHalfNmodeSupportByAPsHandler)(struct net_device* dev);
@@ -2884,7 +2884,7 @@ extern int rtllib_wx_get_rts(struct rtllib_device *ieee,
 extern void HTDebugHTCapability(u8* CapIE, u8* TitleString );
 extern void HTDebugHTInfo(u8*  InfoIE, u8* TitleString);
 
-void HTSetConnectBwMode(struct rtllib_device* ieee, enum ht_channel_width Bandwidth, HT_EXTCHNL_OFFSET    Offset);
+void HTSetConnectBwMode(struct rtllib_device* ieee, enum ht_channel_width Bandwidth, enum ht_extchnl_offset Offset);
 extern void HTUpdateDefaultSetting(struct rtllib_device* ieee);
 extern void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* len, u8 isEncrypt,bool bAssoc);
 extern void HTConstructInfoElement(struct rtllib_device* ieee, u8* posHTInfo, u8* len, u8 isEncrypt);

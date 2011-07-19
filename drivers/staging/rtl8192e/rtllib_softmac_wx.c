@@ -317,7 +317,7 @@ void rtllib_wx_sync_scan_wq(void *data)
 {
 	struct rtllib_device *ieee = container_of_work_rsl(data, struct rtllib_device, wx_sync_scan_wq);
 	short chan;
-	HT_EXTCHNL_OFFSET chan_offset=0;
+	enum ht_extchnl_offset chan_offset=0;
 	enum ht_channel_width bandwidth=0;
 	int b40M = 0;
 	static int count = 0;

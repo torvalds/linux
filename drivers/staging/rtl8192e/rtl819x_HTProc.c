@@ -831,7 +831,7 @@ u8 HTFilterMCSRate( struct rtllib_device* ieee, u8* pSupportMCS, u8* pOperateMCS
 
 	return true;
 }
-void HTSetConnectBwMode(struct rtllib_device* ieee, enum ht_channel_width Bandwidth, HT_EXTCHNL_OFFSET	Offset);
+void HTSetConnectBwMode(struct rtllib_device* ieee, enum ht_channel_width Bandwidth, enum ht_extchnl_offset Offset);
 void HTOnAssocRsp(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
@@ -861,7 +861,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 		pPeerHTInfo = (struct ht_info_ele *)(pHTInfo->PeerHTInfoBuf);
 
 	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_HT, pPeerHTCap, sizeof(struct ht_capab_ele));
-	HTSetConnectBwMode(ieee, (enum ht_channel_width)(pPeerHTCap->ChlWidth), (HT_EXTCHNL_OFFSET)(pPeerHTInfo->ExtChlOffset));
+	HTSetConnectBwMode(ieee, (enum ht_channel_width)(pPeerHTCap->ChlWidth), (enum ht_extchnl_offset)(pPeerHTInfo->ExtChlOffset));
 	pHTInfo->bCurTxBW40MHz = ((pPeerHTInfo->RecommemdedTxWidth == 1)?true:false);
 
 	pHTInfo->bCurShortGI20MHz=
@@ -1137,7 +1137,7 @@ u8 HTCCheck(struct rtllib_device* ieee, u8*	pFrame)
 	return false;
 }
 
-void HTSetConnectBwMode(struct rtllib_device* ieee, enum ht_channel_width Bandwidth, HT_EXTCHNL_OFFSET	Offset)
+void HTSetConnectBwMode(struct rtllib_device* ieee, enum ht_channel_width Bandwidth, enum ht_extchnl_offset Offset)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
