@@ -168,7 +168,7 @@ typedef	struct _HT_CAPABILITY_ELE{
 } __attribute__ ((packed)) HT_CAPABILITY_ELE, *PHT_CAPABILITY_ELE;
 
 
-typedef struct _HT_INFORMATION_ELE{
+struct ht_info_ele {
 	u8	ControlChl;
 
 	u8	ExtChlOffset:2;
@@ -193,7 +193,7 @@ typedef struct _HT_INFORMATION_ELE{
 	u8	Rsvd4:4;
 
 	u8	BasicMSC[16];
-} __attribute__ ((packed)) HT_INFORMATION_ELE, *PHT_INFORMATION_ELE;
+} __packed;
 
 struct mimops_ctrl {
 	u8	MimoPsEnable:1;
@@ -233,7 +233,7 @@ struct rt_hi_throughput {
 
 
 	HT_CAPABILITY_ELE	SelfHTCap;
-	HT_INFORMATION_ELE	SelfHTInfo;
+	struct ht_info_ele SelfHTInfo;
 
 	u8				PeerHTCapBuf[32];
 	u8				PeerHTInfoBuf[32];

@@ -126,14 +126,14 @@ void HTDebugHTInfo(u8*	InfoIE, u8* TitleString)
 {
 
 	static u8	EWC11NHTInfo[] = {0x00, 0x90, 0x4c, 0x34};
-	PHT_INFORMATION_ELE		pHTInfoEle;
+	struct ht_info_ele *pHTInfoEle;
 
 	if (!memcmp(InfoIE, EWC11NHTInfo, sizeof(EWC11NHTInfo)))
 	{
 		RTLLIB_DEBUG(RTLLIB_DL_HT, "EWC IE in %s()\n", __func__);
-		pHTInfoEle = (PHT_INFORMATION_ELE)(&InfoIE[4]);
+		pHTInfoEle = (struct ht_info_ele *)(&InfoIE[4]);
 	}else
-		pHTInfoEle = (PHT_INFORMATION_ELE)(&InfoIE[0]);
+		pHTInfoEle = (struct ht_info_ele *)(&InfoIE[0]);
 
 
 	RTLLIB_DEBUG(RTLLIB_DL_HT, "<Log HT Information Element>. Called by %s\n", TitleString);
@@ -676,7 +676,7 @@ void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* 
 void HTConstructInfoElement(struct rtllib_device* ieee, u8* posHTInfo, u8* len, u8 IsEncrypt)
 {
 	struct rt_hi_throughput *pHT = ieee->pHTInfo;
-	PHT_INFORMATION_ELE		pHTInfoEle = (PHT_INFORMATION_ELE)posHTInfo;
+	struct ht_info_ele *pHTInfoEle = (struct ht_info_ele *)posHTInfo;
 	if ((posHTInfo == NULL) || (pHTInfoEle == NULL))
 	{
 		RTLLIB_DEBUG(RTLLIB_DL_ERR, "posHTInfo or pHTInfoEle can't be null in HTConstructInfoElement()\n");
@@ -836,7 +836,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	PHT_CAPABILITY_ELE		pPeerHTCap = NULL;
-	PHT_INFORMATION_ELE		pPeerHTInfo = NULL;
+	struct ht_info_ele *pPeerHTInfo = NULL;
 	u16	nMaxAMSDUSize = 0;
 	u8*	pMcsFilter = NULL;
 
@@ -856,9 +856,9 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 		pPeerHTCap = (PHT_CAPABILITY_ELE)(pHTInfo->PeerHTCapBuf);
 
 	if (!memcmp(pHTInfo->PeerHTInfoBuf, EWC11NHTInfo, sizeof(EWC11NHTInfo)))
-		pPeerHTInfo = (PHT_INFORMATION_ELE)(&pHTInfo->PeerHTInfoBuf[4]);
+		pPeerHTInfo = (struct ht_info_ele *)(&pHTInfo->PeerHTInfoBuf[4]);
 	else
-		pPeerHTInfo = (PHT_INFORMATION_ELE)(pHTInfo->PeerHTInfoBuf);
+		pPeerHTInfo = (struct ht_info_ele *)(pHTInfo->PeerHTInfoBuf);
 
 	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_HT, pPeerHTCap, sizeof(HT_CAPABILITY_ELE));
 	HTSetConnectBwMode(ieee, (HT_CHANNEL_WIDTH)(pPeerHTCap->ChlWidth), (HT_EXTCHNL_OFFSET)(pPeerHTInfo->ExtChlOffset));
@@ -1078,7 +1078,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device* ieee,	struct rtllib_net
 void HTUpdateSelfAndPeerSetting(struct rtllib_device* ieee,	struct rtllib_network * pNetwork)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
-	PHT_INFORMATION_ELE		pPeerHTInfo = (PHT_INFORMATION_ELE)pNetwork->bssht.bdHTInfoBuf;
+	struct ht_info_ele *pPeerHTInfo = (struct ht_info_ele *)pNetwork->bssht.bdHTInfoBuf;
 
 	if (pHTInfo->bCurrentHTSupport)
 	{
