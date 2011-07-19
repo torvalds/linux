@@ -457,7 +457,7 @@ typedef enum _RT_OP_MODE{
 #define RT_ASSERT_RET(_Exp) do {} while(0)
 #define RT_ASSERT_RET_VALUE(_Exp,Ret) do {} while(0)
 
-typedef struct ieee_param {
+struct ieee_param {
 	u32 cmd;
 	u8 sta_addr[ETH_ALEN];
         union {
@@ -484,7 +484,7 @@ typedef struct ieee_param {
 			u8 key[0];
 		} crypt;
 	} u;
-}ieee_param;
+};//;
 
 
 #if WIRELESS_EXT < 17
