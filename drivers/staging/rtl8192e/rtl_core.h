@@ -511,11 +511,11 @@ typedef struct _init_gain
 
 } init_gain, *pinit_gain;
 
-typedef struct _tx_ring{
+struct tx_ring {
 	u32 * desc;
 	u8 nStuckCount;
-	struct _tx_ring * next;
-}__attribute__ ((packed)) tx_ring, * ptx_ring;
+	struct tx_ring * next;
+} __packed;
 
 struct rtl8192_tx_ring {
     struct tx_desc *desc;
