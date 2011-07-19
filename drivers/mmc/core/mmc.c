@@ -321,7 +321,13 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	/* The extra bit indicates that we support high capacity */
 	err = mmc_send_op_cond(host, ocr | (1 << 30), NULL);
 	if (err)
+	{
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
+	    printk("%s..%d..  ====*Identify the card as MMC , but OCR error, so fail to initialize.===xbw[%s]===\n",\
+	        __FUNCTION__, __LINE__, mmc_hostname(host));
+#endif	        
 		goto err;
+	}
 
 	/*
 	 * For SPI, enable CRC as appropriate.
@@ -438,6 +444,10 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		if (max_dtr > card->ext_csd.hs_max_dtr)
 			max_dtr = card->ext_csd.hs_max_dtr;
 	} else if (max_dtr > card->csd.max_dtr) {
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+        //in order to expand the compatibility of card. Added by xbw@2011-03-21
+		card->csd.max_dtr = (card->csd.max_dtr > MMC_FPP_FREQ) ? MMC_FPP_FREQ : (card->csd.max_dtr); 
+#endif
 		max_dtr = card->csd.max_dtr;
 	}
 
@@ -660,6 +670,9 @@ static void mmc_attach_bus_ops(struct mmc_host *host)
 int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 {
 	int err;
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
+	int retry_times = 3;
+#endif	
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
@@ -704,10 +717,33 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 		goto err;
 
 	mmc_release_host(host);
-
+ 
+#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
+//modifyed by xbw at 2011--04-11
+Retry_add:
 	err = mmc_add_card(host->card);
 	if (err)
+	{
+	    //retry add the card; Added by xbw
+        if((--retry_times >= 0))
+        {        
+            printk("\n%s..%s..%d   ****error in add partition, so retry.  ===xbw[%s]===\n",__FUNCTION__,__FILE__,__LINE__, mmc_hostname(host));   
+            /* sleep some time */
+            set_current_state(TASK_INTERRUPTIBLE);
+            schedule_timeout(HZ/2);
+            
+            goto Retry_add;
+        }
+
 		goto remove_card;
+    
+	}
+#else
+    err = mmc_add_card(host->card);
+	if (err)
+		goto remove_card;
+#endif
+		
 
 	return 0;
 
