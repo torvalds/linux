@@ -1779,13 +1779,12 @@ struct tx_pending {
 	struct rtllib_txb *txb;
 };//;
 
-typedef struct _bandwidth_autoswitch
-{
+struct bandwidth_autoswitch {
 	long threshold_20Mhzto40Mhz;
 	long	threshold_40Mhzto20Mhz;
 	bool bforced_tx20Mhz;
 	bool bautoswitch_enable;
-}bandwidth_autoswitch,*pbandwidth_autoswitch;
+};//,*pbandwidth_autoswitch;
 
 
 
@@ -2383,7 +2382,7 @@ struct rtllib_device {
 	u32	fsync_seconddiff_ratethreshold;
 	Fsync_State			fsync_state;
 	bool		bis_any_nonbepkts;
-	bandwidth_autoswitch bandwidth_auto_switch;
+	struct bandwidth_autoswitch bandwidth_auto_switch;
 	bool FwRWRF;
 
 	struct rt_link_detect LinkDetectInfo;
