@@ -352,7 +352,7 @@ typedef struct _STA_QOS{
 #define GET_QBSS_LOAD_AVAILABLE_CAPACITY(__pStart)			ReadEF2Byte((u8*)(__pStart) + 3)
 #define SET_QBSS_LOAD_AVAILABLE_CAPACITY(__pStart, __Value)	WriteEF2Byte((u8*)(__pStart) + 3, __Value)
 
-typedef struct _BSS_QOS{
+struct bss_qos {
 
 	QOS_MODE			bdQoSMode;
 	u8					bdWMMIEBuf[MAX_WMMELE_LENGTH];
@@ -365,7 +365,7 @@ typedef struct _BSS_QOS{
 
 	u8					QBssLoad[QBSS_LOAD_SIZE];
 	bool					bQBssLoadValid;
-}BSS_QOS, *PBSS_QOS;
+};//, *struct bss_qos *;
 
 #define sQoSCtlLng	2
 #define QOS_CTRL_LEN(_QosMode)		( (_QosMode > QOS_DISABLE)? sQoSCtlLng : 0 )
