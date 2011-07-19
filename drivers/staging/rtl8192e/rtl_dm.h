@@ -84,8 +84,7 @@
 
 
 /*------------------------------Define structure----------------------------*/
-typedef struct _dynamic_initial_gain_threshold_
-{
+struct dig_t {
 	u8		dig_enable_flag;
 	u8		dig_algorithm;
 	u8		Dig_TwoPort_Algorithm;
@@ -126,7 +125,7 @@ typedef struct _dynamic_initial_gain_threshold_
 	bool		initialgain_lowerbound_state;
 
 	long		rssi_val;
-}dig_t;
+};//;
 
 typedef enum tag_dynamic_init_gain_state_definition
 {
@@ -260,7 +259,7 @@ typedef struct tag_Tx_Config_Cmd_Format
 
 
 /*------------------------Export global variable----------------------------*/
-extern	dig_t	dm_digtable;
+extern	struct dig_t dm_digtable;
 extern	u8		dm_shadow[16][256];
 extern struct drx_path_sel DM_RxPathSelTable;
 

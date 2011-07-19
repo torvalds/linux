@@ -64,7 +64,7 @@ static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 
 
 /*------------------------Define global variable-----------------------------*/
-dig_t	dm_digtable;
+struct dig_t dm_digtable;
 u8		dm_shadow[16][256] = {{0}};
 struct drx_path_sel DM_RxPathSelTable;
 /*------------------------Define global variable-----------------------------*/
