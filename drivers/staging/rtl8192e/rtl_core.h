@@ -500,15 +500,14 @@ struct ccktxbbgain {
 	u8	ccktxbb_valuearray[8];
 };
 
-typedef struct _init_gain
-{
+struct init_gain {
 	u8				xaagccore1;
 	u8				xbagccore1;
 	u8				xcagccore1;
 	u8				xdagccore1;
 	u8				cca;
 
-} init_gain, *pinit_gain;
+};
 
 struct tx_ring {
 	u32 * desc;
@@ -949,7 +948,7 @@ typedef struct r8192_priv
 	u8		Record_CCK_20Mindex;
 	u8		Record_CCK_40Mindex;
 
-	init_gain	initgain_backup;
+	struct init_gain initgain_backup;
 	u8		DefaultInitialGain[4];
 	bool		bis_any_nonbepkts;
 	bool		bcurrent_turbo_EDCA;
