@@ -114,7 +114,7 @@ union ht_capability_macpara {
 };
 */
 
-typedef enum _HT_ACTION{
+enum ht_action {
 	ACT_RECOMMAND_WIDTH		= 0,
 	ACT_MIMO_PWR_SAVE		= 1,
 	ACT_PSMP					= 2,
@@ -125,7 +125,7 @@ typedef enum _HT_ACTION{
 	ACT_MIMO_NOCOMPR_STEER	= 7,
 	ACT_MIMO_COMPR_STEER		= 8,
 	ACT_ANTENNA_SELECT		= 9,
-} HT_ACTION, *PHT_ACTION;
+};
 
 
 typedef enum _HT_Bandwidth_40MHZ_Sub_Carrier{
