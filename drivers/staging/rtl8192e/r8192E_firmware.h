@@ -39,10 +39,10 @@ enum desc_packet_type {
 	DESC_PACKET_TYPE_NORMAL = 1,
 };
 
-typedef enum _firmware_source_e{
+enum firmware_source {
 	FW_SOURCE_IMG_FILE = 0,
 	FW_SOURCE_HEADER_FILE = 1,
-} firmware_source_e, *pfirmware_source_e;
+};
 
 typedef enum _firmware_status_e{
 	FW_STATUS_0_INIT = 0,
