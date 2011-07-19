@@ -1381,7 +1381,7 @@ SetRFPowerState8190(
 	)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 	bool bResult = true;
 	u8	i = 0, QueueID = 0;
 	struct rtl8192_tx_ring  *ring = NULL;

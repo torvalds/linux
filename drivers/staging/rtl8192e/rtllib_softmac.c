@@ -1577,7 +1577,7 @@ void rtllib_associate_step2(struct rtllib_device *ieee)
 void rtllib_associate_complete_wq(void *data)
 {
 	struct rtllib_device *ieee = (struct rtllib_device *)container_of_work_rsl(data, struct rtllib_device, associate_complete_wq);
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(ieee->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(ieee->PowerSaveControl));
 	printk(KERN_INFO "Associated successfully\n");
 	if (ieee->is_silent_reset == 0){
             printk("normal associate\n");
@@ -2041,7 +2041,7 @@ short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u32 *time_h, u32 *time_l)
 {
 	int timeout = ieee->ps_timeout;
 	u8 dtim;
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(ieee->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(ieee->PowerSaveControl));
 	/*if (ieee->ps == RTLLIB_PS_DISABLED ||
 		ieee->iw_mode != IW_MODE_INFRA ||
 		ieee->state != RTLLIB_LINKED)

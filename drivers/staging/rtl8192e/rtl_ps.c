@@ -116,7 +116,7 @@ void rtl8192_hw_to_sleep(struct net_device *dev, u32 th, u32 tl)
 void InactivePsWorkItemCallback(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 
 	RT_TRACE(COMP_PS, "InactivePsWorkItemCallback() ---------> \n");
 	pPSC->bSwRfProcessing = true;
@@ -133,7 +133,7 @@ void
 IPSEnter(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL		pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 	RT_RF_POWER_STATE			rtState;
 
 	if (pPSC->bInactivePs)
@@ -156,7 +156,7 @@ void
 IPSLeave(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 	RT_RF_POWER_STATE	rtState;
 
 	if (pPSC->bInactivePs)
@@ -240,7 +240,7 @@ bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,	u8 rtPsMode)
 void LeisurePSEnter(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 
 	RT_TRACE(COMP_PS, "LeisurePSEnter()...\n");
 	RT_TRACE(COMP_PS, "pPSC->bLeisurePs = %d, ieee->ps = %d,pPSC->LpsIdleCount is %d,RT_CHECK_FOR_HANG_PERIOD is %d\n",
@@ -272,7 +272,7 @@ void LeisurePSEnter(struct net_device *dev)
 void LeisurePSLeave(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 
 
 	RT_TRACE(COMP_PS, "LeisurePSLeave()...\n");

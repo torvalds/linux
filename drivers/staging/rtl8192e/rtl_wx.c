@@ -218,7 +218,7 @@ static int r8192_wx_adapter_power_status(struct net_device *dev,
 		union iwreq_data *wrqu, char *extra)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 	struct rtllib_device* ieee = priv->rtllib;
 
 	down(&priv->wx_sem);
@@ -266,7 +266,7 @@ static int r8192se_wx_set_lps_awake_interval(struct net_device *dev,
         union iwreq_data *wrqu, char *extra)
 {
     struct r8192_priv *priv = rtllib_priv(dev);
-    PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+    struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 
     down(&priv->wx_sem);
 

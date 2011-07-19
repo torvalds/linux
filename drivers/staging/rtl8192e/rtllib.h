@@ -1859,8 +1859,7 @@ struct rt_pm_wol_info {
 	WOLPATTERN_TYPE	PatternType;
 };//, *struct rt_pm_wol_info *;
 
-typedef struct _RT_POWER_SAVE_CONTROL
-{
+struct rt_pwr_save_ctrl {
 
 	bool				bInactivePs;
 	bool				bIPSModeBackup;
@@ -1917,7 +1916,7 @@ typedef struct _RT_POWER_SAVE_CONTROL
 	u8				oWLANMode;
 	struct rt_pm_wol_info PmWoLPatternInfo[MAX_SUPPORT_WOL_PATTERN_NUM];
 
-}RT_POWER_SAVE_CONTROL,*PRT_POWER_SAVE_CONTROL;
+};//,*struct rt_pwr_save_ctrl *;
 
 typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_SW BIT31
@@ -2391,7 +2390,7 @@ struct rtllib_device {
 
 	RT_LINK_DETECT_T	LinkDetectInfo;
 	bool bIsAggregateFrame;
-	RT_POWER_SAVE_CONTROL	PowerSaveControl;
+	struct rt_pwr_save_ctrl PowerSaveControl;
 	u8 amsdu_in_process;
 
 	/* used if IEEE_SOFTMAC_TX_QUEUE is set */

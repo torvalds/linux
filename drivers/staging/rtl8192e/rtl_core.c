@@ -1003,7 +1003,7 @@ void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 int _rtl8192_sta_up(struct net_device *dev,bool is_silent_reset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 	bool init_status = true;
 	priv->bDriverIsGoingToUnload = false;
 	priv->bdisable_nic = false;
@@ -1153,7 +1153,7 @@ static void rtl8192_init_priv_handler(struct net_device* dev)
 static void rtl8192_init_priv_constant(struct net_device* dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 
 	pPSC->RegMaxLPSAwakeIntvl = 5;
 
@@ -1681,7 +1681,7 @@ void	rtl819x_watchdog_wqcallback(void *data)
 	RESET_TYPE	ResetType = RESET_TYPE_NORESET;
 	static u8	check_reset_cnt = 0;
 	unsigned long flags;
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 	bool bBusyTraffic = false;
 	bool	bHigherBusyTraffic = false;
 	bool	bHigherBusyRxTraffic = false;
@@ -3139,7 +3139,7 @@ bool NicIFEnableNIC(struct net_device* dev)
 {
 	bool init_status = true;
 	struct r8192_priv* priv = rtllib_priv(dev);
-	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
+	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 
 	if (IS_NIC_DOWN(priv)){
 		RT_TRACE(COMP_ERR, "ERR!!! %s(): Driver is already down!\n",__func__);
