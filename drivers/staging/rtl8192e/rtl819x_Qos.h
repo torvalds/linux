@@ -228,11 +228,11 @@ typedef	enum _ACM_METHOD{
 }ACM_METHOD,*PACM_METHOD;
 
 
-typedef struct _ACM{
+struct acm {
 	u64		UsedTime;
 	u64		MediumTime;
 	u8		HwAcmCtl;
-}ACM, *PACM;
+};//, *struct acm *;
 
 
 
@@ -329,7 +329,7 @@ struct sta_qos {
 	u8 *				pWMMInfoEle;
 	u8				WMMParamEle[WMM_PARAM_ELEMENT_SIZE];
 
-	ACM				acm[4];
+	struct acm acm[4];
 	ACM_METHOD		AcmMethod;
 
 	struct qos_tstream StaTsArray[MAX_STA_TS_COUNT];
@@ -380,7 +380,7 @@ typedef	union _ACI_AIFSN{
 	struct
 	{
 		u8	AIFSN:4;
-		u8	ACM:1;
+		u8	acm:1;
 		u8	ACI:2;
 		u8	Reserved:1;
 	}f;

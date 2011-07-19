@@ -236,13 +236,13 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 			u8	pAcParam = *((u8*)val);
 			u32	eACI = pAcParam;
 			PACI_AIFSN	pAciAifsn = (PACI_AIFSN)&(qos_parameters->aifs[0]);
-			u8		ACM = pAciAifsn->f.ACM;
+			u8		acm = pAciAifsn->f.acm;
 			u8		AcmCtrl = read_nic_byte( dev, AcmHwCtrl);
 
 			RT_TRACE(COMP_DBG, "===========>%s():HW_VAR_ACM_CTRL:%x\n", __func__,eACI);
 			AcmCtrl = AcmCtrl | ((priv->AcmMethod == 2)?0x0:0x1);
 
-			if ( ACM )
+			if (acm)
 			{
 				switch (eACI)
 				{
@@ -259,7 +259,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 					break;
 
 				default:
-					RT_TRACE( COMP_QOS, "SetHwReg8185(): [HW_VAR_ACM_CTRL] ACM set failed: eACI is %d\n", eACI );
+					RT_TRACE( COMP_QOS, "SetHwReg8185(): [HW_VAR_ACM_CTRL] acm set failed: eACI is %d\n", eACI );
 					break;
 				}
 			}
