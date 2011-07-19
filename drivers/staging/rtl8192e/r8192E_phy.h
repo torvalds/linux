@@ -47,7 +47,7 @@
 
 
 
-typedef enum _SwChnlCmdID {
+enum sw_chnl_cmd_id {
 	CmdID_End,
 	CmdID_SetTxPowerLevel,
 	CmdID_BBRegWrite10,
@@ -55,11 +55,11 @@ typedef enum _SwChnlCmdID {
 	CmdID_WritePortUshort,
 	CmdID_WritePortUchar,
 	CmdID_RF_WriteReg,
-} SwChnlCmdID;
+};
 
 /*--------------------------------Define structure--------------------------------*/
 struct sw_chnl_cmd {
-	SwChnlCmdID	CmdID;
+	enum sw_chnl_cmd_id CmdID;
 	u32			Para1;
 	u32			Para2;
 	u32			msDelay;

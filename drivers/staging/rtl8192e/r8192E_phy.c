@@ -827,7 +827,7 @@ u8 rtl8192_phy_SetSwChnlCmdArray(
 	struct sw_chnl_cmd*		CmdTable,
 	u32			CmdTableIdx,
 	u32			CmdTableSz,
-	SwChnlCmdID		CmdID,
+	enum sw_chnl_cmd_id CmdID,
 	u32			Para1,
 	u32			Para2,
 	u32			msDelay
