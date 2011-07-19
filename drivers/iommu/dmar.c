@@ -921,11 +921,11 @@ int qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu)
 restart:
 	rc = 0;
 
-	spin_lock_irqsave(&qi->q_lock, flags);
+	raw_spin_lock_irqsave(&qi->q_lock, flags);
 	while (qi->free_cnt < 3) {
-		spin_unlock_irqrestore(&qi->q_lock, flags);
+		raw_spin_unlock_irqrestore(&qi->q_lock, flags);
 		cpu_relax();
-		spin_lock_irqsave(&qi->q_lock, flags);
+		raw_spin_lock_irqsave(&qi->q_lock, flags);
 	}
 
 	index = qi->free_head;
@@ -965,15 +965,15 @@ restart:
 		if (rc)
 			break;
 
-		spin_unlock(&qi->q_lock);
+		raw_spin_unlock(&qi->q_lock);
 		cpu_relax();
-		spin_lock(&qi->q_lock);
+		raw_spin_lock(&qi->q_lock);
 	}
 
 	qi->desc_status[index] = QI_DONE;
 
 	reclaim_free_desc(qi);
-	spin_unlock_irqrestore(&qi->q_lock, flags);
+	raw_spin_unlock_irqrestore(&qi->q_lock, flags);
 
 	if (rc == -EAGAIN)
 		goto restart;
@@ -1159,7 +1159,7 @@ int dmar_enable_qi(struct intel_iommu *iommu)
 	qi->free_head = qi->free_tail = 0;
 	qi->free_cnt = QI_LENGTH;
 
-	spin_lock_init(&qi->q_lock);
+	raw_spin_lock_init(&qi->q_lock);
 
 	__dmar_enable_qi(iommu);
 

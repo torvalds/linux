@@ -271,7 +271,7 @@ struct qi_desc {
 };
 
 struct q_inval {
-	spinlock_t      q_lock;
+	raw_spinlock_t  q_lock;
 	struct qi_desc  *desc;          /* invalidation queue */
 	int             *desc_status;   /* desc status */
 	int             free_head;      /* first free entry */
