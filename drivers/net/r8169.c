@@ -435,6 +435,7 @@ enum rtl_register_content {
 	AcceptMulticast	= 0x04,
 	AcceptMyPhys	= 0x02,
 	AcceptAllPhys	= 0x01,
+#define RX_CONFIG_ACCEPT_MASK		0x3f
 
 	/* TxConfigBits */
 	TxInterFrameGapShift = 24,
@@ -3943,11 +3944,8 @@ err_pm_runtime_put:
 static void rtl_rx_close(struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
-	u32 rxcfg = RTL_R32(RxConfig);
 
-	rxcfg &= ~(AcceptErr | AcceptRunt | AcceptBroadcast | AcceptMulticast |
-		   AcceptMyPhys | AcceptAllPhys);
-	RTL_W32(RxConfig, rxcfg);
+	RTL_W32(RxConfig, RTL_R32(RxConfig) & ~RX_CONFIG_ACCEPT_MASK);
 }
 
 static void rtl8169_hw_reset(struct rtl8169_private *tp)
@@ -5586,7 +5584,7 @@ static void rtl_set_rx_mode(struct net_device *dev)
 
 	spin_lock_irqsave(&tp->lock, flags);
 
-	tmp = RTL_R32(RxConfig) | rx_mode;
+	tmp = (RTL_R32(RxConfig) & ~RX_CONFIG_ACCEPT_MASK) | rx_mode;
 
 	if (tp->mac_version > RTL_GIGA_MAC_VER_06) {
 		u32 data = mc_filter[0];
