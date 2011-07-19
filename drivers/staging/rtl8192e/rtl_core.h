@@ -578,7 +578,7 @@ typedef struct r8192_priv
 
 	struct channel_access_setting ChannelAccessSetting;
 
-	mp_adapter				NdisAdapter;
+	struct mp_adapter NdisAdapter;
 
 	struct rtl819x_ops			*ops;
 	struct rtllib_device			*rtllib;
