@@ -352,7 +352,7 @@ typedef struct buffer
 
 } buffer;
 
-typedef struct rtl_reg_debug{
+struct rtl_reg_debug {
         unsigned int  cmd;
         struct {
                 unsigned char type;
@@ -361,7 +361,7 @@ typedef struct rtl_reg_debug{
                 unsigned char length;
         } head;
         unsigned char buf[0xff];
-}rtl_reg_debug;
+};//;
 
 struct rt_tx_rahis {
 	u32             cck[4];
