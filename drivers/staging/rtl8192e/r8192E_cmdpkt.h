@@ -137,8 +137,7 @@ struct cmpk_tx_rahis {
 
 } __packed;
 
-typedef enum _cmpk_element_e
-{
+enum cmpk_element {
     RX_TX_FEEDBACK = 0,
     RX_INTERRUPT_STATUS		= 1,
     TX_SET_CONFIG				= 2,
@@ -148,7 +147,7 @@ typedef enum _cmpk_element_e
     RX_TX_PER_PKT_FEEDBACK		= 6,
     RX_TX_RATE_HISTORY		= 7,
     RX_CMD_ELE_MAX
-} cmpk_element_e;
+};
 
 extern  u32 cmpk_message_handle_rx(struct net_device *dev, struct rtllib_rx_stats * pstats);
 extern bool cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);
