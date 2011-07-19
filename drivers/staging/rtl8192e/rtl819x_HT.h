@@ -299,7 +299,7 @@ struct rt_hi_throughput {
 
 
 
-typedef struct _RT_HTINFO_STA_ENTRY{
+struct rt_htinfo_sta_entry {
 	u8			bEnableHT;
 
 	u8			bSupportCck;
@@ -327,7 +327,7 @@ typedef struct _RT_HTINFO_STA_ENTRY{
 
 	u16                     nAMSDU_MaxSize;
 
-}RT_HTINFO_STA_ENTRY, *PRT_HTINFO_STA_ENTRY;
+};//, *struct rt_htinfo_sta_entry *;
 
 
 
