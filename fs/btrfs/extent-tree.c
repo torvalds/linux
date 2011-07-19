@@ -7201,7 +7201,8 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 
 	inode = lookup_free_space_inode(root, block_group, path);
 	if (!IS_ERR(inode)) {
-		btrfs_orphan_add(trans, inode);
+		ret = btrfs_orphan_add(trans, inode);
+		BUG_ON(ret);
 		clear_nlink(inode);
 		/* One for the block groups ref */
 		spin_lock(&block_group->lock);
