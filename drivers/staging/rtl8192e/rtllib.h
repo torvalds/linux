@@ -1882,14 +1882,14 @@ typedef struct _RT_POWER_SAVE_CONTROL
 	bool				bTmpFilterHiddenAP;
 	bool				bTmpUpdateParms;
 	u8				tmpSsidBuf[33];
-	OCTET_STRING			tmpSsid2Scan;
+	struct octet_string tmpSsid2Scan;
 	bool				bTmpSsid2Scan;
 	u8				tmpNetworkType;
 	u8				tmpChannelNumber;
 	u16				tmpBcnPeriod;
 	u8				tmpDtimPeriod;
 	u16				tmpmCap;
-	OCTET_STRING			tmpSuppRateSet;
+	struct octet_string tmpSuppRateSet;
 	u8				tmpSuppRateBuf[MAX_NUM_RATES];
 	bool				bTmpSuppRate;
 	IbssParms				tmpIbpm;

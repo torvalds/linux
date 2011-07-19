@@ -1351,7 +1351,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,stru
 	{
 		static u8	AironetIeOui[] = {0x00, 0x01, 0x66};
 		u8	CcxAironetBuf[30];
-		OCTET_STRING	osCcxAironetIE;
+		struct octet_string osCcxAironetIE;
 
 		memset(CcxAironetBuf, 0,30);
 		osCcxAironetIE.Octet = CcxAironetBuf;
@@ -1369,7 +1369,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,stru
 	if (beacon->bCcxRmEnable)
 	{
 		static u8 CcxRmCapBuf[] = {0x00, 0x40, 0x96, 0x01, 0x01, 0x00};
-		OCTET_STRING osCcxRmCap;
+		struct octet_string osCcxRmCap;
 
 		osCcxRmCap.Octet = CcxRmCapBuf;
 		osCcxRmCap.Length = sizeof(CcxRmCapBuf);
@@ -1383,7 +1383,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,stru
 	if ( beacon->BssCcxVerNumber >= 2 )
 	{
 		u8			CcxVerNumBuf[] = {0x00, 0x40, 0x96, 0x03, 0x00};
-		OCTET_STRING	osCcxVerNum;
+		struct octet_string osCcxVerNum;
 		CcxVerNumBuf[4] = beacon->BssCcxVerNumber;
 		osCcxVerNum.Octet = CcxVerNumBuf;
 		osCcxVerNum.Length = sizeof(CcxVerNumBuf);

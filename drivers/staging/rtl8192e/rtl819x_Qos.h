@@ -103,10 +103,10 @@ struct wmm_tspec {
 	TSPEC_BODY	Body;
 };
 
-typedef struct _OCTET_STRING{
+struct octet_string {
         u8		*Octet;
         u16             Length;
-}OCTET_STRING, *POCTET_STRING;
+};//, *struct octet_string *;
 #define	MAX_WMMELE_LENGTH	64
 
 typedef u32 QOS_MODE, *PQOS_MODE;
@@ -356,7 +356,7 @@ struct bss_qos {
 
 	QOS_MODE			bdQoSMode;
 	u8					bdWMMIEBuf[MAX_WMMELE_LENGTH];
-	OCTET_STRING			bdWMMIE;
+	struct octet_string bdWMMIE;
 
 	QOS_ELE_SUBTYPE		EleSubType;
 
