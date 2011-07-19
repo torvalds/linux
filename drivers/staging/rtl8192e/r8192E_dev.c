@@ -1256,7 +1256,7 @@ void  rtl8192_tx_fill_desc(struct net_device* dev, struct tx_desc * pdesc, cb_de
     pdesc->TxBuffAddr = cpu_to_le32(mapping);
 }
 
-void  rtl8192_tx_fill_cmd_desc(struct net_device* dev, tx_desc_cmd * entry,
+void  rtl8192_tx_fill_cmd_desc(struct net_device* dev, struct tx_desc_cmd * entry,
 		cb_desc * cb_desc, struct sk_buff* skb)
 {
     struct r8192_priv *priv = rtllib_priv(dev);

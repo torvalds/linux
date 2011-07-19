@@ -536,7 +536,7 @@ struct rtl819x_ops{
 	bool (* initialize_adapter)(struct net_device* dev);
 	void (*link_change)(struct net_device* dev);
 	void (* tx_fill_descriptor)(struct net_device* dev, struct tx_desc *tx_desc, cb_desc * cb_desc, struct sk_buff *skb);
-	void (* tx_fill_cmd_descriptor)(struct net_device* dev, tx_desc_cmd * entry, cb_desc * cb_desc, struct sk_buff *skb);
+	void (* tx_fill_cmd_descriptor)(struct net_device* dev, struct tx_desc_cmd * entry, cb_desc * cb_desc, struct sk_buff *skb);
 	bool (* rx_query_status_descriptor)(struct net_device* dev, struct rtllib_rx_stats*  stats, rx_desc *pdesc, struct sk_buff* skb);
 	bool (* rx_command_packet_handler)(struct net_device *dev, struct sk_buff* skb, rx_desc *pdesc);
 	void (* stop_adapter)(struct net_device *dev, bool reset);

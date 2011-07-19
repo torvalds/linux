@@ -2007,7 +2007,7 @@ void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 {
     struct r8192_priv *priv = rtllib_priv(dev);
     struct rtl8192_tx_ring *ring;
-    tx_desc_cmd* entry;
+    struct tx_desc_cmd * entry;
     unsigned int idx;
     cb_desc *tcb_desc;
     unsigned long flags;
@@ -2016,7 +2016,7 @@ void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb)
     ring = &priv->tx_ring[TXCMD_QUEUE];
 
     idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
-    entry = (tx_desc_cmd*) &ring->desc[idx];
+    entry = (struct tx_desc_cmd *) &ring->desc[idx];
 
     tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 

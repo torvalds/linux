@@ -343,7 +343,7 @@ struct tx_desc {
 };//, *ptx_desc;
 
 
-typedef struct tx_desc_cmd_819x_pci {
+struct tx_desc_cmd {
 	u16	PktSize;
 	u8	Reserved1;
 	u8	CmdType:3;
@@ -364,7 +364,7 @@ typedef struct tx_desc_cmd_819x_pci {
 	u32	Reserved4;
 	u32	Reserved5;
 	u32	Reserved6;
-}tx_desc_cmd, *ptx_desc_cmd;
+};//, *ptx_desc_cmd;
 
 typedef struct _rx_desc_819x_pci{
 	u16			Length:14;
