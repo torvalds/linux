@@ -81,7 +81,7 @@ typedef enum _CHNLOP{
 		((_pHTInfo)->ChnlOp > CHNLOP_NONE) ? true : false
 
 /*
-typedef	union _HT_CAPABILITY{
+union ht_capability {
 	u16	ShortData;
 	u8	CharData[2];
 	struct
@@ -100,7 +100,7 @@ typedef	union _HT_CAPABILITY{
 		u16	PSMP:1;
 		u16	Rsvd:3;
 	}Field;
-}HT_CAPABILITY, *PHT_CAPABILITY;
+};
 
 typedef	union _HT_CAPABILITY_MACPARA{
 	u8	ShortData;
