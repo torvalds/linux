@@ -191,11 +191,10 @@ struct adhoc_peer_entry {
 	unsigned char WirelessMode;
 	unsigned char bCurTxBW40MHz;
 };
-typedef struct
-{
+struct adhoc_peers_info {
 	struct adhoc_peer_entry Entry[MAX_ADHOC_PEER_NUM];
 	unsigned char num;
-} adhoc_peers_info_t, *p_adhoc_peers_info_t;
+};
 
 int r8192_wx_get_adhoc_peers(struct net_device *dev,
 			       struct iw_request_info *info,
