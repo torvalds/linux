@@ -120,6 +120,7 @@ config HAVE_KERNEL_LZO
 
 choice
 	prompt "Kernel compression mode"
+	default KERNEL_LZO if ARCH_RK29
 	default KERNEL_GZIP
 	depends on HAVE_KERNEL_GZIP || HAVE_KERNEL_BZIP2 || HAVE_KERNEL_LZMA || HAVE_KERNEL_LZO
 	help
