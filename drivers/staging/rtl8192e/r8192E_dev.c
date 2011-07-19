@@ -2280,7 +2280,7 @@ void
 ActUpdateChannelAccessSetting(
 	struct net_device*			dev,
 	WIRELESS_MODE			WirelessMode,
-	PCHANNEL_ACCESS_SETTING	ChnlAccessSetting
+	struct channel_access_setting *ChnlAccessSetting
 	)
 {
 		struct r8192_priv* priv = rtllib_priv(dev);

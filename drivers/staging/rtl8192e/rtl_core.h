@@ -472,14 +472,14 @@ typedef struct Stats
 	u32	CurrentShowTxate;
 } Stats;
 
-typedef struct	ChnlAccessSetting {
+struct channel_access_setting {
 	u16 SIFS_Timer;
 	u16 DIFS_Timer;
 	u16 SlotTimeTimer;
 	u16 EIFS_Timer;
 	u16 CWminIndex;
 	u16 CWmaxIndex;
-}*PCHANNEL_ACCESS_SETTING,CHANNEL_ACCESS_SETTING;
+};
 
 typedef enum _TWO_PORT_STATUS
 {
@@ -579,7 +579,7 @@ typedef struct r8192_priv
 
 	struct workqueue_struct		*priv_wq;
 
-	CHANNEL_ACCESS_SETTING	ChannelAccessSetting;
+	struct channel_access_setting ChannelAccessSetting;
 
 	mp_adapter				NdisAdapter;
 
@@ -1106,7 +1106,7 @@ void
 ActUpdateChannelAccessSetting(
 	struct net_device*			dev,
 	WIRELESS_MODE			WirelessMode,
-	PCHANNEL_ACCESS_SETTING	ChnlAccessSetting
+	struct channel_access_setting *ChnlAccessSetting
 	);
 
 #endif
