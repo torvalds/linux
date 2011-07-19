@@ -327,9 +327,9 @@ cmpk_handle_tx_rate_history(
 	struct net_device *dev,
 	u8*	   pmsg)
 {
-	cmpk_tx_rahis_t	*ptxrate;
+	struct cmpk_tx_rahis *ptxrate;
 	u8				i, j;
-	u16				length = sizeof(cmpk_tx_rahis_t);
+	u16				length = sizeof(struct cmpk_tx_rahis);
 	u32				*ptemp;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -354,7 +354,7 @@ cmpk_handle_tx_rate_history(
 		ptemp[i] = (temp1<<16)|temp2;
 	}
 
-	ptxrate = (cmpk_tx_rahis_t *)pmsg;
+	ptxrate = (struct cmpk_tx_rahis *)pmsg;
 
 	if (ptxrate == NULL )
 	{

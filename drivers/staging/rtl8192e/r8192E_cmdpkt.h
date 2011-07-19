@@ -23,7 +23,7 @@
 #define		CMPK_BOTH_QUERY_CONFIG_SIZE			sizeof(struct cmpk_set_cfg)
 #define		CMPK_RX_TX_STS_SIZE					sizeof(struct cmpk_tx_status)
 #define		CMPK_RX_DBG_MSG_SIZE			sizeof(struct cmpk_rx_dbginfo)
-#define		CMPK_TX_RAHIS_SIZE			sizeof(cmpk_tx_rahis_t)
+#define		CMPK_TX_RAHIS_SIZE			sizeof(struct cmpk_tx_rahis)
 
 #define ISR_TxBcnOk					BIT27
 #define ISR_TxBcnErr				BIT26
@@ -120,8 +120,7 @@ struct cmpk_rx_dbginfo {
 
 };//;
 
-typedef struct tag_tx_rate_history
-{
+struct cmpk_tx_rahis {
 	u8	element_id;
 	u8	length;
 	u16	reserved1;
@@ -136,7 +135,7 @@ typedef struct tag_tx_rate_history
 
 	u16	ht_mcs[4][16];
 
-}__attribute__((packed)) cmpk_tx_rahis_t;
+} __packed;
 
 typedef enum tag_command_packet_directories
 {
