@@ -118,7 +118,7 @@ static struct se_cmd *tcm_loop_allocate_core_cmd(
 	 * Signal BIDI usage with T_TASK(cmd)->t_tasks_bidi
 	 */
 	if (scsi_bidi_cmnd(sc))
-		T_TASK(se_cmd)->t_tasks_bidi = 1;
+		se_cmd->t_task->t_tasks_bidi = 1;
 	/*
 	 * Locate the struct se_lun pointer and attach it to struct se_cmd
 	 */
@@ -176,7 +176,7 @@ static int tcm_loop_new_cmd_map(struct se_cmd *se_cmd)
 		 * For BIDI commands, pass in the extra READ buffer
 		 * to transport_generic_map_mem_to_cmd() below..
 		 */
-		if (T_TASK(se_cmd)->t_tasks_bidi) {
+		if (se_cmd->t_task->t_tasks_bidi) {
 			struct scsi_data_buffer *sdb = scsi_in(sc);
 
 			mem_bidi_ptr = (void *)sdb->table.sgl;
@@ -1402,9 +1402,9 @@ static int tcm_loop_register_configfs(void)
 	 * Register the top level struct config_item_type with TCM core
 	 */
 	fabric = target_fabric_configfs_init(THIS_MODULE, "loopback");
-	if (!fabric) {
+	if (IS_ERR(fabric)) {
 		printk(KERN_ERR "tcm_loop_register_configfs() failed!\n");
-		return -1;
+		return PTR_ERR(fabric);
 	}
 	/*
 	 * Setup the fabric API of function pointers used by target_core_mod

@@ -7,8 +7,6 @@
 
 /* Largest piece of memory kmalloc can allocate */
 #define RD_MAX_ALLOCATION_SIZE	65536
-/* Maximum queuedepth for the Ramdisk HBA */
-#define RD_HBA_QUEUE_DEPTH	256
 #define RD_DEVICE_QUEUE_DEPTH	32
 #define RD_MAX_DEVICE_QUEUE_DEPTH 128
 #define RD_BLOCKSIZE		512

@@ -118,7 +118,7 @@ static int target_fabric_mappedlun_link(
 		lun_access = deve->lun_flags;
 	else
 		lun_access =
-			(TPG_TFO(se_tpg)->tpg_check_prod_mode_write_protect(
+			(se_tpg->se_tpg_tfo->tpg_check_prod_mode_write_protect(
 				se_tpg)) ? TRANSPORT_LUNFLAGS_READ_ONLY :
 					   TRANSPORT_LUNFLAGS_READ_WRITE;
 	spin_unlock_irq(&lacl->se_lun_nacl->device_list_lock);
@@ -204,7 +204,7 @@ static ssize_t target_fabric_mappedlun_store_write_protect(
 
 	printk(KERN_INFO "%s_ConfigFS: Changed Initiator ACL: %s"
 		" Mapped LUN: %u Write Protect bit to %s\n",
-		TPG_TFO(se_tpg)->get_fabric_name(),
+		se_tpg->se_tpg_tfo->get_fabric_name(),
 		lacl->initiatorname, lacl->mapped_lun, (op) ? "ON" : "OFF");
 
 	return count;
@@ -379,7 +379,7 @@ static struct config_group *target_fabric_make_mappedlun(
 	lacl_cg->default_groups[0] = &lacl->ml_stat_grps.stat_group;
 	lacl_cg->default_groups[1] = NULL;
 
-	ml_stat_grp = &ML_STAT_GRPS(lacl)->stat_group;
+	ml_stat_grp = &lacl->ml_stat_grps.stat_group;
 	ml_stat_grp->default_groups = kzalloc(sizeof(struct config_group) * 3,
 				GFP_KERNEL);
 	if (!ml_stat_grp->default_groups) {
@@ -408,7 +408,7 @@ static void target_fabric_drop_mappedlun(
 	struct config_group *lacl_cg = NULL, *ml_stat_grp = NULL;
 	int i;
 
-	ml_stat_grp = &ML_STAT_GRPS(lacl)->stat_group;
+	ml_stat_grp = &lacl->ml_stat_grps.stat_group;
 	for (i = 0; ml_stat_grp->default_groups[i]; i++) {
 		df_item = &ml_stat_grp->default_groups[i]->cg_item;
 		ml_stat_grp->default_groups[i] = NULL;
@@ -914,7 +914,7 @@ static struct config_group *target_fabric_make_lun(
 	lun_cg->default_groups[0] = &lun->port_stat_grps.stat_group;
 	lun_cg->default_groups[1] = NULL;
 
-	port_stat_grp = &PORT_STAT_GRP(lun)->stat_group;
+	port_stat_grp = &lun->port_stat_grps.stat_group;
 	port_stat_grp->default_groups =  kzalloc(sizeof(struct config_group) * 3,
 				GFP_KERNEL);
 	if (!port_stat_grp->default_groups) {
@@ -941,7 +941,7 @@ static void target_fabric_drop_lun(
 	struct config_group *lun_cg, *port_stat_grp;
 	int i;
 
-	port_stat_grp = &PORT_STAT_GRP(lun)->stat_group;
+	port_stat_grp = &lun->port_stat_grps.stat_group;
 	for (i = 0; port_stat_grp->default_groups[i]; i++) {
 		df_item = &port_stat_grp->default_groups[i]->cg_item;
 		port_stat_grp->default_groups[i] = NULL;

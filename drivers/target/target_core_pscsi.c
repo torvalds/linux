@@ -55,24 +55,6 @@ static struct se_subsystem_api pscsi_template;
 
 static void pscsi_req_done(struct request *, int);
 
-/*	pscsi_get_sh():
- *
- *
- */
-static struct Scsi_Host *pscsi_get_sh(u32 host_no)
-{
-	struct Scsi_Host *sh = NULL;
-
-	sh = scsi_host_lookup(host_no);
-	if (IS_ERR(sh)) {
-		printk(KERN_ERR "Unable to locate SCSI HBA with Host ID:"
-				" %u\n", host_no);
-		return NULL;
-	}
-
-	return sh;
-}
-
 /*	pscsi_attach_hba():
  *
  * 	pscsi_get_sh() used scsi_host_lookup() to locate struct Scsi_Host.
@@ -80,28 +62,23 @@ static struct Scsi_Host *pscsi_get_sh(u32 host_no)
  */
 static int pscsi_attach_hba(struct se_hba *hba, u32 host_id)
 {
-	int hba_depth;
 	struct pscsi_hba_virt *phv;
 
 	phv = kzalloc(sizeof(struct pscsi_hba_virt), GFP_KERNEL);
 	if (!(phv)) {
 		printk(KERN_ERR "Unable to allocate struct pscsi_hba_virt\n");
-		return -1;
+		return -ENOMEM;
 	}
 	phv->phv_host_id = host_id;
 	phv->phv_mode = PHV_VIRUTAL_HOST_ID;
-	hba_depth = PSCSI_VIRTUAL_HBA_DEPTH;
-	atomic_set(&hba->left_queue_depth, hba_depth);
-	atomic_set(&hba->max_queue_depth, hba_depth);
 
 	hba->hba_ptr = (void *)phv;
 
 	printk(KERN_INFO "CORE_HBA[%d] - TCM SCSI HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
 		PSCSI_VERSION, TARGET_CORE_MOD_VERSION);
-	printk(KERN_INFO "CORE_HBA[%d] - Attached SCSI HBA to Generic"
-		" Target Core with TCQ Depth: %d\n", hba->hba_id,
-		atomic_read(&hba->max_queue_depth));
+	printk(KERN_INFO "CORE_HBA[%d] - Attached SCSI HBA to Generic\n",
+	       hba->hba_id);
 
 	return 0;
 }
@@ -130,7 +107,6 @@ static int pscsi_pmode_enable_hba(struct se_hba *hba, unsigned long mode_flag)
 {
 	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)hba->hba_ptr;
 	struct Scsi_Host *sh = phv->phv_lld_host;
-	int hba_depth = PSCSI_VIRTUAL_HBA_DEPTH;
 	/*
 	 * Release the struct Scsi_Host
 	 */
@@ -140,8 +116,6 @@ static int pscsi_pmode_enable_hba(struct se_hba *hba, unsigned long mode_flag)
 
 		phv->phv_lld_host = NULL;
 		phv->phv_mode = PHV_VIRUTAL_HOST_ID;
-		atomic_set(&hba->left_queue_depth, hba_depth);
-		atomic_set(&hba->max_queue_depth, hba_depth);
 
 		printk(KERN_INFO "CORE_HBA[%d] - Disabled pSCSI HBA Passthrough"
 			" %s\n", hba->hba_id, (sh->hostt->name) ?
@@ -154,22 +128,12 @@ static int pscsi_pmode_enable_hba(struct se_hba *hba, unsigned long mode_flag)
 	 * Otherwise, locate struct Scsi_Host from the original passed
 	 * pSCSI Host ID and enable for phba mode
 	 */
-	sh = pscsi_get_sh(phv->phv_host_id);
-	if (!(sh)) {
+	sh = scsi_host_lookup(phv->phv_host_id);
+	if (IS_ERR(sh)) {
 		printk(KERN_ERR "pSCSI: Unable to locate SCSI Host for"
 			" phv_host_id: %d\n", phv->phv_host_id);
-		return -1;
+		return PTR_ERR(sh);
 	}
-	/*
-	 * Usually the SCSI LLD will use the hostt->can_queue value to define
-	 * its HBA TCQ depth.  Some other drivers (like 2.6 megaraid) don't set
-	 * this at all and set sh->can_queue at runtime.
-	 */
-	hba_depth = (sh->hostt->can_queue > sh->can_queue) ?
-		sh->hostt->can_queue : sh->can_queue;
-
-	atomic_set(&hba->left_queue_depth, hba_depth);
-	atomic_set(&hba->max_queue_depth, hba_depth);
 
 	phv->phv_lld_host = sh;
 	phv->phv_mode = PHV_LLD_SCSI_HOST_NO;
@@ -236,7 +200,7 @@ pscsi_get_inquiry_vpd_serial(struct scsi_device *sdev, struct t10_wwn *wwn)
 
 	buf = kzalloc(INQUIRY_VPD_SERIAL_LEN, GFP_KERNEL);
 	if (!buf)
-		return -1;
+		return -ENOMEM;
 
 	memset(cdb, 0, MAX_COMMAND_SIZE);
 	cdb[0] = INQUIRY;
@@ -259,7 +223,7 @@ pscsi_get_inquiry_vpd_serial(struct scsi_device *sdev, struct t10_wwn *wwn)
 
 out_free:
 	kfree(buf);
-	return -1;
+	return -EPERM;
 }
 
 static void
@@ -601,11 +565,11 @@ static struct se_device *pscsi_create_virtdevice(
 			hba->hba_flags |= HBA_FLAGS_PSCSI_MODE;
 			sh = phv->phv_lld_host;
 		} else {
-			sh = pscsi_get_sh(pdv->pdv_host_id);
-			if (!(sh)) {
+			sh = scsi_host_lookup(pdv->pdv_host_id);
+			if (IS_ERR(sh)) {
 				printk(KERN_ERR "pSCSI: Unable to locate"
 					" pdv_host_id: %d\n", pdv->pdv_host_id);
-				return ERR_PTR(-ENODEV);
+				return (struct se_device *) sh;
 			}
 		}
 	} else {
@@ -728,13 +692,12 @@ static int pscsi_transport_complete(struct se_task *task)
 	 */
 	if (((cdb[0] == MODE_SENSE) || (cdb[0] == MODE_SENSE_10)) &&
 	     (status_byte(result) << 1) == SAM_STAT_GOOD) {
-		if (!TASK_CMD(task)->se_deve)
+		if (!task->task_se_cmd->se_deve)
 			goto after_mode_sense;
 
-		if (TASK_CMD(task)->se_deve->lun_flags &
+		if (task->task_se_cmd->se_deve->lun_flags &
 				TRANSPORT_LUNFLAGS_READ_ONLY) {
-			unsigned char *buf = (unsigned char *)
-				T_TASK(task->task_se_cmd)->t_task_buf;
+			unsigned char *buf = task->task_se_cmd->t_task->t_task_buf;
 
 			if (cdb[0] == MODE_SENSE_10) {
 				if (!(buf[3] & 0x80))
@@ -800,7 +763,7 @@ static struct se_task *
 pscsi_alloc_task(struct se_cmd *cmd)
 {
 	struct pscsi_plugin_task *pt;
-	unsigned char *cdb = T_TASK(cmd)->t_task_cdb;
+	unsigned char *cdb = cmd->t_task->t_task_cdb;
 
 	pt = kzalloc(sizeof(struct pscsi_plugin_task), GFP_KERNEL);
 	if (!pt) {
@@ -813,7 +776,7 @@ pscsi_alloc_task(struct se_cmd *cmd)
 	 * allocate the extended CDB buffer for per struct se_task context
 	 * pt->pscsi_cdb now.
 	 */
-	if (T_TASK(cmd)->t_task_cdb != T_TASK(cmd)->__t_task_cdb) {
+	if (cmd->t_task->t_task_cdb != cmd->t_task->__t_task_cdb) {
 
 		pt->pscsi_cdb = kzalloc(scsi_command_size(cdb), GFP_KERNEL);
 		if (!(pt->pscsi_cdb)) {
@@ -926,7 +889,7 @@ static void pscsi_free_task(struct se_task *task)
 	 * Release the extended CDB allocation from pscsi_alloc_task()
 	 * if one exists.
 	 */
-	if (T_TASK(cmd)->t_task_cdb != T_TASK(cmd)->__t_task_cdb)
+	if (cmd->t_task->t_task_cdb != cmd->t_task->__t_task_cdb)
 		kfree(pt->pscsi_cdb);
 	/*
 	 * We do not release the bio(s) here associated with this task, as
@@ -1030,7 +993,7 @@ static ssize_t pscsi_check_configfs_dev_params(
 	    !(pdv->pdv_flags & PDF_HAS_LUN_ID)) {
 		printk(KERN_ERR "Missing scsi_channel_id=, scsi_target_id= and"
 			" scsi_lun_id= parameters\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1291,7 +1254,7 @@ static int pscsi_map_task_SG(struct se_task *task)
  */
 static int pscsi_map_task_non_SG(struct se_task *task)
 {
-	struct se_cmd *cmd = TASK_CMD(task);
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
 	struct pscsi_dev_virt *pdv = task->se_dev->dev_ptr;
 	int ret = 0;
@@ -1303,7 +1266,7 @@ static int pscsi_map_task_non_SG(struct se_task *task)
 		return 0;
 
 	ret = blk_rq_map_kern(pdv->pdv_sd->request_queue,
-			pt->pscsi_req, T_TASK(cmd)->t_task_buf,
+			pt->pscsi_req, cmd->t_task->t_task_buf,
 			task->task_size, GFP_KERNEL);
 	if (ret < 0) {
 		printk(KERN_ERR "PSCSI: blk_rq_map_kern() failed: %d\n", ret);
@@ -1400,13 +1363,11 @@ static inline void pscsi_process_SAM_status(
 			pt->pscsi_result);
 		task->task_scsi_status = SAM_STAT_CHECK_CONDITION;
 		task->task_error_status = PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-		TASK_CMD(task)->transport_error_status =
+		task->task_se_cmd->transport_error_status =
 					PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
 		transport_complete_task(task, 0);
 		break;
 	}
-
-	return;
 }
 
 static void pscsi_req_done(struct request *req, int uptodate)

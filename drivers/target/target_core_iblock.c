@@ -74,17 +74,14 @@ static int iblock_attach_hba(struct se_hba *hba, u32 host_id)
 
 	ib_host->iblock_host_id = host_id;
 
-	atomic_set(&hba->left_queue_depth, IBLOCK_HBA_QUEUE_DEPTH);
-	atomic_set(&hba->max_queue_depth, IBLOCK_HBA_QUEUE_DEPTH);
 	hba->hba_ptr = (void *) ib_host;
 
 	printk(KERN_INFO "CORE_HBA[%d] - TCM iBlock HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
 		IBLOCK_VERSION, TARGET_CORE_MOD_VERSION);
 
-	printk(KERN_INFO "CORE_HBA[%d] - Attached iBlock HBA: %u to Generic"
-		" Target Core TCQ Depth: %d\n", hba->hba_id,
-		ib_host->iblock_host_id, atomic_read(&hba->max_queue_depth));
+	printk(KERN_INFO "CORE_HBA[%d] - Attached iBlock HBA: %u to Generic\n",
+		hba->hba_id, ib_host->iblock_host_id);
 
 	return 0;
 }
@@ -188,15 +185,15 @@ static struct se_device *iblock_create_virtdevice(
 	 * in ATA and we need to set TPE=1
 	 */
 	if (blk_queue_discard(q)) {
-		DEV_ATTRIB(dev)->max_unmap_lba_count =
+		dev->se_sub_dev->se_dev_attrib.max_unmap_lba_count =
 				q->limits.max_discard_sectors;
 		/*
 		 * Currently hardcoded to 1 in Linux/SCSI code..
 		 */
-		DEV_ATTRIB(dev)->max_unmap_block_desc_count = 1;
-		DEV_ATTRIB(dev)->unmap_granularity =
+		dev->se_sub_dev->se_dev_attrib.max_unmap_block_desc_count = 1;
+		dev->se_sub_dev->se_dev_attrib.unmap_granularity =
 				q->limits.discard_granularity;
-		DEV_ATTRIB(dev)->unmap_granularity_alignment =
+		dev->se_sub_dev->se_dev_attrib.unmap_granularity_alignment =
 				q->limits.discard_alignment;
 
 		printk(KERN_INFO "IBLOCK: BLOCK Discard support available,"
@@ -243,7 +240,7 @@ iblock_alloc_task(struct se_cmd *cmd)
 		return NULL;
 	}
 
-	ib_req->ib_dev = SE_DEV(cmd)->dev_ptr;
+	ib_req->ib_dev = cmd->se_lun->lun_se_dev->dev_ptr;
 	atomic_set(&ib_req->ib_bio_cnt, 0);
 	return &ib_req->ib_task;
 }
@@ -257,12 +254,12 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
 					bdev_logical_block_size(bd)) - 1);
 	u32 block_size = bdev_logical_block_size(bd);
 
-	if (block_size == DEV_ATTRIB(dev)->block_size)
+	if (block_size == dev->se_sub_dev->se_dev_attrib.block_size)
 		return blocks_long;
 
 	switch (block_size) {
 	case 4096:
-		switch (DEV_ATTRIB(dev)->block_size) {
+		switch (dev->se_sub_dev->se_dev_attrib.block_size) {
 		case 2048:
 			blocks_long <<= 1;
 			break;
@@ -276,7 +273,7 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
 		}
 		break;
 	case 2048:
-		switch (DEV_ATTRIB(dev)->block_size) {
+		switch (dev->se_sub_dev->se_dev_attrib.block_size) {
 		case 4096:
 			blocks_long >>= 1;
 			break;
@@ -291,7 +288,7 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
 		}
 		break;
 	case 1024:
-		switch (DEV_ATTRIB(dev)->block_size) {
+		switch (dev->se_sub_dev->se_dev_attrib.block_size) {
 		case 4096:
 			blocks_long >>= 2;
 			break;
@@ -306,7 +303,7 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
 		}
 		break;
 	case 512:
-		switch (DEV_ATTRIB(dev)->block_size) {
+		switch (dev->se_sub_dev->se_dev_attrib.block_size) {
 		case 4096:
 			blocks_long >>= 3;
 			break;
@@ -332,9 +329,9 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
  */
 static void iblock_emulate_sync_cache(struct se_task *task)
 {
-	struct se_cmd *cmd = TASK_CMD(task);
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
-	int immed = (T_TASK(cmd)->t_task_cdb[1] & 0x2);
+	int immed = (cmd->t_task->t_task_cdb[1] & 0x2);
 	sector_t error_sector;
 	int ret;
 
@@ -401,9 +398,9 @@ static int iblock_do_task(struct se_task *task)
 		 * Force data to disk if we pretend to not have a volatile
 		 * write cache, or the initiator set the Force Unit Access bit.
 		 */
-		if (DEV_ATTRIB(dev)->emulate_write_cache == 0 ||
-		    (DEV_ATTRIB(dev)->emulate_fua_write > 0 &&
-		     T_TASK(task->task_se_cmd)->t_tasks_fua))
+		if (dev->se_sub_dev->se_dev_attrib.emulate_write_cache == 0 ||
+		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
+		     task->task_se_cmd->t_task->t_tasks_fua))
 			rw = WRITE_FUA;
 		else
 			rw = WRITE;
@@ -527,7 +524,7 @@ static ssize_t iblock_check_configfs_dev_params(
 
 	if (!(ibd->ibd_flags & IBDF_HAS_UDEV_PATH)) {
 		printk(KERN_ERR "Missing udev_path= parameters for IBLOCK\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -611,7 +608,7 @@ static struct bio *iblock_get_bio(
 static int iblock_map_task_SG(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
-	struct se_device *dev = SE_DEV(cmd);
+	struct se_device *dev = cmd->se_lun->lun_se_dev;
 	struct iblock_dev *ib_dev = task->se_dev->dev_ptr;
 	struct iblock_req *ib_req = IBLOCK_REQ(task);
 	struct bio *bio = NULL, *hbio = NULL, *tbio = NULL;
@@ -623,17 +620,17 @@ static int iblock_map_task_SG(struct se_task *task)
 	 * Do starting conversion up from non 512-byte blocksize with
 	 * struct se_task SCSI blocksize into Linux/Block 512 units for BIO.
 	 */
-	if (DEV_ATTRIB(dev)->block_size == 4096)
+	if (dev->se_sub_dev->se_dev_attrib.block_size == 4096)
 		block_lba = (task->task_lba << 3);
-	else if (DEV_ATTRIB(dev)->block_size == 2048)
+	else if (dev->se_sub_dev->se_dev_attrib.block_size == 2048)
 		block_lba = (task->task_lba << 2);
-	else if (DEV_ATTRIB(dev)->block_size == 1024)
+	else if (dev->se_sub_dev->se_dev_attrib.block_size == 1024)
 		block_lba = (task->task_lba << 1);
-	else if (DEV_ATTRIB(dev)->block_size == 512)
+	else if (dev->se_sub_dev->se_dev_attrib.block_size == 512)
 		block_lba = task->task_lba;
 	else {
 		printk(KERN_ERR "Unsupported SCSI -> BLOCK LBA conversion:"
-				" %u\n", DEV_ATTRIB(dev)->block_size);
+				" %u\n", dev->se_sub_dev->se_dev_attrib.block_size);
 		return PYX_TRANSPORT_LU_COMM_FAILURE;
 	}
 

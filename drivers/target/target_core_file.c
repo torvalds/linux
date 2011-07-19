@@ -67,22 +67,19 @@ static int fd_attach_hba(struct se_hba *hba, u32 host_id)
 	fd_host = kzalloc(sizeof(struct fd_host), GFP_KERNEL);
 	if (!(fd_host)) {
 		printk(KERN_ERR "Unable to allocate memory for struct fd_host\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	fd_host->fd_host_id = host_id;
 
-	atomic_set(&hba->left_queue_depth, FD_HBA_QUEUE_DEPTH);
-	atomic_set(&hba->max_queue_depth, FD_HBA_QUEUE_DEPTH);
-	hba->hba_ptr = (void *) fd_host;
+	hba->hba_ptr = fd_host;
 
 	printk(KERN_INFO "CORE_HBA[%d] - TCM FILEIO HBA Driver %s on Generic"
 		" Target Core Stack %s\n", hba->hba_id, FD_VERSION,
 		TARGET_CORE_MOD_VERSION);
 	printk(KERN_INFO "CORE_HBA[%d] - Attached FILEIO HBA: %u to Generic"
-		" Target Core with TCQ Depth: %d MaxSectors: %u\n",
-		hba->hba_id, fd_host->fd_host_id,
-		atomic_read(&hba->max_queue_depth), FD_MAX_SECTORS);
+		" MaxSectors: %u\n",
+		hba->hba_id, fd_host->fd_host_id, FD_MAX_SECTORS);
 
 	return 0;
 }
@@ -282,7 +279,7 @@ fd_alloc_task(struct se_cmd *cmd)
 		return NULL;
 	}
 
-	fd_req->fd_dev = SE_DEV(cmd)->dev_ptr;
+	fd_req->fd_dev = cmd->se_lun->lun_se_dev->dev_ptr;
 
 	return &fd_req->fd_task;
 }
@@ -294,13 +291,14 @@ static int fd_do_readv(struct se_task *task)
 	struct scatterlist *sg = task->task_sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
-	loff_t pos = (task->task_lba * DEV_ATTRIB(task->se_dev)->block_size);
+	loff_t pos = (task->task_lba *
+		      task->se_dev->se_sub_dev->se_dev_attrib.block_size);
 	int ret = 0, i;
 
 	iov = kzalloc(sizeof(struct iovec) * task->task_sg_num, GFP_KERNEL);
 	if (!(iov)) {
 		printk(KERN_ERR "Unable to allocate fd_do_readv iov[]\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < task->task_sg_num; i++) {
@@ -324,13 +322,13 @@ static int fd_do_readv(struct se_task *task)
 			printk(KERN_ERR "vfs_readv() returned %d,"
 				" expecting %d for S_ISBLK\n", ret,
 				(int)task->task_size);
-			return -1;
+			return (ret < 0 ? ret : -EINVAL);
 		}
 	} else {
 		if (ret < 0) {
 			printk(KERN_ERR "vfs_readv() returned %d for non"
 				" S_ISBLK\n", ret);
-			return -1;
+			return ret;
 		}
 	}
 
@@ -344,13 +342,14 @@ static int fd_do_writev(struct se_task *task)
 	struct scatterlist *sg = task->task_sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
-	loff_t pos = (task->task_lba * DEV_ATTRIB(task->se_dev)->block_size);
+	loff_t pos = (task->task_lba *
+		      task->se_dev->se_sub_dev->se_dev_attrib.block_size);
 	int ret, i = 0;
 
 	iov = kzalloc(sizeof(struct iovec) * task->task_sg_num, GFP_KERNEL);
 	if (!(iov)) {
 		printk(KERN_ERR "Unable to allocate fd_do_writev iov[]\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < task->task_sg_num; i++) {
@@ -367,7 +366,7 @@ static int fd_do_writev(struct se_task *task)
 
 	if (ret < 0 || ret != task->task_size) {
 		printk(KERN_ERR "vfs_writev() returned %d\n", ret);
-		return -1;
+		return (ret < 0 ? ret : -EINVAL);
 	}
 
 	return 1;
@@ -375,7 +374,7 @@ static int fd_do_writev(struct se_task *task)
 
 static void fd_emulate_sync_cache(struct se_task *task)
 {
-	struct se_cmd *cmd = TASK_CMD(task);
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	struct fd_dev *fd_dev = dev->dev_ptr;
 	int immed = (cmd->t_task->t_task_cdb[1] & 0x2);
@@ -396,7 +395,7 @@ static void fd_emulate_sync_cache(struct se_task *task)
 		start = 0;
 		end = LLONG_MAX;
 	} else {
-		start = cmd->t_task->t_task_lba * DEV_ATTRIB(dev)->block_size;
+		start = cmd->t_task->t_task_lba * dev->se_sub_dev->se_dev_attrib.block_size;
 		if (cmd->data_length)
 			end = start + cmd->data_length;
 		else
@@ -446,7 +445,7 @@ static void fd_emulate_write_fua(struct se_cmd *cmd, struct se_task *task)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct fd_dev *fd_dev = dev->dev_ptr;
-	loff_t start = task->task_lba * DEV_ATTRIB(dev)->block_size;
+	loff_t start = task->task_lba * dev->se_sub_dev->se_dev_attrib.block_size;
 	loff_t end = start + task->task_size;
 	int ret;
 
@@ -474,9 +473,9 @@ static int fd_do_task(struct se_task *task)
 		ret = fd_do_writev(task);
 
 		if (ret > 0 &&
-		    DEV_ATTRIB(dev)->emulate_write_cache > 0 &&
-		    DEV_ATTRIB(dev)->emulate_fua_write > 0 &&
-		    T_TASK(cmd)->t_tasks_fua) {
+		    dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0 &&
+		    dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
+		    cmd->t_task->t_tasks_fua) {
 			/*
 			 * We might need to be a bit smarter here
 			 * and return some sense data to let the initiator
@@ -599,7 +598,7 @@ static ssize_t fd_check_configfs_dev_params(struct se_hba *hba, struct se_subsys
 
 	if (!(fd_dev->fbd_flags & FBDF_HAS_PATH)) {
 		printk(KERN_ERR "Missing fd_dev_name=\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	return 0;
@@ -654,7 +653,7 @@ static sector_t fd_get_blocks(struct se_device *dev)
 {
 	struct fd_dev *fd_dev = dev->dev_ptr;
 	unsigned long long blocks_long = div_u64(fd_dev->fd_dev_size,
-			DEV_ATTRIB(dev)->block_size);
+			dev->se_sub_dev->se_dev_attrib.block_size);
 
 	return blocks_long;
 }

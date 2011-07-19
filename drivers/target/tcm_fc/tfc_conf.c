@@ -582,10 +582,10 @@ int ft_register_configfs(void)
 	 * Register the top level struct config_item_type with TCM core
 	 */
 	fabric = target_fabric_configfs_init(THIS_MODULE, "fc");
-	if (!fabric) {
+	if (IS_ERR(fabric)) {
 		printk(KERN_INFO "%s: target_fabric_configfs_init() failed!\n",
 		       __func__);
-		return -1;
+		return PTR_ERR(fabric);
 	}
 	fabric->tf_ops = ft_fabric_ops;
 

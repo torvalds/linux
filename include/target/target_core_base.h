@@ -205,11 +205,6 @@ typedef enum {
 	SCSI_INDEX_TYPE_MAX
 } scsi_index_t;
 
-struct scsi_index_table {
-	spinlock_t	lock;
-	u32		scsi_mib_index[SCSI_INDEX_TYPE_MAX];
-} ____cacheline_aligned;
-
 struct se_cmd;
 
 struct t10_alua {
@@ -235,7 +230,7 @@ struct t10_alua_lu_gp {
 	atomic_t lu_gp_ref_cnt;
 	spinlock_t lu_gp_lock;
 	struct config_group lu_gp_group;
-	struct list_head lu_gp_list;
+	struct list_head lu_gp_node;
 	struct list_head lu_gp_mem_list;
 } ____cacheline_aligned;
 
@@ -291,10 +286,10 @@ struct t10_vpd {
 } ____cacheline_aligned;
 
 struct t10_wwn {
-	unsigned char vendor[8];
-	unsigned char model[16];
-	unsigned char revision[4];
-	unsigned char unit_serial[INQUIRY_VPD_SERIAL_LEN];
+	char vendor[8];
+	char model[16];
+	char revision[4];
+	char unit_serial[INQUIRY_VPD_SERIAL_LEN];
 	spinlock_t t10_vpd_lock;
 	struct se_subsystem_dev *t10_sub_dev;
 	struct config_group t10_wwn_group;
@@ -366,13 +361,13 @@ struct t10_reservation_ops {
 	int (*t10_pr_clear)(struct se_cmd *);
 };
 
-struct t10_reservation_template {
+struct t10_reservation {
 	/* Reservation effects all target ports */
 	int pr_all_tg_pt;
 	/* Activate Persistence across Target Power Loss enabled
 	 * for SCSI device */
 	int pr_aptpl_active;
-	/* Used by struct t10_reservation_template->pr_aptpl_buf_len */
+	/* Used by struct t10_reservation->pr_aptpl_buf_len */
 #define PR_APTPL_BUF_LEN			8192
 	u32 pr_aptpl_buf_len;
 	u32 pr_generation;
@@ -397,7 +392,7 @@ struct t10_reservation_template {
 
 struct se_queue_req {
 	int			state;
-	void			*cmd;
+	struct se_cmd		*cmd;
 	struct list_head	qr_list;
 } ____cacheline_aligned;
 
@@ -495,9 +490,6 @@ struct se_task {
 	struct list_head t_state_list;
 } ____cacheline_aligned;
 
-#define TASK_CMD(task)	((task)->task_se_cmd)
-#define TASK_DEV(task)	((task)->se_dev)
-
 struct se_cmd {
 	/* SAM response code being sent to initiator */
 	u8			scsi_status;
@@ -551,9 +543,6 @@ struct se_cmd {
 	void (*transport_wait_for_tasks)(struct se_cmd *, int, int);
 	void (*transport_complete_callback)(struct se_cmd *);
 } ____cacheline_aligned;
-
-#define T_TASK(cmd)     ((cmd)->t_task)
-#define CMD_TFO(cmd)	((cmd)->se_tfo)
 
 struct se_tmr_req {
 	/* Task Management function to be preformed */
@@ -617,9 +606,6 @@ struct se_session {
 	struct list_head	sess_acl_list;
 } ____cacheline_aligned;
 
-#define SE_SESS(cmd)		((cmd)->se_sess)
-#define SE_NODE_ACL(sess)	((sess)->se_node_acl)
-
 struct se_device;
 struct se_transform_info;
 struct scatterlist;
@@ -639,8 +625,6 @@ struct se_lun_acl {
 	struct config_group	se_lun_group;
 	struct se_ml_stat_grps	ml_stat_grps;
 }  ____cacheline_aligned;
-
-#define ML_STAT_GRPS(lacl)	(&(lacl)->ml_stat_grps)
 
 struct se_dev_entry {
 	bool			def_pr_registered;
@@ -727,21 +711,16 @@ struct se_subsystem_dev {
 	/* T10 Inquiry and VPD WWN Information */
 	struct t10_wwn	t10_wwn;
 	/* T10 SPC-2 + SPC-3 Reservations */
-	struct t10_reservation_template t10_reservation;
+	struct t10_reservation t10_pr;
 	spinlock_t      se_dev_lock;
 	void            *se_dev_su_ptr;
-	struct list_head g_se_dev_list;
+	struct list_head se_dev_node;
 	struct config_group se_dev_group;
 	/* For T10 Reservations */
 	struct config_group se_dev_pr_group;
 	/* For target_core_stat.c groups */
 	struct se_dev_stat_grps dev_stat_grps;
 } ____cacheline_aligned;
-
-#define T10_ALUA(su_dev)	(&(su_dev)->t10_alua)
-#define T10_RES(su_dev)		(&(su_dev)->t10_reservation)
-#define T10_PR_OPS(su_dev)	(&(su_dev)->t10_reservation.pr_ops)
-#define DEV_STAT_GRP(dev)	(&(dev)->dev_stat_grps)
 
 struct se_device {
 	/* Set to 1 if thread is NOT sleeping on thread_sem */
@@ -783,8 +762,7 @@ struct se_device {
 	struct se_obj		dev_obj;
 	struct se_obj		dev_access_obj;
 	struct se_obj		dev_export_obj;
-	struct se_queue_obj	*dev_queue_obj;
-	struct se_queue_obj	*dev_status_queue_obj;
+	struct se_queue_obj	dev_queue_obj;
 	spinlock_t		delayed_cmd_lock;
 	spinlock_t		ordered_cmd_lock;
 	spinlock_t		execute_task_lock;
@@ -824,11 +802,6 @@ struct se_device {
 	struct list_head	g_se_dev_list;
 }  ____cacheline_aligned;
 
-#define SE_DEV(cmd)		((cmd)->se_lun->lun_se_dev)
-#define SU_DEV(dev)		((dev)->se_sub_dev)
-#define DEV_ATTRIB(dev)		(&(dev)->se_sub_dev->se_dev_attrib)
-#define DEV_T10_WWN(dev)	(&(dev)->se_sub_dev->t10_wwn)
-
 struct se_hba {
 	u16			hba_tpgt;
 	u32			hba_id;
@@ -837,23 +810,16 @@ struct se_hba {
 	/* Virtual iSCSI devices attached. */
 	u32			dev_count;
 	u32			hba_index;
-	atomic_t		load_balance_queue;
-	atomic_t		left_queue_depth;
-	/* Maximum queue depth the HBA can handle. */
-	atomic_t		max_queue_depth;
 	/* Pointer to transport specific host structure. */
 	void			*hba_ptr;
 	/* Linked list for struct se_device */
 	struct list_head	hba_dev_list;
-	struct list_head	hba_list;
+	struct list_head	hba_node;
 	spinlock_t		device_lock;
-	spinlock_t		hba_queue_lock;
 	struct config_group	hba_group;
 	struct mutex		hba_access_mutex;
 	struct se_subsystem_api *transport;
 }  ____cacheline_aligned;
-
-#define SE_HBA(dev)		((dev)->se_hba)
 
 struct se_port_stat_grps {
 	struct config_group stat_group;
@@ -880,9 +846,6 @@ struct se_lun {
 	struct config_group	lun_group;
 	struct se_port_stat_grps port_stat_grps;
 } ____cacheline_aligned;
-
-#define SE_LUN(cmd)		((cmd)->se_lun)
-#define PORT_STAT_GRP(lun)	(&(lun)->port_stat_grps)
 
 struct scsi_port_stats {
        u64     cmd_pdus;
@@ -930,7 +893,7 @@ struct se_portal_group {
 	spinlock_t		tpg_lun_lock;
 	/* Pointer to $FABRIC_MOD portal group */
 	void			*se_tpg_fabric_ptr;
-	struct list_head	se_tpg_list;
+	struct list_head	se_tpg_node;
 	/* linked list for initiator ACL list */
 	struct list_head	acl_node_list;
 	struct se_lun		*tpg_lun_list;
@@ -949,37 +912,11 @@ struct se_portal_group {
 	struct config_group	tpg_param_group;
 } ____cacheline_aligned;
 
-#define TPG_TFO(se_tpg)	((se_tpg)->se_tpg_tfo)
-
 struct se_wwn {
 	struct target_fabric_configfs *wwn_tf;
 	struct config_group	wwn_group;
 	struct config_group	*wwn_default_groups[2];
 	struct config_group	fabric_stat_group;
-} ____cacheline_aligned;
-
-struct se_global {
-	u16			alua_lu_gps_counter;
-	int			g_sub_api_initialized;
-	u32			in_shutdown;
-	u32			alua_lu_gps_count;
-	u32			g_hba_id_counter;
-	struct config_group	target_core_hbagroup;
-	struct config_group	alua_group;
-	struct config_group	alua_lu_gps_group;
-	struct list_head	g_lu_gps_list;
-	struct list_head	g_se_tpg_list;
-	struct list_head	g_hba_list;
-	struct list_head	g_se_dev_list;
-	struct se_hba		*g_lun0_hba;
-	struct se_subsystem_dev *g_lun0_su_dev;
-	struct se_device	*g_lun0_dev;
-	struct t10_alua_lu_gp	*default_lu_gp;
-	spinlock_t		g_device_lock;
-	spinlock_t		hba_lock;
-	spinlock_t		se_tpg_lock;
-	spinlock_t		lu_gps_lock;
-	spinlock_t		plugin_class_lock;
 } ____cacheline_aligned;
 
 #endif /* TARGET_CORE_BASE_H */

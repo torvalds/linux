@@ -90,7 +90,7 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 	lport = ep->lp;
 	cmd->seq = lport->tt.seq_start_next(cmd->seq);
 
-	task = T_TASK(se_cmd);
+	task = se_cmd->t_task;
 	BUG_ON(!task);
 	remaining = se_cmd->data_length;
 
@@ -236,7 +236,7 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 	u32 f_ctl;
 	void *buf;
 
-	task = T_TASK(se_cmd);
+	task = se_cmd->t_task;
 	BUG_ON(!task);
 
 	fh = fc_frame_header_get(fp);
