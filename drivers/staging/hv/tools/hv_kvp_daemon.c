@@ -116,7 +116,7 @@ void kvp_get_os_info(void)
 
 	uname(&uts_buf);
 	os_build = uts_buf.release;
-	processor_arch= uts_buf.machine;
+	processor_arch = uts_buf.machine;
 
 	file = fopen("/etc/SuSE-release", "r");
 	if (file != NULL)
