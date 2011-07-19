@@ -361,10 +361,10 @@ struct mimo_rssi {
 	u32	Average;
 };//, *struct mimo_rssi *;
 
-typedef struct _MIMO_EVM{
+struct mimo_evm {
 	u32	EVM1;
 	u32    EVM2;
-}MIMO_EVM, *PMIMO_EVM;
+};//, *struct mimo_evm *;
 
 typedef struct _FALSE_ALARM_STATISTICS{
 	u32	Cnt_Parity_Fail;
