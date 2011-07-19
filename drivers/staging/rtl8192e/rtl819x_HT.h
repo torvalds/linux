@@ -102,7 +102,7 @@ union ht_capability {
 	}Field;
 };
 
-typedef	union _HT_CAPABILITY_MACPARA{
+union ht_capability_macpara {
 	u8	ShortData;
 	u8	CharData[1];
 	struct
@@ -111,7 +111,7 @@ typedef	union _HT_CAPABILITY_MACPARA{
 		u8	MPDUDensity:2;
 		u8	Rsvd:4;
 	}Field;
-}HT_CAPABILITY_MACPARA, *PHT_CAPABILITY_MACPARA;
+};
 */
 
 typedef enum _HT_ACTION{
