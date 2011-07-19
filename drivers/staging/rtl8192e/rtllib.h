@@ -2015,8 +2015,7 @@ struct sw_cam_table {
 
 };//,*struct sw_cam_table *;
 #define   TOTAL_CAM_ENTRY				32
-typedef struct _rate_adaptive
-{
+struct rate_adaptive {
 	u8				rate_adaptive_disabled;
 	u8				ratr_state;
 	u16				reserve;
@@ -2038,7 +2037,7 @@ typedef struct _rate_adaptive
 	u32				last_ratr;
 	u8				PreRATRState;
 
-} rate_adaptive, *prate_adaptive;
+};
 typedef enum _RATR_TABLE_MODE_8192S{
 	RATR_INX_WIRELESS_NGB = 0,
 	RATR_INX_WIRELESS_NG = 1,

@@ -594,7 +594,7 @@ typedef struct r8192_priv
 	IC_INFERIORITY_8192S		IC_Class;
 	HT_CHANNEL_WIDTH		CurrentChannelBW;
 	struct bb_reg_definition PHYRegDef[4];
-	rate_adaptive				rate_adaptive;
+	struct rate_adaptive rate_adaptive;
 
 	struct ccktxbbgain cck_txbbgain_table[CCKTxBBGainTableLength];
 	struct ccktxbbgain cck_txbbgain_ch14_table[CCKTxBBGainTableLength];

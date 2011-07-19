@@ -251,7 +251,7 @@ extern void init_rate_adaptive(struct net_device * dev)
 {
 
 	struct r8192_priv *priv = rtllib_priv(dev);
-	prate_adaptive			pra = (prate_adaptive)&priv->rate_adaptive;
+	struct rate_adaptive *pra = (struct rate_adaptive *)&priv->rate_adaptive;
 
 	pra->ratr_state = DM_RATR_STA_MAX;
 	pra->high2low_rssi_thresh_for_ra = RateAdaptiveTH_High;
@@ -295,7 +295,7 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
-	prate_adaptive			pra = (prate_adaptive)&priv->rate_adaptive;
+	struct rate_adaptive *pra = (struct rate_adaptive *)&priv->rate_adaptive;
 	u32						currentRATR, targetRATR = 0;
 	u32						LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
 	bool						bshort_gi_enabled = false;
@@ -1801,7 +1801,7 @@ dm_change_rxpath_selection_setting(
 	s32		DM_Value)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	prate_adaptive	pRA = (prate_adaptive)&(priv->rate_adaptive);
+	struct rate_adaptive *pRA = (struct rate_adaptive *)&(priv->rate_adaptive);
 
 
 	if (DM_Type == 0)
