@@ -1949,7 +1949,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				}
 				if (tmp_htcap_len != 0){
 					network->bssht.bdSupportHT = true;
-					network->bssht.bdHT1R = ((((PHT_CAPABILITY_ELE)(network->bssht.bdHTCapBuf))->MCS[1]) == 0);
+					network->bssht.bdHT1R = ((((struct ht_capab_ele *)(network->bssht.bdHTCapBuf))->MCS[1]) == 0);
 				}else{
 					network->bssht.bdSupportHT = false;
 					network->bssht.bdHT1R = false;
@@ -2155,9 +2155,9 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				memcpy(network->bssht.bdHTCapBuf,info_element->data,network->bssht.bdHTCapLen);
 
 				network->bssht.bdSupportHT = true;
-				network->bssht.bdHT1R = ((((PHT_CAPABILITY_ELE)(network->bssht.bdHTCapBuf))->MCS[1]) == 0);
+				network->bssht.bdHT1R = ((((struct ht_capab_ele *)(network->bssht.bdHTCapBuf))->MCS[1]) == 0);
 
-				network->bssht.bdBandWidth = (HT_CHANNEL_WIDTH)(((PHT_CAPABILITY_ELE)(network->bssht.bdHTCapBuf))->ChlWidth);
+				network->bssht.bdBandWidth = (HT_CHANNEL_WIDTH)(((struct ht_capab_ele *)(network->bssht.bdHTCapBuf))->ChlWidth);
 			}
 			else{
 				network->bssht.bdSupportHT = false;

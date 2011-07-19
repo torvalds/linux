@@ -135,7 +135,7 @@ typedef enum _HT_Bandwidth_40MHZ_Sub_Carrier{
 	SC_MODE_FULL40MHZ = 3,
 }HT_BW40_SC_E;
 
-typedef	struct _HT_CAPABILITY_ELE{
+struct ht_capab_ele {
 
 	u8	AdvCoding:1;
 	u8	ChlWidth:1;
@@ -165,7 +165,7 @@ typedef	struct _HT_CAPABILITY_ELE{
 
 	u8	ASCap;
 
-} __attribute__ ((packed)) HT_CAPABILITY_ELE, *PHT_CAPABILITY_ELE;
+} __packed;
 
 
 struct ht_info_ele {
@@ -232,7 +232,7 @@ struct rt_hi_throughput {
 	HT_SPEC_VER			ePeerHTSpecVer;
 
 
-	HT_CAPABILITY_ELE	SelfHTCap;
+	struct ht_capab_ele SelfHTCap;
 	struct ht_info_ele SelfHTInfo;
 
 	u8				PeerHTCapBuf[32];

@@ -98,14 +98,14 @@ void HTDebugHTCapability(u8* CapIE, u8* TitleString )
 {
 
 	static u8	EWC11NHTCap[] = {0x00, 0x90, 0x4c, 0x33};
-	PHT_CAPABILITY_ELE		pCapELE;
+	struct ht_capab_ele *pCapELE;
 
 	if (!memcmp(CapIE, EWC11NHTCap, sizeof(EWC11NHTCap)))
 	{
 		RTLLIB_DEBUG(RTLLIB_DL_HT, "EWC IE in %s()\n", __func__);
-		pCapELE = (PHT_CAPABILITY_ELE)(&CapIE[4]);
+		pCapELE = (struct ht_capab_ele *)(&CapIE[4]);
 	}else
-		pCapELE = (PHT_CAPABILITY_ELE)(&CapIE[0]);
+		pCapELE = (struct ht_capab_ele *)(&CapIE[0]);
 
 	RTLLIB_DEBUG(RTLLIB_DL_HT, "<Log HT Capability>. Called by %s\n", TitleString );
 
@@ -190,7 +190,7 @@ bool IsHTHalfNmode40Bandwidth(struct rtllib_device* ieee)
 		retValue = false;
 	else if (!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
 		retValue = false;
-	else if (((PHT_CAPABILITY_ELE)(pHTInfo->PeerHTCapBuf))->ChlWidth)
+	else if (((struct ht_capab_ele *)(pHTInfo->PeerHTCapBuf))->ChlWidth)
 		retValue = true;
 	else
 		retValue = false;
@@ -209,14 +209,14 @@ bool IsHTHalfNmodeSGI(struct rtllib_device* ieee, bool is40MHz)
 		retValue = false;
 	else if (is40MHz)
 	{
-		if (((PHT_CAPABILITY_ELE)(pHTInfo->PeerHTCapBuf))->ShortGI40Mhz)
+		if (((struct ht_capab_ele *)(pHTInfo->PeerHTCapBuf))->ShortGI40Mhz)
 			retValue = true;
 		else
 			retValue = false;
 	}
 	else
 	{
-		if (((PHT_CAPABILITY_ELE)(pHTInfo->PeerHTCapBuf))->ShortGI20Mhz)
+		if (((struct ht_capab_ele *)(pHTInfo->PeerHTCapBuf))->ShortGI20Mhz)
 			retValue = true;
 		else
 			retValue = false;
@@ -585,7 +585,7 @@ void HTResetIOTSetting(
 void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* len, u8 IsEncrypt, bool bAssoc)
 {
 	struct rt_hi_throughput *pHT = ieee->pHTInfo;
-	PHT_CAPABILITY_ELE	pCapELE = NULL;
+	struct ht_capab_ele *pCapELE = NULL;
 
 	if ((posHTCap == NULL) || (pHT == NULL))
 	{
@@ -598,11 +598,11 @@ void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* 
 	{
 		u8	EWC11NHTCap[] = {0x00, 0x90, 0x4c, 0x33};
 		memcpy(posHTCap, EWC11NHTCap, sizeof(EWC11NHTCap));
-		pCapELE = (PHT_CAPABILITY_ELE)&(posHTCap[4]);
+		pCapELE = (struct ht_capab_ele *)&(posHTCap[4]);
 		*len = 30 + 2;
 	}else
 	{
-		pCapELE = (PHT_CAPABILITY_ELE)posHTCap;
+		pCapELE = (struct ht_capab_ele *)posHTCap;
 		*len = 26 + 2;
 	}
 
@@ -835,7 +835,7 @@ void HTSetConnectBwMode(struct rtllib_device* ieee, HT_CHANNEL_WIDTH	Bandwidth, 
 void HTOnAssocRsp(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
-	PHT_CAPABILITY_ELE		pPeerHTCap = NULL;
+	struct ht_capab_ele *pPeerHTCap = NULL;
 	struct ht_info_ele *pPeerHTInfo = NULL;
 	u16	nMaxAMSDUSize = 0;
 	u8*	pMcsFilter = NULL;
@@ -851,16 +851,16 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 	RTLLIB_DEBUG(RTLLIB_DL_HT, "===> HTOnAssocRsp_wq(): HT_ENABLE\n");
 
 	if (!memcmp(pHTInfo->PeerHTCapBuf,EWC11NHTCap, sizeof(EWC11NHTCap)))
-		pPeerHTCap = (PHT_CAPABILITY_ELE)(&pHTInfo->PeerHTCapBuf[4]);
+		pPeerHTCap = (struct ht_capab_ele *)(&pHTInfo->PeerHTCapBuf[4]);
 	else
-		pPeerHTCap = (PHT_CAPABILITY_ELE)(pHTInfo->PeerHTCapBuf);
+		pPeerHTCap = (struct ht_capab_ele *)(pHTInfo->PeerHTCapBuf);
 
 	if (!memcmp(pHTInfo->PeerHTInfoBuf, EWC11NHTInfo, sizeof(EWC11NHTInfo)))
 		pPeerHTInfo = (struct ht_info_ele *)(&pHTInfo->PeerHTInfoBuf[4]);
 	else
 		pPeerHTInfo = (struct ht_info_ele *)(pHTInfo->PeerHTInfoBuf);
 
-	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_HT, pPeerHTCap, sizeof(HT_CAPABILITY_ELE));
+	RTLLIB_DEBUG_DATA(RTLLIB_DL_DATA|RTLLIB_DL_HT, pPeerHTCap, sizeof(struct ht_capab_ele));
 	HTSetConnectBwMode(ieee, (HT_CHANNEL_WIDTH)(pPeerHTCap->ChlWidth), (HT_EXTCHNL_OFFSET)(pPeerHTInfo->ExtChlOffset));
 	pHTInfo->bCurTxBW40MHz = ((pPeerHTInfo->RecommemdedTxWidth == 1)?true:false);
 
