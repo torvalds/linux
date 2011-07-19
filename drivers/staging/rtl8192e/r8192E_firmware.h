@@ -44,14 +44,14 @@ enum firmware_source {
 	FW_SOURCE_HEADER_FILE = 1,
 };
 
-typedef enum _firmware_status_e{
+enum firmware_status {
 	FW_STATUS_0_INIT = 0,
 	FW_STATUS_1_MOVE_BOOT_CODE = 1,
 	FW_STATUS_2_MOVE_MAIN_CODE = 2,
 	FW_STATUS_3_TURNON_CPU = 3,
 	FW_STATUS_4_MOVE_DATA_CODE = 4,
 	FW_STATUS_5_READY = 5,
-} firmware_status_e;
+};
 
 struct fw_seg_container {
 	u16	seg_size;
@@ -59,7 +59,7 @@ struct fw_seg_container {
 };
 
 struct rt_firmware {
-	firmware_status_e firmware_status;
+	enum firmware_status firmware_status;
 	u16		  cmdpacket_frag_thresold;
 #define RTL8190_MAX_FIRMWARE_CODE_SIZE	64000
 #define MAX_FW_INIT_STEP		3
