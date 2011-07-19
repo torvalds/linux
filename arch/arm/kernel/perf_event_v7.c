@@ -758,26 +758,26 @@ enum armv7_counters {
 #define	ARMV7_FLAG_MASK		0xffffffff	/* Mask for writable bits */
 #define	ARMV7_OVERFLOWED_MASK	ARMV7_FLAG_MASK
 
-static inline unsigned long armv7_pmnc_read(void)
+static inline u32 armv7_pmnc_read(void)
 {
 	u32 val;
 	asm volatile("mrc p15, 0, %0, c9, c12, 0" : "=r"(val));
 	return val;
 }
 
-static inline void armv7_pmnc_write(unsigned long val)
+static inline void armv7_pmnc_write(u32 val)
 {
 	val &= ARMV7_PMNC_MASK;
 	isb();
 	asm volatile("mcr p15, 0, %0, c9, c12, 0" : : "r"(val));
 }
 
-static inline int armv7_pmnc_has_overflowed(unsigned long pmnc)
+static inline int armv7_pmnc_has_overflowed(u32 pmnc)
 {
 	return pmnc & ARMV7_OVERFLOWED_MASK;
 }
 
-static inline int armv7_pmnc_counter_has_overflowed(unsigned long pmnc,
+static inline int armv7_pmnc_counter_has_overflowed(u32 pmnc,
 					enum armv7_counters counter)
 {
 	int ret = 0;
@@ -812,7 +812,7 @@ static inline int armv7_pmnc_select_counter(unsigned int idx)
 
 static inline u32 armv7pmu_read_counter(int idx)
 {
-	unsigned long value = 0;
+	u32 value = 0;
 
 	if (idx == ARMV7_CYCLE_COUNTER)
 		asm volatile("mrc p15, 0, %0, c9, c13, 0" : "=r" (value));
@@ -1044,7 +1044,7 @@ static void armv7pmu_disable_event(struct hw_perf_event *hwc, int idx)
 
 static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
 {
-	unsigned long pmnc;
+	u32 pmnc;
 	struct perf_sample_data data;
 	struct cpu_hw_events *cpuc;
 	struct pt_regs *regs;
