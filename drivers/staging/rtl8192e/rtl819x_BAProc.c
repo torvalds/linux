@@ -32,7 +32,7 @@ void DeActivateBAEntry( struct rtllib_device* ieee, PBA_RECORD pBA)
 	pBA->bValid = false;
 	del_timer_sync(&pBA->Timer);
 }
-u8 TxTsDeleteBA( struct rtllib_device* ieee, PTX_TS_RECORD	pTxTs)
+u8 TxTsDeleteBA( struct rtllib_device* ieee, struct tx_ts_record *pTxTs)
 {
 	PBA_RECORD		pAdmittedBa = &pTxTs->TxAdmittedBARecord;
 	PBA_RECORD		pPendingBa = &pTxTs->TxPendingBARecord;
@@ -329,7 +329,7 @@ int rtllib_rx_ADDBARsp( struct rtllib_device* ieee, struct sk_buff *skb)
 {
 	 struct rtllib_hdr_3addr* rsp = NULL;
 	PBA_RECORD		pPendingBA, pAdmittedBA;
-	PTX_TS_RECORD		pTS = NULL;
+	struct tx_ts_record *pTS = NULL;
 	u8* dst = NULL, *pDialogToken = NULL, *tag = NULL;
 	u16* pStatusCode = NULL, *pBaTimeoutVal = NULL;
 	PBA_PARAM_SET		pBaParamSet = NULL;
@@ -475,7 +475,7 @@ int rtllib_rx_DELBA(struct rtllib_device* ieee,struct sk_buff *skb)
 	}
 	else
 	{
-		PTX_TS_RECORD	pTxTs;
+		struct tx_ts_record *pTxTs;
 
 		if (!GetTs(
 			ieee,
@@ -501,7 +501,7 @@ int rtllib_rx_DELBA(struct rtllib_device* ieee,struct sk_buff *skb)
 void
 TsInitAddBA(
 	struct rtllib_device* ieee,
-	PTX_TS_RECORD	pTS,
+	struct tx_ts_record *pTS,
 	u8		Policy,
 	u8		bOverwritePending
 	)
@@ -532,7 +532,7 @@ TsInitDelBA( struct rtllib_device* ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SELEC
 
 	if (TxRxSelect == TX_DIR)
 	{
-		PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)pTsCommonInfo;
+		struct tx_ts_record *pTxTs = (struct tx_ts_record *)pTsCommonInfo;
 
 		if (TxTsDeleteBA(ieee, pTxTs))
 			rtllib_send_DELBA(
@@ -556,7 +556,7 @@ TsInitDelBA( struct rtllib_device* ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SELEC
 }
 void BaSetupTimeOut(unsigned long data)
 {
-	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
+	struct tx_ts_record *pTxTs = (struct tx_ts_record *)data;
 
 	pTxTs->bAddBaReqInProgress = false;
 	pTxTs->bAddBaReqDelayed = true;
@@ -565,7 +565,7 @@ void BaSetupTimeOut(unsigned long data)
 
 void TxBaInactTimeout(unsigned long data)
 {
-	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
+	struct tx_ts_record *pTxTs = (struct tx_ts_record *)data;
 	struct rtllib_device *ieee = container_of(pTxTs, struct rtllib_device, TxTsRecord[pTxTs->num]);
 	TxTsDeleteBA(ieee, pTxTs);
 	rtllib_send_DELBA(

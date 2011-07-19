@@ -2160,7 +2160,7 @@ struct rtllib_device {
 	struct list_head		Tx_TS_Admit_List;
 	struct list_head		Tx_TS_Pending_List;
 	struct list_head		Tx_TS_Unused_List;
-	TX_TS_RECORD		TxTsRecord[TOTAL_TS_NUM];
+	struct tx_ts_record TxTsRecord[TOTAL_TS_NUM];
 	struct list_head		Rx_TS_Admit_List;
 	struct list_head		Rx_TS_Pending_List;
 	struct list_head		Rx_TS_Unused_List;
@@ -2913,7 +2913,7 @@ extern u16  TxCountToDataRate( struct rtllib_device* ieee, u8 nDataRate);
 extern int rtllib_rx_ADDBAReq( struct rtllib_device* ieee, struct sk_buff *skb);
 extern int rtllib_rx_ADDBARsp( struct rtllib_device* ieee, struct sk_buff *skb);
 extern int rtllib_rx_DELBA(struct rtllib_device* ieee,struct sk_buff *skb);
-extern void TsInitAddBA( struct rtllib_device* ieee, PTX_TS_RECORD   pTS, u8 Policy, u8 bOverwritePending);
+extern void TsInitAddBA( struct rtllib_device* ieee, struct tx_ts_record *pTS, u8 Policy, u8 bOverwritePending);
 extern void TsInitDelBA( struct rtllib_device* ieee, PTS_COMMON_INFO pTsCommonInfo, TR_SELECT TxRxSelect);
 extern void BaSetupTimeOut(unsigned long data);
 extern void TxBaInactTimeout(unsigned long data);
@@ -2928,7 +2928,7 @@ extern bool GetTs(
         bool                            bAddNewTs
         );
 extern void TSInitialize(struct rtllib_device *ieee);
-extern  void TsStartAddBaProcess(struct rtllib_device* ieee, PTX_TS_RECORD   pTxTS);
+extern  void TsStartAddBaProcess(struct rtllib_device* ieee, struct tx_ts_record *pTxTS);
 extern void RemovePeerTS(struct rtllib_device* ieee, u8* Addr);
 extern void RemoveAllTS(struct rtllib_device* ieee);
 void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh);

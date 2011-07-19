@@ -290,7 +290,7 @@ rtllib_classify(struct sk_buff *skb, u8 bIsAmsdu)
 void rtllib_tx_query_agg_cap(struct rtllib_device* ieee, struct sk_buff* skb, cb_desc* tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	PTX_TS_RECORD			pTxTs = NULL;
+	struct tx_ts_record *pTxTs = NULL;
 	struct rtllib_hdr_1addr* hdr = (struct rtllib_hdr_1addr*)skb->data;
 
 	if (rtllib_act_scanning(ieee,false))
@@ -535,7 +535,7 @@ u16 rtllib_query_seqnum(struct rtllib_device*ieee, struct sk_buff* skb, u8* dst)
 		return 0;
 	if (IsQoSDataFrame(skb->data))
 	{
-		PTX_TS_RECORD pTS = NULL;
+		struct tx_ts_record *pTS = NULL;
 		if (!GetTs(ieee, (PTS_COMMON_INFO*)(&pTS), dst, skb->priority, TX_DIR, true))
 		{
 			return 0;

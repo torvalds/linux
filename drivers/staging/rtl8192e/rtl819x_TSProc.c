@@ -93,7 +93,7 @@ void RxPktPendingTimeout(unsigned long data)
 
 void TsAddBaProcess(unsigned long data)
 {
-	PTX_TS_RECORD	pTxTs = (PTX_TS_RECORD)data;
+	struct tx_ts_record *pTxTs = (struct tx_ts_record *)data;
 	u8 num = pTxTs->num;
 	struct rtllib_device *ieee = container_of(pTxTs, struct rtllib_device, TxTsRecord[num]);
 
@@ -111,7 +111,7 @@ void ResetTsCommonInfo(PTS_COMMON_INFO	pTsCommonInfo)
 	pTsCommonInfo->TClasNum = 0;
 }
 
-void ResetTxTsEntry(PTX_TS_RECORD pTS)
+void ResetTxTsEntry(struct tx_ts_record *pTS)
 {
 	ResetTsCommonInfo(&pTS->TsCommonInfo);
 	pTS->TxCurSeq = 0;
@@ -133,7 +133,7 @@ void ResetRxTsEntry(PRX_TS_RECORD pTS)
 
 void TSInitialize(struct rtllib_device *ieee)
 {
-	PTX_TS_RECORD		pTxTS  = ieee->TxTsRecord;
+	struct tx_ts_record *pTxTS  = ieee->TxTsRecord;
 	PRX_TS_RECORD		pRxTS  = ieee->RxTsRecord;
 	PRX_REORDER_ENTRY	pRxReorderEntry = ieee->RxReorderEntry;
 	u8				count = 0;
@@ -398,7 +398,7 @@ bool GetTs(
 				list_del_init(&(*ppTS)->List);
 				if (TxRxSelect==TX_DIR)
 				{
-					PTX_TS_RECORD tmp = container_of(*ppTS, TX_TS_RECORD, TsCommonInfo);
+					struct tx_ts_record *tmp = container_of(*ppTS, struct tx_ts_record, TsCommonInfo);
 					ResetTxTsEntry(tmp);
 				}
 				else{
@@ -470,7 +470,7 @@ void RemoveTsEntry(
 		}
 	}
 	else{
-		PTX_TS_RECORD pTxTS = (PTX_TS_RECORD)pTs;
+		struct tx_ts_record *pTxTS = (struct tx_ts_record *)pTs;
 		del_timer_sync(&pTxTS->TsAddBaTimer);
 	}
 }
@@ -555,7 +555,7 @@ void RemoveAllTS(struct rtllib_device* ieee)
 	}
 }
 
-void TsStartAddBaProcess(struct rtllib_device* ieee, PTX_TS_RECORD	pTxTS)
+void TsStartAddBaProcess(struct rtllib_device* ieee, struct tx_ts_record *pTxTS)
 {
 	if (pTxTS->bAddBaReqInProgress == false)
 	{
