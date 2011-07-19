@@ -761,18 +761,18 @@ do { if (rtllib_debug_level & (level)) \
                         if ((_Comp) & level)							\
                         {                                                                       \
                                 int             __i;                                            \
-                                u8  buffer[MAX_STR_LEN];					\
+                                u8  struct buffer[MAX_STR_LEN];					\
                                 int length = (_Len<MAX_STR_LEN)? _Len : (MAX_STR_LEN-1) ;	\
-                                memset(buffer, 0, MAX_STR_LEN);					\
-                                memcpy(buffer, (u8 *)_Ptr, length );				\
+                                memset(struct buffer, 0, MAX_STR_LEN);					\
+                                memcpy(struct buffer, (u8 *)_Ptr, length );				\
                                 for ( __i=0; __i<MAX_STR_LEN; __i++ )                            \
                                 {                                                               \
-                                     if ( !PRINTABLE(buffer[__i]) )   buffer[__i] = '?';		\
+                                     if ( !PRINTABLE(struct buffer[__i]) )   struct buffer[__i] = '?';		\
                                 }                                                               \
-                                buffer[length] = '\0';                                          \
+                                struct buffer[length] = '\0';                                          \
                                 printk("Rtl819x: ");						\
                                 printk(_TitleString);                                         \
-                                printk(": %d, <%s>\n", _Len, buffer);                         \
+                                printk(": %d, <%s>\n", _Len, struct buffer);                         \
                         }
 #ifndef ETH_P_PAE
 #define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */

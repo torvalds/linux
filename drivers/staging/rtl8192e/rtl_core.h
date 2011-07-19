@@ -344,13 +344,12 @@ typedef enum _PCI_BRIDGE_VENDOR {
 	PCI_BRIDGE_VENDOR_MAX ,
 } PCI_BRIDGE_VENDOR;
 
-typedef struct buffer
-{
+struct buffer {
 	struct buffer *next;
 	u32 *buf;
 	dma_addr_t dma;
 
-} buffer;
+};
 
 struct rtl_reg_debug {
         unsigned int  cmd;

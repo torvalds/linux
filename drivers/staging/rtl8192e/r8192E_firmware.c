@@ -303,7 +303,7 @@ bool init_firmware(struct net_device *dev)
 						goto download_firmware_fail;
 					}
 					if (fw_entry->size > sizeof(pfirmware->firmware_buf[init_step])) {
-						RT_TRACE(COMP_FIRMWARE, "img file size exceed the container buffer fail!\n");
+						RT_TRACE(COMP_FIRMWARE, "img file size exceed the container struct buffer fail!\n");
 						goto download_firmware_fail;
 					}
 

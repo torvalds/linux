@@ -157,7 +157,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 }
 
 
-/* Perform WEP decryption on given buffer. Buffer includes whole WEP part of
+/* Perform WEP decryption on given struct buffer. Buffer includes whole WEP part of
  * the frame: IV (4 bytes), encrypted payload (including SNAP header),
  * ICV (4 bytes). len includes both IV and ICV.
  *

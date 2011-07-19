@@ -618,7 +618,7 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 	/*
 	 * Indication process.
 	 * After Packet dropping and Sliding Window shifting as above, we can now just indicate the packets
-	 * with the SeqNum smaller than latest WinStart and buffer other packets.
+	 * with the SeqNum smaller than latest WinStart and struct buffer other packets.
 	 */
 	/* For Rx Reorder condition:
 	 * 1. All packets with SeqNum smaller than WinStart => Indicate
@@ -654,14 +654,14 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 				}
 			} else {
 				RTLLIB_DEBUG(RTLLIB_DL_REORDER,
-					 "Pkt insert into buffer!! IndicateSeq: %d, NewSeq: %d\n",pTS->RxIndicateSeq, SeqNum);
+					 "Pkt insert into struct buffer!! IndicateSeq: %d, NewSeq: %d\n",pTS->RxIndicateSeq, SeqNum);
 			}
 		}
 		else {
 			/*
 			 * Packets are dropped if there is not enough reorder entries.
 			 * This part shall be modified!! We can just indicate all the
-			 * packets in buffer and get reorder entries.
+			 * packets in struct buffer and get reorder entries.
 			 */
 			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): There is no reorder entry!! Packet is dropped!!\n");
 			{
@@ -683,7 +683,7 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 		if ( SN_LESS(pReorderEntry->SeqNum, pTS->RxIndicateSeq) ||
 				SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq))
 		{
-			/* This protect buffer from overflow. */
+			/* This protect struct buffer from overflow. */
 			if (index >= REORDER_WIN_SIZE) {
 				RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): Buffer overflow!! \n");
 				bPktInBuf = true;
@@ -714,7 +714,7 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 		pTS->RxTimeoutIndicateSeq = 0xffff;
 
 		if (index>REORDER_WIN_SIZE){
-			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): Rx Reorer buffer full!! \n");
+			RTLLIB_DEBUG(RTLLIB_DL_ERR, "RxReorderIndicatePacket(): Rx Reorer struct buffer full!! \n");
 			spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 			return;
 		}
@@ -771,7 +771,7 @@ u8 parse_subframe(struct rtllib_device* ieee,struct sk_buff *skb,
 		rxb->nr_subframes = 1;
 
 		/* altered by clark 3/30/2010
-		 * The buffer size of the skb indicated to upper layer
+		 * The struct buffer size of the skb indicated to upper layer
 		 * must be less than 5000, or the defraged IP datagram
 		 * in the IP layer will exceed "ipfrag_high_tresh" and be
 		 * discarded. so there must not use the function
@@ -813,7 +813,7 @@ u8 parse_subframe(struct rtllib_device* ieee,struct sk_buff *skb,
 			skb_pull(skb, ETHERNET_HEADER_SIZE);
 
 			/* altered by clark 3/30/2010
-			 * The buffer size of the skb indicated to upper layer
+			 * The struct buffer size of the skb indicated to upper layer
 			 * must be less than 5000, or the defraged IP datagram
 			 * in the IP layer will exceed "ipfrag_high_tresh" and be
 			 * discarded. so there must not use the function

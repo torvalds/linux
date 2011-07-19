@@ -1599,7 +1599,7 @@ void rtl8192_query_rxphystatus(
 	}
 }
 
-void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct rtllib_rx_stats * pprevious_stats, struct rtllib_rx_stats * pcurrent_stats)
+void rtl8192_process_phyinfo(struct r8192_priv * priv, u8 *buffer,struct rtllib_rx_stats * pprevious_stats, struct rtllib_rx_stats * pcurrent_stats)
 {
 	bool bcheck = false;
 	u8	rfpath;
