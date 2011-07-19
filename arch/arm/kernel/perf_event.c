@@ -35,7 +35,7 @@ static struct platform_device *pmu_device;
 static DEFINE_RAW_SPINLOCK(pmu_lock);
 
 /*
- * ARMv6 supports a maximum of 3 events, starting from index 1. If we add
+ * ARMv6 supports a maximum of 3 events, starting from index 0. If we add
  * another platform that supports more, we need to increase this to be the
  * largest of all platforms.
  *
@@ -43,13 +43,12 @@ static DEFINE_RAW_SPINLOCK(pmu_lock);
  *  cycle counter CCNT + 31 events counters CNT0..30.
  *  Cortex-A8 has 1+4 counters, Cortex-A9 has 1+6 counters.
  */
-#define ARMPMU_MAX_HWEVENTS		33
+#define ARMPMU_MAX_HWEVENTS		32
 
 /* The events for a given CPU. */
 struct cpu_hw_events {
 	/*
-	 * The events that are active on the CPU for the given index. Index 0
-	 * is reserved.
+	 * The events that are active on the CPU for the given index.
 	 */
 	struct perf_event	*events[ARMPMU_MAX_HWEVENTS];
 
@@ -597,7 +596,7 @@ static void armpmu_enable(struct pmu *pmu)
 	if (!armpmu)
 		return;
 
-	for (idx = 0; idx <= armpmu->num_events; ++idx) {
+	for (idx = 0; idx < armpmu->num_events; ++idx) {
 		struct perf_event *event = cpuc->events[idx];
 
 		if (!event)
