@@ -150,12 +150,12 @@ enum power_save_mode {
 	POWER_SAVE_MODE_SAVE,
 };
 
-typedef	enum _INTERFACE_SELECT_8190PCI{
+enum interface_select_8190pci {
 	INTF_SEL1_MINICARD		= 0,
 	INTF_SEL0_PCIE			= 1,
 	INTF_SEL2_RSV			= 2,
 	INTF_SEL3_RSV			= 3,
-} INTERFACE_SELECT_8190PCI, *PINTERFACE_SELECT_8190PCI;
+};
 
 struct bb_reg_definition {
 	u32 rfintfs;
