@@ -4520,8 +4520,15 @@ static void bnx2x_sp_task(struct work_struct *work)
 		struct bnx2x_fastpath *fp = bnx2x_fcoe_fp(bp);
 
 		if ((!NO_FCOE(bp)) &&
-			(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp)))
+			(bnx2x_has_rx_work(fp) || bnx2x_has_tx_work(fp))) {
+			/*
+			 * Prevent local bottom-halves from running as
+			 * we are going to change the local NAPI list.
+			 */
+			local_bh_disable();
 			napi_schedule(&bnx2x_fcoe(bp, napi));
+			local_bh_enable();
+		}
 #endif
 		/* Handle EQ completions */
 		bnx2x_eq_int(bp);
