@@ -1828,6 +1828,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	rc = bnx2x_func_start(bp);
 	if (rc) {
 		BNX2X_ERR("Function start failed!\n");
+		bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_DONE, 0);
 		LOAD_ERROR_EXIT(bp, load_error3);
 	}
 
