@@ -10575,8 +10575,8 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	bp->qm_cid_count = bnx2x_set_qm_cid_count(bp);
 
 #ifdef BCM_CNIC
-	/* disable FCOE L2 queue for E1x*/
-	if (CHIP_IS_E1x(bp))
+	/* disable FCOE L2 queue for E1x and E3*/
+	if (CHIP_IS_E1x(bp) || CHIP_IS_E3(bp))
 		bp->flags |= NO_FCOE_FLAG;
 
 #endif
