@@ -464,6 +464,8 @@ static int exynos4_cpufreq_resume(struct cpufreq_policy *policy)
 
 static int exynos4_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
+	int ret;
+
 	policy->cur = policy->min = policy->max = exynos4_getspeed(policy->cpu);
 
 	cpufreq_frequency_table_get_attr(exynos4_freq_table, policy->cpu);
@@ -479,8 +481,25 @@ static int exynos4_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	 */
 	cpumask_setall(policy->cpus);
 
-	return cpufreq_frequency_table_cpuinfo(policy, exynos4_freq_table);
+	ret = cpufreq_frequency_table_cpuinfo(policy, exynos4_freq_table);
+	if (ret)
+		return ret;
+
+	cpufreq_frequency_table_get_attr(exynos4_freq_table, policy->cpu);
+
+	return 0;
 }
+
+static int exynos4_cpufreq_cpu_exit(struct cpufreq_policy *policy)
+{
+	cpufreq_frequency_table_put_attr(policy->cpu);
+	return 0;
+}
+
+static struct freq_attr *exynos4_cpufreq_attr[] = {
+	&cpufreq_freq_attr_scaling_available_freqs,
+	NULL,
+};
 
 static struct cpufreq_driver exynos4_driver = {
 	.flags		= CPUFREQ_STICKY,
@@ -488,7 +507,9 @@ static struct cpufreq_driver exynos4_driver = {
 	.target		= exynos4_target,
 	.get		= exynos4_getspeed,
 	.init		= exynos4_cpufreq_cpu_init,
+	.exit		= exynos4_cpufreq_cpu_exit,
 	.name		= "exynos4_cpufreq",
+	.attr		= exynos4_cpufreq_attr,
 #ifdef CONFIG_PM
 	.suspend	= exynos4_cpufreq_suspend,
 	.resume		= exynos4_cpufreq_resume,
