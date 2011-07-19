@@ -186,15 +186,14 @@ static int r8192_wx_force_mic_error(struct net_device *dev,
 }
 
 #define MAX_ADHOC_PEER_NUM 64
-typedef struct
-{
+struct adhoc_peer_entry {
 	unsigned char MacAddr[ETH_ALEN];
 	unsigned char WirelessMode;
 	unsigned char bCurTxBW40MHz;
-} adhoc_peer_entry_t, *p_adhoc_peer_entry_t;
+};
 typedef struct
 {
-	adhoc_peer_entry_t Entry[MAX_ADHOC_PEER_NUM];
+	struct adhoc_peer_entry Entry[MAX_ADHOC_PEER_NUM];
 	unsigned char num;
 } adhoc_peers_info_t, *p_adhoc_peers_info_t;
 
