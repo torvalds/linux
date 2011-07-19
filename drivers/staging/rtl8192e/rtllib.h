@@ -1984,7 +1984,7 @@ typedef	enum _FW_CMD_IO_TYPE{
 }FW_CMD_IO_TYPE,*PFW_CMD_IO_TYPE;
 
 #define RT_MAX_LD_SLOT_NUM	10
-typedef struct _RT_LINK_DETECT_T{
+struct rt_link_detect {
 
 	u32				NumRecvBcnInPeriod;
 	u32				NumRecvDataInPeriod;
@@ -2004,7 +2004,7 @@ typedef struct _RT_LINK_DETECT_T{
 	u32				NumTxUnicastOkInPeriod;
 	u32				LastNumTxUnicast;
 	u32				LastNumRxUnicast;
-}RT_LINK_DETECT_T, *PRT_LINK_DETECT_T;
+};//, *struct rt_link_detect *;
 
 typedef struct _SW_CAM_TABLE{
 
@@ -2388,7 +2388,7 @@ struct rtllib_device {
 	bandwidth_autoswitch bandwidth_auto_switch;
 	bool FwRWRF;
 
-	RT_LINK_DETECT_T	LinkDetectInfo;
+	struct rt_link_detect LinkDetectInfo;
 	bool bIsAggregateFrame;
 	struct rt_pwr_save_ctrl PowerSaveControl;
 	u8 amsdu_in_process;
