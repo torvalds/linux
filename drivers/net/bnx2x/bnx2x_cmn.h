@@ -936,15 +936,10 @@ static inline int bnx2x_alloc_rx_skb(struct bnx2x *bp,
 static inline void bnx2x_reuse_rx_skb(struct bnx2x_fastpath *fp,
 				      u16 cons, u16 prod)
 {
-	struct bnx2x *bp = fp->bp;
 	struct sw_rx_bd *cons_rx_buf = &fp->rx_buf_ring[cons];
 	struct sw_rx_bd *prod_rx_buf = &fp->rx_buf_ring[prod];
 	struct eth_rx_bd *cons_bd = &fp->rx_desc_ring[cons];
 	struct eth_rx_bd *prod_bd = &fp->rx_desc_ring[prod];
-
-	dma_sync_single_for_device(&bp->pdev->dev,
-				   dma_unmap_addr(cons_rx_buf, mapping),
-				   RX_COPY_THRESH, DMA_FROM_DEVICE);
 
 	dma_unmap_addr_set(prod_rx_buf, mapping,
 			   dma_unmap_addr(cons_rx_buf, mapping));
