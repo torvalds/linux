@@ -249,12 +249,11 @@ typedef enum tag_DM_DbgMode_Definition
 	DM_DBG_MAX
 }DM_DBG_E;
 
-typedef struct tag_Tx_Config_Cmd_Format
-{
+struct dcmd_txcmd {
 	u32	Op;
 	u32	Length;
 	u32	Value;
-}DCMD_TXCMD_T, *PDCMD_TXCMD_T;
+};//, *struct dcmd_txcmd *;
 /*------------------------------Define structure----------------------------*/
 
 

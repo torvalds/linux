@@ -507,7 +507,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 	{
 	struct r8192_priv *priv = rtllib_priv(dev);
 	bool						bHighpowerstate, viviflag = false;
-	DCMD_TXCMD_T			tx_cmd;
+	struct dcmd_txcmd tx_cmd;
 	u8					powerlevelOFDM24G;
 	int					i =0, j = 0, k = 0;
 	u8						RF_Type, tmp_report[5]={0, 0, 0, 0, 0};
@@ -534,7 +534,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 	tx_cmd.Op		= TXCMD_SET_TX_PWR_TRACKING;
 	tx_cmd.Length	= 4;
 	tx_cmd.Value		= Value;
-	cmpk_message_handle_tx(dev, (u8*)&tx_cmd, DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
+	cmpk_message_handle_tx(dev, (u8*)&tx_cmd, DESC_PACKET_TYPE_INIT, sizeof(struct dcmd_txcmd));
 	mdelay(1);
 	for (i = 0;i <= 30; i++)
 	{
@@ -3456,7 +3456,7 @@ static void dm_check_txrateandretrycount(struct net_device * dev)
 
 static void dm_send_rssi_tofw(struct net_device *dev)
 {
-	DCMD_TXCMD_T			tx_cmd;
+	struct dcmd_txcmd tx_cmd;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	write_nic_byte(dev, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
@@ -3466,7 +3466,7 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 	tx_cmd.Value		= priv->undecorated_smoothed_pwdb;
 
 	cmpk_message_handle_tx(dev, (u8*)&tx_cmd,
-								DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
+								DESC_PACKET_TYPE_INIT, sizeof(struct dcmd_txcmd));
 }
 
 /*---------------------------Define function prototype------------------------*/
