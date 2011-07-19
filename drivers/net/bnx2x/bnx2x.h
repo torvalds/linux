@@ -1104,7 +1104,7 @@ struct bnx2x {
 #define BP_VN(bp)			(BP_E1HVN(bp)) /*remove when approved*/
 #define BP_L_ID(bp)			(BP_E1HVN(bp) << 2)
 #define BP_FW_MB_IDX(bp)		(BP_PORT(bp) +\
-					 BP_VN(bp) * (CHIP_IS_E1x(bp) ? 2  : 1))
+	  BP_VN(bp) * ((CHIP_IS_E1x(bp) || (CHIP_MODE_IS_4_PORT(bp))) ? 2  : 1))
 
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
