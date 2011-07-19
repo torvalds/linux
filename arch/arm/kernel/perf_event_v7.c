@@ -793,7 +793,7 @@ static inline int armv7_pmnc_counter_has_overflowed(u32 pmnc,
 	return ret;
 }
 
-static inline int armv7_pmnc_select_counter(unsigned int idx)
+static inline int armv7_pmnc_select_counter(int idx)
 {
 	u32 val;
 
@@ -840,7 +840,7 @@ static inline void armv7pmu_write_counter(int idx, u32 value)
 			smp_processor_id(), idx);
 }
 
-static inline void armv7_pmnc_write_evtsel(unsigned int idx, u32 val)
+static inline void armv7_pmnc_write_evtsel(int idx, u32 val)
 {
 	if (armv7_pmnc_select_counter(idx) == idx) {
 		val &= ARMV7_EVTSEL_MASK;
@@ -848,7 +848,7 @@ static inline void armv7_pmnc_write_evtsel(unsigned int idx, u32 val)
 	}
 }
 
-static inline u32 armv7_pmnc_enable_counter(unsigned int idx)
+static inline int armv7_pmnc_enable_counter(int idx)
 {
 	u32 val;
 
@@ -869,7 +869,7 @@ static inline u32 armv7_pmnc_enable_counter(unsigned int idx)
 	return idx;
 }
 
-static inline u32 armv7_pmnc_disable_counter(unsigned int idx)
+static inline int armv7_pmnc_disable_counter(int idx)
 {
 	u32 val;
 
@@ -891,7 +891,7 @@ static inline u32 armv7_pmnc_disable_counter(unsigned int idx)
 	return idx;
 }
 
-static inline u32 armv7_pmnc_enable_intens(unsigned int idx)
+static inline int armv7_pmnc_enable_intens(int idx)
 {
 	u32 val;
 
@@ -912,7 +912,7 @@ static inline u32 armv7_pmnc_enable_intens(unsigned int idx)
 	return idx;
 }
 
-static inline u32 armv7_pmnc_disable_intens(unsigned int idx)
+static inline int armv7_pmnc_disable_intens(int idx)
 {
 	u32 val;
 
