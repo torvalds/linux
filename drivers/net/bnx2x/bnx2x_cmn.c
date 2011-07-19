@@ -676,7 +676,7 @@ int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			/* non TPA */
 			len = le16_to_cpu(cqe_fp->pkt_len);
 			pad = cqe_fp->placement_offset;
-			dma_sync_single_for_device(&bp->pdev->dev,
+			dma_sync_single_for_cpu(&bp->pdev->dev,
 					dma_unmap_addr(rx_buf, mapping),
 						       pad + RX_COPY_THRESH,
 						       DMA_FROM_DEVICE);
