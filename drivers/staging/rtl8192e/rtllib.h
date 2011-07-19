@@ -2063,10 +2063,10 @@ struct rt_pmkid_list {
 	u16					ssid_length;
 };
 
-typedef struct _RT_INTEL_PROMISCUOUS_MODE_INFO {
+struct rt_intel_promisc_mode {
      bool bPromiscuousOn;
      bool bFilterSourceStationFrame;
-} RT_INTEL_PROMISCUOUS_MODE_INFO, *PRT_INTEL_PROMISCUOUS_MODE_INFO;
+};
 
 
 /*************** DRIVER STATUS   *****/
@@ -2181,7 +2181,7 @@ struct rtllib_device {
 
 	int iw_mode; /* operating mode (IW_MODE_*) */
 	bool bNetPromiscuousMode;
-	RT_INTEL_PROMISCUOUS_MODE_INFO IntelPromiscuousModeInfo;
+	struct rt_intel_promisc_mode IntelPromiscuousModeInfo;
 
 	struct iw_spy_data spy_data;
 
