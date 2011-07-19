@@ -1229,7 +1229,7 @@ static void htc_proc_cred_rpt(struct htc_target *target,
 			endpoint->ep_st.cred_rpt_from_other += 1;
 		}
 
-		if (ENDPOINT_0 == rpt->eid)
+		if (rpt->eid == ENDPOINT_0)
 			/* always give endpoint 0 credits back */
 			endpoint->cred_dist.credits += rpt->credits;
 		else {
