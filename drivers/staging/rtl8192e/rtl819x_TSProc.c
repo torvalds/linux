@@ -377,7 +377,7 @@ bool GetTs(
 		else
 		{
 			TSPEC_BODY	TSpec;
-			PQOS_TSINFO		pTSInfo = &TSpec.f.TSInfo;
+			union qos_tsinfo *pTSInfo = &TSpec.f.TSInfo;
 			struct list_head*	pUnusedList =
 								(TxRxSelect == TX_DIR)?
 								(&ieee->Tx_TS_Unused_List):

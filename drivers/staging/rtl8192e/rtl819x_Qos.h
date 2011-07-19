@@ -54,7 +54,7 @@
 #define BIT30                   0x40000000
 #define BIT31                   0x80000000
 
-typedef union _QOS_TSINFO{
+union qos_tsinfo {
 	u8		charData[3];
 	struct {
 		u8		ucTrafficType:1;
@@ -68,13 +68,14 @@ typedef union _QOS_TSINFO{
 		u8		ucSchedule:1;
 		u8		ucReserved:7;
 	}field;
-}QOS_TSINFO, *PQOS_TSINFO;
+};
+
 typedef union _TSPEC_BODY{
 	u8		charData[55];
 
 	struct
 	{
-		QOS_TSINFO	TSInfo;
+		union qos_tsinfo TSInfo;
 		u16	NominalMSDUsize;
 		u16	MaxMSDUsize;
 		u32	MinServiceItv;
