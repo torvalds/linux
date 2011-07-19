@@ -722,7 +722,7 @@ config SERIAL_BFIN
 	  Add support for the built-in UARTs on the Blackfin.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called bfin_5xx.
+	  module is named bfin_uart.ko.
 
 config SERIAL_BFIN_CONSOLE
 	bool "Console on Blackfin serial port"
