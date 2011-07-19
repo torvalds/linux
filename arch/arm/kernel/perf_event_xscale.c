@@ -40,7 +40,7 @@ enum xscale_perf_types {
 };
 
 enum xscale_counters {
-	XSCALE_CYCLE_COUNTER	= 1,
+	XSCALE_CYCLE_COUNTER	= 0,
 	XSCALE_COUNTER0,
 	XSCALE_COUNTER1,
 	XSCALE_COUNTER2,
@@ -249,7 +249,7 @@ xscale1pmu_handle_irq(int irq_num, void *dev)
 	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
-	for (idx = 0; idx <= armpmu->num_events; ++idx) {
+	for (idx = 0; idx < armpmu->num_events; ++idx) {
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
@@ -581,7 +581,7 @@ xscale2pmu_handle_irq(int irq_num, void *dev)
 	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
-	for (idx = 0; idx <= armpmu->num_events; ++idx) {
+	for (idx = 0; idx < armpmu->num_events; ++idx) {
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 

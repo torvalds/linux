@@ -54,7 +54,7 @@ enum armv6_perf_types {
 };
 
 enum armv6_counters {
-	ARMV6_CYCLE_COUNTER = 1,
+	ARMV6_CYCLE_COUNTER = 0,
 	ARMV6_COUNTER0,
 	ARMV6_COUNTER1,
 };
@@ -487,7 +487,7 @@ armv6pmu_handle_irq(int irq_num,
 	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
-	for (idx = 0; idx <= armpmu->num_events; ++idx) {
+	for (idx = 0; idx < armpmu->num_events; ++idx) {
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
