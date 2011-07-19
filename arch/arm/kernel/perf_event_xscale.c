@@ -253,9 +253,6 @@ xscale1pmu_handle_irq(int irq_num, void *dev)
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
-		if (!test_bit(idx, cpuc->active_mask))
-			continue;
-
 		if (!xscale1_pmnc_counter_has_overflowed(pmnc, idx))
 			continue;
 
@@ -584,9 +581,6 @@ xscale2pmu_handle_irq(int irq_num, void *dev)
 	for (idx = 0; idx < armpmu->num_events; ++idx) {
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
-
-		if (!test_bit(idx, cpuc->active_mask))
-			continue;
 
 		if (!xscale2_pmnc_counter_has_overflowed(pmnc, idx))
 			continue;

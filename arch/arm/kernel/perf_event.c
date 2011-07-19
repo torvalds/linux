@@ -57,12 +57,6 @@ struct cpu_hw_events {
 	 * an event. A 0 means that the counter can be used.
 	 */
 	unsigned long		used_mask[BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)];
-
-	/*
-	 * A 1 bit for an index indicates that the counter is actively being
-	 * used.
-	 */
-	unsigned long		active_mask[BITS_TO_LONGS(ARMPMU_MAX_HWEVENTS)];
 };
 static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 
@@ -295,7 +289,6 @@ armpmu_del(struct perf_event *event, int flags)
 
 	WARN_ON(idx < 0);
 
-	clear_bit(idx, cpuc->active_mask);
 	armpmu_stop(event, PERF_EF_UPDATE);
 	cpuc->events[idx] = NULL;
 	clear_bit(idx, cpuc->used_mask);
@@ -327,7 +320,6 @@ armpmu_add(struct perf_event *event, int flags)
 	event->hw.idx = idx;
 	armpmu->disable(hwc, idx);
 	cpuc->events[idx] = event;
-	set_bit(idx, cpuc->active_mask);
 
 	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
 	if (flags & PERF_EF_START)
