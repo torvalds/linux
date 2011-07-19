@@ -219,8 +219,7 @@ typedef enum tag_dig_cck_cs_ratio_state_definition
 	DIG_CS_RATIO_HIGHER = 1,
 	DIG_CS_MAX
 }dm_dig_cs_ratio_e;
-typedef struct _Dynamic_Rx_Path_Selection_
-{
+struct drx_path_sel {
 	u8		Enable;
 	u8		DbgMode;
 	u8		cck_method;
@@ -234,7 +233,7 @@ typedef struct _Dynamic_Rx_Path_Selection_
 	u8		rf_rssi[4];
 	u8		rf_enable_rssi_th[4];
 	long		cck_pwdb_sta[4];
-}DRxPathSel;
+};//;
 
 typedef enum tag_CCK_Rx_Path_Method_Definition
 {
@@ -263,7 +262,7 @@ typedef struct tag_Tx_Config_Cmd_Format
 /*------------------------Export global variable----------------------------*/
 extern	dig_t	dm_digtable;
 extern	u8		dm_shadow[16][256];
-extern DRxPathSel      DM_RxPathSelTable;
+extern struct drx_path_sel DM_RxPathSelTable;
 
 extern	u8			test_flag;
 /*------------------------Export global variable----------------------------*/
