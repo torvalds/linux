@@ -6341,7 +6341,6 @@ s32 wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pd
 
 static __used void wl_dongle_poweron(struct wl_priv *wl)
 {
-
 	WL_DBG(("Enter \n"));
 	dhd_customer_gpio_wlan_ctrl(WLAN_RESET_ON);
 
@@ -6356,10 +6355,12 @@ static __used void wl_dongle_poweron(struct wl_priv *wl)
 
 static __used void wl_dongle_poweroff(struct wl_priv *wl)
 {
-
-
 	WL_DBG(("Enter \n"));
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 39)
+	wl_cfg80211_suspend(wl_to_wiphy(wl), NULL);
+#else
 	wl_cfg80211_suspend(wl_to_wiphy(wl));
+#endif
 
 #if defined(BCMLXSDMMC)
 	sdioh_stop(NULL);
