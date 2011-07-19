@@ -1824,9 +1824,9 @@ typedef enum _RT_JOIN_ACTION{
 	RT_NO_ACTION  = 4,
 }RT_JOIN_ACTION;
 
-typedef struct _IbssParms{
+struct ibss_parms {
 	u16   atimWin;
-}IbssParms, *PIbssParms;
+};//, *struct ibss_parms *;
 #define MAX_NUM_RATES	264
 
 typedef	enum _RT_RF_POWER_STATE
@@ -1889,7 +1889,7 @@ struct rt_pwr_save_ctrl {
 	struct octet_string tmpSuppRateSet;
 	u8				tmpSuppRateBuf[MAX_NUM_RATES];
 	bool				bTmpSuppRate;
-	IbssParms				tmpIbpm;
+	struct ibss_parms tmpIbpm;
 	bool				bTmpIbpm;
 
 	bool				bLeisurePs;
