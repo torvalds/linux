@@ -34,10 +34,10 @@ enum opt_rst_type {
 	OPT_FIRMWARE_RESET = 1,
 };
 
-typedef enum _desc_packet_type_e{
+enum desc_packet_type {
 	DESC_PACKET_TYPE_INIT = 0,
 	DESC_PACKET_TYPE_NORMAL = 1,
-} desc_packet_type_e;
+};
 
 typedef enum _firmware_source_e{
 	FW_SOURCE_IMG_FILE = 0,
