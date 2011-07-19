@@ -70,12 +70,12 @@ enum ht_extchnl_offset {
 	HT_EXTCHNL_OFFSET_LOWER = 3,
 };
 
-typedef enum _CHNLOP{
+enum chnl_op {
 	CHNLOP_NONE = 0,
 	CHNLOP_SCAN = 1,
 	CHNLOP_SWBW = 2,
 	CHNLOP_SWCHNL = 3,
-} CHNLOP, *PCHNLOP;
+};
 
 #define CHHLOP_IN_PROGRESS(_pHTInfo)	\
 		((_pHTInfo)->ChnlOp > CHNLOP_NONE) ? true : false
@@ -270,7 +270,7 @@ struct rt_hi_throughput {
 	u8				PeerBandwidth;
 
 	u8				bSwBwInProgress;
-	CHNLOP				ChnlOp;
+	enum chnl_op ChnlOp;
 	u8				SwBwStep;
 
 	u8				bRegRT2RTAggregation;
