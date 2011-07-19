@@ -22,7 +22,7 @@
 #define		CMPK_TX_SET_CONFIG_SIZE				sizeof(struct cmpk_set_cfg)
 #define		CMPK_BOTH_QUERY_CONFIG_SIZE			sizeof(struct cmpk_set_cfg)
 #define		CMPK_RX_TX_STS_SIZE					sizeof(struct cmpk_tx_status)
-#define		CMPK_RX_DBG_MSG_SIZE			sizeof(cmpk_rx_dbginfo_t)
+#define		CMPK_RX_DBG_MSG_SIZE			sizeof(struct cmpk_rx_dbginfo)
 #define		CMPK_TX_RAHIS_SIZE			sizeof(cmpk_tx_rahis_t)
 
 #define ISR_TxBcnOk					BIT27
@@ -112,14 +112,13 @@ struct cmpk_tx_status {
 	u8	rate;
 }__packed;
 
-typedef struct tag_rx_debug_message_feedback
-{
+struct cmpk_rx_dbginfo {
 	u16	reserve1;
 	u8	length;
 	u8	element_id;
 
 
-}cmpk_rx_dbginfo_t;
+};//;
 
 typedef struct tag_tx_rate_history
 {
