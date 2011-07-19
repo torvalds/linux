@@ -352,14 +352,14 @@ struct bss_ht {
 	u8					bdHT1R;
 };
 
-typedef struct _MIMO_RSSI{
+struct mimo_rssi {
 	u32	EnableAntenna;
 	u32	AntennaA;
 	u32	AntennaB;
 	u32	AntennaC;
 	u32	AntennaD;
 	u32	Average;
-}MIMO_RSSI, *PMIMO_RSSI;
+};//, *struct mimo_rssi *;
 
 typedef struct _MIMO_EVM{
 	u32	EVM1;
