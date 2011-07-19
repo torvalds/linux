@@ -998,7 +998,7 @@ int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 static int vhost_update_used_flags(struct vhost_virtqueue *vq)
 {
 	void __user *used;
-	if (put_user(vq->used_flags, &vq->used->flags) < 0)
+	if (__put_user(vq->used_flags, &vq->used->flags) < 0)
 		return -EFAULT;
 	if (unlikely(vq->log_used)) {
 		/* Make sure the flag is seen before log. */
@@ -1016,7 +1016,7 @@ static int vhost_update_used_flags(struct vhost_virtqueue *vq)
 
 static int vhost_update_avail_event(struct vhost_virtqueue *vq, u16 avail_event)
 {
-	if (put_user(vq->avail_idx, vhost_avail_event(vq)))
+	if (__put_user(vq->avail_idx, vhost_avail_event(vq)))
 		return -EFAULT;
 	if (unlikely(vq->log_used)) {
 		void __user *used;
