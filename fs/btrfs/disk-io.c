@@ -217,7 +217,6 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 	unsigned long len;
 	unsigned long cur_len;
 	unsigned long offset = BTRFS_CSUM_SIZE;
-	char *map_token = NULL;
 	char *kaddr;
 	unsigned long map_start;
 	unsigned long map_len;
@@ -228,8 +227,7 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 	len = buf->len - offset;
 	while (len > 0) {
 		err = map_private_extent_buffer(buf, offset, 32,
-					&map_token, &kaddr,
-					&map_start, &map_len, KM_USER0);
+					&kaddr, &map_start, &map_len);
 		if (err)
 			return 1;
 		cur_len = min(len, map_len - (offset - map_start));
@@ -237,7 +235,6 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 				      crc, cur_len);
 		len -= cur_len;
 		offset += cur_len;
-		unmap_extent_buffer(buf, map_token, KM_USER0);
 	}
 	if (csum_size > sizeof(inline_result)) {
 		result = kzalloc(csum_size * sizeof(char), GFP_NOFS);
@@ -1603,7 +1600,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		goto fail_bdi;
 	}
 
-	fs_info->btree_inode->i_mapping->flags &= ~__GFP_FS;
+	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
 
 	INIT_RADIX_TREE(&fs_info->fs_roots_radix, GFP_ATOMIC);
 	INIT_LIST_HEAD(&fs_info->trans_list);

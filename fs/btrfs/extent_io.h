@@ -120,8 +120,6 @@ struct extent_state {
 struct extent_buffer {
 	u64 start;
 	unsigned long len;
-	char *map_token;
-	char *kaddr;
 	unsigned long map_start;
 	unsigned long map_len;
 	struct page *first_page;
@@ -279,15 +277,10 @@ int clear_extent_buffer_uptodate(struct extent_io_tree *tree,
 int extent_buffer_uptodate(struct extent_io_tree *tree,
 			   struct extent_buffer *eb,
 			   struct extent_state *cached_state);
-int map_extent_buffer(struct extent_buffer *eb, unsigned long offset,
-		      unsigned long min_len, char **token, char **map,
-		      unsigned long *map_start,
-		      unsigned long *map_len, int km);
 int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
-		      unsigned long min_len, char **token, char **map,
+		      unsigned long min_len, char **map,
 		      unsigned long *map_start,
-		      unsigned long *map_len, int km);
-void unmap_extent_buffer(struct extent_buffer *eb, char *token, int km);
+		      unsigned long *map_len);
 int extent_range_uptodate(struct extent_io_tree *tree,
 			  u64 start, u64 end);
 int extent_clear_unlock_delalloc(struct inode *inode,

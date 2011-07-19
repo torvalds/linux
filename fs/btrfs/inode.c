@@ -2541,13 +2541,6 @@ static void btrfs_read_locked_inode(struct inode *inode)
 
 	inode_item = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_inode_item);
-	if (!leaf->map_token)
-		map_private_extent_buffer(leaf, (unsigned long)inode_item,
-					  sizeof(struct btrfs_inode_item),
-					  &leaf->map_token, &leaf->kaddr,
-					  &leaf->map_start, &leaf->map_len,
-					  KM_USER1);
-
 	inode->i_mode = btrfs_inode_mode(leaf, inode_item);
 	inode->i_nlink = btrfs_inode_nlink(leaf, inode_item);
 	inode->i_uid = btrfs_inode_uid(leaf, inode_item);
@@ -2584,11 +2577,6 @@ cache_acl:
 					   btrfs_ino(inode));
 	if (!maybe_acls)
 		cache_no_acl(inode);
-
-	if (leaf->map_token) {
-		unmap_extent_buffer(leaf, leaf->map_token, KM_USER1);
-		leaf->map_token = NULL;
-	}
 
 	btrfs_free_path(path);
 
@@ -2634,13 +2622,6 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 			    struct btrfs_inode_item *item,
 			    struct inode *inode)
 {
-	if (!leaf->map_token)
-		map_private_extent_buffer(leaf, (unsigned long)item,
-					  sizeof(struct btrfs_inode_item),
-					  &leaf->map_token, &leaf->kaddr,
-					  &leaf->map_start, &leaf->map_len,
-					  KM_USER1);
-
 	btrfs_set_inode_uid(leaf, item, inode->i_uid);
 	btrfs_set_inode_gid(leaf, item, inode->i_gid);
 	btrfs_set_inode_size(leaf, item, BTRFS_I(inode)->disk_i_size);
@@ -2669,11 +2650,6 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 	btrfs_set_inode_rdev(leaf, item, inode->i_rdev);
 	btrfs_set_inode_flags(leaf, item, BTRFS_I(inode)->flags);
 	btrfs_set_inode_block_group(leaf, item, 0);
-
-	if (leaf->map_token) {
-		unmap_extent_buffer(leaf, leaf->map_token, KM_USER1);
-		leaf->map_token = NULL;
-	}
 }
 
 /*
