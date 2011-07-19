@@ -1351,7 +1351,6 @@ int dma_suspend(struct pci_dev *pci, pm_message_t state)
 			return -EAGAIN;
 	}
 	device->state = SUSPENDED;
-	pci_set_drvdata(pci, device);
 	pci_save_state(pci);
 	pci_disable_device(pci);
 	pci_set_power_state(pci, PCI_D3hot);
@@ -1380,7 +1379,6 @@ int dma_resume(struct pci_dev *pci)
 	}
 	device->state = RUNNING;
 	iowrite32(REG_BIT0, device->dma_base + DMA_CFG);
-	pci_set_drvdata(pci, device);
 	return 0;
 }
 
