@@ -35,8 +35,11 @@
 #include <asm/errno.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-event.h>
 #include <media/videobuf2-vmalloc.h>
 #ifdef CONFIG_USB_PWC_INPUT_EVDEV
 #include <linux/input.h>
@@ -198,6 +201,7 @@ struct pwc_frame_buf
 struct pwc_device
 {
 	struct video_device vdev;
+	struct v4l2_device v4l2_dev;
 	struct mutex modlock;
 
 	/* Pointer to our usb_device, may be NULL after unplug */
