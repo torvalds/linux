@@ -177,7 +177,7 @@ struct carl9170_tx_queue_stats {
 
 struct carl9170_vif {
 	unsigned int id;
-	struct ieee80211_vif *vif;
+	struct ieee80211_vif __rcu *vif;
 };
 
 struct carl9170_vif_info {
@@ -311,7 +311,7 @@ struct ar9170 {
 	spinlock_t beacon_lock;
 	unsigned int global_pretbtt;
 	unsigned int global_beacon_int;
-	struct carl9170_vif_info *beacon_iter;
+	struct carl9170_vif_info __rcu *beacon_iter;
 	unsigned int beacon_enabled;
 
 	/* cryptographic engine */
@@ -389,7 +389,7 @@ struct ar9170 {
 	/* tx ampdu */
 	struct work_struct ampdu_work;
 	spinlock_t tx_ampdu_list_lock;
-	struct carl9170_sta_tid *tx_ampdu_iter;
+	struct carl9170_sta_tid __rcu *tx_ampdu_iter;
 	struct list_head tx_ampdu_list;
 	atomic_t tx_ampdu_upload;
 	atomic_t tx_ampdu_scheduler;
@@ -456,7 +456,7 @@ struct carl9170_sta_info {
 	bool sleeping;
 	atomic_t pending_frames;
 	unsigned int ampdu_max_len;
-	struct carl9170_sta_tid *agg[CARL9170_NUM_TID];
+	struct carl9170_sta_tid __rcu *agg[CARL9170_NUM_TID];
 	struct carl9170_ba_stats stats[CARL9170_NUM_TID];
 };
 
