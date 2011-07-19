@@ -16,9 +16,9 @@ struct passthrough_dev_data {
 	spinlock_t lock;
 };
 
-struct pci_dev *pciback_get_pci_dev(struct pciback_device *pdev,
-				    unsigned int domain, unsigned int bus,
-				    unsigned int devfn)
+struct pci_dev *xen_pcibk_get_pci_dev(struct xen_pcibk_device *pdev,
+				      unsigned int domain, unsigned int bus,
+				      unsigned int devfn)
 {
 	struct passthrough_dev_data *dev_data = pdev->pci_dev_data;
 	struct pci_dev_entry *dev_entry;
@@ -41,8 +41,8 @@ struct pci_dev *pciback_get_pci_dev(struct pciback_device *pdev,
 	return dev;
 }
 
-int pciback_add_pci_dev(struct pciback_device *pdev, struct pci_dev *dev,
-			int devid, publish_pci_dev_cb publish_cb)
+int xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev, struct pci_dev *dev,
+			  int devid, publish_pci_dev_cb publish_cb)
 {
 	struct passthrough_dev_data *dev_data = pdev->pci_dev_data;
 	struct pci_dev_entry *dev_entry;
@@ -68,7 +68,8 @@ int pciback_add_pci_dev(struct pciback_device *pdev, struct pci_dev *dev,
 	return err;
 }
 
-void pciback_release_pci_dev(struct pciback_device *pdev, struct pci_dev *dev)
+void xen_pcibk_release_pci_dev(struct xen_pcibk_device *pdev,
+			       struct pci_dev *dev)
 {
 	struct passthrough_dev_data *dev_data = pdev->pci_dev_data;
 	struct pci_dev_entry *dev_entry, *t;
@@ -91,7 +92,7 @@ void pciback_release_pci_dev(struct pciback_device *pdev, struct pci_dev *dev)
 		pcistub_put_pci_dev(found_dev);
 }
 
-int pciback_init_devices(struct pciback_device *pdev)
+int xen_pcibk_init_devices(struct xen_pcibk_device *pdev)
 {
 	struct passthrough_dev_data *dev_data;
 
@@ -108,8 +109,8 @@ int pciback_init_devices(struct pciback_device *pdev)
 	return 0;
 }
 
-int pciback_publish_pci_roots(struct pciback_device *pdev,
-			      publish_pci_root_cb publish_root_cb)
+int xen_pcibk_publish_pci_roots(struct xen_pcibk_device *pdev,
+				publish_pci_root_cb publish_root_cb)
 {
 	int err = 0;
 	struct passthrough_dev_data *dev_data = pdev->pci_dev_data;
@@ -153,7 +154,7 @@ int pciback_publish_pci_roots(struct pciback_device *pdev,
 	return err;
 }
 
-void pciback_release_devices(struct pciback_device *pdev)
+void xen_pcibk_release_devices(struct xen_pcibk_device *pdev)
 {
 	struct passthrough_dev_data *dev_data = pdev->pci_dev_data;
 	struct pci_dev_entry *dev_entry, *t;
@@ -168,11 +169,10 @@ void pciback_release_devices(struct pciback_device *pdev)
 	pdev->pci_dev_data = NULL;
 }
 
-int pciback_get_pcifront_dev(struct pci_dev *pcidev,
-			     struct pciback_device *pdev,
-			     unsigned int *domain, unsigned int *bus,
-			     unsigned int *devfn)
-
+int xen_pcibk_get_pcifront_dev(struct pci_dev *pcidev,
+			       struct xen_pcibk_device *pdev,
+			       unsigned int *domain, unsigned int *bus,
+			       unsigned int *devfn)
 {
 	*domain = pci_domain_nr(pcidev->bus);
 	*bus = pcidev->bus->number;

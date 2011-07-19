@@ -21,12 +21,12 @@
 #include "conf_space.h"
 #include "conf_space_quirks.h"
 
-#define DRV_NAME	"pciback"
+#define DRV_NAME	"xen-pciback"
 
 static char *pci_devs_to_hide;
-wait_queue_head_t aer_wait_queue;
-/*Add sem for sync AER handling and pciback remove/reconfigue ops,
-* We want to avoid in middle of AER ops, pciback devices is being removed
+wait_queue_head_t xen_pcibk_aer_wait_queue;
+/*Add sem for sync AER handling and xen_pcibk remove/reconfigue ops,
+* We want to avoid in middle of AER ops, xen_pcibk devices is being removed
 */
 static DECLARE_RWSEM(pcistub_sem);
 module_param_named(hide, pci_devs_to_hide, charp, 0444);
@@ -46,7 +46,7 @@ struct pcistub_device {
 	spinlock_t lock;
 
 	struct pci_dev *dev;
-	struct pciback_device *pdev;/* non-NULL if struct pci_dev is in use */
+	struct xen_pcibk_device *pdev;/* non-NULL if struct pci_dev is in use */
 };
 
 /* Access to pcistub_devices & seized_devices lists and the initialize_devices
@@ -95,9 +95,9 @@ static void pcistub_device_release(struct kref *kref)
 	xen_unregister_device_domain_owner(psdev->dev);
 
 	/* Clean-up the device */
-	pciback_reset_device(psdev->dev);
-	pciback_config_free_dyn_fields(psdev->dev);
-	pciback_config_free_dev(psdev->dev);
+	xen_pcibk_reset_device(psdev->dev);
+	xen_pcibk_config_free_dyn_fields(psdev->dev);
+	xen_pcibk_config_free_dev(psdev->dev);
 	kfree(pci_get_drvdata(psdev->dev));
 	pci_set_drvdata(psdev->dev, NULL);
 
@@ -142,7 +142,7 @@ out:
 	return psdev;
 }
 
-static struct pci_dev *pcistub_device_get_pci_dev(struct pciback_device *pdev,
+static struct pci_dev *pcistub_device_get_pci_dev(struct xen_pcibk_device *pdev,
 						  struct pcistub_device *psdev)
 {
 	struct pci_dev *pci_dev = NULL;
@@ -163,7 +163,7 @@ static struct pci_dev *pcistub_device_get_pci_dev(struct pciback_device *pdev,
 	return pci_dev;
 }
 
-struct pci_dev *pcistub_get_pci_dev_by_slot(struct pciback_device *pdev,
+struct pci_dev *pcistub_get_pci_dev_by_slot(struct xen_pcibk_device *pdev,
 					    int domain, int bus,
 					    int slot, int func)
 {
@@ -187,7 +187,7 @@ struct pci_dev *pcistub_get_pci_dev_by_slot(struct pciback_device *pdev,
 	return found_dev;
 }
 
-struct pci_dev *pcistub_get_pci_dev(struct pciback_device *pdev,
+struct pci_dev *pcistub_get_pci_dev(struct xen_pcibk_device *pdev,
 				    struct pci_dev *dev)
 {
 	struct pcistub_device *psdev;
@@ -224,15 +224,15 @@ void pcistub_put_pci_dev(struct pci_dev *dev)
 	spin_unlock_irqrestore(&pcistub_devices_lock, flags);
 
 	/*hold this lock for avoiding breaking link between
-	* pcistub and pciback when AER is in processing
+	* pcistub and xen_pcibk when AER is in processing
 	*/
 	down_write(&pcistub_sem);
 	/* Cleanup our device
 	 * (so it's ready for the next domain)
 	 */
-	pciback_reset_device(found_psdev->dev);
-	pciback_config_free_dyn_fields(found_psdev->dev);
-	pciback_config_reset_dev(found_psdev->dev);
+	xen_pcibk_reset_device(found_psdev->dev);
+	xen_pcibk_config_free_dyn_fields(found_psdev->dev);
+	xen_pcibk_config_reset_dev(found_psdev->dev);
 
 	spin_lock_irqsave(&found_psdev->lock, flags);
 	found_psdev->pdev = NULL;
@@ -282,13 +282,13 @@ static int __devinit pcistub_match(struct pci_dev *dev)
 
 static int __devinit pcistub_init_device(struct pci_dev *dev)
 {
-	struct pciback_dev_data *dev_data;
+	struct xen_pcibk_dev_data *dev_data;
 	int err = 0;
 
 	dev_dbg(&dev->dev, "initializing...\n");
 
 	/* The PCI backend is not intended to be a module (or to work with
-	 * removable PCI devices (yet). If it were, pciback_config_free()
+	 * removable PCI devices (yet). If it were, xen_pcibk_config_free()
 	 * would need to be called somewhere to free the memory allocated
 	 * here and then to call kfree(pci_get_drvdata(psdev->dev)).
 	 */
@@ -308,8 +308,8 @@ static int __devinit pcistub_init_device(struct pci_dev *dev)
 
 	dev_dbg(&dev->dev, "initializing config\n");
 
-	init_waitqueue_head(&aer_wait_queue);
-	err = pciback_config_init_dev(dev);
+	init_waitqueue_head(&xen_pcibk_aer_wait_queue);
+	err = xen_pcibk_config_init_dev(dev);
 	if (err)
 		goto out;
 
@@ -329,12 +329,12 @@ static int __devinit pcistub_init_device(struct pci_dev *dev)
 	 * data is setup before we export)
 	 */
 	dev_dbg(&dev->dev, "reset device\n");
-	pciback_reset_device(dev);
+	xen_pcibk_reset_device(dev);
 
 	return 0;
 
 config_release:
-	pciback_config_free_dev(dev);
+	xen_pcibk_config_free_dev(dev);
 
 out:
 	pci_set_drvdata(dev, NULL);
@@ -354,7 +354,7 @@ static int __init pcistub_init_devices_late(void)
 	unsigned long flags;
 	int err = 0;
 
-	pr_debug("pciback: pcistub_init_devices_late\n");
+	pr_debug(DRV_NAME ": pcistub_init_devices_late\n");
 
 	spin_lock_irqsave(&pcistub_devices_lock, flags);
 
@@ -458,7 +458,7 @@ static void pcistub_remove(struct pci_dev *dev)
 
 	spin_lock_irqsave(&pcistub_devices_lock, flags);
 
-	pciback_config_quirk_release(dev);
+	xen_pcibk_config_quirk_release(dev);
 
 	list_for_each_entry(psdev, &pcistub_devices, dev_list) {
 		if (psdev->dev == dev) {
@@ -474,17 +474,17 @@ static void pcistub_remove(struct pci_dev *dev)
 			found_psdev->pdev);
 
 		if (found_psdev->pdev) {
-			printk(KERN_WARNING "pciback: ****** removing device "
+			printk(KERN_WARNING DRV_NAME ": ****** removing device "
 			       "%s while still in-use! ******\n",
 			       pci_name(found_psdev->dev));
-			printk(KERN_WARNING "pciback: ****** driver domain may "
-			       "still access this device's i/o resources!\n");
-			printk(KERN_WARNING "pciback: ****** shutdown driver "
+			printk(KERN_WARNING DRV_NAME ": ****** driver domain may"
+			       " still access this device's i/o resources!\n");
+			printk(KERN_WARNING DRV_NAME ": ****** shutdown driver "
 			       "domain before binding device\n");
-			printk(KERN_WARNING "pciback: ****** to other drivers "
+			printk(KERN_WARNING DRV_NAME ": ****** to other drivers "
 			       "or domains\n");
 
-			pciback_release_pci_dev(found_psdev->pdev,
+			xen_pcibk_release_pci_dev(found_psdev->pdev,
 						found_psdev->dev);
 		}
 
@@ -541,11 +541,12 @@ again:
 }
 
 /* For each aer recovery step error_detected, mmio_enabled, etc, front_end and
- * backend need to have cooperation. In pciback, those steps will do similar
+ * backend need to have cooperation. In xen_pcibk, those steps will do similar
  * jobs: send service request and waiting for front_end response.
 */
 static pci_ers_result_t common_process(struct pcistub_device *psdev,
-		pci_channel_state_t state, int aer_cmd, pci_ers_result_t result)
+				       pci_channel_state_t state, int aer_cmd,
+				       pci_ers_result_t result)
 {
 	pci_ers_result_t res = result;
 	struct xen_pcie_aer_op *aer_op;
@@ -557,21 +558,21 @@ static pci_ers_result_t common_process(struct pcistub_device *psdev,
 	/*useful for error_detected callback*/
 	aer_op->err = state;
 	/*pcifront_end BDF*/
-	ret = pciback_get_pcifront_dev(psdev->dev, psdev->pdev,
+	ret = xen_pcibk_get_pcifront_dev(psdev->dev, psdev->pdev,
 		&aer_op->domain, &aer_op->bus, &aer_op->devfn);
 	if (!ret) {
 		dev_err(&psdev->dev->dev,
-			"pciback: failed to get pcifront device\n");
+			DRV_NAME ": failed to get pcifront device\n");
 		return PCI_ERS_RESULT_NONE;
 	}
 	wmb();
 
 	dev_dbg(&psdev->dev->dev,
-			"pciback: aer_op %x dom %x bus %x devfn %x\n",
+			DRV_NAME ": aer_op %x dom %x bus %x devfn %x\n",
 			aer_cmd, aer_op->domain, aer_op->bus, aer_op->devfn);
-	/*local flag to mark there's aer request, pciback callback will use this
-	* flag to judge whether we need to check pci-front give aer service
-	* ack signal
+	/*local flag to mark there's aer request, xen_pcibk callback will use
+	* this flag to judge whether we need to check pci-front give aer
+	* service ack signal
 	*/
 	set_bit(_PCIB_op_pending, (unsigned long *)&psdev->pdev->flags);
 
@@ -584,8 +585,9 @@ static pci_ers_result_t common_process(struct pcistub_device *psdev,
 	wmb();
 	notify_remote_via_irq(psdev->pdev->evtchn_irq);
 
-	ret = wait_event_timeout(aer_wait_queue, !(test_bit(_XEN_PCIB_active,
-		(unsigned long *)&psdev->pdev->sh_info->flags)), 300*HZ);
+	ret = wait_event_timeout(xen_pcibk_aer_wait_queue,
+				 !(test_bit(_XEN_PCIB_active, (unsigned long *)
+				 &psdev->pdev->sh_info->flags)), 300*HZ);
 
 	if (!ret) {
 		if (test_bit(_XEN_PCIB_active,
@@ -603,8 +605,8 @@ static pci_ers_result_t common_process(struct pcistub_device *psdev,
 	if (test_bit(_XEN_PCIF_active,
 		(unsigned long *)&psdev->pdev->sh_info->flags)) {
 		dev_dbg(&psdev->dev->dev,
-			"schedule pci_conf service in pciback\n");
-		test_and_schedule_op(psdev->pdev);
+			"schedule pci_conf service in xen_pcibk\n");
+		xen_pcibk_test_and_schedule_op(psdev->pdev);
 	}
 
 	res = (pci_ers_result_t)aer_op->err;
@@ -612,19 +614,19 @@ static pci_ers_result_t common_process(struct pcistub_device *psdev,
 }
 
 /*
-* pciback_slot_reset: it will send the slot_reset request to  pcifront in case
+* xen_pcibk_slot_reset: it will send the slot_reset request to  pcifront in case
 * of the device driver could provide this service, and then wait for pcifront
 * ack.
 * @dev: pointer to PCI devices
 * return value is used by aer_core do_recovery policy
 */
-static pci_ers_result_t pciback_slot_reset(struct pci_dev *dev)
+static pci_ers_result_t xen_pcibk_slot_reset(struct pci_dev *dev)
 {
 	struct pcistub_device *psdev;
 	pci_ers_result_t result;
 
 	result = PCI_ERS_RESULT_RECOVERED;
-	dev_dbg(&dev->dev, "pciback_slot_reset(bus:%x,devfn:%x)\n",
+	dev_dbg(&dev->dev, "xen_pcibk_slot_reset(bus:%x,devfn:%x)\n",
 		dev->bus->number, dev->devfn);
 
 	down_write(&pcistub_sem);
@@ -635,12 +637,12 @@ static pci_ers_result_t pciback_slot_reset(struct pci_dev *dev)
 
 	if (!psdev || !psdev->pdev) {
 		dev_err(&dev->dev,
-			"pciback device is not found/assigned\n");
+			DRV_NAME " device is not found/assigned\n");
 		goto end;
 	}
 
 	if (!psdev->pdev->sh_info) {
-		dev_err(&dev->dev, "pciback device is not connected or owned"
+		dev_err(&dev->dev, DRV_NAME " device is not connected or owned"
 			" by HVM, kill it\n");
 		kill_domain_by_device(psdev);
 		goto release;
@@ -669,20 +671,20 @@ end:
 }
 
 
-/*pciback_mmio_enabled: it will send the mmio_enabled request to  pcifront
+/*xen_pcibk_mmio_enabled: it will send the mmio_enabled request to  pcifront
 * in case of the device driver could provide this service, and then wait
 * for pcifront ack
 * @dev: pointer to PCI devices
 * return value is used by aer_core do_recovery policy
 */
 
-static pci_ers_result_t pciback_mmio_enabled(struct pci_dev *dev)
+static pci_ers_result_t xen_pcibk_mmio_enabled(struct pci_dev *dev)
 {
 	struct pcistub_device *psdev;
 	pci_ers_result_t result;
 
 	result = PCI_ERS_RESULT_RECOVERED;
-	dev_dbg(&dev->dev, "pciback_mmio_enabled(bus:%x,devfn:%x)\n",
+	dev_dbg(&dev->dev, "xen_pcibk_mmio_enabled(bus:%x,devfn:%x)\n",
 		dev->bus->number, dev->devfn);
 
 	down_write(&pcistub_sem);
@@ -693,12 +695,12 @@ static pci_ers_result_t pciback_mmio_enabled(struct pci_dev *dev)
 
 	if (!psdev || !psdev->pdev) {
 		dev_err(&dev->dev,
-			"pciback device is not found/assigned\n");
+			DRV_NAME " device is not found/assigned\n");
 		goto end;
 	}
 
 	if (!psdev->pdev->sh_info) {
-		dev_err(&dev->dev, "pciback device is not connected or owned"
+		dev_err(&dev->dev, DRV_NAME " device is not connected or owned"
 			" by HVM, kill it\n");
 		kill_domain_by_device(psdev);
 		goto release;
@@ -725,7 +727,7 @@ end:
 	return result;
 }
 
-/*pciback_error_detected: it will send the error_detected request to  pcifront
+/*xen_pcibk_error_detected: it will send the error_detected request to  pcifront
 * in case of the device driver could provide this service, and then wait
 * for pcifront ack.
 * @dev: pointer to PCI devices
@@ -733,14 +735,14 @@ end:
 * return value is used by aer_core do_recovery policy
 */
 
-static pci_ers_result_t pciback_error_detected(struct pci_dev *dev,
+static pci_ers_result_t xen_pcibk_error_detected(struct pci_dev *dev,
 	pci_channel_state_t error)
 {
 	struct pcistub_device *psdev;
 	pci_ers_result_t result;
 
 	result = PCI_ERS_RESULT_CAN_RECOVER;
-	dev_dbg(&dev->dev, "pciback_error_detected(bus:%x,devfn:%x)\n",
+	dev_dbg(&dev->dev, "xen_pcibk_error_detected(bus:%x,devfn:%x)\n",
 		dev->bus->number, dev->devfn);
 
 	down_write(&pcistub_sem);
@@ -751,12 +753,12 @@ static pci_ers_result_t pciback_error_detected(struct pci_dev *dev,
 
 	if (!psdev || !psdev->pdev) {
 		dev_err(&dev->dev,
-			"pciback device is not found/assigned\n");
+			DRV_NAME " device is not found/assigned\n");
 		goto end;
 	}
 
 	if (!psdev->pdev->sh_info) {
-		dev_err(&dev->dev, "pciback device is not connected or owned"
+		dev_err(&dev->dev, DRV_NAME " device is not connected or owned"
 			" by HVM, kill it\n");
 		kill_domain_by_device(psdev);
 		goto release;
@@ -784,17 +786,17 @@ end:
 	return result;
 }
 
-/*pciback_error_resume: it will send the error_resume request to  pcifront
+/*xen_pcibk_error_resume: it will send the error_resume request to  pcifront
 * in case of the device driver could provide this service, and then wait
 * for pcifront ack.
 * @dev: pointer to PCI devices
 */
 
-static void pciback_error_resume(struct pci_dev *dev)
+static void xen_pcibk_error_resume(struct pci_dev *dev)
 {
 	struct pcistub_device *psdev;
 
-	dev_dbg(&dev->dev, "pciback_error_resume(bus:%x,devfn:%x)\n",
+	dev_dbg(&dev->dev, "xen_pcibk_error_resume(bus:%x,devfn:%x)\n",
 		dev->bus->number, dev->devfn);
 
 	down_write(&pcistub_sem);
@@ -805,12 +807,12 @@ static void pciback_error_resume(struct pci_dev *dev)
 
 	if (!psdev || !psdev->pdev) {
 		dev_err(&dev->dev,
-			"pciback device is not found/assigned\n");
+			DRV_NAME " device is not found/assigned\n");
 		goto end;
 	}
 
 	if (!psdev->pdev->sh_info) {
-		dev_err(&dev->dev, "pciback device is not connected or owned"
+		dev_err(&dev->dev, DRV_NAME " device is not connected or owned"
 			" by HVM, kill it\n");
 		kill_domain_by_device(psdev);
 		goto release;
@@ -832,12 +834,12 @@ end:
 	return;
 }
 
-/*add pciback AER handling*/
-static struct pci_error_handlers pciback_error_handler = {
-	.error_detected = pciback_error_detected,
-	.mmio_enabled = pciback_mmio_enabled,
-	.slot_reset = pciback_slot_reset,
-	.resume = pciback_error_resume,
+/*add xen_pcibk AER handling*/
+static struct pci_error_handlers xen_pcibk_error_handler = {
+	.error_detected = xen_pcibk_error_detected,
+	.mmio_enabled = xen_pcibk_mmio_enabled,
+	.slot_reset = xen_pcibk_slot_reset,
+	.resume = xen_pcibk_error_resume,
 };
 
 /*
@@ -845,12 +847,14 @@ static struct pci_error_handlers pciback_error_handler = {
  * for a normal device. I don't want it to be loaded automatically.
  */
 
-static struct pci_driver pciback_pci_driver = {
-	.name = DRV_NAME,
+static struct pci_driver xen_pcibk_pci_driver = {
+	/* The name should be xen_pciback, but until the tools are updated
+	 * we will keep it as pciback. */
+	.name = "pciback",
 	.id_table = pcistub_ids,
 	.probe = pcistub_probe,
 	.remove = pcistub_remove,
-	.err_handler = &pciback_error_handler,
+	.err_handler = &xen_pcibk_error_handler,
 };
 
 static inline int str_to_slot(const char *buf, int *domain, int *bus,
@@ -899,7 +903,7 @@ static int pcistub_device_id_add(int domain, int bus, int slot, int func)
 	pci_dev_id->bus = bus;
 	pci_dev_id->devfn = PCI_DEVFN(slot, func);
 
-	pr_debug("pciback: wants to seize %04x:%02x:%02x.%01x\n",
+	pr_debug(DRV_NAME ": wants to seize %04x:%02x:%02x.%01x\n",
 		 domain, bus, slot, func);
 
 	spin_lock_irqsave(&device_ids_lock, flags);
@@ -929,7 +933,7 @@ static int pcistub_device_id_remove(int domain, int bus, int slot, int func)
 
 			err = 0;
 
-			pr_debug("pciback: removed %04x:%02x:%02x.%01x from "
+			pr_debug(DRV_NAME ": removed %04x:%02x:%02x.%01x from "
 				 "seize list\n", domain, bus, slot, func);
 		}
 	}
@@ -965,9 +969,9 @@ static int pcistub_reg_add(int domain, int bus, int slot, int func, int reg,
 	field->init = NULL;
 	field->reset = NULL;
 	field->release = NULL;
-	field->clean = pciback_config_field_free;
+	field->clean = xen_pcibk_config_field_free;
 
-	err = pciback_config_quirks_add_field(dev, field);
+	err = xen_pcibk_config_quirks_add_field(dev, field);
 	if (err)
 		kfree(field);
 out:
@@ -1041,7 +1045,7 @@ DRIVER_ATTR(slots, S_IRUSR, pcistub_slot_show, NULL);
 static ssize_t pcistub_irq_handler_show(struct device_driver *drv, char *buf)
 {
 	struct pcistub_device *psdev;
-	struct pciback_dev_data *dev_data;
+	struct xen_pcibk_dev_data *dev_data;
 	size_t count = 0;
 	unsigned long flags;
 
@@ -1073,7 +1077,7 @@ static ssize_t pcistub_irq_handler_switch(struct device_driver *drv,
 					  size_t count)
 {
 	struct pcistub_device *psdev;
-	struct pciback_dev_data *dev_data;
+	struct xen_pcibk_dev_data *dev_data;
 	int domain, bus, slot, func;
 	int err = -ENOENT;
 
@@ -1127,13 +1131,13 @@ static ssize_t pcistub_quirk_show(struct device_driver *drv, char *buf)
 {
 	int count = 0;
 	unsigned long flags;
-	struct pciback_config_quirk *quirk;
-	struct pciback_dev_data *dev_data;
+	struct xen_pcibk_config_quirk *quirk;
+	struct xen_pcibk_dev_data *dev_data;
 	const struct config_field *field;
 	const struct config_field_entry *cfg_entry;
 
 	spin_lock_irqsave(&device_ids_lock, flags);
-	list_for_each_entry(quirk, &pciback_quirks, quirks_list) {
+	list_for_each_entry(quirk, &xen_pcibk_quirks, quirks_list) {
 		if (count >= PAGE_SIZE)
 			goto out;
 
@@ -1175,7 +1179,7 @@ static ssize_t permissive_add(struct device_driver *drv, const char *buf,
 	int domain, bus, slot, func;
 	int err;
 	struct pcistub_device *psdev;
-	struct pciback_dev_data *dev_data;
+	struct xen_pcibk_dev_data *dev_data;
 	err = str_to_slot(buf, &domain, &bus, &slot, &func);
 	if (err)
 		goto out;
@@ -1213,7 +1217,7 @@ out:
 static ssize_t permissive_show(struct device_driver *drv, char *buf)
 {
 	struct pcistub_device *psdev;
-	struct pciback_dev_data *dev_data;
+	struct xen_pcibk_dev_data *dev_data;
 	size_t count = 0;
 	unsigned long flags;
 	spin_lock_irqsave(&pcistub_devices_lock, flags);
@@ -1237,17 +1241,18 @@ DRIVER_ATTR(permissive, S_IRUSR | S_IWUSR, permissive_show, permissive_add);
 
 static void pcistub_exit(void)
 {
-	driver_remove_file(&pciback_pci_driver.driver, &driver_attr_new_slot);
-	driver_remove_file(&pciback_pci_driver.driver,
+	driver_remove_file(&xen_pcibk_pci_driver.driver, &driver_attr_new_slot);
+	driver_remove_file(&xen_pcibk_pci_driver.driver,
 			   &driver_attr_remove_slot);
-	driver_remove_file(&pciback_pci_driver.driver, &driver_attr_slots);
-	driver_remove_file(&pciback_pci_driver.driver, &driver_attr_quirks);
-	driver_remove_file(&pciback_pci_driver.driver, &driver_attr_permissive);
-	driver_remove_file(&pciback_pci_driver.driver,
+	driver_remove_file(&xen_pcibk_pci_driver.driver, &driver_attr_slots);
+	driver_remove_file(&xen_pcibk_pci_driver.driver, &driver_attr_quirks);
+	driver_remove_file(&xen_pcibk_pci_driver.driver,
+			   &driver_attr_permissive);
+	driver_remove_file(&xen_pcibk_pci_driver.driver,
 			   &driver_attr_irq_handlers);
-	driver_remove_file(&pciback_pci_driver.driver,
+	driver_remove_file(&xen_pcibk_pci_driver.driver,
 			   &driver_attr_irq_handler_state);
-	pci_unregister_driver(&pciback_pci_driver);
+	pci_unregister_driver(&xen_pcibk_pci_driver);
 }
 
 static int __init pcistub_init(void)
@@ -1286,30 +1291,30 @@ static int __init pcistub_init(void)
 	 * first one to get offered PCI devices as they become
 	 * available (and thus we can be the first to grab them)
 	 */
-	err = pci_register_driver(&pciback_pci_driver);
+	err = pci_register_driver(&xen_pcibk_pci_driver);
 	if (err < 0)
 		goto out;
 
-	err = driver_create_file(&pciback_pci_driver.driver,
+	err = driver_create_file(&xen_pcibk_pci_driver.driver,
 				 &driver_attr_new_slot);
 	if (!err)
-		err = driver_create_file(&pciback_pci_driver.driver,
+		err = driver_create_file(&xen_pcibk_pci_driver.driver,
 					 &driver_attr_remove_slot);
 	if (!err)
-		err = driver_create_file(&pciback_pci_driver.driver,
+		err = driver_create_file(&xen_pcibk_pci_driver.driver,
 					 &driver_attr_slots);
 	if (!err)
-		err = driver_create_file(&pciback_pci_driver.driver,
+		err = driver_create_file(&xen_pcibk_pci_driver.driver,
 					 &driver_attr_quirks);
 	if (!err)
-		err = driver_create_file(&pciback_pci_driver.driver,
+		err = driver_create_file(&xen_pcibk_pci_driver.driver,
 					 &driver_attr_permissive);
 
 	if (!err)
-		err = driver_create_file(&pciback_pci_driver.driver,
+		err = driver_create_file(&xen_pcibk_pci_driver.driver,
 					 &driver_attr_irq_handlers);
 	if (!err)
-		err = driver_create_file(&pciback_pci_driver.driver,
+		err = driver_create_file(&xen_pcibk_pci_driver.driver,
 					&driver_attr_irq_handler_state);
 	if (err)
 		pcistub_exit();
@@ -1318,7 +1323,7 @@ out:
 	return err;
 
 parse_error:
-	printk(KERN_ERR "pciback: Error parsing pci_devs_to_hide at \"%s\"\n",
+	printk(KERN_ERR DRV_NAME ": Error parsing pci_devs_to_hide at \"%s\"\n",
 	       pci_devs_to_hide + pos);
 	return -EINVAL;
 }
@@ -1326,7 +1331,7 @@ parse_error:
 #ifndef MODULE
 /*
  * fs_initcall happens before device_initcall
- * so pciback *should* get called first (b/c we
+ * so xen_pcibk *should* get called first (b/c we
  * want to suck up any device before other drivers
  * get a chance by being the first pci device
  * driver to register)
@@ -1334,14 +1339,14 @@ parse_error:
 fs_initcall(pcistub_init);
 #endif
 
-static int __init pciback_init(void)
+static int __init xen_pcibk_init(void)
 {
 	int err;
 
 	if (!xen_initial_domain())
 		return -ENODEV;
 
-	err = pciback_config_init();
+	err = xen_pcibk_config_init();
 	if (err)
 		return err;
 
@@ -1352,20 +1357,20 @@ static int __init pciback_init(void)
 #endif
 
 	pcistub_init_devices_late();
-	err = pciback_xenbus_register();
+	err = xen_pcibk_xenbus_register();
 	if (err)
 		pcistub_exit();
 
 	return err;
 }
 
-static void __exit pciback_cleanup(void)
+static void __exit xen_pcibk_cleanup(void)
 {
-	pciback_xenbus_unregister();
+	xen_pcibk_xenbus_unregister();
 	pcistub_exit();
 }
 
-module_init(pciback_init);
-module_exit(pciback_cleanup);
+module_init(xen_pcibk_init);
+module_exit(xen_pcibk_cleanup);
 
 MODULE_LICENSE("Dual BSD/GPL");

@@ -69,35 +69,35 @@ struct config_field_entry {
 /* Add fields to a device - the add_fields macro expects to get a pointer to
  * the first entry in an array (of which the ending is marked by size==0)
  */
-int pciback_config_add_field_offset(struct pci_dev *dev,
+int xen_pcibk_config_add_field_offset(struct pci_dev *dev,
 				    const struct config_field *field,
 				    unsigned int offset);
 
-static inline int pciback_config_add_field(struct pci_dev *dev,
+static inline int xen_pcibk_config_add_field(struct pci_dev *dev,
 					   const struct config_field *field)
 {
-	return pciback_config_add_field_offset(dev, field, 0);
+	return xen_pcibk_config_add_field_offset(dev, field, 0);
 }
 
-static inline int pciback_config_add_fields(struct pci_dev *dev,
+static inline int xen_pcibk_config_add_fields(struct pci_dev *dev,
 					    const struct config_field *field)
 {
 	int i, err = 0;
 	for (i = 0; field[i].size != 0; i++) {
-		err = pciback_config_add_field(dev, &field[i]);
+		err = xen_pcibk_config_add_field(dev, &field[i]);
 		if (err)
 			break;
 	}
 	return err;
 }
 
-static inline int pciback_config_add_fields_offset(struct pci_dev *dev,
+static inline int xen_pcibk_config_add_fields_offset(struct pci_dev *dev,
 					const struct config_field *field,
 					unsigned int offset)
 {
 	int i, err = 0;
 	for (i = 0; field[i].size != 0; i++) {
-		err = pciback_config_add_field_offset(dev, &field[i], offset);
+		err = xen_pcibk_config_add_field_offset(dev, &field[i], offset);
 		if (err)
 			break;
 	}
@@ -105,22 +105,22 @@ static inline int pciback_config_add_fields_offset(struct pci_dev *dev,
 }
 
 /* Read/Write the real configuration space */
-int pciback_read_config_byte(struct pci_dev *dev, int offset, u8 *value,
-			     void *data);
-int pciback_read_config_word(struct pci_dev *dev, int offset, u16 *value,
-			     void *data);
-int pciback_read_config_dword(struct pci_dev *dev, int offset, u32 *value,
-			      void *data);
-int pciback_write_config_byte(struct pci_dev *dev, int offset, u8 value,
-			      void *data);
-int pciback_write_config_word(struct pci_dev *dev, int offset, u16 value,
-			      void *data);
-int pciback_write_config_dword(struct pci_dev *dev, int offset, u32 value,
+int xen_pcibk_read_config_byte(struct pci_dev *dev, int offset, u8 *value,
 			       void *data);
+int xen_pcibk_read_config_word(struct pci_dev *dev, int offset, u16 *value,
+			       void *data);
+int xen_pcibk_read_config_dword(struct pci_dev *dev, int offset, u32 *value,
+				void *data);
+int xen_pcibk_write_config_byte(struct pci_dev *dev, int offset, u8 value,
+				 void *data);
+int xen_pcibk_write_config_word(struct pci_dev *dev, int offset, u16 value,
+				void *data);
+int xen_pcibk_write_config_dword(struct pci_dev *dev, int offset, u32 value,
+				 void *data);
 
-int pciback_config_capability_init(void);
+int xen_pcibk_config_capability_init(void);
 
-int pciback_config_header_add_fields(struct pci_dev *dev);
-int pciback_config_capability_add_fields(struct pci_dev *dev);
+int xen_pcibk_config_header_add_fields(struct pci_dev *dev);
+int xen_pcibk_config_capability_add_fields(struct pci_dev *dev);
 
 #endif				/* __XEN_PCIBACK_CONF_SPACE_H__ */

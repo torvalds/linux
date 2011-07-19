@@ -15,11 +15,14 @@
 #include "conf_space.h"
 #include "conf_space_quirks.h"
 
+#define DRV_NAME	"xen-pciback"
 static int permissive;
 module_param(permissive, bool, 0644);
 
+/* This is where xen_pcibk_read_config_byte, xen_pcibk_read_config_word,
+ * xen_pcibk_write_config_word, and xen_pcibk_write_config_byte are created. */
 #define DEFINE_PCI_CONFIG(op, size, type)			\
-int pciback_##op##_config_##size				\
+int xen_pcibk_##op##_config_##size				\
 (struct pci_dev *dev, int offset, type value, void *data)	\
 {								\
 	return pci_##op##_config_##size(dev, offset, value);	\
@@ -138,11 +141,11 @@ static int pcibios_err_to_errno(int err)
 	return err;
 }
 
-int pciback_config_read(struct pci_dev *dev, int offset, int size,
-			u32 *ret_val)
+int xen_pcibk_config_read(struct pci_dev *dev, int offset, int size,
+			  u32 *ret_val)
 {
 	int err = 0;
-	struct pciback_dev_data *dev_data = pci_get_drvdata(dev);
+	struct xen_pcibk_dev_data *dev_data = pci_get_drvdata(dev);
 	const struct config_field_entry *cfg_entry;
 	const struct config_field *field;
 	int req_start, req_end, field_start, field_end;
@@ -151,7 +154,7 @@ int pciback_config_read(struct pci_dev *dev, int offset, int size,
 	u32 value = 0, tmp_val;
 
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG "pciback: %s: read %d bytes at 0x%x\n",
+		printk(KERN_DEBUG DRV_NAME ": %s: read %d bytes at 0x%x\n",
 		       pci_name(dev), size, offset);
 
 	if (!valid_request(offset, size)) {
@@ -195,17 +198,17 @@ int pciback_config_read(struct pci_dev *dev, int offset, int size,
 
 out:
 	if (unlikely(verbose_request))
-		printk(KERN_DEBUG "pciback: %s: read %d bytes at 0x%x = %x\n",
+		printk(KERN_DEBUG DRV_NAME ": %s: read %d bytes at 0x%x = %x\n",
 		       pci_name(dev), size, offset, value);
 
 	*ret_val = value;
 	return pcibios_err_to_errno(err);
 }
 
-int pciback_config_write(struct pci_dev *dev, int offset, int size, u32 value)
+int xen_pcibk_config_write(struct pci_dev *dev, int offset, int size, u32 value)
 {
 	int err = 0, handled = 0;
-	struct pciback_dev_data *dev_data = pci_get_drvdata(dev);
+	struct xen_pcibk_dev_data *dev_data = pci_get_drvdata(dev);
 	const struct config_field_entry *cfg_entry;
 	const struct config_field *field;
 	u32 tmp_val;
@@ -213,7 +216,7 @@ int pciback_config_write(struct pci_dev *dev, int offset, int size, u32 value)
 
 	if (unlikely(verbose_request))
 		printk(KERN_DEBUG
-		       "pciback: %s: write request %d bytes at 0x%x = %x\n",
+		       DRV_NAME ": %s: write request %d bytes at 0x%x = %x\n",
 		       pci_name(dev), size, offset, value);
 
 	if (!valid_request(offset, size))
@@ -231,7 +234,7 @@ int pciback_config_write(struct pci_dev *dev, int offset, int size, u32 value)
 		    || (req_end > field_start && req_end <= field_end)) {
 			tmp_val = 0;
 
-			err = pciback_config_read(dev, field_start,
+			err = xen_pcibk_config_read(dev, field_start,
 						  field->size, &tmp_val);
 			if (err)
 				break;
@@ -290,9 +293,9 @@ int pciback_config_write(struct pci_dev *dev, int offset, int size, u32 value)
 	return pcibios_err_to_errno(err);
 }
 
-void pciback_config_free_dyn_fields(struct pci_dev *dev)
+void xen_pcibk_config_free_dyn_fields(struct pci_dev *dev)
 {
-	struct pciback_dev_data *dev_data = pci_get_drvdata(dev);
+	struct xen_pcibk_dev_data *dev_data = pci_get_drvdata(dev);
 	struct config_field_entry *cfg_entry, *t;
 	const struct config_field *field;
 
@@ -316,9 +319,9 @@ void pciback_config_free_dyn_fields(struct pci_dev *dev)
 	}
 }
 
-void pciback_config_reset_dev(struct pci_dev *dev)
+void xen_pcibk_config_reset_dev(struct pci_dev *dev)
 {
-	struct pciback_dev_data *dev_data = pci_get_drvdata(dev);
+	struct xen_pcibk_dev_data *dev_data = pci_get_drvdata(dev);
 	const struct config_field_entry *cfg_entry;
 	const struct config_field *field;
 
@@ -334,9 +337,9 @@ void pciback_config_reset_dev(struct pci_dev *dev)
 	}
 }
 
-void pciback_config_free_dev(struct pci_dev *dev)
+void xen_pcibk_config_free_dev(struct pci_dev *dev)
 {
-	struct pciback_dev_data *dev_data = pci_get_drvdata(dev);
+	struct xen_pcibk_dev_data *dev_data = pci_get_drvdata(dev);
 	struct config_field_entry *cfg_entry, *t;
 	const struct config_field *field;
 
@@ -356,12 +359,12 @@ void pciback_config_free_dev(struct pci_dev *dev)
 	}
 }
 
-int pciback_config_add_field_offset(struct pci_dev *dev,
+int xen_pcibk_config_add_field_offset(struct pci_dev *dev,
 				    const struct config_field *field,
 				    unsigned int base_offset)
 {
 	int err = 0;
-	struct pciback_dev_data *dev_data = pci_get_drvdata(dev);
+	struct xen_pcibk_dev_data *dev_data = pci_get_drvdata(dev);
 	struct config_field_entry *cfg_entry;
 	void *tmp;
 
@@ -376,7 +379,7 @@ int pciback_config_add_field_offset(struct pci_dev *dev,
 	cfg_entry->base_offset = base_offset;
 
 	/* silently ignore duplicate fields */
-	err = pciback_field_is_dup(dev, OFFSET(cfg_entry));
+	err = xen_pcibk_field_is_dup(dev, OFFSET(cfg_entry));
 	if (err)
 		goto out;
 
@@ -406,30 +409,30 @@ out:
  * certain registers (like the base address registers (BARs) so that we can
  * keep the client from manipulating them directly.
  */
-int pciback_config_init_dev(struct pci_dev *dev)
+int xen_pcibk_config_init_dev(struct pci_dev *dev)
 {
 	int err = 0;
-	struct pciback_dev_data *dev_data = pci_get_drvdata(dev);
+	struct xen_pcibk_dev_data *dev_data = pci_get_drvdata(dev);
 
 	dev_dbg(&dev->dev, "initializing virtual configuration space\n");
 
 	INIT_LIST_HEAD(&dev_data->config_fields);
 
-	err = pciback_config_header_add_fields(dev);
+	err = xen_pcibk_config_header_add_fields(dev);
 	if (err)
 		goto out;
 
-	err = pciback_config_capability_add_fields(dev);
+	err = xen_pcibk_config_capability_add_fields(dev);
 	if (err)
 		goto out;
 
-	err = pciback_config_quirks_init(dev);
+	err = xen_pcibk_config_quirks_init(dev);
 
 out:
 	return err;
 }
 
-int pciback_config_init(void)
+int xen_pcibk_config_init(void)
 {
-	return pciback_config_capability_init();
+	return xen_pcibk_config_capability_init();
 }

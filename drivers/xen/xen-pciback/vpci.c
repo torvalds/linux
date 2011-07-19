@@ -12,6 +12,7 @@
 #include "pciback.h"
 
 #define PCI_SLOT_MAX 32
+#define DRV_NAME	"xen-pciback"
 
 struct vpci_dev_data {
 	/* Access to dev_list must be protected by lock */
@@ -24,9 +25,9 @@ static inline struct list_head *list_first(struct list_head *head)
 	return head->next;
 }
 
-struct pci_dev *pciback_get_pci_dev(struct pciback_device *pdev,
-				    unsigned int domain, unsigned int bus,
-				    unsigned int devfn)
+struct pci_dev *xen_pcibk_get_pci_dev(struct xen_pcibk_device *pdev,
+				      unsigned int domain, unsigned int bus,
+				      unsigned int devfn)
 {
 	struct pci_dev_entry *entry;
 	struct pci_dev *dev = NULL;
@@ -62,8 +63,8 @@ static inline int match_slot(struct pci_dev *l, struct pci_dev *r)
 	return 0;
 }
 
-int pciback_add_pci_dev(struct pciback_device *pdev, struct pci_dev *dev,
-			int devid, publish_pci_dev_cb publish_cb)
+int xen_pcibk_add_pci_dev(struct xen_pcibk_device *pdev, struct pci_dev *dev,
+			  int devid, publish_pci_dev_cb publish_cb)
 {
 	int err = 0, slot, func = -1;
 	struct pci_dev_entry *t, *dev_entry;
@@ -96,7 +97,7 @@ int pciback_add_pci_dev(struct pciback_device *pdev, struct pci_dev *dev,
 				       struct pci_dev_entry, list);
 
 			if (match_slot(dev, t->dev)) {
-				pr_info("pciback: vpci: %s: "
+				pr_info(DRV_NAME ": vpci: %s: "
 					"assign to virtual slot %d func %d\n",
 					pci_name(dev), slot,
 					PCI_FUNC(dev->devfn));
@@ -111,8 +112,8 @@ int pciback_add_pci_dev(struct pciback_device *pdev, struct pci_dev *dev,
 	/* Assign to a new slot on the virtual PCI bus */
 	for (slot = 0; slot < PCI_SLOT_MAX; slot++) {
 		if (list_empty(&vpci_dev->dev_list[slot])) {
-			printk(KERN_INFO
-			       "pciback: vpci: %s: assign to virtual slot %d\n",
+			printk(KERN_INFO DRV_NAME
+			       ": vpci: %s: assign to virtual slot %d\n",
 			       pci_name(dev), slot);
 			list_add_tail(&dev_entry->list,
 				      &vpci_dev->dev_list[slot]);
@@ -136,7 +137,8 @@ out:
 	return err;
 }
 
-void pciback_release_pci_dev(struct pciback_device *pdev, struct pci_dev *dev)
+void xen_pcibk_release_pci_dev(struct xen_pcibk_device *pdev,
+			       struct pci_dev *dev)
 {
 	int slot;
 	struct vpci_dev_data *vpci_dev = pdev->pci_dev_data;
@@ -165,7 +167,7 @@ out:
 		pcistub_put_pci_dev(found_dev);
 }
 
-int pciback_init_devices(struct pciback_device *pdev)
+int xen_pcibk_init_devices(struct xen_pcibk_device *pdev)
 {
 	int slot;
 	struct vpci_dev_data *vpci_dev;
@@ -184,14 +186,14 @@ int pciback_init_devices(struct pciback_device *pdev)
 	return 0;
 }
 
-int pciback_publish_pci_roots(struct pciback_device *pdev,
-			      publish_pci_root_cb publish_cb)
+int xen_pcibk_publish_pci_roots(struct xen_pcibk_device *pdev,
+				publish_pci_root_cb publish_cb)
 {
 	/* The Virtual PCI bus has only one root */
 	return publish_cb(pdev, 0, 0);
 }
 
-void pciback_release_devices(struct pciback_device *pdev)
+void xen_pcibk_release_devices(struct xen_pcibk_device *pdev)
 {
 	int slot;
 	struct vpci_dev_data *vpci_dev = pdev->pci_dev_data;
@@ -210,10 +212,10 @@ void pciback_release_devices(struct pciback_device *pdev)
 	pdev->pci_dev_data = NULL;
 }
 
-int pciback_get_pcifront_dev(struct pci_dev *pcidev,
-			     struct pciback_device *pdev,
-			     unsigned int *domain, unsigned int *bus,
-			     unsigned int *devfn)
+int xen_pcibk_get_pcifront_dev(struct pci_dev *pcidev,
+			       struct xen_pcibk_device *pdev,
+			       unsigned int *domain, unsigned int *bus,
+			       unsigned int *devfn)
 {
 	struct pci_dev_entry *entry;
 	struct pci_dev *dev = NULL;
