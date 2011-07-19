@@ -375,7 +375,7 @@ struct bss_qos {
 #define IsACValid(ac)		( ( ac>=0 && ac<=7 )? true : false )
 
 
-typedef	union _ACI_AIFSN{
+union aci_aifsn {
 	u8	charData;
 
 	struct
@@ -385,7 +385,7 @@ typedef	union _ACI_AIFSN{
 		u8	ACI:2;
 		u8	Reserved:1;
 	}f;
-}ACI_AIFSN, *PACI_AIFSN;
+};
 
 typedef	union _ECW{
 	u8	charData;
@@ -402,7 +402,7 @@ typedef	union _AC_PARAM{
 
 	struct
 	{
-		ACI_AIFSN	AciAifsn;
+		union aci_aifsn AciAifsn;
 		ECW		Ecw;
 		u16		TXOPLimit;
 	}f;

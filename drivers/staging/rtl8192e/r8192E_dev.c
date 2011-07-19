@@ -235,7 +235,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 			struct rtllib_qos_parameters *qos_parameters = &priv->rtllib->current_network.qos_data.parameters;
 			u8	pAcParam = *((u8*)val);
 			u32	eACI = pAcParam;
-			PACI_AIFSN	pAciAifsn = (PACI_AIFSN)&(qos_parameters->aifs[0]);
+			union aci_aifsn *pAciAifsn = (union aci_aifsn *)&(qos_parameters->aifs[0]);
 			u8		acm = pAciAifsn->f.acm;
 			u8		AcmCtrl = read_nic_byte( dev, AcmHwCtrl);
 
