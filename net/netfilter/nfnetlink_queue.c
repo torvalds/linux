@@ -171,6 +171,13 @@ __enqueue_entry(struct nfqnl_instance *queue, struct nf_queue_entry *entry)
        queue->queue_total++;
 }
 
+static void
+__dequeue_entry(struct nfqnl_instance *queue, struct nf_queue_entry *entry)
+{
+	list_del(&entry->list);
+	queue->queue_total--;
+}
+
 static struct nf_queue_entry *
 find_dequeue_entry(struct nfqnl_instance *queue, unsigned int id)
 {
@@ -185,10 +192,8 @@ find_dequeue_entry(struct nfqnl_instance *queue, unsigned int id)
 		}
 	}
 
-	if (entry) {
-		list_del(&entry->list);
-		queue->queue_total--;
-	}
+	if (entry)
+		__dequeue_entry(queue, entry);
 
 	spin_unlock_bh(&queue->lock);
 
@@ -611,6 +616,92 @@ static const struct nla_policy nfqa_verdict_policy[NFQA_MAX+1] = {
 	[NFQA_PAYLOAD]		= { .type = NLA_UNSPEC },
 };
 
+static const struct nla_policy nfqa_verdict_batch_policy[NFQA_MAX+1] = {
+	[NFQA_VERDICT_HDR]	= { .len = sizeof(struct nfqnl_msg_verdict_hdr) },
+	[NFQA_MARK]		= { .type = NLA_U32 },
+};
+
+static struct nfqnl_instance *verdict_instance_lookup(u16 queue_num, int nlpid)
+{
+	struct nfqnl_instance *queue;
+
+	queue = instance_lookup(queue_num);
+	if (!queue)
+		return ERR_PTR(-ENODEV);
+
+	if (queue->peer_pid != nlpid)
+		return ERR_PTR(-EPERM);
+
+	return queue;
+}
+
+static struct nfqnl_msg_verdict_hdr*
+verdicthdr_get(const struct nlattr * const nfqa[])
+{
+	struct nfqnl_msg_verdict_hdr *vhdr;
+	unsigned int verdict;
+
+	if (!nfqa[NFQA_VERDICT_HDR])
+		return NULL;
+
+	vhdr = nla_data(nfqa[NFQA_VERDICT_HDR]);
+	verdict = ntohl(vhdr->verdict);
+	if ((verdict & NF_VERDICT_MASK) > NF_MAX_VERDICT)
+		return NULL;
+	return vhdr;
+}
+
+static int nfq_id_after(unsigned int id, unsigned int max)
+{
+	return (int)(id - max) > 0;
+}
+
+static int
+nfqnl_recv_verdict_batch(struct sock *ctnl, struct sk_buff *skb,
+		   const struct nlmsghdr *nlh,
+		   const struct nlattr * const nfqa[])
+{
+	struct nfgenmsg *nfmsg = NLMSG_DATA(nlh);
+	struct nf_queue_entry *entry, *tmp;
+	unsigned int verdict, maxid;
+	struct nfqnl_msg_verdict_hdr *vhdr;
+	struct nfqnl_instance *queue;
+	LIST_HEAD(batch_list);
+	u16 queue_num = ntohs(nfmsg->res_id);
+
+	queue = verdict_instance_lookup(queue_num, NETLINK_CB(skb).pid);
+	if (IS_ERR(queue))
+		return PTR_ERR(queue);
+
+	vhdr = verdicthdr_get(nfqa);
+	if (!vhdr)
+		return -EINVAL;
+
+	verdict = ntohl(vhdr->verdict);
+	maxid = ntohl(vhdr->id);
+
+	spin_lock_bh(&queue->lock);
+
+	list_for_each_entry_safe(entry, tmp, &queue->queue_list, list) {
+		if (nfq_id_after(entry->id, maxid))
+			break;
+		__dequeue_entry(queue, entry);
+		list_add_tail(&entry->list, &batch_list);
+	}
+
+	spin_unlock_bh(&queue->lock);
+
+	if (list_empty(&batch_list))
+		return -ENOENT;
+
+	list_for_each_entry_safe(entry, tmp, &batch_list, list) {
+		if (nfqa[NFQA_MARK])
+			entry->skb->mark = ntohl(nla_get_be32(nfqa[NFQA_MARK]));
+		nf_reinject(entry, verdict);
+	}
+	return 0;
+}
+
 static int
 nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 		   const struct nlmsghdr *nlh,
@@ -626,19 +717,16 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 
 	queue = instance_lookup(queue_num);
 	if (!queue)
-		return -ENODEV;
 
-	if (queue->peer_pid != NETLINK_CB(skb).pid)
-		return -EPERM;
+	queue = verdict_instance_lookup(queue_num, NETLINK_CB(skb).pid);
+	if (IS_ERR(queue))
+		return PTR_ERR(queue);
 
-	if (!nfqa[NFQA_VERDICT_HDR])
+	vhdr = verdicthdr_get(nfqa);
+	if (!vhdr)
 		return -EINVAL;
 
-	vhdr = nla_data(nfqa[NFQA_VERDICT_HDR]);
 	verdict = ntohl(vhdr->verdict);
-
-	if ((verdict & NF_VERDICT_MASK) > NF_MAX_VERDICT)
-		return -EINVAL;
 
 	entry = find_dequeue_entry(queue, ntohl(vhdr->id));
 	if (entry == NULL)
@@ -775,6 +863,9 @@ static const struct nfnl_callback nfqnl_cb[NFQNL_MSG_MAX] = {
 	[NFQNL_MSG_CONFIG]	= { .call = nfqnl_recv_config,
 				    .attr_count = NFQA_CFG_MAX,
 				    .policy = nfqa_cfg_policy },
+	[NFQNL_MSG_VERDICT_BATCH]={ .call_rcu = nfqnl_recv_verdict_batch,
+				    .attr_count = NFQA_MAX,
+				    .policy = nfqa_verdict_batch_policy },
 };
 
 static const struct nfnetlink_subsystem nfqnl_subsys = {
