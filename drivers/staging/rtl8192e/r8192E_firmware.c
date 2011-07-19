@@ -267,7 +267,7 @@ bool init_firmware(struct net_device *dev)
 	u8	*mapped_file = NULL;
 	u8	init_step = 0;
 	opt_rst_type_e	rst_opt = OPT_SYSTEM_RESET;
-	firmware_init_step_e	starting_state = FW_INIT_STEP0_BOOT;
+	enum firmware_init_step starting_state = FW_INIT_STEP0_BOOT;
 
 	struct rt_firmware *pfirmware = priv->pFirmware;
 
