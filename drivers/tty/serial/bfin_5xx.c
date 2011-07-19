@@ -234,8 +234,8 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 	status = UART_GET_LSR(uart);
 	UART_CLEAR_LSR(uart);
 
- 	ch = UART_GET_CHAR(uart);
- 	uart->port.icount.rx++;
+	ch = UART_GET_CHAR(uart);
+	uart->port.icount.rx++;
 
 #if defined(CONFIG_KGDB_SERIAL_CONSOLE) || \
 	defined(CONFIG_KGDB_SERIAL_CONSOLE_MODULE)
@@ -739,9 +739,8 @@ static int bfin_serial_startup(struct uart_port *port)
 			pr_info("Unable to attach BlackFin UART CTS interrupt. So, disable it.\n");
 		}
 	}
-	if (uart->rts_pin >= 0) {
+	if (uart->rts_pin >= 0)
 		gpio_direction_output(uart->rts_pin, 0);
-	}
 #endif
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
 	if (uart->cts_pin >= 0 && request_irq(uart->status_irq,
@@ -1091,10 +1090,18 @@ bfin_serial_console_get_options(struct bfin_serial_port *uart, int *baud,
 				*parity = 'o';
 		}
 		switch (lcr & 0x03) {
-			case 0:	*bits = 5; break;
-			case 1:	*bits = 6; break;
-			case 2:	*bits = 7; break;
-			case 3:	*bits = 8; break;
+		case 0:
+			*bits = 5;
+			break;
+		case 1:
+			*bits = 6;
+			break;
+		case 2:
+			*bits = 7;
+			break;
+		case 3:
+			*bits = 8;
+			break;
 		}
 		/* Set DLAB in LCR to Access DLL and DLH */
 		UART_SET_DLAB(uart);
@@ -1183,7 +1190,7 @@ static struct console bfin_serial_console = {
 	.index		= -1,
 	.data		= &bfin_serial_reg,
 };
-#define BFIN_SERIAL_CONSOLE	&bfin_serial_console
+#define BFIN_SERIAL_CONSOLE	(&bfin_serial_console)
 #else
 #define BFIN_SERIAL_CONSOLE	NULL
 #endif /* CONFIG_SERIAL_BFIN_CONSOLE */
