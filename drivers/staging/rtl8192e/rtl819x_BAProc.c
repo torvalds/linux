@@ -241,7 +241,7 @@ int rtllib_rx_ADDBAReq( struct rtllib_device* ieee, struct sk_buff *skb)
 	u16 rc = 0;
 	u8 * dst = NULL, *pDialogToken = NULL, *tag = NULL;
 	struct ba_record *pBA = NULL;
-	PBA_PARAM_SET	pBaParamSet = NULL;
+	union ba_param_set *pBaParamSet = NULL;
 	u16* pBaTimeoutVal = NULL;
 	union sequence_control *pBaStartSeqCtrl = NULL;
 	struct rx_ts_record *pTS = NULL;
@@ -259,7 +259,7 @@ int rtllib_rx_ADDBAReq( struct rtllib_device* ieee, struct sk_buff *skb)
 	dst = (u8*)(&req->addr2[0]);
 	tag += sizeof( struct rtllib_hdr_3addr);
 	pDialogToken = tag + 2;
-	pBaParamSet = (PBA_PARAM_SET)(tag + 3);
+	pBaParamSet = (union ba_param_set *)(tag + 3);
 	pBaTimeoutVal = (u16*)(tag + 5);
 	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
 
@@ -332,7 +332,7 @@ int rtllib_rx_ADDBARsp( struct rtllib_device* ieee, struct sk_buff *skb)
 	struct tx_ts_record *pTS = NULL;
 	u8* dst = NULL, *pDialogToken = NULL, *tag = NULL;
 	u16* pStatusCode = NULL, *pBaTimeoutVal = NULL;
-	PBA_PARAM_SET		pBaParamSet = NULL;
+	union ba_param_set *pBaParamSet = NULL;
 	u16			ReasonCode;
 
 	if (skb->len < sizeof( struct rtllib_hdr_3addr) + 9)
@@ -346,7 +346,7 @@ int rtllib_rx_ADDBARsp( struct rtllib_device* ieee, struct sk_buff *skb)
 	tag += sizeof( struct rtllib_hdr_3addr);
 	pDialogToken = tag + 2;
 	pStatusCode = (u16*)(tag + 3);
-	pBaParamSet = (PBA_PARAM_SET)(tag + 5);
+	pBaParamSet = (union ba_param_set *)(tag + 5);
 	pBaTimeoutVal = (u16*)(tag + 7);
 
 	RT_TRACE(COMP_DBG, "====>rx ADDBARSP from :"MAC_FMT"\n", MAC_ARG(dst));
