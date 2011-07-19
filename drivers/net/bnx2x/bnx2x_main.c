@@ -4403,11 +4403,17 @@ static void bnx2x_eq_int(struct bnx2x *bp)
 
 		case EVENT_RING_OPCODE_STOP_TRAFFIC:
 			DP(NETIF_MSG_IFUP, "got STOP TRAFFIC\n");
+			if (f_obj->complete_cmd(bp, f_obj,
+						BNX2X_F_CMD_TX_STOP))
+				break;
 			bnx2x_dcbx_set_params(bp, BNX2X_DCBX_STATE_TX_PAUSED);
 			goto next_spqe;
 
 		case EVENT_RING_OPCODE_START_TRAFFIC:
 			DP(NETIF_MSG_IFUP, "got START TRAFFIC\n");
+			if (f_obj->complete_cmd(bp, f_obj,
+						BNX2X_F_CMD_TX_START))
+				break;
 			bnx2x_dcbx_set_params(bp, BNX2X_DCBX_STATE_TX_RELEASED);
 			goto next_spqe;
 		case EVENT_RING_OPCODE_FUNCTION_START:
@@ -7536,6 +7542,71 @@ void bnx2x_send_unload_done(struct bnx2x *bp)
 		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE, 0);
 }
 
+static inline int bnx2x_func_wait_started(struct bnx2x *bp)
+{
+	int tout = 50;
+	int msix = (bp->flags & USING_MSIX_FLAG) ? 1 : 0;
+
+	if (!bp->port.pmf)
+		return 0;
+
+	/*
+	 * (assumption: No Attention from MCP at this stage)
+	 * PMF probably in the middle of TXdisable/enable transaction
+	 * 1. Sync IRS for default SB
+	 * 2. Sync SP queue - this guarantes us that attention handling started
+	 * 3. Wait, that TXdisable/enable transaction completes
+	 *
+	 * 1+2 guranty that if DCBx attention was scheduled it already changed
+	 * pending bit of transaction from STARTED-->TX_STOPPED, if we alredy
+	 * received complettion for the transaction the state is TX_STOPPED.
+	 * State will return to STARTED after completion of TX_STOPPED-->STARTED
+	 * transaction.
+	 */
+
+	/* make sure default SB ISR is done */
+	if (msix)
+		synchronize_irq(bp->msix_table[0].vector);
+	else
+		synchronize_irq(bp->pdev->irq);
+
+	flush_workqueue(bnx2x_wq);
+
+	while (bnx2x_func_get_state(bp, &bp->func_obj) !=
+				BNX2X_F_STATE_STARTED && tout--)
+		msleep(20);
+
+	if (bnx2x_func_get_state(bp, &bp->func_obj) !=
+						BNX2X_F_STATE_STARTED) {
+#ifdef BNX2X_STOP_ON_ERROR
+		return -EBUSY;
+#else
+		/*
+		 * Failed to complete the transaction in a "good way"
+		 * Force both transactions with CLR bit
+		 */
+		struct bnx2x_func_state_params func_params = {0};
+
+		DP(BNX2X_MSG_SP, "Hmmm... unexpected function state! "
+			  "Forcing STARTED-->TX_ST0PPED-->STARTED\n");
+
+		func_params.f_obj = &bp->func_obj;
+		__set_bit(RAMROD_DRV_CLR_ONLY,
+					&func_params.ramrod_flags);
+
+		/* STARTED-->TX_ST0PPED */
+		func_params.cmd = BNX2X_F_CMD_TX_STOP;
+		bnx2x_func_state_change(bp, &func_params);
+
+		/* TX_ST0PPED-->STARTED */
+		func_params.cmd = BNX2X_F_CMD_TX_START;
+		return bnx2x_func_state_change(bp, &func_params);
+#endif
+	}
+
+	return 0;
+}
+
 void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 {
 	int port = BP_PORT(bp);
@@ -7595,6 +7666,26 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 	netif_addr_unlock_bh(bp->dev);
 
 
+
+	/*
+	 * Send the UNLOAD_REQUEST to the MCP. This will return if
+	 * this function should perform FUNC, PORT or COMMON HW
+	 * reset.
+	 */
+	reset_code = bnx2x_send_unload_req(bp, unload_mode);
+
+	/*
+	 * (assumption: No Attention from MCP at this stage)
+	 * PMF probably in the middle of TXdisable/enable transaction
+	 */
+	rc = bnx2x_func_wait_started(bp);
+	if (rc) {
+		BNX2X_ERR("bnx2x_func_wait_started failed\n");
+#ifdef BNX2X_STOP_ON_ERROR
+		return;
+#endif
+	}
+
 	/* Close multi and leading connections
 	 * Completions for ramrods are collected in a synchronous way
 	 */
@@ -7621,13 +7712,6 @@ unload_error:
 		return;
 #endif
 	}
-
-	/*
-	 * Send the UNLOAD_REQUEST to the MCP. This will return if
-	 * this function should perform FUNC, PORT or COMMON HW
-	 * reset.
-	 */
-	reset_code = bnx2x_send_unload_req(bp, unload_mode);
 
 	/* Disable HW interrupts, NAPI */
 	bnx2x_netif_stop(bp, 1);

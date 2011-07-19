@@ -1834,6 +1834,7 @@ struct lldp_local_mib {
 	#define DCBX_LOCAL_APP_ERROR             0x00000004
 	#define DCBX_LOCAL_PFC_MISMATCH          0x00000010
 	#define DCBX_LOCAL_APP_MISMATCH          0x00000020
+	#define DCBX_REMOTE_MIB_ERROR		 0x00000040
 	struct dcbx_features   features;
 	u32 suffix_seq_num;
 };

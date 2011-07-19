@@ -996,6 +996,7 @@ enum bnx2x_func_state {
 	BNX2X_F_STATE_RESET,
 	BNX2X_F_STATE_INITIALIZED,
 	BNX2X_F_STATE_STARTED,
+	BNX2X_F_STATE_TX_STOPPED,
 	BNX2X_F_STATE_MAX,
 };
 
@@ -1005,6 +1006,8 @@ enum bnx2x_func_cmd {
 	BNX2X_F_CMD_START,
 	BNX2X_F_CMD_STOP,
 	BNX2X_F_CMD_HW_RESET,
+	BNX2X_F_CMD_TX_STOP,
+	BNX2X_F_CMD_TX_START,
 	BNX2X_F_CMD_MAX,
 };
 
@@ -1047,6 +1050,13 @@ struct bnx2x_func_start_params {
 	u8 network_cos_mode;
 };
 
+struct bnx2x_func_tx_start_params {
+	struct priority_cos traffic_type_to_priority_cos[MAX_TRAFFIC_TYPES];
+	u8 dcb_enabled;
+	u8 dcb_version;
+	u8 dont_add_pri_0_en;
+};
+
 struct bnx2x_func_state_params {
 	struct bnx2x_func_sp_obj *f_obj;
 
@@ -1061,6 +1071,7 @@ struct bnx2x_func_state_params {
 		struct bnx2x_func_hw_init_params hw_init;
 		struct bnx2x_func_hw_reset_params hw_reset;
 		struct bnx2x_func_start_params start;
+		struct bnx2x_func_tx_start_params tx_start;
 	} params;
 };
 
@@ -1152,6 +1163,8 @@ void bnx2x_init_func_obj(struct bnx2x *bp,
 int bnx2x_func_state_change(struct bnx2x *bp,
 			    struct bnx2x_func_state_params *params);
 
+enum bnx2x_func_state bnx2x_func_get_state(struct bnx2x *bp,
+					   struct bnx2x_func_sp_obj *o);
 /******************* Queue State **************/
 void bnx2x_init_queue_obj(struct bnx2x *bp,
 			  struct bnx2x_queue_sp_obj *obj, u8 cl_id, u32 *cids,

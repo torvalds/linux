@@ -966,6 +966,8 @@ struct bnx2x_slowpath {
 
 	union {
 		struct function_start_data	func_start;
+		/* pfc configuration for DCBX ramrod */
+		struct flow_control_configuration pfc_config;
 	} func_rdata;
 
 	/* used by dmae command executer */
@@ -980,8 +982,6 @@ struct bnx2x_slowpath {
 
 	u32				wb_comp;
 	u32				wb_data[4];
-	/* pfc configuration for DCBX ramrod */
-	struct flow_control_configuration pfc_config;
 };
 
 #define bnx2x_sp(bp, var)		(&bp->slowpath->var)
@@ -1416,9 +1416,6 @@ struct bnx2x {
 #define PHY_FW_VER_LEN			20
 	char			fw_ver[32];
 	const struct firmware	*firmware;
-
-	/* LLDP params */
-	struct bnx2x_config_lldp_params		lldp_config_params;
 
 	/* DCB support on/off */
 	u16 dcb_state;
