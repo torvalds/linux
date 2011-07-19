@@ -1071,7 +1071,7 @@ int rtl8192_sta_down(struct net_device *dev, bool shutdownrf)
 		kfree(priv->rtllib->wpa_ie);
 	priv->rtllib->wpa_ie = NULL;
 	CamResetAllEntry(dev);
-	memset(priv->rtllib->swcamtable,0,sizeof(SW_CAM_TABLE)*32);
+	memset(priv->rtllib->swcamtable,0,sizeof(struct sw_cam_table)*32);
 	rtl8192_irq_disable(dev);
 
 	del_timer_sync(&priv->watch_dog_timer);
@@ -1224,7 +1224,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->bForcedSilentReset = 0;
 	priv->bDisableNormalResetCheck = false;
 	priv->force_reset = false;
-	memset(priv->rtllib->swcamtable,0,sizeof(SW_CAM_TABLE)*32);
+	memset(priv->rtllib->swcamtable,0,sizeof(struct sw_cam_table)*32);
 
 	memset(&priv->InterruptLog,0,sizeof(struct log_int_8190));
 	priv->RxCounter = 0;

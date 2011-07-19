@@ -764,7 +764,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 	if (wrqu->encoding.flags & IW_ENCODE_DISABLED) {
 		ieee->pairwise_key_type = ieee->group_key_type = KEY_TYPE_NA;
 		CamResetAllEntry(dev);
-		memset(priv->rtllib->swcamtable,0,sizeof(SW_CAM_TABLE)*32);
+		memset(priv->rtllib->swcamtable,0,sizeof(struct sw_cam_table)*32);
 		goto end_hw_sec;
 	}
 	if (wrqu->encoding.length!=0){
@@ -989,7 +989,7 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 		{
 			ieee->pairwise_key_type = ieee->group_key_type = KEY_TYPE_NA;
 			CamResetAllEntry(dev);
-			memset(priv->rtllib->swcamtable,0,sizeof(SW_CAM_TABLE)*32);
+			memset(priv->rtllib->swcamtable,0,sizeof(struct sw_cam_table)*32);
 			goto end_hw_sec;
 		}
 		alg =  (ext->alg == IW_ENCODE_ALG_CCMP)?KEY_TYPE_CCMP:ext->alg;

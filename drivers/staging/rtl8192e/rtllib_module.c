@@ -159,7 +159,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	ieee->raw_tx = 0;
 	ieee->hwsec_active = 0;
 
-	memset(ieee->swcamtable,0,sizeof(SW_CAM_TABLE)*32);
+	memset(ieee->swcamtable,0,sizeof(struct sw_cam_table)*32);
 	rtllib_softmac_init(ieee);
 
 	ieee->pHTInfo = (struct rt_hi_throughput*)kzalloc(sizeof(struct rt_hi_throughput), GFP_KERNEL);

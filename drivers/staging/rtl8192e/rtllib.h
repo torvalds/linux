@@ -2006,7 +2006,7 @@ struct rt_link_detect {
 	u32				LastNumRxUnicast;
 };//, *struct rt_link_detect *;
 
-typedef struct _SW_CAM_TABLE{
+struct sw_cam_table {
 
 	u8				macaddr[6];
 	bool				bused;
@@ -2015,7 +2015,7 @@ typedef struct _SW_CAM_TABLE{
 	u8				useDK;
 	u8				key_index;
 
-}SW_CAM_TABLE,*PSW_CAM_TABLE;
+};//,*struct sw_cam_table *;
 #define   TOTAL_CAM_ENTRY				32
 typedef struct _rate_adaptive
 {
@@ -2232,7 +2232,7 @@ struct rtllib_device {
 	struct rtllib_crypt_data *crypt[WEP_KEYS];
 
 	int tx_keyidx; /* default TX key index (crypt[tx_keyidx]) */
-	SW_CAM_TABLE swcamtable[TOTAL_CAM_ENTRY];
+	struct sw_cam_table swcamtable[TOTAL_CAM_ENTRY];
 	struct timer_list crypt_deinit_timer;
         int crypt_quiesced;
 
