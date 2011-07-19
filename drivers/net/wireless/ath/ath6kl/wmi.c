@@ -317,9 +317,8 @@ int ath6kl_wmi_dot11_hdr_remove(struct wmi *wmi, struct sk_buff *skb)
 	datap = skb->data;
 	llc_hdr = (struct ath6kl_llc_snap_hdr *)(datap);
 
+	memset(&eth_hdr, 0, sizeof(eth_hdr));
 	eth_hdr.h_proto = llc_hdr->eth_type;
-	memset(eth_hdr.h_dest, 0, sizeof(eth_hdr.h_dest));
-	memset(eth_hdr.h_source, 0, sizeof(eth_hdr.h_source));
 
 	switch ((le16_to_cpu(wh.frame_control)) &
 		(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS)) {
