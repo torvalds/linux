@@ -145,11 +145,10 @@ enum rf_optype {
 };
 
 
-typedef	enum _POWER_SAVE_MODE
-{
+enum power_save_mode {
 	POWER_SAVE_MODE_ACTIVE,
 	POWER_SAVE_MODE_SAVE,
-} POWER_SAVE_MODE;
+};
 
 typedef	enum _INTERFACE_SELECT_8190PCI{
 	INTF_SEL1_MINICARD		= 0,
