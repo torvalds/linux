@@ -45,7 +45,7 @@
 	struct r8192_priv	*priv = rtllib_priv(dev);
 	u16				frag_threshold;
 	u16				frag_length = 0, frag_offset = 0;
-	rt_firmware		*pfirmware = priv->pFirmware;
+	struct rt_firmware *pfirmware = priv->pFirmware;
 	struct sk_buff		*skb;
 	unsigned char		*seg_ptr;
 	cb_desc			*tcb_desc;

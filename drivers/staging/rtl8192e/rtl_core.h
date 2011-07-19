@@ -606,7 +606,7 @@ typedef struct r8192_priv
 
 	ACM_METHOD				AcmMethod;
 
-	prt_firmware				pFirmware;
+	struct rt_firmware			*pFirmware;
 	rtl819x_loopback_e			LoopbackMode;
 	firmware_source_e			firmware_source;
 

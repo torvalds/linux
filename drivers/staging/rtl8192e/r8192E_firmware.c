@@ -26,7 +26,7 @@
 extern void firmware_init_param(struct net_device *dev)
 {
 	struct r8192_priv	*priv = rtllib_priv(dev);
-	rt_firmware		*pfirmware = priv->pFirmware;
+	struct rt_firmware *pfirmware = priv->pFirmware;
 
 	pfirmware->cmdpacket_frag_thresold = GET_COMMAND_PACKET_FRAG_THRESHOLD(MAX_TRANSMIT_BUFFER_SIZE);
 }
@@ -39,7 +39,7 @@ bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buff
 	u16		    frag_length, frag_offset = 0;
 	int		    i;
 
-	rt_firmware	    *pfirmware = priv->pFirmware;
+	struct rt_firmware *pfirmware = priv->pFirmware;
 	struct sk_buff	    *skb;
 	unsigned char	    *seg_ptr;
 	cb_desc		    *tcb_desc;
@@ -210,7 +210,7 @@ CPUCheckFirmwareReady_Fail:
 inline static bool firmware_check_ready(struct net_device *dev, u8 load_fw_status)
 {
 	struct r8192_priv	*priv = rtllib_priv(dev);
-	rt_firmware *pfirmware = priv->pFirmware;
+	struct rt_firmware *pfirmware = priv->pFirmware;
 	bool rt_status  = true;
 
 	switch (load_fw_status) {
@@ -269,7 +269,7 @@ bool init_firmware(struct net_device *dev)
 	opt_rst_type_e	rst_opt = OPT_SYSTEM_RESET;
 	firmware_init_step_e	starting_state = FW_INIT_STEP0_BOOT;
 
-	rt_firmware		*pfirmware = priv->pFirmware;
+	struct rt_firmware *pfirmware = priv->pFirmware;
 
 	RT_TRACE(COMP_FIRMWARE, " PlatformInitFirmware()==>\n");
 

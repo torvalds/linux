@@ -58,14 +58,14 @@ struct fw_seg_container {
 	u8	*seg_ptr;
 };//, *pfw_seg_container;
 
-typedef struct _rt_firmware{
+struct rt_firmware {
 	firmware_status_e firmware_status;
 	u16		  cmdpacket_frag_thresold;
 #define RTL8190_MAX_FIRMWARE_CODE_SIZE	64000
 #define MAX_FW_INIT_STEP		3
 	u8		  firmware_buf[MAX_FW_INIT_STEP][RTL8190_MAX_FIRMWARE_CODE_SIZE];
 	u16		  firmware_buf_size[MAX_FW_INIT_STEP];
-} rt_firmware, *prt_firmware;
+};
 
 bool init_firmware(struct net_device *dev);
 extern void firmware_init_param(struct net_device *dev);

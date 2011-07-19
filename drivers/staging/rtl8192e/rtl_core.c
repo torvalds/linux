@@ -1267,9 +1267,9 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->card_type = PCI;
 
 	priv->AcmControl = 0;
-	priv->pFirmware = (rt_firmware*)vmalloc(sizeof(rt_firmware));
+	priv->pFirmware = (struct rt_firmware *)vmalloc(sizeof(struct rt_firmware));
 	if (priv->pFirmware)
-	memset(priv->pFirmware, 0, sizeof(rt_firmware));
+	memset(priv->pFirmware, 0, sizeof(struct rt_firmware));
 
         skb_queue_head_init(&priv->rx_queue);
 	skb_queue_head_init(&priv->skb_queue);
