@@ -134,11 +134,6 @@ enum sme_state {
 	SME_CONNECTED
 };
 
-enum ath6kl_wlan_state {
-	WLAN_DISABLED,
-	WLAN_ENABLED
-};
-
 struct skb_hold_q {
 	struct sk_buff *skb;
 	bool is_amsdu;
@@ -365,6 +360,7 @@ struct ath6kl_req_key {
 #define DESTROY_IN_PROGRESS  9
 #define NETDEV_REGISTERED    10
 #define SKIP_SCAN	     11
+#define WLAN_ENABLED	     12
 
 struct ath6kl {
 	struct device *dev;
@@ -401,7 +397,6 @@ struct ath6kl {
 	u8 tx_pwr;
 	struct net_device_stats net_stats;
 	struct target_stats target_stats;
-	enum ath6kl_wlan_state wlan_state;
 	struct ath6kl_node_mapping node_map[MAX_NODE_NUM];
 	u8 ibss_ps_enable;
 	u8 node_num;

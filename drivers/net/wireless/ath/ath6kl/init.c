@@ -584,7 +584,7 @@ struct ath6kl *ath6kl_core_alloc(struct device *sdev)
 	init_netdev(dev);
 
 	ar->net_dev = dev;
-	ar->wlan_state = WLAN_ENABLED;
+	set_bit(WLAN_ENABLED, &ar->flag);
 
 	ar->wlan_pwr_state = WLAN_POWER_STATE_ON;
 
@@ -1239,7 +1239,7 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 	if (ar->wlan_pwr_state != WLAN_POWER_STATE_CUT_PWR)
 		ath6kl_stop_endpoint(ndev, false, true);
 
-	ar->wlan_state = WLAN_DISABLED;
+	clear_bit(WLAN_ENABLED, &ar->flag);
 }
 
 /*

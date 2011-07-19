@@ -1275,7 +1275,7 @@ static int ath6kl_open(struct net_device *dev)
 
 	spin_lock_irqsave(&ar->lock, flags);
 
-	ar->wlan_state = WLAN_ENABLED;
+	set_bit(WLAN_ENABLED, &ar->flag);
 
 	if (test_bit(CONNECTED, &ar->flag)) {
 		netif_carrier_on(dev);
@@ -1301,7 +1301,7 @@ static int ath6kl_close(struct net_device *dev)
 					      0, 0, 0))
 			return -EIO;
 
-		ar->wlan_state = WLAN_DISABLED;
+		clear_bit(WLAN_ENABLED, &ar->flag);
 	}
 
 	ath6kl_cfg80211_scan_complete_event(ar, -ECANCELED);

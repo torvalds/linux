@@ -223,7 +223,7 @@ static bool ath6kl_cfg80211_ready(struct ath6kl *ar)
 		return false;
 	}
 
-	if (ar->wlan_state == WLAN_DISABLED) {
+	if (!test_bit(WLAN_ENABLED, &ar->flag)) {
 		ath6kl_err("wlan disabled\n");
 		return false;
 	}
