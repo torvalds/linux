@@ -105,7 +105,7 @@ void TsAddBaProcess(unsigned long data)
 void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 {
 	memset(pTsCommonInfo->Addr, 0, 6);
-	memset(&pTsCommonInfo->TSpec, 0, sizeof(TSPEC_BODY));
+	memset(&pTsCommonInfo->TSpec, 0, sizeof(union tspec_body));
 	memset(&pTsCommonInfo->TClass, 0, sizeof(QOS_TCLAS)*TCLAS_NUM);
 	pTsCommonInfo->TClasProc = 0;
 	pTsCommonInfo->TClasNum = 0;
@@ -293,7 +293,7 @@ struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee, u8*	Addr,
 void MakeTSEntry(
 		struct ts_common_info *pTsCommonInfo,
 		u8*		Addr,
-		PTSPEC_BODY	pTSPEC,
+		union tspec_body *pTSPEC,
 		PQOS_TCLAS	pTCLAS,
 		u8		TCLAS_Num,
 		u8		TCLAS_Proc
@@ -307,7 +307,7 @@ void MakeTSEntry(
 	memcpy(pTsCommonInfo->Addr, Addr, 6);
 
 	if (pTSPEC != NULL)
-		memcpy((u8*)(&(pTsCommonInfo->TSpec)), (u8*)pTSPEC, sizeof(TSPEC_BODY));
+		memcpy((u8*)(&(pTsCommonInfo->TSpec)), (u8*)pTSPEC, sizeof(union tspec_body));
 
 	for (count = 0; count < TCLAS_Num; count++)
 		memcpy((u8*)(&(pTsCommonInfo->TClass[count])), (u8*)pTCLAS, sizeof(QOS_TCLAS));
@@ -376,7 +376,7 @@ bool GetTs(
 		}
 		else
 		{
-			TSPEC_BODY	TSpec;
+			union tspec_body TSpec;
 			union qos_tsinfo *pTSInfo = &TSpec.f.TSInfo;
 			struct list_head*	pUnusedList =
 								(TxRxSelect == TX_DIR)?

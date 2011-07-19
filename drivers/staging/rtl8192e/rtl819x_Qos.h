@@ -70,7 +70,7 @@ union qos_tsinfo {
 	}field;
 };
 
-typedef union _TSPEC_BODY{
+union tspec_body {
 	u8		charData[55];
 
 	struct
@@ -92,7 +92,7 @@ typedef union _TSPEC_BODY{
 		u16	SurplusBandwidthAllowance;
 		u16	MediumTime;
 	} f;
-}TSPEC_BODY, *PTSPEC_BODY;
+};
 
 struct wmm_tspec {
 	u8		ID;
@@ -101,7 +101,7 @@ struct wmm_tspec {
 	u8		OUI_Type;
 	u8		OUI_SubType;
 	u8		Version;
-	TSPEC_BODY	Body;
+	union tspec_body Body;
 };
 
 struct octet_string {
