@@ -1266,14 +1266,14 @@ static int usb_pwc_probe(struct usb_interface *intf, const struct usb_device_id 
 	return 0;
 
 err_video_unreg:
-	if (hint < MAX_DEV_HINTS)
-		device_hint[hint].pdev = NULL;
 	video_unregister_device(&pdev->vdev);
 err_unregister_v4l2_dev:
 	v4l2_device_unregister(&pdev->v4l2_dev);
 err_free_controls:
 	v4l2_ctrl_handler_free(&pdev->ctrl_handler);
 err_free_mem:
+	if (hint < MAX_DEV_HINTS)
+		device_hint[hint].pdev = NULL;
 	kfree(pdev);
 	return rc;
 }
