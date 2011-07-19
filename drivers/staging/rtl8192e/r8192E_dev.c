@@ -1397,7 +1397,7 @@ void rtl8192_query_rxphystatus(
 	struct r8192_priv * priv,
 	struct rtllib_rx_stats * pstats,
 	struct rx_desc  *pdesc,
-	prx_fwinfo   pdrvinfo,
+	struct rx_fwinfo   *pdrvinfo,
 	struct rtllib_rx_stats * precord_stats,
 	bool bpacket_match_bssid,
 	bool bpacket_toself,
@@ -1439,7 +1439,7 @@ void rtl8192_query_rxphystatus(
 
 	prxpkt = (u8*)pdrvinfo;
 
-	prxpkt += sizeof(rx_fwinfo);
+	prxpkt += sizeof(struct rx_fwinfo);
 
 	pcck_buf = (struct phy_sts_cck_819xpci *)prxpkt;
 	pofdm_buf = (struct phy_sts_ofdm_819xpci *)prxpkt;
@@ -1769,7 +1769,7 @@ void rtl8192_TranslateRxSignalStuff(struct net_device *dev,
         struct sk_buff *skb,
         struct rtllib_rx_stats * pstats,
         struct rx_desc *pdesc,
-        prx_fwinfo pdrvinfo)
+        struct rx_fwinfo *pdrvinfo)
 {
     struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
     bool bpacket_match_bssid, bpacket_toself;
@@ -1896,12 +1896,12 @@ bool rtl8192_rx_query_status_desc(struct net_device* dev, struct rtllib_rx_stats
 		}
 		return false;
 	} else {
-		prx_fwinfo pDrvInfo = NULL;
+		struct rx_fwinfo *pDrvInfo = NULL;
 		stats->RxDrvInfoSize = pdesc->RxDrvInfoSize;
 		stats->RxBufShift = ((pdesc->Shift)&0x03);
 		stats->Decrypted = !pdesc->SWDec;
 
-		pDrvInfo = (rx_fwinfo *)(skb->data + stats->RxBufShift);
+		pDrvInfo = (struct rx_fwinfo *)(skb->data + stats->RxBufShift);
 
 		stats->rate = HwRateToMRate90((bool)pDrvInfo->RxHT, (u8)pDrvInfo->RxRate);
 		stats->bShortPreamble = pDrvInfo->SPLCP;

@@ -388,7 +388,7 @@ struct rx_desc {
 };//, *prx_desc;
 
 
-typedef struct _rx_fwinfo_819x_pci{
+struct rx_fwinfo {
 	u16			Reserved1:12;
 	u16			PartAggr:1;
 	u16			FirstAGGR:1;
@@ -407,6 +407,6 @@ typedef struct _rx_fwinfo_819x_pci{
 
 	u32			TSFL;
 
-}rx_fwinfo, *prx_fwinfo;
+};//, *prx_fwinfo;
 
 #endif
