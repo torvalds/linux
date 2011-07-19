@@ -81,13 +81,13 @@ enum hw90_block {
 	HW90_BLOCK_MAXIMUM = 4,
 };
 
-typedef enum _RF90_RADIO_PATH_E{
+enum rf90_radio_path {
 	RF90_PATH_A = 0,
 	RF90_PATH_B = 1,
 	RF90_PATH_C = 2,
 	RF90_PATH_D = 3,
 	RF90_PATH_MAX
-} RF90_RADIO_PATH_E, *PRF90_RADIO_PATH_E;
+};
 
 #define bMaskByte0                0xff
 #define bMaskByte1                0xff00
@@ -100,17 +100,17 @@ typedef enum _RF90_RADIO_PATH_E{
 extern u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device* dev, u32 eRFPath);
 extern void rtl8192_setBBreg(struct net_device* dev, u32 dwRegAddr, u32 dwBitMask, u32 dwData);
 extern u32 rtl8192_QueryBBReg(struct net_device* dev, u32 dwRegAddr, u32 dwBitMask);
-extern void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 RegAddr, u32 BitMask, u32 Data);
-extern u32 rtl8192_phy_QueryRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 RegAddr, u32 BitMask);
+extern void rtl8192_phy_SetRFReg(struct net_device* dev, enum rf90_radio_path eRFPath, u32 RegAddr, u32 BitMask, u32 Data);
+extern u32 rtl8192_phy_QueryRFReg(struct net_device* dev, enum rf90_radio_path eRFPath, u32 RegAddr, u32 BitMask);
 extern void rtl8192_phy_configmac(struct net_device* dev);
 extern void rtl8192_phyConfigBB(struct net_device* dev, u8 ConfigType);
-extern bool rtl8192_phy_checkBBAndRF(struct net_device* dev, enum hw90_block CheckBlock, RF90_RADIO_PATH_E eRFPath);
+extern bool rtl8192_phy_checkBBAndRF(struct net_device* dev, enum hw90_block CheckBlock, enum rf90_radio_path eRFPath);
 extern bool rtl8192_BBConfig(struct net_device* dev);
 extern void rtl8192_phy_getTxPower(struct net_device* dev);
 extern void rtl8192_phy_setTxPower(struct net_device* dev, u8 channel);
 extern bool rtl8192_phy_RFConfig(struct net_device* dev);
 extern void rtl8192_phy_updateInitGain(struct net_device* dev);
-extern u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	eRFPath);
+extern u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, enum rf90_radio_path eRFPath);
 
 extern u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel);
 extern void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH	Bandwidth, HT_EXTCHNL_OFFSET Offset);
