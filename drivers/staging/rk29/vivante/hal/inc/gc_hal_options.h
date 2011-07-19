@@ -260,9 +260,9 @@
 #   define gcdGPU_TIMEOUT                   0
 #endif
 
-/*=============================== add by dkm ==================================== */
+/* ============================== add by rockchip ===================================*/
 /*
-    dkm: gcdENABLE_AUTO_FREQ
+    dkm : gcdENABLE_AUTO_FREQ
     0: 关闭自动调频
     1: 根据GPU负荷自动调节GPU的CORE频率
     2: 根据是否有3D应用自动调频(有3D应用在跑时高频，否则低频)
@@ -271,7 +271,7 @@
 
 
 /*
-    dkm: gcdENABLE_MEM_CACHE
+    dkm : gcdENABLE_MEM_CACHE
 
     配置GPU所使用的memory是否被ARM Cache或WriteCombine住
     1: Cached
@@ -282,7 +282,7 @@
 
 
 /*
-    dkm: gcdENABLE_DELAY_EARLY_SUSPEND
+    dkm : gcdENABLE_DELAY_EARLY_SUSPEND
 
     在gpu_early_suspend中使用延时工作队列来执行suspend,
     避免gpu_early_suspend过早执行导致用户线程的事情还处理干净
@@ -294,7 +294,7 @@
 
 
 /*
-    dkm: gcdENABLE_LONG_IDLE_POWEROFF
+    dkm : gcdENABLE_LONG_IDLE_POWEROFF
 
     长时间IDLE后进入PowerOff, 该功能开启后需要把EarlySuspend功能关掉
     这样可以使某些不使用GPU的场景的功耗进一步降低，如视频播放时，一级待机时，
@@ -304,11 +304,33 @@
 
 
 /*
-    dkm: gcdOPTIMIZE_HEAP_SAMESIZE
+    dkm : gcdPAGE_ALLOC_LIMIT & gcdPAGE_ALLOC_LIMIT_SIZE
+
+    限制gckOS_AllocatePagedMemoryEx向系统申请page的大小，避免系统page不足时会导致系统卡顿
+    gcdPAGE_ALLOC_LIMIT         限制Page申请
+    gcdPAGE_ALLOC_LIMIT_SIZE    限制Page申请的大小,单位为M
+*/
+#define gcdPAGE_ALLOC_LIMIT                 1
+#define gcdPAGE_ALLOC_LIMIT_SIZE            0
+
+
+/*
+    dkm : gcdOPTIMIZE_HEAP_SAMESIZE
 
     optimize for heap alloc when alloc the same size 
 */
-#define gcdOPTIMIZE_HEAP_SAMESIZE              1
+#define gcdOPTIMIZE_HEAP_SAMESIZE           1
+
+
+/*
+    dkm : gcdkUSE_MAPED_NONPAGE_CACHE
+
+    use cache to avoid alloc & map & free frequently for non page memory.
+    gcdkUSE_MAPED_NONPAGE_CACHE : 
+        0  - no use cache 
+        m  - The maximum number of cache unit
+*/
+#define gcdkUSE_MAPED_NONPAGE_CACHE         100
 
 #endif /* __gc_hal_options_h_ */
 
