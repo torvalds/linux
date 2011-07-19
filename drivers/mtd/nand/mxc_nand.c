@@ -349,7 +349,7 @@ static void wait_op_done(struct mxc_nand_host *host, int useirq)
 			udelay(1);
 		}
 		if (max_retries < 0)
-			DEBUG(MTD_DEBUG_LEVEL0, "%s: INT not set\n",
+			pr_debug("%s: INT not set\n",
 			      __func__);
 	}
 }
@@ -370,7 +370,7 @@ static void send_cmd_v3(struct mxc_nand_host *host, uint16_t cmd, int useirq)
  * waits for completion. */
 static void send_cmd_v1_v2(struct mxc_nand_host *host, uint16_t cmd, int useirq)
 {
-	DEBUG(MTD_DEBUG_LEVEL3, "send_cmd(host, 0x%x, %d)\n", cmd, useirq);
+	pr_debug("send_cmd(host, 0x%x, %d)\n", cmd, useirq);
 
 	writew(cmd, NFC_V1_V2_FLASH_CMD);
 	writew(NFC_CMD, NFC_V1_V2_CONFIG2);
@@ -386,7 +386,7 @@ static void send_cmd_v1_v2(struct mxc_nand_host *host, uint16_t cmd, int useirq)
 			udelay(1);
 		}
 		if (max_retries < 0)
-			DEBUG(MTD_DEBUG_LEVEL0, "%s: RESET failed\n",
+			pr_debug("%s: RESET failed\n",
 			      __func__);
 	} else {
 		/* Wait for operation to complete */
@@ -410,7 +410,7 @@ static void send_addr_v3(struct mxc_nand_host *host, uint16_t addr, int islast)
  * a NAND command. */
 static void send_addr_v1_v2(struct mxc_nand_host *host, uint16_t addr, int islast)
 {
-	DEBUG(MTD_DEBUG_LEVEL3, "send_addr(host, 0x%x %d)\n", addr, islast);
+	pr_debug("send_addr(host, 0x%x %d)\n", addr, islast);
 
 	writew(addr, NFC_V1_V2_FLASH_ADDR);
 	writew(NFC_ADDR, NFC_V1_V2_CONFIG2);
@@ -560,8 +560,7 @@ static int mxc_nand_correct_data_v1(struct mtd_info *mtd, u_char *dat,
 	uint16_t ecc_status = readw(NFC_V1_V2_ECC_STATUS_RESULT);
 
 	if (((ecc_status & 0x3) == 2) || ((ecc_status >> 2) == 2)) {
-		DEBUG(MTD_DEBUG_LEVEL0,
-		      "MXC_NAND: HWECC uncorrectable 2-bit ECC error\n");
+		pr_debug("MXC_NAND: HWECC uncorrectable 2-bit ECC error\n");
 		return -1;
 	}
 
@@ -931,8 +930,7 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 	struct nand_chip *nand_chip = mtd->priv;
 	struct mxc_nand_host *host = nand_chip->priv;
 
-	DEBUG(MTD_DEBUG_LEVEL3,
-	      "mxc_nand_command (cmd = 0x%x, col = 0x%x, page = 0x%x)\n",
+	pr_debug("mxc_nand_command (cmd = 0x%x, col = 0x%x, page = 0x%x)\n",
 	      command, column, page_addr);
 
 	/* Reset command state information */

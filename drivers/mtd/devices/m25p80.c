@@ -208,7 +208,7 @@ static int wait_till_ready(struct m25p *flash)
  */
 static int erase_chip(struct m25p *flash)
 {
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: %s %lldKiB\n",
+	pr_debug("%s: %s %lldKiB\n",
 	      dev_name(&flash->spi->dev), __func__,
 	      (long long)(flash->mtd.size >> 10));
 
@@ -249,7 +249,7 @@ static int m25p_cmdsz(struct m25p *flash)
  */
 static int erase_sector(struct m25p *flash, u32 offset)
 {
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: %s %dKiB at 0x%08x\n",
+	pr_debug("%s: %s %dKiB at 0x%08x\n",
 			dev_name(&flash->spi->dev), __func__,
 			flash->mtd.erasesize / 1024, offset);
 
@@ -285,7 +285,7 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 	u32 addr,len;
 	uint32_t rem;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%llx, len %lld\n",
+	pr_debug("%s: %s %s 0x%llx, len %lld\n",
 	      dev_name(&flash->spi->dev), __func__, "at",
 	      (long long)instr->addr, (long long)instr->len);
 
@@ -347,7 +347,7 @@ static int m25p80_read(struct mtd_info *mtd, loff_t from, size_t len,
 	struct spi_transfer t[2];
 	struct spi_message m;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
+	pr_debug("%s: %s %s 0x%08x, len %zd\n",
 			dev_name(&flash->spi->dev), __func__, "from",
 			(u32)from, len);
 
@@ -416,7 +416,7 @@ static int m25p80_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct spi_transfer t[2];
 	struct spi_message m;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
+	pr_debug("%s: %s %s 0x%08x, len %zd\n",
 			dev_name(&flash->spi->dev), __func__, "to",
 			(u32)to, len);
 
@@ -509,7 +509,7 @@ static int sst_write(struct mtd_info *mtd, loff_t to, size_t len,
 	size_t actual;
 	int cmd_sz, ret;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
+	pr_debug("%s: %s %s 0x%08x, len %zd\n",
 			dev_name(&flash->spi->dev), __func__, "to",
 			(u32)to, len);
 
@@ -787,7 +787,7 @@ static const struct spi_device_id *__devinit jedec_probe(struct spi_device *spi)
 	 */
 	tmp = spi_write_then_read(spi, &code, 1, id, 5);
 	if (tmp < 0) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: error %d reading JEDEC ID\n",
+		pr_debug("%s: error %d reading JEDEC ID\n",
 			dev_name(&spi->dev), tmp);
 		return ERR_PTR(tmp);
 	}
@@ -944,8 +944,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	dev_info(&spi->dev, "%s (%lld Kbytes)\n", id->name,
 			(long long)flash->mtd.size >> 10);
 
-	DEBUG(MTD_DEBUG_LEVEL2,
-		"mtd .name = %s, .size = 0x%llx (%lldMiB) "
+	pr_debug("mtd .name = %s, .size = 0x%llx (%lldMiB) "
 			".erasesize = 0x%.8x (%uKiB) .numeraseregions = %d\n",
 		flash->mtd.name,
 		(long long)flash->mtd.size, (long long)(flash->mtd.size >> 20),
@@ -954,8 +953,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 
 	if (flash->mtd.numeraseregions)
 		for (i = 0; i < flash->mtd.numeraseregions; i++)
-			DEBUG(MTD_DEBUG_LEVEL2,
-				"mtd.eraseregions[%d] = { .offset = 0x%llx, "
+			pr_debug("mtd.eraseregions[%d] = { .offset = 0x%llx, "
 				".erasesize = 0x%.8x (%uKiB), "
 				".numblocks = %d }\n",
 				i, (long long)flash->mtd.eraseregions[i].offset,

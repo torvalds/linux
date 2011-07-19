@@ -61,15 +61,14 @@ static int _DoC_WaitReady(void __iomem * docptr)
 {
 	unsigned int c = 0xffff;
 
-	DEBUG(MTD_DEBUG_LEVEL3,
-	      "_DoC_WaitReady called for out-of-line wait\n");
+	pr_debug("_DoC_WaitReady called for out-of-line wait\n");
 
 	/* Out-of-line routine to wait for chip response */
 	while (((ReadDOC(docptr, Mplus_FlashControl) & CDSN_CTRL_FR_B_MASK) != CDSN_CTRL_FR_B_MASK) && --c)
 		;
 
 	if (c == 0)
-		DEBUG(MTD_DEBUG_LEVEL2, "_DoC_WaitReady timed out.\n");
+		pr_debug("_DoC_WaitReady timed out.\n");
 
 	return (c == 0);
 }

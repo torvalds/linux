@@ -1122,7 +1122,7 @@ static int onenand_mlc_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 	int ret = 0;
 	int writesize = this->writesize;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: from = 0x%08x, len = %i\n",
+	pr_debug("%s: from = 0x%08x, len = %i\n",
 	      __func__, (unsigned int) from, (int) len);
 
 	if (ops->mode == MTD_OOB_AUTO)
@@ -1226,7 +1226,7 @@ static int onenand_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 	int ret = 0, boundary = 0;
 	int writesize = this->writesize;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: from = 0x%08x, len = %i\n",
+	pr_debug("%s: from = 0x%08x, len = %i\n",
 			__func__, (unsigned int) from, (int) len);
 
 	if (ops->mode == MTD_OOB_AUTO)
@@ -1357,7 +1357,7 @@ static int onenand_read_oob_nolock(struct mtd_info *mtd, loff_t from,
 
 	from += ops->ooboffs;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: from = 0x%08x, len = %i\n",
+	pr_debug("%s: from = 0x%08x, len = %i\n",
 		__func__, (unsigned int) from, (int) len);
 
 	/* Initialize return length value */
@@ -1576,7 +1576,7 @@ int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from,
 	size_t len = ops->ooblen;
 	u_char *buf = ops->oobbuf;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: from = 0x%08x, len = %zi\n",
+	pr_debug("%s: from = 0x%08x, len = %zi\n",
 		__func__, (unsigned int) from, len);
 
 	/* Initialize return value */
@@ -1750,7 +1750,7 @@ static int onenand_panic_write(struct mtd_info *mtd, loff_t to, size_t len,
 	/* Wait for any existing operation to clear */
 	onenand_panic_wait(mtd);
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: to = 0x%08x, len = %i\n",
+	pr_debug("%s: to = 0x%08x, len = %i\n",
 		__func__, (unsigned int) to, (int) len);
 
 	/* Initialize retlen, in case of early exit */
@@ -1883,7 +1883,7 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 	u_char *oobbuf;
 	int ret = 0, cmd;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: to = 0x%08x, len = %i\n",
+	pr_debug("%s: to = 0x%08x, len = %i\n",
 		__func__, (unsigned int) to, (int) len);
 
 	/* Initialize retlen, in case of early exit */
@@ -2078,7 +2078,7 @@ static int onenand_write_oob_nolock(struct mtd_info *mtd, loff_t to,
 
 	to += ops->ooboffs;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: to = 0x%08x, len = %i\n",
+	pr_debug("%s: to = 0x%08x, len = %i\n",
 		__func__, (unsigned int) to, (int) len);
 
 	/* Initialize retlen, in case of early exit */
@@ -2489,7 +2489,7 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	struct mtd_erase_region_info *region = NULL;
 	loff_t region_offset = 0;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: start=0x%012llx, len=%llu\n", __func__,
+	pr_debug("%s: start=0x%012llx, len=%llu\n", __func__,
 	      (unsigned long long) instr->addr, (unsigned long long) instr->len);
 
 	/* Do not allow erase past end of device */
@@ -2558,7 +2558,7 @@ static int onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
  */
 static void onenand_sync(struct mtd_info *mtd)
 {
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: called\n", __func__);
+	pr_debug("%s: called\n", __func__);
 
 	/* Grab the lock and see if the device is available */
 	onenand_get_device(mtd, FL_SYNCING);

@@ -86,7 +86,7 @@ static int mtd_open(struct inode *inode, struct file *file)
 	struct mtd_file_info *mfi;
 	struct inode *mtd_ino;
 
-	DEBUG(MTD_DEBUG_LEVEL0, "MTD_open\n");
+	pr_debug("MTD_open\n");
 
 	/* You can't open the RO devices RW */
 	if ((file->f_mode & FMODE_WRITE) && (minor & 1))
@@ -151,7 +151,7 @@ static int mtd_close(struct inode *inode, struct file *file)
 	struct mtd_file_info *mfi = file->private_data;
 	struct mtd_info *mtd = mfi->mtd;
 
-	DEBUG(MTD_DEBUG_LEVEL0, "MTD_close\n");
+	pr_debug("MTD_close\n");
 
 	/* Only sync if opened RW */
 	if ((file->f_mode & FMODE_WRITE) && mtd->sync)
@@ -195,7 +195,7 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 	size_t size = count;
 	char *kbuf;
 
-	DEBUG(MTD_DEBUG_LEVEL0,"MTD_read\n");
+	pr_debug("MTD_read\n");
 
 	if (*ppos + count > mtd->size)
 		count = mtd->size - *ppos;
@@ -278,7 +278,7 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 	int ret=0;
 	int len;
 
-	DEBUG(MTD_DEBUG_LEVEL0,"MTD_write\n");
+	pr_debug("MTD_write\n");
 
 	if (*ppos == mtd->size)
 		return -ENOSPC;
@@ -570,7 +570,7 @@ static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 	u_long size;
 	struct mtd_info_user info;
 
-	DEBUG(MTD_DEBUG_LEVEL0, "MTD_ioctl\n");
+	pr_debug("MTD_ioctl\n");
 
 	size = (cmd & IOCSIZE_MASK) >> IOCSIZE_SHIFT;
 	if (cmd & IOC_IN) {

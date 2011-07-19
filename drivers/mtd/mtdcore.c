@@ -362,7 +362,7 @@ int add_mtd_device(struct mtd_info *mtd)
 			      MTD_DEVT(i) + 1,
 			      NULL, "mtd%dro", i);
 
-	DEBUG(0, "mtd: Giving out device %d to %s\n", i, mtd->name);
+	pr_debug("mtd: Giving out device %d to %s\n", i, mtd->name);
 	/* No need to get a refcount on the module containing
 	   the notifier, since we hold the mtd_table_mutex */
 	list_for_each_entry(not, &mtd_notifiers, list)

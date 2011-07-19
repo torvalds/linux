@@ -82,8 +82,7 @@ static int _DoC_WaitReady(struct DiskOnChip *doc)
 	void __iomem *docptr = doc->virtadr;
 	unsigned long timeo = jiffies + (HZ * 10);
 
-	DEBUG(MTD_DEBUG_LEVEL3,
-	      "_DoC_WaitReady called for out-of-line wait\n");
+	pr_debug("_DoC_WaitReady called for out-of-line wait\n");
 
 	/* Out-of-line routine to wait for chip response */
 	while (!(ReadDOC(docptr, CDSNControl) & CDSN_CTRL_FR_B)) {
@@ -92,7 +91,7 @@ static int _DoC_WaitReady(struct DiskOnChip *doc)
 		DoC_Delay(doc, 2);
 
 		if (time_after(jiffies, timeo)) {
-			DEBUG(MTD_DEBUG_LEVEL2, "_DoC_WaitReady timed out.\n");
+			pr_debug("_DoC_WaitReady timed out.\n");
 			return -EIO;
 		}
 		udelay(1);
@@ -323,8 +322,7 @@ static int DoC_IdentChip(struct DiskOnChip *doc, int floor, int chip)
 
 	/* Reset the chip */
 	if (DoC_Command(doc, NAND_CMD_RESET, CDSN_CTRL_WP)) {
-		DEBUG(MTD_DEBUG_LEVEL2,
-		      "DoC_Command (reset) for %d,%d returned true\n",
+		pr_debug("DoC_Command (reset) for %d,%d returned true\n",
 		      floor, chip);
 		return 0;
 	}
@@ -332,8 +330,7 @@ static int DoC_IdentChip(struct DiskOnChip *doc, int floor, int chip)
 
 	/* Read the NAND chip ID: 1. Send ReadID command */
 	if (DoC_Command(doc, NAND_CMD_READID, CDSN_CTRL_WP)) {
-		DEBUG(MTD_DEBUG_LEVEL2,
-		      "DoC_Command (ReadID) for %d,%d returned true\n",
+		pr_debug("DoC_Command (ReadID) for %d,%d returned true\n",
 		      floor, chip);
 		return 0;
 	}

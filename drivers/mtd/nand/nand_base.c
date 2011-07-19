@@ -113,21 +113,19 @@ static int check_offs_len(struct mtd_info *mtd,
 
 	/* Start address must align on block boundary */
 	if (ofs & ((1 << chip->phys_erase_shift) - 1)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Unaligned address\n", __func__);
+		pr_debug("%s: unaligned address\n", __func__);
 		ret = -EINVAL;
 	}
 
 	/* Length must align on block boundary */
 	if (len & ((1 << chip->phys_erase_shift) - 1)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Length not block aligned\n",
-					__func__);
+		pr_debug("%s: length not block aligned\n", __func__);
 		ret = -EINVAL;
 	}
 
 	/* Do not allow past end of device */
 	if (ofs + len > mtd->size) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Past end of device\n",
-					__func__);
+		pr_debug("%s: past end of device\n", __func__);
 		ret = -EINVAL;
 	}
 
@@ -913,7 +911,7 @@ static int __nand_unlock(struct mtd_info *mtd, loff_t ofs,
 	status = chip->waitfunc(mtd, chip);
 	/* See if device thinks it succeeded */
 	if (status & 0x01) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Error status = 0x%08x\n",
+		pr_debug("%s: error status = 0x%08x\n",
 					__func__, status);
 		ret = -EIO;
 	}
@@ -935,7 +933,7 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	int chipnr;
 	struct nand_chip *chip = mtd->priv;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: start = 0x%012llx, len = %llu\n",
+	pr_debug("%s: start = 0x%012llx, len = %llu\n",
 			__func__, (unsigned long long)ofs, len);
 
 	if (check_offs_len(mtd, ofs, len))
@@ -954,7 +952,7 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Device is write protected!!!\n",
+		pr_debug("%s: device is write protected!\n",
 					__func__);
 		ret = -EIO;
 		goto out;
@@ -988,7 +986,7 @@ int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	int chipnr, status, page;
 	struct nand_chip *chip = mtd->priv;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: start = 0x%012llx, len = %llu\n",
+	pr_debug("%s: start = 0x%012llx, len = %llu\n",
 			__func__, (unsigned long long)ofs, len);
 
 	if (check_offs_len(mtd, ofs, len))
@@ -1003,7 +1001,7 @@ int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Device is write protected!!!\n",
+		pr_debug("%s: device is write protected!\n",
 					__func__);
 		status = MTD_ERASE_FAILED;
 		ret = -EIO;
@@ -1018,7 +1016,7 @@ int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	status = chip->waitfunc(mtd, chip);
 	/* See if device thinks it succeeded */
 	if (status & 0x01) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Error status = 0x%08x\n",
+		pr_debug("%s: error status = 0x%08x\n",
 					__func__, status);
 		ret = -EIO;
 		goto out;
@@ -1756,7 +1754,7 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	int len;
 	uint8_t *buf = ops->oobbuf;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: from = 0x%08Lx, len = %i\n",
+	pr_debug("%s: from = 0x%08Lx, len = %i\n",
 			__func__, (unsigned long long)from, readlen);
 
 	stats = mtd->ecc_stats;
@@ -1767,8 +1765,8 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 		len = mtd->oobsize;
 
 	if (unlikely(ops->ooboffs >= len)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Attempt to start read "
-					"outside oob\n", __func__);
+		pr_debug("%s: attempt to start read outside oob\n",
+				__func__);
 		return -EINVAL;
 	}
 
@@ -1776,8 +1774,8 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	if (unlikely(from >= mtd->size ||
 		     ops->ooboffs + readlen > ((mtd->size >> chip->page_shift) -
 					(from >> chip->page_shift)) * len)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Attempt read beyond end "
-					"of device\n", __func__);
+		pr_debug("%s: attempt to read beyond end of device\n",
+				__func__);
 		return -EINVAL;
 	}
 
@@ -1856,8 +1854,8 @@ static int nand_read_oob(struct mtd_info *mtd, loff_t from,
 
 	/* Do not allow reads past end of device */
 	if (ops->datbuf && (from + ops->len) > mtd->size) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Attempt read "
-				"beyond end of device\n", __func__);
+		pr_debug("%s: attempt to read beyond end of device\n",
+				__func__);
 		return -EINVAL;
 	}
 
@@ -2352,7 +2350,7 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 	int chipnr, page, status, len;
 	struct nand_chip *chip = mtd->priv;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: to = 0x%08x, len = %i\n",
+	pr_debug("%s: to = 0x%08x, len = %i\n",
 			 __func__, (unsigned int)to, (int)ops->ooblen);
 
 	if (ops->mode == MTD_OOB_AUTO)
@@ -2362,14 +2360,14 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 
 	/* Do not allow write past end of page */
 	if ((ops->ooboffs + ops->ooblen) > len) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Attempt to write "
-				"past end of page\n", __func__);
+		pr_debug("%s: attempt to write past end of page\n",
+				__func__);
 		return -EINVAL;
 	}
 
 	if (unlikely(ops->ooboffs >= len)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Attempt to start "
-				"write outside oob\n", __func__);
+		pr_debug("%s: attempt to start write outside oob\n",
+				__func__);
 		return -EINVAL;
 	}
 
@@ -2378,8 +2376,8 @@ static int nand_do_write_oob(struct mtd_info *mtd, loff_t to,
 		     ops->ooboffs + ops->ooblen >
 			((mtd->size >> chip->page_shift) -
 			 (to >> chip->page_shift)) * len)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Attempt write beyond "
-				"end of device\n", __func__);
+		pr_debug("%s: attempt to write beyond end of device\n",
+				__func__);
 		return -EINVAL;
 	}
 
@@ -2432,8 +2430,8 @@ static int nand_write_oob(struct mtd_info *mtd, loff_t to,
 
 	/* Do not allow writes past end of device */
 	if (ops->datbuf && (to + ops->len) > mtd->size) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Attempt write beyond "
-				"end of device\n", __func__);
+		pr_debug("%s: attempt to write beyond end of device\n",
+				__func__);
 		return -EINVAL;
 	}
 
@@ -2522,9 +2520,9 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 	unsigned int bbt_masked_page = 0xffffffff;
 	loff_t len;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: start = 0x%012llx, len = %llu\n",
-				__func__, (unsigned long long)instr->addr,
-				(unsigned long long)instr->len);
+	pr_debug("%s: start = 0x%012llx, len = %llu\n",
+			__func__, (unsigned long long)instr->addr,
+			(unsigned long long)instr->len);
 
 	if (check_offs_len(mtd, instr->addr, instr->len))
 		return -EINVAL;
@@ -2546,8 +2544,8 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 
 	/* Check, if it is write protected */
 	if (nand_check_wp(mtd)) {
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: Device is write protected!!!\n",
-					__func__);
+		pr_debug("%s: device is write protected!\n",
+				__func__);
 		instr->state = MTD_ERASE_FAILED;
 		goto erase_exit;
 	}
@@ -2598,8 +2596,8 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 
 		/* See if block erase succeeded */
 		if (status & NAND_STATUS_FAIL) {
-			DEBUG(MTD_DEBUG_LEVEL0, "%s: Failed erase, "
-					"page 0x%08x\n", __func__, page);
+			pr_debug("%s: failed erase, page 0x%08x\n",
+					__func__, page);
 			instr->state = MTD_ERASE_FAILED;
 			instr->fail_addr =
 				((loff_t)page << chip->page_shift);
@@ -2659,9 +2657,9 @@ erase_exit:
 		if (!rewrite_bbt[chipnr])
 			continue;
 		/* Update the BBT for chip */
-		DEBUG(MTD_DEBUG_LEVEL0, "%s: nand_update_bbt "
-			"(%d:0x%0llx 0x%0x)\n", __func__, chipnr,
-			rewrite_bbt[chipnr], chip->bbt_td->pages[chipnr]);
+		pr_debug("%s: nand_update_bbt (%d:0x%0llx 0x%0x)\n",
+				__func__, chipnr, rewrite_bbt[chipnr],
+				chip->bbt_td->pages[chipnr]);
 		nand_update_bbt(mtd, rewrite_bbt[chipnr]);
 	}
 
@@ -2679,7 +2677,7 @@ static void nand_sync(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd->priv;
 
-	DEBUG(MTD_DEBUG_LEVEL3, "%s: called\n", __func__);
+	pr_debug("%s: called\n", __func__);
 
 	/* Grab the lock and see if the device is available */
 	nand_get_device(chip, mtd, FL_SYNCING);
