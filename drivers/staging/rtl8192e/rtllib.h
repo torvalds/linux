@@ -1791,12 +1791,11 @@ typedef struct _bandwidth_autoswitch
 
 #define REORDER_WIN_SIZE	128
 #define REORDER_ENTRY_NUM	128
-typedef struct _RX_REORDER_ENTRY
-{
+struct rx_reorder_entry {
 	struct list_head	List;
 	u16			SeqNum;
 	struct rtllib_rxb* prxb;
-} RX_REORDER_ENTRY, *PRX_REORDER_ENTRY;
+};
 typedef enum _Fsync_State{
 	Default_Fsync,
 	HW_Fsync,
@@ -2162,7 +2161,7 @@ struct rtllib_device {
 	struct list_head		Rx_TS_Pending_List;
 	struct list_head		Rx_TS_Unused_List;
 	struct rx_ts_record RxTsRecord[TOTAL_TS_NUM];
-	RX_REORDER_ENTRY	RxReorderEntry[128];
+	struct rx_reorder_entry RxReorderEntry[128];
 	struct list_head		RxReorder_Unused_List;
 	u8				ForcedPriority;
 

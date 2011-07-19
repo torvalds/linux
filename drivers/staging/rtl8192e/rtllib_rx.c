@@ -448,18 +448,18 @@ drop:
 bool
 AddReorderEntry(
 	struct rx_ts_record *pTS,
-	PRX_REORDER_ENTRY		pReorderEntry
+	struct rx_reorder_entry *pReorderEntry
 	)
 {
 	struct list_head *pList = &pTS->RxPendingPktList;
 
 	while(pList->next != &pTS->RxPendingPktList)
 	{
-		if ( SN_LESS(pReorderEntry->SeqNum, ((PRX_REORDER_ENTRY)list_entry(pList->next,RX_REORDER_ENTRY,List))->SeqNum) )
+		if ( SN_LESS(pReorderEntry->SeqNum, ((struct rx_reorder_entry *)list_entry(pList->next,struct rx_reorder_entry,List))->SeqNum) )
 		{
 			pList = pList->next;
 		}
-		else if ( SN_EQUAL(pReorderEntry->SeqNum, ((PRX_REORDER_ENTRY)list_entry(pList->next,RX_REORDER_ENTRY,List))->SeqNum) )
+		else if ( SN_EQUAL(pReorderEntry->SeqNum, ((struct rx_reorder_entry *)list_entry(pList->next,struct rx_reorder_entry,List))->SeqNum) )
 		{
 			return false;
 		}
@@ -529,7 +529,7 @@ void rtllib_indicate_packets(struct rtllib_device *ieee, struct rtllib_rxb** prx
 void
 rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	struct rx_ts_record *pTS)
 {
-	PRX_REORDER_ENTRY	pRxReorderEntry;
+	struct rx_reorder_entry *pRxReorderEntry;
 	struct rtllib_rxb*		RfdArray[REORDER_WIN_SIZE];
 	u8					RfdCnt = 0;
 
@@ -542,7 +542,7 @@ rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	struct rx_ts_record *pTS
 			break;
 		}
 
-		pRxReorderEntry = (PRX_REORDER_ENTRY)list_entry(pTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
+		pRxReorderEntry = (struct rx_reorder_entry *)list_entry(pTS->RxPendingPktList.prev,struct rx_reorder_entry,List);
 		RTLLIB_DEBUG(RTLLIB_DL_REORDER,"%s(): Indicate SeqNum %d!\n",__func__, pRxReorderEntry->SeqNum);
 		list_del_init(&pRxReorderEntry->List);
 
@@ -563,7 +563,7 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 		u16			SeqNum)
 {
 	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
-	PRX_REORDER_ENTRY	pReorderEntry = NULL;
+	struct rx_reorder_entry *pReorderEntry = NULL;
 	struct rtllib_rxb* prxbIndicateArray[REORDER_WIN_SIZE];
 	u8			WinSize = pHTInfo->RxReorderWinSize;
 	u16			WinEnd = 0;
@@ -633,7 +633,7 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 	} else {
 		/* Current packet is going to be inserted into pending list.*/
 		if (!list_empty(&ieee->RxReorder_Unused_List)) {
-			pReorderEntry = (PRX_REORDER_ENTRY)list_entry(ieee->RxReorder_Unused_List.next,RX_REORDER_ENTRY,List);
+			pReorderEntry = (struct rx_reorder_entry *)list_entry(ieee->RxReorder_Unused_List.next,struct rx_reorder_entry,List);
 			list_del_init(&pReorderEntry->List);
 
 			/* Make a reorder entry and insert into a the packet list.*/
@@ -679,7 +679,7 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 	while(!list_empty(&pTS->RxPendingPktList)) {
 		RTLLIB_DEBUG(RTLLIB_DL_REORDER,"%s(): start RREORDER indicate\n",__func__);
 
-		pReorderEntry = (PRX_REORDER_ENTRY)list_entry(pTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
+		pReorderEntry = (struct rx_reorder_entry *)list_entry(pTS->RxPendingPktList.prev,struct rx_reorder_entry,List);
 		if ( SN_LESS(pReorderEntry->SeqNum, pTS->RxIndicateSeq) ||
 				SN_EQUAL(pReorderEntry->SeqNum, pTS->RxIndicateSeq))
 		{

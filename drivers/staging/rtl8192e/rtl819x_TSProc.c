@@ -34,7 +34,7 @@ void RxPktPendingTimeout(unsigned long data)
 	struct rx_ts_record *pRxTs = (struct rx_ts_record *)data;
 	struct rtllib_device *ieee = container_of(pRxTs, struct rtllib_device, RxTsRecord[pRxTs->num]);
 
-	PRX_REORDER_ENTRY	pReorderEntry = NULL;
+	struct rx_reorder_entry *pReorderEntry = NULL;
 
 	unsigned long flags = 0;
 	struct rtllib_rxb *stats_IndicateArray[REORDER_WIN_SIZE];
@@ -46,7 +46,7 @@ void RxPktPendingTimeout(unsigned long data)
 	{
 		while(!list_empty(&pRxTs->RxPendingPktList))
 		{
-			pReorderEntry = (PRX_REORDER_ENTRY)list_entry(pRxTs->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
+			pReorderEntry = (struct rx_reorder_entry *)list_entry(pRxTs->RxPendingPktList.prev,struct rx_reorder_entry,List);
 			if (index == 0)
 				pRxTs->RxIndicateSeq = pReorderEntry->SeqNum;
 
@@ -135,7 +135,7 @@ void TSInitialize(struct rtllib_device *ieee)
 {
 	struct tx_ts_record *pTxTS  = ieee->TxTsRecord;
 	struct rx_ts_record *pRxTS  = ieee->RxTsRecord;
-	PRX_REORDER_ENTRY	pRxReorderEntry = ieee->RxReorderEntry;
+	struct rx_reorder_entry *pRxReorderEntry = ieee->RxReorderEntry;
 	u8				count = 0;
 	RTLLIB_DEBUG(RTLLIB_DL_TS, "==========>%s()\n", __func__);
 	INIT_LIST_HEAD(&ieee->Tx_TS_Admit_List);
@@ -444,14 +444,14 @@ void RemoveTsEntry(
 
 	if (TxRxSelect == RX_DIR)
 	{
-		PRX_REORDER_ENTRY	pRxReorderEntry;
+		struct rx_reorder_entry *pRxReorderEntry;
 		struct rx_ts_record *pRxTS = (struct rx_ts_record *)pTs;
 
 		if (timer_pending(&pRxTS->RxPktPendingTimer))
 			del_timer_sync(&pRxTS->RxPktPendingTimer);
 
 		while(!list_empty(&pRxTS->RxPendingPktList)){
-			pRxReorderEntry = (PRX_REORDER_ENTRY)list_entry(pRxTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
+			pRxReorderEntry = (struct rx_reorder_entry *)list_entry(pRxTS->RxPendingPktList.prev,struct rx_reorder_entry,List);
 			RTLLIB_DEBUG(RTLLIB_DL_REORDER,"%s(): Delete SeqNum %d!\n",__func__, pRxReorderEntry->SeqNum);
 			list_del_init(&pRxReorderEntry->List);
 			{
