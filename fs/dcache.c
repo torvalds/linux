@@ -549,10 +549,6 @@ repeat:
 	 */
 	rcu_read_lock();
 	ret = dentry->d_parent;
-	if (!ret) {
-		rcu_read_unlock();
-		goto out;
-	}
 	spin_lock(&ret->d_lock);
 	if (unlikely(ret != dentry->d_parent)) {
 		spin_unlock(&ret->d_lock);
@@ -563,7 +559,6 @@ repeat:
 	BUG_ON(!ret->d_count);
 	ret->d_count++;
 	spin_unlock(&ret->d_lock);
-out:
 	return ret;
 }
 EXPORT_SYMBOL(dget_parent);
