@@ -369,12 +369,12 @@ typedef struct _rt_9x_tx_rate_history {
 	u32             ht_mcs[4][16];
 }rt_tx_rahis_t, *prt_tx_rahis_t;
 
-typedef	struct _RT_SMOOTH_DATA_4RF {
+struct rt_smooth_data_4rf {
 	char	elements[4][100];
 	u32	index;
 	u32	TotalNum;
 	u32	TotalVal[4];
-}RT_SMOOTH_DATA_4RF, *PRT_SMOOTH_DATA_4RF;
+};//, *struct rt_smooth_data_4rf *;
 
 typedef struct Stats
 {
@@ -468,7 +468,7 @@ typedef struct Stats
 	rt_tx_rahis_t txrate;
 	u32 Slide_Beacon_pwdb[100];
 	u32 Slide_Beacon_Total;
-	RT_SMOOTH_DATA_4RF		cck_adc_pwdb;
+	struct rt_smooth_data_4rf cck_adc_pwdb;
 	u32	CurrentShowTxate;
 } Stats;
 
