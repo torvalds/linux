@@ -1774,10 +1774,10 @@ enum rtllib_state {
 #ifndef eqMacAddr
 #define eqMacAddr(a,b)		( ((a)[0]==(b)[0] && (a)[1]==(b)[1] && (a)[2]==(b)[2] && (a)[3]==(b)[3] && (a)[4]==(b)[4] && (a)[5]==(b)[5]) ? 1:0 )
 #endif
-typedef struct tx_pending_t{
+struct tx_pending {
 	int frag;
 	struct rtllib_txb *txb;
-}tx_pending_t;
+};//;
 
 typedef struct _bandwidth_autoswitch
 {
@@ -2392,7 +2392,7 @@ struct rtllib_device {
 	u8 amsdu_in_process;
 
 	/* used if IEEE_SOFTMAC_TX_QUEUE is set */
-	struct  tx_pending_t tx_pending;
+	struct tx_pending tx_pending;
 
 	/* used if IEEE_SOFTMAC_ASSOCIATE is set */
 	struct timer_list associate_timer;
