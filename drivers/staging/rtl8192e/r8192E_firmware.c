@@ -42,7 +42,7 @@ bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buff
 	struct rt_firmware *pfirmware = priv->pFirmware;
 	struct sk_buff	    *skb;
 	unsigned char	    *seg_ptr;
-	cb_desc		    *tcb_desc;
+	struct cb_desc *tcb_desc;
 	u8                  bLastIniPkt;
 
 	firmware_init_param(dev);
@@ -60,7 +60,7 @@ bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buff
 
 		skb  = dev_alloc_skb(frag_length + 4);
 		memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
-		tcb_desc = (cb_desc*)(skb->cb + MAX_DEV_ADDR_SIZE);
+		tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
@@ -103,14 +103,14 @@ fwSendNullPacket(
 	bool	rtStatus = true;
 	struct r8192_priv   *priv = rtllib_priv(dev);
 	struct sk_buff	    *skb;
-	cb_desc		    *tcb_desc;
+	struct cb_desc *tcb_desc;
 	unsigned char	    *ptr_buf;
 	bool	bLastInitPacket = false;
 
 
 	skb  = dev_alloc_skb(Length+ 4);
 	memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
-	tcb_desc = (cb_desc*)(skb->cb + MAX_DEV_ADDR_SIZE);
+	tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	tcb_desc->queue_index = TXCMD_QUEUE;
 	tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_INIT;
 	tcb_desc->bLastIniPkt = bLastInitPacket;

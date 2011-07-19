@@ -291,7 +291,7 @@ rtllib_rx_frame_decrypt(struct rtllib_device* ieee, struct sk_buff *skb,
 
 	if (ieee->hwsec_active)
 	{
-		cb_desc *tcb_desc = (cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
+		struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
 		tcb_desc->bHwSec = 1;
 
 		if (ieee->need_sw_enc)
@@ -332,7 +332,7 @@ rtllib_rx_frame_decrypt_msdu(struct rtllib_device* ieee, struct sk_buff *skb,
 		return 0;
 	if (ieee->hwsec_active)
 	{
-		cb_desc *tcb_desc = (cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
+		struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
 		tcb_desc->bHwSec = 1;
 
 		if (ieee->need_sw_enc)

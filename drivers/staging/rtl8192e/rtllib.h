@@ -147,7 +147,7 @@ static inline void *netdev_priv_rsl(struct net_device *dev)
 
 /* defined for skb cb field */
 /* At most 28 byte */
-typedef struct cb_desc {
+struct cb_desc {
 	/* Tx Desc Related flags (8-9) */
 	u8 bLastIniPkt:1;
 	u8 bCmdOrInit:1;
@@ -202,7 +202,7 @@ typedef struct cb_desc {
 
 	u8 bBTTxPacket;
 	u8 bIsBTProbRsp;
-}cb_desc, *pcb_desc;
+};//, *pcb_desc;
 
 /*--------------------------Define -------------------------------------------*/
 #define MGN_1M                  0x02

@@ -1155,7 +1155,7 @@ u8 rtl8192_MapHwQueueToFirmwareQueue(u8 QueueID, u8 priority)
 }
 
 
-void  rtl8192_tx_fill_desc(struct net_device* dev, struct tx_desc * pdesc, cb_desc * cb_desc, struct sk_buff* skb)
+void  rtl8192_tx_fill_desc(struct net_device* dev, struct tx_desc * pdesc, struct cb_desc *cb_desc, struct sk_buff* skb)
 {
     struct r8192_priv *priv = rtllib_priv(dev);
     dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
@@ -1257,7 +1257,7 @@ void  rtl8192_tx_fill_desc(struct net_device* dev, struct tx_desc * pdesc, cb_de
 }
 
 void  rtl8192_tx_fill_cmd_desc(struct net_device* dev, struct tx_desc_cmd * entry,
-		cb_desc * cb_desc, struct sk_buff* skb)
+		struct cb_desc *cb_desc, struct sk_buff* skb)
 {
     struct r8192_priv *priv = rtllib_priv(dev);
     dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
@@ -2265,7 +2265,7 @@ bool rtl8192_GetHalfNmodeSupportByAPs(struct net_device* dev)
 	return Reval;
 }
 
-u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc)
+u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc)
 {
 	u8   tmp_Short;
 

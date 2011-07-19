@@ -101,7 +101,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32 klen, len;
 	u8 key[WEP_KEY_LEN + 3];
 	u8 *pos;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	struct blkcipher_desc desc = {.tfm = wep->tx_tfm};
 	u32 crc;
 	u8 *icv;
@@ -170,7 +170,7 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u32  klen, plen;
 	u8 key[WEP_KEY_LEN + 3];
 	u8 keyidx, *pos;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	struct blkcipher_desc desc = {.tfm = wep->rx_tfm};
 	u32 crc;
 	u8 icv[4];

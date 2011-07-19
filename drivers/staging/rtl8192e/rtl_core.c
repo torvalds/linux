@@ -798,7 +798,7 @@ void rtl8192_prepare_beacon(struct r8192_priv *priv)
 {
 	struct net_device *dev = priv->rtllib->dev;
 	struct sk_buff *pskb = NULL, *pnewskb = NULL;
-	cb_desc *tcb_desc = NULL;
+	struct cb_desc *tcb_desc = NULL;
 	struct rtl8192_tx_ring *ring = NULL;
 	struct tx_desc *pdesc = NULL;
 
@@ -811,7 +811,7 @@ void rtl8192_prepare_beacon(struct r8192_priv *priv)
 	if (!pnewskb)
 		return;
 
-	tcb_desc = (cb_desc *)(pnewskb->cb + 8);
+	tcb_desc = (struct cb_desc *)(pnewskb->cb + 8);
 	tcb_desc->queue_index = BEACON_QUEUE;
 	tcb_desc->data_rate = 2;
 	tcb_desc->RATRIndex = 7;
@@ -1425,7 +1425,7 @@ rtl819x_TxCheckStuck(struct net_device *dev)
 	bool			bCheckFwTxCnt = false;
 	struct rtl8192_tx_ring  *ring = NULL;
 	struct sk_buff* skb = NULL;
-	cb_desc * tcb_desc = NULL;
+	struct cb_desc * tcb_desc = NULL;
 	unsigned long flags = 0;
 
 	switch (priv->rtllib->ps)
@@ -1456,7 +1456,7 @@ rtl819x_TxCheckStuck(struct net_device *dev)
 		else
 		{
 			skb = (&ring->queue)->next;
-			tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+			tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 			tcb_desc->nStuckCount++;
 			bCheckFwTxCnt = true;
 			if (tcb_desc->nStuckCount > 1)
@@ -1911,7 +1911,7 @@ void rtl8192_hard_data_xmit(struct sk_buff *skb, struct net_device *dev, int rat
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	int ret;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 queue_index = tcb_desc->queue_index;
 
 	if ((priv->rtllib->eRFPowerState == eRfOff) || IS_NIC_DOWN(priv) || priv->bResetInProgress){
@@ -1942,7 +1942,7 @@ int rtl8192_hard_start_xmit(struct sk_buff *skb,struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	int ret;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	u8 queue_index = tcb_desc->queue_index;
 
 	if (queue_index != TXCMD_QUEUE){
@@ -2009,7 +2009,7 @@ void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb)
     struct rtl8192_tx_ring *ring;
     struct tx_desc_cmd * entry;
     unsigned int idx;
-    cb_desc *tcb_desc;
+    struct cb_desc *tcb_desc;
     unsigned long flags;
 
     spin_lock_irqsave(&priv->irq_th_lock,flags);
@@ -2018,7 +2018,7 @@ void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb)
     idx = (ring->idx + skb_queue_len(&ring->queue)) % ring->entries;
     entry = (struct tx_desc_cmd *) &ring->desc[idx];
 
-    tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+    tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 
     priv->ops->tx_fill_cmd_descriptor(dev, entry, tcb_desc, skb);
 
@@ -2033,7 +2033,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtl8192_tx_ring  *ring;
 	unsigned long flags;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	struct tx_desc *pdesc = NULL;
 	struct rtllib_hdr_1addr * header = NULL;
 	u16 fc=0, type=0,stype=0;

@@ -242,7 +242,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 	struct rtllib_hdr_3addr  *header=
 		(struct rtllib_hdr_3addr  *) skb->data;
 
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + 8);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + 8);
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	/* called with 2nd param 0, no mgmt lock required */
@@ -311,7 +311,7 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb,
 	struct rtllib_hdr_3addr  *header =
 		(struct rtllib_hdr_3addr  *) skb->data;
 	u16 fc,type,stype;
-	cb_desc *tcb_desc = (cb_desc *)(skb->cb + 8);
+	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb + 8);
 
 	fc = header->frame_ctl;
 	type = WLAN_FC_GET_TYPE(fc);
@@ -2552,7 +2552,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 	unsigned int queue_index = txb->queue_index;
 	unsigned long flags;
 	int  i;
-	cb_desc *tcb_desc = NULL;
+	struct cb_desc *tcb_desc = NULL;
 	unsigned long queue_len = 0;
 
 	spin_lock_irqsave(&ieee->lock,flags);
@@ -2561,7 +2561,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 	rtllib_sta_wakeup(ieee,0);
 
 	/* update the tx status */
-	tcb_desc = (cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
+	tcb_desc = (struct cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 	if (tcb_desc->bMulticast) {
 		ieee->stats.multicast++;
 	}
