@@ -1407,7 +1407,7 @@ void rtl8192_query_rxphystatus(
 {
 	phy_sts_ofdm_819xpci_t* pofdm_buf;
 	phy_sts_cck_819xpci_t	*	pcck_buf;
-	phy_ofdm_rx_status_rxsc_sgien_exintfflag* prxsc;
+	struct phy_ofdm_rx_status_rxsc_sgien_exintfflag * prxsc;
 	u8				*prxpkt;
 	u8				i,max_spatial_stream, tmp_rxsnr, tmp_rxevm, rxsc_sgien_exflg;
 	char				rx_pwr[4], rx_pwr_all=0;
@@ -1580,7 +1580,7 @@ void rtl8192_query_rxphystatus(
 
 
 		rxsc_sgien_exflg = pofdm_buf->rxsc_sgien_exflg;
-		prxsc = (phy_ofdm_rx_status_rxsc_sgien_exintfflag *)&rxsc_sgien_exflg;
+		prxsc = (struct phy_ofdm_rx_status_rxsc_sgien_exintfflag *)&rxsc_sgien_exflg;
 		if (pdrvinfo->BW)
 			priv->stats.received_bwtype[1+prxsc->rxsc]++;
 		else

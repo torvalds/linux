@@ -271,12 +271,12 @@ struct log_int_8190 {
 	u32	nIMR_RXFOVW;
 };
 
-typedef struct _phy_ofdm_rx_status_rxsc_sgien_exintfflag{
+struct phy_ofdm_rx_status_rxsc_sgien_exintfflag {
 	u8			reserved:4;
 	u8			rxsc:2;
 	u8			sgi_en:1;
 	u8			ex_intf_flag:1;
-}phy_ofdm_rx_status_rxsc_sgien_exintfflag;
+};//;
 
 typedef struct _phy_ofdm_rx_status_report_819xpci
 {
