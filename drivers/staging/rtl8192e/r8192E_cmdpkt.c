@@ -266,7 +266,7 @@ cmpk_handle_query_config_rx(
 
 
 static	void	cmpk_count_tx_status(	struct net_device *dev,
-									cmpk_tx_status_t	*pstx_status)
+									struct cmpk_tx_status *pstx_status)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -314,9 +314,9 @@ cmpk_handle_tx_status(
 	struct net_device *dev,
 	u8*	   pmsg)
 {
-	cmpk_tx_status_t	rx_tx_sts;	/* */
+	struct cmpk_tx_status rx_tx_sts;	/* */
 
-	memcpy((void*)&rx_tx_sts, (void*)pmsg, sizeof(cmpk_tx_status_t));
+	memcpy((void*)&rx_tx_sts, (void*)pmsg, sizeof(struct cmpk_tx_status));
 	cmpk_count_tx_status(dev, &rx_tx_sts);
 
 }

@@ -21,7 +21,7 @@
 #define		CMPK_RX_TX_FB_SIZE					sizeof(struct cmpk_txfb)
 #define		CMPK_TX_SET_CONFIG_SIZE				sizeof(struct cmpk_set_cfg)
 #define		CMPK_BOTH_QUERY_CONFIG_SIZE			sizeof(struct cmpk_set_cfg)
-#define		CMPK_RX_TX_STS_SIZE					sizeof(cmpk_tx_status_t)
+#define		CMPK_RX_TX_STS_SIZE					sizeof(struct cmpk_tx_status)
 #define		CMPK_RX_DBG_MSG_SIZE			sizeof(cmpk_rx_dbginfo_t)
 #define		CMPK_TX_RAHIS_SIZE			sizeof(cmpk_tx_rahis_t)
 
@@ -83,8 +83,7 @@ struct cmpk_set_cfg {
 
 #define		cmpk_query_cfg_t	struct cmpk_set_cfg
 
-typedef struct tag_tx_stats_feedback
-{
+struct cmpk_tx_status {
 	u16	reserve1;
 	u8	length;
 	u8	element_id;
@@ -111,7 +110,7 @@ typedef struct tag_tx_stats_feedback
 	u16	reserve3_23;
 	u8	reserve3_1;
 	u8	rate;
-}__attribute__((packed)) cmpk_tx_status_t;
+}__packed;
 
 typedef struct tag_rx_debug_message_feedback
 {
