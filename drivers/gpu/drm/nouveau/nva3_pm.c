@@ -72,19 +72,21 @@ static u32
 read_pll(struct drm_device *dev, int clk, u32 pll)
 {
 	u32 ctrl = nv_rd32(dev, pll + 0);
-	u32 sclk, P = 1, N = 1, M = 1;
+	u32 sclk = 0, P = 1, N = 1, M = 1;
 
 	if (!(ctrl & 0x00000008)) {
-		u32 coef = nv_rd32(dev, pll + 4);
-		M = (coef & 0x000000ff) >> 0;
-		N = (coef & 0x0000ff00) >> 8;
-		P = (coef & 0x003f0000) >> 16;
+		if (ctrl & 0x00000001) {
+			u32 coef = nv_rd32(dev, pll + 4);
+			M = (coef & 0x000000ff) >> 0;
+			N = (coef & 0x0000ff00) >> 8;
+			P = (coef & 0x003f0000) >> 16;
 
-		/* not post-divider on these.. */
-		if ((pll & 0x00ff00) == 0x00e800)
-			P = 1;
+			/* no post-divider on these.. */
+			if ((pll & 0x00ff00) == 0x00e800)
+				P = 1;
 
-		sclk = read_clk(dev, 0x00 + clk, false);
+			sclk = read_clk(dev, 0x00 + clk, false);
+		}
 	} else {
 		sclk = read_clk(dev, 0x10 + clk, false);
 	}
@@ -306,16 +308,18 @@ nva3_pm_clocks_set(struct drm_device *dev, void *pre_state)
 	prog_clk(dev, 0x20, &info->unka0);
 	prog_clk(dev, 0x21, &info->vdec);
 
-	nv_wr32(dev, 0x100210, 0);
-	nv_wr32(dev, 0x1002dc, 1);
-	nv_wr32(dev, 0x004018, 0x00001000);
-	prog_pll(dev, 0x02, 0x004000, &info->mclk);
-	if (nv_rd32(dev, 0x4000) & 0x00000008)
-		nv_wr32(dev, 0x004018, 0x1000d000);
-	else
-		nv_wr32(dev, 0x004018, 0x10005000);
-	nv_wr32(dev, 0x1002dc, 0);
-	nv_wr32(dev, 0x100210, 0x80000000);
+	if (info->mclk.clk || info->mclk.pll) {
+		nv_wr32(dev, 0x100210, 0);
+		nv_wr32(dev, 0x1002dc, 1);
+		nv_wr32(dev, 0x004018, 0x00001000);
+		prog_pll(dev, 0x02, 0x004000, &info->mclk);
+		if (nv_rd32(dev, 0x4000) & 0x00000008)
+			nv_wr32(dev, 0x004018, 0x1000d000);
+		else
+			nv_wr32(dev, 0x004018, 0x10005000);
+		nv_wr32(dev, 0x1002dc, 0);
+		nv_wr32(dev, 0x100210, 0x80000000);
+	}
 
 cleanup:
 	/* unfreeze PFIFO */
