@@ -387,14 +387,14 @@ union aci_aifsn {
 	}f;
 };
 
-typedef	union _ECW{
+union ecw {
 	u8	charData;
 	struct
 	{
 		u8	ECWmin:4;
 		u8	ECWmax:4;
 	}f;
-}ECW, *PECW;
+};
 
 typedef	union _AC_PARAM{
 	u32	longData;
@@ -403,7 +403,7 @@ typedef	union _AC_PARAM{
 	struct
 	{
 		union aci_aifsn AciAifsn;
-		ECW		Ecw;
+		union ecw Ecw;
 		u16		TXOPLimit;
 	}f;
 }AC_PARAM, *PAC_PARAM;
