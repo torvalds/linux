@@ -1658,7 +1658,7 @@ static void usb_rx_callback_intf0(struct urb *urb)
 		return;
 
 	ictx = (struct imon_context *)urb->context;
-	if (!ictx)
+	if (!ictx || !ictx->dev_present_intf0)
 		return;
 
 	switch (urb->status) {
@@ -1690,7 +1690,7 @@ static void usb_rx_callback_intf1(struct urb *urb)
 		return;
 
 	ictx = (struct imon_context *)urb->context;
-	if (!ictx)
+	if (!ictx || !ictx->dev_present_intf1)
 		return;
 
 	switch (urb->status) {
@@ -2118,7 +2118,6 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 
 	ictx->dev = dev;
 	ictx->usbdev_intf0 = usb_get_dev(interface_to_usbdev(intf));
-	ictx->dev_present_intf0 = true;
 	ictx->rx_urb_intf0 = rx_urb;
 	ictx->tx_urb = tx_urb;
 	ictx->rf_device = false;
@@ -2156,6 +2155,8 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 		dev_err(dev, "%s: rc device setup failed\n", __func__);
 		goto rdev_setup_failed;
 	}
+
+	ictx->dev_present_intf0 = true;
 
 	mutex_unlock(&ictx->lock);
 	return ictx;
@@ -2200,7 +2201,6 @@ static struct imon_context *imon_init_intf1(struct usb_interface *intf,
 	}
 
 	ictx->usbdev_intf1 = usb_get_dev(interface_to_usbdev(intf));
-	ictx->dev_present_intf1 = true;
 	ictx->rx_urb_intf1 = rx_urb;
 
 	ret = -ENODEV;
@@ -2228,6 +2228,8 @@ static struct imon_context *imon_init_intf1(struct usb_interface *intf,
 		pr_err("usb_submit_urb failed for intf1 (%d)\n", ret);
 		goto urb_submit_failed;
 	}
+
+	ictx->dev_present_intf1 = true;
 
 	mutex_unlock(&ictx->lock);
 	return ictx;
