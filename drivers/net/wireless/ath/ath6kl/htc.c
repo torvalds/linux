@@ -1400,8 +1400,9 @@ static int htc_proc_trailer(struct htc_target *target,
 		len -= record->len;
 	}
 
-	ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "BAD Recv Trailer",
-		     orig_buf, orig_len);
+	if (status)
+		ath6kl_dbg_dump(ATH6KL_DBG_RAW_BYTES, "BAD Recv Trailer",
+				orig_buf, orig_len);
 
 	return status;
 }
