@@ -1405,7 +1405,7 @@ void rtl8192_query_rxphystatus(
 	bool bToSelfBA
 	)
 {
-	phy_sts_ofdm_819xpci_t* pofdm_buf;
+	struct phy_sts_ofdm_819xpci* pofdm_buf;
 	phy_sts_cck_819xpci_t	*	pcck_buf;
 	struct phy_ofdm_rx_status_rxsc_sgien_exintfflag * prxsc;
 	u8				*prxpkt;
@@ -1442,7 +1442,7 @@ void rtl8192_query_rxphystatus(
 	prxpkt += sizeof(rx_fwinfo);
 
 	pcck_buf = (phy_sts_cck_819xpci_t *)prxpkt;
-	pofdm_buf = (phy_sts_ofdm_819xpci_t *)prxpkt;
+	pofdm_buf = (struct phy_sts_ofdm_819xpci *)prxpkt;
 
 	pstats->RxMIMOSignalQuality[0] = -1;
 	pstats->RxMIMOSignalQuality[1] = -1;

@@ -278,8 +278,7 @@ struct phy_ofdm_rx_status_rxsc_sgien_exintfflag {
 	u8			ex_intf_flag:1;
 };//;
 
-typedef struct _phy_ofdm_rx_status_report_819xpci
-{
+struct phy_sts_ofdm_819xpci {
 	u8	trsw_gain_X[4];
 	u8	pwdb_all;
 	u8	cfosho_X[4];
@@ -293,7 +292,7 @@ typedef struct _phy_ofdm_rx_status_report_819xpci
 	u8	max_ex_pwr;
 	u8	sgi_en;
 	u8	rxsc_sgien_exflg;
-}phy_sts_ofdm_819xpci_t;
+};//;
 
 typedef struct _phy_cck_rx_status_report_819xpci
 {
