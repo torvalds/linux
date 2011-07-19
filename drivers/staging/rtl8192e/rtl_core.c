@@ -2049,7 +2049,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 
 	priv->rtllib->bAwakePktSent = true;
 
-	fwinfo_size = sizeof(TX_FWINFO_8190PCI);
+	fwinfo_size = sizeof(struct tx_fwinfo_8190pci);
 
 	header = (struct rtllib_hdr_1addr *)(((u8*)skb->data) + fwinfo_size);
 	fc = header->frame_ctl;

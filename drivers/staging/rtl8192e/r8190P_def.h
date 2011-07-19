@@ -207,7 +207,7 @@ struct tx_fwinfo {
 	u32			PacketID:13;
 };//;
 
-typedef struct _TX_FWINFO_8190PCI{
+struct tx_fwinfo_8190pci {
 	u8			TxRate:7;
 	u8			CtsEnable:1;
 	u8			RtsRate:7;
@@ -237,7 +237,7 @@ typedef struct _TX_FWINFO_8190PCI{
 	u32			PacketID:13;
 
 
-}TX_FWINFO_8190PCI, *PTX_FWINFO_8190PCI;
+};//, *struct tx_fwinfo_8190pci *;
 
 
 #define TX_DESC_SIZE			32

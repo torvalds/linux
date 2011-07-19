@@ -51,7 +51,7 @@
 	cb_desc			*tcb_desc;
 	u8				bLastIniPkt;
 
-	PTX_FWINFO_8190PCI      pTxFwInfo = NULL;
+	struct tx_fwinfo_8190pci *pTxFwInfo = NULL;
 
 	RT_TRACE(COMP_CMDPKT,"%s(),buffer_len is %d\n",__func__,buffer_len);
 	firmware_init_param(dev);
@@ -82,8 +82,8 @@
 		tcb_desc->pkt_size = frag_length;
 
 		seg_ptr = skb_put(skb, priv->rtllib->tx_headroom);
-		pTxFwInfo = (PTX_FWINFO_8190PCI)seg_ptr;
-		memset(pTxFwInfo,0,sizeof(TX_FWINFO_8190PCI));
+		pTxFwInfo = (struct tx_fwinfo_8190pci *)seg_ptr;
+		memset(pTxFwInfo,0,sizeof(struct tx_fwinfo_8190pci));
 		memset(pTxFwInfo,0x12,8);
 
 		seg_ptr = skb_put(skb, frag_length);

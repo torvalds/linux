@@ -1159,9 +1159,9 @@ void  rtl8192_tx_fill_desc(struct net_device* dev, tx_desc * pdesc, cb_desc * cb
 {
     struct r8192_priv *priv = rtllib_priv(dev);
     dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
-    TX_FWINFO_8190PCI *pTxFwInfo = NULL;
-    pTxFwInfo = (PTX_FWINFO_8190PCI)skb->data;
-    memset(pTxFwInfo,0,sizeof(TX_FWINFO_8190PCI));
+    struct tx_fwinfo_8190pci *pTxFwInfo = NULL;
+    pTxFwInfo = (struct tx_fwinfo_8190pci *)skb->data;
+    memset(pTxFwInfo,0,sizeof(struct tx_fwinfo_8190pci));
     pTxFwInfo->TxHT = (cb_desc->data_rate&0x80)?1:0;
     pTxFwInfo->TxRate = MRateToHwRate8190Pci((u8)cb_desc->data_rate);
     pTxFwInfo->EnableCPUDur = cb_desc->bTxEnableFwCalcDur;
@@ -1205,8 +1205,8 @@ void  rtl8192_tx_fill_desc(struct net_device* dev, tx_desc * pdesc, cb_desc * cb
     memset((u8*)pdesc,0,12);
     pdesc->LINIP = 0;
     pdesc->CmdInit = 1;
-    pdesc->Offset = sizeof(TX_FWINFO_8190PCI) + 8;
-    pdesc->PktSize = (u16)skb->len-sizeof(TX_FWINFO_8190PCI);
+    pdesc->Offset = sizeof(struct tx_fwinfo_8190pci) + 8;
+    pdesc->PktSize = (u16)skb->len-sizeof(struct tx_fwinfo_8190pci);
 
     pdesc->SecCAMID= 0;
     pdesc->RATid = cb_desc->RATRIndex;
@@ -1244,7 +1244,7 @@ void  rtl8192_tx_fill_desc(struct net_device* dev, tx_desc * pdesc, cb_desc * cb
     pdesc->PktId = 0x0;
 
     pdesc->QueueSelect = rtl8192_MapHwQueueToFirmwareQueue(cb_desc->queue_index, cb_desc->priority);
-    pdesc->TxFWInfoSize = sizeof(TX_FWINFO_8190PCI);
+    pdesc->TxFWInfoSize = sizeof(struct tx_fwinfo_8190pci);
 
     pdesc->DISFB = cb_desc->bTxDisableRateFallBack;
     pdesc->USERATE = cb_desc->bTxUseDriverAssingedRate;
@@ -1271,7 +1271,7 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device* dev, tx_desc_cmd * entry,
     } else {
 	tx_desc* entry_tmp = (tx_desc*)entry;
         entry_tmp->CmdInit = DESC_PACKET_TYPE_NORMAL;
-        entry_tmp->Offset = sizeof(TX_FWINFO_8190PCI) + 8;
+        entry_tmp->Offset = sizeof(struct tx_fwinfo_8190pci) + 8;
         entry_tmp->PktSize = (u16)(cb_desc->pkt_size + entry_tmp->Offset);
         entry_tmp->QueueSelect = QSLT_CMD;
         entry_tmp->TxFWInfoSize = 0x08;
@@ -2057,7 +2057,7 @@ rtl8192_InitializeVariables(struct net_device  *dev)
 		IEEE_SOFTMAC_PROBERS | IEEE_SOFTMAC_TX_QUEUE /* |
 		IEEE_SOFTMAC_BEACONS*/;
 
-	priv->rtllib->tx_headroom = sizeof(TX_FWINFO_8190PCI);
+	priv->rtllib->tx_headroom = sizeof(struct tx_fwinfo_8190pci);
 
 	priv->ShortRetryLimit = 0x30;
 	priv->LongRetryLimit = 0x30;
