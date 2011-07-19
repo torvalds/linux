@@ -195,11 +195,11 @@ typedef struct _HT_INFORMATION_ELE{
 	u8	BasicMSC[16];
 } __attribute__ ((packed)) HT_INFORMATION_ELE, *PHT_INFORMATION_ELE;
 
-typedef struct _MIMOPS_CTRL{
+struct mimops_ctrl {
 	u8	MimoPsEnable:1;
 	u8	MimoPsMode:1;
 	u8	Reserved:6;
-} MIMOPS_CTRL, *PMIMOPS_CTRL;
+};
 
 typedef enum _HT_SPEC_VER{
 	HT_SPEC_VER_IEEE = 0,
