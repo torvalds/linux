@@ -376,8 +376,7 @@ struct rt_smooth_data_4rf {
 	u32	TotalVal[4];
 };//, *struct rt_smooth_data_4rf *;
 
-typedef struct Stats
-{
+struct rt_stats {
 	unsigned long txrdu;
 	unsigned long rxrdu;
 	unsigned long rxok;
@@ -470,7 +469,7 @@ typedef struct Stats
 	u32 Slide_Beacon_Total;
 	struct rt_smooth_data_4rf cck_adc_pwdb;
 	u32	CurrentShowTxate;
-} Stats;
+};
 
 struct channel_access_setting {
 	u16 SIFS_Timer;
@@ -632,7 +631,7 @@ typedef struct r8192_priv
 	struct semaphore			rf_sem;
 	struct mutex				mutex;
 
-	struct Stats				stats;
+	struct rt_stats stats;
 	struct iw_statistics			wstats;
 	struct proc_dir_entry		*dir_dev;
 

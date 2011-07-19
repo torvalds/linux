@@ -1354,7 +1354,7 @@ short rtl8192_init(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	memset(&(priv->stats),0,sizeof(struct Stats));
+	memset(&(priv->stats),0,sizeof(struct rt_stats));
 
 	rtl8192_dbgp_flag_init(dev);
 
