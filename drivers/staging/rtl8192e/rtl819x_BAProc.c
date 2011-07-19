@@ -144,7 +144,7 @@ static struct sk_buff* rtllib_DELBA(
 	u16			 ReasonCode
 	)
 {
-	DELBA_PARAM_SET	DelbaParamSet;
+	union delba_param_set DelbaParamSet;
 	struct sk_buff *skb = NULL;
 	 struct rtllib_hdr_3addr* Delba = NULL;
 	u8* tag = NULL;
@@ -430,7 +430,7 @@ OnADDBARsp_Reject:
 int rtllib_rx_DELBA(struct rtllib_device* ieee,struct sk_buff *skb)
 {
 	 struct rtllib_hdr_3addr* delba = NULL;
-	PDELBA_PARAM_SET	pDelBaParamSet = NULL;
+	union delba_param_set *pDelBaParamSet = NULL;
 	u16*			pReasonCode = NULL;
 	u8*			dst = NULL;
 
@@ -452,7 +452,7 @@ int rtllib_rx_DELBA(struct rtllib_device* ieee,struct sk_buff *skb)
 	delba = ( struct rtllib_hdr_3addr*)skb->data;
 	dst = (u8*)(&delba->addr2[0]);
 	delba += sizeof( struct rtllib_hdr_3addr);
-	pDelBaParamSet = (PDELBA_PARAM_SET)(delba+2);
+	pDelBaParamSet = (union delba_param_set *)(delba+2);
 	pReasonCode = (u16*)(delba+4);
 
 	if (pDelBaParamSet->field.Initiator == 1)

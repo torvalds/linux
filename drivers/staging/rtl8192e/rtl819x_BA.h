@@ -56,7 +56,7 @@ union ba_param_set {
 	} field;
 };
 
-typedef union _DELBA_PARAM_SET {
+union delba_param_set {
 	u8 charData[2];
 	u16 shortData;
 	struct {
@@ -64,7 +64,7 @@ typedef union _DELBA_PARAM_SET {
 		u16 Initiator:1;
 		u16 TID:4;
 	} field;
-} DELBA_PARAM_SET, *PDELBA_PARAM_SET;
+};
 
 struct ba_record {
 	struct timer_list		Timer;
