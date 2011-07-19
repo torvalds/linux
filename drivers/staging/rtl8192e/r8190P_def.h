@@ -129,10 +129,10 @@ enum rtl819x_loopback {
 #define HAL_PRIME_CHNL_OFFSET_UPPER		2
 
 
-typedef enum _VERSION_8190{
+enum version_8190_loopback {
 	VERSION_8190_BD=0x3,
 	VERSION_8190_BE
-} VERSION_8190,*PVERSION_8190;
+};
 
 #define IC_VersionCut_C	0x2
 #define IC_VersionCut_D	0x3
