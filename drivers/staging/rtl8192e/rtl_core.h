@@ -596,7 +596,7 @@ typedef struct r8192_priv
 	RT_RF_TYPE_819xU		rf_chip;
 	IC_INFERIORITY_8192S		IC_Class;
 	HT_CHANNEL_WIDTH		CurrentChannelBW;
-	BB_REGISTER_DEFINITION_T	PHYRegDef[4];
+	struct bb_reg_definition PHYRegDef[4];
 	rate_adaptive				rate_adaptive;
 
 	ccktxbbgain_struct			cck_txbbgain_table[CCKTxBBGainTableLength];

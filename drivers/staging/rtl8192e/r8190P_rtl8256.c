@@ -79,7 +79,7 @@ bool phy_RF8256_Config_ParaFile(struct net_device* dev)
 	u32	u4RegValue = 0;
 	u8	eRFPath;
 	bool rtStatus = true;
-	BB_REGISTER_DEFINITION_T	*pPhyReg;
+	struct bb_reg_definition *pPhyReg;
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32	RegOffSetToBeCheck = 0x3;
 	u32	RegValueToBeCheck = 0x7f1;

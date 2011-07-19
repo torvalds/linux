@@ -104,7 +104,7 @@ u32 rtl8192_phy_RFSerialRead(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, 
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 ret = 0;
 	u32 NewOffset = 0;
-	BB_REGISTER_DEFINITION_T* pPhyReg = &priv->PHYRegDef[eRFPath];
+	struct bb_reg_definition* pPhyReg = &priv->PHYRegDef[eRFPath];
 	Offset &= 0x3f;
 
 	if (priv->rf_chip == RF_8256)
@@ -164,7 +164,7 @@ void rtl8192_phy_RFSerialWrite(struct net_device* dev, RF90_RADIO_PATH_E eRFPath
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 DataAndAddr = 0, NewOffset = 0;
-	BB_REGISTER_DEFINITION_T	*pPhyReg = &priv->PHYRegDef[eRFPath];
+	struct bb_reg_definition *pPhyReg = &priv->PHYRegDef[eRFPath];
 
 	Offset &= 0x3f;
 	if (priv->rf_chip == RF_8256)

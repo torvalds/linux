@@ -159,7 +159,7 @@ typedef	enum _INTERFACE_SELECT_8190PCI{
 	INTF_SEL3_RSV			= 3,
 } INTERFACE_SELECT_8190PCI, *PINTERFACE_SELECT_8190PCI;
 
-typedef struct _BB_REGISTER_DEFINITION{
+struct bb_reg_definition {
 	u32 rfintfs;
 	u32 rfintfi;
 	u32 rfintfo;
@@ -178,7 +178,7 @@ typedef struct _BB_REGISTER_DEFINITION{
 	u32 rfTxAFE;
 	u32 rfLSSIReadBack;
 	u32 rfLSSIReadBackPi;
-}BB_REGISTER_DEFINITION_T, *PBB_REGISTER_DEFINITION_T;
+};//, *struct bb_reg_definition *;
 
 typedef struct _TX_FWINFO_STRUCUTRE{
 	u8			TxRate:7;
