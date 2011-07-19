@@ -138,12 +138,11 @@ enum version_8190_loopback {
 #define IC_VersionCut_D	0x3
 #define IC_VersionCut_E	0x4
 
-typedef enum tag_Rf_OpType
-{
+enum rf_optype {
     RF_OP_By_SW_3wire = 0,
     RF_OP_By_FW,
     RF_OP_MAX
-} RF_OpType_E;
+};
 
 
 typedef	enum _POWER_SAVE_MODE
