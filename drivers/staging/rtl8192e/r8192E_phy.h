@@ -58,12 +58,12 @@ typedef enum _SwChnlCmdID {
 } SwChnlCmdID;
 
 /*--------------------------------Define structure--------------------------------*/
-typedef struct _SwChnlCmd {
+struct sw_chnl_cmd {
 	SwChnlCmdID	CmdID;
 	u32			Para1;
 	u32			Para2;
 	u32			msDelay;
-} __attribute__ ((packed)) SwChnlCmd;
+} __packed;
 
 extern u32 rtl819XMACPHY_Array_PG[];
 extern u32 rtl819XPHY_REG_1T2RArray[];

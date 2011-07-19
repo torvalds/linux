@@ -824,7 +824,7 @@ void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 	return;
 }
 u8 rtl8192_phy_SetSwChnlCmdArray(
-	SwChnlCmd*		CmdTable,
+	struct sw_chnl_cmd*		CmdTable,
 	u32			CmdTableIdx,
 	u32			CmdTableSz,
 	SwChnlCmdID		CmdID,
@@ -833,7 +833,7 @@ u8 rtl8192_phy_SetSwChnlCmdArray(
 	u32			msDelay
 	)
 {
-	SwChnlCmd* pCmd;
+	struct sw_chnl_cmd* pCmd;
 
 	if (CmdTable == NULL)
 	{
@@ -858,13 +858,13 @@ u8 rtl8192_phy_SetSwChnlCmdArray(
 u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8* stage, u8* step, u32* delay)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	SwChnlCmd				PreCommonCmd[MAX_PRECMD_CNT];
+	struct sw_chnl_cmd PreCommonCmd[MAX_PRECMD_CNT];
 	u32					PreCommonCmdCnt;
-	SwChnlCmd				PostCommonCmd[MAX_POSTCMD_CNT];
+	struct sw_chnl_cmd PostCommonCmd[MAX_POSTCMD_CNT];
 	u32					PostCommonCmdCnt;
-	SwChnlCmd				RfDependCmd[MAX_RFDEPENDCMD_CNT];
+	struct sw_chnl_cmd RfDependCmd[MAX_RFDEPENDCMD_CNT];
 	u32					RfDependCmdCnt;
-	SwChnlCmd				*CurrentCmd = NULL;
+	struct sw_chnl_cmd *CurrentCmd = NULL;
 	u8		eRFPath;
 
 	RT_TRACE(COMP_TRACE, "====>%s()====stage:%d, step:%d, channel:%d\n", __func__, *stage, *step, channel);
