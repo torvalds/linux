@@ -1958,7 +1958,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	/* no fb bound */
 	if (!crtc->fb) {
-		DRM_DEBUG_KMS("No FB bound\n");
+		DRM_ERROR("No FB bound\n");
 		return 0;
 	}
 
@@ -1967,6 +1967,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	case 1:
 		break;
 	default:
+		DRM_ERROR("no plane for crtc\n");
 		return -EINVAL;
 	}
 
@@ -1976,6 +1977,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 					 NULL);
 	if (ret != 0) {
 		mutex_unlock(&dev->struct_mutex);
+		DRM_ERROR("pin & fence failed\n");
 		return ret;
 	}
 
@@ -2004,6 +2006,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	if (ret) {
 		i915_gem_object_unpin(to_intel_framebuffer(crtc->fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
+		DRM_ERROR("failed to update base address\n");
 		return ret;
 	}
 
