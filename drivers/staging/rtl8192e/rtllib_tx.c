@@ -312,7 +312,7 @@ void rtllib_tx_query_agg_cap(struct rtllib_device* ieee, struct sk_buff* skb, cb
 	if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
 		return;
 	if (pHTInfo->bCurrentAMPDUEnable){
-		if (!GetTs(ieee, (PTS_COMMON_INFO*)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true)){
+		if (!GetTs(ieee, (struct ts_common_info **)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true)){
 			printk("%s: can't get TS\n", __func__);
 			return;
 		}
@@ -536,7 +536,7 @@ u16 rtllib_query_seqnum(struct rtllib_device*ieee, struct sk_buff* skb, u8* dst)
 	if (IsQoSDataFrame(skb->data))
 	{
 		struct tx_ts_record *pTS = NULL;
-		if (!GetTs(ieee, (PTS_COMMON_INFO*)(&pTS), dst, skb->priority, TX_DIR, true))
+		if (!GetTs(ieee, (struct ts_common_info **)(&pTS), dst, skb->priority, TX_DIR, true))
 		{
 			return 0;
 		}

@@ -102,7 +102,7 @@ void TsAddBaProcess(unsigned long data)
 }
 
 
-void ResetTsCommonInfo(PTS_COMMON_INFO	pTsCommonInfo)
+void ResetTsCommonInfo(struct ts_common_info *pTsCommonInfo)
 {
 	memset(pTsCommonInfo->Addr, 0, 6);
 	memset(&pTsCommonInfo->TSpec, 0, sizeof(TSPEC_BODY));
@@ -209,7 +209,7 @@ void TSInitialize(struct rtllib_device *ieee)
 
 }
 
-void AdmitTS(struct rtllib_device *ieee, PTS_COMMON_INFO pTsCommonInfo, u32 InactTime)
+void AdmitTS(struct rtllib_device *ieee, struct ts_common_info *pTsCommonInfo, u32 InactTime)
 {
 	del_timer_sync(&pTsCommonInfo->SetupTimer);
 	del_timer_sync(&pTsCommonInfo->InactTimer);
@@ -219,12 +219,12 @@ void AdmitTS(struct rtllib_device *ieee, PTS_COMMON_INFO pTsCommonInfo, u32 Inac
 }
 
 
-PTS_COMMON_INFO SearchAdmitTRStream(struct rtllib_device *ieee, u8*	Addr, u8 TID, TR_SELECT	TxRxSelect)
+struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee, u8*	Addr, u8 TID, TR_SELECT	TxRxSelect)
 {
 	u8	dir;
 	bool				search_dir[4] = {0, 0, 0, 0};
 	struct list_head*		psearch_list;
-	PTS_COMMON_INFO	pRet = NULL;
+	struct ts_common_info *pRet = NULL;
 	if (ieee->iw_mode == IW_MODE_MASTER)
 	{
 		if (TxRxSelect == TX_DIR)
@@ -291,7 +291,7 @@ PTS_COMMON_INFO SearchAdmitTRStream(struct rtllib_device *ieee, u8*	Addr, u8 TID
 }
 
 void MakeTSEntry(
-		PTS_COMMON_INFO	pTsCommonInfo,
+		struct ts_common_info *pTsCommonInfo,
 		u8*		Addr,
 		PTSPEC_BODY	pTSPEC,
 		PQOS_TCLAS	pTCLAS,
@@ -318,7 +318,7 @@ void MakeTSEntry(
 
 bool GetTs(
 	struct rtllib_device*	ieee,
-	PTS_COMMON_INFO			*ppTS,
+	struct ts_common_info **ppTS,
 	u8*				Addr,
 	u8				TID,
 	TR_SELECT			TxRxSelect,
@@ -394,7 +394,7 @@ bool GetTs(
 			RTLLIB_DEBUG(RTLLIB_DL_TS, "to add Ts\n");
 			if (!list_empty(pUnusedList))
 			{
-				(*ppTS) = list_entry(pUnusedList->next, TS_COMMON_INFO, List);
+				(*ppTS) = list_entry(pUnusedList->next, struct ts_common_info, List);
 				list_del_init(&(*ppTS)->List);
 				if (TxRxSelect==TX_DIR)
 				{
@@ -434,7 +434,7 @@ bool GetTs(
 
 void RemoveTsEntry(
 	struct rtllib_device*	ieee,
-	PTS_COMMON_INFO			pTs,
+	struct ts_common_info *pTs,
 	TR_SELECT			TxRxSelect
 	)
 {
@@ -477,7 +477,7 @@ void RemoveTsEntry(
 
 void RemovePeerTS(struct rtllib_device* ieee, u8* Addr)
 {
-	PTS_COMMON_INFO	pTS, pTmpTS;
+	struct ts_common_info *pTS, *pTmpTS;
 	printk("===========>RemovePeerTS,"MAC_FMT"\n", MAC_ARG(Addr));
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
@@ -524,7 +524,7 @@ void RemovePeerTS(struct rtllib_device* ieee, u8* Addr)
 
 void RemoveAllTS(struct rtllib_device* ieee)
 {
-	PTS_COMMON_INFO pTS, pTmpTS;
+	struct ts_common_info *pTS, *pTmpTS;
 
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
 	{

@@ -897,7 +897,7 @@ int rtllib_rx_check_duplicate(struct rtllib_device *ieee, struct sk_buff *skb, u
 		}
 	} else {
 		struct rx_ts_record *pRxTS = NULL;
-		if (GetTs(ieee, (PTS_COMMON_INFO*) &pRxTS, hdr->addr2,
+		if (GetTs(ieee, (struct ts_common_info **) &pRxTS, hdr->addr2,
 			(u8)Frame_QoSTID((u8*)(skb->data)), RX_DIR, true)) {
 			if ((fc & (1<<11)) && (frag == pRxTS->RxLastFragNum) &&
 			    (WLAN_GET_SEQ_SEQ(sc) == pRxTS->RxLastSeqNum)) {
@@ -1356,7 +1356,7 @@ int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	{
 		TID = Frame_QoSTID(skb->data);
 		SeqNum = WLAN_GET_SEQ_SEQ(sc);
-		GetTs(ieee,(PTS_COMMON_INFO*) &pTS,hdr->addr2,TID,RX_DIR,true);
+		GetTs(ieee,(struct ts_common_info **) &pTS,hdr->addr2,TID,RX_DIR,true);
 		if (TID !=0 && TID !=3){
 			ieee->bis_any_nonbepkts = true;
 		}

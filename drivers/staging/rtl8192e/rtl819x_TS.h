@@ -31,7 +31,7 @@ typedef enum _TR_SELECT {
 	RX_DIR = 1,
 } TR_SELECT, *PTR_SELECT;
 
-typedef struct _TS_COMMON_INFO{
+struct ts_common_info {
 	struct list_head		List;
 	struct timer_list		SetupTimer;
 	struct timer_list		InactTimer;
@@ -40,10 +40,10 @@ typedef struct _TS_COMMON_INFO{
 	QOS_TCLAS			TClass[TCLAS_NUM];
 	u8				TClasProc;
 	u8				TClasNum;
-} TS_COMMON_INFO, *PTS_COMMON_INFO;
+};
 
 struct tx_ts_record {
-	TS_COMMON_INFO		TsCommonInfo;
+	struct ts_common_info TsCommonInfo;
 	u16				TxCurSeq;
 	BA_RECORD			TxPendingBARecord;
 	BA_RECORD			TxAdmittedBARecord;
@@ -56,7 +56,7 @@ struct tx_ts_record {
 };
 
 struct rx_ts_record {
-	TS_COMMON_INFO		TsCommonInfo;
+	struct ts_common_info TsCommonInfo;
 	u16				RxIndicateSeq;
 	u16				RxTimeoutIndicateSeq;
 	struct list_head		RxPendingPktList;
