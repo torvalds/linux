@@ -301,7 +301,7 @@ typedef union _QOS_TCLAS{
 	} TYPE2_8021Q;
 } QOS_TCLAS, *PQOS_TCLAS;
 
-typedef struct _QOS_TSTREAM{
+struct qos_tstream {
 
 	bool			bUsed;
 	u16			MsduLifetime;
@@ -311,7 +311,7 @@ typedef struct _QOS_TSTREAM{
 	struct wmm_tspec TSpec;
 	struct wmm_tspec OutStandingTSpec;
 	u8			NominalPhyRate;
-} QOS_TSTREAM, *PQOS_TSTREAM;
+};
 
 typedef struct _STA_QOS{
 	u8				WMMIEBuf[MAX_WMMELE_LENGTH];
@@ -332,7 +332,7 @@ typedef struct _STA_QOS{
 	ACM				acm[4];
 	ACM_METHOD		AcmMethod;
 
-	QOS_TSTREAM		StaTsArray[MAX_STA_TS_COUNT];
+	struct qos_tstream StaTsArray[MAX_STA_TS_COUNT];
 	u8				DialogToken;
 	struct wmm_tspec TSpec;
 
