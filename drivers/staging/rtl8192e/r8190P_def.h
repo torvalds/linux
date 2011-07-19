@@ -256,8 +256,7 @@ struct tx_fwinfo_8190pci {
 
 #define RX_DRIVER_INFO_SIZE	8
 
-typedef struct _LOG_INTERRUPT_8190
-{
+struct log_int_8190 {
 	u32	nIMR_COMDOK;
 	u32	nIMR_MGNTDOK;
 	u32	nIMR_HIGH;
@@ -270,7 +269,7 @@ typedef struct _LOG_INTERRUPT_8190
 	u32	nIMR_TBDOK;
 	u32	nIMR_BDOK;
 	u32	nIMR_RXFOVW;
-} LOG_INTERRUPT_8190_T, *PLOG_INTERRUPT_8190_T;
+};
 
 typedef struct _phy_ofdm_rx_status_rxsc_sgien_exintfflag{
 	u8			reserved:4;

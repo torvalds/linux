@@ -1226,7 +1226,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 	priv->force_reset = false;
 	memset(priv->rtllib->swcamtable,0,sizeof(SW_CAM_TABLE)*32);
 
-	memset(&priv->InterruptLog,0,sizeof(LOG_INTERRUPT_8190_T));
+	memset(&priv->InterruptLog,0,sizeof(struct log_int_8190));
 	priv->RxCounter = 0;
         priv->rtllib->wx_set_enc = 0;
 	priv->bHwRadioOff = false;

@@ -588,7 +588,7 @@ typedef struct r8192_priv
 
 	work_struct_rsl				reset_wq;
 
-	LOG_INTERRUPT_8190_T	InterruptLog;
+	struct log_int_8190 InterruptLog;
 
 	RT_CUSTOMER_ID			CustomerID;
 
