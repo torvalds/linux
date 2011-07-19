@@ -51,6 +51,12 @@ config MACH_SEABOARD
 	 also be included for some of the derivative boards that
 	 have large similarities with the seaboard design.
 
+config MACH_TEGRA_DT
+	bool "Generic Tegra board (FDT support)"
+	select USE_OF
+	help
+	  Support for generic nVidia Tegra boards using Flattened Device Tree
+
 config MACH_TRIMSLICE
        bool "TrimSlice board"
        select TEGRA_PCI
