@@ -2659,34 +2659,6 @@ static inline u32 transport_get_size(
 	return dev->se_sub_dev->se_dev_attrib.block_size * sectors;
 }
 
-unsigned char transport_asciihex_to_binaryhex(unsigned char val[2])
-{
-	unsigned char result = 0;
-	/*
-	 * MSB
-	 */
-	if ((val[0] >= 'a') && (val[0] <= 'f'))
-		result = ((val[0] - 'a' + 10) & 0xf) << 4;
-	else
-		if ((val[0] >= 'A') && (val[0] <= 'F'))
-			result = ((val[0] - 'A' + 10) & 0xf) << 4;
-		else /* digit */
-			result = ((val[0] - '0') & 0xf) << 4;
-	/*
-	 * LSB
-	 */
-	if ((val[1] >= 'a') && (val[1] <= 'f'))
-		result |= ((val[1] - 'a' + 10) & 0xf);
-	else
-		if ((val[1] >= 'A') && (val[1] <= 'F'))
-			result |= ((val[1] - 'A' + 10) & 0xf);
-		else /* digit */
-			result |= ((val[1] - '0') & 0xf);
-
-	return result;
-}
-EXPORT_SYMBOL(transport_asciihex_to_binaryhex);
-
 static void transport_xor_callback(struct se_cmd *cmd)
 {
 	unsigned char *buf, *addr;

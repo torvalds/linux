@@ -179,7 +179,6 @@ extern void transport_new_cmd_failure(struct se_cmd *);
 extern int transport_generic_handle_tmr(struct se_cmd *);
 extern void transport_generic_free_cmd_intr(struct se_cmd *);
 extern void __transport_stop_task_timer(struct se_task *, unsigned long *);
-extern unsigned char transport_asciihex_to_binaryhex(unsigned char val[2]);
 extern int transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *, u32,
 				struct scatterlist *, u32);
 extern int transport_clear_lun_from_sessions(struct se_lun *);

@@ -23,6 +23,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/kernel.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi.h>
 
@@ -162,11 +163,9 @@ target_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	struct t10_alua_lu_gp_member *lu_gp_mem;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
-	unsigned char binary, binary_new;
 	unsigned char *prod = &dev->se_sub_dev->t10_wwn.model[0];
 	u32 prod_len;
 	u32 unit_serial_len, off = 0;
-	int i;
 	u16 len = 0, id_len;
 
 	off = 4;
@@ -215,16 +214,9 @@ target_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	 * VENDOR_SPECIFIC_IDENTIFIER and
 	 * VENDOR_SPECIFIC_IDENTIFIER_EXTENTION
 	 */
-	binary = transport_asciihex_to_binaryhex(
-				&dev->se_sub_dev->t10_wwn.unit_serial[0]);
-	buf[off++] |= (binary & 0xf0) >> 4;
-	for (i = 0; i < 24; i += 2) {
-		binary_new = transport_asciihex_to_binaryhex(
-			&dev->se_sub_dev->t10_wwn.unit_serial[i+2]);
-		buf[off] = (binary & 0x0f) << 4;
-		buf[off++] |= (binary_new & 0xf0) >> 4;
-		binary = binary_new;
-	}
+	buf[off++] |= hex_to_bin(dev->se_sub_dev->t10_wwn.unit_serial[0]);
+	hex2bin(&buf[off], &dev->se_sub_dev->t10_wwn.unit_serial[1], 12);
+
 	len = 20;
 	off = (len + 4);
 

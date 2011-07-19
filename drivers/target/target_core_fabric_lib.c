@@ -25,6 +25,7 @@
  *
  ******************************************************************************/
 
+#include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/spinlock.h>
@@ -61,9 +62,8 @@ u32 sas_get_pr_transport_id(
 	int *format_code,
 	unsigned char *buf)
 {
-	unsigned char binary, *ptr;
-	int i;
-	u32 off = 4;
+	unsigned char *ptr;
+
 	/*
 	 * Set PROTOCOL IDENTIFIER to 6h for SAS
 	 */
@@ -74,10 +74,8 @@ u32 sas_get_pr_transport_id(
 	 */
 	ptr = &se_nacl->initiatorname[4]; /* Skip over 'naa. prefix */
 
-	for (i = 0; i < 16; i += 2) {
-		binary = transport_asciihex_to_binaryhex(&ptr[i]);
-		buf[off++] = binary;
-	}
+	hex2bin(&buf[4], ptr, 8);
+
 	/*
 	 * The SAS Transport ID is a hardcoded 24-byte length
 	 */
@@ -157,7 +155,7 @@ u32 fc_get_pr_transport_id(
 	int *format_code,
 	unsigned char *buf)
 {
-	unsigned char binary, *ptr;
+	unsigned char *ptr;
 	int i;
 	u32 off = 8;
 	/*
@@ -176,8 +174,7 @@ u32 fc_get_pr_transport_id(
 			i++;
 			continue;
 		}
-		binary = transport_asciihex_to_binaryhex(&ptr[i]);
-		buf[off++] = binary;
+		hex2bin(&buf[off++], &ptr[i], 1);
 		i += 2;
 	}
 	/*
