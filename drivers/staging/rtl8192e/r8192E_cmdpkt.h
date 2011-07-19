@@ -19,8 +19,8 @@
 #ifndef R819XUSB_CMDPKT_H
 #define R819XUSB_CMDPKT_H
 #define		CMPK_RX_TX_FB_SIZE					sizeof(struct cmpk_txfb)
-#define		CMPK_TX_SET_CONFIG_SIZE				sizeof(cmpk_set_cfg_t)
-#define		CMPK_BOTH_QUERY_CONFIG_SIZE			sizeof(cmpk_set_cfg_t)
+#define		CMPK_TX_SET_CONFIG_SIZE				sizeof(struct cmpk_set_cfg)
+#define		CMPK_BOTH_QUERY_CONFIG_SIZE			sizeof(struct cmpk_set_cfg)
 #define		CMPK_RX_TX_STS_SIZE					sizeof(cmpk_tx_status_t)
 #define		CMPK_RX_DBG_MSG_SIZE			sizeof(cmpk_rx_dbginfo_t)
 #define		CMPK_TX_RAHIS_SIZE			sizeof(cmpk_tx_rahis_t)
@@ -65,8 +65,7 @@ struct cmpk_intr_sta {
 };//;
 
 
-typedef struct tag_cmd_pkt_set_configuration
-{
+struct cmpk_set_cfg {
 	u8	element_id;
 	u8	length;
 	u16	reserve1;
@@ -80,9 +79,9 @@ typedef struct tag_cmd_pkt_set_configuration
 	u8	cfg_offset;
 	u32	value;
 	u32	mask;
-}cmpk_set_cfg_t;
+};//;
 
-#define		cmpk_query_cfg_t	cmpk_set_cfg_t
+#define		cmpk_query_cfg_t	struct cmpk_set_cfg
 
 typedef struct tag_tx_stats_feedback
 {
