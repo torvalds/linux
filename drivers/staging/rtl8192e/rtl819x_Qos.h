@@ -313,7 +313,7 @@ struct qos_tstream {
 	u8			NominalPhyRate;
 };
 
-typedef struct _STA_QOS{
+struct sta_qos {
 	u8				WMMIEBuf[MAX_WMMELE_LENGTH];
 	u8*				WMMIE;
 
@@ -342,7 +342,7 @@ typedef struct _STA_QOS{
 
 	bool				bEnableRxImmBA;
 
-}STA_QOS, *PSTA_QOS;
+};//, *struct sta_qos *;
 
 #define QBSS_LOAD_SIZE 5
 #define GET_QBSS_LOAD_STA_COUNT(__pStart)					ReadEF2Byte(__pStart)
