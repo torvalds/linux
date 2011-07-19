@@ -334,7 +334,7 @@ struct rt_htinfo_sta_entry {
 
 
 
-typedef struct _BSS_HT{
+struct bss_ht {
 
 	u8				bdSupportHT;
 
@@ -350,7 +350,7 @@ typedef struct _BSS_HT{
 	u8					bdRT2RTLongSlotTime;
 	u8					RT2RT_HT_Mode;
 	u8					bdHT1R;
-} __attribute__ ((packed)) BSS_HT, *PBSS_HT;
+};
 
 typedef struct _MIMO_RSSI{
 	u32	EnableAntenna;

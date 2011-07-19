@@ -990,7 +990,7 @@ void HTInitializeHTInfo(struct rtllib_device* ieee)
 		RegHTSuppRateSets[4] = 0x01;
 	}
 }
-void HTInitializeBssDesc(PBSS_HT pBssHT)
+void HTInitializeBssDesc(struct bss_ht *pBssHT)
 {
 
 	pBssHT->bdSupportHT = false;

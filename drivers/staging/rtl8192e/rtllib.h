@@ -1688,7 +1688,7 @@ struct rtllib_network {
 	u8 Turbo_Enable;
 	u16 CountryIeLen;
 	u8 CountryIeBuf[MAX_IE_LEN];
-	BSS_HT	bssht;
+	struct bss_ht bssht;
 	bool broadcom_cap_exist;
 	bool realtek_cap_exit;
 	bool marvell_cap_exist;
@@ -2898,7 +2898,7 @@ extern void HTConstructInfoElement(struct rtllib_device* ieee, u8* posHTInfo, u8
 extern void HTConstructRT2RTAggElement(struct rtllib_device* ieee, u8* posRT2RTAgg, u8* len);
 extern void HTOnAssocRsp(struct rtllib_device *ieee);
 extern void HTInitializeHTInfo(struct rtllib_device* ieee);
-extern void HTInitializeBssDesc(PBSS_HT pBssHT);
+extern void HTInitializeBssDesc(struct bss_ht *pBssHT);
 extern void HTResetSelfAndSavePeerSetting(struct rtllib_device* ieee, struct rtllib_network * pNetwork);
 extern void HTUpdateSelfAndPeerSetting(struct rtllib_device* ieee,   struct rtllib_network * pNetwork);
 extern u8 HTGetHighestMCSRate(struct rtllib_device* ieee, u8* pMCSRateSet, u8* pMCSFilter);
