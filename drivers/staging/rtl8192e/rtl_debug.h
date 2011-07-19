@@ -257,15 +257,14 @@ do { if (rt_global_debug_component & component) \
                 }                                       \
         } while (0)
 
-typedef struct _rtl_fs_debug
-{
+struct rtl_fs_debug {
 	const char *name;
 	struct dentry *dir_drv;
 	struct dentry *debug_register;
 	u32 hw_type;
 	u32 hw_offset;
 	bool hw_holding;
-} rtl_fs_debug;
+};
 
 void print_buffer(u32 *buffer, int len);
 void dump_eprom(struct net_device *dev);
