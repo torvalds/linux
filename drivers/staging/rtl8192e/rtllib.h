@@ -79,11 +79,9 @@
 #define EXPORT_SYMBOL_RSL(x) EXPORT_SYMBOL(x)
 
 
-	typedef struct delayed_work delayed_work_struct_rsl;
 	#define queue_delayed_work_rsl(x,y,z) queue_delayed_work(x,y,z)
 	#define INIT_DELAYED_WORK_RSL(x,y,z) INIT_DELAYED_WORK(x,y)
 
-	typedef struct work_struct work_struct_rsl;
 	#define queue_work_rsl(x,y) queue_work(x,y)
 	#define INIT_WORK_RSL(x,y,z) INIT_WORK(x,y)
 
@@ -1864,7 +1862,7 @@ struct rt_pwr_save_ctrl {
 	bool				bHaltAdapterClkRQ;
 	bool				bSwRfProcessing;
 	RT_RF_POWER_STATE	eInactivePowerState;
-	work_struct_rsl		InactivePsWorkItem;
+	struct work_struct		InactivePsWorkItem;
 	struct timer_list	InactivePsTimer;
 
 	IPS_CALLBACK_FUNCION	ReturnPoint;
@@ -2398,17 +2396,17 @@ struct rtllib_device {
 	/* used if IEEE_SOFTMAC_BEACONS is set */
 	struct timer_list beacon_timer;
 	u8 need_sw_enc;
-	work_struct_rsl associate_complete_wq;
-	work_struct_rsl ips_leave_wq;
-	delayed_work_struct_rsl associate_procedure_wq;
-	delayed_work_struct_rsl softmac_scan_wq;
-	delayed_work_struct_rsl softmac_hint11d_wq;
-	delayed_work_struct_rsl associate_retry_wq;
-	delayed_work_struct_rsl start_ibss_wq;
-	delayed_work_struct_rsl hw_wakeup_wq;
-	delayed_work_struct_rsl hw_sleep_wq;
-	delayed_work_struct_rsl link_change_wq;
-	work_struct_rsl wx_sync_scan_wq;
+	struct work_struct associate_complete_wq;
+	struct work_struct ips_leave_wq;
+	struct delayed_work associate_procedure_wq;
+	struct delayed_work softmac_scan_wq;
+	struct delayed_work softmac_hint11d_wq;
+	struct delayed_work associate_retry_wq;
+	struct delayed_work start_ibss_wq;
+	struct delayed_work hw_wakeup_wq;
+	struct delayed_work hw_sleep_wq;
+	struct delayed_work link_change_wq;
+	struct work_struct wx_sync_scan_wq;
 
 	struct workqueue_struct *wq;
 

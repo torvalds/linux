@@ -561,15 +561,15 @@ struct r8192_priv {
 
 	short	up;
 	short	up_first_time;
-	delayed_work_struct_rsl		update_beacon_wq;
-	delayed_work_struct_rsl		watch_dog_wq;
-	delayed_work_struct_rsl		txpower_tracking_wq;
-	delayed_work_struct_rsl		rfpath_check_wq;
-	delayed_work_struct_rsl		gpio_change_rf_wq;
-	delayed_work_struct_rsl		initialgain_operate_wq;
-	delayed_work_struct_rsl		check_hw_scan_wq;
-	delayed_work_struct_rsl		hw_scan_simu_wq;
-	delayed_work_struct_rsl		start_hw_scan_wq;
+	struct delayed_work		update_beacon_wq;
+	struct delayed_work		watch_dog_wq;
+	struct delayed_work		txpower_tracking_wq;
+	struct delayed_work		rfpath_check_wq;
+	struct delayed_work		gpio_change_rf_wq;
+	struct delayed_work		initialgain_operate_wq;
+	struct delayed_work		check_hw_scan_wq;
+	struct delayed_work		hw_scan_simu_wq;
+	struct delayed_work		start_hw_scan_wq;
 
 	struct workqueue_struct		*priv_wq;
 
@@ -580,7 +580,7 @@ struct r8192_priv {
 	struct rtl819x_ops			*ops;
 	struct rtllib_device			*rtllib;
 
-	work_struct_rsl				reset_wq;
+	struct work_struct				reset_wq;
 
 	struct log_int_8190 InterruptLog;
 
@@ -678,7 +678,7 @@ struct r8192_priv {
 
 	enum card_type {PCI,MINIPCI,CARDBUS,USB}card_type;
 
-	work_struct_rsl qos_activate;
+	struct work_struct qos_activate;
 
 	u8		bIbssCoordinator;
 
