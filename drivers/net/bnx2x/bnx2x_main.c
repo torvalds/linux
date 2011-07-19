@@ -2699,8 +2699,10 @@ static inline unsigned long bnx2x_get_q_flags(struct bnx2x *bp,
 	if (IS_FCOE_FP(fp))
 		__set_bit(BNX2X_Q_FLG_FCOE, &flags);
 
-	if (!fp->disable_tpa)
+	if (!fp->disable_tpa) {
 		__set_bit(BNX2X_Q_FLG_TPA, &flags);
+		__set_bit(BNX2X_Q_FLG_TPA_IPV6, &flags);
+	}
 
 	if (leading) {
 		__set_bit(BNX2X_Q_FLG_LEADING_RSS, &flags);

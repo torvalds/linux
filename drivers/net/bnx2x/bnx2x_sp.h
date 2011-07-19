@@ -749,6 +749,7 @@ enum bnx2x_queue_cmd {
 /* queue SETUP + INIT flags */
 enum {
 	BNX2X_Q_FLG_TPA,
+	BNX2X_Q_FLG_TPA_IPV6,
 	BNX2X_Q_FLG_STATS,
 	BNX2X_Q_FLG_ZERO_STATS,
 	BNX2X_Q_FLG_ACTIVE,

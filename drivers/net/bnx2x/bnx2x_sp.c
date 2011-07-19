@@ -4240,7 +4240,7 @@ static void bnx2x_q_fill_setup_data_e2(struct bnx2x *bp,
 	/* Rx data */
 
 	/* IPv6 TPA supported for E2 and above only */
-	data->rx.tpa_en |= test_bit(BNX2X_Q_FLG_TPA, &params->flags) *
+	data->rx.tpa_en |= test_bit(BNX2X_Q_FLG_TPA_IPV6, &params->flags) *
 				CLIENT_INIT_RX_DATA_TPA_EN_IPV6;
 }
 
