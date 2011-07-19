@@ -29,12 +29,12 @@
 #define RX_CMD_QUEUE				1
 
 
-typedef enum _rtl819x_loopback_e{
+enum rtl819x_loopback {
 	RTL819X_NO_LOOPBACK = 0,
 	RTL819X_MAC_LOOPBACK = 1,
 	RTL819X_DMA_LOOPBACK = 2,
 	RTL819X_CCK_LOOPBACK = 3,
-} rtl819x_loopback_e;
+};
 
 
 #define RESET_DELAY_8185			20

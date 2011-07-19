@@ -601,7 +601,7 @@ struct r8192_priv {
 	ACM_METHOD				AcmMethod;
 
 	struct rt_firmware			*pFirmware;
-	rtl819x_loopback_e			LoopbackMode;
+	enum rtl819x_loopback LoopbackMode;
 	firmware_source_e			firmware_source;
 
 	struct timer_list			watch_dog_timer;
