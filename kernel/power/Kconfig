@@ -309,3 +309,10 @@ config PM_GENERIC_DOMAINS_RUNTIME
 config CPU_PM
 	bool
 	depends on SUSPEND || CPU_IDLE
+
+config SUSPEND_TIME
+	bool "Log time spent in suspend"
+	---help---
+	  Prints the time spent in suspend in the kernel log, and
+	  keeps statistics on the time spent in suspend in
+	  /sys/kernel/debug/suspend_time
