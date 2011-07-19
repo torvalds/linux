@@ -97,7 +97,7 @@ void rtl8192e_update_msr(struct net_device *dev)
 void
 rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 {
-	struct r8192_priv* priv = rtllib_priv(dev);
+	struct r8192_priv * priv = rtllib_priv(dev);
 
 	switch (variable)
 	{
@@ -1004,7 +1004,7 @@ void rtl8192_link_change(struct net_device *dev)
 void rtl8192_AllowAllDestAddr(struct net_device* dev,
                         bool bAllowAllDA, bool WriteIntoReg)
 {
-        struct r8192_priv* priv = rtllib_priv(dev);
+        struct r8192_priv * priv = rtllib_priv(dev);
 
         if (bAllowAllDA)
                 priv->ReceiveConfig |= RCR_AAP;
@@ -2001,7 +2001,7 @@ void rtl8192_halt_adapter(struct net_device *dev, bool reset)
 
 void rtl8192_update_ratr_table(struct net_device* dev)
 {
-	struct r8192_priv* priv = rtllib_priv(dev);
+	struct r8192_priv * priv = rtllib_priv(dev);
 	struct rtllib_device* ieee = priv->rtllib;
 	u8* pMcsRate = ieee->dot11HTOperationalRateSet;
 	u32 ratr_value = 0;
@@ -2254,7 +2254,7 @@ bool rtl8192_GetNmodeSupportBySecCfg(struct net_device *dev)
 bool rtl8192_GetHalfNmodeSupportByAPs(struct net_device* dev)
 {
 	bool			Reval;
-	struct r8192_priv* priv = rtllib_priv(dev);
+	struct r8192_priv * priv = rtllib_priv(dev);
 	struct rtllib_device* ieee = priv->rtllib;
 
 	if (ieee->bHalfWirelessN24GMode == true)
@@ -2283,7 +2283,7 @@ ActUpdateChannelAccessSetting(
 	struct channel_access_setting *ChnlAccessSetting
 	)
 {
-		struct r8192_priv* priv = rtllib_priv(dev);
+		struct r8192_priv * priv = rtllib_priv(dev);
 
 		return;
 

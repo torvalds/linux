@@ -884,7 +884,7 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 
 void	dm_txpower_trackingcallback(void *data)
 {
-	struct r8192_priv *priv = container_of_dwork_rsl(data,struct r8192_priv,txpower_tracking_wq);
+	struct r8192_priv *priv = container_of_dwork_rsl(data, struct r8192_priv,txpower_tracking_wq);
 	struct net_device *dev = priv->rtllib->dev;
 
 	if (priv->IC_Cut >= IC_VersionCut_D)
@@ -2668,7 +2668,7 @@ static	void	dm_check_pbc_gpio(struct net_device *dev)
 
 extern	void	dm_CheckRfCtrlGPIO(void *data)
 {
-       struct r8192_priv *priv = container_of_dwork_rsl(data,struct r8192_priv,gpio_change_rf_wq);
+       struct r8192_priv *priv = container_of_dwork_rsl(data, struct r8192_priv,gpio_change_rf_wq);
        struct net_device *dev = priv->rtllib->dev;
 	u8 tmp1byte;
 	RT_RF_POWER_STATE	eRfPowerStateToSet;
@@ -2735,7 +2735,7 @@ extern	void	dm_CheckRfCtrlGPIO(void *data)
 
 void	dm_rf_pathcheck_workitemcallback(void *data)
 {
-	struct r8192_priv *priv = container_of_dwork_rsl(data,struct r8192_priv,rfpath_check_wq);
+	struct r8192_priv *priv = container_of_dwork_rsl(data, struct r8192_priv,rfpath_check_wq);
 	struct net_device *dev =priv->rtllib->dev;
 	u8 rfpath = 0, i;
 

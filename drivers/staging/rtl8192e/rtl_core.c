@@ -923,7 +923,7 @@ void rtl8192_config_rate(struct net_device* dev, u16* rate_config)
 	 }
 }
 
-void rtl8192_refresh_supportrate(struct r8192_priv* priv)
+void rtl8192_refresh_supportrate(struct r8192_priv * priv)
 {
 	struct rtllib_device* ieee = priv->rtllib;
 	if (ieee->mode == WIRELESS_MODE_N_24G || ieee->mode == WIRELESS_MODE_N_5G) {
@@ -1283,7 +1283,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 
 }
 
-static void rtl8192_init_priv_lock(struct r8192_priv* priv)
+static void rtl8192_init_priv_lock(struct r8192_priv * priv)
 {
 	spin_lock_init(&priv->fw_scan_lock);
 	spin_lock_init(&priv->tx_lock);
@@ -1675,7 +1675,7 @@ void rtl819x_update_rxcounts(struct r8192_priv *priv,
 
 void	rtl819x_watchdog_wqcallback(void *data)
 {
-	struct r8192_priv *priv = container_of_dwork_rsl(data,struct r8192_priv,watch_dog_wq);
+	struct r8192_priv *priv = container_of_dwork_rsl(data, struct r8192_priv, watch_dog_wq);
 	struct net_device *dev = priv->rtllib->dev;
 	struct rtllib_device* ieee = priv->rtllib;
 	RESET_TYPE	ResetType = RESET_TYPE_NORESET;
@@ -2479,7 +2479,7 @@ void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 /****************************************************************************
  ---------------------------- NIC START/CLOSE STUFF---------------------------
 *****************************************************************************/
-void rtl8192_cancel_deferred_work(struct r8192_priv* priv)
+void rtl8192_cancel_deferred_work(struct r8192_priv * priv)
 {
 	cancel_delayed_work(&priv->watch_dog_wq);
 	cancel_delayed_work(&priv->update_beacon_wq);
@@ -3138,7 +3138,7 @@ static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
 bool NicIFEnableNIC(struct net_device* dev)
 {
 	bool init_status = true;
-	struct r8192_priv* priv = rtllib_priv(dev);
+	struct r8192_priv * priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
 
 	if (IS_NIC_DOWN(priv)){
@@ -3167,7 +3167,7 @@ bool NicIFEnableNIC(struct net_device* dev)
 bool NicIFDisableNIC(struct net_device* dev)
 {
 	bool	status = true;
-	struct r8192_priv* priv = rtllib_priv(dev);
+	struct r8192_priv * priv = rtllib_priv(dev);
 	u8 tmp_state = 0;
 	RT_TRACE(COMP_PS, "=========>%s()\n",__func__);
 	priv->bdisable_nic = true;
@@ -3250,7 +3250,7 @@ static void __exit rtl8192_pci_module_exit(void)
 
 void check_rfctrl_gpio_timer(unsigned long data)
 {
-	struct r8192_priv* priv = rtllib_priv((struct net_device *)data);
+	struct r8192_priv * priv = rtllib_priv((struct net_device *)data);
 
 	priv->polling_timer_on = 1;
 

@@ -25,7 +25,7 @@
 
 extern void firmware_init_param(struct net_device *dev)
 {
-	struct r8192_priv	*priv = rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_firmware *pfirmware = priv->pFirmware;
 
 	pfirmware->cmdpacket_frag_thresold = GET_COMMAND_PACKET_FRAG_THRESHOLD(MAX_TRANSMIT_BUFFER_SIZE);
@@ -33,7 +33,7 @@ extern void firmware_init_param(struct net_device *dev)
 
 bool fw_download_code(struct net_device *dev, u8 *code_virtual_address, u32 buffer_len)
 {
-	struct r8192_priv   *priv = rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	bool		    rt_status = true;
 	u16		    frag_threshold;
 	u16		    frag_length, frag_offset = 0;
@@ -101,7 +101,7 @@ fwSendNullPacket(
 )
 {
 	bool	rtStatus = true;
-	struct r8192_priv   *priv = rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	struct sk_buff	    *skb;
 	struct cb_desc *tcb_desc;
 	unsigned char	    *ptr_buf;
@@ -209,7 +209,7 @@ CPUCheckFirmwareReady_Fail:
 
 inline static bool firmware_check_ready(struct net_device *dev, u8 load_fw_status)
 {
-	struct r8192_priv	*priv = rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_firmware *pfirmware = priv->pFirmware;
 	bool rt_status  = true;
 
@@ -253,7 +253,7 @@ inline static bool firmware_check_ready(struct net_device *dev, u8 load_fw_statu
 
 bool init_firmware(struct net_device *dev)
 {
-	struct r8192_priv	*priv = rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	bool			rt_status = true;
 
 	u8	*firmware_img_buf[3] = { &Rtl8192PciEFwBootArray[0],

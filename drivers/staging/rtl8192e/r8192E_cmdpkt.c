@@ -42,7 +42,7 @@
 {
 
 	bool				rt_status = true;
-	struct r8192_priv	*priv = rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	u16				frag_threshold;
 	u16				frag_length = 0, frag_offset = 0;
 	struct rt_firmware *pfirmware = priv->pFirmware;

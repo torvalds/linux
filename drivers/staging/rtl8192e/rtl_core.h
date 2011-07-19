@@ -68,13 +68,13 @@
 
 #define DRV_NAME "rtl819xE"
 
-#define IS_HARDWARE_TYPE_819xP(_priv) ((((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8190P)||\
-					(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192E))
-#define IS_HARDWARE_TYPE_8192SE(_priv)	(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192SE)
-#define IS_HARDWARE_TYPE_8192CE(_priv)	(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192CE)
-#define IS_HARDWARE_TYPE_8192CU(_priv)	(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192CU)
-#define IS_HARDWARE_TYPE_8192DE(_priv)	(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192DE)
-#define IS_HARDWARE_TYPE_8192DU(_priv)	(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192DU)
+#define IS_HARDWARE_TYPE_819xP(_priv) ((((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8190P)||\
+					(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192E))
+#define IS_HARDWARE_TYPE_8192SE(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192SE)
+#define IS_HARDWARE_TYPE_8192CE(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192CE)
+#define IS_HARDWARE_TYPE_8192CU(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192CU)
+#define IS_HARDWARE_TYPE_8192DE(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192DE)
+#define IS_HARDWARE_TYPE_8192DU(_priv)	(((struct r8192_priv *)rtllib_priv(dev))->card_8192==NIC_8192DU)
 
 #define RTL_PCI_DEVICE(vend, dev, cfg) \
 	.vendor = (vend), .device = (dev), \
@@ -547,8 +547,7 @@ struct rtl819x_ops{
 	bool (* RxCheckStuckHandler)(struct net_device* dev);
 };
 
-typedef struct r8192_priv
-{
+struct r8192_priv {
 	struct pci_dev *pdev;
 	struct pci_dev *bridge_pdev;
 
@@ -1017,7 +1016,7 @@ typedef struct r8192_priv
 	u8		H2CTxCmdSeq;
 
 
-}r8192_priv;
+};//;
 
 extern const struct ethtool_ops rtl819x_ethtool_ops;
 
@@ -1065,7 +1064,7 @@ irqreturn_type rtl8192_interrupt(int irq, void *netdev, struct pt_regs *regs);
 
 short rtl8192_pci_initdescring(struct net_device *dev);
 
-void rtl8192_cancel_deferred_work(struct r8192_priv* priv);
+void rtl8192_cancel_deferred_work(struct r8192_priv * priv);
 
 int _rtl8192_up(struct net_device *dev,bool is_silent_reset);
 
