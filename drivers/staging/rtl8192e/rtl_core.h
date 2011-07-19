@@ -491,11 +491,10 @@ typedef enum _TWO_PORT_STATUS
 	TWO_PORT_STATUS__WITHOUT_ANY_ASSOCIATE
 }TWO_PORT_STATUS;
 
-typedef struct _txbbgain_struct
-{
+struct txbbgain_struct {
 	long	txbb_iq_amplifygain;
 	u32	txbbgain_value;
-} txbbgain_struct, *ptxbbgain_struct;
+};
 
 typedef struct _ccktxbbgain_struct
 {
@@ -602,7 +601,7 @@ typedef struct r8192_priv
 	ccktxbbgain_struct			cck_txbbgain_table[CCKTxBBGainTableLength];
 	ccktxbbgain_struct			cck_txbbgain_ch14_table[CCKTxBBGainTableLength];
 
-	txbbgain_struct				txbbgain_table[TxBBGainTableLength];
+	struct txbbgain_struct txbbgain_table[TxBBGainTableLength];
 
 	ACM_METHOD				AcmMethod;
 
