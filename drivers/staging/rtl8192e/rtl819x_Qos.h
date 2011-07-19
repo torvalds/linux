@@ -396,7 +396,7 @@ union ecw {
 	}f;
 };
 
-typedef	union _AC_PARAM{
+union ac_param {
 	u32	longData;
 	u8	charData[4];
 
@@ -406,10 +406,6 @@ typedef	union _AC_PARAM{
 		union ecw Ecw;
 		u16		TXOPLimit;
 	}f;
-}AC_PARAM, *PAC_PARAM;
-
-
-
-
+};
 
 #endif
