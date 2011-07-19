@@ -29,10 +29,10 @@ enum firmware_init_step {
 	FW_INIT_STEP2_DATA = 2,
 };
 
-typedef enum _opt_rst_type_e{
+enum opt_rst_type {
 	OPT_SYSTEM_RESET = 0,
 	OPT_FIRMWARE_RESET = 1,
-} opt_rst_type_e;
+};
 
 typedef enum _desc_packet_type_e{
 	DESC_PACKET_TYPE_INIT = 0,
