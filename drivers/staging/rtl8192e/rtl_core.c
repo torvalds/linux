@@ -2108,7 +2108,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	rx_desc *entry = NULL;
+	struct rx_desc *entry = NULL;
 	int i, rx_queue_idx;
 
 	for (rx_queue_idx = 0; rx_queue_idx < MAX_RX_QUEUE; rx_queue_idx ++){
@@ -2210,7 +2210,7 @@ void rtl8192_pci_resetdescring(struct net_device *dev)
 
 	for (rx_queue_idx = 0; rx_queue_idx < MAX_RX_QUEUE; rx_queue_idx ++){
 		if (priv->rx_ring[rx_queue_idx]) {
-			rx_desc *entry = NULL;
+			struct rx_desc *entry = NULL;
 			for (i = 0; i < priv->rxringcount; i++) {
 				entry = &priv->rx_ring[rx_queue_idx][i];
 				entry->OWN = 1;
@@ -2363,7 +2363,7 @@ void rtl8192_rx_normal(struct net_device *dev)
 	stats.nic_type = NIC_8192E;
 
 	while (count--) {
-		rx_desc *pdesc = &priv->rx_ring[rx_queue_idx][priv->rx_idx[rx_queue_idx]];
+		struct rx_desc *pdesc = &priv->rx_ring[rx_queue_idx][priv->rx_idx[rx_queue_idx]];
 		struct sk_buff *skb = priv->rx_buf[rx_queue_idx][priv->rx_idx[rx_queue_idx]];
 
 		if (pdesc->OWN) {

@@ -50,7 +50,7 @@ void  rtl8192_tx_fill_desc(struct net_device* dev, struct tx_desc * pdesc, cb_de
 void  rtl8192_tx_fill_cmd_desc(struct net_device* dev, struct tx_desc_cmd * entry,
 			       cb_desc * cb_desc, struct sk_buff* skb);
 bool rtl8192_rx_query_status_desc(struct net_device* dev, struct rtllib_rx_stats *stats,
-				  rx_desc *pdesc, struct sk_buff* skb);
+				  struct rx_desc *pdesc, struct sk_buff* skb);
 void rtl8192_halt_adapter(struct net_device *dev, bool reset);
 void rtl8192_update_ratr_table(struct net_device* dev);
 #endif

@@ -366,7 +366,7 @@ struct tx_desc_cmd {
 	u32	Reserved6;
 };//, *ptx_desc_cmd;
 
-typedef struct _rx_desc_819x_pci{
+struct rx_desc {
 	u16			Length:14;
 	u16			CRC32:1;
 	u16			ICV:1;
@@ -385,7 +385,7 @@ typedef struct _rx_desc_819x_pci{
 
 	u32	BufferAddress;
 
-}rx_desc, *prx_desc;
+};//, *prx_desc;
 
 
 typedef struct _rx_fwinfo_819x_pci{

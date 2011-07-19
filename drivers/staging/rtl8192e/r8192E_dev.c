@@ -1396,7 +1396,7 @@ rtl8192_signal_scale_mapping(struct r8192_priv * priv,
 void rtl8192_query_rxphystatus(
 	struct r8192_priv * priv,
 	struct rtllib_rx_stats * pstats,
-	prx_desc  pdesc,
+	struct rx_desc  *pdesc,
 	prx_fwinfo   pdrvinfo,
 	struct rtllib_rx_stats * precord_stats,
 	bool bpacket_match_bssid,
@@ -1768,7 +1768,7 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv, u8* buffer,struct rtllib_
 void rtl8192_TranslateRxSignalStuff(struct net_device *dev,
         struct sk_buff *skb,
         struct rtllib_rx_stats * pstats,
-        prx_desc pdesc,
+        struct rx_desc *pdesc,
         prx_fwinfo pdrvinfo)
 {
     struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
@@ -1871,7 +1871,7 @@ void rtl8192_UpdateReceivedRateHistogramStatistics(
 }
 
 bool rtl8192_rx_query_status_desc(struct net_device* dev, struct rtllib_rx_stats*  stats,
-		rx_desc *pdesc, struct sk_buff* skb)
+		struct rx_desc *pdesc, struct sk_buff* skb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 

@@ -537,8 +537,8 @@ struct rtl819x_ops{
 	void (*link_change)(struct net_device* dev);
 	void (* tx_fill_descriptor)(struct net_device* dev, struct tx_desc *tx_desc, cb_desc * cb_desc, struct sk_buff *skb);
 	void (* tx_fill_cmd_descriptor)(struct net_device* dev, struct tx_desc_cmd * entry, cb_desc * cb_desc, struct sk_buff *skb);
-	bool (* rx_query_status_descriptor)(struct net_device* dev, struct rtllib_rx_stats*  stats, rx_desc *pdesc, struct sk_buff* skb);
-	bool (* rx_command_packet_handler)(struct net_device *dev, struct sk_buff* skb, rx_desc *pdesc);
+	bool (* rx_query_status_descriptor)(struct net_device* dev, struct rtllib_rx_stats*  stats, struct rx_desc *pdesc, struct sk_buff* skb);
+	bool (* rx_command_packet_handler)(struct net_device *dev, struct sk_buff* skb, struct rx_desc *pdesc);
 	void (* stop_adapter)(struct net_device *dev, bool reset);
 	void (* update_ratr_table)(struct net_device* dev);
 	void (* irq_enable)(struct net_device* dev);
@@ -644,7 +644,7 @@ typedef struct r8192_priv
 	void (*rf_close)(struct net_device *dev);
 	void (*rf_init)(struct net_device *dev);
 
-	rx_desc			*rx_ring[MAX_RX_QUEUE];
+	struct rx_desc *rx_ring[MAX_RX_QUEUE];
 	struct sk_buff	*rx_buf[MAX_RX_QUEUE][MAX_RX_COUNT];
 	dma_addr_t	rx_ring_dma[MAX_RX_QUEUE];
 	unsigned int	rx_idx[MAX_RX_QUEUE];
