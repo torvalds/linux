@@ -14,8 +14,6 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/rwlock.h>
-#include <asm/alternative-asm.h>
 #include <asm/frame.h>
 #include <asm/dwarf2.h>
 
@@ -30,46 +28,6 @@
  * value or just clobbered..
  */
 	.section .sched.text, "ax"
-
-/*
- * rw spinlock fallbacks
- */
-#ifdef CONFIG_SMP
-ENTRY(__write_lock_failed)
-	CFI_STARTPROC
-	FRAME
-2: 	LOCK_PREFIX
-	addl	$ RW_LOCK_BIAS,(%eax)
-1:	rep; nop
-	cmpl	$ RW_LOCK_BIAS,(%eax)
-	jne	1b
-	LOCK_PREFIX
-	subl	$ RW_LOCK_BIAS,(%eax)
-	jnz	2b
-	ENDFRAME
-	ret
-	CFI_ENDPROC
-	ENDPROC(__write_lock_failed)
-
-ENTRY(__read_lock_failed)
-	CFI_STARTPROC
-	FRAME
-2: 	LOCK_PREFIX
-	incl	(%eax)
-1:	rep; nop
-	cmpl	$1,(%eax)
-	js	1b
-	LOCK_PREFIX
-	decl	(%eax)
-	js	2b
-	ENDFRAME
-	ret
-	CFI_ENDPROC
-	ENDPROC(__read_lock_failed)
-
-#endif
-
-#ifdef CONFIG_RWSEM_XCHGADD_ALGORITHM
 
 /* Fix up special calling conventions */
 ENTRY(call_rwsem_down_read_failed)
@@ -120,5 +78,3 @@ ENTRY(call_rwsem_downgrade_wake)
 	ret
 	CFI_ENDPROC
 	ENDPROC(call_rwsem_downgrade_wake)
-
-#endif

@@ -15,7 +15,8 @@
 # define __ASM_SEL(a,b) __ASM_FORM(b)
 #endif
 
-#define __ASM_SIZE(inst)	__ASM_SEL(inst##l, inst##q)
+#define __ASM_SIZE(inst, ...)	__ASM_SEL(inst##l##__VA_ARGS__, \
+					  inst##q##__VA_ARGS__)
 #define __ASM_REG(reg)		__ASM_SEL(e##reg, r##reg)
 
 #define _ASM_PTR	__ASM_SEL(.long, .quad)
