@@ -447,7 +447,7 @@ drop:
 }
 bool
 AddReorderEntry(
-	PRX_TS_RECORD			pTS,
+	struct rx_ts_record *pTS,
 	PRX_REORDER_ENTRY		pReorderEntry
 	)
 {
@@ -527,7 +527,7 @@ void rtllib_indicate_packets(struct rtllib_device *ieee, struct rtllib_rxb** prx
 }
 
 void
-rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	PRX_TS_RECORD pTS)
+rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	struct rx_ts_record *pTS)
 {
 	PRX_REORDER_ENTRY	pRxReorderEntry;
 	struct rtllib_rxb*		RfdArray[REORDER_WIN_SIZE];
@@ -559,7 +559,7 @@ rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,	PRX_TS_RECORD pTS)
 
 void RxReorderIndicatePacket( struct rtllib_device *ieee,
 		struct rtllib_rxb* prxb,
-		PRX_TS_RECORD		pTS,
+		struct rx_ts_record *pTS,
 		u16			SeqNum)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
@@ -896,7 +896,7 @@ int rtllib_rx_check_duplicate(struct rtllib_device *ieee, struct sk_buff *skb, u
 			}
 		}
 	} else {
-		PRX_TS_RECORD pRxTS = NULL;
+		struct rx_ts_record *pRxTS = NULL;
 		if (GetTs(ieee, (PTS_COMMON_INFO*) &pRxTS, hdr->addr2,
 			(u8)Frame_QoSTID((u8*)(skb->data)), RX_DIR, true)) {
 			if ((fc & (1<<11)) && (frag == pRxTS->RxLastFragNum) &&
@@ -1253,7 +1253,7 @@ int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	struct rtllib_hdr_4addr *hdr = (struct rtllib_hdr_4addr *)skb->data;
 	struct rtllib_crypt_data *crypt = NULL;
 	struct rtllib_rxb* rxb = NULL;
-	PRX_TS_RECORD pTS = NULL;
+	struct rx_ts_record *pTS = NULL;
 	u16 fc, sc, SeqNum = 0;
 	u8 type, stype, multicast = 0, unicast = 0, nr_subframes = 0, TID = 0;
 	u8 dst[ETH_ALEN], src[ETH_ALEN], bssid[ETH_ALEN] = {0}, *payload;

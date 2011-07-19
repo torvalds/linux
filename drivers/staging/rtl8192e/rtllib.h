@@ -2164,7 +2164,7 @@ struct rtllib_device {
 	struct list_head		Rx_TS_Admit_List;
 	struct list_head		Rx_TS_Pending_List;
 	struct list_head		Rx_TS_Unused_List;
-	RX_TS_RECORD		RxTsRecord[TOTAL_TS_NUM];
+	struct rx_ts_record RxTsRecord[TOTAL_TS_NUM];
 	RX_REORDER_ENTRY	RxReorderEntry[128];
 	struct list_head		RxReorder_Unused_List;
 	u8				ForcedPriority;
@@ -2993,7 +2993,7 @@ bool rtllib_MgntDisconnect(struct rtllib_device* rtllib,u8 asRsn);
  * ieee handler to refer to it.
  */
 extern void rtllib_update_active_chan_map(struct rtllib_device *ieee);
-extern void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee, PRX_TS_RECORD pTS);
+extern void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee, struct rx_ts_record *pTS);
 extern int rtllib_data_xmit(struct sk_buff *skb, struct net_device *dev);
 extern int rtllib_parse_info_param(struct rtllib_device *ieee,
 		struct rtllib_info_element *info_element,

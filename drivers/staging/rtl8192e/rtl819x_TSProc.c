@@ -31,7 +31,7 @@ void TsInactTimeout(unsigned long data)
 
 void RxPktPendingTimeout(unsigned long data)
 {
-	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
+	struct rx_ts_record *pRxTs = (struct rx_ts_record *)data;
 	struct rtllib_device *ieee = container_of(pRxTs, struct rtllib_device, RxTsRecord[pRxTs->num]);
 
 	PRX_REORDER_ENTRY	pReorderEntry = NULL;
@@ -123,7 +123,7 @@ void ResetTxTsEntry(struct tx_ts_record *pTS)
 	ResetBaEntry(&pTS->TxPendingBARecord);
 }
 
-void ResetRxTsEntry(PRX_TS_RECORD pTS)
+void ResetRxTsEntry(struct rx_ts_record *pTS)
 {
 	ResetTsCommonInfo(&pTS->TsCommonInfo);
 	pTS->RxIndicateSeq = 0xffff;
@@ -134,7 +134,7 @@ void ResetRxTsEntry(PRX_TS_RECORD pTS)
 void TSInitialize(struct rtllib_device *ieee)
 {
 	struct tx_ts_record *pTxTS  = ieee->TxTsRecord;
-	PRX_TS_RECORD		pRxTS  = ieee->RxTsRecord;
+	struct rx_ts_record *pRxTS  = ieee->RxTsRecord;
 	PRX_REORDER_ENTRY	pRxReorderEntry = ieee->RxReorderEntry;
 	u8				count = 0;
 	RTLLIB_DEBUG(RTLLIB_DL_TS, "==========>%s()\n", __func__);
@@ -402,7 +402,7 @@ bool GetTs(
 					ResetTxTsEntry(tmp);
 				}
 				else{
-					PRX_TS_RECORD tmp = container_of(*ppTS, RX_TS_RECORD, TsCommonInfo);
+					struct rx_ts_record *tmp = container_of(*ppTS, struct rx_ts_record, TsCommonInfo);
 					ResetRxTsEntry(tmp);
 				}
 
@@ -445,7 +445,7 @@ void RemoveTsEntry(
 	if (TxRxSelect == RX_DIR)
 	{
 		PRX_REORDER_ENTRY	pRxReorderEntry;
-		PRX_TS_RECORD		pRxTS = (PRX_TS_RECORD)pTs;
+		struct rx_ts_record *pRxTS = (struct rx_ts_record *)pTs;
 
 		if (timer_pending(&pRxTS->RxPktPendingTimer))
 			del_timer_sync(&pRxTS->RxPktPendingTimer);
