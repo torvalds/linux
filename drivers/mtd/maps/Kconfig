@@ -254,7 +254,6 @@ config MTD_BCM963XX
 config MTD_LANTIQ
 	tristate "Lantiq SoC NOR support"
 	depends on LANTIQ
-	select MTD_PARTITIONS
 	help
 	  Support for NOR flash attached to the Lantiq SoC's External Bus Unit.
 
