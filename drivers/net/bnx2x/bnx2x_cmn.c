@@ -1989,6 +1989,9 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 		return -EINVAL;
 	}
 
+	/* Stop Tx */
+	bnx2x_tx_disable(bp);
+
 #ifdef BCM_CNIC
 	bnx2x_cnic_notify(bp, CNIC_CTL_STOP_CMD);
 #endif
@@ -1996,9 +1999,6 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	smp_mb();
 
 	bp->rx_mode = BNX2X_RX_MODE_NONE;
-
-	/* Stop Tx */
-	bnx2x_tx_disable(bp);
 
 	del_timer_sync(&bp->timer);
 
