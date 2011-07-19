@@ -2139,7 +2139,7 @@ struct rtllib_device {
 	RT_RF_CHANGE_SOURCE	RfOffReason;
 	bool is_set_key;
 	bool wx_set_enc;
-	PRT_HIGH_THROUGHPUT	pHTInfo;
+	struct rt_hi_throughput *pHTInfo;
 	spinlock_t bw_spinlock;
 
 	spinlock_t reorder_spinlock;
@@ -2905,7 +2905,7 @@ extern u8 HTGetHighestMCSRate(struct rtllib_device* ieee, u8* pMCSRateSet, u8* p
 extern u8 MCS_FILTER_ALL[];
 extern u16 MCS_DATA_RATE[2][2][77] ;
 extern u8 HTCCheck(struct rtllib_device* ieee, u8*   pFrame);
-extern void HTResetIOTSetting(PRT_HIGH_THROUGHPUT  pHTInfo);
+extern void HTResetIOTSetting(struct rt_hi_throughput *pHTInfo);
 extern bool IsHTHalfNmodeAPs(struct rtllib_device* ieee);
 extern u16 HTHalfMcsToDataRate(struct rtllib_device* ieee,  u8      nMcsRate);
 extern u16 HTMcsToDataRate( struct rtllib_device* ieee, u8 nMcsRate);

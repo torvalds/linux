@@ -59,7 +59,7 @@ static u8 CISCO_BROADCOM[3] = {0x00, 0x17, 0x94};
 static u8 LINKSYS_MARVELL_4400N[3] = {0x00, 0x14, 0xa4};
 void HTUpdateDefaultSetting(struct rtllib_device* ieee)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	pHTInfo->bAcceptAddbaReq = 1;
 
@@ -182,7 +182,7 @@ void HTDebugHTInfo(u8*	InfoIE, u8* TitleString)
 bool IsHTHalfNmode40Bandwidth(struct rtllib_device* ieee)
 {
 	bool			retValue = false;
-	PRT_HIGH_THROUGHPUT	 pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	if (pHTInfo->bCurrentHTSupport == false )
 		retValue = false;
@@ -201,7 +201,7 @@ bool IsHTHalfNmode40Bandwidth(struct rtllib_device* ieee)
 bool IsHTHalfNmodeSGI(struct rtllib_device* ieee, bool is40MHz)
 {
 	bool			retValue = false;
-	PRT_HIGH_THROUGHPUT	 pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	if (pHTInfo->bCurrentHTSupport == false )
 		retValue = false;
@@ -240,7 +240,7 @@ u16 HTHalfMcsToDataRate(struct rtllib_device* ieee,	u8	nMcsRate)
 
 u16 HTMcsToDataRate( struct rtllib_device* ieee, u8 nMcsRate)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	u8	is40MHz = (pHTInfo->bCurBW40MHz)?1:0;
 	u8	isShortGI = (pHTInfo->bCurBW40MHz)?
@@ -318,7 +318,7 @@ bool IsHTHalfNmodeAPs(struct rtllib_device* ieee)
 
 void HTIOTPeerDetermine(struct rtllib_device* ieee)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	struct rtllib_network* net = &ieee->current_network;
 	if (net->bssht.bdRT2RTAggregation){
 		pHTInfo->IOTPeer = HT_IOT_PEER_REALTEK;
@@ -409,7 +409,7 @@ u8 HTIOTActIsMgntUseCCK6M(struct rtllib_device* ieee,struct rtllib_network *netw
 u8
 HTIOTActWAIOTBroadcom(struct rtllib_device* ieee)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	u8		retValue = false;
 	u8		boundary=59;
 
@@ -494,7 +494,7 @@ u8
 HTIOTActDisableShortGI(struct rtllib_device* ieee,struct rtllib_network *network)
 {
 	u8	retValue = 0;
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	if (pHTInfo->IOTPeer==HT_IOT_PEER_RALINK)
 	{
@@ -515,7 +515,7 @@ HTIOTActDisableHighPower(struct rtllib_device* ieee,struct rtllib_network *netwo
 void
 HTIOTActDetermineRaFunc(struct rtllib_device* ieee,	bool	bPeerRx2ss)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	pHTInfo->IOTRaFunc &= HT_IOT_RAFUNC_DISABLE_ALL;
 
 	if (pHTInfo->IOTPeer == HT_IOT_PEER_RALINK && !bPeerRx2ss)
@@ -573,7 +573,7 @@ HTIOTActIsNullDataPowerSaving(struct rtllib_device* ieee,struct rtllib_network *
 }
 
 void HTResetIOTSetting(
-	PRT_HIGH_THROUGHPUT		pHTInfo
+	struct rt_hi_throughput *pHTInfo
 )
 {
 	pHTInfo->IOTAction = 0;
@@ -584,7 +584,7 @@ void HTResetIOTSetting(
 
 void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* len, u8 IsEncrypt, bool bAssoc)
 {
-	PRT_HIGH_THROUGHPUT	pHT = ieee->pHTInfo;
+	struct rt_hi_throughput *pHT = ieee->pHTInfo;
 	PHT_CAPABILITY_ELE	pCapELE = NULL;
 
 	if ((posHTCap == NULL) || (pHT == NULL))
@@ -675,7 +675,7 @@ void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* 
 }
 void HTConstructInfoElement(struct rtllib_device* ieee, u8* posHTInfo, u8* len, u8 IsEncrypt)
 {
-	PRT_HIGH_THROUGHPUT	pHT = ieee->pHTInfo;
+	struct rt_hi_throughput *pHT = ieee->pHTInfo;
 	PHT_INFORMATION_ELE		pHTInfoEle = (PHT_INFORMATION_ELE)posHTInfo;
 	if ((posHTInfo == NULL) || (pHTInfoEle == NULL))
 	{
@@ -834,7 +834,7 @@ u8 HTFilterMCSRate( struct rtllib_device* ieee, u8* pSupportMCS, u8* pOperateMCS
 void HTSetConnectBwMode(struct rtllib_device* ieee, HT_CHANNEL_WIDTH	Bandwidth, HT_EXTCHNL_OFFSET	Offset);
 void HTOnAssocRsp(struct rtllib_device *ieee)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	PHT_CAPABILITY_ELE		pPeerHTCap = NULL;
 	PHT_INFORMATION_ELE		pPeerHTInfo = NULL;
 	u16	nMaxAMSDUSize = 0;
@@ -946,7 +946,7 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 void HTSetConnectBwModeCallback(struct rtllib_device* ieee);
 void HTInitializeHTInfo(struct rtllib_device* ieee)
 {
-	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	RTLLIB_DEBUG(RTLLIB_DL_HT, "===========>%s()\n", __func__);
 	pHTInfo->bCurrentHTSupport = false;
@@ -1008,7 +1008,7 @@ void HTInitializeBssDesc(PBSS_HT pBssHT)
 
 void HTResetSelfAndSavePeerSetting(struct rtllib_device* ieee,	struct rtllib_network * pNetwork)
 {
-	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	u8	bIOTAction = 0;
 
 	RTLLIB_DEBUG(RTLLIB_DL_HT, "==============>%s()\n", __func__);
@@ -1077,7 +1077,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device* ieee,	struct rtllib_net
 
 void HTUpdateSelfAndPeerSetting(struct rtllib_device* ieee,	struct rtllib_network * pNetwork)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	PHT_INFORMATION_ELE		pPeerHTInfo = (PHT_INFORMATION_ELE)pNetwork->bssht.bdHTInfoBuf;
 
 	if (pHTInfo->bCurrentHTSupport)
@@ -1090,7 +1090,7 @@ void HTUpdateSelfAndPeerSetting(struct rtllib_device* ieee,	struct rtllib_networ
 
 void HTUseDefaultSetting(struct rtllib_device* ieee)
 {
-	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	if (pHTInfo->bEnableHT) {
 		pHTInfo->bCurrentHTSupport = true;
@@ -1139,7 +1139,7 @@ u8 HTCCheck(struct rtllib_device* ieee, u8*	pFrame)
 
 void HTSetConnectBwMode(struct rtllib_device* ieee, HT_CHANNEL_WIDTH	Bandwidth, HT_EXTCHNL_OFFSET	Offset)
 {
-	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	if (pHTInfo->bRegBW40MHz == false)
 		return;
@@ -1178,7 +1178,7 @@ void HTSetConnectBwMode(struct rtllib_device* ieee, HT_CHANNEL_WIDTH	Bandwidth, 
 
 void HTSetConnectBwModeCallback(struct rtllib_device* ieee)
 {
-	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	RTLLIB_DEBUG(RTLLIB_DL_HT, "======>%s()\n", __func__);
 	if (pHTInfo->bCurBW40MHz)

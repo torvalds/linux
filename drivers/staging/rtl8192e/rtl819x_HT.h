@@ -213,7 +213,7 @@ typedef enum _HT_AGGRE_MODE_E{
 }HT_AGGRE_MODE_E, *PHT_AGGRE_MODE_E;
 
 
-typedef struct _RT_HIGH_THROUGHPUT{
+struct rt_hi_throughput {
 	u8				bEnableHT;
 	u8				bCurrentHTSupport;
 
@@ -295,7 +295,7 @@ typedef struct _RT_HIGH_THROUGHPUT{
 	u8	WAIotTH;
 
 	u8				bAcceptAddbaReq;
-} __attribute__ ((packed)) RT_HIGH_THROUGHPUT, *PRT_HIGH_THROUGHPUT;
+} __packed;
 
 
 

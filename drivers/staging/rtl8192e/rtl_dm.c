@@ -294,7 +294,7 @@ extern void init_rate_adaptive(struct net_device * dev)
 static void dm_check_rate_adaptive(struct net_device * dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_HIGH_THROUGHPUT	pHTInfo = priv->rtllib->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
 	prate_adaptive			pra = (prate_adaptive)&priv->rate_adaptive;
 	u32						currentRATR, targetRATR = 0;
 	u32						LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
@@ -2493,7 +2493,7 @@ static void dm_check_edca_turbo(
 	struct net_device * dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	PRT_HIGH_THROUGHPUT	pHTInfo = priv->rtllib->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
 
 	static unsigned long			lastTxOkCnt = 0;
 	static unsigned long			lastRxOkCnt = 0;
@@ -2621,7 +2621,7 @@ static void dm_init_ctstoself(struct net_device * dev)
 static void dm_ctstoself(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
-	PRT_HIGH_THROUGHPUT	pHTInfo = priv->rtllib->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
 	static unsigned long				lastTxOkCnt = 0;
 	static unsigned long				lastRxOkCnt = 0;
 	unsigned long						curTxOkCnt = 0;
@@ -2655,7 +2655,7 @@ static	void
 dm_Init_WA_Broadcom_IOT(struct net_device * dev)
 {
 	struct r8192_priv *priv = rtllib_priv((struct net_device *)dev);
-	PRT_HIGH_THROUGHPUT	pHTInfo = priv->rtllib->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = priv->rtllib->pHTInfo;
 
 	pHTInfo->bWAIotBroadcom = false;
 	pHTInfo->WAIotTH = WAIotTHVal;

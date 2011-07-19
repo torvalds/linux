@@ -289,7 +289,7 @@ rtllib_classify(struct sk_buff *skb, u8 bIsAmsdu)
 #define SN_LESS(a, b)		(((a-b)&0x800)!=0)
 void rtllib_tx_query_agg_cap(struct rtllib_device* ieee, struct sk_buff* skb, cb_desc* tcb_desc)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	struct tx_ts_record *pTxTs = NULL;
 	struct rtllib_hdr_1addr* hdr = (struct rtllib_hdr_1addr*)skb->data;
 
@@ -375,7 +375,7 @@ extern void rtllib_qurey_ShortPreambleMode(struct rtllib_device* ieee, cb_desc* 
 extern	void
 rtllib_query_HTCapShortGI(struct rtllib_device *ieee, cb_desc *tcb_desc)
 {
-	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	tcb_desc->bUseShortGI		= false;
 
@@ -396,7 +396,7 @@ rtllib_query_HTCapShortGI(struct rtllib_device *ieee, cb_desc *tcb_desc)
 
 void rtllib_query_BandwidthMode(struct rtllib_device* ieee, cb_desc *tcb_desc)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 
 	tcb_desc->bPacketBW = false;
 
@@ -444,7 +444,7 @@ void rtllib_query_protectionmode(struct rtllib_device* ieee, cb_desc* tcb_desc, 
 	}
 	else
 	{
-		PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
+		struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 		while (true)
 		{
 			if (pHTInfo->IOTAction & HT_IOT_ACT_FORCED_CTS2SELF)

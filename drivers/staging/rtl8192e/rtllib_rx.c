@@ -562,7 +562,7 @@ void RxReorderIndicatePacket( struct rtllib_device *ieee,
 		struct rx_ts_record *pTS,
 		u16			SeqNum)
 {
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	PRX_REORDER_ENTRY	pReorderEntry = NULL;
 	struct rtllib_rxb* prxbIndicateArray[REORDER_WIN_SIZE];
 	u8			WinSize = pHTInfo->RxReorderWinSize;

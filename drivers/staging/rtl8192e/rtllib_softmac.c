@@ -212,7 +212,7 @@ MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee)
 
 u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
 {
-	PRT_HIGH_THROUGHPUT      pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	u8 rate;
 
 	if (pHTInfo->IOTAction & HT_IOT_ACT_MGNT_USE_CCK_6M)
@@ -884,7 +884,7 @@ static struct sk_buff* rtllib_probe_resp(struct rtllib_device *ieee, u8 *dest)
 	u8 tmp_ht_cap_len = 0;
 	u8* tmp_ht_info_buf = NULL;
 	u8 tmp_ht_info_len = 0;
-	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	struct rt_hi_throughput *pHTInfo = ieee->pHTInfo;
 	u8* tmp_generic_ie_buf = NULL;
 	u8 tmp_generic_ie_len = 0;
 
