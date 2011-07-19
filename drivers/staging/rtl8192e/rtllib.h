@@ -2054,15 +2054,14 @@ typedef enum _RATR_TABLE_MODE_8192S{
 }RATR_TABLE_MODE_8192S, *PRATR_TABLE_MODE_8192S;
 
 #define	NUM_PMKID_CACHE		16
-typedef struct _RT_PMKID_LIST
-{
+struct rt_pmkid_list {
 	u8						bUsed;
 	u8						Bssid[6];
 	u8						PMKID[16];
 	u8						SsidBuf[33];
 	u8*						ssid_octet;
 	u16					ssid_length;
-} RT_PMKID_LIST, *PRT_PMKID_LIST;
+};
 
 typedef struct _RT_INTEL_PROMISCUOUS_MODE_INFO {
      bool bPromiscuousOn;
@@ -2239,7 +2238,7 @@ struct rtllib_device {
 	int bcrx_sta_key; /* use individual keys to override default keys even
 			   * with RX of broad/multicast frames */
 
-	RT_PMKID_LIST		PMKIDList[NUM_PMKID_CACHE];
+	struct rt_pmkid_list PMKIDList[NUM_PMKID_CACHE];
 
 	/* Fragmentation structures */
 	struct rtllib_frag_entry frag_cache[17][RTLLIB_FRAG_CACHE_LEN];
