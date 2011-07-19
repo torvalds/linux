@@ -283,7 +283,7 @@ static int __init sbc8560_bdrstcr_init(void)
 
 	of_address_to_resource(np, 0, &res);
 
-	printk(KERN_INFO "sbc8560: Found BRSTCR at i/o 0x%x\n", res.start);
+	printk(KERN_INFO "sbc8560: Found BRSTCR at %pR\n", &res);
 
 	brstcr = ioremap(res.start, resource_size(&res));
 	if(!brstcr)
