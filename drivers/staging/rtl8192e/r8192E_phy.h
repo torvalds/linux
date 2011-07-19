@@ -73,13 +73,13 @@ extern u32 rtl819XRadioB_Array[];
 extern u32 rtl819XRadioC_Array[];
 extern u32 rtl819XRadioD_Array[];
 
-typedef enum _HW90_BLOCK_E {
+enum hw90_block {
 	HW90_BLOCK_MAC = 0,
 	HW90_BLOCK_PHY0 = 1,
 	HW90_BLOCK_PHY1 = 2,
 	HW90_BLOCK_RF = 3,
 	HW90_BLOCK_MAXIMUM = 4,
-} HW90_BLOCK_E, *PHW90_BLOCK_E;
+};
 
 typedef enum _RF90_RADIO_PATH_E{
 	RF90_PATH_A = 0,
@@ -104,7 +104,7 @@ extern void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPa
 extern u32 rtl8192_phy_QueryRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 RegAddr, u32 BitMask);
 extern void rtl8192_phy_configmac(struct net_device* dev);
 extern void rtl8192_phyConfigBB(struct net_device* dev, u8 ConfigType);
-extern bool rtl8192_phy_checkBBAndRF(struct net_device* dev, HW90_BLOCK_E CheckBlock, RF90_RADIO_PATH_E eRFPath);
+extern bool rtl8192_phy_checkBBAndRF(struct net_device* dev, enum hw90_block CheckBlock, RF90_RADIO_PATH_E eRFPath);
 extern bool rtl8192_BBConfig(struct net_device* dev);
 extern void rtl8192_phy_getTxPower(struct net_device* dev);
 extern void rtl8192_phy_setTxPower(struct net_device* dev, u8 channel);

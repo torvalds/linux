@@ -510,7 +510,7 @@ void rtl8192_InitBBRFRegDef(struct net_device* dev)
 	priv->PHYRegDef[RF90_PATH_D].rfLSSIReadBack = rFPGA0_XD_LSSIReadBack;
 
 }
-bool rtl8192_phy_checkBBAndRF(struct net_device* dev, HW90_BLOCK_E CheckBlock, RF90_RADIO_PATH_E eRFPath)
+bool rtl8192_phy_checkBBAndRF(struct net_device* dev, enum hw90_block CheckBlock, RF90_RADIO_PATH_E eRFPath)
 {
 	bool ret = true;
 	u32 i, CheckTimes = 4, dwRegRead = 0;
@@ -576,9 +576,9 @@ bool rtl8192_BB_Config_ParaFile(struct net_device* dev)
 	dwRegValue = read_nic_dword(dev, CPU_GEN);
 	write_nic_dword(dev, CPU_GEN, (dwRegValue&(~CPU_GEN_BB_RST)));
 
-	for (eCheckItem=(HW90_BLOCK_E)HW90_BLOCK_PHY0; eCheckItem<=HW90_BLOCK_PHY1; eCheckItem++)
+	for (eCheckItem=(enum hw90_block)HW90_BLOCK_PHY0; eCheckItem<=HW90_BLOCK_PHY1; eCheckItem++)
 	{
-		rtStatus  = rtl8192_phy_checkBBAndRF(dev, (HW90_BLOCK_E)eCheckItem, (RF90_RADIO_PATH_E)0);
+		rtStatus  = rtl8192_phy_checkBBAndRF(dev, (enum hw90_block)eCheckItem, (RF90_RADIO_PATH_E)0);
 		if (rtStatus != true)
 		{
 			RT_TRACE((COMP_ERR | COMP_PHY), "PHY_RF8256_Config():Check PHY%d Fail!!\n", eCheckItem-1);
