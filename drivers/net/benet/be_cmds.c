@@ -2390,7 +2390,7 @@ err:
 }
 
 /* Uses mbox */
-int be_cmd_check_native_mode(struct be_adapter *adapter)
+int be_cmd_req_native_mode(struct be_adapter *adapter)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_set_func_cap *req;
