@@ -37,6 +37,7 @@
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
 #include <linux/notifier.h>
+#include <linux/interrupt.h>
 
 #include <linux/io.h>
 #include <asm/fsl_hcalls.h>
