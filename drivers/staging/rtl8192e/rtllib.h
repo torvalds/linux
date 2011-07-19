@@ -1851,14 +1851,13 @@ typedef enum _WOLPATTERN_TYPE
 	eNoDefined,
 }WOLPATTERN_TYPE;
 
-typedef struct _RT_PM_WOL_PATTERN_INFO
-{
+struct rt_pm_wol_info {
 	u32	PatternId;
 	u32	Mask[4];
 	u16	CrcRemainder;
 	u8	WFMIndex;
 	WOLPATTERN_TYPE	PatternType;
-}RT_PM_WOL_PATTERN_INFO, *PRT_PM_WOL_PATTERN_INFO;
+};//, *struct rt_pm_wol_info *;
 
 typedef struct _RT_POWER_SAVE_CONTROL
 {
@@ -1916,7 +1915,7 @@ typedef struct _RT_POWER_SAVE_CONTROL
 	u8				RegAMDPciASPM;
 
 	u8				oWLANMode;
-	RT_PM_WOL_PATTERN_INFO		PmWoLPatternInfo[MAX_SUPPORT_WOL_PATTERN_NUM];
+	struct rt_pm_wol_info PmWoLPatternInfo[MAX_SUPPORT_WOL_PATTERN_NUM];
 
 }RT_POWER_SAVE_CONTROL,*PRT_POWER_SAVE_CONTROL;
 
