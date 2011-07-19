@@ -57,13 +57,12 @@ struct cmpk_txfb {
 	u16	duration;			/* */
 };//;
 
-typedef struct tag_cmd_pkt_interrupt_status
-{
+struct cmpk_intr_sta {
 	u8	element_id;
 	u8	length;
 	u16	reserve;
 	u32	interrupt_status;
-}cmpk_intr_sta_t;
+};//;
 
 
 typedef struct tag_cmd_pkt_set_configuration

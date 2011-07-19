@@ -199,14 +199,14 @@ cmpk_handle_interrupt_status(
 	struct net_device *dev,
 	u8*	pmsg)
 {
-	cmpk_intr_sta_t		rx_intr_status;	/* */
+	struct cmpk_intr_sta rx_intr_status;	/* */
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	DMESG("---> cmpk_Handle_Interrupt_Status()\n");
 
 
 	rx_intr_status.length = pmsg[1];
-	if (rx_intr_status.length != (sizeof(cmpk_intr_sta_t) - 2))
+	if (rx_intr_status.length != (sizeof(struct cmpk_intr_sta) - 2))
 	{
 		DMESG("cmpk_Handle_Interrupt_Status: wrong length!\n");
 		return;
@@ -416,7 +416,7 @@ cmpk_message_handle_rx(
 		case RX_INTERRUPT_STATUS:
 			RT_TRACE(COMP_CMDPKT, "---->cmpk_message_handle_rx():RX_INTERRUPT_STATUS\n");
 			cmpk_handle_interrupt_status(dev, pcmd_buff);
-			cmd_length = sizeof(cmpk_intr_sta_t);
+			cmd_length = sizeof(struct cmpk_intr_sta);
 			break;
 		case BOTH_QUERY_CONFIG:
 			RT_TRACE(COMP_CMDPKT, "---->cmpk_message_handle_rx():BOTH_QUERY_CONFIG\n");
