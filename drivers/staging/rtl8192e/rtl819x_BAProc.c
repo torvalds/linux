@@ -243,7 +243,7 @@ int rtllib_rx_ADDBAReq( struct rtllib_device* ieee, struct sk_buff *skb)
 	struct ba_record *pBA = NULL;
 	PBA_PARAM_SET	pBaParamSet = NULL;
 	u16* pBaTimeoutVal = NULL;
-	PSEQUENCE_CONTROL pBaStartSeqCtrl = NULL;
+	union sequence_control *pBaStartSeqCtrl = NULL;
 	struct rx_ts_record *pTS = NULL;
 
 	if (skb->len < sizeof( struct rtllib_hdr_3addr) + 9)
@@ -261,7 +261,7 @@ int rtllib_rx_ADDBAReq( struct rtllib_device* ieee, struct sk_buff *skb)
 	pDialogToken = tag + 2;
 	pBaParamSet = (PBA_PARAM_SET)(tag + 3);
 	pBaTimeoutVal = (u16*)(tag + 5);
-	pBaStartSeqCtrl = (PSEQUENCE_CONTROL)(req + 7);
+	pBaStartSeqCtrl = (union sequence_control *)(req + 7);
 
 	RT_TRACE(COMP_DBG, "====>rx ADDBAREQ from :"MAC_FMT"\n", MAC_ARG(dst));
 	if (ieee->current_network.qos_data.active == 0  ||
