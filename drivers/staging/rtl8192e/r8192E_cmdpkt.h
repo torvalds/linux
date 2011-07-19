@@ -18,7 +18,7 @@
 ******************************************************************************/
 #ifndef R819XUSB_CMDPKT_H
 #define R819XUSB_CMDPKT_H
-#define		CMPK_RX_TX_FB_SIZE					sizeof(cmpk_txfb_t)
+#define		CMPK_RX_TX_FB_SIZE					sizeof(struct cmpk_txfb)
 #define		CMPK_TX_SET_CONFIG_SIZE				sizeof(cmpk_set_cfg_t)
 #define		CMPK_BOTH_QUERY_CONFIG_SIZE			sizeof(cmpk_set_cfg_t)
 #define		CMPK_RX_TX_STS_SIZE					sizeof(cmpk_tx_status_t)
@@ -30,8 +30,7 @@
 #define ISR_BcnTimerIntr			BIT13
 
 
-typedef struct tag_cmd_pkt_tx_feedback
-{
+struct cmpk_txfb {
 	u8	element_id;
 	u8	length;
 	u8	TID:4;				/* */
@@ -56,7 +55,7 @@ typedef struct tag_cmd_pkt_tx_feedback
 
 	u16	reserve3;			/* */
 	u16	duration;			/* */
-}cmpk_txfb_t;
+};//;
 
 typedef struct tag_cmd_pkt_interrupt_status
 {

@@ -104,7 +104,7 @@ Failed:
 static	void
 cmpk_count_txstatistic(
 	struct net_device *dev,
-	cmpk_txfb_t	*pstx_fb)
+	struct cmpk_txfb *pstx_fb)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 #ifdef ENABLE_PS
@@ -158,12 +158,12 @@ cmpk_handle_tx_feedback(
 	u8	*	pmsg)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	cmpk_txfb_t		rx_tx_fb;	/* */
+	struct cmpk_txfb rx_tx_fb;	/* */
 
 	priv->stats.txfeedback++;
 
 
-	memcpy((u8*)&rx_tx_fb, pmsg, sizeof(cmpk_txfb_t));
+	memcpy((u8*)&rx_tx_fb, pmsg, sizeof(struct cmpk_txfb));
 	cmpk_count_txstatistic(dev, &rx_tx_fb);
 
 }	/* cmpk_Handle_Tx_Feedback */
