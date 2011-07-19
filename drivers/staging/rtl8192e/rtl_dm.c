@@ -1916,7 +1916,7 @@ void dm_FalseAlarmCounterStatistics(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 ret_value;
-	PFALSE_ALARM_STATISTICS FalseAlmCnt = &(priv->FalseAlmCnt);
+	struct false_alarm_stats *FalseAlmCnt = &(priv->FalseAlmCnt);
 
 	ret_value = rtl8192_QueryBBReg(dev, rOFDM_PHYCounter1, bMaskDWord);
         FalseAlmCnt->Cnt_Parity_Fail = ((ret_value&0xffff0000)>>16);

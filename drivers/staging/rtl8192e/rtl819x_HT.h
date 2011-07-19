@@ -366,7 +366,7 @@ struct mimo_evm {
 	u32    EVM2;
 };//, *struct mimo_evm *;
 
-typedef struct _FALSE_ALARM_STATISTICS{
+struct false_alarm_stats {
 	u32	Cnt_Parity_Fail;
 	u32	Cnt_Rate_Illegal;
 	u32	Cnt_Crc8_fail;
@@ -374,7 +374,7 @@ typedef struct _FALSE_ALARM_STATISTICS{
 	u32	Cnt_Ofdm_fail;
 	u32	Cnt_Cck_fail;
 	u32	Cnt_all;
-}FALSE_ALARM_STATISTICS, *PFALSE_ALARM_STATISTICS;
+};//, *struct false_alarm_stats *;
 
 
 extern u8 MCS_FILTER_ALL[16];

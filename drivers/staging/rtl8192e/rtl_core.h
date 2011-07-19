@@ -882,7 +882,7 @@ typedef struct r8192_priv
 	u8		DynamicTxHighPowerLvl;
 	u8		LastDTPLvl;
 	u32		CurrentRATR0;
-	FALSE_ALARM_STATISTICS FalseAlmCnt;
+	struct false_alarm_stats FalseAlmCnt;
 
 	u8		DMFlag;
 	u8		DM_Type;
