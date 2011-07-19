@@ -1406,7 +1406,7 @@ void rtl8192_query_rxphystatus(
 	)
 {
 	struct phy_sts_ofdm_819xpci* pofdm_buf;
-	phy_sts_cck_819xpci_t	*	pcck_buf;
+	struct phy_sts_cck_819xpci *	pcck_buf;
 	struct phy_ofdm_rx_status_rxsc_sgien_exintfflag * prxsc;
 	u8				*prxpkt;
 	u8				i,max_spatial_stream, tmp_rxsnr, tmp_rxevm, rxsc_sgien_exflg;
@@ -1441,7 +1441,7 @@ void rtl8192_query_rxphystatus(
 
 	prxpkt += sizeof(rx_fwinfo);
 
-	pcck_buf = (phy_sts_cck_819xpci_t *)prxpkt;
+	pcck_buf = (struct phy_sts_cck_819xpci *)prxpkt;
 	pofdm_buf = (struct phy_sts_ofdm_819xpci *)prxpkt;
 
 	pstats->RxMIMOSignalQuality[0] = -1;

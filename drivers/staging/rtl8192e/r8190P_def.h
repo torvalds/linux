@@ -294,12 +294,11 @@ struct phy_sts_ofdm_819xpci {
 	u8	rxsc_sgien_exflg;
 };//;
 
-typedef struct _phy_cck_rx_status_report_819xpci
-{
+struct phy_sts_cck_819xpci {
 	u8	adc_pwdb_X[4];
 	u8	sq_rpt;
 	u8	cck_agc_rpt;
-}phy_sts_cck_819xpci_t, phy_sts_cck_8192s_t;
+};//;
 
 
 #define		PHY_RSSI_SLID_WIN_MAX				100
