@@ -655,6 +655,8 @@ static int rk29_i2c_cpufreq_transition(struct notifier_block *nb,
 
 static inline int rk29_i2c_register_cpufreq(struct rk29_i2c_data *i2c)
 {
+	if (i2c->adap.nr != 0)
+		return 0;
 	i2c->freq_transition.notifier_call = rk29_i2c_cpufreq_transition;
 
 	return cpufreq_register_notifier(&i2c->freq_transition,
@@ -663,6 +665,8 @@ static inline int rk29_i2c_register_cpufreq(struct rk29_i2c_data *i2c)
 
 static inline void rk29_i2c_unregister_cpufreq(struct rk29_i2c_data *i2c)
 {
+	if (i2c->adap.nr != 0)
+		return;
 	cpufreq_unregister_notifier(&i2c->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
 }
@@ -707,6 +711,7 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 	i2c->adap.owner   	= THIS_MODULE;
 	i2c->adap.algo    	= &rk29_i2c_algorithm;
 	i2c->adap.class   	= I2C_CLASS_HWMON;
+	i2c->adap.nr		= pdata->bus_num;
 	spin_lock_init(&i2c->cmd_lock);
 
 	i2c->dev = &pdev->dev;
@@ -770,7 +775,6 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	i2c->adap.nr = pdata->bus_num;
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0) {
 		i2c_err(&pdev->dev, "failed to add bus to i2c core\n");
