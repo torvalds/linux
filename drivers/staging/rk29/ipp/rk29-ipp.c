@@ -328,7 +328,8 @@ int ipp_blit(const struct rk29_ipp_req *req)
 
 	ret = ipp_check_param(req);
 	if(ret ==  -EINVAL)
-	{
+	{	
+		printk("IPP invalid input!\n");
 		goto erorr_input;
 	}
 	
@@ -667,6 +668,7 @@ int ipp_blit(const struct rk29_ipp_req *req)
 	}
 	else//no pre_scale
 	{
+		ipp_write(ipp_read(IPP_CONFIG)&(~PRE_SCALE), IPP_CONFIG); //disable pre_scale
 		ipp_write(0,IPP_PRE_SCL_PARA);
 		ipp_write((req->src0.h<<16)|req->src0.w, IPP_PRE_IMG_INFO);
 	}
@@ -851,13 +853,17 @@ int ipp_blit(const struct rk29_ipp_req *req)
 			ERR("only support YUV format!\n");
 		}
 	}
+	else
+	{
+		ipp_write(ipp_read(IPP_CONFIG)&(~DEINTERLACE_ENABLE), IPP_CONFIG); //disable deinterlace
+	}
 
 	/*Configure other*/
 	ipp_write((req->dst_vir_w<<16)|req->src_vir_w, IPP_IMG_VIR);
 
-	if((req->src0.w%4) !=0)
+	//store clip mode always set to 1 now
 	ipp_write(ipp_read(IPP_CONFIG)|(1<<26), IPP_CONFIG);//store clip mode
-
+	
 	/* Start the operation */
 	ipp_write(8, IPP_INT);//
 	
@@ -1256,11 +1262,11 @@ uint32_t size = 8*1024*1024;
 		
 		ipp_req.dst0.YrgbMst = dst_addr;
 		ipp_req.dst0.CbrMst = dst_addr + size;
-		ipp_req.dst0.w = 800;
-		ipp_req.dst0.h = 480;
+		ipp_req.dst0.w = 240;
+		ipp_req.dst0.h = 160;
 	
 		ipp_req.src_vir_w = 480;
-		ipp_req.dst_vir_w = 800;
+		ipp_req.dst_vir_w = 240;
 		ipp_req.timeout = 100;
 		ipp_req.flag = IPP_ROT_0;
 		
@@ -1270,6 +1276,13 @@ uint32_t size = 8*1024*1024;
 		ipp_req.deinterlace_para2 = 0;
 
 		ipp_req.complete = ipp_test_complete;
+
+		/*0 test whether IPP_CONFIG is set correctly*/
+		ipp_blit_sync(&ipp_req);
+		ipp_req.dst0.w = 480;
+		ipp_req.dst0.h = 320;
+		ipp_req.dst_vir_w = 480;
+		ipp_blit_sync(&ipp_req);
 		
 		/*1 test ipp_blit_sync*/
 		/*
@@ -1341,6 +1354,7 @@ uint32_t size = 8*1024*1024;
 		*/
 
 		/*6.call IPP driver in the kernel space and the user space at the same time*/
+		/*
 			ipp_req.src_vir_w = 280;
 		ipp_req.dst_vir_w = 800;
 		do
@@ -1356,6 +1370,8 @@ uint32_t size = 8*1024*1024;
 		ipp_req.dst_vir_w = 600;
 
 		ipp_blit_sync(&ipp_req);
+		*/
+		
 		/*7.suspand and resume*/
 		/*
 		//do
@@ -1633,7 +1649,7 @@ static int __init ipp_drv_probe(struct platform_device *pdev)
 
 #ifdef IPP_TEST
 	INIT_DELAYED_WORK(&d_work, ipp_test_work_handler);
-	schedule_delayed_work(&d_work, msecs_to_jiffies(35000));
+	schedule_delayed_work(&d_work, msecs_to_jiffies(15000));
 #endif
 
 	return 0;
