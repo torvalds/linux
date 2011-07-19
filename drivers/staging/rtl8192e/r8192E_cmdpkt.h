@@ -55,14 +55,14 @@ struct cmpk_txfb {
 
 	u16	reserve3;			/* */
 	u16	duration;			/* */
-};//;
+};
 
 struct cmpk_intr_sta {
 	u8	element_id;
 	u8	length;
 	u16	reserve;
 	u32	interrupt_status;
-};//;
+};
 
 
 struct cmpk_set_cfg {
@@ -79,7 +79,7 @@ struct cmpk_set_cfg {
 	u8	cfg_offset;
 	u32	value;
 	u32	mask;
-};//;
+};
 
 #define		cmpk_query_cfg_t	struct cmpk_set_cfg
 
@@ -118,7 +118,7 @@ struct cmpk_rx_dbginfo {
 	u8	element_id;
 
 
-};//;
+};
 
 struct cmpk_tx_rahis {
 	u8	element_id;
@@ -137,7 +137,7 @@ struct cmpk_tx_rahis {
 
 } __packed;
 
-typedef enum tag_command_packet_directories
+typedef enum _cmpk_element_e
 {
     RX_TX_FEEDBACK = 0,
     RX_INTERRUPT_STATUS		= 1,
@@ -148,7 +148,7 @@ typedef enum tag_command_packet_directories
     RX_TX_PER_PKT_FEEDBACK		= 6,
     RX_TX_RATE_HISTORY		= 7,
     RX_CMD_ELE_MAX
-}cmpk_element_e;
+} cmpk_element_e;
 
 extern  u32 cmpk_message_handle_rx(struct net_device *dev, struct rtllib_rx_stats * pstats);
 extern bool cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);

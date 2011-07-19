@@ -43,7 +43,7 @@ struct net_device;
 			printk Fmt;					\
 		}
 
-typedef enum tag_DBGP_Flag_Type_Definition
+typedef enum _DBGP_FLAG_E
 {
 	FQoS				= 0,
 	FTX					= 1,
@@ -65,7 +65,7 @@ typedef enum tag_DBGP_Flag_Type_Definition
 	FINIT				= 17,
 	FIOCTL				= 18,
 	DBGP_TYPE_MAX
-}DBGP_FLAG_E;
+} DBGP_FLAG_E;
 
 #define		QoS_INIT				BIT0
 #define		QoS_VISTA				BIT1

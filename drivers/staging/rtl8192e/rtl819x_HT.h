@@ -56,19 +56,19 @@ typedef enum _HT_MCS_RATE{
 	HT_MCS13 = 0x00002000,
 	HT_MCS14 = 0x00004000,
 	HT_MCS15 = 0x00008000,
-}HT_MCS_RATE,*PHT_MCS_RATE;
+} HT_MCS_RATE,*PHT_MCS_RATE;
 
 typedef enum _HT_CHANNEL_WIDTH{
 	HT_CHANNEL_WIDTH_20 = 0,
 	HT_CHANNEL_WIDTH_20_40 = 1,
-}HT_CHANNEL_WIDTH, *PHT_CHANNEL_WIDTH;
+} HT_CHANNEL_WIDTH, *PHT_CHANNEL_WIDTH;
 
 typedef enum _HT_EXTCHNL_OFFSET{
 	HT_EXTCHNL_OFFSET_NO_EXT = 0,
 	HT_EXTCHNL_OFFSET_UPPER = 1,
 	HT_EXTCHNL_OFFSET_NO_DEF = 2,
 	HT_EXTCHNL_OFFSET_LOWER = 3,
-}HT_EXTCHNL_OFFSET, *PHT_EXTCHNL_OFFSET;
+} HT_EXTCHNL_OFFSET, *PHT_EXTCHNL_OFFSET;
 
 typedef enum _CHNLOP{
 	CHNLOP_NONE = 0,
@@ -204,13 +204,13 @@ struct mimops_ctrl {
 typedef enum _HT_SPEC_VER{
 	HT_SPEC_VER_IEEE = 0,
 	HT_SPEC_VER_EWC = 1,
-}HT_SPEC_VER, *PHT_SPEC_VER;
+} HT_SPEC_VER, *PHT_SPEC_VER;
 
 typedef enum _HT_AGGRE_MODE_E{
 	HT_AGG_AUTO = 0,
 	HT_AGG_FORCE_ENABLE = 1,
 	HT_AGG_FORCE_DISABLE = 2,
-}HT_AGGRE_MODE_E, *PHT_AGGRE_MODE_E;
+} HT_AGGRE_MODE_E, *PHT_AGGRE_MODE_E;
 
 
 struct rt_hi_throughput {
@@ -327,7 +327,7 @@ struct rt_htinfo_sta_entry {
 
 	u16                     nAMSDU_MaxSize;
 
-};//, *struct rt_htinfo_sta_entry *;
+};
 
 
 
@@ -359,12 +359,12 @@ struct mimo_rssi {
 	u32	AntennaC;
 	u32	AntennaD;
 	u32	Average;
-};//, *struct mimo_rssi *;
+};
 
 struct mimo_evm {
 	u32	EVM1;
 	u32    EVM2;
-};//, *struct mimo_evm *;
+};
 
 struct false_alarm_stats {
 	u32	Cnt_Parity_Fail;
@@ -374,7 +374,7 @@ struct false_alarm_stats {
 	u32	Cnt_Ofdm_fail;
 	u32	Cnt_Cck_fail;
 	u32	Cnt_all;
-};//, *struct false_alarm_stats *;
+};
 
 
 extern u8 MCS_FILTER_ALL[16];
@@ -397,14 +397,14 @@ extern u8 MCS_FILTER_1SS[16];
 
 #define		IS_11N_MCS_RATE(rate)		(rate&0x80)
 
-typedef enum _HT_AGGRE_SIZE{
+typedef enum _HT_AGGRE_SIZE_E{
 	HT_AGG_SIZE_8K = 0,
 	HT_AGG_SIZE_16K = 1,
 	HT_AGG_SIZE_32K = 2,
 	HT_AGG_SIZE_64K = 3,
-}HT_AGGRE_SIZE_E, *PHT_AGGRE_SIZE_E;
+} HT_AGGRE_SIZE_E, *PHT_AGGRE_SIZE_E;
 
-typedef enum _HT_IOT_PEER
+typedef enum _HT_IOT_PEER_E
 {
 	HT_IOT_PEER_UNKNOWN = 0,
 	HT_IOT_PEER_REALTEK = 1,
@@ -418,14 +418,14 @@ typedef enum _HT_IOT_PEER
 	HT_IOT_PEER_SELF_SOFTAP = 9,
 	HT_IOT_PEER_AIRGO = 10,
 	HT_IOT_PEER_MAX = 11,
-}HT_IOT_PEER_E, *PHTIOT_PEER_E;
+} HT_IOT_PEER_E, *PHTIOT_PEER_E;
 
-typedef enum _HT_IOT_PEER_SUBTYPE
+typedef enum _HT_IOT_PEER_SUBTYPE_E
 {
 	HT_IOT_PEER_ATHEROS_DIR635 = 0,
-}HT_IOT_PEER_SUBTYPE_E, *PHTIOT_PEER_SUBTYPE_E;
+} HT_IOT_PEER_SUBTYPE_E, *PHTIOT_PEER_SUBTYPE_E;
 
-typedef enum _HT_IOT_ACTION{
+typedef enum _HT_IOT_ACTION_E{
 	HT_IOT_ACT_TX_USE_AMSDU_4K = 0x00000001,
 	HT_IOT_ACT_TX_USE_AMSDU_8K = 0x00000002,
 	HT_IOT_ACT_DISABLE_MCS14 = 0x00000004,
@@ -458,21 +458,21 @@ typedef enum _HT_IOT_ACTION{
 
 	HT_IOT_ACT_DISABLE_RX_40MHZ_SHORT_GI = 0x08000000,
 
-}HT_IOT_ACTION_E, *PHT_IOT_ACTION_E;
+} HT_IOT_ACTION_E, *PHT_IOT_ACTION_E;
 
 typedef enum _HT_IOT_RAFUNC{
 	HT_IOT_RAFUNC_DISABLE_ALL = 0x00,
 	HT_IOT_RAFUNC_PEER_1R = 0x01,
 	HT_IOT_RAFUNC_TX_AMSDU = 0x02,
-}HT_IOT_RAFUNC, *PHT_IOT_RAFUNC;
+} HT_IOT_RAFUNC, *PHT_IOT_RAFUNC;
 
-typedef enum _RT_HT_CAP{
+typedef enum _RT_HT_CAPBILITY{
 	RT_HT_CAP_USE_TURBO_AGGR = 0x01,
 	RT_HT_CAP_USE_LONG_PREAMBLE = 0x02,
 	RT_HT_CAP_USE_AMPDU = 0x04,
 	RT_HT_CAP_USE_WOW = 0x8,
 	RT_HT_CAP_USE_SOFTAP = 0x10,
 	RT_HT_CAP_USE_92SE = 0x20,
-}RT_HT_CAPBILITY, *PRT_HT_CAPBILITY;
+} RT_HT_CAPBILITY, *PRT_HT_CAPBILITY;
 
 #endif

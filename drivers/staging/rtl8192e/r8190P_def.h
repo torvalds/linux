@@ -29,12 +29,12 @@
 #define RX_CMD_QUEUE				1
 
 
-typedef enum _rtl819x_loopback{
+typedef enum _rtl819x_loopback_e{
 	RTL819X_NO_LOOPBACK = 0,
 	RTL819X_MAC_LOOPBACK = 1,
 	RTL819X_DMA_LOOPBACK = 2,
 	RTL819X_CCK_LOOPBACK = 3,
-}rtl819x_loopback_e;
+} rtl819x_loopback_e;
 
 
 #define RESET_DELAY_8185			20
@@ -132,7 +132,7 @@ typedef enum _rtl819x_loopback{
 typedef enum _VERSION_8190{
 	VERSION_8190_BD=0x3,
 	VERSION_8190_BE
-}VERSION_8190,*PVERSION_8190;
+} VERSION_8190,*PVERSION_8190;
 
 #define IC_VersionCut_C	0x2
 #define IC_VersionCut_D	0x3
@@ -143,14 +143,14 @@ typedef enum tag_Rf_OpType
     RF_OP_By_SW_3wire = 0,
     RF_OP_By_FW,
     RF_OP_MAX
-}RF_OpType_E;
+} RF_OpType_E;
 
 
 typedef	enum _POWER_SAVE_MODE
 {
 	POWER_SAVE_MODE_ACTIVE,
 	POWER_SAVE_MODE_SAVE,
-}POWER_SAVE_MODE;
+} POWER_SAVE_MODE;
 
 typedef	enum _INTERFACE_SELECT_8190PCI{
 	INTF_SEL1_MINICARD		= 0,
@@ -178,7 +178,7 @@ struct bb_reg_definition {
 	u32 rfTxAFE;
 	u32 rfLSSIReadBack;
 	u32 rfLSSIReadBackPi;
-};//, *struct bb_reg_definition *;
+};
 
 struct tx_fwinfo {
 	u8			TxRate:7;
@@ -205,7 +205,7 @@ struct tx_fwinfo {
 	u32			TxAGCSign:1;
 	u32			Tx_INFO_RSVD:6;
 	u32			PacketID:13;
-};//;
+};
 
 struct tx_fwinfo_8190pci {
 	u8			TxRate:7;
@@ -237,7 +237,7 @@ struct tx_fwinfo_8190pci {
 	u32			PacketID:13;
 
 
-};//, *struct tx_fwinfo_8190pci *;
+};
 
 
 #define TX_DESC_SIZE			32
@@ -276,7 +276,7 @@ struct phy_ofdm_rx_status_rxsc_sgien_exintfflag {
 	u8			rxsc:2;
 	u8			sgi_en:1;
 	u8			ex_intf_flag:1;
-};//;
+};
 
 struct phy_sts_ofdm_819xpci {
 	u8	trsw_gain_X[4];
@@ -292,13 +292,13 @@ struct phy_sts_ofdm_819xpci {
 	u8	max_ex_pwr;
 	u8	sgi_en;
 	u8	rxsc_sgien_exflg;
-};//;
+};
 
 struct phy_sts_cck_819xpci {
 	u8	adc_pwdb_X[4];
 	u8	sq_rpt;
 	u8	cck_agc_rpt;
-};//;
+};
 
 
 #define		PHY_RSSI_SLID_WIN_MAX				100
@@ -340,7 +340,7 @@ struct tx_desc {
         u32	Reserved5;
         u32	Reserved6;
         u32	Reserved7;
-};//, *ptx_desc;
+};
 
 
 struct tx_desc_cmd {
@@ -364,7 +364,7 @@ struct tx_desc_cmd {
 	u32	Reserved4;
 	u32	Reserved5;
 	u32	Reserved6;
-};//, *ptx_desc_cmd;
+};
 
 struct rx_desc {
 	u16			Length:14;
@@ -385,7 +385,7 @@ struct rx_desc {
 
 	u32	BufferAddress;
 
-};//, *prx_desc;
+};
 
 
 struct rx_fwinfo {
@@ -407,6 +407,6 @@ struct rx_fwinfo {
 
 	u32			TSFL;
 
-};//, *prx_fwinfo;
+};
 
 #endif

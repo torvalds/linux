@@ -200,7 +200,7 @@ struct cb_desc {
 
 	u8 bBTTxPacket;
 	u8 bIsBTProbRsp;
-};//, *pcb_desc;
+};
 
 /*--------------------------Define -------------------------------------------*/
 #define MGN_1M                  0x02
@@ -309,7 +309,7 @@ typedef enum _HAL_DEF_VARIABLE{
 	HAL_DEF_PCI_SUPPORT_ASPM,
 	HAL_DEF_THERMAL_VALUE,
       HAL_DEF_USB_IN_TOKEN_REV,
-}HAL_DEF_VARIABLE;
+} HAL_DEF_VARIABLE;
 
 
 typedef enum _HW_VARIABLES{
@@ -401,14 +401,14 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_INT_MIGRATION,
 	HW_VAR_INT_AC,
         HW_VAR_RF_TIMING,
-}HW_VARIABLES;
+} HW_VARIABLES;
 
 typedef enum _RT_OP_MODE{
 	RT_OP_MODE_AP,
 	RT_OP_MODE_INFRASTRUCTURE,
 	RT_OP_MODE_IBSS,
 	RT_OP_MODE_NO_LINK,
-}RT_OP_MODE, *PRT_OP_MODE;
+} RT_OP_MODE, *PRT_OP_MODE;
 
 
 #define aSifsTime	 (((priv->rtllib->current_network.mode == IEEE_A)||(priv->rtllib->current_network.mode == IEEE_N_24G)||(priv->rtllib->current_network.mode == IEEE_N_5G))? 16 : 10)
@@ -482,7 +482,7 @@ struct ieee_param {
 			u8 key[0];
 		} crypt;
 	} u;
-};//;
+};
 
 
 #if WIRELESS_EXT < 17
@@ -619,7 +619,8 @@ typedef enum _InitialGainOpType{
 	IG_Backup=0,
 	IG_Restore,
 	IG_Max
-}InitialGainOpType;
+} InitialGainOpType;
+
 typedef enum _LED_CTL_MODE{
         LED_CTL_POWER_ON = 1,
         LED_CTL_LINK = 2,
@@ -634,7 +635,7 @@ typedef enum _LED_CTL_MODE{
         LED_CTL_START_WPS_BOTTON = 11,
         LED_CTL_STOP_WPS_FAIL = 12,
 	 LED_CTL_STOP_WPS_FAIL_OVERLAP = 13,
-}LED_CTL_MODE;
+} LED_CTL_MODE;
 
 typedef enum _RT_RF_TYPE_DEF
 {
@@ -644,7 +645,7 @@ typedef enum _RT_RF_TYPE_DEF
 	RF_1T1R,
 	RF_2T2R_GREEN,
 	RF_819X_MAX_TYPE
-}RT_RF_TYPE_DEF;
+} RT_RF_TYPE_DEF;
 
 typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_UNKNOWN = 0x00,
@@ -656,7 +657,7 @@ typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_N_5G = 0x20
 } WIRELESS_MODE;
 
-typedef enum _NETWORK_TYPE{
+typedef enum _WIRELESS_NETWORK_TYPE{
 	WIRELESS_11B = 1,
 	WIRELESS_11G = 2,
 	WIRELESS_11A = 4,
@@ -1775,14 +1776,14 @@ enum rtllib_state {
 struct tx_pending {
 	int frag;
 	struct rtllib_txb *txb;
-};//;
+};
 
 struct bandwidth_autoswitch {
 	long threshold_20Mhzto40Mhz;
 	long	threshold_40Mhzto20Mhz;
 	bool bforced_tx20Mhz;
 	bool bautoswitch_enable;
-};//,*pbandwidth_autoswitch;
+};
 
 
 
@@ -1797,7 +1798,7 @@ typedef enum _Fsync_State{
 	Default_Fsync,
 	HW_Fsync,
 	SW_Fsync
-}Fsync_State;
+} Fsync_State;
 
 typedef	enum _RT_PS_MODE
 {
@@ -1805,25 +1806,25 @@ typedef	enum _RT_PS_MODE
 	eMaxPs,
 	eFastPs,
 	eAutoPs,
-}RT_PS_MODE;
+} RT_PS_MODE;
 
 typedef enum _IPS_CALLBACK_FUNCION
 {
 	IPS_CALLBACK_NONE = 0,
 	IPS_CALLBACK_MGNT_LINK_REQUEST = 1,
 	IPS_CALLBACK_JOIN_REQUEST = 2,
-}IPS_CALLBACK_FUNCION;
+} IPS_CALLBACK_FUNCION;
 
 typedef enum _RT_JOIN_ACTION{
 	RT_JOIN_INFRA   = 1,
 	RT_JOIN_IBSS  = 2,
 	RT_START_IBSS = 3,
 	RT_NO_ACTION  = 4,
-}RT_JOIN_ACTION;
+} RT_JOIN_ACTION;
 
 struct ibss_parms {
 	u16   atimWin;
-};//, *struct ibss_parms *;
+};
 #define MAX_NUM_RATES	264
 
 typedef	enum _RT_RF_POWER_STATE
@@ -1831,7 +1832,7 @@ typedef	enum _RT_RF_POWER_STATE
 	eRfOn,
 	eRfSleep,
 	eRfOff
-}RT_RF_POWER_STATE;
+} RT_RF_POWER_STATE;
 
 #define	MAX_SUPPORT_WOL_PATTERN_NUM		8
 
@@ -1845,7 +1846,7 @@ typedef enum _WOLPATTERN_TYPE
 	eIPv4IPv6TCPSYN,
 	eMACIDOnly,
 	eNoDefined,
-}WOLPATTERN_TYPE;
+} WOLPATTERN_TYPE;
 
 struct rt_pm_wol_info {
 	u32	PatternId;
@@ -1853,7 +1854,7 @@ struct rt_pm_wol_info {
 	u16	CrcRemainder;
 	u8	WFMIndex;
 	WOLPATTERN_TYPE	PatternType;
-};//, *struct rt_pm_wol_info *;
+};
 
 struct rt_pwr_save_ctrl {
 
@@ -1912,7 +1913,7 @@ struct rt_pwr_save_ctrl {
 	u8				oWLANMode;
 	struct rt_pm_wol_info PmWoLPatternInfo[MAX_SUPPORT_WOL_PATTERN_NUM];
 
-};//,*struct rt_pwr_save_ctrl *;
+};
 
 typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_SW BIT31
@@ -1921,7 +1922,7 @@ typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_IPS BIT28
 #define RF_CHANGE_BY_INIT	0
 
-typedef enum
+typedef enum _country_code_type_t
 {
 	COUNTRY_CODE_FCC = 0,
 	COUNTRY_CODE_IC = 1,
@@ -1937,13 +1938,13 @@ typedef enum
 	COUNTRY_CODE_WORLD_WIDE_13 = 11,
 	COUNTRY_CODE_TELEC_NETGEAR = 12,
 	COUNTRY_CODE_MAX
-}country_code_type_t;
+} country_code_type_t;
 
 typedef enum _SCAN_OPERATION_BACKUP_OPT{
 	SCAN_OPT_BACKUP=0,
 	SCAN_OPT_RESTORE,
 	SCAN_OPT_MAX
-}SCAN_OPERATION_BACKUP_OPT;
+} SCAN_OPERATION_BACKUP_OPT;
 
 typedef	enum _FW_CMD_IO_TYPE{
 	FW_CMD_DIG_ENABLE = 0,
@@ -1977,7 +1978,7 @@ typedef	enum _FW_CMD_IO_TYPE{
 	FW_CMD_CTRL_DM_BY_DRIVER_NEW = 28,
 	FW_CMD_PAPE_CONTROL = 29,
 	FW_CMD_CHAN_SET = 30,
-}FW_CMD_IO_TYPE,*PFW_CMD_IO_TYPE;
+} FW_CMD_IO_TYPE,*PFW_CMD_IO_TYPE;
 
 #define RT_MAX_LD_SLOT_NUM	10
 struct rt_link_detect {
@@ -2000,7 +2001,7 @@ struct rt_link_detect {
 	u32				NumTxUnicastOkInPeriod;
 	u32				LastNumTxUnicast;
 	u32				LastNumRxUnicast;
-};//, *struct rt_link_detect *;
+};
 
 struct sw_cam_table {
 
@@ -2011,7 +2012,7 @@ struct sw_cam_table {
 	u8				useDK;
 	u8				key_index;
 
-};//,*struct sw_cam_table *;
+};
 #define   TOTAL_CAM_ENTRY				32
 struct rate_adaptive {
 	u8				rate_adaptive_disabled;
@@ -2046,7 +2047,7 @@ typedef enum _RATR_TABLE_MODE_8192S{
 	RATR_INX_WIRELESS_B = 6,
 	RATR_INX_WIRELESS_MC = 7,
 	RATR_INX_WIRELESS_A = 8,
-}RATR_TABLE_MODE_8192S, *PRATR_TABLE_MODE_8192S;
+} RATR_TABLE_MODE_8192S, *PRATR_TABLE_MODE_8192S;
 
 #define	NUM_PMKID_CACHE		16
 struct rt_pmkid_list {

@@ -107,7 +107,7 @@ struct wmm_tspec {
 struct octet_string {
         u8		*Octet;
         u16             Length;
-};//, *struct octet_string *;
+};
 #define	MAX_WMMELE_LENGTH	64
 
 typedef u32 QOS_MODE, *PQOS_MODE;
@@ -139,7 +139,7 @@ typedef u32 QOS_MODE, *PQOS_MODE;
 typedef	enum _ACK_POLICY{
 	eAckPlc0_ACK		= 0x00,
 	eAckPlc1_NoACK		= 0x01,
-}ACK_POLICY,*PACK_POLICY;
+} ACK_POLICY,*PACK_POLICY;
 
 
 #define SET_WMM_QOS_INFO_FIELD(_pStart, _val)						WriteEF1Byte(_pStart, _val)
@@ -165,7 +165,7 @@ typedef	enum _ACK_POLICY{
 #define GET_WMM_QOS_INFO_FIELD_STA_MAX_SP_LEN(_pStart)			LE_BITS_TO_1BYTE(_pStart, 5, 2)
 #define SET_WMM_QOS_INFO_FIELD_STA_MAX_SP_LEN(_pStart, _val)		SET_BITS_TO_LE_1BYTE(_pStart, 5, 2, _val)
 
-typedef enum {
+typedef enum _QOSIE_SOURCE{
 	QOSIE_SRC_ADDTSREQ,
 	QOSIE_SRC_ADDTSRSP,
 	QOSIE_SRC_REASOCREQ,
@@ -212,7 +212,7 @@ typedef u32 AC_CODING;
 typedef	enum _QOS_ELE_SUBTYPE{
 	QOSELE_TYPE_INFO		= 0x00,
 	QOSELE_TYPE_PARAM	= 0x01,
-}QOS_ELE_SUBTYPE,*PQOS_ELE_SUBTYPE;
+} QOS_ELE_SUBTYPE,*PQOS_ELE_SUBTYPE;
 
 
 typedef	enum _DIRECTION_VALUE{
@@ -220,20 +220,20 @@ typedef	enum _DIRECTION_VALUE{
 	DIR_DOWN		= 1,
 	DIR_DIRECT		= 2,
 	DIR_BI_DIR		= 3,
-}DIRECTION_VALUE,*PDIRECTION_VALUE;
+} DIRECTION_VALUE,*PDIRECTION_VALUE;
 
 typedef	enum _ACM_METHOD{
 	eAcmWay0_SwAndHw		= 0,
 	eAcmWay1_HW			= 1,
 	eAcmWay2_SW			= 2,
-}ACM_METHOD,*PACM_METHOD;
+} ACM_METHOD,*PACM_METHOD;
 
 
 struct acm {
 	u64		UsedTime;
 	u64		MediumTime;
 	u8		HwAcmCtl;
-};//, *struct acm *;
+};
 
 
 
@@ -343,7 +343,7 @@ struct sta_qos {
 
 	bool				bEnableRxImmBA;
 
-};//, *struct sta_qos *;
+};
 
 #define QBSS_LOAD_SIZE 5
 #define GET_QBSS_LOAD_STA_COUNT(__pStart)					ReadEF2Byte(__pStart)
@@ -366,7 +366,7 @@ struct bss_qos {
 
 	u8					QBssLoad[QBSS_LOAD_SIZE];
 	bool					bQBssLoadValid;
-};//, *struct bss_qos *;
+};
 
 #define sQoSCtlLng	2
 #define QOS_CTRL_LEN(_QosMode)		( (_QosMode > QOS_DISABLE)? sQoSCtlLng : 0 )

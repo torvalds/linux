@@ -240,7 +240,7 @@ enum RTL_DEBUG {
 	COMP_ERR		= BIT31
 };
 
-typedef enum{
+typedef enum _nic_t{
 	NIC_UNKNOWN     = 0,
 	NIC_8192E       = 1,
 	NIC_8190P       = 2,
@@ -255,9 +255,9 @@ typedef	enum _RT_EEPROM_TYPE{
 	EEPROM_93C46,
 	EEPROM_93C56,
 	EEPROM_BOOT_EFUSE,
-}RT_EEPROM_TYPE,*PRT_EEPROM_TYPE;
+} RT_EEPROM_TYPE,*PRT_EEPROM_TYPE;
 
-typedef enum _tag_TxCmd_Config_Index{
+typedef enum _DCMD_TXCMD_OP{
 	TXCMD_TXRA_HISTORY_CTRL	        = 0xFF900000,
 	TXCMD_RESET_TX_PKT_BUFF		= 0xFF900001,
 	TXCMD_RESET_RX_PKT_BUFF		= 0xFF900002,
@@ -265,7 +265,7 @@ typedef enum _tag_TxCmd_Config_Index{
 	TXCMD_SET_RX_RSSI		= 0xFF900004,
 	TXCMD_SET_TX_PWR_TRACKING	= 0xFF900005,
 	TXCMD_XXXX_CTRL,
-}DCMD_TXCMD_OP;
+} DCMD_TXCMD_OP;
 
 typedef enum _RT_RF_TYPE_819xU{
         RF_TYPE_MIN = 0,
@@ -274,21 +274,21 @@ typedef enum _RT_RF_TYPE_819xU{
         RF_8258,
         RF_6052=4,
         RF_PSEUDO_11N = 5,
-}RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
+} RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
 
-typedef enum tag_Rf_Operatetion_State
+typedef enum _RF_STEP_E
 {
     RF_STEP_INIT = 0,
     RF_STEP_NORMAL,
     RF_STEP_MAX
-}RF_STEP_E;
+} RF_STEP_E;
 
 typedef enum _RT_STATUS{
 	RT_STATUS_SUCCESS,
 	RT_STATUS_FAILURE,
 	RT_STATUS_PENDING,
 	RT_STATUS_RESOURCE
-}RT_STATUS,*PRT_STATUS;
+} RT_STATUS,*PRT_STATUS;
 
 typedef enum _RT_CUSTOMER_ID
 {
@@ -322,7 +322,7 @@ typedef enum _RT_CUSTOMER_ID
 	RT_CID_819x_Arcadyan_Belkin = 29,
 	RT_CID_819x_SAMSUNG = 30,
 	RT_CID_819x_WNC_COREGA = 31,
-}RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
+} RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
 
 typedef enum _RESET_TYPE {
 	RESET_TYPE_NORESET = 0x00,
@@ -333,7 +333,7 @@ typedef enum _RESET_TYPE {
 typedef enum _IC_INFERIORITY_8192S{
 	IC_INFERIORITY_A            = 0,
 	IC_INFERIORITY_B            = 1,
-}IC_INFERIORITY_8192S, *PIC_INFERIORITY_8192S;
+} IC_INFERIORITY_8192S, *PIC_INFERIORITY_8192S;
 
 typedef enum _PCI_BRIDGE_VENDOR {
 	PCI_BRIDGE_VENDOR_INTEL = 0x0,
@@ -360,20 +360,20 @@ struct rtl_reg_debug {
                 unsigned char length;
         } head;
         unsigned char buf[0xff];
-};//;
+};
 
 struct rt_tx_rahis {
 	u32             cck[4];
 	u32             ofdm[8];
 	u32             ht_mcs[4][16];
-};//, *prt_tx_rahis_t;
+};
 
 struct rt_smooth_data_4rf {
 	char	elements[4][100];
 	u32	index;
 	u32	TotalNum;
 	u32	TotalVal[4];
-};//, *struct rt_smooth_data_4rf *;
+};
 
 struct rt_stats {
 	unsigned long txrdu;
@@ -487,7 +487,7 @@ typedef enum _TWO_PORT_STATUS
 	TWO_PORT_STATUS__DEFAULT_G_EXTENSION_N20,
 	TWO_PORT_STATUS__ADHOC,
 	TWO_PORT_STATUS__WITHOUT_ANY_ASSOCIATE
-}TWO_PORT_STATUS;
+} TWO_PORT_STATUS;
 
 struct txbbgain_struct {
 	long	txbb_iq_amplifygain;
@@ -1015,7 +1015,7 @@ struct r8192_priv {
 	u8		H2CTxCmdSeq;
 
 
-};//;
+};
 
 extern const struct ethtool_ops rtl819x_ethtool_ops;
 

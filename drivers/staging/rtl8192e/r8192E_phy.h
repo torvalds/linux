@@ -73,7 +73,7 @@ extern u32 rtl819XRadioB_Array[];
 extern u32 rtl819XRadioC_Array[];
 extern u32 rtl819XRadioD_Array[];
 
-typedef enum _HW90_BLOCK {
+typedef enum _HW90_BLOCK_E {
 	HW90_BLOCK_MAC = 0,
 	HW90_BLOCK_PHY0 = 1,
 	HW90_BLOCK_PHY1 = 2,
@@ -81,13 +81,13 @@ typedef enum _HW90_BLOCK {
 	HW90_BLOCK_MAXIMUM = 4,
 } HW90_BLOCK_E, *PHW90_BLOCK_E;
 
-typedef enum _RF90_RADIO_PATH{
+typedef enum _RF90_RADIO_PATH_E{
 	RF90_PATH_A = 0,
 	RF90_PATH_B = 1,
 	RF90_PATH_C = 2,
 	RF90_PATH_D = 3,
 	RF90_PATH_MAX
-}RF90_RADIO_PATH_E, *PRF90_RADIO_PATH_E;
+} RF90_RADIO_PATH_E, *PRF90_RADIO_PATH_E;
 
 #define bMaskByte0                0xff
 #define bMaskByte1                0xff00
