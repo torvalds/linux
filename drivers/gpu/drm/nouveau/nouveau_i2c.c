@@ -286,7 +286,10 @@ nouveau_i2c_find(struct drm_device *dev, int index)
 			val  = 0xe001;
 		}
 
-		nv_wr32(dev, reg, (nv_rd32(dev, reg) & ~0xf003) | val);
+		/* nfi, but neither auxch or i2c work if it's 1 */
+		nv_mask(dev, reg + 0x0c, 0x00000001, 0x00000000);
+		/* nfi, but switches auxch vs normal i2c */
+		nv_mask(dev, reg + 0x00, 0x0000f003, val);
 	}
 
 	if (!i2c->chan && nouveau_i2c_init(dev, i2c, index))
