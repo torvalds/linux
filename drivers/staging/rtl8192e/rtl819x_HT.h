@@ -58,10 +58,10 @@ enum ht_mcs_rate {
 	HT_MCS15 = 0x00008000,
 };
 
-typedef enum _HT_CHANNEL_WIDTH{
+enum ht_channel_width {
 	HT_CHANNEL_WIDTH_20 = 0,
 	HT_CHANNEL_WIDTH_20_40 = 1,
-} HT_CHANNEL_WIDTH, *PHT_CHANNEL_WIDTH;
+};
 
 typedef enum _HT_EXTCHNL_OFFSET{
 	HT_EXTCHNL_OFFSET_NO_EXT = 0,
@@ -344,7 +344,7 @@ struct bss_ht {
 	u16					bdHTInfoLen;
 
 	HT_SPEC_VER				bdHTSpecVer;
-	HT_CHANNEL_WIDTH			bdBandWidth;
+	enum ht_channel_width bdBandWidth;
 
 	u8					bdRT2RTAggregation;
 	u8					bdRT2RTLongSlotTime;

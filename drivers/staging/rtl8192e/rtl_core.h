@@ -589,7 +589,7 @@ struct r8192_priv {
 
 	RT_RF_TYPE_819xU		rf_chip;
 	IC_INFERIORITY_8192S		IC_Class;
-	HT_CHANNEL_WIDTH		CurrentChannelBW;
+	enum ht_channel_width CurrentChannelBW;
 	struct bb_reg_definition PHYRegDef[4];
 	struct rate_adaptive rate_adaptive;
 

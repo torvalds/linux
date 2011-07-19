@@ -1264,7 +1264,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	RT_TRACE(COMP_SWBW, "<==SetBWMode819xUsb()");
 }
 
-void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH	Bandwidth, HT_EXTCHNL_OFFSET Offset)
+void rtl8192_SetBWMode(struct net_device *dev, enum ht_channel_width Bandwidth, HT_EXTCHNL_OFFSET Offset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 

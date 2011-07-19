@@ -2157,7 +2157,7 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				network->bssht.bdSupportHT = true;
 				network->bssht.bdHT1R = ((((struct ht_capab_ele *)(network->bssht.bdHTCapBuf))->MCS[1]) == 0);
 
-				network->bssht.bdBandWidth = (HT_CHANNEL_WIDTH)(((struct ht_capab_ele *)(network->bssht.bdHTCapBuf))->ChlWidth);
+				network->bssht.bdBandWidth = (enum ht_channel_width)(((struct ht_capab_ele *)(network->bssht.bdHTCapBuf))->ChlWidth);
 			}
 			else{
 				network->bssht.bdSupportHT = false;
