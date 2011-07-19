@@ -975,7 +975,7 @@ static ssize_t target_core_dev_wwn_show_attr_##_name(			\
 }
 
 /*
- * VPD page 0x83 Assoication: Logical Unit
+ * VPD page 0x83 Association: Logical Unit
  */
 DEF_DEV_WWN_ASSOC_SHOW(vpd_assoc_logical_unit, 0x00);
 

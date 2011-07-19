@@ -188,11 +188,11 @@ target_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	/* CODE SET == Binary */
 	buf[off++] = 0x1;
 
-	/* Set ASSOICATION == addressed logical unit: 0)b */
+	/* Set ASSOCIATION == addressed logical unit: 0)b */
 	buf[off] = 0x00;
 
 	/* Identifier/Designator type == NAA identifier */
-	buf[off++] = 0x3;
+	buf[off++] |= 0x3;
 	off++;
 
 	/* Identifier/Designator length */
@@ -293,7 +293,7 @@ check_port:
 			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
 		buf[off++] |= 0x1; /* CODE SET == Binary */
 		buf[off] = 0x80; /* Set PIV=1 */
-		/* Set ASSOICATION == target port: 01b */
+		/* Set ASSOCIATION == target port: 01b */
 		buf[off] |= 0x10;
 		/* DESIGNATOR TYPE == Relative target port identifer */
 		buf[off++] |= 0x4;
@@ -338,7 +338,7 @@ check_tpgi:
 			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
 		buf[off++] |= 0x1; /* CODE SET == Binary */
 		buf[off] = 0x80; /* Set PIV=1 */
-		/* Set ASSOICATION == target port: 01b */
+		/* Set ASSOCIATION == target port: 01b */
 		buf[off] |= 0x10;
 		/* DESIGNATOR TYPE == Target port group identifier */
 		buf[off++] |= 0x5;
@@ -405,7 +405,7 @@ check_scsi_name:
 			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
 		buf[off++] |= 0x3; /* CODE SET == UTF-8 */
 		buf[off] = 0x80; /* Set PIV=1 */
-		/* Set ASSOICATION == target port: 01b */
+		/* Set ASSOCIATION == target port: 01b */
 		buf[off] |= 0x10;
 		/* DESIGNATOR TYPE == SCSI name string */
 		buf[off++] |= 0x8;
