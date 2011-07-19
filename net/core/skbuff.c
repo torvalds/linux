@@ -799,7 +799,8 @@ struct sk_buff *pskb_copy(struct sk_buff *skb, gfp_t gfp_mask)
 
 		if (skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY) {
 			if (skb_copy_ubufs(skb, gfp_mask)) {
-				kfree(n);
+				kfree_skb(n);
+				n = NULL;
 				goto out;
 			}
 			skb_shinfo(skb)->tx_flags &= ~SKBTX_DEV_ZEROCOPY;
