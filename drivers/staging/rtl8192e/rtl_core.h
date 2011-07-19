@@ -496,10 +496,9 @@ struct txbbgain_struct {
 	u32	txbbgain_value;
 };
 
-typedef struct _ccktxbbgain_struct
-{
+struct ccktxbbgain {
 	u8	ccktxbb_valuearray[8];
-} ccktxbbgain_struct,*pccktxbbgain_struct;
+};
 
 typedef struct _init_gain
 {
@@ -598,8 +597,8 @@ typedef struct r8192_priv
 	struct bb_reg_definition PHYRegDef[4];
 	rate_adaptive				rate_adaptive;
 
-	ccktxbbgain_struct			cck_txbbgain_table[CCKTxBBGainTableLength];
-	ccktxbbgain_struct			cck_txbbgain_ch14_table[CCKTxBBGainTableLength];
+	struct ccktxbbgain cck_txbbgain_table[CCKTxBBGainTableLength];
+	struct ccktxbbgain cck_txbbgain_ch14_table[CCKTxBBGainTableLength];
 
 	struct txbbgain_struct txbbgain_table[TxBBGainTableLength];
 
