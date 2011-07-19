@@ -180,7 +180,7 @@ struct bb_reg_definition {
 	u32 rfLSSIReadBackPi;
 };//, *struct bb_reg_definition *;
 
-typedef struct _TX_FWINFO_STRUCUTRE{
+struct tx_fwinfo {
 	u8			TxRate:7;
 	u8			CtsEnable:1;
 	u8			RtsRate:7;
@@ -205,7 +205,7 @@ typedef struct _TX_FWINFO_STRUCUTRE{
 	u32			TxAGCSign:1;
 	u32			Tx_INFO_RSVD:6;
 	u32			PacketID:13;
-}TX_FWINFO_T;
+};//;
 
 typedef struct _TX_FWINFO_8190PCI{
 	u8			TxRate:7;
