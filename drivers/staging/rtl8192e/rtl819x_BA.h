@@ -66,13 +66,13 @@ typedef union _DELBA_PARAM_SET {
 	} field;
 } DELBA_PARAM_SET, *PDELBA_PARAM_SET;
 
-typedef struct _BA_RECORD {
+struct ba_record {
 	struct timer_list		Timer;
 	u8				bValid;
 	u8				DialogToken;
 	BA_PARAM_SET		BaParamSet;
 	u16				BaTimeoutValue;
 	SEQUENCE_CONTROL	BaStartSeqCtrl;
-} BA_RECORD, *PBA_RECORD;
+};
 
 #endif

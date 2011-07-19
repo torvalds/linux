@@ -45,8 +45,8 @@ struct ts_common_info {
 struct tx_ts_record {
 	struct ts_common_info TsCommonInfo;
 	u16				TxCurSeq;
-	BA_RECORD			TxPendingBARecord;
-	BA_RECORD			TxAdmittedBARecord;
+	struct ba_record TxPendingBARecord;
+	struct ba_record TxAdmittedBARecord;
 	u8				bAddBaReqInProgress;
 	u8				bAddBaReqDelayed;
 	u8				bUsingBa;
@@ -61,7 +61,7 @@ struct rx_ts_record {
 	u16				RxTimeoutIndicateSeq;
 	struct list_head		RxPendingPktList;
 	struct timer_list		RxPktPendingTimer;
-	BA_RECORD			RxAdmittedBARecord;
+	struct ba_record RxAdmittedBARecord;
 	u16				RxLastSeqNum;
 	u8				RxLastFragNum;
 	u8				num;

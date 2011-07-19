@@ -2918,7 +2918,7 @@ extern void TsInitDelBA( struct rtllib_device* ieee, struct ts_common_info *pTsC
 extern void BaSetupTimeOut(unsigned long data);
 extern void TxBaInactTimeout(unsigned long data);
 extern void RxBaInactTimeout(unsigned long data);
-extern void ResetBaEntry( PBA_RECORD pBA);
+extern void ResetBaEntry( struct ba_record *pBA);
 extern bool GetTs(
         struct rtllib_device*        ieee,
         struct ts_common_info **ppTS,
