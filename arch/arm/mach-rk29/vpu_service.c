@@ -391,11 +391,7 @@ static void try_set_reg(void)
        		    ((VPU_PP  == reg->type) && (NULL == service.reg_pproc)) ||
        		    ((VPU_ENC == reg->type) && (NULL == service.reg_codec))) {
 			reg_from_wait_to_run(reg);
-			if (in_interrupt()) {
-				__cancel_delayed_work(&vpu_service_power_off_work);
-			} else {
-				cancel_delayed_work(&vpu_service_power_off_work);
-			}
+			__cancel_delayed_work(&vpu_service_power_off_work);
 			vpu_service_power_on();
 			reg_copy_to_hw(reg);
 		}
