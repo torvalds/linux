@@ -331,7 +331,7 @@ static struct se_portal_group *ft_add_tpg(
 	transport_init_queue_obj(&tpg->qobj);
 
 	ret = core_tpg_register(&ft_configfs->tf_ops, wwn, &tpg->se_tpg,
-				(void *)tpg, TRANSPORT_TPG_TYPE_NORMAL);
+				tpg, TRANSPORT_TPG_TYPE_NORMAL);
 	if (ret < 0) {
 		kfree(tpg);
 		return NULL;

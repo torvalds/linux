@@ -90,15 +90,14 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 	lport = ep->lp;
 	cmd->seq = lport->tt.seq_start_next(cmd->seq);
 
-	task = se_cmd->t_task;
-	BUG_ON(!task);
+	task = &se_cmd->t_task;
 	remaining = se_cmd->data_length;
 
 	/*
 	 * Setup to use first mem list entry if any.
 	 */
 	if (task->t_tasks_se_num) {
-		mem = list_first_entry(task->t_mem_list,
+		mem = list_first_entry(&task->t_mem_list,
 			 struct se_mem, se_list);
 		mem_len = mem->se_len;
 		mem_off = mem->se_off;
@@ -236,8 +235,7 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 	u32 f_ctl;
 	void *buf;
 
-	task = se_cmd->t_task;
-	BUG_ON(!task);
+	task = &se_cmd->t_task;
 
 	fh = fc_frame_header_get(fp);
 	if (!(ntoh24(fh->fh_f_ctl) & FC_FC_REL_OFF))
@@ -315,7 +313,7 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 	 * Setup to use first mem list entry if any.
 	 */
 	if (task->t_tasks_se_num) {
-		mem = list_first_entry(task->t_mem_list,
+		mem = list_first_entry(&task->t_mem_list,
 				       struct se_mem, se_list);
 		mem_len = mem->se_len;
 		mem_off = mem->se_off;

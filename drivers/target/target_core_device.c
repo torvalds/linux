@@ -59,15 +59,12 @@ static struct se_subsystem_dev *lun0_su_dev;
 /* not static, needed by tpg.c */
 struct se_device *g_lun0_dev;
 
-int transport_get_lun_for_cmd(
-	struct se_cmd *se_cmd,
-	u32 unpacked_lun)
+int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 {
-	struct se_dev_entry *deve;
 	struct se_lun *se_lun = NULL;
 	struct se_session *se_sess = se_cmd->se_sess;
+	struct se_device *dev;
 	unsigned long flags;
-	int read_only = 0;
 
 	if (unpacked_lun >= TRANSPORT_MAX_LUNS_PER_TPG) {
 		se_cmd->scsi_sense_reason = TCM_NON_EXISTENT_LUN;
@@ -76,91 +73,87 @@ int transport_get_lun_for_cmd(
 	}
 
 	spin_lock_irq(&se_sess->se_node_acl->device_list_lock);
-	deve = se_cmd->se_deve =
-			&se_sess->se_node_acl->device_list[unpacked_lun];
-	if (deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS) {
-		if (se_cmd) {
-			deve->total_cmds++;
-			deve->total_bytes += se_cmd->data_length;
+	se_cmd->se_deve = &se_sess->se_node_acl->device_list[unpacked_lun];
+	if (se_cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS) {
+		struct se_dev_entry *deve = se_cmd->se_deve;
 
-			if (se_cmd->data_direction == DMA_TO_DEVICE) {
-				if (deve->lun_flags &
-						TRANSPORT_LUNFLAGS_READ_ONLY) {
-					read_only = 1;
-					goto out;
-				}
-				deve->write_bytes += se_cmd->data_length;
-			} else if (se_cmd->data_direction ==
-				   DMA_FROM_DEVICE) {
-				deve->read_bytes += se_cmd->data_length;
-			}
-		}
-		deve->deve_cmds++;
+		deve->total_cmds++;
+		deve->total_bytes += se_cmd->data_length;
 
-		se_lun = se_cmd->se_lun = deve->se_lun;
-		se_cmd->pr_res_key = deve->pr_res_key;
-		se_cmd->orig_fe_lun = unpacked_lun;
-		se_cmd->se_orig_obj_ptr = se_cmd->se_lun->lun_se_dev;
-		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
-	}
-out:
-	spin_unlock_irq(&se_sess->se_node_acl->device_list_lock);
-
-	if (!se_lun) {
-		if (read_only) {
+		if ((se_cmd->data_direction == DMA_TO_DEVICE) &&
+		    (deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)) {
 			se_cmd->scsi_sense_reason = TCM_WRITE_PROTECTED;
 			se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			printk("TARGET_CORE[%s]: Detected WRITE_PROTECTED LUN"
 				" Access for 0x%08x\n",
 				se_cmd->se_tfo->get_fabric_name(),
 				unpacked_lun);
+			spin_unlock_irq(&se_sess->se_node_acl->device_list_lock);
 			return -EACCES;
-		} else {
-			/*
-			 * Use the se_portal_group->tpg_virt_lun0 to allow for
-			 * REPORT_LUNS, et al to be returned when no active
-			 * MappedLUN=0 exists for this Initiator Port.
-			 */
-			if (unpacked_lun != 0) {
-				se_cmd->scsi_sense_reason = TCM_NON_EXISTENT_LUN;
-				se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-				printk("TARGET_CORE[%s]: Detected NON_EXISTENT_LUN"
-					" Access for 0x%08x\n",
-					se_cmd->se_tfo->get_fabric_name(),
-					unpacked_lun);
-				return -ENODEV;
-			}
-			/*
-			 * Force WRITE PROTECT for virtual LUN 0
-			 */
-			if ((se_cmd->data_direction != DMA_FROM_DEVICE) &&
-			    (se_cmd->data_direction != DMA_NONE)) {
-				se_cmd->scsi_sense_reason = TCM_WRITE_PROTECTED;
-				se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-				return -EACCES;
-			}
-#if 0
-			printk("TARGET_CORE[%s]: Using virtual LUN0! :-)\n",
-				se_cmd->se_tfo->get_fabric_name());
-#endif
-			se_lun = se_cmd->se_lun = &se_sess->se_tpg->tpg_virt_lun0;
-			se_cmd->orig_fe_lun = 0;
-			se_cmd->se_orig_obj_ptr = se_cmd->se_lun->lun_se_dev;
-			se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 		}
+
+		if (se_cmd->data_direction == DMA_TO_DEVICE)
+			deve->write_bytes += se_cmd->data_length;
+		else if (se_cmd->data_direction == DMA_FROM_DEVICE)
+			deve->read_bytes += se_cmd->data_length;
+
+		deve->deve_cmds++;
+
+		se_lun = deve->se_lun;
+		se_cmd->se_lun = deve->se_lun;
+		se_cmd->pr_res_key = deve->pr_res_key;
+		se_cmd->orig_fe_lun = unpacked_lun;
+		se_cmd->se_orig_obj_ptr = se_cmd->se_lun->lun_se_dev;
+		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
+	}
+	spin_unlock_irq(&se_sess->se_node_acl->device_list_lock);
+
+	if (!se_lun) {
+		/*
+		 * Use the se_portal_group->tpg_virt_lun0 to allow for
+		 * REPORT_LUNS, et al to be returned when no active
+		 * MappedLUN=0 exists for this Initiator Port.
+		 */
+		if (unpacked_lun != 0) {
+			se_cmd->scsi_sense_reason = TCM_NON_EXISTENT_LUN;
+			se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+			printk("TARGET_CORE[%s]: Detected NON_EXISTENT_LUN"
+				" Access for 0x%08x\n",
+				se_cmd->se_tfo->get_fabric_name(),
+				unpacked_lun);
+			return -ENODEV;
+		}
+		/*
+		 * Force WRITE PROTECT for virtual LUN 0
+		 */
+		if ((se_cmd->data_direction != DMA_FROM_DEVICE) &&
+		    (se_cmd->data_direction != DMA_NONE)) {
+			se_cmd->scsi_sense_reason = TCM_WRITE_PROTECTED;
+			se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+			return -EACCES;
+		}
+
+		se_lun = &se_sess->se_tpg->tpg_virt_lun0;
+		se_cmd->se_lun = &se_sess->se_tpg->tpg_virt_lun0;
+		se_cmd->orig_fe_lun = 0;
+		se_cmd->se_orig_obj_ptr = se_cmd->se_lun->lun_se_dev;
+		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 	}
 	/*
 	 * Determine if the struct se_lun is online.
+	 * FIXME: Check for LUN_RESET + UNIT Attention
 	 */
-/* #warning FIXME: Check for LUN_RESET + UNIT Attention */
 	if (se_dev_check_online(se_lun->lun_se_dev) != 0) {
 		se_cmd->scsi_sense_reason = TCM_NON_EXISTENT_LUN;
 		se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		return -ENODEV;
 	}
 
-	{
-	struct se_device *dev = se_lun->lun_se_dev;
+	/* Directly associate cmd with se_dev */
+	se_cmd->se_dev = se_lun->lun_se_dev;
+
+	/* TODO: get rid of this and use atomics for stats */
+	dev = se_lun->lun_se_dev;
 	spin_lock_irq(&dev->stats_lock);
 	dev->num_cmds++;
 	if (se_cmd->data_direction == DMA_TO_DEVICE)
@@ -168,30 +161,22 @@ out:
 	else if (se_cmd->data_direction == DMA_FROM_DEVICE)
 		dev->read_bytes += se_cmd->data_length;
 	spin_unlock_irq(&dev->stats_lock);
-	}
 
 	/*
 	 * Add the iscsi_cmd_t to the struct se_lun's cmd list.  This list is used
 	 * for tracking state of struct se_cmds during LUN shutdown events.
 	 */
 	spin_lock_irqsave(&se_lun->lun_cmd_lock, flags);
-	list_add_tail(&se_cmd->se_lun_list, &se_lun->lun_cmd_list);
-	atomic_set(&se_cmd->t_task->transport_lun_active, 1);
-#if 0
-	printk(KERN_INFO "Adding ITT: 0x%08x to LUN LIST[%d]\n",
-		se_cmd->se_tfo->get_task_tag(se_cmd), se_lun->unpacked_lun);
-#endif
+	list_add_tail(&se_cmd->se_lun_node, &se_lun->lun_cmd_list);
+	atomic_set(&se_cmd->t_task.transport_lun_active, 1);
 	spin_unlock_irqrestore(&se_lun->lun_cmd_lock, flags);
 
 	return 0;
 }
-EXPORT_SYMBOL(transport_get_lun_for_cmd);
+EXPORT_SYMBOL(transport_lookup_cmd_lun);
 
-int transport_get_lun_for_tmr(
-	struct se_cmd *se_cmd,
-	u32 unpacked_lun)
+int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 {
-	struct se_device *dev = NULL;
 	struct se_dev_entry *deve;
 	struct se_lun *se_lun = NULL;
 	struct se_session *se_sess = se_cmd->se_sess;
@@ -204,15 +189,16 @@ int transport_get_lun_for_tmr(
 	}
 
 	spin_lock_irq(&se_sess->se_node_acl->device_list_lock);
-	deve = se_cmd->se_deve =
-			&se_sess->se_node_acl->device_list[unpacked_lun];
+	se_cmd->se_deve = &se_sess->se_node_acl->device_list[unpacked_lun];
+	deve = se_cmd->se_deve;
+
 	if (deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS) {
-		se_lun = se_cmd->se_lun = se_tmr->tmr_lun = deve->se_lun;
-		dev = se_lun->lun_se_dev;
+		se_tmr->tmr_lun = deve->se_lun;
+		se_cmd->se_lun = deve->se_lun;
+		se_lun = deve->se_lun;
 		se_cmd->pr_res_key = deve->pr_res_key;
 		se_cmd->orig_fe_lun = unpacked_lun;
-		se_cmd->se_orig_obj_ptr = se_cmd->se_lun->lun_se_dev;
-/*		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD; */
+		se_cmd->se_orig_obj_ptr = se_cmd->se_dev;
 	}
 	spin_unlock_irq(&se_sess->se_node_acl->device_list_lock);
 
@@ -226,21 +212,24 @@ int transport_get_lun_for_tmr(
 	}
 	/*
 	 * Determine if the struct se_lun is online.
+	 * FIXME: Check for LUN_RESET + UNIT Attention
 	 */
-/* #warning FIXME: Check for LUN_RESET + UNIT Attention */
 	if (se_dev_check_online(se_lun->lun_se_dev) != 0) {
 		se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		return -ENODEV;
 	}
-	se_tmr->tmr_dev = dev;
 
-	spin_lock(&dev->se_tmr_lock);
-	list_add_tail(&se_tmr->tmr_list, &dev->dev_tmr_list);
-	spin_unlock(&dev->se_tmr_lock);
+	/* Directly associate cmd with se_dev */
+	se_cmd->se_dev = se_lun->lun_se_dev;
+	se_tmr->tmr_dev = se_lun->lun_se_dev;
+
+	spin_lock(&se_tmr->tmr_dev->se_tmr_lock);
+	list_add_tail(&se_tmr->tmr_list, &se_tmr->tmr_dev->dev_tmr_list);
+	spin_unlock(&se_tmr->tmr_dev->se_tmr_lock);
 
 	return 0;
 }
-EXPORT_SYMBOL(transport_get_lun_for_tmr);
+EXPORT_SYMBOL(transport_lookup_tmr_lun);
 
 /*
  * This function is called from core_scsi3_emulate_pro_register_and_move()
@@ -667,10 +656,10 @@ int transport_core_report_lun_response(struct se_cmd *se_cmd)
 	struct se_lun *se_lun;
 	struct se_session *se_sess = se_cmd->se_sess;
 	struct se_task *se_task;
-	unsigned char *buf = se_cmd->t_task->t_task_buf;
+	unsigned char *buf = se_cmd->t_task.t_task_buf;
 	u32 cdb_offset = 0, lun_count = 0, offset = 8, i;
 
-	list_for_each_entry(se_task, &se_cmd->t_task->t_task_list, t_list)
+	list_for_each_entry(se_task, &se_cmd->t_task.t_task_list, t_list)
 		break;
 
 	if (!(se_task)) {

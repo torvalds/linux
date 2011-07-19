@@ -2037,7 +2037,7 @@ static ssize_t target_core_dev_show(struct config_item *item,
 	if (!(tc_attr->show))
 		return -EINVAL;
 
-	return tc_attr->show((void *)se_dev, page);
+	return tc_attr->show(se_dev, page);
 }
 
 static ssize_t target_core_dev_store(struct config_item *item,
@@ -2053,7 +2053,7 @@ static ssize_t target_core_dev_store(struct config_item *item,
 	if (!(tc_attr->store))
 		return -EINVAL;
 
-	return tc_attr->store((void *)se_dev, page, count);
+	return tc_attr->store(se_dev, page, count);
 }
 
 static struct configfs_item_operations target_core_dev_item_ops = {

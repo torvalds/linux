@@ -123,7 +123,7 @@ enum se_cmd_flags_table {
 	SCF_SENT_DELAYED_TAS		= 0x00020000,
 	SCF_ALUA_NON_OPTIMIZED		= 0x00040000,
 	SCF_DELAYED_CMD_FROM_SAM_ATTR	= 0x00080000,
-	SCF_PASSTHROUGH_SG_TO_MEM	= 0x00100000,
+	SCF_UNUSED			= 0x00100000,
 	SCF_PASSTHROUGH_CONTIG_TO_SG	= 0x00200000,
 	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00400000,
 	SCF_EMULATE_SYNC_CACHE		= 0x00800000,
@@ -452,9 +452,9 @@ struct se_transport_task {
 	 * and other HW target mode fabric modules.
 	 */
 	struct scatterlist	*t_task_pt_sgl;
-	struct list_head	*t_mem_list;
+	struct list_head	t_mem_list;
 	/* Used for BIDI READ */
-	struct list_head	*t_mem_bidi_list;
+	struct list_head	t_mem_bidi_list;
 	struct list_head	t_task_list;
 } ____cacheline_aligned;
 
@@ -523,9 +523,9 @@ struct se_cmd {
 	atomic_t                transport_sent;
 	/* Used for sense data */
 	void			*sense_buffer;
-	struct list_head	se_delayed_list;
-	struct list_head	se_ordered_list;
-	struct list_head	se_lun_list;
+	struct list_head	se_delayed_node;
+	struct list_head	se_ordered_node;
+	struct list_head	se_lun_node;
 	struct se_device      *se_dev;
 	struct se_dev_entry   *se_deve;
 	struct se_device	*se_obj_ptr;
@@ -534,9 +534,8 @@ struct se_cmd {
 	/* Only used for internal passthrough and legacy TCM fabric modules */
 	struct se_session	*se_sess;
 	struct se_tmr_req	*se_tmr_req;
-	/* t_task is setup to t_task_backstore in transport_init_se_cmd() */
-	struct se_transport_task *t_task;
-	struct se_transport_task t_task_backstore;
+	struct se_transport_task t_task;
+	struct list_head	se_queue_node;
 	struct target_core_fabric_ops *se_tfo;
 	int (*transport_emulate_cdb)(struct se_cmd *);
 	void (*transport_split_cdb)(unsigned long long, u32 *, unsigned char *);

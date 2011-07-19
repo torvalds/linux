@@ -159,7 +159,6 @@ extern struct se_device *transport_add_device_to_core_hba(struct se_hba *,
 					struct se_subsystem_dev *, u32,
 					void *, struct se_dev_limits *,
 					const char *, const char *);
-extern void transport_device_setup_cmd(struct se_cmd *);
 extern void transport_init_se_cmd(struct se_cmd *,
 					struct target_core_fabric_ops *,
 					struct se_session *, u32, int, int,

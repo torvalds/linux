@@ -72,7 +72,7 @@ static int pscsi_attach_hba(struct se_hba *hba, u32 host_id)
 	phv->phv_host_id = host_id;
 	phv->phv_mode = PHV_VIRUTAL_HOST_ID;
 
-	hba->hba_ptr = (void *)phv;
+	hba->hba_ptr = phv;
 
 	printk(KERN_INFO "CORE_HBA[%d] - TCM SCSI HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
@@ -355,7 +355,7 @@ static struct se_device *pscsi_add_device_to_list(
 	pdv->pdv_sd = sd;
 
 	dev = transport_add_device_to_core_hba(hba, &pscsi_template,
-				se_dev, dev_flags, (void *)pdv,
+				se_dev, dev_flags, pdv,
 				&dev_limits, NULL, NULL);
 	if (!(dev)) {
 		pdv->pdv_sd = NULL;
@@ -394,7 +394,7 @@ static void *pscsi_allocate_virtdevice(struct se_hba *hba, const char *name)
 	pdv->pdv_se_hba = hba;
 
 	printk(KERN_INFO "PSCSI: Allocated pdv: %p for %s\n", pdv, name);
-	return (void *)pdv;
+	return pdv;
 }
 
 /*
@@ -697,7 +697,7 @@ static int pscsi_transport_complete(struct se_task *task)
 
 		if (task->task_se_cmd->se_deve->lun_flags &
 				TRANSPORT_LUNFLAGS_READ_ONLY) {
-			unsigned char *buf = task->task_se_cmd->t_task->t_task_buf;
+			unsigned char *buf = task->task_se_cmd->t_task.t_task_buf;
 
 			if (cdb[0] == MODE_SENSE_10) {
 				if (!(buf[3] & 0x80))
@@ -763,7 +763,7 @@ static struct se_task *
 pscsi_alloc_task(struct se_cmd *cmd)
 {
 	struct pscsi_plugin_task *pt;
-	unsigned char *cdb = cmd->t_task->t_task_cdb;
+	unsigned char *cdb = cmd->t_task.t_task_cdb;
 
 	pt = kzalloc(sizeof(struct pscsi_plugin_task), GFP_KERNEL);
 	if (!pt) {
@@ -776,7 +776,7 @@ pscsi_alloc_task(struct se_cmd *cmd)
 	 * allocate the extended CDB buffer for per struct se_task context
 	 * pt->pscsi_cdb now.
 	 */
-	if (cmd->t_task->t_task_cdb != cmd->t_task->__t_task_cdb) {
+	if (cmd->t_task.t_task_cdb != cmd->t_task.__t_task_cdb) {
 
 		pt->pscsi_cdb = kzalloc(scsi_command_size(cdb), GFP_KERNEL);
 		if (!(pt->pscsi_cdb)) {
@@ -812,7 +812,7 @@ static inline void pscsi_blk_init_request(
 	 * also set the end_io_data pointer.to struct se_task.
 	 */
 	req->end_io = pscsi_req_done;
-	req->end_io_data = (void *)task;
+	req->end_io_data = task;
 	/*
 	 * Load the referenced struct se_task's SCSI CDB into
 	 * include/linux/blkdev.h:struct request->cmd
@@ -822,7 +822,7 @@ static inline void pscsi_blk_init_request(
 	/*
 	 * Setup pointer for outgoing sense data.
 	 */
-	req->sense = (void *)&pt->pscsi_sense[0];
+	req->sense = &pt->pscsi_sense[0];
 	req->sense_len = 0;
 }
 
@@ -889,7 +889,7 @@ static void pscsi_free_task(struct se_task *task)
 	 * Release the extended CDB allocation from pscsi_alloc_task()
 	 * if one exists.
 	 */
-	if (cmd->t_task->t_task_cdb != cmd->t_task->__t_task_cdb)
+	if (cmd->t_task.t_task_cdb != cmd->t_task.__t_task_cdb)
 		kfree(pt->pscsi_cdb);
 	/*
 	 * We do not release the bio(s) here associated with this task, as
@@ -1266,7 +1266,7 @@ static int pscsi_map_task_non_SG(struct se_task *task)
 		return 0;
 
 	ret = blk_rq_map_kern(pdv->pdv_sd->request_queue,
-			pt->pscsi_req, cmd->t_task->t_task_buf,
+			pt->pscsi_req, cmd->t_task.t_task_buf,
 			task->task_size, GFP_KERNEL);
 	if (ret < 0) {
 		printk(KERN_ERR "PSCSI: blk_rq_map_kern() failed: %d\n", ret);

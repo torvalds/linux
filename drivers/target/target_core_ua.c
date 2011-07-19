@@ -208,7 +208,7 @@ void core_scsi3_ua_for_check_condition(
 	u8 *asc,
 	u8 *ascq)
 {
-	struct se_device *dev = cmd->se_lun->lun_se_dev;
+	struct se_device *dev = cmd->se_dev;
 	struct se_dev_entry *deve;
 	struct se_session *sess = cmd->se_sess;
 	struct se_node_acl *nacl;
@@ -270,7 +270,7 @@ void core_scsi3_ua_for_check_condition(
 		nacl->se_tpg->se_tpg_tfo->get_fabric_name(),
 		(dev->se_sub_dev->se_dev_attrib.emulate_ua_intlck_ctrl != 0) ? "Reporting" :
 		"Releasing", dev->se_sub_dev->se_dev_attrib.emulate_ua_intlck_ctrl,
-		cmd->orig_fe_lun, cmd->t_task->t_task_cdb[0], *asc, *ascq);
+		cmd->orig_fe_lun, cmd->t_task.t_task_cdb[0], *asc, *ascq);
 }
 
 int core_scsi3_ua_clear_for_request_sense(

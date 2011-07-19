@@ -72,16 +72,16 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 		caller, cmd, cmd->cdb);
 	printk(KERN_INFO "%s: cmd %p lun %d\n", caller, cmd, cmd->lun);
 
-	task = se_cmd->t_task;
+	task = &se_cmd->t_task;
 	printk(KERN_INFO "%s: cmd %p task %p se_num %u buf %p len %u se_cmd_flags <0x%x>\n",
 	       caller, cmd, task, task->t_tasks_se_num,
 	       task->t_task_buf, se_cmd->data_length, se_cmd->se_cmd_flags);
-	if (task->t_mem_list)
-		list_for_each_entry(mem, task->t_mem_list, se_list)
-			printk(KERN_INFO "%s: cmd %p mem %p page %p "
-			       "len 0x%x off 0x%x\n",
-			       caller, cmd, mem,
-			       mem->se_page, mem->se_len, mem->se_off);
+
+	list_for_each_entry(mem, &task->t_mem_list, se_list)
+		printk(KERN_INFO "%s: cmd %p mem %p page %p "
+		       "len 0x%x off 0x%x\n",
+		       caller, cmd, mem,
+		       mem->se_page, mem->se_len, mem->se_off);
 	sp = cmd->seq;
 	if (sp) {
 		ep = fc_seq_exch(sp);
@@ -262,9 +262,9 @@ int ft_write_pending(struct se_cmd *se_cmd)
 				 * TCM/LIO target
 				 */
 				transport_do_task_sg_chain(se_cmd);
-				cmd->sg = se_cmd->t_task->t_tasks_sg_chained;
+				cmd->sg = se_cmd->t_task.t_tasks_sg_chained;
 				cmd->sg_cnt =
-					se_cmd->t_task->t_tasks_sg_chained_no;
+					se_cmd->t_task.t_tasks_sg_chained_no;
 			}
 			if (cmd->sg && lport->tt.ddp_setup(lport, ep->xid,
 						    cmd->sg, cmd->sg_cnt))
@@ -438,7 +438,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 	switch (fcp->fc_tm_flags) {
 	case FCP_TMF_LUN_RESET:
 		cmd->lun = scsilun_to_int((struct scsi_lun *)fcp->fc_lun);
-		if (transport_get_lun_for_tmr(&cmd->se_cmd, cmd->lun) < 0) {
+		if (transport_lookup_tmr_lun(&cmd->se_cmd, cmd->lun) < 0) {
 			/*
 			 * Make sure to clean up newly allocated TMR request
 			 * since "unable to  handle TMR request because failed
@@ -637,7 +637,7 @@ static void ft_send_cmd(struct ft_cmd *cmd)
 	fc_seq_exch(cmd->seq)->lp->tt.seq_set_resp(cmd->seq, ft_recv_seq, cmd);
 
 	cmd->lun = scsilun_to_int((struct scsi_lun *)fcp->fc_lun);
-	ret = transport_get_lun_for_cmd(&cmd->se_cmd, cmd->lun);
+	ret = transport_lookup_cmd_lun(&cmd->se_cmd, cmd->lun);
 	if (ret < 0) {
 		ft_dump_cmd(cmd, __func__);
 		transport_send_check_condition_and_sense(&cmd->se_cmd,
@@ -650,13 +650,13 @@ static void ft_send_cmd(struct ft_cmd *cmd)
 	FT_IO_DBG("r_ctl %x alloc task ret %d\n", fh->fh_r_ctl, ret);
 	ft_dump_cmd(cmd, __func__);
 
-	if (ret == -1) {
+	if (ret == -ENOMEM) {
 		transport_send_check_condition_and_sense(se_cmd,
 				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
 		transport_generic_free_cmd(se_cmd, 0, 1, 0);
 		return;
 	}
-	if (ret == -2) {
+	if (ret == -EINVAL) {
 		if (se_cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT)
 			ft_queue_status(se_cmd);
 		else

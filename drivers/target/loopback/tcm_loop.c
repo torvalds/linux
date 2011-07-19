@@ -118,17 +118,16 @@ static struct se_cmd *tcm_loop_allocate_core_cmd(
 	 * Signal BIDI usage with T_TASK(cmd)->t_tasks_bidi
 	 */
 	if (scsi_bidi_cmnd(sc))
-		se_cmd->t_task->t_tasks_bidi = 1;
+		se_cmd->t_task.t_tasks_bidi = 1;
 	/*
 	 * Locate the struct se_lun pointer and attach it to struct se_cmd
 	 */
-	if (transport_get_lun_for_cmd(se_cmd, tl_cmd->sc->device->lun) < 0) {
+	if (transport_lookup_cmd_lun(se_cmd, tl_cmd->sc->device->lun) < 0) {
 		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
 		set_host_byte(sc, DID_NO_CONNECT);
 		return NULL;
 	}
 
-	transport_device_setup_cmd(se_cmd);
 	return se_cmd;
 }
 
@@ -143,17 +142,17 @@ static int tcm_loop_new_cmd_map(struct se_cmd *se_cmd)
 	struct tcm_loop_cmd *tl_cmd = container_of(se_cmd,
 				struct tcm_loop_cmd, tl_se_cmd);
 	struct scsi_cmnd *sc = tl_cmd->sc;
-	void *mem_ptr, *mem_bidi_ptr = NULL;
-	u32 sg_no_bidi = 0;
+	struct scatterlist *sgl_bidi = NULL;
+	u32 sgl_bidi_count = 0;
 	int ret;
 	/*
 	 * Allocate the necessary tasks to complete the received CDB+data
 	 */
-	ret = transport_generic_allocate_tasks(se_cmd, tl_cmd->sc->cmnd);
-	if (ret == -1) {
+	ret = transport_generic_allocate_tasks(se_cmd, sc->cmnd);
+	if (ret == -ENOMEM) {
 		/* Out of Resources */
 		return PYX_TRANSPORT_LU_COMM_FAILURE;
-	} else if (ret == -2) {
+	} else if (ret == -EINVAL) {
 		/*
 		 * Handle case for SAM_STAT_RESERVATION_CONFLICT
 		 */
@@ -165,35 +164,24 @@ static int tcm_loop_new_cmd_map(struct se_cmd *se_cmd)
 		 */
 		return PYX_TRANSPORT_USE_SENSE_REASON;
 	}
-	/*
-	 * Setup the struct scatterlist memory from the received
-	 * struct scsi_cmnd.
-	 */
-	if (scsi_sg_count(sc)) {
-		se_cmd->se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM;
-		mem_ptr = (void *)scsi_sglist(sc);
-		/*
-		 * For BIDI commands, pass in the extra READ buffer
-		 * to transport_generic_map_mem_to_cmd() below..
-		 */
-		if (se_cmd->t_task->t_tasks_bidi) {
-			struct scsi_data_buffer *sdb = scsi_in(sc);
 
-			mem_bidi_ptr = (void *)sdb->table.sgl;
-			sg_no_bidi = sdb->table.nents;
-		}
-	} else {
-		/*
-		 * Used for DMA_NONE
-		 */
-		mem_ptr = NULL;
+	/*
+	 * For BIDI commands, pass in the extra READ buffer
+	 * to transport_generic_map_mem_to_cmd() below..
+	 */
+	if (se_cmd->t_task.t_tasks_bidi) {
+		struct scsi_data_buffer *sdb = scsi_in(sc);
+
+		sgl_bidi = sdb->table.sgl;
+		sgl_bidi_count = sdb->table.nents;
 	}
+
 	/*
 	 * Map the SG memory into struct se_mem->page linked list using the same
 	 * physical memory at sg->page_link.
 	 */
-	ret = transport_generic_map_mem_to_cmd(se_cmd, mem_ptr,
-			scsi_sg_count(sc), mem_bidi_ptr, sg_no_bidi);
+	ret = transport_generic_map_mem_to_cmd(se_cmd, scsi_sglist(sc),
+			scsi_sg_count(sc), sgl_bidi, sgl_bidi_count);
 	if (ret < 0)
 		return PYX_TRANSPORT_LU_COMM_FAILURE;
 
@@ -384,14 +372,14 @@ static int tcm_loop_device_reset(struct scsi_cmnd *sc)
 	/*
 	 * Allocate the LUN_RESET TMR
 	 */
-	se_cmd->se_tmr_req = core_tmr_alloc_req(se_cmd, (void *)tl_tmr,
+	se_cmd->se_tmr_req = core_tmr_alloc_req(se_cmd, tl_tmr,
 				TMR_LUN_RESET);
 	if (IS_ERR(se_cmd->se_tmr_req))
 		goto release;
 	/*
 	 * Locate the underlying TCM struct se_lun from sc->device->lun
 	 */
-	if (transport_get_lun_for_tmr(se_cmd, sc->device->lun) < 0)
+	if (transport_lookup_tmr_lun(se_cmd, sc->device->lun) < 0)
 		goto release;
 	/*
 	 * Queue the TMR to TCM Core and sleep waiting for tcm_loop_queue_tm_rsp()
@@ -904,7 +892,7 @@ static int tcm_loop_queue_status(struct se_cmd *se_cmd)
 	   ((se_cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE) ||
 	    (se_cmd->se_cmd_flags & SCF_EMULATED_TASK_SENSE))) {
 
-		memcpy((void *)sc->sense_buffer, (void *)se_cmd->sense_buffer,
+		memcpy(sc->sense_buffer, se_cmd->sense_buffer,
 				SCSI_SENSE_BUFFERSIZE);
 		sc->result = SAM_STAT_CHECK_CONDITION;
 		set_driver_byte(sc, DRIVER_SENSE);
@@ -1054,7 +1042,7 @@ static int tcm_loop_make_nexus(
 	 * transport_register_session()
 	 */
 	__transport_register_session(se_tpg, tl_nexus->se_sess->se_node_acl,
-			tl_nexus->se_sess, (void *)tl_nexus);
+			tl_nexus->se_sess, tl_nexus);
 	tl_tpg->tl_hba->tl_nexus = tl_nexus;
 	printk(KERN_INFO "TCM_Loop_ConfigFS: Established I_T Nexus to emulated"
 		" %s Initiator Port: %s\n", tcm_loop_dump_proto_id(tl_hba),
@@ -1242,7 +1230,7 @@ struct se_portal_group *tcm_loop_make_naa_tpg(
 	 * Register the tl_tpg as a emulated SAS TCM Target Endpoint
 	 */
 	ret = core_tpg_register(&tcm_loop_fabric_configfs->tf_ops,
-			wwn, &tl_tpg->tl_se_tpg, (void *)tl_tpg,
+			wwn, &tl_tpg->tl_se_tpg, tl_tpg,
 			TRANSPORT_TPG_TYPE_NORMAL);
 	if (ret < 0)
 		return ERR_PTR(-ENOMEM);

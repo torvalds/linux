@@ -1,8 +1,8 @@
 #ifndef TARGET_CORE_DEVICE_H
 #define TARGET_CORE_DEVICE_H
 
-extern int transport_get_lun_for_cmd(struct se_cmd *, u32);
-extern int transport_get_lun_for_tmr(struct se_cmd *, u32);
+extern int transport_lookup_cmd_lun(struct se_cmd *, u32);
+extern int transport_lookup_tmr_lun(struct se_cmd *, u32);
 extern struct se_dev_entry *core_get_se_deve_from_rtpi(
 					struct se_node_acl *, u16);
 extern int core_free_device_list_for_node(struct se_node_acl *,

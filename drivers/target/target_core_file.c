@@ -223,7 +223,7 @@ static struct se_device *fd_create_virtdevice(
 	dev_limits.queue_depth = FD_DEVICE_QUEUE_DEPTH;
 
 	dev = transport_add_device_to_core_hba(hba, &fileio_template,
-				se_dev, dev_flags, (void *)fd_dev,
+				se_dev, dev_flags, fd_dev,
 				&dev_limits, "FILEIO", FD_VERSION);
 	if (!(dev))
 		goto fail;
@@ -279,7 +279,7 @@ fd_alloc_task(struct se_cmd *cmd)
 		return NULL;
 	}
 
-	fd_req->fd_dev = cmd->se_lun->lun_se_dev->dev_ptr;
+	fd_req->fd_dev = cmd->se_dev->dev_ptr;
 
 	return &fd_req->fd_task;
 }
@@ -377,7 +377,7 @@ static void fd_emulate_sync_cache(struct se_task *task)
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	struct fd_dev *fd_dev = dev->dev_ptr;
-	int immed = (cmd->t_task->t_task_cdb[1] & 0x2);
+	int immed = (cmd->t_task.t_task_cdb[1] & 0x2);
 	loff_t start, end;
 	int ret;
 
@@ -391,11 +391,11 @@ static void fd_emulate_sync_cache(struct se_task *task)
 	/*
 	 * Determine if we will be flushing the entire device.
 	 */
-	if (cmd->t_task->t_task_lba == 0 && cmd->data_length == 0) {
+	if (cmd->t_task.t_task_lba == 0 && cmd->data_length == 0) {
 		start = 0;
 		end = LLONG_MAX;
 	} else {
-		start = cmd->t_task->t_task_lba * dev->se_sub_dev->se_dev_attrib.block_size;
+		start = cmd->t_task.t_task_lba * dev->se_sub_dev->se_dev_attrib.block_size;
 		if (cmd->data_length)
 			end = start + cmd->data_length;
 		else
@@ -475,7 +475,7 @@ static int fd_do_task(struct se_task *task)
 		if (ret > 0 &&
 		    dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0 &&
 		    dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
-		    cmd->t_task->t_tasks_fua) {
+		    cmd->t_task.t_tasks_fua) {
 			/*
 			 * We might need to be a bit smarter here
 			 * and return some sense data to let the initiator

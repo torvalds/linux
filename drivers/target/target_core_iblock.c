@@ -74,7 +74,7 @@ static int iblock_attach_hba(struct se_hba *hba, u32 host_id)
 
 	ib_host->iblock_host_id = host_id;
 
-	hba->hba_ptr = (void *) ib_host;
+	hba->hba_ptr = ib_host;
 
 	printk(KERN_INFO "CORE_HBA[%d] - TCM iBlock HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
@@ -172,7 +172,7 @@ static struct se_device *iblock_create_virtdevice(
 	ib_dev->ibd_bd = bd;
 
 	dev = transport_add_device_to_core_hba(hba,
-			&iblock_template, se_dev, dev_flags, (void *)ib_dev,
+			&iblock_template, se_dev, dev_flags, ib_dev,
 			&dev_limits, "IBLOCK", IBLOCK_VERSION);
 	if (!(dev))
 		goto failed;
@@ -240,7 +240,7 @@ iblock_alloc_task(struct se_cmd *cmd)
 		return NULL;
 	}
 
-	ib_req->ib_dev = cmd->se_lun->lun_se_dev->dev_ptr;
+	ib_req->ib_dev = cmd->se_dev->dev_ptr;
 	atomic_set(&ib_req->ib_bio_cnt, 0);
 	return &ib_req->ib_task;
 }
@@ -331,7 +331,7 @@ static void iblock_emulate_sync_cache(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
-	int immed = (cmd->t_task->t_task_cdb[1] & 0x2);
+	int immed = (cmd->t_task.t_task_cdb[1] & 0x2);
 	sector_t error_sector;
 	int ret;
 
@@ -400,7 +400,7 @@ static int iblock_do_task(struct se_task *task)
 		 */
 		if (dev->se_sub_dev->se_dev_attrib.emulate_write_cache == 0 ||
 		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
-		     task->task_se_cmd->t_task->t_tasks_fua))
+		     task->task_se_cmd->t_task.t_tasks_fua))
 			rw = WRITE_FUA;
 		else
 			rw = WRITE;
@@ -593,7 +593,7 @@ static struct bio *iblock_get_bio(
 	DEBUG_IBLOCK("Allocated bio: %p task_size: %u\n", bio, task->task_size);
 
 	bio->bi_bdev = ib_dev->ibd_bd;
-	bio->bi_private = (void *) task;
+	bio->bi_private = task;
 	bio->bi_destructor = iblock_bio_destructor;
 	bio->bi_end_io = &iblock_bio_done;
 	bio->bi_sector = lba;
@@ -608,7 +608,7 @@ static struct bio *iblock_get_bio(
 static int iblock_map_task_SG(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
-	struct se_device *dev = cmd->se_lun->lun_se_dev;
+	struct se_device *dev = cmd->se_dev;
 	struct iblock_dev *ib_dev = task->se_dev->dev_ptr;
 	struct iblock_req *ib_req = IBLOCK_REQ(task);
 	struct bio *bio = NULL, *hbio = NULL, *tbio = NULL;

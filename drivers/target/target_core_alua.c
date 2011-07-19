@@ -61,11 +61,11 @@ struct t10_alua_lu_gp *default_lu_gp;
  */
 int core_emulate_report_target_port_groups(struct se_cmd *cmd)
 {
-	struct se_subsystem_dev *su_dev = cmd->se_lun->lun_se_dev->se_sub_dev;
+	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
 	struct se_port *port;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
-	unsigned char *buf = (unsigned char *)cmd->t_task->t_task_buf;
+	unsigned char *buf = (unsigned char *)cmd->t_task.t_task_buf;
 	u32 rd_len = 0, off = 4; /* Skip over RESERVED area to first
 				    Target port group descriptor */
 
@@ -151,13 +151,13 @@ int core_emulate_report_target_port_groups(struct se_cmd *cmd)
  */
 int core_emulate_set_target_port_groups(struct se_cmd *cmd)
 {
-	struct se_device *dev = cmd->se_lun->lun_se_dev;
+	struct se_device *dev = cmd->se_dev;
 	struct se_subsystem_dev *su_dev = dev->se_sub_dev;
 	struct se_port *port, *l_port = cmd->se_lun->lun_sep;
 	struct se_node_acl *nacl = cmd->se_sess->se_node_acl;
 	struct t10_alua_tg_pt_gp *tg_pt_gp = NULL, *l_tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem, *l_tg_pt_gp_mem;
-	unsigned char *buf = (unsigned char *)cmd->t_task->t_task_buf;
+	unsigned char *buf = (unsigned char *)cmd->t_task.t_task_buf;
 	unsigned char *ptr = &buf[4]; /* Skip over RESERVED area in header */
 	u32 len = 4; /* Skip over RESERVED area in header */
 	int alua_access_state, primary = 0, rc;

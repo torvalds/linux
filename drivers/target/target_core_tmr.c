@@ -113,15 +113,14 @@ int core_tmr_lun_reset(
 	struct list_head *preempt_and_abort_list,
 	struct se_cmd *prout_cmd)
 {
-	struct se_cmd *cmd;
-	struct se_queue_req *qr, *qr_tmp;
+	struct se_cmd *cmd, *tcmd;
 	struct se_node_acl *tmr_nacl = NULL;
 	struct se_portal_group *tmr_tpg = NULL;
 	struct se_queue_obj *qobj = &dev->dev_queue_obj;
 	struct se_tmr_req *tmr_p, *tmr_pp;
 	struct se_task *task, *task_tmp;
 	unsigned long flags;
-	int fe_count, state, tas;
+	int fe_count, tas;
 	/*
 	 * TASK_ABORTED status bit, this is configurable via ConfigFS
 	 * struct se_device attributes.  spc4r17 section 7.4.6 Control mode page
@@ -179,14 +178,14 @@ int core_tmr_lun_reset(
 			continue;
 		spin_unlock(&dev->se_tmr_lock);
 
-		spin_lock_irqsave(&cmd->t_task->t_state_lock, flags);
-		if (!(atomic_read(&cmd->t_task->t_transport_active))) {
-			spin_unlock_irqrestore(&cmd->t_task->t_state_lock, flags);
+		spin_lock_irqsave(&cmd->t_task.t_state_lock, flags);
+		if (!(atomic_read(&cmd->t_task.t_transport_active))) {
+			spin_unlock_irqrestore(&cmd->t_task.t_state_lock, flags);
 			spin_lock(&dev->se_tmr_lock);
 			continue;
 		}
 		if (cmd->t_state == TRANSPORT_ISTATE_PROCESSING) {
-			spin_unlock_irqrestore(&cmd->t_task->t_state_lock, flags);
+			spin_unlock_irqrestore(&cmd->t_task.t_state_lock, flags);
 			spin_lock(&dev->se_tmr_lock);
 			continue;
 		}
@@ -194,7 +193,7 @@ int core_tmr_lun_reset(
 			" Response: 0x%02x, t_state: %d\n",
 			(preempt_and_abort_list) ? "Preempt" : "", tmr_p,
 			tmr_p->function, tmr_p->response, cmd->t_state);
-		spin_unlock_irqrestore(&cmd->t_task->t_state_lock, flags);
+		spin_unlock_irqrestore(&cmd->t_task.t_state_lock, flags);
 
 		transport_cmd_finish_abort_tmr(cmd);
 		spin_lock(&dev->se_tmr_lock);
@@ -230,12 +229,6 @@ int core_tmr_lun_reset(
 		}
 		cmd = task->task_se_cmd;
 
-		if (!cmd->t_task) {
-			printk(KERN_ERR "cmd->t_task is NULL for task: %p cmd:"
-				" %p ITT: 0x%08x\n", task, cmd,
-				cmd->se_tfo->get_task_tag(cmd));
-			continue;
-		}
 		/*
 		 * For PREEMPT_AND_ABORT usage, only process commands
 		 * with a matching reservation key.
@@ -254,38 +247,38 @@ int core_tmr_lun_reset(
 		atomic_set(&task->task_state_active, 0);
 		spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 
-		spin_lock_irqsave(&cmd->t_task->t_state_lock, flags);
+		spin_lock_irqsave(&cmd->t_task.t_state_lock, flags);
 		DEBUG_LR("LUN_RESET: %s cmd: %p task: %p"
 			" ITT/CmdSN: 0x%08x/0x%08x, i_state: %d, t_state/"
 			"def_t_state: %d/%d cdb: 0x%02x\n",
 			(preempt_and_abort_list) ? "Preempt" : "", cmd, task,
 			cmd->se_tfo->get_task_tag(cmd), 0,
 			cmd->se_tfo->get_cmd_state(cmd), cmd->t_state,
-			cmd->deferred_t_state, cmd->t_task->t_task_cdb[0]);
+			cmd->deferred_t_state, cmd->t_task.t_task_cdb[0]);
 		DEBUG_LR("LUN_RESET: ITT[0x%08x] - pr_res_key: 0x%016Lx"
 			" t_task_cdbs: %d t_task_cdbs_left: %d"
 			" t_task_cdbs_sent: %d -- t_transport_active: %d"
 			" t_transport_stop: %d t_transport_sent: %d\n",
 			cmd->se_tfo->get_task_tag(cmd), cmd->pr_res_key,
-			cmd->t_task->t_task_cdbs,
-			atomic_read(&cmd->t_task->t_task_cdbs_left),
-			atomic_read(&cmd->t_task->t_task_cdbs_sent),
-			atomic_read(&cmd->t_task->t_transport_active),
-			atomic_read(&cmd->t_task->t_transport_stop),
-			atomic_read(&cmd->t_task->t_transport_sent));
+			cmd->t_task.t_task_cdbs,
+			atomic_read(&cmd->t_task.t_task_cdbs_left),
+			atomic_read(&cmd->t_task.t_task_cdbs_sent),
+			atomic_read(&cmd->t_task.t_transport_active),
+			atomic_read(&cmd->t_task.t_transport_stop),
+			atomic_read(&cmd->t_task.t_transport_sent));
 
 		if (atomic_read(&task->task_active)) {
 			atomic_set(&task->task_stop, 1);
 			spin_unlock_irqrestore(
-				&cmd->t_task->t_state_lock, flags);
+				&cmd->t_task.t_state_lock, flags);
 
 			DEBUG_LR("LUN_RESET: Waiting for task: %p to shutdown"
 				" for dev: %p\n", task, dev);
 			wait_for_completion(&task->task_stop_comp);
 			DEBUG_LR("LUN_RESET Completed task: %p shutdown for"
 				" dev: %p\n", task, dev);
-			spin_lock_irqsave(&cmd->t_task->t_state_lock, flags);
-			atomic_dec(&cmd->t_task->t_task_cdbs_left);
+			spin_lock_irqsave(&cmd->t_task.t_state_lock, flags);
+			atomic_dec(&cmd->t_task.t_task_cdbs_left);
 
 			atomic_set(&task->task_active, 0);
 			atomic_set(&task->task_stop, 0);
@@ -295,24 +288,24 @@ int core_tmr_lun_reset(
 		}
 		__transport_stop_task_timer(task, &flags);
 
-		if (!(atomic_dec_and_test(&cmd->t_task->t_task_cdbs_ex_left))) {
+		if (!(atomic_dec_and_test(&cmd->t_task.t_task_cdbs_ex_left))) {
 			spin_unlock_irqrestore(
-					&cmd->t_task->t_state_lock, flags);
+					&cmd->t_task.t_state_lock, flags);
 			DEBUG_LR("LUN_RESET: Skipping task: %p, dev: %p for"
 				" t_task_cdbs_ex_left: %d\n", task, dev,
-				atomic_read(&cmd->t_task->t_task_cdbs_ex_left));
+				atomic_read(&cmd->t_task.t_task_cdbs_ex_left));
 
 			spin_lock_irqsave(&dev->execute_task_lock, flags);
 			continue;
 		}
-		fe_count = atomic_read(&cmd->t_task->t_fe_count);
+		fe_count = atomic_read(&cmd->t_task.t_fe_count);
 
-		if (atomic_read(&cmd->t_task->t_transport_active)) {
+		if (atomic_read(&cmd->t_task.t_transport_active)) {
 			DEBUG_LR("LUN_RESET: got t_transport_active = 1 for"
 				" task: %p, t_fe_count: %d dev: %p\n", task,
 				fe_count, dev);
-			atomic_set(&cmd->t_task->t_transport_aborted, 1);
-			spin_unlock_irqrestore(&cmd->t_task->t_state_lock,
+			atomic_set(&cmd->t_task.t_transport_aborted, 1);
+			spin_unlock_irqrestore(&cmd->t_task.t_state_lock,
 						flags);
 			core_tmr_handle_tas_abort(tmr_nacl, cmd, tas, fe_count);
 
@@ -321,8 +314,8 @@ int core_tmr_lun_reset(
 		}
 		DEBUG_LR("LUN_RESET: Got t_transport_active = 0 for task: %p,"
 			" t_fe_count: %d dev: %p\n", task, fe_count, dev);
-		atomic_set(&cmd->t_task->t_transport_aborted, 1);
-		spin_unlock_irqrestore(&cmd->t_task->t_state_lock, flags);
+		atomic_set(&cmd->t_task.t_transport_aborted, 1);
+		spin_unlock_irqrestore(&cmd->t_task.t_state_lock, flags);
 		core_tmr_handle_tas_abort(tmr_nacl, cmd, tas, fe_count);
 
 		spin_lock_irqsave(&dev->execute_task_lock, flags);
@@ -337,20 +330,7 @@ int core_tmr_lun_reset(
 	 * reference, otherwise the struct se_cmd is released.
 	 */
 	spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
-	list_for_each_entry_safe(qr, qr_tmp, &qobj->qobj_list, qr_list) {
-		cmd = (struct se_cmd *)qr->cmd;
-		if (!(cmd)) {
-			/*
-			 * Skip these for non PREEMPT_AND_ABORT usage..
-			 */
-			if (preempt_and_abort_list != NULL)
-				continue;
-
-			atomic_dec(&qobj->queue_cnt);
-			list_del(&qr->qr_list);
-			kfree(qr);
-			continue;
-		}
+	list_for_each_entry_safe(cmd, tcmd, &qobj->qobj_list, se_queue_node) {
 		/*
 		 * For PREEMPT_AND_ABORT usage, only process commands
 		 * with a matching reservation key.
@@ -365,18 +345,15 @@ int core_tmr_lun_reset(
 		if (prout_cmd == cmd)
 			continue;
 
-		atomic_dec(&cmd->t_task->t_transport_queue_active);
+		atomic_dec(&cmd->t_task.t_transport_queue_active);
 		atomic_dec(&qobj->queue_cnt);
-		list_del(&qr->qr_list);
+		list_del(&cmd->se_queue_node);
 		spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
-
-		state = qr->state;
-		kfree(qr);
 
 		DEBUG_LR("LUN_RESET: %s from Device Queue: cmd: %p t_state:"
 			" %d t_fe_count: %d\n", (preempt_and_abort_list) ?
-			"Preempt" : "", cmd, state,
-			atomic_read(&cmd->t_task->t_fe_count));
+			"Preempt" : "", cmd, cmd->t_state,
+			atomic_read(&cmd->t_task.t_fe_count));
 		/*
 		 * Signal that the command has failed via cmd->se_cmd_flags,
 		 * and call TFO->new_cmd_failure() to wakeup any fabric
@@ -388,7 +365,7 @@ int core_tmr_lun_reset(
 		transport_new_cmd_failure(cmd);
 
 		core_tmr_handle_tas_abort(tmr_nacl, cmd, tas,
-				atomic_read(&cmd->t_task->t_fe_count));
+				atomic_read(&cmd->t_task.t_fe_count));
 		spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
 	}
 	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);

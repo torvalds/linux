@@ -66,7 +66,7 @@ static int rd_attach_hba(struct se_hba *hba, u32 host_id)
 
 	rd_host->rd_host_id = host_id;
 
-	hba->hba_ptr = (void *) rd_host;
+	hba->hba_ptr = rd_host;
 
 	printk(KERN_INFO "CORE_HBA[%d] - TCM Ramdisk HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
@@ -271,7 +271,7 @@ static struct se_device *rd_create_virtdevice(
 
 	dev = transport_add_device_to_core_hba(hba,
 			(rd_dev->rd_direct) ? &rd_dr_template :
-			&rd_mcp_template, se_dev, dev_flags, (void *)rd_dev,
+			&rd_mcp_template, se_dev, dev_flags, rd_dev,
 			&dev_limits, prod, rev);
 	if (!(dev))
 		goto fail;
@@ -336,7 +336,7 @@ rd_alloc_task(struct se_cmd *cmd)
 		printk(KERN_ERR "Unable to allocate struct rd_request\n");
 		return NULL;
 	}
-	rd_req->rd_dev = cmd->se_lun->lun_se_dev->dev_ptr;
+	rd_req->rd_dev = cmd->se_dev->dev_ptr;
 
 	return &rd_req->rd_task;
 }
@@ -737,7 +737,7 @@ check_eot:
 	}
 
 out:
-	task->task_se_cmd->t_task->t_tasks_se_num += *se_mem_cnt;
+	task->task_se_cmd->t_task.t_tasks_se_num += *se_mem_cnt;
 #ifdef DEBUG_RAMDISK_DR
 	printk(KERN_INFO "RD_DR - Allocated %u struct se_mem segments for task\n",
 			*se_mem_cnt);
@@ -819,7 +819,7 @@ static int rd_DIRECT_without_offset(
 	}
 
 out:
-	task->task_se_cmd->t_task->t_tasks_se_num += *se_mem_cnt;
+	task->task_se_cmd->t_task.t_tasks_se_num += *se_mem_cnt;
 #ifdef DEBUG_RAMDISK_DR
 	printk(KERN_INFO "RD_DR - Allocated %u struct se_mem segments for task\n",
 			*se_mem_cnt);
@@ -880,14 +880,14 @@ static int rd_DIRECT_do_se_mem_map(
 	 * across multiple struct se_task->task_sg[].
 	 */
 	ret = transport_init_task_sg(task,
-			list_entry(cmd->t_task->t_mem_list->next,
+			list_first_entry(&cmd->t_task.t_mem_list,
 				   struct se_mem, se_list),
 			task_offset);
 	if (ret <= 0)
 		return ret;
 
 	return transport_map_mem_to_sg(task, se_mem_list, task->task_sg,
-			list_entry(cmd->t_task->t_mem_list->next,
+			list_first_entry(&cmd->t_task.t_mem_list,
 				   struct se_mem, se_list),
 			out_se_mem, se_mem_cnt, task_offset_in);
 }
