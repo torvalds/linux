@@ -637,7 +637,7 @@ static void ft_send_cmd(struct ft_cmd *cmd)
 	fc_seq_exch(cmd->seq)->lp->tt.seq_set_resp(cmd->seq, ft_recv_seq, cmd);
 
 	cmd->lun = scsilun_to_int((struct scsi_lun *)fcp->fc_lun);
-	ret = transport_get_lun_for_cmd(&cmd->se_cmd, NULL, cmd->lun);
+	ret = transport_get_lun_for_cmd(&cmd->se_cmd, cmd->lun);
 	if (ret < 0) {
 		ft_dump_cmd(cmd, __func__);
 		transport_send_check_condition_and_sense(&cmd->se_cmd,

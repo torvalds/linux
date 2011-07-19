@@ -122,7 +122,7 @@ static struct se_cmd *tcm_loop_allocate_core_cmd(
 	/*
 	 * Locate the struct se_lun pointer and attach it to struct se_cmd
 	 */
-	if (transport_get_lun_for_cmd(se_cmd, NULL, tl_cmd->sc->device->lun) < 0) {
+	if (transport_get_lun_for_cmd(se_cmd, tl_cmd->sc->device->lun) < 0) {
 		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
 		set_host_byte(sc, DID_NO_CONNECT);
 		return NULL;

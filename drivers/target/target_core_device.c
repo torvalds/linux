@@ -56,7 +56,6 @@ static void se_dev_stop(struct se_device *dev);
 
 int transport_get_lun_for_cmd(
 	struct se_cmd *se_cmd,
-	unsigned char *cdb,
 	u32 unpacked_lun)
 {
 	struct se_dev_entry *deve;
