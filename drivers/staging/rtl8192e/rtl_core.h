@@ -363,11 +363,11 @@ typedef struct rtl_reg_debug{
         unsigned char buf[0xff];
 }rtl_reg_debug;
 
-typedef struct _rt_9x_tx_rate_history {
+struct rt_tx_rahis {
 	u32             cck[4];
 	u32             ofdm[8];
 	u32             ht_mcs[4][16];
-}rt_tx_rahis_t, *prt_tx_rahis_t;
+};//, *prt_tx_rahis_t;
 
 struct rt_smooth_data_4rf {
 	char	elements[4][100];
@@ -465,7 +465,7 @@ typedef struct Stats
 	u8 rx_rssi_percentage[4];
 	u8 rx_evm_percentage[2];
 	long rxSNRdB[4];
-	rt_tx_rahis_t txrate;
+	struct rt_tx_rahis txrate;
 	u32 Slide_Beacon_pwdb[100];
 	u32 Slide_Beacon_Total;
 	struct rt_smooth_data_4rf cck_adc_pwdb;
