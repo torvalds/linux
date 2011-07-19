@@ -519,7 +519,7 @@ typedef struct _tx_ring{
 }__attribute__ ((packed)) tx_ring, * ptx_ring;
 
 struct rtl8192_tx_ring {
-    tx_desc *desc;
+    struct tx_desc *desc;
     dma_addr_t dma;
     unsigned int idx;
     unsigned int entries;
@@ -535,7 +535,7 @@ struct rtl819x_ops{
 	void (* init_before_adapter_start)(struct net_device* dev);
 	bool (* initialize_adapter)(struct net_device* dev);
 	void (*link_change)(struct net_device* dev);
-	void (* tx_fill_descriptor)(struct net_device* dev, tx_desc * tx_desc, cb_desc * cb_desc, struct sk_buff *skb);
+	void (* tx_fill_descriptor)(struct net_device* dev, struct tx_desc *tx_desc, cb_desc * cb_desc, struct sk_buff *skb);
 	void (* tx_fill_cmd_descriptor)(struct net_device* dev, tx_desc_cmd * entry, cb_desc * cb_desc, struct sk_buff *skb);
 	bool (* rx_query_status_descriptor)(struct net_device* dev, struct rtllib_rx_stats*  stats, rx_desc *pdesc, struct sk_buff* skb);
 	bool (* rx_command_packet_handler)(struct net_device *dev, struct sk_buff* skb, rx_desc *pdesc);

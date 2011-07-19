@@ -305,7 +305,7 @@ typedef struct _phy_cck_rx_status_report_819xpci
 #define		PHY_RSSI_SLID_WIN_MAX				100
 #define		PHY_Beacon_RSSI_SLID_WIN_MAX		10
 
-typedef struct _tx_desc_819x_pci {
+struct tx_desc {
         u16	PktSize;
         u8	Offset;
         u8	Reserved1:3;
@@ -341,10 +341,10 @@ typedef struct _tx_desc_819x_pci {
         u32	Reserved5;
         u32	Reserved6;
         u32	Reserved7;
-}tx_desc, *ptx_desc;
+};//, *ptx_desc;
 
 
-typedef struct _tx_desc_cmd_819x_pci {
+typedef struct tx_desc_cmd_819x_pci {
 	u16	PktSize;
 	u8	Reserved1;
 	u8	CmdType:3;

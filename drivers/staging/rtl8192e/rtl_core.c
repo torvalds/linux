@@ -800,7 +800,7 @@ void rtl8192_prepare_beacon(struct r8192_priv *priv)
 	struct sk_buff *pskb = NULL, *pnewskb = NULL;
 	cb_desc *tcb_desc = NULL;
 	struct rtl8192_tx_ring *ring = NULL;
-	tx_desc *pdesc = NULL;
+	struct tx_desc *pdesc = NULL;
 
 	ring = &priv->tx_ring[BEACON_QUEUE];
 	pskb = __skb_dequeue(&ring->queue);
@@ -1884,7 +1884,7 @@ static void rtl8192_free_tx_ring(struct net_device *dev, unsigned int prio)
     struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
 
     while (skb_queue_len(&ring->queue)) {
-        tx_desc *entry = &ring->desc[ring->idx];
+        struct tx_desc *entry = &ring->desc[ring->idx];
         struct sk_buff *skb = __skb_dequeue(&ring->queue);
 
         pci_unmap_single(priv->pdev, le32_to_cpu(entry->TxBuffAddr),
@@ -1982,7 +1982,7 @@ void rtl8192_tx_isr(struct net_device *dev, int prio)
     struct rtl8192_tx_ring *ring = &priv->tx_ring[prio];
 
     while (skb_queue_len(&ring->queue)) {
-        tx_desc *entry = &ring->desc[ring->idx];
+        struct tx_desc *entry = &ring->desc[ring->idx];
         struct sk_buff *skb;
 
         if (prio != BEACON_QUEUE) {
@@ -2034,7 +2034,7 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
 	struct rtl8192_tx_ring  *ring;
 	unsigned long flags;
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
-	tx_desc *pdesc = NULL;
+	struct tx_desc *pdesc = NULL;
 	struct rtllib_hdr_1addr * header = NULL;
 	u16 fc=0, type=0,stype=0;
 	bool  multi_addr=false,broad_addr=false,uni_addr=false;
@@ -2150,7 +2150,7 @@ static int rtl8192_alloc_tx_desc_ring(struct net_device *dev,
         unsigned int prio, unsigned int entries)
 {
     struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-    tx_desc *ring;
+    struct tx_desc *ring;
     dma_addr_t dma;
     int i;
 
@@ -2225,7 +2225,7 @@ void rtl8192_pci_resetdescring(struct net_device *dev)
             struct rtl8192_tx_ring *ring = &priv->tx_ring[i];
 
             while (skb_queue_len(&ring->queue)) {
-                tx_desc *entry = &ring->desc[ring->idx];
+                struct tx_desc *entry = &ring->desc[ring->idx];
                 struct sk_buff *skb = __skb_dequeue(&ring->queue);
 
                 pci_unmap_single(priv->pdev, le32_to_cpu(entry->TxBuffAddr),

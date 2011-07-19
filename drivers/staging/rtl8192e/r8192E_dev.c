@@ -1155,7 +1155,7 @@ u8 rtl8192_MapHwQueueToFirmwareQueue(u8 QueueID, u8 priority)
 }
 
 
-void  rtl8192_tx_fill_desc(struct net_device* dev, tx_desc * pdesc, cb_desc * cb_desc, struct sk_buff* skb)
+void  rtl8192_tx_fill_desc(struct net_device* dev, struct tx_desc * pdesc, cb_desc * cb_desc, struct sk_buff* skb)
 {
     struct r8192_priv *priv = rtllib_priv(dev);
     dma_addr_t mapping = pci_map_single(priv->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
@@ -1269,7 +1269,7 @@ void  rtl8192_tx_fill_cmd_desc(struct net_device* dev, tx_desc_cmd * entry,
     if (cb_desc->bCmdOrInit == DESC_PACKET_TYPE_INIT) {
         entry->CmdInit = DESC_PACKET_TYPE_INIT;
     } else {
-	tx_desc* entry_tmp = (tx_desc*)entry;
+	struct tx_desc * entry_tmp = (struct tx_desc *)entry;
         entry_tmp->CmdInit = DESC_PACKET_TYPE_NORMAL;
         entry_tmp->Offset = sizeof(struct tx_fwinfo_8190pci) + 8;
         entry_tmp->PktSize = (u16)(cb_desc->pkt_size + entry_tmp->Offset);
