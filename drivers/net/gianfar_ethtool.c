@@ -526,6 +526,9 @@ int gfar_set_features(struct net_device *dev, u32 features)
 	int err = 0, i = 0;
 	u32 changed = dev->features ^ features;
 
+	if (changed & (NETIF_F_HW_VLAN_TX|NETIF_F_HW_VLAN_RX))
+		gfar_vlan_mode(dev, features);
+
 	if (!(changed & NETIF_F_RXCSUM))
 		return 0;
 
