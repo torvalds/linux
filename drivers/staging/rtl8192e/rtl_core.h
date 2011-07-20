@@ -257,7 +257,7 @@ enum rt_eeprom_type {
 	EEPROM_BOOT_EFUSE,
 };
 
-typedef enum _DCMD_TXCMD_OP{
+enum dcmg_txcmd_op {
 	TXCMD_TXRA_HISTORY_CTRL	        = 0xFF900000,
 	TXCMD_RESET_TX_PKT_BUFF		= 0xFF900001,
 	TXCMD_RESET_RX_PKT_BUFF		= 0xFF900002,
@@ -265,7 +265,7 @@ typedef enum _DCMD_TXCMD_OP{
 	TXCMD_SET_RX_RSSI		= 0xFF900004,
 	TXCMD_SET_TX_PWR_TRACKING	= 0xFF900005,
 	TXCMD_XXXX_CTRL,
-} DCMD_TXCMD_OP;
+};
 
 typedef enum _RT_RF_TYPE_819xU{
         RF_TYPE_MIN = 0,
