@@ -404,8 +404,7 @@ typedef enum _HT_AGGRE_SIZE_E{
 	HT_AGG_SIZE_64K = 3,
 } HT_AGGRE_SIZE_E, *PHT_AGGRE_SIZE_E;
 
-typedef enum _HT_IOT_PEER_E
-{
+enum ht_iot_peer {
 	HT_IOT_PEER_UNKNOWN = 0,
 	HT_IOT_PEER_REALTEK = 1,
 	HT_IOT_PEER_REALTEK_92SE = 2,
@@ -418,7 +417,7 @@ typedef enum _HT_IOT_PEER_E
 	HT_IOT_PEER_SELF_SOFTAP = 9,
 	HT_IOT_PEER_AIRGO = 10,
 	HT_IOT_PEER_MAX = 11,
-} HT_IOT_PEER_E, *PHTIOT_PEER_E;
+};
 
 typedef enum _HT_IOT_PEER_SUBTYPE_E
 {
