@@ -78,6 +78,7 @@
 #define IRQ_HSMMC1		IRQ_SPI(74)
 #define IRQ_HSMMC2		IRQ_SPI(75)
 #define IRQ_HSMMC3		IRQ_SPI(76)
+#define IRQ_DWMCI		IRQ_SPI(77)
 
 #define IRQ_MIPICSI0		IRQ_SPI(78)
 

@@ -112,6 +112,7 @@ extern struct platform_device exynos4_device_i2s2;
 extern struct platform_device exynos4_device_spdif;
 extern struct platform_device exynos4_device_pd[];
 extern struct platform_device exynos4_device_ahci;
+extern struct platform_device exynos4_device_dwmci;
 
 extern struct platform_device s5p6440_device_pcm;
 extern struct platform_device s5p6440_device_iis;
