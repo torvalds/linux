@@ -63,7 +63,7 @@ extern struct kmem_cache *kvm_vcpu_cache;
  */
 struct kvm_io_bus {
 	int                   dev_count;
-#define NR_IOBUS_DEVS 200
+#define NR_IOBUS_DEVS 300
 	struct kvm_io_device *devs[NR_IOBUS_DEVS];
 };
 
@@ -256,8 +256,9 @@ struct kvm {
 	struct kvm_arch arch;
 	atomic_t users_count;
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
-	struct kvm_coalesced_mmio_dev *coalesced_mmio_dev;
 	struct kvm_coalesced_mmio_ring *coalesced_mmio_ring;
+	spinlock_t ring_lock;
+	struct list_head coalesced_zones;
 #endif
 
 	struct mutex irq_lock;
