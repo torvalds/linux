@@ -290,7 +290,7 @@ module_param(dhd_sysioc, uint, 0);
 module_param(dhd_msg_level, int, 0);
 
 /* load firmware and/or nvram values from the filesystem */
-module_param_string(firmware_path, firmware_path, MOD_PARAM_PATHLEN, 0);
+module_param_string(firmware_path, firmware_path, MOD_PARAM_PATHLEN, 0660);
 module_param_string(nvram_path, nvram_path, MOD_PARAM_PATHLEN, 0);
 
 /* Watchdog interval */
@@ -2223,6 +2223,13 @@ dhd_open(struct net_device *net)
 	int ifidx;
 	int32 ret = 0;
 
+	/* Update FW path if it was changed */
+	if ((firmware_path != NULL) && (firmware_path[0] != '\0')) {
+		if (firmware_path[strlen(firmware_path)-1] == '\n')
+			firmware_path[strlen(firmware_path)-1] = '\0';
+		strcpy(fw_path, firmware_path);
+		firmware_path[0] = '\0';
+	}
 #if !defined(WL_CFG80211)
 	/** Force start if ifconfig_up gets called before START command
 	 *  We keep WEXT's wl_control_wl_start to provide backward compatibility
