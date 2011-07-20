@@ -477,15 +477,14 @@ struct channel_access_setting {
 	u16 CWmaxIndex;
 };
 
-typedef enum _TWO_PORT_STATUS
-{
+enum two_port_status {
 	TWO_PORT_STATUS__DEFAULT_ONLY,
 	TWO_PORT_STATUS__EXTENSION_ONLY,
 	TWO_PORT_STATUS__EXTENSION_FOLLOW_DEFAULT,
 	TWO_PORT_STATUS__DEFAULT_G_EXTENSION_N20,
 	TWO_PORT_STATUS__ADHOC,
 	TWO_PORT_STATUS__WITHOUT_ANY_ASSOCIATE
-} TWO_PORT_STATUS;
+};
 
 struct txbbgain_struct {
 	long	txbb_iq_amplifygain;
