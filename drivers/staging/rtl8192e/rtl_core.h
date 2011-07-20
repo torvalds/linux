@@ -322,11 +322,11 @@ enum rt_customer_id {
 	RT_CID_819x_WNC_COREGA = 31,
 };
 
-typedef enum _RESET_TYPE {
+enum reset_type {
 	RESET_TYPE_NORESET = 0x00,
 	RESET_TYPE_NORMAL = 0x01,
 	RESET_TYPE_SILENT = 0x02
-} RESET_TYPE;
+};
 
 typedef enum _IC_INFERIORITY_8192S{
 	IC_INFERIORITY_A            = 0,
@@ -978,7 +978,7 @@ struct r8192_priv {
 	u32		ccktxpower_adjustcnt_not_ch14;
 	u32		ccktxpower_adjustcnt_ch14;
 
-	RESET_TYPE	ResetProgress;
+	enum reset_type ResetProgress;
 	bool		bForcedSilentReset;
 	bool		bDisableNormalResetCheck;
 	u16		TxCounter;

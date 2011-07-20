@@ -1416,7 +1416,7 @@ short rtl8192_is_tx_queue_empty(struct net_device *dev)
 	return 1;
 }
 
-RESET_TYPE
+enum reset_type
 rtl819x_TxCheckStuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1476,7 +1476,7 @@ rtl819x_TxCheckStuck(struct net_device *dev)
 	return RESET_TYPE_NORESET;
 }
 
-RESET_TYPE rtl819x_RxCheckStuck(struct net_device *dev)
+enum reset_type rtl819x_RxCheckStuck(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -1489,12 +1489,12 @@ RESET_TYPE rtl819x_RxCheckStuck(struct net_device *dev)
 	return RESET_TYPE_NORESET;
 }
 
-RESET_TYPE
+enum reset_type
 rtl819x_ifcheck_resetornot(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	RESET_TYPE	TxResetType = RESET_TYPE_NORESET;
-	RESET_TYPE	RxResetType = RESET_TYPE_NORESET;
+	enum reset_type TxResetType = RESET_TYPE_NORESET;
+	enum reset_type RxResetType = RESET_TYPE_NORESET;
 	RT_RF_POWER_STATE	rfState;
 
 	rfState = priv->rtllib->eRFPowerState;
@@ -1678,7 +1678,7 @@ void	rtl819x_watchdog_wqcallback(void *data)
 	struct r8192_priv *priv = container_of_dwork_rsl(data, struct r8192_priv, watch_dog_wq);
 	struct net_device *dev = priv->rtllib->dev;
 	struct rtllib_device* ieee = priv->rtllib;
-	RESET_TYPE	ResetType = RESET_TYPE_NORESET;
+	enum reset_type ResetType = RESET_TYPE_NORESET;
 	static u8	check_reset_cnt = 0;
 	unsigned long flags;
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
