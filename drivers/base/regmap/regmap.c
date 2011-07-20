@@ -202,13 +202,19 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 
 	map->format.format_reg(map->work_buf, reg);
 
-	/* Try to do a gather write if we can */
-	if (map->bus->gather_write)
+	/* If we're doing a single register write we can probably just
+	 * send the work_buf directly, otherwise try to do a gather
+	 * write.
+	 */
+	if (val == map->work_buf + map->format.reg_bytes)
+		ret = map->bus->write(map->dev, map->work_buf,
+				      map->format.reg_bytes + val_len);
+	else if (map->bus->gather_write)
 		ret = map->bus->gather_write(map->dev, map->work_buf,
 					     map->format.reg_bytes,
 					     val, val_len);
 
-	/* Otherwise fall back on linearising by hand. */
+	/* If that didn't work fall back on linearising by hand. */
 	if (ret == -ENOTSUPP) {
 		len = map->format.reg_bytes + val_len;
 		buf = kmalloc(len, GFP_KERNEL);
