@@ -454,13 +454,13 @@ nv20_graph_context_del(struct nouveau_channel *chan, int engine)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	nv04_graph_fifo_access(dev, false);
+	nv_mask(dev, NV04_PGRAPH_FIFO, 0x00000001, 0x00000000);
 
 	/* Unload the context if it's the currently active one */
 	if (nv10_graph_channel(dev) == chan)
 		nv20_graph_unload_context(dev);
 
-	nv04_graph_fifo_access(dev, true);
+	nv_mask(dev, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	/* Free the context resources */

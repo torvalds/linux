@@ -450,13 +450,13 @@ nv04_graph_context_del(struct nouveau_channel *chan, int engine)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	nv04_graph_fifo_access(dev, false);
+	nv_mask(dev, NV04_PGRAPH_FIFO, 0x00000001, 0x00000000);
 
 	/* Unload the context if it's the currently active one */
 	if (nv04_graph_channel(dev) == chan)
 		nv04_graph_unload_context(dev);
 
-	nv04_graph_fifo_access(dev, true);
+	nv_mask(dev, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	/* Free the context resources */
@@ -543,17 +543,6 @@ nv04_graph_fini(struct drm_device *dev, int engine)
 	nv04_graph_unload_context(dev);
 	nv_wr32(dev, NV03_PGRAPH_INTR_EN, 0x00000000);
 	return 0;
-}
-
-void
-nv04_graph_fifo_access(struct drm_device *dev, bool enabled)
-{
-	if (enabled)
-		nv_wr32(dev, NV04_PGRAPH_FIFO,
-					nv_rd32(dev, NV04_PGRAPH_FIFO) | 1);
-	else
-		nv_wr32(dev, NV04_PGRAPH_FIFO,
-					nv_rd32(dev, NV04_PGRAPH_FIFO) & ~1);
 }
 
 static int
