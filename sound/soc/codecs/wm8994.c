@@ -1380,7 +1380,6 @@ void handsetMIC_to_baseband_to_headset(void)
 
 void mainMIC_to_baseband_to_headset(void)
 {//
-	struct wm8994_priv *wm8994 = wm8994_codec->private_data;
 	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 
 	if(wm8994_current_mode == wm8994_mainMIC_to_baseband_to_headset)return;
@@ -1655,17 +1654,27 @@ void BT_baseband(void)
 	wm8994_write(0x204, 0x0000);
 	msleep(WM8994_DELAY);
 	wm8994_write(0x240, 0x0000);
-	wm8994_write(0x241, 0x2F00);//48
-	wm8994_write(0x242, 0);
 	switch(wm8994->mclk)
 	{
 	case 12288000:
+		wm8994_write(0x241, 0x2F00);//48
+		wm8994_write(0x242, 0);
+		wm8994_write(0x243, 0x0100);		
+		break;
 	case 11289600:
-		wm8994_write(0x243, 0x0100);
+		wm8994_write(0x241, 0x2b00);
+		wm8994_write(0x242, 0xfb5b);
+		wm8994_write(0x243, 0x00e0);	
 		break;
 	case 3072000:
-	case 2822400:	
+		wm8994_write(0x241, 0x2F00);//48
+		wm8994_write(0x242, 0);
 		wm8994_write(0x243, 0x0400);
+		break;
+	case 2822400:
+		wm8994_write(0x241, 0x2b00);
+		wm8994_write(0x242, 0xed6d);
+		wm8994_write(0x243, 0x03e0);
 		break;
 	default:
 		printk("wm8994->mclk error = %d\n",wm8994->mclk);
@@ -1679,6 +1688,7 @@ void BT_baseband(void)
 	wm8994_write(0x204, 0x0018);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Clocking (1)(204H): 0011  AIF2CLK_SRC=10, AIF2CLK_INV=0, AIF2CLK_DIV=0, AIF2CLK_ENA=1
 	wm8994_write(0x208, 0x000E);
 	wm8994_write(0x211, 0x0003); 
+	
 	wm8994_write(0x312, 0x3000);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Master/Slave(312H): 7000  AIF2_TRI=0, AIF2_MSTR=1, AIF2_CLK_FRC=0, AIF2_LRCLK_FRC=0
 	msleep(30);
 	wm8994_write(0x312, 0x7000);
@@ -1686,6 +1696,7 @@ void BT_baseband(void)
 	wm8994_write(0x314, 0x0080);    // SMbus_16inx_16dat     Write  0x34      * AIF2 ADCLRCK DIV-----BCLK/128
 	wm8994_write(0x315, 0x0080);
 	wm8994_write(0x310, 0x0118);    //DSP/PCM; 16bits; ADC L channel = R channel;MODE A
+	
 	wm8994_write(0x204, 0x0019);    // SMbus_16inx_16dat     Write  0x34      * AIF2 Clocking (1)(204H): 0011  AIF2CLK_SRC=10, AIF2CLK_INV=0, AIF2CLK_DIV=0, AIF2CLK_ENA=1
 /*	
 	wm8994_write(0x310, 0x0118); 
