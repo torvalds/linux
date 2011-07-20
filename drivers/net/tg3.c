@@ -8723,15 +8723,24 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	udelay(100);
 
 	if (tg3_flag(tp, ENABLE_RSS)) {
+		int i = 0;
 		u32 reg = MAC_RSS_INDIR_TBL_0;
-		u8 *ent = (u8 *)&val;
 
-		/* Setup the indirection table */
-		for (i = 0; i < TG3_RSS_INDIR_TBL_SIZE; i++) {
-			int idx = i % sizeof(val);
+		if (tp->irq_cnt == 2) {
+			for (i = 0; i < TG3_RSS_INDIR_TBL_SIZE; i += 8) {
+				tw32(reg, 0x0);
+				reg += 4;
+			}
+		} else {
+			u32 val;
 
-			ent[idx] = i % (tp->irq_cnt - 1);
-			if (idx == sizeof(val) - 1) {
+			while (i < TG3_RSS_INDIR_TBL_SIZE) {
+				val = i % (tp->irq_cnt - 1);
+				i++;
+				for (; i % 8; i++) {
+					val <<= 4;
+					val |= (i % (tp->irq_cnt - 1));
+				}
 				tw32(reg, val);
 				reg += 4;
 			}
