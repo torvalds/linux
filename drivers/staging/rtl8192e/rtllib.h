@@ -1934,11 +1934,11 @@ enum country_code_type {
 	COUNTRY_CODE_MAX
 };
 
-typedef enum _SCAN_OPERATION_BACKUP_OPT{
+enum scan_op_backup_opt {
 	SCAN_OPT_BACKUP=0,
 	SCAN_OPT_RESTORE,
 	SCAN_OPT_MAX
-} SCAN_OPERATION_BACKUP_OPT;
+};
 
 typedef	enum _FW_CMD_IO_TYPE{
 	FW_CMD_DIG_ENABLE = 0,
