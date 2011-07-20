@@ -56,14 +56,9 @@ struct stmmac_priv {
 	struct stmmac_extra_stats xstats;
 	struct napi_struct napi;
 
-	phy_interface_t phy_interface;
-	int phy_addr;
-	int phy_mask;
-	int (*phy_reset) (void *priv);
 	int rx_coe;
 	int no_csum_insertion;
 
-	int phy_irq;
 	struct phy_device *phydev;
 	int oldlink;
 	int speed;
@@ -71,6 +66,7 @@ struct stmmac_priv {
 	unsigned int flow_ctrl;
 	unsigned int pause;
 	struct mii_bus *mii;
+	int mii_irq[PHY_MAX_ADDR];
 
 	u32 msg_enable;
 	spinlock_t lock;
