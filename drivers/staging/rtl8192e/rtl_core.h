@@ -328,10 +328,10 @@ enum reset_type {
 	RESET_TYPE_SILENT = 0x02
 };
 
-typedef enum _IC_INFERIORITY_8192S{
+enum ic_inferiority_8192s {
 	IC_INFERIORITY_A            = 0,
 	IC_INFERIORITY_B            = 1,
-} IC_INFERIORITY_8192S, *PIC_INFERIORITY_8192S;
+};
 
 typedef enum _PCI_BRIDGE_VENDOR {
 	PCI_BRIDGE_VENDOR_INTEL = 0x0,
@@ -586,7 +586,7 @@ struct r8192_priv {
 
 
 	enum rt_rf_type_819xu rf_chip;
-	IC_INFERIORITY_8192S		IC_Class;
+	enum ic_inferiority_8192s IC_Class;
 	enum ht_channel_width CurrentChannelBW;
 	struct bb_reg_definition PHYRegDef[4];
 	struct rate_adaptive rate_adaptive;
