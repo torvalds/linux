@@ -621,7 +621,7 @@ enum init_gain_op_type {
 	IG_Max
 };
 
-typedef enum _LED_CTL_MODE{
+enum led_ctl_mode {
         LED_CTL_POWER_ON = 1,
         LED_CTL_LINK = 2,
         LED_CTL_NO_LINK = 3,
@@ -635,7 +635,7 @@ typedef enum _LED_CTL_MODE{
         LED_CTL_START_WPS_BOTTON = 11,
         LED_CTL_STOP_WPS_FAIL = 12,
 	 LED_CTL_STOP_WPS_FAIL_OVERLAP = 13,
-} LED_CTL_MODE;
+};
 
 typedef enum _RT_RF_TYPE_DEF
 {
@@ -2525,7 +2525,7 @@ struct rtllib_device {
 	void (*UpdateInterruptMaskHandler)(struct net_device* dev, u32 AddMSR, u32 RemoveMSR);
 	u16  (*rtl_11n_user_show_rates)(struct net_device *dev);
 	void (*ScanOperationBackupHandler)(struct net_device *dev, u8 Operation);
-	void (*LedControlHandler)(struct net_device * dev, LED_CTL_MODE LedAction);
+	void (*LedControlHandler)(struct net_device * dev, enum led_ctl_mode LedAction);
 	void (*SetHwRegHandler)(struct net_device *dev,u8 variable,u8* val);
 	void (*GetHwRegHandler)(struct net_device *dev,u8 variable,u8* val);
 

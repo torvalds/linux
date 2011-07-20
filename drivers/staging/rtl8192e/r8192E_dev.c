@@ -61,7 +61,7 @@ void rtl8192e_update_msr(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u8 msr;
-	LED_CTL_MODE	LedAction = LED_CTL_NO_LINK;
+	enum led_ctl_mode LedAction = LED_CTL_NO_LINK;
 	msr  = read_nic_byte(dev, MSR);
 	msr &= ~ MSR_LINK_MASK;
 
@@ -110,7 +110,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 		case HW_VAR_MEDIA_STATUS:
 		{
 			enum rt_op_mode OpMode = *((enum rt_op_mode *)(val));
-			LED_CTL_MODE	LedAction = LED_CTL_NO_LINK;
+			enum led_ctl_mode LedAction = LED_CTL_NO_LINK;
 			u8		btMsr = read_nic_byte(dev, MSR);
 
 			btMsr &= 0xfc;
