@@ -301,7 +301,7 @@ static int __devinit kxtj9_setup_input_device(struct kxtj9_data *tj9)
 	int err;
 
 	input_dev = input_allocate_device();
-	if (!tj9->input_dev) {
+	if (!input_dev) {
 		dev_err(&tj9->client->dev, "input device allocate failed\n");
 		return -ENOMEM;
 	}
