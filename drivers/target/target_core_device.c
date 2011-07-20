@@ -181,6 +181,7 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 	struct se_lun *se_lun = NULL;
 	struct se_session *se_sess = se_cmd->se_sess;
 	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
+	unsigned long flags;
 
 	if (unpacked_lun >= TRANSPORT_MAX_LUNS_PER_TPG) {
 		se_cmd->scsi_sense_reason = TCM_NON_EXISTENT_LUN;
@@ -188,7 +189,7 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		return -ENODEV;
 	}
 
-	spin_lock_irq(&se_sess->se_node_acl->device_list_lock);
+	spin_lock_irqsave(&se_sess->se_node_acl->device_list_lock, flags);
 	se_cmd->se_deve = &se_sess->se_node_acl->device_list[unpacked_lun];
 	deve = se_cmd->se_deve;
 
@@ -200,7 +201,7 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		se_cmd->orig_fe_lun = unpacked_lun;
 		se_cmd->se_orig_obj_ptr = se_cmd->se_dev;
 	}
-	spin_unlock_irq(&se_sess->se_node_acl->device_list_lock);
+	spin_unlock_irqrestore(&se_sess->se_node_acl->device_list_lock, flags);
 
 	if (!se_lun) {
 		printk(KERN_INFO "TARGET_CORE[%s]: Detected NON_EXISTENT_LUN"
@@ -223,9 +224,9 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 	se_cmd->se_dev = se_lun->lun_se_dev;
 	se_tmr->tmr_dev = se_lun->lun_se_dev;
 
-	spin_lock(&se_tmr->tmr_dev->se_tmr_lock);
+	spin_lock_irqsave(&se_tmr->tmr_dev->se_tmr_lock, flags);
 	list_add_tail(&se_tmr->tmr_list, &se_tmr->tmr_dev->dev_tmr_list);
-	spin_unlock(&se_tmr->tmr_dev->se_tmr_lock);
+	spin_unlock_irqrestore(&se_tmr->tmr_dev->se_tmr_lock, flags);
 
 	return 0;
 }

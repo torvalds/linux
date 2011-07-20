@@ -80,9 +80,9 @@ void core_tmr_release_req(
 		return;
 	}
 
-	spin_lock(&dev->se_tmr_lock);
+	spin_lock_irq(&dev->se_tmr_lock);
 	list_del(&tmr->tmr_list);
-	spin_unlock(&dev->se_tmr_lock);
+	spin_unlock_irq(&dev->se_tmr_lock);
 
 	kmem_cache_free(se_tmr_req_cache, tmr);
 }
@@ -154,7 +154,7 @@ int core_tmr_lun_reset(
 	 * Release all pending and outgoing TMRs aside from the received
 	 * LUN_RESET tmr..
 	 */
-	spin_lock(&dev->se_tmr_lock);
+	spin_lock_irq(&dev->se_tmr_lock);
 	list_for_each_entry_safe(tmr_p, tmr_pp, &dev->dev_tmr_list, tmr_list) {
 		/*
 		 * Allow the received TMR to return with FUNCTION_COMPLETE.
@@ -176,17 +176,17 @@ int core_tmr_lun_reset(
 		    (core_scsi3_check_cdb_abort_and_preempt(
 					preempt_and_abort_list, cmd) != 0))
 			continue;
-		spin_unlock(&dev->se_tmr_lock);
+		spin_unlock_irq(&dev->se_tmr_lock);
 
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
 		if (!(atomic_read(&cmd->t_transport_active))) {
 			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-			spin_lock(&dev->se_tmr_lock);
+			spin_lock_irq(&dev->se_tmr_lock);
 			continue;
 		}
 		if (cmd->t_state == TRANSPORT_ISTATE_PROCESSING) {
 			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-			spin_lock(&dev->se_tmr_lock);
+			spin_lock_irq(&dev->se_tmr_lock);
 			continue;
 		}
 		DEBUG_LR("LUN_RESET: %s releasing TMR %p Function: 0x%02x,"
@@ -196,9 +196,9 @@ int core_tmr_lun_reset(
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 		transport_cmd_finish_abort_tmr(cmd);
-		spin_lock(&dev->se_tmr_lock);
+		spin_lock_irq(&dev->se_tmr_lock);
 	}
-	spin_unlock(&dev->se_tmr_lock);
+	spin_unlock_irq(&dev->se_tmr_lock);
 	/*
 	 * Complete outstanding struct se_task CDBs with TASK_ABORTED SAM status.
 	 * This is following sam4r17, section 5.6 Aborting commands, Table 38
