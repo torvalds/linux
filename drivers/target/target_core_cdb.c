@@ -66,7 +66,7 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 {
 	struct se_lun *lun = cmd->se_lun;
 	struct se_device *dev = cmd->se_dev;
-	unsigned char *buf = cmd->t_task_buf;
+	unsigned char *buf;
 
 	/*
 	 * Make sure we at least have 6 bytes of INQUIRY response
@@ -77,6 +77,8 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 			" too small for EVPD=0\n", cmd->data_length);
 		return -EINVAL;
 	}
+
+	buf = transport_kmap_first_data_page(cmd);
 
 	buf[0] = dev->transport->get_device_type(dev);
 	if (buf[0] == TYPE_TAPE)
@@ -91,7 +93,7 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 
 	if (cmd->data_length < 8) {
 		buf[4] = 1; /* Set additional length to 1 */
-		return 0;
+		goto out;
 	}
 
 	buf[7] = 0x32; /* Sync=1 and CmdQue=1 */
@@ -102,7 +104,7 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 	 */
 	if (cmd->data_length < 36) {
 		buf[4] = 3; /* Set additional length to 3 */
-		return 0;
+		goto out;
 	}
 
 	snprintf((unsigned char *)&buf[8], 8, "LIO-ORG");
@@ -111,6 +113,9 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 	snprintf((unsigned char *)&buf[32], 4, "%s",
 		 &dev->se_sub_dev->t10_wwn.revision[0]);
 	buf[4] = 31; /* Set additional length to 31 */
+
+out:
+	transport_kunmap_first_data_page(cmd);
 	return 0;
 }
 
@@ -647,9 +652,9 @@ static int
 target_emulate_inquiry(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	unsigned char *buf = cmd->t_task_buf;
+	unsigned char *buf;
 	unsigned char *cdb = cmd->t_task_cdb;
-	int p;
+	int p, ret;
 
 	if (!(cdb[1] & 0x1))
 		return target_emulate_inquiry_std(cmd);
@@ -666,14 +671,20 @@ target_emulate_inquiry(struct se_cmd *cmd)
 			" too small for EVPD=1\n", cmd->data_length);
 		return -EINVAL;
 	}
+
+	buf = transport_kmap_first_data_page(cmd);
+
 	buf[0] = dev->transport->get_device_type(dev);
 
 	for (p = 0; p < ARRAY_SIZE(evpd_handlers); ++p)
 		if (cdb[2] == evpd_handlers[p].page) {
 			buf[1] = cdb[2];
-			return evpd_handlers[p].emulate(cmd, buf);
+			ret = evpd_handlers[p].emulate(cmd, buf);
+			transport_kunmap_first_data_page(cmd);
+			return ret;
 		}
 
+	transport_kunmap_first_data_page(cmd);
 	printk(KERN_ERR "Unknown VPD Code: 0x%02x\n", cdb[2]);
 	return -EINVAL;
 }
@@ -682,7 +693,7 @@ static int
 target_emulate_readcapacity(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	unsigned char *buf = cmd->t_task_buf;
+	unsigned char *buf;
 	unsigned long long blocks_long = dev->transport->get_blocks(dev);
 	u32 blocks;
 
@@ -690,6 +701,8 @@ target_emulate_readcapacity(struct se_cmd *cmd)
 		blocks = 0xffffffff;
 	else
 		blocks = (u32)blocks_long;
+
+	buf = transport_kmap_first_data_page(cmd);
 
 	buf[0] = (blocks >> 24) & 0xff;
 	buf[1] = (blocks >> 16) & 0xff;
@@ -705,6 +718,8 @@ target_emulate_readcapacity(struct se_cmd *cmd)
 	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu || dev->se_sub_dev->se_dev_attrib.emulate_tpws)
 		put_unaligned_be32(0xFFFFFFFF, &buf[0]);
 
+	transport_kunmap_first_data_page(cmd);
+
 	return 0;
 }
 
@@ -712,8 +727,10 @@ static int
 target_emulate_readcapacity_16(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	unsigned char *buf = cmd->t_task_buf;
+	unsigned char *buf;
 	unsigned long long blocks = dev->transport->get_blocks(dev);
+
+	buf = transport_kmap_first_data_page(cmd);
 
 	buf[0] = (blocks >> 56) & 0xff;
 	buf[1] = (blocks >> 48) & 0xff;
@@ -733,6 +750,8 @@ target_emulate_readcapacity_16(struct se_cmd *cmd)
 	 */
 	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu || dev->se_sub_dev->se_dev_attrib.emulate_tpws)
 		buf[14] = 0x80;
+
+	transport_kunmap_first_data_page(cmd);
 
 	return 0;
 }
@@ -848,7 +867,7 @@ target_emulate_modesense(struct se_cmd *cmd, int ten)
 {
 	struct se_device *dev = cmd->se_dev;
 	char *cdb = cmd->t_task_cdb;
-	unsigned char *rbuf = cmd->t_task_buf;
+	unsigned char *rbuf;
 	int type = dev->transport->get_device_type(dev);
 	int offset = (ten) ? 8 : 4;
 	int length = 0;
@@ -911,7 +930,10 @@ target_emulate_modesense(struct se_cmd *cmd, int ten)
 		if ((offset + 1) > cmd->data_length)
 			offset = cmd->data_length;
 	}
+
+	rbuf = transport_kmap_first_data_page(cmd);
 	memcpy(rbuf, buf, offset);
+	transport_kunmap_first_data_page(cmd);
 
 	return 0;
 }
@@ -920,14 +942,18 @@ static int
 target_emulate_request_sense(struct se_cmd *cmd)
 {
 	unsigned char *cdb = cmd->t_task_cdb;
-	unsigned char *buf = cmd->t_task_buf;
+	unsigned char *buf;
 	u8 ua_asc = 0, ua_ascq = 0;
+	int err = 0;
 
 	if (cdb[1] & 0x01) {
 		printk(KERN_ERR "REQUEST_SENSE description emulation not"
 			" supported\n");
 		return PYX_TRANSPORT_INVALID_CDB_FIELD;
 	}
+
+	buf = transport_kmap_first_data_page(cmd);
+
 	if (!(core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq))) {
 		/*
 		 * CURRENT ERROR, UNIT ATTENTION
@@ -940,7 +966,8 @@ target_emulate_request_sense(struct se_cmd *cmd)
 		 */
 		if (cmd->data_length <= 18) {
 			buf[7] = 0x00;
-			return 0;
+			err = -EINVAL;
+			goto end;
 		}
 		/*
 		 * The Additional Sense Code (ASC) from the UNIT ATTENTION
@@ -960,7 +987,8 @@ target_emulate_request_sense(struct se_cmd *cmd)
 		 */
 		if (cmd->data_length <= 18) {
 			buf[7] = 0x00;
-			return 0;
+			err = -EINVAL;
+			goto end;
 		}
 		/*
 		 * NO ADDITIONAL SENSE INFORMATION
@@ -968,6 +996,9 @@ target_emulate_request_sense(struct se_cmd *cmd)
 		buf[SPC_ASC_KEY_OFFSET] = 0x00;
 		buf[7] = 0x0A;
 	}
+
+end:
+	transport_kunmap_first_data_page(cmd);
 
 	return 0;
 }
@@ -981,11 +1012,11 @@ target_emulate_unmap(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
-	unsigned char *buf = cmd->t_task_buf, *ptr = NULL;
+	unsigned char *buf, *ptr = NULL;
 	unsigned char *cdb = &cmd->t_task_cdb[0];
 	sector_t lba;
 	unsigned int size = cmd->data_length, range;
-	int ret, offset;
+	int ret = 0, offset;
 	unsigned short dl, bd_dl;
 
 	/* First UNMAP block descriptor starts at 8 byte offset */
@@ -993,6 +1024,9 @@ target_emulate_unmap(struct se_task *task)
 	size -= 8;
 	dl = get_unaligned_be16(&cdb[0]);
 	bd_dl = get_unaligned_be16(&cdb[2]);
+
+	buf = transport_kmap_first_data_page(cmd);
+
 	ptr = &buf[offset];
 	printk(KERN_INFO "UNMAP: Sub: %s Using dl: %hu bd_dl: %hu size: %hu"
 		" ptr: %p\n", dev->transport->name, dl, bd_dl, size, ptr);
@@ -1007,7 +1041,7 @@ target_emulate_unmap(struct se_task *task)
 		if (ret < 0) {
 			printk(KERN_ERR "blkdev_issue_discard() failed: %d\n",
 					ret);
-			return ret;
+			goto err;
 		}
 
 		ptr += 16;
@@ -1016,7 +1050,10 @@ target_emulate_unmap(struct se_task *task)
 
 	task->task_scsi_status = GOOD;
 	transport_complete_task(task, 1);
-	return 0;
+err:
+	transport_kunmap_first_data_page(cmd);
+
+	return ret;
 }
 
 /*

@@ -71,9 +71,9 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 		caller, cmd, cmd->cdb);
 	printk(KERN_INFO "%s: cmd %p lun %d\n", caller, cmd, cmd->lun);
 
-	printk(KERN_INFO "%s: cmd %p se_num %u buf %p len %u se_cmd_flags <0x%x>\n",
+	printk(KERN_INFO "%s: cmd %p se_num %u len %u se_cmd_flags <0x%x>\n",
 	       caller, cmd, se_cmd->t_tasks_se_num,
-	       se_cmd->t_task_buf, se_cmd->data_length, se_cmd->se_cmd_flags);
+	       se_cmd->data_length, se_cmd->se_cmd_flags);
 
 	list_for_each_entry(mem, &se_cmd->t_mem_list, se_list)
 		printk(KERN_INFO "%s: cmd %p mem %p page %p "

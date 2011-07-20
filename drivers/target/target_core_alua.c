@@ -65,9 +65,11 @@ int core_emulate_report_target_port_groups(struct se_cmd *cmd)
 	struct se_port *port;
 	struct t10_alua_tg_pt_gp *tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem;
-	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
+	unsigned char *buf;
 	u32 rd_len = 0, off = 4; /* Skip over RESERVED area to first
 				    Target port group descriptor */
+
+	buf = transport_kmap_first_data_page(cmd);
 
 	spin_lock(&su_dev->t10_alua.tg_pt_gps_lock);
 	list_for_each_entry(tg_pt_gp, &su_dev->t10_alua.tg_pt_gps_list,
@@ -141,6 +143,8 @@ int core_emulate_report_target_port_groups(struct se_cmd *cmd)
 	buf[2] = ((rd_len >> 8) & 0xff);
 	buf[3] = (rd_len & 0xff);
 
+	transport_kunmap_first_data_page(cmd);
+
 	return 0;
 }
 
@@ -157,14 +161,17 @@ int core_emulate_set_target_port_groups(struct se_cmd *cmd)
 	struct se_node_acl *nacl = cmd->se_sess->se_node_acl;
 	struct t10_alua_tg_pt_gp *tg_pt_gp = NULL, *l_tg_pt_gp;
 	struct t10_alua_tg_pt_gp_member *tg_pt_gp_mem, *l_tg_pt_gp_mem;
-	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
-	unsigned char *ptr = &buf[4]; /* Skip over RESERVED area in header */
+	unsigned char *buf;
+	unsigned char *ptr;
 	u32 len = 4; /* Skip over RESERVED area in header */
 	int alua_access_state, primary = 0, rc;
 	u16 tg_pt_id, rtpi;
 
 	if (!(l_port))
 		return PYX_TRANSPORT_LU_COMM_FAILURE;
+
+	buf = transport_kmap_first_data_page(cmd);
+
 	/*
 	 * Determine if explict ALUA via SET_TARGET_PORT_GROUPS is allowed
 	 * for the local tg_pt_gp.
@@ -172,14 +179,16 @@ int core_emulate_set_target_port_groups(struct se_cmd *cmd)
 	l_tg_pt_gp_mem = l_port->sep_alua_tg_pt_gp_mem;
 	if (!(l_tg_pt_gp_mem)) {
 		printk(KERN_ERR "Unable to access l_port->sep_alua_tg_pt_gp_mem\n");
-		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		rc = PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		goto out;
 	}
 	spin_lock(&l_tg_pt_gp_mem->tg_pt_gp_mem_lock);
 	l_tg_pt_gp = l_tg_pt_gp_mem->tg_pt_gp;
 	if (!(l_tg_pt_gp)) {
 		spin_unlock(&l_tg_pt_gp_mem->tg_pt_gp_mem_lock);
 		printk(KERN_ERR "Unable to access *l_tg_pt_gp_mem->tg_pt_gp\n");
-		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		rc = PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		goto out;
 	}
 	rc = (l_tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICT_ALUA);
 	spin_unlock(&l_tg_pt_gp_mem->tg_pt_gp_mem_lock);
@@ -187,8 +196,11 @@ int core_emulate_set_target_port_groups(struct se_cmd *cmd)
 	if (!(rc)) {
 		printk(KERN_INFO "Unable to process SET_TARGET_PORT_GROUPS"
 				" while TPGS_EXPLICT_ALUA is disabled\n");
-		return PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		rc = PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		goto out;
 	}
+
+	ptr = &buf[4]; /* Skip over RESERVED area in header */
 
 	while (len < cmd->data_length) {
 		alua_access_state = (ptr[0] & 0x0f);
@@ -209,7 +221,8 @@ int core_emulate_set_target_port_groups(struct se_cmd *cmd)
 			 * REQUEST, and the additional sense code set to INVALID
 			 * FIELD IN PARAMETER LIST.
 			 */
-			return PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+			rc = PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+			goto out;
 		}
 		rc = -1;
 		/*
@@ -260,8 +273,10 @@ int core_emulate_set_target_port_groups(struct se_cmd *cmd)
 			 * If not matching target port group ID can be located
 			 * throw an exception with ASCQ: INVALID_PARAMETER_LIST
 			 */
-			if (rc != 0)
-				return PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+			if (rc != 0) {
+				rc = PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+				goto out;
+			}
 		} else {
 			/*
 			 * Extact the RELATIVE TARGET PORT IDENTIFIER to identify
@@ -295,13 +310,18 @@ int core_emulate_set_target_port_groups(struct se_cmd *cmd)
 			 * be located, throw an exception with ASCQ:
 			 * INVALID_PARAMETER_LIST
 			 */
-			if (rc != 0)
-				return PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+			if (rc != 0) {
+				rc = PYX_TRANSPORT_INVALID_PARAMETER_LIST;
+				goto out;
+			}
 		}
 
 		ptr += 4;
 		len += 4;
 	}
+
+out:
+	transport_kunmap_first_data_page(cmd);
 
 	return 0;
 }

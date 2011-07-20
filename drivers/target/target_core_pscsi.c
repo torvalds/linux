@@ -695,7 +695,7 @@ static int pscsi_transport_complete(struct se_task *task)
 
 		if (task->task_se_cmd->se_deve->lun_flags &
 				TRANSPORT_LUNFLAGS_READ_ONLY) {
-			unsigned char *buf = task->task_se_cmd->t_task_buf;
+			unsigned char *buf = transport_kmap_first_data_page(task->task_se_cmd);
 
 			if (cdb[0] == MODE_SENSE_10) {
 				if (!(buf[3] & 0x80))
@@ -704,6 +704,8 @@ static int pscsi_transport_complete(struct se_task *task)
 				if (!(buf[2] & 0x80))
 					buf[2] |= 0x80;
 			}
+
+			transport_kunmap_first_data_page(task->task_se_cmd);
 		}
 	}
 after_mode_sense:
@@ -1246,33 +1248,6 @@ static int pscsi_map_task_SG(struct se_task *task)
 	return 0;
 }
 
-/*	pscsi_map_task_non_SG():
- *
- *
- */
-static int pscsi_map_task_non_SG(struct se_task *task)
-{
-	struct se_cmd *cmd = task->task_se_cmd;
-	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
-	struct pscsi_dev_virt *pdv = task->se_dev->dev_ptr;
-	int ret = 0;
-
-	if (pscsi_blk_get_request(task) < 0)
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
-
-	if (!task->task_size)
-		return 0;
-
-	ret = blk_rq_map_kern(pdv->pdv_sd->request_queue,
-			pt->pscsi_req, cmd->t_task_buf,
-			task->task_size, GFP_KERNEL);
-	if (ret < 0) {
-		printk(KERN_ERR "PSCSI: blk_rq_map_kern() failed: %d\n", ret);
-		return PYX_TRANSPORT_LU_COMM_FAILURE;
-	}
-	return 0;
-}
-
 static int pscsi_CDB_none(struct se_task *task)
 {
 	return pscsi_blk_get_request(task);
@@ -1392,7 +1367,6 @@ static struct se_subsystem_api pscsi_template = {
 	.owner			= THIS_MODULE,
 	.transport_type		= TRANSPORT_PLUGIN_PHBA_PDEV,
 	.cdb_none		= pscsi_CDB_none,
-	.map_task_non_SG	= pscsi_map_task_non_SG,
 	.map_task_SG		= pscsi_map_task_SG,
 	.attach_hba		= pscsi_attach_hba,
 	.detach_hba		= pscsi_detach_hba,

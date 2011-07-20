@@ -657,7 +657,7 @@ int transport_core_report_lun_response(struct se_cmd *se_cmd)
 	struct se_lun *se_lun;
 	struct se_session *se_sess = se_cmd->se_sess;
 	struct se_task *se_task;
-	unsigned char *buf = se_cmd->t_task_buf;
+	unsigned char *buf;
 	u32 cdb_offset = 0, lun_count = 0, offset = 8, i;
 
 	list_for_each_entry(se_task, &se_cmd->t_task_list, t_list)
@@ -667,6 +667,8 @@ int transport_core_report_lun_response(struct se_cmd *se_cmd)
 		printk(KERN_ERR "Unable to locate struct se_task for struct se_cmd\n");
 		return PYX_TRANSPORT_LU_COMM_FAILURE;
 	}
+
+	buf = transport_kmap_first_data_page(se_cmd);
 
 	/*
 	 * If no struct se_session pointer is present, this struct se_cmd is
@@ -704,6 +706,7 @@ int transport_core_report_lun_response(struct se_cmd *se_cmd)
 	 * See SPC3 r07, page 159.
 	 */
 done:
+	transport_kunmap_first_data_page(se_cmd);
 	lun_count *= 8;
 	buf[0] = ((lun_count >> 24) & 0xff);
 	buf[1] = ((lun_count >> 16) & 0xff);

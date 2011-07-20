@@ -109,7 +109,6 @@ enum se_cmd_flags_table {
 	SCF_EMULATED_TASK_SENSE		= 0x00000004,
 	SCF_SCSI_DATA_SG_IO_CDB		= 0x00000008,
 	SCF_SCSI_CONTROL_SG_IO_CDB	= 0x00000010,
-	SCF_SCSI_CONTROL_NONSG_IO_CDB	= 0x00000020,
 	SCF_SCSI_NON_DATA_CDB		= 0x00000040,
 	SCF_SCSI_CDB_EXCEPTION		= 0x00000080,
 	SCF_SCSI_RESERVATION_CONFLICT	= 0x00000100,
@@ -123,7 +122,6 @@ enum se_cmd_flags_table {
 	SCF_ALUA_NON_OPTIMIZED		= 0x00040000,
 	SCF_DELAYED_CMD_FROM_SAM_ATTR	= 0x00080000,
 	SCF_UNUSED			= 0x00100000,
-	SCF_PASSTHROUGH_CONTIG_TO_SG	= 0x00200000,
 	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00400000,
 	SCF_EMULATE_CDB_ASYNC		= 0x01000000,
 	SCF_EMULATE_QUEUE_FULL		= 0x02000000,
@@ -516,8 +514,7 @@ struct se_cmd {
 	struct completion	transport_lun_fe_stop_comp;
 	struct completion	transport_lun_stop_comp;
 	struct scatterlist	*t_tasks_sg_chained;
-	struct scatterlist	t_tasks_sg_bounce;
-	void			*t_task_buf;
+
 	/*
 	 * Used for pre-registered fabric SGL passthrough WRITE and READ
 	 * with the special SCF_PASSTHROUGH_CONTIG_TO_SG case for TCM_Loop

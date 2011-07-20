@@ -1482,7 +1482,7 @@ static int core_scsi3_decode_spec_i_port(
 	struct list_head tid_dest_list;
 	struct pr_transport_id_holder *tidh_new, *tidh, *tidh_tmp;
 	struct target_core_fabric_ops *tmp_tf_ops;
-	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
+	unsigned char *buf;
 	unsigned char *ptr, *i_str = NULL, proto_ident, tmp_proto_ident;
 	char *iport_ptr = NULL, dest_iport[64], i_buf[PR_REG_ISID_ID_LEN];
 	u32 tpdl, tid_len = 0;
@@ -1524,6 +1524,8 @@ static int core_scsi3_decode_spec_i_port(
 	 */
 	tidh_new->dest_local_nexus = 1;
 	list_add_tail(&tidh_new->dest_list, &tid_dest_list);
+
+	buf = transport_kmap_first_data_page(cmd);
 	/*
 	 * For a PERSISTENT RESERVE OUT specify initiator ports payload,
 	 * first extract TransportID Parameter Data Length, and make sure
@@ -1760,6 +1762,9 @@ static int core_scsi3_decode_spec_i_port(
 		tid_len = 0;
 
 	}
+
+	transport_kunmap_first_data_page(cmd);
+
 	/*
 	 * Go ahead and create a registrations from tid_dest_list for the
 	 * SPEC_I_PT provided TransportID for the *tidh referenced dest_node_acl
@@ -1806,6 +1811,7 @@ static int core_scsi3_decode_spec_i_port(
 
 	return 0;
 out:
+	transport_kunmap_first_data_page(cmd);
 	/*
 	 * For the failure case, release everything from tid_dest_list
 	 * including *dest_pr_reg and the configfs dependances..
@@ -3307,7 +3313,7 @@ static int core_scsi3_emulate_pro_register_and_move(
 	struct target_core_fabric_ops *dest_tf_ops = NULL, *tf_ops;
 	struct t10_pr_registration *pr_reg, *pr_res_holder, *dest_pr_reg;
 	struct t10_reservation *pr_tmpl = &dev->se_sub_dev->t10_pr;
-	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
+	unsigned char *buf;
 	unsigned char *initiator_str;
 	char *iport_ptr = NULL, dest_iport[64], i_buf[PR_REG_ISID_ID_LEN];
 	u32 tid_len, tmp_tid_len;
@@ -3357,17 +3363,21 @@ static int core_scsi3_emulate_pro_register_and_move(
 		core_scsi3_put_pr_reg(pr_reg);
 		return PYX_TRANSPORT_INVALID_PARAMETER_LIST;
 	}
+
 	/*
 	 * Determine the Relative Target Port Identifier where the reservation
 	 * will be moved to for the TransportID containing SCSI initiator WWN
 	 * information.
 	 */
+	buf = transport_kmap_first_data_page(cmd);
 	rtpi = (buf[18] & 0xff) << 8;
 	rtpi |= buf[19] & 0xff;
 	tid_len = (buf[20] & 0xff) << 24;
 	tid_len |= (buf[21] & 0xff) << 16;
 	tid_len |= (buf[22] & 0xff) << 8;
 	tid_len |= buf[23] & 0xff;
+	transport_kunmap_first_data_page(cmd);
+	buf = NULL;
 
 	if ((tid_len + 24) != cmd->data_length) {
 		printk(KERN_ERR "SPC-3 PR: Illegal tid_len: %u + 24 byte header"
@@ -3414,6 +3424,8 @@ static int core_scsi3_emulate_pro_register_and_move(
 		core_scsi3_put_pr_reg(pr_reg);
 		return PYX_TRANSPORT_INVALID_PARAMETER_LIST;
 	}
+
+	buf = transport_kmap_first_data_page(cmd);
 	proto_ident = (buf[24] & 0x0f);
 #if 0
 	printk("SPC-3 PR REGISTER_AND_MOVE: Extracted Protocol Identifier:"
@@ -3443,6 +3455,9 @@ static int core_scsi3_emulate_pro_register_and_move(
 		ret = PYX_TRANSPORT_INVALID_PARAMETER_LIST;
 		goto out;
 	}
+
+	transport_kunmap_first_data_page(cmd);
+	buf = NULL;
 
 	printk(KERN_INFO "SPC-3 PR [%s] Extracted initiator %s identifier: %s"
 		" %s\n", dest_tf_ops->get_fabric_name(), (iport_ptr != NULL) ?
@@ -3696,9 +3711,13 @@ after_iport_check:
 					" REGISTER_AND_MOVE\n");
 	}
 
+	transport_kunmap_first_data_page(cmd);
+
 	core_scsi3_put_pr_reg(dest_pr_reg);
 	return 0;
 out:
+	if (buf)
+		transport_kunmap_first_data_page(cmd);
 	if (dest_se_deve)
 		core_scsi3_lunacl_undepend_item(dest_se_deve);
 	if (dest_node_acl)
@@ -3723,7 +3742,7 @@ static unsigned long long core_scsi3_extract_reservation_key(unsigned char *cdb)
  */
 static int core_scsi3_emulate_pr_out(struct se_cmd *cmd, unsigned char *cdb)
 {
-	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
+	unsigned char *buf;
 	u64 res_key, sa_res_key;
 	int sa, scope, type, aptpl;
 	int spec_i_pt = 0, all_tg_pt = 0, unreg = 0;
@@ -3745,6 +3764,8 @@ static int core_scsi3_emulate_pr_out(struct se_cmd *cmd, unsigned char *cdb)
 	sa = (cdb[1] & 0x1f);
 	scope = (cdb[2] & 0xf0);
 	type = (cdb[2] & 0x0f);
+
+	buf = transport_kmap_first_data_page(cmd);
 	/*
 	 * From PERSISTENT_RESERVE_OUT parameter list (payload)
 	 */
@@ -3762,6 +3783,9 @@ static int core_scsi3_emulate_pr_out(struct se_cmd *cmd, unsigned char *cdb)
 		aptpl = (buf[17] & 0x01);
 		unreg = (buf[17] & 0x02);
 	}
+	transport_kunmap_first_data_page(cmd);
+	buf = NULL;
+
 	/*
 	 * SPEC_I_PT=1 is only valid for Service action: REGISTER
 	 */
@@ -3830,7 +3854,7 @@ static int core_scsi3_pri_read_keys(struct se_cmd *cmd)
 	struct se_device *se_dev = cmd->se_dev;
 	struct se_subsystem_dev *su_dev = se_dev->se_sub_dev;
 	struct t10_pr_registration *pr_reg;
-	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
+	unsigned char *buf;
 	u32 add_len = 0, off = 8;
 
 	if (cmd->data_length < 8) {
@@ -3839,6 +3863,7 @@ static int core_scsi3_pri_read_keys(struct se_cmd *cmd)
 		return PYX_TRANSPORT_INVALID_CDB_FIELD;
 	}
 
+	buf = transport_kmap_first_data_page(cmd);
 	buf[0] = ((su_dev->t10_pr.pr_generation >> 24) & 0xff);
 	buf[1] = ((su_dev->t10_pr.pr_generation >> 16) & 0xff);
 	buf[2] = ((su_dev->t10_pr.pr_generation >> 8) & 0xff);
@@ -3872,6 +3897,8 @@ static int core_scsi3_pri_read_keys(struct se_cmd *cmd)
 	buf[6] = ((add_len >> 8) & 0xff);
 	buf[7] = (add_len & 0xff);
 
+	transport_kunmap_first_data_page(cmd);
+
 	return 0;
 }
 
@@ -3885,7 +3912,7 @@ static int core_scsi3_pri_read_reservation(struct se_cmd *cmd)
 	struct se_device *se_dev = cmd->se_dev;
 	struct se_subsystem_dev *su_dev = se_dev->se_sub_dev;
 	struct t10_pr_registration *pr_reg;
-	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
+	unsigned char *buf;
 	u64 pr_res_key;
 	u32 add_len = 16; /* Hardcoded to 16 when a reservation is held. */
 
@@ -3895,6 +3922,7 @@ static int core_scsi3_pri_read_reservation(struct se_cmd *cmd)
 		return PYX_TRANSPORT_INVALID_CDB_FIELD;
 	}
 
+	buf = transport_kmap_first_data_page(cmd);
 	buf[0] = ((su_dev->t10_pr.pr_generation >> 24) & 0xff);
 	buf[1] = ((su_dev->t10_pr.pr_generation >> 16) & 0xff);
 	buf[2] = ((su_dev->t10_pr.pr_generation >> 8) & 0xff);
@@ -3911,10 +3939,9 @@ static int core_scsi3_pri_read_reservation(struct se_cmd *cmd)
 		buf[6] = ((add_len >> 8) & 0xff);
 		buf[7] = (add_len & 0xff);
 
-		if (cmd->data_length < 22) {
-			spin_unlock(&se_dev->dev_reservation_lock);
-			return 0;
-		}
+		if (cmd->data_length < 22)
+			goto err;
+
 		/*
 		 * Set the Reservation key.
 		 *
@@ -3951,7 +3978,10 @@ static int core_scsi3_pri_read_reservation(struct se_cmd *cmd)
 		buf[21] = (pr_reg->pr_res_scope & 0xf0) |
 			  (pr_reg->pr_res_type & 0x0f);
 	}
+
+err:
 	spin_unlock(&se_dev->dev_reservation_lock);
+	transport_kunmap_first_data_page(cmd);
 
 	return 0;
 }
@@ -3965,7 +3995,7 @@ static int core_scsi3_pri_report_capabilities(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct t10_reservation *pr_tmpl = &dev->se_sub_dev->t10_pr;
-	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
+	unsigned char *buf;
 	u16 add_len = 8; /* Hardcoded to 8. */
 
 	if (cmd->data_length < 6) {
@@ -3973,6 +4003,8 @@ static int core_scsi3_pri_report_capabilities(struct se_cmd *cmd)
 			" %u too small\n", cmd->data_length);
 		return PYX_TRANSPORT_INVALID_CDB_FIELD;
 	}
+
+	buf = transport_kmap_first_data_page(cmd);
 
 	buf[0] = ((add_len << 8) & 0xff);
 	buf[1] = (add_len & 0xff);
@@ -4004,6 +4036,8 @@ static int core_scsi3_pri_report_capabilities(struct se_cmd *cmd)
 	buf[4] |= 0x02; /* PR_TYPE_WRITE_EXCLUSIVE */
 	buf[5] |= 0x01; /* PR_TYPE_EXCLUSIVE_ACCESS_ALLREG */
 
+	transport_kunmap_first_data_page(cmd);
+
 	return 0;
 }
 
@@ -4020,7 +4054,7 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 	struct se_portal_group *se_tpg;
 	struct t10_pr_registration *pr_reg, *pr_reg_tmp;
 	struct t10_reservation *pr_tmpl = &se_dev->se_sub_dev->t10_pr;
-	unsigned char *buf = (unsigned char *)cmd->t_task_buf;
+	unsigned char *buf;
 	u32 add_desc_len = 0, add_len = 0, desc_len, exp_desc_len;
 	u32 off = 8; /* off into first Full Status descriptor */
 	int format_code = 0;
@@ -4030,6 +4064,8 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 			" too small\n", cmd->data_length);
 		return PYX_TRANSPORT_INVALID_CDB_FIELD;
 	}
+
+	buf = transport_kmap_first_data_page(cmd);
 
 	buf[0] = ((su_dev->t10_pr.pr_generation >> 24) & 0xff);
 	buf[1] = ((su_dev->t10_pr.pr_generation >> 16) & 0xff);
@@ -4149,6 +4185,8 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 	buf[5] = ((add_len >> 16) & 0xff);
 	buf[6] = ((add_len >> 8) & 0xff);
 	buf[7] = (add_len & 0xff);
+
+	transport_kunmap_first_data_page(cmd);
 
 	return 0;
 }

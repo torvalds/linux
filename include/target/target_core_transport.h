@@ -165,6 +165,8 @@ extern void transport_init_se_cmd(struct se_cmd *,
 					struct target_core_fabric_ops *,
 					struct se_session *, u32, int, int,
 					unsigned char *);
+void *transport_kmap_first_data_page(struct se_cmd *cmd);
+void transport_kunmap_first_data_page(struct se_cmd *cmd);
 extern void transport_free_se_cmd(struct se_cmd *);
 extern int transport_generic_allocate_tasks(struct se_cmd *, unsigned char *);
 extern int transport_generic_handle_cdb(struct se_cmd *);
@@ -236,10 +238,6 @@ struct se_subsystem_api {
 	 * For SCF_SCSI_NON_DATA_CDB
 	 */
 	int (*cdb_none)(struct se_task *);
-	/*
-	 * For SCF_SCSI_CONTROL_NONSG_IO_CDB
-	 */
-	int (*map_task_non_SG)(struct se_task *);
 	/*
 	 * For SCF_SCSI_DATA_SG_IO_CDB and SCF_SCSI_CONTROL_SG_IO_CDB
 	 */
