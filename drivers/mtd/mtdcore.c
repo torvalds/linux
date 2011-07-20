@@ -449,7 +449,7 @@ out_error:
  *   is used, see 'parse_mtd_partitions()' for more information). If none are
  *   found this functions tries to fallback to information specified in
  *   @parts/@nr_parts.
- * * If any parititioning info was found, this function registers the found
+ * * If any partitioning info was found, this function registers the found
  *   partitions.
  * * If no partitions were found this function just registers the MTD device
  *   @mtd and exits.

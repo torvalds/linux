@@ -43,7 +43,7 @@ static struct vfsmount *mtd_inode_mnt __read_mostly;
 
 /*
  * Data structure to hold the pointer to the mtd device as well
- * as mode information ofr various use cases.
+ * as mode information of various use cases.
  */
 struct mtd_file_info {
 	struct mtd_info *mtd;
@@ -495,7 +495,7 @@ static int mtd_do_readoob(struct mtd_info *mtd, uint64_t start,
 /*
  * Copies (and truncates, if necessary) data from the larger struct,
  * nand_ecclayout, to the smaller, deprecated layout struct,
- * nand_ecclayout_user. This is necessary only to suppport the deprecated
+ * nand_ecclayout_user. This is necessary only to support the deprecated
  * API ioctl ECCGETLAYOUT while allowing all new functionality to use
  * nand_ecclayout flexibly (i.e. the struct may change size in new
  * releases without requiring major rewrites).

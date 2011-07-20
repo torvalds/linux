@@ -34,7 +34,7 @@ module_param(debug, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 
-/* ------------------- sysfs attributtes ---------------------------------- */
+/* ------------------- sysfs attributes ---------------------------------- */
 struct sm_sysfs_attribute {
 	struct device_attribute dev_attr;
 	char *data;
@@ -147,7 +147,7 @@ static int sm_get_lba(uint8_t *lba)
 
 
 /*
- * Read LBA asscociated with block
+ * Read LBA associated with block
  * returns -1, if block is erased
  * returns -2 if error happens
  */
@@ -252,7 +252,7 @@ static int sm_read_sector(struct sm_ftl *ftl,
 		return 0;
 	}
 
-	/* User might not need the oob, but we do for data vertification */
+	/* User might not need the oob, but we do for data verification */
 	if (!oob)
 		oob = &tmp_oob;
 
@@ -276,7 +276,7 @@ again:
 			return ret;
 	}
 
-	/* Unfortunelly, oob read will _always_ succeed,
+	/* Unfortunately, oob read will _always_ succeed,
 		despite card removal..... */
 	ret = mtd->read_oob(mtd, sm_mkoffset(ftl, zone, block, boffset), &ops);
 
@@ -447,14 +447,14 @@ static void sm_mark_block_bad(struct sm_ftl *ftl, int zone, int block)
 
 	/* We aren't checking the return value, because we don't care */
 	/* This also fails on fake xD cards, but I guess these won't expose
-		any bad blocks till fail completly */
+		any bad blocks till fail completely */
 	for (boffset = 0; boffset < ftl->block_size; boffset += SM_SECTOR_SIZE)
 		sm_write_sector(ftl, zone, block, boffset, NULL, &oob);
 }
 
 /*
  * Erase a block within a zone
- * If erase succedes, it updates free block fifo, otherwise marks block as bad
+ * If erase succeeds, it updates free block fifo, otherwise marks block as bad
  */
 static int sm_erase_block(struct sm_ftl *ftl, int zone_num, uint16_t block,
 			  int put_free)
@@ -510,7 +510,7 @@ static void sm_erase_callback(struct erase_info *self)
 	complete(&ftl->erase_completion);
 }
 
-/* Throughtly test that block is valid. */
+/* Thoroughly test that block is valid. */
 static int sm_check_block(struct sm_ftl *ftl, int zone, int block)
 {
 	int boffset;
@@ -526,7 +526,7 @@ static int sm_check_block(struct sm_ftl *ftl, int zone, int block)
 	for (boffset = 0; boffset < ftl->block_size;
 					boffset += SM_SECTOR_SIZE) {
 
-		/* This shoudn't happen anyway */
+		/* This shouldn't happen anyway */
 		if (sm_read_sector(ftl, zone, block, boffset, NULL, &oob))
 			return -2;
 

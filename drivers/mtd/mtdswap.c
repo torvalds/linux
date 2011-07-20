@@ -86,7 +86,7 @@ struct swap_eb {
 	unsigned int flags;
 	unsigned int active_count;
 	unsigned int erase_count;
-	unsigned int pad;		/* speeds up pointer decremtnt */
+	unsigned int pad;		/* speeds up pointer decrement */
 };
 
 #define MTDSWAP_ECNT_MIN(rbroot) (rb_entry(rb_first(rbroot), struct swap_eb, \

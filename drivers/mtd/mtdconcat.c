@@ -770,7 +770,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 
 	/*
 	 * Set up the new "super" device's MTD object structure, check for
-	 * incompatibilites between the subdevices.
+	 * incompatibilities between the subdevices.
 	 */
 	concat->mtd.type = subdev[0]->type;
 	concat->mtd.flags = subdev[0]->flags;

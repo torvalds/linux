@@ -598,7 +598,7 @@ static int copy_erase_unit(partition_t *part, uint16_t srcunit,
     unit with the fewest erases, and usually pick the data unit with
     the most deleted blocks.  But with a small probability, pick the
     oldest data unit instead.  This means that we generally postpone
-    the next reclaimation as long as possible, but shuffle static
+    the next reclamation as long as possible, but shuffle static
     stuff around a bit for wear leveling.
 
 ======================================================================*/
