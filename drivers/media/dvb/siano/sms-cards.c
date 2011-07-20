@@ -20,10 +20,6 @@
 #include "sms-cards.h"
 #include "smsir.h"
 
-static int sms_dbg;
-module_param_named(cards_dbg, sms_dbg, int, 0644);
-MODULE_PARM_DESC(cards_dbg, "set debug level (info=1, adv=2 (or-able))");
-
 static struct sms_board sms_boards[] = {
 	[SMS_BOARD_UNKNOWN] = {
 		.name	= "Unknown board",

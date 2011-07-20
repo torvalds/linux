@@ -29,10 +29,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "sms-cards.h"
 #include "smsendian.h"
 
-static int sms_dbg;
-module_param_named(debug, sms_dbg, int, 0644);
-MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
-
 #define USB1_BUFFER_SIZE		0x1000
 #define USB2_BUFFER_SIZE		0x4000
 
