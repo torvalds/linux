@@ -1172,7 +1172,7 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 
 	cp->iro_arr = ethdev->iro_arr;
 
-	cp->max_cid_space = MAX_ISCSI_TBL_SZ + BNX2X_FCOE_NUM_CONNECTIONS;
+	cp->max_cid_space = MAX_ISCSI_TBL_SZ;
 	cp->iscsi_start_cid = start_cid;
 	cp->fcoe_start_cid = start_cid + MAX_ISCSI_TBL_SZ;
 
@@ -1181,14 +1181,6 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 		cp->fcoe_init_cid = ethdev->fcoe_init_cid;
 		if (!cp->fcoe_init_cid)
 			cp->fcoe_init_cid = 0x10;
-	}
-
-	if (start_cid < BNX2X_ISCSI_START_CID) {
-		u32 delta = BNX2X_ISCSI_START_CID - start_cid;
-
-		cp->iscsi_start_cid = BNX2X_ISCSI_START_CID;
-		cp->fcoe_start_cid += delta;
-		cp->max_cid_space += delta;
 	}
 
 	cp->iscsi_tbl = kzalloc(sizeof(struct cnic_iscsi) * MAX_ISCSI_TBL_SZ,
