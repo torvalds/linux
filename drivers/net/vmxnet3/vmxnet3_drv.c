@@ -2993,6 +2993,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 		goto err_ver;
 	}
 
+	SET_NETDEV_DEV(netdev, &pdev->dev);
 	vmxnet3_declare_features(adapter, dma64);
 
 	adapter->dev_number = atomic_read(&devices_found);
@@ -3038,7 +3039,6 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	netif_set_real_num_tx_queues(adapter->netdev, adapter->num_tx_queues);
 	netif_set_real_num_rx_queues(adapter->netdev, adapter->num_rx_queues);
 
-	SET_NETDEV_DEV(netdev, &pdev->dev);
 	err = register_netdev(netdev);
 
 	if (err) {
