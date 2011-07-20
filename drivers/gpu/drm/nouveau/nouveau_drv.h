@@ -312,7 +312,7 @@ struct nouveau_channel {
 struct nouveau_exec_engine {
 	void (*destroy)(struct drm_device *, int engine);
 	int  (*init)(struct drm_device *, int engine);
-	int  (*fini)(struct drm_device *, int engine);
+	int  (*fini)(struct drm_device *, int engine, bool suspend);
 	int  (*context_new)(struct nouveau_channel *, int engine);
 	void (*context_del)(struct nouveau_channel *, int engine);
 	int  (*object_new)(struct nouveau_channel *, int engine,

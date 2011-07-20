@@ -346,7 +346,7 @@ nv40_graph_init(struct drm_device *dev, int engine)
 }
 
 static int
-nv40_graph_fini(struct drm_device *dev, int engine)
+nv40_graph_fini(struct drm_device *dev, int engine, bool suspend)
 {
 	u32 inst = nv_rd32(dev, 0x40032c);
 	if (inst & 0x01000000) {

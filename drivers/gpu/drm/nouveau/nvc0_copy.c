@@ -127,7 +127,7 @@ nvc0_copy_init(struct drm_device *dev, int engine)
 }
 
 static int
-nvc0_copy_fini(struct drm_device *dev, int engine)
+nvc0_copy_fini(struct drm_device *dev, int engine, bool suspend)
 {
 	struct nvc0_copy_engine *pcopy = nv_engine(dev, engine);
 

@@ -538,7 +538,7 @@ nv04_graph_init(struct drm_device *dev, int engine)
 }
 
 static int
-nv04_graph_fini(struct drm_device *dev, int engine)
+nv04_graph_fini(struct drm_device *dev, int engine, bool suspend)
 {
 	nv04_graph_unload_context(dev);
 	nv_wr32(dev, NV03_PGRAPH_INTR_EN, 0x00000000);
