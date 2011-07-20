@@ -25,10 +25,23 @@ struct spi_device;
  *
  * @reg_bits: Number of bits in a register address, mandatory.
  * @val_bits: Number of bits in a register value, mandatory.
+ *
+ * @max_register: Optional, specifies the maximum valid register index.
+ * @writeable_register: Optional callback returning true if the register
+ *                      can be written to.
+ * @readable_register: Optional callback returning true if the register
+ *                     can be read from.
+ * @volatile_register: Optional callback returning true if the register
+ *                     value can't be cached.
  */
 struct regmap_config {
 	int reg_bits;
 	int val_bits;
+
+	unsigned int max_register;
+	bool (*writeable_reg)(struct device *dev, unsigned int reg);
+	bool (*readable_reg)(struct device *dev, unsigned int reg);
+	bool (*volatile_reg)(struct device *dev, unsigned int reg);
 };
 
 typedef int (*regmap_hw_write)(struct device *dev, const void *data,
