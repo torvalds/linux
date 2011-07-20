@@ -232,12 +232,11 @@ enum dm_cck_rx_path_method {
 };
 
 
-typedef enum _DM_DBG_E
-{
+enum dm_dbg {
 	DM_DBG_OFF = 0,
 	DM_DBG_ON = 1,
 	DM_DBG_MAX
-} DM_DBG_E;
+};
 
 struct dcmd_txcmd {
 	u32	Op;
