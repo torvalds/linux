@@ -86,6 +86,13 @@ struct _gckHEAP
 
 	/* Heap list. */
 	gcskHEAP_PTR				heap;
+
+// dkm : gcdOPTIMIZE_HEAP_SAMESIZE
+#if gcdOPTIMIZE_HEAP_SAMESIZE
+    gctSIZE_T                   lastbytes;
+    gcskNODE_PTR                lastnode;
+#endif
+
 #if gcdDEBUG
 	gctUINT64					timeStamp;
 #endif
@@ -182,6 +189,7 @@ _CompactKernelHeap(
 		{
 			/* Convert the pointer. */
 			gcskNODE_PTR node = (gcskNODE_PTR) p;
+			gctSIZE_T bytes  = node->bytes;
 
 			gcmkASSERT(p <= (gctPOINTER) ((gctUINT8_PTR) (heap + 1) + heap->size));
 
@@ -189,7 +197,7 @@ _CompactKernelHeap(
 			if (node->next != gcdIN_USE)
 			{
 				/* Test if this is the end of the heap. */
-				if (node->bytes == 0)
+				if (bytes == 0)
 				{
 					break;
 				}
@@ -209,7 +217,7 @@ _CompactKernelHeap(
 					if ((gctUINT8_PTR) lastFree + lastFree->bytes == p)
 					{
 						/* Just increase the size of the previous free node. */
-						lastFree->bytes += node->bytes;
+						lastFree->bytes += bytes;
 					}
 					else
 					{
@@ -220,8 +228,19 @@ _CompactKernelHeap(
 				}
 			}
 
+// dkm : add check bytes for loop            
+#if gcdOPTIMIZE_HEAP_SAMESIZE
+            else {
+                /* Test if this is the end of the heap. */
+				if (bytes == 0)
+				{
+					break;
+				}
+            }
+#endif
+
 			/* Move to next node. */
-			p = (gctUINT8_PTR) node + node->bytes;
+			p = (gctUINT8_PTR) node + bytes;
 		}
 
 		/* Mark the end of the chain. */
@@ -345,6 +364,13 @@ gckHEAP_Construct(
 	heap->os             = Os;
 	heap->allocationSize = AllocationSize;
 	heap->heap           = gcvNULL;
+
+// dkm : gcdOPTIMIZE_HEAP_SAMESIZE
+#if gcdOPTIMIZE_HEAP_SAMESIZE
+    heap->lastbytes = 0;
+    heap->lastnode = gcvNULL;
+#endif
+
 #if gcdDEBUG
 	heap->timeStamp      = 0;
 #endif
@@ -473,11 +499,6 @@ gckHEAP_Allocate(
 	gctSIZE_T bytes;
 	gcskNODE_PTR node, used, prevFree = gcvNULL;
 	gctPOINTER memory = gcvNULL;
-// dkm : gcdOPTIMIZE_HEAP_SAMESIZE
-#if gcdOPTIMIZE_HEAP_SAMESIZE
-    static gctSIZE_T lastbytes = 0;
-    static gcskNODE_PTR lastnode = gcvNULL;
-#endif
 
 	gcmkHEADER_ARG("Heap=0x%x Bytes=%lu", Heap, Bytes);
 
@@ -518,8 +539,8 @@ gckHEAP_Allocate(
 					prevFree = gcvNULL;
 // dkm : gcdOPTIMIZE_HEAP_SAMESIZE         
 #if gcdOPTIMIZE_HEAP_SAMESIZE
-                    if(bytes>=lastbytes && heap==Heap->heap && lastnode) {
-                        node = lastnode;
+                    if(heap==Heap->heap && bytes>=Heap->lastbytes && Heap->lastnode) {
+                        node = Heap->lastnode;
                     } else {
                         node = heap->freeList;
                     }
@@ -547,6 +568,11 @@ gckHEAP_Allocate(
 
 			if (i == 0)
 			{
+// dkm : gcdOPTIMIZE_HEAP_SAMESIZE
+#if gcdOPTIMIZE_HEAP_SAMESIZE
+                Heap->lastbytes = 0;
+                Heap->lastnode = gcvNULL;
+#endif
 				/* Compact the heap. */
 				gcmkVERIFY_OK(_CompactKernelHeap(Heap));
 				
@@ -686,8 +712,8 @@ UseNode:
 		gcmkASSERT(node->bytes >= gcmSIZEOF(gcskNODE));
 // dkm : gcdOPTIMIZE_HEAP_SAMESIZE
 #if gcdOPTIMIZE_HEAP_SAMESIZE
-        lastbytes = bytes;
-        lastnode = node;
+        Heap->lastbytes = bytes;
+        Heap->lastnode = node;
 #endif
 	}
 	else
@@ -703,8 +729,8 @@ UseNode:
 		}
 // dkm : gcdOPTIMIZE_HEAP_SAMESIZE
 #if gcdOPTIMIZE_HEAP_SAMESIZE
-        lastbytes = bytes;
-        lastnode = node->next;
+        Heap->lastbytes = bytes;
+        Heap->lastnode = node->next;
 #endif
 		/* Consume the entire free node. */
 		used  = (gcskNODE_PTR) node;

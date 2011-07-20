@@ -45,12 +45,8 @@
 
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
-// dkm: add
-#define PAGE_ALLOC_LIMIT                    1   // 限制Page申请
-#define PAGE_ALLOC_LIMIT_SIZE               0   // 限制Page申请的大小,单位为M
-
-// dkm: PAGE_ALLOC_LIMIT
-#if PAGE_ALLOC_LIMIT
+// dkm: gcdPAGE_ALLOC_LIMIT
+#if gcdPAGE_ALLOC_LIMIT
 int g_pages_alloced = 0;
 #endif
 
@@ -72,11 +68,6 @@ int g_pages_alloced = 0;
 #define MEMORY_MAP_UNLOCK(os) \
     gcmkVERIFY_OK(gckOS_ReleaseMutex((os), (os)->memoryMapLock))
 
-// dkm : use cache to avoid alloc & map & free frequently for non page memory.
-// gcdkUSE_MAPED_NONPAGE_CACHE : 
-//    0  - no use cache 
-//    m  - The maximum number of cache unit
-#define gcdkUSE_MAPED_NONPAGE_CACHE         100
 
 // dkm : gcdkUSE_MAPED_NONPAGE_CACHE
 #if gcdkUSE_MAPED_NONPAGE_CACHE
@@ -88,15 +79,15 @@ typedef struct _gcsMapedNonPagedCache
 }
 gcsMapedNonPagedCache;
 
+static void _FreeAllMapedNonPagedCache(gckOS Os, gctINT pid);
+#endif
+
 gceSTATUS gckOS_FreeNonPagedMemoryRealy(
     IN gckOS Os,
     IN gctSIZE_T Bytes,
     IN gctPHYS_ADDR Physical,
     IN gctPOINTER Logical
     );
-
-static void _FreeAllMapedNonPagedCache(gckOS Os, gctINT pid);
-#endif
 
 
 /******************************************************************************\
@@ -2964,9 +2955,9 @@ gceSTATUS gckOS_AllocatePagedMemoryEx(
 
     if (Contiguous)
     {
-// dkm: PAGE_ALLOC_LIMIT
-#if PAGE_ALLOC_LIMIT
-        if( (g_pages_alloced + numPages) > (256*PAGE_ALLOC_LIMIT_SIZE) ) {
+// dkm: gcdPAGE_ALLOC_LIMIT
+#if gcdPAGE_ALLOC_LIMIT
+        if( (g_pages_alloced + numPages) > (256*gcdPAGE_ALLOC_LIMIT_SIZE) ) {
             //printk("full %d! \n", g_pages_alloced);
             addr = NULL;
         } else {
@@ -2975,7 +2966,7 @@ gceSTATUS gckOS_AllocatePagedMemoryEx(
                 g_pages_alloced += numPages;
                 //printk("alloc %d / %d \n", numPages, g_pages_alloced);
             } else {
-                printk("gpu : alloc %d fail! (%d/%d)\n", numPages,  g_pages_alloced, (256*PAGE_ALLOC_LIMIT_SIZE) );
+                printk("gpu : alloc %d fail! (%d/%d)\n", numPages,  g_pages_alloced, (256*gcdPAGE_ALLOC_LIMIT_SIZE) );
             }
         }
 #else
@@ -3133,8 +3124,8 @@ gceSTATUS gckOS_FreePagedMemory(
     if (mdl->contiguous)
     {
         free_pages((unsigned long)mdl->addr, GetOrder(mdl->numPages));
-// dkm: PAGE_ALLOC_LIMIT
-#if PAGE_ALLOC_LIMIT
+// dkm: gcdPAGE_ALLOC_LIMIT
+#if gcdPAGE_ALLOC_LIMIT
         g_pages_alloced -= mdl->numPages;
         //printk("free %d / %d \n", mdl->numPages, g_pages_alloced);
         if(g_pages_alloced<0)    g_pages_alloced = 0;

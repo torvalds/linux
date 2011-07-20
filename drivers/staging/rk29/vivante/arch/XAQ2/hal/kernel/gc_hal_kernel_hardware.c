@@ -3429,8 +3429,12 @@ gckHARDWARE_QueryPowerManagementState(
     gcmkVERIFY_OBJECT(Hardware, gcvOBJ_HARDWARE);
     gcmkVERIFY_ARGUMENT(State != gcvNULL);
 
+    gckOS_AcquireMutex(Hardware->os, Hardware->powerMutex, gcvINFINITE);
+
     /* Return the statue. */
     *State = Hardware->chipPowerState;
+
+    gckOS_ReleaseMutex(Hardware->os, Hardware->powerMutex);
 
     /* Success. */
     gcmkFOOTER_ARG("*State=%d", *State);

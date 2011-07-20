@@ -105,6 +105,7 @@ typedef enum
 #define IPP_PROCESS_ST			(0x50)
 
 /*ipp config*/
+#define DEINTERLACE_ENABLE		(1<<24)
 #define ROT_ENABLE				(1<<8)
 #define PRE_SCALE				(1<<4)
 #define POST_SCALE				(1<<3)
