@@ -321,11 +321,6 @@ static inline int entity_before(struct sched_entity *a,
 	return (s64)(a->vruntime - b->vruntime) < 0;
 }
 
-static inline s64 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
-{
-	return se->vruntime - cfs_rq->min_vruntime;
-}
-
 static void update_min_vruntime(struct cfs_rq *cfs_rq)
 {
 	u64 vruntime = cfs_rq->min_vruntime;
@@ -359,7 +354,6 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	struct rb_node **link = &cfs_rq->tasks_timeline.rb_node;
 	struct rb_node *parent = NULL;
 	struct sched_entity *entry;
-	s64 key = entity_key(cfs_rq, se);
 	int leftmost = 1;
 
 	/*
@@ -372,7 +366,7 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		 * We dont care about collisions. Nodes with
 		 * the same key stay together.
 		 */
-		if (key < entity_key(cfs_rq, entry)) {
+		if (entity_before(se, entry)) {
 			link = &parent->rb_left;
 		} else {
 			link = &parent->rb_right;
