@@ -206,11 +206,11 @@ enum ht_spec_ver {
 	HT_SPEC_VER_EWC = 1,
 };
 
-typedef enum _HT_AGGRE_MODE_E{
+enum ht_aggre_mode {
 	HT_AGG_AUTO = 0,
 	HT_AGG_FORCE_ENABLE = 1,
 	HT_AGG_FORCE_DISABLE = 2,
-} HT_AGGRE_MODE_E, *PHT_AGGRE_MODE_E;
+};
 
 
 struct rt_hi_throughput {
@@ -251,11 +251,11 @@ struct rt_hi_throughput {
 	u8				MPDU_Density;
 	u8				CurrentMPDUDensity;
 
-	HT_AGGRE_MODE_E	ForcedAMPDUMode;
+	enum ht_aggre_mode ForcedAMPDUMode;
 	u8				ForcedAMPDUFactor;
 	u8				ForcedMPDUDensity;
 
-	HT_AGGRE_MODE_E	ForcedAMSDUMode;
+	enum ht_aggre_mode ForcedAMSDUMode;
 	u16				ForcedAMSDUMaxSize;
 
 	u8				bForcedShortGI;
