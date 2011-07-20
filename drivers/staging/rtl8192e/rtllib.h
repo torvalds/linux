@@ -403,12 +403,12 @@ enum hw_variables {
         HW_VAR_RF_TIMING,
 };
 
-typedef enum _RT_OP_MODE{
+enum rt_op_mode {
 	RT_OP_MODE_AP,
 	RT_OP_MODE_INFRASTRUCTURE,
 	RT_OP_MODE_IBSS,
 	RT_OP_MODE_NO_LINK,
-} RT_OP_MODE, *PRT_OP_MODE;
+};
 
 
 #define aSifsTime	 (((priv->rtllib->current_network.mode == IEEE_A)||(priv->rtllib->current_network.mode == IEEE_N_24G)||(priv->rtllib->current_network.mode == IEEE_N_5G))? 16 : 10)
@@ -2099,7 +2099,7 @@ struct rtllib_device {
 	u8 hwscan_sem_up;
 	u8	CntAfterLink;
 
-	RT_OP_MODE	OpMode;
+	enum rt_op_mode OpMode;
 
 	u8 VersionID;
 	/* The last AssocReq/Resp IEs */

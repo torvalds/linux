@@ -109,7 +109,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 
 		case HW_VAR_MEDIA_STATUS:
 		{
-			RT_OP_MODE	OpMode = *((RT_OP_MODE *)(val));
+			enum rt_op_mode OpMode = *((enum rt_op_mode *)(val));
 			LED_CTL_MODE	LedAction = LED_CTL_NO_LINK;
 			u8		btMsr = read_nic_byte(dev, MSR);
 
