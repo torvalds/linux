@@ -2031,7 +2031,7 @@ struct rate_adaptive {
 	u8				PreRATRState;
 
 };
-typedef enum _RATR_TABLE_MODE_8192S{
+enum ratr_table_mode_8192s {
 	RATR_INX_WIRELESS_NGB = 0,
 	RATR_INX_WIRELESS_NG = 1,
 	RATR_INX_WIRELESS_NB = 2,
@@ -2041,7 +2041,7 @@ typedef enum _RATR_TABLE_MODE_8192S{
 	RATR_INX_WIRELESS_B = 6,
 	RATR_INX_WIRELESS_MC = 7,
 	RATR_INX_WIRELESS_A = 8,
-} RATR_TABLE_MODE_8192S, *PRATR_TABLE_MODE_8192S;
+};
 
 #define	NUM_PMKID_CACHE		16
 struct rt_pmkid_list {
