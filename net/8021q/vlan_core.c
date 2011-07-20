@@ -96,22 +96,6 @@ u16 vlan_dev_vlan_id(const struct net_device *dev)
 }
 EXPORT_SYMBOL(vlan_dev_vlan_id);
 
-gro_result_t vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
-			      unsigned int vlan_tci, struct sk_buff *skb)
-{
-	__vlan_hwaccel_put_tag(skb, vlan_tci);
-	return napi_gro_receive(napi, skb);
-}
-EXPORT_SYMBOL(vlan_gro_receive);
-
-gro_result_t vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
-			    unsigned int vlan_tci)
-{
-	__vlan_hwaccel_put_tag(napi->skb, vlan_tci);
-	return napi_gro_frags(napi);
-}
-EXPORT_SYMBOL(vlan_gro_frags);
-
 static struct sk_buff *vlan_reorder_header(struct sk_buff *skb)
 {
 	if (skb_cow(skb, skb_headroom(skb)) < 0)

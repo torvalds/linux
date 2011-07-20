@@ -127,12 +127,6 @@ extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 
 extern bool vlan_do_receive(struct sk_buff **skb);
 extern struct sk_buff *vlan_untag(struct sk_buff *skb);
-extern gro_result_t
-vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
-		 unsigned int vlan_tci, struct sk_buff *skb);
-extern gro_result_t
-vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
-	       unsigned int vlan_tci);
 
 #else
 static inline struct net_device *
@@ -163,20 +157,6 @@ static inline bool vlan_do_receive(struct sk_buff **skb)
 static inline struct sk_buff *vlan_untag(struct sk_buff *skb)
 {
 	return skb;
-}
-
-static inline gro_result_t
-vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
-		 unsigned int vlan_tci, struct sk_buff *skb)
-{
-	return GRO_DROP;
-}
-
-static inline gro_result_t
-vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
-	       unsigned int vlan_tci)
-{
-	return GRO_DROP;
 }
 #endif
 
