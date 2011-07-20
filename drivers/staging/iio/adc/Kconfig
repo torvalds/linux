@@ -182,6 +182,16 @@ config ADT7410
 	  Say yes here to build support for Analog Devices ADT7410
 	  temperature sensors.
 
+config AD7280
+	tristate "Analog Devices AD7280A Lithium Ion Battery Monitoring System"
+	depends on SPI
+	help
+	  Say yes here to build support for Analog Devices AD7280A
+	  Lithium Ion Battery Monitoring System.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7280a
+
 config MAX1363
 	tristate "Maxim max1363 ADC driver"
 	depends on I2C
