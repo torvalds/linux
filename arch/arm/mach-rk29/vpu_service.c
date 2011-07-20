@@ -120,6 +120,7 @@ typedef struct vpu_device {
 
 typedef struct vpu_service_info {
 	spinlock_t		lock;
+	struct workqueue_struct	*workqueue;
 	struct list_head	waiting;		/* link to link_reg in struct vpu_reg */
 	struct list_head	running;		/* link to link_reg in struct vpu_reg */
 	struct list_head	done;			/* link to link_reg in struct vpu_reg */
@@ -391,14 +392,20 @@ static void try_set_reg(void)
        		    ((VPU_PP  == reg->type) && (NULL == service.reg_pproc)) ||
        		    ((VPU_ENC == reg->type) && (NULL == service.reg_codec))) {
 			reg_from_wait_to_run(reg);
-			__cancel_delayed_work(&vpu_service_power_off_work);
+			if (!cancel_delayed_work(&vpu_service_power_off_work)) {
+				if (!in_interrupt()) {
+					flush_delayed_work(&vpu_service_power_off_work);
+				} else {
+					pr_err("try_set_reg in inturrpt but cancel power off failed\n");
+				}
+			}
 			vpu_service_power_on();
 			reg_copy_to_hw(reg);
 		}
 		spin_unlock_irqrestore(&service.lock, flag);
 	} else {
 		spin_unlock_irqrestore(&service.lock, flag);
-		schedule_delayed_work(&vpu_service_power_off_work, POWER_OFF_DELAY);
+		queue_delayed_work(service.workqueue, &vpu_service_power_off_work, POWER_OFF_DELAY);
 	}
 }
 
@@ -674,7 +681,7 @@ static struct miscdevice vpu_service_misc_device = {
 static void vpu_service_shutdown(struct platform_device *pdev)
 {
 	pr_cont("shutdown...");
-	__cancel_delayed_work(&vpu_service_power_off_work);
+	cancel_delayed_work(&vpu_service_power_off_work);
 	vpu_service_power_off();
 	pr_cont("done\n");
 }
@@ -683,7 +690,7 @@ static int vpu_service_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	bool enabled;
 	pr_info("suspend...");
-	__cancel_delayed_work(&vpu_service_power_off_work);
+	cancel_delayed_work(&vpu_service_power_off_work);
 	enabled = service.enabled;
 	vpu_service_power_off();
 	service.enabled = enabled;
@@ -972,7 +979,12 @@ static int __init vpu_service_init(void)
 	service.reg_codec	= NULL;
 	service.reg_pproc	= NULL;
 	atomic_set(&service.task_running, 0);
-	service.enabled = false;
+	service.enabled		= false;
+	service.workqueue	= create_singlethread_workqueue("vpu_service");
+	if (!service.workqueue) {
+		pr_err("create_singlethread_workqueue failed\n");
+		return -ENOMEM;
+	}
 
 	vpu_get_clk();
 	vpu_service_power_on();
@@ -1020,14 +1032,16 @@ err_reserve_io:
 	vpu_service_power_off();
 	vpu_service_release_io();
 	vpu_put_clk();
+	destroy_workqueue(service.workqueue);
 	pr_info("init failed\n");
 	return ret;
 }
 
 static void __exit vpu_service_exit(void)
 {
-	__cancel_delayed_work(&vpu_service_power_off_work);
+	cancel_delayed_work(&vpu_service_power_off_work);
 	vpu_service_power_off();
+	destroy_workqueue(service.workqueue);
 	platform_device_unregister(&vpu_service_device);
 	platform_driver_unregister(&vpu_service_driver);
 	misc_deregister(&vpu_service_misc_device);
@@ -1080,7 +1094,7 @@ static int proc_vpu_service_show(struct seq_file *s, void *v)
 		}
 	}
 	spin_unlock_irqrestore(&service.lock, flag);
-	schedule_delayed_work(&vpu_service_power_off_work, POWER_OFF_DELAY);
+	queue_delayed_work(service.workqueue, &vpu_service_power_off_work, POWER_OFF_DELAY);
 
 	return 0;
 }
