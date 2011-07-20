@@ -1099,6 +1099,7 @@ static struct platform_device *nuri_devices[] __initdata = {
 	&s3c_device_i2c3,
 	&i2c9_gpio,
 	&s3c_device_adc,
+	&s3c_device_rtc,
 
 	/* NURI Devices */
 	&nuri_gpio_keys,
