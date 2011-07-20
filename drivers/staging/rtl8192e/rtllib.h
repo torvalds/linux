@@ -1940,7 +1940,7 @@ enum scan_op_backup_opt {
 	SCAN_OPT_MAX
 };
 
-typedef	enum _FW_CMD_IO_TYPE{
+enum fw_cmd_io_type {
 	FW_CMD_DIG_ENABLE = 0,
 	FW_CMD_DIG_DISABLE = 1,
 	FW_CMD_DIG_HALT = 2,
@@ -1972,7 +1972,7 @@ typedef	enum _FW_CMD_IO_TYPE{
 	FW_CMD_CTRL_DM_BY_DRIVER_NEW = 28,
 	FW_CMD_PAPE_CONTROL = 29,
 	FW_CMD_CHAN_SET = 30,
-} FW_CMD_IO_TYPE,*PFW_CMD_IO_TYPE;
+};
 
 #define RT_MAX_LD_SLOT_NUM	10
 struct rt_link_detect {
@@ -2513,7 +2513,7 @@ struct rtllib_device {
 	u8   (*rtllib_ap_sec_type)(struct rtllib_device *ieee);
 	void (*HalUsbRxAggrHandler)(struct net_device *dev, bool Value);
 	void (*InitialGainHandler)(struct net_device *dev, u8 Operation);
-	bool (*SetFwCmdHandler)(struct net_device *dev,	FW_CMD_IO_TYPE		FwCmdIO);
+	bool (*SetFwCmdHandler)(struct net_device *dev,	enum fw_cmd_io_type FwCmdIO);
 	void (*UpdateHalRAMaskHandler)(struct net_device* dev, bool bMulticast, u8 macId, u8 MimoPs, u8 WirelessMode, u8 bCurTxBW40MHz,	u8 rssi_level);
 	void (*UpdateBeaconInterruptHandler)(struct net_device* dev, bool start);
 	void (*UpdateInterruptMaskHandler)(struct net_device* dev, u32 AddMSR, u32 RemoveMSR);
