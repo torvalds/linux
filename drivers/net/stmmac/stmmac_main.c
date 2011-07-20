@@ -1421,20 +1421,6 @@ static int stmmac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return ret;
 }
 
-#ifdef STMMAC_VLAN_TAG_USED
-static void stmmac_vlan_rx_register(struct net_device *dev,
-				    struct vlan_group *grp)
-{
-	struct stmmac_priv *priv = netdev_priv(dev);
-
-	DBG(probe, INFO, "%s: Setting vlgrp to %p\n", dev->name, grp);
-
-	spin_lock(&priv->lock);
-	priv->vlgrp = grp;
-	spin_unlock(&priv->lock);
-}
-#endif
-
 static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_open = stmmac_open,
 	.ndo_start_xmit = stmmac_xmit,
@@ -1445,9 +1431,6 @@ static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_tx_timeout = stmmac_tx_timeout,
 	.ndo_do_ioctl = stmmac_ioctl,
 	.ndo_set_config = stmmac_config,
-#ifdef STMMAC_VLAN_TAG_USED
-	.ndo_vlan_rx_register = stmmac_vlan_rx_register,
-#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = stmmac_poll_controller,
 #endif

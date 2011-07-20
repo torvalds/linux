@@ -79,9 +79,6 @@ struct stmmac_priv {
 #ifdef CONFIG_STMMAC_TIMER
 	struct stmmac_timer *tm;
 #endif
-#ifdef STMMAC_VLAN_TAG_USED
-	struct vlan_group *vlgrp;
-#endif
 	struct plat_stmmacenet_data *plat;
 };
 
