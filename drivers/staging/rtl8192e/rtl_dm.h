@@ -166,11 +166,10 @@ enum dm_dig_alg {
 	DIG_ALGO_MAX
 };
 
-typedef enum _DM_DIG_TWO_PORT_ALG_E
-{
+enum dm_dig_two_port_alg {
 	DIG_TWO_PORT_ALGO_RSSI = 0,
 	DIG_TWO_PORT_ALGO_FALSE_ALARM = 1,
-} DM_DIG_TWO_PORT_ALG_E;
+};
 
 
 typedef enum _DM_DIG_EXT_PORT_ALG_E
