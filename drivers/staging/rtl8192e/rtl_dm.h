@@ -196,13 +196,12 @@ enum dm_dig_connect {
 	DIG_CONNECT_MAX
 };
 
-typedef enum _dm_dig_pd_th_e
-{
+enum dm_dig_pd_th {
 	DIG_PD_AT_LOW_POWER = 0,
 	DIG_PD_AT_NORMAL_POWER = 1,
 	DIG_PD_AT_HIGH_POWER = 2,
 	DIG_PD_MAX
-} dm_dig_pd_th_e;
+};
 
 typedef enum _dm_dig_cs_ratio_e
 {
