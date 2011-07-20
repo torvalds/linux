@@ -362,7 +362,7 @@ static ssize_t kxtj9_set_poll(struct device *dev, struct device_attribute *attr,
 		return error;
 
 	/* Lock the device to prevent races with open/close (and itself) */
-	mutex_unlock(&input_dev->mutex);
+	mutex_lock(&input_dev->mutex);
 
 	disable_irq(client->irq);
 
