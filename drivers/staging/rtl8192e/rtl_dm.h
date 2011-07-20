@@ -203,12 +203,11 @@ enum dm_dig_pd_th {
 	DIG_PD_MAX
 };
 
-typedef enum _dm_dig_cs_ratio_e
-{
+enum dm_dig_cs_ratio {
 	DIG_CS_RATIO_LOWER = 0,
 	DIG_CS_RATIO_HIGHER = 1,
 	DIG_CS_MAX
-} dm_dig_cs_ratio_e;
+};
 
 struct drx_path_sel {
 	u8		Enable;
