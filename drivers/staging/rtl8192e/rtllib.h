@@ -312,7 +312,7 @@ enum hal_def_variable {
 };
 
 
-typedef enum _HW_VARIABLES{
+enum hw_variables {
 	HW_VAR_ETHER_ADDR,
 	HW_VAR_MULTICAST_REG,
 	HW_VAR_BASIC_RATE,
@@ -401,7 +401,7 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_INT_MIGRATION,
 	HW_VAR_INT_AC,
         HW_VAR_RF_TIMING,
-} HW_VARIABLES;
+};
 
 typedef enum _RT_OP_MODE{
 	RT_OP_MODE_AP,
