@@ -1,8 +1,18 @@
 #ifndef __MT2063_H__
 #define __MT2063_H__
 
-#include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
+
+enum Bool_t {
+  FALSE = 0,
+  TRUE
+};
+
+typedef unsigned long  u32_t;
+
+#define DVBFE_TUNER_OPEN			99
+#define DVBFE_TUNER_SOFTWARE_SHUTDOWN		100
+#define DVBFE_TUNER_CLEAR_POWER_MASKBITS	101
 
 #define MT2063_ERROR (1 << 31)
 #define MT2063_USER_ERROR (1 << 30)
@@ -618,17 +628,16 @@ struct mt2063_state {
 	u32 reference;
 };
 
-#if defined(CONFIG_DVB_MT2063) || (defined(CONFIG_DVB_MT2063_MODULE) && defined(MODULE))
-
-extern struct dvb_frontend *mt2063_attach(struct dvb_frontend *fe,
-					  struct mt2063_config *config,
-					  struct i2c_adapter *i2c);
+#if defined(CONFIG_MEDIA_TUNER_MT2063) || (defined(CONFIG_MEDIA_TUNER_MT2063_MODULE) && defined(MODULE))
+struct dvb_frontend *mt2063_attach(struct dvb_frontend *fe,
+				   struct mt2063_config *config,
+				   struct i2c_adapter *i2c);
 
 #else
 
 static inline struct dvb_frontend *mt2063_attach(struct dvb_frontend *fe,
-						 struct mt2063_config *config,
-						 struct i2c_adapter *i2c)
+				   struct mt2063_config *config,
+				   struct i2c_adapter *i2c)
 {
 	printk(KERN_WARNING "%s: Driver disabled by Kconfig\n", __func__);
 	return NULL;

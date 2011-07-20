@@ -4,7 +4,6 @@
 #include <linux/module.h>
 #include <linux/string.h>
 
-#include "drxk_type.h"
 #include "mt2063.h"
 
 /*  Version of this module                          */
