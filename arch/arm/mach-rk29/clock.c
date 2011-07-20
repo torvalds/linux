@@ -413,7 +413,7 @@ static const struct arm_pll_set arm_pll[] = {
 	//      rate NR  NF NO adiv hdiv pdiv
 	ARM_PLL(1200, 1, 50, 1, 31, 21, 81),
 	ARM_PLL(1104, 1, 46, 1, 31, 21, 81),
-	ARM_PLL(1008, 1, 42, 1, 31, 21, 81),
+	ARM_PLL(1008, 1, 42, 1, 21, 21, 81),
 	ARM_PLL( 912, 1, 38, 1, 31, 21, 81),
 	ARM_PLL( 888, 2, 74, 1, 31, 21, 81),
 	ARM_PLL( 816, 1, 34, 1, 31, 21, 81),
