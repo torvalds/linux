@@ -1388,6 +1388,10 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		break;
 	}
 
+	err = netxen_check_flash_fw_compatibility(adapter);
+	if (err)
+		goto err_out_iounmap;
+
 	if (adapter->portnum == 0) {
 		val = NXRD32(adapter, NX_CRB_DEV_REF_COUNT);
 		if (val != 0xffffffff && val != 0) {
