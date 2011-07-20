@@ -182,15 +182,21 @@ static void handle_tx(struct vhost_net *net)
 			break;
 		/* Nothing new?  Wait for eventfd to tell us they refilled. */
 		if (head == vq->num) {
+			int num_pends;
+
 			wmem = atomic_read(&sock->sk->sk_wmem_alloc);
 			if (wmem >= sock->sk->sk_sndbuf * 3 / 4) {
 				tx_poll_start(net, sock);
 				set_bit(SOCK_ASYNC_NOSPACE, &sock->flags);
 				break;
 			}
-			/* If more outstanding DMAs, queue the work */
-			if (unlikely(vq->upend_idx - vq->done_idx >
-				     VHOST_MAX_PEND)) {
+			/* If more outstanding DMAs, queue the work.
+			 * Handle upend_idx wrap around
+			 */
+			num_pends = likely(vq->upend_idx >= vq->done_idx) ?
+				    (vq->upend_idx - vq->done_idx) :
+				    (vq->upend_idx + UIO_MAXIOV - vq->done_idx);
+			if (unlikely(num_pends > VHOST_MAX_PEND)) {
 				tx_poll_start(net, sock);
 				set_bit(SOCK_ASYNC_NOSPACE, &sock->flags);
 				break;
