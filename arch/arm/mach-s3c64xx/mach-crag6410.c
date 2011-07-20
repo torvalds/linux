@@ -474,6 +474,12 @@ static struct regulator_init_data vddalive __initdata = {
 	.supply_regulator = "WALLVDD",
 };
 
+static struct wm831x_backup_pdata banff_backup_pdata __initdata = {
+	.charger_enable = 1,
+	.vlim = 2500,  /* mV */
+	.ilim = 200,   /* uA */
+};
+
 static struct wm831x_status_pdata banff_red_led __initdata = {
 	.name = "banff:red:",
 	.default_src = WM831X_STATUS_MANUAL,
@@ -493,6 +499,8 @@ static struct wm831x_pdata crag_pmic_pdata __initdata = {
 	.wm831x_num = 1,
 	.irq_base = BANFF_PMIC_IRQ_BASE,
 	.gpio_base = GPIO_BOARD_START + 8,
+
+	.backup = &banff_backup_pdata,
 
 	.gpio_defaults = {
 		/* GPIO11: Touchscreen data - CMOS, DBVDD, active high*/
