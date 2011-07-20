@@ -637,15 +637,14 @@ enum led_ctl_mode {
 	 LED_CTL_STOP_WPS_FAIL_OVERLAP = 13,
 };
 
-typedef enum _RT_RF_TYPE_DEF
-{
+enum rt_rf_type_def {
 	RF_1T2R = 0,
 	RF_2T4R,
 	RF_2T2R,
 	RF_1T1R,
 	RF_2T2R_GREEN,
 	RF_819X_MAX_TYPE
-} RT_RF_TYPE_DEF;
+};
 
 typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_UNKNOWN = 0x00,
