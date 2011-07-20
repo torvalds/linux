@@ -289,7 +289,7 @@ enum	_ReasonCode{
 	dest_not_QSTA	= 0x32,
 };
 
-typedef enum _HAL_DEF_VARIABLE{
+enum hal_def_variable {
 	HAL_DEF_TPC_ENABLE,
 	HAL_DEF_INIT_GAIN,
 	HAL_DEF_PROT_IMP_MODE,
@@ -309,7 +309,7 @@ typedef enum _HAL_DEF_VARIABLE{
 	HAL_DEF_PCI_SUPPORT_ASPM,
 	HAL_DEF_THERMAL_VALUE,
       HAL_DEF_USB_IN_TOKEN_REV,
-} HAL_DEF_VARIABLE;
+};
 
 
 typedef enum _HW_VARIABLES{
