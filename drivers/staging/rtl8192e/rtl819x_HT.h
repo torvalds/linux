@@ -201,10 +201,10 @@ struct mimops_ctrl {
 	u8	Reserved:6;
 };
 
-typedef enum _HT_SPEC_VER{
+enum ht_spec_ver {
 	HT_SPEC_VER_IEEE = 0,
 	HT_SPEC_VER_EWC = 1,
-} HT_SPEC_VER, *PHT_SPEC_VER;
+};
 
 typedef enum _HT_AGGRE_MODE_E{
 	HT_AGG_AUTO = 0,
@@ -229,7 +229,7 @@ struct rt_hi_throughput {
 	u8				bRegSuppCCK;
 	u8				bCurSuppCCK;
 
-	HT_SPEC_VER			ePeerHTSpecVer;
+	enum ht_spec_ver ePeerHTSpecVer;
 
 
 	struct ht_capab_ele SelfHTCap;
@@ -343,7 +343,7 @@ struct bss_ht {
 	u8					bdHTInfoBuf[32];
 	u16					bdHTInfoLen;
 
-	HT_SPEC_VER				bdHTSpecVer;
+	enum ht_spec_ver bdHTSpecVer;
 	enum ht_channel_width bdBandWidth;
 
 	u8					bdRT2RTAggregation;
