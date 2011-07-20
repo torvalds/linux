@@ -96,15 +96,6 @@ u16 vlan_dev_vlan_id(const struct net_device *dev)
 }
 EXPORT_SYMBOL(vlan_dev_vlan_id);
 
-/* VLAN rx hw acceleration helper.  This acts like netif_{rx,receive_skb}(). */
-int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
-		      u16 vlan_tci, int polling)
-{
-	__vlan_hwaccel_put_tag(skb, vlan_tci);
-	return polling ? netif_receive_skb(skb) : netif_rx(skb);
-}
-EXPORT_SYMBOL(__vlan_hwaccel_rx);
-
 gro_result_t vlan_gro_receive(struct napi_struct *napi, struct vlan_group *grp,
 			      unsigned int vlan_tci, struct sk_buff *skb)
 {

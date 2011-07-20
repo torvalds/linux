@@ -125,8 +125,6 @@ extern struct net_device *__vlan_find_dev_deep(struct net_device *real_dev,
 extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
 extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 
-extern int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
-			     u16 vlan_tci, int polling);
 extern bool vlan_do_receive(struct sk_buff **skb);
 extern struct sk_buff *vlan_untag(struct sk_buff *skb);
 extern gro_result_t
@@ -155,13 +153,6 @@ static inline u16 vlan_dev_vlan_id(const struct net_device *dev)
 	return 0;
 }
 
-static inline int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
-				    u16 vlan_tci, int polling)
-{
-	BUG();
-	return NET_XMIT_SUCCESS;
-}
-
 static inline bool vlan_do_receive(struct sk_buff **skb)
 {
 	if ((*skb)->vlan_tci & VLAN_VID_MASK)
@@ -188,19 +179,6 @@ vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
 	return GRO_DROP;
 }
 #endif
-
-/**
- * vlan_hwaccel_rx - netif_rx wrapper for VLAN RX acceleration
- * @skb: buffer
- * @grp: vlan group
- * @vlan_tci: VLAN TCI as received from the card
- */
-static inline int vlan_hwaccel_rx(struct sk_buff *skb,
-				  struct vlan_group *grp,
-				  u16 vlan_tci)
-{
-	return __vlan_hwaccel_rx(skb, grp, vlan_tci, 0);
-}
 
 /**
  * vlan_insert_tag - regular VLAN tag inserting
