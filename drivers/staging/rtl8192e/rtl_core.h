@@ -276,12 +276,11 @@ enum rt_rf_type_819xu {
         RF_PSEUDO_11N = 5,
 };
 
-typedef enum _RF_STEP_E
-{
+enum rf_step {
     RF_STEP_INIT = 0,
     RF_STEP_NORMAL,
     RF_STEP_MAX
-} RF_STEP_E;
+};
 
 typedef enum _RT_STATUS{
 	RT_STATUS_SUCCESS,
