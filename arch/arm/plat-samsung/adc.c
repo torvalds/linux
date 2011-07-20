@@ -437,8 +437,10 @@ static int __devexit s3c_adc_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int s3c_adc_suspend(struct platform_device *pdev, pm_message_t state)
+static int s3c_adc_suspend(struct device *dev)
 {
+	struct platform_device *pdev = container_of(dev,
+			struct platform_device, dev);
 	struct adc_device *adc = platform_get_drvdata(pdev);
 	unsigned long flags;
 	u32 con;
@@ -457,10 +459,13 @@ static int s3c_adc_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int s3c_adc_resume(struct platform_device *pdev)
+static int s3c_adc_resume(struct device *dev)
 {
+	struct platform_device *pdev = container_of(dev,
+			struct platform_device, dev);
 	struct adc_device *adc = platform_get_drvdata(pdev);
 	int ret;
+	unsigned long tmp;
 
 	ret = regulator_enable(adc->vdd);
 	if (ret)
@@ -468,8 +473,11 @@ static int s3c_adc_resume(struct platform_device *pdev)
 	clk_enable(adc->clk);
 	enable_irq(adc->irq);
 
-	writel(adc->prescale | S3C2410_ADCCON_PRSCEN,
-	       adc->regs + S3C2410_ADCCON);
+	tmp = adc->prescale | S3C2410_ADCCON_PRSCEN;
+	/* Enable 12-bit ADC resolution */
+	if (platform_get_device_id(pdev)->driver_data != TYPE_ADCV1)
+		tmp |= S3C64XX_ADCCON_RESSEL;
+	writel(tmp, adc->regs + S3C2410_ADCCON);
 
 	return 0;
 }
@@ -494,16 +502,20 @@ static struct platform_device_id s3c_adc_driver_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, s3c_adc_driver_ids);
 
+static const struct dev_pm_ops adc_pm_ops = {
+	.suspend	= s3c_adc_suspend,
+	.resume		= s3c_adc_resume,
+};
+
 static struct platform_driver s3c_adc_driver = {
 	.id_table	= s3c_adc_driver_ids,
 	.driver		= {
 		.name	= "s3c-adc",
 		.owner	= THIS_MODULE,
+		.pm	= &adc_pm_ops,
 	},
 	.probe		= s3c_adc_probe,
 	.remove		= __devexit_p(s3c_adc_remove),
-	.suspend	= s3c_adc_suspend,
-	.resume		= s3c_adc_resume,
 };
 
 static int __init adc_init(void)
