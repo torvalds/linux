@@ -282,12 +282,12 @@ enum rf_step {
     RF_STEP_MAX
 };
 
-typedef enum _RT_STATUS{
+enum rt_status {
 	RT_STATUS_SUCCESS,
 	RT_STATUS_FAILURE,
 	RT_STATUS_PENDING,
 	RT_STATUS_RESOURCE
-} RT_STATUS,*PRT_STATUS;
+};
 
 typedef enum _RT_CUSTOMER_ID
 {
