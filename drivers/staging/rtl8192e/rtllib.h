@@ -1627,11 +1627,11 @@ struct	ether_header {
 #endif
 
 
-typedef enum _erp_t{
+enum erp_t {
 	ERP_NonERPpresent	= 0x01,
 	ERP_UseProtection	= 0x02,
 	ERP_BarkerPreambleMode = 0x04,
-} erp_t;
+};
 
 struct rtllib_network {
 	/* These entries are used to identify a unique network */
