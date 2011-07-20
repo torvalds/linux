@@ -56,7 +56,7 @@ bfad_iocmd_ioc_disable(struct bfad_s *bfad, void *cmd)
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	if (bfad->disable_active) {
 		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-		return EBUSY;
+		return -EBUSY;
 	}
 
 	bfad->disable_active = BFA_TRUE;
@@ -390,7 +390,7 @@ bfad_iocmd_lport_get_rports(struct bfad_s *bfad, void *cmd,
 	void	*iocmd_bufptr;
 
 	if (iocmd->nrports == 0)
-		return EINVAL;
+		return -EINVAL;
 
 	if (bfad_chk_iocmd_sz(payload_len,
 			sizeof(struct bfa_bsg_lport_get_rports_s),
@@ -1516,7 +1516,7 @@ static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
 {
-	int rc = EINVAL;
+	int rc = -EINVAL;
 
 	switch (cmd) {
 	case IOCMD_IOC_ENABLE:
@@ -1704,10 +1704,10 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		rc = bfad_iocmd_porglog_get(bfad, iocmd);
 		break;
 	default:
-		rc = EINVAL;
+		rc = -EINVAL;
 		break;
 	}
-	return -rc;
+	return rc;
 }
 
 static int
