@@ -18,6 +18,8 @@
 #include "vxge-config.h"
 #include "vxge-version.h"
 #include <linux/list.h>
+#include <linux/bitops.h>
+#include <linux/if_vlan.h>
 
 #define VXGE_DRIVER_NAME		"vxge"
 #define VXGE_DRIVER_VENDOR		"Neterion, Inc"
@@ -287,7 +289,6 @@ struct vxge_ring {
 #define VXGE_MAX_MAC_ADDR_COUNT		30
 
 	int vlan_tag_strip;
-	struct vlan_group *vlgrp;
 	u32 rx_vector_no;
 	enum vxge_hw_status last_status;
 
@@ -332,7 +333,7 @@ struct vxgedev {
 	struct net_device	*ndev;
 	struct pci_dev		*pdev;
 	struct __vxge_hw_device *devh;
-	struct vlan_group	*vlgrp;
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	int vlan_tag_strip;
 	struct vxge_config	config;
 	unsigned long	state;
