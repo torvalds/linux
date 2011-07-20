@@ -30,6 +30,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
+#include <plat/adc.h>
 #include <plat/regs-serial.h>
 #include <plat/exynos4.h>
 #include <plat/cpu.h>
@@ -1021,6 +1022,7 @@ static struct platform_device *nuri_devices[] __initdata = {
 	&s5p_device_ehci,
 	&s3c_device_i2c3,
 	&i2c9_gpio,
+	&s3c_device_adc,
 
 	/* NURI Devices */
 	&nuri_gpio_keys,
