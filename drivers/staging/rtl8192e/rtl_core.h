@@ -289,8 +289,7 @@ enum rt_status {
 	RT_STATUS_RESOURCE
 };
 
-typedef enum _RT_CUSTOMER_ID
-{
+enum rt_customer_id {
 	RT_CID_DEFAULT          = 0,
 	RT_CID_8187_ALPHA0      = 1,
 	RT_CID_8187_SERCOMM_PS  = 2,
@@ -321,7 +320,7 @@ typedef enum _RT_CUSTOMER_ID
 	RT_CID_819x_Arcadyan_Belkin = 29,
 	RT_CID_819x_SAMSUNG = 30,
 	RT_CID_819x_WNC_COREGA = 31,
-} RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
+};
 
 typedef enum _RESET_TYPE {
 	RESET_TYPE_NORESET = 0x00,
@@ -583,7 +582,7 @@ struct r8192_priv {
 
 	struct log_int_8190 InterruptLog;
 
-	RT_CUSTOMER_ID			CustomerID;
+	enum rt_customer_id CustomerID;
 
 
 	enum rt_rf_type_819xu rf_chip;
