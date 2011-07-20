@@ -45,6 +45,7 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
@@ -76,6 +77,7 @@
 #include <linux/udp.h>
 #include <linux/crc-ccitt.h>
 #include <linux/crc32.h>
+#include <linux/if_vlan.h>
 
 #include "via-velocity.h"
 
@@ -501,6 +503,7 @@ static void __devinit velocity_get_options(struct velocity_opt *opts, int index,
 static void velocity_init_cam_filter(struct velocity_info *vptr)
 {
 	struct mac_regs __iomem *regs = vptr->mac_regs;
+	unsigned int vid, i = 0;
 
 	/* Turn on MCFG_PQEN, turn off MCFG_RTGOPT */
 	WORD_REG_BITS_SET(MCFG_PQEN, MCFG_RTGOPT, &regs->MCFG);
@@ -513,30 +516,17 @@ static void velocity_init_cam_filter(struct velocity_info *vptr)
 	mac_set_cam_mask(regs, vptr->mCAMmask);
 
 	/* Enable VCAMs */
-	if (vptr->vlgrp) {
-		unsigned int vid, i = 0;
 
-		if (!vlan_group_get_device(vptr->vlgrp, 0))
-			WORD_REG_BITS_ON(MCFG_RTGOPT, &regs->MCFG);
+	if (test_bit(0, vptr->active_vlans))
+		WORD_REG_BITS_ON(MCFG_RTGOPT, &regs->MCFG);
 
-		for (vid = 1; (vid < VLAN_VID_MASK); vid++) {
-			if (vlan_group_get_device(vptr->vlgrp, vid)) {
-				mac_set_vlan_cam(regs, i, (u8 *) &vid);
-				vptr->vCAMmask[i / 8] |= 0x1 << (i % 8);
-				if (++i >= VCAM_SIZE)
-					break;
-			}
-		}
-		mac_set_vlan_cam_mask(regs, vptr->vCAMmask);
+	for_each_set_bit(vid, vptr->active_vlans, VLAN_N_VID) {
+		mac_set_vlan_cam(regs, i, (u8 *) &vid);
+		vptr->vCAMmask[i / 8] |= 0x1 << (i % 8);
+		if (++i >= VCAM_SIZE)
+			break;
 	}
-}
-
-static void velocity_vlan_rx_register(struct net_device *dev,
-				      struct vlan_group *grp)
-{
-	struct velocity_info *vptr = netdev_priv(dev);
-
-	vptr->vlgrp = grp;
+	mac_set_vlan_cam_mask(regs, vptr->vCAMmask);
 }
 
 static void velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
@@ -544,6 +534,7 @@ static void velocity_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	struct velocity_info *vptr = netdev_priv(dev);
 
 	spin_lock_irq(&vptr->lock);
+	set_bit(vid, vptr->active_vlans);
 	velocity_init_cam_filter(vptr);
 	spin_unlock_irq(&vptr->lock);
 }
@@ -553,7 +544,7 @@ static void velocity_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid
 	struct velocity_info *vptr = netdev_priv(dev);
 
 	spin_lock_irq(&vptr->lock);
-	vlan_group_set_device(vptr->vlgrp, vid, NULL);
+	clear_bit(vid, vptr->active_vlans);
 	velocity_init_cam_filter(vptr);
 	spin_unlock_irq(&vptr->lock);
 }
@@ -2094,11 +2085,12 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 	skb_put(skb, pkt_len - 4);
 	skb->protocol = eth_type_trans(skb, vptr->dev);
 
-	if (vptr->vlgrp && (rd->rdesc0.RSR & RSR_DETAG)) {
-		vlan_hwaccel_rx(skb, vptr->vlgrp,
-				swab16(le16_to_cpu(rd->rdesc1.PQTAG)));
-	} else
-		netif_rx(skb);
+	if (rd->rdesc0.RSR & RSR_DETAG) {
+		u16 vid = swab16(le16_to_cpu(rd->rdesc1.PQTAG));
+
+		__vlan_hwaccel_put_tag(skb, vid);
+	}
+	netif_rx(skb);
 
 	stats->rx_bytes += pkt_len;
 
@@ -2641,7 +2633,6 @@ static const struct net_device_ops velocity_netdev_ops = {
 	.ndo_do_ioctl		= velocity_ioctl,
 	.ndo_vlan_rx_add_vid	= velocity_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= velocity_vlan_rx_kill_vid,
-	.ndo_vlan_rx_register	= velocity_vlan_rx_register,
 };
 
 /**
