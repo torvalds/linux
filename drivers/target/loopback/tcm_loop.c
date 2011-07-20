@@ -175,10 +175,7 @@ static int tcm_loop_new_cmd_map(struct se_cmd *se_cmd)
 		sgl_bidi_count = sdb->table.nents;
 	}
 
-	/*
-	 * Map the SG memory into struct se_mem->page linked list using the same
-	 * physical memory at sg->page_link.
-	 */
+	/* Tell the core about our preallocated memory */
 	ret = transport_generic_map_mem_to_cmd(se_cmd, scsi_sglist(sc),
 			scsi_sg_count(sc), sgl_bidi, sgl_bidi_count);
 	if (ret < 0)

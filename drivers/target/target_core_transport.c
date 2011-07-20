@@ -190,7 +190,6 @@ static struct kmem_cache *se_cmd_cache;
 static struct kmem_cache *se_sess_cache;
 struct kmem_cache *se_tmr_req_cache;
 struct kmem_cache *se_ua_cache;
-struct kmem_cache *se_mem_cache;
 struct kmem_cache *t10_pr_reg_cache;
 struct kmem_cache *t10_alua_lu_gp_cache;
 struct kmem_cache *t10_alua_lu_gp_mem_cache;
@@ -210,17 +209,12 @@ static void transport_handle_queue_full(struct se_cmd *cmd,
 static void transport_direct_request_timeout(struct se_cmd *cmd);
 static void transport_free_dev_tasks(struct se_cmd *cmd);
 static u32 transport_allocate_tasks(struct se_cmd *cmd,
-		unsigned long long starting_lba, u32 sectors,
+		unsigned long long starting_lba,
 		enum dma_data_direction data_direction,
-		struct list_head *mem_list, int set_counts);
+		struct scatterlist *sgl, unsigned int nents);
 static int transport_generic_get_mem(struct se_cmd *cmd);
 static int transport_generic_remove(struct se_cmd *cmd,
 		int session_reinstatement);
-static int transport_cmd_get_valid_sectors(struct se_cmd *cmd);
-static int transport_map_sg_to_mem(struct se_cmd *cmd,
-		struct list_head *se_mem_list, struct scatterlist *sgl);
-static void transport_memcpy_se_mem_read_contig(unsigned char *dst,
-		struct list_head *se_mem_list, u32 len);
 static void transport_release_fe_cmd(struct se_cmd *cmd);
 static void transport_remove_cmd_from_queue(struct se_cmd *cmd,
 		struct se_queue_obj *qobj);
@@ -256,12 +250,6 @@ int init_se_kmem_caches(void)
 			0, NULL);
 	if (!(se_ua_cache)) {
 		printk(KERN_ERR "kmem_cache_create() for struct se_ua failed\n");
-		goto out;
-	}
-	se_mem_cache = kmem_cache_create("se_mem_cache",
-			sizeof(struct se_mem), __alignof__(struct se_mem), 0, NULL);
-	if (!(se_mem_cache)) {
-		printk(KERN_ERR "kmem_cache_create() for struct se_mem failed\n");
 		goto out;
 	}
 	t10_pr_reg_cache = kmem_cache_create("t10_pr_reg_cache",
@@ -317,8 +305,6 @@ out:
 		kmem_cache_destroy(se_sess_cache);
 	if (se_ua_cache)
 		kmem_cache_destroy(se_ua_cache);
-	if (se_mem_cache)
-		kmem_cache_destroy(se_mem_cache);
 	if (t10_pr_reg_cache)
 		kmem_cache_destroy(t10_pr_reg_cache);
 	if (t10_alua_lu_gp_cache)
@@ -338,7 +324,6 @@ void release_se_kmem_caches(void)
 	kmem_cache_destroy(se_tmr_req_cache);
 	kmem_cache_destroy(se_sess_cache);
 	kmem_cache_destroy(se_ua_cache);
-	kmem_cache_destroy(se_mem_cache);
 	kmem_cache_destroy(t10_pr_reg_cache);
 	kmem_cache_destroy(t10_alua_lu_gp_cache);
 	kmem_cache_destroy(t10_alua_lu_gp_mem_cache);
@@ -1702,7 +1687,6 @@ transport_generic_get_task(struct se_cmd *cmd,
 {
 	struct se_task *task;
 	struct se_device *dev = cmd->se_dev;
-	unsigned long flags;
 
 	task = dev->transport->alloc_task(cmd);
 	if (!task) {
@@ -1717,10 +1701,6 @@ transport_generic_get_task(struct se_cmd *cmd,
 	task->task_se_cmd = cmd;
 	task->se_dev = dev;
 	task->task_data_direction = data_direction;
-
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	list_add_tail(&task->t_list, &cmd->t_task_list);
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	return task;
 }
@@ -1745,8 +1725,6 @@ void transport_init_se_cmd(
 	INIT_LIST_HEAD(&cmd->se_ordered_node);
 	INIT_LIST_HEAD(&cmd->se_qf_node);
 
-	INIT_LIST_HEAD(&cmd->t_mem_list);
-	INIT_LIST_HEAD(&cmd->t_mem_bidi_list);
 	INIT_LIST_HEAD(&cmd->t_task_list);
 	init_completion(&cmd->transport_lun_fe_stop_comp);
 	init_completion(&cmd->transport_lun_stop_comp);
@@ -2838,9 +2816,10 @@ EXPORT_SYMBOL(transport_asciihex_to_binaryhex);
 static void transport_xor_callback(struct se_cmd *cmd)
 {
 	unsigned char *buf, *addr;
-	struct se_mem *se_mem;
+	struct scatterlist *sg;
 	unsigned int offset;
 	int i;
+	int count;
 	/*
 	 * From sbc3r22.pdf section 5.48 XDWRITEREAD (10) command
 	 *
@@ -2858,28 +2837,32 @@ static void transport_xor_callback(struct se_cmd *cmd)
 		return;
 	}
 	/*
-	 * Copy the scatterlist WRITE buffer located at cmd->t_mem_list
+	 * Copy the scatterlist WRITE buffer located at cmd->t_data_sg
 	 * into the locally allocated *buf
 	 */
-	transport_memcpy_se_mem_read_contig(buf, &cmd->t_mem_list,
-					    cmd->data_length);
+	sg_copy_to_buffer(cmd->t_data_sg,
+			  cmd->t_data_nents,
+			  buf,
+			  cmd->data_length);
+
 	/*
 	 * Now perform the XOR against the BIDI read memory located at
 	 * cmd->t_mem_bidi_list
 	 */
 
 	offset = 0;
-	list_for_each_entry(se_mem, &cmd->t_mem_bidi_list, se_list) {
-		addr = (unsigned char *)kmap_atomic(se_mem->se_page, KM_USER0);
-		if (!(addr))
+	for_each_sg(cmd->t_bidi_data_sg, sg, cmd->t_bidi_data_nents, count) {
+		addr = kmap_atomic(sg_page(sg), KM_USER0);
+		if (!addr)
 			goto out;
 
-		for (i = 0; i < se_mem->se_len; i++)
-			*(addr + se_mem->se_off + i) ^= *(buf + offset + i);
+		for (i = 0; i < sg->length; i++)
+			*(addr + sg->offset + i) ^= *(buf + offset + i);
 
-		offset += se_mem->se_len;
+		offset += sg->length;
 		kunmap_atomic(addr, KM_USER0);
 	}
+
 out:
 	kfree(buf);
 }
@@ -2969,6 +2952,35 @@ transport_handle_reservation_conflict(struct se_cmd *cmd)
 			cmd->orig_fe_lun, 0x2C,
 			ASCQ_2CH_PREVIOUS_RESERVATION_CONFLICT_STATUS);
 	return -EINVAL;
+}
+
+static inline long long transport_dev_end_lba(struct se_device *dev)
+{
+	return dev->transport->get_blocks(dev) + 1;
+}
+
+static int transport_cmd_get_valid_sectors(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	u32 sectors;
+
+	if (dev->transport->get_device_type(dev) != TYPE_DISK)
+		return 0;
+
+	sectors = (cmd->data_length / dev->se_sub_dev->se_dev_attrib.block_size);
+
+	if ((cmd->t_task_lba + sectors) >
+	     transport_dev_end_lba(dev)) {
+		printk(KERN_ERR "LBA: %llu Sectors: %u exceeds"
+			" transport_dev_end_lba(): %llu\n",
+			cmd->t_task_lba, sectors,
+			transport_dev_end_lba(dev));
+		printk(KERN_ERR "  We should return CHECK_CONDITION"
+		       " but we don't yet\n");
+		return 0;
+	}
+
+	return sectors;
 }
 
 /*	transport_generic_cmd_sequencer():
@@ -3580,28 +3592,6 @@ out_invalid_cdb_field:
 	return -EINVAL;
 }
 
-static inline void transport_release_tasks(struct se_cmd *);
-
-static void transport_memcpy_se_mem_read_contig(
-	unsigned char *dst,
-	struct list_head *se_mem_list,
-	u32 tot_len)
-{
-	struct se_mem *se_mem;
-	void *src;
-	u32 length;
-
-	list_for_each_entry(se_mem, se_mem_list, se_list) {
-		length = min_t(u32, se_mem->se_len, tot_len);
-		src = page_address(se_mem->se_page) + se_mem->se_off;
-		memcpy(dst, src, length);
-		tot_len -= length;
-		if (!tot_len)
-			break;
-		dst += length;
-	}
-}
-
 /*
  * Called from transport_generic_complete_ok() and
  * transport_generic_request_failure() to determine which dormant/delayed
@@ -3684,7 +3674,7 @@ static int transport_complete_qf(struct se_cmd *cmd)
 		ret = cmd->se_tfo->queue_data_in(cmd);
 		break;
 	case DMA_TO_DEVICE:
-		if (!list_empty(&cmd->t_mem_bidi_list)) {
+		if (cmd->t_bidi_data_sg) {
 			ret = cmd->se_tfo->queue_data_in(cmd);
 			if (ret < 0)
 				return ret;
@@ -3794,7 +3784,7 @@ static void transport_generic_complete_ok(struct se_cmd *cmd)
 		/*
 		 * Check if we need to send READ payload for BIDI-COMMAND
 		 */
-		if (!list_empty(&cmd->t_mem_bidi_list)) {
+		if (cmd->t_bidi_data_sg) {
 			spin_lock(&cmd->se_lun->lun_sep_lock);
 			if (cmd->se_lun->lun_sep) {
 				cmd->se_lun->lun_sep->sep_stats.tx_data_octets +=
@@ -3856,41 +3846,42 @@ static void transport_free_dev_tasks(struct se_cmd *cmd)
 
 static inline void transport_free_pages(struct se_cmd *cmd)
 {
-	struct se_mem *se_mem, *se_mem_tmp;
+	struct scatterlist *sg;
 	int free_page = 1;
+	int count;
 
 	if (cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC)
 		free_page = 0;
 	if (cmd->se_dev->transport->do_se_mem_map)
 		free_page = 0;
 
-	list_for_each_entry_safe(se_mem, se_mem_tmp,
-			&cmd->t_mem_list, se_list) {
+	for_each_sg(cmd->t_data_sg, sg, cmd->t_data_nents, count) {
 		/*
-		 * We only release call __free_page(struct se_mem->se_page) when
+		 * Only called if
 		 * SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC is NOT in use,
 		 */
 		if (free_page)
-			__free_page(se_mem->se_page);
+			__free_page(sg_page(sg));
 
-		list_del(&se_mem->se_list);
-		kmem_cache_free(se_mem_cache, se_mem);
 	}
-	cmd->t_tasks_se_num = 0;
+	if (free_page)
+		kfree(cmd->t_data_sg);
+	cmd->t_data_sg = NULL;
+	cmd->t_data_nents = 0;
 
-	list_for_each_entry_safe(se_mem, se_mem_tmp,
-				 &cmd->t_mem_bidi_list, se_list) {
+	for_each_sg(cmd->t_bidi_data_sg, sg, cmd->t_bidi_data_nents, count) {
 		/*
-		 * We only release call __free_page(struct se_mem->se_page) when
+		 * Only called if
 		 * SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC is NOT in use,
 		 */
 		if (free_page)
-			__free_page(se_mem->se_page);
+			__free_page(sg_page(sg));
 
-		list_del(&se_mem->se_list);
-		kmem_cache_free(se_mem_cache, se_mem);
 	}
-	cmd->t_tasks_se_bidi_num = 0;
+	if (free_page)
+		kfree(cmd->t_bidi_data_sg);
+	cmd->t_bidi_data_sg = NULL;
+	cmd->t_bidi_data_nents = 0;
 }
 
 static inline void transport_release_tasks(struct se_cmd *cmd)
@@ -3979,7 +3970,8 @@ free_pages:
 }
 
 /*
- * transport_generic_map_mem_to_cmd - Perform SGL -> struct se_mem map
+ * transport_generic_map_mem_to_cmd - Use fabric-alloced pages instead of
+ * allocating in the core.
  * @cmd:  Associated se_cmd descriptor
  * @mem:  SGL style memory for TCM WRITE / READ
  * @sg_mem_num: Number of SGL elements
@@ -3996,35 +3988,18 @@ int transport_generic_map_mem_to_cmd(
 	struct scatterlist *sgl_bidi,
 	u32 sgl_bidi_count)
 {
-	int ret;
-
 	if (!sgl || !sgl_count)
 		return 0;
 
-	/*
-	 * Convert sgls (sgl, sgl_bidi) to list of se_mems
-	 */
 	if ((cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) ||
 	    (cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB)) {
-		/*
-		 * For CDB using TCM struct se_mem linked list scatterlist memory
-		 * processed into a TCM struct se_subsystem_dev, we do the mapping
-		 * from the passed physical memory to struct se_mem->se_page here.
-		 */
-		ret = transport_map_sg_to_mem(cmd, &cmd->t_mem_list, sgl);
-		if (ret < 0)
-			return -ENOMEM;
 
-		cmd->t_tasks_se_num = ret;
-		/*
-		 * Setup BIDI READ list of struct se_mem elements
-		 */
+		cmd->t_data_sg = sgl;
+		cmd->t_data_nents = sgl_count;
+
 		if (sgl_bidi && sgl_bidi_count) {
-			ret = transport_map_sg_to_mem(cmd, &cmd->t_mem_bidi_list, sgl_bidi);
-			if (ret < 0)
-				return -ENOMEM;
-
-			cmd->t_tasks_se_bidi_num = ret;
+			cmd->t_bidi_data_sg = sgl_bidi;
+			cmd->t_bidi_data_nents = sgl_bidi_count;
 		}
 		cmd->se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
 	}
@@ -4033,90 +4008,57 @@ int transport_generic_map_mem_to_cmd(
 }
 EXPORT_SYMBOL(transport_generic_map_mem_to_cmd);
 
-
-static inline long long transport_dev_end_lba(struct se_device *dev)
-{
-	return dev->transport->get_blocks(dev) + 1;
-}
-
-static int transport_cmd_get_valid_sectors(struct se_cmd *cmd)
-{
-	struct se_device *dev = cmd->se_dev;
-	u32 sectors;
-
-	if (dev->transport->get_device_type(dev) != TYPE_DISK)
-		return 0;
-
-	sectors = (cmd->data_length / dev->se_sub_dev->se_dev_attrib.block_size);
-
-	if ((cmd->t_task_lba + sectors) >
-	     transport_dev_end_lba(dev)) {
-		printk(KERN_ERR "LBA: %llu Sectors: %u exceeds"
-			" transport_dev_end_lba(): %llu\n",
-			cmd->t_task_lba, sectors,
-			transport_dev_end_lba(dev));
-		return 0;
-	}
-
-	return sectors;
-}
-
 static int transport_new_cmd_obj(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	u32 task_cdbs;
 	u32 rc;
+	int set_counts = 1;
 
-	if (!(cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB)) {
-		task_cdbs = 1;
-		cmd->t_task_list_num = 1;
-	} else {
-		int set_counts = 1;
-
-		/*
-		 * Setup any BIDI READ tasks and memory from
-		 * cmd->t_mem_bidi_list so the READ struct se_tasks
-		 * are queued first for the non pSCSI passthrough case.
-		 */
-		if (!list_empty(&cmd->t_mem_bidi_list) &&
-		    (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV)) {
-			rc = transport_allocate_tasks(cmd,
-				cmd->t_task_lba,
-				transport_cmd_get_valid_sectors(cmd),
-				DMA_FROM_DEVICE, &cmd->t_mem_bidi_list,
-				set_counts);
-			if (!(rc)) {
-				cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-				cmd->scsi_sense_reason =
-					TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-				return PYX_TRANSPORT_LU_COMM_FAILURE;
-			}
-			set_counts = 0;
-		}
-		/*
-		 * Setup the tasks and memory from cmd->t_mem_list
-		 * Note for BIDI transfers this will contain the WRITE payload
-		 */
-		task_cdbs = transport_allocate_tasks(cmd,
-				cmd->t_task_lba,
-				transport_cmd_get_valid_sectors(cmd),
-				cmd->data_direction, &cmd->t_mem_list,
-				set_counts);
-		if (!(task_cdbs)) {
+	/*
+	 * Setup any BIDI READ tasks and memory from
+	 * cmd->t_mem_bidi_list so the READ struct se_tasks
+	 * are queued first for the non pSCSI passthrough case.
+	 */
+	if (cmd->t_bidi_data_sg &&
+	    (dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV)) {
+		rc = transport_allocate_tasks(cmd,
+					      cmd->t_task_lba,
+					      DMA_FROM_DEVICE,
+					      cmd->t_bidi_data_sg,
+					      cmd->t_bidi_data_nents);
+		if (!rc) {
 			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			cmd->scsi_sense_reason =
-					TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 			return PYX_TRANSPORT_LU_COMM_FAILURE;
 		}
-		cmd->t_task_list_num = task_cdbs;
-
-#if 0
-		printk(KERN_INFO "data_length: %u, LBA: %llu t_tasks_sectors:"
-			" %u, t_task_cdbs: %u\n", obj_ptr, cmd->data_length,
-			cmd->t_task_lba, cmd->t_tasks_sectors,
-			cmd->t_task_cdbs);
-#endif
+		atomic_inc(&cmd->t_fe_count);
+		atomic_inc(&cmd->t_se_count);
+		set_counts = 0;
 	}
+	/*
+	 * Setup the tasks and memory from cmd->t_mem_list
+	 * Note for BIDI transfers this will contain the WRITE payload
+	 */
+	task_cdbs = transport_allocate_tasks(cmd,
+					     cmd->t_task_lba,
+					     cmd->data_direction,
+					     cmd->t_data_sg,
+					     cmd->t_data_nents);
+	if (!task_cdbs) {
+		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+		cmd->scsi_sense_reason =
+			TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		return PYX_TRANSPORT_LU_COMM_FAILURE;
+	}
+
+	if (set_counts) {
+		atomic_inc(&cmd->t_fe_count);
+		atomic_inc(&cmd->t_se_count);
+	}
+
+	cmd->t_task_list_num = task_cdbs;
 
 	atomic_set(&cmd->t_task_cdbs_left, task_cdbs);
 	atomic_set(&cmd->t_task_cdbs_ex_left, task_cdbs);
@@ -4126,39 +4068,31 @@ static int transport_new_cmd_obj(struct se_cmd *cmd)
 
 void *transport_kmap_first_data_page(struct se_cmd *cmd)
 {
-	struct se_mem *se_mem;
+	struct scatterlist *sg = cmd->t_data_sg;
 
-	BUG_ON(list_empty(&cmd->t_mem_list));
-
-	se_mem = list_first_entry(&cmd->t_mem_list, struct se_mem, se_list);
-
+	BUG_ON(!sg);
 	/*
-	 * 1st se_mem should point to a page, and we shouldn't need more than
-	 * that for this cmd
+	 * We need to take into account a possible offset here for fabrics like
+	 * tcm_loop who may be using a contig buffer from the SCSI midlayer for
+	 * control CDBs passed as SGLs via transport_generic_map_mem_to_cmd()
 	 */
-	BUG_ON(cmd->data_length > PAGE_SIZE);
-
-	return kmap(se_mem->se_page);
+	return kmap(sg_page(sg)) + sg->offset;
 }
 EXPORT_SYMBOL(transport_kmap_first_data_page);
 
 void transport_kunmap_first_data_page(struct se_cmd *cmd)
 {
-	struct se_mem *se_mem;
-
-	BUG_ON(list_empty(&cmd->t_mem_list));
-
-	se_mem = list_first_entry(&cmd->t_mem_list, struct se_mem, se_list);
-
-	kunmap(se_mem->se_page);
+	kunmap(sg_page(cmd->t_data_sg));
 }
 EXPORT_SYMBOL(transport_kunmap_first_data_page);
 
 static int
 transport_generic_get_mem(struct se_cmd *cmd)
 {
-	struct se_mem *se_mem;
-	int length = cmd->data_length;
+	u32 length = cmd->data_length;
+	unsigned int nents;
+	struct page *page;
+	int i = 0;
 
 	/*
 	 * If the device uses memory mapping this is enough.
@@ -4166,161 +4100,34 @@ transport_generic_get_mem(struct se_cmd *cmd)
 	if (cmd->se_dev->transport->do_se_mem_map)
 		return 0;
 
-	/* Even cmds with length 0 will get here, btw */
-	while (length) {
-		se_mem = kmem_cache_zalloc(se_mem_cache, GFP_KERNEL);
-		if (!(se_mem)) {
-			printk(KERN_ERR "Unable to allocate struct se_mem\n");
-			goto out;
-		}
-
-/* #warning FIXME Allocate contigous pages for struct se_mem elements */
-		se_mem->se_page = alloc_pages(GFP_KERNEL | __GFP_ZERO, 0);
-		if (!(se_mem->se_page)) {
-			printk(KERN_ERR "alloc_pages() failed\n");
-			goto out;
-		}
-
-		INIT_LIST_HEAD(&se_mem->se_list);
-		se_mem->se_len = min_t(u32, length, PAGE_SIZE);
-		list_add_tail(&se_mem->se_list, &cmd->t_mem_list);
-		cmd->t_tasks_se_num++;
-
-		DEBUG_MEM("Allocated struct se_mem page(%p) Length(%u)"
-			" Offset(%u)\n", se_mem->se_page, se_mem->se_len,
-			se_mem->se_off);
-
-		length -= se_mem->se_len;
-	}
-
-	DEBUG_MEM("Allocated total struct se_mem elements(%u)\n",
-			cmd->t_tasks_se_num);
-
-	return 0;
-out:
-	if (se_mem)
-		__free_pages(se_mem->se_page, 0);
-	kmem_cache_free(se_mem_cache, se_mem);
-	return -ENOMEM;
-}
-
-int transport_init_task_sg(
-	struct se_task *task,
-	struct se_mem *in_se_mem,
-	u32 task_offset)
-{
-	struct se_cmd *se_cmd = task->task_se_cmd;
-	struct se_device *se_dev = se_cmd->se_dev;
-	struct se_mem *se_mem = in_se_mem;
-	struct target_core_fabric_ops *tfo = se_cmd->se_tfo;
-	u32 sg_length, task_size = task->task_size, task_sg_num_padded;
-
-	while (task_size != 0) {
-		DEBUG_SC("se_mem->se_page(%p) se_mem->se_len(%u)"
-			" se_mem->se_off(%u) task_offset(%u)\n",
-			se_mem->se_page, se_mem->se_len,
-			se_mem->se_off, task_offset);
-
-		if (task_offset == 0) {
-			if (task_size >= se_mem->se_len) {
-				sg_length = se_mem->se_len;
-
-				if (!(list_is_last(&se_mem->se_list,
-						&se_cmd->t_mem_list)))
-					se_mem = list_entry(se_mem->se_list.next,
-							struct se_mem, se_list);
-			} else {
-				sg_length = task_size;
-				task_size -= sg_length;
-				goto next;
-			}
-
-			DEBUG_SC("sg_length(%u) task_size(%u)\n",
-					sg_length, task_size);
-		} else {
-			if ((se_mem->se_len - task_offset) > task_size) {
-				sg_length = task_size;
-				task_size -= sg_length;
-				goto next;
-			 } else {
-				sg_length = (se_mem->se_len - task_offset);
-
-				if (!(list_is_last(&se_mem->se_list,
-						&se_cmd->t_mem_list)))
-					se_mem = list_entry(se_mem->se_list.next,
-							struct se_mem, se_list);
-			}
-
-			DEBUG_SC("sg_length(%u) task_size(%u)\n",
-					sg_length, task_size);
-
-			task_offset = 0;
-		}
-		task_size -= sg_length;
-next:
-		DEBUG_SC("task[%u] - Reducing task_size to(%u)\n",
-			task->task_no, task_size);
-
-		task->task_sg_num++;
-	}
-	/*
-	 * Check if the fabric module driver is requesting that all
-	 * struct se_task->task_sg[] be chained together..  If so,
-	 * then allocate an extra padding SG entry for linking and
-	 * marking the end of the chained SGL.
-	 */
-	if (tfo->task_sg_chaining) {
-		task_sg_num_padded = (task->task_sg_num + 1);
-		task->task_padded_sg = 1;
-	} else
-		task_sg_num_padded = task->task_sg_num;
-
-	task->task_sg = kzalloc(task_sg_num_padded *
-			sizeof(struct scatterlist), GFP_KERNEL);
-	if (!(task->task_sg)) {
-		printk(KERN_ERR "Unable to allocate memory for"
-				" task->task_sg\n");
+	nents = DIV_ROUND_UP(length, PAGE_SIZE);
+	cmd->t_data_sg = kmalloc(sizeof(struct scatterlist) * nents, GFP_KERNEL);
+	if (!cmd->t_data_sg)
 		return -ENOMEM;
-	}
-	sg_init_table(&task->task_sg[0], task_sg_num_padded);
-	/*
-	 * Setup task->task_sg_bidi for SCSI READ payload for
-	 * TCM/pSCSI passthrough if present for BIDI-COMMAND
-	 */
-	if (!list_empty(&se_cmd->t_mem_bidi_list) &&
-	    (se_dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV)) {
-		task->task_sg_bidi = kzalloc(task_sg_num_padded *
-				sizeof(struct scatterlist), GFP_KERNEL);
-		if (!(task->task_sg_bidi)) {
-			kfree(task->task_sg);
-			task->task_sg = NULL;
-			printk(KERN_ERR "Unable to allocate memory for"
-				" task->task_sg_bidi\n");
-			return -ENOMEM;
-		}
-		sg_init_table(&task->task_sg_bidi[0], task_sg_num_padded);
-	}
-	/*
-	 * For the chaining case, setup the proper end of SGL for the
-	 * initial submission struct task into struct se_subsystem_api.
-	 * This will be cleared later by transport_do_task_sg_chain()
-	 */
-	if (task->task_padded_sg) {
-		sg_mark_end(&task->task_sg[task->task_sg_num - 1]);
-		/*
-		 * Added the 'if' check before marking end of bi-directional
-		 * scatterlist (which gets created only in case of request
-		 * (RD + WR).
-		 */
-		if (task->task_sg_bidi)
-			sg_mark_end(&task->task_sg_bidi[task->task_sg_num - 1]);
-	}
 
-	DEBUG_SC("Successfully allocated task->task_sg_num(%u),"
-		" task_sg_num_padded(%u)\n", task->task_sg_num,
-		task_sg_num_padded);
+	cmd->t_data_nents = nents;
+	sg_init_table(cmd->t_data_sg, nents);
 
-	return task->task_sg_num;
+	while (length) {
+		u32 page_len = min_t(u32, length, PAGE_SIZE);
+		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		if (!page)
+			goto out;
+
+		sg_set_page(&cmd->t_data_sg[i], page, page_len, 0);
+		length -= page_len;
+		i++;
+	}
+	return 0;
+
+out:
+	while (i >= 0) {
+		__free_page(sg_page(&cmd->t_data_sg[i]));
+		i--;
+	}
+	kfree(cmd->t_data_sg);
+	cmd->t_data_sg = NULL;
+	return -ENOMEM;
 }
 
 /* Reduce sectors if they are too long for the device */
@@ -4338,165 +4145,6 @@ static inline sector_t transport_limit_task_sectors(
 	return sectors;
 }
 
-/*
- * Convert a sgl into a linked list of se_mems.
- */
-static int transport_map_sg_to_mem(
-	struct se_cmd *cmd,
-	struct list_head *se_mem_list,
-	struct scatterlist *sg)
-{
-	struct se_mem *se_mem;
-	u32 cmd_size = cmd->data_length;
-	int sg_count = 0;
-
-	WARN_ON(!sg);
-
-	while (cmd_size) {
-		/*
-		 * NOTE: it is safe to return -ENOMEM at any time in creating this
-		 * list because transport_free_pages() will eventually be called, and is
-		 * smart enough to deallocate all list items for sg and sg_bidi lists.
-		 */
-		se_mem = kmem_cache_zalloc(se_mem_cache, GFP_KERNEL);
-		if (!(se_mem)) {
-			printk(KERN_ERR "Unable to allocate struct se_mem\n");
-			return -ENOMEM;
-		}
-		INIT_LIST_HEAD(&se_mem->se_list);
-		DEBUG_MEM("sg_to_mem: Starting loop with cmd_size: %u"
-			" sg_page: %p offset: %d length: %d\n", cmd_size,
-			sg_page(sg), sg->offset, sg->length);
-
-		se_mem->se_page = sg_page(sg);
-		se_mem->se_off = sg->offset;
-
-		if (cmd_size > sg->length) {
-			se_mem->se_len = sg->length;
-			sg = sg_next(sg);
-		} else
-			se_mem->se_len = cmd_size;
-
-		cmd_size -= se_mem->se_len;
-		sg_count++;
-
-		DEBUG_MEM("sg_to_mem: sg_count: %u cmd_size: %u\n",
-				sg_count, cmd_size);
-		DEBUG_MEM("sg_to_mem: Final se_page: %p se_off: %d se_len: %d\n",
-				se_mem->se_page, se_mem->se_off, se_mem->se_len);
-
-		list_add_tail(&se_mem->se_list, se_mem_list);
-	}
-
-	DEBUG_MEM("task[0] - Mapped(%u) struct scatterlist segments\n", sg_count);
-
-	return sg_count;
-}
-
-/*	transport_map_mem_to_sg():
- *
- *
- */
-int transport_map_mem_to_sg(
-	struct se_task *task,
-	struct list_head *se_mem_list,
-	struct scatterlist *sg,
-	struct se_mem *in_se_mem,
-	struct se_mem **out_se_mem,
-	u32 *se_mem_cnt,
-	u32 *task_offset)
-{
-	struct se_cmd *se_cmd = task->task_se_cmd;
-	struct se_mem *se_mem = in_se_mem;
-	u32 task_size = task->task_size, sg_no = 0;
-
-	if (!sg) {
-		printk(KERN_ERR "Unable to locate valid struct"
-				" scatterlist pointer\n");
-		return -EINVAL;
-	}
-
-	while (task_size != 0) {
-		/*
-		 * Setup the contiguous array of scatterlists for
-		 * this struct se_task.
-		 */
-		sg_assign_page(sg, se_mem->se_page);
-
-		if (*task_offset == 0) {
-			sg->offset = se_mem->se_off;
-
-			if (task_size >= se_mem->se_len) {
-				sg->length = se_mem->se_len;
-
-				if (!(list_is_last(&se_mem->se_list,
-						&se_cmd->t_mem_list))) {
-					se_mem = list_entry(se_mem->se_list.next,
-							struct se_mem, se_list);
-					(*se_mem_cnt)++;
-				}
-			} else {
-				sg->length = task_size;
-				/*
-				 * Determine if we need to calculate an offset
-				 * into the struct se_mem on the next go around..
-				 */
-				task_size -= sg->length;
-				if (!(task_size))
-					*task_offset = sg->length;
-
-				goto next;
-			}
-
-		} else {
-			sg->offset = (*task_offset + se_mem->se_off);
-
-			if ((se_mem->se_len - *task_offset) > task_size) {
-				sg->length = task_size;
-				/*
-				 * Determine if we need to calculate an offset
-				 * into the struct se_mem on the next go around..
-				 */
-				task_size -= sg->length;
-				if (!(task_size))
-					*task_offset += sg->length;
-
-				goto next;
-			} else {
-				sg->length = (se_mem->se_len - *task_offset);
-
-				if (!(list_is_last(&se_mem->se_list,
-						&se_cmd->t_mem_list))) {
-					se_mem = list_entry(se_mem->se_list.next,
-							struct se_mem, se_list);
-					(*se_mem_cnt)++;
-				}
-			}
-
-			*task_offset = 0;
-		}
-		task_size -= sg->length;
-next:
-		DEBUG_MEM("task[%u] mem_to_sg - sg[%u](%p)(%u)(%u) - Reducing"
-			" task_size to(%u), task_offset: %u\n", task->task_no, sg_no,
-			sg_page(sg), sg->length, sg->offset, task_size, *task_offset);
-
-		sg_no++;
-		if (!(task_size))
-			break;
-
-		sg = sg_next(sg);
-
-		if (task_size > se_cmd->data_length)
-			BUG();
-	}
-	*out_se_mem = se_mem;
-
-	DEBUG_MEM("task[%u] - Mapped(%u) struct se_mem segments to total(%u)"
-		" SGs\n", task->task_no, *se_mem_cnt, sg_no);
-
-	return 0;
-}
 
 /*
  * This function can be used by HW target mode drivers to create a linked
@@ -4506,81 +4154,43 @@ next:
  */
 void transport_do_task_sg_chain(struct se_cmd *cmd)
 {
-	struct scatterlist *sg_head = NULL, *sg_link = NULL, *sg_first = NULL;
-	struct scatterlist *sg_head_cur = NULL, *sg_link_cur = NULL;
-	struct scatterlist *sg, *sg_end = NULL, *sg_end_cur = NULL;
+	struct scatterlist *sg_first = NULL;
+	struct scatterlist *sg_prev = NULL;
+	int sg_prev_nents = 0;
+	struct scatterlist *sg;
 	struct se_task *task;
-	struct target_core_fabric_ops *tfo = cmd->se_tfo;
-	u32 task_sg_num = 0, sg_count = 0;
+	u32 chained_nents = 0;
 	int i;
 
-	if (tfo->task_sg_chaining == 0) {
-		printk(KERN_ERR "task_sg_chaining is diabled for fabric module:"
-				" %s\n", tfo->get_fabric_name());
-		dump_stack();
-		return;
-	}
+	BUG_ON(!cmd->se_tfo->task_sg_chaining);
+
 	/*
 	 * Walk the struct se_task list and setup scatterlist chains
 	 * for each contiguously allocated struct se_task->task_sg[].
 	 */
 	list_for_each_entry(task, &cmd->t_task_list, t_list) {
-		if (!(task->task_sg) || !(task->task_padded_sg))
+		if (!task->task_sg)
 			continue;
 
-		if (sg_head && sg_link) {
-			sg_head_cur = &task->task_sg[0];
-			sg_link_cur = &task->task_sg[task->task_sg_num];
-			/*
-			 * Either add chain or mark end of scatterlist
-			 */
-			if (!(list_is_last(&task->t_list,
-					&cmd->t_task_list))) {
-				/*
-				 * Clear existing SGL termination bit set in
-				 * transport_init_task_sg(), see sg_mark_end()
-				 */
-				sg_end_cur = &task->task_sg[task->task_sg_num - 1];
-				sg_end_cur->page_link &= ~0x02;
+		BUG_ON(!task->task_padded_sg);
 
-				sg_chain(sg_head, task_sg_num, sg_head_cur);
-				sg_count += task->task_sg_num;
-				task_sg_num = (task->task_sg_num + 1);
-			} else {
-				sg_chain(sg_head, task_sg_num, sg_head_cur);
-				sg_count += task->task_sg_num;
-				task_sg_num = task->task_sg_num;
-			}
-
-			sg_head = sg_head_cur;
-			sg_link = sg_link_cur;
-			continue;
-		}
-		sg_head = sg_first = &task->task_sg[0];
-		sg_link = &task->task_sg[task->task_sg_num];
-		/*
-		 * Check for single task..
-		 */
-		if (!(list_is_last(&task->t_list, &cmd->t_task_list))) {
-			/*
-			 * Clear existing SGL termination bit set in
-			 * transport_init_task_sg(), see sg_mark_end()
-			 */
-			sg_end = &task->task_sg[task->task_sg_num - 1];
-			sg_end->page_link &= ~0x02;
-			sg_count += task->task_sg_num;
-			task_sg_num = (task->task_sg_num + 1);
+		if (!sg_first) {
+			sg_first = task->task_sg;
+			chained_nents = task->task_sg_num;
 		} else {
-			sg_count += task->task_sg_num;
-			task_sg_num = task->task_sg_num;
+			sg_chain(sg_prev, sg_prev_nents, task->task_sg);
+			chained_nents += task->task_sg_num;
 		}
+
+		sg_prev = task->task_sg;
+		sg_prev_nents = task->task_sg_num;
 	}
 	/*
 	 * Setup the starting pointer and total t_tasks_sg_linked_no including
 	 * padding SGs for linking and to mark the end.
 	 */
 	cmd->t_tasks_sg_chained = sg_first;
-	cmd->t_tasks_sg_chained_no = sg_count;
+	cmd->t_tasks_sg_chained_no = chained_nents;
 
 	DEBUG_CMD_M("Setup cmd: %p cmd->t_tasks_sg_chained: %p and"
 		" t_tasks_sg_chained_no: %u\n", cmd, cmd->t_tasks_sg_chained,
@@ -4599,129 +4209,46 @@ void transport_do_task_sg_chain(struct se_cmd *cmd)
 }
 EXPORT_SYMBOL(transport_do_task_sg_chain);
 
-static int transport_do_se_mem_map(
-	struct se_device *dev,
-	struct se_task *task,
-	struct list_head *se_mem_list,
-	void *in_mem,
-	struct se_mem *in_se_mem,
-	struct se_mem **out_se_mem,
-	u32 *se_mem_cnt,
-	u32 *task_offset_in)
-{
-	u32 task_offset = *task_offset_in;
-	int ret = 0;
-	/*
-	 * se_subsystem_api_t->do_se_mem_map is used when internal allocation
-	 * has been done by the transport plugin.
-	 */
-	if (dev->transport->do_se_mem_map) {
-		ret = dev->transport->do_se_mem_map(task, se_mem_list,
-				in_mem, in_se_mem, out_se_mem, se_mem_cnt,
-				task_offset_in);
-		if (ret == 0)
-			task->task_se_cmd->t_tasks_se_num += *se_mem_cnt;
-
-		return ret;
-	}
-
-	BUG_ON(list_empty(se_mem_list));
-	/*
-	 * This is the normal path for all normal non BIDI and BIDI-COMMAND
-	 * WRITE payloads..  If we need to do BIDI READ passthrough for
-	 * TCM/pSCSI the first call to transport_do_se_mem_map ->
-	 * transport_init_task_sg() -> transport_map_mem_to_sg() will do the
-	 * allocation for task->task_sg_bidi, and the subsequent call to
-	 * transport_do_se_mem_map() from transport_generic_get_cdb_count()
-	 */
-	if (!(task->task_sg_bidi)) {
-		/*
-		 * Assume default that transport plugin speaks preallocated
-		 * scatterlists.
-		 */
-		ret = transport_init_task_sg(task, in_se_mem, task_offset);
-		if (ret <= 0)
-			return ret;
-		/*
-		 * struct se_task->task_sg now contains the struct scatterlist array.
-		 */
-		return transport_map_mem_to_sg(task, se_mem_list, task->task_sg,
-					in_se_mem, out_se_mem, se_mem_cnt,
-					task_offset_in);
-	}
-	/*
-	 * Handle the se_mem_list -> struct task->task_sg_bidi
-	 * memory map for the extra BIDI READ payload
-	 */
-	return transport_map_mem_to_sg(task, se_mem_list, task->task_sg_bidi,
-				in_se_mem, out_se_mem, se_mem_cnt,
-				task_offset_in);
-}
-
 /*
  * Break up cmd into chunks transport can handle
  */
-static u32 transport_allocate_tasks(
+static int transport_allocate_data_tasks(
 	struct se_cmd *cmd,
 	unsigned long long lba,
-	u32 sectors,
 	enum dma_data_direction data_direction,
-	struct list_head *mem_list,
-	int set_counts)
+	struct scatterlist *sgl,
+	unsigned int sgl_nents)
 {
 	unsigned char *cdb = NULL;
 	struct se_task *task;
-	struct se_mem *se_mem = NULL;
-	struct se_mem *se_mem_lout = NULL;
-	struct se_mem *se_mem_bidi = NULL;
-	struct se_mem *se_mem_bidi_lout = NULL;
 	struct se_device *dev = cmd->se_dev;
-	int ret;
-	u32 task_offset_in = 0;
-	u32 se_mem_cnt = 0;
-	u32 se_mem_bidi_cnt = 0;
-	u32 task_cdbs = 0;
+	unsigned long flags;
+	sector_t sectors;
+	int task_count;
+	int i;
+	sector_t dev_max_sectors = dev->se_sub_dev->se_dev_attrib.max_sectors;
+	u32 sector_size = dev->se_sub_dev->se_dev_attrib.block_size;
+	struct scatterlist *sg;
+	struct scatterlist *cmd_sg;
 
-	BUG_ON(!mem_list);
-	/*
-	 * While using RAMDISK_DR backstores is the only case where
-	 * mem_list will ever be empty at this point.
-	 */
-	if (!(list_empty(mem_list)))
-		se_mem = list_first_entry(mem_list, struct se_mem, se_list);
-	/*
-	 * Check for extra se_mem_bidi mapping for BIDI-COMMANDs to
-	 * struct se_task->task_sg_bidi for TCM/pSCSI passthrough operation
-	 */
-	if (!list_empty(&cmd->t_mem_bidi_list) &&
-	    (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV))
-		se_mem_bidi = list_first_entry(&cmd->t_mem_bidi_list,
-					struct se_mem, se_list);
+	WARN_ON(cmd->data_length % sector_size);
+	sectors = DIV_ROUND_UP(cmd->data_length, sector_size);
+	task_count = DIV_ROUND_UP(sectors, dev_max_sectors);
 
-	while (sectors) {
-		sector_t limited_sectors;
-
-		DEBUG_VOL("ITT[0x%08x] LBA(%llu) SectorsLeft(%u) EOBJ(%llu)\n",
-			cmd->se_tfo->get_task_tag(cmd), lba, sectors,
-			transport_dev_end_lba(dev));
-
-		limited_sectors = transport_limit_task_sectors(dev, lba, sectors);
-		if (!limited_sectors)
-			break;
+	cmd_sg = sgl;
+	for (i = 0; i < task_count; i++) {
+		unsigned int task_size;
+		int count;
 
 		task = transport_generic_get_task(cmd, data_direction);
 		if (!task)
-			goto out;
+			return -ENOMEM;
 
 		task->task_lba = lba;
-		task->task_sectors = limited_sectors;
-		lba += task->task_sectors;
-		sectors -= task->task_sectors;
-		task->task_size = (task->task_sectors *
-				   dev->se_sub_dev->se_dev_attrib.block_size);
+		task->task_sectors = min(sectors, dev_max_sectors);
+		task->task_size = task->task_sectors * sector_size;
 
 		cdb = dev->transport->get_cdb(task);
-		/* Should be part of task, can't fail */
 		BUG_ON(!cdb);
 
 		memcpy(cdb, cmd->t_task_cdb,
@@ -4731,94 +4258,86 @@ static u32 transport_allocate_tasks(
 		cmd->transport_split_cdb(task->task_lba, task->task_sectors, cdb);
 
 		/*
-		 * Perform the SE OBJ plugin and/or Transport plugin specific
-		 * mapping for cmd->t_mem_list. And setup the
-		 * task->task_sg and if necessary task->task_sg_bidi
+		 * Check if the fabric module driver is requesting that all
+		 * struct se_task->task_sg[] be chained together..  If so,
+		 * then allocate an extra padding SG entry for linking and
+		 * marking the end of the chained SGL.
+		 * Possibly over-allocate task sgl size by using cmd sgl size.
+		 * It's so much easier and only a waste when task_count > 1.
+		 * That is extremely rare.
 		 */
-		ret = transport_do_se_mem_map(dev, task, mem_list,
-				NULL, se_mem, &se_mem_lout, &se_mem_cnt,
-				&task_offset_in);
-		if (ret < 0)
-			goto out;
-
-		se_mem = se_mem_lout;
-		/*
-		 * Setup the cmd->t_mem_bidi_list -> task->task_sg_bidi
-		 * mapping for SCSI READ for BIDI-COMMAND passthrough with TCM/pSCSI
-		 *
-		 * Note that the first call to transport_do_se_mem_map() above will
-		 * allocate struct se_task->task_sg_bidi in transport_do_se_mem_map()
-		 * -> transport_init_task_sg(), and the second here will do the
-		 * mapping for SCSI READ for BIDI-COMMAND passthrough with TCM/pSCSI.
-		 */
-		if (task->task_sg_bidi != NULL) {
-			ret = transport_do_se_mem_map(dev, task,
-				&cmd->t_mem_bidi_list, NULL,
-				se_mem_bidi, &se_mem_bidi_lout, &se_mem_bidi_cnt,
-				&task_offset_in);
-			if (ret < 0)
-				goto out;
-
-			se_mem_bidi = se_mem_bidi_lout;
+		task->task_sg_num = sgl_nents;
+		if (cmd->se_tfo->task_sg_chaining) {
+			task->task_sg_num++;
+			task->task_padded_sg = 1;
 		}
-		task_cdbs++;
 
-		DEBUG_VOL("Incremented task_cdbs(%u) task->task_sg_num(%u)\n",
-				task_cdbs, task->task_sg_num);
+		task->task_sg = kmalloc(sizeof(struct scatterlist) * \
+					task->task_sg_num, GFP_KERNEL);
+		if (!task->task_sg) {
+			cmd->se_dev->transport->free_task(task);
+			return -ENOMEM;
+		}
+
+		sg_init_table(task->task_sg, task->task_sg_num);
+
+		task_size = task->task_size;
+
+		/* Build new sgl, only up to task_size */
+		for_each_sg(task->task_sg, sg, task->task_sg_num, count) {
+			if (cmd_sg->length > task_size)
+				break;
+
+			*sg = *cmd_sg;
+			task_size -= cmd_sg->length;
+			cmd_sg = sg_next(cmd_sg);
+		}
+
+		lba += task->task_sectors;
+		sectors -= task->task_sectors;
+
+		spin_lock_irqsave(&cmd->t_state_lock, flags);
+		list_add_tail(&task->t_list, &cmd->t_task_list);
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 	}
 
-	if (set_counts) {
-		atomic_inc(&cmd->t_fe_count);
-		atomic_inc(&cmd->t_se_count);
-	}
-
-	DEBUG_VOL("ITT[0x%08x] total %s cdbs(%u)\n",
-		cmd->se_tfo->get_task_tag(cmd), (data_direction == DMA_TO_DEVICE)
-		? "DMA_TO_DEVICE" : "DMA_FROM_DEVICE", task_cdbs);
-
-	return task_cdbs;
-out:
-	return 0;
+	return task_count;
 }
 
 static int
-transport_map_control_cmd_to_task(struct se_cmd *cmd)
+transport_allocate_control_task(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *cdb;
 	struct se_task *task;
-	int ret;
+	unsigned long flags;
 
 	task = transport_generic_get_task(cmd, cmd->data_direction);
 	if (!task)
-		return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
+		return -ENOMEM;
 
 	cdb = dev->transport->get_cdb(task);
 	BUG_ON(!cdb);
 	memcpy(cdb, cmd->t_task_cdb,
 	       scsi_command_size(cmd->t_task_cdb));
 
-	task->task_size = cmd->data_length;
-	task->task_sg_num =
-		(cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB) ? 1 : 0;
+	task->task_sg = kmalloc(sizeof(struct scatterlist) * cmd->t_data_nents,
+				GFP_KERNEL);
+	if (!task->task_sg) {
+		cmd->se_dev->transport->free_task(task);
+		return -ENOMEM;
+	}
 
-	atomic_inc(&cmd->t_fe_count);
-	atomic_inc(&cmd->t_se_count);
+	memcpy(task->task_sg, cmd->t_data_sg,
+	       sizeof(struct scatterlist) * cmd->t_data_nents);
+	task->task_size = cmd->data_length;
+	task->task_sg_num = cmd->t_data_nents;
+
+	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	list_add_tail(&task->t_list, &cmd->t_task_list);
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	if (cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB) {
-		struct se_mem *se_mem = NULL, *se_mem_lout = NULL;
-		u32 se_mem_cnt = 0, task_offset = 0;
-
-		if (!list_empty(&cmd->t_mem_list))
-			se_mem = list_first_entry(&cmd->t_mem_list,
-					struct se_mem, se_list);
-
-		ret = transport_do_se_mem_map(dev, task,
-				&cmd->t_mem_list, NULL, se_mem,
-				&se_mem_lout, &se_mem_cnt, &task_offset);
-		if (ret < 0)
-			return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
-
 		if (dev->transport->map_task_SG)
 			return dev->transport->map_task_SG(task);
 		return 0;
@@ -4828,9 +4347,31 @@ transport_map_control_cmd_to_task(struct se_cmd *cmd)
 		return 0;
 	} else {
 		BUG();
-		return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
+		return -ENOMEM;
 	}
 }
+
+static u32 transport_allocate_tasks(
+	struct se_cmd *cmd,
+	unsigned long long lba,
+	enum dma_data_direction data_direction,
+	struct scatterlist *sgl,
+	unsigned int sgl_nents)
+{
+	int ret;
+
+	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
+		return transport_allocate_data_tasks(cmd, lba, data_direction,
+						     sgl, sgl_nents);
+	} else {
+		ret = transport_allocate_control_task(cmd);
+		if (ret < 0)
+			return ret;
+		else
+			return 1;
+	}
+}
+
 
 /*	 transport_generic_new_cmd(): Called from transport_processing_thread()
  *
@@ -4850,10 +4391,10 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	/*
 	 * Determine is the TCM fabric module has already allocated physical
 	 * memory, and is directly calling transport_generic_map_mem_to_cmd()
-	 * to setup beforehand the linked list of physical memory at
-	 * cmd->t_mem_list of struct se_mem->se_page
+	 * beforehand.
 	 */
-	if (!(cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC)) {
+	if (!(cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC) &&
+	    cmd->data_length) {
 		ret = transport_generic_get_mem(cmd);
 		if (ret < 0)
 			return ret;
@@ -4863,19 +4404,13 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	if (ret < 0)
 		return ret;
 
-	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
-		list_for_each_entry(task, &cmd->t_task_list, t_list) {
-			if (atomic_read(&task->task_sent))
-				continue;
-			if (!dev->transport->map_task_SG)
-				continue;
+	list_for_each_entry(task, &cmd->t_task_list, t_list) {
+		if (atomic_read(&task->task_sent))
+			continue;
+		if (!dev->transport->map_task_SG)
+			continue;
 
-			ret = dev->transport->map_task_SG(task);
-			if (ret < 0)
-				return ret;
-		}
-	} else {
-		ret = transport_map_control_cmd_to_task(cmd);
+		ret = dev->transport->map_task_SG(task);
 		if (ret < 0)
 			return ret;
 	}

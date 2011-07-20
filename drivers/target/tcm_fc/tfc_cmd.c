@@ -59,7 +59,8 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 	struct fc_exch *ep;
 	struct fc_seq *sp;
 	struct se_cmd *se_cmd;
-	struct se_mem *mem;
+	struct scatterlist *sg;
+	int count;
 
 	if (!(ft_debug_logging & FT_DEBUG_IO))
 		return;
@@ -71,15 +72,16 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 		caller, cmd, cmd->cdb);
 	printk(KERN_INFO "%s: cmd %p lun %d\n", caller, cmd, cmd->lun);
 
-	printk(KERN_INFO "%s: cmd %p se_num %u len %u se_cmd_flags <0x%x>\n",
-	       caller, cmd, se_cmd->t_tasks_se_num,
+	printk(KERN_INFO "%s: cmd %p data_nents %u len %u se_cmd_flags <0x%x>\n",
+		caller, cmd, se_cmd->t_data_nents,
 	       se_cmd->data_length, se_cmd->se_cmd_flags);
 
-	list_for_each_entry(mem, &se_cmd->t_mem_list, se_list)
-		printk(KERN_INFO "%s: cmd %p mem %p page %p "
-		       "len 0x%x off 0x%x\n",
-		       caller, cmd, mem,
-		       mem->se_page, mem->se_len, mem->se_off);
+	for_each_sg(se_cmd->t_data_sg, sg, se_cmd->t_data_nents, count)
+		printk(KERN_INFO "%s: cmd %p sg %p page %p "
+			"len 0x%x off 0x%x\n",
+			caller, cmd, sg,
+			sg_page(sg), sg->length, sg->offset);
+
 	sp = cmd->seq;
 	if (sp) {
 		ep = fc_seq_exch(sp);
@@ -256,10 +258,9 @@ int ft_write_pending(struct se_cmd *se_cmd)
 		    (fh->fh_r_ctl == FC_RCTL_DD_DATA_DESC)) {
 			if (se_cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
 				/*
-				 * Map se_mem list to scatterlist, so that
-				 * DDP can be setup. DDP setup function require
-				 * scatterlist. se_mem_list is internal to
-				 * TCM/LIO target
+				 * cmd may have been broken up into multiple
+				 * tasks. Link their sgs together so we can
+				 * operate on them all at once.
 				 */
 				transport_do_task_sg_chain(se_cmd);
 				cmd->sg = se_cmd->t_tasks_sg_chained;

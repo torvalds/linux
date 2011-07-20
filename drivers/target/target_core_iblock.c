@@ -634,7 +634,7 @@ static int iblock_map_task_SG(struct se_task *task)
 	hbio = tbio = bio;
 	/*
 	 * Use fs/bio.c:bio_add_pages() to setup the bio_vec maplist
-	 * from TCM struct se_mem -> task->task_sg -> struct scatterlist memory.
+	 * from task->task_sg -> struct scatterlist memory.
 	 */
 	for_each_sg(task->task_sg, sg, task->task_sg_num, i) {
 		DEBUG_IBLOCK("task: %p bio: %p Calling bio_add_page(): page:"

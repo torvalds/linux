@@ -1097,7 +1097,7 @@ static int __pscsi_map_task_SG(
 		return 0;
 	/*
 	 * For SCF_SCSI_DATA_SG_IO_CDB, Use fs/bio.c:bio_add_page() to setup
-	 * the bio_vec maplist from TC< struct se_mem -> task->task_sg ->
+	 * the bio_vec maplist from task->task_sg ->
 	 * struct scatterlist memory.  The struct se_task->task_sg[] currently needs
 	 * to be attached to struct bios for submission to Linux/SCSI using
 	 * struct request to struct scsi_device->request_queue.

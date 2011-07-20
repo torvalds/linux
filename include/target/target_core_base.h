@@ -490,8 +490,6 @@ struct se_cmd {
 	int			t_tasks_failed;
 	int			t_tasks_fua;
 	bool			t_tasks_bidi;
-	u32			t_tasks_se_num;
-	u32			t_tasks_se_bidi_num;
 	u32			t_tasks_sg_chained_no;
 	atomic_t		t_fe_count;
 	atomic_t		t_se_count;
@@ -523,9 +521,13 @@ struct se_cmd {
 	 */
 	struct scatterlist	*t_task_pt_sgl;
 	u32			t_task_pt_sgl_num;
-	struct list_head	t_mem_list;
+
+	struct scatterlist	*t_data_sg;
+	unsigned int		t_data_nents;
+	struct scatterlist	*t_bidi_data_sg;
+	unsigned int		t_bidi_data_nents;
+
 	/* Used for BIDI READ */
-	struct list_head	t_mem_bidi_list;
 	struct list_head	t_task_list;
 	u32			t_task_list_num;
 

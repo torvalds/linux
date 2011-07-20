@@ -68,17 +68,17 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 	struct fc_frame *fp = NULL;
 	struct fc_exch *ep;
 	struct fc_lport *lport;
-	struct se_mem *mem;
+	struct scatterlist *sg = NULL;
 	size_t remaining;
 	u32 f_ctl = FC_FC_EX_CTX | FC_FC_REL_OFF;
-	u32 mem_off;
+	u32 mem_off = 0;
 	u32 fh_off = 0;
 	u32 frame_off = 0;
 	size_t frame_len = 0;
-	size_t mem_len;
+	size_t mem_len = 0;
 	size_t tlen;
 	size_t off_in_page;
-	struct page *page;
+	struct page *page = NULL;
 	int use_sg;
 	int error;
 	void *page_addr;
@@ -94,13 +94,12 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 	/*
 	 * Setup to use first mem list entry, unless no data.
 	 */
-	BUG_ON(remaining && list_empty(&se_cmd->t_mem_list));
+	BUG_ON(remaining && !se_cmd->t_data_sg);
 	if (remaining) {
-		mem = list_first_entry(&se_cmd->t_mem_list,
-			 struct se_mem, se_list);
-		mem_len = mem->se_len;
-		mem_off = mem->se_off;
-		page = mem->se_page;
+		sg = se_cmd->t_data_sg;
+		mem_len = sg->length;
+		mem_off = sg->offset;
+		page = sg_page(sg);
 	}
 
 	/* no scatter/gather in skb for odd word length due to fc_seq_send() */
@@ -108,12 +107,10 @@ int ft_queue_data_in(struct se_cmd *se_cmd)
 
 	while (remaining) {
 		if (!mem_len) {
-			BUG_ON(!mem);
-			mem = list_entry(mem->se_list.next,
-				struct se_mem, se_list);
-			mem_len = min((size_t)mem->se_len, remaining);
-			mem_off = mem->se_off;
-			page = mem->se_page;
+			sg = sg_next(sg);
+			mem_len = min((size_t)sg->length, remaining);
+			mem_off = sg->offset;
+			page = sg_page(sg);
 		}
 		if (!frame_len) {
 			/*
@@ -200,13 +197,13 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 	struct fc_exch *ep;
 	struct fc_lport *lport;
 	struct fc_frame_header *fh;
-	struct se_mem *mem;
-	u32 mem_off;
+	struct scatterlist *sg = NULL;
+	u32 mem_off = 0;
 	u32 rel_off;
 	size_t frame_len;
-	size_t mem_len;
+	size_t mem_len = 0;
 	size_t tlen;
-	struct page *page;
+	struct page *page = NULL;
 	void *page_addr;
 	void *from;
 	void *to;
@@ -288,23 +285,20 @@ void ft_recv_write_data(struct ft_cmd *cmd, struct fc_frame *fp)
 	/*
 	 * Setup to use first mem list entry, unless no data.
 	 */
-	BUG_ON(frame_len && list_empty(&se_cmd->t_mem_list));
+	BUG_ON(frame_len && !se_cmd->t_data_sg);
 	if (frame_len) {
-		mem = list_first_entry(&se_cmd->t_mem_list,
-				       struct se_mem, se_list);
-		mem_len = mem->se_len;
-		mem_off = mem->se_off;
-		page = mem->se_page;
+		sg = se_cmd->t_data_sg;
+		mem_len = sg->length;
+		mem_off = sg->offset;
+		page = sg_page(sg);
 	}
 
 	while (frame_len) {
 		if (!mem_len) {
-			BUG_ON(!mem);
-			mem = list_entry(mem->se_list.next,
-					 struct se_mem, se_list);
-			mem_len = mem->se_len;
-			mem_off = mem->se_off;
-			page = mem->se_page;
+			sg = sg_next(sg);
+			mem_len = sg->length;
+			mem_off = sg->offset;
+			page = sg_page(sg);
 		}
 		if (rel_off >= mem_len) {
 			rel_off -= mem_len;
