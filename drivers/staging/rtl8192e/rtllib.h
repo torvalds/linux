@@ -1806,12 +1806,11 @@ enum rt_ps_mode {
 	eAutoPs,
 };
 
-typedef enum _IPS_CALLBACK_FUNCION
-{
+enum ips_callback_function {
 	IPS_CALLBACK_NONE = 0,
 	IPS_CALLBACK_MGNT_LINK_REQUEST = 1,
 	IPS_CALLBACK_JOIN_REQUEST = 2,
-} IPS_CALLBACK_FUNCION;
+};
 
 typedef enum _RT_JOIN_ACTION{
 	RT_JOIN_INFRA   = 1,
@@ -1864,7 +1863,7 @@ struct rt_pwr_save_ctrl {
 	struct work_struct		InactivePsWorkItem;
 	struct timer_list	InactivePsTimer;
 
-	IPS_CALLBACK_FUNCION	ReturnPoint;
+	enum ips_callback_function ReturnPoint;
 
 	bool				bTmpBssDesc;
 	RT_JOIN_ACTION		tmpJoinAction;
