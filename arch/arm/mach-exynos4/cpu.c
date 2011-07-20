@@ -20,7 +20,9 @@
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
+#include <plat/devs.h>
 #include <plat/exynos4.h>
+#include <plat/adc-core.h>
 #include <plat/sdhci.h>
 #include <plat/devs.h>
 #include <plat/fimc-core.h>
@@ -139,6 +141,8 @@ void __init exynos4_map_io(void)
 	exynos4_default_sdhci1();
 	exynos4_default_sdhci2();
 	exynos4_default_sdhci3();
+
+	s3c_adc_setname("samsung-adc-v3");
 
 	s3c_fimc_setname(0, "exynos4-fimc");
 	s3c_fimc_setname(1, "exynos4-fimc");
