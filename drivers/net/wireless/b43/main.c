@@ -5235,19 +5235,59 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 static int b43_bcma_probe(struct bcma_device *core)
 {
 	struct b43_bus_dev *dev;
+	struct b43_wl *wl;
+	int err;
 
 	dev = b43_bus_dev_bcma_init(core);
 	if (!dev)
 		return -ENODEV;
 
-	b43err(NULL, "BCMA is not supported yet!");
-	kfree(dev);
-	return -EOPNOTSUPP;
+	wl = b43_wireless_init(dev);
+	if (IS_ERR(wl)) {
+		err = PTR_ERR(wl);
+		goto bcma_out;
+	}
+
+	err = b43_one_core_attach(dev, wl);
+	if (err)
+		goto bcma_err_wireless_exit;
+
+	err = ieee80211_register_hw(wl->hw);
+	if (err)
+		goto bcma_err_one_core_detach;
+	b43_leds_register(wl->current_dev);
+
+bcma_out:
+	return err;
+
+bcma_err_one_core_detach:
+	b43_one_core_detach(dev);
+bcma_err_wireless_exit:
+	ieee80211_free_hw(wl->hw);
+	return err;
 }
 
 static void b43_bcma_remove(struct bcma_device *core)
 {
-	/* TODO */
+	struct b43_wldev *wldev = bcma_get_drvdata(core);
+	struct b43_wl *wl = wldev->wl;
+
+	/* We must cancel any work here before unregistering from ieee80211,
+	 * as the ieee80211 unreg will destroy the workqueue. */
+	cancel_work_sync(&wldev->restart_work);
+
+	/* Restore the queues count before unregistering, because firmware detect
+	 * might have modified it. Restoring is important, so the networking
+	 * stack can properly free resources. */
+	wl->hw->queues = wl->mac80211_initially_registered_queues;
+	b43_leds_stop(wldev);
+	ieee80211_unregister_hw(wl->hw);
+
+	b43_one_core_detach(wldev->dev);
+
+	b43_leds_unregister(wl);
+
+	ieee80211_free_hw(wl->hw);
 }
 
 static struct bcma_driver b43_bcma_driver = {
