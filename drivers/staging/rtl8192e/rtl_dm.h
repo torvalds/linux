@@ -127,12 +127,11 @@ struct dig_t {
 	long		rssi_val;
 };
 
-typedef enum _dm_dig_sta_e
-{
+enum dm_dig_sta {
 	DM_STA_DIG_OFF = 0,
 	DM_STA_DIG_ON,
 	DM_STA_DIG_MAX
-} dm_dig_sta_e;
+};
 
 
 typedef enum _dm_ratr_sta_e
