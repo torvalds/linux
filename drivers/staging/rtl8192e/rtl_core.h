@@ -251,11 +251,11 @@ enum nic_t {
 	NIC_8192DU		= 8,
 	};
 
-typedef	enum _RT_EEPROM_TYPE{
+enum rt_eeprom_type {
 	EEPROM_93C46,
 	EEPROM_93C56,
 	EEPROM_BOOT_EFUSE,
-} RT_EEPROM_TYPE,*PRT_EEPROM_TYPE;
+};
 
 typedef enum _DCMD_TXCMD_OP{
 	TXCMD_TXRA_HISTORY_CTRL	        = 0xFF900000,
