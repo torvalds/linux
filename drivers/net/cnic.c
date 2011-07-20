@@ -5334,6 +5334,27 @@ static struct cnic_dev *is_cnic_dev(struct net_device *dev)
 	return cdev;
 }
 
+static void cnic_rcv_netevent(struct cnic_local *cp, unsigned long event,
+			      u16 vlan_id)
+{
+	int if_type;
+
+	rcu_read_lock();
+	for (if_type = 0; if_type < MAX_CNIC_ULP_TYPE; if_type++) {
+		struct cnic_ulp_ops *ulp_ops;
+		void *ctx;
+
+		ulp_ops = rcu_dereference(cp->ulp_ops[if_type]);
+		if (!ulp_ops || !ulp_ops->indicate_netevent)
+			continue;
+
+		ctx = cp->ulp_handle[if_type];
+
+		ulp_ops->indicate_netevent(ctx, event, vlan_id);
+	}
+	rcu_read_unlock();
+}
+
 /**
  * netdev event handler
  */
@@ -5342,7 +5363,6 @@ static int cnic_netdev_event(struct notifier_block *this, unsigned long event,
 {
 	struct net_device *netdev = ptr;
 	struct cnic_dev *dev;
-	int if_type;
 	int new_dev = 0;
 
 	dev = cnic_from_netdev(netdev);
@@ -5372,20 +5392,7 @@ static int cnic_netdev_event(struct notifier_block *this, unsigned long event,
 				cnic_ulp_start(dev);
 		}
 
-		rcu_read_lock();
-		for (if_type = 0; if_type < MAX_CNIC_ULP_TYPE; if_type++) {
-			struct cnic_ulp_ops *ulp_ops;
-			void *ctx;
-
-			ulp_ops = rcu_dereference(cp->ulp_ops[if_type]);
-			if (!ulp_ops || !ulp_ops->indicate_netevent)
-				continue;
-
-			ctx = cp->ulp_handle[if_type];
-
-			ulp_ops->indicate_netevent(ctx, event);
-		}
-		rcu_read_unlock();
+		cnic_rcv_netevent(cp, event, 0);
 
 		if (event == NETDEV_GOING_DOWN) {
 			cnic_ulp_stop(dev);
@@ -5401,6 +5408,19 @@ static int cnic_netdev_event(struct notifier_block *this, unsigned long event,
 			goto done;
 		}
 		cnic_put(dev);
+	} else {
+		struct net_device *realdev;
+		u16 vid;
+
+		vid = cnic_get_vlan(netdev, &realdev);
+		if (realdev) {
+			dev = cnic_from_netdev(realdev);
+			if (dev) {
+				vid |= VLAN_TAG_PRESENT;
+				cnic_rcv_netevent(dev->cnic_priv, event, vid);
+				cnic_put(dev);
+			}
+		}
 	}
 done:
 	return NOTIFY_DONE;

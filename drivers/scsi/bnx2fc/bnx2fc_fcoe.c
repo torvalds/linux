@@ -767,16 +767,22 @@ static void bnx2fc_destroy_timer(unsigned long data)
  *
  * @context:	adapter structure pointer
  * @event:	event type
+ * @vlan_id:	vlan id - associated vlan id with this event
  *
  * Handles NETDEV_UP, NETDEV_DOWN, NETDEV_GOING_DOWN,NETDEV_CHANGE and
  * NETDEV_CHANGE_MTU events
  */
-static void bnx2fc_indicate_netevent(void *context, unsigned long event)
+static void bnx2fc_indicate_netevent(void *context, unsigned long event,
+				     u16 vlan_id)
 {
 	struct bnx2fc_hba *hba = (struct bnx2fc_hba *)context;
 	struct fc_lport *lport = hba->ctlr.lp;
 	struct fc_lport *vport;
 	u32 link_possible = 1;
+
+	/* Ignore vlans for now */
+	if (vlan_id != 0)
+		return;
 
 	if (!test_bit(BNX2FC_CREATE_DONE, &hba->init_done)) {
 		BNX2FC_MISC_DBG("driver not ready. event=%s %ld\n",

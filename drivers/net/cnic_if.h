@@ -12,8 +12,8 @@
 #ifndef CNIC_IF_H
 #define CNIC_IF_H
 
-#define CNIC_MODULE_VERSION	"2.5.6"
-#define CNIC_MODULE_RELDATE	"July 12, 2011"
+#define CNIC_MODULE_VERSION	"2.5.7"
+#define CNIC_MODULE_RELDATE	"July 20, 2011"
 
 #define CNIC_ULP_RDMA		0
 #define CNIC_ULP_ISCSI		1
@@ -318,7 +318,7 @@ struct cnic_ulp_ops {
 	void (*cnic_stop)(void *ulp_ctx);
 	void (*indicate_kcqes)(void *ulp_ctx, struct kcqe *cqes[],
 				u32 num_cqes);
-	void (*indicate_netevent)(void *ulp_ctx, unsigned long event);
+	void (*indicate_netevent)(void *ulp_ctx, unsigned long event, u16 vid);
 	void (*cm_connect_complete)(struct cnic_sock *);
 	void (*cm_close_complete)(struct cnic_sock *);
 	void (*cm_abort_complete)(struct cnic_sock *);
