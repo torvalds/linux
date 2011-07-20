@@ -225,12 +225,11 @@ struct drx_path_sel {
 	long		cck_pwdb_sta[4];
 };
 
-typedef enum _DM_CCK_Rx_Path_Method
-{
+enum dm_cck_rx_path_method {
 	CCK_Rx_Version_1 = 0,
 	CCK_Rx_Version_2= 1,
 	CCK_Rx_Version_MAX
-} DM_CCK_Rx_Path_Method;
+};
 
 
 typedef enum _DM_DBG_E
