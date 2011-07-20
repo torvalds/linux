@@ -180,12 +180,11 @@ enum dm_dig_ext_port_alg {
 	DIG_EXT_PORT_STAGE_MAX = 4,
 };
 
-typedef enum _dm_dig_dbg_e
-{
+enum dm_dig_dbg {
 	DIG_DBG_OFF = 0,
 	DIG_DBG_ON = 1,
 	DIG_DBG_MAX
-} dm_dig_dbg_e;
+};
 
 typedef enum _dm_dig_connect_e
 {
