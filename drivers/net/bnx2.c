@@ -56,8 +56,8 @@
 #include "bnx2_fw.h"
 
 #define DRV_MODULE_NAME		"bnx2"
-#define DRV_MODULE_VERSION	"2.1.10"
-#define DRV_MODULE_RELDATE	"July 12, 2011"
+#define DRV_MODULE_VERSION	"2.1.11"
+#define DRV_MODULE_RELDATE	"July 20, 2011"
 #define FW_MIPS_FILE_06		"bnx2/bnx2-mips-06-6.2.1.fw"
 #define FW_RV2P_FILE_06		"bnx2/bnx2-rv2p-06-6.0.15.fw"
 #define FW_MIPS_FILE_09		"bnx2/bnx2-mips-09-6.2.1a.fw"
@@ -8097,7 +8097,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 			bp->fw_version[j++] = ' ';
 		for (i = 0; i < 3 && j < 28; i++) {
 			reg = bnx2_reg_rd_ind(bp, addr + i * 4);
-			reg = swab32(reg);
+			reg = be32_to_cpu(reg);
 			memcpy(&bp->fw_version[j], &reg, 4);
 			j += 4;
 		}
