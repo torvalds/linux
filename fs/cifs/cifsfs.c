@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/namei.h>
 #include <net/ipv6.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
@@ -542,14 +543,12 @@ static const struct super_operations cifs_super_ops = {
 static struct dentry *
 cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 {
-	int xid, rc;
-	struct inode *inode;
-	struct qstr name;
-	struct dentry *dparent = NULL, *dchild = NULL, *alias;
+	struct dentry *dentry;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	unsigned int i, full_len, len;
-	char *full_path = NULL, *pstart;
+	char *full_path = NULL;
+	char *s, *p;
 	char sep;
+	int xid;
 
 	full_path = cifs_build_path_to_root(vol, cifs_sb,
 					    cifs_sb_master_tcon(cifs_sb));
@@ -560,73 +559,32 @@ cifs_get_root(struct smb_vol *vol, struct super_block *sb)
 
 	xid = GetXid();
 	sep = CIFS_DIR_SEP(cifs_sb);
-	dparent = dget(sb->s_root);
-	full_len = strlen(full_path);
-	full_path[full_len] = sep;
-	pstart = full_path + 1;
+	dentry = dget(sb->s_root);
+	p = s = full_path;
 
-	for (i = 1, len = 0; i <= full_len; i++) {
-		if (full_path[i] != sep || !len) {
-			len++;
-			continue;
-		}
+	do {
+		struct inode *dir = dentry->d_inode;
+		struct dentry *child;
 
-		full_path[i] = 0;
-		cFYI(1, "get dentry for %s", pstart);
+		/* skip separators */
+		while (*s == sep)
+			s++;
+		if (!*s)
+			break;
+		p = s++;
+		/* next separator */
+		while (*s && *s != sep)
+			s++;
 
-		name.name = pstart;
-		name.len = len;
-		name.hash = full_name_hash(pstart, len);
-		dchild = d_lookup(dparent, &name);
-		if (dchild == NULL) {
-			cFYI(1, "not exists");
-			dchild = d_alloc(dparent, &name);
-			if (dchild == NULL) {
-				dput(dparent);
-				dparent = ERR_PTR(-ENOMEM);
-				goto out;
-			}
-		}
-
-		cFYI(1, "get inode");
-		if (dchild->d_inode == NULL) {
-			cFYI(1, "not exists");
-			inode = NULL;
-			if (cifs_sb_master_tcon(CIFS_SB(sb))->unix_ext)
-				rc = cifs_get_inode_info_unix(&inode, full_path,
-							      sb, xid);
-			else
-				rc = cifs_get_inode_info(&inode, full_path,
-							 NULL, sb, xid, NULL);
-			if (rc) {
-				dput(dchild);
-				dput(dparent);
-				dparent = ERR_PTR(rc);
-				goto out;
-			}
-			alias = d_materialise_unique(dchild, inode);
-			if (alias != NULL) {
-				dput(dchild);
-				if (IS_ERR(alias)) {
-					dput(dparent);
-					dparent = ERR_PTR(-EINVAL); /* XXX */
-					goto out;
-				}
-				dchild = alias;
-			}
-		}
-		cFYI(1, "parent %p, child %p", dparent, dchild);
-
-		dput(dparent);
-		dparent = dchild;
-		len = 0;
-		pstart = full_path + i + 1;
-		full_path[i] = sep;
-	}
-out:
+		mutex_lock(&dir->i_mutex);
+		child = lookup_one_len(p, dentry, s - p);
+		mutex_unlock(&dir->i_mutex);
+		dput(dentry);
+		dentry = child;
+	} while (!IS_ERR(dentry));
 	_FreeXid(xid);
 	kfree(full_path);
-	return dparent;
+	return dentry;
 }
 
 static int cifs_set_super(struct super_block *sb, void *data)
