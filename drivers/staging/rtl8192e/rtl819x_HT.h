@@ -458,11 +458,11 @@ enum ht_iot_action {
 
 };
 
-typedef enum _HT_IOT_RAFUNC{
+enum ht_iot_rafunc {
 	HT_IOT_RAFUNC_DISABLE_ALL = 0x00,
 	HT_IOT_RAFUNC_PEER_1R = 0x01,
 	HT_IOT_RAFUNC_TX_AMSDU = 0x02,
-} HT_IOT_RAFUNC, *PHT_IOT_RAFUNC;
+};
 
 typedef enum _RT_HT_CAPBILITY{
 	RT_HT_CAP_USE_TURBO_AGGR = 0x01,
