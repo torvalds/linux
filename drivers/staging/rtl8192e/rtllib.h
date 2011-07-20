@@ -1917,8 +1917,7 @@ typedef u32 RT_RF_CHANGE_SOURCE;
 #define RF_CHANGE_BY_IPS BIT28
 #define RF_CHANGE_BY_INIT	0
 
-typedef enum _country_code_type_t
-{
+enum country_code_type {
 	COUNTRY_CODE_FCC = 0,
 	COUNTRY_CODE_IC = 1,
 	COUNTRY_CODE_ETSI = 2,
@@ -1933,7 +1932,7 @@ typedef enum _country_code_type_t
 	COUNTRY_CODE_WORLD_WIDE_13 = 11,
 	COUNTRY_CODE_TELEC_NETGEAR = 12,
 	COUNTRY_CODE_MAX
-} country_code_type_t;
+};
 
 typedef enum _SCAN_OPERATION_BACKUP_OPT{
 	SCAN_OPT_BACKUP=0,
