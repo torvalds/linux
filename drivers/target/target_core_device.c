@@ -72,7 +72,7 @@ int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		return -ENODEV;
 	}
 
-	spin_lock_irq(&se_sess->se_node_acl->device_list_lock);
+	spin_lock_irqsave(&se_sess->se_node_acl->device_list_lock, flags);
 	se_cmd->se_deve = &se_sess->se_node_acl->device_list[unpacked_lun];
 	if (se_cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS) {
 		struct se_dev_entry *deve = se_cmd->se_deve;
@@ -88,7 +88,7 @@ int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 				" Access for 0x%08x\n",
 				se_cmd->se_tfo->get_fabric_name(),
 				unpacked_lun);
-			spin_unlock_irq(&se_sess->se_node_acl->device_list_lock);
+			spin_unlock_irqrestore(&se_sess->se_node_acl->device_list_lock, flags);
 			return -EACCES;
 		}
 
@@ -106,7 +106,7 @@ int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		se_cmd->se_orig_obj_ptr = se_cmd->se_lun->lun_se_dev;
 		se_cmd->se_cmd_flags |= SCF_SE_LUN_CMD;
 	}
-	spin_unlock_irq(&se_sess->se_node_acl->device_list_lock);
+	spin_unlock_irqrestore(&se_sess->se_node_acl->device_list_lock, flags);
 
 	if (!se_lun) {
 		/*
@@ -154,13 +154,13 @@ int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 
 	/* TODO: get rid of this and use atomics for stats */
 	dev = se_lun->lun_se_dev;
-	spin_lock_irq(&dev->stats_lock);
+	spin_lock_irqsave(&dev->stats_lock, flags);
 	dev->num_cmds++;
 	if (se_cmd->data_direction == DMA_TO_DEVICE)
 		dev->write_bytes += se_cmd->data_length;
 	else if (se_cmd->data_direction == DMA_FROM_DEVICE)
 		dev->read_bytes += se_cmd->data_length;
-	spin_unlock_irq(&dev->stats_lock);
+	spin_unlock_irqrestore(&dev->stats_lock, flags);
 
 	/*
 	 * Add the iscsi_cmd_t to the struct se_lun's cmd list.  This list is used
