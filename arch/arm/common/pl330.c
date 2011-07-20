@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 
+#include <asm/unaligned.h>
 #include <asm/hardware/pl330.h>
 
 /* Register and Bit field Definitions */
@@ -394,7 +395,7 @@ static inline u32 _emit_ADDH(unsigned dry_run, u8 buf[],
 
 	buf[0] = CMD_DMAADDH;
 	buf[0] |= (da << 1);
-	*((u16 *)&buf[1]) = val;
+	put_unaligned(val, (u16 *)&buf[1]);	//*((u16 *)&buf[1]) = val;
 
 	PL330_DBGCMD_DUMP(SZ_DMAADDH, "\tDMAADDH %s %u\n",
 		da == 1 ? "DA" : "SA", val);
@@ -548,7 +549,7 @@ static inline u32 _emit_MOV(unsigned dry_run, u8 buf[],
 
 	buf[0] = CMD_DMAMOV;
 	buf[1] = dst;
-	*((u32 *)&buf[2]) = val;
+	put_unaligned(val, (u32 *)&buf[2]);	//*((u32 *)&buf[2]) = val;
 
 	PL330_DBGCMD_DUMP(SZ_DMAMOV, "\tDMAMOV %s 0x%x\n",
 		dst == SAR ? "SAR" : (dst == DAR ? "DAR" : "CCR"), val);
@@ -726,7 +727,7 @@ static inline u32 _emit_GO(unsigned dry_run, u8 buf[],
 
 	buf[1] = chan & 0x7;
 
-	*((u32 *)&buf[2]) = addr;
+	put_unaligned(addr, (u32 *)&buf[2]);	//*((u32 *)&buf[2]) = addr;
 
 	return SZ_DMAGO;
 }

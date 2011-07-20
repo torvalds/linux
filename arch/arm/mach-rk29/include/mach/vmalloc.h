@@ -16,7 +16,7 @@
 #ifndef __ASM_ARCH_RK29_VMALLOC_H
 #define __ASM_ARCH_RK29_VMALLOC_H
 
-#define VMALLOC_END	0xF0000000
+#define VMALLOC_END	0xFE800000
 
 #endif
 

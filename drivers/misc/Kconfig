@@ -291,7 +291,19 @@ config STE
 config MTK23D
 	bool "MTK6223D modem control driver"
 	default n	
+
+config FM580X
+	bool "FM rda580x driver"
+	default n	
 	
+config MU509
+	bool "MU509 modem control driver"
+	default n
+	
+config RK29_NEWTON
+	bool "RK29_NEWTON misc driver"
+	default n
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

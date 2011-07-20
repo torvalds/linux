@@ -307,13 +307,30 @@ if I2C_RK29
 		depends on ARCH_RK29
 		help
 			This supports the use of the I2C0 interface on rk29 processors.
-
+		if I2C0_RK29
+			choice
+				prompt "I2C transfer mode select"
+				config RK29_I2C0_CONTROLLER
+					bool "With i2c controller"
+				config RK29_I2C0_GPIO
+					bool "Simulation with GPIO"
+			endchoice
+		endif
 	config I2C1_RK29
 		bool "RK29 I2C1 interface support"
 		default y
 		depends on ARCH_RK29
 		help
 			This supports the use of the I2C1 interface on rk29 processors.
+		if I2C1_RK29
+			choice
+				prompt "I2C transfer mode select"
+				config RK29_I2C1_CONTROLLER
+					bool "With i2c controller"
+				config RK29_I2C1_GPIO
+					bool "Simulation with GPIO"
+			endchoice
+		endif
 
 	config I2C2_RK29
 		bool "RK29 I2C2 interface support"
@@ -321,6 +338,15 @@ if I2C_RK29
 		depends on ARCH_RK29
 		help
 			This supports the use of the I2C2 interface on rk29 processors.
+		if I2C2_RK29
+			choice
+				prompt "I2C transfer mode select"
+				config RK29_I2C2_CONTROLLER
+					bool "With i2c controller"
+				config RK29_I2C2_GPIO
+					bool "Simulation with GPIO"
+			endchoice
+		endif
 
 	config I2C3_RK29
 		bool "RK29 I2C3 interface support"
@@ -328,6 +354,15 @@ if I2C_RK29
 		depends on ARCH_RK29 && !UART3_CTS_RTS_RK29
 		help
 			This supports the use of the I2C3 interface on rk29 processors.
+		if I2C3_RK29
+			choice
+				prompt "I2C transfer mode select"
+				config RK29_I2C3_CONTROLLER
+					bool "With i2c controller"
+				config RK29_I2C3_GPIO
+					bool "Simulation with GPIO"
+			endchoice
+		endif
 endif
 config I2C_DEV_RK29
 	tristate "RK29 I2C device interface support"

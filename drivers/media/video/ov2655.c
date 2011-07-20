@@ -43,7 +43,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define MAX(x,y)    ((x>y) ? x: y)
 
 /* Sensor Driver Configuration */
-#define SENSOR_NAME ov2655
+#define SENSOR_NAME RK29_CAM_SENSOR_OV2655
 #define SENSOR_V4L2_IDENT V4L2_IDENT_OV2655
 #define SENSOR_ID 0x2656
 #define SENSOR_MIN_WIDTH    176
@@ -70,7 +70,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
-#define CONFIG_SENSOR_I2C_NOSCHED   1
+#define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   1
 
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\
@@ -1481,10 +1481,13 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 				preempt_enable();
 		}
 	}
-#endif
 	return 0;
 sensor_task_lock_err:
 	return -1;
+#else
+    return 0;
+#endif
+
 }
 
 /* sensor register write */
@@ -1568,7 +1571,9 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
 {
     int err = 0, cnt;
     int i = 0;
+#if CONFIG_SENSOR_I2C_RDWRCHK    
 	char valchk;
+#endif
 
 	cnt = 0;
 	if (sensor_task_lock(client, 1) < 0)
@@ -2012,7 +2017,6 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         winseqe_set_addr = SENSOR_INIT_WINSEQADR;               /* ddl@rock-chips.com : Sensor output smallest size if  isn't support app  */
         set_w = SENSOR_INIT_WIDTH;
         set_h = SENSOR_INIT_HEIGHT;
-		ret = -1;
 		SENSOR_TR("\n %s..%s Format is Invalidate. pix->width = %d.. pix->height = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,pix->width,pix->height);
     }
 
@@ -2377,12 +2381,8 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
 }
 #endif
 #if CONFIG_SENSOR_Flash
-static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int *value)
-{
-    struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-    struct sensor *sensor = to_sensor(client);
-	const struct v4l2_queryctrl *qctrl_info;
-    
+static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
+{    
     if ((value >= qctrl->minimum) && (value <= qctrl->maximum)) {
         if (value == 3) {       /* ddl@rock-chips.com: torch */
             sensor_ioctrl(icd, Sensor_Flash, Flash_Torch);   /* Flash On */

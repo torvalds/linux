@@ -12,7 +12,7 @@ config HEADSET_DET
 
 config RK_HEADSET_DET
 	depends on !ARCH_RK2818
-	default y
+	default n
 	tristate "RK headset detech support"
 	---help---
 		Universal headphone driver(write begin rk29)

@@ -38,7 +38,7 @@ static void  pwm2gpiodefault(void)
 
 
 extern void __rb( void*  );
-void rb( void )
+static void rb( void )
 {
     void(*cb)(void* ) ;
     
@@ -52,9 +52,11 @@ void rb( void )
     cb( uart_base );
 }
 
+static volatile u32 __sramdata reboot_reason = 0;
 static void __sramfunc __noreturn rk29_rb_with_softreset(void)
 {
 	u32 reg;
+	u32 reason = __raw_readl((u32)&reboot_reason - SRAM_CODE_OFFSET + 0x10130000);
 
 	asm volatile (
 	    "mrc	p15, 0, %0, c1, c0, 0\n\t"
@@ -95,6 +97,11 @@ static void __sramfunc __noreturn rk29_rb_with_softreset(void)
 	dsb();
 	LOOP(10 * LOOPS_PER_USEC);
 
+	if (reason) {
+		__raw_writel(0, RK29_TIMER0_PHYS + 0x8);
+		__raw_writel(reason, RK29_TIMER0_PHYS + 0x0);
+	}
+
 	asm volatile (
 	    "b 1f\n\t"
 	    ".align 5\n\t"
@@ -106,9 +113,16 @@ static void __sramfunc __noreturn rk29_rb_with_softreset(void)
 	while (1);
 }
 
-void  rk29_arch_reset(int mode, const char *cmd)
+void rk29_arch_reset(int mode, const char *cmd)
 {
 	void (*rb2)(void);
+
+	if (cmd) {
+		if (!strcmp(cmd, "loader") || !strcmp(cmd, "bootloader"))
+			reboot_reason = 0x1888AAFF;
+		else if (!strcmp(cmd, "recovery"))
+			reboot_reason = 0x5242C303;
+	}
 
 	rb2 = (void(*)(void))((u32)rk29_rb_with_softreset - SRAM_CODE_OFFSET + 0x10130000);
 
@@ -125,10 +139,6 @@ void  rk29_arch_reset(int mode, const char *cmd)
 
 	cru_writel((cru_readl(CRU_MODE_CON) & ~CRU_CPU_MODE_MASK) | CRU_CPU_MODE_SLOW, CRU_MODE_CON);
 	LOOP(LOOPS_PER_USEC);
-
-	/* from panic? */
-	if (system_state != SYSTEM_RESTART)
-		machine_power_off();
 
 	pwm2gpiodefault();
 
@@ -183,9 +193,9 @@ void  rk29_arch_reset(int mode, const char *cmd)
 	cru_writel((cru_readl(CRU_CLKSEL8_CON) & ~(7 | (0x3f << 14) | (3 << 20))) | (2 << 20), CRU_CLKSEL8_CON);
 
 	// remap bit control = 0, normal mode
-	writel(readl(RK29_GRF_PHYS + 0xc0) & ~(1 << 21), RK29_GRF_PHYS + 0xc0);
+	writel(readl(RK29_GRF_BASE + 0xc0) & ~(1 << 21), RK29_GRF_BASE + 0xc0);
 	// emmc_and_boot_en control=0, normal mode
-	writel(readl(RK29_GRF_PHYS + 0xbc) & ~(1 << 9), RK29_GRF_PHYS + 0xbc);
+	writel(readl(RK29_GRF_BASE + 0xbc) & ~(1 << 9), RK29_GRF_BASE + 0xbc);
 	dsb();
 
 	writel(0, RK29_CPU_AXI_BUS0_PHYS);

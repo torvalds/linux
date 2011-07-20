@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -193,6 +193,9 @@ typedef struct _gcsHAL_INTERFACE
 
             /* Supported minor feature 1 fields. */
             OUT gctUINT32               chipMinorFeatures1;
+
+            /* Supported minor feature 2 fields. */
+            OUT gctUINT32               chipMinorFeatures2;
 
             /* Number of streams supported. */
             OUT gctUINT32               streamCount;
@@ -526,6 +529,8 @@ typedef struct _gcsHAL_INTERFACE
         }
         WriteRegisterData;
 
+// dkm : add "#if VIVANTE_PROFILER" to invalidate the unions for reduce the sizeof(gcsHAL_INTERFACE)
+#if VIVANTE_PROFILER
         /* gcvHAL_GET_PROFILE_SETTING */
         struct _gcsHAL_GET_PROFILE_SETTING
         {
@@ -563,6 +568,7 @@ typedef struct _gcsHAL_INTERFACE
             OUT gcs2D_PROFILE_PTR       hwProfile2D;
         }
         RegisterProfileData2D;
+#endif
 
         /* Power management. */
         /* gcvHAL_SET_POWER_MANAGEMENT_STATE */
@@ -603,6 +609,8 @@ typedef struct _gcsHAL_INTERFACE
         }
         MapPhysical;
 
+// dkm : add "#if gcdDUMP_IN_KERNEL" to invalidate the union for reduce the sizeof(gcsHAL_INTERFACE)
+#if gcdDUMP_IN_KERNEL
         /* gcvHAL_DEBUG */
         struct _gcsHAL_DEBUG
         {
@@ -616,6 +624,7 @@ typedef struct _gcsHAL_INTERFACE
             IN gctCHAR                  message[80];
         }
         Debug;
+#endif
 
         struct _gcsHAL_CACHE
         {

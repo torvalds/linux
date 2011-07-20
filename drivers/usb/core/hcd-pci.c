@@ -197,8 +197,10 @@ void usb_hcd_pci_shutdown(struct pci_dev *dev)
 	if (!hcd)
 		return;
 
-	if (hcd->driver->shutdown)
+	if (hcd->driver->shutdown) {
 		hcd->driver->shutdown(hcd);
+		pci_disable_device(dev);
+	}
 }
 EXPORT_SYMBOL_GPL(usb_hcd_pci_shutdown);
 

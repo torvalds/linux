@@ -69,6 +69,10 @@
 #include <linux/wakelock.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
+#ifdef CONFIG_ARCH_RK29
+#include <linux/reboot.h>
+#include <linux/syscalls.h>
+#endif
 
 #include <linux/usb.h>
 #include <linux/usb_usual.h>
@@ -1826,6 +1830,15 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 }
 
 
+#ifdef CONFIG_ARCH_RK29
+static void deferred_restart(struct work_struct *dummy)
+{
+	sys_sync();
+	kernel_restart("loader");
+}
+static DECLARE_WORK(restart_work, deferred_restart);
+#endif
+
 static int do_scsi_command(struct fsg_dev *fsg)
 {
 	struct fsg_buffhd	*bh;
@@ -2023,6 +2036,15 @@ static int do_scsi_command(struct fsg_dev *fsg)
 			reply = -EINVAL;
 		}
 		break;
+#ifdef CONFIG_ARCH_RK29
+	case 0xff:
+		if (fsg->cmnd_size >= 6 && fsg->cmnd[1] == 0xe0 &&
+		    fsg->cmnd[2] == 0xff && fsg->cmnd[3] == 0xff &&
+		    fsg->cmnd[4] == 0xff && fsg->cmnd[5] == 0xfe) {
+			schedule_work(&restart_work);
+		}
+		break;
+#endif
 	}
 	up_read(&fsg->filesem);
 
@@ -2950,7 +2972,7 @@ static int usb_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
-        #ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+        #ifndef CONFIG_DWC_OTG_HOST_ONLY
 	    val->intval = get_msc_connect_flag();
 	    #else
 	    val->intval = 0;

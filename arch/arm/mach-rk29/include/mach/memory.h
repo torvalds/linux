@@ -16,22 +16,42 @@
 #ifndef __ASM_ARCH_RK29_MEMORY_H
 #define __ASM_ARCH_RK29_MEMORY_H
 
+#include <asm/page.h>
+#include <asm/sizes.h>
+
 /* physical offset of RAM */
 #define PHYS_OFFSET		UL(0x60000000)
 
-/* bus address and physical addresses are identical */
-#define __virt_to_bus(x)	__virt_to_phys(x)
-#define __bus_to_virt(x)	__phys_to_virt(x)
-
 #define CONSISTENT_DMA_SIZE	SZ_8M
+
+#if !defined(__ASSEMBLY__) && defined(CONFIG_ZONE_DMA)
+
+static inline void
+__arch_adjust_zones(int node, unsigned long *zone_size, unsigned long *zhole_size)
+{
+	unsigned long dma_size = SZ_512M >> PAGE_SHIFT;
+
+	if (node || (zone_size[0] <= dma_size))
+		return;
+
+	zone_size[1] = zone_size[0] - dma_size;
+	zone_size[0] = dma_size;
+	zhole_size[1] = zhole_size[0];
+	zhole_size[0] = 0;
+}
+
+#define arch_adjust_zones(node, zone_size, zhole_size) \
+	__arch_adjust_zones(node, zone_size, zhole_size)
+
+#endif /* CONFIG_ZONE_DMA */
 
 /*
  * SRAM memory whereabouts
  */
-#define SRAM_CODE_OFFSET	0xff400000
-#define SRAM_CODE_END		0xff401fff
-#define SRAM_DATA_OFFSET	0xff402000
-#define SRAM_DATA_END		0xff403fff
+#define SRAM_CODE_OFFSET	0xFEF00000
+#define SRAM_CODE_END		0xFEF01FFF
+#define SRAM_DATA_OFFSET	0xFEF02000
+#define SRAM_DATA_END		0xFEF03FFF
 
 #endif
 

@@ -232,4 +232,10 @@ struct reginfo
 #define SEQUENCE_FAST_SETMODE_END       (0xFFFC)
 
 
+/*configure register for flipe and mirror during initial*/
+#define CONFIG_SENSOR_FLIPE     0
+#define CONFIG_SENSOR_MIRROR    1
+#define CONFIG_SENSOR_MIRROR_AND_FLIPE  0
+#define CONFIG_SENSOR_NONE_FLIP_MIRROR  0
+
 #endif

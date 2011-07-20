@@ -14,6 +14,7 @@
  */
 
 #ifndef __ASM_ARCH_RK29_CRU_H
+#define __ASM_ARCH_RK29_CRU_H
 
 enum cru_clk_gate
 {
@@ -177,7 +178,7 @@ enum cru_soft_reset {
 	SOFT_RST_HIF,
 	SOFT_RST_NANDC,
 	SOFT_RST_SMC,
-	SOFT_RST_HSADC,
+	SOFT_RST_HSADC = 32 + 12,
 	SOFT_RST_SDMMC,
 	SOFT_RST_SDIO,
 	SOFT_RST_EMMC,
@@ -304,6 +305,6 @@ void cru_set_soft_reset(enum cru_soft_reset idx, bool on);
 
 #define LOOPS_PER_USEC	13
 #define LOOPS_PER_MSEC	12000
-#define LOOP(loops) do { int i = loops; barrier(); while (i--) barrier(); } while (0)
+#define LOOP(loops) do { unsigned int i = loops; barrier(); while (--i) barrier(); } while (0)
 
 #endif

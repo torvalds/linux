@@ -21,6 +21,8 @@
 #include <asm/io.h>
 #include <asm/mach/flash.h>
 #include "api_flash.h"
+#include <linux/clk.h>
+#include <linux/cpufreq.h>
 
 extern int rknand_queue_read(int Index, int nSec, void *buf);
 extern int rknand_queue_write(int Index, int nSec, void *buf,int mode);
@@ -29,7 +31,7 @@ extern void rknand_buffer_shutdown(void);
 extern void rknand_buffer_sync(void);
 
 #define DRIVER_NAME	"rk29xxnand"
-const char rknand_base_version[] = "rknand_base.c version: 4.22 20110414";
+const char rknand_base_version[] = "rknand_base.c version: 4.23 20110516";
 #define NAND_DEBUG_LEVEL0 0
 #define NAND_DEBUG_LEVEL1 1
 #define NAND_DEBUG_LEVEL2 2
@@ -128,6 +130,11 @@ struct rknand_info {
 	struct mtd_partition *parts;
 	struct rknand_chip	rknand;
     struct task_struct *thread;
+	struct clk			*clk;
+	unsigned long		 clk_rate;
+#ifdef CONFIG_CPU_FREQ
+    struct notifier_block   freq_transition;
+#endif
 };
 
 struct rknand_info * gpNandInfo;
@@ -175,9 +182,11 @@ static void rk28nand_create_procfs(void)
     } 
 }
 
-void rknand_schedule_enable(int en)
+int rknand_schedule_enable(int en)
 {
+    int en_bak = gpNandInfo->rknand.rknand_schedule_enable;
     gpNandInfo->rknand.rknand_schedule_enable = en;
+    return en_bak;
 }
 
 void rkNand_cond_resched(void)
@@ -224,7 +233,7 @@ static int rk28xxnand_write(struct mtd_info *mtd, loff_t from, size_t len,
 	int sector = len>>9;
 	int LBA = (int)(from>>9);
 	//printk("*");
-    //printk(KERN_NOTICE "write: from=%lx,len=%x\n",(int)from,len);
+    //printk(KERN_NOTICE "write: from=%lx,len=%x\n",(int)LBA,sector);
     //printk_write_log(LBA,sector,buf);
 	if(sector)// cmy
 	{
@@ -394,6 +403,67 @@ static int rk28xxnand_panic_write(struct mtd_info *mtd, loff_t to, size_t len, s
 	return 0;
 }
 
+extern int FtlGetIdBlockSysData(char * buf, int Sector);
+int GetIdBlockSysData(char * buf, int Sector)
+{
+    return (FtlGetIdBlockSysData(buf,Sector)); 
+}
+
+char GetSNSectorInfo(char * pbuf)
+{
+    return (GetIdBlockSysData(pbuf,3));    
+}
+
+char GetChipSectorInfo(char * pbuf)
+{
+    return (GetIdBlockSysData(pbuf,2));  
+}
+
+/* cpufreq driver support */
+static int rk29xx_nand_timing_cfg(struct rknand_info *nand_info)
+{
+	unsigned long clkrate = clk_get_rate(nand_info->clk);
+    nand_info->clk_rate = clkrate;
+	clkrate /= 1000;	/* turn clock into KHz for ease of use */
+    FlashTimingCfg(clkrate);
+	return 0;
+}
+
+#ifdef CONFIG_CPU_FREQ
+static int rk29_nand_cpufreq_transition(struct notifier_block *nb, unsigned long val, void *data)
+{
+	struct rknand_info *info = gpNandInfo;
+	unsigned long newclk;
+
+	newclk = clk_get_rate(info->clk);
+	if (val == CPUFREQ_POSTCHANGE && newclk != info->clk_rate) 
+	{
+		rk29xx_nand_timing_cfg(info);
+	}
+	return 0;
+}
+
+static inline int rk29_nand_cpufreq_register(struct rknand_info *info)
+{
+	info->freq_transition.notifier_call = rk29_nand_cpufreq_transition;
+	return cpufreq_register_notifier(&info->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
+}
+
+static inline void rk29_nand_cpufreq_deregister(struct rknand_info *info)
+{
+	cpufreq_unregister_notifier(&info->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
+}
+#else
+static inline int rk29_nand_cpufreq_register(struct rknand_info *info)
+{
+	return 0;
+}
+
+static inline void rk29_nand_cpufreq_deregister(struct rknand_info *info)
+{
+}
+#endif
+
 static int rk28xxnand_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
 	return 0;
@@ -412,6 +482,9 @@ static int rk28xxnand_init(struct rknand_info *nand_info)
 	struct mtd_info	   *page_mtd = &nand_info->page_mtd;
 #endif    
 
+	nand_info->clk = clk_get(NULL, "nandc");
+	clk_enable(nand_info->clk);
+
 	rknand->state = FL_READY;
 	rknand->rknand_schedule_enable = 1;
 	rknand->pFlashCallBack = NULL;
@@ -422,6 +495,9 @@ static int rk28xxnand_init(struct rknand_info *nand_info)
 		NAND_DEBUG(NAND_DEBUG_LEVEL0,"FTLInit Error: \n");
 		return -ENXIO;
     }
+    rk29_nand_cpufreq_register(nand_info);
+    rk29xx_nand_timing_cfg(nand_info);
+    
     NAND_DEBUG(NAND_DEBUG_LEVEL0,"FTLInit OK: \n");
     mtd->size = (uint64_t)NandGetCapacity()*0x200;
     //readflash modify rk28_partition_info
@@ -430,7 +506,7 @@ static int rk28xxnand_init(struct rknand_info *nand_info)
     mtd->oobsize = 0;
     mtd->oobavail = 0;
     mtd->ecclayout = 0;
-    mtd->erasesize = 8*0x200; //sectorFlashGetPageSize()
+    mtd->erasesize = 32*0x200; //sectorFlashGetPageSize()
     mtd->writesize = 8*0x200; //FlashGetPageSize()
 
 	// Fill in remaining MTD driver data 
@@ -583,10 +659,10 @@ static int rknand_probe(struct platform_device *pdev)
     parts = nand_info->parts;
     for(i=0;i<g_num_partitions;i++)
     {
-        printk(">>> part[%d]: name=%s offset=0x%012llx\n", i, parts[i].name, parts[i].offset);
-        if(strcmp(parts[i].name,"cache") == 0)
+        //printk(">>> part[%d]: name=%s offset=0x%012llx\n", i, parts[i].name, parts[i].offset);
+        if(strcmp(parts[i].name,"backup") == 0)
         {
-            SysImageWriteEndAdd = (unsigned long)parts[i].offset>>9;//sector
+            SysImageWriteEndAdd = (unsigned long)(parts[i].offset + parts[i].size)>>9;//sector
 	        printk(">>> SysImageWriteEndAdd=0x%lx\n", SysImageWriteEndAdd);
             break;
         }

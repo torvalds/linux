@@ -33,6 +33,8 @@ struct i2c_gpio_platform_data {
 	unsigned int	sda_is_open_drain:1;
 	unsigned int	scl_is_open_drain:1;
 	unsigned int	scl_is_output_only:1;
+	int bus_num;
+	int (*io_init)(void);
 };
 
 #endif /* _LINUX_I2C_GPIO_H */

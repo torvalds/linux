@@ -183,7 +183,8 @@ static int GPIOSetPinDirection(struct gpio_chip *chip, unsigned int mask,eGPIOPi
 
 	local_irq_save(flags);
 	rk29_gpio_bitOp(gpioRegBase,GPIO_SWPORT_DDR,mask,direction);
-	rk29_gpio_bitOp(gpioRegBase,GPIO_DEBOUNCE,mask,1); 
+	/* Enable debounce may halt cpu on wfi, disable it by default */
+	//rk29_gpio_bitOp(gpioRegBase,GPIO_DEBOUNCE,mask,1);
 	local_irq_restore(flags);
 
 	return 0;
@@ -360,7 +361,7 @@ static void gpio_ack_irq(u32 irq)
 
 static int GPIOPullUpDown(struct gpio_chip *chip, unsigned int offset, unsigned enable)
 {
-	unsigned char temp=0;
+	unsigned int temp = 0;
 	struct rk29_gpio_chip *rk29_gpio = to_rk29_gpio_chip(chip);
 	unsigned char  __iomem *pGrfRegBase = (unsigned char  __iomem *)RK29_GRF_BASE;
 	unsigned long flags;
@@ -381,6 +382,7 @@ static int GPIOPullUpDown(struct gpio_chip *chip, unsigned int offset, unsigned 
 		temp |= 1<<offset;
 	else
 		temp &= ~(1<<offset);
+
 	__raw_writel(temp,pGrfRegBase + 0x78 +(rk29_gpio->id)*4);
 	local_irq_restore(flags);
 
@@ -476,58 +478,25 @@ static void rk29_gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 {
-	unsigned	pin,gpioToirq=0;
-	struct irq_desc	*gpio;
+	unsigned gpio_irq;
 	struct rk29_gpio_chip *rk29_gpio;
-	unsigned char  __iomem	*gpioRegBase;
-	u32		isr;
+	u32 isr;
 
 	rk29_gpio = get_irq_chip_data(irq+13);
-	gpioRegBase = rk29_gpio->regbase;
 
-	//屏蔽中断6或7
+	// temporarily mask parent IRQ
 	desc->chip->mask(irq);
 	if(desc->chip->ack)
 		desc->chip->ack(irq);
-	//读取当前中断状态，即查询具体是GPIO的哪个PIN引起的中断
-	isr = rk29_gpio_read(gpioRegBase,GPIO_INT_STATUS);
-	if (!isr) {
-			desc->chip->unmask(irq);
-			return;
-	}
 
-	pin = rk29_gpio->chip.base;
-	gpioToirq = gpio_to_irq(pin);
-	gpio = &irq_desc[gpioToirq];
+	isr = rk29_gpio_read(rk29_gpio->regbase, GPIO_INT_STATUS);
+
+	gpio_irq = gpio_to_irq(rk29_gpio->chip.base);
 
 	while (isr) {
-		if (isr & 1) {
-			{
-				unsigned int gpio_Int_Level = 0;
-				unsigned int mask = pin_to_mask(pin);
-				if(!mask)
-					break;
-				gpio_Int_Level =  rk29_gpio_read(gpioRegBase,GPIO_INTTYPE_LEVEL);
-				if(gpio_Int_Level == 0)//表示此中断类型是电平中断
-				{
-					rk29_gpio_bitOp(gpioRegBase,GPIO_INTMASK,mask,1);
-				}
-				generic_handle_irq(gpioToirq);
-				
-				if(gpio_Int_Level)//表示此中断类型是边沿中断
-				{
-					rk29_gpio_bitOp(gpioRegBase,GPIO_PORTS_EOI,mask,1);
-				}
-				else//表示此中断类型是电平中断
-				{
-					rk29_gpio_bitOp(gpioRegBase,GPIO_INTMASK,mask,0);
-				}
-			}				
-		}
-		pin++;
-		gpio++;
-		isr >>= 1;
-		gpioToirq = gpio_to_irq(pin);
+		int irqoffset = fls(isr) - 1;
+		generic_handle_irq(gpio_irq + irqoffset);
+		isr &= ~(1 << irqoffset);
 	}
 
 	desc->chip->unmask(irq);
@@ -537,6 +506,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 static struct irq_chip rk29gpio_irqchip = {
 	.name		= "GPIO",
 	.ack 		= gpio_ack_irq,
+	.disable	= gpio_irq_mask,
 	.mask		= gpio_irq_mask,
 	.unmask		= gpio_irq_unmask,
 	.set_type	= gpio_irq_type,
@@ -555,7 +525,7 @@ static void __init rk29_gpio_irq_setup(void)
 		for (j = 0; j < 32; j++) {
 			lockdep_set_class(&irq_desc[pin+j].lock, &gpio_lock_class);
 			set_irq_chip(pin+j, &rk29gpio_irqchip);
-			set_irq_handler(pin+j, handle_edge_irq);
+			set_irq_handler(pin+j, handle_level_irq);
 			set_irq_flags(pin+j, IRQF_VALID);
 		}
 
@@ -609,7 +579,8 @@ static int rk29_gpio_resume(struct sys_device *dev)
 		if (!rk29_gpio->suspend_wakeup)
 			clk_enable(rk29_gpio->clk);
 
-		rk29_gpio_write(rk29_gpio->regbase, GPIO_INTEN, rk29_gpio->saved_wakeup);
+		/* keep enable for resume irq */
+		rk29_gpio_write(rk29_gpio->regbase, GPIO_INTEN, rk29_gpio->saved_wakeup | (rk29_gpio->suspend_wakeup & rk29_gpio_read(rk29_gpio->regbase, GPIO_INT_STATUS)));
 	}
 
 	return 0;

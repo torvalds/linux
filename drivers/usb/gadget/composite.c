@@ -113,7 +113,7 @@ void usb_composite_force_reset(struct usb_composite_dev *cdev)
 	if (cdev && cdev->gadget &&
 			cdev->gadget->speed != USB_SPEED_UNKNOWN) {
 		/* avoid sending a disconnect switch event until after we disconnect */
-		cdev->mute_switch = 1;
+//		cdev->mute_switch = 1;// yk 20110505 rk29 don't need to mute switch
 		spin_unlock_irqrestore(&cdev->lock, flags);
 
 		usb_gadget_disconnect(cdev->gadget);
@@ -564,7 +564,6 @@ int __init usb_add_config(struct usb_composite_dev *cdev,
 			goto done;
 		}
 	}
-	printk("usb_add_config, add and bind,everest\n");
 	config->cdev = cdev;
 	list_add_tail(&config->list, &cdev->configs);
 

@@ -123,7 +123,7 @@ static int rk29_adc_probe(struct platform_device *pdev)
 	adc = adc_alloc_host(sizeof(struct rk29_adc_device), &pdev->dev);
 	if (!adc)
 		return -ENOMEM;
-	mutex_init(&adc->queue_mutex);
+	spin_lock_init(&adc->lock);
 	adc->dev = &pdev->dev;
 	adc->is_suspended = 0;
 	adc->ops = &rk29_adc_ops;

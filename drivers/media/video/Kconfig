@@ -847,6 +847,12 @@ config SOC_CAMERA_MT9T031
 	help
 	  This driver supports MT9T031 cameras from Micron.
 	  
+config SOC_CAMERA_MT9T111
+	tristate "mt9t111 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports MT9T111 cameras from Micron.
+
 config SOC_CAMERA_MT9P111
 	tristate "mt9p111 support"
 	depends on SOC_CAMERA && I2C
@@ -857,6 +863,11 @@ config SOC_CAMERA_MT9D112
 	depends on SOC_CAMERA && I2C
 	help
 	  This driver supports MT9D112 cameras from Micron	  
+config SOC_CAMERA_MT9D113
+	tristate "mt9d113 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This driver supports MT9D113 cameras from Micron		  
 config SOC_CAMERA_MT9V022
 	tristate "mt9v022 support"
 	depends on SOC_CAMERA && I2C
@@ -900,12 +911,29 @@ config SOC_CAMERA_OV9650
 	tristate "ov9650 camera support"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov2655 camera driver
+	  This is a ov9650 camera driver
+config SOC_CAMERA_OV2640
+	tristate "ov2640 camera support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a ov2640 camera driver	  
 config SOC_CAMERA_OV3640
 	tristate "ov3640 camera support"
 	depends on SOC_CAMERA && I2C
 	help
-	  This is a ov3640 camera driver
+	  This is a ov3640 camera driver	
+choice
+	prompt "OV3640 Module Focus select"
+	depends on SOC_CAMERA_OV3640
+	default OV3640_AUTOFOCUS
+	---help---
+		
+config OV3640_AUTOFOCUS
+	bool "OV3640 auto focus"
+
+config OV3640_FIXEDFOCUS
+	bool "OV3640 fixed focus"
+endchoice	  
 	  
 config SOC_CAMERA_OV5642
 	tristate "ov5642 camera support"
@@ -948,7 +976,54 @@ config SOC_CAMERA_S5K6AA
 	depends on SOC_CAMERA && I2C
 	help
 	  This is a samsung S5K6AA mobile camera driver
+	  
+config SOC_CAMERA_GT2005
+	tristate "GT2005 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a GT2005 camera driver	  
+config SOC_CAMERA_GC0308
+	tristate "GC0308 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a GC0308 camera driver
+config SOC_CAMERA_GC0309
+	tristate "GC0309 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a GC0309 camera driver	  
+config SOC_CAMERA_GC2015
+	tristate "GC2015 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a GC2015 camera driver	 
+config SOC_CAMERA_HI253
+	tristate "HI253 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a HI253 camera driver	 
+config SOC_CAMERA_HI704
+	tristate "HI704 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a HI704 camera driver
+config SOC_CAMERA_SIV120B
+	tristate "siv120b support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a SIV120B camera driver	  
 
+config SOC_CAMERA_SID130B
+	tristate "sid130b support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a SID130B camera driver	 	
+
+config SOC_CAMERA_NT99250
+	tristate "NT99250 support"
+	depends on SOC_CAMERA && I2C
+	help
+	  This is a NT99250 camera driver		    
  	     
 config MX1_VIDEO
 	bool

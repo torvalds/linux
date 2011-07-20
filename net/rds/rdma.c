@@ -473,6 +473,17 @@ static struct rds_rdma_op *rds_rdma_prepare(struct rds_sock *rs,
 
 		max_pages = max(nr, max_pages);
 		nr_pages += nr;
+
+		/*
+		 * nr for one entry in limited to (UINT_MAX>>PAGE_SHIFT)+1
+		 * so nr_pages cannot overflow without becoming bigger than
+		 * INT_MAX first. If nr cannot overflow then max_pages should
+		 * be ok.
+		 */
+		if (nr_pages > INT_MAX) {
+			ret = -EINVAL;
+			goto out;
+		}
 	}
 
 	pages = kcalloc(max_pages, sizeof(struct page *), GFP_KERNEL);

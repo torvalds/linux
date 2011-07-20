@@ -38,7 +38,7 @@
 /*max ACK delay time = RK29_I2C_ACK_TIMEOUT_COUNT * RK29_UDELAY_TIME(scl_rate)   us */
 #define RK29_I2C_ACK_TIMEOUT_COUNT			(100 * 1000)
 /*max STOP delay time = RK29_I2C_STOP_TIMEOUT_COUNT * RK29_UDELAY_TIME(scl_rate)   us */
-#define RK29_I2C_STOP_TIMEOUT_COUNT			1000
+#define RK29_I2C_STOP_TIMEOUT_COUNT			70//1000
 /*max START delay time = RK29_I2C_START_TIMEOUT_COUNT * RK29_UDELAY_TIME(scl_rate)   us */
 #define RK29_I2C_START_TIMEOUT_COUNT		1000
 
@@ -484,8 +484,25 @@ static int rk29_xfer_msg(struct i2c_adapter *adap,
 		goto exit;
 	}
 	if(msg->flags & I2C_M_RD)
-	{	
-		if((ret = rk29_i2c_recv_msg(i2c, msg)) != 0)
+	{
+		if(msg->flags & I2C_M_REG8_DIRECT)
+		{
+			struct i2c_msg msg1 = *msg;
+			struct i2c_msg msg2 = *msg;
+			msg1.len = 1;
+			msg2.len = msg->len - 1;
+			msg2.buf = msg->buf + 1;
+
+			if((ret = rk29_i2c_send_msg(i2c, &msg1)) != 0)
+				i2c_err(i2c->dev, "<error>rk29_i2c_send_msg timeout\n");
+			if((ret = rk29_i2c_recv_msg(i2c, &msg2)) != 0)
+			{
+				i2c_err(i2c->dev, "<error>rk29_i2c_recv_msg timeout\n");
+				goto exit;
+			}
+			
+		}
+		else if((ret = rk29_i2c_recv_msg(i2c, msg)) != 0)
 		{
 			i2c_err(i2c->dev, "<error>rk29_i2c_recv_msg timeout\n");
 			goto exit;
@@ -638,6 +655,8 @@ static int rk29_i2c_cpufreq_transition(struct notifier_block *nb,
 
 static inline int rk29_i2c_register_cpufreq(struct rk29_i2c_data *i2c)
 {
+	if (i2c->adap.nr != 0)
+		return 0;
 	i2c->freq_transition.notifier_call = rk29_i2c_cpufreq_transition;
 
 	return cpufreq_register_notifier(&i2c->freq_transition,
@@ -646,6 +665,8 @@ static inline int rk29_i2c_register_cpufreq(struct rk29_i2c_data *i2c)
 
 static inline void rk29_i2c_unregister_cpufreq(struct rk29_i2c_data *i2c)
 {
+	if (i2c->adap.nr != 0)
+		return;
 	cpufreq_unregister_notifier(&i2c->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
 }
@@ -690,6 +711,7 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 	i2c->adap.owner   	= THIS_MODULE;
 	i2c->adap.algo    	= &rk29_i2c_algorithm;
 	i2c->adap.class   	= I2C_CLASS_HWMON;
+	i2c->adap.nr		= pdata->bus_num;
 	spin_lock_init(&i2c->cmd_lock);
 
 	i2c->dev = &pdev->dev;
@@ -753,7 +775,6 @@ static int rk29_i2c_probe(struct platform_device *pdev)
 		goto err_irq;
 	}
 
-	i2c->adap.nr = pdata->bus_num;
 	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0) {
 		i2c_err(&pdev->dev, "failed to add bus to i2c core\n");

@@ -874,6 +874,43 @@ static struct dvb_usb_rc_key dib0700_rc_keys[] = {
 	{ 0x1d37, KEY_RECORD },
 	{ 0x1d3b, KEY_GOTO },
 	{ 0x1d3d, KEY_POWER },
+
+	/* Key codes for the Elgato EyeTV Diversity silver remote,
+	   set dvb_usb_dib0700_ir_proto=0 */
+	{ 0x4501, KEY_POWER },
+	{ 0x4502, KEY_MUTE },
+	{ 0x4503, KEY_1 },
+	{ 0x4504, KEY_2 },
+	{ 0x4505, KEY_3 },
+	{ 0x4506, KEY_4 },
+	{ 0x4507, KEY_5 },
+	{ 0x4508, KEY_6 },
+	{ 0x4509, KEY_7 },
+	{ 0x450a, KEY_8 },
+	{ 0x450b, KEY_9 },
+	{ 0x450c, KEY_LAST },
+	{ 0x450d, KEY_0 },
+	{ 0x450e, KEY_ENTER },
+	{ 0x450f, KEY_RED },
+	{ 0x4510, KEY_CHANNELUP },
+	{ 0x4511, KEY_GREEN },
+	{ 0x4512, KEY_VOLUMEDOWN },
+	{ 0x4513, KEY_OK },
+	{ 0x4514, KEY_VOLUMEUP },
+	{ 0x4515, KEY_YELLOW },
+	{ 0x4516, KEY_CHANNELDOWN },
+	{ 0x4517, KEY_BLUE },
+	{ 0x4518, KEY_LEFT }, /* Skip backwards */
+	{ 0x4519, KEY_PLAYPAUSE },
+	{ 0x451a, KEY_RIGHT }, /* Skip forward */
+	{ 0x451b, KEY_REWIND },
+	{ 0x451c, KEY_L }, /* Live */
+	{ 0x451d, KEY_FASTFORWARD },
+	{ 0x451e, KEY_STOP }, /* 'Reveal' for Teletext */
+	{ 0x451f, KEY_MENU }, /* KEY_TEXT for Teletext */
+	{ 0x4540, KEY_RECORD }, /* Font 'Size' for Teletext */
+	{ 0x4541, KEY_SCREEN }, /*  Full screen toggle, 'Hold' for Teletext */
+	{ 0x4542, KEY_SELECT }, /* Select video input, 'Select' for Teletext */
 };
 
 /* STK7700P: Hauppauge Nova-T Stick, AVerMedia Volar */
@@ -1861,6 +1898,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XPVR) },
 	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK807XP) },
 	{ USB_DEVICE(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD) },
+	{ USB_DEVICE(USB_VID_ELGATO,    USB_PID_ELGATO_EYETV_DIVERSITY) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -2173,7 +2211,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			}
 		},
 
-		.num_device_descs = 6,
+		.num_device_descs = 7,
 		.devices = {
 			{   "DiBcom STK7070PD reference design",
 				{ &dib0700_usb_id_table[17], NULL },
@@ -2199,7 +2237,11 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			{  "Sony PlayTV",
 				{ &dib0700_usb_id_table[44], NULL },
 				{ NULL },
-			}
+			},
+			{   "Elgato EyeTV Diversity",
+				{ &dib0700_usb_id_table[64], NULL },
+				{ NULL },
+			},
 		},
 		.rc_interval      = DEFAULT_RC_INTERVAL,
 		.rc_key_map       = dib0700_rc_keys,

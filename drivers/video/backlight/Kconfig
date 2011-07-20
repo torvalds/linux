@@ -275,3 +275,23 @@ config BACKLIGHT_RK29_BL
 	default y
 	help
 	  rk29 backlight support.	  
+
+config FIH_TOUCHKEY_LED
+        bool "fih touch key led driver"
+	depends on BACKLIGHT_CLASS_DEVICE && ARCH_RK29
+	help
+	  fih touch key led support.
+
+config BACKLIGHT_AW9364
+        bool "aw9364 backlight driver"
+	depends on BACKLIGHT_CLASS_DEVICE && ARCH_RK29
+	help
+	  aw9364 backlight support.	 
+
+config BUTTON_LIGHT
+        bool "rk29 button light driver"
+	depends on BACKLIGHT_CLASS_DEVICE
+	default n
+	help
+	  rk29 button light support.	  
+ 

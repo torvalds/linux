@@ -49,7 +49,7 @@ struct adc_host {
 	struct adc_request *queue[MAX_ADC_FIFO_DEPTH];
 	int queue_head;
 	int queue_tail;
-	struct mutex queue_mutex;
+	spinlock_t			lock;
 	struct adc_client *cur;
 	const struct adc_ops *ops;
 	unsigned long		private[0];

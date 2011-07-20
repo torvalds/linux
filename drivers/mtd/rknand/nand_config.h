@@ -62,6 +62,9 @@ extern void rkNand_cond_resched(void);
 
 #define COND_RESCHED() rkNand_cond_resched()//cond_resched()
 
+extern unsigned long rk_dma_mem_alloc(int size);
+extern unsigned long rk_dma_mem_free(unsigned long buf);
+
 #define PRINTF RKNAND_DEBUG
 #endif
 

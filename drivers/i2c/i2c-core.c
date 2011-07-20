@@ -772,6 +772,14 @@ static int i2c_do_del_adapter(struct device_driver *d, void *data)
 static int __unregister_client(struct device *dev, void *dummy)
 {
 	struct i2c_client *client = i2c_verify_client(dev);
+	if (client && strcmp(client->name, "dummy"))
+		i2c_unregister_device(client);
+	return 0;
+}
+
+static int __unregister_dummy(struct device *dev, void *dummy)
+{
+	struct i2c_client *client = i2c_verify_client(dev);
 	if (client)
 		i2c_unregister_device(client);
 	return 0;
@@ -820,8 +828,12 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	}
 
 	/* Detach any active clients. This can't fail, thus we do not
-	   checking the returned value. */
+	 * check the returned value. This is a two-pass process, because
+	 * we can't remove the dummy devices during the first pass: they
+	 * could have been instantiated by real devices wishing to clean
+	 * them up properly, so we give them a chance to do that first. */
 	res = device_for_each_child(&adap->dev, NULL, __unregister_client);
+	res = device_for_each_child(&adap->dev, NULL, __unregister_dummy);
 
 #ifdef CONFIG_I2C_COMPAT
 	class_compat_remove_link(i2c_adapter_compat_class, &adap->dev,
@@ -1314,6 +1326,33 @@ int i2c_master_reg8_recv(struct i2c_client *client, const char reg, char *buf, i
 }
 
 EXPORT_SYMBOL(i2c_master_reg8_recv);
+
+int i2c_master_reg8_direct_send(struct i2c_client *client, const char reg, const char *buf, int count, int scl_rate)
+{
+	return i2c_master_reg8_send(client, reg, buf, count, scl_rate);
+}
+EXPORT_SYMBOL(i2c_master_reg8_direct_send);
+
+int i2c_master_reg8_direct_recv(struct i2c_client *client, const char reg, char *buf, int count, int scl_rate)
+{
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg;
+	int ret;
+	char tx_buf[count+1];
+	
+	tx_buf[0] = reg;
+	msg.addr = client->addr;
+	msg.flags = client->flags | I2C_M_REG8_DIRECT | I2C_M_RD;
+	msg.len = count + 1;
+	msg.buf = tx_buf;
+	msg.scl_rate = scl_rate;
+	msg.udelay = client->udelay;
+
+	ret = i2c_transfer(adap, &msg, 1);
+	memcpy(buf, tx_buf + 1, count);
+	return (ret == 1) ? count : ret;
+}
+EXPORT_SYMBOL(i2c_master_reg8_direct_recv);
 
 int i2c_master_reg16_send(struct i2c_client *client, const short regs, const short *buf, int count, int scl_rate)
 {

@@ -30,6 +30,7 @@
 #include <linux/kmod.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -45,6 +46,8 @@
 #else
 #define DBG(fmt...)
 #endif
+
+#define IS_G4DA (machine_is_compatible("PowerMac3,4"))
 
 /* i2c address for tumbler */
 #define TAS_I2C_ADDR	0x34
@@ -1134,7 +1137,8 @@ static long tumbler_find_device(const char *device, const char *platform,
 		gp->inactive_val = (*base) ? 0x4 : 0x5;
 	} else {
 		const u32 *prop = NULL;
-		gp->active_state = 0;
+		gp->active_state = IS_G4DA
+				&& !strncmp(device, "keywest-gpio1", 13);
 		gp->active_val = 0x4;
 		gp->inactive_val = 0x5;
 		/* Here are some crude hacks to extract the GPIO polarity and
@@ -1311,6 +1315,9 @@ static int __devinit tumbler_init(struct snd_pmac *chip)
 				  NULL, &mix->line_detect, 0);
  	if (irq <= NO_IRQ)
 		irq = tumbler_find_device("line-output-detect",
+					  NULL, &mix->line_detect, 1);
+	if (IS_G4DA && irq <= NO_IRQ)
+		irq = tumbler_find_device("keywest-gpio16",
 					  NULL, &mix->line_detect, 1);
 	mix->lineout_irq = irq;
 

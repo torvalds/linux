@@ -57,7 +57,7 @@ NO_DMA_COHERENT ?= 1
 ENABLE_GPU_CLOCK_BY_DRIVER = 1
 
 # Set this value to 1 if you are using ARM L2 cache.
-ENABLE_ARM_L2_CACHE	= 1
+ENABLE_ARM_L2_CACHE	= 0
 
 # Set this value to 1 if you are using DOVE board.
 CONFIG_DOVE_GPU = 0

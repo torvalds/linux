@@ -43,8 +43,8 @@ arch/arm/configs/rk29_a22_defconfig
 arch/arm/mach-rk29/board-rk29-fih*
 arch/arm/configs/rk29_FIH_defconfig
 
-arch/arm/mach-rk29/board-rk29-phonesdk*
-arch/arm/configs/rk29_phonesdk_defconfig
+arch/arm/mach-rk29/board-rk29-newton*
+arch/arm/configs/rk29_newton_defconfig
 )
 
 # ---------------------------------------------------------------------------

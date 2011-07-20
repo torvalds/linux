@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -83,28 +83,32 @@
 */
 #define USE_SUPER_SAMPLING          0
 
+/* PROFILE_HAL_COUNTERS, PROFILE_HW_COUNTERS, PROFILE_SHADER_COUNTERS are not runtime configurable. */
 /*
     PROFILE_HAL_COUNTERS
 
     This define enables HAL counter profiling support.
     HW and SHADER Counter profiling depends on this.
 */
+/*
 #define PROFILE_HAL_COUNTERS        1
-
+*/
 /*
     PROFILE_HW_COUNTERS
 
     This define enables HW counter profiling support.
 */
+/*
 #define PROFILE_HW_COUNTERS         1
-
+*/
 /*
     PROFILE_SHADER_COUNTERS
 
     This define enables SHADER counter profiling support.
 */
+/*
 #define PROFILE_SHADER_COUNTERS     1
-
+*/
 /*
     COMMAND_PROCESSOR_VERSION
 
@@ -182,6 +186,7 @@
     Size of the MMU page table in bytes.  Each 4 bytes can hold 4kB worth of
     virtual data.
 */
+// dkm： 需要改为256,否则有的游戏不够
 #define gcdMMU_SIZE                 (256 << 10)
 
 /*
@@ -255,17 +260,18 @@
 #   define gcdGPU_TIMEOUT                   0
 #endif
 
-
+/* ============================== add by rockchip ===================================*/
 /*
-    gcdENABLE_AUTO_FREQ
-
-    根据GPU负荷自动调节GPU的CORE频率
+    dkm : gcdENABLE_AUTO_FREQ
+    0: 关闭自动调频
+    1: 根据GPU负荷自动调节GPU的CORE频率
+    2: 根据是否有3D应用自动调频(有3D应用在跑时高频，否则低频)
 */
-#define gcdENABLE_AUTO_FREQ                 0
+#define gcdENABLE_AUTO_FREQ                 2
 
 
 /*
-    gcdENABLE_MEM_CACHE
+    dkm : gcdENABLE_MEM_CACHE
 
     配置GPU所使用的memory是否被ARM Cache或WriteCombine住
     1: Cached
@@ -273,6 +279,58 @@
     
 */
 #define gcdENABLE_MEM_CACHE                 2
+
+
+/*
+    dkm : gcdENABLE_DELAY_EARLY_SUSPEND
+
+    在gpu_early_suspend中使用延时工作队列来执行suspend,
+    避免gpu_early_suspend过早执行导致用户线程的事情还处理干净
+    0: 使用正常的early_suspend功能
+    1: 使用delay的early_suspend功能
+    2: 关闭early_suspend功能
+*/
+#define gcdENABLE_DELAY_EARLY_SUSPEND       2
+
+
+/*
+    dkm : gcdENABLE_LONG_IDLE_POWEROFF
+
+    长时间IDLE后进入PowerOff, 该功能开启后需要把EarlySuspend功能关掉
+    这样可以使某些不使用GPU的场景的功耗进一步降低，如视频播放时，一级待机时，
+    或长时间不操作界面但还未进入一级待机
+*/
+#define gcdENABLE_LONG_IDLE_POWEROFF        1
+
+
+/*
+    dkm : gcdPAGE_ALLOC_LIMIT & gcdPAGE_ALLOC_LIMIT_SIZE
+
+    限制gckOS_AllocatePagedMemoryEx向系统申请page的大小，避免系统page不足时会导致系统卡顿
+    gcdPAGE_ALLOC_LIMIT         限制Page申请
+    gcdPAGE_ALLOC_LIMIT_SIZE    限制Page申请的大小,单位为M
+*/
+#define gcdPAGE_ALLOC_LIMIT                 1
+#define gcdPAGE_ALLOC_LIMIT_SIZE            0
+
+
+/*
+    dkm : gcdOPTIMIZE_HEAP_SAMESIZE
+
+    optimize for heap alloc when alloc the same size 
+*/
+#define gcdOPTIMIZE_HEAP_SAMESIZE           1
+
+
+/*
+    dkm : gcdkUSE_MAPED_NONPAGE_CACHE
+
+    use cache to avoid alloc & map & free frequently for non page memory.
+    gcdkUSE_MAPED_NONPAGE_CACHE : 
+        0  - no use cache 
+        m  - The maximum number of cache unit
+*/
+#define gcdkUSE_MAPED_NONPAGE_CACHE         100
 
 #endif /* __gc_hal_options_h_ */
 

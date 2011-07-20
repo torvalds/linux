@@ -4,13 +4,13 @@
 #  
 #    The material in this file is confidential and contains trade secrets
 #    of Vivante Corporation. This is proprietary information owned by
-#    Vivante Corporation. No part of this work may be disclosed,
-#    reproduced, copied, transmitted, or used in any way for any purpose,
+#    Vivante Corporation. No part of this work may be disclosed, 
+#    reproduced, copied, transmitted, or used in any way for any purpose, 
 #    without the express written permission of Vivante Corporation.
 #  
 ##############################################################################
 #  
-#    Auto-generated file on 1/7/2011. Do not edit!!!
+#    Auto-generated file on 5/20/2011. Do not edit!!!
 #  
 ##############################################################################
 
@@ -111,9 +111,11 @@ EXPORTS
 
 	; gcoHAL
 	gcoHAL_Construct
+	gcoHAL_ConstructGlobal
 	gcoHAL_Destroy
 	gcoHAL_IsFeatureAvailable
 	gcoHAL_QueryChipIdentity
+	gcoHAL_QueryChipMinorFeatures
 	gcoHAL_Call
 	gcoHAL_QueryVideoMemory
 	gcoHAL_MapMemory
@@ -152,6 +154,10 @@ EXPORTS
 	gcoDUMP_DumpData
 	gcoDUMP_Delete
 	gcfDump
+	gcfDumpApi
+	gcfDumpArray
+	gcfDumpArrayToken
+	gcfDumpApiData
 
 	; gcoSURF
 	gcoSURF_Construct
@@ -187,6 +193,7 @@ EXPORTS
 	gcoSURF_SetOrientation
 	gcoSURF_QueryOrientation
 	gcoSURF_QueryReferenceCount
+	gcoSURF_ResetHal
 
 !IFNDEF VIVANTE_NO_3D
 	gcoSURF_IsTileStatusSupported
@@ -280,7 +287,9 @@ EXPORTS
 	gco2D_ProfileEngine
 	gco2D_GetMaximumDataCount
 	gco2D_EnableDither
-
+    gco2D_SetGenericSource;
+    gco2D_SetGenericTarget;
+    gco2D_FilterBlitEx2;
 
 !IFNDEF VIVANTE_NO_3D
 	gco3D_Construct
@@ -359,6 +368,9 @@ EXPORTS
 	gco3D_SetAlphaTextureFunction
 	gco3D_Semaphore
 	gco3D_SetCentroids
+	gco3D_SetWClipEnable
+	gco3D_SetWPlaneLimitF
+	gco3D_SetWPlaneLimitX	
 !ENDIF
 
 !IFNDEF VIVANTE_NO_3D

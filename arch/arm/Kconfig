@@ -18,6 +18,8 @@ config ARM
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
 	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZO
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -731,6 +733,8 @@ config ARCH_RK29
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_GIC
 	select PL330
+	select HIGHMEM
+	select ZONE_DMA
 	help
 	  Support for Rockchip RK29 soc.
 

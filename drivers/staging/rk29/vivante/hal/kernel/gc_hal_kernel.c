@@ -1,21 +1,21 @@
 /****************************************************************************
-*
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
-*
+*  
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
+*  
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*
+*  
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public License for more details.
-*
+*  
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*
+*  
 *****************************************************************************/
 
 
@@ -51,9 +51,17 @@
 */
 
 #ifdef ANDROID
+#if gcdNEW_PROFILER_FILE
+#define DEFAULT_PROFILE_FILE_NAME   "/sdcard/vprofiler.vpd"
+#else
 #define DEFAULT_PROFILE_FILE_NAME   "/sdcard/vprofiler.xml"
+#endif
+#else
+#if gcdNEW_PROFILER_FILE
+#define DEFAULT_PROFILE_FILE_NAME   "vprofiler.vpd"		/* "vpd" means "vprofile data" */
 #else
 #define DEFAULT_PROFILE_FILE_NAME   "vprofiler.xml"
+#endif
 #endif
 
 gceSTATUS
@@ -465,7 +473,8 @@ gckKERNEL_Dispatch(
                 &Interface->u.QueryChipIdentity.chipRevision,
                 &Interface->u.QueryChipIdentity.chipFeatures,
                 &Interface->u.QueryChipIdentity.chipMinorFeatures,
-                &Interface->u.QueryChipIdentity.chipMinorFeatures1));
+                &Interface->u.QueryChipIdentity.chipMinorFeatures1,
+                &Interface->u.QueryChipIdentity.chipMinorFeatures2));
 
         /* Query chip specifications. */
         gcmkONERROR(
@@ -933,6 +942,8 @@ gckKERNEL_Dispatch(
         break;
 
     case gcvHAL_DEBUG:
+// dkm : add "#if gcdDUMP_IN_KERNEL" to invalidate the code.
+#if gcdDUMP_IN_KERNEL
         /* Set debug level and zones. */
         if (Interface->u.Debug.set)
         {
@@ -946,6 +957,7 @@ gckKERNEL_Dispatch(
             /* Print a message to the debugger. */
             gcmkPRINT(Interface->u.Debug.message);
         }
+#endif
         status = gcvSTATUS_OK;
         break;
 
@@ -1243,4 +1255,3 @@ OnError:
     gcmkFOOTER();
     return status;
 }
-

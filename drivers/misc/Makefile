@@ -29,7 +29,11 @@ obj-y				+= cb710/
 obj-$(CONFIG_WL127X_RFKILL)	+= wl127x-rfkill.o
 obj-$(CONFIG_APANIC)		+= apanic.o
 obj-$(CONFIG_MTK23D)		+= mtk23d.o
+obj-$(CONFIG_FM580X)		+= fm580x.o
+obj-$(CONFIG_MU509)		+= mu509.o
 obj-$(CONFIG_STE)		+= ste.o
 obj-$(CONFIG_RK29_SUPPORT_MODEM)        += rk29_modem/
 obj-$(CONFIG_GPS_GNS7560)			+=	gps/
 obj-y += mpu3050/
+obj-$(CONFIG_RK29_NEWTON)			+=	newton.o
+

@@ -91,14 +91,14 @@ static int
 adc_enqueue_request(struct adc_host *adc, struct adc_request *req)
 {
 	int head, tail;
-
-	mutex_lock(&adc->queue_mutex);
-
+	unsigned long flags;
+	
+	spin_lock_irqsave(&adc->lock, flags);
 	head = adc->queue_head;
 	tail = adc->queue_tail;
 
 	if (adc->queue[tail]) {
-		mutex_unlock(&adc->queue_mutex);
+		spin_unlock_irqrestore(&adc->lock,flags);
 		dev_err(adc->dev, "ADC queue is full, dropping request\n");
 		return -EBUSY;
 	}
@@ -108,7 +108,7 @@ adc_enqueue_request(struct adc_host *adc, struct adc_request *req)
 		trigger_next_adc_job_if_any(adc);
 	adc->queue_tail = (tail + 1) & (MAX_ADC_FIFO_DEPTH - 1);
 
-	mutex_unlock(&adc->queue_mutex);
+	spin_unlock_irqrestore(&adc->lock,flags);
 
 	return 0;
 }
@@ -135,7 +135,7 @@ int adc_sync_read(struct adc_client *client)
 		dev_dbg(client->adc->dev, "system enter sleep\n");
 		return -1;
 	}
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req){
 		dev_err(client->adc->dev, "no memory for adc request\n");
 		return -ENOMEM;
@@ -169,6 +169,7 @@ EXPORT_SYMBOL(adc_sync_read);
 
 int adc_async_read(struct adc_client *client)
 {
+	int ret = 0;
 	struct adc_request *req = NULL;
 	
 	if(client == NULL) {
@@ -179,7 +180,7 @@ int adc_async_read(struct adc_client *client)
 		dev_dbg(client->adc->dev, "system enter sleep\n");
 		return -1;
 	}
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc(sizeof(*req), GFP_ATOMIC);
 	if (!req) {
 		dev_err(client->adc->dev, "no memory for adc request\n");
 		return -ENOMEM;
@@ -190,7 +191,11 @@ int adc_async_read(struct adc_client *client)
 	req->client = client;
 	req->status = ASYNC_READ;
 
-	return adc_enqueue_request(client->adc, req);
+	ret = adc_enqueue_request(client->adc, req);
+	if(ret < 0)
+		kfree(req);
+
+	return ret;
 }
 EXPORT_SYMBOL(adc_async_read);
 
@@ -198,11 +203,12 @@ void adc_core_irq_handle(struct adc_host *adc)
 {
 	struct adc_request *req;
 	int head, res;
-
+	spin_lock(adc->lock);
 	head = adc->queue_head;
 
 	req = adc->queue[head];
 	if (WARN_ON(!req)) {
+		spin_unlock(&adc->lock);
 		dev_err(adc->dev, "adc irq: ADC queue empty!\n");
 		return;
 	}
@@ -218,6 +224,7 @@ void adc_core_irq_handle(struct adc_host *adc)
 		kfree(req);
 		req = NULL;
 	}
+	spin_unlock(&adc->lock);
 }
 EXPORT_SYMBOL(adc_core_irq_handle);
 

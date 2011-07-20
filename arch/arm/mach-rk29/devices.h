@@ -17,11 +17,26 @@
 #define __ARCH_ARM_MACH_RK29_DEVICES_H
 
 extern struct rk29_nand_platform_data rk29_nand_data;
-
+#ifdef CONFIG_RK29_I2C0_CONTROLLER
 extern struct rk29_i2c_platform_data default_i2c0_data;
+#else
+extern struct i2c_gpio_platform_data default_i2c0_data;
+#endif
+#ifdef CONFIG_RK29_I2C1_CONTROLLER
 extern struct rk29_i2c_platform_data default_i2c1_data;
+#else
+extern struct i2c_gpio_platform_data default_i2c1_data;
+#endif
+#ifdef CONFIG_RK29_I2C2_CONTROLLER
 extern struct rk29_i2c_platform_data default_i2c2_data;
+#else
+extern struct i2c_gpio_platform_data default_i2c2_data;
+#endif
+#ifdef CONFIG_RK29_I2C3_CONTROLLER
 extern struct rk29_i2c_platform_data default_i2c3_data;
+#else
+extern struct i2c_gpio_platform_data default_i2c3_data;
+#endif
 
 extern struct platform_device rk29_device_i2c0;
 extern struct platform_device rk29_device_i2c1;
@@ -49,7 +64,7 @@ extern struct platform_device rk29_device_sdmmc0;
 extern struct platform_device rk29_device_sdmmc1;
 extern struct platform_device rk29_device_adc;
 extern struct platform_device rk29_device_vmac;
-extern struct rk29_bl_info rk29_bl_info;
+extern struct rk29_bl_info    rk29_bl_info;
 extern struct platform_device rk29_device_backlight;
 extern struct platform_device rk29_device_usb20_otg;
 extern struct platform_device rk29_device_usb20_host;
@@ -57,7 +72,10 @@ extern struct platform_device rk29_device_usb11_host;
 extern struct platform_device android_usb_device;
 extern struct usb_mass_storage_platform_data mass_storage_pdata;
 extern struct platform_device usb_mass_storage_device;
+extern struct platform_device rk29_device_rndis;
 extern struct platform_device rk29_device_vmac;
 extern struct rk29_vmac_platform_data rk29_vmac_pdata;
 extern struct platform_device rk29_device_ipp;
+extern struct platform_device rk29_device_wdt;
+
 #endif

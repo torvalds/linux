@@ -31,6 +31,7 @@ static int mXT224_remove(struct i2c_client *client);
 static int total_size = 0;
 static u8 *cfg_dmup;
 #endif
+#define VERSION_20
 
 #define local_debug //printk
 
@@ -85,11 +86,13 @@ union msg_body{
 struct message_t5{
     u8 report_id;
     union msg_body body;
+#ifndef VERSION_20	
     u8 checksum;
+#endif
 }__packed;
 
 struct mxt224_obj{
-    struct mxt224_id_info    *id_info;
+    struct mxt224_id_info     id_info;
     u8                       *table_info_byte;
     struct mxt224_table_info *table_info;
     u8                        table_size;
@@ -732,7 +735,6 @@ static int mXT224_probe(struct i2c_client *client, const struct i2c_device_id *i
     gpio_set_value(ts_data.reset_gpio, GPIO_HIGH);
     msleep(500);
 
-
     /* Try get mXT224 table size */
     
      rc = mxt224_i2c_read(client, TABLE_SIZE_ADDR, &ts_data.obj.table_size, 1);
@@ -815,7 +817,12 @@ static int mXT224_probe(struct i2c_client *client, const struct i2c_device_id *i
     mxt224_mem_dbg(cfg_dmup, info_size+total_size);
 #endif
 
- 
+
+	/* Try get mXT224 ID info */
+	 rc = mxt224_i2c_read(client, 0, &ts_data.obj.id_info, ID_INFORMATION_SIZE);
+	
+	 local_debug(KERN_INFO "%s: ID version is 0x%x.\n", __func__, ts_data.obj.id_info.version);
+
 
     /* Try get message T5 info */
     if(gpio_get_value(ts_data.int_gpio))

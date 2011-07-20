@@ -777,6 +777,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	record_root_in_trans(trans, root);
 	btrfs_set_root_last_snapshot(&root->root_item, trans->transid);
 	memcpy(new_root_item, &root->root_item, sizeof(*new_root_item));
+	btrfs_check_and_init_root_item(new_root_item);
 
 	key.objectid = objectid;
 	/* record when the snapshot was created in key.offset */

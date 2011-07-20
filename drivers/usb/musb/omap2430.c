@@ -309,6 +309,7 @@ static int musb_platform_resume(struct musb *musb)
 
 int musb_platform_exit(struct musb *musb)
 {
+	del_timer_sync(&musb_idle_timer);
 
 	omap_vbus_power(musb, 0 /*off*/, 1);
 

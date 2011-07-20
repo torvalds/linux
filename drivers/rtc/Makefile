@@ -90,3 +90,5 @@ obj-$(CONFIG_RTC_DRV_WM831X)	+= rtc-wm831x.o
 obj-$(CONFIG_RTC_DRV_WM8350)	+= rtc-wm8350.o
 obj-$(CONFIG_RTC_DRV_X1205)	+= rtc-x1205.o
 obj-$(CONFIG_RTC_HYM8563)	+= rtc-HYM8563.o
+obj-$(CONFIG_RTC_M41T66)	+= rtc-m41t66.o
+

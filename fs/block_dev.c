@@ -1205,6 +1205,7 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			if (!bdev->bd_part)
 				goto out_clear;
 
+			ret = 0;
 			if (disk->fops->open) {
 				ret = disk->fops->open(bdev, mode);
 				if (ret == -ERESTARTSYS) {
@@ -1220,9 +1221,18 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 					mutex_unlock(&bdev->bd_mutex);
 					goto restart;
 				}
-				if (ret)
-					goto out_clear;
 			}
+			/*
+			 * If the device is invalidated, rescan partition
+			 * if open succeeded or failed with -ENOMEDIUM.
+			 * The latter is necessary to prevent ghost
+			 * partitions on a removed medium.
+			 */
+			if (bdev->bd_invalidated && (!ret || ret == -ENOMEDIUM))
+				rescan_partitions(disk, bdev);
+			if (ret)
+				goto out_clear;
+
 			if (!bdev->bd_openers) {
 				bd_set_size(bdev,(loff_t)get_capacity(disk)<<9);
 				bdi = blk_get_backing_dev_info(bdev);
@@ -1230,8 +1240,6 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 					bdi = &default_backing_dev_info;
 				bdev->bd_inode->i_data.backing_dev_info = bdi;
 			}
-			if (bdev->bd_invalidated)
-				rescan_partitions(disk, bdev);
 		} else {
 			struct block_device *whole;
 			whole = bdget_disk(disk, 0);
@@ -1258,13 +1266,14 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 		put_disk(disk);
 		disk = NULL;
 		if (bdev->bd_contains == bdev) {
-			if (bdev->bd_disk->fops->open) {
+			ret = 0;
+			if (bdev->bd_disk->fops->open)
 				ret = bdev->bd_disk->fops->open(bdev, mode);
-				if (ret)
-					goto out_unlock_bdev;
-			}
-			if (bdev->bd_invalidated)
+			/* the same as first opener case, read comment there */
+			if (bdev->bd_invalidated && (!ret || ret == -ENOMEDIUM))
 				rescan_partitions(bdev->bd_disk, bdev);
+			if (ret)
+				goto out_unlock_bdev;
 		}
 	}
 	bdev->bd_openers++;
@@ -1471,15 +1480,23 @@ static const struct address_space_operations def_blk_aops = {
 ssize_t mydo_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
 {
     unsigned long buf_addr = (unsigned long)buf;
-    if(memcmp(filp->f_mapping->host->i_bdev->bd_disk->disk_name, "mtdblock", 8) == 0 &&(buf_addr >= 0xc0000000))// kernel mem is usb tran
+    if((memcmp(filp->f_mapping->host->i_bdev->bd_disk->disk_name, "mtdblock", 8) == 0) &&(buf_addr >= 0xc0000000))// kernel mem is usb tran &&(buf_addr >= 0xc0000000)
     {
         struct mtd_blktrans_dev *dev;
         struct mtd_blktrans_ops *tr;
+        struct mtd_info *mtd;
+        
         dev = (filp->f_mapping->host->i_bdev->bd_disk->private_data);
+        mtd = dev->mtd;
+        /*if((buf_addr < 0xc0000000)&&(mtd->name[0]=='u' &&mtd->name[3]=='r' && mtd->name[4]==0)) // user part 
+        {
+            return(do_sync_read(filp, buf,len,ppos));
+        }*/
         tr = dev->tr;
-
 		if (!tr->readsect)
-			return 0;
+		{
+			return(do_sync_read(filp, buf,len,ppos));
+	    }
         //printk("mydo_sync_read buf = 0x%lx LBA = 0x%lx len = 0x%x \n",buf, (unsigned long)(*ppos>>9),len);
         if(tr->readsect(dev, (unsigned long)(*ppos>>9), len>>9, buf))
         {
@@ -1498,11 +1515,20 @@ ssize_t mydo_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *
 ssize_t mydo_sync_write(struct file *filp, const char __user *buf, size_t len, loff_t *ppos)
 {
     unsigned long buf_addr = (unsigned long)buf;
-    if(memcmp(filp->f_mapping->host->i_bdev->bd_disk->disk_name, "mtdblock", 8) == 0 &&(buf_addr >= 0xc0000000))// kernel mem is usb tran
+    if((memcmp(filp->f_mapping->host->i_bdev->bd_disk->disk_name, "mtdblock", 8) == 0) &&(buf_addr >= 0xc0000000))// kernel mem is usb tran &&(buf_addr >= 0xc0000000)
     {
         struct mtd_blktrans_dev *dev;
         struct mtd_blktrans_ops *tr;
+        struct mtd_info *mtd;
+        
         dev = (filp->f_mapping->host->i_bdev->bd_disk->private_data);
+        
+        mtd = dev->mtd;
+        /*if((buf_addr < 0xc0000000)&&(mtd->name[0]=='u' &&mtd->name[3]=='r' && mtd->name[4]==0))
+        {
+            return(do_sync_write(filp, buf,len,ppos));
+        }*/
+
         tr = dev->tr;
 
 		if (!tr->writesect)

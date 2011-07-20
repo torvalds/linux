@@ -261,9 +261,11 @@ struct wm831x {
 	void *control_data;
 
 	int irq;  /* Our chip IRQ */
+	int flag_suspend;
+	spinlock_t		flag_lock;
 	struct mutex irq_lock;
 	struct workqueue_struct *irq_wq;
-	struct work_struct irq_work;
+	struct delayed_work irq_work;
 	struct wake_lock 	irq_wake;
 	struct wake_lock 	handle_wake;
 #if WM831X_IRQ_LIST
@@ -344,6 +346,8 @@ void wm831x_device_exit(struct wm831x *wm831x);
 int wm831x_device_suspend(struct wm831x *wm831x);
 int wm831x_device_resume(struct wm831x *wm831x);
 int wm831x_device_shutdown(struct wm831x *wm831x);
+int wm831x_read_usb(struct wm831x *wm831x);
+int wm831x_device_restart(struct wm831x *wm831x);
 int wm831x_irq_init(struct wm831x *wm831x, int irq);
 void wm831x_irq_exit(struct wm831x *wm831x);
 

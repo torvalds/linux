@@ -34,7 +34,7 @@
 #include "ak8975.h"
 
 #define AKM8975_DEBUG		1
-#define AKM8975_DEBUG_MSG	1
+#define AKM8975_DEBUG_MSG	0
 #define AKM8975_DEBUG_FUNC	0
 #define AKM8975_DEBUG_DATA	0
 #define MAX_FAILURE_COUNT	3
@@ -179,6 +179,8 @@ static int AKECS_SetMode_SngMeasure(void)
 {
 	char buffer[2];
 	
+	AKMDBG("enter %s\n", __func__);
+	
 	atomic_set(&data_ready, 0);
 	
 	/* Set measure mode */
@@ -192,6 +194,7 @@ static int AKECS_SetMode_SngMeasure(void)
 static int AKECS_SetMode_SelfTest(void)
 {
 	char buffer[2];
+	AKMDBG("enter %s\n", __func__);
 	
 	/* Set measure mode */
 	buffer[0] = AK8975_REG_CNTL;
@@ -203,6 +206,7 @@ static int AKECS_SetMode_SelfTest(void)
 static int AKECS_SetMode_FUSEAccess(void)
 {
 	char buffer[2];
+	AKMDBG("enter %s\n", __func__);
 	
 	/* Set measure mode */
 	buffer[0] = AK8975_REG_CNTL;
@@ -214,6 +218,7 @@ static int AKECS_SetMode_FUSEAccess(void)
 static int AKECS_SetMode_PowerDown(void)
 {
 	char buffer[2];
+	AKMDBG("enter %s\n", __func__);
 	
 	/* Set powerdown mode */
 	buffer[0] = AK8975_REG_CNTL;
@@ -225,6 +230,7 @@ static int AKECS_SetMode_PowerDown(void)
 static int AKECS_SetMode(char mode)
 {
 	int ret;
+	AKMDBG("enter %s\n", __func__);
 	
 	switch (mode) {
 		case AK8975_MODE_SNG_MEASURE:
@@ -253,6 +259,7 @@ static int AKECS_CheckDevice(void)
 {
 	char buffer[2];
 	int ret;
+	AKMDBG("enter %s\n", __func__);
 	
 	/* Set measure mode */
 	buffer[0] = AK8975_REG_WIA;
@@ -279,6 +286,7 @@ static int AKECS_GetData(char *rbuf, int size)
 		return -EINVAL;
 	}
 #endif
+	AKMDBG("enter %s\n", __func__);
 	wait_event_interruptible_timeout(data_ready_wq,
 									 atomic_read(&data_ready), 1000);
 	if (!atomic_read(&data_ready)) {
@@ -321,6 +329,7 @@ static void AKECS_SetYPR(short *rbuf)
 	printk(KERN_INFO "  Geomagnetism[LSB]: %6d,%6d,%6d\n",
 	       rbuf[9], rbuf[10], rbuf[11]);
 #endif
+	AKMDBG("enter %s\n", __func__);
 	/* Report magnetic sensor information */
 	if (atomic_read(&m_flag)) {
 		input_report_abs(data->input_dev, ABS_RX, rbuf[0]);
@@ -349,18 +358,21 @@ static void AKECS_SetYPR(short *rbuf)
 
 static int AKECS_GetOpenStatus(void)
 {
+	AKMDBG("enter %s\n", __func__);
 	wait_event_interruptible(open_wq, (atomic_read(&open_flag) != 0));
 	return atomic_read(&open_flag);
 }
 
 static int AKECS_GetCloseStatus(void)
 {
+	AKMDBG("enter %s\n", __func__);
 	wait_event_interruptible(open_wq, (atomic_read(&open_flag) <= 0));
 	return atomic_read(&open_flag);
 }
 
 static void AKECS_CloseDone(void)
 {
+	AKMDBG("enter %s\n", __func__);
 	atomic_set(&m_flag, 1);
 	atomic_set(&a_flag, 1);
 	atomic_set(&mv_flag, 1);
@@ -398,6 +410,7 @@ akm_aot_ioctl(struct inode *inode, struct file *file,
 {
 	void __user *argp = (void __user *)arg;
 	short flag;
+	AKMDBG("enter %s\n", __func__);
 	
 	switch (cmd) {
 		case ECS_IOCTL_APP_SET_MFLAG:
@@ -487,6 +500,7 @@ akmd_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		   unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
+	AKMDBG("enter %s\n", __func__);
 	
 	/* NOTE: In this function the size of "char" should be 1-byte. */
 	char sData[SENSOR_DATA_SIZE];/* for GETDATA */
@@ -629,6 +643,7 @@ static void akm8975_work_func(struct work_struct *work)
 {
 	char buffer[SENSOR_DATA_SIZE];
 	int ret;
+	AKMDBG("enter %s\n", __func__);
 	
 	memset(buffer, 0, SENSOR_DATA_SIZE);
 	buffer[0] = AK8975_REG_ST1;
@@ -658,8 +673,9 @@ static irqreturn_t akm8975_interrupt(int irq, void *dev_id)
 {
 	struct akm8975_data *data = dev_id;
 	AKMFUNC("akm8975_interrupt");
-	disable_irq(this_client->irq);
+	disable_irq_nosync(this_client->irq);
 	schedule_work(&data->work);
+	AKMDBG("exit %s\n", __func__);
 	return IRQ_HANDLED;
 }
 
@@ -751,13 +767,22 @@ int akm8975_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		dev_dbg(&akm->client->dev, "no IRQ?\n");
 		return -ENODEV;
 	}else{
+		AKMDBG("gpio %d to irq %d\n", akm->eoc_irq, gpio_to_irq(akm->eoc_irq));
 		akm->eoc_irq = gpio_to_irq(akm->eoc_irq);
 	} 
 	err = gpio_request(client->irq, "ak_8975"); 
 	if (err < 0) { 
 		dev_err(&client->dev, "failed to request GPIO, error %d\n", err); 
 		goto exit3; 
-	} 
+	}
+
+	err = gpio_direction_input(client->irq);
+	if (err) {
+		dev_err(&client->dev, "failed to set GPIO direction, error %d\n", err); 
+		goto exit3; 
+	}
+	gpio_pull_updown(client->irq, GPIOPullDown);
+	
 	/* IRQ */
 	err = request_irq(akm->eoc_irq, akm8975_interrupt, IRQ_TYPE_EDGE_RISING,
 					  "akm8975_DRDY", akm);
@@ -765,6 +790,8 @@ int akm8975_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		printk(KERN_ERR "AKM8975 akm8975_probe: request irq failed\n");
 		goto exit4;
 	}
+	
+	client->irq = akm->eoc_irq;
 	
 	/* Declare input device */
 	akm->input_dev = input_allocate_device();

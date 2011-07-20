@@ -1,21 +1,21 @@
 /****************************************************************************
-*
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
-*
+*  
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
+*  
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*
+*  
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public License for more details.
-*
+*  
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*
+*  
 *****************************************************************************/
 
 
@@ -27,7 +27,7 @@
 
 /*
     gcdBUFFERED_OUTPUT
-
+    
     When set to non-zero, all output is collected into a buffer with the
     specified size.  Once the buffer gets full, or the token "$$FLUSH$$" has
     been received, the debug buffer will be printed to the console.
@@ -55,17 +55,17 @@ OutputDebugString(
     gctINT n, i;
 
     n = (String != gcvNULL) ? strlen(String) + 1 : 0;
-
+    
     if ((n == 0) || (outputBufferIndex + n > gcmSIZEOF(outputBuffer)))
     {
         for (i = 0; i < outputBufferIndex; i += strlen(outputBuffer + i) + 1)
         {
             printk(outputBuffer + i);
         }
-
+        
         outputBufferIndex = 0;
     }
-
+    
     if (n > 0)
     {
         memcpy(outputBuffer + outputBufferIndex, String, n);
@@ -87,7 +87,7 @@ _Print(
 {
     char buffer[1024];
     int i, n;
-
+    
     if (strcmp(Message, "$$FLUSH$$") == 0)
     {
     	spin_lock(&_lock);
@@ -97,22 +97,22 @@ _Print(
         spin_unlock(&_lock);
         return;
     }
-
+    
     if (strncmp(Message, "--", 2) == 0)
     {
         if (_indent == 0)
         {
             printk("ERROR: _indent=0\n");
         }
-
+        
         _indent -= 2;
     }
-
+    
     for (i = 0; i < _indent; ++i)
     {
         buffer[i] = ' ';
     }
-
+    
     /* Print message to buffer. */
     n = vsnprintf(buffer + i, sizeof(buffer) - i, Message, Arguments);
     if ((n <= 0) || (buffer[i + n - 1] != '\n'))
@@ -127,7 +127,7 @@ _Print(
     	OutputDebugString(buffer);
     }
     spin_unlock(&_lock);
-
+    
     if (strncmp(Message, "++", 2) == 0)
     {
         _indent += 2;
@@ -325,7 +325,7 @@ gckOS_DebugFatal(
 **      Nothing.
 */
 
-void
+void 
 gckOS_SetDebugLevel(
     IN gctUINT32 Level
     )
@@ -348,7 +348,7 @@ gckOS_SetDebugLevel(
 **
 **      Nothing.
 */
-void
+void 
 gckOS_SetDebugZone(
     IN gctUINT32 Zone
     )
@@ -375,7 +375,7 @@ gckOS_SetDebugZone(
 **      Nothing.
 */
 
-void
+void 
 gckOS_SetDebugLevelZone(
     IN gctUINT32 Level,
     IN gctUINT32 Zone
@@ -405,7 +405,7 @@ gckOS_SetDebugLevelZone(
 **      Nothing.
 */
 
-void
+void 
 gckOS_SetDebugZones(
     IN gctUINT32 Zones,
     IN gctBOOL Enable
@@ -446,4 +446,3 @@ gckOS_Verify(
 {
     _lastError = Status;
 }
-

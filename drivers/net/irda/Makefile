@@ -37,6 +37,9 @@ obj-$(CONFIG_EP7211_DONGLE)	+= ep7211-sir.o
 obj-$(CONFIG_KINGSUN_DONGLE)	+= kingsun-sir.o
 obj-$(CONFIG_KSDAZZLE_DONGLE)	+= ksdazzle-sir.o
 obj-$(CONFIG_KS959_DONGLE)    	+= ks959-sir.o
+obj-$(CONFIG_RK_IRDA_UART)           += ir_serial.o
+obj-$(CONFIG_RK_IRDA_NET)           += rk29_ir.o
+obj-$(CONFIG_BU92725GUW)        += bu92725guw.o
 
 # The SIR helper module
 sir-dev-objs := sir_dev.o sir_dongle.o

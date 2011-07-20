@@ -69,6 +69,8 @@
 #include "dwc_otg_pcd.h"
 #include "dwc_otg_hcd.h"
 
+#include <mach/cru.h>
+
 //#define DWC_DRIVER_VERSION	"2.60a 22-NOV-2006"
 //#define DWC_DRIVER_VERSION	"2.70 2009-12-31"
 #define DWC_DRIVER_VERSION	"3.00 2010-12-12 rockchip"
@@ -161,7 +163,7 @@ static dwc_otg_core_params_t host11_module_params = {
 	.dma_enable = -1,
 	.dma_burst_size = -1,
 	.speed = -1,
-	.host_support_fs_ls_low_power = -1,
+	.host_support_fs_ls_low_power = 1,
 	.host_ls_low_power_phy_clk = -1,
 	.enable_dynamic_fifo = -1,
 	.data_fifo_size = -1,
@@ -330,7 +332,222 @@ static ssize_t dbg_level_store(struct device_driver *_drv, const char *_buf,
 		return _count;
 }
 static DRIVER_ATTR(debuglevel, S_IRUGO|S_IWUSR, dbg_level_show, dbg_level_store);
+#ifdef CONFIG_USB
 
+extern struct usb_hub *g_root_hub20;
+#ifdef DWC_BOTH_HOST_SLAVE
+extern void hcd_start( dwc_otg_core_if_t *_core_if );
+
+extern int rk28_usb_suspend( int exitsuspend );
+extern void hub_disconnect_device(struct usb_hub *hub);
+
+static ssize_t force_usb_mode_show(struct device_driver *_drv, char *_buf)
+{
+    dwc_otg_device_t *otg_dev = g_otgdev;
+    dwc_otg_core_if_t *core_if = otg_dev->core_if;
+#if 1
+    return sprintf (_buf, "%d\n", core_if->usb_mode);
+#else
+    dwc_otg_device_t *otg_dev = lm_get_drvdata(g_lmdev);
+    dwc_otg_core_if_t *core_if = otg_dev->core_if;
+    gotgctl_data_t    gctrl;
+    gctrl.d32 = dwc_read_reg32( &core_if->core_global_regs->gotgctl );
+    printk("OTGCTL=0x%08X\n", gctrl.d32);
+
+    if(g_usb_mode == USB_NORMAL_MODE)
+        return sprintf (_buf, "Current usb mode: Normal Mode\n");
+    else if(g_usb_mode == FORCE_HOST_MODE)
+        return sprintf (_buf, "Current usb mode: Force Host\n");
+    else if(g_usb_mode == FORCE_DEVICE_MODE)
+        return sprintf (_buf, "Current usb mode: Force Device\n");
+    else
+        return sprintf (_buf, "Current usb mode: Unknown\n");
+#endif        
+}
+
+void dwc_otg_force_host(dwc_otg_core_if_t *core_if)
+{
+    dwc_otg_device_t *otg_dev = g_otgdev;
+    dctl_data_t dctl = {.d32=0};
+    if(core_if->op_state == A_HOST)
+    {
+    	printk("dwc_otg_force_host,already in A_HOST mode,everest\n");
+    	return;
+    }
+	if((otg_dev->pcd)&&(otg_dev->pcd->phy_suspend == 1))
+	{
+		rk28_usb_suspend( 1 );
+	}
+    del_timer(&otg_dev->pcd->check_vbus_timer);
+    // force disconnect 
+    /* soft disconnect */
+    dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
+    dctl.b.sftdiscon = 1;
+    dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+    
+    if (core_if->pcd_cb && core_if->pcd_cb->stop ) {
+            core_if->pcd_cb->stop( core_if->pcd_cb->p );
+    }
+    
+    //core_if->op_state = A_HOST;
+    /*
+     * Initialize the Core for Host mode.
+     */
+	dwc_otg_core_init(core_if);
+	dwc_otg_enable_global_interrupts(core_if);
+    hcd_start( core_if );
+    
+}
+void dwc_otg_force_device(dwc_otg_core_if_t *core_if)
+{
+    dwc_otg_device_t *otg_dev = g_otgdev;
+    dwc_otg_disable_global_interrupts( core_if );
+    if (core_if->hcd_cb && core_if->hcd_cb->stop) {
+    	core_if->hcd_cb->stop( core_if->hcd_cb->p );
+    }
+    if(core_if->op_state == B_PERIPHERAL)
+    {
+    	printk("dwc_otg_force_device,already in B_PERIPHERAL,everest\n");
+    	return;
+    }
+	hub_disconnect_device(g_root_hub20);
+    otg_dev->core_if->op_state = B_PERIPHERAL;
+	/* Reset the Controller */
+	dwc_otg_core_reset( core_if );
+    //otg_dev->pcd->phy_suspend = 1;
+    otg_dev->pcd->vbus_status = 0;
+    dwc_otg_pcd_start_vbus_timer( otg_dev->pcd );
+	
+}
+static void dwc_otg_set_gusbcfg(dwc_otg_core_if_t *core_if, int mode)
+{
+	gusbcfg_data_t usbcfg = { .d32 = 0 };
+	
+    usbcfg.d32 = dwc_read_reg32( &core_if->core_global_regs->gusbcfg);
+    switch(mode)
+    {
+    case USB_MODE_FORCE_HOST:
+        usbcfg.b.force_hst_mode = 1;
+        usbcfg.b.force_dev_mode = 0;
+        break;
+    case USB_MODE_FORCE_DEVICE:
+        usbcfg.b.force_hst_mode = 0;
+        usbcfg.b.force_dev_mode = 1;
+        break;
+    case USB_MODE_NORMAL:
+        usbcfg.b.force_hst_mode = 0;
+        usbcfg.b.force_dev_mode = 0;
+        break;
+    }
+    dwc_write_reg32( &core_if->core_global_regs->gusbcfg, usbcfg.d32 );
+}
+
+static ssize_t force_usb_mode_store(struct device_driver *_drv, const char *_buf, 
+			  size_t _count ) 
+{
+    int new_mode = simple_strtoul(_buf, NULL, 16);
+    dwc_otg_device_t *otg_dev = g_otgdev;
+    dwc_otg_core_if_t *core_if = otg_dev->core_if;
+    DWC_PRINT("%s %d->%d\n",__func__, core_if->usb_mode, new_mode);
+    if(core_if->usb_mode == new_mode)
+    {
+    	return _count;
+    }
+
+	switch(new_mode)
+	{
+		case USB_MODE_FORCE_HOST:
+			if(USB_MODE_FORCE_DEVICE == core_if->usb_mode)
+			{/* device-->host */
+				core_if->usb_mode = new_mode;
+				dwc_otg_force_host(core_if);
+			}
+			else if(USB_MODE_NORMAL == core_if->usb_mode)
+			{
+				core_if->usb_mode = new_mode;
+				if(dwc_otg_is_host_mode(core_if))
+				{
+					dwc_otg_set_gusbcfg(core_if, new_mode);
+				}
+				else
+				{
+					dwc_otg_force_host(core_if);
+				}
+			}
+			else
+			    core_if->usb_mode = new_mode;
+			break;
+		case USB_MODE_FORCE_DEVICE:
+			if(USB_MODE_FORCE_HOST == core_if->usb_mode)
+			{
+				core_if->usb_mode = new_mode;
+				dwc_otg_force_device(core_if);
+			}
+			else if(USB_MODE_NORMAL == core_if->usb_mode)
+			{
+				core_if->usb_mode = new_mode;
+				if(dwc_otg_is_device_mode(core_if))
+				{
+					dwc_otg_set_gusbcfg(core_if, new_mode);
+				}
+				else
+				{
+					dwc_otg_force_device(core_if);
+				}
+			}
+			break;
+		case USB_MODE_NORMAL:
+			#if 1
+			if(USB_MODE_FORCE_DEVICE == core_if->usb_mode)
+			{
+				core_if->usb_mode = new_mode;
+				if((otg_dev->pcd)&&(otg_dev->pcd->phy_suspend == 1))
+				{
+					rk28_usb_suspend( 1 );
+				}
+				del_timer(&otg_dev->pcd->check_vbus_timer);
+				dwc_otg_set_gusbcfg(core_if, new_mode);
+				msleep(50);
+				if(dwc_otg_is_host_mode(core_if))
+				{
+					dwc_otg_force_host(core_if);
+				}
+				else
+				{
+					dwc_otg_pcd_start_vbus_timer( otg_dev->pcd );
+				}
+				//mdelay(10);
+				//core_if->usb_mode = new_mode;
+				//if(!dwc_otg_connid(core_if))
+				//	dwc_otg_force_host(core_if);
+			}
+			else if(USB_MODE_FORCE_HOST == core_if->usb_mode)
+			{
+				if((otg_dev->pcd)&&(otg_dev->pcd->phy_suspend == 1))
+				{
+					rk28_usb_suspend( 1 );
+				}
+				core_if->usb_mode = new_mode;
+				dwc_otg_set_gusbcfg(core_if, new_mode);
+				msleep(100);
+				if(dwc_otg_is_device_mode(core_if))
+				{
+					dwc_otg_force_device(core_if);
+				}
+				//if(dwc_otg_connid(core_if))
+				//	hub_disconnect_device();
+				//core_if->usb_mode = new_mode;
+				//	dwc_otg_force_device(core_if);
+			}
+			#endif
+			break;
+		default:
+			break;
+	}	
+	return _count;	
+}
+static DRIVER_ATTR(force_usb_mode, 0666/*S_IRUGO|S_IWUSR*/, force_usb_mode_show, force_usb_mode_store);
+#endif
 static ssize_t dwc_otg_enable_show( struct device *_dev, 
 								struct device_attribute *attr, char *buf)
 {
@@ -385,10 +602,10 @@ static ssize_t dwc_otg_enable_store( struct device *_dev,
     return count;
 }
 static DEVICE_ATTR(enable, S_IRUGO|S_IWUSR, dwc_otg_enable_show, dwc_otg_enable_store);
-
+#endif
 static ssize_t dwc_otg_conn_en_show(struct device_driver *_drv, char *_buf)
 {
-#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
     dwc_otg_device_t *otg_dev = g_otgdev;
     dwc_otg_pcd_t *_pcd = otg_dev->pcd;
     return sprintf (_buf, "%d\n", _pcd->conn_en);
@@ -400,7 +617,7 @@ static ssize_t dwc_otg_conn_en_show(struct device_driver *_drv, char *_buf)
 static ssize_t dwc_otg_conn_en_store(struct device_driver *_drv, const char *_buf,
 				     size_t _count)
 {
-#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
     int enable = simple_strtoul(_buf, NULL, 10);
     dwc_otg_device_t *otg_dev = g_otgdev;
     dwc_otg_pcd_t *_pcd = otg_dev->pcd;
@@ -411,7 +628,7 @@ static ssize_t dwc_otg_conn_en_store(struct device_driver *_drv, const char *_bu
     return _count;
 }
 static DRIVER_ATTR(dwc_otg_conn_en, S_IRUGO|S_IWUSR, dwc_otg_conn_en_show, dwc_otg_conn_en_store);
-#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
 static ssize_t vbus_status_show(struct device_driver *_drv, char *_buf)
 {
     dwc_otg_device_t *otg_dev = g_otgdev;
@@ -420,6 +637,51 @@ static ssize_t vbus_status_show(struct device_driver *_drv, char *_buf)
 }
 static DRIVER_ATTR(vbus_status, S_IRUGO|S_IWUSR, vbus_status_show, NULL);
 #endif
+volatile depctl_data_t depctl_ep0 = {.d32 = 0};
+volatile depctl_data_t depctl_ep2 = {.d32 = 0};
+volatile depctl_data_t depctl_ep4 = {.d32 = 0};
+void dwc_otg_epout_save(void)
+{
+    dwc_otg_device_t *otg_dev = g_otgdev;
+	dwc_otg_dev_if_t *dev_if = otg_dev->core_if->dev_if;
+    volatile depctl_data_t depctl = {.d32 = 0};
+    volatile grstctl_t grstctl = {.d32 = 0};
+    grstctl.d32 = dwc_read_reg32(&otg_dev->core_if->core_global_regs->grstctl);
+
+    while(grstctl.b.ahbidle != 1)
+    {
+        grstctl.d32 = dwc_read_reg32(&otg_dev->core_if->core_global_regs->grstctl);
+    }
+    depctl_ep0.d32 = dwc_read_reg32(&dev_if->out_ep_regs[0]->doepctl);
+    depctl.d32 = depctl_ep0.d32;
+    if(depctl.b.epena)
+    {
+        depctl.b.epena = 0;
+        dwc_write_reg32(&dev_if->out_ep_regs[0]->doepctl, depctl.d32);
+    }
+    depctl_ep2.d32 = dwc_read_reg32(&dev_if->out_ep_regs[2]->doepctl);
+    depctl.d32 = depctl_ep2.d32;
+    if(depctl.b.epena)
+    {
+        depctl.b.epena = 0;
+        dwc_write_reg32(&dev_if->out_ep_regs[2]->doepctl, depctl.d32);
+    }
+    depctl_ep4.d32 = dwc_read_reg32(&dev_if->out_ep_regs[4]->doepctl);
+    depctl.d32 = depctl_ep4.d32;
+    if(depctl.b.epena)
+    {
+        depctl.b.epena = 0;
+        dwc_write_reg32(&dev_if->out_ep_regs[4]->doepctl, depctl.d32);
+    }
+}
+void dwc_otg_epout_restore(void)
+{
+    dwc_otg_device_t *otg_dev = g_otgdev;
+	dwc_otg_dev_if_t *dev_if = otg_dev->core_if->dev_if;
+    dwc_write_reg32(&dev_if->out_ep_regs[0]->doepctl, depctl_ep0.d32);
+    dwc_write_reg32(&dev_if->out_ep_regs[2]->doepctl, depctl_ep2.d32);
+    dwc_write_reg32(&dev_if->out_ep_regs[4]->doepctl, depctl_ep4.d32);
+}
 
 /**
  * This function is called during module intialization to verify that
@@ -856,14 +1118,14 @@ static int dwc_otg_driver_remove(struct platform_device *pdev)
 		free_irq( platform_get_irq(to_platform_device(dev),0), otg_dev );
 	}
 
-#ifdef CONFIG_DWC_OTG_HOST_ONLY
+#ifndef CONFIG_DWC_OTG_DEVICE_ONLY
 	if (otg_dev->hcd != NULL) 
 	{
 		dwc_otg_hcd_remove(dev);
 	}
 #endif
 
-#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
 	if (otg_dev->pcd != NULL) 
 	{
 		dwc_otg_pcd_remove(dev);
@@ -996,7 +1258,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
     dwc_modify_reg32((uint32_t *)(otgreg+0xc),0x20000000,0x20000000);
 	dwc_write_reg32((uint32_t *)(otgreg+0x440), 0x1000);
     #endif
-	DWC_PRINT("dwc_otg_driver_probe,everest\n");
 
 	dwc_otg_device = kmalloc(sizeof(dwc_otg_device_t), GFP_KERNEL);
 	
@@ -1009,6 +1270,15 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
 	dwc_otg_device->reg_offset = 0xFFFFFFFF;
+	
+	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, true);
+	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, true);
+	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, true);
+    udelay(1);
+	
+	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, false);
+	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, false);
+	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, false);
 	
     busclk = clk_get(NULL, "hclk_usb_peri");
     if (IS_ERR(busclk)) {
@@ -1119,7 +1389,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	 * Create Device Attributes in sysfs
 	 */	 
 	dwc_otg_attr_create(dev);
-#ifdef CONFIG_DWC_OTG_HOST_ONLY
+#ifndef CONFIG_DWC_OTG_DEVICE_ONLY
 	retval |= device_create_file(dev, &dev_attr_enable);
 #endif
 
@@ -1154,8 +1424,18 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_DWC_OTG_DEVICE_ONLY
         dwc_otg_device->core_if->usb_mode = USB_MODE_FORCE_DEVICE;
-#else
+#else 
+#ifdef CONFIG_DWC_OTG_HOST_ONLY
         dwc_otg_device->core_if->usb_mode = USB_MODE_FORCE_HOST;
+#else
+        
+#ifdef CONFIG_DWC_OTG_DEFAULT_HOST
+        dwc_otg_device->core_if->usb_mode = USB_MODE_FORCE_HOST;
+#else 
+        dwc_otg_device->core_if->usb_mode = USB_MODE_NORMAL;
+#endif
+
+#endif
 #endif
 
 	/*
@@ -1165,7 +1445,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 
 /* Initialize the bus state.  If the core is in Device Mode
  * HALT the USB bus and return. */
-#ifdef CONFIG_DWC_OTG_HOST_ONLY
+#ifndef CONFIG_DWC_OTG_DEVICE_ONLY
     USB_IOMUX_INIT(GPIO4A5_OTG0DRVVBUS_NAME, GPIO4L_OTG0_DRV_VBUS);
 	/*
 	 * Initialize the HCD
@@ -1178,7 +1458,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 		goto fail;
 	}
 #endif
-#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
 	/*
 	 * Initialize the PCD
 	 */
@@ -1197,15 +1477,15 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	 * handlers are installed.
 	 */
 	dwc_otg_enable_global_interrupts( dwc_otg_device->core_if );
-#ifdef CONFIG_DWC_OTG_HOST_ONLY
-#ifndef CONFIG_USB20_OTG_EN
-    clk_disable(dwc_otg_device->phyclk);
-    clk_disable(dwc_otg_device->ahbclk);
-    *otg_phy_con1 |= (0x01<<2);
-    *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
+#ifndef CONFIG_DWC_OTG_DEVICE_ONLY
+    if(dwc_otg_device->hcd->host_enabled == 0)
+    {
+        clk_disable(dwc_otg_device->phyclk);
+        clk_disable(dwc_otg_device->ahbclk);
+        *otg_phy_con1 |= (0x01<<2);
+        *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
+    }
 #endif
-#endif
-	DWC_PRINT("dwc_otg_driver_probe end, everest\n");
 	return 0;
  fail:
 	devm_kfree(&pdev->dev, dwc_otg_device);
@@ -1213,7 +1493,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	return retval;
 }
 
-#ifndef DWC_HOST_ONLY
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
 extern int rk28_usb_suspend( int exitsuspend );
 static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t state )
 {
@@ -1256,6 +1536,9 @@ static int dwc_otg_driver_resume(struct platform_device *_dev )
     	DWC_PRINT("%s,A_HOST mode\n", __func__);
     	return 0;
     }
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
+
+    rk28_usb_suspend(1);
 
     /* soft disconnect */
     /* 20100226,HSL@RK,if not disconnect,when usb cable in,will auto reconnect 
@@ -1268,14 +1551,17 @@ static int dwc_otg_driver_resume(struct platform_device *_dev )
     
     /* Clear any pending interrupts */
     dwc_write_reg32( &global_regs->gintsts, 0xeFFFFFFF); 
+    
     dwc_otg_enable_global_interrupts(core_if);
-    mod_timer(&otg_dev->pcd->check_vbus_timer , jiffies + (HZ<<2));
+    mod_timer(&otg_dev->pcd->check_vbus_timer , jiffies + HZ);
 
 //sendwakeup:        
     if(core_if->usb_wakeup)
     {
         core_if->usb_wakeup = 0;
     }
+    DWC_PRINT("%s gahbcfg:0x%x\n", __func__, global_regs->gahbcfg);
+#endif    
     return 0;
 }
 
@@ -1427,6 +1713,11 @@ static __devinit int host11_driver_probe(struct platform_device *pdev)
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
 	dwc_otg_device->reg_offset = 0xFFFFFFFF;
 	
+	cru_set_soft_reset(SOFT_RST_UHOST, true);
+    udelay(1);
+	
+	cru_set_soft_reset(SOFT_RST_UHOST, false);
+	
     phyclk = clk_get(NULL, "uhost");
     if (IS_ERR(phyclk)) {
             retval = PTR_ERR(phyclk);
@@ -1571,7 +1862,6 @@ static __devinit int host11_driver_probe(struct platform_device *pdev)
     clk_disable(phyclk);
     clk_disable(ahbclk);
 #endif
-	DWC_PRINT("host11_driver_probe end, everest\n");
 	return 0;
     
 fail2:
@@ -1700,6 +1990,16 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
     #endif
 
 	dwc_otg_device = kmalloc(sizeof(dwc_otg_device_t), GFP_KERNEL);
+	
+	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_AHB_BUS, true);
+	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_PHY, true);
+	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_CONTROLLER, true);
+	
+    udelay(1);
+	
+	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_AHB_BUS, false);
+	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_PHY, false);
+	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_CONTROLLER, false);
 	
 	if (dwc_otg_device == 0) 
 	{
@@ -1848,7 +2148,6 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
     otgreg |= (0x01<<13);     // software control
     *otg_phy_con1 = otgreg;
 #endif
-	DWC_PRINT("host20_driver_probe end, everest\n");
 	return 0;
 
  fail:
@@ -1892,12 +2191,29 @@ static int __init dwc_otg_driver_init(void)
 		pr_warning("DWC_OTG: Failed to create driver version file\n");
 	if (driver_create_file(&dwc_otg_driver.driver, &driver_attr_debuglevel))
 		pr_warning("DWC_OTG: Failed to create driver debug level file\n");
-
-#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
 	if(driver_create_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_conn_en))
 		pr_warning("DWC_OTG: Failed to create driver dwc_otg_conn_en file");
+#endif
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
 	if(driver_create_file(&dwc_otg_driver.driver, &driver_attr_vbus_status))
 		pr_warning("DWC_OTG: Failed to create driver vbus status file");
+#endif
+#ifdef DWC_BOTH_HOST_SLAVE
+    if(driver_create_file(&dwc_otg_driver.driver, &driver_attr_force_usb_mode))
+		pr_warning("DWC_OTG: Failed to create driver force usb mode file\n");
+#endif
+    
+    /*
+     *  USB2.0 host controller
+     */
+#ifdef CONFIG_USB20_HOST
+    retval = platform_driver_register(&host20_driver);
+    if (retval < 0) 
+    {
+        DWC_ERROR("%s retval=%d\n", __func__, retval);
+        return retval;
+    }
 #endif
 
     /*
@@ -1914,17 +2230,6 @@ static int __init dwc_otg_driver_init(void)
 //	retval = driver_create_file(&host11_driver.driver, &driver_attr_enable_usb11);
 #endif
 
-    /*
-     *  USB1.1 host controller
-     */
-#ifdef CONFIG_USB20_HOST
-	retval = platform_driver_register(&host20_driver);
-	if (retval < 0) 
-	{
-		DWC_ERROR("%s retval=%d\n", __func__, retval);
-		return retval;
-	}
-#endif
 	return retval;
 }
 module_init(dwc_otg_driver_init);
@@ -1942,8 +2247,14 @@ static void __exit dwc_otg_driver_cleanup(void)
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_version);
 	driver_remove_file(&dwc_otg_driver.driver, &driver_attr_debuglevel);
     
-#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+#ifdef DWC_BOTH_HOST_SLAVE	
+        driver_remove_file(&dwc_otg_driver.driver, &driver_attr_force_usb_mode);
+#endif
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
     driver_remove_file(&dwc_otg_driver.driver, &driver_attr_dwc_otg_conn_en);
+#endif
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
+    driver_remove_file(&dwc_otg_driver.driver, &driver_attr_vbus_status);
 #endif
 
 	platform_driver_unregister(&dwc_otg_driver);

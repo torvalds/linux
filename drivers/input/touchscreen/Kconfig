@@ -752,4 +752,22 @@ config TOUCHSCREEN_IT7260
 config TOUCHSCREEN_GT801_IIC
 	tristate "GT801_IIC based touchscreens"
 	depends on I2C2_RK29
+config TOUCHSCREEN_GT818_IIC
+	tristate "GT818_IIC based touchscreens"
+	depends on I2C2_RK29
+config D70_L3188A
+	tristate "D70-L3188A based touchscreens"
+	depends on I2C2_RK29
+config TOUCHSCREEN_GT819
+	tristate "GT819 based touchscreens"
+	depends on I2C2_RK29
+config TOUCHSCREEN_FT5406
+	tristate "FT5406 based touchscreens: FT5406 Interface"
+	depends on I2C2_RK29
+	help
+	  say Y here if you have a touchscreen interface using the FT5406
+	  controller,and your board-specific initialization code includes that 
+	  in its table of I2C devices.
+	  
+	  If unsure, say N(but it's safe to say "Y").
 endif

@@ -21,9 +21,10 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <mach/gpio.h>
+#include <mach/irqs.h>
 #include <linux/dma-mapping.h>
 #include <asm/dma.h>
-
+#include <linux/preempt.h>
 #include "rk29_spim.h"
 #include <linux/spi/spi.h>
 #include <mach/board.h>
@@ -87,6 +88,46 @@ struct chip_data {
 #define SPIBUSY   (1<<1)
 #define RXBUSY    (1<<2)
 #define TXBUSY    (1<<3)
+
+//
+#ifdef CONFIG_LCD_USE_SPIM_CONTROL
+void rk29_lcd_spim_spin_lock(void)
+{
+#ifdef CONFIG_LCD_USE_SPI0
+	disable_irq(IRQ_SPI0);
+#endif
+
+#ifdef CONFIG_LCD_USE_SPI1
+	disable_irq(IRQ_SPI1);
+#endif
+
+	preempt_disable();
+}
+
+void rk29_lcd_spim_spin_unlock(void)
+{
+	preempt_enable();
+	
+#ifdef CONFIG_LCD_USE_SPI0
+	enable_irq(IRQ_SPI0);
+#endif
+
+#ifdef CONFIG_LCD_USE_SPI1
+	enable_irq(IRQ_SPI1);
+#endif
+}
+#else
+void rk29_lcd_spim_spin_lock(void)
+{
+     return;
+}
+
+void rk29_lcd_spim_spin_unlock(void)
+{
+     return;
+}
+#endif
+
 
 static void spi_dump_regs(struct rk29xx_spi *dws) {
 	DBG("MRST SPI0 registers:\n");
@@ -1020,7 +1061,7 @@ static void dma_transfer(struct rk29xx_spi *dws) //int cs_change)
 			burst = 4;
 		}
 		if (rk29_dma_config(dws->tx_dmach, burst)) {*/
-		if (rk29_dma_config(dws->tx_dmach, 1)) {//there is not dma burst but bitwide, set it 1 alwayss
+		if (rk29_dma_config(dws->tx_dmach, 1, 1)) {//there is not dma burst but bitwide, set it 1 alwayss
 			dev_err(&dws->master->dev, "function: %s, line: %d\n", __FUNCTION__, __LINE__);
 			goto err_out;
 		}
@@ -1045,7 +1086,7 @@ static void dma_transfer(struct rk29xx_spi *dws) //int cs_change)
 
 	if (transfer->rx_buf != NULL) {
 		dws->state |= RXBUSY;
-		if (rk29_dma_config(dws->rx_dmach, 1)) {
+		if (rk29_dma_config(dws->rx_dmach, 1, 1)) {
 			dev_err(&dws->master->dev, "function: %s, line: %d\n", __FUNCTION__, __LINE__);
 			goto err_out;
 		}
@@ -1766,7 +1807,7 @@ static void spi_hw_init(struct rk29xx_spi *dws)
 	}
 	
 	spi_enable_chip(dws, 1);
-	flush(dws);
+	//flush(dws);
 }
 
 /* cpufreq driver support */
@@ -1893,6 +1934,7 @@ static int __init rk29xx_spim_probe(struct platform_device *pdev)
 	dws->pdev = pdev;
 	/* Basic HW init */
 	spi_hw_init(dws);
+	flush(dws);
 	/* Initial and start queue */
 	ret = init_queue(dws);
 	if (ret) {
@@ -1973,7 +2015,8 @@ static int rk29xx_spim_suspend(struct platform_device *pdev, pm_message_t mesg)
 	struct rk29xx_spi *dws = spi_master_get_devdata(master);
 	struct rk29xx_spi_platform_data *pdata = pdev->dev.platform_data;
 	int status;
-
+	
+	flush(dws);
 	status = stop_queue(dws);
 	if (status != 0)
 		return status;

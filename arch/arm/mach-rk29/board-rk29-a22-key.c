@@ -9,8 +9,8 @@
 
 static struct rk29_keys_button key_button[] = {
 	{
-		.desc	= "esc",
-		.code	= KEY_BACK,
+		.desc	= "menu",
+		.code	= KEY_MENU,
 		.gpio	= RK29_PIN6_PA0,
 		.active_low = PRESS_LEV_LOW,
 	},
@@ -27,22 +27,22 @@ static struct rk29_keys_button key_button[] = {
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
-		.desc	= "menu",
-		.code	= KEY_MENU,
+		.desc	= "home",
+		.code	= KEY_HOME,
 		.gpio	= RK29_PIN6_PA3,
 		.active_low = PRESS_LEV_LOW,
 	},
 
 	{
-		.desc	= "home",
-		.code	= KEY_HOME,
+		.desc	= "search",
+		.code	= KEY_SEARCH,
 		.gpio	= RK29_PIN6_PA4,
 		.active_low = PRESS_LEV_LOW,
 	},
 
 	{
-		.desc	= "play",
-		.code	= KEY_POWER,
+		.desc	= "esc",
+		.code	= KEY_BACK,
 		.gpio	= RK29_PIN6_PA5,
 		.active_low = PRESS_LEV_LOW,
 	},

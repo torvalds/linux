@@ -1,19 +1,33 @@
 #
 # Display drivers configuration
 #
-
-menu "HDMI support"
-
+menu "HDMI"
 config HDMI
-	tristate "hdmi support"
+	tristate "HDMI support"
+    depends on FB_RK29
+    
+if HDMI
+
+config HDMI_OLD
+	default y
+	bool "old hdmi support"
 	help
 		nothing
-if HDMI
-source "drivers/video/hdmi/chips/Kconfig"
+if HDMI_OLD
+source "drivers/video/hdmi/hdmi-old/Kconfig"
+endif
+
+config HDMI_NEW
+	bool "new hdmi support"
+	help
+		nothing
+if HDMI_NEW
+source "drivers/video/hdmi/hdmi-new/Kconfig"
+endif
+
 config HDMI_DEBUG
 	bool "hdmi debug"
-	help
-		nothing
+
 endif
 
 endmenu

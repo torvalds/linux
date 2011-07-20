@@ -66,6 +66,13 @@ static void bond_na_send(struct net_device *slave_dev,
 	};
 	struct sk_buff *skb;
 
+	/* The Ethernet header is built in ndisc_send_skb(), not
+	 * ndisc_build_skb(), so we cannot insert a VLAN tag.  Only an
+	 * out-of-line tag inserted by the hardware will work.
+	 */
+	if (vlan_id && !(slave_dev->features & NETIF_F_HW_VLAN_TX))
+		return;
+
 	icmp6h.icmp6_router = router;
 	icmp6h.icmp6_solicited = 0;
 	icmp6h.icmp6_override = 1;
@@ -84,7 +91,7 @@ static void bond_na_send(struct net_device *slave_dev,
 	}
 
 	if (vlan_id) {
-		skb = vlan_put_tag(skb, vlan_id);
+		skb = __vlan_hwaccel_put_tag(skb, vlan_id);
 		if (!skb) {
 			pr_err(DRV_NAME ": failed to insert VLAN tag\n");
 			return;

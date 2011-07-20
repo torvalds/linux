@@ -91,6 +91,8 @@ static int try_to_freeze_tasks(bool sig_only)
 				elapsed_csecs / 100, elapsed_csecs % 100, todo);
 		if(!wakeup)
 			show_state();
+		else
+			print_active_wake_locks(WAKE_LOCK_SUSPEND);
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
 			task_lock(p);

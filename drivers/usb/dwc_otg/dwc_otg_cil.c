@@ -628,7 +628,6 @@ void dwc_otg_core_init(dwc_otg_core_if_t *_core_if)
 
 	/* Enable common interrupts */
 	dwc_otg_enable_common_interrupts( _core_if );
-
 	/* Do device or host intialization based on mode during PCD
 	 * and HCD initialization  */
 	if (dwc_otg_is_host_mode( _core_if )) 
@@ -2940,7 +2939,8 @@ void dwc_otg_core_reset(dwc_otg_core_if_t *_core_if)
     dwc_write_reg32( &global_regs->gusbcfg, usbcfg.d32 );
 	/* Wait for 3 PHY Clocks*/
 	//DWC_PRINT("100ms\n");
-	mdelay(100);
+	// rk29 has change the usb id debouce time to 100ms
+	mdelay(105);
 	count = 0;
 	if(usbcfg.b.force_hst_mode)
 	do 
@@ -3337,14 +3337,14 @@ void dwc_otg_dump_flags(dwc_otg_core_if_t *_core_if)
 	DWC_PRINT("core_if->usb_wakeup = %x\n",_core_if->usb_wakeup);
 }
 
-#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+#ifndef CONFIG_DWC_OTG_HOST_ONLY
 extern void dwc_otg_pcd_stop(dwc_otg_pcd_t *_pcd);
 #endif
 int dwc_debug(dwc_otg_core_if_t *core_if, int flag)
 {
     dctl_data_t dctl = {.d32=0};
 	//dwc_otg_core_if_t *core_if = dwc_core_if;
-	#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+	#ifndef CONFIG_DWC_OTG_HOST_ONLY
         dwc_otg_pcd_t * pcd;
     #endif
 	struct dwc_otg_device *otg_dev;
@@ -3355,7 +3355,7 @@ int dwc_debug(dwc_otg_core_if_t *core_if, int flag)
 			dwc_otg_dump_host_registers(core_if);
 			break;
 		case 2:
-		#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+		#ifndef CONFIG_DWC_OTG_HOST_ONLY
 		    otg_dev = core_if->otg_dev;
 		    pcd = otg_dev->pcd;
 		    pcd->vbus_status = 0;
@@ -3383,7 +3383,7 @@ int dwc_debug(dwc_otg_core_if_t *core_if, int flag)
 			dwc_otg_dump_flags(core_if);
 			break;
 		case 8:
-		#ifdef CONFIG_DWC_OTG_DEVICE_ONLY
+		#ifndef CONFIG_DWC_OTG_HOST_ONLY
 		    otg_dev = core_if->otg_dev;
 		    pcd = otg_dev->pcd;
 		    //pcd->vbus_status = 0;

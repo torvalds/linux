@@ -75,7 +75,7 @@ static int __init dma_memcpy_probe(struct platform_device *pdev)
       
     ret = device_create_file(&pdev->dev, &driver_attr_dmamemcpy);
     rk29_dma_request(DMACH_DMAC0_MEMTOMEM, &rk29_dma_memcpy_client, NULL); 
-    rk29_dma_config(DMACH_DMAC0_MEMTOMEM, 8);
+    rk29_dma_config(DMACH_DMAC0_MEMTOMEM, 8, 16);
     rk29_dma_set_buffdone_fn(DMACH_DMAC0_MEMTOMEM, rk29_dma_memcpy_callback);
     if(ret)
     {

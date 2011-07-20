@@ -356,7 +356,6 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 	regs->cs		= __USER_CS;
 	regs->ss		= __USER_DS;
 	regs->flags		= 0x200;
-	set_fs(USER_DS);
 	/*
 	 * Free the old FP and other extended state
 	 */

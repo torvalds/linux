@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -190,6 +190,13 @@ gcoHAL_QueryChipIdentity(
     OUT gceCHIPMODEL* ChipModel,
     OUT gctUINT32* ChipRevision,
     OUT gctUINT32* ChipFeatures,
+    OUT gctUINT32* ChipMinorFeatures
+    );
+
+/* Query the minor features of the hardware. */
+gceSTATUS gcoHAL_QueryChipMinorFeatures(
+    IN gcoHAL Hal,
+    OUT gctUINT32* NumFeatures,
     OUT gctUINT32* ChipMinorFeatures
     );
 
@@ -1406,6 +1413,13 @@ gcoSURF_QueryOrientation(
     OUT gceORIENTATION * Orientation
     );
 
+/*Reset the hal member of a surface*/
+gceSTATUS
+gcoSURF_ResetHal(
+    IN gcoSURF Surface,
+    IN gcoHAL Hal
+    );
+
 /******************************************************************************\
 ********************************* gcoDUMP Object ********************************
 \******************************************************************************/
@@ -1588,14 +1602,6 @@ gcoHEAP_ProfileEnd(
     IN gctCONST_STRING Title
     );
 
-#if defined gcdHAL_TEST
-gceSTATUS
-gcoHEAP_Test(
-    IN gcoHEAP Heap,
-    IN gctSIZE_T Vectors,
-    IN gctSIZE_T MaxSize
-    );
-#endif
 
 /******************************************************************************\
 ******************************* Debugging Macros *******************************

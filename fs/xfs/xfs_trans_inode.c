@@ -62,7 +62,7 @@ xfs_trans_iget(
 {
 	int			error;
 
-	error = xfs_iget(mp, tp, ino, flags, lock_flags, ipp, 0);
+	error = xfs_iget(mp, tp, ino, flags, lock_flags, ipp);
 	if (!error && tp)
 		xfs_trans_ijoin(tp, *ipp, lock_flags);
 	return error;

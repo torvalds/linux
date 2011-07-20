@@ -396,6 +396,15 @@ static void wm831x_irq_mask(unsigned int irq)
 	//printk("%s:irq=%d\n",__FUNCTION__,irq);
 }
 
+static void wm831x_irq_disable(unsigned int irq)
+{
+	struct wm831x *wm831x = get_irq_chip_data(irq);
+	struct wm831x_irq_data *irq_data = irq_to_wm831x_irq(wm831x, irq);
+
+	wm831x->irq_masks_cur[irq_data->reg - 1] |= irq_data->mask;
+	//printk("%s:irq=%d\n",__FUNCTION__,irq);
+}
+
 static int wm831x_irq_set_type(unsigned int irq, unsigned int type)
 {
 	struct wm831x *wm831x = get_irq_chip_data(irq);
@@ -454,6 +463,7 @@ static struct irq_chip wm831x_irq_chip = {
 	.name = "wm831x",
 	.bus_lock = wm831x_irq_lock,
 	.bus_sync_unlock = wm831x_irq_sync_unlock,
+	.disable = wm831x_irq_disable,
 	.mask = wm831x_irq_mask,
 	.unmask = wm831x_irq_unmask,
 	.set_type = wm831x_irq_set_type,
@@ -504,7 +514,7 @@ static void wm831x_irq_worker(struct work_struct *work)
 	unsigned long flags;
 	struct wm831x_handle_irq *hd;
 	int ret;
-	msleep(2);
+
 #if (WM831X_IRQ_TYPE != IRQF_TRIGGER_LOW)
 	/*mask wm831x irq at first*/
 	ret = wm831x_set_bits(wm831x, WM831X_IRQ_CONFIG,
@@ -514,6 +524,7 @@ static void wm831x_irq_worker(struct work_struct *work)
 		goto out;
 	}
 #endif
+
 	primary = wm831x_reg_read(wm831x, WM831X_SYSTEM_INTERRUPTS);
 	if (primary < 0) {
 		dev_err(wm831x->dev, "Failed to read system interrupt: %d\n",
@@ -607,14 +618,25 @@ out:
 static irqreturn_t wm831x_irq_thread(int irq, void *data)
 {
 	struct wm831x *wm831x = data;
-
+	int msdelay = 0;
 	/* Shut the interrupt to the CPU up and schedule the actual
 	 * handler; we can't check that the IRQ is asserted. */
 #if (WM831X_IRQ_TYPE == IRQF_TRIGGER_LOW)
 	disable_irq_nosync(irq);
 #endif
 	wake_lock(&wm831x->irq_wake);
-	queue_work(wm831x->irq_wq, &wm831x->irq_work);
+	if(wm831x->flag_suspend)
+	{
+		spin_lock(&wm831x->flag_lock);
+		wm831x->flag_suspend = 0;
+		spin_unlock(&wm831x->flag_lock);
+		msdelay = 50;	//wait for spi/i2c resume
+		printk("%s:msdelay=%d\n",__FUNCTION__,msdelay);
+	}
+	else
+		msdelay = 0;
+		
+	queue_delayed_work(wm831x->irq_wq, &wm831x->irq_work, msecs_to_jiffies(msdelay));
 	//printk("%s\n",__FUNCTION__);
 	return IRQ_HANDLED;
 }
@@ -654,8 +676,9 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 
 	
 	wm831x->irq = irq;
+	wm831x->flag_suspend = 0;
 	wm831x->irq_base = pdata->irq_base;
-	INIT_WORK(&wm831x->irq_work, wm831x_irq_worker);
+	INIT_DELAYED_WORK(&wm831x->irq_work, wm831x_irq_worker);
 	wake_lock_init(&wm831x->irq_wake, WAKE_LOCK_SUSPEND, "wm831x_irq_wake");
 	wake_lock_init(&wm831x->handle_wake, WAKE_LOCK_SUSPEND, "wm831x_handle_wake");
 #if WM831X_IRQ_LIST

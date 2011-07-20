@@ -42,6 +42,20 @@ config WM831X_POWER
 	  Say Y here to enable support for the power management unit
 	  provided by Wolfson Microelectronics WM831x PMICs.
 
+config WM831X_CHARGER_DISPLAY
+	tristate "WM831X Charger display support"
+	depends on WM831X_POWER
+	help
+	  Say Y here to enable support for the power management unit
+	  provided by Wolfson Microelectronics WM831x Charger Display.  
+
+config WM831X_WITH_BATTERY
+	tristate "WM831X battery exist"
+	depends on WM831X_POWER
+	default n
+	help
+	  WM831X battery exist.
+
 config WM8350_POWER
         tristate "WM8350 PMU support"
         depends on MFD_WM8350

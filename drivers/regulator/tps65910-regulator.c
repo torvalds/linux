@@ -24,7 +24,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/i2c/tps65910.h>
 
-#if 1
+#if 0
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
@@ -754,7 +754,7 @@ static int __init tps65910_regulator_init(void)
 {
 	return platform_driver_register(&tps65910_regulator_driver);
 }
-module_init(tps65910_regulator_init);
+rootfs_initcall(tps65910_regulator_init);
 
 static void __exit tps65910_regulator_exit(void)
 {

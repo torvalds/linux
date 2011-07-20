@@ -17,6 +17,8 @@
 #include <linux/circ_buf.h>
 #include <linux/hardirq.h>
 #include <linux/miscdevice.h>
+#include <asm/io.h>
+
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
@@ -44,7 +46,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define MAX(x,y)    ((x>y) ? x: y)
 
 /* Sensor Driver Configuration */
-#define SENSOR_NAME mt9p111
+#define SENSOR_NAME RK29_CAM_SENSOR_MT9P111
 #define SENSOR_V4L2_IDENT V4L2_IDENT_MT9P111
 #define SENSOR_ID SEQUENCE_END
 #define SENSOR_ID_REG SEQUENCE_END
@@ -59,6 +61,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_INIT_HEIGHT  480
 #define SENSOR_INIT_WINSEQADR sensor_vga
 #define SENSOR_INIT_PIXFMT V4L2_PIX_FMT_UYVY
+#define YUV420_BUFFER_MAX_SIZE  7558272     /* 2592*1944*1.5*/ 
+
+
 
 #define CONFIG_SENSOR_WhiteBalance	1
 #define CONFIG_SENSOR_Brightness	0
@@ -68,9 +73,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Scene         1
 #define CONFIG_SENSOR_DigitalZoom   0
 #define CONFIG_SENSOR_Exposure      0
-#define CONFIG_SENSOR_Flash         0
+#define CONFIG_SENSOR_Flash         1
 #define CONFIG_SENSOR_Mirror        0
-#define CONFIG_SENSOR_Flip          0
+#define CONFIG_SENSOR_Flip          1
 #define CONFIG_SENSOR_Focus         0
 
 
@@ -80,11 +85,11 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
 
 
-#define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\
-                          SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |\
+#define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING|\
+                          SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_HIGH|\
                           SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
 
-#define COLOR_TEMPERATURE_CLOUDY_DN  6500
+#define COLOR_TEMPERATURE_CLOUDY_DN    6500
 #define COLOR_TEMPERATURE_CLOUDY_UP    8000
 #define COLOR_TEMPERATURE_CLEARDAY_DN  5000
 #define COLOR_TEMPERATURE_CLEARDAY_UP    6500
@@ -112,13 +117,25 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 static struct reginfo sensor_init_data[] =
 {
 //[Step2-PLL_Timing]
-//for 24MHz input, VCO=MAX PCLK=76.8MHz
+//for 24MHz input, VCO=MAX=768mhz  
 { 0x0010, 0x0340, WORD_LEN, 0},
-{ 0x0012, 0x0090, WORD_LEN, 0},
+
+/*sovle problem that lack of pclk during one href*/
+#if  ADJUST_PCLK_FRE_FALG
+{ 0x0012, 0x0080, WORD_LEN, 0},     //PCLK=85MHz
+#else
+{ 0x0012, 0x0090, WORD_LEN, 0},     //PCLK=76MHz
+#endif
+
 { 0x0014, 0x2025, WORD_LEN, 0},
-{ 0x001E, 0x0565, WORD_LEN, 0}, 	// PAD_SLEW_PAD_CONFIG
-{ 0x0022, 0x0030, WORD_LEN, 0},   //0x01E0 	// VDD_DIS_COUNTER
-{ 0x002A, 0x7F7E, WORD_LEN, 0},   //0x7F7F 	// PLL_P4_P5_P6_DIVIDERS By Hwang 20101104
+{ 0x001E, 0x0565, WORD_LEN, 0},    // PAD_SLEW_PAD_CONFIG
+{ 0x0022, 0x0030, WORD_LEN, 0},   //0x01E0// VDD_DIS_COUNTER
+
+#if   ADJUST_PCLK_FRE_FALG
+{ 0x002A, 0x7FFF, WORD_LEN, 0},  
+#else
+{ 0x002A, 0x7F7E, WORD_LEN, 0},   //0x7F7F// PLL_P4_P5_P6_DIVIDERS By Hwang 20101104
+#endif
 { 0x002C, 0x0000, WORD_LEN, 0}, 	// PLL_P7_DIVIDER
 { 0x002E, 0x0000, WORD_LEN, 0}, 	// SENSOR_CLOCK_DIVIDER
 { 0x0018, 0x4008, WORD_LEN, 0}, 	// STANDBY_CONTROL_AND_STATUS
@@ -137,8 +154,17 @@ static struct reginfo sensor_init_data[] =
 { 0xC84A, 0x0103, WORD_LEN, 0}, 	// CAM_CORE_A_SKIP_Y_PIPE
 { 0xC84C, 0x00F6, WORD_LEN, 0}, 	// CAM_CORE_A_POWER_MODE
 { 0xC84E, 0x0001, WORD_LEN, 0}, 	// CAM_CORE_A_BIN_MODE
-{ 0xC850, 0x00, BYTE_LEN, 0}, 	// CAM_CORE_A_ORIENTATION
-{ 0xC851, 0x00, BYTE_LEN, 0}, 	// CAM_CORE_A_PIXEL_ORDER
+/*lzg@rock-chips.com, FIH:preview image to be mirrored and flipped */
+#if CONFIG_SENSOR_NONE_FLIP_MIRROR
+{ 0xC850, 0x00, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#elif CONFIG_SENSOR_MIRROR
+{ 0xC850, 0x01, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#elif CONFIG_SENSOR_FLIPE
+{ 0xC850, 0x02, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#elif CONFIG_SENSOR_MIRROR_AND_FLIPE
+{ 0xC850, 0x03, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#endif
+{ 0xC851, 0x00, BYTE_LEN, 0}, 	    // CAM_CORE_A_PIXEL_ORDER
 { 0xC852, 0x019C, WORD_LEN, 0}, 	// CAM_CORE_A_FINE_CORRECTION
 { 0xC854, 0x0732, WORD_LEN, 0}, 	// CAM_CORE_A_FINE_ITMIN
 { 0xC858, 0x0000, WORD_LEN, 0}, 	// CAM_CORE_A_COARSE_ITMIN
@@ -157,8 +183,10 @@ static struct reginfo sensor_init_data[] =
 { 0xC858, 0x0003, WORD_LEN, 0}, 	// CAM_CORE_A_COARSE_ITMIN
 { 0xC8B8, 0x0004, WORD_LEN, 0}, 	// CAM_OUTPUT_0_JPEG_CONTROL
 { 0xC8AE, 0x0001, WORD_LEN, 0}, 	// CAM_OUTPUT_0_OUTPUT_FORMAT
+
 { 0xC8AA, 0x0280, WORD_LEN, 0}, 	// CAM_OUTPUT_0_IMAGE_WIDTH
 { 0xC8AC, 0x01E0, WORD_LEN, 0}, 	// CAM_OUTPUT_0_IMAGE_HEIGHT
+
 { 0xC872, 0x0010, WORD_LEN, 0}, 	// CAM_CORE_B_Y_ADDR_START
 { 0xC874, 0x001C, WORD_LEN, 0}, 	// CAM_CORE_B_X_ADDR_START
 { 0xC876, 0x07AF, WORD_LEN, 0}, 	// CAM_CORE_B_Y_ADDR_END
@@ -170,12 +198,22 @@ static struct reginfo sensor_init_data[] =
 { 0xC882, 0x0101, WORD_LEN, 0}, 	// CAM_CORE_B_SKIP_Y_PIPE
 { 0xC884, 0x00F2, WORD_LEN, 0}, 	// CAM_CORE_B_POWER_MODE
 { 0xC886, 0x0000, WORD_LEN, 0}, 	// CAM_CORE_B_BIN_MODE
-{ 0xC888, 0x00, BYTE_LEN, 0}, 	// CAM_CORE_B_ORIENTATION
+
+/*lzg@rock-chips.com, FIH:capture image to be mirrored and flipped */
+#if CONFIG_SENSOR_NONE_FLIP_MIRROR
+{ 0xC888, 0x00, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#elif CONFIG_SENSOR_MIRROR
+{ 0xC888, 0x01, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#elif CONFIG_SENSOR_FLIPE
+{ 0xC888, 0x02, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#elif CONFIG_SENSOR_MIRROR_AND_FLIPE
+{ 0xC888, 0x03, BYTE_LEN, 0}, 	    // CAM_CORE_A_ORIENTATION
+#endif
 { 0xC889, 0x00, BYTE_LEN, 0}, 	// CAM_CORE_B_PIXEL_ORDER
 { 0xC88A, 0x009C, WORD_LEN, 0}, 	// CAM_CORE_B_FINE_CORRECTION
 { 0xC88C, 0x034A, WORD_LEN, 0}, 	// CAM_CORE_B_FINE_ITMIN
 { 0xC890, 0x0000, WORD_LEN, 0}, 	// CAM_CORE_B_COARSE_ITMIN
-{ 0xC892, 0x0001, WORD_LEN, 0}, 	// CAM_CORE_B_COARSE_ITMAX_MARGIN
+{ 0xC892, 0x0001, WORD_LEN, 0}, 	// CAM_CORE_B_COARSE_ITMAX_MARGIN                  
 { 0xC894, 0x07EF, WORD_LEN, 0}, 	// CAM_CORE_B_MIN_FRAME_LENGTH_LINES
 { 0xC896, 0xFFFF, WORD_LEN, 0}, 	// CAM_CORE_B_MAX_FRAME_LENGTH_LINES
 { 0xC898, 0x082F, WORD_LEN, 0}, 	// CAM_CORE_B_BASE_FRAME_LENGTH_LINES
@@ -1341,10 +1379,9 @@ static struct reginfo sensor_init_data[] =
 };
 
 /* 720p 15fps @ 1280x720 */
-
 static struct reginfo sensor_720p[]=
 {
-	{SEQUENCE_END, 0x00},
+	//{SEQUENCE_END, 0x00},
 	{0x098E, 0x843C, WORD_LEN, 0}, // LOGICAL_ADDRESS_ACCESS [CAM_CORE_A_Y_ADDR_START]
 	{0x843C, 0x01, BYTE_LEN, 0 }, // SEQ_STATE_CFG_5_MAX_FRAME_CNT
 	{0x8404, 0x01, BYTE_LEN, 0 }, // SEQ_CMD
@@ -1358,8 +1395,14 @@ static struct reginfo sensor_720p[]=
 	{0xC870, 0x0014, WORD_LEN, 0},  // CAM_CORE_A_RX_FIFO_TRIGGER_MARK
 	{0xC858, 0x0003, WORD_LEN, 0}, // CAM_CORE_A_COARSE_ITMIN
 	{0xC8B8, 0x0004, WORD_LEN, 0},  // CAM_OUTPUT_0_JPEG_CONTROL
+/****bug:part pixsels data not to be aquired *****/
+#if ADJUST_FOR_720P_FALG            
+	{0xC8AA, 0x0500, WORD_LEN, 0},  // CAM_OUTPUT_0_IMAGE_WIDTH
+	{0xC8AC, 0x02D1, WORD_LEN, 0},  // CAM_OUTPUT_0_IMAGE_HEIGHT
+#else
 	{0xC8AA, 0x0500, WORD_LEN, 0},  // CAM_OUTPUT_0_IMAGE_WIDTH
 	{0xC8AC, 0x02D0, WORD_LEN, 0},  // CAM_OUTPUT_0_IMAGE_HEIGHT
+#endif	
 	{0xC8AE, 0x0001, WORD_LEN, 0},  // CAM_OUTPUT_0_OUTPUT_FORMAT
 	{0x8404, 0x06, BYTE_LEN, 0 },  // SEQ_CMD
 
@@ -1368,39 +1411,92 @@ static struct reginfo sensor_720p[]=
 };
 
 /* 	1080p, 0x15fps, 0xyuv @1920x1080 */
-
 static struct reginfo sensor_1080p[]=
 {
 	{SEQUENCE_END, 0x00}
 };
 
 /* 2592X1944 QSXGA */
+#if  ADJUST_FOR_CAPTURE_FALG
+static struct reginfo sensor_qsxga[] =
+{
+    {0x098E, 0x48C0,WORD_LEN,0},    // LOGICAL_ADDRESS_ACCESS [CAM_OUTPUT_1_IMAGE_WIDTH]
+    {0xC8C0, 0x0A20,WORD_LEN,0},    // CAM_OUTPUT_1_IMAGE_WIDTH
+    {0xC8C2, 0x0798,WORD_LEN,0},    // CAM_OUTPUT_1_IMAGE_HEIGHT
+    {0x8404, 0x06 ,BYTE_LEN,0},      // SEQ_CMD
+    {SEQUENCE_WAIT_MS,100,WORD_LEN,0},
+	{SEQUENCE_END, 0x00}
+};
+#else
 static struct reginfo sensor_qsxga[] =
 {
 	{SEQUENCE_PROPERTY,SEQUENCE_CAPTURE},
 	{SEQUENCE_END, 0x00}
 };
+#endif
+
 /* 2048*1536 QXGA */
+#if ADJUST_FOR_CAPTURE_FALG
+// send extra two lines to forbid to be captured error
+static struct reginfo sensor_qxga[] =
+{
+    {0x098E, 0x48C0,WORD_LEN,0},    // LOGICAL_ADDRESS_ACCESS [CAM_OUTPUT_1_IMAGE_WIDTH]
+    {0xC8C0, 0x0800,WORD_LEN,0},    // CAM_OUTPUT_1_IMAGE_WIDTH
+    {0xC8C2, 0x0602,WORD_LEN,0},    // CAM_OUTPUT_1_IMAGE_HEIGHT
+    {0x8404, 0x06 ,BYTE_LEN,0},      // SEQ_CMD
+    {SEQUENCE_WAIT_MS,100,WORD_LEN,0},
+	{SEQUENCE_END, 0x00}
+};
+#else
 static struct reginfo sensor_qxga[] =
 {
 	{SEQUENCE_END, 0x00}
 };
+#endif
 
 /* 1600X1200 UXGA */
+#if ADJUST_FOR_CAPTURE_FALG
+static struct reginfo sensor_uxga[] =
+{
+    {0x098E, 0x48C0,WORD_LEN,0},    // LOGICAL_ADDRESS_ACCESS [CAM_OUTPUT_1_IMAGE_WIDTH]
+    {0xC8C0, 0x0640,WORD_LEN,0},    // CAM_OUTPUT_1_IMAGE_WIDTH
+    {0xC8C2, 0x04b2,WORD_LEN,0},    // CAM_OUTPUT_1_IMAGE_HEIGHT
+    {0x8404, 0x06 ,BYTE_LEN,0},      // SEQ_CMD
+    {SEQUENCE_WAIT_MS,100,WORD_LEN,0},
+	{SEQUENCE_END, 0x00}
+};
+#else
 static struct reginfo sensor_uxga[] =
 {
 	{SEQUENCE_END, 0x00}
 };
+
+#endif
+
 /* 1280X1024 SXGA */
 static struct reginfo sensor_sxga[] =
 {
 	{SEQUENCE_END, 0x00}
 };
+
 /*  1024X768 XGA */
+#if ADJUST_FOR_CAPTURE_FALG
+static struct reginfo sensor_xga[] =
+{
+    {0x098E, 0x48C0,WORD_LEN,0},    // LOGICAL_ADDRESS_ACCESS [CAM_OUTPUT_1_IMAGE_WIDTH]
+    {0xC8C0, 0x0403,WORD_LEN,0},    // CAM_OUTPUT_1_IMAGE_WIDTH
+    {0xC8C2, 0x0302,WORD_LEN,0},    // CAM_OUTPUT_1_IMAGE_HEIGHT
+    {0x8404, 0x06 ,BYTE_LEN,0},      // SEQ_CMD
+    {SEQUENCE_WAIT_MS,100,WORD_LEN,0},
+	{SEQUENCE_END, 0x00}
+};
+#else
 static struct reginfo sensor_xga[] =
 {
 	{SEQUENCE_END, 0x00}
 };
+#endif
+
 
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
@@ -1420,7 +1516,7 @@ static struct reginfo sensor_vga[] =
     {0xC86A, 0x1194, WORD_LEN, 0},    // CAM_CORE_A_LINE_LENGTH_PCK
     {0xC86C, 0x0518, WORD_LEN, 0},    // CAM_CORE_A_OUTPUT_SIZE_WIDTH
     {0xC86E, 0x03D4, WORD_LEN, 0},    // CAM_CORE_A_OUTPUT_SIZE_HEIGHT
-    {0xC870, 0x0014, WORD_LEN, 0},  // CAM_CORE_A_RX_FIFO_TRIGGER_MARK
+    {0xC870, 0x0014, WORD_LEN, 0},    // CAM_CORE_A_RX_FIFO_TRIGGER_MARK
     {0xC858, 0x0003, WORD_LEN, 0},  // CAM_CORE_A_COARSE_ITMIN
     {0xC8A4, 0x0A28, WORD_LEN, 0},    // CAM_CORE_B_OUTPUT_SIZE_WIDTH
     {0xC8A6, 0x07A0, WORD_LEN, 0 },    // CAM_CORE_B_OUTPUT_SIZE_HEIGHT
@@ -1449,90 +1545,7 @@ static struct reginfo sensor_qcif[] =
 {
 	{SEQUENCE_END, 0x00}
 };
-#if 0
-/* 160X120 QQVGA*/
-static struct reginfo ov2655_qqvga[] =
-{
 
-    {0x300E, 0x34},
-    {0x3011, 0x01},
-    {0x3012, 0x10},
-    {0x302a, 0x02},
-    {0x302b, 0xE6},
-    {0x306f, 0x14},
-    {0x3362, 0x90},
-
-    {0x3070, 0x5d},
-    {0x3072, 0x5d},
-    {0x301c, 0x07},
-    {0x301d, 0x07},
-
-    {0x3020, 0x01},
-    {0x3021, 0x18},
-    {0x3022, 0x00},
-    {0x3023, 0x06},
-    {0x3024, 0x06},
-    {0x3025, 0x58},
-    {0x3026, 0x02},
-    {0x3027, 0x61},
-    {0x3088, 0x00},
-    {0x3089, 0xa0},
-    {0x308a, 0x00},
-    {0x308b, 0x78},
-    {0x3316, 0x64},
-    {0x3317, 0x25},
-    {0x3318, 0x80},
-    {0x3319, 0x08},
-    {0x331a, 0x0a},
-    {0x331b, 0x07},
-    {0x331c, 0x80},
-    {0x331d, 0x38},
-    {0x3100, 0x00},
-    {0x3302, 0x11},
-
-    {0x0, 0x0},
-};
-
-
-
-static  struct reginfo ov2655_Sharpness_auto[] =
-{
-    {0x3306, 0x00},
-};
-
-static  struct reginfo ov2655_Sharpness1[] =
-{
-    {0x3306, 0x08},
-    {0x3371, 0x00},
-};
-
-static  struct reginfo ov2655_Sharpness2[][3] =
-{
-    //Sharpness 2
-    {0x3306, 0x08},
-    {0x3371, 0x01},
-};
-
-static  struct reginfo ov2655_Sharpness3[] =
-{
-    //default
-    {0x3306, 0x08},
-    {0x332d, 0x02},
-};
-static  struct reginfo ov2655_Sharpness4[]=
-{
-    //Sharpness 4
-    {0x3306, 0x08},
-    {0x332d, 0x03},
-};
-
-static  struct reginfo ov2655_Sharpness5[] =
-{
-    //Sharpness 5
-    {0x3306, 0x08},
-    {0x332d, 0x04},
-};
-#endif
 static  struct reginfo sensor_Preview2Capture[]=
 {
 	//capture2preview
@@ -1548,7 +1561,7 @@ static  struct reginfo sensor_Capture2Preview[]=
 	{0x098E, 0x843C, WORD_LEN, 0}, 	// LOGICAL_ADDRESS_ACCESS [SEQ_STATE_CFG_5_MAX_FRAME_CNT]
 	{0x843C, 0x01, BYTE_LEN, 0 }, 	// SEQ_STATE_CFG_5_MAX_FRAME_CNT
 	{0x8404, 0x01, BYTE_LEN, 0 },	// SEQ_CMD
-	{0x0016, 0x0047, WORD_LEN, 0},	// CLOCKS_CONTRO
+	{0x0016, 0x0447, WORD_LEN, 0},	// CLOCKS_CONTRO
 	{SEQUENCE_END, 0x00}
 };
 static  struct reginfo sensor_ClrFmt_YUYV[]=
@@ -1878,6 +1891,7 @@ static  struct reginfo sensor_FlipOff[]=
 static struct reginfo *sensor_FlipSeqe[] = {sensor_FlipOff, sensor_FlipOn,NULL,};
 
 #endif
+
 #if CONFIG_SENSOR_Scene
 static  struct reginfo sensor_SceneAuto[] =
 {
@@ -1891,6 +1905,7 @@ static  struct reginfo sensor_SceneNight[] =
 static struct reginfo *sensor_SceneSeqe[] = {sensor_SceneAuto, sensor_SceneNight,NULL,};
 
 #endif
+
 #if CONFIG_SENSOR_DigitalZoom
 static struct reginfo sensor_Zoom0[] =
 {
@@ -2221,6 +2236,7 @@ struct sensor
 	atomic_t tasklock_cnt;
 #endif
 	struct rk29camera_platform_data *sensor_io_request;
+    struct rk29camera_gpio_res *sensor_gpio_res;
 };
 
 static struct sensor* to_sensor(const struct i2c_client *client)
@@ -2257,10 +2273,13 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 				preempt_enable();
 		}
 	}
-#endif
+    
 	return 0;
 sensor_task_lock_err:
-	return -1;
+	return -1;    
+#else
+    return 0;
+#endif
 }
 
 /* sensor register write */
@@ -2568,7 +2587,7 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	int ret = 0;
 
-
+    SENSOR_DG("%s %s  cmd(%d) on(%d)\n",SENSOR_NAME_STRING(),__FUNCTION__,cmd,on);
 	switch (cmd)
 	{
 		case Sensor_PowerDown:
@@ -2600,7 +2619,7 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 		}
 		default:
 		{
-			SENSOR_TR("%s power cmd(0x%x) is unknown!",SENSOR_NAME_STRING(),cmd);
+			SENSOR_TR("%s %s cmd(0x%x) is unknown!",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 			break;
 		}
 	}
@@ -2749,7 +2768,7 @@ static int sensor_deactivate(struct i2c_client *client)
 	/* ddl@rock-chips.com : sensor config init width , because next open sensor quickly(soc_camera_open -> Try to configure with default parameters) */
 	icd->user_width = SENSOR_INIT_WIDTH;
     icd->user_height = SENSOR_INIT_HEIGHT;
-
+	msleep(100);
 	return 0;
 }
 static  struct reginfo sensor_power_down_sequence[]=
@@ -2817,6 +2836,8 @@ static int sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
     struct v4l2_pix_format *pix = &f->fmt.pix;
+    
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
     pix->width		= icd->user_width;
     pix->height		= icd->user_height;
@@ -2864,67 +2885,317 @@ static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_format *f)
 static struct reginfo* sensor_fmt_catch(int set_w, int set_h, int *ret_w, int *ret_h)
 {
 	struct reginfo *winseqe_set_addr = NULL;
+    
+    if (set_w*240 == set_h*320) {        
+        if (((set_w >= 320) && (set_h >= 240)) && (sensor_qvga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_qvga;
+            *ret_w = 320;
+            *ret_h = 240;
+    	} 
 
-	if (((set_w <= 176) && (set_h <= 144)) && (sensor_qcif[0].reg!=SEQUENCE_END)) {
-		winseqe_set_addr = sensor_qcif;
-        *ret_w = 176;
-        *ret_h = 144;
-	} else if (((set_w <= 320) && (set_h <= 240)) && (sensor_qvga[0].reg!=SEQUENCE_END)) {
-        winseqe_set_addr = sensor_qvga;
-        *ret_w = 320;
-        *ret_h = 240;
-	} else if (((set_w <= 352) && (set_h<= 288)) && (sensor_cif[0].reg!=SEQUENCE_END)) {
-        winseqe_set_addr = sensor_cif;
-        *ret_w = 352;
-        *ret_h = 288;
-    } else if (((set_w <= 640) && (set_h <= 480)) && (sensor_vga[0].reg!=SEQUENCE_END)) {
-        winseqe_set_addr = sensor_vga;
-        *ret_w = 640;
-        *ret_h = 480;
-    } else if (((set_w <= 800) && (set_h <= 600)) && (sensor_svga[0].reg!=SEQUENCE_END)) {
-        winseqe_set_addr = sensor_svga;
-        *ret_w = 800;
-        *ret_h = 600;
-    } else if (((set_w <= 1024) && (set_h <= 768)) && (sensor_xga[0].reg!=SEQUENCE_END)) {
-        winseqe_set_addr = sensor_xga;
-        *ret_w = 1024;
-        *ret_h = 768;
-	} else if (((set_w <= 1280) && (set_h <= 720)) && (sensor_720p[0].reg!=SEQUENCE_END)) {
-        winseqe_set_addr = sensor_720p;
-        *ret_w = 1280;
-        *ret_h = 720;
-    } else if (((set_w <= 1280) && (set_h <= 1024)) && (sensor_sxga[0].reg!=SEQUENCE_END)) {
-        winseqe_set_addr = sensor_sxga;
-        *ret_w = 1280;
-        *ret_h = 1024;
-    } else if (((set_w <= 1600) && (set_h <= 1200)) && (sensor_uxga[0].reg!=SEQUENCE_END)) {
-        winseqe_set_addr = sensor_uxga;
-        *ret_w = 1600;
-        *ret_h = 1200;
-	} else if (((set_w <= 1920) && (set_h <= 1080)) && (sensor_1080p[0].reg!=SEQUENCE_END)) {
-        winseqe_set_addr = sensor_1080p;
-        *ret_w = 1920;
-        *ret_h = 1080;
-    } else if (((set_w <= 2048) && (set_h <= 1536)) && (sensor_qxga[0].reg!=SEQUENCE_END)) {
-        winseqe_set_addr = sensor_qxga;
-        *ret_w = 2048;
-        *ret_h = 1536;
-    } else if (((set_w <= 2592) && (set_h <= 1944)) && (sensor_qsxga[0].reg!=SEQUENCE_END)) {
-        winseqe_set_addr = sensor_qsxga;
-        *ret_w = 2592;
-        *ret_h = 1944;
+#if  ADJUST_FOR_VGA_FALG    
+        // to forbid preview err         
+        if (((set_w >= 576) && (set_h >= 432)) && (sensor_vga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_vga;
+            *ret_w = 576;
+            *ret_h = 432;
+        } 
+#else
+        if (((set_w >= 640) && (set_h >= 480)) && (sensor_vga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_vga;
+            *ret_w = 640;
+            *ret_h = 480;
+        } 
+
+#endif
+              
+        if (((set_w >= 800) && (set_h >= 600)) && (sensor_svga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_svga;
+            *ret_w = 800;
+            *ret_h = 600;
+        } 
+
+        if (((set_w >= 1024) && (set_h >= 768)) && (sensor_xga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_xga;
+            *ret_w = 1024;
+            *ret_h = 768;
+    	} 
+      
+        if (((set_w >= 1280) && (set_h >= 1024)) && (sensor_sxga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_sxga;
+            *ret_w = 1280;
+            *ret_h = 1024;
+        }         
+
+        if (((set_w >= 1600) && (set_h >= 1200)) && (sensor_uxga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_uxga;
+            *ret_w = 1600;
+            *ret_h = 1200;
+    	} 
+
+        if (((set_w >= 2048) && (set_h >= 1536)) && (sensor_qxga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_qxga;
+            *ret_w = 2048;
+            *ret_h = 1536;
+        } 
+
+        if (((set_w >= 2592) && (set_h >= 1944)) && (sensor_qsxga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_qsxga;
+            *ret_w = 2592;
+            *ret_h = 1944;
+        }
+
+        if (winseqe_set_addr == NULL) {
+            if (((set_w <= 176) && (set_h <= 144)) && (sensor_qcif[0].reg!=SEQUENCE_END)) {
+        		winseqe_set_addr = sensor_qcif;
+                *ret_w = 176;
+                *ret_h = 144;
+        	} else if (((set_w <= 352) && (set_h<= 288)) && (sensor_cif[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_cif;
+                *ret_w = 352;
+                *ret_h = 288;
+            }
+
+            if (((set_w <= 1280) && (set_h <= 720)) && (sensor_720p[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_720p;
+                *ret_w = 1280;
+                *ret_h = 720;
+            } else if (((set_w <= 1920) && (set_h <= 1080)) && (sensor_1080p[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_1080p;
+                *ret_w = 1920;
+                *ret_h = 1080;
+            } 
+        }
+
+    } else if (set_w*288 == set_h*352) {
+        if (((set_w >= 176) && (set_h >= 144)) && (sensor_qcif[0].reg!=SEQUENCE_END)) {
+    		winseqe_set_addr = sensor_qcif;
+            *ret_w = 176;
+            *ret_h = 144;
+    	} else if (((set_w >= 352) && (set_h >= 288)) && (sensor_cif[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_cif;
+            *ret_w = 352;
+            *ret_h = 288;
+        }
+
+        if (winseqe_set_addr == NULL) {
+            if (((set_w <= 320) && (set_h <= 240)) && (sensor_qvga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_qvga;
+                *ret_w = 320;
+                *ret_h = 240;
+        	} else if (((set_w <= 640) && (set_h <= 480)) && (sensor_vga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_vga;
+                *ret_w = 640;
+                *ret_h = 480;
+            } else if (((set_w <= 800) && (set_h <= 600)) && (sensor_svga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_svga;
+                *ret_w = 800;
+                *ret_h = 600;
+            } else if (((set_w <= 1024) && (set_h <= 768)) && (sensor_xga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_xga;
+                *ret_w = 1024;
+                *ret_h = 768;
+        	} else if (((set_w <= 1280) && (set_h <= 1024)) && (sensor_sxga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_sxga;
+                *ret_w = 1280;
+                *ret_h = 1024;
+            } else if (((set_w <= 1600) && (set_h <= 1200)) && (sensor_uxga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_uxga;
+                *ret_w = 1600;
+                *ret_h = 1200;
+        	} else if (((set_w <= 2048) && (set_h <= 1536)) && (sensor_qxga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_qxga;
+                *ret_w = 2048;
+                *ret_h = 1536;
+            } else if (((set_w <= 2592) && (set_h <= 1944)) && (sensor_qsxga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_qsxga;
+                *ret_w = 2592;
+                *ret_h = 1944;
+            }        
+
+
+            if (((set_w <= 1280) && (set_h <= 720)) && (sensor_720p[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_720p;
+                *ret_w = 1280;
+                *ret_h = 720;
+            } else if (((set_w <= 1920) && (set_h <= 1080)) && (sensor_1080p[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_1080p;
+                *ret_w = 1920;
+                *ret_h = 1080;
+            }  
+        }
+    } else if (set_w*720 == set_h*1280) {
+        if (((set_w >= 1280) && (set_h >= 720)) && (sensor_720p[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_720p;
+            *ret_w = 1280;
+            *ret_h = 720;
+        } else if (((set_w >= 1920) && (set_h >= 1080)) && (sensor_1080p[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_1080p;
+            *ret_w = 1920;
+            *ret_h = 1080;
+        }
+
+        if (winseqe_set_addr == NULL) {
+    
+            if (((set_w <= 176) && (set_h <= 144)) && (sensor_qcif[0].reg!=SEQUENCE_END)) {
+        		winseqe_set_addr = sensor_qcif;
+                *ret_w = 176;
+                *ret_h = 144;
+        	} else if (((set_w <= 352) && (set_h<= 288)) && (sensor_cif[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_cif;
+                *ret_w = 352;
+                *ret_h = 288;
+            }
+        
+            if (((set_w <= 320) && (set_h <= 240)) && (sensor_qvga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_qvga;
+                *ret_w = 320;
+                *ret_h = 240;
+        	} else if (((set_w <= 640) && (set_h <= 480)) && (sensor_vga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_vga;
+                *ret_w = 640;
+                *ret_h = 480;
+            } else if (((set_w <= 800) && (set_h <= 600)) && (sensor_svga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_svga;
+                *ret_w = 800;
+                *ret_h = 600;
+            } else if (((set_w <= 1024) && (set_h <= 768)) && (sensor_xga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_xga;
+                *ret_w = 1024;
+                *ret_h = 768;
+        	} else if (((set_w <= 1280) && (set_h <= 1024)) && (sensor_sxga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_sxga;
+                *ret_w = 1280;
+                *ret_h = 1024;
+            } else if (((set_w <= 1600) && (set_h <= 1200)) && (sensor_uxga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_uxga;
+                *ret_w = 1600;
+                *ret_h = 1200;
+        	} else if (((set_w <= 2048) && (set_h <= 1536)) && (sensor_qxga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_qxga;
+                *ret_w = 2048;
+                *ret_h = 1536;
+            } else if (((set_w <= 2592) && (set_h <= 1944)) && (sensor_qsxga[0].reg!=SEQUENCE_END)) {
+                winseqe_set_addr = sensor_qsxga;
+                *ret_w = 2592;
+                *ret_h = 1944;
+            } 
+        }
+    } else {
+        if (((set_w <= 176) && (set_h <= 144)) && (sensor_qcif[0].reg!=SEQUENCE_END)) {
+    		winseqe_set_addr = sensor_qcif;
+            *ret_w = 176;
+            *ret_h = 144;
+    	} else if (((set_w <= 320) && (set_h <= 240)) && (sensor_qvga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_qvga;
+            *ret_w = 320;
+            *ret_h = 240;
+    	} else if (((set_w <= 352) && (set_h<= 288)) && (sensor_cif[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_cif;
+            *ret_w = 352;
+            *ret_h = 288;
+        } else if (((set_w <= 640) && (set_h <= 480)) && (sensor_vga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_vga;
+            *ret_w = 640;
+            *ret_h = 480;
+        } else if (((set_w <= 800) && (set_h <= 600)) && (sensor_svga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_svga;
+            *ret_w = 800;
+            *ret_h = 600;
+        } else if (((set_w <= 1024) && (set_h <= 768)) && (sensor_xga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_xga;
+            *ret_w = 1024;
+            *ret_h = 768;
+    	} else if (((set_w <= 1280) && (set_h <= 720)) && (sensor_720p[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_720p;
+            *ret_w = 1280;
+            *ret_h = 720;
+        } else if (((set_w <= 1280) && (set_h <= 1024)) && (sensor_sxga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_sxga;
+            *ret_w = 1280;
+            *ret_h = 1024;
+        } else if (((set_w <= 1600) && (set_h <= 1200)) && (sensor_uxga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_uxga;
+            *ret_w = 1600;
+            *ret_h = 1200;
+    	} else if (((set_w <= 1920) && (set_h <= 1080)) && (sensor_1080p[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_1080p;
+            *ret_w = 1920;
+            *ret_h = 1080;
+        } else if (((set_w <= 2048) && (set_h <= 1536)) && (sensor_qxga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_qxga;
+            *ret_w = 2048;
+            *ret_h = 1536;
+        } else if (((set_w <= 2592) && (set_h <= 1944)) && (sensor_qsxga[0].reg!=SEQUENCE_END)) {
+            winseqe_set_addr = sensor_qsxga;
+            *ret_w = 2592;
+            *ret_h = 1944;
+        }        
     }
-
+    
 	return winseqe_set_addr;
 }
+
+/*modify image with resolution 2592*1944;solve bug that the first 32 pixel data*/
+/*in the first line have misplace with the last 32 pixel data in the last line*/
+static int sensor_cb(struct videobuf_buffer  *vb)
+{
+   void __iomem *vbpmem;
+   struct videobuf_buffer *buffer = vb;
+   char *imagey_addr =NULL;
+   char *imageuv_addr = NULL;
+   char *tempaddr = NULL;
+   int  tempsize = 0;
+   
+
+   if(buffer->width!=SENSOR_MAX_WIDTH||buffer->height!=SENSOR_MAX_HEIGHT||buffer==NULL)
+    return -EINVAL;
+ 
+   if (buffer->bsize< YUV420_BUFFER_MAX_SIZE)        //yuv420 format size
+    return -EINVAL;
+
+   vbpmem = ioremap(buffer->boff,buffer->bsize);
+   if(vbpmem == NULL)
+    {
+      SENSOR_DG("\n%s..%s..ioremap fail\n",__FUNCTION__,SENSOR_NAME_STRING());
+      return -ENXIO;
+    }
+     
+   imagey_addr = (char*)vbpmem;         // y data  to be dealed with
+   imageuv_addr = imagey_addr+buffer->width*buffer->height;
+   
+ //  SENSOR_DG("\n%s..%s..imagey_addr = 0x%x; imageuv_addr = 0x%x\n",__FUNCTION__,SENSOR_NAME_STRING(),imagey_addr,imageuv_addr);
+//   SENSOR_DG("\n%s..%s..buffer->bsize=%d\n",__FUNCTION__,SENSOR_NAME_STRING(),buffer->bsize);
+
+   tempaddr =  imageuv_addr - 32;  
+   memcpy(tempaddr,imagey_addr,32);
+
+   tempaddr = imagey_addr+32;
+   memcpy(imagey_addr,tempaddr,32);
+
+                                      //uv data to be dealed with
+   tempsize  = YUV420_BUFFER_MAX_SIZE-32;                              
+   tempaddr = imagey_addr+tempsize;
+   memcpy(tempaddr,imageuv_addr,32);
+
+   tempaddr = imageuv_addr+32;
+   memcpy(imageuv_addr,tempaddr,32);
+   return 0;
+}
+
 
 static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 {
     struct i2c_client *client = sd->priv;
+    struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
     struct v4l2_pix_format *pix = &f->fmt.pix;
     struct reginfo *winseqe_set_addr=NULL;
-    int ret = 0, set_w,set_h;
+    int ret = 0, set_w,set_h,cnt;
+    u16 seq_state=0;
+    int time = 0;
+    u16 targetbrightness,realbrightness;
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
 	if (sensor->info_priv.pixfmt != pix->pixelformat) {
 		switch (pix->pixelformat)
@@ -2957,14 +3228,30 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 
 	winseqe_set_addr = sensor_fmt_catch(set_w, set_h, &set_w, &set_h);
 
-    if ((winseqe_set_addr  != sensor->info_priv.winseqe_cur_addr) && winseqe_set_addr) {
-        ret |= sensor_write_array(client, winseqe_set_addr);
-        if (ret != 0) {
-            SENSOR_TR("%s set format capability failed\n", SENSOR_NAME_STRING());
-            goto sensor_s_fmt_end;
+    if ((winseqe_set_addr  != sensor->info_priv.winseqe_cur_addr) && winseqe_set_addr)
+    { 
+       /*solve bug that video set is ineffective */
+       /*set five times to make sure sensor_720p set go into effect*/
+        if(winseqe_set_addr==sensor_720p)
+        {
+          time = 5;
+        }else{
+          time = 1;
+        }
+        
+        while(time > 0)
+        {
+           time--;
+           ret |= sensor_write_array(client, winseqe_set_addr);
+           if (ret != 0) {
+                SENSOR_TR("%s set format capability failed\n", SENSOR_NAME_STRING());
+                goto sensor_s_fmt_end;
+           }
+           udelay(10);
         }
         sensor->info_priv.winseqe_cur_addr  = winseqe_set_addr;
-		if ((winseqe_set_addr[0].reg==SEQUENCE_PROPERTY) && (winseqe_set_addr[0].val==SEQUENCE_CAPTURE)) {
+		if (winseqe_set_addr==sensor_qxga ||winseqe_set_addr==sensor_qsxga||winseqe_set_addr==sensor_uxga ||winseqe_set_addr==sensor_xga)
+        {
         	SENSOR_DG("\n%s..%s..Capture icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
 		} else {
 			SENSOR_DG("\n%s..%s..Video icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
@@ -2973,12 +3260,66 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 		}
     }
 
-	if (winseqe_set_addr && (winseqe_set_addr[0].reg==SEQUENCE_PROPERTY) && (winseqe_set_addr[0].val==SEQUENCE_CAPTURE)) {
-		ret |= sensor_write_array(client, sensor_Preview2Capture);
+	if (winseqe_set_addr && (winseqe_set_addr==sensor_qxga ||winseqe_set_addr==sensor_qsxga||winseqe_set_addr==sensor_uxga ||winseqe_set_addr==sensor_xga)) 
+     {
+		ret |= sensor_write_array(client, sensor_Preview2Capture);      
 		if (ret != 0) {
         	SENSOR_TR("%s Preview 2 Capture failed\n", SENSOR_NAME_STRING());
         	goto sensor_s_fmt_end;
     	}
+
+      /*check state of register 0x8405 to make sure set is successful*/
+      /*set sensor_Preview2Capture more times to make sure set go into effect */
+        cnt = 0;
+        time  =0;
+        do{                      
+            ret =  0;
+            msleep(50);   
+            ret =sensor_read(client,0x8405, &seq_state);
+            if (ret < 0)
+              goto sensor_s_fmt_end;
+            cnt++;
+            if(cnt > 9)
+            {
+                time++;
+                cnt = 0;
+        		ret |= sensor_write_array(client, sensor_Preview2Capture);      
+        		if (ret != 0||time >2) {
+                	SENSOR_TR("%s Preview 2 Capture failed\n", SENSOR_NAME_STRING());
+                	goto sensor_s_fmt_end;
+            	}
+               // SENSOR_DG("mt9p111 Preview 2 Capture again\n",cnt,seq_state);
+            }
+           // SENSOR_DG("mt9p111 Preview 2 Capture count = %d;seq_state = 0x%x\n",cnt,seq_state);
+         } while((seq_state != 0x07) && (time < 3));
+
+      #if CONFIG_SENSOR_Flash
+       /*The 0xA409 is AE target register address.*/
+       /*The 0xB804 is currently total brightness Y value of sensor.*/
+       targetbrightness = 0;
+       realbrightness =0;
+       if((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2))
+       {
+          if(sensor->info_priv.flash == 1)
+          {
+            ret =sensor_read(client,0xA409, &targetbrightness);
+            if (ret < 0)
+              SENSOR_DG("%s ..%s..get targetbrightness fail\n", SENSOR_NAME_STRING(),__FUNCTION__);
+            
+            ret =sensor_read(client, 0xB804, &realbrightness);
+            if (ret < 0)
+              SENSOR_DG("%s ..%s..get realbrightness fail\n", SENSOR_NAME_STRING(),__FUNCTION__);
+          }
+         
+          if((realbrightness < targetbrightness)|| (sensor->info_priv.flash == 2))
+          {
+            sensor_ioctrl(icd, Sensor_Flash, Flash_On);
+            SENSOR_DG("%s flash on,realbrightness=%d,targetbrightness=%d\n", SENSOR_NAME_STRING(),realbrightness,targetbrightness);
+          }else{
+            SENSOR_DG("%s not need to flash in capture!\n", SENSOR_NAME_STRING());
+          }
+        }
+      #endif        
 		sensor->info_priv.capture_w = set_w;
 		sensor->info_priv.capture_h = set_h;
 		sensor->info_priv.snap2preview = true;
@@ -2986,12 +3327,31 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 		if (winseqe_set_addr || ((sensor->info_priv.preview_w == pix->width) && (sensor->info_priv.preview_h == pix->height))) {
 			ret |= sensor_write_array(client, sensor_Capture2Preview);
 			if (ret != 0) {
-	        	SENSOR_TR("%s Capture 2 Preview failed\n", SENSOR_NAME_STRING());
+	        	SENSOR_TR("%s Capture 2 Preview success\n", SENSOR_NAME_STRING());
 	        	goto sensor_s_fmt_end;
 	    	}
-			sensor->info_priv.preview_w = pix->width;
-			sensor->info_priv.preview_h = pix->height;
-			sensor->info_priv.snap2preview = false;
+            
+            cnt = 0;
+            do{                                    //check state of register 0x8405 to make sure set is successful
+                ret =  0;
+                msleep(50);   
+                ret =sensor_read(client,0x8405, &seq_state);
+                if (ret < 0)
+                  goto sensor_s_fmt_end;
+                SENSOR_DG("mt9p111 Capture 2 Preview seq_state = 0x%x\n",seq_state);
+              } while((seq_state != 0x03) && (cnt < 20));
+            
+            SENSOR_TR("%s Capture 2 Preview success\n", SENSOR_NAME_STRING());
+
+            #if CONFIG_SENSOR_Flash
+            if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
+                sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
+                SENSOR_DG("%s flash off in preivew!\n", SENSOR_NAME_STRING());
+            }
+            #endif        
+    		sensor->info_priv.preview_w = pix->width;
+    		sensor->info_priv.preview_h = pix->height;
+    		sensor->info_priv.snap2preview = false;
 		} else {
 			SENSOR_TR("\n %s..%s Format is Invalidate. pix->width = %d.. pix->height = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,pix->width,pix->height);
 		}
@@ -3077,17 +3437,27 @@ static int sensor_set_brightness(struct soc_camera_device *icd, const struct v4l
 #if CONFIG_SENSOR_Effect
 static int sensor_set_effect(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
 {
+    int time =5;
+    int ret =0 ;
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 
     if ((value >= qctrl->minimum) && (value <= qctrl->maximum))
     {
         if (sensor_EffectSeqe[value - qctrl->minimum] != NULL)
         {
-            if (sensor_write_array(client, sensor_EffectSeqe[value - qctrl->minimum]) != 0)
+           /*set five times to make sure the set go into effect*/
+           /*solve bug for setting invalidate during changing from preview to video*/
+            while(time >0)
             {
-                SENSOR_TR("%s..%s WriteReg Fail.. \n",SENSOR_NAME_STRING(), __FUNCTION__);
-                return -EINVAL;
-            }
+                time--;
+                ret |=sensor_write_array(client, sensor_EffectSeqe[value - qctrl->minimum]);
+                if(ret != 0)
+                {  
+                    SENSOR_TR("%s..%s WriteReg Fail.. \n",SENSOR_NAME_STRING(), __FUNCTION__);
+                    return -EINVAL;
+                }
+                msleep(50);   
+            }       
             SENSOR_DG("%s..%s : %x\n",SENSOR_NAME_STRING(),__FUNCTION__, value);
             return 0;
         }
@@ -3303,6 +3673,27 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
     return -EINVAL;
 }
 #endif
+#if CONFIG_SENSOR_Flash
+static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int *value)
+{
+    struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+    struct sensor *sensor = to_sensor(client);
+	const struct v4l2_queryctrl *qctrl_info;
+    
+    if ((value >= qctrl->minimum) && (value <= qctrl->maximum)) {
+        if (value == 3) {       /* ddl@rock-chips.com: torch */
+            sensor_ioctrl(icd, Sensor_Flash, Flash_Torch);   /* Flash On */
+        } else {
+            sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
+        }
+        SENSOR_DG("%s..%s : %x\n",SENSOR_NAME_STRING(),__FUNCTION__, value);
+        return 0;
+    }
+    
+	SENSOR_TR("\n %s..%s valure = %d is invalidate..    \n",SENSOR_NAME_STRING(),__FUNCTION__,value);
+    return -EINVAL;
+}
+#endif
 #if CONFIG_SENSOR_Focus
 static int sensor_set_focus_absolute(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
 {
@@ -3413,6 +3804,7 @@ static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
     struct i2c_client *client = sd->priv;
     struct sensor *sensor = to_sensor(client);
     const struct v4l2_queryctrl *qctrl;
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
     qctrl = soc_camera_find_qctrl(&sensor_ops, ctrl->id);
 
@@ -3473,6 +3865,8 @@ static int sensor_s_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
     struct sensor *sensor = to_sensor(client);
     struct soc_camera_device *icd = client->dev.platform_data;
     const struct v4l2_queryctrl *qctrl;
+    
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
 
     qctrl = soc_camera_find_qctrl(&sensor_ops, ctrl->id);
@@ -3590,6 +3984,8 @@ static int sensor_g_ext_control(struct soc_camera_device *icd , struct v4l2_ext_
     const struct v4l2_queryctrl *qctrl;
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
     struct sensor *sensor = to_sensor(client);
+    
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
     qctrl = soc_camera_find_qctrl(&sensor_ops, ext_ctrl->id);
 
@@ -3768,6 +4164,8 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
 #if CONFIG_SENSOR_Flash
         case V4L2_CID_FLASH:
             {
+                if (sensor_set_flash(icd, qctrl,ext_ctrl->value) != 0)
+                    return -EINVAL;
                 sensor->info_priv.flash = ext_ctrl->value;
 
                 SENSOR_DG("%s flash is %x\n",SENSOR_NAME_STRING(), sensor->info_priv.flash);
@@ -3786,6 +4184,8 @@ static int sensor_g_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
     struct i2c_client *client = sd->priv;
     struct soc_camera_device *icd = client->dev.platform_data;
     int i, error_cnt=0, error_idx=-1;
+    
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
 
     for (i=0; i<ext_ctrl->count; i++) {
@@ -3811,6 +4211,8 @@ static int sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_control
     struct i2c_client *client = sd->priv;
     struct soc_camera_device *icd = client->dev.platform_data;
     int i, error_cnt=0, error_idx=-1;
+    
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
 
     for (i=0; i<ext_ctrl->count; i++) {
         if (sensor_s_ext_control(icd, &ext_ctrl->controls[i]) != 0) {
@@ -3841,7 +4243,6 @@ static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 		sensor->info_priv.enable = 0;
 	}
 
-sensor_s_stream_end:
 	return 0;
 }
 
@@ -3914,8 +4315,12 @@ sensor_video_probe_err:
 static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct i2c_client *client = sd->priv;
+    struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
-
+    int ret = 0;
+    
+    rk29_camera_sensor_cb_s *icd_cb =NULL;
+    
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 	switch (cmd)
 	{
@@ -3926,17 +4331,52 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		}
 		case RK29_CAM_SUBDEV_IOREQUEST:
 		{
-			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;
+			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;           
+            if (sensor->sensor_io_request != NULL) { 
+                if (sensor->sensor_io_request->gpio_res[0].dev_name && 
+                    (strcmp(sensor->sensor_io_request->gpio_res[0].dev_name, dev_name(icd->pdev)) == 0)) {
+                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[0];
+                } else if (sensor->sensor_io_request->gpio_res[1].dev_name && 
+                    (strcmp(sensor->sensor_io_request->gpio_res[1].dev_name, dev_name(icd->pdev)) == 0)) {
+                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[1];
+                }
+            } else {
+                SENSOR_TR("%s %s RK29_CAM_SUBDEV_IOREQUEST fail\n",SENSOR_NAME_STRING(),__FUNCTION__);
+                ret = -EINVAL;
+                goto sensor_ioctl_end;
+            }
+            /* ddl@rock-chips.com : if gpio_flash havn't been set in board-xxx.c, sensor driver must notify is not support flash control 
+               for this project */
+            #if CONFIG_SENSOR_Flash	
+            int i;
+        	if (sensor->sensor_gpio_res) {
+                if (sensor->sensor_gpio_res->gpio_flash == INVALID_GPIO) {
+                    for (i = 0; i < icd->ops->num_controls; i++) {
+                		if (V4L2_CID_FLASH == icd->ops->controls[i].id) {
+                			memset(&icd->ops->controls[i],0x00,sizeof(struct v4l2_queryctrl));                			
+                		}
+                    }
+                    sensor->info_priv.flash = 0xff;
+                    SENSOR_DG("%s flash gpio is invalidate!\n",SENSOR_NAME_STRING());
+                }
+        	}
+            #endif
 			break;
 		}
+        case RK29_CAM_SUBDEV_CB_REGISTER:
+        {
+           icd_cb = (rk29_camera_sensor_cb_s*)(arg);
+           icd_cb->sensor_cb = sensor_cb;
+           break;    
+        }
 		default:
 		{
 			SENSOR_TR("%s %s cmd(0x%x) is unknown !\n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 			break;
 		}
 	}
-
-	return 0;
+sensor_ioctl_end:
+	return ret;
 
 }
 
@@ -4056,6 +4496,7 @@ static int __init sensor_mod_init(void)
 
 static void __exit sensor_mod_exit(void)
 {
+    SENSOR_DG("\n%s..%s.. \n",__FUNCTION__,SENSOR_NAME_STRING());
     i2c_del_driver(&sensor_i2c_driver);
 }
 

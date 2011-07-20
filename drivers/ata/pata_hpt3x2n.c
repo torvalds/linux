@@ -452,10 +452,8 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		.port_ops = &hpt3x2n_port_ops
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
-
+	u8 rev = dev->revision;
 	u8 irqmask;
-	u32 class_rev;
-
 	unsigned int pci_mhz;
 	unsigned int f_low, f_high;
 	int adjust;
@@ -467,26 +465,23 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (rc)
 		return rc;
 
-	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class_rev);
-	class_rev &= 0xFF;
-
 	switch(dev->device) {
 		case PCI_DEVICE_ID_TTI_HPT366:
-			if (class_rev < 6)
+			if (rev < 6)
 				return -ENODEV;
 			break;
 		case PCI_DEVICE_ID_TTI_HPT371:
-			if (class_rev < 2)
+			if (rev < 2)
 				return -ENODEV;
 			/* 371N if rev > 1 */
 			break;
 		case PCI_DEVICE_ID_TTI_HPT372:
 			/* 372N if rev >= 2*/
-			if (class_rev < 2)
+			if (rev < 2)
 				return -ENODEV;
 			break;
 		case PCI_DEVICE_ID_TTI_HPT302:
-			if (class_rev < 2)
+			if (rev < 2)
 				return -ENODEV;
 			break;
 		case PCI_DEVICE_ID_TTI_HPT372N:

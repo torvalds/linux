@@ -46,7 +46,6 @@
 static struct clk *pwm_clk;
 static struct backlight_device *rk29_bl;
 static int suspend_flag = 0;
-#define BACKLIGHT_SEE_MINVALUE	52
 
 static int rk29_bl_update_status(struct backlight_device *bl)
 {
@@ -58,17 +57,18 @@ static int rk29_bl_update_status(struct backlight_device *bl)
 	if (suspend_flag)
 		return 0;
 
+	if (bl->props.brightness < rk29_bl_info->min_brightness)	/*avoid can't view screen when close backlight*/
+		bl->props.brightness = rk29_bl_info->min_brightness;
+
 	div_total = read_pwm_reg(id, PWM_REG_LRC);
 	if (ref) {
 		divh = div_total*(bl->props.brightness)/BL_STEP;
-		DBG(">>>%s-->%d   bl->props.brightness == %d, div_total == %d , divh == %d\n",__FUNCTION__,__LINE__,bl->props.brightness, div_total, divh);
 	} else {
-		DBG(">>>%s-->%d   bl->props.brightness == %d\n",__FUNCTION__,__LINE__,bl->props.brightness);
-		if(bl->props.brightness < BACKLIGHT_SEE_MINVALUE)	/*avoid can't view screen when close backlight*/
-			bl->props.brightness = BACKLIGHT_SEE_MINVALUE;
 		divh = div_total*(BL_STEP-bl->props.brightness)/BL_STEP;
 	}
 	write_pwm_reg(id, PWM_REG_HRC, divh);
+
+	DBG(">>>%s-->%d brightness = %d, div_total = %d, divh = %d\n",__FUNCTION__,__LINE__,bl->props.brightness, div_total, divh);
 	return 0;
 }
 
@@ -99,6 +99,7 @@ static struct backlight_ops rk29_bl_ops = {
 
 static void rk29_backlight_work_func(struct work_struct *work)
 {
+	suspend_flag = 0;
 	rk29_bl_update_status(rk29_bl);
 }
 static DECLARE_DELAYED_WORK(rk29_backlight_work, rk29_backlight_work_func);
@@ -108,6 +109,8 @@ static void rk29_bl_suspend(struct early_suspend *h)
 {
 	struct rk29_bl_info *rk29_bl_info = bl_get_data(rk29_bl);
 	int brightness = rk29_bl->props.brightness;
+
+	cancel_delayed_work_sync(&rk29_backlight_work);
 
 	if (rk29_bl->props.brightness) {
 		rk29_bl->props.brightness = 0;
@@ -133,9 +136,8 @@ static void rk29_bl_resume(struct early_suspend *h)
 		rk29_bl_info->pwm_resume();
 
 	clk_enable(pwm_clk);
-	suspend_flag = 0;
 
-	schedule_delayed_work(&rk29_backlight_work, msecs_to_jiffies(30));
+	schedule_delayed_work(&rk29_backlight_work, msecs_to_jiffies(rk29_bl_info->delay_ms));
 }
 
 static struct early_suspend bl_early_suspend = {
@@ -144,6 +146,16 @@ static struct early_suspend bl_early_suspend = {
 	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1,
 };
 #endif
+void rk29_backlight_set(bool on)
+{
+	printk("%s: set %d\n", __func__, on);
+	if(on)
+		rk29_bl_resume(NULL);
+	else
+		rk29_bl_suspend(NULL);
+	return;
+}
+EXPORT_SYMBOL(rk29_backlight_set);
 
 static int rk29_backlight_probe(struct platform_device *pdev)
 {		
@@ -158,6 +170,12 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 				__func__);
 		return -EEXIST;		
 	}
+
+	if (!rk29_bl_info->delay_ms)
+		rk29_bl_info->delay_ms = 100;
+
+	if (rk29_bl_info->min_brightness < 0 || rk29_bl_info->min_brightness > BL_STEP)
+		rk29_bl_info->min_brightness = 52;
 
 	if (rk29_bl_info && rk29_bl_info->io_init) {
 		rk29_bl_info->io_init();
@@ -199,7 +217,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	rk29_bl->props.max_brightness = BL_STEP;
 	rk29_bl->props.brightness = BL_STEP / 2;
 
-	schedule_delayed_work(&rk29_backlight_work, msecs_to_jiffies(30));
+	schedule_delayed_work(&rk29_backlight_work, msecs_to_jiffies(rk29_bl_info->delay_ms));
 
 	register_early_suspend(&bl_early_suspend);
 
@@ -229,6 +247,8 @@ static int rk29_backlight_remove(struct platform_device *pdev)
 
 static void rk29_backlight_shutdown(struct platform_device *pdev)
 {
+	struct rk29_bl_info *rk29_bl_info = pdev->dev.platform_data;
+
 	rk29_bl->props.brightness >>= 1;
 	rk29_bl_update_status(rk29_bl);
 	mdelay(100);
@@ -239,6 +259,9 @@ static void rk29_backlight_shutdown(struct platform_device *pdev)
 
 	rk29_bl->props.brightness = 0;
 	rk29_bl_update_status(rk29_bl);
+
+	if (rk29_bl_info && rk29_bl_info->io_deinit)
+		rk29_bl_info->io_deinit();
 }
 
 static struct platform_driver rk29_backlight_driver = {

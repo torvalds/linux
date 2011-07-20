@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/ktime.h>
 #define BL_SET   255
+#define BL_MISC_VALUE 20
 #define BL_INIT_VALUE 102
 struct wm831x_backlight_data {
 	struct wm831x *wm831x;
@@ -33,6 +34,7 @@ struct wm831x_backlight_data {
 	struct 	early_suspend early_suspend;
 	struct delayed_work work;
 	int suspend_flag;
+	int shutdown_flag;
 #endif
 };
 #define TS_POLL_DELAY (10000*1000*1000)
@@ -117,14 +119,19 @@ err:
 static int wm831x_backlight_update_status(struct backlight_device *bl)
 {
 	int brightness = bl->props.brightness;
-	if (brightness<=BL_INIT_VALUE) {
-		brightness = 111*brightness/51;
+	if (brightness<=BL_MISC_VALUE) {
+		brightness = 8*brightness;
+	}
+	else if (brightness<=BL_INIT_VALUE) {
+		brightness = 31*brightness/41 + 145;
 	}
 	else {
 		brightness = 33*brightness/153 + 200;
 	}
 
 	if(gwm831x_data->suspend_flag == 1)
+		brightness = 0;
+	if (gwm831x_data->shutdown_flag == 1)
 		brightness = 0;
 		
 	if (bl->props.power != FB_BLANK_UNBLANK)
@@ -180,6 +187,13 @@ static void wm831x_bl_resume(struct early_suspend *h)
 }
 
 #endif
+
+int rk29_backlight_ctrl(int open)
+{
+	gwm831x_data->suspend_flag = !open;
+	schedule_delayed_work(&gwm831x_data->work, 0);
+}
+
 static int wm831x_backlight_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
@@ -301,6 +315,17 @@ static int wm831x_backlight_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void wm831x_backlight_shutdown(struct platform_device *pdev)
+{
+	struct backlight_device *bl = platform_get_drvdata(pdev);
+	struct wm831x_backlight_data *data = bl_get_data(bl);
+	
+	printk("enter %s\n", __func__);
+	data->shutdown_flag = 1;
+	wm831x_backlight_update_status(bl);
+	return;
+}
+
 static struct platform_driver wm831x_backlight_driver = {
 	.driver		= {
 		.name	= "wm831x-backlight",
@@ -308,6 +333,7 @@ static struct platform_driver wm831x_backlight_driver = {
 	},
 	.probe		= wm831x_backlight_probe,
 	.remove		= wm831x_backlight_remove,
+	.shutdown	= wm831x_backlight_shutdown,
 };
 
 static int __init wm831x_backlight_init(void)

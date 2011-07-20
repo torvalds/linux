@@ -28,50 +28,12 @@
 
 #include <mach/vpu_mem.h>
 
+#define VPU_MEM_MIN_ALLOC               PAGE_SIZE
+#define VPU_MEM_IS_PAGE_ALIGNED(addr)   (!((addr) & (~PAGE_MASK)))
 
-#define VPU_MEM_MAX_ORDER 128
-#define VPU_MEM_MIN_ALLOC PAGE_SIZE
+#define VPU_MEM_DEBUG                   0
+#define VPU_MEM_DEBUG_MSGS              0
 
-#define VPU_MEM_DEBUG 0
-
-#define VPU_MEM_SPLIT_ALLOC             0
-#define VPU_MEM_SPLIT_LINK              1
-
-struct vpu_mem_data {
-	/* protects this data field, if the mm_mmap sem will be held at the
-	 * same time as this sem, the mm sem must be taken first (as this is
-	 * the order for vma_open and vma_close ops */
-	struct rw_semaphore sem;
-	/* process id of teh mapping process */
-	pid_t pid;
-	/* a list of currently available regions if this is a suballocation */
-	struct list_head region_list;
-	/* a linked list of data so we can access them for debugging */
-	struct list_head list;
-};
-
-struct vpu_mem_bits {
-	int pfn:16;                 /* page frame number - vpu_mem space max 256M */
-	int refrc:7;                /* reference number */
-	int first:1;                /* 1 if first, 0 if not first */
-	int avail:7;                /* available link number */
-	int last:1;                 /* 1 if last, 0 if no last */
-};
-
-struct vpu_mem_region {
-	int index;
-	int ref_count;
-};
-
-struct vpu_mem_region_node {
-	struct vpu_mem_region region;
-	struct list_head list;
-};
-
-#define NODE_REGION_INDEX(p)     (p->region.index)
-#define NODE_REGION_REFC(p)      (p->region.ref_count)
-
-#define VPU_MEM_DEBUG_MSGS 0
 #if VPU_MEM_DEBUG_MSGS
 #define DLOG(fmt,args...) \
 	do { printk(KERN_INFO "[%s:%s:%d] "fmt, __FILE__, __func__, __LINE__, \
@@ -81,7 +43,50 @@ struct vpu_mem_region_node {
 #define DLOG(x...) do {} while (0)
 #endif
 
-struct vpu_mem_info {
+/**
+ * struct for process session which connect to vpu_mem
+ * 
+ * @author ChenHengming (2011-4-11)
+ */
+typedef struct vpu_mem_session {
+    /* a list of memory region used posted by current process */
+    struct list_head list_used;
+    struct list_head list_post;
+    /* a linked list of data so we can access them for debugging */
+    struct list_head list_session;
+	/* process id of teh mapping process */
+	pid_t pid;
+} vdm_session;
+
+/**
+ * global region info
+ */
+typedef struct vpu_mem_region_info {
+    struct list_head index_list;        /* link to index list use for search */
+    int used;
+    int post;
+    int index;
+    int pfn;
+} vdm_region;
+
+/**
+ * struct for region information 
+ * this struct should be modified with bitmap lock 
+ */
+typedef struct vpu_mem_link_info {
+    struct list_head session_link;      /* link to vpu_mem_session list */
+    struct list_head status_link;       /* link to vdm_info.status list use for search */
+    vdm_region *region;
+    int link_post;
+    int link_used;
+    int index;
+    int pfn;
+} vdm_link;
+
+/**
+ * struct for global vpu memory info
+ */
+typedef struct vpu_mem_info {
 	struct miscdevice dev;
 	/* physical start address of the remaped vpu_mem space */
 	unsigned long base;
@@ -96,52 +101,541 @@ struct vpu_mem_info {
 	 * O_SYNC to get an uncached region */
 	unsigned cached;
 	unsigned buffered;
-
-    /* no data_list is needed and no master mode is needed */
-	/* for debugging, creates a list of vpu_mem file structs, the
-	 * data_list_sem should be taken before vpu_mem_data->sem if both are
-	 * needed */
-	struct semaphore data_list_sem;
-	struct list_head data_list;
-
-	/* the bitmap for the region indicating which entries are allocated
-	 * and which are free */
-	struct vpu_mem_bits *bitmap;
-	/* vpu_mem_sem protects the bitmap array
-	 * a write lock should be held when modifying entries in bitmap
-	 * a read lock should be held when reading data from bits or
-	 * dereferencing a pointer into bitmap
-	 *
-	 * vpu_mem_data->sem protects the vpu_mem data of a particular file
-	 * Many of the function that require the vpu_mem_data->sem have a non-
-	 * locking version for when the caller is already holding that sem.
-	 *
-	 * IF YOU TAKE BOTH LOCKS TAKE THEM IN THIS ORDER:
-	 * down(vpu_mem_data->sem) => down(bitmap_sem)
+	/* 
+	 * vdm_session init only store the free region but use a vdm_session for convenience
 	 */
-	struct rw_semaphore bitmap_sem;
-};
+    vdm_session status;
+	struct list_head list_index;        /* sort by index */
+    struct list_head list_free;         /* free region list */
+    struct list_head list_session;      /* session list */
+    struct rw_semaphore rw_sem;
+} vdm_info;
 
-static struct vpu_mem_info vpu_mem;
+static vdm_info vpu_mem;
 static int vpu_mem_count;
+static int vpu_mem_over = 0;
 
-#define VPU_MEM_IS_FREE(index) !(vpu_mem.bitmap[index].avail)
-#define VPU_MEM_FIRST(index) (vpu_mem.bitmap[index].first)
-#define VPU_MEM_LAST(index) (vpu_mem.bitmap[index].last)
-#define VPU_MEM_REFC(index) (vpu_mem.bitmap[index].refrc)
-#define VPU_MEM_AVAIL(index) (vpu_mem.bitmap[index].avail)
-#define VPU_MEM_BIT(index) (&vpu_mem.bitmap[index])
-#define VPU_MEM_PFN(index) (vpu_mem.bitmap[index].pfn)
-#define VPU_MEM_LAST_INDEX(index) (index - VPU_MEM_PFN(index - 1))
-#define VPU_MEM_NEXT_INDEX(index) (index + VPU_MEM_PFN(index))
-#define VPU_MEM_END_INDEX(index) (VPU_MEM_NEXT_INDEX(index) - 1)
-#define VPU_MEM_OFFSET(index) (index * VPU_MEM_MIN_ALLOC)
-#define VPU_MEM_START_ADDR(index) (VPU_MEM_OFFSET(index) + vpu_mem.base)
-#define VPU_MEM_SIZE(index) ((VPU_MEM_PFN(index)) * VPU_MEM_MIN_ALLOC)
-#define VPU_MEM_END_ADDR(index) (VPU_MEM_START_ADDR(index) + VPU_MEM_SIZE(index))
-#define VPU_MEM_START_VADDR(index) (VPU_MEM_OFFSET(index) + vpu_mem.vbase)
-#define VPU_MEM_END_VADDR(index) (VPU_MEM_START_VADDR(index) + VPU_MEM_SIZE(index))
-#define VPU_MEM_IS_PAGE_ALIGNED(addr) (!((addr) & (~PAGE_MASK)))
+#define vdm_used                (vpu_mem.status.list_used)
+#define vdm_post                (vpu_mem.status.list_post)
+#define vdm_index               (vpu_mem.list_index)
+#define vdm_free                (vpu_mem.list_free)
+#define vdm_proc                (vpu_mem.list_session)
+#define vdm_rwsem               (vpu_mem.rw_sem)
+#define is_free_region(x)       ((0 == (x)->used) && (0 == (x)->post))
+
+/**
+ * vpu memory info dump: 
+ * first dump global info, then dump each session info 
+ * 
+ * @author ChenHengming (2011-4-20)
+ */
+static void dump_status(void)
+{
+    vdm_link    *link, *tmp_link;
+    vdm_region  *region, *tmp_region;
+    vdm_session *session, *tmp_session;
+
+    printk("vpu mem status dump :\n\n");
+
+    // 按 index 打印全部 region
+    printk("region:\n");
+    list_for_each_entry_safe(region, tmp_region, &vdm_index, index_list) {
+        printk("        idx %6d pfn %6d used %3d post %3d\n",
+            region->index, region->pfn, region->used, region->post);
+    }
+    printk("free  :\n");
+    list_for_each_entry_safe(link, tmp_link, &vdm_free, status_link) {
+        printk("        idx %6d pfn %6d used %3d post %3d\n",
+            link->index, link->pfn, link->link_used, link->link_post);
+    }
+    printk("used  :\n");
+    list_for_each_entry_safe(link, tmp_link, &vdm_used, status_link) {
+        printk("        idx %6d pfn %6d used %3d post %3d\n",
+            link->index, link->pfn, link->link_used, link->link_post);
+    }
+    printk("post  :\n");
+    list_for_each_entry_safe(link, tmp_link, &vdm_post, status_link) {
+        printk("        idx %6d pfn %6d used %3d post %3d\n",
+            link->index, link->pfn, link->link_used, link->link_post);
+    }
+
+    // 打印 vpu_mem_info 中的全部 session 的 region 占用情况
+    list_for_each_entry_safe(session, tmp_session, &vdm_proc, list_session) {
+        printk("pid: %d\n", session->pid);
+
+        list_for_each_entry_safe(link, tmp_link, &session->list_used, session_link) {
+            printk("used: idx %6d pfn %6d used %3d\n",
+                link->index, link->pfn, link->link_used);
+        }
+        list_for_each_entry_safe(link, tmp_link, &session->list_post, session_link) {
+            printk("post: idx %6d pfn %6d post %3d\n",
+                link->index, link->pfn, link->link_post);
+        }
+    }
+}
+
+/**
+ * find used link in a session
+ * 
+ * @author ChenHengming (2011-4-18)
+ * 
+ * @param session 
+ * @param index 
+ * 
+ * @return vdm_link* 
+ */
+static vdm_link *find_used_link(vdm_session *session, int index)
+{
+    vdm_link *pos, *n;
+
+    list_for_each_entry_safe(pos, n, &session->list_used, session_link) {
+        if (index == pos->index) {
+            DLOG("found index %d ptr %x\n", index, pos);
+            return pos;
+        }
+    }
+
+    return NULL;
+}
+
+/**
+ * find post link from vpu_mem's vdm_post list
+ * 
+ * @author ChenHengming (2011-4-18)
+ * 
+ * @param index 
+ * 
+ * @return vdm_link* 
+ */
+static vdm_link *find_post_link(int index)
+{
+    vdm_link *pos, *n;
+
+    list_for_each_entry_safe(pos, n, &vdm_post, status_link) {
+        if (index == pos->index) {
+            return pos;
+        }
+    }
+
+    return NULL;
+}
+
+/**
+ * find free link from vpu_mem's vdm_free list
+ * 
+ * @author Administrator (2011-4-19)
+ * 
+ * @param index 
+ * 
+ * @return vdm_link* 
+ */
+static vdm_link *find_free_link(int index)
+{
+    vdm_link *pos, *n;
+
+    list_for_each_entry_safe(pos, n, &vdm_free, status_link) {
+        if (index == pos->index) {
+            return pos;
+        }
+    }
+
+    return NULL;
+}
+/**
+ * insert a region into the index list for search
+ * 
+ * @author ChenHengming (2011-4-18)
+ * 
+ * @param region 
+ * 
+ * @return int 
+ */
+static int _insert_region_index(vdm_region *region)
+{
+    int index = region->index;
+    int last = -1;
+    int next;
+    vdm_region *tmp, *n;
+
+    if (list_empty(&vdm_index)) {
+        DLOG("index list is empty, insert first region\n");
+        list_add_tail(&region->index_list, &vdm_index);
+        return 0;
+    }
+
+    list_for_each_entry_safe(tmp, n, &vdm_index, index_list) {
+        next = tmp->index;
+        DLOG("insert index %d pfn %d last %d next %d ptr %x\n", index, region->pfn, last, next, tmp);
+        if ((last < index) && (index < next))  {
+            DLOG("Done\n");
+            list_add_tail(&region->index_list, &tmp->index_list);
+            return 0;
+        }
+        last = next;
+    }
+
+    printk(KERN_ERR "_insert_region_by_index %d fail!\n", index);
+    dump_status();
+    return -1;
+}
+
+/**
+ * insert a link into vdm_free list, indexed by vdm_link->index
+ * 
+ * @author ChenHengming (2011-4-20)
+ * 
+ * @param link 
+ */
+static void _insert_link_status_free(vdm_link *link)
+{
+    int index = link->index;
+    int last = -1;
+    int next;
+    vdm_link *tmp, *n;
+
+    if (list_empty(&vdm_free)) {
+        DLOG("free list is empty, list_add_tail first region\n");
+        list_add_tail(&link->status_link, &vdm_free);
+        return ;
+    }
+
+    list_for_each_entry_safe(tmp, n, &vdm_free, status_link) {
+        next = tmp->index;
+        if ((last < index) && (index < next))  {
+            DLOG("list_add_tail index %d pfn %d last %d next %d ptr %x\n", index, link->pfn, last, next, tmp);
+            list_add_tail(&link->status_link, &tmp->status_link);
+            return ;
+        }
+        last = next;
+    }
+    list_add_tail(&link->status_link, &tmp->status_link);
+    DLOG("list_add index %d pfn %d last %d ptr %x\n", index, link->pfn, last, tmp);
+    return ;
+}
+
+static void _insert_link_status_post(vdm_link *link)
+{
+    int index = link->index;
+    int last = -1;
+    int next;
+    vdm_link *tmp, *n;
+
+    if (list_empty(&vdm_post)) {
+        DLOG("post list is empty, list_add_tail first region\n");
+        list_add_tail(&link->status_link, &vdm_post);
+        return ;
+    }
+
+    list_for_each_entry_safe(tmp, n, &vdm_post, status_link) {
+        next = tmp->index;
+        if ((last < index) && (index < next))  {
+            DLOG("list_add_tail index %d pfn %d last %d next %d ptr %x\n", index, link->pfn, last, next, tmp);
+            list_add_tail(&link->status_link, &tmp->status_link);
+            return ;
+        }
+        last = next;
+    }
+
+    list_add_tail(&link->status_link, &tmp->status_link);
+    DLOG("list_add index %d pfn %d last %d ptr %x\n", index, link->pfn, last, tmp);
+    return ;
+}
+
+static void _insert_link_status_used(vdm_link *link)
+{
+    int index = link->index;
+    int last = -1;
+    int next;
+    vdm_link *tmp, *n;
+
+    if (list_empty(&vdm_used)) {
+        DLOG("used list is empty, list_add_tail first region\n");
+        list_add_tail(&link->status_link, &vdm_used);
+        return ;
+    }
+
+    list_for_each_entry_safe(tmp, n, &vdm_used, status_link) {
+        next = tmp->index;
+        if ((last < index) && (index < next))  {
+            DLOG("list_add_tail index %d pfn %d last %d next %d ptr %x\n", index, link->pfn, last, next, tmp);
+            list_add_tail(&link->status_link, &tmp->status_link);
+            return ;
+        }
+        last = next;
+    }
+
+    list_add_tail(&link->status_link, &tmp->status_link);
+    DLOG("list_add index %d pfn %d last %d ptr %x\n", index, link->pfn, last, tmp);
+    return ;
+}
+
+static void _insert_link_session_used(vdm_link *link, vdm_session *session)
+{
+    int index = link->index;
+    int last = -1;
+    int next;
+    vdm_link *tmp, *n;
+
+    if (list_empty(&session->list_used)) {
+        DLOG("session used list is empty, list_add_tail first region\n");
+        list_add_tail(&link->session_link, &session->list_used);
+        return ;
+    }
+
+    list_for_each_entry_safe(tmp, n, &session->list_used, session_link) {
+        next = tmp->index;
+        if ((last < index) && (index < next))  {
+            list_add_tail(&link->session_link, &tmp->session_link);
+            DLOG("list_add_tail index %d pfn %d last %d next %d ptr %x\n", index, link->pfn, last, next, tmp);
+            return ;
+        }
+        last = next;
+    }
+
+    list_add_tail(&link->session_link, &tmp->session_link);
+    DLOG("list_add index %d pfn %d last %d ptr %x\n", index, link->pfn, last, tmp);
+    return ;
+}
+
+static void _insert_link_session_post(vdm_link *link, vdm_session *session)
+{
+    int index = link->index;
+    int last = -1;
+    int next;
+    vdm_link *tmp, *n;
+
+    if (list_empty(&session->list_post)) {
+        DLOG("session post list is empty, list_add_tail first region\n");
+        list_add_tail(&link->session_link, &session->list_post);
+        return ;
+    }
+
+    list_for_each_entry_safe(tmp, n, &session->list_post, session_link) {
+        next = tmp->index;
+        if ((last < index) && (index < next))  {
+            list_add_tail(&link->session_link, &tmp->session_link);
+            DLOG("list_add_tail index %d pfn %d last %d next %d ptr %x\n", index, link->pfn, last, next, tmp);
+            return ;
+        }
+        last = next;
+    }
+
+    list_add_tail(&link->session_link, &tmp->session_link);
+    DLOG("list_add index %d pfn %d last %d ptr %x\n", index, link->pfn, last, tmp);
+    return ;
+}
+
+static void _remove_free_region(vdm_region *region)
+{
+    list_del_init(&region->index_list);
+    kfree(region);
+}
+
+static void _remove_free_link(vdm_link *link)
+{
+    list_del_init(&link->session_link);
+    list_del_init(&link->status_link);
+    kfree(link);
+}
+
+static void _merge_two_region(vdm_region *dst, vdm_region *src)
+{
+    vdm_link *dst_link = find_free_link(dst->index);
+    vdm_link *src_link = find_free_link(src->index);
+    dst->pfn        += src->pfn;
+    dst_link->pfn   += src_link->pfn;
+    _remove_free_link(src_link);
+    _remove_free_region(src);
+}
+
+static void merge_free_region_and_link(vdm_region *region)
+{
+    if (region->used || region->post) {
+        printk(KERN_ALERT "try to merge unfree region!\n");
+        return ;
+    } else {
+        vdm_region *neighbor;
+        struct list_head *tmp = region->index_list.next;
+        if (tmp != &vdm_index) {
+            neighbor = (vdm_region *)list_entry(tmp, vdm_region, index_list);
+            if (is_free_region(neighbor)) {
+                DLOG("merge next\n");
+                _merge_two_region(region, neighbor);
+            }
+        }
+        tmp = region->index_list.prev;
+        if (tmp != &vdm_index) {
+            neighbor = (vdm_region *)list_entry(tmp, vdm_region, index_list);
+            if (is_free_region(neighbor)) {
+                DLOG("merge prev\n");
+                _merge_two_region(neighbor, region);
+            }
+        }
+    }
+}
+
+static void put_free_link(vdm_link *link)
+{
+    list_del_init(&link->session_link);
+    list_del_init(&link->status_link);
+    _insert_link_status_free(link);
+}
+
+static void put_used_link(vdm_link *link, vdm_session *session)
+{
+    list_del_init(&link->session_link);
+    list_del_init(&link->status_link);
+    _insert_link_status_used(link);
+    _insert_link_session_used(link, session);
+}
+
+static void put_post_link(vdm_link *link, vdm_session *session)
+{
+    list_del_init(&link->session_link);
+    list_del_init(&link->status_link);
+    _insert_link_status_post(link);
+    _insert_link_session_post(link, session);
+}
+
+/**
+ * Create a link and a region by index and pfn at a same time, 
+ * and connect the link with the region 
+ * 
+ * @author ChenHengming (2011-4-20)
+ * 
+ * @param index 
+ * @param pfn 
+ * 
+ * @return vdm_link* 
+ */
+static vdm_link *new_link_by_index(int index, int pfn)
+{
+    vdm_region *region = (vdm_region *)kmalloc(sizeof(vdm_region), GFP_KERNEL);
+    vdm_link   *link   = (vdm_link   *)kmalloc(sizeof(vdm_link  ), GFP_KERNEL);
+
+    if ((NULL == region) || (NULL == link)) {
+        printk(KERN_ALERT "can not kmalloc vdm_region and vdm_link in %s", __FUNCTION__);
+        if (region) {
+            kfree(region);
+        }
+        if (link) {
+            kfree(link);
+        }
+        return NULL;
+    }
+
+    region->post    = 0;
+    region->used    = 0;
+    region->index   = index;
+    region->pfn     = pfn;
+
+    INIT_LIST_HEAD(&region->index_list);
+
+    link->link_post = 0;
+    link->link_used = 0;
+    link->region    = region;
+    link->index     = region->index;
+    link->pfn       = region->pfn;
+    INIT_LIST_HEAD(&link->session_link);
+    INIT_LIST_HEAD(&link->status_link);
+
+    return link;
+}
+
+/**
+ * Create a link from a already exist region and connect to the 
+ * region 
+ * 
+ * @author ChenHengming (2011-4-20)
+ * 
+ * @param region 
+ * 
+ * @return vdm_link* 
+ */
+static vdm_link *new_link_by_region(vdm_region *region)
+{
+    vdm_link *link = (vdm_link *)kmalloc(sizeof(vdm_link), GFP_KERNEL);
+    if (NULL == link) {
+        printk(KERN_ALERT "can not kmalloc vdm_region and vdm_link in %s", __FUNCTION__);
+        return NULL;
+    }
+
+    link->link_post = 0;
+    link->link_used = 0;
+    link->region    = region;
+    link->index     = region->index;
+    link->pfn       = region->pfn;
+    INIT_LIST_HEAD(&link->session_link);
+    INIT_LIST_HEAD(&link->status_link);
+
+    return link;
+}
+
+/**
+ * Delete a link completely
+ * 
+ * @author ChenHengming (2011-4-20)
+ * 
+ * @param link 
+ */
+static void link_del(vdm_link *link)
+{
+    list_del_init(&link->session_link);
+    list_del_init(&link->status_link);
+    kfree(link);
+}
+
+/**
+ * Called by malloc, check whether a free link can by used for a 
+ * len of pfn, if can then put a used link to status link 
+ * 
+ * @author ChenHengming (2011-4-20)
+ * 
+ * @param link 
+ * @param session 
+ * @param pfn 
+ * 
+ * @return vdm_link* 
+ */
+static vdm_link *get_used_link_from_free_link(vdm_link *link, vdm_session *session, int pfn)
+{
+    if (pfn > link->pfn) {
+        return NULL;
+    }
+    if (pfn == link->pfn) {
+        DLOG("pfn == link->pfn %d\n", pfn);
+        link->link_used     = 1;
+        link->region->used  = 1;
+        put_used_link(link, session);
+        return link;
+    } else {
+        vdm_link *used = new_link_by_index(link->index, pfn);
+        if (NULL == used)
+            return NULL;
+
+        link->index         += pfn;
+        link->pfn           -= pfn;
+        link->region->index += pfn;
+        link->region->pfn   -= pfn;
+        used->link_used      = 1;
+        used->region->used   = 1;
+
+        DLOG("used: index %d pfn %d ptr %x\n", used->index, used->pfn, used->region);
+        if (_insert_region_index(used->region)) {
+            printk(KERN_ALERT "fail to insert allocated region index %d pfn %d\n", used->index, used->pfn);
+            link_del(used);
+            link->index         -= pfn;
+            link->pfn           += pfn;
+            link->region->index -= pfn;
+            link->region->pfn   += pfn;
+            _remove_free_region(used->region);
+            _remove_free_link(used);
+            return NULL;
+        }
+        put_used_link(used, session);
+        return used;
+    }
+}
 
 static int vpu_mem_release(struct inode *, struct file *);
 static int vpu_mem_mmap(struct file *, struct vm_area_struct *);
@@ -165,473 +659,186 @@ int is_vpu_mem_file(struct file *file)
 	return 1;
 }
 
-static void region_set(int index, int pfn)
-{
-    WARN(pfn <= 0, "vpu_mem: region_set non-positive pfn\n");
-    if (pfn > 0) {
-        int first = index;
-        int last  = index + pfn - 1;
-
-        DLOG("region_set: first %d, last %d, size %d\n", first, last, pfn);
-
-        VPU_MEM_FIRST(first) = 1;
-        VPU_MEM_PFN(first) = pfn;
-
-        VPU_MEM_LAST(last) = 1;
-        VPU_MEM_PFN(last) = pfn;
-    }
-}
-
-static void region_unset(int index, int pfn)
-{
-    WARN(pfn <= 0, "vpu_mem: region_unset non-positive pfn\n");
-    if (pfn > 0) {
-        int first = index;
-        int last  = index + pfn - 1;
-
-        DLOG("region_unset: first %d, last %d, size %d\n", first, last, pfn);
-
-        VPU_MEM_FIRST(first) = 0;
-        VPU_MEM_LAST(first) = 0;
-        VPU_MEM_PFN(first) = 0;
-
-        VPU_MEM_FIRST(last) = 0;
-        VPU_MEM_LAST(last) = 0;
-        VPU_MEM_PFN(last) = 0;
-    }
-}
-
-static void region_set_ref_count(int index, int ref_count)
-{
-    DLOG("region_set_ref_count: index %d, ref_count %d\n", index, ref_count);
-
-    VPU_MEM_REFC(index) = ref_count;
-    VPU_MEM_REFC(VPU_MEM_END_INDEX(index)) = ref_count;
-}
-
-static void region_set_avail(int index, int avail)
-{
-    DLOG("region_set_avail: index %d, avail %d\n", index, avail);
-
-    VPU_MEM_AVAIL(index) = avail;
-    VPU_MEM_AVAIL(VPU_MEM_END_INDEX(index)) = avail;
-}
-
-static int index_avail(int index)
-{
-    return ((0 <= index) && (index < vpu_mem.num_entries));
-}
-
-static int region_check(int index)
-{
-    int end = VPU_MEM_END_INDEX(index);
-
-    DLOG("region_check: index %d val 0x%.8x, end %d val 0x%.8x\n",
-        index, *((unsigned int *)VPU_MEM_BIT(index)),
-        end, *((unsigned int *)VPU_MEM_BIT(end)));
-
-    WARN(index <  0,
-        "vpu_mem: region_check fail: negative first %d\n", index);
-    WARN(index >= vpu_mem.num_entries,
-        "vpu_mem: region_check fail: too large first %d\n", index);
-    WARN(end   <  0,
-        "vpu_mem: region_check fail: negative end %d\n", end);
-    WARN(end   >= vpu_mem.num_entries,
-        "vpu_mem: region_check fail: too large end %d\n", end);
-    WARN(!VPU_MEM_FIRST(index),
-        "vpu_mem: region_check fail: index %d is not first\n", index);
-    WARN(!VPU_MEM_LAST(end),
-        "vpu_mem: region_check fail: index %d is not end\n", end);
-    WARN((VPU_MEM_PFN(index) != VPU_MEM_PFN(end)),
-        "vpu_mem: region_check fail: first %d and end %d pfn is not equal\n", index, end);
-    WARN(VPU_MEM_REFC(index) != VPU_MEM_REFC(end),
-        "vpu_mem: region_check fail: first %d and end %d ref count is not equal\n", index, end);
-    WARN(VPU_MEM_AVAIL(index) != VPU_MEM_AVAIL(end),
-        "vpu_mem: region_check fail: first %d and end %d avail count is not equal\n", index, end);
-    return 0;
-}
-
-/*
- * split new allocated block from free block
- * the bitmap_sem and region_list_sem must be hold together
- * the pnode is a ouput region node
- */
-static int region_new(struct list_head *region_list, int index, int pfn)
-{
-    int pfn_free = VPU_MEM_PFN(index);
-    // check pfn is smaller then target index region
-    if ((pfn > pfn_free) || (pfn <= 0)) {
-#if VPU_MEM_DEBUG
-        printk(KERN_INFO "unable to split region %d of size %d, while is smaller than %d!", index, pfn_free, pfn);
-#endif
-        return -1;
-    }
-    // check region data coherence
-    if (region_check(index)) {
-#if VPU_MEM_DEBUG
-        printk(KERN_INFO "region %d unable to pass coherence check!", index);
-#endif
-        return -EINVAL;
-    }
-
-    {
-        struct list_head *last;
-        struct vpu_mem_region_node *node;
-        // check target index region first
-        if (!VPU_MEM_IS_FREE(index)) {
-#if VPU_MEM_DEBUG
-            printk(KERN_INFO "try to split not free region %d!", index);
-#endif
-            return -2;
-        }
-        // malloc vpu_mem_region_node
-        node = kmalloc(sizeof(struct vpu_mem_region_node), GFP_KERNEL);
-        if (NULL == node) {
-#if VPU_MEM_DEBUG
-            printk(KERN_INFO "No space to allocate struct vpu_mem_region_node!");
-#endif
-            return -ENOMEM;
-        }
-
-        // search the last node
-        DLOG("search the last node\n");
-        for (last = region_list; !list_is_last(last, region_list);)
-            last = last->next;
-
-        DLOG("list_add_tail\n");
-        list_add_tail(&node->list, last);
-
-        DLOG("start region_set index %d pfn %u\n", index, pfn);
-        region_set(index,       pfn);
-
-        if (pfn_free - pfn) {
-            DLOG("start region_set index %d pfn %u\n", index + pfn, pfn_free - pfn);
-            region_set(index + pfn, pfn_free - pfn);
-        }
-
-        region_set_avail(index, VPU_MEM_AVAIL(index) + 1);
-        region_set_ref_count(index, VPU_MEM_REFC(index) + 1);
-        node->region.index = index;
-        node->region.ref_count = 1;
-    }
-
-    return 0;
-}
-
-/*
- * link allocated block from free block
- * the bitmap_sem and region_list_sem must be hold together
- * the pnode is a ouput region node
- */
-static int region_link(struct list_head *region_list, int index)
-{
-    struct vpu_mem_region_node *node = NULL;
-    struct list_head *list, *tmp;
-    list_for_each_safe(list, tmp, region_list) {
-        struct vpu_mem_region_node *p = list_entry(list, struct vpu_mem_region_node, list);
-        if (index == NODE_REGION_INDEX(p)) {
-            node = p;
-            break;
-        }
-    }
-
-    if (NULL == node) {
-        struct list_head *last;
-        DLOG("link non-exists index %d\n", index);
-
-        // malloc vpu_mem_region_node
-        node = kmalloc(sizeof(struct vpu_mem_region_node), GFP_KERNEL);
-        if (NULL == node) {
-#if VPU_MEM_DEBUG
-            printk(KERN_INFO "No space to allocate struct vpu_mem_region_node!");
-#endif
-            return -ENOMEM;
-        }
-
-        // search the last node
-        DLOG("search the last node\n");
-        for (last = region_list; !list_is_last(last, region_list);)
-            last = last->next;
-
-        DLOG("list_add_tail\n");
-        list_add_tail(&node->list, last);
-
-        node->region.index = index;
-        node->region.ref_count = 1;
-    } else {
-        DLOG("link existed index %d\n", index);
-        node->region.ref_count++;
-    }
-    region_set_ref_count(index, VPU_MEM_REFC(index) + 1);
-
-    return 0;
-}
-
-static int region_merge(struct list_head *node)
-{
-    struct vpu_mem_region_node *pnode = list_entry(node, struct vpu_mem_region_node, list);
-    int index = pnode->region.index;
-    int target;
-
-    if (VPU_MEM_AVAIL(index))
-        return 0;
-    if (region_check(index))
-        return -EINVAL;
-
-    target = VPU_MEM_NEXT_INDEX(index);
-    if (index_avail(target) && VPU_MEM_IS_FREE(target)) {
-        int pfn_target  = VPU_MEM_PFN(target);
-        int pfn_index   = VPU_MEM_PFN(index);
-        int pfn_total   = pfn_target + pfn_index;
-        region_unset(index,  pfn_index);
-        region_unset(target, pfn_target);
-        region_set(index, pfn_total);
-    } else {
-        DLOG("region_merge: merge NEXT_INDEX fail index_avail(%d) = %d IS_FREE = %d\n",
-            target, index_avail(target), VPU_MEM_IS_FREE(target));
-    }
-    target = index - 1;
-    if (index_avail(target) && VPU_MEM_IS_FREE(target)) {
-        int pfn_target  = VPU_MEM_PFN(target);
-        int pfn_index   = VPU_MEM_PFN(index);
-        int pfn_total   = pfn_target + pfn_index;
-        target = VPU_MEM_LAST_INDEX(index);
-        region_unset(index,  pfn_index);
-        region_unset(target, pfn_target);
-        region_set(target, pfn_total);
-    } else {
-        DLOG("region_merge: merge LAST_INDEX fail index_avail(%d) = %d IS_FREE = %d\n",
-            target, index_avail(target), VPU_MEM_IS_FREE(target));
-    }
-    return 0;
-}
-
 static long vpu_mem_allocate(struct file *file, unsigned int len)
 {
-    /* caller should hold the write lock on vpu_mem_sem! */
-	/* return the corresponding pdata[] entry */
-	int curr = 0;
-	int best_fit = -1;
+    vdm_link *free, *n;
 	unsigned int pfn = (len + VPU_MEM_MIN_ALLOC - 1)/VPU_MEM_MIN_ALLOC;
-    struct vpu_mem_data *data = (struct vpu_mem_data *)file->private_data;
+    vdm_session *session = (vdm_session *)file->private_data;
 
     if (!is_vpu_mem_file(file)) {
-#if VPU_MEM_DEBUG
-        printk(KERN_INFO "allocate vpu_mem data from invalid file.\n");
-#endif
+        printk(KERN_INFO "allocate vpu_mem session from invalid file\n");
         return -ENODEV;
     }
 
-	/* look through the bitmap:
-	 * 	if you find a free slot of the correct order use it
-	 * 	otherwise, use the best fit (smallest with size > order) slot
-	 */
-	while (curr < vpu_mem.num_entries) {
-		if (VPU_MEM_IS_FREE(curr)) {
-			if (VPU_MEM_PFN(curr) >= pfn) {
-				/* set the not free bit and clear others */
-				best_fit = curr;
-#if VPU_MEM_DEBUG
-                    printk("vpu_mem: find fit size at index %d\n", curr);
-#endif
-				break;
-			}
-		}
-#if VPU_MEM_DEBUG
-        //printk(KERN_INFO "vpu_mem: search curr %d\n!", curr);
-#endif
-		curr = VPU_MEM_NEXT_INDEX(curr);
-#if VPU_MEM_DEBUG
-        //printk(KERN_INFO "vpu_mem: search next %d\n!", curr);
-#endif
-	}
-
-	/* if best_fit < 0, there are no suitable slots,
-	 * return an error
-	 */
-	if (best_fit < 0) {
-#if VPU_MEM_DEBUG
-		printk("vpu_mem: no space left to allocate!\n");
-#endif
-		return -1;
-	}
-
-	DLOG("best_fit: %d next: %u\n", best_fit, best_fit + pfn);
-
-    down_write(&data->sem);
-    {
-        int ret = region_new(&data->region_list, best_fit, pfn);
-        if (ret)
-            best_fit = -1;
-    }
-    up_write(&data->sem);
-
-	DLOG("best_fit result: %d next: %u\n", best_fit, best_fit + pfn);
-
-	return best_fit;
-}
-
-static int vpu_mem_free_by_region(struct vpu_mem_region_node *node)
-{
-    int ret = 0;
-    int index = node->region.index;
-    int avail = VPU_MEM_AVAIL(index);
-    int refc  = VPU_MEM_REFC(index);
-
-    WARN((NODE_REGION_REFC(node) <= 0),
-        "vpu_mem: vpu_mem_free: non-positive ref count\n");
-    WARN((!VPU_MEM_FIRST(index)),
-        "vpu_mem: vpu_mem_free: index %d is not first\n", index);
-    WARN((avail <= 0),
-        "vpu_mem: vpu_mem_free: avail of index %d is non-positive\n", index);
-    WARN((refc  <= 0),
-        "vpu_mem: vpu_mem_free: refc of index %d is non-positive\n", index);
-
-    NODE_REGION_REFC(node) -= 1;
-    region_set_avail(index, avail - 1);
-    region_set_ref_count(index, refc - 1);
-    if (0 == NODE_REGION_REFC(node))
-    {
-        avail = VPU_MEM_AVAIL(index);
-        if (0 == avail)
-        {
-            refc  = VPU_MEM_REFC(index);
-            WARN((0 != refc),
-                "vpu_mem: vpu_mem_free: refc of index %d after free is non-zero\n", index);
-            ret = region_merge(&node->list);
+    list_for_each_entry_safe(free, n, &vdm_free, status_link) {
+        /* find match free buffer use it first */
+        vdm_link *used = get_used_link_from_free_link(free, session, pfn);
+        DLOG("search free buffer at index %d pfn %d for len %d\n", free->index, free->pfn, pfn);
+        if (NULL == used) {
+            continue;
+        } else {
+            DLOG("found buffer at index %d pfn %d for ptr %x\n", used->index, used->pfn, used);
+            return used->index;
         }
-        list_del(&node->list);
-        kfree(node);
     }
-    return ret;
+
+	if (!vpu_mem_over) {
+        printk(KERN_INFO "vpu_mem: no space left to allocate!\n");
+        dump_status();
+        vpu_mem_over = 1;
+    }
+    return -1;
 }
 
 static int vpu_mem_free(struct file *file, int index)
 {
-    /* caller should hold the write lock on vpu_mem_sem! */
-    struct vpu_mem_data *data = (struct vpu_mem_data *)file->private_data;
+    vdm_session *session = (vdm_session *)file->private_data;
 
     if (!is_vpu_mem_file(file)) {
-#if VPU_MEM_DEBUG
-        printk(KERN_INFO "free vpu_mem data from invalid file.\n");
-#endif
+        printk(KERN_INFO "free vpu_mem session from invalid file.\n");
         return -ENODEV;
     }
 
-	DLOG("search for index %d\n", index);
-
-	down_write(&data->sem);
+	DLOG("searching for index %d\n", index);
     {
-    	struct list_head *list, *tmp;
-        list_for_each_safe(list, tmp, &data->region_list) {
-    		struct vpu_mem_region_node *node = list_entry(list, struct vpu_mem_region_node, list);
-            if (index == NODE_REGION_INDEX(node)) {
-                int ret = vpu_mem_free_by_region(node);
-                up_write(&data->sem);
-                return ret;
+        vdm_link *link = find_used_link(session, index);
+        if (NULL == link) {
+            DLOG("no link of index %d searched\n", index);
+            return -1;
+        }
+        link->link_used--;
+        link->region->used--;
+        if (0 == link->link_used) {
+            if (is_free_region(link->region)) {
+                put_free_link(link);
+                merge_free_region_and_link(link->region);
+            } else {
+                link_del(link);
             }
         }
 	}
-	up_write(&data->sem);
-
-	DLOG("no region of index %d searched\n", index);
-
-	return -1;
+    return 0;
 }
 
 static int vpu_mem_duplicate(struct file *file, int index)
 {
+    vdm_session *session = (vdm_session *)file->private_data;
 	/* caller should hold the write lock on vpu_mem_sem! */
     if (!is_vpu_mem_file(file)) {
-#if VPU_MEM_DEBUG
-        printk(KERN_INFO "duplicate vpu_mem data from invalid file.\n");
-#endif
+        printk(KERN_INFO "duplicate vpu_mem session from invalid file.\n");
         return -ENODEV;
     }
 
 	DLOG("duplicate index %d\n", index);
-
-    if (region_check(index)) {
-#if VPU_MEM_DEBUG
-        printk(KERN_INFO "region %d unable to pass coherence check!", index);
-#endif
-        return -EINVAL;
+    {
+        vdm_link *post = find_post_link(index);
+        if (NULL == post) {
+            vdm_link *used = find_used_link(session, index);
+            if (NULL == used) {
+                printk(KERN_ERR "try to duplicate unknown index %d\n", index);
+                dump_status();
+                return -1;
+            }
+            post = new_link_by_region(used->region);
+            post->link_post = 1;
+            post->region->post++;
+            put_post_link(post, session);
+        } else {
+            DLOG("duplicate posted index %d\n", index);
+            post->link_post++;
+            post->region->post++;
+        }
     }
-
-    region_set_avail(index, VPU_MEM_AVAIL(index) + 1);
 
 	return 0;
 }
 
 static int vpu_mem_link(struct file *file, int index)
 {
-    int err;
-    struct vpu_mem_data *data = (struct vpu_mem_data *)file->private_data;
+    vdm_session *session = (vdm_session *)file->private_data;
 
 	if (!is_vpu_mem_file(file)) {
-#if VPU_MEM_DEBUG
-        printk(KERN_INFO "link vpu_mem data from invalid file.\n");
-#endif
+        printk(KERN_INFO "link vpu_mem session from invalid file.\n");
         return -ENODEV;
 	}
 
-    if (region_check(index)) {
-#if VPU_MEM_DEBUG
-        printk(KERN_INFO "region %d unable to pass coherence check!", index);
-#endif
-        return -EINVAL;
+    DLOG("link index %d\n", index);
+    {
+        vdm_link *post = find_post_link(index);
+        if (NULL == post) {
+            printk(KERN_ERR "try to link unknown index %d\n", index);
+            dump_status();
+            return -1;
+        } else {
+            vdm_link *used = find_used_link(session, index);
+            post->link_post--;
+            post->region->post--;
+            if (0 == post->link_post) {
+                if (NULL == used) {
+                    post->link_used++;
+                    post->region->used++;
+                    put_used_link(post, session);
+                } else {
+                    used->link_used++;
+                    used->region->used++;
+                    link_del(post);
+                }
+            } else {
+                if (NULL == used) {
+                    used = new_link_by_region(post->region);
+                    used->link_used++;
+                    used->region->used++;
+                    put_used_link(used, session);
+                } else {
+                    used->link_used++;
+                    used->region->used++;
+                }
+            }
+        }
     }
 
-    // check target index region first
-    if (VPU_MEM_IS_FREE(index)) {
-#if VPU_MEM_DEBUG
-        printk(KERN_INFO "try to link free region %d!", index);
-#endif
-        return -1;
-    }
-
-	/* caller should hold the write lock on vpu_mem_sem! */
-	down_write(&data->sem);
-    err = region_link(&data->region_list, index);
-	up_write(&data->sem);
-    DLOG("link index %d ret %d\n", index, err);
-
-	return err;
+	return 0;
 }
 
 void vpu_mem_cache_opt(struct file *file, long index, unsigned int cmd)
 {
-	struct vpu_mem_data *data;
+	vdm_session *session = (vdm_session *)file->private_data;
 	void *start, *end;
 
 	if (!is_vpu_mem_file(file)) {
 		return;
 	}
 
-	data = (struct vpu_mem_data *)file->private_data;
 	if (!vpu_mem.cached || file->f_flags & O_SYNC)
 		return;
 
-	down_read(&data->sem);
-    start = VPU_MEM_START_VADDR(index);
-    end   = VPU_MEM_END_VADDR(index);
-    switch (cmd) {
-    case VPU_MEM_CACHE_FLUSH : {
-        dmac_flush_range(start, end);
-        break;
-    }
-    case VPU_MEM_CACHE_CLEAN : {
-        dmac_clean_range(start, end);
-        break;
-    }
-    case VPU_MEM_CACHE_INVALID : {
-        dmac_inv_range(start, end);
-        break;
-    }
-    default :
-        break;
-    }
-	up_read(&data->sem);
+	down_read(&vdm_rwsem);
+    do {
+        vdm_link *link = find_used_link(session, index);
+        if (NULL == link) {
+            pr_err("vpu_mem_cache_opt on non-exsist index %ld\n", index);
+            break;
+        }
+        start = vpu_mem.vbase + index * VPU_MEM_MIN_ALLOC;
+        end   = start + link->pfn * VPU_MEM_MIN_ALLOC;;
+        switch (cmd) {
+        case VPU_MEM_CACHE_FLUSH : {
+            dmac_flush_range(start, end);
+            break;
+        }
+        case VPU_MEM_CACHE_CLEAN : {
+            dmac_clean_range(start, end);
+            break;
+        }
+        case VPU_MEM_CACHE_INVALID : {
+            dmac_inv_range(start, end);
+            break;
+        }
+        default :
+            break;
+        }
+    } while (0);
+    up_read(&vdm_rwsem);
 }
 
 static pgprot_t phys_mem_access_prot(struct file *file, pgprot_t vma_prot)
@@ -663,63 +870,49 @@ static int vpu_mem_map_pfn_range(struct vm_area_struct *vma, unsigned long len)
 
 static int vpu_mem_open(struct inode *inode, struct file *file)
 {
-	struct vpu_mem_data *data;
-	int ret = 0;
-
-	DLOG("current %u file %p(%d)\n", current->pid, file, (int)file_count(file));
-	/* setup file->private_data to indicate its unmapped */
-	/*  you can only open a vpu_mem device one time */
-	if (file->private_data != NULL)
-		return -1;
-	data = kmalloc(sizeof(struct vpu_mem_data), GFP_KERNEL);
-	if (!data) {
-#if VPU_MEM_DEBUG
-		printk("vpu_mem: unable to allocate memory for vpu_mem metadata.");
-#endif
-		return -1;
-	}
-	data->pid = 0;
-
-	INIT_LIST_HEAD(&data->region_list);
-	init_rwsem(&data->sem);
-
-	file->private_data = data;
-	INIT_LIST_HEAD(&data->list);
-
-	down(&vpu_mem.data_list_sem);
-	list_add(&data->list, &vpu_mem.data_list);
-	up(&vpu_mem.data_list_sem);
-	return ret;
+    vdm_session *session;
+    int ret = 0;
+    
+    DLOG("current %u file %p(%d)\n", current->pid, file, (int)file_count(file));
+    /* setup file->private_data to indicate its unmapped */
+    /*  you can only open a vpu_mem device one time */
+    if (file->private_data != NULL)
+            return -1;
+    session = kmalloc(sizeof(vdm_session), GFP_KERNEL);
+    if (!session) {
+        printk(KERN_ALERT "vpu_mem: unable to allocate memory for vpu_mem metadata.");
+        return -1;
+    }
+    session->pid = current->pid;
+    INIT_LIST_HEAD(&session->list_post);
+    INIT_LIST_HEAD(&session->list_used);
+    
+    file->private_data = session;
+    
+    down_write(&vdm_rwsem);
+    list_add_tail(&session->list_session, &vdm_proc);
+    up_write(&vdm_rwsem);
+    return ret;
 }
 
 static int vpu_mem_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct vpu_mem_data *data;
+    vdm_session *session;
 	unsigned long vma_size =  vma->vm_end - vma->vm_start;
 	int ret = 0;
 
 	if (vma->vm_pgoff || !VPU_MEM_IS_PAGE_ALIGNED(vma_size)) {
-#if VPU_MEM_DEBUG
-		printk(KERN_ERR "vpu_mem: mmaps must be at offset zero, aligned"
+		printk(KERN_ALERT "vpu_mem: mmaps must be at offset zero, aligned"
 				" and a multiple of pages_size.\n");
-#endif
 		return -EINVAL;
 	}
 
-	data = (struct vpu_mem_data *)file->private_data;
-
-#if VPU_MEM_DEBUG
-    printk(KERN_ALERT "vpu_mem: file->private_data : 0x%x\n", (unsigned int)data);
-#endif
-
-	down_write(&data->sem);
+	session = (vdm_session *)file->private_data;
 
     /* assert: vma_size must be the total size of the vpu_mem */
 	if (vpu_mem.size != vma_size) {
-#if VPU_MEM_DEBUG
 		printk(KERN_WARNING "vpu_mem: mmap size [%lu] does not match"
 		       "size of backing region [%lu].\n", vma_size, vpu_mem.size);
-#endif
 		ret = -EINVAL;
 		goto error;
 	}
@@ -733,41 +926,63 @@ static int vpu_mem_mmap(struct file *file, struct vm_area_struct *vma)
 		goto error;
 	}
 
-	data->pid = current->pid;
+	session->pid = current->pid;
 
 error:
-	up_write(&data->sem);
 	return ret;
 }
 
 static int vpu_mem_release(struct inode *inode, struct file *file)
 {
-	struct vpu_mem_data *data = (struct vpu_mem_data *)file->private_data;
-	struct list_head *elt, *elt2;
+	vdm_session *session = (vdm_session *)file->private_data;
 
-	down(&vpu_mem.data_list_sem);
-	list_del(&data->list);
-	up(&vpu_mem.data_list_sem);
+    down_write(&vdm_rwsem);
+    {
+        vdm_link *link, *tmp_link;
+        //unsigned long flags = current->flags;
+        //printk("current->flags: %lx\n", flags);
+        list_del(&session->list_session);
+        file->private_data = NULL;
 
-    // TODO: 最后一个文件 release 的时候
-	down_write(&data->sem);
-	file->private_data = NULL;
-	list_for_each_safe(elt, elt2, &data->region_list) {
-		struct vpu_mem_region_node *node = list_entry(elt, struct vpu_mem_region_node, list);
-        if (vpu_mem_free_by_region(node))
-            printk(KERN_INFO "vpu_mem: err on vpu_mem_free_by_region when vpu_mem_release\n");
-	}
-	BUG_ON(!list_empty(&data->region_list));
-	up_write(&data->sem);
-	kfree(data);
+        list_for_each_entry_safe(link, tmp_link, &session->list_post, session_link) {
+            do {
+                link->link_post--;
+                link->region->post--;
+            } while (link->link_post);
+            if (find_free_link(link->index)) {
+                link_del(link);
+            } else {
+                put_free_link(link);
+            }
+            if (is_free_region(link->region)) {
+                merge_free_region_and_link(link->region);
+            }
+        }
+        list_for_each_entry_safe(link, tmp_link, &session->list_used, session_link) {
+            do {
+                link->link_used--;
+                link->region->used--;
+            } while (link->link_used);
+            if (find_free_link(link->index)) {
+                link_del(link);
+            } else {
+                put_free_link(link);
+            }
+            if (is_free_region(link->region)) {
+                merge_free_region_and_link(link->region);
+            }
+        }
+    }
+    up_write(&vdm_rwsem);
+    kfree(session);
 
-	return 0;
+    return 0;
 }
 
 static long vpu_mem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
     long index, ret = 0;
-
+    
 	switch (cmd) {
 	case VPU_MEM_GET_PHYS:
 		DLOG("get_phys\n");
@@ -787,58 +1002,54 @@ static long vpu_mem_ioctl(struct file *file, unsigned int cmd, unsigned long arg
             unsigned int size;
             if (copy_from_user(&size, (void __user *)arg, sizeof(size)))
                 return -EFAULT;
-            down_write(&vpu_mem.bitmap_sem);
-            index = vpu_mem_allocate(file, size);
-            up_write(&vpu_mem.bitmap_sem);
-            DLOG("allocate at index %ld\n", index);
-            return index;
+            down_write(&vdm_rwsem);
+            ret = vpu_mem_allocate(file, size);
+            up_write(&vdm_rwsem);
+            DLOG("allocate at index %ld\n", ret);
             break;
         }
     case VPU_MEM_FREE:
+        DLOG("mem free\n");
         {
-            DLOG("mem free\n");
             if (copy_from_user(&index, (void __user *)arg, sizeof(index)))
                 return -EFAULT;
             if (index >= vpu_mem.size)
                 return -EACCES;
-            down_write(&vpu_mem.bitmap_sem);
+            down_write(&vdm_rwsem);
             ret = vpu_mem_free(file, index);
-            up_write(&vpu_mem.bitmap_sem);
-            return ret;
+            up_write(&vdm_rwsem);
             break;
         }
 	case VPU_MEM_CACHE_FLUSH:
     case VPU_MEM_CACHE_CLEAN:
     case VPU_MEM_CACHE_INVALID:
+        DLOG("flush\n");
 		{
-			DLOG("flush\n");
 			if (copy_from_user(&index, (void __user *)arg, sizeof(index)))
 				return -EFAULT;
-
-            down_write(&vpu_mem.bitmap_sem);
+            if (index < 0)
+                return -EINVAL;
 			vpu_mem_cache_opt(file, index, cmd);
-            up_write(&vpu_mem.bitmap_sem);
 			break;
 		}
 	case VPU_MEM_DUPLICATE:
+        DLOG("duplicate\n");
 		{
-			DLOG("duplicate\n");
 			if (copy_from_user(&index, (void __user *)arg, sizeof(index)))
 				return -EFAULT;
-            down_write(&vpu_mem.bitmap_sem);
+            down_write(&vdm_rwsem);
 			ret = vpu_mem_duplicate(file, index);
-            up_write(&vpu_mem.bitmap_sem);
-            return ret;
+            up_write(&vdm_rwsem);
 			break;
 		}
 	case VPU_MEM_LINK:
+        DLOG("link\n");
 		{
-			DLOG("link\n");
 			if (copy_from_user(&index, (void __user *)arg, sizeof(index)))
 				return -EFAULT;
-            down_write(&vpu_mem.bitmap_sem);
+            down_write(&vdm_rwsem);
 			ret = vpu_mem_link(file, index);
-            up_write(&vpu_mem.bitmap_sem);
+            up_write(&vdm_rwsem);
 			break;
 		}
 	default:
@@ -857,36 +1068,21 @@ static ssize_t debug_open(struct inode *inode, struct file *file)
 static ssize_t debug_read(struct file *file, char __user *buf, size_t count,
 			  loff_t *ppos)
 {
-	struct list_head *elt, *elt2;
-	struct vpu_mem_data *data;
-	struct vpu_mem_region_node *region_node;
+	vdm_region *region, *tmp_region;
 	const int debug_bufmax = 4096;
 	static char buffer[4096];
 	int n = 0;
 
 	DLOG("debug open\n");
 	n = scnprintf(buffer, debug_bufmax,
-		      "pid #: mapped regions (offset, len) (offset,len)...\n");
-
-	down(&vpu_mem.data_list_sem);
-	list_for_each(elt, &vpu_mem.data_list) {
-		data = list_entry(elt, struct vpu_mem_data, list);
-		down_read(&data->sem);
-		n += scnprintf(buffer + n, debug_bufmax - n, "pid %u:",
-				data->pid);
-		list_for_each(elt2, &data->region_list) {
-			region_node = list_entry(elt2, struct vpu_mem_region_node,
-				      list);
-			n += scnprintf(buffer + n, debug_bufmax - n,
-					"(%d,%d) ",
-					region_node->region.index,
-					region_node->region.ref_count);
-		}
-		n += scnprintf(buffer + n, debug_bufmax - n, "\n");
-		up_read(&data->sem);
+		      "pid #: mapped regions (offset, len, used, post) ...\n");
+	down_read(&vdm_rwsem);
+    list_for_each_entry_safe(region, tmp_region, &vdm_index, index_list) {
+        n += scnprintf(buffer + n, debug_bufmax - n,
+                "(%d,%d,%d,%d) ",
+                region->index, region->pfn, region->used, region->post);
 	}
-	up(&vpu_mem.data_list_sem);
-
+	up_read(&vdm_rwsem);
 	n++;
 	buffer[n] = 0;
 	return simple_read_from_buffer(buf, count, ppos, buffer, n);
@@ -900,64 +1096,69 @@ static struct file_operations debug_fops = {
 
 int vpu_mem_setup(struct vpu_mem_platform_data *pdata)
 {
+    vdm_link *tmp = NULL;
 	int err = 0;
 
-    if (vpu_mem_count)
-    {
+    if (vpu_mem_count) {
 		printk(KERN_ALERT "Only one vpu_mem driver can be register!\n");
         goto err_cant_register_device;
     }
 
     memset(&vpu_mem, 0, sizeof(struct vpu_mem_info));
 
-	vpu_mem.cached = pdata->cached;
-	vpu_mem.buffered = pdata->buffered;
-	vpu_mem.base = pdata->start;
-	vpu_mem.size = pdata->size;
-	init_rwsem(&vpu_mem.bitmap_sem);
-	init_MUTEX(&vpu_mem.data_list_sem);
-	INIT_LIST_HEAD(&vpu_mem.data_list);
-	vpu_mem.dev.name = pdata->name;
-	vpu_mem.dev.minor = MISC_DYNAMIC_MINOR;
-	vpu_mem.dev.fops = &vpu_mem_fops;
+    vpu_mem.cached = pdata->cached;
+    vpu_mem.buffered = pdata->buffered;
+    vpu_mem.base = pdata->start;
+    vpu_mem.size = pdata->size;
+    init_rwsem(&vdm_rwsem);
+    INIT_LIST_HEAD(&vdm_proc);
+    INIT_LIST_HEAD(&vdm_used);
+    INIT_LIST_HEAD(&vdm_post);
+    INIT_LIST_HEAD(&vdm_free);
+    INIT_LIST_HEAD(&vdm_index);
+    vpu_mem.dev.name = pdata->name;
+    vpu_mem.dev.minor = MISC_DYNAMIC_MINOR;
+    vpu_mem.dev.fops = &vpu_mem_fops;
+    
+    err = misc_register(&vpu_mem.dev);
+    if (err) {
+        printk(KERN_ALERT "Unable to register vpu_mem driver!\n");
+        goto err_cant_register_device;
+    }
+    
+    vpu_mem.num_entries = vpu_mem.size / VPU_MEM_MIN_ALLOC;
 
-	err = misc_register(&vpu_mem.dev);
-	if (err) {
-		printk(KERN_ALERT "Unable to register vpu_mem driver!\n");
-		goto err_cant_register_device;
-	}
-	vpu_mem_count++;
+    tmp = new_link_by_index(0, vpu_mem.num_entries);
+    if (NULL == tmp) {
+		printk(KERN_ALERT "init free region failed\n");
+        goto err_no_mem_for_metadata;
+    }
+    put_free_link(tmp);
+    _insert_region_index(tmp->region);
 
-	vpu_mem.num_entries = vpu_mem.size / VPU_MEM_MIN_ALLOC;
-	vpu_mem.bitmap = kzalloc(vpu_mem.num_entries *
-				  sizeof(struct vpu_mem_bits), GFP_KERNEL);
-	if (!vpu_mem.bitmap)
-		goto err_no_mem_for_metadata;
-
-    region_set(0, vpu_mem.num_entries);
-
-	if (vpu_mem.cached)
-		vpu_mem.vbase = ioremap_cached(vpu_mem.base,
-						vpu_mem.size);
-#ifdef ioremap_ext_buffered
-	else if (vpu_mem.buffered)
-		vpu_mem.vbase = ioremap_ext_buffered(vpu_mem.base,
-						      vpu_mem.size);
-#endif
-	else
-		vpu_mem.vbase = ioremap(vpu_mem.base, vpu_mem.size);
-
-	if (vpu_mem.vbase == 0)
-		goto error_cant_remap;
-
-#if VPU_MEM_DEBUG
-	debugfs_create_file(pdata->name, S_IFREG | S_IRUGO, NULL, (void *)vpu_mem.dev.minor,
-			    &debug_fops);
-#endif
-	printk("%s: %d initialized\n", pdata->name, vpu_mem.dev.minor);
+    if (vpu_mem.cached)
+        vpu_mem.vbase = ioremap_cached(vpu_mem.base, vpu_mem.size);
+    #ifdef ioremap_ext_buffered
+    else if (vpu_mem.buffered)
+        vpu_mem.vbase = ioremap_ext_buffered(vpu_mem.base, vpu_mem.size);
+    #endif
+    else
+        vpu_mem.vbase = ioremap(vpu_mem.base, vpu_mem.size);
+    
+    if (vpu_mem.vbase == 0)
+        goto error_cant_remap;
+    
+    #if VPU_MEM_DEBUG
+    debugfs_create_file(pdata->name, S_IFREG | S_IRUGO, NULL, (void *)vpu_mem.dev.minor,
+                        &debug_fops);
+    #endif
+    printk("%s: %d initialized\n", pdata->name, vpu_mem.dev.minor);
+    vpu_mem_count++;
 	return 0;
 error_cant_remap:
-	kfree(vpu_mem.bitmap);
+    if (tmp) {
+        kfree(tmp);
+    }
 err_no_mem_for_metadata:
 	misc_deregister(&vpu_mem.dev);
 err_cant_register_device:
@@ -983,10 +1184,6 @@ static int vpu_mem_remove(struct platform_device *pdev)
 		return -1;
 	}
     if (vpu_mem_count) {
-        if (vpu_mem.bitmap) {
-            kfree(vpu_mem.bitmap);
-            vpu_mem.bitmap = NULL;
-        }
 	    misc_deregister(&vpu_mem.dev);
         vpu_mem_count--;
     } else {
@@ -1021,48 +1218,78 @@ module_exit(vpu_mem_exit);
 
 static int proc_vpu_mem_show(struct seq_file *s, void *v)
 {
-	unsigned int i;
-
-	if (vpu_mem.bitmap) {
+	if (vpu_mem_count) {
 		seq_printf(s, "vpu mem opened\n");
 	} else {
 		seq_printf(s, "vpu mem closed\n");
         return 0;
 	}
 
-    down_read(&vpu_mem.bitmap_sem);
+    down_read(&vdm_rwsem);
     {
-        // 打印 bitmap 中的全部 region
-        for (i = 0; i < vpu_mem.num_entries; i = VPU_MEM_NEXT_INDEX(i)) {
-            region_check(i);
-            seq_printf(s, "vpu_mem: idx %6d pfn %6d refc %3d avail %3d\n",
-                i, VPU_MEM_PFN(i), VPU_MEM_REFC(i), VPU_MEM_AVAIL(i));
+        vdm_link    *link, *tmp_link;
+        vdm_region  *region, *tmp_region;
+        vdm_session *session, *tmp_session;
+        // 按 index 打印全部 region
+        seq_printf(s, "index:\n");
+        list_for_each_entry_safe(region, tmp_region, &vdm_index, index_list) {
+            seq_printf(s, "       idx %6d pfn %6d used %3d post %3d\n",
+                region->index, region->pfn, region->used, region->post);
         }
-
-        // 打印 vpu_mem_data 中的全部 region
-        down(&vpu_mem.data_list_sem);
-        {   // search exists index
-            struct list_head *list, *tmp_list;
-            list_for_each_safe(list, tmp_list, &vpu_mem.data_list) {
-                struct list_head *region, *tmp_data;
-                struct vpu_mem_data *data = list_entry(list, struct vpu_mem_data, list);
-
-                seq_printf(s, "pid: %d\n", data->pid);
-
-                down_read(&data->sem);
-                list_for_each_safe(region, tmp_data, &data->region_list) {
-                    struct vpu_mem_region_node *node = list_entry(region, struct vpu_mem_region_node, list);
-                    i = node->region.index;
-                    seq_printf(s, "    region: idx %6d pfn %6d refc %3d avail %3d ref by %d\n",
-                        i, VPU_MEM_PFN(i), VPU_MEM_REFC(i), VPU_MEM_AVAIL(i), node->region.ref_count);
-                }
-                up_read(&data->sem);
+        if (list_empty(&vdm_free)) {
+            seq_printf(s, "free : empty\n");
+        } else {
+            seq_printf(s, "free :\n");
+            list_for_each_entry_safe(link, tmp_link, &vdm_free, status_link) {
+                seq_printf(s, "       idx %6d pfn %6d used %3d post %3d\n",
+                    link->index, link->pfn, link->link_used, link->link_post);
             }
         }
-        up(&vpu_mem.data_list_sem);
+        if (list_empty(&vdm_used)) {
+            seq_printf(s, "used : empty\n");
+        } else {
+            seq_printf(s, "used :\n");
+            list_for_each_entry_safe(link, tmp_link, &vdm_used, status_link) {
+                seq_printf(s, "       idx %6d pfn %6d used %3d post %3d\n",
+                    link->index, link->pfn, link->link_used, link->link_post);
+            }
+        }
+        if (list_empty(&vdm_post)) {
+            seq_printf(s, "post : empty\n");
+        } else {
+            seq_printf(s, "post :\n");
+            list_for_each_entry_safe(link, tmp_link, &vdm_post, status_link) {
+                seq_printf(s, "       idx %6d pfn %6d used %3d post %3d\n",
+                    link->index, link->pfn, link->link_used, link->link_post);
+            }
+        }
+    
+        // 打印 vpu_mem_info 中的全部 session 的 region 占用情况
+        list_for_each_entry_safe(session, tmp_session, &vdm_proc, list_session) {
+            seq_printf(s, "\npid: %d\n", session->pid);
+            if (list_empty(&session->list_used)) {
+                seq_printf(s, "used : empty\n");
+            } else {
+                seq_printf(s, "used :\n");
+                list_for_each_entry_safe(link, tmp_link, &session->list_used, session_link) {
+                    seq_printf(s, "       idx %6d pfn %6d used %3d\n",
+                        link->index, link->pfn, link->link_used);
+                }
+            }
+            if (list_empty(&session->list_post)) {
+                seq_printf(s, "post : empty\n");
+            } else {
+                seq_printf(s, "post :\n");
+                list_for_each_entry_safe(link, tmp_link, &session->list_post, session_link) {
+                    seq_printf(s, "       idx %6d pfn %6d post %3d\n",
+                        link->index, link->pfn, link->link_post);
+                }
+            }
+        }
     }
-    up_read(&vpu_mem.bitmap_sem);
-	return 0;
+
+    up_read(&vdm_rwsem);
+    return 0;
 }
 
 static int proc_vpu_mem_open(struct inode *inode, struct file *file)

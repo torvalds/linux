@@ -17,12 +17,16 @@ config LCD_RGB_TFT480800_25_E
     bool "RGB TFT480800_25_E"
 config LCD_HSD100PXN
 	  bool "RGB Hannstar HSD100PXN(1024X768)"
+config LCD_HSD07PFW1
+	  bool "RGB Hannstar HSD07PFW1(1024X600)"
 config LCD_B101AW06
 	  bool "RGB Hannstar B101AW06(1024X600)"
 config LCD_RGB_TFT480800_25_E
 	  bool "RGB TFT480800_25_E(480X800)"
 config LCD_LS035Y8DX02A
 	  bool "RGB LS035Y8DX02A(480X800)"
+config LCD_CPTCLAA038LA31XE
+	  bool "RGB LCD_CPTCLAA038LA31XE(480X800)"	  
 config LCD_A060SE02
     bool "MCU A060SE02"
 config LCD_S1D13521
@@ -35,8 +39,8 @@ config LCD_IPS1P5680_V1_E
 	bool "MCU IPS1P5680_V1_E"
 config LCD_MCU_TFT480800_25_E
 	bool "MCU TFT480800_25_E"
-config LCD_ILI9803_CPT4_3
-	bool "RGB lcd_ILI9803_CPT4_3"	
+config LCD_NT35510
+	bool "RGB lcd_nt35510"	
 config LCD_ILI9803_CPT4_3
 	bool "RGB lcd_ILI9803_CPT4_3"	
 config LCD_IPS1P5680_V1_E
@@ -50,6 +54,8 @@ config DEFAULT_OUT_HDMI
 	if you want set HDMI for default panel, android UI size is HDMI default resolution.
 config LCD_AT070TNA2
 	bool "RGB AT070TNA2"
+config LCD_AT070TN93
+	bool "RGB AT070TN93"
 endchoice
 
 

@@ -1,31 +1,33 @@
 /****************************************************************************
-*
+*  
 *    Copyright (C) 2005 - 2011 by Vivante Corp.
-*
+*  
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*
+*  
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public License for more details.
-*
+*  
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*
+*  
 *****************************************************************************/
 
 
 
 
 #include <linux/device.h>
-#include <linux/miscdevice.h>
 #include <linux/slab.h>
+// dkm: add
+#include <linux/miscdevice.h>
 #include <linux/earlysuspend.h>
 #include <linux/delay.h>
+#include <linux/workqueue.h>
 
 #include "gc_hal_kernel_linux.h"
 #include "gc_hal_driver.h"
@@ -34,6 +36,7 @@
 #if USE_PLATFORM_DRIVER
 #include <linux/platform_device.h>
 #endif
+// dkm: add
 #include <mach/rk29_iomap.h>
 #include <mach/cru.h>
 #include <mach/pmu.h>
@@ -63,6 +66,7 @@ module_param(contiguousSize, long, 0644);
 ulong contiguousBase = 0;
 module_param(contiguousBase, ulong, 0644);
 
+// dkm: change to 16 from 32
 long bankSize = 16 << 20;
 module_param(bankSize, long, 0644);
 
@@ -82,10 +86,97 @@ int showArgs = 0;
 module_param(showArgs, int, 0644);
 
 #if ENABLE_GPU_CLOCK_BY_DRIVER
+// dkm: change
 unsigned long coreClock = 552*1000000;
 module_param(coreClock, ulong, 0644);
 #endif
 
+// gcdkREPORT_VIDMEM_USAGE add by vv
+#if gcdkREPORT_VIDMEM_USAGE
+#include <linux/proc_fs.h>
+
+static struct proc_dir_entry *s_gckGPUProc;
+static gcsHAL_PRIVATE_DATA_PTR s_gckHalPrivate;
+
+static char * _MemTypes[gcvSURF_NUM_TYPES] =
+{
+    "UNKNOWN",  /* gcvSURF_TYPE_UNKNOWN       */
+    "INDEX",    /* gcvSURF_INDEX              */
+    "VERTEX",   /* gcvSURF_VERTEX             */
+    "TEXTURE",  /* gcvSURF_TEXTURE            */
+    "RT",       /* gcvSURF_RENDER_TARGET      */
+    "DEPTH",    /* gcvSURF_DEPTH              */
+    "BITMAP",   /* gcvSURF_BITMAP             */
+    "TILE_STA", /*  gcvSURF_TILE_STATUS       */
+    "MASK",     /* gcvSURF_MASK               */
+    "SCISSOR",  /* gcvSURF_SCISSOR            */
+    "HZ"        /* gcvSURF_HIERARCHICAL_DEPTH */
+};
+
+gctINT gvkGAL_Read_Proc(char *page, char **start, off_t offset, int count, int *eof, void *data)
+{
+    gctINT len = 0;
+    gctUINT type;
+    
+    len += sprintf(page+len, "------------------------------------\n");
+    len += sprintf(page+len, "   Type         Current          Max\n");
+
+    if(NULL == s_gckHalPrivate)
+    {
+        *eof = 1;
+        return len;
+    }
+    
+    for (type = 0; type < gcvSURF_NUM_TYPES; type++)
+    {
+        len += sprintf(page+len, "[%8s]  %8llu KB  %8llu KB\n", 
+               _MemTypes[type],
+               s_gckHalPrivate->allocatedMem[type] / 1024,
+               s_gckHalPrivate->maxAllocatedMem[type] / 1024);
+    }
+    
+    len += sprintf(page+len, "[   TOTAL]  %8llu KB  %8llu KB\n",
+           s_gckHalPrivate->totalAllocatedMem / 1024,
+           s_gckHalPrivate->maxTotalAllocatedMem / 1024);
+
+    *eof = 1;
+    return len;
+}
+
+
+static gctINT gckDeviceProc_Register(void)
+{
+    s_gckGPUProc = create_proc_read_entry("graphics/gpu", 0, NULL, gvkGAL_Read_Proc, NULL);
+    if(NULL == s_gckGPUProc)
+    {
+        return -1;
+    }
+
+    return 0;
+}
+
+static void gckDeviceProc_UnRegister(void)
+{
+    if(NULL != s_gckGPUProc)
+    {
+        struct proc_dir_entry *gckGPUPrarentProc = s_gckGPUProc->parent;
+        if(NULL == gckGPUPrarentProc)
+        {
+            return ;    
+        }
+        
+        remove_proc_entry("gpu", gckGPUPrarentProc);
+        
+        /** no subdir */
+        if(NULL == gckGPUPrarentProc->subdir)
+        {
+            remove_proc_entry("graphics", NULL);
+        }
+    }
+}
+#endif
+
+// dkm: add
 int shutdown = 0;
 
 static int drv_open(struct inode *inode, struct file *filp);
@@ -102,7 +193,8 @@ struct file_operations driver_fops =
     .mmap   	= drv_mmap,
 };
 
-#if gcdENABLE_AUTO_FREQ
+// dkm: gcdENABLE_AUTO_FREQ
+#if (1==gcdENABLE_AUTO_FREQ)
 #include <linux/timer.h>
 struct timer_list gpu_timer;
 extern void get_run_idle(u32 *run, u32 *idle);
@@ -115,7 +207,7 @@ void gputimer_callback(unsigned long arg)
     u32 run, idle;
     int precent, freq, diff;
     
-	mod_timer(&gpu_timer, jiffies + HZ/10);
+	mod_timer(&gpu_timer, jiffies + HZ/4);
 
     get_run_idle(&run, &idle);
     precent = (int)((run*100)/(run+idle));
@@ -145,8 +237,41 @@ void gputimer_callback(unsigned long arg)
         last_freq = freq;
         //set_nextfreq(freq);
     }
-    
-    printk("%8d /%8d = %3d %%, needfreq = %dM (%d)\n", (int)run, (int)(run+idle), precent, freq, power_cnt);
+
+    printk("gpu load : %3d %%\n", precent);
+    //printk("%8d /%8d = %3d %%, needfreq = %dM (%d)\n", (int)run, (int)(run+idle), precent, freq, power_cnt);
+}
+#elif(2==gcdENABLE_AUTO_FREQ)
+#include <linux/timer.h>
+struct timer_list gpu_timer;
+int needhighfreq = 0;
+int lowfreq = 300;
+int highfreq = 552;
+void mod_gpu_timer(void)
+{
+    mod_timer(&gpu_timer, jiffies + 3*HZ);
+}
+void gputimer_callback(unsigned long arg)
+{
+    needhighfreq = 0;
+    //printk("needhighfreq = 0! \n");
+}
+#endif
+
+// dkm: gcdENABLE_DELAY_EARLY_SUSPEND
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
+struct delayed_work suspend_work;
+void real_suspend(struct work_struct *work)
+{
+    gceSTATUS status;
+
+    status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_OFF);
+
+    if (gcmIS_ERROR(status))
+    {
+        printk("%s fail!\n", __func__);
+        return;
+    }
 }
 #endif
 
@@ -163,6 +288,9 @@ int drv_open(struct inode *inode, struct file* filp)
     {
     	return -ENOTTY;
     }
+    
+    /* Zero the memory. */
+    gckOS_ZeroMemory(private, gcmSIZEOF(gcsHAL_PRIVATE_DATA));
 
     private->device				= galDevice;
     private->mappedMemory		= gcvNULL;
@@ -177,15 +305,20 @@ int drv_open(struct inode *inode, struct file* filp)
 	gcmkVERIFY_OK(
 		gckKERNEL_AttachProcess(galDevice->kernel, gcvTRUE));
 
-    if (!galDevice->contiguousMapped)
+    if (galDevice->contiguousSize != 0 
+        && !galDevice->contiguousMapped)
     {
     	gcmkVERIFY_OK(gckOS_MapMemory(galDevice->os,
 									galDevice->contiguousPhysical,
 									galDevice->contiguousSize,
 									&private->contiguousLogical));
     }
-
+    
     filp->private_data = private;
+// gcdkREPORT_VIDMEM_USAGE add by vv
+#if gcdkREPORT_VIDMEM_USAGE
+    s_gckHalPrivate = private;
+#endif
 
     return 0;
 }
@@ -204,19 +337,24 @@ int drv_release(struct inode* inode, struct file* filp)
     gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_DRIVER,
     	    	  "Entering drv_close\n");
 
-    gcmkVERIFY_OK(
-		gckOS_DestroyAllUserSignals(galDevice->os));
-
     private = filp->private_data;
     gcmkASSERT(private != gcvNULL);
 
     device = private->device;
 
+#ifndef ANDROID
+	gcmkVERIFY_OK(gckCOMMAND_Stall(device->kernel->command));
+#endif
+
+    gcmkVERIFY_OK(
+		gckOS_DestroyAllUserSignals(galDevice->os));
+
 #if gcdkUSE_MEMORY_RECORD
-	FreeAllMemoryRecord(galDevice->os, &private->memoryRecordList);
+	FreeAllMemoryRecord(galDevice->os, private, &private->memoryRecordList);
 
 #ifdef ANDROID
-	/* gcmkVERIFY_OK(gckOS_Delay(galDevice->os, 1000)); */
+// dkm: 保留delay的做法
+	gcmkVERIFY_OK(gckOS_Delay(galDevice->os, 1000));
 #else
 	gcmkVERIFY_OK(gckCOMMAND_Stall(device->kernel->command));
 #endif
@@ -236,6 +374,10 @@ int drv_release(struct inode* inode, struct file* filp)
 	/* A process gets detached. */
 	gcmkVERIFY_OK(
 		gckKERNEL_AttachProcess(galDevice->kernel, gcvFALSE));
+// gcdkREPORT_VIDMEM_USAGE add by vv
+#if gcdkREPORT_VIDMEM_USAGE
+    s_gckHalPrivate = NULL;
+#endif
 
     kfree(private);
     filp->private_data = NULL;
@@ -244,7 +386,7 @@ int drv_release(struct inode* inode, struct file* filp)
 }
 
 int drv_ioctl(struct inode *inode,
-    	      struct file *filp,
+    	      struct file *filp, 
     	      unsigned int ioctlCode,
 	      unsigned long arg)
 {
@@ -254,9 +396,10 @@ int drv_ioctl(struct inode *inode,
     gckGALDEVICE device;
     gceSTATUS status;
     gcsHAL_PRIVATE_DATA_PTR private;
-
+    
     private = filp->private_data;
 
+    // dkm: add
     if(shutdown)
     {
         return -ENOTTY;
@@ -269,9 +412,9 @@ int drv_ioctl(struct inode *inode,
 
     	return -ENOTTY;
     }
-
+    
     device = private->device;
-
+    
     if (device == gcvNULL)
     {
     	gcmkTRACE_ZONE(gcvLEVEL_ERROR, gcvZONE_DRIVER,
@@ -279,7 +422,7 @@ int drv_ioctl(struct inode *inode,
 
     	return -ENOTTY;
     }
-
+	
     if (ioctlCode != IOCTL_GCHAL_INTERFACE
 		&& ioctlCode != IOCTL_GCHAL_KERNEL_INTERFACE)
     {
@@ -291,7 +434,7 @@ int drv_ioctl(struct inode *inode,
     copyLen = copy_from_user(&drvArgs,
     	    	    	     (void *) arg,
 			     sizeof(DRIVER_ARGS));
-
+			     
     if (copyLen != 0)
     {
     	/* The input buffer is not big enough. So fail the I/O. */
@@ -301,7 +444,7 @@ int drv_ioctl(struct inode *inode,
     /* Now bring in the gcsHAL_INTERFACE structure. */
     if ((drvArgs.InputBufferSize  != sizeof(gcsHAL_INTERFACE))
     ||  (drvArgs.OutputBufferSize != sizeof(gcsHAL_INTERFACE))
-    )
+    ) 
     {
     	return -ENOTTY;
     }
@@ -309,19 +452,19 @@ int drv_ioctl(struct inode *inode,
     copyLen = copy_from_user(&iface,
     	    	    	     drvArgs.InputBuffer,
 			     sizeof(gcsHAL_INTERFACE));
-
+    
     if (copyLen != 0)
     {
         /* The input buffer is not big enough. So fail the I/O. */
         return -ENOTTY;
     }
-
+	
 #if gcdkUSE_MEMORY_RECORD
 	if (iface.command == gcvHAL_EVENT_COMMIT)
 	{
 		MEMORY_RECORD_PTR mr;
 		gcsQUEUE_PTR queue = iface.u.Event.queue;
-
+		
 		while (queue != gcvNULL)
 		{
 			gcsQUEUE_PTR record, next;
@@ -334,22 +477,60 @@ int drv_ioctl(struct inode *inode,
 
 			switch (record->iface.command)
 			{
-			case gcvHAL_FREE_VIDEO_MEMORY:
-				mr = FindMemoryRecord(device->os,
-									&private->memoryRecordList,
-									record->iface.u.FreeVideoMemory.node);
-
-				if (mr != gcvNULL)
-				{
-					DestoryMemoryRecord(device->os, mr);
-				}
-				else
-				{
-					printk("*ERROR* Invalid video memory (%p) for free\n",
-						record->iface.u.FreeVideoMemory.node);
-				}
+            case gcvHAL_FREE_NON_PAGED_MEMORY:
+		        mr = FindMemoryRecord(device->os,
+                                      private,
+                                      &private->memoryRecordList,
+                                      gcvNON_PAGED_MEMORY,
+                                      record->iface.u.FreeNonPagedMemory.bytes,
+                                      record->iface.u.FreeNonPagedMemory.physical,
+                                      record->iface.u.FreeNonPagedMemory.logical);
+        		
+		        if (mr != gcvNULL)
+		        {
+			        DestroyMemoryRecord(device->os, private, mr);
+		        }
+		        else
+		        {
+			        gcmkPRINT("*ERROR* Invalid non-paged memory for free");
+		        }
                 break;
 
+            case gcvHAL_FREE_CONTIGUOUS_MEMORY:
+		        mr = FindMemoryRecord(device->os,
+                                      private,
+                                      &private->memoryRecordList,
+                                      gcvCONTIGUOUS_MEMORY,
+                                      record->iface.u.FreeContiguousMemory.bytes,
+                                      record->iface.u.FreeContiguousMemory.physical,
+                                      record->iface.u.FreeContiguousMemory.logical);
+        		
+		        if (mr != gcvNULL)
+		        {
+			        DestroyMemoryRecord(device->os, private, mr);
+		        }
+		        else
+		        {
+			        gcmkPRINT("*ERROR* Invalid contiguous memory for free");
+		        }
+                break;
+
+			case gcvHAL_FREE_VIDEO_MEMORY:
+				mr = FindVideoMemoryRecord(device->os,
+                                           private,
+                                           &private->memoryRecordList,
+                                           record->iface.u.FreeVideoMemory.node);
+				
+		        if (mr != gcvNULL)
+		        {
+			        DestroyVideoMemoryRecord(device->os, private, mr);
+		        }
+		        else
+		        {
+			        gcmkPRINT("*ERROR* Invalid video memory for free");
+		        }
+                break;
+				
 			default:
 				break;
 			}
@@ -369,7 +550,7 @@ int drv_ioctl(struct inode *inode,
 
     status = gckKERNEL_Dispatch(device->kernel,
 		(ioctlCode == IOCTL_GCHAL_INTERFACE) , &iface);
-
+    
     if (gcmIS_ERROR(status))
     {
     	gcmkTRACE_ZONE(gcvLEVEL_WARNING, gcvZONE_DRIVER,
@@ -384,7 +565,7 @@ int drv_ioctl(struct inode *inode,
 		      iface.command,
 		      iface.status);
     }
-
+    
     /* See if this was a LOCK_VIDEO_MEMORY command. */
     else if (iface.command == gcvHAL_LOCK_VIDEO_MEMORY)
     {
@@ -396,50 +577,117 @@ int drv_ioctl(struct inode *inode,
 	   		/* Compute offset into mapped memory. */
 	    	gctUINT32 offset = (gctUINT8 *) iface.u.LockVideoMemory.memory
 	    	    	     	- (gctUINT8 *) device->contiguousBase;
-
+			  
     	    /* Compute offset into user-mapped region. */
     	    iface.u.LockVideoMemory.memory =
 	    	(gctUINT8 *)  private->mappedMemory + offset;
 		}
     }
 #if gcdkUSE_MEMORY_RECORD
+	else if (iface.command == gcvHAL_ALLOCATE_NON_PAGED_MEMORY)
+	{
+		CreateMemoryRecord(device->os,
+                           private,
+                           &private->memoryRecordList,
+                           gcvNON_PAGED_MEMORY,
+                           iface.u.AllocateNonPagedMemory.bytes,
+                           iface.u.AllocateNonPagedMemory.physical,
+                           iface.u.AllocateNonPagedMemory.logical);
+    }
+	else if (iface.command == gcvHAL_FREE_NON_PAGED_MEMORY)
+	{
+		MEMORY_RECORD_PTR mr;
+		
+		mr = FindMemoryRecord(device->os,
+                              private,
+                              &private->memoryRecordList,
+                              gcvNON_PAGED_MEMORY,
+                              iface.u.FreeNonPagedMemory.bytes,
+                              iface.u.FreeNonPagedMemory.physical,
+                              iface.u.FreeNonPagedMemory.logical);
+		
+		if (mr != gcvNULL)
+		{
+			DestroyMemoryRecord(device->os, private, mr);
+		}
+		else
+		{
+			gcmkPRINT("*ERROR* Invalid non-paged memory for free");
+		}
+    }
+	else if (iface.command == gcvHAL_ALLOCATE_CONTIGUOUS_MEMORY)
+	{
+		CreateMemoryRecord(device->os,
+                           private,
+                           &private->memoryRecordList,
+                           gcvCONTIGUOUS_MEMORY,
+                           iface.u.AllocateContiguousMemory.bytes,
+                           iface.u.AllocateContiguousMemory.physical,
+                           iface.u.AllocateContiguousMemory.logical);
+    }
+	else if (iface.command == gcvHAL_FREE_CONTIGUOUS_MEMORY)
+	{
+		MEMORY_RECORD_PTR mr;
+		
+		mr = FindMemoryRecord(device->os,
+                              private,
+                              &private->memoryRecordList,
+                              gcvCONTIGUOUS_MEMORY,
+                              iface.u.FreeContiguousMemory.bytes,
+                              iface.u.FreeContiguousMemory.physical,
+                              iface.u.FreeContiguousMemory.logical);
+		
+		if (mr != gcvNULL)
+		{
+			DestroyMemoryRecord(device->os, private, mr);
+		}
+		else
+		{
+			gcmkPRINT("*ERROR* Invalid contiguous memory for free");
+		}
+    }
 	else if (iface.command == gcvHAL_ALLOCATE_VIDEO_MEMORY)
 	{
-		gctSIZE_T bytes = (iface.u.AllocateVideoMemory.node->VidMem.memory->object.type == gcvOBJ_VIDMEM)
-						? iface.u.AllocateVideoMemory.node->VidMem.bytes
+		gctSIZE_T bytes = (iface.u.AllocateVideoMemory.node->VidMem.memory->object.type == gcvOBJ_VIDMEM) 
+						? iface.u.AllocateVideoMemory.node->VidMem.bytes 
 						: iface.u.AllocateVideoMemory.node->Virtual.bytes;
-		CreateMemoryRecord(device->os,
-							&private->memoryRecordList,
-							iface.u.AllocateVideoMemory.node,
-							iface.u.AllocateVideoMemory.type & 0xFF,
-							bytes);
+
+		CreateVideoMemoryRecord(device->os,
+                                private,
+							    &private->memoryRecordList,
+							    iface.u.AllocateVideoMemory.node,
+							    iface.u.AllocateVideoMemory.type & 0xFF,
+							    bytes);
 	}
 	else if (iface.command == gcvHAL_ALLOCATE_LINEAR_VIDEO_MEMORY)
 	{
 		gctSIZE_T bytes = (iface.u.AllocateLinearVideoMemory.node->VidMem.memory->object.type == gcvOBJ_VIDMEM)
-						? iface.u.AllocateLinearVideoMemory.node->VidMem.bytes
+						? iface.u.AllocateLinearVideoMemory.node->VidMem.bytes 
 						: iface.u.AllocateLinearVideoMemory.node->Virtual.bytes;
-		CreateMemoryRecord(device->os,
-							&private->memoryRecordList,
-							iface.u.AllocateLinearVideoMemory.node,
-							iface.u.AllocateLinearVideoMemory.type & 0xFF,
-							bytes);
+
+		CreateVideoMemoryRecord(device->os,
+                                private,
+							    &private->memoryRecordList,
+							    iface.u.AllocateLinearVideoMemory.node,
+							    iface.u.AllocateLinearVideoMemory.type & 0xFF,
+							    bytes);
 	}
 	else if (iface.command == gcvHAL_FREE_VIDEO_MEMORY)
 	{
 		MEMORY_RECORD_PTR mr;
-
-		mr = FindMemoryRecord(device->os,
-							&private->memoryRecordList,
-							iface.u.FreeVideoMemory.node);
-
+		
+		mr = FindVideoMemoryRecord(device->os,
+                                   private,
+                                   &private->memoryRecordList,
+                                   iface.u.FreeVideoMemory.node);
+		
 		if (mr != gcvNULL)
 		{
-			DestoryMemoryRecord(device->os, mr);
+			DestroyVideoMemoryRecord(device->os, private, mr);
 		}
 		else
 		{
-			printk("*ERROR* Invalid video memory for free\n");
+			gcmkPRINT("*ERROR* Invalid video memory for free");
 		}
 	}
 #endif
@@ -476,7 +724,7 @@ static int drv_mmap(struct file * filp, struct vm_area_struct * vma)
     {
         return -ENOTTY;
     }
-
+// dkm: gcdENABLE_MEM_CACHE
 #if (2==gcdENABLE_MEM_CACHE)
     vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 #elif (1==gcdENABLE_MEM_CACHE)
@@ -494,9 +742,9 @@ static int drv_mmap(struct file * filp, struct vm_area_struct * vma)
     	    	    	    	 (gctUINT32) device->contiguousPhysical >> PAGE_SHIFT,
 				 size,
 				 vma->vm_page_prot);
-
+						   
     	private->mappedMemory = (ret == 0) ? (gctPOINTER) vma->vm_start : gcvNULL;
-
+						   
     	return ret;
     }
     else
@@ -505,16 +753,14 @@ static int drv_mmap(struct file * filp, struct vm_area_struct * vma)
     }
 }
 
-
+// dkm: add
 static struct miscdevice miscdev = {
     .name = "galcore",
     .fops = &driver_fops,
     .minor = MISC_DYNAMIC_MINOR,
 };
 
-
-
-
+// dkm: 修改drv_init
 #if !USE_PLATFORM_DRIVER
 static int __init drv_init(void)
 #else
@@ -557,7 +803,6 @@ static int drv_init(void)
         printk("clk_gpu get error: %d\n", retval);
         return -ENODEV;
     }
-    clk_set_rate(clk_get(NULL, "codec_pll"), coreClock);
     /* APMU_GC_156M, APMU_GC_624M, APMU_GC_PLL2, APMU_GC_PLL2_DIV2 currently */
     if (clk_set_rate(clk_gpu, coreClock))  //designed on 500M
     {
@@ -583,6 +828,9 @@ static int drv_init(void)
 		printk("  compression     = %d\n",      compression);
 		printk("  signal          = %d\n",      signal);
 		printk("  baseAddress     = 0x%08lX\n", baseAddress);
+#if ENABLE_GPU_CLOCK_BY_DRIVER
+        printk("  coreClock       = %lu\n",     coreClock);
+#endif
 	}
 
     /* Create the GAL device. */
@@ -597,7 +845,7 @@ static int drv_init(void)
 					baseAddress,
 					signal,
 					&device));
-
+	
     /* Start the GAL device. */
     if (gcmIS_ERROR(gckGALDEVICE_Start(device)))
     {
@@ -663,20 +911,22 @@ static int drv_init(void)
 #else
 	device_create(gpuClass, NULL, MKDEV(major, 0), "galcore");
 #endif
-#endif
 
+#endif
+	
     gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_DRIVER,
     	    	  "[galcore] irqLine->%ld, contiguousSize->%lu, memBase->0x%lX\n",
 		  irqLine,
 		  contiguousSize,
 		  registerMemBase);
-
+	
     gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_DRIVER,
     	    	  "[galcore] driver registered successfully.\n");
 
     return 0;
 }
 
+// dkm: 修改drv_exit
 #if !USE_PLATFORM_DRIVER
 static void __exit drv_exit(void)
 #else
@@ -691,8 +941,8 @@ static void drv_exit(void)
     gcmkTRACE_ZONE(gcvLEVEL_VERBOSE, gcvZONE_DRIVER,
     	    	  "[galcore] Entering drv_exit\n");
 
-#if 0
-    misc_deregister(&miscdev);
+#if 1
+    //misc_deregister(&miscdev);
 #else
 
 	device_destroy(gpuClass, MKDEV(major, 0));
@@ -749,12 +999,14 @@ module_exit(drv_exit);
 #endif
 
 
-
+// dkm: CONFIG_HAS_EARLYSUSPEND
 #if CONFIG_HAS_EARLYSUSPEND
 static void gpu_early_suspend(struct early_suspend *h)
 {
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
+    schedule_delayed_work(&suspend_work, 5*HZ);
+#else
 	gceSTATUS status;
-
 	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_OFF);
 
 	if (gcmIS_ERROR(status))
@@ -762,12 +1014,16 @@ static void gpu_early_suspend(struct early_suspend *h)
 	    printk("%s fail!\n", __func__);
 		return;
 	}
+#endif
 }
 
 static void gpu_early_resume(struct early_suspend *h)
 {
 	gceSTATUS status;
-    
+
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
+    cancel_delayed_work_sync(&suspend_work);
+#endif
 	status = gckHARDWARE_SetPowerManagementState(galDevice->kernel->hardware, gcvPOWER_ON);
 
 	if (gcmIS_ERROR(status))
@@ -788,38 +1044,64 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 {
 	int ret = -ENODEV;
 	struct resource *res;
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ,"gpu_irq");
+	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "gpu_irq");
 	if (!res) {
 		printk(KERN_ERR "%s: No irq line supplied.\n",__FUNCTION__);
 		goto gpu_probe_fail;
 	}
 	irqLine = res->start;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,"gpu_base");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gpu_base");
 	if (!res) {
 		printk(KERN_ERR "%s: No register base supplied.\n",__FUNCTION__);
 		goto gpu_probe_fail;
 	}
 	registerMemBase = res->start;
-	registerMemSize = res->end - res->start;
+	registerMemSize = res->end - res->start + ((res->end & 1) ? 1 : 0);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,"gpu_mem");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gpu_mem");
 	if (!res) {
 		printk(KERN_ERR "%s: No memory base supplied.\n",__FUNCTION__);
 		goto gpu_probe_fail;
 	}
 	contiguousBase  = res->start;
-	contiguousSize  = res->end-res->start;
+	contiguousSize  = res->end - res->start + ((res->end & 1) ? 1 : 0);
 
-#if gcdENABLE_AUTO_FREQ
+	res = platform_get_resource_byname(pdev, IORESOURCE_IO, "gpu_clk");
+	if (!res) {
+		printk(KERN_ERR "%s: No gpu clk supplied, use default!\n", __FUNCTION__);
+	} else {
+	    coreClock = res->end * 1000000;
+// dkm: gcdENABLE_AUTO_FREQ
+#if (2==gcdENABLE_AUTO_FREQ)
+        lowfreq = res->start;
+        highfreq = res->end;
+#endif
+    }
+
+// dkm: gcdENABLE_AUTO_FREQ
+#if (1==gcdENABLE_AUTO_FREQ)
     init_timer(&gpu_timer);
     gpu_timer.function = gputimer_callback;
     gpu_timer.expires = jiffies + 15*HZ;
     add_timer(&gpu_timer);
+#elif(2==gcdENABLE_AUTO_FREQ)
+    init_timer(&gpu_timer);
+    gpu_timer.function = gputimer_callback;
+    gpu_timer.expires = jiffies + 3*HZ;
+    add_timer(&gpu_timer);
 #endif
 
+// dkm: CONFIG_HAS_EARLYSUSPEND
 #if CONFIG_HAS_EARLYSUSPEND
+#if (2!=gcdENABLE_DELAY_EARLY_SUSPEND)
     register_early_suspend(&gpu_early_suspend_info);
+#endif
+#endif
+
+// dkm: gcdENABLE_DELAY_EARLY_SUSPEND
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
+    INIT_DELAYED_WORK(&suspend_work, real_suspend);
 #endif
 
 	ret = drv_init();
@@ -828,13 +1110,17 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-gpu_probe_fail:
+gpu_probe_fail:	
 	printk(KERN_INFO "Failed to register gpu driver.\n");
 	return ret;
 }
 
 static int __devinit gpu_remove(struct platform_device *pdev)
 {
+// dkm: gcdENABLE_DELAY_EARLY_SUSPEND
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
+    cancel_delayed_work_sync(&suspend_work);
+#endif
 	drv_exit();
 
 	return 0;
@@ -844,14 +1130,17 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 {
 	gceSTATUS status;
 	gckGALDEVICE device;
-
+    
+// dkm: gcdENABLE_DELAY_EARLY_SUSPEND
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
+    cancel_delayed_work_sync(&suspend_work);
+#endif
 	device = platform_get_drvdata(dev);
-
+	
 	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_OFF);
 
 	if (gcmIS_ERROR(status))
 	{
-	    printk("%s fail!\n", __func__);
 		return -1;
 	}
 
@@ -864,20 +1153,30 @@ static int __devinit gpu_resume(struct platform_device *dev)
 	gckGALDEVICE device;
 
 	device = platform_get_drvdata(dev);
-
+	
 	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_ON);
 
 	if (gcmIS_ERROR(status))
 	{
-	    printk("%s fail!\n", __func__);
 		return -1;
 	}
-    
+
+	status = gckHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_IDLE_BROADCAST);
+
+	if (gcmIS_ERROR(status))
+	{
+		return -1;
+	}
+
 	return 0;
 }
 
+// dkm: add
 static void __devinit gpu_shutdown(struct platform_device *dev)
 {
+#if (1==gcdENABLE_DELAY_EARLY_SUSPEND)
+    cancel_delayed_work_sync(&suspend_work);
+#endif
     drv_exit();
 }
 
@@ -885,6 +1184,7 @@ static void __devinit gpu_shutdown(struct platform_device *dev)
 static struct platform_driver gpu_driver = {
 	.probe		= gpu_probe,
 	.remove		= gpu_remove,
+    // dkm add
     .shutdown   = gpu_shutdown,
 	.suspend	= gpu_suspend,
 	.resume		= gpu_resume,
@@ -894,7 +1194,7 @@ static struct platform_driver gpu_driver = {
 	}
 };
 
-#if 0
+#if 0 // by dkm
 #ifndef CONFIG_DOVE_GPU
 static struct resource gpu_resources[] = {
     {
@@ -924,10 +1224,10 @@ static int __init gpu_init(void)
 	gpu_resources[0].start = gpu_resources[0].end = irqLine;
 
 	gpu_resources[1].start = registerMemBase;
-	gpu_resources[1].end   = registerMemBase + registerMemSize;
+	gpu_resources[1].end   = registerMemBase + registerMemSize - 1;
 
 	gpu_resources[2].start = contiguousBase;
-	gpu_resources[2].end   = contiguousBase + contiguousSize;
+	gpu_resources[2].end   = contiguousBase + contiguousSize - 1;
 
 	/* Allocate device */
 	gpu_device = platform_device_alloc(DEVICE_NAME, -1);
@@ -958,6 +1258,11 @@ static int __init gpu_init(void)
 	ret = platform_driver_register(&gpu_driver);
 	if (!ret)
 	{
+// add by vv
+#if gcdkREPORT_VIDMEM_USAGE
+        gckDeviceProc_Register();
+#endif
+        
 		goto out;
 	}
 
@@ -983,6 +1288,12 @@ static void __exit gpu_exit(void)
 	platform_device_unregister(gpu_device);
 #endif
 #endif
+
+// add by vv
+#if gcdkREPORT_VIDMEM_USAGE
+   gckDeviceProc_UnRegister();
+#endif
+   printk("UnLoad galcore.ko success.\n");
 }
 
 module_init(gpu_init);

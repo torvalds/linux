@@ -9,7 +9,7 @@ struct modem_dev
 	struct work_struct work;
 };
 
-/* 耳机数据结构体 */
+/* 耳机数据结构�?*/
 struct rk2818_23d_data {
 	int (*io_init)(void);
 	int (*io_deinit)(void);

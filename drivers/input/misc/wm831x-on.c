@@ -41,6 +41,8 @@ struct wm831x_on {
 	struct input_dev *dev;
 	struct delayed_work work;
 	struct wm831x *wm831x;
+	int flag_resume;
+	spinlock_t		flag_lock;
 	struct wake_lock 	wm831x_on_wake;
 };
 
@@ -68,19 +70,34 @@ void rk28_send_wakeup_key(void)
 static int wm831x_on_suspend_noirq(struct device *dev)
 {
 	DBG("%s\n",__FUNCTION__);
+	
+	if(!g_wm831x_on)
+	{
+		printk("%s:addr err!\n",__FUNCTION__);
+		return -1;
+	}
+
+	spin_lock(&g_wm831x_on->flag_lock);
+	g_wm831x_on->flag_resume = 0;
+	spin_unlock(&g_wm831x_on->flag_lock);
 	return 0;
 }
 
 static int wm831x_on_resume_noirq(struct device *dev)
 {
-	int poll, ret;
+	//int poll, ret;
 	
 	if(!g_wm831x_on)
 	{
 		printk("%s:addr err!\n",__FUNCTION__);
-		return;
+		return -1;
 	}
 	
+	spin_lock(&g_wm831x_on->flag_lock);
+	g_wm831x_on->flag_resume = 1;
+	spin_unlock(&g_wm831x_on->flag_lock);
+	
+#if 0	
 	ret = wm831x_reg_read(g_wm831x_on->wm831x, WM831X_ON_PIN_CONTROL);
 	if (ret >= 0) {
 		poll = !(ret & WM831X_ON_PIN_STS);	
@@ -89,6 +106,7 @@ static int wm831x_on_resume_noirq(struct device *dev)
 		input_sync(g_wm831x_on->dev);
 		DBG("%s:poll=%d,ret=0x%x\n",__FUNCTION__,poll,ret);
 	} 
+#endif
 	DBG("%s\n",__FUNCTION__);
 	return 0;
 }
@@ -172,11 +190,17 @@ static irqreturn_t wm831x_on_irq(int irq, void *data)
 	int poll, ret;
 	
 	//wake_lock(&wm831x_on->wm831x_on_wake);
-	
-read_again:
-	
-	ret = wm831x_reg_read(wm831x, WM831X_ON_PIN_CONTROL);
+		
+	ret = wm831x_reg_read(wm831x, WM831X_ON_PIN_CONTROL);//it may be unpress if start to read register now
 	if (ret >= 0) {
+		if(wm831x_on->flag_resume)
+		{
+			poll = 1;
+			spin_lock(&wm831x_on->flag_lock);
+			wm831x_on->flag_resume = 0;
+			spin_unlock(&wm831x_on->flag_lock);
+		}
+		else
 		poll = !(ret & WM831X_ON_PIN_STS);
 		input_report_key(wm831x_on->dev, KEY_POWER, poll);
 		input_sync(wm831x_on->dev);
@@ -199,8 +223,8 @@ read_again:
 
 static int __devinit wm831x_on_probe(struct platform_device *pdev)
 {
-	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);;
-	struct wm831x_on *wm831x_on;
+	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
+	struct wm831x_on *wm831x_on = NULL;
 	int irq = platform_get_irq(pdev, 0);
 	int ret;
 	printk("%s irq=%d\n", __FUNCTION__,irq);

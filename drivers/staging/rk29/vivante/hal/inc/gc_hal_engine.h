@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -265,7 +265,6 @@ gcoSURF_ClearRect(
 	);
 
 /* TO BE REMOVED */
-#if 1
 	gceSTATUS
 	depr_gcoSURF_Resolve(
 		IN gcoSURF SrcSurface,
@@ -294,7 +293,6 @@ gcoSURF_ClearRect(
 		IN gcsPOINT_PTR DestOrigin,
 		IN gcsPOINT_PTR RectSize
 		);
-#endif
 
 /* Resample surface. */
 gceSTATUS
@@ -833,7 +831,8 @@ gco3D_SetStencilWriteMask(
 gceSTATUS
 gco3D_SetStencilReference(
 	IN gco3D Engine,
-	IN gctUINT8 Reference
+	IN gctUINT8 Reference,
+	IN gctBOOL Front
 	);
 
 /* Set stencil compare. */
@@ -993,6 +992,27 @@ gco3D_SetCentroids(
 	IN gctUINT32	Index,
 	IN gctPOINTER	Centroids
 	);
+/*----------------------------------------------------------------------------*/
+/*-------------------------- gco3D Fragment Processor ------------------------*/
+
+/* Set the fragment processor configuration. */
+gceSTATUS
+gco3D_SetWClipEnable(
+	IN gco3D Engine,
+	IN gctBOOL Enable
+    );
+
+gceSTATUS
+gco3D_SetWPlaneLimitF(
+	IN gco3D Engine,
+	IN gctFLOAT Value
+    );
+
+gceSTATUS
+gco3D_SetWPlaneLimitX(
+	IN gco3D Engine,
+	IN gctFIXED_POINT Value
+    );
 /*----------------------------------------------------------------------------*/
 /*-------------------------- gco3D Fragment Processor ------------------------*/
 

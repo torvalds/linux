@@ -1145,8 +1145,10 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
 	root->commit_root = btrfs_root_node(root);
 	BUG_ON(!root->node);
 out:
-	if (location->objectid != BTRFS_TREE_LOG_OBJECTID)
+	if (location->objectid != BTRFS_TREE_LOG_OBJECTID) {
 		root->ref_cows = 1;
+		btrfs_check_and_init_root_item(&root->root_item);
+	}
 
 	return root;
 }

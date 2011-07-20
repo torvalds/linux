@@ -403,7 +403,7 @@ static int rockchip_pcm_prepare(struct snd_pcm_substream *substream)
         }
         DBG("Enter::%s, %d, ret=%d, Channel=%d, Addr=0x%X\n", __FUNCTION__, __LINE__, ret, prtd->params->channel, prtd->params->dma_addr);
         ret = rk29_dma_config(prtd->params->channel, 
-                prtd->params->dma_size);
+                prtd->params->dma_size, 1);
 
         DBG("Enter:%s, %d, ret = %d, Channel=%d, Size=%d\n", 
                 __FUNCTION__, __LINE__, ret, prtd->params->channel, 
@@ -426,7 +426,7 @@ static int rockchip_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct rockchip_runtime_data *prtd = substream->runtime->private_data;
 	int ret = 0;
 	/**************add by qiuen for volume*****/
-/*	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *pCodec_dai = rtd->dai->codec_dai;
 	int vol = 0;
 	int streamType = 0;
@@ -437,8 +437,9 @@ static int rockchip_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		vol = substream->number % 100;
 		streamType = (substream->number / 100) % 100;
 		DBG("enter:vol=%d,streamType=%d\n",vol,streamType);
-		pCodec_dai->ops->set_volume(streamType, vol);
-	}*/
+		if(pCodec_dai->ops->set_volume)
+			pCodec_dai->ops->set_volume(streamType, vol);
+	}
 	/****************************************************/
 	spin_lock(&prtd->lock);
 

@@ -36,7 +36,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 
-#if 1
+#if 0
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
@@ -711,13 +711,13 @@ static int proc_tps65910_show(struct seq_file *s, void *v)
     struct regulator *vldo;
 	
 	vldo = regulator_get(NULL, "vcore");
-	if (vldo != NULL)
+	if (!IS_ERR(vldo))
 	{
 		int uV = 0;
-		
+#if 0		
 		seq_printf(s, "Set VCORE.\n");
-		regulator_set_voltage(vldo,1100000,1100000);
-
+		regulator_set_voltage(vldo,1350000,1350000);
+#endif
 		uV = regulator_get_voltage(vldo);
 		seq_printf(s, "Get VCORE=%d(uV).\n", uV);
 	}
@@ -727,14 +727,17 @@ static int proc_tps65910_show(struct seq_file *s, void *v)
 #if 0
 {
     struct regulator *vldo;
-	
+
+#if 1
 	vldo = regulator_get(NULL, "vaux1");
 	if (!IS_ERR(vldo))
 	{		
 		seq_printf(s, "Disable VAUX1.\n");
 		regulator_disable(vldo);
 	}
+#endif
 
+#if 1
 	vldo = regulator_get(NULL, "vdig1");
 	if (!IS_ERR(vldo))
 	{		
@@ -748,20 +751,25 @@ static int proc_tps65910_show(struct seq_file *s, void *v)
 		seq_printf(s, "Disable VDIG2.\n");
 		regulator_disable(vldo);
 	}
+#endif
 
+#if 0	//	fih board is for hdmi
 	vldo = regulator_get(NULL, "vdac");
 	if (!IS_ERR(vldo))
 	{		
 		seq_printf(s, "Disable VDAC.\n");
 		regulator_disable(vldo);
 	}
+#endif
 
+#if 1
 	vldo = regulator_get(NULL, "vaux2");
 	if (!IS_ERR(vldo))
 	{		
 		seq_printf(s, "Disable VAUX2.\n");
 		regulator_disable(vldo);
 	}
+#endif
 }
 #endif
 

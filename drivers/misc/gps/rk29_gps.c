@@ -11,6 +11,8 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <linux/platform_device.h>
+#include <asm/uaccess.h>
+#include <linux/wait.h>
 #include "rk29_gps.h"
 #if 0
 #define DBG(x...)	printk(KERN_INFO x)
@@ -106,8 +108,10 @@ int rk29_gps_suspend(struct platform_device *pdev,  pm_message_t state)
 {
 	struct rk29_gps_data *pdata = pdev->dev.platform_data;
 
-	if(!pdata)
+	if(!pdata) {
+		printk("%s: pdata = NULL ...... \n", __func__);
 		return -1;
+	}
 		
 	if(pdata->power_flag == 1)
 	{
@@ -117,7 +121,6 @@ int rk29_gps_suspend(struct platform_device *pdev,  pm_message_t state)
 	}
 	
 	printk("%s\n",__FUNCTION__);
-
 	return 0;	
 }
 
@@ -125,22 +128,40 @@ int rk29_gps_resume(struct platform_device *pdev)
 {
 	struct rk29_gps_data *pdata = pdev->dev.platform_data;
 
-	if(!pdata)
+	if(!pdata) {
+		printk("%s: pdata = NULL ...... \n", __func__);
 		return -1;
+	}
 	
 	if(pdata->power_flag == 1)
 	{
-		pdata->reset(GPIO_LOW);
-		mdelay(10);
-		pdata->power_up();
-		mdelay(500);
-		pdata->reset(GPIO_HIGH);
-		rk29_gps_gpio_to_uart(pdata->uart_id);
+		queue_work(pdata->wq, &pdata->work);
 	}
 	
 	printk("%s\n",__FUNCTION__);
-
 	return 0;
+}
+
+static void rk29_gps_delay_power_downup(struct work_struct *work)
+{
+	struct rk29_gps_data *pdata = container_of(work, struct rk29_gps_data, work);
+	if (pdata == NULL) {
+		printk("%s: pdata = NULL\n", __func__);
+		return;
+	}
+
+	DBG("%s: suspend=%d\n", __func__, pdata->suspend);
+
+	down(&pdata->power_sem);
+	
+	pdata->reset(GPIO_LOW);
+	mdelay(5);
+	pdata->power_up();
+	msleep(500);
+	pdata->reset(GPIO_HIGH);
+	rk29_gps_gpio_to_uart(pdata->uart_id);
+
+	up(&pdata->power_sem);
 }
 
 int rk29_gps_open(struct inode *inode, struct file *filp)
@@ -148,6 +169,21 @@ int rk29_gps_open(struct inode *inode, struct file *filp)
     DBG("rk29_gps_open\n");
 
 	return 0;
+}
+
+ssize_t rk29_gps_read(struct file *filp, char __user *ptr, size_t size, loff_t *pos)
+{
+	if (ptr == NULL)
+		printk("%s: user space address is NULL\n", __func__);
+
+	if (pgps == NULL) {
+		printk("%s: pgps addr is NULL\n", __func__);
+		return -1;
+	}
+
+	put_user(pgps->uart_id, ptr);
+	
+	return sizeof(int);
 }
 
 int rk29_gps_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
@@ -166,9 +202,9 @@ int rk29_gps_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, uns
 	switch (cmd){
 		case ENABLE:
 			pdata->reset(GPIO_LOW);
-			mdelay(10);
+			mdelay(5);
 			pdata->power_up();
-			mdelay(10);
+			mdelay(5);
 			rk29_gps_gpio_to_uart(pdata->uart_id);
 			mdelay(500);
 			pdata->reset(GPIO_HIGH);
@@ -181,7 +217,7 @@ int rk29_gps_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, uns
 			pdata->reset(GPIO_LOW);
 			pdata->power_flag = 0;
 			break;
-			
+
 		default:
 			printk("unknown ioctl cmd!\n");
 			up(&pdata->power_sem);
@@ -197,7 +233,7 @@ int rk29_gps_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, uns
 
 int rk29_gps_release(struct inode *inode, struct file *filp)
 {
-    	DBG("rk29_gps_release\n");
+    DBG("rk29_gps_release\n");
     
 	return 0;
 }
@@ -205,6 +241,7 @@ int rk29_gps_release(struct inode *inode, struct file *filp)
 static struct file_operations rk29_gps_fops = {
 	.owner   = THIS_MODULE,
 	.open    = rk29_gps_open,
+	.read    = rk29_gps_read,
 	.ioctl   = rk29_gps_ioctl,
 	.release = rk29_gps_release,
 };
@@ -219,7 +256,6 @@ static struct miscdevice rk29_gps_dev =
 static int rk29_gps_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	printk("\n\n=========================\n%s\n", __func__);
 	struct rk29_gps_data *pdata = pdev->dev.platform_data;
 	if(!pdata)
 		return -1;
@@ -231,7 +267,16 @@ static int rk29_gps_probe(struct platform_device *pdev)
 	}
 	
 	init_MUTEX(&pdata->power_sem);
+	pdata->wq = create_freezeable_workqueue("rk29_gps");
+	INIT_WORK(&pdata->work, rk29_gps_delay_power_downup);
 	pdata->power_flag = 0;
+
+	//gps power down
+	rk29_gps_uart_to_gpio(pdata->uart_id);
+	if (pdata->power_down)
+		pdata->power_down();
+	if (pdata->reset)
+		pdata->reset(GPIO_LOW);
 
 	pgps = pdata;
 
@@ -241,8 +286,21 @@ static int rk29_gps_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static int rk29_gps_remove(struct platform_device *pdev)
+{
+	struct rk29_gps_data *pdata = pdev->dev.platform_data;
+	if(!pdata)
+		return -1;
+
+	misc_deregister(&rk29_gps_dev);
+	destroy_workqueue(pdata->wq);
+
+	return 0;
+}
+
 static struct platform_driver rk29_gps_driver = {
 	.probe	= rk29_gps_probe,
+	.remove = rk29_gps_remove,
 	.suspend  	= rk29_gps_suspend,
 	.resume		= rk29_gps_resume,
 	.driver	= {

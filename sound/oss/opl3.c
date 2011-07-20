@@ -819,7 +819,7 @@ static void opl3_hw_control(int dev, unsigned char *event)
 }
 
 static int opl3_load_patch(int dev, int format, const char __user *addr,
-		int offs, int count, int pmgr_flag)
+		int count, int pmgr_flag)
 {
 	struct sbi_instrument ins;
 
@@ -829,11 +829,7 @@ static int opl3_load_patch(int dev, int format, const char __user *addr,
 		return -EINVAL;
 	}
 
-	/*
-	 * What the fuck is going on here?  We leave junk in the beginning
-	 * of ins and then check the field pretty close to that beginning?
-	 */
-	if(copy_from_user(&((char *) &ins)[offs], addr + offs, sizeof(ins) - offs))
+	if (copy_from_user(&ins, addr, sizeof(ins)))
 		return -EFAULT;
 
 	if (ins.channel < 0 || ins.channel >= SBFM_MAXINSTR)
@@ -848,6 +844,10 @@ static int opl3_load_patch(int dev, int format, const char __user *addr,
 
 static void opl3_panning(int dev, int voice, int value)
 {
+
+	if (voice < 0 || voice >= devc->nr_voice)
+		return;
+
 	devc->voc[voice].panning = value;
 }
 
@@ -1065,8 +1065,15 @@ static int opl3_alloc_voice(int dev, int chn, int note, struct voice_alloc_info 
 
 static void opl3_setup_voice(int dev, int voice, int chn)
 {
-	struct channel_info *info =
-	&synth_devs[dev]->chn_info[chn];
+	struct channel_info *info;
+
+	if (voice < 0 || voice >= devc->nr_voice)
+		return;
+
+	if (chn < 0 || chn > 15)
+		return;
+
+	info = &synth_devs[dev]->chn_info[chn];
 
 	opl3_set_instr(dev, voice, info->pgm_num);
 

@@ -47,11 +47,108 @@ config MACH_RK29_A22
         help
 	  Support for the ROCKCHIP Board For A22.
 
+config MACH_RK29_PHONEPADSDK
+	depends on ARCH_RK29
+	bool "ROCKCHIP Board Rk29 For Phone Pad Sdk"
+        help
+	  Support for the ROCKCHIP Board For Rk29 Phone Pad Sdk.
+	  
+config MACH_RK29_newton
+		depends on ARCH_RK29
+		bool "ROCKCHIP Board Rk29 For project newton"
+		help
+		  Support for the ROCKCHIP Board For project newton.
+endchoice
+
+choice DDR_TYPE
+	prompt "DDR Memory Type"
+	default DDR_TYPE_DDR3_DEFAULT 
+
+config DDR_TYPE_DDRII
+	bool "DDRII"
+	help
+	  Support for DDRII memory
+
+config DDR_TYPE_LPDDR
+	bool "mobile DDR"
+	help
+	  Support for mobile DDR, MCP device
+
+config DDR_TYPE_DDR3_800D
+	bool "DDR3-800 5-5-5"
+
+config DDR_TYPE_DDR3_800E
+	bool "DDR3-800 6-6-6"
+
+config DDR_TYPE_DDR3_1066E
+	bool "DDR3-1066 6-6-6"
+
+config DDR_TYPE_DDR3_1066F
+	bool "DDR3-1066 7-7-7"
+
+config DDR_TYPE_DDR3_1066G
+	bool "DDR3-1066 8-8-8"
+
+config DDR_TYPE_DDR3_1333F
+	bool "DDR3-1333 7-7-7"
+
+config DDR_TYPE_DDR3_1333G
+	bool "DDR3-1333 8-8-8"
+
+config DDR_TYPE_DDR3_1333H
+	bool "DDR3-1333 9-9-9"
+
+config DDR_TYPE_DDR3_1333J
+	bool "DDR3-1333 10-10-10"
+
+config DDR_TYPE_DDR3_1600G
+	bool "DDR3-1600 8-8-8"
+
+config DDR_TYPE_DDR3_1600H
+	bool "DDR3-1600 9-9-9"
+
+config DDR_TYPE_DDR3_1600J
+	bool "DDR3-1600 10-10-10"
+
+config DDR_TYPE_DDR3_1600K
+	bool "DDR3-1600 11-11-11"
+
+config DDR_TYPE_DDR3_1866J
+	bool "DDR3-1866 10-10-10"
+
+config DDR_TYPE_DDR3_1866K
+	bool "DDR3-1866 11-11-11"
+
+config DDR_TYPE_DDR3_1866L
+	bool "DDR3-1866 12-12-12"
+
+config DDR_TYPE_DDR3_1866M
+	bool "DDR3-1866 13-13-13"
+
+config DDR_TYPE_DDR3_2133K
+	bool "DDR3-2133 11-11-11"
+
+config DDR_TYPE_DDR3_2133L
+	bool "DDR3-2133 12-12-12"
+
+config DDR_TYPE_DDR3_2133M
+	bool "DDR3-2133 13-13-13"
+
+config DDR_TYPE_DDR3_2133N
+	bool "DDR3-2133 14-14-14"
+
+config DDR_TYPE_DDR3_DEFAULT
+	bool "DDR3 (Type default)"
+
 endchoice
 
 config RK29_MEM_SIZE_M
-	int "Memory size (in MiB)"
+	int "DDR Memory size (in MB)"
 	default 512
+
+config DDR_SDRAM_FREQ
+	int "DDR SDRAM frequence (in MHz)"
+	default 400
 
 config WIFI_CONTROL_FUNC
         bool "Enable WiFi control function abstraction"
@@ -61,18 +158,66 @@ config WIFI_CONTROL_FUNC
 menu "RK29 VPU (Video Processing Unit) support"
 
 config RK29_VPU
-	tristate "Support for RK29 VPU (Video Processing Unit)"
+	bool
 	depends on ARCH_RK29
 	default y
+
+config RK29_VPU_SERVICE
+	bool "VPU service driver in kernel"
+	depends on ARCH_RK29
+	default y
+
+config RK29_VPU_OLD
+	bool "Old version for RK29 VPU (Video Processing Unit)"
+	depends on ARCH_RK29 && !RK29_VPU_SERVICE
 
 config RK29_VPU_DEBUG
 	bool "RK29 VPU debugging"
         depends on RK29_VPU != n
-	default n
         help
           This is an option for the developers; most people should
           say N here.  This enables RK29 VPU driver debugging.
 
 endmenu
+
+config RK29_JTAG
+	bool "Enable JTAG support (debug only)"
+	help
+	  This is an option for SDK board. Always enable JTAG clock,
+	  but consumes more power.
+
+config RK29_LAST_LOG
+	bool "Save the last kernel log on /proc/last_log"
+	depends on DEBUG_KERNEL && PRINTK
+	default y
+	help
+	  It is only intended for debugging.
+
+menu "support for RK29 power manage "
+config RK29_WORKING_POWER_MANAGEMENT
+	bool "Support power saving in working"
+	default n
+	help 
+	  a series of measures to reduce working power
+
+config RK29_CLK_SWITCH_TO_32K
+	bool "Support clock switch to 32.768k"
+	default n
+
+config RK29_GPIO_SUSPEND
+	bool "Support gpio suspend"
+	default n
+
+config RK29_SPI_INSRAM
+	tristate "Support spi control interface"
+	depends on REGULATOR_WM831X
+	default ns
+
+config RK29_PWM_INSRAM
+	tristate "Support pwm control interface"
+	depends on RK29_PWM_REGULATOR
+	default y
+endmenu
+
 
 endif

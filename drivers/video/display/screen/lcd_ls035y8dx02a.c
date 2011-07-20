@@ -30,21 +30,21 @@
 #define OUT_TYPE		SCREEN_RGB
 #define OUT_FACE		OUT_P888
 #define OUT_CLK			(26*1000000)	//***27  uint Hz
-#define LCDC_ACLK       150000000     //29 lcdc axi DMA Ƶ��
+#define LCDC_ACLK       300000000     //29 lcdc axi DMA Ƶ��
 
 /* Timing */
-#define H_PW			16//8 //16
-#define H_BP			24//6//24
+#define H_PW			8 //16
+#define H_BP			6//24
 #define H_VD			480//320
-#define H_FP			16//60//16
+#define H_FP			60//16
 
-#define V_PW			12//2
-#define V_BP			4// 2
+#define V_PW			2
+#define V_BP			2
 #define V_VD			800//480
-#define V_FP			50//4
+#define V_FP			4
 
-#define LCD_WIDTH       800    //need modify
-#define LCD_HEIGHT      480
+#define LCD_WIDTH       480    //need modify
+#define LCD_HEIGHT      800
 
 /* Other */
 #define DCLK_POL		1             //0 
@@ -319,10 +319,12 @@ int lcd_init(void)
     return 0;
 }
 
+extern void rk29_lcd_spim_spin_lock(void);
+extern void rk29_lcd_spim_spin_unlock(void);
 int lcd_standby(u8 enable)	//***enable =1 means suspend, 0 means resume 
 {
-
-    if(gLcd_info)
+	rk29_lcd_spim_spin_lock();
+	if(gLcd_info)
        gLcd_info->io_init();
 	printk("lcd standby\n");
 	if(enable) {
@@ -332,13 +334,31 @@ int lcd_standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 		spi_screenreg_set(0x28, 0xffff, 0xffff);
 	} else { 
 		printk("lcd standby...0 means resume\n");
+		
+		/* reinit, changed by phc */
+#ifdef RESET_PORT
+    gpio_request(RESET_PORT, NULL);
+    gpio_direction_output(RESET_PORT, 0);
+    mdelay(2);
+    gpio_set_value(RESET_PORT, 1);
+    mdelay(10);
+    gpio_free(RESET_PORT);
+#endif
+		
 		spi_screenreg_set(0x29, 0xffff, 0xffff);
 		spi_screenreg_set(0x11, 0xffff, 0xffff);
-		//mdelay(150);
+		mdelay(130);
+		spi_screenreg_set(0x36, 0x0000, 0xffff);      //set address mode
+		spi_screenreg_set(0x3a, 0x0070, 0xffff);      //set pixel format
+		spi_screenreg_set(0xb0, 0x0000, 0xffff);      //enable command acess
+		spi_screenreg_set(0xb8, 0x0001, 0xffff);      //BLC setting
+		spi_screenreg_set(0xb9, 0x0001, 0x00ff);      //LED PWM
+		spi_screenreg_set(0xb0, 0x0003, 0xffff);      //disable command acess
 	}
 
     if(gLcd_info)
        gLcd_info->io_deinit();
+	rk29_lcd_spim_spin_unlock();
     return 0;
 }
 

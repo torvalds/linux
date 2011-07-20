@@ -16,7 +16,13 @@ endif
 ifneq ($(CONFIG_USB),y)
 EXTRA_CFLAGS   += -DDWC_DEVICE_ONLY
 endif
+#ifeq ($(CONFIG_DWC_OTG_DEVICE_ONLY),y)
+#EXTRA_CFLAGS   += -DDWC_DEVICE_ONLY
+#endif
 
+ifeq ($(CONFIG_DWC_OTG_BOTH_HOST_SLAVE),y)
+EXTRA_CFLAGS   += -DDWC_BOTH_HOST_SLAVE
+endif
 #EXTRA_CFLAGS += -Dlinux -DDWC_HS_ELECT_TST
 
 dwc_otg-objs    := dwc_otg_driver.o dwc_otg_attr.o

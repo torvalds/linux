@@ -57,14 +57,14 @@
 #define MMAIO				0xA1
 
 /* IOCTLs for MMA8452 library */
-#define ECS_IOCTL_INIT                  _IO(MMAIO, 0x01)
-#define ECS_IOCTL_RESET      	          _IO(MMAIO, 0x04)
-#define ECS_IOCTL_CLOSE		           _IO(MMAIO, 0x02)
-#define ECS_IOCTL_START		             _IO(MMAIO, 0x03)
-#define ECS_IOCTL_GETDATA               _IOR(MMAIO, 0x08, char[RBUFF_SIZE+1])
+#define MMA_IOCTL_INIT                  _IO(MMAIO, 0x01)
+#define MMA_IOCTL_RESET      	          _IO(MMAIO, 0x04)
+#define MMA_IOCTL_CLOSE		           _IO(MMAIO, 0x02)
+#define MMA_IOCTL_START		             _IO(MMAIO, 0x03)
+#define MMA_IOCTL_GETDATA               _IOR(MMAIO, 0x08, char[RBUFF_SIZE+1])
 
 /* IOCTLs for APPs */
-#define ECS_IOCTL_APP_SET_RATE		_IOW(MMAIO, 0x10, char)
+#define MMA_IOCTL_APP_SET_RATE		_IOW(MMAIO, 0x10, char)
 
 
 /*rate*/
@@ -87,8 +87,6 @@
 
 #define ACTIVE_MASK				1
 #define FREAD_MASK				2
-
-
 
 
 /*status*/
@@ -115,15 +113,6 @@ struct mma8452_platform_data {
 
 */
 
-struct mma8452_data {
-    char  status;
-    char  curr_tate;
-	struct input_dev *input_dev;
-	struct i2c_client *client;
-	struct work_struct work;
-	struct delayed_work delaywork;	/*report second event*/
-};
-
 struct mma8452_axis {
 	int x;
 	int y;
@@ -131,7 +120,6 @@ struct mma8452_axis {
 };
 
 #define  GSENSOR_DEV_PATH    "/dev/mma8452_daemon"
-
 
 #endif
 

@@ -1,21 +1,21 @@
 /****************************************************************************
-*
+*  
 *    Copyright (C) 2005 - 2011 by Vivante Corp.
-*
+*  
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*
+*  
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public License for more details.
-*
+*  
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*
+*  
 *****************************************************************************/
 
 
@@ -29,6 +29,7 @@
 #endif
 
 #define _GC_OBJ_ZONE    gcvZONE_COMMAND
+
 
 /******************************************************************************\
 ********************************* Support Code *********************************
@@ -758,8 +759,8 @@ gckCOMMAND_Commit(
     gctBOOL semaAcquired = gcvFALSE;
     gctINT32 atomValue;
     gctBOOL atomIncremented = gcvFALSE;
-    gctUINT32 process, thread;
     gctBOOL powerAcquired = gcvFALSE;
+    gctUINT32 process, thread;
 
     gcmkHEADER_ARG("Command=0x%x CommandBuffer=0x%x Context=0x%x",
                    Command, CommandBuffer, Context);
@@ -771,6 +772,22 @@ gckCOMMAND_Commit(
     /* Do nothing with infinite hardware. */
     gcmkFOOTER_NO();
     return gcvSTATUS_OK;
+#endif
+
+// dkm: gcdENABLE_AUTO_FREQ
+#if (2==gcdENABLE_AUTO_FREQ)
+    {
+        static int cnt = 0;
+        extern void mod_gpu_timer(void);
+        extern int needhighfreq;
+        
+        if( (++cnt>20) && (0==Command->pipeSelect) ) {
+            cnt = 0;
+            mod_gpu_timer();
+            needhighfreq = 1;
+            //printk("needhighfreq = 1! \n");
+        }
+    }
 #endif
 
     gcmkONERROR(
@@ -833,11 +850,12 @@ gckCOMMAND_Commit(
                                     &atomValue));
     atomIncremented = gcvTRUE;
 
+    /* Release the power mutex. */
     if (powerAcquired)
     {
+        hardware->powerProcess = hardware->powerThread = 0x0;
+
         /* Release the power mutex. */
-        hardware->powerProcess = 0;
-        hardware->powerThread = 0;
         gcmkONERROR(gckOS_ReleaseMutex(Command->os, hardware->powerMutex));
         powerAcquired = gcvFALSE;
     }
@@ -1362,9 +1380,9 @@ OnError:
 
     if (powerAcquired)
     {
+        hardware->powerProcess = hardware->powerThread = 0x0;
+
         /* Release the power mutex. */
-        hardware->powerProcess = 0;
-        hardware->powerThread = 0;
         gcmkONERROR(gckOS_ReleaseMutex(Command->os, hardware->powerMutex));
     }
 
@@ -1408,12 +1426,13 @@ gckCOMMAND_Reserve(
     gceSTATUS status;
     gctSIZE_T requiredBytes, bytes;
     gctBOOL acquired = gcvFALSE;
-    gctBOOL semaAcquired = gcvFALSE; // This value must be gcvFALSE
-    gckHARDWARE hardware = gcvNULL;
+    // dkm: This value must be gcvFALSE
+    gctBOOL semaAcquired = gcvFALSE; 
     gctINT32 atomValue;
     gctBOOL atomIncremented = gcvFALSE;
-    gctUINT32 process, thread;
     gctBOOL powerAcquired = gcvFALSE;
+    gckHARDWARE hardware = gcvNULL;
+    gctUINT32 process, thread;
 
     gcmkHEADER_ARG("Command=0x%x RequestedBytes=%lu", Command, RequestedBytes);
 
@@ -1450,7 +1469,7 @@ gckCOMMAND_Reserve(
                                    hardware->powerMutex, gcvINFINITE));
 
             hardware->powerProcess = process;
-            hardware->powerThread  = thread;
+           hardware->powerThread  = thread;
             powerAcquired = gcvTRUE;
         }
     }
@@ -1466,9 +1485,9 @@ gckCOMMAND_Reserve(
 
     if (powerAcquired)
     {
+        hardware->powerProcess = hardware->powerThread = 0x0;
+
         /* Release the power mutex. */
-        hardware->powerProcess = 0;
-        hardware->powerThread = 0;
         gcmkONERROR(gckOS_ReleaseMutex(Command->os,
                                        Command->kernel->hardware->powerMutex));
         powerAcquired = gcvFALSE;
@@ -1555,9 +1574,9 @@ OnError:
 
     if (powerAcquired)
     {
+        hardware->powerProcess = hardware->powerThread = 0x0;
+
         /* Release the power mutex. */
-        hardware->powerProcess = 0;
-        hardware->powerThread = 0;
         gcmkONERROR(gckOS_ReleaseMutex(Command->os,
                                        Command->kernel->hardware->powerMutex));
     }
@@ -1846,7 +1865,7 @@ gckCOMMAND_Stall(
     do
     {
         /* Wait for the signal. */
-        status = gckOS_WaitSignal(os, signal, 250);
+        status = gckOS_WaitSignalUninterruptible(os, signal, 250);
 
         if (status == gcvSTATUS_TIMEOUT)
         {
@@ -1940,4 +1959,3 @@ OnError:
     gcmkFOOTER();
     return status;
 }
-

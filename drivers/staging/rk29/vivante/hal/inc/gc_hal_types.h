@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ extern "C" {
 #endif
 
 #ifndef gcdDEBUG
-#	if (defined(DBG) && DBG) || defined(DEBUG) || defined(_DEBUG)
+#if (defined(DBG) && DBG) || defined(DEBUG) || defined(_DEBUG)
 #		define gcdDEBUG			1
 #	else
 #		define gcdDEBUG			0
@@ -79,15 +79,15 @@ extern "C" {
 #endif
 
 #ifdef _USRDLL
-#	ifdef _MSC_VER
-#		ifdef HAL_EXPORTS
+#ifdef _MSC_VER
+#ifdef HAL_EXPORTS
 #			define HALAPI		__declspec(dllexport)
 #		else
 #			define HALAPI		__declspec(dllimport)
 #		endif
 #		define HALDECL			__cdecl
 #	else
-#		ifdef HAL_EXPORTS
+#ifdef HAL_EXPORTS
 #			define HALAPI
 #		else
 #			define HALAPI		extern
@@ -255,6 +255,7 @@ typedef enum _gceSTATUS
 	gcvSTATUS_DATA_TOO_LARGE		=	14,
 	gcvSTATUS_INVALID_CONFIG		=	15,
 	gcvSTATUS_CHANGED				=	16,
+	gcvSTATUS_NOT_SUPPORT_DITHER    =   17,
 
 	gcvSTATUS_INVALID_ARGUMENT		= 	-1,
 	gcvSTATUS_INVALID_OBJECT 		= 	-2,
@@ -278,6 +279,9 @@ typedef enum _gceSTATUS
 	gcvSTATUS_NOT_ALIGNED			=	-20,
 	gcvSTATUS_INVALID_REQUEST		=	-21,
 	gcvSTATUS_GPU_NOT_RESPONDING	=	-22,
+	gcvSTATUS_TIMER_OVERFLOW        =   -23,
+	gcvSTATUS_VERSION_MISMATCH      =   -24,
+	gcvSTATUS_LOCKED                =   -25,
 
 	/* Linker errors. */
 	gcvSTATUS_GLOBAL_TYPE_MISMATCH	=	-1000,
@@ -412,8 +416,8 @@ gceSTATUS;
 */
 #define gcmSETMASKEDFIELD(reg, field, value) \
 ( \
-	gcmSETFIELD(~0, reg, field, value) & \
-	gcmSETFIELDVALUE(~0, reg, MASK_ ## field, ENABLED) \
+	((((gctUINT32) (~0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? reg_field) - (0 ? reg_field) + 1) == 32) ? ~0 : (~(~0 << ((1 ? reg_field) - (0 ? reg_field) + 1))))))) << (0 ? reg_field))) | (((gctUINT32) ((gctUINT32) (value) & ((gctUINT32) ((((1 ? reg_field) - (0 ? reg_field) + 1) == 32) ? ~0 : (~(~0 << ((1 ? reg_field) - (0 ? reg_field) + 1))))))) << (0 ? reg_field)))&\
+	((((gctUINT32) (~0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? reg_MASK_##field) - (0 ? reg_MASK_##field) + 1) == 32) ? ~0 : (~(~0 << ((1 ? reg_MASK_##field) - (0 ? reg_MASK_##field) + 1))))))) << (0 ? reg_MASK_##field))) | (((gctUINT32) (reg_MASK_##field_ENABLED&((gctUINT32)((((1?reg_MASK_##field)-(0?reg_MASK_##field)+1)==32)?~0:(~(~0<<((1?reg_MASK_##field)-(0?reg_MASK_##field)+1)))))))<<(0?reg_MASK_##field)))\
 )
 
 /*******************************************************************************

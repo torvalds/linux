@@ -1,0 +1,5 @@
+#
+# Display drivers configuration
+#
+
+source "drivers/video/hdmi/hdmi-old/chips/Kconfig"

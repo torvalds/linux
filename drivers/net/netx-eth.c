@@ -510,3 +510,6 @@ module_exit(netx_eth_cleanup);
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" CARDNAME);
+MODULE_FIRMWARE("xc0.bin");
+MODULE_FIRMWARE("xc1.bin");
+MODULE_FIRMWARE("xc2.bin");

@@ -29,7 +29,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 	printk(KERN_WARNING fmt , ## arg); } while (0)
 
 #define SENSOR_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
-#define SENSOR_DG(format, ...) dprintk(0, format, ## __VA_ARGS__)
+#define SENSOR_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
 
 
 #define _CONS(a,b) a##b
@@ -43,7 +43,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define MAX(x,y)    ((x>y) ? x: y)
 
 /* Sensor Driver Configuration */
-#define SENSOR_NAME ov2659
+#define SENSOR_NAME RK29_CAM_SENSOR_OV2659
 #define SENSOR_V4L2_IDENT V4L2_IDENT_OV2659
 #define SENSOR_ID 0x2656
 #define SENSOR_MIN_WIDTH    800
@@ -1290,10 +1290,13 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 				preempt_enable();
 		}
 	}
-#endif
 	return 0;
 sensor_task_lock_err:
-	return -1;
+	return -1;  
+#else
+    return 0;
+#endif
+
 }
 
 /* sensor register write */
@@ -1377,7 +1380,9 @@ static int sensor_write_array(struct i2c_client *client, struct reginfo *regarra
 {
     int err = 0, cnt;
     int i = 0;
+#if CONFIG_SENSOR_I2C_RDWRCHK    
 	char valchk;
+#endif
 
 	cnt = 0;
 	if (sensor_task_lock(client, 1) < 0)
@@ -1411,6 +1416,7 @@ sensor_write_array_end:
 	sensor_task_lock(client,0);
 	return err;
 }
+#if CONFIG_SENSOR_I2C_RDWRCHK
 static int sensor_readchk_array(struct i2c_client *client, struct reginfo *regarray)
 {
     int cnt;
@@ -1429,6 +1435,7 @@ static int sensor_readchk_array(struct i2c_client *client, struct reginfo *regar
     }
     return 0;
 }
+#endif
 static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd cmd, int on)
 {
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
@@ -1829,7 +1836,6 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
         winseqe_set_addr = SENSOR_INIT_WINSEQADR;               /* ddl@rock-chips.com : Sensor output smallest size if  isn't support app  */
         set_w = SENSOR_INIT_WIDTH;
         set_h = SENSOR_INIT_HEIGHT;
-		ret = -1;
 		SENSOR_TR("\n %s..%s Format is Invalidate. pix->width = %d.. pix->height = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,pix->width,pix->height);
     }
 
@@ -2195,12 +2201,8 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
 }
 #endif
 #if CONFIG_SENSOR_Flash
-static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int *value)
-{
-    struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-    struct sensor *sensor = to_sensor(client);
-	const struct v4l2_queryctrl *qctrl_info;
-    
+static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
+{    
     if ((value >= qctrl->minimum) && (value <= qctrl->maximum)) {
         if (value == 3) {       /* ddl@rock-chips.com: torch */
             sensor_ioctrl(icd, Sensor_Flash, Flash_Torch);   /* Flash On */
@@ -2716,11 +2718,11 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
             /* ddl@rock-chips.com : if gpio_flash havn't been set in board-xxx.c, sensor driver must notify is not support flash control 
                for this project */
             #if CONFIG_SENSOR_Flash	
-        	if (sensor->sensor_gpio_res) {
+        	if (sensor->sensor_gpio_res) { 
                 if (sensor->sensor_gpio_res->gpio_flash == INVALID_GPIO) {
                     for (i = 0; i < icd->ops->num_controls; i++) {
                 		if (V4L2_CID_FLASH == icd->ops->controls[i].id) {
-                			memset(&icd->ops->controls[i],0x00,sizeof(struct v4l2_queryctrl));                			
+                			memset((char*)&icd->ops->controls[i],0x00,sizeof(struct v4l2_queryctrl));                			
                 		}
                     }
                     sensor->info_priv.flash = 0xff;
@@ -2803,10 +2805,11 @@ static int sensor_probe(struct i2c_client *client,
 	#endif
 
     ret = sensor_video_probe(icd, client);
-    if (ret) {
+    if (ret < 0) {
         icd->ops = NULL;
         i2c_set_clientdata(client, NULL);
         kfree(sensor);
+		sensor = NULL;
     }
     SENSOR_DG("\n%s..%s..%d  ret = %x \n",__FUNCTION__,__FILE__,__LINE__,ret);
     return ret;
@@ -2821,7 +2824,7 @@ static int sensor_remove(struct i2c_client *client)
     i2c_set_clientdata(client, NULL);
     client->driver = NULL;
     kfree(sensor);
-
+	sensor = NULL;
     return 0;
 }
 

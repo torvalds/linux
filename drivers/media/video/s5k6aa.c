@@ -30,7 +30,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 	printk(KERN_WARNING fmt , ## arg); } while (0)
 
 #define SENSOR_TR(format, ...) printk(KERN_ERR format, ## __VA_ARGS__)
-#define SENSOR_DG(format, ...) dprintk(0, format, ## __VA_ARGS__)
+#define SENSOR_DG(format, ...) dprintk(1, format, ## __VA_ARGS__)
 
 
 #define _CONS(a,b) a##b
@@ -44,8 +44,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define MAX(x,y)    ((x>y) ? x: y)
 
 /* Sensor Driver Configuration */
-#define SENSOR_NAME s5k6aa
-#define SENSOR_V4L2_IDENT V4L2_IDENT_S5K66A
+#define SENSOR_NAME RK29_CAM_SENSOR_S5K6AA
+#define SENSOR_V4L2_IDENT V4L2_IDENT_S5K66A 
 #define SENSOR_ID 0x06aa
 #define SENSOR_ID_REG SEQUENCE_END//0x015a
 #define SENSOR_RESET_REG SEQUENCE_END
@@ -69,7 +69,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Focus         0
 #define CONFIG_SENSOR_Exposure      0
 #define CONFIG_SENSOR_Flash         0
-#define CONFIG_SENSOR_Mirror        0
+#define CONFIG_SENSOR_Mirror        1
 #define CONFIG_SENSOR_Flip          0
 #define CONFIG_SENSOR_Focus         0
 
@@ -2150,8 +2150,29 @@ static struct reginfo sensor_init_data[] =
 	{0x0F12, 0x0320},  //  // #REG_0TC_PCFG_usMinFrTimeMsecMult10 : 10fps
 	//WRITE 70000262 0003 // #REG_0TC_PCFG_uPrevMirror
 	//WRITE 70000264 0003 // #REG_0TC_PCFG_uCaptureMirror
-
-	 //=================================================================================================
+   /*lzg@rock-chips.com, FIH:image to be mirrored*/
+#if  CONFIG_SENSOR_NONE_FLIP_MIRROR
+	{0x002A, 0x0262},
+	{0x0F12, 0x0000},  
+	{0x002A, 0x0264},
+	{0x0F12, 0x0000}, 
+#elif CONFIG_SENSOR_MIRROR
+	{0x002A, 0x0262},
+	{0x0F12, 0x0001},  
+	{0x002A, 0x0264},
+	{0x0F12, 0x0001}, 
+#elif CONFIG_SENSOR_FLIPE
+	{0x002A, 0x0262},
+	{0x0F12, 0x0002},  
+	{0x002A, 0x0264},
+	{0x0F12, 0x0002}, 
+#elif CONFIG_SENSOR_NONE_FLIP_MIRROR
+	{0x002A, 0x0262},
+	{0x0F12, 0x0003},  
+	{0x002A, 0x0264},
+	{0x0F12, 0x0003}, 
+#endif
+   //=================================================================================================
 	// Set Preview Config 2 --- For Video record(normal)     // 12fps
 	//=================================================================================================
 	{0x002A,  REG_2TC_PCFG_usWidth},
@@ -2248,6 +2269,10 @@ static struct reginfo sensor_init_data[] =
 	 {0x0F12,0x0000}, //03e8  // #REG_0TC_CCFG_usMinFrTimeMsecMult10 :
 	{SEQUENCE_END, 0x00}
 };
+
+
+
+
 static struct reginfo sensor_720p[]=
 {
 	{SEQUENCE_END, 0x00}
@@ -3021,10 +3046,13 @@ static int sensor_task_lock(struct i2c_client *client, int lock)
 				preempt_enable();
 		}
 	}
-#endif
 	return 0;
 sensor_task_lock_err:
 	return -1;
+#else
+    return 0;
+#endif
+
 }
 
 /* sensor register write */
@@ -3276,7 +3304,8 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
 	const struct v4l2_queryctrl *qctrl;
-    int ret,pid = 0;
+    int ret;
+    u16 pid = 0;
 
     SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
 
@@ -4021,7 +4050,7 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
 }
 #endif
 #if CONFIG_SENSOR_Flash
-static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int *value)
+static int sensor_set_flash(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
 {
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
     struct sensor *sensor = to_sensor(client);
@@ -4450,7 +4479,6 @@ static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 		sensor->info_priv.enable = 0;
 	}
 
-sensor_s_stream_end:
 	return 0;
 }
 /* Interface active, can use i2c. If it fails, it can indeed mean, that
@@ -4520,7 +4548,10 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct i2c_client *client = sd->priv;
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
-    int ret = 0,i;
+    int ret = 0;
+#if CONFIG_SENSOR_Flash	
+    int i;
+#endif
 
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 	switch (cmd)

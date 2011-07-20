@@ -523,10 +523,11 @@ static void tick_broadcast_init_next_event(struct cpumask *mask,
  */
 void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 {
+	int cpu = smp_processor_id();
+
 	/* Set it up only once ! */
 	if (bc->event_handler != tick_handle_oneshot_broadcast) {
 		int was_periodic = bc->mode == CLOCK_EVT_MODE_PERIODIC;
-		int cpu = smp_processor_id();
 
 		bc->event_handler = tick_handle_oneshot_broadcast;
 		clockevents_set_mode(bc, CLOCK_EVT_MODE_ONESHOT);
@@ -552,6 +553,15 @@ void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 			tick_broadcast_set_event(tick_next_period, 1);
 		} else
 			bc->next_event.tv64 = KTIME_MAX;
+	} else {
+		/*
+		 * The first cpu which switches to oneshot mode sets
+		 * the bit for all other cpus which are in the general
+		 * (periodic) broadcast mask. So the bit is set and
+		 * would prevent the first broadcast enter after this
+		 * to program the bc device.
+		 */
+		tick_broadcast_clear_oneshot(cpu);
 	}
 }
 
@@ -598,6 +608,16 @@ void tick_shutdown_broadcast_oneshot(unsigned int *cpup)
 int tick_broadcast_oneshot_active(void)
 {
 	return tick_broadcast_device.mode == TICKDEV_MODE_ONESHOT;
+}
+
+/*
+ * Check whether the broadcast device supports oneshot.
+ */
+bool tick_broadcast_oneshot_available(void)
+{
+	struct clock_event_device *bc = tick_broadcast_device.evtdev;
+
+	return bc ? bc->features & CLOCK_EVT_FEAT_ONESHOT : false;
 }
 
 #endif

@@ -16,7 +16,7 @@
 #ifdef CONFIG_CPU_FREQ_DEBUG
 #define DEBUG
 #endif
-#define pr_fmt(fmt) "cpufreq: %s: " fmt, __func__
+#define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
@@ -24,29 +24,37 @@
 #include <linux/init.h>
 #include <linux/regulator/consumer.h>
 #include <linux/suspend.h>
+#include <mach/cpufreq.h>
+
+#define dprintk(fmt, ...) printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__)
 
 #define SLEEP_FREQ	(800 * 1000) /* Use 800MHz when entering sleep */
 
-/* additional symantics for "relation" in cpufreq with pm */
-#define DISABLE_FURTHER_CPUFREQ         0x10
-#define ENABLE_FURTHER_CPUFREQ          0x20
-#define MASK_FURTHER_CPUFREQ            0x30
-/* With 0x00(NOCHANGE), it depends on the previous "further" status */
 static int no_cpufreq_access;
 
-static struct cpufreq_frequency_table freq_table[] = {
-//	{ .index =  950000, .frequency =  204000 },
-//	{ .index = 1050000, .frequency =  300000 },
+static struct cpufreq_frequency_table default_freq_table[] = {
+//	{ .index = 1100000, .frequency =   24000 },
+//	{ .index = 1200000, .frequency =  204000 },
+//	{ .index = 1200000, .frequency =  300000 },
 	{ .index = 1200000, .frequency =  408000 },
-//	{ .index = 1125000, .frequency =  600000 },
-	{ .index = 1200000, .frequency =  816000 },
+//	{ .index = 1200000, .frequency =  600000 },
+	{ .index = 1200000, .frequency =  816000 }, /* must enable, see SLEEP_FREQ above */
 //	{ .index = 1250000, .frequency = 1008000 },
-//	{ .index = 1300000, .frequency = 1200000 },
+//	{ .index = 1300000, .frequency = 1104000 },
+//	{ .index = 1400000, .frequency = 1176000 },
+//	{ .index = 1400000, .frequency = 1200000 },
 	{ .frequency = CPUFREQ_TABLE_END },
 };
+static struct cpufreq_frequency_table *freq_table = default_freq_table;
 static struct clk *arm_clk;
 static struct regulator *vcore;
 static int vcore_uV;
+
+int board_update_cpufreq_table(struct cpufreq_frequency_table *table)
+{
+	freq_table = table;
+	return 0;
+}
 
 static int rk29_cpufreq_verify(struct cpufreq_policy *policy)
 {
@@ -94,7 +102,9 @@ static int rk29_cpufreq_target(struct cpufreq_policy *policy, unsigned int targe
 	freqs.old = policy->cur;
 	freqs.new = freq->frequency;
 	freqs.cpu = 0;
-	pr_debug("%d r %d (%d-%d) selected %d (%duV)\n", target_freq, relation, policy->min, policy->max, freq->frequency, freq->index);
+	dprintk("%dHz r %d(%c) selected %dHz (%duV)\n",
+		target_freq, relation, relation == CPUFREQ_RELATION_L ? 'L' : 'H',
+		freq->frequency, freq->index);
 
 #ifdef CONFIG_REGULATOR
 	if (vcore && freqs.new > freqs.old && vcore_uV != freq->index) {
@@ -109,7 +119,9 @@ static int rk29_cpufreq_target(struct cpufreq_policy *policy, unsigned int targe
 #endif
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	dprintk("pre change\n");
 	clk_set_rate(arm_clk, freqs.new * 1000);
+	dprintk("post change\n");
 	freqs.new = clk_get_rate(arm_clk) / 1000;
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
@@ -123,12 +135,11 @@ static int rk29_cpufreq_target(struct cpufreq_policy *policy, unsigned int targe
 		vcore_uV = freq->index;
 	}
 #endif
+	dprintk("ok, got %dkHz\n", freqs.new);
 
 err_vol:
 	return err;
 }
-
-extern void clk_init_cpufreq_table(struct cpufreq_frequency_table **table);
 
 static int __init rk29_cpufreq_init(struct cpufreq_policy *policy)
 {

@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
 *
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #ifndef __gc_hal_h_
 #define __gc_hal_h_
 
+// dkm: 方便调用系统的函数
 #include <linux/kernel.h>
 #include "gc_hal_types.h"
 #include "gc_hal_enum.h"
@@ -775,6 +776,14 @@ gckOS_WaitSignal(
     IN gctUINT32 Wait
     );
 
+/* Wait for a signal uninterruptibly. */
+gceSTATUS
+gckOS_WaitSignalUninterruptible(
+    IN gckOS Os,
+    IN gctSIGNAL Signal,
+    IN gctUINT32 Wait
+    );
+
 /* Map a user signal to the kernel space. */
 gceSTATUS
 gckOS_MapSignal(
@@ -782,6 +791,13 @@ gckOS_MapSignal(
     IN gctSIGNAL Signal,
     IN gctHANDLE Process,
     OUT gctSIGNAL * MappedSignal
+    );
+
+/* Unmap a user signal */
+gceSTATUS
+gckOS_UnmapSignal(
+    IN gckOS Os,
+    IN gctSIGNAL MappedSignal
     );
 
 /* Map user memory. */
@@ -1046,14 +1062,6 @@ gckHEAP_ProfileEnd(
     IN gctCONST_STRING Title
     );
 
-#if defined gcdHAL_TEST
-gceSTATUS
-gckHEAP_Test(
-    IN gckHEAP Heap,
-    IN gctSIZE_T Vectors,
-    IN gctSIZE_T MaxSize
-    );
-#endif
 
 /******************************************************************************\
 ******************************** gckVIDMEM Object ******************************
@@ -1450,7 +1458,8 @@ gckHARDWARE_QueryChipIdentity(
     OUT gctUINT32* ChipRevision,
     OUT gctUINT32* ChipFeatures,
     OUT gctUINT32* ChipMinorFeatures,
-    OUT gctUINT32* ChipMinorFeatures1
+    OUT gctUINT32* ChipMinorFeatures1,
+    OUT gctUINT32* ChipMinorFeatures2
     );
 
 /* Query the specifications sof the hardware. */
@@ -1598,6 +1607,16 @@ gckHARDWARE_InitializeHardware(
 gceSTATUS
 gckHARDWARE_Reset(
     IN gckHARDWARE Hardware
+    );
+
+typedef gceSTATUS (*gctISRMANAGERFUNC)(gctPOINTER Context);
+
+gceSTATUS
+gckHARDWARE_SetIsrManager(
+    IN gckHARDWARE Hardware,
+    IN gctISRMANAGERFUNC StartIsr,
+    IN gctISRMANAGERFUNC StopIsr,
+    IN gctPOINTER Context
     );
 
 /******************************************************************************\
@@ -1852,14 +1871,6 @@ gckMMU_FreeHandleMemory(
     );
 #endif
 
-#if defined gcdHAL_TEST
-gceSTATUS
-gckMMU_Test(
-    IN gckMMU Mmu,
-    IN gctSIZE_T Vectors,
-    IN gctINT MaxSize
-    );
-#endif
 
 gceSTATUS
 gckHARDWARE_QueryProfileRegisters(

@@ -12,6 +12,8 @@ struct rk29_gps_data {
 	int uart_id;
 	int power_flag;
 	struct semaphore power_sem;
+	struct workqueue_struct *wq;
+	struct work_struct work;
 };
 
 #endif

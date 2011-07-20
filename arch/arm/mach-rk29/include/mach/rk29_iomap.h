@@ -18,18 +18,26 @@
 
 #include <asm/sizes.h>
 
-/* defines */
-#define		SZ_22K				0x5800
-/*IO映射方式定义，以物理地址0x20000000为基地址
- *和以0x10000000为基地址分另映射为：0xf5000000,
- *0xf4000000
+/*
+ * RK29 IO memory map:
+ *
+ * Virt         Phys            Size    What
+ * ---------------------------------------------------------------------------
+ *              10000000        1M      CPU L1 AXI Interconnect
+ * FEA00000     10100000        1200K
+ *              10300000        1M      Peri AXI Interconnect
+ * FEC00000     10500000        16K     NANDC
+ *              11000000        1M      SMC Bank0
+ *              12000000        1M      SMC Bank1
+ *              15000000        1M      CPU L2 AXI Interconnect
+ * FED00000     20000000        640K    APB
+ * FEF00000     0               16K     SRAM
  */
- 
 
-#define RK29_ADDR_BASE1 			0xF5000000  
-#define RK29_ADDR_BASE0 			0xF4000000
+#define RK29_ADDR_BASE0				0xFEA00000
+#define RK29_ADDR_BASE1				0xFED00000
 
-#define RK29_SDRAM_PHYS				0x60000000
+#define RK29_SDRAM_PHYS				0x60000000U
 #define RK29_AXI1_PHYS				0x10000000	
 #define RK29_AXI0_PHYS				0x1012C000			
 #define RK29_PERI_PHYS				0x10140000	
@@ -94,8 +102,9 @@
 #define RK29_ARBITER1_PHYS			0x10228000
 #define RK29_ARBITER1_SIZE          SZ_16K
 #define RK29_PERI_AXI_BUS0_PHYS		0x10300000
+
 #define RK29_NANDC_PHYS				0x10500000
-#define RK29_NANDC_BASE				(RK29_ADDR_BASE0+0x500000)
+#define RK29_NANDC_BASE				0xFEC00000
 #define RK29_NANDC_SIZE				SZ_16K
 
 //CPU AXI 1 APB
@@ -169,8 +178,10 @@
 #define RK29_ADC_PHYS				0x2006C000
 #define RK29_ADC_SIZE				SZ_16K
 #define RK29_SPI0_PHYS				0x20070000
+#define RK29_SPI0_BASE				(RK29_ADDR_BASE1+0x70000)
 #define RK29_SPI0_SIZE				SZ_16K
 #define RK29_SPI1_PHYS				0x20074000
+#define RK29_SPI1_BASE				(RK29_ADDR_BASE1+0x74000)
 #define RK29_SPI1_SIZE				SZ_16K
 #define RK29_DMAC1_PHYS				0x20078000
 #define RK29_DMAC1_SIZE				SZ_16K

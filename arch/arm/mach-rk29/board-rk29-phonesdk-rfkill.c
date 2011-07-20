@@ -24,14 +24,14 @@
 #include <mach/iomux.h>
 #include <linux/wakelock.h>
 #include <linux/timer.h>
-
+#include <mach/board.h>
 #if 0
 #define DBG(x...)   printk(KERN_INFO x)
 #else
 #define DBG(x...)
 #endif
 
-#define BT_WAKE_HOST_SUPPORT 0
+#define BT_WAKE_HOST_SUPPORT 1
 
 struct bt_ctrl
 {
@@ -47,8 +47,8 @@ struct bt_ctrl
 #define IOMUX_BT_GPIO_POWER     rk29_mux_api_set(GPIO5D6_SDMMC1PWREN_NAME, GPIO5H_GPIO5D6);
 #define BT_GPIO_RESET          	RK29_PIN6_PC7
 #define BT_GPIO_WAKE_UP         RK29_PIN6_PD0
-#define BT_GPIO_WAKE_UP_HOST    //RK2818_PIN_PA7
-#define IOMUX_BT_GPIO_WAKE_UP_HOST() //rk2818_mux_api_set(GPIOA7_FLASHCS3_SEL_NAME,0);
+#define BT_GPIO_WAKE_UP_HOST    RK29_PIN4_PD4
+#define IOMUX_BT_GPIO_WAKE_UP_HOST() rk29_mux_api_set(GPIO4D4_CPUTRACECLK_NAME,GPIO4H_GPIO4D4);
 
 #define BT_WAKE_LOCK_TIMEOUT    10 //s
 
@@ -64,10 +64,17 @@ void resetBtHostSleepTimer(void)
     mod_timer(&(gBtCtrl.tl),jiffies + BT_WAKE_LOCK_TIMEOUT*HZ);//再重新设置超时值。    
 }
 
-void btWakeupHostLock(void)
+void btWakeupHostLock(bool bt_irq_wake)
 {
     if(gBtCtrl.b_HostWake == false){
         DBG("*************************Lock\n");
+
+		if(bt_irq_wake)
+		{
+			printk("BT wakeup hostLock by send wakeup key\n");
+			rk28_send_wakeup_key();
+		}
+		
         wake_lock(&(gBtCtrl.bt_wakelock));
         gBtCtrl.b_HostWake = true;
     }
@@ -93,14 +100,25 @@ static void timer_hostSleep(unsigned long arg)
 static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t state)
 {   
     DBG("%s\n",__FUNCTION__);  	
+
+	rk29_mux_api_set(GPIO2A7_UART2RTSN_NAME, GPIO2L_GPIO2A7);
+	gpio_request(RK29_PIN2_PA7, "uart2_rts");
+	gpio_direction_output(RK29_PIN2_PA7, 0);
+	gpio_set_value(RK29_PIN2_PA7, GPIO_HIGH);
+	
     return 0;
 }
 
 static int bcm4329_rfkill_resume(struct platform_device *pdev)
 {  
     DBG("%s\n",__FUNCTION__);     
-    btWakeupHostLock();
+	
+    btWakeupHostLock(false);
     resetBtHostSleepTimer();
+
+	gpio_set_value(RK29_PIN2_PA7, GPIO_LOW);
+	rk29_mux_api_set(GPIO2A7_UART2RTSN_NAME, GPIO2L_UART2_RTS_N);
+	
     return 0;
 }
 #else
@@ -110,7 +128,9 @@ static int bcm4329_rfkill_resume(struct platform_device *pdev)
 
 static irqreturn_t bcm4329_wake_host_irq(int irq, void *dev)
 {
-    btWakeupHostLock();
+	DBG("%s\n",__FUNCTION__);    
+
+    btWakeupHostLock(true);
     resetBtHostSleepTimer();
 	return IRQ_HANDLED;
 }
@@ -138,12 +158,12 @@ static int bcm4329_set_block(void *data, bool blocked)
     	if (false == blocked) { 
        		gpio_set_value(BT_GPIO_POWER, GPIO_HIGH);  /* bt power on */
                 gpio_set_value(BT_GPIO_RESET, GPIO_LOW);
-                mdelay(20);
+                mdelay(200);
     		gpio_set_value(BT_GPIO_RESET, GPIO_HIGH);  /* bt reset deactive*/
-    		mdelay(20);
+    		mdelay(200);
         
 #if BT_WAKE_HOST_SUPPORT     
-            btWakeupHostLock();
+            btWakeupHostLock(false);
 #endif         
         	pr_info("bt turn on power\n");
     	}

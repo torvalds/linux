@@ -26,4 +26,13 @@ config GS_MMA8452
 	help	 
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
+
+config GS_L3G4200D
+  bool "gs_l3g4200d"
+	depends on G_SENSOR_DEVICE
+	default n
+	help	 
+	  To have support for your specific gsesnor you will have to
+	  select the proper drivers which depend on this option.
+
 endif

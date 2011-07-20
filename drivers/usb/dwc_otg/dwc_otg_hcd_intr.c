@@ -196,22 +196,21 @@ int32_t dwc_otg_hcd_handle_sof_intr (dwc_otg_hcd_t *_hcd)
 			 * fix bug for alcro hub
 			 * do not send csplit after start_split_frame+4
 			 */
+			qtd = list_entry(qh->qtd_list.next, dwc_otg_qtd_t, qtd_list_entry);
 			if((qh->do_split)&&dwc_frame_num_gt(_hcd->frame_number, 
-				dwc_frame_num_inc(qh->start_split_frame, 4)))
+				dwc_frame_num_inc(qh->start_split_frame, 4))&&(qtd->complete_split))
 			{
-				qtd = list_entry(qh->qtd_list.next, dwc_otg_qtd_t, qtd_list_entry);
-				if ((qh->do_split) &&(qtd->complete_split))
-				{
-					qtd->complete_split = 0;
-					
-					qh->sched_frame = dwc_frame_num_inc(qh->start_split_frame,
-									     qh->interval);
-					if (dwc_frame_num_le(qh->sched_frame, _hcd->frame_number)) {
-						qh->sched_frame = _hcd->frame_number;
-					}
-					qh->sched_frame |= 0x7;
-					qh->start_split_frame = qh->sched_frame;
+			    DWC_PRINT("frame_number 0x%x, start 0x%x, complete: %x", 
+			        _hcd->frame_number, qh->start_split_frame, qtd->complete_split);
+				qtd->complete_split = 0;
+				
+				qh->sched_frame = dwc_frame_num_inc(qh->start_split_frame,
+								     qh->interval);
+				if (dwc_frame_num_le(qh->sched_frame, _hcd->frame_number)) {
+					qh->sched_frame = _hcd->frame_number;
 				}
+				qh->sched_frame |= 0x7;
+				qh->start_split_frame = qh->sched_frame;
 			}
 			else
 			{
@@ -373,6 +372,8 @@ int32_t dwc_otg_hcd_handle_port_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 
 			/* Check if we need to adjust the PHY clock speed for
 			 * low power and adjust it */
+			/*yk @rk 20110525*/
+			/*fix bug usb host 1.1 with low-speed*/
 			if (params->host_support_fs_ls_low_power)
 			{
 				gusbcfg_data_t usbcfg;
@@ -386,12 +387,14 @@ int32_t dwc_otg_hcd_handle_port_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 					 * Low power 
 					 */
 					hcfg_data_t hcfg;
+					#if 0
 					if (usbcfg.b.phylpwrclksel == 0) {
 						/* Set PHY low power clock select for FS/LS devices */
 						usbcfg.b.phylpwrclksel = 1;
 						dwc_write_reg32(&global_regs->gusbcfg, usbcfg.d32);
 						do_reset = 1;
 					}
+					#endif
 
 					hcfg.d32 = dwc_read_reg32(&host_if->host_global_regs->hcfg);
 
@@ -405,6 +408,7 @@ int32_t dwc_otg_hcd_handle_port_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 							hcfg.b.fslspclksel = DWC_HCFG_6_MHZ;
 							dwc_write_reg32(&host_if->host_global_regs->hcfg,
 									hcfg.d32);
+                            dwc_write_reg32(&host_if->host_global_regs->hfir, 0x1770);
 							do_reset = 1;
 						}
 					}
@@ -415,6 +419,7 @@ int32_t dwc_otg_hcd_handle_port_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 							hcfg.b.fslspclksel = DWC_HCFG_48_MHZ;
 							dwc_write_reg32(&host_if->host_global_regs->hcfg,
 									hcfg.d32);
+                            dwc_write_reg32(&host_if->host_global_regs->hfir, 0xea60);
 							do_reset = 1;
 						}
 					}
@@ -610,7 +615,7 @@ static int update_urb_state_xfer_comp(dwc_hc_t *_hc,
 						      DWC_OTG_HC_XFER_COMPLETE,
 						      &short_read);
 
-	if (short_read || (_urb->actual_length == _urb->transfer_buffer_length)) {
+	if (short_read || (_urb->actual_length >= _urb->transfer_buffer_length)) {
 		xfer_done = 1;
 		if (short_read && (_urb->transfer_flags & URB_SHORT_NOT_OK)) {
 			_urb->status = -EREMOTEIO;

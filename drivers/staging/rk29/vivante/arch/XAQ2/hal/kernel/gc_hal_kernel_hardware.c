@@ -26,7 +26,8 @@
 
 #define _GC_OBJ_ZONE    gcvZONE_HARDWARE
 
-#if gcdENABLE_AUTO_FREQ
+// dkm: gcdENABLE_AUTO_FREQ
+#if (1==gcdENABLE_AUTO_FREQ)
 #include <linux/time.h>
 #include <linux/clk.h>
 u32 usec_run = 0;
@@ -39,7 +40,7 @@ struct clk *clk_gpu = NULL;
 
 void get_run_idle(u32 *run, u32 *idle)
 {
-    if(gcvPOWER_IDLE==lastState)
+    if(gcvPOWER_ON!=lastState)
     {
         do_gettimeofday(&tv_on);
         usec_idle += (1000000*(tv_on.tv_sec-tv_idle.tv_sec)+(tv_on.tv_usec-tv_idle.tv_usec));
@@ -66,12 +67,12 @@ inline void cal_run_idle(gceCHIPPOWERSTATE State)
 {
     int freq = 0;
     
-    if(gcvPOWER_IDLE==lastState && gcvPOWER_ON==State)  //gcvPOWER_IDLE->gcvPOWER_ON
+    if(gcvPOWER_ON!=lastState && gcvPOWER_ON==State)  //NotON -> ON
     {
         do_gettimeofday(&tv_on);
         usec_idle += (1000000*(tv_on.tv_sec-tv_idle.tv_sec)+(tv_on.tv_usec-tv_idle.tv_usec));
-    }
-    if(gcvPOWER_ON==lastState && gcvPOWER_IDLE==State)  //gcvPOWER_ON->gcvPOWER_IDLE
+    } 
+    else if(gcvPOWER_ON==lastState && gcvPOWER_ON!=State)  //ON -> NotON
     {
         do_gettimeofday(&tv_idle);
         usec_run += (1000000*(tv_idle.tv_sec-tv_on.tv_sec)+(tv_idle.tv_usec-tv_on.tv_usec));
@@ -79,18 +80,62 @@ inline void cal_run_idle(gceCHIPPOWERSTATE State)
         freq = nextfreq;
         nextfreq = 0;
         if(freq) {
+            if(freq<24)      freq = 24;
+            if(freq>600)     freq = 600;
             clk_gpu = clk_get(NULL, "gpu");
-            clk_set_parent(clk_gpu, clk_get(NULL, "general_pll"));
-            clk_set_rate(clk_get(NULL, "codec_pll"), freq*1000000);
             clk_set_rate(clk_gpu, freq*1000000);
-            clk_set_parent(clk_gpu, clk_get(NULL, "codec_pll"));
-            //printk("                                           == > gpu change freq to %d \n", freq); 
+            printk("           == > gpu change freq to %d \n", freq); 
         }
     }
     
     lastState = State;
 }
+#elif (2==gcdENABLE_AUTO_FREQ)
+#include <linux/clk.h>
+gceCHIPPOWERSTATE lastState = gcvPOWER_IDLE;
+int lasthighfreq = 0;
+extern int needhighfreq;
+extern int lowfreq;
+extern int highfreq;
+struct clk *clk_gpu = NULL;
+inline void get_idle_change(gceCHIPPOWERSTATE State)
+{
+    if(gcvPOWER_ON!=lastState && gcvPOWER_ON==State)  //gcvPOWER_IDLE->gcvPOWER_ON
+    {
+        if(lasthighfreq != needhighfreq) {
+            int gpufreq = needhighfreq ? highfreq : lowfreq;
+            if(gpufreq<24)      gpufreq = 24;
+            if(gpufreq>600)     gpufreq = 600;
+            
+            clk_gpu = clk_get(NULL, "gpu");
+            clk_set_rate(clk_gpu, gpufreq*1000000);
+            
+            lasthighfreq = needhighfreq;
+            
+            printk("gpu: change freq to %d, got %ld\n", gpufreq, clk_get_rate(clk_gpu)/1000000);
+        }
+    }
+    lastState = State;
+}
+#endif
 
+// dkm: gcdENABLE_LONG_IDLE_POWEROFF
+#if gcdENABLE_LONG_IDLE_POWEROFF
+#include <linux/workqueue.h>
+struct delayed_work poweroff_work;
+static gckHARDWARE gHardware = gcvNULL;
+void time_to_poweroff(struct work_struct *work)
+{
+    gceSTATUS status;
+    if(NULL==gHardware)     return;
+
+    status = gckHARDWARE_SetPowerManagementState(gHardware, gcvPOWER_OFF_BROADCAST);
+    if (gcmIS_ERROR(status))
+    {
+        printk("%s fail!\n", __func__);
+        return;
+    }
+}
 #endif
 
 /******************************************************************************\
@@ -104,7 +149,8 @@ _IdentifyHardware(
     OUT gctUINT32_PTR ChipRevision,
     OUT gctUINT32_PTR ChipFeatures,
     OUT gctUINT32_PTR ChipMinorFeatures0,
-    OUT gctUINT32_PTR ChipMinorFeatures1
+    OUT gctUINT32_PTR ChipMinorFeatures1,
+    OUT gctUINT32_PTR ChipMinorFeatures2
     )
 {
     gceSTATUS status;
@@ -182,6 +228,7 @@ _IdentifyHardware(
         /* GC500 rev 1.x and GC300 rev < 2.0 doesn't have these registers. */
         *ChipMinorFeatures0 = 0;
         *ChipMinorFeatures1 = 0;
+        *ChipMinorFeatures2 = 0;
     }
     else
     {
@@ -191,6 +238,8 @@ _IdentifyHardware(
                                0x00034,
                                ChipMinorFeatures0));
 
+        *ChipMinorFeatures0 = ((((gctUINT32) (*ChipMinorFeatures0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 27:27) - (0 ? 27:27) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 27:27) - (0 ? 27:27) + 1))))))) << (0 ? 27:27))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ? 27:27) - (0 ? 27:27) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 27:27) - (0 ? 27:27) + 1))))))) << (0 ? 27:27)));
+
         if (((((gctUINT32) (*ChipMinorFeatures0)) >> (0 ? 21:21) & ((gctUINT32) ((((1 ? 21:21) - (0 ? 21:21) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 21:21) - (0 ? 21:21) + 1)))))) == (0x1 & ((gctUINT32) ((((1 ? 21:21) - (0 ? 21:21) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 21:21) - (0 ? 21:21) + 1)))))))
         )
         {
@@ -199,19 +248,35 @@ _IdentifyHardware(
                 gckOS_ReadRegister(Os,
                                    0x00074,
                                    ChipMinorFeatures1));
+
+            /* Read chip minor featuress register #1. */
+#if defined GC_MINOR_FEATURES2_Address
+            gcmkONERROR(
+                gckOS_ReadRegister(Os,
+                                   GC_MINOR_FEATURES2_Address,
+                                   ChipMinorFeatures2));
+#else
+            /* Chip doesn't has minor features register 2. */
+            *ChipMinorFeatures2 = 0;
+#endif
         }
         else
         {
-            /* Chip doesn't has minor features register #1. */
+            /* Chip doesn't has minor features register #1 or 2. */
             *ChipMinorFeatures1 = 0;
+            *ChipMinorFeatures2 = 0;
         }
     }
 
+    *ChipMinorFeatures0 = ((((gctUINT32) (*ChipMinorFeatures0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 27:27) - (0 ? 27:27) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 27:27) - (0 ? 27:27) + 1))))))) << (0 ? 27:27))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ? 27:27) - (0 ? 27:27) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 27:27) - (0 ? 27:27) + 1))))))) << (0 ? 27:27)));
+
     /* Success. */
-    gcmkFOOTER_ARG("*ChipModel=%x *ChipRevision=%x *ChipFeatures=%08x "
-                   "*ChipMinorFeatures0=%08X *ChipMinorFeatures1=%08x",
+    gcmkFOOTER_ARG("*ChipModel=%x *ChipRevision=%x *ChipFeatures=0x%08x "
+                   "*ChipMinorFeatures0=0x%08X *ChipMinorFeatures1=0x%08x "
+                   "*ChipMinorFeatures2=0x%08x",
                    *ChipModel, *ChipRevision, *ChipFeatures,
-                   *ChipMinorFeatures0, *ChipMinorFeatures1);
+                   *ChipMinorFeatures0, *ChipMinorFeatures1,
+                   *ChipMinorFeatures2);
     return gcvSTATUS_OK;
 
 OnError:
@@ -369,6 +434,7 @@ gckHARDWARE_Construct(
     gctUINT32 chipFeatures;
     gctUINT32 chipMinorFeatures0;
     gctUINT32 chipMinorFeatures1;
+    gctUINT32 chipMinorFeatures2;
     gctUINT16 data = 0xff00;
 
     gcmkHEADER_ARG("Os=0x%x", Os);
@@ -387,7 +453,8 @@ gckHARDWARE_Construct(
                                   &chipRevision,
                                   &chipFeatures,
                                   &chipMinorFeatures0,
-                                  &chipMinorFeatures1));
+                                  &chipMinorFeatures1,
+                                  &chipMinorFeatures2));
 
     /* Allocate the gckHARDWARE object. */
     gcmkONERROR(gckOS_Allocate(Os,
@@ -404,6 +471,7 @@ gckHARDWARE_Construct(
     hardware->chipFeatures       = chipFeatures;
     hardware->chipMinorFeatures0 = chipMinorFeatures0;
     hardware->chipMinorFeatures1 = chipMinorFeatures1;
+    hardware->chipMinorFeatures2 = chipMinorFeatures2;
     hardware->powerBaseAddress   = (  (chipModel == gcv300)
                                    && (chipRevision < 0x2000)
                                    ) ? 0x100 : 0x00;
@@ -432,6 +500,12 @@ gckHARDWARE_Construct(
 
     /* Return pointer to the gckHARDWARE object. */
     *Hardware = hardware;
+
+// dkm: gcdENABLE_LONG_IDLE_POWEROFF
+#if gcdENABLE_LONG_IDLE_POWEROFF
+    INIT_DELAYED_WORK(&poweroff_work, time_to_poweroff);
+    gHardware = hardware;
+#endif
 
     /* Success. */
     gcmkFOOTER_ARG("*Hardware=0x%x", *Hardware);
@@ -791,6 +865,10 @@ gckHARDWARE_QueryMemory(
 **          If 'ChipMinorFeatures1' is not gcvNULL, the variable it points to
 **          will receive the minor feature set 1 of the chip.
 **
+**      gctUINT32 * ChipMinorFeatures2
+**          If 'ChipMinorFeatures2' is not gcvNULL, the variable it points to
+**          will receive the minor feature set 2 of the chip.
+**
 */
 gceSTATUS
 gckHARDWARE_QueryChipIdentity(
@@ -799,7 +877,8 @@ gckHARDWARE_QueryChipIdentity(
     OUT gctUINT32 * ChipRevision,
     OUT gctUINT32* ChipFeatures,
     OUT gctUINT32* ChipMinorFeatures,
-    OUT gctUINT32* ChipMinorFeatures1
+    OUT gctUINT32* ChipMinorFeatures1,
+    OUT gctUINT32* ChipMinorFeatures2
     )
 {
     gcmkHEADER_ARG("Hardware=0x%x", Hardware);
@@ -862,12 +941,21 @@ gckHARDWARE_QueryChipIdentity(
         *ChipMinorFeatures1 = Hardware->chipMinorFeatures1;
     }
 
+    /* Return minor feature set 2. */
+    if (ChipMinorFeatures2 != gcvNULL)
+    {
+        *ChipMinorFeatures2 = Hardware->chipMinorFeatures2;
+    }
+
     /* Success. */
     gcmkFOOTER_ARG("*ChipModel=0x%x *ChipRevision=0x%x *ChipFeatures=0x%08x "
-                   "*ChipMinorFeatures=0x%08x *ChipMinorFeatures1=0x%08x",
+                   "*ChipMinorFeatures=0x%08x *ChipMinorFeatures1=0x%08x "
+                   "*ChipMinorFeatures2=0x%08x",
                    gcmOPT_VALUE(ChipModel), gcmOPT_VALUE(ChipRevision),
                    gcmOPT_VALUE(ChipFeatures), gcmOPT_VALUE(ChipMinorFeatures),
-                   gcmOPT_VALUE(ChipMinorFeatures1));
+                   gcmOPT_VALUE(ChipMinorFeatures1),
+                   gcmOPT_VALUE(ChipMinorFeatures2));
+
     return gcvSTATUS_OK;
 }
 
@@ -2618,6 +2706,7 @@ gckHARDWARE_GetIdle(
     pollCount = Wait ? 100 : 1;
 
     /* At most, try for 1 second. */
+    // dkm: 1000超时太长了，改为200
     for (retry = 0; retry < 200; ++retry)
     {
         /* If we have to wait, try 100 polls per millisecond. */
@@ -2873,6 +2962,10 @@ gckHARDWARE_SetPowerManagementState(
     gctBOOL stall = gcvTRUE;
     gctBOOL broadcast = gcvFALSE;
     gctUINT32 process, thread;
+// dkm: gcdENABLE_LONG_IDLE_POWEROFF
+#if gcdENABLE_LONG_IDLE_POWEROFF
+    gceCHIPPOWERSTATE curState = State;
+#endif
 
     /* State transition flags. */
     static const gctUINT flags[4][4] =
@@ -2916,6 +3009,7 @@ gckHARDWARE_SetPowerManagementState(
         },
 
         /* gcvPOWER_SUSPEND      */
+        // dkm: 这边漏了gcvPOWER_FLAG_INITIALIZE
         {   /* ON                */ gcvPOWER_FLAG_INITIALIZE |
                                     gcvPOWER_FLAG_START   |
                                     gcvPOWER_FLAG_RELEASE |
@@ -2923,6 +3017,7 @@ gckHARDWARE_SetPowerManagementState(
             /* OFF               */ gcvPOWER_FLAG_SAVE |
                                     gcvPOWER_FLAG_OFF  |
                                     gcvPOWER_FLAG_CLOCK_OFF,
+        // dkm: 这边漏了gcvPOWER_FLAG_INITIALIZE
             /* IDLE              */ gcvPOWER_FLAG_INITIALIZE |
                                     gcvPOWER_FLAG_START |
                                     gcvPOWER_FLAG_DELAY,
@@ -2937,22 +3032,26 @@ gckHARDWARE_SetPowerManagementState(
         ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 0:0) - (0 ? 0:0) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ? 0:0) - (0 ? 0:0) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0)))|
         ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 1:1) - (0 ? 1:1) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 1:1) - (0 ? 1:1) + 1))))))) << (0 ? 1:1))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ? 1:1) - (0 ? 1:1) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 1:1) - (0 ? 1:1) + 1))))))) << (0 ? 1:1)))|
         ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 8:2) - (0 ? 8:2) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 8:2) - (0 ? 8:2) + 1))))))) << (0 ? 8:2))) | (((gctUINT32) ((gctUINT32) (64) & ((gctUINT32) ((((1 ? 8:2) - (0 ? 8:2) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 8:2) - (0 ? 8:2) + 1))))))) << (0 ? 8:2)))|
-        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))) ,
+        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))), 
+
         /* gcvPOWER_OFF */
         ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 0:0) - (0 ? 0:0) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 0:0) - (0 ? 0:0) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0)))|
         ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 1:1) - (0 ? 1:1) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 1:1) - (0 ? 1:1) + 1))))))) << (0 ? 1:1))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 1:1) - (0 ? 1:1) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 1:1) - (0 ? 1:1) + 1))))))) << (0 ? 1:1)))|
         ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 8:2) - (0 ? 8:2) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 8:2) - (0 ? 8:2) + 1))))))) << (0 ? 8:2))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 8:2) - (0 ? 8:2) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 8:2) - (0 ? 8:2) + 1))))))) << (0 ? 8:2)))|
-        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))) ,
+        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))), 
+
         /* gcvPOWER_IDLE */
         ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 0:0) - (0 ? 0:0) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ? 0:0) - (0 ? 0:0) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0)))|
         ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 1:1) - (0 ? 1:1) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 1:1) - (0 ? 1:1) + 1))))))) << (0 ? 1:1))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ? 1:1) - (0 ? 1:1) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 1:1) - (0 ? 1:1) + 1))))))) << (0 ? 1:1)))|
         ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 8:2) - (0 ? 8:2) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 8:2) - (0 ? 8:2) + 1))))))) << (0 ? 8:2))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 8:2) - (0 ? 8:2) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 8:2) - (0 ? 8:2) + 1))))))) << (0 ? 8:2)))|
-        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))) ,
+        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))), 
+
         /* gcvPOWER_SUSPEND */
         ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 0:0) - (0 ? 0:0) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 0:0) - (0 ? 0:0) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0)))|
         ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 1:1) - (0 ? 1:1) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 1:1) - (0 ? 1:1) + 1))))))) << (0 ? 1:1))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 1:1) - (0 ? 1:1) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 1:1) - (0 ? 1:1) + 1))))))) << (0 ? 1:1)))|
         ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 8:2) - (0 ? 8:2) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 8:2) - (0 ? 8:2) + 1))))))) << (0 ? 8:2))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 8:2) - (0 ? 8:2) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 8:2) - (0 ? 8:2) + 1))))))) << (0 ? 8:2)))|
-        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))), };
+        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ? 9:9) - (0 ? 9:9) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))), 
+    };
 
     gcmkHEADER_ARG("Hardware=0x%x State=%d", Hardware, State);
 
@@ -3013,11 +3112,7 @@ gckHARDWARE_SetPowerManagementState(
     default:
         break;
     }
-
-#if gcdENABLE_AUTO_FREQ
-    cal_run_idle(State);
-#endif
-    
+   
     /* Get current process and thread IDs. */
     gcmkONERROR(gckOS_GetProcessID(&process));
     gcmkONERROR(gckOS_GetThreadID(&thread));
@@ -3038,7 +3133,8 @@ gckHARDWARE_SetPowerManagementState(
                 gcmkFOOTER_NO();
                 return gcvSTATUS_OK;
             }
-            else if(gcvPOWER_IDLE==State)   // dkm add 110330
+            // dkm: add 110330
+            else if(gcvPOWER_IDLE==State)
             {
                 /* Bail out on idle broadcast with other process is setting power. */
                 gcmkFOOTER_NO();
@@ -3057,20 +3153,46 @@ gckHARDWARE_SetPowerManagementState(
         /* Acquire the power mutex. */
         gcmkONERROR(gckOS_AcquireMutex(os, Hardware->powerMutex, gcvINFINITE));
     }
-
+    
     Hardware->powerProcess = process;
     Hardware->powerThread  = thread;
     mutexAcquired          = gcvTRUE;
+    
+// dkm: gcdENABLE_AUTO_FREQ
+#if (1==gcdENABLE_AUTO_FREQ)
+    cal_run_idle(State);
+#elif (2==gcdENABLE_AUTO_FREQ)
+    get_idle_change(State);
+#endif
 
     /* Grab control flags and clock. */
     flag  = flags[Hardware->chipPowerState][State];
     clock = clocks[State];
 
+// dkm: gcdENABLE_LONG_IDLE_POWEROFF
+#if gcdENABLE_LONG_IDLE_POWEROFF
+    if(gcvPOWER_IDLE_BROADCAST==curState) {
+        cancel_delayed_work_sync(&poweroff_work);
+        schedule_delayed_work(&poweroff_work, 5*HZ);
+    } else if(gcvPOWER_OFF_BROADCAST==curState) {
+        // NULL
+    } else {
+        cancel_delayed_work_sync(&poweroff_work);
+    }
+#endif
+
     if ((flag == 0) || (Hardware->settingPowerState))
     {
+// dkm: gcdENABLE_LONG_IDLE_POWEROFF
+#if gcdENABLE_LONG_IDLE_POWEROFF
+        if( (gcvPOWER_OFF==Hardware->chipPowerState) && (gcvPOWER_OFF==State) && (gcvFALSE==broadcast) )
+        {
+            Hardware->broadcast = gcvFALSE;
+        }
+#endif
+        Hardware->powerProcess = Hardware->powerThread = 0x0;
+
         /* Release the power mutex. */
-        Hardware->powerProcess = 0;
-        Hardware->powerThread = 0;
         gcmkONERROR(gckOS_ReleaseMutex(os, Hardware->powerMutex));
 
         /* No need to do anything. */
@@ -3082,9 +3204,9 @@ gckHARDWARE_SetPowerManagementState(
     &&  (Hardware->chipPowerState == gcvPOWER_OFF)
     )
     {
+        Hardware->powerProcess = Hardware->powerThread = 0x0;
+
         /* Release the power mutex. */
-        Hardware->powerProcess = 0;
-        Hardware->powerThread = 0;
         gcmkONERROR(gckOS_ReleaseMutex(os, Hardware->powerMutex));
 
         /* No broadcast while GPU is forced power off. */
@@ -3174,6 +3296,9 @@ gckHARDWARE_SetPowerManagementState(
     {
         /* Stop the command parser. */
         gcmkONERROR(gckCOMMAND_Stop(command));
+
+        /* Stop the Isr. */
+        gcmkONERROR(Hardware->stopIsr(Hardware->isrContext));
     }
 
     /* Write the clock control register. */
@@ -3222,6 +3347,9 @@ gckHARDWARE_SetPowerManagementState(
     {
         /* Start the command processor. */
         gcmkONERROR(gckCOMMAND_Start(command));
+
+        /* Start the Isr. */
+        gcmkONERROR(Hardware->startIsr(Hardware->isrContext));
     }
 
     if (flag & gcvPOWER_FLAG_RELEASE)
@@ -3234,10 +3362,9 @@ gckHARDWARE_SetPowerManagementState(
     Hardware->chipPowerState    = State;
     Hardware->broadcast         = broadcast;
     Hardware->settingPowerState = gcvFALSE;
+    Hardware->powerProcess      = Hardware->powerThread = 0x0;
 
     /* Release the power mutex. */
-    Hardware->powerProcess = 0;
-    Hardware->powerThread = 0;
     gcmkONERROR(gckOS_ReleaseMutex(os, Hardware->powerMutex));
 
     /* Success. */
@@ -3261,9 +3388,8 @@ OnError:
     if (mutexAcquired)
     {
         Hardware->settingPowerState = gcvFALSE;
+        Hardware->powerProcess = Hardware->powerThread = 0x0;
 
-        Hardware->powerProcess = 0;
-        Hardware->powerThread = 0;
         gcmkVERIFY_OK(gckOS_ReleaseMutex(Hardware->os, Hardware->powerMutex));
     }
 
@@ -3303,8 +3429,12 @@ gckHARDWARE_QueryPowerManagementState(
     gcmkVERIFY_OBJECT(Hardware, gcvOBJ_HARDWARE);
     gcmkVERIFY_ARGUMENT(State != gcvNULL);
 
+    gckOS_AcquireMutex(Hardware->os, Hardware->powerMutex, gcvINFINITE);
+
     /* Return the statue. */
     *State = Hardware->chipPowerState;
+
+    gckOS_ReleaseMutex(Hardware->os, Hardware->powerMutex);
 
     /* Success. */
     gcmkFOOTER_ARG("*State=%d", *State);
@@ -3859,5 +3989,41 @@ gckHARDWARE_NeedBaseAddress(
     /* Success. */
     gcmkFOOTER_ARG("*NeedBase=%d", *NeedBase);
     return gcvSTATUS_OK;
+}
+
+gceSTATUS
+gckHARDWARE_SetIsrManager(
+   IN gckHARDWARE Hardware,
+   IN gctISRMANAGERFUNC StartIsr,
+   IN gctISRMANAGERFUNC StopIsr,
+   IN gctPOINTER Context
+   )
+{
+    gceSTATUS status = gcvSTATUS_OK;
+
+    gcmkHEADER_ARG("Hardware=0x%x, StartIsr=0x%x, StopIsr=0x%x, Context=0x%x",
+                   Hardware, StartIsr, StopIsr, Context);
+
+    /* Verify the arguments. */
+    gcmkVERIFY_OBJECT(Hardware, gcvOBJ_HARDWARE);
+
+    if (StartIsr == gcvNULL ||
+        StopIsr == gcvNULL ||
+        Context == gcvNULL)
+    {
+        status = gcvSTATUS_INVALID_ARGUMENT;
+
+        gcmkFOOTER();
+        return status;
+    }
+
+    Hardware->startIsr = StartIsr;
+    Hardware->stopIsr = StopIsr;
+    Hardware->isrContext = Context;
+
+    /* Success. */
+    gcmkFOOTER();
+
+    return status;
 }
 

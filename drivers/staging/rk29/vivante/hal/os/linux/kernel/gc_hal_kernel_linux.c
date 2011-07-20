@@ -1,21 +1,21 @@
 /****************************************************************************
-*
-*    Copyright (C) 2005 - 2010 by Vivante Corp.
-*
+*  
+*    Copyright (C) 2005 - 2011 by Vivante Corp.
+*  
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*
+*  
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public License for more details.
-*
+*  
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*
+*  
 *****************************************************************************/
 
 
@@ -53,7 +53,7 @@ gckKERNEL_QueryVideoMemory(
 	)
 {
 	gckGALDEVICE device;
-
+	
 	gcmkHEADER_ARG("Kernel=%p", Kernel);
 
 	/* Verify the arguments. */
@@ -100,7 +100,7 @@ gckKERNEL_QueryVideoMemory(
 **			Pointer to a variable that will hold the pointer to the gckVIDMEM
 **			object belonging to the requested pool.
 */
-gceSTATUS
+gceSTATUS 
 gckKERNEL_GetVideoMemoryPool(
 	IN gckKERNEL Kernel,
 	IN gcePOOL Pool,
@@ -109,7 +109,7 @@ gckKERNEL_GetVideoMemoryPool(
 {
 	gckGALDEVICE device;
 	gckVIDMEM videoMemory;
-
+	
 	gcmkHEADER_ARG("Kernel=%p Pool=%d", Kernel, Pool);
 
 	/* Verify the arguments. */
@@ -173,7 +173,7 @@ gckKERNEL_GetVideoMemoryPool(
 **			Pointer to a variable that will hold the base address of the mapped
 **			memory region.
 */
-gceSTATUS
+gceSTATUS 
 gckKERNEL_MapMemory(
 	IN gckKERNEL Kernel,
 	IN gctPHYS_ADDR Physical,
@@ -208,7 +208,7 @@ gckKERNEL_MapMemory(
 **
 **		Nothing.
 */
-gceSTATUS
+gceSTATUS 
 gckKERNEL_UnmapMemory(
 	IN gckKERNEL Kernel,
 	IN gctPHYS_ADDR Physical,
@@ -243,7 +243,7 @@ gckKERNEL_UnmapMemory(
 **			Pointer to a variable that will hold the logical address of the
 **			specified memory address.
 */
-gceSTATUS
+gceSTATUS 
 gckKERNEL_MapVideoMemory(
 	IN gckKERNEL Kernel,
 	IN gctBOOL InUserSpace,
@@ -258,7 +258,7 @@ gckKERNEL_MapVideoMemory(
     gctUINT32 offset, base;
     gceSTATUS status;
     gctPOINTER logical;
-
+    
     gcmkHEADER_ARG("Kernel=%p InUserSpace=%d Address=%08x",
     			   Kernel, InUserSpace, Address);
 
@@ -305,7 +305,7 @@ gckKERNEL_MapVideoMemory(
 		gcmkVERIFY_OK(
 			gckHARDWARE_SplitMemory(Kernel->hardware,
 									device->contiguousVidMem->baseAddress,
-									&pool,
+									&pool, 
 									&base));
 
 		offset -= base;
@@ -322,7 +322,7 @@ gckKERNEL_MapVideoMemory(
     /* Success. */
     gcmkFOOTER_ARG("*Logical=%p", *Logical);
     return gcvSTATUS_OK;
-
+    
 OnError:
 	/* Retunn the status. */
 	gcmkFOOTER();
@@ -347,7 +347,7 @@ OnError:
 **
 **		Nothing.
 */
-gceSTATUS
+gceSTATUS 
 gckKERNEL_Notify(
 	IN gckKERNEL Kernel,
 	IN gceNOTIFY Notification,
@@ -355,7 +355,7 @@ gckKERNEL_Notify(
 	)
 {
 	gceSTATUS status;
-
+	
 	gcmkHEADER_ARG("Kernel=%p Notification=%d Data=%d",
 				   Kernel, Notification, Data);
 
@@ -391,21 +391,20 @@ gckKERNEL_QuerySettings(
 	)
 {
 	gckGALDEVICE device;
-
+	
 	gcmkHEADER_ARG("Kernel=%p", Kernel);
-
+	
 	/* Verify the arguments. */
 	gcmkVERIFY_OBJECT(Kernel, gcvOBJ_KERNEL);
 	gcmkVERIFY_ARGUMENT(Settings != gcvNULL);
-
+	
 	/* Extract the pointer to the gckGALDEVICE class. */
     device = (gckGALDEVICE) Kernel->context;
-
+	
 	/* Fill in signal. */
 	Settings->signal = device->signal;
-
+	
 	/* Success. */
 	gcmkFOOTER_ARG("Settings->signal=%d", Settings->signal);
 	return gcvSTATUS_OK;
 }
-

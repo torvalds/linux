@@ -46,6 +46,7 @@ struct _gckHARDWARE
     gctUINT32                   chipFeatures;
     gctUINT32                   chipMinorFeatures0;
     gctUINT32                   chipMinorFeatures1;
+    gctUINT32                   chipMinorFeatures2;
     gctBOOL                     allowFastClear;
     gctBOOL                     allowCompression;
     gctUINT32                   powerBaseAddress;
@@ -69,6 +70,10 @@ struct _gckHARDWARE
     gctBOOL                     broadcast;
     gctBOOL                     settingPowerState;
     gctUINT32                   lastWaitLink;
+
+    gctISRMANAGERFUNC           startIsr;
+    gctISRMANAGERFUNC           stopIsr;
+    gctPOINTER                  isrContext;
 };
 
 gceSTATUS

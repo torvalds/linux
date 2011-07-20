@@ -329,6 +329,12 @@ static struct logo_data {
 	const struct linux_logo *logo;
 } fb_logo __read_mostly;
 
+void fb_show_charge_logo(struct linux_logo *logo)
+{
+	fb_logo.logo = logo;
+	return;
+}
+
 static void fb_rotate_logo_ud(const u8 *in, u8 *out, u32 width, u32 height)
 {
 	u32 size = width * height, i;

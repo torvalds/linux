@@ -331,6 +331,11 @@ static int rk29_serial_startup(struct uart_port *port)
 		rk29_mux_api_set(GPIO1B7_UART0SOUT_NAME, GPIO1L_UART0_SOUT);
 		rk29_mux_api_set(GPIO1B6_UART0SIN_NAME, GPIO1L_UART0_SIN);
 	}
+	else if(3 == port->line)
+	{
+		rk29_mux_api_set(GPIO2B3_UART3SOUT_NAME, GPIO2L_UART3_SOUT);
+		rk29_mux_api_set(GPIO2B2_UART3SIN_NAME, GPIO2L_UART3_SIN);
+	}
 
 	retval = request_irq(port->irq,rk29_uart_interrupt,IRQF_SHARED,
 		     tty ? tty->name : "rk29_serial",port);
@@ -449,6 +454,11 @@ static void rk29_serial_set_termios(struct uart_port *port, struct ktermios *ter
 		{
 			rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_UART0_RTS_N);
 			rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_UART0_CTS_N);
+		}
+		else if(3 == port->line)
+		{
+			rk29_mux_api_set(GPIO2B5_UART3RTSN_I2C3SCL_NAME, GPIO2L_UART3_RTS_N);
+			rk29_mux_api_set(GPIO2B4_UART3CTSN_I2C3SDA_NAME, GPIO2L_UART3_CTS_N);
 		}
 
 		umcon=rk29_uart_read(port,UART_MCR);

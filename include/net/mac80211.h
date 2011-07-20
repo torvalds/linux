@@ -1700,6 +1700,12 @@ void ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb);
  */
 void ieee80211_rx_irqsafe(struct ieee80211_hw *hw, struct sk_buff *skb);
 
+/*
+ * The TX headroom reserved by mac80211 for its own tx_status functions.
+ * This is enough for the radiotap header.
+ */
+#define IEEE80211_TX_STATUS_HEADROOM	13
+
 /**
  * ieee80211_tx_status - transmit status callback
  *
