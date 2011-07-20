@@ -27,6 +27,8 @@
  *
  *****************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/ip.h>
 #include "wifi.h"
 #include "rc.h"
@@ -397,8 +399,8 @@ void rtl_init_rfkill(struct ieee80211_hw *hw)
 	radio_state = rtlpriv->cfg->ops->radio_onoff_checking(hw, &valid);
 
 	if (valid) {
-		printk(KERN_INFO "rtlwifi: wireless switch is %s\n",
-				rtlpriv->rfkill.rfkill_state ? "on" : "off");
+		pr_info("wireless switch is %s\n",
+			rtlpriv->rfkill.rfkill_state ? "on" : "off");
 
 		rtlpriv->rfkill.rfkill_state = radio_state;
 
@@ -1401,8 +1403,7 @@ MODULE_DESCRIPTION("Realtek 802.11n PCI wireless core");
 static int __init rtl_core_module_init(void)
 {
 	if (rtl_rate_control_register())
-		printk(KERN_ERR "rtlwifi: Unable to register rtl_rc,"
-		       "use default RC !!\n");
+		pr_err("Unable to register rtl_rc, use default RC !!\n");
 
 	return 0;
 }
