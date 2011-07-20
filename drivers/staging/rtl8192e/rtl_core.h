@@ -267,14 +267,14 @@ enum dcmg_txcmd_op {
 	TXCMD_XXXX_CTRL,
 };
 
-typedef enum _RT_RF_TYPE_819xU{
+enum rt_rf_type_819xu {
         RF_TYPE_MIN = 0,
         RF_8225,
         RF_8256,
         RF_8258,
         RF_6052=4,
         RF_PSEUDO_11N = 5,
-} RT_RF_TYPE_819xU, *PRT_RF_TYPE_819xU;
+};
 
 typedef enum _RF_STEP_E
 {
@@ -587,7 +587,7 @@ struct r8192_priv {
 	RT_CUSTOMER_ID			CustomerID;
 
 
-	RT_RF_TYPE_819xU		rf_chip;
+	enum rt_rf_type_819xu rf_chip;
 	IC_INFERIORITY_8192S		IC_Class;
 	enum ht_channel_width CurrentChannelBW;
 	struct bb_reg_definition PHYRegDef[4];
