@@ -106,3 +106,19 @@ void bcma_core_pll_ctl(struct bcma_device *core, u32 req, u32 status, bool on)
 	}
 }
 EXPORT_SYMBOL_GPL(bcma_core_pll_ctl);
+
+u32 bcma_core_dma_translation(struct bcma_device *core)
+{
+	switch (core->bus->hosttype) {
+	case BCMA_HOSTTYPE_PCI:
+		if (bcma_aread32(core, BCMA_IOST) & BCMA_IOST_DMA64)
+			return BCMA_DMA_TRANSLATION_DMA64_CMT;
+		else
+			return BCMA_DMA_TRANSLATION_DMA32_CMT;
+	default:
+		pr_err("DMA translation unknown for host %d\n",
+		       core->bus->hosttype);
+	}
+	return BCMA_DMA_TRANSLATION_NONE;
+}
+EXPORT_SYMBOL(bcma_core_dma_translation);

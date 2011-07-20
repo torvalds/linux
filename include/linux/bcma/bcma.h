@@ -262,5 +262,10 @@ extern void bcma_core_set_clockmode(struct bcma_device *core,
 				    enum bcma_clkmode clkmode);
 extern void bcma_core_pll_ctl(struct bcma_device *core, u32 req, u32 status,
 			      bool on);
+#define BCMA_DMA_TRANSLATION_MASK	0xC0000000
+#define  BCMA_DMA_TRANSLATION_NONE	0x00000000
+#define  BCMA_DMA_TRANSLATION_DMA32_CMT	0x40000000 /* Client Mode Translation for 32-bit DMA */
+#define  BCMA_DMA_TRANSLATION_DMA64_CMT	0x80000000 /* Client Mode Translation for 64-bit DMA */
+extern u32 bcma_core_dma_translation(struct bcma_device *core);
 
 #endif /* LINUX_BCMA_H_ */
