@@ -1793,11 +1793,11 @@ struct rx_reorder_entry {
 	u16			SeqNum;
 	struct rtllib_rxb* prxb;
 };
-typedef enum _Fsync_State{
+enum fsync_state {
 	Default_Fsync,
 	HW_Fsync,
 	SW_Fsync
-} Fsync_State;
+};
 
 typedef	enum _RT_PS_MODE
 {
@@ -2377,7 +2377,7 @@ struct rtllib_device {
 	u8	fsync_multiple_timeinterval;
 	u32	fsync_firstdiff_ratethreshold;
 	u32	fsync_seconddiff_ratethreshold;
-	Fsync_State			fsync_state;
+	enum fsync_state fsync_state;
 	bool		bis_any_nonbepkts;
 	struct bandwidth_autoswitch bandwidth_auto_switch;
 	bool FwRWRF;
