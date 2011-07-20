@@ -333,14 +333,14 @@ enum ic_inferiority_8192s {
 	IC_INFERIORITY_B            = 1,
 };
 
-typedef enum _PCI_BRIDGE_VENDOR {
+enum pci_bridge_vendor {
 	PCI_BRIDGE_VENDOR_INTEL = 0x0,
 	PCI_BRIDGE_VENDOR_ATI,
 	PCI_BRIDGE_VENDOR_AMD,
 	PCI_BRIDGE_VENDOR_SIS ,
 	PCI_BRIDGE_VENDOR_UNKNOWN,
 	PCI_BRIDGE_VENDOR_MAX ,
-} PCI_BRIDGE_VENDOR;
+};
 
 struct buffer {
 	struct buffer *next;
