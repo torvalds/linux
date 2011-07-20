@@ -94,7 +94,6 @@ struct enic {
 	____cacheline_aligned struct vnic_wq wq[ENIC_WQ_MAX];
 	spinlock_t wq_lock[ENIC_WQ_MAX];
 	unsigned int wq_count;
-	struct vlan_group *vlan_group;
 	u16 loop_enable;
 	u16 loop_tag;
 

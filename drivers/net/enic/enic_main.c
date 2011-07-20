@@ -1029,14 +1029,6 @@ static void enic_set_rx_mode(struct net_device *netdev)
 	}
 }
 
-/* rtnl lock is held */
-static void enic_vlan_rx_register(struct net_device *netdev,
-	struct vlan_group *vlan_group)
-{
-	struct enic *enic = netdev_priv(netdev);
-	enic->vlan_group = vlan_group;
-}
-
 /* netif_tx_lock held, BHs disabled */
 static void enic_tx_timeout(struct net_device *netdev)
 {
@@ -1264,23 +1256,13 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 
 		skb->dev = netdev;
 
-		if (vlan_stripped) {
+		if (vlan_stripped)
+			__vlan_hwaccel_put_tag(skb, vlan_tci);
 
-			if (netdev->features & NETIF_F_GRO)
-				vlan_gro_receive(&enic->napi[q_number],
-					enic->vlan_group, vlan_tci, skb);
-			else
-				vlan_hwaccel_receive_skb(skb,
-					enic->vlan_group, vlan_tci);
-
-		} else {
-
-			if (netdev->features & NETIF_F_GRO)
-				napi_gro_receive(&enic->napi[q_number], skb);
-			else
-				netif_receive_skb(skb);
-
-		}
+		if (netdev->features & NETIF_F_GRO)
+			napi_gro_receive(&enic->napi[q_number], skb);
+		else
+			netif_receive_skb(skb);
 	} else {
 
 		/* Buffer overflow
@@ -2124,7 +2106,6 @@ static const struct net_device_ops enic_netdev_dynamic_ops = {
 	.ndo_set_multicast_list	= enic_set_rx_mode,
 	.ndo_set_mac_address	= enic_set_mac_address_dynamic,
 	.ndo_change_mtu		= enic_change_mtu,
-	.ndo_vlan_rx_register	= enic_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= enic_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= enic_vlan_rx_kill_vid,
 	.ndo_tx_timeout		= enic_tx_timeout,
@@ -2146,7 +2127,6 @@ static const struct net_device_ops enic_netdev_ops = {
 	.ndo_set_rx_mode	= enic_set_rx_mode,
 	.ndo_set_multicast_list	= enic_set_rx_mode,
 	.ndo_change_mtu		= enic_change_mtu,
-	.ndo_vlan_rx_register	= enic_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= enic_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= enic_vlan_rx_kill_vid,
 	.ndo_tx_timeout		= enic_tx_timeout,
