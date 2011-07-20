@@ -2448,6 +2448,30 @@ static int cnic_bnx2x_fcoe_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
 	return ret;
 }
 
+static void cnic_bnx2x_delete_wait(struct cnic_dev *dev, u32 start_cid)
+{
+	struct cnic_local *cp = dev->cnic_priv;
+	u32 i;
+
+	for (i = start_cid; i < cp->max_cid_space; i++) {
+		struct cnic_context *ctx = &cp->ctx_tbl[i];
+		int j;
+
+		while (test_bit(CTX_FL_DELETE_WAIT, &ctx->ctx_flags))
+			msleep(10);
+
+		for (j = 0; j < 5; j++) {
+			if (!test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags))
+				break;
+			msleep(20);
+		}
+
+		if (test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags))
+			netdev_warn(dev->netdev, "CID %x not deleted\n",
+				   ctx->cid);
+	}
+}
+
 static int cnic_bnx2x_fcoe_fw_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
 {
 	struct fcoe_kwqe_destroy *req;
@@ -2455,6 +2479,8 @@ static int cnic_bnx2x_fcoe_fw_destroy(struct cnic_dev *dev, struct kwqe *kwqe)
 	struct cnic_local *cp = dev->cnic_priv;
 	int ret;
 	u32 cid;
+
+	cnic_bnx2x_delete_wait(dev, MAX_ISCSI_TBL_SZ);
 
 	req = (struct fcoe_kwqe_destroy *) kwqe;
 	cid = BNX2X_HW_CID(cp, cp->fcoe_init_cid);
@@ -3930,7 +3956,6 @@ static void cnic_close_bnx2x_conn(struct cnic_sock *csk, u32 opcode)
 static void cnic_cm_stop_bnx2x_hw(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
-	int i;
 
 	if (!cp->ctx_tbl)
 		return;
@@ -3938,23 +3963,7 @@ static void cnic_cm_stop_bnx2x_hw(struct cnic_dev *dev)
 	if (!netif_running(dev->netdev))
 		return;
 
-	for (i = 0; i < cp->max_cid_space; i++) {
-		struct cnic_context *ctx = &cp->ctx_tbl[i];
-		int j;
-
-		while (test_bit(CTX_FL_DELETE_WAIT, &ctx->ctx_flags))
-			msleep(10);
-
-		for (j = 0; j < 5; j++) {
-			if (!test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags))
-				break;
-			msleep(20);
-		}
-
-		if (test_bit(CTX_FL_OFFLD_START, &ctx->ctx_flags))
-			netdev_warn(dev->netdev, "CID %x not deleted\n",
-				   ctx->cid);
-	}
+	cnic_bnx2x_delete_wait(dev, 0);
 
 	cancel_delayed_work(&cp->delete_task);
 	flush_workqueue(cnic_wq);
