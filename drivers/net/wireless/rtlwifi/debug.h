@@ -204,10 +204,5 @@ enum dbgp_flag_e {
 		} \
 	} while (0);
 
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) \
-	((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2],\
-	((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
-
 void rtl_dbgp_flag_init(struct ieee80211_hw *hw);
 #endif

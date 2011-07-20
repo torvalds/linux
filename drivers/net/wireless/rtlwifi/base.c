@@ -756,18 +756,17 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 				return false;
 
 			RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
-				 ("%s ACT_ADDBAREQ From :" MAC_FMT "\n",
-				  is_tx ? "Tx" : "Rx", MAC_ARG(hdr->addr2)));
+				 ("%s ACT_ADDBAREQ From :%pM\n",
+				  is_tx ? "Tx" : "Rx", hdr->addr2));
 			break;
 		case ACT_ADDBARSP:
 			RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
-				 ("%s ACT_ADDBARSP From :" MAC_FMT "\n",
-				  is_tx ? "Tx" : "Rx", MAC_ARG(hdr->addr2)));
+				 ("%s ACT_ADDBARSP From :%pM\n",
+				  is_tx ? "Tx" : "Rx", hdr->addr2));
 			break;
 		case ACT_DELBA:
 			RT_TRACE(rtlpriv, (COMP_SEND | COMP_RECV), DBG_DMESG,
-				 ("ACT_ADDBADEL From :" MAC_FMT "\n",
-				  MAC_ARG(hdr->addr2)));
+				 ("ACT_ADDBADEL From :%pM\n", hdr->addr2));
 			break;
 		}
 		break;

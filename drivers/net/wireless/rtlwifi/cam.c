@@ -131,9 +131,9 @@ u8 rtl_cam_add_one_entry(struct ieee80211_hw *hw, u8 *mac_addr,
 
 	RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
 		 ("EntryNo:%x, ulKeyId=%x, ulEncAlg=%x, "
-		  "ulUseDK=%x MacAddr" MAC_FMT "\n",
+		  "ulUseDK=%x MacAddr %pM\n",
 		  ul_entry_idx, ul_key_id, ul_enc_alg,
-		  ul_default_key, MAC_ARG(mac_addr)));
+		  ul_default_key, mac_addr));
 
 	if (ul_key_id == TOTAL_CAM_ENTRY) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
