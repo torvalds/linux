@@ -80,8 +80,8 @@
 	.vendor = (vend), .device = (dev), \
 	.subvendor = PCI_ANY_ID, .subdevice =PCI_ANY_ID , \
 	.driver_data = (kernel_ulong_t)&(cfg)
-	typedef irqreturn_t irqreturn_type;
 
+#define irqreturn_type irqreturn_t
 
 #define rtl8192_interrupt(x,y,z) rtl8192_interrupt_rsl(x,y)
 

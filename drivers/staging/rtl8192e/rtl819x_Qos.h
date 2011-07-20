@@ -110,7 +110,8 @@ struct octet_string {
 };
 #define	MAX_WMMELE_LENGTH	64
 
-typedef u32 QOS_MODE, *PQOS_MODE;
+#define QOS_MODE u32
+
 #define QOS_DISABLE		0
 #define QOS_WMM		1
 #define QOS_WMMSA		2
@@ -174,7 +175,8 @@ enum qos_ie_source {
 };
 
 
-typedef u32 AC_CODING;
+#define AC_CODING u32
+
 #define AC0_BE	0
 #define AC1_BK	1
 #define AC2_VI	2
@@ -237,7 +239,7 @@ struct acm {
 
 
 
-typedef	u8		AC_UAPSD, *PAC_UAPSD;
+#define AC_UAPSD	u8
 
 #define	GET_VO_UAPSD(_apsd) ((_apsd) & BIT0)
 #define	SET_VO_UAPSD(_apsd) ((_apsd) |= BIT0)

@@ -1910,7 +1910,8 @@ struct rt_pwr_save_ctrl {
 
 };
 
-typedef u32 RT_RF_CHANGE_SOURCE;
+#define RT_RF_CHANGE_SOURCE u32
+
 #define RF_CHANGE_BY_SW BIT31
 #define RF_CHANGE_BY_HW BIT30
 #define RF_CHANGE_BY_PS BIT29
