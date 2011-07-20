@@ -1052,6 +1052,7 @@ msi_only:
 		kfree(adapter->vf_data);
 		adapter->vf_data = NULL;
 		wr32(E1000_IOVCTL, E1000_IOVCTL_REUSE_VFQ);
+		wrfl();
 		msleep(100);
 		dev_info(&adapter->pdev->dev, "IOV Disabled\n");
 	}
@@ -2198,6 +2199,7 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 		kfree(adapter->vf_data);
 		adapter->vf_data = NULL;
 		wr32(E1000_IOVCTL, E1000_IOVCTL_REUSE_VFQ);
+		wrfl();
 		msleep(100);
 		dev_info(&pdev->dev, "IOV Disabled\n");
 	}
