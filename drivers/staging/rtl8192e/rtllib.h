@@ -594,13 +594,13 @@ struct ieee_param {
 #define SN_EQUAL(a, b)	(a == b)
 #define MAX_DEV_ADDR_SIZE 8
 
-typedef enum _ACT_CATEGORY{
+enum act_category {
         ACT_CAT_QOS = 1,
         ACT_CAT_DLS = 2,
         ACT_CAT_BA  = 3,
         ACT_CAT_HT  = 7,
         ACT_CAT_WMM = 17,
-} ACT_CATEGORY, *PACT_CATEGORY;
+};
 
 typedef enum _TS_ACTION{
         ACT_ADDTSREQ = 0,
