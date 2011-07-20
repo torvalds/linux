@@ -13,7 +13,7 @@
 #include <linux/pci.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <xen/events.h>
 #include <asm/xen/pci.h>
 #include <asm/xen/hypervisor.h>
@@ -486,7 +486,7 @@ static void pcistub_remove(struct pci_dev *dev)
 	}
 }
 
-static const struct pci_device_id pcistub_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(pcistub_ids) = {
 	{
 	 .vendor = PCI_ANY_ID,
 	 .device = PCI_ANY_ID,
@@ -592,7 +592,7 @@ static pci_ers_result_t common_process(struct pcistub_device *psdev,
 	if (test_bit(_XEN_PCIF_active,
 		(unsigned long *)&psdev->pdev->sh_info->flags)) {
 		dev_dbg(&psdev->dev->dev,
-			"schedule pci_conf service in pciback \n");
+			"schedule pci_conf service in pciback\n");
 		test_and_schedule_op(psdev->pdev);
 	}
 

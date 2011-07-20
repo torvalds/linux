@@ -683,20 +683,20 @@ static const struct xenbus_device_id xenpci_ids[] = {
 };
 
 static struct xenbus_driver xenbus_pciback_driver = {
-	.name 			= "pciback",
-	.owner 			= THIS_MODULE,
-	.ids 			= xenpci_ids,
-	.probe 			= pciback_xenbus_probe,
-	.remove 		= pciback_xenbus_remove,
-	.otherend_changed 	= pciback_frontend_changed,
+	.name			= "pciback",
+	.owner			= THIS_MODULE,
+	.ids			= xenpci_ids,
+	.probe			= pciback_xenbus_probe,
+	.remove			= pciback_xenbus_remove,
+	.otherend_changed	= pciback_frontend_changed,
 };
 
 int __init pciback_xenbus_register(void)
 {
 	pciback_wq = create_workqueue("pciback_workqueue");
 	if (!pciback_wq) {
-		printk(KERN_ERR "pciback_xenbus_register: create"
-			"pciback_workqueue failed\n");
+		printk(KERN_ERR "%s: create"
+			"pciback_workqueue failed\n", __func__);
 		return -EFAULT;
 	}
 	return xenbus_register_backend(&xenbus_pciback_driver);

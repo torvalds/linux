@@ -249,27 +249,27 @@ static const struct config_field header_common[] = {
 	{}
 };
 
-#define CFG_FIELD_BAR(reg_offset) 			\
-	{ 						\
-	 .offset     = reg_offset, 			\
-	 .size       = 4, 				\
-	 .init       = bar_init, 			\
-	 .reset      = bar_reset, 			\
-	 .release    = bar_release, 			\
-	 .u.dw.read  = bar_read, 			\
-	 .u.dw.write = bar_write, 			\
-	 }
+#define CFG_FIELD_BAR(reg_offset)			\
+	{						\
+	.offset     = reg_offset,			\
+	.size       = 4,				\
+	.init       = bar_init,				\
+	.reset      = bar_reset,			\
+	.release    = bar_release,			\
+	.u.dw.read  = bar_read,				\
+	.u.dw.write = bar_write,			\
+	}
 
-#define CFG_FIELD_ROM(reg_offset) 			\
-	{ 						\
-	 .offset     = reg_offset, 			\
-	 .size       = 4, 				\
-	 .init       = rom_init, 			\
-	 .reset      = bar_reset, 			\
-	 .release    = bar_release, 			\
-	 .u.dw.read  = bar_read, 			\
-	 .u.dw.write = rom_write, 			\
-	 }
+#define CFG_FIELD_ROM(reg_offset)			\
+	{						\
+	.offset     = reg_offset,			\
+	.size       = 4,				\
+	.init       = rom_init,				\
+	.reset      = bar_reset,			\
+	.release    = bar_release,			\
+	.u.dw.read  = bar_read,				\
+	.u.dw.write = rom_write,			\
+	}
 
 static const struct config_field header_0[] = {
 	CFG_FIELD_BAR(PCI_BASE_ADDRESS_0),

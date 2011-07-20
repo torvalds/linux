@@ -18,8 +18,8 @@
 static int permissive;
 module_param(permissive, bool, 0644);
 
-#define DEFINE_PCI_CONFIG(op, size, type) 			\
-int pciback_##op##_config_##size 				\
+#define DEFINE_PCI_CONFIG(op, size, type)			\
+int pciback_##op##_config_##size				\
 (struct pci_dev *dev, int offset, type value, void *data)	\
 {								\
 	return pci_##op##_config_##size(dev, offset, value);	\
