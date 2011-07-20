@@ -705,14 +705,6 @@ static void virtnet_netpoll(struct net_device *dev)
 }
 #endif
 
-static void virtnet_free(struct net_device *dev)
-{
-	struct virtnet_info *vi = netdev_priv(dev);
-
-	free_percpu(vi->stats);
-	free_netdev(dev);
-}
-
 static int virtnet_open(struct net_device *dev)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
@@ -959,7 +951,6 @@ static int virtnet_probe(struct virtio_device *vdev)
 	/* Set up network device as normal. */
 	dev->netdev_ops = &virtnet_netdev;
 	dev->features = NETIF_F_HIGHDMA;
-	dev->destructor = virtnet_free;
 
 	SET_ETHTOOL_OPS(dev, &virtnet_ethtool_ops);
 	SET_NETDEV_DEV(dev, &vdev->dev);
@@ -1122,6 +1113,7 @@ static void __devexit virtnet_remove(struct virtio_device *vdev)
 	while (vi->pages)
 		__free_pages(get_a_page(vi, GFP_KERNEL), 0);
 
+	free_percpu(vi->stats);
 	free_netdev(vi->dev);
 }
 
