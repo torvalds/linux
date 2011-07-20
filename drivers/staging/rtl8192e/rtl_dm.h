@@ -172,14 +172,13 @@ enum dm_dig_two_port_alg {
 };
 
 
-typedef enum _DM_DIG_EXT_PORT_ALG_E
-{
+enum dm_dig_ext_port_alg {
 	DIG_EXT_PORT_STAGE_0 = 0,
 	DIG_EXT_PORT_STAGE_1 = 1,
 	DIG_EXT_PORT_STAGE_2 = 2,
 	DIG_EXT_PORT_STAGE_3 = 3,
 	DIG_EXT_PORT_STAGE_MAX = 4,
-} DM_DIG_EXT_PORT_ALG_E;
+};
 
 typedef enum _dm_dig_dbg_e
 {
