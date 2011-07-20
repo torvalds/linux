@@ -510,17 +510,6 @@ static struct rtnl_link_stats64 *macvlan_dev_get_stats64(struct net_device *dev,
 	return stats;
 }
 
-static void macvlan_vlan_rx_register(struct net_device *dev,
-				     struct vlan_group *grp)
-{
-	struct macvlan_dev *vlan = netdev_priv(dev);
-	struct net_device *lowerdev = vlan->lowerdev;
-	const struct net_device_ops *ops = lowerdev->netdev_ops;
-
-	if (ops->ndo_vlan_rx_register)
-		ops->ndo_vlan_rx_register(lowerdev, grp);
-}
-
 static void macvlan_vlan_rx_add_vid(struct net_device *dev,
 				    unsigned short vid)
 {
@@ -575,7 +564,6 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_set_multicast_list	= macvlan_set_multicast_list,
 	.ndo_get_stats64	= macvlan_dev_get_stats64,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_vlan_rx_register	= macvlan_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= macvlan_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= macvlan_vlan_rx_kill_vid,
 };
