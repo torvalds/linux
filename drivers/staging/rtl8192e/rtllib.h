@@ -602,12 +602,12 @@ enum act_category {
         ACT_CAT_WMM = 17,
 };
 
-typedef enum _TS_ACTION{
+enum ts_action {
         ACT_ADDTSREQ = 0,
         ACT_ADDTSRSP = 1,
         ACT_DELTS    = 2,
         ACT_SCHEDULE = 3,
-} TS_ACTION, *PTS_ACTION;
+};
 
 typedef enum _BA_ACTION{
         ACT_ADDBAREQ = 0,
