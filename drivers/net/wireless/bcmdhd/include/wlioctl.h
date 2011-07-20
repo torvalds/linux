@@ -1238,6 +1238,12 @@ typedef struct wl_po {
 #define WL_CHAN_FREQ_RANGE_5GMH_VER2    7
 #define WL_CHAN_FREQ_RANGE_5GH_VER2     8
 
+#define WL_CHAN_FREQ_RANGE_5GLL_5BAND    4
+#define WL_CHAN_FREQ_RANGE_5GLH_5BAND    5
+#define WL_CHAN_FREQ_RANGE_5GML_5BAND    6
+#define WL_CHAN_FREQ_RANGE_5GMH_5BAND    7
+#define WL_CHAN_FREQ_RANGE_5GH_5BAND     8
+
 
 #define WLC_PHY_TYPE_A      0
 #define WLC_PHY_TYPE_B      1
@@ -1765,7 +1771,8 @@ enum {
 enum {
 	OFF_ADAPT,
 	SMART_ADAPT,
-	STRICT_ADAPT
+	STRICT_ADAPT,
+	SLOW_ADAPT
 };
 
 #define SORT_CRITERIA_BIT		0
@@ -1775,14 +1782,16 @@ enum {
 #define	AUTO_CONNECT_BIT		4
 #define	ENABLE_BD_SCAN_BIT		5
 #define ENABLE_ADAPTSCAN_BIT	6
+#define IMMEDIATE_EVENT_BIT		8
 
-#define SORT_CRITERIA_MASK		0x01
-#define AUTO_NET_SWITCH_MASK	0x02
-#define ENABLE_BKGRD_SCAN_MASK	0x04
-#define IMMEDIATE_SCAN_MASK		0x08
-#define	AUTO_CONNECT_MASK		0x10
-#define ENABLE_BD_SCAN_MASK		0x20
-#define ENABLE_ADAPTSCAN_MASK	0xc0
+#define SORT_CRITERIA_MASK		0x0001
+#define AUTO_NET_SWITCH_MASK	0x0002
+#define ENABLE_BKGRD_SCAN_MASK	0x0004
+#define IMMEDIATE_SCAN_MASK		0x0008
+#define	AUTO_CONNECT_MASK		0x0010
+#define ENABLE_BD_SCAN_MASK		0x0020
+#define ENABLE_ADAPTSCAN_MASK	0x00c0
+#define IMMEDIATE_EVENT_MASK	0x0100
 
 #define PFN_VERSION				2
 #define PFN_SCANRESULT_VERSION	1
@@ -1828,6 +1837,7 @@ typedef struct wl_pfn_param {
 	uint8 mscan; 
 	uint8 repeat; 
 	uint8 exp; 
+	int32 slow_freq;
 } wl_pfn_param_t;
 
 typedef struct wl_pfn_bssid {

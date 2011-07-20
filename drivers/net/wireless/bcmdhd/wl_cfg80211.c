@@ -125,6 +125,44 @@ static ctl_table wl_sysctl_table[] = {
 static struct ctl_table_header *wl_sysctl_hdr;
 #endif /* CONFIG_SYSCTL */ 
 
+/* This is to override regulatory domains defined in cfg80211 module (reg.c)
+ * By default world regulatory domain defined in reg.c puts the flags NL80211_RRF_PASSIVE_SCAN
+ * and NL80211_RRF_NO_IBSS for 5GHz channels (for 36..48 and 149..165).
+ * With respect to these flags, wpa_supplicant doesn't start p2p operations on 5GHz channels.
+ * All the chnages in world regulatory domain are to be done here.
+ */
+static const struct ieee80211_regdomain brcm_regdom = {
+	.n_reg_rules = 5,
+	.alpha2 =  "99",
+	.reg_rules = {
+		/* IEEE 802.11b/g, channels 1..11 */
+		REG_RULE(2412-10, 2462+10, 40, 6, 20, 0),
+		/* IEEE 802.11b/g, channels 12..13. No HT40
+		 * channel fits here. */
+		REG_RULE(2467-10, 2472+10, 20, 6, 20,
+			NL80211_RRF_PASSIVE_SCAN |
+			NL80211_RRF_NO_IBSS),
+		/* IEEE 802.11 channel 14 - Only JP enables
+		 * this and for 802.11b only */
+		REG_RULE(2484-10, 2484+10, 20, 6, 20,
+			NL80211_RRF_PASSIVE_SCAN |
+			NL80211_RRF_NO_IBSS |
+			NL80211_RRF_NO_OFDM),
+		/* IEEE 802.11a, channel 36..48 */
+		REG_RULE(5180-10, 5240+10, 40, 6, 20, 0
+                        /*NL80211_RRF_PASSIVE_SCAN |
+                        NL80211_RRF_NO_IBSS*/),
+
+		/* NB: 5260 MHz - 5700 MHz requies DFS */
+
+		/* IEEE 802.11a, channel 149..165 */
+		REG_RULE(5745-10, 5825+10, 40, 6, 20, 0
+			/*NL80211_RRF_PASSIVE_SCAN |
+			NL80211_RRF_NO_IBSS*/),
+	}
+};
+
+
 /* Data Element Definitions */
 #define WPS_ID_CONFIG_METHODS     0x1008
 #define WPS_ID_REQ_TYPE           0x103A
@@ -2021,7 +2059,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		}
 
 	} else {
-		WL_ERR(("No P2PIE in beacon \n"));
+		WL_INFO(("No P2PIE in beacon \n"));
 	}
 
 	if (unlikely(!sme->ssid)) {
@@ -2072,7 +2110,7 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	WL_DBG(("join_param_size %d\n", join_params_size));
 
 	if (join_params.ssid.SSID_len < IEEE80211_MAX_SSID_LEN) {
-		WL_ERR(("ssid \"%s\", len (%d)\n", join_params.ssid.SSID,
+		WL_INFO(("ssid \"%s\", len (%d)\n", join_params.ssid.SSID,
 			join_params.ssid.SSID_len));
 	}
 	err = wldev_ioctl(dev, WLC_SET_SSID, &join_params, join_params_size, false);
@@ -3000,7 +3038,7 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 		WL_ERR(("Can not find the bssidx for dev( %p )\n", dev));
 		return -ENODEV;
 	}
-	if (p2p_on(wl)) {
+	if (wl->p2p_supported && p2p_on(wl)) {
 		wl_cfgp2p_generate_bss_mac(&dhd->mac, &wl->p2p->dev_addr, &wl->p2p->int_addr);
 	   /* Suspend P2P discovery search-listen to prevent it from changing the
 		* channel.
@@ -3849,6 +3887,11 @@ static struct wireless_dev *wl_alloc_wdev(s32 sizeof_iface,
 		WIPHY_FLAG_SUPPORTS_SEPARATE_DEFAULT_KEYS |
 #endif
 		WIPHY_FLAG_4ADDR_STATION;
+
+	WL_DBG(("Registering custom regulatory)\n"));
+	wdev->wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
+	wiphy_apply_custom_regulatory(wdev->wiphy, &brcm_regdom);
+	/* Now we can register wiphy with cfg80211 module */
 	err = wiphy_register(wdev->wiphy);
 	if (unlikely(err < 0)) {
 		WL_ERR(("Couldn not register wiphy device (%d)\n", err));

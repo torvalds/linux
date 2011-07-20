@@ -1994,7 +1994,7 @@ dhd_iscan_get_partial_result(void *dhdp, uint *scan_count)
 	results->version = dtoh32(results->version);
 	*scan_count = results->count = dtoh32(results->count);
 	status = dtoh32(list_buf->status);
-	DHD_ISCAN(("%s: Got %d resuls\n", __FUNCTION__, results->count));
+	DHD_ISCAN(("%s: Got %d resuls status = (%x)\n", __FUNCTION__, results->count, status));
 
 	dhd_iscan_unlock();
 
@@ -2178,6 +2178,7 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr,
 		DHD_ERROR(("%s failed error=%d\n", __FUNCTION__, err));
 		return err;
 	}
+	memset(iovbuf, 0, sizeof(iovbuf));
 	memset(&pfn_param, 0, sizeof(pfn_param));
 	memset(&pfn_element, 0, sizeof(pfn_element));
 
@@ -2188,8 +2189,8 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr,
 	/* check and set extra pno params */
 	if ((pno_repeat != 0) || (pno_freq_expo_max != 0)) {
 		pfn_param.flags |= htod16(ENABLE << ENABLE_ADAPTSCAN_BIT);
-		pfn_param.repeat = htod32(pno_repeat);
-		pfn_param.exp = htod32(pno_freq_expo_max);
+		pfn_param.repeat = (uchar) (pno_repeat);
+		pfn_param.exp = (uchar) (pno_freq_expo_max);
 	}
 	/* set up pno scan fr */
 	if (scan_fr  != 0)
@@ -2203,8 +2204,13 @@ dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid, ushort scan_fr,
 		DHD_ERROR(("%s pno freq less %d sec\n", __FUNCTION__, PNO_SCAN_MIN_FW_SEC));
 		return err;
 	}
+
 	len = bcm_mkiovar("pfn_set", (char *)&pfn_param, sizeof(pfn_param), iovbuf, sizeof(iovbuf));
-	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, len, TRUE, 0);
+	if ((err = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, len, TRUE, 0)) < 0) {
+				DHD_ERROR(("%s pfn_set failed for error=%d\n",
+					__FUNCTION__, err));
+				return err;
+	}
 
 	/* set all pfn ssid */
 	for (i = 0; i < nssid; i++) {
