@@ -124,7 +124,7 @@ struct zram {
 };
 
 extern struct zram *zram_devices;
-extern unsigned int num_devices;
+extern unsigned int zram_num_devices;
 #ifdef CONFIG_SYSFS
 extern struct attribute_group zram_disk_attr_group;
 #endif
