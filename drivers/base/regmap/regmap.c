@@ -15,37 +15,10 @@
 #include <linux/mutex.h>
 #include <linux/err.h>
 
-#include <linux/regmap.h>
-
 #define CREATE_TRACE_POINTS
 #include <trace/events/regmap.h>
 
-struct regmap;
-
-struct regmap_format {
-	size_t buf_size;
-	size_t reg_bytes;
-	size_t val_bytes;
-	void (*format_write)(struct regmap *map,
-			     unsigned int reg, unsigned int val);
-	void (*format_reg)(void *buf, unsigned int reg);
-	void (*format_val)(void *buf, unsigned int val);
-	unsigned int (*parse_val)(void *buf);
-};
-
-struct regmap {
-	struct mutex lock;
-
-	struct device *dev; /* Device we do I/O on */
-	void *work_buf;     /* Scratch buffer used to format I/O */
-	struct regmap_format format;  /* Buffer format */
-	const struct regmap_bus *bus;
-
-	unsigned int max_register;
-	bool (*writeable_reg)(struct device *dev, unsigned int reg);
-	bool (*readable_reg)(struct device *dev, unsigned int reg);
-	bool (*volatile_reg)(struct device *dev, unsigned int reg);
-};
+#include "internal.h"
 
 static void regmap_format_4_12_write(struct regmap *map,
 				     unsigned int reg, unsigned int val)
