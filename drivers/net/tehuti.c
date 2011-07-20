@@ -742,22 +742,6 @@ static void bdx_vlan_rx_kill_vid(struct net_device *ndev, unsigned short vid)
 	__bdx_vlan_rx_vid(ndev, vid, 0);
 }
 
-/*
- * bdx_vlan_rx_register - kernel hook for adding VLAN group
- * @ndev network device
- * @grp  VLAN group
- */
-static void
-bdx_vlan_rx_register(struct net_device *ndev, struct vlan_group *grp)
-{
-	struct bdx_priv *priv = netdev_priv(ndev);
-
-	ENTER;
-	DBG("device='%s', group='%p'\n", ndev->name, grp);
-	priv->vlgrp = grp;
-	RET();
-}
-
 /**
  * bdx_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
@@ -1146,21 +1130,15 @@ NETIF_RX_MUX(struct bdx_priv *priv, u32 rxd_val1, u16 rxd_vlan,
 	     struct sk_buff *skb)
 {
 	ENTER;
-	DBG("rxdd->flags.bits.vtag=%d vlgrp=%p\n", GET_RXD_VTAG(rxd_val1),
-	    priv->vlgrp);
-	if (priv->vlgrp && GET_RXD_VTAG(rxd_val1)) {
-		DBG("%s: vlan rcv vlan '%x' vtag '%x', device name '%s'\n",
+	DBG("rxdd->flags.bits.vtag=%d\n", GET_RXD_VTAG(rxd_val1));
+	if (GET_RXD_VTAG(rxd_val1)) {
+		DBG("%s: vlan rcv vlan '%x' vtag '%x'\n",
 		    priv->ndev->name,
 		    GET_RXD_VLAN_ID(rxd_vlan),
-		    GET_RXD_VTAG(rxd_val1),
-		    vlan_group_get_device(priv->vlgrp,
-					  GET_RXD_VLAN_ID(rxd_vlan))->name);
-		/* NAPI variant of receive functions */
-		vlan_hwaccel_receive_skb(skb, priv->vlgrp,
-					 GET_RXD_VLAN_TCI(rxd_vlan));
-	} else {
-		netif_receive_skb(skb);
+		    GET_RXD_VTAG(rxd_val1));
+		__vlan_hwaccel_put_tag(skb, GET_RXD_VLAN_TCI(rxd_vlan));
 	}
+	netif_receive_skb(skb);
 }
 
 static void bdx_recycle_skb(struct bdx_priv *priv, struct rxd_desc *rxdd)
@@ -1877,7 +1855,7 @@ static void bdx_tx_push_desc_safe(struct bdx_priv *priv, void *data, int size)
 }
 
 static const struct net_device_ops bdx_netdev_ops = {
-	.ndo_open	 	= bdx_open,
+	.ndo_open		= bdx_open,
 	.ndo_stop		= bdx_close,
 	.ndo_start_xmit		= bdx_tx_transmit,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -1885,7 +1863,6 @@ static const struct net_device_ops bdx_netdev_ops = {
 	.ndo_set_multicast_list = bdx_setmulti,
 	.ndo_change_mtu		= bdx_change_mtu,
 	.ndo_set_mac_address	= bdx_set_mac,
-	.ndo_vlan_rx_register	= bdx_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= bdx_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= bdx_vlan_rx_kill_vid,
 };
