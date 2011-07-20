@@ -19,6 +19,10 @@
 struct sdhci_pltfm_host {
 	struct clk *clk;
 	void *priv; /* to handle quirks across io-accessor calls */
+
+	/* migrate from sdhci_of_host */
+	unsigned int clock;
+	u16 xfer_mode_shadow;
 };
 
 extern struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,

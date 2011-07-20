@@ -60,32 +60,34 @@ static int esdhc_of_enable_dma(struct sdhci_host *host)
 
 static unsigned int esdhc_of_get_max_clock(struct sdhci_host *host)
 {
-	struct sdhci_of_host *of_host = sdhci_priv(host);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 
-	return of_host->clock;
+	return pltfm_host->clock;
 }
 
 static unsigned int esdhc_of_get_min_clock(struct sdhci_host *host)
 {
-	struct sdhci_of_host *of_host = sdhci_priv(host);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 
-	return of_host->clock / 256 / 16;
+	return pltfm_host->clock / 256 / 16;
 }
 
-struct sdhci_of_data sdhci_esdhc = {
+static struct sdhci_ops sdhci_esdhc_ops = {
+	.read_l = sdhci_be32bs_readl,
+	.read_w = esdhc_readw,
+	.read_b = sdhci_be32bs_readb,
+	.write_l = sdhci_be32bs_writel,
+	.write_w = esdhc_writew,
+	.write_b = esdhc_writeb,
+	.set_clock = esdhc_set_clock,
+	.enable_dma = esdhc_of_enable_dma,
+	.get_max_clock = esdhc_of_get_max_clock,
+	.get_min_clock = esdhc_of_get_min_clock,
+};
+
+struct sdhci_pltfm_data sdhci_esdhc_pdata = {
 	/* card detection could be handled via GPIO */
 	.quirks = ESDHC_DEFAULT_QUIRKS | SDHCI_QUIRK_BROKEN_CARD_DETECTION
 		| SDHCI_QUIRK_NO_CARD_NO_RESET,
-	.ops = {
-		.read_l = sdhci_be32bs_readl,
-		.read_w = esdhc_readw,
-		.read_b = sdhci_be32bs_readb,
-		.write_l = sdhci_be32bs_writel,
-		.write_w = esdhc_writew,
-		.write_b = esdhc_writeb,
-		.set_clock = esdhc_set_clock,
-		.enable_dma = esdhc_of_enable_dma,
-		.get_max_clock = esdhc_of_get_max_clock,
-		.get_min_clock = esdhc_of_get_min_clock,
-	},
+	.ops = &sdhci_esdhc_ops,
 };
