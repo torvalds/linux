@@ -6697,19 +6697,6 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-/* helper function for file defrag and space balancing.  This
- * forces readahead on a given range of bytes in an inode
- */
-unsigned long btrfs_force_ra(struct address_space *mapping,
-			      struct file_ra_state *ra, struct file *file,
-			      pgoff_t offset, pgoff_t last_index)
-{
-	pgoff_t req_size = last_index - offset + 1;
-
-	page_cache_sync_readahead(mapping, ra, file, offset, req_size);
-	return offset + req_size;
-}
-
 struct inode *btrfs_alloc_inode(struct super_block *sb)
 {
 	struct btrfs_inode *ei;

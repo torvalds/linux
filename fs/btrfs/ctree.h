@@ -2520,6 +2520,14 @@ int btrfs_lookup_csums_range(struct btrfs_root *root, u64 start, u64 end,
 #define PageChecked PageFsMisc
 #endif
 
+/* This forces readahead on a given range of bytes in an inode */
+static inline void btrfs_force_ra(struct address_space *mapping,
+				  struct file_ra_state *ra, struct file *file,
+				  pgoff_t offset, unsigned long req_size)
+{
+	page_cache_sync_readahead(mapping, ra, file, offset, req_size);
+}
+
 struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry);
 int btrfs_set_inode_index(struct inode *dir, u64 *index);
 int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
@@ -2548,9 +2556,6 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
 			 size_t size, struct bio *bio, unsigned long bio_flags);
 
-unsigned long btrfs_force_ra(struct address_space *mapping,
-			      struct file_ra_state *ra, struct file *file,
-			      pgoff_t offset, pgoff_t last_index);
 int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
 int btrfs_readpage(struct file *file, struct page *page);
 void btrfs_evict_inode(struct inode *inode);
