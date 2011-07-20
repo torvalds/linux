@@ -1858,6 +1858,12 @@ static void tg3_phy_eee_adjust(struct tg3 *tp, u32 current_link_up)
 	}
 
 	if (!tp->setlpicnt) {
+		if (current_link_up == 1 &&
+		   !TG3_PHY_AUXCTL_SMDSP_ENABLE(tp)) {
+			tg3_phydsp_write(tp, MII_TG3_DSP_TAP26, 0x0000);
+			TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
+		}
+
 		val = tr32(TG3_CPMU_EEE_MODE);
 		tw32(TG3_CPMU_EEE_MODE, val & ~TG3_CPMU_EEEMD_LPI_ENABLE);
 	}
@@ -1872,7 +1878,9 @@ static void tg3_phy_eee_enable(struct tg3 *tp)
 	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5719 ||
 	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57765) &&
 	    !TG3_PHY_AUXCTL_SMDSP_ENABLE(tp)) {
-		tg3_phydsp_write(tp, MII_TG3_DSP_TAP26, 0x0003);
+		val = MII_TG3_DSP_TAP26_ALNOKO |
+		      MII_TG3_DSP_TAP26_RMRXSTO;
+		tg3_phydsp_write(tp, MII_TG3_DSP_TAP26, val);
 		TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
 	}
 
@@ -3128,21 +3136,6 @@ static int tg3_phy_autoneg_cfg(struct tg3 *tp, u32 advertise, u32 flowctrl)
 	if (!err) {
 		u32 err2;
 
-		switch (GET_ASIC_REV(tp->pci_chip_rev_id)) {
-		case ASIC_REV_5717:
-		case ASIC_REV_57765:
-		case ASIC_REV_5719:
-			val = MII_TG3_DSP_TAP26_ALNOKO |
-			      MII_TG3_DSP_TAP26_RMRXSTO |
-			      MII_TG3_DSP_TAP26_OPCSINPT;
-			tg3_phydsp_write(tp, MII_TG3_DSP_TAP26, val);
-			/* Fall through */
-		case ASIC_REV_5720:
-			if (!tg3_phydsp_read(tp, MII_TG3_DSP_CH34TP2, &val))
-				tg3_phydsp_write(tp, MII_TG3_DSP_CH34TP2, val |
-						 MII_TG3_DSP_CH34TP2_HIBW01);
-		}
-
 		val = 0;
 		/* Advertise 100-BaseTX EEE ability */
 		if (advertise & ADVERTISED_100baseT_Full)
@@ -3151,6 +3144,25 @@ static int tg3_phy_autoneg_cfg(struct tg3 *tp, u32 advertise, u32 flowctrl)
 		if (advertise & ADVERTISED_1000baseT_Full)
 			val |= MDIO_AN_EEE_ADV_1000T;
 		err = tg3_phy_cl45_write(tp, MDIO_MMD_AN, MDIO_AN_EEE_ADV, val);
+		if (err)
+			val = 0;
+
+		switch (GET_ASIC_REV(tp->pci_chip_rev_id)) {
+		case ASIC_REV_5717:
+		case ASIC_REV_57765:
+		case ASIC_REV_5719:
+			/* If we advertised any eee advertisements above... */
+			if (val)
+				val = MII_TG3_DSP_TAP26_ALNOKO |
+				      MII_TG3_DSP_TAP26_RMRXSTO |
+				      MII_TG3_DSP_TAP26_OPCSINPT;
+			tg3_phydsp_write(tp, MII_TG3_DSP_TAP26, val);
+			/* Fall through */
+		case ASIC_REV_5720:
+			if (!tg3_phydsp_read(tp, MII_TG3_DSP_CH34TP2, &val))
+				tg3_phydsp_write(tp, MII_TG3_DSP_CH34TP2, val |
+						 MII_TG3_DSP_CH34TP2_HIBW01);
+		}
 
 		err2 = TG3_PHY_AUXCTL_SMDSP_DISABLE(tp);
 		if (!err)
