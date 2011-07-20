@@ -215,12 +215,12 @@ enum qos_ele_subtype {
 };
 
 
-typedef	enum _DIRECTION_VALUE{
+enum direction_value {
 	DIR_UP			= 0,
 	DIR_DOWN		= 1,
 	DIR_DIRECT		= 2,
 	DIR_BI_DIR		= 3,
-} DIRECTION_VALUE,*PDIRECTION_VALUE;
+};
 
 typedef	enum _ACM_METHOD{
 	eAcmWay0_SwAndHw		= 0,
