@@ -711,8 +711,12 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 
 	mutex_unlock(&vq->mutex);
 
-	if (oldubufs)
+	if (oldubufs) {
 		vhost_ubuf_put_and_wait(oldubufs);
+		mutex_lock(&vq->mutex);
+		vhost_zerocopy_signal_used(vq);
+		mutex_unlock(&vq->mutex);
+	}
 
 	if (oldsock) {
 		vhost_net_flush_vq(n, index);
