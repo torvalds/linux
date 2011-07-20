@@ -495,15 +495,25 @@ header_print_symbol(FILE *fp, struct symbol *sym, const char *value, void *arg)
 
 		switch (*value) {
 		case 'n':
-			return;
+			break;
 		case 'm':
 			suffix = "_MODULE";
 			/* fall through */
 		default:
-			value = "1";
+			fprintf(fp, "#define %s%s%s 1\n",
+			    CONFIG_, sym->name, suffix);
 		}
-		fprintf(fp, "#define %s%s%s %s\n",
-		    CONFIG_, sym->name, suffix, value);
+		/*
+		 * Generate the __enabled_CONFIG_* and
+		 * __enabled_CONFIG_*_MODULE macros for use by the
+		 * IS_{ENABLED,BUILTIN,MODULE} macros. The _MODULE variant is
+		 * generated even for booleans so that the IS_ENABLED() macro
+		 * works.
+		 */
+		fprintf(fp, "#define __enabled_" CONFIG_ "%s %d\n",
+				sym->name, (*value == 'y'));
+		fprintf(fp, "#define __enabled_" CONFIG_ "%s_MODULE %d\n",
+				sym->name, (*value == 'm'));
 		break;
 	}
 	case S_HEX: {
@@ -553,58 +563,6 @@ static struct conf_printer header_printer_cb =
 	.print_symbol = header_print_symbol,
 	.print_comment = header_print_comment,
 };
-
-/*
- * Function-style header printer
- *
- * This printer is used to generate the config_is_xxx() function-style macros
- * in `include/generated/autoconf.h' 
- */
-static void
-header_function_print_symbol(FILE *fp, struct symbol *sym, const char *value, void *arg)
-{
-	int val = 0;
-	char c;
-	char *tmp, *d;
-
-	switch (sym->type) {
-	case S_BOOLEAN:
-	case S_TRISTATE:
-		break;
-	default:
-		return;
-	}
-	if (*value == 'm')
-		val = 2;
-	else if (*value == 'y')
-		val = 1;
-
-	d = strdup(CONFIG_);
-	tmp = d;
-	while ((c = *d)) {
-		*d = tolower(c);
-		d++;
-	}
-
-	fprintf(fp, "#define %sis_", tmp);
-	free(tmp);
-
-	d = strdup(sym->name);
-	tmp = d;
-	while ((c = *d)) {
-		*d = tolower(c);
-		d++;
-	}
-	fprintf(fp, "%s%s() %d\n", tmp, (val > 1) ? "_module" : "",
-		      val ? 1 : 0);
-	free(tmp);
-}
-
-static struct conf_printer header_function_printer_cb =
-{
-	.print_symbol = header_function_print_symbol,
-};
-
 
 /*
  * Tristate printer
@@ -997,7 +955,6 @@ int conf_write_autoconf(void)
 		conf_write_symbol(tristate, sym, &tristate_printer_cb, (void *)1);
 
 		conf_write_symbol(out_h, sym, &header_printer_cb, NULL);
-		conf_write_symbol(out_h, sym, &header_function_printer_cb, NULL);
 	}
 	fclose(out);
 	fclose(tristate);
