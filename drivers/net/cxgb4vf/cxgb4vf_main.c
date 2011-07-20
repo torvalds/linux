@@ -209,18 +209,8 @@ void t4vf_os_link_changed(struct adapter *adapter, int pidx, int link_ok)
  * ======================
  */
 
-/*
- * Record our new VLAN Group and enable/disable hardware VLAN Tag extraction
- * based on whether the specified VLAN Group pointer is NULL or not.
- */
-static void cxgb4vf_vlan_rx_register(struct net_device *dev,
-				     struct vlan_group *grp)
-{
-	struct port_info *pi = netdev_priv(dev);
 
-	pi->vlan_grp = grp;
-	t4vf_set_rxmode(pi->adapter, pi->viid, -1, -1, -1, -1, grp != NULL, 0);
-}
+
 
 /*
  * Perform the MAC and PHY actions needed to enable a "port" (Virtual
@@ -233,9 +223,9 @@ static int link_start(struct net_device *dev)
 
 	/*
 	 * We do not set address filters and promiscuity here, the stack does
-	 * that step explicitly.
+	 * that step explicitly. Enable vlan accel.
 	 */
-	ret = t4vf_set_rxmode(pi->adapter, pi->viid, dev->mtu, -1, -1, -1, -1,
+	ret = t4vf_set_rxmode(pi->adapter, pi->viid, dev->mtu, -1, -1, -1, 1,
 			      true);
 	if (ret == 0) {
 		ret = t4vf_change_mac(pi->adapter, pi->viid,
@@ -1100,6 +1090,32 @@ static int cxgb4vf_change_mtu(struct net_device *dev, int new_mtu)
 	if (!ret)
 		dev->mtu = new_mtu;
 	return ret;
+}
+
+static u32 cxgb4vf_fix_features(struct net_device *dev, u32 features)
+{
+	/*
+	 * Since there is no support for separate rx/tx vlan accel
+	 * enable/disable make sure tx flag is always in same state as rx.
+	 */
+	if (features & NETIF_F_HW_VLAN_RX)
+		features |= NETIF_F_HW_VLAN_TX;
+	else
+		features &= ~NETIF_F_HW_VLAN_TX;
+
+	return features;
+}
+
+static int cxgb4vf_set_features(struct net_device *dev, u32 features)
+{
+	struct port_info *pi = netdev_priv(dev);
+	u32 changed = dev->features ^ features;
+
+	if (changed & NETIF_F_HW_VLAN_RX)
+		t4vf_set_rxmode(pi->adapter, pi->viid, -1, -1, -1, -1,
+				features & NETIF_F_HW_VLAN_TX, 0);
+
+	return 0;
 }
 
 /*
@@ -2431,7 +2447,8 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= cxgb4vf_do_ioctl,
 	.ndo_change_mtu		= cxgb4vf_change_mtu,
-	.ndo_vlan_rx_register	= cxgb4vf_vlan_rx_register,
+	.ndo_fix_features	= cxgb4vf_fix_features,
+	.ndo_set_features	= cxgb4vf_set_features,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= cxgb4vf_poll_controller,
 #endif
@@ -2600,12 +2617,11 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 
 		netdev->hw_features = NETIF_F_SG | TSO_FLAGS |
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			NETIF_F_HW_VLAN_TX | NETIF_F_RXCSUM;
+			NETIF_F_HW_VLAN_RX | NETIF_F_RXCSUM;
 		netdev->vlan_features = NETIF_F_SG | TSO_FLAGS |
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			NETIF_F_HIGHDMA;
-		netdev->features = netdev->hw_features |
-			NETIF_F_HW_VLAN_RX;
+		netdev->features = netdev->hw_features | NETIF_F_HW_VLAN_TX;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
 
