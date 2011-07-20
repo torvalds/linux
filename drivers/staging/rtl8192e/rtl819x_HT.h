@@ -464,13 +464,13 @@ enum ht_iot_rafunc {
 	HT_IOT_RAFUNC_TX_AMSDU = 0x02,
 };
 
-typedef enum _RT_HT_CAPBILITY{
+enum rt_ht_capability {
 	RT_HT_CAP_USE_TURBO_AGGR = 0x01,
 	RT_HT_CAP_USE_LONG_PREAMBLE = 0x02,
 	RT_HT_CAP_USE_AMPDU = 0x04,
 	RT_HT_CAP_USE_WOW = 0x8,
 	RT_HT_CAP_USE_SOFTAP = 0x10,
 	RT_HT_CAP_USE_92SE = 0x20,
-} RT_HT_CAPBILITY, *PRT_HT_CAPBILITY;
+};
 
 #endif

@@ -977,7 +977,7 @@ void HTInitializeHTInfo(struct rtllib_device* ieee)
 
 	pHTInfo->bCurrentRT2RTAggregation = false;
 	pHTInfo->bCurrentRT2RTLongSlotTime = false;
-	pHTInfo->RT2RT_HT_Mode = (RT_HT_CAPBILITY)0;
+	pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
 	pHTInfo->IOTPeer = 0;
 	pHTInfo->IOTAction = 0;
@@ -1003,7 +1003,7 @@ void HTInitializeBssDesc(struct bss_ht *pBssHT)
 
 	pBssHT->bdRT2RTAggregation = false;
 	pBssHT->bdRT2RTLongSlotTime = false;
-	pBssHT->RT2RT_HT_Mode = (RT_HT_CAPBILITY)0;
+	pBssHT->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 }
 
 void HTResetSelfAndSavePeerSetting(struct rtllib_device* ieee,	struct rtllib_network * pNetwork)
@@ -1034,7 +1034,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device* ieee,	struct rtllib_net
 		{
 			pHTInfo->bCurrentRT2RTAggregation = false;
 			pHTInfo->bCurrentRT2RTLongSlotTime = false;
-			pHTInfo->RT2RT_HT_Mode = (RT_HT_CAPBILITY)0;
+			pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 		}
 
 		HTIOTPeerDetermine(ieee);
@@ -1067,7 +1067,7 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device* ieee,	struct rtllib_net
 		pHTInfo->bCurrentHTSupport = false;
 		pHTInfo->bCurrentRT2RTAggregation = false;
 		pHTInfo->bCurrentRT2RTLongSlotTime = false;
-		pHTInfo->RT2RT_HT_Mode = (RT_HT_CAPBILITY)0;
+		pHTInfo->RT2RT_HT_Mode = (enum rt_ht_capability)0;
 
 		pHTInfo->IOTAction = 0;
 		pHTInfo->IOTRaFunc = 0;
