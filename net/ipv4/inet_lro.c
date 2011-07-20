@@ -523,21 +523,6 @@ void lro_receive_skb(struct net_lro_mgr *lro_mgr,
 }
 EXPORT_SYMBOL(lro_receive_skb);
 
-void lro_vlan_hwaccel_receive_skb(struct net_lro_mgr *lro_mgr,
-				  struct sk_buff *skb,
-				  struct vlan_group *vgrp,
-				  u16 vlan_tag,
-				  void *priv)
-{
-	if (__lro_proc_skb(lro_mgr, skb, vgrp, vlan_tag, priv)) {
-		if (lro_mgr->features & LRO_F_NAPI)
-			vlan_hwaccel_receive_skb(skb, vgrp, vlan_tag);
-		else
-			vlan_hwaccel_rx(skb, vgrp, vlan_tag);
-	}
-}
-EXPORT_SYMBOL(lro_vlan_hwaccel_receive_skb);
-
 void lro_receive_frags(struct net_lro_mgr *lro_mgr,
 		       struct skb_frag_struct *frags,
 		       int len, int true_size, void *priv, __wsum sum)

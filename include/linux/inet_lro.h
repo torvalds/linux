@@ -137,16 +137,6 @@ void lro_receive_skb(struct net_lro_mgr *lro_mgr,
 		     void *priv);
 
 /*
- * Processes a SKB with VLAN HW acceleration support
- */
-
-void lro_vlan_hwaccel_receive_skb(struct net_lro_mgr *lro_mgr,
-				  struct sk_buff *skb,
-				  struct vlan_group *vgrp,
-				  u16 vlan_tag,
-				  void *priv);
-
-/*
  * Processes a fragment list
  *
  * This functions aggregate fragments and generate SKBs do pass
