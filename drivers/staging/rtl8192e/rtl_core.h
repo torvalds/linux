@@ -598,7 +598,7 @@ struct r8192_priv {
 
 	struct txbbgain_struct txbbgain_table[TxBBGainTableLength];
 
-	ACM_METHOD				AcmMethod;
+	enum acm_method AcmMethod;
 
 	struct rt_firmware			*pFirmware;
 	enum rtl819x_loopback LoopbackMode;

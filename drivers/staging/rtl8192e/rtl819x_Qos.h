@@ -222,11 +222,11 @@ enum direction_value {
 	DIR_BI_DIR		= 3,
 };
 
-typedef	enum _ACM_METHOD{
+enum acm_method {
 	eAcmWay0_SwAndHw		= 0,
 	eAcmWay1_HW			= 1,
 	eAcmWay2_SW			= 2,
-} ACM_METHOD,*PACM_METHOD;
+};
 
 
 struct acm {
@@ -331,7 +331,7 @@ struct sta_qos {
 	u8				WMMParamEle[WMM_PARAM_ELEMENT_SIZE];
 
 	struct acm acm[4];
-	ACM_METHOD		AcmMethod;
+	enum acm_method AcmMethod;
 
 	struct qos_tstream StaTsArray[MAX_STA_TS_COUNT];
 	u8				DialogToken;
