@@ -50,7 +50,6 @@ struct net_lro_desc {
 	struct skb_frag_struct *next_frag;
 	struct iphdr *iph;
 	struct tcphdr *tcph;
-	struct vlan_group *vgrp;
 	__wsum  data_csum;
 	__be32 tcp_rcv_tsecr;
 	__be32 tcp_rcv_tsval;
@@ -60,7 +59,6 @@ struct net_lro_desc {
 	u16 ip_tot_len;
 	u16 tcp_saw_tstamp; 		/* timestamps enabled */
 	__be16 tcp_window;
-	u16 vlan_tag;
 	int pkt_aggr_cnt;		/* counts aggregated packets */
 	int vlan_packet;
 	int mss;
