@@ -609,11 +609,11 @@ enum ts_action {
         ACT_SCHEDULE = 3,
 };
 
-typedef enum _BA_ACTION{
+enum ba_action {
         ACT_ADDBAREQ = 0,
         ACT_ADDBARSP = 1,
         ACT_DELBA    = 2,
-} BA_ACTION, *PBA_ACTION;
+};
 
 typedef enum _InitialGainOpType{
 	IG_Backup=0,
