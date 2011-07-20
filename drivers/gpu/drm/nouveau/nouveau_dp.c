@@ -29,6 +29,136 @@
 #include "nouveau_connector.h"
 #include "nouveau_encoder.h"
 
+/******************************************************************************
+ * aux channel util functions
+ *****************************************************************************/
+#define AUX_DBG(fmt, args...) do {                                             \
+	if (nouveau_reg_debug & NOUVEAU_REG_DEBUG_AUXCH) {                     \
+		NV_PRINTK(KERN_DEBUG, dev, "AUXCH(%d): " fmt, ch, ##args);     \
+	}                                                                      \
+} while (0)
+#define AUX_ERR(fmt, args...) NV_ERROR(dev, "AUXCH(%d): " fmt, ch, ##args)
+
+static void
+auxch_fini(struct drm_device *dev, int ch)
+{
+	nv_mask(dev, 0x00e4e4 + (ch * 0x50), 0x00310000, 0x00000000);
+}
+
+static int
+auxch_init(struct drm_device *dev, int ch)
+{
+	const u32 unksel = 1; /* nfi which to use, or if it matters.. */
+	const u32 ureq = unksel ? 0x00100000 : 0x00200000;
+	const u32 urep = unksel ? 0x01000000 : 0x02000000;
+	u32 ctrl, timeout;
+
+	/* wait up to 1ms for any previous transaction to be done... */
+	timeout = 1000;
+	do {
+		ctrl = nv_rd32(dev, 0x00e4e4 + (ch * 0x50));
+		udelay(1);
+		if (!timeout--) {
+			AUX_ERR("begin idle timeout 0x%08x", ctrl);
+			return -EBUSY;
+		}
+	} while (ctrl & 0x03010000);
+
+	/* set some magic, and wait up to 1ms for it to appear */
+	nv_mask(dev, 0x00e4e4 + (ch * 0x50), 0x00300000, ureq);
+	timeout = 1000;
+	do {
+		ctrl = nv_rd32(dev, 0x00e4e4 + (ch * 0x50));
+		udelay(1);
+		if (!timeout--) {
+			AUX_ERR("magic wait 0x%08x\n", ctrl);
+			auxch_fini(dev, ch);
+			return -EBUSY;
+		}
+	} while ((ctrl & 0x03000000) != urep);
+
+	return 0;
+}
+
+static int
+auxch_tx(struct drm_device *dev, int ch, u8 type, u32 addr, u8 *data, u8 size)
+{
+	u32 ctrl, stat, timeout, retries;
+	u32 xbuf[4] = {};
+	int ret, i;
+
+	AUX_DBG("%d: 0x%08x %d\n", type, addr, size);
+
+	ret = auxch_init(dev, ch);
+	if (ret)
+		goto out;
+
+	stat = nv_rd32(dev, 0x00e4e8 + (ch * 0x50));
+	if (!(stat & 0x10000000)) {
+		AUX_DBG("sink not detected\n");
+		ret = -ENXIO;
+		goto out;
+	}
+
+	if (!(type & 1)) {
+		memcpy(xbuf, data, size);
+		for (i = 0; i < 16; i += 4) {
+			AUX_DBG("wr 0x%08x\n", xbuf[i / 4]);
+			nv_wr32(dev, 0x00e4c0 + (ch * 0x50) + i, xbuf[i / 4]);
+		}
+	}
+
+	ctrl  = nv_rd32(dev, 0x00e4e4 + (ch * 0x50));
+	ctrl &= ~0x0001f0ff;
+	ctrl |= type << 12;
+	ctrl |= size - 1;
+	nv_wr32(dev, 0x00e4e0 + (ch * 0x50), addr);
+
+	/* retry transaction a number of times on failure... */
+	ret = -EREMOTEIO;
+	for (retries = 0; retries < 32; retries++) {
+		/* reset, and delay a while if this is a retry */
+		nv_wr32(dev, 0x00e4e4 + (ch * 0x50), 0x80000000 | ctrl);
+		nv_wr32(dev, 0x00e4e4 + (ch * 0x50), 0x00000000 | ctrl);
+		if (retries)
+			udelay(400);
+
+		/* transaction request, wait up to 1ms for it to complete */
+		nv_wr32(dev, 0x00e4e4 + (ch * 0x50), 0x00010000 | ctrl);
+
+		timeout = 1000;
+		do {
+			ctrl = nv_rd32(dev, 0x00e4e4 + (ch * 0x50));
+			udelay(1);
+			if (!timeout--) {
+				AUX_ERR("tx req timeout 0x%08x\n", ctrl);
+				goto out;
+			}
+		} while (ctrl & 0x00010000);
+
+		/* read status, and check if transaction completed ok */
+		stat = nv_mask(dev, 0x00e4e8 + (ch * 0x50), 0, 0);
+		if (!(stat & 0x000f0f00)) {
+			ret = 0;
+			break;
+		}
+
+		AUX_DBG("%02d 0x%08x 0x%08x\n", retries, ctrl, stat);
+	}
+
+	if (type & 1) {
+		for (i = 0; i < 16; i += 4) {
+			xbuf[i / 4] = nv_rd32(dev, 0x00e4d0 + (ch * 0x50) + i);
+			AUX_DBG("rd 0x%08x\n", xbuf[i / 4]);
+		}
+		memcpy(data, xbuf, size);
+	}
+
+out:
+	auxch_fini(dev, ch);
+	return ret;
+}
+
 static int
 auxch_rd(struct drm_encoder *encoder, int address, uint8_t *buf, int size)
 {
@@ -480,98 +610,7 @@ int
 nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 		 uint8_t *data, int data_nr)
 {
-	struct drm_device *dev = auxch->dev;
-	uint32_t tmp, ctrl, stat = 0, data32[4] = {};
-	int ret = 0, i, index = auxch->rd;
-
-	NV_DEBUG_KMS(dev, "ch %d cmd %d addr 0x%x len %d\n", index, cmd, addr, data_nr);
-
-	tmp = nv_rd32(dev, NV50_AUXCH_CTRL(auxch->rd));
-	nv_wr32(dev, NV50_AUXCH_CTRL(auxch->rd), tmp | 0x00100000);
-	tmp = nv_rd32(dev, NV50_AUXCH_CTRL(auxch->rd));
-	if (!(tmp & 0x01000000)) {
-		NV_ERROR(dev, "expected bit 24 == 1, got 0x%08x\n", tmp);
-		ret = -EIO;
-		goto out;
-	}
-
-	for (i = 0; i < 3; i++) {
-		tmp = nv_rd32(dev, NV50_AUXCH_STAT(auxch->rd));
-		if (tmp & NV50_AUXCH_STAT_STATE_READY)
-			break;
-		udelay(100);
-	}
-
-	if (i == 3) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	if (!(cmd & 1)) {
-		memcpy(data32, data, data_nr);
-		for (i = 0; i < 4; i++) {
-			NV_DEBUG_KMS(dev, "wr %d: 0x%08x\n", i, data32[i]);
-			nv_wr32(dev, NV50_AUXCH_DATA_OUT(index, i), data32[i]);
-		}
-	}
-
-	nv_wr32(dev, NV50_AUXCH_ADDR(index), addr);
-	ctrl  = nv_rd32(dev, NV50_AUXCH_CTRL(index));
-	ctrl &= ~(NV50_AUXCH_CTRL_CMD | NV50_AUXCH_CTRL_LEN);
-	ctrl |= (cmd << NV50_AUXCH_CTRL_CMD_SHIFT);
-	ctrl |= ((data_nr - 1) << NV50_AUXCH_CTRL_LEN_SHIFT);
-
-	for (i = 0; i < 16; i++) {
-		nv_wr32(dev, NV50_AUXCH_CTRL(index), ctrl | 0x80000000);
-		nv_wr32(dev, NV50_AUXCH_CTRL(index), ctrl);
-		nv_wr32(dev, NV50_AUXCH_CTRL(index), ctrl | 0x00010000);
-		if (!nv_wait(dev, NV50_AUXCH_CTRL(index),
-			     0x00010000, 0x00000000)) {
-			NV_ERROR(dev, "expected bit 16 == 0, got 0x%08x\n",
-				 nv_rd32(dev, NV50_AUXCH_CTRL(index)));
-			ret = -EBUSY;
-			goto out;
-		}
-
-		udelay(400);
-
-		stat = nv_rd32(dev, NV50_AUXCH_STAT(index));
-		if ((stat & NV50_AUXCH_STAT_REPLY_AUX) !=
-			    NV50_AUXCH_STAT_REPLY_AUX_DEFER)
-			break;
-	}
-
-	if (i == 16) {
-		NV_ERROR(dev, "auxch DEFER too many times, bailing\n");
-		ret = -EREMOTEIO;
-		goto out;
-	}
-
-	if (cmd & 1) {
-		if ((stat & NV50_AUXCH_STAT_COUNT) != data_nr) {
-			ret = -EREMOTEIO;
-			goto out;
-		}
-
-		for (i = 0; i < 4; i++) {
-			data32[i] = nv_rd32(dev, NV50_AUXCH_DATA_IN(index, i));
-			NV_DEBUG_KMS(dev, "rd %d: 0x%08x\n", i, data32[i]);
-		}
-		memcpy(data, data32, data_nr);
-	}
-
-out:
-	tmp = nv_rd32(dev, NV50_AUXCH_CTRL(auxch->rd));
-	nv_wr32(dev, NV50_AUXCH_CTRL(auxch->rd), tmp & ~0x00100000);
-	tmp = nv_rd32(dev, NV50_AUXCH_CTRL(auxch->rd));
-	if (tmp & 0x01000000) {
-		NV_ERROR(dev, "expected bit 24 == 0, got 0x%08x\n", tmp);
-		ret = -EIO;
-	}
-
-	udelay(400);
-
-	return ret ? ret : (stat & NV50_AUXCH_STAT_REPLY);
+	return auxch_tx(auxch->dev, auxch->rd, cmd, addr, data, data_nr);
 }
 
 static int
@@ -601,19 +640,6 @@ nouveau_dp_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 			ret = nouveau_dp_auxch(auxch, cmd, msg->addr, ptr, cnt);
 			if (ret < 0)
 				return ret;
-
-			switch (ret & NV50_AUXCH_STAT_REPLY_I2C) {
-			case NV50_AUXCH_STAT_REPLY_I2C_ACK:
-				break;
-			case NV50_AUXCH_STAT_REPLY_I2C_NACK:
-				return -EREMOTEIO;
-			case NV50_AUXCH_STAT_REPLY_I2C_DEFER:
-				udelay(100);
-				continue;
-			default:
-				NV_ERROR(dev, "bad auxch reply: 0x%08x\n", ret);
-				return -EREMOTEIO;
-			}
 
 			ptr += cnt;
 			remaining -= cnt;
