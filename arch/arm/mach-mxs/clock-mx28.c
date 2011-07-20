@@ -710,11 +710,11 @@ static int clk_misc_init(void)
 
 	/* SAIF has to use frac div for functional operation */
 	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF0);
-	reg &= ~BM_CLKCTRL_SAIF0_DIV_FRAC_EN;
+	reg |= BM_CLKCTRL_SAIF0_DIV_FRAC_EN;
 	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF0);
 
 	reg = __raw_readl(CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF1);
-	reg &= ~BM_CLKCTRL_SAIF1_DIV_FRAC_EN;
+	reg |= BM_CLKCTRL_SAIF1_DIV_FRAC_EN;
 	__raw_writel(reg, CLKCTRL_BASE_ADDR + HW_CLKCTRL_SAIF1);
 
 	/*
