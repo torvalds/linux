@@ -119,9 +119,9 @@ struct iio_chan_spec {
 		u8	storagebits;
 		u8	shift;
 	} scan_type;
-	const long		info_mask;
-	const long		event_mask;
-	const char		*extend_name;
+	long			info_mask;
+	long			event_mask;
+	char			*extend_name;
 	unsigned		processed_val:1;
 	unsigned		modified:1;
 	unsigned		indexed:1;
