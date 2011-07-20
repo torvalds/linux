@@ -1291,6 +1291,11 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_grlib_driver
 #endif
 
+#ifdef CONFIG_USB_PXA168_EHCI
+#include "ehci-pxa168.c"
+#define PLATFORM_DRIVER		ehci_pxa168_driver
+#endif
+
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \
     !defined(PS3_SYSTEM_BUS_DRIVER) && !defined(OF_PLATFORM_DRIVER) && \
     !defined(XILINX_OF_PLATFORM_DRIVER)
