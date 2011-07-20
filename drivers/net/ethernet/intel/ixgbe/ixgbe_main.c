@@ -6762,7 +6762,8 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 	}
 
 	if ((adapter->flags & IXGBE_FLAG_DCB_ENABLED) &&
-	    skb->priority != TC_PRIO_CONTROL) {
+	    ((tx_flags & (IXGBE_TX_FLAGS_HW_VLAN | IXGBE_TX_FLAGS_SW_VLAN)) ||
+	     (skb->priority != TC_PRIO_CONTROL))) {
 		tx_flags &= ~IXGBE_TX_FLAGS_VLAN_PRIO_MASK;
 		tx_flags |= tx_ring->dcb_tc <<
 			    IXGBE_TX_FLAGS_VLAN_PRIO_SHIFT;
