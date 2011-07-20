@@ -186,8 +186,7 @@ enum dm_dig_dbg {
 	DIG_DBG_MAX
 };
 
-typedef enum _dm_dig_connect_e
-{
+enum dm_dig_connect {
 	DIG_STA_DISCONNECT = 0,
 	DIG_STA_CONNECT = 1,
 	DIG_STA_BEFORE_CONNECT = 2,
@@ -195,7 +194,7 @@ typedef enum _dm_dig_connect_e
 	DIG_AP_CONNECT = 4,
 	DIG_AP_ADD_STATION = 5,
 	DIG_CONNECT_MAX
-} dm_dig_connect_e;
+};
 
 typedef enum _dm_dig_pd_th_e
 {
