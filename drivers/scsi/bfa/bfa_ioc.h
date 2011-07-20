@@ -327,6 +327,7 @@ struct bfa_ioc_s {
 	enum bfa_mode_s		port_mode;
 	u8			ad_cap_bm;	/* adapter cap bit mask */
 	u8			port_mode_cfg;	/* config port mode */
+	int			ioc_aen_seq;
 };
 
 struct bfa_ioc_hwif_s {
@@ -803,6 +804,7 @@ void bfa_ioc_fwver_get(struct bfa_ioc_s *ioc,
 			struct bfi_ioc_image_hdr_s *fwhdr);
 bfa_boolean_t bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc,
 			struct bfi_ioc_image_hdr_s *fwhdr);
+void bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event);
 bfa_status_t bfa_ioc_fw_stats_get(struct bfa_ioc_s *ioc, void *stats);
 bfa_status_t bfa_ioc_fw_stats_clear(struct bfa_ioc_s *ioc);
 

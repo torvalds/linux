@@ -16,6 +16,7 @@
  */
 
 #include "bfad_drv.h"
+#include "bfad_im.h"
 #include "bfa_ioc.h"
 #include "bfi_reg.h"
 #include "bfa_defs.h"
@@ -458,6 +459,7 @@ bfa_ioc_sm_op_entry(struct bfa_ioc_s *ioc)
 	ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_OK);
 	bfa_ioc_event_notify(ioc, BFA_IOC_E_ENABLED);
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level, "IOC enabled\n");
+	bfa_ioc_aen_post(ioc, BFA_IOC_AEN_ENABLE);
 }
 
 static void
@@ -502,6 +504,7 @@ bfa_ioc_sm_disabling_entry(struct bfa_ioc_s *ioc)
 	struct bfad_s *bfad = (struct bfad_s *)ioc->bfa->bfad;
 	bfa_fsm_send_event(&ioc->iocpf, IOCPF_E_DISABLE);
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level, "IOC disabled\n");
+	bfa_ioc_aen_post(ioc, BFA_IOC_AEN_DISABLE);
 }
 
 /*
@@ -1966,6 +1969,7 @@ bfa_ioc_fail_notify(struct bfa_ioc_s *ioc)
 
 	BFA_LOG(KERN_CRIT, bfad, bfa_log_level,
 		"Heart Beat of IOC has failed\n");
+	bfa_ioc_aen_post(ioc, BFA_IOC_AEN_HBFAIL);
 
 }
 
@@ -1980,6 +1984,7 @@ bfa_ioc_pf_fwmismatch(struct bfa_ioc_s *ioc)
 	BFA_LOG(KERN_WARNING, bfad, bfa_log_level,
 		"Running firmware version is incompatible "
 		"with the driver version\n");
+	bfa_ioc_aen_post(ioc, BFA_IOC_AEN_FWMISMATCH);
 }
 
 bfa_status_t
@@ -2679,6 +2684,43 @@ bfa_ioc_get_mfg_mac(struct bfa_ioc_s *ioc)
 }
 
 /*
+ * Send AEN notification
+ */
+void
+bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event)
+{
+	struct bfad_s *bfad = (struct bfad_s *)ioc->bfa->bfad;
+	struct bfa_aen_entry_s	*aen_entry;
+	enum bfa_ioc_type_e ioc_type;
+
+	bfad_get_aen_entry(bfad, aen_entry);
+	if (!aen_entry)
+		return;
+
+	ioc_type = bfa_ioc_get_type(ioc);
+	switch (ioc_type) {
+	case BFA_IOC_TYPE_FC:
+		aen_entry->aen_data.ioc.pwwn = ioc->attr->pwwn;
+		break;
+	case BFA_IOC_TYPE_FCoE:
+		aen_entry->aen_data.ioc.pwwn = ioc->attr->pwwn;
+		aen_entry->aen_data.ioc.mac = bfa_ioc_get_mac(ioc);
+		break;
+	case BFA_IOC_TYPE_LL:
+		aen_entry->aen_data.ioc.mac = bfa_ioc_get_mac(ioc);
+		break;
+	default:
+		WARN_ON(ioc_type != BFA_IOC_TYPE_FC);
+		break;
+	}
+
+	/* Send the AEN notification */
+	aen_entry->aen_data.ioc.ioc_type = ioc_type;
+	bfad_im_post_vendor_event(aen_entry, bfad, ++ioc->ioc_aen_seq,
+				  BFA_AEN_CAT_IOC, event);
+}
+
+/*
  * Retrieve saved firmware trace from a prior IOC failure.
  */
 bfa_status_t
@@ -2879,6 +2921,10 @@ bfa_ioc_check_attr_wwns(struct bfa_ioc_s *ioc)
 {
 	if (bfa_ioc_get_type(ioc) == BFA_IOC_TYPE_LL)
 		return;
+	if (ioc->attr->nwwn == 0)
+		bfa_ioc_aen_post(ioc, BFA_IOC_AEN_INVALID_NWWN);
+	if (ioc->attr->pwwn == 0)
+		bfa_ioc_aen_post(ioc, BFA_IOC_AEN_INVALID_PWWN);
 }
 
 /*
@@ -3443,6 +3489,54 @@ bfa_sfp_notify(void *sfp_arg, enum bfa_ioc_event_e event)
 }
 
 /*
+ * SFP's State Change Notification post to AEN
+ */
+static void
+bfa_sfp_scn_aen_post(struct bfa_sfp_s *sfp, struct bfi_sfp_scn_s *rsp)
+{
+	struct bfad_s *bfad = (struct bfad_s *)sfp->ioc->bfa->bfad;
+	struct bfa_aen_entry_s  *aen_entry;
+	enum bfa_port_aen_event aen_evt = 0;
+
+	bfa_trc(sfp, (((u64)rsp->pomlvl) << 16) | (((u64)rsp->sfpid) << 8) |
+		      ((u64)rsp->event));
+
+	bfad_get_aen_entry(bfad, aen_entry);
+	if (!aen_entry)
+		return;
+
+	aen_entry->aen_data.port.ioc_type = bfa_ioc_get_type(sfp->ioc);
+	aen_entry->aen_data.port.pwwn = sfp->ioc->attr->pwwn;
+	aen_entry->aen_data.port.mac = bfa_ioc_get_mac(sfp->ioc);
+
+	switch (rsp->event) {
+	case BFA_SFP_SCN_INSERTED:
+		aen_evt = BFA_PORT_AEN_SFP_INSERT;
+		break;
+	case BFA_SFP_SCN_REMOVED:
+		aen_evt = BFA_PORT_AEN_SFP_REMOVE;
+		break;
+	case BFA_SFP_SCN_FAILED:
+		aen_evt = BFA_PORT_AEN_SFP_ACCESS_ERROR;
+		break;
+	case BFA_SFP_SCN_UNSUPPORT:
+		aen_evt = BFA_PORT_AEN_SFP_UNSUPPORT;
+		break;
+	case BFA_SFP_SCN_POM:
+		aen_evt = BFA_PORT_AEN_SFP_POM;
+		aen_entry->aen_data.port.level = rsp->pomlvl;
+		break;
+	default:
+		bfa_trc(sfp, rsp->event);
+		WARN_ON(1);
+	}
+
+	/* Send the AEN notification */
+	bfad_im_post_vendor_event(aen_entry, bfad, ++sfp->ioc->ioc_aen_seq,
+				  BFA_AEN_CAT_PORT, aen_evt);
+}
+
+/*
  *	SFP get data send
  */
 static void
@@ -3479,6 +3573,50 @@ bfa_sfp_getdata(struct bfa_sfp_s *sfp, enum bfi_sfp_mem_e memtype)
 	bfa_alen_set(&req->alen, sizeof(struct sfp_mem_s), sfp->dbuf_pa);
 
 	bfa_sfp_getdata_send(sfp);
+}
+
+/*
+ *	SFP scn handler
+ */
+static void
+bfa_sfp_scn(struct bfa_sfp_s *sfp, struct bfi_mbmsg_s *msg)
+{
+	struct bfi_sfp_scn_s *rsp = (struct bfi_sfp_scn_s *) msg;
+
+	switch (rsp->event) {
+	case BFA_SFP_SCN_INSERTED:
+		sfp->state = BFA_SFP_STATE_INSERTED;
+		sfp->data_valid = 0;
+		bfa_sfp_scn_aen_post(sfp, rsp);
+		break;
+	case BFA_SFP_SCN_REMOVED:
+		sfp->state = BFA_SFP_STATE_REMOVED;
+		sfp->data_valid = 0;
+		bfa_sfp_scn_aen_post(sfp, rsp);
+		 break;
+	case BFA_SFP_SCN_FAILED:
+		sfp->state = BFA_SFP_STATE_FAILED;
+		sfp->data_valid = 0;
+		bfa_sfp_scn_aen_post(sfp, rsp);
+		break;
+	case BFA_SFP_SCN_UNSUPPORT:
+		sfp->state = BFA_SFP_STATE_UNSUPPORT;
+		bfa_sfp_scn_aen_post(sfp, rsp);
+		if (!sfp->lock)
+			bfa_sfp_getdata(sfp, BFI_SFP_MEM_ALL);
+		break;
+	case BFA_SFP_SCN_POM:
+		bfa_sfp_scn_aen_post(sfp, rsp);
+		break;
+	case BFA_SFP_SCN_VALID:
+		sfp->state = BFA_SFP_STATE_VALID;
+		if (!sfp->lock)
+			bfa_sfp_getdata(sfp, BFI_SFP_MEM_ALL);
+		break;
+	default:
+		bfa_trc(sfp, rsp->event);
+		WARN_ON(1);
+	}
 }
 
 /*
@@ -3645,7 +3783,7 @@ bfa_sfp_intr(void *sfparg, struct bfi_mbmsg_s *msg)
 		break;
 
 	case BFI_SFP_I2H_SCN:
-		bfa_trc(sfp, msg->mh.msg_id);
+		bfa_sfp_scn(sfp, msg);
 		break;
 
 	default:
@@ -3838,6 +3976,26 @@ bfa_sfp_speed(struct bfa_sfp_s *sfp, enum bfa_port_speed portspeed,
 	BFA_ROUNDUP(0x010000 + sizeof(struct bfa_mfg_block_s), BFA_FLASH_SEG_SZ)
 
 static void
+bfa_flash_aen_audit_post(struct bfa_ioc_s *ioc, enum bfa_audit_aen_event event,
+			int inst, int type)
+{
+	struct bfad_s *bfad = (struct bfad_s *)ioc->bfa->bfad;
+	struct bfa_aen_entry_s  *aen_entry;
+
+	bfad_get_aen_entry(bfad, aen_entry);
+	if (!aen_entry)
+		return;
+
+	aen_entry->aen_data.audit.pwwn = ioc->attr->pwwn;
+	aen_entry->aen_data.audit.partition_inst = inst;
+	aen_entry->aen_data.audit.partition_type = type;
+
+	/* Send the AEN notification */
+	bfad_im_post_vendor_event(aen_entry, bfad, ++ioc->ioc_aen_seq,
+				  BFA_AEN_CAT_AUDIT, event);
+}
+
+static void
 bfa_flash_cb(struct bfa_flash_s *flash)
 {
 	flash->op_busy = 0;
@@ -3978,6 +4136,7 @@ bfa_flash_intr(void *flasharg, struct bfi_mbmsg_s *msg)
 		struct bfi_flash_erase_rsp_s *erase;
 		struct bfi_flash_write_rsp_s *write;
 		struct bfi_flash_read_rsp_s *read;
+		struct bfi_flash_event_s *event;
 		struct bfi_mbmsg_s   *msg;
 	} m;
 
@@ -4061,8 +4220,19 @@ bfa_flash_intr(void *flasharg, struct bfi_mbmsg_s *msg)
 		}
 		break;
 	case BFI_FLASH_I2H_BOOT_VER_RSP:
+		break;
 	case BFI_FLASH_I2H_EVENT:
-		bfa_trc(flash, msg->mh.msg_id);
+		status = be32_to_cpu(m.event->status);
+		bfa_trc(flash, status);
+		if (status == BFA_STATUS_BAD_FWCFG)
+			bfa_ioc_aen_post(flash->ioc, BFA_IOC_AEN_FWCFG_ERROR);
+		else if (status == BFA_STATUS_INVALID_VENDOR) {
+			u32 param;
+			param = be32_to_cpu(m.event->param);
+			bfa_trc(flash, param);
+			bfa_ioc_aen_post(flash->ioc,
+				BFA_IOC_AEN_INVALID_VENDOR);
+		}
 		break;
 
 	default:
@@ -4204,6 +4374,8 @@ bfa_flash_erase_part(struct bfa_flash_s *flash, enum bfa_flash_part_type type,
 	flash->instance = instance;
 
 	bfa_flash_erase_send(flash);
+	bfa_flash_aen_audit_post(flash->ioc, BFA_AUDIT_AEN_FLASH_ERASE,
+				instance, type);
 	return BFA_STATUS_OK;
 }
 

@@ -16,6 +16,7 @@
  */
 
 #include "bfad_drv.h"
+#include "bfad_im.h"
 #include "bfa_fcs.h"
 #include "bfa_fcbuild.h"
 #include "bfa_fc.h"
@@ -298,6 +299,31 @@ bfa_fcs_lport_sm_deleting(
 /*
  *  fcs_port_pvt
  */
+
+/*
+ * Send AEN notification
+ */
+static void
+bfa_fcs_lport_aen_post(struct bfa_fcs_lport_s *port,
+			enum bfa_lport_aen_event event)
+{
+	struct bfad_s *bfad = (struct bfad_s *)port->fabric->fcs->bfad;
+	struct bfa_aen_entry_s  *aen_entry;
+
+	bfad_get_aen_entry(bfad, aen_entry);
+	if (!aen_entry)
+		return;
+
+	aen_entry->aen_data.lport.vf_id = port->fabric->vf_id;
+	aen_entry->aen_data.lport.roles = port->port_cfg.roles;
+	aen_entry->aen_data.lport.ppwwn = bfa_fcs_lport_get_pwwn(
+					bfa_fcs_get_base_port(port->fcs));
+	aen_entry->aen_data.lport.lpwwn = bfa_fcs_lport_get_pwwn(port);
+
+	/* Send the AEN notification */
+	bfad_im_post_vendor_event(aen_entry, bfad, ++port->fcs->fcs_aen_seq,
+				  BFA_AEN_CAT_LPORT, event);
+}
 
 /*
  * Send a LS reject
@@ -593,6 +619,7 @@ bfa_fcs_lport_online_actions(struct bfa_fcs_lport_s *port)
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"Logical port online: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
+	bfa_fcs_lport_aen_post(port, BFA_LPORT_AEN_ONLINE);
 
 	bfad->bfad_flags |= BFAD_PORT_ONLINE;
 }
@@ -611,14 +638,17 @@ bfa_fcs_lport_offline_actions(struct bfa_fcs_lport_s *port)
 
 	wwn2str(lpwwn_buf, bfa_fcs_lport_get_pwwn(port));
 	if (bfa_sm_cmp_state(port->fabric,
-			bfa_fcs_fabric_sm_online) == BFA_TRUE)
+			bfa_fcs_fabric_sm_online) == BFA_TRUE) {
 		BFA_LOG(KERN_ERR, bfad, bfa_log_level,
 		"Logical port lost fabric connectivity: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
-	else
+		bfa_fcs_lport_aen_post(port, BFA_LPORT_AEN_DISCONNECT);
+	} else {
 		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"Logical port taken offline: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
+		bfa_fcs_lport_aen_post(port, BFA_LPORT_AEN_OFFLINE);
+	}
 
 	list_for_each_safe(qe, qen, &port->rport_q) {
 		rport = (struct bfa_fcs_rport_s *) qe;
@@ -676,6 +706,7 @@ bfa_fcs_lport_deleted(struct bfa_fcs_lport_s *port)
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"Logical port deleted: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
+	bfa_fcs_lport_aen_post(port, BFA_LPORT_AEN_DELETE);
 
 	/* Base port will be deleted by the OS driver */
 	if (port->vport) {
@@ -973,6 +1004,7 @@ bfa_fcs_lport_init(struct bfa_fcs_lport_s *lport,
 	BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 		"New logical port created: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
+	bfa_fcs_lport_aen_post(lport, BFA_LPORT_AEN_NEW);
 
 	bfa_sm_set_state(lport, bfa_fcs_lport_sm_uninit);
 	bfa_sm_send_event(lport, BFA_FCS_PORT_SM_CREATE);
@@ -5559,6 +5591,31 @@ bfa_fcs_vport_sm_logo(struct bfa_fcs_vport_s *vport,
  *  fcs_vport_private FCS virtual port private functions
  */
 /*
+ * Send AEN notification
+ */
+static void
+bfa_fcs_vport_aen_post(struct bfa_fcs_lport_s *port,
+		       enum bfa_lport_aen_event event)
+{
+	struct bfad_s *bfad = (struct bfad_s *)port->fabric->fcs->bfad;
+	struct bfa_aen_entry_s  *aen_entry;
+
+	bfad_get_aen_entry(bfad, aen_entry);
+	if (!aen_entry)
+		return;
+
+	aen_entry->aen_data.lport.vf_id = port->fabric->vf_id;
+	aen_entry->aen_data.lport.roles = port->port_cfg.roles;
+	aen_entry->aen_data.lport.ppwwn = bfa_fcs_lport_get_pwwn(
+					bfa_fcs_get_base_port(port->fcs));
+	aen_entry->aen_data.lport.lpwwn = bfa_fcs_lport_get_pwwn(port);
+
+	/* Send the AEN notification */
+	bfad_im_post_vendor_event(aen_entry, bfad, ++port->fcs->fcs_aen_seq,
+				  BFA_AEN_CAT_LPORT, event);
+}
+
+/*
  * This routine will be called to send a FDISC command.
  */
 static void
@@ -5585,8 +5642,11 @@ bfa_fcs_vport_fdisc_rejected(struct bfa_fcs_vport_s *vport)
 	case FC_LS_RJT_EXP_INVALID_NPORT_ID: /* by Cisco */
 		if (vport->fdisc_retries < BFA_FCS_VPORT_MAX_RETRIES)
 			bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_ERROR);
-		else
+		else {
+			bfa_fcs_vport_aen_post(&vport->lport,
+					BFA_LPORT_AEN_NPIV_DUP_WWN);
 			bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_DUP_WWN);
+		}
 		break;
 
 	case FC_LS_RJT_EXP_INSUFF_RES:
@@ -5596,11 +5656,17 @@ bfa_fcs_vport_fdisc_rejected(struct bfa_fcs_vport_s *vport)
 		 */
 		if (vport->fdisc_retries < BFA_FCS_VPORT_MAX_RETRIES)
 			bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_ERROR);
-		else
+		else {
+			bfa_fcs_vport_aen_post(&vport->lport,
+					BFA_LPORT_AEN_NPIV_FABRIC_MAX);
 			bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_FAILED);
+		}
 		break;
 
 	default:
+		if (vport->fdisc_retries == 0)
+			bfa_fcs_vport_aen_post(&vport->lport,
+					BFA_LPORT_AEN_NPIV_UNKNOWN);
 		bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_ERROR);
 	}
 }

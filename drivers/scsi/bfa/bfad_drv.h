@@ -224,6 +224,10 @@ struct bfad_s {
 	char *regdata;
 	u32 reglen;
 	struct dentry *bfad_dentry_files[5];
+	struct list_head	free_aen_q;
+	struct list_head	active_aen_q;
+	struct bfa_aen_entry_s	aen_list[BFA_AEN_MAX_ENTRY];
+	spinlock_t		bfad_aen_spinlock;
 };
 
 /* BFAD state machine events */

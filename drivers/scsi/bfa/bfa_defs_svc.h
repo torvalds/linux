@@ -1228,4 +1228,52 @@ struct bfa_cee_stats_s {
 
 #pragma pack()
 
+/*
+ *			AEN related definitions
+ */
+#define BFAD_NL_VENDOR_ID (((u64)0x01 << SCSI_NL_VID_TYPE_SHIFT) \
+			   | BFA_PCI_VENDOR_ID_BROCADE)
+
+/* BFA remote port events */
+enum bfa_rport_aen_event {
+	BFA_RPORT_AEN_ONLINE     = 1,   /* RPort online event */
+	BFA_RPORT_AEN_OFFLINE    = 2,   /* RPort offline event */
+	BFA_RPORT_AEN_DISCONNECT = 3,   /* RPort disconnect event */
+	BFA_RPORT_AEN_QOS_PRIO   = 4,   /* QOS priority change event */
+	BFA_RPORT_AEN_QOS_FLOWID = 5,   /* QOS flow Id change event */
+};
+
+struct bfa_rport_aen_data_s {
+	u16             vf_id;  /* vf_id of this logical port */
+	u16             rsvd[3];
+	wwn_t           ppwwn;  /* WWN of its physical port */
+	wwn_t           lpwwn;  /* WWN of this logical port */
+	wwn_t           rpwwn;  /* WWN of this remote port */
+	union {
+		struct bfa_rport_qos_attr_s qos;
+	} priv;
+};
+
+union bfa_aen_data_u {
+	struct bfa_adapter_aen_data_s	adapter;
+	struct bfa_port_aen_data_s	port;
+	struct bfa_lport_aen_data_s	lport;
+	struct bfa_rport_aen_data_s	rport;
+	struct bfa_itnim_aen_data_s	itnim;
+	struct bfa_audit_aen_data_s	audit;
+	struct bfa_ioc_aen_data_s	ioc;
+};
+
+#define BFA_AEN_MAX_ENTRY	512
+
+struct bfa_aen_entry_s {
+	struct list_head	qe;
+	enum bfa_aen_category   aen_category;
+	u32                     aen_type;
+	union bfa_aen_data_u    aen_data;
+	struct timeval          aen_tv;
+	u32                     seq_num;
+	u32                     bfad_num;
+};
+
 #endif /* __BFA_DEFS_SVC_H__ */

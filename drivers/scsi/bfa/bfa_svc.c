@@ -16,6 +16,7 @@
  */
 
 #include "bfad_drv.h"
+#include "bfad_im.h"
 #include "bfa_plog.h"
 #include "bfa_cs.h"
 #include "bfa_modules.h"
@@ -2007,6 +2008,24 @@ bfa_lps_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	}
 }
 
+static void
+bfa_fcport_aen_post(struct bfa_fcport_s *fcport, enum bfa_port_aen_event event)
+{
+	struct bfad_s *bfad = (struct bfad_s *)fcport->bfa->bfad;
+	struct bfa_aen_entry_s  *aen_entry;
+
+	bfad_get_aen_entry(bfad, aen_entry);
+	if (!aen_entry)
+		return;
+
+	aen_entry->aen_data.port.ioc_type = bfa_get_type(fcport->bfa);
+	aen_entry->aen_data.port.pwwn = fcport->pwwn;
+
+	/* Send the AEN notification */
+	bfad_im_post_vendor_event(aen_entry, bfad, ++fcport->bfa->bfa_aen_seq,
+				  BFA_AEN_CAT_PORT, event);
+}
+
 /*
  * FC PORT state machine functions
  */
@@ -2095,6 +2114,7 @@ bfa_fcport_sm_enabling_qwait(struct bfa_fcport_s *fcport,
 		wwn2str(pwwn_buf, fcport->pwwn);
 		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 			"Base port disabled: WWN = %s\n", pwwn_buf);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISABLE);
 		break;
 
 	case BFA_FCPORT_SM_LINKUP:
@@ -2155,6 +2175,7 @@ bfa_fcport_sm_enabling(struct bfa_fcport_s *fcport,
 		wwn2str(pwwn_buf, fcport->pwwn);
 		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 			"Base port disabled: WWN = %s\n", pwwn_buf);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISABLE);
 		break;
 
 	case BFA_FCPORT_SM_STOP:
@@ -2208,6 +2229,7 @@ bfa_fcport_sm_linkdown(struct bfa_fcport_s *fcport,
 		wwn2str(pwwn_buf, fcport->pwwn);
 		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 			"Base port online: WWN = %s\n", pwwn_buf);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_ONLINE);
 		break;
 
 	case BFA_FCPORT_SM_LINKDOWN:
@@ -2234,6 +2256,7 @@ bfa_fcport_sm_linkdown(struct bfa_fcport_s *fcport,
 		wwn2str(pwwn_buf, fcport->pwwn);
 		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 			"Base port disabled: WWN = %s\n", pwwn_buf);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISABLE);
 		break;
 
 	case BFA_FCPORT_SM_STOP:
@@ -2279,8 +2302,10 @@ bfa_fcport_sm_linkup(struct bfa_fcport_s *fcport,
 		wwn2str(pwwn_buf, fcport->pwwn);
 		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 			"Base port offline: WWN = %s\n", pwwn_buf);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_OFFLINE);
 		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 			"Base port disabled: WWN = %s\n", pwwn_buf);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISABLE);
 		break;
 
 	case BFA_FCPORT_SM_LINKDOWN:
@@ -2290,26 +2315,32 @@ bfa_fcport_sm_linkup(struct bfa_fcport_s *fcport,
 		bfa_plog_str(fcport->bfa->plog, BFA_PL_MID_HAL,
 				BFA_PL_EID_PORT_ST_CHANGE, 0, "Port Linkdown");
 		wwn2str(pwwn_buf, fcport->pwwn);
-		if (BFA_PORT_IS_DISABLED(fcport->bfa))
+		if (BFA_PORT_IS_DISABLED(fcport->bfa)) {
 			BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 				"Base port offline: WWN = %s\n", pwwn_buf);
-		else
+			bfa_fcport_aen_post(fcport, BFA_PORT_AEN_OFFLINE);
+		} else {
 			BFA_LOG(KERN_ERR, bfad, bfa_log_level,
 				"Base port (WWN = %s) "
 				"lost fabric connectivity\n", pwwn_buf);
+			bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISCONNECT);
+		}
 		break;
 
 	case BFA_FCPORT_SM_STOP:
 		bfa_sm_set_state(fcport, bfa_fcport_sm_stopped);
 		bfa_fcport_reset_linkinfo(fcport);
 		wwn2str(pwwn_buf, fcport->pwwn);
-		if (BFA_PORT_IS_DISABLED(fcport->bfa))
+		if (BFA_PORT_IS_DISABLED(fcport->bfa)) {
 			BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 				"Base port offline: WWN = %s\n", pwwn_buf);
-		else
+			bfa_fcport_aen_post(fcport, BFA_PORT_AEN_OFFLINE);
+		} else {
 			BFA_LOG(KERN_ERR, bfad, bfa_log_level,
 				"Base port (WWN = %s) "
 				"lost fabric connectivity\n", pwwn_buf);
+			bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISCONNECT);
+		}
 		break;
 
 	case BFA_FCPORT_SM_HWFAIL:
@@ -2317,13 +2348,16 @@ bfa_fcport_sm_linkup(struct bfa_fcport_s *fcport,
 		bfa_fcport_reset_linkinfo(fcport);
 		bfa_fcport_scn(fcport, BFA_PORT_LINKDOWN, BFA_FALSE);
 		wwn2str(pwwn_buf, fcport->pwwn);
-		if (BFA_PORT_IS_DISABLED(fcport->bfa))
+		if (BFA_PORT_IS_DISABLED(fcport->bfa)) {
 			BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 				"Base port offline: WWN = %s\n", pwwn_buf);
-		else
+			bfa_fcport_aen_post(fcport, BFA_PORT_AEN_OFFLINE);
+		} else {
 			BFA_LOG(KERN_ERR, bfad, bfa_log_level,
 				"Base port (WWN = %s) "
 				"lost fabric connectivity\n", pwwn_buf);
+			bfa_fcport_aen_post(fcport, BFA_PORT_AEN_DISCONNECT);
+		}
 		break;
 
 	default:
@@ -2454,6 +2488,7 @@ bfa_fcport_sm_disabling(struct bfa_fcport_s *fcport,
 		wwn2str(pwwn_buf, fcport->pwwn);
 		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 			"Base port enabled: WWN = %s\n", pwwn_buf);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_ENABLE);
 		break;
 
 	case BFA_FCPORT_SM_STOP:
@@ -2508,6 +2543,7 @@ bfa_fcport_sm_disabled(struct bfa_fcport_s *fcport,
 		wwn2str(pwwn_buf, fcport->pwwn);
 		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 			"Base port enabled: WWN = %s\n", pwwn_buf);
+		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_ENABLE);
 		break;
 
 	case BFA_FCPORT_SM_DISABLE:

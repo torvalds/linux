@@ -90,6 +90,7 @@ bfad_iocmd_ioc_get_info(struct bfad_s *bfad, void *cmd)
 	bfa_get_adapter_serial_num(&bfad->bfa, iocmd->serialnum);
 	iocmd->factorynwwn = pattr.factorynwwn;
 	iocmd->factorypwwn = pattr.factorypwwn;
+	iocmd->bfad_num = bfad->inst_no;
 	im_port = bfad->pport.im_port;
 	iocmd->host = im_port->shost->host_no;
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);

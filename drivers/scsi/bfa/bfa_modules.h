@@ -119,6 +119,7 @@ struct bfa_s {
 	struct list_head	reqq_waitq[BFI_IOC_MAX_CQS];
 	bfa_boolean_t		fcs;		/*  FCS is attached to BFA */
 	struct bfa_msix_s	msix;
+	int			bfa_aen_seq;
 };
 
 extern bfa_boolean_t bfa_auto_recover;
