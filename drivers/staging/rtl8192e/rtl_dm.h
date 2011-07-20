@@ -134,13 +134,12 @@ enum dm_dig_sta {
 };
 
 
-typedef enum _dm_ratr_sta_e
-{
+enum dm_ratr_sta {
 	DM_RATR_STA_HIGH = 0,
 	DM_RATR_STA_MIDDLE = 1,
 	DM_RATR_STA_LOW = 2,
 	DM_RATR_STA_MAX
-} dm_ratr_sta_e;
+};
 
 typedef enum _dm_dig_op_e
 {
