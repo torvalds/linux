@@ -594,6 +594,7 @@ struct b43_dma {
 	struct b43_dmaring *rx_ring;
 
 	u32 translation; /* Routing bits */
+	bool parity; /* Check for parity */
 };
 
 struct b43_pio_txqueue;

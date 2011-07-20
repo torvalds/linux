@@ -659,6 +659,7 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 	u32 value;
 	u32 addrext;
 	u32 trans = ring->dev->dma.translation;
+	bool parity = ring->dev->dma.parity;
 
 	if (ring->tx) {
 		if (ring->type == B43_DMA_64BIT) {
@@ -669,6 +670,8 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			value = B43_DMA64_TXENABLE;
 			value |= (addrext << B43_DMA64_TXADDREXT_SHIFT)
 			    & B43_DMA64_TXADDREXT_MASK;
+			if (!parity)
+				value |= B43_DMA64_TXPARITYDISABLE;
 			b43_dma_write(ring, B43_DMA64_TXCTL, value);
 			b43_dma_write(ring, B43_DMA64_TXRINGLO,
 				      (ringbase & 0xFFFFFFFF));
@@ -684,6 +687,8 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			value = B43_DMA32_TXENABLE;
 			value |= (addrext << B43_DMA32_TXADDREXT_SHIFT)
 			    & B43_DMA32_TXADDREXT_MASK;
+			if (!parity)
+				value |= B43_DMA32_TXPARITYDISABLE;
 			b43_dma_write(ring, B43_DMA32_TXCTL, value);
 			b43_dma_write(ring, B43_DMA32_TXRING,
 				      (ringbase & ~SSB_DMA_TRANSLATION_MASK)
@@ -702,6 +707,8 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			value |= B43_DMA64_RXENABLE;
 			value |= (addrext << B43_DMA64_RXADDREXT_SHIFT)
 			    & B43_DMA64_RXADDREXT_MASK;
+			if (!parity)
+				value |= B43_DMA64_RXPARITYDISABLE;
 			b43_dma_write(ring, B43_DMA64_RXCTL, value);
 			b43_dma_write(ring, B43_DMA64_RXRINGLO,
 				      (ringbase & 0xFFFFFFFF));
@@ -720,6 +727,8 @@ static int dmacontroller_setup(struct b43_dmaring *ring)
 			value |= B43_DMA32_RXENABLE;
 			value |= (addrext << B43_DMA32_RXADDREXT_SHIFT)
 			    & B43_DMA32_RXADDREXT_MASK;
+			if (!parity)
+				value |= B43_DMA32_RXPARITYDISABLE;
 			b43_dma_write(ring, B43_DMA32_RXCTL, value);
 			b43_dma_write(ring, B43_DMA32_RXRING,
 				      (ringbase & ~SSB_DMA_TRANSLATION_MASK)
@@ -1063,6 +1072,13 @@ int b43_dma_init(struct b43_wldev *dev)
 		break;
 #endif
 	}
+
+	dma->parity = true;
+#ifdef CONFIG_B43_BCMA
+	/* TODO: find out which SSB devices need disabling parity */
+	if (dev->dev->bus_type == B43_BUS_BCMA)
+		dma->parity = false;
+#endif
 
 	err = -ENOMEM;
 	/* setup TX DMA channels. */
