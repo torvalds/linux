@@ -1812,12 +1812,12 @@ enum ips_callback_function {
 	IPS_CALLBACK_JOIN_REQUEST = 2,
 };
 
-typedef enum _RT_JOIN_ACTION{
+enum rt_join_action {
 	RT_JOIN_INFRA   = 1,
 	RT_JOIN_IBSS  = 2,
 	RT_START_IBSS = 3,
 	RT_NO_ACTION  = 4,
-} RT_JOIN_ACTION;
+};
 
 struct ibss_parms {
 	u16   atimWin;
@@ -1866,7 +1866,7 @@ struct rt_pwr_save_ctrl {
 	enum ips_callback_function ReturnPoint;
 
 	bool				bTmpBssDesc;
-	RT_JOIN_ACTION		tmpJoinAction;
+	enum rt_join_action tmpJoinAction;
 	struct rtllib_network tmpBssDesc;
 
 	bool				bTmpScanOnly;
