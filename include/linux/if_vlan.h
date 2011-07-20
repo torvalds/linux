@@ -135,12 +135,6 @@ vlan_gro_frags(struct napi_struct *napi, struct vlan_group *grp,
 	       unsigned int vlan_tci);
 
 #else
-static inline struct net_device *vlan_find_dev(struct net_device *real_dev,
-					       u16 vlan_id)
-{
-	return NULL;
-}
-
 static inline struct net_device *vlan_dev_real_dev(const struct net_device *dev)
 {
 	BUG();
