@@ -128,12 +128,12 @@ enum ht_action {
 };
 
 
-typedef enum _HT_Bandwidth_40MHZ_Sub_Carrier{
+enum ht_bw40_sc {
 	SC_MODE_DUPLICATE = 0,
 	SC_MODE_LOWER = 1,
 	SC_MODE_UPPER = 2,
 	SC_MODE_FULL40MHZ = 3,
-}HT_BW40_SC_E;
+};
 
 struct ht_capab_ele {
 
