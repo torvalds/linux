@@ -511,7 +511,7 @@ static int lbs_thread(void *data)
 				if (priv->connect_status == LBS_CONNECTED)
 					netif_wake_queue(priv->dev);
 				if (priv->mesh_dev &&
-				    lbs_mesh_connected(priv))
+				    netif_running(priv->mesh_dev))
 					netif_wake_queue(priv->mesh_dev);
 			}
 		}

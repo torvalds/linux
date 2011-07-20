@@ -198,7 +198,7 @@ void lbs_send_tx_feedback(struct lbs_private *priv, u32 try_count)
 	if (priv->connect_status == LBS_CONNECTED)
 		netif_wake_queue(priv->dev);
 
-	if (priv->mesh_dev && lbs_mesh_connected(priv))
+	if (priv->mesh_dev && netif_running(priv->mesh_dev))
 		netif_wake_queue(priv->mesh_dev);
 }
 EXPORT_SYMBOL_GPL(lbs_send_tx_feedback);

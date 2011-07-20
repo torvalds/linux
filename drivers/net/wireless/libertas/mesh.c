@@ -269,17 +269,11 @@ static ssize_t lbs_mesh_set(struct device *dev,
 {
 	struct lbs_private *priv = to_net_dev(dev)->ml_priv;
 	int enable;
-	int ret, action = CMD_ACT_MESH_CONFIG_STOP;
 
 	sscanf(buf, "%x", &enable);
 	enable = !!enable;
 	if (enable == !!priv->mesh_dev)
 		return count;
-	if (enable)
-		action = CMD_ACT_MESH_CONFIG_START;
-	ret = lbs_mesh_config(priv, action, priv->channel);
-	if (ret)
-		return ret;
 
 	if (enable)
 		lbs_add_mesh(priv);
@@ -822,8 +816,6 @@ int lbs_init_mesh(struct lbs_private *priv)
 
 	lbs_deb_enter(LBS_DEB_MESH);
 
-	priv->mesh_connect_status = LBS_DISCONNECTED;
-
 	/* Determine mesh_fw_ver from fwrelease and fwcapinfo */
 	/* 5.0.16p0 9.0.0.p0 is known to NOT support any mesh */
 	/* 5.110.22 have mesh command with 0xa3 command id */
@@ -863,6 +855,8 @@ int lbs_init_mesh(struct lbs_private *priv)
 			priv->mesh_tlv = 0;
 	}
 
+	/* Stop meshing until interface is brought up */
+	lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_STOP, priv->channel);
 
 	if (priv->mesh_tlv) {
 		sprintf(priv->mesh_ssid, "mesh");
@@ -909,10 +903,9 @@ static int lbs_mesh_stop(struct net_device *dev)
 	struct lbs_private *priv = dev->ml_priv;
 
 	lbs_deb_enter(LBS_DEB_MESH);
-	spin_lock_irq(&priv->driver_lock);
+	lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_STOP, priv->channel);
 
-	priv->mesh_open = 0;
-	priv->mesh_connect_status = LBS_DISCONNECTED;
+	spin_lock_irq(&priv->driver_lock);
 
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
@@ -942,18 +935,20 @@ static int lbs_mesh_dev_open(struct net_device *dev)
 
 	if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR) {
 		ret = -EBUSY;
+		spin_unlock_irq(&priv->driver_lock);
 		goto out;
 	}
 
-	priv->mesh_open = 1;
-	priv->mesh_connect_status = LBS_CONNECTED;
 	netif_carrier_on(dev);
 
 	if (!priv->tx_pending_len)
 		netif_wake_queue(dev);
- out:
 
 	spin_unlock_irq(&priv->driver_lock);
+
+	ret = lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START, priv->channel);
+
+out:
 	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
 	return ret;
 }

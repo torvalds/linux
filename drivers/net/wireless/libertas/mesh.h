@@ -63,11 +63,6 @@ void lbs_mesh_ethtool_get_strings(struct net_device *dev,
 	uint32_t stringset, uint8_t *s);
 
 
-/* Accessors */
-
-#define lbs_mesh_open(priv) (priv->mesh_open)
-#define lbs_mesh_connected(priv) (priv->mesh_connect_status == LBS_CONNECTED)
-
 #else
 
 #define lbs_init_mesh(priv)
@@ -77,8 +72,6 @@ void lbs_mesh_ethtool_get_strings(struct net_device *dev,
 #define lbs_mesh_set_dev(priv, dev, rxpd) (dev)
 #define lbs_mesh_set_txpd(priv, dev, txpd)
 #define lbs_mesh_config(priv, enable, chan)
-#define lbs_mesh_open(priv) (0)
-#define lbs_mesh_connected(priv) (0)
 
 #endif
 
