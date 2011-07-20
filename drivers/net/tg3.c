@@ -3131,15 +3131,16 @@ static int tg3_phy_autoneg_cfg(struct tg3 *tp, u32 advertise, u32 flowctrl)
 		switch (GET_ASIC_REV(tp->pci_chip_rev_id)) {
 		case ASIC_REV_5717:
 		case ASIC_REV_57765:
-			if (!tg3_phydsp_read(tp, MII_TG3_DSP_CH34TP2, &val))
-				tg3_phydsp_write(tp, MII_TG3_DSP_CH34TP2, val |
-						 MII_TG3_DSP_CH34TP2_HIBW01);
-			/* Fall through */
 		case ASIC_REV_5719:
 			val = MII_TG3_DSP_TAP26_ALNOKO |
 			      MII_TG3_DSP_TAP26_RMRXSTO |
 			      MII_TG3_DSP_TAP26_OPCSINPT;
 			tg3_phydsp_write(tp, MII_TG3_DSP_TAP26, val);
+			/* Fall through */
+		case ASIC_REV_5720:
+			if (!tg3_phydsp_read(tp, MII_TG3_DSP_CH34TP2, &val))
+				tg3_phydsp_write(tp, MII_TG3_DSP_CH34TP2, val |
+						 MII_TG3_DSP_CH34TP2_HIBW01);
 		}
 
 		val = 0;
