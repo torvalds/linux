@@ -158,14 +158,13 @@ enum dm_dig_op_sta {
 	DIG_OP_TYPE_MAX
 };
 
-typedef enum _dm_dig_alg_e
-{
+enum dm_dig_alg {
 	DIG_ALGO_BY_FALSE_ALARM = 0,
 	DIG_ALGO_BY_RSSI	= 1,
 	DIG_ALGO_BEFORE_CONNECT_BY_RSSI_AND_ALARM = 2,
 	DIG_ALGO_BY_TOW_PORT = 3,
 	DIG_ALGO_MAX
-} dm_dig_alg_e;
+};
 
 typedef enum _DM_DIG_TWO_PORT_ALG_E
 {
