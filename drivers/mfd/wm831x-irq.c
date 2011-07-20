@@ -449,7 +449,7 @@ static irqreturn_t wm831x_irq_thread(int irq, void *data)
 {
 	struct wm831x *wm831x = data;
 	unsigned int i;
-	int primary;
+	int primary, status_addr;
 	int status_regs[WM831X_NUM_IRQ_REGS] = { 0 };
 	int read[WM831X_NUM_IRQ_REGS] = { 0 };
 	int *status;
@@ -484,8 +484,9 @@ static irqreturn_t wm831x_irq_thread(int irq, void *data)
 		/* Hopefully there should only be one register to read
 		 * each time otherwise we ought to do a block read. */
 		if (!read[offset]) {
-			*status = wm831x_reg_read(wm831x,
-				     irq_data_to_status_reg(&wm831x_irqs[i]));
+			status_addr = irq_data_to_status_reg(&wm831x_irqs[i]);
+
+			*status = wm831x_reg_read(wm831x, status_addr);
 			if (*status < 0) {
 				dev_err(wm831x->dev,
 					"Failed to read IRQ status: %d\n",
@@ -494,26 +495,21 @@ static irqreturn_t wm831x_irq_thread(int irq, void *data)
 			}
 
 			read[offset] = 1;
+
+			/* Ignore any bits that we don't think are masked */
+			*status &= ~wm831x->irq_masks_cur[offset];
+
+			/* Acknowledge now so we don't miss
+			 * notifications while we handle.
+			 */
+			wm831x_reg_write(wm831x, status_addr, *status);
 		}
 
-		/* Report it if it isn't masked, or forget the status. */
-		if ((*status & ~wm831x->irq_masks_cur[offset])
-		    & wm831x_irqs[i].mask)
+		if (*status & wm831x_irqs[i].mask)
 			handle_nested_irq(wm831x->irq_base + i);
-		else
-			*status &= ~wm831x_irqs[i].mask;
 	}
 
 out:
-	/* Touchscreen interrupts are handled specially in the driver */
-	status_regs[0] &= ~(WM831X_TCHDATA_EINT | WM831X_TCHPD_EINT);
-
-	for (i = 0; i < ARRAY_SIZE(status_regs); i++) {
-		if (status_regs[i])
-			wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_1 + i,
-					 status_regs[i]);
-	}
-
 	return IRQ_HANDLED;
 }
 
