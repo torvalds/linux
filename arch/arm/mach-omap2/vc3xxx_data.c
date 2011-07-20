@@ -30,9 +30,6 @@
  * XXX This stuff presumably belongs in the vc3xxx.c or vc.c file.
  */
 static struct omap_vc_common omap3_vc_common = {
-	.smps_sa_reg	 = OMAP3_PRM_VC_SMPS_SA_OFFSET,
-	.smps_volra_reg	 = OMAP3_PRM_VC_SMPS_VOL_RA_OFFSET,
-	.smps_cmdra_reg	 = OMAP3_PRM_VC_SMPS_CMD_RA_OFFSET,
 	.bypass_val_reg	 = OMAP3_PRM_VC_BYPASS_VAL_OFFSET,
 	.data_shift	 = OMAP3430_DATA_SHIFT,
 	.slaveaddr_shift = OMAP3430_SLAVEADDR_SHIFT,
@@ -43,7 +40,6 @@ static struct omap_vc_common omap3_vc_common = {
 	.cmd_onlp_shift	 = OMAP3430_VC_CMD_ONLP_SHIFT,
 	.cmd_ret_shift	 = OMAP3430_VC_CMD_RET_SHIFT,
 	.cmd_off_shift	 = OMAP3430_VC_CMD_OFF_SHIFT,
-	.cfg_channel_reg = OMAP3_PRM_VC_CH_CONF_OFFSET,
 	.i2c_cfg_hsen_mask = OMAP3430_HSEN_MASK,
 	.i2c_cfg_reg	 = OMAP3_PRM_VC_I2C_CFG_OFFSET,
 	.i2c_mcode_mask	 = OMAP3430_MCODE_MASK,
@@ -51,6 +47,10 @@ static struct omap_vc_common omap3_vc_common = {
 
 struct omap_vc_channel omap3_vc_mpu = {
 	.common = &omap3_vc_common,
+	.smps_sa_reg	 = OMAP3_PRM_VC_SMPS_SA_OFFSET,
+	.smps_volra_reg	 = OMAP3_PRM_VC_SMPS_VOL_RA_OFFSET,
+	.smps_cmdra_reg	 = OMAP3_PRM_VC_SMPS_CMD_RA_OFFSET,
+	.cfg_channel_reg = OMAP3_PRM_VC_CH_CONF_OFFSET,
 	.cmdval_reg = OMAP3_PRM_VC_CMD_VAL_0_OFFSET,
 	.smps_sa_mask = OMAP3430_PRM_VC_SMPS_SA_SA0_MASK,
 	.smps_volra_mask = OMAP3430_VOLRA0_MASK,
@@ -60,6 +60,10 @@ struct omap_vc_channel omap3_vc_mpu = {
 
 struct omap_vc_channel omap3_vc_core = {
 	.common = &omap3_vc_common,
+	.smps_sa_reg	 = OMAP3_PRM_VC_SMPS_SA_OFFSET,
+	.smps_volra_reg	 = OMAP3_PRM_VC_SMPS_VOL_RA_OFFSET,
+	.smps_cmdra_reg	 = OMAP3_PRM_VC_SMPS_CMD_RA_OFFSET,
+	.cfg_channel_reg = OMAP3_PRM_VC_CH_CONF_OFFSET,
 	.cmdval_reg = OMAP3_PRM_VC_CMD_VAL_1_OFFSET,
 	.smps_sa_mask = OMAP3430_PRM_VC_SMPS_SA_SA1_MASK,
 	.smps_volra_mask = OMAP3430_VOLRA1_MASK,

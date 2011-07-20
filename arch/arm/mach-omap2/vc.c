@@ -94,7 +94,7 @@ static int omap_vc_config_channel(struct voltagedomain *voltdm)
 
 	voltdm->rmw(CFG_CHANNEL_MASK << vc->cfg_channel_sa_shift,
 		    vc->cfg_channel << vc->cfg_channel_sa_shift,
-		    vc->common->cfg_channel_reg);
+		    vc->cfg_channel_reg);
 
 	return 0;
 }
@@ -319,7 +319,7 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	/* Configure the i2c slave address for this VC */
 	voltdm->rmw(vc->smps_sa_mask,
 		    vc->i2c_slave_addr << __ffs(vc->smps_sa_mask),
-		    vc->common->smps_sa_reg);
+		    vc->smps_sa_reg);
 	vc->cfg_channel |= vc_cfg_bits->sa;
 
 	/*
@@ -327,13 +327,13 @@ void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 	 */
 	voltdm->rmw(vc->smps_volra_mask,
 		    vc->volt_reg_addr << __ffs(vc->smps_volra_mask),
-		    vc->common->smps_volra_reg);
+		    vc->smps_volra_reg);
 	vc->cfg_channel |= vc_cfg_bits->rav;
 
 	if (vc->cmd_reg_addr) {
 		voltdm->rmw(vc->smps_cmdra_mask,
 			    vc->cmd_reg_addr << __ffs(vc->smps_cmdra_mask),
-			    vc->common->smps_cmdra_reg);
+			    vc->smps_cmdra_reg);
 		vc->cfg_channel |= vc_cfg_bits->rac | vc_cfg_bits->racen;
 	}
 

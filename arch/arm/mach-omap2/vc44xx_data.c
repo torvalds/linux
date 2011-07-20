@@ -31,9 +31,6 @@
  * XXX This stuff presumably belongs in the vc3xxx.c or vc.c file.
  */
 static const struct omap_vc_common omap4_vc_common = {
-	.smps_sa_reg = OMAP4_PRM_VC_SMPS_SA_OFFSET,
-	.smps_volra_reg = OMAP4_PRM_VC_VAL_SMPS_RA_VOL_OFFSET,
-	.smps_cmdra_reg = OMAP4_PRM_VC_VAL_SMPS_RA_CMD_OFFSET,
 	.bypass_val_reg = OMAP4_PRM_VC_VAL_BYPASS_OFFSET,
 	.data_shift = OMAP4430_DATA_SHIFT,
 	.slaveaddr_shift = OMAP4430_SLAVEADDR_SHIFT,
@@ -44,7 +41,6 @@ static const struct omap_vc_common omap4_vc_common = {
 	.cmd_onlp_shift = OMAP4430_ONLP_SHIFT,
 	.cmd_ret_shift = OMAP4430_RET_SHIFT,
 	.cmd_off_shift = OMAP4430_OFF_SHIFT,
-	.cfg_channel_reg = OMAP4_PRM_VC_CFG_CHANNEL_OFFSET,
 	.i2c_cfg_reg = OMAP4_PRM_VC_CFG_I2C_MODE_OFFSET,
 	.i2c_cfg_hsen_mask = OMAP4430_HSMODEEN_MASK,
 	.i2c_mcode_mask	 = OMAP4430_HSMCODE_MASK,
@@ -54,6 +50,10 @@ static const struct omap_vc_common omap4_vc_common = {
 struct omap_vc_channel omap4_vc_mpu = {
 	.flags = OMAP_VC_CHANNEL_DEFAULT | OMAP_VC_CHANNEL_CFG_MUTANT,
 	.common = &omap4_vc_common,
+	.smps_sa_reg = OMAP4_PRM_VC_SMPS_SA_OFFSET,
+	.smps_volra_reg = OMAP4_PRM_VC_VAL_SMPS_RA_VOL_OFFSET,
+	.smps_cmdra_reg = OMAP4_PRM_VC_VAL_SMPS_RA_CMD_OFFSET,
+	.cfg_channel_reg = OMAP4_PRM_VC_CFG_CHANNEL_OFFSET,
 	.cmdval_reg = OMAP4_PRM_VC_VAL_CMD_VDD_MPU_L_OFFSET,
 	.smps_sa_mask = OMAP4430_SA_VDD_MPU_L_PRM_VC_SMPS_SA_MASK,
 	.smps_volra_mask = OMAP4430_VOLRA_VDD_MPU_L_MASK,
@@ -63,6 +63,10 @@ struct omap_vc_channel omap4_vc_mpu = {
 
 struct omap_vc_channel omap4_vc_iva = {
 	.common = &omap4_vc_common,
+	.smps_sa_reg = OMAP4_PRM_VC_SMPS_SA_OFFSET,
+	.smps_volra_reg = OMAP4_PRM_VC_VAL_SMPS_RA_VOL_OFFSET,
+	.smps_cmdra_reg = OMAP4_PRM_VC_VAL_SMPS_RA_CMD_OFFSET,
+	.cfg_channel_reg = OMAP4_PRM_VC_CFG_CHANNEL_OFFSET,
 	.cmdval_reg = OMAP4_PRM_VC_VAL_CMD_VDD_IVA_L_OFFSET,
 	.smps_sa_mask = OMAP4430_SA_VDD_IVA_L_PRM_VC_SMPS_SA_MASK,
 	.smps_volra_mask = OMAP4430_VOLRA_VDD_IVA_L_MASK,
@@ -72,6 +76,10 @@ struct omap_vc_channel omap4_vc_iva = {
 
 struct omap_vc_channel omap4_vc_core = {
 	.common = &omap4_vc_common,
+	.smps_sa_reg = OMAP4_PRM_VC_SMPS_SA_OFFSET,
+	.smps_volra_reg = OMAP4_PRM_VC_VAL_SMPS_RA_VOL_OFFSET,
+	.smps_cmdra_reg = OMAP4_PRM_VC_VAL_SMPS_RA_CMD_OFFSET,
+	.cfg_channel_reg = OMAP4_PRM_VC_CFG_CHANNEL_OFFSET,
 	.cmdval_reg = OMAP4_PRM_VC_VAL_CMD_VDD_CORE_L_OFFSET,
 	.smps_sa_mask = OMAP4430_SA_VDD_CORE_L_0_6_MASK,
 	.smps_volra_mask = OMAP4430_VOLRA_VDD_CORE_L_MASK,
