@@ -461,7 +461,7 @@ void __init udbg_init_debug_lpar(void)
 	hvterm_privs[0] = &hvterm_priv0;
 	hvterm_priv0.termno = 0;
 	hvterm_priv0.proto = HV_PROTOCOL_RAW;
-	spin_lock_init(&hvterm_priv0.buf_lock)
+	spin_lock_init(&hvterm_priv0.buf_lock);
 	udbg_putc = udbg_hvc_putc;
 	udbg_getc = udbg_hvc_getc;
 	udbg_getc_poll = udbg_hvc_getc_poll;
@@ -474,7 +474,7 @@ void __init udbg_init_debug_lpar_hvsi(void)
 	hvterm_privs[0] = &hvterm_priv0;
 	hvterm_priv0.termno = CONFIG_PPC_EARLY_DEBUG_HVSI_VTERMNO;
 	hvterm_priv0.proto = HV_PROTOCOL_HVSI;
-	spin_lock_init(&hvterm_priv0.buf_lock)
+	spin_lock_init(&hvterm_priv0.buf_lock);
 	udbg_putc = udbg_hvc_putc;
 	udbg_getc = udbg_hvc_getc;
 	udbg_getc_poll = udbg_hvc_getc_poll;
