@@ -240,7 +240,7 @@ enum RTL_DEBUG {
 	COMP_ERR		= BIT31
 };
 
-typedef enum _nic_t{
+enum nic_t {
 	NIC_UNKNOWN     = 0,
 	NIC_8192E       = 1,
 	NIC_8190P       = 2,
@@ -249,7 +249,7 @@ typedef enum _nic_t{
 	NIC_8192CU		= 6,
 	NIC_8192DE		= 7,
 	NIC_8192DU		= 8,
-	} nic_t;
+	};
 
 typedef	enum _RT_EEPROM_TYPE{
 	EEPROM_93C46,
@@ -524,7 +524,7 @@ struct rtl8192_tx_ring {
 
 
 struct rtl819x_ops{
-	nic_t nic_type;
+	enum nic_t nic_type;
 	void (* get_eeprom_size)(struct net_device* dev);
 	void (* init_adapter_variable)(struct net_device* dev);
 	void (* init_before_adapter_start)(struct net_device* dev);
@@ -698,7 +698,7 @@ struct r8192_priv {
 	u32		irq_mask[2];
 
 	u8		Rf_Mode;
-	nic_t	card_8192;
+	enum nic_t card_8192;
 	u8		card_8192_version;
 
 	short	enable_gpio0;
