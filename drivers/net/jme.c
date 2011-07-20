@@ -1048,16 +1048,12 @@ jme_alloc_and_feed_skb(struct jme_adapter *jme, int idx)
 			skb_checksum_none_assert(skb);
 
 		if (rxdesc->descwb.flags & cpu_to_le16(RXWBFLAG_TAGON)) {
-			if (jme->vlgrp) {
-				jme->jme_vlan_rx(skb, jme->vlgrp,
-					le16_to_cpu(rxdesc->descwb.vlan));
-				NET_STAT(jme).rx_bytes += 4;
-			} else {
-				dev_kfree_skb(skb);
-			}
-		} else {
-			jme->jme_rx(skb);
+			u16 vid = le16_to_cpu(rxdesc->descwb.vlan);
+
+			__vlan_hwaccel_put_tag(skb, vid);
+			NET_STAT(jme).rx_bytes += 4;
 		}
+		jme->jme_rx(skb);
 
 		if ((rxdesc->descwb.flags & cpu_to_le16(RXWBFLAG_DEST)) ==
 		    cpu_to_le16(RXWBFLAG_DEST_MUL))
@@ -2282,16 +2278,6 @@ static inline void jme_resume_rx(struct jme_adapter *jme)
 }
 
 static void
-jme_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
-{
-	struct jme_adapter *jme = netdev_priv(netdev);
-
-	jme_pause_rx(jme);
-	jme->vlgrp = grp;
-	jme_resume_rx(jme);
-}
-
-static void
 jme_get_drvinfo(struct net_device *netdev,
 		     struct ethtool_drvinfo *info)
 {
@@ -2401,7 +2387,6 @@ jme_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecmd)
 	    test_bit(JME_FLAG_POLL, &jme->flags)) {
 		clear_bit(JME_FLAG_POLL, &jme->flags);
 		jme->jme_rx = netif_rx;
-		jme->jme_vlan_rx = vlan_hwaccel_rx;
 		dpi->cur		= PCC_P1;
 		dpi->attempt		= PCC_P1;
 		dpi->cnt		= 0;
@@ -2411,7 +2396,6 @@ jme_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecmd)
 		   !(test_bit(JME_FLAG_POLL, &jme->flags))) {
 		set_bit(JME_FLAG_POLL, &jme->flags);
 		jme->jme_rx = netif_receive_skb;
-		jme->jme_vlan_rx = vlan_hwaccel_receive_skb;
 		jme_interrupt_mode(jme);
 	}
 
@@ -2850,7 +2834,6 @@ static const struct net_device_ops jme_netdev_ops = {
 	.ndo_set_multicast_list	= jme_set_multi,
 	.ndo_change_mtu		= jme_change_mtu,
 	.ndo_tx_timeout		= jme_tx_timeout,
-	.ndo_vlan_rx_register	= jme_vlan_rx_register,
 	.ndo_fix_features       = jme_fix_features,
 	.ndo_set_features       = jme_set_features,
 };
@@ -2933,7 +2916,6 @@ jme_init_one(struct pci_dev *pdev,
 	jme->pdev = pdev;
 	jme->dev = netdev;
 	jme->jme_rx = netif_rx;
-	jme->jme_vlan_rx = vlan_hwaccel_rx;
 	jme->old_mtu = netdev->mtu = 1500;
 	jme->phylink = 0;
 	jme->tx_ring_size = 1 << 10;

@@ -451,7 +451,6 @@ struct jme_adapter {
 	u32			msg_enable;
 	struct ethtool_cmd	old_ecmd;
 	unsigned int		old_mtu;
-	struct vlan_group	*vlgrp;
 	struct dynpcc_info	dpi;
 	atomic_t		intr_sem;
 	atomic_t		link_changing;
@@ -459,9 +458,6 @@ struct jme_adapter {
 	atomic_t		rx_cleaning;
 	atomic_t		rx_empty;
 	int			(*jme_rx)(struct sk_buff *skb);
-	int			(*jme_vlan_rx)(struct sk_buff *skb,
-					  struct vlan_group *grp,
-					  unsigned short vlan_tag);
 	DECLARE_NAPI_STRUCT
 	DECLARE_NET_DEVICE_STATS
 };
