@@ -32,6 +32,10 @@ struct eps_cpu_data {
 
 static struct eps_cpu_data *eps_cpu[NR_CPUS];
 
+/* Module parameters */
+static int freq_failsafe_off;
+static int voltage_failsafe_off;
+
 
 static unsigned int eps_get(unsigned int cpu)
 {
@@ -244,8 +248,26 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 		return -EINVAL;
 	if (current_voltage > 0x1f || max_voltage > 0x1f)
 		return -EINVAL;
-	if (max_voltage < min_voltage)
+	if (max_voltage < min_voltage
+	    || current_voltage < min_voltage
+	    || current_voltage > max_voltage)
 		return -EINVAL;
+
+	/* Check for systems using underclocked CPU */
+	if (!freq_failsafe_off && max_multiplier != current_multiplier) {
+		printk(KERN_INFO "eps: Your processor is running at different "
+			"frequency then its maximum. Aborting.\n");
+		printk(KERN_INFO "eps: You can use freq_failsafe_off option "
+			"to disable this check.\n");
+		return -EINVAL;
+	}
+	if (!voltage_failsafe_off && max_voltage != current_voltage) {
+		printk(KERN_INFO "eps: Your processor is running at different "
+			"voltage then its maximum. Aborting.\n");
+		printk(KERN_INFO "eps: You can use voltage_failsafe_off "
+			"option to disable this check.\n");
+		return -EINVAL;
+	}
 
 	/* Calc FSB speed */
 	fsb = cpu_khz / current_multiplier;
@@ -303,17 +325,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 static int eps_cpu_exit(struct cpufreq_policy *policy)
 {
 	unsigned int cpu = policy->cpu;
-	struct eps_cpu_data *centaur;
-	u32 lo, hi;
 
-	if (eps_cpu[cpu] == NULL)
-		return -ENODEV;
-	centaur = eps_cpu[cpu];
-
-	/* Get max frequency */
-	rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
-	/* Set max frequency */
-	eps_set_state(centaur, cpu, hi & 0xffff);
 	/* Bye */
 	cpufreq_frequency_table_put_attr(policy->cpu);
 	kfree(eps_cpu[cpu]);
@@ -358,6 +370,13 @@ static void __exit eps_exit(void)
 {
 	cpufreq_unregister_driver(&eps_driver);
 }
+
+/* Allow user to overclock his machine or to change frequency to higher after
+ * unloading module */
+module_param(freq_failsafe_off, int, 0644);
+MODULE_PARM_DESC(freq_failsafe_off, "Disable current vs max frequency check");
+module_param(voltage_failsafe_off, int, 0644);
+MODULE_PARM_DESC(voltage_failsafe_off, "Disable current vs max voltage check");
 
 MODULE_AUTHOR("Rafal Bilski <rafalbilski@interia.pl>");
 MODULE_DESCRIPTION("Enhanced PowerSaver driver for VIA C7 CPU's.");
