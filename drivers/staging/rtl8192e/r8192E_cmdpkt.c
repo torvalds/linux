@@ -108,7 +108,7 @@ cmpk_count_txstatistic(
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 #ifdef ENABLE_PS
-	RT_RF_POWER_STATE	rtState;
+	enum rt_rf_power_state rtState;
 
 	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE, (pu1Byte)(&rtState));
 
@@ -272,7 +272,7 @@ static	void	cmpk_count_tx_status(	struct net_device *dev,
 
 #ifdef ENABLE_PS
 
-	RT_RF_POWER_STATE	rtstate;
+	enum rt_rf_power_state rtstate;
 
 	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE, (pu1Byte)(&rtState));
 

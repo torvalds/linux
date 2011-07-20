@@ -316,7 +316,7 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device* ieee = netdev_priv_rsl(dev);
 
-	RT_RF_POWER_STATE	rtState;
+	enum rt_rf_power_state rtState;
 	int ret;
 
 	if (priv->bHwRadioOff == true)
@@ -447,7 +447,7 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device* ieee = priv->rtllib;
-	RT_RF_POWER_STATE	rtState;
+	enum rt_rf_power_state rtState;
 	int ret;
 
 	if (!(ieee->softmac_features & IEEE_SOFTMAC_SCAN)){

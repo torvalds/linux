@@ -1824,12 +1824,11 @@ struct ibss_parms {
 };
 #define MAX_NUM_RATES	264
 
-typedef	enum _RT_RF_POWER_STATE
-{
+enum rt_rf_power_state {
 	eRfOn,
 	eRfSleep,
 	eRfOff
-} RT_RF_POWER_STATE;
+};
 
 #define	MAX_SUPPORT_WOL_PATTERN_NUM		8
 
@@ -1859,7 +1858,7 @@ struct rt_pwr_save_ctrl {
 	bool				bIPSModeBackup;
 	bool				bHaltAdapterClkRQ;
 	bool				bSwRfProcessing;
-	RT_RF_POWER_STATE	eInactivePowerState;
+	enum rt_rf_power_state eInactivePowerState;
 	struct work_struct		InactivePsWorkItem;
 	struct timer_list	InactivePsTimer;
 
@@ -2125,7 +2124,7 @@ struct rtllib_device {
 	bool FirstIe_InScan;
 	bool be_scan_inprogress;
 	bool beinretry;
-	RT_RF_POWER_STATE		eRFPowerState;
+	enum rt_rf_power_state eRFPowerState;
 	RT_RF_CHANGE_SOURCE	RfOffReason;
 	bool is_set_key;
 	bool wx_set_enc;

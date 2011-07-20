@@ -349,7 +349,7 @@ void write_nic_word(struct net_device *dev, int x,u16 y)
 bool
 MgntActSet_RF_State(
 	struct net_device* dev,
-	RT_RF_POWER_STATE	StateToSet,
+	enum rt_rf_power_state StateToSet,
 	RT_RF_CHANGE_SOURCE ChangeSource,
 	bool	ProtectOrNot
 	)
@@ -358,7 +358,7 @@ MgntActSet_RF_State(
 	struct rtllib_device * ieee = priv->rtllib;
 	bool			bActionAllowed = false;
 	bool			bConnectBySSID = false;
-	RT_RF_POWER_STATE	rtState;
+	enum rt_rf_power_state rtState;
 	u16			RFWaitCounter = 0;
 	unsigned long flag;
 	RT_TRACE((COMP_PS | COMP_RF), "===>MgntActSet_RF_State(): StateToSet(%d)\n",StateToSet);
@@ -1495,7 +1495,7 @@ rtl819x_ifcheck_resetornot(struct net_device *dev)
 	struct r8192_priv *priv = rtllib_priv(dev);
 	enum reset_type TxResetType = RESET_TYPE_NORESET;
 	enum reset_type RxResetType = RESET_TYPE_NORESET;
-	RT_RF_POWER_STATE	rfState;
+	enum rt_rf_power_state rfState;
 
 	rfState = priv->rtllib->eRFPowerState;
 

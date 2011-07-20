@@ -1089,7 +1089,7 @@ bool NicIFDisableNIC(struct net_device* dev);
 bool
 MgntActSet_RF_State(
 	struct net_device* dev,
-	RT_RF_POWER_STATE	StateToSet,
+	enum rt_rf_power_state StateToSet,
 	RT_RF_CHANGE_SOURCE ChangeSource,
 	bool	ProtectOrNot
 	);

@@ -119,7 +119,7 @@ void setKey(struct net_device *dev,
 	u16 usConfig = 0;
 	u8 i;
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	RT_RF_POWER_STATE	rtState;
+	enum rt_rf_power_state rtState;
 	rtState = priv->rtllib->eRFPowerState;
 	if (priv->rtllib->PowerSaveControl.bInactivePs){
 		if (rtState == eRfOff){

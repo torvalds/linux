@@ -134,7 +134,7 @@ IPSEnter(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
-	RT_RF_POWER_STATE			rtState;
+	enum rt_rf_power_state rtState;
 
 	if (pPSC->bInactivePs)
 	{
@@ -157,7 +157,7 @@ IPSLeave(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)(&(priv->rtllib->PowerSaveControl));
-	RT_RF_POWER_STATE	rtState;
+	enum rt_rf_power_state rtState;
 
 	if (pPSC->bInactivePs)
 	{
@@ -184,7 +184,7 @@ void IPSLeave_wq(void *data)
 void rtllib_ips_leave_wq(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
-	RT_RF_POWER_STATE	rtState;
+	enum rt_rf_power_state rtState;
 	rtState = priv->rtllib->eRFPowerState;
 
 	if (priv->rtllib->PowerSaveControl.bInactivePs){

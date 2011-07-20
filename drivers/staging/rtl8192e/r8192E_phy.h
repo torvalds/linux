@@ -123,7 +123,7 @@ extern	void PHY_SetRtl8192eRfOff(struct net_device *dev);
 bool
 SetRFPowerState(
 	struct net_device* dev,
-	RT_RF_POWER_STATE	eRFPowerState
+	enum rt_rf_power_state eRFPowerState
 	);
 #define PHY_SetRFPowerState SetRFPowerState
 

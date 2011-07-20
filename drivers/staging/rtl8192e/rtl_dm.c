@@ -2671,7 +2671,7 @@ extern	void	dm_CheckRfCtrlGPIO(void *data)
        struct r8192_priv *priv = container_of_dwork_rsl(data, struct r8192_priv,gpio_change_rf_wq);
        struct net_device *dev = priv->rtllib->dev;
 	u8 tmp1byte;
-	RT_RF_POWER_STATE	eRfPowerStateToSet;
+	enum rt_rf_power_state eRfPowerStateToSet;
 	bool bActuallySet = false;
 
 	char *argv[3];

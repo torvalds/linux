@@ -1377,7 +1377,7 @@ PHY_SetRtl8192eRfOff(struct net_device* dev	)
 bool
 SetRFPowerState8190(
 	struct net_device* dev,
-	RT_RF_POWER_STATE	eRFPowerState
+	enum rt_rf_power_state eRFPowerState
 	)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1547,7 +1547,7 @@ SetRFPowerState8190(
 bool
 SetRFPowerState(
 	struct net_device* dev,
-	RT_RF_POWER_STATE	eRFPowerState
+	enum rt_rf_power_state eRFPowerState
 	)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
