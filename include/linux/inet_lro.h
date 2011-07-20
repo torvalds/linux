@@ -155,13 +155,6 @@ void lro_receive_frags(struct net_lro_mgr *lro_mgr,
 		       struct skb_frag_struct *frags,
 		       int len, int true_size, void *priv, __wsum sum);
 
-void lro_vlan_hwaccel_receive_frags(struct net_lro_mgr *lro_mgr,
-				    struct skb_frag_struct *frags,
-				    int len, int true_size,
-				    struct vlan_group *vgrp,
-				    u16 vlan_tag,
-				    void *priv, __wsum sum);
-
 /*
  * Forward all aggregated SKBs held by lro_mgr to network stack
  */

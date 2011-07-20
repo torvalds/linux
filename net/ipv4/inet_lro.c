@@ -541,26 +541,6 @@ void lro_receive_frags(struct net_lro_mgr *lro_mgr,
 }
 EXPORT_SYMBOL(lro_receive_frags);
 
-void lro_vlan_hwaccel_receive_frags(struct net_lro_mgr *lro_mgr,
-				    struct skb_frag_struct *frags,
-				    int len, int true_size,
-				    struct vlan_group *vgrp,
-				    u16 vlan_tag, void *priv, __wsum sum)
-{
-	struct sk_buff *skb;
-
-	skb = __lro_proc_segment(lro_mgr, frags, len, true_size, vgrp,
-				 vlan_tag, priv, sum);
-	if (!skb)
-		return;
-
-	if (lro_mgr->features & LRO_F_NAPI)
-		vlan_hwaccel_receive_skb(skb, vgrp, vlan_tag);
-	else
-		vlan_hwaccel_rx(skb, vgrp, vlan_tag);
-}
-EXPORT_SYMBOL(lro_vlan_hwaccel_receive_frags);
-
 void lro_flush_all(struct net_lro_mgr *lro_mgr)
 {
 	int i;
