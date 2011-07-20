@@ -20,6 +20,12 @@
 struct i2c_client;
 struct spi_device;
 
+/**
+ * Configuration for the register map of a device.
+ *
+ * @reg_bits: Number of bits in a register address, mandatory.
+ * @val_bits: Number of bits in a register value, mandatory.
+ */
 struct regmap_config {
 	int reg_bits;
 	int val_bits;
