@@ -656,12 +656,12 @@ enum wireless_mode {
 	WIRELESS_MODE_N_5G = 0x20
 };
 
-typedef enum _WIRELESS_NETWORK_TYPE{
+enum wireless_network_type {
 	WIRELESS_11B = 1,
 	WIRELESS_11G = 2,
 	WIRELESS_11A = 4,
 	WIRELESS_11N = 8
-} WIRELESS_NETWORK_TYPE;
+};
 
 #define OUI_SUBTYPE_WMM_INFO		0
 #define OUI_SUBTYPE_WMM_PARAM	1
