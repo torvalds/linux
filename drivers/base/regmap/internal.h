@@ -14,6 +14,7 @@
 #define _REGMAP_INTERNAL_H
 
 #include <linux/regmap.h>
+#include <linux/fs.h>
 
 struct regmap;
 
@@ -36,10 +37,24 @@ struct regmap {
 	struct regmap_format format;  /* Buffer format */
 	const struct regmap_bus *bus;
 
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs;
+#endif
+
 	unsigned int max_register;
 	bool (*writeable_reg)(struct device *dev, unsigned int reg);
 	bool (*readable_reg)(struct device *dev, unsigned int reg);
 	bool (*volatile_reg)(struct device *dev, unsigned int reg);
 };
+
+#ifdef CONFIG_DEBUG_FS
+extern void regmap_debugfs_initcall(void);
+extern void regmap_debugfs_init(struct regmap *map);
+extern void regmap_debugfs_exit(struct regmap *map);
+#else
+void regmap_debugfs_initcall(void) { }
+void regmap_debugfs_init(struct regmap *map) { }
+void regmap_debugfs_exit(struct regmap *map) { }
+#endif
 
 #endif

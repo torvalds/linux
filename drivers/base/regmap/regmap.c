@@ -156,6 +156,8 @@ struct regmap *regmap_init(struct device *dev,
 		goto err_bus;
 	}
 
+	regmap_debugfs_init(map);
+
 	return map;
 
 err_bus:
@@ -172,6 +174,7 @@ EXPORT_SYMBOL_GPL(regmap_init);
  */
 void regmap_exit(struct regmap *map)
 {
+	regmap_debugfs_exit(map);
 	kfree(map->work_buf);
 	module_put(map->bus->owner);
 	kfree(map);
@@ -472,3 +475,11 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_update_bits);
+
+static int __init regmap_initcall(void)
+{
+	regmap_debugfs_initcall();
+
+	return 0;
+}
+postcore_initcall(regmap_initcall);
