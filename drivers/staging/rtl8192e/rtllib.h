@@ -1799,13 +1799,12 @@ enum fsync_state {
 	SW_Fsync
 };
 
-typedef	enum _RT_PS_MODE
-{
+enum rt_ps_mode {
 	eActive,
 	eMaxPs,
 	eFastPs,
 	eAutoPs,
-} RT_PS_MODE;
+};
 
 typedef enum _IPS_CALLBACK_FUNCION
 {
@@ -2122,7 +2121,7 @@ struct rtllib_device {
 	bool ieee_up;
 	bool cannot_notify;
 	bool bSupportRemoteWakeUp;
-	RT_PS_MODE	dot11PowerSaveMode;
+	enum rt_ps_mode dot11PowerSaveMode;
 	bool actscanning;
 	bool FirstIe_InScan;
 	bool be_scan_inprogress;
