@@ -31,7 +31,6 @@ struct lbs_private;
 int lbs_init_mesh(struct lbs_private *priv);
 int lbs_deinit_mesh(struct lbs_private *priv);
 
-int lbs_add_mesh(struct lbs_private *priv);
 void lbs_remove_mesh(struct lbs_private *priv);
 
 
@@ -51,29 +50,6 @@ void lbs_mesh_set_txpd(struct lbs_private *priv,
 struct cmd_ds_command;
 struct cmd_ds_mesh_access;
 struct cmd_ds_mesh_config;
-
-int lbs_mesh_bt_add_del(struct lbs_private *priv, bool add, u8 *addr1);
-int lbs_mesh_bt_reset(struct lbs_private *priv);
-int lbs_mesh_bt_get_inverted(struct lbs_private *priv, bool *inverted);
-int lbs_mesh_bt_set_inverted(struct lbs_private *priv, bool inverted);
-int lbs_mesh_bt_get_entry(struct lbs_private *priv, u32 id, u8 *addr1);
-
-int lbs_cmd_fwt_access(struct lbs_private *priv, u16 cmd_action,
-			struct cmd_ds_fwt_access *cmd);
-
-int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
-		    struct cmd_ds_mesh_access *cmd);
-int lbs_mesh_config_send(struct lbs_private *priv,
-			 struct cmd_ds_mesh_config *cmd,
-			 uint16_t action, uint16_t type);
-int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan);
-
-
-
-/* Persistent configuration */
-
-void lbs_persist_config_init(struct net_device *net);
-void lbs_persist_config_remove(struct net_device *net);
 
 
 /* Ethtool statistics */
