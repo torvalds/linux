@@ -2647,7 +2647,7 @@ vmxnet3_declare_features(struct vmxnet3_adapter *adapter, bool dma64)
 		NETIF_F_HW_VLAN_RX | NETIF_F_TSO | NETIF_F_TSO6 |
 		NETIF_F_LRO;
 	if (dma64)
-		netdev->features |= NETIF_F_HIGHDMA;
+		netdev->hw_features |= NETIF_F_HIGHDMA;
 	netdev->vlan_features = netdev->hw_features &
 				~(NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
 	netdev->features = netdev->hw_features | NETIF_F_HW_VLAN_FILTER;
