@@ -136,10 +136,10 @@ typedef u32 QOS_MODE, *PQOS_MODE;
 #define ACM_TIMEOUT				1000
 #define SESSION_REJECT_TIMEOUT		60000
 
-typedef	enum _ACK_POLICY{
+enum ack_policy {
 	eAckPlc0_ACK		= 0x00,
 	eAckPlc1_NoACK		= 0x01,
-} ACK_POLICY,*PACK_POLICY;
+};
 
 
 #define SET_WMM_QOS_INFO_FIELD(_pStart, _val)						WriteEF1Byte(_pStart, _val)
