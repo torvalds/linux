@@ -959,6 +959,11 @@ nv10_graph_init(struct drm_device *dev, int engine)
 static int
 nv10_graph_fini(struct drm_device *dev, int engine, bool suspend)
 {
+	nv_mask(dev, NV04_PGRAPH_FIFO, 0x00000001, 0x00000000);
+	if (!nv_wait(dev, NV04_PGRAPH_STATUS, ~0, 0) && suspend) {
+		nv_mask(dev, NV04_PGRAPH_FIFO, 0x00000001, 0x00000001);
+		return -EBUSY;
+	}
 	nv10_graph_unload_context(dev);
 	nv_wr32(dev, NV03_PGRAPH_INTR_EN, 0x00000000);
 	return 0;
