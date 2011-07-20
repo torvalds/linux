@@ -1835,21 +1835,20 @@ enum rt_rf_power_state {
 #define	MAX_WOL_BIT_MASK_SIZE		16
 #define	MAX_WOL_PATTERN_SIZE		128
 
-typedef enum _WOLPATTERN_TYPE
-{
+enum wol_pattern_type {
 	eNetBIOS = 0,
 	eIPv4IPv6ARP,
 	eIPv4IPv6TCPSYN,
 	eMACIDOnly,
 	eNoDefined,
-} WOLPATTERN_TYPE;
+};
 
 struct rt_pm_wol_info {
 	u32	PatternId;
 	u32	Mask[4];
 	u16	CrcRemainder;
 	u8	WFMIndex;
-	WOLPATTERN_TYPE	PatternType;
+	enum wol_pattern_type PatternType;
 };
 
 struct rt_pwr_save_ctrl {
