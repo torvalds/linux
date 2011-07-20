@@ -48,6 +48,7 @@ config MACH_MX28EVK
 	select MXS_HAVE_PLATFORM_FLEXCAN
 	select MXS_HAVE_PLATFORM_MXS_MMC
 	select MXS_HAVE_PLATFORM_MXSFB
+	select MXS_HAVE_PLATFORM_MXS_SAIF
 	select MXS_OCOTP
 	help
 	  Include support for MX28EVK platform. This includes specific

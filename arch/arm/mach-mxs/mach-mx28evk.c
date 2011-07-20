@@ -183,6 +183,18 @@ static const iomux_cfg_t mx28evk_pads[] __initconst = {
 
 	/* led */
 	MX28_PAD_AUART1_TX__GPIO_3_5 | MXS_PAD_CTRL,
+
+	/* saif0 & saif1 */
+	MX28_PAD_SAIF0_MCLK__SAIF0_MCLK |
+		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SAIF0_LRCLK__SAIF0_LRCLK |
+		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SAIF0_BITCLK__SAIF0_BITCLK |
+		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SAIF0_SDATA0__SAIF0_SDATA0 |
+		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
+	MX28_PAD_SAIF1_SDATA0__SAIF1_SDATA0 |
+		(MXS_PAD_12MA | MXS_PAD_3V3 | MXS_PAD_PULLUP),
 };
 
 /* led */
@@ -391,6 +403,9 @@ static void __init mx28evk_init(void)
 		gpio_set_value(MX28EVK_BL_ENABLE, 1);
 
 	mx28_add_mxsfb(&mx28evk_mxsfb_pdata);
+
+	mx28_add_saif(0);
+	mx28_add_saif(1);
 
 	/* power on mmc slot by writing 0 to the gpio */
 	ret = gpio_request_one(MX28EVK_MMC0_SLOT_POWER, GPIOF_OUT_INIT_LOW,
