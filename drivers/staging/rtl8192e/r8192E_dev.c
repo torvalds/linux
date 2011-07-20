@@ -2279,7 +2279,7 @@ u8 rtl8192_QueryIsShort(u8 TxHT, u8 TxRate, struct cb_desc *tcb_desc)
 void
 ActUpdateChannelAccessSetting(
 	struct net_device*			dev,
-	WIRELESS_MODE			WirelessMode,
+	enum wireless_mode WirelessMode,
 	struct channel_access_setting *ChnlAccessSetting
 	)
 {

@@ -1096,7 +1096,7 @@ MgntActSet_RF_State(
 void
 ActUpdateChannelAccessSetting(
 	struct net_device*			dev,
-	WIRELESS_MODE			WirelessMode,
+	enum wireless_mode WirelessMode,
 	struct channel_access_setting *ChnlAccessSetting
 	);
 

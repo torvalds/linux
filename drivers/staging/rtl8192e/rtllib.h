@@ -646,7 +646,7 @@ enum rt_rf_type_def {
 	RF_819X_MAX_TYPE
 };
 
-typedef enum _WIRELESS_MODE {
+enum wireless_mode {
 	WIRELESS_MODE_UNKNOWN = 0x00,
 	WIRELESS_MODE_A = 0x01,
 	WIRELESS_MODE_B = 0x02,
@@ -654,7 +654,7 @@ typedef enum _WIRELESS_MODE {
 	WIRELESS_MODE_AUTO = 0x08,
 	WIRELESS_MODE_N_24G = 0x10,
 	WIRELESS_MODE_N_5G = 0x20
-} WIRELESS_MODE;
+};
 
 typedef enum _WIRELESS_NETWORK_TYPE{
 	WIRELESS_11B = 1,
