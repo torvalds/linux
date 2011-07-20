@@ -1368,7 +1368,13 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	rk29_mux_api_set(GPIO1D3_SDMMC0DATA1_NAME, GPIO1H_SDMMC0_DATA1);
 	rk29_mux_api_set(GPIO1D4_SDMMC0DATA2_NAME, GPIO1H_SDMMC0_DATA2);
 	rk29_mux_api_set(GPIO1D5_SDMMC0DATA3_NAME, GPIO1H_SDMMC0_DATA3);
+
+#ifdef CONFIG_SDMMC_RK29_OLD	
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_GPIO2A2);
+#else
+	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);//Modifyed by xbw.
+#endif
+
 	rk29_mux_api_set(GPIO5D5_SDMMC0PWREN_NAME, GPIO5H_GPIO5D5);   ///GPIO5H_SDMMC0_PWR_EN);  ///GPIO5H_GPIO5D5);
 	gpio_request(RK29_PIN5_PD5,"sdmmc");
 #if 0
@@ -1626,7 +1632,7 @@ static struct platform_device rk29sdk_rfkill = {
 
 #ifdef CONFIG_VIVANTE
 #define GPU_HIGH_CLOCK        552
-#define GPU_LOW_CLOCK         288 /* same as general pll clock rate below */
+#define GPU_LOW_CLOCK         (periph_pll_default / 1000000) /* same as general pll clock rate below */
 static struct resource resources_gpu[] = {
     [0] = {
 		.name 	= "gpu_irq",
