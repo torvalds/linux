@@ -615,11 +615,11 @@ enum ba_action {
         ACT_DELBA    = 2,
 };
 
-typedef enum _InitialGainOpType{
+enum init_gain_op_type {
 	IG_Backup=0,
 	IG_Restore,
 	IG_Max
-} InitialGainOpType;
+};
 
 typedef enum _LED_CTL_MODE{
         LED_CTL_POWER_ON = 1,
