@@ -141,8 +141,7 @@ enum dm_ratr_sta {
 	DM_RATR_STA_MAX
 };
 
-typedef enum _dm_dig_op_e
-{
+enum dm_dig_op_sta {
 	DIG_TYPE_THRESH_HIGH	= 0,
 	DIG_TYPE_THRESH_LOW	= 1,
 	DIG_TYPE_THRESH_HIGHPWR_HIGH	= 2,
@@ -157,7 +156,7 @@ typedef enum _dm_dig_op_e
 	DIG_TYPE_ENABLE			= 20,
 	DIG_TYPE_DISABLE		= 30,
 	DIG_OP_TYPE_MAX
-} dm_dig_op_e;
+};
 
 typedef enum _dm_dig_alg_e
 {
