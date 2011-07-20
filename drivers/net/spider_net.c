@@ -1004,9 +1004,7 @@ spider_net_pass_skb_up(struct spider_net_descr *descr,
 	}
 
 	if (data_status & SPIDER_NET_VLAN_PACKET) {
-		/* further enhancements: HW-accel VLAN
-		 * vlan_hwaccel_receive_skb
-		 */
+		/* further enhancements: HW-accel VLAN */
 	}
 
 	/* update netdevice statistics */
