@@ -1917,33 +1917,52 @@ static int __init stmmac_cmdline_opt(char *str)
 	if (!str || !*str)
 		return -EINVAL;
 	while ((opt = strsep(&str, ",")) != NULL) {
-		if (!strncmp(opt, "debug:", 6))
-			strict_strtoul(opt + 6, 0, (unsigned long *)&debug);
-		else if (!strncmp(opt, "phyaddr:", 8))
-			strict_strtoul(opt + 8, 0, (unsigned long *)&phyaddr);
-		else if (!strncmp(opt, "dma_txsize:", 11))
-			strict_strtoul(opt + 11, 0,
-				       (unsigned long *)&dma_txsize);
-		else if (!strncmp(opt, "dma_rxsize:", 11))
-			strict_strtoul(opt + 11, 0,
-				       (unsigned long *)&dma_rxsize);
-		else if (!strncmp(opt, "buf_sz:", 7))
-			strict_strtoul(opt + 7, 0, (unsigned long *)&buf_sz);
-		else if (!strncmp(opt, "tc:", 3))
-			strict_strtoul(opt + 3, 0, (unsigned long *)&tc);
-		else if (!strncmp(opt, "watchdog:", 9))
-			strict_strtoul(opt + 9, 0, (unsigned long *)&watchdog);
-		else if (!strncmp(opt, "flow_ctrl:", 10))
-			strict_strtoul(opt + 10, 0,
-				       (unsigned long *)&flow_ctrl);
-		else if (!strncmp(opt, "pause:", 6))
-			strict_strtoul(opt + 6, 0, (unsigned long *)&pause);
+		if (!strncmp(opt, "debug:", 6)) {
+			if (strict_strtoul(opt + 6, 0, (unsigned long *)&debug))
+				goto err;
+		} else if (!strncmp(opt, "phyaddr:", 8)) {
+			if (strict_strtoul(opt + 8, 0,
+					   (unsigned long *)&phyaddr))
+				goto err;
+		} else if (!strncmp(opt, "dma_txsize:", 11)) {
+			if (strict_strtoul(opt + 11, 0,
+					   (unsigned long *)&dma_txsize))
+				goto err;
+		} else if (!strncmp(opt, "dma_rxsize:", 11)) {
+			if (strict_strtoul(opt + 11, 0,
+					   (unsigned long *)&dma_rxsize))
+				goto err;
+		} else if (!strncmp(opt, "buf_sz:", 7)) {
+			if (strict_strtoul(opt + 7, 0,
+					   (unsigned long *)&buf_sz))
+				goto err;
+		} else if (!strncmp(opt, "tc:", 3)) {
+			if (strict_strtoul(opt + 3, 0, (unsigned long *)&tc))
+				goto err;
+		} else if (!strncmp(opt, "watchdog:", 9)) {
+			if (strict_strtoul(opt + 9, 0,
+					   (unsigned long *)&watchdog))
+				goto err;
+		} else if (!strncmp(opt, "flow_ctrl:", 10)) {
+			if (strict_strtoul(opt + 10, 0,
+					   (unsigned long *)&flow_ctrl))
+				goto err;
+		} else if (!strncmp(opt, "pause:", 6)) {
+			if (strict_strtoul(opt + 6, 0, (unsigned long *)&pause))
+				goto err;
 #ifdef CONFIG_STMMAC_TIMER
-		else if (!strncmp(opt, "tmrate:", 7))
-			strict_strtoul(opt + 7, 0, (unsigned long *)&tmrate);
+		} else if (!strncmp(opt, "tmrate:", 7)) {
+			if (strict_strtoul(opt + 7, 0,
+					   (unsigned long *)&tmrate))
+				goto err;
 #endif
+		}
 	}
 	return 0;
+
+err:
+	pr_err("%s: ERROR broken module parameter conversion", __func__);
+	return -EINVAL;
 }
 
 __setup("stmmaceth=", stmmac_cmdline_opt);
