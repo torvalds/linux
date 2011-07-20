@@ -140,7 +140,7 @@ static struct sk_buff* rtllib_DELBA(
 	struct rtllib_device* ieee,
 	u8*		         dst,
 	struct ba_record *pBA,
-	TR_SELECT		 TxRxSelect,
+	enum tr_select TxRxSelect,
 	u16			 ReasonCode
 	)
 {
@@ -220,7 +220,7 @@ void rtllib_send_ADDBARsp(struct rtllib_device* ieee, u8* dst, struct ba_record 
 
 }
 
-void rtllib_send_DELBA(struct rtllib_device* ieee, u8* dst, struct ba_record *pBA, TR_SELECT TxRxSelect, u16 ReasonCode)
+void rtllib_send_DELBA(struct rtllib_device* ieee, u8* dst, struct ba_record *pBA, enum tr_select TxRxSelect, u16 ReasonCode)
 {
 	struct sk_buff *skb = NULL;
 	skb = rtllib_DELBA(ieee, dst, pBA, TxRxSelect, ReasonCode);
@@ -527,7 +527,7 @@ TsInitAddBA(
 }
 
 void
-TsInitDelBA( struct rtllib_device* ieee, struct ts_common_info *pTsCommonInfo, TR_SELECT TxRxSelect)
+TsInitDelBA( struct rtllib_device* ieee, struct ts_common_info *pTsCommonInfo, enum tr_select TxRxSelect)
 {
 
 	if (TxRxSelect == TX_DIR)

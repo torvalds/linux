@@ -26,10 +26,10 @@
 #define TOTAL_TS_NUM		16
 #define TCLAS_NUM		4
 
-typedef enum _TR_SELECT {
+enum tr_select {
 	TX_DIR = 0,
 	RX_DIR = 1,
-} TR_SELECT, *PTR_SELECT;
+};
 
 struct ts_common_info {
 	struct list_head		List;

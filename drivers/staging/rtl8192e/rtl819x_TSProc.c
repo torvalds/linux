@@ -219,7 +219,7 @@ void AdmitTS(struct rtllib_device *ieee, struct ts_common_info *pTsCommonInfo, u
 }
 
 
-struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee, u8*	Addr, u8 TID, TR_SELECT	TxRxSelect)
+struct ts_common_info *SearchAdmitTRStream(struct rtllib_device *ieee, u8*	Addr, u8 TID, enum tr_select TxRxSelect)
 {
 	u8	dir;
 	bool				search_dir[4] = {0, 0, 0, 0};
@@ -321,7 +321,7 @@ bool GetTs(
 	struct ts_common_info **ppTS,
 	u8*				Addr,
 	u8				TID,
-	TR_SELECT			TxRxSelect,
+	enum tr_select TxRxSelect,
 	bool				bAddNewTs)
 {
 	u8	UP = 0;
@@ -435,7 +435,7 @@ bool GetTs(
 void RemoveTsEntry(
 	struct rtllib_device*	ieee,
 	struct ts_common_info *pTs,
-	TR_SELECT			TxRxSelect
+	enum tr_select TxRxSelect
 	)
 {
 	del_timer_sync(&pTs->SetupTimer);

@@ -2907,7 +2907,7 @@ extern int rtllib_rx_ADDBAReq( struct rtllib_device* ieee, struct sk_buff *skb);
 extern int rtllib_rx_ADDBARsp( struct rtllib_device* ieee, struct sk_buff *skb);
 extern int rtllib_rx_DELBA(struct rtllib_device* ieee,struct sk_buff *skb);
 extern void TsInitAddBA( struct rtllib_device* ieee, struct tx_ts_record *pTS, u8 Policy, u8 bOverwritePending);
-extern void TsInitDelBA( struct rtllib_device* ieee, struct ts_common_info *pTsCommonInfo, TR_SELECT TxRxSelect);
+extern void TsInitDelBA( struct rtllib_device* ieee, struct ts_common_info *pTsCommonInfo, enum tr_select TxRxSelect);
 extern void BaSetupTimeOut(unsigned long data);
 extern void TxBaInactTimeout(unsigned long data);
 extern void RxBaInactTimeout(unsigned long data);
@@ -2917,7 +2917,7 @@ extern bool GetTs(
         struct ts_common_info **ppTS,
         u8*                             Addr,
         u8                              TID,
-        TR_SELECT                       TxRxSelect,
+        enum tr_select TxRxSelect,
         bool                            bAddNewTs
         );
 extern void TSInitialize(struct rtllib_device *ieee);
