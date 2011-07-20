@@ -356,56 +356,6 @@ static void do_s2io_copy_mac_addr(struct s2io_nic *sp, int offset, u64 mac_addr)
 	sp->def_mac_addr[offset].mac_addr[0] = (u8) (mac_addr >> 40);
 }
 
-/* Add the vlan */
-static void s2io_vlan_rx_register(struct net_device *dev,
-				  struct vlan_group *grp)
-{
-	int i;
-	struct s2io_nic *nic = netdev_priv(dev);
-	unsigned long flags[MAX_TX_FIFOS];
-	struct config_param *config = &nic->config;
-	struct mac_info *mac_control = &nic->mac_control;
-
-	for (i = 0; i < config->tx_fifo_num; i++) {
-		struct fifo_info *fifo = &mac_control->fifos[i];
-
-		spin_lock_irqsave(&fifo->tx_lock, flags[i]);
-	}
-
-	nic->vlgrp = grp;
-
-	for (i = config->tx_fifo_num - 1; i >= 0; i--) {
-		struct fifo_info *fifo = &mac_control->fifos[i];
-
-		spin_unlock_irqrestore(&fifo->tx_lock, flags[i]);
-	}
-}
-
-/* Unregister the vlan */
-static void s2io_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
-{
-	int i;
-	struct s2io_nic *nic = netdev_priv(dev);
-	unsigned long flags[MAX_TX_FIFOS];
-	struct config_param *config = &nic->config;
-	struct mac_info *mac_control = &nic->mac_control;
-
-	for (i = 0; i < config->tx_fifo_num; i++) {
-		struct fifo_info *fifo = &mac_control->fifos[i];
-
-		spin_lock_irqsave(&fifo->tx_lock, flags[i]);
-	}
-
-	if (nic->vlgrp)
-		vlan_group_set_device(nic->vlgrp, vid, NULL);
-
-	for (i = config->tx_fifo_num - 1; i >= 0; i--) {
-		struct fifo_info *fifo = &mac_control->fifos[i];
-
-		spin_unlock_irqrestore(&fifo->tx_lock, flags[i]);
-	}
-}
-
 /*
  * Constants to be programmed into the Xena's registers, to configure
  * the XAUI.
@@ -7737,8 +7687,6 @@ static const struct net_device_ops s2io_netdev_ops = {
 	.ndo_set_mac_address    = s2io_set_mac_addr,
 	.ndo_change_mtu	   	= s2io_change_mtu,
 	.ndo_set_features	= s2io_set_features,
-	.ndo_vlan_rx_register   = s2io_vlan_rx_register,
-	.ndo_vlan_rx_kill_vid   = s2io_vlan_rx_kill_vid,
 	.ndo_tx_timeout	   	= s2io_tx_watchdog,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller    = s2io_netpoll,
@@ -8617,18 +8565,12 @@ static void queue_rx_frame(struct sk_buff *skb, u16 vlan_tag)
 	struct s2io_nic *sp = netdev_priv(dev);
 
 	skb->protocol = eth_type_trans(skb, dev);
-	if (sp->vlgrp && vlan_tag && (sp->vlan_strip_flag)) {
-		/* Queueing the vlan frame to the upper layer */
-		if (sp->config.napi)
-			vlan_hwaccel_receive_skb(skb, sp->vlgrp, vlan_tag);
-		else
-			vlan_hwaccel_rx(skb, sp->vlgrp, vlan_tag);
-	} else {
-		if (sp->config.napi)
-			netif_receive_skb(skb);
-		else
-			netif_rx(skb);
-	}
+	if (vlan_tag && sp->vlan_strip_flag)
+		__vlan_hwaccel_put_tag(skb, vlan_tag);
+	if (sp->config.napi)
+		netif_receive_skb(skb);
+	else
+		netif_rx(skb);
 }
 
 static void lro_append_pkt(struct s2io_nic *sp, struct lro *lro,
