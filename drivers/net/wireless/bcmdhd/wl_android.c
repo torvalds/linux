@@ -106,7 +106,11 @@ typedef struct android_wifi_priv_cmd {
 void dhd_customer_gpio_wlan_ctrl(int onoff);
 uint dhd_dev_reset(struct net_device *dev, uint8 flag);
 void dhd_dev_init_ioctl(struct net_device *dev);
+#ifdef WL_CFG80211
 int wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr);
+#else
+int wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pdev_addr) { return 0; }
+#endif
 
 extern bool ap_fw_loaded;
 #ifdef CUSTOMER_HW2
