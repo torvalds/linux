@@ -9183,7 +9183,7 @@ static int tg3_test_interrupt(struct tg3 *tp)
 	 * Turn off MSI one shot mode.  Otherwise this test has no
 	 * observable way to know whether the interrupt was delivered.
 	 */
-	if (tg3_flag(tp, 57765_PLUS) && tg3_flag(tp, USING_MSI)) {
+	if (tg3_flag(tp, 57765_PLUS)) {
 		val = tr32(MSGINT_MODE) | MSGINT_MODE_ONE_SHOT_DISABLE;
 		tw32(MSGINT_MODE, val);
 	}
@@ -9211,6 +9211,10 @@ static int tg3_test_interrupt(struct tg3 *tp)
 			break;
 		}
 
+		if (tg3_flag(tp, 57765_PLUS) &&
+		    tnapi->hw_status->status_tag != tnapi->last_tag)
+			tw32_mailbox_f(tnapi->int_mbox, tnapi->last_tag << 24);
+
 		msleep(10);
 	}
 
@@ -9225,7 +9229,7 @@ static int tg3_test_interrupt(struct tg3 *tp)
 
 	if (intr_ok) {
 		/* Reenable MSI one shot mode. */
-		if (tg3_flag(tp, 57765_PLUS) && tg3_flag(tp, USING_MSI)) {
+		if (tg3_flag(tp, 57765_PLUS)) {
 			val = tr32(MSGINT_MODE) & ~MSGINT_MODE_ONE_SHOT_DISABLE;
 			tw32(MSGINT_MODE, val);
 		}
