@@ -165,13 +165,13 @@ enum ack_policy {
 #define GET_WMM_QOS_INFO_FIELD_STA_MAX_SP_LEN(_pStart)			LE_BITS_TO_1BYTE(_pStart, 5, 2)
 #define SET_WMM_QOS_INFO_FIELD_STA_MAX_SP_LEN(_pStart, _val)		SET_BITS_TO_LE_1BYTE(_pStart, 5, 2, _val)
 
-typedef enum _QOSIE_SOURCE{
+enum qos_ie_source {
 	QOSIE_SRC_ADDTSREQ,
 	QOSIE_SRC_ADDTSRSP,
 	QOSIE_SRC_REASOCREQ,
 	QOSIE_SRC_REASOCRSP,
 	QOSIE_SRC_DELTS,
-} QOSIE_SOURCE;
+};
 
 
 typedef u32 AC_CODING;
@@ -209,10 +209,10 @@ typedef u32 AC_CODING;
 
 #define WMM_PARAM_ELEMENT_SIZE	(8+(4*AC_PARAM_SIZE))
 
-typedef	enum _QOS_ELE_SUBTYPE{
+enum qos_ele_subtype {
 	QOSELE_TYPE_INFO		= 0x00,
 	QOSELE_TYPE_PARAM	= 0x01,
-} QOS_ELE_SUBTYPE,*PQOS_ELE_SUBTYPE;
+};
 
 
 typedef	enum _DIRECTION_VALUE{
@@ -359,7 +359,7 @@ struct bss_qos {
 	u8					bdWMMIEBuf[MAX_WMMELE_LENGTH];
 	struct octet_string bdWMMIE;
 
-	QOS_ELE_SUBTYPE		EleSubType;
+	enum qos_ele_subtype EleSubType;
 
 	u8*					pWMMInfoEle;
 	u8*					pWMMParamEle;
