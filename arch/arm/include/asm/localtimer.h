@@ -10,6 +10,8 @@
 #ifndef __ASM_ARM_LOCALTIMER_H
 #define __ASM_ARM_LOCALTIMER_H
 
+#include <linux/interrupt.h>
+
 struct clock_event_device;
 
 /*
@@ -18,14 +20,9 @@ struct clock_event_device;
 void percpu_timer_setup(void);
 
 /*
- * Called from assembly, this is the local timer IRQ handler
+ * Per-cpu timer IRQ handler
  */
-asmlinkage void do_local_timer(struct pt_regs *);
-
-/*
- * Called from C code
- */
-void handle_local_timer(struct pt_regs *);
+irqreturn_t percpu_timer_handler(int irq, void *dev_id);
 
 #ifdef CONFIG_LOCAL_TIMERS
 

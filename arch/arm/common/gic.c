@@ -28,10 +28,14 @@
 #include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <linux/io.h>
+#include <linux/interrupt.h>
+#include <linux/percpu.h>
+#include <linux/slab.h>
 
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/hardware/gic.h>
+#include <asm/localtimer.h>
 
 static DEFINE_SPINLOCK(irq_controller_lock);
 
@@ -255,6 +259,32 @@ void __init gic_cascade_irq(unsigned int gic_nr, unsigned int irq)
 	irq_set_chained_handler(irq, gic_handle_cascade_irq);
 }
 
+#ifdef CONFIG_LOCAL_TIMERS
+#define gic_ppi_handler		percpu_timer_handler
+#else
+static irqreturn_t gic_ppi_handler(int irq, void *dev_id)
+{
+	return IRQ_NONE;
+}
+#endif
+
+#define PPI_IRQACT(nr)						\
+	{							\
+		.handler	= gic_ppi_handler,		\
+		.flags		= IRQF_PERCPU | IRQF_TIMER,	\
+		.irq		= nr,				\
+		.name		= "PPI-" # nr,			\
+	}
+
+static struct irqaction ppi_irqaction_template[16] __initdata = {
+	PPI_IRQACT(0),  PPI_IRQACT(1),  PPI_IRQACT(2),  PPI_IRQACT(3),
+	PPI_IRQACT(4),  PPI_IRQACT(5),  PPI_IRQACT(6),  PPI_IRQACT(7),
+	PPI_IRQACT(8),  PPI_IRQACT(9),  PPI_IRQACT(10), PPI_IRQACT(11),
+	PPI_IRQACT(12), PPI_IRQACT(13), PPI_IRQACT(14), PPI_IRQACT(15),
+};
+
+static struct irqaction *ppi_irqaction;
+
 static void __init gic_dist_init(struct gic_chip_data *gic,
 	unsigned int irq_start)
 {
@@ -262,6 +292,7 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 	u32 cpumask;
 	void __iomem *base = gic->dist_base;
 	u32 cpu = 0;
+	u32 nrppis = 0, ppi_base = 0;
 
 #ifdef CONFIG_SMP
 	cpu = cpu_logical_map(smp_processor_id());
@@ -281,6 +312,33 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 	gic_irqs = (gic_irqs + 1) * 32;
 	if (gic_irqs > 1020)
 		gic_irqs = 1020;
+
+	/*
+	 * Nobody would be insane enough to use PPIs on a secondary
+	 * GIC, right?
+	 */
+	if (gic == &gic_data[0]) {
+		nrppis = (32 - irq_start) & 31;
+
+		/* The GIC only supports up to 16 PPIs. */
+		if (nrppis > 16)
+			BUG();
+
+		ppi_base = gic->irq_offset + 32 - nrppis;
+
+		ppi_irqaction = kmemdup(&ppi_irqaction_template[16 - nrppis],
+					sizeof(*ppi_irqaction) * nrppis,
+					GFP_KERNEL);
+
+		if (nrppis && !ppi_irqaction) {
+			pr_err("GIC: Can't allocate PPI memory");
+			nrppis = 0;
+			ppi_base = 0;
+		}
+	}
+
+	pr_info("Configuring GIC with %d sources (%d PPIs)\n",
+		gic_irqs, (gic == &gic_data[0]) ? nrppis : 0);
 
 	/*
 	 * Set all global interrupts to be level triggered, active low.
@@ -317,7 +375,22 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 	/*
 	 * Setup the Linux IRQ subsystem.
 	 */
-	for (i = irq_start; i < irq_limit; i++) {
+	for (i = 0; i < nrppis; i++) {
+		int ppi = i + ppi_base;
+		int err;
+
+		irq_set_percpu_devid(ppi);
+		irq_set_chip_and_handler(ppi, &gic_chip,
+					 handle_percpu_devid_irq);
+		irq_set_chip_data(ppi, gic);
+		set_irq_flags(ppi, IRQF_VALID | IRQF_NOAUTOEN);
+
+		err = setup_percpu_irq(ppi, &ppi_irqaction[i]);
+		if (err)
+			pr_err("GIC: can't setup PPI%d (%d)\n", ppi, err);
+	}
+
+	for (i = irq_start + nrppis; i < irq_limit; i++) {
 		irq_set_chip_and_handler(i, &gic_chip, handle_fasteoi_irq);
 		irq_set_chip_data(i, gic);
 		set_irq_flags(i, IRQF_VALID | IRQF_PROBE);
