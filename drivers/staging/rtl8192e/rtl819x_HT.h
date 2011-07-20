@@ -397,12 +397,12 @@ extern u8 MCS_FILTER_1SS[16];
 
 #define		IS_11N_MCS_RATE(rate)		(rate&0x80)
 
-typedef enum _HT_AGGRE_SIZE_E{
+enum ht_aggre_size {
 	HT_AGG_SIZE_8K = 0,
 	HT_AGG_SIZE_16K = 1,
 	HT_AGG_SIZE_32K = 2,
 	HT_AGG_SIZE_64K = 3,
-} HT_AGGRE_SIZE_E, *PHT_AGGRE_SIZE_E;
+};
 
 enum ht_iot_peer {
 	HT_IOT_PEER_UNKNOWN = 0,
