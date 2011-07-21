@@ -144,13 +144,19 @@ efivar_create_sysfs_entry(struct efivars *efivars,
 
 /* Return the number of unicode characters in data */
 static unsigned long
-utf8_strlen(efi_char16_t *data, unsigned long maxlength)
+utf16_strnlen(efi_char16_t *s, size_t maxlength)
 {
 	unsigned long length = 0;
 
-	while (*data++ != 0 && length < maxlength)
+	while (*s++ != 0 && length < maxlength)
 		length++;
 	return length;
+}
+
+static unsigned long
+utf16_strlen(efi_char16_t *s)
+{
+	return utf16_strnlen(s, ~0UL);
 }
 
 /*
@@ -158,9 +164,9 @@ utf8_strlen(efi_char16_t *data, unsigned long maxlength)
  * Note: this is NOT the same as the number of unicode characters
  */
 static inline unsigned long
-utf8_strsize(efi_char16_t *data, unsigned long maxlength)
+utf16_strsize(efi_char16_t *data, unsigned long maxlength)
 {
-	return utf8_strlen(data, maxlength/sizeof(efi_char16_t)) * sizeof(efi_char16_t);
+	return utf16_strnlen(data, maxlength/sizeof(efi_char16_t)) * sizeof(efi_char16_t);
 }
 
 static efi_status_t
@@ -518,7 +524,9 @@ static u64 efi_pstore_write(enum pstore_type_id type, unsigned int part,
 		efivar_unregister(found);
 
 	if (size)
-		efivar_create_sysfs_entry(efivars, utf8_strsize(efi_name, DUMP_NAME_LEN * 2),
+		efivar_create_sysfs_entry(efivars,
+					  utf16_strsize(efi_name,
+							DUMP_NAME_LEN * 2),
 					  efi_name, &vendor);
 
 	return part;
@@ -591,8 +599,8 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 	 * Does this variable already exist?
 	 */
 	list_for_each_entry_safe(search_efivar, n, &efivars->list, list) {
-		strsize1 = utf8_strsize(search_efivar->var.VariableName, 1024);
-		strsize2 = utf8_strsize(new_var->VariableName, 1024);
+		strsize1 = utf16_strsize(search_efivar->var.VariableName, 1024);
+		strsize2 = utf16_strsize(new_var->VariableName, 1024);
 		if (strsize1 == strsize2 &&
 			!memcmp(&(search_efivar->var.VariableName),
 				new_var->VariableName, strsize1) &&
@@ -624,8 +632,8 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 
 	/* Create the entry in sysfs.  Locking is not required here */
 	status = efivar_create_sysfs_entry(efivars,
-					   utf8_strsize(new_var->VariableName,
-							1024),
+					   utf16_strsize(new_var->VariableName,
+							 1024),
 					   new_var->VariableName,
 					   &new_var->VendorGuid);
 	if (status) {
@@ -654,8 +662,8 @@ static ssize_t efivar_delete(struct file *filp, struct kobject *kobj,
 	 * Does this variable already exist?
 	 */
 	list_for_each_entry_safe(search_efivar, n, &efivars->list, list) {
-		strsize1 = utf8_strsize(search_efivar->var.VariableName, 1024);
-		strsize2 = utf8_strsize(del_var->VariableName, 1024);
+		strsize1 = utf16_strsize(search_efivar->var.VariableName, 1024);
+		strsize2 = utf16_strsize(del_var->VariableName, 1024);
 		if (strsize1 == strsize2 &&
 			!memcmp(&(search_efivar->var.VariableName),
 				del_var->VariableName, strsize1) &&
