@@ -41,6 +41,8 @@
 #include <plat/clock.h>
 #include <plat/gpio-cfg.h>
 #include <plat/iic.h>
+#include <plat/mfc.h>
+#include <plat/pd.h>
 
 #include <mach/map.h>
 
@@ -1100,6 +1102,10 @@ static struct platform_device *nuri_devices[] __initdata = {
 	&i2c9_gpio,
 	&s3c_device_adc,
 	&s3c_device_rtc,
+	&s5p_device_mfc,
+	&s5p_device_mfc_l,
+	&s5p_device_mfc_r,
+	&exynos4_device_pd[PD_MFC],
 
 	/* NURI Devices */
 	&nuri_gpio_keys,
@@ -1114,6 +1120,11 @@ static void __init nuri_map_io(void)
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(nuri_uartcfgs, ARRAY_SIZE(nuri_uartcfgs));
+}
+
+static void __init nuri_reserve(void)
+{
+	s5p_mfc_reserve_mem(0x43000000, 8 << 20, 0x51000000, 8 << 20);
 }
 
 static void __init nuri_machine_init(void)
@@ -1136,6 +1147,7 @@ static void __init nuri_machine_init(void)
 
 	/* Last */
 	platform_add_devices(nuri_devices, ARRAY_SIZE(nuri_devices));
+	s5p_device_mfc.dev.parent = &exynos4_device_pd[PD_MFC].dev;
 }
 
 MACHINE_START(NURI, "NURI")
@@ -1145,4 +1157,5 @@ MACHINE_START(NURI, "NURI")
 	.map_io		= nuri_map_io,
 	.init_machine	= nuri_machine_init,
 	.timer		= &exynos4_timer,
+	.reserve        = &nuri_reserve,
 MACHINE_END
