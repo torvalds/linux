@@ -723,7 +723,7 @@ static int s3c24xx_nand_remove(struct platform_device *pdev)
 
 	/* free the common resources */
 
-	if (info->clk != NULL && !IS_ERR(info->clk)) {
+	if (!IS_ERR(info->clk)) {
 		s3c2410_nand_clk_set_state(info, CLOCK_DISABLE);
 		clk_put(info->clk);
 	}
