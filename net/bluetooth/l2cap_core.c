@@ -763,7 +763,8 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 					struct sock *parent = bt_sk(sk)->parent;
 					rsp.result = cpu_to_le16(L2CAP_CR_PEND);
 					rsp.status = cpu_to_le16(L2CAP_CS_AUTHOR_PEND);
-					parent->sk_data_ready(parent, 0);
+					if (parent)
+						parent->sk_data_ready(parent, 0);
 
 				} else {
 					l2cap_state_change(chan, BT_CONFIG);
@@ -2523,8 +2524,7 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 
 	sk = chan->sk;
 
-	if ((bt_sk(sk)->defer_setup && chan->state != BT_CONNECT2) ||
-		 (!bt_sk(sk)->defer_setup && chan->state != BT_CONFIG)) {
+	if (chan->state != BT_CONFIG && chan->state != BT_CONNECT2) {
 		struct l2cap_cmd_rej_cid rej;
 
 		rej.reason = cpu_to_le16(L2CAP_REJ_INVALID_CID);
@@ -4150,7 +4150,8 @@ static int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 					struct sock *parent = bt_sk(sk)->parent;
 					res = L2CAP_CR_PEND;
 					stat = L2CAP_CS_AUTHOR_PEND;
-					parent->sk_data_ready(parent, 0);
+					if (parent)
+						parent->sk_data_ready(parent, 0);
 				} else {
 					l2cap_state_change(chan, BT_CONFIG);
 					res = L2CAP_CR_SUCCESS;

@@ -7757,6 +7757,9 @@ static void init_cfs_rq(struct cfs_rq *cfs_rq, struct rq *rq)
 #endif
 #endif
 	cfs_rq->min_vruntime = (u64)(-(1LL << 20));
+#ifndef CONFIG_64BIT
+	cfs_rq->min_vruntime_copy = cfs_rq->min_vruntime;
+#endif
 }
 
 static void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq)

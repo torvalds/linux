@@ -714,10 +714,19 @@ static int tuner_remove(struct i2c_client *client)
  * returns 0.
  * This function is needed for boards that have a separate tuner for
  * radio (like devices with tea5767).
+ * NOTE: mt20xx uses V4L2_TUNER_DIGITAL_TV and calls set_tv_freq to
+ *       select a TV frequency. So, t_mode = T_ANALOG_TV could actually
+ *	 be used to represent a Digital TV too.
  */
 static inline int check_mode(struct tuner *t, enum v4l2_tuner_type mode)
 {
-	if ((1 << mode & t->mode_mask) == 0)
+	int t_mode;
+	if (mode == V4L2_TUNER_RADIO)
+		t_mode = T_RADIO;
+	else
+		t_mode = T_ANALOG_TV;
+
+	if ((t_mode & t->mode_mask) == 0)
 		return -EINVAL;
 
 	return 0;
@@ -984,7 +993,7 @@ static void tuner_status(struct dvb_frontend *fe)
 	case V4L2_TUNER_RADIO:
 		p = "radio";
 		break;
-	case V4L2_TUNER_DIGITAL_TV:
+	case V4L2_TUNER_DIGITAL_TV: /* Used by mt20xx */
 		p = "digital TV";
 		break;
 	case V4L2_TUNER_ANALOG_TV:
@@ -1135,9 +1144,8 @@ static int tuner_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 		return 0;
 	if (vt->type == t->mode && analog_ops->get_afc)
 		vt->afc = analog_ops->get_afc(&t->fe);
-	if (vt->type == V4L2_TUNER_ANALOG_TV)
+	if (t->mode != V4L2_TUNER_RADIO) {
 		vt->capability |= V4L2_TUNER_CAP_NORM;
-	if (vt->type != V4L2_TUNER_RADIO) {
 		vt->rangelow = tv_range[0] * 16;
 		vt->rangehigh = tv_range[1] * 16;
 		return 0;

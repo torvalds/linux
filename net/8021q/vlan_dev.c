@@ -530,7 +530,11 @@ static int vlan_dev_init(struct net_device *dev)
 					  (1<<__LINK_STATE_DORMANT))) |
 		      (1<<__LINK_STATE_PRESENT);
 
-	dev->hw_features = NETIF_F_ALL_TX_OFFLOADS;
+	dev->hw_features = NETIF_F_ALL_CSUM | NETIF_F_SG |
+			   NETIF_F_FRAGLIST | NETIF_F_ALL_TSO |
+			   NETIF_F_HIGHDMA | NETIF_F_SCTP_CSUM |
+			   NETIF_F_ALL_FCOE;
+
 	dev->features |= real_dev->vlan_features | NETIF_F_LLTX;
 	dev->gso_max_size = real_dev->gso_max_size;
 

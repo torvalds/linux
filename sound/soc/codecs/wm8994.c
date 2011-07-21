@@ -1190,7 +1190,6 @@ SND_SOC_DAPM_INPUT("DMIC1DAT"),
 SND_SOC_DAPM_INPUT("DMIC2DAT"),
 SND_SOC_DAPM_INPUT("Clock"),
 
-SND_SOC_DAPM_MICBIAS("MICBIAS", WM8994_MICBIAS, 2, 0),
 SND_SOC_DAPM_SUPPLY_S("MICBIAS Supply", 1, SND_SOC_NOPM, 0, 0, micbias_ev,
 		      SND_SOC_DAPM_PRE_PMU),
 
@@ -1509,8 +1508,10 @@ static const struct snd_soc_dapm_route wm8994_revd_intercon[] = {
 	{ "AIF2DACDAT", NULL, "AIF1DACDAT" },
 	{ "AIF1ADCDAT", NULL, "AIF2ADCDAT" },
 	{ "AIF2ADCDAT", NULL, "AIF1ADCDAT" },
-	{ "MICBIAS", NULL, "CLK_SYS" },
-	{ "MICBIAS", NULL, "MICBIAS Supply" },
+	{ "MICBIAS1", NULL, "CLK_SYS" },
+	{ "MICBIAS1", NULL, "MICBIAS Supply" },
+	{ "MICBIAS2", NULL, "CLK_SYS" },
+	{ "MICBIAS2", NULL, "MICBIAS Supply" },
 };
 
 static const struct snd_soc_dapm_route wm8994_intercon[] = {
@@ -2763,7 +2764,7 @@ static void wm8958_default_micdet(u16 status, void *data)
 	report = SND_JACK_MICROPHONE;
 
 	/* Everything else is buttons; just assign slots */
-	if (status & 0x1c0)
+	if (status & 0x1c)
 		report |= SND_JACK_BTN_0;
 
 done:
