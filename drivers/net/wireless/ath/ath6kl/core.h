@@ -540,4 +540,5 @@ void aggr_recv_addba_req_evt(struct ath6kl *ar, u8 tid, u16 seq_no,
 void ath6kl_wakeup_event(void *dev);
 void ath6kl_target_failure(struct ath6kl *ar);
 
+void ath6kl_cfg80211_scan_node(struct wiphy *wiphy, struct bss *ni);
 #endif /* CORE_H */

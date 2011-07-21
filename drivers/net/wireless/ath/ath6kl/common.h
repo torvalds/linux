@@ -177,5 +177,4 @@ struct ath6kl *ath6kl_core_alloc(struct device *sdev);
 int ath6kl_core_init(struct ath6kl *ar);
 int ath6kl_unavail_ev(struct ath6kl *ar);
 struct sk_buff *ath6kl_buf_alloc(int size);
-void ath6kl_cfg80211_scan_node(void *arg, struct bss *ni);
 #endif /* COMMON_H */

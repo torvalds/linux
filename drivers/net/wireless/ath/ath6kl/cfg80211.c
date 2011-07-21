@@ -721,9 +721,8 @@ static inline bool is_ch_11a(u16 ch)
 }
 
 /* struct ath6kl_node_table::nt_nodelock is locked when calling this */
-void ath6kl_cfg80211_scan_node(void *arg, struct bss *ni)
+void ath6kl_cfg80211_scan_node(struct wiphy *wiphy, struct bss *ni)
 {
-	struct wiphy *wiphy = (struct wiphy *)arg;
 	u16 size;
 	unsigned char *ieeemgmtbuf = NULL;
 	struct ieee80211_mgmt *mgmt;
