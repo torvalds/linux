@@ -524,7 +524,7 @@ struct mt2063_state {
 	struct dvb_tuner_ops ops;
 	struct dvb_frontend *frontend;
 	struct tuner_state status;
-	const struct MT2063_Info_t *MT2063_ht;
+	struct MT2063_Info_t *MT2063_ht;
 	bool MT2063_init;
 
 	enum MTTune_atv_standard tv_type;
@@ -548,6 +548,15 @@ static inline struct dvb_frontend *mt2063_attach(struct dvb_frontend *fe,
 	printk(KERN_WARNING "%s: Driver disabled by Kconfig\n", __func__);
 	return NULL;
 }
+
+unsigned int mt2063_setTune(struct dvb_frontend *fe, u32 f_in,
+				   u32 bw_in,
+				   enum MTTune_atv_standard tv_type);
+
+unsigned int mt2063_lockStatus(struct dvb_frontend *fe);
+unsigned int tuner_MT2063_Open(struct dvb_frontend *fe);
+unsigned int tuner_MT2063_SoftwareShutdown(struct dvb_frontend *fe);
+unsigned int tuner_MT2063_ClearPowerMaskBits(struct dvb_frontend *fe);
 
 #endif /* CONFIG_DVB_MT2063 */
 
