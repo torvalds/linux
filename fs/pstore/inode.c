@@ -40,7 +40,7 @@
 
 struct pstore_private {
 	u64	id;
-	int	(*erase)(u64);
+	struct pstore_info *psi;
 	ssize_t	size;
 	char	data[];
 };
@@ -73,7 +73,7 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct pstore_private *p = dentry->d_inode->i_private;
 
-	p->erase(p->id);
+	p->psi->erase(p->id, p->psi);
 
 	return simple_unlink(dir, dentry);
 }
@@ -175,8 +175,8 @@ int pstore_is_mounted(void)
  * Set the mtime & ctime to the date that this record was originally stored.
  */
 int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id,
-			      char *data, size_t size,
-			      struct timespec time, int (*erase)(u64))
+		  char *data, size_t size, struct timespec time,
+		  struct pstore_info *psi)
 {
 	struct dentry		*root = pstore_sb->s_root;
 	struct dentry		*dentry;
@@ -193,7 +193,7 @@ int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id,
 	if (!private)
 		goto fail_alloc;
 	private->id = id;
-	private->erase = erase;
+	private->psi = psi;
 
 	switch (type) {
 	case PSTORE_TYPE_DMESG:

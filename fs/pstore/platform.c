@@ -94,11 +94,12 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 		memcpy(dst, s1 + s1_start, l1_cpy);
 		memcpy(dst + l1_cpy, s2 + s2_start, l2_cpy);
 
-		id = psinfo->write(PSTORE_TYPE_DMESG, hsize + l1_cpy + l2_cpy);
+		id = psinfo->write(PSTORE_TYPE_DMESG, hsize + l1_cpy + l2_cpy,
+				   psinfo);
 		if (reason == KMSG_DUMP_OOPS && pstore_is_mounted())
 			pstore_mkfile(PSTORE_TYPE_DMESG, psinfo->name, id,
 				      psinfo->buf, hsize + l1_cpy + l2_cpy,
-				      CURRENT_TIME, psinfo->erase);
+				      CURRENT_TIME, psinfo);
 		l1 -= l1_cpy;
 		l2 -= l2_cpy;
 		total += l1_cpy + l2_cpy;
@@ -166,9 +167,9 @@ void pstore_get_records(void)
 	if (rc)
 		goto out;
 
-	while ((size = psi->read(&id, &type, &time)) > 0) {
+	while ((size = psi->read(&id, &type, &time, psi)) > 0) {
 		if (pstore_mkfile(type, psi->name, id, psi->buf, (size_t)size,
-				  time, psi->erase))
+				  time, psi))
 			failed++;
 	}
 	psi->close(psi);
@@ -196,10 +197,10 @@ int pstore_write(enum pstore_type_id type, char *buf, size_t size)
 
 	mutex_lock(&psinfo->buf_mutex);
 	memcpy(psinfo->buf, buf, size);
-	id = psinfo->write(type, size);
+	id = psinfo->write(type, size, psinfo);
 	if (pstore_is_mounted())
 		pstore_mkfile(PSTORE_TYPE_DMESG, psinfo->name, id, psinfo->buf,
-			      size, CURRENT_TIME, psinfo->erase);
+			      size, CURRENT_TIME, psinfo);
 	mutex_unlock(&psinfo->buf_mutex);
 
 	return 0;

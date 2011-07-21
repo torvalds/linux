@@ -932,8 +932,10 @@ static int erst_check_table(struct acpi_table_erst *erst_tab)
 static int erst_open_pstore(struct pstore_info *psi);
 static int erst_close_pstore(struct pstore_info *psi);
 static ssize_t erst_reader(u64 *id, enum pstore_type_id *type,
-		       struct timespec *time);
-static u64 erst_writer(enum pstore_type_id type, size_t size);
+			   struct timespec *time, struct pstore_info *psi);
+static u64 erst_writer(enum pstore_type_id type, size_t size,
+		       struct pstore_info *psi);
+static int erst_clearer(u64 id, struct pstore_info *psi);
 
 static struct pstore_info erst_info = {
 	.owner		= THIS_MODULE,
@@ -942,7 +944,7 @@ static struct pstore_info erst_info = {
 	.close		= erst_close_pstore,
 	.read		= erst_reader,
 	.write		= erst_writer,
-	.erase		= erst_clear
+	.erase		= erst_clearer
 };
 
 #define CPER_CREATOR_PSTORE						\
@@ -983,7 +985,7 @@ static int erst_close_pstore(struct pstore_info *psi)
 }
 
 static ssize_t erst_reader(u64 *id, enum pstore_type_id *type,
-		       struct timespec *time)
+			   struct timespec *time, struct pstore_info *psi)
 {
 	int rc;
 	ssize_t len = 0;
@@ -1037,7 +1039,8 @@ out:
 	return (rc < 0) ? rc : (len - sizeof(*rcd));
 }
 
-static u64 erst_writer(enum pstore_type_id type, size_t size)
+static u64 erst_writer(enum pstore_type_id type, size_t size,
+		       struct pstore_info *psi)
 {
 	struct cper_pstore_record *rcd = (struct cper_pstore_record *)
 					(erst_info.buf - sizeof(*rcd));
@@ -1078,6 +1081,11 @@ static u64 erst_writer(enum pstore_type_id type, size_t size)
 	erst_write(&rcd->hdr);
 
 	return rcd->hdr.record_id;
+}
+
+static int erst_clearer(u64 id, struct pstore_info *psi)
+{
+	return erst_clear(id);
 }
 
 static int __init erst_init(void)
