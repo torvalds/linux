@@ -23,6 +23,7 @@
 #include "cfg.h"
 #include "debugfs.h"
 #include "cmd.h"
+#include "mesh.h"
 
 #define DRIVER_RELEASE_VERSION "323.p0"
 const char lbs_driver_version[] = "COMM-USB8388-" DRIVER_RELEASE_VERSION
@@ -950,17 +951,20 @@ int lbs_start_card(struct lbs_private *priv)
 	if (ret)
 		goto done;
 
+	if (!lbs_disablemesh)
+		lbs_init_mesh(priv);
+	else
+		pr_info("%s: mesh disabled\n", dev->name);
+
 	if (lbs_cfg_register(priv)) {
 		pr_err("cannot register device\n");
 		goto done;
 	}
 
-	lbs_update_channel(priv);
+	if (lbs_mesh_activated(priv))
+		lbs_start_mesh(priv);
 
-	if (!lbs_disablemesh)
-		lbs_init_mesh(priv);
-	else
-		pr_info("%s: mesh disabled\n", dev->name);
+	lbs_update_channel(priv);
 
 	lbs_debugfs_init_one(priv, dev);
 

@@ -6,7 +6,6 @@
 #ifndef _LBS_DEV_H_
 #define _LBS_DEV_H_
 
-#include "mesh.h"
 #include "defs.h"
 #include "host.h"
 
@@ -22,6 +21,17 @@ struct sleep_params {
 	uint16_t sp_reserved;
 };
 
+/* Mesh statistics */
+struct lbs_mesh_stats {
+	u32	fwd_bcast_cnt;		/* Fwd: Broadcast counter */
+	u32	fwd_unicast_cnt;	/* Fwd: Unicast counter */
+	u32	fwd_drop_ttl;		/* Fwd: TTL zero */
+	u32	fwd_drop_rbt;		/* Fwd: Recently Broadcasted */
+	u32	fwd_drop_noroute; 	/* Fwd: No route to Destination */
+	u32	fwd_drop_nobuf;		/* Fwd: Run out of internal buffers */
+	u32	drop_blind;		/* Rx:  Dropped by blinding table */
+	u32	tx_failed_cnt;		/* Tx:  Failed transmissions */
+};
 
 /* Private structure for the MV device */
 struct lbs_private {
