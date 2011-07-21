@@ -154,7 +154,13 @@ update_iv:
 	return RX_CONTINUE;
 
 mic_fail:
-	mac80211_ev_michael_mic_failure(rx->sdata, rx->key->conf.keyidx,
+	/*
+	 * In some cases the key can be unset - e.g. a multicast packet, in
+	 * a driver that supports HW encryption. Send up the key idx only if
+	 * the key is set.
+	 */
+	mac80211_ev_michael_mic_failure(rx->sdata,
+					rx->key ? rx->key->conf.keyidx : -1,
 					(void *) skb->data, NULL, GFP_ATOMIC);
 	return RX_DROP_UNUSABLE;
 }

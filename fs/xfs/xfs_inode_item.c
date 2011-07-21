@@ -681,15 +681,15 @@ xfs_inode_item_unlock(
  * where the cluster buffer may be unpinned before the inode is inserted into
  * the AIL during transaction committed processing. If the buffer is unpinned
  * before the inode item has been committed and inserted, then it is possible
- * for the buffer to be written and IO completions before the inode is inserted
+ * for the buffer to be written and IO completes before the inode is inserted
  * into the AIL. In that case, we'd be inserting a clean, stale inode into the
  * AIL which will never get removed. It will, however, get reclaimed which
  * triggers an assert in xfs_inode_free() complaining about freein an inode
  * still in the AIL.
  *
- * To avoid this, return a lower LSN than the one passed in so that the
- * transaction committed code will not move the inode forward in the AIL but
- * will still unpin it properly.
+ * To avoid this, just unpin the inode directly and return a LSN of -1 so the
+ * transaction committed code knows that it does not need to do any further
+ * processing on the item.
  */
 STATIC xfs_lsn_t
 xfs_inode_item_committed(
@@ -699,8 +699,10 @@ xfs_inode_item_committed(
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	struct xfs_inode	*ip = iip->ili_inode;
 
-	if (xfs_iflags_test(ip, XFS_ISTALE))
-		return lsn - 1;
+	if (xfs_iflags_test(ip, XFS_ISTALE)) {
+		xfs_inode_item_unpin(lip, 0);
+		return -1;
+	}
 	return lsn;
 }
 

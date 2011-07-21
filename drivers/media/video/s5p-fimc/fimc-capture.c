@@ -1,7 +1,7 @@
 /*
- * Samsung S5P SoC series camera interface (camera capture) driver
+ * Samsung S5P/EXYNOS4 SoC series camera interface (camera capture) driver
  *
- * Copyright (c) 2010 Samsung Electronics Co., Ltd
+ * Copyright (C) 2010 - 2011 Samsung Electronics Co., Ltd.
  * Author: Sylwester Nawrocki, <s.nawrocki@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -262,12 +262,7 @@ static unsigned int get_plane_size(struct fimc_frame *fr, unsigned int plane)
 {
 	if (!fr || plane >= fr->fmt->memplanes)
 		return 0;
-
-	dbg("%s: w: %d. h: %d. depth[%d]: %d",
-	    __func__, fr->width, fr->height, plane, fr->fmt->depth[plane]);
-
 	return fr->f_width * fr->f_height * fr->fmt->depth[plane] / 8;
-
 }
 
 static int queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
@@ -283,21 +278,11 @@ static int queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 
 	*num_planes = fmt->memplanes;
 
-	dbg("%s, buffer count=%d, plane count=%d",
-	    __func__, *num_buffers, *num_planes);
-
 	for (i = 0; i < fmt->memplanes; i++) {
 		sizes[i] = get_plane_size(&ctx->d_frame, i);
-		dbg("plane: %u, plane_size: %lu", i, sizes[i]);
 		allocators[i] = ctx->fimc_dev->alloc_ctx;
 	}
 
-	return 0;
-}
-
-static int buffer_init(struct vb2_buffer *vb)
-{
-	/* TODO: */
 	return 0;
 }
 
@@ -380,7 +365,6 @@ static struct vb2_ops fimc_capture_qops = {
 	.queue_setup		= queue_setup,
 	.buf_prepare		= buffer_prepare,
 	.buf_queue		= buffer_queue,
-	.buf_init		= buffer_init,
 	.wait_prepare		= fimc_unlock,
 	.wait_finish		= fimc_lock,
 	.start_streaming	= start_streaming,
@@ -903,6 +887,7 @@ err_vd_reg:
 err_v4l2_reg:
 	v4l2_device_unregister(v4l2_dev);
 err_info:
+	kfree(ctx);
 	dev_err(&fimc->pdev->dev, "failed to install\n");
 	return ret;
 }
