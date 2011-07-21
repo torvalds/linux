@@ -570,11 +570,92 @@ static __initconst const u64 p4_hw_cache_event_ids
  },
 };
 
+/*
+ * Because of Netburst being quite restricted in now
+ * many same events can run simultaneously, we use
+ * event aliases, ie different events which have the
+ * same functionallity but use non-intersected resources
+ * (ESCR/CCCR/couter registers). This allow us to run
+ * two or more semi-same events together. It is done
+ * transparently to a user space.
+ *
+ * Never set any cusom internal bits such as P4_CONFIG_HT,
+ * P4_CONFIG_ALIASABLE or bits for P4_PEBS_METRIC, they are
+ * either up-to-dated automatically either not appliable
+ * at all.
+ *
+ * And be really carefull choosing aliases!
+ */
+struct p4_event_alias {
+	u64 orig;
+	u64 alter;
+} p4_event_aliases[] = {
+	{
+		/*
+		 * Non-halted cycles can be substituted with
+		 * non-sleeping cycles (see Intel SDM Vol3b for
+		 * details).
+		 */
+	.orig	=
+		p4_config_pack_escr(P4_ESCR_EVENT(P4_EVENT_GLOBAL_POWER_EVENTS)		|
+				    P4_ESCR_EMASK_BIT(P4_EVENT_GLOBAL_POWER_EVENTS, RUNNING)),
+	.alter	=
+		p4_config_pack_escr(P4_ESCR_EVENT(P4_EVENT_EXECUTION_EVENT)		|
+				    P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS0)|
+				    P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS1)|
+				    P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS2)|
+				    P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS3)|
+				    P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS0)	|
+				    P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS1)	|
+				    P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS2)	|
+				    P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS3))|
+		p4_config_pack_cccr(P4_CCCR_THRESHOLD(15) | P4_CCCR_COMPLEMENT		|
+				    P4_CCCR_COMPARE),
+	},
+};
+
+static u64 p4_get_alias_event(u64 config)
+{
+	u64 config_match;
+	int i;
+
+	/*
+	 * Probably we're lucky and don't have to do
+	 * matching over all config bits.
+	 */
+	if (!(config & P4_CONFIG_ALIASABLE))
+		return 0;
+
+	config_match = config & P4_CONFIG_EVENT_ALIAS_MASK;
+
+	/*
+	 * If an event was previously swapped to the alter config
+	 * we should swap it back otherwise contnention on registers
+	 * will return back.
+	 */
+	for (i = 0; i < ARRAY_SIZE(p4_event_aliases); i++) {
+		if (config_match == p4_event_aliases[i].orig) {
+			config_match = p4_event_aliases[i].alter;
+			break;
+		} else if (config_match == p4_event_aliases[i].alter) {
+			config_match = p4_event_aliases[i].orig;
+			break;
+		}
+	}
+
+	if (i >= ARRAY_SIZE(p4_event_aliases))
+		return 0;
+
+	return config_match |
+		(config & P4_CONFIG_EVENT_ALIAS_IMMUTABLE_BITS);
+}
+
 static u64 p4_general_events[PERF_COUNT_HW_MAX] = {
   /* non-halted CPU clocks */
   [PERF_COUNT_HW_CPU_CYCLES] =
 	p4_config_pack_escr(P4_ESCR_EVENT(P4_EVENT_GLOBAL_POWER_EVENTS)		|
-		P4_ESCR_EMASK_BIT(P4_EVENT_GLOBAL_POWER_EVENTS, RUNNING)),
+		P4_ESCR_EMASK_BIT(P4_EVENT_GLOBAL_POWER_EVENTS, RUNNING))	|
+		P4_CONFIG_ALIASABLE,
 
   /*
    * retired instructions
@@ -717,31 +798,6 @@ static int p4_validate_raw_event(struct perf_event *event)
 		return -EINVAL;
 
 	return 0;
-}
-
-static void p4_hw_watchdog_set_attr(struct perf_event_attr *wd_attr)
-{
-	/*
-	 * Watchdog ticks are special on Netburst, we use
-	 * that named "non-sleeping" ticks as recommended
-	 * by Intel SDM Vol3b.
-	 */
-	WARN_ON_ONCE(wd_attr->type	!= PERF_TYPE_HARDWARE ||
-		     wd_attr->config	!= PERF_COUNT_HW_CPU_CYCLES);
-
-	wd_attr->type	= PERF_TYPE_RAW;
-	wd_attr->config	=
-		p4_config_pack_escr(P4_ESCR_EVENT(P4_EVENT_EXECUTION_EVENT)		|
-			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS0)		|
-			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS1)		|
-			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS2)		|
-			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, NBOGUS3)		|
-			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS0)		|
-			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS1)		|
-			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS2)		|
-			P4_ESCR_EMASK_BIT(P4_EVENT_EXECUTION_EVENT, BOGUS3))		|
-		p4_config_pack_cccr(P4_CCCR_THRESHOLD(15) | P4_CCCR_COMPLEMENT		|
-			P4_CCCR_COMPARE);
 }
 
 static int p4_hw_config(struct perf_event *event)
@@ -1159,6 +1215,8 @@ static int p4_pmu_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign
 	struct p4_event_bind *bind;
 	unsigned int i, thread, num;
 	int cntr_idx, escr_idx;
+	u64 config_alias;
+	int pass;
 
 	bitmap_zero(used_mask, X86_PMC_IDX_MAX);
 	bitmap_zero(escr_mask, P4_ESCR_MSR_TABLE_SIZE);
@@ -1167,6 +1225,17 @@ static int p4_pmu_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign
 
 		hwc = &cpuc->event_list[i]->hw;
 		thread = p4_ht_thread(cpu);
+		pass = 0;
+
+again:
+		/*
+		 * Aliases are swappable so we may hit circular
+		 * lock if both original config and alias need
+		 * resources (MSR registers) which already busy.
+		 */
+		if (pass > 2)
+			goto done;
+
 		bind = p4_config_get_bind(hwc->config);
 		escr_idx = p4_get_escr_idx(bind->escr_msr[thread]);
 		if (unlikely(escr_idx == -1))
@@ -1180,8 +1249,17 @@ static int p4_pmu_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign
 		}
 
 		cntr_idx = p4_next_cntr(thread, used_mask, bind);
-		if (cntr_idx == -1 || test_bit(escr_idx, escr_mask))
-			goto done;
+		if (cntr_idx == -1 || test_bit(escr_idx, escr_mask)) {
+			/*
+			 * Probably an event alias is still available.
+			 */
+			config_alias = p4_get_alias_event(hwc->config);
+			if (!config_alias)
+				goto done;
+			hwc->config = config_alias;
+			pass++;
+			goto again;
+		}
 
 		p4_pmu_swap_config_ts(hwc, cpu);
 		if (assign)
@@ -1218,7 +1296,6 @@ static __initconst const struct x86_pmu p4_pmu = {
 	.cntval_bits		= ARCH_P4_CNTRVAL_BITS,
 	.cntval_mask		= ARCH_P4_CNTRVAL_MASK,
 	.max_period		= (1ULL << (ARCH_P4_CNTRVAL_BITS - 1)) - 1,
-	.hw_watchdog_set_attr	= p4_hw_watchdog_set_attr,
 	.hw_config		= p4_hw_config,
 	.schedule_events	= p4_pmu_schedule_events,
 	/*
