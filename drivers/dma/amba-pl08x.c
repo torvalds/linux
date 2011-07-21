@@ -491,10 +491,10 @@ static inline u32 pl08x_cctl_bits(u32 cctl, u8 srcwidth, u8 dstwidth,
 
 struct pl08x_lli_build_data {
 	struct pl08x_txd *txd;
-	struct pl08x_driver_data *pl08x;
 	struct pl08x_bus_data srcbus;
 	struct pl08x_bus_data dstbus;
 	size_t remainder;
+	u32 lli_bus;
 };
 
 /*
@@ -547,8 +547,7 @@ static void pl08x_fill_lli_for_desc(struct pl08x_lli_build_data *bd,
 	llis_va[num_llis].src = bd->srcbus.addr;
 	llis_va[num_llis].dst = bd->dstbus.addr;
 	llis_va[num_llis].lli = llis_bus + (num_llis + 1) * sizeof(struct pl08x_lli);
-	if (bd->pl08x->lli_buses & PL08X_AHB2)
-		llis_va[num_llis].lli |= PL080_LLI_LM_AHB2;
+	llis_va[num_llis].lli |= bd->lli_bus;
 
 	if (cctl & PL080_CONTROL_SRC_INCR)
 		bd->srcbus.addr += len;
@@ -601,9 +600,9 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 	cctl = txd->cctl;
 
 	bd.txd = txd;
-	bd.pl08x = pl08x;
 	bd.srcbus.addr = txd->src_addr;
 	bd.dstbus.addr = txd->dst_addr;
+	bd.lli_bus = (pl08x->lli_buses & PL08X_AHB2) ? PL080_LLI_LM_AHB2 : 0;
 
 	/* Find maximum width of the source bus */
 	bd.srcbus.maxwidth =
