@@ -68,7 +68,7 @@ extern struct device omap_device_parent;
  *
  */
 struct omap_device {
-	struct platform_device		pdev;
+	struct platform_device		*pdev;
 	struct omap_hwmod		**hwmods;
 	struct omap_device_pm_latency	*pm_lats;
 	u32				dev_wakeup_lat;
@@ -146,7 +146,10 @@ struct omap_device_pm_latency {
 #define OMAP_DEVICE_LATENCY_AUTO_ADJUST BIT(1)
 
 /* Get omap_device pointer from platform_device pointer */
-#define to_omap_device(x) container_of((x), struct omap_device, pdev)
+static inline struct omap_device *to_omap_device(struct platform_device *pdev)
+{
+	return pdev ? pdev->archdata.od : NULL;
+}
 
 static inline
 void omap_device_disable_idle_on_suspend(struct platform_device *pdev)
