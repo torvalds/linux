@@ -2425,8 +2425,8 @@ int nfsd_change_deleg_cb(struct file_lock **onlist, int arg)
 }
 
 static const struct lock_manager_operations nfsd_lease_mng_ops = {
-	.fl_break = nfsd_break_deleg_cb,
-	.fl_change = nfsd_change_deleg_cb,
+	.lm_break = nfsd_break_deleg_cb,
+	.lm_change = nfsd_change_deleg_cb,
 };
 
 

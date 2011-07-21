@@ -92,7 +92,7 @@ static void do_unlock_close(struct dlm_ls *ls, u64 number,
 	op->info.number		= number;
 	op->info.start		= 0;
 	op->info.end		= OFFSET_MAX;
-	if (fl->fl_lmops && fl->fl_lmops->fl_grant)
+	if (fl->fl_lmops && fl->fl_lmops->lm_grant)
 		op->info.owner	= (__u64) fl->fl_pid;
 	else
 		op->info.owner	= (__u64)(long) fl->fl_owner;
@@ -128,11 +128,11 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	op->info.number		= number;
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
-	if (fl->fl_lmops && fl->fl_lmops->fl_grant) {
+	if (fl->fl_lmops && fl->fl_lmops->lm_grant) {
 		/* fl_owner is lockd which doesn't distinguish
 		   processes on the nfs client */
 		op->info.owner	= (__u64) fl->fl_pid;
-		xop->callback	= fl->fl_lmops->fl_grant;
+		xop->callback	= fl->fl_lmops->lm_grant;
 		locks_init_lock(&xop->flc);
 		locks_copy_lock(&xop->flc, fl);
 		xop->fl		= fl;
@@ -268,7 +268,7 @@ int dlm_posix_unlock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	op->info.number		= number;
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
-	if (fl->fl_lmops && fl->fl_lmops->fl_grant)
+	if (fl->fl_lmops && fl->fl_lmops->lm_grant)
 		op->info.owner	= (__u64) fl->fl_pid;
 	else
 		op->info.owner	= (__u64)(long) fl->fl_owner;
@@ -327,7 +327,7 @@ int dlm_posix_get(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 	op->info.number		= number;
 	op->info.start		= fl->fl_start;
 	op->info.end		= fl->fl_end;
-	if (fl->fl_lmops && fl->fl_lmops->fl_grant)
+	if (fl->fl_lmops && fl->fl_lmops->lm_grant)
 		op->info.owner	= (__u64) fl->fl_pid;
 	else
 		op->info.owner	= (__u64)(long) fl->fl_owner;
