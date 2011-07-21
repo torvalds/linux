@@ -3,9 +3,11 @@
  *
  * Copyright (c) 2011 Mauro Carvalho Chehab <mchehab@redhat.com>
  *
- * This driver came from a driver originally written by Henry, made available
- * by Terratec, at:
+ * This driver came from a driver originally written by:
+ *		Henry Wang <Henry.wang@AzureWave.com>
+ * Made publicly available by Terratec, at:
  *	http://linux.terratec.de/files/TERRATEC_H7/20110323_TERRATEC_H7_Linux.tar.gz
+ * The original driver's license is GPL, as declared with MODULE_LICENSE()
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
