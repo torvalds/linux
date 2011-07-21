@@ -99,7 +99,7 @@ iface_test(struct rb_root *root, const char **iface)
 
 	while (n) {
 		const char *d = iface_data(n);
-		int res = ifname_compare(*iface, d);
+		long res = ifname_compare(*iface, d);
 
 		if (res < 0)
 			n = n->rb_left;
@@ -121,7 +121,7 @@ iface_add(struct rb_root *root, const char **iface)
 
 	while (*n) {
 		char *ifname = iface_data(*n);
-		int res = ifname_compare(*iface, ifname);
+		long res = ifname_compare(*iface, ifname);
 
 		p = *n;
 		if (res < 0)
@@ -159,31 +159,42 @@ hash_netiface_same_set(const struct ip_set *a, const struct ip_set *b);
 
 /* The type variant functions: IPv4 */
 
-/* Member elements without timeout */
-struct hash_netiface4_elem {
+struct hash_netiface4_elem_hashed {
 	__be32 ip;
-	const char *iface;
 	u8 physdev;
 	u8 cidr;
 	u16 padding;
+};
+
+#define HKEY_DATALEN	sizeof(struct hash_netiface4_elem_hashed)
+
+/* Member elements without timeout */
+struct hash_netiface4_elem {
+	__be32 ip;
+	u8 physdev;
+	u8 cidr;
+	u16 padding;
+	const char *iface;
 };
 
 /* Member elements with timeout support */
 struct hash_netiface4_telem {
 	__be32 ip;
-	const char *iface;
 	u8 physdev;
 	u8 cidr;
 	u16 padding;
+	const char *iface;
 	unsigned long timeout;
 };
 
 static inline bool
 hash_netiface4_data_equal(const struct hash_netiface4_elem *ip1,
-			  const struct hash_netiface4_elem *ip2)
+			  const struct hash_netiface4_elem *ip2,
+			  u32 *multi)
 {
 	return ip1->ip == ip2->ip &&
 	       ip1->cidr == ip2->cidr &&
+	       (++*multi) &&
 	       ip1->physdev == ip2->physdev &&
 	       ip1->iface == ip2->iface;
 }
@@ -257,6 +268,7 @@ nla_put_failure:
 
 #define IP_SET_HASH_WITH_NETS
 #define IP_SET_HASH_WITH_RBTREE
+#define IP_SET_HASH_WITH_MULTI
 
 #define PF		4
 #define HOST_MASK	32
@@ -424,29 +436,40 @@ hash_netiface_same_set(const struct ip_set *a, const struct ip_set *b)
 
 /* The type variant functions: IPv6 */
 
-struct hash_netiface6_elem {
+struct hash_netiface6_elem_hashed {
 	union nf_inet_addr ip;
-	const char *iface;
 	u8 physdev;
 	u8 cidr;
 	u16 padding;
 };
 
-struct hash_netiface6_telem {
+#define HKEY_DATALEN	sizeof(struct hash_netiface6_elem_hashed)
+
+struct hash_netiface6_elem {
 	union nf_inet_addr ip;
-	const char *iface;
 	u8 physdev;
 	u8 cidr;
 	u16 padding;
+	const char *iface;
+};
+
+struct hash_netiface6_telem {
+	union nf_inet_addr ip;
+	u8 physdev;
+	u8 cidr;
+	u16 padding;
+	const char *iface;
 	unsigned long timeout;
 };
 
 static inline bool
 hash_netiface6_data_equal(const struct hash_netiface6_elem *ip1,
-			  const struct hash_netiface6_elem *ip2)
+			  const struct hash_netiface6_elem *ip2,
+			  u32 *multi)
 {
 	return ipv6_addr_cmp(&ip1->ip.in6, &ip2->ip.in6) == 0 &&
 	       ip1->cidr == ip2->cidr &&
+	       (++*multi) &&
 	       ip1->physdev == ip2->physdev &&
 	       ip1->iface == ip2->iface;
 }
@@ -681,6 +704,7 @@ hash_netiface_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 	h->maxelem = maxelem;
 	get_random_bytes(&h->initval, sizeof(h->initval));
 	h->timeout = IPSET_NO_TIMEOUT;
+	h->ahash_max = AHASH_MAX_SIZE;
 
 	hbits = htable_bits(hashsize);
 	h->table = ip_set_alloc(
