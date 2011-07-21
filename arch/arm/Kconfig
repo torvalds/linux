@@ -753,6 +753,7 @@ config ARCH_S5PV210
 	bool "Samsung S5PV210/S5PC110"
 	select CPU_V7
 	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_HAS_HOLES_MEMORYMODEL
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
@@ -770,6 +771,7 @@ config ARCH_EXYNOS4
 	bool "Samsung EXYNOS4"
 	select CPU_V7
 	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_HAS_HOLES_MEMORYMODEL
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select CLKDEV_LOOKUP

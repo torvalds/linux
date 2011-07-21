@@ -76,6 +76,11 @@ config S5P_DEV_FIMD0
 	help
 	  Compile in platform device definitions for FIMD controller 0
 
+config S5P_DEV_MFC
+	bool
+	help
+	  Compile in platform device definitions for MFC
+
 config S5P_DEV_ONENAND
 	bool
 	help
