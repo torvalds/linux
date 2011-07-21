@@ -186,6 +186,16 @@ config MACH_NURI
 	help
 	  Machine support for Samsung Mobile NURI Board.
 
+config MACH_ORIGEN
+	bool "ORIGEN"
+	select CPU_EXYNOS4210
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
+	select S3C_DEV_HSMMC2
+	select EXYNOS4_SETUP_SDHCI
+	help
+	  Machine support for ORIGEN based on Samsung EXYNOS4210
+
 endmenu
 
 comment "Configuration for HSMMC bus width"
