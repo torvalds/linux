@@ -42,11 +42,12 @@ read_vco(struct drm_device *dev, int clk)
 static u32
 read_clk(struct drm_device *dev, int clk, bool ignore_en)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	u32 sctl, sdiv, sclk;
 
-	/* refclk for the 0xe8xx plls always 27KHz */
+	/* refclk for the 0xe8xx plls is a fixed frequency */
 	if (clk >= 0x40)
-		return 27000;
+		return dev_priv->crystal;
 
 	sctl = nv_rd32(dev, 0x4120 + (clk * 4));
 	if (!ignore_en && !(sctl & 0x00000100))
@@ -54,7 +55,7 @@ read_clk(struct drm_device *dev, int clk, bool ignore_en)
 
 	switch (sctl & 0x00003000) {
 	case 0x00000000:
-		return 27000;
+		return dev_priv->crystal;
 	case 0x00002000:
 		if (sctl & 0x00000040)
 			return 108000;
