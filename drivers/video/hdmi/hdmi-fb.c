@@ -2,9 +2,9 @@
 #include <linux/fb.h>
 
 #include <linux/completion.h>
-#include "../../display/screen/screen.h"
-#include <linux/hdmi-new.h>
-#include "../../rk29_fb.h"
+#include "../display/screen/screen.h"
+#include <linux/hdmi.h>
+#include "../rk29_fb.h"
 
 
 /* Base */
@@ -110,8 +110,8 @@ struct rk29fb_screen hdmi_info[] = {
 		.upper_margin = V_BP0,
 		.lower_margin = V_FP0,
 		.vsync_len = V_PW0,
-		.pin_hsync = 0,
-		.pin_vsync = 0,
+		.pin_hsync = 1,
+		.pin_vsync = 1,
 		.pin_den = 0,
 		.pin_dclk = DCLK_POL,
 		.swap_rb = SWAP_RB,
@@ -135,8 +135,8 @@ struct rk29fb_screen hdmi_info[] = {
 		.upper_margin = V_BP1,
 		.lower_margin = V_FP1,
 		.vsync_len = V_PW1,
-		.pin_hsync = 0,
-		.pin_vsync = 0,
+		.pin_hsync = 1,
+		.pin_vsync = 1,
 		.pin_den = 0,
 		.pin_dclk = DCLK_POL,
 		.swap_rb = SWAP_RB,
@@ -339,39 +339,3 @@ int hdmi_switch_fb(struct hdmi *hdmi, int type)
 	}
 	return rc;
 }
-int hdmi_resolution_changed(struct hdmi *hdmi, int xres, int yres, int video_on)
-{
-	int ret = 0;
-	if(!hdmi->display_on || !hdmi->ops->hdmi_precent(hdmi) || !hdmi->auto_switch)
-		return 0;
-	if(xres > 1280 && hdmi->resolution != HDMI_1920x1080p_50Hz) 
-	{
-		hdmi->resolution = HDMI_1920x1080p_50Hz;
-		hdmi->display_on = 1;
-		hdmi->ops->set_param(hdmi);
-		ret = 1;
-	}
-	
-
-	else if(xres >1024 && xres <= 1280 && hdmi->resolution != HDMI_1280x720p_50Hz){
-		hdmi->resolution = HDMI_1280x720p_50Hz;
-		hdmi->display_on = 1;
-		hdmi->ops->set_param(hdmi);
-		ret = 1;
-	}
-	/*
-	else {
-		if(hdmi->display_on == 1)
-			hdmi->hdmi_display_off(hdmi);
-	}*/
-	return ret;
-}
-
-int hdmi_get_default_resolution(void *screen)
-{
-    memcpy((struct rk29fb_screen*)screen, &hdmi_info[HDMI_DEFAULT_RESOLUTION], sizeof(struct rk29fb_screen));
-    return 0;  
-}
-
-
-EXPORT_SYMBOL(hdmi_resolution_changed);

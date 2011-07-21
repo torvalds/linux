@@ -3,7 +3,9 @@
 #include <linux/module.h>
 #include <linux/err.h>
 
-#include <linux/hdmi-new.h>
+#include <linux/hdmi.h>
+#include <linux/input.h>
+
 
 struct class *hdmi_class;
 struct hdmi_id_ref_info {
@@ -23,47 +25,78 @@ static inline int hdmi_create_attrs(struct hdmi *hdmi)
 static inline void hdmi_remove_attrs(struct hdmi *hdmi) {}
 
 #endif /* CONFIG_SYSFS */
+static void __hdmi_changed(struct hdmi *hdmi)
+{
+	int precent;
+	
+	mutex_lock(&hdmi->lock);
+	precent = hdmi->ops->hdmi_precent(hdmi);
 
+	if(precent && hdmi->mode == DISP_ON_LCD && hdmi->display_on){
+		if(hdmi->ops->insert(hdmi) == 0){
+			hdmi->mode = DISP_ON_HDMI;
+			kobject_uevent(&hdmi->dev->kobj, KOBJ_CHANGE);
+		}
+		else
+			hdmi_dbg(hdmi->dev, "insert error\n");
+	}
+	else if((!precent || !hdmi->display_on) && hdmi->mode == DISP_ON_HDMI){
+		if(hdmi->ops->remove(hdmi) == 0){
+			hdmi->mode = DISP_ON_LCD;
+			kobject_uevent(&hdmi->dev->kobj, KOBJ_CHANGE);
+		}
+		else
+			hdmi_dbg(hdmi->dev, "remove error\n");
+	}
+	mutex_unlock(&hdmi->lock);
+	return;
+}
 
 void hdmi_changed(struct hdmi *hdmi, int msec)
-{
-	schedule_delayed_work(&hdmi->changed_work, msecs_to_jiffies(msec));
+{	
+	schedule_delayed_work(&hdmi->work, msecs_to_jiffies(msec));
+	return;
 }
-int hdmi_suspend(struct hdmi *hdmi)
+void hdmi_suspend(struct hdmi *hdmi)
 {
-	flush_delayed_work(&hdmi->changed_work);
-	return hdmi->ops->shutdown(hdmi);
+	del_timer(&hdmi->timer);
+	flush_delayed_work(&hdmi->work);
+	if(hdmi->mode == DISP_ON_HDMI){
+		hdmi->ops->remove(hdmi);
+		hdmi->mode = DISP_ON_LCD;
+	}
+	return;
 }
-int hdmi_resume(struct hdmi *hdmi)
+void hdmi_resume(struct hdmi *hdmi)
 {
-	hdmi_changed(hdmi, 1);
-
-	return 0;
+	mod_timer(&hdmi->timer, jiffies + msecs_to_jiffies(10));
+	return;
 }
 
 static void hdmi_changed_work(struct work_struct *work)
 {
-	int precent, ret = 0;
 	struct hdmi *hdmi = container_of(work, struct hdmi,
-						changed_work.work);
-
-	precent = hdmi->ops->hdmi_precent(hdmi);
-	hdmi_dbg(hdmi->dev, "hdmi %s\n", (precent)?"insert" : "remove");
-
-	if(precent)
-		ret = hdmi->ops->insert(hdmi);
-	else
-		ret = hdmi->ops->remove(hdmi);
-	if(ret < 0)
-		dev_dbg(hdmi->dev, "hdmi changed error\n");
-	kobject_uevent(&hdmi->dev->kobj, KOBJ_CHANGE);
+						work.work);
+	
+	__hdmi_changed(hdmi);
+	return;
 }
 
 void *hdmi_priv(struct hdmi *hdmi)
 {
 	return (void *)hdmi->priv;
 }
+static void hdmi_detect_timer(unsigned long data)
+{
+	struct hdmi *hdmi = (struct hdmi*)data;
+	
+	int precent =  hdmi->ops->hdmi_precent(hdmi);
 
+	if((precent && hdmi->mode == DISP_ON_LCD) ||
+			(!precent && hdmi->mode == DISP_ON_HDMI))
+		hdmi_changed(hdmi, 100);
+	mod_timer(&hdmi->timer, jiffies + msecs_to_jiffies(200));
+}
 struct hdmi *hdmi_register(int extra, struct device *parent)
 {
 	int rc = 0, i;
@@ -98,7 +131,7 @@ struct hdmi *hdmi_register(int extra, struct device *parent)
 	dev_set_drvdata(hdmi->dev, hdmi);
 	ref_info[i].hdmi = hdmi;
 
-	INIT_DELAYED_WORK(&hdmi->changed_work, hdmi_changed_work);
+	INIT_DELAYED_WORK(&hdmi->work, hdmi_changed_work);
 
 	rc = hdmi_create_attrs(hdmi);
 	if (rc)
@@ -113,6 +146,9 @@ dev_create_failed:
 	kfree(hdmi);
 	return NULL;
 success:
+	mutex_init(&hdmi->lock);
+	setup_timer(&hdmi->timer, hdmi_detect_timer,(unsigned long)hdmi);
+	mod_timer(&hdmi->timer, jiffies + msecs_to_jiffies(200));
 	return hdmi;
 }
 void hdmi_unregister(struct hdmi *hdmi)
@@ -147,6 +183,38 @@ int hdmi_is_insert(void)
 	else
 		return 0;
 }
+int hdmi_get_scale(void)
+{
+	struct hdmi* hdmi = get_hdmi_struct(0);
+	if(!hdmi)
+		return 100;
+	else
+		return hdmi->scale;
+}
+
+int hdmi_set_scale(int event, char *data, int len)
+{
+	int result;
+	struct hdmi* hdmi = get_hdmi_struct(0);
+
+	if(!hdmi)
+		return -1;
+	if(len != 4)
+		return -1;
+	if(fb_get_video_mode() || hdmi->mode == DISP_ON_LCD)
+		return -1;
+
+	result = data[0] | data[1]<<1 | data[2]<<2;
+	if(event != MOUSE_NONE && (result & event) != event)
+		return -1;
+
+	hdmi->scale += data[3];
+	
+	hdmi->scale = (hdmi->scale>100)?100:hdmi->scale;
+	hdmi->scale = (hdmi->scale<MIN_SCALE)?MIN_SCALE:hdmi->scale;
+	return 0;	
+}
+
 static int __init hdmi_class_init(void)
 {
 	int i;

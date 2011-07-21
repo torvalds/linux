@@ -13,14 +13,15 @@
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/completion.h>
+#include <linux/wakelock.h>
 
+extern int debug_en;
 
-#ifdef CONFIG_HDMI_DEBUG
 #define hdmi_dbg(dev, format, arg...)		\
-	dev_printk(KERN_INFO , dev , format , ## arg)
-#else
-#define hdmi_dbg(dev, format, arg...)	
-#endif
+do{\
+	if(debug_en == 1) \
+		dev_printk(KERN_INFO , dev , format , ## arg);\
+}while(0)
 
 
 
@@ -28,13 +29,40 @@ typedef int 		BOOL;
 
 #define TRUE		1
 #define FALSE 		0
+#define HDMI_DISABLE   0
+#define HDMI_ENABLE    1
+
+#define MIN_SCALE		80
+/* mouse event */
+#define MOUSE_NONE			0x00
+#define MOUSE_LEFT_PRESS	0x01
+#define MOUSE_RIGHT_PRESS	0x02
+#define MOUSE_MIDDLE_PRESS	0x04
+#define HDMI_MOUSE_EVENT	MOUSE_NONE	
+/* mode */
+#define DISP_ON_LCD				0
+#define DISP_ON_HDMI			1
+#define DISP_ON_LCD_AND_HDMI	2
+/* dual display */
+#ifdef CONFIG_HDMI_DUAL_DISP
+#define DUAL_DISP_CAP		HDMI_ENABLE 
+#define HDMI_DEFAULT_MODE	DISP_ON_LCD_AND_HDMI
+#else
+#define DUAL_DISP_CAP		HDMI_DISABLE 
+#define HDMI_DEFAULT_MODE	DISP_ON_HDMI
+#endif
 /* resolution */
-#define HDMI_1280x720p_50Hz 	0
-#define HDMI_1280x720p_60Hz		1
-#define HDMI_720x576p_50Hz		2
-#define HDMI_1920x1080p_50Hz	3
+#define HDMI_1920x1080p_50Hz	0
+#define HDMI_1920x1080p_60Hz	1
+#define HDMI_1280x720p_50Hz 	2
+#define HDMI_1280x720p_60Hz		3
+#define HDMI_720x576p_50Hz_4x3	4
+#define HDMI_720x576p_50Hz_16x9	5
+#define HDMI_720x480p_60Hz_4x3	6
+#define HDMI_720x480p_60Hz_16x9	7
+
 /* HDMI default resolution */
-#define HDMI_DEFAULT_RESOLUTION HDMI_1280x720p_50Hz
+#define HDMI_DEFAULT_RESOLUTION HDMI_1920x1080p_50Hz
 /* I2S Fs */
 #define HDMI_I2S_Fs_44100 0
 #define HDMI_I2S_Fs_48000 2
@@ -43,46 +71,52 @@ typedef int 		BOOL;
 
 
 #define HDMI_MAX_ID		32
-
-
+struct hdmi;
+struct hdmi_ops{
+	int (*set_param)(struct hdmi *);
+	int (*hdmi_precent)(struct hdmi *);
+	int (*insert)(struct hdmi *);
+	int (*remove)(struct hdmi *);
+	int (*init)(struct hdmi*);
+};
 struct hdmi {
-	struct device *dev;
-	struct work_struct changed_work;
 	int id;
 	int wait;
 	BOOL display_on;
 	BOOL plug;
-	BOOL auto_switch;
 	BOOL hdcp_on;
 	BOOL param_conf;
 
 	u8 resolution;
+	u8 scale;
+	u8 scale_set;
 	u8 audio_fs;
-
-	void *priv;
-
+	int mode;
+	int dual_disp;
+	struct timer_list timer;
+	struct mutex lock;
+	struct device *dev;
+	struct delayed_work work;
 	struct completion	complete;
+	const struct hdmi_ops *ops;
 
-	int (*hdmi_display_on)(struct hdmi *);
-	int (*hdmi_display_off)(struct hdmi *);
-	int (*hdmi_set_param)(struct hdmi *);
-	int (*hdmi_core_init)(struct hdmi *);
+	unsigned long		priv[0] ____cacheline_aligned;
 };
-
-extern void *hdmi_get_privdata(struct hdmi *hdmi);
-extern void hdmi_set_privdata(struct hdmi *hdmi, void *data);
-extern int hdmi_register(struct device *parent, struct hdmi *hdmi);
+extern int hdmi_is_insert(void);
+extern void *hdmi_priv(struct hdmi *hdmi);
+extern struct hdmi *hdmi_register(int extra, struct device *parent);
 extern void hdmi_unregister(struct hdmi *hdmi);
-extern void hdmi_changed(struct hdmi *hdmi, int plug);
-
-extern int hdmi_codec_set_audio_fs(unsigned char audio_fs);
-extern int hdmi_fb_set_resolution(unsigned char resolution);
+extern void hdmi_changed(struct hdmi *hdmi, int msec);
 
 extern int hdmi_switch_fb(struct hdmi *hdmi, int type);
-extern int hdmi_resolution_changed(struct hdmi *hdmi, int xres, int yres, int video_on);
-
+extern void hdmi_suspend(struct hdmi *hdmi);
+extern void hdmi_resume(struct hdmi *hdmi);
 extern struct hdmi *get_hdmi_struct(int nr);
 
-extern int hdmi_get_default_resolution(void *screen);
-
+extern void hdmi_set_spk(int on);
+extern void hdmi_set_backlight(int on);
+extern int hdmi_get_scale(void);
+extern int hdmi_set_scale(int event, char *data, int len);
+extern int fb_get_video_mode(void);
+extern int display_on_hdmi(void);
 #endif

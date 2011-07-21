@@ -2,6 +2,139 @@
 #define _ANX7150_HW_H
 
 #include <linux/hdmi.h>
+
+#define EDID_LENGTH 128
+struct est_timings {
+	u8 t1;
+	u8 t2;
+	u8 mfg_rsvd;
+} __attribute__((packed));
+
+struct std_timing {
+	u8 hsize; /* need to multiply by 8 then add 248 */
+	u8 vfreq_aspect;
+} __attribute__((packed));
+
+/* If detailed data is pixel timing */
+struct detailed_pixel_timing {
+	u8 hactive_lo;
+	u8 hblank_lo;
+	u8 hactive_hblank_hi;
+	u8 vactive_lo;
+	u8 vblank_lo;
+	u8 vactive_vblank_hi;
+	u8 hsync_offset_lo;
+	u8 hsync_pulse_width_lo;
+	u8 vsync_offset_pulse_width_lo;
+	u8 hsync_vsync_offset_pulse_width_hi;
+	u8 width_mm_lo;
+	u8 height_mm_lo;
+	u8 width_height_mm_hi;
+	u8 hborder;
+	u8 vborder;
+	u8 misc;
+} __attribute__((packed));
+
+/* If it's not pixel timing, it'll be one of the below */
+struct detailed_data_string {
+	u8 str[13];
+} __attribute__((packed));
+
+struct detailed_data_monitor_range {
+	u8 min_vfreq;
+	u8 max_vfreq;
+	u8 min_hfreq_khz;
+	u8 max_hfreq_khz;
+	u8 pixel_clock_mhz; /* need to multiply by 10 */
+	__le16 sec_gtf_toggle; /* A000=use above, 20=use below */
+	u8 hfreq_start_khz; /* need to multiply by 2 */
+	u8 c; /* need to divide by 2 */
+	__le16 m;
+	u8 k;
+	u8 j; /* need to divide by 2 */
+} __attribute__((packed));
+
+struct detailed_data_wpindex {
+	u8 white_yx_lo; /* Lower 2 bits each */
+	u8 white_x_hi;
+	u8 white_y_hi;
+	u8 gamma; /* need to divide by 100 then add 1 */
+} __attribute__((packed));
+
+struct detailed_data_color_point {
+	u8 windex1;
+	u8 wpindex1[3];
+	u8 windex2;
+	u8 wpindex2[3];
+} __attribute__((packed));
+
+struct cvt_timing {
+	u8 code[3];
+} __attribute__((packed));
+
+struct detailed_non_pixel {
+	u8 pad1;
+	u8 type; /* ff=serial, fe=string, fd=monitor range, fc=monitor name
+		    fb=color point data, fa=standard timing data,
+		    f9=undefined, f8=mfg. reserved */
+	u8 pad2;
+	union {
+		struct detailed_data_string str;
+		struct detailed_data_monitor_range range;
+		struct detailed_data_wpindex color;
+		struct std_timing timings[6];
+		struct cvt_timing cvt[4];
+	} data;
+} __attribute__((packed));
+
+struct detailed_timing {
+	__le16 pixel_clock; /* need to multiply by 10 KHz */
+	union {
+		struct detailed_pixel_timing pixel_data;
+		struct detailed_non_pixel other_data;
+	} data;
+} __attribute__((packed));
+
+struct edid {
+	u8 header[8];
+	/* Vendor & product info */
+	u8 mfg_id[2];
+	u8 prod_code[2];
+	u32 serial; /* FIXME: byte order */
+	u8 mfg_week;
+	u8 mfg_year;
+	/* EDID version */
+	u8 version;
+	u8 revision;
+	/* Display info: */
+	u8 input;
+	u8 width_cm;
+	u8 height_cm;
+	u8 gamma;
+	u8 features;
+	/* Color characteristics */
+	u8 red_green_lo;
+	u8 black_white_lo;
+	u8 red_x;
+	u8 red_y;
+	u8 green_x;
+	u8 green_y;
+	u8 blue_x;
+	u8 blue_y;
+	u8 white_x;
+	u8 white_y;
+	/* Est. timings and mfg rsvd timings*/
+	struct est_timings established_timings;
+	/* Standard timings 1-8*/
+	struct std_timing standard_timings[8];
+	/* Detailing timings 1-4 */
+	struct detailed_timing detailed_timings[4];
+	/* Number of 128 byte ext. blocks */
+	u8 extensions;
+	/* Checksum */
+	u8 checksum;
+} __attribute__((packed));
+
 extern u8 timer_slot,misc_reset_needed;
 extern u8 bist_switch_value_pc,switch_value;
 extern u8 switch_value_sw_backup,switch_value_pc_backup;
@@ -1235,6 +1368,7 @@ extern config_packets s_ANX7150_packet_config;
 #define USRDF1_PB26  0xBD
 #define USRDF1_PB27  0xBE
 */
+	int anx7150_get_hpd(struct i2c_client *client);
 
 void ANX7150_API_HDCP_ONorOFF(u8 HDCP_ONorOFF);
 int anx7150_detect_device(struct anx7150_pdata *anx);
@@ -1252,7 +1386,7 @@ void  HDMI_Set_Audio_Fs( u8 audio_fs);
 void ANX7150_API_System_Config(void);
 u8 ANX7150_Config_Audio(struct i2c_client *client);
 u8 ANX7150_Config_Packet(struct i2c_client *client);
-void ANX7150_HDCP_Process(struct i2c_client *client);
+void ANX7150_HDCP_Process(struct i2c_client *client,int enable);
 int ANX7150_PLAYBACK_Process(void);
 void ANX7150_Set_System_State(struct i2c_client *client, u8 new_state);
 int ANX7150_Config_Video(struct i2c_client *client);
@@ -1261,6 +1395,7 @@ void  HDMI_Set_Video_Format(u8 video_format);
 void  HDMI_Set_Audio_Fs( u8 audio_fs);
 int ANX7150_PLAYBACK_Process(void);
 int ANX7150_Blue_Screen(struct anx7150_pdata *anx);
-
+int anx7150_set_avmute(struct i2c_client *client);
+int anx7150_initial(struct i2c_client *client);
 
 #endif

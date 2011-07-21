@@ -2,15 +2,15 @@
 #define _ANX7150_H
 
 #include <linux/hdmi.h>
+#include <linux/earlysuspend.h>
+
 
 #define ANX7150_I2C_ADDR0		0X39
 #define ANX7150_I2C_ADDR1		0X3d
 
 #define ANX7150_SCL_RATE 100 * 1000
 
-/* HDMI STATUS */
-#define HDMI_DISABLE   0
-#define HDMI_ENABLE    1
+
 
 /* HDMI auto switch */
 #define HDMI_AUTO_SWITCH HDMI_ENABLE
@@ -79,8 +79,15 @@ struct anx7150_pdata {
 	int irq;
 	int gpio;
 	int init;
+	int is_early_suspend;
+	int is_changed;
+	struct delayed_work		work;
+	struct hdmi *hdmi;
 	struct i2c_client *client;
 	struct anx7150_dev_s dev;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend		early_suspend;
+#endif
 };
 
 

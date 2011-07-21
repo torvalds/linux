@@ -3,31 +3,17 @@
 #
 menu "HDMI"
 config HDMI
-	tristate "HDMI support"
-    depends on FB_RK29
-    
+	bool "HDMI support"
+
 if HDMI
+source "drivers/video/hdmi/chips/Kconfig"
 
-config HDMI_OLD
-	default y
-	bool "old hdmi support"
-	help
-		nothing
-if HDMI_OLD
-source "drivers/video/hdmi/hdmi-old/Kconfig"
-endif
-
-config HDMI_NEW
-	bool "new hdmi support"
-	help
-		nothing
-if HDMI_NEW
-source "drivers/video/hdmi/hdmi-new/Kconfig"
-endif
-
-config HDMI_DEBUG
-	bool "hdmi debug"
-
+#config HDMI_DUAL_DISP
+#	bool "hdmi support dual display"
+#	help
+#	nothing
+#config HDMI_DEBUG
+#	bool "hdmi debug"
 endif
 
 endmenu

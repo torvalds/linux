@@ -936,7 +936,33 @@ int rk29_set_cursor(struct fb_info *info, struct fb_cursor *cursor)
     return 0;
 }
 #endif
-
+#ifdef CONFIG_FB_SCALING_OSD
+static int hdmi_get_fbscale(void)
+{
+#ifdef CONFIG_HDMI
+	return hdmi_get_scale();
+#else
+	return 100;
+#endif
+}
+#endif
+static void hdmi_set_fbscale(struct fb_info *info)
+{
+#ifdef CONFIG_HDMI
+    struct rk29fb_inf *inf = dev_get_drvdata(info->device);
+    struct rk29fb_screen *screen = inf->cur_screen;
+    struct win0_par *par = info->par;
+	int scale;
+	
+	scale = hdmi_get_scale();
+	if(scale == 100)
+		return;
+	par->xpos += screen->x_res * (100-scale) / 200;
+	par->ypos += screen->y_res * (100-scale) / 200;
+	par->xsize = par->xsize *scale /100;
+	par->ysize = par->ysize *scale /100;
+#endif
+}
 static int win0_blank(int blank_mode, struct fb_info *info)
 {
     struct rk29fb_inf *inf = dev_get_drvdata(info->device);
@@ -967,21 +993,24 @@ static int win0_set_par(struct fb_info *info)
     struct fb_var_screeninfo *var = &info->var;
     struct fb_fix_screeninfo *fix = &info->fix;
     struct win0_par *par = info->par;
-
-	u32 xact = var->xres;			    /* visible resolution		*/
-	u32 yact = var->yres;
-	u32 xvir = var->xres_virtual;		/* virtual resolution		*/
-	u32 yvir = var->yres_virtual;
+	u32 xact, yact, xvir, yvir, xpos, ypos, ScaleYrgbX,ScaleYrgbY, ScaleCbrX, ScaleCbrY, y_addr,uv_addr;
+	hdmi_set_fbscale(info);
+	xact = var->xres;			    /* visible resolution		*/
+	yact = var->yres;
+	xvir = var->xres_virtual;		/* virtual resolution		*/
+	yvir = var->yres_virtual;
 	//u32 xact_st = var->xoffset;         /* offset from virtual to visible */
 	//u32 yact_st = var->yoffset;         /* resolution			*/
-    u32 xpos = par->xpos;
-    u32 ypos = par->ypos;
+    xpos = par->xpos;
+    ypos = par->ypos;
 
-    u32 ScaleYrgbX=0x1000,ScaleYrgbY=0x1000;
-    u32 ScaleCbrX=0x1000, ScaleCbrY=0x1000;
+    ScaleYrgbX=0x1000;
+	ScaleYrgbY=0x1000;
+    ScaleCbrX=0x1000;
+	ScaleCbrY=0x1000;
 
-    u32 y_addr = 0;       //user alloc buf addr y
-    u32 uv_addr = 0;
+    y_addr = 0;       //user alloc buf addr y
+    uv_addr = 0;
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
@@ -1132,19 +1161,30 @@ static int win1_set_par(struct fb_info *info)
     struct rk29fb_screen *screen = inf->cur_screen;
     struct win0_par *par = info->par;
     struct fb_var_screeninfo *var = &info->var;
-
+	u32 addr;
+	u16 xres_virtual,xpos,ypos;
+	u8 trspval,trspmode;
+    if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
+        && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
+    {
+        hdmi_set_fbscale(info);
+    }else  if(((screen->x_res==1920) ))
+    	{
+    	if(hdmi_get_scale() < 100)
+			par->ypos -=screen->y_res * (100-hdmi_get_scale()) / 200;
+	}
     //u32 offset=0, addr=0, map_size=0, smem_len=0;
-    u32 addr=0;
-    u16 xres_virtual = 0;      //virtual screen size
+    addr=0;
+    xres_virtual = 0;      //virtual screen size
 
     //u16 xpos_virtual = var->xoffset;           //visiable offset in virtual screen
     //u16 ypos_virtual = var->yoffset;
 
-    u16 xpos = par->xpos;                 //visiable offset in panel
-    u16 ypos = par->ypos;
+    xpos = par->xpos;                 //visiable offset in panel
+    ypos = par->ypos;
 
-    u8 trspmode = TRSP_CLOSE;
-    u8 trspval = 0;
+    trspmode = TRSP_CLOSE;
+    trspval = 0;
 
     //fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
@@ -1152,8 +1192,8 @@ static int win1_set_par(struct fb_info *info)
     if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
         && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
     {
-        addr = fix->mmio_start + par->y_offset;
-        xres_virtual = screen->x_res;      //virtual screen size
+        addr = fix->mmio_start + par->y_offset* hdmi_get_fbscale()/100;
+        xres_virtual = screen->x_res* hdmi_get_fbscale()/100;      //virtual screen size
     }
     else
    #endif
@@ -1210,7 +1250,7 @@ static int win1_pan( struct fb_info *info )
     if(((screen->x_res != var->xres) || (screen->y_res != var->yres))
         && !((screen->x_res>1280) && (var->bits_per_pixel == 32)))
     {
-        addr = fix1->mmio_start + par->y_offset;
+        addr = fix1->mmio_start + par->y_offset* hdmi_get_fbscale()/100;
     }
     else
     #endif
@@ -1384,9 +1424,9 @@ static int fb0_set_par(struct fb_info *info)
             ipp_req.src0.w = var->xres;
             ipp_req.src0.h = var->yres;
 
-            ipp_req.dst0.YrgbMst = fix->mmio_start + dstoffset;
-            ipp_req.dst0.w = screen->x_res;
-            ipp_req.dst0.h = screen->y_res;
+            ipp_req.dst0.YrgbMst = fix->mmio_start + dstoffset* hdmi_get_fbscale()/100;
+            ipp_req.dst0.w = screen->x_res* hdmi_get_fbscale()/100;
+            ipp_req.dst0.h = screen->y_res* hdmi_get_fbscale()/100;
 
             ipp_req.src_vir_w = ipp_req.src0.w;
             ipp_req.dst_vir_w = ipp_req.dst0.w;
@@ -1432,7 +1472,7 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
    #ifdef CONFIG_FB_SCALING_OSD
     struct fb_fix_screeninfo *fix = &info->fix;
     struct rk29_ipp_req ipp_req;
-    u32 dstoffset = 0
+    u32 dstoffset = 0;
    #endif
 	//fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
@@ -1478,9 +1518,9 @@ static int fb0_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
             ipp_req.src0.w = var->xres;
             ipp_req.src0.h = var->yres;
 
-            ipp_req.dst0.YrgbMst = fix->mmio_start + dstoffset;
-            ipp_req.dst0.w = screen->x_res;
-            ipp_req.dst0.h = screen->y_res;
+            ipp_req.dst0.YrgbMst = fix->mmio_start + dstoffset* hdmi_get_fbscale()/100;
+            ipp_req.dst0.w = screen->x_res* hdmi_get_fbscale()/100;
+            ipp_req.dst0.h = screen->y_res* hdmi_get_fbscale()/100;
 
             ipp_req.src_vir_w = ipp_req.src0.w;
             ipp_req.dst_vir_w = ipp_req.dst0.w;
@@ -1618,7 +1658,7 @@ static int fb1_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     u16 xlcd = screen->x_res;        //size of panel
     u16 ylcd = screen->y_res;
     u16 yres = 0;
-#ifdef CONFIG_HDMI
+#if 0
 	struct hdmi *hdmi = get_hdmi_struct(0);
 #endif
 
@@ -1729,7 +1769,7 @@ static int fb1_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     {
         return -EINVAL;        // multiple of scale down or scale up can't exceed 8
     }
-#ifdef CONFIG_HDMI
+#if 0
 	if(inf->video_mode == 1) {
 		if(hdmi_resolution_changed(hdmi,var->xres,var->yres, 1) == 1)
 		{
@@ -2195,6 +2235,14 @@ static struct fb_ops fb0_ops = {
 	//.fb_cursor      = rk29_set_cursor,
 };
 
+int fb_get_video_mode(void)
+{
+	struct rk29fb_inf *inf;
+	if(!g_pdev)
+		return 0;
+	inf = platform_get_drvdata(g_pdev);
+	return inf->video_mode;
+}
 /*
 enable: 1, switch to tv or hdmi; 0, switch to lcd
 */

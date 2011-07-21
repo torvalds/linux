@@ -1,4 +1,4 @@
-#include <linux/hdmi-new.h>
+#include <linux/hdmi.h>
 
 extern void rk29_backlight_set(bool on);
 void hdmi_set_backlight(int on)

@@ -1,6 +1,6 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/hdmi-new.h>
+#include <linux/hdmi.h>
 
 
 #include "anx7150.h"
@@ -84,7 +84,7 @@ u8 g_audio_format = 0x00;
 
 
 u8 timer_slot = 0;
-u8 ANX7150_EDID_Buf[256];
+u8 *ANX7150_EDID_Buf = NULL;
 u8 ANX7150_avi_data[19];//, ANX7150_avi_checksum;
 u8 ANX7150_system_state = HDMI_INITIAL;
 u8 spdif_error_cnt = 0x00;
@@ -140,7 +140,7 @@ u8 FREQ_MCLK;         //0X72:0X50 u82:0
 //010b:Fm = 384*Fs
 //011b:Fm = 512*Fs
 u8 ANX7150_audio_clock_edge;
-
+int ANX7150_DDC_Mass_Read(struct i2c_client *client, u8 *buf, u16 len);
 
 int anx7150_detect_device(struct anx7150_pdata *anx)
 {
@@ -292,7 +292,7 @@ static void ANX7150_Variable_Initial(void)
     //********************end of video config*********
 
     //********************for edid parse***********
-    ANX7150_edid_result.is_HDMI = 0;
+    ANX7150_edid_result.is_HDMI = 1;
     ANX7150_edid_result.ycbcr422_supported = 0;
     ANX7150_edid_result.ycbcr444_supported = 0;
     ANX7150_edid_result.supported_720p_60Hz = 0;
@@ -494,6 +494,14 @@ int anx7150_rst_ddcchannel(struct i2c_client *client)
 	return rc;
 }
 
+int anx7150_initial(struct i2c_client *client)
+{
+    ANX7150_Variable_Initial();   //simon
+    ANX7150_HW_Interface_Variable_Initial();  //simon
+    
+    anx7150_hardware_initial(client);   //simon
+	return 0;
+}
 int anx7150_unplug(struct i2c_client *client)
 {
 	int rc = 0;
@@ -1085,6 +1093,7 @@ int ANX7150_Interrupt_Process(struct anx7150_pdata *anx, int cur_state)
 		}
 
 		if(ANX7150_GET_RECIVER_TYPE() == 1){
+			/*
 			if(interrupt_staus.audio_clk_change){
 				if(state > CONFIG_VIDEO){
 					rc = anx7150_audio_clk_change(anx->client);
@@ -1099,6 +1108,7 @@ int ANX7150_Interrupt_Process(struct anx7150_pdata *anx, int cur_state)
 				}
 			}
 
+*/
 			rc = anx7150_spdif_error(anx->client, state, interrupt_staus.SPDIF_bi_phase_error, interrupt_staus.SPDIF_error);
 		}
 
@@ -1172,36 +1182,190 @@ static int anx7150_initddc_read(struct i2c_client *client,
 static int ANX7150_GetEDIDLength(struct i2c_client *client)
 {
     u8 edid_data_length;
-	char c;
 	int rc = 0;
 
     anx7150_rst_ddcchannel(client);
 
     rc = anx7150_initddc_read(client, 0xa0, 0x00, 0x7e, 0x01, 0x00);
-    /*mdelay(3);//FeiW - Analogix
-    for(i=0;i<10;i++)
-   	{
-   		rc = anx7150_i2c_read_p0_reg(client, ANX7150_DDC_FIFOCNT_REG, &c);
-		if(c!=0){
-			break;
-		}
-	}*/
+
 	mdelay(10);
-	rc = anx7150_i2c_read_p0_reg(client, ANX7150_DDC_FIFO_ACC_REG, &c);
-	edid_data_length = c;
+	rc = anx7150_i2c_read_p0_reg(client, ANX7150_DDC_FIFO_ACC_REG, &edid_data_length);
 
     ANX7150_edid_length = edid_data_length * 128 + 128;
 
 	return rc;
 
 }
-static int ANX7150_DDC_Mass_Read(struct i2c_client *client, u32 length, u8 segment)
+/*** DDC fetch and block validation ***/
+
+static const u8 edid_header[] = {
+	0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00
+};
+
+
+/*
+ * Sanity check the EDID block (base or extension).  Return 0 if the block
+ * doesn't check out, or 1 if it's valid.
+ */
+ 
+int anx7150_edid_block_valid(struct i2c_client *client, u8 *raw_edid)
+{
+	int i;
+	u8 csum = 0;
+	struct edid *edid = (struct edid *)raw_edid;
+
+	if (raw_edid[0] == 0x00) {
+		int score = 0;
+
+		for (i = 0; i < sizeof(edid_header); i++)
+			if (raw_edid[i] == edid_header[i])
+				score++;
+
+		if (score == 8) ;
+		else if (score >= 6) {
+			hdmi_dbg(&client->dev, "Fixing EDID header, your hardware may be failing\n");
+			memcpy(raw_edid, edid_header, sizeof(edid_header));
+		} else {
+			goto bad;
+		}
+	}
+
+#if 0
+	for (i = 0; i < EDID_LENGTH; i++)
+		csum += raw_edid[i];
+	if (csum) {
+		hdmi_dbg(&client->dev, "EDID checksum is invalid, remainder is %d\n", csum);
+
+		/* allow CEA to slide through, switches mangle this */
+		if (raw_edid[0] != 0x02)
+			goto bad;
+	}
+#endif
+
+	/* per-block-type checks */
+	switch (raw_edid[0]) {
+	case 0: /* base */
+		if (edid->version != 1) {
+			dev_err(&client->dev, "EDID has major version %d, instead of 1\n", edid->version);
+			goto bad;
+		}
+
+		if (edid->revision > 4)
+			dev_err(&client->dev,"EDID minor > 4, assuming backward compatibility\n");
+		break;
+
+	default:
+		break;
+	}
+
+	return 1;
+
+bad:
+	if (raw_edid) {
+		dev_err(&client->dev, "Raw EDID:\n");
+		print_hex_dump_bytes(KERN_ERR, DUMP_PREFIX_NONE, raw_edid, EDID_LENGTH);
+		printk("\n");
+	}
+	return 0;
+}
+int ANX7150_DDC_EDID(struct i2c_client *client, u8 *buf, u8 block, u16 len)
+{
+	u8 offset;
+	u8 segment;
+	u8 len_low;
+	u8 len_high;
+	
+	offset   = EDID_LENGTH * (block & 0x01);
+	segment  = block >> 1;
+	len_low  = len & 0xFF;
+	len_high = (len >> 8) & 0xFF;
+
+	anx7150_initddc_read(client, 0xa0, segment, offset, len_low, len_high);
+	if(ANX7150_DDC_Mass_Read(client, buf, len) == len)
+		return 0;
+	else
+		return -1;
+}
+u8 *ANX7150_Read_EDID(struct i2c_client *client)
+{
+	u8 *block = NULL;
+	u8 *raw_edid = NULL;
+	u8 extend_block_num;
+	int i = 0;
+	int j = 0;
+
+	anx7150_rst_ddcchannel(client);
+
+	if ((block = (u8 *)kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
+		return NULL;
+
+	/* base block fetch */
+	hdmi_dbg(&client->dev, "Read base block\n");
+	for (i = 0; i < 4; i++) {
+		if(ANX7150_DDC_EDID(client, block, 0, EDID_LENGTH))
+			goto out;
+		if(anx7150_edid_block_valid(client, block))
+			break;
+		else
+			dev_err(&client->dev, "Read base block err, retry...\n");
+		
+		mdelay(10);
+	}
+
+	if(i == 4){
+		dev_err(&client->dev, "Read base block failed\n");
+		goto out;
+	}
+
+	/* if there's no extensions, we're done */
+	extend_block_num = block[0x7e];
+	if(extend_block_num == 0)
+		goto out;
+	
+	dev_err(&client->dev, "extend_block_num = %d\n", extend_block_num);
+
+	raw_edid = krealloc(block, (extend_block_num + 1) * EDID_LENGTH, GFP_KERNEL);
+	if(!raw_edid)
+		goto out;
+
+	block = raw_edid;
+
+	hdmi_dbg(&client->dev, "Read extend block\n");
+	for(j=1; j<=extend_block_num; j++){
+		for(i=0; i<4; i++){
+			if(ANX7150_DDC_EDID(client, raw_edid + j * EDID_LENGTH, j, EDID_LENGTH))
+				goto out;
+			if(anx7150_edid_block_valid(client, raw_edid + j * EDID_LENGTH))
+				break;
+			else
+				dev_err(&client->dev, "Read extend block %d err, retry...\n", j);
+
+			mdelay(10);
+		}
+
+		if(i == 4){
+			dev_err(&client->dev, "Read extend block %d failed\n", j);
+			goto out;
+		}
+	}
+
+	dev_err(&client->dev, "\n\nRaw EDID(extend_block_num = %d, total_len = %d):\n\n", extend_block_num, EDID_LENGTH*(extend_block_num+1));
+	print_hex_dump_bytes(KERN_ERR, DUMP_PREFIX_NONE, raw_edid, EDID_LENGTH*(extend_block_num+1));
+	printk("\n\n");
+
+	return raw_edid;
+
+out:
+	kfree(block);
+	return NULL;
+}
+int ANX7150_DDC_Mass_Read(struct i2c_client *client, u8 *buf, u16 len)
 {
 	int rc = 0;
     u32 i, j;
     char c, c1,ddc_empty_cnt;
 
-    i = length;
+    i = len;
     while (i > 0)
     {
         //check DDC FIFO statue
@@ -1227,18 +1391,9 @@ static int ANX7150_DDC_Mass_Read(struct i2c_client *client, u32 length, u8 segme
             for (j=0; j<c; j++)
             {
             	rc = anx7150_i2c_read_p0_reg(client, ANX7150_DDC_FIFO_ACC_REG, &c1);
-				if (segment == 0)
-                {
-                    ANX7150_EDID_Buf[length - i + j] = c1;
-                    //D("EDID[0x%.2x]=0x%.2x    ", (u32)(length - i + j), (u32) c1);
-                }
-                else if (segment == 1)
-                {
-                    ANX7150_EDID_Buf[length - i + j + 0x80] = c1;
-                    //D("EDID[0x%.2x]=0x%.2x    ", (u32)(length - i + j + 0x80), (u32) c1);
-                }
+							buf[len - i + j] = c1;
 
-                ANX7150_ddc_fifo_full = 0;
+              ANX7150_ddc_fifo_full = 0;
 				if(anx7150_mass_read_need_delay)
 					mdelay(1);
             }
@@ -1258,16 +1413,7 @@ static int ANX7150_DDC_Mass_Read(struct i2c_client *client, u32 length, u8 segme
             for (j=0; j<c; j++)
             {
             	rc = anx7150_i2c_read_p0_reg(client, ANX7150_DDC_FIFO_ACC_REG, &c1);
-                if (segment == 0)
-                {
-                    ANX7150_EDID_Buf[length - i + j] = c1;
-                    //D("EDID[0x%.2x]=0x%.2x    ", (u32)(length - i + j), (u32) c1);
-                }
-                else if (segment == 1)
-                {
-                    ANX7150_EDID_Buf[length - i + j + 0x80] = c1;
-                    //D("EDID[0x%.2x]=0x%.2x    ", (u32)(length - i + j + 0x80), (u32) c1);
-                }
+                buf[len - i + j] = c1;
             }
             i = i - c;
             //D("\ni=%d\n", i);
@@ -1286,52 +1432,12 @@ static int ANX7150_DDC_Mass_Read(struct i2c_client *client, u32 length, u8 segme
                 //D("ddc_empty_cnt =  0x%.2x\n",(u32)ddc_empty_cnt);
             }
             if (ddc_empty_cnt >= 0x0a)
-                i = 0;
+                break;
         }
     }
-	return rc;
+	return (len - i);
 }
-static int ANX7150_Read_EDID(struct i2c_client *client)
-{
-	int rc = 0;
 
-    u8 edid_segment,segmentpointer,k;
-
-    rc = anx7150_rst_ddcchannel(client);
-	mdelay(1);
-
-    edid_segment = ANX7150_edid_length / 256;
-    if (edid_segment==0)																			//update
-        segmentpointer =0;
-    else
-        segmentpointer = edid_segment - 1;
-    //segmentpointer = edid_segment - 1;
-
-    for (k = 0; k <= segmentpointer; k ++)
-    {
-        rc =anx7150_initddc_read(client, 0xa0, k, 0x00, 0x80, 0x00);
-		mdelay(1);
-        rc = ANX7150_DDC_Mass_Read(client, 128, k);
-		//mdelay(10);
-        rc = anx7150_initddc_read(client, 0xa0, k, 0x80, 0x80, 0x00);
-		mdelay(1);
-        rc = ANX7150_DDC_Mass_Read(client, 128, k + 1);
-		//mdelay(10);
-    }
-
-    if ((ANX7150_edid_length - 256 * edid_segment) == 0)
-        hdmi_dbg(&client->dev, "Finish reading EDID\n");
-    else
-    {
-        hdmi_dbg(&client->dev, "Read one more block(128 u8s).........\n");
-        rc = anx7150_initddc_read(client, 0xa0, segmentpointer + 1, 0x00, 0x80, 0x00);
-		mdelay(1);
-        rc = ANX7150_DDC_Mass_Read(client, 128, segmentpointer + 1);
-        hdmi_dbg(&client->dev, "Finish reading EDID\n");
-		mdelay(1);
-    }
-	return rc;
-}
 static u8 ANX7150_Read_EDID_u8(u8 segmentpointer,u8 offset)
 {
     /*u8 c;
@@ -1780,25 +1886,14 @@ int ANX7150_Parse_EDID(struct i2c_client *client, struct anx7150_dev_s *dev)
 	rc = anx7150_i2c_write_p0_reg(client, ANX7150_HDCP_CTRL0_REG, &c);
 	ANX7150_hdcp_auth_en = 0;
 
-    rc = ANX7150_GetEDIDLength(client);
 
-    hdmi_dbg(&client->dev, "EDIDLength is %.u\n",  ANX7150_edid_length);
-
-    rc = ANX7150_Read_EDID(client);
+    ANX7150_EDID_Buf = ANX7150_Read_EDID(client);
     
-    if(!(ANX7150_Parse_EDIDHeader()))
-    {
-        dev_err(&client->dev, "BAD EDID Header, Stop parsing \n");
-        ANX7150_edid_result.edid_errcode = ANX7150_EDID_BadHeader;
-        goto err;
-    }
-
-    if(!(ANX7150_Parse_EDIDVersion()))
-    {
-        dev_err(&client->dev, "EDID does not support 861B, Stop parsing\n");
-        ANX7150_edid_result.edid_errcode = ANX7150_EDID_861B_not_supported;
-        goto err;
-    }
+		if(!ANX7150_EDID_Buf){
+			ANX7150_edid_result.edid_errcode = ANX7150_EDID_BadHeader;
+			dev_err(&client->dev, "READ EDID ERROR\n");
+			goto err;
+		}
 
 /*
     if(ANX7150_EDID_Checksum(0) == 0)
@@ -1811,13 +1906,14 @@ int ANX7150_Parse_EDID(struct i2c_client *client, struct anx7150_dev_s *dev)
 
     //ANX7150_Parse_BasicDis();
     ANX7150_Parse_DTDinBlockONE();
-    /*
+
         if(ANX7150_EDID_Buf[0x7e] == 0)
         {
-            D("No EDID extension blocks.\n");
+            hdmi_dbg(&client->dev, "No EDID extension blocks.\n");
             ANX7150_edid_result.edid_errcode = ANX7150_EDID_No_ExtBlock;
             return ANX7150_edid_result.edid_errcode;
-        }*/
+        }
+        
     ANX7150_Parse_NativeFormat();
     ANX7150_Parse_ExtBlock();
 
@@ -1863,10 +1959,15 @@ int ANX7150_Parse_EDID(struct i2c_client *client, struct anx7150_dev_s *dev)
     }
 	
 	ANX7150_parse_edid_done = 1;
-
+	kfree(ANX7150_EDID_Buf);
+	ANX7150_EDID_Buf = NULL;
 	return 0;
 	
 err:
+		if(ANX7150_EDID_Buf){
+		kfree(ANX7150_EDID_Buf);
+		ANX7150_EDID_Buf = NULL;
+	}
 	return ANX7150_edid_result.edid_errcode;
 }
 int ANX7150_GET_SENSE_STATE(struct i2c_client *client)
@@ -2436,6 +2537,7 @@ int ANX7150_Blue_Screen(struct anx7150_pdata *anx)
 int ANX7150_Config_Video(struct i2c_client *client)
 {
 	int rc = 0;
+	int retry = 0;
     char c,TX_is_HDMI;
     char cspace_y2r, y2r_sel, up_sample,range_y2r;
 
@@ -2819,13 +2921,20 @@ int ANX7150_Config_Video(struct i2c_client *client)
 	c |= (ANX7150_VID_CTRL_IN_EN);
 	rc = anx7150_i2c_write_p0_reg(client, ANX7150_VID_CTRL_REG, &c);
     //D("Video configure OK!\n");
-    mdelay(60);
-	rc = anx7150_i2c_read_p0_reg(client, ANX7150_VID_STATUS_REG, &c);
-    if (!(c & ANX7150_VID_STATUS_VID_STABLE))
-    {
-        hdmi_dbg(&client->dev,"Video not stable!\n");
-        return -1;
-    }
+
+	retry = 0;
+	do{
+	    mdelay(60);
+		rc = anx7150_i2c_read_p0_reg(client, ANX7150_VID_STATUS_REG, &c);
+	    if (c & ANX7150_VID_STATUS_VID_STABLE){
+	        hdmi_dbg(&client->dev, "Video stable, continue!\n");
+	        break;
+	    }
+		else{
+			hdmi_dbg(&client->dev,"Video not stable!, retry = %d\n", retry);
+		}
+	}while(retry++ < 5);
+
     if (cspace_y2r)
         ANX7150_RGBorYCbCr = ANX7150_RGB;
     //Enable video CLK,Format change after config video.
@@ -3283,19 +3392,22 @@ u8 ANX7150_Config_Packet(struct i2c_client *client)
             c &= 0x9f;
             c |= (ANX7150_RGBorYCbCr << 5);
             s_ANX7150_packet_config.avi_info.pb_u8[1] = c | 0x10;
-
-		    switch(ANX7150_video_timing_id)	{
-	     	case ANX7150_V720x576p_50Hz_4x3:
-				s_ANX7150_packet_config.avi_info.pb_u8[2] = 0x59;
+		    switch(ANX7150_video_timing_id)	
+			{
+			case ANX7150_V720x480p_60Hz_4x3:
+			case ANX7150_V720x480p_60Hz_16x9:
+			case ANX7150_V720x576p_50Hz_4x3:
+			case ANX7150_V720x576p_50Hz_16x9:
+				s_ANX7150_packet_config.avi_info.pb_u8[2] = 0x58;
 				break;
 			case ANX7150_V1280x720p_50Hz:
-				s_ANX7150_packet_config.avi_info.pb_u8[2] = 0xaa;
-				break;
 			case ANX7150_V1280x720p_60Hz:
-				s_ANX7150_packet_config.avi_info.pb_u8[2] = 0xaa;
+			case ANX7150_V1920x1080p_50Hz:
+			case ANX7150_V1920x1080p_60Hz:
+				s_ANX7150_packet_config.avi_info.pb_u8[2] = 0xa8;
 				break;
 			default:
-				s_ANX7150_packet_config.avi_info.pb_u8[2] = 0xaa;
+				s_ANX7150_packet_config.avi_info.pb_u8[2] = 0xa8;
 				break;
 	     	}
 
