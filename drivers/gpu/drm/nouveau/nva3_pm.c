@@ -46,8 +46,14 @@ read_clk(struct drm_device *dev, int clk, bool ignore_en)
 	u32 sctl, sdiv, sclk;
 
 	/* refclk for the 0xe8xx plls is a fixed frequency */
-	if (clk >= 0x40)
+	if (clk >= 0x40) {
+		if (dev_priv->chipset == 0xaf) {
+			/* no joke.. seriously.. sigh.. */
+			return nv_rd32(dev, 0x00471c) * 1000;
+		}
+
 		return dev_priv->crystal;
+	}
 
 	sctl = nv_rd32(dev, 0x4120 + (clk * 4));
 	if (!ignore_en && !(sctl & 0x00000100))
