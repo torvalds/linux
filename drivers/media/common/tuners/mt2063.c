@@ -953,34 +953,6 @@ static u32 MT2063_gcd(u32 u, u32 v)
 
 /****************************************************************************
 **
-**  Name: umax
-**
-**  Description:    Implements a simple maximum function for unsigned numbers.
-**                  Implemented as a function rather than a macro to avoid
-**                  multiple evaluation of the calling parameters.
-**
-**  Parameters:     a, b     - Values to be compared
-**
-**  Global:         None
-**
-**  Returns:        larger of the input values.
-**
-**  Dependencies:   None.
-**
-**  Revision History:
-**
-**   SCR      Date      Author  Description
-**  -------------------------------------------------------------------------
-**   N/A   06-02-2004    JWS    Original
-**
-****************************************************************************/
-static u32 MT2063_umax(u32 a, u32 b)
-{
-	return (a >= b) ? a : b;
-}
-
-/****************************************************************************
-**
 **  Name: IsSpurInBand
 **
 **  Description:    Checks to see if a spur will be present within the IF's
@@ -1037,11 +1009,11 @@ static u32 IsSpurInBand(struct MT2063_AvoidSpursData_t *pAS_Info,
 	 ** gcd-based scale factor or f_Scale.
 	 */
 	lo_gcd = MT2063_gcd(f_LO1, f_LO2);
-	gd_Scale = MT2063_umax((u32) MT2063_gcd(lo_gcd, d), f_Scale);
+	gd_Scale = max((u32) MT2063_gcd(lo_gcd, d), f_Scale);
 	hgds = gd_Scale / 2;
-	gc_Scale = MT2063_umax((u32) MT2063_gcd(lo_gcd, c), f_Scale);
+	gc_Scale = max((u32) MT2063_gcd(lo_gcd, c), f_Scale);
 	hgcs = gc_Scale / 2;
-	gf_Scale = MT2063_umax((u32) MT2063_gcd(lo_gcd, f), f_Scale);
+	gf_Scale = max((u32) MT2063_gcd(lo_gcd, f), f_Scale);
 	hgfs = gf_Scale / 2;
 
 	n0 = DIV_ROUND_UP(f_LO2 - d, f_LO1 - f_LO2);
