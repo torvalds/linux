@@ -42,6 +42,8 @@ struct aw9364_backlight_data {
 	int suspend_flag;
 	int shutdown_flag;
 #endif
+
+	spinlock_t bl_lock;
 };
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -64,35 +66,32 @@ static int aw9364_backlight_set(struct backlight_device *bl, int brightness)
 {
 	struct aw9364_backlight_data *data = bl_get_data(bl);
 	int i,num_clk, num_clk_to, num_clk_from;
-	
-	if(data && data->pin_en)
-	gpio_request(data->pin_en, NULL);
-	else
-	return -1;
-	
+	unsigned long flags;
+		
 	brightness = brightness & 0xff; //0-256
 
 	num_clk_from = 16 -(data->current_brightness>>4);	
 	num_clk_to = 16 -(brightness>>4);
-	num_clk = (16 + num_clk_to - num_clk_from)%16;		
-
+	num_clk = (16 + num_clk_to - num_clk_from)%16;
+	
+	
 	if(brightness < 16)
 	{
 		gpio_direction_output(data->pin_en, GPIO_LOW);
 		mdelay(3);
 	}
 	else {
-		for(i=0; i<num_clk; i++)
+		spin_lock_irqsave(&data->bl_lock, flags);
+		for(i=0; i<num_clk; i++)	//the wave should not be intterupted
 		{
-			gpio_direction_output(data->pin_en, GPIO_LOW);
-			udelay(5);	
-			gpio_direction_output(data->pin_en, GPIO_HIGH);
+			gpio_set_value(data->pin_en, GPIO_LOW);	
+			gpio_set_value(data->pin_en, GPIO_HIGH);
 			if(i==0)
-			udelay(50);
-			else 
-			udelay(2);		
+			udelay(30);	
 		}
+		spin_unlock_irqrestore(&data->bl_lock, flags);
 	}
+	
 	DBG("%s:current_bl=%d,bl=%d,num_clk_to=%d,num_clk_from=%d,num_clk=%d\n",__FUNCTION__,
 		data->current_brightness,brightness,num_clk_to,num_clk_from,num_clk);
 
@@ -194,6 +193,13 @@ static int aw9364_backlight_probe(struct platform_device *pdev)
 	bl->props.brightness = BL_INIT_VALUE;
 	bl->props.max_brightness= BL_SET;
 
+	if(data && data->pin_en)
+	gpio_request(data->pin_en, NULL);
+	else
+	return -1;
+
+	spin_lock_init(&data->bl_lock);	
+
 	platform_set_drvdata(pdev, bl);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND	
@@ -205,6 +211,9 @@ static int aw9364_backlight_probe(struct platform_device *pdev)
 	g_aw9364_bl = bl;
 	g_aw9364_data = data;
 #endif
+
+	gpio_direction_output(data->pin_en, GPIO_LOW);
+	mdelay(3);
 
 	backlight_update_status(bl);
 	schedule_delayed_work(&data->work, msecs_to_jiffies(100));
