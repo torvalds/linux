@@ -324,7 +324,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	}
 	kparam_unblock_sysfs_write(fw_name);
 
-	if (!(priv = lbs_add_card(cardp, &udev->dev)))
+	if (!(priv = lbs_add_card(cardp, &intf->dev)))
 		goto err_prog_firmware;
 
 	cardp->priv = priv;
