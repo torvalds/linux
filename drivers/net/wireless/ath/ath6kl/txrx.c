@@ -1250,8 +1250,13 @@ static void aggr_timeout(unsigned long arg)
 		if (!rxtid->aggr || !rxtid->timer_mon || rxtid->progress)
 			continue;
 
+		/*
+		 * FIXME: these timeouts happen quite fruently, something
+		 * line once within 60 seconds. Investigate why.
+		 */
 		stats->num_timeouts++;
-		ath6kl_err("aggr timeout (st %d end %d)\n",
+		ath6kl_dbg(ATH6KL_DBG_AGGR,
+			   "aggr timeout (st %d end %d)\n",
 			   rxtid->seq_next,
 			   ((rxtid->seq_next + rxtid->hold_q_sz-1) &
 			    ATH6KL_MAX_SEQ_NO));
