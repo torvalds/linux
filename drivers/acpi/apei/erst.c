@@ -933,9 +933,10 @@ static int erst_open_pstore(struct pstore_info *psi);
 static int erst_close_pstore(struct pstore_info *psi);
 static ssize_t erst_reader(u64 *id, enum pstore_type_id *type,
 			   struct timespec *time, struct pstore_info *psi);
-static u64 erst_writer(enum pstore_type_id type, size_t size,
+static u64 erst_writer(enum pstore_type_id type, int part, size_t size,
 		       struct pstore_info *psi);
-static int erst_clearer(u64 id, struct pstore_info *psi);
+static int erst_clearer(enum pstore_type_id type, u64 id,
+			struct pstore_info *psi);
 
 static struct pstore_info erst_info = {
 	.owner		= THIS_MODULE,
@@ -1039,7 +1040,7 @@ out:
 	return (rc < 0) ? rc : (len - sizeof(*rcd));
 }
 
-static u64 erst_writer(enum pstore_type_id type, size_t size,
+static u64 erst_writer(enum pstore_type_id type, int part, size_t size,
 		       struct pstore_info *psi)
 {
 	struct cper_pstore_record *rcd = (struct cper_pstore_record *)
@@ -1083,7 +1084,8 @@ static u64 erst_writer(enum pstore_type_id type, size_t size,
 	return rcd->hdr.record_id;
 }
 
-static int erst_clearer(u64 id, struct pstore_info *psi)
+static int erst_clearer(enum pstore_type_id type, u64 id,
+			struct pstore_info *psi)
 {
 	return erst_clear(id);
 }

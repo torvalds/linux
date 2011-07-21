@@ -39,8 +39,9 @@
 #define	PSTORE_NAMELEN	64
 
 struct pstore_private {
-	u64	id;
 	struct pstore_info *psi;
+	enum pstore_type_id type;
+	u64	id;
 	ssize_t	size;
 	char	data[];
 };
@@ -73,7 +74,7 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct pstore_private *p = dentry->d_inode->i_private;
 
-	p->psi->erase(p->id, p->psi);
+	p->psi->erase(p->type, p->id, p->psi);
 
 	return simple_unlink(dir, dentry);
 }
@@ -192,6 +193,7 @@ int pstore_mkfile(enum pstore_type_id type, char *psname, u64 id,
 	private = kmalloc(sizeof *private + size, GFP_KERNEL);
 	if (!private)
 		goto fail_alloc;
+	private->type = type;
 	private->id = id;
 	private->psi = psi;
 
