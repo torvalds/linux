@@ -19,6 +19,8 @@ struct sysfs_elem_dir {
 	struct kobject		*kobj;
 	/* children list starts here and goes through sd->s_sibling */
 	struct sysfs_dirent	*children;
+
+	unsigned long		subdirs;
 };
 
 struct sysfs_elem_symlink {
