@@ -1284,9 +1284,16 @@ static void assign_cfs_rq_runtime(struct cfs_rq *cfs_rq)
 	raw_spin_lock(&cfs_b->lock);
 	if (cfs_b->quota == RUNTIME_INF)
 		amount = min_amount;
-	else if (cfs_b->runtime > 0) {
-		amount = min(cfs_b->runtime, min_amount);
-		cfs_b->runtime -= amount;
+	else {
+		/* ensure bandwidth timer remains active under consumption */
+		if (!cfs_b->timer_active)
+			__start_cfs_bandwidth(cfs_b);
+
+		if (cfs_b->runtime > 0) {
+			amount = min(cfs_b->runtime, min_amount);
+			cfs_b->runtime -= amount;
+			cfs_b->idle = 0;
+		}
 	}
 	raw_spin_unlock(&cfs_b->lock);
 
@@ -1315,6 +1322,33 @@ static __always_inline void account_cfs_rq_runtime(struct cfs_rq *cfs_rq,
 	__account_cfs_rq_runtime(cfs_rq, delta_exec);
 }
 
+/*
+ * Responsible for refilling a task_group's bandwidth and unthrottling its
+ * cfs_rqs as appropriate. If there has been no activity within the last
+ * period the timer is deactivated until scheduling resumes; cfs_b->idle is
+ * used to track this state.
+ */
+static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
+{
+	int idle = 1;
+
+	raw_spin_lock(&cfs_b->lock);
+	/* no need to continue the timer with no bandwidth constraint */
+	if (cfs_b->quota == RUNTIME_INF)
+		goto out_unlock;
+
+	idle = cfs_b->idle;
+	cfs_b->runtime = cfs_b->quota;
+
+	/* mark as potentially idle for the upcoming period */
+	cfs_b->idle = 1;
+out_unlock:
+	if (idle)
+		cfs_b->timer_active = 0;
+	raw_spin_unlock(&cfs_b->lock);
+
+	return idle;
+}
 #else
 static void account_cfs_rq_runtime(struct cfs_rq *cfs_rq,
 				     unsigned long delta_exec) {}
