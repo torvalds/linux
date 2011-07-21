@@ -1949,7 +1949,7 @@ static void XGIfb_get_VB_type(void)
 	}
 }
 
-XGIINITSTATIC int __init XGIfb_setup(char *options)
+static int __init XGIfb_setup(char *options)
 {
 	char *this_opt;
 
@@ -2543,7 +2543,7 @@ static struct pci_driver xgifb_driver = {
 	.remove = __devexit_p(xgifb_remove)
 };
 
-XGIINITSTATIC int __init xgifb_init(void)
+static int __init xgifb_init(void)
 {
 	char *option = NULL;
 

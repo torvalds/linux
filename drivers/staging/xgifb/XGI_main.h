@@ -41,7 +41,6 @@
 
 #define XGI_IOTYPE1 void __iomem
 #define XGI_IOTYPE2 __iomem
-#define XGIINITSTATIC static
 
 static DEFINE_PCI_DEVICE_TABLE(xgifb_pci_table) = {
 	{PCI_VENDOR_ID_XG, PCI_DEVICE_ID_XG_20, PCI_ANY_ID, PCI_ANY_ID,
