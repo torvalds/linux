@@ -2727,7 +2727,7 @@ void *ath6kl_wmi_init(struct ath6kl *dev)
 
 	wmi->parent_dev = dev;
 
-	wlan_node_table_init(wmi, &dev->scan_table);
+	wlan_node_table_init(&dev->scan_table);
 	ath6kl_wmi_qos_state_init(wmi);
 
 	wmi->pwr_mode = REC_POWER;

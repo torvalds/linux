@@ -155,7 +155,7 @@ void wlan_iterate_nodes(struct ath6kl_node_table *nt,
 			void (*f) (void *arg, struct bss *),
 			void *arg);
 
-void wlan_node_table_init(void *wmip, struct ath6kl_node_table *nt);
+void wlan_node_table_init(struct ath6kl_node_table *nt);
 void wlan_node_table_cleanup(struct ath6kl_node_table *nt);
 
 void wlan_refresh_inactive_nodes(struct ath6kl *ar);

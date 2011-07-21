@@ -160,7 +160,7 @@ void wlan_iterate_nodes(struct ath6kl_node_table *nt,
 	spin_unlock_bh(&nt->nt_nodelock);
 }
 
-void wlan_node_table_init(void *wmi, struct ath6kl_node_table *nt)
+void wlan_node_table_init(struct ath6kl_node_table *nt)
 {
 	ath6kl_dbg(ATH6KL_DBG_WLAN_NODE, "node table = 0x%lx\n",
 		   (unsigned long)nt);
