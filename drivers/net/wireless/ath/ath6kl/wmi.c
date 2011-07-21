@@ -498,8 +498,6 @@ static int ath6kl_wmi_connect_event_rx(struct wmi *wmi, u8 *datap, int len)
 	ath6kl_dbg(ATH6KL_DBG_WMI, "%s: freq %d bssid %pM\n",
 		   __func__, ev->ch, ev->bssid);
 
-	memcpy(wmi->bssid, ev->bssid, ETH_ALEN);
-
 	/* Start of assoc rsp IEs */
 	pie = ev->assoc_info + ev->beacon_ie_len +
 	      ev->assoc_req_len + (sizeof(u16) * 3); /* capinfo, status, aid */
@@ -546,7 +544,6 @@ static int ath6kl_wmi_disconnect_event_rx(struct wmi *wmi, u8 *datap, int len)
 		return -EINVAL;
 
 	ev = (struct wmi_disconnect_event *) datap;
-	memset(wmi->bssid, 0, sizeof(wmi->bssid));
 
 	wmi->is_wmm_enabled = false;
 	wmi->pair_crypto_type = NONE_CRYPT;
@@ -772,7 +769,7 @@ static int ath6kl_wmi_bssinfo_event_rx(struct wmi *wmi, u8 *datap, int len)
 		 * instance value of scan result. It also sync up RSSI info
 		 * in GUI between scan result and RSSI signal icon.
 		 */
-		if (memcmp(wmi->bssid, bih->bssid, ETH_ALEN) == 0) {
+		if (memcmp(wmi->parent_dev->bssid, bih->bssid, ETH_ALEN) == 0) {
 			bih->rssi = a_cpu_to_sle16(bss->ni_rssi);
 			bih->snr = bss->ni_snr;
 		}
@@ -2253,7 +2250,7 @@ int ath6kl_wmi_get_tx_pwr_cmd(struct wmi *wmi)
 void ath6kl_wmi_get_current_bssid(struct wmi *wmi, u8 *bssid)
 {
 	if (bssid)
-		memcpy(bssid, wmi->bssid, ETH_ALEN);
+		memcpy(bssid, wmi->parent_dev->bssid, ETH_ALEN);
 }
 
 int ath6kl_wmi_set_lpreamble_cmd(struct wmi *wmi, u8 status, u8 preamble_policy)
