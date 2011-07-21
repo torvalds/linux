@@ -211,11 +211,15 @@ ip_set_hash_destroy(struct ip_set *set)
 	set->data = NULL;
 }
 
-#define HKEY(data, initval, htable_bits)				 \
-(jhash2((u32 *)(data), sizeof(struct type_pf_elem)/sizeof(u32), initval) \
-	& jhash_mask(htable_bits))
-
 #endif /* _IP_SET_AHASH_H */
+
+#ifndef HKEY_DATALEN
+#define HKEY_DATALEN	sizeof(struct type_pf_elem)
+#endif
+
+#define HKEY(data, initval, htable_bits)			\
+(jhash2((u32 *)(data), HKEY_DATALEN/sizeof(u32), initval)	\
+	& jhash_mask(htable_bits))
 
 #define CONCAT(a, b, c)		a##b##c
 #define TOKEN(a, b, c)		CONCAT(a, b, c)
@@ -1054,6 +1058,8 @@ type_pf_gc_init(struct ip_set *set)
 		 IPSET_GC_PERIOD(h->timeout));
 }
 
+#undef HKEY_DATALEN
+#undef HKEY
 #undef type_pf_data_equal
 #undef type_pf_data_isnull
 #undef type_pf_data_copy
