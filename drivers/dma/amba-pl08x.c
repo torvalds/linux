@@ -156,14 +156,10 @@ struct pl08x_driver_data {
 #define PL08X_BOUNDARY_SHIFT		(10)	/* 1KB 0x400 */
 #define PL08X_BOUNDARY_SIZE		(1 << PL08X_BOUNDARY_SHIFT)
 
-/* Minimum period between work queue runs */
-#define PL08X_WQ_PERIODMIN	20
-
 /* Size (bytes) of each LLI buffer allocated for one transfer */
 # define PL08X_LLI_TSFR_SIZE	0x2000
 
 /* Maximum times we call dma_pool_alloc on this pool without freeing */
-#define PL08X_MAX_ALLOCS	0x40
 #define MAX_NUM_TSFR_LLIS	(PL08X_LLI_TSFR_SIZE/sizeof(struct pl08x_lli))
 #define PL08X_ALIGN		8
 
