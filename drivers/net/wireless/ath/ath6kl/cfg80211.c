@@ -779,7 +779,6 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 {
 	struct ath6kl *ar = (struct ath6kl *)ath6kl_priv(ndev);
 	int ret = 0;
-	u32 force_fg_scan = 0;
 
 	if (!ath6kl_cfg80211_ready(ar))
 		return -EIO;
@@ -807,10 +806,7 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 						  request->ssids[i].ssid);
 	}
 
-	if (test_bit(CONNECTED, &ar->flag))
-		force_fg_scan = 1;
-
-	if (ath6kl_wmi_startscan_cmd(ar->wmi, WMI_LONG_SCAN, force_fg_scan,
+	if (ath6kl_wmi_startscan_cmd(ar->wmi, WMI_LONG_SCAN, 0,
 				     false, 0, 0, 0, NULL) != 0) {
 		ath6kl_err("wmi_startscan_cmd failed\n");
 		ret = -EIO;
