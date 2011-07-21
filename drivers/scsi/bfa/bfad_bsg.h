@@ -137,6 +137,12 @@ enum {
 	IOCMD_QOS_RESET_STATS,
 	IOCMD_VF_GET_STATS,
 	IOCMD_VF_RESET_STATS,
+	IOCMD_FCPIM_LUNMASK_ENABLE,
+	IOCMD_FCPIM_LUNMASK_DISABLE,
+	IOCMD_FCPIM_LUNMASK_CLEAR,
+	IOCMD_FCPIM_LUNMASK_QUERY,
+	IOCMD_FCPIM_LUNMASK_ADD,
+	IOCMD_FCPIM_LUNMASK_DELETE,
 };
 
 struct bfa_bsg_gen_s {
@@ -699,6 +705,21 @@ struct bfa_bsg_vf_reset_stats_s {
 	bfa_status_t	status;
 	u16		bfad_num;
 	u16		vf_id;
+};
+
+struct bfa_bsg_fcpim_lunmask_query_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	struct bfa_lunmask_cfg_s lun_mask;
+};
+
+struct bfa_bsg_fcpim_lunmask_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		vf_id;
+	wwn_t		pwwn;
+	wwn_t		rpwwn;
+	struct scsi_lun	lun;
 };
 
 struct bfa_bsg_fcpt_s {

@@ -416,5 +416,12 @@ void bfa_cb_tskim_done(void *bfad, struct bfad_tskim_s *dtsk,
 
 void	bfa_fcpim_lunmask_rp_update(struct bfa_s *bfa, wwn_t lp_wwn,
 			wwn_t rp_wwn, u16 rp_tag, u8 lp_tag);
+bfa_status_t	bfa_fcpim_lunmask_update(struct bfa_s *bfa, u32 on_off);
+bfa_status_t	bfa_fcpim_lunmask_query(struct bfa_s *bfa, void *buf);
+bfa_status_t	bfa_fcpim_lunmask_delete(struct bfa_s *bfa, u16 vf_id,
+				wwn_t *pwwn, wwn_t rpwwn, struct scsi_lun lun);
+bfa_status_t	bfa_fcpim_lunmask_add(struct bfa_s *bfa, u16 vf_id,
+				wwn_t *pwwn, wwn_t rpwwn, struct scsi_lun lun);
+bfa_status_t	bfa_fcpim_lunmask_clear(struct bfa_s *bfa);
 
 #endif /* __BFA_FCPIM_H__ */

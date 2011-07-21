@@ -2394,6 +2394,56 @@ out:
 	return 0;
 }
 
+int
+bfad_iocmd_lunmask(struct bfad_s *bfad, void *pcmd, unsigned int v_cmd)
+{
+	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)pcmd;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	if (v_cmd == IOCMD_FCPIM_LUNMASK_ENABLE)
+		iocmd->status = bfa_fcpim_lunmask_update(&bfad->bfa, BFA_TRUE);
+	else if (v_cmd == IOCMD_FCPIM_LUNMASK_DISABLE)
+		iocmd->status = bfa_fcpim_lunmask_update(&bfad->bfa, BFA_FALSE);
+	else if (v_cmd == IOCMD_FCPIM_LUNMASK_CLEAR)
+		iocmd->status = bfa_fcpim_lunmask_clear(&bfad->bfa);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	return 0;
+}
+
+int
+bfad_iocmd_fcpim_lunmask_query(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_fcpim_lunmask_query_s *iocmd =
+			(struct bfa_bsg_fcpim_lunmask_query_s *)cmd;
+	struct bfa_lunmask_cfg_s *lun_mask = &iocmd->lun_mask;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_fcpim_lunmask_query(&bfad->bfa, lun_mask);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	return 0;
+}
+
+int
+bfad_iocmd_fcpim_cfg_lunmask(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
+{
+	struct bfa_bsg_fcpim_lunmask_s *iocmd =
+				(struct bfa_bsg_fcpim_lunmask_s *)cmd;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	if (v_cmd == IOCMD_FCPIM_LUNMASK_ADD)
+		iocmd->status = bfa_fcpim_lunmask_add(&bfad->bfa, iocmd->vf_id,
+					&iocmd->pwwn, iocmd->rpwwn, iocmd->lun);
+	else if (v_cmd == IOCMD_FCPIM_LUNMASK_DELETE)
+		iocmd->status = bfa_fcpim_lunmask_delete(&bfad->bfa,
+					iocmd->vf_id, &iocmd->pwwn,
+					iocmd->rpwwn, iocmd->lun);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -2711,6 +2761,18 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_VF_RESET_STATS:
 		rc = bfad_iocmd_vf_clr_stats(bfad, iocmd);
+		break;
+	case IOCMD_FCPIM_LUNMASK_ENABLE:
+	case IOCMD_FCPIM_LUNMASK_DISABLE:
+	case IOCMD_FCPIM_LUNMASK_CLEAR:
+		rc = bfad_iocmd_lunmask(bfad, iocmd, cmd);
+		break;
+	case IOCMD_FCPIM_LUNMASK_QUERY:
+		rc = bfad_iocmd_fcpim_lunmask_query(bfad, iocmd);
+		break;
+	case IOCMD_FCPIM_LUNMASK_ADD:
+	case IOCMD_FCPIM_LUNMASK_DELETE:
+		rc = bfad_iocmd_fcpim_cfg_lunmask(bfad, iocmd, cmd);
 		break;
 	default:
 		rc = -EINVAL;

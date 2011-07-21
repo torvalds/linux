@@ -175,11 +175,15 @@ enum bfa_status {
 	BFA_STATUS_IOPROFILE_OFF = 175, /* IO profile OFF */
 	BFA_STATUS_PHY_NOT_PRESENT = 183, /* PHY module not present */
 	BFA_STATUS_FEATURE_NOT_SUPPORTED = 192,	/* Feature not supported */
+	BFA_STATUS_ENTRY_EXISTS = 193,	/* Entry already exists */
+	BFA_STATUS_ENTRY_NOT_EXISTS = 194, /* Entry does not exist */
+	BFA_STATUS_NO_CHANGE = 195,	/* Feature already in that state */
 	BFA_STATUS_FAA_ENABLED = 197,	/* FAA is already enabled */
 	BFA_STATUS_FAA_DISABLED = 198,	/* FAA is already disabled */
 	BFA_STATUS_FAA_ACQUIRED = 199,	/* FAA is already acquired */
 	BFA_STATUS_FAA_ACQ_ADDR = 200,	/* Acquiring addr */
 	BFA_STATUS_ERROR_TRUNK_ENABLED = 203,	/* Trunk enabled on adapter */
+	BFA_STATUS_MAX_ENTRY_REACHED = 212,	/* MAX entry reached */
 	BFA_STATUS_MAX_VAL		/* Unknown error code */
 };
 #define bfa_status_t enum bfa_status
