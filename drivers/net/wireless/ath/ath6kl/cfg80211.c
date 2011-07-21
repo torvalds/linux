@@ -721,7 +721,7 @@ static inline bool is_ch_11a(u16 ch)
 }
 
 /* struct ath6kl_node_table::nt_nodelock is locked when calling this */
-static void ath6kl_cfg80211_scan_node(void *arg, struct bss *ni)
+void ath6kl_cfg80211_scan_node(void *arg, struct bss *ni)
 {
 	struct wiphy *wiphy = (struct wiphy *)arg;
 	u16 size;
@@ -833,8 +833,7 @@ void ath6kl_cfg80211_scan_complete_event(struct ath6kl *ar, int status)
 	}
 
 	/* Translate data to cfg80211 mgmt format */
-	wlan_iterate_nodes(&ar->scan_table, ath6kl_cfg80211_scan_node,
-			   ar->wdev->wiphy);
+	wlan_iterate_nodes(&ar->scan_table, ar->wdev->wiphy);
 
 	cfg80211_scan_done(ar->scan_req, false);
 

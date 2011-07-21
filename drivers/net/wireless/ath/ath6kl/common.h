@@ -151,9 +151,7 @@ struct bss *wlan_find_node(struct ath6kl_node_table *nt,
 			   const u8 *mac_addr);
 void wlan_node_reclaim(struct ath6kl_node_table *nt, struct bss *ni);
 void wlan_free_allnodes(struct ath6kl_node_table *nt);
-void wlan_iterate_nodes(struct ath6kl_node_table *nt,
-			void (*f) (void *arg, struct bss *),
-			void *arg);
+void wlan_iterate_nodes(struct ath6kl_node_table *nt, void *arg);
 
 void wlan_node_table_init(struct ath6kl_node_table *nt);
 void wlan_node_table_cleanup(struct ath6kl_node_table *nt);
@@ -179,4 +177,5 @@ struct ath6kl *ath6kl_core_alloc(struct device *sdev);
 int ath6kl_core_init(struct ath6kl *ar);
 int ath6kl_unavail_ev(struct ath6kl *ar);
 struct sk_buff *ath6kl_buf_alloc(int size);
+void ath6kl_cfg80211_scan_node(void *arg, struct bss *ni);
 #endif /* COMMON_H */

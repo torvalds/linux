@@ -146,15 +146,14 @@ void wlan_free_allnodes(struct ath6kl_node_table *nt)
 		wlan_node_reclaim(nt, ni);
 }
 
-void wlan_iterate_nodes(struct ath6kl_node_table *nt,
-			void (*f) (void *arg, struct bss *), void *arg)
+void wlan_iterate_nodes(struct ath6kl_node_table *nt, void *arg)
 {
 	struct bss *ni;
 
 	spin_lock_bh(&nt->nt_nodelock);
 	for (ni = nt->nt_node_first; ni; ni = ni->ni_list_next) {
 			ni->ni_refcnt++;
-			(*f) (arg, ni);
+			ath6kl_cfg80211_scan_node(arg, ni);
 			wlan_node_dec_free(ni);
 	}
 	spin_unlock_bh(&nt->nt_nodelock);
