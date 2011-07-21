@@ -175,6 +175,8 @@ struct pl08x_dma_chan {
 	struct pl08x_channel_data *cd;
 	dma_addr_t src_addr;
 	dma_addr_t dst_addr;
+	u32 src_cctl;
+	u32 dst_cctl;
 	enum dma_data_direction	runtime_direction;
 	dma_cookie_t lc;
 	struct list_head pend_list;
