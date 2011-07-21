@@ -62,7 +62,8 @@ struct hash_ipportnet4_telem {
 
 static inline bool
 hash_ipportnet4_data_equal(const struct hash_ipportnet4_elem *ip1,
-			   const struct hash_ipportnet4_elem *ip2)
+			   const struct hash_ipportnet4_elem *ip2,
+			   u32 *multi)
 {
 	return ip1->ip == ip2->ip &&
 	       ip1->ip2 == ip2->ip2 &&
@@ -335,7 +336,8 @@ struct hash_ipportnet6_telem {
 
 static inline bool
 hash_ipportnet6_data_equal(const struct hash_ipportnet6_elem *ip1,
-			   const struct hash_ipportnet6_elem *ip2)
+			   const struct hash_ipportnet6_elem *ip2,
+			   u32 *multi)
 {
 	return ipv6_addr_cmp(&ip1->ip.in6, &ip2->ip.in6) == 0 &&
 	       ipv6_addr_cmp(&ip1->ip2.in6, &ip2->ip2.in6) == 0 &&
