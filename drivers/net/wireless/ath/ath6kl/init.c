@@ -1062,6 +1062,8 @@ static int ath6kl_init(struct net_device *dev)
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: got wmi @ 0x%p.\n", __func__, ar->wmi);
 
+	wlan_node_table_init(&ar->scan_table);
+
 	/*
 	 * The reason we have to wait for the target here is that the
 	 * driver layer has to init BMI in order to set the host block
@@ -1069,7 +1071,7 @@ static int ath6kl_init(struct net_device *dev)
 	 */
 	if (htc_wait_target(ar->htc_target)) {
 		status = -EIO;
-		goto err_wmi_cleanup;
+		goto err_node_cleanup;
 	}
 
 	if (ath6kl_init_service_ep(ar)) {
@@ -1142,7 +1144,8 @@ err_rxbuf_cleanup:
 	ath6kl_cleanup_amsdu_rxbufs(ar);
 err_cleanup_scatter:
 	ath6kl_hif_cleanup_scatter(ar);
-err_wmi_cleanup:
+err_node_cleanup:
+	wlan_node_table_cleanup(&ar->scan_table);
 	ath6kl_wmi_shutdown(ar->wmi);
 	clear_bit(WMI_ENABLED, &ar->flag);
 	ar->wmi = NULL;
@@ -1288,6 +1291,8 @@ void ath6kl_destroy(struct net_device *dev, unsigned int unregister)
 	}
 
 	free_netdev(dev);
+
+	wlan_node_table_cleanup(&ar->scan_table);
 
 	ath6kl_cfg80211_deinit(ar);
 }
