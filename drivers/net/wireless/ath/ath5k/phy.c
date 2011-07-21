@@ -22,6 +22,7 @@
 
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <asm/unaligned.h>
 
 #include "ath5k.h"
 #include "reg.h"
@@ -2794,12 +2795,8 @@ ath5k_write_pwr_to_pdadc_table(struct ath5k_hw *ah, u8 ee_mode)
 	 * Write TX power values
 	 */
 	for (i = 0; i < (AR5K_EEPROM_POWER_TABLE_SIZE / 2); i++) {
-		ath5k_hw_reg_write(ah,
-			((pdadc_out[4 * i + 0] & 0xff) << 0) |
-			((pdadc_out[4 * i + 1] & 0xff) << 8) |
-			((pdadc_out[4 * i + 2] & 0xff) << 16) |
-			((pdadc_out[4 * i + 3] & 0xff) << 24),
-			AR5K_PHY_PDADC_TXPOWER(i));
+		u32 val = get_unaligned_le32(&pdadc_out[4 * i]);
+		ath5k_hw_reg_write(ah, val, AR5K_PHY_PDADC_TXPOWER(i));
 	}
 }
 
