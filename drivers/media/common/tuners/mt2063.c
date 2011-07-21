@@ -350,7 +350,7 @@ static int MT2063_Sleep(struct dvb_frontend *fe)
 	/*
 	 *  ToDo:  Add code here to implement a OS blocking
 	 */
-	msleep(10);
+	msleep(100);
 
 	return 0;
 }
