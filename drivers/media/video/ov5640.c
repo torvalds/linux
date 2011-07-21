@@ -131,13 +131,13 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 /* ov5640 VCM Command  */
 #define OverlayEn_Cmd     0x01
 #define OverlayDis_Cmd    0x02
-//#define SingleFocus_Cmd   0x03
+#define SingleFocus_Cmd   0x03
 #define ConstFocus_Cmd    0x04
 #define StepMode_Cmd      0x05
 #define PauseFocus_Cmd    0x06
 #define ReturnIdle_Cmd    0x08
 #define SetZone_Cmd       0x10
-//#define UpdateZone_Cmd    0x12
+#define UpdateZone_Cmd    0x12
 #define SetMotor_Cmd      0x20
 
 
@@ -149,8 +149,8 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 //#define S_FIRWRE          	0xFF		/*Firmware is downloaded and not run*/
 #define S_STARTUP         	0x7e		/*Firmware is initializing*/
 #define S_ERROR           	0x7f
-#define S_IDLE            		0x70		/*Idle state, focus is released; lens is located at the furthest position.*/
-#define S_FOCUSING        	0x01		/*Auto Focus is running.*/
+#define S_IDLE            	0x70		/*Idle state, focus is released; lens is located at the furthest position.*/
+#define S_FOCUSING        	0x00		/*Auto Focus is running.*/
 #define S_FOCUSED         	0x10		/*Auto Focus is completed.*/
 
 #define S_CAPTURE         	0x12
@@ -1770,14 +1770,11 @@ static int sensor_af_idlechk(struct i2c_client *client)
 	struct af_cmdinfo cmdinfo;
 	
 	SENSOR_DG("%s , %d\n",__FUNCTION__,__LINE__);
-	//sensor_write(client, CMD_ACK_Reg, 0x01);
-	//sensor_write(client, CMD_MAIN_Reg, 0x08);
 	
 	cmdinfo.cmd_tag = 0x01;
 	cmdinfo.validate_bit = 0x80;
-	ret = sensor_af_cmdset(client, 0x08, &cmdinfo);
-	if(0 != ret)
-	{
+	ret = sensor_af_cmdset(client, ReturnIdle_Cmd, &cmdinfo);
+	if(0 != ret) {
 		SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
 		ret = -1;
 		goto sensor_af_idlechk_end;
@@ -1804,29 +1801,14 @@ static int sensor_af_single(struct i2c_client *client)
 	char state,cnt;
 	struct af_cmdinfo cmdinfo;
 
-	//sensor_write(client, CMD_ACK_Reg, 0x01);
-	//sensor_write(client, CMD_MAIN_Reg, 0x03);
-
 	cmdinfo.cmd_tag = 0x01;
 	cmdinfo.validate_bit = 0x80;
-	ret = sensor_af_cmdset(client, 0x03, &cmdinfo);
-	if(0 != ret)
-	{
-		SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
+	ret = sensor_af_cmdset(client, SingleFocus_Cmd, &cmdinfo);
+	if(0 != ret) {
+		SENSOR_TR("%s single focus mode set error!\n",SENSOR_NAME_STRING());
 		ret = -1;
 		goto sensor_af_single_end;
 	}
-	
-	do{
-		ret = sensor_read(client, CMD_ACK_Reg, &state);
-		if (ret != 0){
-		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
-		   ret = -1;
-		   goto sensor_af_single_end;
-		}
-	}while(0x00 != state);
-
-
 	
 	cnt = 0;
     do
@@ -1857,15 +1839,7 @@ static int sensor_af_const(struct i2c_client *client)
 {
 	int ret = 0;
 
-	/*if (sensor_af_idlechk(client))
-		goto sensor_af_const_end;
 
-	if (sensor_af_cmdset(client, ConstFocus_Cmd, NULL)) {
-		SENSOR_TR("%s const focus mode set error!\n",SENSOR_NAME_STRING());
-		ret = -1;
-		goto sensor_af_const_end;
-	}*/
-//sensor_af_const_end:
 	return ret;
 }
 
@@ -1873,31 +1847,30 @@ static int sensor_af_const(struct i2c_client *client)
 static int sensor_af_init(struct i2c_client *client)
 {
 	int ret = 0;
-	char state;
+	char state,cnt;
 
 	ret = sensor_write_array(client, sensor_af_firmware);
-    	if (ret != 0) {
-       		SENSOR_TR("%s Download firmware failed\n",SENSOR_NAME_STRING());
-       		ret = -1;
+    if (ret != 0) {
+       	SENSOR_TR("%s Download firmware failed\n",SENSOR_NAME_STRING());
+       	ret = -1;
 	   	goto sensor_af_init_end;
-    	}
+    }
 
-	do{
-		ret = sensor_read(client, CMD_ACK_Reg, &state);
+    cnt = 0;
+    do
+    {
+    	if (cnt != 0) {
+			msleep(1);
+    	}
+    	cnt++;
+		ret = sensor_read(client, STA_FOCUS_Reg, &state);
 		if (ret != 0){
 		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
 		   ret = -1;
 		   goto sensor_af_init_end;
 		}
-	}while(0x00 != state);
-	
-	ret = sensor_read(client, 0x3029, &state);
-	if (ret != 0)
-	{
-		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
-		   ret = -1;
-		   goto sensor_af_init_end;
-	}
+    }while((state == S_STARTUP) && (cnt<100));	
+
     if (state != S_IDLE) {
     	SENSOR_TR("%s focus state(0x%x) is error!\n",SENSOR_NAME_STRING(),state);
         ret = -1;
@@ -2647,21 +2620,13 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 
 			sensor->info_priv.video2preview = true;
 		} else if ((sensor->info_priv.snap2preview == true) || (sensor->info_priv.video2preview == true)) {
-
-			#if CONFIG_SENSOR_Focus
-			int temp_ret;
-			temp_ret = sensor_af_idlechk(client);
-			if(temp_ret != 0)
-			{
-				SENSOR_DG("sensor enter idle mode fail!!");
-			}
-			#endif
 			qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_EFFECT);
 			sensor_set_effect(icd, qctrl,sensor->info_priv.effect);
 			if (sensor->info_priv.snap2preview == true) {
 				qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_DO_WHITE_BALANCE);
 				sensor_set_whiteBalance(icd, qctrl,sensor->info_priv.whiteBalance);
 			}
+            msleep(600);
 			sensor->info_priv.video2preview = false;
 			sensor->info_priv.snap2preview = false;
 		}
