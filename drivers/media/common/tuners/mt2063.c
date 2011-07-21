@@ -320,53 +320,34 @@ static u32 MT2063_SoftwareShutdown(struct mt2063_state *state, u8 Shutdown);
 static u32 MT2063_ClearPowerMaskBits(struct mt2063_state *state, enum MT2063_Mask_Bits Bits);
 
 
-/*****************/
-/* From drivers/media/common/tuners/mt2063_cfg.h */
-
-
+/*
+ * Ancillary routines visible outside mt2063
+ */
 unsigned int tuner_MT2063_SoftwareShutdown(struct dvb_frontend *fe)
 {
 	struct mt2063_state *state = fe->tuner_priv;
-	struct dvb_frontend_ops *frontend_ops = &fe->ops;
-	struct dvb_tuner_ops *tuner_ops = &frontend_ops->tuner_ops;
 	int err = 0;
 
-	if (&fe->ops)
-		frontend_ops = &fe->ops;
-	if (&frontend_ops->tuner_ops)
-		tuner_ops = &frontend_ops->tuner_ops;
-	if (tuner_ops->set_state) {
-		err = MT2063_SoftwareShutdown(state, 1);
-		if (err < 0) {
-			printk("%s: Invalid parameter\n", __func__);
-			return err;
-		}
-	}
+	err = MT2063_SoftwareShutdown(state, 1);
+	if (err < 0)
+		printk(KERN_ERR "%s: Couldn't shutdown\n", __func__);
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(tuner_MT2063_SoftwareShutdown);
 
 unsigned int tuner_MT2063_ClearPowerMaskBits(struct dvb_frontend *fe)
 {
 	struct mt2063_state *state = fe->tuner_priv;
-	struct dvb_frontend_ops *frontend_ops = &fe->ops;
-	struct dvb_tuner_ops *tuner_ops = &frontend_ops->tuner_ops;
 	int err = 0;
 
-	if (&fe->ops)
-		frontend_ops = &fe->ops;
-	if (&frontend_ops->tuner_ops)
-		tuner_ops = &frontend_ops->tuner_ops;
-	if (tuner_ops->set_state) {
-		err = MT2063_ClearPowerMaskBits(state, MT2063_ALL_SD);
-		if (err < 0) {
-			printk("%s: Invalid parameter\n", __func__);
-			return err;
-		}
-	}
+	err = MT2063_ClearPowerMaskBits(state, MT2063_ALL_SD);
+	if (err < 0)
+		printk(KERN_ERR "%s: Invalid parameter\n", __func__);
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(tuner_MT2063_ClearPowerMaskBits);
 
 /*
  * mt2063_write - Write data into the I2C bus
@@ -1173,6 +1154,7 @@ unsigned int mt2063_lockStatus(struct mt2063_state *state)
 	 */
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mt2063_lockStatus);
 
 /****************************************************************************
 **
@@ -3333,8 +3315,8 @@ error:
 	kfree(state);
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(mt2063_attach);
 
-EXPORT_SYMBOL(mt2063_attach);
 MODULE_PARM_DESC(verbose, "Set Verbosity level");
 
 MODULE_AUTHOR("Henry");
