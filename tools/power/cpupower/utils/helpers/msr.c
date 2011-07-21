@@ -11,6 +11,7 @@
 #define MSR_IA32_PERF_STATUS		0x198
 #define MSR_IA32_MISC_ENABLES		0x1a0
 #define MSR_IA32_ENERGY_PERF_BIAS	0x1b0
+#define MSR_NEHALEM_TURBO_RATIO_LIMIT	0x1ad
 
 /*
  * read_msr
@@ -79,6 +80,7 @@ int msr_intel_has_boost_support(unsigned int cpu)
 	ret = read_msr(cpu, MSR_IA32_MISC_ENABLES, &misc_enables);
 	if (ret)
 		return ret;
+
 	return (misc_enables >> 38) & 0x1;
 }
 
@@ -118,5 +120,19 @@ int msr_intel_set_perf_bias(unsigned int cpu, unsigned int val)
 	if (ret)
 		return ret;
 	return 0;
+}
+
+unsigned long long msr_intel_get_turbo_ratio(unsigned int cpu)
+{
+	unsigned long long val;
+	int ret;
+
+	if (!(cpupower_cpu_info.caps & CPUPOWER_CAP_HAS_TURBO_RATIO))
+		return -1;
+
+	ret = read_msr(cpu, MSR_NEHALEM_TURBO_RATIO_LIMIT, &val);
+	if (ret)
+		return ret;
+	return val;
 }
 #endif

@@ -165,26 +165,56 @@ static int get_boost_mode(unsigned int cpu)
 	printf(_("    Supported: %s\n"), support ? _("yes") : _("no"));
 	printf(_("    Active: %s\n"), active ? _("yes") : _("no"));
 
-	/* ToDo: Only works for AMD for now... */
-
 	if (cpupower_cpu_info.vendor == X86_VENDOR_AMD &&
 	    cpupower_cpu_info.family >= 0x10) {
 		ret = decode_pstates(cpu, cpupower_cpu_info.family, b_states,
 				     pstates, &pstate_no);
 		if (ret)
 			return ret;
-	} else
-		return 0;
 
-	printf(_("    Boost States: %d\n"), b_states);
-	printf(_("    Total States: %d\n"), pstate_no);
-	for (i = 0; i < pstate_no; i++) {
-		if (i < b_states)
-			printf(_("    Pstate-Pb%d: %luMHz (boost state)\n"),
-			       i, pstates[i]);
+		printf(_("    Boost States: %d\n"), b_states);
+		printf(_("    Total States: %d\n"), pstate_no);
+		for (i = 0; i < pstate_no; i++) {
+			if (i < b_states)
+				printf(_("    Pstate-Pb%d: %luMHz (boost state)"
+					 "\n"), i, pstates[i]);
+			else
+				printf(_("    Pstate-P%d:  %luMHz\n"),
+				       i - b_states, pstates[i]);
+		}
+	} else if (cpupower_cpu_info.caps & CPUPOWER_CAP_HAS_TURBO_RATIO) {
+		double bclk;
+		unsigned long long intel_turbo_ratio = 0;
+		unsigned int ratio;
+
+		/* Any way to autodetect this ? */
+		if (cpupower_cpu_info.caps & CPUPOWER_CAP_IS_SNB)
+			bclk = 100.00;
 		else
-			printf(_("    Pstate-P%d:  %luMHz\n"),
-			       i - b_states, pstates[i]);
+			bclk = 133.33;
+		intel_turbo_ratio = msr_intel_get_turbo_ratio(cpu);
+		dprint ("    Ratio: 0x%llx - bclk: %f\n",
+			intel_turbo_ratio, bclk);
+
+		ratio = (intel_turbo_ratio >> 24) & 0xFF;
+		if (ratio)
+			printf(_("    %.0f MHz max turbo 4 active cores\n"),
+			       ratio * bclk);
+
+		ratio = (intel_turbo_ratio >> 16) & 0xFF;
+		if (ratio)
+			printf(_("    %.0f MHz max turbo 3 active cores\n"),
+			       ratio * bclk);
+
+		ratio = (intel_turbo_ratio >> 8) & 0xFF;
+		if (ratio)
+			printf(_("    %.0f MHz max turbo 2 active cores\n"),
+			       ratio * bclk);
+
+		ratio = (intel_turbo_ratio >> 0) & 0xFF;
+		if (ratio)
+			printf(_("    %.0f MHz max turbo 1 active cores\n"),
+			       ratio * bclk);
 	}
 	return 0;
 }

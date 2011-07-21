@@ -130,10 +130,37 @@ out:
 			cpu_info->caps |= CPUPOWER_CAP_AMD_CBP;
 	}
 
-	/* Intel's perf-bias MSR support */
 	if (cpu_info->vendor == X86_VENDOR_INTEL) {
+		/* Intel's perf-bias MSR support */
 		if (cpuid_level >= 6 && (cpuid_ecx(6) & (1 << 3)))
 			cpu_info->caps |= CPUPOWER_CAP_PERF_BIAS;
+
+		/* Intel's Turbo Ratio Limit support */
+		if (cpu_info->family == 6) {
+			switch (cpu_info->model) {
+			case 0x1A:	/* Core i7, Xeon 5500 series
+					 * Bloomfield, Gainstown NHM-EP
+					 */
+			case 0x1E:	/* Core i7 and i5 Processor
+					 * Clarksfield, Lynnfield, Jasper Forest
+					 */
+			case 0x1F:	/* Core i7 and i5 Processor - Nehalem */
+			case 0x25:	/* Westmere Client
+					 * Clarkdale, Arrandale
+					 */
+			case 0x2C:	/* Westmere EP - Gulftown */
+				cpu_info->caps |= CPUPOWER_CAP_HAS_TURBO_RATIO;
+			case 0x2A:	/* SNB */
+			case 0x2D:	/* SNB Xeon */
+				cpu_info->caps |= CPUPOWER_CAP_HAS_TURBO_RATIO;
+				cpu_info->caps |= CPUPOWER_CAP_IS_SNB;
+				break;
+			case 0x2E:	/* Nehalem-EX Xeon - Beckton */
+			case 0x2F:	/* Westmere-EX Xeon - Eagleton */
+			default:
+				break;
+			}
+		}
 	}
 
 	/*	printf("ID: %u - Extid: 0x%x - Caps: 0x%llx\n",
