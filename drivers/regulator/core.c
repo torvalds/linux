@@ -153,7 +153,7 @@ static int regulator_check_voltage(struct regulator_dev *rdev,
 
 	if (*min_uV > *max_uV) {
 		rdev_err(rdev, "unsupportable voltage range: %d-%duV\n",
-			 min_uV, max_uV);
+			 *min_uV, *max_uV);
 		return -EINVAL;
 	}
 
@@ -210,7 +210,7 @@ static int regulator_check_current_limit(struct regulator_dev *rdev,
 
 	if (*min_uA > *max_uA) {
 		rdev_err(rdev, "unsupportable current range: %d-%duA\n",
-			 min_uA, max_uA);
+			 *min_uA, *max_uA);
 		return -EINVAL;
 	}
 
