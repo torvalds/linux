@@ -936,7 +936,6 @@ int rk29_set_cursor(struct fb_info *info, struct fb_cursor *cursor)
     return 0;
 }
 #endif
-#ifdef CONFIG_FB_SCALING_OSD
 static int hdmi_get_fbscale(void)
 {
 #ifdef CONFIG_HDMI
@@ -945,7 +944,6 @@ static int hdmi_get_fbscale(void)
 	return 100;
 #endif
 }
-#endif
 static void hdmi_set_fbscale(struct fb_info *info)
 {
 #ifdef CONFIG_HDMI
@@ -1170,8 +1168,8 @@ static int win1_set_par(struct fb_info *info)
         hdmi_set_fbscale(info);
     }else  if(((screen->x_res==1920) ))
     	{
-    	if(hdmi_get_scale() < 100)
-			par->ypos -=screen->y_res * (100-hdmi_get_scale()) / 200;
+    	if(hdmi_get_fbscale() < 100)
+			par->ypos -=screen->y_res * (100-hdmi_get_fbscale()) / 200;
 	}
     //u32 offset=0, addr=0, map_size=0, smem_len=0;
     addr=0;
