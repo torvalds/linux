@@ -972,35 +972,6 @@ enum ath5k_power_mode {
 #define AR5K_SOFTLED_ON		0
 #define AR5K_SOFTLED_OFF	1
 
-/*
- * Chipset capabilities -see ath5k_hw_get_capability-
- * get_capability function is not yet fully implemented
- * in ath5k so most of these don't work yet...
- * TODO: Implement these & merge with _TUNE_ stuff above
- */
-enum ath5k_capability_type {
-	AR5K_CAP_REG_DMN		= 0,	/* Used to get current reg. domain id */
-	AR5K_CAP_TKIP_MIC		= 2,	/* Can handle TKIP MIC in hardware */
-	AR5K_CAP_TKIP_SPLIT		= 3,	/* TKIP uses split keys */
-	AR5K_CAP_PHYCOUNTERS		= 4,	/* PHY error counters */
-	AR5K_CAP_DIVERSITY		= 5,	/* Supports fast diversity */
-	AR5K_CAP_NUM_TXQUEUES		= 6,	/* Used to get max number of hw txqueues */
-	AR5K_CAP_VEOL			= 7,	/* Supports virtual EOL */
-	AR5K_CAP_COMPRESSION		= 8,	/* Supports compression */
-	AR5K_CAP_BURST			= 9,	/* Supports packet bursting */
-	AR5K_CAP_FASTFRAME		= 10,	/* Supports fast frames */
-	AR5K_CAP_TXPOW			= 11,	/* Used to get global tx power limit */
-	AR5K_CAP_TPC			= 12,	/* Can do per-packet tx power control (needed for 802.11a) */
-	AR5K_CAP_BSSIDMASK		= 13,	/* Supports bssid mask */
-	AR5K_CAP_MCAST_KEYSRCH		= 14,	/* Supports multicast key search */
-	AR5K_CAP_TSF_ADJUST		= 15,	/* Supports beacon tsf adjust */
-	AR5K_CAP_XR			= 16,	/* Supports XR mode */
-	AR5K_CAP_WME_TKIPMIC		= 17,	/* Supports TKIP MIC when using WMM */
-	AR5K_CAP_CHAN_HALFRATE		= 18,	/* Supports half rate channels */
-	AR5K_CAP_CHAN_QUARTERRATE	= 19,	/* Supports quarter rate channels */
-	AR5K_CAP_RFSILENT		= 20,	/* Supports RFsilent */
-};
-
 
 /* XXX: we *may* move cap_range stuff to struct wiphy */
 struct ath5k_capabilities {
@@ -1506,9 +1477,6 @@ void ath5k_rfkill_hw_stop(struct ath5k_hw *ah);
 
 /* Misc functions TODO: Cleanup */
 int ath5k_hw_set_capabilities(struct ath5k_hw *ah);
-int ath5k_hw_get_capability(struct ath5k_hw *ah,
-			    enum ath5k_capability_type cap_type, u32 capability,
-			    u32 *result);
 int ath5k_hw_enable_pspoll(struct ath5k_hw *ah, u8 *bssid, u16 assoc_id);
 int ath5k_hw_disable_pspoll(struct ath5k_hw *ah);
 
