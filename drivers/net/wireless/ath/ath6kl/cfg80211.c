@@ -820,29 +820,34 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 
 void ath6kl_cfg80211_scan_complete_event(struct ath6kl *ar, int status)
 {
+	int i;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: status %d\n", __func__, status);
 
-	if (ar->scan_req) {
-		/* Translate data to cfg80211 mgmt format */
-		ath6kl_wmi_iterate_nodes(ar->wmi, ath6kl_cfg80211_scan_node,
-					 ar->wdev->wiphy);
+	if (!ar->scan_req)
+		return;
 
-		cfg80211_scan_done(ar->scan_req, ((status & -ECANCELED)
-						  || (status & -EBUSY)) ? true :
-				   false);
-
-		if (ar->scan_req->n_ssids && ar->scan_req->ssids[0].ssid_len) {
-			u8 i;
-
-			for (i = 0; i < ar->scan_req->n_ssids; i++) {
-				ath6kl_wmi_probedssid_cmd(ar->wmi, i + 1,
-							  DISABLE_SSID_FLAG,
-							  0, NULL);
-			}
-		}
-		ar->scan_req = NULL;
+	if ((status == -ECANCELED) || (status == -EBUSY)) {
+		cfg80211_scan_done(ar->scan_req, true);
+		goto out;
 	}
+
+	/* Translate data to cfg80211 mgmt format */
+	ath6kl_wmi_iterate_nodes(ar->wmi, ath6kl_cfg80211_scan_node,
+				 ar->wdev->wiphy);
+
+	cfg80211_scan_done(ar->scan_req, false);
+
+	if (ar->scan_req->n_ssids && ar->scan_req->ssids[0].ssid_len) {
+		for (i = 0; i < ar->scan_req->n_ssids; i++) {
+			ath6kl_wmi_probedssid_cmd(ar->wmi, i + 1,
+						  DISABLE_SSID_FLAG,
+						  0, NULL);
+		}
+	}
+
+out:
+	ar->scan_req = NULL;
 }
 
 static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
