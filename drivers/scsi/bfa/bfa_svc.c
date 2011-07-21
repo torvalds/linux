@@ -2230,6 +2230,11 @@ bfa_fcport_sm_linkdown(struct bfa_fcport_s *fcport,
 		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
 			"Base port online: WWN = %s\n", pwwn_buf);
 		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_ONLINE);
+
+		/* If QoS is enabled and it is not online, send AEN */
+		if (fcport->cfg.qos_enabled &&
+		    fcport->qos_attr.state != BFA_QOS_ONLINE)
+			bfa_fcport_aen_post(fcport, BFA_PORT_AEN_QOS_NEG);
 		break;
 
 	case BFA_FCPORT_SM_LINKDOWN:
@@ -3453,6 +3458,11 @@ bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 						BFA_TRUNK_DISABLED;
 				fcport->use_flash_cfg = BFA_FALSE;
 			}
+
+			if (fcport->cfg.qos_enabled)
+				fcport->qos_attr.state = BFA_QOS_OFFLINE;
+			else
+				fcport->qos_attr.state = BFA_QOS_DISABLED;
 
 			bfa_sm_send_event(fcport, BFA_FCPORT_SM_FWRSP);
 		}

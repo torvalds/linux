@@ -469,6 +469,7 @@ struct bfa_fw_stats_s {
  * QoS states
  */
 enum bfa_qos_state {
+	BFA_QOS_DISABLED = 0,		/* QoS is disabled */
 	BFA_QOS_ONLINE = 1,		/*  QoS is online */
 	BFA_QOS_OFFLINE = 2,		/*  QoS is offline */
 };

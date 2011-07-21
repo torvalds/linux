@@ -129,6 +129,12 @@ enum {
 	IOCMD_TRUNK_ENABLE,
 	IOCMD_TRUNK_DISABLE,
 	IOCMD_TRUNK_GET_ATTR,
+	IOCMD_QOS_ENABLE,
+	IOCMD_QOS_DISABLE,
+	IOCMD_QOS_GET_ATTR,
+	IOCMD_QOS_GET_VC_ATTR,
+	IOCMD_QOS_GET_STATS,
+	IOCMD_QOS_RESET_STATS,
 };
 
 struct bfa_bsg_gen_s {
@@ -664,6 +670,20 @@ struct bfa_bsg_trunk_attr_s {
 	u16		bfad_num;
 	u16		rsvd;
 	struct bfa_trunk_attr_s attr;
+};
+
+struct bfa_bsg_qos_attr_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_qos_attr_s	attr;
+};
+
+struct bfa_bsg_qos_vc_attr_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_qos_vc_attr_s attr;
 };
 
 struct bfa_bsg_fcpt_s {

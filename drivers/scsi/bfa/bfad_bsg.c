@@ -2228,6 +2228,127 @@ bfad_iocmd_trunk_get_attr(struct bfad_s *bfad, void *cmd)
 	return 0;
 }
 
+int
+bfad_iocmd_qos(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
+{
+	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(&bfad->bfa);
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	if (bfa_ioc_get_type(&bfad->bfa.ioc) == BFA_IOC_TYPE_FC) {
+		if (v_cmd == IOCMD_QOS_ENABLE)
+			fcport->cfg.qos_enabled = BFA_TRUE;
+		else if (v_cmd == IOCMD_QOS_DISABLE)
+			fcport->cfg.qos_enabled = BFA_FALSE;
+	}
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	iocmd->status = BFA_STATUS_OK;
+	return 0;
+}
+
+int
+bfad_iocmd_qos_get_attr(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_qos_attr_s *iocmd = (struct bfa_bsg_qos_attr_s *)cmd;
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(&bfad->bfa);
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->attr.state = fcport->qos_attr.state;
+	iocmd->attr.total_bb_cr = be32_to_cpu(fcport->qos_attr.total_bb_cr);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	iocmd->status = BFA_STATUS_OK;
+	return 0;
+}
+
+int
+bfad_iocmd_qos_get_vc_attr(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_qos_vc_attr_s *iocmd =
+				(struct bfa_bsg_qos_vc_attr_s *)cmd;
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(&bfad->bfa);
+	struct bfa_qos_vc_attr_s *bfa_vc_attr = &fcport->qos_vc_attr;
+	unsigned long	flags;
+	u32	i = 0;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->attr.total_vc_count = be16_to_cpu(bfa_vc_attr->total_vc_count);
+	iocmd->attr.shared_credit  = be16_to_cpu(bfa_vc_attr->shared_credit);
+	iocmd->attr.elp_opmode_flags  =
+				be32_to_cpu(bfa_vc_attr->elp_opmode_flags);
+
+	/* Individual VC info */
+	while (i < iocmd->attr.total_vc_count) {
+		iocmd->attr.vc_info[i].vc_credit =
+				bfa_vc_attr->vc_info[i].vc_credit;
+		iocmd->attr.vc_info[i].borrow_credit =
+				bfa_vc_attr->vc_info[i].borrow_credit;
+		iocmd->attr.vc_info[i].priority =
+				bfa_vc_attr->vc_info[i].priority;
+		i++;
+	}
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	iocmd->status = BFA_STATUS_OK;
+	return 0;
+}
+
+int
+bfad_iocmd_qos_get_stats(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_fcport_stats_s *iocmd =
+				(struct bfa_bsg_fcport_stats_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long	flags;
+	struct bfa_cb_pending_q_s cb_qe;
+
+	init_completion(&fcomp.comp);
+	bfa_pending_q_init(&cb_qe, (bfa_cb_cbfn_t)bfad_hcb_comp,
+			   &fcomp, &iocmd->stats);
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	WARN_ON(!bfa_ioc_get_fcmode(&bfad->bfa.ioc));
+	iocmd->status = bfa_fcport_get_stats(&bfad->bfa, &cb_qe);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK) {
+		bfa_trc(bfad, iocmd->status);
+		goto out;
+	}
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_qos_reset_stats(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long	flags;
+	struct bfa_cb_pending_q_s cb_qe;
+
+	init_completion(&fcomp.comp);
+	bfa_pending_q_init(&cb_qe, (bfa_cb_cbfn_t)bfad_hcb_comp,
+			   &fcomp, NULL);
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	WARN_ON(!bfa_ioc_get_fcmode(&bfad->bfa.ioc));
+	iocmd->status = bfa_fcport_clear_stats(&bfad->bfa, &cb_qe);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK) {
+		bfa_trc(bfad, iocmd->status);
+		goto out;
+	}
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -2523,6 +2644,22 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_TRUNK_GET_ATTR:
 		rc = bfad_iocmd_trunk_get_attr(bfad, iocmd);
+		break;
+	case IOCMD_QOS_ENABLE:
+	case IOCMD_QOS_DISABLE:
+		rc = bfad_iocmd_qos(bfad, iocmd, cmd);
+		break;
+	case IOCMD_QOS_GET_ATTR:
+		rc = bfad_iocmd_qos_get_attr(bfad, iocmd);
+		break;
+	case IOCMD_QOS_GET_VC_ATTR:
+		rc = bfad_iocmd_qos_get_vc_attr(bfad, iocmd);
+		break;
+	case IOCMD_QOS_GET_STATS:
+		rc = bfad_iocmd_qos_get_stats(bfad, iocmd);
+		break;
+	case IOCMD_QOS_RESET_STATS:
+		rc = bfad_iocmd_qos_reset_stats(bfad, iocmd);
 		break;
 	default:
 		rc = -EINVAL;
