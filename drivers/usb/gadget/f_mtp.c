@@ -983,10 +983,12 @@ static struct miscdevice mtp_device = {
 static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 				const struct usb_ctrlrequest *ctrl)
 {
+	struct mtp_dev *dev = _mtp_dev;
 	int	value = -EOPNOTSUPP;
 	u16	w_index = le16_to_cpu(ctrl->wIndex);
 	u16	w_value = le16_to_cpu(ctrl->wValue);
 	u16	w_length = le16_to_cpu(ctrl->wLength);
+	unsigned long	flags;
 
 	VDBG(cdev, "mtp_ctrlrequest "
 			"%02x.%02x v%04x i%04x l%u\n",
@@ -1002,7 +1004,61 @@ static int mtp_ctrlrequest(struct usb_composite_dev *cdev,
 		value = (w_length < sizeof(mtp_os_string)
 				? w_length : sizeof(mtp_os_string));
 		memcpy(cdev->req->buf, mtp_os_string, value);
+	} else if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_VENDOR) {
+		/* Handle MTP OS descriptor */
+		DBG(cdev, "vendor request: %d index: %d value: %d length: %d\n",
+			ctrl->bRequest, w_index, w_value, w_length);
+
+		if (ctrl->bRequest == 1
+				&& (ctrl->bRequestType & USB_DIR_IN)
+				&& (w_index == 4 || w_index == 5)) {
+			value = (w_length < sizeof(mtp_ext_config_desc) ?
+					w_length : sizeof(mtp_ext_config_desc));
+			memcpy(cdev->req->buf, &mtp_ext_config_desc, value);
+		}
+	} else if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_CLASS) {
+		DBG(cdev, "class request: %d index: %d value: %d length: %d\n",
+			ctrl->bRequest, w_index, w_value, w_length);
+
+		if (ctrl->bRequest == MTP_REQ_CANCEL && w_index == 0
+				&& w_value == 0) {
+			DBG(cdev, "MTP_REQ_CANCEL\n");
+
+			spin_lock_irqsave(&dev->lock, flags);
+			if (dev->state == STATE_BUSY) {
+				dev->state = STATE_CANCELED;
+				wake_up(&dev->read_wq);
+				wake_up(&dev->write_wq);
+			}
+			spin_unlock_irqrestore(&dev->lock, flags);
+
+			/* We need to queue a request to read the remaining
+			 *  bytes, but we don't actually need to look at
+			 * the contents.
+			 */
+			value = w_length;
+		} else if (ctrl->bRequest == MTP_REQ_GET_DEVICE_STATUS
+				&& w_index == 0 && w_value == 0) {
+			struct mtp_device_status *status = cdev->req->buf;
+			status->wLength =
+				__constant_cpu_to_le16(sizeof(*status));
+
+			DBG(cdev, "MTP_REQ_GET_DEVICE_STATUS\n");
+			spin_lock_irqsave(&dev->lock, flags);
+			/* device status is "busy" until we report
+			 * the cancelation to userspace
+			 */
+			if (dev->state == STATE_CANCELED)
+				status->wCode =
+					__cpu_to_le16(MTP_RESPONSE_DEVICE_BUSY);
+			else
+				status->wCode =
+					__cpu_to_le16(MTP_RESPONSE_OK);
+			spin_unlock_irqrestore(&dev->lock, flags);
+			value = sizeof(*status);
+		}
 	}
+
 	/* respond with data transfer or status phase? */
 	if (value >= 0) {
 		int rc;
@@ -1066,97 +1122,6 @@ mtp_function_unbind(struct usb_configuration *c, struct usb_function *f)
 	while ((req = mtp_req_get(dev, &dev->intr_idle)))
 		mtp_request_free(req, dev->ep_intr);
 	dev->state = STATE_OFFLINE;
-}
-
-static int mtp_function_setup(struct usb_function *f,
-					const struct usb_ctrlrequest *ctrl)
-{
-	struct mtp_dev	*dev = func_to_mtp(f);
-	struct usb_composite_dev *cdev = dev->cdev;
-	int	value = -EOPNOTSUPP;
-	u16	w_index = le16_to_cpu(ctrl->wIndex);
-	u16	w_value = le16_to_cpu(ctrl->wValue);
-	u16	w_length = le16_to_cpu(ctrl->wLength);
-	unsigned long	flags;
-
-	VDBG(cdev, "mtp_function_setup "
-			"%02x.%02x v%04x i%04x l%u\n",
-			ctrl->bRequestType, ctrl->bRequest,
-			w_value, w_index, w_length);
-
-	if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_VENDOR) {
-		/* Handle MTP OS descriptor */
-		DBG(cdev, "vendor request: %d index: %d value: %d length: %d\n",
-			ctrl->bRequest, w_index, w_value, w_length);
-
-		if (ctrl->bRequest == 1
-				&& (ctrl->bRequestType & USB_DIR_IN)
-				&& (w_index == 4 || w_index == 5)) {
-			value = (w_length < sizeof(mtp_ext_config_desc) ?
-					w_length : sizeof(mtp_ext_config_desc));
-			memcpy(cdev->req->buf, &mtp_ext_config_desc, value);
-		}
-	}
-	if ((ctrl->bRequestType & USB_TYPE_MASK) == USB_TYPE_CLASS) {
-		DBG(cdev, "class request: %d index: %d value: %d length: %d\n",
-			ctrl->bRequest, w_index, w_value, w_length);
-
-		if (ctrl->bRequest == MTP_REQ_CANCEL && w_index == 0
-				&& w_value == 0) {
-			DBG(cdev, "MTP_REQ_CANCEL\n");
-
-			spin_lock_irqsave(&dev->lock, flags);
-			if (dev->state == STATE_BUSY) {
-				dev->state = STATE_CANCELED;
-				wake_up(&dev->read_wq);
-				wake_up(&dev->write_wq);
-			}
-			spin_unlock_irqrestore(&dev->lock, flags);
-
-			/* We need to queue a request to read the remaining
-			 *  bytes, but we don't actually need to look at
-			 * the contents.
-			 */
-			value = w_length;
-		} else if (ctrl->bRequest == MTP_REQ_GET_DEVICE_STATUS
-				&& w_index == 0 && w_value == 0) {
-			struct mtp_device_status *status = cdev->req->buf;
-			status->wLength =
-				__constant_cpu_to_le16(sizeof(*status));
-
-			DBG(cdev, "MTP_REQ_GET_DEVICE_STATUS\n");
-			spin_lock_irqsave(&dev->lock, flags);
-			/* device status is "busy" until we report
-			 * the cancelation to userspace
-			 */
-			if (dev->state == STATE_CANCELED)
-				status->wCode =
-					__cpu_to_le16(MTP_RESPONSE_DEVICE_BUSY);
-			else
-				status->wCode =
-					__cpu_to_le16(MTP_RESPONSE_OK);
-			spin_unlock_irqrestore(&dev->lock, flags);
-			value = sizeof(*status);
-		}
-	}
-
-	/* respond with data transfer or status phase? */
-	if (value >= 0) {
-		int rc;
-		cdev->req->zero = value < w_length;
-		cdev->req->length = value;
-		rc = usb_ep_queue(cdev->gadget->ep0, cdev->req, GFP_ATOMIC);
-		if (rc < 0)
-			ERROR(cdev, "%s setup response queue error\n", __func__);
-	}
-
-	if (value == -EOPNOTSUPP)
-		VDBG(cdev,
-			"unknown class-specific control req "
-			"%02x.%02x v%04x i%04x l%u\n",
-			ctrl->bRequestType, ctrl->bRequest,
-			w_value, w_index, w_length);
-	return value;
 }
 
 static int mtp_function_set_alt(struct usb_function *f,
@@ -1239,7 +1204,6 @@ static int mtp_bind_config(struct usb_configuration *c, bool ptp_config)
 	}
 	dev->function.bind = mtp_function_bind;
 	dev->function.unbind = mtp_function_unbind;
-	dev->function.setup = mtp_function_setup;
 	dev->function.set_alt = mtp_function_set_alt;
 	dev->function.disable = mtp_function_disable;
 
