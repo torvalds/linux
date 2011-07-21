@@ -93,6 +93,7 @@
 #define PCH_PHUB_INTPIN_REG_WPERMIT_REG3	0x002C
 #define PCH_PHUB_INT_REDUCE_CONTROL_REG_BASE	0x0040
 #define CLKCFG_REG_OFFSET			0x500
+#define FUNCSEL_REG_OFFSET			0x508
 
 #define PCH_PHUB_OROM_SIZE 15360
 
@@ -111,6 +112,7 @@
  * @intpin_reg_wpermit_reg3:		INTPIN_REG_WPERMIT register 3 val
  * @int_reduce_control_reg:		INT_REDUCE_CONTROL registers val
  * @clkcfg_reg:				CLK CFG register val
+ * @funcsel_reg:			Function select register value
  * @pch_phub_base_address:		Register base address
  * @pch_phub_extrom_base_address:	external rom base address
  * @pch_mac_start_address:		MAC address area start address
@@ -131,6 +133,7 @@ struct pch_phub_reg {
 	u32 intpin_reg_wpermit_reg3;
 	u32 int_reduce_control_reg[MAX_NUM_INT_REDUCE_CONTROL_REG];
 	u32 clkcfg_reg;
+	u32 funcsel_reg;
 	void __iomem *pch_phub_base_address;
 	void __iomem *pch_phub_extrom_base_address;
 	u32 pch_mac_start_address;
@@ -214,6 +217,8 @@ static void pch_phub_save_reg_conf(struct pci_dev *pdev)
 			__func__, i, chip->int_reduce_control_reg[i]);
 	}
 	chip->clkcfg_reg = ioread32(p + CLKCFG_REG_OFFSET);
+	if ((chip->ioh_type == 2) || (chip->ioh_type == 4))
+		chip->funcsel_reg = ioread32(p + FUNCSEL_REG_OFFSET);
 }
 
 /* pch_phub_restore_reg_conf - restore register configuration */
@@ -274,6 +279,8 @@ static void pch_phub_restore_reg_conf(struct pci_dev *pdev)
 	}
 
 	iowrite32(chip->clkcfg_reg, p + CLKCFG_REG_OFFSET);
+	if ((chip->ioh_type == 2) || (chip->ioh_type == 4))
+		iowrite32(chip->funcsel_reg, p + FUNCSEL_REG_OFFSET);
 }
 
 /**
