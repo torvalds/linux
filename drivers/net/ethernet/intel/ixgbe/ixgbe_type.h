@@ -1834,6 +1834,7 @@ enum {
 #define IXGBE_MFLCN_DPF         0x00000002 /* Discard Pause Frame */
 #define IXGBE_MFLCN_RPFCE       0x00000004 /* Receive Priority FC Enable */
 #define IXGBE_MFLCN_RFCE        0x00000008 /* Receive FC Enable */
+#define IXGBE_MFLCN_RPFCE_MASK	0x00000FE0 /* Receive FC Mask */
 
 #define IXGBE_MFLCN_RPFCE_SHIFT		 4
 

@@ -252,8 +252,10 @@ s32 ixgbe_dcb_config_pfc_82599(struct ixgbe_hw *hw, u8 pfc_en)
 		reg &= ~IXGBE_MFLCN_RFCE;
 		reg |= IXGBE_MFLCN_RPFCE | IXGBE_MFLCN_DPF;
 
-		if (hw->mac.type == ixgbe_mac_X540)
+		if (hw->mac.type == ixgbe_mac_X540) {
+			reg &= ~IXGBE_MFLCN_RPFCE_MASK;
 			reg |= pfc_en << IXGBE_MFLCN_RPFCE_SHIFT;
+		}
 
 		IXGBE_WRITE_REG(hw, IXGBE_MFLCN, reg);
 
