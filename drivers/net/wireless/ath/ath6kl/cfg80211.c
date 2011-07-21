@@ -720,6 +720,7 @@ static inline bool is_ch_11a(u16 ch)
 	return (!((ch >= 2412) && (ch <= 2484)));
 }
 
+/* struct ath6kl_node_table::nt_nodelock is locked when calling this */
 static void ath6kl_cfg80211_scan_node(void *arg, struct bss *ni)
 {
 	struct wiphy *wiphy = (struct wiphy *)arg;
@@ -769,7 +770,7 @@ static void ath6kl_cfg80211_scan_node(void *arg, struct bss *ni)
 		   "%s: bssid %pM ch %d freq %d size %d\n", __func__,
 		   mgmt->bssid, channel->hw_value, freq, size);
 	cfg80211_inform_bss_frame(wiphy, channel, mgmt,
-				  size, signal, GFP_KERNEL);
+				  size, signal, GFP_ATOMIC);
 
 	kfree(ieeemgmtbuf);
 }
