@@ -121,6 +121,11 @@ enum {
 	IOCMD_ITNIM_GET_IOPROFILE,
 	IOCMD_FCPORT_GET_STATS,
 	IOCMD_FCPORT_RESET_STATS,
+	IOCMD_BOOT_CFG,
+	IOCMD_BOOT_QUERY,
+	IOCMD_PREBOOT_QUERY,
+	IOCMD_ETHBOOT_CFG,
+	IOCMD_ETHBOOT_QUERY,
 };
 
 struct bfa_bsg_gen_s {
@@ -628,6 +633,27 @@ struct bfa_bsg_vhba_attr_s {
 	u16		bfad_num;
 	u16		pcifn_id;
 	struct bfa_vhba_attr_s	attr;
+};
+
+struct bfa_bsg_boot_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_boot_cfg_s	cfg;
+};
+
+struct bfa_bsg_preboot_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_boot_pbc_s	cfg;
+};
+
+struct bfa_bsg_ethboot_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct  bfa_ethboot_cfg_s  cfg;
 };
 
 struct bfa_bsg_fcpt_s {

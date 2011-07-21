@@ -656,6 +656,20 @@ struct bfa_boot_bootlun_s {
 /*
  * BOOT boot configuraton
  */
+struct bfa_boot_cfg_s {
+	u8		version;
+	u8		rsvd1;
+	u16		chksum;
+	u8		enable;		/* enable/disable SAN boot */
+	u8		speed;          /* boot speed settings */
+	u8		topology;       /* boot topology setting */
+	u8		bootopt;        /* bfa_boot_bootopt_t */
+	u32		nbluns;         /* number of boot luns */
+	u32		rsvd2;
+	struct bfa_boot_bootlun_s blun[BFA_BOOT_BOOTLUN_MAX];
+	struct bfa_boot_bootlun_s blun_disc[BFA_BOOT_BOOTLUN_MAX];
+};
+
 struct bfa_boot_pbc_s {
 	u8              enable;         /*  enable/disable SAN boot */
 	u8              speed;          /*  boot speed settings */
@@ -663,6 +677,15 @@ struct bfa_boot_pbc_s {
 	u8              rsvd1;
 	u32     nbluns;         /*  number of boot luns */
 	struct bfa_boot_bootlun_s pblun[BFA_PREBOOT_BOOTLUN_MAX];
+};
+
+struct bfa_ethboot_cfg_s {
+	u8		version;
+	u8		rsvd1;
+	u16		chksum;
+	u8		enable;	/* enable/disable Eth/PXE boot */
+	u8		rsvd2;
+	u16		vlan;
 };
 
 /*
