@@ -40,6 +40,7 @@ extern struct platform_device s3c64xx_device_spi0;
 extern struct platform_device s3c64xx_device_spi1;
 
 extern struct platform_device samsung_asoc_dma;
+extern struct platform_device samsung_asoc_idma;
 
 extern struct platform_device s3c64xx_device_pcm0;
 extern struct platform_device s3c64xx_device_pcm1;
@@ -49,6 +50,7 @@ extern struct platform_device s3c64xx_device_ac97;
 extern struct platform_device s3c_device_ts;
 
 extern struct platform_device s3c_device_fb;
+extern struct platform_device s5p_device_fimd0;
 extern struct platform_device s3c_device_ohci;
 extern struct platform_device s3c_device_lcd;
 extern struct platform_device s3c_device_wdt;
@@ -112,6 +114,7 @@ extern struct platform_device exynos4_device_i2s2;
 extern struct platform_device exynos4_device_spdif;
 extern struct platform_device exynos4_device_pd[];
 extern struct platform_device exynos4_device_ahci;
+extern struct platform_device exynos4_device_dwmci;
 
 extern struct platform_device s5p6440_device_pcm;
 extern struct platform_device s5p6440_device_iis;
@@ -136,6 +139,9 @@ extern struct platform_device s5p_device_fimc1;
 extern struct platform_device s5p_device_fimc2;
 extern struct platform_device s5p_device_fimc3;
 
+extern struct platform_device s5p_device_mfc;
+extern struct platform_device s5p_device_mfc_l;
+extern struct platform_device s5p_device_mfc_r;
 extern struct platform_device s5p_device_mipi_csis0;
 extern struct platform_device s5p_device_mipi_csis1;
 
