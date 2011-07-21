@@ -6171,7 +6171,7 @@ error:
 	if (status < 0)
 		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
 
-	return 0;
+	return status;
 }
 
 static void drxk_c_release(struct dvb_frontend *fe)
