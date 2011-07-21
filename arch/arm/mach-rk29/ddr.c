@@ -1226,9 +1226,9 @@ uint32_t __sramfunc ddr_change_freq(uint32_t nMHz)
     /** 5. Issues a Mode Exit command   */
     ddr_selfrefresh_exit();
 	dsb(); 
-    clk_set_rate(clk_get(NULL, "ddr_pll"), 0);
     DDR_RESTORE_SP(save_sp);
     local_irq_restore(flags);
+    clk_set_rate(clk_get(NULL, "ddr_pll"), 0);
     return ret;
 }
 EXPORT_SYMBOL(ddr_change_freq);
