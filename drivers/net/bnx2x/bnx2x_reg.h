@@ -32,7 +32,11 @@
 /* [R 1] ATC initalization done */
 #define ATC_REG_ATC_INIT_DONE					 0x1100bc
 /* [RC 6] Interrupt register #0 read clear */
-#define ATC_REG_ATC_INT_STS_CLR				 0x1101c0
+#define ATC_REG_ATC_INT_STS_CLR					 0x1101c0
+/* [RW 5] Parity mask register #0 read/write */
+#define ATC_REG_ATC_PRTY_MASK					 0x1101d8
+/* [RC 5] Parity register #0 read clear */
+#define ATC_REG_ATC_PRTY_STS_CLR				 0x1101d0
 /* [RW 19] Interrupt mask register #0 read/write */
 #define BRB1_REG_BRB1_INT_MASK					 0x60128
 /* [R 19] Interrupt register #0 read */
@@ -2676,8 +2680,12 @@
 #define PGLUE_B_REG_PGLUE_B_INT_STS				 0x9298
 /* [RC 9] Interrupt register #0 read clear */
 #define PGLUE_B_REG_PGLUE_B_INT_STS_CLR			 0x929c
+/* [RW 2] Parity mask register #0 read/write */
+#define PGLUE_B_REG_PGLUE_B_PRTY_MASK				 0x92b4
 /* [R 2] Parity register #0 read */
 #define PGLUE_B_REG_PGLUE_B_PRTY_STS				 0x92a8
+/* [RC 2] Parity register #0 read clear */
+#define PGLUE_B_REG_PGLUE_B_PRTY_STS_CLR			 0x92ac
 /* [R 13] Details of first request received with error. [2:0] - PFID. [3] -
  * VF_VALID. [9:4] - VFID. [11:10] - Error Code - 0 - Indicates Completion
  * Timeout of a User Tx non-posted request. 1 - unsupported request. 2 -
@@ -5686,8 +5694,13 @@
 #define MISC_REGISTERS_RESET_REG_2_CLEAR			 0x598
 #define MISC_REGISTERS_RESET_REG_2_MSTAT0			 (0x1<<24)
 #define MISC_REGISTERS_RESET_REG_2_MSTAT1			 (0x1<<25)
+#define MISC_REGISTERS_RESET_REG_2_PGLC				 (0x1<<19)
+#define MISC_REGISTERS_RESET_REG_2_RST_ATC			 (0x1<<17)
 #define MISC_REGISTERS_RESET_REG_2_RST_BMAC0			 (0x1<<0)
+#define MISC_REGISTERS_RESET_REG_2_RST_BMAC1			 (0x1<<1)
+#define MISC_REGISTERS_RESET_REG_2_RST_EMAC0			 (0x1<<2)
 #define MISC_REGISTERS_RESET_REG_2_RST_EMAC0_HARD_CORE		 (0x1<<14)
+#define MISC_REGISTERS_RESET_REG_2_RST_EMAC1			 (0x1<<3)
 #define MISC_REGISTERS_RESET_REG_2_RST_EMAC1_HARD_CORE		 (0x1<<15)
 #define MISC_REGISTERS_RESET_REG_2_RST_GRC			 (0x1<<4)
 #define MISC_REGISTERS_RESET_REG_2_RST_MCP_N_HARD_CORE_RST_B	 (0x1<<6)
@@ -5700,6 +5713,7 @@
 #define MISC_REGISTERS_RESET_REG_2_RST_RBCN			 (0x1<<9)
 #define MISC_REGISTERS_RESET_REG_2_SET				 0x594
 #define MISC_REGISTERS_RESET_REG_2_UMAC0			 (0x1<<20)
+#define MISC_REGISTERS_RESET_REG_2_UMAC1			 (0x1<<21)
 #define MISC_REGISTERS_RESET_REG_2_XMAC				 (0x1<<22)
 #define MISC_REGISTERS_RESET_REG_2_XMAC_SOFT			 (0x1<<23)
 #define MISC_REGISTERS_RESET_REG_3_CLEAR			 0x5a8
