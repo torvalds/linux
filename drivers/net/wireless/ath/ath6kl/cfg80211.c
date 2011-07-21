@@ -833,8 +833,8 @@ void ath6kl_cfg80211_scan_complete_event(struct ath6kl *ar, int status)
 	}
 
 	/* Translate data to cfg80211 mgmt format */
-	ath6kl_wmi_iterate_nodes(&ar->scan_table, ath6kl_cfg80211_scan_node,
-				 ar->wdev->wiphy);
+	wlan_iterate_nodes(&ar->scan_table, ath6kl_cfg80211_scan_node,
+			   ar->wdev->wiphy);
 
 	cfg80211_scan_done(ar->scan_req, false);
 
