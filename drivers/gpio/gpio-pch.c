@@ -55,6 +55,9 @@ struct pch_gpio_reg_data {
  * @gpio:			Data for GPIO infrastructure.
  * @pch_gpio_reg:		Memory mapped Register data is saved here
  *				when suspend.
+ * @spinlock:		Used for register access protection in
+ *				interrupt context pch_irq_mask,
+ *				pch_irq_unmask and pch_irq_type;
  */
 struct pch_gpio {
 	void __iomem *base;
@@ -63,6 +66,7 @@ struct pch_gpio {
 	struct gpio_chip gpio;
 	struct pch_gpio_reg_data pch_gpio_reg;
 	struct mutex lock;
+	spinlock_t spinlock;
 };
 
 static void pch_gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
@@ -239,8 +243,11 @@ static int pch_gpio_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	s32 ret;
 	struct pch_gpio *chip = pci_get_drvdata(pdev);
+	unsigned long flags;
 
+	spin_lock_irqsave(&chip->spinlock, flags);
 	pch_gpio_save_reg_conf(chip);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
 
 	ret = pci_save_state(pdev);
 	if (ret) {
@@ -260,6 +267,7 @@ static int pch_gpio_resume(struct pci_dev *pdev)
 {
 	s32 ret;
 	struct pch_gpio *chip = pci_get_drvdata(pdev);
+	unsigned long flags;
 
 	ret = pci_enable_wake(pdev, PCI_D0, 0);
 
@@ -271,9 +279,11 @@ static int pch_gpio_resume(struct pci_dev *pdev)
 	}
 	pci_restore_state(pdev);
 
+	spin_lock_irqsave(&chip->spinlock, flags);
 	iowrite32(0x01, &chip->reg->reset);
 	iowrite32(0x00, &chip->reg->reset);
 	pch_gpio_restore_reg_conf(chip);
+	spin_unlock_irqrestore(&chip->spinlock, flags);
 
 	return 0;
 }
