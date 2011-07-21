@@ -47,6 +47,13 @@ struct resource_list_x {
 	(head)->next = NULL;				\
 } while (0)
 
+int pci_realloc_enable = 0;
+#define pci_realloc_enabled() pci_realloc_enable
+void pci_realloc(void)
+{
+	pci_realloc_enable = 1;
+}
+
 /**
  * add_to_list() - add a new resource tracker to the list
  * @head:	Head of the list
@@ -1025,6 +1032,7 @@ static int __init pci_get_max_depth(void)
 	return depth;
 }
 
+
 /*
  * first try will not touch pci bridge res
  * second  and later try will clear small leaf bridge res
@@ -1068,6 +1076,13 @@ again:
 	/* any device complain? */
 	if (!head.next)
 		goto enable_and_dump;
+
+	/* don't realloc if asked to do so */
+	if (!pci_realloc_enabled()) {
+		free_list(resource_list_x, &head);
+		goto enable_and_dump;
+	}
+
 	failed_type = 0;
 	for (list = head.next; list;) {
 		failed_type |= list->flags;

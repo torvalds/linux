@@ -96,8 +96,6 @@ static struct platform_driver s3c2410_serial_driver = {
 	},
 };
 
-s3c24xx_console_init(&s3c2410_serial_driver, &s3c2410_uart_inf);
-
 static int __init s3c2410_serial_init(void)
 {
 	return s3c24xx_serial_init(&s3c2410_serial_driver, &s3c2410_uart_inf);
