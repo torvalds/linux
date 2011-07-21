@@ -3555,7 +3555,7 @@ static void ixgbe_setup_gpie(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_GPIE, gpie);
 }
 
-static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
+static void ixgbe_up_complete(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	int err;
@@ -3614,8 +3614,6 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	ctrl_ext = IXGBE_READ_REG(hw, IXGBE_CTRL_EXT);
 	ctrl_ext |= IXGBE_CTRL_EXT_PFRSTD;
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL_EXT, ctrl_ext);
-
-	return 0;
 }
 
 void ixgbe_reinit_locked(struct ixgbe_adapter *adapter)
@@ -3639,12 +3637,12 @@ void ixgbe_reinit_locked(struct ixgbe_adapter *adapter)
 	clear_bit(__IXGBE_RESETTING, &adapter->state);
 }
 
-int ixgbe_up(struct ixgbe_adapter *adapter)
+void ixgbe_up(struct ixgbe_adapter *adapter)
 {
 	/* hardware has been reset, we need to reload some things */
 	ixgbe_configure(adapter);
 
-	return ixgbe_up_complete(adapter);
+	ixgbe_up_complete(adapter);
 }
 
 void ixgbe_reset(struct ixgbe_adapter *adapter)
@@ -5186,17 +5184,12 @@ static int ixgbe_open(struct net_device *netdev)
 	if (err)
 		goto err_req_irq;
 
-	err = ixgbe_up_complete(adapter);
-	if (err)
-		goto err_up;
+	ixgbe_up_complete(adapter);
 
 	netif_tx_start_all_queues(netdev);
 
 	return 0;
 
-err_up:
-	ixgbe_release_hw_control(adapter);
-	ixgbe_free_irq(adapter);
 err_req_irq:
 err_setup_rx:
 	ixgbe_free_all_rx_resources(adapter);
@@ -7653,12 +7646,8 @@ static void ixgbe_io_resume(struct pci_dev *pdev)
 	struct ixgbe_adapter *adapter = pci_get_drvdata(pdev);
 	struct net_device *netdev = adapter->netdev;
 
-	if (netif_running(netdev)) {
-		if (ixgbe_up(adapter)) {
-			e_info(probe, "ixgbe_up failed after reset\n");
-			return;
-		}
-	}
+	if (netif_running(netdev))
+		ixgbe_up(adapter);
 
 	netif_device_attach(netdev);
 }

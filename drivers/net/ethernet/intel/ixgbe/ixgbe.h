@@ -547,7 +547,7 @@ extern int ixgbe_copy_dcb_cfg(struct ixgbe_dcb_config *src_dcb_cfg,
 extern char ixgbe_driver_name[];
 extern const char ixgbe_driver_version[];
 
-extern int ixgbe_up(struct ixgbe_adapter *adapter);
+extern void ixgbe_up(struct ixgbe_adapter *adapter);
 extern void ixgbe_down(struct ixgbe_adapter *adapter);
 extern void ixgbe_reinit_locked(struct ixgbe_adapter *adapter);
 extern void ixgbe_reset(struct ixgbe_adapter *adapter);
