@@ -6,14 +6,12 @@
 
 #include "mt2063.h"
 
-/*  Version of this module                          */
-#define MT2063_VERSION 10018	/*  Version 01.18 */
-
 static unsigned int verbose;
 module_param(verbose, int, 0644);
 
 /* Internal structures and types */
 
+/* FIXME: we probably don't need these new FE get/set property types for tuner */
 #define DVBFE_TUNER_OPEN			99
 #define DVBFE_TUNER_SOFTWARE_SHUTDOWN		100
 #define DVBFE_TUNER_CLEAR_POWER_MASKBITS	101
@@ -118,8 +116,6 @@ module_param(verbose, int, 0644);
  *  check against this version number to make sure that
  *  it matches the version that the tuner driver knows about.
  */
-/* Version 010201 => 1.21 */
-#define MT2063_AVOID_SPURS_INFO_VERSION 010201
 
 /* DECT Frequency Avoidance */
 #define MT2063_DECT_AVOID_US_FREQS      0x00000001
@@ -497,7 +493,6 @@ struct MT2063_Info_t {
 	void *handle;
 	void *hUserData;
 	u32 address;
-	u32 version;
 	u32 tuner_id;
 	struct MT2063_AvoidSpursData_t AS_Data;
 	u32 f_IF1_actual;
@@ -3115,7 +3110,6 @@ static u32 MT2063_ReInit(void *h)
 
 	if (MT2063_NO_ERROR(status)) {
 		/*  Initialize the tuner state.  */
-		pInfo->version = MT2063_VERSION;
 		pInfo->tuner_id = pInfo->reg[MT2063_REG_PART_REV];
 		pInfo->AS_Data.f_ref = MT2063_REF_FREQ;
 		pInfo->AS_Data.f_if1_Center =
