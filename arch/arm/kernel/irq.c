@@ -133,17 +133,15 @@ int __init arch_probe_nr_irqs(void)
 
 static bool migrate_one_irq(struct irq_data *d)
 {
-	unsigned int cpu = cpumask_any_and(d->affinity, cpu_online_mask);
+	const struct cpumask *affinity = d->affinity;
 	bool ret = false;
 
-	if (cpu >= nr_cpu_ids) {
-		cpu = cpumask_any(cpu_online_mask);
+	if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
+		affinity cpu_online_mask;
 		ret = true;
 	}
 
-	pr_debug("IRQ%u: moving from cpu%u to cpu%u\n", d->irq, d->node, cpu);
-
-	d->chip->irq_set_affinity(d, cpumask_of(cpu), true);
+	d->chip->irq_set_affinity(d, affinity, true);
 
 	return ret;
 }
