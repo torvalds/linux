@@ -532,6 +532,8 @@ struct b43legacy_dma {
 
 	struct b43legacy_dmaring *rx_ring0;
 	struct b43legacy_dmaring *rx_ring3; /* only on core.rev < 5 */
+
+	u32 translation; /* Routing bits */
 };
 
 /* Data structures for PIO transmission, per 80211 core. */
