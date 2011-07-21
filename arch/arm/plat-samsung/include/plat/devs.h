@@ -40,6 +40,7 @@ extern struct platform_device s3c64xx_device_spi0;
 extern struct platform_device s3c64xx_device_spi1;
 
 extern struct platform_device samsung_asoc_dma;
+extern struct platform_device samsung_asoc_idma;
 
 extern struct platform_device s3c64xx_device_pcm0;
 extern struct platform_device s3c64xx_device_pcm1;

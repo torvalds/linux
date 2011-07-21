@@ -184,6 +184,7 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&exynos4_device_spdif,
 	&exynos4_device_sysmmu,
 	&samsung_asoc_dma,
+	&samsung_asoc_idma,
 	&smdkv310_smsc911x,
 	&exynos4_device_ahci,
 };
