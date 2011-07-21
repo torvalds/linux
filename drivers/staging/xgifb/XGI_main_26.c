@@ -396,8 +396,8 @@ static unsigned char XGIfb_query_VGA_config_space(
 		struct xgi_hw_device_info *pXGIhw_ext, unsigned long offset,
 		unsigned long set, unsigned long *value)
 {
-	static struct pci_dev *pdev = NULL;
-	static unsigned char init = 0, valid_pdev = 0;
+	static struct pci_dev *pdev;
+	static unsigned char init, valid_pdev;
 
 	if (!set)
 		DPRINTK("XGIfb: Get VGA offset 0x%lx\n", offset);
@@ -2564,26 +2564,26 @@ module_init(xgifb_init);
 
 #ifdef MODULE
 
-static char *mode = NULL;
-static int vesa = 0;
-static unsigned int rate = 0;
-static unsigned int mem = 0;
-static char *forcecrt2type = NULL;
+static char *mode;
+static int vesa;
+static unsigned int rate;
+static unsigned int mem;
+static char *forcecrt2type;
 static int forcecrt1 = -1;
 static int pdc = -1;
 static int pdc1 = -1;
 static int noypan = -1;
 static int userom = -1;
 static int useoem = -1;
-static char *tvstandard = NULL;
-static int nocrt2rate = 0;
+static char *tvstandard;
+static int nocrt2rate;
 static int scalelcd = -1;
-static char *specialtiming = NULL;
+static char *specialtiming;
 static int lvdshl = -1;
-static int tvxposoffset = 0, tvyposoffset = 0;
+static int tvxposoffset, tvyposoffset;
 #if !defined(__i386__) && !defined(__x86_64__)
-static int resetcard = 0;
-static int videoram = 0;
+static int resetcard;
+static int videoram;
 #endif
 
 MODULE_DESCRIPTION("Z7 Z9 Z9S Z11 framebuffer device driver");
