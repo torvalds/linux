@@ -1334,10 +1334,16 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 	u32 reg;
 	uint32_t DP = intel_dp->DP;
 
-	/* Enable output, wait for it to become active */
-	I915_WRITE(intel_dp->output_reg, intel_dp->DP);
-	POSTING_READ(intel_dp->output_reg);
-	intel_wait_for_vblank(dev, intel_crtc->pipe);
+	/*
+	 * On CPT we have to enable the port in training pattern 1, which
+	 * will happen below in intel_dp_set_link_train.  Otherwise, enable
+	 * the port and wait for it to become active.
+	 */
+	if (!HAS_PCH_CPT(dev)) {
+		I915_WRITE(intel_dp->output_reg, intel_dp->DP);
+		POSTING_READ(intel_dp->output_reg);
+		intel_wait_for_vblank(dev, intel_crtc->pipe);
+	}
 
 	/* Write the link configuration data */
 	intel_dp_aux_native_write(intel_dp, DP_LINK_BW_SET,
