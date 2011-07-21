@@ -31,7 +31,9 @@
 #include <plat/devs.h>
 #include <plat/iic.h>
 #include <plat/gpio-cfg.h>
+#include <plat/mfc.h>
 #include <plat/sdhci.h>
+#include <plat/pd.h>
 
 #include <mach/map.h>
 
@@ -717,6 +719,10 @@ static struct platform_device *universal_devices[] __initdata = {
 	&i2c_gpio12,
 	&universal_gpio_keys,
 	&s5p_device_onenand,
+	&s5p_device_mfc,
+	&s5p_device_mfc_l,
+	&s5p_device_mfc_r,
+	&exynos4_device_pd[PD_MFC],
 };
 
 static void __init universal_map_io(void)
@@ -724,6 +730,11 @@ static void __init universal_map_io(void)
 	s5p_init_io(NULL, 0, S5P_VA_CHIPID);
 	s3c24xx_init_clocks(24000000);
 	s3c24xx_init_uarts(universal_uartcfgs, ARRAY_SIZE(universal_uartcfgs));
+}
+
+static void __init universal_reserve(void)
+{
+	s5p_mfc_reserve_mem(0x43000000, 8 << 20, 0x51000000, 8 << 20);
 }
 
 static void __init universal_machine_init(void)
@@ -746,6 +757,7 @@ static void __init universal_machine_init(void)
 
 	/* Last */
 	platform_add_devices(universal_devices, ARRAY_SIZE(universal_devices));
+	s5p_device_mfc.dev.parent = &exynos4_device_pd[PD_MFC].dev;
 }
 
 MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
@@ -755,4 +767,5 @@ MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
 	.map_io		= universal_map_io,
 	.init_machine	= universal_machine_init,
 	.timer		= &exynos4_timer,
+	.reserve        = &universal_reserve,
 MACHINE_END
