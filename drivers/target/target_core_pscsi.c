@@ -1049,7 +1049,7 @@ static inline struct bio *pscsi_get_bio(int sg_num)
 	return bio;
 }
 
-static int __pscsi_map_task_SG(
+static int __pscsi_map_SG(
 	struct se_task *task,
 	struct scatterlist *task_sg,
 	u32 task_sg_num,
@@ -1198,7 +1198,10 @@ fail:
 	return ret;
 }
 
-static int pscsi_map_task_SG(struct se_task *task)
+/*
+ * pSCSI maps both ->map_control_SG() and ->map_data_SG() to a single call.
+ */
+static int pscsi_map_SG(struct se_task *task)
 {
 	int ret;
 
@@ -1206,13 +1209,13 @@ static int pscsi_map_task_SG(struct se_task *task)
 	 * Setup the main struct request for the task->task_sg[] payload
 	 */
 
-	ret = __pscsi_map_task_SG(task, task->task_sg, task->task_sg_nents, 0);
+	ret = __pscsi_map_SG(task, task->task_sg, task->task_sg_nents, 0);
 	if (ret >= 0 && task->task_sg_bidi) {
 		/*
 		 * If present, set up the extra BIDI-COMMAND SCSI READ
 		 * struct request and payload.
 		 */
-		ret = __pscsi_map_task_SG(task, task->task_sg_bidi,
+		ret = __pscsi_map_SG(task, task->task_sg_bidi,
 					task->task_sg_nents, 1);
 	}
 
@@ -1340,7 +1343,8 @@ static struct se_subsystem_api pscsi_template = {
 	.owner			= THIS_MODULE,
 	.transport_type		= TRANSPORT_PLUGIN_PHBA_PDEV,
 	.cdb_none		= pscsi_CDB_none,
-	.map_task_SG		= pscsi_map_task_SG,
+	.map_control_SG		= pscsi_map_SG,
+	.map_data_SG		= pscsi_map_SG,
 	.attach_hba		= pscsi_attach_hba,
 	.detach_hba		= pscsi_detach_hba,
 	.pmode_enable_hba	= pscsi_pmode_enable_hba,

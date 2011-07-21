@@ -591,7 +591,7 @@ static struct bio *iblock_get_bio(
 	return bio;
 }
 
-static int iblock_map_task_SG(struct se_task *task)
+static int iblock_map_data_SG(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
@@ -755,7 +755,7 @@ static struct se_subsystem_api iblock_template = {
 	.name			= "iblock",
 	.owner			= THIS_MODULE,
 	.transport_type		= TRANSPORT_PLUGIN_VHBA_PDEV,
-	.map_task_SG		= iblock_map_task_SG,
+	.map_data_SG		= iblock_map_data_SG,
 	.attach_hba		= iblock_attach_hba,
 	.detach_hba		= iblock_detach_hba,
 	.allocate_virtdevice	= iblock_allocate_virtdevice,
