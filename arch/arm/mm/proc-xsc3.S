@@ -445,9 +445,6 @@ ENTRY(cpu_xsc3_do_resume)
 	ldr	r3, =0x542e		@ section flags
 	b	cpu_resume_mmu
 ENDPROC(cpu_xsc3_do_resume)
-#else
-#define cpu_xsc3_do_suspend	0
-#define cpu_xsc3_do_resume	0
 #endif
 
 	__CPUINIT

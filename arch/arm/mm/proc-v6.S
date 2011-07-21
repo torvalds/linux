@@ -169,9 +169,6 @@ ENDPROC(cpu_v6_do_resume)
 cpu_resume_l1_flags:
 	ALT_SMP(.long PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_FLAGS_SMP)
 	ALT_UP(.long  PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_FLAGS_UP)
-#else
-#define cpu_v6_do_suspend 0
-#define cpu_v6_do_resume 0
 #endif
 
 	string	cpu_v6_name, "ARMv6-compatible processor"

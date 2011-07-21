@@ -421,9 +421,6 @@ ENTRY(cpu_arm926_do_resume)
 		     PMD_SECT_CACHEABLE | PMD_BIT4 | PMD_SECT_AP_WRITE
 	b	cpu_resume_mmu
 ENDPROC(cpu_arm926_do_resume)
-#else
-#define cpu_arm926_do_suspend	0
-#define cpu_arm926_do_resume	0
 #endif
 
 	__CPUINIT
