@@ -20,16 +20,8 @@ int cpufreq_has_boost_support(unsigned int cpu, int *support, int *active,
 		if (ret <= 0)
 			return ret;
 		*support = 1;
-	} else if (cpupower_cpu_info.vendor == X86_VENDOR_INTEL) {
-		ret = msr_intel_has_boost_support(cpu);
-		if (ret <= 0)
-			return ret;
-		*support = ret;
-		ret = msr_intel_boost_is_active(cpu);
-		if (ret <= 0)
-			return ret;
-		*active = ret;
-	}
+	} else if (cpupower_cpu_info.caps & CPUPOWER_CAP_INTEL_IDA)
+		*support = *active = 1;
 	return 0;
 }
 #endif /* #if defined(__i386__) || defined(__x86_64__) */

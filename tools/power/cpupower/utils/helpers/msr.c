@@ -72,29 +72,6 @@ int write_msr(int cpu, unsigned int idx, unsigned long long val)
 	return -1;
 }
 
-int msr_intel_has_boost_support(unsigned int cpu)
-{
-	unsigned long long misc_enables;
-	int ret;
-
-	ret = read_msr(cpu, MSR_IA32_MISC_ENABLES, &misc_enables);
-	if (ret)
-		return ret;
-
-	return (misc_enables >> 38) & 0x1;
-}
-
-int msr_intel_boost_is_active(unsigned int cpu)
-{
-	unsigned long long perf_status;
-	int ret;
-
-	ret = read_msr(cpu, MSR_IA32_PERF_STATUS, &perf_status);
-	if (ret)
-		return ret;
-	return (perf_status >> 32) & 0x1;
-}
-
 int msr_intel_get_perf_bias(unsigned int cpu)
 {
 	unsigned long long val;

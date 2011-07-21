@@ -131,6 +131,12 @@ out:
 	}
 
 	if (cpu_info->vendor == X86_VENDOR_INTEL) {
+		if (cpuid_level >= 6 &&
+		    (cpuid_eax(6) & (1 << 1)))
+			cpu_info->caps |= CPUPOWER_CAP_INTEL_IDA;
+	}
+
+	if (cpu_info->vendor == X86_VENDOR_INTEL) {
 		/* Intel's perf-bias MSR support */
 		if (cpuid_level >= 6 && (cpuid_ecx(6) & (1 << 3)))
 			cpu_info->caps |= CPUPOWER_CAP_PERF_BIAS;

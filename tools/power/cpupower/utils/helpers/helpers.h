@@ -58,6 +58,7 @@ enum cpupower_cpu_vendor {X86_VENDOR_UNKNOWN = 0, X86_VENDOR_INTEL,
 #define CPUPOWER_CAP_PERF_BIAS		0x00000008
 #define CPUPOWER_CAP_HAS_TURBO_RATIO	0x00000010
 #define CPUPOWER_CAP_IS_SNB		0x00000011
+#define CPUPOWER_CAP_INTEL_IDA		0x00000012
 
 #define MAX_HW_PSTATES 10
 
@@ -115,9 +116,6 @@ extern int msr_intel_set_perf_bias(unsigned int cpu, unsigned int val);
 extern int msr_intel_get_perf_bias(unsigned int cpu);
 extern unsigned long long msr_intel_get_turbo_ratio(unsigned int cpu);
 
-extern int msr_intel_has_boost_support(unsigned int cpu);
-extern int msr_intel_boost_is_active(unsigned int cpu);
-
 /* Read/Write msr ****************************/
 
 /* PCI stuff ****************************/
@@ -162,11 +160,6 @@ static inline int msr_intel_get_perf_bias(unsigned int cpu)
 { return -1; };
 static inline unsigned long long msr_intel_get_turbo_ratio(unsigned int cpu)
 { return 0; };
-
-static inline int msr_intel_has_boost_support(unsigned int cpu)
-{ return -1; };
-static inline int msr_intel_boost_is_active(unsigned int cpu)
-{ return -1; };
 
 /* Read/Write msr ****************************/
 
