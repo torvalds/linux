@@ -386,11 +386,11 @@ int ath6kl_wmi_data_hdr_remove(struct wmi *wmi, struct sk_buff *skb)
 	return 0;
 }
 
-void ath6kl_wmi_iterate_nodes(struct wmi *wmi,
+void ath6kl_wmi_iterate_nodes(struct ath6kl_node_table *scan_tbl,
 			      void (*f) (void *arg, struct bss *),
 			      void *arg)
 {
-	wlan_iterate_nodes(&wmi->parent_dev->scan_table, f, arg);
+	wlan_iterate_nodes(scan_tbl, f, arg);
 }
 
 static void ath6kl_wmi_convert_bssinfo_hdr2_to_hdr(struct sk_buff *skb,

@@ -1931,7 +1931,7 @@ int ath6kl_wmi_implicit_create_pstream(struct wmi *wmi, struct sk_buff *skb,
 				       u8 *ac);
 
 int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb);
-void ath6kl_wmi_iterate_nodes(struct wmi *wmi,
+void ath6kl_wmi_iterate_nodes(struct ath6kl_node_table *scan_tbl,
 			      void (*f) (void *arg, struct bss *),
 			      void *arg);
 struct bss *ath6kl_wmi_find_node(struct wmi *wmi, const u8 *mac_addr);
