@@ -44,6 +44,7 @@ struct bfa_modules_s {
 	struct bfa_flash_s	flash;		/*  flash module */
 	struct bfa_diag_s	diag_mod;	/*  diagnostics module	*/
 	struct bfa_phy_s	phy;		/*  phy module		*/
+	struct bfa_dconf_mod_s	dconf_mod;	/*  DCONF common module	*/
 };
 
 /*
@@ -131,5 +132,6 @@ extern struct bfa_module_s hal_mod_lps;
 extern struct bfa_module_s hal_mod_uf;
 extern struct bfa_module_s hal_mod_rport;
 extern struct bfa_module_s hal_mod_fcp;
+extern struct bfa_module_s hal_mod_dconf;
 
 #endif /* __BFA_MODULES_H__ */

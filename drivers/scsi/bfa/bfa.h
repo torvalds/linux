@@ -412,6 +412,7 @@ bfa_status_t bfa_iocfc_israttr_set(struct bfa_s *bfa,
 
 void bfa_iocfc_enable(struct bfa_s *bfa);
 void bfa_iocfc_disable(struct bfa_s *bfa);
+void bfa_iocfc_cb_dconf_modinit(struct bfa_s *bfa, bfa_status_t status);
 #define bfa_timer_start(_bfa, _timer, _timercb, _arg, _timeout)		\
 	bfa_timer_begin(&(_bfa)->timer_mod, _timer, _timercb, _arg, _timeout)
 

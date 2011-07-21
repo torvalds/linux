@@ -661,7 +661,6 @@ struct bfa_phy_s {
 	struct bfa_ioc_notify_s	ioc_notify; /* ioc event notify */
 	struct bfa_mem_dma_s	phy_dma;
 };
-
 #define BFA_PHY(__bfa)	(&(__bfa)->modules.phy)
 #define BFA_MEM_PHY_DMA(__bfa)	(&(BFA_PHY(__bfa)->phy_dma))
 
@@ -685,6 +684,49 @@ void bfa_phy_attach(struct bfa_phy_s *phy, struct bfa_ioc_s *ioc,
 void bfa_phy_memclaim(struct bfa_phy_s *phy,
 		u8 *dm_kva, u64 dm_pa, bfa_boolean_t mincfg);
 void bfa_phy_intr(void *phyarg, struct bfi_mbmsg_s *msg);
+
+/*
+ * Driver Config( dconf) specific
+ */
+#define BFI_DCONF_SIGNATURE	0xabcdabcd
+#define BFI_DCONF_VERSION	1
+
+#pragma pack(1)
+struct bfa_dconf_hdr_s {
+	u32	signature;
+	u32	version;
+};
+
+struct bfa_dconf_s {
+	struct bfa_dconf_hdr_s		hdr;
+	struct bfa_lunmask_cfg_s	lun_mask;
+};
+#pragma pack()
+
+struct bfa_dconf_mod_s {
+	bfa_sm_t		sm;
+	u8			instance;
+	bfa_boolean_t		flashdone;
+	bfa_boolean_t		read_data_valid;
+	bfa_boolean_t		min_cfg;
+	struct bfa_timer_s	timer;
+	struct bfa_s		*bfa;
+	void			*bfad;
+	void			*trcmod;
+	struct bfa_dconf_s	*dconf;
+	struct bfa_mem_kva_s	kva_seg;
+};
+
+#define BFA_DCONF_MOD(__bfa)	\
+	(&(__bfa)->modules.dconf_mod)
+#define BFA_MEM_DCONF_KVA(__bfa)	(&(BFA_DCONF_MOD(__bfa)->kva_seg))
+#define bfa_dconf_read_data_valid(__bfa)	\
+	(BFA_DCONF_MOD(__bfa)->read_data_valid)
+#define BFA_DCONF_UPDATE_TOV	5000	/* memtest timeout in msec */
+
+void	bfa_dconf_modinit(struct bfa_s *bfa);
+void	bfa_dconf_modexit(struct bfa_s *bfa);
+bfa_status_t	bfa_dconf_update(struct bfa_s *bfa);
 
 /*
  *	IOC specfic macros

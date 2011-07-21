@@ -789,6 +789,27 @@ enum bfa_port_linkstate_rsn {
 };
 #pragma pack(1)
 /*
+ * LUN mask configuration
+ */
+struct bfa_lun_mask_s {
+	wwn_t		lp_wwn;
+	wwn_t		rp_wwn;
+	lun_t		lun;
+	u8		ua;
+	u8		rsvd[3];
+	u16		rp_tag;
+	u8		lp_tag;
+	u8		state;
+};
+
+#define MAX_LUN_MASK_CFG 16
+struct bfa_lunmask_cfg_s {
+	u32	status;
+	u32	rsvd;
+	struct bfa_lun_mask_s	lun_list[MAX_LUN_MASK_CFG];
+};
+
+/*
  *      Physical port configuration
  */
 struct bfa_port_cfg_s {

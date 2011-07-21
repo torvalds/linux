@@ -21,6 +21,7 @@
 #include "bfad_drv.h"
 
 typedef u64 wwn_t;
+typedef u64 lun_t;
 
 #define WWN_NULL	(0)
 #define FC_SYMNAME_MAX	256	/*  max name server symbolic name size */

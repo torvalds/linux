@@ -33,6 +33,7 @@ static struct bfa_module_s *hal_mods[] = {
 	&hal_mod_uf,
 	&hal_mod_rport,
 	&hal_mod_fcp,
+	&hal_mod_dconf,
 	NULL
 };
 
@@ -702,7 +703,7 @@ bfa_iocfc_init_cb(void *bfa_arg, bfa_boolean_t complete)
 	struct bfa_s	*bfa = bfa_arg;
 
 	if (complete) {
-		if (bfa->iocfc.cfgdone)
+		if (bfa->iocfc.cfgdone && BFA_DCONF_MOD(bfa)->flashdone)
 			bfa_cb_init(bfa->bfad, BFA_STATUS_OK);
 		else
 			bfa_cb_init(bfa->bfad, BFA_STATUS_FAILED);
@@ -815,9 +816,11 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 	 */
 	bfa_fcport_init(bfa);
 
-	if (iocfc->action == BFA_IOCFC_ACT_INIT)
-		bfa_cb_queue(bfa, &iocfc->init_hcb_qe, bfa_iocfc_init_cb, bfa);
-	else {
+	if (iocfc->action == BFA_IOCFC_ACT_INIT) {
+		if (BFA_DCONF_MOD(bfa)->flashdone == BFA_TRUE)
+			bfa_cb_queue(bfa, &iocfc->init_hcb_qe,
+				bfa_iocfc_init_cb, bfa);
+	} else {
 		if (bfa->iocfc.action == BFA_IOCFC_ACT_ENABLE)
 			bfa_cb_queue(bfa, &bfa->iocfc.en_hcb_qe,
 					bfa_iocfc_enable_cb, bfa);
@@ -1038,6 +1041,7 @@ bfa_iocfc_enable_cbfn(void *bfa_arg, enum bfa_status status)
 	}
 
 	bfa_iocfc_send_cfg(bfa);
+	bfa_dconf_modinit(bfa);
 }
 
 /*
@@ -1200,7 +1204,9 @@ bfa_iocfc_stop(struct bfa_s *bfa)
 	bfa->iocfc.action = BFA_IOCFC_ACT_STOP;
 
 	bfa->queue_process = BFA_FALSE;
-	bfa_ioc_disable(&bfa->ioc);
+	bfa_dconf_modexit(bfa);
+	if (BFA_DCONF_MOD(bfa)->flashdone == BFA_TRUE)
+		bfa_ioc_disable(&bfa->ioc);
 }
 
 void
@@ -1561,6 +1567,15 @@ bfa_comp_free(struct bfa_s *bfa, struct list_head *comp_q)
 	}
 }
 
+void
+bfa_iocfc_cb_dconf_modinit(struct bfa_s *bfa, bfa_status_t status)
+{
+	if (bfa->iocfc.action == BFA_IOCFC_ACT_INIT) {
+		if (bfa->iocfc.cfgdone == BFA_TRUE)
+			bfa_cb_queue(bfa, &bfa->iocfc.init_hcb_qe,
+				bfa_iocfc_init_cb, bfa);
+	}
+}
 
 /*
  * Return the list of PCI vendor/device id lists supported by this

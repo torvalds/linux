@@ -5588,3 +5588,396 @@ bfa_phy_intr(void *phyarg, struct bfi_mbmsg_s *msg)
 		WARN_ON(1);
 	}
 }
+
+/*
+ *	DCONF module specific
+ */
+
+BFA_MODULE(dconf);
+
+/*
+ * DCONF state machine events
+ */
+enum bfa_dconf_event {
+	BFA_DCONF_SM_INIT		= 1,	/* dconf Init */
+	BFA_DCONF_SM_FLASH_COMP		= 2,	/* read/write to flash */
+	BFA_DCONF_SM_WR			= 3,	/* binding change, map */
+	BFA_DCONF_SM_TIMEOUT		= 4,	/* Start timer */
+	BFA_DCONF_SM_EXIT		= 5,	/* exit dconf module */
+	BFA_DCONF_SM_IOCDISABLE		= 6,	/* IOC disable event */
+};
+
+/* forward declaration of DCONF state machine */
+static void bfa_dconf_sm_uninit(struct bfa_dconf_mod_s *dconf,
+				enum bfa_dconf_event event);
+static void bfa_dconf_sm_flash_read(struct bfa_dconf_mod_s *dconf,
+				enum bfa_dconf_event event);
+static void bfa_dconf_sm_ready(struct bfa_dconf_mod_s *dconf,
+				enum bfa_dconf_event event);
+static void bfa_dconf_sm_dirty(struct bfa_dconf_mod_s *dconf,
+				enum bfa_dconf_event event);
+static void bfa_dconf_sm_sync(struct bfa_dconf_mod_s *dconf,
+				enum bfa_dconf_event event);
+static void bfa_dconf_sm_final_sync(struct bfa_dconf_mod_s *dconf,
+				enum bfa_dconf_event event);
+static void bfa_dconf_sm_iocdown_dirty(struct bfa_dconf_mod_s *dconf,
+				enum bfa_dconf_event event);
+
+static void bfa_dconf_cbfn(void *dconf, bfa_status_t status);
+static void bfa_dconf_timer(void *cbarg);
+static bfa_status_t bfa_dconf_flash_write(struct bfa_dconf_mod_s *dconf);
+static void bfa_dconf_init_cb(void *arg, bfa_status_t status);
+
+/*
+ * Begining state of dconf module. Waiting for an event to start.
+ */
+static void
+bfa_dconf_sm_uninit(struct bfa_dconf_mod_s *dconf, enum bfa_dconf_event event)
+{
+	bfa_status_t bfa_status;
+	bfa_trc(dconf->bfa, event);
+
+	switch (event) {
+	case BFA_DCONF_SM_INIT:
+		if (dconf->min_cfg) {
+			bfa_trc(dconf->bfa, dconf->min_cfg);
+			return;
+		}
+		bfa_sm_set_state(dconf, bfa_dconf_sm_flash_read);
+		dconf->flashdone = BFA_FALSE;
+		bfa_trc(dconf->bfa, dconf->flashdone);
+		bfa_status = bfa_flash_read_part(BFA_FLASH(dconf->bfa),
+					BFA_FLASH_PART_DRV, dconf->instance,
+					dconf->dconf,
+					sizeof(struct bfa_dconf_s), 0,
+					bfa_dconf_init_cb, dconf->bfa);
+		if (bfa_status != BFA_STATUS_OK) {
+			bfa_dconf_init_cb(dconf->bfa, BFA_STATUS_FAILED);
+			bfa_sm_set_state(dconf, bfa_dconf_sm_uninit);
+			return;
+		}
+		break;
+	case BFA_DCONF_SM_EXIT:
+		dconf->flashdone = BFA_TRUE;
+	case BFA_DCONF_SM_IOCDISABLE:
+	case BFA_DCONF_SM_WR:
+	case BFA_DCONF_SM_FLASH_COMP:
+		break;
+	default:
+		bfa_sm_fault(dconf->bfa, event);
+	}
+}
+
+/*
+ * Read flash for dconf entries and make a call back to the driver once done.
+ */
+static void
+bfa_dconf_sm_flash_read(struct bfa_dconf_mod_s *dconf,
+			enum bfa_dconf_event event)
+{
+	bfa_trc(dconf->bfa, event);
+
+	switch (event) {
+	case BFA_DCONF_SM_FLASH_COMP:
+		bfa_sm_set_state(dconf, bfa_dconf_sm_ready);
+		break;
+	case BFA_DCONF_SM_TIMEOUT:
+		bfa_sm_set_state(dconf, bfa_dconf_sm_ready);
+		break;
+	case BFA_DCONF_SM_EXIT:
+		dconf->flashdone = BFA_TRUE;
+		bfa_trc(dconf->bfa, dconf->flashdone);
+	case BFA_DCONF_SM_IOCDISABLE:
+		bfa_sm_set_state(dconf, bfa_dconf_sm_uninit);
+		break;
+	default:
+		bfa_sm_fault(dconf->bfa, event);
+	}
+}
+
+/*
+ * DCONF Module is in ready state. Has completed the initialization.
+ */
+static void
+bfa_dconf_sm_ready(struct bfa_dconf_mod_s *dconf, enum bfa_dconf_event event)
+{
+	bfa_trc(dconf->bfa, event);
+
+	switch (event) {
+	case BFA_DCONF_SM_WR:
+		bfa_timer_start(dconf->bfa, &dconf->timer,
+			bfa_dconf_timer, dconf, BFA_DCONF_UPDATE_TOV);
+		bfa_sm_set_state(dconf, bfa_dconf_sm_dirty);
+		break;
+	case BFA_DCONF_SM_EXIT:
+		dconf->flashdone = BFA_TRUE;
+		bfa_trc(dconf->bfa, dconf->flashdone);
+		bfa_sm_set_state(dconf, bfa_dconf_sm_uninit);
+		break;
+	case BFA_DCONF_SM_INIT:
+	case BFA_DCONF_SM_IOCDISABLE:
+		break;
+	default:
+		bfa_sm_fault(dconf->bfa, event);
+	}
+}
+
+/*
+ * entries are dirty, write back to the flash.
+ */
+
+static void
+bfa_dconf_sm_dirty(struct bfa_dconf_mod_s *dconf, enum bfa_dconf_event event)
+{
+	bfa_trc(dconf->bfa, event);
+
+	switch (event) {
+	case BFA_DCONF_SM_TIMEOUT:
+		bfa_sm_set_state(dconf, bfa_dconf_sm_sync);
+		bfa_dconf_flash_write(dconf);
+		break;
+	case BFA_DCONF_SM_WR:
+		bfa_timer_stop(&dconf->timer);
+		bfa_timer_start(dconf->bfa, &dconf->timer,
+			bfa_dconf_timer, dconf, BFA_DCONF_UPDATE_TOV);
+		break;
+	case BFA_DCONF_SM_EXIT:
+		bfa_timer_stop(&dconf->timer);
+		bfa_timer_start(dconf->bfa, &dconf->timer,
+			bfa_dconf_timer, dconf, BFA_DCONF_UPDATE_TOV);
+		bfa_sm_set_state(dconf, bfa_dconf_sm_final_sync);
+		bfa_dconf_flash_write(dconf);
+		break;
+	case BFA_DCONF_SM_FLASH_COMP:
+		break;
+	case BFA_DCONF_SM_IOCDISABLE:
+		bfa_timer_stop(&dconf->timer);
+		bfa_sm_set_state(dconf, bfa_dconf_sm_iocdown_dirty);
+		break;
+	default:
+		bfa_sm_fault(dconf->bfa, event);
+	}
+}
+
+/*
+ * Sync the dconf entries to the flash.
+ */
+static void
+bfa_dconf_sm_final_sync(struct bfa_dconf_mod_s *dconf,
+			enum bfa_dconf_event event)
+{
+	bfa_trc(dconf->bfa, event);
+
+	switch (event) {
+	case BFA_DCONF_SM_IOCDISABLE:
+	case BFA_DCONF_SM_FLASH_COMP:
+		bfa_timer_stop(&dconf->timer);
+	case BFA_DCONF_SM_TIMEOUT:
+		bfa_sm_set_state(dconf, bfa_dconf_sm_uninit);
+		dconf->flashdone = BFA_TRUE;
+		bfa_trc(dconf->bfa, dconf->flashdone);
+		bfa_ioc_disable(&dconf->bfa->ioc);
+		break;
+	default:
+		bfa_sm_fault(dconf->bfa, event);
+	}
+}
+
+static void
+bfa_dconf_sm_sync(struct bfa_dconf_mod_s *dconf, enum bfa_dconf_event event)
+{
+	bfa_trc(dconf->bfa, event);
+
+	switch (event) {
+	case BFA_DCONF_SM_FLASH_COMP:
+		bfa_sm_set_state(dconf, bfa_dconf_sm_ready);
+		break;
+	case BFA_DCONF_SM_WR:
+		bfa_timer_start(dconf->bfa, &dconf->timer,
+			bfa_dconf_timer, dconf, BFA_DCONF_UPDATE_TOV);
+		bfa_sm_set_state(dconf, bfa_dconf_sm_dirty);
+		break;
+	case BFA_DCONF_SM_EXIT:
+		bfa_timer_start(dconf->bfa, &dconf->timer,
+			bfa_dconf_timer, dconf, BFA_DCONF_UPDATE_TOV);
+		bfa_sm_set_state(dconf, bfa_dconf_sm_final_sync);
+		break;
+	case BFA_DCONF_SM_IOCDISABLE:
+		bfa_sm_set_state(dconf, bfa_dconf_sm_iocdown_dirty);
+		break;
+	default:
+		bfa_sm_fault(dconf->bfa, event);
+	}
+}
+
+static void
+bfa_dconf_sm_iocdown_dirty(struct bfa_dconf_mod_s *dconf,
+			enum bfa_dconf_event event)
+{
+	bfa_trc(dconf->bfa, event);
+
+	switch (event) {
+	case BFA_DCONF_SM_INIT:
+		bfa_timer_start(dconf->bfa, &dconf->timer,
+			bfa_dconf_timer, dconf, BFA_DCONF_UPDATE_TOV);
+		bfa_sm_set_state(dconf, bfa_dconf_sm_dirty);
+		break;
+	case BFA_DCONF_SM_EXIT:
+		dconf->flashdone = BFA_TRUE;
+		bfa_sm_set_state(dconf, bfa_dconf_sm_uninit);
+		break;
+	case BFA_DCONF_SM_IOCDISABLE:
+		break;
+	default:
+		bfa_sm_fault(dconf->bfa, event);
+	}
+}
+
+/*
+ * Compute and return memory needed by DRV_CFG module.
+ */
+static void
+bfa_dconf_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
+		  struct bfa_s *bfa)
+{
+	struct bfa_mem_kva_s *dconf_kva = BFA_MEM_DCONF_KVA(bfa);
+
+	if (cfg->drvcfg.min_cfg)
+		bfa_mem_kva_setup(meminfo, dconf_kva,
+				sizeof(struct bfa_dconf_hdr_s));
+	else
+		bfa_mem_kva_setup(meminfo, dconf_kva,
+				sizeof(struct bfa_dconf_s));
+}
+
+static void
+bfa_dconf_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
+		struct bfa_pcidev_s *pcidev)
+{
+	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
+
+	dconf->bfad = bfad;
+	dconf->bfa = bfa;
+	dconf->instance = bfa->ioc.port_id;
+	bfa_trc(bfa, dconf->instance);
+
+	dconf->dconf = (struct bfa_dconf_s *) bfa_mem_kva_curp(dconf);
+	if (cfg->drvcfg.min_cfg) {
+		bfa_mem_kva_curp(dconf) += sizeof(struct bfa_dconf_hdr_s);
+		dconf->min_cfg = BFA_TRUE;
+		/*
+		 * Set the flashdone flag to TRUE explicitly as no flash
+		 * write will happen in min_cfg mode.
+		 */
+		dconf->flashdone = BFA_TRUE;
+	} else {
+		dconf->min_cfg = BFA_FALSE;
+		bfa_mem_kva_curp(dconf) += sizeof(struct bfa_dconf_s);
+	}
+
+	bfa_dconf_read_data_valid(bfa) = BFA_FALSE;
+	bfa_sm_set_state(dconf, bfa_dconf_sm_uninit);
+}
+
+static void
+bfa_dconf_init_cb(void *arg, bfa_status_t status)
+{
+	struct bfa_s *bfa = arg;
+	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
+
+	dconf->flashdone = BFA_TRUE;
+	bfa_trc(bfa, dconf->flashdone);
+	bfa_iocfc_cb_dconf_modinit(bfa, status);
+	if (status == BFA_STATUS_OK) {
+		bfa_dconf_read_data_valid(bfa) = BFA_TRUE;
+		if (dconf->dconf->hdr.signature != BFI_DCONF_SIGNATURE)
+			dconf->dconf->hdr.signature = BFI_DCONF_SIGNATURE;
+		if (dconf->dconf->hdr.version != BFI_DCONF_VERSION)
+			dconf->dconf->hdr.version = BFI_DCONF_VERSION;
+	}
+	bfa_sm_send_event(dconf, BFA_DCONF_SM_FLASH_COMP);
+}
+
+void
+bfa_dconf_modinit(struct bfa_s *bfa)
+{
+	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
+	bfa_sm_send_event(dconf, BFA_DCONF_SM_INIT);
+}
+static void
+bfa_dconf_start(struct bfa_s *bfa)
+{
+}
+
+static void
+bfa_dconf_stop(struct bfa_s *bfa)
+{
+}
+
+static void bfa_dconf_timer(void *cbarg)
+{
+	struct bfa_dconf_mod_s *dconf = cbarg;
+	bfa_sm_send_event(dconf, BFA_DCONF_SM_TIMEOUT);
+}
+static void
+bfa_dconf_iocdisable(struct bfa_s *bfa)
+{
+	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
+	bfa_sm_send_event(dconf, BFA_DCONF_SM_IOCDISABLE);
+}
+
+static void
+bfa_dconf_detach(struct bfa_s *bfa)
+{
+}
+
+static bfa_status_t
+bfa_dconf_flash_write(struct bfa_dconf_mod_s *dconf)
+{
+	bfa_status_t bfa_status;
+	bfa_trc(dconf->bfa, 0);
+
+	bfa_status = bfa_flash_update_part(BFA_FLASH(dconf->bfa),
+				BFA_FLASH_PART_DRV, dconf->instance,
+				dconf->dconf,  sizeof(struct bfa_dconf_s), 0,
+				bfa_dconf_cbfn, dconf);
+	if (bfa_status != BFA_STATUS_OK)
+		WARN_ON(bfa_status);
+	bfa_trc(dconf->bfa, bfa_status);
+
+	return bfa_status;
+}
+
+bfa_status_t
+bfa_dconf_update(struct bfa_s *bfa)
+{
+	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
+	bfa_trc(dconf->bfa, 0);
+	if (bfa_sm_cmp_state(dconf, bfa_dconf_sm_iocdown_dirty))
+		return BFA_STATUS_FAILED;
+
+	if (dconf->min_cfg) {
+		bfa_trc(dconf->bfa, dconf->min_cfg);
+		return BFA_STATUS_FAILED;
+	}
+
+	bfa_sm_send_event(dconf, BFA_DCONF_SM_WR);
+	return BFA_STATUS_OK;
+}
+
+static void
+bfa_dconf_cbfn(void *arg, bfa_status_t status)
+{
+	struct bfa_dconf_mod_s *dconf = arg;
+	WARN_ON(status);
+	bfa_sm_send_event(dconf, BFA_DCONF_SM_FLASH_COMP);
+}
+
+void
+bfa_dconf_modexit(struct bfa_s *bfa)
+{
+	struct bfa_dconf_mod_s *dconf = BFA_DCONF_MOD(bfa);
+	BFA_DCONF_MOD(bfa)->flashdone = BFA_FALSE;
+	bfa_trc(bfa, BFA_DCONF_MOD(bfa)->flashdone);
+	bfa_sm_send_event(dconf, BFA_DCONF_SM_EXIT);
+}
