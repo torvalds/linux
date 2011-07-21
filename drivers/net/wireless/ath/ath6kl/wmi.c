@@ -2247,12 +2247,6 @@ int ath6kl_wmi_get_tx_pwr_cmd(struct wmi *wmi)
 	return ath6kl_wmi_simple_cmd(wmi, WMI_GET_TX_PWR_CMDID);
 }
 
-void ath6kl_wmi_get_current_bssid(struct wmi *wmi, u8 *bssid)
-{
-	if (bssid)
-		memcpy(bssid, wmi->parent_dev->bssid, ETH_ALEN);
-}
-
 int ath6kl_wmi_set_lpreamble_cmd(struct wmi *wmi, u8 status, u8 preamble_policy)
 {
 	struct sk_buff *skb;

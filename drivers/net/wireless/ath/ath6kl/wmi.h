@@ -1995,7 +1995,6 @@ int ath6kl_wmi_setpmkid_cmd(struct wmi *wmi, const u8 *bssid,
 			    const u8 *pmkid, bool set);
 int ath6kl_wmi_set_tx_pwr_cmd(struct wmi *wmi, u8 dbM);
 int ath6kl_wmi_get_tx_pwr_cmd(struct wmi *wmi);
-void ath6kl_wmi_get_current_bssid(struct wmi *wmi, u8 *bssid);
 
 int ath6kl_wmi_set_wmm_txop(struct wmi *wmi, enum wmi_txop_cfg cfg);
 int ath6kl_wmi_set_keepalive_cmd(struct wmi *wmi, u8 keep_alive_intvl);

@@ -176,16 +176,13 @@ void wlan_refresh_inactive_nodes(struct ath6kl *ar)
 {
 	struct ath6kl_node_table *nt = &ar->scan_table;
 	struct bss *bss;
-	u8 my_bssid[ETH_ALEN];
 	u32 now;
-
-	ath6kl_wmi_get_current_bssid(ar->wmi, my_bssid);
 
 	now = jiffies_to_msecs(jiffies);
 	bss = nt->nt_node_first;
 	while (bss != NULL) {
 		/* refresh all nodes except the current bss */
-		if (memcmp(my_bssid, bss->ni_macaddr, sizeof(my_bssid)) != 0) {
+		if (memcmp(ar->bssid, bss->ni_macaddr, ETH_ALEN) != 0) {
 			if (((now - bss->ni_tstamp) > nt->nt_node_age)
 			    || --bss->ni_actcnt == 0) {
 				wlan_node_reclaim(nt, bss);
