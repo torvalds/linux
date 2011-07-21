@@ -371,7 +371,7 @@
    mechanism. The fields are: [5:0] - message length; [12:6] - message
    pointer; 18:13] - next pointer. */
 #define CCM_REG_XX_DESCR_TABLE					 0xd0300
-#define CCM_REG_XX_DESCR_TABLE_SIZE				 36
+#define CCM_REG_XX_DESCR_TABLE_SIZE				 24
 /* [R 7] Used to read the value of XX protection Free counter. */
 #define CCM_REG_XX_FREE 					 0xd0184
 /* [RW 6] Initial value for the credit counter; responsible for fulfilling
@@ -4226,7 +4226,7 @@
    mechanism. The fields are: [5:0] - length of the message; 15:6] - message
    pointer; 20:16] - next pointer. */
 #define TCM_REG_XX_DESCR_TABLE					 0x50280
-#define TCM_REG_XX_DESCR_TABLE_SIZE				 32
+#define TCM_REG_XX_DESCR_TABLE_SIZE				 29
 /* [R 6] Use to read the value of XX protection Free counter. */
 #define TCM_REG_XX_FREE 					 0x50178
 /* [RW 6] Initial value for the credit counter; responsible for fulfilling
@@ -4754,7 +4754,7 @@
    mechanism. The fields are:[5:0] - message length; 14:6] - message
    pointer; 19:15] - next pointer. */
 #define UCM_REG_XX_DESCR_TABLE					 0xe0280
-#define UCM_REG_XX_DESCR_TABLE_SIZE				 32
+#define UCM_REG_XX_DESCR_TABLE_SIZE				 27
 /* [R 6] Use to read the XX protection Free counter. */
 #define UCM_REG_XX_FREE 					 0xe016c
 /* [RW 6] Initial value for the credit counter; responsible for fulfilling

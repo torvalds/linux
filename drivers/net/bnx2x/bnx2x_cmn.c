@@ -2042,6 +2042,9 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	 */
 	bnx2x_squeeze_objects(bp);
 
+	/* There should be no more pending SP commands at this stage */
+	bp->sp_state = 0;
+
 	bp->port.pmf = 0;
 
 	/* Free SKBs, SGEs, TPA pool and driver internals */

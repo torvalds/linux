@@ -1689,6 +1689,12 @@ int bnx2x_config_vlan_mac(
 	if (!bnx2x_exe_queue_empty(&o->exe_queue))
 		rc = 1;
 
+	if (test_bit(RAMROD_DRV_CLR_ONLY, ramrod_flags))  {
+		DP(BNX2X_MSG_SP, "RAMROD_DRV_CLR_ONLY requested: "
+				 "clearing a pending bit.\n");
+		raw->clear_pending(raw);
+	}
+
 	/* Execute commands if required */
 	if (cont || test_bit(RAMROD_EXEC, ramrod_flags) ||
 	    test_bit(RAMROD_COMP_WAIT, ramrod_flags)) {
