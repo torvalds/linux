@@ -3,30 +3,6 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 
-static u32
-nv04_crystal_freq(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	u32 extdev_boot0 = nv_rd32(dev, 0x101000);
-	int type;
-
-	type = !!(extdev_boot0 & 0x00000040);
-	if ((dev_priv->chipset >= 0x17 && dev_priv->chipset < 0x20) ||
-	    dev_priv->chipset >= 0x25)
-		type |= (extdev_boot0 & 0x00400000) ? 2 : 0;
-
-	switch (type) {
-	case 0: return 13500000;
-	case 1: return 14318180;
-	case 2: return 27000000;
-	case 3: return 25000000;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 int
 nv04_timer_init(struct drm_device *dev)
 {
@@ -37,7 +13,7 @@ nv04_timer_init(struct drm_device *dev)
 	nv_wr32(dev, NV04_PTIMER_INTR_0, 0xFFFFFFFF);
 
 	/* aim for 31.25MHz, which gives us nanosecond timestamps */
-	d = 1000000000 / 32;
+	d = 1000000 / 32;
 
 	/* determine base clock for timer source */
 	if (dev_priv->chipset < 0x40) {
@@ -47,7 +23,7 @@ nv04_timer_init(struct drm_device *dev)
 		/*XXX: figure this out */
 		n = 0;
 	} else {
-		n = nv04_crystal_freq(dev);
+		n = dev_priv->crystal;
 		m = 1;
 		while (n < (d * 2)) {
 			n += (n / m);
