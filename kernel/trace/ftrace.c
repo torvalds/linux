@@ -1732,10 +1732,36 @@ static cycle_t		ftrace_update_time;
 static unsigned long	ftrace_update_cnt;
 unsigned long		ftrace_update_tot_cnt;
 
+static int ops_traces_mod(struct ftrace_ops *ops)
+{
+	struct ftrace_hash *hash;
+
+	hash = ops->filter_hash;
+	return !!(!hash || !hash->count);
+}
+
 static int ftrace_update_code(struct module *mod)
 {
 	struct dyn_ftrace *p;
 	cycle_t start, stop;
+	unsigned long ref = 0;
+
+	/*
+	 * When adding a module, we need to check if tracers are
+	 * currently enabled and if they are set to trace all functions.
+	 * If they are, we need to enable the module functions as well
+	 * as update the reference counts for those function records.
+	 */
+	if (mod) {
+		struct ftrace_ops *ops;
+
+		for (ops = ftrace_ops_list;
+		     ops != &ftrace_list_end; ops = ops->next) {
+			if (ops->flags & FTRACE_OPS_FL_ENABLED &&
+			    ops_traces_mod(ops))
+				ref++;
+		}
+	}
 
 	start = ftrace_now(raw_smp_processor_id());
 	ftrace_update_cnt = 0;
@@ -1748,7 +1774,7 @@ static int ftrace_update_code(struct module *mod)
 
 		p = ftrace_new_addrs;
 		ftrace_new_addrs = p->newlist;
-		p->flags = 0L;
+		p->flags = ref;
 
 		/*
 		 * Do the initial record conversion from mcount jump
@@ -1771,7 +1797,7 @@ static int ftrace_update_code(struct module *mod)
 		 * conversion puts the module to the correct state, thus
 		 * passing the ftrace_make_call check.
 		 */
-		if (ftrace_start_up) {
+		if (ftrace_start_up && ref) {
 			int failed = __ftrace_replace_code(p, 1);
 			if (failed) {
 				ftrace_bug(failed, p->ip);
@@ -2395,10 +2421,9 @@ ftrace_match_module_records(struct ftrace_hash *hash, char *buff, char *mod)
  */
 
 static int
-ftrace_mod_callback(char *func, char *cmd, char *param, int enable)
+ftrace_mod_callback(struct ftrace_hash *hash,
+		    char *func, char *cmd, char *param, int enable)
 {
-	struct ftrace_ops *ops = &global_ops;
-	struct ftrace_hash *hash;
 	char *mod;
 	int ret = -EINVAL;
 
@@ -2417,11 +2442,6 @@ ftrace_mod_callback(char *func, char *cmd, char *param, int enable)
 	mod = strsep(&param, ":");
 	if (!strlen(mod))
 		return ret;
-
-	if (enable)
-		hash = ops->filter_hash;
-	else
-		hash = ops->notrace_hash;
 
 	ret = ftrace_match_module_records(hash, func, mod);
 	if (!ret)
@@ -2748,7 +2768,7 @@ static int ftrace_process_regex(struct ftrace_hash *hash,
 	mutex_lock(&ftrace_cmd_mutex);
 	list_for_each_entry(p, &ftrace_commands, list) {
 		if (strcmp(p->name, command) == 0) {
-			ret = p->func(func, command, next, enable);
+			ret = p->func(hash, func, command, next, enable);
 			goto out_unlock;
 		}
 	}
