@@ -301,10 +301,15 @@ static int uvc_queue_waiton(struct uvc_buffer *buf, int nonblocking)
 			buf->state != UVC_BUF_STATE_ACTIVE)
 			? 0 : -EAGAIN;
 	}
-
+#if 0
 	return wait_event_interruptible(buf->wait,
 		buf->state != UVC_BUF_STATE_QUEUED &&
 		buf->state != UVC_BUF_STATE_ACTIVE);
+#else
+    /* ddl@rock-chips.com: wait_event_interruptible -> wait_event_interruptible_timeout */
+    return wait_event_interruptible_timeout(buf->wait,
+		(buf->state != UVC_BUF_STATE_QUEUED && buf->state != UVC_BUF_STATE_ACTIVE),msecs_to_jiffies(800));
+#endif
 }
 
 /*
@@ -354,8 +359,16 @@ checks:
 	}
 
 	buf = list_first_entry(&queue->mainqueue, struct uvc_buffer, stream);
-	if ((ret = uvc_queue_waiton(buf, nonblocking)) < 0)
+	if ((ret = uvc_queue_waiton(buf, nonblocking)) <= 0) {
+        /* ddl@rock-chips.com: It is timeout */
+        if (ret == 0) {
+            ret = -EINVAL;
+            printk(KERN_ERR "uvcvideo: uvc_dequeue_buffer is timeout!!");
+        } else {
+            printk(KERN_ERR "uvcvideo: uvc_dequeue_buffer is failed!!(ret:%d)",ret);
+        }
 		goto done;
+	}
 
 	uvc_trace(UVC_TRACE_CAPTURE, "Dequeuing buffer %u (%u, %u bytes).\n",
 		buf->buf.index, buf->state, buf->buf.bytesused);
