@@ -440,7 +440,6 @@ ddp_out:
 
 /**
  * ixgbe_fso - ixgbe FCoE Sequence Offload (FSO)
- * @adapter: ixgbe adapter
  * @tx_ring: tx desc ring
  * @skb: associated skb
  * @tx_flags: tx flags
