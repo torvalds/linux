@@ -268,28 +268,28 @@ static u32 pseudo_palette[17];
 
 
 /* display status */
-static int XGIfb_off = 0;
-static int XGIfb_crt1off = 0;
+static int XGIfb_off;
+static int XGIfb_crt1off;
 static int XGIfb_forcecrt1 = -1;
-static int XGIfb_userom = 0;
+static int XGIfb_userom ;
 /*static int XGIfb_useoem = -1; */
 
 /* global flags */
 static int XGIfb_registered;
-static int XGIfb_tvmode = 0;
-static int XGIfb_pdc = 0;
-static int enable_dstn = 0;
+static int XGIfb_tvmode;
+static int XGIfb_pdc;
+static int enable_dstn;
 static int XGIfb_ypan = -1;
 
 
-static int XGIfb_CRT2_write_enable = 0;
+static int XGIfb_CRT2_write_enable;
 
 /* TW: CRT2 type (for overriding autodetection) */
 static int XGIfb_crt2type = -1;
 /* PR: Tv plug type (for overriding autodetection) */
 static int XGIfb_tvplug = -1;
 
-static unsigned char XGIfb_detectedpdc = 0;
+static unsigned char XGIfb_detectedpdc;
 
 static unsigned char XGIfb_detectedlcda = 0xff;
 
@@ -483,8 +483,8 @@ static int xgifb_mode_idx = 1;
 static int xgifb_mode_idx = -1; /* Use a default mode if we are
 					inside the kernel */
 #endif
-static u8  XGIfb_mode_no  = 0;
-static u8  XGIfb_rate_idx = 0;
+static u8  XGIfb_mode_no;
+static u8  XGIfb_rate_idx;
 
 /* TW: CR36 evaluation */
 static const unsigned short XGI300paneltype[] = {
