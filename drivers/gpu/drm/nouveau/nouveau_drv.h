@@ -680,6 +680,7 @@ struct drm_nouveau_private {
 	/* exact chipset, derived from NV_PMC_BOOT_0 */
 	int chipset;
 	int flags;
+	u32 crystal;
 
 	void __iomem *mmio;
 

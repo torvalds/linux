@@ -984,7 +984,7 @@ static int nouveau_remove_conflicting_drivers(struct drm_device *dev)
 int nouveau_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_nouveau_private *dev_priv;
-	uint32_t reg0;
+	uint32_t reg0, strap;
 	resource_size_t mmio_start_offs;
 	int ret;
 
@@ -1073,6 +1073,23 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 
 	NV_INFO(dev, "Detected an NV%2x generation card (0x%08x)\n",
 		dev_priv->card_type, reg0);
+
+	/* determine frequency of timing crystal */
+	strap = nv_rd32(dev, 0x101000);
+	if ( dev_priv->chipset < 0x17 ||
+	    (dev_priv->chipset >= 0x20 && dev_priv->chipset <= 0x25))
+		strap &= 0x00000040;
+	else
+		strap &= 0x00400040;
+
+	switch (strap) {
+	case 0x00000000: dev_priv->crystal = 13500; break;
+	case 0x00000040: dev_priv->crystal = 14318; break;
+	case 0x00400000: dev_priv->crystal = 27000; break;
+	case 0x00400040: dev_priv->crystal = 25000; break;
+	}
+
+	NV_DEBUG(dev, "crystal freq: %dKHz\n", dev_priv->crystal);
 
 	/* Determine whether we'll attempt acceleration or not, some
 	 * cards are disabled by default here due to them being known
