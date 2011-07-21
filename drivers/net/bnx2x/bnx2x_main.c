@@ -9251,6 +9251,12 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 		val = SHMEM_RD(bp, dev_info.port_hw_config[port].
 				   iscsi_mac_lower);
 		bnx2x_set_mac_buf(iscsi_mac, val, val2);
+
+		val2 = SHMEM_RD(bp, dev_info.port_hw_config[port].
+				    fcoe_fip_mac_upper);
+		val = SHMEM_RD(bp, dev_info.port_hw_config[port].
+				   fcoe_fip_mac_lower);
+		bnx2x_set_mac_buf(fip_mac, val, val2);
 #endif
 	}
 
@@ -9258,13 +9264,9 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 	memcpy(bp->dev->perm_addr, bp->dev->dev_addr, ETH_ALEN);
 
 #ifdef BCM_CNIC
-	/* Set the FCoE MAC in modes other then MF_SI */
-	if (!CHIP_IS_E1x(bp)) {
-		if (IS_MF_SD(bp))
-			memcpy(fip_mac, bp->dev->dev_addr, ETH_ALEN);
-		else if (!IS_MF(bp))
-			memcpy(fip_mac, iscsi_mac, ETH_ALEN);
-	}
+	/* Set the FCoE MAC in MF_SD mode */
+	if (!CHIP_IS_E1x(bp) && IS_MF_SD(bp))
+		memcpy(fip_mac, bp->dev->dev_addr, ETH_ALEN);
 
 	/* Disable iSCSI if MAC configuration is
 	 * invalid.
