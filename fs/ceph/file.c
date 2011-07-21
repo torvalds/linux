@@ -290,7 +290,6 @@ static int striped_read(struct inode *inode,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	u64 pos, this_len;
 	int io_align, page_align;
-	int page_off = off & ~PAGE_CACHE_MASK; /* first byte's offset in page */
 	int left, pages_left;
 	int read;
 	struct page **page_pos;
@@ -326,12 +325,11 @@ more:
 	     ret, hit_stripe ? " HITSTRIPE" : "", was_short ? " SHORT" : "");
 
 	if (ret > 0) {
-		int didpages =
-			((pos & ~PAGE_CACHE_MASK) + ret) >> PAGE_CACHE_SHIFT;
+		int didpages = (page_align + ret) >> PAGE_CACHE_SHIFT;
 
 		if (read < pos - off) {
 			dout(" zero gap %llu to %llu\n", off + read, pos);
-			ceph_zero_page_vector_range(page_off + read,
+			ceph_zero_page_vector_range(page_align + read,
 						    pos - off - read, pages);
 		}
 		pos += ret;
@@ -356,7 +354,7 @@ more:
 				left = inode->i_size - pos;
 
 			dout("zero tail %d\n", left);
-			ceph_zero_page_vector_range(page_off + read, left,
+			ceph_zero_page_vector_range(page_align + read, left,
 						    pages);
 			read += left;
 		}
@@ -478,9 +476,6 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 	else
 		pos = *offset;
 
-	io_align = pos & ~PAGE_MASK;
-	buf_align = (unsigned long)data & ~PAGE_MASK;
-
 	ret = filemap_write_and_wait_range(inode->i_mapping, pos, pos + left);
 	if (ret < 0)
 		return ret;
@@ -504,6 +499,8 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 	 * boundary.  this isn't atomic, unfortunately.  :(
 	 */
 more:
+	io_align = pos & ~PAGE_MASK;
+	buf_align = (unsigned long)data & ~PAGE_MASK;
 	len = left;
 	if (file->f_flags & O_DIRECT) {
 		/* write from beginning of first page, regardless of
@@ -593,6 +590,7 @@ out:
 		pos += len;
 		written += len;
 		left -= len;
+		data += written;
 		if (left)
 			goto more;
 

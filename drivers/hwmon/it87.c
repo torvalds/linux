@@ -1538,7 +1538,7 @@ static struct attribute *it87_attributes_label[] = {
 };
 
 static const struct attribute_group it87_group_label = {
-	.attrs = it87_attributes_vid,
+	.attrs = it87_attributes_label,
 };
 
 /* SuperIO detection - will change isa_address if a chip is found */

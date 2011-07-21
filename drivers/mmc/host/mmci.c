@@ -582,6 +582,8 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 			data->error = -EILSEQ;
 		} else if (status & MCI_DATATIMEOUT) {
 			data->error = -ETIMEDOUT;
+		} else if (status & MCI_STARTBITERR) {
+			data->error = -ECOMM;
 		} else if (status & MCI_TXUNDERRUN) {
 			data->error = -EIO;
 		} else if (status & MCI_RXOVERRUN) {

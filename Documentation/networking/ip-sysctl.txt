@@ -346,7 +346,7 @@ tcp_orphan_retries - INTEGER
 	when RTO retransmissions remain unacknowledged.
 	See tcp_retries2 for more details.
 
-	The default value is 7.
+	The default value is 8.
 	If your machine is a loaded WEB server,
 	you should think about lowering this value, such sockets
 	may consume significant resources. Cf. tcp_max_orphans.

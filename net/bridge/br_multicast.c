@@ -1379,8 +1379,11 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 	if (unlikely(ip_fast_csum((u8 *)iph, iph->ihl)))
 		return -EINVAL;
 
-	if (iph->protocol != IPPROTO_IGMP)
+	if (iph->protocol != IPPROTO_IGMP) {
+		if ((iph->daddr & IGMP_LOCAL_GROUP_MASK) != IGMP_LOCAL_GROUP)
+			BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
 		return 0;
+	}
 
 	len = ntohs(iph->tot_len);
 	if (skb->len < len || len < ip_hdrlen(skb))

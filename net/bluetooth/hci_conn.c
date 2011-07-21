@@ -393,6 +393,9 @@ int hci_conn_del(struct hci_conn *conn)
 
 	hci_dev_put(hdev);
 
+	if (conn->handle == 0)
+		kfree(conn);
+
 	return 0;
 }
 
@@ -608,11 +611,11 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 		goto encrypt;
 
 auth:
-	if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend))
+	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend))
 		return 0;
 
-	hci_conn_auth(conn, sec_level, auth_type);
-	return 0;
+	if (!hci_conn_auth(conn, sec_level, auth_type))
+		return 0;
 
 encrypt:
 	if (conn->link_mode & HCI_LM_ENCRYPT)
