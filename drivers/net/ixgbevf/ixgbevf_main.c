@@ -30,6 +30,7 @@
  Copyright (c)2006 - 2007 Myricom, Inc. for some LRO specific code
 ******************************************************************************/
 #include <linux/types.h>
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -288,21 +289,17 @@ static void ixgbevf_receive_skb(struct ixgbevf_q_vector *q_vector,
 {
 	struct ixgbevf_adapter *adapter = q_vector->adapter;
 	bool is_vlan = (status & IXGBE_RXD_STAT_VP);
-	u16 tag = le16_to_cpu(rx_desc->wb.upper.vlan);
 
-	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL)) {
-		if (adapter->vlgrp && is_vlan)
-			vlan_gro_receive(&q_vector->napi,
-					 adapter->vlgrp,
-					 tag, skb);
-		else
-			napi_gro_receive(&q_vector->napi, skb);
-	} else {
-		if (adapter->vlgrp && is_vlan)
-			vlan_hwaccel_rx(skb, adapter->vlgrp, tag);
-		else
-			netif_rx(skb);
+	if (is_vlan) {
+		u16 tag = le16_to_cpu(rx_desc->wb.upper.vlan);
+
+		__vlan_hwaccel_put_tag(skb, tag);
 	}
+
+	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL))
+			napi_gro_receive(&q_vector->napi, skb);
+	else
+			netif_rx(skb);
 }
 
 /**
@@ -1401,24 +1398,6 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 	}
 }
 
-static void ixgbevf_vlan_rx_register(struct net_device *netdev,
-				     struct vlan_group *grp)
-{
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
-	struct ixgbe_hw *hw = &adapter->hw;
-	int i, j;
-	u32 ctrl;
-
-	adapter->vlgrp = grp;
-
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		j = adapter->rx_ring[i].reg_idx;
-		ctrl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(j));
-		ctrl |= IXGBE_RXDCTL_VME;
-		IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(j), ctrl);
-	}
-}
-
 static void ixgbevf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
@@ -1427,6 +1406,7 @@ static void ixgbevf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	/* add VID to filter table */
 	if (hw->mac.ops.set_vfta)
 		hw->mac.ops.set_vfta(hw, vid, 0, true);
+	set_bit(vid, adapter->active_vlans);
 }
 
 static void ixgbevf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
@@ -1434,31 +1414,18 @@ static void ixgbevf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	if (!test_bit(__IXGBEVF_DOWN, &adapter->state))
-		ixgbevf_irq_disable(adapter);
-
-	vlan_group_set_device(adapter->vlgrp, vid, NULL);
-
-	if (!test_bit(__IXGBEVF_DOWN, &adapter->state))
-		ixgbevf_irq_enable(adapter, true, true);
-
 	/* remove VID from filter table */
 	if (hw->mac.ops.set_vfta)
 		hw->mac.ops.set_vfta(hw, vid, 0, false);
+	clear_bit(vid, adapter->active_vlans);
 }
 
 static void ixgbevf_restore_vlan(struct ixgbevf_adapter *adapter)
 {
-	ixgbevf_vlan_rx_register(adapter->netdev, adapter->vlgrp);
+	u16 vid;
 
-	if (adapter->vlgrp) {
-		u16 vid;
-		for (vid = 0; vid < VLAN_N_VID; vid++) {
-			if (!vlan_group_get_device(adapter->vlgrp, vid))
-				continue;
-			ixgbevf_vlan_rx_add_vid(adapter->netdev, vid);
-		}
-	}
+	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
+		ixgbevf_vlan_rx_add_vid(adapter->netdev, vid);
 }
 
 static int ixgbevf_write_uc_addr_list(struct net_device *netdev)
@@ -1648,7 +1615,7 @@ static int ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 	for (i = 0; i < num_rx_rings; i++) {
 		j = adapter->rx_ring[i].reg_idx;
 		rxdctl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(j));
-		rxdctl |= IXGBE_RXDCTL_ENABLE;
+		rxdctl |= IXGBE_RXDCTL_ENABLE | IXGBE_RXDCTL_VME;
 		if (hw->mac.type == ixgbe_mac_X540_vf) {
 			rxdctl &= ~IXGBE_RXDCTL_RLPMLMASK;
 			rxdctl |= ((netdev->mtu + ETH_HLEN + ETH_FCS_LEN) |
@@ -3258,7 +3225,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_set_mac_address	= ixgbevf_set_mac,
 	.ndo_change_mtu		= ixgbevf_change_mtu,
 	.ndo_tx_timeout		= ixgbevf_tx_timeout,
-	.ndo_vlan_rx_register	= ixgbevf_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= ixgbevf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ixgbevf_vlan_rx_kill_vid,
 };
