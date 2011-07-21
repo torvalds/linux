@@ -10,10 +10,6 @@ module_param(verbose, int, 0644);
 
 /* Internal structures and types */
 
-/* FIXME: we probably don't need these new FE get/set property types for tuner */
-#define DVBFE_TUNER_SOFTWARE_SHUTDOWN		100
-#define DVBFE_TUNER_CLEAR_POWER_MASKBITS	101
-
 /* FIXME: Those two error codes need conversion*/
 /*  Error:  Upconverter PLL is not locked  */
 #define MT2063_UPC_UNLOCK                   (0x80000002)
@@ -411,6 +407,9 @@ static u32 MT2063_GetParam(struct mt2063_state *state, enum MT2063_Param param, 
 static u32 MT2063_SetReg(struct mt2063_state *state, u8 reg, u8 val);
 static u32 MT2063_SetParam(struct mt2063_state *state, enum MT2063_Param param,
 			   enum MT2063_DNC_Output_Enable nValue);
+static u32 MT2063_SoftwareShutdown(struct mt2063_state *state, u8 Shutdown);
+static u32 MT2063_ClearPowerMaskBits(struct mt2063_state *state, enum MT2063_Mask_Bits Bits);
+
 
 /*****************/
 /* From drivers/media/common/tuners/mt2063_cfg.h */
@@ -466,34 +465,12 @@ unsigned int mt2063_lockStatus(struct dvb_frontend *fe)
 	return err;
 }
 
-unsigned int tuner_MT2063_Open(struct dvb_frontend *fe)
-{
-	struct dvb_frontend_ops *frontend_ops = &fe->ops;
-	struct dvb_tuner_ops *tuner_ops = &frontend_ops->tuner_ops;
-	struct tuner_state t_state;
-	int err = 0;
-
-	if (&fe->ops)
-		frontend_ops = &fe->ops;
-	if (&frontend_ops->tuner_ops)
-		tuner_ops = &frontend_ops->tuner_ops;
-	if (tuner_ops->set_state) {
-		if ((err =
-		     tuner_ops->set_state(fe, DVBFE_TUNER_OPEN,
-					  &t_state)) < 0) {
-			printk("%s: Invalid parameter\n", __func__);
-			return err;
-		}
-	}
-
-	return err;
-}
 
 unsigned int tuner_MT2063_SoftwareShutdown(struct dvb_frontend *fe)
 {
+	struct mt2063_state *state = fe->tuner_priv;
 	struct dvb_frontend_ops *frontend_ops = &fe->ops;
 	struct dvb_tuner_ops *tuner_ops = &frontend_ops->tuner_ops;
-	struct tuner_state t_state;
 	int err = 0;
 
 	if (&fe->ops)
@@ -501,9 +478,8 @@ unsigned int tuner_MT2063_SoftwareShutdown(struct dvb_frontend *fe)
 	if (&frontend_ops->tuner_ops)
 		tuner_ops = &frontend_ops->tuner_ops;
 	if (tuner_ops->set_state) {
-		if ((err =
-		     tuner_ops->set_state(fe, DVBFE_TUNER_SOFTWARE_SHUTDOWN,
-					  &t_state)) < 0) {
+		err = MT2063_SoftwareShutdown(state, 1);
+		if (err < 0) {
 			printk("%s: Invalid parameter\n", __func__);
 			return err;
 		}
@@ -514,9 +490,9 @@ unsigned int tuner_MT2063_SoftwareShutdown(struct dvb_frontend *fe)
 
 unsigned int tuner_MT2063_ClearPowerMaskBits(struct dvb_frontend *fe)
 {
+	struct mt2063_state *state = fe->tuner_priv;
 	struct dvb_frontend_ops *frontend_ops = &fe->ops;
 	struct dvb_tuner_ops *tuner_ops = &frontend_ops->tuner_ops;
-	struct tuner_state t_state;
 	int err = 0;
 
 	if (&fe->ops)
@@ -524,9 +500,8 @@ unsigned int tuner_MT2063_ClearPowerMaskBits(struct dvb_frontend *fe)
 	if (&frontend_ops->tuner_ops)
 		tuner_ops = &frontend_ops->tuner_ops;
 	if (tuner_ops->set_state) {
-		if ((err =
-		     tuner_ops->set_state(fe, DVBFE_TUNER_CLEAR_POWER_MASKBITS,
-					  &t_state)) < 0) {
+		err = MT2063_ClearPowerMaskBits(state, MT2063_ALL_SD);
+		if (err < 0) {
 			printk("%s: Invalid parameter\n", __func__);
 			return err;
 		}
@@ -3770,14 +3745,6 @@ static int mt2063_set_state(struct dvb_frontend *fe,
 		break;
 	case DVBFE_TUNER_REFCLOCK:
 
-		break;
-	case DVBFE_TUNER_SOFTWARE_SHUTDOWN:
-		status = MT2063_SoftwareShutdown(state, 1);
-		break;
-	case DVBFE_TUNER_CLEAR_POWER_MASKBITS:
-		status =
-		    MT2063_ClearPowerMaskBits(state,
-					      MT2063_ALL_SD);
 		break;
 	default:
 		break;
