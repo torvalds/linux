@@ -531,8 +531,7 @@ static void init_output_pin(struct hda_codec *codec, hda_nid_t pin,
 }
 
 static void via_auto_init_output(struct hda_codec *codec,
-				 struct nid_path *path, int pin_type,
-				 bool force)
+				 struct nid_path *path, int pin_type)
 {
 	unsigned int caps;
 	hda_nid_t pin;
@@ -549,7 +548,7 @@ static void via_auto_init_output(struct hda_codec *codec,
 		snd_hda_codec_write(codec, pin, 0, AC_VERB_SET_AMP_GAIN_MUTE,
 				    AMP_OUT_MUTE | val);
 	}
-	activate_output_path(codec, path, true, force);
+	activate_output_path(codec, path, true, true); /* force on */
 }
 
 static void via_auto_init_multi_out(struct hda_codec *codec)
@@ -562,7 +561,7 @@ static void via_auto_init_multi_out(struct hda_codec *codec)
 		path = &spec->out_path[i];
 		if (!i && spec->aamix_mode && spec->out_mix_path.depth)
 			path = &spec->out_mix_path;
-		via_auto_init_output(codec, path, PIN_OUT, true);
+		via_auto_init_output(codec, path, PIN_OUT);
 	}
 }
 
@@ -592,16 +591,16 @@ static void via_auto_init_hp_out(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 
 	if (!spec->hp_path.depth) {
-		via_auto_init_output(codec, &spec->hp_mix_path, PIN_HP, true);
+		via_auto_init_output(codec, &spec->hp_mix_path, PIN_HP);
 		return;
 	}
 	deactivate_hp_paths(codec);
 	if (spec->hp_independent_mode)
-		via_auto_init_output(codec, &spec->hp_indep_path, PIN_HP, true);
+		via_auto_init_output(codec, &spec->hp_indep_path, PIN_HP);
 	else if (spec->aamix_mode)
-		via_auto_init_output(codec, &spec->hp_mix_path, PIN_HP, true);
+		via_auto_init_output(codec, &spec->hp_mix_path, PIN_HP);
 	else
-		via_auto_init_output(codec, &spec->hp_path, PIN_HP, true);
+		via_auto_init_output(codec, &spec->hp_path, PIN_HP);
 }
 
 static void via_auto_init_speaker_out(struct hda_codec *codec)
@@ -611,19 +610,16 @@ static void via_auto_init_speaker_out(struct hda_codec *codec)
 	if (!spec->autocfg.speaker_outs)
 		return;
 	if (!spec->speaker_path.depth) {
-		via_auto_init_output(codec, &spec->speaker_mix_path, PIN_OUT,
-				     true);
+		via_auto_init_output(codec, &spec->speaker_mix_path, PIN_OUT);
 		return;
 	}
 	if (!spec->aamix_mode) {
 		activate_output_path(codec, &spec->speaker_mix_path,
 				     false, false);
-		via_auto_init_output(codec, &spec->speaker_path, PIN_OUT,
-				     true);
+		via_auto_init_output(codec, &spec->speaker_path, PIN_OUT);
 	} else {
 		activate_output_path(codec, &spec->speaker_path, false, false);
-		via_auto_init_output(codec, &spec->speaker_mix_path, PIN_OUT,
-				     true);
+		via_auto_init_output(codec, &spec->speaker_mix_path, PIN_OUT);
 	}
 }
 
