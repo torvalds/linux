@@ -437,6 +437,59 @@ bfa_fcpim_port_iostats(struct bfa_s *bfa,
 	return BFA_STATUS_OK;
 }
 
+void
+bfa_ioim_profile_comp(struct bfa_ioim_s *ioim)
+{
+	struct bfa_itnim_latency_s *io_lat =
+			&(ioim->itnim->ioprofile.io_latency);
+	u32 val, idx;
+
+	val = (u32)(jiffies - ioim->start_time);
+	idx = bfa_ioim_get_index(scsi_bufflen((struct scsi_cmnd *)ioim->dio));
+	bfa_itnim_ioprofile_update(ioim->itnim, idx);
+
+	io_lat->count[idx]++;
+	io_lat->min[idx] = (io_lat->min[idx] < val) ? io_lat->min[idx] : val;
+	io_lat->max[idx] = (io_lat->max[idx] > val) ? io_lat->max[idx] : val;
+	io_lat->avg[idx] += val;
+}
+
+void
+bfa_ioim_profile_start(struct bfa_ioim_s *ioim)
+{
+	ioim->start_time = jiffies;
+}
+
+bfa_status_t
+bfa_fcpim_profile_on(struct bfa_s *bfa, u32 time)
+{
+	struct bfa_itnim_s *itnim;
+	struct bfa_fcpim_s *fcpim = BFA_FCPIM(bfa);
+	struct list_head *qe, *qen;
+
+	/* accumulate IO stats from itnim */
+	list_for_each_safe(qe, qen, &fcpim->itnim_q) {
+		itnim = (struct bfa_itnim_s *) qe;
+		bfa_itnim_clear_stats(itnim);
+	}
+	fcpim->io_profile = BFA_TRUE;
+	fcpim->io_profile_start_time = time;
+	fcpim->profile_comp = bfa_ioim_profile_comp;
+	fcpim->profile_start = bfa_ioim_profile_start;
+	return BFA_STATUS_OK;
+}
+
+bfa_status_t
+bfa_fcpim_profile_off(struct bfa_s *bfa)
+{
+	struct bfa_fcpim_s *fcpim = BFA_FCPIM(bfa);
+	fcpim->io_profile = BFA_FALSE;
+	fcpim->io_profile_start_time = 0;
+	fcpim->profile_comp = NULL;
+	fcpim->profile_start = NULL;
+	return BFA_STATUS_OK;
+}
+
 u16
 bfa_fcpim_qdepth_get(struct bfa_s *bfa)
 {
@@ -1399,6 +1452,26 @@ bfa_itnim_hold_io(struct bfa_itnim_s *itnim)
 		 bfa_sm_cmp_state(itnim, bfa_itnim_sm_fwdelete) ||
 		 bfa_sm_cmp_state(itnim, bfa_itnim_sm_offline) ||
 		 bfa_sm_cmp_state(itnim, bfa_itnim_sm_iocdisable));
+}
+
+#define bfa_io_lat_clock_res_div	HZ
+#define bfa_io_lat_clock_res_mul	1000
+bfa_status_t
+bfa_itnim_get_ioprofile(struct bfa_itnim_s *itnim,
+			struct bfa_itnim_ioprofile_s *ioprofile)
+{
+	struct bfa_fcpim_s *fcpim = BFA_FCPIM(itnim->bfa);
+	if (!fcpim->io_profile)
+		return BFA_STATUS_IOPROFILE_OFF;
+
+	itnim->ioprofile.index = BFA_IOBUCKET_MAX;
+	itnim->ioprofile.io_profile_start_time =
+				bfa_io_profile_start_time(itnim->bfa);
+	itnim->ioprofile.clock_res_mul = bfa_io_lat_clock_res_mul;
+	itnim->ioprofile.clock_res_div = bfa_io_lat_clock_res_div;
+	*ioprofile = itnim->ioprofile;
+
+	return BFA_STATUS_OK;
 }
 
 void

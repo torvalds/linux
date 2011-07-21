@@ -1977,6 +1977,52 @@ bfad_iocmd_porglog_ctl(struct bfad_s *bfad, void *cmd)
 	return 0;
 }
 
+int
+bfad_iocmd_fcpim_cfg_profile(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
+{
+	struct bfa_bsg_fcpim_profile_s *iocmd =
+				(struct bfa_bsg_fcpim_profile_s *)cmd;
+	struct timeval  tv;
+	unsigned long	flags;
+
+	do_gettimeofday(&tv);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	if (v_cmd == IOCMD_FCPIM_PROFILE_ON)
+		iocmd->status = bfa_fcpim_profile_on(&bfad->bfa, tv.tv_sec);
+	else if (v_cmd == IOCMD_FCPIM_PROFILE_OFF)
+		iocmd->status = bfa_fcpim_profile_off(&bfad->bfa);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	return 0;
+}
+
+static int
+bfad_iocmd_itnim_get_ioprofile(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_itnim_ioprofile_s *iocmd =
+				(struct bfa_bsg_itnim_ioprofile_s *)cmd;
+	struct bfa_fcs_lport_s *fcs_port;
+	struct bfa_fcs_itnim_s *itnim;
+	unsigned long   flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	fcs_port = bfa_fcs_lookup_port(&bfad->bfa_fcs,
+				iocmd->vf_id, iocmd->lpwwn);
+	if (!fcs_port)
+		iocmd->status = BFA_STATUS_UNKNOWN_LWWN;
+	else {
+		itnim = bfa_fcs_itnim_lookup(fcs_port, iocmd->rpwwn);
+		if (itnim == NULL)
+			iocmd->status = BFA_STATUS_UNKNOWN_RWWN;
+		else
+			iocmd->status = bfa_itnim_get_ioprofile(
+						bfa_fcs_itnim_get_halitn(itnim),
+						&iocmd->ioprofile);
+	}
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -2237,6 +2283,13 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_DEBUG_PORTLOG_CTL:
 		rc = bfad_iocmd_porglog_ctl(bfad, iocmd);
+		break;
+	case IOCMD_FCPIM_PROFILE_ON:
+	case IOCMD_FCPIM_PROFILE_OFF:
+		rc = bfad_iocmd_fcpim_cfg_profile(bfad, iocmd, cmd);
+		break;
+	case IOCMD_ITNIM_GET_IOPROFILE:
+		rc = bfad_iocmd_itnim_get_ioprofile(bfad, iocmd);
 		break;
 	default:
 		rc = -EINVAL;

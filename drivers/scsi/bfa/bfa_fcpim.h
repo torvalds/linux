@@ -79,14 +79,22 @@ bfa_ioim_get_index(u32 n) {
 	if (n >= (1UL)<<22)
 		return BFA_IOBUCKET_MAX - 1;
 	n >>= 8;
-	if (n >= (1UL)<<16)
-		n >>= 16; pos += 16;
-	if (n >= 1 << 8)
-		n >>= 8; pos += 8;
-	if (n >= 1 << 4)
-		n >>= 4; pos += 4;
-	if (n >= 1 << 2)
-		n >>= 2; pos += 2;
+	if (n >= (1UL)<<16) {
+		n >>= 16;
+		pos += 16;
+	}
+	if (n >= 1 << 8) {
+		n >>= 8;
+		pos += 8;
+	}
+	if (n >= 1 << 4) {
+		n >>= 4;
+		pos += 4;
+	}
+	if (n >= 1 << 2) {
+		n >>= 2;
+		pos += 2;
+	}
 	if (n >= 1 << 1)
 		pos += 1;
 
@@ -297,6 +305,8 @@ bfa_status_t bfa_fcpim_port_iostats(struct bfa_s *bfa,
 			struct bfa_itnim_iostats_s *stats, u8 lp_tag);
 void bfa_fcpim_add_stats(struct bfa_itnim_iostats_s *fcpim_stats,
 			struct bfa_itnim_iostats_s *itnim_stats);
+bfa_status_t bfa_fcpim_profile_on(struct bfa_s *bfa, u32 time);
+bfa_status_t bfa_fcpim_profile_off(struct bfa_s *bfa);
 
 #define bfa_fcpim_ioredirect_enabled(__bfa)				\
 	(((struct bfa_fcpim_s *)(BFA_FCPIM(__bfa)))->ioredirect)

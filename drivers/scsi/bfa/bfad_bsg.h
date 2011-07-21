@@ -116,6 +116,9 @@ enum {
 	IOCMD_DEBUG_START_DTRC,
 	IOCMD_DEBUG_STOP_DTRC,
 	IOCMD_DEBUG_PORTLOG_CTL,
+	IOCMD_FCPIM_PROFILE_ON,
+	IOCMD_FCPIM_PROFILE_OFF,
+	IOCMD_ITNIM_GET_IOPROFILE,
 };
 
 struct bfa_bsg_gen_s {
@@ -130,6 +133,21 @@ struct bfa_bsg_portlogctl_s {
 	u16		rsvd;
 	bfa_boolean_t	ctl;
 	int		inst_no;
+};
+
+struct bfa_bsg_fcpim_profile_s {
+	bfa_status_t    status;
+	u16		bfad_num;
+	u16		rsvd;
+};
+
+struct bfa_bsg_itnim_ioprofile_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		vf_id;
+	wwn_t		lpwwn;
+	wwn_t		rpwwn;
+	struct bfa_itnim_ioprofile_s ioprofile;
 };
 
 struct bfa_bsg_ioc_name_s {
