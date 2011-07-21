@@ -263,6 +263,7 @@ struct drbd_thread {
 	struct completion stop;
 	enum drbd_thread_state t_state;
 	int (*function) (struct drbd_thread *);
+	struct drbd_resource *resource;
 	struct drbd_connection *connection;
 	int reset_cpu_mask;
 	const char *name;
