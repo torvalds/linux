@@ -81,7 +81,6 @@
 /*
  *  Data Types
  */
-#define MT2060_CNT 10
 
 #define MAX_UDATA         (4294967295)	/*  max value storable in u32   */
 
@@ -96,11 +95,8 @@
  * #define MT2121_CNT  (3)
  */
 
-#define MT2063_CNT (1)
 
-#if !defined( MT2063_TUNER_CNT )
 #define MT2063_TUNER_CNT               (1)	/*  total num of MicroTuner tuners  */
-#endif
 #define MT2063_I2C (0xC0)
 
 u32 MT2063_WriteSub(void *hUserData,
@@ -113,11 +109,7 @@ u32 MT2063_ReadSub(void *hUserData,
 
 void MT2063_Sleep(void *hUserData, u32 nMinDelayTime);
 
-#if defined(MT2060_CNT)
-#if MT2060_CNT > 0
 u32 MT2060_TunerGain(void *hUserData, s32 * pMeas);
-#endif
-#endif
 
 /*
  *  Constant defining the version of the following structure
