@@ -348,7 +348,9 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		/* Rebind if we need a change of alignment */
 		if (!obj->map_and_fenceable) {
 			u32 unfenced_alignment =
-				i915_gem_get_unfenced_gtt_alignment(obj);
+				i915_gem_get_unfenced_gtt_alignment(dev,
+								    obj->base.size,
+								    args->tiling_mode);
 			if (obj->gtt_offset & (unfenced_alignment - 1))
 				ret = i915_gem_object_unbind(obj);
 		}
