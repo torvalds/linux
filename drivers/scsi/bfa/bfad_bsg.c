@@ -2181,6 +2181,53 @@ out:
 	return 0;
 }
 
+int
+bfad_iocmd_cfg_trunk(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
+{
+	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(&bfad->bfa);
+	struct bfa_fcport_trunk_s *trunk = &fcport->trunk;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+
+	if (v_cmd == IOCMD_TRUNK_ENABLE) {
+		trunk->attr.state = BFA_TRUNK_OFFLINE;
+		bfa_fcport_disable(&bfad->bfa);
+		fcport->cfg.trunked = BFA_TRUE;
+	} else if (v_cmd == IOCMD_TRUNK_DISABLE) {
+		trunk->attr.state = BFA_TRUNK_DISABLED;
+		bfa_fcport_disable(&bfad->bfa);
+		fcport->cfg.trunked = BFA_FALSE;
+	}
+
+	if (!bfa_fcport_is_disabled(&bfad->bfa))
+		bfa_fcport_enable(&bfad->bfa);
+
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	iocmd->status = BFA_STATUS_OK;
+	return 0;
+}
+
+int
+bfad_iocmd_trunk_get_attr(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_trunk_attr_s *iocmd = (struct bfa_bsg_trunk_attr_s *)cmd;
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(&bfad->bfa);
+	struct bfa_fcport_trunk_s *trunk = &fcport->trunk;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	memcpy((void *)&iocmd->attr, (void *)&trunk->attr,
+		sizeof(struct bfa_trunk_attr_s));
+	iocmd->attr.port_id = bfa_lps_get_base_pid(&bfad->bfa);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	iocmd->status = BFA_STATUS_OK;
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -2469,6 +2516,13 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_ETHBOOT_QUERY:
 		rc = bfad_iocmd_ethboot_query(bfad, iocmd);
+		break;
+	case IOCMD_TRUNK_ENABLE:
+	case IOCMD_TRUNK_DISABLE:
+		rc = bfad_iocmd_cfg_trunk(bfad, iocmd, cmd);
+		break;
+	case IOCMD_TRUNK_GET_ATTR:
+		rc = bfad_iocmd_trunk_get_attr(bfad, iocmd);
 		break;
 	default:
 		rc = -EINVAL;

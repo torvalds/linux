@@ -126,6 +126,9 @@ enum {
 	IOCMD_PREBOOT_QUERY,
 	IOCMD_ETHBOOT_CFG,
 	IOCMD_ETHBOOT_QUERY,
+	IOCMD_TRUNK_ENABLE,
+	IOCMD_TRUNK_DISABLE,
+	IOCMD_TRUNK_GET_ATTR,
 };
 
 struct bfa_bsg_gen_s {
@@ -654,6 +657,13 @@ struct bfa_bsg_ethboot_s {
 	u16		bfad_num;
 	u16		rsvd;
 	struct  bfa_ethboot_cfg_s  cfg;
+};
+
+struct bfa_bsg_trunk_attr_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_trunk_attr_s attr;
 };
 
 struct bfa_bsg_fcpt_s {
