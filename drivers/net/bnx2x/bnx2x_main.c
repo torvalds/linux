@@ -9104,10 +9104,13 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 #ifdef BCM_CNIC
 static void __devinit bnx2x_get_cnic_info(struct bnx2x *bp)
 {
+	int port = BP_PORT(bp);
+	int func = BP_ABS_FUNC(bp);
+
 	u32 max_iscsi_conn = FW_ENCODE_32BIT_PATTERN ^ SHMEM_RD(bp,
-				drv_lic_key[BP_PORT(bp)].max_iscsi_conn);
+				drv_lic_key[port].max_iscsi_conn);
 	u32 max_fcoe_conn = FW_ENCODE_32BIT_PATTERN ^ SHMEM_RD(bp,
-				drv_lic_key[BP_PORT(bp)].max_fcoe_conn);
+				drv_lic_key[port].max_fcoe_conn);
 
 	/* Get the number of maximum allowed iSCSI and FCoE connections */
 	bp->cnic_eth_dev.max_iscsi_conn =
@@ -9118,11 +9121,59 @@ static void __devinit bnx2x_get_cnic_info(struct bnx2x *bp)
 		(max_fcoe_conn & BNX2X_MAX_FCOE_INIT_CONN_MASK) >>
 		BNX2X_MAX_FCOE_INIT_CONN_SHIFT;
 
+	/* Read the WWN: */
+	if (!IS_MF(bp)) {
+		/* Port info */
+		bp->cnic_eth_dev.fcoe_wwn_port_name_hi =
+			SHMEM_RD(bp,
+				dev_info.port_hw_config[port].
+				 fcoe_wwn_port_name_upper);
+		bp->cnic_eth_dev.fcoe_wwn_port_name_lo =
+			SHMEM_RD(bp,
+				dev_info.port_hw_config[port].
+				 fcoe_wwn_port_name_lower);
+
+		/* Node info */
+		bp->cnic_eth_dev.fcoe_wwn_node_name_hi =
+			SHMEM_RD(bp,
+				dev_info.port_hw_config[port].
+				 fcoe_wwn_node_name_upper);
+		bp->cnic_eth_dev.fcoe_wwn_node_name_lo =
+			SHMEM_RD(bp,
+				dev_info.port_hw_config[port].
+				 fcoe_wwn_node_name_lower);
+	} else if (!IS_MF_SD(bp)) {
+		u32 cfg = MF_CFG_RD(bp, func_ext_config[func].func_cfg);
+
+		/*
+		 * Read the WWN info only if the FCoE feature is enabled for
+		 * this function.
+		 */
+		if (cfg & MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD) {
+			/* Port info */
+			bp->cnic_eth_dev.fcoe_wwn_port_name_hi =
+				MF_CFG_RD(bp, func_ext_config[func].
+						fcoe_wwn_port_name_upper);
+			bp->cnic_eth_dev.fcoe_wwn_port_name_lo =
+				MF_CFG_RD(bp, func_ext_config[func].
+						fcoe_wwn_port_name_lower);
+
+			/* Node info */
+			bp->cnic_eth_dev.fcoe_wwn_node_name_hi =
+				MF_CFG_RD(bp, func_ext_config[func].
+						fcoe_wwn_node_name_upper);
+			bp->cnic_eth_dev.fcoe_wwn_node_name_lo =
+				MF_CFG_RD(bp, func_ext_config[func].
+						fcoe_wwn_node_name_lower);
+		}
+	}
+
 	BNX2X_DEV_INFO("max_iscsi_conn 0x%x max_fcoe_conn 0x%x\n",
 		       bp->cnic_eth_dev.max_iscsi_conn,
 		       bp->cnic_eth_dev.max_fcoe_conn);
 
-	/* If mamimum allowed number of connections is zero -
+	/*
+	 * If maximum allowed number of connections is zero -
 	 * disable the feature.
 	 */
 	if (!bp->cnic_eth_dev.max_iscsi_conn)
@@ -9993,6 +10044,9 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #endif
 	.ndo_setup_tc		= bnx2x_setup_tc,
 
+#if defined(NETDEV_FCOE_WWNN) && defined(BCM_CNIC)
+	.ndo_fcoe_get_wwn	= bnx2x_fcoe_get_wwn,
+#endif
 };
 
 static inline int bnx2x_set_coherency_mask(struct bnx2x *bp)

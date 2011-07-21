@@ -522,6 +522,17 @@ void bnx2x_free_mem_bp(struct bnx2x *bp);
  */
 int bnx2x_change_mtu(struct net_device *dev, int new_mtu);
 
+#if defined(BCM_CNIC) && (defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE))
+/**
+ * bnx2x_fcoe_get_wwn - return the requested WWN value for this port
+ *
+ * @dev:	net_device
+ * @wwn:	output buffer
+ * @type:	WWN type: NETDEV_FCOE_WWNN (node) or NETDEV_FCOE_WWPN (port)
+ *
+ */
+int bnx2x_fcoe_get_wwn(struct net_device *dev, u64 *wwn, int type);
+#endif
 u32 bnx2x_fix_features(struct net_device *dev, u32 features);
 int bnx2x_set_features(struct net_device *dev, u32 features);
 

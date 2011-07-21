@@ -181,6 +181,11 @@ struct cnic_eth_dev {
 	u32		max_fcoe_conn;
 	u32		max_rdma_conn;
 	u32		fcoe_init_cid;
+	u32		fcoe_wwn_port_name_hi;
+	u32		fcoe_wwn_port_name_lo;
+	u32		fcoe_wwn_node_name_hi;
+	u32		fcoe_wwn_node_name_lo;
+
 	u16		iscsi_l2_client_id;
 	u16		iscsi_l2_cid;
 	u8		iscsi_mac[ETH_ALEN];
