@@ -67,7 +67,8 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 	unsigned long	size, total = 0;
 	char		*dst, *why;
 	u64		id;
-	int		hsize, part = 1;
+	int		hsize;
+	unsigned int	part = 1;
 
 	if (reason < ARRAY_SIZE(reason_str))
 		why = reason_str[reason];
