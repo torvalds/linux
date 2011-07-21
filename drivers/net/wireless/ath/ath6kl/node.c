@@ -169,17 +169,17 @@ void wlan_node_table_init(void *wmi, struct ath6kl_node_table *nt)
 
 	spin_lock_init(&nt->nt_nodelock);
 
-	nt->nt_wmi = wmi;
 	nt->nt_node_age = WLAN_NODE_INACT_TIMEOUT_MSEC;
 }
 
-void wlan_refresh_inactive_nodes(struct ath6kl_node_table *nt)
+void wlan_refresh_inactive_nodes(struct ath6kl *ar)
 {
+	struct ath6kl_node_table *nt = &ar->scan_table;
 	struct bss *bss;
 	u8 my_bssid[ETH_ALEN];
 	u32 now;
 
-	ath6kl_wmi_get_current_bssid(nt->nt_wmi, my_bssid);
+	ath6kl_wmi_get_current_bssid(ar->wmi, my_bssid);
 
 	now = jiffies_to_msecs(jiffies);
 	bss = nt->nt_node_first;

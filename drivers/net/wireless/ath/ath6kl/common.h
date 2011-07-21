@@ -88,7 +88,6 @@ enum crypto_type {
  * is a second table for associated stations or neighbors.
  */
 struct ath6kl_node_table {
-	void *nt_wmi;		/* back reference */
 	spinlock_t nt_nodelock;	/* on node table */
 	struct bss *nt_node_first;	/* information of all nodes */
 	struct bss *nt_node_last;	/* information of all nodes */
@@ -159,7 +158,7 @@ void wlan_iterate_nodes(struct ath6kl_node_table *nt,
 void wlan_node_table_init(void *wmip, struct ath6kl_node_table *nt);
 void wlan_node_table_cleanup(struct ath6kl_node_table *nt);
 
-void wlan_refresh_inactive_nodes(struct ath6kl_node_table *nt);
+void wlan_refresh_inactive_nodes(struct ath6kl *ar);
 
 struct bss *wlan_find_ssid_node(struct ath6kl_node_table *nt, u8 *ssid,
 				  u32 ssid_len, bool is_wpa2, bool match_ssid);

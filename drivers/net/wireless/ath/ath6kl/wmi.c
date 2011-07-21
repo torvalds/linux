@@ -1009,7 +1009,7 @@ static int ath6kl_wmi_scan_complete_rx(struct wmi *wmi, u8 *datap, int len)
 	ev = (struct wmi_scan_complete_event *) datap;
 
 	if (a_sle32_to_cpu(ev->status) == 0)
-		wlan_refresh_inactive_nodes(&wmi->parent_dev->scan_table);
+		wlan_refresh_inactive_nodes(wmi->parent_dev);
 
 	ath6kl_scan_complete_evt(wmi->parent_dev, a_sle32_to_cpu(ev->status));
 	wmi->is_probe_ssid = false;
