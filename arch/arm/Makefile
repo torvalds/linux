@@ -280,16 +280,20 @@ zkernel.img: zImage FORCE
 	$(Q)$(srctree)/mkkrnlimg $(obj)/arch/arm/boot/zImage $(obj)/kernel.img
 	@echo '  Image:  kernel.img is ready'
 
+ANDROID_RAMDISK_IMG := $(shell echo $(OUT) | sed -e 's/^.*\/out\/target\/product\//out\/target\/product\//')/ramdisk.img
+ANDROID_DIR := $(shell cd $(OUT)/../../../../ && pwd)
+ANDROID_PROCESSORS := $(shell grep 'processor' /proc/cpuinfo | wc -l)
 checkandroid: FORCE
 	$(Q)test -n "$(OUT)" || (echo "Run 'cd .. && . build/envsetup.sh && setpaths && cd -' first to build boot.img"; /bin/false)
-	$(Q)test -n "which mkbootimg" || (echo "No mkbootimg"; /bin/false)
-	$(Q)test -e $(OUT)/ramdisk.img || (echo "No $(OUT)/ramdisk.img"; /bin/false)
+	$(Q)test -n "`which mkbootimg`" || (echo "No mkbootimg, try build..." && sudo -u `whoami` $(MAKE) -j$(ANDROID_PROCESSORS) -C $(ANDROID_DIR) mkbootimg $(ANDROID_RAMDISK_IMG))
+	$(Q)test -e $(OUT)/ramdisk.img || (echo "No $(OUT)/ramdisk.img, try build..." && sudo -u `whoami` $(MAKE) -j$(ANDROID_PROCESSORS) -C $(ANDROID_DIR) $(ANDROID_RAMDISK_IMG))
 
 PHONY += bootimg boot.img
 bootimg boot.img: zImage checkandroid FORCE
 	$(Q)cp -a $(obj)/arch/arm/boot/zImage $(OUT)/kernel
 	$(Q)mkbootimg --kernel $(OUT)/kernel --ramdisk $(OUT)/ramdisk.img --output $(OUT)/boot.img
 	@echo '  Image:  $(OUT)/boot.img is ready'
+	$Q[ -d $(ANDROID_DIR)/rockdev/Image/ ] && cp -a $(OUT)/boot.img $(ANDROID_DIR)/rockdev/Image/ && echo '  Image:  $(ANDROID_DIR)/rockdev/Image/boot.img is ready' || /bin/true
 
 define archhelp
   echo  '  kernel.img    - Rockchip kernel image'
