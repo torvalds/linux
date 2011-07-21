@@ -3645,10 +3645,6 @@ int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 	priv->cfg = cfg;
 	priv->inta_mask = CSR_INI_SET_MASK;
 
-	err = iwl_trans_register(&priv->trans, priv);
-	if (err)
-		goto out_free_priv;
-
 	/* is antenna coupling more than 35dB ? */
 	priv->bt_ant_couple_ok =
 		(iwlagn_ant_coupling > IWL_BT_ANTENNA_COUPLING_THRESHOLD) ?
@@ -3682,10 +3678,14 @@ int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
 		priv->cfg->name, hw_rev);
 
+	err = iwl_trans_register(&priv->trans, priv);
+	if (err)
+		goto out_free_traffic_mem;
+
 	if (trans_prepare_card_hw(&priv->trans)) {
 		err = -EIO;
 		IWL_WARN(priv, "Failed, HW not ready\n");
-		goto out_free_traffic_mem;
+		goto out_free_trans;
 	}
 
 	/*****************
@@ -3695,7 +3695,7 @@ int iwl_probe(struct iwl_bus *bus, struct iwl_cfg *cfg)
 	err = iwl_eeprom_init(priv, hw_rev);
 	if (err) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
-		goto out_free_traffic_mem;
+		goto out_free_trans;
 	}
 	err = iwl_eeprom_check_version(priv);
 	if (err)
@@ -3778,10 +3778,10 @@ out_destroy_workqueue:
 	iwl_uninit_drv(priv);
 out_free_eeprom:
 	iwl_eeprom_free(priv);
+out_free_trans:
+	trans_free(&priv->trans);
 out_free_traffic_mem:
 	iwl_free_traffic_mem(priv);
-	trans_free(&priv->trans);
-out_free_priv:
 	ieee80211_free_hw(priv->hw);
 out:
 	return err;

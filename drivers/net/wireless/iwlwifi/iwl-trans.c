@@ -1153,6 +1153,9 @@ int iwl_trans_register(struct iwl_trans *trans, struct iwl_priv *priv)
 	priv->trans.ops = &trans_ops;
 	priv->trans.priv = priv;
 
+	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
+		iwl_irq_tasklet, (unsigned long)priv);
+
 	iwl_alloc_isr_ict(priv);
 
 	err = request_irq(priv->bus->irq, iwl_isr_ict, IRQF_SHARED,
@@ -1162,9 +1165,6 @@ int iwl_trans_register(struct iwl_trans *trans, struct iwl_priv *priv)
 		iwl_free_isr_ict(priv);
 		return err;
 	}
-
-	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
-		iwl_irq_tasklet, (unsigned long)priv);
 
 	INIT_WORK(&priv->rx_replenish, iwl_bg_rx_replenish);
 
