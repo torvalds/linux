@@ -2,7 +2,7 @@
 #include <linux/hdmi.h>
 #include <linux/string.h>
 
-int debug_en = 1;
+int debug_en = 0;
 static ssize_t hdmi_show_state_attrs(struct device *dev,
 					      struct device_attribute *attr,
 					      char *buf) 
