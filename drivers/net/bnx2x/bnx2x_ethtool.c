@@ -500,78 +500,179 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 #define IS_E1_ONLINE(info)	(((info) & RI_E1_ONLINE) == RI_E1_ONLINE)
 #define IS_E1H_ONLINE(info)	(((info) & RI_E1H_ONLINE) == RI_E1H_ONLINE)
 #define IS_E2_ONLINE(info)	(((info) & RI_E2_ONLINE) == RI_E2_ONLINE)
+#define IS_E3_ONLINE(info)	(((info) & RI_E3_ONLINE) == RI_E3_ONLINE)
+#define IS_E3B0_ONLINE(info)	(((info) & RI_E3B0_ONLINE) == RI_E3B0_ONLINE)
+
+static inline bool bnx2x_is_reg_online(struct bnx2x *bp,
+				       const struct reg_addr *reg_info)
+{
+	if (CHIP_IS_E1(bp))
+		return IS_E1_ONLINE(reg_info->info);
+	else if (CHIP_IS_E1H(bp))
+		return IS_E1H_ONLINE(reg_info->info);
+	else if (CHIP_IS_E2(bp))
+		return IS_E2_ONLINE(reg_info->info);
+	else if (CHIP_IS_E3A0(bp))
+		return IS_E3_ONLINE(reg_info->info);
+	else if (CHIP_IS_E3B0(bp))
+		return IS_E3B0_ONLINE(reg_info->info);
+	else
+		return false;
+}
+
+/******* Paged registers info selectors ********/
+static inline const u32 *__bnx2x_get_page_addr_ar(struct bnx2x *bp)
+{
+	if (CHIP_IS_E2(bp))
+		return page_vals_e2;
+	else if (CHIP_IS_E3(bp))
+		return page_vals_e3;
+	else
+		return NULL;
+}
+
+static inline u32 __bnx2x_get_page_reg_num(struct bnx2x *bp)
+{
+	if (CHIP_IS_E2(bp))
+		return PAGE_MODE_VALUES_E2;
+	else if (CHIP_IS_E3(bp))
+		return PAGE_MODE_VALUES_E3;
+	else
+		return 0;
+}
+
+static inline const u32 *__bnx2x_get_page_write_ar(struct bnx2x *bp)
+{
+	if (CHIP_IS_E2(bp))
+		return page_write_regs_e2;
+	else if (CHIP_IS_E3(bp))
+		return page_write_regs_e3;
+	else
+		return NULL;
+}
+
+static inline u32 __bnx2x_get_page_write_num(struct bnx2x *bp)
+{
+	if (CHIP_IS_E2(bp))
+		return PAGE_WRITE_REGS_E2;
+	else if (CHIP_IS_E3(bp))
+		return PAGE_WRITE_REGS_E3;
+	else
+		return 0;
+}
+
+static inline const struct reg_addr *__bnx2x_get_page_read_ar(struct bnx2x *bp)
+{
+	if (CHIP_IS_E2(bp))
+		return page_read_regs_e2;
+	else if (CHIP_IS_E3(bp))
+		return page_read_regs_e3;
+	else
+		return NULL;
+}
+
+static inline u32 __bnx2x_get_page_read_num(struct bnx2x *bp)
+{
+	if (CHIP_IS_E2(bp))
+		return PAGE_READ_REGS_E2;
+	else if (CHIP_IS_E3(bp))
+		return PAGE_READ_REGS_E3;
+	else
+		return 0;
+}
+
+static inline int __bnx2x_get_regs_len(struct bnx2x *bp)
+{
+	int num_pages = __bnx2x_get_page_reg_num(bp);
+	int page_write_num = __bnx2x_get_page_write_num(bp);
+	const struct reg_addr *page_read_addr = __bnx2x_get_page_read_ar(bp);
+	int page_read_num = __bnx2x_get_page_read_num(bp);
+	int regdump_len = 0;
+	int i, j, k;
+
+	for (i = 0; i < REGS_COUNT; i++)
+		if (bnx2x_is_reg_online(bp, &reg_addrs[i]))
+			regdump_len += reg_addrs[i].size;
+
+	for (i = 0; i < num_pages; i++)
+		for (j = 0; j < page_write_num; j++)
+			for (k = 0; k < page_read_num; k++)
+				if (bnx2x_is_reg_online(bp, &page_read_addr[k]))
+					regdump_len += page_read_addr[k].size;
+
+	return regdump_len;
+}
 
 static int bnx2x_get_regs_len(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int regdump_len = 0;
-	int i, j, k;
 
-	if (CHIP_IS_E1(bp)) {
-		for (i = 0; i < REGS_COUNT; i++)
-			if (IS_E1_ONLINE(reg_addrs[i].info))
-				regdump_len += reg_addrs[i].size;
-
-		for (i = 0; i < WREGS_COUNT_E1; i++)
-			if (IS_E1_ONLINE(wreg_addrs_e1[i].info))
-				regdump_len += wreg_addrs_e1[i].size *
-					(1 + wreg_addrs_e1[i].read_regs_count);
-
-	} else if (CHIP_IS_E1H(bp)) {
-		for (i = 0; i < REGS_COUNT; i++)
-			if (IS_E1H_ONLINE(reg_addrs[i].info))
-				regdump_len += reg_addrs[i].size;
-
-		for (i = 0; i < WREGS_COUNT_E1H; i++)
-			if (IS_E1H_ONLINE(wreg_addrs_e1h[i].info))
-				regdump_len += wreg_addrs_e1h[i].size *
-					(1 + wreg_addrs_e1h[i].read_regs_count);
-	} else if (!CHIP_IS_E1x(bp)) {
-		for (i = 0; i < REGS_COUNT; i++)
-			if (IS_E2_ONLINE(reg_addrs[i].info))
-				regdump_len += reg_addrs[i].size;
-
-		for (i = 0; i < WREGS_COUNT_E2; i++)
-			if (IS_E2_ONLINE(wreg_addrs_e2[i].info))
-				regdump_len += wreg_addrs_e2[i].size *
-					(1 + wreg_addrs_e2[i].read_regs_count);
-
-		for (i = 0; i < PAGE_MODE_VALUES_E2; i++)
-			for (j = 0; j < PAGE_WRITE_REGS_E2; j++) {
-				for (k = 0; k < PAGE_READ_REGS_E2; k++)
-					if (IS_E2_ONLINE(page_read_regs_e2[k].
-							 info))
-						regdump_len +=
-						page_read_regs_e2[k].size;
-			}
-	}
+	regdump_len = __bnx2x_get_regs_len(bp);
 	regdump_len *= 4;
 	regdump_len += sizeof(struct dump_hdr);
 
 	return regdump_len;
 }
 
-static inline void bnx2x_read_pages_regs_e2(struct bnx2x *bp, u32 *p)
+/**
+ * bnx2x_read_pages_regs - read "paged" registers
+ *
+ * @bp		device handle
+ * @p		output buffer
+ *
+ * Reads "paged" memories: memories that may only be read by first writing to a
+ * specific address ("write address") and then reading from a specific address
+ * ("read address"). There may be more than one write address per "page" and
+ * more than one read address per write address.
+ */
+static inline void bnx2x_read_pages_regs(struct bnx2x *bp, u32 *p)
 {
 	u32 i, j, k, n;
+	/* addresses of the paged registers */
+	const u32 *page_addr = __bnx2x_get_page_addr_ar(bp);
+	/* number of paged registers */
+	int num_pages = __bnx2x_get_page_reg_num(bp);
+	/* write addresses */
+	const u32 *write_addr = __bnx2x_get_page_write_ar(bp);
+	/* number of write addresses */
+	int write_num = __bnx2x_get_page_write_num(bp);
+	/* read addresses info */
+	const struct reg_addr *read_addr = __bnx2x_get_page_read_ar(bp);
+	/* number of read addresses */
+	int read_num = __bnx2x_get_page_read_num(bp);
 
-	for (i = 0; i < PAGE_MODE_VALUES_E2; i++) {
-		for (j = 0; j < PAGE_WRITE_REGS_E2; j++) {
-			REG_WR(bp, page_write_regs_e2[j], page_vals_e2[i]);
-			for (k = 0; k < PAGE_READ_REGS_E2; k++)
-				if (IS_E2_ONLINE(page_read_regs_e2[k].info))
+	for (i = 0; i < num_pages; i++) {
+		for (j = 0; j < write_num; j++) {
+			REG_WR(bp, write_addr[j], page_addr[i]);
+			for (k = 0; k < read_num; k++)
+				if (bnx2x_is_reg_online(bp, &read_addr[k]))
 					for (n = 0; n <
-					      page_read_regs_e2[k].size; n++)
+					      read_addr[k].size; n++)
 						*p++ = REG_RD(bp,
-					page_read_regs_e2[k].addr + n*4);
+						       read_addr[k].addr + n*4);
 		}
 	}
+}
+
+static inline void __bnx2x_get_regs(struct bnx2x *bp, u32 *p)
+{
+	u32 i, j;
+
+	/* Read the regular registers */
+	for (i = 0; i < REGS_COUNT; i++)
+		if (bnx2x_is_reg_online(bp, &reg_addrs[i]))
+			for (j = 0; j < reg_addrs[i].size; j++)
+				*p++ = REG_RD(bp, reg_addrs[i].addr + j*4);
+
+	/* Read "paged" registes */
+	bnx2x_read_pages_regs(bp, p);
 }
 
 static void bnx2x_get_regs(struct net_device *dev,
 			   struct ethtool_regs *regs, void *_p)
 {
-	u32 *p = _p, i, j;
+	u32 *p = _p;
 	struct bnx2x *bp = netdev_priv(dev);
 	struct dump_hdr dump_hdr = {0};
 
@@ -605,33 +706,9 @@ static void bnx2x_get_regs(struct net_device *dev,
 	memcpy(p, &dump_hdr, sizeof(struct dump_hdr));
 	p += dump_hdr.hdr_size + 1;
 
-	if (CHIP_IS_E1(bp)) {
-		for (i = 0; i < REGS_COUNT; i++)
-			if (IS_E1_ONLINE(reg_addrs[i].info))
-				for (j = 0; j < reg_addrs[i].size; j++)
-					*p++ = REG_RD(bp,
-						      reg_addrs[i].addr + j*4);
+	/* Actually read the registers */
+	__bnx2x_get_regs(bp, p);
 
-	} else if (CHIP_IS_E1H(bp)) {
-		for (i = 0; i < REGS_COUNT; i++)
-			if (IS_E1H_ONLINE(reg_addrs[i].info))
-				for (j = 0; j < reg_addrs[i].size; j++)
-					*p++ = REG_RD(bp,
-						      reg_addrs[i].addr + j*4);
-
-	} else if (!CHIP_IS_E1x(bp)) {
-		for (i = 0; i < REGS_COUNT; i++)
-			if (IS_E2_ONLINE(reg_addrs[i].info))
-				for (j = 0; j < reg_addrs[i].size; j++)
-					*p++ = REG_RD(bp,
-					      reg_addrs[i].addr + j*4);
-
-		if (CHIP_IS_E2(bp))
-			bnx2x_read_pages_regs_e2(bp, p);
-		else
-			/* E3 paged registers read is unimplemented yet */
-			WARN_ON(1);
-	}
 	/* Re-enable parity attentions */
 	bnx2x_clear_blocks_parity(bp);
 	bnx2x_enable_blocks_parity(bp);
