@@ -30,7 +30,8 @@ struct pch_regs {
 	u32	pm;
 	u32	im0;
 	u32	im1;
-	u32	reserved[4];
+	u32	reserved[3];
+	u32	gpio_use_sel;
 	u32	reset;
 };
 
@@ -51,10 +52,17 @@ static int gpio_pins[] = {
  * struct pch_gpio_reg_data - The register store data.
  * @po_reg:	To store contents of PO register.
  * @pm_reg:	To store contents of PM register.
+ * @im0_reg:	To store contents of IM0 register.
+ * @im1_reg:	To store contents of IM1 register.
+ * @gpio_use_sel_reg : To store contents of GPIO_USE_SEL register.
+ *		       (Only ML7223 Bus-n)
  */
 struct pch_gpio_reg_data {
 	u32 po_reg;
 	u32 pm_reg;
+	u32 im0_reg;
+	u32 im1_reg;
+	u32 gpio_use_sel_reg;
 };
 
 /**
@@ -149,6 +157,12 @@ static void pch_gpio_save_reg_conf(struct pch_gpio *chip)
 {
 	chip->pch_gpio_reg.po_reg = ioread32(&chip->reg->po);
 	chip->pch_gpio_reg.pm_reg = ioread32(&chip->reg->pm);
+	chip->pch_gpio_reg.im0_reg = ioread32(&chip->reg->im0);
+	if (chip->ioh == INTEL_EG20T_PCH)
+		chip->pch_gpio_reg.im1_reg = ioread32(&chip->reg->im1);
+	if (chip->ioh == OKISEMI_ML7223n_IOH)
+		chip->pch_gpio_reg.gpio_use_sel_reg =\
+					    ioread32(&chip->reg->gpio_use_sel);
 }
 
 /*
@@ -160,6 +174,12 @@ static void pch_gpio_restore_reg_conf(struct pch_gpio *chip)
 	iowrite32(chip->pch_gpio_reg.po_reg, &chip->reg->po);
 	/* to store contents of PM register */
 	iowrite32(chip->pch_gpio_reg.pm_reg, &chip->reg->pm);
+	iowrite32(chip->pch_gpio_reg.im0_reg, &chip->reg->im0);
+	if (chip->ioh == INTEL_EG20T_PCH)
+		iowrite32(chip->pch_gpio_reg.im1_reg, &chip->reg->im1);
+	if (chip->ioh == OKISEMI_ML7223n_IOH)
+		iowrite32(chip->pch_gpio_reg.gpio_use_sel_reg,
+			  &chip->reg->gpio_use_sel);
 }
 
 static void pch_gpio_setup(struct pch_gpio *chip)
