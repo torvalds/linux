@@ -1370,7 +1370,8 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 			reg = DP | DP_LINK_TRAIN_PAT_1;
 
 		if (!intel_dp_set_link_train(intel_dp, reg,
-					     DP_TRAINING_PATTERN_1))
+					     DP_TRAINING_PATTERN_1 |
+					     DP_LINK_SCRAMBLING_DISABLE))
 			break;
 		/* Set training pattern 1 */
 
@@ -1445,7 +1446,8 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 
 		/* channel eq pattern */
 		if (!intel_dp_set_link_train(intel_dp, reg,
-					     DP_TRAINING_PATTERN_2))
+					     DP_TRAINING_PATTERN_2 |
+					     DP_LINK_SCRAMBLING_DISABLE))
 			break;
 
 		udelay(400);
