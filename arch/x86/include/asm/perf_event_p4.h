@@ -133,7 +133,7 @@
 
 /*
  * In case of event aliasing we need to preserve some
- * caller bits otherwise the mapping won't be complete.
+ * caller bits, otherwise the mapping won't be complete.
  */
 #define P4_CONFIG_EVENT_ALIAS_MASK			  \
 	(p4_config_pack_escr(P4_CONFIG_MASK_ESCR)	| \
