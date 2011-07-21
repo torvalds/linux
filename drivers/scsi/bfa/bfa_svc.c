@@ -5553,11 +5553,29 @@ bfa_fcdiag_loopback(struct bfa_s *bfa, enum bfa_port_opmode opmode,
 		return BFA_STATUS_PORT_NOT_DISABLED;
 	}
 
-	/* Check if the speed is supported */
-	bfa_fcport_get_attr(bfa, &attr);
-	bfa_trc(fcdiag, attr.speed_supported);
-	if (speed > attr.speed_supported)
-		return BFA_STATUS_UNSUPP_SPEED;
+	/*
+	 * Check if input speed is supported by the port mode
+	 */
+	if (bfa_ioc_get_type(&bfa->ioc) == BFA_IOC_TYPE_FC) {
+		if (!(speed == BFA_PORT_SPEED_1GBPS ||
+		      speed == BFA_PORT_SPEED_2GBPS ||
+		      speed == BFA_PORT_SPEED_4GBPS ||
+		      speed == BFA_PORT_SPEED_8GBPS ||
+		      speed == BFA_PORT_SPEED_16GBPS ||
+		      speed == BFA_PORT_SPEED_AUTO)) {
+			bfa_trc(fcdiag, speed);
+			return BFA_STATUS_UNSUPP_SPEED;
+		}
+		bfa_fcport_get_attr(bfa, &attr);
+		bfa_trc(fcdiag, attr.speed_supported);
+		if (speed > attr.speed_supported)
+			return BFA_STATUS_UNSUPP_SPEED;
+	} else {
+		if (speed != BFA_PORT_SPEED_10GBPS) {
+			bfa_trc(fcdiag, speed);
+			return BFA_STATUS_UNSUPP_SPEED;
+		}
+	}
 
 	/* For Mezz card, port speed entered needs to be checked */
 	if (bfa_mfg_is_mezz(bfa->ioc.attr->card_type)) {
