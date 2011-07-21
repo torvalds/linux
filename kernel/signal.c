@@ -2084,12 +2084,17 @@ static void do_jobctl_trap(void)
 static int ptrace_signal(int signr, siginfo_t *info,
 			 struct pt_regs *regs, void *cookie)
 {
-	if (!current->ptrace)
-		return signr;
-
 	ptrace_signal_deliver(regs, cookie);
-
-	/* Let the debugger run.  */
+	/*
+	 * We do not check sig_kernel_stop(signr) but set this marker
+	 * unconditionally because we do not know whether debugger will
+	 * change signr. This flag has no meaning unless we are going
+	 * to stop after return from ptrace_stop(). In this case it will
+	 * be checked in do_signal_stop(), we should only stop if it was
+	 * not cleared by SIGCONT while we were sleeping. See also the
+	 * comment in dequeue_signal().
+	 */
+	current->jobctl |= JOBCTL_STOP_DEQUEUED;
 	ptrace_stop(signr, CLD_TRAPPED, 0, info);
 
 	/* We're back.  Did the debugger cancel the sig?  */
@@ -2193,7 +2198,7 @@ relock:
 		if (!signr)
 			break; /* will return 0 */
 
-		if (signr != SIGKILL) {
+		if (unlikely(current->ptrace) && signr != SIGKILL) {
 			signr = ptrace_signal(signr, info,
 					      regs, cookie);
 			if (!signr)
