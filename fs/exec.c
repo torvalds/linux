@@ -967,6 +967,14 @@ static int de_thread(struct task_struct *tsk)
 
 		BUG_ON(leader->exit_state != EXIT_ZOMBIE);
 		leader->exit_state = EXIT_DEAD;
+
+		/*
+		 * We are going to release_task()->ptrace_unlink() silently,
+		 * the tracer can sleep in do_wait(). EXIT_DEAD guarantees
+		 * the tracer wont't block again waiting for this thread.
+		 */
+		if (unlikely(leader->ptrace))
+			__wake_up_parent(leader, leader->parent);
 		write_unlock_irq(&tasklist_lock);
 
 		release_task(leader);
