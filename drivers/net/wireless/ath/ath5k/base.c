@@ -2526,9 +2526,9 @@ ath5k_stop_locked(struct ath5k_hw *ah)
 	return 0;
 }
 
-int
-ath5k_init_hw(struct ath5k_hw *ah)
+int ath5k_start(struct ieee80211_hw *hw)
 {
+	struct ath5k_hw *ah = hw->priv;
 	struct ath_common *common = ath5k_hw_common(ah);
 	int ret, i;
 
@@ -2602,9 +2602,9 @@ static void ath5k_stop_tasklets(struct ath5k_hw *ah)
  * if another thread does a system call and the thread doing the
  * stop is preempted).
  */
-int
-ath5k_stop_hw(struct ath5k_hw *ah)
+void ath5k_stop(struct ieee80211_hw *hw)
 {
+	struct ath5k_hw *ah = hw->priv;
 	int ret;
 
 	mutex_lock(&ah->lock);
@@ -2644,8 +2644,6 @@ ath5k_stop_hw(struct ath5k_hw *ah)
 	cancel_delayed_work_sync(&ah->tx_complete_work);
 
 	ath5k_rfkill_hw_stop(ah);
-
-	return ret;
 }
 
 /*

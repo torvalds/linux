@@ -66,20 +66,6 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 
 static int
-ath5k_start(struct ieee80211_hw *hw)
-{
-	return ath5k_init_hw(hw->priv);
-}
-
-
-static void
-ath5k_stop(struct ieee80211_hw *hw)
-{
-	ath5k_stop_hw(hw->priv);
-}
-
-
-static int
 ath5k_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct ath5k_hw *ah = hw->priv;
