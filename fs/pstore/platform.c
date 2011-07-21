@@ -37,6 +37,8 @@
 static DEFINE_SPINLOCK(pstore_lock);
 static struct pstore_info *psinfo;
 
+static char *backend;
+
 /* How much of the console log to snapshot */
 static unsigned long kmsg_bytes = 10240;
 
@@ -131,6 +133,12 @@ int pstore_register(struct pstore_info *psi)
 		spin_unlock(&pstore_lock);
 		return -EBUSY;
 	}
+
+	if (backend && strcmp(backend, psi->name)) {
+		spin_unlock(&pstore_lock);
+		return -EINVAL;
+	}
+
 	psinfo = psi;
 	spin_unlock(&pstore_lock);
 
@@ -208,3 +216,6 @@ int pstore_write(enum pstore_type_id type, char *buf, size_t size)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pstore_write);
+
+module_param(backend, charp, 0444);
+MODULE_PARM_DESC(backend, "Pstore backend to use");
