@@ -512,18 +512,20 @@ static u64 efi_pstore_write(enum pstore_type_id type, unsigned int part,
 	list_for_each_entry(entry, &efivars->list, list) {
 		get_var_data_locked(efivars, &entry->var);
 
-		for (i = 0; i < DUMP_NAME_LEN; i++) {
-			if (efi_name[i] == 0) {
-				found = entry;
-				efivars->ops->set_variable(entry->var.VariableName,
-							   &entry->var.VendorGuid,
-							   EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
-							   0, NULL);
-				break;
-			} else if (efi_name[i] != entry->var.VariableName[i]) {
-				break;
-			}
-		}
+		if (efi_guidcmp(entry->var.VendorGuid, vendor))
+			continue;
+		if (utf16_strncmp(entry->var.VariableName, efi_name,
+				  utf16_strlen(efi_name)))
+			continue;
+		/* Needs to be a prefix */
+		if (entry->var.VariableName[utf16_strlen(efi_name)] == 0)
+			continue;
+
+		/* found */
+		found = entry;
+		efivars->ops->set_variable(entry->var.VariableName, &entry->var.VendorGuid,
+					   EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
+					   0, NULL);
 	}
 
 	if (found)
