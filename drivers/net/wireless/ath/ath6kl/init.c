@@ -1053,7 +1053,7 @@ static int ath6kl_init(struct net_device *dev)
 
 	/* Indicate that WMI is enabled (although not ready yet) */
 	set_bit(WMI_ENABLED, &ar->flag);
-	ar->wmi = ath6kl_wmi_init((void *) ar);
+	ar->wmi = ath6kl_wmi_init(ar);
 	if (!ar->wmi) {
 		ath6kl_err("failed to initialize wmi\n");
 		status = -EIO;

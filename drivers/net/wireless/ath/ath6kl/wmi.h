@@ -114,7 +114,7 @@ struct wmi {
 	bool ready;
 	u16 stream_exist_for_ac[WMM_NUM_AC];
 	u8 fat_pipe_exist;
-	void *parent_dev;
+	struct ath6kl *parent_dev;
 	struct wmi_stats stat;
 	struct ath6kl_node_table scan_table;
 	u8 bssid[ETH_ALEN];
@@ -2018,7 +2018,7 @@ int ath6kl_wmi_set_pvb_cmd(struct wmi *wmi, u16 aid, bool flag);
 int ath6kl_wmi_set_rx_frame_format_cmd(struct wmi *wmi, u8 rx_meta_version,
 				       bool rx_dot11_hdr, bool defrag_on_host);
 
-void *ath6kl_wmi_init(void *devt);
+void *ath6kl_wmi_init(struct ath6kl *devt);
 void ath6kl_wmi_shutdown(struct wmi *wmi);
 
 #endif /* WMI_H */

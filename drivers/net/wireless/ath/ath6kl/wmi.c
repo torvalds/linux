@@ -2724,7 +2724,7 @@ static void ath6kl_wmi_qos_state_init(struct wmi *wmi)
 	spin_unlock_bh(&wmi->lock);
 }
 
-void *ath6kl_wmi_init(void *dev)
+void *ath6kl_wmi_init(struct ath6kl *dev)
 {
 	struct wmi *wmi;
 
