@@ -94,6 +94,9 @@
 #define USE_WAKEUP_LAT			0
 #define IGNORE_WAKEUP_LAT		1
 
+static int omap_device_register(struct omap_device *od);
+static int omap_early_device_register(struct omap_device *od);
+
 /* Private functions */
 
 /**
@@ -339,7 +342,7 @@ u32 omap_device_get_context_loss_count(struct platform_device *pdev)
  * much memory to allocate before calling
  * omap_device_fill_resources().  Returns the count.
  */
-int omap_device_count_resources(struct omap_device *od)
+static int omap_device_count_resources(struct omap_device *od)
 {
 	int c = 0;
 	int i;
@@ -370,7 +373,8 @@ int omap_device_count_resources(struct omap_device *od)
  * functions to get device resources.  Hacking around the existing
  * platform_device code wastes memory.  Returns 0.
  */
-int omap_device_fill_resources(struct omap_device *od, struct resource *res)
+static int omap_device_fill_resources(struct omap_device *od,
+				      struct resource *res)
 {
 	int c = 0;
 	int i, r;
@@ -534,7 +538,7 @@ odbs_exit1:
  * platform_early_add_device() on the underlying platform_device.
  * Returns 0 by default.
  */
-int omap_early_device_register(struct omap_device *od)
+static int omap_early_device_register(struct omap_device *od)
 {
 	struct platform_device *devices[1];
 
@@ -634,7 +638,7 @@ static struct dev_pm_domain omap_device_pm_domain = {
  * platform_device_register() on the underlying platform_device.
  * Returns the return value of platform_device_register().
  */
-int omap_device_register(struct omap_device *od)
+static int omap_device_register(struct omap_device *od)
 {
 	pr_debug("omap_device: %s: registering\n", od->pdev.name);
 

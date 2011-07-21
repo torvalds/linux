@@ -88,9 +88,6 @@ int omap_device_shutdown(struct platform_device *pdev);
 
 /* Core code interface */
 
-int omap_device_count_resources(struct omap_device *od);
-int omap_device_fill_resources(struct omap_device *od, struct resource *res);
-
 struct omap_device *omap_device_build(const char *pdev_name, int pdev_id,
 				      struct omap_hwmod *oh, void *pdata,
 				      int pdata_len,
@@ -102,9 +99,6 @@ struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 					 void *pdata, int pdata_len,
 					 struct omap_device_pm_latency *pm_lats,
 					 int pm_lats_cnt, int is_early_device);
-
-int omap_device_register(struct omap_device *od);
-int omap_early_device_register(struct omap_device *od);
 
 void __iomem *omap_device_get_rt_va(struct omap_device *od);
 
