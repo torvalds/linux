@@ -18,6 +18,7 @@
 #include <mach/map.h>
 #include <mach/dma.h>
 #include <mach/irqs.h>
+#include <mach/regs-audss.h>
 
 static const char *rclksrc[] = {
 	[0] = "busclk",
