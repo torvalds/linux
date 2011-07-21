@@ -2023,6 +2023,55 @@ bfad_iocmd_itnim_get_ioprofile(struct bfad_s *bfad, void *cmd)
 	return 0;
 }
 
+int
+bfad_iocmd_fcport_get_stats(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_fcport_stats_s *iocmd =
+				(struct bfa_bsg_fcport_stats_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long	flags;
+	struct bfa_cb_pending_q_s cb_qe;
+
+	init_completion(&fcomp.comp);
+	bfa_pending_q_init(&cb_qe, (bfa_cb_cbfn_t)bfad_hcb_comp,
+			   &fcomp, &iocmd->stats);
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_fcport_get_stats(&bfad->bfa, &cb_qe);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK) {
+		bfa_trc(bfad, iocmd->status);
+		goto out;
+	}
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_fcport_reset_stats(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
+	struct bfad_hal_comp fcomp;
+	unsigned long	flags;
+	struct bfa_cb_pending_q_s cb_qe;
+
+	init_completion(&fcomp.comp);
+	bfa_pending_q_init(&cb_qe, (bfa_cb_cbfn_t)bfad_hcb_comp, &fcomp, NULL);
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status = bfa_fcport_clear_stats(&bfad->bfa, &cb_qe);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	if (iocmd->status != BFA_STATUS_OK) {
+		bfa_trc(bfad, iocmd->status);
+		goto out;
+	}
+	wait_for_completion(&fcomp.comp);
+	iocmd->status = fcomp.status;
+out:
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -2290,6 +2339,12 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_ITNIM_GET_IOPROFILE:
 		rc = bfad_iocmd_itnim_get_ioprofile(bfad, iocmd);
+		break;
+	case IOCMD_FCPORT_GET_STATS:
+		rc = bfad_iocmd_fcport_get_stats(bfad, iocmd);
+		break;
+	case IOCMD_FCPORT_RESET_STATS:
+		rc = bfad_iocmd_fcport_reset_stats(bfad, iocmd);
 		break;
 	default:
 		rc = -EINVAL;

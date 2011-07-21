@@ -2910,6 +2910,9 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 
 	port_cfg->trl_def_speed = BFA_PORT_SPEED_1GBPS;
 
+	INIT_LIST_HEAD(&fcport->stats_pending_q);
+	INIT_LIST_HEAD(&fcport->statsclr_pending_q);
+
 	bfa_reqq_winit(&fcport->reqq_wait, bfa_fcport_qresume, fcport);
 }
 
@@ -3138,30 +3141,38 @@ bfa_fcport_fcoe_stats_swap(struct bfa_fcoe_stats_s *d,
 static void
 __bfa_cb_fcport_stats_get(void *cbarg, bfa_boolean_t complete)
 {
-	struct bfa_fcport_s *fcport = cbarg;
+	struct bfa_fcport_s *fcport = (struct bfa_fcport_s *)cbarg;
+	struct bfa_cb_pending_q_s *cb;
+	struct list_head *qe, *qen;
+	union bfa_fcport_stats_u *ret;
 
 	if (complete) {
-		if (fcport->stats_status == BFA_STATUS_OK) {
-			struct timeval tv;
+		struct timeval tv;
+		if (fcport->stats_status == BFA_STATUS_OK)
+			do_gettimeofday(&tv);
 
-			/* Swap FC QoS or FCoE stats */
-			if (bfa_ioc_get_fcmode(&fcport->bfa->ioc)) {
-				bfa_fcport_qos_stats_swap(
-					&fcport->stats_ret->fcqos,
-					&fcport->stats->fcqos);
-			} else {
-				bfa_fcport_fcoe_stats_swap(
-					&fcport->stats_ret->fcoe,
-					&fcport->stats->fcoe);
-
-				do_gettimeofday(&tv);
-				fcport->stats_ret->fcoe.secs_reset =
+		list_for_each_safe(qe, qen, &fcport->stats_pending_q) {
+			bfa_q_deq(&fcport->stats_pending_q, &qe);
+			cb = (struct bfa_cb_pending_q_s *)qe;
+			if (fcport->stats_status == BFA_STATUS_OK) {
+				ret = (union bfa_fcport_stats_u *)cb->data;
+				/* Swap FC QoS or FCoE stats */
+				if (bfa_ioc_get_fcmode(&fcport->bfa->ioc))
+					bfa_fcport_qos_stats_swap(&ret->fcqos,
+							&fcport->stats->fcqos);
+				else {
+					bfa_fcport_fcoe_stats_swap(&ret->fcoe,
+							&fcport->stats->fcoe);
+					ret->fcoe.secs_reset =
 					tv.tv_sec - fcport->stats_reset_time;
+				}
 			}
+			bfa_cb_queue_status(fcport->bfa, &cb->hcb_qe,
+					fcport->stats_status);
 		}
-		fcport->stats_cbfn(fcport->stats_cbarg, fcport->stats_status);
+		fcport->stats_status = BFA_STATUS_OK;
 	} else {
-		fcport->stats_busy = BFA_FALSE;
+		INIT_LIST_HEAD(&fcport->stats_pending_q);
 		fcport->stats_status = BFA_STATUS_OK;
 	}
 }
@@ -3179,8 +3190,7 @@ bfa_fcport_stats_get_timeout(void *cbarg)
 	}
 
 	fcport->stats_status = BFA_STATUS_ETIMER;
-	bfa_cb_queue(fcport->bfa, &fcport->hcb_qe, __bfa_cb_fcport_stats_get,
-		fcport);
+	__bfa_cb_fcport_stats_get(fcport, BFA_TRUE);
 }
 
 static void
@@ -3210,7 +3220,9 @@ bfa_fcport_send_stats_get(void *cbarg)
 static void
 __bfa_cb_fcport_stats_clr(void *cbarg, bfa_boolean_t complete)
 {
-	struct bfa_fcport_s *fcport = cbarg;
+	struct bfa_fcport_s *fcport = (struct bfa_fcport_s *) cbarg;
+	struct bfa_cb_pending_q_s *cb;
+	struct list_head *qe, *qen;
 
 	if (complete) {
 		struct timeval tv;
@@ -3220,10 +3232,15 @@ __bfa_cb_fcport_stats_clr(void *cbarg, bfa_boolean_t complete)
 		 */
 		do_gettimeofday(&tv);
 		fcport->stats_reset_time = tv.tv_sec;
-
-		fcport->stats_cbfn(fcport->stats_cbarg, fcport->stats_status);
+		list_for_each_safe(qe, qen, &fcport->statsclr_pending_q) {
+			bfa_q_deq(&fcport->statsclr_pending_q, &qe);
+			cb = (struct bfa_cb_pending_q_s *)qe;
+			bfa_cb_queue_status(fcport->bfa, &cb->hcb_qe,
+						fcport->stats_status);
+		}
+		fcport->stats_status = BFA_STATUS_OK;
 	} else {
-		fcport->stats_busy = BFA_FALSE;
+		INIT_LIST_HEAD(&fcport->statsclr_pending_q);
 		fcport->stats_status = BFA_STATUS_OK;
 	}
 }
@@ -3241,8 +3258,7 @@ bfa_fcport_stats_clr_timeout(void *cbarg)
 	}
 
 	fcport->stats_status = BFA_STATUS_ETIMER;
-	bfa_cb_queue(fcport->bfa, &fcport->hcb_qe,
-			__bfa_cb_fcport_stats_clr, fcport);
+	__bfa_cb_fcport_stats_clr(fcport, BFA_TRUE);
 }
 
 static void
@@ -3462,28 +3478,26 @@ bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 		/*
 		 * check for timer pop before processing the rsp
 		 */
-		if (fcport->stats_busy == BFA_FALSE ||
-		    fcport->stats_status == BFA_STATUS_ETIMER)
+		if (list_empty(&fcport->stats_pending_q) ||
+		    (fcport->stats_status == BFA_STATUS_ETIMER))
 			break;
 
 		bfa_timer_stop(&fcport->timer);
 		fcport->stats_status = i2hmsg.pstatsget_rsp->status;
-		bfa_cb_queue(fcport->bfa, &fcport->hcb_qe,
-				__bfa_cb_fcport_stats_get, fcport);
+		__bfa_cb_fcport_stats_get(fcport, BFA_TRUE);
 		break;
 
 	case BFI_FCPORT_I2H_STATS_CLEAR_RSP:
 		/*
 		 * check for timer pop before processing the rsp
 		 */
-		if (fcport->stats_busy == BFA_FALSE ||
-		    fcport->stats_status == BFA_STATUS_ETIMER)
+		if (list_empty(&fcport->statsclr_pending_q) ||
+		    (fcport->stats_status == BFA_STATUS_ETIMER))
 			break;
 
 		bfa_timer_stop(&fcport->timer);
 		fcport->stats_status = BFA_STATUS_OK;
-		bfa_cb_queue(fcport->bfa, &fcport->hcb_qe,
-				__bfa_cb_fcport_stats_clr, fcport);
+		__bfa_cb_fcport_stats_clr(fcport, BFA_TRUE);
 		break;
 
 	case BFI_FCPORT_I2H_ENABLE_AEN:
@@ -3815,25 +3829,25 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr)
  * Fetch port statistics (FCQoS or FCoE).
  */
 bfa_status_t
-bfa_fcport_get_stats(struct bfa_s *bfa, union bfa_fcport_stats_u *stats,
-	bfa_cb_port_t cbfn, void *cbarg)
+bfa_fcport_get_stats(struct bfa_s *bfa, struct bfa_cb_pending_q_s *cb)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
-	if (fcport->stats_busy) {
-		bfa_trc(bfa, fcport->stats_busy);
+	if (bfa_ioc_is_disabled(&bfa->ioc))
+		return BFA_STATUS_IOC_DISABLED;
+
+	if (!list_empty(&fcport->statsclr_pending_q))
 		return BFA_STATUS_DEVBUSY;
-	}
 
-	fcport->stats_busy  = BFA_TRUE;
-	fcport->stats_ret   = stats;
-	fcport->stats_cbfn  = cbfn;
-	fcport->stats_cbarg = cbarg;
+	if (list_empty(&fcport->stats_pending_q)) {
+		list_add_tail(&cb->hcb_qe.qe, &fcport->stats_pending_q);
+		bfa_fcport_send_stats_get(fcport);
+		bfa_timer_start(bfa, &fcport->timer,
+				bfa_fcport_stats_get_timeout,
+				fcport, BFA_FCPORT_STATS_TOV);
+	} else
+		list_add_tail(&cb->hcb_qe.qe, &fcport->stats_pending_q);
 
-	bfa_fcport_send_stats_get(fcport);
-
-	bfa_timer_start(bfa, &fcport->timer, bfa_fcport_stats_get_timeout,
-			fcport, BFA_FCPORT_STATS_TOV);
 	return BFA_STATUS_OK;
 }
 
@@ -3841,26 +3855,24 @@ bfa_fcport_get_stats(struct bfa_s *bfa, union bfa_fcport_stats_u *stats,
  * Reset port statistics (FCQoS or FCoE).
  */
 bfa_status_t
-bfa_fcport_clear_stats(struct bfa_s *bfa, bfa_cb_port_t cbfn, void *cbarg)
+bfa_fcport_clear_stats(struct bfa_s *bfa, struct bfa_cb_pending_q_s *cb)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
-	if (fcport->stats_busy) {
-		bfa_trc(bfa, fcport->stats_busy);
+	if (!list_empty(&fcport->stats_pending_q))
 		return BFA_STATUS_DEVBUSY;
-	}
 
-	fcport->stats_busy  = BFA_TRUE;
-	fcport->stats_cbfn  = cbfn;
-	fcport->stats_cbarg = cbarg;
+	if (list_empty(&fcport->statsclr_pending_q)) {
+		list_add_tail(&cb->hcb_qe.qe, &fcport->statsclr_pending_q);
+		bfa_fcport_send_stats_clear(fcport);
+		bfa_timer_start(bfa, &fcport->timer,
+				bfa_fcport_stats_clr_timeout,
+				fcport, BFA_FCPORT_STATS_TOV);
+	} else
+		list_add_tail(&cb->hcb_qe.qe, &fcport->statsclr_pending_q);
 
-	bfa_fcport_send_stats_clear(fcport);
-
-	bfa_timer_start(bfa, &fcport->timer, bfa_fcport_stats_clr_timeout,
-			fcport, BFA_FCPORT_STATS_TOV);
 	return BFA_STATUS_OK;
 }
-
 
 /*
  * Fetch port attributes.

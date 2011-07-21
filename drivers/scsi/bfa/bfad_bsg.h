@@ -119,6 +119,8 @@ enum {
 	IOCMD_FCPIM_PROFILE_ON,
 	IOCMD_FCPIM_PROFILE_OFF,
 	IOCMD_ITNIM_GET_IOPROFILE,
+	IOCMD_FCPORT_GET_STATS,
+	IOCMD_FCPORT_RESET_STATS,
 };
 
 struct bfa_bsg_gen_s {
@@ -148,6 +150,13 @@ struct bfa_bsg_itnim_ioprofile_s {
 	wwn_t		lpwwn;
 	wwn_t		rpwwn;
 	struct bfa_itnim_ioprofile_s ioprofile;
+};
+
+struct bfa_bsg_fcport_stats_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	union bfa_fcport_stats_u stats;
 };
 
 struct bfa_bsg_ioc_name_s {

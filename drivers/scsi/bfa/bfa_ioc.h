@@ -367,6 +367,8 @@ struct bfa_cb_qe_s {
 	struct list_head	qe;
 	bfa_cb_cbfn_t	cbfn;
 	bfa_boolean_t	once;
+	bfa_boolean_t	pre_rmv;	/* set for stack based qe(s) */
+	bfa_status_t	fw_status;	/* to access fw status in comp proc */
 	void		*cbarg;
 };
 

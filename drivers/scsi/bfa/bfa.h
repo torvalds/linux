@@ -27,6 +27,7 @@
 struct bfa_s;
 
 typedef void (*bfa_isr_func_t) (struct bfa_s *bfa, struct bfi_msg_s *m);
+typedef void (*bfa_cb_cbfn_status_t) (void *cbarg, bfa_status_t status);
 
 /*
  * Interrupt message handlers
@@ -121,6 +122,7 @@ bfa_reqq_winit(struct bfa_reqq_wait_s *wqe, void (*qresume) (void *cbarg),
 #define bfa_cb_queue(__bfa, __hcb_qe, __cbfn, __cbarg) do {	\
 		(__hcb_qe)->cbfn  = (__cbfn);      \
 		(__hcb_qe)->cbarg = (__cbarg);      \
+		(__hcb_qe)->pre_rmv = BFA_FALSE;		\
 		list_add_tail(&(__hcb_qe)->qe, &(__bfa)->comp_q);      \
 	} while (0)
 
@@ -134,6 +136,11 @@ bfa_reqq_winit(struct bfa_reqq_wait_s *wqe, void (*qresume) (void *cbarg),
 			(__hcb_qe)->once = BFA_TRUE;			\
 		}							\
 	} while (0)
+
+#define bfa_cb_queue_status(__bfa, __hcb_qe, __status) do {		\
+		(__hcb_qe)->fw_status = (__status);			\
+		list_add_tail(&(__hcb_qe)->qe, &(__bfa)->comp_q);	\
+} while (0)
 
 #define bfa_cb_queue_done(__hcb_qe) do {	\
 		(__hcb_qe)->once = BFA_FALSE;	\
@@ -407,5 +414,19 @@ void bfa_iocfc_enable(struct bfa_s *bfa);
 void bfa_iocfc_disable(struct bfa_s *bfa);
 #define bfa_timer_start(_bfa, _timer, _timercb, _arg, _timeout)		\
 	bfa_timer_begin(&(_bfa)->timer_mod, _timer, _timercb, _arg, _timeout)
+
+struct bfa_cb_pending_q_s {
+	struct bfa_cb_qe_s	hcb_qe;
+	void			*data;  /* Driver buffer */
+};
+
+/* Common macros to operate on pending stats/attr apis */
+#define bfa_pending_q_init(__qe, __cbfn, __cbarg, __data) do {	\
+	bfa_q_qe_init(&((__qe)->hcb_qe.qe));			\
+	(__qe)->hcb_qe.cbfn = (__cbfn);				\
+	(__qe)->hcb_qe.cbarg = (__cbarg);			\
+	(__qe)->hcb_qe.pre_rmv = BFA_TRUE;			\
+	(__qe)->data = (__data);				\
+} while (0)
 
 #endif /* __BFA_H__ */
