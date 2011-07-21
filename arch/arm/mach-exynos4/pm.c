@@ -27,6 +27,7 @@
 #include <plat/cpu.h>
 #include <plat/pm.h>
 #include <plat/pll.h>
+#include <plat/regs-srom.h>
 
 #include <mach/regs-irq.h>
 #include <mach/regs-gpio.h>
@@ -67,7 +68,9 @@ static struct sleep_save exynos4_core_save[] = {
 	SAVE_ITEM(S5P_CLKSRC_TOP0),
 	SAVE_ITEM(S5P_CLKSRC_TOP1),
 	SAVE_ITEM(S5P_CLKSRC_CAM),
+	SAVE_ITEM(S5P_CLKSRC_TV),
 	SAVE_ITEM(S5P_CLKSRC_MFC),
+	SAVE_ITEM(S5P_CLKSRC_G3D),
 	SAVE_ITEM(S5P_CLKSRC_IMAGE),
 	SAVE_ITEM(S5P_CLKSRC_LCD0),
 	SAVE_ITEM(S5P_CLKSRC_LCD1),
@@ -94,6 +97,7 @@ static struct sleep_save exynos4_core_save[] = {
 	SAVE_ITEM(S5P_CLKDIV_PERIL4),
 	SAVE_ITEM(S5P_CLKDIV_PERIL5),
 	SAVE_ITEM(S5P_CLKDIV_TOP),
+	SAVE_ITEM(S5P_CLKSRC_MASK_TOP),
 	SAVE_ITEM(S5P_CLKSRC_MASK_CAM),
 	SAVE_ITEM(S5P_CLKSRC_MASK_TV),
 	SAVE_ITEM(S5P_CLKSRC_MASK_LCD0),
@@ -102,6 +106,7 @@ static struct sleep_save exynos4_core_save[] = {
 	SAVE_ITEM(S5P_CLKSRC_MASK_FSYS),
 	SAVE_ITEM(S5P_CLKSRC_MASK_PERIL0),
 	SAVE_ITEM(S5P_CLKSRC_MASK_PERIL1),
+	SAVE_ITEM(S5P_CLKDIV2_RATIO),
 	SAVE_ITEM(S5P_CLKGATE_SCLKCAM),
 	SAVE_ITEM(S5P_CLKGATE_IP_CAM),
 	SAVE_ITEM(S5P_CLKGATE_IP_TV),
@@ -122,8 +127,10 @@ static struct sleep_save exynos4_core_save[] = {
 	SAVE_ITEM(S5P_CLKGATE_IP_DMC),
 	SAVE_ITEM(S5P_CLKSRC_CPU),
 	SAVE_ITEM(S5P_CLKDIV_CPU),
+	SAVE_ITEM(S5P_CLKDIV_CPU + 0x4),
 	SAVE_ITEM(S5P_CLKGATE_SCLKCPU),
 	SAVE_ITEM(S5P_CLKGATE_IP_CPU),
+
 	/* GIC side */
 	SAVE_ITEM(S5P_VA_GIC_CPU + 0x000),
 	SAVE_ITEM(S5P_VA_GIC_CPU + 0x004),
@@ -206,6 +213,13 @@ static struct sleep_save exynos4_core_save[] = {
 	SAVE_ITEM(S5P_VA_COMBINER_BASE + 0x070),
 	SAVE_ITEM(S5P_VA_COMBINER_BASE + 0x080),
 	SAVE_ITEM(S5P_VA_COMBINER_BASE + 0x090),
+
+	/* SROM side */
+	SAVE_ITEM(S5P_SROM_BW),
+	SAVE_ITEM(S5P_SROM_BC0),
+	SAVE_ITEM(S5P_SROM_BC1),
+	SAVE_ITEM(S5P_SROM_BC2),
+	SAVE_ITEM(S5P_SROM_BC3),
 };
 
 static struct sleep_save exynos4_l2cc_save[] = {
