@@ -688,7 +688,7 @@ int wm831x_post_init(struct wm831x *parm)
 	
 	ldo = regulator_get(NULL, "ldo4");		// 4th usb
 	regulator_set_voltage(ldo,2500000,2500000);
-	regulator_set_suspend_voltage(ldo,2500000);
+	regulator_set_suspend_voltage(ldo,0000000);
 	regulator_enable(ldo);	
 	printk("%s set ldo4=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
