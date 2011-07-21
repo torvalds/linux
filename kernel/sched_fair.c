@@ -1506,6 +1506,7 @@ static void throttle_cfs_rq(struct cfs_rq *cfs_rq)
 		rq->nr_running -= task_delta;
 
 	cfs_rq->throttled = 1;
+	cfs_rq->throttled_timestamp = rq->clock;
 	raw_spin_lock(&cfs_b->lock);
 	list_add_tail_rcu(&cfs_rq->throttled_list, &cfs_b->throttled_cfs_rq);
 	raw_spin_unlock(&cfs_b->lock);
@@ -1523,8 +1524,10 @@ static void unthrottle_cfs_rq(struct cfs_rq *cfs_rq)
 
 	cfs_rq->throttled = 0;
 	raw_spin_lock(&cfs_b->lock);
+	cfs_b->throttled_time += rq->clock - cfs_rq->throttled_timestamp;
 	list_del_rcu(&cfs_rq->throttled_list);
 	raw_spin_unlock(&cfs_b->lock);
+	cfs_rq->throttled_timestamp = 0;
 
 	update_rq_clock(rq);
 	/* update hierarchical throttle state */
@@ -1612,6 +1615,7 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 	throttled = !list_empty(&cfs_b->throttled_cfs_rq);
 	/* idle depends on !throttled (for the case of a large deficit) */
 	idle = cfs_b->idle && !throttled;
+	cfs_b->nr_periods += overrun;
 
 	/* if we're going inactive then everything else can be deferred */
 	if (idle)
@@ -1624,6 +1628,9 @@ static int do_sched_cfs_period_timer(struct cfs_bandwidth *cfs_b, int overrun)
 		cfs_b->idle = 1;
 		goto out_unlock;
 	}
+
+	/* account preceding periods in which throttling occurred */
+	cfs_b->nr_throttled += overrun;
 
 	/*
 	 * There are throttled entities so we must first use the new bandwidth
