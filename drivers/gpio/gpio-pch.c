@@ -18,9 +18,6 @@
 #include <linux/pci.h>
 #include <linux/gpio.h>
 
-#define PCH_GPIO_ALL_PINS	0xfff /* Mask for GPIO pins 0 to 11 */
-#define GPIO_NUM_PINS	12	/* Specifies number of GPIO PINS GPIO0-GPIO11 */
-
 struct pch_regs {
 	u32	ien;
 	u32	istatus;
@@ -35,6 +32,19 @@ struct pch_regs {
 	u32	im1;
 	u32	reserved[4];
 	u32	reset;
+};
+
+enum pch_type_t {
+	INTEL_EG20T_PCH,
+	OKISEMI_ML7223m_IOH, /* OKISEMI ML7223 IOH PCIe Bus-m */
+	OKISEMI_ML7223n_IOH  /* OKISEMI ML7223 IOH PCIe Bus-n */
+};
+
+/* Specifies number of GPIO PINS */
+static int gpio_pins[] = {
+	[INTEL_EG20T_PCH] = 12,
+	[OKISEMI_ML7223m_IOH] = 8,
+	[OKISEMI_ML7223n_IOH] = 8,
 };
 
 /**
@@ -55,6 +65,7 @@ struct pch_gpio_reg_data {
  * @gpio:			Data for GPIO infrastructure.
  * @pch_gpio_reg:		Memory mapped Register data is saved here
  *				when suspend.
+ * @ioh:		IOH ID
  * @spinlock:		Used for register access protection in
  *				interrupt context pch_irq_mask,
  *				pch_irq_unmask and pch_irq_type;
@@ -66,6 +77,7 @@ struct pch_gpio {
 	struct gpio_chip gpio;
 	struct pch_gpio_reg_data pch_gpio_reg;
 	struct mutex lock;
+	enum pch_type_t ioh;
 	spinlock_t spinlock;
 };
 
@@ -100,7 +112,7 @@ static int pch_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 	u32 reg_val;
 
 	mutex_lock(&chip->lock);
-	pm = ioread32(&chip->reg->pm) & PCH_GPIO_ALL_PINS;
+	pm = ioread32(&chip->reg->pm) & ((1 << gpio_pins[chip->ioh]) - 1);
 	pm |= (1 << nr);
 	iowrite32(pm, &chip->reg->pm);
 
@@ -122,7 +134,7 @@ static int pch_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 	u32 pm;
 
 	mutex_lock(&chip->lock);
-	pm = ioread32(&chip->reg->pm) & PCH_GPIO_ALL_PINS; /*bits 0-11*/
+	pm = ioread32(&chip->reg->pm) & ((1 << gpio_pins[chip->ioh]) - 1);
 	pm &= ~(1 << nr);
 	iowrite32(pm, &chip->reg->pm);
 	mutex_unlock(&chip->lock);
@@ -162,7 +174,7 @@ static void pch_gpio_setup(struct pch_gpio *chip)
 	gpio->set = pch_gpio_set;
 	gpio->dbg_show = NULL;
 	gpio->base = -1;
-	gpio->ngpio = GPIO_NUM_PINS;
+	gpio->ngpio = gpio_pins[chip->ioh];
 	gpio->can_sleep = 0;
 }
 
@@ -195,6 +207,13 @@ static int __devinit pch_gpio_probe(struct pci_dev *pdev,
 		ret = -ENOMEM;
 		goto err_iomap;
 	}
+
+	if (pdev->device == 0x8803)
+		chip->ioh = INTEL_EG20T_PCH;
+	else if (pdev->device == 0x8014)
+		chip->ioh = OKISEMI_ML7223m_IOH;
+	else if (pdev->device == 0x8043)
+		chip->ioh = OKISEMI_ML7223n_IOH;
 
 	chip->reg = chip->base;
 	pci_set_drvdata(pdev, chip);
