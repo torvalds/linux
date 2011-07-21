@@ -177,7 +177,7 @@ struct bfa_msix_s {
 struct bfa_hwif_s {
 	void (*hw_reginit)(struct bfa_s *bfa);
 	void (*hw_reqq_ack)(struct bfa_s *bfa, int reqq);
-	void (*hw_rspq_ack)(struct bfa_s *bfa, int rspq);
+	void (*hw_rspq_ack)(struct bfa_s *bfa, int rspq, u32 ci);
 	void (*hw_msix_init)(struct bfa_s *bfa, int nvecs);
 	void (*hw_msix_ctrl_install)(struct bfa_s *bfa);
 	void (*hw_msix_queue_install)(struct bfa_s *bfa);
@@ -268,10 +268,8 @@ struct bfa_iocfc_s {
 	((__bfa)->iocfc.hwif.hw_msix_queue_install(__bfa))
 #define bfa_msix_uninstall(__bfa)					\
 	((__bfa)->iocfc.hwif.hw_msix_uninstall(__bfa))
-#define bfa_isr_rspq_ack(__bfa, __queue) do {				\
-	if ((__bfa)->iocfc.hwif.hw_rspq_ack)				\
-		(__bfa)->iocfc.hwif.hw_rspq_ack(__bfa, __queue);	\
-} while (0)
+#define bfa_isr_rspq_ack(__bfa, __queue, __ci)				\
+	((__bfa)->iocfc.hwif.hw_rspq_ack(__bfa, __queue, __ci))
 #define bfa_isr_reqq_ack(__bfa, __queue) do {				\
 	if ((__bfa)->iocfc.hwif.hw_reqq_ack)				\
 		(__bfa)->iocfc.hwif.hw_reqq_ack(__bfa, __queue);	\
@@ -311,7 +309,7 @@ void bfa_msix_rspq(struct bfa_s *bfa, int vec);
 void bfa_msix_lpu_err(struct bfa_s *bfa, int vec);
 
 void bfa_hwcb_reginit(struct bfa_s *bfa);
-void bfa_hwcb_rspq_ack(struct bfa_s *bfa, int rspq);
+void bfa_hwcb_rspq_ack(struct bfa_s *bfa, int rspq, u32 ci);
 void bfa_hwcb_msix_init(struct bfa_s *bfa, int nvecs);
 void bfa_hwcb_msix_ctrl_install(struct bfa_s *bfa);
 void bfa_hwcb_msix_queue_install(struct bfa_s *bfa);
@@ -324,7 +322,8 @@ void bfa_hwcb_msix_get_rme_range(struct bfa_s *bfa, u32 *start,
 void bfa_hwct_reginit(struct bfa_s *bfa);
 void bfa_hwct2_reginit(struct bfa_s *bfa);
 void bfa_hwct_reqq_ack(struct bfa_s *bfa, int rspq);
-void bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq);
+void bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq, u32 ci);
+void bfa_hwct2_rspq_ack(struct bfa_s *bfa, int rspq, u32 ci);
 void bfa_hwct_msix_init(struct bfa_s *bfa, int nvecs);
 void bfa_hwct_msix_ctrl_install(struct bfa_s *bfa);
 void bfa_hwct_msix_queue_install(struct bfa_s *bfa);

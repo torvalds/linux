@@ -237,8 +237,6 @@ bfa_isr_rspq(struct bfa_s *bfa, int qid)
 	u32	pi, ci;
 	struct list_head *waitq;
 
-	bfa_isr_rspq_ack(bfa, qid);
-
 	ci = bfa_rspq_ci(bfa, qid);
 	pi = bfa_rspq_pi(bfa, qid);
 
@@ -251,11 +249,9 @@ bfa_isr_rspq(struct bfa_s *bfa, int qid)
 	}
 
 	/*
-	 * update CI
+	 * acknowledge RME completions and update CI
 	 */
-	bfa_rspq_ci(bfa, qid) = pi;
-	writel(pi, bfa->iocfc.bfa_regs.rme_q_ci[qid]);
-	mmiowb();
+	bfa_isr_rspq_ack(bfa, qid, ci);
 
 	/*
 	 * Resume any pending requests in the corresponding reqq.
@@ -325,23 +321,19 @@ bfa_intx(struct bfa_s *bfa)
 	int queue;
 
 	intr = readl(bfa->iocfc.bfa_regs.intr_status);
-	if (!intr)
-		return BFA_FALSE;
 
 	qintr = intr & (__HFN_INT_RME_MASK | __HFN_INT_CPE_MASK);
 	if (qintr)
 		writel(qintr, bfa->iocfc.bfa_regs.intr_status);
 
 	/*
-	 * RME completion queue interrupt
+	 * Unconditional RME completion queue interrupt
 	 */
-	qintr = intr & __HFN_INT_RME_MASK;
-	if (qintr && bfa->queue_process) {
+	if (bfa->queue_process) {
 		for (queue = 0; queue < BFI_IOC_MAX_CQS; queue++)
 			bfa_isr_rspq(bfa, queue);
 	}
 
-	intr &= ~qintr;
 	if (!intr)
 		return BFA_TRUE;
 
@@ -432,7 +424,8 @@ bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
 				   __HFN_INT_MBOX_LPU1_CT2);
 		intr    &= __HFN_INT_ERR_MASK_CT2;
 	} else {
-		halt_isr = intr & __HFN_INT_LL_HALT;
+		halt_isr = bfa_asic_id_ct(bfa->ioc.pcidev.device_id) ?
+					  (intr & __HFN_INT_LL_HALT) : 0;
 		pss_isr  = intr & __HFN_INT_ERR_PSS;
 		lpu_isr  = intr & (__HFN_INT_MBOX_LPU0 | __HFN_INT_MBOX_LPU1);
 		intr    &= __HFN_INT_ERR_MASK;
@@ -578,7 +571,7 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	} else {
 		iocfc->hwif.hw_reginit = bfa_hwcb_reginit;
 		iocfc->hwif.hw_reqq_ack = NULL;
-		iocfc->hwif.hw_rspq_ack = NULL;
+		iocfc->hwif.hw_rspq_ack = bfa_hwcb_rspq_ack;
 		iocfc->hwif.hw_msix_init = bfa_hwcb_msix_init;
 		iocfc->hwif.hw_msix_ctrl_install = bfa_hwcb_msix_ctrl_install;
 		iocfc->hwif.hw_msix_queue_install = bfa_hwcb_msix_queue_install;
@@ -595,7 +588,7 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	if (bfa_asic_id_ct2(bfa_ioc_devid(&bfa->ioc))) {
 		iocfc->hwif.hw_reginit = bfa_hwct2_reginit;
 		iocfc->hwif.hw_isr_mode_set = NULL;
-		iocfc->hwif.hw_rspq_ack = NULL;
+		iocfc->hwif.hw_rspq_ack = bfa_hwct2_rspq_ack;
 	}
 
 	iocfc->hwif.hw_reginit(bfa);
@@ -685,7 +678,7 @@ bfa_iocfc_start_submod(struct bfa_s *bfa)
 
 	bfa->queue_process = BFA_TRUE;
 	for (i = 0; i < BFI_IOC_MAX_CQS; i++)
-		bfa_isr_rspq_ack(bfa, i);
+		bfa_isr_rspq_ack(bfa, i, bfa_rspq_ci(bfa, i));
 
 	for (i = 0; hal_mods[i]; i++)
 		hal_mods[i]->start(bfa);
