@@ -75,6 +75,9 @@ struct acc_dev {
 	/* for acc_complete_set_string */
 	int string_index;
 
+	/* set to 1 if we have a pending start request */
+	int start_requested;
+
 	/* synchronize access to our device file */
 	atomic_t open_excl;
 
@@ -505,6 +508,8 @@ static long acc_ioctl(struct file *fp, unsigned code, unsigned long value)
 	case ACCESSORY_GET_STRING_SERIAL:
 		src = dev->serial;
 		break;
+	case ACCESSORY_IS_START_REQUESTED:
+		return dev->start_requested;
 	}
 	if (!src)
 		return -EINVAL;
@@ -572,6 +577,7 @@ static int acc_ctrlrequest(struct usb_composite_dev *cdev,
 
 	if (b_requestType == (USB_DIR_OUT | USB_TYPE_VENDOR)) {
 		if (b_request == ACCESSORY_START) {
+			dev->start_requested = 1;
 			schedule_delayed_work(
 				&dev->work, msecs_to_jiffies(10));
 			value = 0;
@@ -593,6 +599,7 @@ static int acc_ctrlrequest(struct usb_composite_dev *cdev,
 			memset(dev->version, 0, sizeof(dev->version));
 			memset(dev->uri, 0, sizeof(dev->uri));
 			memset(dev->serial, 0, sizeof(dev->serial));
+			dev->start_requested = 0;
 		}
 	}
 
@@ -623,6 +630,8 @@ acc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	int			ret;
 
 	DBG(cdev, "acc_function_bind dev: %p\n", dev);
+
+	dev->start_requested = 0;
 
 	/* allocate interface ID(s) */
 	id = usb_interface_id(c, f);

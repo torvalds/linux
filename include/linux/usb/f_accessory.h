@@ -77,5 +77,7 @@
 #define ACCESSORY_GET_STRING_VERSION        _IOW('M', 4, char[256])
 #define ACCESSORY_GET_STRING_URI            _IOW('M', 5, char[256])
 #define ACCESSORY_GET_STRING_SERIAL         _IOW('M', 6, char[256])
+/* returns 1 if there is a start request pending */
+#define ACCESSORY_IS_START_REQUESTED        _IO('M', 7)
 
 #endif /* __LINUX_USB_F_ACCESSORY_H */
