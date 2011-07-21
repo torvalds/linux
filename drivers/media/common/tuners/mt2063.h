@@ -99,18 +99,6 @@
 #define MT2063_TUNER_CNT               (1)	/*  total num of MicroTuner tuners  */
 #define MT2063_I2C (0xC0)
 
-u32 MT2063_WriteSub(void *hUserData,
-			u32 addr,
-			u8 subAddress, u8 * pData, u32 cnt);
-
-u32 MT2063_ReadSub(void *hUserData,
-		       u32 addr,
-		       u8 subAddress, u8 * pData, u32 cnt);
-
-void MT2063_Sleep(void *hUserData, u32 nMinDelayTime);
-
-u32 MT2060_TunerGain(void *hUserData, s32 * pMeas);
-
 /*
  *  Constant defining the version of the following structure
  *  and therefore the API for this code.
@@ -179,22 +167,6 @@ struct MT2063_AvoidSpursData_t {
 	struct MT2063_ExclZone_t *usedZones;
 	struct MT2063_ExclZone_t MT2063_ExclZones[MT2063_MAX_ZONES];
 };
-
-u32 MT2063_RegisterTuner(struct MT2063_AvoidSpursData_t *pAS_Info);
-
-void MT2063_UnRegisterTuner(struct MT2063_AvoidSpursData_t *pAS_Info);
-
-void MT2063_ResetExclZones(struct MT2063_AvoidSpursData_t *pAS_Info);
-
-void MT2063_AddExclZone(struct MT2063_AvoidSpursData_t *pAS_Info,
-			u32 f_min, u32 f_max);
-
-u32 MT2063_ChooseFirstIF(struct MT2063_AvoidSpursData_t *pAS_Info);
-
-u32 MT2063_AvoidSpurs(void *h, struct MT2063_AvoidSpursData_t *pAS_Info);
-
-u32 MT2063_AvoidSpursVersion(void);
-
 
 /*
  *  Values returned by the MT2063's on-chip temperature sensor
@@ -539,52 +511,6 @@ enum MTTune_atv_standard {
 	MTTUNEA_DVBC,
 	MTTUNEA_DVBT
 };
-
-/* ====== Functions which are declared in MT2063.c File ======= */
-
-u32 MT2063_Open(u32 MT2063_Addr,
-		    void ** hMT2063, void *hUserData);
-
-u32 MT2063_Close(void *hMT2063);
-
-u32 MT2063_Tune(void *h, u32 f_in);	/* RF input center frequency   */
-
-u32 MT2063_GetGPIO(void *h, enum MT2063_GPIO_ID gpio_id,
-		       enum MT2063_GPIO_Attr attr, u32 * value);
-
-u32 MT2063_GetLocked(void *h);
-
-u32 MT2063_GetParam(void *h, enum MT2063_Param param, u32 * pValue);
-
-u32 MT2063_GetReg(void *h, u8 reg, u8 * val);
-
-u32 MT2063_GetTemp(void *h, enum MT2063_Temperature *value);
-
-u32 MT2063_GetUserData(void *h, void ** hUserData);
-
-u32 MT2063_ReInit(void *h);
-
-u32 MT2063_SetGPIO(void *h, enum MT2063_GPIO_ID gpio_id,
-		       enum MT2063_GPIO_Attr attr, u32 value);
-
-u32 MT2063_SetParam(void *h, enum MT2063_Param param, u32 nValue);
-
-u32 MT2063_SetPowerMaskBits(void *h, enum MT2063_Mask_Bits Bits);
-
-u32 MT2063_ClearPowerMaskBits(void *h, enum MT2063_Mask_Bits Bits);
-
-u32 MT2063_GetPowerMaskBits(void *h, enum MT2063_Mask_Bits *Bits);
-
-u32 MT2063_EnableExternalShutdown(void *h, u8 Enabled);
-
-u32 MT2063_SoftwareShutdown(void *h, u8 Shutdown);
-
-u32 MT2063_SetExtSRO(void *h, enum MT2063_Ext_SRO Ext_SRO_Setting);
-
-u32 MT2063_SetReg(void *h, u8 reg, u8 val);
-
-u32 MT_Tune_atv(void *h, u32 f_in, u32 bw_in,
-		    enum MTTune_atv_standard tv_type);
 
 struct mt2063_config {
 	u8 tuner_address;
