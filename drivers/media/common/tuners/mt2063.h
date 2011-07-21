@@ -23,7 +23,7 @@ static inline struct dvb_frontend *mt2063_attach(struct dvb_frontend *fe,
 	return NULL;
 }
 
-unsigned int mt2063_setTune(struct dvb_frontend *fe, u32 f_in,
+int mt2063_setTune(struct dvb_frontend *fe, u32 f_in,
 				   u32 bw_in,
 				   enum MTTune_atv_standard tv_type);
 
