@@ -820,7 +820,10 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 
 	if (victim_f) {
 		/* There was a victim. Kill it off nicely */
-		drop_nlink(new_dentry->d_inode);
+		if (S_ISDIR(new_dentry->d_inode->i_mode))
+			clear_nlink(new_dentry->d_inode);
+		else
+			drop_nlink(new_dentry->d_inode);
 		/* Don't oops if the victim was a dirent pointing to an
 		   inode which didn't exist. */
 		if (victim_f->inocache) {
