@@ -30,24 +30,48 @@ enum {
 	IOCMD_IOC_GET_INFO,
 	IOCMD_IOC_GET_STATS,
 	IOCMD_IOC_GET_FWSTATS,
+	IOCMD_IOC_RESET_STATS,
+	IOCMD_IOC_RESET_FWSTATS,
+	IOCMD_IOC_SET_ADAPTER_NAME,
+	IOCMD_IOC_SET_PORT_NAME,
 	IOCMD_IOCFC_GET_ATTR,
 	IOCMD_IOCFC_SET_INTR,
 	IOCMD_PORT_ENABLE,
 	IOCMD_PORT_DISABLE,
 	IOCMD_PORT_GET_ATTR,
 	IOCMD_PORT_GET_STATS,
+	IOCMD_PORT_RESET_STATS,
+	IOCMD_PORT_CFG_TOPO,
+	IOCMD_PORT_CFG_SPEED,
+	IOCMD_PORT_CFG_ALPA,
+	IOCMD_PORT_CFG_MAXFRSZ,
+	IOCMD_PORT_CLR_ALPA,
+	IOCMD_PORT_BBSC_ENABLE,
+	IOCMD_PORT_BBSC_DISABLE,
 	IOCMD_LPORT_GET_ATTR,
 	IOCMD_LPORT_GET_RPORTS,
 	IOCMD_LPORT_GET_STATS,
+	IOCMD_LPORT_RESET_STATS,
 	IOCMD_LPORT_GET_IOSTATS,
 	IOCMD_RPORT_GET_ATTR,
 	IOCMD_RPORT_GET_ADDR,
 	IOCMD_RPORT_GET_STATS,
+	IOCMD_RPORT_RESET_STATS,
+	IOCMD_RPORT_SET_SPEED,
+	IOCMD_VPORT_GET_ATTR,
+	IOCMD_VPORT_GET_STATS,
+	IOCMD_VPORT_RESET_STATS,
 	IOCMD_FABRIC_GET_LPORTS,
+	IOCMD_RATELIM_ENABLE,
+	IOCMD_RATELIM_DISABLE,
+	IOCMD_RATELIM_DEF_SPEED,
+	IOCMD_FCPIM_FAILOVER,
 	IOCMD_FCPIM_MODSTATS,
+	IOCMD_FCPIM_MODSTATSCLR,
 	IOCMD_FCPIM_DEL_ITN_STATS,
 	IOCMD_ITNIM_GET_ATTR,
 	IOCMD_ITNIM_GET_IOSTATS,
+	IOCMD_ITNIM_RESET_STATS,
 	IOCMD_ITNIM_GET_ITNSTATS,
 	IOCMD_IOC_PCIFN_CFG,
 	IOCMD_FCPORT_ENABLE,
@@ -86,12 +110,33 @@ enum {
 	IOCMD_PHY_READ_FW,
 	IOCMD_VHBA_QUERY,
 	IOCMD_DEBUG_PORTLOG,
+	IOCMD_DEBUG_FW_CORE,
+	IOCMD_DEBUG_FW_STATE_CLR,
+	IOCMD_DEBUG_PORTLOG_CLR,
+	IOCMD_DEBUG_START_DTRC,
+	IOCMD_DEBUG_STOP_DTRC,
+	IOCMD_DEBUG_PORTLOG_CTL,
 };
 
 struct bfa_bsg_gen_s {
 	bfa_status_t	status;
 	u16		bfad_num;
 	u16		rsvd;
+};
+
+struct bfa_bsg_portlogctl_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	bfa_boolean_t	ctl;
+	int		inst_no;
+};
+
+struct bfa_bsg_ioc_name_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	char		name[BFA_ADAPTER_SYM_NAME_LEN];
 };
 
 struct bfa_bsg_ioc_info_s {
@@ -162,6 +207,20 @@ struct bfa_bsg_port_attr_s {
 	u16		bfad_num;
 	u16		rsvd;
 	struct bfa_port_attr_s	attr;
+};
+
+struct bfa_bsg_port_cfg_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u32		param;
+	u32		rsvd1;
+};
+
+struct bfa_bsg_port_cfg_maxfrsize_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		maxfrsize;
 };
 
 struct bfa_bsg_port_stats_s {
@@ -237,6 +296,47 @@ struct bfa_bsg_rport_scsi_addr_s {
 	u32		lun;
 };
 
+struct bfa_bsg_rport_reset_stats_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		vf_id;
+	wwn_t		pwwn;
+	wwn_t		rpwwn;
+};
+
+struct bfa_bsg_rport_set_speed_s {
+	bfa_status_t		status;
+	u16			bfad_num;
+	u16			vf_id;
+	enum bfa_port_speed	speed;
+	u32			rsvd;
+	wwn_t			pwwn;
+	wwn_t			rpwwn;
+};
+
+struct bfa_bsg_vport_attr_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		vf_id;
+	wwn_t		vpwwn;
+	struct bfa_vport_attr_s vport_attr;
+};
+
+struct bfa_bsg_vport_stats_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		vf_id;
+	wwn_t		vpwwn;
+	struct bfa_vport_stats_s vport_stats;
+};
+
+struct bfa_bsg_reset_stats_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		vf_id;
+	wwn_t		vpwwn;
+};
+
 struct bfa_bsg_fabric_get_lports_s {
 	bfa_status_t	status;
 	u16		bfad_num;
@@ -244,6 +344,19 @@ struct bfa_bsg_fabric_get_lports_s {
 	u64		buf_ptr;
 	u32		nports;
 	u32		rsvd;
+};
+
+struct bfa_bsg_trl_speed_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	enum bfa_port_speed speed;
+};
+
+struct bfa_bsg_fcpim_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		param;
 };
 
 struct bfa_bsg_fcpim_modstats_s {
@@ -256,6 +369,11 @@ struct bfa_bsg_fcpim_del_itn_stats_s {
 	bfa_status_t	status;
 	u16		bfad_num;
 	struct bfa_fcpim_del_itn_stats_s modstats;
+};
+
+struct bfa_bsg_fcpim_modstatsclr_s {
+	bfa_status_t	status;
+	u16		bfad_num;
 };
 
 struct bfa_bsg_itnim_attr_s {

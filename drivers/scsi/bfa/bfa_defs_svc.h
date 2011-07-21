@@ -268,6 +268,7 @@ struct bfa_fw_port_snsm_stats_s {
     u32    error_resets;       /*  error resets initiated by upsm      */
     u32    sync_lost;          /*  Sync loss count                     */
     u32    sig_lost;           /*  Signal loss count                   */
+	u32	asn8g_attempts;	/* SNSM HWSM at 8Gbps attempts */
 };
 
 struct bfa_fw_port_physm_stats_s {

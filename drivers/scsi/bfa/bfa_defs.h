@@ -144,6 +144,7 @@ enum bfa_status {
 	BFA_STATUS_INVLD_DFSZ	= 24,	/*  Invalid Max data field size */
 	BFA_STATUS_CMD_NOTSUPP  = 26,   /*  Command/API not supported */
 	BFA_STATUS_FABRIC_RJT	= 29,	/*  Reject from attached fabric */
+	BFA_STATUS_UNKNOWN_VWWN = 30,	/*  VPORT PWWN not found */
 	BFA_STATUS_PORT_OFFLINE = 34,	/*  Port is not online */
 	BFA_STATUS_VPORT_WWN_BP	= 46,	/*  WWN is same as base port's WWN */
 	BFA_STATUS_PORT_NOT_DISABLED = 47, /* Port not disabled disable port */
