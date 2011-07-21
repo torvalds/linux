@@ -328,8 +328,10 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (new_dentry->d_inode) {
 		simple_unlink(new_dir, new_dentry);
-		if (they_are_dirs)
+		if (they_are_dirs) {
+			drop_nlink(new_dentry->d_inode);
 			drop_nlink(old_dir);
+		}
 	} else if (they_are_dirs) {
 		drop_nlink(old_dir);
 		inc_nlink(new_dir);
