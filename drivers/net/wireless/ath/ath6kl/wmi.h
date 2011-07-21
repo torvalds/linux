@@ -116,7 +116,6 @@ struct wmi {
 	u8 fat_pipe_exist;
 	struct ath6kl *parent_dev;
 	struct wmi_stats stat;
-	struct ath6kl_node_table scan_table;
 	u8 bssid[ETH_ALEN];
 	u8 pwr_mode;
 	u8 phy_mode;

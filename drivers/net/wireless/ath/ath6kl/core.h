@@ -455,6 +455,8 @@ struct ath6kl {
 	size_t fw_patch_len;
 
 	struct workqueue_struct *ath6kl_wq;
+
+	struct ath6kl_node_table scan_table;
 };
 
 static inline void *ath6kl_priv(struct net_device *dev)
