@@ -22,7 +22,9 @@
 typedef u64 cycle_t;
 struct clocksource;
 
+#ifdef CONFIG_ARCH_CLOCKSOURCE_DATA
 #include <asm/clocksource.h>
+#endif
 
 /**
  * struct cyclecounter - hardware abstraction for a free running counter
@@ -171,7 +173,7 @@ struct clocksource {
 	u32 shift;
 	u64 max_idle_ns;
 
-#ifdef __ARCH_HAS_CLOCKSOURCE_DATA
+#ifdef CONFIG_ARCH_CLOCKSOURCE_DATA
 	struct arch_clocksource_data archdata;
 #endif
 

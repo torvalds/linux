@@ -5,8 +5,6 @@
 
 #ifdef CONFIG_X86_64
 
-#define __ARCH_HAS_CLOCKSOURCE_DATA
-
 #define VCLOCK_NONE 0  /* No vDSO clock available.	*/
 #define VCLOCK_TSC  1  /* vDSO should use vread_tsc.	*/
 #define VCLOCK_HPET 2  /* vDSO should use vread_hpet.	*/
