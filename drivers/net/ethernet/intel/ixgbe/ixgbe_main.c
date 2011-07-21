@@ -3409,16 +3409,12 @@ static void ixgbe_fdir_filter_restore(struct ixgbe_adapter *adapter)
 
 static void ixgbe_configure(struct ixgbe_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
-	struct ixgbe_hw *hw = &adapter->hw;
-	int i;
-
 	ixgbe_configure_pb(adapter);
 #ifdef CONFIG_IXGBE_DCB
 	ixgbe_configure_dcb(adapter);
 #endif
 
-	ixgbe_set_rx_mode(netdev);
+	ixgbe_set_rx_mode(adapter->netdev);
 	ixgbe_restore_vlan(adapter);
 
 #ifdef IXGBE_FCOE
@@ -3427,15 +3423,14 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 
 #endif /* IXGBE_FCOE */
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			adapter->tx_ring[i]->atr_sample_rate =
-						       adapter->atr_sample_rate;
-		ixgbe_init_fdir_signature_82599(hw, adapter->fdir_pballoc);
+		ixgbe_init_fdir_signature_82599(&adapter->hw,
+						adapter->fdir_pballoc);
 	} else if (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE) {
 		ixgbe_init_fdir_perfect_82599(&adapter->hw,
 					      adapter->fdir_pballoc);
 		ixgbe_fdir_filter_restore(adapter);
 	}
+
 	ixgbe_configure_virtualization(adapter);
 
 	ixgbe_configure_tx(adapter);
