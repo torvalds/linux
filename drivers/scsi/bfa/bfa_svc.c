@@ -4677,6 +4677,7 @@ bfa_rport_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 		rp = BFA_RPORT_FROM_TAG(bfa, msg.create_rsp->bfa_handle);
 		rp->fw_handle = msg.create_rsp->fw_handle;
 		rp->qos_attr = msg.create_rsp->qos_attr;
+		bfa_rport_set_lunmask(bfa, rp);
 		WARN_ON(msg.create_rsp->status != BFA_STATUS_OK);
 		bfa_sm_send_event(rp, BFA_RPORT_SM_FWRSP);
 		break;
@@ -4684,6 +4685,7 @@ bfa_rport_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 	case BFI_RPORT_I2H_DELETE_RSP:
 		rp = BFA_RPORT_FROM_TAG(bfa, msg.delete_rsp->bfa_handle);
 		WARN_ON(msg.delete_rsp->status != BFA_STATUS_OK);
+		bfa_rport_unset_lunmask(bfa, rp);
 		bfa_sm_send_event(rp, BFA_RPORT_SM_FWRSP);
 		break;
 
@@ -4764,6 +4766,37 @@ bfa_rport_speed(struct bfa_rport_s *rport, enum bfa_port_speed speed)
 	bfa_sm_send_event(rport, BFA_RPORT_SM_SET_SPEED);
 }
 
+/* Set Rport LUN Mask */
+void
+bfa_rport_set_lunmask(struct bfa_s *bfa, struct bfa_rport_s *rp)
+{
+	struct bfa_lps_mod_s	*lps_mod = BFA_LPS_MOD(bfa);
+	wwn_t	lp_wwn, rp_wwn;
+	u8 lp_tag = (u8)rp->rport_info.lp_tag;
+
+	rp_wwn = ((struct bfa_fcs_rport_s *)rp->rport_drv)->pwwn;
+	lp_wwn = (BFA_LPS_FROM_TAG(lps_mod, rp->rport_info.lp_tag))->pwwn;
+
+	BFA_LPS_FROM_TAG(lps_mod, rp->rport_info.lp_tag)->lun_mask =
+					rp->lun_mask = BFA_TRUE;
+	bfa_fcpim_lunmask_rp_update(bfa, lp_wwn, rp_wwn, rp->rport_tag, lp_tag);
+}
+
+/* Unset Rport LUN mask */
+void
+bfa_rport_unset_lunmask(struct bfa_s *bfa, struct bfa_rport_s *rp)
+{
+	struct bfa_lps_mod_s	*lps_mod = BFA_LPS_MOD(bfa);
+	wwn_t	lp_wwn, rp_wwn;
+
+	rp_wwn = ((struct bfa_fcs_rport_s *)rp->rport_drv)->pwwn;
+	lp_wwn = (BFA_LPS_FROM_TAG(lps_mod, rp->rport_info.lp_tag))->pwwn;
+
+	BFA_LPS_FROM_TAG(lps_mod, rp->rport_info.lp_tag)->lun_mask =
+				rp->lun_mask = BFA_FALSE;
+	bfa_fcpim_lunmask_rp_update(bfa, lp_wwn, rp_wwn,
+			BFA_RPORT_TAG_INVALID, BFA_LP_TAG_INVALID);
+}
 
 /*
  * SGPG related functions

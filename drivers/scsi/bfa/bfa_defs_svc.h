@@ -672,6 +672,12 @@ struct bfa_itnim_iostats_s {
 	u32	tm_iocdowns;		/*  TM cleaned-up due to IOC down   */
 	u32	tm_cleanups;		/*  TM cleanup requests	*/
 	u32	tm_cleanup_comps;	/*  TM cleanup completions	*/
+	u32	lm_lun_across_sg;	/*  LM lun is across sg data buf */
+	u32	lm_lun_not_sup;		/*  LM lun not supported */
+	u32	lm_rpl_data_changed;	/*  LM report-lun data changed */
+	u32	lm_wire_residue_changed; /* LM report-lun rsp residue changed */
+	u32	lm_small_buf_addresidue; /* LM buf smaller than reported cnt */
+	u32	lm_lun_not_rdy;		/* LM lun not ready */
 };
 
 /* Modify char* port_stt[] in bfal_port.c if a new state was added */
@@ -787,6 +793,28 @@ enum bfa_port_linkstate_rsn {
 	CEE_ISCSI_PRI_PFC_OFF			= 42,
 	CEE_ISCSI_PRI_OVERLAP_FCOE_PRI		= 43
 };
+
+#define MAX_LUN_MASK_CFG 16
+
+/*
+ * Initially flash content may be fff. On making LUN mask enable and disable
+ * state chnage.  when report lun command is being processed it goes from
+ * BFA_LUN_MASK_ACTIVE to BFA_LUN_MASK_FETCH and comes back to
+ * BFA_LUN_MASK_ACTIVE.
+ */
+enum bfa_ioim_lun_mask_state_s {
+	BFA_IOIM_LUN_MASK_INACTIVE = 0,
+	BFA_IOIM_LUN_MASK_ACTIVE = 1,
+	BFA_IOIM_LUN_MASK_FETCHED = 2,
+};
+
+enum bfa_lunmask_state_s {
+	BFA_LUNMASK_DISABLED = 0x00,
+	BFA_LUNMASK_ENABLED = 0x01,
+	BFA_LUNMASK_MINCFG = 0x02,
+	BFA_LUNMASK_UNINITIALIZED = 0xff,
+};
+
 #pragma pack(1)
 /*
  * LUN mask configuration
@@ -794,7 +822,7 @@ enum bfa_port_linkstate_rsn {
 struct bfa_lun_mask_s {
 	wwn_t		lp_wwn;
 	wwn_t		rp_wwn;
-	lun_t		lun;
+	struct scsi_lun	lun;
 	u8		ua;
 	u8		rsvd[3];
 	u16		rp_tag;
