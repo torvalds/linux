@@ -25,6 +25,7 @@
 #include <plat/adc-core.h>
 #include <plat/sdhci.h>
 #include <plat/devs.h>
+#include <plat/fb-core.h>
 #include <plat/fimc-core.h>
 #include <plat/iic-core.h>
 
@@ -153,6 +154,8 @@ void __init exynos4_map_io(void)
 	s3c_i2c0_setname("s3c2440-i2c");
 	s3c_i2c1_setname("s3c2440-i2c");
 	s3c_i2c2_setname("s3c2440-i2c");
+
+	s5p_fb_setname(0, "exynos4-fb");
 }
 
 void __init exynos4_init_clocks(int xtal)
