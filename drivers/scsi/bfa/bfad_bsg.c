@@ -2349,6 +2349,51 @@ out:
 	return 0;
 }
 
+int
+bfad_iocmd_vf_get_stats(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_vf_stats_s *iocmd =
+			(struct bfa_bsg_vf_stats_s *)cmd;
+	struct bfa_fcs_fabric_s	*fcs_vf;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	fcs_vf = bfa_fcs_vf_lookup(&bfad->bfa_fcs, iocmd->vf_id);
+	if (fcs_vf == NULL) {
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		iocmd->status = BFA_STATUS_UNKNOWN_VFID;
+		goto out;
+	}
+	memcpy((void *)&iocmd->stats, (void *)&fcs_vf->stats,
+		sizeof(struct bfa_vf_stats_s));
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	iocmd->status = BFA_STATUS_OK;
+out:
+	return 0;
+}
+
+int
+bfad_iocmd_vf_clr_stats(struct bfad_s *bfad, void *cmd)
+{
+	struct bfa_bsg_vf_reset_stats_s *iocmd =
+			(struct bfa_bsg_vf_reset_stats_s *)cmd;
+	struct bfa_fcs_fabric_s	*fcs_vf;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	fcs_vf = bfa_fcs_vf_lookup(&bfad->bfa_fcs, iocmd->vf_id);
+	if (fcs_vf == NULL) {
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		iocmd->status = BFA_STATUS_UNKNOWN_VFID;
+		goto out;
+	}
+	memset((void *)&fcs_vf->stats, 0, sizeof(struct bfa_vf_stats_s));
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	iocmd->status = BFA_STATUS_OK;
+out:
+	return 0;
+}
+
 static int
 bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		unsigned int payload_len)
@@ -2660,6 +2705,12 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 		break;
 	case IOCMD_QOS_RESET_STATS:
 		rc = bfad_iocmd_qos_reset_stats(bfad, iocmd);
+		break;
+	case IOCMD_VF_GET_STATS:
+		rc = bfad_iocmd_vf_get_stats(bfad, iocmd);
+		break;
+	case IOCMD_VF_RESET_STATS:
+		rc = bfad_iocmd_vf_clr_stats(bfad, iocmd);
 		break;
 	default:
 		rc = -EINVAL;

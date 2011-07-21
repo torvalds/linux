@@ -135,6 +135,8 @@ enum {
 	IOCMD_QOS_GET_VC_ATTR,
 	IOCMD_QOS_GET_STATS,
 	IOCMD_QOS_RESET_STATS,
+	IOCMD_VF_GET_STATS,
+	IOCMD_VF_RESET_STATS,
 };
 
 struct bfa_bsg_gen_s {
@@ -684,6 +686,19 @@ struct bfa_bsg_qos_vc_attr_s {
 	u16		bfad_num;
 	u16		rsvd;
 	struct bfa_qos_vc_attr_s attr;
+};
+
+struct bfa_bsg_vf_stats_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		vf_id;
+	struct bfa_vf_stats_s	stats;
+};
+
+struct bfa_bsg_vf_reset_stats_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		vf_id;
 };
 
 struct bfa_bsg_fcpt_s {
