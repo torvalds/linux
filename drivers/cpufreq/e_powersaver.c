@@ -19,6 +19,11 @@
 #include <asm/msr.h>
 #include <asm/tsc.h>
 
+#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+#include <linux/acpi.h>
+#include <acpi/processor.h>
+#endif
+
 #define EPS_BRAND_C7M	0
 #define EPS_BRAND_C7	1
 #define EPS_BRAND_EDEN	2
@@ -27,6 +32,9 @@
 
 struct eps_cpu_data {
 	u32 fsb;
+#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+	u32 bios_limit;
+#endif
 	struct cpufreq_frequency_table freq_table[];
 };
 
@@ -36,6 +44,46 @@ static struct eps_cpu_data *eps_cpu[NR_CPUS];
 static int freq_failsafe_off;
 static int voltage_failsafe_off;
 
+#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+static int ignore_acpi_limit;
+
+static struct acpi_processor_performance *eps_acpi_cpu_perf;
+
+/* Minimum necessary to get acpi_processor_get_bios_limit() working */
+static int eps_acpi_init(void)
+{
+	eps_acpi_cpu_perf = kzalloc(sizeof(struct acpi_processor_performance),
+				      GFP_KERNEL);
+	if (!eps_acpi_cpu_perf)
+		return -ENOMEM;
+
+	if (!zalloc_cpumask_var(&eps_acpi_cpu_perf->shared_cpu_map,
+								GFP_KERNEL)) {
+		kfree(eps_acpi_cpu_perf);
+		eps_acpi_cpu_perf = NULL;
+		return -ENOMEM;
+	}
+
+	if (acpi_processor_register_performance(eps_acpi_cpu_perf, 0)) {
+		free_cpumask_var(eps_acpi_cpu_perf->shared_cpu_map);
+		kfree(eps_acpi_cpu_perf);
+		eps_acpi_cpu_perf = NULL;
+		return -EIO;
+	}
+	return 0;
+}
+
+static int eps_acpi_exit(struct cpufreq_policy *policy)
+{
+	if (eps_acpi_cpu_perf) {
+		acpi_processor_unregister_performance(eps_acpi_cpu_perf, 0);
+		free_cpumask_var(eps_acpi_cpu_perf->shared_cpu_map);
+		kfree(eps_acpi_cpu_perf);
+		eps_acpi_cpu_perf = NULL;
+	}
+	return 0;
+}
+#endif
 
 static unsigned int eps_get(unsigned int cpu)
 {
@@ -168,6 +216,9 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	int k, step, voltage;
 	int ret;
 	int states;
+#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+	unsigned int limit;
+#endif
 
 	if (policy->cpu != 0)
 		return -ENODEV;
@@ -271,6 +322,24 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 
 	/* Calc FSB speed */
 	fsb = cpu_khz / current_multiplier;
+
+#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+	/* Check for ACPI processor speed limit */
+	if (!ignore_acpi_limit && !eps_acpi_init()) {
+		if (!acpi_processor_get_bios_limit(policy->cpu, &limit)) {
+			printk(KERN_INFO "eps: ACPI limit %u.%uGHz\n",
+				limit/1000000,
+				(limit%1000000)/10000);
+			eps_acpi_exit(policy);
+			/* Check if max_multiplier is in BIOS limits */
+			if (limit && max_multiplier * fsb > limit) {
+				printk(KERN_INFO "eps: Aborting.\n");
+				return -EINVAL;
+			}
+		}
+	}
+#endif
+
 	/* Calc number of p-states supported */
 	if (brand == EPS_BRAND_C7M)
 		states = max_multiplier - min_multiplier + 1;
@@ -287,6 +356,9 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 
 	/* Copy basic values */
 	centaur->fsb = fsb;
+#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+	centaur->bios_limit = limit;
+#endif
 
 	/* Fill frequency and MSR value table */
 	f_table = &centaur->freq_table[0];
@@ -377,6 +449,10 @@ module_param(freq_failsafe_off, int, 0644);
 MODULE_PARM_DESC(freq_failsafe_off, "Disable current vs max frequency check");
 module_param(voltage_failsafe_off, int, 0644);
 MODULE_PARM_DESC(voltage_failsafe_off, "Disable current vs max voltage check");
+#if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
+module_param(ignore_acpi_limit, int, 0644);
+MODULE_PARM_DESC(ignore_acpi_limit, "Don't check ACPI's processor speed limit");
+#endif
 
 MODULE_AUTHOR("Rafal Bilski <rafalbilski@interia.pl>");
 MODULE_DESCRIPTION("Enhanced PowerSaver driver for VIA C7 CPU's.");
