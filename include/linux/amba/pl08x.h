@@ -173,7 +173,8 @@ struct pl08x_dma_chan {
 	struct tasklet_struct tasklet;
 	char *name;
 	struct pl08x_channel_data *cd;
-	dma_addr_t runtime_addr;
+	dma_addr_t src_addr;
+	dma_addr_t dst_addr;
 	enum dma_data_direction	runtime_direction;
 	dma_cookie_t lc;
 	struct list_head pend_list;
