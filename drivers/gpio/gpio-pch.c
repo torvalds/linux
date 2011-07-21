@@ -241,7 +241,6 @@ static int pch_gpio_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct pch_gpio *chip = pci_get_drvdata(pdev);
 
 	pch_gpio_save_reg_conf(chip);
-	pch_gpio_restore_reg_conf(chip);
 
 	ret = pci_save_state(pdev);
 	if (ret) {
