@@ -3,13 +3,6 @@
 
 #include "dvb_frontend.h"
 
-enum Bool_t {
-  FALSE = 0,
-  TRUE
-};
-
-typedef unsigned long  u32_t;
-
 #define DVBFE_TUNER_OPEN			99
 #define DVBFE_TUNER_SOFTWARE_SHUTDOWN		100
 #define DVBFE_TUNER_CLEAR_POWER_MASKBITS	101
@@ -90,12 +83,7 @@ typedef unsigned long  u32_t;
  */
 #define MT2060_CNT 10
 
-typedef unsigned char U8Data;	/*  type corresponds to 8 bits      */
-typedef unsigned int UData_t;	/*  type must be at least 32 bits   */
-typedef int SData_t;		/*  type must be at least 32 bits   */
-typedef void *Handle_t;		/*  memory pointer type             */
-
-#define MAX_UDATA         (4294967295)	/*  max value storable in UData_t   */
+#define MAX_UDATA         (4294967295)	/*  max value storable in u32   */
 
 /*
  * Define an MTxxxx_CNT macro for each type of tuner that will be built
@@ -115,19 +103,19 @@ typedef void *Handle_t;		/*  memory pointer type             */
 #endif
 #define MT2063_I2C (0xC0)
 
-UData_t MT2063_WriteSub(Handle_t hUserData,
-			UData_t addr,
-			U8Data subAddress, U8Data * pData, UData_t cnt);
+u32 MT2063_WriteSub(void *hUserData,
+			u32 addr,
+			u8 subAddress, u8 * pData, u32 cnt);
 
-UData_t MT2063_ReadSub(Handle_t hUserData,
-		       UData_t addr,
-		       U8Data subAddress, U8Data * pData, UData_t cnt);
+u32 MT2063_ReadSub(void *hUserData,
+		       u32 addr,
+		       u8 subAddress, u8 * pData, u32 cnt);
 
-void MT2063_Sleep(Handle_t hUserData, UData_t nMinDelayTime);
+void MT2063_Sleep(void *hUserData, u32 nMinDelayTime);
 
 #if defined(MT2060_CNT)
 #if MT2060_CNT > 0
-UData_t MT2060_TunerGain(Handle_t hUserData, SData_t * pMeas);
+u32 MT2060_TunerGain(void *hUserData, s32 * pMeas);
 #endif
 #endif
 
@@ -163,8 +151,8 @@ enum MT2063_DECT_Avoid_Type {
 struct MT2063_ExclZone_t;
 
 struct MT2063_ExclZone_t {
-	UData_t min_;
-	UData_t max_;
+	u32 min_;
+	u32 max_;
 	struct MT2063_ExclZone_t *next_;
 };
 
@@ -172,48 +160,48 @@ struct MT2063_ExclZone_t {
  *  Structure of data needed for Spur Avoidance
  */
 struct MT2063_AvoidSpursData_t {
-	UData_t nAS_Algorithm;
-	UData_t f_ref;
-	UData_t f_in;
-	UData_t f_LO1;
-	UData_t f_if1_Center;
-	UData_t f_if1_Request;
-	UData_t f_if1_bw;
-	UData_t f_LO2;
-	UData_t f_out;
-	UData_t f_out_bw;
-	UData_t f_LO1_Step;
-	UData_t f_LO2_Step;
-	UData_t f_LO1_FracN_Avoid;
-	UData_t f_LO2_FracN_Avoid;
-	UData_t f_zif_bw;
-	UData_t f_min_LO_Separation;
-	UData_t maxH1;
-	UData_t maxH2;
+	u32 nAS_Algorithm;
+	u32 f_ref;
+	u32 f_in;
+	u32 f_LO1;
+	u32 f_if1_Center;
+	u32 f_if1_Request;
+	u32 f_if1_bw;
+	u32 f_LO2;
+	u32 f_out;
+	u32 f_out_bw;
+	u32 f_LO1_Step;
+	u32 f_LO2_Step;
+	u32 f_LO1_FracN_Avoid;
+	u32 f_LO2_FracN_Avoid;
+	u32 f_zif_bw;
+	u32 f_min_LO_Separation;
+	u32 maxH1;
+	u32 maxH2;
 	enum MT2063_DECT_Avoid_Type avoidDECT;
-	UData_t bSpurPresent;
-	UData_t bSpurAvoided;
-	UData_t nSpursFound;
-	UData_t nZones;
+	u32 bSpurPresent;
+	u32 bSpurAvoided;
+	u32 nSpursFound;
+	u32 nZones;
 	struct MT2063_ExclZone_t *freeZones;
 	struct MT2063_ExclZone_t *usedZones;
 	struct MT2063_ExclZone_t MT2063_ExclZones[MT2063_MAX_ZONES];
 };
 
-UData_t MT2063_RegisterTuner(struct MT2063_AvoidSpursData_t *pAS_Info);
+u32 MT2063_RegisterTuner(struct MT2063_AvoidSpursData_t *pAS_Info);
 
 void MT2063_UnRegisterTuner(struct MT2063_AvoidSpursData_t *pAS_Info);
 
 void MT2063_ResetExclZones(struct MT2063_AvoidSpursData_t *pAS_Info);
 
 void MT2063_AddExclZone(struct MT2063_AvoidSpursData_t *pAS_Info,
-			UData_t f_min, UData_t f_max);
+			u32 f_min, u32 f_max);
 
-UData_t MT2063_ChooseFirstIF(struct MT2063_AvoidSpursData_t *pAS_Info);
+u32 MT2063_ChooseFirstIF(struct MT2063_AvoidSpursData_t *pAS_Info);
 
-UData_t MT2063_AvoidSpurs(Handle_t h, struct MT2063_AvoidSpursData_t *pAS_Info);
+u32 MT2063_AvoidSpurs(void *h, struct MT2063_AvoidSpursData_t *pAS_Info);
 
-UData_t MT2063_AvoidSpursVersion(void);
+u32 MT2063_AvoidSpursVersion(void);
 
 
 /*
@@ -531,18 +519,18 @@ enum MT2063_Register_Offsets {
 };
 
 struct MT2063_Info_t {
-	Handle_t handle;
-	Handle_t hUserData;
-	UData_t address;
-	UData_t version;
-	UData_t tuner_id;
+	void *handle;
+	void *hUserData;
+	u32 address;
+	u32 version;
+	u32 tuner_id;
 	struct MT2063_AvoidSpursData_t AS_Data;
-	UData_t f_IF1_actual;
-	UData_t rcvr_mode;
-	UData_t ctfilt_sw;
-	UData_t CTFiltMax[31];
-	UData_t num_regs;
-	U8Data reg[MT2063_REG_END_REGS];
+	u32 f_IF1_actual;
+	u32 rcvr_mode;
+	u32 ctfilt_sw;
+	u32 CTFiltMax[31];
+	u32 num_regs;
+	u8 reg[MT2063_REG_END_REGS];
 };
 typedef struct MT2063_Info_t *pMT2063_Info_t;
 
@@ -562,48 +550,48 @@ enum MTTune_atv_standard {
 
 /* ====== Functions which are declared in MT2063.c File ======= */
 
-UData_t MT2063_Open(UData_t MT2063_Addr,
-		    Handle_t * hMT2063, Handle_t hUserData);
+u32 MT2063_Open(u32 MT2063_Addr,
+		    void ** hMT2063, void *hUserData);
 
-UData_t MT2063_Close(Handle_t hMT2063);
+u32 MT2063_Close(void *hMT2063);
 
-UData_t MT2063_Tune(Handle_t h, UData_t f_in);	/* RF input center frequency   */
+u32 MT2063_Tune(void *h, u32 f_in);	/* RF input center frequency   */
 
-UData_t MT2063_GetGPIO(Handle_t h, enum MT2063_GPIO_ID gpio_id,
-		       enum MT2063_GPIO_Attr attr, UData_t * value);
+u32 MT2063_GetGPIO(void *h, enum MT2063_GPIO_ID gpio_id,
+		       enum MT2063_GPIO_Attr attr, u32 * value);
 
-UData_t MT2063_GetLocked(Handle_t h);
+u32 MT2063_GetLocked(void *h);
 
-UData_t MT2063_GetParam(Handle_t h, enum MT2063_Param param, UData_t * pValue);
+u32 MT2063_GetParam(void *h, enum MT2063_Param param, u32 * pValue);
 
-UData_t MT2063_GetReg(Handle_t h, U8Data reg, U8Data * val);
+u32 MT2063_GetReg(void *h, u8 reg, u8 * val);
 
-UData_t MT2063_GetTemp(Handle_t h, enum MT2063_Temperature *value);
+u32 MT2063_GetTemp(void *h, enum MT2063_Temperature *value);
 
-UData_t MT2063_GetUserData(Handle_t h, Handle_t * hUserData);
+u32 MT2063_GetUserData(void *h, void ** hUserData);
 
-UData_t MT2063_ReInit(Handle_t h);
+u32 MT2063_ReInit(void *h);
 
-UData_t MT2063_SetGPIO(Handle_t h, enum MT2063_GPIO_ID gpio_id,
-		       enum MT2063_GPIO_Attr attr, UData_t value);
+u32 MT2063_SetGPIO(void *h, enum MT2063_GPIO_ID gpio_id,
+		       enum MT2063_GPIO_Attr attr, u32 value);
 
-UData_t MT2063_SetParam(Handle_t h, enum MT2063_Param param, UData_t nValue);
+u32 MT2063_SetParam(void *h, enum MT2063_Param param, u32 nValue);
 
-UData_t MT2063_SetPowerMaskBits(Handle_t h, enum MT2063_Mask_Bits Bits);
+u32 MT2063_SetPowerMaskBits(void *h, enum MT2063_Mask_Bits Bits);
 
-UData_t MT2063_ClearPowerMaskBits(Handle_t h, enum MT2063_Mask_Bits Bits);
+u32 MT2063_ClearPowerMaskBits(void *h, enum MT2063_Mask_Bits Bits);
 
-UData_t MT2063_GetPowerMaskBits(Handle_t h, enum MT2063_Mask_Bits *Bits);
+u32 MT2063_GetPowerMaskBits(void *h, enum MT2063_Mask_Bits *Bits);
 
-UData_t MT2063_EnableExternalShutdown(Handle_t h, U8Data Enabled);
+u32 MT2063_EnableExternalShutdown(void *h, u8 Enabled);
 
-UData_t MT2063_SoftwareShutdown(Handle_t h, U8Data Shutdown);
+u32 MT2063_SoftwareShutdown(void *h, u8 Shutdown);
 
-UData_t MT2063_SetExtSRO(Handle_t h, enum MT2063_Ext_SRO Ext_SRO_Setting);
+u32 MT2063_SetExtSRO(void *h, enum MT2063_Ext_SRO Ext_SRO_Setting);
 
-UData_t MT2063_SetReg(Handle_t h, U8Data reg, U8Data val);
+u32 MT2063_SetReg(void *h, u8 reg, u8 val);
 
-UData_t MT_Tune_atv(Handle_t h, UData_t f_in, UData_t bw_in,
+u32 MT_Tune_atv(void *h, u32 f_in, u32 bw_in,
 		    enum MTTune_atv_standard tv_type);
 
 struct mt2063_config {
@@ -619,7 +607,7 @@ struct mt2063_state {
 	struct dvb_frontend *frontend;
 	struct tuner_state status;
 	const struct MT2063_Info_t *MT2063_ht;
-	enum Bool_t MT2063_init;
+	bool MT2063_init;
 
 	enum MTTune_atv_standard tv_type;
 	u32 frequency;
