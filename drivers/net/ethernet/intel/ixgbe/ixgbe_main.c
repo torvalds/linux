@@ -3372,15 +3372,17 @@ static void ixgbe_configure_dcb(struct ixgbe_adapter *adapter)
 
 static void ixgbe_configure_pb(struct ixgbe_adapter *adapter)
 {
-	int hdrm = 0;
-	int num_tc = netdev_get_num_tc(adapter->netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
+	int hdrm;
+	u8 tc = netdev_get_num_tc(adapter->netdev);
 
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
 	    adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)
-		hdrm = 64 << adapter->fdir_pballoc;
+		hdrm = 32 << adapter->fdir_pballoc;
+	else
+		hdrm = 0;
 
-	hw->mac.ops.set_rxpba(&adapter->hw, num_tc, hdrm, PBA_STRATEGY_EQUAL);
+	hw->mac.ops.set_rxpba(hw, tc, hdrm, PBA_STRATEGY_EQUAL);
 }
 
 static void ixgbe_fdir_filter_restore(struct ixgbe_adapter *adapter)
