@@ -3451,6 +3451,9 @@ static inline bool ixgbe_is_sfp(struct ixgbe_hw *hw)
 	case ixgbe_phy_sfp_active_unknown:
 	case ixgbe_phy_sfp_ftl_active:
 		return true;
+	case ixgbe_phy_nl:
+		if (hw->mac.type == ixgbe_mac_82598EB)
+			return true;
 	default:
 		return false;
 	}
