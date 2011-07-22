@@ -24,14 +24,16 @@
 #include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
 #include <linux/msi.h>
+#include <linux/amd-iommu.h>
 #include <asm/pci-direct.h>
-#include <asm/amd_iommu_proto.h>
-#include <asm/amd_iommu_types.h>
-#include <asm/amd_iommu.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
 #include <asm/x86_init.h>
 #include <asm/iommu_table.h>
+
+#include "amd_iommu_proto.h"
+#include "amd_iommu_types.h"
+
 /*
  * definitions for the ACPI scanning code
  */
