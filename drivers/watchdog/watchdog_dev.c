@@ -120,6 +120,11 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 		return put_user(val, p);
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(wdd->bootstatus, p);
+	case WDIOC_KEEPALIVE:
+		if (!(wdd->info->options & WDIOF_KEEPALIVEPING))
+			return -EOPNOTSUPP;
+		watchdog_ping(wdd);
+		return 0;
 	default:
 		return -ENOTTY;
 	}
