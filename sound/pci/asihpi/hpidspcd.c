@@ -35,7 +35,6 @@ struct dsp_code_private {
 #define HPI_VER_DECIMAL ((int)(HPI_VER_MAJOR(HPI_VER) * 10000 + \
 	    HPI_VER_MINOR(HPI_VER) * 100 + HPI_VER_RELEASE(HPI_VER)))
 
-#include <linux/pci.h>
 /*-------------------------------------------------------------------*/
 short hpi_dsp_code_open(u32 adapter, void *os_data, struct dsp_code *dsp_code,
 	u32 *os_error_code)

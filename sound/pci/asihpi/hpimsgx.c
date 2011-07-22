@@ -186,7 +186,6 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr,
 		/* Initialize this module's internal state */
 		hpios_msgxlock_init(&msgx_lock);
 		memset(&hpi_entry_points, 0, sizeof(hpi_entry_points));
-		hpios_locked_mem_init();
 		/* Init subsys_findadapters response to no-adapters */
 		HPIMSGX__reset(HPIMSGX_ALLADAPTERS);
 		hpi_init_response(phr, HPI_OBJ_SUBSYSTEM,
@@ -197,7 +196,6 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr,
 	case HPI_SUBSYS_DRIVER_UNLOAD:
 		HPI_COMMON(phm, phr);
 		HPIMSGX__cleanup(HPIMSGX_ALLADAPTERS, h_owner);
-		hpios_locked_mem_free_all();
 		hpi_init_response(phr, HPI_OBJ_SUBSYSTEM,
 			HPI_SUBSYS_DRIVER_UNLOAD, 0);
 		return;

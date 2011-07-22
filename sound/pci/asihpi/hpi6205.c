@@ -658,9 +658,6 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 			hr.u.ax.info.num_outstreams +
 			hr.u.ax.info.num_instreams;
 
-		hpios_locked_mem_prepare((max_streams * 6) / 10, max_streams,
-			65536, pao->pci.pci_dev);
-
 		HPI_DEBUG_LOG(VERBOSE,
 			"got adapter info type %x index %d serial %d\n",
 			hr.u.ax.info.adapter_type, hr.u.ax.info.adapter_index,
@@ -709,9 +706,6 @@ static void delete_adapter_obj(struct hpi_adapter_obj *pao)
 				[i]);
 			phw->outstream_host_buffer_size[i] = 0;
 		}
-
-	hpios_locked_mem_unprepare(pao->pci.pci_dev);
-
 	kfree(phw);
 }
 

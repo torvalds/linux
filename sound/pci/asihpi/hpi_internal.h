@@ -32,12 +32,6 @@ HPI internal definitions
 #include "hpios.h"
 
 /* physical memory allocation */
-void hpios_locked_mem_init(void
-	);
-void hpios_locked_mem_free_all(void
-	);
-#define hpios_locked_mem_prepare(a, b, c, d);
-#define hpios_locked_mem_unprepare(a)
 
 /** Allocate and map an area of locked memory for bus master DMA operations.
 
@@ -1431,12 +1425,6 @@ struct hpi_control_cache_microphone {
 	char temp_padding[6];
 };
 
-struct hpi_control_cache_generic {
-	struct hpi_control_cache_info i;
-	u32 dw1;
-	u32 dw2;
-};
-
 struct hpi_control_cache_single {
 	union {
 		struct hpi_control_cache_info i;
@@ -1452,7 +1440,6 @@ struct hpi_control_cache_single {
 		struct hpi_control_cache_silencedetector silence;
 		struct hpi_control_cache_sampleclock clk;
 		struct hpi_control_cache_microphone microphone;
-		struct hpi_control_cache_generic generic;
 	} u;
 };
 
