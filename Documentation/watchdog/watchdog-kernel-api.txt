@@ -127,6 +127,13 @@ bit-operations. The status bits that are defined are:
 * WDOG_DEV_OPEN: this status bit shows whether or not the watchdog device
   was opened via /dev/watchdog.
   (This bit should only be used by the WatchDog Timer Driver Core).
+* WDOG_ALLOW_RELEASE: this bit stores whether or not the magic close character
+  has been sent (so that we can support the magic close feature).
+  (This bit should only be used by the WatchDog Timer Driver Core).
+
+Note: The WatchDog Timer Driver Core supports the magic close feature. To use
+the magic close feature you must set the WDIOF_MAGICCLOSE bit in the options
+field of the watchdog's info structure.
 
 To get or set driver specific data the following two helper functions should be
 used:

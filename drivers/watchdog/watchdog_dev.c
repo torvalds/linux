@@ -122,6 +122,8 @@ static int watchdog_stop(struct watchdog_device *wddev)
  *	@ppos: pointer to the file offset
  *
  *	A write to a watchdog device is defined as a keepalive ping.
+ *	Writing the magic 'V' sequence allows the next close to turn
+ *	off the watchdog.
  */
 
 static ssize_t watchdog_write(struct file *file, const char __user *data,
@@ -133,9 +135,18 @@ static ssize_t watchdog_write(struct file *file, const char __user *data,
 	if (len == 0)
 		return 0;
 
+	/*
+	 * Note: just in case someone wrote the magic character
+	 * five months ago...
+	 */
+	clear_bit(WDOG_ALLOW_RELEASE, &wdd->status);
+
+	/* scan to see whether or not we got the magic character */
 	for (i = 0; i != len; i++) {
 		if (get_user(c, data + i))
 			return -EFAULT;
+		if (c == 'V')
+			set_bit(WDOG_ALLOW_RELEASE, &wdd->status);
 	}
 
 	/* someone wrote to us, so we send the watchdog a keepalive ping */
@@ -259,14 +270,24 @@ out:
  *      @inode: inode of device
  *      @file: file handle to device
  *
- *	This is the code for when /dev/watchdog gets closed.
+ *	This is the code for when /dev/watchdog gets closed. We will only
+ *	stop the watchdog when we have received the magic char, else the
+ *	watchdog will keep running.
  */
 
 static int watchdog_release(struct inode *inode, struct file *file)
 {
-	int err;
+	int err = -EBUSY;
 
-	err = watchdog_stop(wdd);
+	/*
+	 * We only stop the watchdog if we received the magic character
+	 * or if WDIOF_MAGICCLOSE is not set
+	 */
+	if (test_and_clear_bit(WDOG_ALLOW_RELEASE, &wdd->status) ||
+	    !(wdd->info->options & WDIOF_MAGICCLOSE))
+		err = watchdog_stop(wdd);
+
+	/* If the watchdog was not stopped, send a keepalive ping */
 	if (err < 0) {
 		pr_crit("%s: watchdog did not stop!\n", wdd->info->identity);
 		watchdog_ping(wdd);

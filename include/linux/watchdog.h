@@ -112,6 +112,7 @@ struct watchdog_device {
 /* Bit numbers for status flags */
 #define WDOG_ACTIVE		0	/* Is the watchdog running/active */
 #define WDOG_DEV_OPEN		1	/* Opened via /dev/watchdog ? */
+#define WDOG_ALLOW_RELEASE	2	/* Did we receive the magic char ? */
 };
 
 /* Use the following functions to manipulate watchdog driver specific data */
