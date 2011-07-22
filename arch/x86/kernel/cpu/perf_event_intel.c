@@ -1362,7 +1362,7 @@ static void intel_pmu_cpu_starting(int cpu)
 
 		pc = per_cpu(cpu_hw_events, i).shared_regs;
 		if (pc && pc->core_id == core_id) {
-			kfree(cpuc->shared_regs);
+			cpuc->kfree_on_online = cpuc->shared_regs;
 			cpuc->shared_regs = pc;
 			break;
 		}
