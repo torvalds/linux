@@ -620,7 +620,7 @@ int do_fpu_inst(unsigned short inst, struct pt_regs *regs)
 	struct task_struct *tsk = current;
 	struct sh_fpu_soft_struct *fpu = &(tsk->thread.xstate->softfpu);
 
-	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, 0, regs, 0);
+	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, 0);
 
 	if (!(task_thread_info(tsk)->status & TS_USEDFPU)) {
 		/* initialize once. */
