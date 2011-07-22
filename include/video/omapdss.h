@@ -129,6 +129,11 @@ enum omap_dss_venc_type {
 	OMAP_DSS_VENC_TYPE_SVIDEO,
 };
 
+enum omap_dss_dsi_mode {
+	OMAP_DSS_DSI_CMD_MODE = 0,
+	OMAP_DSS_DSI_VIDEO_MODE,
+};
+
 enum omap_display_caps {
 	OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE	= 1 << 0,
 	OMAP_DSS_DISPLAY_CAP_TEAR_ELIM		= 1 << 1,
@@ -480,6 +485,8 @@ struct omap_dss_device {
 		int acb;	/* ac-bias pin frequency */
 
 		enum omap_panel_config config;
+
+		enum omap_dss_dsi_mode dsi_mode;
 	} panel;
 
 	struct {
