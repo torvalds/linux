@@ -223,14 +223,14 @@ xlog_bread_offset(
 	int		orig_len = bp->b_buffer_length;
 	int		error, error2;
 
-	error = XFS_BUF_SET_PTR(bp, offset, BBTOB(nbblks));
+	error = xfs_buf_associate_memory(bp, offset, BBTOB(nbblks));
 	if (error)
 		return error;
 
 	error = xlog_bread_noalign(log, blk_no, nbblks, bp);
 
 	/* must reset buffer pointer even on error */
-	error2 = XFS_BUF_SET_PTR(bp, orig_offset, orig_len);
+	error2 = xfs_buf_associate_memory(bp, orig_offset, orig_len);
 	if (error)
 		return error;
 	return error2;

@@ -1395,8 +1395,8 @@ xlog_sync(xlog_t		*log,
 	if (split) {
 		bp = iclog->ic_log->l_xbuf;
 		XFS_BUF_SET_ADDR(bp, 0);	     /* logical 0 */
-		XFS_BUF_SET_PTR(bp, (xfs_caddr_t)((__psint_t)&(iclog->ic_header)+
-					    (__psint_t)count), split);
+		xfs_buf_associate_memory(bp,
+				(char *)&iclog->ic_header + count, split);
 		bp->b_fspriv = iclog;
 		XFS_BUF_ZEROFLAGS(bp);
 		XFS_BUF_ASYNC(bp);
