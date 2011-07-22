@@ -28,7 +28,6 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/initrd.h>
-#include <linux/module.h>
 #include <linux/fsl_devices.h>
 #include <linux/of_platform.h>
 #include <linux/of_device.h>

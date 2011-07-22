@@ -30,9 +30,6 @@
 #include <linux/seccomp.h>
 #include <linux/audit.h>
 #include <trace/syscall.h>
-#ifdef CONFIG_PPC32
-#include <linux/module.h>
-#endif
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
 

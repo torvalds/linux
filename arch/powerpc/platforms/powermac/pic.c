@@ -24,7 +24,6 @@
 #include <linux/syscore_ops.h>
 #include <linux/adb.h>
 #include <linux/pmu.h>
-#include <linux/module.h>
 
 #include <asm/sections.h>
 #include <asm/io.h>

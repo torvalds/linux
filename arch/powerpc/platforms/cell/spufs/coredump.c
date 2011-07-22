@@ -26,7 +26,6 @@
 #include <linux/fs.h>
 #include <linux/gfp.h>
 #include <linux/list.h>
-#include <linux/module.h>
 #include <linux/syscalls.h>
 
 #include <asm/uaccess.h>
