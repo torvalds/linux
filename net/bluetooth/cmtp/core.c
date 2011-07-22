@@ -302,7 +302,10 @@ static int cmtp_session(void *arg)
 
 		while ((skb = skb_dequeue(&sk->sk_receive_queue))) {
 			skb_orphan(skb);
-			cmtp_recv_frame(session, skb);
+			if (!skb_linearize(skb))
+				cmtp_recv_frame(session, skb);
+			else
+				kfree_skb(skb);
 		}
 
 		cmtp_process_transmit(session);
