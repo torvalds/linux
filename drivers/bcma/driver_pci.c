@@ -189,6 +189,9 @@ static bool bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
 
 void bcma_core_pci_init(struct bcma_drv_pci *pc)
 {
+	if (pc->setup_done)
+		return;
+
 	if (bcma_core_pci_is_in_hostmode(pc)) {
 #ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
 		bcma_core_pci_hostmode_init(pc);
@@ -198,6 +201,8 @@ void bcma_core_pci_init(struct bcma_drv_pci *pc)
 	} else {
 		bcma_core_pci_clientmode_init(pc);
 	}
+
+	pc->setup_done = true;
 }
 
 int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc, struct bcma_device *core,
