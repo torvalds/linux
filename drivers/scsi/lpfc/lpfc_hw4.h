@@ -330,6 +330,7 @@ struct lpfc_cqe {
 #define CQE_CODE_RELEASE_WQE		0x2
 #define CQE_CODE_RECEIVE		0x4
 #define CQE_CODE_XRI_ABORTED		0x5
+#define CQE_CODE_RECEIVE_V1		0x9
 
 /* completion queue entry for wqe completions */
 struct lpfc_wcqe_complete {
@@ -433,7 +434,10 @@ struct lpfc_rcqe {
 #define FC_STATUS_RQ_BUF_LEN_EXCEEDED 	0x11 /* payload truncated */
 #define FC_STATUS_INSUFF_BUF_NEED_BUF 	0x12 /* Insufficient buffers */
 #define FC_STATUS_INSUFF_BUF_FRM_DISC 	0x13 /* Frame Discard */
-	uint32_t reserved1;
+	uint32_t word1;
+#define lpfc_rcqe_fcf_id_v1_SHIFT	0
+#define lpfc_rcqe_fcf_id_v1_MASK	0x0000003F
+#define lpfc_rcqe_fcf_id_v1_WORD	word1
 	uint32_t word2;
 #define lpfc_rcqe_length_SHIFT		16
 #define lpfc_rcqe_length_MASK		0x0000FFFF
@@ -444,6 +448,9 @@ struct lpfc_rcqe {
 #define lpfc_rcqe_fcf_id_SHIFT		0
 #define lpfc_rcqe_fcf_id_MASK		0x0000003F
 #define lpfc_rcqe_fcf_id_WORD		word2
+#define lpfc_rcqe_rq_id_v1_SHIFT	0
+#define lpfc_rcqe_rq_id_v1_MASK		0x0000FFFF
+#define lpfc_rcqe_rq_id_v1_WORD		word2
 	uint32_t word3;
 #define lpfc_rcqe_valid_SHIFT		lpfc_cqe_valid_SHIFT
 #define lpfc_rcqe_valid_MASK		lpfc_cqe_valid_MASK

@@ -960,8 +960,10 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 						    evt_dat->immed_dat].oxid,
 						phba->ct_ctx[
 						    evt_dat->immed_dat].SID);
+			phba->ct_ctx[evt_dat->immed_dat].rxid =
+				piocbq->iocb.ulpContext;
 			phba->ct_ctx[evt_dat->immed_dat].oxid =
-						piocbq->iocb.ulpContext;
+				piocbq->iocb.unsli3.rcvsli3.ox_id;
 			phba->ct_ctx[evt_dat->immed_dat].SID =
 				piocbq->iocb.un.rcvels.remoteID;
 			phba->ct_ctx[evt_dat->immed_dat].flags = UNSOL_VALID;
@@ -1312,7 +1314,8 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
 			rc = IOCB_ERROR;
 			goto issue_ct_rsp_exit;
 		}
-		icmd->ulpContext = phba->ct_ctx[tag].oxid;
+		icmd->ulpContext = phba->ct_ctx[tag].rxid;
+		icmd->unsli3.rcvsli3.ox_id = phba->ct_ctx[tag].oxid;
 		ndlp = lpfc_findnode_did(phba->pport, phba->ct_ctx[tag].SID);
 		if (!ndlp) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_ELS,
@@ -1337,9 +1340,7 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
 			goto issue_ct_rsp_exit;
 		}
 
-		icmd->un.ulpWord[3] = ndlp->nlp_rpi;
-		if (phba->sli_rev == LPFC_SLI_REV4)
-			icmd->ulpContext =
+		icmd->un.ulpWord[3] =
 				phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
 
 		/* The exchange is done, mark the entry as invalid */
@@ -1351,8 +1352,8 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
 
 	/* Xmit CT response on exchange <xid> */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"2722 Xmit CT response on exchange x%x Data: x%x x%x\n",
-			icmd->ulpContext, icmd->ulpIoTag, phba->link_state);
+		"2722 Xmit CT response on exchange x%x Data: x%x x%x x%x\n",
+		icmd->ulpContext, icmd->ulpIoTag, tag, phba->link_state);
 
 	ctiocb->iocb_cmpl = NULL;
 	ctiocb->iocb_flag |= LPFC_IO_LIBDFC;
