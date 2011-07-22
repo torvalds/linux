@@ -647,21 +647,15 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		}
 		lpfc_cleanup_pending_mbox(vport);
 
-		if (phba->sli_rev == LPFC_SLI_REV4)
+		if (phba->sli_rev == LPFC_SLI_REV4) {
 			lpfc_sli4_unreg_all_rpis(vport);
-
-		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
 			lpfc_mbx_unreg_vpi(vport);
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-			spin_unlock_irq(shost->host_lock);
-		}
-		/*
-		 * If VPI is unreged, driver need to do INIT_VPI
-		 * before re-registering
-		 */
-		if (phba->sli_rev == LPFC_SLI_REV4) {
-			spin_lock_irq(shost->host_lock);
+			/*
+			* If VPI is unreged, driver need to do INIT_VPI
+			* before re-registering
+			*/
 			vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 			spin_unlock_irq(shost->host_lock);
 		}
@@ -1096,11 +1090,14 @@ lpfc_issue_els_flogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			/* Set the fcfi to the fcfi we registered with */
 			elsiocb->iocb.ulpContext = phba->fcf.fcfi;
 		}
-	} else if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
-		sp->cmn.request_multiple_Nport = 1;
-		/* For FLOGI, Let FLOGI rsp set the NPortID for VPI 0 */
-		icmd->ulpCt_h = 1;
-		icmd->ulpCt_l = 0;
+	} else {
+		if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) {
+			sp->cmn.request_multiple_Nport = 1;
+			/* For FLOGI, Let FLOGI rsp set the NPortID for VPI 0 */
+			icmd->ulpCt_h = 1;
+			icmd->ulpCt_l = 0;
+		} else
+			sp->cmn.request_multiple_Nport = 0;
 	}
 
 	if (phba->fc_topology != LPFC_TOPOLOGY_LOOP) {
@@ -6608,7 +6605,7 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 {
 	struct lpfc_vport *vport;
 	unsigned long flags;
-	int i;
+	int i = 0;
 
 	/* The physical ports are always vpi 0 - translate is unnecessary. */
 	if (vpi > 0) {
@@ -6631,7 +6628,7 @@ lpfc_find_vport_by_vpid(struct lpfc_hba *phba, uint16_t vpi)
 
 	spin_lock_irqsave(&phba->hbalock, flags);
 	list_for_each_entry(vport, &phba->port_list, listentry) {
-		if (vport->vpi == vpi) {
+		if (vport->vpi == i) {
 			spin_unlock_irqrestore(&phba->hbalock, flags);
 			return vport;
 		}
