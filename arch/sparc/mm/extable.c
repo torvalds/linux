@@ -2,7 +2,6 @@
  * linux/arch/sparc/mm/extable.c
  */
 
-#include <linux/module.h>
 #include <asm/uaccess.h>
 
 void sort_extable(struct exception_table_entry *start,

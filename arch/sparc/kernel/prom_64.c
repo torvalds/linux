@@ -19,7 +19,6 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/memblock.h>
 #include <linux/of.h>
 
