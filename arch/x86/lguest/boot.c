@@ -520,17 +520,16 @@ static unsigned long lguest_read_cr2(void)
 
 /* See lguest_set_pte() below. */
 static bool cr3_changed = false;
+static unsigned long current_cr3;
 
 /*
  * cr3 is the current toplevel pagetable page: the principle is the same as
- * cr0.  Keep a local copy, and tell the Host when it changes.  The only
- * difference is that our local copy is in lguest_data because the Host needs
- * to set it upon our initial hypercall.
+ * cr0.  Keep a local copy, and tell the Host when it changes.
  */
 static void lguest_write_cr3(unsigned long cr3)
 {
-	lguest_data.pgdir = cr3;
 	lazy_hcall1(LHCALL_NEW_PGTABLE, cr3);
+	current_cr3 = cr3;
 
 	/* These two page tables are simple, linear, and used during boot */
 	if (cr3 != __pa(swapper_pg_dir) && cr3 != __pa(initial_page_table))
@@ -539,7 +538,7 @@ static void lguest_write_cr3(unsigned long cr3)
 
 static unsigned long lguest_read_cr3(void)
 {
-	return lguest_data.pgdir;
+	return current_cr3;
 }
 
 /* cr4 is used to enable and disable PGE, but we don't care. */
@@ -758,7 +757,7 @@ static void lguest_pmd_clear(pmd_t *pmdp)
 static void lguest_flush_tlb_single(unsigned long addr)
 {
 	/* Simply set it to zero: if it was not, it will fault back in. */
-	lazy_hcall3(LHCALL_SET_PTE, lguest_data.pgdir, addr, 0);
+	lazy_hcall3(LHCALL_SET_PTE, current_cr3, addr, 0);
 }
 
 /*

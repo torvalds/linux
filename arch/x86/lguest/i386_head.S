@@ -27,11 +27,16 @@
 .section .init.text, "ax", @progbits
 ENTRY(lguest_entry)
 	/*
-	 * We make the "initialization" hypercall now to tell the Host about
-	 * us, and also find out where it put our page tables.
+	 * We make the "initialization" hypercall now to tell the Host where
+	 * our lguest_data struct is.
 	 */
 	movl $LHCALL_LGUEST_INIT, %eax
 	movl $lguest_data - __PAGE_OFFSET, %ebx
+	int $LGUEST_TRAP_ENTRY
+
+	/* Now turn our pagetables on; setup by arch/x86/kernel/head_32.S. */
+	movl $LHCALL_NEW_PGTABLE, %eax
+	movl $(initial_page_table - __PAGE_OFFSET), %ebx
 	int $LGUEST_TRAP_ENTRY
 
 	/* Set up the initial stack so we can run C code. */
