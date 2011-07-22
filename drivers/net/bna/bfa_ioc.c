@@ -58,6 +58,7 @@ static bool bfa_nw_auto_recover = true;
 /*
  * forward declarations
  */
+static void bfa_ioc_hw_sem_init(struct bfa_ioc *ioc);
 static void bfa_ioc_hw_sem_get(struct bfa_ioc *ioc);
 static void bfa_ioc_hw_sem_get_cancel(struct bfa_ioc *ioc);
 static void bfa_ioc_hwinit(struct bfa_ioc *ioc, bool force);
@@ -590,6 +591,7 @@ bfa_iocpf_sm_reset(struct bfa_iocpf *iocpf, enum iocpf_event event)
 static void
 bfa_iocpf_sm_fwcheck_entry(struct bfa_iocpf *iocpf)
 {
+	bfa_ioc_hw_sem_init(iocpf->ioc);
 	bfa_ioc_hw_sem_get(iocpf->ioc);
 }
 
@@ -1173,6 +1175,29 @@ void
 bfa_nw_ioc_sem_release(void __iomem *sem_reg)
 {
 	writel(1, sem_reg);
+}
+
+static void
+bfa_ioc_hw_sem_init(struct bfa_ioc *ioc)
+{
+	struct bfi_ioc_image_hdr fwhdr;
+	u32 fwstate = readl(ioc->ioc_regs.ioc_fwstate);
+
+	if (fwstate == BFI_IOC_UNINIT)
+		return;
+
+	bfa_nw_ioc_fwver_get(ioc, &fwhdr);
+
+	if (swab32(fwhdr.exec) == BFI_FWBOOT_TYPE_NORMAL)
+		return;
+
+	writel(BFI_IOC_UNINIT, ioc->ioc_regs.ioc_fwstate);
+
+	/*
+	 * Try to lock and then unlock the semaphore.
+	 */
+	readl(ioc->ioc_regs.ioc_sem_reg);
+	writel(1, ioc->ioc_regs.ioc_sem_reg);
 }
 
 static void

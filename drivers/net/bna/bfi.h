@@ -289,6 +289,12 @@ struct bfi_ioc_image_hdr {
 	u32	md5sum[BFI_IOC_MD5SUM_SZ];
 };
 
+enum bfi_fwboot_type {
+	BFI_FWBOOT_TYPE_NORMAL	= 0,
+	BFI_FWBOOT_TYPE_FLASH	= 1,
+	BFI_FWBOOT_TYPE_MEMTEST	= 2,
+};
+
 /**
  *  BFI_IOC_I2H_READY_EVENT message
  */
