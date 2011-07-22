@@ -1,4 +1,5 @@
 
+
 	List of maintainers and how to submit kernel changes
 
 Please try to follow the guidelines below.  This will make things
@@ -6310,7 +6311,7 @@ F:	drivers/scsi/u14-34f.c
 
 UBI FILE SYSTEM (UBIFS)
 M:	Artem Bityutskiy <dedekind1@gmail.com>
-M:	Adrian Hunter <adrian.hunter@nokia.com>
+M:	Adrian Hunter <adrian.hunter@intel.com>
 L:	linux-mtd@lists.infradead.org
 T:	git git://git.infradead.org/ubifs-2.6.git
 W:	http://www.linux-mtd.infradead.org/doc/ubifs.html
