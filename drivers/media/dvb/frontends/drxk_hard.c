@@ -355,13 +355,7 @@ static int i2c_read(struct i2c_adapter *adap,
 		{.addr = adr, .flags = I2C_M_RD,
 		 .buf = answ, .len = alen}
 	};
-	dprintk(3, ":");
-	if (debug > 2) {
-		int i;
-		for (i = 0; i < len; i++)
-			printk(KERN_CONT " %02x", msg[i]);
-		printk(KERN_CONT "\n");
-	}
+
 	status = i2c_transfer(adap, msgs, 2);
 	if (status != 2) {
 		if (debug > 2)
@@ -374,9 +368,12 @@ static int i2c_read(struct i2c_adapter *adap,
 	}
 	if (debug > 2) {
 		int i;
-		printk(KERN_CONT ": Read ");
+		dprintk(2, ": read from ");
 		for (i = 0; i < len; i++)
 			printk(KERN_CONT " %02x", msg[i]);
+		printk(KERN_CONT "Value = ");
+		for (i = 0; i < alen; i++)
+			printk(KERN_CONT " %02x", answ[i]);
 		printk(KERN_CONT "\n");
 	}
 	return 0;
@@ -1075,7 +1072,7 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 		state->m_hasIRQN = false;
 		break;
 	default:
-		printk(KERN_ERR "drxk: DeviceID not supported = %02x\n",
+		printk(KERN_ERR "drxk: DeviceID 0x%02x not supported\n",
 			((sioTopJtagidLo >> 12) & 0xFF));
 		status = -EINVAL;
 		goto error2;
