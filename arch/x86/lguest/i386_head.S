@@ -101,12 +101,8 @@ send_interrupts:
 	 */
 	pushl %eax
 	movl $LHCALL_SEND_INTERRUPTS, %eax
-	/*
-	 * This is a vmcall instruction (same thing that KVM uses).  Older
-	 * assembler versions might not know the "vmcall" instruction, so we
-	 * create one manually here.
-	 */
-	.byte 0x0f,0x01,0xc1 /* KVM_HYPERCALL */
+	/* This is the actual hypercall trap. */
+	int  $LGUEST_TRAP_ENTRY
 	/* Put eax back the way we found it. */
 	popl %eax
 	ret
