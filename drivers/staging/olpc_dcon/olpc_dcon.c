@@ -36,9 +36,6 @@
 static int resumeline = 898;
 module_param(resumeline, int, 0444);
 
-static int noinit;
-module_param(noinit, int, 0444);
-
 /* Default off since it doesn't work on DCON ASIC in B-test OLPC board */
 static int useaa = 1;
 module_param(useaa, int, 0444);
@@ -90,7 +87,7 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 		}
 	}
 
-	if (ver < 0xdc02 && !noinit) {
+	if (ver < 0xdc02) {
 		/* Initialize the DCON registers */
 
 		/* Start with work-arounds for DCON ASIC */
@@ -106,7 +103,7 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 		i2c_smbus_write_word_data(client, 0x3b, 0x002b);
 		i2c_smbus_write_word_data(client, 0x41, 0x0101);
 		i2c_smbus_write_word_data(client, 0x42, 0x0101);
-	} else if (!noinit) {
+	} else {
 		/* SDRAM setup/hold time */
 		i2c_smbus_write_word_data(client, 0x3a, 0xc040);
 		i2c_smbus_write_word_data(client, 0x41, 0x0000);
