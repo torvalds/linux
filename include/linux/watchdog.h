@@ -59,6 +59,67 @@ struct watchdog_info {
 #define WATCHDOG_NOWAYOUT	0
 #endif
 
+struct watchdog_ops;
+struct watchdog_device;
+
+/** struct watchdog_ops - The watchdog-devices operations
+ *
+ * @owner:	The module owner.
+ * @start:	The routine for starting the watchdog device.
+ * @stop:	The routine for stopping the watchdog device.
+ * @ping:	The routine that sends a keepalive ping to the watchdog device.
+ *
+ * The watchdog_ops structure contains a list of low-level operations
+ * that control a watchdog device. It also contains the module that owns
+ * these operations. The start and stop function are mandatory, all other
+ * functions are optonal.
+ */
+struct watchdog_ops {
+	struct module *owner;
+	/* mandatory operations */
+	int (*start)(struct watchdog_device *);
+	int (*stop)(struct watchdog_device *);
+	/* optional operations */
+	int (*ping)(struct watchdog_device *);
+};
+
+/** struct watchdog_device - The structure that defines a watchdog device
+ *
+ * @info:	Pointer to a watchdog_info structure.
+ * @ops:	Pointer to the list of watchdog operations.
+ * @driver-data:Pointer to the drivers private data.
+ * @status:	Field that contains the devices internal status bits.
+ *
+ * The watchdog_device structure contains all information about a
+ * watchdog timer device.
+ *
+ * The driver-data field may not be accessed directly. It must be accessed
+ * via the watchdog_set_drvdata and watchdog_get_drvdata helpers.
+ */
+struct watchdog_device {
+	const struct watchdog_info *info;
+	const struct watchdog_ops *ops;
+	void *driver_data;
+	unsigned long status;
+/* Bit numbers for status flags */
+#define WDOG_DEV_OPEN		1	/* Opened via /dev/watchdog ? */
+};
+
+/* Use the following functions to manipulate watchdog driver specific data */
+static inline void watchdog_set_drvdata(struct watchdog_device *wdd, void *data)
+{
+	wdd->driver_data = data;
+}
+
+static inline void *watchdog_get_drvdata(struct watchdog_device *wdd)
+{
+	return wdd->driver_data;
+}
+
+/* drivers/watchdog/core/watchdog_core.c */
+extern int watchdog_register_device(struct watchdog_device *);
+extern void watchdog_unregister_device(struct watchdog_device *);
+
 #endif	/* __KERNEL__ */
 
 #endif  /* ifndef _LINUX_WATCHDOG_H */

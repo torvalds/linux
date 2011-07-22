@@ -2,6 +2,10 @@
 # Makefile for the WatchDog device drivers.
 #
 
+# The WatchDog Timer Driver Core.
+watchdog-objs	+= watchdog_core.o watchdog_dev.o
+obj-$(CONFIG_WATCHDOG_CORE)	+= watchdog.o
+
 # Only one watchdog can succeed. We probe the ISA/PCI/USB based
 # watchdog-cards first, then the architecture specific watchdog
 # drivers and then the architecture independent "softdog" driver.

@@ -28,6 +28,17 @@ menuconfig WATCHDOG
 
 if WATCHDOG
 
+config WATCHDOG_CORE
+	bool "WatchDog Timer Driver Core"
+	---help---
+	  Say Y here if you want to use the new watchdog timer driver core.
+	  This driver provides a framework for all watchdog timer drivers
+	  and gives them the /dev/watchdog interface (and later also the
+	  sysfs interface).
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called watchdog.
+
 config WATCHDOG_NOWAYOUT
 	bool "Disable watchdog shutdown on close"
 	help
