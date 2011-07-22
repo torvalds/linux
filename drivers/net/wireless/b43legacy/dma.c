@@ -73,7 +73,7 @@ static void op32_fill_descriptor(struct b43legacy_dmaring *ring,
 	addr = (u32)(dmaaddr & ~SSB_DMA_TRANSLATION_MASK);
 	addrext = (u32)(dmaaddr & SSB_DMA_TRANSLATION_MASK)
 		   >> SSB_DMA_TRANSLATION_SHIFT;
-	addr |= ssb_dma_translation(ring->dev->dev);
+	addr |= ring->dev->dma.translation;
 	ctl = (bufsize - ring->frameoffset)
 	      & B43legacy_DMA32_DCTL_BYTECNT;
 	if (slot == ring->nr_slots - 1)
@@ -175,7 +175,7 @@ static void op64_fill_descriptor(struct b43legacy_dmaring *ring,
 	addrhi = (((u64)dmaaddr >> 32) & ~SSB_DMA_TRANSLATION_MASK);
 	addrext = (((u64)dmaaddr >> 32) & SSB_DMA_TRANSLATION_MASK)
 		  >> SSB_DMA_TRANSLATION_SHIFT;
-	addrhi |= ssb_dma_translation(ring->dev->dev);
+	addrhi |= ring->dev->dma.translation;
 	if (slot == ring->nr_slots - 1)
 		ctl0 |= B43legacy_DMA64_DCTL0_DTABLEEND;
 	if (start)
@@ -709,7 +709,7 @@ static int dmacontroller_setup(struct b43legacy_dmaring *ring)
 	int err = 0;
 	u32 value;
 	u32 addrext;
-	u32 trans = ssb_dma_translation(ring->dev->dev);
+	u32 trans = ring->dev->dma.translation;
 
 	if (ring->tx) {
 		if (ring->type == B43legacy_DMA_64BIT) {
@@ -1093,6 +1093,7 @@ int b43legacy_dma_init(struct b43legacy_wldev *dev)
 		return -EOPNOTSUPP;
 #endif
 	}
+	dma->translation = ssb_dma_translation(dev->dev);
 
 	err = -ENOMEM;
 	/* setup TX DMA channels. */

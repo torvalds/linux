@@ -335,7 +335,7 @@ static int iwl_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
 			le32_to_cpu(cmd->sleep_interval[3]),
 			le32_to_cpu(cmd->sleep_interval[4]));
 
-	return trans_send_cmd_pdu(priv, POWER_TABLE_CMD, CMD_SYNC,
+	return trans_send_cmd_pdu(&priv->trans, POWER_TABLE_CMD, CMD_SYNC,
 				sizeof(struct iwl_powertable_cmd), cmd);
 }
 
@@ -347,7 +347,9 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 
 	dtimper = priv->hw->conf.ps_dtim_period ?: 1;
 
-	if (priv->hw->conf.flags & IEEE80211_CONF_IDLE)
+	if (priv->wowlan)
+		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, dtimper);
+	else if (priv->hw->conf.flags & IEEE80211_CONF_IDLE)
 		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, 20);
 	else if (iwl_tt_is_low_power_state(priv)) {
 		/* in thermal throttling low power state */
@@ -432,7 +434,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 /* initialize to default */
 void iwl_power_initialize(struct iwl_priv *priv)
 {
-	priv->power_data.bus_pm = priv->bus.ops->get_pm_support(&priv->bus);
+	priv->power_data.bus_pm = bus_get_pm_support(priv->bus);
 
 	priv->power_data.debug_sleep_level_override = -1;
 

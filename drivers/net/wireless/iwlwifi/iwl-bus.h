@@ -63,6 +63,76 @@
 #ifndef __iwl_pci_h__
 #define __iwl_pci_h__
 
+struct iwl_bus;
+
+/**
+ * struct iwl_bus_ops - bus specific operations
+ * @get_pm_support: must returns true if the bus can go to sleep
+ * @apm_config: will be called during the config of the APM configuration
+ * @set_drv_data: set the drv_data pointer to the bus layer
+ * @get_hw_id: prints the hw_id in the provided buffer
+ * @write8: write a byte to register at offset ofs
+ * @write32: write a dword to register at offset ofs
+ * @wread32: read a dword at register at offset ofs
+ */
+struct iwl_bus_ops {
+	bool (*get_pm_support)(struct iwl_bus *bus);
+	void (*apm_config)(struct iwl_bus *bus);
+	void (*set_drv_data)(struct iwl_bus *bus, void *drv_data);
+	void (*get_hw_id)(struct iwl_bus *bus, char buf[], int buf_len);
+	void (*write8)(struct iwl_bus *bus, u32 ofs, u8 val);
+	void (*write32)(struct iwl_bus *bus, u32 ofs, u32 val);
+	u32 (*read32)(struct iwl_bus *bus, u32 ofs);
+};
+
+struct iwl_bus {
+	/* Common data to all buses */
+	void *drv_data; /* driver's context */
+	struct device *dev;
+	struct iwl_bus_ops *ops;
+
+	unsigned int irq;
+
+	/* pointer to bus specific struct */
+	/*Ensure that this pointer will always be aligned to sizeof pointer */
+	char bus_specific[0] __attribute__((__aligned__(sizeof(void *))));
+};
+
+static inline bool bus_get_pm_support(struct iwl_bus *bus)
+{
+	return bus->ops->get_pm_support(bus);
+}
+
+static inline void bus_apm_config(struct iwl_bus *bus)
+{
+	bus->ops->apm_config(bus);
+}
+
+static inline void bus_set_drv_data(struct iwl_bus *bus, void *drv_data)
+{
+	bus->ops->set_drv_data(bus, drv_data);
+}
+
+static inline void bus_get_hw_id(struct iwl_bus *bus, char buf[], int buf_len)
+{
+	bus->ops->get_hw_id(bus, buf, buf_len);
+}
+
+static inline void bus_write8(struct iwl_bus *bus, u32 ofs, u8 val)
+{
+	bus->ops->write8(bus, ofs, val);
+}
+
+static inline void bus_write32(struct iwl_bus *bus, u32 ofs, u32 val)
+{
+	bus->ops->write32(bus, ofs, val);
+}
+
+static inline u32 bus_read32(struct iwl_bus *bus, u32 ofs)
+{
+	return bus->ops->read32(bus, ofs);
+}
+
 int __must_check iwl_pci_register_driver(void);
 void iwl_pci_unregister_driver(void);
 

@@ -32,10 +32,10 @@
 struct iwl_priv;
 extern u32 iwl_debug_level;
 
-#define IWL_ERR(p, f, a...) dev_err(p->bus.ops->get_dev(&p->bus), f, ## a)
-#define IWL_WARN(p, f, a...) dev_warn(p->bus.ops->get_dev(&p->bus), f, ## a)
-#define IWL_INFO(p, f, a...) dev_info(p->bus.ops->get_dev(&p->bus), f, ## a)
-#define IWL_CRIT(p, f, a...) dev_crit(p->bus.ops->get_dev(&p->bus), f, ## a)
+#define IWL_ERR(p, f, a...) dev_err(p->bus->dev, f, ## a)
+#define IWL_WARN(p, f, a...) dev_warn(p->bus->dev, f, ## a)
+#define IWL_INFO(p, f, a...) dev_info(p->bus->dev, f, ## a)
+#define IWL_CRIT(p, f, a...) dev_crit(p->bus->dev, f, ## a)
 
 #define iwl_print_hex_error(priv, p, len) 				\
 do {									\
@@ -78,8 +78,6 @@ static inline void iwl_print_hex_dump(struct iwl_priv *priv, int level,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_dbgfs_register(struct iwl_priv *priv, const char *name);
 void iwl_dbgfs_unregister(struct iwl_priv *priv);
-extern int iwl_dbgfs_statistics_flag(struct iwl_priv *priv, char *buf,
-				     int bufsz);
 #else
 static inline int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 {

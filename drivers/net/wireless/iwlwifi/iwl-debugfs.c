@@ -322,6 +322,19 @@ static ssize_t iwl_dbgfs_sram_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_wowlan_sram_read(struct file *file,
+					  char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+
+	if (!priv->wowlan_sram)
+		return -ENODATA;
+
+	return simple_read_from_buffer(user_buf, count, ppos,
+				       priv->wowlan_sram,
+				       priv->ucode_wowlan.data.len);
+}
 static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 					size_t count, loff_t *ppos)
 {
@@ -856,6 +869,7 @@ static ssize_t iwl_dbgfs_current_sleep_command_read(struct file *file,
 }
 
 DEBUGFS_READ_WRITE_FILE_OPS(sram);
+DEBUGFS_READ_FILE_OPS(wowlan_sram);
 DEBUGFS_READ_WRITE_FILE_OPS(log_event);
 DEBUGFS_READ_FILE_OPS(nvm);
 DEBUGFS_READ_FILE_OPS(stations);
@@ -1915,121 +1929,121 @@ static ssize_t iwl_dbgfs_reply_tx_error_read(struct file *file,
 	pos += scnprintf(buf + pos, bufsz - pos, "Statistics_TX_Error:\n");
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_POSTPONE_DELAY),
-			 priv->_agn.reply_tx_stats.pp_delay);
+			 priv->reply_tx_stats.pp_delay);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_POSTPONE_FEW_BYTES),
-			 priv->_agn.reply_tx_stats.pp_few_bytes);
+			 priv->reply_tx_stats.pp_few_bytes);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_POSTPONE_BT_PRIO),
-			 priv->_agn.reply_tx_stats.pp_bt_prio);
+			 priv->reply_tx_stats.pp_bt_prio);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_POSTPONE_QUIET_PERIOD),
-			 priv->_agn.reply_tx_stats.pp_quiet_period);
+			 priv->reply_tx_stats.pp_quiet_period);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_POSTPONE_CALC_TTAK),
-			 priv->_agn.reply_tx_stats.pp_calc_ttak);
+			 priv->reply_tx_stats.pp_calc_ttak);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t%u\n",
 			 iwl_get_tx_fail_reason(
 				TX_STATUS_FAIL_INTERNAL_CROSSED_RETRY),
-			 priv->_agn.reply_tx_stats.int_crossed_retry);
+			 priv->reply_tx_stats.int_crossed_retry);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_SHORT_LIMIT),
-			 priv->_agn.reply_tx_stats.short_limit);
+			 priv->reply_tx_stats.short_limit);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_LONG_LIMIT),
-			 priv->_agn.reply_tx_stats.long_limit);
+			 priv->reply_tx_stats.long_limit);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_FIFO_UNDERRUN),
-			 priv->_agn.reply_tx_stats.fifo_underrun);
+			 priv->reply_tx_stats.fifo_underrun);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_DRAIN_FLOW),
-			 priv->_agn.reply_tx_stats.drain_flow);
+			 priv->reply_tx_stats.drain_flow);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_RFKILL_FLUSH),
-			 priv->_agn.reply_tx_stats.rfkill_flush);
+			 priv->reply_tx_stats.rfkill_flush);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_LIFE_EXPIRE),
-			 priv->_agn.reply_tx_stats.life_expire);
+			 priv->reply_tx_stats.life_expire);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_DEST_PS),
-			 priv->_agn.reply_tx_stats.dest_ps);
+			 priv->reply_tx_stats.dest_ps);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_HOST_ABORTED),
-			 priv->_agn.reply_tx_stats.host_abort);
+			 priv->reply_tx_stats.host_abort);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_BT_RETRY),
-			 priv->_agn.reply_tx_stats.pp_delay);
+			 priv->reply_tx_stats.pp_delay);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_STA_INVALID),
-			 priv->_agn.reply_tx_stats.sta_invalid);
+			 priv->reply_tx_stats.sta_invalid);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_FRAG_DROPPED),
-			 priv->_agn.reply_tx_stats.frag_drop);
+			 priv->reply_tx_stats.frag_drop);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_TID_DISABLE),
-			 priv->_agn.reply_tx_stats.tid_disable);
+			 priv->reply_tx_stats.tid_disable);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_FIFO_FLUSHED),
-			 priv->_agn.reply_tx_stats.fifo_flush);
+			 priv->reply_tx_stats.fifo_flush);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t%u\n",
 			 iwl_get_tx_fail_reason(
 				TX_STATUS_FAIL_INSUFFICIENT_CF_POLL),
-			 priv->_agn.reply_tx_stats.insuff_cf_poll);
+			 priv->reply_tx_stats.insuff_cf_poll);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_tx_fail_reason(TX_STATUS_FAIL_PASSIVE_NO_RX),
-			 priv->_agn.reply_tx_stats.fail_hw_drop);
+			 priv->reply_tx_stats.fail_hw_drop);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t%u\n",
 			 iwl_get_tx_fail_reason(
 				TX_STATUS_FAIL_NO_BEACON_ON_RADAR),
-			 priv->_agn.reply_tx_stats.sta_color_mismatch);
+			 priv->reply_tx_stats.sta_color_mismatch);
 	pos += scnprintf(buf + pos, bufsz - pos, "UNKNOWN:\t\t\t%u\n",
-			 priv->_agn.reply_tx_stats.unknown);
+			 priv->reply_tx_stats.unknown);
 
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 "\nStatistics_Agg_TX_Error:\n");
 
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(AGG_TX_STATE_UNDERRUN_MSK),
-			 priv->_agn.reply_agg_tx_stats.underrun);
+			 priv->reply_agg_tx_stats.underrun);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(AGG_TX_STATE_BT_PRIO_MSK),
-			 priv->_agn.reply_agg_tx_stats.bt_prio);
+			 priv->reply_agg_tx_stats.bt_prio);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(AGG_TX_STATE_FEW_BYTES_MSK),
-			 priv->_agn.reply_agg_tx_stats.few_bytes);
+			 priv->reply_agg_tx_stats.few_bytes);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(AGG_TX_STATE_ABORT_MSK),
-			 priv->_agn.reply_agg_tx_stats.abort);
+			 priv->reply_agg_tx_stats.abort);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(
 				AGG_TX_STATE_LAST_SENT_TTL_MSK),
-			 priv->_agn.reply_agg_tx_stats.last_sent_ttl);
+			 priv->reply_agg_tx_stats.last_sent_ttl);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(
 				AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK),
-			 priv->_agn.reply_agg_tx_stats.last_sent_try);
+			 priv->reply_agg_tx_stats.last_sent_try);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(
 				AGG_TX_STATE_LAST_SENT_BT_KILL_MSK),
-			 priv->_agn.reply_agg_tx_stats.last_sent_bt_kill);
+			 priv->reply_agg_tx_stats.last_sent_bt_kill);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(AGG_TX_STATE_SCD_QUERY_MSK),
-			 priv->_agn.reply_agg_tx_stats.scd_query);
+			 priv->reply_agg_tx_stats.scd_query);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(
 				AGG_TX_STATE_TEST_BAD_CRC32_MSK),
-			 priv->_agn.reply_agg_tx_stats.bad_crc32);
+			 priv->reply_agg_tx_stats.bad_crc32);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(AGG_TX_STATE_RESPONSE_MSK),
-			 priv->_agn.reply_agg_tx_stats.response);
+			 priv->reply_agg_tx_stats.response);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(AGG_TX_STATE_DUMP_TX_MSK),
-			 priv->_agn.reply_agg_tx_stats.dump_tx);
+			 priv->reply_agg_tx_stats.dump_tx);
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t%u\n",
 			 iwl_get_agg_tx_fail_reason(AGG_TX_STATE_DELAY_TX_MSK),
-			 priv->_agn.reply_agg_tx_stats.delay_tx);
+			 priv->reply_agg_tx_stats.delay_tx);
 	pos += scnprintf(buf + pos, bufsz - pos, "UNKNOWN:\t\t\t%u\n",
-			 priv->_agn.reply_agg_tx_stats.unknown);
+			 priv->reply_agg_tx_stats.unknown);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 	kfree(buf);
@@ -2667,6 +2681,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 
 	DEBUGFS_ADD_FILE(nvm, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(sram, dir_data, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(wowlan_sram, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(log_event, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(stations, dir_data, S_IRUSR);
 	DEBUGFS_ADD_FILE(channels, dir_data, S_IRUSR);

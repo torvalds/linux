@@ -112,7 +112,7 @@ static int iwl_send_led_cmd(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd)
 	if (reg != (reg & CSR_LED_BSM_CTRL_MSK))
 		iwl_write32(priv, CSR_LED_REG, reg & CSR_LED_BSM_CTRL_MSK);
 
-	return trans_send_cmd(priv, &cmd);
+	return trans_send_cmd(&priv->trans, &cmd);
 }
 
 /* Set led pattern command */
@@ -203,7 +203,7 @@ void iwl_leds_init(struct iwl_priv *priv)
 		break;
 	}
 
-	ret = led_classdev_register(priv->bus.dev,
+	ret = led_classdev_register(priv->bus->dev,
 				    &priv->led);
 	if (ret) {
 		kfree(priv->led.name);
