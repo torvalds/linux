@@ -1,7 +1,7 @@
 /******************************************************************************
 
     AudioScience HPI driver
-    Copyright (C) 1997-2010  AudioScience Inc. <support@audioscience.com>
+    Copyright (C) 1997-2011  AudioScience Inc. <support@audioscience.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of version 2 of the GNU General Public License as
@@ -361,7 +361,9 @@ enum HPI_MESSAGE_TYPES {
 	HPI_TYPE_REQUEST = 1,
 	HPI_TYPE_RESPONSE = 2,
 	HPI_TYPE_DATA = 3,
-	HPI_TYPE_SSX2BYPASS_MESSAGE = 4
+	HPI_TYPE_SSX2BYPASS_MESSAGE = 4,
+	HPI_TYPE_COMMAND = 5,
+	HPI_TYPE_NOTIFICATION = 6
 };
 
 enum HPI_OBJECT_TYPES {
