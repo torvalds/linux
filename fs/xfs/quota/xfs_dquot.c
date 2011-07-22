@@ -403,7 +403,7 @@ xfs_qm_dqalloc(
 			       dqp->q_blkno,
 			       mp->m_quotainfo->qi_dqchunklen,
 			       0);
-	if (!bp || (error = XFS_BUF_GETERROR(bp)))
+	if (!bp || (error = xfs_buf_geterror(bp)))
 		goto error1;
 	/*
 	 * Make a chunk of dquots out of this buffer and log

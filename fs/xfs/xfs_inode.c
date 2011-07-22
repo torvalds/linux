@@ -2473,7 +2473,7 @@ cluster_corrupt_out:
 		if (bp->b_iodone) {
 			XFS_BUF_UNDONE(bp);
 			XFS_BUF_STALE(bp);
-			XFS_BUF_ERROR(bp,EIO);
+			xfs_buf_ioerror(bp, EIO);
 			xfs_buf_ioend(bp, 0);
 		} else {
 			XFS_BUF_STALE(bp);

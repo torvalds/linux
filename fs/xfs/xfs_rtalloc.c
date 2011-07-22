@@ -883,7 +883,7 @@ xfs_rtbuf_get(
 	if (error) {
 		return error;
 	}
-	ASSERT(bp && !XFS_BUF_GETERROR(bp));
+	ASSERT(!xfs_buf_geterror(bp));
 	*bpp = bp;
 	return 0;
 }

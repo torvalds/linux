@@ -596,7 +596,7 @@ _xfs_buf_read(
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
 
 	status = xfs_buf_iorequest(bp);
-	if (status || XFS_BUF_ISERROR(bp) || (flags & XBF_ASYNC))
+	if (status || bp->b_error || (flags & XBF_ASYNC))
 		return status;
 	return xfs_buf_iowait(bp);
 }
@@ -1069,7 +1069,7 @@ xfs_bioerror(
 	/*
 	 * No need to wait until the buffer is unpinned, we aren't flushing it.
 	 */
-	XFS_BUF_ERROR(bp, EIO);
+	xfs_buf_ioerror(bp, EIO);
 
 	/*
 	 * We're calling xfs_buf_ioend, so delete XBF_DONE flag.
@@ -1115,7 +1115,7 @@ xfs_bioerror_relse(
 		 * There's no reason to mark error for
 		 * ASYNC buffers.
 		 */
-		XFS_BUF_ERROR(bp, EIO);
+		xfs_buf_ioerror(bp, EIO);
 		XFS_BUF_FINISH_IOWAIT(bp);
 	} else {
 		xfs_buf_relse(bp);

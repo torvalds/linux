@@ -960,7 +960,7 @@ xfs_buf_iodone_callbacks(
 	static ulong		lasttime;
 	static xfs_buftarg_t	*lasttarg;
 
-	if (likely(!XFS_BUF_GETERROR(bp)))
+	if (likely(!xfs_buf_geterror(bp)))
 		goto do_callbacks;
 
 	/*
@@ -991,7 +991,7 @@ xfs_buf_iodone_callbacks(
 	 * around.
 	 */
 	if (XFS_BUF_ISASYNC(bp)) {
-		XFS_BUF_ERROR(bp, 0); /* errno of 0 unsets the flag */
+		xfs_buf_ioerror(bp, 0); /* errno of 0 unsets the flag */
 
 		if (!XFS_BUF_ISSTALE(bp)) {
 			XFS_BUF_DELAYWRITE(bp);

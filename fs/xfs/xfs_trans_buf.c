@@ -194,7 +194,7 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 		return NULL;
 	}
 
-	ASSERT(!XFS_BUF_GETERROR(bp));
+	ASSERT(!bp->b_error);
 
 	_xfs_trans_bjoin(tp, bp, 1);
 	trace_xfs_trans_get_buf(bp->b_fspriv);
@@ -293,10 +293,10 @@ xfs_trans_read_buf(
 			return (flags & XBF_TRYLOCK) ?
 					EAGAIN : XFS_ERROR(ENOMEM);
 
-		if (XFS_BUF_GETERROR(bp) != 0) {
+		if (bp->b_error) {
+			error = bp->b_error;
 			xfs_ioerror_alert("xfs_trans_read_buf", mp,
 					  bp, blkno);
-			error = XFS_BUF_GETERROR(bp);
 			xfs_buf_relse(bp);
 			return error;
 		}
@@ -330,7 +330,7 @@ xfs_trans_read_buf(
 		ASSERT(xfs_buf_islocked(bp));
 		ASSERT(bp->b_transp == tp);
 		ASSERT(bp->b_fspriv != NULL);
-		ASSERT((XFS_BUF_ISERROR(bp)) == 0);
+		ASSERT(!bp->b_error);
 		if (!(XFS_BUF_ISDONE(bp))) {
 			trace_xfs_trans_read_buf_io(bp, _RET_IP_);
 			ASSERT(!XFS_BUF_ISASYNC(bp));
@@ -386,10 +386,9 @@ xfs_trans_read_buf(
 		return (flags & XBF_TRYLOCK) ?
 					0 : XFS_ERROR(ENOMEM);
 	}
-	if (XFS_BUF_GETERROR(bp) != 0) {
-	    XFS_BUF_SUPER_STALE(bp);
-		error = XFS_BUF_GETERROR(bp);
-
+	if (bp->b_error) {
+		error = bp->b_error;
+		XFS_BUF_SUPER_STALE(bp);
 		xfs_ioerror_alert("xfs_trans_read_buf", mp,
 				  bp, blkno);
 		if (tp->t_flags & XFS_TRANS_DIRTY)

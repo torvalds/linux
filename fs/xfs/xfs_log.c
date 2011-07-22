@@ -878,7 +878,7 @@ xlog_iodone(xfs_buf_t *bp)
 	/*
 	 * Race to shutdown the filesystem if we see an error.
 	 */
-	if (XFS_TEST_ERROR((XFS_BUF_GETERROR(bp)), l->l_mp,
+	if (XFS_TEST_ERROR((xfs_buf_geterror(bp)), l->l_mp,
 			XFS_ERRTAG_IODONE_IOERR, XFS_RANDOM_IODONE_IOERR)) {
 		xfs_ioerror_alert("xlog_iodone", l->l_mp, bp, XFS_BUF_ADDR(bp));
 		XFS_BUF_STALE(bp);
@@ -1248,7 +1248,7 @@ xlog_bdstrat(
 	struct xlog_in_core	*iclog = bp->b_fspriv;
 
 	if (iclog->ic_state & XLOG_STATE_IOERROR) {
-		XFS_BUF_ERROR(bp, EIO);
+		xfs_buf_ioerror(bp, EIO);
 		XFS_BUF_STALE(bp);
 		xfs_buf_ioend(bp, 0);
 		/*
