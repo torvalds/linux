@@ -171,15 +171,9 @@ static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 
 #ifndef CONFIG_PPC64
 
-static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
-{
-	struct pci_controller *host;
-
-	if (bus->self)
-		return pci_device_to_OF_node(bus->self);
-	host = pci_bus_to_host(bus);
-	return host ? host->dn : NULL;
-}
+extern int pci_device_from_OF_node(struct device_node *node,
+				   u8 *bus, u8 *devfn);
+extern void pci_create_OF_bus_map(void);
 
 static inline int isa_vaddr_is_ioport(void __iomem *address)
 {
@@ -223,16 +217,7 @@ struct pci_dn {
 /* Get the pointer to a device_node's pci_dn */
 #define PCI_DN(dn)	((struct pci_dn *) (dn)->data)
 
-extern struct device_node *fetch_dev_dn(struct pci_dev *dev);
 extern void * update_dn_pci_info(struct device_node *dn, void *data);
-
-/* Get a device_node from a pci_dev.  This code must be fast except
- * in the case where the sysdata is incorrect and needs to be fixed
- * up (this will only happen once). */
-static inline struct device_node *pci_device_to_OF_node(struct pci_dev *dev)
-{
-	return dev->dev.of_node ? dev->dev.of_node : fetch_dev_dn(dev);
-}
 
 static inline int pci_device_from_OF_node(struct device_node *np,
 					  u8 *bus, u8 *devfn)
@@ -242,14 +227,6 @@ static inline int pci_device_from_OF_node(struct device_node *np,
 	*bus = PCI_DN(np)->busno;
 	*devfn = PCI_DN(np)->devfn;
 	return 0;
-}
-
-static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
-{
-	if (bus->self)
-		return pci_device_to_OF_node(bus->self);
-	else
-		return bus->dev.of_node; /* Must be root bus (PHB) */
 }
 
 /** Find the bus corresponding to the indicated device node */

@@ -71,4 +71,6 @@ obj-$(CONFIG_PCI_STUB) += pci-stub.o
 
 obj-$(CONFIG_XEN_PCIDEV_FRONTEND) += xen-pcifront.o
 
+obj-$(CONFIG_OF) += of.o
+
 ccflags-$(CONFIG_PCI_DEBUG) := -DDEBUG
