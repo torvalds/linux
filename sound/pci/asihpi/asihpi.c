@@ -50,19 +50,21 @@ MODULE_DESCRIPTION("AudioScience ALSA ASI5000 ASI6000 ASI87xx ASI89xx");
 #if defined CONFIG_SND_DEBUG
 /* copied from pcm_lib.c, hope later patch will make that version public
 and this copy can be removed */
-static void pcm_debug_name(struct snd_pcm_substream *substream,
-			   char *name, size_t len)
+static inline void
+snd_pcm_debug_name(struct snd_pcm_substream *substream, char *buf, size_t size)
 {
-	snprintf(name, len, "pcmC%dD%d%c:%d",
+	snprintf(buf, size, "pcmC%dD%d%c:%d",
 		 substream->pcm->card->number,
 		 substream->pcm->device,
 		 substream->stream ? 'c' : 'p',
 		 substream->number);
 }
-#define DEBUG_NAME(substream, name) char name[16]; pcm_debug_name(substream, name, sizeof(name))
 #else
-#define pcm_debug_name(s, n, l) do { } while (0)
-#define DEBUG_NAME(name, substream) do { } while (0)
+static inline void
+snd_pcm_debug_name(struct snd_pcm_substream *substream, char *buf, size_t size)
+{
+	*buf = 0;
+}
 #endif
 
 #if defined CONFIG_SND_DEBUG_VERBOSE
@@ -305,7 +307,8 @@ static u16 handle_error(u16 err, int line, char *filename)
 static void print_hwparams(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *p)
 {
-	DEBUG_NAME(substream, name);
+	char name[16];
+	snd_pcm_debug_name(substream, name, sizeof(name));
 	snd_printd("%s HWPARAMS\n", name);
 	snd_printd(" samplerate %d Hz\n", params_rate(p));
 	snd_printd(" channels %d\n", params_channels(p));
@@ -577,8 +580,9 @@ static int snd_card_asihpi_trigger(struct snd_pcm_substream *substream,
 	struct snd_card_asihpi *card = snd_pcm_substream_chip(substream);
 	struct snd_pcm_substream *s;
 	u16 e;
-	DEBUG_NAME(substream, name);
+	char name[16];
 
+	snd_pcm_debug_name(substream, name, sizeof(name));
 	snd_printdd("%s trigger\n", name);
 
 	switch (cmd) {
@@ -742,7 +746,9 @@ static void snd_card_asihpi_timer_function(unsigned long data)
 	int loops = 0;
 	u16 state;
 	u32 buffer_size, bytes_avail, samples_played, on_card_bytes;
-	DEBUG_NAME(substream, name);
+	char name[16];
+
+	snd_pcm_debug_name(substream, name, sizeof(name));
 
 	snd_printdd("%s snd_card_asihpi_timer_function\n", name);
 
