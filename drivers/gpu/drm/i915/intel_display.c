@@ -2865,13 +2865,17 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		I915_WRITE(PF_WIN_SZ(pipe), dev_priv->pch_pf_size);
 	}
 
+	/*
+	 * On ILK+ LUT must be loaded before the pipe is running but with
+	 * clocks enabled
+	 */
+	intel_crtc_load_lut(crtc);
+
 	intel_enable_pipe(dev_priv, pipe, is_pch_port);
 	intel_enable_plane(dev_priv, plane, pipe);
 
 	if (is_pch_port)
 		ironlake_pch_enable(crtc);
-
-	intel_crtc_load_lut(crtc);
 
 	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
@@ -4469,7 +4473,8 @@ static void intel_update_watermarks(struct drm_device *dev)
 
 static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 {
-	return dev_priv->lvds_use_ssc && i915_panel_use_ssc;
+	return dev_priv->lvds_use_ssc && i915_panel_use_ssc
+		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
 
 /**
@@ -8140,6 +8145,15 @@ static void quirk_pipea_force (struct drm_device *dev)
 	DRM_DEBUG_DRIVER("applying pipe a force quirk\n");
 }
 
+/*
+ * Some machines (Lenovo U160) do not work with SSC on LVDS for some reason
+ */
+static void quirk_ssc_force_disable(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	dev_priv->quirks |= QUIRK_LVDS_SSC_DISABLE;
+}
+
 struct intel_quirk {
 	int device;
 	int subsystem_vendor;
@@ -8168,6 +8182,9 @@ struct intel_quirk intel_quirks[] = {
 	/* 855 & before need to leave pipe A & dpll A up */
 	{ 0x3582, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
 	{ 0x2562, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+
+	/* Lenovo U160 cannot use SSC on LVDS */
+	{ 0x0046, 0x17aa, 0x3920, quirk_ssc_force_disable },
 };
 
 static void intel_init_quirks(struct drm_device *dev)

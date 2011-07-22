@@ -182,10 +182,10 @@ static int sl_alloc_bufs(struct slip *sl, int mtu)
 #ifdef SL_INCLUDE_CSLIP
 	cbuff = xchg(&sl->cbuff, cbuff);
 	slcomp = xchg(&sl->slcomp, slcomp);
+#endif
 #ifdef CONFIG_SLIP_MODE_SLIP6
 	sl->xdata    = 0;
 	sl->xbits    = 0;
-#endif
 #endif
 	spin_unlock_bh(&sl->lock);
 	err = 0;
