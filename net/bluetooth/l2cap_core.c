@@ -3128,102 +3128,104 @@ static int l2cap_add_to_srej_queue(struct l2cap_chan *chan, struct sk_buff *skb,
 	return 0;
 }
 
-static int l2cap_ertm_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *skb, u16 control)
+static void append_skb_frag(struct sk_buff *skb,
+			struct sk_buff *new_frag, struct sk_buff **last_frag)
 {
-	struct sk_buff *_skb;
-	int err;
+	/* skb->len reflects data in skb as well as all fragments
+	 * skb->data_len reflects only data in fragments
+	 */
+	if (!skb_has_frag_list(skb))
+		skb_shinfo(skb)->frag_list = new_frag;
+
+	new_frag->next = NULL;
+
+	(*last_frag)->next = new_frag;
+	*last_frag = new_frag;
+
+	skb->len += new_frag->len;
+	skb->data_len += new_frag->len;
+	skb->truesize += new_frag->truesize;
+}
+
+static int l2cap_reassemble_sdu(struct l2cap_chan *chan, struct sk_buff *skb, u16 control)
+{
+	int err = -EINVAL;
 
 	switch (control & L2CAP_CTRL_SAR) {
 	case L2CAP_SDU_UNSEGMENTED:
-		if (test_bit(CONN_SAR_SDU, &chan->conn_state))
-			goto drop;
+		if (chan->sdu)
+			break;
 
-		return chan->ops->recv(chan->data, skb);
+		err = chan->ops->recv(chan->data, skb);
+		break;
 
 	case L2CAP_SDU_START:
-		if (test_bit(CONN_SAR_SDU, &chan->conn_state))
-			goto drop;
+		if (chan->sdu)
+			break;
 
 		chan->sdu_len = get_unaligned_le16(skb->data);
-
-		if (chan->sdu_len > chan->imtu)
-			goto disconnect;
-
-		chan->sdu = bt_skb_alloc(chan->sdu_len, GFP_ATOMIC);
-		if (!chan->sdu)
-			return -ENOMEM;
-
-		/* pull sdu_len bytes only after alloc, because of Local Busy
-		 * condition we have to be sure that this will be executed
-		 * only once, i.e., when alloc does not fail */
 		skb_pull(skb, 2);
 
-		memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
+		if (chan->sdu_len > chan->imtu) {
+			err = -EMSGSIZE;
+			break;
+		}
 
-		set_bit(CONN_SAR_SDU, &chan->conn_state);
-		chan->partial_sdu_len = skb->len;
+		if (skb->len >= chan->sdu_len)
+			break;
+
+		chan->sdu = skb;
+		chan->sdu_last_frag = skb;
+
+		skb = NULL;
+		err = 0;
 		break;
 
 	case L2CAP_SDU_CONTINUE:
-		if (!test_bit(CONN_SAR_SDU, &chan->conn_state))
-			goto disconnect;
-
 		if (!chan->sdu)
-			goto disconnect;
+			break;
 
-		chan->partial_sdu_len += skb->len;
-		if (chan->partial_sdu_len > chan->sdu_len)
-			goto drop;
+		append_skb_frag(chan->sdu, skb,
+				&chan->sdu_last_frag);
+		skb = NULL;
 
-		memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
+		if (chan->sdu->len >= chan->sdu_len)
+			break;
 
+		err = 0;
 		break;
 
 	case L2CAP_SDU_END:
-		if (!test_bit(CONN_SAR_SDU, &chan->conn_state))
-			goto disconnect;
-
 		if (!chan->sdu)
-			goto disconnect;
+			break;
 
-		chan->partial_sdu_len += skb->len;
+		append_skb_frag(chan->sdu, skb,
+				&chan->sdu_last_frag);
+		skb = NULL;
 
-		if (chan->partial_sdu_len > chan->imtu)
-			goto drop;
+		if (chan->sdu->len != chan->sdu_len)
+			break;
 
-		if (chan->partial_sdu_len != chan->sdu_len)
-			goto drop;
+		err = chan->ops->recv(chan->data, chan->sdu);
 
-		memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
-
-		_skb = skb_clone(chan->sdu, GFP_ATOMIC);
-		if (!_skb) {
-			return -ENOMEM;
+		if (!err) {
+			/* Reassembly complete */
+			chan->sdu = NULL;
+			chan->sdu_last_frag = NULL;
+			chan->sdu_len = 0;
 		}
-
-		err = chan->ops->recv(chan->data, _skb);
-		if (err < 0) {
-			kfree_skb(_skb);
-			return err;
-		}
-
-		clear_bit(CONN_SAR_SDU, &chan->conn_state);
-
-		kfree_skb(chan->sdu);
 		break;
 	}
 
-	kfree_skb(skb);
-	return 0;
+	if (err) {
+		kfree_skb(skb);
+		kfree_skb(chan->sdu);
+		chan->sdu = NULL;
+		chan->sdu_last_frag = NULL;
+		chan->sdu_len = 0;
+	}
 
-drop:
-	kfree_skb(chan->sdu);
-	chan->sdu = NULL;
-
-disconnect:
-	l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
-	kfree_skb(skb);
-	return 0;
+	return err;
 }
 
 static void l2cap_ertm_enter_local_busy(struct l2cap_chan *chan)
@@ -3277,99 +3279,6 @@ void l2cap_chan_busy(struct l2cap_chan *chan, int busy)
 	}
 }
 
-static int l2cap_streaming_reassembly_sdu(struct l2cap_chan *chan, struct sk_buff *skb, u16 control)
-{
-	struct sk_buff *_skb;
-	int err = -EINVAL;
-
-	/*
-	 * TODO: We have to notify the userland if some data is lost with the
-	 * Streaming Mode.
-	 */
-
-	switch (control & L2CAP_CTRL_SAR) {
-	case L2CAP_SDU_UNSEGMENTED:
-		if (test_bit(CONN_SAR_SDU, &chan->conn_state)) {
-			kfree_skb(chan->sdu);
-			break;
-		}
-
-		err = chan->ops->recv(chan->data, skb);
-		if (!err)
-			return 0;
-
-		break;
-
-	case L2CAP_SDU_START:
-		if (test_bit(CONN_SAR_SDU, &chan->conn_state)) {
-			kfree_skb(chan->sdu);
-			break;
-		}
-
-		chan->sdu_len = get_unaligned_le16(skb->data);
-		skb_pull(skb, 2);
-
-		if (chan->sdu_len > chan->imtu) {
-			err = -EMSGSIZE;
-			break;
-		}
-
-		chan->sdu = bt_skb_alloc(chan->sdu_len, GFP_ATOMIC);
-		if (!chan->sdu) {
-			err = -ENOMEM;
-			break;
-		}
-
-		memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
-
-		set_bit(CONN_SAR_SDU, &chan->conn_state);
-		chan->partial_sdu_len = skb->len;
-		err = 0;
-		break;
-
-	case L2CAP_SDU_CONTINUE:
-		if (!test_bit(CONN_SAR_SDU, &chan->conn_state))
-			break;
-
-		memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
-
-		chan->partial_sdu_len += skb->len;
-		if (chan->partial_sdu_len > chan->sdu_len)
-			kfree_skb(chan->sdu);
-		else
-			err = 0;
-
-		break;
-
-	case L2CAP_SDU_END:
-		if (!test_bit(CONN_SAR_SDU, &chan->conn_state))
-			break;
-
-		memcpy(skb_put(chan->sdu, skb->len), skb->data, skb->len);
-
-		clear_bit(CONN_SAR_SDU, &chan->conn_state);
-		chan->partial_sdu_len += skb->len;
-
-		if (chan->partial_sdu_len > chan->imtu)
-			goto drop;
-
-		if (chan->partial_sdu_len == chan->sdu_len) {
-			_skb = skb_clone(chan->sdu, GFP_ATOMIC);
-			err = chan->ops->recv(chan->data, _skb);
-			if (err < 0)
-				kfree_skb(_skb);
-		}
-		err = 0;
-
-drop:
-		kfree_skb(chan->sdu);
-		break;
-	}
-
-	kfree_skb(skb);
-	return err;
-}
-
 static void l2cap_check_srej_gap(struct l2cap_chan *chan, u8 tx_seq)
 {
 	struct sk_buff *skb;
@@ -3384,7 +3293,7 @@ static void l2cap_check_srej_gap(struct l2cap_chan *chan, u8 tx_seq)
 
 		skb = skb_dequeue(&chan->srej_q);
 		control = bt_cb(skb)->sar << L2CAP_CTRL_SAR_SHIFT;
-		err = l2cap_ertm_reassembly_sdu(chan, skb, control);
+		err = l2cap_reassemble_sdu(chan, skb, control);
 
 		if (err < 0) {
 			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
@@ -3544,7 +3453,7 @@ expected:
 		return 0;
 	}
 
-	err = l2cap_ertm_reassembly_sdu(chan, skb, rx_control);
+	err = l2cap_reassemble_sdu(chan, skb, rx_control);
 	chan->buffer_seq = (chan->buffer_seq + 1) % 64;
 	if (err < 0) {
 		l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
@@ -3860,12 +3769,20 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 
 		tx_seq = __get_txseq(control);
 
-		if (chan->expected_tx_seq == tx_seq)
-			chan->expected_tx_seq = (chan->expected_tx_seq + 1) % 64;
-		else
-			chan->expected_tx_seq = (tx_seq + 1) % 64;
+		if (chan->expected_tx_seq != tx_seq) {
+			/* Frame(s) missing - must discard partial SDU */
+			kfree_skb(chan->sdu);
+			chan->sdu = NULL;
+			chan->sdu_last_frag = NULL;
+			chan->sdu_len = 0;
 
-		l2cap_streaming_reassembly_sdu(chan, skb, control);
+			/* TODO: Notify userland of missing data */
+		}
+
+		chan->expected_tx_seq = (tx_seq + 1) % 64;
+
+		if (l2cap_reassemble_sdu(chan, skb, control) == -EMSGSIZE)
+			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
 
 		goto done;
 

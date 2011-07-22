@@ -354,8 +354,8 @@ struct l2cap_chan {
 	__u8		retry_count;
 	__u8		num_acked;
 	__u16		sdu_len;
-	__u16		partial_sdu_len;
 	struct sk_buff	*sdu;
+	struct sk_buff	*sdu_last_frag;
 
 	__u8		remote_tx_win;
 	__u8		remote_max_tx;
@@ -448,7 +448,6 @@ enum {
 #define L2CAP_CONF_MAX_CONF_RSP 2
 
 enum {
-	CONN_SAR_SDU,
 	CONN_SREJ_SENT,
 	CONN_WAIT_F,
 	CONN_SREJ_ACT,
