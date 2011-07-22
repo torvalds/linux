@@ -3634,8 +3634,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			lpfc_sli4_fcf_dead_failthrough(phba);
 		} else {
 			/* Reset FCF roundrobin bmask for new discovery */
-			memset(phba->fcf.fcf_rr_bmask, 0,
-			       sizeof(*phba->fcf.fcf_rr_bmask));
+			lpfc_sli4_clear_fcf_rr_bmask(phba);
 			/*
 			 * Handling fast FCF failover to a DEAD FCF event is
 			 * considered equalivant to receiving CVL to all vports.
@@ -3721,8 +3720,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 				 * Reset FCF roundrobin bmask for new
 				 * discovery.
 				 */
-				memset(phba->fcf.fcf_rr_bmask, 0,
-				       sizeof(*phba->fcf.fcf_rr_bmask));
+				lpfc_sli4_clear_fcf_rr_bmask(phba);
 		}
 		break;
 	default:
@@ -9046,6 +9044,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	}
 
 	INIT_LIST_HEAD(&phba->active_rrq_list);
+	INIT_LIST_HEAD(&phba->fcf.fcf_pri_list);
 
 	/* Set up common device driver resources */
 	error = lpfc_setup_driver_resource_phase2(phba);
