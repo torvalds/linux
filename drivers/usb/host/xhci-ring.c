@@ -2500,11 +2500,8 @@ static int prepare_transfer(struct xhci_hcd *xhci,
 
 	if (td_index == 0) {
 		ret = usb_hcd_link_urb_to_ep(bus_to_hcd(urb->dev->bus), urb);
-		if (unlikely(ret)) {
-			xhci_urb_free_priv(xhci, urb_priv);
-			urb->hcpriv = NULL;
+		if (unlikely(ret))
 			return ret;
-		}
 	}
 
 	td->urb = urb;
