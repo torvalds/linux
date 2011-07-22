@@ -112,11 +112,7 @@ struct sdla_dlci_conf {
    short Tb_max;
 };
 
-#ifndef __KERNEL__
-
-void sdla(void *cfg_info, char *dev, struct frad_conf *conf, int quiet);
-
-#else
+#ifdef __KERNEL__
 
 /* important Z80 window addresses */
 #define SDLA_CONTROL_WND		0xE000

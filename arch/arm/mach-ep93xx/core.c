@@ -251,9 +251,9 @@ static void ep93xx_uart_set_mctrl(struct amba_device *dev,
 	unsigned int mcr;
 
 	mcr = 0;
-	if (!(mctrl & TIOCM_RTS))
+	if (mctrl & TIOCM_RTS)
 		mcr |= 2;
-	if (!(mctrl & TIOCM_DTR))
+	if (mctrl & TIOCM_DTR)
 		mcr |= 1;
 
 	__raw_writel(mcr, base + EP93XX_UART_MCR_OFFSET);

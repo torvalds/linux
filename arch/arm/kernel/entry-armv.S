@@ -29,19 +29,51 @@
 #include <asm/entry-macro-multi.S>
 
 /*
- * Interrupt handling.  Preserves r7, r8, r9
+ * Interrupt handling.
  */
 	.macro	irq_handler
 #ifdef CONFIG_MULTI_IRQ_HANDLER
-	ldr	r5, =handle_arch_irq
+	ldr	r1, =handle_arch_irq
 	mov	r0, sp
-	ldr	r5, [r5]
+	ldr	r1, [r1]
 	adr	lr, BSYM(9997f)
-	teq	r5, #0
-	movne	pc, r5
+	teq	r1, #0
+	movne	pc, r1
 #endif
 	arch_irq_handler_default
 9997:
+	.endm
+
+	.macro	pabt_helper
+	@ PABORT handler takes pt_regs in r2, fault address in r4 and psr in r5
+#ifdef MULTI_PABORT
+	ldr	ip, .LCprocfns
+	mov	lr, pc
+	ldr	pc, [ip, #PROCESSOR_PABT_FUNC]
+#else
+	bl	CPU_PABORT_HANDLER
+#endif
+	.endm
+
+	.macro	dabt_helper
+
+	@
+	@ Call the processor-specific abort handler:
+	@
+	@  r2 - pt_regs
+	@  r4 - aborted context pc
+	@  r5 - aborted context psr
+	@
+	@ The abort handler must return the aborted address in r0, and
+	@ the fault status register in r1.  r9 must be preserved.
+	@
+#ifdef MULTI_DABORT
+	ldr	ip, .LCprocfns
+	mov	lr, pc
+	ldr	pc, [ip, #PROCESSOR_DABT_FUNC]
+#else
+	bl	CPU_DABORT_HANDLER
+#endif
 	.endm
 
 #ifdef CONFIG_KPROBES
@@ -126,106 +158,74 @@ ENDPROC(__und_invalid)
  SPFIX(	subeq	sp, sp, #4	)
 	stmia	sp, {r1 - r12}
 
-	ldmia	r0, {r1 - r3}
-	add	r5, sp, #S_SP - 4	@ here for interlock avoidance
-	mov	r4, #-1			@  ""  ""      ""       ""
-	add	r0, sp, #(S_FRAME_SIZE + \stack_hole - 4)
- SPFIX(	addeq	r0, r0, #4	)
-	str	r1, [sp, #-4]!		@ save the "real" r0 copied
+	ldmia	r0, {r3 - r5}
+	add	r7, sp, #S_SP - 4	@ here for interlock avoidance
+	mov	r6, #-1			@  ""  ""      ""       ""
+	add	r2, sp, #(S_FRAME_SIZE + \stack_hole - 4)
+ SPFIX(	addeq	r2, r2, #4	)
+	str	r3, [sp, #-4]!		@ save the "real" r0 copied
 					@ from the exception stack
 
-	mov	r1, lr
+	mov	r3, lr
 
 	@
 	@ We are now ready to fill in the remaining blanks on the stack:
 	@
-	@  r0 - sp_svc
-	@  r1 - lr_svc
-	@  r2 - lr_<exception>, already fixed up for correct return/restart
-	@  r3 - spsr_<exception>
-	@  r4 - orig_r0 (see pt_regs definition in ptrace.h)
+	@  r2 - sp_svc
+	@  r3 - lr_svc
+	@  r4 - lr_<exception>, already fixed up for correct return/restart
+	@  r5 - spsr_<exception>
+	@  r6 - orig_r0 (see pt_regs definition in ptrace.h)
 	@
-	stmia	r5, {r0 - r4}
+	stmia	r7, {r2 - r6}
+
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	trace_hardirqs_off
+#endif
 	.endm
 
 	.align	5
 __dabt_svc:
 	svc_entry
-
-	@
-	@ get ready to re-enable interrupts if appropriate
-	@
-	mrs	r9, cpsr
-	tst	r3, #PSR_I_BIT
-	biceq	r9, r9, #PSR_I_BIT
-
-	@
-	@ Call the processor-specific abort handler:
-	@
-	@  r2 - aborted context pc
-	@  r3 - aborted context cpsr
-	@
-	@ The abort handler must return the aborted address in r0, and
-	@ the fault status register in r1.  r9 must be preserved.
-	@
-#ifdef MULTI_DABORT
-	ldr	r4, .LCprocfns
-	mov	lr, pc
-	ldr	pc, [r4, #PROCESSOR_DABT_FUNC]
-#else
-	bl	CPU_DABORT_HANDLER
-#endif
-
-	@
-	@ set desired IRQ state, then call main handler
-	@
-	debug_entry r1
-	msr	cpsr_c, r9
 	mov	r2, sp
-	bl	do_DataAbort
+	dabt_helper
 
 	@
 	@ IRQs off again before pulling preserved data off the stack
 	@
 	disable_irq_notrace
 
-	@
-	@ restore SPSR and restart the instruction
-	@
-	ldr	r2, [sp, #S_PSR]
-	svc_exit r2				@ return from exception
+#ifdef CONFIG_TRACE_IRQFLAGS
+	tst	r5, #PSR_I_BIT
+	bleq	trace_hardirqs_on
+	tst	r5, #PSR_I_BIT
+	blne	trace_hardirqs_off
+#endif
+	svc_exit r5				@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__dabt_svc)
 
 	.align	5
 __irq_svc:
 	svc_entry
+	irq_handler
 
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	trace_hardirqs_off
-#endif
 #ifdef CONFIG_PREEMPT
 	get_thread_info tsk
 	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
-	add	r7, r8, #1			@ increment it
-	str	r7, [tsk, #TI_PREEMPT]
-#endif
-
-	irq_handler
-#ifdef CONFIG_PREEMPT
-	str	r8, [tsk, #TI_PREEMPT]		@ restore preempt count
 	ldr	r0, [tsk, #TI_FLAGS]		@ get flags
 	teq	r8, #0				@ if preempt count != 0
 	movne	r0, #0				@ force flags to 0
 	tst	r0, #_TIF_NEED_RESCHED
 	blne	svc_preempt
 #endif
-	ldr	r4, [sp, #S_PSR]		@ irqs are already disabled
+
 #ifdef CONFIG_TRACE_IRQFLAGS
-	tst	r4, #PSR_I_BIT
-	bleq	trace_hardirqs_on
+	@ The parent context IRQs must have been enabled to get here in
+	@ the first place, so there's no point checking the PSR I bit.
+	bl	trace_hardirqs_on
 #endif
-	svc_exit r4				@ return from exception
+	svc_exit r5				@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__irq_svc)
 
@@ -251,7 +251,6 @@ __und_svc:
 #else
 	svc_entry
 #endif
-
 	@
 	@ call emulation code, which returns using r9 if it has emulated
 	@ the instruction, or the more conventional lr if we are to treat
@@ -260,15 +259,16 @@ __und_svc:
 	@  r0 - instruction
 	@
 #ifndef	CONFIG_THUMB2_KERNEL
-	ldr	r0, [r2, #-4]
+	ldr	r0, [r4, #-4]
 #else
-	ldrh	r0, [r2, #-2]			@ Thumb instruction at LR - 2
+	ldrh	r0, [r4, #-2]			@ Thumb instruction at LR - 2
 	and	r9, r0, #0xf800
 	cmp	r9, #0xe800			@ 32-bit instruction if xx >= 0
-	ldrhhs	r9, [r2]			@ bottom 16 bits
+	ldrhhs	r9, [r4]			@ bottom 16 bits
 	orrhs	r0, r9, r0, lsl #16
 #endif
 	adr	r9, BSYM(1f)
+	mov	r2, r4
 	bl	call_fpe
 
 	mov	r0, sp				@ struct pt_regs *regs
@@ -282,45 +282,35 @@ __und_svc:
 	@
 	@ restore SPSR and restart the instruction
 	@
-	ldr	r2, [sp, #S_PSR]		@ Get SVC cpsr
-	svc_exit r2				@ return from exception
+	ldr	r5, [sp, #S_PSR]		@ Get SVC cpsr
+#ifdef CONFIG_TRACE_IRQFLAGS
+	tst	r5, #PSR_I_BIT
+	bleq	trace_hardirqs_on
+	tst	r5, #PSR_I_BIT
+	blne	trace_hardirqs_off
+#endif
+	svc_exit r5				@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__und_svc)
 
 	.align	5
 __pabt_svc:
 	svc_entry
-
-	@
-	@ re-enable interrupts if appropriate
-	@
-	mrs	r9, cpsr
-	tst	r3, #PSR_I_BIT
-	biceq	r9, r9, #PSR_I_BIT
-
-	mov	r0, r2			@ pass address of aborted instruction.
-#ifdef MULTI_PABORT
-	ldr	r4, .LCprocfns
-	mov	lr, pc
-	ldr	pc, [r4, #PROCESSOR_PABT_FUNC]
-#else
-	bl	CPU_PABORT_HANDLER
-#endif
-	debug_entry r1
-	msr	cpsr_c, r9			@ Maybe enable interrupts
 	mov	r2, sp				@ regs
-	bl	do_PrefetchAbort		@ call abort handler
+	pabt_helper
 
 	@
 	@ IRQs off again before pulling preserved data off the stack
 	@
 	disable_irq_notrace
 
-	@
-	@ restore SPSR and restart the instruction
-	@
-	ldr	r2, [sp, #S_PSR]
-	svc_exit r2				@ return from exception
+#ifdef CONFIG_TRACE_IRQFLAGS
+	tst	r5, #PSR_I_BIT
+	bleq	trace_hardirqs_on
+	tst	r5, #PSR_I_BIT
+	blne	trace_hardirqs_off
+#endif
+	svc_exit r5				@ return from exception
  UNWIND(.fnend		)
 ENDPROC(__pabt_svc)
 
@@ -351,23 +341,23 @@ ENDPROC(__pabt_svc)
  ARM(	stmib	sp, {r1 - r12}	)
  THUMB(	stmia	sp, {r0 - r12}	)
 
-	ldmia	r0, {r1 - r3}
+	ldmia	r0, {r3 - r5}
 	add	r0, sp, #S_PC		@ here for interlock avoidance
-	mov	r4, #-1			@  ""  ""     ""        ""
+	mov	r6, #-1			@  ""  ""     ""        ""
 
-	str	r1, [sp]		@ save the "real" r0 copied
+	str	r3, [sp]		@ save the "real" r0 copied
 					@ from the exception stack
 
 	@
 	@ We are now ready to fill in the remaining blanks on the stack:
 	@
-	@  r2 - lr_<exception>, already fixed up for correct return/restart
-	@  r3 - spsr_<exception>
-	@  r4 - orig_r0 (see pt_regs definition in ptrace.h)
+	@  r4 - lr_<exception>, already fixed up for correct return/restart
+	@  r5 - spsr_<exception>
+	@  r6 - orig_r0 (see pt_regs definition in ptrace.h)
 	@
 	@ Also, separately save sp_usr and lr_usr
 	@
-	stmia	r0, {r2 - r4}
+	stmia	r0, {r4 - r6}
  ARM(	stmdb	r0, {sp, lr}^			)
  THUMB(	store_user_sp_lr r0, r1, S_SP - S_PC	)
 
@@ -380,6 +370,10 @@ ENDPROC(__pabt_svc)
 	@ Clear FP to mark the first stack frame
 	@
 	zero_fp
+
+#ifdef CONFIG_IRQSOFF_TRACER
+	bl	trace_hardirqs_off
+#endif
 	.endm
 
 	.macro	kuser_cmpxchg_check
@@ -391,7 +385,7 @@ ENDPROC(__pabt_svc)
 	@ if it was interrupted in a critical region.  Here we
 	@ perform a quick test inline since it should be false
 	@ 99.9999% of the time.  The rest is done out of line.
-	cmp	r2, #TASK_SIZE
+	cmp	r4, #TASK_SIZE
 	blhs	kuser_cmpxchg_fixup
 #endif
 #endif
@@ -401,32 +395,9 @@ ENDPROC(__pabt_svc)
 __dabt_usr:
 	usr_entry
 	kuser_cmpxchg_check
-
-	@
-	@ Call the processor-specific abort handler:
-	@
-	@  r2 - aborted context pc
-	@  r3 - aborted context cpsr
-	@
-	@ The abort handler must return the aborted address in r0, and
-	@ the fault status register in r1.
-	@
-#ifdef MULTI_DABORT
-	ldr	r4, .LCprocfns
-	mov	lr, pc
-	ldr	pc, [r4, #PROCESSOR_DABT_FUNC]
-#else
-	bl	CPU_DABORT_HANDLER
-#endif
-
-	@
-	@ IRQs on, then call the main handler
-	@
-	debug_entry r1
-	enable_irq
 	mov	r2, sp
-	adr	lr, BSYM(ret_from_exception)
-	b	do_DataAbort
+	dabt_helper
+	b	ret_from_exception
  UNWIND(.fnend		)
 ENDPROC(__dabt_usr)
 
@@ -434,28 +405,8 @@ ENDPROC(__dabt_usr)
 __irq_usr:
 	usr_entry
 	kuser_cmpxchg_check
-
-#ifdef CONFIG_IRQSOFF_TRACER
-	bl	trace_hardirqs_off
-#endif
-
-	get_thread_info tsk
-#ifdef CONFIG_PREEMPT
-	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
-	add	r7, r8, #1			@ increment it
-	str	r7, [tsk, #TI_PREEMPT]
-#endif
-
 	irq_handler
-#ifdef CONFIG_PREEMPT
-	ldr	r0, [tsk, #TI_PREEMPT]
-	str	r8, [tsk, #TI_PREEMPT]
-	teq	r0, r7
- ARM(	strne	r0, [r0, -r0]	)
- THUMB(	movne	r0, #0		)
- THUMB(	strne	r0, [r0]	)
-#endif
-
+	get_thread_info tsk
 	mov	why, #0
 	b	ret_to_user_from_irq
  UNWIND(.fnend		)
@@ -466,6 +417,9 @@ ENDPROC(__irq_usr)
 	.align	5
 __und_usr:
 	usr_entry
+
+	mov	r2, r4
+	mov	r3, r5
 
 	@
 	@ fall through to the emulation code, which returns using r9 if
@@ -682,19 +636,8 @@ ENDPROC(__und_usr_unknown)
 	.align	5
 __pabt_usr:
 	usr_entry
-
-	mov	r0, r2			@ pass address of aborted instruction.
-#ifdef MULTI_PABORT
-	ldr	r4, .LCprocfns
-	mov	lr, pc
-	ldr	pc, [r4, #PROCESSOR_PABT_FUNC]
-#else
-	bl	CPU_PABORT_HANDLER
-#endif
-	debug_entry r1
-	enable_irq				@ Enable interrupts
 	mov	r2, sp				@ regs
-	bl	do_PrefetchAbort		@ call abort handler
+	pabt_helper
  UNWIND(.fnend		)
 	/* fall through */
 /*
@@ -927,13 +870,13 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	.text
 kuser_cmpxchg_fixup:
 	@ Called from kuser_cmpxchg_check macro.
-	@ r2 = address of interrupted insn (must be preserved).
+	@ r4 = address of interrupted insn (must be preserved).
 	@ sp = saved regs. r7 and r8 are clobbered.
 	@ 1b = first critical insn, 2b = last critical insn.
-	@ If r2 >= 1b and r2 <= 2b then saved pc_usr is set to 1b.
+	@ If r4 >= 1b and r4 <= 2b then saved pc_usr is set to 1b.
 	mov	r7, #0xffff0fff
 	sub	r7, r7, #(0xffff0fff - (0xffff0fc0 + (1b - __kuser_cmpxchg)))
-	subs	r8, r2, r7
+	subs	r8, r4, r7
 	rsbcss	r8, r8, #(2b - 1b)
 	strcs	r7, [sp, #S_PC]
 	mov	pc, lr

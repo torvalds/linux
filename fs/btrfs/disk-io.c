@@ -1044,7 +1044,6 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->last_trans = 0;
 	root->highest_objectid = 0;
 	root->name = NULL;
-	root->in_sysfs = 0;
 	root->inode_tree = RB_ROOT;
 	INIT_RADIX_TREE(&root->delayed_nodes_tree, GFP_ATOMIC);
 	root->block_rsv = NULL;
@@ -1300,19 +1299,21 @@ again:
 		return root;
 
 	root->free_ino_ctl = kzalloc(sizeof(*root->free_ino_ctl), GFP_NOFS);
-	if (!root->free_ino_ctl)
-		goto fail;
 	root->free_ino_pinned = kzalloc(sizeof(*root->free_ino_pinned),
 					GFP_NOFS);
-	if (!root->free_ino_pinned)
+	if (!root->free_ino_pinned || !root->free_ino_ctl) {
+		ret = -ENOMEM;
 		goto fail;
+	}
 
 	btrfs_init_free_ino_ctl(root);
 	mutex_init(&root->fs_commit_mutex);
 	spin_lock_init(&root->cache_lock);
 	init_waitqueue_head(&root->cache_wait);
 
-	set_anon_super(&root->anon_super, NULL);
+	ret = set_anon_super(&root->anon_super, NULL);
+	if (ret)
+		goto fail;
 
 	if (btrfs_root_refs(&root->root_item) == 0) {
 		ret = -ENOENT;
@@ -1618,6 +1619,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	spin_lock_init(&fs_info->fs_roots_radix_lock);
 	spin_lock_init(&fs_info->delayed_iput_lock);
 	spin_lock_init(&fs_info->defrag_inodes_lock);
+	mutex_init(&fs_info->reloc_mutex);
 
 	init_completion(&fs_info->kobj_unregister);
 	fs_info->tree_root = tree_root;

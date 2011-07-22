@@ -2265,12 +2265,14 @@ static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 	return nfs4_map_errors(status);
 }
 
+static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr);
 /*
  * Get locations and (maybe) other attributes of a referral.
  * Note that we'll actually follow the referral later when
  * we detect fsid mismatch in inode revalidation
  */
-static int nfs4_get_referral(struct inode *dir, const struct qstr *name, struct nfs_fattr *fattr, struct nfs_fh *fhandle)
+static int nfs4_get_referral(struct inode *dir, const struct qstr *name,
+			     struct nfs_fattr *fattr, struct nfs_fh *fhandle)
 {
 	int status = -ENOMEM;
 	struct page *page = NULL;
@@ -2288,15 +2290,16 @@ static int nfs4_get_referral(struct inode *dir, const struct qstr *name, struct 
 		goto out;
 	/* Make sure server returned a different fsid for the referral */
 	if (nfs_fsid_equal(&NFS_SERVER(dir)->fsid, &locations->fattr.fsid)) {
-		dprintk("%s: server did not return a different fsid for a referral at %s\n", __func__, name->name);
+		dprintk("%s: server did not return a different fsid for"
+			" a referral at %s\n", __func__, name->name);
 		status = -EIO;
 		goto out;
 	}
+	/* Fixup attributes for the nfs_lookup() call to nfs_fhget() */
+	nfs_fixup_referral_attributes(&locations->fattr);
 
+	/* replace the lookup nfs_fattr with the locations nfs_fattr */
 	memcpy(fattr, &locations->fattr, sizeof(struct nfs_fattr));
-	fattr->valid |= NFS_ATTR_FATTR_V4_REFERRAL;
-	if (!fattr->mode)
-		fattr->mode = S_IFDIR;
 	memset(fhandle, 0, sizeof(struct nfs_fh));
 out:
 	if (page)
@@ -4667,11 +4670,15 @@ static size_t nfs4_xattr_list_nfs4_acl(struct dentry *dentry, char *list,
 	return len;
 }
 
+/*
+ * nfs_fhget will use either the mounted_on_fileid or the fileid
+ */
 static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr)
 {
-	if (!((fattr->valid & NFS_ATTR_FATTR_FILEID) &&
-		(fattr->valid & NFS_ATTR_FATTR_FSID) &&
-		(fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)))
+	if (!(((fattr->valid & NFS_ATTR_FATTR_MOUNTED_ON_FILEID) ||
+	       (fattr->valid & NFS_ATTR_FATTR_FILEID)) &&
+	      (fattr->valid & NFS_ATTR_FATTR_FSID) &&
+	      (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)))
 		return;
 
 	fattr->valid |= NFS_ATTR_FATTR_TYPE | NFS_ATTR_FATTR_MODE |
@@ -4686,7 +4693,6 @@ int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
 	struct nfs_server *server = NFS_SERVER(dir);
 	u32 bitmask[2] = {
 		[0] = FATTR4_WORD0_FSID | FATTR4_WORD0_FS_LOCATIONS,
-		[1] = FATTR4_WORD1_MOUNTED_ON_FILEID,
 	};
 	struct nfs4_fs_locations_arg args = {
 		.dir_fh = NFS_FH(dir),
@@ -4705,11 +4711,18 @@ int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
 	int status;
 
 	dprintk("%s: start\n", __func__);
+
+	/* Ask for the fileid of the absent filesystem if mounted_on_fileid
+	 * is not supported */
+	if (NFS_SERVER(dir)->attr_bitmask[1] & FATTR4_WORD1_MOUNTED_ON_FILEID)
+		bitmask[1] |= FATTR4_WORD1_MOUNTED_ON_FILEID;
+	else
+		bitmask[0] |= FATTR4_WORD0_FILEID;
+
 	nfs_fattr_init(&fs_locations->fattr);
 	fs_locations->server = server;
 	fs_locations->nlocations = 0;
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
-	nfs_fixup_referral_attributes(&fs_locations->fattr);
 	dprintk("%s: returned status = %d\n", __func__, status);
 	return status;
 }
@@ -5098,7 +5111,6 @@ static void nfs4_init_channel_attrs(struct nfs41_create_session_args *args)
 	if (mxresp_sz == 0)
 		mxresp_sz = NFS_MAX_FILE_IO_SIZE;
 	/* Fore channel attributes */
-	args->fc_attrs.headerpadsz = 0;
 	args->fc_attrs.max_rqst_sz = mxrqst_sz;
 	args->fc_attrs.max_resp_sz = mxresp_sz;
 	args->fc_attrs.max_ops = NFS4_MAX_OPS;
@@ -5111,7 +5123,6 @@ static void nfs4_init_channel_attrs(struct nfs41_create_session_args *args)
 		args->fc_attrs.max_ops, args->fc_attrs.max_reqs);
 
 	/* Back channel attributes */
-	args->bc_attrs.headerpadsz = 0;
 	args->bc_attrs.max_rqst_sz = PAGE_SIZE;
 	args->bc_attrs.max_resp_sz = PAGE_SIZE;
 	args->bc_attrs.max_resp_sz_cached = 0;
@@ -5131,8 +5142,6 @@ static int nfs4_verify_fore_channel_attrs(struct nfs41_create_session_args *args
 	struct nfs4_channel_attrs *sent = &args->fc_attrs;
 	struct nfs4_channel_attrs *rcvd = &session->fc_attrs;
 
-	if (rcvd->headerpadsz > sent->headerpadsz)
-		return -EINVAL;
 	if (rcvd->max_resp_sz > sent->max_resp_sz)
 		return -EINVAL;
 	/*
@@ -5697,6 +5706,7 @@ static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_layoutreturn *lrp = calldata;
 	struct nfs_server *server;
+	struct pnfs_layout_hdr *lo = NFS_I(lrp->args.inode)->layout;
 
 	dprintk("--> %s\n", __func__);
 
@@ -5708,16 +5718,15 @@ static void nfs4_layoutreturn_done(struct rpc_task *task, void *calldata)
 		nfs_restart_rpc(task, lrp->clp);
 		return;
 	}
+	spin_lock(&lo->plh_inode->i_lock);
 	if (task->tk_status == 0) {
-		struct pnfs_layout_hdr *lo = NFS_I(lrp->args.inode)->layout;
-
 		if (lrp->res.lrs_present) {
-			spin_lock(&lo->plh_inode->i_lock);
 			pnfs_set_layout_stateid(lo, &lrp->res.stateid, true);
-			spin_unlock(&lo->plh_inode->i_lock);
 		} else
 			BUG_ON(!list_empty(&lo->plh_segs));
 	}
+	lo->plh_block_lgets--;
+	spin_unlock(&lo->plh_inode->i_lock);
 	dprintk("<-- %s\n", __func__);
 }
 

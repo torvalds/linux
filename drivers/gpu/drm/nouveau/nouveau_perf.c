@@ -182,6 +182,11 @@ nouveau_perf_init(struct drm_device *dev)
 		entries   = perf[2];
 	}
 
+	if (entries > NOUVEAU_PM_MAX_LEVEL) {
+		NV_DEBUG(dev, "perf table has too many entries - buggy vbios?\n");
+		entries = NOUVEAU_PM_MAX_LEVEL;
+	}
+
 	entry = perf + headerlen;
 	for (i = 0; i < entries; i++) {
 		struct nouveau_pm_level *perflvl = &pm->perflvl[pm->nr_perflvl];

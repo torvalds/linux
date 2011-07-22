@@ -84,7 +84,8 @@ static struct mtd_partition omap3pandora_nand_partitions[] = {
 
 static struct omap_nand_platform_data pandora_nand_data = {
 	.cs		= 0,
-	.devsize	= 1,	/* '0' for 8-bit, '1' for 16-bit device */
+	.devsize	= NAND_BUSWIDTH_16,
+	.xfer_type	= NAND_OMAP_PREFETCH_DMA,
 	.parts		= omap3pandora_nand_partitions,
 	.nr_parts	= ARRAY_SIZE(omap3pandora_nand_partitions),
 };

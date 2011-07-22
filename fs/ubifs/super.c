@@ -2146,6 +2146,7 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 	if (IS_ERR(sb)) {
 		err = PTR_ERR(sb);
 		kfree(c);
+		goto out_close;
 	}
 
 	if (sb->s_root) {

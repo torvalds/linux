@@ -75,10 +75,16 @@ void core_tmr_release_req(
 {
 	struct se_device *dev = tmr->tmr_dev;
 
+	if (!dev) {
+		kmem_cache_free(se_tmr_req_cache, tmr);
+		return;
+	}
+
 	spin_lock(&dev->se_tmr_lock);
 	list_del(&tmr->tmr_list);
-	kmem_cache_free(se_tmr_req_cache, tmr);
 	spin_unlock(&dev->se_tmr_lock);
+
+	kmem_cache_free(se_tmr_req_cache, tmr);
 }
 
 static void core_tmr_handle_tas_abort(

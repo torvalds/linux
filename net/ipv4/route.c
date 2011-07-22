@@ -1902,9 +1902,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 
 	hash = rt_hash(daddr, saddr, dev->ifindex, rt_genid(dev_net(dev)));
 	rth = rt_intern_hash(hash, rth, skb, dev->ifindex);
-	err = 0;
-	if (IS_ERR(rth))
-		err = PTR_ERR(rth);
+	return IS_ERR(rth) ? PTR_ERR(rth) : 0;
 
 e_nobufs:
 	return -ENOBUFS;

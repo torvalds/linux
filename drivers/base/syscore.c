@@ -9,6 +9,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
+#include <linux/interrupt.h>
 
 static LIST_HEAD(syscore_ops_list);
 static DEFINE_MUTEX(syscore_ops_lock);
@@ -47,6 +48,13 @@ int syscore_suspend(void)
 {
 	struct syscore_ops *ops;
 	int ret = 0;
+
+	pr_debug("Checking wakeup interrupts\n");
+
+	/* Return error code if there are any wakeup interrupts pending. */
+	ret = check_wakeup_irqs();
+	if (ret)
+		return ret;
 
 	WARN_ONCE(!irqs_disabled(),
 		"Interrupts enabled before system core suspend.\n");

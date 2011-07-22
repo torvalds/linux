@@ -387,7 +387,7 @@ static int pm_runtime_clk_notify(struct notifier_block *nb,
 	clknb = container_of(nb, struct pm_clk_notifier_block, nb);
 
 	switch (action) {
-	case BUS_NOTIFY_ADD_DEVICE:
+	case BUS_NOTIFY_BIND_DRIVER:
 		if (clknb->con_ids[0]) {
 			for (con_id = clknb->con_ids; *con_id; con_id++)
 				enable_clock(dev, *con_id);
@@ -395,7 +395,7 @@ static int pm_runtime_clk_notify(struct notifier_block *nb,
 			enable_clock(dev, NULL);
 		}
 		break;
-	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_NOTIFY_UNBOUND_DRIVER:
 		if (clknb->con_ids[0]) {
 			for (con_id = clknb->con_ids; *con_id; con_id++)
 				disable_clock(dev, *con_id);

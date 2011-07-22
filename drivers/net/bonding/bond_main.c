@@ -1297,6 +1297,7 @@ static inline int slave_enable_netpoll(struct slave *slave)
 		goto out;
 
 	np->dev = slave->dev;
+	strlcpy(np->dev_name, slave->dev->name, IFNAMSIZ);
 	err = __netpoll_setup(np);
 	if (err) {
 		kfree(np);
@@ -1427,9 +1428,9 @@ out:
 	return features;
 }
 
-#define BOND_VLAN_FEATURES	(NETIF_F_ALL_TX_OFFLOADS | \
-				 NETIF_F_SOFT_FEATURES | \
-				 NETIF_F_LRO)
+#define BOND_VLAN_FEATURES	(NETIF_F_ALL_CSUM | NETIF_F_SG | \
+				 NETIF_F_FRAGLIST | NETIF_F_ALL_TSO | \
+				 NETIF_F_HIGHDMA | NETIF_F_LRO)
 
 static void bond_compute_features(struct bonding *bond)
 {

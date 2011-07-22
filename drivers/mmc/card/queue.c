@@ -106,10 +106,12 @@ static void mmc_request(struct request_queue *q)
  * @mq: mmc queue
  * @card: mmc card to attach this queue
  * @lock: queue lock
+ * @subname: partition subname
  *
  * Initialise a MMC card request queue.
  */
-int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock)
+int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card,
+		   spinlock_t *lock, const char *subname)
 {
 	struct mmc_host *host = card->host;
 	u64 limit = BLK_BOUNCE_HIGH;
@@ -133,12 +135,7 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 		mq->queue->limits.max_discard_sectors = UINT_MAX;
 		if (card->erased_byte == 0)
 			mq->queue->limits.discard_zeroes_data = 1;
-		if (!mmc_can_trim(card) && is_power_of_2(card->erase_size)) {
-			mq->queue->limits.discard_granularity =
-							card->erase_size << 9;
-			mq->queue->limits.discard_alignment =
-							card->erase_size << 9;
-		}
+		mq->queue->limits.discard_granularity = card->pref_erase << 9;
 		if (mmc_can_secure_erase_trim(card))
 			queue_flag_set_unlocked(QUEUE_FLAG_SECDISCARD,
 						mq->queue);
@@ -209,8 +206,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 
 	sema_init(&mq->thread_sem, 1);
 
-	mq->thread = kthread_run(mmc_queue_thread, mq, "mmcqd/%d",
-		host->index);
+	mq->thread = kthread_run(mmc_queue_thread, mq, "mmcqd/%d%s",
+		host->index, subname ? subname : "");
 
 	if (IS_ERR(mq->thread)) {
 		ret = PTR_ERR(mq->thread);
