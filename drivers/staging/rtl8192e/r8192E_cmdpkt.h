@@ -18,16 +18,16 @@
 ******************************************************************************/
 #ifndef R819XUSB_CMDPKT_H
 #define R819XUSB_CMDPKT_H
-#define		CMPK_RX_TX_FB_SIZE					sizeof(struct cmpk_txfb)
-#define		CMPK_TX_SET_CONFIG_SIZE				sizeof(struct cmpk_set_cfg)
-#define		CMPK_BOTH_QUERY_CONFIG_SIZE			sizeof(struct cmpk_set_cfg)
-#define		CMPK_RX_TX_STS_SIZE					sizeof(struct cmpk_tx_status)
-#define		CMPK_RX_DBG_MSG_SIZE			sizeof(struct cmpk_rx_dbginfo)
-#define		CMPK_TX_RAHIS_SIZE			sizeof(struct cmpk_tx_rahis)
+#define	CMPK_RX_TX_FB_SIZE		sizeof(struct cmpk_txfb)
+#define CMPK_TX_SET_CONFIG_SIZE		sizeof(struct cmpk_set_cfg)
+#define CMPK_BOTH_QUERY_CONFIG_SIZE	sizeof(struct cmpk_set_cfg)
+#define CMPK_RX_TX_STS_SIZE		sizeof(struct cmpk_tx_status)
+#define CMPK_RX_DBG_MSG_SIZE		sizeof(struct cmpk_rx_dbginfo)
+#define	CMPK_TX_RAHIS_SIZE		sizeof(struct cmpk_tx_rahis)
 
-#define ISR_TxBcnOk					BIT27
-#define ISR_TxBcnErr				BIT26
-#define ISR_BcnTimerIntr			BIT13
+#define ISR_TxBcnOk			BIT27
+#define ISR_TxBcnErr			BIT26
+#define ISR_BcnTimerIntr		BIT13
 
 
 struct cmpk_txfb {
@@ -110,7 +110,7 @@ struct cmpk_tx_status {
 	u16	reserve3_23;
 	u8	reserve3_1;
 	u8	rate;
-}__packed;
+} __packed;
 
 struct cmpk_rx_dbginfo {
 	u16	reserve1;
@@ -138,19 +138,22 @@ struct cmpk_tx_rahis {
 } __packed;
 
 enum cmpk_element {
-    RX_TX_FEEDBACK = 0,
-    RX_INTERRUPT_STATUS		= 1,
-    TX_SET_CONFIG				= 2,
-    BOTH_QUERY_CONFIG			= 3,
-    RX_TX_STATUS				= 4,
-    RX_DBGINFO_FEEDBACK		= 5,
-    RX_TX_PER_PKT_FEEDBACK		= 6,
-    RX_TX_RATE_HISTORY		= 7,
-    RX_CMD_ELE_MAX
+	RX_TX_FEEDBACK = 0,
+	RX_INTERRUPT_STATUS		= 1,
+	TX_SET_CONFIG			= 2,
+	BOTH_QUERY_CONFIG		= 3,
+	RX_TX_STATUS			= 4,
+	RX_DBGINFO_FEEDBACK		= 5,
+	RX_TX_PER_PKT_FEEDBACK		= 6,
+	RX_TX_RATE_HISTORY		= 7,
+	RX_CMD_ELE_MAX
 };
 
-extern  u32 cmpk_message_handle_rx(struct net_device *dev, struct rtllib_rx_stats * pstats);
-extern bool cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);
+extern  u32 cmpk_message_handle_rx(struct net_device *dev,
+				   struct rtllib_rx_stats *pstats);
+extern bool cmpk_message_handle_tx(struct net_device *dev,
+				   u8 *codevirtualaddress, u32 packettype,
+				   u32 buffer_len);
 
 
 #endif
