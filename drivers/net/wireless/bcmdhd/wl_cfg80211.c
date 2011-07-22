@@ -123,7 +123,7 @@ static ctl_table wl_sysctl_table[] = {
 	{0}
 };
 static struct ctl_table_header *wl_sysctl_hdr;
-#endif /* CONFIG_SYSCTL */ 
+#endif /* CONFIG_SYSCTL */
 
 /* This is to override regulatory domains defined in cfg80211 module (reg.c)
  * By default world regulatory domain defined in reg.c puts the flags NL80211_RRF_PASSIVE_SCAN
@@ -5079,11 +5079,20 @@ static s32 wl_escan_handler(struct wl_priv *wl,
 	if (status == WLC_E_STATUS_PARTIAL) {
 		WL_INFO(("WLC_E_STATUS_PARTIAL \n"));
 		escan_result = (wl_escan_result_t *) data;
+		if (!escan_result) {
+			WL_ERR(("Invalid escan result (NULL pointer)\n"));
+			goto exit;
+		}
+
 		if (dtoh16(escan_result->bss_count) != 1) {
 			WL_ERR(("Invalid bss_count %d: ignoring\n", escan_result->bss_count));
 			goto exit;
 		}
 		bi = escan_result->bss_info;
+		if (!bi) {
+			WL_ERR(("Invalid escan bss info (NULL pointer)\n"));
+			goto exit;
+		}
 		bi_length = dtoh32(bi->length);
 		if (bi_length != (dtoh32(escan_result->buflen) - WL_ESCAN_RESULTS_FIXED_SIZE)) {
 			WL_ERR(("Invalid bss_info length %d: ignoring\n", bi_length));
@@ -5912,35 +5921,51 @@ s32 wl_config_dongle(struct wl_priv *wl, bool need_lock)
 	s32 err = 0;
 
 	WL_TRACE(("In\n"));
-	if (wl->dongle_up)
+	if (wl->dongle_up) {
+		WL_ERR(("Dongle is already up\n"));
 		return err;
+	}
 
 	ndev = wl_to_prmry_ndev(wl);
 	wdev = ndev->ieee80211_ptr;
 	if (need_lock)
 		rtnl_lock();
 	err = wl_dongle_eventmsg(ndev);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		WL_ERR(("wl_dongle_eventmsg failed\n"));
 		goto default_conf_out;
+	}
 #ifndef EMBEDDED_PLATFORM
 	err = wl_dongle_up(ndev, 0);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		WL_ERR(("wl_dongle_up failed\n"));
 		goto default_conf_out;
+	}
 	err = wl_dongle_country(ndev, 0);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		WL_ERR(("wl_dongle_country failed\n"));
 		goto default_conf_out;
+	}
 	err = wl_dongle_power(ndev, PM_FAST);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		WL_ERR(("wl_dongle_power failed\n"));
 		goto default_conf_out;
+	}
 	err = wl_dongle_glom(ndev, 0, DHD_SDALIGN);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		WL_ERR(("wl_dongle_glom failed\n"));
 		goto default_conf_out;
+	}
 	err = wl_dongle_roam(ndev, (wl->roam_on ? 0 : 1), 3);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		WL_ERR(("wl_dongle_roam failed\n"));
 		goto default_conf_out;
+	}
 	err = wl_dongle_eventmsg(ndev);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		WL_ERR(("wl_dongle_eventmsg failed\n"));
 		goto default_conf_out;
+	}
 
 	wl_dongle_scantime(ndev, 40, 80);
 	wl_dongle_offload(ndev, 1, 0xf);
@@ -5948,11 +5973,15 @@ s32 wl_config_dongle(struct wl_priv *wl, bool need_lock)
 #endif				/* !EMBEDDED_PLATFORM */
 
 	err = wl_dongle_mode(wl, ndev, wdev->iftype);
-	if (unlikely(err && err != -EINPROGRESS))
+	if (unlikely(err && err != -EINPROGRESS)) {
+		WL_ERR(("wl_dongle_mode failed\n"));
 		goto default_conf_out;
+	}
 	err = wl_dongle_probecap(wl);
-	if (unlikely(err))
+	if (unlikely(err)) {
+		WL_ERR(("wl_dongle_probecap failed\n"));
 		goto default_conf_out;
+	}
 
 	/* -EINPROGRESS: Call commit handler */
 
@@ -5982,7 +6011,10 @@ static s32 wl_update_wiphybands(struct wl_priv *wl)
 
 	phy = ((char *)&phy_list)[1];
 	WL_DBG(("%c phy\n", phy));
-	if (phy == 'n' || phy == 'a') {
+	if (phy == 'a') {
+		wiphy = wl_to_wiphy(wl);
+		wiphy->bands[IEEE80211_BAND_5GHZ] = &__wl_band_5ghz_a;
+	} else if (phy == 'n') {
 		wiphy = wl_to_wiphy(wl);
 		wiphy->bands[IEEE80211_BAND_5GHZ] = &__wl_band_5ghz_n;
 	}
@@ -6053,6 +6085,8 @@ s32 wl_cfg80211_up(void)
 	mutex_lock(&wl->usr_sync);
 	wl_cfg80211_attach_post(wl_to_prmry_ndev(wl));
 	err = __wl_cfg80211_up(wl);
+	if (err)
+		WL_ERR(("__wl_cfg80211_up failed\n"));
 	mutex_unlock(&wl->usr_sync);
 
 	return err;
