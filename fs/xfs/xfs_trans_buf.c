@@ -80,7 +80,6 @@ _xfs_trans_bjoin(
 {
 	struct xfs_buf_log_item	*bip;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == NULL);
 
 	/*
@@ -580,7 +579,6 @@ xfs_trans_bhold(xfs_trans_t	*tp,
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
@@ -601,7 +599,6 @@ xfs_trans_bhold_release(xfs_trans_t	*tp,
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
@@ -630,7 +627,6 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT((first <= last) && (last < XFS_BUF_COUNT(bp)));
@@ -701,7 +697,6 @@ xfs_trans_binval(
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
@@ -773,7 +768,6 @@ xfs_trans_inode_buf(
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
@@ -797,7 +791,6 @@ xfs_trans_stale_inode_buf(
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
@@ -822,7 +815,6 @@ xfs_trans_inode_alloc_buf(
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
@@ -850,7 +842,6 @@ xfs_trans_dquot_buf(
 {
 	xfs_buf_log_item_t	*bip = bp->b_fspriv;
 
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
 	ASSERT(type == XFS_BLF_UDQUOT_BUF ||

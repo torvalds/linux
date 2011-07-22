@@ -1051,7 +1051,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	if (!bp)
 		goto out_free_log;
 	bp->b_iodone = xlog_iodone;
-	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(xfs_buf_islocked(bp));
 	log->l_xbuf = bp;
 
@@ -1108,7 +1107,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		iclog->ic_callback_tail = &(iclog->ic_callback);
 		iclog->ic_datap = (char *)iclog->ic_data + log->l_iclog_hsize;
 
-		ASSERT(XFS_BUF_ISBUSY(iclog->ic_bp));
 		ASSERT(xfs_buf_islocked(iclog->ic_bp));
 		init_waitqueue_head(&iclog->ic_force_wait);
 		init_waitqueue_head(&iclog->ic_write_wait);
@@ -1355,7 +1353,6 @@ xlog_sync(xlog_t		*log,
 	XFS_BUF_SET_COUNT(bp, count);
 	bp->b_fspriv = iclog;
 	XFS_BUF_ZEROFLAGS(bp);
-	XFS_BUF_BUSY(bp);
 	XFS_BUF_ASYNC(bp);
 	bp->b_flags |= XBF_SYNCIO;
 
@@ -1402,7 +1399,6 @@ xlog_sync(xlog_t		*log,
 					    (__psint_t)count), split);
 		bp->b_fspriv = iclog;
 		XFS_BUF_ZEROFLAGS(bp);
-		XFS_BUF_BUSY(bp);
 		XFS_BUF_ASYNC(bp);
 		bp->b_flags |= XBF_SYNCIO;
 		if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)

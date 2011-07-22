@@ -679,7 +679,6 @@ xfs_buf_read_uncached(
 	/* set up the buffer for a read IO */
 	XFS_BUF_SET_ADDR(bp, daddr);
 	XFS_BUF_READ(bp);
-	XFS_BUF_BUSY(bp);
 
 	xfsbdstrat(mp, bp);
 	error = xfs_buf_iowait(bp);
