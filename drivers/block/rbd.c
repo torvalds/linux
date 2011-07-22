@@ -630,6 +630,14 @@ static int rbd_get_num_segments(struct rbd_image_header *header,
 }
 
 /*
+ * returns the size of an object in the image
+ */
+static u64 rbd_obj_bytes(struct rbd_image_header *header)
+{
+	return 1 << header->obj_order;
+}
+
+/*
  * bio helpers
  */
 
@@ -1765,6 +1773,13 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	q = blk_init_queue(rbd_rq_fn, &rbd_dev->lock);
 	if (!q)
 		goto out_disk;
+
+	/* set io sizes to object size */
+	blk_queue_max_hw_sectors(q, rbd_obj_bytes(&rbd_dev->header) / 512ULL);
+	blk_queue_max_segment_size(q, rbd_obj_bytes(&rbd_dev->header));
+	blk_queue_io_min(q, rbd_obj_bytes(&rbd_dev->header));
+	blk_queue_io_opt(q, rbd_obj_bytes(&rbd_dev->header));
+
 	blk_queue_merge_bvec(q, rbd_merge_bvec);
 	disk->queue = q;
 
