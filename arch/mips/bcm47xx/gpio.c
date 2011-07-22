@@ -21,6 +21,7 @@ static DECLARE_BITMAP(gpio_in_use, BCM47XX_EXTIF_GPIO_LINES);
 int gpio_request(unsigned gpio, const char *tag)
 {
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		if (ssb_chipco_available(&bcm47xx_bus.ssb.chipco) &&
 		    ((unsigned)gpio >= BCM47XX_CHIPCO_GPIO_LINES))
@@ -34,6 +35,7 @@ int gpio_request(unsigned gpio, const char *tag)
 			return -EBUSY;
 
 		return 0;
+#endif
 	}
 	return -EINVAL;
 }
@@ -42,6 +44,7 @@ EXPORT_SYMBOL(gpio_request);
 void gpio_free(unsigned gpio)
 {
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		if (ssb_chipco_available(&bcm47xx_bus.ssb.chipco) &&
 		    ((unsigned)gpio >= BCM47XX_CHIPCO_GPIO_LINES))
@@ -53,6 +56,7 @@ void gpio_free(unsigned gpio)
 
 		clear_bit(gpio, gpio_in_use);
 		return;
+#endif
 	}
 }
 EXPORT_SYMBOL(gpio_free);
@@ -60,6 +64,7 @@ EXPORT_SYMBOL(gpio_free);
 int gpio_to_irq(unsigned gpio)
 {
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		if (ssb_chipco_available(&bcm47xx_bus.ssb.chipco))
 			return ssb_mips_irq(bcm47xx_bus.ssb.chipco.dev) + 2;
@@ -67,6 +72,7 @@ int gpio_to_irq(unsigned gpio)
 			return ssb_mips_irq(bcm47xx_bus.ssb.extif.dev) + 2;
 		else
 			return -EINVAL;
+#endif
 	}
 	return -EINVAL;
 }

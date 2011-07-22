@@ -22,8 +22,10 @@ extern int gpio_to_irq(unsigned gpio);
 static inline int gpio_get_value(unsigned gpio)
 {
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		return ssb_gpio_in(&bcm47xx_bus.ssb, 1 << gpio);
+#endif
 	}
 	return -EINVAL;
 }
@@ -31,18 +33,22 @@ static inline int gpio_get_value(unsigned gpio)
 static inline void gpio_set_value(unsigned gpio, int value)
 {
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		ssb_gpio_out(&bcm47xx_bus.ssb, 1 << gpio,
 			     value ? 1 << gpio : 0);
+#endif
 	}
 }
 
 static inline int gpio_direction_input(unsigned gpio)
 {
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		ssb_gpio_outen(&bcm47xx_bus.ssb, 1 << gpio, 0);
 		return 0;
+#endif
 	}
 	return -EINVAL;
 }
@@ -50,6 +56,7 @@ static inline int gpio_direction_input(unsigned gpio)
 static inline int gpio_direction_output(unsigned gpio, int value)
 {
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		/* first set the gpio out value */
 		ssb_gpio_out(&bcm47xx_bus.ssb, 1 << gpio,
@@ -57,6 +64,7 @@ static inline int gpio_direction_output(unsigned gpio, int value)
 		/* then set the gpio mode */
 		ssb_gpio_outen(&bcm47xx_bus.ssb, 1 << gpio, 1 << gpio);
 		return 0;
+#endif
 	}
 	return -EINVAL;
 }
@@ -64,10 +72,12 @@ static inline int gpio_direction_output(unsigned gpio, int value)
 static inline int gpio_intmask(unsigned gpio, int value)
 {
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		ssb_gpio_intmask(&bcm47xx_bus.ssb, 1 << gpio,
 				 value ? 1 << gpio : 0);
 		return 0;
+#endif
 	}
 	return -EINVAL;
 }
@@ -75,10 +85,12 @@ static inline int gpio_intmask(unsigned gpio, int value)
 static inline int gpio_polarity(unsigned gpio, int value)
 {
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		ssb_gpio_polarity(&bcm47xx_bus.ssb, 1 << gpio,
 				  value ? 1 << gpio : 0);
 		return 0;
+#endif
 	}
 	return -EINVAL;
 }

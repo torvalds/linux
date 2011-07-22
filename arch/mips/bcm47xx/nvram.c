@@ -26,7 +26,9 @@ static char nvram_buf[NVRAM_SPACE];
 /* Probe for NVRAM header */
 static void early_nvram_init(void)
 {
+#ifdef CONFIG_BCM47XX_SSB
 	struct ssb_mipscore *mcore_ssb;
+#endif
 	struct nvram_header *header;
 	int i;
 	u32 base = 0;
@@ -35,11 +37,13 @@ static void early_nvram_init(void)
 	u32 *src, *dst;
 
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		mcore_ssb = &bcm47xx_bus.ssb.mipscore;
 		base = mcore_ssb->flash_window;
 		lim = mcore_ssb->flash_window_size;
 		break;
+#endif
 	}
 
 	off = FLASH_MIN;

@@ -23,6 +23,7 @@ static struct platform_device uart8250_device = {
 	},
 };
 
+#ifdef CONFIG_BCM47XX_SSB
 static int __init uart8250_init_ssb(void)
 {
 	int i;
@@ -44,12 +45,15 @@ static int __init uart8250_init_ssb(void)
 	}
 	return platform_device_register(&uart8250_device);
 }
+#endif
 
 static int __init uart8250_init(void)
 {
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		return uart8250_init_ssb();
+#endif
 	}
 	return -EINVAL;
 }

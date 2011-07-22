@@ -47,9 +47,11 @@ static void bcm47xx_machine_restart(char *command)
 	local_irq_disable();
 	/* Set the watchdog timer to reset immediately */
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 1);
 		break;
+#endif
 	}
 	while (1)
 		cpu_relax();
@@ -60,14 +62,17 @@ static void bcm47xx_machine_halt(void)
 	/* Disable interrupts and watchdog and spin forever */
 	local_irq_disable();
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 0);
 		break;
+#endif
 	}
 	while (1)
 		cpu_relax();
 }
 
+#ifdef CONFIG_BCM47XX_SSB
 #define READ_FROM_NVRAM(_outvar, name, buf) \
 	if (nvram_getprefix(prefix, name, buf, sizeof(buf)) >= 0)\
 		sprom->_outvar = simple_strtoul(buf, NULL, 0);
@@ -288,13 +293,16 @@ static void __init bcm47xx_register_ssb(void)
 		}
 	}
 }
+#endif
 
 void __init plat_mem_setup(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 
+#ifdef CONFIG_BCM47XX_SSB
 	bcm47xx_bus_type = BCM47XX_BUS_TYPE_SSB;
 	bcm47xx_register_ssb();
+#endif
 
 	_machine_restart = bcm47xx_machine_restart;
 	_machine_halt = bcm47xx_machine_halt;

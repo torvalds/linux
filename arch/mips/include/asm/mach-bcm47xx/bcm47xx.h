@@ -22,11 +22,15 @@
 #include <linux/ssb/ssb.h>
 
 enum bcm47xx_bus_type {
+#ifdef CONFIG_BCM47XX_SSB
 	BCM47XX_BUS_TYPE_SSB,
+#endif
 };
 
 union bcm47xx_bus {
+#ifdef CONFIG_BCM47XX_SSB
 	struct ssb_bus ssb;
+#endif
 };
 
 extern union bcm47xx_bus bcm47xx_bus;

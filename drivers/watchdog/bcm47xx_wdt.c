@@ -55,17 +55,21 @@ static inline void bcm47xx_wdt_hw_start(void)
 {
 	/* this is 2,5s on 100Mhz clock  and 2s on 133 Mhz */
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 0xfffffff);
 		break;
+#endif
 	}
 }
 
 static inline int bcm47xx_wdt_hw_stop(void)
 {
 	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		return ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 0);
+#endif
 	}
 	return -EINVAL;
 }
