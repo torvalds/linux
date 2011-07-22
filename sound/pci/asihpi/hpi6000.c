@@ -946,11 +946,8 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 		}
 
 		/* write the DSP code down into the DSPs memory */
-		/*HpiDspCode_Open(nBootLoadFamily,&DspCode,pdwOsErrorCode); */
-		dsp_code.ps_dev = pao->pci.pci_dev;
-
-		error = hpi_dsp_code_open(boot_load_family, &dsp_code,
-			pos_error_code);
+		error = hpi_dsp_code_open(boot_load_family, pao->pci.pci_dev,
+			&dsp_code, pos_error_code);
 
 		if (error)
 			return error;

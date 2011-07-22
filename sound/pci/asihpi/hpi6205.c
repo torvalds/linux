@@ -1371,9 +1371,8 @@ static u16 adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 			return err;
 
 		/* write the DSP code down into the DSPs memory */
-		dsp_code.ps_dev = pao->pci.pci_dev;
-		err = hpi_dsp_code_open(boot_code_id[dsp], &dsp_code,
-			pos_error_code);
+		err = hpi_dsp_code_open(boot_code_id[dsp], pao->pci.pci_dev,
+			&dsp_code, pos_error_code);
 		if (err)
 			return err;
 
