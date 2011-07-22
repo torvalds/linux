@@ -241,8 +241,47 @@
 #define BCMA_CC_SPROM			0x0800 /* SPROM beginning */
 #define BCMA_CC_SPROM_PCIE6		0x0830 /* SPROM beginning on PCIe rev >= 6 */
 
+/* Divider allocation in 4716/47162/5356 */
+#define BCMA_CC_PMU5_MAINPLL_CPU	1
+#define BCMA_CC_PMU5_MAINPLL_MEM	2
+#define BCMA_CC_PMU5_MAINPLL_SSB	3
+
+/* PLL usage in 4716/47162 */
+#define BCMA_CC_PMU4716_MAINPLL_PLL0	12
+
+/* PLL usage in 5356/5357 */
+#define BCMA_CC_PMU5356_MAINPLL_PLL0	0
+#define BCMA_CC_PMU5357_MAINPLL_PLL0	0
+
+/* 4706 PMU */
+#define BCMA_CC_PMU4706_MAINPLL_PLL0	0
+
 /* ALP clock on pre-PMU chips */
 #define BCMA_CC_PMU_ALP_CLOCK		20000000
+/* HT clock for systems with PMU-enabled chipcommon */
+#define BCMA_CC_PMU_HT_CLOCK		80000000
+
+/* PMU rev 5 (& 6) */
+#define BCMA_CC_PPL_P1P2_OFF		0
+#define BCMA_CC_PPL_P1_MASK		0x0f000000
+#define BCMA_CC_PPL_P1_SHIFT		24
+#define BCMA_CC_PPL_P2_MASK		0x00f00000
+#define BCMA_CC_PPL_P2_SHIFT		20
+#define BCMA_CC_PPL_M14_OFF		1
+#define BCMA_CC_PPL_MDIV_MASK		0x000000ff
+#define BCMA_CC_PPL_MDIV_WIDTH		8
+#define BCMA_CC_PPL_NM5_OFF		2
+#define BCMA_CC_PPL_NDIV_MASK		0xfff00000
+#define BCMA_CC_PPL_NDIV_SHIFT		20
+#define BCMA_CC_PPL_FMAB_OFF		3
+#define BCMA_CC_PPL_MRAT_MASK		0xf0000000
+#define BCMA_CC_PPL_MRAT_SHIFT		28
+#define BCMA_CC_PPL_ABRAT_MASK		0x08000000
+#define BCMA_CC_PPL_ABRAT_SHIFT		27
+#define BCMA_CC_PPL_FDIV_MASK		0x07ffffff
+#define BCMA_CC_PPL_PLLCTL_OFF		4
+#define BCMA_CC_PPL_PCHI_OFF		5
+#define BCMA_CC_PPL_PCHI_MASK		0x0000003f
 
 /* Data for the PMU, if available.
  * Check availability with ((struct bcma_chipcommon)->capabilities & BCMA_CC_CAP_PMU)

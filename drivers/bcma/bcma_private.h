@@ -36,6 +36,7 @@ void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
 
 /* driver_chipcommon_pmu.c */
 u32 bcma_pmu_alp_clock(struct bcma_drv_cc *cc);
+u32 bcma_pmu_get_clockcpu(struct bcma_drv_cc *cc);
 
 #ifdef CONFIG_BCMA_HOST_PCI
 /* host_pci.c */
