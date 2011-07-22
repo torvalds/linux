@@ -30,7 +30,7 @@
 
 void __init plat_time_init(void)
 {
-	unsigned long hz;
+	unsigned long hz = 0;
 
 	/*
 	 * Use deterministic values for initial counter interrupt
@@ -39,7 +39,12 @@ void __init plat_time_init(void)
 	write_c0_count(0);
 	write_c0_compare(0xffff);
 
-	hz = ssb_cpu_clock(&ssb_bcm47xx.mipscore) / 2;
+	switch (bcm47xx_bus_type) {
+	case BCM47XX_BUS_TYPE_SSB:
+		hz = ssb_cpu_clock(&bcm47xx_bus.ssb.mipscore) / 2;
+		break;
+	}
+
 	if (!hz)
 		hz = 100000000;
 

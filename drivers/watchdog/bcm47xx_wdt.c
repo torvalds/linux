@@ -54,12 +54,20 @@ static atomic_t ticks;
 static inline void bcm47xx_wdt_hw_start(void)
 {
 	/* this is 2,5s on 100Mhz clock  and 2s on 133 Mhz */
-	ssb_watchdog_timer_set(&ssb_bcm47xx, 0xfffffff);
+	switch (bcm47xx_bus_type) {
+	case BCM47XX_BUS_TYPE_SSB:
+		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 0xfffffff);
+		break;
+	}
 }
 
 static inline int bcm47xx_wdt_hw_stop(void)
 {
-	return ssb_watchdog_timer_set(&ssb_bcm47xx, 0);
+	switch (bcm47xx_bus_type) {
+	case BCM47XX_BUS_TYPE_SSB:
+		return ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 0);
+	}
+	return -EINVAL;
 }
 
 static void bcm47xx_timer_tick(unsigned long unused)

@@ -23,10 +23,10 @@ static struct platform_device uart8250_device = {
 	},
 };
 
-static int __init uart8250_init(void)
+static int __init uart8250_init_ssb(void)
 {
 	int i;
-	struct ssb_mipscore *mcore = &(ssb_bcm47xx.mipscore);
+	struct ssb_mipscore *mcore = &(bcm47xx_bus.ssb.mipscore);
 
 	memset(&uart8250_data, 0,  sizeof(uart8250_data));
 
@@ -43,6 +43,15 @@ static int __init uart8250_init(void)
 		p->flags = UPF_BOOT_AUTOCONF | UPF_SHARE_IRQ;
 	}
 	return platform_device_register(&uart8250_device);
+}
+
+static int __init uart8250_init(void)
+{
+	switch (bcm47xx_bus_type) {
+	case BCM47XX_BUS_TYPE_SSB:
+		return uart8250_init_ssb();
+	}
+	return -EINVAL;
 }
 
 module_init(uart8250_init);

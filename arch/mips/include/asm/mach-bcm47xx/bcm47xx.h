@@ -19,7 +19,17 @@
 #ifndef __ASM_BCM47XX_H
 #define __ASM_BCM47XX_H
 
-/* SSB bus */
-extern struct ssb_bus ssb_bcm47xx;
+#include <linux/ssb/ssb.h>
+
+enum bcm47xx_bus_type {
+	BCM47XX_BUS_TYPE_SSB,
+};
+
+union bcm47xx_bus {
+	struct ssb_bus ssb;
+};
+
+extern union bcm47xx_bus bcm47xx_bus;
+extern enum bcm47xx_bus_type bcm47xx_bus_type;
 
 #endif /* __ASM_BCM47XX_H */
