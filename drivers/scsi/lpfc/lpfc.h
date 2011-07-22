@@ -470,9 +470,10 @@ enum intr_type_t {
 struct unsol_rcv_ct_ctx {
 	uint32_t ctxt_id;
 	uint32_t SID;
-	uint32_t oxid;
 	uint32_t flags;
 #define UNSOL_VALID	0x00000001
+	uint16_t oxid;
+	uint16_t rxid;
 };
 
 #define LPFC_USER_LINK_SPEED_AUTO	0	/* auto select (default)*/
