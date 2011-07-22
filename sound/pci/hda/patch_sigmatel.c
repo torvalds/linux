@@ -4935,6 +4935,17 @@ static void stac927x_proc_hook(struct snd_info_buffer *buffer,
 #endif
 
 #ifdef SND_HDA_NEEDS_RESUME
+static int stac92xx_pre_resume(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec = codec->spec;
+
+	/* sync mute LED */
+	if (spec->gpio_led)
+		stac_gpio_set(codec, spec->gpio_mask,
+				spec->gpio_dir, spec->gpio_data);
+	return 0;
+}
+
 static int stac92xx_resume(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -5013,6 +5024,7 @@ static const struct hda_codec_ops stac92xx_patch_ops = {
 #ifdef SND_HDA_NEEDS_RESUME
 	.suspend = stac92xx_suspend,
 	.resume = stac92xx_resume,
+	.pre_resume = stac92xx_pre_resume,
 #endif
 	.reboot_notify = stac92xx_shutup,
 };

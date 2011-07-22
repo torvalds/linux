@@ -712,6 +712,9 @@ struct hda_codec_ops {
 	int (*check_power_status)(struct hda_codec *codec, hda_nid_t nid);
 #endif
 	void (*reboot_notify)(struct hda_codec *codec);
+#ifdef SND_HDA_NEEDS_RESUME
+	int (*pre_resume)(struct hda_codec *codec);
+#endif
 };
 
 /* record for amp information cache */

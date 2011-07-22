@@ -5103,6 +5103,8 @@ int snd_hda_resume(struct hda_bus *bus)
 	struct hda_codec *codec;
 
 	list_for_each_entry(codec, &bus->codec_list, list) {
+		if (codec->patch_ops.pre_resume)
+			codec->patch_ops.pre_resume(codec);
 		if (snd_hda_codec_needs_resume(codec))
 			hda_call_codec_resume(codec);
 	}
