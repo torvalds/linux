@@ -108,7 +108,7 @@ enum ioc_event {
 	IOC_E_FWRSP_GETATTR	= 6,	/*!< IOC get attribute response	*/
 	IOC_E_DISABLED		= 7,	/*!< f/w disabled		*/
 	IOC_E_INITFAILED	= 8,	/*!< failure notice by iocpf sm	*/
-	IOC_E_PFAILED		= 9,	/*!< failure notice by iocpf sm	*/
+	IOC_E_PFFAILED		= 9,	/*!< failure notice by iocpf sm	*/
 	IOC_E_HBFAIL		= 10,	/*!< heartbeat failure		*/
 	IOC_E_HWERROR		= 11,	/*!< hardware error interrupt	*/
 	IOC_E_TIMEOUT		= 12,	/*!< timeout			*/
@@ -295,12 +295,12 @@ bfa_ioc_sm_enabling(struct bfa_ioc *ioc, enum ioc_event event)
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_getattr);
 		break;
 
-	case IOC_E_PFAILED:
+	case IOC_E_PFFAILED:
 		/* !!! fall through !!! */
 	case IOC_E_HWERROR:
 		ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_fail_retry);
-		if (event != IOC_E_PFAILED)
+		if (event != IOC_E_PFFAILED)
 			bfa_iocpf_initfail(ioc);
 		break;
 
@@ -345,14 +345,14 @@ bfa_ioc_sm_getattr(struct bfa_ioc *ioc, enum ioc_event event)
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_op);
 		break;
 
-	case IOC_E_PFAILED:
+	case IOC_E_PFFAILED:
 	case IOC_E_HWERROR:
 		del_timer(&ioc->ioc_timer);
 		/* fall through */
 	case IOC_E_TIMEOUT:
 		ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_fail_retry);
-		if (event != IOC_E_PFAILED)
+		if (event != IOC_E_PFFAILED)
 			bfa_iocpf_getattrfail(ioc);
 		break;
 
@@ -388,7 +388,7 @@ bfa_ioc_sm_op(struct bfa_ioc *ioc, enum ioc_event event)
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_disabling);
 		break;
 
-	case IOC_E_PFAILED:
+	case IOC_E_PFFAILED:
 	case IOC_E_HWERROR:
 		bfa_ioc_hb_stop(ioc);
 		/* !!! fall through !!! */
@@ -399,7 +399,7 @@ bfa_ioc_sm_op(struct bfa_ioc *ioc, enum ioc_event event)
 		else
 			bfa_fsm_set_state(ioc, bfa_ioc_sm_fail);
 
-		if (event != IOC_E_PFAILED)
+		if (event != IOC_E_PFFAILED)
 			bfa_iocpf_fail(ioc);
 		break;
 
@@ -486,13 +486,13 @@ bfa_ioc_sm_fail_retry(struct bfa_ioc *ioc, enum ioc_event event)
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_getattr);
 		break;
 
-	case IOC_E_PFAILED:
+	case IOC_E_PFFAILED:
 	case IOC_E_HWERROR:
 		/**
 		 * Initialization retry failed.
 		 */
 		ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_IOC_FAILURE);
-		if (event != IOC_E_PFAILED)
+		if (event != IOC_E_PFFAILED)
 			bfa_iocpf_initfail(ioc);
 		break;
 
@@ -1685,7 +1685,7 @@ bfa_ioc_pf_initfailed(struct bfa_ioc *ioc)
 static void
 bfa_ioc_pf_failed(struct bfa_ioc *ioc)
 {
-	bfa_fsm_send_event(ioc, IOC_E_PFAILED);
+	bfa_fsm_send_event(ioc, IOC_E_PFFAILED);
 }
 
 static void
