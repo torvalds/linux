@@ -118,6 +118,15 @@ void kvp_get_os_info(void)
 	os_build = uts_buf.release;
 	processor_arch = uts_buf.machine;
 
+	/*
+	 * The current windows host (win7) expects the build
+	 * string to be of the form: x.y.z
+	 * Strip additional information we may have.
+	 */
+	p = strchr(os_build, '-');
+	if (p)
+		*p = '\0';
+
 	file = fopen("/etc/SuSE-release", "r");
 	if (file != NULL)
 		goto kvp_osinfo_found;
