@@ -42,6 +42,7 @@ struct watchdog_device {
 	const struct watchdog_info *info;
 	const struct watchdog_ops *ops;
 	unsigned int bootstatus;
+	unsigned int timeout;
 	void *driver_data;
 	unsigned long status;
 };
@@ -50,6 +51,7 @@ It contains following fields:
 * info: a pointer to a watchdog_info structure. This structure gives some
   additional information about the watchdog timer itself. (Like it's unique name)
 * ops: a pointer to the list of watchdog operations that the watchdog supports.
+* timeout: the watchdog timer's timeout value (in seconds).
 * bootstatus: status of the device after booting (reported with watchdog
   WDIOF_* status bits).
 * driver_data: a pointer to the drivers private data of a watchdog device.
@@ -70,6 +72,7 @@ struct watchdog_ops {
 	/* optional operations */
 	int (*ping)(struct watchdog_device *);
 	unsigned int (*status)(struct watchdog_device *);
+	int (*set_timeout)(struct watchdog_device *, unsigned int);
 };
 
 It is important that you first define the module owner of the watchdog timer
@@ -107,6 +110,13 @@ they are supported. These optional routines/operations are:
   info structure).
 * status: this routine checks the status of the watchdog timer device. The
   status of the device is reported with watchdog WDIOF_* status flags/bits.
+* set_timeout: this routine checks and changes the timeout of the watchdog
+  timer device. It returns 0 on success, -EINVAL for "parameter out of range"
+  and -EIO for "could not write value to the watchdog". On success the timeout
+  value of the watchdog_device will be changed to the value that was just used
+  to re-program the watchdog timer device.
+  (Note: the WDIOF_SETTIMEOUT needs to be set in the options field of the
+  watchdog's info structure).
 
 The status bits should (preferably) be set with the set_bit and clear_bit alike
 bit-operations. The status bits that are defined are:

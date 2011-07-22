@@ -190,6 +190,26 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 			return -EOPNOTSUPP;
 		watchdog_ping(wdd);
 		return 0;
+	case WDIOC_SETTIMEOUT:
+		if ((wdd->ops->set_timeout == NULL) ||
+		    !(wdd->info->options & WDIOF_SETTIMEOUT))
+			return -EOPNOTSUPP;
+		if (get_user(val, p))
+			return -EFAULT;
+		err = wdd->ops->set_timeout(wdd, val);
+		if (err < 0)
+			return err;
+		wdd->timeout = val;
+		/* If the watchdog is active then we send a keepalive ping
+		 * to make sure that the watchdog keep's running (and if
+		 * possible that it takes the new timeout) */
+		watchdog_ping(wdd);
+		/* Fall */
+	case WDIOC_GETTIMEOUT:
+		/* timeout == 0 means that we don't know the timeout */
+		if (wdd->timeout == 0)
+			return -EOPNOTSUPP;
+		return put_user(wdd->timeout, p);
 	default:
 		return -ENOTTY;
 	}
