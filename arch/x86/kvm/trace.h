@@ -486,9 +486,9 @@ TRACE_EVENT(kvm_nested_intercepts,
 TRACE_EVENT(kvm_nested_vmexit,
 	    TP_PROTO(__u64 rip, __u32 exit_code,
 		     __u64 exit_info1, __u64 exit_info2,
-		     __u32 exit_int_info, __u32 exit_int_info_err),
+		     __u32 exit_int_info, __u32 exit_int_info_err, __u32 isa),
 	    TP_ARGS(rip, exit_code, exit_info1, exit_info2,
-		    exit_int_info, exit_int_info_err),
+		    exit_int_info, exit_int_info_err, isa),
 
 	TP_STRUCT__entry(
 		__field(	__u64,		rip			)
@@ -497,6 +497,7 @@ TRACE_EVENT(kvm_nested_vmexit,
 		__field(	__u64,		exit_info2		)
 		__field(	__u32,		exit_int_info		)
 		__field(	__u32,		exit_int_info_err	)
+		__field(	__u32,		isa			)
 	),
 
 	TP_fast_assign(
@@ -506,6 +507,7 @@ TRACE_EVENT(kvm_nested_vmexit,
 		__entry->exit_info2		= exit_info2;
 		__entry->exit_int_info		= exit_int_info;
 		__entry->exit_int_info_err	= exit_int_info_err;
+		__entry->isa			= isa;
 	),
 	TP_printk("rip: 0x%016llx reason: %s ext_inf1: 0x%016llx "
 		  "ext_inf2: 0x%016llx ext_int: 0x%08x ext_int_err: 0x%08x",
@@ -522,9 +524,9 @@ TRACE_EVENT(kvm_nested_vmexit,
 TRACE_EVENT(kvm_nested_vmexit_inject,
 	    TP_PROTO(__u32 exit_code,
 		     __u64 exit_info1, __u64 exit_info2,
-		     __u32 exit_int_info, __u32 exit_int_info_err),
+		     __u32 exit_int_info, __u32 exit_int_info_err, __u32 isa),
 	    TP_ARGS(exit_code, exit_info1, exit_info2,
-		    exit_int_info, exit_int_info_err),
+		    exit_int_info, exit_int_info_err, isa),
 
 	TP_STRUCT__entry(
 		__field(	__u32,		exit_code		)
@@ -532,6 +534,7 @@ TRACE_EVENT(kvm_nested_vmexit_inject,
 		__field(	__u64,		exit_info2		)
 		__field(	__u32,		exit_int_info		)
 		__field(	__u32,		exit_int_info_err	)
+		__field(	__u32,		isa			)
 	),
 
 	TP_fast_assign(
@@ -540,6 +543,7 @@ TRACE_EVENT(kvm_nested_vmexit_inject,
 		__entry->exit_info2		= exit_info2;
 		__entry->exit_int_info		= exit_int_info;
 		__entry->exit_int_info_err	= exit_int_info_err;
+		__entry->isa			= isa;
 	),
 
 	TP_printk("reason: %s ext_inf1: 0x%016llx "

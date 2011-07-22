@@ -2182,7 +2182,8 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 				       vmcb->control.exit_info_1,
 				       vmcb->control.exit_info_2,
 				       vmcb->control.exit_int_info,
-				       vmcb->control.exit_int_info_err);
+				       vmcb->control.exit_int_info_err,
+				       KVM_ISA_SVM);
 
 	nested_vmcb = nested_svm_map(svm, svm->nested.vmcb, &page);
 	if (!nested_vmcb)
@@ -3335,7 +3336,8 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 					svm->vmcb->control.exit_info_1,
 					svm->vmcb->control.exit_info_2,
 					svm->vmcb->control.exit_int_info,
-					svm->vmcb->control.exit_int_info_err);
+					svm->vmcb->control.exit_int_info_err,
+					KVM_ISA_SVM);
 
 		vmexit = nested_svm_exit_special(svm);
 
