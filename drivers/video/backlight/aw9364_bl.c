@@ -51,17 +51,6 @@ static struct backlight_device *g_aw9364_bl;
 static struct aw9364_backlight_data *g_aw9364_data;
 #endif
 
-int rk29_backlight_ctrl(int open)
-{
-	if(open)
-		gpio_direction_output(g_aw9364_data->pin_en, GPIO_HIGH);
-	else
-		gpio_direction_output(g_aw9364_data->pin_en, GPIO_LOW);
-	mdelay(3);
-	return 0;
-}
-
-
 static int aw9364_backlight_set(struct backlight_device *bl, int brightness)
 {
 	struct aw9364_backlight_data *data = bl_get_data(bl);
@@ -95,7 +84,7 @@ static int aw9364_backlight_set(struct backlight_device *bl, int brightness)
 	DBG("%s:current_bl=%d,bl=%d,num_clk_to=%d,num_clk_from=%d,num_clk=%d\n",__FUNCTION__,
 		data->current_brightness,brightness,num_clk_to,num_clk_from,num_clk);
 
-	if(num_clk)
+	if((num_clk) || (brightness < 16))
 	data->current_brightness = brightness;
 	
 	return 0;
@@ -168,6 +157,19 @@ static void aw9364_bl_resume(struct early_suspend *h)
 }
 
 #endif
+
+
+int rk29_backlight_ctrl(int open)
+{
+	if(open)
+		g_aw9364_data->suspend_flag = 0;
+	else
+		g_aw9364_data->suspend_flag = 1;
+
+	backlight_update_status(g_aw9364_bl);
+	return 0;
+}
+
 static int aw9364_backlight_probe(struct platform_device *pdev)
 {
 	struct aw9364_backlight_data *data;
