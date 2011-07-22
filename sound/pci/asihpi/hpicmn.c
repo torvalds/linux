@@ -315,8 +315,7 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 	short found = 1;
 	struct hpi_control_cache_info *pI;
 	struct hpi_control_cache_single *pC;
-	struct hpi_control_cache_pad *p_pad;
-
+	u16 response_size;
 	if (!find_control(phm->obj_index, p_cache, &pI)) {
 		HPI_DEBUG_LOG(VERBOSE,
 			"HPICMN find_control() failed for adap %d\n",
@@ -326,11 +325,15 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 
 	phr->error = 0;
 
+	/* set the default response size */
+	response_size =
+		sizeof(struct hpi_response_header) +
+		sizeof(struct hpi_control_res);
+
 	/* pC is the default cached control strucure. May be cast to
 	   something else in the following switch statement.
 	 */
 	pC = (struct hpi_control_cache_single *)pI;
-	p_pad = (struct hpi_control_cache_pad *)pI;
 
 	switch (pI->control_type) {
 
@@ -529,9 +532,7 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 		pI->control_index, pI->control_type, phm->u.c.attribute);
 
 	if (found)
-		phr->size =
-			sizeof(struct hpi_response_header) +
-			sizeof(struct hpi_control_res);
+		phr->size = response_size;
 
 	return found;
 }

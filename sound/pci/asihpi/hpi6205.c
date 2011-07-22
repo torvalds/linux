@@ -2085,13 +2085,13 @@ static u16 message_response_sequence(struct hpi_adapter_obj *pao,
 	u16 err = 0;
 
 	message_count++;
-	if (phm->size > sizeof(interface->u)) {
+	if (phm->size > sizeof(interface->u.message_buffer)) {
 		phr->error = HPI_ERROR_MESSAGE_BUFFER_TOO_SMALL;
-		phr->specific_error = sizeof(interface->u);
+		phr->specific_error = sizeof(interface->u.message_buffer);
 		phr->size = sizeof(struct hpi_response_header);
 		HPI_DEBUG_LOG(ERROR,
 			"message len %d too big for buffer %zd \n", phm->size,
-			sizeof(interface->u));
+			sizeof(interface->u.message_buffer));
 		return 0;
 	}
 
@@ -2123,18 +2123,19 @@ static u16 message_response_sequence(struct hpi_adapter_obj *pao,
 
 	/* read the result */
 	if (time_out) {
-		if (interface->u.response_buffer.size <= phr->size)
+		if (interface->u.response_buffer.response.size <= phr->size)
 			memcpy(phr, &interface->u.response_buffer,
-				interface->u.response_buffer.size);
+				interface->u.response_buffer.response.size);
 		else {
 			HPI_DEBUG_LOG(ERROR,
 				"response len %d too big for buffer %d\n",
-				interface->u.response_buffer.size, phr->size);
+				interface->u.response_buffer.response.size,
+				phr->size);
 			memcpy(phr, &interface->u.response_buffer,
 				sizeof(struct hpi_response_header));
 			phr->error = HPI_ERROR_RESPONSE_BUFFER_TOO_SMALL;
 			phr->specific_error =
-				interface->u.response_buffer.size;
+				interface->u.response_buffer.response.size;
 			phr->size = sizeof(struct hpi_response_header);
 		}
 	}
