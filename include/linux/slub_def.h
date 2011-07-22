@@ -113,16 +113,6 @@ struct kmem_cache {
 
 #define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
 
-#ifdef ARCH_DMA_MINALIGN
-#define ARCH_KMALLOC_MINALIGN ARCH_DMA_MINALIGN
-#else
-#define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long long)
-#endif
-
-#ifndef ARCH_SLAB_MINALIGN
-#define ARCH_SLAB_MINALIGN __alignof__(unsigned long long)
-#endif
-
 /*
  * Maximum kmalloc object size handled by SLUB. Larger object allocations
  * are passed through to the page allocator. The page allocator "fastpath"
@@ -227,6 +217,19 @@ kmalloc_order(size_t size, gfp_t flags, unsigned int order)
 	kmemleak_alloc(ret, size, 1, flags);
 	return ret;
 }
+
+/**
+ * Calling this on allocated memory will check that the memory
+ * is expected to be in use, and print warnings if not.
+ */
+#ifdef CONFIG_SLUB_DEBUG
+extern bool verify_mem_not_deleted(const void *x);
+#else
+static inline bool verify_mem_not_deleted(const void *x)
+{
+	return true;
+}
+#endif
 
 #ifdef CONFIG_TRACING
 extern void *
