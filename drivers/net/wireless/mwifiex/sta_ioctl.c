@@ -376,7 +376,6 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_bssdescriptor *bss_desc;
-	s32 tbl_idx;
 
 	if (!info)
 		return -1;
@@ -393,17 +392,6 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 	info->bss_chan = bss_desc->channel;
 
 	info->region_code = adapter->region_code;
-
-	/* Scan table index if connected */
-	info->scan_table_idx = 0;
-	if (priv->media_connected) {
-		tbl_idx =
-			mwifiex_find_ssid_in_list(priv, &bss_desc->ssid,
-						  bss_desc->mac_address,
-						  priv->bss_mode);
-		if (tbl_idx >= 0)
-			info->scan_table_idx = tbl_idx;
-	}
 
 	info->media_connected = priv->media_connected;
 

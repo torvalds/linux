@@ -134,7 +134,6 @@ struct mwifiex_ver_ext {
 struct mwifiex_bss_info {
 	u32 bss_mode;
 	struct mwifiex_802_11_ssid ssid;
-	u32 scan_table_idx;
 	u32 bss_chan;
 	u32 region_code;
 	u32 media_connected;
