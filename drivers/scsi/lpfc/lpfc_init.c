@@ -2927,6 +2927,8 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 				 sizeof fc_host_symbolic_name(shost));
 
 	fc_host_supported_speeds(shost) = 0;
+	if (phba->lmt & LMT_16Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_16GBIT;
 	if (phba->lmt & LMT_10Gb)
 		fc_host_supported_speeds(shost) |= FC_PORTSPEED_10GBIT;
 	if (phba->lmt & LMT_8Gb)
@@ -4966,17 +4968,14 @@ out_free_mem:
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to post rpi header templates to the
- * HBA consistent with the SLI-4 interface spec.  This routine
+ * port for those SLI4 ports that do not support extents.  This routine
  * posts a PAGE_SIZE memory region to the port to hold up to
- * PAGE_SIZE modulo 64 rpi context headers.
- * No locks are held here because this is an initialization routine
- * called only from probe or lpfc_online when interrupts are not
- * enabled and the driver is reinitializing the device.
+ * PAGE_SIZE modulo 64 rpi context headers.  This is an initialization routine
+ * and should be called only when interrupts are disabled.
  *
  * Return codes
  * 	0 - successful
- * 	-ENOMEM - No available memory
- *      -EIO - The mailbox failed to complete successfully.
+ *	-ERROR - otherwise.
  **/
 int
 lpfc_sli4_init_rpi_hdrs(struct lpfc_hba *phba)
@@ -5687,17 +5686,22 @@ lpfc_sli4_bar0_register_memmap(struct lpfc_hba *phba, uint32_t if_type)
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_2:
 		phba->sli4_hba.u.if_type2.ERR1regaddr =
-			phba->sli4_hba.conf_regs_memmap_p + LPFC_SLIPORT_ERR_1;
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_ER1_OFFSET;
 		phba->sli4_hba.u.if_type2.ERR2regaddr =
-			phba->sli4_hba.conf_regs_memmap_p + LPFC_SLIPORT_ERR_2;
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_ER2_OFFSET;
 		phba->sli4_hba.u.if_type2.CTRLregaddr =
-			phba->sli4_hba.conf_regs_memmap_p + LPFC_SLIPORT_CNTRL;
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_CTL_OFFSET;
 		phba->sli4_hba.u.if_type2.STATUSregaddr =
-			phba->sli4_hba.conf_regs_memmap_p + LPFC_SLIPORT_STATUS;
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_STA_OFFSET;
 		phba->sli4_hba.SLIINTFregaddr =
 			phba->sli4_hba.conf_regs_memmap_p + LPFC_SLI_INTF;
 		phba->sli4_hba.PSMPHRregaddr =
-		     phba->sli4_hba.conf_regs_memmap_p + LPFC_SLIPORT_IF2_SMPHR;
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_SEM_OFFSET;
 		phba->sli4_hba.RQDBregaddr =
 			phba->sli4_hba.conf_regs_memmap_p + LPFC_RQ_DOORBELL;
 		phba->sli4_hba.WQDBregaddr =
@@ -8859,11 +8863,11 @@ lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 		return -EINVAL;
 	}
 	lpfc_decode_firmware_rev(phba, fwrev, 1);
-	if (strncmp(fwrev, image->rev_name, strnlen(fwrev, 16))) {
+	if (strncmp(fwrev, image->revision, strnlen(image->revision, 16))) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3023 Updating Firmware. Current Version:%s "
 				"New Version:%s\n",
-				fwrev, image->rev_name);
+				fwrev, image->revision);
 		for (i = 0; i < LPFC_MBX_WR_CONFIG_MAX_BDE; i++) {
 			dmabuf = kzalloc(sizeof(struct lpfc_dmabuf),
 					 GFP_KERNEL);
@@ -8892,9 +8896,9 @@ lpfc_write_firmware(struct lpfc_hba *phba, const struct firmware *fw)
 					       fw->size - offset);
 					break;
 				}
-				temp_offset += SLI4_PAGE_SIZE;
 				memcpy(dmabuf->virt, fw->data + temp_offset,
 				       SLI4_PAGE_SIZE);
+				temp_offset += SLI4_PAGE_SIZE;
 			}
 			rc = lpfc_wr_object(phba, &dma_buffer_list,
 				    (fw->size - offset), &offset);

@@ -20,6 +20,11 @@
  *******************************************************************/
 
 #include <scsi/scsi_host.h>
+
+#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_SCSI_LPFC_DEBUG_FS)
+#define CONFIG_SCSI_LPFC_DEBUG_FS
+#endif
+
 struct lpfc_sli2_slim;
 
 #define LPFC_PCI_DEV_LP		0x1
