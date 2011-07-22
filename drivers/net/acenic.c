@@ -1657,7 +1657,7 @@ static void ace_load_std_rx_ring(struct ace_private *ap, int nr_bufs)
 		struct rx_desc *rd;
 		dma_addr_t mapping;
 
-		skb = alloc_skb(ACE_STD_BUFSIZE + NET_IP_ALIGN, GFP_ATOMIC);
+		skb = dev_alloc_skb(ACE_STD_BUFSIZE + NET_IP_ALIGN);
 		if (!skb)
 			break;
 
@@ -1718,7 +1718,7 @@ static void ace_load_mini_rx_ring(struct ace_private *ap, int nr_bufs)
 		struct rx_desc *rd;
 		dma_addr_t mapping;
 
-		skb = alloc_skb(ACE_MINI_BUFSIZE + NET_IP_ALIGN, GFP_ATOMIC);
+		skb = dev_alloc_skb(ACE_MINI_BUFSIZE + NET_IP_ALIGN);
 		if (!skb)
 			break;
 
@@ -1774,7 +1774,7 @@ static void ace_load_jumbo_rx_ring(struct ace_private *ap, int nr_bufs)
 		struct rx_desc *rd;
 		dma_addr_t mapping;
 
-		skb = alloc_skb(ACE_JUMBO_BUFSIZE + NET_IP_ALIGN, GFP_ATOMIC);
+		skb = dev_alloc_skb(ACE_JUMBO_BUFSIZE + NET_IP_ALIGN);
 		if (!skb)
 			break;
 
