@@ -1317,7 +1317,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	}
 
 	for_each_sched_entity(se) {
-		struct cfs_rq *cfs_rq = cfs_rq_of(se);
+		cfs_rq = cfs_rq_of(se);
 
 		update_cfs_load(cfs_rq, 0);
 		update_cfs_shares(cfs_rq);
@@ -1360,7 +1360,7 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	}
 
 	for_each_sched_entity(se) {
-		struct cfs_rq *cfs_rq = cfs_rq_of(se);
+		cfs_rq = cfs_rq_of(se);
 
 		update_cfs_load(cfs_rq, 0);
 		update_cfs_shares(cfs_rq);
