@@ -144,7 +144,7 @@ static int command_abort(struct scsi_cmnd *srb)
 	scsi_lock(us_to_host(us));
 	if (us->srb != srb) {
 		scsi_unlock(us_to_host(us));
-		printk ("-- nothing to abort\n");
+		printk("-- nothing to abort\n");
 		return FAILED;
 	}
 
@@ -279,7 +279,8 @@ static int proc_info(struct Scsi_Host *host, char *buffer, char **start,
 		pos += sprintf(pos, "       Quirks:");
 
 #define US_FLAG(name, value) \
-	if (us->fflags & value) pos += sprintf(pos, " " #name);
+	if (us->fflags & value)\
+		pos += sprintf(pos, " " #name);
 US_DO_ALL_FLAGS
 #undef US_FLAG
 
