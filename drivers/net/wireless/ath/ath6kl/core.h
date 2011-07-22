@@ -544,6 +544,7 @@ void ath6kl_pspoll_event(struct ath6kl *ar, u8 aid);
 
 void ath6kl_dtimexpiry_event(struct ath6kl *ar);
 void ath6kl_disconnect(struct ath6kl *ar);
+void ath6kl_deep_sleep_enable(struct ath6kl *ar);
 void aggr_recv_delba_req_evt(struct ath6kl *ar, u8 tid);
 void aggr_recv_addba_req_evt(struct ath6kl *ar, u8 tid, u16 seq_no,
 			     u8 win_sz);

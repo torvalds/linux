@@ -726,6 +726,31 @@ static int ath6kl_sdio_enable_scatter(struct ath6kl *ar)
 	return 0;
 }
 
+static int ath6kl_sdio_suspend(struct ath6kl *ar)
+{
+	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
+	struct sdio_func *func = ar_sdio->func;
+	mmc_pm_flag_t flags;
+	int ret;
+
+	flags = sdio_get_host_pm_caps(func);
+
+	if (!(flags & MMC_PM_KEEP_POWER))
+		/* as host doesn't support keep power we need to bail out */
+		return -EINVAL;
+
+	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+	if (ret) {
+		printk(KERN_ERR "ath6kl: set sdio pm flags failed: %d\n",
+		       ret);
+		return ret;
+	}
+
+	ath6kl_deep_sleep_enable(ar);
+
+	return 0;
+}
+
 static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.read_write_sync = ath6kl_sdio_read_write_sync,
 	.write_async = ath6kl_sdio_write_async,
@@ -736,6 +761,7 @@ static const struct ath6kl_hif_ops ath6kl_sdio_ops = {
 	.enable_scatter = ath6kl_sdio_enable_scatter,
 	.scat_req_rw = ath6kl_sdio_async_rw_scatter,
 	.cleanup_scatter = ath6kl_sdio_cleanup_scatter,
+	.suspend = ath6kl_sdio_suspend,
 };
 
 static int ath6kl_sdio_probe(struct sdio_func *func,

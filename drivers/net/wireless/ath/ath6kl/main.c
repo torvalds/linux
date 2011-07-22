@@ -795,6 +795,41 @@ void ath6kl_disconnect(struct ath6kl *ar)
 	}
 }
 
+void ath6kl_deep_sleep_enable(struct ath6kl *ar)
+{
+	switch (ar->sme_state) {
+	case SME_CONNECTING:
+		cfg80211_connect_result(ar->net_dev, ar->bssid, NULL, 0,
+					NULL, 0,
+					WLAN_STATUS_UNSPECIFIED_FAILURE,
+					GFP_KERNEL);
+		break;
+	case SME_CONNECTED:
+	default:
+		/*
+		 * FIXME: oddly enough smeState is in DISCONNECTED during
+		 * suspend, why? Need to send disconnected event in that
+		 * state.
+		 */
+		cfg80211_disconnected(ar->net_dev, 0, NULL, 0, GFP_KERNEL);
+		break;
+	}
+
+	if (test_bit(CONNECTED, &ar->flag) ||
+	    test_bit(CONNECT_PEND, &ar->flag))
+		ath6kl_wmi_disconnect_cmd(ar->wmi);
+
+	ar->sme_state = SME_DISCONNECTED;
+
+	/* disable scanning */
+	if (ath6kl_wmi_scanparams_cmd(ar->wmi, 0xFFFF, 0, 0, 0, 0, 0, 0, 0,
+				      0, 0) != 0)
+		printk(KERN_WARNING "ath6kl: failed to disable scan "
+		       "during suspend\n");
+
+	ath6kl_cfg80211_scan_complete_event(ar, -ECANCELED);
+}
+
 /* WMI Event handlers */
 
 static const char *get_hw_id_string(u32 id)

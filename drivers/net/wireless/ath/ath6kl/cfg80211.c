@@ -17,6 +17,7 @@
 #include "core.h"
 #include "cfg80211.h"
 #include "debug.h"
+#include "hif-ops.h"
 
 #define RATETAB_ENT(_rate, _rateid, _flags) {   \
 	.bitrate    = (_rate),                  \
@@ -1424,6 +1425,16 @@ static int ath6kl_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int ar6k_cfg80211_suspend(struct wiphy *wiphy,
+				 struct cfg80211_wowlan *wow)
+{
+	struct ath6kl *ar = wiphy_priv(wiphy);
+
+	return ath6kl_hif_suspend(ar);
+}
+#endif
+
 static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.change_virtual_intf = ath6kl_cfg80211_change_iface,
 	.scan = ath6kl_cfg80211_scan,
@@ -1443,6 +1454,9 @@ static struct cfg80211_ops ath6kl_cfg80211_ops = {
 	.set_pmksa = ath6kl_set_pmksa,
 	.del_pmksa = ath6kl_del_pmksa,
 	.flush_pmksa = ath6kl_flush_pmksa,
+#ifdef CONFIG_PM
+	.suspend = ar6k_cfg80211_suspend,
+#endif
 };
 
 struct wireless_dev *ath6kl_cfg80211_init(struct device *dev)

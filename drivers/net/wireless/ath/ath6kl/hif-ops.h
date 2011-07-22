@@ -69,4 +69,9 @@ static inline void ath6kl_hif_cleanup_scatter(struct ath6kl *ar)
 	return ar->hif_ops->cleanup_scatter(ar);
 }
 
+static inline int ath6kl_hif_suspend(struct ath6kl *ar)
+{
+	return ar->hif_ops->suspend(ar);
+}
+
 #endif
