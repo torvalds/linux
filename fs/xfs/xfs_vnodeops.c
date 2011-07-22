@@ -94,7 +94,7 @@ xfs_readlink_bmap(
 			byte_cnt = pathlen;
 		pathlen -= byte_cnt;
 
-		memcpy(link, XFS_BUF_PTR(bp), byte_cnt);
+		memcpy(link, bp->b_addr, byte_cnt);
 		xfs_buf_relse(bp);
 	}
 
@@ -1654,7 +1654,7 @@ xfs_symlink(
 			}
 			pathlen -= byte_cnt;
 
-			memcpy(XFS_BUF_PTR(bp), cur_chunk, byte_cnt);
+			memcpy(bp->b_addr, cur_chunk, byte_cnt);
 			cur_chunk += byte_cnt;
 
 			xfs_trans_log_buf(tp, bp, 0, byte_cnt - 1);
@@ -1999,7 +1999,7 @@ xfs_zero_remaining_bytes(
 					  mp, bp, XFS_BUF_ADDR(bp));
 			break;
 		}
-		memset(XFS_BUF_PTR(bp) +
+		memset(bp->b_addr +
 			(offset - XFS_FSB_TO_B(mp, imap.br_startoff)),
 		      0, lastoffset - offset + 1);
 		XFS_BUF_UNDONE(bp);

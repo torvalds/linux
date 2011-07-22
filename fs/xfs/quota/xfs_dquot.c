@@ -320,7 +320,7 @@ xfs_qm_init_dquot_blk(
 	ASSERT(tp);
 	ASSERT(xfs_buf_islocked(bp));
 
-	d = (xfs_dqblk_t *)XFS_BUF_PTR(bp);
+	d = bp->b_addr;
 
 	/*
 	 * ID of the first dquot in the block - id's are zero based.
@@ -538,7 +538,7 @@ xfs_qm_dqtobp(
 	/*
 	 * calculate the location of the dquot inside the buffer.
 	 */
-	ddq = (struct xfs_disk_dquot *)(XFS_BUF_PTR(bp) + dqp->q_bufoffset);
+	ddq = bp->b_addr + dqp->q_bufoffset;
 
 	/*
 	 * A simple sanity check in case we got a corrupted dquot...
@@ -1200,7 +1200,7 @@ xfs_qm_dqflush(
 	/*
 	 * Calculate the location of the dquot inside the buffer.
 	 */
-	ddqp = (struct xfs_disk_dquot *)(XFS_BUF_PTR(bp) + dqp->q_bufoffset);
+	ddqp = bp->b_addr + dqp->q_bufoffset;
 
 	/*
 	 * A simple sanity check in case we got a corrupted dquot..
