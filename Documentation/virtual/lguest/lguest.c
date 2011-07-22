@@ -1095,9 +1095,10 @@ static void update_device_status(struct device *dev)
 		warnx("Device %s configuration FAILED", dev->name);
 		if (dev->running)
 			reset_device(dev);
-	} else if (dev->desc->status & VIRTIO_CONFIG_S_DRIVER_OK) {
-		if (!dev->running)
-			start_device(dev);
+	} else {
+		if (dev->running)
+			err(1, "Device %s features finalized twice", dev->name);
+		start_device(dev);
 	}
 }
 
@@ -1122,25 +1123,11 @@ static void handle_output(unsigned long addr)
 			return;
 		}
 
-		/*
-		 * Devices *can* be used before status is set to DRIVER_OK.
-		 * The original plan was that they would never do this: they
-		 * would always finish setting up their status bits before
-		 * actually touching the virtqueues.  In practice, we allowed
-		 * them to, and they do (eg. the disk probes for partition
-		 * tables as part of initialization).
-		 *
-		 * If we see this, we start the device: once it's running, we
-		 * expect the device to catch all the notifications.
-		 */
+		/* Devices should not be used before features are finalized. */
 		for (vq = i->vq; vq; vq = vq->next) {
 			if (addr != vq->config.pfn*getpagesize())
 				continue;
-			if (i->running)
-				errx(1, "Notification on running %s", i->name);
-			/* This just calls create_thread() for each virtqueue */
-			start_device(i);
-			return;
+			errx(1, "Notification on %s before setup!", i->name);
 		}
 	}
 
