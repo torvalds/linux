@@ -2120,7 +2120,7 @@ static int __devinit snd_ensoniq_create(struct snd_card *card,
 	}
 	ensoniq->port = pci_resource_start(pci, 0);
 	if (request_irq(pci->irq, snd_audiopci_interrupt, IRQF_SHARED,
-			"Ensoniq AudioPCI", ensoniq)) {
+			KBUILD_MODNAME, ensoniq)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_ensoniq_free(ensoniq);
 		return -EBUSY;
@@ -2489,7 +2489,7 @@ static void __devexit snd_audiopci_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = DRIVER_NAME,
+	.name = KBUILD_MODNAME,
 	.id_table = snd_audiopci_ids,
 	.probe = snd_audiopci_probe,
 	.remove = __devexit_p(snd_audiopci_remove),

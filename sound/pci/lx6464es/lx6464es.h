@@ -69,6 +69,8 @@ struct lx6464es {
 	struct pci_dev         *pci;
 	int			irq;
 
+	u8			mac_address[6];
+
 	spinlock_t		lock;        /* interrupt spinlock */
 	struct mutex            setup_mutex; /* mutex used in hw_params, open
 					      * and close */
