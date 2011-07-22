@@ -588,13 +588,13 @@ void __sramfunc pm_clk_switch_32k(void)
 	asm("wfi");
 	
 	pm_gpio_out_low(RK29_PIN4_PC5);//enable 24M 
-	sram_udelay(1000,24);
+	sram_udelay(20,24);             //the system clock is 32.768K 
 	cru_writel(crumode, CRU_MODE_CON); //externel clk 24M
 
 	#ifndef CONFIG_MACH_RK29_A22
 	pm_gpio_out_low(RK29_PIN4_PC0); //enable 27M
 	#endif
-	sram_udelay(1000,27);
+	//sram_udelay(1000,27);
 	sram_printch('7');
 
 
