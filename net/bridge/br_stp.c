@@ -363,6 +363,8 @@ static void br_make_blocking(struct net_bridge_port *p)
 
 		p->state = BR_STATE_BLOCKING;
 		br_log_state(p);
+		br_ifinfo_notify(RTM_NEWLINK, p);
+
 		del_timer(&p->forward_delay_timer);
 	}
 }
@@ -386,8 +388,8 @@ static void br_make_forwarding(struct net_bridge_port *p)
 		p->state = BR_STATE_LEARNING;
 
 	br_multicast_enable_port(p);
-
 	br_log_state(p);
+	br_ifinfo_notify(RTM_NEWLINK, p);
 
 	if (br->forward_delay != 0)
 		mod_timer(&p->forward_delay_timer, jiffies + br->forward_delay);
