@@ -57,7 +57,7 @@ u16 hpi_validate_response(struct hpi_message *phm, struct hpi_response *phr)
 	}
 
 	if (phr->function != phm->function) {
-		HPI_DEBUG_LOG(ERROR, "header type %d invalid\n",
+		HPI_DEBUG_LOG(ERROR, "header function %d invalid\n",
 			phr->function);
 		return HPI_ERROR_INVALID_RESPONSE;
 	}
