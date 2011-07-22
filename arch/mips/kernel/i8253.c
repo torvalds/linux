@@ -12,7 +12,7 @@
 
 static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
-	i8253_clockevent.event_handler(&pit_clockevent);
+	i8253_clockevent.event_handler(&i8253_clockevent);
 
 	return IRQ_HANDLED;
 }
