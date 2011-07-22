@@ -5839,6 +5839,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 					"Advanced Error Reporting (AER)\n");
 			phba->cfg_aer_support = 0;
 		}
+		rc = 0;
 	}
 
 	if (!(phba->hba_flag & HBA_FCOE_MODE)) {

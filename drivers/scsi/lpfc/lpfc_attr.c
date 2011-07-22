@@ -1466,80 +1466,10 @@ lpfc_sriov_hw_max_virtfn_show(struct device *dev,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba *phba = vport->phba;
-	struct pci_dev *pdev = phba->pcidev;
-	union  lpfc_sli4_cfg_shdr *shdr;
-	uint32_t shdr_status, shdr_add_status;
-	LPFC_MBOXQ_t *mboxq;
-	struct lpfc_mbx_get_prof_cfg *get_prof_cfg;
-	struct lpfc_rsrc_desc_pcie *desc;
-	uint32_t max_nr_virtfn;
-	uint32_t desc_count;
-	int length, rc, i;
+	uint16_t max_nr_virtfn;
 
-	if ((phba->sli_rev < LPFC_SLI_REV4) ||
-	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
-	     LPFC_SLI_INTF_IF_TYPE_2))
-		return -EPERM;
-
-	if (!pdev->is_physfn)
-		return snprintf(buf, PAGE_SIZE, "%d\n", 0);
-
-	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-	if (!mboxq)
-		return -ENOMEM;
-
-	/* get the maximum number of virtfn support by physfn */
-	length = (sizeof(struct lpfc_mbx_get_prof_cfg) -
-		  sizeof(struct lpfc_sli4_cfg_mhdr));
-	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
-			 LPFC_MBOX_OPCODE_GET_PROFILE_CONFIG,
-			 length, LPFC_SLI4_MBX_EMBED);
-	shdr = (union lpfc_sli4_cfg_shdr *)
-		&mboxq->u.mqe.un.sli4_config.header.cfg_shdr;
-	bf_set(lpfc_mbox_hdr_pf_num, &shdr->request,
-	       phba->sli4_hba.iov.pf_number + 1);
-
-	get_prof_cfg = &mboxq->u.mqe.un.get_prof_cfg;
-	bf_set(lpfc_mbx_get_prof_cfg_prof_tp, &get_prof_cfg->u.request,
-	       LPFC_CFG_TYPE_CURRENT_ACTIVE);
-
-	rc = lpfc_sli_issue_mbox_wait(phba, mboxq,
-				lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG));
-
-	if (rc != MBX_TIMEOUT) {
-		/* check return status */
-		shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
-		shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
-					 &shdr->response);
-		if (shdr_status || shdr_add_status || rc)
-			goto error_out;
-
-	} else
-		goto error_out;
-
-	desc_count = get_prof_cfg->u.response.prof_cfg.rsrc_desc_count;
-
-	for (i = 0; i < LPFC_RSRC_DESC_MAX_NUM; i++) {
-		desc = (struct lpfc_rsrc_desc_pcie *)
-			&get_prof_cfg->u.response.prof_cfg.desc[i];
-		if (LPFC_RSRC_DESC_TYPE_PCIE ==
-		    bf_get(lpfc_rsrc_desc_pcie_type, desc)) {
-			max_nr_virtfn = bf_get(lpfc_rsrc_desc_pcie_nr_virtfn,
-					       desc);
-			break;
-		}
-	}
-
-	if (i < LPFC_RSRC_DESC_MAX_NUM) {
-		if (rc != MBX_TIMEOUT)
-			mempool_free(mboxq, phba->mbox_mem_pool);
-		return snprintf(buf, PAGE_SIZE, "%d\n", max_nr_virtfn);
-	}
-
-error_out:
-	if (rc != MBX_TIMEOUT)
-		mempool_free(mboxq, phba->mbox_mem_pool);
-	return -EIO;
+	max_nr_virtfn = lpfc_sli_sriov_nr_virtfn_get(phba);
+	return snprintf(buf, PAGE_SIZE, "%d\n", max_nr_virtfn);
 }
 
 /**
