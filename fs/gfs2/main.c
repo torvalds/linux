@@ -41,6 +41,7 @@ static void gfs2_init_inode_once(void *foo)
 	init_rwsem(&ip->i_rw_mutex);
 	INIT_LIST_HEAD(&ip->i_trunc_list);
 	ip->i_alloc = NULL;
+	ip->i_hash_cache = NULL;
 }
 
 static void gfs2_init_glock_once(void *foo)
