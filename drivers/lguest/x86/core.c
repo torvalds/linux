@@ -269,7 +269,7 @@ void lguest_arch_run_guest(struct lg_cpu *cpu)
 static int emulate_insn(struct lg_cpu *cpu)
 {
 	u8 insn;
-	unsigned int insnlen = 0, in = 0, shift = 0;
+	unsigned int insnlen = 0, in = 0, small_operand = 0;
 	/*
 	 * The eip contains the *virtual* address of the Guest's instruction:
 	 * walk the Guest's page tables to find the "physical" address.
@@ -300,11 +300,10 @@ static int emulate_insn(struct lg_cpu *cpu)
 	}
 
 	/*
-	 * 0x66 is an "operand prefix".  It means it's using the upper 16 bits
-	 * of the eax register.
+	 * 0x66 is an "operand prefix".  It means a 16, not 32 bit in/out.
 	 */
 	if (insn == 0x66) {
-		shift = 16;
+		small_operand = 1;
 		/* The instruction is 1 byte so far, read the next byte. */
 		insnlen = 1;
 		insn = lgread(cpu, physaddr + insnlen, u8);
@@ -340,11 +339,14 @@ static int emulate_insn(struct lg_cpu *cpu)
 	 * traditionally means "there's nothing there".
 	 */
 	if (in) {
-		/* Lower bit tells is whether it's a 16 or 32 bit access */
-		if (insn & 0x1)
-			cpu->regs->eax = 0xFFFFFFFF;
-		else
-			cpu->regs->eax |= (0xFFFF << shift);
+		/* Lower bit tells means it's a 32/16 bit access */
+		if (insn & 0x1) {
+			if (small_operand)
+				cpu->regs->eax |= 0xFFFF;
+			else
+				cpu->regs->eax = 0xFFFFFFFF;
+		} else
+			cpu->regs->eax |= 0xFF;
 	}
 	/* Finally, we've "done" the instruction, so move past it. */
 	cpu->regs->eip += insnlen;
