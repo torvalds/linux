@@ -109,7 +109,6 @@ static void br_root_selection(struct net_bridge *br)
 	list_for_each_entry(p, &br->port_list, list) {
 		if (br_should_become_root_port(p, root_port))
 			root_port = p->port_no;
-
 	}
 
 	br->root_port = root_port;
@@ -144,7 +143,6 @@ void br_transmit_config(struct net_bridge_port *p)
 {
 	struct br_config_bpdu bpdu;
 	struct net_bridge *br;
-
 
 	if (timer_pending(&p->hold_timer)) {
 		p->config_pending = 1;
@@ -181,8 +179,8 @@ void br_transmit_config(struct net_bridge_port *p)
 }
 
 /* called under bridge lock */
-static inline void br_record_config_information(struct net_bridge_port *p,
-						const struct br_config_bpdu *bpdu)
+static void br_record_config_information(struct net_bridge_port *p,
+					 const struct br_config_bpdu *bpdu)
 {
 	p->designated_root = bpdu->root;
 	p->designated_cost = bpdu->root_path_cost;
@@ -195,7 +193,7 @@ static inline void br_record_config_information(struct net_bridge_port *p,
 }
 
 /* called under bridge lock */
-static inline void br_record_config_timeout_values(struct net_bridge *br,
+static void br_record_config_timeout_values(struct net_bridge *br,
 					    const struct br_config_bpdu *bpdu)
 {
 	br->max_age = bpdu->max_age;
@@ -254,7 +252,8 @@ static void br_designated_port_selection(struct net_bridge *br)
 }
 
 /* called under bridge lock */
-static int br_supersedes_port_info(struct net_bridge_port *p, struct br_config_bpdu *bpdu)
+static int br_supersedes_port_info(const struct net_bridge_port *p,
+				   const struct br_config_bpdu *bpdu)
 {
 	int t;
 
@@ -285,7 +284,7 @@ static int br_supersedes_port_info(struct net_bridge_port *p, struct br_config_b
 }
 
 /* called under bridge lock */
-static inline void br_topology_change_acknowledged(struct net_bridge *br)
+static void br_topology_change_acknowledged(struct net_bridge *br)
 {
 	br->topology_change_detected = 0;
 	del_timer(&br->tcn_timer);
@@ -327,7 +326,7 @@ void br_config_bpdu_generation(struct net_bridge *br)
 }
 
 /* called under bridge lock */
-static inline void br_reply(struct net_bridge_port *p)
+static void br_reply(struct net_bridge_port *p)
 {
 	br_transmit_config(p);
 }
@@ -381,8 +380,7 @@ static void br_make_forwarding(struct net_bridge_port *p)
 		p->state = BR_STATE_FORWARDING;
 		br_topology_change_detection(br);
 		del_timer(&p->forward_delay_timer);
-	}
-	else if (br->stp_enabled == BR_KERNEL_STP)
+	} else if (br->stp_enabled == BR_KERNEL_STP)
 		p->state = BR_STATE_LISTENING;
 	else
 		p->state = BR_STATE_LEARNING;
@@ -433,14 +431,15 @@ void br_port_state_selection(struct net_bridge *br)
 }
 
 /* called under bridge lock */
-static inline void br_topology_change_acknowledge(struct net_bridge_port *p)
+static void br_topology_change_acknowledge(struct net_bridge_port *p)
 {
 	p->topology_change_ack = 1;
 	br_transmit_config(p);
 }
 
 /* called under bridge lock */
-void br_received_config_bpdu(struct net_bridge_port *p, struct br_config_bpdu *bpdu)
+void br_received_config_bpdu(struct net_bridge_port *p,
+			     const struct br_config_bpdu *bpdu)
 {
 	struct net_bridge *br;
 	int was_root;

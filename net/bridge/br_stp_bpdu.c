@@ -222,9 +222,7 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 		}
 
 		br_received_config_bpdu(p, &bpdu);
-	}
-
-	else if (buf[0] == BPDU_TYPE_TCN) {
+	} else if (buf[0] == BPDU_TYPE_TCN) {
 		br_received_tcn_bpdu(p);
 	}
  out:
