@@ -368,10 +368,10 @@ static int i2c_read(struct i2c_adapter *adap,
 	}
 	if (debug > 2) {
 		int i;
-		dprintk(2, ": read from ");
+		dprintk(2, ": read from");
 		for (i = 0; i < len; i++)
 			printk(KERN_CONT " %02x", msg[i]);
-		printk(KERN_CONT "Value = ");
+		printk(KERN_CONT ", value = ");
 		for (i = 0; i < alen; i++)
 			printk(KERN_CONT " %02x", answ[i]);
 		printk(KERN_CONT "\n");
@@ -947,6 +947,9 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 	status = read32(state, SIO_TOP_JTAGID_LO__A, &sioTopJtagidLo);
 	if (status < 0)
 		goto error;
+
+printk(KERN_ERR "drxk: status = 0x%08x\n", sioTopJtagidLo);
+
 	/* driver 0.9.0 */
 	switch ((sioTopJtagidLo >> 29) & 0xF) {
 	case 0:
@@ -964,7 +967,8 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 	default:
 		state->m_deviceSpin = DRXK_SPIN_UNKNOWN;
 		status = -EINVAL;
-		printk(KERN_ERR "drxk: Spin unknown\n");
+		printk(KERN_ERR "drxk: Spin %d unknown\n",
+		       (sioTopJtagidLo >> 29) & 0xF);
 		goto error2;
 	}
 	switch ((sioTopJtagidLo >> 12) & 0xFF) {
@@ -6451,6 +6455,8 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	if (init_drxk(state) < 0)
 		goto error;
 	*fe_t = &state->t_frontend;
+
+	printk(KERN_INFO "drxk: frontend initialized.\n");
 
 	return &state->c_frontend;
 
