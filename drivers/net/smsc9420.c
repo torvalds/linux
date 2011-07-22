@@ -19,6 +19,7 @@
  ***************************************************************************
  */
 
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
@@ -1029,6 +1030,8 @@ static netdev_tx_t smsc9420_hard_start_xmit(struct sk_buff *skb,
 	/* assign ownership to DMAC */
 	pd->tx_ring[index].status = TDES0_OWN_;
 	wmb();
+
+	skb_tx_timestamp(skb);
 
 	/* kick the DMA */
 	smsc9420_reg_write(pd, TX_POLL_DEMAND, 1);

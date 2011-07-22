@@ -132,18 +132,17 @@ EXPORT_SYMBOL(cfg80211_sched_scan_stopped);
 int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 			       bool driver_initiated)
 {
-	int err;
 	struct net_device *dev;
 
 	lockdep_assert_held(&rdev->sched_scan_mtx);
 
 	if (!rdev->sched_scan_req)
-		return 0;
+		return -ENOENT;
 
 	dev = rdev->sched_scan_req->dev;
 
 	if (!driver_initiated) {
-		err = rdev->ops->sched_scan_stop(&rdev->wiphy, dev);
+		int err = rdev->ops->sched_scan_stop(&rdev->wiphy, dev);
 		if (err)
 			return err;
 	}
@@ -153,7 +152,7 @@ int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 	kfree(rdev->sched_scan_req);
 	rdev->sched_scan_req = NULL;
 
-	return err;
+	return 0;
 }
 
 static void bss_release(struct kref *ref)

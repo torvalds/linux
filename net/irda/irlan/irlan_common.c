@@ -317,8 +317,8 @@ static void irlan_connect_indication(void *instance, void *sap,
 
 	IRDA_DEBUG(2, "%s()\n", __func__ );
 
-	self = (struct irlan_cb *) instance;
-	tsap = (struct tsap_cb *) sap;
+	self = instance;
+	tsap = sap;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
@@ -361,7 +361,7 @@ static void irlan_connect_confirm(void *instance, void *sap,
 {
 	struct irlan_cb *self;
 
-	self = (struct irlan_cb *) instance;
+	self = instance;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);
@@ -406,8 +406,8 @@ static void irlan_disconnect_indication(void *instance,
 
 	IRDA_DEBUG(0, "%s(), reason=%d\n", __func__ , reason);
 
-	self = (struct irlan_cb *) instance;
-	tsap = (struct tsap_cb *) sap;
+	self = instance;
+	tsap = sap;
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRLAN_MAGIC, return;);

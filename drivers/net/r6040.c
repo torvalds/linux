@@ -838,6 +838,9 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	descptr->buf = cpu_to_le32(pci_map_single(lp->pdev,
 		skb->data, skb->len, PCI_DMA_TODEVICE));
 	descptr->status = DSC_OWNER_MAC;
+
+	skb_tx_timestamp(skb);
+
 	/* Trigger the MAC to check the TX descriptor */
 	iowrite16(0x01, ioaddr + MTPR);
 	lp->tx_insert_ptr = descptr->vndescp;

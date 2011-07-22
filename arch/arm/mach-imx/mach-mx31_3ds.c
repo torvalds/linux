@@ -13,6 +13,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/clk.h>

@@ -100,6 +100,21 @@ void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
 
+void ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, u16 ba_rx_bitmap,
+				  const u8 *addr)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct sta_info *sta = sta_info_get(sdata, addr);
+	int i;
+
+	for (i = 0; i < STA_TID_NUM; i++)
+		if (ba_rx_bitmap & BIT(i))
+			set_bit(i, sta->ampdu_mlme.tid_rx_stop_requested);
+
+	ieee80211_queue_work(&sta->local->hw, &sta->ampdu_mlme.work);
+}
+EXPORT_SYMBOL(ieee80211_stop_rx_ba_session);
+
 /*
  * After accepting the AddBA Request we activated a timer,
  * resetting it after each frame that arrives from the originator.
@@ -247,7 +262,11 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 				"%pM on tid %u\n",
 				mgmt->sa, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
-		goto end;
+
+		/* delete existing Rx BA session on the same tid */
+		___ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_RECIPIENT,
+						WLAN_STATUS_UNSPECIFIED_QOS,
+						false);
 	}
 
 	/* prepare A-MPDU MLME for Rx aggregation */

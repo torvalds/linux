@@ -363,8 +363,7 @@ static int ieee80211_open(struct net_device *dev)
 	int err;
 
 	/* fail early if user set an invalid address */
-	if (!is_zero_ether_addr(dev->dev_addr) &&
-	    !is_valid_ether_addr(dev->dev_addr))
+	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;
 
 	err = ieee80211_check_concurrent_iface(sdata, sdata->vif.type);
@@ -1130,8 +1129,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	ASSERT_RTNL();
 
-	ndev = alloc_netdev_mq(sizeof(*sdata) + local->hw.vif_data_size,
-			       name, ieee80211_if_setup, local->hw.queues);
+	ndev = alloc_netdev_mqs(sizeof(*sdata) + local->hw.vif_data_size,
+				name, ieee80211_if_setup, local->hw.queues, 1);
 	if (!ndev)
 		return -ENOMEM;
 	dev_net_set(ndev, wiphy_net(local->hw.wiphy));

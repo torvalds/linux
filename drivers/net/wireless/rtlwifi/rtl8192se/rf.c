@@ -410,7 +410,7 @@ void rtl92s_phy_rf6052_set_ccktxpower(struct ieee80211_hw *hw, u8 pwrlevel)
 	      (rtlefuse->eeprom_regulatory != 0)))
 		dont_inc_cck_or_turboscanoff = true;
 
-	if (mac->act_scanning == true) {
+	if (mac->act_scanning) {
 		txagc = 0x3f;
 		if (dont_inc_cck_or_turboscanoff)
 			txagc = pwrlevel;

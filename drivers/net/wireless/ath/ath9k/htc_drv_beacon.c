@@ -79,7 +79,7 @@ static void ath9k_htc_beacon_config_sta(struct ath9k_htc_priv *priv,
 
 	memset(&bs, 0, sizeof(bs));
 
-	intval = bss_conf->beacon_interval & ATH9K_BEACON_PERIOD;
+	intval = bss_conf->beacon_interval;
 	bmiss_timeout = (ATH_DEFAULT_BMISS_LIMIT * bss_conf->beacon_interval);
 
 	/*
@@ -194,7 +194,7 @@ static void ath9k_htc_beacon_config_ap(struct ath9k_htc_priv *priv,
 	u8 cmd_rsp;
 	u64 tsf;
 
-	intval = bss_conf->beacon_interval & ATH9K_BEACON_PERIOD;
+	intval = bss_conf->beacon_interval;
 	intval /= ATH9K_HTC_MAX_BCN_VIF;
 	nexttbtt = intval;
 
@@ -250,7 +250,7 @@ static void ath9k_htc_beacon_config_adhoc(struct ath9k_htc_priv *priv,
 	u8 cmd_rsp;
 	u64 tsf;
 
-	intval = bss_conf->beacon_interval & ATH9K_BEACON_PERIOD;
+	intval = bss_conf->beacon_interval;
 	nexttbtt = intval;
 
 	/*
@@ -427,7 +427,7 @@ static int ath9k_htc_choose_bslot(struct ath9k_htc_priv *priv,
 	u16 intval;
 	int slot;
 
-	intval = priv->cur_beacon_conf.beacon_interval & ATH9K_BEACON_PERIOD;
+	intval = priv->cur_beacon_conf.beacon_interval;
 
 	tsf = be64_to_cpu(swba->tsf);
 	tsftu = TSF_TO_TU(tsf >> 32, tsf);

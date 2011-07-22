@@ -68,14 +68,15 @@ static struct ctl_table_header *dn_table_header = NULL;
 static void strip_it(char *str)
 {
 	for(;;) {
-		switch(*str) {
-			case ' ':
-			case '\n':
-			case '\r':
-			case ':':
-				*str = 0;
-			case 0:
-				return;
+		switch (*str) {
+		case ' ':
+		case '\n':
+		case '\r':
+		case ':':
+			*str = 0;
+			/* Fallthrough */
+		case 0:
+			return;
 		}
 		str++;
 	}

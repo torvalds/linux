@@ -47,7 +47,6 @@
 #include <linux/mii.h>
 #include <linux/crc32.h>
 #include <linux/usb.h>
-#include <linux/version.h>
 #include <linux/timer.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>

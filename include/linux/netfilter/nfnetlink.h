@@ -60,6 +60,9 @@ struct nfnl_callback {
 	int (*call)(struct sock *nl, struct sk_buff *skb, 
 		    const struct nlmsghdr *nlh,
 		    const struct nlattr * const cda[]);
+	int (*call_rcu)(struct sock *nl, struct sk_buff *skb, 
+		    const struct nlmsghdr *nlh,
+		    const struct nlattr * const cda[]);
 	const struct nla_policy *policy;	/* netlink attribute policy */
 	const u_int16_t attr_count;		/* number of nlattr's */
 };

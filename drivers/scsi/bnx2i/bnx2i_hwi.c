@@ -2386,13 +2386,19 @@ static void bnx2i_indicate_kcqe(void *context, struct kcqe *kcqe[],
  * bnx2i_indicate_netevent - Generic netdev event handler
  * @context:	adapter structure pointer
  * @event:	event type
+ * @vlan_id:	vlans id - associated vlan id with this event
  *
  * Handles four netdev events, NETDEV_UP, NETDEV_DOWN,
  *	NETDEV_GOING_DOWN and NETDEV_CHANGE
  */
-static void bnx2i_indicate_netevent(void *context, unsigned long event)
+static void bnx2i_indicate_netevent(void *context, unsigned long event,
+				    u16 vlan_id)
 {
 	struct bnx2i_hba *hba = context;
+
+	/* Ignore all netevent coming from vlans */
+	if (vlan_id != 0)
+		return;
 
 	switch (event) {
 	case NETDEV_UP:

@@ -20,6 +20,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 
+#include <asm/io.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/common.h>

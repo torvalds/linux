@@ -104,6 +104,7 @@ struct e1000_info;
 	 (((reg) & ~MAX_PHY_REG_ADDRESS) << (PHY_UPPER_SHIFT - PHY_PAGE_SHIFT)))
 
 /* PHY Wakeup Registers and defines */
+#define BM_PORT_GEN_CFG PHY_REG(BM_PORT_CTRL_PAGE, 17)
 #define BM_RCTL         PHY_REG(BM_WUC_PAGE, 0)
 #define BM_WUC          PHY_REG(BM_WUC_PAGE, 1)
 #define BM_WUFC         PHY_REG(BM_WUC_PAGE, 2)
@@ -122,20 +123,21 @@ struct e1000_info;
 #define BM_RCTL_PMCF          0x0040          /* Pass MAC Control Frames */
 #define BM_RCTL_RFCE          0x0080          /* Rx Flow Control Enable */
 
-#define HV_SCC_UPPER		PHY_REG(778, 16) /* Single Collision Count */
-#define HV_SCC_LOWER		PHY_REG(778, 17)
-#define HV_ECOL_UPPER		PHY_REG(778, 18) /* Excessive Collision Count */
-#define HV_ECOL_LOWER		PHY_REG(778, 19)
-#define HV_MCC_UPPER		PHY_REG(778, 20) /* Multiple Collision Count */
-#define HV_MCC_LOWER		PHY_REG(778, 21)
-#define HV_LATECOL_UPPER	PHY_REG(778, 23) /* Late Collision Count */
-#define HV_LATECOL_LOWER	PHY_REG(778, 24)
-#define HV_COLC_UPPER		PHY_REG(778, 25) /* Collision Count */
-#define HV_COLC_LOWER		PHY_REG(778, 26)
-#define HV_DC_UPPER		PHY_REG(778, 27) /* Defer Count */
-#define HV_DC_LOWER		PHY_REG(778, 28)
-#define HV_TNCRS_UPPER		PHY_REG(778, 29) /* Transmit with no CRS */
-#define HV_TNCRS_LOWER		PHY_REG(778, 30)
+#define HV_STATS_PAGE	778
+#define HV_SCC_UPPER	PHY_REG(HV_STATS_PAGE, 16) /* Single Collision Count */
+#define HV_SCC_LOWER	PHY_REG(HV_STATS_PAGE, 17)
+#define HV_ECOL_UPPER	PHY_REG(HV_STATS_PAGE, 18) /* Excessive Coll. Count */
+#define HV_ECOL_LOWER	PHY_REG(HV_STATS_PAGE, 19)
+#define HV_MCC_UPPER	PHY_REG(HV_STATS_PAGE, 20) /* Multiple Coll. Count */
+#define HV_MCC_LOWER	PHY_REG(HV_STATS_PAGE, 21)
+#define HV_LATECOL_UPPER PHY_REG(HV_STATS_PAGE, 23) /* Late Collision Count */
+#define HV_LATECOL_LOWER PHY_REG(HV_STATS_PAGE, 24)
+#define HV_COLC_UPPER	PHY_REG(HV_STATS_PAGE, 25) /* Collision Count */
+#define HV_COLC_LOWER	PHY_REG(HV_STATS_PAGE, 26)
+#define HV_DC_UPPER	PHY_REG(HV_STATS_PAGE, 27) /* Defer Count */
+#define HV_DC_LOWER	PHY_REG(HV_STATS_PAGE, 28)
+#define HV_TNCRS_UPPER	PHY_REG(HV_STATS_PAGE, 29) /* Transmit with no CRS */
+#define HV_TNCRS_LOWER	PHY_REG(HV_STATS_PAGE, 30)
 
 #define E1000_FCRTV_PCH     0x05F40 /* PCH Flow Control Refresh Timer Value */
 
@@ -197,11 +199,6 @@ enum e1000_boards {
 	board_pch2lan,
 };
 
-struct e1000_queue_stats {
-	u64 packets;
-	u64 bytes;
-};
-
 struct e1000_ps_page {
 	struct page *page;
 	u64 dma; /* must be u64 - written to hw */
@@ -255,8 +252,6 @@ struct e1000_ring {
 	int set_itr;
 
 	struct sk_buff *rx_skb_top;
-
-	struct e1000_queue_stats stats;
 };
 
 /* PHY register snapshot values */
@@ -339,7 +334,7 @@ struct e1000_adapter {
 			  int *work_done, int work_to_do)
 						____cacheline_aligned_in_smp;
 	void (*alloc_rx_buf) (struct e1000_adapter *adapter,
-			      int cleaned_count);
+			      int cleaned_count, gfp_t gfp);
 	struct e1000_ring *rx_ring;
 
 	u32 rx_int_delay;
@@ -533,7 +528,8 @@ extern void e1000e_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
 						 bool state);
 extern void e1000e_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw);
 extern void e1000e_gig_downshift_workaround_ich8lan(struct e1000_hw *hw);
-extern void e1000e_disable_gig_wol_ich8lan(struct e1000_hw *hw);
+extern void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw);
+extern void e1000_resume_workarounds_pchlan(struct e1000_hw *hw);
 extern s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable);
 extern s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable);
 extern void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw);
@@ -584,6 +580,7 @@ extern s32 e1000e_check_reset_block_generic(struct e1000_hw *hw);
 extern s32 e1000e_phy_force_speed_duplex_igp(struct e1000_hw *hw);
 extern s32 e1000e_get_cable_length_igp_2(struct e1000_hw *hw);
 extern s32 e1000e_get_phy_info_igp(struct e1000_hw *hw);
+extern s32 e1000_set_page_igp(struct e1000_hw *hw, u16 page);
 extern s32 e1000e_read_phy_reg_igp(struct e1000_hw *hw, u32 offset, u16 *data);
 extern s32 e1000e_read_phy_reg_igp_locked(struct e1000_hw *hw, u32 offset,
                                           u16 *data);
@@ -604,6 +601,10 @@ extern enum e1000_phy_type e1000e_get_phy_type_from_id(u32 phy_id);
 extern s32 e1000e_determine_phy_address(struct e1000_hw *hw);
 extern s32 e1000e_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data);
 extern s32 e1000e_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data);
+extern s32 e1000_enable_phy_wakeup_reg_access_bm(struct e1000_hw *hw,
+						 u16 *phy_reg);
+extern s32 e1000_disable_phy_wakeup_reg_access_bm(struct e1000_hw *hw,
+						  u16 *phy_reg);
 extern s32 e1000e_read_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 *data);
 extern s32 e1000e_write_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 data);
 extern void e1000e_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl);
@@ -624,9 +625,13 @@ extern s32 e1000e_check_downshift(struct e1000_hw *hw);
 extern s32 e1000_read_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 *data);
 extern s32 e1000_read_phy_reg_hv_locked(struct e1000_hw *hw, u32 offset,
                                         u16 *data);
+extern s32 e1000_read_phy_reg_page_hv(struct e1000_hw *hw, u32 offset,
+				      u16 *data);
 extern s32 e1000_write_phy_reg_hv(struct e1000_hw *hw, u32 offset, u16 data);
 extern s32 e1000_write_phy_reg_hv_locked(struct e1000_hw *hw, u32 offset,
                                          u16 data);
+extern s32 e1000_write_phy_reg_page_hv(struct e1000_hw *hw, u32 offset,
+				       u16 data);
 extern s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw);
 extern s32 e1000_copper_link_setup_82577(struct e1000_hw *hw);
 extern s32 e1000_check_polarity_82577(struct e1000_hw *hw);

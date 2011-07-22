@@ -125,7 +125,7 @@
 
 /* SQ/RQ/CQ DB structure sizes */
 #define ISCSI_SQ_DB_SIZE    (16)
-#define ISCSI_RQ_DB_SIZE    (16)
+#define ISCSI_RQ_DB_SIZE    (64)
 #define ISCSI_CQ_DB_SIZE    (80)
 
 #define ISCSI_SQN_TO_NOTIFY_NOT_VALID                                   0xFFFF

@@ -32,6 +32,7 @@
 #include <linux/semaphore.h>
 #include <linux/wireless.h>
 #include <linux/ieee80211.h>
+#include <linux/interrupt.h>
 
 #define KEY_TYPE_NA		0x0
 #define KEY_TYPE_WEP40 		0x1

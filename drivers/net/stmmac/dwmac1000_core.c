@@ -28,6 +28,7 @@
 
 #include <linux/crc32.h>
 #include <linux/slab.h>
+#include <asm/io.h>
 #include "dwmac1000.h"
 
 static void dwmac1000_core_init(void __iomem *ioaddr)

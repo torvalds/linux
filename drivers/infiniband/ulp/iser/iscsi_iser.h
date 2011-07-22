@@ -45,6 +45,7 @@
 #include <scsi/libiscsi.h>
 #include <scsi/scsi_transport_iscsi.h>
 
+#include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
 #include <linux/list.h>

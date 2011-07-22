@@ -15,6 +15,7 @@
  * All rights reserved
  * www.brocade.com
  */
+#include <linux/bitops.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/etherdevice.h>
@@ -24,6 +25,7 @@
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 #include <linux/prefetch.h>
+#include <linux/if_vlan.h>
 
 #include "bnad.h"
 #include "bna.h"
@@ -386,14 +388,12 @@ bnad_alloc_n_post_rxbufs(struct bnad *bnad, struct bna_rcb *rcb)
 			BNA_RXQ_QPGE_PTR_GET(unmap_prod, rcb->sw_qpt, rxent,
 					     wi_range);
 		}
-		skb = alloc_skb(rcb->rxq->buffer_size + NET_IP_ALIGN,
-				     GFP_ATOMIC);
+		skb = netdev_alloc_skb_ip_align(bnad->netdev,
+						rcb->rxq->buffer_size);
 		if (unlikely(!skb)) {
 			BNAD_UPDATE_CTR(bnad, rxbuf_alloc_failed);
 			goto finishing;
 		}
-		skb->dev = bnad->netdev;
-		skb_reserve(skb, NET_IP_ALIGN);
 		unmap_array[unmap_prod].skb = skb;
 		dma_addr = dma_map_single(&bnad->pcidev->dev, skb->data,
 					  rcb->rxq->buffer_size,
@@ -516,24 +516,16 @@ bnad_poll_cq(struct bnad *bnad, struct bna_ccb *ccb, int budget)
 		rcb->rxq->rx_bytes += skb->len;
 		skb->protocol = eth_type_trans(skb, bnad->netdev);
 
-		if (bnad->vlan_grp && (flags & BNA_CQ_EF_VLAN)) {
-			struct bnad_rx_ctrl *rx_ctrl =
-				(struct bnad_rx_ctrl *)ccb->ctrl;
-			if (skb->ip_summed == CHECKSUM_UNNECESSARY)
-				vlan_gro_receive(&rx_ctrl->napi, bnad->vlan_grp,
-						ntohs(cmpl->vlan_tag), skb);
-			else
-				vlan_hwaccel_receive_skb(skb,
-							 bnad->vlan_grp,
-							 ntohs(cmpl->vlan_tag));
+		if (flags & BNA_CQ_EF_VLAN)
+			__vlan_hwaccel_put_tag(skb, ntohs(cmpl->vlan_tag));
 
-		} else { /* Not VLAN tagged/stripped */
-			struct bnad_rx_ctrl *rx_ctrl =
-				(struct bnad_rx_ctrl *)ccb->ctrl;
-			if (skb->ip_summed == CHECKSUM_UNNECESSARY)
-				napi_gro_receive(&rx_ctrl->napi, skb);
-			else
-				netif_receive_skb(skb);
+		if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
+			struct bnad_rx_ctrl *rx_ctrl;
+
+			rx_ctrl = (struct bnad_rx_ctrl *) ccb->ctrl;
+			napi_gro_receive(&rx_ctrl->napi, skb);
+		} else {
+			netif_receive_skb(skb);
 		}
 
 next:
@@ -1111,7 +1103,7 @@ bnad_mbox_irq_alloc(struct bnad *bnad,
 		    struct bna_intr_info *intr_info)
 {
 	int 		err = 0;
-	unsigned long 	irq_flags = 0, flags;
+	unsigned long 	irq_flags, flags;
 	u32	irq;
 	irq_handler_t 	irq_handler;
 
@@ -1125,6 +1117,7 @@ bnad_mbox_irq_alloc(struct bnad *bnad,
 	if (bnad->cfg_flags & BNAD_CF_MSIX) {
 		irq_handler = (irq_handler_t)bnad_msix_mbox_handler;
 		irq = bnad->msix_table[bnad->msix_num - 1].vector;
+		irq_flags = 0;
 		intr_info->intr_type = BNA_INTR_T_MSIX;
 		intr_info->idl[0].vector = bnad->msix_num - 1;
 	} else {
@@ -1135,7 +1128,6 @@ bnad_mbox_irq_alloc(struct bnad *bnad,
 		/* intr_info->idl.vector = 0 ? */
 	}
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
-	flags = irq_flags;
 	sprintf(bnad->mbox_irq_name, "%s", BNAD_NAME);
 
 	/*
@@ -1146,7 +1138,7 @@ bnad_mbox_irq_alloc(struct bnad *bnad,
 
 	BNAD_UPDATE_CTR(bnad, mbox_intr_disabled);
 
-	err = request_irq(irq, irq_handler, flags,
+	err = request_irq(irq, irq_handler, irq_flags,
 			  bnad->mbox_irq_name, bnad);
 
 	if (err) {
@@ -1983,19 +1975,14 @@ bnad_enable_default_bcast(struct bnad *bnad)
 static void
 bnad_restore_vlans(struct bnad *bnad, u32 rx_id)
 {
-	u16 vlan_id;
+	u16 vid;
 	unsigned long flags;
-
-	if (!bnad->vlan_grp)
-		return;
 
 	BUG_ON(!(VLAN_N_VID == (BFI_MAX_VLAN + 1)));
 
-	for (vlan_id = 0; vlan_id < VLAN_N_VID; vlan_id++) {
-		if (!vlan_group_get_device(bnad->vlan_grp, vlan_id))
-			continue;
+	for_each_set_bit(vid, bnad->active_vlans, VLAN_N_VID) {
 		spin_lock_irqsave(&bnad->bna_lock, flags);
-		bna_rx_vlan_add(bnad->rx_info[rx_id].rx, vlan_id);
+		bna_rx_vlan_add(bnad->rx_info[rx_id].rx, vid);
 		spin_unlock_irqrestore(&bnad->bna_lock, flags);
 	}
 }
@@ -2798,17 +2785,6 @@ bnad_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 static void
-bnad_vlan_rx_register(struct net_device *netdev,
-				  struct vlan_group *vlan_grp)
-{
-	struct bnad *bnad = netdev_priv(netdev);
-
-	mutex_lock(&bnad->conf_mutex);
-	bnad->vlan_grp = vlan_grp;
-	mutex_unlock(&bnad->conf_mutex);
-}
-
-static void
 bnad_vlan_rx_add_vid(struct net_device *netdev,
 				 unsigned short vid)
 {
@@ -2822,6 +2798,7 @@ bnad_vlan_rx_add_vid(struct net_device *netdev,
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
 	bna_rx_vlan_add(bnad->rx_info[0].rx, vid);
+	set_bit(vid, bnad->active_vlans);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
 	mutex_unlock(&bnad->conf_mutex);
@@ -2840,6 +2817,7 @@ bnad_vlan_rx_kill_vid(struct net_device *netdev,
 	mutex_lock(&bnad->conf_mutex);
 
 	spin_lock_irqsave(&bnad->bna_lock, flags);
+	clear_bit(vid, bnad->active_vlans);
 	bna_rx_vlan_del(bnad->rx_info[0].rx, vid);
 	spin_unlock_irqrestore(&bnad->bna_lock, flags);
 
@@ -2889,7 +2867,6 @@ static const struct net_device_ops bnad_netdev_ops = {
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_set_mac_address    = bnad_set_mac_address,
 	.ndo_change_mtu		= bnad_change_mtu,
-	.ndo_vlan_rx_register   = bnad_vlan_rx_register,
 	.ndo_vlan_rx_add_vid    = bnad_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid   = bnad_vlan_rx_kill_vid,
 #ifdef CONFIG_NET_POLL_CONTROLLER

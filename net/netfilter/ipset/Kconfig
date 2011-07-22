@@ -109,6 +109,16 @@ config IP_SET_HASH_NETPORT
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config IP_SET_HASH_NETIFACE
+	tristate "hash:net,iface set support"
+	depends on IP_SET
+	help
+	  This option adds the hash:net,iface set type support, by which
+	  one can store IPv4/IPv6 network address/prefix and
+	  interface name pairs as elements in a set.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config IP_SET_LIST_SET
 	tristate "list:set set support"
 	depends on IP_SET

@@ -42,6 +42,7 @@
 
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/hardirq.h>
 #include <linux/if.h>
 #include <linux/io.h>
@@ -87,8 +88,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 static int ath5k_init(struct ieee80211_hw *hw);
 static int ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 								bool skip_pcu);
-int ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-void ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf);
 
 /* Known SREVs */
 static const struct ath5k_srev_name srev_names[] = {
@@ -533,7 +532,7 @@ ath5k_update_bssid_mask_and_opmode(struct ath5k_softc *sc,
 	if (iter_data.n_stas > 1) {
 		/* If you have multiple STA interfaces connected to
 		 * different APs, ARPs are not received (most of the time?)
-		 * Enabling PROMISC appears to fix that probem.
+		 * Enabling PROMISC appears to fix that problem.
 		 */
 		sc->filter_flags |= AR5K_RX_FILTER_PROM;
 	}
@@ -816,8 +815,7 @@ ath5k_desc_alloc(struct ath5k_softc *sc)
 
 	INIT_LIST_HEAD(&sc->txbuf);
 	sc->txbuf_len = ATH_TXBUF;
-	for (i = 0; i < ATH_TXBUF; i++, bf++, ds++,
-			da += sizeof(*ds)) {
+	for (i = 0; i < ATH_TXBUF; i++, bf++, ds++, da += sizeof(*ds)) {
 		bf->desc = ds;
 		bf->daddr = da;
 		list_add_tail(&bf->list, &sc->txbuf);
@@ -983,7 +981,7 @@ ath5k_beaconq_config(struct ath5k_softc *sc)
 		goto err;
 
 	if (sc->opmode == NL80211_IFTYPE_AP ||
-		sc->opmode == NL80211_IFTYPE_MESH_POINT) {
+	    sc->opmode == NL80211_IFTYPE_MESH_POINT) {
 		/*
 		 * Always burst out beacon and CAB traffic
 		 * (aifs = cwmin = cwmax = 0)
@@ -1263,16 +1261,15 @@ ath5k_update_beacon_rssi(struct ath5k_softc *sc, struct sk_buff *skb, int rssi)
  */
 static int ath5k_common_padpos(struct sk_buff *skb)
 {
-	struct ieee80211_hdr * hdr = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	__le16 frame_control = hdr->frame_control;
 	int padpos = 24;
 
-	if (ieee80211_has_a4(frame_control)) {
+	if (ieee80211_has_a4(frame_control))
 		padpos += ETH_ALEN;
-	}
-	if (ieee80211_is_data_qos(frame_control)) {
+
+	if (ieee80211_is_data_qos(frame_control))
 		padpos += IEEE80211_QOS_CTL_LEN;
-	}
 
 	return padpos;
 }
@@ -1286,13 +1283,13 @@ static int ath5k_add_padding(struct sk_buff *skb)
 	int padpos = ath5k_common_padpos(skb);
 	int padsize = padpos & 3;
 
-	if (padsize && skb->len>padpos) {
+	if (padsize && skb->len > padpos) {
 
 		if (skb_headroom(skb) < padsize)
 			return -1;
 
 		skb_push(skb, padsize);
-		memmove(skb->data, skb->data+padsize, padpos);
+		memmove(skb->data, skb->data + padsize, padpos);
 		return padsize;
 	}
 
@@ -1317,7 +1314,7 @@ static int ath5k_remove_padding(struct sk_buff *skb)
 	int padpos = ath5k_common_padpos(skb);
 	int padsize = padpos & 3;
 
-	if (padsize && skb->len>=padpos+padsize) {
+	if (padsize && skb->len >= padpos + padsize) {
 		memmove(skb->data + padsize, skb->data, padpos);
 		skb_pull(skb, padsize);
 		return padsize;
@@ -1353,7 +1350,7 @@ ath5k_receive_frame(struct ath5k_softc *sc, struct sk_buff *skb,
 	 * timestamp (beginning of phy frame, data frame, end of rx?).
 	 * The only thing we know is that it is hardware specific...
 	 * On AR5213 it seems the rx timestamp is at the end of the
-	 * frame, but i'm not sure.
+	 * frame, but I'm not sure.
 	 *
 	 * NOTE: mac80211 defines mactime at the beginning of the first
 	 * data symbol. Since we don't have any time references it's
@@ -1451,10 +1448,11 @@ ath5k_receive_frame_ok(struct ath5k_softc *sc, struct ath5k_rx_status *rs)
 static void
 ath5k_set_current_imask(struct ath5k_softc *sc)
 {
-	enum ath5k_int imask = sc->imask;
+	enum ath5k_int imask;
 	unsigned long flags;
 
 	spin_lock_irqsave(&sc->irqlock, flags);
+	imask = sc->imask;
 	if (sc->rx_pending)
 		imask &= ~AR5K_INT_RX_ALL;
 	if (sc->tx_pending)
@@ -1557,7 +1555,8 @@ ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 		goto drop_packet;
 	}
 
-	if (txq->txq_len >= txq->txq_max)
+	if (txq->txq_len >= txq->txq_max &&
+	    txq->qnum <= AR5K_TX_QUEUE_ID_DATA_MAX)
 		ieee80211_stop_queue(hw, txq->qnum);
 
 	spin_lock_irqsave(&sc->txbuflock, flags);
@@ -1712,7 +1711,7 @@ ath5k_tasklet_tx(unsigned long data)
 	int i;
 	struct ath5k_softc *sc = (void *)data;
 
-	for (i=0; i < AR5K_NUM_TX_QUEUES; i++)
+	for (i = 0; i < AR5K_NUM_TX_QUEUES; i++)
 		if (sc->txqs[i].setup && (sc->ah->ah_txq_isr & BIT(i)))
 			ath5k_tx_processq(sc, &sc->txqs[i]);
 
@@ -1767,7 +1766,7 @@ ath5k_beacon_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	 * 4 beacons to make sure everybody hears our AP.
 	 * When a client tries to associate, hw will keep
 	 * track of the tx antenna to be used for this client
-	 * automaticaly, based on ACKed packets.
+	 * automatically, based on ACKed packets.
 	 *
 	 * Note: AP still listens and transmits RTS on the
 	 * default antenna which is supposed to be an omni.
@@ -1903,7 +1902,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 	avf = (void *)vif->drv_priv;
 	bf = avf->bbuf;
 	if (unlikely(bf->skb == NULL || sc->opmode == NL80211_IFTYPE_STATION ||
-			sc->opmode == NL80211_IFTYPE_MONITOR)) {
+		     sc->opmode == NL80211_IFTYPE_MONITOR)) {
 		ATH5K_WARN(sc, "bf=%p bf_skb=%p\n", bf, bf ? bf->skb : NULL);
 		return;
 	}
@@ -1920,7 +1919,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 
 	/* refresh the beacon for AP or MESH mode */
 	if (sc->opmode == NL80211_IFTYPE_AP ||
-			sc->opmode == NL80211_IFTYPE_MESH_POINT)
+	    sc->opmode == NL80211_IFTYPE_MESH_POINT)
 		ath5k_beacon_update(sc->hw, vif);
 
 	trace_ath5k_tx(sc, bf->skb, &sc->txqs[sc->bhalq]);
@@ -1933,6 +1932,10 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 	skb = ieee80211_get_buffered_bc(sc->hw, vif);
 	while (skb) {
 		ath5k_tx_queue(sc->hw, skb, sc->cabq);
+
+		if (sc->cabq->txq_len >= sc->cabq->txq_max)
+			break;
+
 		skb = ieee80211_get_buffered_bc(sc->hw, vif);
 	}
 
@@ -1979,7 +1982,7 @@ ath5k_beacon_update_timers(struct ath5k_softc *sc, u64 bc_tsf)
 	hw_tsf = ath5k_hw_get_tsf64(ah);
 	hw_tu = TSF_TO_TU(hw_tsf);
 
-#define FUDGE AR5K_TUNE_SW_BEACON_RESP + 3
+#define FUDGE (AR5K_TUNE_SW_BEACON_RESP + 3)
 	/* We use FUDGE to make sure the next TBTT is ahead of the current TU.
 	 * Since we later subtract AR5K_TUNE_SW_BEACON_RESP (10) in the timer
 	 * configuration we need to make sure it is bigger than that. */
@@ -2102,11 +2105,11 @@ static void ath5k_tasklet_beacon(unsigned long data)
 	 *
 	 * In IBSS mode we use this interrupt just to
 	 * keep track of the next TBTT (target beacon
-	 * transmission time) in order to detect wether
+	 * transmission time) in order to detect whether
 	 * automatic TSF updates happened.
 	 */
 	if (sc->opmode == NL80211_IFTYPE_ADHOC) {
-		/* XXX: only if VEOL suppported */
+		/* XXX: only if VEOL supported */
 		u64 tsf = ath5k_hw_get_tsf64(sc->ah);
 		sc->nexttbtt += sc->bintval;
 		ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
@@ -2161,7 +2164,7 @@ ath5k_schedule_tx(struct ath5k_softc *sc)
 	tasklet_schedule(&sc->txtq);
 }
 
-irqreturn_t
+static irqreturn_t
 ath5k_intr(int irq, void *dev_id)
 {
 	struct ath5k_softc *sc = dev_id;
@@ -2201,13 +2204,12 @@ ath5k_intr(int irq, void *dev_id)
 				ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
 					  "rx overrun, resetting\n");
 				ieee80211_queue_work(sc->hw, &sc->reset_work);
-			}
-			else
+			} else
 				ath5k_schedule_rx(sc);
 		} else {
-			if (status & AR5K_INT_SWBA) {
+			if (status & AR5K_INT_SWBA)
 				tasklet_hi_schedule(&sc->beacontq);
-			}
+
 			if (status & AR5K_INT_RXEOL) {
 				/*
 				* NB: the hardware should re-read the link when
@@ -2359,7 +2361,7 @@ ath5k_tx_complete_poll_work(struct work_struct *work)
 * Initialization routines *
 \*************************/
 
-int
+int __devinit
 ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 {
 	struct ieee80211_hw *hw = sc->hw;
@@ -2424,6 +2426,7 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 	common->ah = sc->ah;
 	common->hw = hw;
 	common->priv = sc;
+	common->clockrate = 40;
 
 	/*
 	 * Cache line size is used to size and align various
@@ -2470,7 +2473,7 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 						sc->ah->ah_radio_5ghz_revision),
 						sc->ah->ah_radio_5ghz_revision);
 			/* No 2GHz support (5110 and some
-			 * 5Ghz only cards) -> report 5Ghz radio */
+			 * 5GHz only cards) -> report 5GHz radio */
 			} else if (!test_bit(AR5K_MODE_11B,
 				sc->ah->ah_capabilities.cap_mode)) {
 				ATH5K_INFO(sc, "RF%s 5GHz radio found (0x%x)\n",
@@ -2489,7 +2492,7 @@ ath5k_init_softc(struct ath5k_softc *sc, const struct ath_bus_ops *bus_ops)
 		/* Multi chip radio (RF5111 - RF2111) ->
 		 * report both 2GHz/5GHz radios */
 		else if (sc->ah->ah_radio_5ghz_revision &&
-				sc->ah->ah_radio_2ghz_revision){
+				sc->ah->ah_radio_2ghz_revision) {
 			ATH5K_INFO(sc, "RF%s 5GHz radio found (0x%x)\n",
 				ath5k_chip_name(AR5K_VERSION_RAD,
 					sc->ah->ah_radio_5ghz_revision),
@@ -2615,7 +2618,7 @@ done:
 	return ret;
 }
 
-static void stop_tasklets(struct ath5k_softc *sc)
+static void ath5k_stop_tasklets(struct ath5k_softc *sc)
 {
 	sc->rx_pending = false;
 	sc->tx_pending = false;
@@ -2669,7 +2672,7 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 	mmiowb();
 	mutex_unlock(&sc->lock);
 
-	stop_tasklets(sc);
+	ath5k_stop_tasklets(sc);
 
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 
@@ -2697,7 +2700,7 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 
 	ath5k_hw_set_imr(ah, 0);
 	synchronize_irq(sc->irq);
-	stop_tasklets(sc);
+	ath5k_stop_tasklets(sc);
 
 	/* Save ani mode and disable ANI during
 	 * reset. If we don't we might get false
@@ -2714,8 +2717,7 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 
 	fast = ((chan != NULL) && modparam_fastchanswitch) ? 1 : 0;
 
-	ret = ath5k_hw_reset(ah, sc->opmode, sc->curchan, fast,
-								skip_pcu);
+	ret = ath5k_hw_reset(ah, sc->opmode, sc->curchan, fast, skip_pcu);
 	if (ret) {
 		ATH5K_ERR(sc, "can't reset hardware (%d)\n", ret);
 		goto err;
@@ -2729,7 +2731,7 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan,
 
 	ath5k_ani_init(ah, ani_mode);
 
-	ah->ah_cal_next_full = jiffies;
+	ah->ah_cal_next_full = jiffies + msecs_to_jiffies(100);
 	ah->ah_cal_next_ani = jiffies;
 	ah->ah_cal_next_nf = jiffies;
 	ewma_init(&ah->ah_beacon_rssi_avg, 1024, 8);
@@ -2773,7 +2775,7 @@ static void ath5k_reset_work(struct work_struct *work)
 	mutex_unlock(&sc->lock);
 }
 
-static int
+static int __devinit
 ath5k_init(struct ieee80211_hw *hw)
 {
 
@@ -2801,7 +2803,7 @@ ath5k_init(struct ieee80211_hw *hw)
 
 	/*
 	 * Collect the channel list.  The 802.11 layer
-	 * is resposible for filtering this list based
+	 * is responsible for filtering this list based
 	 * on settings like the phy mode and regulatory
 	 * domain restrictions.
 	 */
@@ -2962,11 +2964,12 @@ ath5k_deinit_softc(struct ath5k_softc *sc)
 	 * state and potentially want to use them.
 	 */
 	ath5k_hw_deinit(sc->ah);
+	kfree(sc->ah);
 	free_irq(sc->irq, sc);
 }
 
 bool
-ath_any_vif_assoc(struct ath5k_softc *sc)
+ath5k_any_vif_assoc(struct ath5k_softc *sc)
 {
 	struct ath5k_vif_iter_data iter_data;
 	iter_data.hw_macaddr = NULL;
@@ -2980,7 +2983,7 @@ ath_any_vif_assoc(struct ath5k_softc *sc)
 }
 
 void
-set_beacon_filter(struct ieee80211_hw *hw, bool enable)
+ath5k_set_beacon_filter(struct ieee80211_hw *hw, bool enable)
 {
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_hw *ah = sc->ah;

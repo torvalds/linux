@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/uio.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/wait.h>
 #include <linux/slab.h>

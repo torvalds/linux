@@ -478,7 +478,7 @@ struct bnx2i_5771x_cq_db {
 
 struct bnx2i_5771x_sq_rq_db {
 	u16 prod_idx;
-	u8 reserved0[14]; /* Pad structure size to 16 bytes */
+	u8 reserved0[62]; /* Pad structure size to 64 bytes */
 };
 
 

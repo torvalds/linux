@@ -12,8 +12,6 @@
 
 #include <linux/crypto.h>
 
-#define AES_BLOCK_LEN 16
-
 struct crypto_cipher *ieee80211_aes_key_setup_encrypt(const u8 key[]);
 void ieee80211_aes_ccm_encrypt(struct crypto_cipher *tfm, u8 *scratch,
 			       u8 *data, size_t data_len,

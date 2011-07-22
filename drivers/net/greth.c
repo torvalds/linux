@@ -22,9 +22,11 @@
  *               Marko Isomaki
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>

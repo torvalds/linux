@@ -1230,10 +1230,10 @@ static int __mlx4_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&priv->pgdir_list);
 	mutex_init(&priv->pgdir_mutex);
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &dev->rev_id);
-
 	INIT_LIST_HEAD(&priv->bf_list);
 	mutex_init(&priv->bf_mutex);
+
+	dev->rev_id = pdev->revision;
 
 	/*
 	 * Now reset the HCA before we touch the PCI capabilities or

@@ -287,7 +287,7 @@ static const char *command_types[] = {
 	"unused",		/* HOST_INTERRUPT_COALESCING */
 	"undefined",
 	"CARD_DISABLE_PHY_OFF",
-	"MSDU_TX_RATES" "undefined",
+	"MSDU_TX_RATES",
 	"undefined",
 	"SET_STATION_STAT_BITS",
 	"CLEAR_STATIONS_STAT_BITS",

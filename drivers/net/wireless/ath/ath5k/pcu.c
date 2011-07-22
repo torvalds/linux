@@ -32,7 +32,7 @@
 #include "base.h"
 
 /*
- * AR5212+ can use higher rates for ack transmition
+ * AR5212+ can use higher rates for ack transmission
  * based on current tx rate instead of the base rate.
  * It does this to better utilize channel usage.
  * This is a mapping between G rates (that cover both
@@ -534,9 +534,9 @@ u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah)
 
 	local_irq_restore(flags);
 
-	WARN_ON( i == ATH5K_MAX_TSF_READ );
+	WARN_ON(i == ATH5K_MAX_TSF_READ);
 
-	return (((u64)tsf_upper1 << 32) | tsf_lower);
+	return ((u64)tsf_upper1 << 32) | tsf_lower;
 }
 
 /**
@@ -643,14 +643,14 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 	/* Flush any pending BMISS interrupts on ISR by
 	 * performing a clear-on-write operation on PISR
 	 * register for the BMISS bit (writing a bit on
-	 * ISR togles a reset for that bit and leaves
-	 * the rest bits intact) */
+	 * ISR toggles a reset for that bit and leaves
+	 * the remaining bits intact) */
 	if (ah->ah_version == AR5K_AR5210)
 		ath5k_hw_reg_write(ah, AR5K_ISR_BMISS, AR5K_ISR);
 	else
 		ath5k_hw_reg_write(ah, AR5K_ISR_BMISS, AR5K_PISR);
 
-	/* TODO: Set enchanced sleep registers on AR5212
+	/* TODO: Set enhanced sleep registers on AR5212
 	 * based on vif->bss_conf params, until then
 	 * disable power save reporting.*/
 	AR5K_REG_DISABLE_BITS(ah, AR5K_STA_ID1, AR5K_STA_ID1_PWR_SV);
@@ -738,7 +738,7 @@ ath5k_hw_check_beacon_timers(struct ath5k_hw *ah, int intval)
 	dma = ath5k_hw_reg_read(ah, AR5K_TIMER1) >> 3;
 
 	/* NOTE: SWBA is different. Having a wrong window there does not
-	 * stop us from sending data and this condition is catched thru
+	 * stop us from sending data and this condition is caught by
 	 * other means (SWBA interrupt) */
 
 	if (ath5k_check_timer_win(nbtt, atim, 1, intval) &&
@@ -896,7 +896,7 @@ void ath5k_hw_pcu_init(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	/* Set RSSI/BRSSI thresholds
 	 *
 	 * Note: If we decide to set this value
-	 * dynamicaly, have in mind that when AR5K_RSSI_THR
+	 * dynamically, have in mind that when AR5K_RSSI_THR
 	 * register is read it might return 0x40 if we haven't
 	 * wrote anything to it plus BMISS RSSI threshold is zeroed.
 	 * So doing a save/restore procedure here isn't the right
