@@ -371,6 +371,10 @@ extern struct lpfc_hbq_init *lpfc_hbq_defs[];
 /* SLI4 if_type 2 externs. */
 int lpfc_sli4_alloc_resource_identifiers(struct lpfc_hba *);
 int lpfc_sli4_dealloc_resource_identifiers(struct lpfc_hba *);
+int lpfc_sli4_get_allocated_extnts(struct lpfc_hba *, uint16_t,
+				   uint16_t *, uint16_t *);
+int lpfc_sli4_get_avail_extnt_rsrc(struct lpfc_hba *, uint16_t,
+					  uint16_t *, uint16_t *);
 
 /* externs BlockGuard */
 extern char *_dump_buf_data;
@@ -437,6 +441,10 @@ void lpfc_cleanup_wt_rrqs(struct lpfc_hba *);
 void lpfc_cleanup_vports_rrqs(struct lpfc_vport *, struct lpfc_nodelist *);
 struct lpfc_node_rrq *lpfc_get_active_rrq(struct lpfc_vport *, uint16_t,
 	uint32_t);
+void lpfc_idiag_mbxacc_dump_bsg_mbox(struct lpfc_hba *, enum nemb_type,
+	enum mbox_type, enum dma_type, enum sta_type,
+	struct lpfc_dmabuf *, uint32_t);
+void lpfc_idiag_mbxacc_dump_issue_mbox(struct lpfc_hba *, MAILBOX_t *);
 int lpfc_wr_object(struct lpfc_hba *, struct list_head *, uint32_t, uint32_t *);
 /* functions to support SR-IOV */
 int lpfc_sli_probe_sriov_nr_virtfn(struct lpfc_hba *, int);

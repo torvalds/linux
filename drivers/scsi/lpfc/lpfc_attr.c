@@ -810,6 +810,7 @@ static ssize_t
 lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 {
 	struct completion online_compl;
+	struct pci_dev *pdev = phba->pcidev;
 	uint32_t reg_val;
 	int status = 0;
 	int rc;
@@ -822,6 +823,14 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	     LPFC_SLI_INTF_IF_TYPE_2))
 		return -EPERM;
 
+	if (!pdev->is_physfn)
+		return -EPERM;
+
+	/* Disable SR-IOV virtual functions if enabled */
+	if (phba->cfg_sriov_nr_virtfn) {
+		pci_disable_sriov(pdev);
+		phba->cfg_sriov_nr_virtfn = 0;
+	}
 	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
 	if (status != 0)
