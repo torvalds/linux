@@ -50,7 +50,6 @@
 #define APBT_DEV_USED  1
 
 extern void apbt_time_init(void);
-extern struct clock_event_device *global_clock_event;
 extern unsigned long apbt_quick_calibrate(void);
 extern int arch_setup_apbt_irqs(int irq, int trigger, int mask, int cpu);
 extern void apbt_setup_secondary_clock(void);
