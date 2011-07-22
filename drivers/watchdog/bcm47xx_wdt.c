@@ -60,6 +60,12 @@ static inline void bcm47xx_wdt_hw_start(void)
 		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 0xfffffff);
 		break;
 #endif
+#ifdef CONFIG_BCM47XX_BCMA
+	case BCM47XX_BUS_TYPE_BCMA:
+		bcma_chipco_watchdog_timer_set(&bcm47xx_bus.bcma.bus.drv_cc,
+					       0xfffffff);
+		break;
+#endif
 	}
 }
 
@@ -69,6 +75,11 @@ static inline int bcm47xx_wdt_hw_stop(void)
 #ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		return ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 0);
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	case BCM47XX_BUS_TYPE_BCMA:
+		bcma_chipco_watchdog_timer_set(&bcm47xx_bus.bcma.bus.drv_cc, 0);
+		return 0;
 #endif
 	}
 	return -EINVAL;

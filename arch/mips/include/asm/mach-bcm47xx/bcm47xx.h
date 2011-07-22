@@ -20,16 +20,24 @@
 #define __ASM_BCM47XX_H
 
 #include <linux/ssb/ssb.h>
+#include <linux/bcma/bcma.h>
+#include <linux/bcma/bcma_soc.h>
 
 enum bcm47xx_bus_type {
 #ifdef CONFIG_BCM47XX_SSB
 	BCM47XX_BUS_TYPE_SSB,
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	BCM47XX_BUS_TYPE_BCMA,
 #endif
 };
 
 union bcm47xx_bus {
 #ifdef CONFIG_BCM47XX_SSB
 	struct ssb_bus ssb;
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	struct bcma_soc bcma;
 #endif
 };
 

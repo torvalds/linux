@@ -29,6 +29,7 @@
 #include <linux/types.h>
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_embedded.h>
+#include <linux/bcma/bcma_soc.h>
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
@@ -52,6 +53,11 @@ static void bcm47xx_machine_restart(char *command)
 		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 1);
 		break;
 #endif
+#ifdef CONFIG_BCM47XX_BCMA
+	case BCM47XX_BUS_TYPE_BCMA:
+		bcma_chipco_watchdog_timer_set(&bcm47xx_bus.bcma.bus.drv_cc, 1);
+		break;
+#endif
 	}
 	while (1)
 		cpu_relax();
@@ -65,6 +71,11 @@ static void bcm47xx_machine_halt(void)
 #ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		ssb_watchdog_timer_set(&bcm47xx_bus.ssb, 0);
+		break;
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	case BCM47XX_BUS_TYPE_BCMA:
+		bcma_chipco_watchdog_timer_set(&bcm47xx_bus.bcma.bus.drv_cc, 0);
 		break;
 #endif
 	}
@@ -295,16 +306,54 @@ static void __init bcm47xx_register_ssb(void)
 }
 #endif
 
+#ifdef CONFIG_BCM47XX_BCMA
+static void __init bcm47xx_register_bcma(void)
+{
+	int err;
+
+	err = bcma_host_soc_register(&bcm47xx_bus.bcma);
+	if (err)
+		panic("Failed to initialize BCMA bus (err %d)\n", err);
+}
+#endif
+
 void __init plat_mem_setup(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 
-#ifdef CONFIG_BCM47XX_SSB
-	bcm47xx_bus_type = BCM47XX_BUS_TYPE_SSB;
-	bcm47xx_register_ssb();
+	if (c->cputype == CPU_74K) {
+		printk(KERN_INFO "bcm47xx: using bcma bus\n");
+#ifdef CONFIG_BCM47XX_BCMA
+		bcm47xx_bus_type = BCM47XX_BUS_TYPE_BCMA;
+		bcm47xx_register_bcma();
 #endif
+	} else {
+		printk(KERN_INFO "bcm47xx: using ssb bus\n");
+#ifdef CONFIG_BCM47XX_SSB
+		bcm47xx_bus_type = BCM47XX_BUS_TYPE_SSB;
+		bcm47xx_register_ssb();
+#endif
+	}
 
 	_machine_restart = bcm47xx_machine_restart;
 	_machine_halt = bcm47xx_machine_halt;
 	pm_power_off = bcm47xx_machine_halt;
 }
+
+static int __init bcm47xx_register_bus_complete(void)
+{
+	switch (bcm47xx_bus_type) {
+#ifdef CONFIG_BCM47XX_SSB
+	case BCM47XX_BUS_TYPE_SSB:
+		/* Nothing to do */
+		break;
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	case BCM47XX_BUS_TYPE_BCMA:
+		bcma_bus_register(&bcm47xx_bus.bcma.bus);
+		break;
+#endif
+	}
+	return 0;
+}
+device_initcall(bcm47xx_register_bus_complete);

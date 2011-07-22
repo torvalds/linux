@@ -29,6 +29,9 @@ static void early_nvram_init(void)
 #ifdef CONFIG_BCM47XX_SSB
 	struct ssb_mipscore *mcore_ssb;
 #endif
+#ifdef CONFIG_BCM47XX_BCMA
+	struct bcma_drv_cc *bcma_cc;
+#endif
 	struct nvram_header *header;
 	int i;
 	u32 base = 0;
@@ -42,6 +45,13 @@ static void early_nvram_init(void)
 		mcore_ssb = &bcm47xx_bus.ssb.mipscore;
 		base = mcore_ssb->flash_window;
 		lim = mcore_ssb->flash_window_size;
+		break;
+#endif
+#ifdef CONFIG_BCM47XX_BCMA
+	case BCM47XX_BUS_TYPE_BCMA:
+		bcma_cc = &bcm47xx_bus.bcma.bus.drv_cc;
+		base = bcma_cc->pflash.window;
+		lim = bcma_cc->pflash.window_size;
 		break;
 #endif
 	}
