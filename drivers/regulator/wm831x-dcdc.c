@@ -27,6 +27,18 @@
 #include <linux/mfd/wm831x/regulator.h>
 #include <linux/mfd/wm831x/pdata.h>
 
+#include <linux/delay.h>
+#include <linux/time.h>
+#include <linux/timer.h>
+#include <linux/string.h>
+
+//#include "../../arch/arm/mach-rk29/include/mach/gpio.h"
+
+//#include <linux/hrtimer.h>
+
+
+
+
 #define WM831X_BUCKV_MAX_SELECTOR 0x68
 #define WM831X_BUCKP_MAX_SELECTOR 0x66
 
@@ -301,7 +313,30 @@ static int wm831x_buckv_set_dvs(struct regulator_dev *rdev, int state)
 
 	return 0;
 }
+//wm831x_buckv_get_voltage
 
+int wm831x_reg_read(struct wm831x *wm831x, unsigned short reg);
+static int wm831x_buckv_read_voltage(struct regulator_dev *rdev)
+{
+	u16 r;
+	int vol_read;
+	int ret;
+	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
+	struct wm831x *wm831x = dcdc->wm831x;
+	int on_reg = dcdc->base + WM831X_DCDC_ON_CONFIG;
+
+	ret = wm831x_reg_read(wm831x, on_reg);
+	if (ret < 0)
+		return ret;
+	ret &= WM831X_DC1_ON_VSEL_MASK;
+	//printk("-readvoltage--%d---\n", ret);
+	vol_read = (ret-8)*12500 + 600000;
+
+	return vol_read;
+
+
+
+}
 static int wm831x_buckv_set_voltage(struct regulator_dev *rdev,
 				    int min_uV, int max_uV)
 {
@@ -322,6 +357,8 @@ static int wm831x_buckv_set_voltage(struct regulator_dev *rdev,
 	if (dcdc->dvs_gpio && dcdc->dvs_vsel == vsel)
 		return wm831x_buckv_set_dvs(rdev, 1);
 
+//	printk("min_uV = %d\n", min_uV);
+//	printk("vsel = %d\n", vsel);
 	/* Always set the ON status to the minimum voltage */
 	ret = wm831x_set_bits(wm831x, on_reg, WM831X_DC1_ON_VSEL_MASK, vsel);
 	if (ret < 0)
@@ -391,6 +428,80 @@ static u16 wm831x_dcdc_ilim[] = {
 	125, 250, 375, 500, 625, 750, 875, 1000
 };
 
+static int wm831x_buckv_set_voltage_step(struct regulator_dev * rdev, int min_uV, int max_uV)
+{
+	int old_vol;
+	int new_min_uV,new_max_uV;
+	int diff_value,step;
+	int ret;
+	int read_vol;
+
+	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev); 
+	struct wm831x *wm831x = dcdc->wm831x; 
+	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
+
+
+	//if(strcmp(rdev->constraints->name,"DCDC2") != 0)
+	if(strcmp(pdata->dcdc[1]->consumer_supplies[1].supply,"vcore") != 0)
+	{
+	
+		ret = wm831x_buckv_set_voltage(rdev,min_uV,max_uV);
+	}
+	else
+	{
+		old_vol = wm831x_buckv_read_voltage(rdev);
+		
+		new_min_uV = old_vol;
+		new_max_uV = old_vol+max_uV-min_uV;
+
+		if(old_vol > min_uV) //reduce voltage
+		{
+			diff_value = (old_vol - min_uV);  
+
+			for(step = 100000; step<=diff_value; step += 100000)
+			{
+				new_min_uV = old_vol-step;
+				new_max_uV = old_vol+max_uV-min_uV-step;
+
+				ret = wm831x_buckv_set_voltage(rdev,new_min_uV,new_max_uV);
+				usleep_range(1000,1000);
+			}
+
+			if(new_min_uV > min_uV) //0<  old_vol - min_uV < 100000 ||0< new_min_uV  - min_uV < 1000000
+			{
+
+				ret = wm831x_buckv_set_voltage(rdev,min_uV,max_uV);
+				usleep_range(1000,1000);
+				
+			}
+
+		}
+		else                    //rise  voltage
+		{
+			diff_value = (min_uV- old_vol); 
+			gpio_direction_output(RK29_PIN1_PD7, GPIO_HIGH);
+
+			for(step = 100000; step<=diff_value; step += 100000)
+			{
+				new_min_uV = old_vol + step;
+				new_max_uV = old_vol+max_uV-min_uV+step;
+
+				ret = wm831x_buckv_set_voltage(rdev,new_min_uV,new_max_uV);
+				usleep_range(1000,1000);	
+			}
+			if(new_min_uV < min_uV)//  min_uV - old_vol < 100000 || new_min_uV - old_vol < 100000
+			{
+				ret = wm831x_buckv_set_voltage(rdev,min_uV,max_uV);
+				usleep_range(1000,1000);		
+			}
+
+		}
+
+	}
+	return ret;
+
+}
+
 static int wm831x_buckv_set_current_limit(struct regulator_dev *rdev,
 					   int min_uA, int max_uA)
 {
@@ -435,7 +546,7 @@ int wm831x_dcdc_set_suspend_disable(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops wm831x_buckv_ops = {
-	.set_voltage = wm831x_buckv_set_voltage,
+	.set_voltage = wm831x_buckv_set_voltage_step,
 	.get_voltage = wm831x_buckv_get_voltage,
 	.list_voltage = wm831x_buckv_list_voltage,
 	.set_suspend_voltage = wm831x_buckv_set_suspend_voltage,
