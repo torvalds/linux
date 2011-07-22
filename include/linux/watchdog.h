@@ -68,6 +68,7 @@ struct watchdog_device;
  * @start:	The routine for starting the watchdog device.
  * @stop:	The routine for stopping the watchdog device.
  * @ping:	The routine that sends a keepalive ping to the watchdog device.
+ * @status:	The routine that shows the status of the watchdog device.
  *
  * The watchdog_ops structure contains a list of low-level operations
  * that control a watchdog device. It also contains the module that owns
@@ -81,12 +82,14 @@ struct watchdog_ops {
 	int (*stop)(struct watchdog_device *);
 	/* optional operations */
 	int (*ping)(struct watchdog_device *);
+	unsigned int (*status)(struct watchdog_device *);
 };
 
 /** struct watchdog_device - The structure that defines a watchdog device
  *
  * @info:	Pointer to a watchdog_info structure.
  * @ops:	Pointer to the list of watchdog operations.
+ * @bootstatus:	Status of the watchdog device at boot.
  * @driver-data:Pointer to the drivers private data.
  * @status:	Field that contains the devices internal status bits.
  *
@@ -99,6 +102,7 @@ struct watchdog_ops {
 struct watchdog_device {
 	const struct watchdog_info *info;
 	const struct watchdog_ops *ops;
+	unsigned int bootstatus;
 	void *driver_data;
 	unsigned long status;
 /* Bit numbers for status flags */
