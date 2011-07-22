@@ -70,10 +70,10 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
-
+#include <linux/workqueue.h>
 #include <xen/balloon.h>
-
 #include <xen/tmem.h>
+#include <xen/xen.h>
 
 /* Enable/disable with sysfs. */
 static int xen_selfballooning_enabled __read_mostly;
