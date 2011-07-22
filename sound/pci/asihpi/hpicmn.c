@@ -315,7 +315,7 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 	short found = 1;
 	struct hpi_control_cache_info *pI;
 	struct hpi_control_cache_single *pC;
-	u16 response_size;
+	size_t response_size;
 	if (!find_control(phm->obj_index, p_cache, &pI)) {
 		HPI_DEBUG_LOG(VERBOSE,
 			"HPICMN find_control() failed for adap %d\n",
@@ -532,7 +532,7 @@ short hpi_check_control_cache(struct hpi_control_cache *p_cache,
 		pI->control_index, pI->control_type, phm->u.c.attribute);
 
 	if (found)
-		phr->size = response_size;
+		phr->size = (u16)response_size;
 
 	return found;
 }
