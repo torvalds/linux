@@ -104,10 +104,11 @@
 struct rk29_cir_struct_info {
 	u16  carry_high;                // carry_high
 	u16  carry_low;        // carry_low	
+	
 	u16  repeat;         // 是否是 重复帧
 	u8   inv;                 //00 01 10 11   Lsb->inv0 
-
-	u16 frame_bit_len;           // 命令帧有效位数
+	u8 frame_bit_len;           // 命令帧有效位数
+	
 	u16 stop_bit_interval;         //  period of end part  NEC-560us
 	
 	ul64 frame;               //  命令帧  LSB->MSB
@@ -144,6 +145,8 @@ struct rk29_cir_struct_info {
 #define BU92747_IOCTL_REPEAT             _IOW(BU92747IO, 0x0A, char[CIR_FRAME_SIZE])
 #define BU92747_IOCTL_DURATION           _IOW(BU92747IO, 0x0C, char[CIR_FRAME_SIZE])
 #define BU92747_IOCTL_PARAMETER          _IOW(BU92747IO, 0x0E, char[CIR_FRAME_SIZE])
+#define BU92747_IOCTL_FORMATE            _IOW(BU92747IO, 0x0F, char[CIR_FRAME_SIZE])
+
 
 /*status*/
 #define BU92747_STOP		4
