@@ -359,7 +359,7 @@ void HPI_6000(struct hpi_message *phm, struct hpi_response *phr)
 			HPI_ERROR_PROCESSING_MESSAGE);
 
 	switch (phm->type) {
-	case HPI_TYPE_MESSAGE:
+	case HPI_TYPE_REQUEST:
 		switch (phm->object) {
 		case HPI_OBJ_SUBSYSTEM:
 			subsys_message(phm, phr);
@@ -538,7 +538,7 @@ static short create_adapter_obj(struct hpi_adapter_obj *pao,
 
 		HPI_DEBUG_LOG(VERBOSE, "send ADAPTER_GET_INFO\n");
 		memset(&hm, 0, sizeof(hm));
-		hm.type = HPI_TYPE_MESSAGE;
+		hm.type = HPI_TYPE_REQUEST;
 		hm.size = sizeof(struct hpi_message);
 		hm.object = HPI_OBJ_ADAPTER;
 		hm.function = HPI_ADAPTER_GET_INFO;

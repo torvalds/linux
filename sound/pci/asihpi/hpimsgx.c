@@ -315,7 +315,7 @@ void hpi_send_recv_ex(struct hpi_message *phm, struct hpi_response *phr,
 {
 	HPI_DEBUG_MESSAGE(DEBUG, phm);
 
-	if (phm->type != HPI_TYPE_MESSAGE) {
+	if (phm->type != HPI_TYPE_REQUEST) {
 		hpi_init_response(phr, phm->object, phm->function,
 			HPI_ERROR_INVALID_TYPE);
 		return;

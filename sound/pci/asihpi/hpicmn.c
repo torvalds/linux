@@ -682,7 +682,7 @@ static void subsys_message(struct hpi_message *phm, struct hpi_response *phr)
 void HPI_COMMON(struct hpi_message *phm, struct hpi_response *phr)
 {
 	switch (phm->type) {
-	case HPI_TYPE_MESSAGE:
+	case HPI_TYPE_REQUEST:
 		switch (phm->object) {
 		case HPI_OBJ_SUBSYSTEM:
 			subsys_message(phm, phr);

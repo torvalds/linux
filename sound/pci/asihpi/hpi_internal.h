@@ -364,7 +364,7 @@ Used in DLL to indicate device not present
 #define HPI_ADAPTER_ASI(f)   (f)
 
 enum HPI_MESSAGE_TYPES {
-	HPI_TYPE_MESSAGE = 1,
+	HPI_TYPE_REQUEST = 1,
 	HPI_TYPE_RESPONSE = 2,
 	HPI_TYPE_DATA = 3,
 	HPI_TYPE_SSX2BYPASS_MESSAGE = 4

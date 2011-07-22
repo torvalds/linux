@@ -392,7 +392,7 @@ void _HPI_6205(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 
 	HPI_DEBUG_LOG(VERBOSE, "start of switch\n");
 	switch (phm->type) {
-	case HPI_TYPE_MESSAGE:
+	case HPI_TYPE_REQUEST:
 		switch (phm->object) {
 		case HPI_OBJ_SUBSYSTEM:
 			subsys_message(pao, phm, phr);
@@ -634,11 +634,12 @@ static u16 create_adapter_obj(struct hpi_adapter_obj *pao,
 
 		HPI_DEBUG_LOG(VERBOSE, "init ADAPTER_GET_INFO\n");
 		memset(&hm, 0, sizeof(hm));
-		hm.type = HPI_TYPE_MESSAGE;
+		/* wAdapterIndex == version == 0 */
+		hm.type = HPI_TYPE_REQUEST;
 		hm.size = sizeof(hm);
 		hm.object = HPI_OBJ_ADAPTER;
 		hm.function = HPI_ADAPTER_GET_INFO;
-		hm.adapter_index = 0;
+
 		memset(&hr, 0, sizeof(hr));
 		hr.size = sizeof(hr);
 
