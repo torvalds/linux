@@ -1279,6 +1279,7 @@ static int client_s_fmt(struct soc_camera_device *icd,
 	unsigned int width = mf->width, height = mf->height, tmp_w, tmp_h;
 	unsigned int max_width, max_height;
 	struct v4l2_cropcap cap;
+	bool ceu_1to1;
 	int ret;
 
 	ret = v4l2_device_call_until_err(sd->v4l2_dev, (long)icd, video,
@@ -1288,7 +1289,14 @@ static int client_s_fmt(struct soc_camera_device *icd,
 
 	dev_geo(dev, "camera scaled to %ux%u\n", mf->width, mf->height);
 
-	if ((width == mf->width && height == mf->height) || !ceu_can_scale)
+	if (width == mf->width && height == mf->height) {
+		/* Perfect! The client has done it all. */
+		ceu_1to1 = true;
+		goto update_cache;
+	}
+
+	ceu_1to1 = false;
+	if (!ceu_can_scale)
 		goto update_cache;
 
 	cap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -1328,7 +1336,10 @@ update_cache:
 	if (ret < 0)
 		return ret;
 
-	update_subrect(cam);
+	if (ceu_1to1)
+		cam->subrect = cam->rect;
+	else
+		update_subrect(cam);
 
 	return 0;
 }
@@ -1579,8 +1590,8 @@ static void calculate_client_output(struct soc_camera_device *icd,
 	dev_geo(dev, "3: scales %u:%u\n", scale_h, scale_v);
 
 	/*
-	 * 4. Calculate client output window by applying combined scales to real
-	 *    input window.
+	 * 4. Calculate desired client output window by applying combined scales
+	 *    to client (real) input window.
 	 */
 	mf->width	= scale_down(cam->rect.width, scale_h);
 	mf->height	= scale_down(cam->rect.height, scale_v);
@@ -1627,7 +1638,7 @@ static int sh_mobile_ceu_set_fmt(struct soc_camera_device *icd,
 		return -EINVAL;
 	}
 
-	/* 1.-4. Calculate client output geometry */
+	/* 1.-4. Calculate desired client output geometry */
 	calculate_client_output(icd, pix, &mf);
 	mf.field	= pix->field;
 	mf.colorspace	= pix->colorspace;
