@@ -2915,7 +2915,8 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 
 	/* disable receives while setting up the descriptors */
 	rctl = er32(RCTL);
-	ew32(RCTL, rctl & ~E1000_RCTL_EN);
+	if (!(adapter->flags2 & FLAG2_NO_DISABLE_RX))
+		ew32(RCTL, rctl & ~E1000_RCTL_EN);
 	e1e_flush();
 	usleep_range(10000, 20000);
 
@@ -3394,7 +3395,8 @@ void e1000e_down(struct e1000_adapter *adapter)
 
 	/* disable receives in the hardware */
 	rctl = er32(RCTL);
-	ew32(RCTL, rctl & ~E1000_RCTL_EN);
+	if (!(adapter->flags2 & FLAG2_NO_DISABLE_RX))
+		ew32(RCTL, rctl & ~E1000_RCTL_EN);
 	/* flush and sleep below */
 
 	netif_stop_queue(netdev);
@@ -3403,6 +3405,7 @@ void e1000e_down(struct e1000_adapter *adapter)
 	tctl = er32(TCTL);
 	tctl &= ~E1000_TCTL_EN;
 	ew32(TCTL, tctl);
+
 	/* flush both disables and wait for them to finish */
 	e1e_flush();
 	usleep_range(10000, 20000);
