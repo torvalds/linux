@@ -516,8 +516,8 @@ static int cir_iomux_init(void)
 {
 	if (CIR_IRQ_PIN_IOMUX_NAME)
 		rk29_mux_api_set(CIR_IRQ_PIN_IOMUX_NAME, CIR_IRQ_PIN_IOMUX_VALUE);
-	
 	rk29_mux_api_set(GPIO5A7_HSADCDATA2_NAME, GPIO5L_GPIO5A7);
+	return 0;
 }
 
 static struct  bu92747guw_platform_data bu92747guw_pdata = {
@@ -564,12 +564,11 @@ int ft5406_init_platform_hw(void)
     return 0;
 }
 
-int ft5406_exit_platform_hw(void)
+void ft5406_exit_platform_hw(void)
 {
 	printk("ft5406_exit_platform_hw\n");
 	gpio_free(TOUCH_RESET_PIN);
 	gpio_free(TOUCH_INT_PIN);
-	return 0;
 }
 
 int ft5406_platform_sleep(void)
@@ -628,12 +627,11 @@ int gt819_init_platform_hw(void)
 }
 
 
-int gt819_exit_platform_hw(void)
+void gt819_exit_platform_hw(void)
 {
 	printk("gt819_exit_platform_hw\n");
 	gpio_free(TOUCH_RESET_PIN);
 	gpio_free(TOUCH_INT_PIN);
-	return 0;
 }
 
 int gt819_platform_sleep(void)
@@ -666,16 +664,17 @@ struct goodix_platform_data goodix_info = {
 
 #if defined (CONFIG_SND_SOC_CS42L52)
 
-void cs42l52_init_platform_hw()
+int cs42l52_init_platform_hw()
 {
 	printk("cs42l52_init_platform_hw\n");
     if(gpio_request(RK29_PIN6_PB6,NULL) != 0){
       gpio_free(RK29_PIN6_PB6);
       printk("cs42l52_init_platform_hw gpio_request error\n");
-      return;
+      return -EIO;
     }
     gpio_direction_output(RK29_PIN6_PB6, 0);
 	gpio_set_value(RK29_PIN6_PB6,GPIO_HIGH);
+	return 0;
 }
 struct cs42l52_platform_data cs42l52_info = {
 
@@ -1716,6 +1715,23 @@ struct platform_device rk29_device_gpio_leds = {
 	},
 };
 #endif
+#ifdef CONFIG_USB_ANDROID
+struct usb_mass_storage_platform_data newton_mass_storage_pdata = {
+	.nluns		= 1,
+	.vendor		= "RockChip",
+	.product	= "rk29 sdk",
+	.release	= 0x0100,
+};
+
+//static 
+struct platform_device newton_usb_mass_storage_device = {
+	.name	= "usb_mass_storage",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &newton_mass_storage_pdata,
+	},
+};
+#endif
 
 static void __init rk29_board_iomux_init(void)
 {
@@ -1840,7 +1856,7 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_USB_ANDROID
 	&android_usb_device,
-	&usb_mass_storage_device,
+	&newton_usb_mass_storage_device,
 #endif
 #ifdef CONFIG_RK29_IPP
 	&rk29_device_ipp,
