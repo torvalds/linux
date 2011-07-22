@@ -71,7 +71,7 @@ static inline bool inet_metrics_new(const struct inet_peer *p)
 }
 
 /* can be called with or without local BH being disabled */
-struct inet_peer	*inet_getpeer(struct inetpeer_addr *daddr, int create);
+struct inet_peer	*inet_getpeer(const struct inetpeer_addr *daddr, int create);
 
 static inline struct inet_peer *inet_getpeer_v4(__be32 v4daddr, int create)
 {
@@ -106,11 +106,18 @@ static inline void inet_peer_refcheck(const struct inet_peer *p)
 
 
 /* can be called with or without local BH being disabled */
-static inline __u16	inet_getid(struct inet_peer *p, int more)
+static inline int inet_getid(struct inet_peer *p, int more)
 {
+	int old, new;
 	more++;
 	inet_peer_refcheck(p);
-	return atomic_add_return(more, &p->ip_id_count) - more;
+	do {
+		old = atomic_read(&p->ip_id_count);
+		new = old + more;
+		if (!new)
+			new = 1;
+	} while (atomic_cmpxchg(&p->ip_id_count, old, new) != old);
+	return new;
 }
 
 #endif /* _NET_INETPEER_H */

@@ -391,7 +391,7 @@ static int inet_peer_gc(struct inet_peer_base *base,
 	return cnt;
 }
 
-struct inet_peer *inet_getpeer(struct inetpeer_addr *daddr, int create)
+struct inet_peer *inet_getpeer(const struct inetpeer_addr *daddr, int create)
 {
 	struct inet_peer __rcu **stack[PEER_MAXDEPTH], ***stackptr;
 	struct inet_peer_base *base = family_to_base(daddr->family);
@@ -436,7 +436,10 @@ relookup:
 		p->daddr = *daddr;
 		atomic_set(&p->refcnt, 1);
 		atomic_set(&p->rid, 0);
-		atomic_set(&p->ip_id_count, secure_ip_id(daddr->addr.a4));
+		atomic_set(&p->ip_id_count,
+				(daddr->family == AF_INET) ?
+					secure_ip_id(daddr->addr.a4) :
+					secure_ipv6_id(daddr->addr.a6));
 		p->tcp_ts_stamp = 0;
 		p->metrics[RTAX_LOCK-1] = INETPEER_METRICS_NEW;
 		p->rate_tokens = 0;
