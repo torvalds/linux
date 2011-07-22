@@ -373,6 +373,7 @@ static void instream_message(struct hpi_adapter_obj *pao,
 /** Entry point to this HPI backend
  * All calls to the HPI start here
  */
+static
 void _HPI_6205(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 	struct hpi_response *phr)
 {
