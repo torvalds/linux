@@ -68,7 +68,10 @@ struct bnad_rx_ctrl {
 
 #define BNAD_VERSION			"2.3.2.3"
 
+#define BNAD_MAILBOX_MSIX_INDEX		0
 #define BNAD_MAILBOX_MSIX_VECTORS	1
+#define BNAD_INTX_TX_IB_BITMASK		0x1
+#define BNAD_INTX_RX_IB_BITMASK		0x2
 
 #define BNAD_STATS_TIMER_FREQ		1000	/* in msecs */
 #define BNAD_DIM_TIMER_FREQ		1000	/* in msecs */
