@@ -21,8 +21,7 @@
 
 #include <linux/delay.h>
 #include <linux/mmc/host.h>
-#include "sdhci-of.h"
-#include "sdhci.h"
+#include "sdhci-pltfm.h"
 
 /*
  * Ops and quirks for the Nintendo Wii SDHCI controllers.
@@ -51,15 +50,63 @@ static void sdhci_hlwd_writeb(struct sdhci_host *host, u8 val, int reg)
 	udelay(SDHCI_HLWD_WRITE_DELAY);
 }
 
-struct sdhci_of_data sdhci_hlwd = {
+static struct sdhci_ops sdhci_hlwd_ops = {
+	.read_l = sdhci_be32bs_readl,
+	.read_w = sdhci_be32bs_readw,
+	.read_b = sdhci_be32bs_readb,
+	.write_l = sdhci_hlwd_writel,
+	.write_w = sdhci_hlwd_writew,
+	.write_b = sdhci_hlwd_writeb,
+};
+
+static struct sdhci_pltfm_data sdhci_hlwd_pdata = {
 	.quirks = SDHCI_QUIRK_32BIT_DMA_ADDR |
 		  SDHCI_QUIRK_32BIT_DMA_SIZE,
-	.ops = {
-		.read_l = sdhci_be32bs_readl,
-		.read_w = sdhci_be32bs_readw,
-		.read_b = sdhci_be32bs_readb,
-		.write_l = sdhci_hlwd_writel,
-		.write_w = sdhci_hlwd_writew,
-		.write_b = sdhci_hlwd_writeb,
-	},
+	.ops = &sdhci_hlwd_ops,
 };
+
+static int __devinit sdhci_hlwd_probe(struct platform_device *pdev)
+{
+	return sdhci_pltfm_register(pdev, &sdhci_hlwd_pdata);
+}
+
+static int __devexit sdhci_hlwd_remove(struct platform_device *pdev)
+{
+	return sdhci_pltfm_unregister(pdev);
+}
+
+static const struct of_device_id sdhci_hlwd_of_match[] = {
+	{ .compatible = "nintendo,hollywood-sdhci" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sdhci_hlwd_of_match);
+
+static struct platform_driver sdhci_hlwd_driver = {
+	.driver = {
+		.name = "sdhci-hlwd",
+		.owner = THIS_MODULE,
+		.of_match_table = sdhci_hlwd_of_match,
+	},
+	.probe = sdhci_hlwd_probe,
+	.remove = __devexit_p(sdhci_hlwd_remove),
+#ifdef CONFIG_PM
+	.suspend = sdhci_pltfm_suspend,
+	.resume = sdhci_pltfm_resume,
+#endif
+};
+
+static int __init sdhci_hlwd_init(void)
+{
+	return platform_driver_register(&sdhci_hlwd_driver);
+}
+module_init(sdhci_hlwd_init);
+
+static void __exit sdhci_hlwd_exit(void)
+{
+	platform_driver_unregister(&sdhci_hlwd_driver);
+}
+module_exit(sdhci_hlwd_exit);
+
+MODULE_DESCRIPTION("Nintendo Wii SDHCI OF driver");
+MODULE_AUTHOR("The GameCube Linux Team, Albert Herranz");
+MODULE_LICENSE("GPL v2");

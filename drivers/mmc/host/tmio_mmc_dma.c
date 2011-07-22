@@ -22,11 +22,14 @@
 
 #define TMIO_MMC_MIN_DMA_LEN 8
 
-static void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable)
+void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
+	if (!host->chan_tx || !host->chan_rx)
+		return;
+
 #if defined(CONFIG_SUPERH) || defined(CONFIG_ARCH_SHMOBILE)
 	/* Switch DMA mode on or off - SuperH specific? */
-	writew(enable ? 2 : 0, host->ctl + (0xd8 << host->bus_shift));
+	sd_ctrl_write16(host, CTL_DMA_ENABLE, enable ? 2 : 0);
 #endif
 }
 

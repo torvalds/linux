@@ -81,28 +81,32 @@ config MMC_RICOH_MMC
 
 	  If unsure, say Y.
 
-config MMC_SDHCI_OF
-	tristate "SDHCI support on OpenFirmware platforms"
-	depends on MMC_SDHCI && OF
+config MMC_SDHCI_PLTFM
+	tristate "SDHCI platform and OF driver helper"
+	depends on MMC_SDHCI
 	help
-	  This selects the OF support for Secure Digital Host Controller
-	  Interfaces.
+	  This selects the common helper functions support for Secure Digital
+	  Host Controller Interface based platform and OF drivers.
+
+	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
 
 config MMC_SDHCI_OF_ESDHC
-	bool "SDHCI OF support for the Freescale eSDHC controller"
-	depends on MMC_SDHCI_OF
+	tristate "SDHCI OF support for the Freescale eSDHC controller"
+	depends on MMC_SDHCI_PLTFM
 	depends on PPC_OF
 	select MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 	help
 	  This selects the Freescale eSDHC controller support.
 
+	  If you have a controller with this interface, say Y or M here.
+
 	  If unsure, say N.
 
 config MMC_SDHCI_OF_HLWD
-	bool "SDHCI OF support for the Nintendo Wii SDHCI controllers"
-	depends on MMC_SDHCI_OF
+	tristate "SDHCI OF support for the Nintendo Wii SDHCI controllers"
+	depends on MMC_SDHCI_PLTFM
 	depends on PPC_OF
 	select MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
 	help
@@ -110,40 +114,36 @@ config MMC_SDHCI_OF_HLWD
 	  found in the "Hollywood" chipset of the Nintendo Wii video game
 	  console.
 
-	  If unsure, say N.
-
-config MMC_SDHCI_PLTFM
-	tristate "SDHCI support on the platform specific bus"
-	depends on MMC_SDHCI
-	help
-	  This selects the platform specific bus support for Secure Digital Host
-	  Controller Interface.
-
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
 
 config MMC_SDHCI_CNS3XXX
-	bool "SDHCI support on the Cavium Networks CNS3xxx SoC"
+	tristate "SDHCI support on the Cavium Networks CNS3xxx SoC"
 	depends on ARCH_CNS3XXX
 	depends on MMC_SDHCI_PLTFM
 	help
 	  This selects the SDHCI support for CNS3xxx System-on-Chip devices.
 
+	  If you have a controller with this interface, say Y or M here.
+
 	  If unsure, say N.
 
 config MMC_SDHCI_ESDHC_IMX
-	bool "SDHCI platform support for the Freescale eSDHC i.MX controller"
-	depends on MMC_SDHCI_PLTFM && (ARCH_MX25 || ARCH_MX35 || ARCH_MX5)
+	tristate "SDHCI platform support for the Freescale eSDHC i.MX controller"
+	depends on ARCH_MX25 || ARCH_MX35 || ARCH_MX5
+	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Freescale eSDHC controller support on the platform
 	  bus, found on platforms like mx35/51.
 
+	  If you have a controller with this interface, say Y or M here.
+
 	  If unsure, say N.
 
 config MMC_SDHCI_DOVE
-	bool "SDHCI support on Marvell's Dove SoC"
+	tristate "SDHCI support on Marvell's Dove SoC"
 	depends on ARCH_DOVE
 	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
@@ -151,11 +151,14 @@ config MMC_SDHCI_DOVE
 	  This selects the Secure Digital Host Controller Interface in
 	  Marvell's Dove SoC.
 
+	  If you have a controller with this interface, say Y or M here.
+
 	  If unsure, say N.
 
 config MMC_SDHCI_TEGRA
-	bool "SDHCI platform support for the Tegra SD/MMC Controller"
-	depends on MMC_SDHCI_PLTFM && ARCH_TEGRA
+	tristate "SDHCI platform support for the Tegra SD/MMC Controller"
+	depends on ARCH_TEGRA
+	depends on MMC_SDHCI_PLTFM
 	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the Tegra SD/MMC controller. If you have a Tegra
@@ -178,14 +181,28 @@ config MMC_SDHCI_S3C
 
 	  If unsure, say N.
 
-config MMC_SDHCI_PXA
-	tristate "Marvell PXA168/PXA910/MMP2 SD Host Controller support"
-	depends on ARCH_PXA || ARCH_MMP
+config MMC_SDHCI_PXAV3
+	tristate "Marvell MMP2 SD Host Controller support (PXAV3)"
+	depends on CLKDEV_LOOKUP
 	select MMC_SDHCI
-	select MMC_SDHCI_IO_ACCESSORS
+	select MMC_SDHCI_PLTFM
+	default CPU_MMP2
 	help
-	  This selects the Marvell(R) PXA168/PXA910/MMP2 SD Host Controller.
-	  If you have a PXA168/PXA910/MMP2 platform with SD Host Controller
+	  This selects the Marvell(R) PXAV3 SD Host Controller.
+	  If you have a MMP2 platform with SD Host Controller
+	  and a card slot, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_PXAV2
+	tristate "Marvell PXA9XX SD Host Controller support (PXAV2)"
+	depends on CLKDEV_LOOKUP
+	select MMC_SDHCI
+	select MMC_SDHCI_PLTFM
+	default CPU_PXA910
+	help
+	  This selects the Marvell(R) PXAV2 SD Host Controller.
+	  If you have a PXA9XX platform with SD Host Controller
 	  and a card slot, say Y or M here.
 
 	  If unsure, say N.
@@ -281,13 +298,12 @@ config MMC_ATMELMCI
 endchoice
 
 config MMC_ATMELMCI_DMA
-	bool "Atmel MCI DMA support (EXPERIMENTAL)"
-	depends on MMC_ATMELMCI && (AVR32 || ARCH_AT91SAM9G45) && DMA_ENGINE && EXPERIMENTAL
+	bool "Atmel MCI DMA support"
+	depends on MMC_ATMELMCI && (AVR32 || ARCH_AT91SAM9G45) && DMA_ENGINE
 	help
 	  Say Y here to have the Atmel MCI driver use a DMA engine to
 	  do data transfers and thus increase the throughput and
-	  reduce the CPU utilization. Note that this is highly
-	  experimental and may cause the driver to lock up.
+	  reduce the CPU utilization.
 
 	  If unsure, say N.
 

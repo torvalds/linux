@@ -1,5 +1,5 @@
-#ifndef __SH_MOBILE_SDHI_H__
-#define __SH_MOBILE_SDHI_H__
+#ifndef LINUX_MMC_SH_MOBILE_SDHI_H
+#define LINUX_MMC_SH_MOBILE_SDHI_H
 
 #include <linux/types.h>
 
@@ -17,4 +17,4 @@ struct sh_mobile_sdhi_info {
 	int (*get_cd)(struct platform_device *pdev);
 };
 
-#endif /* __SH_MOBILE_SDHI_H__ */
+#endif /* LINUX_MMC_SH_MOBILE_SDHI_H */
