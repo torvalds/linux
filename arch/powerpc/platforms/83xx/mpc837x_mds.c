@@ -112,22 +112,6 @@ static int __init mpc837x_declare_of_platform_devices(void)
 }
 machine_device_initcall(mpc837x_mds, mpc837x_declare_of_platform_devices);
 
-static void __init mpc837x_mds_init_IRQ(void)
-{
-	struct device_node *np;
-
-	np = of_find_compatible_node(NULL, NULL, "fsl,ipic");
-	if (!np)
-		return;
-
-	ipic_init(np, 0);
-
-	/* Initialize the default interrupt mapping priorities,
-	 * in case the boot rom changed something on us.
-	 */
-	ipic_set_default_priority();
-}
-
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
@@ -142,7 +126,7 @@ define_machine(mpc837x_mds) {
 	.name			= "MPC837x MDS",
 	.probe			= mpc837x_mds_probe,
 	.setup_arch		= mpc837x_mds_setup_arch,
-	.init_IRQ		= mpc837x_mds_init_IRQ,
+	.init_IRQ		= mpc83xx_ipic_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.restart		= mpc83xx_restart,
 	.time_init		= mpc83xx_time_init,

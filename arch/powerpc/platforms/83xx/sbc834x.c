@@ -62,24 +62,6 @@ static void __init sbc834x_setup_arch(void)
 
 }
 
-static void __init sbc834x_init_IRQ(void)
-{
-	struct device_node *np;
-
-	np = of_find_node_by_type(NULL, "ipic");
-	if (!np)
-		return;
-
-	ipic_init(np, 0);
-
-	/* Initialize the default interrupt mapping priorities,
-	 * in case the boot rom changed something on us.
-	 */
-	ipic_set_default_priority();
-
-	of_node_put(np);
-}
-
 static struct __initdata of_device_id sbc834x_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
@@ -109,7 +91,7 @@ define_machine(sbc834x) {
 	.name			= "SBC834x",
 	.probe			= sbc834x_probe,
 	.setup_arch		= sbc834x_setup_arch,
-	.init_IRQ		= sbc834x_init_IRQ,
+	.init_IRQ		= mpc83xx_ipic_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.restart		= mpc83xx_restart,
 	.time_init		= mpc83xx_time_init,

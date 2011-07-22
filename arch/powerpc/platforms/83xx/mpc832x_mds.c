@@ -119,34 +119,6 @@ static int __init mpc832x_declare_of_platform_devices(void)
 }
 machine_device_initcall(mpc832x_mds, mpc832x_declare_of_platform_devices);
 
-static void __init mpc832x_sys_init_IRQ(void)
-{
-	struct device_node *np;
-
-	np = of_find_node_by_type(NULL, "ipic");
-	if (!np)
-		return;
-
-	ipic_init(np, 0);
-
-	/* Initialize the default interrupt mapping priorities,
-	 * in case the boot rom changed something on us.
-	 */
-	ipic_set_default_priority();
-	of_node_put(np);
-
-#ifdef CONFIG_QUICC_ENGINE
-	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
-	if (!np) {
-		np = of_find_node_by_type(NULL, "qeic");
-		if (!np)
-			return;
-	}
-	qe_ic_init(np, 0, qe_ic_cascade_low_ipic, qe_ic_cascade_high_ipic);
-	of_node_put(np);
-#endif				/* CONFIG_QUICC_ENGINE */
-}
-
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
  */
@@ -161,7 +133,7 @@ define_machine(mpc832x_mds) {
 	.name 		= "MPC832x MDS",
 	.probe 		= mpc832x_sys_probe,
 	.setup_arch 	= mpc832x_sys_setup_arch,
-	.init_IRQ 	= mpc832x_sys_init_IRQ,
+	.init_IRQ	= mpc83xx_ipic_and_qe_init_IRQ,
 	.get_irq 	= ipic_get_irq,
 	.restart 	= mpc83xx_restart,
 	.time_init 	= mpc83xx_time_init,
