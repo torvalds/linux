@@ -1,6 +1,4 @@
 /**
- * drivers/gpio/max7301.c
- *
  * Copyright (C) 2006 Juergen Beisert, Pengutronix
  * Copyright (C) 2008 Guennadi Liakhovetski, Pengutronix
  * Copyright (C) 2009 Wolfram Sang, Pengutronix

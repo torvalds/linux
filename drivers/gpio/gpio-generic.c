@@ -1,5 +1,5 @@
 /*
- * Driver for basic memory-mapped GPIO controllers.
+ * Generic driver for memory-mapped GPIO controllers.
  *
  * Copyright 2008 MontaVista Software, Inc.
  * Copyright 2008,2010 Anton Vorontsov <cbouatmailru@gmail.com>
@@ -404,7 +404,7 @@ int __devinit bgpio_init(struct bgpio_chip *bgc,
 }
 EXPORT_SYMBOL_GPL(bgpio_init);
 
-#ifdef CONFIG_GPIO_BASIC_MMIO
+#ifdef CONFIG_GPIO_GENERIC_PLATFORM
 
 static void __iomem *bgpio_map(struct platform_device *pdev,
 			       const char *name,
@@ -541,7 +541,7 @@ static void __exit bgpio_platform_exit(void)
 }
 module_exit(bgpio_platform_exit);
 
-#endif /* CONFIG_GPIO_BASIC_MMIO */
+#endif /* CONFIG_GPIO_GENERIC_PLATFORM */
 
 MODULE_DESCRIPTION("Driver for basic memory-mapped GPIO controllers");
 MODULE_AUTHOR("Anton Vorontsov <cbouatmailru@gmail.com>");

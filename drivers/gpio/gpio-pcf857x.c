@@ -1,5 +1,5 @@
 /*
- * pcf857x - driver for pcf857x, pca857x, and pca967x I2C GPIO expanders
+ * Driver for pcf857x, pca857x, and pca967x I2C GPIO expanders
  *
  * Copyright (C) 2007 David Brownell
  *

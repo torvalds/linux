@@ -1,5 +1,5 @@
 /*
- * wm835x-gpiolib.c  --  gpiolib support for Wolfson WM835x PMICs
+ * gpiolib support for Wolfson WM835x PMICs
  *
  * Copyright 2009 Wolfson Microelectronics PLC.
  *

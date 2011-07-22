@@ -1,4 +1,6 @@
-/* langwell_gpio.c Moorestown platform Langwell chip GPIO driver
+/*
+ * Moorestown platform Langwell chip GPIO driver
+ *
  * Copyright (c) 2008 - 2009,  Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify

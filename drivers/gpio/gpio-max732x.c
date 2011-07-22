@@ -1,5 +1,5 @@
 /*
- *  max732x.c - I2C Port Expander with 8/16 I/O
+ *  MAX732x I2C Port Expander with 8/16 I/O
  *
  *  Copyright (C) 2007 Marvell International Ltd.
  *  Copyright (C) 2008 Jack Ren <jack.ren@marvell.com>

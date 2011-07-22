@@ -117,6 +117,8 @@ static const struct spi_imx_master mx53_evk_spi_data __initconst = {
 
 static void __init mx53_evk_board_init(void)
 {
+	imx53_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(mx53_evk_pads,
 					ARRAY_SIZE(mx53_evk_pads));
 	mx53_evk_init_uart();

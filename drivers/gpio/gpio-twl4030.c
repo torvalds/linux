@@ -1,5 +1,5 @@
 /*
- * twl4030_gpio.c -- access to GPIOs on TWL4030/TPS659x0 chips
+ * Access to GPIOs on TWL4030/TPS659x0 chips
  *
  * Copyright (C) 2006-2007 Texas Instruments, Inc.
  * Copyright (C) 2006 MontaVista Software, Inc.

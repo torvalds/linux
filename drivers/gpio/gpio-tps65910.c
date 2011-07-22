@@ -1,5 +1,5 @@
 /*
- * tps65910-gpio.c  --  TI TPS6591x
+ * TI TPS6591x GPIO driver
  *
  * Copyright 2010 Texas Instruments Inc.
  *

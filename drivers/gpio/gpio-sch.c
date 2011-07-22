@@ -1,5 +1,5 @@
 /*
- *  sch_gpio.c - GPIO interface for Intel Poulsbo SCH
+ * GPIO interface for Intel Poulsbo SCH
  *
  *  Copyright (c) 2010 CompuLab Ltd
  *  Author: Denis Turischev <denis@compulab.co.il>

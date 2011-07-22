@@ -1,6 +1,4 @@
 /*
- * drivers/gpio/max7300.c
- *
  * Copyright (C) 2009 Wolfram Sang, Pengutronix
  *
  * This program is free software; you can redistribute it and/or modify

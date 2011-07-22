@@ -1,5 +1,5 @@
 /*
- * mc33880.c MC33880 high-side/low-side switch GPIO driver
+ * MC33880 high-side/low-side switch GPIO driver
  * Copyright (c) 2009 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify

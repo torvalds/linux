@@ -244,6 +244,8 @@ static void __init qong_init_fpga(void)
  */
 static void __init qong_init(void)
 {
+	imx31_soc_init();
+
 	mxc_init_imx_uart();
 	qong_init_nor_mtd();
 	qong_init_fpga();
