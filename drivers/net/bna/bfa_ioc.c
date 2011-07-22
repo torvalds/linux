@@ -71,6 +71,7 @@ static void bfa_ioc_mbox_poll(struct bfa_ioc *ioc);
 static void bfa_ioc_mbox_hbfail(struct bfa_ioc *ioc);
 static void bfa_ioc_recover(struct bfa_ioc *ioc);
 static void bfa_ioc_check_attr_wwns(struct bfa_ioc *ioc);
+static void bfa_ioc_event_notify(struct bfa_ioc *, enum bfa_ioc_event);
 static void bfa_ioc_disable_comp(struct bfa_ioc *ioc);
 static void bfa_ioc_lpu_stop(struct bfa_ioc *ioc);
 static void bfa_ioc_fail_notify(struct bfa_ioc *ioc);
@@ -1123,21 +1124,26 @@ bfa_iocpf_sm_fail(struct bfa_iocpf *iocpf, enum iocpf_event event)
  * BFA IOC private functions
  */
 
+/**
+ * Notify common modules registered for notification.
+ */
+static void
+bfa_ioc_event_notify(struct bfa_ioc *ioc, enum bfa_ioc_event event)
+{
+	struct bfa_ioc_notify *notify;
+	struct list_head			*qe;
+
+	list_for_each(qe, &ioc->notify_q) {
+		notify = (struct bfa_ioc_notify *)qe;
+		notify->cbfn(notify->cbarg, event);
+	}
+}
+
 static void
 bfa_ioc_disable_comp(struct bfa_ioc *ioc)
 {
-	struct list_head			*qe;
-	struct bfa_ioc_hbfail_notify *notify;
-
 	ioc->cbfn->disable_cbfn(ioc->bfa);
-
-	/**
-	 * Notify common modules registered for notification.
-	 */
-	list_for_each(qe, &ioc->hb_notify_q) {
-		notify = (struct bfa_ioc_hbfail_notify *) qe;
-		notify->cbfn(notify->cbarg);
-	}
+	bfa_ioc_event_notify(ioc, BFA_IOC_E_DISABLED);
 }
 
 bool
@@ -1650,17 +1656,11 @@ bfa_ioc_mbox_hbfail(struct bfa_ioc *ioc)
 static void
 bfa_ioc_fail_notify(struct bfa_ioc *ioc)
 {
-	struct list_head		*qe;
-	struct bfa_ioc_hbfail_notify	*notify;
-
 	/**
 	 * Notify driver and common modules registered for notification.
 	 */
 	ioc->cbfn->hbfail_cbfn(ioc->bfa);
-	list_for_each(qe, &ioc->hb_notify_q) {
-		notify = (struct bfa_ioc_hbfail_notify *) qe;
-		notify->cbfn(notify->cbarg);
-	}
+	bfa_ioc_event_notify(ioc, BFA_IOC_E_FAILED);
 }
 
 static void
@@ -1839,7 +1839,7 @@ bfa_nw_ioc_attach(struct bfa_ioc *ioc, void *bfa, struct bfa_ioc_cbfn *cbfn)
 	ioc->iocpf.ioc  = ioc;
 
 	bfa_ioc_mbox_attach(ioc);
-	INIT_LIST_HEAD(&ioc->hb_notify_q);
+	INIT_LIST_HEAD(&ioc->notify_q);
 
 	bfa_fsm_set_state(ioc, bfa_ioc_sm_uninit);
 	bfa_fsm_send_event(ioc, IOC_E_RESET);
@@ -1969,6 +1969,8 @@ bfa_nw_ioc_mbox_queue(struct bfa_ioc *ioc, struct bfa_mbox_cmd *cmd)
 	 * mailbox is free -- queue command to firmware
 	 */
 	bfa_ioc_mbox_send(ioc, cmd->msg, sizeof(cmd->msg));
+
+	return;
 }
 
 /**
@@ -2005,14 +2007,24 @@ bfa_nw_ioc_error_isr(struct bfa_ioc *ioc)
 }
 
 /**
+ * return true if IOC is disabled
+ */
+bool
+bfa_nw_ioc_is_disabled(struct bfa_ioc *ioc)
+{
+	return bfa_fsm_cmp_state(ioc, bfa_ioc_sm_disabling) ||
+		bfa_fsm_cmp_state(ioc, bfa_ioc_sm_disabled);
+}
+
+/**
  * Add to IOC heartbeat failure notification queue. To be used by common
  * modules such as cee, port, diag.
  */
 void
-bfa_nw_ioc_hbfail_register(struct bfa_ioc *ioc,
-			struct bfa_ioc_hbfail_notify *notify)
+bfa_nw_ioc_notify_register(struct bfa_ioc *ioc,
+			struct bfa_ioc_notify *notify)
 {
-	list_add_tail(&notify->qe, &ioc->hb_notify_q);
+	list_add_tail(&notify->qe, &ioc->notify_q);
 }
 
 #define BFA_MFG_NAME "Brocade"
