@@ -382,4 +382,6 @@ enum drbd_timeout_flag {
 #define DRBD_MD_INDEX_FLEX_EXT -2
 #define DRBD_MD_INDEX_FLEX_INT -3
 
+#define DRBD_CPU_MASK_SIZE 32
+
 #endif

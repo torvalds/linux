@@ -2503,8 +2503,7 @@ int set_resource_options(struct drbd_resource *resource, struct res_opts *res_op
 
 	/* silently ignore cpu mask on UP kernel */
 	if (nr_cpu_ids > 1 && res_opts->cpu_mask[0] != 0) {
-		/* FIXME: Get rid of constant 32 here */
-		err = bitmap_parse(res_opts->cpu_mask, 32,
+		err = bitmap_parse(res_opts->cpu_mask, DRBD_CPU_MASK_SIZE,
 				   cpumask_bits(new_cpu_mask), nr_cpu_ids);
 		if (err) {
 			drbd_warn(resource, "bitmap_parse() failed with %d\n", err);
