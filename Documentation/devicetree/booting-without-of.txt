@@ -12,8 +12,9 @@ Table of Contents
 =================
 
   I - Introduction
-    1) Entry point for arch/powerpc
-    2) Entry point for arch/x86
+    1) Entry point for arch/arm
+    2) Entry point for arch/powerpc
+    3) Entry point for arch/x86
 
   II - The DT block format
     1) Header
@@ -148,7 +149,46 @@ upgrades without significantly impacting the kernel code or cluttering
 it with special cases.
 
 
-1) Entry point for arch/powerpc
+1) Entry point for arch/arm
+---------------------------
+
+   There is one single entry point to the kernel, at the start
+   of the kernel image. That entry point supports two calling
+   conventions.  A summary of the interface is described here.  A full
+   description of the boot requirements is documented in
+   Documentation/arm/Booting
+
+        a) ATAGS interface.  Minimal information is passed from firmware
+        to the kernel with a tagged list of predefined parameters.
+
+                r0 : 0
+
+                r1 : Machine type number
+
+                r2 : Physical address of tagged list in system RAM
+
+        b) Entry with a flattened device-tree block.  Firmware loads the
+        physical address of the flattened device tree block (dtb) into r2,
+        r1 is not used, but it is considered good practise to use a valid
+        machine number as described in Documentation/arm/Booting.
+
+                r0 : 0
+
+                r1 : Valid machine type number.  When using a device tree,
+                a single machine type number will often be assigned to
+                represent a class or family of SoCs.
+
+                r2 : physical pointer to the device-tree block
+                (defined in chapter II) in RAM.  Device tree can be located
+                anywhere in system RAM, but it should be aligned on a 64 bit
+                boundary.
+
+   The kernel will differentiate between ATAGS and device tree booting by
+   reading the memory pointed to by r2 and looking for either the flattened
+   device tree block magic value (0xd00dfeed) or the ATAG_CORE value at
+   offset 0x4 from r2 (0x54410001).
+
+2) Entry point for arch/powerpc
 -------------------------------
 
    There is one single entry point to the kernel, at the start
@@ -226,7 +266,7 @@ it with special cases.
   cannot support both configurations with Book E and configurations
   with classic Powerpc architectures.
 
-2) Entry point for arch/x86
+3) Entry point for arch/x86
 -------------------------------
 
   There is one single 32bit entry point to the kernel at code32_start,

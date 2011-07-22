@@ -2083,7 +2083,7 @@ static void ehea_set_multicast_list(struct net_device *dev)
 	struct netdev_hw_addr *ha;
 	int ret;
 
-	if (dev->flags & IFF_PROMISC) {
+	if (port->promisc) {
 		ehea_promiscuous(dev, 1);
 		return;
 	}

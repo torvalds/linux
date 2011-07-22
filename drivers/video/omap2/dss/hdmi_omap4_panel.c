@@ -24,7 +24,7 @@
 #include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
-#include <plat/display.h>
+#include <video/omapdss.h>
 
 #include "dss.h"
 

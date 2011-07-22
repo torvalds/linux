@@ -175,16 +175,18 @@ static int tweak_reset_device_cmd(struct urb *urb)
 	dev_info(&urb->dev->dev, "usb_queue_reset_device\n");
 
 	/*
-	 * usb_lock_device_for_reset caused a deadlock: it causes the driver
-	 * to unbind. In the shutdown the rx thread is signalled to shut down
-	 * but this thread is pending in the usb_lock_device_for_reset.
-	 *
-	 * Instead queue the reset.
-	 *
-	 * Unfortunatly an existing usbip connection will be dropped due to
-	 * driver unbinding.
+	 * With the implementation of pre_reset and post_reset the driver no 
+	 * longer unbinds. This allows the use of synchronous reset.
 	 */
-	usb_queue_reset_device(sdev->interface);
+
+	if (usb_lock_device_for_reset(sdev->udev, sdev->interface)<0)
+	{
+		dev_err(&urb->dev->dev, "could not obtain lock to reset device\n");
+		return 0;
+	}
+	usb_reset_device(sdev->udev);
+	usb_unlock_device(sdev->udev);
+
 	return 0;
 }
 

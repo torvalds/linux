@@ -1718,10 +1718,20 @@ static sctp_disposition_t sctp_sf_do_dupcook_a(const struct sctp_endpoint *ep,
 		return SCTP_DISPOSITION_CONSUME;
 	}
 
-	/* For now, fail any unsent/unacked data.  Consider the optional
-	 * choice of resending of this data.
+	/* For now, stop pending T3-rtx and SACK timers, fail any unsent/unacked
+	 * data. Consider the optional choice of resending of this data.
 	 */
+	sctp_add_cmd_sf(commands, SCTP_CMD_T3_RTX_TIMERS_STOP, SCTP_NULL());
+	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,
+			SCTP_TO(SCTP_EVENT_TIMEOUT_SACK));
 	sctp_add_cmd_sf(commands, SCTP_CMD_PURGE_OUTQUEUE, SCTP_NULL());
+
+	/* Stop pending T4-rto timer, teardown ASCONF queue, ASCONF-ACK queue
+	 * and ASCONF-ACK cache.
+	 */
+	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,
+			SCTP_TO(SCTP_EVENT_TIMEOUT_T4_RTO));
+	sctp_add_cmd_sf(commands, SCTP_CMD_PURGE_ASCONF_QUEUE, SCTP_NULL());
 
 	repl = sctp_make_cookie_ack(new_asoc, chunk);
 	if (!repl)

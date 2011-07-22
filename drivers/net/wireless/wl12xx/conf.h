@@ -1157,6 +1157,9 @@ struct conf_sched_scan_settings {
 	/* time to wait on the channel for passive scans (in TUs) */
 	u32 dwell_time_passive;
 
+	/* time to wait on the channel for DFS scans (in TUs) */
+	u32 dwell_time_dfs;
+
 	/* number of probe requests to send on each channel in active scans */
 	u8 num_probe_reqs;
 

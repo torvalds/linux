@@ -426,6 +426,7 @@
 	ENTRY_SAME(name_to_handle_at)	/* 325 */
 	ENTRY_COMP(open_by_handle_at)
 	ENTRY_SAME(syncfs)
+	ENTRY_SAME(setns)
 
 	/* Nothing yet */
 

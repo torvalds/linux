@@ -191,6 +191,12 @@ struct dm_target {
 
 	/* Used to provide an error string from the ctr */
 	char *error;
+
+	/*
+	 * Set if this target needs to receive discards regardless of
+	 * whether or not its underlying devices have support.
+	 */
+	unsigned discards_supported:1;
 };
 
 /* Each target can link one of these into the table */

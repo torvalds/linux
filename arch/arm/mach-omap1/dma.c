@@ -284,14 +284,15 @@ static int __init omap1_system_dma_init(void)
 	dma_base = ioremap(res[0].start, resource_size(&res[0]));
 	if (!dma_base) {
 		pr_err("%s: Unable to ioremap\n", __func__);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto exit_device_put;
 	}
 
 	ret = platform_device_add_resources(pdev, res, ARRAY_SIZE(res));
 	if (ret) {
 		dev_err(&pdev->dev, "%s: Unable to add resources for %s%d\n",
 			__func__, pdev->name, pdev->id);
-		goto exit_device_del;
+		goto exit_device_put;
 	}
 
 	p = kzalloc(sizeof(struct omap_system_dma_plat_info), GFP_KERNEL);
@@ -299,7 +300,7 @@ static int __init omap1_system_dma_init(void)
 		dev_err(&pdev->dev, "%s: Unable to allocate 'p' for %s\n",
 			__func__, pdev->name);
 		ret = -ENOMEM;
-		goto exit_device_put;
+		goto exit_device_del;
 	}
 
 	d = kzalloc(sizeof(struct omap_dma_dev_attr), GFP_KERNEL);
@@ -380,10 +381,10 @@ exit_release_d:
 	kfree(d);
 exit_release_p:
 	kfree(p);
-exit_device_put:
-	platform_device_put(pdev);
 exit_device_del:
 	platform_device_del(pdev);
+exit_device_put:
+	platform_device_put(pdev);
 
 	return ret;
 }

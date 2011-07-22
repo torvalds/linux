@@ -301,30 +301,4 @@ int wm831x_device_suspend(struct wm831x *wm831x);
 int wm831x_irq_init(struct wm831x *wm831x, int irq);
 void wm831x_irq_exit(struct wm831x *wm831x);
 
-static inline int __must_check wm831x_request_irq(struct wm831x *wm831x,
-						  unsigned int irq,
-						  irq_handler_t handler,
-						  unsigned long flags,
-						  const char *name,
-						  void *dev)
-{
-	return request_threaded_irq(irq, NULL, handler, flags, name, dev);
-}
-
-static inline void wm831x_free_irq(struct wm831x *wm831x,
-				   unsigned int irq, void *dev)
-{
-	free_irq(irq, dev);
-}
-
-static inline void wm831x_disable_irq(struct wm831x *wm831x, int irq)
-{
-	disable_irq(irq);
-}
-
-static inline void wm831x_enable_irq(struct wm831x *wm831x, int irq)
-{
-	enable_irq(irq);
-}
-
 #endif

@@ -359,37 +359,31 @@ static struct soc_camera_link camera_link = {
 	.priv		= &camera_info,
 };
 
-static void dummy_release(struct device *dev)
-{
-}
+static struct platform_device *camera_device;
 
-static struct platform_device camera_device = {
-	.name		= "soc_camera_platform",
-	.dev		= {
-		.platform_data	= &camera_info,
-		.release	= dummy_release,
-	},
-};
+static void ap325rxa_camera_release(struct device *dev)
+{
+	soc_camera_platform_release(&camera_device);
+}
 
 static int ap325rxa_camera_add(struct soc_camera_link *icl,
 			       struct device *dev)
 {
-	if (icl != &camera_link || camera_probe() <= 0)
-		return -ENODEV;
+	int ret = soc_camera_platform_add(icl, dev, &camera_device, &camera_link,
+					  ap325rxa_camera_release, 0);
+	if (ret < 0)
+		return ret;
 
-	camera_info.dev = dev;
+	ret = camera_probe();
+	if (ret < 0)
+		soc_camera_platform_del(icl, camera_device, &camera_link);
 
-	return platform_device_register(&camera_device);
+	return ret;
 }
 
 static void ap325rxa_camera_del(struct soc_camera_link *icl)
 {
-	if (icl != &camera_link)
-		return;
-
-	platform_device_unregister(&camera_device);
-	memset(&camera_device.dev.kobj, 0,
-	       sizeof(camera_device.dev.kobj));
+	soc_camera_platform_del(icl, camera_device, &camera_link);
 }
 #endif /* CONFIG_I2C */
 

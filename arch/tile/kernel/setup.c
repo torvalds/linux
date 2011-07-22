@@ -912,6 +912,8 @@ void __cpuinit setup_cpu(int boot)
 #endif
 }
 
+#ifdef CONFIG_BLK_DEV_INITRD
+
 static int __initdata set_initramfs_file;
 static char __initdata initramfs_file[128] = "initramfs.cpio.gz";
 
@@ -968,6 +970,10 @@ void __init free_initrd_mem(unsigned long begin, unsigned long end)
 {
 	free_bootmem(__pa(begin), end - begin);
 }
+
+#else
+static inline void load_hv_initrd(void) {}
+#endif /* CONFIG_BLK_DEV_INITRD */
 
 static void __init validate_hv(void)
 {

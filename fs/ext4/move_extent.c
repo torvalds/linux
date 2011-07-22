@@ -876,8 +876,7 @@ move_extent_per_page(struct file *o_filp, struct inode *donor_inode,
 	 * It needs to call wait_on_page_writeback() to wait for the
 	 * writeback of the page.
 	 */
-	if (PageWriteback(page))
-		wait_on_page_writeback(page);
+	wait_on_page_writeback(page);
 
 	/* Release old bh and drop refs */
 	try_to_release_page(page, 0);
@@ -1003,12 +1002,12 @@ mext_check_arguments(struct inode *orig_inode,
 		return -EINVAL;
 	}
 
-	if ((orig_start > EXT_MAX_BLOCK) ||
-	    (donor_start > EXT_MAX_BLOCK) ||
-	    (*len > EXT_MAX_BLOCK) ||
-	    (orig_start + *len > EXT_MAX_BLOCK))  {
+	if ((orig_start >= EXT_MAX_BLOCKS) ||
+	    (donor_start >= EXT_MAX_BLOCKS) ||
+	    (*len > EXT_MAX_BLOCKS) ||
+	    (orig_start + *len >= EXT_MAX_BLOCKS))  {
 		ext4_debug("ext4 move extent: Can't handle over [%u] blocks "
-			"[ino:orig %lu, donor %lu]\n", EXT_MAX_BLOCK,
+			"[ino:orig %lu, donor %lu]\n", EXT_MAX_BLOCKS,
 			orig_inode->i_ino, donor_inode->i_ino);
 		return -EINVAL;
 	}

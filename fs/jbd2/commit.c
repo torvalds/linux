@@ -219,7 +219,6 @@ static int journal_submit_data_buffers(journal_t *journal,
 			ret = err;
 		spin_lock(&journal->j_list_lock);
 		J_ASSERT(jinode->i_transaction == commit_transaction);
-		commit_transaction->t_flushed_data_blocks = 1;
 		clear_bit(__JI_COMMIT_RUNNING, &jinode->i_flags);
 		smp_mb__after_clear_bit();
 		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
@@ -337,12 +336,6 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	 * First job: lock down the current transaction and wait for
 	 * all outstanding updates to complete.
 	 */
-
-#ifdef COMMIT_STATS
-	spin_lock(&journal->j_list_lock);
-	summarise_journal_usage(journal);
-	spin_unlock(&journal->j_list_lock);
-#endif
 
 	/* Do we need to erase the effects of a prior jbd2_journal_flush? */
 	if (journal->j_flags & JBD2_FLUSHED) {
@@ -678,12 +671,16 @@ start_journal_io:
 		err = 0;
 	}
 
+	write_lock(&journal->j_state_lock);
+	J_ASSERT(commit_transaction->t_state == T_COMMIT);
+	commit_transaction->t_state = T_COMMIT_DFLUSH;
+	write_unlock(&journal->j_state_lock);
 	/* 
 	 * If the journal is not located on the file system device,
 	 * then we must flush the file system device before we issue
 	 * the commit record
 	 */
-	if (commit_transaction->t_flushed_data_blocks &&
+	if (commit_transaction->t_need_data_flush &&
 	    (journal->j_fs_dev != journal->j_dev) &&
 	    (journal->j_flags & JBD2_BARRIER))
 		blkdev_issue_flush(journal->j_fs_dev, GFP_KERNEL, NULL);
@@ -760,8 +757,13 @@ wait_for_iobuf:
                    required. */
 		JBUFFER_TRACE(jh, "file as BJ_Forget");
 		jbd2_journal_file_buffer(jh, commit_transaction, BJ_Forget);
-		/* Wake up any transactions which were waiting for this
-		   IO to complete */
+		/*
+		 * Wake up any transactions which were waiting for this IO to
+		 * complete. The barrier must be here so that changes by
+		 * jbd2_journal_file_buffer() take effect before wake_up_bit()
+		 * does the waitqueue check.
+		 */
+		smp_mb();
 		wake_up_bit(&bh->b_state, BH_Unshadow);
 		JBUFFER_TRACE(jh, "brelse shadowed buffer");
 		__brelse(bh);
@@ -800,6 +802,10 @@ wait_for_iobuf:
 		jbd2_journal_abort(journal, err);
 
 	jbd_debug(3, "JBD: commit phase 5\n");
+	write_lock(&journal->j_state_lock);
+	J_ASSERT(commit_transaction->t_state == T_COMMIT_DFLUSH);
+	commit_transaction->t_state = T_COMMIT_JFLUSH;
+	write_unlock(&journal->j_state_lock);
 
 	if (!JBD2_HAS_INCOMPAT_FEATURE(journal,
 				       JBD2_FEATURE_INCOMPAT_ASYNC_COMMIT)) {
@@ -842,10 +848,16 @@ restart_loop:
 	while (commit_transaction->t_forget) {
 		transaction_t *cp_transaction;
 		struct buffer_head *bh;
+		int try_to_free = 0;
 
 		jh = commit_transaction->t_forget;
 		spin_unlock(&journal->j_list_lock);
 		bh = jh2bh(jh);
+		/*
+		 * Get a reference so that bh cannot be freed before we are
+		 * done with it.
+		 */
+		get_bh(bh);
 		jbd_lock_bh_state(bh);
 		J_ASSERT_JH(jh,	jh->b_transaction == commit_transaction);
 
@@ -908,28 +920,27 @@ restart_loop:
 			__jbd2_journal_insert_checkpoint(jh, commit_transaction);
 			if (is_journal_aborted(journal))
 				clear_buffer_jbddirty(bh);
-			JBUFFER_TRACE(jh, "refile for checkpoint writeback");
-			__jbd2_journal_refile_buffer(jh);
-			jbd_unlock_bh_state(bh);
 		} else {
 			J_ASSERT_BH(bh, !buffer_dirty(bh));
-			/* The buffer on BJ_Forget list and not jbddirty means
+			/*
+			 * The buffer on BJ_Forget list and not jbddirty means
 			 * it has been freed by this transaction and hence it
 			 * could not have been reallocated until this
 			 * transaction has committed. *BUT* it could be
 			 * reallocated once we have written all the data to
 			 * disk and before we process the buffer on BJ_Forget
-			 * list. */
-			JBUFFER_TRACE(jh, "refile or unfile freed buffer");
-			__jbd2_journal_refile_buffer(jh);
-			if (!jh->b_transaction) {
-				jbd_unlock_bh_state(bh);
-				 /* needs a brelse */
-				jbd2_journal_remove_journal_head(bh);
-				release_buffer_page(bh);
-			} else
-				jbd_unlock_bh_state(bh);
+			 * list.
+			 */
+			if (!jh->b_next_transaction)
+				try_to_free = 1;
 		}
+		JBUFFER_TRACE(jh, "refile or unfile buffer");
+		__jbd2_journal_refile_buffer(jh);
+		jbd_unlock_bh_state(bh);
+		if (try_to_free)
+			release_buffer_page(bh);	/* Drops bh reference */
+		else
+			__brelse(bh);
 		cond_resched_lock(&journal->j_list_lock);
 	}
 	spin_unlock(&journal->j_list_lock);
@@ -955,7 +966,7 @@ restart_loop:
 
 	jbd_debug(3, "JBD: commit phase 7\n");
 
-	J_ASSERT(commit_transaction->t_state == T_COMMIT);
+	J_ASSERT(commit_transaction->t_state == T_COMMIT_JFLUSH);
 
 	commit_transaction->t_start = jiffies;
 	stats.run.rs_logging = jbd2_time_diff(stats.run.rs_logging,

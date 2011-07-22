@@ -335,7 +335,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	if (entskb->mark)
 		NLA_PUT_BE32(skb, NFQA_MARK, htonl(entskb->mark));
 
-	if (indev && entskb->dev) {
+	if (indev && entskb->dev &&
+	    entskb->mac_header != entskb->network_header) {
 		struct nfqnl_msg_packet_hw phw;
 		int len = dev_parse_header(entskb, phw.hw_addr);
 		if (len) {

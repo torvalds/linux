@@ -19,7 +19,6 @@ obj-y				+= gpio.o
 obj-y				+= gpio-config.o
 obj-y				+= dev-asocdma.o
 
-obj-$(CONFIG_SAMSUNG_GPIOLIB_4BIT)	+= gpiolib.o
 obj-$(CONFIG_SAMSUNG_CLKSRC)	+= clock-clksrc.o
 
 obj-$(CONFIG_SAMSUNG_IRQ_UART)	+= irq-uart.o

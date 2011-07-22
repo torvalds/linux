@@ -27,10 +27,8 @@ struct physmap_flash_info {
 	struct mtd_info		*mtd[MAX_RESOURCES];
 	struct mtd_info		*cmtd;
 	struct map_info		map[MAX_RESOURCES];
-#ifdef CONFIG_MTD_PARTITIONS
 	int			nr_parts;
 	struct mtd_partition	*parts;
-#endif
 };
 
 static int physmap_flash_remove(struct platform_device *dev)
@@ -47,18 +45,9 @@ static int physmap_flash_remove(struct platform_device *dev)
 	physmap_data = dev->dev.platform_data;
 
 	if (info->cmtd) {
-#ifdef CONFIG_MTD_PARTITIONS
-		if (info->nr_parts || physmap_data->nr_parts) {
-			del_mtd_partitions(info->cmtd);
-
-			if (info->nr_parts)
-				kfree(info->parts);
-		} else {
-			del_mtd_device(info->cmtd);
-		}
-#else
-		del_mtd_device(info->cmtd);
-#endif
+		mtd_device_unregister(info->cmtd);
+		if (info->nr_parts)
+			kfree(info->parts);
 		if (info->cmtd != info->mtd[0])
 			mtd_concat_destroy(info->cmtd);
 	}
@@ -92,10 +81,8 @@ static const char *rom_probe_types[] = {
 					"qinfo_probe",
 					"map_rom",
 					NULL };
-#ifdef CONFIG_MTD_PARTITIONS
 static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", "afs",
 					  NULL };
-#endif
 
 static int physmap_flash_probe(struct platform_device *dev)
 {
@@ -188,24 +175,23 @@ static int physmap_flash_probe(struct platform_device *dev)
 	if (err)
 		goto err_out;
 
-#ifdef CONFIG_MTD_PARTITIONS
 	err = parse_mtd_partitions(info->cmtd, part_probe_types,
-				&info->parts, 0);
+				   &info->parts, 0);
 	if (err > 0) {
-		add_mtd_partitions(info->cmtd, info->parts, err);
+		mtd_device_register(info->cmtd, info->parts, err);
 		info->nr_parts = err;
 		return 0;
 	}
 
 	if (physmap_data->nr_parts) {
 		printk(KERN_NOTICE "Using physmap partition information\n");
-		add_mtd_partitions(info->cmtd, physmap_data->parts,
-				   physmap_data->nr_parts);
+		mtd_device_register(info->cmtd, physmap_data->parts,
+				    physmap_data->nr_parts);
 		return 0;
 	}
-#endif
 
-	add_mtd_device(info->cmtd);
+	mtd_device_register(info->cmtd, NULL, 0);
+
 	return 0;
 
 err_out:
@@ -269,13 +255,11 @@ void physmap_configure(unsigned long addr, unsigned long size,
 	physmap_flash_data.set_vpp = set_vpp;
 }
 
-#ifdef CONFIG_MTD_PARTITIONS
 void physmap_set_partitions(struct mtd_partition *parts, int num_parts)
 {
 	physmap_flash_data.nr_parts = num_parts;
 	physmap_flash_data.parts = parts;
 }
-#endif
 #endif
 
 static int __init physmap_init(void)

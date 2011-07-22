@@ -470,6 +470,27 @@ config XEN_BLKDEV_FRONTEND
 	  block device driver.  It communicates with a back-end driver
 	  in another domain which drives the actual block device.
 
+config XEN_BLKDEV_BACKEND
+	tristate "Block-device backend driver"
+	depends on XEN_BACKEND
+	help
+	  The block-device backend driver allows the kernel to export its
+	  block devices to other guests via a high-performance shared-memory
+	  interface.
+
+	  The corresponding Linux frontend driver is enabled by the
+	  CONFIG_XEN_BLKDEV_FRONTEND configuration option.
+
+	  The backend driver attaches itself to a any block device specified
+	  in the XenBus configuration. There are no limits to what the block
+	  device as long as it has a major and minor.
+
+	  If you are compiling a kernel to run in a Xen block backend driver
+	  domain (often this is domain 0) you should say Y here. To
+	  compile this driver as a module, chose M here: the module
+	  will be called xen-blkback.
+
+
 config VIRTIO_BLK
 	tristate "Virtio block driver (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && VIRTIO

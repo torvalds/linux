@@ -36,16 +36,19 @@
 
 #include <mach/board.h>
 #include <mach/gpio.h>
-
+#include <mach/cpu.h>
 #include <mach/at91rm9200_mc.h>
 
 #include "generic.h"
 
 
-static void __init kb9202_map_io(void)
+static void __init kb9202_init_early(void)
 {
+	/* Set cpu type: PQFP */
+	at91rm9200_set_type(ARCH_REVISON_9200_PQFP);
+
 	/* Initialize processor: 10 MHz crystal */
-	at91rm9200_initialize(10000000, AT91RM9200_PQFP);
+	at91rm9200_initialize(10000000);
 
 	/* Set up the LEDs */
 	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);
@@ -136,9 +139,9 @@ static void __init kb9202_board_init(void)
 
 MACHINE_START(KB9200, "KB920x")
 	/* Maintainer: KwikByte, Inc. */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= kb9202_map_io,
+	.map_io		= at91rm9200_map_io,
+	.init_early	= kb9202_init_early,
 	.init_irq	= kb9202_init_irq,
 	.init_machine	= kb9202_board_init,
 MACHINE_END

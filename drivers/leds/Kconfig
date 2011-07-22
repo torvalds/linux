@@ -1,3 +1,10 @@
+config LEDS_GPIO_REGISTER
+	bool
+	help
+	  This option provides the function gpio_led_register_device.
+	  As this function is used by arch code it must not be compiled as a
+	  module.
+
 menuconfig NEW_LEDS
 	bool "LED Support"
 	help
@@ -7,14 +14,13 @@ menuconfig NEW_LEDS
 	  This is not related to standard keyboard LEDs which are controlled
 	  via the input system.
 
+if NEW_LEDS
+
 config LEDS_CLASS
 	bool "LED Class Support"
-	depends on NEW_LEDS
 	help
 	  This option enables the led sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
-
-if NEW_LEDS
 
 comment "LED drivers"
 
@@ -115,13 +121,6 @@ config LEDS_ALIX2
 	  This option enables support for the PCEngines ALIX.2 and ALIX.3 LEDs.
 	  You have to set leds-alix2.force=1 for boards with Award BIOS.
 
-config LEDS_H1940
-	tristate "LED Support for iPAQ H1940 device"
-	depends on LEDS_CLASS
-	depends on ARCH_H1940
-	help
-	  This option enables support for the LEDs on the h1940.
-
 config LEDS_COBALT_QUBE
 	tristate "LED Support for the Cobalt Qube series front LED"
 	depends on LEDS_CLASS
@@ -161,6 +160,16 @@ config LEDS_PCA9532
 	  This option enables support for NXP pca9532
 	  LED controller. It is generally only useful
 	  as a platform driver
+
+config LEDS_PCA9532_GPIO
+	bool "Enable GPIO support for PCA9532"
+	depends on LEDS_PCA9532
+	depends on GPIOLIB
+	help
+	  Allow unused pins on PCA9532 to be used as gpio.
+
+	  To use a pin as gpio pca9532_type in pca9532_platform data needs to
+	  set to PCA9532_TYPE_GPIO.
 
 config LEDS_GPIO
 	tristate "LED Support for GPIO connected LEDs"
@@ -378,6 +387,17 @@ config LEDS_NETXBIG
 	  This option enable support for LEDs found on the LaCie 2Big
 	  and 5Big Network v2 boards. The LEDs are wired to a CPLD and are
 	  controlled through a GPIO extension bus.
+
+config LEDS_ASIC3
+	bool "LED support for the HTC ASIC3"
+	depends on LEDS_CLASS
+	depends on MFD_ASIC3
+	default y
+	help
+	  This option enables support for the LEDs on the HTC ASIC3. The HTC
+	  ASIC3 LED GPIOs are inputs, not outputs, thus the leds-gpio driver
+	  cannot be used. This driver supports hardware blinking with an on+off
+	  period from 62ms to 125s. Say Y to enable LEDs on the HP iPAQ hx4700.
 
 config LEDS_TRIGGERS
 	bool "LED Trigger support"

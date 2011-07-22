@@ -1756,8 +1756,18 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 	wait_queue_t wait;
 	int err = 0;
 	snd_pcm_uframes_t avail = 0;
-	long tout;
+	long wait_time, tout;
 
+	if (runtime->no_period_wakeup)
+		wait_time = MAX_SCHEDULE_TIMEOUT;
+	else {
+		wait_time = 10;
+		if (runtime->rate) {
+			long t = runtime->period_size * 2 / runtime->rate;
+			wait_time = max(t, wait_time);
+		}
+		wait_time = msecs_to_jiffies(wait_time * 1000);
+	}
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(&runtime->tsleep, &wait);
 	for (;;) {
@@ -1765,9 +1775,8 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 			err = -ERESTARTSYS;
 			break;
 		}
-		set_current_state(TASK_INTERRUPTIBLE);
 		snd_pcm_stream_unlock_irq(substream);
-		tout = schedule_timeout(msecs_to_jiffies(10000));
+		tout = schedule_timeout_interruptible(wait_time);
 		snd_pcm_stream_lock_irq(substream);
 		switch (runtime->status->state) {
 		case SNDRV_PCM_STATE_SUSPENDED:

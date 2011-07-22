@@ -84,6 +84,12 @@ struct vhost_virtqueue {
 	/* Used flags */
 	u16 used_flags;
 
+	/* Last used index value we have signalled on */
+	u16 signalled_used;
+
+	/* Last used index value we have signalled on */
+	bool signalled_used_valid;
+
 	/* Log writes to used structure. */
 	bool log_used;
 	u64 log_addr;
@@ -149,8 +155,8 @@ void vhost_add_used_and_signal(struct vhost_dev *, struct vhost_virtqueue *,
 void vhost_add_used_and_signal_n(struct vhost_dev *, struct vhost_virtqueue *,
 			       struct vring_used_elem *heads, unsigned count);
 void vhost_signal(struct vhost_dev *, struct vhost_virtqueue *);
-void vhost_disable_notify(struct vhost_virtqueue *);
-bool vhost_enable_notify(struct vhost_virtqueue *);
+void vhost_disable_notify(struct vhost_dev *, struct vhost_virtqueue *);
+bool vhost_enable_notify(struct vhost_dev *, struct vhost_virtqueue *);
 
 int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 		    unsigned int log_num, u64 len);
@@ -162,11 +168,12 @@ int vhost_log_write(struct vhost_virtqueue *vq, struct vhost_log *log,
 	} while (0)
 
 enum {
-	VHOST_FEATURES = (1 << VIRTIO_F_NOTIFY_ON_EMPTY) |
-			 (1 << VIRTIO_RING_F_INDIRECT_DESC) |
-			 (1 << VHOST_F_LOG_ALL) |
-			 (1 << VHOST_NET_F_VIRTIO_NET_HDR) |
-			 (1 << VIRTIO_NET_F_MRG_RXBUF),
+	VHOST_FEATURES = (1ULL << VIRTIO_F_NOTIFY_ON_EMPTY) |
+			 (1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
+			 (1ULL << VIRTIO_RING_F_EVENT_IDX) |
+			 (1ULL << VHOST_F_LOG_ALL) |
+			 (1ULL << VHOST_NET_F_VIRTIO_NET_HDR) |
+			 (1ULL << VIRTIO_NET_F_MRG_RXBUF),
 };
 
 static inline int vhost_has_feature(struct vhost_dev *dev, int bit)

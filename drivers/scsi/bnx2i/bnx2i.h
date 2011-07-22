@@ -66,11 +66,11 @@
 #define BD_SPLIT_SIZE			32768
 
 /* min, max & default values for SQ/RQ/CQ size, configurable via' modparam */
-#define BNX2I_SQ_WQES_MIN 		16
-#define BNX2I_570X_SQ_WQES_MAX 		128
-#define BNX2I_5770X_SQ_WQES_MAX 	512
-#define BNX2I_570X_SQ_WQES_DEFAULT 	128
-#define BNX2I_5770X_SQ_WQES_DEFAULT 	256
+#define BNX2I_SQ_WQES_MIN		16
+#define BNX2I_570X_SQ_WQES_MAX		128
+#define BNX2I_5770X_SQ_WQES_MAX		512
+#define BNX2I_570X_SQ_WQES_DEFAULT	128
+#define BNX2I_5770X_SQ_WQES_DEFAULT	128
 
 #define BNX2I_570X_CQ_WQES_MAX 		128
 #define BNX2I_5770X_CQ_WQES_MAX 	512
@@ -115,6 +115,7 @@
 #define BNX2X_MAX_CQS			8
 
 #define CNIC_ARM_CQE			1
+#define CNIC_ARM_CQE_FP			2
 #define CNIC_DISARM_CQE			0
 
 #define REG_RD(__hba, offset)				\
@@ -666,7 +667,9 @@ enum {
  *                      after HBA reset is completed by bnx2i/cnic/bnx2
  *                      modules
  * @state:              tracks offload connection state machine
- * @teardown_mode:      indicates if conn teardown is abortive or orderly
+ * @timestamp:          tracks the start time when the ep begins to connect
+ * @num_active_cmds:    tracks the number of outstanding commands for this ep
+ * @ec_shift:           the amount of shift as part of the event coal calc
  * @qp:                 QP information
  * @ids:                contains chip allocated *context id* & driver assigned
  *                      *iscsi cid*
@@ -685,6 +688,7 @@ struct bnx2i_endpoint {
 	u32 state;
 	unsigned long timestamp;
 	int num_active_cmds;
+	u32 ec_shift;
 
 	struct qp_info qp;
 	struct ep_handles ids;

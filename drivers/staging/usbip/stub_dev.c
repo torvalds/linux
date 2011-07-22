@@ -26,6 +26,8 @@
 static int stub_probe(struct usb_interface *interface,
 		      const struct usb_device_id *id);
 static void stub_disconnect(struct usb_interface *interface);
+static int stub_pre_reset(struct usb_interface *interface);
+static int stub_post_reset(struct usb_interface *interface);
 
 /*
  * Define device IDs here if you want to explicitly limit exportable devices.
@@ -59,6 +61,8 @@ struct usb_driver stub_driver = {
 	.probe		= stub_probe,
 	.disconnect	= stub_disconnect,
 	.id_table	= stub_table,
+	.pre_reset	= stub_pre_reset,
+	.post_reset	= stub_post_reset,
 };
 
 /*
@@ -540,4 +544,21 @@ static void stub_disconnect(struct usb_interface *interface)
 		busid_priv->status = STUB_BUSID_OTHER;
 		del_match_busid((char *)udev_busid);
 	}
+}
+
+/* 
+ * Presence of pre_reset and post_reset prevents the driver from being unbound
+ * when the device is being reset
+ */
+ 
+int stub_pre_reset(struct usb_interface *interface)
+{
+	dev_dbg(&interface->dev, "pre_reset\n");
+	return 0;
+}
+
+int stub_post_reset(struct usb_interface *interface)
+{
+	dev_dbg(&interface->dev, "post_reset\n");
+	return 0;
 }

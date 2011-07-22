@@ -220,7 +220,7 @@ static inline unsigned long __xchg(unsigned long x, __volatile__ void * ptr, int
 	switch (size) {
 	case 4:
 		return xchg_u32(ptr, x);
-	};
+	}
 	__xchg_called_with_bad_pointer();
 	return x;
 }

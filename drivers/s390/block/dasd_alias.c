@@ -253,13 +253,11 @@ int dasd_alias_make_device_known_to_lcu(struct dasd_device *device)
  */
 void dasd_alias_lcu_setup_complete(struct dasd_device *device)
 {
-	struct dasd_eckd_private *private;
 	unsigned long flags;
 	struct alias_server *server;
 	struct alias_lcu *lcu;
 	struct dasd_uid uid;
 
-	private = (struct dasd_eckd_private *) device->private;
 	device->discipline->get_uid(device, &uid);
 	lcu = NULL;
 	spin_lock_irqsave(&aliastree.lock, flags);
@@ -279,13 +277,11 @@ void dasd_alias_lcu_setup_complete(struct dasd_device *device)
 
 void dasd_alias_wait_for_lcu_setup(struct dasd_device *device)
 {
-	struct dasd_eckd_private *private;
 	unsigned long flags;
 	struct alias_server *server;
 	struct alias_lcu *lcu;
 	struct dasd_uid uid;
 
-	private = (struct dasd_eckd_private *) device->private;
 	device->discipline->get_uid(device, &uid);
 	lcu = NULL;
 	spin_lock_irqsave(&aliastree.lock, flags);

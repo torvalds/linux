@@ -15,7 +15,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/core.h>
 
 #include <linux/netdevice.h>
 #include <linux/can.h>
@@ -1644,7 +1643,7 @@ static int __devinit ican3_probe(struct platform_device *pdev)
 	struct device *dev;
 	int ret;
 
-	pdata = mfd_get_data(pdev);
+	pdata = pdev->dev.platform_data;
 	if (!pdata)
 		return -ENXIO;
 

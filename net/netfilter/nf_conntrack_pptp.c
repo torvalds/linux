@@ -519,8 +519,7 @@ conntrack_pptp_help(struct sk_buff *skb, unsigned int protoff,
 	u_int16_t msg;
 
 	/* don't do any tracking before tcp handshake complete */
-	if (ctinfo != IP_CT_ESTABLISHED &&
-	    ctinfo != IP_CT_ESTABLISHED + IP_CT_IS_REPLY)
+	if (ctinfo != IP_CT_ESTABLISHED && ctinfo != IP_CT_ESTABLISHED_REPLY)
 		return NF_ACCEPT;
 
 	nexthdr_off = protoff;

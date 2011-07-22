@@ -73,17 +73,6 @@ config ACPI_PROCFS_POWER
 
 	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
 
-config ACPI_POWER_METER
-	tristate "ACPI 4.0 power meter"
-	depends on HWMON
-	help
-	  This driver exposes ACPI 4.0 power meters as hardware monitoring
-	  devices.  Say Y (or M) if you have a computer with ACPI 4.0 firmware
-	  and a power meter.
-
-	  To compile this driver as a module, choose M here:
-	  the module will be called power-meter.
-
 config ACPI_EC_DEBUGFS
 	tristate "EC read/write access through /sys/kernel/debug/ec"
 	default n
@@ -379,6 +368,21 @@ config ACPI_HED
 	  This driver supports the Hardware Error Device (PNP0C33),
 	  which is used to report some hardware errors notified via
 	  SCI, mainly the corrected errors.
+
+config ACPI_CUSTOM_METHOD
+	tristate "Allow ACPI methods to be inserted/replaced at run time"
+	depends on DEBUG_FS
+	default n
+	help
+	  This debug facility allows ACPI AML methods to me inserted and/or
+	  replaced without rebooting the system. For details refer to:
+	  Documentation/acpi/method-customizing.txt.
+
+	  NOTE: This option is security sensitive, because it allows arbitrary
+	  kernel memory to be written to by root (uid=0) users, allowing them
+	  to bypass certain security measures (e.g. if root is not allowed to
+	  load additional kernel modules after boot, this feature may be used
+	  to override that restriction).
 
 source "drivers/acpi/apei/Kconfig"
 

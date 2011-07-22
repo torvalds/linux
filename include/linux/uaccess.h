@@ -93,8 +93,8 @@ static inline unsigned long __copy_from_user_nocache(void *to,
  * Safely read from address @src to the buffer at @dst.  If a kernel fault
  * happens, handle that and return -EFAULT.
  */
-extern long probe_kernel_read(void *dst, void *src, size_t size);
-extern long __probe_kernel_read(void *dst, void *src, size_t size);
+extern long probe_kernel_read(void *dst, const void *src, size_t size);
+extern long __probe_kernel_read(void *dst, const void *src, size_t size);
 
 /*
  * probe_kernel_write(): safely attempt to write to a location
@@ -105,7 +105,7 @@ extern long __probe_kernel_read(void *dst, void *src, size_t size);
  * Safely write to address @dst from the buffer at @src.  If a kernel fault
  * happens, handle that and return -EFAULT.
  */
-extern long notrace probe_kernel_write(void *dst, void *src, size_t size);
-extern long notrace __probe_kernel_write(void *dst, void *src, size_t size);
+extern long notrace probe_kernel_write(void *dst, const void *src, size_t size);
+extern long notrace __probe_kernel_write(void *dst, const void *src, size_t size);
 
 #endif		/* __LINUX_UACCESS_H__ */

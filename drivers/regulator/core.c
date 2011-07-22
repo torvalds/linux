@@ -158,6 +158,13 @@ static int regulator_check_consumers(struct regulator_dev *rdev,
 	struct regulator *regulator;
 
 	list_for_each_entry(regulator, &rdev->consumer_list, list) {
+		/*
+		 * Assume consumers that didn't say anything are OK
+		 * with anything in the constraint range.
+		 */
+		if (!regulator->min_uV && !regulator->max_uV)
+			continue;
+
 		if (*max_uV > regulator->max_uV)
 			*max_uV = regulator->max_uV;
 		if (*min_uV < regulator->min_uV)
@@ -197,9 +204,9 @@ static int regulator_check_current_limit(struct regulator_dev *rdev,
 }
 
 /* operating mode constraint check */
-static int regulator_check_mode(struct regulator_dev *rdev, int mode)
+static int regulator_mode_constrain(struct regulator_dev *rdev, int *mode)
 {
-	switch (mode) {
+	switch (*mode) {
 	case REGULATOR_MODE_FAST:
 	case REGULATOR_MODE_NORMAL:
 	case REGULATOR_MODE_IDLE:
@@ -217,11 +224,17 @@ static int regulator_check_mode(struct regulator_dev *rdev, int mode)
 		rdev_err(rdev, "operation not allowed\n");
 		return -EPERM;
 	}
-	if (!(rdev->constraints->valid_modes_mask & mode)) {
-		rdev_err(rdev, "invalid mode %x\n", mode);
-		return -EINVAL;
+
+	/* The modes are bitmasks, the most power hungry modes having
+	 * the lowest values. If the requested mode isn't supported
+	 * try higher modes. */
+	while (*mode) {
+		if (rdev->constraints->valid_modes_mask & *mode)
+			return 0;
+		*mode /= 2;
 	}
-	return 0;
+
+	return -EINVAL;
 }
 
 /* dynamic regulator mode switching constraint check */
@@ -612,7 +625,7 @@ static void drms_uA_update(struct regulator_dev *rdev)
 						  output_uV, current_uA);
 
 	/* check the new mode is allowed */
-	err = regulator_check_mode(rdev, mode);
+	err = regulator_mode_constrain(rdev, &mode);
 	if (err == 0)
 		rdev->desc->ops->set_mode(rdev, mode);
 }
@@ -717,6 +730,10 @@ static void print_constraints(struct regulator_dev *rdev)
 		if (ret > 0)
 			count += sprintf(buf + count, "at %d mV ", ret / 1000);
 	}
+
+	if (constraints->uV_offset)
+		count += sprintf(buf, "%dmV offset ",
+				 constraints->uV_offset / 1000);
 
 	if (constraints->min_uA && constraints->max_uA) {
 		if (constraints->min_uA == constraints->max_uA)
@@ -1498,13 +1515,14 @@ static int _regulator_force_disable(struct regulator_dev *rdev,
  */
 int regulator_force_disable(struct regulator *regulator)
 {
+	struct regulator_dev *rdev = regulator->rdev;
 	struct regulator_dev *supply_rdev = NULL;
 	int ret;
 
-	mutex_lock(&regulator->rdev->mutex);
+	mutex_lock(&rdev->mutex);
 	regulator->uA_load = 0;
-	ret = _regulator_force_disable(regulator->rdev, &supply_rdev);
-	mutex_unlock(&regulator->rdev->mutex);
+	ret = _regulator_force_disable(rdev, &supply_rdev);
+	mutex_unlock(&rdev->mutex);
 
 	if (supply_rdev)
 		regulator_disable(get_device_regulator(rdev_get_dev(supply_rdev)));
@@ -1633,6 +1651,9 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	unsigned int selector;
 
 	trace_regulator_set_voltage(rdev_get_name(rdev), min_uV, max_uV);
+
+	min_uV += rdev->constraints->uV_offset;
+	max_uV += rdev->constraints->uV_offset;
 
 	if (rdev->desc->ops->set_voltage) {
 		ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV,
@@ -1858,18 +1879,22 @@ EXPORT_SYMBOL_GPL(regulator_sync_voltage);
 
 static int _regulator_get_voltage(struct regulator_dev *rdev)
 {
-	int sel;
+	int sel, ret;
 
 	if (rdev->desc->ops->get_voltage_sel) {
 		sel = rdev->desc->ops->get_voltage_sel(rdev);
 		if (sel < 0)
 			return sel;
-		return rdev->desc->ops->list_voltage(rdev, sel);
-	}
-	if (rdev->desc->ops->get_voltage)
-		return rdev->desc->ops->get_voltage(rdev);
-	else
+		ret = rdev->desc->ops->list_voltage(rdev, sel);
+	} else if (rdev->desc->ops->get_voltage) {
+		ret = rdev->desc->ops->get_voltage(rdev);
+	} else {
 		return -EINVAL;
+	}
+
+	if (ret < 0)
+		return ret;
+	return ret - rdev->constraints->uV_offset;
 }
 
 /**
@@ -2005,7 +2030,7 @@ int regulator_set_mode(struct regulator *regulator, unsigned int mode)
 	}
 
 	/* constraints check */
-	ret = regulator_check_mode(rdev, mode);
+	ret = regulator_mode_constrain(rdev, &mode);
 	if (ret < 0)
 		goto out;
 
@@ -2081,15 +2106,25 @@ int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 
 	mutex_lock(&rdev->mutex);
 
+	/*
+	 * first check to see if we can set modes at all, otherwise just
+	 * tell the consumer everything is OK.
+	 */
 	regulator->uA_load = uA_load;
 	ret = regulator_check_drms(rdev);
-	if (ret < 0)
+	if (ret < 0) {
+		ret = 0;
 		goto out;
-	ret = -EINVAL;
+	}
 
-	/* sanity check */
 	if (!rdev->desc->ops->get_optimum_mode)
 		goto out;
+
+	/*
+	 * we can actually do this so any errors are indicators of
+	 * potential real failure.
+	 */
+	ret = -EINVAL;
 
 	/* get output voltage */
 	output_uV = _regulator_get_voltage(rdev);
@@ -2116,7 +2151,7 @@ int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 	mode = rdev->desc->ops->get_optimum_mode(rdev,
 						 input_uV, output_uV,
 						 total_uA_load);
-	ret = regulator_check_mode(rdev, mode);
+	ret = regulator_mode_constrain(rdev, &mode);
 	if (ret < 0) {
 		rdev_err(rdev, "failed to get optimum mode @ %d uA %d -> %d uV\n",
 			 total_uA_load, input_uV, output_uV);
@@ -2589,14 +2624,6 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	if (ret < 0)
 		goto scrub;
 
-	/* set supply regulator if it exists */
-	if (init_data->supply_regulator && init_data->supply_regulator_dev) {
-		dev_err(dev,
-			"Supply regulator specified by both name and dev\n");
-		ret = -EINVAL;
-		goto scrub;
-	}
-
 	if (init_data->supply_regulator) {
 		struct regulator_dev *r;
 		int found = 0;
@@ -2617,14 +2644,6 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 		}
 
 		ret = set_supply(rdev, r);
-		if (ret < 0)
-			goto scrub;
-	}
-
-	if (init_data->supply_regulator_dev) {
-		dev_warn(dev, "Uses supply_regulator_dev instead of regulator_supply\n");
-		ret = set_supply(rdev,
-			dev_get_drvdata(init_data->supply_regulator_dev));
 		if (ret < 0)
 			goto scrub;
 	}

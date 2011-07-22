@@ -140,7 +140,9 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 	} else {
 		priv->stats.tx_errors++;
 	}
-	atomic_dec(&adapter->tx_pending);
+
+	if (atomic_dec_return(&adapter->tx_pending) >= LOW_TX_PENDING)
+		goto done;
 
 	for (i = 0; i < adapter->priv_num; i++) {
 

@@ -715,7 +715,8 @@ static struct syscore_ops pmacpic_syscore_ops = {
 
 static int __init init_pmacpic_syscore(void)
 {
-	register_syscore_ops(&pmacpic_syscore_ops);
+	if (pmac_irq_hw[0])
+		register_syscore_ops(&pmacpic_syscore_ops);
 	return 0;
 }
 

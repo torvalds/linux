@@ -762,7 +762,19 @@ static struct block_device *bd_start_claiming(struct block_device *bdev,
 	if (!disk)
 		return ERR_PTR(-ENXIO);
 
-	whole = bdget_disk(disk, 0);
+	/*
+	 * Normally, @bdev should equal what's returned from bdget_disk()
+	 * if partno is 0; however, some drivers (floppy) use multiple
+	 * bdev's for the same physical device and @bdev may be one of the
+	 * aliases.  Keep @bdev if partno is 0.  This means claimer
+	 * tracking is broken for those devices but it has always been that
+	 * way.
+	 */
+	if (partno)
+		whole = bdget_disk(disk, 0);
+	else
+		whole = bdgrab(bdev);
+
 	module_put(disk->fops->owner);
 	put_disk(disk);
 	if (!whole)
@@ -1238,6 +1250,8 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 	res = __blkdev_get(bdev, mode, 0);
 
 	if (whole) {
+		struct gendisk *disk = whole->bd_disk;
+
 		/* finish claiming */
 		mutex_lock(&bdev->bd_mutex);
 		spin_lock(&bdev_lock);
@@ -1264,15 +1278,16 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 		spin_unlock(&bdev_lock);
 
 		/*
-		 * Block event polling for write claims.  Any write
-		 * holder makes the write_holder state stick until all
-		 * are released.  This is good enough and tracking
-		 * individual writeable reference is too fragile given
-		 * the way @mode is used in blkdev_get/put().
+		 * Block event polling for write claims if requested.  Any
+		 * write holder makes the write_holder state stick until
+		 * all are released.  This is good enough and tracking
+		 * individual writeable reference is too fragile given the
+		 * way @mode is used in blkdev_get/put().
 		 */
-		if (!res && (mode & FMODE_WRITE) && !bdev->bd_write_holder) {
+		if (!res && (mode & FMODE_WRITE) && !bdev->bd_write_holder &&
+		    (disk->flags & GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE)) {
 			bdev->bd_write_holder = true;
-			disk_block_events(bdev->bd_disk);
+			disk_block_events(disk);
 		}
 
 		mutex_unlock(&bdev->bd_mutex);

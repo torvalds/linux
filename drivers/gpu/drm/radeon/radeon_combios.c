@@ -505,12 +505,18 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 	 * DDC_VGA           = RADEON_GPIO_VGA_DDC
 	 * DDC_LCD           = RADEON_GPIOPAD_MASK
 	 * DDC_GPIO          = RADEON_MDGPIO_MASK
-	 * r1xx/r2xx
+	 * r1xx
 	 * DDC_MONID         = RADEON_GPIO_MONID
 	 * DDC_CRT2          = RADEON_GPIO_CRT2_DDC
-	 * r3xx
+	 * r200
 	 * DDC_MONID         = RADEON_GPIO_MONID
 	 * DDC_CRT2          = RADEON_GPIO_DVI_DDC
+	 * r300/r350
+	 * DDC_MONID         = RADEON_GPIO_DVI_DDC
+	 * DDC_CRT2          = RADEON_GPIO_DVI_DDC
+	 * rv2xx/rv3xx
+	 * DDC_MONID         = RADEON_GPIO_MONID
+	 * DDC_CRT2          = RADEON_GPIO_MONID
 	 * rs3xx/rs4xx
 	 * DDC_MONID         = RADEON_GPIOPAD_MASK
 	 * DDC_CRT2          = RADEON_GPIO_MONID
@@ -537,17 +543,26 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 		    rdev->family == CHIP_RS400 ||
 		    rdev->family == CHIP_RS480)
 			ddc_line = RADEON_GPIOPAD_MASK;
-		else
+		else if (rdev->family == CHIP_R300 ||
+			 rdev->family == CHIP_R350) {
+			ddc_line = RADEON_GPIO_DVI_DDC;
+			ddc = DDC_DVI;
+		} else
 			ddc_line = RADEON_GPIO_MONID;
 		break;
 	case DDC_CRT2:
-		if (rdev->family == CHIP_RS300 ||
-		    rdev->family == CHIP_RS400 ||
-		    rdev->family == CHIP_RS480)
-			ddc_line = RADEON_GPIO_MONID;
-		else if (rdev->family >= CHIP_R300) {
+		if (rdev->family == CHIP_R200 ||
+		    rdev->family == CHIP_R300 ||
+		    rdev->family == CHIP_R350) {
 			ddc_line = RADEON_GPIO_DVI_DDC;
 			ddc = DDC_DVI;
+		} else if (rdev->family == CHIP_RS300 ||
+			   rdev->family == CHIP_RS400 ||
+			   rdev->family == CHIP_RS480)
+			ddc_line = RADEON_GPIO_MONID;
+		else if (rdev->family >= CHIP_RV350) {
+			ddc_line = RADEON_GPIO_MONID;
+			ddc = DDC_MONID;
 		} else
 			ddc_line = RADEON_GPIO_CRT2_DDC;
 		break;
@@ -709,26 +724,42 @@ void radeon_combios_i2c_init(struct radeon_device *rdev)
 	struct drm_device *dev = rdev->ddev;
 	struct radeon_i2c_bus_rec i2c;
 
+	/* actual hw pads
+	 * r1xx/rs2xx/rs3xx
+	 * 0x60, 0x64, 0x68, 0x6c, gpiopads, mm
+	 * r200
+	 * 0x60, 0x64, 0x68, mm
+	 * r300/r350
+	 * 0x60, 0x64, mm
+	 * rv2xx/rv3xx/rs4xx
+	 * 0x60, 0x64, 0x68, gpiopads, mm
+	 */
 
+	/* 0x60 */
 	i2c = combios_setup_i2c_bus(rdev, DDC_DVI, 0, 0);
 	rdev->i2c_bus[0] = radeon_i2c_create(dev, &i2c, "DVI_DDC");
-
+	/* 0x64 */
 	i2c = combios_setup_i2c_bus(rdev, DDC_VGA, 0, 0);
 	rdev->i2c_bus[1] = radeon_i2c_create(dev, &i2c, "VGA_DDC");
 
+	/* mm i2c */
 	i2c.valid = true;
 	i2c.hw_capable = true;
 	i2c.mm_i2c = true;
 	i2c.i2c_id = 0xa0;
 	rdev->i2c_bus[2] = radeon_i2c_create(dev, &i2c, "MM_I2C");
 
-	if (rdev->family == CHIP_RS300 ||
-	    rdev->family == CHIP_RS400 ||
-	    rdev->family == CHIP_RS480) {
+	if (rdev->family == CHIP_R300 ||
+	    rdev->family == CHIP_R350) {
+		/* only 2 sw i2c pads */
+	} else if (rdev->family == CHIP_RS300 ||
+		   rdev->family == CHIP_RS400 ||
+		   rdev->family == CHIP_RS480) {
 		u16 offset;
 		u8 id, blocks, clk, data;
 		int i;
 
+		/* 0x68 */
 		i2c = combios_setup_i2c_bus(rdev, DDC_CRT2, 0, 0);
 		rdev->i2c_bus[3] = radeon_i2c_create(dev, &i2c, "MONID");
 
@@ -740,6 +771,7 @@ void radeon_combios_i2c_init(struct radeon_device *rdev)
 				if (id == 136) {
 					clk = RBIOS8(offset + 3 + (i * 5) + 3);
 					data = RBIOS8(offset + 3 + (i * 5) + 4);
+					/* gpiopad */
 					i2c = combios_setup_i2c_bus(rdev, DDC_MONID,
 								    (1 << clk), (1 << data));
 					rdev->i2c_bus[4] = radeon_i2c_create(dev, &i2c, "GPIOPAD_MASK");
@@ -747,14 +779,15 @@ void radeon_combios_i2c_init(struct radeon_device *rdev)
 				}
 			}
 		}
-
-	} else if (rdev->family >= CHIP_R300) {
+	} else if (rdev->family >= CHIP_R200) {
+		/* 0x68 */
 		i2c = combios_setup_i2c_bus(rdev, DDC_MONID, 0, 0);
 		rdev->i2c_bus[3] = radeon_i2c_create(dev, &i2c, "MONID");
 	} else {
+		/* 0x68 */
 		i2c = combios_setup_i2c_bus(rdev, DDC_MONID, 0, 0);
 		rdev->i2c_bus[3] = radeon_i2c_create(dev, &i2c, "MONID");
-
+		/* 0x6c */
 		i2c = combios_setup_i2c_bus(rdev, DDC_CRT2, 0, 0);
 		rdev->i2c_bus[4] = radeon_i2c_create(dev, &i2c, "CRT2_DDC");
 	}
@@ -832,6 +865,11 @@ bool radeon_combios_get_clock_info(struct drm_device *dev)
 
 		rdev->clock.default_sclk = sclk;
 		rdev->clock.default_mclk = mclk;
+
+		if (RBIOS32(pll_info + 0x16))
+			rdev->clock.max_pixel_clock = RBIOS32(pll_info + 0x16);
+		else
+			rdev->clock.max_pixel_clock = 35000; /* might need something asic specific */
 
 		return true;
 	}
@@ -1515,10 +1553,12 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 			   (rdev->pdev->subsystem_device == 0x4a48)) {
 			/* Mac X800 */
 			rdev->mode_info.connector_table = CT_MAC_X800;
-		} else if ((rdev->pdev->device == 0x4150) &&
+		} else if ((of_machine_is_compatible("PowerMac7,2") ||
+			    of_machine_is_compatible("PowerMac7,3")) &&
+			   (rdev->pdev->device == 0x4150) &&
 			   (rdev->pdev->subsystem_vendor == 0x1002) &&
 			   (rdev->pdev->subsystem_device == 0x4150)) {
-			/* Mac G5 9600 */
+			/* Mac G5 tower 9600 */
 			rdev->mode_info.connector_table = CT_MAC_G5_9600;
 		} else
 #endif /* CONFIG_PPC_PMAC */
@@ -2504,6 +2544,12 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 	return true;
 }
 
+static const char *thermal_controller_names[] = {
+	"NONE",
+	"lm63",
+	"adm1032",
+};
+
 void radeon_combios_get_power_modes(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
@@ -2522,6 +2568,54 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 		rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
 		rdev->pm.current_clock_mode_index = 0;
 		return;
+	}
+
+	/* check for a thermal chip */
+	offset = combios_get_table_offset(dev, COMBIOS_OVERDRIVE_INFO_TABLE);
+	if (offset) {
+		u8 thermal_controller = 0, gpio = 0, i2c_addr = 0, clk_bit = 0, data_bit = 0;
+		struct radeon_i2c_bus_rec i2c_bus;
+
+		rev = RBIOS8(offset);
+
+		if (rev == 0) {
+			thermal_controller = RBIOS8(offset + 3);
+			gpio = RBIOS8(offset + 4) & 0x3f;
+			i2c_addr = RBIOS8(offset + 5);
+		} else if (rev == 1) {
+			thermal_controller = RBIOS8(offset + 4);
+			gpio = RBIOS8(offset + 5) & 0x3f;
+			i2c_addr = RBIOS8(offset + 6);
+		} else if (rev == 2) {
+			thermal_controller = RBIOS8(offset + 4);
+			gpio = RBIOS8(offset + 5) & 0x3f;
+			i2c_addr = RBIOS8(offset + 6);
+			clk_bit = RBIOS8(offset + 0xa);
+			data_bit = RBIOS8(offset + 0xb);
+		}
+		if ((thermal_controller > 0) && (thermal_controller < 3)) {
+			DRM_INFO("Possible %s thermal controller at 0x%02x\n",
+				 thermal_controller_names[thermal_controller],
+				 i2c_addr >> 1);
+			if (gpio == DDC_LCD) {
+				/* MM i2c */
+				i2c_bus.valid = true;
+				i2c_bus.hw_capable = true;
+				i2c_bus.mm_i2c = true;
+				i2c_bus.i2c_id = 0xa0;
+			} else if (gpio == DDC_GPIO)
+				i2c_bus = combios_setup_i2c_bus(rdev, gpio, 1 << clk_bit, 1 << data_bit);
+			else
+				i2c_bus = combios_setup_i2c_bus(rdev, gpio, 0, 0);
+			rdev->pm.i2c_bus = radeon_i2c_lookup(rdev, &i2c_bus);
+			if (rdev->pm.i2c_bus) {
+				struct i2c_board_info info = { };
+				const char *name = thermal_controller_names[thermal_controller];
+				info.addr = i2c_addr >> 1;
+				strlcpy(info.type, name, sizeof(info.type));
+				i2c_new_device(&rdev->pm.i2c_bus->adapter, &info);
+			}
+		}
 	}
 
 	if (rdev->flags & RADEON_IS_MOBILITY) {

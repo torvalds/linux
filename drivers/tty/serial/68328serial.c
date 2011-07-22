@@ -281,7 +281,7 @@ static void receive_chars(struct m68k_serial *info, unsigned short rx)
 #ifdef CONFIG_MAGIC_SYSRQ
 			} else if (ch == 0x10) { /* ^P */
 				show_state();
-				show_free_areas();
+				show_free_areas(0);
 				show_buffers();
 /*				show_net_buffers(); */
 				return;

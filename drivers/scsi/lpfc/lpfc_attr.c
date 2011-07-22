@@ -755,6 +755,73 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 }
 
 /**
+ * lpfc_sli4_pdev_reg_request - Request physical dev to perform a register acc
+ * @phba: lpfc_hba pointer.
+ *
+ * Description:
+ * Request SLI4 interface type-2 device to perform a physical register set
+ * access.
+ *
+ * Returns:
+ * zero for success
+ **/
+static ssize_t
+lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
+{
+	struct completion online_compl;
+	uint32_t reg_val;
+	int status = 0;
+	int rc;
+
+	if (!phba->cfg_enable_hba_reset)
+		return -EIO;
+
+	if ((phba->sli_rev < LPFC_SLI_REV4) ||
+	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	     LPFC_SLI_INTF_IF_TYPE_2))
+		return -EPERM;
+
+	status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
+
+	if (status != 0)
+		return status;
+
+	/* wait for the device to be quiesced before firmware reset */
+	msleep(100);
+
+	reg_val = readl(phba->sli4_hba.conf_regs_memmap_p +
+			LPFC_CTL_PDEV_CTL_OFFSET);
+
+	if (opcode == LPFC_FW_DUMP)
+		reg_val |= LPFC_FW_DUMP_REQUEST;
+	else if (opcode == LPFC_FW_RESET)
+		reg_val |= LPFC_CTL_PDEV_CTL_FRST;
+	else if (opcode == LPFC_DV_RESET)
+		reg_val |= LPFC_CTL_PDEV_CTL_DRST;
+
+	writel(reg_val, phba->sli4_hba.conf_regs_memmap_p +
+	       LPFC_CTL_PDEV_CTL_OFFSET);
+	/* flush */
+	readl(phba->sli4_hba.conf_regs_memmap_p + LPFC_CTL_PDEV_CTL_OFFSET);
+
+	/* delay driver action following IF_TYPE_2 reset */
+	msleep(100);
+
+	init_completion(&online_compl);
+	rc = lpfc_workq_post_event(phba, &status, &online_compl,
+				   LPFC_EVT_ONLINE);
+	if (rc == 0)
+		return -ENOMEM;
+
+	wait_for_completion(&online_compl);
+
+	if (status != 0)
+		return -EIO;
+
+	return 0;
+}
+
+/**
  * lpfc_nport_evt_cnt_show - Return the number of nport events
  * @dev: class device that is converted into a Scsi_host.
  * @attr: device attribute, not used.
@@ -848,6 +915,12 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 			return -EINVAL;
 		else
 			status = lpfc_do_offline(phba, LPFC_EVT_KILL);
+	else if (strncmp(buf, "dump", sizeof("dump") - 1) == 0)
+		status = lpfc_sli4_pdev_reg_request(phba, LPFC_FW_DUMP);
+	else if (strncmp(buf, "fw_reset", sizeof("fw_reset") - 1) == 0)
+		status = lpfc_sli4_pdev_reg_request(phba, LPFC_FW_RESET);
+	else if (strncmp(buf, "dv_reset", sizeof("dv_reset") - 1) == 0)
+		status = lpfc_sli4_pdev_reg_request(phba, LPFC_DV_RESET);
 	else
 		return -EINVAL;
 
@@ -1322,6 +1395,102 @@ lpfc_dss_show(struct device *dev, struct device_attribute *attr,
 }
 
 /**
+ * lpfc_sriov_hw_max_virtfn_show - Return maximum number of virtual functions
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the formatted support level.
+ *
+ * Description:
+ * Returns the maximum number of virtual functions a physical function can
+ * support, 0 will be returned if called on virtual function.
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_sriov_hw_max_virtfn_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba *phba = vport->phba;
+	struct pci_dev *pdev = phba->pcidev;
+	union  lpfc_sli4_cfg_shdr *shdr;
+	uint32_t shdr_status, shdr_add_status;
+	LPFC_MBOXQ_t *mboxq;
+	struct lpfc_mbx_get_prof_cfg *get_prof_cfg;
+	struct lpfc_rsrc_desc_pcie *desc;
+	uint32_t max_nr_virtfn;
+	uint32_t desc_count;
+	int length, rc, i;
+
+	if ((phba->sli_rev < LPFC_SLI_REV4) ||
+	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	     LPFC_SLI_INTF_IF_TYPE_2))
+		return -EPERM;
+
+	if (!pdev->is_physfn)
+		return snprintf(buf, PAGE_SIZE, "%d\n", 0);
+
+	mboxq = (LPFC_MBOXQ_t *)mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq)
+		return -ENOMEM;
+
+	/* get the maximum number of virtfn support by physfn */
+	length = (sizeof(struct lpfc_mbx_get_prof_cfg) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_COMMON,
+			 LPFC_MBOX_OPCODE_GET_PROFILE_CONFIG,
+			 length, LPFC_SLI4_MBX_EMBED);
+	shdr = (union lpfc_sli4_cfg_shdr *)
+		&mboxq->u.mqe.un.sli4_config.header.cfg_shdr;
+	bf_set(lpfc_mbox_hdr_pf_num, &shdr->request,
+	       phba->sli4_hba.iov.pf_number + 1);
+
+	get_prof_cfg = &mboxq->u.mqe.un.get_prof_cfg;
+	bf_set(lpfc_mbx_get_prof_cfg_prof_tp, &get_prof_cfg->u.request,
+	       LPFC_CFG_TYPE_CURRENT_ACTIVE);
+
+	rc = lpfc_sli_issue_mbox_wait(phba, mboxq,
+				lpfc_mbox_tmo_val(phba, MBX_SLI4_CONFIG));
+
+	if (rc != MBX_TIMEOUT) {
+		/* check return status */
+		shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
+		shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
+					 &shdr->response);
+		if (shdr_status || shdr_add_status || rc)
+			goto error_out;
+
+	} else
+		goto error_out;
+
+	desc_count = get_prof_cfg->u.response.prof_cfg.rsrc_desc_count;
+
+	for (i = 0; i < LPFC_RSRC_DESC_MAX_NUM; i++) {
+		desc = (struct lpfc_rsrc_desc_pcie *)
+			&get_prof_cfg->u.response.prof_cfg.desc[i];
+		if (LPFC_RSRC_DESC_TYPE_PCIE ==
+		    bf_get(lpfc_rsrc_desc_pcie_type, desc)) {
+			max_nr_virtfn = bf_get(lpfc_rsrc_desc_pcie_nr_virtfn,
+					       desc);
+			break;
+		}
+	}
+
+	if (i < LPFC_RSRC_DESC_MAX_NUM) {
+		if (rc != MBX_TIMEOUT)
+			mempool_free(mboxq, phba->mbox_mem_pool);
+		return snprintf(buf, PAGE_SIZE, "%d\n", max_nr_virtfn);
+	}
+
+error_out:
+	if (rc != MBX_TIMEOUT)
+		mempool_free(mboxq, phba->mbox_mem_pool);
+	return -EIO;
+}
+
+/**
  * lpfc_param_show - Return a cfg attribute value in decimal
  *
  * Description:
@@ -1762,6 +1931,8 @@ static DEVICE_ATTR(lpfc_temp_sensor, S_IRUGO, lpfc_temp_sensor_show, NULL);
 static DEVICE_ATTR(lpfc_fips_level, S_IRUGO, lpfc_fips_level_show, NULL);
 static DEVICE_ATTR(lpfc_fips_rev, S_IRUGO, lpfc_fips_rev_show, NULL);
 static DEVICE_ATTR(lpfc_dss, S_IRUGO, lpfc_dss_show, NULL);
+static DEVICE_ATTR(lpfc_sriov_hw_max_virtfn, S_IRUGO,
+		   lpfc_sriov_hw_max_virtfn_show, NULL);
 
 static char *lpfc_soft_wwn_key = "C99G71SL8032A";
 
@@ -3014,7 +3185,7 @@ static DEVICE_ATTR(lpfc_link_speed, S_IRUGO | S_IWUSR,
  *
  * @dev: class device that is converted into a Scsi_host.
  * @attr: device attribute, not used.
- * @buf: containing the string "selective".
+ * @buf: containing enable or disable aer flag.
  * @count: unused variable.
  *
  * Description:
@@ -3098,7 +3269,7 @@ lpfc_param_show(aer_support)
 /**
  * lpfc_aer_support_init - Set the initial adapters aer support flag
  * @phba: lpfc_hba pointer.
- * @val: link speed value.
+ * @val: enable aer or disable aer flag.
  *
  * Description:
  * If val is in a valid range [0,1], then set the adapter's initial
@@ -3137,7 +3308,7 @@ static DEVICE_ATTR(lpfc_aer_support, S_IRUGO | S_IWUSR,
  * lpfc_aer_cleanup_state - Clean up aer state to the aer enabled device
  * @dev: class device that is converted into a Scsi_host.
  * @attr: device attribute, not used.
- * @buf: containing the string "selective".
+ * @buf: containing flag 1 for aer cleanup state.
  * @count: unused variable.
  *
  * Description:
@@ -3179,6 +3350,136 @@ lpfc_aer_cleanup_state(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(lpfc_aer_state_cleanup, S_IWUSR, NULL,
 		   lpfc_aer_cleanup_state);
+
+/**
+ * lpfc_sriov_nr_virtfn_store - Enable the adapter for sr-iov virtual functions
+ *
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: containing the string the number of vfs to be enabled.
+ * @count: unused variable.
+ *
+ * Description:
+ * When this api is called either through user sysfs, the driver shall
+ * try to enable or disable SR-IOV virtual functions according to the
+ * following:
+ *
+ * If zero virtual function has been enabled to the physical function,
+ * the driver shall invoke the pci enable virtual function api trying
+ * to enable the virtual functions. If the nr_vfn provided is greater
+ * than the maximum supported, the maximum virtual function number will
+ * be used for invoking the api; otherwise, the nr_vfn provided shall
+ * be used for invoking the api. If the api call returned success, the
+ * actual number of virtual functions enabled will be set to the driver
+ * cfg_sriov_nr_virtfn; otherwise, -EINVAL shall be returned and driver
+ * cfg_sriov_nr_virtfn remains zero.
+ *
+ * If none-zero virtual functions have already been enabled to the
+ * physical function, as reflected by the driver's cfg_sriov_nr_virtfn,
+ * -EINVAL will be returned and the driver does nothing;
+ *
+ * If the nr_vfn provided is zero and none-zero virtual functions have
+ * been enabled, as indicated by the driver's cfg_sriov_nr_virtfn, the
+ * disabling virtual function api shall be invoded to disable all the
+ * virtual functions and driver's cfg_sriov_nr_virtfn shall be set to
+ * zero. Otherwise, if zero virtual function has been enabled, do
+ * nothing.
+ *
+ * Returns:
+ * length of the buf on success if val is in range the intended mode
+ * is supported.
+ * -EINVAL if val out of range or intended mode is not supported.
+ **/
+static ssize_t
+lpfc_sriov_nr_virtfn_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba *phba = vport->phba;
+	struct pci_dev *pdev = phba->pcidev;
+	int val = 0, rc = -EINVAL;
+
+	/* Sanity check on user data */
+	if (!isdigit(buf[0]))
+		return -EINVAL;
+	if (sscanf(buf, "%i", &val) != 1)
+		return -EINVAL;
+	if (val < 0)
+		return -EINVAL;
+
+	/* Request disabling virtual functions */
+	if (val == 0) {
+		if (phba->cfg_sriov_nr_virtfn > 0) {
+			pci_disable_sriov(pdev);
+			phba->cfg_sriov_nr_virtfn = 0;
+		}
+		return strlen(buf);
+	}
+
+	/* Request enabling virtual functions */
+	if (phba->cfg_sriov_nr_virtfn > 0) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3018 There are %d virtual functions "
+				"enabled on physical function.\n",
+				phba->cfg_sriov_nr_virtfn);
+		return -EEXIST;
+	}
+
+	if (val <= LPFC_MAX_VFN_PER_PFN)
+		phba->cfg_sriov_nr_virtfn = val;
+	else {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3019 Enabling %d virtual functions is not "
+				"allowed.\n", val);
+		return -EINVAL;
+	}
+
+	rc = lpfc_sli_probe_sriov_nr_virtfn(phba, phba->cfg_sriov_nr_virtfn);
+	if (rc) {
+		phba->cfg_sriov_nr_virtfn = 0;
+		rc = -EPERM;
+	} else
+		rc = strlen(buf);
+
+	return rc;
+}
+
+static int lpfc_sriov_nr_virtfn = LPFC_DEF_VFN_PER_PFN;
+module_param(lpfc_sriov_nr_virtfn, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(lpfc_sriov_nr_virtfn, "Enable PCIe device SR-IOV virtual fn");
+lpfc_param_show(sriov_nr_virtfn)
+
+/**
+ * lpfc_sriov_nr_virtfn_init - Set the initial sr-iov virtual function enable
+ * @phba: lpfc_hba pointer.
+ * @val: link speed value.
+ *
+ * Description:
+ * If val is in a valid range [0,255], then set the adapter's initial
+ * cfg_sriov_nr_virtfn field. If it's greater than the maximum, the maximum
+ * number shall be used instead. It will be up to the driver's probe_one
+ * routine to determine whether the device's SR-IOV is supported or not.
+ *
+ * Returns:
+ * zero if val saved.
+ * -EINVAL val out of range
+ **/
+static int
+lpfc_sriov_nr_virtfn_init(struct lpfc_hba *phba, int val)
+{
+	if (val >= 0 && val <= LPFC_MAX_VFN_PER_PFN) {
+		phba->cfg_sriov_nr_virtfn = val;
+		return 0;
+	}
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"3017 Enabling %d virtual functions is not "
+			"allowed.\n", val);
+	return -EINVAL;
+}
+static DEVICE_ATTR(lpfc_sriov_nr_virtfn, S_IRUGO | S_IWUSR,
+		   lpfc_sriov_nr_virtfn_show, lpfc_sriov_nr_virtfn_store);
 
 /*
 # lpfc_fcp_class:  Determines FC class to use for the FCP protocol.
@@ -3497,6 +3798,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_prot_sg_seg_cnt,
 	&dev_attr_lpfc_aer_support,
 	&dev_attr_lpfc_aer_state_cleanup,
+	&dev_attr_lpfc_sriov_nr_virtfn,
 	&dev_attr_lpfc_suppress_link_up,
 	&dev_attr_lpfc_iocb_cnt,
 	&dev_attr_iocb_hw,
@@ -3505,6 +3807,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_fips_level,
 	&dev_attr_lpfc_fips_rev,
 	&dev_attr_lpfc_dss,
+	&dev_attr_lpfc_sriov_hw_max_virtfn,
 	NULL,
 };
 
@@ -3961,7 +4264,7 @@ static struct bin_attribute sysfs_mbox_attr = {
 		.name = "mbox",
 		.mode = S_IRUSR | S_IWUSR,
 	},
-	.size = MAILBOX_CMD_SIZE,
+	.size = MAILBOX_SYSFS_MAX,
 	.read = sysfs_mbox_read,
 	.write = sysfs_mbox_write,
 };
@@ -4705,6 +5008,7 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 	lpfc_hba_log_verbose_init(phba, lpfc_log_verbose);
 	lpfc_aer_support_init(phba, lpfc_aer_support);
+	lpfc_sriov_nr_virtfn_init(phba, lpfc_sriov_nr_virtfn);
 	lpfc_suppress_link_up_init(phba, lpfc_suppress_link_up);
 	lpfc_iocb_cnt_init(phba, lpfc_iocb_cnt);
 	phba->cfg_enable_dss = 1;

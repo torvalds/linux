@@ -80,20 +80,17 @@ static void ne3210_block_output(struct net_device *dev, int count, const unsigne
 
 #define NE3210_DEBUG	0x0
 
-static const unsigned char irq_map[] __devinitconst =
-	{ 15, 12, 11, 10, 9, 7, 5, 3 };
-static const unsigned int shmem_map[] __devinitconst =
-	{ 0xff0, 0xfe0, 0xfff0, 0xd8, 0xffe0, 0xffc0, 0xd0, 0x0 };
-static const char *const ifmap[] __devinitconst =
-	{ "UTP", "?", "BNC", "AUI" };
-static const int ifmap_val[] __devinitconst = {
+static unsigned char irq_map[] __initdata = {15, 12, 11, 10, 9, 7, 5, 3};
+static unsigned int shmem_map[] __initdata = {0xff0, 0xfe0, 0xfff0, 0xd8, 0xffe0, 0xffc0, 0xd0, 0x0};
+static const char *ifmap[] __initdata = {"UTP", "?", "BNC", "AUI"};
+static int ifmap_val[] __initdata = {
 		IF_PORT_10BASET,
 		IF_PORT_UNKNOWN,
 		IF_PORT_10BASE2,
 		IF_PORT_AUI,
 };
 
-static int __devinit ne3210_eisa_probe (struct device *device)
+static int __init ne3210_eisa_probe (struct device *device)
 {
 	unsigned long ioaddr, phys_mem;
 	int i, retval, port_index;
@@ -316,7 +313,7 @@ static void ne3210_block_output(struct net_device *dev, int count,
 	memcpy_toio(shmem, buf, count);
 }
 
-static const struct eisa_device_id ne3210_ids[] __devinitconst = {
+static struct eisa_device_id ne3210_ids[] = {
 	{ "EGL0101" },
 	{ "NVL1801" },
 	{ "" },

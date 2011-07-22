@@ -38,6 +38,7 @@
 
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
@@ -77,19 +78,20 @@ static LIST_HEAD(qd_lru_list);
 static atomic_t qd_lru_count = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(qd_lru_lock);
 
-int gfs2_shrink_qd_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
+int gfs2_shrink_qd_memory(struct shrinker *shrink, struct shrink_control *sc)
 {
 	struct gfs2_quota_data *qd;
 	struct gfs2_sbd *sdp;
+	int nr_to_scan = sc->nr_to_scan;
 
-	if (nr == 0)
+	if (nr_to_scan == 0)
 		goto out;
 
-	if (!(gfp_mask & __GFP_FS))
+	if (!(sc->gfp_mask & __GFP_FS))
 		return -1;
 
 	spin_lock(&qd_lru_lock);
-	while (nr && !list_empty(&qd_lru_list)) {
+	while (nr_to_scan && !list_empty(&qd_lru_list)) {
 		qd = list_entry(qd_lru_list.next,
 				struct gfs2_quota_data, qd_reclaim);
 		sdp = qd->qd_gl->gl_sbd;
@@ -110,7 +112,7 @@ int gfs2_shrink_qd_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
 		spin_unlock(&qd_lru_lock);
 		kmem_cache_free(gfs2_quotad_cachep, qd);
 		spin_lock(&qd_lru_lock);
-		nr--;
+		nr_to_scan--;
 	}
 	spin_unlock(&qd_lru_lock);
 

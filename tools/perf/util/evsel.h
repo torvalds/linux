@@ -149,4 +149,11 @@ static inline int perf_evsel__read_scaled(struct perf_evsel *evsel,
 	return __perf_evsel__read(evsel, ncpus, nthreads, true);
 }
 
+int __perf_evsel__sample_size(u64 sample_type);
+
+static inline int perf_evsel__sample_size(struct perf_evsel *evsel)
+{
+	return __perf_evsel__sample_size(evsel->attr.sample_type);
+}
+
 #endif /* __PERF_EVSEL_H */

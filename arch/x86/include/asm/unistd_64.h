@@ -679,6 +679,8 @@ __SYSCALL(__NR_clock_adjtime, sys_clock_adjtime)
 __SYSCALL(__NR_syncfs, sys_syncfs)
 #define __NR_sendmmsg				307
 __SYSCALL(__NR_sendmmsg, sys_sendmmsg)
+#define __NR_setns				308
+__SYSCALL(__NR_setns, sys_setns)
 
 #ifndef __NO_STUBS
 #define __ARCH_WANT_OLD_READDIR

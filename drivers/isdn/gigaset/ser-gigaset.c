@@ -674,7 +674,7 @@ gigaset_tty_ioctl(struct tty_struct *tty, struct file *file,
  *	cflags	buffer containing error flags for received characters (ignored)
  *	count	number of received characters
  */
-static unsigned int
+static void
 gigaset_tty_receive(struct tty_struct *tty, const unsigned char *buf,
 		    char *cflags, int count)
 {
@@ -683,12 +683,12 @@ gigaset_tty_receive(struct tty_struct *tty, const unsigned char *buf,
 	struct inbuf_t *inbuf;
 
 	if (!cs)
-		return -ENODEV;
+		return;
 	inbuf = cs->inbuf;
 	if (!inbuf) {
 		dev_err(cs->dev, "%s: no inbuf\n", __func__);
 		cs_put(cs);
-		return -EINVAL;
+		return;
 	}
 
 	tail = inbuf->tail;
@@ -725,8 +725,6 @@ gigaset_tty_receive(struct tty_struct *tty, const unsigned char *buf,
 	gig_dbg(DEBUG_INTR, "%s-->BH", __func__);
 	gigaset_schedule_event(cs);
 	cs_put(cs);
-
-	return count;
 }
 
 /*

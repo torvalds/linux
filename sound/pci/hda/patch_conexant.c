@@ -3098,8 +3098,11 @@ static const struct snd_pci_quirk cxt5066_cfg_tbl[] = {
  	SND_PCI_QUIRK(0x17aa, 0x215e, "Lenovo Thinkpad", CXT5066_THINKPAD),
 	SND_PCI_QUIRK(0x17aa, 0x21da, "Lenovo X220", CXT5066_THINKPAD),
 	SND_PCI_QUIRK(0x17aa, 0x21db, "Lenovo X220-tablet", CXT5066_THINKPAD),
+	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo U350", CXT5066_ASUS),
 	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo G560", CXT5066_ASUS),
+	SND_PCI_QUIRK(0x17aa, 0x3938, "Lenovo G565", CXT5066_AUTO),
 	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo", CXT5066_IDEAPAD), /* Fallback for Lenovos without dock mic */
+	SND_PCI_QUIRK(0x1b0a, 0x2092, "CyberpowerPC Gamer Xplorer N57001", CXT5066_AUTO),
 	{}
 };
 
@@ -3433,7 +3436,9 @@ static void cx_auto_parse_output(struct hda_codec *codec)
 			break;
 		}
 	}
-	if (spec->auto_mute && cfg->line_out_pins[0] &&
+	if (spec->auto_mute &&
+	    cfg->line_out_pins[0] &&
+	    cfg->line_out_type != AUTO_PIN_SPEAKER_OUT &&
 	    cfg->line_out_pins[0] != cfg->hp_pins[0] &&
 	    cfg->line_out_pins[0] != cfg->speaker_pins[0]) {
 		for (i = 0; i < cfg->line_outs; i++) {
@@ -3481,25 +3486,32 @@ static void cx_auto_update_speakers(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 	struct auto_pin_cfg *cfg = &spec->autocfg;
-	int on;
+	int on = 1;
 
-	if (!spec->auto_mute)
-		on = 0;
-	else
-		on = spec->hp_present | spec->line_present;
+	/* turn on HP EAPD when HP jacks are present */
+	if (spec->auto_mute)
+		on = spec->hp_present;
 	cx_auto_turn_eapd(codec, cfg->hp_outs, cfg->hp_pins, on);
-	do_automute(codec, cfg->speaker_outs, cfg->speaker_pins, !on);
+	/* mute speakers in auto-mode if HP or LO jacks are plugged */
+	if (spec->auto_mute)
+		on = !(spec->hp_present ||
+		       (spec->detect_line && spec->line_present));
+	do_automute(codec, cfg->speaker_outs, cfg->speaker_pins, on);
 
 	/* toggle line-out mutes if needed, too */
 	/* if LO is a copy of either HP or Speaker, don't need to handle it */
 	if (cfg->line_out_pins[0] == cfg->hp_pins[0] ||
 	    cfg->line_out_pins[0] == cfg->speaker_pins[0])
 		return;
-	if (!spec->automute_lines || !spec->auto_mute)
-		on = 0;
-	else
-		on = spec->hp_present;
-	do_automute(codec, cfg->line_outs, cfg->line_out_pins, !on);
+	if (spec->auto_mute) {
+		/* mute LO in auto-mode when HP jack is present */
+		if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT ||
+		    spec->automute_lines)
+			on = !spec->hp_present;
+		else
+			on = 1;
+	}
+	do_automute(codec, cfg->line_outs, cfg->line_out_pins, on);
 }
 
 static void cx_auto_hp_automute(struct hda_codec *codec)
@@ -3696,13 +3708,14 @@ static int cx_auto_mux_enum_update(struct hda_codec *codec,
 {
 	struct conexant_spec *spec = codec->spec;
 	hda_nid_t adc;
+	int changed = 1;
 
 	if (!imux->num_items)
 		return 0;
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
 	if (spec->cur_mux[0] == idx)
-		return 0;
+		changed = 0;
 	adc = spec->imux_info[idx].adc;
 	select_input_connection(codec, spec->imux_info[idx].adc,
 				spec->imux_info[idx].pin);
@@ -3715,7 +3728,7 @@ static int cx_auto_mux_enum_update(struct hda_codec *codec,
 					   spec->cur_adc_format);
 	}
 	spec->cur_mux[0] = idx;
-	return 1;
+	return changed;
 }
 
 static int cx_auto_mux_enum_put(struct snd_kcontrol *kcontrol,
@@ -3789,7 +3802,7 @@ static void cx_auto_check_auto_mic(struct hda_codec *codec)
 	int pset[INPUT_PIN_ATTR_NORMAL + 1];
 	int i;
 
-	for (i = 0; i < INPUT_PIN_ATTR_NORMAL; i++)
+	for (i = 0; i < ARRAY_SIZE(pset); i++)
 		pset[i] = -1;
 	for (i = 0; i < spec->private_imux.num_items; i++) {
 		hda_nid_t pin = spec->imux_info[i].pin;

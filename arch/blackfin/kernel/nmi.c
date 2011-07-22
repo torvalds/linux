@@ -145,16 +145,16 @@ int check_nmi_wdt_touched(void)
 {
 	unsigned int this_cpu = smp_processor_id();
 	unsigned int cpu;
+	cpumask_t mask;
 
-	cpumask_t mask = cpu_online_map;
-
+	cpumask_copy(&mask, cpu_online_mask);
 	if (!atomic_read(&nmi_touched[this_cpu]))
 		return 0;
 
 	atomic_set(&nmi_touched[this_cpu], 0);
 
-	cpu_clear(this_cpu, mask);
-	for_each_cpu_mask(cpu, mask) {
+	cpumask_clear_cpu(this_cpu, &mask);
+	for_each_cpu(cpu, &mask) {
 		invalidate_dcache_range((unsigned long)(&nmi_touched[cpu]),
 				(unsigned long)(&nmi_touched[cpu]));
 		if (!atomic_read(&nmi_touched[cpu]))

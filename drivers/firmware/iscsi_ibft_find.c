@@ -108,7 +108,9 @@ done:
  */
 unsigned long __init find_ibft_region(unsigned long *sizep)
 {
+#ifdef CONFIG_ACPI
 	int i;
+#endif
 	ibft_addr = NULL;
 
 #ifdef CONFIG_ACPI

@@ -148,8 +148,6 @@ struct intel_sdvo_connector {
 	int   format_supported_num;
 	struct drm_property *tv_format;
 
-	struct drm_property *force_audio_property;
-
 	/* add the property for the SDVO-TV */
 	struct drm_property *left;
 	struct drm_property *right;
@@ -1712,7 +1710,7 @@ intel_sdvo_set_property(struct drm_connector *connector,
 	if (ret)
 		return ret;
 
-	if (property == intel_sdvo_connector->force_audio_property) {
+	if (property == dev_priv->force_audio_property) {
 		int i = val;
 		bool has_audio;
 
@@ -2037,15 +2035,7 @@ intel_sdvo_add_hdmi_properties(struct intel_sdvo_connector *connector)
 {
 	struct drm_device *dev = connector->base.base.dev;
 
-	connector->force_audio_property =
-		drm_property_create(dev, DRM_MODE_PROP_RANGE, "force_audio", 2);
-	if (connector->force_audio_property) {
-		connector->force_audio_property->values[0] = -1;
-		connector->force_audio_property->values[1] = 1;
-		drm_connector_attach_property(&connector->base.base,
-					      connector->force_audio_property, 0);
-	}
-
+	intel_attach_force_audio_property(&connector->base.base);
 	if (INTEL_INFO(dev)->gen >= 4 && IS_MOBILE(dev))
 		intel_attach_broadcast_rgb_property(&connector->base.base);
 }
@@ -2544,20 +2534,18 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 	if (!intel_sdvo)
 		return false;
 
+	intel_sdvo->sdvo_reg = sdvo_reg;
+	intel_sdvo->slave_addr = intel_sdvo_get_slave_addr(dev, sdvo_reg) >> 1;
+	intel_sdvo_select_i2c_bus(dev_priv, intel_sdvo, sdvo_reg);
 	if (!intel_sdvo_init_ddc_proxy(intel_sdvo, dev)) {
 		kfree(intel_sdvo);
 		return false;
 	}
 
-	intel_sdvo->sdvo_reg = sdvo_reg;
-
+	/* encoder type will be decided later */
 	intel_encoder = &intel_sdvo->base;
 	intel_encoder->type = INTEL_OUTPUT_SDVO;
-	/* encoder type will be decided later */
 	drm_encoder_init(dev, &intel_encoder->base, &intel_sdvo_enc_funcs, 0);
-
-	intel_sdvo->slave_addr = intel_sdvo_get_slave_addr(dev, sdvo_reg) >> 1;
-	intel_sdvo_select_i2c_bus(dev_priv, intel_sdvo, sdvo_reg);
 
 	/* Read the regs to test if we can talk to the device */
 	for (i = 0; i < 0x40; i++) {

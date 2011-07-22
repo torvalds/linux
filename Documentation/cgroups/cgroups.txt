@@ -138,11 +138,11 @@ With the ability to classify tasks differently for different resources
 the admin can easily set up a script which receives exec notifications
 and depending on who is launching the browser he can
 
-       # echo browser_pid > /mnt/<restype>/<userclass>/tasks
+    # echo browser_pid > /sys/fs/cgroup/<restype>/<userclass>/tasks
 
 With only a single hierarchy, he now would potentially have to create
 a separate cgroup for every browser launched and associate it with
-approp network and other resource class.  This may lead to
+appropriate network and other resource class.  This may lead to
 proliferation of such cgroups.
 
 Also lets say that the administrator would like to give enhanced network
@@ -153,9 +153,9 @@ apps enhanced CPU power,
 With ability to write pids directly to resource classes, it's just a
 matter of :
 
-       # echo pid > /mnt/network/<new_class>/tasks
+       # echo pid > /sys/fs/cgroup/network/<new_class>/tasks
        (after some time)
-       # echo pid > /mnt/network/<orig_class>/tasks
+       # echo pid > /sys/fs/cgroup/network/<orig_class>/tasks
 
 Without this ability, he would have to split the cgroup into
 multiple separate ones and then associate the new cgroups with the
@@ -236,7 +236,8 @@ containing the following files describing that cgroup:
  - cgroup.procs: list of tgids in the cgroup.  This list is not
    guaranteed to be sorted or free of duplicate tgids, and userspace
    should sort/uniquify the list if this property is required.
-   This is a read-only file, for now.
+   Writing a thread group id into this file moves all threads in that
+   group into this cgroup.
  - notify_on_release flag: run the release agent on exit?
  - release_agent: the path to use for release notifications (this file
    exists in the top cgroup only)
@@ -309,21 +310,24 @@ subsystem, this is the case for the cpuset.
 To start a new job that is to be contained within a cgroup, using
 the "cpuset" cgroup subsystem, the steps are something like:
 
- 1) mkdir /dev/cgroup
- 2) mount -t cgroup -ocpuset cpuset /dev/cgroup
- 3) Create the new cgroup by doing mkdir's and write's (or echo's) in
-    the /dev/cgroup virtual file system.
- 4) Start a task that will be the "founding father" of the new job.
- 5) Attach that task to the new cgroup by writing its pid to the
-    /dev/cgroup tasks file for that cgroup.
- 6) fork, exec or clone the job tasks from this founding father task.
+ 1) mount -t tmpfs cgroup_root /sys/fs/cgroup
+ 2) mkdir /sys/fs/cgroup/cpuset
+ 3) mount -t cgroup -ocpuset cpuset /sys/fs/cgroup/cpuset
+ 4) Create the new cgroup by doing mkdir's and write's (or echo's) in
+    the /sys/fs/cgroup virtual file system.
+ 5) Start a task that will be the "founding father" of the new job.
+ 6) Attach that task to the new cgroup by writing its pid to the
+    /sys/fs/cgroup/cpuset/tasks file for that cgroup.
+ 7) fork, exec or clone the job tasks from this founding father task.
 
 For example, the following sequence of commands will setup a cgroup
 named "Charlie", containing just CPUs 2 and 3, and Memory Node 1,
 and then start a subshell 'sh' in that cgroup:
 
-  mount -t cgroup cpuset -ocpuset /dev/cgroup
-  cd /dev/cgroup
+  mount -t tmpfs cgroup_root /sys/fs/cgroup
+  mkdir /sys/fs/cgroup/cpuset
+  mount -t cgroup cpuset -ocpuset /sys/fs/cgroup/cpuset
+  cd /sys/fs/cgroup/cpuset
   mkdir Charlie
   cd Charlie
   /bin/echo 2-3 > cpuset.cpus
@@ -344,7 +348,7 @@ Creating, modifying, using the cgroups can be done through the cgroup
 virtual filesystem.
 
 To mount a cgroup hierarchy with all available subsystems, type:
-# mount -t cgroup xxx /dev/cgroup
+# mount -t cgroup xxx /sys/fs/cgroup
 
 The "xxx" is not interpreted by the cgroup code, but will appear in
 /proc/mounts so may be any useful identifying string that you like.
@@ -353,23 +357,32 @@ Note: Some subsystems do not work without some user input first.  For instance,
 if cpusets are enabled the user will have to populate the cpus and mems files
 for each new cgroup created before that group can be used.
 
+As explained in section `1.2 Why are cgroups needed?' you should create
+different hierarchies of cgroups for each single resource or group of
+resources you want to control. Therefore, you should mount a tmpfs on
+/sys/fs/cgroup and create directories for each cgroup resource or resource
+group.
+
+# mount -t tmpfs cgroup_root /sys/fs/cgroup
+# mkdir /sys/fs/cgroup/rg1
+
 To mount a cgroup hierarchy with just the cpuset and memory
 subsystems, type:
-# mount -t cgroup -o cpuset,memory hier1 /dev/cgroup
+# mount -t cgroup -o cpuset,memory hier1 /sys/fs/cgroup/rg1
 
 To change the set of subsystems bound to a mounted hierarchy, just
 remount with different options:
-# mount -o remount,cpuset,blkio hier1 /dev/cgroup
+# mount -o remount,cpuset,blkio hier1 /sys/fs/cgroup/rg1
 
 Now memory is removed from the hierarchy and blkio is added.
 
 Note this will add blkio to the hierarchy but won't remove memory or
 cpuset, because the new options are appended to the old ones:
-# mount -o remount,blkio /dev/cgroup
+# mount -o remount,blkio /sys/fs/cgroup/rg1
 
 To Specify a hierarchy's release_agent:
 # mount -t cgroup -o cpuset,release_agent="/sbin/cpuset_release_agent" \
-  xxx /dev/cgroup
+  xxx /sys/fs/cgroup/rg1
 
 Note that specifying 'release_agent' more than once will return failure.
 
@@ -378,17 +391,17 @@ when the hierarchy consists of a single (root) cgroup. Supporting
 the ability to arbitrarily bind/unbind subsystems from an existing
 cgroup hierarchy is intended to be implemented in the future.
 
-Then under /dev/cgroup you can find a tree that corresponds to the
-tree of the cgroups in the system. For instance, /dev/cgroup
+Then under /sys/fs/cgroup/rg1 you can find a tree that corresponds to the
+tree of the cgroups in the system. For instance, /sys/fs/cgroup/rg1
 is the cgroup that holds the whole system.
 
 If you want to change the value of release_agent:
-# echo "/sbin/new_release_agent" > /dev/cgroup/release_agent
+# echo "/sbin/new_release_agent" > /sys/fs/cgroup/rg1/release_agent
 
 It can also be changed via remount.
 
-If you want to create a new cgroup under /dev/cgroup:
-# cd /dev/cgroup
+If you want to create a new cgroup under /sys/fs/cgroup/rg1:
+# cd /sys/fs/cgroup/rg1
 # mkdir my_cgroup
 
 Now you want to do something with this cgroup.
@@ -429,6 +442,12 @@ If you have several tasks to attach, you have to do it one after another:
 You can attach the current shell task by echoing 0:
 
 # echo 0 > tasks
+
+You can use the cgroup.procs file instead of the tasks file to move all
+threads in a threadgroup at once. Echoing the pid of any task in a
+threadgroup to cgroup.procs causes all tasks in that threadgroup to be
+be attached to the cgroup. Writing 0 to cgroup.procs moves all tasks
+in the writing task's threadgroup.
 
 Note: Since every task is always a member of exactly one cgroup in each
 mounted hierarchy, to remove a task from its current cgroup you must
@@ -575,7 +594,7 @@ rmdir() will fail with it. From this behavior, pre_destroy() can be
 called multiple times against a cgroup.
 
 int can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-	       struct task_struct *task, bool threadgroup)
+	       struct task_struct *task)
 (cgroup_mutex held by caller)
 
 Called prior to moving a task into a cgroup; if the subsystem
@@ -584,9 +603,14 @@ task is passed, then a successful result indicates that *any*
 unspecified task can be moved into the cgroup. Note that this isn't
 called on a fork. If this method returns 0 (success) then this should
 remain valid while the caller holds cgroup_mutex and it is ensured that either
-attach() or cancel_attach() will be called in future. If threadgroup is
-true, then a successful result indicates that all threads in the given
-thread's threadgroup can be moved together.
+attach() or cancel_attach() will be called in future.
+
+int can_attach_task(struct cgroup *cgrp, struct task_struct *tsk);
+(cgroup_mutex held by caller)
+
+As can_attach, but for operations that must be run once per task to be
+attached (possibly many when using cgroup_attach_proc). Called after
+can_attach.
 
 void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
 	       struct task_struct *task, bool threadgroup)
@@ -598,15 +622,24 @@ function, so that the subsystem can implement a rollback. If not, not necessary.
 This will be called only about subsystems whose can_attach() operation have
 succeeded.
 
+void pre_attach(struct cgroup *cgrp);
+(cgroup_mutex held by caller)
+
+For any non-per-thread attachment work that needs to happen before
+attach_task. Needed by cpuset.
+
 void attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-	    struct cgroup *old_cgrp, struct task_struct *task,
-	    bool threadgroup)
+	    struct cgroup *old_cgrp, struct task_struct *task)
 (cgroup_mutex held by caller)
 
 Called after the task has been attached to the cgroup, to allow any
 post-attachment activity that requires memory allocations or blocking.
-If threadgroup is true, the subsystem should take care of all threads
-in the specified thread's threadgroup. Currently does not support any
+
+void attach_task(struct cgroup *cgrp, struct task_struct *tsk);
+(cgroup_mutex held by caller)
+
+As attach, but for operations that must be run once per task to be attached,
+like can_attach_task. Called before attach. Currently does not support any
 subsystem that might need the old_cgrp for every thread in the group.
 
 void fork(struct cgroup_subsy *ss, struct task_struct *task)
@@ -630,7 +663,7 @@ always handled well.
 void post_clone(struct cgroup_subsys *ss, struct cgroup *cgrp)
 (cgroup_mutex held by caller)
 
-Called at the end of cgroup_clone() to do any parameter
+Called during cgroup_create() to do any parameter
 initialization which might be required before a task could attach.  For
 example in cpusets, no task may attach before 'cpus' and 'mems' are set
 up.

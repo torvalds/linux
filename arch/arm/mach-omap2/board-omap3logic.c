@@ -37,6 +37,7 @@
 #include "hsmmc.h"
 #include "timer-gp.h"
 #include "control.h"
+#include "common-board-devices.h"
 
 #include <plat/mux.h>
 #include <plat/board.h>
@@ -93,19 +94,9 @@ static struct twl4030_platform_data omap3logic_twldata = {
 	.vmmc1		= &omap3logic_vmmc1,
 };
 
-static struct i2c_board_info __initdata omap3logic_i2c_boardinfo[] = {
-	{
-		I2C_BOARD_INFO("twl4030", 0x48),
-		.flags = I2C_CLIENT_WAKE,
-		.irq = INT_34XX_SYS_NIRQ,
-		.platform_data = &omap3logic_twldata,
-	},
-};
-
 static int __init omap3logic_i2c_init(void)
 {
-	omap_register_i2c_bus(1, 2600, omap3logic_i2c_boardinfo,
-				ARRAY_SIZE(omap3logic_i2c_boardinfo));
+	omap3_pmic_init("twl4030", &omap3logic_twldata);
 	return 0;
 }
 
@@ -147,7 +138,6 @@ static struct omap_smsc911x_platform_data __initdata board_smsc911x_data = {
 	.cs             = OMAP3LOGIC_SMSC911X_CS,
 	.gpio_irq       = -EINVAL,
 	.gpio_reset     = -EINVAL,
-	.flags          = IORESOURCE_IRQ_LOWLEVEL,
 };
 
 /* TODO/FIXME (comment by Peter Barada, LogicPD):

@@ -2216,7 +2216,6 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 		if (retval != 0) {
 			pr_err("%s: can't get irq %i, err %d\n",
 				driver_name, LUBBOCK_USB_DISC_IRQ, retval);
-lubbock_fail0:
 			goto err_irq_lub;
 		}
 		retval = request_irq(LUBBOCK_USB_IRQ,
@@ -2226,7 +2225,6 @@ lubbock_fail0:
 		if (retval != 0) {
 			pr_err("%s: can't get irq %i, err %d\n",
 				driver_name, LUBBOCK_USB_IRQ, retval);
-			free_irq(LUBBOCK_USB_DISC_IRQ, dev);
 			goto lubbock_fail0;
 		}
 	} else
@@ -2236,10 +2234,11 @@ lubbock_fail0:
 	return 0;
 
 #ifdef	CONFIG_ARCH_LUBBOCK
+lubbock_fail0:
 	free_irq(LUBBOCK_USB_DISC_IRQ, dev);
  err_irq_lub:
-#endif
 	free_irq(irq, dev);
+#endif
  err_irq1:
 	if (gpio_is_valid(dev->mach->gpio_pullup))
 		gpio_free(dev->mach->gpio_pullup);

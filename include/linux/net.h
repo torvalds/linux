@@ -289,11 +289,5 @@ extern int kernel_sock_shutdown(struct socket *sock,
 	MODULE_ALIAS("net-pf-" __stringify(pf) "-proto-" __stringify(proto) \
 		     "-type-" __stringify(type))
 
-#ifdef CONFIG_SYSCTL
-#include <linux/sysctl.h>
-#include <linux/ratelimit.h>
-extern struct ratelimit_state net_ratelimit_state;
-#endif
-
 #endif /* __KERNEL__ */
 #endif	/* _LINUX_NET_H */

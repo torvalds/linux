@@ -376,7 +376,7 @@ void DoCMil_init(struct mtd_info *mtd)
 		this->nextdoc = docmillist;
 		docmillist = mtd;
 		mtd->size  = this->totlen;
-		add_mtd_device(mtd);
+		mtd_device_register(mtd, NULL, 0);
 		return;
 	}
 }
@@ -826,7 +826,7 @@ static void __exit cleanup_doc2001(void)
 		this = mtd->priv;
 		docmillist = this->nextdoc;
 
-		del_mtd_device(mtd);
+		mtd_device_unregister(mtd);
 
 		iounmap(this->virtadr);
 		kfree(this->chips);

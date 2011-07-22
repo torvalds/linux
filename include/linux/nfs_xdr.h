@@ -158,7 +158,6 @@ struct nfs_seqid;
 
 /* nfs41 sessions channel attributes */
 struct nfs4_channel_attrs {
-	u32			headerpadsz;
 	u32			max_rqst_sz;
 	u32			max_resp_sz;
 	u32			max_resp_sz_cached;
@@ -267,6 +266,27 @@ struct nfs4_layoutcommit_data {
 	struct rpc_cred *cred;
 	struct nfs4_layoutcommit_args args;
 	struct nfs4_layoutcommit_res res;
+};
+
+struct nfs4_layoutreturn_args {
+	__u32   layout_type;
+	struct inode *inode;
+	nfs4_stateid stateid;
+	struct nfs4_sequence_args seq_args;
+};
+
+struct nfs4_layoutreturn_res {
+	struct nfs4_sequence_res seq_res;
+	u32 lrs_present;
+	nfs4_stateid stateid;
+};
+
+struct nfs4_layoutreturn {
+	struct nfs4_layoutreturn_args args;
+	struct nfs4_layoutreturn_res res;
+	struct rpc_cred *cred;
+	struct nfs_client *clp;
+	int rpc_status;
 };
 
 /*
@@ -1087,6 +1107,7 @@ struct nfs_read_data {
 	const struct rpc_call_ops *mds_ops;
 	int (*read_done_cb) (struct rpc_task *task, struct nfs_read_data *data);
 	__u64			mds_offset;
+	int			pnfs_error;
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 
@@ -1112,6 +1133,7 @@ struct nfs_write_data {
 	unsigned long		timestamp;	/* For lease renewal */
 #endif
 	__u64			mds_offset;	/* Filelayout dense stripe */
+	int			pnfs_error;
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 

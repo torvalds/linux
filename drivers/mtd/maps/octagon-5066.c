@@ -175,7 +175,7 @@ void cleanup_oct5066(void)
 	int i;
 	for (i=0; i<2; i++) {
 		if (oct5066_mtd[i]) {
-			del_mtd_device(oct5066_mtd[i]);
+			mtd_device_unregister(oct5066_mtd[i]);
 			map_destroy(oct5066_mtd[i]);
 		}
 	}
@@ -220,7 +220,7 @@ static int __init init_oct5066(void)
 			oct5066_mtd[i] = do_map_probe("map_rom", &oct5066_map[i]);
 		if (oct5066_mtd[i]) {
 			oct5066_mtd[i]->owner = THIS_MODULE;
-			add_mtd_device(oct5066_mtd[i]);
+			mtd_device_register(oct5066_mtd[i], NULL, 0);
 		}
 	}
 

@@ -141,7 +141,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_ADD_STA,
 		.flags = flags,
-		.data = data,
+		.data = { data, },
 	};
 	u8 sta_id __maybe_unused = sta->sta.sta_id;
 
@@ -155,7 +155,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 		might_sleep();
 	}
 
-	cmd.len = priv->cfg->ops->utils->build_addsta_hcmd(sta, data);
+	cmd.len[0] = priv->cfg->ops->utils->build_addsta_hcmd(sta, data);
 	ret = iwl_send_cmd(priv, &cmd);
 
 	if (ret || (flags & CMD_ASYNC))
@@ -401,9 +401,9 @@ static int iwl_send_remove_station(struct iwl_priv *priv,
 
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_REMOVE_STA,
-		.len = sizeof(struct iwl_rem_sta_cmd),
+		.len = { sizeof(struct iwl_rem_sta_cmd), },
 		.flags = CMD_SYNC,
-		.data = &rm_sta_cmd,
+		.data = { &rm_sta_cmd, },
 	};
 
 	memset(&rm_sta_cmd, 0, sizeof(rm_sta_cmd));
@@ -760,9 +760,9 @@ int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_TX_LINK_QUALITY_CMD,
-		.len = sizeof(struct iwl_link_quality_cmd),
+		.len = { sizeof(struct iwl_link_quality_cmd), },
 		.flags = flags,
-		.data = lq,
+		.data = { lq, },
 	};
 
 	if (WARN_ON(lq->sta_id == IWL_INVALID_STATION))

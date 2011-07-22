@@ -17,7 +17,6 @@
 #include <linux/leds.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <linux/mfd/core.h>
 #include <linux/mfd/88pm860x.h>
 
 #define LED_PWM_SHIFT		(3)
@@ -171,7 +170,6 @@ static int pm860x_led_probe(struct platform_device *pdev)
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm860x_led_pdata *pdata;
 	struct pm860x_led *data;
-	struct mfd_cell *cell;
 	struct resource *res;
 	int ret;
 
@@ -181,10 +179,7 @@ static int pm860x_led_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	cell = pdev->dev.platform_data;
-	if (cell == NULL)
-		return -ENODEV;
-	pdata = cell->mfd_data;
+	pdata = pdev->dev.platform_data;
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "No platform data!\n");
 		return -EINVAL;

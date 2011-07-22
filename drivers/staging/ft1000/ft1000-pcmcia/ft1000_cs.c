@@ -284,7 +284,7 @@ static int ft1000_resume(struct pcmcia_device *link)
 
 /*====================================================================*/
 
-static struct pcmcia_device_id ft1000_ids[] = {
+static const struct pcmcia_device_id ft1000_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x02cc, 0x0100),
 	PCMCIA_DEVICE_MANF_CARD(0x02cc, 0x1000),
 	PCMCIA_DEVICE_MANF_CARD(0x02cc, 0x1300),

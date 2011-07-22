@@ -25,9 +25,14 @@ static void qla4xxx_copy_sense(struct scsi_qla_host *ha,
 
 	memset(cmd->sense_buffer, 0, SCSI_SENSE_BUFFERSIZE);
 	sense_len = le16_to_cpu(sts_entry->senseDataByteCnt);
-	if (sense_len == 0)
+	if (sense_len == 0) {
+		DEBUG2(ql4_printk(KERN_INFO, ha, "scsi%ld:%d:%d:%d: %s:"
+				  " sense len 0\n", ha->host_no,
+				  cmd->device->channel, cmd->device->id,
+				  cmd->device->lun, __func__));
+		ha->status_srb = NULL;
 		return;
-
+	}
 	/* Save total available sense length,
 	 * not to exceed cmd's sense buffer size */
 	sense_len = min_t(uint16_t, sense_len, SCSI_SENSE_BUFFERSIZE);
@@ -541,6 +546,7 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 		case MBOX_ASTS_UNSOLICITED_PDU_RECEIVED:  /* Connection mode */
 		case MBOX_ASTS_IPSEC_SYSTEM_FATAL_ERROR:
 		case MBOX_ASTS_SUBNET_STATE_CHANGE:
+		case MBOX_ASTS_DUPLICATE_IP:
 			/* No action */
 			DEBUG2(printk("scsi%ld: AEN %04x\n", ha->host_no,
 				      mbox_status));
@@ -593,11 +599,13 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 					    mbox_sts[i];
 
 				/* print debug message */
-				DEBUG2(printk("scsi%ld: AEN[%d] %04x queued"
-				    " mb1:0x%x mb2:0x%x mb3:0x%x mb4:0x%x\n",
-				    ha->host_no, ha->aen_in, mbox_sts[0],
-				    mbox_sts[1], mbox_sts[2],  mbox_sts[3],
-				    mbox_sts[4]));
+				DEBUG2(printk("scsi%ld: AEN[%d] %04x queued "
+					      "mb1:0x%x mb2:0x%x mb3:0x%x "
+					      "mb4:0x%x mb5:0x%x\n",
+					      ha->host_no, ha->aen_in,
+					      mbox_sts[0], mbox_sts[1],
+					      mbox_sts[2], mbox_sts[3],
+					      mbox_sts[4], mbox_sts[5]));
 
 				/* advance pointer */
 				ha->aen_in++;

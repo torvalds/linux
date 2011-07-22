@@ -164,19 +164,6 @@ fail1:
 }
 
 /*
- * complete_edac_pci_list_del
- *
- *	RCU completion callback to indicate item is deleted
- */
-static void complete_edac_pci_list_del(struct rcu_head *head)
-{
-	struct edac_pci_ctl_info *pci;
-
-	pci = container_of(head, struct edac_pci_ctl_info, rcu);
-	INIT_LIST_HEAD(&pci->link);
-}
-
-/*
  * del_edac_pci_from_global_list
  *
  *	remove the PCI control struct from the global list
@@ -184,8 +171,12 @@ static void complete_edac_pci_list_del(struct rcu_head *head)
 static void del_edac_pci_from_global_list(struct edac_pci_ctl_info *pci)
 {
 	list_del_rcu(&pci->link);
-	call_rcu(&pci->rcu, complete_edac_pci_list_del);
-	rcu_barrier();
+
+	/* these are for safe removal of devices from global list while
+	 * NMI handlers may be traversing list
+	 */
+	synchronize_rcu();
+	INIT_LIST_HEAD(&pci->link);
 }
 
 #if 0

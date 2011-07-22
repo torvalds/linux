@@ -11,7 +11,6 @@
  *  Linux/m68k support by Hamish Macdonald
  */
 
-#include <linux/sys.h>
 #include <linux/linkage.h>
 
 #ifndef CONFIG_MMU
@@ -365,4 +364,5 @@ ENTRY(sys_call_table)
 	.long sys_open_by_handle_at
 	.long sys_clock_adjtime
 	.long sys_syncfs
+	.long sys_setns
 

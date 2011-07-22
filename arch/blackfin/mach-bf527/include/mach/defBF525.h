@@ -185,8 +185,8 @@
 #define                USB_EP_NI7_TXTYPE  0xffc03bd4   /* Sets the transaction protocol and peripheral endpoint number for the Host Tx endpoint7 */
 #define            USB_EP_NI7_TXINTERVAL  0xffc03bd8   /* Sets the NAK response timeout on Endpoint7 */
 #define                USB_EP_NI7_RXTYPE  0xffc03bdc   /* Sets the transaction protocol and peripheral endpoint number for the Host Rx endpoint7 */
-#define            USB_EP_NI7_RXINTERVAL  0xffc03bf0   /* Sets the polling interval for Interrupt/Isochronous transfers or the NAK response timeout on Bulk transfers for Host Rx endpoint7 */
-#define               USB_EP_NI7_TXCOUNT  0xffc03bf8   /* Number of bytes to be written to the endpoint7 Tx FIFO */
+#define            USB_EP_NI7_RXINTERVAL  0xffc03be0   /* Sets the polling interval for Interrupt/Isochronous transfers or the NAK response timeout on Bulk transfers for Host Rx endpoint7 */
+#define               USB_EP_NI7_TXCOUNT  0xffc03be8   /* Number of bytes to be written to the endpoint7 Tx FIFO */
 
 #define                USB_DMA_INTERRUPT  0xffc03c00   /* Indicates pending interrupts for the DMA channels */
 

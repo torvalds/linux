@@ -767,7 +767,7 @@ ip_set_destroy(struct sock *ctnl, struct sk_buff *skb,
 	if (!attr[IPSET_ATTR_SETNAME]) {
 		for (i = 0; i < ip_set_max; i++) {
 			if (ip_set_list[i] != NULL && ip_set_list[i]->ref) {
-				ret = IPSET_ERR_BUSY;
+				ret = -IPSET_ERR_BUSY;
 				goto out;
 			}
 		}
@@ -815,7 +815,7 @@ ip_set_flush(struct sock *ctnl, struct sk_buff *skb,
 	ip_set_id_t i;
 
 	if (unlikely(protocol_failed(attr)))
-		return -EPROTO;
+		return -IPSET_ERR_PROTOCOL;
 
 	if (!attr[IPSET_ATTR_SETNAME]) {
 		for (i = 0; i < ip_set_max; i++)

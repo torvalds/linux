@@ -59,6 +59,10 @@ scsi_trace_rw10(struct trace_seq *p, unsigned char *cdb, int len)
 	trace_seq_printf(p, "lba=%llu txlen=%llu protect=%u",
 			 (unsigned long long)lba, (unsigned long long)txlen,
 			 cdb[1] >> 5);
+
+	if (cdb[0] == WRITE_SAME)
+		trace_seq_printf(p, " unmap=%u", cdb[1] >> 3 & 1);
+
 	trace_seq_putc(p, 0);
 
 	return ret;

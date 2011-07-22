@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008-2009 Atheros Communications Inc.
+ * Copyright (c) 2008-2011 Atheros Communications Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,6 +17,12 @@
 #include "ath9k.h"
 
 #define FUDGE 2
+
+static void ath9k_reset_beacon_status(struct ath_softc *sc)
+{
+	sc->beacon.tx_processed = false;
+	sc->beacon.tx_last = false;
+}
 
 /*
  *  This function will modify certain transmit queue properties depending on
@@ -71,6 +77,8 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	int flags, ctsrate = 0, ctsduration = 0;
 	struct ieee80211_supported_band *sband;
 	u8 rate = 0;
+
+	ath9k_reset_beacon_status(sc);
 
 	ds = bf->bf_desc;
 	flags = ATH9K_TXDESC_NOACK;
@@ -133,6 +141,8 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 	struct ath_txq *cabq;
 	struct ieee80211_tx_info *info;
 	int cabq_depth;
+
+	ath9k_reset_beacon_status(sc);
 
 	avp = (void *)vif->drv_priv;
 	cabq = sc->beacon.cabq;
@@ -351,9 +361,7 @@ void ath_beacon_tasklet(unsigned long data)
 	struct ath_buf *bf = NULL;
 	struct ieee80211_vif *vif;
 	int slot;
-	u32 bfaddr, bc = 0, tsftu;
-	u64 tsf;
-	u16 intval;
+	u32 bfaddr, bc = 0;
 
 	/*
 	 * Check if the previous beacon has gone out.  If
@@ -388,17 +396,27 @@ void ath_beacon_tasklet(unsigned long data)
 	 * on the tsf to safeguard against missing an swba.
 	 */
 
-	intval = cur_conf->beacon_interval ? : ATH_DEFAULT_BINTVAL;
 
-	tsf = ath9k_hw_gettsf64(ah);
-	tsf += TU_TO_USEC(ah->config.sw_beacon_response_time);
-	tsftu = TSF_TO_TU((tsf * ATH_BCBUF) >>32, tsf * ATH_BCBUF);
-	slot = (tsftu % (intval * ATH_BCBUF)) / intval;
-	vif = sc->beacon.bslot[slot];
+	if (ah->opmode == NL80211_IFTYPE_AP) {
+		u16 intval;
+		u32 tsftu;
+		u64 tsf;
 
-	ath_dbg(common, ATH_DBG_BEACON,
-		"slot %d [tsf %llu tsftu %u intval %u] vif %p\n",
-		slot, tsf, tsftu / ATH_BCBUF, intval, vif);
+		intval = cur_conf->beacon_interval ? : ATH_DEFAULT_BINTVAL;
+		tsf = ath9k_hw_gettsf64(ah);
+		tsf += TU_TO_USEC(ah->config.sw_beacon_response_time);
+		tsftu = TSF_TO_TU((tsf * ATH_BCBUF) >>32, tsf * ATH_BCBUF);
+		slot = (tsftu % (intval * ATH_BCBUF)) / intval;
+		vif = sc->beacon.bslot[slot];
+
+		ath_dbg(common, ATH_DBG_BEACON,
+			"slot %d [tsf %llu tsftu %u intval %u] vif %p\n",
+			slot, tsf, tsftu / ATH_BCBUF, intval, vif);
+	} else {
+		slot = 0;
+		vif = sc->beacon.bslot[slot];
+	}
+
 
 	bfaddr = 0;
 	if (vif) {
@@ -636,6 +654,8 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 tsf, delta, intval, nexttbtt;
 
+	ath9k_reset_beacon_status(sc);
+
 	tsf = ath9k_hw_gettsf32(ah) + TU_TO_USEC(FUDGE);
 	intval = TU_TO_USEC(conf->beacon_interval & ATH9K_BEACON_PERIOD);
 
@@ -646,7 +666,7 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 			delta = (tsf - sc->beacon.bc_tstamp);
 		else
 			delta = (tsf + 1 + (~0U - sc->beacon.bc_tstamp));
-		nexttbtt = tsf + roundup(delta, intval);
+		nexttbtt = tsf + intval - (delta % intval);
 	}
 
 	ath_dbg(common, ATH_DBG_BEACON,

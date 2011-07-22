@@ -205,10 +205,10 @@ int mei_hw_init(struct mei_device *dev)
 			"host_hw_state = 0x%08x, me_hw_state = 0x%08x.\n",
 			dev->host_hw_state, dev->me_hw_state);
 
-		if (!(dev->host_hw_state & H_RDY) != H_RDY)
+		if (!(dev->host_hw_state & H_RDY))
 			dev_dbg(&dev->pdev->dev, "host turn off H_RDY.\n");
 
-		if (!(dev->me_hw_state & ME_RDY_HRA) != ME_RDY_HRA)
+		if (!(dev->me_hw_state & ME_RDY_HRA))
 			dev_dbg(&dev->pdev->dev, "ME turn off ME_RDY.\n");
 
 		printk(KERN_ERR "mei: link layer initialization failed.\n");

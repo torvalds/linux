@@ -135,12 +135,12 @@ static int ecryptfs_init_lower_file(struct dentry *dentry,
 	return rc;
 }
 
-int ecryptfs_get_lower_file(struct dentry *dentry)
+int ecryptfs_get_lower_file(struct dentry *dentry, struct inode *inode)
 {
-	struct ecryptfs_inode_info *inode_info =
-		ecryptfs_inode_to_private(dentry->d_inode);
+	struct ecryptfs_inode_info *inode_info;
 	int count, rc = 0;
 
+	inode_info = ecryptfs_inode_to_private(inode);
 	mutex_lock(&inode_info->lower_file_mutex);
 	count = atomic_inc_return(&inode_info->lower_file_count);
 	if (WARN_ON_ONCE(count < 1))
@@ -166,75 +166,6 @@ void ecryptfs_put_lower_file(struct inode *inode)
 		inode_info->lower_file = NULL;
 		mutex_unlock(&inode_info->lower_file_mutex);
 	}
-}
-
-static struct inode *ecryptfs_get_inode(struct inode *lower_inode,
-		       struct super_block *sb)
-{
-	struct inode *inode;
-	int rc = 0;
-
-	if (lower_inode->i_sb != ecryptfs_superblock_to_lower(sb)) {
-		rc = -EXDEV;
-		goto out;
-	}
-	if (!igrab(lower_inode)) {
-		rc = -ESTALE;
-		goto out;
-	}
-	inode = iget5_locked(sb, (unsigned long)lower_inode,
-			     ecryptfs_inode_test, ecryptfs_inode_set,
-			     lower_inode);
-	if (!inode) {
-		rc = -EACCES;
-		iput(lower_inode);
-		goto out;
-	}
-	if (inode->i_state & I_NEW)
-		unlock_new_inode(inode);
-	else
-		iput(lower_inode);
-	if (S_ISLNK(lower_inode->i_mode))
-		inode->i_op = &ecryptfs_symlink_iops;
-	else if (S_ISDIR(lower_inode->i_mode))
-		inode->i_op = &ecryptfs_dir_iops;
-	if (S_ISDIR(lower_inode->i_mode))
-		inode->i_fop = &ecryptfs_dir_fops;
-	if (special_file(lower_inode->i_mode))
-		init_special_inode(inode, lower_inode->i_mode,
-				   lower_inode->i_rdev);
-	fsstack_copy_attr_all(inode, lower_inode);
-	/* This size will be overwritten for real files w/ headers and
-	 * other metadata */
-	fsstack_copy_inode_size(inode, lower_inode);
-	return inode;
-out:
-	return ERR_PTR(rc);
-}
-
-/**
- * ecryptfs_interpose
- * @lower_dentry: Existing dentry in the lower filesystem
- * @dentry: ecryptfs' dentry
- * @sb: ecryptfs's super_block
- * @flags: flags to govern behavior of interpose procedure
- *
- * Interposes upper and lower dentries.
- *
- * Returns zero on success; non-zero otherwise
- */
-int ecryptfs_interpose(struct dentry *lower_dentry, struct dentry *dentry,
-		       struct super_block *sb, u32 flags)
-{
-	struct inode *lower_inode = lower_dentry->d_inode;
-	struct inode *inode = ecryptfs_get_inode(lower_inode, sb);
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
-	if (flags & ECRYPTFS_INTERPOSE_FLAG_D_ADD)
-		d_add(dentry, inode);
-	else
-		d_instantiate(dentry, inode);
-	return 0;
 }
 
 enum { ecryptfs_opt_sig, ecryptfs_opt_ecryptfs_sig,
@@ -704,13 +635,8 @@ static struct ecryptfs_cache_info {
 		.size = sizeof(struct ecryptfs_sb_info),
 	},
 	{
-		.cache = &ecryptfs_header_cache_1,
-		.name = "ecryptfs_headers_1",
-		.size = PAGE_CACHE_SIZE,
-	},
-	{
-		.cache = &ecryptfs_header_cache_2,
-		.name = "ecryptfs_headers_2",
+		.cache = &ecryptfs_header_cache,
+		.name = "ecryptfs_headers",
 		.size = PAGE_CACHE_SIZE,
 	},
 	{

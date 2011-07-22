@@ -159,8 +159,16 @@ nouveau_volt_init(struct drm_device *dev)
 		headerlen = volt[1];
 		recordlen = volt[2];
 		entries   = volt[3];
-		vidshift  = hweight8(volt[5]);
 		vidmask   = volt[4];
+		/* no longer certain what volt[5] is, if it's related to
+		 * the vid shift then it's definitely not a function of
+		 * how many bits are set.
+		 *
+		 * after looking at a number of nva3+ vbios images, they
+		 * all seem likely to have a static shift of 2.. lets
+		 * go with that for now until proven otherwise.
+		 */
+		vidshift  = 2;
 		break;
 	default:
 		NV_WARN(dev, "voltage table 0x%02x unknown\n", volt[0]);

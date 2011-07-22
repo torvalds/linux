@@ -154,7 +154,7 @@ config MMC_SDHCI_DOVE
 	  If unsure, say N.
 
 config MMC_SDHCI_TEGRA
-	tristate "SDHCI platform support for the Tegra SD/MMC Controller"
+	bool "SDHCI platform support for the Tegra SD/MMC Controller"
 	depends on MMC_SDHCI_PLTFM && ARCH_TEGRA
 	select MMC_SDHCI_IO_ACCESSORS
 	help
@@ -534,6 +534,37 @@ config MMC_JZ4740
 	  SoCs.
 	  If you have a board based on such a SoC and with a SD/MMC slot,
 	  say Y or M here.
+
+config MMC_VUB300
+	tristate "VUB300 USB to SDIO/SD/MMC Host Controller support"
+	depends on USB
+	help
+	  This selects support for Elan Digital Systems' VUB300 chip.
+
+	  The VUB300 is a USB-SDIO Host Controller Interface chip
+	  that enables the host computer to use SDIO/SD/MMC cards
+	  via a USB 2.0 or USB 1.1 host.
+
+	  The VUB300 chip will be found in both physically separate
+	  USB to SDIO/SD/MMC adapters and embedded on some motherboards.
+
+	  The VUB300 chip supports SD and MMC memory cards in addition
+	  to single and multifunction SDIO cards.
+
+	  Some SDIO cards will need a firmware file to be loaded and
+	  sent to VUB300 chip in order to achieve better data throughput.
+	  Download these "Offload Pseudocode" from Elan Digital Systems'
+	  web-site http://www.elandigitalsystems.com/support/downloads.php
+	  and put them in /lib/firmware. Note that without these additional
+	  firmware files the VUB300 chip will still function, but not at
+	  the best obtainable data rate.
+
+	  To compile this mmc host controller driver as a module,
+	  choose M here: the module will be called vub300.
+
+	  If you have a computer with an embedded VUB300 chip
+	  or if you intend connecting a USB adapter based on a
+	  VUB300 chip say Y or M here.
 
 config MMC_USHC
 	tristate "USB SD Host Controller (USHC) support"

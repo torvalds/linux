@@ -23,6 +23,10 @@
 #define SD1_DVM_SHIFT		5		/* SDCTL1 bit5 */
 #define SD1_DVM_EN		6		/* SDV1 bit 6 */
 
+/* bit definitions in SD & LDO control registers */
+#define OUT_ENABLE   		0x1f		/* Power U/D sequence as I2C */
+#define OUT_DISABLE		0x1e		/* Power U/D sequence as I2C */
+
 struct max8925_regulator_info {
 	struct regulator_desc	desc;
 	struct regulator_dev	*regulator;
@@ -93,8 +97,8 @@ static int max8925_enable(struct regulator_dev *rdev)
 	struct max8925_regulator_info *info = rdev_get_drvdata(rdev);
 
 	return max8925_set_bits(info->i2c, info->enable_reg,
-				1 << info->enable_bit,
-				1 << info->enable_bit);
+				OUT_ENABLE << info->enable_bit,
+				OUT_ENABLE << info->enable_bit);
 }
 
 static int max8925_disable(struct regulator_dev *rdev)
@@ -102,7 +106,8 @@ static int max8925_disable(struct regulator_dev *rdev)
 	struct max8925_regulator_info *info = rdev_get_drvdata(rdev);
 
 	return max8925_set_bits(info->i2c, info->enable_reg,
-				1 << info->enable_bit, 0);
+				OUT_ENABLE << info->enable_bit,
+				OUT_DISABLE << info->enable_bit);
 }
 
 static int max8925_is_enabled(struct regulator_dev *rdev)

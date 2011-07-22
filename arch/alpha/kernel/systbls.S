@@ -519,6 +519,7 @@ sys_call_table:
 	.quad sys_open_by_handle_at
 	.quad sys_clock_adjtime
 	.quad sys_syncfs			/* 500 */
+	.quad sys_setns
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object

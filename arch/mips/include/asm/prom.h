@@ -14,9 +14,6 @@
 #ifdef CONFIG_OF
 #include <asm/bootinfo.h>
 
-/* which is compatible with the flattened device tree (FDT) */
-#define cmd_line arcs_cmdline
-
 extern int early_init_dt_scan_memory_arch(unsigned long node,
 	const char *uname, int depth, void *data);
 

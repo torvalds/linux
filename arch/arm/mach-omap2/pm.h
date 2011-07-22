@@ -36,11 +36,16 @@ static inline int omap4_opp_init(void)
 }
 #endif
 
+/*
+ * cpuidle mach specific parameters
+ *
+ * The board code can override the default C-states definition using
+ * omap3_pm_init_cpuidle
+ */
 struct cpuidle_params {
-	u8  valid;
-	u32 sleep_latency;
-	u32 wake_latency;
-	u32 threshold;
+	u32 exit_latency;	/* exit_latency = sleep + wake-up latencies */
+	u32 target_residency;
+	u8 valid;		/* validates the C-state */
 };
 
 #if defined(CONFIG_PM) && defined(CONFIG_CPU_IDLE)
@@ -71,10 +76,6 @@ extern u32 sleep_while_idle;
 #define omap2_pm_debug				0
 #define enable_off_mode 0
 #define sleep_while_idle 0
-#endif
-
-#if defined(CONFIG_CPU_IDLE)
-extern void omap3_cpuidle_update_states(u32, u32);
 #endif
 
 #if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)

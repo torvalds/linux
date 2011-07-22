@@ -62,8 +62,7 @@ static inline struct dev_cgroup *task_devcgroup(struct task_struct *task)
 struct cgroup_subsys devices_subsys;
 
 static int devcgroup_can_attach(struct cgroup_subsys *ss,
-		struct cgroup *new_cgroup, struct task_struct *task,
-		bool threadgroup)
+		struct cgroup *new_cgroup, struct task_struct *task)
 {
 	if (current != task && !capable(CAP_SYS_ADMIN))
 			return -EPERM;
@@ -475,16 +474,10 @@ struct cgroup_subsys devices_subsys = {
 	.subsys_id = devices_subsys_id,
 };
 
-int devcgroup_inode_permission(struct inode *inode, int mask)
+int __devcgroup_inode_permission(struct inode *inode, int mask)
 {
 	struct dev_cgroup *dev_cgroup;
 	struct dev_whitelist_item *wh;
-
-	dev_t device = inode->i_rdev;
-	if (!device)
-		return 0;
-	if (!S_ISBLK(inode->i_mode) && !S_ISCHR(inode->i_mode))
-		return 0;
 
 	rcu_read_lock();
 

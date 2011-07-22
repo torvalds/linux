@@ -76,8 +76,8 @@ static int twl6030_interrupt_mapping[24] = {
 	USBOTG_INTR_OFFSET,	/* Bit 18	ID			*/
 	USB_PRES_INTR_OFFSET,	/* Bit 19	VBUS			*/
 	CHARGER_INTR_OFFSET,	/* Bit 20	CHRG_CTRL		*/
-	CHARGER_INTR_OFFSET,	/* Bit 21	EXT_CHRG		*/
-	CHARGER_INTR_OFFSET,	/* Bit 22	INT_CHRG		*/
+	CHARGERFAULT_INTR_OFFSET,	/* Bit 21	EXT_CHRG	*/
+	CHARGERFAULT_INTR_OFFSET,	/* Bit 22	INT_CHRG	*/
 	RSV_INTR_OFFSET,	/* Bit 23	Reserved		*/
 };
 /*----------------------------------------------------------------------*/

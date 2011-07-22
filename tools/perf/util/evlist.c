@@ -12,7 +12,6 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "util.h"
-#include "debug.h"
 
 #include <sys/mman.h>
 
@@ -257,19 +256,15 @@ int perf_evlist__alloc_mmap(struct perf_evlist *evlist)
 	return evlist->mmap != NULL ? 0 : -ENOMEM;
 }
 
-static int __perf_evlist__mmap(struct perf_evlist *evlist, struct perf_evsel *evsel,
+static int __perf_evlist__mmap(struct perf_evlist *evlist,
 			       int idx, int prot, int mask, int fd)
 {
 	evlist->mmap[idx].prev = 0;
 	evlist->mmap[idx].mask = mask;
 	evlist->mmap[idx].base = mmap(NULL, evlist->mmap_len, prot,
 				      MAP_SHARED, fd, 0);
-	if (evlist->mmap[idx].base == MAP_FAILED) {
-		if (evlist->cpus->map[idx] == -1 && evsel->attr.inherit)
-			ui__warning("Inherit is not allowed on per-task "
-				    "events using mmap.\n");
+	if (evlist->mmap[idx].base == MAP_FAILED)
 		return -1;
-	}
 
 	perf_evlist__add_pollfd(evlist, fd);
 	return 0;
@@ -289,7 +284,7 @@ static int perf_evlist__mmap_per_cpu(struct perf_evlist *evlist, int prot, int m
 
 				if (output == -1) {
 					output = fd;
-					if (__perf_evlist__mmap(evlist, evsel, cpu,
+					if (__perf_evlist__mmap(evlist, cpu,
 								prot, mask, output) < 0)
 						goto out_unmap;
 				} else {
@@ -329,7 +324,7 @@ static int perf_evlist__mmap_per_thread(struct perf_evlist *evlist, int prot, in
 
 			if (output == -1) {
 				output = fd;
-				if (__perf_evlist__mmap(evlist, evsel, thread,
+				if (__perf_evlist__mmap(evlist, thread,
 							prot, mask, output) < 0)
 					goto out_unmap;
 			} else {
@@ -460,33 +455,46 @@ int perf_evlist__set_filters(struct perf_evlist *evlist)
 	return 0;
 }
 
-u64 perf_evlist__sample_type(struct perf_evlist *evlist)
+bool perf_evlist__valid_sample_type(const struct perf_evlist *evlist)
 {
-	struct perf_evsel *pos;
-	u64 type = 0;
+	struct perf_evsel *pos, *first;
 
-	list_for_each_entry(pos, &evlist->entries, node) {
-		if (!type)
-			type = pos->attr.sample_type;
-		else if (type != pos->attr.sample_type)
-			die("non matching sample_type");
+	pos = first = list_entry(evlist->entries.next, struct perf_evsel, node);
+
+	list_for_each_entry_continue(pos, &evlist->entries, node) {
+		if (first->attr.sample_type != pos->attr.sample_type)
+			return false;
 	}
 
-	return type;
+	return true;
+}
+
+u64 perf_evlist__sample_type(const struct perf_evlist *evlist)
+{
+	struct perf_evsel *first;
+
+	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+	return first->attr.sample_type;
+}
+
+bool perf_evlist__valid_sample_id_all(const struct perf_evlist *evlist)
+{
+	struct perf_evsel *pos, *first;
+
+	pos = first = list_entry(evlist->entries.next, struct perf_evsel, node);
+
+	list_for_each_entry_continue(pos, &evlist->entries, node) {
+		if (first->attr.sample_id_all != pos->attr.sample_id_all)
+			return false;
+	}
+
+	return true;
 }
 
 bool perf_evlist__sample_id_all(const struct perf_evlist *evlist)
 {
-	bool value = false, first = true;
-	struct perf_evsel *pos;
+	struct perf_evsel *first;
 
-	list_for_each_entry(pos, &evlist->entries, node) {
-		if (first) {
-			value = pos->attr.sample_id_all;
-			first = false;
-		} else if (value != pos->attr.sample_id_all)
-			die("non matching sample_id_all");
-	}
-
-	return value;
+	first = list_entry(evlist->entries.next, struct perf_evsel, node);
+	return first->attr.sample_id_all;
 }

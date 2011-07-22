@@ -355,29 +355,24 @@ static void hci_uart_tty_wakeup(struct tty_struct *tty)
  *             flags        pointer to flags for data
  *             count        count of received data in bytes
  *     
- * Return Value:    Number of bytes received
+ * Return Value:    None
  */
-static unsigned int hci_uart_tty_receive(struct tty_struct *tty,
-		const u8 *data, char *flags, int count)
+static void hci_uart_tty_receive(struct tty_struct *tty, const u8 *data, char *flags, int count)
 {
 	struct hci_uart *hu = (void *)tty->disc_data;
-	int received;
 
 	if (!hu || tty != hu->tty)
-		return -ENODEV;
+		return;
 
 	if (!test_bit(HCI_UART_PROTO_SET, &hu->flags))
-		return -EINVAL;
+		return;
 
 	spin_lock(&hu->rx_lock);
-	received = hu->proto->recv(hu, (void *) data, count);
-	if (received > 0)
-		hu->hdev->stat.byte_rx += received;
+	hu->proto->recv(hu, (void *) data, count);
+	hu->hdev->stat.byte_rx += count;
 	spin_unlock(&hu->rx_lock);
 
 	tty_unthrottle(tty);
-
-	return received;
 }
 
 static int hci_uart_register_dev(struct hci_uart *hu)

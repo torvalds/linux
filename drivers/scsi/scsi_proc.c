@@ -381,11 +381,6 @@ static ssize_t proc_scsi_write(struct file *file, const char __user *buf,
 	return err;
 }
 
-/**
- * proc_scsi_show - show contents of /proc/scsi/scsi (attached devices)
- * @s: output goes here
- * @p: not used
- */
 static int always_match(struct device *dev, void *data)
 {
 	return 1;

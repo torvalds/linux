@@ -21,7 +21,7 @@ static void cfq_dtor(struct io_context *ioc)
 	if (!hlist_empty(&ioc->cic_list)) {
 		struct cfq_io_context *cic;
 
-		cic = list_entry(ioc->cic_list.first, struct cfq_io_context,
+		cic = hlist_entry(ioc->cic_list.first, struct cfq_io_context,
 								cic_list);
 		cic->dtor(ioc);
 	}
@@ -57,7 +57,7 @@ static void cfq_exit(struct io_context *ioc)
 	if (!hlist_empty(&ioc->cic_list)) {
 		struct cfq_io_context *cic;
 
-		cic = list_entry(ioc->cic_list.first, struct cfq_io_context,
+		cic = hlist_entry(ioc->cic_list.first, struct cfq_io_context,
 								cic_list);
 		cic->exit(ioc);
 	}
@@ -96,6 +96,9 @@ struct io_context *alloc_io_context(gfp_t gfp_flags, int node)
 		INIT_RADIX_TREE(&ret->radix_root, GFP_ATOMIC | __GFP_HIGH);
 		INIT_HLIST_HEAD(&ret->cic_list);
 		ret->ioc_data = NULL;
+#if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
+		ret->cgroup_changed = 0;
+#endif
 	}
 
 	return ret;

@@ -425,17 +425,16 @@ static void slc_setup(struct net_device *dev)
  * in parallel
  */
 
-static unsigned int slcan_receive_buf(struct tty_struct *tty,
+static void slcan_receive_buf(struct tty_struct *tty,
 			      const unsigned char *cp, char *fp, int count)
 {
 	struct slcan *sl = (struct slcan *) tty->disc_data;
-	int bytes = count;
 
 	if (!sl || sl->magic != SLCAN_MAGIC || !netif_running(sl->dev))
-		return -ENODEV;
+		return;
 
 	/* Read the characters out of the buffer */
-	while (bytes--) {
+	while (count--) {
 		if (fp && *fp++) {
 			if (!test_and_set_bit(SLF_ERROR, &sl->flags))
 				sl->dev->stats.rx_errors++;
@@ -444,8 +443,6 @@ static unsigned int slcan_receive_buf(struct tty_struct *tty,
 		}
 		slcan_unesc(sl, *cp++);
 	}
-
-	return count;
 }
 
 /************************************

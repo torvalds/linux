@@ -1533,6 +1533,31 @@ static void __exit usb_exit(void)
 module_init(usb_init);
 module_exit(usb_exit);
 
+static int zd_ep_regs_out_msg(struct usb_device *udev, void *data, int len,
+			      int *actual_length, int timeout)
+{
+	/* In USB 2.0 mode EP_REGS_OUT endpoint is interrupt type. However in
+	 * USB 1.1 mode endpoint is bulk. Select correct type URB by endpoint
+	 * descriptor.
+	 */
+	struct usb_host_endpoint *ep;
+	unsigned int pipe;
+
+	pipe = usb_sndintpipe(udev, EP_REGS_OUT);
+	ep = usb_pipe_endpoint(udev, pipe);
+	if (!ep)
+		return -EINVAL;
+
+	if (usb_endpoint_xfer_int(&ep->desc)) {
+		return usb_interrupt_msg(udev, pipe, data, len,
+					 actual_length, timeout);
+	} else {
+		pipe = usb_sndbulkpipe(udev, EP_REGS_OUT);
+		return usb_bulk_msg(udev, pipe, data, len, actual_length,
+				    timeout);
+	}
+}
+
 static int usb_int_regs_length(unsigned int count)
 {
 	return sizeof(struct usb_int_regs) + count * sizeof(struct reg_data);
@@ -1648,15 +1673,14 @@ int zd_usb_ioread16v(struct zd_usb *usb, u16 *values,
 
 	udev = zd_usb_to_usbdev(usb);
 	prepare_read_regs_int(usb);
-	r = usb_interrupt_msg(udev, usb_sndintpipe(udev, EP_REGS_OUT),
-			      req, req_len, &actual_req_len, 50 /* ms */);
+	r = zd_ep_regs_out_msg(udev, req, req_len, &actual_req_len, 50 /*ms*/);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_interrupt_msg(). Error number %d\n", r);
+			"error in zd_ep_regs_out_msg(). Error number %d\n", r);
 		goto error;
 	}
 	if (req_len != actual_req_len) {
-		dev_dbg_f(zd_usb_dev(usb), "error in usb_interrupt_msg()\n"
+		dev_dbg_f(zd_usb_dev(usb), "error in zd_ep_regs_out_msg()\n"
 			" req_len %d != actual_req_len %d\n",
 			req_len, actual_req_len);
 		r = -EIO;
@@ -1818,9 +1842,17 @@ int zd_usb_iowrite16v_async(struct zd_usb *usb, const struct zd_ioreq16 *ioreqs,
 		rw->value = cpu_to_le16(ioreqs[i].value);
 	}
 
-	usb_fill_int_urb(urb, udev, usb_sndintpipe(udev, EP_REGS_OUT),
-			 req, req_len, iowrite16v_urb_complete, usb,
-			 ep->desc.bInterval);
+	/* In USB 2.0 mode endpoint is interrupt type. However in USB 1.1 mode
+	 * endpoint is bulk. Select correct type URB by endpoint descriptor.
+	 */
+	if (usb_endpoint_xfer_int(&ep->desc))
+		usb_fill_int_urb(urb, udev, usb_sndintpipe(udev, EP_REGS_OUT),
+				 req, req_len, iowrite16v_urb_complete, usb,
+				 ep->desc.bInterval);
+	else
+		usb_fill_bulk_urb(urb, udev, usb_sndbulkpipe(udev, EP_REGS_OUT),
+				  req, req_len, iowrite16v_urb_complete, usb);
+
 	urb->transfer_flags |= URB_FREE_BUFFER;
 
 	/* Submit previous URB */
@@ -1924,15 +1956,14 @@ int zd_usb_rfwrite(struct zd_usb *usb, u32 value, u8 bits)
 	}
 
 	udev = zd_usb_to_usbdev(usb);
-	r = usb_interrupt_msg(udev, usb_sndintpipe(udev, EP_REGS_OUT),
-			      req, req_len, &actual_req_len, 50 /* ms */);
+	r = zd_ep_regs_out_msg(udev, req, req_len, &actual_req_len, 50 /*ms*/);
 	if (r) {
 		dev_dbg_f(zd_usb_dev(usb),
-			"error in usb_interrupt_msg(). Error number %d\n", r);
+			"error in zd_ep_regs_out_msg(). Error number %d\n", r);
 		goto out;
 	}
 	if (req_len != actual_req_len) {
-		dev_dbg_f(zd_usb_dev(usb), "error in usb_interrupt_msg()"
+		dev_dbg_f(zd_usb_dev(usb), "error in zd_ep_regs_out_msg()"
 			" req_len %d != actual_req_len %d\n",
 			req_len, actual_req_len);
 		r = -EIO;

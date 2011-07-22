@@ -257,13 +257,11 @@ int __init early_irq_init(void)
 	count = ARRAY_SIZE(irq_desc);
 
 	for (i = 0; i < count; i++) {
-		desc[i].irq_data.irq = i;
-		desc[i].irq_data.chip = &no_irq_chip;
 		desc[i].kstat_irqs = alloc_percpu(unsigned int);
-		irq_settings_clr_and_set(desc, ~0, _IRQ_DEFAULT_INIT_FLAGS);
-		alloc_masks(desc + i, GFP_KERNEL, node);
-		desc_smp_init(desc + i, node);
+		alloc_masks(&desc[i], GFP_KERNEL, node);
+		raw_spin_lock_init(&desc[i].lock);
 		lockdep_set_class(&desc[i].lock, &irq_desc_lock_class);
+		desc_set_defaults(i, &desc[i], node);
 	}
 	return arch_early_irq_init();
 }
@@ -345,6 +343,12 @@ irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node)
 
 	if (!cnt)
 		return -EINVAL;
+
+	if (irq >= 0) {
+		if (from > irq)
+			return -EINVAL;
+		from = irq;
+	}
 
 	mutex_lock(&sparse_irq_lock);
 

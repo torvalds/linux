@@ -36,7 +36,7 @@
 #define KBT_LOOP	3  /* Backtrace entered a loop */
 
 /* Is address on the specified kernel stack? */
-static int in_kernel_stack(struct KBacktraceIterator *kbt, VirtualAddress sp)
+static int in_kernel_stack(struct KBacktraceIterator *kbt, unsigned long sp)
 {
 	ulong kstack_base = (ulong) kbt->task->stack;
 	if (kstack_base == 0)  /* corrupt task pointer; just follow stack... */
@@ -45,7 +45,7 @@ static int in_kernel_stack(struct KBacktraceIterator *kbt, VirtualAddress sp)
 }
 
 /* Is address valid for reading? */
-static int valid_address(struct KBacktraceIterator *kbt, VirtualAddress address)
+static int valid_address(struct KBacktraceIterator *kbt, unsigned long address)
 {
 	HV_PTE *l1_pgtable = kbt->pgtable;
 	HV_PTE *l2_pgtable;
@@ -97,7 +97,7 @@ static int valid_address(struct KBacktraceIterator *kbt, VirtualAddress address)
 }
 
 /* Callback for backtracer; basically a glorified memcpy */
-static bool read_memory_func(void *result, VirtualAddress address,
+static bool read_memory_func(void *result, unsigned long address,
 			     unsigned int size, void *vkbt)
 {
 	int retval;
@@ -124,7 +124,7 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 {
 	const char *fault = NULL;  /* happy compiler */
 	char fault_buf[64];
-	VirtualAddress sp = kbt->it.sp;
+	unsigned long sp = kbt->it.sp;
 	struct pt_regs *p;
 
 	if (!in_kernel_stack(kbt, sp))
@@ -163,7 +163,7 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 }
 
 /* Is the pc pointing to a sigreturn trampoline? */
-static int is_sigreturn(VirtualAddress pc)
+static int is_sigreturn(unsigned long pc)
 {
 	return (pc == VDSO_BASE);
 }
@@ -260,7 +260,7 @@ static void validate_stack(struct pt_regs *regs)
 void KBacktraceIterator_init(struct KBacktraceIterator *kbt,
 			     struct task_struct *t, struct pt_regs *regs)
 {
-	VirtualAddress pc, lr, sp, r52;
+	unsigned long pc, lr, sp, r52;
 	int is_current;
 
 	/*
@@ -331,7 +331,7 @@ EXPORT_SYMBOL(KBacktraceIterator_end);
 
 void KBacktraceIterator_next(struct KBacktraceIterator *kbt)
 {
-	VirtualAddress old_pc = kbt->it.pc, old_sp = kbt->it.sp;
+	unsigned long old_pc = kbt->it.pc, old_sp = kbt->it.sp;
 	kbt->new_context = 0;
 	if (!backtrace_next(&kbt->it) && !KBacktraceIterator_restart(kbt)) {
 		kbt->end = KBT_DONE;

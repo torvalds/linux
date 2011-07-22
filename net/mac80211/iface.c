@@ -384,10 +384,10 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	int i;
 	enum nl80211_channel_type orig_ct;
 
+	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
+
 	if (local->scan_sdata == sdata)
 		ieee80211_scan_cancel(local);
-
-	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
 	/*
 	 * Stop TX on this interface first.
@@ -1144,6 +1144,10 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 				- ETH_HLEN /* ethernet hard_header_len */
 				+ IEEE80211_ENCRYPT_HEADROOM;
 	ndev->needed_tailroom = IEEE80211_ENCRYPT_TAILROOM;
+
+	ret = dev_alloc_name(ndev, ndev->name);
+	if (ret < 0)
+		goto fail;
 
 	ieee80211_assign_perm_addr(local, ndev, type);
 	memcpy(ndev->dev_addr, ndev->perm_addr, ETH_ALEN);

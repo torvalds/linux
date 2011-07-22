@@ -10,7 +10,6 @@
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/trace-event.h"
-#include "util/parse-options.h"
 #include "util/util.h"
 #include "util/evlist.h"
 #include "util/evsel.h"

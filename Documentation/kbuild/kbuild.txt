@@ -201,3 +201,16 @@ KBUILD_ENABLE_EXTRA_GCC_CHECKS
 --------------------------------------------------
 If enabled over the make command line with "W=1", it turns on additional
 gcc -W... options for more extensive build-time checking.
+
+KBUILD_BUILD_TIMESTAMP
+--------------------------------------------------
+Setting this to a date string overrides the timestamp used in the
+UTS_VERSION definition (uname -v in the running kernel). The value has to
+be a string that can be passed to date -d. The default value
+is the output of the date command at one point during build.
+
+KBUILD_BUILD_USER, KBUILD_BUILD_HOST
+--------------------------------------------------
+These two variables allow to override the user@host string displayed during
+boot and in /proc/version. The default value is the output of the commands
+whoami and host, respectively.

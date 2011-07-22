@@ -593,7 +593,8 @@ static int apparmor_setprocattr(struct task_struct *task, char *name,
 			sa.aad.op = OP_SETPROCATTR;
 			sa.aad.info = name;
 			sa.aad.error = -EINVAL;
-			return aa_audit(AUDIT_APPARMOR_DENIED, NULL, GFP_KERNEL,
+			return aa_audit(AUDIT_APPARMOR_DENIED,
+					__aa_current_profile(), GFP_KERNEL,
 					&sa, NULL);
 		}
 	} else if (strcmp(name, "exec") == 0) {
@@ -611,7 +612,7 @@ static int apparmor_setprocattr(struct task_struct *task, char *name,
 static int apparmor_task_setrlimit(struct task_struct *task,
 		unsigned int resource, struct rlimit *new_rlim)
 {
-	struct aa_profile *profile = aa_current_profile();
+	struct aa_profile *profile = __aa_current_profile();
 	int error = 0;
 
 	if (!unconfined(profile))

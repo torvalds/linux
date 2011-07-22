@@ -140,7 +140,6 @@ struct intel_fbdev {
 struct intel_encoder {
 	struct drm_encoder base;
 	int type;
-	bool load_detect_temp;
 	bool needs_tv_clock;
 	void (*hot_plug)(struct intel_encoder *);
 	int crtc_mask;
@@ -237,6 +236,7 @@ struct intel_unpin_work {
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
 extern bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus);
 
+extern void intel_attach_force_audio_property(struct drm_connector *connector);
 extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector);
 
 extern void intel_crt_init(struct drm_device *dev);
@@ -291,13 +291,19 @@ int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 extern void intel_wait_for_vblank(struct drm_device *dev, int pipe);
 extern void intel_wait_for_pipe_off(struct drm_device *dev, int pipe);
-extern struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
-						   struct drm_connector *connector,
-						   struct drm_display_mode *mode,
-						   int *dpms_mode);
+
+struct intel_load_detect_pipe {
+	struct drm_framebuffer *release_fb;
+	bool load_detect_temp;
+	int dpms_mode;
+};
+extern bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
+				       struct drm_connector *connector,
+				       struct drm_display_mode *mode,
+				       struct intel_load_detect_pipe *old);
 extern void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 					   struct drm_connector *connector,
-					   int dpms_mode);
+					   struct intel_load_detect_pipe *old);
 
 extern struct drm_connector* intel_sdvo_find(struct drm_device *dev, int sdvoB);
 extern int intel_sdvo_supports_hotplug(struct drm_connector *connector);
@@ -339,4 +345,6 @@ extern int intel_overlay_attrs(struct drm_device *dev, void *data,
 
 extern void intel_fb_output_poll_changed(struct drm_device *dev);
 extern void intel_fb_restore_mode(struct drm_device *dev);
+
+extern void intel_init_clock_gating(struct drm_device *dev);
 #endif /* __INTEL_DRV_H__ */

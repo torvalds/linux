@@ -345,3 +345,4 @@ ENTRY(sys_call_table)
 	.long sys_clock_adjtime
 	.long sys_syncfs
 	.long sys_sendmmsg		/* 345 */
+	.long sys_setns

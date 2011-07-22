@@ -31,9 +31,8 @@
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>
 #include <linux/mm_types.h>
-#include <asm/bitops.h>
 #include <asm/bug.h>
-#include <asm/processor.h>
+#include <asm/page.h>
 
 extern pgd_t swapper_pg_dir[] __attribute__ ((aligned (4096)));
 extern void paging_init(void);
@@ -243,11 +242,13 @@ extern unsigned long VMALLOC_START;
 /* Software bits in the page table entry */
 #define _PAGE_SWT	0x001		/* SW pte type bit t */
 #define _PAGE_SWX	0x002		/* SW pte type bit x */
-#define _PAGE_SPECIAL	0x004		/* SW associated with special page */
+#define _PAGE_SWC	0x004		/* SW pte changed bit (for KVM) */
+#define _PAGE_SWR	0x008		/* SW pte referenced bit (for KVM) */
+#define _PAGE_SPECIAL	0x010		/* SW associated with special page */
 #define __HAVE_ARCH_PTE_SPECIAL
 
 /* Set of bits not changed in pte_modify */
-#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_SPECIAL)
+#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_SPECIAL | _PAGE_SWC | _PAGE_SWR)
 
 /* Six different types of pages. */
 #define _PAGE_TYPE_EMPTY	0x400
@@ -256,8 +257,6 @@ extern unsigned long VMALLOC_START;
 #define _PAGE_TYPE_FILE		0x601	/* bit 0x002 is used for offset !! */
 #define _PAGE_TYPE_RO		0x200
 #define _PAGE_TYPE_RW		0x000
-#define _PAGE_TYPE_EX_RO	0x202
-#define _PAGE_TYPE_EX_RW	0x002
 
 /*
  * Only four types for huge pages, using the invalid bit and protection bit
@@ -287,24 +286,12 @@ extern unsigned long VMALLOC_START;
  * _PAGE_TYPE_FILE	11?1   ->   11?1
  * _PAGE_TYPE_RO	0100   ->   1100
  * _PAGE_TYPE_RW	0000   ->   1000
- * _PAGE_TYPE_EX_RO	0110   ->   1110
- * _PAGE_TYPE_EX_RW	0010   ->   1010
  *
  * pte_none is true for bits combinations 1000, 1010, 1100, 1110
  * pte_present is true for bits combinations 0000, 0010, 0100, 0110, 1001
  * pte_file is true for bits combinations 1101, 1111
  * swap pte is 1011 and 0001, 0011, 0101, 0111 are invalid.
  */
-
-/* Page status table bits for virtualization */
-#define RCP_PCL_BIT	55
-#define RCP_HR_BIT	54
-#define RCP_HC_BIT	53
-#define RCP_GR_BIT	50
-#define RCP_GC_BIT	49
-
-/* User dirty bit for KVM's migration feature */
-#define KVM_UD_BIT	47
 
 #ifndef __s390x__
 
@@ -324,6 +311,19 @@ extern unsigned long VMALLOC_START;
 
 #define _SEGMENT_ENTRY		(_SEGMENT_ENTRY_PTL)
 #define _SEGMENT_ENTRY_EMPTY	(_SEGMENT_ENTRY_INV)
+
+/* Page status table bits for virtualization */
+#define RCP_ACC_BITS	0xf0000000UL
+#define RCP_FP_BIT	0x08000000UL
+#define RCP_PCL_BIT	0x00800000UL
+#define RCP_HR_BIT	0x00400000UL
+#define RCP_HC_BIT	0x00200000UL
+#define RCP_GR_BIT	0x00040000UL
+#define RCP_GC_BIT	0x00020000UL
+
+/* User dirty / referenced bit for KVM's migration feature */
+#define KVM_UR_BIT	0x00008000UL
+#define KVM_UC_BIT	0x00004000UL
 
 #else /* __s390x__ */
 
@@ -367,6 +367,19 @@ extern unsigned long VMALLOC_START;
 #define _SEGMENT_ENTRY_LARGE	0x400	/* STE-format control, large page   */
 #define _SEGMENT_ENTRY_CO	0x100	/* change-recording override   */
 
+/* Page status table bits for virtualization */
+#define RCP_ACC_BITS	0xf000000000000000UL
+#define RCP_FP_BIT	0x0800000000000000UL
+#define RCP_PCL_BIT	0x0080000000000000UL
+#define RCP_HR_BIT	0x0040000000000000UL
+#define RCP_HC_BIT	0x0020000000000000UL
+#define RCP_GR_BIT	0x0004000000000000UL
+#define RCP_GC_BIT	0x0002000000000000UL
+
+/* User dirty / referenced bit for KVM's migration feature */
+#define KVM_UR_BIT	0x0000800000000000UL
+#define KVM_UC_BIT	0x0000400000000000UL
+
 #endif /* __s390x__ */
 
 /*
@@ -377,85 +390,54 @@ extern unsigned long VMALLOC_START;
 #define _ASCE_USER_BITS		(_ASCE_SPACE_SWITCH | _ASCE_PRIVATE_SPACE | \
 				 _ASCE_ALT_EVENT)
 
-/* Bits int the storage key */
-#define _PAGE_CHANGED    0x02          /* HW changed bit                   */
-#define _PAGE_REFERENCED 0x04          /* HW referenced bit                */
-
 /*
  * Page protection definitions.
  */
 #define PAGE_NONE	__pgprot(_PAGE_TYPE_NONE)
 #define PAGE_RO		__pgprot(_PAGE_TYPE_RO)
 #define PAGE_RW		__pgprot(_PAGE_TYPE_RW)
-#define PAGE_EX_RO	__pgprot(_PAGE_TYPE_EX_RO)
-#define PAGE_EX_RW	__pgprot(_PAGE_TYPE_EX_RW)
 
 #define PAGE_KERNEL	PAGE_RW
 #define PAGE_COPY	PAGE_RO
 
 /*
- * Dependent on the EXEC_PROTECT option s390 can do execute protection.
- * Write permission always implies read permission. In theory with a
- * primary/secondary page table execute only can be implemented but
- * it would cost an additional bit in the pte to distinguish all the
- * different pte types. To avoid that execute permission currently
- * implies read permission as well.
+ * On s390 the page table entry has an invalid bit and a read-only bit.
+ * Read permission implies execute permission and write permission
+ * implies read permission.
  */
          /*xwr*/
 #define __P000	PAGE_NONE
 #define __P001	PAGE_RO
 #define __P010	PAGE_RO
 #define __P011	PAGE_RO
-#define __P100	PAGE_EX_RO
-#define __P101	PAGE_EX_RO
-#define __P110	PAGE_EX_RO
-#define __P111	PAGE_EX_RO
+#define __P100	PAGE_RO
+#define __P101	PAGE_RO
+#define __P110	PAGE_RO
+#define __P111	PAGE_RO
 
 #define __S000	PAGE_NONE
 #define __S001	PAGE_RO
 #define __S010	PAGE_RW
 #define __S011	PAGE_RW
-#define __S100	PAGE_EX_RO
-#define __S101	PAGE_EX_RO
-#define __S110	PAGE_EX_RW
-#define __S111	PAGE_EX_RW
+#define __S100	PAGE_RO
+#define __S101	PAGE_RO
+#define __S110	PAGE_RW
+#define __S111	PAGE_RW
 
-#ifndef __s390x__
-# define PxD_SHADOW_SHIFT	1
-#else /* __s390x__ */
-# define PxD_SHADOW_SHIFT	2
-#endif /* __s390x__ */
-
-static inline void *get_shadow_table(void *table)
+static inline int mm_exclusive(struct mm_struct *mm)
 {
-	unsigned long addr, offset;
-	struct page *page;
-
-	addr = (unsigned long) table;
-	offset = addr & ((PAGE_SIZE << PxD_SHADOW_SHIFT) - 1);
-	page = virt_to_page((void *)(addr ^ offset));
-	return (void *)(addr_t)(page->index ? (page->index | offset) : 0UL);
+	return likely(mm == current->active_mm &&
+		      atomic_read(&mm->context.attach_count) <= 1);
 }
 
-/*
- * Certain architectures need to do special things when PTEs
- * within a page table are directly modified.  Thus, the following
- * hook is made available.
- */
-static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
-			      pte_t *ptep, pte_t entry)
+static inline int mm_has_pgste(struct mm_struct *mm)
 {
-	*ptep = entry;
-	if (mm->context.noexec) {
-		if (!(pte_val(entry) & _PAGE_INVALID) &&
-		    (pte_val(entry) & _PAGE_SWX))
-			pte_val(entry) |= _PAGE_RO;
-		else
-			pte_val(entry) = _PAGE_TYPE_EMPTY;
-		ptep[PTRS_PER_PTE] = entry;
-	}
+#ifdef CONFIG_PGSTE
+	if (unlikely(mm->context.has_pgste))
+		return 1;
+#endif
+	return 0;
 }
-
 /*
  * pgd/pmd/pte query functions
  */
@@ -568,52 +550,127 @@ static inline int pte_special(pte_t pte)
 }
 
 #define __HAVE_ARCH_PTE_SAME
-#define pte_same(a,b)  (pte_val(a) == pte_val(b))
-
-static inline void rcp_lock(pte_t *ptep)
+static inline int pte_same(pte_t a, pte_t b)
 {
-#ifdef CONFIG_PGSTE
-	unsigned long *pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
-	preempt_disable();
-	while (test_and_set_bit(RCP_PCL_BIT, pgste))
-		;
-#endif
+	return pte_val(a) == pte_val(b);
 }
 
-static inline void rcp_unlock(pte_t *ptep)
+static inline pgste_t pgste_get_lock(pte_t *ptep)
+{
+	unsigned long new = 0;
+#ifdef CONFIG_PGSTE
+	unsigned long old;
+
+	preempt_disable();
+	asm(
+		"	lg	%0,%2\n"
+		"0:	lgr	%1,%0\n"
+		"	nihh	%0,0xff7f\n"	/* clear RCP_PCL_BIT in old */
+		"	oihh	%1,0x0080\n"	/* set RCP_PCL_BIT in new */
+		"	csg	%0,%1,%2\n"
+		"	jl	0b\n"
+		: "=&d" (old), "=&d" (new), "=Q" (ptep[PTRS_PER_PTE])
+		: "Q" (ptep[PTRS_PER_PTE]) : "cc");
+#endif
+	return __pgste(new);
+}
+
+static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
-	unsigned long *pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
-	clear_bit(RCP_PCL_BIT, pgste);
+	asm(
+		"	nihh	%1,0xff7f\n"	/* clear RCP_PCL_BIT */
+		"	stg	%1,%0\n"
+		: "=Q" (ptep[PTRS_PER_PTE])
+		: "d" (pgste_val(pgste)), "Q" (ptep[PTRS_PER_PTE]) : "cc");
 	preempt_enable();
 #endif
 }
 
-/* forward declaration for SetPageUptodate in page-flags.h*/
-static inline void page_clear_dirty(struct page *page, int mapped);
-#include <linux/page-flags.h>
-
-static inline void ptep_rcp_copy(pte_t *ptep)
+static inline pgste_t pgste_update_all(pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
-	struct page *page = virt_to_page(pte_val(*ptep));
-	unsigned int skey;
-	unsigned long *pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
+	unsigned long address, bits;
+	unsigned char skey;
 
-	skey = page_get_storage_key(page_to_phys(page));
-	if (skey & _PAGE_CHANGED) {
-		set_bit_simple(RCP_GC_BIT, pgste);
-		set_bit_simple(KVM_UD_BIT, pgste);
+	address = pte_val(*ptep) & PAGE_MASK;
+	skey = page_get_storage_key(address);
+	bits = skey & (_PAGE_CHANGED | _PAGE_REFERENCED);
+	/* Clear page changed & referenced bit in the storage key */
+	if (bits) {
+		skey ^= bits;
+		page_set_storage_key(address, skey, 1);
 	}
-	if (skey & _PAGE_REFERENCED)
-		set_bit_simple(RCP_GR_BIT, pgste);
-	if (test_and_clear_bit_simple(RCP_HC_BIT, pgste)) {
-		SetPageDirty(page);
-		set_bit_simple(KVM_UD_BIT, pgste);
-	}
-	if (test_and_clear_bit_simple(RCP_HR_BIT, pgste))
-		SetPageReferenced(page);
+	/* Transfer page changed & referenced bit to guest bits in pgste */
+	pgste_val(pgste) |= bits << 48;		/* RCP_GR_BIT & RCP_GC_BIT */
+	/* Get host changed & referenced bits from pgste */
+	bits |= (pgste_val(pgste) & (RCP_HR_BIT | RCP_HC_BIT)) >> 52;
+	/* Clear host bits in pgste. */
+	pgste_val(pgste) &= ~(RCP_HR_BIT | RCP_HC_BIT);
+	pgste_val(pgste) &= ~(RCP_ACC_BITS | RCP_FP_BIT);
+	/* Copy page access key and fetch protection bit to pgste */
+	pgste_val(pgste) |=
+		(unsigned long) (skey & (_PAGE_ACC_BITS | _PAGE_FP_BIT)) << 56;
+	/* Transfer changed and referenced to kvm user bits */
+	pgste_val(pgste) |= bits << 45;		/* KVM_UR_BIT & KVM_UC_BIT */
+	/* Transfer changed & referenced to pte sofware bits */
+	pte_val(*ptep) |= bits << 1;		/* _PAGE_SWR & _PAGE_SWC */
 #endif
+	return pgste;
+
+}
+
+static inline pgste_t pgste_update_young(pte_t *ptep, pgste_t pgste)
+{
+#ifdef CONFIG_PGSTE
+	int young;
+
+	young = page_reset_referenced(pte_val(*ptep) & PAGE_MASK);
+	/* Transfer page referenced bit to pte software bit (host view) */
+	if (young || (pgste_val(pgste) & RCP_HR_BIT))
+		pte_val(*ptep) |= _PAGE_SWR;
+	/* Clear host referenced bit in pgste. */
+	pgste_val(pgste) &= ~RCP_HR_BIT;
+	/* Transfer page referenced bit to guest bit in pgste */
+	pgste_val(pgste) |= (unsigned long) young << 50; /* set RCP_GR_BIT */
+#endif
+	return pgste;
+
+}
+
+static inline void pgste_set_pte(pte_t *ptep, pgste_t pgste)
+{
+#ifdef CONFIG_PGSTE
+	unsigned long address;
+	unsigned long okey, nkey;
+
+	address = pte_val(*ptep) & PAGE_MASK;
+	okey = nkey = page_get_storage_key(address);
+	nkey &= ~(_PAGE_ACC_BITS | _PAGE_FP_BIT);
+	/* Set page access key and fetch protection bit from pgste */
+	nkey |= (pgste_val(pgste) & (RCP_ACC_BITS | RCP_FP_BIT)) >> 56;
+	if (okey != nkey)
+		page_set_storage_key(address, nkey, 1);
+#endif
+}
+
+/*
+ * Certain architectures need to do special things when PTEs
+ * within a page table are directly modified.  Thus, the following
+ * hook is made available.
+ */
+static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+			      pte_t *ptep, pte_t entry)
+{
+	pgste_t pgste;
+
+	if (mm_has_pgste(mm)) {
+		pgste = pgste_get_lock(ptep);
+		pgste_set_pte(ptep, pgste);
+		*ptep = entry;
+		pgste_set_unlock(ptep, pgste);
+	} else
+		*ptep = entry;
 }
 
 /*
@@ -627,19 +684,19 @@ static inline int pte_write(pte_t pte)
 
 static inline int pte_dirty(pte_t pte)
 {
-	/* A pte is neither clean nor dirty on s/390. The dirty bit
-	 * is in the storage key. See page_test_and_clear_dirty for
-	 * details.
-	 */
+#ifdef CONFIG_PGSTE
+	if (pte_val(pte) & _PAGE_SWC)
+		return 1;
+#endif
 	return 0;
 }
 
 static inline int pte_young(pte_t pte)
 {
-	/* A pte is neither young nor old on s/390. The young bit
-	 * is in the storage key. See page_test_and_clear_young for
-	 * details.
-	 */
+#ifdef CONFIG_PGSTE
+	if (pte_val(pte) & _PAGE_SWR)
+		return 1;
+#endif
 	return 0;
 }
 
@@ -647,64 +704,30 @@ static inline int pte_young(pte_t pte)
  * pgd/pmd/pte modification functions
  */
 
-#ifndef __s390x__
-
-#define pgd_clear(pgd)		do { } while (0)
-#define pud_clear(pud)		do { } while (0)
-
-#else /* __s390x__ */
-
-static inline void pgd_clear_kernel(pgd_t * pgd)
+static inline void pgd_clear(pgd_t *pgd)
 {
+#ifdef __s390x__
 	if ((pgd_val(*pgd) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R2)
 		pgd_val(*pgd) = _REGION2_ENTRY_EMPTY;
-}
-
-static inline void pgd_clear(pgd_t * pgd)
-{
-	pgd_t *shadow = get_shadow_table(pgd);
-
-	pgd_clear_kernel(pgd);
-	if (shadow)
-		pgd_clear_kernel(shadow);
-}
-
-static inline void pud_clear_kernel(pud_t *pud)
-{
-	if ((pud_val(*pud) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
-		pud_val(*pud) = _REGION3_ENTRY_EMPTY;
+#endif
 }
 
 static inline void pud_clear(pud_t *pud)
 {
-	pud_t *shadow = get_shadow_table(pud);
-
-	pud_clear_kernel(pud);
-	if (shadow)
-		pud_clear_kernel(shadow);
+#ifdef __s390x__
+	if ((pud_val(*pud) & _REGION_ENTRY_TYPE_MASK) == _REGION_ENTRY_TYPE_R3)
+		pud_val(*pud) = _REGION3_ENTRY_EMPTY;
+#endif
 }
 
-#endif /* __s390x__ */
-
-static inline void pmd_clear_kernel(pmd_t * pmdp)
+static inline void pmd_clear(pmd_t *pmdp)
 {
 	pmd_val(*pmdp) = _SEGMENT_ENTRY_EMPTY;
-}
-
-static inline void pmd_clear(pmd_t *pmd)
-{
-	pmd_t *shadow = get_shadow_table(pmd);
-
-	pmd_clear_kernel(pmd);
-	if (shadow)
-		pmd_clear_kernel(shadow);
 }
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
-	if (mm->context.noexec)
-		pte_val(ptep[PTRS_PER_PTE]) = _PAGE_TYPE_EMPTY;
 }
 
 /*
@@ -734,35 +757,27 @@ static inline pte_t pte_mkwrite(pte_t pte)
 
 static inline pte_t pte_mkclean(pte_t pte)
 {
-	/* The only user of pte_mkclean is the fork() code.
-	   We must *not* clear the *physical* page dirty bit
-	   just because fork() wants to clear the dirty bit in
-	   *one* of the page's mappings.  So we just do nothing. */
+#ifdef CONFIG_PGSTE
+	pte_val(pte) &= ~_PAGE_SWC;
+#endif
 	return pte;
 }
 
 static inline pte_t pte_mkdirty(pte_t pte)
 {
-	/* We do not explicitly set the dirty bit because the
-	 * sske instruction is slow. It is faster to let the
-	 * next instruction set the dirty bit.
-	 */
 	return pte;
 }
 
 static inline pte_t pte_mkold(pte_t pte)
 {
-	/* S/390 doesn't keep its dirty/referenced bit in the pte.
-	 * There is no point in clearing the real referenced bit.
-	 */
+#ifdef CONFIG_PGSTE
+	pte_val(pte) &= ~_PAGE_SWR;
+#endif
 	return pte;
 }
 
 static inline pte_t pte_mkyoung(pte_t pte)
 {
-	/* S/390 doesn't keep its dirty/referenced bit in the pte.
-	 * There is no point in setting the real referenced bit.
-	 */
 	return pte;
 }
 
@@ -800,62 +815,60 @@ static inline pte_t pte_mkhuge(pte_t pte)
 }
 #endif
 
-#ifdef CONFIG_PGSTE
 /*
- * Get (and clear) the user dirty bit for a PTE.
+ * Get (and clear) the user dirty bit for a pte.
  */
-static inline int kvm_s390_test_and_clear_page_dirty(struct mm_struct *mm,
-						     pte_t *ptep)
+static inline int ptep_test_and_clear_user_dirty(struct mm_struct *mm,
+						 pte_t *ptep)
 {
-	int dirty;
-	unsigned long *pgste;
-	struct page *page;
-	unsigned int skey;
+	pgste_t pgste;
+	int dirty = 0;
 
-	if (!mm->context.has_pgste)
-		return -EINVAL;
-	rcp_lock(ptep);
-	pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
-	page = virt_to_page(pte_val(*ptep));
-	skey = page_get_storage_key(page_to_phys(page));
-	if (skey & _PAGE_CHANGED) {
-		set_bit_simple(RCP_GC_BIT, pgste);
-		set_bit_simple(KVM_UD_BIT, pgste);
+	if (mm_has_pgste(mm)) {
+		pgste = pgste_get_lock(ptep);
+		pgste = pgste_update_all(ptep, pgste);
+		dirty = !!(pgste_val(pgste) & KVM_UC_BIT);
+		pgste_val(pgste) &= ~KVM_UC_BIT;
+		pgste_set_unlock(ptep, pgste);
+		return dirty;
 	}
-	if (test_and_clear_bit_simple(RCP_HC_BIT, pgste)) {
-		SetPageDirty(page);
-		set_bit_simple(KVM_UD_BIT, pgste);
-	}
-	dirty = test_and_clear_bit_simple(KVM_UD_BIT, pgste);
-	if (skey & _PAGE_CHANGED)
-		page_clear_dirty(page, 1);
-	rcp_unlock(ptep);
 	return dirty;
 }
-#endif
+
+/*
+ * Get (and clear) the user referenced bit for a pte.
+ */
+static inline int ptep_test_and_clear_user_young(struct mm_struct *mm,
+						 pte_t *ptep)
+{
+	pgste_t pgste;
+	int young = 0;
+
+	if (mm_has_pgste(mm)) {
+		pgste = pgste_get_lock(ptep);
+		pgste = pgste_update_young(ptep, pgste);
+		young = !!(pgste_val(pgste) & KVM_UR_BIT);
+		pgste_val(pgste) &= ~KVM_UR_BIT;
+		pgste_set_unlock(ptep, pgste);
+	}
+	return young;
+}
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 					    unsigned long addr, pte_t *ptep)
 {
-#ifdef CONFIG_PGSTE
-	unsigned long physpage;
-	int young;
-	unsigned long *pgste;
+	pgste_t pgste;
+	pte_t pte;
 
-	if (!vma->vm_mm->context.has_pgste)
-		return 0;
-	physpage = pte_val(*ptep) & PAGE_MASK;
-	pgste = (unsigned long *) (ptep + PTRS_PER_PTE);
-
-	young = ((page_get_storage_key(physpage) & _PAGE_REFERENCED) != 0);
-	rcp_lock(ptep);
-	if (young)
-		set_bit_simple(RCP_GR_BIT, pgste);
-	young |= test_and_clear_bit_simple(RCP_HR_BIT, pgste);
-	rcp_unlock(ptep);
-	return young;
-#endif
+	if (mm_has_pgste(vma->vm_mm)) {
+		pgste = pgste_get_lock(ptep);
+		pgste = pgste_update_young(ptep, pgste);
+		pte = *ptep;
+		*ptep = pte_mkold(pte);
+		pgste_set_unlock(ptep, pgste);
+		return pte_young(pte);
+	}
 	return 0;
 }
 
@@ -867,10 +880,7 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 	 * On s390 reference bits are in storage key and never in TLB
 	 * With virtualization we handle the reference bit, without we
 	 * we can simply return */
-#ifdef CONFIG_PGSTE
 	return ptep_test_and_clear_young(vma, address, ptep);
-#endif
-	return 0;
 }
 
 static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
@@ -890,25 +900,6 @@ static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
 	}
 }
 
-static inline void ptep_invalidate(struct mm_struct *mm,
-				   unsigned long address, pte_t *ptep)
-{
-	if (mm->context.has_pgste) {
-		rcp_lock(ptep);
-		__ptep_ipte(address, ptep);
-		ptep_rcp_copy(ptep);
-		pte_val(*ptep) = _PAGE_TYPE_EMPTY;
-		rcp_unlock(ptep);
-		return;
-	}
-	__ptep_ipte(address, ptep);
-	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
-	if (mm->context.noexec) {
-		__ptep_ipte(address, ptep + PTRS_PER_PTE);
-		pte_val(*(ptep + PTRS_PER_PTE)) = _PAGE_TYPE_EMPTY;
-	}
-}
-
 /*
  * This is hard to understand. ptep_get_and_clear and ptep_clear_flush
  * both clear the TLB for the unmapped pte. The reason is that
@@ -923,24 +914,72 @@ static inline void ptep_invalidate(struct mm_struct *mm,
  * is a nop.
  */
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-#define ptep_get_and_clear(__mm, __address, __ptep)			\
-({									\
-	pte_t __pte = *(__ptep);					\
-	(__mm)->context.flush_mm = 1;					\
-	if (atomic_read(&(__mm)->context.attach_count) > 1 ||		\
-	    (__mm) != current->active_mm)				\
-		ptep_invalidate(__mm, __address, __ptep);		\
-	else								\
-		pte_clear((__mm), (__address), (__ptep));		\
-	__pte;								\
-})
+static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
+				       unsigned long address, pte_t *ptep)
+{
+	pgste_t pgste;
+	pte_t pte;
+
+	mm->context.flush_mm = 1;
+	if (mm_has_pgste(mm))
+		pgste = pgste_get_lock(ptep);
+
+	pte = *ptep;
+	if (!mm_exclusive(mm))
+		__ptep_ipte(address, ptep);
+	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
+
+	if (mm_has_pgste(mm)) {
+		pgste = pgste_update_all(&pte, pgste);
+		pgste_set_unlock(ptep, pgste);
+	}
+	return pte;
+}
+
+#define __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION
+static inline pte_t ptep_modify_prot_start(struct mm_struct *mm,
+					   unsigned long address,
+					   pte_t *ptep)
+{
+	pte_t pte;
+
+	mm->context.flush_mm = 1;
+	if (mm_has_pgste(mm))
+		pgste_get_lock(ptep);
+
+	pte = *ptep;
+	if (!mm_exclusive(mm))
+		__ptep_ipte(address, ptep);
+	return pte;
+}
+
+static inline void ptep_modify_prot_commit(struct mm_struct *mm,
+					   unsigned long address,
+					   pte_t *ptep, pte_t pte)
+{
+	*ptep = pte;
+	if (mm_has_pgste(mm))
+		pgste_set_unlock(ptep, *(pgste_t *)(ptep + PTRS_PER_PTE));
+}
 
 #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
 static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
 				     unsigned long address, pte_t *ptep)
 {
-	pte_t pte = *ptep;
-	ptep_invalidate(vma->vm_mm, address, ptep);
+	pgste_t pgste;
+	pte_t pte;
+
+	if (mm_has_pgste(vma->vm_mm))
+		pgste = pgste_get_lock(ptep);
+
+	pte = *ptep;
+	__ptep_ipte(address, ptep);
+	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
+
+	if (mm_has_pgste(vma->vm_mm)) {
+		pgste = pgste_update_all(&pte, pgste);
+		pgste_set_unlock(ptep, pgste);
+	}
 	return pte;
 }
 
@@ -953,76 +992,67 @@ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
  */
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
-					    unsigned long addr,
+					    unsigned long address,
 					    pte_t *ptep, int full)
 {
-	pte_t pte = *ptep;
+	pgste_t pgste;
+	pte_t pte;
 
-	if (full)
-		pte_clear(mm, addr, ptep);
-	else
-		ptep_invalidate(mm, addr, ptep);
+	if (mm_has_pgste(mm))
+		pgste = pgste_get_lock(ptep);
+
+	pte = *ptep;
+	if (!full)
+		__ptep_ipte(address, ptep);
+	pte_val(*ptep) = _PAGE_TYPE_EMPTY;
+
+	if (mm_has_pgste(mm)) {
+		pgste = pgste_update_all(&pte, pgste);
+		pgste_set_unlock(ptep, pgste);
+	}
 	return pte;
 }
 
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
-#define ptep_set_wrprotect(__mm, __addr, __ptep)			\
-({									\
-	pte_t __pte = *(__ptep);					\
-	if (pte_write(__pte)) {						\
-		(__mm)->context.flush_mm = 1;				\
-		if (atomic_read(&(__mm)->context.attach_count) > 1 ||	\
-		    (__mm) != current->active_mm)			\
-			ptep_invalidate(__mm, __addr, __ptep);		\
-		set_pte_at(__mm, __addr, __ptep, pte_wrprotect(__pte));	\
-	}								\
-})
+static inline pte_t ptep_set_wrprotect(struct mm_struct *mm,
+				       unsigned long address, pte_t *ptep)
+{
+	pgste_t pgste;
+	pte_t pte = *ptep;
+
+	if (pte_write(pte)) {
+		mm->context.flush_mm = 1;
+		if (mm_has_pgste(mm))
+			pgste = pgste_get_lock(ptep);
+
+		if (!mm_exclusive(mm))
+			__ptep_ipte(address, ptep);
+		*ptep = pte_wrprotect(pte);
+
+		if (mm_has_pgste(mm))
+			pgste_set_unlock(ptep, pgste);
+	}
+	return pte;
+}
 
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
-#define ptep_set_access_flags(__vma, __addr, __ptep, __entry, __dirty)	\
-({									\
-	int __changed = !pte_same(*(__ptep), __entry);			\
-	if (__changed) {						\
-		ptep_invalidate((__vma)->vm_mm, __addr, __ptep);	\
-		set_pte_at((__vma)->vm_mm, __addr, __ptep, __entry);	\
-	}								\
-	__changed;							\
-})
-
-/*
- * Test and clear dirty bit in storage key.
- * We can't clear the changed bit atomically. This is a potential
- * race against modification of the referenced bit. This function
- * should therefore only be called if it is not mapped in any
- * address space.
- */
-#define __HAVE_ARCH_PAGE_TEST_DIRTY
-static inline int page_test_dirty(struct page *page)
+static inline int ptep_set_access_flags(struct vm_area_struct *vma,
+					unsigned long address, pte_t *ptep,
+					pte_t entry, int dirty)
 {
-	return (page_get_storage_key(page_to_phys(page)) & _PAGE_CHANGED) != 0;
-}
+	pgste_t pgste;
 
-#define __HAVE_ARCH_PAGE_CLEAR_DIRTY
-static inline void page_clear_dirty(struct page *page, int mapped)
-{
-	page_set_storage_key(page_to_phys(page), PAGE_DEFAULT_KEY, mapped);
-}
+	if (pte_same(*ptep, entry))
+		return 0;
+	if (mm_has_pgste(vma->vm_mm))
+		pgste = pgste_get_lock(ptep);
 
-/*
- * Test and clear referenced bit in storage key.
- */
-#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
-static inline int page_test_and_clear_young(struct page *page)
-{
-	unsigned long physpage = page_to_phys(page);
-	int ccode;
+	__ptep_ipte(address, ptep);
+	*ptep = entry;
 
-	asm volatile(
-		"	rrbe	0,%1\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (ccode) : "a" (physpage) : "cc" );
-	return ccode & 2;
+	if (mm_has_pgste(vma->vm_mm))
+		pgste_set_unlock(ptep, pgste);
+	return 1;
 }
 
 /*

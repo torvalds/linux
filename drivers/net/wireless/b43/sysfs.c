@@ -140,7 +140,7 @@ static DEVICE_ATTR(interference, 0644,
 
 int b43_sysfs_register(struct b43_wldev *wldev)
 {
-	struct device *dev = wldev->dev->dev;
+	struct device *dev = wldev->sdev->dev;
 
 	B43_WARN_ON(b43_status(wldev) != B43_STAT_INITIALIZED);
 
@@ -149,7 +149,7 @@ int b43_sysfs_register(struct b43_wldev *wldev)
 
 void b43_sysfs_unregister(struct b43_wldev *wldev)
 {
-	struct device *dev = wldev->dev->dev;
+	struct device *dev = wldev->sdev->dev;
 
 	device_remove_file(dev, &dev_attr_interference);
 }

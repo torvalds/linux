@@ -93,22 +93,6 @@ static void ecryptfs_destroy_inode(struct inode *inode)
 }
 
 /**
- * ecryptfs_init_inode
- * @inode: The ecryptfs inode
- *
- * Set up the ecryptfs inode.
- */
-void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode)
-{
-	ecryptfs_set_inode_lower(inode, lower_inode);
-	inode->i_ino = lower_inode->i_ino;
-	inode->i_version++;
-	inode->i_op = &ecryptfs_main_iops;
-	inode->i_fop = &ecryptfs_main_fops;
-	inode->i_mapping->a_ops = &ecryptfs_aops;
-}
-
-/**
  * ecryptfs_statfs
  * @sb: The ecryptfs super block
  * @buf: The struct kstatfs to fill in with stats

@@ -35,6 +35,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_tcq.h>
 #include <scsi/libfc.h>
 #include <scsi/fc_encode.h>
 
@@ -91,29 +92,6 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 	}
 	print_hex_dump(KERN_INFO, "ft_dump_cmd ", DUMP_PREFIX_NONE,
 		16, 4, cmd->cdb, MAX_COMMAND_SIZE, 0);
-}
-
-/*
- * Get LUN from CDB.
- */
-static int ft_get_lun_for_cmd(struct ft_cmd *cmd, u8 *lunp)
-{
-	u64 lun;
-
-	lun = lunp[1];
-	switch (lunp[0] >> 6) {
-	case 0:
-		break;
-	case 1:
-		lun |= (lunp[0] & 0x3f) << 8;
-		break;
-	default:
-		return -1;
-	}
-	if (lun >= TRANSPORT_MAX_LUNS_PER_TPG)
-		return -1;
-	cmd->lun = lun;
-	return transport_get_lun_for_cmd(&cmd->se_cmd, NULL, lun);
 }
 
 static void ft_queue_cmd(struct ft_sess *sess, struct ft_cmd *cmd)
@@ -417,6 +395,7 @@ static void ft_send_tm(struct ft_cmd *cmd)
 {
 	struct se_tmr_req *tmr;
 	struct fcp_cmnd *fcp;
+	struct ft_sess *sess;
 	u8 tm_func;
 
 	fcp = fc_frame_payload_get(cmd->req_frame, sizeof(*fcp));
@@ -424,13 +403,6 @@ static void ft_send_tm(struct ft_cmd *cmd)
 	switch (fcp->fc_tm_flags) {
 	case FCP_TMF_LUN_RESET:
 		tm_func = TMR_LUN_RESET;
-		if (ft_get_lun_for_cmd(cmd, fcp->fc_lun) < 0) {
-			ft_dump_cmd(cmd, __func__);
-			transport_send_check_condition_and_sense(&cmd->se_cmd,
-				cmd->se_cmd.scsi_sense_reason, 0);
-			ft_sess_put(cmd->sess);
-			return;
-		}
 		break;
 	case FCP_TMF_TGT_RESET:
 		tm_func = TMR_TARGET_WARM_RESET;
@@ -462,6 +434,36 @@ static void ft_send_tm(struct ft_cmd *cmd)
 		return;
 	}
 	cmd->se_cmd.se_tmr_req = tmr;
+
+	switch (fcp->fc_tm_flags) {
+	case FCP_TMF_LUN_RESET:
+		cmd->lun = scsilun_to_int((struct scsi_lun *)fcp->fc_lun);
+		if (transport_get_lun_for_tmr(&cmd->se_cmd, cmd->lun) < 0) {
+			/*
+			 * Make sure to clean up newly allocated TMR request
+			 * since "unable to  handle TMR request because failed
+			 * to get to LUN"
+			 */
+			FT_TM_DBG("Failed to get LUN for TMR func %d, "
+				  "se_cmd %p, unpacked_lun %d\n",
+				  tm_func, &cmd->se_cmd, cmd->lun);
+			ft_dump_cmd(cmd, __func__);
+			sess = cmd->sess;
+			transport_send_check_condition_and_sense(&cmd->se_cmd,
+				cmd->se_cmd.scsi_sense_reason, 0);
+			transport_generic_free_cmd(&cmd->se_cmd, 0, 1, 0);
+			ft_sess_put(sess);
+			return;
+		}
+		break;
+	case FCP_TMF_TGT_RESET:
+	case FCP_TMF_CLR_TASK_SET:
+	case FCP_TMF_ABT_TASK_SET:
+	case FCP_TMF_CLR_ACA:
+		break;
+	default:
+		return;
+	}
 	transport_generic_handle_tmr(&cmd->se_cmd);
 }
 
@@ -592,8 +594,25 @@ static void ft_send_cmd(struct ft_cmd *cmd)
 		case FCP_CFL_WRDATA | FCP_CFL_RDDATA:
 			goto err;	/* TBD not supported by tcm_fc yet */
 		}
+		/*
+		 * Locate the SAM Task Attr from fc_pri_ta
+		 */
+		switch (fcp->fc_pri_ta & FCP_PTA_MASK) {
+		case FCP_PTA_HEADQ:
+			task_attr = MSG_HEAD_TAG;
+			break;
+		case FCP_PTA_ORDERED:
+			task_attr = MSG_ORDERED_TAG;
+			break;
+		case FCP_PTA_ACA:
+			task_attr = MSG_ACA_TAG;
+			break;
+		case FCP_PTA_SIMPLE: /* Fallthrough */
+		default:
+			task_attr = MSG_SIMPLE_TAG;
+		}
 
-		/* FCP_PTA_ maps 1:1 to TASK_ATTR_ */
+
 		task_attr = fcp->fc_pri_ta & FCP_PTA_MASK;
 		data_len = ntohl(fcp->fc_dl);
 		cmd->cdb = fcp->fc_cdb;
@@ -617,7 +636,8 @@ static void ft_send_cmd(struct ft_cmd *cmd)
 
 	fc_seq_exch(cmd->seq)->lp->tt.seq_set_resp(cmd->seq, ft_recv_seq, cmd);
 
-	ret = ft_get_lun_for_cmd(cmd, fcp->fc_lun);
+	cmd->lun = scsilun_to_int((struct scsi_lun *)fcp->fc_lun);
+	ret = transport_get_lun_for_cmd(&cmd->se_cmd, NULL, cmd->lun);
 	if (ret < 0) {
 		ft_dump_cmd(cmd, __func__);
 		transport_send_check_condition_and_sense(&cmd->se_cmd,

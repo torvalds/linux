@@ -85,7 +85,12 @@ struct btrfs_device {
 	/* physical drive uuid (or lvm uuid) */
 	u8 uuid[BTRFS_UUID_SIZE];
 
+	/* per-device scrub information */
+	struct scrub_dev *scrub_device;
+
 	struct btrfs_work work;
+	struct rcu_head rcu;
+	struct work_struct rcu_work;
 };
 
 struct btrfs_fs_devices {
@@ -144,6 +149,7 @@ struct btrfs_device_info {
 	struct btrfs_device *dev;
 	u64 dev_offset;
 	u64 max_avail;
+	u64 total_avail;
 };
 
 struct map_lookup {
@@ -157,20 +163,8 @@ struct map_lookup {
 	struct btrfs_bio_stripe stripes[];
 };
 
-/* Used to sort the devices by max_avail(descending sort) */
-int btrfs_cmp_device_free_bytes(const void *dev_info1, const void *dev_info2);
-
-/*
- * sort the devices by max_avail, in which max free extent size of each device
- * is stored.(Descending Sort)
- */
-static inline void btrfs_descending_sort_devices(
-					struct btrfs_device_info *devices,
-					size_t nr_devices)
-{
-	sort(devices, nr_devices, sizeof(struct btrfs_device_info),
-	     btrfs_cmp_device_free_bytes, NULL);
-}
+#define map_lookup_size(n) (sizeof(struct map_lookup) + \
+			    (sizeof(struct btrfs_bio_stripe) * (n)))
 
 int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 				   u64 end, u64 *length);
@@ -196,7 +190,6 @@ void btrfs_mapping_init(struct btrfs_mapping_tree *tree);
 void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree);
 int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		  int mirror_num, int async_submit);
-int btrfs_read_super_device(struct btrfs_root *root, struct extent_buffer *buf);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       fmode_t flags, void *holder);
 int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
@@ -209,8 +202,6 @@ int btrfs_add_device(struct btrfs_trans_handle *trans,
 int btrfs_rm_device(struct btrfs_root *root, char *device_path);
 int btrfs_cleanup_fs_uuids(void);
 int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len);
-int btrfs_unplug_page(struct btrfs_mapping_tree *map_tree,
-		      u64 logical, struct page *page);
 int btrfs_grow_device(struct btrfs_trans_handle *trans,
 		      struct btrfs_device *device, u64 new_size);
 struct btrfs_device *btrfs_find_device(struct btrfs_root *root, u64 devid,
@@ -218,8 +209,6 @@ struct btrfs_device *btrfs_find_device(struct btrfs_root *root, u64 devid,
 int btrfs_shrink_device(struct btrfs_device *device, u64 new_size);
 int btrfs_init_new_device(struct btrfs_root *root, char *path);
 int btrfs_balance(struct btrfs_root *dev_root);
-void btrfs_unlock_volumes(void);
-void btrfs_lock_volumes(void);
 int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset);
 int find_free_dev_extent(struct btrfs_trans_handle *trans,
 			 struct btrfs_device *device, u64 num_bytes,

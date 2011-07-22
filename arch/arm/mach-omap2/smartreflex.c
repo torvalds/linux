@@ -847,6 +847,14 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		goto err_free_devinfo;
 	}
 
+	mem = request_mem_region(mem->start, resource_size(mem),
+					dev_name(&pdev->dev));
+	if (!mem) {
+		dev_err(&pdev->dev, "%s: no mem region\n", __func__);
+		ret = -EBUSY;
+		goto err_free_devinfo;
+	}
+
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 
 	pm_runtime_enable(&pdev->dev);
@@ -883,7 +891,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		ret = sr_late_init(sr_info);
 		if (ret) {
 			pr_warning("%s: Error in SR late init\n", __func__);
-			goto err_release_region;
+			return ret;
 		}
 	}
 
@@ -896,7 +904,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	vdd_dbg_dir = omap_voltage_get_dbgdir(sr_info->voltdm);
 	if (!vdd_dbg_dir) {
 		ret = -EINVAL;
-		goto err_release_region;
+		goto err_iounmap;
 	}
 
 	sr_info->dbg_dir = debugfs_create_dir("smartreflex", vdd_dbg_dir);
@@ -904,7 +912,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s: Unable to create debugfs directory\n",
 			__func__);
 		ret = PTR_ERR(sr_info->dbg_dir);
-		goto err_release_region;
+		goto err_iounmap;
 	}
 
 	(void) debugfs_create_file("autocomp", S_IRUGO | S_IWUSR,
@@ -921,7 +929,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s: Unable to create debugfs directory"
 			"for n-values\n", __func__);
 		ret = PTR_ERR(nvalue_dir);
-		goto err_release_region;
+		goto err_debugfs;
 	}
 
 	omap_voltage_get_volttable(sr_info->voltdm, &volt_data);
@@ -931,7 +939,7 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 			"entries for n-values\n",
 			__func__, sr_info->voltdm->name);
 		ret = -ENODATA;
-		goto err_release_region;
+		goto err_debugfs;
 	}
 
 	for (i = 0; i < sr_info->nvalue_count; i++) {
@@ -945,6 +953,11 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 
 	return ret;
 
+err_debugfs:
+	debugfs_remove_recursive(sr_info->dbg_dir);
+err_iounmap:
+	list_del(&sr_info->node);
+	iounmap(sr_info->base);
 err_release_region:
 	release_mem_region(mem->start, resource_size(mem));
 err_free_devinfo:

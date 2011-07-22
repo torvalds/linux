@@ -393,7 +393,7 @@ int ubifs_wbuf_sync_nolock(struct ubifs_wbuf *wbuf)
 	ubifs_assert(wbuf->size % c->min_io_size == 0);
 	ubifs_assert(!c->ro_media && !c->ro_mount);
 	if (c->leb_size - wbuf->offs >= c->max_write_size)
-		ubifs_assert(!((wbuf->offs + wbuf->size) % c->max_write_size ));
+		ubifs_assert(!((wbuf->offs + wbuf->size) % c->max_write_size));
 
 	if (c->ro_error)
 		return -EROFS;
@@ -452,8 +452,8 @@ int ubifs_wbuf_sync_nolock(struct ubifs_wbuf *wbuf)
  * @dtype: data type
  *
  * This function targets the write-buffer to logical eraseblock @lnum:@offs.
- * The write-buffer is synchronized if it is not empty. Returns zero in case of
- * success and a negative error code in case of failure.
+ * The write-buffer has to be empty. Returns zero in case of success and a
+ * negative error code in case of failure.
  */
 int ubifs_wbuf_seek_nolock(struct ubifs_wbuf *wbuf, int lnum, int offs,
 			   int dtype)
@@ -465,13 +465,7 @@ int ubifs_wbuf_seek_nolock(struct ubifs_wbuf *wbuf, int lnum, int offs,
 	ubifs_assert(offs >= 0 && offs <= c->leb_size);
 	ubifs_assert(offs % c->min_io_size == 0 && !(offs & 7));
 	ubifs_assert(lnum != wbuf->lnum);
-
-	if (wbuf->used > 0) {
-		int err = ubifs_wbuf_sync_nolock(wbuf);
-
-		if (err)
-			return err;
-	}
+	ubifs_assert(wbuf->used == 0);
 
 	spin_lock(&wbuf->lock);
 	wbuf->lnum = lnum;
@@ -573,7 +567,7 @@ out_timers:
 int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 {
 	struct ubifs_info *c = wbuf->c;
-	int err, written, n, aligned_len = ALIGN(len, 8), offs;
+	int err, written, n, aligned_len = ALIGN(len, 8);
 
 	dbg_io("%d bytes (%s) to jhead %s wbuf at LEB %d:%d", len,
 	       dbg_ntype(((struct ubifs_ch *)buf)->node_type),
@@ -587,8 +581,9 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 	ubifs_assert(wbuf->size % c->min_io_size == 0);
 	ubifs_assert(mutex_is_locked(&wbuf->io_mutex));
 	ubifs_assert(!c->ro_media && !c->ro_mount);
+	ubifs_assert(!c->space_fixup);
 	if (c->leb_size - wbuf->offs >= c->max_write_size)
-		ubifs_assert(!((wbuf->offs + wbuf->size) % c->max_write_size ));
+		ubifs_assert(!((wbuf->offs + wbuf->size) % c->max_write_size));
 
 	if (c->leb_size - wbuf->offs - wbuf->used < aligned_len) {
 		err = -ENOSPC;
@@ -636,7 +631,6 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		goto exit;
 	}
 
-	offs = wbuf->offs;
 	written = 0;
 
 	if (wbuf->used) {
@@ -653,7 +647,7 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		if (err)
 			goto out;
 
-		offs += wbuf->size;
+		wbuf->offs += wbuf->size;
 		len -= wbuf->avail;
 		aligned_len -= wbuf->avail;
 		written += wbuf->avail;
@@ -672,7 +666,7 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		if (err)
 			goto out;
 
-		offs += wbuf->size;
+		wbuf->offs += wbuf->size;
 		len -= wbuf->size;
 		aligned_len -= wbuf->size;
 		written += wbuf->size;
@@ -687,12 +681,13 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 	n = aligned_len >> c->max_write_shift;
 	if (n) {
 		n <<= c->max_write_shift;
-		dbg_io("write %d bytes to LEB %d:%d", n, wbuf->lnum, offs);
-		err = ubi_leb_write(c->ubi, wbuf->lnum, buf + written, offs, n,
-				    wbuf->dtype);
+		dbg_io("write %d bytes to LEB %d:%d", n, wbuf->lnum,
+		       wbuf->offs);
+		err = ubi_leb_write(c->ubi, wbuf->lnum, buf + written,
+				    wbuf->offs, n, wbuf->dtype);
 		if (err)
 			goto out;
-		offs += n;
+		wbuf->offs += n;
 		aligned_len -= n;
 		len -= n;
 		written += n;
@@ -707,7 +702,6 @@ int ubifs_wbuf_write_nolock(struct ubifs_wbuf *wbuf, void *buf, int len)
 		 */
 		memcpy(wbuf->buf, buf + written, len);
 
-	wbuf->offs = offs;
 	if (c->leb_size - wbuf->offs >= c->max_write_size)
 		wbuf->size = c->max_write_size;
 	else
@@ -766,6 +760,7 @@ int ubifs_write_node(struct ubifs_info *c, void *buf, int len, int lnum,
 	ubifs_assert(lnum >= 0 && lnum < c->leb_cnt && offs >= 0);
 	ubifs_assert(offs % c->min_io_size == 0 && offs < c->leb_size);
 	ubifs_assert(!c->ro_media && !c->ro_mount);
+	ubifs_assert(!c->space_fixup);
 
 	if (c->ro_error)
 		return -EROFS;

@@ -35,10 +35,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/fs.h>
 #include <linux/dmi.h>
-#include <acpi/acpi_drivers.h>
-#include <linux/sched.h>
+#include <linux/acpi.h>
 #include <linux/thermal.h>
 #include <linux/platform_device.h>
 

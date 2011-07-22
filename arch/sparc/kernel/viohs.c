@@ -363,7 +363,7 @@ static int process_ver(struct vio_driver_state *vio, struct vio_ver_info *pkt)
 
 	default:
 		return handshake_failure(vio);
-	};
+	}
 }
 
 static int process_attr(struct vio_driver_state *vio, void *pkt)

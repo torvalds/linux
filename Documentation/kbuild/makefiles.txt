@@ -40,11 +40,13 @@ This document describes the Linux kernel Makefiles.
 	   --- 6.6 Commands useful for building a boot image
 	   --- 6.7 Custom kbuild commands
 	   --- 6.8 Preprocessing linker scripts
+	   --- 6.9 Generic header files
 
 	=== 7 Kbuild syntax for exported headers
 		--- 7.1 header-y
 		--- 7.2 objhdr-y
 		--- 7.3 destination-y
+		--- 7.4 generic-y
 
 	=== 8 Kbuild Variables
 	=== 9 Makefile language
@@ -498,6 +500,18 @@ more details, with real examples.
 	In the above example, the option -falign-functions=4 is used for
 	gcc >= 3.00. For gcc < 3.00, -malign-functions=4 is used.
 	Note: cc-option-align uses KBUILD_CFLAGS for $(CC) options
+
+    cc-disable-warning
+	cc-disable-warning checks if gcc supports a given warning and returns
+	the commandline switch to disable it. This special function is needed,
+	because gcc 4.4 and later accept any unknown -Wno-* option and only
+	warn about it if there is another warning in the source file.
+
+	Example:
+		KBUILD_CFLAGS += $(call cc-disable-warning, unused-but-set-variable)
+
+	In the above example, -Wno-unused-but-set-variable will be added to
+	KBUILD_CFLAGS only if gcc really accepts it.
 
     cc-version
 	cc-version returns a numerical version of the $(CC) compiler version.
@@ -955,6 +969,11 @@ When kbuild executes, the following steps are followed (roughly):
 	used when linking modules. This is often a linker script.
 	From commandline LDFLAGS_MODULE shall be used (see kbuild.txt).
 
+    KBUILD_ARFLAGS   Options for $(AR) when creating archives
+
+	$(KBUILD_ARFLAGS) set by the top level Makefile to "D" (deterministic
+	mode) if this option is supported by $(AR).
+
 --- 6.2 Add prerequisites to archprepare:
 
 	The archprepare: rule is used to list prerequisites that need to be
@@ -1209,6 +1228,14 @@ When kbuild executes, the following steps are followed (roughly):
 	The kbuild infrastructure for *lds file are used in several
 	architecture-specific files.
 
+--- 6.9 Generic header files
+
+	The directory include/asm-generic contains the header files
+	that may be shared between individual architectures.
+	The recommended approach how to use a generic header file is
+	to list the file in the Kbuild file.
+	See "7.4 generic-y" for further info on syntax etc.
+
 === 7 Kbuild syntax for exported headers
 
 The kernel include a set of headers that is exported to userspace.
@@ -1265,6 +1292,32 @@ See subsequent chapter for the syntax of the Kbuild file.
 	In the example above all exported headers in the Kbuild file
 	will be located in the directory "include/linux" when exported.
 
+	--- 7.4 generic-y
+
+	If an architecture uses a verbatim copy of a header from
+	include/asm-generic then this is listed in the file
+	arch/$(ARCH)/include/asm/Kbuild like this:
+
+		Example:
+			#arch/x86/include/asm/Kbuild
+			generic-y += termios.h
+			generic-y += rtc.h
+
+	During the prepare phase of the build a wrapper include
+	file is generated in the directory:
+
+		arch/$(ARCH)/include/generated/asm
+
+	When a header is exported where the architecture uses
+	the generic header a similar wrapper is generated as part
+	of the set of exported headers in the directory:
+
+		usr/include/asm
+
+	The generated wrapper will in both cases look like the following:
+
+		Example: termios.h
+			#include <asm-generic/termios.h>
 
 === 8 Kbuild Variables
 

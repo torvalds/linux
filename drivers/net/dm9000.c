@@ -1157,9 +1157,6 @@ dm9000_open(struct net_device *dev)
 
 	irqflags |= IRQF_SHARED;
 
-	if (request_irq(dev->irq, dm9000_interrupt, irqflags, dev->name, dev))
-		return -EAGAIN;
-
 	/* GPIO0 on pre-activate PHY, Reg 1F is not set by reset */
 	iow(db, DM9000_GPR, 0);	/* REG_1F bit0 activate phyxcer */
 	mdelay(1); /* delay needs by DM9000B */
@@ -1167,6 +1164,9 @@ dm9000_open(struct net_device *dev)
 	/* Initialize DM9000 board */
 	dm9000_reset(db);
 	dm9000_init_dm9000(dev);
+
+	if (request_irq(dev->irq, dm9000_interrupt, irqflags, dev->name, dev))
+		return -EAGAIN;
 
 	/* Init driver variable */
 	db->dbug_cnt = 0;

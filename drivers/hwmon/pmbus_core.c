@@ -707,6 +707,7 @@ do {									\
 	struct sensor_device_attribute *a				\
 	    = &data->_type##s[data->num_##_type##s].attribute;		\
 	BUG_ON(data->num_attributes >= data->max_attributes);		\
+	sysfs_attr_init(&a->dev_attr.attr);				\
 	a->dev_attr.attr.name = _name;					\
 	a->dev_attr.attr.mode = _mode;					\
 	a->dev_attr.show = _show;					\

@@ -60,7 +60,7 @@ enum p9_trans_status {
 };
 
 /**
- * enum p9_req_status_t - virtio request status
+ * enum p9_req_status_t - status of a request
  * @REQ_STATUS_IDLE: request slot unused
  * @REQ_STATUS_ALLOC: request has been allocated but not sent
  * @REQ_STATUS_UNSENT: request waiting to be sent

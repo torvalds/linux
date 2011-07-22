@@ -994,6 +994,8 @@ static void lbs_submit_command(struct lbs_private *priv,
 	cmd = cmdnode->cmdbuf;
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
+	priv->seqnum++;
+	cmd->seqnum = cpu_to_le16(priv->seqnum);
 	priv->cur_cmd = cmdnode;
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
@@ -1621,11 +1623,9 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 	/* Copy the incoming command to the buffer */
 	memcpy(cmdnode->cmdbuf, in_cmd, in_cmd_size);
 
-	/* Set sequence number, clean result, move to buffer */
-	priv->seqnum++;
+	/* Set command, clean result, move to buffer */
 	cmdnode->cmdbuf->command = cpu_to_le16(command);
 	cmdnode->cmdbuf->size    = cpu_to_le16(in_cmd_size);
-	cmdnode->cmdbuf->seqnum  = cpu_to_le16(priv->seqnum);
 	cmdnode->cmdbuf->result  = 0;
 
 	lbs_deb_host("PREP_CMD: command 0x%04x\n", command);

@@ -66,12 +66,11 @@ struct tegra_kbc {
 	void __iomem *mmio;
 	struct input_dev *idev;
 	unsigned int irq;
-	unsigned int wake_enable_rows;
-	unsigned int wake_enable_cols;
 	spinlock_t lock;
 	unsigned int repoll_dly;
 	unsigned long cp_dly_jiffies;
 	bool use_fn_map;
+	bool use_ghost_filter;
 	const struct tegra_kbc_platform_data *pdata;
 	unsigned short keycode[KBC_MAX_KEY * 2];
 	unsigned short current_keys[KBC_MAX_KPENT];
@@ -260,6 +259,8 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 	unsigned int num_down = 0;
 	unsigned long flags;
 	bool fn_keypress = false;
+	bool key_in_same_row = false;
+	bool key_in_same_col = false;
 
 	spin_lock_irqsave(&kbc->lock, flags);
 	for (i = 0; i < KBC_MAX_KPENT; i++) {
@@ -285,6 +286,34 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 	}
 
 	/*
+	 * Matrix keyboard designs are prone to keyboard ghosting.
+	 * Ghosting occurs if there are 3 keys such that -
+	 * any 2 of the 3 keys share a row, and any 2 of them share a column.
+	 * If so ignore the key presses for this iteration.
+	 */
+	if ((kbc->use_ghost_filter) && (num_down >= 3)) {
+		for (i = 0; i < num_down; i++) {
+			unsigned int j;
+			u8 curr_col = scancodes[i] & 0x07;
+			u8 curr_row = scancodes[i] >> KBC_ROW_SHIFT;
+
+			/*
+			 * Find 2 keys such that one key is in the same row
+			 * and the other is in the same column as the i-th key.
+			 */
+			for (j = i + 1; j < num_down; j++) {
+				u8 col = scancodes[j] & 0x07;
+				u8 row = scancodes[j] >> KBC_ROW_SHIFT;
+
+				if (col == curr_col)
+					key_in_same_col = true;
+				if (row == curr_row)
+					key_in_same_row = true;
+			}
+		}
+	}
+
+	/*
 	 * If the platform uses Fn keymaps, translate keys on a Fn keypress.
 	 * Function keycodes are KBC_MAX_KEY apart from the plain keycodes.
 	 */
@@ -296,6 +325,10 @@ static void tegra_kbc_report_keys(struct tegra_kbc *kbc)
 	}
 
 	spin_unlock_irqrestore(&kbc->lock, flags);
+
+	/* Ignore the key presses for this iteration? */
+	if (key_in_same_col && key_in_same_row)
+		return;
 
 	tegra_kbc_report_released_keys(kbc->idev,
 				       kbc->current_keys, kbc->num_pressed_keys,
@@ -383,21 +416,11 @@ static void tegra_kbc_setup_wakekeys(struct tegra_kbc *kbc, bool filter)
 	int i;
 	unsigned int rst_val;
 
-	BUG_ON(pdata->wake_cnt > KBC_MAX_KEY);
-	rst_val = (filter && pdata->wake_cnt) ? ~0 : 0;
+	/* Either mask all keys or none. */
+	rst_val = (filter && !pdata->wakeup) ? ~0 : 0;
 
 	for (i = 0; i < KBC_MAX_ROW; i++)
 		writel(rst_val, kbc->mmio + KBC_ROW0_MASK_0 + i * 4);
-
-	if (filter) {
-		for (i = 0; i < pdata->wake_cnt; i++) {
-			u32 val, addr;
-			addr = pdata->wake_cfg[i].row * 4 + KBC_ROW0_MASK_0;
-			val = readl(kbc->mmio + addr);
-			val &= ~(1 << pdata->wake_cfg[i].col);
-			writel(val, kbc->mmio + addr);
-		}
-	}
 }
 
 static void tegra_kbc_config_pins(struct tegra_kbc *kbc)
@@ -559,7 +582,6 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq;
 	int err;
-	int i;
 	int num_rows = 0;
 	unsigned int debounce_cnt;
 	unsigned int scan_time_rows;
@@ -616,13 +638,6 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 		goto err_iounmap;
 	}
 
-	kbc->wake_enable_rows = 0;
-	kbc->wake_enable_cols = 0;
-	for (i = 0; i < pdata->wake_cnt; i++) {
-		kbc->wake_enable_rows |= (1 << pdata->wake_cfg[i].row);
-		kbc->wake_enable_cols |= (1 << pdata->wake_cfg[i].col);
-	}
-
 	/*
 	 * The time delay between two consecutive reads of the FIFO is
 	 * the sum of the repeat time and the time taken for scanning
@@ -652,6 +667,7 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 		input_dev->keycodemax *= 2;
 
 	kbc->use_fn_map = pdata->use_fn_map;
+	kbc->use_ghost_filter = pdata->use_ghost_filter;
 	keymap_data = pdata->keymap_data ?: &tegra_kbc_default_keymap_data;
 	matrix_keypad_build_keymap(keymap_data, KBC_ROW_SHIFT,
 				   input_dev->keycode, input_dev->keybit);

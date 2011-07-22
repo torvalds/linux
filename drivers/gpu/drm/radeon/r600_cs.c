@@ -71,20 +71,21 @@ struct r600_cs_track {
 	u64			db_bo_mc;
 };
 
-#define FMT_8_BIT(fmt, vc) [fmt] = { 1, 1, 1, vc }
-#define FMT_16_BIT(fmt, vc) [fmt] = { 1, 1, 2, vc }
-#define FMT_24_BIT(fmt) [fmt] = { 1, 1, 3, 0 }
-#define FMT_32_BIT(fmt, vc) [fmt] = { 1, 1, 4, vc }
-#define FMT_48_BIT(fmt) [fmt] = { 1, 1, 6, 0 }
-#define FMT_64_BIT(fmt, vc) [fmt] = { 1, 1, 8, vc }
-#define FMT_96_BIT(fmt) [fmt] = { 1, 1, 12, 0 }
-#define FMT_128_BIT(fmt, vc) [fmt] = { 1, 1, 16, vc }
+#define FMT_8_BIT(fmt, vc)   [fmt] = { 1, 1, 1, vc, CHIP_R600 }
+#define FMT_16_BIT(fmt, vc)  [fmt] = { 1, 1, 2, vc, CHIP_R600 }
+#define FMT_24_BIT(fmt)      [fmt] = { 1, 1, 3,  0, CHIP_R600 }
+#define FMT_32_BIT(fmt, vc)  [fmt] = { 1, 1, 4, vc, CHIP_R600 }
+#define FMT_48_BIT(fmt)      [fmt] = { 1, 1, 6,  0, CHIP_R600 }
+#define FMT_64_BIT(fmt, vc)  [fmt] = { 1, 1, 8, vc, CHIP_R600 }
+#define FMT_96_BIT(fmt)      [fmt] = { 1, 1, 12, 0, CHIP_R600 }
+#define FMT_128_BIT(fmt, vc) [fmt] = { 1, 1, 16,vc, CHIP_R600 }
 
 struct gpu_formats {
 	unsigned blockwidth;
 	unsigned blockheight;
 	unsigned blocksize;
 	unsigned valid_color;
+	enum radeon_family min_family;
 };
 
 static const struct gpu_formats color_formats_table[] = {
@@ -154,7 +155,11 @@ static const struct gpu_formats color_formats_table[] = {
 	[V_038004_FMT_BC3] = { 4, 4, 16, 0 },
 	[V_038004_FMT_BC4] = { 4, 4, 8, 0 },
 	[V_038004_FMT_BC5] = { 4, 4, 16, 0},
+	[V_038004_FMT_BC6] = { 4, 4, 16, 0, CHIP_CEDAR}, /* Evergreen-only */
+	[V_038004_FMT_BC7] = { 4, 4, 16, 0, CHIP_CEDAR}, /* Evergreen-only */
 
+	/* The other Evergreen formats */
+	[V_038004_FMT_32_AS_32_32_32_32] = { 1, 1, 4, 0, CHIP_CEDAR},
 };
 
 static inline bool fmt_is_valid_color(u32 format)
@@ -168,11 +173,14 @@ static inline bool fmt_is_valid_color(u32 format)
 	return false;
 }
 
-static inline bool fmt_is_valid_texture(u32 format)
+static inline bool fmt_is_valid_texture(u32 format, enum radeon_family family)
 {
 	if (format >= ARRAY_SIZE(color_formats_table))
 		return false;
 	
+	if (family < color_formats_table[format].min_family)
+		return false;
+
 	if (color_formats_table[format].blockwidth > 0)
 		return true;
 
@@ -1325,7 +1333,7 @@ static inline int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 i
 		return -EINVAL;
 	}
 	format = G_038004_DATA_FORMAT(word1);
-	if (!fmt_is_valid_texture(format)) {
+	if (!fmt_is_valid_texture(format, p->family)) {
 		dev_warn(p->dev, "%s:%d texture invalid format %d\n",
 			 __func__, __LINE__, format);
 		return -EINVAL;

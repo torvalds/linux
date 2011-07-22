@@ -154,10 +154,15 @@ static void parse_lfp_panel_data(struct drm_psb_private *dev_priv,
 
 	fill_detail_timing_data(panel_fixed_mode, dvo_timing);
 
-	dev_priv->lfp_lvds_vbt_mode = panel_fixed_mode;
-
-	DRM_DEBUG("Found panel mode in BIOS VBT tables:\n");
-	drm_mode_debug_printmodeline(panel_fixed_mode);
+	if (panel_fixed_mode->htotal > 0 && panel_fixed_mode->vtotal > 0) {
+		dev_priv->lfp_lvds_vbt_mode = panel_fixed_mode;
+		DRM_DEBUG("Found panel mode in BIOS VBT tables:\n");
+		drm_mode_debug_printmodeline(panel_fixed_mode);
+	} else {
+		DRM_DEBUG("Ignoring bogus LVDS VBT mode.\n");
+		dev_priv->lvds_vbt = 0;
+		kfree(panel_fixed_mode);
+	}
 
 	return;
 }

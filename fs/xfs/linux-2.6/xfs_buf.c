@@ -1422,12 +1422,12 @@ restart:
 int
 xfs_buftarg_shrink(
 	struct shrinker		*shrink,
-	int			nr_to_scan,
-	gfp_t			mask)
+	struct shrink_control	*sc)
 {
 	struct xfs_buftarg	*btp = container_of(shrink,
 					struct xfs_buftarg, bt_shrinker);
 	struct xfs_buf		*bp;
+	int nr_to_scan = sc->nr_to_scan;
 	LIST_HEAD(dispose);
 
 	if (!nr_to_scan)

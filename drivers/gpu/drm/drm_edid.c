@@ -184,9 +184,9 @@ drm_edid_block_valid(u8 *raw_edid)
 
 bad:
 	if (raw_edid) {
-		DRM_ERROR("Raw EDID:\n");
+		printk(KERN_ERR "Raw EDID:\n");
 		print_hex_dump_bytes(KERN_ERR, DUMP_PREFIX_NONE, raw_edid, EDID_LENGTH);
-		printk("\n");
+		printk(KERN_ERR "\n");
 	}
 	return 0;
 }
@@ -258,6 +258,17 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 	return ret == 2 ? 0 : -1;
 }
 
+static bool drm_edid_is_zero(u8 *in_edid, int length)
+{
+	int i;
+	u32 *raw_edid = (u32 *)in_edid;
+
+	for (i = 0; i < length / 4; i++)
+		if (*(raw_edid + i) != 0)
+			return false;
+	return true;
+}
+
 static u8 *
 drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 {
@@ -273,6 +284,10 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 			goto out;
 		if (drm_edid_block_valid(block))
 			break;
+		if (i == 0 && drm_edid_is_zero(block, EDID_LENGTH)) {
+			connector->null_edid_counter++;
+			goto carp;
+		}
 	}
 	if (i == 4)
 		goto carp;
@@ -1413,6 +1428,64 @@ end:
 EXPORT_SYMBOL(drm_detect_monitor_audio);
 
 /**
+ * drm_add_display_info - pull display info out if present
+ * @edid: EDID data
+ * @info: display info (attached to connector)
+ *
+ * Grab any available display info and stuff it into the drm_display_info
+ * structure that's part of the connector.  Useful for tracking bpp and
+ * color spaces.
+ */
+static void drm_add_display_info(struct edid *edid,
+				 struct drm_display_info *info)
+{
+	info->width_mm = edid->width_cm * 10;
+	info->height_mm = edid->height_cm * 10;
+
+	/* driver figures it out in this case */
+	info->bpc = 0;
+	info->color_formats = 0;
+
+	/* Only defined for 1.4 with digital displays */
+	if (edid->revision < 4)
+		return;
+
+	if (!(edid->input & DRM_EDID_INPUT_DIGITAL))
+		return;
+
+	switch (edid->input & DRM_EDID_DIGITAL_DEPTH_MASK) {
+	case DRM_EDID_DIGITAL_DEPTH_6:
+		info->bpc = 6;
+		break;
+	case DRM_EDID_DIGITAL_DEPTH_8:
+		info->bpc = 8;
+		break;
+	case DRM_EDID_DIGITAL_DEPTH_10:
+		info->bpc = 10;
+		break;
+	case DRM_EDID_DIGITAL_DEPTH_12:
+		info->bpc = 12;
+		break;
+	case DRM_EDID_DIGITAL_DEPTH_14:
+		info->bpc = 14;
+		break;
+	case DRM_EDID_DIGITAL_DEPTH_16:
+		info->bpc = 16;
+		break;
+	case DRM_EDID_DIGITAL_DEPTH_UNDEF:
+	default:
+		info->bpc = 0;
+		break;
+	}
+
+	info->color_formats = DRM_COLOR_FORMAT_RGB444;
+	if (info->color_formats & DRM_EDID_FEATURE_RGB_YCRCB444)
+		info->color_formats = DRM_COLOR_FORMAT_YCRCB444;
+	if (info->color_formats & DRM_EDID_FEATURE_RGB_YCRCB422)
+		info->color_formats = DRM_COLOR_FORMAT_YCRCB422;
+}
+
+/**
  * drm_add_edid_modes - add modes from EDID data, if available
  * @connector: connector we're probing
  * @edid: edid data
@@ -1460,8 +1533,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	if (quirks & (EDID_QUIRK_PREFER_LARGE_60 | EDID_QUIRK_PREFER_LARGE_75))
 		edid_fixup_preferred(connector, quirks);
 
-	connector->display_info.width_mm = edid->width_cm * 10;
-	connector->display_info.height_mm = edid->height_cm * 10;
+	drm_add_display_info(edid, &connector->display_info);
 
 	return num_modes;
 }

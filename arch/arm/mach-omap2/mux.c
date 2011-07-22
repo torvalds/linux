@@ -83,6 +83,9 @@ void omap_mux_write(struct omap_mux_partition *partition, u16 val,
 void omap_mux_write_array(struct omap_mux_partition *partition,
 				 struct omap_board_mux *board_mux)
 {
+	if (!board_mux)
+		return;
+
 	while (board_mux->reg_offset != OMAP_MUX_TERMINATOR) {
 		omap_mux_write(partition, board_mux->value,
 			       board_mux->reg_offset);
@@ -906,7 +909,7 @@ static struct omap_mux *omap_mux_get_by_gpio(
 u16 omap_mux_get_gpio(int gpio)
 {
 	struct omap_mux_partition *partition;
-	struct omap_mux *m;
+	struct omap_mux *m = NULL;
 
 	list_for_each_entry(partition, &mux_partitions, node) {
 		m = omap_mux_get_by_gpio(partition, gpio);

@@ -65,7 +65,8 @@ extern void dma_sync_single_range_for_cpu(struct device *, dma_addr_t,
 extern void dma_sync_single_range_for_device(struct device *, dma_addr_t,
 					     unsigned long offset, size_t,
 					     enum dma_data_direction);
-extern void dma_cache_sync(void *vaddr, size_t, enum dma_data_direction);
+extern void dma_cache_sync(struct device *dev, void *vaddr, size_t,
+			   enum dma_data_direction);
 
 static inline int
 dma_mapping_error(struct device *dev, dma_addr_t dma_addr)

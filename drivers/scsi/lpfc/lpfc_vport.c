@@ -83,7 +83,7 @@ inline void lpfc_vport_set_state(struct lpfc_vport *vport,
 static int
 lpfc_alloc_vpi(struct lpfc_hba *phba)
 {
-	int  vpi;
+	unsigned long vpi;
 
 	spin_lock_irq(&phba->hbalock);
 	/* Start at bit 1 because vpi zero is reserved for the physical port */

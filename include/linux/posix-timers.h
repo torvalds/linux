@@ -82,6 +82,7 @@ struct k_itimer {
 			unsigned long expires;
 		} mmtimer;
 		struct alarm alarmtimer;
+		struct rcu_head rcu;
 	} it;
 };
 

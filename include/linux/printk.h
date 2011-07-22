@@ -1,6 +1,8 @@
 #ifndef __KERNEL_PRINTK__
 #define __KERNEL_PRINTK__
 
+#include <linux/init.h>
+
 extern const char linux_banner[];
 extern const char linux_proc_banner[];
 
@@ -113,6 +115,7 @@ extern int dmesg_restrict;
 extern int kptr_restrict;
 
 void log_buf_kexec_setup(void);
+void __init setup_log_buf(int early);
 #else
 static inline __attribute__ ((format (printf, 1, 0)))
 int vprintk(const char *s, va_list args)
@@ -135,6 +138,10 @@ static inline bool printk_timed_ratelimit(unsigned long *caller_jiffies,
 }
 
 static inline void log_buf_kexec_setup(void)
+{
+}
+
+static inline void setup_log_buf(int early)
 {
 }
 #endif

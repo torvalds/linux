@@ -743,7 +743,14 @@ lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *phba)
 		if (bcnt == 0)
 			continue;
 		/* Now, post the SCSI buffer list sgls as a block */
-		status = lpfc_sli4_post_scsi_sgl_block(phba, &sblist, bcnt);
+		if (!phba->sli4_hba.extents_in_use)
+			status = lpfc_sli4_post_scsi_sgl_block(phba,
+							&sblist,
+							bcnt);
+		else
+			status = lpfc_sli4_post_scsi_sgl_blk_ext(phba,
+							&sblist,
+							bcnt);
 		/* Reset SCSI buffer count for next round of posting */
 		bcnt = 0;
 		while (!list_empty(&sblist)) {
@@ -787,7 +794,7 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 	dma_addr_t pdma_phys_fcp_cmd;
 	dma_addr_t pdma_phys_fcp_rsp;
 	dma_addr_t pdma_phys_bpl, pdma_phys_bpl1;
-	uint16_t iotag, last_xritag = NO_XRI;
+	uint16_t iotag, last_xritag = NO_XRI, lxri = 0;
 	int status = 0, index;
 	int bcnt;
 	int non_sequential_xri = 0;
@@ -823,13 +830,15 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 			break;
 		}
 
-		psb->cur_iocbq.sli4_xritag = lpfc_sli4_next_xritag(phba);
-		if (psb->cur_iocbq.sli4_xritag == NO_XRI) {
+		lxri = lpfc_sli4_next_xritag(phba);
+		if (lxri == NO_XRI) {
 			pci_pool_free(phba->lpfc_scsi_dma_buf_pool,
 			      psb->data, psb->dma_handle);
 			kfree(psb);
 			break;
 		}
+		psb->cur_iocbq.sli4_lxritag = lxri;
+		psb->cur_iocbq.sli4_xritag = phba->sli4_hba.xri_ids[lxri];
 		if (last_xritag != NO_XRI
 			&& psb->cur_iocbq.sli4_xritag != (last_xritag+1)) {
 			non_sequential_xri = 1;
@@ -861,6 +870,7 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 		 */
 		sgl->addr_hi = cpu_to_le32(putPaddrHigh(pdma_phys_fcp_cmd));
 		sgl->addr_lo = cpu_to_le32(putPaddrLow(pdma_phys_fcp_cmd));
+		sgl->word2 = le32_to_cpu(sgl->word2);
 		bf_set(lpfc_sli4_sge_last, sgl, 0);
 		sgl->word2 = cpu_to_le32(sgl->word2);
 		sgl->sge_len = cpu_to_le32(sizeof(struct fcp_cmnd));
@@ -869,6 +879,7 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 		/* Setup the physical region for the FCP RSP */
 		sgl->addr_hi = cpu_to_le32(putPaddrHigh(pdma_phys_fcp_rsp));
 		sgl->addr_lo = cpu_to_le32(putPaddrLow(pdma_phys_fcp_rsp));
+		sgl->word2 = le32_to_cpu(sgl->word2);
 		bf_set(lpfc_sli4_sge_last, sgl, 1);
 		sgl->word2 = cpu_to_le32(sgl->word2);
 		sgl->sge_len = cpu_to_le32(sizeof(struct fcp_rsp));
@@ -914,7 +925,21 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 		}
 	}
 	if (bcnt) {
-		status = lpfc_sli4_post_scsi_sgl_block(phba, &sblist, bcnt);
+		if (!phba->sli4_hba.extents_in_use)
+			status = lpfc_sli4_post_scsi_sgl_block(phba,
+								&sblist,
+								bcnt);
+		else
+			status = lpfc_sli4_post_scsi_sgl_blk_ext(phba,
+								&sblist,
+								bcnt);
+
+		if (status) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
+					"3021 SCSI SGL post error %d\n",
+					status);
+			bcnt = 0;
+		}
 		/* Reset SCSI buffer count for next round of posting */
 		while (!list_empty(&sblist)) {
 			list_remove_head(&sblist, psb, struct lpfc_scsi_buf,
@@ -2081,6 +2106,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 			dma_len = sg_dma_len(sgel);
 			sgl->addr_lo = cpu_to_le32(putPaddrLow(physaddr));
 			sgl->addr_hi = cpu_to_le32(putPaddrHigh(physaddr));
+			sgl->word2 = le32_to_cpu(sgl->word2);
 			if ((num_bde + 1) == nseg)
 				bf_set(lpfc_sli4_sge_last, sgl, 1);
 			else
@@ -2794,6 +2820,9 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	 * of the scsi_cmnd request_buffer
 	 */
 	piocbq->iocb.ulpContext = pnode->nlp_rpi;
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		piocbq->iocb.ulpContext =
+		  phba->sli4_hba.rpi_ids[pnode->nlp_rpi];
 	if (pnode->nlp_fcp_info & NLP_FCP_2_DEVICE)
 		piocbq->iocb.ulpFCP2Rcvy = 1;
 	else
@@ -2807,7 +2836,7 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 }
 
 /**
- * lpfc_scsi_prep_task_mgmt_cmnd - Convert SLI3 scsi TM cmd to FCP info unit
+ * lpfc_scsi_prep_task_mgmt_cmd - Convert SLI3 scsi TM cmd to FCP info unit
  * @vport: The virtual port for which this call is being executed.
  * @lpfc_cmd: Pointer to lpfc_scsi_buf data structure.
  * @lun: Logical unit number.
@@ -2851,6 +2880,10 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_vport *vport,
 		lpfc_fcpcmd_to_iocb(piocb->unsli3.fcp_ext.icd, fcp_cmnd);
 	piocb->ulpCommand = CMD_FCP_ICMND64_CR;
 	piocb->ulpContext = ndlp->nlp_rpi;
+	if (vport->phba->sli_rev == LPFC_SLI_REV4) {
+		piocb->ulpContext =
+		  vport->phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
+	}
 	if (ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE) {
 		piocb->ulpFCP2Rcvy = 1;
 	}
@@ -3405,9 +3438,10 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
 			 "0702 Issue %s to TGT %d LUN %d "
-			 "rpi x%x nlp_flag x%x\n",
+			 "rpi x%x nlp_flag x%x Data: x%x x%x\n",
 			 lpfc_taskmgmt_name(task_mgmt_cmd), tgt_id, lun_id,
-			 pnode->nlp_rpi, pnode->nlp_flag);
+			 pnode->nlp_rpi, pnode->nlp_flag, iocbq->sli4_xritag,
+			 iocbq->iocb_flag);
 
 	status = lpfc_sli_issue_iocb_wait(phba, LPFC_FCP_RING,
 					  iocbq, iocbqrsp, lpfc_cmd->timeout);
@@ -3419,10 +3453,12 @@ lpfc_send_taskmgmt(struct lpfc_vport *vport, struct lpfc_rport_data *rdata,
 			ret = FAILED;
 		lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
-			 "0727 TMF %s to TGT %d LUN %d failed (%d, %d)\n",
+			 "0727 TMF %s to TGT %d LUN %d failed (%d, %d) "
+			 "iocb_flag x%x\n",
 			 lpfc_taskmgmt_name(task_mgmt_cmd),
 			 tgt_id, lun_id, iocbqrsp->iocb.ulpStatus,
-			 iocbqrsp->iocb.un.ulpWord[4]);
+			 iocbqrsp->iocb.un.ulpWord[4],
+			 iocbq->iocb_flag);
 	} else if (status == IOCB_BUSY)
 		ret = FAILED;
 	else

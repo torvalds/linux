@@ -38,6 +38,7 @@
 #include <mach/board.h>
 #include <mach/gpio.h>
 #include <mach/at91rm9200_mc.h>
+#include <mach/cpu.h>
 
 #include "generic.h"
 
@@ -50,10 +51,13 @@ static struct gpio_led cpuat91_leds[] = {
 	},
 };
 
-static void __init cpuat91_map_io(void)
+static void __init cpuat91_init_early(void)
 {
+	/* Set cpu type: PQFP */
+	at91rm9200_set_type(ARCH_REVISON_9200_PQFP);
+
 	/* Initialize processor: 18.432 MHz crystal */
-	at91rm9200_initialize(18432000, AT91RM9200_PQFP);
+	at91rm9200_initialize(18432000);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -175,9 +179,9 @@ static void __init cpuat91_board_init(void)
 
 MACHINE_START(CPUAT91, "Eukrea")
 	/* Maintainer: Eric Benard - EUKREA Electromatique */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= cpuat91_map_io,
+	.map_io		= at91rm9200_map_io,
+	.init_early	= cpuat91_init_early,
 	.init_irq	= cpuat91_init_irq,
 	.init_machine	= cpuat91_board_init,
 MACHINE_END

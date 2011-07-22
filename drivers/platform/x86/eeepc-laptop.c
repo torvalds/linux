@@ -228,7 +228,7 @@ static int set_acpi(struct eeepc_laptop *eeepc, int cm, int value)
 		return -ENODEV;
 
 	if (write_acpi_int(eeepc->handle, method, value))
-		pr_warning("Error writing %s\n", method);
+		pr_warn("Error writing %s\n", method);
 	return 0;
 }
 
@@ -243,7 +243,7 @@ static int get_acpi(struct eeepc_laptop *eeepc, int cm)
 		return -ENODEV;
 
 	if (read_acpi_int(eeepc->handle, method, &value))
-		pr_warning("Error reading %s\n", method);
+		pr_warn("Error reading %s\n", method);
 	return value;
 }
 
@@ -261,7 +261,7 @@ static int acpi_setter_handle(struct eeepc_laptop *eeepc, int cm,
 	status = acpi_get_handle(eeepc->handle, (char *)method,
 				 handle);
 	if (status != AE_OK) {
-		pr_warning("Error finding %s\n", method);
+		pr_warn("Error finding %s\n", method);
 		return -ENODEV;
 	}
 	return 0;
@@ -417,7 +417,7 @@ static ssize_t store_cpufv_disabled(struct device *dev,
 	switch (value) {
 	case 0:
 		if (eeepc->cpufv_disabled)
-			pr_warning("cpufv enabled (not officially supported "
+			pr_warn("cpufv enabled (not officially supported "
 				"on this model)\n");
 		eeepc->cpufv_disabled = false;
 		return rv;
@@ -609,7 +609,7 @@ static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc, acpi_handle handle)
 		bus = port->subordinate;
 
 		if (!bus) {
-			pr_warning("Unable to find PCI bus?\n");
+			pr_warn("Unable to find PCI bus 1?\n");
 			goto out_unlock;
 		}
 
@@ -621,12 +621,12 @@ static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc, acpi_handle handle)
 		absent = (l == 0xffffffff);
 
 		if (blocked != absent) {
-			pr_warning("BIOS says wireless lan is %s, "
-					"but the pci device is %s\n",
+			pr_warn("BIOS says wireless lan is %s, "
+				"but the pci device is %s\n",
 				blocked ? "blocked" : "unblocked",
 				absent ? "absent" : "present");
-			pr_warning("skipped wireless hotplug as probably "
-					"inappropriate for this model\n");
+			pr_warn("skipped wireless hotplug as probably "
+				"inappropriate for this model\n");
 			goto out_unlock;
 		}
 
@@ -691,7 +691,8 @@ static int eeepc_register_rfkill_notifier(struct eeepc_laptop *eeepc,
 						     eeepc_rfkill_notify,
 						     eeepc);
 		if (ACPI_FAILURE(status))
-			pr_warning("Failed to register notify on %s\n", node);
+			pr_warn("Failed to register notify on %s\n", node);
+
 		/*
 		 * Refresh pci hotplug in case the rfkill state was
 		 * changed during setup.

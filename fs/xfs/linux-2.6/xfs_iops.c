@@ -182,7 +182,7 @@ xfs_vn_mknod(
 	if (IS_POSIXACL(dir)) {
 		default_acl = xfs_get_acl(dir, ACL_TYPE_DEFAULT);
 		if (IS_ERR(default_acl))
-			return -PTR_ERR(default_acl);
+			return PTR_ERR(default_acl);
 
 		if (!default_acl)
 			mode &= ~current_umask();

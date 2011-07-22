@@ -248,6 +248,18 @@ config TOUCHSCREEN_LPC32XX
 	  To compile this driver as a module, choose M here: the
 	  module will be called lpc32xx_ts.
 
+config TOUCHSCREEN_MAX11801
+	tristate "MAX11801 based touchscreens"
+	depends on I2C
+	help
+	  Say Y here if you have a MAX11801 based touchscreen
+	  controller.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max11801_ts.
+
 config TOUCHSCREEN_MCS5000
 	tristate "MELFAS MCS-5000 touchscreen"
 	depends on I2C

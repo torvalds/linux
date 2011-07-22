@@ -35,11 +35,9 @@ static inline int init_new_context(struct task_struct *tsk,
 		 * and if has_pgste is set, it will create extended page
 		 * tables.
 		 */
-		mm->context.noexec = 0;
 		mm->context.has_pgste = 1;
 		mm->context.alloc_pgste = 1;
 	} else {
-		mm->context.noexec = (user_mode == SECONDARY_SPACE_MODE);
 		mm->context.has_pgste = 0;
 		mm->context.alloc_pgste = 0;
 	}
@@ -63,10 +61,8 @@ static inline void update_mm(struct mm_struct *mm, struct task_struct *tsk)
 	S390_lowcore.user_asce = mm->context.asce_bits | __pa(pgd);
 	if (user_mode != HOME_SPACE_MODE) {
 		/* Load primary space page table origin. */
-		pgd = mm->context.noexec ? get_shadow_table(pgd) : pgd;
-		S390_lowcore.user_exec_asce = mm->context.asce_bits | __pa(pgd);
 		asm volatile(LCTL_OPCODE" 1,1,%0\n"
-			     : : "m" (S390_lowcore.user_exec_asce) );
+			     : : "m" (S390_lowcore.user_asce) );
 	} else
 		/* Load home space page table origin. */
 		asm volatile(LCTL_OPCODE" 13,13,%0"

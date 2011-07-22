@@ -41,6 +41,7 @@ struct lpfc_sli2_slim;
 		downloads using bsg */
 #define LPFC_DEFAULT_PROT_SG_SEG_CNT 4096 /* sg protection elements count */
 #define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
+#define LPFC_MAX_SGE_SIZE       0x80000000 /* Maximum data allowed in a SGE */
 #define LPFC_MAX_PROT_SG_SEG_CNT 4096	/* prot sg element count per scsi cmd*/
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
 #define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
@@ -486,6 +487,42 @@ struct unsol_rcv_ct_ctx {
 				     (1 << LPFC_USER_LINK_SPEED_AUTO))
 #define LPFC_LINK_SPEED_STRING "0, 1, 2, 4, 8, 10, 16"
 
+enum nemb_type {
+	nemb_mse = 1,
+	nemb_hbd
+};
+
+enum mbox_type {
+	mbox_rd = 1,
+	mbox_wr
+};
+
+enum dma_type {
+	dma_mbox = 1,
+	dma_ebuf
+};
+
+enum sta_type {
+	sta_pre_addr = 1,
+	sta_pos_addr
+};
+
+struct lpfc_mbox_ext_buf_ctx {
+	uint32_t state;
+#define LPFC_BSG_MBOX_IDLE		0
+#define LPFC_BSG_MBOX_HOST              1
+#define LPFC_BSG_MBOX_PORT		2
+#define LPFC_BSG_MBOX_DONE		3
+#define LPFC_BSG_MBOX_ABTS		4
+	enum nemb_type nembType;
+	enum mbox_type mboxType;
+	uint32_t numBuf;
+	uint32_t mbxTag;
+	uint32_t seqNum;
+	struct lpfc_dmabuf *mbx_dmabuf;
+	struct list_head ext_dmabuf_list;
+};
+
 struct lpfc_hba {
 	/* SCSI interface function jump table entries */
 	int (*lpfc_new_scsi_buf)
@@ -589,6 +626,7 @@ struct lpfc_hba {
 
 	MAILBOX_t *mbox;
 	uint32_t *mbox_ext;
+	struct lpfc_mbox_ext_buf_ctx mbox_ext_buf_ctx;
 	uint32_t ha_copy;
 	struct _PCB *pcb;
 	struct _IOCB *IOCBs;
@@ -659,6 +697,7 @@ struct lpfc_hba {
 	uint32_t cfg_hostmem_hgp;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_aer_support;
+	uint32_t cfg_sriov_nr_virtfn;
 	uint32_t cfg_iocb_cnt;
 	uint32_t cfg_suppress_link_up;
 #define LPFC_INITIALIZE_LINK              0	/* do normal init_link mbox */
@@ -706,7 +745,6 @@ struct lpfc_hba {
 	uint32_t          *hbq_get;     /* Host mem address of HBQ get ptrs */
 
 	int brd_no;			/* FC board number */
-
 	char SerialNumber[32];		/* adapter Serial Number */
 	char OptionROMVersion[32];	/* adapter BIOS / Fcode version */
 	char ModelDesc[256];		/* Model Description */
@@ -778,6 +816,9 @@ struct lpfc_hba {
 	uint16_t vpi_base;
 	uint16_t vfi_base;
 	unsigned long *vpi_bmask;	/* vpi allocation table */
+	uint16_t *vpi_ids;
+	uint16_t vpi_count;
+	struct list_head lpfc_vpi_blk_list;
 
 	/* Data structure used by fabric iocb scheduler */
 	struct list_head fabric_iocb_list;

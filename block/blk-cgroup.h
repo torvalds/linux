@@ -14,6 +14,7 @@
  */
 
 #include <linux/cgroup.h>
+#include <linux/u64_stats_sync.h>
 
 enum blkio_policy_id {
 	BLKIO_POLICY_PROP = 0,		/* Proportional Bandwidth division */
@@ -36,28 +37,33 @@ enum stat_type {
 	 * request completion for IOs doen by this cgroup. This may not be
 	 * accurate when NCQ is turned on. */
 	BLKIO_STAT_SERVICE_TIME = 0,
-	/* Total bytes transferred */
-	BLKIO_STAT_SERVICE_BYTES,
-	/* Total IOs serviced, post merge */
-	BLKIO_STAT_SERVICED,
 	/* Total time spent waiting in scheduler queue in ns */
 	BLKIO_STAT_WAIT_TIME,
-	/* Number of IOs merged */
-	BLKIO_STAT_MERGED,
 	/* Number of IOs queued up */
 	BLKIO_STAT_QUEUED,
 	/* All the single valued stats go below this */
 	BLKIO_STAT_TIME,
-	BLKIO_STAT_SECTORS,
+#ifdef CONFIG_DEBUG_BLK_CGROUP
 	/* Time not charged to this cgroup */
 	BLKIO_STAT_UNACCOUNTED_TIME,
-#ifdef CONFIG_DEBUG_BLK_CGROUP
 	BLKIO_STAT_AVG_QUEUE_SIZE,
 	BLKIO_STAT_IDLE_TIME,
 	BLKIO_STAT_EMPTY_TIME,
 	BLKIO_STAT_GROUP_WAIT_TIME,
 	BLKIO_STAT_DEQUEUE
 #endif
+};
+
+/* Per cpu stats */
+enum stat_type_cpu {
+	BLKIO_STAT_CPU_SECTORS,
+	/* Total bytes transferred */
+	BLKIO_STAT_CPU_SERVICE_BYTES,
+	/* Total IOs serviced, post merge */
+	BLKIO_STAT_CPU_SERVICED,
+	/* Number of IOs merged */
+	BLKIO_STAT_CPU_MERGED,
+	BLKIO_STAT_CPU_NR
 };
 
 enum stat_sub_type {
@@ -116,11 +122,11 @@ struct blkio_cgroup {
 struct blkio_group_stats {
 	/* total disk time and nr sectors dispatched by this group */
 	uint64_t time;
-	uint64_t sectors;
-	/* Time not charged to this cgroup */
-	uint64_t unaccounted_time;
 	uint64_t stat_arr[BLKIO_STAT_QUEUED + 1][BLKIO_STAT_TOTAL];
 #ifdef CONFIG_DEBUG_BLK_CGROUP
+	/* Time not charged to this cgroup */
+	uint64_t unaccounted_time;
+
 	/* Sum of number of IOs queued across all samples */
 	uint64_t avg_queue_size_sum;
 	/* Count of samples taken for average */
@@ -145,6 +151,13 @@ struct blkio_group_stats {
 #endif
 };
 
+/* Per cpu blkio group stats */
+struct blkio_group_stats_cpu {
+	uint64_t sectors;
+	uint64_t stat_arr_cpu[BLKIO_STAT_CPU_NR][BLKIO_STAT_TOTAL];
+	struct u64_stats_sync syncp;
+};
+
 struct blkio_group {
 	/* An rcu protected unique identifier for the group */
 	void *key;
@@ -160,6 +173,8 @@ struct blkio_group {
 	/* Need to serialize the stats in the case of reset/update */
 	spinlock_t stats_lock;
 	struct blkio_group_stats stats;
+	/* Per cpu stats pointer */
+	struct blkio_group_stats_cpu __percpu *stats_cpu;
 };
 
 struct blkio_policy_node {
@@ -295,6 +310,7 @@ extern struct blkio_cgroup *task_blkio_cgroup(struct task_struct *tsk);
 extern void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 	struct blkio_group *blkg, void *key, dev_t dev,
 	enum blkio_policy_id plid);
+extern int blkio_alloc_blkg_stats(struct blkio_group *blkg);
 extern int blkiocg_del_blkio_group(struct blkio_group *blkg);
 extern struct blkio_group *blkiocg_lookup_group(struct blkio_cgroup *blkcg,
 						void *key);
@@ -321,6 +337,8 @@ task_blkio_cgroup(struct task_struct *tsk) { return NULL; }
 static inline void blkiocg_add_blkio_group(struct blkio_cgroup *blkcg,
 		struct blkio_group *blkg, void *key, dev_t dev,
 		enum blkio_policy_id plid) {}
+
+static inline int blkio_alloc_blkg_stats(struct blkio_group *blkg) { return 0; }
 
 static inline int
 blkiocg_del_blkio_group(struct blkio_group *blkg) { return 0; }

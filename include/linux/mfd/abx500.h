@@ -34,6 +34,13 @@
 #define AB5500_2_0	0x21
 #define AB5500_2_1	0x22
 
+/* AB8500 CIDs*/
+#define AB8500_CUTEARLY	0x00
+#define AB8500_CUT1P0	0x10
+#define AB8500_CUT1P1	0x11
+#define AB8500_CUT2P0	0x20
+#define AB8500_CUT3P0	0x30
+
 /*
  * AB3100, EVENTA1, A2 and A3 event register flags
  * these are catenated into a single 32-bit flag in the code
@@ -186,6 +193,7 @@ struct abx500_init_settings {
 struct ab3550_platform_data {
 	struct {unsigned int base; unsigned int count; } irq;
 	void *dev_data[AB3550_NUM_DEVICES];
+	size_t dev_data_sz[AB3550_NUM_DEVICES];
 	struct abx500_init_settings *init_settings;
 	unsigned int init_settings_sz;
 };

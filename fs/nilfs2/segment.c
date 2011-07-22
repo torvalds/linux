@@ -2573,7 +2573,7 @@ static struct nilfs_sc_info *nilfs_segctor_new(struct super_block *sb,
 	sci->sc_watermark = NILFS_SC_DEFAULT_WATERMARK;
 
 	if (nilfs->ns_interval)
-		sci->sc_interval = nilfs->ns_interval;
+		sci->sc_interval = HZ * nilfs->ns_interval;
 	if (nilfs->ns_watermark)
 		sci->sc_watermark = nilfs->ns_watermark;
 	return sci;

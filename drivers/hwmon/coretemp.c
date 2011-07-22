@@ -97,9 +97,7 @@ struct platform_data {
 struct pdev_entry {
 	struct list_head list;
 	struct platform_device *pdev;
-	unsigned int cpu;
 	u16 phys_proc_id;
-	u16 cpu_core_id;
 };
 
 static LIST_HEAD(pdev_list);
@@ -296,7 +294,7 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 		 * If the TjMax is not plausible, an assumption
 		 * will be used
 		 */
-		if (val > 80 && val < 120) {
+		if (val) {
 			dev_info(dev, "TjMax is %d C.\n", val);
 			return val * 1000;
 		}
@@ -304,24 +302,9 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 
 	/*
 	 * An assumption is made for early CPUs and unreadable MSR.
-	 * NOTE: the given value may not be correct.
+	 * NOTE: the calculated value may not be correct.
 	 */
-
-	switch (c->x86_model) {
-	case 0xe:
-	case 0xf:
-	case 0x16:
-	case 0x1a:
-		dev_warn(dev, "TjMax is assumed as 100 C!\n");
-		return 100000;
-	case 0x17:
-	case 0x1c:		/* Atom CPUs */
-		return adjust_tjmax(c, id, dev);
-	default:
-		dev_warn(dev, "CPU (model=0x%x) is not supported yet,"
-			" using default TjMax of 100C.\n", c->x86_model);
-		return 100000;
-	}
+	return adjust_tjmax(c, id, dev);
 }
 
 static void __devinit get_ucode_rev_on_cpu(void *edx)
@@ -341,7 +324,7 @@ static int get_pkg_tjmax(unsigned int cpu, struct device *dev)
 	err = rdmsr_safe_on_cpu(cpu, MSR_IA32_TEMPERATURE_TARGET, &eax, &edx);
 	if (!err) {
 		val = (eax >> 16) & 0xff;
-		if (val > 80 && val < 120)
+		if (val)
 			return val * 1000;
 	}
 	dev_warn(dev, "Unable to read Pkg-TjMax from CPU:%u\n", cpu);
@@ -350,6 +333,7 @@ static int get_pkg_tjmax(unsigned int cpu, struct device *dev)
 
 static int create_name_attr(struct platform_data *pdata, struct device *dev)
 {
+	sysfs_attr_init(&pdata->name_attr.attr);
 	pdata->name_attr.attr.name = "name";
 	pdata->name_attr.attr.mode = S_IRUGO;
 	pdata->name_attr.show = show_name;
@@ -372,6 +356,7 @@ static int create_core_attrs(struct temp_data *tdata, struct device *dev,
 	for (i = 0; i < MAX_ATTRS; i++) {
 		snprintf(tdata->attr_name[i], CORETEMP_NAME_LENGTH, names[i],
 			attr_no);
+		sysfs_attr_init(&tdata->sd_attrs[i].dev_attr.attr);
 		tdata->sd_attrs[i].dev_attr.attr.name = tdata->attr_name[i];
 		tdata->sd_attrs[i].dev_attr.attr.mode = S_IRUGO;
 		tdata->sd_attrs[i].dev_attr.show = rd_ptr[i];
@@ -422,7 +407,7 @@ static void update_ttarget(__u8 cpu_model, struct temp_data *tdata,
 	}
 }
 
-static int chk_ucode_version(struct platform_device *pdev)
+static int __devinit chk_ucode_version(struct platform_device *pdev)
 {
 	struct cpuinfo_x86 *c = &cpu_data(pdev->id);
 	int err;
@@ -509,8 +494,8 @@ static int create_core_data(struct platform_data *pdata,
 	/*
 	 * Provide a single set of attributes for all HT siblings of a core
 	 * to avoid duplicate sensors (the processor ID and core ID of all
-	 * HT siblings of a core is the same).
-	 * Skip if a HT sibling of this core is already online.
+	 * HT siblings of a core are the same).
+	 * Skip if a HT sibling of this core is already registered.
 	 * This is not an error.
 	 */
 	if (pdata->core_data[attr_no] != NULL)
@@ -666,9 +651,7 @@ static int __cpuinit coretemp_device_add(unsigned int cpu)
 	}
 
 	pdev_entry->pdev = pdev;
-	pdev_entry->cpu = cpu;
 	pdev_entry->phys_proc_id = TO_PHYS_ID(cpu);
-	pdev_entry->cpu_core_id = TO_CORE_ID(cpu);
 
 	list_add_tail(&pdev_entry->list, &pdev_list);
 	mutex_unlock(&pdev_list_mutex);
@@ -770,10 +753,10 @@ static void __cpuinit put_core_offline(unsigned int cpu)
 		coretemp_remove_core(pdata, &pdev->dev, indx);
 
 	/*
-	 * If a core is taken offline, but a HT sibling of the same core is
-	 * still online, register the alternate sibling. This ensures that
-	 * exactly one set of attributes is provided as long as at least one
-	 * HT sibling of a core is online.
+	 * If a HT sibling of a core is taken offline, but another HT sibling
+	 * of the same core is still online, register the alternate sibling.
+	 * This ensures that exactly one set of attributes is provided as long
+	 * as at least one HT sibling of a core is online.
 	 */
 	for_each_sibling(i, cpu) {
 		if (i != cpu) {

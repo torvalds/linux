@@ -63,10 +63,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	char *source_name;
 
 	/* Get the Type of interrupt */
-	if (irq == l3->app_irq)
-		inttype = L3_APPLICATION_ERROR;
-	else
-		inttype = L3_DEBUG_ERROR;
+	inttype = irq == l3->app_irq ? L3_APPLICATION_ERROR : L3_DEBUG_ERROR;
 
 	for (i = 0; i < L3_MODULES; i++) {
 		/*
@@ -84,10 +81,10 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 
 			err_src = j;
 			/* Read the stderrlog_main_source from clk domain */
-			std_err_main_addr = base + (*(l3_targ[i] + err_src));
-			std_err_main =  readl(std_err_main_addr);
+			std_err_main_addr = base + *(l3_targ[i] + err_src);
+			std_err_main = readl(std_err_main_addr);
 
-			switch ((std_err_main & CUSTOM_ERROR)) {
+			switch (std_err_main & CUSTOM_ERROR) {
 			case STANDARD_ERROR:
 				source_name =
 				l3_targ_stderrlog_main_name[i][err_src];
@@ -132,49 +129,49 @@ static int __init omap4_l3_probe(struct platform_device *pdev)
 
 	l3 = kzalloc(sizeof(*l3), GFP_KERNEL);
 	if (!l3)
-		ret = -ENOMEM;
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, l3);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "couldn't find resource 0\n");
 		ret = -ENODEV;
-		goto err1;
+		goto err0;
 	}
 
 	l3->l3_base[0] = ioremap(res->start, resource_size(res));
-	if (!(l3->l3_base[0])) {
+	if (!l3->l3_base[0]) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
-		goto err2;
+		goto err0;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
 		dev_err(&pdev->dev, "couldn't find resource 1\n");
 		ret = -ENODEV;
-		goto err3;
+		goto err1;
 	}
 
 	l3->l3_base[1] = ioremap(res->start, resource_size(res));
-	if (!(l3->l3_base[1])) {
+	if (!l3->l3_base[1]) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
-		goto err4;
+		goto err1;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
 	if (!res) {
 		dev_err(&pdev->dev, "couldn't find resource 2\n");
 		ret = -ENODEV;
-		goto err5;
+		goto err2;
 	}
 
 	l3->l3_base[2] = ioremap(res->start, resource_size(res));
-	if (!(l3->l3_base[2])) {
+	if (!l3->l3_base[2]) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
-		goto err6;
+		goto err2;
 	}
 
 	/*
@@ -187,7 +184,7 @@ static int __init omap4_l3_probe(struct platform_device *pdev)
 	if (ret) {
 		pr_crit("L3: request_irq failed to register for 0x%x\n",
 					 OMAP44XX_IRQ_L3_DBG);
-		goto err7;
+		goto err3;
 	}
 	l3->debug_irq = irq;
 
@@ -198,24 +195,22 @@ static int __init omap4_l3_probe(struct platform_device *pdev)
 	if (ret) {
 		pr_crit("L3: request_irq failed to register for 0x%x\n",
 					 OMAP44XX_IRQ_L3_APP);
-		goto err8;
+		goto err4;
 	}
 	l3->app_irq = irq;
 
-	goto err0;
-err8:
-err7:
-	iounmap(l3->l3_base[2]);
-err6:
-err5:
-	iounmap(l3->l3_base[1]);
+	return 0;
+
 err4:
+	free_irq(l3->debug_irq, l3);
 err3:
-	iounmap(l3->l3_base[0]);
+	iounmap(l3->l3_base[2]);
 err2:
+	iounmap(l3->l3_base[1]);
 err1:
-	kfree(l3);
+	iounmap(l3->l3_base[0]);
 err0:
+	kfree(l3);
 	return ret;
 }
 

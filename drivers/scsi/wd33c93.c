@@ -2051,8 +2051,7 @@ wd33c93_init(struct Scsi_Host *instance, const wd33c93_regs regs,
 	for (i = 0; i < MAX_SETUP_ARGS; i++)
 		printk("%s,", setup_args[i]);
 	printk("\n");
-	printk("           Version %s - %s, Compiled %s at %s\n",
-	       WD33C93_VERSION, WD33C93_DATE, __DATE__, __TIME__);
+	printk("           Version %s - %s\n", WD33C93_VERSION, WD33C93_DATE);
 }
 
 int
@@ -2132,8 +2131,8 @@ wd33c93_proc_info(struct Scsi_Host *instance, char *buf, char **start, off_t off
 	bp = buf;
 	*bp = '\0';
 	if (hd->proc & PR_VERSION) {
-		sprintf(tbuf, "\nVersion %s - %s. Compiled %s %s",
-			WD33C93_VERSION, WD33C93_DATE, __DATE__, __TIME__);
+		sprintf(tbuf, "\nVersion %s - %s.",
+			WD33C93_VERSION, WD33C93_DATE);
 		strcat(bp, tbuf);
 	}
 	if (hd->proc & PR_INFO) {

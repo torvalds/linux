@@ -120,6 +120,7 @@ struct mesh_path {
  *	buckets
  * @mean_chain_len: maximum average length for the hash buckets' list, if it is
  *	reached, the table will grow
+ * rcu_head: RCU head to free the table
  */
 struct mesh_table {
 	/* Number of buckets will be 2^N */
@@ -132,6 +133,8 @@ struct mesh_table {
 	int (*copy_node) (struct hlist_node *p, struct mesh_table *newtbl);
 	int size_order;
 	int mean_chain_len;
+
+	struct rcu_head rcu_head;
 };
 
 /* Recent multicast cache */
@@ -285,10 +288,6 @@ static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
 {
 	return sdata->u.mesh.mesh_pp_id == IEEE80211_PATH_PROTOCOL_HWMP;
 }
-
-#define for_each_mesh_entry(x, p, node, i) \
-	for (i = 0; i <= x->hash_mask; i++) \
-		hlist_for_each_entry_rcu(node, p, &x->hash_buckets[i], list)
 
 void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local);
 

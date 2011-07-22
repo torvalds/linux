@@ -216,15 +216,14 @@ static int iwl_eeprom_verify_signature(struct iwl_priv *priv)
 
 static void iwl_set_otp_access(struct iwl_priv *priv, enum iwl_access_mode mode)
 {
-	u32 otpgp;
+	iwl_read32(priv, CSR_OTP_GP_REG);
 
-	otpgp = iwl_read32(priv, CSR_OTP_GP_REG);
 	if (mode == IWL_OTP_ACCESS_ABSOLUTE)
 		iwl_clear_bit(priv, CSR_OTP_GP_REG,
-				CSR_OTP_GP_REG_OTP_ACCESS_MODE);
+			      CSR_OTP_GP_REG_OTP_ACCESS_MODE);
 	else
 		iwl_set_bit(priv, CSR_OTP_GP_REG,
-				CSR_OTP_GP_REG_OTP_ACCESS_MODE);
+			    CSR_OTP_GP_REG_OTP_ACCESS_MODE);
 }
 
 static int iwlcore_get_nvm_type(struct iwl_priv *priv, u32 hw_rev)

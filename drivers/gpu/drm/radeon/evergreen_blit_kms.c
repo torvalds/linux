@@ -31,6 +31,7 @@
 
 #include "evergreend.h"
 #include "evergreen_blit_shaders.h"
+#include "cayman_blit_shaders.h"
 
 #define DI_PT_RECTLIST        0x11
 #define DI_INDEX_SIZE_16_BIT  0x0
@@ -152,6 +153,8 @@ set_vtx_resource(struct radeon_device *rdev, u64 gpu_addr)
 
 	if ((rdev->family == CHIP_CEDAR) ||
 	    (rdev->family == CHIP_PALM) ||
+	    (rdev->family == CHIP_SUMO) ||
+	    (rdev->family == CHIP_SUMO2) ||
 	    (rdev->family == CHIP_CAICOS))
 		cp_set_surface_sync(rdev,
 				    PACKET3_TC_ACTION_ENA, 48, gpu_addr);
@@ -199,6 +202,16 @@ static void
 set_scissors(struct radeon_device *rdev, int x1, int y1,
 	     int x2, int y2)
 {
+	/* workaround some hw bugs */
+	if (x2 == 0)
+		x1 = 1;
+	if (y2 == 0)
+		y1 = 1;
+	if (rdev->family == CHIP_CAYMAN) {
+		if ((x2 == 1) && (y2 == 1))
+			x2 = 2;
+	}
+
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONTEXT_REG, 2));
 	radeon_ring_write(rdev, (PA_SC_SCREEN_SCISSOR_TL - PACKET3_SET_CONTEXT_REG_START) >> 2);
 	radeon_ring_write(rdev, (x1 << 0) | (y1 << 16));
@@ -255,238 +268,284 @@ set_default_state(struct radeon_device *rdev)
 	u64 gpu_addr;
 	int dwords;
 
-	switch (rdev->family) {
-	case CHIP_CEDAR:
-	default:
-		num_ps_gprs = 93;
-		num_vs_gprs = 46;
-		num_temp_gprs = 4;
-		num_gs_gprs = 31;
-		num_es_gprs = 31;
-		num_hs_gprs = 23;
-		num_ls_gprs = 23;
-		num_ps_threads = 96;
-		num_vs_threads = 16;
-		num_gs_threads = 16;
-		num_es_threads = 16;
-		num_hs_threads = 16;
-		num_ls_threads = 16;
-		num_ps_stack_entries = 42;
-		num_vs_stack_entries = 42;
-		num_gs_stack_entries = 42;
-		num_es_stack_entries = 42;
-		num_hs_stack_entries = 42;
-		num_ls_stack_entries = 42;
-		break;
-	case CHIP_REDWOOD:
-		num_ps_gprs = 93;
-		num_vs_gprs = 46;
-		num_temp_gprs = 4;
-		num_gs_gprs = 31;
-		num_es_gprs = 31;
-		num_hs_gprs = 23;
-		num_ls_gprs = 23;
-		num_ps_threads = 128;
-		num_vs_threads = 20;
-		num_gs_threads = 20;
-		num_es_threads = 20;
-		num_hs_threads = 20;
-		num_ls_threads = 20;
-		num_ps_stack_entries = 42;
-		num_vs_stack_entries = 42;
-		num_gs_stack_entries = 42;
-		num_es_stack_entries = 42;
-		num_hs_stack_entries = 42;
-		num_ls_stack_entries = 42;
-		break;
-	case CHIP_JUNIPER:
-		num_ps_gprs = 93;
-		num_vs_gprs = 46;
-		num_temp_gprs = 4;
-		num_gs_gprs = 31;
-		num_es_gprs = 31;
-		num_hs_gprs = 23;
-		num_ls_gprs = 23;
-		num_ps_threads = 128;
-		num_vs_threads = 20;
-		num_gs_threads = 20;
-		num_es_threads = 20;
-		num_hs_threads = 20;
-		num_ls_threads = 20;
-		num_ps_stack_entries = 85;
-		num_vs_stack_entries = 85;
-		num_gs_stack_entries = 85;
-		num_es_stack_entries = 85;
-		num_hs_stack_entries = 85;
-		num_ls_stack_entries = 85;
-		break;
-	case CHIP_CYPRESS:
-	case CHIP_HEMLOCK:
-		num_ps_gprs = 93;
-		num_vs_gprs = 46;
-		num_temp_gprs = 4;
-		num_gs_gprs = 31;
-		num_es_gprs = 31;
-		num_hs_gprs = 23;
-		num_ls_gprs = 23;
-		num_ps_threads = 128;
-		num_vs_threads = 20;
-		num_gs_threads = 20;
-		num_es_threads = 20;
-		num_hs_threads = 20;
-		num_ls_threads = 20;
-		num_ps_stack_entries = 85;
-		num_vs_stack_entries = 85;
-		num_gs_stack_entries = 85;
-		num_es_stack_entries = 85;
-		num_hs_stack_entries = 85;
-		num_ls_stack_entries = 85;
-		break;
-	case CHIP_PALM:
-		num_ps_gprs = 93;
-		num_vs_gprs = 46;
-		num_temp_gprs = 4;
-		num_gs_gprs = 31;
-		num_es_gprs = 31;
-		num_hs_gprs = 23;
-		num_ls_gprs = 23;
-		num_ps_threads = 96;
-		num_vs_threads = 16;
-		num_gs_threads = 16;
-		num_es_threads = 16;
-		num_hs_threads = 16;
-		num_ls_threads = 16;
-		num_ps_stack_entries = 42;
-		num_vs_stack_entries = 42;
-		num_gs_stack_entries = 42;
-		num_es_stack_entries = 42;
-		num_hs_stack_entries = 42;
-		num_ls_stack_entries = 42;
-		break;
-	case CHIP_BARTS:
-		num_ps_gprs = 93;
-		num_vs_gprs = 46;
-		num_temp_gprs = 4;
-		num_gs_gprs = 31;
-		num_es_gprs = 31;
-		num_hs_gprs = 23;
-		num_ls_gprs = 23;
-		num_ps_threads = 128;
-		num_vs_threads = 20;
-		num_gs_threads = 20;
-		num_es_threads = 20;
-		num_hs_threads = 20;
-		num_ls_threads = 20;
-		num_ps_stack_entries = 85;
-		num_vs_stack_entries = 85;
-		num_gs_stack_entries = 85;
-		num_es_stack_entries = 85;
-		num_hs_stack_entries = 85;
-		num_ls_stack_entries = 85;
-		break;
-	case CHIP_TURKS:
-		num_ps_gprs = 93;
-		num_vs_gprs = 46;
-		num_temp_gprs = 4;
-		num_gs_gprs = 31;
-		num_es_gprs = 31;
-		num_hs_gprs = 23;
-		num_ls_gprs = 23;
-		num_ps_threads = 128;
-		num_vs_threads = 20;
-		num_gs_threads = 20;
-		num_es_threads = 20;
-		num_hs_threads = 20;
-		num_ls_threads = 20;
-		num_ps_stack_entries = 42;
-		num_vs_stack_entries = 42;
-		num_gs_stack_entries = 42;
-		num_es_stack_entries = 42;
-		num_hs_stack_entries = 42;
-		num_ls_stack_entries = 42;
-		break;
-	case CHIP_CAICOS:
-		num_ps_gprs = 93;
-		num_vs_gprs = 46;
-		num_temp_gprs = 4;
-		num_gs_gprs = 31;
-		num_es_gprs = 31;
-		num_hs_gprs = 23;
-		num_ls_gprs = 23;
-		num_ps_threads = 128;
-		num_vs_threads = 10;
-		num_gs_threads = 10;
-		num_es_threads = 10;
-		num_hs_threads = 10;
-		num_ls_threads = 10;
-		num_ps_stack_entries = 42;
-		num_vs_stack_entries = 42;
-		num_gs_stack_entries = 42;
-		num_es_stack_entries = 42;
-		num_hs_stack_entries = 42;
-		num_ls_stack_entries = 42;
-		break;
-	}
-
-	if ((rdev->family == CHIP_CEDAR) ||
-	    (rdev->family == CHIP_PALM) ||
-	    (rdev->family == CHIP_CAICOS))
-		sq_config = 0;
-	else
-		sq_config = VC_ENABLE;
-
-	sq_config |= (EXPORT_SRC_C |
-		      CS_PRIO(0) |
-		      LS_PRIO(0) |
-		      HS_PRIO(0) |
-		      PS_PRIO(0) |
-		      VS_PRIO(1) |
-		      GS_PRIO(2) |
-		      ES_PRIO(3));
-
-	sq_gpr_resource_mgmt_1 = (NUM_PS_GPRS(num_ps_gprs) |
-				  NUM_VS_GPRS(num_vs_gprs) |
-				  NUM_CLAUSE_TEMP_GPRS(num_temp_gprs));
-	sq_gpr_resource_mgmt_2 = (NUM_GS_GPRS(num_gs_gprs) |
-				  NUM_ES_GPRS(num_es_gprs));
-	sq_gpr_resource_mgmt_3 = (NUM_HS_GPRS(num_hs_gprs) |
-				  NUM_LS_GPRS(num_ls_gprs));
-	sq_thread_resource_mgmt = (NUM_PS_THREADS(num_ps_threads) |
-				   NUM_VS_THREADS(num_vs_threads) |
-				   NUM_GS_THREADS(num_gs_threads) |
-				   NUM_ES_THREADS(num_es_threads));
-	sq_thread_resource_mgmt_2 = (NUM_HS_THREADS(num_hs_threads) |
-				     NUM_LS_THREADS(num_ls_threads));
-	sq_stack_resource_mgmt_1 = (NUM_PS_STACK_ENTRIES(num_ps_stack_entries) |
-				    NUM_VS_STACK_ENTRIES(num_vs_stack_entries));
-	sq_stack_resource_mgmt_2 = (NUM_GS_STACK_ENTRIES(num_gs_stack_entries) |
-				    NUM_ES_STACK_ENTRIES(num_es_stack_entries));
-	sq_stack_resource_mgmt_3 = (NUM_HS_STACK_ENTRIES(num_hs_stack_entries) |
-				    NUM_LS_STACK_ENTRIES(num_ls_stack_entries));
-
 	/* set clear context state */
 	radeon_ring_write(rdev, PACKET3(PACKET3_CLEAR_STATE, 0));
 	radeon_ring_write(rdev, 0);
 
-	/* disable dyn gprs */
-	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-	radeon_ring_write(rdev, (SQ_DYN_GPR_CNTL_PS_FLUSH_REQ - PACKET3_SET_CONFIG_REG_START) >> 2);
-	radeon_ring_write(rdev, 0);
+	if (rdev->family < CHIP_CAYMAN) {
+		switch (rdev->family) {
+		case CHIP_CEDAR:
+		default:
+			num_ps_gprs = 93;
+			num_vs_gprs = 46;
+			num_temp_gprs = 4;
+			num_gs_gprs = 31;
+			num_es_gprs = 31;
+			num_hs_gprs = 23;
+			num_ls_gprs = 23;
+			num_ps_threads = 96;
+			num_vs_threads = 16;
+			num_gs_threads = 16;
+			num_es_threads = 16;
+			num_hs_threads = 16;
+			num_ls_threads = 16;
+			num_ps_stack_entries = 42;
+			num_vs_stack_entries = 42;
+			num_gs_stack_entries = 42;
+			num_es_stack_entries = 42;
+			num_hs_stack_entries = 42;
+			num_ls_stack_entries = 42;
+			break;
+		case CHIP_REDWOOD:
+			num_ps_gprs = 93;
+			num_vs_gprs = 46;
+			num_temp_gprs = 4;
+			num_gs_gprs = 31;
+			num_es_gprs = 31;
+			num_hs_gprs = 23;
+			num_ls_gprs = 23;
+			num_ps_threads = 128;
+			num_vs_threads = 20;
+			num_gs_threads = 20;
+			num_es_threads = 20;
+			num_hs_threads = 20;
+			num_ls_threads = 20;
+			num_ps_stack_entries = 42;
+			num_vs_stack_entries = 42;
+			num_gs_stack_entries = 42;
+			num_es_stack_entries = 42;
+			num_hs_stack_entries = 42;
+			num_ls_stack_entries = 42;
+			break;
+		case CHIP_JUNIPER:
+			num_ps_gprs = 93;
+			num_vs_gprs = 46;
+			num_temp_gprs = 4;
+			num_gs_gprs = 31;
+			num_es_gprs = 31;
+			num_hs_gprs = 23;
+			num_ls_gprs = 23;
+			num_ps_threads = 128;
+			num_vs_threads = 20;
+			num_gs_threads = 20;
+			num_es_threads = 20;
+			num_hs_threads = 20;
+			num_ls_threads = 20;
+			num_ps_stack_entries = 85;
+			num_vs_stack_entries = 85;
+			num_gs_stack_entries = 85;
+			num_es_stack_entries = 85;
+			num_hs_stack_entries = 85;
+			num_ls_stack_entries = 85;
+			break;
+		case CHIP_CYPRESS:
+		case CHIP_HEMLOCK:
+			num_ps_gprs = 93;
+			num_vs_gprs = 46;
+			num_temp_gprs = 4;
+			num_gs_gprs = 31;
+			num_es_gprs = 31;
+			num_hs_gprs = 23;
+			num_ls_gprs = 23;
+			num_ps_threads = 128;
+			num_vs_threads = 20;
+			num_gs_threads = 20;
+			num_es_threads = 20;
+			num_hs_threads = 20;
+			num_ls_threads = 20;
+			num_ps_stack_entries = 85;
+			num_vs_stack_entries = 85;
+			num_gs_stack_entries = 85;
+			num_es_stack_entries = 85;
+			num_hs_stack_entries = 85;
+			num_ls_stack_entries = 85;
+			break;
+		case CHIP_PALM:
+			num_ps_gprs = 93;
+			num_vs_gprs = 46;
+			num_temp_gprs = 4;
+			num_gs_gprs = 31;
+			num_es_gprs = 31;
+			num_hs_gprs = 23;
+			num_ls_gprs = 23;
+			num_ps_threads = 96;
+			num_vs_threads = 16;
+			num_gs_threads = 16;
+			num_es_threads = 16;
+			num_hs_threads = 16;
+			num_ls_threads = 16;
+			num_ps_stack_entries = 42;
+			num_vs_stack_entries = 42;
+			num_gs_stack_entries = 42;
+			num_es_stack_entries = 42;
+			num_hs_stack_entries = 42;
+			num_ls_stack_entries = 42;
+			break;
+		case CHIP_SUMO:
+			num_ps_gprs = 93;
+			num_vs_gprs = 46;
+			num_temp_gprs = 4;
+			num_gs_gprs = 31;
+			num_es_gprs = 31;
+			num_hs_gprs = 23;
+			num_ls_gprs = 23;
+			num_ps_threads = 96;
+			num_vs_threads = 25;
+			num_gs_threads = 25;
+			num_es_threads = 25;
+			num_hs_threads = 25;
+			num_ls_threads = 25;
+			num_ps_stack_entries = 42;
+			num_vs_stack_entries = 42;
+			num_gs_stack_entries = 42;
+			num_es_stack_entries = 42;
+			num_hs_stack_entries = 42;
+			num_ls_stack_entries = 42;
+			break;
+		case CHIP_SUMO2:
+			num_ps_gprs = 93;
+			num_vs_gprs = 46;
+			num_temp_gprs = 4;
+			num_gs_gprs = 31;
+			num_es_gprs = 31;
+			num_hs_gprs = 23;
+			num_ls_gprs = 23;
+			num_ps_threads = 96;
+			num_vs_threads = 25;
+			num_gs_threads = 25;
+			num_es_threads = 25;
+			num_hs_threads = 25;
+			num_ls_threads = 25;
+			num_ps_stack_entries = 85;
+			num_vs_stack_entries = 85;
+			num_gs_stack_entries = 85;
+			num_es_stack_entries = 85;
+			num_hs_stack_entries = 85;
+			num_ls_stack_entries = 85;
+			break;
+		case CHIP_BARTS:
+			num_ps_gprs = 93;
+			num_vs_gprs = 46;
+			num_temp_gprs = 4;
+			num_gs_gprs = 31;
+			num_es_gprs = 31;
+			num_hs_gprs = 23;
+			num_ls_gprs = 23;
+			num_ps_threads = 128;
+			num_vs_threads = 20;
+			num_gs_threads = 20;
+			num_es_threads = 20;
+			num_hs_threads = 20;
+			num_ls_threads = 20;
+			num_ps_stack_entries = 85;
+			num_vs_stack_entries = 85;
+			num_gs_stack_entries = 85;
+			num_es_stack_entries = 85;
+			num_hs_stack_entries = 85;
+			num_ls_stack_entries = 85;
+			break;
+		case CHIP_TURKS:
+			num_ps_gprs = 93;
+			num_vs_gprs = 46;
+			num_temp_gprs = 4;
+			num_gs_gprs = 31;
+			num_es_gprs = 31;
+			num_hs_gprs = 23;
+			num_ls_gprs = 23;
+			num_ps_threads = 128;
+			num_vs_threads = 20;
+			num_gs_threads = 20;
+			num_es_threads = 20;
+			num_hs_threads = 20;
+			num_ls_threads = 20;
+			num_ps_stack_entries = 42;
+			num_vs_stack_entries = 42;
+			num_gs_stack_entries = 42;
+			num_es_stack_entries = 42;
+			num_hs_stack_entries = 42;
+			num_ls_stack_entries = 42;
+			break;
+		case CHIP_CAICOS:
+			num_ps_gprs = 93;
+			num_vs_gprs = 46;
+			num_temp_gprs = 4;
+			num_gs_gprs = 31;
+			num_es_gprs = 31;
+			num_hs_gprs = 23;
+			num_ls_gprs = 23;
+			num_ps_threads = 128;
+			num_vs_threads = 10;
+			num_gs_threads = 10;
+			num_es_threads = 10;
+			num_hs_threads = 10;
+			num_ls_threads = 10;
+			num_ps_stack_entries = 42;
+			num_vs_stack_entries = 42;
+			num_gs_stack_entries = 42;
+			num_es_stack_entries = 42;
+			num_hs_stack_entries = 42;
+			num_ls_stack_entries = 42;
+			break;
+		}
 
-	/* SQ config */
-	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 11));
-	radeon_ring_write(rdev, (SQ_CONFIG - PACKET3_SET_CONFIG_REG_START) >> 2);
-	radeon_ring_write(rdev, sq_config);
-	radeon_ring_write(rdev, sq_gpr_resource_mgmt_1);
-	radeon_ring_write(rdev, sq_gpr_resource_mgmt_2);
-	radeon_ring_write(rdev, sq_gpr_resource_mgmt_3);
-	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, 0);
-	radeon_ring_write(rdev, sq_thread_resource_mgmt);
-	radeon_ring_write(rdev, sq_thread_resource_mgmt_2);
-	radeon_ring_write(rdev, sq_stack_resource_mgmt_1);
-	radeon_ring_write(rdev, sq_stack_resource_mgmt_2);
-	radeon_ring_write(rdev, sq_stack_resource_mgmt_3);
+		if ((rdev->family == CHIP_CEDAR) ||
+		    (rdev->family == CHIP_PALM) ||
+		    (rdev->family == CHIP_SUMO) ||
+		    (rdev->family == CHIP_SUMO2) ||
+		    (rdev->family == CHIP_CAICOS))
+			sq_config = 0;
+		else
+			sq_config = VC_ENABLE;
+
+		sq_config |= (EXPORT_SRC_C |
+			      CS_PRIO(0) |
+			      LS_PRIO(0) |
+			      HS_PRIO(0) |
+			      PS_PRIO(0) |
+			      VS_PRIO(1) |
+			      GS_PRIO(2) |
+			      ES_PRIO(3));
+
+		sq_gpr_resource_mgmt_1 = (NUM_PS_GPRS(num_ps_gprs) |
+					  NUM_VS_GPRS(num_vs_gprs) |
+					  NUM_CLAUSE_TEMP_GPRS(num_temp_gprs));
+		sq_gpr_resource_mgmt_2 = (NUM_GS_GPRS(num_gs_gprs) |
+					  NUM_ES_GPRS(num_es_gprs));
+		sq_gpr_resource_mgmt_3 = (NUM_HS_GPRS(num_hs_gprs) |
+					  NUM_LS_GPRS(num_ls_gprs));
+		sq_thread_resource_mgmt = (NUM_PS_THREADS(num_ps_threads) |
+					   NUM_VS_THREADS(num_vs_threads) |
+					   NUM_GS_THREADS(num_gs_threads) |
+					   NUM_ES_THREADS(num_es_threads));
+		sq_thread_resource_mgmt_2 = (NUM_HS_THREADS(num_hs_threads) |
+					     NUM_LS_THREADS(num_ls_threads));
+		sq_stack_resource_mgmt_1 = (NUM_PS_STACK_ENTRIES(num_ps_stack_entries) |
+					    NUM_VS_STACK_ENTRIES(num_vs_stack_entries));
+		sq_stack_resource_mgmt_2 = (NUM_GS_STACK_ENTRIES(num_gs_stack_entries) |
+					    NUM_ES_STACK_ENTRIES(num_es_stack_entries));
+		sq_stack_resource_mgmt_3 = (NUM_HS_STACK_ENTRIES(num_hs_stack_entries) |
+					    NUM_LS_STACK_ENTRIES(num_ls_stack_entries));
+
+		/* disable dyn gprs */
+		radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+		radeon_ring_write(rdev, (SQ_DYN_GPR_CNTL_PS_FLUSH_REQ - PACKET3_SET_CONFIG_REG_START) >> 2);
+		radeon_ring_write(rdev, 0);
+
+		/* SQ config */
+		radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 11));
+		radeon_ring_write(rdev, (SQ_CONFIG - PACKET3_SET_CONFIG_REG_START) >> 2);
+		radeon_ring_write(rdev, sq_config);
+		radeon_ring_write(rdev, sq_gpr_resource_mgmt_1);
+		radeon_ring_write(rdev, sq_gpr_resource_mgmt_2);
+		radeon_ring_write(rdev, sq_gpr_resource_mgmt_3);
+		radeon_ring_write(rdev, 0);
+		radeon_ring_write(rdev, 0);
+		radeon_ring_write(rdev, sq_thread_resource_mgmt);
+		radeon_ring_write(rdev, sq_thread_resource_mgmt_2);
+		radeon_ring_write(rdev, sq_stack_resource_mgmt_1);
+		radeon_ring_write(rdev, sq_stack_resource_mgmt_2);
+		radeon_ring_write(rdev, sq_stack_resource_mgmt_3);
+	}
 
 	/* CONTEXT_CONTROL */
 	radeon_ring_write(rdev, 0xc0012800);
@@ -560,7 +619,10 @@ int evergreen_blit_init(struct radeon_device *rdev)
 	mutex_init(&rdev->r600_blit.mutex);
 	rdev->r600_blit.state_offset = 0;
 
-	rdev->r600_blit.state_len = evergreen_default_size;
+	if (rdev->family < CHIP_CAYMAN)
+		rdev->r600_blit.state_len = evergreen_default_size;
+	else
+		rdev->r600_blit.state_len = cayman_default_size;
 
 	dwords = rdev->r600_blit.state_len;
 	while (dwords & 0xf) {
@@ -572,11 +634,17 @@ int evergreen_blit_init(struct radeon_device *rdev)
 	obj_size = ALIGN(obj_size, 256);
 
 	rdev->r600_blit.vs_offset = obj_size;
-	obj_size += evergreen_vs_size * 4;
+	if (rdev->family < CHIP_CAYMAN)
+		obj_size += evergreen_vs_size * 4;
+	else
+		obj_size += cayman_vs_size * 4;
 	obj_size = ALIGN(obj_size, 256);
 
 	rdev->r600_blit.ps_offset = obj_size;
-	obj_size += evergreen_ps_size * 4;
+	if (rdev->family < CHIP_CAYMAN)
+		obj_size += evergreen_ps_size * 4;
+	else
+		obj_size += cayman_ps_size * 4;
 	obj_size = ALIGN(obj_size, 256);
 
 	r = radeon_bo_create(rdev, obj_size, PAGE_SIZE, true, RADEON_GEM_DOMAIN_VRAM,
@@ -599,16 +667,29 @@ int evergreen_blit_init(struct radeon_device *rdev)
 		return r;
 	}
 
-	memcpy_toio(ptr + rdev->r600_blit.state_offset,
-		    evergreen_default_state, rdev->r600_blit.state_len * 4);
+	if (rdev->family < CHIP_CAYMAN) {
+		memcpy_toio(ptr + rdev->r600_blit.state_offset,
+			    evergreen_default_state, rdev->r600_blit.state_len * 4);
 
-	if (num_packet2s)
-		memcpy_toio(ptr + rdev->r600_blit.state_offset + (rdev->r600_blit.state_len * 4),
-			    packet2s, num_packet2s * 4);
-	for (i = 0; i < evergreen_vs_size; i++)
-		*(u32 *)((unsigned long)ptr + rdev->r600_blit.vs_offset + i * 4) = cpu_to_le32(evergreen_vs[i]);
-	for (i = 0; i < evergreen_ps_size; i++)
-		*(u32 *)((unsigned long)ptr + rdev->r600_blit.ps_offset + i * 4) = cpu_to_le32(evergreen_ps[i]);
+		if (num_packet2s)
+			memcpy_toio(ptr + rdev->r600_blit.state_offset + (rdev->r600_blit.state_len * 4),
+				    packet2s, num_packet2s * 4);
+		for (i = 0; i < evergreen_vs_size; i++)
+			*(u32 *)((unsigned long)ptr + rdev->r600_blit.vs_offset + i * 4) = cpu_to_le32(evergreen_vs[i]);
+		for (i = 0; i < evergreen_ps_size; i++)
+			*(u32 *)((unsigned long)ptr + rdev->r600_blit.ps_offset + i * 4) = cpu_to_le32(evergreen_ps[i]);
+	} else {
+		memcpy_toio(ptr + rdev->r600_blit.state_offset,
+			    cayman_default_state, rdev->r600_blit.state_len * 4);
+
+		if (num_packet2s)
+			memcpy_toio(ptr + rdev->r600_blit.state_offset + (rdev->r600_blit.state_len * 4),
+				    packet2s, num_packet2s * 4);
+		for (i = 0; i < cayman_vs_size; i++)
+			*(u32 *)((unsigned long)ptr + rdev->r600_blit.vs_offset + i * 4) = cpu_to_le32(cayman_vs[i]);
+		for (i = 0; i < cayman_ps_size; i++)
+			*(u32 *)((unsigned long)ptr + rdev->r600_blit.ps_offset + i * 4) = cpu_to_le32(cayman_ps[i]);
+	}
 	radeon_bo_kunmap(rdev->r600_blit.shader_obj);
 	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
 

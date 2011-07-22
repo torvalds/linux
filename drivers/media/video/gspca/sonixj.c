@@ -60,7 +60,7 @@ struct sd {
 
 	u32 pktsz;			/* (used by pkt_scan) */
 	u16 npkt;
-	u8 nchg;
+	s8 nchg;
 	s8 short_mark;
 
 	u8 quality;			/* image quality */

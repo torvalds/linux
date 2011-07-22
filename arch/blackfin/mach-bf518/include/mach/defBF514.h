@@ -36,13 +36,13 @@
 #define RSI_EMASK                      0xFFC038C4 /* RSI Exception Mask Register */
 #define RSI_CONFIG                     0xFFC038C8 /* RSI Configuration Register */
 #define RSI_RD_WAIT_EN                 0xFFC038CC /* RSI Read Wait Enable Register */
-#define RSI_PID0                       0xFFC03FE0 /* RSI Peripheral ID Register 0 */
-#define RSI_PID1                       0xFFC03FE4 /* RSI Peripheral ID Register 1 */
-#define RSI_PID2                       0xFFC03FE8 /* RSI Peripheral ID Register 2 */
-#define RSI_PID3                       0xFFC03FEC /* RSI Peripheral ID Register 3 */
-#define RSI_PID4                       0xFFC03FF0 /* RSI Peripheral ID Register 4 */
-#define RSI_PID5                       0xFFC03FF4 /* RSI Peripheral ID Register 5 */
-#define RSI_PID6                       0xFFC03FF8 /* RSI Peripheral ID Register 6 */
-#define RSI_PID7                       0xFFC03FFC /* RSI Peripheral ID Register 7 */
+#define RSI_PID0                       0xFFC038D0 /* RSI Peripheral ID Register 0 */
+#define RSI_PID1                       0xFFC038D4 /* RSI Peripheral ID Register 1 */
+#define RSI_PID2                       0xFFC038D8 /* RSI Peripheral ID Register 2 */
+#define RSI_PID3                       0xFFC038DC /* RSI Peripheral ID Register 3 */
+#define RSI_PID4                       0xFFC038E0 /* RSI Peripheral ID Register 0 */
+#define RSI_PID5                       0xFFC038E4 /* RSI Peripheral ID Register 1 */
+#define RSI_PID6                       0xFFC038E8 /* RSI Peripheral ID Register 2 */
+#define RSI_PID7                       0xFFC038EC /* RSI Peripheral ID Register 3 */
 
 #endif /* _DEF_BF514_H */

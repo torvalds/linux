@@ -27,6 +27,7 @@
 #include <linux/sched.h>
 #include <linux/mod_devicetable.h>
 
+#include <linux/mtd/cfi.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
@@ -55,6 +56,9 @@
 #define	OPCODE_EN4B		0xb7	/* Enter 4-byte mode */
 #define	OPCODE_EX4B		0xe9	/* Exit 4-byte mode */
 
+/* Used for Spansion flashes only. */
+#define	OPCODE_BRWR		0x17	/* Bank register write */
+
 /* Status Register bits. */
 #define	SR_WIP			1	/* Write in progress */
 #define	SR_WEL			2	/* Write enable latch */
@@ -75,6 +79,8 @@
 #define OPCODE_READ 	OPCODE_NORM_READ
 #define FAST_READ_DUMMY_BYTE 0
 #endif
+
+#define JEDEC_MFR(_jedec_id)	((_jedec_id) >> 16)
 
 /****************************************************************************/
 
@@ -158,11 +164,18 @@ static inline int write_disable(struct m25p *flash)
 /*
  * Enable/disable 4-byte addressing mode.
  */
-static inline int set_4byte(struct m25p *flash, int enable)
+static inline int set_4byte(struct m25p *flash, u32 jedec_id, int enable)
 {
-	u8	code = enable ? OPCODE_EN4B : OPCODE_EX4B;
-
-	return spi_write_then_read(flash->spi, &code, 1, NULL, 0);
+	switch (JEDEC_MFR(jedec_id)) {
+	case CFI_MFR_MACRONIX:
+		flash->command[0] = enable ? OPCODE_EN4B : OPCODE_EX4B;
+		return spi_write(flash->spi, flash->command, 1);
+	default:
+		/* Spansion style */
+		flash->command[0] = OPCODE_BRWR;
+		flash->command[1] = enable << 7;
+		return spi_write(flash->spi, flash->command, 2);
+	}
 }
 
 /*
@@ -668,6 +681,7 @@ static const struct spi_device_id m25p_ids[] = {
 	/* Macronix */
 	{ "mx25l4005a",  INFO(0xc22013, 0, 64 * 1024,   8, SECT_4K) },
 	{ "mx25l8005",   INFO(0xc22014, 0, 64 * 1024,  16, 0) },
+	{ "mx25l1606e",  INFO(0xc22015, 0, 64 * 1024,  32, SECT_4K) },
 	{ "mx25l3205d",  INFO(0xc22016, 0, 64 * 1024,  64, 0) },
 	{ "mx25l6405d",  INFO(0xc22017, 0, 64 * 1024, 128, 0) },
 	{ "mx25l12805d", INFO(0xc22018, 0, 64 * 1024, 256, 0) },
@@ -684,6 +698,10 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "s25sl032a",  INFO(0x010215,      0,  64 * 1024,  64, 0) },
 	{ "s25sl032p",  INFO(0x010215, 0x4d00,  64 * 1024,  64, SECT_4K) },
 	{ "s25sl064a",  INFO(0x010216,      0,  64 * 1024, 128, 0) },
+	{ "s25fl256s0", INFO(0x010219, 0x4d00, 256 * 1024, 128, 0) },
+	{ "s25fl256s1", INFO(0x010219, 0x4d01,  64 * 1024, 512, 0) },
+	{ "s25fl512s",  INFO(0x010220, 0x4d00, 256 * 1024, 256, 0) },
+	{ "s70fl01gs",  INFO(0x010221, 0x4d00, 256 * 1024, 256, 0) },
 	{ "s25sl12800", INFO(0x012018, 0x0300, 256 * 1024,  64, 0) },
 	{ "s25sl12801", INFO(0x012018, 0x0301,  64 * 1024, 256, 0) },
 	{ "s25fl129p0", INFO(0x012018, 0x4d00, 256 * 1024,  64, 0) },
@@ -729,7 +747,10 @@ static const struct spi_device_id m25p_ids[] = {
 	{ "m25pe80", INFO(0x208014,  0, 64 * 1024, 16,       0) },
 	{ "m25pe16", INFO(0x208015,  0, 64 * 1024, 32, SECT_4K) },
 
-	{ "m25px64", INFO(0x207117,  0, 64 * 1024, 128, 0) },
+	{ "m25px32",    INFO(0x207116,  0, 64 * 1024, 64, SECT_4K) },
+	{ "m25px32-s0", INFO(0x207316,  0, 64 * 1024, 64, SECT_4K) },
+	{ "m25px32-s1", INFO(0x206316,  0, 64 * 1024, 64, SECT_4K) },
+	{ "m25px64",    INFO(0x207117,  0, 64 * 1024, 128, 0) },
 
 	/* Winbond -- w25x "blocks" are 64K, "sectors" are 4KiB */
 	{ "w25x10", INFO(0xef3011, 0, 64 * 1024,  2,  SECT_4K) },
@@ -804,6 +825,8 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	struct m25p			*flash;
 	struct flash_info		*info;
 	unsigned			i;
+	struct mtd_partition		*parts = NULL;
+	int				nr_parts = 0;
 
 	/* Platform data helps sort out which chip type we have, as
 	 * well as how this board partitions it.  If we don't have
@@ -868,9 +891,9 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	 * up with the software protection bits set
 	 */
 
-	if (info->jedec_id >> 16 == 0x1f ||
-	    info->jedec_id >> 16 == 0x89 ||
-	    info->jedec_id >> 16 == 0xbf) {
+	if (JEDEC_MFR(info->jedec_id) == CFI_MFR_ATMEL ||
+	    JEDEC_MFR(info->jedec_id) == CFI_MFR_INTEL ||
+	    JEDEC_MFR(info->jedec_id) == CFI_MFR_SST) {
 		write_enable(flash);
 		write_sr(flash, 0);
 	}
@@ -888,7 +911,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	flash->mtd.read = m25p80_read;
 
 	/* sst flash chips use AAI word program */
-	if (info->jedec_id >> 16 == 0xbf)
+	if (JEDEC_MFR(info->jedec_id) == CFI_MFR_SST)
 		flash->mtd.write = sst_write;
 	else
 		flash->mtd.write = m25p80_write;
@@ -914,7 +937,7 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		/* enable 4-byte addressing if the device exceeds 16MiB */
 		if (flash->mtd.size > 0x1000000) {
 			flash->addr_width = 4;
-			set_4byte(flash, 1);
+			set_4byte(flash, info->jedec_id, 1);
 		} else
 			flash->addr_width = 3;
 	}
@@ -945,48 +968,41 @@ static int __devinit m25p_probe(struct spi_device *spi)
 	/* partitions should match sector boundaries; and it may be good to
 	 * use readonly partitions for writeprotected sectors (BP2..BP0).
 	 */
-	if (mtd_has_partitions()) {
-		struct mtd_partition	*parts = NULL;
-		int			nr_parts = 0;
+	if (mtd_has_cmdlinepart()) {
+		static const char *part_probes[]
+			= { "cmdlinepart", NULL, };
 
-		if (mtd_has_cmdlinepart()) {
-			static const char *part_probes[]
-					= { "cmdlinepart", NULL, };
+		nr_parts = parse_mtd_partitions(&flash->mtd,
+						part_probes, &parts, 0);
+	}
 
-			nr_parts = parse_mtd_partitions(&flash->mtd,
-					part_probes, &parts, 0);
-		}
-
-		if (nr_parts <= 0 && data && data->parts) {
-			parts = data->parts;
-			nr_parts = data->nr_parts;
-		}
+	if (nr_parts <= 0 && data && data->parts) {
+		parts = data->parts;
+		nr_parts = data->nr_parts;
+	}
 
 #ifdef CONFIG_MTD_OF_PARTS
-		if (nr_parts <= 0 && spi->dev.of_node) {
-			nr_parts = of_mtd_parse_partitions(&spi->dev,
-					spi->dev.of_node, &parts);
-		}
+	if (nr_parts <= 0 && spi->dev.of_node) {
+		nr_parts = of_mtd_parse_partitions(&spi->dev,
+						   spi->dev.of_node, &parts);
+	}
 #endif
 
-		if (nr_parts > 0) {
-			for (i = 0; i < nr_parts; i++) {
-				DEBUG(MTD_DEBUG_LEVEL2, "partitions[%d] = "
-					"{.name = %s, .offset = 0x%llx, "
-						".size = 0x%llx (%lldKiB) }\n",
-					i, parts[i].name,
-					(long long)parts[i].offset,
-					(long long)parts[i].size,
-					(long long)(parts[i].size >> 10));
-			}
-			flash->partitioned = 1;
-			return add_mtd_partitions(&flash->mtd, parts, nr_parts);
+	if (nr_parts > 0) {
+		for (i = 0; i < nr_parts; i++) {
+			DEBUG(MTD_DEBUG_LEVEL2, "partitions[%d] = "
+			      "{.name = %s, .offset = 0x%llx, "
+			      ".size = 0x%llx (%lldKiB) }\n",
+			      i, parts[i].name,
+			      (long long)parts[i].offset,
+			      (long long)parts[i].size,
+			      (long long)(parts[i].size >> 10));
 		}
-	} else if (data && data->nr_parts)
-		dev_warn(&spi->dev, "ignoring %d default partitions on %s\n",
-				data->nr_parts, data->name);
+		flash->partitioned = 1;
+	}
 
-	return add_mtd_device(&flash->mtd) == 1 ? -ENODEV : 0;
+	return mtd_device_register(&flash->mtd, parts, nr_parts) == 1 ?
+		-ENODEV : 0;
 }
 
 
@@ -996,10 +1012,7 @@ static int __devexit m25p_remove(struct spi_device *spi)
 	int		status;
 
 	/* Clean up MTD stuff. */
-	if (mtd_has_partitions() && flash->partitioned)
-		status = del_mtd_partitions(&flash->mtd);
-	else
-		status = del_mtd_device(&flash->mtd);
+	status = mtd_device_unregister(&flash->mtd);
 	if (status == 0) {
 		kfree(flash->command);
 		kfree(flash);

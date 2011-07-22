@@ -704,13 +704,12 @@ static int snd_ctl_elem_list(struct snd_card *card,
 	struct snd_ctl_elem_list list;
 	struct snd_kcontrol *kctl;
 	struct snd_ctl_elem_id *dst, *id;
-	unsigned int offset, space, first, jidx;
+	unsigned int offset, space, jidx;
 	
 	if (copy_from_user(&list, _list, sizeof(list)))
 		return -EFAULT;
 	offset = list.offset;
 	space = list.space;
-	first = 0;
 	/* try limit maximum space */
 	if (space > 16384)
 		return -ENOMEM;

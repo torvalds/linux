@@ -15,8 +15,6 @@
 /*
  *	IRQ list.
  */
-#define AT91_ID_FIQ		0	/* FIQ */
-#define AT91_ID_SYS		1	/* System Peripheral */
 #define AT91X40_ID_USART0	2	/* USART port 0 */
 #define AT91X40_ID_USART1	3	/* USART port 1 */
 #define AT91X40_ID_TC0		4	/* Timer/Counter 0 */

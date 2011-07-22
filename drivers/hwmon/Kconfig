@@ -41,7 +41,7 @@ comment "Native drivers"
 
 config SENSORS_ABITUGURU
 	tristate "Abit uGuru (rev 1 & 2)"
-	depends on X86 && EXPERIMENTAL
+	depends on X86 && DMI && EXPERIMENTAL
 	help
 	  If you say yes here you get support for the sensor part of the first
 	  and second revision of the Abit uGuru chip. The voltage and frequency
@@ -56,7 +56,7 @@ config SENSORS_ABITUGURU
 
 config SENSORS_ABITUGURU3
 	tristate "Abit uGuru (rev 3)"
-	depends on X86 && EXPERIMENTAL
+	depends on X86 && DMI && EXPERIMENTAL
 	help
 	  If you say yes here you get support for the sensor part of the
 	  third revision of the Abit uGuru chip. Only reading the sensors
@@ -213,7 +213,7 @@ config SENSORS_ADT7475
 
 config SENSORS_ASC7621
 	tristate "Andigilog aSC7621"
-	depends on HWMON && I2C
+	depends on I2C
 	help
 	  If you say yes here you get support for the aSC7621
 	  family of SMBus sensors chip found on most Intel X38, X48, X58,
@@ -237,16 +237,26 @@ config SENSORS_K8TEMP
 	  will be called k8temp.
 
 config SENSORS_K10TEMP
-	tristate "AMD Family 10h/11h/12h/14h temperature sensor"
+	tristate "AMD Family 10h+ temperature sensor"
 	depends on X86 && PCI
 	help
 	  If you say yes here you get support for the temperature
 	  sensor(s) inside your CPU. Supported are later revisions of
 	  the AMD Family 10h and all revisions of the AMD Family 11h,
-	  12h (Llano), and 14h (Brazos) microarchitectures.
+	  12h (Llano), 14h (Brazos) and 15h (Bulldozer) microarchitectures.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called k10temp.
+
+config SENSORS_FAM15H_POWER
+	tristate "AMD Family 15h processor power"
+	depends on X86 && PCI
+	help
+	  If you say yes here you get support for processor power
+	  information of your AMD family 15h CPU.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called fam15h_power.
 
 config SENSORS_ASB100
 	tristate "Asus ASB100 Bach"
@@ -319,7 +329,7 @@ config SENSORS_F71882FG
 	  If you say yes here you get support for hardware monitoring
 	  features of many Fintek Super-I/O (LPC) chips. The currently
 	  supported chips are:
-	    F71808E
+	    F71808E/A
 	    F71858FG
 	    F71862FG
 	    F71863FG
@@ -978,6 +988,16 @@ config SENSORS_EMC2103
 	  This driver can also be built as a module.  If so, the module
 	  will be called emc2103.
 
+config SENSORS_EMC6W201
+	tristate "SMSC EMC6W201"
+	depends on I2C
+	help
+	  If you say yes here you get support for the SMSC EMC6W201
+	  hardware monitoring chip.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called emc6w201.
+
 config SENSORS_SMSC47M1
 	tristate "SMSC LPC47M10x and compatibles"
 	help
@@ -1340,6 +1360,16 @@ config SENSORS_MC13783_ADC
 if ACPI
 
 comment "ACPI drivers"
+
+config SENSORS_ACPI_POWER
+	tristate "ACPI 4.0 power meter"
+	help
+	  This driver exposes ACPI 4.0 power meters as hardware monitoring
+	  devices.  Say Y (or M) if you have a computer with ACPI 4.0 firmware
+	  and a power meter.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called acpi_power_meter.
 
 config SENSORS_ATK0110
 	tristate "ASUS ATK0110"

@@ -4698,12 +4698,14 @@ static int __os_scsi_tape_open(struct inode * inode, struct file * filp)
 			break;
 
 			if ((SRpnt->sense[2] & 0x0f) == UNIT_ATTENTION) {
+				int j;
+
 				STp->pos_unknown = 0;
 				STp->partition = STp->new_partition = 0;
 				if (STp->can_partitions)
 					STp->nbr_partitions = 1;  /* This guess will be updated later if necessary */
-				for (i=0; i < ST_NBR_PARTITIONS; i++) {
-					STps = &(STp->ps[i]);
+				for (j = 0; j < ST_NBR_PARTITIONS; j++) {
+					STps = &(STp->ps[j]);
 					STps->rw = ST_IDLE;
 					STps->eof = ST_NOEOF;
 					STps->at_sm = 0;

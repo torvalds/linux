@@ -49,12 +49,13 @@
 
 #define segment_eq(a,b) ((a).ar4 == (b).ar4)
 
+#define __access_ok(addr, size)	\
+({				\
+	__chk_user_ptr(addr);	\
+	1;			\
+})
 
-static inline int __access_ok(const void __user *addr, unsigned long size)
-{
-	return 1;
-}
-#define access_ok(type,addr,size) __access_ok(addr,size)
+#define access_ok(type, addr, size) __access_ok(addr, size)
 
 /*
  * The exception table consists of pairs of addresses: the first is the

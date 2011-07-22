@@ -203,7 +203,8 @@ ipq_build_packet_message(struct nf_queue_entry *entry, int *errp)
 	else
 		pmsg->outdev_name[0] = '\0';
 
-	if (entry->indev && entry->skb->dev) {
+	if (entry->indev && entry->skb->dev &&
+	    entry->skb->mac_header != entry->skb->network_header) {
 		pmsg->hw_type = entry->skb->dev->type;
 		pmsg->hw_addrlen = dev_parse_header(entry->skb,
 						    pmsg->hw_addr);
@@ -402,7 +403,8 @@ ipq_dev_drop(int ifindex)
 static inline void
 __ipq_rcv_skb(struct sk_buff *skb)
 {
-	int status, type, pid, flags, nlmsglen, skblen;
+	int status, type, pid, flags;
+	unsigned int nlmsglen, skblen;
 	struct nlmsghdr *nlh;
 
 	skblen = skb->len;

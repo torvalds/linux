@@ -909,7 +909,7 @@ extern int  ext3_setattr (struct dentry *, struct iattr *);
 extern void ext3_evict_inode (struct inode *);
 extern int  ext3_sync_inode (handle_t *, struct inode *);
 extern void ext3_discard_reservation (struct inode *);
-extern void ext3_dirty_inode(struct inode *);
+extern void ext3_dirty_inode(struct inode *, int);
 extern int ext3_change_inode_journal_flag(struct inode *, int);
 extern int ext3_get_inode_loc(struct inode *, struct ext3_iloc *);
 extern int ext3_can_truncate(struct inode *inode);

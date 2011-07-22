@@ -1463,7 +1463,7 @@ failed:
 
 /*====================================================================*/
 
-static struct pcmcia_device_id pcnet_ids[] = {
+static const struct pcmcia_device_id pcnet_ids[] = {
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0057, 0x0021),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0104, 0x000a),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0xea15),

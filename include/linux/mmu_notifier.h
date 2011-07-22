@@ -150,7 +150,7 @@ struct mmu_notifier_ops {
  * Therefore notifier chains can only be traversed when either
  *
  * 1. mmap_sem is held.
- * 2. One of the reverse map locks is held (i_mmap_lock or anon_vma->lock).
+ * 2. One of the reverse map locks is held (i_mmap_mutex or anon_vma->mutex).
  * 3. No other concurrent thread can access the list (release)
  */
 struct mmu_notifier {

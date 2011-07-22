@@ -227,7 +227,7 @@ static int __acpi_bus_set_power(struct acpi_device *device, int state)
 	acpi_status status = AE_OK;
 	char object_name[5] = { '_', 'P', 'S', '0' + state, '\0' };
 
-	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3))
+	if (!device || (state < ACPI_STATE_D0) || (state > ACPI_STATE_D3_COLD))
 		return -EINVAL;
 
 	/* Make sure this is a valid target state */

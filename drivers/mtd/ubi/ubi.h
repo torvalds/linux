@@ -341,8 +341,8 @@ struct ubi_wl_entry;
  *      protected from the wear-leveling worker)
  * @pq_head: protection queue head
  * @wl_lock: protects the @used, @free, @pq, @pq_head, @lookuptbl, @move_from,
- * 	     @move_to, @move_to_put @erase_pending, @wl_scheduled, @works,
- * 	     @erroneous, and @erroneous_peb_count fields
+ *	     @move_to, @move_to_put @erase_pending, @wl_scheduled, @works,
+ *	     @erroneous, and @erroneous_peb_count fields
  * @move_mutex: serializes eraseblock moves
  * @work_sem: synchronizes the WL worker with use tasks
  * @wl_scheduled: non-zero if the wear-leveling was scheduled

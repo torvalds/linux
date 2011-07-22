@@ -40,10 +40,10 @@
 #include "generic.h"
 
 
-static void __init csb637_map_io(void)
+static void __init csb637_init_early(void)
 {
 	/* Initialize processor: 3.6864 MHz crystal */
-	at91rm9200_initialize(3686400, AT91RM9200_BGA);
+	at91rm9200_initialize(3686400);
 
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -138,9 +138,9 @@ static void __init csb637_board_init(void)
 
 MACHINE_START(CSB637, "Cogent CSB637")
 	/* Maintainer: Bill Gatliff */
-	.boot_params	= AT91_SDRAM_BASE + 0x100,
 	.timer		= &at91rm9200_timer,
-	.map_io		= csb637_map_io,
+	.map_io		= at91rm9200_map_io,
+	.init_early	= csb637_init_early,
 	.init_irq	= csb637_init_irq,
 	.init_machine	= csb637_board_init,
 MACHINE_END

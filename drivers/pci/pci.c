@@ -3271,11 +3271,11 @@ void __init pci_register_set_vga_state(arch_set_vga_state_t func)
 }
 
 static int pci_set_vga_state_arch(struct pci_dev *dev, bool decode,
-		      unsigned int command_bits, bool change_bridge)
+		      unsigned int command_bits, u32 flags)
 {
 	if (arch_set_vga_state)
 		return arch_set_vga_state(dev, decode, command_bits,
-						change_bridge);
+						flags);
 	return 0;
 }
 
@@ -3284,31 +3284,34 @@ static int pci_set_vga_state_arch(struct pci_dev *dev, bool decode,
  * @dev: the PCI device
  * @decode: true = enable decoding, false = disable decoding
  * @command_bits: PCI_COMMAND_IO and/or PCI_COMMAND_MEMORY
- * @change_bridge: traverse ancestors and change bridges
+ * @flags: traverse ancestors and change bridges
+ * CHANGE_BRIDGE_ONLY / CHANGE_BRIDGE
  */
 int pci_set_vga_state(struct pci_dev *dev, bool decode,
-		      unsigned int command_bits, bool change_bridge)
+		      unsigned int command_bits, u32 flags)
 {
 	struct pci_bus *bus;
 	struct pci_dev *bridge;
 	u16 cmd;
 	int rc;
 
-	WARN_ON(command_bits & ~(PCI_COMMAND_IO|PCI_COMMAND_MEMORY));
+	WARN_ON((flags & PCI_VGA_STATE_CHANGE_DECODES) & (command_bits & ~(PCI_COMMAND_IO|PCI_COMMAND_MEMORY)));
 
 	/* ARCH specific VGA enables */
-	rc = pci_set_vga_state_arch(dev, decode, command_bits, change_bridge);
+	rc = pci_set_vga_state_arch(dev, decode, command_bits, flags);
 	if (rc)
 		return rc;
 
-	pci_read_config_word(dev, PCI_COMMAND, &cmd);
-	if (decode == true)
-		cmd |= command_bits;
-	else
-		cmd &= ~command_bits;
-	pci_write_config_word(dev, PCI_COMMAND, cmd);
+	if (flags & PCI_VGA_STATE_CHANGE_DECODES) {
+		pci_read_config_word(dev, PCI_COMMAND, &cmd);
+		if (decode == true)
+			cmd |= command_bits;
+		else
+			cmd &= ~command_bits;
+		pci_write_config_word(dev, PCI_COMMAND, cmd);
+	}
 
-	if (change_bridge == false)
+	if (!(flags & PCI_VGA_STATE_CHANGE_BRIDGE))
 		return 0;
 
 	bus = dev->bus;

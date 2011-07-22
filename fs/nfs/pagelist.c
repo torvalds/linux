@@ -204,6 +204,22 @@ nfs_wait_on_request(struct nfs_page *req)
 			TASK_UNINTERRUPTIBLE);
 }
 
+bool nfs_generic_pg_test(struct nfs_pageio_descriptor *desc, struct nfs_page *prev, struct nfs_page *req)
+{
+	/*
+	 * FIXME: ideally we should be able to coalesce all requests
+	 * that are not block boundary aligned, but currently this
+	 * is problematic for the case of bsize < PAGE_CACHE_SIZE,
+	 * since nfs_flush_multi and nfs_pagein_multi assume you
+	 * can have only one struct nfs_page.
+	 */
+	if (desc->pg_bsize < PAGE_SIZE)
+		return 0;
+
+	return desc->pg_count + req->wb_bytes <= desc->pg_bsize;
+}
+EXPORT_SYMBOL_GPL(nfs_generic_pg_test);
+
 /**
  * nfs_pageio_init - initialise a page io descriptor
  * @desc: pointer to descriptor
@@ -229,6 +245,8 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_ioflags = io_flags;
 	desc->pg_error = 0;
 	desc->pg_lseg = NULL;
+	desc->pg_test = nfs_generic_pg_test;
+	pnfs_pageio_init(desc, inode);
 }
 
 /**
@@ -242,29 +260,23 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
  *
  * Return 'true' if this is the case, else return 'false'.
  */
-static int nfs_can_coalesce_requests(struct nfs_page *prev,
-				     struct nfs_page *req,
-				     struct nfs_pageio_descriptor *pgio)
+static bool nfs_can_coalesce_requests(struct nfs_page *prev,
+				      struct nfs_page *req,
+				      struct nfs_pageio_descriptor *pgio)
 {
 	if (req->wb_context->cred != prev->wb_context->cred)
-		return 0;
+		return false;
 	if (req->wb_lock_context->lockowner != prev->wb_lock_context->lockowner)
-		return 0;
+		return false;
 	if (req->wb_context->state != prev->wb_context->state)
-		return 0;
+		return false;
 	if (req->wb_index != (prev->wb_index + 1))
-		return 0;
+		return false;
 	if (req->wb_pgbase != 0)
-		return 0;
+		return false;
 	if (prev->wb_pgbase + prev->wb_bytes != PAGE_CACHE_SIZE)
-		return 0;
-	/*
-	 * Non-whole file layouts need to check that req is inside of
-	 * pgio->pg_lseg.
-	 */
-	if (pgio->pg_test && !pgio->pg_test(pgio, prev, req))
-		return 0;
-	return 1;
+		return false;
+	return pgio->pg_test(pgio, prev, req);
 }
 
 /**
@@ -278,31 +290,18 @@ static int nfs_can_coalesce_requests(struct nfs_page *prev,
 static int nfs_pageio_do_add_request(struct nfs_pageio_descriptor *desc,
 				     struct nfs_page *req)
 {
-	size_t newlen = req->wb_bytes;
-
 	if (desc->pg_count != 0) {
 		struct nfs_page *prev;
 
-		/*
-		 * FIXME: ideally we should be able to coalesce all requests
-		 * that are not block boundary aligned, but currently this
-		 * is problematic for the case of bsize < PAGE_CACHE_SIZE,
-		 * since nfs_flush_multi and nfs_pagein_multi assume you
-		 * can have only one struct nfs_page.
-		 */
-		if (desc->pg_bsize < PAGE_SIZE)
-			return 0;
-		newlen += desc->pg_count;
-		if (newlen > desc->pg_bsize)
-			return 0;
 		prev = nfs_list_entry(desc->pg_list.prev);
 		if (!nfs_can_coalesce_requests(prev, req, desc))
 			return 0;
-	} else
+	} else {
 		desc->pg_base = req->wb_pgbase;
+	}
 	nfs_list_remove_request(req);
 	nfs_list_add_request(req, &desc->pg_list);
-	desc->pg_count = newlen;
+	desc->pg_count += req->wb_bytes;
 	return 1;
 }
 

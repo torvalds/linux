@@ -206,6 +206,7 @@ static cycle_t exynos4_pwm4_read(struct clocksource *cs)
 	return (cycle_t) ~__raw_readl(S3C_TIMERREG(0x40));
 }
 
+#ifdef CONFIG_PM
 static void exynos4_pwm4_resume(struct clocksource *cs)
 {
 	unsigned long pclk;
@@ -218,6 +219,7 @@ static void exynos4_pwm4_resume(struct clocksource *cs)
 	exynos4_pwm_init(4, ~0);
 	exynos4_pwm_start(4, 1);
 }
+#endif
 
 struct clocksource pwm_clocksource = {
 	.name		= "pwm_timer4",

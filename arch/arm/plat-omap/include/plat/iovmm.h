@@ -29,9 +29,6 @@ struct iovm_struct {
  * lower 16 bit is used for h/w and upper 16 bit is for s/w.
  */
 #define IOVMF_SW_SHIFT		16
-#define IOVMF_HW_SIZE		(1 << IOVMF_SW_SHIFT)
-#define IOVMF_HW_MASK		(IOVMF_HW_SIZE - 1)
-#define IOVMF_SW_MASK		(~IOVMF_HW_MASK)UL
 
 /*
  * iovma: h/w flags derived from cam and ram attribute

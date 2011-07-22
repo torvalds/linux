@@ -1003,8 +1003,12 @@ struct ieee80211_ht_info {
 #define WLAN_CAPABILITY_ESS		(1<<0)
 #define WLAN_CAPABILITY_IBSS		(1<<1)
 
-/* A mesh STA sets the ESS and IBSS capability bits to zero */
-#define WLAN_CAPABILITY_IS_MBSS(cap)	\
+/*
+ * A mesh STA sets the ESS and IBSS capability bits to zero.
+ * however, this holds true for p2p probe responses (in the p2p_find
+ * phase) as well.
+ */
+#define WLAN_CAPABILITY_IS_STA_BSS(cap)	\
 	(!((cap) & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)))
 
 #define WLAN_CAPABILITY_CF_POLLABLE	(1<<2)

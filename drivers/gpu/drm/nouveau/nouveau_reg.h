@@ -639,9 +639,9 @@
 #    define NV50_PCONNECTOR_I2C_PORT_4                      0x0000e240
 #    define NV50_PCONNECTOR_I2C_PORT_5                      0x0000e258
 
-#define NV50_AUXCH_DATA_OUT(i,n)             ((n) * 4 + (i) * 0x50 + 0x0000e4c0)
+#define NV50_AUXCH_DATA_OUT(i, n)            ((n) * 4 + (i) * 0x50 + 0x0000e4c0)
 #define NV50_AUXCH_DATA_OUT__SIZE                                             4
-#define NV50_AUXCH_DATA_IN(i,n)              ((n) * 4 + (i) * 0x50 + 0x0000e4d0)
+#define NV50_AUXCH_DATA_IN(i, n)             ((n) * 4 + (i) * 0x50 + 0x0000e4d0)
 #define NV50_AUXCH_DATA_IN__SIZE                                              4
 #define NV50_AUXCH_ADDR(i)                             ((i) * 0x50 + 0x0000e4e0)
 #define NV50_AUXCH_CTRL(i)                             ((i) * 0x50 + 0x0000e4e4)
@@ -829,7 +829,7 @@
 #define NV50_PDISPLAY_SOR_BACKLIGHT                                  0x0061c084
 #define NV50_PDISPLAY_SOR_BACKLIGHT_ENABLE                           0x80000000
 #define NV50_PDISPLAY_SOR_BACKLIGHT_LEVEL                            0x00000fff
-#define NV50_SOR_DP_CTRL(i,l)            (0x0061c10c + (i) * 0x800 + (l) * 0x80)
+#define NV50_SOR_DP_CTRL(i, l)           (0x0061c10c + (i) * 0x800 + (l) * 0x80)
 #define NV50_SOR_DP_CTRL_ENABLED                                     0x00000001
 #define NV50_SOR_DP_CTRL_ENHANCED_FRAME_ENABLED                      0x00004000
 #define NV50_SOR_DP_CTRL_LANE_MASK                                   0x001f0000
@@ -841,10 +841,10 @@
 #define NV50_SOR_DP_CTRL_TRAINING_PATTERN_DISABLED                   0x00000000
 #define NV50_SOR_DP_CTRL_TRAINING_PATTERN_1                          0x01000000
 #define NV50_SOR_DP_CTRL_TRAINING_PATTERN_2                          0x02000000
-#define NV50_SOR_DP_UNK118(i,l)          (0x0061c118 + (i) * 0x800 + (l) * 0x80)
-#define NV50_SOR_DP_UNK120(i,l)          (0x0061c120 + (i) * 0x800 + (l) * 0x80)
-#define NV50_SOR_DP_UNK128(i,l)          (0x0061c128 + (i) * 0x800 + (l) * 0x80)
-#define NV50_SOR_DP_UNK130(i,l)          (0x0061c130 + (i) * 0x800 + (l) * 0x80)
+#define NV50_SOR_DP_UNK118(i, l)         (0x0061c118 + (i) * 0x800 + (l) * 0x80)
+#define NV50_SOR_DP_UNK120(i, l)         (0x0061c120 + (i) * 0x800 + (l) * 0x80)
+#define NV50_SOR_DP_UNK128(i, l)         (0x0061c128 + (i) * 0x800 + (l) * 0x80)
+#define NV50_SOR_DP_UNK130(i, l)         (0x0061c130 + (i) * 0x800 + (l) * 0x80)
 
 #define NV50_PDISPLAY_USER(i)                        ((i) * 0x1000 + 0x00640000)
 #define NV50_PDISPLAY_USER_PUT(i)                    ((i) * 0x1000 + 0x00640000)

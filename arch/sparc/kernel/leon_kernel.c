@@ -236,6 +236,21 @@ static unsigned int _leon_build_device_irq(struct platform_device *op,
 	return leon_build_device_irq(real_irq, handle_simple_irq, "edge", 0);
 }
 
+void leon_update_virq_handling(unsigned int virq,
+			      irq_flow_handler_t flow_handler,
+			      const char *name, int do_ack)
+{
+	unsigned long mask = (unsigned long)irq_get_chip_data(virq);
+
+	mask &= ~LEON_DO_ACK_HW;
+	if (do_ack)
+		mask |= LEON_DO_ACK_HW;
+
+	irq_set_chip_and_handler_name(virq, &leon_irq,
+				      flow_handler, name);
+	irq_set_chip_data(virq, (void *)mask);
+}
+
 void __init leon_init_timers(irq_handler_t counter_fn)
 {
 	int irq, eirq;
@@ -360,6 +375,22 @@ void __init leon_init_timers(irq_handler_t counter_fn)
 		printk(KERN_ERR "unable to attach timer IRQ%d\n", irq);
 		prom_halt();
 	}
+
+#ifdef CONFIG_SMP
+	{
+		unsigned long flags;
+
+		/*
+		 * In SMP, sun4m adds a IPI handler to IRQ trap handler that
+		 * LEON never must take, sun4d and LEON overwrites the branch
+		 * with a NOP.
+		 */
+		local_irq_save(flags);
+		patchme_maybe_smp_msg[0] = 0x01000000; /* NOP out the branch */
+		local_flush_cache_all();
+		local_irq_restore(flags);
+	}
+#endif
 
 	LEON3_BYPASS_STORE_PA(&leon3_gptimer_regs->e[leon3_gptimer_idx].ctrl,
 			      LEON3_GPTIMER_EN |

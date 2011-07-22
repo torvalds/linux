@@ -181,15 +181,9 @@ nfsd_lookup_dentry(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	struct svc_export	*exp;
 	struct dentry		*dparent;
 	struct dentry		*dentry;
-	__be32			err;
 	int			host_err;
 
 	dprintk("nfsd: nfsd_lookup(fh %s, %.*s)\n", SVCFH_fmt(fhp), len,name);
-
-	/* Obtain dentry and export. */
-	err = fh_verify(rqstp, fhp, S_IFDIR, NFSD_MAY_EXEC);
-	if (err)
-		return err;
 
 	dparent = fhp->fh_dentry;
 	exp  = fhp->fh_export;
@@ -254,6 +248,9 @@ nfsd_lookup(struct svc_rqst *rqstp, struct svc_fh *fhp, const char *name,
 	struct dentry		*dentry;
 	__be32 err;
 
+	err = fh_verify(rqstp, fhp, S_IFDIR, NFSD_MAY_EXEC);
+	if (err)
+		return err;
 	err = nfsd_lookup_dentry(rqstp, fhp, name, len, &exp, &dentry);
 	if (err)
 		return err;
@@ -699,7 +696,15 @@ nfsd_access(struct svc_rqst *rqstp, struct svc_fh *fhp, u32 *access, u32 *suppor
 }
 #endif /* CONFIG_NFSD_V3 */
 
+static int nfsd_open_break_lease(struct inode *inode, int access)
+{
+	unsigned int mode;
 
+	if (access & NFSD_MAY_NOT_BREAK_LEASE)
+		return 0;
+	mode = (access & NFSD_MAY_WRITE) ? O_WRONLY : O_RDONLY;
+	return break_lease(inode, mode | O_NONBLOCK);
+}
 
 /*
  * Open an existing file or directory.
@@ -747,12 +752,7 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	if (!inode->i_fop)
 		goto out;
 
-	/*
-	 * Check to see if there are any leases on this file.
-	 * This may block while leases are broken.
-	 */
-	if (!(access & NFSD_MAY_NOT_BREAK_LEASE))
-		host_err = break_lease(inode, O_NONBLOCK | ((access & NFSD_MAY_WRITE) ? O_WRONLY : 0));
+	host_err = nfsd_open_break_lease(inode, access);
 	if (host_err) /* NOMEM or WOULDBLOCK */
 		goto out_nfserr;
 
@@ -877,13 +877,11 @@ static __be32
 nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
               loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
 {
-	struct inode *inode;
 	mm_segment_t	oldfs;
 	__be32		err;
 	int		host_err;
 
 	err = nfserr_perm;
-	inode = file->f_path.dentry->d_inode;
 
 	if (file->f_op->splice_read && rqstp->rq_splice_ok) {
 		struct splice_desc sd = {
@@ -1340,11 +1338,18 @@ out_nfserr:
 }
 
 #ifdef CONFIG_NFSD_V3
+
+static inline int nfsd_create_is_exclusive(int createmode)
+{
+	return createmode == NFS3_CREATE_EXCLUSIVE
+	       || createmode == NFS4_CREATE_EXCLUSIVE4_1;
+}
+
 /*
- * NFSv3 version of nfsd_create
+ * NFSv3 and NFSv4 version of nfsd_create
  */
 __be32
-nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
+do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		char *fname, int flen, struct iattr *iap,
 		struct svc_fh *resfhp, int createmode, u32 *verifier,
 	        int *truncp, int *created)
@@ -1396,7 +1401,7 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (err)
 		goto out;
 
-	if (createmode == NFS3_CREATE_EXCLUSIVE) {
+	if (nfsd_create_is_exclusive(createmode)) {
 		/* solaris7 gets confused (bugid 4218508) if these have
 		 * the high bit set, so just clear the high bits. If this is
 		 * ever changed to use different attrs for storing the
@@ -1437,6 +1442,11 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 			    && dchild->d_inode->i_atime.tv_sec == v_atime
 			    && dchild->d_inode->i_size  == 0 )
 				break;
+		case NFS4_CREATE_EXCLUSIVE4_1:
+			if (   dchild->d_inode->i_mtime.tv_sec == v_mtime
+			    && dchild->d_inode->i_atime.tv_sec == v_atime
+			    && dchild->d_inode->i_size  == 0 )
+				goto set_attr;
 			 /* fallthru */
 		case NFS3_CREATE_GUARDED:
 			err = nfserr_exist;
@@ -1455,7 +1465,7 @@ nfsd_create_v3(struct svc_rqst *rqstp, struct svc_fh *fhp,
 
 	nfsd_check_ignore_resizing(iap);
 
-	if (createmode == NFS3_CREATE_EXCLUSIVE) {
+	if (nfsd_create_is_exclusive(createmode)) {
 		/* Cram the verifier into atime/mtime */
 		iap->ia_valid = ATTR_MTIME|ATTR_ATIME
 			| ATTR_MTIME_SET|ATTR_ATIME_SET;
@@ -1653,8 +1663,10 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	if (!dold->d_inode)
 		goto out_drop_write;
 	host_err = nfsd_break_lease(dold->d_inode);
-	if (host_err)
+	if (host_err) {
+		err = nfserrno(host_err);
 		goto out_drop_write;
+	}
 	host_err = vfs_link(dold, dirp, dnew);
 	if (!host_err) {
 		err = nfserrno(commit_metadata(ffhp));
@@ -2034,7 +2046,7 @@ nfsd_permission(struct svc_rqst *rqstp, struct svc_export *exp,
 	struct inode	*inode = dentry->d_inode;
 	int		err;
 
-	if (acc == NFSD_MAY_NOP)
+	if ((acc & NFSD_MAY_MASK) == NFSD_MAY_NOP)
 		return 0;
 #if 0
 	dprintk("nfsd: permission 0x%x%s%s%s%s%s%s%s mode 0%o%s%s%s\n",

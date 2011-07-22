@@ -581,7 +581,8 @@ static int __init au1xxx_nand_init(void)
 	}
 
 	/* Register the partitions */
-	add_mtd_partitions(au1550_mtd, partition_info, ARRAY_SIZE(partition_info));
+	mtd_device_register(au1550_mtd, partition_info,
+			    ARRAY_SIZE(partition_info));
 
 	return 0;
 

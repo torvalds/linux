@@ -212,6 +212,7 @@ __switch_to:
 	lctl	%c4,%c4,__TASK_pid(%r3)		# load pid to control reg. 4
 	lm	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	st	%r3,__LC_CURRENT		# store task struct of next
+	mvc	__LC_CURRENT_PID(4,%r0),__TASK_pid(%r3)	# store pid of next
 	st	%r5,__LC_THREAD_INFO		# store thread info of next
 	ahi	%r5,STACK_SIZE			# end of kernel stack of next
 	st	%r5,__LC_KERNEL_STACK		# store end of kernel stack

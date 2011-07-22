@@ -239,6 +239,7 @@ int ocfs2_find_leaf(struct ocfs2_caching_info *ci,
 		    struct buffer_head **leaf_bh);
 int ocfs2_search_extent_list(struct ocfs2_extent_list *el, u32 v_cluster);
 
+int ocfs2_trim_fs(struct super_block *sb, struct fstrim_range *range);
 /*
  * Helper function to look at the # of clusters in an extent record.
  */

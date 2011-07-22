@@ -49,7 +49,7 @@ static void handle_vq(struct vhost_test *n)
 		return;
 
 	mutex_lock(&vq->mutex);
-	vhost_disable_notify(vq);
+	vhost_disable_notify(&n->dev, vq);
 
 	for (;;) {
 		head = vhost_get_vq_desc(&n->dev, vq, vq->iov,
@@ -61,8 +61,8 @@ static void handle_vq(struct vhost_test *n)
 			break;
 		/* Nothing new?  Wait for eventfd to tell us they refilled. */
 		if (head == vq->num) {
-			if (unlikely(vhost_enable_notify(vq))) {
-				vhost_disable_notify(vq);
+			if (unlikely(vhost_enable_notify(&n->dev, vq))) {
+				vhost_disable_notify(&n->dev, vq);
 				continue;
 			}
 			break;

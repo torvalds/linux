@@ -196,9 +196,9 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 
 		/*
 		 * Note: create modes (UNCHECKED,GUARDED...) are the same
-		 * in NFSv4 as in v3.
+		 * in NFSv4 as in v3 except EXCLUSIVE4_1.
 		 */
-		status = nfsd_create_v3(rqstp, current_fh, open->op_fname.data,
+		status = do_nfsd_create(rqstp, current_fh, open->op_fname.data,
 					open->op_fname.len, &open->op_iattr,
 					&resfh, open->op_createmode,
 					(u32 *)open->op_verf.data,
@@ -403,7 +403,7 @@ nfsd4_putfh(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	cstate->current_fh.fh_handle.fh_size = putfh->pf_fhlen;
 	memcpy(&cstate->current_fh.fh_handle.fh_base, putfh->pf_fhval,
 	       putfh->pf_fhlen);
-	return fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_NOP);
+	return fh_verify(rqstp, &cstate->current_fh, 0, NFSD_MAY_BYPASS_GSS);
 }
 
 static __be32
@@ -762,6 +762,9 @@ nfsd4_secinfo(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	__be32 err;
 
 	fh_init(&resfh, NFS4_FHSIZE);
+	err = fh_verify(rqstp, &cstate->current_fh, S_IFDIR, NFSD_MAY_EXEC);
+	if (err)
+		return err;
 	err = nfsd_lookup_dentry(rqstp, &cstate->current_fh,
 				    secinfo->si_name, secinfo->si_namelen,
 				    &exp, &dentry);
@@ -986,6 +989,9 @@ enum nfsd4_op_flags {
 	ALLOWED_WITHOUT_FH = 1 << 0,	/* No current filehandle required */
 	ALLOWED_ON_ABSENT_FS = 1 << 1,	/* ops processed on absent fs */
 	ALLOWED_AS_FIRST_OP = 1 << 2,	/* ops reqired first in compound */
+	/* For rfc 5661 section 2.6.3.1.1: */
+	OP_HANDLES_WRONGSEC = 1 << 3,
+	OP_IS_PUTFH_LIKE = 1 << 4,
 };
 
 struct nfsd4_operation {
@@ -1029,6 +1035,44 @@ static __be32 nfs41_check_op_ordering(struct nfsd4_compoundargs *args)
 	if (args->opcnt != 1)
 		return nfserr_not_only_op;
 	return nfs_ok;
+}
+
+static inline struct nfsd4_operation *OPDESC(struct nfsd4_op *op)
+{
+	return &nfsd4_ops[op->opnum];
+}
+
+static bool need_wrongsec_check(struct svc_rqst *rqstp)
+{
+	struct nfsd4_compoundres *resp = rqstp->rq_resp;
+	struct nfsd4_compoundargs *argp = rqstp->rq_argp;
+	struct nfsd4_op *this = &argp->ops[resp->opcnt - 1];
+	struct nfsd4_op *next = &argp->ops[resp->opcnt];
+	struct nfsd4_operation *thisd;
+	struct nfsd4_operation *nextd;
+
+	thisd = OPDESC(this);
+	/*
+	 * Most ops check wronsec on our own; only the putfh-like ops
+	 * have special rules.
+	 */
+	if (!(thisd->op_flags & OP_IS_PUTFH_LIKE))
+		return false;
+	/*
+	 * rfc 5661 2.6.3.1.1.6: don't bother erroring out a
+	 * put-filehandle operation if we're not going to use the
+	 * result:
+	 */
+	if (argp->opcnt == resp->opcnt)
+		return false;
+
+	nextd = OPDESC(next);
+	/*
+	 * Rest of 2.6.3.1.1: certain operations will return WRONGSEC
+	 * errors themselves as necessary; others should check for them
+	 * now:
+	 */
+	return !(nextd->op_flags & OP_HANDLES_WRONGSEC);
 }
 
 /*
@@ -1108,7 +1152,7 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			goto encode_op;
 		}
 
-		opdesc = &nfsd4_ops[op->opnum];
+		opdesc = OPDESC(op);
 
 		if (!cstate->current_fh.fh_dentry) {
 			if (!(opdesc->op_flags & ALLOWED_WITHOUT_FH)) {
@@ -1125,6 +1169,9 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 			op->status = opdesc->op_func(rqstp, cstate, &op->u);
 		else
 			BUG_ON(op->status == nfs_ok);
+
+		if (!op->status && need_wrongsec_check(rqstp))
+			op->status = check_nfsd_access(cstate->current_fh.fh_export, rqstp);
 
 encode_op:
 		/* Only from SEQUENCE */
@@ -1217,10 +1264,12 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_LOOKUP] = {
 		.op_func = (nfsd4op_func)nfsd4_lookup,
+		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_LOOKUP",
 	},
 	[OP_LOOKUPP] = {
 		.op_func = (nfsd4op_func)nfsd4_lookupp,
+		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_LOOKUPP",
 	},
 	[OP_NVERIFY] = {
@@ -1229,6 +1278,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_OPEN] = {
 		.op_func = (nfsd4op_func)nfsd4_open,
+		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_OPEN",
 	},
 	[OP_OPEN_CONFIRM] = {
@@ -1241,17 +1291,20 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_PUTFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putfh,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
+				| OP_IS_PUTFH_LIKE,
 		.op_name = "OP_PUTFH",
 	},
 	[OP_PUTPUBFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putrootfh,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
+				| OP_IS_PUTFH_LIKE,
 		.op_name = "OP_PUTPUBFH",
 	},
 	[OP_PUTROOTFH] = {
 		.op_func = (nfsd4op_func)nfsd4_putrootfh,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
+				| OP_IS_PUTFH_LIKE,
 		.op_name = "OP_PUTROOTFH",
 	},
 	[OP_READ] = {
@@ -1281,15 +1334,18 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_RESTOREFH] = {
 		.op_func = (nfsd4op_func)nfsd4_restorefh,
-		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS,
+		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_ON_ABSENT_FS
+				| OP_IS_PUTFH_LIKE,
 		.op_name = "OP_RESTOREFH",
 	},
 	[OP_SAVEFH] = {
 		.op_func = (nfsd4op_func)nfsd4_savefh,
+		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_SAVEFH",
 	},
 	[OP_SECINFO] = {
 		.op_func = (nfsd4op_func)nfsd4_secinfo,
+		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_SECINFO",
 	},
 	[OP_SETATTR] = {
@@ -1353,6 +1409,7 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 	[OP_SECINFO_NO_NAME] = {
 		.op_func = (nfsd4op_func)nfsd4_secinfo_no_name,
+		.op_flags = OP_HANDLES_WRONGSEC,
 		.op_name = "OP_SECINFO_NO_NAME",
 	},
 };

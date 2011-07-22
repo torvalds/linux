@@ -681,13 +681,14 @@ static void bfin_spi_pump_transfers(unsigned long data)
 	drv_data->cs_change = transfer->cs_change;
 
 	/* Bits per word setup */
-	bits_per_word = transfer->bits_per_word ? : message->spi->bits_per_word;
-	if ((bits_per_word > 0) && (bits_per_word % 16 == 0)) {
+	bits_per_word = transfer->bits_per_word ? :
+		message->spi->bits_per_word ? : 8;
+	if (bits_per_word % 16 == 0) {
 		drv_data->n_bytes = bits_per_word/8;
 		drv_data->len = (transfer->len) >> 1;
 		cr_width = BIT_CTL_WORDSIZE;
 		drv_data->ops = &bfin_bfin_spi_transfer_ops_u16;
-	} else if ((bits_per_word > 0) && (bits_per_word % 8 == 0)) {
+	} else if (bits_per_word % 8 == 0) {
 		drv_data->n_bytes = bits_per_word/8;
 		drv_data->len = transfer->len;
 		cr_width = 0;

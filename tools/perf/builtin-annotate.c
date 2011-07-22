@@ -8,8 +8,6 @@
 #include "builtin.h"
 
 #include "util/util.h"
-
-#include "util/util.h"
 #include "util/color.h"
 #include <linux/list.h>
 #include "util/cache.h"

@@ -155,13 +155,8 @@ static struct elevator_type *elevator_get(const char *name)
 
 	e = elevator_find(name);
 	if (!e) {
-		char elv[ELV_NAME_MAX + strlen("-iosched")];
-
 		spin_unlock(&elv_list_lock);
-
-		snprintf(elv, sizeof(elv), "%s-iosched", name);
-
-		request_module("%s", elv);
+		request_module("%s-iosched", name);
 		spin_lock(&elv_list_lock);
 		e = elevator_find(name);
 	}
@@ -421,8 +416,6 @@ void elv_dispatch_sort(struct request_queue *q, struct request *rq)
 	struct list_head *entry;
 	int stop_flags;
 
-	BUG_ON(rq->cmd_flags & REQ_ON_PLUG);
-
 	if (q->last_merge == rq)
 		q->last_merge = NULL;
 
@@ -660,8 +653,6 @@ void __elv_add_request(struct request_queue *q, struct request *rq, int where)
 	trace_block_rq_insert(q, rq);
 
 	rq->q = q;
-
-	BUG_ON(rq->cmd_flags & REQ_ON_PLUG);
 
 	if (rq->cmd_flags & REQ_SOFTBARRIER) {
 		/* barriers are scheduling boundary, update end_sector */

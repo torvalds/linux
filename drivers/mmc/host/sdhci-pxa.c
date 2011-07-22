@@ -69,7 +69,45 @@ static void set_clock(struct sdhci_host *host, unsigned int clock)
 	}
 }
 
+static int set_uhs_signaling(struct sdhci_host *host, unsigned int uhs)
+{
+	u16 ctrl_2;
+
+	/*
+	 * Set V18_EN -- UHS modes do not work without this.
+	 * does not change signaling voltage
+	 */
+	ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+
+	/* Select Bus Speed Mode for host */
+	ctrl_2 &= ~SDHCI_CTRL_UHS_MASK;
+	switch (uhs) {
+	case MMC_TIMING_UHS_SDR12:
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR12;
+		break;
+	case MMC_TIMING_UHS_SDR25:
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR25;
+		break;
+	case MMC_TIMING_UHS_SDR50:
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR50 | SDHCI_CTRL_VDD_180;
+		break;
+	case MMC_TIMING_UHS_SDR104:
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR104 | SDHCI_CTRL_VDD_180;
+		break;
+	case MMC_TIMING_UHS_DDR50:
+		ctrl_2 |= SDHCI_CTRL_UHS_DDR50 | SDHCI_CTRL_VDD_180;
+		break;
+	}
+
+	sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
+	pr_debug("%s:%s uhs = %d, ctrl_2 = %04X\n",
+		__func__, mmc_hostname(host->mmc), uhs, ctrl_2);
+
+	return 0;
+}
+
 static struct sdhci_ops sdhci_pxa_ops = {
+	.set_uhs_signaling = set_uhs_signaling,
 	.set_clock = set_clock,
 };
 
@@ -136,10 +174,18 @@ static int __devinit sdhci_pxa_probe(struct platform_device *pdev)
 	host->hw_name = "MMC";
 	host->ops = &sdhci_pxa_ops;
 	host->irq = irq;
-	host->quirks = SDHCI_QUIRK_BROKEN_ADMA | SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
+	host->quirks = SDHCI_QUIRK_BROKEN_ADMA
+		| SDHCI_QUIRK_BROKEN_TIMEOUT_VAL
+		| SDHCI_QUIRK_32BIT_DMA_ADDR
+		| SDHCI_QUIRK_32BIT_DMA_SIZE
+		| SDHCI_QUIRK_32BIT_ADMA_SIZE
+		| SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC;
 
 	if (pdata->quirks)
 		host->quirks |= pdata->quirks;
+
+	/* enable 1/8V DDR capable */
+	host->mmc->caps |= MMC_CAP_1_8V_DDR;
 
 	/* If slot design supports 8 bit data, indicate this to MMC. */
 	if (pdata->flags & PXA_FLAG_SD_8_BIT_CAPABLE_SLOT)

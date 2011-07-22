@@ -191,7 +191,7 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 				      | ECRYPTFS_ENCRYPTED);
 	}
 	mutex_unlock(&crypt_stat->cs_mutex);
-	rc = ecryptfs_get_lower_file(ecryptfs_dentry);
+	rc = ecryptfs_get_lower_file(ecryptfs_dentry, inode);
 	if (rc) {
 		printk(KERN_ERR "%s: Error attempting to initialize "
 			"the lower file for the dentry with name "

@@ -1,6 +1,7 @@
 config ATH6K_LEGACY
 	tristate "Atheros AR6003 support (non mac80211)"
         depends on MMC && WLAN
+	depends on CFG80211
         select WIRELESS_EXT
         select WEXT_PRIV
 	help

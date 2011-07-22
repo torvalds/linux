@@ -49,7 +49,7 @@ int cifs_removexattr(struct dentry *direntry, const char *ea_name)
 	int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	struct super_block *sb;
 	char *full_path = NULL;
 
@@ -109,7 +109,7 @@ int cifs_setxattr(struct dentry *direntry, const char *ea_name,
 	int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	struct super_block *sb;
 	char *full_path;
 	struct cifs_ntsd *pacl;
@@ -240,7 +240,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 	int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	struct super_block *sb;
 	char *full_path;
 
@@ -372,7 +372,7 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 	int xid;
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
-	struct cifsTconInfo *pTcon;
+	struct cifs_tcon *pTcon;
 	struct super_block *sb;
 	char *full_path;
 

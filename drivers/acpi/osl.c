@@ -902,14 +902,6 @@ void acpi_os_wait_events_complete(void *context)
 
 EXPORT_SYMBOL(acpi_os_wait_events_complete);
 
-/*
- * Deallocate the memory for a spinlock.
- */
-void acpi_os_delete_lock(acpi_spinlock handle)
-{
-	return;
-}
-
 acpi_status
 acpi_os_create_semaphore(u32 max_units, u32 initial_units, acpi_handle * handle)
 {
@@ -1339,6 +1331,31 @@ int acpi_resources_are_enforced(void)
 	return acpi_enforce_resources == ENFORCE_RESOURCES_STRICT;
 }
 EXPORT_SYMBOL(acpi_resources_are_enforced);
+
+/*
+ * Create and initialize a spinlock.
+ */
+acpi_status
+acpi_os_create_lock(acpi_spinlock *out_handle)
+{
+	spinlock_t *lock;
+
+	lock = ACPI_ALLOCATE(sizeof(spinlock_t));
+	if (!lock)
+		return AE_NO_MEMORY;
+	spin_lock_init(lock);
+	*out_handle = lock;
+
+	return AE_OK;
+}
+
+/*
+ * Deallocate the memory for a spinlock.
+ */
+void acpi_os_delete_lock(acpi_spinlock handle)
+{
+	ACPI_FREE(handle);
+}
 
 /*
  * Acquire a spinlock.

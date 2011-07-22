@@ -632,13 +632,10 @@ config USB_DUMMY_HCD
 
 endchoice
 
+# Selected by UDC drivers that support high-speed operation.
 config USB_GADGET_DUALSPEED
 	bool
 	depends on USB_GADGET
-	default n
-	help
-	  Means that gadget drivers should include extra descriptors
-	  and code to handle dual-speed controllers.
 
 #
 # USB Gadget Drivers

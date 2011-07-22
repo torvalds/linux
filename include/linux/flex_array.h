@@ -21,6 +21,8 @@ struct flex_array {
 		struct {
 			int element_size;
 			int total_nr_elements;
+			int elems_per_part;
+			u32 reciprocal_elems;
 			struct flex_array_part *parts[];
 		};
 		/*

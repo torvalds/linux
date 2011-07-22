@@ -311,10 +311,6 @@ enum max8997_irq {
 	MAX8997_IRQ_NR,
 };
 
-#define MAX8997_REG_BUCK1DVS(x)	(MAX8997_REG_BUCK1DVS1 + (x) - 1)
-#define MAX8997_REG_BUCK2DVS(x)	(MAX8997_REG_BUCK2DVS1 + (x) - 1)
-#define MAX8997_REG_BUCK5DVS(x)	(MAX8997_REG_BUCK5DVS1 + (x) - 1)
-
 #define MAX8997_NUM_GPIO	12
 struct max8997_dev {
 	struct device *dev;

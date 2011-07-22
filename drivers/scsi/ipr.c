@@ -5149,21 +5149,21 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 
 		if (ipr_cmd != NULL) {
 			/* Clear the PCI interrupt */
+			num_hrrq = 0;
 			do {
 				writel(IPR_PCII_HRRQ_UPDATED, ioa_cfg->regs.clr_interrupt_reg32);
 				int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
 			} while (int_reg & IPR_PCII_HRRQ_UPDATED &&
 					num_hrrq++ < IPR_MAX_HRRQ_RETRIES);
 
-			if (int_reg & IPR_PCII_HRRQ_UPDATED) {
-				ipr_isr_eh(ioa_cfg, "Error clearing HRRQ");
-				spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
-				return IRQ_HANDLED;
-			}
-
 		} else if (rc == IRQ_NONE && irq_none == 0) {
 			int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
 			irq_none++;
+		} else if (num_hrrq == IPR_MAX_HRRQ_RETRIES &&
+			   int_reg & IPR_PCII_HRRQ_UPDATED) {
+			ipr_isr_eh(ioa_cfg, "Error clearing HRRQ");
+			spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+			return IRQ_HANDLED;
 		} else
 			break;
 	}

@@ -2227,7 +2227,7 @@ static int in2000_proc_info(struct Scsi_Host *instance, char *buf, char **start,
 	bp = buf;
 	*bp = '\0';
 	if (hd->proc & PR_VERSION) {
-		sprintf(tbuf, "\nVersion %s - %s. Compiled %s %s", IN2000_VERSION, IN2000_DATE, __DATE__, __TIME__);
+		sprintf(tbuf, "\nVersion %s - %s.", IN2000_VERSION, IN2000_DATE);
 		strcat(bp, tbuf);
 	}
 	if (hd->proc & PR_INFO) {

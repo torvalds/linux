@@ -1883,14 +1883,13 @@ static int compat_mtw_from_user(struct compat_ebt_entry_mwt *mwt,
 	struct xt_target *wt;
 	void *dst = NULL;
 	int off, pad = 0;
-	unsigned int size_kern, entry_offset, match_size = mwt->match_size;
+	unsigned int size_kern, match_size = mwt->match_size;
 
 	strlcpy(name, mwt->u.name, sizeof(name));
 
 	if (state->buf_kern_start)
 		dst = state->buf_kern_start + state->buf_kern_offset;
 
-	entry_offset = (unsigned char *) mwt - base;
 	switch (compat_mwt) {
 	case EBT_COMPAT_MATCH:
 		match = try_then_request_module(xt_find_match(NFPROTO_BRIDGE,
@@ -1933,6 +1932,9 @@ static int compat_mtw_from_user(struct compat_ebt_entry_mwt *mwt,
 		size_kern = wt->targetsize;
 		module_put(wt->me);
 		break;
+
+	default:
+		return -EINVAL;
 	}
 
 	state->buf_kern_offset += match_size + off;

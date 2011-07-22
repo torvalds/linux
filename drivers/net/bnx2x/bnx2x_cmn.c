@@ -2675,7 +2675,7 @@ alloc_mem_err:
 	 * Min size diferent for TPA and non-TPA queues
 	 */
 	if (ring_size < (fp->disable_tpa ?
-				MIN_RX_SIZE_TPA : MIN_RX_SIZE_NONTPA)) {
+				MIN_RX_SIZE_NONTPA : MIN_RX_SIZE_TPA)) {
 			/* release memory allocated for this queue */
 			bnx2x_free_fp_mem_at(bp, index);
 			return -ENOMEM;

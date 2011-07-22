@@ -20,7 +20,6 @@
 #define S3C64XX_VA_GPIO (0x0)
 
 #include <mach/regs-gpio.h>
-#include <mach/gpio-bank-n.h>
 
 #define LL_UART (S3C_PA_UART + (0x400 * CONFIG_S3C_LOWLEVEL_UART_PORT))
 
@@ -68,6 +67,13 @@ ENTRY(s3c_cpu_resume)
 	ldr	r2, =LL_UART		/* for debug */
 
 #ifdef CONFIG_S3C_PM_DEBUG_LED_SMDK
+
+#define S3C64XX_GPNCON			(S3C64XX_GPN_BASE + 0x00)
+#define S3C64XX_GPNDAT			(S3C64XX_GPN_BASE + 0x04)
+
+#define S3C64XX_GPN_CONMASK(__gpio)	(0x3 << ((__gpio) * 2))
+#define S3C64XX_GPN_OUTPUT(__gpio)	(0x1 << ((__gpio) * 2))
+
 	/* Initialise the GPIO state if we are debugging via the SMDK LEDs,
 	 * as the uboot version supplied resets these to inputs during the
 	 * resume checks.

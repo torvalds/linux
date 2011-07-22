@@ -84,6 +84,7 @@ struct thread_struct {
 	struct per_event per_event;	/* Cause of the last PER trap */
         /* pfault_wait is used to block the process on a pfault event */
 	unsigned long pfault_wait;
+	struct list_head list;
 };
 
 typedef struct thread_struct thread_struct;

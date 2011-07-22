@@ -27,8 +27,13 @@ header-y      := $(filter-out %/, $(header-y))
 install-file  := $(install)/.install
 check-file    := $(install)/.check
 
+# generic-y list all files an architecture uses from asm-generic
+# Use this to build a list of headers which require a wrapper
+wrapper-files := $(filter $(header-y), $(generic-y))
+
 # all headers files for this dir
-all-files     := $(header-y) $(objhdr-y)
+header-y      := $(filter-out $(generic-y), $(header-y))
+all-files     := $(header-y) $(objhdr-y) $(wrapper-files)
 input-files   := $(addprefix $(srctree)/$(obj)/,$(header-y)) \
                  $(addprefix $(objtree)/$(obj)/,$(objhdr-y))
 output-files  := $(addprefix $(install)/, $(all-files))
@@ -47,6 +52,9 @@ quiet_cmd_install = INSTALL $(printdir) ($(words $(all-files))\
       cmd_install = \
         $(PERL) $< $(srctree)/$(obj) $(install) $(SRCARCH) $(header-y); \
         $(PERL) $< $(objtree)/$(obj) $(install) $(SRCARCH) $(objhdr-y); \
+        for F in $(wrapper-files); do                                   \
+                echo "\#include <asm-generic/$$F>" > $(install)/$$F;    \
+        done;                                                           \
         touch $@
 
 quiet_cmd_remove = REMOVE  $(unwanted)

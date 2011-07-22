@@ -67,12 +67,12 @@ _FreeXid(unsigned int xid)
 	spin_unlock(&GlobalMid_Lock);
 }
 
-struct cifsSesInfo *
+struct cifs_ses *
 sesInfoAlloc(void)
 {
-	struct cifsSesInfo *ret_buf;
+	struct cifs_ses *ret_buf;
 
-	ret_buf = kzalloc(sizeof(struct cifsSesInfo), GFP_KERNEL);
+	ret_buf = kzalloc(sizeof(struct cifs_ses), GFP_KERNEL);
 	if (ret_buf) {
 		atomic_inc(&sesInfoAllocCount);
 		ret_buf->status = CifsNew;
@@ -85,7 +85,7 @@ sesInfoAlloc(void)
 }
 
 void
-sesInfoFree(struct cifsSesInfo *buf_to_free)
+sesInfoFree(struct cifs_ses *buf_to_free)
 {
 	if (buf_to_free == NULL) {
 		cFYI(1, "Null buffer passed to sesInfoFree");
@@ -105,11 +105,11 @@ sesInfoFree(struct cifsSesInfo *buf_to_free)
 	kfree(buf_to_free);
 }
 
-struct cifsTconInfo *
+struct cifs_tcon *
 tconInfoAlloc(void)
 {
-	struct cifsTconInfo *ret_buf;
-	ret_buf = kzalloc(sizeof(struct cifsTconInfo), GFP_KERNEL);
+	struct cifs_tcon *ret_buf;
+	ret_buf = kzalloc(sizeof(struct cifs_tcon), GFP_KERNEL);
 	if (ret_buf) {
 		atomic_inc(&tconInfoAllocCount);
 		ret_buf->tidStatus = CifsNew;
@@ -124,7 +124,7 @@ tconInfoAlloc(void)
 }
 
 void
-tconInfoFree(struct cifsTconInfo *buf_to_free)
+tconInfoFree(struct cifs_tcon *buf_to_free)
 {
 	if (buf_to_free == NULL) {
 		cFYI(1, "Null buffer passed to tconInfoFree");
@@ -295,11 +295,11 @@ __u16 GetNextMid(struct TCP_Server_Info *server)
    case it is responsbility of caller to set the mid */
 void
 header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
-		const struct cifsTconInfo *treeCon, int word_count
+		const struct cifs_tcon *treeCon, int word_count
 		/* length of fixed section (word count) in two byte units  */)
 {
 	struct list_head *temp_item;
-	struct cifsSesInfo *ses;
+	struct cifs_ses *ses;
 	char *temp = (char *) buffer;
 
 	memset(temp, 0, 256); /* bigger than MAX_CIFS_HDR_SIZE */
@@ -359,7 +359,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 						 "did not match tcon uid");
 					spin_lock(&cifs_tcp_ses_lock);
 					list_for_each(temp_item, &treeCon->ses->server->smb_ses_list) {
-						ses = list_entry(temp_item, struct cifsSesInfo, smb_ses_list);
+						ses = list_entry(temp_item, struct cifs_ses, smb_ses_list);
 						if (ses->linux_uid == current_fsuid()) {
 							if (ses->server == treeCon->ses->server) {
 								cFYI(1, "found matching uid substitute right smb_uid");
@@ -380,7 +380,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		if (treeCon->nocase)
 			buffer->Flags  |= SMBFLG_CASELESS;
 		if ((treeCon->ses) && (treeCon->ses->server))
-			if (treeCon->ses->server->secMode &
+			if (treeCon->ses->server->sec_mode &
 			  (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
 				buffer->Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 	}
@@ -507,8 +507,8 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 {
 	struct smb_com_lock_req *pSMB = (struct smb_com_lock_req *)buf;
 	struct list_head *tmp, *tmp1, *tmp2;
-	struct cifsSesInfo *ses;
-	struct cifsTconInfo *tcon;
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
 	struct cifsInodeInfo *pCifsInode;
 	struct cifsFileInfo *netfile;
 
@@ -566,9 +566,9 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 	/* look up tcon based on tid & uid */
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp, &srv->smb_ses_list) {
-		ses = list_entry(tmp, struct cifsSesInfo, smb_ses_list);
+		ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
 		list_for_each(tmp1, &ses->tcon_list) {
-			tcon = list_entry(tmp1, struct cifsTconInfo, tcon_list);
+			tcon = list_entry(tmp1, struct cifs_tcon, tcon_list);
 			if (tcon->tid != buf->Tid)
 				continue;
 

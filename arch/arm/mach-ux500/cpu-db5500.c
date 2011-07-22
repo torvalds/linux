@@ -188,6 +188,8 @@ void __init u5500_map_io(void)
 	ux500_map_io();
 
 	iotable_init(u5500_io_desc, ARRAY_SIZE(u5500_io_desc));
+
+	_PRCMU_BASE = __io_address(U5500_PRCMU_BASE);
 }
 
 static int usb_db5500_rx_dma_cfg[] = {

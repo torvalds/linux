@@ -18,11 +18,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/device.h>
-
 #include <linux/mmc/host.h>
-
-#include <asm/scatterlist.h>
-#include <asm/io.h>
+#include <linux/scatterlist.h>
+#include <linux/io.h>
 
 #include "sdhci.h"
 
@@ -46,14 +44,14 @@ struct sdhci_pci_slot;
 struct sdhci_pci_fixes {
 	unsigned int		quirks;
 
-	int			(*probe)(struct sdhci_pci_chip*);
+	int			(*probe) (struct sdhci_pci_chip *);
 
-	int			(*probe_slot)(struct sdhci_pci_slot*);
-	void			(*remove_slot)(struct sdhci_pci_slot*, int);
+	int			(*probe_slot) (struct sdhci_pci_slot *);
+	void			(*remove_slot) (struct sdhci_pci_slot *, int);
 
-	int			(*suspend)(struct sdhci_pci_chip*,
+	int			(*suspend) (struct sdhci_pci_chip *,
 					pm_message_t);
-	int			(*resume)(struct sdhci_pci_chip*);
+	int			(*resume) (struct sdhci_pci_chip *);
 };
 
 struct sdhci_pci_slot {
@@ -329,6 +327,11 @@ static int jmicron_probe(struct sdhci_pci_chip *chip)
 		return ret;
 	}
 
+	/* quirk for unsable RO-detection on JM388 chips */
+	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_SD ||
+	    chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD)
+		chip->quirks |= SDHCI_QUIRK_UNSTABLE_RO_DETECT;
+
 	return 0;
 }
 
@@ -402,7 +405,7 @@ static int jmicron_suspend(struct sdhci_pci_chip *chip, pm_message_t state)
 
 	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
 	    chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD) {
-		for (i = 0;i < chip->num_slots;i++)
+		for (i = 0; i < chip->num_slots; i++)
 			jmicron_enable_mmc(chip->slots[i]->host, 0);
 	}
 
@@ -415,7 +418,7 @@ static int jmicron_resume(struct sdhci_pci_chip *chip)
 
 	if (chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB38X_MMC ||
 	    chip->pdev->device == PCI_DEVICE_ID_JMICRON_JMB388_ESD) {
-		for (i = 0;i < chip->num_slots;i++)
+		for (i = 0; i < chip->num_slots; i++)
 			jmicron_enable_mmc(chip->slots[i]->host, 1);
 	}
 
@@ -798,7 +801,7 @@ static struct sdhci_ops sdhci_pci_ops = {
 
 #ifdef CONFIG_PM
 
-static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
+static int sdhci_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct sdhci_pci_chip *chip;
 	struct sdhci_pci_slot *slot;
@@ -810,7 +813,7 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 	if (!chip)
 		return 0;
 
-	for (i = 0;i < chip->num_slots;i++) {
+	for (i = 0; i < chip->num_slots; i++) {
 		slot = chip->slots[i];
 		if (!slot)
 			continue;
@@ -818,7 +821,7 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 		ret = sdhci_suspend_host(slot->host, state);
 
 		if (ret) {
-			for (i--;i >= 0;i--)
+			for (i--; i >= 0; i--)
 				sdhci_resume_host(chip->slots[i]->host);
 			return ret;
 		}
@@ -833,7 +836,7 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 	if (chip->fixes && chip->fixes->suspend) {
 		ret = chip->fixes->suspend(chip, state);
 		if (ret) {
-			for (i = chip->num_slots - 1;i >= 0;i--)
+			for (i = chip->num_slots - 1; i >= 0; i--)
 				sdhci_resume_host(chip->slots[i]->host);
 			return ret;
 		}
@@ -855,7 +858,7 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-static int sdhci_pci_resume (struct pci_dev *pdev)
+static int sdhci_pci_resume(struct pci_dev *pdev)
 {
 	struct sdhci_pci_chip *chip;
 	struct sdhci_pci_slot *slot;
@@ -877,7 +880,7 @@ static int sdhci_pci_resume (struct pci_dev *pdev)
 			return ret;
 	}
 
-	for (i = 0;i < chip->num_slots;i++) {
+	for (i = 0; i < chip->num_slots; i++) {
 		slot = chip->slots[i];
 		if (!slot)
 			continue;
@@ -1059,7 +1062,7 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 	}
 
 	chip->pdev = pdev;
-	chip->fixes = (const struct sdhci_pci_fixes*)ent->driver_data;
+	chip->fixes = (const struct sdhci_pci_fixes *)ent->driver_data;
 	if (chip->fixes)
 		chip->quirks = chip->fixes->quirks;
 	chip->num_slots = slots;
@@ -1074,10 +1077,10 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 
 	slots = chip->num_slots;	/* Quirk may have changed this */
 
-	for (i = 0;i < slots;i++) {
+	for (i = 0; i < slots; i++) {
 		slot = sdhci_pci_probe_slot(pdev, chip, first_bar + i);
 		if (IS_ERR(slot)) {
-			for (i--;i >= 0;i--)
+			for (i--; i >= 0; i--)
 				sdhci_pci_remove_slot(chip->slots[i]);
 			ret = PTR_ERR(slot);
 			goto free;
@@ -1105,7 +1108,7 @@ static void __devexit sdhci_pci_remove(struct pci_dev *pdev)
 	chip = pci_get_drvdata(pdev);
 
 	if (chip) {
-		for (i = 0;i < chip->num_slots; i++)
+		for (i = 0; i < chip->num_slots; i++)
 			sdhci_pci_remove_slot(chip->slots[i]);
 
 		pci_set_drvdata(pdev, NULL);
@@ -1116,9 +1119,9 @@ static void __devexit sdhci_pci_remove(struct pci_dev *pdev)
 }
 
 static struct pci_driver sdhci_driver = {
-	.name = 	"sdhci-pci",
+	.name =		"sdhci-pci",
 	.id_table =	pci_ids,
-	.probe = 	sdhci_pci_probe,
+	.probe =	sdhci_pci_probe,
 	.remove =	__devexit_p(sdhci_pci_remove),
 	.suspend =	sdhci_pci_suspend,
 	.resume	=	sdhci_pci_resume,

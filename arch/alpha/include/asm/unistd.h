@@ -456,10 +456,11 @@
 #define __NR_open_by_handle_at		498
 #define __NR_clock_adjtime		499
 #define __NR_syncfs			500
+#define __NR_setns			501
 
 #ifdef __KERNEL__
 
-#define NR_SYSCALLS			501
+#define NR_SYSCALLS			502
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_OLD_READDIR

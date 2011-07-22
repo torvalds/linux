@@ -2,6 +2,7 @@
 #define _ASM_IRQ_H
 
 #include <linux/hardirq.h>
+#include <linux/types.h>
 
 enum interruption_class {
 	EXTERNAL_INTERRUPT,
@@ -15,6 +16,7 @@ enum interruption_class {
 	EXTINT_VRT,
 	EXTINT_SCP,
 	EXTINT_IUC,
+	EXTINT_CPM,
 	IOINT_QAI,
 	IOINT_QDI,
 	IOINT_DAS,
@@ -29,5 +31,12 @@ enum interruption_class {
 	NMI_NMI,
 	NR_IRQS,
 };
+
+typedef void (*ext_int_handler_t)(unsigned int, unsigned int, unsigned long);
+
+int register_external_interrupt(u16 code, ext_int_handler_t handler);
+int unregister_external_interrupt(u16 code, ext_int_handler_t handler);
+void service_subclass_irq_register(void);
+void service_subclass_irq_unregister(void);
 
 #endif /* _ASM_IRQ_H */

@@ -93,4 +93,6 @@ sie_err:
 
 	.section __ex_table,"a"
 	.quad	sie_inst,sie_err
+	.quad	sie_exit,sie_err
+	.quad	sie_reenter,sie_err
 	.previous

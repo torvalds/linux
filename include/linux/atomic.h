@@ -34,4 +34,17 @@ static inline int atomic_inc_not_zero_hint(atomic_t *v, int hint)
 }
 #endif
 
+#ifndef CONFIG_ARCH_HAS_ATOMIC_OR
+static inline void atomic_or(int i, atomic_t *v)
+{
+	int old;
+	int new;
+
+	do {
+		old = atomic_read(v);
+		new = old | i;
+	} while (atomic_cmpxchg(v, old, new) != old);
+}
+#endif /* #ifndef CONFIG_ARCH_HAS_ATOMIC_OR */
+
 #endif /* _LINUX_ATOMIC_H */

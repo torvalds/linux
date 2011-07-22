@@ -5,7 +5,7 @@
  *
  * SGI UV Broadcast Assist Unit definitions
  *
- * Copyright (C) 2008 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2008-2011 Silicon Graphics, Inc. All rights reserved.
  */
 
 #ifndef _ASM_X86_UV_UV_BAU_H
@@ -35,17 +35,20 @@
 
 #define MAX_CPUS_PER_UVHUB		64
 #define MAX_CPUS_PER_SOCKET		32
-#define UV_ADP_SIZE			64 /* hardware-provided max. */
-#define UV_CPUS_PER_ACT_STATUS		32 /* hardware-provided max. */
-#define UV_ITEMS_PER_DESCRIPTOR		8
+#define ADP_SZ				64 /* hardware-provided max. */
+#define UV_CPUS_PER_AS			32 /* hardware-provided max. */
+#define ITEMS_PER_DESC			8
 /* the 'throttle' to prevent the hardware stay-busy bug */
 #define MAX_BAU_CONCURRENT		3
 #define UV_ACT_STATUS_MASK		0x3
 #define UV_ACT_STATUS_SIZE		2
 #define UV_DISTRIBUTION_SIZE		256
 #define UV_SW_ACK_NPENDING		8
-#define UV_NET_ENDPOINT_INTD		0x38
-#define UV_DESC_BASE_PNODE_SHIFT	49
+#define UV1_NET_ENDPOINT_INTD		0x38
+#define UV2_NET_ENDPOINT_INTD		0x28
+#define UV_NET_ENDPOINT_INTD		(is_uv1_hub() ?			\
+			UV1_NET_ENDPOINT_INTD : UV2_NET_ENDPOINT_INTD)
+#define UV_DESC_PSHIFT			49
 #define UV_PAYLOADQ_PNODE_SHIFT		49
 #define UV_PTC_BASENAME			"sgi_uv/ptc_statistics"
 #define UV_BAU_BASENAME			"sgi_uv/bau_tunables"
@@ -53,29 +56,64 @@
 #define UV_BAU_TUNABLES_FILE		"bau_tunables"
 #define WHITESPACE			" \t\n"
 #define uv_physnodeaddr(x)		((__pa((unsigned long)(x)) & uv_mmask))
-#define UV_ENABLE_INTD_SOFT_ACK_MODE_SHIFT 15
-#define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHIFT 16
-#define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD 0x0000000009UL
+#define cpubit_isset(cpu, bau_local_cpumask) \
+	test_bit((cpu), (bau_local_cpumask).bits)
+
 /* [19:16] SOFT_ACK timeout period  19: 1 is urgency 7  17:16 1 is multiplier */
-#define BAU_MISC_CONTROL_MULT_MASK 3
+/*
+ * UV2: Bit 19 selects between
+ *  (0): 10 microsecond timebase and
+ *  (1): 80 microseconds
+ *  we're using 655us, similar to UV1: 65 units of 10us
+ */
+#define UV1_INTD_SOFT_ACK_TIMEOUT_PERIOD (9UL)
+#define UV2_INTD_SOFT_ACK_TIMEOUT_PERIOD (65*10UL)
 
-#define UVH_AGING_PRESCALE_SEL 0x000000b000UL
+#define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD	(is_uv1_hub() ?			\
+		UV1_INTD_SOFT_ACK_TIMEOUT_PERIOD :			\
+		UV2_INTD_SOFT_ACK_TIMEOUT_PERIOD)
+
+#define BAU_MISC_CONTROL_MULT_MASK	3
+
+#define UVH_AGING_PRESCALE_SEL		0x000000b000UL
 /* [30:28] URGENCY_7  an index into a table of times */
-#define BAU_URGENCY_7_SHIFT 28
-#define BAU_URGENCY_7_MASK 7
+#define BAU_URGENCY_7_SHIFT		28
+#define BAU_URGENCY_7_MASK		7
 
-#define UVH_TRANSACTION_TIMEOUT 0x000000b200UL
+#define UVH_TRANSACTION_TIMEOUT		0x000000b200UL
 /* [45:40] BAU - BAU transaction timeout select - a multiplier */
-#define BAU_TRANS_SHIFT 40
-#define BAU_TRANS_MASK 0x3f
+#define BAU_TRANS_SHIFT			40
+#define BAU_TRANS_MASK			0x3f
+
+/*
+ * shorten some awkward names
+ */
+#define AS_PUSH_SHIFT UVH_LB_BAU_SB_ACTIVATION_CONTROL_PUSH_SHFT
+#define SOFTACK_MSHIFT UVH_LB_BAU_MISC_CONTROL_ENABLE_INTD_SOFT_ACK_MODE_SHFT
+#define SOFTACK_PSHIFT UVH_LB_BAU_MISC_CONTROL_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHFT
+#define SOFTACK_TIMEOUT_PERIOD UV_INTD_SOFT_ACK_TIMEOUT_PERIOD
+#define write_gmmr	uv_write_global_mmr64
+#define write_lmmr	uv_write_local_mmr
+#define read_lmmr	uv_read_local_mmr
+#define read_gmmr	uv_read_global_mmr64
 
 /*
  * bits in UVH_LB_BAU_SB_ACTIVATION_STATUS_0/1
  */
-#define DESC_STATUS_IDLE		0
-#define DESC_STATUS_ACTIVE		1
-#define DESC_STATUS_DESTINATION_TIMEOUT	2
-#define DESC_STATUS_SOURCE_TIMEOUT	3
+#define DS_IDLE				0
+#define DS_ACTIVE			1
+#define DS_DESTINATION_TIMEOUT		2
+#define DS_SOURCE_TIMEOUT		3
+/*
+ * bits put together from HRP_LB_BAU_SB_ACTIVATION_STATUS_0/1/2
+ * values 1 and 5 will not occur
+ */
+#define UV2H_DESC_IDLE			0
+#define UV2H_DESC_DEST_TIMEOUT		2
+#define UV2H_DESC_DEST_STRONG_NACK	3
+#define UV2H_DESC_BUSY			4
+#define UV2H_DESC_SOURCE_TIMEOUT	6
+#define UV2H_DESC_DEST_PUT_ERR		7
 
 /*
  * delay for 'plugged' timeout retries, in microseconds
@@ -86,15 +124,24 @@
  * threshholds at which to use IPI to free resources
  */
 /* after this # consecutive 'plugged' timeouts, use IPI to release resources */
-#define PLUGSB4RESET 100
+#define PLUGSB4RESET			100
 /* after this many consecutive timeouts, use IPI to release resources */
-#define TIMEOUTSB4RESET 1
+#define TIMEOUTSB4RESET			1
 /* at this number uses of IPI to release resources, giveup the request */
-#define IPI_RESET_LIMIT 1
+#define IPI_RESET_LIMIT			1
 /* after this # consecutive successes, bump up the throttle if it was lowered */
-#define COMPLETE_THRESHOLD 5
+#define COMPLETE_THRESHOLD		5
 
-#define UV_LB_SUBNODEID 0x10
+#define UV_LB_SUBNODEID			0x10
+
+/* these two are the same for UV1 and UV2: */
+#define UV_SA_SHFT UVH_LB_BAU_MISC_CONTROL_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHFT
+#define UV_SA_MASK UVH_LB_BAU_MISC_CONTROL_INTD_SOFT_ACK_TIMEOUT_PERIOD_MASK
+/* 4 bits of software ack period */
+#define UV2_ACK_MASK			0x7UL
+#define UV2_ACK_UNITS_SHFT		3
+#define UV2_LEG_SHFT UV2H_LB_BAU_MISC_CONTROL_USE_LEGACY_DESCRIPTOR_FORMATS_SHFT
+#define UV2_EXT_SHFT UV2H_LB_BAU_MISC_CONTROL_ENABLE_EXTENDED_SB_STATUS_SHFT
 
 /*
  * number of entries in the destination side payload queue
@@ -115,9 +162,16 @@
 /*
  * tuning the action when the numalink network is extremely delayed
  */
-#define CONGESTED_RESPONSE_US 1000 /* 'long' response time, in microseconds */
-#define CONGESTED_REPS 10 /* long delays averaged over this many broadcasts */
-#define CONGESTED_PERIOD 30 /* time for the bau to be disabled, in seconds */
+#define CONGESTED_RESPONSE_US		1000	/* 'long' response time, in
+						   microseconds */
+#define CONGESTED_REPS			10	/* long delays averaged over
+						   this many broadcasts */
+#define CONGESTED_PERIOD		30	/* time for the bau to be
+						   disabled, in seconds */
+/* see msg_type: */
+#define MSG_NOOP			0
+#define MSG_REGULAR			1
+#define MSG_RETRY			2
 
 /*
  * Distribution: 32 bytes (256 bits) (bytes 0-0x1f of descriptor)
@@ -129,8 +183,8 @@
  * 'base_dest_nasid' field of the header corresponds to the
  * destination nodeID associated with that specified bit.
  */
-struct bau_target_uvhubmask {
-	unsigned long bits[BITS_TO_LONGS(UV_DISTRIBUTION_SIZE)];
+struct bau_targ_hubmask {
+	unsigned long		bits[BITS_TO_LONGS(UV_DISTRIBUTION_SIZE)];
 };
 
 /*
@@ -139,7 +193,7 @@ struct bau_target_uvhubmask {
  *  enough bits for max. cpu's per uvhub)
  */
 struct bau_local_cpumask {
-	unsigned long bits;
+	unsigned long		bits;
 };
 
 /*
@@ -160,14 +214,14 @@ struct bau_local_cpumask {
  * The payload is software-defined for INTD transactions
  */
 struct bau_msg_payload {
-	unsigned long address;		/* signifies a page or all TLB's
-						of the cpu */
+	unsigned long	address;		/* signifies a page or all
+						   TLB's of the cpu */
 	/* 64 bits */
-	unsigned short sending_cpu;	/* filled in by sender */
+	unsigned short	sending_cpu;		/* filled in by sender */
 	/* 16 bits */
-	unsigned short acknowledge_count;/* filled in by destination */
+	unsigned short	acknowledge_count;	/* filled in by destination */
 	/* 16 bits */
-	unsigned int reserved1:32;	/* not usable */
+	unsigned int	reserved1:32;		/* not usable */
 };
 
 
@@ -176,80 +230,83 @@ struct bau_msg_payload {
  * see table 4.2.3.0.1 in broacast_assist spec.
  */
 struct bau_msg_header {
-	unsigned int dest_subnodeid:6;	/* must be 0x10, for the LB */
+	unsigned int	dest_subnodeid:6;	/* must be 0x10, for the LB */
 	/* bits 5:0 */
-	unsigned int base_dest_nasid:15; /* nasid of the */
-	/* bits 20:6 */			  /* first bit in uvhub map */
-	unsigned int command:8;	/* message type */
+	unsigned int	base_dest_nasid:15;	/* nasid of the first bit */
+	/* bits 20:6 */				/* in uvhub map */
+	unsigned int	command:8;		/* message type */
 	/* bits 28:21 */
-				/* 0x38: SN3net EndPoint Message */
-	unsigned int rsvd_1:3;	/* must be zero */
+	/* 0x38: SN3net EndPoint Message */
+	unsigned int	rsvd_1:3;		/* must be zero */
 	/* bits 31:29 */
-				/* int will align on 32 bits */
-	unsigned int rsvd_2:9;	/* must be zero */
+	/* int will align on 32 bits */
+	unsigned int	rsvd_2:9;		/* must be zero */
 	/* bits 40:32 */
-				/* Suppl_A is 56-41 */
-	unsigned int sequence:16;/* message sequence number */
-	/* bits 56:41 */	/* becomes bytes 16-17 of msg */
-				/* Address field (96:57) is never used as an
-				   address (these are address bits 42:3) */
+	/* Suppl_A is 56-41 */
+	unsigned int	sequence:16;		/* message sequence number */
+	/* bits 56:41 */			/* becomes bytes 16-17 of msg */
+						/* Address field (96:57) is
+						   never used as an address
+						   (these are address bits
+						   42:3) */
 
-	unsigned int rsvd_3:1;	/* must be zero */
+	unsigned int	rsvd_3:1;		/* must be zero */
 	/* bit 57 */
-				/* address bits 27:4 are payload */
+	/* address bits 27:4 are payload */
 	/* these next 24  (58-81) bits become bytes 12-14 of msg */
-
 	/* bits 65:58 land in byte 12 */
-	unsigned int replied_to:1;/* sent as 0 by the source to byte 12 */
+	unsigned int	replied_to:1;		/* sent as 0 by the source to
+						   byte 12 */
 	/* bit 58 */
-	unsigned int msg_type:3; /* software type of the message*/
+	unsigned int	msg_type:3;		/* software type of the
+						   message */
 	/* bits 61:59 */
-	unsigned int canceled:1; /* message canceled, resource to be freed*/
+	unsigned int	canceled:1;		/* message canceled, resource
+						   is to be freed*/
 	/* bit 62 */
-	unsigned int payload_1a:1;/* not currently used */
+	unsigned int	payload_1a:1;		/* not currently used */
 	/* bit 63 */
-	unsigned int payload_1b:2;/* not currently used */
+	unsigned int	payload_1b:2;		/* not currently used */
 	/* bits 65:64 */
 
 	/* bits 73:66 land in byte 13 */
-	unsigned int payload_1ca:6;/* not currently used */
+	unsigned int	payload_1ca:6;		/* not currently used */
 	/* bits 71:66 */
-	unsigned int payload_1c:2;/* not currently used */
+	unsigned int	payload_1c:2;		/* not currently used */
 	/* bits 73:72 */
 
 	/* bits 81:74 land in byte 14 */
-	unsigned int payload_1d:6;/* not currently used */
+	unsigned int	payload_1d:6;		/* not currently used */
 	/* bits 79:74 */
-	unsigned int payload_1e:2;/* not currently used */
+	unsigned int	payload_1e:2;		/* not currently used */
 	/* bits 81:80 */
 
-	unsigned int rsvd_4:7;	/* must be zero */
+	unsigned int	rsvd_4:7;		/* must be zero */
 	/* bits 88:82 */
-	unsigned int sw_ack_flag:1;/* software acknowledge flag */
+	unsigned int	swack_flag:1;		/* software acknowledge flag */
 	/* bit 89 */
-				/* INTD trasactions at destination are to
-				   wait for software acknowledge */
-	unsigned int rsvd_5:6;	/* must be zero */
+						/* INTD trasactions at
+						   destination are to wait for
+						   software acknowledge */
+	unsigned int	rsvd_5:6;		/* must be zero */
 	/* bits 95:90 */
-	unsigned int rsvd_6:5;	/* must be zero */
+	unsigned int	rsvd_6:5;		/* must be zero */
 	/* bits 100:96 */
-	unsigned int int_both:1;/* if 1, interrupt both sockets on the uvhub */
+	unsigned int	int_both:1;		/* if 1, interrupt both sockets
+						   on the uvhub */
 	/* bit 101*/
-	unsigned int fairness:3;/* usually zero */
+	unsigned int	fairness:3;		/* usually zero */
 	/* bits 104:102 */
-	unsigned int multilevel:1;	/* multi-level multicast format */
+	unsigned int	multilevel:1;		/* multi-level multicast
+						   format */
 	/* bit 105 */
-				/* 0 for TLB: endpoint multi-unicast messages */
-	unsigned int chaining:1;/* next descriptor is part of this activation*/
+	/* 0 for TLB: endpoint multi-unicast messages */
+	unsigned int	chaining:1;		/* next descriptor is part of
+						   this activation*/
 	/* bit 106 */
-	unsigned int rsvd_7:21;	/* must be zero */
+	unsigned int	rsvd_7:21;		/* must be zero */
 	/* bits 127:107 */
 };
-
-/* see msg_type: */
-#define MSG_NOOP 0
-#define MSG_REGULAR 1
-#define MSG_RETRY 2
 
 /*
  * The activation descriptor:
@@ -257,12 +314,12 @@ struct bau_msg_header {
  * Should be 64 bytes
  */
 struct bau_desc {
-	struct bau_target_uvhubmask distribution;
+	struct bau_targ_hubmask	distribution;
 	/*
 	 * message template, consisting of header and payload:
 	 */
-	struct bau_msg_header header;
-	struct bau_msg_payload payload;
+	struct bau_msg_header		header;
+	struct bau_msg_payload		payload;
 };
 /*
  *   -payload--    ---------header------
@@ -281,59 +338,51 @@ struct bau_desc {
  * are 32 bytes (2 micropackets) (256 bits) in length, but contain only 17
  * bytes of usable data, including the sw ack vector in byte 15 (bits 127:120)
  * (12 bytes come from bau_msg_payload, 3 from payload_1, 2 from
- *  sw_ack_vector and payload_2)
+ *  swack_vec and payload_2)
  * "Enabling Software Acknowledgment mode (see Section 4.3.3 Software
  *  Acknowledge Processing) also selects 32 byte (17 bytes usable) payload
  *  operation."
  */
-struct bau_payload_queue_entry {
-	unsigned long address;		/* signifies a page or all TLB's
-						of the cpu */
+struct bau_pq_entry {
+	unsigned long	address;	/* signifies a page or all TLB's
+					   of the cpu */
 	/* 64 bits, bytes 0-7 */
-
-	unsigned short sending_cpu;	/* cpu that sent the message */
+	unsigned short	sending_cpu;	/* cpu that sent the message */
 	/* 16 bits, bytes 8-9 */
-
-	unsigned short acknowledge_count; /* filled in by destination */
+	unsigned short	acknowledge_count; /* filled in by destination */
 	/* 16 bits, bytes 10-11 */
-
 	/* these next 3 bytes come from bits 58-81 of the message header */
-	unsigned short replied_to:1;    /* sent as 0 by the source */
-	unsigned short msg_type:3;      /* software message type */
-	unsigned short canceled:1;      /* sent as 0 by the source */
-	unsigned short unused1:3;       /* not currently using */
+	unsigned short	replied_to:1;	/* sent as 0 by the source */
+	unsigned short	msg_type:3;	/* software message type */
+	unsigned short	canceled:1;	/* sent as 0 by the source */
+	unsigned short	unused1:3;	/* not currently using */
 	/* byte 12 */
-
-	unsigned char unused2a;		/* not currently using */
+	unsigned char	unused2a;	/* not currently using */
 	/* byte 13 */
-	unsigned char unused2;		/* not currently using */
+	unsigned char	unused2;	/* not currently using */
 	/* byte 14 */
-
-	unsigned char sw_ack_vector;	/* filled in by the hardware */
+	unsigned char	swack_vec;	/* filled in by the hardware */
 	/* byte 15 (bits 127:120) */
-
-	unsigned short sequence;	/* message sequence number */
+	unsigned short	sequence;	/* message sequence number */
 	/* bytes 16-17 */
-	unsigned char unused4[2];	/* not currently using bytes 18-19 */
+	unsigned char	unused4[2];	/* not currently using bytes 18-19 */
 	/* bytes 18-19 */
-
-	int number_of_cpus;		/* filled in at destination */
+	int		number_of_cpus;	/* filled in at destination */
 	/* 32 bits, bytes 20-23 (aligned) */
-
-	unsigned char unused5[8];       /* not using */
+	unsigned char	unused5[8];	/* not using */
 	/* bytes 24-31 */
 };
 
 struct msg_desc {
-	struct bau_payload_queue_entry *msg;
-	int msg_slot;
-	int sw_ack_slot;
-	struct bau_payload_queue_entry *va_queue_first;
-	struct bau_payload_queue_entry *va_queue_last;
+	struct bau_pq_entry	*msg;
+	int			msg_slot;
+	int			swack_slot;
+	struct bau_pq_entry	*queue_first;
+	struct bau_pq_entry	*queue_last;
 };
 
 struct reset_args {
-	int sender;
+	int			sender;
 };
 
 /*
@@ -341,112 +390,226 @@ struct reset_args {
  */
 struct ptc_stats {
 	/* sender statistics */
-	unsigned long s_giveup; /* number of fall backs to IPI-style flushes */
-	unsigned long s_requestor; /* number of shootdown requests */
-	unsigned long s_stimeout; /* source side timeouts */
-	unsigned long s_dtimeout; /* destination side timeouts */
-	unsigned long s_time; /* time spent in sending side */
-	unsigned long s_retriesok; /* successful retries */
-	unsigned long s_ntargcpu; /* total number of cpu's targeted */
-	unsigned long s_ntargself; /* times the sending cpu was targeted */
-	unsigned long s_ntarglocals; /* targets of cpus on the local blade */
-	unsigned long s_ntargremotes; /* targets of cpus on remote blades */
-	unsigned long s_ntarglocaluvhub; /* targets of the local hub */
-	unsigned long s_ntargremoteuvhub; /* remotes hubs targeted */
-	unsigned long s_ntarguvhub; /* total number of uvhubs targeted */
-	unsigned long s_ntarguvhub16; /* number of times target hubs >= 16*/
-	unsigned long s_ntarguvhub8; /* number of times target hubs >= 8 */
-	unsigned long s_ntarguvhub4; /* number of times target hubs >= 4 */
-	unsigned long s_ntarguvhub2; /* number of times target hubs >= 2 */
-	unsigned long s_ntarguvhub1; /* number of times target hubs == 1 */
-	unsigned long s_resets_plug; /* ipi-style resets from plug state */
-	unsigned long s_resets_timeout; /* ipi-style resets from timeouts */
-	unsigned long s_busy; /* status stayed busy past s/w timer */
-	unsigned long s_throttles; /* waits in throttle */
-	unsigned long s_retry_messages; /* retry broadcasts */
-	unsigned long s_bau_reenabled; /* for bau enable/disable */
-	unsigned long s_bau_disabled; /* for bau enable/disable */
+	unsigned long	s_giveup;		/* number of fall backs to
+						   IPI-style flushes */
+	unsigned long	s_requestor;		/* number of shootdown
+						   requests */
+	unsigned long	s_stimeout;		/* source side timeouts */
+	unsigned long	s_dtimeout;		/* destination side timeouts */
+	unsigned long	s_time;			/* time spent in sending side */
+	unsigned long	s_retriesok;		/* successful retries */
+	unsigned long	s_ntargcpu;		/* total number of cpu's
+						   targeted */
+	unsigned long	s_ntargself;		/* times the sending cpu was
+						   targeted */
+	unsigned long	s_ntarglocals;		/* targets of cpus on the local
+						   blade */
+	unsigned long	s_ntargremotes;		/* targets of cpus on remote
+						   blades */
+	unsigned long	s_ntarglocaluvhub;	/* targets of the local hub */
+	unsigned long	s_ntargremoteuvhub;	/* remotes hubs targeted */
+	unsigned long	s_ntarguvhub;		/* total number of uvhubs
+						   targeted */
+	unsigned long	s_ntarguvhub16;		/* number of times target
+						   hubs >= 16*/
+	unsigned long	s_ntarguvhub8;		/* number of times target
+						   hubs >= 8 */
+	unsigned long	s_ntarguvhub4;		/* number of times target
+						   hubs >= 4 */
+	unsigned long	s_ntarguvhub2;		/* number of times target
+						   hubs >= 2 */
+	unsigned long	s_ntarguvhub1;		/* number of times target
+						   hubs == 1 */
+	unsigned long	s_resets_plug;		/* ipi-style resets from plug
+						   state */
+	unsigned long	s_resets_timeout;	/* ipi-style resets from
+						   timeouts */
+	unsigned long	s_busy;			/* status stayed busy past
+						   s/w timer */
+	unsigned long	s_throttles;		/* waits in throttle */
+	unsigned long	s_retry_messages;	/* retry broadcasts */
+	unsigned long	s_bau_reenabled;	/* for bau enable/disable */
+	unsigned long	s_bau_disabled;		/* for bau enable/disable */
 	/* destination statistics */
-	unsigned long d_alltlb; /* times all tlb's on this cpu were flushed */
-	unsigned long d_onetlb; /* times just one tlb on this cpu was flushed */
-	unsigned long d_multmsg; /* interrupts with multiple messages */
-	unsigned long d_nomsg; /* interrupts with no message */
-	unsigned long d_time; /* time spent on destination side */
-	unsigned long d_requestee; /* number of messages processed */
-	unsigned long d_retries; /* number of retry messages processed */
-	unsigned long d_canceled; /* number of messages canceled by retries */
-	unsigned long d_nocanceled; /* retries that found nothing to cancel */
-	unsigned long d_resets; /* number of ipi-style requests processed */
-	unsigned long d_rcanceled; /* number of messages canceled by resets */
+	unsigned long	d_alltlb;		/* times all tlb's on this
+						   cpu were flushed */
+	unsigned long	d_onetlb;		/* times just one tlb on this
+						   cpu was flushed */
+	unsigned long	d_multmsg;		/* interrupts with multiple
+						   messages */
+	unsigned long	d_nomsg;		/* interrupts with no message */
+	unsigned long	d_time;			/* time spent on destination
+						   side */
+	unsigned long	d_requestee;		/* number of messages
+						   processed */
+	unsigned long	d_retries;		/* number of retry messages
+						   processed */
+	unsigned long	d_canceled;		/* number of messages canceled
+						   by retries */
+	unsigned long	d_nocanceled;		/* retries that found nothing
+						   to cancel */
+	unsigned long	d_resets;		/* number of ipi-style requests
+						   processed */
+	unsigned long	d_rcanceled;		/* number of messages canceled
+						   by resets */
+};
+
+struct tunables {
+	int			*tunp;
+	int			deflt;
 };
 
 struct hub_and_pnode {
-	short uvhub;
-	short pnode;
+	short			uvhub;
+	short			pnode;
 };
+
+struct socket_desc {
+	short			num_cpus;
+	short			cpu_number[MAX_CPUS_PER_SOCKET];
+};
+
+struct uvhub_desc {
+	unsigned short		socket_mask;
+	short			num_cpus;
+	short			uvhub;
+	short			pnode;
+	struct socket_desc	socket[2];
+};
+
 /*
  * one per-cpu; to locate the software tables
  */
 struct bau_control {
-	struct bau_desc *descriptor_base;
-	struct bau_payload_queue_entry *va_queue_first;
-	struct bau_payload_queue_entry *va_queue_last;
-	struct bau_payload_queue_entry *bau_msg_head;
-	struct bau_control *uvhub_master;
-	struct bau_control *socket_master;
-	struct ptc_stats *statp;
-	unsigned long timeout_interval;
-	unsigned long set_bau_on_time;
-	atomic_t active_descriptor_count;
-	int plugged_tries;
-	int timeout_tries;
-	int ipi_attempts;
-	int conseccompletes;
-	int baudisabled;
-	int set_bau_off;
-	short cpu;
-	short osnode;
-	short uvhub_cpu;
-	short uvhub;
-	short cpus_in_socket;
-	short cpus_in_uvhub;
-	short partition_base_pnode;
-	unsigned short message_number;
-	unsigned short uvhub_quiesce;
-	short socket_acknowledge_count[DEST_Q_SIZE];
-	cycles_t send_message;
-	spinlock_t uvhub_lock;
-	spinlock_t queue_lock;
+	struct bau_desc		*descriptor_base;
+	struct bau_pq_entry	*queue_first;
+	struct bau_pq_entry	*queue_last;
+	struct bau_pq_entry	*bau_msg_head;
+	struct bau_control	*uvhub_master;
+	struct bau_control	*socket_master;
+	struct ptc_stats	*statp;
+	unsigned long		timeout_interval;
+	unsigned long		set_bau_on_time;
+	atomic_t		active_descriptor_count;
+	int			plugged_tries;
+	int			timeout_tries;
+	int			ipi_attempts;
+	int			conseccompletes;
+	int			baudisabled;
+	int			set_bau_off;
+	short			cpu;
+	short			osnode;
+	short			uvhub_cpu;
+	short			uvhub;
+	short			cpus_in_socket;
+	short			cpus_in_uvhub;
+	short			partition_base_pnode;
+	unsigned short		message_number;
+	unsigned short		uvhub_quiesce;
+	short			socket_acknowledge_count[DEST_Q_SIZE];
+	cycles_t		send_message;
+	spinlock_t		uvhub_lock;
+	spinlock_t		queue_lock;
 	/* tunables */
-	int max_bau_concurrent;
-	int max_bau_concurrent_constant;
-	int plugged_delay;
-	int plugsb4reset;
-	int timeoutsb4reset;
-	int ipi_reset_limit;
-	int complete_threshold;
-	int congested_response_us;
-	int congested_reps;
-	int congested_period;
-	cycles_t period_time;
-	long period_requests;
-	struct hub_and_pnode *target_hub_and_pnode;
+	int			max_concurr;
+	int			max_concurr_const;
+	int			plugged_delay;
+	int			plugsb4reset;
+	int			timeoutsb4reset;
+	int			ipi_reset_limit;
+	int			complete_threshold;
+	int			cong_response_us;
+	int			cong_reps;
+	int			cong_period;
+	cycles_t		period_time;
+	long			period_requests;
+	struct hub_and_pnode	*thp;
 };
 
-static inline int bau_uvhub_isset(int uvhub, struct bau_target_uvhubmask *dstp)
+static unsigned long read_mmr_uv2_status(void)
+{
+	return read_lmmr(UV2H_LB_BAU_SB_ACTIVATION_STATUS_2);
+}
+
+static void write_mmr_data_broadcast(int pnode, unsigned long mmr_image)
+{
+	write_gmmr(pnode, UVH_BAU_DATA_BROADCAST, mmr_image);
+}
+
+static void write_mmr_descriptor_base(int pnode, unsigned long mmr_image)
+{
+	write_gmmr(pnode, UVH_LB_BAU_SB_DESCRIPTOR_BASE, mmr_image);
+}
+
+static void write_mmr_activation(unsigned long index)
+{
+	write_lmmr(UVH_LB_BAU_SB_ACTIVATION_CONTROL, index);
+}
+
+static void write_gmmr_activation(int pnode, unsigned long mmr_image)
+{
+	write_gmmr(pnode, UVH_LB_BAU_SB_ACTIVATION_CONTROL, mmr_image);
+}
+
+static void write_mmr_payload_first(int pnode, unsigned long mmr_image)
+{
+	write_gmmr(pnode, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_FIRST, mmr_image);
+}
+
+static void write_mmr_payload_tail(int pnode, unsigned long mmr_image)
+{
+	write_gmmr(pnode, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_TAIL, mmr_image);
+}
+
+static void write_mmr_payload_last(int pnode, unsigned long mmr_image)
+{
+	write_gmmr(pnode, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_LAST, mmr_image);
+}
+
+static void write_mmr_misc_control(int pnode, unsigned long mmr_image)
+{
+	write_gmmr(pnode, UVH_LB_BAU_MISC_CONTROL, mmr_image);
+}
+
+static unsigned long read_mmr_misc_control(int pnode)
+{
+	return read_gmmr(pnode, UVH_LB_BAU_MISC_CONTROL);
+}
+
+static void write_mmr_sw_ack(unsigned long mr)
+{
+	uv_write_local_mmr(UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE_ALIAS, mr);
+}
+
+static unsigned long read_mmr_sw_ack(void)
+{
+	return read_lmmr(UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE);
+}
+
+static unsigned long read_gmmr_sw_ack(int pnode)
+{
+	return read_gmmr(pnode, UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE);
+}
+
+static void write_mmr_data_config(int pnode, unsigned long mr)
+{
+	uv_write_global_mmr64(pnode, UVH_BAU_DATA_CONFIG, mr);
+}
+
+static inline int bau_uvhub_isset(int uvhub, struct bau_targ_hubmask *dstp)
 {
 	return constant_test_bit(uvhub, &dstp->bits[0]);
 }
-static inline void bau_uvhub_set(int pnode, struct bau_target_uvhubmask *dstp)
+static inline void bau_uvhub_set(int pnode, struct bau_targ_hubmask *dstp)
 {
 	__set_bit(pnode, &dstp->bits[0]);
 }
-static inline void bau_uvhubs_clear(struct bau_target_uvhubmask *dstp,
+static inline void bau_uvhubs_clear(struct bau_targ_hubmask *dstp,
 				    int nbits)
 {
 	bitmap_zero(&dstp->bits[0], nbits);
 }
-static inline int bau_uvhub_weight(struct bau_target_uvhubmask *dstp)
+static inline int bau_uvhub_weight(struct bau_targ_hubmask *dstp)
 {
 	return bitmap_weight((unsigned long *)&dstp->bits[0],
 				UV_DISTRIBUTION_SIZE);
@@ -457,9 +620,6 @@ static inline void bau_cpubits_clear(struct bau_local_cpumask *dstp, int nbits)
 	bitmap_zero(&dstp->bits, nbits);
 }
 
-#define cpubit_isset(cpu, bau_local_cpumask) \
-	test_bit((cpu), (bau_local_cpumask).bits)
-
 extern void uv_bau_message_intr1(void);
 extern void uv_bau_timeout_intr1(void);
 
@@ -467,7 +627,7 @@ struct atomic_short {
 	short counter;
 };
 
-/**
+/*
  * atomic_read_short - read a short atomic variable
  * @v: pointer of type atomic_short
  *
@@ -478,20 +638,42 @@ static inline int atomic_read_short(const struct atomic_short *v)
 	return v->counter;
 }
 
-/**
- * atomic_add_short_return - add and return a short int
+/*
+ * atom_asr - add and return a short int
  * @i: short value to add
  * @v: pointer of type atomic_short
  *
  * Atomically adds @i to @v and returns @i + @v
  */
-static inline int atomic_add_short_return(short i, struct atomic_short *v)
+static inline int atom_asr(short i, struct atomic_short *v)
 {
 	short __i = i;
 	asm volatile(LOCK_PREFIX "xaddw %0, %1"
 			: "+r" (i), "+m" (v->counter)
 			: : "memory");
 	return i + __i;
+}
+
+/*
+ * conditionally add 1 to *v, unless *v is >= u
+ * return 0 if we cannot add 1 to *v because it is >= u
+ * return 1 if we can add 1 to *v because it is < u
+ * the add is atomic
+ *
+ * This is close to atomic_add_unless(), but this allows the 'u' value
+ * to be lowered below the current 'v'.  atomic_add_unless can only stop
+ * on equal.
+ */
+static inline int atomic_inc_unless_ge(spinlock_t *lock, atomic_t *v, int u)
+{
+	spin_lock(lock);
+	if (atomic_read(v) >= u) {
+		spin_unlock(lock);
+		return 0;
+	}
+	atomic_inc(v);
+	spin_unlock(lock);
+	return 1;
 }
 
 #endif /* _ASM_X86_UV_UV_BAU_H */

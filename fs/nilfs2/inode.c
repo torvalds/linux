@@ -801,12 +801,7 @@ out_err:
 
 int nilfs_permission(struct inode *inode, int mask, unsigned int flags)
 {
-	struct nilfs_root *root;
-
-	if (flags & IPERM_FLAG_RCU)
-		return -ECHILD;
-
-	root = NILFS_I(inode)->i_root;
+	struct nilfs_root *root = NILFS_I(inode)->i_root;
 	if ((mask & MAY_WRITE) && root &&
 	    root->cno != NILFS_CPTREE_CURRENT_CNO)
 		return -EROFS; /* snapshot is not writable */
@@ -917,7 +912,7 @@ int nilfs_mark_inode_dirty(struct inode *inode)
  * construction. This function can be called both as a single operation
  * and as a part of indivisible file operations.
  */
-void nilfs_dirty_inode(struct inode *inode)
+void nilfs_dirty_inode(struct inode *inode, int flags)
 {
 	struct nilfs_transaction_info ti;
 	struct nilfs_mdt_info *mdi = NILFS_MDT(inode);

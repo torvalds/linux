@@ -906,7 +906,7 @@ static struct l2cap_chan *l2cap_global_chan_by_psm(int state, __le16 psm, bdaddr
 		if (c->psm == psm) {
 			/* Exact match. */
 			if (!bacmp(&bt_sk(sk)->src, src)) {
-				read_unlock_bh(&chan_list_lock);
+				read_unlock(&chan_list_lock);
 				return c;
 			}
 

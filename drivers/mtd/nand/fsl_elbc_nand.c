@@ -841,12 +841,9 @@ static int __devinit fsl_elbc_nand_probe(struct platform_device *pdev)
 	struct fsl_elbc_mtd *priv;
 	struct resource res;
 	struct fsl_elbc_fcm_ctrl *elbc_fcm_ctrl;
-
-#ifdef CONFIG_MTD_PARTITIONS
 	static const char *part_probe_types[]
 		= { "cmdlinepart", "RedBoot", NULL };
 	struct mtd_partition *parts;
-#endif
 	int ret;
 	int bank;
 	struct device *dev;
@@ -935,26 +932,19 @@ static int __devinit fsl_elbc_nand_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-#ifdef CONFIG_MTD_PARTITIONS
 	/* First look for RedBoot table or partitions on the command
 	 * line, these take precedence over device tree information */
 	ret = parse_mtd_partitions(&priv->mtd, part_probe_types, &parts, 0);
 	if (ret < 0)
 		goto err;
 
-#ifdef CONFIG_MTD_OF_PARTS
 	if (ret == 0) {
 		ret = of_mtd_parse_partitions(priv->dev, node, &parts);
 		if (ret < 0)
 			goto err;
 	}
-#endif
 
-	if (ret > 0)
-		add_mtd_partitions(&priv->mtd, parts, ret);
-	else
-#endif
-		add_mtd_device(&priv->mtd);
+	mtd_device_register(&priv->mtd, parts, ret);
 
 	printk(KERN_INFO "eLBC NAND device at 0x%llx, bank %d\n",
 	       (unsigned long long)res.start, priv->bank);

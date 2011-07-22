@@ -99,19 +99,29 @@ static void sas_ata_task_done(struct sas_task *task)
 	struct sas_ha_struct *sas_ha;
 	enum ata_completion_errors ac;
 	unsigned long flags;
+	struct ata_link *link;
 
 	if (!qc)
 		goto qc_already_gone;
 
 	dev = qc->ap->private_data;
 	sas_ha = dev->port->ha;
+	link = &dev->sata_dev.ap->link;
 
 	spin_lock_irqsave(dev->sata_dev.ap->lock, flags);
 	if (stat->stat == SAS_PROTO_RESPONSE || stat->stat == SAM_STAT_GOOD ||
 	    ((stat->stat == SAM_STAT_CHECK_CONDITION &&
 	      dev->sata_dev.command_set == ATAPI_COMMAND_SET))) {
 		ata_tf_from_fis(resp->ending_fis, &dev->sata_dev.tf);
-		qc->err_mask |= ac_err_mask(dev->sata_dev.tf.command);
+
+		if (!link->sactive) {
+			qc->err_mask |= ac_err_mask(dev->sata_dev.tf.command);
+		} else {
+			link->eh_info.err_mask |= ac_err_mask(dev->sata_dev.tf.command);
+			if (unlikely(link->eh_info.err_mask))
+				qc->flags |= ATA_QCFLAG_FAILED;
+		}
+
 		dev->sata_dev.sstatus = resp->sstatus;
 		dev->sata_dev.serror = resp->serror;
 		dev->sata_dev.scontrol = resp->scontrol;
@@ -121,7 +131,13 @@ static void sas_ata_task_done(struct sas_task *task)
 			SAS_DPRINTK("%s: SAS error %x\n", __func__,
 				    stat->stat);
 			/* We saw a SAS error. Send a vague error. */
-			qc->err_mask = ac;
+			if (!link->sactive) {
+				qc->err_mask = ac;
+			} else {
+				link->eh_info.err_mask |= AC_ERR_DEV;
+				qc->flags |= ATA_QCFLAG_FAILED;
+			}
+
 			dev->sata_dev.tf.feature = 0x04; /* status err */
 			dev->sata_dev.tf.command = ATA_ERR;
 		}
@@ -279,6 +295,44 @@ static int sas_ata_hard_reset(struct ata_link *link, unsigned int *class,
 	return ret;
 }
 
+static int sas_ata_soft_reset(struct ata_link *link, unsigned int *class,
+			       unsigned long deadline)
+{
+	struct ata_port *ap = link->ap;
+	struct domain_device *dev = ap->private_data;
+	struct sas_internal *i =
+		to_sas_internal(dev->port->ha->core.shost->transportt);
+	int res = TMF_RESP_FUNC_FAILED;
+	int ret = 0;
+
+	if (i->dft->lldd_ata_soft_reset)
+		res = i->dft->lldd_ata_soft_reset(dev);
+
+	if (res != TMF_RESP_FUNC_COMPLETE) {
+		SAS_DPRINTK("%s: Unable to soft reset\n", __func__);
+		ret = -EAGAIN;
+	}
+
+	switch (dev->sata_dev.command_set) {
+	case ATA_COMMAND_SET:
+		SAS_DPRINTK("%s: Found ATA device.\n", __func__);
+		*class = ATA_DEV_ATA;
+		break;
+	case ATAPI_COMMAND_SET:
+		SAS_DPRINTK("%s: Found ATAPI device.\n", __func__);
+		*class = ATA_DEV_ATAPI;
+		break;
+	default:
+		SAS_DPRINTK("%s: Unknown SATA command set: %d.\n",
+			    __func__, dev->sata_dev.command_set);
+		*class = ATA_DEV_UNKNOWN;
+		break;
+	}
+
+	ap->cbl = ATA_CBL_SATA;
+	return ret;
+}
+
 static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 {
 	if (qc->flags & ATA_QCFLAG_FAILED)
@@ -309,7 +363,7 @@ static void sas_ata_post_internal(struct ata_queued_cmd *qc)
 
 static struct ata_port_operations sas_sata_ops = {
 	.prereset		= ata_std_prereset,
-	.softreset		= NULL,
+	.softreset		= sas_ata_soft_reset,
 	.hardreset		= sas_ata_hard_reset,
 	.postreset		= ata_std_postreset,
 	.error_handler		= ata_std_error_handler,

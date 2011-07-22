@@ -120,14 +120,14 @@ debugger_local_cache_flushinv_one:
 	# conditionally purge this line in all ways
 	mov	d1,(L1_CACHE_WAYDISP*0,a0)
 
-debugger_local_cache_flushinv_no_dcache:
+debugger_local_cache_flushinv_one_no_dcache:
 	#
 	# now try to flush the icache
 	#
 	mov	CHCTR,a0
 	movhu	(a0),d0
 	btst	CHCTR_ICEN,d0
-	beq	mn10300_local_icache_inv_range_reg_end
+	beq	debugger_local_cache_flushinv_one_end
 
 	LOCAL_CLI_SAVE(d1)
 

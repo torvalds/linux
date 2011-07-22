@@ -24,6 +24,7 @@
 #include <linux/errno.h>
 #include <linux/compiler.h>
 #include <linux/workqueue.h>
+#include <linux/sysctl.h>
 
 #define KMOD_PATH_LEN 256
 
@@ -44,7 +45,7 @@ static inline int request_module_nowait(const char *name, ...) { return -ENOSYS;
 #endif
 
 
-struct key;
+struct cred;
 struct file;
 
 enum umh_wait {
@@ -61,7 +62,7 @@ struct subprocess_info {
 	char **envp;
 	enum umh_wait wait;
 	int retval;
-	int (*init)(struct subprocess_info *info);
+	int (*init)(struct subprocess_info *info, struct cred *new);
 	void (*cleanup)(struct subprocess_info *info);
 	void *data;
 };
@@ -72,7 +73,7 @@ struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
 
 /* Set various pieces of state into the subprocess_info structure */
 void call_usermodehelper_setfns(struct subprocess_info *info,
-		    int (*init)(struct subprocess_info *info),
+		    int (*init)(struct subprocess_info *info, struct cred *new),
 		    void (*cleanup)(struct subprocess_info *info),
 		    void *data);
 
@@ -86,7 +87,7 @@ void call_usermodehelper_freeinfo(struct subprocess_info *info);
 static inline int
 call_usermodehelper_fns(char *path, char **argv, char **envp,
 			enum umh_wait wait,
-			int (*init)(struct subprocess_info *info),
+			int (*init)(struct subprocess_info *info, struct cred *new),
 			void (*cleanup)(struct subprocess_info *), void *data)
 {
 	struct subprocess_info *info;
@@ -108,6 +109,8 @@ call_usermodehelper(char *path, char **argv, char **envp, enum umh_wait wait)
 	return call_usermodehelper_fns(path, argv, envp, wait,
 				       NULL, NULL, NULL);
 }
+
+extern struct ctl_table usermodehelper_table[];
 
 extern void usermodehelper_init(void);
 

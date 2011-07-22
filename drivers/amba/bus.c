@@ -603,6 +603,10 @@ int amba_device_register(struct amba_device *dev, struct resource *parent)
 	if (ret)
 		goto err_out;
 
+	/* Hard-coded primecell ID instead of plug-n-play */
+	if (dev->periphid != 0)
+		goto skip_probe;
+
 	/*
 	 * Dynamically calculate the size of the resource
 	 * and use this for iomap
@@ -643,6 +647,7 @@ int amba_device_register(struct amba_device *dev, struct resource *parent)
 	if (ret)
 		goto err_release;
 
+ skip_probe:
 	ret = device_add(&dev->dev);
 	if (ret)
 		goto err_release;

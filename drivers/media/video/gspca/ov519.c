@@ -609,7 +609,7 @@ static const struct v4l2_pix_format ovfx2_ov3610_mode[] = {
  * buffers, there are some pretty strict real time constraints for
  * isochronous transfer for larger frame sizes).
  */
-/*jfm: this value works well for 1600x1200, but not 800x600 - see isoc_init */
+/*jfm: this value does not work for 800x600 - see isoc_init */
 #define OVFX2_BULK_SIZE (13 * 4096)
 
 /* I2C registers */
@@ -3307,6 +3307,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	gspca_dev->cam.ctrls = sd->ctrls;
 	sd->quality = QUALITY_DEF;
+	sd->frame_rate = 15;
 
 	return 0;
 }
@@ -3469,7 +3470,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				ARRAY_SIZE(init_519_ov7660));
 		write_i2c_regvals(sd, norm_7660, ARRAY_SIZE(norm_7660));
 		sd->gspca_dev.curr_mode = 1;	/* 640x480 */
-		sd->frame_rate = 15;
 		ov519_set_mode(sd);
 		ov519_set_fr(sd);
 		sd->ctrls[COLORS].max = 4;	/* 0..4 */
@@ -3511,7 +3511,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 
 	switch (sd->bridge) {
 	case BRIDGE_OVFX2:
-		if (gspca_dev->width == 1600)
+		if (gspca_dev->width != 800)
 			gspca_dev->cam.bulk_size = OVFX2_BULK_SIZE;
 		else
 			gspca_dev->cam.bulk_size = 7 * 4096;
@@ -4478,7 +4478,7 @@ static void ovfx2_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 
 	/* A short read signals EOF */
-	if (len < OVFX2_BULK_SIZE) {
+	if (len < gspca_dev->cam.bulk_size) {
 		/* If the frame is short, and it is one of the first ones
 		   the sensor and bridge are still syncing, so drop it. */
 		if (sd->first_frame) {

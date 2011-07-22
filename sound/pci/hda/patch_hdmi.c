@@ -48,8 +48,8 @@ MODULE_PARM_DESC(static_hdmi_pcm, "Don't restrict PCM parameters per ELD info");
  *
  * The HDA correspondence of pipes/ports are converter/pin nodes.
  */
-#define MAX_HDMI_CVTS	3
-#define MAX_HDMI_PINS	3
+#define MAX_HDMI_CVTS	4
+#define MAX_HDMI_PINS	4
 
 struct hdmi_spec {
 	int num_cvts;
@@ -78,10 +78,6 @@ struct hdmi_spec {
 	 */
 	struct hda_multi_out multiout;
 	const struct hda_pcm_stream *pcm_playback;
-
-	/* misc flags */
-	/* PD bit indicates only the update, not the current state */
-	unsigned int old_pin_detect:1;
 };
 
 
@@ -298,13 +294,6 @@ static int hda_node_index(hda_nid_t *nids, hda_nid_t nid)
 
 	snd_printk(KERN_WARNING "HDMI: nid %d not registered\n", nid);
 	return -EINVAL;
-}
-
-static void hdmi_get_show_eld(struct hda_codec *codec, hda_nid_t pin_nid,
-			      struct hdmi_eld *eld)
-{
-	if (!snd_hdmi_get_eld(eld, codec, pin_nid))
-		snd_hdmi_show_eld(eld);
 }
 
 #ifdef BE_PARANOID
@@ -694,35 +683,20 @@ static void hdmi_present_sense(struct hda_codec *codec, hda_nid_t pin_nid,
 static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 {
 	struct hdmi_spec *spec = codec->spec;
-	int tag = res >> AC_UNSOL_RES_TAG_SHIFT;
-	int pind = !!(res & AC_UNSOL_RES_PD);
+	int pin_nid = res >> AC_UNSOL_RES_TAG_SHIFT;
+	int pd = !!(res & AC_UNSOL_RES_PD);
 	int eldv = !!(res & AC_UNSOL_RES_ELDV);
 	int index;
 
 	printk(KERN_INFO
 		"HDMI hot plug event: Pin=%d Presence_Detect=%d ELD_Valid=%d\n",
-		tag, pind, eldv);
+		pin_nid, pd, eldv);
 
-	index = hda_node_index(spec->pin, tag);
+	index = hda_node_index(spec->pin, pin_nid);
 	if (index < 0)
 		return;
 
-	if (spec->old_pin_detect) {
-		if (pind)
-			hdmi_present_sense(codec, tag, &spec->sink_eld[index]);
-		pind = spec->sink_eld[index].monitor_present;
-	}
-
-	spec->sink_eld[index].monitor_present = pind;
-	spec->sink_eld[index].eld_valid = eldv;
-
-	if (pind && eldv) {
-		hdmi_get_show_eld(codec, spec->pin[index],
-				  &spec->sink_eld[index]);
-		/* TODO: do real things about ELD */
-	}
-
-	snd_hda_input_jack_report(codec, tag);
+	hdmi_present_sense(codec, pin_nid, &spec->sink_eld[index]);
 }
 
 static void hdmi_non_intrinsic_event(struct hda_codec *codec, unsigned int res)
@@ -903,13 +877,33 @@ static int hdmi_read_pin_conn(struct hda_codec *codec, hda_nid_t pin_nid)
 static void hdmi_present_sense(struct hda_codec *codec, hda_nid_t pin_nid,
 			       struct hdmi_eld *eld)
 {
+	/*
+	 * Always execute a GetPinSense verb here, even when called from
+	 * hdmi_intrinsic_event; for some NVIDIA HW, the unsolicited
+	 * response's PD bit is not the real PD value, but indicates that
+	 * the real PD value changed. An older version of the HD-audio
+	 * specification worked this way. Hence, we just ignore the data in
+	 * the unsolicited response to avoid custom WARs.
+	 */
 	int present = snd_hda_pin_sense(codec, pin_nid);
 
-	eld->monitor_present	= !!(present & AC_PINSENSE_PRESENCE);
-	eld->eld_valid		= !!(present & AC_PINSENSE_ELDV);
+	memset(eld, 0, sizeof(*eld));
 
-	if (present & AC_PINSENSE_ELDV)
-		hdmi_get_show_eld(codec, pin_nid, eld);
+	eld->monitor_present	= !!(present & AC_PINSENSE_PRESENCE);
+	if (eld->monitor_present)
+		eld->eld_valid	= !!(present & AC_PINSENSE_ELDV);
+	else
+		eld->eld_valid	= 0;
+
+	printk(KERN_INFO
+		"HDMI status: Pin=%d Presence_Detect=%d ELD_Valid=%d\n",
+		pin_nid, eld->monitor_present, eld->eld_valid);
+
+	if (eld->eld_valid)
+		if (!snd_hdmi_get_eld(eld, codec, pin_nid))
+			snd_hdmi_show_eld(eld);
+
+	snd_hda_input_jack_report(codec, pin_nid);
 }
 
 static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
@@ -927,7 +921,6 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 				     SND_JACK_VIDEOOUT, NULL);
 	if (err < 0)
 		return err;
-	snd_hda_input_jack_report(codec, pin_nid);
 
 	hdmi_present_sense(codec, pin_nid, &spec->sink_eld[spec->num_pins]);
 
@@ -1034,6 +1027,7 @@ static char *generic_hdmi_pcm_names[MAX_HDMI_CVTS] = {
 	"HDMI 0",
 	"HDMI 1",
 	"HDMI 2",
+	"HDMI 3",
 };
 
 /*
@@ -1490,18 +1484,6 @@ static const struct hda_codec_ops nvhdmi_patch_ops_2ch = {
 	.free = generic_hdmi_free,
 };
 
-static int patch_nvhdmi_8ch_89(struct hda_codec *codec)
-{
-	struct hdmi_spec *spec;
-	int err = patch_generic_hdmi(codec);
-
-	if (err < 0)
-		return err;
-	spec = codec->spec;
-	spec->old_pin_detect = 1;
-	return 0;
-}
-
 static int patch_nvhdmi_2ch(struct hda_codec *codec)
 {
 	struct hdmi_spec *spec;
@@ -1515,7 +1497,6 @@ static int patch_nvhdmi_2ch(struct hda_codec *codec)
 	spec->multiout.num_dacs = 0;  /* no analog */
 	spec->multiout.max_channels = 2;
 	spec->multiout.dig_out_nid = nvhdmi_master_con_nid_7x;
-	spec->old_pin_detect = 1;
 	spec->num_cvts = 1;
 	spec->cvt[0] = nvhdmi_master_con_nid_7x;
 	spec->pcm_playback = &nvhdmi_pcm_playback_2ch;
@@ -1658,28 +1639,28 @@ static const struct hda_codec_preset snd_hda_preset_hdmi[] = {
 { .id = 0x10de0005, .name = "MCP77/78 HDMI",	.patch = patch_nvhdmi_8ch_7x },
 { .id = 0x10de0006, .name = "MCP77/78 HDMI",	.patch = patch_nvhdmi_8ch_7x },
 { .id = 0x10de0007, .name = "MCP79/7A HDMI",	.patch = patch_nvhdmi_8ch_7x },
-{ .id = 0x10de000a, .name = "GPU 0a HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de000b, .name = "GPU 0b HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de000c, .name = "MCP89 HDMI",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de000d, .name = "GPU 0d HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0010, .name = "GPU 10 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0011, .name = "GPU 11 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0012, .name = "GPU 12 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0013, .name = "GPU 13 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0014, .name = "GPU 14 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0015, .name = "GPU 15 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0016, .name = "GPU 16 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
+{ .id = 0x10de000a, .name = "GPU 0a HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de000b, .name = "GPU 0b HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de000c, .name = "MCP89 HDMI",	.patch = patch_generic_hdmi },
+{ .id = 0x10de000d, .name = "GPU 0d HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0010, .name = "GPU 10 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0011, .name = "GPU 11 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0012, .name = "GPU 12 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0013, .name = "GPU 13 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0014, .name = "GPU 14 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0015, .name = "GPU 15 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0016, .name = "GPU 16 HDMI/DP",	.patch = patch_generic_hdmi },
 /* 17 is known to be absent */
-{ .id = 0x10de0018, .name = "GPU 18 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0019, .name = "GPU 19 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de001a, .name = "GPU 1a HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de001b, .name = "GPU 1b HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de001c, .name = "GPU 1c HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0040, .name = "GPU 40 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0041, .name = "GPU 41 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0042, .name = "GPU 42 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0043, .name = "GPU 43 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
-{ .id = 0x10de0044, .name = "GPU 44 HDMI/DP",	.patch = patch_nvhdmi_8ch_89 },
+{ .id = 0x10de0018, .name = "GPU 18 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0019, .name = "GPU 19 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de001a, .name = "GPU 1a HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de001b, .name = "GPU 1b HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de001c, .name = "GPU 1c HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0040, .name = "GPU 40 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0041, .name = "GPU 41 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0042, .name = "GPU 42 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0043, .name = "GPU 43 HDMI/DP",	.patch = patch_generic_hdmi },
+{ .id = 0x10de0044, .name = "GPU 44 HDMI/DP",	.patch = patch_generic_hdmi },
 { .id = 0x10de0067, .name = "MCP67 HDMI",	.patch = patch_nvhdmi_2ch },
 { .id = 0x10de8001, .name = "MCP73 HDMI",	.patch = patch_nvhdmi_2ch },
 { .id = 0x80860054, .name = "IbexPeak HDMI",	.patch = patch_generic_hdmi },

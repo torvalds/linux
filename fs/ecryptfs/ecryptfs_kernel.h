@@ -200,6 +200,8 @@ ecryptfs_get_key_payload_data(struct key *key)
 #define MAGIC_ECRYPTFS_MARKER 0x3c81b7f5
 #define MAGIC_ECRYPTFS_MARKER_SIZE_BYTES 8	/* 4*2 */
 #define ECRYPTFS_FILE_SIZE_BYTES (sizeof(u64))
+#define ECRYPTFS_SIZE_AND_MARKER_BYTES (ECRYPTFS_FILE_SIZE_BYTES \
+					+ MAGIC_ECRYPTFS_MARKER_SIZE_BYTES)
 #define ECRYPTFS_DEFAULT_CIPHER "aes"
 #define ECRYPTFS_DEFAULT_KEY_BYTES 16
 #define ECRYPTFS_DEFAULT_HASH "md5"
@@ -603,8 +605,7 @@ extern struct kmem_cache *ecryptfs_file_info_cache;
 extern struct kmem_cache *ecryptfs_dentry_info_cache;
 extern struct kmem_cache *ecryptfs_inode_info_cache;
 extern struct kmem_cache *ecryptfs_sb_info_cache;
-extern struct kmem_cache *ecryptfs_header_cache_1;
-extern struct kmem_cache *ecryptfs_header_cache_2;
+extern struct kmem_cache *ecryptfs_header_cache;
 extern struct kmem_cache *ecryptfs_xattr_cache;
 extern struct kmem_cache *ecryptfs_key_record_cache;
 extern struct kmem_cache *ecryptfs_key_sig_cache;
@@ -625,14 +626,9 @@ struct ecryptfs_open_req {
 	struct list_head kthread_ctl_list;
 };
 
-#define ECRYPTFS_INTERPOSE_FLAG_D_ADD                 0x00000001
-int ecryptfs_interpose(struct dentry *hidden_dentry,
-		       struct dentry *this_dentry, struct super_block *sb,
-		       u32 flags);
+struct inode *ecryptfs_get_inode(struct inode *lower_inode,
+				 struct super_block *sb);
 void ecryptfs_i_size_init(const char *page_virt, struct inode *inode);
-int ecryptfs_lookup_and_interpose_lower(struct dentry *ecryptfs_dentry,
-					struct dentry *lower_dentry,
-					struct inode *ecryptfs_dir_inode);
 int ecryptfs_decode_and_decrypt_filename(char **decrypted_name,
 					 size_t *decrypted_name_size,
 					 struct dentry *ecryptfs_dentry,
@@ -664,10 +660,9 @@ int ecryptfs_new_file_context(struct dentry *ecryptfs_dentry);
 void ecryptfs_write_crypt_stat_flags(char *page_virt,
 				     struct ecryptfs_crypt_stat *crypt_stat,
 				     size_t *written);
-int ecryptfs_read_and_validate_header_region(char *data,
-					     struct inode *ecryptfs_inode);
-int ecryptfs_read_and_validate_xattr_region(char *page_virt,
-					    struct dentry *ecryptfs_dentry);
+int ecryptfs_read_and_validate_header_region(struct inode *inode);
+int ecryptfs_read_and_validate_xattr_region(struct dentry *dentry,
+					    struct inode *inode);
 u8 ecryptfs_code_for_cipher_string(char *cipher_name, size_t key_bytes);
 int ecryptfs_cipher_code_to_string(char *str, u8 cipher_code);
 void ecryptfs_set_default_sizes(struct ecryptfs_crypt_stat *crypt_stat);
@@ -679,9 +674,6 @@ int
 ecryptfs_parse_packet_set(struct ecryptfs_crypt_stat *crypt_stat,
 			  unsigned char *src, struct dentry *ecryptfs_dentry);
 int ecryptfs_truncate(struct dentry *dentry, loff_t new_length);
-int ecryptfs_inode_test(struct inode *inode, void *candidate_lower_inode);
-int ecryptfs_inode_set(struct inode *inode, void *lower_inode);
-void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode);
 ssize_t
 ecryptfs_getxattr_lower(struct dentry *lower_dentry, const char *name,
 			void *value, size_t size);
@@ -761,7 +753,7 @@ int ecryptfs_privileged_open(struct file **lower_file,
 			     struct dentry *lower_dentry,
 			     struct vfsmount *lower_mnt,
 			     const struct cred *cred);
-int ecryptfs_get_lower_file(struct dentry *ecryptfs_dentry);
+int ecryptfs_get_lower_file(struct dentry *dentry, struct inode *inode);
 void ecryptfs_put_lower_file(struct inode *inode);
 int
 ecryptfs_write_tag_70_packet(char *dest, size_t *remaining_bytes,

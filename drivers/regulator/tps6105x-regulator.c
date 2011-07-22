@@ -137,7 +137,7 @@ static struct regulator_desc tps6105x_regulator_desc = {
  */
 static int __devinit tps6105x_regulator_probe(struct platform_device *pdev)
 {
-	struct tps6105x *tps6105x = mfd_get_data(pdev);
+	struct tps6105x *tps6105x = dev_get_platdata(&pdev->dev);
 	struct tps6105x_platform_data *pdata = tps6105x->pdata;
 	int ret;
 
@@ -158,13 +158,14 @@ static int __devinit tps6105x_regulator_probe(struct platform_device *pdev)
 			"failed to register regulator\n");
 		return ret;
 	}
+	platform_set_drvdata(pdev, tps6105x);
 
 	return 0;
 }
 
 static int __devexit tps6105x_regulator_remove(struct platform_device *pdev)
 {
-	struct tps6105x *tps6105x = platform_get_drvdata(pdev);
+	struct tps6105x *tps6105x = dev_get_platdata(&pdev->dev);
 	regulator_unregister(tps6105x->regulator);
 	return 0;
 }

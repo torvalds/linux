@@ -1665,7 +1665,8 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 	/* Get fast-path complete queue information */
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 			"Fast-path FCP CQ information:\n");
-	for (fcp_qidx = 0; fcp_qidx < phba->cfg_fcp_eq_count; fcp_qidx++) {
+	fcp_qidx = 0;
+	do {
 		len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len,
 				"Associated EQID[%02d]:\n",
 				phba->sli4_hba.fcp_cq[fcp_qidx]->assoc_qid);
@@ -1678,7 +1679,7 @@ lpfc_idiag_queinfo_read(struct file *file, char __user *buf, size_t nbytes,
 				phba->sli4_hba.fcp_cq[fcp_qidx]->entry_size,
 				phba->sli4_hba.fcp_cq[fcp_qidx]->host_index,
 				phba->sli4_hba.fcp_cq[fcp_qidx]->hba_index);
-	}
+	} while (++fcp_qidx < phba->cfg_fcp_eq_count);
 	len += snprintf(pbuffer+len, LPFC_QUE_INFO_GET_BUF_SIZE-len, "\n");
 
 	/* Get mailbox queue information */
@@ -2012,7 +2013,8 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 			goto pass_check;
 		}
 		/* FCP complete queue */
-		for (qidx = 0; qidx < phba->cfg_fcp_eq_count; qidx++) {
+		qidx = 0;
+		do {
 			if (phba->sli4_hba.fcp_cq[qidx]->queue_id == queid) {
 				/* Sanity check */
 				rc = lpfc_idiag_que_param_check(
@@ -2024,7 +2026,7 @@ lpfc_idiag_queacc_write(struct file *file, const char __user *buf,
 						phba->sli4_hba.fcp_cq[qidx];
 				goto pass_check;
 			}
-		}
+		} while (++qidx < phba->cfg_fcp_eq_count);
 		goto error_out;
 		break;
 	case LPFC_IDIAG_MQ:

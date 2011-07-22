@@ -746,7 +746,7 @@ static void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 				NULL);
 			break;
 		case EVENT_ROAMED:
-			__cfg80211_roamed(wdev, ev->rm.bssid,
+			__cfg80211_roamed(wdev, ev->rm.channel, ev->rm.bssid,
 					  ev->rm.req_ie, ev->rm.req_ie_len,
 					  ev->rm.resp_ie, ev->rm.resp_ie_len);
 			break;

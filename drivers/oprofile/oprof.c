@@ -14,7 +14,7 @@
 #include <linux/moduleparam.h>
 #include <linux/workqueue.h>
 #include <linux/time.h>
-#include <asm/mutex.h>
+#include <linux/mutex.h>
 
 #include "oprof.h"
 #include "event_buffer.h"

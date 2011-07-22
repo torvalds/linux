@@ -157,6 +157,20 @@ config TPS6507X
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps6507x.
 
+config MFD_TPS6586X
+	bool "TPS6586x Power Management chips"
+	depends on I2C=y && GPIOLIB && GENERIC_HARDIRQS
+	select MFD_CORE
+	help
+	  If you say yes here you get support for the TPS6586X series of
+	  Power Management chips.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tps6586x.
+
 config MENELAUS
 	bool "Texas Instruments TWL92330/Menelaus PM chip"
 	depends on I2C=y && ARCH_OMAP2
@@ -455,6 +469,20 @@ config MFD_PCF50633
 	  facilities, and registers devices for the various functions
 	  so that function-specific drivers can bind to them.
 
+config PCF50633_ADC
+	tristate "Support for NXP PCF50633 ADC"
+	depends on MFD_PCF50633
+	help
+	 Say yes here if you want to include support for ADC in the
+	 NXP PCF50633 chip.
+
+config PCF50633_GPIO
+	tristate "Support for NXP PCF50633 GPIO"
+	depends on MFD_PCF50633
+	help
+	 Say yes here if you want to include support GPIO for pins on
+	 the PCF50633 chip.
+
 config MFD_MC13783
 	tristate
 
@@ -469,20 +497,6 @@ config MFD_MC13XXX
 	  This driver provides common support for accessing  the device,
 	  additional drivers must be enabled in order to use the
 	  functionality of the device.
-
-config PCF50633_ADC
-	tristate "Support for NXP PCF50633 ADC"
-	depends on MFD_PCF50633
-	help
-	 Say yes here if you want to include support for ADC in the
-	 NXP PCF50633 chip.
-
-config PCF50633_GPIO
-	tristate "Support for NXP PCF50633 GPIO"
-	depends on MFD_PCF50633
-	help
-	 Say yes here if you want to include support GPIO for pins on
-	 the PCF50633 chip.
 
 config ABX500_CORE
 	bool "ST-Ericsson ABX500 Mixed Signal Circuit register functions"
@@ -538,7 +552,7 @@ config AB8500_CORE
 
 config AB8500_I2C_CORE
 	bool "AB8500 register access via PRCMU I2C"
-	depends on AB8500_CORE && UX500_SOC_DB8500
+	depends on AB8500_CORE && MFD_DB8500_PRCMU
 	default y
 	help
 	  This enables register access to the AB8500 chip via PRCMU I2C.
@@ -574,6 +588,26 @@ config AB3550_CORE
 	  of the AB3550 such as battery-backed RTC, charging control,
 	  LEDs, vibrator, system power and temperature, power management
 	  and ALSA sound.
+
+config MFD_DB8500_PRCMU
+	bool "ST-Ericsson DB8500 Power Reset Control Management Unit"
+	depends on UX500_SOC_DB8500
+	select MFD_CORE
+	help
+	  Select this option to enable support for the DB8500 Power Reset
+	  and Control Management Unit. This is basically an autonomous
+	  system controller running an XP70 microprocessor, which is accessed
+	  through a register map.
+
+config MFD_DB5500_PRCMU
+	bool "ST-Ericsson DB5500 Power Reset Control Management Unit"
+	depends on UX500_SOC_DB5500
+	select MFD_CORE
+	help
+	  Select this option to enable support for the DB5500 Power Reset
+	  and Control Management Unit. This is basically an autonomous
+	  system controller running an XP70 microprocessor, which is accessed
+	  through a register map.
 
 config MFD_CS5535
 	tristate "Support for CS5535 and CS5536 southbridge core functions"
@@ -629,20 +663,6 @@ config MFD_JZ4740_ADC
 	  Say yes here if you want support for the ADC unit in the JZ4740 SoC.
 	  This driver is necessary for jz4740-battery and jz4740-hwmon driver.
 
-config MFD_TPS6586X
-	bool "TPS6586x Power Management chips"
-	depends on I2C=y && GPIOLIB && GENERIC_HARDIRQS
-	select MFD_CORE
-	help
-	  If you say yes here you get support for the TPS6586X series of
-	  Power Management chips.
-	  This driver provides common support for accessing the device,
-	  additional drivers must be enabled in order to use the
-	  functionality of the device.
-
-	  This driver can also be built as a module.  If so, the module
-	  will be called tps6586x.
-
 config MFD_VX855
 	tristate "Support for VIA VX855/VX875 integrated south bridge"
 	depends on PCI
@@ -670,6 +690,43 @@ config MFD_OMAP_USB_HOST
 	  This is the core driver for the OAMP EHCI and OHCI drivers.
 	  This MFD driver does the required setup functionalities for
 	  OMAP USB Host drivers.
+
+config MFD_PM8XXX
+	tristate
+
+config MFD_PM8921_CORE
+	tristate "Qualcomm PM8921 PMIC chip"
+	depends on MSM_SSBI
+	select MFD_CORE
+	select MFD_PM8XXX
+	help
+	  If you say yes to this option, support will be included for the
+	  built-in PM8921 PMIC chip.
+
+	  This is required if your board has a PM8921 and uses its features,
+	  such as: MPPs, GPIOs, regulators, interrupts, and PWM.
+
+	  Say M here if you want to include support for PM8921 chip as a module.
+	  This will build a module called "pm8921-core".
+
+config MFD_PM8XXX_IRQ
+	bool "Support for Qualcomm PM8xxx IRQ features"
+	depends on MFD_PM8XXX
+	default y if MFD_PM8XXX
+	help
+	  This is the IRQ driver for Qualcomm PM 8xxx PMIC chips.
+
+	  This is required to use certain other PM 8xxx features, such as GPIO
+	  and MPP.
+
+config MFD_TPS65910
+	bool "TPS65910 Power Management chip"
+	depends on I2C=y && GPIOLIB
+	select MFD_CORE
+	select GPIO_TPS65910
+	help
+	  if you say yes here you get support for the TPS65910 series of
+	  Power Management chips.
 
 endif # MFD_SUPPORT
 

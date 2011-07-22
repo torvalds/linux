@@ -207,17 +207,6 @@ static int lme2510_stream_restart(struct dvb_usb_device *d)
 			rbuff, sizeof(rbuff));
 	return ret;
 }
-static int lme2510_remote_keypress(struct dvb_usb_adapter *adap, u32 keypress)
-{
-	struct dvb_usb_device *d = adap->dev;
-
-	deb_info(1, "INT Key Keypress =%04x", keypress);
-
-	if (keypress > 0)
-		rc_keydown(d->rc_dev, keypress, 0);
-
-	return 0;
-}
 
 static int lme2510_enable_pid(struct dvb_usb_device *d, u8 index, u16 pid_out)
 {
@@ -256,6 +245,7 @@ static void lme2510_int_response(struct urb *lme_urb)
 	struct lme2510_state *st = adap->dev->priv;
 	static u8 *ibuf, *rbuf;
 	int i = 0, offset;
+	u32 key;
 
 	switch (lme_urb->status) {
 	case 0:
@@ -282,10 +272,16 @@ static void lme2510_int_response(struct urb *lme_urb)
 
 		switch (ibuf[0]) {
 		case 0xaa:
-			debug_data_snipet(1, "INT Remote data snipet in", ibuf);
-			lme2510_remote_keypress(adap,
-				(u32)(ibuf[2] << 24) + (ibuf[3] << 16) +
-				(ibuf[4] << 8) + ibuf[5]);
+			debug_data_snipet(1, "INT Remote data snipet", ibuf);
+			if ((ibuf[4] + ibuf[5]) == 0xff) {
+				key = ibuf[5];
+				key += (ibuf[3] > 0)
+					? (ibuf[3] ^ 0xff) << 8 : 0;
+				key += (ibuf[2] ^ 0xff) << 16;
+				deb_info(1, "INT Key =%08x", key);
+				if (adap->dev->rc_dev != NULL)
+					rc_keydown(adap->dev->rc_dev, key, 0);
+			}
 			break;
 		case 0xbb:
 			switch (st->tuner_config) {
@@ -691,45 +687,6 @@ static int lme2510_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	return (ret < 0) ? -ENODEV : 0;
 }
 
-static int lme2510_int_service(struct dvb_usb_adapter *adap)
-{
-	struct dvb_usb_device *d = adap->dev;
-	struct rc_dev *rc;
-	int ret;
-
-	info("STA Configuring Remote");
-
-	rc = rc_allocate_device();
-	if (!rc)
-		return -ENOMEM;
-
-	usb_make_path(d->udev, d->rc_phys, sizeof(d->rc_phys));
-	strlcat(d->rc_phys, "/ir0", sizeof(d->rc_phys));
-
-	rc->input_name = "LME2510 Remote Control";
-	rc->input_phys = d->rc_phys;
-	rc->map_name = RC_MAP_LME2510;
-	rc->driver_name = "LME 2510";
-	usb_to_input_id(d->udev, &rc->input_id);
-
-	ret = rc_register_device(rc);
-	if (ret) {
-		rc_free_device(rc);
-		return ret;
-	}
-	d->rc_dev = rc;
-
-	/* Start the Interrupt */
-	ret = lme2510_int_read(adap);
-	if (ret < 0) {
-		rc_unregister_device(rc);
-		info("INT Unable to start Interrupt Service");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
 static u8 check_sum(u8 *p, u8 len)
 {
 	u8 sum = 0;
@@ -831,7 +788,7 @@ static int lme_firmware_switch(struct usb_device *udev, int cold)
 
 	cold_fw = !cold;
 
-	if (udev->descriptor.idProduct == 0x1122) {
+	if (le16_to_cpu(udev->descriptor.idProduct) == 0x1122) {
 		switch (dvb_usb_lme2510_firmware) {
 		default:
 			dvb_usb_lme2510_firmware = TUNER_S0194;
@@ -1053,8 +1010,11 @@ static int dm04_lme2510_frontend_attach(struct dvb_usb_adapter *adap)
 
 
 end:	if (ret) {
-		kfree(adap->fe);
-		adap->fe = NULL;
+		if (adap->fe) {
+			dvb_frontend_detach(adap->fe);
+			adap->fe = NULL;
+		}
+		adap->dev->props.rc.core.rc_codes = NULL;
 		return -ENODEV;
 	}
 
@@ -1097,8 +1057,12 @@ static int dm04_lme2510_tuner(struct dvb_usb_adapter *adap)
 		return -ENODEV;
 	}
 
-	/* Start the Interrupt & Remote*/
-	ret = lme2510_int_service(adap);
+	/* Start the Interrupt*/
+	ret = lme2510_int_read(adap);
+	if (ret < 0) {
+		info("INT Unable to start Interrupt Service");
+		return -ENODEV;
+	}
 
 	return ret;
 }
@@ -1204,6 +1168,12 @@ static struct dvb_usb_device_properties lme2510_properties = {
 			}
 		}
 	},
+	.rc.core = {
+		.protocol	= RC_TYPE_NEC,
+		.module_name	= "LME2510 Remote Control",
+		.allowed_protos	= RC_TYPE_NEC,
+		.rc_codes	= RC_MAP_LME2510,
+	},
 	.power_ctrl       = lme2510_powerup,
 	.identify_state   = lme2510_identify_state,
 	.i2c_algo         = &lme2510_i2c_algo,
@@ -1246,6 +1216,12 @@ static struct dvb_usb_device_properties lme2510c_properties = {
 			}
 		}
 	},
+	.rc.core = {
+		.protocol	= RC_TYPE_NEC,
+		.module_name	= "LME2510 Remote Control",
+		.allowed_protos	= RC_TYPE_NEC,
+		.rc_codes	= RC_MAP_LME2510,
+	},
 	.power_ctrl       = lme2510_powerup,
 	.identify_state   = lme2510_identify_state,
 	.i2c_algo         = &lme2510_i2c_algo,
@@ -1269,19 +1245,21 @@ static void *lme2510_exit_int(struct dvb_usb_device *d)
 		adap->feedcount = 0;
 	}
 
-	if (st->lme_urb != NULL) {
+	if (st->usb_buffer != NULL) {
 		st->i2c_talk_onoff = 1;
 		st->signal_lock = 0;
 		st->signal_level = 0;
 		st->signal_sn = 0;
 		buffer = st->usb_buffer;
+	}
+
+	if (st->lme_urb != NULL) {
 		usb_kill_urb(st->lme_urb);
 		usb_free_coherent(d->udev, 5000, st->buffer,
 				  st->lme_urb->transfer_dma);
 		info("Interrupt Service Stopped");
-		rc_unregister_device(d->rc_dev);
-		info("Remote Stopped");
 	}
+
 	return buffer;
 }
 
@@ -1293,7 +1271,8 @@ static void lme2510_exit(struct usb_interface *intf)
 	if (d != NULL) {
 		usb_buffer = lme2510_exit_int(d);
 		dvb_usb_device_exit(intf);
-		kfree(usb_buffer);
+		if (usb_buffer != NULL)
+			kfree(usb_buffer);
 	}
 }
 
@@ -1327,5 +1306,5 @@ module_exit(lme2510_module_exit);
 
 MODULE_AUTHOR("Malcolm Priestley <tvboxspy@gmail.com>");
 MODULE_DESCRIPTION("LME2510(C) DVB-S USB2.0");
-MODULE_VERSION("1.86");
+MODULE_VERSION("1.88");
 MODULE_LICENSE("GPL");

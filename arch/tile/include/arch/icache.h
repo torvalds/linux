@@ -16,7 +16,7 @@
 /**
  * @file
  *
- * Support for invalidating bytes in the instruction
+ * Support for invalidating bytes in the instruction cache.
  */
 
 #ifndef __ARCH_ICACHE_H__
@@ -30,11 +30,10 @@
  *
  * @param addr The start of memory to be invalidated.
  * @param size The number of bytes to be invalidated.
- * @param page_size The system's page size, typically the PAGE_SIZE constant
- * in sys/page.h.  This value must be a power of two no larger
- * than the page containing the code to be invalidated. If the value
- * is smaller than the actual page size, this function will still
- * work, but may run slower than necessary.
+ * @param page_size The system's page size, e.g. getpagesize() in userspace.
+ * This value must be a power of two no larger than the page containing
+ * the code to be invalidated. If the value is smaller than the actual page
+ * size, this function will still work, but may run slower than necessary.
  */
 static __inline void
 invalidate_icache(const void* addr, unsigned long size,

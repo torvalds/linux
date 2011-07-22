@@ -942,6 +942,8 @@ static void svc_unregister(const struct svc_serv *serv)
 			if (progp->pg_vers[i]->vs_hidden)
 				continue;
 
+			dprintk("svc: attempting to unregister %sv%u\n",
+				progp->pg_name, i);
 			__svc_unregister(progp->pg_prog, i, progp->pg_name);
 		}
 	}

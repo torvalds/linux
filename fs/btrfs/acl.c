@@ -288,7 +288,7 @@ int btrfs_acl_chmod(struct inode *inode)
 		return 0;
 
 	acl = btrfs_get_acl(inode, ACL_TYPE_ACCESS);
-	if (IS_ERR(acl) || !acl)
+	if (IS_ERR_OR_NULL(acl))
 		return PTR_ERR(acl);
 
 	clone = posix_acl_clone(acl, GFP_KERNEL);

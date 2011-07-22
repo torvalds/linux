@@ -4,7 +4,9 @@ __NR_acct,
 __NR_swapon,
 #endif
 __NR_quotactl,
+#ifdef __NR_truncate
 __NR_truncate,
+#endif
 #ifdef __NR_truncate64
 __NR_truncate64,
 #endif

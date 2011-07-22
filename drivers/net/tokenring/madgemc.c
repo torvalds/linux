@@ -727,7 +727,7 @@ static int __devexit madgemc_remove(struct device *device)
 	return 0;
 }
 
-static const short madgemc_adapter_ids[] __devinitconst = {
+static short madgemc_adapter_ids[] __initdata = {
 	0x002d,
 	0x0000
 };

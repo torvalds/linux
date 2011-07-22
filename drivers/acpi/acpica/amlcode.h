@@ -394,21 +394,6 @@
 #define AML_CLASS_METHOD_CALL       0x09
 #define AML_CLASS_UNKNOWN           0x0A
 
-/* Predefined Operation Region space_iDs */
-
-typedef enum {
-	REGION_MEMORY = 0,
-	REGION_IO,
-	REGION_PCI_CONFIG,
-	REGION_EC,
-	REGION_SMBUS,
-	REGION_CMOS,
-	REGION_PCI_BAR,
-	REGION_IPMI,
-	REGION_DATA_TABLE,	/* Internal use only */
-	REGION_FIXED_HW = 0x7F
-} AML_REGION_TYPES;
-
 /* Comparison operation codes for match_op operator */
 
 typedef enum {

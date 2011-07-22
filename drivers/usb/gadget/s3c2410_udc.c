@@ -36,6 +36,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/prefetch.h>
 
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>

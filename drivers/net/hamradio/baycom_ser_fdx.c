@@ -92,7 +92,7 @@
 
 static const char bc_drvname[] = "baycom_ser_fdx";
 static const char bc_drvinfo[] = KERN_INFO "baycom_ser_fdx: (C) 1996-2000 Thomas Sailer, HB9JNX/AE4WA\n"
-"baycom_ser_fdx: version 0.10 compiled " __TIME__ " " __DATE__ "\n";
+"baycom_ser_fdx: version 0.10\n";
 
 /* --------------------------------------------------------------------- */
 

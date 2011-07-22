@@ -129,7 +129,6 @@ static inline void __arch_decomp_setup(unsigned long arch_id)
 		DEBUG_LL_OMAP1(3, sx1);
 
 		/* omap2 based boards using UART1 */
-		DEBUG_LL_OMAP2(1, omap2evm);
 		DEBUG_LL_OMAP2(1, omap_2430sdp);
 		DEBUG_LL_OMAP2(1, omap_apollon);
 		DEBUG_LL_OMAP2(1, omap_h4);

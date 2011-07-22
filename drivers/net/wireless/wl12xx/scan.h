@@ -137,6 +137,9 @@ enum {
 	SCAN_BSS_TYPE_ANY,
 };
 
+#define SCAN_CHANNEL_FLAGS_DFS		BIT(0)
+#define SCAN_CHANNEL_FLAGS_DFS_ENABLED	BIT(1)
+
 struct conn_scan_ch_params {
 	__le16 min_duration;
 	__le16 max_duration;

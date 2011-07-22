@@ -633,7 +633,7 @@ static const struct file_operations reader_fops = {
 	.llseek		= no_llseek,
 };
 
-static struct pcmcia_device_id cm4040_ids[] = {
+static const struct pcmcia_device_id cm4040_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0223, 0x0200),
 	PCMCIA_DEVICE_PROD_ID12("OMNIKEY", "CardMan 4040",
 				0xE32CDD8C, 0x8F23318B),

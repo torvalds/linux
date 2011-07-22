@@ -183,7 +183,9 @@ enum subpixel_order {
 	SubPixelNone,
 };
 
-
+#define DRM_COLOR_FORMAT_RGB444		(1<<0)
+#define DRM_COLOR_FORMAT_YCRCB444	(1<<1)
+#define DRM_COLOR_FORMAT_YCRCB422	(1<<2)
 /*
  * Describes a given display (e.g. CRT or flat panel) and its limitations.
  */
@@ -198,8 +200,10 @@ struct drm_display_info {
 	unsigned int min_vfreq, max_vfreq;
 	unsigned int min_hfreq, max_hfreq;
 	unsigned int pixel_clock;
+	unsigned int bpc;
 
 	enum subpixel_order subpixel_order;
+	u32 color_formats;
 
 	char *raw_edid; /* if any */
 };
@@ -516,6 +520,8 @@ struct drm_connector {
 	uint32_t encoder_ids[DRM_CONNECTOR_MAX_ENCODER];
 	uint32_t force_encoder_id;
 	struct drm_encoder *encoder; /* currently active encoder */
+
+	int null_edid_counter; /* needed to workaround some HW bugs where we get all 0s */
 };
 
 /**

@@ -453,7 +453,7 @@ static int ceph_writepage(struct page *page, struct writeback_control *wbc)
 	int err;
 	struct inode *inode = page->mapping->host;
 	BUG_ON(!inode);
-	igrab(inode);
+	ihold(inode);
 	err = writepage_nounlock(page, wbc);
 	unlock_page(page);
 	iput(inode);
@@ -848,7 +848,8 @@ get_more_pages:
 		op->payload_len = cpu_to_le32(len);
 		req->r_request->hdr.data_len = cpu_to_le32(len);
 
-		ceph_osdc_start_request(&fsc->client->osdc, req, true);
+		rc = ceph_osdc_start_request(&fsc->client->osdc, req, true);
+		BUG_ON(rc);
 		req = NULL;
 
 		/* continue? */
@@ -880,8 +881,6 @@ release_pvec_pages:
 out:
 	if (req)
 		ceph_osdc_put_request(req);
-	if (rc > 0)
-		rc = 0;  /* vfs expects us to return 0 */
 	ceph_put_snap_context(snapc);
 	dout("writepages done, rc = %d\n", rc);
 	return rc;

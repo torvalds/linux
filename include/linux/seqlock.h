@@ -28,6 +28,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/preempt.h>
+#include <asm/processor.h>
 
 typedef struct {
 	unsigned sequence;
@@ -40,9 +41,6 @@ typedef struct {
  */
 #define __SEQLOCK_UNLOCKED(lockname) \
 		 { 0, __SPIN_LOCK_UNLOCKED(lockname) }
-
-#define SEQLOCK_UNLOCKED \
-		 __SEQLOCK_UNLOCKED(old_style_seqlock_init)
 
 #define seqlock_init(x)					\
 	do {						\

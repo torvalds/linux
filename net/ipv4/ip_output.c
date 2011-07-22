@@ -799,7 +799,9 @@ static int __ip_append_data(struct sock *sk,
 	int csummode = CHECKSUM_NONE;
 	struct rtable *rt = (struct rtable *)cork->dst;
 
-	exthdrlen = transhdrlen ? rt->dst.header_len : 0;
+	skb = skb_peek_tail(queue);
+
+	exthdrlen = !skb ? rt->dst.header_len : 0;
 	length += exthdrlen;
 	transhdrlen += exthdrlen;
 	mtu = cork->fragsize;
@@ -824,8 +826,6 @@ static int __ip_append_data(struct sock *sk,
 	    rt->dst.dev->features & NETIF_F_V4_CSUM &&
 	    !exthdrlen)
 		csummode = CHECKSUM_PARTIAL;
-
-	skb = skb_peek_tail(queue);
 
 	cork->length += length;
 	if (((length > mtu) || (skb && skb_is_gso(skb))) &&
