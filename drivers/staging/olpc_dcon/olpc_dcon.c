@@ -88,28 +88,17 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 	}
 
 	if (ver < 0xdc02) {
-		/* Initialize the DCON registers */
-
-		/* Start with work-arounds for DCON ASIC */
-		i2c_smbus_write_word_data(client, 0x4b, 0x00cc);
-		i2c_smbus_write_word_data(client, 0x4b, 0x00cc);
-		i2c_smbus_write_word_data(client, 0x4b, 0x00cc);
-		i2c_smbus_write_word_data(client, 0x0b, 0x007a);
-		i2c_smbus_write_word_data(client, 0x36, 0x025c);
-		i2c_smbus_write_word_data(client, 0x37, 0x025e);
-
-		/* Initialise SDRAM */
-
-		i2c_smbus_write_word_data(client, 0x3b, 0x002b);
-		i2c_smbus_write_word_data(client, 0x41, 0x0101);
-		i2c_smbus_write_word_data(client, 0x42, 0x0101);
-	} else {
-		/* SDRAM setup/hold time */
-		i2c_smbus_write_word_data(client, 0x3a, 0xc040);
-		i2c_smbus_write_word_data(client, 0x41, 0x0000);
-		i2c_smbus_write_word_data(client, 0x41, 0x0101);
-		i2c_smbus_write_word_data(client, 0x42, 0x0101);
+		dev_err(&dcon->client->dev,
+				"DCON v1 is unsupported, giving up..\n");
+		rc = -ENODEV;
+		goto err;
 	}
+
+	/* SDRAM setup/hold time */
+	i2c_smbus_write_word_data(client, 0x3a, 0xc040);
+	i2c_smbus_write_word_data(client, 0x41, 0x0000);
+	i2c_smbus_write_word_data(client, 0x41, 0x0101);
+	i2c_smbus_write_word_data(client, 0x42, 0x0101);
 
 	/* Colour swizzle, AA, no passthrough, backlight */
 	if (is_init) {
