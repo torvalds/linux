@@ -98,11 +98,18 @@ static int watchdog_start(struct watchdog_device *wddev)
  *	Stop the watchdog if it is still active and unmark it active.
  *	This function returns zero on success or a negative errno code for
  *	failure.
+ *	If the 'nowayout' feature was set, the watchdog cannot be stopped.
  */
 
 static int watchdog_stop(struct watchdog_device *wddev)
 {
-	int err;
+	int err = -EBUSY;
+
+	if (test_bit(WDOG_NO_WAY_OUT, &wdd->status)) {
+		pr_info("%s: nowayout prevents watchdog to be stopped!\n",
+							wdd->info->identity);
+		return err;
+	}
 
 	if (test_bit(WDOG_ACTIVE, &wdd->status)) {
 		err = wddev->ops->stop(wddev);
@@ -123,7 +130,7 @@ static int watchdog_stop(struct watchdog_device *wddev)
  *
  *	A write to a watchdog device is defined as a keepalive ping.
  *	Writing the magic 'V' sequence allows the next close to turn
- *	off the watchdog.
+ *	off the watchdog (if 'nowayout' is not set).
  */
 
 static ssize_t watchdog_write(struct file *file, const char __user *data,
@@ -271,8 +278,8 @@ out:
  *      @file: file handle to device
  *
  *	This is the code for when /dev/watchdog gets closed. We will only
- *	stop the watchdog when we have received the magic char, else the
- *	watchdog will keep running.
+ *	stop the watchdog when we have received the magic char (and nowayout
+ *	was not set), else the watchdog will keep running.
  */
 
 static int watchdog_release(struct inode *inode, struct file *file)
@@ -281,7 +288,8 @@ static int watchdog_release(struct inode *inode, struct file *file)
 
 	/*
 	 * We only stop the watchdog if we received the magic character
-	 * or if WDIOF_MAGICCLOSE is not set
+	 * or if WDIOF_MAGICCLOSE is not set. If nowayout was set then
+	 * watchdog_stop will fail.
 	 */
 	if (test_and_clear_bit(WDOG_ALLOW_RELEASE, &wdd->status) ||
 	    !(wdd->info->options & WDIOF_MAGICCLOSE))

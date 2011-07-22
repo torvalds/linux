@@ -59,8 +59,8 @@ It contains following fields:
   watchdog_get_drvdata routines.
 * status: this field contains a number of status bits that give extra
   information about the status of the device (Like: is the watchdog timer
-  running/active, is the device opened via the /dev/watchdog interface or not,
-  ...).
+  running/active, is the nowayout bit set, is the device opened via
+  the /dev/watchdog interface or not, ...).
 
 The list of watchdog operations is defined as:
 
@@ -130,10 +130,13 @@ bit-operations. The status bits that are defined are:
 * WDOG_ALLOW_RELEASE: this bit stores whether or not the magic close character
   has been sent (so that we can support the magic close feature).
   (This bit should only be used by the WatchDog Timer Driver Core).
+* WDOG_NO_WAY_OUT: this bit stores the nowayout setting for the watchdog.
+  If this bit is set then the watchdog timer will not be able to stop.
 
-Note: The WatchDog Timer Driver Core supports the magic close feature. To use
-the magic close feature you must set the WDIOF_MAGICCLOSE bit in the options
-field of the watchdog's info structure.
+Note: The WatchDog Timer Driver Core supports the magic close feature and
+the nowayout feature. To use the magic close feature you must set the
+WDIOF_MAGICCLOSE bit in the options field of the watchdog's info structure.
+The nowayout feature will overrule the magic close feature.
 
 To get or set driver specific data the following two helper functions should be
 used:
