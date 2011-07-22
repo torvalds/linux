@@ -1094,7 +1094,7 @@ STATIC int
 xfs_bioerror_relse(
 	struct xfs_buf	*bp)
 {
-	int64_t		fl = XFS_BUF_BFLAGS(bp);
+	int64_t		fl = bp->b_flags;
 	/*
 	 * No need to wait until the buffer is unpinned.
 	 * We aren't flushing it.
