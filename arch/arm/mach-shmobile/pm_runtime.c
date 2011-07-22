@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/sh_clk.h>
@@ -28,31 +29,38 @@ static int default_platform_runtime_idle(struct device *dev)
 	return pm_runtime_suspend(dev);
 }
 
-static struct dev_power_domain default_power_domain = {
+static struct dev_pm_domain default_pm_domain = {
 	.ops = {
-		.runtime_suspend = pm_runtime_clk_suspend,
-		.runtime_resume = pm_runtime_clk_resume,
+		.runtime_suspend = pm_clk_suspend,
+		.runtime_resume = pm_clk_resume,
 		.runtime_idle = default_platform_runtime_idle,
 		USE_PLATFORM_PM_SLEEP_OPS
 	},
 };
 
-#define DEFAULT_PWR_DOMAIN_PTR	(&default_power_domain)
+#define DEFAULT_PM_DOMAIN_PTR	(&default_pm_domain)
 
 #else
 
-#define DEFAULT_PWR_DOMAIN_PTR	NULL
+#define DEFAULT_PM_DOMAIN_PTR	NULL
 
 #endif /* CONFIG_PM_RUNTIME */
 
 static struct pm_clk_notifier_block platform_bus_notifier = {
-	.pwr_domain = DEFAULT_PWR_DOMAIN_PTR,
+	.pm_domain = DEFAULT_PM_DOMAIN_PTR,
 	.con_ids = { NULL, },
 };
 
 static int __init sh_pm_runtime_init(void)
 {
-	pm_runtime_clk_add_notifier(&platform_bus_type, &platform_bus_notifier);
+	pm_clk_add_notifier(&platform_bus_type, &platform_bus_notifier);
 	return 0;
 }
 core_initcall(sh_pm_runtime_init);
+
+static int __init sh_pm_runtime_late_init(void)
+{
+	pm_genpd_poweroff_unused();
+	return 0;
+}
+late_initcall(sh_pm_runtime_late_init);
