@@ -1461,6 +1461,22 @@ static int igb_setup_loopback_test(struct igb_adapter *adapter)
 
 	/* use CTRL_EXT to identify link type as SGMII can appear as copper */
 	if (reg & E1000_CTRL_EXT_LINK_MODE_MASK) {
+		if ((hw->device_id == E1000_DEV_ID_DH89XXCC_SGMII) ||
+		(hw->device_id == E1000_DEV_ID_DH89XXCC_SERDES) ||
+		(hw->device_id == E1000_DEV_ID_DH89XXCC_BACKPLANE) ||
+		(hw->device_id == E1000_DEV_ID_DH89XXCC_SFP)) {
+
+			/* Enable DH89xxCC MPHY for near end loopback */
+			reg = rd32(E1000_MPHY_ADDR_CTL);
+			reg = (reg & E1000_MPHY_ADDR_CTL_OFFSET_MASK) |
+			E1000_MPHY_PCS_CLK_REG_OFFSET;
+			wr32(E1000_MPHY_ADDR_CTL, reg);
+
+			reg = rd32(E1000_MPHY_DATA);
+			reg |= E1000_MPHY_PCS_CLK_REG_DIGINELBEN;
+			wr32(E1000_MPHY_DATA, reg);
+		}
+
 		reg = rd32(E1000_RCTL);
 		reg |= E1000_RCTL_LBM_TCVR;
 		wr32(E1000_RCTL, reg);
@@ -1501,6 +1517,23 @@ static void igb_loopback_cleanup(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	u32 rctl;
 	u16 phy_reg;
+
+	if ((hw->device_id == E1000_DEV_ID_DH89XXCC_SGMII) ||
+	(hw->device_id == E1000_DEV_ID_DH89XXCC_SERDES) ||
+	(hw->device_id == E1000_DEV_ID_DH89XXCC_BACKPLANE) ||
+	(hw->device_id == E1000_DEV_ID_DH89XXCC_SFP)) {
+		u32 reg;
+
+		/* Disable near end loopback on DH89xxCC */
+		reg = rd32(E1000_MPHY_ADDR_CTL);
+		reg = (reg & E1000_MPHY_ADDR_CTL_OFFSET_MASK) |
+		E1000_MPHY_PCS_CLK_REG_OFFSET;
+		wr32(E1000_MPHY_ADDR_CTL, reg);
+
+		reg = rd32(E1000_MPHY_DATA);
+		reg &= ~E1000_MPHY_PCS_CLK_REG_DIGINELBEN;
+		wr32(E1000_MPHY_DATA, reg);
+	}
 
 	rctl = rd32(E1000_RCTL);
 	rctl &= ~(E1000_RCTL_LBM_TCVR | E1000_RCTL_LBM_MAC);

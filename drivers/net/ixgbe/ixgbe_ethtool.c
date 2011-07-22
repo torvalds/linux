@@ -442,109 +442,6 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 	return 0;
 }
 
-static void ixgbe_do_reset(struct net_device *netdev)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-
-	if (netif_running(netdev))
-		ixgbe_reinit_locked(adapter);
-	else
-		ixgbe_reset(adapter);
-}
-
-static u32 ixgbe_get_rx_csum(struct net_device *netdev)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	return adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED;
-}
-
-static void ixgbe_set_rsc(struct ixgbe_adapter *adapter)
-{
-	int i;
-
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		struct ixgbe_ring *ring = adapter->rx_ring[i];
-		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
-			set_ring_rsc_enabled(ring);
-			ixgbe_configure_rscctl(adapter, ring);
-		} else {
-			ixgbe_clear_rscctl(adapter, ring);
-		}
-	}
-}
-
-static int ixgbe_set_rx_csum(struct net_device *netdev, u32 data)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	bool need_reset = false;
-
-	if (data) {
-		adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
-	} else {
-		adapter->flags &= ~IXGBE_FLAG_RX_CSUM_ENABLED;
-
-		if (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE) {
-			adapter->flags2 &= ~IXGBE_FLAG2_RSC_ENABLED;
-			netdev->features &= ~NETIF_F_LRO;
-		}
-
-		switch (adapter->hw.mac.type) {
-		case ixgbe_mac_X540:
-			ixgbe_set_rsc(adapter);
-			break;
-		case ixgbe_mac_82599EB:
-			need_reset = true;
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (need_reset)
-		ixgbe_do_reset(netdev);
-
-	return 0;
-}
-
-static u32 ixgbe_get_tx_csum(struct net_device *netdev)
-{
-	return (netdev->features & NETIF_F_IP_CSUM) != 0;
-}
-
-static int ixgbe_set_tx_csum(struct net_device *netdev, u32 data)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	u32 feature_list;
-
-	feature_list = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
-	switch (adapter->hw.mac.type) {
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
-		feature_list |= NETIF_F_SCTP_CSUM;
-		break;
-	default:
-		break;
-	}
-	if (data)
-		netdev->features |= feature_list;
-	else
-		netdev->features &= ~feature_list;
-
-	return 0;
-}
-
-static int ixgbe_set_tso(struct net_device *netdev, u32 data)
-{
-	if (data) {
-		netdev->features |= NETIF_F_TSO;
-		netdev->features |= NETIF_F_TSO6;
-	} else {
-		netdev->features &= ~NETIF_F_TSO;
-		netdev->features &= ~NETIF_F_TSO6;
-	}
-	return 0;
-}
-
 static u32 ixgbe_get_msglevel(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
@@ -2103,7 +2000,7 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	ec->tx_max_coalesced_frames_irq = adapter->tx_ring[0]->work_limit;
+	ec->tx_max_coalesced_frames_irq = adapter->tx_work_limit;
 
 	/* only valid if in constant ITR mode */
 	switch (adapter->rx_itr_setting) {
@@ -2122,7 +2019,7 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 	}
 
 	/* if in mixed tx/rx queues per vector mode, report only rx settings */
-	if (adapter->q_vector[0]->txr_count && adapter->q_vector[0]->rxr_count)
+	if (adapter->q_vector[0]->tx.count && adapter->q_vector[0]->rx.count)
 		return 0;
 
 	/* only valid if in constant ITR mode */
@@ -2187,12 +2084,12 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	bool need_reset = false;
 
 	/* don't accept tx specific changes if we've got mixed RxTx vectors */
-	if (adapter->q_vector[0]->txr_count && adapter->q_vector[0]->rxr_count
+	if (adapter->q_vector[0]->tx.count && adapter->q_vector[0]->rx.count
 	   && ec->tx_coalesce_usecs)
 		return -EINVAL;
 
 	if (ec->tx_max_coalesced_frames_irq)
-		adapter->tx_ring[0]->work_limit = ec->tx_max_coalesced_frames_irq;
+		adapter->tx_work_limit = ec->tx_max_coalesced_frames_irq;
 
 	if (ec->rx_coalesce_usecs > 1) {
 		/* check the limits */
@@ -2261,18 +2158,20 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		int num_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 		for (i = 0; i < num_vectors; i++) {
 			q_vector = adapter->q_vector[i];
-			if (q_vector->txr_count && !q_vector->rxr_count)
+			if (q_vector->tx.count && !q_vector->rx.count)
 				/* tx only */
 				q_vector->eitr = adapter->tx_eitr_param;
 			else
 				/* rx only or mixed */
 				q_vector->eitr = adapter->rx_eitr_param;
+			q_vector->tx.work_limit = adapter->tx_work_limit;
 			ixgbe_write_eitr(q_vector);
 		}
 	/* Legacy Interrupt Mode */
 	} else {
 		q_vector = adapter->q_vector[0];
 		q_vector->eitr = adapter->rx_eitr_param;
+		q_vector->tx.work_limit = adapter->tx_work_limit;
 		ixgbe_write_eitr(q_vector);
 	}
 
@@ -2281,81 +2180,6 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 	 * correctly w.r.t stopping tx, and changing TXDCTL.WTHRESH settings
 	 * also locks in RSC enable/disable which requires reset
 	 */
-	if (need_reset)
-		ixgbe_do_reset(netdev);
-
-	return 0;
-}
-
-static int ixgbe_set_flags(struct net_device *netdev, u32 data)
-{
-	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	bool need_reset = false;
-	int rc;
-
-#ifdef CONFIG_IXGBE_DCB
-	if ((adapter->flags & IXGBE_FLAG_DCB_ENABLED) &&
-	    !(data & ETH_FLAG_RXVLAN))
-		return -EINVAL;
-#endif
-
-	need_reset = (data & ETH_FLAG_RXVLAN) !=
-		     (netdev->features & NETIF_F_HW_VLAN_RX);
-
-	if ((data & ETH_FLAG_RXHASH) &&
-	    !(adapter->flags & IXGBE_FLAG_RSS_ENABLED))
-		return -EOPNOTSUPP;
-
-	rc = ethtool_op_set_flags(netdev, data, ETH_FLAG_LRO | ETH_FLAG_NTUPLE |
-				  ETH_FLAG_RXVLAN | ETH_FLAG_TXVLAN |
-				  ETH_FLAG_RXHASH);
-	if (rc)
-		return rc;
-
-	/* if state changes we need to update adapter->flags and reset */
-	if ((adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE) &&
-	    (!!(data & ETH_FLAG_LRO) !=
-	     !!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))) {
-		if ((data & ETH_FLAG_LRO) &&
-		    (!adapter->rx_itr_setting ||
-		     (adapter->rx_itr_setting > IXGBE_MAX_RSC_INT_RATE))) {
-			e_info(probe, "rx-usecs set too low, "
-				      "not enabling RSC.\n");
-		} else {
-			adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
-			switch (adapter->hw.mac.type) {
-			case ixgbe_mac_X540:
-				ixgbe_set_rsc(adapter);
-				break;
-			case ixgbe_mac_82599EB:
-				need_reset = true;
-				break;
-			default:
-				break;
-			}
-		}
-	}
-
-	/*
-	 * Check if Flow Director n-tuple support was enabled or disabled.  If
-	 * the state changed, we need to reset.
-	 */
-	if (!(adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE)) {
-		/* turn off ATR, enable perfect filters and reset */
-		if (data & ETH_FLAG_NTUPLE) {
-			adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
-			adapter->flags |= IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
-			need_reset = true;
-		}
-	} else if (!(data & ETH_FLAG_NTUPLE)) {
-		/* turn off Flow Director, set ATR and reset */
-		adapter->flags &= ~IXGBE_FLAG_FDIR_PERFECT_CAPABLE;
-		if ((adapter->flags & IXGBE_FLAG_RSS_ENABLED) &&
-		    !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
-			adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
-		need_reset = true;
-	}
-
 	if (need_reset)
 		ixgbe_do_reset(netdev);
 
@@ -2744,16 +2568,8 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.set_ringparam          = ixgbe_set_ringparam,
 	.get_pauseparam         = ixgbe_get_pauseparam,
 	.set_pauseparam         = ixgbe_set_pauseparam,
-	.get_rx_csum            = ixgbe_get_rx_csum,
-	.set_rx_csum            = ixgbe_set_rx_csum,
-	.get_tx_csum            = ixgbe_get_tx_csum,
-	.set_tx_csum            = ixgbe_set_tx_csum,
-	.get_sg                 = ethtool_op_get_sg,
-	.set_sg                 = ethtool_op_set_sg,
 	.get_msglevel           = ixgbe_get_msglevel,
 	.set_msglevel           = ixgbe_set_msglevel,
-	.get_tso                = ethtool_op_get_tso,
-	.set_tso                = ixgbe_set_tso,
 	.self_test              = ixgbe_diag_test,
 	.get_strings            = ixgbe_get_strings,
 	.set_phys_id            = ixgbe_set_phys_id,
@@ -2761,8 +2577,6 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.get_ethtool_stats      = ixgbe_get_ethtool_stats,
 	.get_coalesce           = ixgbe_get_coalesce,
 	.set_coalesce           = ixgbe_set_coalesce,
-	.get_flags              = ethtool_op_get_flags,
-	.set_flags              = ixgbe_set_flags,
 	.get_rxnfc		= ixgbe_get_rxnfc,
 	.set_rxnfc		= ixgbe_set_rxnfc,
 };

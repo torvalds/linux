@@ -214,12 +214,10 @@ struct ixgbe_ring {
 		struct ixgbe_rx_buffer *rx_buffer_info;
 	};
 	unsigned long state;
-	u8 atr_sample_rate;
-	u8 atr_count;
+	u8 __iomem *tail;
+
 	u16 count;			/* amount of descriptors */
 	u16 rx_buf_len;
-	u16 next_to_use;
-	u16 next_to_clean;
 
 	u8 queue_index; /* needed for multiqueue queue management */
 	u8 reg_idx;			/* holds the special value that gets
@@ -227,15 +225,13 @@ struct ixgbe_ring {
 					 * associated with this ring, which is
 					 * different for DCB and RSS modes
 					 */
+	u8 atr_sample_rate;
+	u8 atr_count;
+
+	u16 next_to_use;
+	u16 next_to_clean;
+
 	u8 dcb_tc;
-
-	u16 work_limit;			/* max work per interrupt */
-
-	u8 __iomem *tail;
-
-	unsigned int total_bytes;
-	unsigned int total_packets;
-
 	struct ixgbe_queue_stats stats;
 	struct u64_stats_sync syncp;
 	union {
@@ -277,6 +273,18 @@ struct ixgbe_ring_feature {
 	int mask;
 } ____cacheline_internodealigned_in_smp;
 
+struct ixgbe_ring_container {
+#if MAX_RX_QUEUES > MAX_TX_QUEUES
+	DECLARE_BITMAP(idx, MAX_RX_QUEUES);
+#else
+	DECLARE_BITMAP(idx, MAX_TX_QUEUES);
+#endif
+	unsigned int total_bytes;	/* total bytes processed this int */
+	unsigned int total_packets;	/* total packets processed this int */
+	u16 work_limit;			/* total work allowed per interrupt */
+	u8 count;			/* total number of rings in vector */
+	u8 itr;				/* current ITR setting for ring */
+};
 
 #define MAX_RX_PACKET_BUFFERS ((adapter->flags & IXGBE_FLAG_DCB_ENABLED) \
                               ? 8 : 1)
@@ -294,12 +302,7 @@ struct ixgbe_q_vector {
 	int cpu;	    /* CPU for DCA */
 #endif
 	struct napi_struct napi;
-	DECLARE_BITMAP(rxr_idx, MAX_RX_QUEUES); /* Rx ring indices */
-	DECLARE_BITMAP(txr_idx, MAX_TX_QUEUES); /* Tx ring indices */
-	u8 rxr_count;     /* Rx ring count assigned to this vector */
-	u8 txr_count;     /* Tx ring count assigned to this vector */
-	u8 tx_itr;
-	u8 rx_itr;
+	struct ixgbe_ring_container rx, tx;
 	u32 eitr;
 	cpumask_var_t affinity_mask;
 	char name[IFNAMSIZ + 9];
@@ -412,6 +415,9 @@ struct ixgbe_adapter {
 	u32 tx_itr_setting;
 	u16 eitr_low;
 	u16 eitr_high;
+
+	/* Work limits */
+	u16 tx_work_limit;
 
 	/* TX */
 	struct ixgbe_ring *tx_ring[MAX_TX_QUEUES] ____cacheline_aligned_in_smp;
@@ -581,21 +587,19 @@ extern s32 ixgbe_fdir_erase_perfect_filter_82599(struct ixgbe_hw *hw,
 						 u16 soft_id);
 extern void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 						 union ixgbe_atr_input *mask);
-extern void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
-                                   struct ixgbe_ring *ring);
-extern void ixgbe_clear_rscctl(struct ixgbe_adapter *adapter,
-                               struct ixgbe_ring *ring);
 extern void ixgbe_set_rx_mode(struct net_device *netdev);
 extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
 extern void ixgbe_tx_ctxtdesc(struct ixgbe_ring *, u32, u32, u32, u32);
+extern void ixgbe_do_reset(struct net_device *netdev);
 #ifdef IXGBE_FCOE
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fso(struct ixgbe_ring *tx_ring, struct sk_buff *skb,
                      u32 tx_flags, u8 *hdr_len);
 extern void ixgbe_cleanup_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
-                          union ixgbe_adv_rx_desc *rx_desc,
-                          struct sk_buff *skb);
+			  union ixgbe_adv_rx_desc *rx_desc,
+			  struct sk_buff *skb,
+			  u32 staterr);
 extern int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
                               struct scatterlist *sgl, unsigned int sgc);
 extern int ixgbe_fcoe_ddp_target(struct net_device *netdev, u16 xid,
