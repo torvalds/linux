@@ -59,6 +59,16 @@ int watchdog_register_device(struct watchdog_device *wdd)
 		return -EINVAL;
 
 	/*
+	 * Check that we have valid min and max timeout values, if
+	 * not reset them both to 0 (=not used or unknown)
+	 */
+	if (wdd->min_timeout > wdd->max_timeout) {
+		pr_info("Invalid min and max timeout values, resetting to 0!\n");
+		wdd->min_timeout = 0;
+		wdd->max_timeout = 0;
+	}
+
+	/*
 	 * Note: now that all watchdog_device data has been verified, we
 	 * will not check this anymore in other functions. If data gets
 	 * corrupted in a later stage then we expect a kernel panic!

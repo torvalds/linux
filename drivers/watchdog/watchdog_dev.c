@@ -220,6 +220,9 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 			return -EOPNOTSUPP;
 		if (get_user(val, p))
 			return -EFAULT;
+		if ((wdd->max_timeout != 0) &&
+		    (val < wdd->min_timeout || val > wdd->max_timeout))
+				return -EINVAL;
 		err = wdd->ops->set_timeout(wdd, val);
 		if (err < 0)
 			return err;

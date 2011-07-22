@@ -95,6 +95,8 @@ struct watchdog_ops {
  * @ops:	Pointer to the list of watchdog operations.
  * @bootstatus:	Status of the watchdog device at boot.
  * @timeout:	The watchdog devices timeout value.
+ * @min_timeout:The watchdog devices minimum timeout value.
+ * @max_timeout:The watchdog devices maximum timeout value.
  * @driver-data:Pointer to the drivers private data.
  * @status:	Field that contains the devices internal status bits.
  *
@@ -109,6 +111,8 @@ struct watchdog_device {
 	const struct watchdog_ops *ops;
 	unsigned int bootstatus;
 	unsigned int timeout;
+	unsigned int min_timeout;
+	unsigned int max_timeout;
 	void *driver_data;
 	unsigned long status;
 /* Bit numbers for status flags */
