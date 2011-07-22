@@ -1938,7 +1938,7 @@ xfs_getsb(
 		xfs_buf_lock(bp);
 	}
 
-	XFS_BUF_HOLD(bp);
+	xfs_buf_hold(bp);
 	ASSERT(XFS_BUF_ISDONE(bp));
 	return bp;
 }
