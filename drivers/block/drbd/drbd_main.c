@@ -511,28 +511,38 @@ int conn_lowest_minor(struct drbd_connection *connection)
 #ifdef CONFIG_SMP
 /**
  * drbd_calc_cpu_mask() - Generate CPU masks, spread over all CPUs
- * @device:	DRBD device.
  *
- * Forces all threads of a device onto the same CPU. This is beneficial for
+ * Forces all threads of a resource onto the same CPU. This is beneficial for
  * DRBD's performance. May be overwritten by user's configuration.
  */
-void drbd_calc_cpu_mask(struct drbd_connection *connection)
+static void drbd_calc_cpu_mask(cpumask_var_t *cpu_mask)
 {
-	int ord, cpu;
+	unsigned int *resources_per_cpu, min_index = ~0;
 
-	/* user override. */
-	if (cpumask_weight(connection->cpu_mask))
-		return;
+	resources_per_cpu = kzalloc(nr_cpu_ids * sizeof(*resources_per_cpu), GFP_KERNEL);
+	if (resources_per_cpu) {
+		struct drbd_resource *resource;
+		unsigned int cpu, min = ~0;
 
-	ord = conn_lowest_minor(connection) % cpumask_weight(cpu_online_mask);
-	for_each_online_cpu(cpu) {
-		if (ord-- == 0) {
-			cpumask_set_cpu(cpu, connection->cpu_mask);
-			return;
+		rcu_read_lock();
+		for_each_resource_rcu(resource, &drbd_resources) {
+			for_each_cpu(cpu, resource->cpu_mask)
+				resources_per_cpu[cpu]++;
 		}
+		rcu_read_unlock();
+		for_each_online_cpu(cpu) {
+			if (resources_per_cpu[cpu] < min) {
+				min = resources_per_cpu[cpu];
+				min_index = cpu;
+			}
+		}
+		kfree(resources_per_cpu);
 	}
-	/* should not be reached */
-	cpumask_setall(connection->cpu_mask);
+	if (min_index == ~0) {
+		cpumask_setall(*cpu_mask);
+		return;
+	}
+	cpumask_set_cpu(min_index, *cpu_mask);
 }
 
 /**
@@ -550,8 +560,10 @@ void drbd_thread_current_set_cpu(struct drbd_thread *thi)
 	if (!thi->reset_cpu_mask)
 		return;
 	thi->reset_cpu_mask = 0;
-	set_cpus_allowed_ptr(p, thi->connection->cpu_mask);
+	set_cpus_allowed_ptr(p, thi->connection->resource->cpu_mask);
 }
+#else
+#define drbd_calc_cpu_mask(A) ({})
 #endif
 
 /**
@@ -2287,6 +2299,7 @@ void drbd_destroy_resource(struct kref *kref)
 		container_of(kref, struct drbd_resource, kref);
 
 	idr_destroy(&resource->devices);
+	free_cpumask_var(resource->cpu_mask);
 	kfree(resource->name);
 	kfree(resource);
 }
@@ -2512,10 +2525,11 @@ int set_resource_options(struct drbd_resource *resource, struct res_opts *res_op
 		}
 	}
 	resource->res_opts = *res_opts;
-	for_each_connection_rcu(connection, resource) {
-		if (!cpumask_equal(connection->cpu_mask, new_cpu_mask)) {
-			cpumask_copy(connection->cpu_mask, new_cpu_mask);
-			drbd_calc_cpu_mask(connection);
+	if (cpumask_empty(new_cpu_mask))
+		drbd_calc_cpu_mask(&new_cpu_mask);
+	if (!cpumask_equal(resource->cpu_mask, new_cpu_mask)) {
+		cpumask_copy(resource->cpu_mask, new_cpu_mask);
+		for_each_connection_rcu(connection, resource) {
 			connection->receiver.reset_cpu_mask = 1;
 			connection->asender.reset_cpu_mask = 1;
 			connection->worker.reset_cpu_mask = 1;
@@ -2535,12 +2549,12 @@ struct drbd_resource *drbd_create_resource(const char *name)
 
 	resource = kzalloc(sizeof(struct drbd_resource), GFP_KERNEL);
 	if (!resource)
-		return NULL;
+		goto fail;
 	resource->name = kstrdup(name, GFP_KERNEL);
-	if (!resource->name) {
-		kfree(resource);
-		return NULL;
-	}
+	if (!resource->name)
+		goto fail_free_resource;
+	if (!zalloc_cpumask_var(&resource->cpu_mask, GFP_KERNEL))
+		goto fail_free_name;
 	kref_init(&resource->kref);
 	idr_init(&resource->devices);
 	INIT_LIST_HEAD(&resource->connections);
@@ -2548,6 +2562,13 @@ struct drbd_resource *drbd_create_resource(const char *name)
 	mutex_init(&resource->conf_update);
 	spin_lock_init(&resource->req_lock);
 	return resource;
+
+fail_free_name:
+	kfree(resource->name);
+fail_free_resource:
+	kfree(resource);
+fail:
+	return NULL;
 }
 
 /* caller must be under genl_lock() */
@@ -2563,9 +2584,6 @@ struct drbd_connection *conn_create(const char *name, struct res_opts *res_opts)
 	if (drbd_alloc_socket(&connection->data))
 		goto fail;
 	if (drbd_alloc_socket(&connection->meta))
-		goto fail;
-
-	if (!zalloc_cpumask_var(&connection->cpu_mask, GFP_KERNEL))
 		goto fail;
 
 	connection->current_epoch = kzalloc(sizeof(struct drbd_epoch), GFP_KERNEL);
@@ -2616,7 +2634,6 @@ fail_resource:
 	drbd_free_resource(resource);
 fail:
 	kfree(connection->current_epoch);
-	free_cpumask_var(connection->cpu_mask);
 	drbd_free_socket(&connection->meta);
 	drbd_free_socket(&connection->data);
 	kfree(connection);
@@ -2634,7 +2651,6 @@ void drbd_destroy_connection(struct kref *kref)
 
 	idr_destroy(&connection->peer_devices);
 
-	free_cpumask_var(connection->cpu_mask);
 	drbd_free_socket(&connection->meta);
 	drbd_free_socket(&connection->data);
 	kfree(connection->int_dig_in);

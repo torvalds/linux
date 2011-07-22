@@ -584,6 +584,8 @@ struct drbd_resource {
 	unsigned susp:1;		/* IO suspended by user */
 	unsigned susp_nod:1;		/* IO suspended because no data */
 	unsigned susp_fen:1;		/* IO suspended because fence peer handler runs */
+
+	cpumask_var_t cpu_mask;
 };
 
 struct drbd_connection {
@@ -632,7 +634,6 @@ struct drbd_connection {
 	struct drbd_thread receiver;
 	struct drbd_thread worker;
 	struct drbd_thread asender;
-	cpumask_var_t cpu_mask;
 
 	/* sender side */
 	struct drbd_work_queue sender_work;
@@ -880,10 +881,8 @@ extern void _drbd_thread_stop(struct drbd_thread *thi, int restart, int wait);
 extern char *drbd_task_to_thread_name(struct drbd_connection *connection, struct task_struct *task);
 #ifdef CONFIG_SMP
 extern void drbd_thread_current_set_cpu(struct drbd_thread *thi);
-extern void drbd_calc_cpu_mask(struct drbd_connection *connection);
 #else
 #define drbd_thread_current_set_cpu(A) ({})
-#define drbd_calc_cpu_mask(A) ({})
 #endif
 extern void tl_release(struct drbd_connection *, unsigned int barrier_nr,
 		       unsigned int set_size);
