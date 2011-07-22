@@ -241,6 +241,9 @@
 #define BCMA_CC_SPROM			0x0800 /* SPROM beginning */
 #define BCMA_CC_SPROM_PCIE6		0x0830 /* SPROM beginning on PCIe rev >= 6 */
 
+/* ALP clock on pre-PMU chips */
+#define BCMA_CC_PMU_ALP_CLOCK		20000000
+
 /* Data for the PMU, if available.
  * Check availability with ((struct bcma_chipcommon)->capabilities & BCMA_CC_CAP_PMU)
  */
@@ -255,6 +258,14 @@ struct bcma_pflash {
 	u32 window;
 	u32 window_size;
 };
+
+struct bcma_serial_port {
+	void *regs;
+	unsigned long clockspeed;
+	unsigned int irq;
+	unsigned int baud_base;
+	unsigned int reg_shift;
+};
 #endif /* CONFIG_BCMA_DRIVER_MIPS */
 
 struct bcma_drv_cc {
@@ -268,6 +279,9 @@ struct bcma_drv_cc {
 	struct bcma_chipcommon_pmu pmu;
 #ifdef CONFIG_BCMA_DRIVER_MIPS
 	struct bcma_pflash pflash;
+
+	int nr_serial_ports;
+	struct bcma_serial_port serial_ports[4];
 #endif /* CONFIG_BCMA_DRIVER_MIPS */
 };
 

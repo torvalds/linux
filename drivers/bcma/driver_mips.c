@@ -238,6 +238,7 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 	if (mcore->setup_done)
 		return;
 
+	bcma_chipco_serial_init(&bus->drv_cc);
 	bcma_core_mips_flash_detect(mcore);
 	mcore->setup_done = true;
 }

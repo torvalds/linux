@@ -29,6 +29,14 @@ void bcma_init_bus(struct bcma_bus *bus);
 /* sprom.c */
 int bcma_sprom_get(struct bcma_bus *bus);
 
+/* driver_chipcommon.c */
+#ifdef CONFIG_BCMA_DRIVER_MIPS
+void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
+#endif /* CONFIG_BCMA_DRIVER_MIPS */
+
+/* driver_chipcommon_pmu.c */
+u32 bcma_pmu_alp_clock(struct bcma_drv_cc *cc);
+
 #ifdef CONFIG_BCMA_HOST_PCI
 /* host_pci.c */
 extern int __init bcma_host_pci_init(void);
