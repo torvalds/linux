@@ -54,7 +54,7 @@ struct hv_input_dev_info {
 					 (SYNTHHID_INPUT_VERSION_MAJOR << 16))
 
 
-#pragma pack(push,1)
+#pragma pack(push, 1)
 /*
  * Message types in the synthetic input protocol
  */
@@ -120,8 +120,8 @@ struct synthhid_input_report {
 
 #pragma pack(pop)
 
-#define INPUTVSC_SEND_RING_BUFFER_SIZE		10*PAGE_SIZE
-#define INPUTVSC_RECV_RING_BUFFER_SIZE		10*PAGE_SIZE
+#define INPUTVSC_SEND_RING_BUFFER_SIZE		(10*PAGE_SIZE)
+#define INPUTVSC_RECV_RING_BUFFER_SIZE		(10*PAGE_SIZE)
 
 #define NBITS(x) (((x)/BITS_PER_LONG)+1)
 
@@ -509,22 +509,22 @@ static void mousevsc_on_channel_callback(void *context)
 				desc = (struct vmpacket_descriptor *)buffer;
 
 				switch (desc->type) {
-					case VM_PKT_COMP:
-						mousevsc_on_send_completion(
-							device, desc);
-						break;
+				case VM_PKT_COMP:
+					mousevsc_on_send_completion(
+						device, desc);
+					break;
 
-					case VM_PKT_DATA_INBAND:
-						mousevsc_on_receive(
-							device, desc);
-						break;
+				case VM_PKT_DATA_INBAND:
+					mousevsc_on_receive(
+						device, desc);
+					break;
 
-					default:
-						pr_err("unhandled packet type %d, tid %llx len %d\n",
-							   desc->type,
-							   req_id,
-							   bytes_recvd);
-						break;
+				default:
+					pr_err("unhandled packet type %d, tid %llx len %d\n",
+						   desc->type,
+						   req_id,
+						   bytes_recvd);
+					break;
 				}
 
 				/* reset */
@@ -960,7 +960,7 @@ static void __exit mousevsc_exit(void)
  * installed and/or configured.  We don't do anything else with the table, but
  * it needs to be present.
  */
-const static struct pci_device_id microsoft_hv_pci_table[] = {
+static const struct pci_device_id microsoft_hv_pci_table[] = {
 	{ PCI_DEVICE(0x1414, 0x5353) },	/* VGA compatible controller */
 	{ 0 }
 };
