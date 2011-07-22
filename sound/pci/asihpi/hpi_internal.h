@@ -226,8 +226,8 @@ enum HPI_CONTROL_ATTRIBUTES {
 
 	HPI_COBRANET_SET = HPI_CTL_ATTR(COBRANET, 1),
 	HPI_COBRANET_GET = HPI_CTL_ATTR(COBRANET, 2),
-	HPI_COBRANET_SET_DATA = HPI_CTL_ATTR(COBRANET, 3),
-	HPI_COBRANET_GET_DATA = HPI_CTL_ATTR(COBRANET, 4),
+	/*HPI_COBRANET_SET_DATA         = HPI_CTL_ATTR(COBRANET, 3), */
+	/*HPI_COBRANET_GET_DATA         = HPI_CTL_ATTR(COBRANET, 4), */
 	HPI_COBRANET_GET_STATUS = HPI_CTL_ATTR(COBRANET, 5),
 	HPI_COBRANET_SEND_PACKET = HPI_CTL_ATTR(COBRANET, 6),
 	HPI_COBRANET_GET_PACKET = HPI_CTL_ATTR(COBRANET, 7),
@@ -383,7 +383,7 @@ enum HPI_OBJECT_TYPES {
 	HPI_OBJ_WATCHDOG = 10,
 	HPI_OBJ_CLOCK = 11,
 	HPI_OBJ_PROFILE = 12,
-	HPI_OBJ_CONTROLEX = 13,
+	/* HPI_ OBJ_ CONTROLEX  = 13, */
 	HPI_OBJ_ASYNCEVENT = 14
 #define HPI_OBJ_MAXINDEX 14
 };
@@ -912,95 +912,13 @@ union hpi_control_union_res {
 		u32 remaining_chars;
 	} chars8;
 	char c_data12[12];
-};
-
-/* HPI_CONTROLX_STRUCTURES */
-
-/* Message */
-
-/** Used for all HMI variables where max length <= 8 bytes
-*/
-struct hpi_controlx_msg_cobranet_data {
-	u32 hmi_address;
-	u32 byte_count;
-	u32 data[2];
-};
-
-/** Used for string data, and for packet bridge
-*/
-struct hpi_controlx_msg_cobranet_bigdata {
-	u32 hmi_address;
-	u32 byte_count;
-	u8 *pb_data;
-#ifndef HPI64BIT
-	u32 padding;
-#endif
-};
-
-/** Used for PADS control reading of string fields.
-*/
-struct hpi_controlx_msg_pad_data {
-	u32 field;
-	u32 byte_count;
-	u8 *pb_data;
-#ifndef HPI64BIT
-	u32 padding;
-#endif
-};
-
-/** Used for generic data
-*/
-
-struct hpi_controlx_msg_generic {
-	u32 param1;
-	u32 param2;
-};
-
-struct hpi_controlx_msg {
-	u16 attribute;		/* control attribute or property */
-	u16 saved_index;
 	union {
-		struct hpi_controlx_msg_cobranet_data cobranet_data;
-		struct hpi_controlx_msg_cobranet_bigdata cobranet_bigdata;
-		struct hpi_controlx_msg_generic generic;
-		struct hpi_controlx_msg_pad_data pad_data;
-		/*struct param_value universal_value; */
-		/* nothing extra to send for status read */
-	} u;
-};
-
-/* Response */
-/**
-*/
-struct hpi_controlx_res_cobranet_data {
-	u32 byte_count;
-	u32 data[2];
-};
-
-struct hpi_controlx_res_cobranet_bigdata {
-	u32 byte_count;
-};
-
-struct hpi_controlx_res_cobranet_status {
-	u32 status;
-	u32 readable_size;
-	u32 writeable_size;
-};
-
-struct hpi_controlx_res_generic {
-	u32 param1;
-	u32 param2;
-};
-
-struct hpi_controlx_res {
-	union {
-		struct hpi_controlx_res_cobranet_bigdata cobranet_bigdata;
-		struct hpi_controlx_res_cobranet_data cobranet_data;
-		struct hpi_controlx_res_cobranet_status cobranet_status;
-		struct hpi_controlx_res_generic generic;
-		/*struct param_info universal_info; */
-		/*struct param_value universal_value; */
-	} u;
+		struct {
+			u32 status;
+			u32 readable_size;
+			u32 writeable_size;
+		} status;
+	} cobranet;
 };
 
 struct hpi_nvmemory_msg {
@@ -1126,7 +1044,6 @@ struct hpi_message {
 		/* identical to struct hpi_control_msg,
 		   but field naming is improved */
 		struct hpi_control_union_msg cu;
-		struct hpi_controlx_msg cx;	/* extended mixer control; */
 		struct hpi_nvmemory_msg n;
 		struct hpi_gpio_msg l;	/* digital i/o */
 		struct hpi_watchdog_msg w;
@@ -1151,7 +1068,7 @@ struct hpi_message {
 	sizeof(struct hpi_message_header) + sizeof(struct hpi_watchdog_msg),\
 	sizeof(struct hpi_message_header) + sizeof(struct hpi_clock_msg),\
 	sizeof(struct hpi_message_header) + sizeof(struct hpi_profile_msg),\
-	sizeof(struct hpi_message_header) + sizeof(struct hpi_controlx_msg),\
+	sizeof(struct hpi_message_header), /* controlx obj removed */ \
 	sizeof(struct hpi_message_header) + sizeof(struct hpi_async_msg) \
 }
 
@@ -1188,7 +1105,6 @@ struct hpi_response {
 		struct hpi_control_res c;	/* mixer control; */
 		/* identical to hpi_control_res, but field naming is improved */
 		union hpi_control_union_res cu;
-		struct hpi_controlx_res cx;	/* extended mixer control; */
 		struct hpi_nvmemory_res n;
 		struct hpi_gpio_res l;	/* digital i/o */
 		struct hpi_watchdog_res w;
@@ -1213,7 +1129,7 @@ struct hpi_response {
 	sizeof(struct hpi_response_header) + sizeof(struct hpi_watchdog_res),\
 	sizeof(struct hpi_response_header) + sizeof(struct hpi_clock_res),\
 	sizeof(struct hpi_response_header) + sizeof(struct hpi_profile_res),\
-	sizeof(struct hpi_response_header) + sizeof(struct hpi_controlx_res),\
+	sizeof(struct hpi_response_header), /* controlx obj removed */ \
 	sizeof(struct hpi_response_header) + sizeof(struct hpi_async_res) \
 }
 
@@ -1308,6 +1224,30 @@ struct hpi_res_adapter_debug_read {
 	u8 bytes[256];
 };
 
+struct hpi_msg_cobranet_hmi {
+	u16 attribute;
+	u16 padding;
+	u32 hmi_address;
+	u32 byte_count;
+};
+
+struct hpi_msg_cobranet_hmiwrite {
+	struct hpi_message_header h;
+	struct hpi_msg_cobranet_hmi p;
+	u8 bytes[256];
+};
+
+struct hpi_msg_cobranet_hmiread {
+	struct hpi_message_header h;
+	struct hpi_msg_cobranet_hmi p;
+};
+
+struct hpi_res_cobranet_hmiread {
+	struct hpi_response_header h;
+	u32 byte_count;
+	u8 bytes[256];
+};
+
 #if 1
 #define hpi_message_header_v1 hpi_message_header
 #define hpi_response_header_v1 hpi_response_header
@@ -1338,7 +1278,6 @@ struct hpi_msg_payload_v0 {
 		union hpi_mixerx_msg mx;
 		struct hpi_control_msg c;
 		struct hpi_control_union_msg cu;
-		struct hpi_controlx_msg cx;
 		struct hpi_nvmemory_msg n;
 		struct hpi_gpio_msg l;
 		struct hpi_watchdog_msg w;
@@ -1358,7 +1297,6 @@ struct hpi_res_payload_v0 {
 		union hpi_mixerx_res mx;
 		struct hpi_control_res c;
 		union hpi_control_union_res cu;
-		struct hpi_controlx_res cx;
 		struct hpi_nvmemory_res n;
 		struct hpi_gpio_res l;
 		struct hpi_watchdog_res w;

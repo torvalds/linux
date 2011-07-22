@@ -402,7 +402,6 @@ void _HPI_6205(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 			adapter_message(pao, phm, phr);
 			break;
 
-		case HPI_OBJ_CONTROLEX:
 		case HPI_OBJ_CONTROL:
 			control_message(pao, phm, phr);
 			break;
@@ -2204,23 +2203,6 @@ static void hw_message(struct hpi_adapter_obj *pao, struct hpi_message *phm,
 			phm->u.d.u.data.data_size, H620_HIF_GET_DATA);
 		break;
 
-	case HPI_CONTROL_SET_STATE:
-		if (phm->object == HPI_OBJ_CONTROLEX
-			&& phm->u.cx.attribute == HPI_COBRANET_SET_DATA)
-			err = hpi6205_transfer_data(pao,
-				phm->u.cx.u.cobranet_bigdata.pb_data,
-				phm->u.cx.u.cobranet_bigdata.byte_count,
-				H620_HIF_SEND_DATA);
-		break;
-
-	case HPI_CONTROL_GET_STATE:
-		if (phm->object == HPI_OBJ_CONTROLEX
-			&& phm->u.cx.attribute == HPI_COBRANET_GET_DATA)
-			err = hpi6205_transfer_data(pao,
-				phm->u.cx.u.cobranet_bigdata.pb_data,
-				phr->u.cx.u.cobranet_data.byte_count,
-				H620_HIF_GET_DATA);
-		break;
 	}
 	phr->error = err;
 
