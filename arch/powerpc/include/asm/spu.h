@@ -26,6 +26,7 @@
 
 #include <linux/workqueue.h>
 #include <linux/sysdev.h>
+#include <linux/mutex.h>
 
 #define LS_SIZE (256 * 1024)
 #define LS_ADDR_MASK (LS_SIZE - 1)
