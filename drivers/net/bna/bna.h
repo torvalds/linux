@@ -13,7 +13,7 @@
 #ifndef __BNA_H__
 #define __BNA_H__
 
-#include "bfa_wc.h"
+#include "bfa_cs.h"
 #include "bfa_ioc.h"
 #include "cna.h"
 #include "bfi_ll.h"

@@ -19,7 +19,7 @@
 #ifndef __BFA_IOC_H__
 #define __BFA_IOC_H__
 
-#include "bfa_sm.h"
+#include "bfa_cs.h"
 #include "bfi.h"
 #include "cna.h"
 

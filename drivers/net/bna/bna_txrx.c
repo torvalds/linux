@@ -16,7 +16,7 @@
  * www.brocade.com
  */
 #include "bna.h"
-#include "bfa_sm.h"
+#include "bfa_cs.h"
 #include "bfi.h"
 
 /**

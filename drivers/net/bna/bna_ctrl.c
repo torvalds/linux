@@ -16,8 +16,7 @@
  * www.brocade.com
  */
 #include "bna.h"
-#include "bfa_sm.h"
-#include "bfa_wc.h"
+#include "bfa_cs.h"
 
 static void bna_device_cb_port_stopped(void *arg, enum bna_cb_status status);
 
