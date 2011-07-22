@@ -210,7 +210,14 @@ int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc, struct bcma_device *core,
 {
 	struct pci_dev *pdev = pc->core->bus->host_pci;
 	u32 coremask, tmp;
-	int err;
+	int err = 0;
+
+	if (core->bus->hosttype != BCMA_HOSTTYPE_PCI) {
+		/* This bcma device is not on a PCI host-bus. So the IRQs are
+		 * not routed through the PCI core.
+		 * So we must not enable routing through the PCI core. */
+		goto out;
+	}
 
 	err = pci_read_config_dword(pdev, BCMA_PCI_IRQMASK, &tmp);
 	if (err)

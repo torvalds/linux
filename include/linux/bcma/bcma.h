@@ -14,9 +14,9 @@ struct bcma_device;
 struct bcma_bus;
 
 enum bcma_hosttype {
-	BCMA_HOSTTYPE_NONE,
 	BCMA_HOSTTYPE_PCI,
 	BCMA_HOSTTYPE_SDIO,
+	BCMA_HOSTTYPE_SOC,
 };
 
 struct bcma_chipinfo {
@@ -137,6 +137,9 @@ struct bcma_device {
 
 	u32 addr;
 	u32 wrap;
+
+	void __iomem *io_addr;
+	void __iomem *io_wrap;
 
 	void *drvdata;
 	struct list_head list;

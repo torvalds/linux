@@ -66,6 +66,10 @@ static struct bcma_device *bcma_find_core(struct bcma_bus *bus, u16 coreid)
 static void bcma_release_core_dev(struct device *dev)
 {
 	struct bcma_device *core = container_of(dev, struct bcma_device, dev);
+	if (core->io_addr)
+		iounmap(core->io_addr);
+	if (core->io_wrap)
+		iounmap(core->io_wrap);
 	kfree(core);
 }
 
@@ -93,7 +97,10 @@ static int bcma_register_cores(struct bcma_bus *bus)
 			core->dma_dev = &bus->host_pci->dev;
 			core->irq = bus->host_pci->irq;
 			break;
-		case BCMA_HOSTTYPE_NONE:
+		case BCMA_HOSTTYPE_SOC:
+			core->dev.dma_mask = &core->dev.coherent_dma_mask;
+			core->dma_dev = &core->dev;
+			break;
 		case BCMA_HOSTTYPE_SDIO:
 			break;
 		}

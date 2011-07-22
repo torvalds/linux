@@ -337,6 +337,16 @@ static int bcma_get_next_core(struct bcma_bus *bus, u32 __iomem **eromptr,
 			}
 		}
 	}
+	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
+		core->io_addr = ioremap_nocache(core->addr, BCMA_CORE_SIZE);
+		if (!core->io_addr)
+			return -ENOMEM;
+		core->io_wrap = ioremap_nocache(core->wrap, BCMA_CORE_SIZE);
+		if (!core->io_wrap) {
+			iounmap(core->io_addr);
+			return -ENOMEM;
+		}
+	}
 	return 0;
 }
 
@@ -369,7 +379,14 @@ int bcma_bus_scan(struct bcma_bus *bus)
 	bcma_init_bus(bus);
 
 	erombase = bcma_scan_read32(bus, 0, BCMA_CC_EROM);
-	eromptr = bus->mmio;
+	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
+		eromptr = ioremap_nocache(erombase, BCMA_CORE_SIZE);
+		if (!eromptr)
+			return -ENOMEM;
+	} else {
+		eromptr = bus->mmio;
+	}
+
 	eromend = eromptr + BCMA_CORE_SIZE / sizeof(u32);
 
 	bcma_scan_switch_core(bus, erombase);
@@ -404,6 +421,9 @@ int bcma_bus_scan(struct bcma_bus *bus)
 		list_add(&core->list, &bus->cores);
 	}
 
+	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
+		iounmap(eromptr);
+
 	return 0;
 }
 
@@ -414,10 +434,18 @@ int __init bcma_bus_scan_early(struct bcma_bus *bus,
 	u32 erombase;
 	u32 __iomem *eromptr, *eromend;
 
-	int err, core_num = 0;
+	int err = -ENODEV;
+	int core_num = 0;
 
 	erombase = bcma_scan_read32(bus, 0, BCMA_CC_EROM);
-	eromptr = bus->mmio;
+	if (bus->hosttype == BCMA_HOSTTYPE_SOC) {
+		eromptr = ioremap_nocache(erombase, BCMA_CORE_SIZE);
+		if (!eromptr)
+			return -ENOMEM;
+	} else {
+		eromptr = bus->mmio;
+	}
+
 	eromend = eromptr + BCMA_CORE_SIZE / sizeof(u32);
 
 	bcma_scan_switch_core(bus, erombase);
@@ -447,8 +475,12 @@ int __init bcma_bus_scan_early(struct bcma_bus *bus,
 			core->id.class);
 
 		list_add(&core->list, &bus->cores);
-		return 0;
+		err = 0;
+		break;
 	}
 
-	return -ENODEV;
+	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
+		iounmap(eromptr);
+
+	return err;
 }
