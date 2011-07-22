@@ -215,7 +215,8 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 			priv->flags |= MLX4_EN_FLAG_PROMISC;
 
 			/* Enable promiscouos mode */
-			if (!mdev->dev->caps.vep_uc_steering)
+			if (!(mdev->dev->caps.flags &
+						MLX4_DEV_CAP_FLAG_VEP_UC_STEER))
 				err = mlx4_SET_PORT_qpn_calc(mdev->dev, priv->port,
 							     priv->base_qpn, 1);
 			else
@@ -259,7 +260,7 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 		priv->flags &= ~MLX4_EN_FLAG_PROMISC;
 
 		/* Disable promiscouos mode */
-		if (!mdev->dev->caps.vep_uc_steering)
+		if (!(mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_UC_STEER))
 			err = mlx4_SET_PORT_qpn_calc(mdev->dev, priv->port,
 						     priv->base_qpn, 0);
 		else

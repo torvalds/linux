@@ -54,7 +54,8 @@ enum mlx4_qp_optpar {
 	MLX4_QP_OPTPAR_RETRY_COUNT		= 1 << 12,
 	MLX4_QP_OPTPAR_RNR_RETRY		= 1 << 13,
 	MLX4_QP_OPTPAR_ACK_TIMEOUT		= 1 << 14,
-	MLX4_QP_OPTPAR_SCHED_QUEUE		= 1 << 16
+	MLX4_QP_OPTPAR_SCHED_QUEUE		= 1 << 16,
+	MLX4_QP_OPTPAR_COUNTER_INDEX		= 1 << 20
 };
 
 enum mlx4_qp_state {
@@ -99,7 +100,7 @@ struct mlx4_qp_path {
 	u8			fl;
 	u8			reserved1[2];
 	u8			pkey_index;
-	u8			reserved2;
+	u8			counter_index;
 	u8			grh_mylmc;
 	__be16			rlid;
 	u8			ackto;
@@ -111,8 +112,7 @@ struct mlx4_qp_path {
 	u8			sched_queue;
 	u8			vlan_index;
 	u8			reserved3[2];
-	u8			counter_index;
-	u8			reserved4;
+	u8			reserved4[2];
 	u8			dmac[6];
 };
 
