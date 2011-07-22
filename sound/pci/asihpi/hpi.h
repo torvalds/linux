@@ -1,7 +1,7 @@
 /******************************************************************************
 
     AudioScience HPI driver
-    Copyright (C) 1997-2010  AudioScience Inc. <support@audioscience.com>
+    Copyright (C) 1997-2011  AudioScience Inc. <support@audioscience.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of version 2 of the GNU General Public License as
@@ -42,12 +42,11 @@ i.e 3.05.02 is a development version
 #define HPI_VER_MINOR(v) ((int)((v >> 8) & 0xFF))
 #define HPI_VER_RELEASE(v) ((int)(v & 0xFF))
 
-/* Use single digits for versions less that 10 to avoid octal. */
-#define HPI_VER HPI_VERSION_CONSTRUCTOR(4L, 6, 0)
-#define HPI_VER_STRING "4.06.00"
+#define HPI_VER HPI_VERSION_CONSTRUCTOR(4L, 8, 0)
+#define HPI_VER_STRING "4.08.00"
 
 /* Library version as documented in hpi-api-versions.txt */
-#define HPI_LIB_VER  HPI_VERSION_CONSTRUCTOR(9, 0, 0)
+#define HPI_LIB_VER  HPI_VERSION_CONSTRUCTOR(10, 0, 0)
 
 #include <linux/types.h>
 #define HPI_BUILD_EXCLUDE_DEPRECATED
