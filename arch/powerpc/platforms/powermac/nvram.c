@@ -8,7 +8,7 @@
  *
  *  Todo: - add support for the OF persistent properties
  */
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/stddef.h>
 #include <linux/string.h>

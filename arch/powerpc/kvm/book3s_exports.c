@@ -17,7 +17,7 @@
  * Authors: Alexander Graf <agraf@suse.de>
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/kvm_book3s.h>
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV

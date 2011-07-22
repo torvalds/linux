@@ -18,7 +18,7 @@
 #include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <linux/idr.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
 

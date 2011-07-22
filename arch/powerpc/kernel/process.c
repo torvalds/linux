@@ -28,7 +28,7 @@
 #include <linux/init.h>
 #include <linux/prctl.h>
 #include <linux/init_task.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kallsyms.h>
 #include <linux/mqueue.h>
 #include <linux/hardirq.h>

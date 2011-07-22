@@ -25,7 +25,7 @@
 #include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/proc_fs.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 #include <asm/firmware.h>
 #include <asm/vio.h>
