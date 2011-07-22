@@ -648,12 +648,15 @@ config TRACE_IRQFLAGS
 	  Enables hooks to interrupt enabling and disabling for
 	  either tracing or lock debugging.
 
-config DEBUG_SPINLOCK_SLEEP
-	bool "Spinlock debugging: sleep-inside-spinlock checking"
+config DEBUG_ATOMIC_SLEEP
+	bool "Sleep inside atomic section checking"
+	select PREEMPT_COUNT
 	depends on DEBUG_KERNEL
 	help
 	  If you say Y here, various routines which may sleep will become very
-	  noisy if they are called with a spinlock held.
+	  noisy if they are called inside atomic sections: when a spinlock is
+	  held, inside an rcu read side critical section, inside preempt disabled
+	  sections, inside an interrupt, etc...
 
 config DEBUG_LOCKING_API_SELFTESTS
 	bool "Locking API boot-time self-tests"
