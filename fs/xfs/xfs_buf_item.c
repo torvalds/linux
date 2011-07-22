@@ -971,14 +971,14 @@ xfs_buf_iodone_callbacks(
 		goto do_callbacks;
 	}
 
-	if (XFS_BUF_TARGET(bp) != lasttarg ||
+	if (bp->b_target != lasttarg ||
 	    time_after(jiffies, (lasttime + 5*HZ))) {
 		lasttime = jiffies;
 		xfs_alert(mp, "Device %s: metadata write error block 0x%llx",
-			XFS_BUFTARG_NAME(XFS_BUF_TARGET(bp)),
+			XFS_BUFTARG_NAME(bp->b_target),
 		      (__uint64_t)XFS_BUF_ADDR(bp));
 	}
-	lasttarg = XFS_BUF_TARGET(bp);
+	lasttarg = bp->b_target;
 
 	/*
 	 * If the write was asynchronous then no one will be looking for the

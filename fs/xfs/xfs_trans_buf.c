@@ -54,7 +54,7 @@ xfs_trans_buf_item_match(
 	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
 		blip = (struct xfs_buf_log_item *)lidp->lid_item;
 		if (blip->bli_item.li_type == XFS_LI_BUF &&
-		    XFS_BUF_TARGET(blip->bli_buf) == target &&
+		    blip->bli_buf->b_target == target &&
 		    XFS_BUF_ADDR(blip->bli_buf) == blkno &&
 		    XFS_BUF_COUNT(blip->bli_buf) == len)
 			return blip->bli_buf;

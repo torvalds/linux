@@ -104,7 +104,7 @@ xfs_ioerror_alert(
 	xfs_alert(mp,
 		 "I/O error occurred: meta-data dev %s block 0x%llx"
 		 "       (\"%s\") error %d buf count %zd",
-		XFS_BUFTARG_NAME(XFS_BUF_TARGET(bp)),
+		XFS_BUFTARG_NAME(bp->b_target),
 		(__uint64_t)blkno, func,
 		bp->b_error, XFS_BUF_COUNT(bp));
 }
