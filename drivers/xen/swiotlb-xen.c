@@ -38,6 +38,7 @@
 #include <xen/swiotlb-xen.h>
 #include <xen/page.h>
 #include <xen/xen-ops.h>
+#include <xen/hvc-console.h>
 /*
  * Used to do a quick range check in swiotlb_tbl_unmap_single and
  * swiotlb_tbl_sync_single_*, to see if the memory was in fact allocated by this
@@ -146,8 +147,10 @@ xen_swiotlb_fixup(void *buf, size_t size, unsigned long nslabs)
 void __init xen_swiotlb_init(int verbose)
 {
 	unsigned long bytes;
-	int rc;
+	int rc = -ENOMEM;
 	unsigned long nr_tbl;
+	char *m = NULL;
+	unsigned int repeat = 3;
 
 	nr_tbl = swioltb_nr_tbl();
 	if (nr_tbl)
@@ -156,16 +159,17 @@ void __init xen_swiotlb_init(int verbose)
 		xen_io_tlb_nslabs = (64 * 1024 * 1024 >> IO_TLB_SHIFT);
 		xen_io_tlb_nslabs = ALIGN(xen_io_tlb_nslabs, IO_TLB_SEGSIZE);
 	}
-
+retry:
 	bytes = xen_io_tlb_nslabs << IO_TLB_SHIFT;
 
 	/*
 	 * Get IO TLB memory from any location.
 	 */
 	xen_io_tlb_start = alloc_bootmem(bytes);
-	if (!xen_io_tlb_start)
-		panic("Cannot allocate SWIOTLB buffer");
-
+	if (!xen_io_tlb_start) {
+		m = "Cannot allocate Xen-SWIOTLB buffer!\n";
+		goto error;
+	}
 	xen_io_tlb_end = xen_io_tlb_start + bytes;
 	/*
 	 * And replace that memory with pages under 4GB.
@@ -173,17 +177,28 @@ void __init xen_swiotlb_init(int verbose)
 	rc = xen_swiotlb_fixup(xen_io_tlb_start,
 			       bytes,
 			       xen_io_tlb_nslabs);
-	if (rc)
+	if (rc) {
+		free_bootmem(__pa(xen_io_tlb_start), bytes);
+		m = "Failed to get contiguous memory for DMA from Xen!\n"\
+		    "You either: don't have the permissions, do not have"\
+		    " enough free memory under 4GB, or the hypervisor memory"\
+		    "is too fragmented!";
 		goto error;
-
+	}
 	start_dma_addr = xen_virt_to_bus(xen_io_tlb_start);
 	swiotlb_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs, verbose);
 
 	return;
 error:
-	panic("DMA(%d): Failed to exchange pages allocated for DMA with Xen! "\
-	      "We either don't have the permission or you do not have enough"\
-	      "free memory under 4GB!\n", rc);
+	if (repeat--) {
+		xen_io_tlb_nslabs = max(1024UL, /* Min is 2MB */
+					(xen_io_tlb_nslabs >> 1));
+		printk(KERN_INFO "Xen-SWIOTLB: Lowering to %luMB\n",
+		      (xen_io_tlb_nslabs << IO_TLB_SHIFT) >> 20);
+		goto retry;
+	}
+	xen_raw_printk("%s (rc:%d)", rc, m);
+	panic("%s (rc:%d)", rc, m);
 }
 
 void *
