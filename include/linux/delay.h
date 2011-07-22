@@ -52,4 +52,13 @@ static inline void ssleep(unsigned int seconds)
 	msleep(seconds * 1000);
 }
 
+#ifdef CONFIG_ARCH_RK29
+void hr_msleep(unsigned int msecs);
+unsigned long hr_msleep_interruptible(unsigned int msecs);
+
+static inline void usleep(unsigned long usecs)
+{
+	usleep_range(usecs, usecs);
+}
+#endif /* CONFIG_ARCH_RK29 */
 #endif /* defined(_LINUX_DELAY_H) */
