@@ -1528,7 +1528,6 @@ static u32 MT2063_Tune(struct mt2063_state *state, u32 f_in)
 	u32 LO2;		/*  2nd LO register value           */
 	u32 Num2;		/*  Numerator for LO2 reg. value    */
 	u32 ofLO1, ofLO2;	/*  last time's LO frequencies      */
-	u32 ofin, ofout;	/*  last time's I/O frequencies     */
 	u8 fiffc = 0x80;	/*  FIFF center freq from tuner     */
 	u32 fiffof;		/*  Offset from FIFF center freq    */
 	const u8 LO1LK = 0x80;	/*  Mask for LO1 Lock bit           */
@@ -1549,9 +1548,7 @@ static u32 MT2063_Tune(struct mt2063_state *state, u32 f_in)
 	 * Save original LO1 and LO2 register values
 	 */
 	ofLO1 = state->AS_Data.f_LO1;
-	ofLO2 = state->AS_Data.f_LO2;
-	ofin = state->AS_Data.f_in;
-	ofout = state->AS_Data.f_out;
+	ofLO2 = state->AS_Data.f_LO2; 
 
 	/*
 	 * Find and set RF Band setting
