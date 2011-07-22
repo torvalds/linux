@@ -12345,19 +12345,18 @@ lpfc_sli4_post_sgl(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_sli4_init_rpi_hdrs - Post the rpi header memory region to the port
+ * lpfc_sli4_alloc_xri - Get an available rpi in the device's range
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to post rpi header templates to the
- * port for those SLI4 ports that do not support extents.  This routine
- * posts a PAGE_SIZE memory region to the port to hold up to
- * PAGE_SIZE modulo 64 rpi context headers.  This is an initialization routine
- * and should be called only when interrupts are disabled.
+ * HBA consistent with the SLI-4 interface spec.  This routine
+ * posts a SLI4_PAGE_SIZE memory region to the port to hold up to
+ * SLI4_PAGE_SIZE modulo 64 rpi context headers.
  *
- * Return codes
- *	0 - successful
- *	-ERROR - otherwise.
- */
+ * Returns
+ *	A nonzero rpi defined as rpi_base <= rpi < max_rpi if successful
+ *	LPFC_RPI_ALLOC_ERROR if no rpis are available.
+ **/
 uint16_t
 lpfc_sli4_alloc_xri(struct lpfc_hba *phba)
 {

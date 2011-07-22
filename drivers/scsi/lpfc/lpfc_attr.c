@@ -755,6 +755,47 @@ lpfc_issue_reset(struct device *dev, struct device_attribute *attr,
 }
 
 /**
+ * lpfc_sli4_pdev_status_reg_wait - Wait for pdev status register for readyness
+ * @phba: lpfc_hba pointer.
+ *
+ * Description:
+ * SLI4 interface type-2 device to wait on the sliport status register for
+ * the readyness after performing a firmware reset.
+ *
+ * Returns:
+ * zero for success
+ **/
+static int
+lpfc_sli4_pdev_status_reg_wait(struct lpfc_hba *phba)
+{
+	struct lpfc_register portstat_reg;
+	int i;
+
+
+	lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+		   &portstat_reg.word0);
+
+	/* wait for the SLI port firmware ready after firmware reset */
+	for (i = 0; i < LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT; i++) {
+		msleep(10);
+		lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
+			   &portstat_reg.word0);
+		if (!bf_get(lpfc_sliport_status_err, &portstat_reg))
+			continue;
+		if (!bf_get(lpfc_sliport_status_rn, &portstat_reg))
+			continue;
+		if (!bf_get(lpfc_sliport_status_rdy, &portstat_reg))
+			continue;
+		break;
+	}
+
+	if (i < LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT)
+		return 0;
+	else
+		return -EIO;
+}
+
+/**
  * lpfc_sli4_pdev_reg_request - Request physical dev to perform a register acc
  * @phba: lpfc_hba pointer.
  *
@@ -805,7 +846,10 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	readl(phba->sli4_hba.conf_regs_memmap_p + LPFC_CTL_PDEV_CTL_OFFSET);
 
 	/* delay driver action following IF_TYPE_2 reset */
-	msleep(100);
+	rc = lpfc_sli4_pdev_status_reg_wait(phba);
+
+	if (rc)
+		return -EIO;
 
 	init_completion(&online_compl);
 	rc = lpfc_workq_post_event(phba, &status, &online_compl,
@@ -895,6 +939,10 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 
 	if (!phba->cfg_enable_hba_reset)
 		return -EACCES;
+
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+		"3050 lpfc_board_mode set to %s\n", buf);
+
 	init_completion(&online_compl);
 
 	if(strncmp(buf, "online", sizeof("online") - 1) == 0) {
@@ -1290,6 +1338,10 @@ lpfc_poll_store(struct device *dev, struct device_attribute *attr,
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		val = 0;
 
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+		"3051 lpfc_poll changed from %d to %d\n",
+		phba->cfg_poll, val);
+
 	spin_lock_irq(&phba->hbalock);
 
 	old_val = phba->cfg_poll;
@@ -1605,6 +1657,9 @@ static int \
 lpfc_##attr##_set(struct lpfc_hba *phba, uint val) \
 { \
 	if (val >= minval && val <= maxval) {\
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT, \
+			"3052 lpfc_" #attr " changed from %d to %d\n", \
+			phba->cfg_##attr, val); \
 		phba->cfg_##attr = val;\
 		return 0;\
 	}\
@@ -1762,6 +1817,9 @@ static int \
 lpfc_##attr##_set(struct lpfc_vport *vport, uint val) \
 { \
 	if (val >= minval && val <= maxval) {\
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT, \
+			"3053 lpfc_" #attr " changed from %d to %d\n", \
+			vport->cfg_##attr, val); \
 		vport->cfg_##attr = val;\
 		return 0;\
 	}\
@@ -2678,6 +2736,9 @@ lpfc_topology_store(struct device *dev, struct device_attribute *attr,
 		if (nolip)
 			return strlen(buf);
 
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+			"3054 lpfc_topology changed from %d to %d\n",
+			prev_val, val);
 		err = lpfc_issue_lip(lpfc_shost_from_vport(phba->pport));
 		if (err) {
 			phba->cfg_topology = prev_val;
@@ -3100,6 +3161,10 @@ lpfc_link_speed_store(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	if (sscanf(val_buf, "%i", &val) != 1)
 		return -EINVAL;
+
+	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+		"3055 lpfc_link_speed changed from %d to %d %s\n",
+		phba->cfg_link_speed, val, nolip ? "(nolip)" : "(lip)");
 
 	if (((val == LPFC_USER_LINK_SPEED_1G) && !(phba->lmt & LMT_1Gb)) ||
 	    ((val == LPFC_USER_LINK_SPEED_2G) && !(phba->lmt & LMT_2Gb)) ||
