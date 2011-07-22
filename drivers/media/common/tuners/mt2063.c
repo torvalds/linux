@@ -2013,14 +2013,11 @@ static int mt2063_set_analog_params(struct dvb_frontend *fe,
 				    struct analog_parameters *params)
 {
 	struct mt2063_state *state = fe->tuner_priv;
-	s32 pict_car = 0;
-	s32 pict2chanb_vsb = 0;
-	s32 pict2chanb_snd = 0;
-	s32 pict2snd1 = 0;
-	s32 pict2snd2 = 0;
-	s32 ch_bw = 0;
-	s32 if_mid = 0;
-	s32 rcvr_mode = 0;
+	s32 pict_car;
+	s32 pict2chanb_vsb;
+	s32 ch_bw;
+	s32 if_mid;
+	s32 rcvr_mode;
 	int status;
 
 	dprintk(2, "\n");
@@ -2030,8 +2027,6 @@ static int mt2063_set_analog_params(struct dvb_frontend *fe,
 		pict_car = 38900000;
 		ch_bw = 8000000;
 		pict2chanb_vsb = -(ch_bw / 2);
-		pict2snd1 = 0;
-		pict2snd2 = 0;
 		rcvr_mode = MT2063_OFFAIR_ANALOG;
 		break;
 	case V4L2_TUNER_ANALOG_TV:
@@ -2040,42 +2035,19 @@ static int mt2063_set_analog_params(struct dvb_frontend *fe,
 			pict_car = 38900000;
 			ch_bw = 6000000;
 			pict2chanb_vsb = -1250000;
-			pict2snd1 = 4500000;
-			pict2snd2 = 0;
-		} else if (params->std & V4L2_STD_PAL_I) {
-			pict_car = 38900000;
-			ch_bw = 8000000;
-			pict2chanb_vsb = -1250000;
-			pict2snd1 = 6000000;
-			pict2snd2 = 0;
-		} else if (params->std & V4L2_STD_PAL_B) {
-			pict_car = 38900000;
-			ch_bw = 8000000;
-			pict2chanb_vsb = -1250000;
-			pict2snd1 = 5500000;
-			pict2snd2 = 5742000;
 		} else if (params->std & V4L2_STD_PAL_G) {
 			pict_car = 38900000;
 			ch_bw = 7000000;
 			pict2chanb_vsb = -1250000;
-			pict2snd1 = 5500000;
-			pict2snd2 = 0;
-		} else if (params->std & V4L2_STD_PAL_DK) {
+		} else {		/* PAL/SECAM standards */
 			pict_car = 38900000;
 			ch_bw = 8000000;
 			pict2chanb_vsb = -1250000;
-			pict2snd1 = 6500000;
-			pict2snd2 = 0;
-		} else {	/* PAL-L */
-			pict_car = 38900000;
-			ch_bw = 8000000;
-			pict2chanb_vsb = -1250000;
-			pict2snd1 = 6500000;
-			pict2snd2 = 0;
 		}
 		break;
+	default:
+		return -EINVAL;
 	}
-	pict2chanb_snd = pict2chanb_vsb - ch_bw;
 	if_mid = pict_car - (pict2chanb_vsb + (ch_bw / 2));
 
 	state->AS_Data.f_LO2_Step = 125000;	/* FIXME: probably 5000 for FM */
@@ -2107,14 +2079,11 @@ static int mt2063_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct mt2063_state *state = fe->tuner_priv;
 	int status;
-	s32 pict_car = 0;
-	s32 pict2chanb_vsb = 0;
-	s32 pict2chanb_snd = 0;
-	s32 pict2snd1 = 0;
-	s32 pict2snd2 = 0;
-	s32 ch_bw = 0;
-	s32 if_mid = 0;
-	s32 rcvr_mode = 0;
+	s32 pict_car;
+	s32 pict2chanb_vsb;
+	s32 ch_bw;
+	s32 if_mid;
+	s32 rcvr_mode;
 
 	dprintk(2, "\n");
 
@@ -2132,21 +2101,16 @@ static int mt2063_set_params(struct dvb_frontend *fe)
 		rcvr_mode = MT2063_OFFAIR_COFDM;
 		pict_car = 36125000;
 		pict2chanb_vsb = -(ch_bw / 2);
-		pict2snd1 = 0;
-		pict2snd2 = 0;
 		break;
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		rcvr_mode = MT2063_CABLE_QAM;
 		pict_car = 36125000;
-		pict2snd1 = 0;
-		pict2snd2 = 0;
 		pict2chanb_vsb = -(ch_bw / 2);
 		break;
 	default:
 		return -EINVAL;
 	}
-	pict2chanb_snd = pict2chanb_vsb - ch_bw;
 	if_mid = pict_car - (pict2chanb_vsb + (ch_bw / 2));
 
 	state->AS_Data.f_LO2_Step = 125000;	/* FIXME: probably 5000 for FM */
