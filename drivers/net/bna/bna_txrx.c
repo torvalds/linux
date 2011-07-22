@@ -734,7 +734,7 @@ bna_rxf_sm_cam_fltr_clr_wait_entry(struct bna_rxf *rxf)
 	/**
 	 *  Note: Do not add rxf_clear_packet_filter here.
 	 * It will overstep mbox when this transition happens:
-	 * 	cam_fltr_mod_wait -> cam_fltr_clr_wait on RXF_E_STOP event
+	 *	cam_fltr_mod_wait -> cam_fltr_clr_wait on RXF_E_STOP event
 	 */
 }
 
@@ -771,7 +771,7 @@ bna_rxf_sm_stop_wait_entry(struct bna_rxf *rxf)
 	/**
 	 * NOTE: Do not add  rxf_disable here.
 	 * It will overstep mbox when this transition happens:
-	 * 	start_wait -> stop_wait on RXF_E_STOP event
+	 *	start_wait -> stop_wait on RXF_E_STOP event
 	 */
 }
 

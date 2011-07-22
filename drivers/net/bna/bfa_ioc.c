@@ -156,7 +156,7 @@ enum iocpf_event {
 	IOCPF_E_ENABLE		= 1,	/*!< IOCPF enable request	*/
 	IOCPF_E_DISABLE		= 2,	/*!< IOCPF disable request	*/
 	IOCPF_E_STOP		= 3,	/*!< stop on driver detach	*/
-	IOCPF_E_FWREADY	 	= 4,	/*!< f/w initialization done	*/
+	IOCPF_E_FWREADY		= 4,	/*!< f/w initialization done	*/
 	IOCPF_E_FWRSP_ENABLE	= 5,	/*!< enable f/w response	*/
 	IOCPF_E_FWRSP_DISABLE	= 6,	/*!< disable f/w response	*/
 	IOCPF_E_FAIL		= 7,	/*!< failure notice by ioc sm	*/

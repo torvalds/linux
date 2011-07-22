@@ -155,11 +155,11 @@ struct bfa_iocpf {
 
 struct bfa_ioc {
 	bfa_fsm_t		fsm;
-	struct bfa 		*bfa;
-	struct bfa_pcidev 	pcidev;
-	struct timer_list 	ioc_timer;
-	struct timer_list 	iocpf_timer;
-	struct timer_list 	sem_timer;
+	struct bfa		*bfa;
+	struct bfa_pcidev	pcidev;
+	struct timer_list	ioc_timer;
+	struct timer_list	iocpf_timer;
+	struct timer_list	sem_timer;
 	struct timer_list	hb_timer;
 	u32			hb_count;
 	struct list_head	hb_notify_q;
@@ -167,13 +167,13 @@ struct bfa_ioc {
 	int			dbg_fwsave_len;
 	bool			dbg_fwsave_once;
 	enum bfi_mclass		ioc_mc;
-	struct bfa_ioc_regs 	ioc_regs;
+	struct bfa_ioc_regs	ioc_regs;
 	struct bfa_ioc_drv_stats stats;
 	bool			fcmode;
 	bool			ctdev;
 	bool			cna;
 	bool			pllinit;
-	bool   			stats_busy;	/*!< outstanding stats */
+	bool			stats_busy;	/*!< outstanding stats */
 	u8			port_id;
 
 	struct bfa_dma		attr_dma;
@@ -219,7 +219,7 @@ struct bfa_ioc_hwif {
 #define bfa_ioc_stats(_ioc, _stats)	((_ioc)->stats._stats++)
 #define BFA_IOC_FWIMG_MINSZ	(16 * 1024)
 #define BFA_IOC_FWIMG_TYPE(__ioc)					\
-	(((__ioc)->ctdev) ? 						\
+	(((__ioc)->ctdev) ?						\
 	 (((__ioc)->fcmode) ? BFI_IMAGE_CT_FC : BFI_IMAGE_CT_CNA) :	\
 	 BFI_IMAGE_CB_FC)
 #define BFA_IOC_FW_SMEM_SIZE(__ioc)					\
