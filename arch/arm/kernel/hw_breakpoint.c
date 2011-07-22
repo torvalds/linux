@@ -154,7 +154,10 @@ u8 arch_get_debug_arch(void)
 static int debug_arch_supported(void)
 {
 	u8 arch = get_debug_arch();
-	return arch >= ARM_DEBUG_ARCH_V6 && arch <= ARM_DEBUG_ARCH_V7_ECP14;
+
+	/* We don't support the memory-mapped interface. */
+	return (arch >= ARM_DEBUG_ARCH_V6 && arch <= ARM_DEBUG_ARCH_V7_ECP14) ||
+		arch >= ARM_DEBUG_ARCH_V7_1;
 }
 
 /* Determine number of BRP register available. */
@@ -255,6 +258,7 @@ static int enable_monitor_mode(void)
 		ARM_DBG_WRITE(c1, 0, (dscr | ARM_DSCR_MDBGEN));
 		break;
 	case ARM_DEBUG_ARCH_V7_ECP14:
+	case ARM_DEBUG_ARCH_V7_1:
 		ARM_DBG_WRITE(c2, 2, (dscr | ARM_DSCR_MDBGEN));
 		break;
 	default:
@@ -836,7 +840,7 @@ static int hw_breakpoint_pending(unsigned long addr, unsigned int fsr,
  */
 static void reset_ctrl_regs(void *info)
 {
-	int i, cpu = smp_processor_id();
+	int i, err = 0, cpu = smp_processor_id();
 	u32 dbg_power;
 	cpumask_t *cpumask = info;
 
@@ -848,32 +852,45 @@ static void reset_ctrl_regs(void *info)
 	 * Access Register to avoid taking undefined instruction exceptions
 	 * later on.
 	 */
-	if (debug_arch >= ARM_DEBUG_ARCH_V7_ECP14) {
+	switch (debug_arch) {
+	case ARM_DEBUG_ARCH_V7_ECP14:
 		/*
 		 * Ensure sticky power-down is clear (i.e. debug logic is
 		 * powered up).
 		 */
 		asm volatile("mrc p14, 0, %0, c1, c5, 4" : "=r" (dbg_power));
-		if ((dbg_power & 0x1) == 0) {
-			pr_warning("CPU %d debug is powered down!\n", cpu);
-			cpumask_or(cpumask, cpumask, cpumask_of(cpu));
-			return;
-		}
-
+		if ((dbg_power & 0x1) == 0)
+			err = -EPERM;
+		break;
+	case ARM_DEBUG_ARCH_V7_1:
 		/*
-		 * Unconditionally clear the lock by writing a value
-		 * other than 0xC5ACCE55 to the access register.
+		 * Ensure the OS double lock is clear.
 		 */
-		asm volatile("mcr p14, 0, %0, c1, c0, 4" : : "r" (0));
-		isb();
-
-		/*
-		 * Clear any configured vector-catch events before
-		 * enabling monitor mode.
-		 */
-		asm volatile("mcr p14, 0, %0, c0, c7, 0" : : "r" (0));
-		isb();
+		asm volatile("mrc p14, 0, %0, c1, c3, 4" : "=r" (dbg_power));
+		if ((dbg_power & 0x1) == 1)
+			err = -EPERM;
+		break;
 	}
+
+	if (err) {
+		pr_warning("CPU %d debug is powered down!\n", cpu);
+		cpumask_or(cpumask, cpumask, cpumask_of(cpu));
+		return;
+	}
+
+	/*
+	 * Unconditionally clear the lock by writing a value
+	 * other than 0xC5ACCE55 to the access register.
+	 */
+	asm volatile("mcr p14, 0, %0, c1, c0, 4" : : "r" (0));
+	isb();
+
+	/*
+	 * Clear any configured vector-catch events before
+	 * enabling monitor mode.
+	 */
+	asm volatile("mcr p14, 0, %0, c0, c7, 0" : : "r" (0));
+	isb();
 
 	if (enable_monitor_mode())
 		return;
