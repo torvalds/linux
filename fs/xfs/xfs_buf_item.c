@@ -994,7 +994,6 @@ xfs_buf_iodone_callbacks(
 		if (!XFS_BUF_ISSTALE(bp)) {
 			XFS_BUF_DELAYWRITE(bp);
 			XFS_BUF_DONE(bp);
-			XFS_BUF_SET_START(bp);
 		}
 		ASSERT(bp->b_iodone != NULL);
 		trace_xfs_buf_item_iodone_async(bp, _RET_IP_);
