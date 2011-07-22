@@ -975,7 +975,7 @@ xfs_buf_iodone_callbacks(
 	    time_after(jiffies, (lasttime + 5*HZ))) {
 		lasttime = jiffies;
 		xfs_alert(mp, "Device %s: metadata write error block 0x%llx",
-			XFS_BUFTARG_NAME(bp->b_target),
+			xfs_buf_target_name(bp->b_target),
 		      (__uint64_t)XFS_BUF_ADDR(bp));
 	}
 	lasttarg = bp->b_target;

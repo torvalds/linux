@@ -228,8 +228,13 @@ extern void xfs_buf_delwri_promote(xfs_buf_t *);
 extern int xfs_buf_init(void);
 extern void xfs_buf_terminate(void);
 
-#define xfs_buf_target_name(target)	\
-	({ char __b[BDEVNAME_SIZE]; bdevname((target)->bt_bdev, __b); __b; })
+static inline const char *
+xfs_buf_target_name(struct xfs_buftarg *target)
+{
+	static char __b[BDEVNAME_SIZE];
+
+	return bdevname(target->bt_bdev, __b);
+}
 
 
 #define XFS_BUF_ZEROFLAGS(bp) \
@@ -291,8 +296,6 @@ static inline int xfs_buf_ispinned(struct xfs_buf *bp)
 }
 
 #define XFS_BUF_FINISH_IOWAIT(bp)	complete(&bp->b_iowait);
-
-#define XFS_BUFTARG_NAME(target)	xfs_buf_target_name(target)
 
 static inline void xfs_buf_relse(xfs_buf_t *bp)
 {
