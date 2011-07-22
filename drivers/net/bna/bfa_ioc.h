@@ -237,6 +237,8 @@ struct bfa_ioc_hwif {
 	BFI_ADAPTER_GETP(NPORTS, (__ioc)->attr->adapter_prop)
 
 #define bfa_ioc_stats(_ioc, _stats)	((_ioc)->stats._stats++)
+#define bfa_ioc_stats_hb_count(_ioc, _hb_count)	\
+	((_ioc)->stats.hb_count = (_hb_count))
 #define BFA_IOC_FWIMG_MINSZ	(16 * 1024)
 #define BFA_IOC_FWIMG_TYPE(__ioc)					\
 	(((__ioc)->ctdev) ?						\

@@ -2029,6 +2029,8 @@ bfa_nw_ioc_mbox_isr(struct bfa_ioc *ioc)
 void
 bfa_nw_ioc_error_isr(struct bfa_ioc *ioc)
 {
+	bfa_ioc_stats(ioc, ioc_hbfails);
+	bfa_ioc_stats_hb_count(ioc, ioc->hb_count);
 	bfa_fsm_send_event(ioc, IOC_E_HWERROR);
 }
 
@@ -2255,6 +2257,7 @@ bfa_ioc_recover(struct bfa_ioc *ioc)
 {
 	pr_crit("Heart Beat of IOC has failed\n");
 	bfa_ioc_stats(ioc, ioc_hbfails);
+	bfa_ioc_stats_hb_count(ioc, ioc->hb_count);
 	bfa_fsm_send_event(ioc, IOC_E_HBFAIL);
 }
 

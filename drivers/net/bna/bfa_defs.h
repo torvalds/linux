@@ -153,6 +153,7 @@ struct bfa_ioc_drv_stats {
 	u32	enable_reqs;
 	u32	disable_replies;
 	u32	enable_replies;
+	u32	rsvd;
 };
 
 /**
