@@ -6241,49 +6241,6 @@ static u64 vmx_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio)
 	return ret;
 }
 
-#define _ER(x) { EXIT_REASON_##x, #x }
-
-static const struct trace_print_flags vmx_exit_reasons_str[] = {
-	_ER(EXCEPTION_NMI),
-	_ER(EXTERNAL_INTERRUPT),
-	_ER(TRIPLE_FAULT),
-	_ER(PENDING_INTERRUPT),
-	_ER(NMI_WINDOW),
-	_ER(TASK_SWITCH),
-	_ER(CPUID),
-	_ER(HLT),
-	_ER(INVLPG),
-	_ER(RDPMC),
-	_ER(RDTSC),
-	_ER(VMCALL),
-	_ER(VMCLEAR),
-	_ER(VMLAUNCH),
-	_ER(VMPTRLD),
-	_ER(VMPTRST),
-	_ER(VMREAD),
-	_ER(VMRESUME),
-	_ER(VMWRITE),
-	_ER(VMOFF),
-	_ER(VMON),
-	_ER(CR_ACCESS),
-	_ER(DR_ACCESS),
-	_ER(IO_INSTRUCTION),
-	_ER(MSR_READ),
-	_ER(MSR_WRITE),
-	_ER(MWAIT_INSTRUCTION),
-	_ER(MONITOR_INSTRUCTION),
-	_ER(PAUSE_INSTRUCTION),
-	_ER(MCE_DURING_VMENTRY),
-	_ER(TPR_BELOW_THRESHOLD),
-	_ER(APIC_ACCESS),
-	_ER(EPT_VIOLATION),
-	_ER(EPT_MISCONFIG),
-	_ER(WBINVD),
-	{ -1, NULL }
-};
-
-#undef _ER
-
 static int vmx_get_lpage_level(void)
 {
 	if (enable_ept && !cpu_has_vmx_ept_1g_page())
@@ -7039,7 +6996,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.get_mt_mask = vmx_get_mt_mask,
 
 	.get_exit_info = vmx_get_exit_info,
-	.exit_reasons_str = vmx_exit_reasons_str,
 
 	.get_lpage_level = vmx_get_lpage_level,
 
