@@ -10,7 +10,6 @@
 
 /* TODO: support ipv6 for iface_stat.
  * Currently if an iface is only v6 it will not have stats collected. */
-#define DEBUG
 
 #include <linux/file.h>
 #include <linux/inetdevice.h>
