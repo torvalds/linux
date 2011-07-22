@@ -87,6 +87,7 @@ static void gic_ack_irq(unsigned int irq)
 	spin_lock(&irq_controller_lock);
 	writel(mask, gic_dist_base(irq) + GIC_DIST_ENABLE_CLEAR + (gic_irq(irq) / 32) * 4);
 	writel(gic_irq(irq), gic_cpu_base(irq) + GIC_CPU_EOI);
+	dsb();
 	spin_unlock(&irq_controller_lock);
 }
 
@@ -96,6 +97,7 @@ static void gic_mask_irq(unsigned int irq)
 
 	spin_lock(&irq_controller_lock);
 	writel(mask, gic_dist_base(irq) + GIC_DIST_ENABLE_CLEAR + (gic_irq(irq) / 32) * 4);
+	dsb();
 	spin_unlock(&irq_controller_lock);
 }
 
@@ -105,6 +107,7 @@ static void gic_unmask_irq(unsigned int irq)
 
 	spin_lock(&irq_controller_lock);
 	writel(mask, gic_dist_base(irq) + GIC_DIST_ENABLE_SET + (gic_irq(irq) / 32) * 4);
+	dsb();
 	spin_unlock(&irq_controller_lock);
 }
 
