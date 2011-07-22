@@ -1487,15 +1487,7 @@ static int snd_asihpi_volume_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(db_scale_100, -10000, VOL_STEP_mB, 0);
 
-static int snd_asihpi_volume_mute_info(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 1;
-	return 0;
-}
+#define snd_asihpi_volume_mute_info	snd_ctl_boolean_mono_info
 
 static int snd_asihpi_volume_mute_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
