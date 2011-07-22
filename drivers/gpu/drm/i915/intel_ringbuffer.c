@@ -1319,6 +1319,9 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 		ring->get_seqno = pc_render_get_seqno;
 	}
 
+	if (!I915_NEED_GFX_HWS(dev))
+		ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
+
 	ring->dev = dev;
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
