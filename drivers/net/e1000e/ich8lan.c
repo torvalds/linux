@@ -2137,8 +2137,7 @@ static s32 e1000_read_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 
 	ret_val = 0;
 	for (i = 0; i < words; i++) {
-		if ((dev_spec->shadow_ram) &&
-		    (dev_spec->shadow_ram[offset+i].modified)) {
+		if (dev_spec->shadow_ram[offset+i].modified) {
 			data[i] = dev_spec->shadow_ram[offset+i].value;
 		} else {
 			ret_val = e1000_read_flash_word_ich8lan(hw,
