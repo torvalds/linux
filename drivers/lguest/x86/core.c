@@ -272,7 +272,7 @@ static int emulate_insn(struct lg_cpu *cpu)
 	unsigned int insnlen = 0, in = 0, shift = 0;
 	/*
 	 * The eip contains the *virtual* address of the Guest's instruction:
-	 * guest_pa just subtracts the Guest's page_offset.
+	 * walk the Guest's page tables to find the "physical" address.
 	 */
 	unsigned long physaddr = guest_pa(cpu, cpu->regs->eip);
 
@@ -409,7 +409,7 @@ void lguest_arch_handle_trap(struct lg_cpu *cpu)
 		 * These values mean a real interrupt occurred, in which case
 		 * the Host handler has already been run. We just do a
 		 * friendly check if another process should now be run, then
-		 * return to run the Guest again
+		 * return to run the Guest again.
 		 */
 		cond_resched();
 		return;
@@ -459,7 +459,7 @@ void __init lguest_arch_host_init(void)
 	int i;
 
 	/*
-	 * Most of the i386/switcher.S doesn't care that it's been moved; on
+	 * Most of the x86/switcher_32.S doesn't care that it's been moved; on
 	 * Intel, jumps are relative, and it doesn't access any references to
 	 * external code or data.
 	 *
@@ -587,7 +587,7 @@ void __init lguest_arch_host_init(void)
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_PGE);
 	}
 	put_online_cpus();
-};
+}
 /*:*/
 
 void __exit lguest_arch_host_fini(void)
@@ -670,8 +670,6 @@ int lguest_arch_init_hypercalls(struct lg_cpu *cpu)
 /*:*/
 
 /*L:030
- * lguest_arch_setup_regs()
- *
  * Most of the Guest's registers are left alone: we used get_zeroed_page() to
  * allocate the structure, so they will be 0.
  */

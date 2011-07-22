@@ -71,7 +71,8 @@
 #include <asm/stackprotector.h>
 #include <asm/reboot.h>		/* for struct machine_ops */
 
-/*G:010 Welcome to the Guest!
+/*G:010
+ * Welcome to the Guest!
  *
  * The Guest in our tale is a simple creature: identical to the Host but
  * behaving in simplified but equivalent ways.  In particular, the Guest is the
@@ -190,15 +191,23 @@ static void lazy_hcall4(unsigned long call,
 #endif
 
 /*G:036
- * When lazy mode is turned off reset the per-cpu lazy mode variable and then
- * issue the do-nothing hypercall to flush any stored calls.
-:*/
+ * When lazy mode is turned off, we issue the do-nothing hypercall to
+ * flush any stored calls, and call the generic helper to reset the
+ * per-cpu lazy mode variable.
+ */
 static void lguest_leave_lazy_mmu_mode(void)
 {
 	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0, 0);
 	paravirt_leave_lazy_mmu();
 }
 
+/*
+ * We also catch the end of context switch; we enter lazy mode for much of
+ * that too, so again we need to flush here.
+ *
+ * (Technically, this is lazy CPU mode, and normally we're in lazy MMU
+ * mode, but unlike Xen, lguest doesn't care about the difference).
+ */
 static void lguest_end_context_switch(struct task_struct *next)
 {
 	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0, 0);
@@ -640,7 +649,7 @@ static void lguest_write_cr4(unsigned long val)
 
 /*
  * The Guest calls this after it has set a second-level entry (pte), ie. to map
- * a page into a process' address space.  Wetell the Host the toplevel and
+ * a page into a process' address space.  We tell the Host the toplevel and
  * address this corresponds to.  The Guest uses one pagetable per process, so
  * we need to tell the Host which one we're changing (mm->pgd).
  */
@@ -1139,7 +1148,7 @@ static struct notifier_block paniced = {
 static __init char *lguest_memory_setup(void)
 {
 	/*
-	 *The Linux bootloader header contains an "e820" memory map: the
+	 * The Linux bootloader header contains an "e820" memory map: the
 	 * Launcher populated the first entry with our memory limit.
 	 */
 	e820_add_region(boot_params.e820_map[0].addr,

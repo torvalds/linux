@@ -427,8 +427,8 @@ void pin_stack_pages(struct lg_cpu *cpu)
 
 /*
  * Direct traps also mean that we need to know whenever the Guest wants to use
- * a different kernel stack, so we can change the IDT entries to use that
- * stack.  The IDT entries expect a virtual address, so unlike most addresses
+ * a different kernel stack, so we can change the guest TSS to use that
+ * stack.  The TSS entries expect a virtual address, so unlike most addresses
  * the Guest gives us, the "esp" (stack pointer) value here is virtual, not
  * physical.
  *

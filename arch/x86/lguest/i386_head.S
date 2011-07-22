@@ -6,18 +6,22 @@
 #include <asm/processor-flags.h>
 
 /*G:020
- * Our story starts with the kernel booting into startup_32 in
- * arch/x86/kernel/head_32.S.  It expects a boot header, which is created by
- * the bootloader (the Launcher in our case).
+
+ * Our story starts with the bzImage: booting starts at startup_32 in
+ * arch/x86/boot/compressed/head_32.S.  This merely uncompresses the real
+ * kernel in place and then jumps into it: startup_32 in
+ * arch/x86/kernel/head_32.S.  Both routines expects a boot header in the %esi
+ * register, which is created by the bootloader (the Launcher in our case).
  *
  * The startup_32 function does very little: it clears the uninitialized global
  * C variables which we expect to be zero (ie. BSS) and then copies the boot
- * header and kernel command line somewhere safe.  Finally it checks the
- * 'hardware_subarch' field.  This was introduced in 2.6.24 for lguest and Xen:
- * if it's set to '1' (lguest's assigned number), then it calls us here.
+ * header and kernel command line somewhere safe, and populates some initial
+ * page tables.  Finally it checks the 'hardware_subarch' field.  This was
+ * introduced in 2.6.24 for lguest and Xen: if it's set to '1' (lguest's
+ * assigned number), then it calls us here.
  *
  * WARNING: be very careful here!  We're running at addresses equal to physical
- * addesses (around 0), not above PAGE_OFFSET as most code expectes
+ * addesses (around 0), not above PAGE_OFFSET as most code expects
  * (eg. 0xC0000000).  Jumps are relative, so they're OK, but we can't touch any
  * data without remembering to subtract __PAGE_OFFSET!
  *

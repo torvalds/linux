@@ -155,7 +155,7 @@ static pte_t *spte_addr(struct lg_cpu *cpu, pgd_t spgd, unsigned long vaddr)
 }
 
 /*
- * These functions are just like the above two, except they access the Guest
+ * These functions are just like the above, except they access the Guest
  * page tables.  Hence they return a Guest address.
  */
 static unsigned long gpgd_addr(struct lg_cpu *cpu, unsigned long vaddr)
@@ -195,7 +195,7 @@ static unsigned long gpte_addr(struct lg_cpu *cpu,
 #endif
 /*:*/
 
-/*M:014
+/*M:007
  * get_pfn is slow: we could probably try to grab batches of pages here as
  * an optimization (ie. pre-faulting).
 :*/

@@ -51,7 +51,7 @@
 #include <asm/bootparam.h>
 #include "../../../include/linux/lguest_launcher.h"
 /*L:110
- * We can ignore the 42 include files we need for this program, but I do want
+ * We can ignore the 43 include files we need for this program, but I do want
  * to draw attention to the use of kernel-style types.
  *
  * As Linus said, "C is a Spartan language, and so should your naming be."  I
@@ -65,7 +65,6 @@ typedef uint16_t u16;
 typedef uint8_t u8;
 /*:*/
 
-#define PAGE_PRESENT 0x7 	/* Present, RW, Execute */
 #define BRIDGE_PFX "bridge:"
 #ifndef SIOCBRADDIF
 #define SIOCBRADDIF	0x89a2		/* add interface to bridge      */
@@ -1359,7 +1358,7 @@ static void setup_console(void)
  * --sharenet=<name> option which opens or creates a named pipe.  This can be
  * used to send packets to another guest in a 1:1 manner.
  *
- * More sopisticated is to use one of the tools developed for project like UML
+ * More sophisticated is to use one of the tools developed for project like UML
  * to do networking.
  *
  * Faster is to do virtio bonding in kernel.  Doing this 1:1 would be
@@ -1369,7 +1368,7 @@ static void setup_console(void)
  * multiple inter-guest channels behind one interface, although it would
  * require some manner of hotplugging new virtio channels.
  *
- * Finally, we could implement a virtio network switch in the kernel.
+ * Finally, we could use a virtio network switch in the kernel, ie. vhost.
 :*/
 
 static u32 str2ip(const char *ipaddr)
@@ -2006,10 +2005,7 @@ int main(int argc, char *argv[])
 	/* Tell the entry path not to try to reload segment registers. */
 	boot->hdr.loadflags |= KEEP_SEGMENTS;
 
-	/*
-	 * We tell the kernel to initialize the Guest: this returns the open
-	 * /dev/lguest file descriptor.
-	 */
+	/* We tell the kernel to initialize the Guest. */
 	tell_kernel(start);
 
 	/* Ensure that we terminate if a device-servicing child dies. */
