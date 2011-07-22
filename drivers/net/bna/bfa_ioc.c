@@ -68,7 +68,7 @@ static void bfa_ioc_hb_monitor(struct bfa_ioc *ioc);
 static void bfa_ioc_hb_stop(struct bfa_ioc *ioc);
 static void bfa_ioc_reset(struct bfa_ioc *ioc, bool force);
 static void bfa_ioc_mbox_poll(struct bfa_ioc *ioc);
-static void bfa_ioc_mbox_hbfail(struct bfa_ioc *ioc);
+static void bfa_ioc_mbox_flush(struct bfa_ioc *ioc);
 static void bfa_ioc_recover(struct bfa_ioc *ioc);
 static void bfa_ioc_check_attr_wwns(struct bfa_ioc *ioc);
 static void bfa_ioc_event_notify(struct bfa_ioc *, enum bfa_ioc_event);
@@ -938,6 +938,7 @@ bfa_iocpf_sm_disabling_sync(struct bfa_iocpf *iocpf, enum iocpf_event event)
 static void
 bfa_iocpf_sm_disabled_entry(struct bfa_iocpf *iocpf)
 {
+	bfa_ioc_mbox_flush(iocpf->ioc);
 	bfa_ioc_pf_disabled(iocpf->ioc);
 }
 
@@ -1054,7 +1055,7 @@ bfa_iocpf_sm_fail_sync_entry(struct bfa_iocpf *iocpf)
 	/**
 	 * Flush any queued up mailbox requests.
 	 */
-	bfa_ioc_mbox_hbfail(iocpf->ioc);
+	bfa_ioc_mbox_flush(iocpf->ioc);
 	bfa_ioc_hw_sem_get(iocpf->ioc);
 }
 
@@ -1644,7 +1645,7 @@ bfa_ioc_mbox_poll(struct bfa_ioc *ioc)
  * Cleanup any pending requests.
  */
 static void
-bfa_ioc_mbox_hbfail(struct bfa_ioc *ioc)
+bfa_ioc_mbox_flush(struct bfa_ioc *ioc)
 {
 	struct bfa_ioc_mbox_mod *mod = &ioc->mbox_mod;
 	struct bfa_mbox_cmd *cmd;
