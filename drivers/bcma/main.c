@@ -84,6 +84,7 @@ static int bcma_register_cores(struct bcma_bus *bus)
 		case BCMA_CORE_CHIPCOMMON:
 		case BCMA_CORE_PCI:
 		case BCMA_CORE_PCIE:
+		case BCMA_CORE_MIPS_74K:
 			continue;
 		}
 
@@ -145,6 +146,13 @@ int bcma_bus_register(struct bcma_bus *bus)
 	if (core) {
 		bus->drv_cc.core = core;
 		bcma_core_chipcommon_init(&bus->drv_cc);
+	}
+
+	/* Init MIPS core */
+	core = bcma_find_core(bus, BCMA_CORE_MIPS_74K);
+	if (core) {
+		bus->drv_mips.core = core;
+		bcma_core_mips_init(&bus->drv_mips);
 	}
 
 	/* Init PCIE core */
@@ -215,6 +223,13 @@ int __init bcma_bus_early_register(struct bcma_bus *bus,
 	if (core) {
 		bus->drv_cc.core = core;
 		bcma_core_chipcommon_init(&bus->drv_cc);
+	}
+
+	/* Init MIPS core */
+	core = bcma_find_core(bus, BCMA_CORE_MIPS_74K);
+	if (core) {
+		bus->drv_mips.core = core;
+		bcma_core_mips_init(&bus->drv_mips);
 	}
 
 	pr_info("Early bus registered\n");

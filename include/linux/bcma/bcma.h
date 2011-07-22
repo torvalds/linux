@@ -6,6 +6,7 @@
 
 #include <linux/bcma/bcma_driver_chipcommon.h>
 #include <linux/bcma/bcma_driver_pci.h>
+#include <linux/bcma/bcma_driver_mips.h>
 #include <linux/ssb/ssb.h> /* SPROM sharing */
 
 #include "bcma_regs.h"
@@ -130,6 +131,7 @@ struct bcma_device {
 
 	struct device dev;
 	struct device *dma_dev;
+
 	unsigned int irq;
 	bool dev_registered;
 
@@ -197,6 +199,7 @@ struct bcma_bus {
 
 	struct bcma_drv_cc drv_cc;
 	struct bcma_drv_pci drv_pci;
+	struct bcma_drv_mips drv_mips;
 
 	/* We decided to share SPROM struct with SSB as long as we do not need
 	 * any hacks for BCMA. This simplifies drivers code. */

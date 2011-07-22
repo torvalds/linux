@@ -24,6 +24,7 @@
 #define   BCMA_CC_FLASHT_NONE		0x00000000	/* No flash */
 #define   BCMA_CC_FLASHT_STSER		0x00000100	/* ST serial flash */
 #define   BCMA_CC_FLASHT_ATSER		0x00000200	/* Atmel serial flash */
+#define   BCMA_CC_FLASHT_NFLASH		0x00000200
 #define	  BCMA_CC_FLASHT_PARA		0x00000700	/* Parallel flash */
 #define  BCMA_CC_CAP_PLLT		0x00038000	/* PLL Type */
 #define   BCMA_PLLTYPE_NONE		0x00000000
@@ -178,6 +179,7 @@
 #define BCMA_CC_PROG_CFG		0x0120
 #define BCMA_CC_PROG_WAITCNT		0x0124
 #define BCMA_CC_FLASH_CFG		0x0128
+#define  BCMA_CC_FLASH_CFG_DS		0x0010	/* Data size, 0=8bit, 1=16bit */
 #define BCMA_CC_FLASH_WAITCNT		0x012C
 /* 0x1E0 is defined as shared BCMA_CLKCTLST */
 #define BCMA_CC_HW_WORKAROUND		0x01E4 /* Hardware workaround (rev >= 20) */
@@ -247,6 +249,14 @@ struct bcma_chipcommon_pmu {
 	u32 crystalfreq;	/* The active crystal frequency (in kHz) */
 };
 
+#ifdef CONFIG_BCMA_DRIVER_MIPS
+struct bcma_pflash {
+	u8 buswidth;
+	u32 window;
+	u32 window_size;
+};
+#endif /* CONFIG_BCMA_DRIVER_MIPS */
+
 struct bcma_drv_cc {
 	struct bcma_device *core;
 	u32 status;
@@ -256,6 +266,9 @@ struct bcma_drv_cc {
 	/* Fast Powerup Delay constant */
 	u16 fast_pwrup_delay;
 	struct bcma_chipcommon_pmu pmu;
+#ifdef CONFIG_BCMA_DRIVER_MIPS
+	struct bcma_pflash pflash;
+#endif /* CONFIG_BCMA_DRIVER_MIPS */
 };
 
 /* Register access */
