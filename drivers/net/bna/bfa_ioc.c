@@ -240,7 +240,7 @@ bfa_ioc_sm_uninit(struct bfa_ioc *ioc, enum ioc_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -273,7 +273,7 @@ bfa_ioc_sm_reset(struct bfa_ioc *ioc, enum ioc_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -317,7 +317,7 @@ bfa_ioc_sm_enabling(struct bfa_ioc *ioc, enum ioc_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -365,7 +365,7 @@ bfa_ioc_sm_getattr(struct bfa_ioc *ioc, enum ioc_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -404,7 +404,7 @@ bfa_ioc_sm_op(struct bfa_ioc *ioc, enum ioc_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -435,7 +435,7 @@ bfa_ioc_sm_disabling(struct bfa_ioc *ioc, enum ioc_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -466,7 +466,7 @@ bfa_ioc_sm_disabled(struct bfa_ioc *ioc, enum ioc_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -513,7 +513,7 @@ bfa_ioc_sm_fail_retry(struct bfa_ioc *ioc, enum ioc_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -547,7 +547,7 @@ bfa_ioc_sm_fail(struct bfa_ioc *ioc, enum ioc_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -580,7 +580,7 @@ bfa_iocpf_sm_reset(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(iocpf->ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -632,7 +632,7 @@ bfa_iocpf_sm_fwcheck(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -676,7 +676,7 @@ bfa_iocpf_sm_mismatch(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -715,7 +715,7 @@ bfa_iocpf_sm_semwait(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -763,7 +763,7 @@ bfa_iocpf_sm_hwinit(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -814,7 +814,7 @@ bfa_iocpf_sm_enabling(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -857,7 +857,7 @@ bfa_iocpf_sm_ready(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -899,7 +899,7 @@ bfa_iocpf_sm_disabling(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -928,7 +928,7 @@ bfa_iocpf_sm_disabling_sync(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -958,7 +958,7 @@ bfa_iocpf_sm_disabled(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1010,7 +1010,7 @@ bfa_iocpf_sm_initfail_sync(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1039,7 +1039,7 @@ bfa_iocpf_sm_initfail(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1094,7 +1094,7 @@ bfa_iocpf_sm_fail_sync(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
@@ -1116,7 +1116,7 @@ bfa_iocpf_sm_fail(struct bfa_iocpf *iocpf, enum iocpf_event event)
 		break;
 
 	default:
-		bfa_sm_fault(iocpf->ioc, event);
+		bfa_sm_fault(event);
 	}
 }
 
