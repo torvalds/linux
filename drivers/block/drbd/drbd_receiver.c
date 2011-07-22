@@ -4844,7 +4844,7 @@ static int drbd_do_auth(struct drbd_connection *connection)
 }
 #endif
 
-int drbdd_init(struct drbd_thread *thi)
+int drbd_receiver(struct drbd_thread *thi)
 {
 	struct drbd_connection *connection = thi->connection;
 	int h;

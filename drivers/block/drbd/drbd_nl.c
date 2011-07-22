@@ -2332,7 +2332,7 @@ static enum drbd_state_rv conn_try_disconnect(struct drbd_connection *connection
 		/* Race breaker.  This additional state change request may be
 		 * necessary, if this was a forced disconnect during a receiver
 		 * restart.  We may have "killed" the receiver thread just
-		 * after drbdd_init() returned.  Typically, we should be
+		 * after drbd_receiver() returned.  Typically, we should be
 		 * C_STANDALONE already, now, and this becomes a no-op.
 		 */
 		rv2 = conn_request_state(connection, NS(conn, C_STANDALONE),
