@@ -23,3 +23,13 @@ void balloon_set_new_target(unsigned long target);
 
 int alloc_xenballooned_pages(int nr_pages, struct page** pages);
 void free_xenballooned_pages(int nr_pages, struct page** pages);
+
+struct sys_device;
+#ifdef CONFIG_XEN_SELFBALLOONING
+extern int register_xen_selfballooning(struct sys_device *sysdev);
+#else
+static inline int register_xen_selfballooning(struct sys_device *sysdev)
+{
+	return -ENOSYS;
+}
+#endif
