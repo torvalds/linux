@@ -220,7 +220,7 @@ xfs_qm_adjust_dqtimers(
 {
 	ASSERT(d->d_id);
 
-#ifdef QUOTADEBUG
+#ifdef DEBUG
 	if (d->d_blk_hardlimit)
 		ASSERT(be64_to_cpu(d->d_blk_softlimit) <=
 		       be64_to_cpu(d->d_blk_hardlimit));
@@ -231,6 +231,7 @@ xfs_qm_adjust_dqtimers(
 		ASSERT(be64_to_cpu(d->d_rtb_softlimit) <=
 		       be64_to_cpu(d->d_rtb_hardlimit));
 #endif
+
 	if (!d->d_btimer) {
 		if ((d->d_blk_softlimit &&
 		     (be64_to_cpu(d->d_bcount) >=
@@ -318,7 +319,7 @@ xfs_qm_init_dquot_blk(
 
 	ASSERT(tp);
 	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+	ASSERT(xfs_buf_islocked(bp));
 
 	d = (xfs_dqblk_t *)XFS_BUF_PTR(bp);
 
@@ -534,7 +535,7 @@ xfs_qm_dqtobp(
 	}
 
 	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+	ASSERT(xfs_buf_islocked(bp));
 
 	/*
 	 * calculate the location of the dquot inside the buffer.
@@ -622,7 +623,7 @@ xfs_qm_dqread(
 	 * brelse it because we have the changes incore.
 	 */
 	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
+	ASSERT(xfs_buf_islocked(bp));
 	xfs_trans_brelse(tp, bp);
 
 	return (error);
@@ -1422,45 +1423,6 @@ xfs_qm_dqpurge(
 	return (0);
 }
 
-
-#ifdef QUOTADEBUG
-void
-xfs_qm_dqprint(xfs_dquot_t *dqp)
-{
-	struct xfs_mount	*mp = dqp->q_mount;
-
-	xfs_debug(mp, "-----------KERNEL DQUOT----------------");
-	xfs_debug(mp, "---- dquotID =  %d",
-		(int)be32_to_cpu(dqp->q_core.d_id));
-	xfs_debug(mp, "---- type    =  %s", DQFLAGTO_TYPESTR(dqp));
-	xfs_debug(mp, "---- fs      =  0x%p", dqp->q_mount);
-	xfs_debug(mp, "---- blkno   =  0x%x", (int) dqp->q_blkno);
-	xfs_debug(mp, "---- boffset =  0x%x", (int) dqp->q_bufoffset);
-	xfs_debug(mp, "---- blkhlimit =  %Lu (0x%x)",
-		be64_to_cpu(dqp->q_core.d_blk_hardlimit),
-		(int)be64_to_cpu(dqp->q_core.d_blk_hardlimit));
-	xfs_debug(mp, "---- blkslimit =  %Lu (0x%x)",
-		be64_to_cpu(dqp->q_core.d_blk_softlimit),
-		(int)be64_to_cpu(dqp->q_core.d_blk_softlimit));
-	xfs_debug(mp, "---- inohlimit =  %Lu (0x%x)",
-		be64_to_cpu(dqp->q_core.d_ino_hardlimit),
-		(int)be64_to_cpu(dqp->q_core.d_ino_hardlimit));
-	xfs_debug(mp, "---- inoslimit =  %Lu (0x%x)",
-		be64_to_cpu(dqp->q_core.d_ino_softlimit),
-		(int)be64_to_cpu(dqp->q_core.d_ino_softlimit));
-	xfs_debug(mp, "---- bcount  =  %Lu (0x%x)",
-		be64_to_cpu(dqp->q_core.d_bcount),
-		(int)be64_to_cpu(dqp->q_core.d_bcount));
-	xfs_debug(mp, "---- icount  =  %Lu (0x%x)",
-		be64_to_cpu(dqp->q_core.d_icount),
-		(int)be64_to_cpu(dqp->q_core.d_icount));
-	xfs_debug(mp, "---- btimer  =  %d",
-		(int)be32_to_cpu(dqp->q_core.d_btimer));
-	xfs_debug(mp, "---- itimer  =  %d",
-		(int)be32_to_cpu(dqp->q_core.d_itimer));
-	xfs_debug(mp, "---------------------------");
-}
-#endif
 
 /*
  * Give the buffer a little push if it is incore and

@@ -21,14 +21,6 @@
 struct xfs_mount;
 struct xfs_perag;
 
-typedef struct xfs_sync_work {
-	struct list_head	w_list;
-	struct xfs_mount	*w_mount;
-	void			*w_data;	/* syncer routine argument */
-	void			(*w_syncer)(struct xfs_mount *, void *);
-	struct completion	*w_completion;
-} xfs_sync_work_t;
-
 #define SYNC_WAIT		0x0001	/* wait for i/o to complete */
 #define SYNC_TRYLOCK		0x0002  /* only try to lock inodes */
 
