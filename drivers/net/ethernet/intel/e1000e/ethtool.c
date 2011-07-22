@@ -1195,7 +1195,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 		goto err_nomem;
 	}
 
-	rx_ring->size = rx_ring->count * sizeof(struct e1000_rx_desc);
+	rx_ring->size = rx_ring->count * sizeof(union e1000_rx_desc_extended);
 	rx_ring->desc = dma_alloc_coherent(&pdev->dev, rx_ring->size,
 					   &rx_ring->dma, GFP_KERNEL);
 	if (!rx_ring->desc) {
@@ -1220,7 +1220,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	ew32(RCTL, rctl);
 
 	for (i = 0; i < rx_ring->count; i++) {
-		struct e1000_rx_desc *rx_desc = E1000_RX_DESC(*rx_ring, i);
+		union e1000_rx_desc_extended *rx_desc;
 		struct sk_buff *skb;
 
 		skb = alloc_skb(2048 + NET_IP_ALIGN, GFP_KERNEL);
@@ -1238,8 +1238,9 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 			ret_val = 8;
 			goto err_nomem;
 		}
-		rx_desc->buffer_addr =
-			cpu_to_le64(rx_ring->buffer_info[i].dma);
+		rx_desc = E1000_RX_DESC_EXT(*rx_ring, i);
+		rx_desc->read.buffer_addr =
+		    cpu_to_le64(rx_ring->buffer_info[i].dma);
 		memset(skb->data, 0x00, skb->len);
 	}
 
