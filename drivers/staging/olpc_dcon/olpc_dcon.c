@@ -65,11 +65,10 @@ static s32 dcon_read(struct dcon_priv *dcon, u8 reg)
 
 static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 {
-	struct i2c_client *client = dcon->client;
 	uint16_t ver;
 	int rc = 0;
 
-	ver = i2c_smbus_read_word_data(client, DCON_REG_ID);
+	ver = dcon_read(dcon, DCON_REG_ID);
 	if ((ver >> 8) != 0xDC) {
 		printk(KERN_ERR "olpc-dcon:  DCON ID not 0xDCxx: 0x%04x "
 				"instead.\n", ver);
@@ -95,10 +94,10 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 	}
 
 	/* SDRAM setup/hold time */
-	i2c_smbus_write_word_data(client, 0x3a, 0xc040);
-	i2c_smbus_write_word_data(client, 0x41, 0x0000);
-	i2c_smbus_write_word_data(client, 0x41, 0x0101);
-	i2c_smbus_write_word_data(client, 0x42, 0x0101);
+	dcon_write(dcon, 0x3a, 0xc040);
+	dcon_write(dcon, 0x41, 0x0000);
+	dcon_write(dcon, 0x41, 0x0101);
+	dcon_write(dcon, 0x42, 0x0101);
 
 	/* Colour swizzle, AA, no passthrough, backlight */
 	if (is_init) {
@@ -107,11 +106,11 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 		if (useaa)
 			dcon->disp_mode |= MODE_COL_AA;
 	}
-	i2c_smbus_write_word_data(client, DCON_REG_MODE, dcon->disp_mode);
+	dcon_write(dcon, DCON_REG_MODE, dcon->disp_mode);
 
 
 	/* Set the scanline to interrupt on during resume */
-	i2c_smbus_write_word_data(client, DCON_REG_SCAN_INT, resumeline);
+	dcon_write(dcon, DCON_REG_SCAN_INT, resumeline);
 
 err:
 	return rc;
