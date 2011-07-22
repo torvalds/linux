@@ -380,9 +380,11 @@ static void exynos4_mct_tick_init(struct clock_event_device *evt)
 
 	if (cpu == 0) {
 		mct_tick0_event_irq.dev_id = &mct_tick[cpu];
+		evt->irq = IRQ_MCT_L0;
 		setup_irq(IRQ_MCT_L0, &mct_tick0_event_irq);
 	} else {
 		mct_tick1_event_irq.dev_id = &mct_tick[cpu];
+		evt->irq = IRQ_MCT_L1;
 		setup_irq(IRQ_MCT_L1, &mct_tick1_event_irq);
 		irq_set_affinity(IRQ_MCT_L1, cpumask_of(1));
 	}
@@ -394,9 +396,10 @@ void __cpuinit local_timer_setup(struct clock_event_device *evt)
 	exynos4_mct_tick_init(evt);
 }
 
-int local_timer_ack(void)
+void local_timer_stop(struct clock_event_device *evt)
 {
-	return 0;
+	evt->set_mode(CLOCK_EVT_MODE_UNUSED, evt);
+	disable_irq(evt->irq);
 }
 
 #endif /* CONFIG_LOCAL_TIMERS */

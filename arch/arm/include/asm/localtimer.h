@@ -19,26 +19,20 @@ struct clock_event_device;
  */
 void percpu_timer_setup(void);
 
-/*
- * Per-cpu timer IRQ handler
- */
-irqreturn_t percpu_timer_handler(int irq, void *dev_id);
-
 #ifdef CONFIG_LOCAL_TIMERS
 
 #ifdef CONFIG_HAVE_ARM_TWD
 
 #include "smp_twd.h"
 
-#define local_timer_ack()	twd_timer_ack()
+#define local_timer_stop(c)	twd_timer_stop((c))
 
 #else
 
 /*
- * Platform provides this to acknowledge a local timer IRQ.
- * Returns true if the local timer IRQ is to be processed.
+ * Stop the local timer
  */
-int local_timer_ack(void);
+void local_timer_stop(struct clock_event_device *);
 
 #endif
 
@@ -52,6 +46,10 @@ int local_timer_setup(struct clock_event_device *);
 static inline int local_timer_setup(struct clock_event_device *evt)
 {
 	return -ENXIO;
+}
+
+static inline void local_timer_stop(struct clock_event_device *evt)
+{
 }
 #endif
 

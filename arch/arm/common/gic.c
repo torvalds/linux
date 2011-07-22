@@ -35,7 +35,6 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/hardware/gic.h>
-#include <asm/localtimer.h>
 
 static DEFINE_SPINLOCK(irq_controller_lock);
 
@@ -259,32 +258,6 @@ void __init gic_cascade_irq(unsigned int gic_nr, unsigned int irq)
 	irq_set_chained_handler(irq, gic_handle_cascade_irq);
 }
 
-#ifdef CONFIG_LOCAL_TIMERS
-#define gic_ppi_handler		percpu_timer_handler
-#else
-static irqreturn_t gic_ppi_handler(int irq, void *dev_id)
-{
-	return IRQ_NONE;
-}
-#endif
-
-#define PPI_IRQACT(nr)						\
-	{							\
-		.handler	= gic_ppi_handler,		\
-		.flags		= IRQF_PERCPU | IRQF_TIMER,	\
-		.irq		= nr,				\
-		.name		= "PPI-" # nr,			\
-	}
-
-static struct irqaction ppi_irqaction_template[16] __initdata = {
-	PPI_IRQACT(0),  PPI_IRQACT(1),  PPI_IRQACT(2),  PPI_IRQACT(3),
-	PPI_IRQACT(4),  PPI_IRQACT(5),  PPI_IRQACT(6),  PPI_IRQACT(7),
-	PPI_IRQACT(8),  PPI_IRQACT(9),  PPI_IRQACT(10), PPI_IRQACT(11),
-	PPI_IRQACT(12), PPI_IRQACT(13), PPI_IRQACT(14), PPI_IRQACT(15),
-};
-
-static struct irqaction *ppi_irqaction;
-
 static void __init gic_dist_init(struct gic_chip_data *gic,
 	unsigned int irq_start)
 {
@@ -325,16 +298,6 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 			BUG();
 
 		ppi_base = gic->irq_offset + 32 - nrppis;
-
-		ppi_irqaction = kmemdup(&ppi_irqaction_template[16 - nrppis],
-					sizeof(*ppi_irqaction) * nrppis,
-					GFP_KERNEL);
-
-		if (nrppis && !ppi_irqaction) {
-			pr_err("GIC: Can't allocate PPI memory");
-			nrppis = 0;
-			ppi_base = 0;
-		}
 	}
 
 	pr_info("Configuring GIC with %d sources (%d PPIs)\n",
@@ -377,17 +340,12 @@ static void __init gic_dist_init(struct gic_chip_data *gic,
 	 */
 	for (i = 0; i < nrppis; i++) {
 		int ppi = i + ppi_base;
-		int err;
 
 		irq_set_percpu_devid(ppi);
 		irq_set_chip_and_handler(ppi, &gic_chip,
 					 handle_percpu_devid_irq);
 		irq_set_chip_data(ppi, gic);
 		set_irq_flags(ppi, IRQF_VALID | IRQF_NOAUTOEN);
-
-		err = setup_percpu_irq(ppi, &ppi_irqaction[i]);
-		if (err)
-			pr_err("GIC: can't setup PPI%d (%d)\n", ppi, err);
 	}
 
 	for (i = irq_start + nrppis; i < irq_limit; i++) {
@@ -446,16 +404,6 @@ void __cpuinit gic_secondary_init(unsigned int gic_nr)
 	BUG_ON(gic_nr >= MAX_GIC_NR);
 
 	gic_cpu_init(&gic_data[gic_nr]);
-}
-
-void __cpuinit gic_enable_ppi(unsigned int irq)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	irq_set_status_flags(irq, IRQ_NOPROBE);
-	gic_unmask_irq(irq_get_irq_data(irq));
-	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_SMP
