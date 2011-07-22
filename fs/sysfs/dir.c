@@ -154,7 +154,6 @@ struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
  */
 void sysfs_put_active(struct sysfs_dirent *sd)
 {
-	struct completion *cmpl;
 	int v;
 
 	if (unlikely(!sd))
@@ -166,10 +165,9 @@ void sysfs_put_active(struct sysfs_dirent *sd)
 		return;
 
 	/* atomic_dec_return() is a mb(), we'll always see the updated
-	 * sd->s_sibling.
+	 * sd->u.completion.
 	 */
-	cmpl = (void *)sd->s_sibling;
-	complete(cmpl);
+	complete(sd->u.completion);
 }
 
 /**
@@ -183,16 +181,16 @@ static void sysfs_deactivate(struct sysfs_dirent *sd)
 	DECLARE_COMPLETION_ONSTACK(wait);
 	int v;
 
-	BUG_ON(sd->s_sibling || !(sd->s_flags & SYSFS_FLAG_REMOVED));
+	BUG_ON(!(sd->s_flags & SYSFS_FLAG_REMOVED));
 
 	if (!(sysfs_type(sd) & SYSFS_ACTIVE_REF))
 		return;
 
-	sd->s_sibling = (void *)&wait;
+	sd->u.completion = (void *)&wait;
 
 	rwsem_acquire(&sd->dep_map, 0, 0, _RET_IP_);
 	/* atomic_add_return() is a mb(), put_active() will always see
-	 * the updated sd->s_sibling.
+	 * the updated sd->u.completion.
 	 */
 	v = atomic_add_return(SD_DEACTIVATED_BIAS, &sd->s_active);
 
@@ -200,8 +198,6 @@ static void sysfs_deactivate(struct sysfs_dirent *sd)
 		lock_contended(&sd->dep_map, _RET_IP_);
 		wait_for_completion(&wait);
 	}
-
-	sd->s_sibling = NULL;
 
 	lock_acquired(&sd->dep_map, _RET_IP_);
 	rwsem_release(&sd->dep_map, 1, _RET_IP_);
@@ -518,7 +514,7 @@ void sysfs_remove_one(struct sysfs_addrm_cxt *acxt, struct sysfs_dirent *sd)
 	}
 
 	sd->s_flags |= SYSFS_FLAG_REMOVED;
-	sd->s_sibling = acxt->removed;
+	sd->u.removed_list = acxt->removed;
 	acxt->removed = sd;
 }
 
@@ -542,8 +538,7 @@ void sysfs_addrm_finish(struct sysfs_addrm_cxt *acxt)
 	while (acxt->removed) {
 		struct sysfs_dirent *sd = acxt->removed;
 
-		acxt->removed = sd->s_sibling;
-		sd->s_sibling = NULL;
+		acxt->removed = sd->u.removed_list;
 
 		sysfs_deactivate(sd);
 		unmap_bin_file(sd);

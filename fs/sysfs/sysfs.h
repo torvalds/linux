@@ -66,6 +66,11 @@ struct sysfs_dirent {
 
 	struct rb_node		name_node;
 
+	union {
+		struct completion	*completion;
+		struct sysfs_dirent	*removed_list;
+	} u;
+
 	const void		*s_ns; /* namespace tag */
 	union {
 		struct sysfs_elem_dir		s_dir;
