@@ -4,7 +4,7 @@
  */
 #include <linux/clockchips.h>
 #include <linux/i8253.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/smp.h>
 #include <linux/irq.h>
 
