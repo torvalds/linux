@@ -575,11 +575,13 @@ enum iwl_ucode_tlv_type {
  * @IWL_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behaviour on hidden SSID,
  *	treats good CRC threshold as a boolean
  * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
+ * @IWL_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
  */
 enum iwl_ucode_tlv_flag {
 	IWL_UCODE_TLV_FLAGS_PAN		= BIT(0),
 	IWL_UCODE_TLV_FLAGS_NEWSCAN	= BIT(1),
 	IWL_UCODE_TLV_FLAGS_MFP		= BIT(2),
+	IWL_UCODE_TLV_FLAGS_P2P		= BIT(3),
 };
 
 struct iwl_ucode_tlv {
@@ -1179,7 +1181,7 @@ struct iwl_rxon_context {
 enum iwl_scan_type {
 	IWL_SCAN_NORMAL,
 	IWL_SCAN_RADIO_RESET,
-	IWL_SCAN_OFFCH_TX,
+	IWL_SCAN_ROC,
 };
 
 enum iwlagn_ucode_type {
@@ -1449,14 +1451,10 @@ struct iwl_priv {
 
 	/* remain-on-channel offload support */
 	struct ieee80211_channel *hw_roc_channel;
-	struct delayed_work hw_roc_work;
+	struct delayed_work hw_roc_disable_work;
 	enum nl80211_channel_type hw_roc_chantype;
 	int hw_roc_duration;
 	bool hw_roc_setup;
-
-	struct sk_buff *offchan_tx_skb;
-	int offchan_tx_timeout;
-	struct ieee80211_channel *offchan_tx_chan;
 
 	/* bt coex */
 	u8 bt_enable_flag;

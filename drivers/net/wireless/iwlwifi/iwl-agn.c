@@ -680,10 +680,12 @@ static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 	priv->contexts[IWL_RXON_CTX_PAN].mcast_queue = IWL_IPAN_MCAST_QUEUE;
 	priv->contexts[IWL_RXON_CTX_PAN].interface_modes =
 		BIT(NL80211_IFTYPE_STATION) | BIT(NL80211_IFTYPE_AP);
-#ifdef CONFIG_IWL_P2P
-	priv->contexts[IWL_RXON_CTX_PAN].interface_modes |=
-		BIT(NL80211_IFTYPE_P2P_CLIENT) | BIT(NL80211_IFTYPE_P2P_GO);
-#endif
+
+	if (ucode_flags & IWL_UCODE_TLV_FLAGS_P2P)
+		priv->contexts[IWL_RXON_CTX_PAN].interface_modes |=
+			BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			BIT(NL80211_IFTYPE_P2P_GO);
+
 	priv->contexts[IWL_RXON_CTX_PAN].ap_devtype = RXON_DEV_TYPE_CP;
 	priv->contexts[IWL_RXON_CTX_PAN].station_devtype = RXON_DEV_TYPE_2STA;
 	priv->contexts[IWL_RXON_CTX_PAN].unused_devtype = RXON_DEV_TYPE_P2P;
@@ -1233,6 +1235,13 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 
 	if (!(priv->cfg->sku & EEPROM_SKU_CAP_IPAN_ENABLE))
 		ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+
+	/*
+	 * if not PAN, then don't support P2P -- might be a uCode
+	 * packaging bug or due to the eeprom check above
+	 */
+	if (!(ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN))
+		ucode_capa.flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
 
 	if (ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN) {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
@@ -1855,6 +1864,13 @@ static void __iwl_down(struct iwl_priv *priv)
 
 	iwl_scan_cancel_timeout(priv, 200);
 
+	/*
+	 * If active, scanning won't cancel it, so say it expired.
+	 * No race since we hold the mutex here and a new one
+	 * can't come in at this time.
+	 */
+	ieee80211_remain_on_channel_expired(priv->hw);
+
 	exit_pending = test_and_set_bit(STATUS_EXIT_PENDING, &priv->status);
 
 	/* Stop TX queues watchdog. We need to have STATUS_EXIT_PENDING bit set
@@ -2043,94 +2059,6 @@ static void iwl_bg_restart(struct work_struct *data)
 	} else {
 		WARN_ON(1);
 	}
-}
-
-static int iwl_mac_offchannel_tx(struct ieee80211_hw *hw, struct sk_buff *skb,
-				 struct ieee80211_channel *chan,
-				 enum nl80211_channel_type channel_type,
-				 unsigned int wait)
-{
-	struct iwl_priv *priv = hw->priv;
-	int ret;
-
-	/* Not supported if we don't have PAN */
-	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN))) {
-		ret = -EOPNOTSUPP;
-		goto free;
-	}
-
-	/* Not supported on pre-P2P firmware */
-	if (!(priv->contexts[IWL_RXON_CTX_PAN].interface_modes &
-					BIT(NL80211_IFTYPE_P2P_CLIENT))) {
-		ret = -EOPNOTSUPP;
-		goto free;
-	}
-
-	mutex_lock(&priv->mutex);
-
-	if (!priv->contexts[IWL_RXON_CTX_PAN].is_active) {
-		/*
-		 * If the PAN context is free, use the normal
-		 * way of doing remain-on-channel offload + TX.
-		 */
-		ret = 1;
-		goto out;
-	}
-
-	/* TODO: queue up if scanning? */
-	if (test_bit(STATUS_SCANNING, &priv->status) ||
-	    priv->offchan_tx_skb) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	/*
-	 * max_scan_ie_len doesn't include the blank SSID or the header,
-	 * so need to add that again here.
-	 */
-	if (skb->len > hw->wiphy->max_scan_ie_len + 24 + 2) {
-		ret = -ENOBUFS;
-		goto out;
-	}
-
-	priv->offchan_tx_skb = skb;
-	priv->offchan_tx_timeout = wait;
-	priv->offchan_tx_chan = chan;
-
-	ret = iwl_scan_initiate(priv, priv->contexts[IWL_RXON_CTX_PAN].vif,
-				IWL_SCAN_OFFCH_TX, chan->band);
-	if (ret)
-		priv->offchan_tx_skb = NULL;
- out:
-	mutex_unlock(&priv->mutex);
- free:
-	if (ret < 0)
-		kfree_skb(skb);
-
-	return ret;
-}
-
-static int iwl_mac_offchannel_tx_cancel_wait(struct ieee80211_hw *hw)
-{
-	struct iwl_priv *priv = hw->priv;
-	int ret;
-
-	mutex_lock(&priv->mutex);
-
-	if (!priv->offchan_tx_skb) {
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	priv->offchan_tx_skb = NULL;
-
-	ret = iwl_scan_cancel_timeout(priv, 200);
-	if (ret)
-		ret = -EIO;
-unlock:
-	mutex_unlock(&priv->mutex);
-
-	return ret;
 }
 
 /*****************************************************************************
@@ -3288,35 +3216,34 @@ done:
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-static void iwlagn_disable_roc(struct iwl_priv *priv)
+void iwlagn_disable_roc(struct iwl_priv *priv)
 {
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_PAN];
-	struct ieee80211_channel *chan = ACCESS_ONCE(priv->hw->conf.channel);
 
 	lockdep_assert_held(&priv->mutex);
 
-	if (!ctx->is_active)
+	if (!priv->hw_roc_setup)
 		return;
 
-	ctx->staging.dev_type = RXON_DEV_TYPE_2STA;
+	ctx->staging.dev_type = RXON_DEV_TYPE_P2P;
 	ctx->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	iwl_set_rxon_channel(priv, chan, ctx);
-	iwl_set_flags_for_band(priv, ctx, chan->band, NULL);
 
 	priv->hw_roc_channel = NULL;
+
+	memset(ctx->staging.node_addr, 0, ETH_ALEN);
 
 	iwlagn_commit_rxon(priv, ctx);
 
 	ctx->is_active = false;
+	priv->hw_roc_setup = false;
 }
 
-static void iwlagn_bg_roc_done(struct work_struct *work)
+static void iwlagn_disable_roc_work(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
-					     hw_roc_work.work);
+					     hw_roc_disable_work.work);
 
 	mutex_lock(&priv->mutex);
-	ieee80211_remain_on_channel_expired(priv->hw);
 	iwlagn_disable_roc(priv);
 	mutex_unlock(&priv->mutex);
 }
@@ -3327,33 +3254,63 @@ static int iwl_mac_remain_on_channel(struct ieee80211_hw *hw,
 				     int duration)
 {
 	struct iwl_priv *priv = hw->priv;
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_PAN];
 	int err = 0;
 
 	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
 		return -EOPNOTSUPP;
 
-	if (!(priv->contexts[IWL_RXON_CTX_PAN].interface_modes &
-					BIT(NL80211_IFTYPE_P2P_CLIENT)))
+	if (!(ctx->interface_modes & BIT(NL80211_IFTYPE_P2P_CLIENT)))
 		return -EOPNOTSUPP;
 
 	mutex_lock(&priv->mutex);
 
-	if (priv->contexts[IWL_RXON_CTX_PAN].is_active ||
-	    test_bit(STATUS_SCAN_HW, &priv->status)) {
+	/*
+	 * TODO: Remove this hack! Firmware needs to be updated
+	 * to allow longer off-channel periods in scanning for
+	 * this use case, based on a flag (and we'll need an API
+	 * flag in the firmware when it has that).
+	 */
+	if (iwl_is_associated(priv, IWL_RXON_CTX_BSS) && duration > 80)
+		duration = 80;
+
+	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
 		err = -EBUSY;
 		goto out;
 	}
 
-	priv->contexts[IWL_RXON_CTX_PAN].is_active = true;
 	priv->hw_roc_channel = channel;
 	priv->hw_roc_chantype = channel_type;
-	priv->hw_roc_duration = DIV_ROUND_UP(duration * 1000, 1024);
-	iwlagn_commit_rxon(priv, &priv->contexts[IWL_RXON_CTX_PAN]);
-	queue_delayed_work(priv->workqueue, &priv->hw_roc_work,
-			   msecs_to_jiffies(duration + 20));
+	priv->hw_roc_duration = duration;
+	cancel_delayed_work(&priv->hw_roc_disable_work);
 
-	msleep(IWL_MIN_SLOT_TIME); /* TU is almost ms */
-	ieee80211_ready_on_channel(priv->hw);
+	if (!ctx->is_active) {
+		ctx->is_active = true;
+		ctx->staging.dev_type = RXON_DEV_TYPE_P2P;
+		memcpy(ctx->staging.node_addr,
+		       priv->contexts[IWL_RXON_CTX_BSS].staging.node_addr,
+		       ETH_ALEN);
+		memcpy(ctx->staging.bssid_addr,
+		       priv->contexts[IWL_RXON_CTX_BSS].staging.node_addr,
+		       ETH_ALEN);
+		err = iwlagn_commit_rxon(priv, ctx);
+		if (err)
+			goto out;
+		ctx->staging.filter_flags |= RXON_FILTER_ASSOC_MSK |
+					     RXON_FILTER_PROMISC_MSK |
+					     RXON_FILTER_CTL2HOST_MSK;
+
+		err = iwlagn_commit_rxon(priv, ctx);
+		if (err) {
+			iwlagn_disable_roc(priv);
+			goto out;
+		}
+		priv->hw_roc_setup = true;
+	}
+
+	err = iwl_scan_initiate(priv, ctx->vif, IWL_SCAN_ROC, channel->band);
+	if (err)
+		iwlagn_disable_roc(priv);
 
  out:
 	mutex_unlock(&priv->mutex);
@@ -3368,9 +3325,8 @@ static int iwl_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
 		return -EOPNOTSUPP;
 
-	cancel_delayed_work_sync(&priv->hw_roc_work);
-
 	mutex_lock(&priv->mutex);
+	iwl_scan_cancel_timeout(priv, priv->hw_roc_duration);
 	iwlagn_disable_roc(priv);
 	mutex_unlock(&priv->mutex);
 
@@ -3395,7 +3351,8 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->tx_flush, iwl_bg_tx_flush);
 	INIT_WORK(&priv->bt_full_concurrency, iwl_bg_bt_full_concurrency);
 	INIT_WORK(&priv->bt_runtime_config, iwl_bg_bt_runtime_config);
-	INIT_DELAYED_WORK(&priv->hw_roc_work, iwlagn_bg_roc_done);
+	INIT_DELAYED_WORK(&priv->hw_roc_disable_work,
+			  iwlagn_disable_roc_work);
 
 	iwl_setup_scan_deferred_work(priv);
 
@@ -3427,6 +3384,7 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 
 	cancel_work_sync(&priv->bt_full_concurrency);
 	cancel_work_sync(&priv->bt_runtime_config);
+	cancel_delayed_work_sync(&priv->hw_roc_disable_work);
 
 	del_timer_sync(&priv->statistics_periodic);
 	del_timer_sync(&priv->ucode_trace);
@@ -3579,8 +3537,6 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.tx_last_beacon = iwl_mac_tx_last_beacon,
 	.remain_on_channel = iwl_mac_remain_on_channel,
 	.cancel_remain_on_channel = iwl_mac_cancel_remain_on_channel,
-	.offchannel_tx = iwl_mac_offchannel_tx,
-	.offchannel_tx_cancel_wait = iwl_mac_offchannel_tx_cancel_wait,
 	.rssi_callback = iwl_mac_rssi_callback,
 	CFG80211_TESTMODE_CMD(iwl_testmode_cmd)
 	CFG80211_TESTMODE_DUMP(iwl_testmode_dump)

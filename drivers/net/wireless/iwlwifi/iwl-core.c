@@ -40,6 +40,7 @@
 #include "iwl-io.h"
 #include "iwl-power.h"
 #include "iwl-sta.h"
+#include "iwl-agn.h"
 #include "iwl-helpers.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
@@ -1273,7 +1274,11 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	IWL_DEBUG_MAC80211(priv, "enter: type %d, addr %pM\n",
 			   viftype, vif->addr);
 
+	cancel_delayed_work_sync(&priv->hw_roc_disable_work);
+
 	mutex_lock(&priv->mutex);
+
+	iwlagn_disable_roc(priv);
 
 	if (!iwl_is_ready_rf(priv)) {
 		IWL_WARN(priv, "Try to add interface when device not ready\n");
