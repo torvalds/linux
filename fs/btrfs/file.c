@@ -1452,7 +1452,7 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
  * important optimization for directories because holding the mutex prevents
  * new operations on the dir while we write to disk.
  */
-int btrfs_sync_file(struct file *file, int datasync)
+int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
@@ -1462,9 +1462,13 @@ int btrfs_sync_file(struct file *file, int datasync)
 
 	trace_btrfs_sync_file(file, datasync);
 
+	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (ret)
+		return ret;
+	mutex_lock(&inode->i_mutex);
+
 	/* we wait first, since the writeback may change the inode */
 	root->log_batch++;
-	/* the VFS called filemap_fdatawrite for us */
 	btrfs_wait_ordered_range(inode, 0, (u64)-1);
 	root->log_batch++;
 
@@ -1472,8 +1476,10 @@ int btrfs_sync_file(struct file *file, int datasync)
 	 * check the transaction that last modified this inode
 	 * and see if its already been committed
 	 */
-	if (!BTRFS_I(inode)->last_trans)
+	if (!BTRFS_I(inode)->last_trans) {
+		mutex_unlock(&inode->i_mutex);
 		goto out;
+	}
 
 	/*
 	 * if the last transaction that changed this file was before
@@ -1484,6 +1490,7 @@ int btrfs_sync_file(struct file *file, int datasync)
 	if (BTRFS_I(inode)->last_trans <=
 	    root->fs_info->last_trans_committed) {
 		BTRFS_I(inode)->last_trans = 0;
+		mutex_unlock(&inode->i_mutex);
 		goto out;
 	}
 
@@ -1496,12 +1503,15 @@ int btrfs_sync_file(struct file *file, int datasync)
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
 		ret = PTR_ERR(trans);
+		mutex_unlock(&inode->i_mutex);
 		goto out;
 	}
 
 	ret = btrfs_log_dentry_safe(trans, root, dentry);
-	if (ret < 0)
+	if (ret < 0) {
+		mutex_unlock(&inode->i_mutex);
 		goto out;
+	}
 
 	/* we've logged all the items and now have a consistent
 	 * version of the file in the log.  It is possible that
@@ -1513,7 +1523,7 @@ int btrfs_sync_file(struct file *file, int datasync)
 	 * file again, but that will end up using the synchronization
 	 * inside btrfs_sync_log to keep things safe.
 	 */
-	mutex_unlock(&dentry->d_inode->i_mutex);
+	mutex_unlock(&inode->i_mutex);
 
 	if (ret != BTRFS_NO_LOG_SYNC) {
 		if (ret > 0) {
@@ -1528,7 +1538,6 @@ int btrfs_sync_file(struct file *file, int datasync)
 	} else {
 		ret = btrfs_end_transaction(trans, root);
 	}
-	mutex_lock(&dentry->d_inode->i_mutex);
 out:
 	return ret > 0 ? -EIO : ret;
 }
@@ -1664,8 +1673,154 @@ out:
 	return ret;
 }
 
+static int find_desired_extent(struct inode *inode, loff_t *offset, int origin)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct extent_map *em;
+	struct extent_state *cached_state = NULL;
+	u64 lockstart = *offset;
+	u64 lockend = i_size_read(inode);
+	u64 start = *offset;
+	u64 orig_start = *offset;
+	u64 len = i_size_read(inode);
+	u64 last_end = 0;
+	int ret = 0;
+
+	lockend = max_t(u64, root->sectorsize, lockend);
+	if (lockend <= lockstart)
+		lockend = lockstart + root->sectorsize;
+
+	len = lockend - lockstart + 1;
+
+	len = max_t(u64, len, root->sectorsize);
+	if (inode->i_size == 0)
+		return -ENXIO;
+
+	lock_extent_bits(&BTRFS_I(inode)->io_tree, lockstart, lockend, 0,
+			 &cached_state, GFP_NOFS);
+
+	/*
+	 * Delalloc is such a pain.  If we have a hole and we have pending
+	 * delalloc for a portion of the hole we will get back a hole that
+	 * exists for the entire range since it hasn't been actually written
+	 * yet.  So to take care of this case we need to look for an extent just
+	 * before the position we want in case there is outstanding delalloc
+	 * going on here.
+	 */
+	if (origin == SEEK_HOLE && start != 0) {
+		if (start <= root->sectorsize)
+			em = btrfs_get_extent_fiemap(inode, NULL, 0, 0,
+						     root->sectorsize, 0);
+		else
+			em = btrfs_get_extent_fiemap(inode, NULL, 0,
+						     start - root->sectorsize,
+						     root->sectorsize, 0);
+		if (IS_ERR(em)) {
+			ret = -ENXIO;
+			goto out;
+		}
+		last_end = em->start + em->len;
+		if (em->block_start == EXTENT_MAP_DELALLOC)
+			last_end = min_t(u64, last_end, inode->i_size);
+		free_extent_map(em);
+	}
+
+	while (1) {
+		em = btrfs_get_extent_fiemap(inode, NULL, 0, start, len, 0);
+		if (IS_ERR(em)) {
+			ret = -ENXIO;
+			break;
+		}
+
+		if (em->block_start == EXTENT_MAP_HOLE) {
+			if (test_bit(EXTENT_FLAG_VACANCY, &em->flags)) {
+				if (last_end <= orig_start) {
+					free_extent_map(em);
+					ret = -ENXIO;
+					break;
+				}
+			}
+
+			if (origin == SEEK_HOLE) {
+				*offset = start;
+				free_extent_map(em);
+				break;
+			}
+		} else {
+			if (origin == SEEK_DATA) {
+				if (em->block_start == EXTENT_MAP_DELALLOC) {
+					if (start >= inode->i_size) {
+						free_extent_map(em);
+						ret = -ENXIO;
+						break;
+					}
+				}
+
+				*offset = start;
+				free_extent_map(em);
+				break;
+			}
+		}
+
+		start = em->start + em->len;
+		last_end = em->start + em->len;
+
+		if (em->block_start == EXTENT_MAP_DELALLOC)
+			last_end = min_t(u64, last_end, inode->i_size);
+
+		if (test_bit(EXTENT_FLAG_VACANCY, &em->flags)) {
+			free_extent_map(em);
+			ret = -ENXIO;
+			break;
+		}
+		free_extent_map(em);
+		cond_resched();
+	}
+	if (!ret)
+		*offset = min(*offset, inode->i_size);
+out:
+	unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart, lockend,
+			     &cached_state, GFP_NOFS);
+	return ret;
+}
+
+static loff_t btrfs_file_llseek(struct file *file, loff_t offset, int origin)
+{
+	struct inode *inode = file->f_mapping->host;
+	int ret;
+
+	mutex_lock(&inode->i_mutex);
+	switch (origin) {
+	case SEEK_END:
+	case SEEK_CUR:
+		offset = generic_file_llseek_unlocked(file, offset, origin);
+		goto out;
+	case SEEK_DATA:
+	case SEEK_HOLE:
+		ret = find_desired_extent(inode, &offset, origin);
+		if (ret) {
+			mutex_unlock(&inode->i_mutex);
+			return ret;
+		}
+	}
+
+	if (offset < 0 && !(file->f_mode & FMODE_UNSIGNED_OFFSET))
+		return -EINVAL;
+	if (offset > inode->i_sb->s_maxbytes)
+		return -EINVAL;
+
+	/* Special lock needed here? */
+	if (offset != file->f_pos) {
+		file->f_pos = offset;
+		file->f_version = 0;
+	}
+out:
+	mutex_unlock(&inode->i_mutex);
+	return offset;
+}
+
 const struct file_operations btrfs_file_operations = {
-	.llseek		= generic_file_llseek,
+	.llseek		= btrfs_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
 	.aio_read       = generic_file_aio_read,

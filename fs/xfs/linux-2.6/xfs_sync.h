@@ -35,6 +35,8 @@ void xfs_quiesce_attr(struct xfs_mount *mp);
 void xfs_flush_inodes(struct xfs_inode *ip);
 
 int xfs_reclaim_inodes(struct xfs_mount *mp, int mode);
+int xfs_reclaim_inodes_count(struct xfs_mount *mp);
+void xfs_reclaim_inodes_nr(struct xfs_mount *mp, int nr_to_scan);
 
 void xfs_inode_set_reclaim_tag(struct xfs_inode *ip);
 void __xfs_inode_set_reclaim_tag(struct xfs_perag *pag, struct xfs_inode *ip);
@@ -45,8 +47,5 @@ int xfs_sync_inode_grab(struct xfs_inode *ip);
 int xfs_inode_ag_iterator(struct xfs_mount *mp,
 	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag, int flags),
 	int flags);
-
-void xfs_inode_shrinker_register(struct xfs_mount *mp);
-void xfs_inode_shrinker_unregister(struct xfs_mount *mp);
 
 #endif

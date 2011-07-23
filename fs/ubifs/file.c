@@ -1304,7 +1304,7 @@ static void *ubifs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return NULL;
 }
 
-int ubifs_fsync(struct file *file, int datasync)
+int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -1319,14 +1319,16 @@ int ubifs_fsync(struct file *file, int datasync)
 		 */
 		return 0;
 
-	/*
-	 * VFS has already synchronized dirty pages for this inode. Synchronize
-	 * the inode unless this is a 'datasync()' call.
-	 */
+	err = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	if (err)
+		return err;
+	mutex_lock(&inode->i_mutex);
+
+	/* Synchronize the inode unless this is a 'datasync()' call. */
 	if (!datasync || (inode->i_state & I_DIRTY_DATASYNC)) {
 		err = inode->i_sb->s_op->write_inode(inode, NULL);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	/*
@@ -1334,10 +1336,9 @@ int ubifs_fsync(struct file *file, int datasync)
 	 * them.
 	 */
 	err = ubifs_sync_wbufs_by_inode(c, inode);
-	if (err)
-		return err;
-
-	return 0;
+out:
+	mutex_unlock(&inode->i_mutex);
+	return err;
 }
 
 /**

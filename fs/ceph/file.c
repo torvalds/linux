@@ -226,7 +226,7 @@ struct dentry *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
 	struct inode *parent_inode = get_dentry_parent_inode(file->f_dentry);
 	struct ceph_mds_request *req;
 	int err;
-	int flags = nd->intent.open.flags - 1;  /* silly vfs! */
+	int flags = nd->intent.open.flags;
 
 	dout("ceph_lookup_open dentry %p '%.*s' flags %d mode 0%o\n",
 	     dentry, dentry->d_name.len, dentry->d_name.name, flags, mode);
@@ -768,13 +768,16 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int origin)
 
 	mutex_lock(&inode->i_mutex);
 	__ceph_do_pending_vmtruncate(inode);
-	switch (origin) {
-	case SEEK_END:
+	if (origin != SEEK_CUR || origin != SEEK_SET) {
 		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE);
 		if (ret < 0) {
 			offset = ret;
 			goto out;
 		}
+	}
+
+	switch (origin) {
+	case SEEK_END:
 		offset += inode->i_size;
 		break;
 	case SEEK_CUR:
@@ -789,6 +792,19 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int origin)
 			goto out;
 		}
 		offset += file->f_pos;
+		break;
+	case SEEK_DATA:
+		if (offset >= inode->i_size) {
+			ret = -ENXIO;
+			goto out;
+		}
+		break;
+	case SEEK_HOLE:
+		if (offset >= inode->i_size) {
+			ret = -ENXIO;
+			goto out;
+		}
+		offset = inode->i_size;
 		break;
 	}
 

@@ -52,7 +52,7 @@ ata *);
 	void (*put_link) (struct dentry *, struct nameidata *, void *);
 	void (*truncate) (struct inode *);
 	int (*permission) (struct inode *, int, unsigned int);
-	int (*check_acl)(struct inode *, int, unsigned int);
+	int (*check_acl)(struct inode *, int);
 	int (*setattr) (struct dentry *, struct iattr *);
 	int (*getattr) (struct vfsmount *, struct dentry *, struct kstat *);
 	int (*setxattr) (struct dentry *, const char *,const void *,size_t,int);
@@ -412,7 +412,7 @@ prototypes:
 	int (*open) (struct inode *, struct file *);
 	int (*flush) (struct file *);
 	int (*release) (struct inode *, struct file *);
-	int (*fsync) (struct file *, int datasync);
+	int (*fsync) (struct file *, loff_t start, loff_t end, int datasync);
 	int (*aio_fsync) (struct kiocb *, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);
@@ -438,9 +438,7 @@ prototypes:
 
 locking rules:
 	All may block except for ->setlease.
-	No VFS locks held on entry except for ->fsync and ->setlease.
-
-->fsync() has i_mutex on inode.
+	No VFS locks held on entry except for ->setlease.
 
 ->setlease has the file_list_lock held and must not sleep.
 

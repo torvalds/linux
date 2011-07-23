@@ -1681,19 +1681,14 @@ out:
 }
 
 #ifdef CONFIG_PROC_FS
-struct proc_swaps {
-	struct seq_file seq;
-	int event;
-};
-
 static unsigned swaps_poll(struct file *file, poll_table *wait)
 {
-	struct proc_swaps *s = file->private_data;
+	struct seq_file *seq = file->private_data;
 
 	poll_wait(file, &proc_poll_wait, wait);
 
-	if (s->event != atomic_read(&proc_poll_event)) {
-		s->event = atomic_read(&proc_poll_event);
+	if (seq->poll_event != atomic_read(&proc_poll_event)) {
+		seq->poll_event = atomic_read(&proc_poll_event);
 		return POLLIN | POLLRDNORM | POLLERR | POLLPRI;
 	}
 
@@ -1783,24 +1778,16 @@ static const struct seq_operations swaps_op = {
 
 static int swaps_open(struct inode *inode, struct file *file)
 {
-	struct proc_swaps *s;
+	struct seq_file *seq;
 	int ret;
 
-	s = kmalloc(sizeof(struct proc_swaps), GFP_KERNEL);
-	if (!s)
-		return -ENOMEM;
-
-	file->private_data = s;
-
 	ret = seq_open(file, &swaps_op);
-	if (ret) {
-		kfree(s);
+	if (ret)
 		return ret;
-	}
 
-	s->seq.private = s;
-	s->event = atomic_read(&proc_poll_event);
-	return ret;
+	seq = file->private_data;
+	seq->poll_event = atomic_read(&proc_poll_event);
+	return 0;
 }
 
 static const struct file_operations proc_swaps_operations = {
