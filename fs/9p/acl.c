@@ -108,7 +108,7 @@ int v9fs_check_acl(struct inode *inode, int mask)
 		 * On access = client  and acl = on mode get the acl
 		 * values from the server
 		 */
-		return 0;
+		return -EAGAIN;
 	}
 	acl = v9fs_get_cached_acl(inode, ACL_TYPE_ACCESS);
 
