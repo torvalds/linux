@@ -20,6 +20,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/kvm_asm.h>
 #include <asm/reg.h>
+#include <asm/mmu.h>
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
 
@@ -39,6 +40,7 @@
 #define MSR_NOIRQ		MSR_KERNEL & ~(MSR_IR | MSR_DR)
 #define FUNC(name) 		GLUE(.,name)
 
+	.globl	kvmppc_skip_interrupt
 kvmppc_skip_interrupt:
 	/*
 	 * Here all GPRs are unchanged from when the interrupt happened
@@ -51,6 +53,7 @@ kvmppc_skip_interrupt:
 	rfid
 	b	.
 
+	.globl	kvmppc_skip_Hinterrupt
 kvmppc_skip_Hinterrupt:
 	/*
 	 * Here all GPRs are unchanged from when the interrupt happened

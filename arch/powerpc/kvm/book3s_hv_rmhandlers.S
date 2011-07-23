@@ -20,7 +20,10 @@
 #include <asm/ppc_asm.h>
 #include <asm/kvm_asm.h>
 #include <asm/reg.h>
+#include <asm/mmu.h>
 #include <asm/page.h>
+#include <asm/ptrace.h>
+#include <asm/hvcall.h>
 #include <asm/asm-offsets.h>
 #include <asm/exception-64s.h>
 
