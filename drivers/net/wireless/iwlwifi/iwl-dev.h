@@ -230,12 +230,23 @@ struct iwl_channel_info {
 #define IWL_TX_FIFO_BE_IPAN	4
 #define IWL_TX_FIFO_VI_IPAN	IWL_TX_FIFO_VI
 #define IWL_TX_FIFO_VO_IPAN	5
+/* re-uses the VO FIFO, uCode will properly flush/schedule */
+#define IWL_TX_FIFO_AUX		5
 #define IWL_TX_FIFO_UNUSED	-1
 
-/* Minimum number of queues. MAX_NUM is defined in hw specific files.
- * Set the minimum to accommodate the 4 standard TX queues, 1 command
- * queue, 2 (unused) HCCA queues, and 4 HT queues (one for each AC) */
-#define IWL_MIN_NUM_QUEUES	10
+/* AUX (TX during scan dwell) queue */
+#define IWL_AUX_QUEUE		10
+
+/*
+ * Minimum number of queues. MAX_NUM is defined in hw specific files.
+ * Set the minimum to accommodate
+ *  - 4 standard TX queues
+ *  - the command queue
+ *  - 4 PAN TX queues
+ *  - the PAN multicast queue, and
+ *  - the AUX (TX during scan dwell) queue.
+ */
+#define IWL_MIN_NUM_QUEUES	11
 
 /*
  * Command queue depends on iPAN support.
