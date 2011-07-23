@@ -272,20 +272,18 @@ static unsigned int
 ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
 		unsigned int mode, unsigned int max)
 {
-	unsigned int count, size, chfreq, freq, ch;
+	unsigned int count, size, freq, ch;
 	enum ieee80211_band band;
 
 	switch (mode) {
 	case AR5K_MODE_11A:
 		/* 1..220, but 2GHz frequencies are filtered by check_channel */
 		size = 220;
-		chfreq = CHANNEL_5GHZ;
 		band = IEEE80211_BAND_5GHZ;
 		break;
 	case AR5K_MODE_11B:
 	case AR5K_MODE_11G:
 		size = 26;
-		chfreq = CHANNEL_2GHZ;
 		band = IEEE80211_BAND_2GHZ;
 		break;
 	default:
@@ -300,25 +298,18 @@ ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
 		if (freq == 0) /* mapping failed - not a standard channel */
 			continue;
 
+		/* Write channel info, needed for ath5k_channel_ok() */
+		channels[count].center_freq = freq;
+		channels[count].band = band;
+		channels[count].hw_value = mode;
+
 		/* Check if channel is supported by the chipset */
-		if (!ath5k_channel_ok(ah, freq, chfreq))
+		if (!ath5k_channel_ok(ah, &channels[count]))
 			continue;
 
 		if (!modparam_all_channels &&
 		    !ath5k_is_standard_channel(ch, band))
 			continue;
-
-		/* Write channel info and increment counter */
-		channels[count].center_freq = freq;
-		channels[count].band = band;
-		switch (mode) {
-		case AR5K_MODE_11A:
-		case AR5K_MODE_11G:
-			channels[count].hw_value = chfreq | CHANNEL_OFDM;
-			break;
-		case AR5K_MODE_11B:
-			channels[count].hw_value = CHANNEL_B;
-		}
 
 		count++;
 	}

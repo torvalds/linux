@@ -685,30 +685,6 @@ struct ath5k_gain {
 #define AR5K_SLOT_TIME_20	880
 #define AR5K_SLOT_TIME_MAX	0xffff
 
-/* channel_flags */
-#define	CHANNEL_CW_INT	0x0008	/* Contention Window interference detected */
-#define	CHANNEL_CCK	0x0020	/* CCK channel */
-#define	CHANNEL_OFDM	0x0040	/* OFDM channel */
-#define	CHANNEL_2GHZ	0x0080	/* 2GHz channel. */
-#define	CHANNEL_5GHZ	0x0100	/* 5GHz channel */
-#define	CHANNEL_PASSIVE	0x0200	/* Only passive scan allowed */
-#define	CHANNEL_DYN	0x0400	/* Dynamic CCK-OFDM channel (for g operation) */
-
-#define	CHANNEL_A	(CHANNEL_5GHZ | CHANNEL_OFDM)
-#define	CHANNEL_B	(CHANNEL_2GHZ | CHANNEL_CCK)
-#define	CHANNEL_G	(CHANNEL_2GHZ | CHANNEL_OFDM)
-
-#define	CHANNEL_ALL	(CHANNEL_OFDM | CHANNEL_CCK | \
-			 CHANNEL_2GHZ | CHANNEL_5GHZ)
-
-#define CHANNEL_MODES		CHANNEL_ALL
-
-/*
- * Used internally for ath5k_hw_reset_tx_queue().
- * Also see struct struct ieee80211_channel.
- */
-#define IS_CHAN_B(_c)	((_c->hw_value & CHANNEL_B) != 0)
-
 /*
  * The following structure is used to map 2GHz channels to
  * 5GHz Atheros channels.
@@ -965,7 +941,7 @@ enum ath5k_power_mode {
 struct ath5k_capabilities {
 	/*
 	 * Supported PHY modes
-	 * (ie. CHANNEL_A, CHANNEL_B, ...)
+	 * (ie. AR5K_MODE_11A, AR5K_MODE_11B, ...)
 	 */
 	DECLARE_BITMAP(cap_mode, AR5K_MODE_MAX);
 
@@ -1335,7 +1311,7 @@ void ath5k_unregister_leds(struct ath5k_hw *ah);
 
 
 /* Reset Functions */
-int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial);
+int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 int ath5k_hw_on_hold(struct ath5k_hw *ah);
 int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	   struct ieee80211_channel *channel, bool fast, bool skip_pcu);
@@ -1455,13 +1431,13 @@ int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel);
 
 /* PHY functions */
 /* Misc PHY functions */
-u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan);
+u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, enum ieee80211_band band);
 int ath5k_hw_phy_disable(struct ath5k_hw *ah);
 /* Gain_F optimization */
 enum ath5k_rfgain ath5k_hw_gainf_calibrate(struct ath5k_hw *ah);
 int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah);
 /* PHY/RF channel functions */
-bool ath5k_channel_ok(struct ath5k_hw *ah, u16 freq, unsigned int flags);
+bool ath5k_channel_ok(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 /* PHY calibration */
 void ath5k_hw_init_nfcal_hist(struct ath5k_hw *ah);
 int ath5k_hw_phy_calibrate(struct ath5k_hw *ah,

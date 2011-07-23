@@ -145,7 +145,7 @@ int ath5k_hw_init(struct ath5k_hw *ah)
 		goto err;
 
 	/* Bring device out of sleep and reset its units */
-	ret = ath5k_hw_nic_wakeup(ah, 0, true);
+	ret = ath5k_hw_nic_wakeup(ah, NULL);
 	if (ret)
 		goto err;
 
@@ -153,7 +153,7 @@ int ath5k_hw_init(struct ath5k_hw *ah)
 	ah->ah_phy_revision = ath5k_hw_reg_read(ah, AR5K_PHY_CHIP_ID) &
 			0xffffffff;
 	ah->ah_radio_5ghz_revision = ath5k_hw_radio_revision(ah,
-			CHANNEL_5GHZ);
+			IEEE80211_BAND_5GHZ);
 
 	/* Try to identify radio chip based on its srev */
 	switch (ah->ah_radio_5ghz_revision & 0xf0) {
@@ -161,14 +161,14 @@ int ath5k_hw_init(struct ath5k_hw *ah)
 		ah->ah_radio = AR5K_RF5111;
 		ah->ah_single_chip = false;
 		ah->ah_radio_2ghz_revision = ath5k_hw_radio_revision(ah,
-							CHANNEL_2GHZ);
+							IEEE80211_BAND_2GHZ);
 		break;
 	case AR5K_SREV_RAD_5112:
 	case AR5K_SREV_RAD_2112:
 		ah->ah_radio = AR5K_RF5112;
 		ah->ah_single_chip = false;
 		ah->ah_radio_2ghz_revision = ath5k_hw_radio_revision(ah,
-							CHANNEL_2GHZ);
+							IEEE80211_BAND_2GHZ);
 		break;
 	case AR5K_SREV_RAD_2413:
 		ah->ah_radio = AR5K_RF2413;
@@ -205,7 +205,7 @@ int ath5k_hw_init(struct ath5k_hw *ah)
 			ah->ah_radio = AR5K_RF5111;
 			ah->ah_single_chip = false;
 			ah->ah_radio_2ghz_revision = ath5k_hw_radio_revision(ah,
-								CHANNEL_2GHZ);
+							IEEE80211_BAND_2GHZ);
 		} else if (ah->ah_mac_version == (AR5K_SREV_AR2425 >> 4) ||
 			   ah->ah_mac_version == (AR5K_SREV_AR2417 >> 4) ||
 			   ah->ah_phy_revision == AR5K_SREV_PHY_2425) {
