@@ -17,16 +17,7 @@ int dvb_usb_az6007_debug;
 module_param_named(debug,dvb_usb_az6007_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,rc=4 (or-able))." DVB_USB_DEBUG_STATUS);
 
-
-static int az6007_type =0;
-module_param(az6007_type, int, 0644);
-MODULE_PARM_DESC(az6007_type, "select delivery mode (0=DVB-T, 1=DVB-T");
-
-//module_param_named(type, 6007_type, int, 0644);
-//MODULE_PARM_DESC(type, "select delivery mode (0=DVB-T, 1=DVB-C)");
-
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
-
 
 struct az6007_device_state {
 	struct dvb_ca_en50221 ca;
@@ -110,57 +101,22 @@ static int az6007_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 {
 	int ret;
 
-#if 0
-	int i=0, cyc=0, rem=0;
-	cyc = blen/64;
-	rem = blen%64;
-#endif
-
 	deb_xfer("out: req. %02x, val: %04x, ind: %04x, buffer: ",req,value,index);
 	debug_dump(b,blen,deb_xfer);
 
-
-#if 0
-	if (blen>64)
-	{
-		for (i=0; i<cyc; i++)
-		{
-			if ((ret = usb_control_msg(d->udev,
-				usb_sndctrlpipe(d->udev,0),
-				req,
-				USB_TYPE_VENDOR | USB_DIR_OUT,
-				value,index+i*64,b+i*64,64,
-				5000)) != 64) {
-				warn("usb out operation failed. (%d)",ret);
-				return -EIO;
-			}
-		}
-
-		if (rem>0)
-		{
-			if ((ret = usb_control_msg(d->udev,
-				usb_sndctrlpipe(d->udev,0),
-				req,
-				USB_TYPE_VENDOR | USB_DIR_OUT,
-				value,index+cyc*64,b+cyc*64,rem,
-				5000)) != rem) {
-				warn("usb out operation failed. (%d)",ret);
-				return -EIO;
-			}
-		}
+	if (blen > 64) {
+		printk(KERN_ERR "az6007: doesn't suport I2C transactions longer than 64 bytes\n");
+		return -EOPNOTSUPP;
 	}
-	else
-#endif
-	{
-		if ((ret = usb_control_msg(d->udev,
-				usb_sndctrlpipe(d->udev,0),
-				req,
-				USB_TYPE_VENDOR | USB_DIR_OUT,
-				value,index,b,blen,
-				5000)) != blen) {
-			warn("usb out operation failed. (%d)",ret);
-			return -EIO;
-		}
+
+	if ((ret = usb_control_msg(d->udev,
+			usb_sndctrlpipe(d->udev,0),
+			req,
+			USB_TYPE_VENDOR | USB_DIR_OUT,
+			value,index,b,blen,
+			5000)) != blen) {
+		warn("usb out operation failed. (%d)",ret);
+		return -EIO;
 	}
 
 	return 0;
@@ -232,7 +188,7 @@ static int az6007_frontend_poweron(struct dvb_usb_adapter *adap)
 	info("az6007_frontend_poweron adap=%p adap->dev=%p", adap, adap->dev);
 
 	req = 0xBC;
-	value = 1;//power on
+	value = 1;		/* power on */
 	index = 3;
 	blen =0;
 
@@ -245,7 +201,7 @@ static int az6007_frontend_poweron(struct dvb_usb_adapter *adap)
 	msleep_interruptible(200);
 
 	req = 0xBC;
-	value = 0;//power on
+	value = 0;		/* power off */
 	index = 3;
 	blen =0;
 
@@ -258,7 +214,7 @@ static int az6007_frontend_poweron(struct dvb_usb_adapter *adap)
 	msleep_interruptible(200);
 
 	req = 0xBC;
-	value = 1;//power on
+	value = 1;		/* power on */
 	index = 3;
 	blen =0;
 
@@ -552,9 +508,6 @@ static u32 az6007_i2c_func(struct i2c_adapter *adapter)
 static struct i2c_algorithm az6007_i2c_algo = {
 	.master_xfer   = az6007_i2c_xfer,
 	.functionality = az6007_i2c_func,
-#ifdef NEED_ALGO_CONTROL
-	.algo_control = dummy_algo_control,
-#endif
 };
 
 int az6007_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
@@ -678,5 +631,5 @@ module_exit(az6007_usb_module_exit);
 
 MODULE_AUTHOR("Henry Wang <Henry.wang@AzureWave.com>");
 MODULE_DESCRIPTION("Driver for AzureWave 6007 DVB-C/T USB2.0 and clones");
-MODULE_VERSION("1.0");
+MODULE_VERSION("1.1");
 MODULE_LICENSE("GPL");
