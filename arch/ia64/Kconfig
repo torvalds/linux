@@ -101,6 +101,9 @@ config GENERIC_IOMAP
 	bool
 	default y
 
+config ARCH_CLOCKSOURCE_DATA
+	def_bool y
+
 config SCHED_OMIT_FRAME_POINTER
 	bool
 	default y
