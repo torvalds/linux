@@ -52,7 +52,7 @@ static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 	struct az6007_device_state *st;
 	int status;
 
-	info("%s", __func__);
+	info("%s: %s", __func__, enable? "enable" : "disable" );
 
 	if (!adap)
 		return -EINVAL;
@@ -64,10 +64,14 @@ static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 
 	if (enable) {
+#if 0
 		down(&st->pll_mutex);
+#endif
 		status = st->gate_ctrl(fe, 1);
 	} else {
+#if 0
 		status = st->gate_ctrl(fe, 0);
+#endif
 		up(&st->pll_mutex);
 	}
 	return status;
