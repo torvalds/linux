@@ -951,6 +951,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	int err;
 	struct iwlagn_firmware_pieces pieces;
 	const unsigned int api_max = priv->cfg->ucode_api_max;
+	unsigned int api_ok = priv->cfg->ucode_api_ok;
 	const unsigned int api_min = priv->cfg->ucode_api_min;
 	u32 api_ver;
 	char buildstr[25];
@@ -961,10 +962,13 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 			IWL_DEFAULT_STANDARD_PHY_CALIBRATE_TBL_SIZE,
 	};
 
+	if (!api_ok)
+		api_ok = api_max;
+
 	memset(&pieces, 0, sizeof(pieces));
 
 	if (!ucode_raw) {
-		if (priv->fw_index <= priv->cfg->ucode_api_max)
+		if (priv->fw_index <= api_ok)
 			IWL_ERR(priv,
 				"request for firmware file '%s' failed.\n",
 				priv->firmware_name);
@@ -1010,12 +1014,18 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 			goto try_again;
 		}
 
-		if (api_ver != api_max)
-			IWL_ERR(priv,
-				"Firmware has old API version. Expected v%u, "
-				"got v%u. New firmware can be obtained "
-				"from http://www.intellinuxwireless.org.\n",
-				api_max, api_ver);
+		if (api_ver < api_ok) {
+			if (api_ok != api_max)
+				IWL_ERR(priv, "Firmware has old API version, "
+					"expected v%u through v%u, got v%u.\n",
+					api_ok, api_max, api_ver);
+			else
+				IWL_ERR(priv, "Firmware has old API version, "
+					"expected v%u, got v%u.\n",
+					api_max, api_ver);
+			IWL_ERR(priv, "New firmware can be obtained from "
+				      "http://www.intellinuxwireless.org/.\n");
+		}
 	}
 
 	if (build)
