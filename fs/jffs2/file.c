@@ -63,7 +63,7 @@ const struct file_operations jffs2_file_operations =
 
 const struct inode_operations jffs2_file_inode_operations =
 {
-	.check_acl =	jffs2_check_acl,
+	.get_acl =	jffs2_get_acl,
 	.setattr =	jffs2_setattr,
 	.setxattr =	jffs2_setxattr,
 	.getxattr =	jffs2_getxattr,

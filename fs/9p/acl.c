@@ -96,7 +96,7 @@ static struct posix_acl *v9fs_get_cached_acl(struct inode *inode, int type)
 	return acl;
 }
 
-int v9fs_check_acl(struct inode *inode, int mask)
+struct posix_acl *v9fs_iop_get_acl(struct inode *inode, int type)
 {
 	struct posix_acl *acl;
 	struct v9fs_session_info *v9ses;
@@ -108,18 +108,10 @@ int v9fs_check_acl(struct inode *inode, int mask)
 		 * On access = client  and acl = on mode get the acl
 		 * values from the server
 		 */
-		return -EAGAIN;
+		return NULL;
 	}
-	acl = v9fs_get_cached_acl(inode, ACL_TYPE_ACCESS);
+	return v9fs_get_cached_acl(inode, type);
 
-	if (IS_ERR(acl))
-		return PTR_ERR(acl);
-	if (acl) {
-		int error = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
-		return error;
-	}
-	return -EAGAIN;
 }
 
 static int v9fs_set_acl(struct dentry *dentry, int type, struct posix_acl *acl)

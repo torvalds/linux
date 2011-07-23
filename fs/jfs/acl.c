@@ -27,7 +27,7 @@
 #include "jfs_xattr.h"
 #include "jfs_acl.h"
 
-static struct posix_acl *jfs_get_acl(struct inode *inode, int type)
+struct posix_acl *jfs_get_acl(struct inode *inode, int type)
 {
 	struct posix_acl *acl;
 	char *ea_name;
@@ -112,22 +112,6 @@ out:
 		set_cached_acl(inode, type, acl);
 
 	return rc;
-}
-
-int jfs_check_acl(struct inode *inode, int mask)
-{
-	struct posix_acl *acl;
-
-	acl = jfs_get_acl(inode, ACL_TYPE_ACCESS);
-	if (IS_ERR(acl))
-		return PTR_ERR(acl);
-	if (acl) {
-		int error = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
-		return error;
-	}
-
-	return -EAGAIN;
 }
 
 int jfs_init_acl(tid_t tid, struct inode *inode, struct inode *dir)

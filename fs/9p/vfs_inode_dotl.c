@@ -872,7 +872,7 @@ const struct inode_operations v9fs_dir_inode_operations_dotl = {
 	.getxattr = generic_getxattr,
 	.removexattr = generic_removexattr,
 	.listxattr = v9fs_listxattr,
-	.check_acl = v9fs_check_acl,
+	.get_acl = v9fs_iop_get_acl,
 };
 
 const struct inode_operations v9fs_file_inode_operations_dotl = {
@@ -882,7 +882,7 @@ const struct inode_operations v9fs_file_inode_operations_dotl = {
 	.getxattr = generic_getxattr,
 	.removexattr = generic_removexattr,
 	.listxattr = v9fs_listxattr,
-	.check_acl = v9fs_check_acl,
+	.get_acl = v9fs_iop_get_acl,
 };
 
 const struct inode_operations v9fs_symlink_inode_operations_dotl = {

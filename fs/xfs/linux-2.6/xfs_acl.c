@@ -114,6 +114,8 @@ xfs_get_acl(struct inode *inode, int type)
 	if (acl != ACL_NOT_CACHED)
 		return acl;
 
+	trace_xfs_get_acl(ip);
+
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		ea_name = SGI_ACL_FILE;
@@ -215,25 +217,6 @@ xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 
 	if (!error)
 		set_cached_acl(inode, type, acl);
-	return error;
-}
-
-int
-xfs_check_acl(struct inode *inode, int mask)
-{
-	struct posix_acl *acl;
-	int error = -EAGAIN;
-
-	trace_xfs_check_acl(XFS_I(inode));
-
-	acl = xfs_get_acl(inode, ACL_TYPE_ACCESS);
-	if (IS_ERR(acl))
-		return PTR_ERR(acl);
-	if (acl) {
-		error = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
-	}
-
 	return error;
 }
 

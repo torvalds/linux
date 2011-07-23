@@ -156,7 +156,7 @@ static void *jffs2_acl_to_medium(const struct posix_acl *acl, size_t *size)
 	return ERR_PTR(-EINVAL);
 }
 
-static struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
+struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
 {
 	struct posix_acl *acl;
 	char *value = NULL;
@@ -257,22 +257,6 @@ static int jffs2_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 	if (!rc)
 		set_cached_acl(inode, type, acl);
 	return rc;
-}
-
-int jffs2_check_acl(struct inode *inode, int mask)
-{
-	struct posix_acl *acl;
-	int rc;
-
-	acl = jffs2_get_acl(inode, ACL_TYPE_ACCESS);
-	if (IS_ERR(acl))
-		return PTR_ERR(acl);
-	if (acl) {
-		rc = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
-		return rc;
-	}
-	return -EAGAIN;
 }
 
 int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, mode_t *i_mode)

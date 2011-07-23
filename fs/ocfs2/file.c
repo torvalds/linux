@@ -2600,14 +2600,14 @@ const struct inode_operations ocfs2_file_iops = {
 	.listxattr	= ocfs2_listxattr,
 	.removexattr	= generic_removexattr,
 	.fiemap		= ocfs2_fiemap,
-	.check_acl	= ocfs2_check_acl,
+	.get_acl	= ocfs2_iop_get_acl,
 };
 
 const struct inode_operations ocfs2_special_file_iops = {
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
 	.permission	= ocfs2_permission,
-	.check_acl	= ocfs2_check_acl,
+	.get_acl	= ocfs2_iop_get_acl,
 };
 
 /*

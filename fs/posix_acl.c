@@ -27,7 +27,6 @@ EXPORT_SYMBOL(posix_acl_alloc);
 EXPORT_SYMBOL(posix_acl_valid);
 EXPORT_SYMBOL(posix_acl_equiv_mode);
 EXPORT_SYMBOL(posix_acl_from_mode);
-EXPORT_SYMBOL(posix_acl_permission);
 
 /*
  * Init a fresh posix_acl

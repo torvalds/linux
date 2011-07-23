@@ -131,7 +131,7 @@ fail:
  *
  * inode->i_mutex: don't care
  */
-static struct posix_acl *
+struct posix_acl *
 ext4_get_acl(struct inode *inode, int type)
 {
 	int name_index;
@@ -235,23 +235,6 @@ ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 		set_cached_acl(inode, type, acl);
 
 	return error;
-}
-
-int
-ext4_check_acl(struct inode *inode, int mask)
-{
-	struct posix_acl *acl;
-
-	acl = ext4_get_acl(inode, ACL_TYPE_ACCESS);
-	if (IS_ERR(acl))
-		return PTR_ERR(acl);
-	if (acl) {
-		int error = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
-		return error;
-	}
-
-	return -EAGAIN;
 }
 
 /*

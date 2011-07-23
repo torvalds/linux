@@ -1586,7 +1586,7 @@ struct inode_operations {
 	struct dentry * (*lookup) (struct inode *,struct dentry *, struct nameidata *);
 	void * (*follow_link) (struct dentry *, struct nameidata *);
 	int (*permission) (struct inode *, int);
-	int (*check_acl)(struct inode *, int);
+	struct posix_acl * (*get_acl)(struct inode *, int);
 
 	int (*readlink) (struct dentry *, char __user *,int);
 	void (*put_link) (struct dentry *, struct nameidata *, void *);

@@ -290,7 +290,7 @@ static int ocfs2_set_acl(handle_t *handle,
 	return ret;
 }
 
-int ocfs2_check_acl(struct inode *inode, int mask)
+struct posix_acl *ocfs2_iop_get_acl(struct inode *inode, int type)
 {
 	struct ocfs2_super *osb;
 	struct buffer_head *di_bh = NULL;
@@ -299,29 +299,17 @@ int ocfs2_check_acl(struct inode *inode, int mask)
 
 	osb = OCFS2_SB(inode->i_sb);
 	if (!(osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL))
-		return ret;
+		return NULL;
 
 	ret = ocfs2_read_inode_block(inode, &di_bh);
-	if (ret < 0) {
-		mlog_errno(ret);
-		return ret;
-	}
+	if (ret < 0)
+		return ERR_PTR(ret);
 
-	acl = ocfs2_get_acl_nolock(inode, ACL_TYPE_ACCESS, di_bh);
+	acl = ocfs2_get_acl_nolock(inode, type, di_bh);
 
 	brelse(di_bh);
 
-	if (IS_ERR(acl)) {
-		mlog_errno(PTR_ERR(acl));
-		return PTR_ERR(acl);
-	}
-	if (acl) {
-		ret = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
-		return ret;
-	}
-
-	return -EAGAIN;
+	return acl;
 }
 
 int ocfs2_acl_chmod(struct inode *inode)

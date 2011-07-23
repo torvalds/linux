@@ -67,30 +67,9 @@ static struct posix_acl *gfs2_acl_get(struct gfs2_inode *ip, int type)
 	return acl;
 }
 
-/**
- * gfs2_check_acl - Check an ACL to see if we're allowed to do something
- * @inode: the file we want to do something to
- * @mask: what we want to do
- *
- * Returns: errno
- */
-
-int gfs2_check_acl(struct inode *inode, int mask)
+struct posix_acl *gfs2_get_acl(struct inode *inode, int type)
 {
-	struct posix_acl *acl;
-	int error;
-
-	acl = gfs2_acl_get(GFS2_I(inode), ACL_TYPE_ACCESS);
-	if (IS_ERR(acl))
-		return PTR_ERR(acl);
-
-	if (acl) {
-		error = posix_acl_permission(inode, acl, mask);
-		posix_acl_release(acl);
-		return error;
-	}
-
-	return -EAGAIN;
+	return gfs2_acl_get(GFS2_I(inode), type);
 }
 
 static int gfs2_set_mode(struct inode *inode, mode_t mode)
