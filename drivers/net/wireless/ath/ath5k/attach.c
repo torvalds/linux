@@ -59,7 +59,7 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 			cur_val = ath5k_hw_reg_read(ah, cur_reg);
 
 			if (cur_val != var_pattern) {
-				ATH5K_ERR(ah->ah_sc, "POST Failed !!!\n");
+				ATH5K_ERR(ah, "POST Failed !!!\n");
 				return -EAGAIN;
 			}
 
@@ -74,7 +74,7 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 			cur_val = ath5k_hw_reg_read(ah, cur_reg);
 
 			if (cur_val != var_pattern) {
-				ATH5K_ERR(ah->ah_sc, "POST Failed !!!\n");
+				ATH5K_ERR(ah, "POST Failed !!!\n");
 				return -EAGAIN;
 			}
 
@@ -95,19 +95,18 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 /**
  * ath5k_hw_init - Check if hw is supported and init the needed structs
  *
- * @sc: The &struct ath5k_softc we got from the driver's init_softc function
+ * @ah: The &struct ath5k_hw we got from the driver's init_softc function
  *
  * Check if the device is supported, perform a POST and initialize the needed
  * structs. Returns -ENOMEM if we don't have memory for the needed structs,
  * -ENODEV if the device is not supported or prints an error msg if something
  * else went wrong.
  */
-int ath5k_hw_init(struct ath5k_softc *sc)
+int ath5k_hw_init(struct ath5k_hw *ah)
 {
 	static const u8 zero_mac[ETH_ALEN] = { };
-	struct ath5k_hw *ah = sc->ah;
 	struct ath_common *common = ath5k_hw_common(ah);
-	struct pci_dev *pdev = sc->pdev;
+	struct pci_dev *pdev = ah->pdev;
 	struct ath5k_eeprom_info *ee;
 	int ret;
 	u32 srev;
@@ -123,8 +122,8 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	ah->ah_retry_long = AR5K_INIT_RETRY_LONG;
 	ah->ah_ant_mode = AR5K_ANTMODE_DEFAULT;
 	ah->ah_noise_floor = -95;	/* until first NF calibration is run */
-	sc->ani_state.ani_mode = ATH5K_ANI_MODE_AUTO;
-	ah->ah_current_channel = &sc->channels[0];
+	ah->ani_state.ani_mode = ATH5K_ANI_MODE_AUTO;
+	ah->ah_current_channel = &ah->channels[0];
 
 	/*
 	 * Find the mac version
@@ -237,7 +236,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 			ah->ah_single_chip = true;
 			ah->ah_radio_5ghz_revision = AR5K_SREV_RAD_2413;
 		} else {
-			ATH5K_ERR(sc, "Couldn't identify radio revision.\n");
+			ATH5K_ERR(ah, "Couldn't identify radio revision.\n");
 			ret = -ENODEV;
 			goto err;
 		}
@@ -246,7 +245,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 
 	/* Return on unsupported chips (unsupported eeprom etc) */
 	if ((srev >= AR5K_SREV_AR5416) && (srev < AR5K_SREV_AR2425)) {
-		ATH5K_ERR(sc, "Device not yet supported.\n");
+		ATH5K_ERR(ah, "Device not yet supported.\n");
 		ret = -ENODEV;
 		goto err;
 	}
@@ -268,7 +267,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	 */
 	ret = ath5k_eeprom_init(ah);
 	if (ret) {
-		ATH5K_ERR(sc, "unable to init EEPROM\n");
+		ATH5K_ERR(ah, "unable to init EEPROM\n");
 		goto err;
 	}
 
@@ -309,17 +308,17 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	/* Get misc capabilities */
 	ret = ath5k_hw_set_capabilities(ah);
 	if (ret) {
-		ATH5K_ERR(sc, "unable to get device capabilities\n");
+		ATH5K_ERR(ah, "unable to get device capabilities\n");
 		goto err;
 	}
 
-	if (test_bit(ATH_STAT_2G_DISABLED, sc->status)) {
+	if (test_bit(ATH_STAT_2G_DISABLED, ah->status)) {
 		__clear_bit(AR5K_MODE_11B, ah->ah_capabilities.cap_mode);
 		__clear_bit(AR5K_MODE_11G, ah->ah_capabilities.cap_mode);
 	}
 
 	/* Crypto settings */
-	common->keymax = (sc->ah->ah_version == AR5K_AR5210 ?
+	common->keymax = (ah->ah_version == AR5K_AR5210 ?
 			  AR5K_KEYTABLE_SIZE_5210 : AR5K_KEYTABLE_SIZE_5211);
 
 	if (srev >= AR5K_SREV_AR5212_V4 &&
@@ -339,7 +338,7 @@ int ath5k_hw_init(struct ath5k_softc *sc)
 	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
 	memcpy(common->curbssid, ath_bcast_mac, ETH_ALEN);
 	ath5k_hw_set_bssid(ah);
-	ath5k_hw_set_opmode(ah, sc->opmode);
+	ath5k_hw_set_opmode(ah, ah->opmode);
 
 	ath5k_hw_rfgain_opt_init(ah);
 
@@ -360,7 +359,7 @@ err:
  */
 void ath5k_hw_deinit(struct ath5k_hw *ah)
 {
-	__set_bit(ATH_STAT_INVALID, ah->ah_sc->status);
+	__set_bit(ATH_STAT_INVALID, ah->status);
 
 	if (ah->ah_rf_banks != NULL)
 		kfree(ah->ah_rf_banks);

@@ -126,55 +126,52 @@ struct b43_bus_dev *b43_bus_dev_bcma_init(struct bcma_device *core)
 
 /* SSB */
 #ifdef CONFIG_B43_SSB
-static inline int b43_bus_ssb_bus_may_powerdown(struct b43_bus_dev *dev)
+static int b43_bus_ssb_bus_may_powerdown(struct b43_bus_dev *dev)
 {
 	return ssb_bus_may_powerdown(dev->sdev->bus);
 }
-static inline int b43_bus_ssb_bus_powerup(struct b43_bus_dev *dev,
+static int b43_bus_ssb_bus_powerup(struct b43_bus_dev *dev,
 					  bool dynamic_pctl)
 {
 	return ssb_bus_powerup(dev->sdev->bus, dynamic_pctl);
 }
-static inline int b43_bus_ssb_device_is_enabled(struct b43_bus_dev *dev)
+static int b43_bus_ssb_device_is_enabled(struct b43_bus_dev *dev)
 {
 	return ssb_device_is_enabled(dev->sdev);
 }
-static inline void b43_bus_ssb_device_enable(struct b43_bus_dev *dev,
+static void b43_bus_ssb_device_enable(struct b43_bus_dev *dev,
 					     u32 core_specific_flags)
 {
 	ssb_device_enable(dev->sdev, core_specific_flags);
 }
-static inline void b43_bus_ssb_device_disable(struct b43_bus_dev *dev,
+static void b43_bus_ssb_device_disable(struct b43_bus_dev *dev,
 					      u32 core_specific_flags)
 {
 	ssb_device_disable(dev->sdev, core_specific_flags);
 }
 
-static inline u16 b43_bus_ssb_read16(struct b43_bus_dev *dev, u16 offset)
+static u16 b43_bus_ssb_read16(struct b43_bus_dev *dev, u16 offset)
 {
 	return ssb_read16(dev->sdev, offset);
 }
-static inline u32 b43_bus_ssb_read32(struct b43_bus_dev *dev, u16 offset)
+static u32 b43_bus_ssb_read32(struct b43_bus_dev *dev, u16 offset)
 {
 	return ssb_read32(dev->sdev, offset);
 }
-static inline
-void b43_bus_ssb_write16(struct b43_bus_dev *dev, u16 offset, u16 value)
+static void b43_bus_ssb_write16(struct b43_bus_dev *dev, u16 offset, u16 value)
 {
 	ssb_write16(dev->sdev, offset, value);
 }
-static inline
-void b43_bus_ssb_write32(struct b43_bus_dev *dev, u16 offset, u32 value)
+static void b43_bus_ssb_write32(struct b43_bus_dev *dev, u16 offset, u32 value)
 {
 	ssb_write32(dev->sdev, offset, value);
 }
-static inline
-void b43_bus_ssb_block_read(struct b43_bus_dev *dev, void *buffer,
-			    size_t count, u16 offset, u8 reg_width)
+static void b43_bus_ssb_block_read(struct b43_bus_dev *dev, void *buffer,
+				   size_t count, u16 offset, u8 reg_width)
 {
 	ssb_block_read(dev->sdev, buffer, count, offset, reg_width);
 }
-static inline
+static
 void b43_bus_ssb_block_write(struct b43_bus_dev *dev, const void *buffer,
 			     size_t count, u16 offset, u8 reg_width)
 {

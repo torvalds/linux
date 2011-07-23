@@ -929,6 +929,7 @@ int mwifiex_set_hs_params(struct mwifiex_private *priv,
 			      struct mwifiex_ds_hs_cfg *hscfg);
 int mwifiex_cancel_hs(struct mwifiex_private *priv, int cmd_type);
 int mwifiex_enable_hs(struct mwifiex_adapter *adapter);
+int mwifiex_disable_auto_ds(struct mwifiex_private *priv);
 int mwifiex_get_signal_info(struct mwifiex_private *priv,
 			    struct mwifiex_ds_get_signal *signal);
 int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,

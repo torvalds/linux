@@ -48,6 +48,8 @@
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
+#include "iwl-bus.h"
+#include "iwl-trans.h"
 
 #define DRV_NAME        "iwlagn"
 
@@ -396,13 +398,6 @@ struct iwl_tid_data {
 	struct iwl_ht_agg agg;
 };
 
-struct iwl_hw_key {
-	u32 cipher;
-	int keylen;
-	u8 keyidx;
-	u8 key[32];
-};
-
 union iwl_ht_rate_supp {
 	u16 rates;
 	struct {
@@ -455,7 +450,6 @@ struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used, ctxid;
-	struct iwl_hw_key keyinfo;
 	struct iwl_link_quality_cmd *lq;
 };
 
@@ -558,7 +552,8 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_INIT_ERRLOG_PTR	= 13,
 	IWL_UCODE_TLV_ENHANCE_SENS_TBL	= 14,
 	IWL_UCODE_TLV_PHY_CALIBRATION_SIZE = 15,
-	/* 16 and 17 reserved for future use */
+	IWL_UCODE_TLV_WOWLAN_INST	= 16,
+	IWL_UCODE_TLV_WOWLAN_DATA	= 17,
 	IWL_UCODE_TLV_FLAGS		= 18,
 };
 
@@ -1158,6 +1153,8 @@ struct iwl_rxon_context {
 
 	__le32 station_flags;
 
+	int beacon_int;
+
 	struct {
 		bool non_gf_sta_present;
 		u8 protection;
@@ -1192,77 +1189,6 @@ struct iwl_testmode_trace {
 	bool trace_enabled;
 };
 #endif
-
-struct iwl_bus;
-
-/**
- * struct iwl_bus_ops - bus specific operations
-
- * @get_pm_support: must returns true if the bus can go to sleep
- * @apm_config: will be called during the config of the APM configuration
- * @set_drv_data: set the priv pointer to the bus layer
- * @get_dev: returns the device struct
- * @get_irq: returns the irq number
- * @get_hw_id: prints the hw_id in the provided buffer
- * @write8: write a byte to register at offset ofs
- * @write32: write a dword to register at offset ofs
- * @wread32: read a dword at register at offset ofs
- */
-struct iwl_bus_ops {
-	bool (*get_pm_support)(struct iwl_bus *bus);
-	void (*apm_config)(struct iwl_bus *bus);
-	void (*set_drv_data)(struct iwl_bus *bus, void *priv);
-	struct device *(*get_dev)(const struct iwl_bus *bus);
-	unsigned int (*get_irq)(const struct iwl_bus *bus);
-	void (*get_hw_id)(struct iwl_bus *bus, char buf[], int buf_len);
-	void (*write8)(struct iwl_bus *bus, u32 ofs, u8 val);
-	void (*write32)(struct iwl_bus *bus, u32 ofs, u32 val);
-	u32 (*read32)(struct iwl_bus *bus, u32 ofs);
-};
-
-struct iwl_bus {
-	/* pointer to bus specific struct */
-	void *bus_specific;
-
-	/* Common data to all buses */
-	struct iwl_priv *priv; /* driver's context */
-	struct device *dev;
-	struct iwl_bus_ops *ops;
-	unsigned int irq;
-};
-
-struct iwl_trans;
-
-/**
- * struct iwl_trans_ops - transport specific operations
-
- * @rx_init: inits the rx memory, allocate it if needed
- * @rx_stop: stop the rx
- * @rx_free: frees the rx memory
- * @tx_init:inits the tx memory, allocate if needed
- * @tx_stop: stop the tx
- * @tx_free: frees the tx memory
- * @send_cmd:send a host command
- * @send_cmd_pdu:send a host command: flags can be CMD_*
- */
-struct iwl_trans_ops {
-	int (*rx_init)(struct iwl_priv *priv);
-	int (*rx_stop)(struct iwl_priv *priv);
-	void (*rx_free)(struct iwl_priv *priv);
-
-	int (*tx_init)(struct iwl_priv *priv);
-	int (*tx_stop)(struct iwl_priv *priv);
-	void (*tx_free)(struct iwl_priv *priv);
-
-	int (*send_cmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
-
-	int (*send_cmd_pdu)(struct iwl_priv *priv, u8 id, u32 flags, u16 len,
-		     const void *data);
-};
-
-struct iwl_trans {
-	const struct iwl_trans_ops *ops;
-};
 
 /* uCode ownership */
 #define IWL_OWNERSHIP_DRIVER	0
@@ -1335,7 +1261,7 @@ struct iwl_priv {
 	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
 
-	struct iwl_bus bus;	/* bus specific data */
+	struct iwl_bus *bus;	/* bus specific data */
 	struct iwl_trans trans;
 
 	/* microcode/device supports multiple contexts */
@@ -1362,6 +1288,7 @@ struct iwl_priv {
 
 	struct fw_img ucode_rt;
 	struct fw_img ucode_init;
+	struct fw_img ucode_wowlan;
 
 	enum iwlagn_ucode_type ucode_type;
 	u8 ucode_write_complete;	/* the image write is complete */
@@ -1434,6 +1361,8 @@ struct iwl_priv {
 
 	u8 mac80211_registered;
 
+	bool wowlan;
+
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
 	int    nvm_device_type;
@@ -1469,56 +1398,54 @@ struct iwl_priv {
 	} accum_stats, delta_stats, max_delta_stats;
 #endif
 
-	struct {
-		/* INT ICT Table */
-		__le32 *ict_tbl;
-		void *ict_tbl_vir;
-		dma_addr_t ict_tbl_dma;
-		dma_addr_t aligned_ict_tbl_dma;
-		int ict_index;
-		u32 inta;
-		bool use_ict;
-		/*
-		 * reporting the number of tids has AGG on. 0 means
-		 * no AGGREGATION
-		 */
-		u8 agg_tids_count;
+	/* INT ICT Table */
+	__le32 *ict_tbl;
+	void *ict_tbl_vir;
+	dma_addr_t ict_tbl_dma;
+	dma_addr_t aligned_ict_tbl_dma;
+	int ict_index;
+	u32 inta;
+	bool use_ict;
+	/*
+	 * reporting the number of tids has AGG on. 0 means
+	 * no AGGREGATION
+	 */
+	u8 agg_tids_count;
 
-		struct iwl_rx_phy_res last_phy_res;
-		bool last_phy_res_valid;
+	struct iwl_rx_phy_res last_phy_res;
+	bool last_phy_res_valid;
 
-		struct completion firmware_loading_complete;
+	struct completion firmware_loading_complete;
 
-		u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
-		u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
+	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
+	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 
-		/*
-		 * chain noise reset and gain commands are the
-		 * two extra calibration commands follows the standard
-		 * phy calibration commands
-		 */
-		u8 phy_calib_chain_noise_reset_cmd;
-		u8 phy_calib_chain_noise_gain_cmd;
+	/*
+	 * chain noise reset and gain commands are the
+	 * two extra calibration commands follows the standard
+	 * phy calibration commands
+	 */
+	u8 phy_calib_chain_noise_reset_cmd;
+	u8 phy_calib_chain_noise_gain_cmd;
 
-		/* counts reply_tx error */
-		struct reply_tx_error_statistics reply_tx_stats;
-		struct reply_agg_tx_error_statistics reply_agg_tx_stats;
-		/* notification wait support */
-		struct list_head notif_waits;
-		spinlock_t notif_wait_lock;
-		wait_queue_head_t notif_waitq;
+	/* counts reply_tx error */
+	struct reply_tx_error_statistics reply_tx_stats;
+	struct reply_agg_tx_error_statistics reply_agg_tx_stats;
+	/* notification wait support */
+	struct list_head notif_waits;
+	spinlock_t notif_wait_lock;
+	wait_queue_head_t notif_waitq;
 
-		/* remain-on-channel offload support */
-		struct ieee80211_channel *hw_roc_channel;
-		struct delayed_work hw_roc_work;
-		enum nl80211_channel_type hw_roc_chantype;
-		int hw_roc_duration;
-		bool hw_roc_setup;
+	/* remain-on-channel offload support */
+	struct ieee80211_channel *hw_roc_channel;
+	struct delayed_work hw_roc_work;
+	enum nl80211_channel_type hw_roc_chantype;
+	int hw_roc_duration;
+	bool hw_roc_setup;
 
-		struct sk_buff *offchan_tx_skb;
-		int offchan_tx_timeout;
-		struct ieee80211_channel *offchan_tx_chan;
-	} _agn;
+	struct sk_buff *offchan_tx_skb;
+	int offchan_tx_timeout;
+	struct ieee80211_channel *offchan_tx_chan;
 
 	/* bt coex */
 	u8 bt_enable_flag;
@@ -1588,6 +1515,7 @@ struct iwl_priv {
 	struct dentry *debugfs_dir;
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
 	bool disable_ht40;
+	void *wowlan_sram;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
 	struct work_struct txpower_work;
@@ -1605,9 +1533,14 @@ struct iwl_priv {
 	bool led_registered;
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 	struct iwl_testmode_trace testmode_trace;
-#endif
 	u32 tm_fixed_rate;
+#endif
 
+	/* WoWLAN GTK rekey data */
+	u8 kck[NL80211_KCK_LEN], kek[NL80211_KEK_LEN];
+	__le64 replay_ctr;
+	__le16 last_seq_ctl;
+	bool have_rekey_data;
 }; /*iwl_priv */
 
 static inline void iwl_txq_ctx_activate(struct iwl_priv *priv, int txq_id)

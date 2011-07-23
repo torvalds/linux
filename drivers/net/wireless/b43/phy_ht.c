@@ -148,7 +148,7 @@ static void b43_radio_2059_init(struct b43_wldev *dev)
 		b43_radio_mask(dev, 0x17F, ~0x1);
 	}
 
-	b43_radio_mask(dev, 0x11, 0x0008);
+	b43_radio_mask(dev, 0x11, ~0x0008);
 }
 
 /**************************************************
@@ -276,18 +276,25 @@ static void b43_phy_ht_op_software_rfkill(struct b43_wldev *dev,
 	if (b43_read32(dev, B43_MMIO_MACCTL) & B43_MACCTL_ENABLED)
 		b43err(dev->wl, "MAC not suspended\n");
 
+	/* In the following PHY ops we copy wl's dummy behaviour.
+	 * TODO: Find out if reads (currently hidden in masks/masksets) are
+	 * needed and replace following ops with just writes or w&r.
+	 * Note: B43_PHY_HT_RF_CTL1 register is tricky, wrong operation can
+	 * cause delayed (!) machine lock up. */
 	if (blocked) {
-		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, ~0);
+		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, 0);
 	} else {
-		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, ~0);
-		b43_phy_maskset(dev, B43_PHY_HT_RF_CTL1, ~0, 0x1);
-		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, ~0);
-		b43_phy_maskset(dev, B43_PHY_HT_RF_CTL1, ~0, 0x2);
+		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, 0);
+		b43_phy_maskset(dev, B43_PHY_HT_RF_CTL1, 0, 0x1);
+		b43_phy_mask(dev, B43_PHY_HT_RF_CTL1, 0);
+		b43_phy_maskset(dev, B43_PHY_HT_RF_CTL1, 0, 0x2);
 
 		if (dev->phy.radio_ver == 0x2059)
 			b43_radio_2059_init(dev);
 		else
 			B43_WARN_ON(1);
+
+		b43_switch_channel(dev, dev->phy.channel);
 	}
 }
 
@@ -329,7 +336,7 @@ static int b43_phy_ht_op_switch_channel(struct b43_wldev *dev,
 static unsigned int b43_phy_ht_op_get_default_chan(struct b43_wldev *dev)
 {
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
-		return 1;
+		return 11;
 	return 36;
 }
 

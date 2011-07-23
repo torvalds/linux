@@ -105,7 +105,7 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 		 * big still, waiting on a better value.
 		 */
 		if (eep_max > (3 * AR5K_EEPROM_INFO_MAX)) {
-			ATH5K_ERR(ah->ah_sc, "Invalid max custom EEPROM size: "
+			ATH5K_ERR(ah, "Invalid max custom EEPROM size: "
 				  "%d (0x%04x) max expected: %d (0x%04x)\n",
 				  eep_max, eep_max,
 				  3 * AR5K_EEPROM_INFO_MAX,
@@ -119,7 +119,7 @@ ath5k_eeprom_init_header(struct ath5k_hw *ah)
 		cksum ^= val;
 	}
 	if (cksum != AR5K_EEPROM_INFO_CKSUM) {
-		ATH5K_ERR(ah->ah_sc, "Invalid EEPROM "
+		ATH5K_ERR(ah, "Invalid EEPROM "
 			  "checksum: 0x%04x eep_max: 0x%04x (%s)\n",
 			  cksum, eep_max,
 			  eep_max == AR5K_EEPROM_INFO_MAX ?

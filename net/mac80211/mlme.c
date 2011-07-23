@@ -917,6 +917,7 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 			    params.aifs, params.cw_min, params.cw_max,
 			    params.txop, params.uapsd);
 #endif
+		local->tx_conf[queue] = params;
 		if (drv_conf_tx(local, queue, &params))
 			wiphy_debug(local->hw.wiphy,
 				    "failed to set TX queue parameters for queue %d\n",
@@ -1219,7 +1220,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 	} else {
 		ssid = ieee80211_bss_get_ie(ifmgd->associated, WLAN_EID_SSID);
 		ieee80211_send_probe_req(sdata, dst, ssid + 2, ssid[1], NULL, 0,
-					 true);
+					 (u32) -1, true);
 	}
 
 	ifmgd->probe_send_count++;
@@ -1304,7 +1305,8 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 
 	ssid = ieee80211_bss_get_ie(ifmgd->associated, WLAN_EID_SSID);
 	skb = ieee80211_build_probe_req(sdata, ifmgd->associated->bssid,
-					ssid + 2, ssid[1], NULL, 0, true);
+					(u32) -1, ssid + 2, ssid[1],
+					NULL, 0, true);
 
 	return skb;
 }
@@ -2333,14 +2335,16 @@ static enum work_done_result
 ieee80211_probe_auth_done(struct ieee80211_work *wk,
 			  struct sk_buff *skb)
 {
+	struct ieee80211_local *local = wk->sdata->local;
+
 	if (!skb) {
 		cfg80211_send_auth_timeout(wk->sdata->dev, wk->filter_ta);
-		return WORK_DONE_DESTROY;
+		goto destroy;
 	}
 
 	if (wk->type == IEEE80211_WORK_AUTH) {
 		cfg80211_send_rx_auth(wk->sdata->dev, skb->data, skb->len);
-		return WORK_DONE_DESTROY;
+		goto destroy;
 	}
 
 	mutex_lock(&wk->sdata->u.mgd.mtx);
@@ -2350,6 +2354,12 @@ ieee80211_probe_auth_done(struct ieee80211_work *wk,
 	wk->type = IEEE80211_WORK_AUTH;
 	wk->probe_auth.tries = 0;
 	return WORK_DONE_REQUEUE;
+ destroy:
+	if (wk->probe_auth.synced)
+		drv_finish_tx_sync(local, wk->sdata, wk->filter_ta,
+				   IEEE80211_TX_SYNC_AUTH);
+
+	return WORK_DONE_DESTROY;
 }
 
 int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
@@ -2422,6 +2432,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 static enum work_done_result ieee80211_assoc_done(struct ieee80211_work *wk,
 						  struct sk_buff *skb)
 {
+	struct ieee80211_local *local = wk->sdata->local;
 	struct ieee80211_mgmt *mgmt;
 	struct ieee80211_rx_status *rx_status;
 	struct ieee802_11_elems elems;
@@ -2429,7 +2440,7 @@ static enum work_done_result ieee80211_assoc_done(struct ieee80211_work *wk,
 
 	if (!skb) {
 		cfg80211_send_assoc_timeout(wk->sdata->dev, wk->filter_ta);
-		return WORK_DONE_DESTROY;
+		goto destroy;
 	}
 
 	if (wk->type == IEEE80211_WORK_ASSOC_BEACON_WAIT) {
@@ -2449,6 +2460,10 @@ static enum work_done_result ieee80211_assoc_done(struct ieee80211_work *wk,
 	status = le16_to_cpu(mgmt->u.assoc_resp.status_code);
 
 	if (status == WLAN_STATUS_SUCCESS) {
+		if (wk->assoc.synced)
+			drv_finish_tx_sync(local, wk->sdata, wk->filter_ta,
+					   IEEE80211_TX_SYNC_ASSOC);
+
 		mutex_lock(&wk->sdata->u.mgd.mtx);
 		if (!ieee80211_assoc_success(wk, mgmt, skb->len)) {
 			mutex_unlock(&wk->sdata->u.mgd.mtx);
@@ -2462,6 +2477,11 @@ static enum work_done_result ieee80211_assoc_done(struct ieee80211_work *wk,
 	}
 
 	cfg80211_send_rx_assoc(wk->sdata->dev, skb->data, skb->len);
+ destroy:
+	if (wk->assoc.synced)
+		drv_finish_tx_sync(local, wk->sdata, wk->filter_ta,
+				   IEEE80211_TX_SYNC_ASSOC);
+
 	return WORK_DONE_DESTROY;
 }
 

@@ -456,7 +456,7 @@ static int rtl_op_sta_add(struct ieee80211_hw *hw,
 			sta_entry->wireless_mode = WIRELESS_MODE_G;
 
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
-			("Add sta addr is "MAC_FMT"\n", MAC_ARG(sta->addr)));
+			("Add sta addr is %pM\n", sta->addr));
 		rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
 	}
 	return 0;
@@ -469,7 +469,7 @@ static int rtl_op_sta_remove(struct ieee80211_hw *hw,
 	struct rtl_sta_info *sta_entry;
 	if (sta) {
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
-			("Remove sta addr is "MAC_FMT"\n", MAC_ARG(sta->addr)));
+			("Remove sta addr is %pM\n", sta->addr));
 		sta_entry = (struct rtl_sta_info *) sta->drv_priv;
 		sta_entry->wireless_mode = 0;
 		sta_entry->ratr_index = 0;
@@ -678,7 +678,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 					      (u8 *) bss_conf->bssid);
 
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_DMESG,
-			 (MAC_FMT "\n", MAC_ARG(bss_conf->bssid)));
+			 ("%pM\n", bss_conf->bssid));
 
 		mac->vendor = PEER_UNKNOWN;
 		memcpy(mac->bssid, bss_conf->bssid, 6);

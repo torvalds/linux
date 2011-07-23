@@ -1255,6 +1255,10 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 	 */
 	p.uapsd = false;
 
+	if (params->queue >= local->hw.queues)
+		return -EINVAL;
+
+	local->tx_conf[params->queue] = p;
 	if (drv_conf_tx(local, params->queue, &p)) {
 		wiphy_debug(local->hw.wiphy,
 			    "failed to set TX queue parameters for queue %d\n",
