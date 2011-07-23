@@ -1790,6 +1790,7 @@ static int mt2063_init(struct dvb_frontend *fe)
 	struct mt2063_state *state = fe->tuner_priv;
 	u8 all_resets = 0xF0;	/* reset/load bits */
 	const u8 *def = NULL;
+	char *step;
 	u32 FCRUN;
 	s32 maxReads;
 	u32 fcu_osc;
@@ -1807,10 +1808,24 @@ static int mt2063_init(struct dvb_frontend *fe)
 	}
 
 	/* Check the part/rev code */
-	if (((state->reg[MT2063_REG_PART_REV] != MT2063_B0)	/*  MT2063 B0  */
-	    && (state->reg[MT2063_REG_PART_REV] != MT2063_B1)	/*  MT2063 B1  */
-	    && (state->reg[MT2063_REG_PART_REV] != MT2063_B3)))	/*  MT2063 B3  */
+	switch (state->reg[MT2063_REG_PART_REV]) {
+	case MT2063_B0:
+		step = "B0";
+		break;
+	case MT2063_B1:
+		step = "B1";
+		break;
+	case MT2063_B2:
+		step = "B2";
+		break;
+	case MT2063_B3:
+		step = "B3";
+		break;
+	default:
+		printk(KERN_ERR "mt2063: Unknown mt2063 device ID (0x%02x)\n",
+		       state->reg[MT2063_REG_PART_REV]);
 		return -ENODEV;	/*  Wrong tuner Part/Rev code */
+	}
 
 	/*  Check the 2nd byte of the Part/Rev code from the tuner */
 	status = mt2063_read(state, MT2063_REG_RSVD_3B,
@@ -1818,9 +1833,12 @@ static int mt2063_init(struct dvb_frontend *fe)
 
 	/* b7 != 0 ==> NOT MT2063 */
 	if (status < 0 || ((state->reg[MT2063_REG_RSVD_3B] & 0x80) != 0x00)) {
-		printk(KERN_ERR "Can't read mt2063 2nd part ID\n");
+		printk(KERN_ERR "mt2063: Unknown 2nd part ID\n");
 		return -ENODEV;	/*  Wrong tuner Part/Rev code */
 	}
+
+	dprintk(1, "Discovered a mt2063 %s (2nd part number 0x%02x)\n",
+		step, state->reg[MT2063_REG_RSVD_3B]);
 
 	/*  Reset the tuner  */
 	status = mt2063_write(state, MT2063_REG_LO2CQ_3, &all_resets, 1);
