@@ -449,8 +449,6 @@ int main(void)
 #ifdef CONFIG_PPC_BOOK3S
 	DEFINE(VCPU_KVM, offsetof(struct kvm_vcpu, kvm));
 	DEFINE(VCPU_VCPUID, offsetof(struct kvm_vcpu, vcpu_id));
-	DEFINE(VCPU_HOST_RETIP, offsetof(struct kvm_vcpu, arch.host_retip));
-	DEFINE(VCPU_HOST_MSR, offsetof(struct kvm_vcpu, arch.host_msr));
 	DEFINE(VCPU_PURR, offsetof(struct kvm_vcpu, arch.purr));
 	DEFINE(VCPU_SPURR, offsetof(struct kvm_vcpu, arch.spurr));
 	DEFINE(VCPU_DSCR, offsetof(struct kvm_vcpu, arch.dscr));
@@ -458,10 +456,6 @@ int main(void)
 	DEFINE(VCPU_UAMOR, offsetof(struct kvm_vcpu, arch.uamor));
 	DEFINE(VCPU_CTRL, offsetof(struct kvm_vcpu, arch.ctrl));
 	DEFINE(VCPU_DABR, offsetof(struct kvm_vcpu, arch.dabr));
-	DEFINE(VCPU_TRAMPOLINE_LOWMEM, offsetof(struct kvm_vcpu, arch.trampoline_lowmem));
-	DEFINE(VCPU_TRAMPOLINE_ENTER, offsetof(struct kvm_vcpu, arch.trampoline_enter));
-	DEFINE(VCPU_HIGHMEM_HANDLER, offsetof(struct kvm_vcpu, arch.highmem_handler));
-	DEFINE(VCPU_RMCALL, offsetof(struct kvm_vcpu, arch.rmcall));
 	DEFINE(VCPU_HFLAGS, offsetof(struct kvm_vcpu, arch.hflags));
 	DEFINE(VCPU_DEC, offsetof(struct kvm_vcpu, arch.dec));
 	DEFINE(VCPU_DEC_EXPIRES, offsetof(struct kvm_vcpu, arch.dec_expires));
@@ -537,6 +531,7 @@ int main(void)
 	HSTATE_FIELD(HSTATE_SCRATCH0, scratch0);
 	HSTATE_FIELD(HSTATE_SCRATCH1, scratch1);
 	HSTATE_FIELD(HSTATE_IN_GUEST, in_guest);
+	HSTATE_FIELD(HSTATE_RESTORE_HID5, restore_hid5);
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	HSTATE_FIELD(HSTATE_KVM_VCPU, kvm_vcpu);

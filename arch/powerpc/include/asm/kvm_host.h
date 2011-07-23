@@ -258,14 +258,6 @@ struct kvm_vcpu_arch {
 	ulong host_stack;
 	u32 host_pid;
 #ifdef CONFIG_PPC_BOOK3S
-	ulong host_msr;
-	ulong host_r2;
-	void *host_retip;
-	ulong trampoline_lowmem;
-	ulong trampoline_enter;
-	ulong highmem_handler;
-	ulong rmcall;
-	ulong host_paca_phys;
 	struct kvmppc_slb slb[64];
 	int slb_max;		/* 1 + index of last valid entry in slb[] */
 	int slb_nr;		/* total number of entries in SLB */

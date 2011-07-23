@@ -875,8 +875,6 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (!p)
 		goto uninit_vcpu;
 
-	vcpu->arch.host_retip = kvm_return_point;
-	vcpu->arch.host_msr = mfmsr();
 #ifdef CONFIG_PPC_BOOK3S_64
 	/* default to book3s_64 (970fx) */
 	vcpu->arch.pvr = 0x3C0301;
@@ -886,16 +884,6 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 #endif
 	kvmppc_set_pvr(vcpu, vcpu->arch.pvr);
 	vcpu->arch.slb_nr = 64;
-
-	/* remember where some real-mode handlers are */
-	vcpu->arch.trampoline_lowmem = __pa(kvmppc_handler_lowmem_trampoline);
-	vcpu->arch.trampoline_enter = __pa(kvmppc_handler_trampoline_enter);
-	vcpu->arch.highmem_handler = (ulong)kvmppc_handler_highmem;
-#ifdef CONFIG_PPC_BOOK3S_64
-	vcpu->arch.rmcall = *(ulong*)kvmppc_rmcall;
-#else
-	vcpu->arch.rmcall = (ulong)kvmppc_rmcall;
-#endif
 
 	vcpu->arch.shadow_msr = MSR_USER64;
 
