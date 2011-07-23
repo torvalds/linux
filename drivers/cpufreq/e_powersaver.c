@@ -43,6 +43,7 @@ static struct eps_cpu_data *eps_cpu[NR_CPUS];
 /* Module parameters */
 static int freq_failsafe_off;
 static int voltage_failsafe_off;
+static int set_max_voltage;
 
 #if defined CONFIG_ACPI_PROCESSOR || defined CONFIG_ACPI_PROCESSOR_MODULE
 static int ignore_acpi_limit;
@@ -340,6 +341,21 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	}
 #endif
 
+	/* Allow user to set lower maximum voltage then that reported
+	 * by processor */
+	if (brand == EPS_BRAND_C7M && set_max_voltage) {
+		u32 v;
+
+		/* Change mV to something hardware can use */
+		v = (set_max_voltage - 700) / 16;
+		/* Check if voltage is within limits */
+		if (v >= min_voltage && v <= max_voltage) {
+			printk(KERN_INFO "eps: Setting %dmV as maximum.\n",
+				v * 16 + 700);
+			max_voltage = v;
+		}
+	}
+
 	/* Calc number of p-states supported */
 	if (brand == EPS_BRAND_C7M)
 		states = max_multiplier - min_multiplier + 1;
@@ -453,6 +469,8 @@ MODULE_PARM_DESC(voltage_failsafe_off, "Disable current vs max voltage check");
 module_param(ignore_acpi_limit, int, 0644);
 MODULE_PARM_DESC(ignore_acpi_limit, "Don't check ACPI's processor speed limit");
 #endif
+module_param(set_max_voltage, int, 0644);
+MODULE_PARM_DESC(set_max_voltage, "Set maximum CPU voltage (mV) C7-M only");
 
 MODULE_AUTHOR("Rafal Bilski <rafalbilski@interia.pl>");
 MODULE_DESCRIPTION("Enhanced PowerSaver driver for VIA C7 CPU's.");
