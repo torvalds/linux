@@ -507,6 +507,18 @@ void snd_pcm_detach_substream(struct snd_pcm_substream *substream);
 void snd_pcm_vma_notify_data(void *client, void *data);
 int snd_pcm_mmap_data(struct snd_pcm_substream *substream, struct file *file, struct vm_area_struct *area);
 
+
+#ifdef CONFIG_SND_DEBUG
+void snd_pcm_debug_name(struct snd_pcm_substream *substream,
+			   char *name, size_t len);
+#else
+static inline void
+snd_pcm_debug_name(struct snd_pcm_substream *substream, char *buf, size_t size)
+{
+	*buf = 0;
+}
+#endif
+
 /*
  *  PCM library
  */
