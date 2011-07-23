@@ -42,7 +42,7 @@ struct az6007_device_state {
 struct drxk_config terratec_h7_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
-	.no_i2c_bridge = 1,
+	.no_i2c_bridge = 0,
 	.microcode_name = "dvb-usb-terratec-h5-drxk.fw",
 };
 
@@ -451,7 +451,6 @@ static int az6007_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msgs[],int nu
 
 	for (i = 0; i < num; i++) {
 		addr = msgs[i].addr << 1;
-
 		if (((i + 1) < num)
 		    && (msgs[i].len == 1)
 		    && (!msgs[i].flags & I2C_M_RD)
@@ -462,44 +461,55 @@ static int az6007_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msgs[],int nu
 			 * the first xfer has just 1 byte length.
 			 * Need to join both into one operation
 			 */
-			printk("az6007 I2C xfer write+read addr=0x%x len=%d/%d: ",
-				addr, msgs[i].len, msgs[i + 1].len);
+			if (dvb_usb_az6007_debug & 2)
+				printk(KERN_DEBUG
+				       "az6007 I2C xfer write+read addr=0x%x len=%d/%d: ",
+				       addr, msgs[i].len, msgs[i + 1].len);
 			req = 0xb9;
-			index = 0;
-			value = addr;
-			for (j = 0; j < msgs[i].len; j++)
-				data[j] = msgs[i].buf[j];
+			index = msgs[i].buf[0];
+			value = addr | (1 << 8);
 			length = 6 + msgs[i + 1].len;
 			len = msgs[i + 1].len;
 			ret = az6007_usb_in_op(d,req,value,index,data,length);
 			if (ret >= len) {
 				for (j = 0; j < len; j++) {
 					msgs[i + 1].buf[j] = data[j + 5];
-					printk("0x%02x ", msgs[i + 1].buf[j]);
+					if (dvb_usb_az6007_debug & 2)
+						printk(KERN_CONT
+						       "0x%02x ",
+						       msgs[i + 1].buf[j]);
 				}
 			} else
 				ret = -EIO;
 			i++;
 		} else if (!(msgs[i].flags & I2C_M_RD)) {
 			/* write bytes */
-//			printk("az6007 I2C xfer write addr=0x%x len=%d: ",
-//				 addr, msgs[i].len);
+			if (dvb_usb_az6007_debug & 2)
+				printk(KERN_DEBUG
+				       "az6007 I2C xfer write addr=0x%x len=%d: ",
+				       addr, msgs[i].len);
 			req = 0xbd;
 			index = msgs[i].buf[0];
 			value = addr | (1 << 8);
 			length = msgs[i].len - 1;
 			len = msgs[i].len - 1;
-//			printk("(0x%02x) ", msgs[i].buf[0]);
+			if (dvb_usb_az6007_debug & 2)
+				printk(KERN_CONT
+				       "(0x%02x) ", msgs[i].buf[0]);
 			for (j = 0; j < len; j++)
 			{
 				data[j] = msgs[i].buf[j + 1];
-//				printk("0x%02x ", data[j]);
+				if (dvb_usb_az6007_debug & 2)
+					printk(KERN_CONT
+					       "0x%02x ", data[j]);
 			}
 			ret = az6007_usb_out_op(d,req,value,index,data,length);
 		} else {
 			/* read bytes */
-//			printk("az6007 I2C xfer read addr=0x%x len=%d: ",
-//				 addr, msgs[i].len);
+			if (dvb_usb_az6007_debug & 2)
+				printk(KERN_DEBUG
+				       "az6007 I2C xfer read addr=0x%x len=%d: ",
+				       addr, msgs[i].len);
 			req = 0xb9;
 			index = msgs[i].buf[0];
 			value = addr;
@@ -509,10 +519,13 @@ static int az6007_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msgs[],int nu
 			for (j = 0; j < len; j++)
 			{
 				msgs[i].buf[j] = data[j + 5];
-//				printk("0x%02x ", data[j + 5]);
+				if (dvb_usb_az6007_debug & 2)
+					printk(KERN_CONT
+					       "0x%02x ", data[j + 5]);
 			}
 		}
-//		printk("\n");
+		if (dvb_usb_az6007_debug & 2)
+			printk(KERN_CONT "\n");
 		if (ret < 0)
 			goto err;
 	}
