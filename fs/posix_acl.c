@@ -279,11 +279,11 @@ check_perm:
  * system calls. All permissions that are not granted by the acl are removed.
  * The permissions in the acl are changed to reflect the mode_p parameter.
  */
-static int posix_acl_create_masq(struct posix_acl *acl, mode_t *mode_p)
+static int posix_acl_create_masq(struct posix_acl *acl, umode_t *mode_p)
 {
 	struct posix_acl_entry *pa, *pe;
 	struct posix_acl_entry *group_obj = NULL, *mask_obj = NULL;
-	mode_t mode = *mode_p;
+	umode_t mode = *mode_p;
 	int not_equiv = 0;
 
 	/* assert(atomic_read(acl->a_refcount) == 1); */
@@ -382,7 +382,7 @@ static int posix_acl_chmod_masq(struct posix_acl *acl, mode_t mode)
 }
 
 int
-posix_acl_create(struct posix_acl **acl, gfp_t gfp, mode_t *mode_p)
+posix_acl_create(struct posix_acl **acl, gfp_t gfp, umode_t *mode_p)
 {
 	struct posix_acl *clone = posix_acl_clone(*acl, gfp);
 	int err = -ENOMEM;

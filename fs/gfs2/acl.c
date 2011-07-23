@@ -72,7 +72,7 @@ struct posix_acl *gfs2_get_acl(struct inode *inode, int type)
 	return gfs2_acl_get(GFS2_I(inode), type);
 }
 
-static int gfs2_set_mode(struct inode *inode, mode_t mode)
+static int gfs2_set_mode(struct inode *inode, umode_t mode)
 {
 	int error = 0;
 
@@ -117,7 +117,7 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct inode *inode)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
 	struct posix_acl *acl;
-	mode_t mode = inode->i_mode;
+	umode_t mode = inode->i_mode;
 	int error = 0;
 
 	if (!sdp->sd_args.ar_posix_acl)

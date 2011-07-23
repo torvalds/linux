@@ -125,21 +125,20 @@ int
 generic_acl_init(struct inode *inode, struct inode *dir)
 {
 	struct posix_acl *acl = NULL;
-	mode_t mode = inode->i_mode;
 	int error;
 
-	inode->i_mode = mode & ~current_umask();
 	if (!S_ISLNK(inode->i_mode))
 		acl = get_cached_acl(dir, ACL_TYPE_DEFAULT);
 	if (acl) {
 		if (S_ISDIR(inode->i_mode))
 			set_cached_acl(inode, ACL_TYPE_DEFAULT, acl);
-		error = posix_acl_create(&acl, GFP_KERNEL, &mode);
+		error = posix_acl_create(&acl, GFP_KERNEL, &inode->i_mode);
 		if (error < 0)
 			return error;
-		inode->i_mode = mode;
 		if (error > 0)
 			set_cached_acl(inode, ACL_TYPE_ACCESS, acl);
+	} else {
+		inode->i_mode &= ~current_umask();
 	}
 	error = 0;
 

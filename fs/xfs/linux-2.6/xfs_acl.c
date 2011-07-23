@@ -221,7 +221,7 @@ xfs_set_acl(struct inode *inode, int type, struct posix_acl *acl)
 }
 
 static int
-xfs_set_mode(struct inode *inode, mode_t mode)
+xfs_set_mode(struct inode *inode, umode_t mode)
 {
 	int error = 0;
 
@@ -267,7 +267,7 @@ posix_acl_default_exists(struct inode *inode)
 int
 xfs_inherit_acl(struct inode *inode, struct posix_acl *acl)
 {
-	mode_t mode = inode->i_mode;
+	umode_t mode = inode->i_mode;
 	int error = 0, inherit = 0;
 
 	if (S_ISDIR(inode->i_mode)) {
