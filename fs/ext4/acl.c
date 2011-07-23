@@ -242,12 +242,6 @@ ext4_check_acl(struct inode *inode, int mask)
 {
 	struct posix_acl *acl;
 
-	if (mask & MAY_NOT_BLOCK) {
-		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
-			return -ECHILD;
-		return -EAGAIN;
-	}
-
 	acl = ext4_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);

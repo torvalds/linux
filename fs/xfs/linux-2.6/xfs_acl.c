@@ -231,15 +231,11 @@ xfs_check_acl(struct inode *inode, int mask)
 	/*
 	 * If there is no attribute fork no ACL exists on this inode and
 	 * we can skip the whole exercise.
+	 *
+	 * FIXME! Fill the cache! Locking?
 	 */
 	if (!XFS_IFORK_Q(ip))
 		return -EAGAIN;
-
-	if (mask & MAY_NOT_BLOCK) {
-		if (!negative_cached_acl(inode, ACL_TYPE_ACCESS))
-			return -ECHILD;
-		return -EAGAIN;
-	}
 
 	acl = xfs_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl))

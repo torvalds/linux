@@ -264,9 +264,6 @@ int jffs2_check_acl(struct inode *inode, int mask)
 	struct posix_acl *acl;
 	int rc;
 
-	if (mask & MAY_NOT_BLOCK)
-		return -ECHILD;
-
 	acl = jffs2_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);

@@ -32,6 +32,7 @@
 #include <linux/fcntl.h>
 #include <linux/device_cgroup.h>
 #include <linux/fs_struct.h>
+#include <linux/posix_acl.h>
 #include <asm/uaccess.h>
 
 #include "internal.h"
@@ -173,12 +174,58 @@ void putname(const char *name)
 EXPORT_SYMBOL(putname);
 #endif
 
+static int check_acl(struct inode *inode, int mask)
+{
+	struct posix_acl *acl;
+
+	/*
+	 * Under RCU walk, we cannot even do a "get_cached_acl()",
+	 * because that involves locking and getting a refcount on
+	 * a cached ACL.
+	 *
+	 * So the only case we handle during RCU walking is the
+	 * case of a cached "no ACL at all", which needs no locks
+	 * or refcounts.
+	 */
+	if (mask & MAY_NOT_BLOCK) {
+	        if (negative_cached_acl(inode, ACL_TYPE_ACCESS))
+	                return -EAGAIN;
+	        return -ECHILD;
+	}
+
+	acl = get_cached_acl(inode, ACL_TYPE_ACCESS);
+
+	/*
+	 * A filesystem can force a ACL callback by just never
+	 * filling the ACL cache. But normally you'd fill the
+	 * cache either at inode instantiation time, or on the
+	 * first ->check_acl call.
+	 *
+	 * If the filesystem doesn't have a check_acl() function
+	 * at all, we'll just create the negative cache entry.
+	 */
+	if (acl == ACL_NOT_CACHED) {
+	        if (inode->i_op->check_acl)
+	                return inode->i_op->check_acl(inode, mask);
+
+	        set_cached_acl(inode, ACL_TYPE_ACCESS, NULL);
+	        return -EAGAIN;
+	}
+
+	if (acl) {
+	        int error = posix_acl_permission(inode, acl, mask);
+	        posix_acl_release(acl);
+	        return error;
+	}
+
+	return -EAGAIN;
+}
+
 /*
  * This does basic POSIX ACL permission checking
  */
 static int acl_permission_check(struct inode *inode, int mask)
 {
-	int (*check_acl)(struct inode *inode, int mask);
 	unsigned int mode = inode->i_mode;
 
 	mask &= MAY_READ | MAY_WRITE | MAY_EXEC | MAY_NOT_BLOCK;
@@ -189,8 +236,7 @@ static int acl_permission_check(struct inode *inode, int mask)
 	if (current_fsuid() == inode->i_uid)
 		mode >>= 6;
 	else {
-		check_acl = inode->i_op->check_acl;
-		if (IS_POSIXACL(inode) && (mode & S_IRWXG) && check_acl) {
+		if (IS_POSIXACL(inode) && (mode & S_IRWXG)) {
 			int error = check_acl(inode, mask);
 			if (error != -EAGAIN)
 				return error;
