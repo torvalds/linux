@@ -188,7 +188,7 @@ posix_acl_equiv_mode(const struct posix_acl *acl, umode_t *mode_p)
  * Create an ACL representing the file mode permission bits of an inode.
  */
 struct posix_acl *
-posix_acl_from_mode(mode_t mode, gfp_t flags)
+posix_acl_from_mode(umode_t mode, gfp_t flags)
 {
 	struct posix_acl *acl = posix_acl_alloc(3, flags);
 	if (!acl)
