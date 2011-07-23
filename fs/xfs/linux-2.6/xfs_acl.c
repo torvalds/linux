@@ -326,7 +326,7 @@ xfs_inherit_acl(struct inode *inode, struct posix_acl *default_acl)
 int
 xfs_acl_chmod(struct inode *inode)
 {
-	struct posix_acl *acl, *clone;
+	struct posix_acl *acl;
 	int error;
 
 	if (S_ISLNK(inode->i_mode))
@@ -336,16 +336,12 @@ xfs_acl_chmod(struct inode *inode)
 	if (IS_ERR(acl) || !acl)
 		return PTR_ERR(acl);
 
-	clone = posix_acl_clone(acl, GFP_KERNEL);
+	error = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	if (error)
+		return error;
+
+	error = xfs_set_acl(inode, ACL_TYPE_ACCESS, acl);
 	posix_acl_release(acl);
-	if (!clone)
-		return -ENOMEM;
-
-	error = posix_acl_chmod_masq(clone, inode->i_mode);
-	if (!error)
-		error = xfs_set_acl(inode, ACL_TYPE_ACCESS, clone);
-
-	posix_acl_release(clone);
 	return error;
 }
 

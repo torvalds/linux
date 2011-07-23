@@ -327,7 +327,7 @@ int ocfs2_check_acl(struct inode *inode, int mask)
 int ocfs2_acl_chmod(struct inode *inode)
 {
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct posix_acl *acl, *clone;
+	struct posix_acl *acl;
 	int ret;
 
 	if (S_ISLNK(inode->i_mode))
@@ -339,15 +339,12 @@ int ocfs2_acl_chmod(struct inode *inode)
 	acl = ocfs2_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl) || !acl)
 		return PTR_ERR(acl);
-	clone = posix_acl_clone(acl, GFP_KERNEL);
+	ret = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	if (ret)
+		return ret;
+	ret = ocfs2_set_acl(NULL, inode, NULL, ACL_TYPE_ACCESS,
+			    acl, NULL, NULL);
 	posix_acl_release(acl);
-	if (!clone)
-		return -ENOMEM;
-	ret = posix_acl_chmod_masq(clone, inode->i_mode);
-	if (!ret)
-		ret = ocfs2_set_acl(NULL, inode, NULL, ACL_TYPE_ACCESS,
-				    clone, NULL, NULL);
-	posix_acl_release(clone);
 	return ret;
 }
 

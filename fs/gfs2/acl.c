@@ -187,7 +187,7 @@ out:
 
 int gfs2_acl_chmod(struct gfs2_inode *ip, struct iattr *attr)
 {
-	struct posix_acl *acl, *clone;
+	struct posix_acl *acl;
 	char *data;
 	unsigned int len;
 	int error;
@@ -198,25 +198,19 @@ int gfs2_acl_chmod(struct gfs2_inode *ip, struct iattr *attr)
 	if (!acl)
 		return gfs2_setattr_simple(ip, attr);
 
-	clone = posix_acl_clone(acl, GFP_NOFS);
-	error = -ENOMEM;
-	if (!clone)
-		goto out;
-	posix_acl_release(acl);
-	acl = clone;
+	error = posix_acl_chmod(&acl, GFP_NOFS, attr->ia_mode);
+	if (error)
+		return error;
 
-	error = posix_acl_chmod_masq(acl, attr->ia_mode);
-	if (!error) {
-		len = posix_acl_to_xattr(acl, NULL, 0);
-		data = kmalloc(len, GFP_NOFS);
-		error = -ENOMEM;
-		if (data == NULL)
-			goto out;
-		posix_acl_to_xattr(acl, data, len);
-		error = gfs2_xattr_acl_chmod(ip, attr, data);
-		kfree(data);
-		set_cached_acl(&ip->i_inode, ACL_TYPE_ACCESS, acl);
-	}
+	len = posix_acl_to_xattr(acl, NULL, 0);
+	data = kmalloc(len, GFP_NOFS);
+	error = -ENOMEM;
+	if (data == NULL)
+		goto out;
+	posix_acl_to_xattr(acl, data, len);
+	error = gfs2_xattr_acl_chmod(ip, attr, data);
+	kfree(data);
+	set_cached_acl(&ip->i_inode, ACL_TYPE_ACCESS, acl);
 
 out:
 	posix_acl_release(acl);

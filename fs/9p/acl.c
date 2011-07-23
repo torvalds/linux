@@ -162,21 +162,18 @@ err_free_out:
 int v9fs_acl_chmod(struct dentry *dentry)
 {
 	int retval = 0;
-	struct posix_acl *acl, *clone;
+	struct posix_acl *acl;
 	struct inode *inode = dentry->d_inode;
 
 	if (S_ISLNK(inode->i_mode))
 		return -EOPNOTSUPP;
 	acl = v9fs_get_cached_acl(inode, ACL_TYPE_ACCESS);
 	if (acl) {
-		clone = posix_acl_clone(acl, GFP_KERNEL);
+		retval = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+		if (retval)
+			return retval;
+		retval = v9fs_set_acl(dentry, ACL_TYPE_ACCESS, acl);
 		posix_acl_release(acl);
-		if (!clone)
-			return -ENOMEM;
-		retval = posix_acl_chmod_masq(clone, inode->i_mode);
-		if (!retval)
-			retval = v9fs_set_acl(dentry, ACL_TYPE_ACCESS, clone);
-		posix_acl_release(clone);
 	}
 	return retval;
 }

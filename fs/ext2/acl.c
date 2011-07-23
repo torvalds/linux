@@ -316,7 +316,7 @@ cleanup:
 int
 ext2_acl_chmod(struct inode *inode)
 {
-	struct posix_acl *acl, *clone;
+	struct posix_acl *acl;
         int error;
 
 	if (!test_opt(inode->i_sb, POSIX_ACL))
@@ -326,14 +326,11 @@ ext2_acl_chmod(struct inode *inode)
 	acl = ext2_get_acl(inode, ACL_TYPE_ACCESS);
 	if (IS_ERR(acl) || !acl)
 		return PTR_ERR(acl);
-	clone = posix_acl_clone(acl, GFP_KERNEL);
+	error = posix_acl_chmod(&acl, GFP_KERNEL, inode->i_mode);
+	if (error)
+		return error;
+	error = ext2_set_acl(inode, ACL_TYPE_ACCESS, acl);
 	posix_acl_release(acl);
-	if (!clone)
-		return -ENOMEM;
-	error = posix_acl_chmod_masq(clone, inode->i_mode);
-	if (!error)
-		error = ext2_set_acl(inode, ACL_TYPE_ACCESS, clone);
-	posix_acl_release(clone);
 	return error;
 }
 
