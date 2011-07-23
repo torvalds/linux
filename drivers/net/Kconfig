@@ -478,12 +478,6 @@ config NET_POCKET
 	  the questions about this class of network devices. If you say Y, you
 	  will be asked for your specific device in the following questions.
 
-config LANTIQ_ETOP
-	tristate "Lantiq SoC ETOP driver"
-	depends on SOC_TYPE_XWAY
-	help
-	  Support for the MII0 inside the Lantiq SoC
-
 endif # NET_ETHERNET
 
 #

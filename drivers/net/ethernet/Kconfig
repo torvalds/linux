@@ -52,6 +52,12 @@ config KORINA
 	  If you have a Mikrotik RouterBoard 500 or IDT RC32434
 	  based system say Y. Otherwise say N.
 
+config LANTIQ_ETOP
+	tristate "Lantiq SoC ETOP driver"
+	depends on SOC_TYPE_XWAY
+	---help---
+	  Support for the MII0 inside the Lantiq SoC
+
 source "drivers/net/ethernet/marvell/Kconfig"
 source "drivers/net/ethernet/mellanox/Kconfig"
 source "drivers/net/ethernet/micrel/Kconfig"
