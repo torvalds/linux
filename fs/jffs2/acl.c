@@ -278,7 +278,7 @@ int jffs2_check_acl(struct inode *inode, int mask)
 	return -EAGAIN;
 }
 
-int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, int *i_mode)
+int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, mode_t *i_mode)
 {
 	struct posix_acl *acl, *clone;
 	int rc;
@@ -301,7 +301,7 @@ int jffs2_init_acl_pre(struct inode *dir_i, struct inode *inode, int *i_mode)
 		clone = posix_acl_clone(acl, GFP_KERNEL);
 		if (!clone)
 			return -ENOMEM;
-		rc = posix_acl_create_masq(clone, (mode_t *)i_mode);
+		rc = posix_acl_create_masq(clone, i_mode);
 		if (rc < 0) {
 			posix_acl_release(clone);
 			return rc;
