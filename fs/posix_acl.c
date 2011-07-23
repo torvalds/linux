@@ -24,12 +24,9 @@
 
 EXPORT_SYMBOL(posix_acl_init);
 EXPORT_SYMBOL(posix_acl_alloc);
-EXPORT_SYMBOL(posix_acl_clone);
 EXPORT_SYMBOL(posix_acl_valid);
 EXPORT_SYMBOL(posix_acl_equiv_mode);
 EXPORT_SYMBOL(posix_acl_from_mode);
-EXPORT_SYMBOL(posix_acl_create_masq);
-EXPORT_SYMBOL(posix_acl_chmod_masq);
 EXPORT_SYMBOL(posix_acl_permission);
 
 /*
@@ -59,7 +56,7 @@ posix_acl_alloc(int count, gfp_t flags)
 /*
  * Clone an ACL.
  */
-struct posix_acl *
+static struct posix_acl *
 posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 {
 	struct posix_acl *clone = NULL;
@@ -283,8 +280,7 @@ check_perm:
  * system calls. All permissions that are not granted by the acl are removed.
  * The permissions in the acl are changed to reflect the mode_p parameter.
  */
-int
-posix_acl_create_masq(struct posix_acl *acl, mode_t *mode_p)
+static int posix_acl_create_masq(struct posix_acl *acl, mode_t *mode_p)
 {
 	struct posix_acl_entry *pa, *pe;
 	struct posix_acl_entry *group_obj = NULL, *mask_obj = NULL;
@@ -341,8 +337,7 @@ posix_acl_create_masq(struct posix_acl *acl, mode_t *mode_p)
 /*
  * Modify the ACL for the chmod syscall.
  */
-int
-posix_acl_chmod_masq(struct posix_acl *acl, mode_t mode)
+static int posix_acl_chmod_masq(struct posix_acl *acl, mode_t mode)
 {
 	struct posix_acl_entry *group_obj = NULL, *mask_obj = NULL;
 	struct posix_acl_entry *pa, *pe;
