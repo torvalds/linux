@@ -59,7 +59,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 	 * granularity
 	 */
 	max_discard_sectors = min(q->limits.max_discard_sectors, UINT_MAX >> 9);
-	if (!unlikely(!max_discard_sectors)) {
+	if (unlikely(!max_discard_sectors)) {
 		/* Avoid infinite loop below. Being cautious never hurts. */
 		return -EOPNOTSUPP;
 	} else if (q->limits.discard_granularity) {
