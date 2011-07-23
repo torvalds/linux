@@ -96,11 +96,6 @@ enum {
 
 #define IRQ_NO_BALANCING_MASK	(IRQ_PER_CPU | IRQ_NO_BALANCING)
 
-static inline __deprecated bool CHECK_IRQ_PER_CPU(unsigned int status)
-{
-	return status & IRQ_PER_CPU;
-}
-
 /*
  * Return value for chip->irq_set_affinity()
  *
