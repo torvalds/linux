@@ -218,5 +218,5 @@ kernel source:	<file:fs/ext3/>
 programs: 	http://e2fsprogs.sourceforge.net/
 		http://ext2resize.sourceforge.net
 
-useful links:	http://www.ibm.com/developerworks/library/l-fs7.html
-		http://www.ibm.com/developerworks/library/l-fs8.html
+useful links:	http://www.ibm.com/developerworks/library/l-fs7/index.html
+        http://www.ibm.com/developerworks/library/l-fs8/index.html
