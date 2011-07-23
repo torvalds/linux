@@ -1782,7 +1782,6 @@ ath5k_eeprom_mode_from_channel(struct ieee80211_channel *channel)
 {
 	switch (channel->hw_value & CHANNEL_MODES) {
 	case CHANNEL_A:
-	case CHANNEL_XR:
 		return AR5K_EEPROM_MODE_11A;
 	case CHANNEL_G:
 		return AR5K_EEPROM_MODE_11G;

@@ -1108,14 +1108,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 
 		mode = AR5K_MODE_11B;
 		break;
-	case CHANNEL_XR:
-		if (ah->ah_version == AR5K_AR5211) {
-			ATH5K_ERR(ah,
-				"XR mode not available on 5211");
-			return -EINVAL;
-		}
-		mode = AR5K_MODE_XR;
-		break;
 	default:
 		ATH5K_ERR(ah,
 			"invalid channel: %d\n", channel->center_freq);

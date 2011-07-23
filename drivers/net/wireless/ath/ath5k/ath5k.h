@@ -416,7 +416,6 @@ enum ath5k_driver_mode {
 	AR5K_MODE_11A		=	0,
 	AR5K_MODE_11B		=	1,
 	AR5K_MODE_11G		=	2,
-	AR5K_MODE_XR		=	0,
 	AR5K_MODE_MAX		=	3
 };
 
@@ -694,12 +693,10 @@ struct ath5k_gain {
 #define	CHANNEL_5GHZ	0x0100	/* 5GHz channel */
 #define	CHANNEL_PASSIVE	0x0200	/* Only passive scan allowed */
 #define	CHANNEL_DYN	0x0400	/* Dynamic CCK-OFDM channel (for g operation) */
-#define	CHANNEL_XR	0x0800	/* XR channel */
 
 #define	CHANNEL_A	(CHANNEL_5GHZ | CHANNEL_OFDM)
 #define	CHANNEL_B	(CHANNEL_2GHZ | CHANNEL_CCK)
 #define	CHANNEL_G	(CHANNEL_2GHZ | CHANNEL_OFDM)
-#define	CHANNEL_X	(CHANNEL_5GHZ | CHANNEL_OFDM | CHANNEL_XR)
 
 #define	CHANNEL_ALL	(CHANNEL_OFDM | CHANNEL_CCK | \
 			 CHANNEL_2GHZ | CHANNEL_5GHZ)
@@ -710,7 +707,6 @@ struct ath5k_gain {
  * Used internally for ath5k_hw_reset_tx_queue().
  * Also see struct struct ieee80211_channel.
  */
-#define IS_CHAN_XR(_c)	((_c->hw_value & CHANNEL_XR) != 0)
 #define IS_CHAN_B(_c)	((_c->hw_value & CHANNEL_B) != 0)
 
 /*

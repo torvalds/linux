@@ -2408,8 +2408,6 @@ ath5k_get_max_ctl_power(struct ath5k_hw *ah,
 	case CHANNEL_B:
 		ctl_mode |= AR5K_CTL_11B;
 		break;
-	case CHANNEL_XR:
-		/* Fall through */
 	default:
 		return;
 	}
