@@ -113,7 +113,7 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 }
 
 static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
-	.min_nrg_cck = 97,
+	.min_nrg_cck = 110,
 	.max_nrg_cck = 0, /* not used, set to 0 */
 	.auto_corr_min_ofdm = 80,
 	.auto_corr_min_ofdm_mrc = 128,
@@ -129,11 +129,11 @@ static struct iwl_sensitivity_ranges iwl6000_sensitivity = {
 	.auto_corr_max_cck = 175,
 	.auto_corr_min_cck_mrc = 160,
 	.auto_corr_max_cck_mrc = 310,
-	.nrg_th_cck = 97,
-	.nrg_th_ofdm = 100,
+	.nrg_th_cck = 110,
+	.nrg_th_ofdm = 110,
 
 	.barker_corr_th_min = 190,
-	.barker_corr_th_min_mrc = 390,
+	.barker_corr_th_min_mrc = 336,
 	.nrg_th_cca = 62,
 };
 
