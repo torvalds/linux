@@ -134,14 +134,8 @@ generic_acl_init(struct inode *inode, struct inode *dir)
 	if (acl) {
 		struct posix_acl *clone;
 
-		if (S_ISDIR(inode->i_mode)) {
-			clone = posix_acl_clone(acl, GFP_KERNEL);
-			error = -ENOMEM;
-			if (!clone)
-				goto cleanup;
-			set_cached_acl(inode, ACL_TYPE_DEFAULT, clone);
-			posix_acl_release(clone);
-		}
+		if (S_ISDIR(inode->i_mode))
+			set_cached_acl(inode, ACL_TYPE_DEFAULT, acl);
 		clone = posix_acl_clone(acl, GFP_KERNEL);
 		error = -ENOMEM;
 		if (!clone)
