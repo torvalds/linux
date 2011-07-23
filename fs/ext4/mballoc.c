@@ -1126,7 +1126,7 @@ ext4_mb_load_buddy(struct super_block *sb, ext4_group_t group,
 	grp = ext4_get_group_info(sb, group);
 
 	e4b->bd_blkbits = sb->s_blocksize_bits;
-	e4b->bd_info = ext4_get_group_info(sb, group);
+	e4b->bd_info = grp;
 	e4b->bd_sb = sb;
 	e4b->bd_group = group;
 	e4b->bd_buddy_page = NULL;
