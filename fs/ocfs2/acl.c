@@ -409,6 +409,7 @@ int ocfs2_init_acl(handle_t *handle,
 			if (ret2) {
 				mlog_errno(ret2);
 				ret = ret2;
+				posix_acl_release(clone);
 				goto cleanup;
 			}
 			if (ret > 0) {
