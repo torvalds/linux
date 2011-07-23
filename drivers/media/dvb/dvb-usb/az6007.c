@@ -1,6 +1,23 @@
-/* DVB USB compliant Linux driver for the AzureWave 6017 USB2.0 DVB-S
- * receiver.
- * see Documentation/dvb/README.dvb-usb for more information
+/*
+ * Driver for AzureWave 6007 DVB-C/T USB2.0 and clones
+ *
+ * Copyright (c) Henry Wang <Henry.wang@AzureWave.com>
+ *
+ * This driver was made publicly available by Terratec, at:
+ *	http://linux.terratec.de/files/TERRATEC_H7/20110323_TERRATEC_H7_Linux.tar.gz
+ * The original driver's license is GPL, as declared with MODULE_LICENSE()
+ *
+ *  Driver modifiyed by Mauro Carvalho Chehab <mchehab@redhat.com> in order
+ * 	to work with upstream drxk driver, and to fix some bugs.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation under version 2 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 #include "drxk.h"
