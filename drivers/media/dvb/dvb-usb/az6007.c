@@ -3,13 +3,15 @@
  * see Documentation/dvb/README.dvb-usb for more information
  */
 
-#include "az6007.h"
 #include "drxk.h"
 #include "mt2063.h"
 #include "dvb_ca_en50221.h"
+#include "dvb-usb.h"
+
+#define DVB_USB_LOG_PREFIX "az6007"
 
 /* HACK: Should be moved to the right place */
-#define USB_PID_AZUREWAVE_6007		0xccd
+#define USB_PID_AZUREWAVE_6007		0x0ccd
 #define USB_PID_TERRATEC_H7		0x10b4
 
 /* debug */
@@ -17,6 +19,11 @@ int dvb_usb_az6007_debug;
 module_param_named(debug, dvb_usb_az6007_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,rc=4 (or-able))."
 		 DVB_USB_DEBUG_STATUS);
+
+#define deb_info(args...) dprintk(dvb_usb_az6007_debug, 0x01, args)
+#define deb_xfer(args...) dprintk(dvb_usb_az6007_debug, 0x02, args)
+#define deb_rc(args...)   dprintk(dvb_usb_az6007_debug, 0x04, args)
+#define deb_fe(args...)   dprintk(dvb_usb_az6007_debug, 0x08, args)
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
