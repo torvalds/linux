@@ -44,6 +44,7 @@
 #include <asm/compat.h>
 #include <asm/mmu.h>
 #include <asm/hvcall.h>
+#include <asm/xics.h>
 #endif
 #ifdef CONFIG_PPC_ISERIES
 #include <asm/iseries/alpaca.h>
@@ -460,6 +461,8 @@ int main(void)
 	DEFINE(VCPU_DEC, offsetof(struct kvm_vcpu, arch.dec));
 	DEFINE(VCPU_DEC_EXPIRES, offsetof(struct kvm_vcpu, arch.dec_expires));
 	DEFINE(VCPU_PENDING_EXC, offsetof(struct kvm_vcpu, arch.pending_exceptions));
+	DEFINE(VCPU_CEDED, offsetof(struct kvm_vcpu, arch.ceded));
+	DEFINE(VCPU_PRODDED, offsetof(struct kvm_vcpu, arch.prodded));
 	DEFINE(VCPU_VPA, offsetof(struct kvm_vcpu, arch.vpa));
 	DEFINE(VCPU_MMCR, offsetof(struct kvm_vcpu, arch.mmcr));
 	DEFINE(VCPU_PMC, offsetof(struct kvm_vcpu, arch.pmc));
@@ -475,6 +478,7 @@ int main(void)
 	DEFINE(VCORE_ENTRY_EXIT, offsetof(struct kvmppc_vcore, entry_exit_count));
 	DEFINE(VCORE_NAP_COUNT, offsetof(struct kvmppc_vcore, nap_count));
 	DEFINE(VCORE_IN_GUEST, offsetof(struct kvmppc_vcore, in_guest));
+	DEFINE(VCORE_NAPPING_THREADS, offsetof(struct kvmppc_vcore, napping_threads));
 	DEFINE(VCPU_SVCPU, offsetof(struct kvmppc_vcpu_book3s, shadow_vcpu) -
 			   offsetof(struct kvmppc_vcpu_book3s, vcpu));
 	DEFINE(VCPU_SLB_E, offsetof(struct kvmppc_slb, orige));
@@ -532,6 +536,7 @@ int main(void)
 	HSTATE_FIELD(HSTATE_SCRATCH1, scratch1);
 	HSTATE_FIELD(HSTATE_IN_GUEST, in_guest);
 	HSTATE_FIELD(HSTATE_RESTORE_HID5, restore_hid5);
+	HSTATE_FIELD(HSTATE_NAPPING, napping);
 
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 	HSTATE_FIELD(HSTATE_KVM_VCPU, kvm_vcpu);
@@ -544,6 +549,7 @@ int main(void)
 	HSTATE_FIELD(HSTATE_DSCR, host_dscr);
 	HSTATE_FIELD(HSTATE_DABR, dabr);
 	HSTATE_FIELD(HSTATE_DECEXP, dec_expires);
+	DEFINE(IPI_PRIORITY, IPI_PRIORITY);
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
 
 #else /* CONFIG_PPC_BOOK3S */
