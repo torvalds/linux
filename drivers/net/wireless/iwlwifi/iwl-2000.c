@@ -221,6 +221,7 @@ static struct iwl_base_params iwl2000_base_params = {
 	.wd_timeout = IWL_DEF_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.shadow_reg_enable = true,
+	.hd_v2 = true,
 };
 
 
@@ -240,6 +241,7 @@ static struct iwl_base_params iwl2030_base_params = {
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
 	.max_event_log_size = 512,
 	.shadow_reg_enable = true,
+	.hd_v2 = true,
 };
 
 static struct iwl_ht_params iwl2000_ht_params = {

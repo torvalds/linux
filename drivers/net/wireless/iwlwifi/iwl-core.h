@@ -136,6 +136,7 @@ struct iwl_mod_params {
  * @max_event_log_size: size of event log buffer size for ucode event logging
  * @shadow_reg_enable: HW shadhow register bit
  * @no_idle_support: do not support idle mode
+ * @hd_v2: v2 of enhanced sensitivity value, used for 2000 series and up
  */
 struct iwl_base_params {
 	int eeprom_size;
@@ -158,6 +159,7 @@ struct iwl_base_params {
 	u32 max_event_log_size;
 	const bool shadow_reg_enable;
 	const bool no_idle_support;
+	const bool hd_v2;
 };
 /*
  * @advanced_bt_coexist: support advanced bt coexist
