@@ -2801,7 +2801,8 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 	int i;
 
  again:
-	spec->multiout.num_dacs = 0;
+	/* set num_dacs once to full for alc_auto_look_for_dac() */
+	spec->multiout.num_dacs = cfg->line_outs;
 	spec->multiout.hp_nid = 0;
 	spec->multiout.extra_out_nid[0] = 0;
 	memset(spec->private_dac_nids, 0, sizeof(spec->private_dac_nids));
@@ -2834,6 +2835,8 @@ static int alc_auto_fill_dac_nids(struct hda_codec *codec)
 		}
 	}
 
+	/* re-count num_dacs and squash invalid entries */
+	spec->multiout.num_dacs = 0;
 	for (i = 0; i < cfg->line_outs; i++) {
 		if (spec->private_dac_nids[i])
 			spec->multiout.num_dacs++;
