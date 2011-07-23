@@ -238,8 +238,7 @@ int btrfs_init_acl(struct btrfs_trans_handle *trans,
 	}
 
 	if (IS_POSIXACL(dir) && acl) {
-		struct posix_acl *clone;
-		mode_t mode;
+		mode_t mode = inode->i_mode;
 
 		if (S_ISDIR(inode->i_mode)) {
 			ret = btrfs_set_acl(trans, inode, acl,
@@ -247,22 +246,15 @@ int btrfs_init_acl(struct btrfs_trans_handle *trans,
 			if (ret)
 				goto failed;
 		}
-		clone = posix_acl_clone(acl, GFP_NOFS);
-		ret = -ENOMEM;
-		if (!clone)
-			goto failed;
+		ret = posix_acl_create(&acl, GFP_NOFS, &mode);
+		if (ret < 0)
+			return ret;
 
-		mode = inode->i_mode;
-		ret = posix_acl_create_masq(clone, &mode);
-		if (ret >= 0) {
-			inode->i_mode = mode;
-			if (ret > 0) {
-				/* we need an acl */
-				ret = btrfs_set_acl(trans, inode, clone,
-						    ACL_TYPE_ACCESS);
-			}
+		inode->i_mode = mode;
+		if (ret > 0) {
+			/* we need an acl */
+			ret = btrfs_set_acl(trans, inode, acl, ACL_TYPE_ACCESS);
 		}
-		posix_acl_release(clone);
 	}
 failed:
 	posix_acl_release(acl);

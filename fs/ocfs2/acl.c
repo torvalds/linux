@@ -382,8 +382,6 @@ int ocfs2_init_acl(handle_t *handle,
 		}
 	}
 	if ((osb->s_mount_opt & OCFS2_MOUNT_POSIX_ACL) && acl) {
-		struct posix_acl *clone;
-
 		if (S_ISDIR(inode->i_mode)) {
 			ret = ocfs2_set_acl(handle, inode, di_bh,
 					    ACL_TYPE_DEFAULT, acl,
@@ -391,28 +389,22 @@ int ocfs2_init_acl(handle_t *handle,
 			if (ret)
 				goto cleanup;
 		}
-		clone = posix_acl_clone(acl, GFP_NOFS);
-		ret = -ENOMEM;
-		if (!clone)
-			goto cleanup;
-
 		mode = inode->i_mode;
-		ret = posix_acl_create_masq(clone, &mode);
-		if (ret >= 0) {
-			ret2 = ocfs2_acl_set_mode(inode, di_bh, handle, mode);
-			if (ret2) {
-				mlog_errno(ret2);
-				ret = ret2;
-				posix_acl_release(clone);
-				goto cleanup;
-			}
-			if (ret > 0) {
-				ret = ocfs2_set_acl(handle, inode,
-						    di_bh, ACL_TYPE_ACCESS,
-						    clone, meta_ac, data_ac);
-			}
+		ret = posix_acl_create(&acl, GFP_NOFS, &mode);
+		if (ret < 0)
+			return ret;
+
+		ret2 = ocfs2_acl_set_mode(inode, di_bh, handle, mode);
+		if (ret2) {
+			mlog_errno(ret2);
+			ret = ret2;
+			goto cleanup;
 		}
-		posix_acl_release(clone);
+		if (ret > 0) {
+			ret = ocfs2_set_acl(handle, inode,
+					    di_bh, ACL_TYPE_ACCESS,
+					    acl, meta_ac, data_ac);
+		}
 	}
 cleanup:
 	posix_acl_release(acl);

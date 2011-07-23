@@ -137,7 +137,7 @@ out:
 int gfs2_acl_create(struct gfs2_inode *dip, struct inode *inode)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&dip->i_inode);
-	struct posix_acl *acl, *clone;
+	struct posix_acl *acl;
 	mode_t mode = inode->i_mode;
 	int error = 0;
 
@@ -162,16 +162,10 @@ int gfs2_acl_create(struct gfs2_inode *dip, struct inode *inode)
 			goto out;
 	}
 
-	clone = posix_acl_clone(acl, GFP_NOFS);
-	error = -ENOMEM;
-	if (!clone)
-		goto out;
-	posix_acl_release(acl);
-	acl = clone;
-
-	error = posix_acl_create_masq(acl, &mode);
+	error = posix_acl_create(&acl, GFP_NOFS, &mode);
 	if (error < 0)
-		goto out;
+		return error;
+
 	if (error == 0)
 		goto munge;
 

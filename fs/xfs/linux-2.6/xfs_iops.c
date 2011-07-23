@@ -202,9 +202,9 @@ xfs_vn_mknod(
 
 	if (default_acl) {
 		error = -xfs_inherit_acl(inode, default_acl);
+		default_acl = NULL;
 		if (unlikely(error))
 			goto out_cleanup_inode;
-		posix_acl_release(default_acl);
 	}
 
 

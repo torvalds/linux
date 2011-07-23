@@ -133,8 +133,6 @@ int jfs_check_acl(struct inode *inode, int mask)
 int jfs_init_acl(tid_t tid, struct inode *inode, struct inode *dir)
 {
 	struct posix_acl *acl = NULL;
-	struct posix_acl *clone;
-	mode_t mode;
 	int rc = 0;
 
 	if (S_ISLNK(inode->i_mode))
@@ -145,25 +143,18 @@ int jfs_init_acl(tid_t tid, struct inode *inode, struct inode *dir)
 		return PTR_ERR(acl);
 
 	if (acl) {
+		mode_t mode = inode->i_mode;
 		if (S_ISDIR(inode->i_mode)) {
 			rc = jfs_set_acl(tid, inode, ACL_TYPE_DEFAULT, acl);
 			if (rc)
 				goto cleanup;
 		}
-		clone = posix_acl_clone(acl, GFP_KERNEL);
-		if (!clone) {
-			rc = -ENOMEM;
-			goto cleanup;
-		}
-		mode = inode->i_mode;
-		rc = posix_acl_create_masq(clone, &mode);
-		if (rc >= 0) {
-			inode->i_mode = mode;
-			if (rc > 0)
-				rc = jfs_set_acl(tid, inode, ACL_TYPE_ACCESS,
-						 clone);
-		}
-		posix_acl_release(clone);
+		rc = posix_acl_create(&acl, GFP_KERNEL, &mode);
+		if (rc < 0)
+			goto cleanup; /* posix_acl_release(NULL) is no-op */
+		inode->i_mode = mode;
+		if (rc > 0)
+			rc = jfs_set_acl(tid, inode, ACL_TYPE_ACCESS, acl);
 cleanup:
 		posix_acl_release(acl);
 	} else

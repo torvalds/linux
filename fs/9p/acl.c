@@ -206,30 +206,18 @@ int v9fs_acl_mode(struct inode *dir, mode_t *modep,
 			mode &= ~current_umask();
 	}
 	if (acl) {
-		struct posix_acl *clone;
-
 		if (S_ISDIR(mode))
 			*dpacl = posix_acl_dup(acl);
-		clone = posix_acl_clone(acl, GFP_NOFS);
-		posix_acl_release(acl);
-		if (!clone)
-			return -ENOMEM;
-
-		retval = posix_acl_create_masq(clone, &mode);
-		if (retval < 0) {
-			posix_acl_release(clone);
-			goto cleanup;
-		}
+		retval = posix_acl_create(&acl, GFP_NOFS, &mode);
+		if (retval < 0)
+			return retval;
 		if (retval > 0)
-			*pacl = clone;
+			*pacl = acl;
 		else
-			posix_acl_release(clone);
+			posix_acl_release(acl);
 	}
 	*modep  = mode;
 	return 0;
-cleanup:
-	return retval;
-
 }
 
 static int v9fs_remote_get_acl(struct dentry *dentry, const char *name,
