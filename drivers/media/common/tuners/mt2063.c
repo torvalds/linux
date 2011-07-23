@@ -1008,29 +1008,38 @@ static unsigned int mt2063_lockStatus(struct mt2063_state *state)
  */
 
 enum mt2063_delivery_sys {
-	MT2063_CABLE_QAM = 0,		/* Digital cable              */
-	MT2063_CABLE_ANALOG,		/* Analog cable               */
-	MT2063_OFFAIR_COFDM,		/* Digital offair             */
-	MT2063_OFFAIR_COFDM_SAWLESS,	/* Digital offair without SAW */
-	MT2063_OFFAIR_ANALOG,		/* Analog offair              */
-	MT2063_OFFAIR_8VSB,		/* Analog offair              */
+	MT2063_CABLE_QAM = 0,
+	MT2063_CABLE_ANALOG,
+	MT2063_OFFAIR_COFDM,
+	MT2063_OFFAIR_COFDM_SAWLESS,
+	MT2063_OFFAIR_ANALOG,
+	MT2063_OFFAIR_8VSB,
 	MT2063_NUM_RCVR_MODES
 };
 
-static const u8 RFAGCEN[] = { 0, 0, 0, 0, 0, 0 };
-static const u8 LNARIN[] = { 0, 0, 3, 3, 3, 3 };
-static const u8 FIFFQEN[] = { 1, 1, 1, 1, 1, 1 };
-static const u8 FIFFQ[] = { 0, 0, 0, 0, 0, 0 };
-static const u8 DNC1GC[] = { 0, 0, 0, 0, 0, 0 };
-static const u8 DNC2GC[] = { 0, 0, 0, 0, 0, 0 };
-static const u8 ACLNAMAX[] = { 31, 31, 31, 31, 31, 31 };
-static const u8 LNATGT[] = { 44, 43, 43, 43, 43, 43 };
-static const u8 RFOVDIS[] = { 0, 0, 0, 0, 0, 0 };
-static const u8 ACRFMAX[] = { 31, 31, 31, 31, 31, 31 };
-static const u8 PD1TGT[] = { 36, 36, 38, 38, 36, 38 };
-static const u8 FIFOVDIS[] = { 0, 0, 0, 0, 0, 0 };
-static const u8 ACFIFMAX[] = { 29, 29, 29, 29, 29, 29 };
-static const u8 PD2TGT[] = { 40, 33, 38, 42, 30, 38 };
+static const char *mt2063_mode_name[] = {
+	[MT2063_CABLE_QAM]		= "digital cable",
+	[MT2063_CABLE_ANALOG]		= "analog cable",
+	[MT2063_OFFAIR_COFDM]		= "digital offair",
+	[MT2063_OFFAIR_COFDM_SAWLESS]	= "digital offair without SAW",
+	[MT2063_OFFAIR_ANALOG]		= "analog offair",
+	[MT2063_OFFAIR_8VSB]		= "analog offair 8vsb",
+};
+
+static const u8 RFAGCEN[]	= {  0,  0,  0,  0,  0,  0 };
+static const u8 LNARIN[]	= {  0,  0,  3,  3,  3,  3 };
+static const u8 FIFFQEN[]	= {  1,  1,  1,  1,  1,  1 };
+static const u8 FIFFQ[]		= {  0,  0,  0,  0,  0,  0 };
+static const u8 DNC1GC[]	= {  0,  0,  0,  0,  0,  0 };
+static const u8 DNC2GC[]	= {  0,  0,  0,  0,  0,  0 };
+static const u8 ACLNAMAX[]	= { 31, 31, 31, 31, 31, 31 };
+static const u8 LNATGT[]	= { 44, 43, 43, 43, 43, 43 };
+static const u8 RFOVDIS[]	= {  0,  0,  0,  0,  0,  0 };
+static const u8 ACRFMAX[]	= { 31, 31, 31, 31, 31, 31 };
+static const u8 PD1TGT[]	= { 36, 36, 38, 38, 36, 38 };
+static const u8 FIFOVDIS[]	= {  0,  0,  0,  0,  0,  0 };
+static const u8 ACFIFMAX[]	= { 29, 29, 29, 29, 29, 29 };
+static const u8 PD2TGT[]	= { 40, 33, 38, 42, 30, 38 };
 
 /*
  * mt2063_set_dnc_output_enable()
@@ -1315,8 +1324,11 @@ static u32 MT2063_SetReceiverMode(struct mt2063_state *state,
 			status |= mt2063_setreg(state, MT2063_REG_PD1_TGT, val);
 	}
 
-	if (status >= 0)
+	if (status >= 0) {
 		state->rcvr_mode = Mode;
+		dprintk(1, "mt2063 mode changed to %s\n",
+			mt2063_mode_name[state->rcvr_mode]);
+	}
 
 	return status;
 }
@@ -2023,6 +2035,8 @@ static int mt2063_get_status(struct dvb_frontend *fe, u32 *tuner_status)
 	if (status)
 		*tuner_status = TUNER_STATUS_LOCKED;
 
+	dprintk(1, "Tuner status: %d", *tuner_status);
+
 	return 0;
 }
 
@@ -2091,6 +2105,9 @@ static int mt2063_set_analog_params(struct dvb_frontend *fe,
 	status = MT2063_SetReceiverMode(state, rcvr_mode);
 	if (status < 0)
 		return status;
+
+	dprintk(1, "Tuning to frequency: %d, bandwidth %d, foffset %d\n",
+		params->frequency, ch_bw, pict2chanb_vsb);
 
 	status = MT2063_Tune(state, (params->frequency + (pict2chanb_vsb + (ch_bw / 2))));
 	if (status < 0)
@@ -2161,6 +2178,9 @@ static int mt2063_set_params(struct dvb_frontend *fe)
 	if (status < 0)
 		return status;
 
+	dprintk(1, "Tuning to frequency: %d, bandwidth %d, foffset %d\n",
+		c->frequency, ch_bw, pict2chanb_vsb);
+
 	status = MT2063_Tune(state, (c->frequency + (pict2chanb_vsb + (ch_bw / 2))));
 
 	if (status < 0)
@@ -2180,6 +2200,9 @@ static int mt2063_get_frequency(struct dvb_frontend *fe, u32 *freq)
 		return -ENODEV;
 
 	*freq = state->frequency;
+
+	dprintk(1, "frequency: %d\n", *freq);
+
 	return 0;
 }
 
@@ -2193,6 +2216,9 @@ static int mt2063_get_bandwidth(struct dvb_frontend *fe, u32 *bw)
 		return -ENODEV;
 
 	*bw = state->AS_Data.f_out_bw - 750000;
+
+	dprintk(1, "bandwidth: %d\n", *bw);
+
 	return 0;
 }
 
