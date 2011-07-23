@@ -590,37 +590,6 @@ static inline int drv_cancel_remain_on_channel(struct ieee80211_local *local)
 	return ret;
 }
 
-static inline int drv_offchannel_tx(struct ieee80211_local *local,
-				    struct sk_buff *skb,
-				    struct ieee80211_channel *chan,
-				    enum nl80211_channel_type channel_type,
-				    unsigned int wait)
-{
-	int ret;
-
-	might_sleep();
-
-	trace_drv_offchannel_tx(local, skb, chan, channel_type, wait);
-	ret = local->ops->offchannel_tx(&local->hw, skb, chan,
-					channel_type, wait);
-	trace_drv_return_int(local, ret);
-
-	return ret;
-}
-
-static inline int drv_offchannel_tx_cancel_wait(struct ieee80211_local *local)
-{
-	int ret;
-
-	might_sleep();
-
-	trace_drv_offchannel_tx_cancel_wait(local);
-	ret = local->ops->offchannel_tx_cancel_wait(&local->hw);
-	trace_drv_return_int(local, ret);
-
-	return ret;
-}
-
 static inline int drv_set_ringparam(struct ieee80211_local *local,
 				    u32 tx, u32 rx)
 {
