@@ -548,7 +548,7 @@ static void ath9k_init_misc(struct ath_softc *sc)
 		sc->ant_comb.count = ATH_ANT_DIV_COMB_INIT_COUNT;
 }
 
-static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
+static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 			    const struct ath_bus_ops *bus_ops)
 {
 	struct ath9k_platform_data *pdata = sc->dev->platform_data;
@@ -563,7 +563,6 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc, u16 subsysid,
 
 	ah->hw = sc->hw;
 	ah->hw_version.devid = devid;
-	ah->hw_version.subsysid = subsysid;
 	ah->reg_ops.read = ath9k_ioread32;
 	ah->reg_ops.write = ath9k_iowrite32;
 	ah->reg_ops.rmw = ath9k_reg_rmw;
@@ -743,7 +742,7 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 	SET_IEEE80211_PERM_ADDR(hw, common->macaddr);
 }
 
-int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
+int ath9k_init_device(u16 devid, struct ath_softc *sc,
 		    const struct ath_bus_ops *bus_ops)
 {
 	struct ieee80211_hw *hw = sc->hw;
@@ -753,7 +752,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 	struct ath_regulatory *reg;
 
 	/* Bring up device */
-	error = ath9k_init_softc(devid, sc, subsysid, bus_ops);
+	error = ath9k_init_softc(devid, sc, bus_ops);
 	if (error != 0)
 		goto error_init;
 

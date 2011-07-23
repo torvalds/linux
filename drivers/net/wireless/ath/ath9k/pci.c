@@ -249,8 +249,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	sc->irq = pdev->irq;
 
-	ret = ath9k_init_device(id->device, sc, pdev->subsystem_device,
-				&ath_pci_bus_ops);
+	ret = ath9k_init_device(id->device, sc, &ath_pci_bus_ops);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize device\n");
 		goto err_init;
