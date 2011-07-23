@@ -27,10 +27,6 @@
 
 #define DVB_USB_LOG_PREFIX "az6007"
 
-/* HACK: Should be moved to the right place */
-#define USB_PID_AZUREWAVE_6007		0x0ccd
-#define USB_PID_TERRATEC_H7		0x10b4
-
 /* debug */
 int dvb_usb_az6007_debug;
 module_param_named(debug, dvb_usb_az6007_debug, int, 0644);
