@@ -364,7 +364,7 @@ static int regs_to_trapnr(struct pt_regs *regs)
 	return (regs->cp0_cause >> 2) & 0x1f;
 }
 
-static DEFINE_SPINLOCK(die_lock);
+static DEFINE_RAW_SPINLOCK(die_lock);
 
 void __noreturn die(const char *str, struct pt_regs *regs)
 {
@@ -378,7 +378,7 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 		sig = 0;
 
 	console_verbose();
-	spin_lock_irq(&die_lock);
+	raw_spin_lock_irq(&die_lock);
 	bust_spinlocks(1);
 #ifdef CONFIG_MIPS_MT_SMTC
 	mips_mt_regdump(dvpret);
@@ -387,7 +387,7 @@ void __noreturn die(const char *str, struct pt_regs *regs)
 	printk("%s[#%d]:\n", str, ++die_counter);
 	show_registers(regs);
 	add_taint(TAINT_DIE);
-	spin_unlock_irq(&die_lock);
+	raw_spin_unlock_irq(&die_lock);
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
