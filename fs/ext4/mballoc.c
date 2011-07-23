@@ -2581,7 +2581,7 @@ int ext4_mb_release(struct super_block *sb)
 				atomic_read(&sbi->s_mb_lost_chunks));
 		printk(KERN_INFO
 		       "EXT4-fs: mballoc: %lu generated and it took %Lu\n",
-				sbi->s_mb_buddies_generated++,
+				sbi->s_mb_buddies_generated,
 				sbi->s_mb_generation_time);
 		printk(KERN_INFO
 		       "EXT4-fs: mballoc: %u preallocated, %u discarded\n",
