@@ -46,10 +46,16 @@
 #include "iwl-6000-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL2030_UCODE_API_MAX 5
-#define IWL2000_UCODE_API_MAX 5
-#define IWL105_UCODE_API_MAX 5
-#define IWL135_UCODE_API_MAX 5
+#define IWL2030_UCODE_API_MAX 6
+#define IWL2000_UCODE_API_MAX 6
+#define IWL105_UCODE_API_MAX 6
+#define IWL135_UCODE_API_MAX 6
+
+/* Oldest version we won't warn about */
+#define IWL2030_UCODE_API_OK 5
+#define IWL2000_UCODE_API_OK 5
+#define IWL105_UCODE_API_OK 5
+#define IWL135_UCODE_API_OK 5
 
 /* Lowest firmware API version supported */
 #define IWL2030_UCODE_API_MIN 5
@@ -254,6 +260,7 @@ static struct iwl_bt_params iwl2030_bt_params = {
 #define IWL_DEVICE_2000						\
 	.fw_name_pre = IWL2000_FW_PRE,				\
 	.ucode_api_max = IWL2000_UCODE_API_MAX,			\
+	.ucode_api_ok = IWL2000_UCODE_API_OK,			\
 	.ucode_api_min = IWL2000_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
@@ -278,6 +285,7 @@ struct iwl_cfg iwl2000_2bg_cfg = {
 #define IWL_DEVICE_2030						\
 	.fw_name_pre = IWL2030_FW_PRE,				\
 	.ucode_api_max = IWL2030_UCODE_API_MAX,			\
+	.ucode_api_ok = IWL2030_UCODE_API_OK,			\
 	.ucode_api_min = IWL2030_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
@@ -304,6 +312,7 @@ struct iwl_cfg iwl2030_2bg_cfg = {
 #define IWL_DEVICE_105						\
 	.fw_name_pre = IWL105_FW_PRE,				\
 	.ucode_api_max = IWL105_UCODE_API_MAX,			\
+	.ucode_api_ok = IWL105_UCODE_API_OK,			\
 	.ucode_api_min = IWL105_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\
@@ -330,6 +339,7 @@ struct iwl_cfg iwl105_bgn_cfg = {
 #define IWL_DEVICE_135						\
 	.fw_name_pre = IWL135_FW_PRE,				\
 	.ucode_api_max = IWL135_UCODE_API_MAX,			\
+	.ucode_api_ok = IWL135_UCODE_API_OK,			\
 	.ucode_api_min = IWL135_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_2000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_2000_TX_POWER_VERSION,	\

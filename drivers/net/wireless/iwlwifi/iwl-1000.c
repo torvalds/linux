@@ -45,8 +45,12 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL1000_UCODE_API_MAX 5
-#define IWL100_UCODE_API_MAX 5
+#define IWL1000_UCODE_API_MAX 6
+#define IWL100_UCODE_API_MAX 6
+
+/* Oldest version we won't warn about */
+#define IWL1000_UCODE_API_OK 5
+#define IWL100_UCODE_API_OK 5
 
 /* Lowest firmware API version supported */
 #define IWL1000_UCODE_API_MIN 1
@@ -205,6 +209,7 @@ static struct iwl_ht_params iwl1000_ht_params = {
 #define IWL_DEVICE_1000						\
 	.fw_name_pre = IWL1000_FW_PRE,				\
 	.ucode_api_max = IWL1000_UCODE_API_MAX,			\
+	.ucode_api_ok = IWL1000_UCODE_API_OK,			\
 	.ucode_api_min = IWL1000_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
@@ -226,6 +231,7 @@ struct iwl_cfg iwl1000_bg_cfg = {
 #define IWL_DEVICE_100						\
 	.fw_name_pre = IWL100_FW_PRE,				\
 	.ucode_api_max = IWL100_UCODE_API_MAX,			\
+	.ucode_api_ok = IWL100_UCODE_API_OK,			\
 	.ucode_api_min = IWL100_UCODE_API_MIN,			\
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
