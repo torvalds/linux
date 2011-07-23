@@ -52,7 +52,7 @@ module_param_named(powersave, i915_powersave, int, 0600);
 unsigned int i915_semaphores = 0;
 module_param_named(semaphores, i915_semaphores, int, 0600);
 
-unsigned int i915_enable_rc6 = 1;
+unsigned int i915_enable_rc6 = 0;
 module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
 
 unsigned int i915_enable_fbc = 0;
@@ -577,6 +577,7 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	if (get_seconds() - dev_priv->last_gpu_reset < 5) {
 		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
 	} else switch (INTEL_INFO(dev)->gen) {
+	case 7:
 	case 6:
 		ret = gen6_do_reset(dev, flags);
 		/* If reset with a user forcewake, try to restore */
@@ -765,14 +766,6 @@ static struct drm_driver driver = {
 	.resume = i915_resume,
 
 	.device_is_agp = i915_driver_device_is_agp,
-	.enable_vblank = i915_enable_vblank,
-	.disable_vblank = i915_disable_vblank,
-	.get_vblank_timestamp = i915_get_vblank_timestamp,
-	.get_scanout_position = i915_get_crtc_scanoutpos,
-	.irq_preinstall = i915_driver_irq_preinstall,
-	.irq_postinstall = i915_driver_irq_postinstall,
-	.irq_uninstall = i915_driver_irq_uninstall,
-	.irq_handler = i915_driver_irq_handler,
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.master_create = i915_master_create,
 	.master_destroy = i915_master_destroy,

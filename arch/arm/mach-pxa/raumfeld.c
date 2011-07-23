@@ -573,10 +573,10 @@ static struct pxafb_mode_info sharp_lq043t3dx02_mode = {
 	.xres		= 480,
 	.yres		= 272,
 	.bpp		= 16,
-	.hsync_len	= 4,
+	.hsync_len	= 41,
 	.left_margin	= 2,
 	.right_margin	= 1,
-	.vsync_len	= 1,
+	.vsync_len	= 10,
 	.upper_margin	= 3,
 	.lower_margin	= 1,
 	.sync		= 0,
@@ -596,22 +596,13 @@ static void __init raumfeld_lcd_init(void)
 {
 	int ret;
 
-	pxa_set_fb_info(NULL, &raumfeld_sharp_lcd_info);
-
-	/* Earlier devices had the backlight regulator controlled
-	 * via PWM, later versions use another controller for that */
-	if ((system_rev & 0xff) < 2) {
-		mfp_cfg_t raumfeld_pwm_pin_config = GPIO17_PWM0_OUT;
-		pxa3xx_mfp_config(&raumfeld_pwm_pin_config, 1);
-		platform_device_register(&raumfeld_pwm_backlight_device);
-	} else
-		platform_device_register(&raumfeld_lt3593_device);
-
 	ret = gpio_request(GPIO_TFT_VA_EN, "display VA enable");
 	if (ret < 0)
 		pr_warning("Unable to request GPIO_TFT_VA_EN\n");
 	else
 		gpio_direction_output(GPIO_TFT_VA_EN, 1);
+
+	msleep(100);
 
 	ret = gpio_request(GPIO_DISPLAY_ENABLE, "display enable");
 	if (ret < 0)
@@ -619,6 +610,17 @@ static void __init raumfeld_lcd_init(void)
 	else
 		gpio_direction_output(GPIO_DISPLAY_ENABLE, 1);
 
+	/* Hardware revision 2 has the backlight regulator controlled
+	 * by an LT3593, earlier and later devices use PWM for that. */
+	if ((system_rev & 0xff) == 2) {
+		platform_device_register(&raumfeld_lt3593_device);
+	} else {
+		mfp_cfg_t raumfeld_pwm_pin_config = GPIO17_PWM0_OUT;
+		pxa3xx_mfp_config(&raumfeld_pwm_pin_config, 1);
+		platform_device_register(&raumfeld_pwm_backlight_device);
+	}
+
+	pxa_set_fb_info(NULL, &raumfeld_sharp_lcd_info);
 	platform_device_register(&pxa3xx_device_gcu);
 }
 
@@ -657,10 +659,10 @@ static struct lis3lv02d_platform_data lis3_pdata = {
 
 #define SPI_AK4104	\
 {			\
-	.modalias	= "ak4104",	\
-	.max_speed_hz	= 10000,	\
-	.bus_num	= 0,		\
-	.chip_select	= 0,		\
+	.modalias	= "ak4104-codec",	\
+	.max_speed_hz	= 10000,		\
+	.bus_num	= 0,			\
+	.chip_select	= 0,			\
 	.controller_data = (void *) GPIO_SPDIF_CS,	\
 }
 

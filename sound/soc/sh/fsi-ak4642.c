@@ -97,7 +97,7 @@ static int fsi_ak4642_remove(struct platform_device *pdev)
 
 static struct fsi_ak4642_data fsi_a_ak4642 = {
 	.name		= "AK4642",
-	.card		= "FSIA (AK4642)",
+	.card		= "FSIA-AK4642",
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi.0",
@@ -106,7 +106,7 @@ static struct fsi_ak4642_data fsi_a_ak4642 = {
 
 static struct fsi_ak4642_data fsi_b_ak4642 = {
 	.name		= "AK4642",
-	.card		= "FSIB (AK4642)",
+	.card		= "FSIB-AK4642",
 	.cpu_dai	= "fsib-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi.0",
@@ -115,7 +115,7 @@ static struct fsi_ak4642_data fsi_b_ak4642 = {
 
 static struct fsi_ak4642_data fsi_a_ak4643 = {
 	.name		= "AK4643",
-	.card		= "FSIA (AK4643)",
+	.card		= "FSIA-AK4643",
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi.0",
@@ -124,7 +124,7 @@ static struct fsi_ak4642_data fsi_a_ak4643 = {
 
 static struct fsi_ak4642_data fsi_b_ak4643 = {
 	.name		= "AK4643",
-	.card		= "FSIB (AK4643)",
+	.card		= "FSIB-AK4643",
 	.cpu_dai	= "fsib-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi.0",
@@ -133,7 +133,7 @@ static struct fsi_ak4642_data fsi_b_ak4643 = {
 
 static struct fsi_ak4642_data fsi2_a_ak4642 = {
 	.name		= "AK4642",
-	.card		= "FSI2A (AK4642)",
+	.card		= "FSI2A-AK4642",
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi2",
@@ -142,7 +142,7 @@ static struct fsi_ak4642_data fsi2_a_ak4642 = {
 
 static struct fsi_ak4642_data fsi2_b_ak4642 = {
 	.name		= "AK4642",
-	.card		= "FSI2B (AK4642)",
+	.card		= "FSI2B-AK4642",
 	.cpu_dai	= "fsib-dai",
 	.codec		= "ak4642-codec.0-0012",
 	.platform	= "sh_fsi2",
@@ -151,7 +151,7 @@ static struct fsi_ak4642_data fsi2_b_ak4642 = {
 
 static struct fsi_ak4642_data fsi2_a_ak4643 = {
 	.name		= "AK4643",
-	.card		= "FSI2A (AK4643)",
+	.card		= "FSI2A-AK4643",
 	.cpu_dai	= "fsia-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi2",
@@ -160,7 +160,7 @@ static struct fsi_ak4642_data fsi2_a_ak4643 = {
 
 static struct fsi_ak4642_data fsi2_b_ak4643 = {
 	.name		= "AK4643",
-	.card		= "FSI2B (AK4643)",
+	.card		= "FSI2B-AK4643",
 	.cpu_dai	= "fsib-dai",
 	.codec		= "ak4642-codec.0-0013",
 	.platform	= "sh_fsi2",

@@ -41,6 +41,13 @@ typedef struct scsi_cd {
 	unsigned readcd_known:1;	/* drive supports READ_CD (0xbe) */
 	unsigned readcd_cdda:1;	/* reading audio data using READ_CD */
 	unsigned media_present:1;	/* media is present */
+
+	/* GET_EVENT spurious event handling, blk layer guarantees exclusion */
+	int tur_mismatch;		/* nr of get_event TUR mismatches */
+	bool tur_changed:1;		/* changed according to TUR */
+	bool get_event_changed:1;	/* changed according to GET_EVENT */
+	bool ignore_get_event:1;	/* GET_EVENT is unreliable, use TUR */
+
 	struct cdrom_device_info cdi;
 	/* We hold gendisk and scsi_device references on probe and use
 	 * the refs on this kref to decide when to release them */

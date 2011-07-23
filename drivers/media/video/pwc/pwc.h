@@ -162,9 +162,9 @@ struct pwc_imgbuf
 
 struct pwc_device
 {
-   struct video_device *vdev;
+	struct video_device vdev;
 
-   /* Pointer to our usb_device */
+   /* Pointer to our usb_device, may be NULL after unplug */
    struct usb_device *udev;
 
    int type;                    /* type of cam (645, 646, 675, 680, 690, 720, 730, 740, 750) */

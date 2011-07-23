@@ -215,7 +215,7 @@ static void __init cap9adk_add_device_nand(void)
 	csa = at91_sys_read(AT91_MATRIX_EBICSA);
 	at91_sys_write(AT91_MATRIX_EBICSA, csa | AT91_MATRIX_EBI_VDDIOMSEL_3_3V);
 
-	cap9adk_nand_data.bus_width_16 = !board_have_nand_8bit();
+	cap9adk_nand_data.bus_width_16 = board_have_nand_16bit();
 	/* setup bus-width (8 or 16) */
 	if (cap9adk_nand_data.bus_width_16)
 		cap9adk_nand_smc_config.mode |= AT91_SMC_DBW_16;

@@ -31,6 +31,7 @@
 #include <linux/kdebug.h>
 #include <linux/perf_event.h>
 #include <linux/magic.h>
+#include <linux/ratelimit.h>
 
 #include <asm/firmware.h>
 #include <asm/page.h>
@@ -346,11 +347,10 @@ bad_area_nosemaphore:
 		return 0;
 	}
 
-	if (is_exec && (error_code & DSISR_PROTFAULT)
-	    && printk_ratelimit())
-		printk(KERN_CRIT "kernel tried to execute NX-protected"
-		       " page (%lx) - exploit attempt? (uid: %d)\n",
-		       address, current_uid());
+	if (is_exec && (error_code & DSISR_PROTFAULT))
+		printk_ratelimited(KERN_CRIT "kernel tried to execute NX-protected"
+				   " page (%lx) - exploit attempt? (uid: %d)\n",
+				   address, current_uid());
 
 	return SIGSEGV;
 

@@ -139,13 +139,23 @@ static int __init hest_parse_ghes(struct acpi_hest_header *hest_hdr, void *data)
 {
 	struct platform_device *ghes_dev;
 	struct ghes_arr *ghes_arr = data;
-	int rc;
+	int rc, i;
 
 	if (hest_hdr->type != ACPI_HEST_TYPE_GENERIC_ERROR)
 		return 0;
 
 	if (!((struct acpi_hest_generic *)hest_hdr)->enabled)
 		return 0;
+	for (i = 0; i < ghes_arr->count; i++) {
+		struct acpi_hest_header *hdr;
+		ghes_dev = ghes_arr->ghes_devs[i];
+		hdr = *(struct acpi_hest_header **)ghes_dev->dev.platform_data;
+		if (hdr->source_id == hest_hdr->source_id) {
+			pr_warning(FW_WARN HEST_PFX "Duplicated hardware error source ID: %d.\n",
+				   hdr->source_id);
+			return -EIO;
+		}
+	}
 	ghes_dev = platform_device_alloc("GHES", hest_hdr->source_id);
 	if (!ghes_dev)
 		return -ENOMEM;

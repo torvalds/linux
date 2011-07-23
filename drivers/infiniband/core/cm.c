@@ -3641,7 +3641,8 @@ static struct kobj_type cm_port_obj_type = {
 
 static char *cm_devnode(struct device *dev, mode_t *mode)
 {
-	*mode = 0666;
+	if (mode)
+		*mode = 0666;
 	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
 }
 

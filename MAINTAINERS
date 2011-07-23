@@ -594,6 +594,16 @@ S:	Maintained
 F:	arch/arm/lib/floppydma.S
 F:	arch/arm/include/asm/floppy.h
 
+ARM PMU PROFILING AND DEBUGGING
+M:	Will Deacon <will.deacon@arm.com>
+S:	Maintained
+F:	arch/arm/kernel/perf_event*
+F:	arch/arm/oprofile/common.c
+F:	arch/arm/kernel/pmu.c
+F:	arch/arm/include/asm/pmu.h
+F:	arch/arm/kernel/hw_breakpoint.c
+F:	arch/arm/include/asm/hw_breakpoint.h
+
 ARM PORT
 M:	Russell King <linux@arm.linux.org.uk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -1345,16 +1355,18 @@ F:	drivers/auxdisplay/
 F:	include/linux/cfag12864b.h
 
 AVR32 ARCHITECTURE
-M:	Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>
+M:	Haavard Skinnemoen <hskinnemoen@gmail.com>
+M:	Hans-Christian Egtvedt <egtvedt@samfundet.no>
 W:	http://www.atmel.com/products/AVR32/
 W:	http://avr32linux.org/
 W:	http://avrfreaks.net/
-S:	Supported
+S:	Maintained
 F:	arch/avr32/
 
 AVR32/AT32AP MACHINE SUPPORT
-M:	Hans-Christian Egtvedt <hans-christian.egtvedt@atmel.com>
-S:	Supported
+M:	Haavard Skinnemoen <hskinnemoen@gmail.com>
+M:	Hans-Christian Egtvedt <egtvedt@samfundet.no>
+S:	Maintained
 F:	arch/avr32/mach-at32ap/
 
 AX.25 NETWORK LAYER
@@ -1390,7 +1402,6 @@ F:	include/linux/backlight.h
 BATMAN ADVANCED
 M:	Marek Lindner <lindner_marek@yahoo.de>
 M:	Simon Wunderlich <siwu@hrz.tu-chemnitz.de>
-M:	Sven Eckelmann <sven@narfation.org>
 L:	b.a.t.m.a.n@lists.open-mesh.org
 W:	http://www.open-mesh.org/
 S:	Maintained
@@ -1423,7 +1434,6 @@ S:	Supported
 F:	arch/blackfin/
 
 BLACKFIN EMAC DRIVER
-M:	Michael Hennerich <michael.hennerich@analog.com>
 L:	uclinux-dist-devel@blackfin.uclinux.org
 W:	http://blackfin.uclinux.org
 S:	Supported
@@ -1645,7 +1655,7 @@ CAN NETWORK LAYER
 M:	Oliver Hartkopp <socketcan@hartkopp.net>
 M:	Oliver Hartkopp <oliver.hartkopp@volkswagen.de>
 M:	Urs Thuermann <urs.thuermann@volkswagen.de>
-L:	socketcan-core@lists.berlios.de
+L:	socketcan-core@lists.berlios.de (subscribers-only)
 L:	netdev@vger.kernel.org
 W:	http://developer.berlios.de/projects/socketcan/
 S:	Maintained
@@ -1657,7 +1667,7 @@ F:	include/linux/can/raw.h
 
 CAN NETWORK DRIVERS
 M:	Wolfgang Grandegger <wg@grandegger.com>
-L:	socketcan-core@lists.berlios.de
+L:	socketcan-core@lists.berlios.de (subscribers-only)
 L:	netdev@vger.kernel.org
 W:	http://developer.berlios.de/projects/socketcan/
 S:	Maintained
@@ -2204,7 +2214,7 @@ F:	drivers/acpi/dock.c
 DOCUMENTATION
 M:	Randy Dunlap <rdunlap@xenotime.net>
 L:	linux-doc@vger.kernel.org
-T:	quilt oss.oracle.com/~rdunlap/kernel-doc-patches/current/
+T:	quilt http://userweb.kernel.org/~rdunlap/kernel-doc-patches/current/
 S:	Maintained
 F:	Documentation/
 
@@ -4989,7 +4999,7 @@ F:	drivers/power/power_supply*
 
 PNP SUPPORT
 M:	Adam Belay <abelay@mit.edu>
-M:	Bjorn Helgaas <bjorn.helgaas@hp.com>
+M:	Bjorn Helgaas <bhelgaas@google.com>
 S:	Maintained
 F:	drivers/pnp/
 
@@ -5188,6 +5198,7 @@ S:	Supported
 F:	drivers/net/qlcnic/
 
 QLOGIC QLGE 10Gb ETHERNET DRIVER
+M:	Jitendra Kalsaria <jitendra.kalsaria@qlogic.com>
 M:	Ron Mercer <ron.mercer@qlogic.com>
 M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
@@ -6739,6 +6750,7 @@ F:	fs/fat/
 VIDEOBUF2 FRAMEWORK
 M:	Pawel Osciak <pawel@osciak.com>
 M:	Marek Szyprowski <m.szyprowski@samsung.com>
+M:	Kyungmin Park <kyungmin.park@samsung.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/video/videobuf2-*

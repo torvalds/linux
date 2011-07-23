@@ -113,7 +113,7 @@ found:
 	return chan;
 }
 
-int s3c2410_dma_config(unsigned int channel, int xferunit)
+int s3c2410_dma_config(enum dma_ch channel, int xferunit)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 
@@ -297,7 +297,7 @@ static int s3c64xx_dma_flush(struct s3c2410_dma_chan *chan)
 	return 0;
 }
 
-int s3c2410_dma_ctrl(unsigned int channel, enum s3c2410_chan_op op)
+int s3c2410_dma_ctrl(enum dma_ch channel, enum s3c2410_chan_op op)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 
@@ -331,7 +331,7 @@ EXPORT_SYMBOL(s3c2410_dma_ctrl);
  *
  */
 
-int s3c2410_dma_enqueue(unsigned int channel, void *id,
+int s3c2410_dma_enqueue(enum dma_ch channel, void *id,
 			dma_addr_t data, int size)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
@@ -415,7 +415,7 @@ err_buff:
 EXPORT_SYMBOL(s3c2410_dma_enqueue);
 
 
-int s3c2410_dma_devconfig(unsigned int channel,
+int s3c2410_dma_devconfig(enum dma_ch channel,
 			  enum s3c2410_dmasrc source,
 			  unsigned long devaddr)
 {
@@ -463,7 +463,7 @@ int s3c2410_dma_devconfig(unsigned int channel,
 EXPORT_SYMBOL(s3c2410_dma_devconfig);
 
 
-int s3c2410_dma_getposition(unsigned int channel,
+int s3c2410_dma_getposition(enum dma_ch channel,
 			    dma_addr_t *src, dma_addr_t *dst)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
@@ -487,7 +487,7 @@ EXPORT_SYMBOL(s3c2410_dma_getposition);
  * get control of an dma channel
 */
 
-int s3c2410_dma_request(unsigned int channel,
+int s3c2410_dma_request(enum dma_ch channel,
 			struct s3c2410_dma_client *client,
 			void *dev)
 {
@@ -533,7 +533,7 @@ EXPORT_SYMBOL(s3c2410_dma_request);
  * allowed to go through.
 */
 
-int s3c2410_dma_free(unsigned int channel, struct s3c2410_dma_client *client)
+int s3c2410_dma_free(enum dma_ch channel, struct s3c2410_dma_client *client)
 {
 	struct s3c2410_dma_chan *chan = s3c_dma_lookup_channel(channel);
 	unsigned long flags;
