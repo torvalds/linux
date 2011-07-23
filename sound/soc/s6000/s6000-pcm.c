@@ -443,10 +443,11 @@ static void s6000_pcm_free(struct snd_pcm *pcm)
 
 static u64 s6000_pcm_dmamask = DMA_BIT_MASK(32);
 
-static int s6000_pcm_new(struct snd_card *card,
-			 struct snd_soc_dai *dai, struct snd_pcm *pcm)
+static int s6000_pcm_new(struct snd_soc_pcm_runtime *runtime)
 {
-	struct snd_soc_pcm_runtime *runtime = pcm->private_data;
+	struct snd_card *card = runtime->card->snd_card;
+	struct snd_soc_dai *dai = runtime->cpu_dai;
+	struct snd_pcm *pcm = runtime->pcm;
 	struct s6000_pcm_dma_params *params;
 	int res;
 

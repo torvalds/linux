@@ -6441,7 +6441,7 @@ static int __devinit snd_hdspm_create(struct snd_card *card,
 			hdspm->port + io_extent - 1);
 
 	if (request_irq(pci->irq, snd_hdspm_interrupt,
-				IRQF_SHARED, "hdspm", hdspm)) {
+			IRQF_SHARED, KBUILD_MODNAME, hdspm)) {
 		snd_printk(KERN_ERR "HDSPM: unable to use IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
@@ -6779,7 +6779,7 @@ static void __devexit snd_hdspm_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "RME Hammerfall DSP MADI",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_hdspm_ids,
 	.probe = snd_hdspm_probe,
 	.remove = __devexit_p(snd_hdspm_remove),
