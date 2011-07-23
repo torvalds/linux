@@ -2190,7 +2190,7 @@ static int mt2063_set_params(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int mt2063_get_frequency(struct dvb_frontend *fe, u32 *freq)
+static int mt2063_get_if_frequency(struct dvb_frontend *fe, u32 *freq)
 {
 	struct mt2063_state *state = fe->tuner_priv;
 
@@ -2199,9 +2199,9 @@ static int mt2063_get_frequency(struct dvb_frontend *fe, u32 *freq)
 	if (!state->init)
 		return -ENODEV;
 
-	*freq = state->frequency;
+	*freq = state->reference * 1000;
 
-	dprintk(1, "frequency: %d\n", *freq);
+	dprintk(1, "IF frequency: %d\n", *freq);
 
 	return 0;
 }
@@ -2235,7 +2235,7 @@ static struct dvb_tuner_ops mt2063_ops = {
 	.get_status = mt2063_get_status,
 	.set_analog_params = mt2063_set_analog_params,
 	.set_params    = mt2063_set_params,
-	.get_frequency = mt2063_get_frequency,
+	.get_if_frequency = mt2063_get_if_frequency,
 	.get_bandwidth = mt2063_get_bandwidth,
 	.release = mt2063_release,
 };
