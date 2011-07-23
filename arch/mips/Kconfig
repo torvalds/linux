@@ -24,6 +24,7 @@ config MIPS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_JUMP_LABEL
+	select IRQ_FORCED_THREADING
 
 menu "Machine selection"
 
