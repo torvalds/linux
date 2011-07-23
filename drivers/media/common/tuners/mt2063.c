@@ -220,6 +220,8 @@ enum MT2063_Register_Offsets {
 struct mt2063_state {
 	struct i2c_adapter *i2c;
 
+	bool init;
+
 	const struct mt2063_config *config;
 	struct dvb_tuner_ops ops;
 	struct dvb_frontend *frontend;
@@ -1974,6 +1976,8 @@ static int mt2063_init(struct dvb_frontend *fe)
 	if (status < 0)
 		return status;
 
+	state->init = true;
+
 	return 0;
 }
 
@@ -1983,6 +1987,9 @@ static int mt2063_get_status(struct dvb_frontend *fe, u32 *tuner_status)
 	int status;
 
 	dprintk(2, "\n");
+
+	if (!state->init)
+		return -ENODEV;
 
 	*tuner_status = 0;
 	status = mt2063_lockStatus(state);
@@ -2018,6 +2025,12 @@ static int mt2063_set_analog_params(struct dvb_frontend *fe,
 	int status;
 
 	dprintk(2, "\n");
+
+	if (!state->init) {
+		status = mt2063_init(fe);
+		if (status < 0)
+			return status;
+	}
 
 	switch (params->mode) {
 	case V4L2_TUNER_RADIO:
@@ -2082,6 +2095,12 @@ static int mt2063_set_params(struct dvb_frontend *fe)
 	s32 if_mid;
 	s32 rcvr_mode;
 
+	if (!state->init) {
+		status = mt2063_init(fe);
+		if (status < 0)
+			return status;
+	}
+
 	dprintk(2, "\n");
 
 	if (c->bandwidth_hz == 0)
@@ -2132,6 +2151,9 @@ static int mt2063_get_frequency(struct dvb_frontend *fe, u32 *freq)
 
 	dprintk(2, "\n");
 
+	if (!state->init)
+		return -ENODEV;
+
 	*freq = state->frequency;
 	return 0;
 }
@@ -2141,6 +2163,9 @@ static int mt2063_get_bandwidth(struct dvb_frontend *fe, u32 *bw)
 	struct mt2063_state *state = fe->tuner_priv;
 
 	dprintk(2, "\n");
+
+	if (!state->init)
+		return -ENODEV;
 
 	*bw = state->AS_Data.f_out_bw - 750000;
 	return 0;
