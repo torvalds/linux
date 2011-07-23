@@ -1845,8 +1845,7 @@ static int mt2063_init(struct dvb_frontend *fe)
 		return -ENODEV;	/*  Wrong tuner Part/Rev code */
 	}
 
-	dprintk(1, "Discovered a mt2063 %s (2nd part number 0x%02x)\n",
-		step, state->reg[MT2063_REG_RSVD_3B]);
+	printk(KERN_INFO "mt2063: detected a mt2063 %s\n", step);
 
 	/*  Reset the tuner  */
 	status = mt2063_write(state, MT2063_REG_LO2CQ_3, &all_resets, 1);
