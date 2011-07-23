@@ -64,7 +64,6 @@ struct ath5k_vif {
 	enum nl80211_iftype	opmode;
 	int			bslot;
 	struct ath5k_buf	*bbuf; /* beacon buffer */
-	u8			lladdr[ETH_ALEN];
 };
 
 struct ath5k_vif_iter_data {

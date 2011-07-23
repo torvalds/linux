@@ -2862,7 +2862,6 @@ ath5k_init(struct ieee80211_hw *hw)
 	}
 
 	SET_IEEE80211_PERM_ADDR(hw, mac);
-	memcpy(&ah->lladdr, mac, ETH_ALEN);
 	/* All MAC address bits matter for ACKs */
 	ath5k_update_bssid_mask_and_opmode(ah, NULL);
 

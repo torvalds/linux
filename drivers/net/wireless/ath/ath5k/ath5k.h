@@ -131,13 +131,6 @@
 #define AR5K_REG_DISABLE_BITS(ah, _reg, _flags)			\
 	ath5k_hw_reg_write(ah, ath5k_hw_reg_read(ah, _reg) & ~(_flags), _reg)
 
-/* Access to PHY registers */
-#define AR5K_PHY_READ(ah, _reg)					\
-	ath5k_hw_reg_read(ah, (ah)->ah_phy + ((_reg) << 2))
-
-#define AR5K_PHY_WRITE(ah, _reg, _val)					\
-	ath5k_hw_reg_write(ah, _val, (ah)->ah_phy + ((_reg) << 2))
-
 /* Access QCU registers per queue */
 #define AR5K_REG_READ_Q(ah, _reg, _queue)				\
 	(ath5k_hw_reg_read(ah, _reg) & (1 << _queue))			\
@@ -166,7 +159,6 @@
 #define AR5K_TUNE_DMA_BEACON_RESP		2
 #define AR5K_TUNE_SW_BEACON_RESP		10
 #define AR5K_TUNE_ADDITIONAL_SWBA_BACKOFF	0
-#define AR5K_TUNE_RADAR_ALERT			false
 #define AR5K_TUNE_MIN_TX_FIFO_THRES		1
 #define AR5K_TUNE_MAX_TX_FIFO_THRES	((IEEE80211_MAX_FRAME_LEN / 64) + 1)
 #define AR5K_TUNE_REGISTER_TIMEOUT		20000
@@ -1013,16 +1005,6 @@ struct ath5k_nfcal_hist {
 	s16 nfval[ATH5K_NF_CAL_HIST_MAX];	/* last few noise floors */
 };
 
-/**
- * struct avg_val - Helper structure for average calculation
- * @avg: contains the actual average value
- * @avg_weight: is used internally during calculation to prevent rounding errors
- */
-struct ath5k_avg_val {
-	int avg;
-	int avg_weight;
-};
-
 #define ATH5K_LED_MAX_NAME_LEN 31
 
 /*
@@ -1148,7 +1130,6 @@ struct ath5k_hw {
 	bool			rx_pending;	/* rx tasklet pending */
 	bool			tx_pending;	/* tx tasklet pending */
 
-	u8			lladdr[ETH_ALEN];
 	u8			bssidmask[ETH_ALEN];
 
 	unsigned int		led_pin,	/* GPIO pin for driving LED */
@@ -1156,7 +1137,6 @@ struct ath5k_hw {
 
 	struct work_struct	reset_work;	/* deferred chip reset */
 
-	unsigned int		rxbufsize;	/* rx size based on mtu */
 	struct list_head	rxbuf;		/* receive buffer */
 	spinlock_t		rxbuflock;
 	u32			*rxlink;	/* link ptr in last RX desc */
@@ -1208,10 +1188,8 @@ struct ath5k_hw {
 
 	enum ath5k_version	ah_version;
 	enum ath5k_radio	ah_radio;
-	u32			ah_phy;
 	u32			ah_mac_srev;
 	u16			ah_mac_version;
-	u16			ah_mac_revision;
 	u16			ah_phy_revision;
 	u16			ah_radio_5ghz_revision;
 	u16			ah_radio_2ghz_revision;
@@ -1278,12 +1256,6 @@ struct ath5k_hw {
 		s16		txp_cck_ofdm_pwr_delta;
 		bool		txp_setup;
 	} ah_txpower;
-
-	struct {
-		bool		r_enabled;
-		int		r_last_alert;
-		struct ieee80211_channel r_last_channel;
-	} ah_radar;
 
 	struct ath5k_nfcal_hist ah_nfcal_hist;
 
