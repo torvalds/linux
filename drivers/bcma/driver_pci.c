@@ -173,7 +173,7 @@ static bool bcma_core_pci_is_in_hostmode(struct bcma_drv_pci *pc)
 		return false;
 
 #ifdef CONFIG_SSB_DRIVER_PCICORE
-	if (bus->sprom.boardflags_lo & SSB_PCICORE_BFL_NOPCI)
+	if (bus->sprom.boardflags_lo & SSB_BFL_NOPCI)
 		return false;
 #endif /* CONFIG_SSB_DRIVER_PCICORE */
 
