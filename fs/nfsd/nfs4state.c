@@ -2556,12 +2556,18 @@ static inline int nfs4_access_to_access(u32 nfs4_access)
 	return flags;
 }
 
-static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file
-*fp, struct svc_fh *cur_fh, u32 nfs4_access)
+static __be32 nfs4_get_vfs_file(struct svc_rqst *rqstp, struct nfs4_file *fp,
+		struct svc_fh *cur_fh, struct nfsd4_open *open)
 {
 	__be32 status;
-	int oflag = nfs4_access_to_omode(nfs4_access);
-	int access = nfs4_access_to_access(nfs4_access);
+	int oflag = nfs4_access_to_omode(open->op_share_access);
+	int access = nfs4_access_to_access(open->op_share_access);
+
+	/* CLAIM_DELEGATE_CUR is used in response to a broken lease;
+	 * allowing it to break the lease and return EAGAIN leaves the
+	 * client unable to make progress in returning the delegation */
+	if (open->op_claim_type == NFS4_OPEN_CLAIM_DELEGATE_CUR)
+		access |= NFSD_MAY_NOT_BREAK_LEASE;
 
 	if (!fp->fi_fds[oflag]) {
 		status = nfsd_open(rqstp, cur_fh, S_IFREG, access,
@@ -2586,7 +2592,7 @@ nfs4_new_open(struct svc_rqst *rqstp, struct nfs4_stateid **stpp,
 	if (stp == NULL)
 		return nfserr_resource;
 
-	status = nfs4_get_vfs_file(rqstp, fp, cur_fh, open->op_share_access);
+	status = nfs4_get_vfs_file(rqstp, fp, cur_fh, open);
 	if (status) {
 		kmem_cache_free(stateid_slab, stp);
 		return status;
@@ -2619,7 +2625,7 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *c
 
 	new_access = !test_bit(op_share_access, &stp->st_access_bmap);
 	if (new_access) {
-		status = nfs4_get_vfs_file(rqstp, fp, cur_fh, op_share_access);
+		status = nfs4_get_vfs_file(rqstp, fp, cur_fh, open);
 		if (status)
 			return status;
 	}
