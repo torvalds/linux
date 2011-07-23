@@ -336,7 +336,7 @@ static int posix_acl_create_masq(struct posix_acl *acl, umode_t *mode_p)
 /*
  * Modify the ACL for the chmod syscall.
  */
-static int posix_acl_chmod_masq(struct posix_acl *acl, mode_t mode)
+static int posix_acl_chmod_masq(struct posix_acl *acl, umode_t mode)
 {
 	struct posix_acl_entry *group_obj = NULL, *mask_obj = NULL;
 	struct posix_acl_entry *pa, *pe;
@@ -400,7 +400,7 @@ posix_acl_create(struct posix_acl **acl, gfp_t gfp, umode_t *mode_p)
 EXPORT_SYMBOL(posix_acl_create);
 
 int
-posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, mode_t mode)
+posix_acl_chmod(struct posix_acl **acl, gfp_t gfp, umode_t mode)
 {
 	struct posix_acl *clone = posix_acl_clone(*acl, gfp);
 	int err = -ENOMEM;
