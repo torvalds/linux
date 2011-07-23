@@ -149,10 +149,10 @@ posix_acl_valid(const struct posix_acl *acl)
  * file mode permission bits, or else 1. Returns -E... on error.
  */
 int
-posix_acl_equiv_mode(const struct posix_acl *acl, mode_t *mode_p)
+posix_acl_equiv_mode(const struct posix_acl *acl, umode_t *mode_p)
 {
 	const struct posix_acl_entry *pa, *pe;
-	mode_t mode = 0;
+	umode_t mode = 0;
 	int not_equiv = 0;
 
 	FOREACH_ACL_ENTRY(pa, acl, pe) {
