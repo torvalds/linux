@@ -160,6 +160,7 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 
 static int handle_validity(struct kvm_vcpu *vcpu)
 {
+	unsigned long vmaddr;
 	int viwhy = vcpu->arch.sie_block->ipb >> 16;
 	int rc;
 
@@ -170,12 +171,27 @@ static int handle_validity(struct kvm_vcpu *vcpu)
 			 vcpu->arch.sie_block->gmsor +
 			 vcpu->arch.sie_block->prefix,
 			 2*PAGE_SIZE);
-		if (rc)
+		if (rc) {
 			/* user will receive sigsegv, exit to user */
 			rc = -EOPNOTSUPP;
+			goto out;
+		}
+		vmaddr = gmap_fault(vcpu->arch.sie_block->prefix,
+				    vcpu->arch.gmap);
+		if (IS_ERR_VALUE(vmaddr)) {
+			rc = -EOPNOTSUPP;
+			goto out;
+		}
+		vmaddr = gmap_fault(vcpu->arch.sie_block->prefix + PAGE_SIZE,
+				    vcpu->arch.gmap);
+		if (IS_ERR_VALUE(vmaddr)) {
+			rc = -EOPNOTSUPP;
+			goto out;
+		}
 	} else
 		rc = -EOPNOTSUPP;
 
+out:
 	if (rc)
 		VCPU_EVENT(vcpu, 2, "unhandled validity intercept code %d",
 			   viwhy);

@@ -190,7 +190,13 @@ int kvm_arch_init_vm(struct kvm *kvm)
 	debug_register_view(kvm->arch.dbf, &debug_sprintf_view);
 	VM_EVENT(kvm, 3, "%s", "vm created");
 
+	kvm->arch.gmap = gmap_alloc(current->mm);
+	if (!kvm->arch.gmap)
+		goto out_nogmap;
+
 	return 0;
+out_nogmap:
+	debug_unregister(kvm->arch.dbf);
 out_nodbf:
 	free_page((unsigned long)(kvm->arch.sca));
 out_err:
@@ -235,11 +241,13 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 	kvm_free_vcpus(kvm);
 	free_page((unsigned long)(kvm->arch.sca));
 	debug_unregister(kvm->arch.dbf);
+	gmap_free(kvm->arch.gmap);
 }
 
 /* Section: vcpu related */
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
+	vcpu->arch.gmap = vcpu->kvm->arch.gmap;
 	return 0;
 }
 
@@ -285,7 +293,7 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
-	atomic_set(&vcpu->arch.sie_block->cpuflags, CPUSTAT_ZARCH);
+	atomic_set(&vcpu->arch.sie_block->cpuflags, CPUSTAT_ZARCH | CPUSTAT_SM);
 	set_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests);
 	vcpu->arch.sie_block->ecb   = 6;
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
@@ -454,6 +462,7 @@ static void __vcpu_run(struct kvm_vcpu *vcpu)
 	local_irq_disable();
 	kvm_guest_enter();
 	local_irq_enable();
+	gmap_enable(vcpu->arch.gmap);
 	VCPU_EVENT(vcpu, 6, "entering sie flags %x",
 		   atomic_read(&vcpu->arch.sie_block->cpuflags));
 	if (sie64a(vcpu->arch.sie_block, vcpu->arch.guest_gprs)) {
@@ -462,6 +471,7 @@ static void __vcpu_run(struct kvm_vcpu *vcpu)
 	}
 	VCPU_EVENT(vcpu, 6, "exit sie icptcode %d",
 		   vcpu->arch.sie_block->icptcode);
+	gmap_disable(vcpu->arch.gmap);
 	local_irq_disable();
 	kvm_guest_exit();
 	local_irq_enable();
@@ -478,13 +488,6 @@ rerun_vcpu:
 	if (vcpu->requests)
 		if (test_and_clear_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests))
 			kvm_s390_vcpu_set_mem(vcpu);
-
-	/* verify, that memory has been registered */
-	if (!vcpu->arch.sie_block->gmslm) {
-		vcpu_put(vcpu);
-		VCPU_EVENT(vcpu, 3, "%s", "no memory registered to run vcpu");
-		return -EINVAL;
-	}
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
@@ -681,10 +684,10 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 	if (mem->guest_phys_addr)
 		return -EINVAL;
 
-	if (mem->userspace_addr & (PAGE_SIZE - 1))
+	if (mem->userspace_addr & 0xffffful)
 		return -EINVAL;
 
-	if (mem->memory_size & (PAGE_SIZE - 1))
+	if (mem->memory_size & 0xffffful)
 		return -EINVAL;
 
 	if (!user_alloc)
@@ -698,8 +701,14 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				struct kvm_memory_slot old,
 				int user_alloc)
 {
-	int i;
+	int i, rc;
 	struct kvm_vcpu *vcpu;
+
+
+	rc = gmap_map_segment(kvm->arch.gmap, mem->userspace_addr,
+		mem->guest_phys_addr, mem->memory_size);
+	if (rc)
+		return;
 
 	/* request update of sie control block for all available vcpus */
 	kvm_for_each_vcpu(i, vcpu, kvm) {
@@ -707,6 +716,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 			continue;
 		kvm_s390_inject_sigp_stop(vcpu, ACTION_RELOADVCPU_ON_STOP);
 	}
+	return;
 }
 
 void kvm_arch_flush_shadow(struct kvm *kvm)

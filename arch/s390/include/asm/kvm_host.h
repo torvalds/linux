@@ -227,6 +227,7 @@ struct kvm_vcpu_arch {
 		struct cpuid	cpu_id;
 		u64		stidp_data;
 	};
+	struct gmap *gmap;
 };
 
 struct kvm_vm_stat {
@@ -237,6 +238,7 @@ struct kvm_arch{
 	struct sca_block *sca;
 	debug_info_t *dbf;
 	struct kvm_s390_float_interrupt float_int;
+	struct gmap *gmap;
 };
 
 extern int sie64a(struct kvm_s390_sie_block *, unsigned long *);
