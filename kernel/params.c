@@ -730,6 +730,10 @@ static struct module_kobject * __init locate_module_kobject(const char *name)
 		mk->kobj.kset = module_kset;
 		err = kobject_init_and_add(&mk->kobj, &module_ktype, NULL,
 					   "%s", name);
+#ifdef CONFIG_MODULES
+		if (!err)
+			err = sysfs_create_file(&mk->kobj, &module_uevent.attr);
+#endif
 		if (err) {
 			kobject_put(&mk->kobj);
 			printk(KERN_ERR
