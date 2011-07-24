@@ -142,7 +142,7 @@ int devtmpfs_delete_node(struct device *dev)
 	return req.err;
 }
 
-static int dev_mkdir(const char *name, mode_t mode)
+static int dev_mkdir(const char *name, umode_t mode)
 {
 	struct dentry *dentry;
 	struct path path;
@@ -189,7 +189,7 @@ static int create_path(const char *nodepath)
 	return err;
 }
 
-static int handle_create(const char *nodename, mode_t mode, struct device *dev)
+static int handle_create(const char *nodename, umode_t mode, struct device *dev)
 {
 	struct dentry *dentry;
 	struct path path;
@@ -378,7 +378,7 @@ int devtmpfs_mount(const char *mntdir)
 
 static DECLARE_COMPLETION(setup_done);
 
-static int handle(const char *name, mode_t mode, struct device *dev)
+static int handle(const char *name, umode_t mode, struct device *dev)
 {
 	if (mode)
 		return handle_create(name, mode, dev);
