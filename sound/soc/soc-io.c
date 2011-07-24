@@ -132,6 +132,10 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 						      &config);
 		break;
 
+	case SND_SOC_REGMAP:
+		/* Device has made its own regmap arrangements */
+		break;
+
 	default:
 		return -EINVAL;
 	}
