@@ -59,15 +59,13 @@ static const struct inode_operations v9fs_symlink_inode_operations;
  *
  */
 
-static int unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
+static u32 unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
 {
 	int res;
 	res = mode & 0777;
 	if (S_ISDIR(mode))
 		res |= P9_DMDIR;
 	if (v9fs_proto_dotu(v9ses)) {
-		if (S_ISLNK(mode))
-			res |= P9_DMSYMLINK;
 		if (v9ses->nodev == 0) {
 			if (S_ISSOCK(mode))
 				res |= P9_DMSOCKET;
@@ -85,10 +83,7 @@ static int unixmode2p9mode(struct v9fs_session_info *v9ses, int mode)
 			res |= P9_DMSETGID;
 		if ((mode & S_ISVTX) == S_ISVTX)
 			res |= P9_DMSETVTX;
-		if ((mode & P9_DMLINK))
-			res |= P9_DMLINK;
 	}
-
 	return res;
 }
 
@@ -1303,9 +1298,8 @@ v9fs_vfs_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
  */
 
 static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
-	int mode, const char *extension)
+	u32 perm, const char *extension)
 {
-	u32 perm;
 	struct p9_fid *fid;
 	struct v9fs_session_info *v9ses;
 
@@ -1315,7 +1309,6 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
 		return -EPERM;
 	}
 
-	perm = unixmode2p9mode(v9ses, mode);
 	fid = v9fs_create(v9ses, dir, dentry, (char *) extension, perm,
 								P9_OREAD);
 	if (IS_ERR(fid))
@@ -1342,7 +1335,7 @@ v9fs_vfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	P9_DPRINTK(P9_DEBUG_VFS, " %lu,%s,%s\n", dir->i_ino,
 					dentry->d_name.name, symname);
 
-	return v9fs_vfs_mkspecial(dir, dentry, S_IFLNK, symname);
+	return v9fs_vfs_mkspecial(dir, dentry, P9_DMSYMLINK, symname);
 }
 
 /**
@@ -1399,11 +1392,13 @@ clunk_fid:
 static int
 v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rdev)
 {
+	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(dir);
 	int retval;
 	char *name;
+	u32 perm;
 
 	P9_DPRINTK(P9_DEBUG_VFS,
-		" %lu,%s mode: %x MAJOR: %u MINOR: %u\n", dir->i_ino,
+		" %lu,%s mode: %hx MAJOR: %u MINOR: %u\n", dir->i_ino,
 		dentry->d_name.name, mode, MAJOR(rdev), MINOR(rdev));
 
 	if (!new_valid_dev(rdev))
@@ -1426,7 +1421,8 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t rde
 		return -EINVAL;
 	}
 
-	retval = v9fs_vfs_mkspecial(dir, dentry, mode, name);
+	perm = unixmode2p9mode(v9ses, mode);
+	retval = v9fs_vfs_mkspecial(dir, dentry, perm, name);
 	__putname(name);
 
 	return retval;
