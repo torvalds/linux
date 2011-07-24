@@ -1283,8 +1283,19 @@ static int lm90_detect(struct i2c_client *new_client,
 			}
 		}
 	} else
-	if (man_id == 0xA1) { /*  NXP Semiconductor/Philips */
-		if (chip_id == 0x00 && address >= 0x48 && address <= 0x4F) {
+	if (address >= 0x48 && address <= 0x4F
+	 && man_id == 0xA1) { /*  NXP Semiconductor/Philips */
+		int reg_config2;
+
+		reg_config2 = i2c_smbus_read_byte_data(new_client,
+						LM90_REG_R_CONFIG2);
+		if (reg_config2 < 0)
+			return -ENODEV;
+
+		if (chip_id == 0x00
+		 && (reg_config1 & 0x2A) == 0x00
+		 && (reg_config2 & 0xFE) == 0x00
+		 && reg_convrate <= 0x09) {
 			name = "sa56004";
 		}
 	}
