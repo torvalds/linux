@@ -263,8 +263,8 @@ static void o2dlm_eviction_cb(int node_num, void *data)
 {
 	struct ocfs2_cluster_connection *conn = data;
 
-	mlog(ML_NOTICE, "o2dlm has evicted node %d from group %.*s\n",
-	     node_num, conn->cc_namelen, conn->cc_name);
+	printk(KERN_NOTICE "o2cb: o2dlm has evicted node %d from domain %.*s\n",
+	       node_num, conn->cc_namelen, conn->cc_name);
 
 	conn->cc_recovery_handler(node_num, conn->cc_recovery_data);
 }
