@@ -263,7 +263,6 @@ static struct ata_port_operations efar_ops = {
 
 static int efar_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int printed_version;
 	static const struct ata_port_info info = {
 		.flags		= ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= ATA_PIO4,
@@ -273,9 +272,7 @@ static int efar_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	};
 	const struct ata_port_info *ppi[] = { &info, &info };
 
-	if (!printed_version++)
-		dev_printk(KERN_DEBUG, &pdev->dev,
-			   "version " DRV_VERSION "\n");
+	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
 	return ata_pci_bmdma_init_one(pdev, ppi, &efar_sht, NULL,
 				      ATA_HOST_PARALLEL_SCAN);
