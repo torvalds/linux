@@ -103,6 +103,17 @@ source "drivers/net/ethernet/nuvoton/Kconfig"
 source "drivers/net/ethernet/nvidia/Kconfig"
 source "drivers/net/ethernet/octeon/Kconfig"
 source "drivers/net/ethernet/oki-semi/Kconfig"
+
+config ETHOC
+	tristate "OpenCores 10/100 Mbps Ethernet MAC support"
+	depends on HAS_IOMEM && HAS_DMA
+	select MII
+	select PHYLIB
+	select CRC32
+	select BITREVERSE
+	---help---
+	  Say Y here if you want to use the OpenCores 10/100 Mbps Ethernet MAC.
+
 source "drivers/net/ethernet/packetengines/Kconfig"
 source "drivers/net/ethernet/pasemi/Kconfig"
 source "drivers/net/ethernet/qlogic/Kconfig"
