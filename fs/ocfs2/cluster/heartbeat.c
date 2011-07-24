@@ -1198,6 +1198,7 @@ static int o2hb_debug_open(struct inode *inode, struct file *file)
 	struct o2hb_debug_buf *db = inode->i_private;
 	struct o2hb_region *reg;
 	unsigned long map[BITS_TO_LONGS(O2NM_MAX_NODES)];
+	unsigned long lts;
 	char *buf = NULL;
 	int i = -1;
 	int out = 0;
@@ -1234,9 +1235,11 @@ static int o2hb_debug_open(struct inode *inode, struct file *file)
 
 	case O2HB_DB_TYPE_REGION_ELAPSED_TIME:
 		reg = (struct o2hb_region *)db->db_data;
-		out += snprintf(buf + out, PAGE_SIZE - out, "%u\n",
-				jiffies_to_msecs(jiffies -
-						 reg->hr_last_timeout_start));
+		lts = reg->hr_last_timeout_start;
+		/* If 0, it has never been set before */
+		if (lts)
+			lts = jiffies_to_msecs(jiffies - lts);
+		out += snprintf(buf + out, PAGE_SIZE - out, "%lu\n", lts);
 		goto done;
 
 	case O2HB_DB_TYPE_REGION_PINNED:
