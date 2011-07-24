@@ -268,7 +268,7 @@ struct _lowcore {
 	__u64	vdso_per_cpu_data;		/* 0x0358 */
 	__u64	machine_flags;			/* 0x0360 */
 	__u64	ftrace_func;			/* 0x0368 */
-	__u64	sie_hook;			/* 0x0370 */
+	__u64	gmap;				/* 0x0370 */
 	__u64	cmf_hpp;			/* 0x0378 */
 
 	/* Interrupt response block. */

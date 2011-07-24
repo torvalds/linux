@@ -303,9 +303,24 @@ static inline int do_exception(struct pt_regs *regs, int access,
 	flags = FAULT_FLAG_ALLOW_RETRY;
 	if (access == VM_WRITE || (trans_exc_code & store_indication) == 0x400)
 		flags |= FAULT_FLAG_WRITE;
-retry:
 	down_read(&mm->mmap_sem);
 
+#ifdef CONFIG_PGSTE
+	if (test_tsk_thread_flag(current, TIF_SIE) && S390_lowcore.gmap) {
+		address = gmap_fault(address,
+				     (struct gmap *) S390_lowcore.gmap);
+		if (address == -EFAULT) {
+			fault = VM_FAULT_BADMAP;
+			goto out_up;
+		}
+		if (address == -ENOMEM) {
+			fault = VM_FAULT_OOM;
+			goto out_up;
+		}
+	}
+#endif
+
+retry:
 	fault = VM_FAULT_BADMAP;
 	vma = find_vma(mm, address);
 	if (!vma)
@@ -356,6 +371,7 @@ retry:
 			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
 			 * of starvation. */
 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			down_read(&mm->mmap_sem);
 			goto retry;
 		}
 	}
