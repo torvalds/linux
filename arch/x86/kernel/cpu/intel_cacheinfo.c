@@ -157,22 +157,17 @@ struct amd_l3_cache {
 	u8	 subcaches[4];
 };
 
-struct _cpuid4_info {
-	union _cpuid4_leaf_eax eax;
-	union _cpuid4_leaf_ebx ebx;
-	union _cpuid4_leaf_ecx ecx;
-	unsigned long size;
-	struct amd_l3_cache *l3;
-	DECLARE_BITMAP(shared_cpu_map, NR_CPUS);
-};
-
-/* subset of above _cpuid4_info w/o shared_cpu_map */
 struct _cpuid4_info_regs {
 	union _cpuid4_leaf_eax eax;
 	union _cpuid4_leaf_ebx ebx;
 	union _cpuid4_leaf_ecx ecx;
 	unsigned long size;
 	struct amd_l3_cache *l3;
+};
+
+struct _cpuid4_info {
+	struct _cpuid4_info_regs base;
+	DECLARE_BITMAP(shared_cpu_map, NR_CPUS);
 };
 
 unsigned short			num_cache_leaves;
@@ -387,11 +382,10 @@ static ssize_t show_cache_disable(struct _cpuid4_info *this_leaf, char *buf,
 {
 	int index;
 
-	if (!this_leaf->l3 ||
-	    !amd_nb_has_feature(AMD_NB_L3_INDEX_DISABLE))
+	if (!this_leaf->base.l3 || !amd_nb_has_feature(AMD_NB_L3_INDEX_DISABLE))
 		return -EINVAL;
 
-	index = amd_get_l3_disable_slot(this_leaf->l3, slot);
+	index = amd_get_l3_disable_slot(this_leaf->base.l3, slot);
 	if (index >= 0)
 		return sprintf(buf, "%d\n", index);
 
@@ -480,8 +474,7 @@ static ssize_t store_cache_disable(struct _cpuid4_info *this_leaf,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!this_leaf->l3 ||
-	    !amd_nb_has_feature(AMD_NB_L3_INDEX_DISABLE))
+	if (!this_leaf->base.l3 || !amd_nb_has_feature(AMD_NB_L3_INDEX_DISABLE))
 		return -EINVAL;
 
 	cpu = cpumask_first(to_cpumask(this_leaf->shared_cpu_map));
@@ -489,7 +482,7 @@ static ssize_t store_cache_disable(struct _cpuid4_info *this_leaf,
 	if (strict_strtoul(buf, 10, &val) < 0)
 		return -EINVAL;
 
-	err = amd_set_l3_disable_slot(this_leaf->l3, cpu, slot, val);
+	err = amd_set_l3_disable_slot(this_leaf->base.l3, cpu, slot, val);
 	if (err) {
 		if (err == -EEXIST)
 			printk(KERN_WARNING "L3 disable slot %d in use!\n",
@@ -518,7 +511,7 @@ static struct _cache_attr cache_disable_1 = __ATTR(cache_disable_1, 0644,
 static ssize_t
 show_subcaches(struct _cpuid4_info *this_leaf, char *buf, unsigned int cpu)
 {
-	if (!this_leaf->l3 || !amd_nb_has_feature(AMD_NB_L3_PARTITIONING))
+	if (!this_leaf->base.l3 || !amd_nb_has_feature(AMD_NB_L3_PARTITIONING))
 		return -EINVAL;
 
 	return sprintf(buf, "%x\n", amd_get_subcaches(cpu));
@@ -533,7 +526,7 @@ store_subcaches(struct _cpuid4_info *this_leaf, const char *buf, size_t count,
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!this_leaf->l3 || !amd_nb_has_feature(AMD_NB_L3_PARTITIONING))
+	if (!this_leaf->base.l3 || !amd_nb_has_feature(AMD_NB_L3_PARTITIONING))
 		return -EINVAL;
 
 	if (strict_strtoul(buf, 16, &val) < 0)
@@ -769,7 +762,7 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 		return;
 	}
 	this_leaf = CPUID4_INFO_IDX(cpu, index);
-	num_threads_sharing = 1 + this_leaf->eax.split.num_threads_sharing;
+	num_threads_sharing = 1 + this_leaf->base.eax.split.num_threads_sharing;
 
 	if (num_threads_sharing == 1)
 		cpumask_set_cpu(cpu, to_cpumask(this_leaf->shared_cpu_map));
@@ -824,24 +817,15 @@ static void __cpuinit free_cache_attributes(unsigned int cpu)
 	per_cpu(ici_cpuid4_info, cpu) = NULL;
 }
 
-static int
-__cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
-{
-	struct _cpuid4_info_regs *leaf_regs =
-		(struct _cpuid4_info_regs *)this_leaf;
-
-	return cpuid4_cache_lookup_regs(index, leaf_regs);
-}
-
 static void __cpuinit get_cpu_leaves(void *_retval)
 {
 	int j, *retval = _retval, cpu = smp_processor_id();
 
 	/* Do cpuid and store the results */
 	for (j = 0; j < num_cache_leaves; j++) {
-		struct _cpuid4_info *this_leaf;
-		this_leaf = CPUID4_INFO_IDX(cpu, j);
-		*retval = cpuid4_cache_lookup(j, this_leaf);
+		struct _cpuid4_info *this_leaf = CPUID4_INFO_IDX(cpu, j);
+
+		*retval = cpuid4_cache_lookup_regs(j, &this_leaf->base);
 		if (unlikely(*retval < 0)) {
 			int i;
 
@@ -899,16 +883,16 @@ static ssize_t show_##file_name(struct _cpuid4_info *this_leaf, char *buf, \
 	return sprintf(buf, "%lu\n", (unsigned long)this_leaf->object + val); \
 }
 
-show_one_plus(level, eax.split.level, 0);
-show_one_plus(coherency_line_size, ebx.split.coherency_line_size, 1);
-show_one_plus(physical_line_partition, ebx.split.physical_line_partition, 1);
-show_one_plus(ways_of_associativity, ebx.split.ways_of_associativity, 1);
-show_one_plus(number_of_sets, ecx.split.number_of_sets, 1);
+show_one_plus(level, base.eax.split.level, 0);
+show_one_plus(coherency_line_size, base.ebx.split.coherency_line_size, 1);
+show_one_plus(physical_line_partition, base.ebx.split.physical_line_partition, 1);
+show_one_plus(ways_of_associativity, base.ebx.split.ways_of_associativity, 1);
+show_one_plus(number_of_sets, base.ecx.split.number_of_sets, 1);
 
 static ssize_t show_size(struct _cpuid4_info *this_leaf, char *buf,
 			 unsigned int cpu)
 {
-	return sprintf(buf, "%luK\n", this_leaf->size / 1024);
+	return sprintf(buf, "%luK\n", this_leaf->base.size / 1024);
 }
 
 static ssize_t show_shared_cpu_map_func(struct _cpuid4_info *this_leaf,
@@ -945,7 +929,7 @@ static inline ssize_t show_shared_cpu_list(struct _cpuid4_info *leaf, char *buf,
 static ssize_t show_type(struct _cpuid4_info *this_leaf, char *buf,
 			 unsigned int cpu)
 {
-	switch (this_leaf->eax.split.type) {
+	switch (this_leaf->base.eax.split.type) {
 	case CACHE_TYPE_DATA:
 		return sprintf(buf, "Data\n");
 	case CACHE_TYPE_INST:
@@ -1134,7 +1118,7 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 
 		ktype_cache.default_attrs = default_attrs;
 #ifdef CONFIG_AMD_NB
-		if (this_leaf->l3)
+		if (this_leaf->base.l3)
 			ktype_cache.default_attrs = amd_l3_attrs();
 #endif
 		retval = kobject_init_and_add(&(this_object->kobj),
