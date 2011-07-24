@@ -46,7 +46,7 @@ ENTRY(startup_continue)
 	.align	16
 .LPG1:
 .Lentry:.quad	0x0000000180000000,_stext
-.Lctl:	.quad	0x04350000		# cr0: various things
+.Lctl:	.quad	0x04040000		# cr0: AFP registers & secondary space
 	.quad	0			# cr1: primary space segment table
 	.quad	.Lduct			# cr2: dispatchable unit control table
 	.quad	0			# cr3: instruction authorization
