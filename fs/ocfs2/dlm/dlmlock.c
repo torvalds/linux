@@ -227,10 +227,16 @@ static enum dlm_status dlmlock_remote(struct dlm_ctxt *dlm,
 	     lock->ml.type, res->lockname.len,
 	     res->lockname.name, flags);
 
+	/*
+	 * Wait if resource is getting recovered, remastered, etc.
+	 * If the resource was remastered and new owner is self, then exit.
+	 */
 	spin_lock(&res->spinlock);
-
-	/* will exit this call with spinlock held */
 	__dlm_wait_on_lockres(res);
+	if (res->owner == dlm->node_num) {
+		spin_unlock(&res->spinlock);
+		return DLM_RECOVERING;
+	}
 	res->state |= DLM_LOCK_RES_IN_PROGRESS;
 
 	/* add lock to local (secondary) queue */
@@ -710,18 +716,10 @@ retry_lock:
 
 		if (status == DLM_RECOVERING || status == DLM_MIGRATING ||
 		    status == DLM_FORWARD) {
-			mlog(0, "retrying lock with migration/"
-			     "recovery/in progress\n");
 			msleep(100);
-			/* no waiting for dlm_reco_thread */
 			if (recovery) {
 				if (status != DLM_RECOVERING)
 					goto retry_lock;
-
-				mlog(0, "%s: got RECOVERING "
-				     "for $RECOVERY lock, master "
-				     "was %u\n", dlm->name,
-				     res->owner);
 				/* wait to see the node go down, then
 				 * drop down and allow the lockres to
 				 * get cleaned up.  need to remaster. */
