@@ -902,46 +902,15 @@ struct dlm_lock_resource *dlm_new_lockres(struct dlm_ctxt *dlm,
 					  const char *name,
 					  unsigned int namelen);
 
-#define dlm_lockres_set_refmap_bit(bit,res)  \
-	__dlm_lockres_set_refmap_bit(bit,res,__FILE__,__LINE__)
-#define dlm_lockres_clear_refmap_bit(bit,res)  \
-	__dlm_lockres_clear_refmap_bit(bit,res,__FILE__,__LINE__)
+void dlm_lockres_set_refmap_bit(struct dlm_ctxt *dlm,
+				struct dlm_lock_resource *res, int bit);
+void dlm_lockres_clear_refmap_bit(struct dlm_ctxt *dlm,
+				  struct dlm_lock_resource *res, int bit);
 
-static inline void __dlm_lockres_set_refmap_bit(int bit,
-						struct dlm_lock_resource *res,
-						const char *file,
-						int line)
-{
-	//printk("%s:%d:%.*s: setting bit %d\n", file, line,
-	//     res->lockname.len, res->lockname.name, bit);
-	set_bit(bit, res->refmap);
-}
-
-static inline void __dlm_lockres_clear_refmap_bit(int bit,
-						  struct dlm_lock_resource *res,
-						  const char *file,
-						  int line)
-{
-	//printk("%s:%d:%.*s: clearing bit %d\n", file, line,
-	//     res->lockname.len, res->lockname.name, bit);
-	clear_bit(bit, res->refmap);
-}
-
-void __dlm_lockres_drop_inflight_ref(struct dlm_ctxt *dlm,
-				   struct dlm_lock_resource *res,
-				   const char *file,
-				   int line);
-void __dlm_lockres_grab_inflight_ref(struct dlm_ctxt *dlm,
-				   struct dlm_lock_resource *res,
-				   int new_lockres,
-				   const char *file,
-				   int line);
-#define dlm_lockres_drop_inflight_ref(d,r)  \
-	__dlm_lockres_drop_inflight_ref(d,r,__FILE__,__LINE__)
-#define dlm_lockres_grab_inflight_ref(d,r)  \
-	__dlm_lockres_grab_inflight_ref(d,r,0,__FILE__,__LINE__)
-#define dlm_lockres_grab_inflight_ref_new(d,r)  \
-	__dlm_lockres_grab_inflight_ref(d,r,1,__FILE__,__LINE__)
+void dlm_lockres_drop_inflight_ref(struct dlm_ctxt *dlm,
+				   struct dlm_lock_resource *res);
+void dlm_lockres_grab_inflight_ref(struct dlm_ctxt *dlm,
+				   struct dlm_lock_resource *res);
 
 void dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock);
 void dlm_queue_bast(struct dlm_ctxt *dlm, struct dlm_lock *lock);

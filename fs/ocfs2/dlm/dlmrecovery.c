@@ -1776,7 +1776,7 @@ static int dlm_process_recovery_data(struct dlm_ctxt *dlm,
 			     dlm->name, mres->lockname_len, mres->lockname,
 			     from);
 			spin_lock(&res->spinlock);
-			dlm_lockres_set_refmap_bit(from, res);
+			dlm_lockres_set_refmap_bit(dlm, res, from);
 			spin_unlock(&res->spinlock);
 			added++;
 			break;
@@ -1974,7 +1974,7 @@ skip_lvb:
 			mlog(0, "%s:%.*s: added lock for node %u, "
 			     "setting refmap bit\n", dlm->name,
 			     res->lockname.len, res->lockname.name, ml->node);
-			dlm_lockres_set_refmap_bit(ml->node, res);
+			dlm_lockres_set_refmap_bit(dlm, res, ml->node);
 			added++;
 		}
 		spin_unlock(&res->spinlock);
@@ -2254,12 +2254,12 @@ static void dlm_free_dead_locks(struct dlm_ctxt *dlm,
 			     res->lockname.len, res->lockname.name, freed, dead_node);
 			__dlm_print_one_lock_resource(res);
 		}
-		dlm_lockres_clear_refmap_bit(dead_node, res);
+		dlm_lockres_clear_refmap_bit(dlm, res, dead_node);
 	} else if (test_bit(dead_node, res->refmap)) {
 		mlog(0, "%s:%.*s: dead node %u had a ref, but had "
 		     "no locks and had not purged before dying\n", dlm->name,
 		     res->lockname.len, res->lockname.name, dead_node);
-		dlm_lockres_clear_refmap_bit(dead_node, res);
+		dlm_lockres_clear_refmap_bit(dlm, res, dead_node);
 	}
 
 	/* do not kick thread yet */
