@@ -1414,8 +1414,7 @@ ext4_ext_next_allocated_block(struct ext4_ext_path *path)
  * ext4_ext_next_leaf_block:
  * returns first allocated block from next leaf or EXT_MAX_BLOCKS
  */
-static ext4_lblk_t ext4_ext_next_leaf_block(struct inode *inode,
-					struct ext4_ext_path *path)
+static ext4_lblk_t ext4_ext_next_leaf_block(struct ext4_ext_path *path)
 {
 	int depth;
 
@@ -1734,7 +1733,7 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 	fex = EXT_LAST_EXTENT(eh);
 	next = EXT_MAX_BLOCKS;
 	if (le32_to_cpu(newext->ee_block) > le32_to_cpu(fex->ee_block))
-		next = ext4_ext_next_leaf_block(inode, path);
+		next = ext4_ext_next_leaf_block(path);
 	if (next != EXT_MAX_BLOCKS) {
 		ext_debug("next leaf block - %d\n", next);
 		BUG_ON(npath != NULL);
