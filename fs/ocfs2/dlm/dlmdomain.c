@@ -157,16 +157,18 @@ static int dlm_protocol_compare(struct dlm_protocol_version *existing,
 
 static void dlm_unregister_domain_handlers(struct dlm_ctxt *dlm);
 
-void __dlm_unhash_lockres(struct dlm_lock_resource *lockres)
+void __dlm_unhash_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 {
-	if (!hlist_unhashed(&lockres->hash_node)) {
-		hlist_del_init(&lockres->hash_node);
-		dlm_lockres_put(lockres);
-	}
+	if (hlist_unhashed(&res->hash_node))
+		return;
+
+	mlog(0, "%s: Unhash res %.*s\n", dlm->name, res->lockname.len,
+	     res->lockname.name);
+	hlist_del_init(&res->hash_node);
+	dlm_lockres_put(res);
 }
 
-void __dlm_insert_lockres(struct dlm_ctxt *dlm,
-		       struct dlm_lock_resource *res)
+void __dlm_insert_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res)
 {
 	struct hlist_head *bucket;
 	struct qstr *q;
@@ -180,6 +182,9 @@ void __dlm_insert_lockres(struct dlm_ctxt *dlm,
 	dlm_lockres_get(res);
 
 	hlist_add_head(&res->hash_node, bucket);
+
+	mlog(0, "%s: Hash res %.*s\n", dlm->name, res->lockname.len,
+	     res->lockname.name);
 }
 
 struct dlm_lock_resource * __dlm_lookup_lockres_full(struct dlm_ctxt *dlm,

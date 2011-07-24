@@ -207,7 +207,7 @@ static void dlm_purge_lockres(struct dlm_ctxt *dlm,
 		BUG();
 	}
 
-	__dlm_unhash_lockres(res);
+	__dlm_unhash_lockres(dlm, res);
 
 	/* lockres is not in the hash now.  drop the flag and wake up
 	 * any processes waiting in dlm_get_lock_resource. */

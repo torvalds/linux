@@ -877,9 +877,8 @@ static inline void dlm_lockres_get(struct dlm_lock_resource *res)
 	kref_get(&res->refs);
 }
 void dlm_lockres_put(struct dlm_lock_resource *res);
-void __dlm_unhash_lockres(struct dlm_lock_resource *res);
-void __dlm_insert_lockres(struct dlm_ctxt *dlm,
-			  struct dlm_lock_resource *res);
+void __dlm_unhash_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res);
+void __dlm_insert_lockres(struct dlm_ctxt *dlm, struct dlm_lock_resource *res);
 struct dlm_lock_resource * __dlm_lookup_lockres_full(struct dlm_ctxt *dlm,
 						     const char *name,
 						     unsigned int len,
