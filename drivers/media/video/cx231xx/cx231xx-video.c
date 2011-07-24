@@ -1179,7 +1179,8 @@ static int vidioc_enum_input(struct file *file, void *priv,
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
-	unsigned int n;
+	u32 gen_stat;
+	unsigned int ret, n;
 
 	n = i->index;
 	if (n >= MAX_CX231XX_INPUT)
@@ -1197,6 +1198,18 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		i->type = V4L2_INPUT_TYPE_TUNER;
 
 	i->std = dev->vdev->tvnorms;
+
+	/* If they are asking about the active input, read signal status */
+	if (n == dev->video_input) {
+		ret = cx231xx_read_i2c_data(dev, VID_BLK_I2C_ADDRESS,
+					    GEN_STAT, 2, &gen_stat, 4);
+		if (ret > 0) {
+			if ((gen_stat & FLD_VPRES) == 0x00)
+				i->status |= V4L2_IN_ST_NO_SIGNAL;
+			if ((gen_stat & FLD_HLOCK) == 0x00)
+				i->status |= V4L2_IN_ST_NO_H_LOCK;
+		}
+	}
 
 	return 0;
 }
