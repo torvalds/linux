@@ -8,6 +8,8 @@
  * struct drxk_config - Configure the initial parameters for DRX-K
  *
  * adr:			I2C Address of the DRX-K
+ * parallel_ts:		true means that the device uses parallel TS,
+ * 			Serial otherwise.
  * single_master:	Device is on the single master mode
  * no_i2c_bridge:	Don't switch the I2C bridge to talk with tuner
  * antenna_gpio:	GPIO bit used to control the antenna
@@ -22,6 +24,7 @@ struct drxk_config {
 	u8	adr;
 	bool	single_master;
 	bool	no_i2c_bridge;
+	bool	parallel_ts;
 
 	bool	antenna_dvbt;
 	u16	antenna_gpio;

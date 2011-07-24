@@ -660,7 +660,6 @@ static int init_state(struct drxk_state *state)
 	/* io_pad_cfg_mode output mode is drive always */
 	/* io_pad_cfg_drive is set to power 2 (23 mA) */
 	u32 ulGPIOCfg = 0x0113;
-	u32 ulSerialMode = 1;
 	u32 ulInvertTSClock = 0;
 	u32 ulTSDataStrength = DRXK_MPEG_SERIAL_OUTPUT_PIN_DRIVE_STRENGTH;
 	u32 ulTSClockkStrength = DRXK_MPEG_OUTPUT_CLK_DRIVE_STRENGTH;
@@ -811,8 +810,6 @@ static int init_state(struct drxk_state *state)
 	/* MPEG output configuration */
 	state->m_enableMPEGOutput = true;	/* If TRUE; enable MPEG ouput */
 	state->m_insertRSByte = false;	/* If TRUE; insert RS byte */
-	state->m_enableParallel = true;	/* If TRUE;
-					   parallel out otherwise serial */
 	state->m_invertDATA = false;	/* If TRUE; invert DATA signals */
 	state->m_invertERR = false;	/* If TRUE; invert ERR signal */
 	state->m_invertSTR = false;	/* If TRUE; invert STR signals */
@@ -856,8 +853,6 @@ static int init_state(struct drxk_state *state)
 
 	state->m_bPowerDown = false;
 	state->m_currentPowerMode = DRX_POWER_DOWN;
-
-	state->m_enableParallel = (ulSerialMode == 0);
 
 	state->m_rfmirror = (ulRfMirror == 0);
 	state->m_IfAgcPol = false;
@@ -1195,7 +1190,9 @@ static int MPEGTSConfigurePins(struct drxk_state *state, bool mpegEnable)
 	u16 sioPdrMclkCfg = 0;
 	u16 sioPdrMdxCfg = 0;
 
-	dprintk(1, "\n");
+	dprintk(1, ": mpeg %s, %s mode\n",
+		mpegEnable ? "enable" : "disable",
+		state->m_enableParallel ? "parallel" : "serial");
 
 	/* stop lock indicator process */
 	status = write16(state, SCU_RAM_GPIO__A, SCU_RAM_GPIO_HW_LOCK_IND_DISABLE);
@@ -6431,6 +6428,11 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	state->antenna_gpio = config->antenna_gpio;
 	state->antenna_dvbt = config->antenna_dvbt;
 	state->m_ChunkSize = config->chunk_size;
+
+	if (config->parallel_ts)
+		state->m_enableParallel = true;
+	else
+		state->m_enableParallel = false;
 
 	/* NOTE: as more UIO bits will be used, add them to the mask */
 	state->UIO_mask = config->antenna_gpio;
