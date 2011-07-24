@@ -294,7 +294,6 @@ static void kvm_s390_vcpu_initial_reset(struct kvm_vcpu *vcpu)
 int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
 	atomic_set(&vcpu->arch.sie_block->cpuflags, CPUSTAT_ZARCH | CPUSTAT_SM);
-	set_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests);
 	vcpu->arch.sie_block->ecb   = 6;
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
 	vcpu->arch.sie_block->fac   = (int) (long) facilities;
@@ -485,10 +484,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	sigset_t sigsaved;
 
 rerun_vcpu:
-	if (vcpu->requests)
-		if (test_and_clear_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests))
-			kvm_s390_vcpu_set_mem(vcpu);
-
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
@@ -701,21 +696,13 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				struct kvm_memory_slot old,
 				int user_alloc)
 {
-	int i, rc;
-	struct kvm_vcpu *vcpu;
+	int rc;
 
 
 	rc = gmap_map_segment(kvm->arch.gmap, mem->userspace_addr,
 		mem->guest_phys_addr, mem->memory_size);
 	if (rc)
-		return;
-
-	/* request update of sie control block for all available vcpus */
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		if (test_and_set_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests))
-			continue;
-		kvm_s390_inject_sigp_stop(vcpu, ACTION_RELOADVCPU_ON_STOP);
-	}
+		printk(KERN_WARNING "kvm-s390: failed to commit memory region\n");
 	return;
 }
 
