@@ -1111,7 +1111,7 @@ static int lm90_detect(struct i2c_client *new_client,
 	struct i2c_adapter *adapter = new_client->adapter;
 	int address = new_client->addr;
 	const char *name = NULL;
-	int man_id, chip_id, reg_config1, reg_convrate;
+	int man_id, chip_id, reg_config1, reg_config2, reg_convrate;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
@@ -1127,15 +1127,16 @@ static int lm90_detect(struct i2c_client *new_client,
 						LM90_REG_R_CONVRATE)) < 0)
 		return -ENODEV;
 
-	if ((address == 0x4C || address == 0x4D)
-	 && man_id == 0x01) { /* National Semiconductor */
-		int reg_config2;
-
+	if (man_id == 0x01 || man_id == 0x5C || man_id == 0x41) {
 		reg_config2 = i2c_smbus_read_byte_data(new_client,
 						LM90_REG_R_CONFIG2);
 		if (reg_config2 < 0)
 			return -ENODEV;
+	} else
+		reg_config2 = 0;	/* Make compiler happy */
 
+	if ((address == 0x4C || address == 0x4D)
+	 && man_id == 0x01) { /* National Semiconductor */
 		if ((reg_config1 & 0x2A) == 0x00
 		 && (reg_config2 & 0xF8) == 0x00
 		 && reg_convrate <= 0x09) {
@@ -1264,13 +1265,6 @@ static int lm90_detect(struct i2c_client *new_client,
 	} else
 	if (address == 0x4C
 	 && man_id == 0x5C) { /* Winbond/Nuvoton */
-		int reg_config2;
-
-		reg_config2 = i2c_smbus_read_byte_data(new_client,
-						LM90_REG_R_CONFIG2);
-		if (reg_config2 < 0)
-			return -ENODEV;
-
 		if ((reg_config1 & 0x2A) == 0x00
 		 && (reg_config2 & 0xF8) == 0x00) {
 			if (chip_id == 0x01 /* W83L771W/G */
@@ -1285,13 +1279,6 @@ static int lm90_detect(struct i2c_client *new_client,
 	} else
 	if (address >= 0x48 && address <= 0x4F
 	 && man_id == 0xA1) { /*  NXP Semiconductor/Philips */
-		int reg_config2;
-
-		reg_config2 = i2c_smbus_read_byte_data(new_client,
-						LM90_REG_R_CONFIG2);
-		if (reg_config2 < 0)
-			return -ENODEV;
-
 		if (chip_id == 0x00
 		 && (reg_config1 & 0x2A) == 0x00
 		 && (reg_config2 & 0xFE) == 0x00
