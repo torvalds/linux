@@ -28,6 +28,12 @@ struct device_node;
  */
 #define RECLAIM_DISTANCE 10
 
+/*
+ * Avoid creating an extra level of balancing (SD_ALLNODES) on the largest
+ * POWER7 boxes which have a maximum of 32 nodes.
+ */
+#define SD_NODES_PER_DOMAIN 32
+
 #include <asm/mmzone.h>
 
 static inline int cpu_to_node(int cpu)
