@@ -70,10 +70,11 @@ struct wm8994_fll_config {
 #define WM8994_NUM_DRC 3
 #define WM8994_NUM_EQ  3
 
+struct wm8994;
+
 struct wm8994_priv {
 	struct wm_hubs_data hubs;
-	enum snd_soc_control_type control_type;
-	void *control_data;
+	struct wm8994 *wm8994;
 	struct snd_soc_codec *codec;
 	int sysclk[2];
 	int sysclk_rate[2];

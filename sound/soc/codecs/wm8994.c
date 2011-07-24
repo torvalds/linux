@@ -106,7 +106,7 @@ static void wm8958_micd_set_rate(struct snd_soc_codec *codec)
 static int wm8994_readable(struct snd_soc_codec *codec, unsigned int reg)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994 *control = codec->control_data;
+	struct wm8994 *control = wm8994->wm8994;
 
 	switch (reg) {
 	case WM8994_GPIO_1:
@@ -1822,7 +1822,7 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 			  unsigned int freq_in, unsigned int freq_out)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994 *control = codec->control_data;
+	struct wm8994 *control = wm8994->wm8994;
 	int reg_offset, ret;
 	struct fll_div fll;
 	u16 reg, aif1, aif2;
@@ -2071,8 +2071,8 @@ static int wm8994_set_dai_sysclk(struct snd_soc_dai *dai,
 static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	struct wm8994 *control = codec->control_data;
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994 *control = wm8994->wm8994;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -2174,7 +2174,8 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 static int wm8994_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8994 *control = codec->control_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994 *control = wm8994->wm8994;
 	int ms_reg;
 	int aif1_reg;
 	int ms = 0;
@@ -2474,7 +2475,8 @@ static int wm8994_aif3_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8994 *control = codec->control_data;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	struct wm8994 *control = wm8994->wm8994;
 	int aif1_reg;
 	int aif1 = 0;
 
@@ -2705,7 +2707,7 @@ static struct snd_soc_dai_driver wm8994_dai[] = {
 static int wm8994_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994 *control = codec->control_data;
+	struct wm8994 *control = wm8994->wm8994;
 	int i, ret;
 
 	switch (control->type) {
@@ -2736,7 +2738,7 @@ static int wm8994_suspend(struct snd_soc_codec *codec, pm_message_t state)
 static int wm8994_resume(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994 *control = codec->control_data;
+	struct wm8994 *control = wm8994->wm8994;
 	int i, ret;
 	unsigned int val, mask;
 
@@ -2958,7 +2960,7 @@ int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994_micdet *micdet;
-	struct wm8994 *control = codec->control_data;
+	struct wm8994 *control = wm8994->wm8994;
 	int reg;
 
 	if (control->type != WM8994)
@@ -3115,7 +3117,7 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		      wm8958_micdet_cb cb, void *cb_data)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994 *control = codec->control_data;
+	struct wm8994 *control = wm8994->wm8994;
 
 	switch (control->type) {
 	case WM1811:
@@ -3247,6 +3249,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		return -ENOMEM;
 	snd_soc_codec_set_drvdata(codec, wm8994);
 
+
+	wm8994->wm8994 = dev_get_drvdata(codec->dev->parent);
 	wm8994->pdata = dev_get_platdata(codec->dev->parent);
 	wm8994->codec = codec;
 
@@ -3328,14 +3332,14 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		break;
 	}
 
-	wm8994_request_irq(codec->control_data, WM8994_IRQ_FIFOS_ERR,
+	wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_FIFOS_ERR,
 			   wm8994_fifo_error, "FIFO error", codec);
-	wm8994_request_irq(codec->control_data, WM8994_IRQ_TEMP_WARN,
+	wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_TEMP_WARN,
 			   wm8994_temp_warn, "Thermal warning", codec);
-	wm8994_request_irq(codec->control_data, WM8994_IRQ_TEMP_SHUT,
+	wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_TEMP_SHUT,
 			   wm8994_temp_shut, "Thermal shutdown", codec);
 
-	ret = wm8994_request_irq(codec->control_data, WM8994_IRQ_DCS_DONE,
+	ret = wm8994_request_irq(wm8994->wm8994, WM8994_IRQ_DCS_DONE,
 				 wm_hubs_dcs_done, "DC servo done",
 				 &wm8994->hubs);
 	if (ret == 0)
@@ -3355,7 +3359,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 					 ret);
 		}
 
-		ret = wm8994_request_irq(codec->control_data,
+		ret = wm8994_request_irq(wm8994->wm8994,
 					 WM8994_IRQ_MIC1_SHRT,
 					 wm8994_mic_irq, "Mic 1 short",
 					 wm8994);
@@ -3364,7 +3368,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 				 "Failed to request Mic1 short IRQ: %d\n",
 				 ret);
 
-		ret = wm8994_request_irq(codec->control_data,
+		ret = wm8994_request_irq(wm8994->wm8994,
 					 WM8994_IRQ_MIC2_DET,
 					 wm8994_mic_irq, "Mic 2 detect",
 					 wm8994);
@@ -3373,7 +3377,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 				 "Failed to request Mic2 detect IRQ: %d\n",
 				 ret);
 
-		ret = wm8994_request_irq(codec->control_data,
+		ret = wm8994_request_irq(wm8994->wm8994,
 					 WM8994_IRQ_MIC2_SHRT,
 					 wm8994_mic_irq, "Mic 2 short",
 					 wm8994);
@@ -3400,7 +3404,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 
 	wm8994->fll_locked_irq = true;
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll_locked); i++) {
-		ret = wm8994_request_irq(codec->control_data,
+		ret = wm8994_request_irq(wm8994->wm8994,
 					 WM8994_IRQ_FLL1_LOCK + i,
 					 wm8994_fll_locked_irq, "FLL lock",
 					 &wm8994->fll_locked[i]);
@@ -3620,19 +3624,19 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 
 err_irq:
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC2_SHRT, wm8994);
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC2_DET, wm8994);
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_SHRT, wm8994);
+	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_MIC2_SHRT, wm8994);
+	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_MIC2_DET, wm8994);
+	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_MIC1_SHRT, wm8994);
 	if (wm8994->micdet_irq)
 		free_irq(wm8994->micdet_irq, wm8994);
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll_locked); i++)
-		wm8994_free_irq(codec->control_data, WM8994_IRQ_FLL1_LOCK + i,
+		wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_FLL1_LOCK + i,
 				&wm8994->fll_locked[i]);
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_DCS_DONE,
+	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_DCS_DONE,
 			&wm8994->hubs);
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_FIFOS_ERR, codec);
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_TEMP_SHUT, codec);
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_TEMP_WARN, codec);
+	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_FIFOS_ERR, codec);
+	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_TEMP_SHUT, codec);
+	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_TEMP_WARN, codec);
 err:
 	kfree(wm8994);
 	return ret;
@@ -3641,7 +3645,7 @@ err:
 static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	struct wm8994 *control = codec->control_data;
+	struct wm8994 *control = wm8994->wm8994;
 	int i;
 
 	wm8994_set_bias_level(codec, SND_SOC_BIAS_OFF);
@@ -3649,24 +3653,24 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 	pm_runtime_disable(codec->dev);
 
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll_locked); i++)
-		wm8994_free_irq(codec->control_data, WM8994_IRQ_FLL1_LOCK + i,
+		wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_FLL1_LOCK + i,
 				&wm8994->fll_locked[i]);
 
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_DCS_DONE,
+	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_DCS_DONE,
 			&wm8994->hubs);
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_FIFOS_ERR, codec);
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_TEMP_SHUT, codec);
-	wm8994_free_irq(codec->control_data, WM8994_IRQ_TEMP_WARN, codec);
+	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_FIFOS_ERR, codec);
+	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_TEMP_SHUT, codec);
+	wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_TEMP_WARN, codec);
 
 	switch (control->type) {
 	case WM8994:
 		if (wm8994->micdet_irq)
 			free_irq(wm8994->micdet_irq, wm8994);
-		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC2_DET,
+		wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_MIC2_DET,
 				wm8994);
-		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_SHRT,
+		wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_MIC1_SHRT,
 				wm8994);
-		wm8994_free_irq(codec->control_data, WM8994_IRQ_MIC1_DET,
+		wm8994_free_irq(wm8994->wm8994, WM8994_IRQ_MIC1_DET,
 				wm8994);
 		break;
 
