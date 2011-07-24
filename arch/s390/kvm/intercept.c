@@ -165,26 +165,30 @@ static int handle_validity(struct kvm_vcpu *vcpu)
 	int rc;
 
 	vcpu->stat.exit_validity++;
-	if ((viwhy == 0x37) && (vcpu->arch.sie_block->prefix
-		<= kvm_s390_vcpu_get_memsize(vcpu) - 2*PAGE_SIZE)) {
-		rc = fault_in_pages_writeable((char __user *)
-			 vcpu->arch.sie_block->gmsor +
-			 vcpu->arch.sie_block->prefix,
-			 2*PAGE_SIZE);
-		if (rc) {
-			/* user will receive sigsegv, exit to user */
-			rc = -EOPNOTSUPP;
-			goto out;
-		}
+	if (viwhy == 0x37) {
 		vmaddr = gmap_fault(vcpu->arch.sie_block->prefix,
 				    vcpu->arch.gmap);
 		if (IS_ERR_VALUE(vmaddr)) {
 			rc = -EOPNOTSUPP;
 			goto out;
 		}
+		rc = fault_in_pages_writeable((char __user *) vmaddr,
+			 PAGE_SIZE);
+		if (rc) {
+			/* user will receive sigsegv, exit to user */
+			rc = -EOPNOTSUPP;
+			goto out;
+		}
 		vmaddr = gmap_fault(vcpu->arch.sie_block->prefix + PAGE_SIZE,
 				    vcpu->arch.gmap);
 		if (IS_ERR_VALUE(vmaddr)) {
+			rc = -EOPNOTSUPP;
+			goto out;
+		}
+		rc = fault_in_pages_writeable((char __user *) vmaddr,
+			 PAGE_SIZE);
+		if (rc) {
+			/* user will receive sigsegv, exit to user */
 			rc = -EOPNOTSUPP;
 			goto out;
 		}

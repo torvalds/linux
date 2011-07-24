@@ -549,7 +549,7 @@ rerun_vcpu:
 	return rc;
 }
 
-static int __guestcopy(struct kvm_vcpu *vcpu, u64 guestdest, const void *from,
+static int __guestcopy(struct kvm_vcpu *vcpu, u64 guestdest, void *from,
 		       unsigned long n, int prefix)
 {
 	if (prefix)
@@ -566,7 +566,7 @@ static int __guestcopy(struct kvm_vcpu *vcpu, u64 guestdest, const void *from,
  */
 int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 {
-	const unsigned char archmode = 1;
+	unsigned char archmode = 1;
 	int prefix;
 
 	if (addr == KVM_S390_STORE_STATUS_NOADDR) {
