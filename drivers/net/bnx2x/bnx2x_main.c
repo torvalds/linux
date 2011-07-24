@@ -2151,10 +2151,12 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 		u8 rc;
 		int cfx_idx = bnx2x_get_link_cfg_idx(bp);
 		u16 req_line_speed = bp->link_params.req_line_speed[cfx_idx];
-		/* Initialize link parameters structure variables */
-		/* It is recommended to turn off RX FC for jumbo frames
-		   for better performance */
-		if ((CHIP_IS_E1x(bp)) && (bp->dev->mtu > 5000))
+		/*
+		 * Initialize link parameters structure variables
+		 * It is recommended to turn off RX FC for jumbo frames
+		 * for better performance
+		 */
+		if (CHIP_IS_E1x(bp) && (bp->dev->mtu > 5000))
 			bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_TX;
 		else
 			bp->link_params.req_fc_auto_adv = BNX2X_FLOW_CTRL_BOTH;
@@ -2162,8 +2164,18 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode)
 		bnx2x_acquire_phy_lock(bp);
 
 		if (load_mode == LOAD_DIAG) {
-			bp->link_params.loopback_mode = LOOPBACK_XGXS;
-			bp->link_params.req_line_speed[cfx_idx] = SPEED_10000;
+			struct link_params *lp = &bp->link_params;
+			lp->loopback_mode = LOOPBACK_XGXS;
+			/* do PHY loopback at 10G speed, if possible */
+			if (lp->req_line_speed[cfx_idx] < SPEED_10000) {
+				if (lp->speed_cap_mask[cfx_idx] &
+				    PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)
+					lp->req_line_speed[cfx_idx] =
+					SPEED_10000;
+				else
+					lp->req_line_speed[cfx_idx] =
+					SPEED_1000;
+			}
 		}
 
 		rc = bnx2x_phy_init(&bp->link_params, &bp->link_vars);
