@@ -345,20 +345,6 @@ config NET_PCI
 	  will be asked for your specific card in the following questions. If
 	  you are unsure, say Y.
 
-config ADAPTEC_STARFIRE
-	tristate "Adaptec Starfire/DuraLAN support"
-	depends on NET_PCI && PCI
-	select CRC32
-	select MII
-	help
-	  Say Y here if you have an Adaptec Starfire (or DuraLAN) PCI network
-	  adapter. The DuraLAN chip is used on the 64 bit PCI boards from
-	  Adaptec e.g. the ANA-6922A. The older 32 bit boards use the tulip
-	  driver.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called starfire.  This is recommended.
-
 config NET_POCKET
 	bool "Pocket and portable adapters"
 	depends on PARPORT
