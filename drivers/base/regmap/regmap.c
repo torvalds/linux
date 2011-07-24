@@ -317,7 +317,7 @@ static int _regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 		u8[0] |= map->bus->read_flag_mask;
 
 	ret = map->bus->read(map->dev, map->work_buf, map->format.reg_bytes,
-			     val, map->format.val_bytes);
+			     val, val_len);
 	if (ret != 0)
 		return ret;
 
