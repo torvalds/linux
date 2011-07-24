@@ -413,7 +413,7 @@ static struct attribute *jc42_attributes[] = {
 	NULL
 };
 
-static mode_t jc42_attribute_mode(struct kobject *kobj,
+static umode_t jc42_attribute_mode(struct kobject *kobj,
 				  struct attribute *attr, int index)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);

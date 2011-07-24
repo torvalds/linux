@@ -142,7 +142,7 @@ struct iscsi_transport {
 	int (*get_iface_param) (struct iscsi_iface *iface,
 				enum iscsi_param_type param_type,
 				int param, char *buf);
-	mode_t (*attr_is_visible)(int param_type, int param);
+	umode_t (*attr_is_visible)(int param_type, int param);
 	int (*bsg_request)(struct bsg_job *job);
 };
 
