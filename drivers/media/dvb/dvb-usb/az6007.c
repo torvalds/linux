@@ -55,7 +55,8 @@ static struct drxk_config terratec_h7_drxk = {
 	.adr = 0x29,
 	.single_master = 1,
 	.no_i2c_bridge = 0,
-	.microcode_name = "dvb-usb-terratec-h5-drxk.fw",
+	.max_size = 64,
+//	.microcode_name = "dvb-usb-terratec-h5-drxk.fw",
 };
 
 static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
@@ -127,7 +128,8 @@ static int az6007_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 	debug_dump(b, blen, deb_xfer);
 
 	if (blen > 64) {
-		err("az6007: doesn't suport I2C transactions longer than 64 bytes\n");
+		err("az6007: tried to write %d bytes, but I2C max size is 64 bytes\n",
+		    blen);
 		return -EOPNOTSUPP;
 	}
 
@@ -395,6 +397,7 @@ static int az6007_frontend_attach(struct dvb_usb_adapter *adap)
 	adap->fe2->tuner_priv = adap->fe->tuner_priv;
 	memcpy(&adap->fe2->ops.tuner_ops,
 	       &adap->fe->ops.tuner_ops, sizeof(adap->fe->ops.tuner_ops));
+
 	return 0;
 
 out_free:
@@ -572,7 +575,6 @@ static struct dvb_usb_device_properties az6007_properties = {
 	.num_adapters = 1,
 	.adapter = {
 		{
-			/* .caps             = DVB_USB_ADAP_RECEIVES_204_BYTE_TS, */
 			.streaming_ctrl   = az6007_streaming_ctrl,
 			.frontend_attach  = az6007_frontend_attach,
 

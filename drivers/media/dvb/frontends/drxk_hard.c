@@ -6070,9 +6070,7 @@ static int init_drxk(struct drxk_state *state)
 		if (status < 0)
 			goto error;
 
-		if (!state->microcode_name)
-			load_microcode(state, "drxk_a3.mc");
-		else
+		if (state->microcode_name)
 			load_microcode(state, state->microcode_name);
 
 		/* disable token-ring bus through OFDM block for possible ucode upload */
