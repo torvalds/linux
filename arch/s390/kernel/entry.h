@@ -5,10 +5,9 @@
 #include <linux/signal.h>
 #include <asm/ptrace.h>
 
-typedef void pgm_check_handler_t(struct pt_regs *, long, unsigned long);
-extern pgm_check_handler_t *pgm_check_table[128];
-pgm_check_handler_t do_protection_exception;
-pgm_check_handler_t do_dat_exception;
+void do_protection_exception(struct pt_regs *, long, unsigned long);
+void do_dat_exception(struct pt_regs *, long, unsigned long);
+void do_asce_exception(struct pt_regs *, long, unsigned long);
 
 extern int sysctl_userprocess_debug;
 
