@@ -69,7 +69,7 @@ static int cinergyt2_frontend_attach(struct dvb_usb_adapter *adap)
 	char state[3];
 	int ret;
 
-	adap->fe = cinergyt2_fe_attach(adap->dev);
+	adap->fe[0] = cinergyt2_fe_attach(adap->dev);
 
 	ret = dvb_usb_generic_rw(adap->dev, query, sizeof(query), state,
 				sizeof(state), 0);

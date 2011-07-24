@@ -60,14 +60,14 @@ static int umt_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 	umt_config.demod_init = umt_mt352_demod_init;
 	umt_config.demod_address = 0xf;
 
-	adap->fe = dvb_attach(mt352_attach, &umt_config, &adap->dev->i2c_adap);
+	adap->fe[0] = dvb_attach(mt352_attach, &umt_config, &adap->dev->i2c_adap);
 
 	return 0;
 }
 
 static int umt_tuner_attach (struct dvb_usb_adapter *adap)
 {
-	dvb_attach(dvb_pll_attach, adap->fe, 0x61, NULL, DVB_PLL_TUA6034);
+	dvb_attach(dvb_pll_attach, adap->fe[0], 0x61, NULL, DVB_PLL_TUA6034);
 	return 0;
 }
 

@@ -488,13 +488,13 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 		/* E30 */
 
 		/* attach demod */
-		adap->fe = dvb_attach(mt352_attach, &anysee_mt352_config,
+		adap->fe[0] = dvb_attach(mt352_attach, &anysee_mt352_config,
 			&adap->dev->i2c_adap);
-		if (adap->fe)
+		if (adap->fe[0])
 			break;
 
 		/* attach demod */
-		adap->fe = dvb_attach(zl10353_attach, &anysee_zl10353_config,
+		adap->fe[0] = dvb_attach(zl10353_attach, &anysee_zl10353_config,
 			&adap->dev->i2c_adap);
 
 		break;
@@ -512,7 +512,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 			goto error;
 
 		/* attach demod */
-		adap->fe = dvb_attach(zl10353_attach, &anysee_zl10353_config,
+		adap->fe[0] = dvb_attach(zl10353_attach, &anysee_zl10353_config,
 			&adap->dev->i2c_adap);
 
 		break;
@@ -525,7 +525,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 			goto error;
 
 		/* attach demod */
-		adap->fe = dvb_attach(tda10023_attach, &anysee_tda10023_config,
+		adap->fe[0] = dvb_attach(tda10023_attach, &anysee_tda10023_config,
 			&adap->dev->i2c_adap, 0x48);
 
 		break;
@@ -538,7 +538,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 			goto error;
 
 		/* attach demod */
-		adap->fe = dvb_attach(cx24116_attach, &anysee_cx24116_config,
+		adap->fe[0] = dvb_attach(cx24116_attach, &anysee_cx24116_config,
 			&adap->dev->i2c_adap);
 
 		break;
@@ -580,12 +580,12 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 			/* attach demod */
 			if (tmp == 0xc7) {
 				/* TDA18212 config */
-				adap->fe = dvb_attach(zl10353_attach,
+				adap->fe[0] = dvb_attach(zl10353_attach,
 					&anysee_zl10353_tda18212_config2,
 					&adap->dev->i2c_adap);
 			} else {
 				/* PLL config */
-				adap->fe = dvb_attach(zl10353_attach,
+				adap->fe[0] = dvb_attach(zl10353_attach,
 					&anysee_zl10353_config,
 					&adap->dev->i2c_adap);
 			}
@@ -605,12 +605,12 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 			/* attach demod */
 			if (tmp == 0xc7) {
 				/* TDA18212 config */
-				adap->fe = dvb_attach(tda10023_attach,
+				adap->fe[0] = dvb_attach(tda10023_attach,
 					&anysee_tda10023_tda18212_config,
 					&adap->dev->i2c_adap, 0x48);
 			} else {
 				/* PLL config */
-				adap->fe = dvb_attach(tda10023_attach,
+				adap->fe[0] = dvb_attach(tda10023_attach,
 					&anysee_tda10023_config,
 					&adap->dev->i2c_adap, 0x48);
 			}
@@ -647,7 +647,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 				goto error;
 
 			/* attach demod */
-			adap->fe = dvb_attach(zl10353_attach,
+			adap->fe[0] = dvb_attach(zl10353_attach,
 				&anysee_zl10353_tda18212_config,
 				&adap->dev->i2c_adap);
 		} else {
@@ -670,7 +670,7 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 				goto error;
 
 			/* attach demod */
-			adap->fe = dvb_attach(tda10023_attach,
+			adap->fe[0] = dvb_attach(tda10023_attach,
 				&anysee_tda10023_tda18212_config,
 				&adap->dev->i2c_adap, 0x48);
 		}
@@ -692,13 +692,13 @@ static int anysee_frontend_attach(struct dvb_usb_adapter *adap)
 			goto error;
 
 		/* attach demod */
-		adap->fe = dvb_attach(stv0900_attach, &anysee_stv0900_config,
+		adap->fe[0] = dvb_attach(stv0900_attach, &anysee_stv0900_config,
 			&adap->dev->i2c_adap, 0);
 
 		break;
 	}
 
-	if (!adap->fe) {
+	if (!adap->fe[0]) {
 		/* we have no frontend :-( */
 		ret = -ENODEV;
 		err("Unsupported Anysee version. " \
@@ -720,7 +720,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* E30 */
 
 		/* attach tuner */
-		fe = dvb_attach(dvb_pll_attach, adap->fe, (0xc2 >> 1),
+		fe = dvb_attach(dvb_pll_attach, adap->fe[0], (0xc2 >> 1),
 			NULL, DVB_PLL_THOMSON_DTT7579);
 
 		break;
@@ -728,7 +728,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* E30 Plus */
 
 		/* attach tuner */
-		fe = dvb_attach(dvb_pll_attach, adap->fe, (0xc2 >> 1),
+		fe = dvb_attach(dvb_pll_attach, adap->fe[0], (0xc2 >> 1),
 			&adap->dev->i2c_adap, DVB_PLL_THOMSON_DTT7579);
 
 		break;
@@ -736,7 +736,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* E30 C Plus */
 
 		/* attach tuner */
-		fe = dvb_attach(dvb_pll_attach, adap->fe, (0xc0 >> 1),
+		fe = dvb_attach(dvb_pll_attach, adap->fe[0], (0xc0 >> 1),
 			&adap->dev->i2c_adap, DVB_PLL_SAMSUNG_DTOS403IH102A);
 
 		break;
@@ -744,7 +744,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* E30 S2 Plus */
 
 		/* attach LNB controller */
-		fe = dvb_attach(isl6423_attach, adap->fe, &adap->dev->i2c_adap,
+		fe = dvb_attach(isl6423_attach, adap->fe[0], &adap->dev->i2c_adap,
 			&anysee_isl6423_config);
 
 		break;
@@ -775,7 +775,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 			goto error;
 
 		/* attach tuner */
-		fe = dvb_attach(tda18212_attach, adap->fe, &adap->dev->i2c_adap,
+		fe = dvb_attach(tda18212_attach, adap->fe[0], &adap->dev->i2c_adap,
 			&anysee_tda18212_config);
 		if (fe)
 			break;
@@ -786,7 +786,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 			goto error;
 
 		/* attach tuner */
-		fe = dvb_attach(dvb_pll_attach, adap->fe, (0xc0 >> 1),
+		fe = dvb_attach(dvb_pll_attach, adap->fe[0], (0xc0 >> 1),
 			&adap->dev->i2c_adap, DVB_PLL_SAMSUNG_DTOS403IH102A);
 
 		break;
@@ -801,7 +801,7 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 			goto error;
 
 		/* attach tuner */
-		fe = dvb_attach(tda18212_attach, adap->fe, &adap->dev->i2c_adap,
+		fe = dvb_attach(tda18212_attach, adap->fe[0], &adap->dev->i2c_adap,
 			&anysee_tda18212_config);
 
 		break;
@@ -811,12 +811,12 @@ static int anysee_tuner_attach(struct dvb_usb_adapter *adap)
 		/* E7 PS2 */
 
 		/* attach tuner */
-		fe = dvb_attach(stv6110_attach, adap->fe,
+		fe = dvb_attach(stv6110_attach, adap->fe[0],
 			&anysee_stv6110_config, &adap->dev->i2c_adap);
 
 		if (fe) {
 			/* attach LNB controller */
-			fe = dvb_attach(isl6423_attach, adap->fe,
+			fe = dvb_attach(isl6423_attach, adap->fe[0],
 				&adap->dev->i2c_adap, &anysee_isl6423_config);
 		}
 

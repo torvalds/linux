@@ -320,7 +320,7 @@ static int vp702x_frontend_attach(struct dvb_usb_adapter *adap)
 
 	vp702x_init_pid_filter(adap);
 
-	adap->fe = vp702x_fe_attach(adap->dev);
+	adap->fe[0] = vp702x_fe_attach(adap->dev);
 	vp702x_usb_out_op(adap->dev, SET_TUNER_POWER_REQ, 1, 7, NULL, 0);
 
 	return 0;

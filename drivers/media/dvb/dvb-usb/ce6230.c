@@ -186,9 +186,9 @@ static struct zl10353_config ce6230_zl10353_config = {
 static int ce6230_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb_info("%s:\n", __func__);
-	adap->fe = dvb_attach(zl10353_attach, &ce6230_zl10353_config,
+	adap->fe[0] = dvb_attach(zl10353_attach, &ce6230_zl10353_config,
 		&adap->dev->i2c_adap);
-	if (adap->fe == NULL)
+	if (adap->fe[0] == NULL)
 		return -ENODEV;
 	return 0;
 }
@@ -214,7 +214,7 @@ static int ce6230_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
 	deb_info("%s:\n", __func__);
-	ret = dvb_attach(mxl5005s_attach, adap->fe, &adap->dev->i2c_adap,
+	ret = dvb_attach(mxl5005s_attach, adap->fe[0], &adap->dev->i2c_adap,
 			&ce6230_mxl5003s_config) == NULL ? -ENODEV : 0;
 	return ret;
 }

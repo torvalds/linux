@@ -992,18 +992,18 @@ static int dw2104_frontend_attach(struct dvb_usb_adapter *d)
 	struct dvb_tuner_ops *tuner_ops = NULL;
 
 	if (demod_probe & 4) {
-		d->fe = dvb_attach(stv0900_attach, &dw2104a_stv0900_config,
+		d->fe[0] = dvb_attach(stv0900_attach, &dw2104a_stv0900_config,
 				&d->dev->i2c_adap, 0);
-		if (d->fe != NULL) {
-			if (dvb_attach(stb6100_attach, d->fe,
+		if (d->fe[0] != NULL) {
+			if (dvb_attach(stb6100_attach, d->fe[0],
 					&dw2104a_stb6100_config,
 					&d->dev->i2c_adap)) {
-				tuner_ops = &d->fe->ops.tuner_ops;
+				tuner_ops = &d->fe[0]->ops.tuner_ops;
 				tuner_ops->set_frequency = stb6100_set_freq;
 				tuner_ops->get_frequency = stb6100_get_freq;
 				tuner_ops->set_bandwidth = stb6100_set_bandw;
 				tuner_ops->get_bandwidth = stb6100_get_bandw;
-				d->fe->ops.set_voltage = dw210x_set_voltage;
+				d->fe[0]->ops.set_voltage = dw210x_set_voltage;
 				info("Attached STV0900+STB6100!\n");
 				return 0;
 			}
@@ -1011,13 +1011,13 @@ static int dw2104_frontend_attach(struct dvb_usb_adapter *d)
 	}
 
 	if (demod_probe & 2) {
-		d->fe = dvb_attach(stv0900_attach, &dw2104_stv0900_config,
+		d->fe[0] = dvb_attach(stv0900_attach, &dw2104_stv0900_config,
 				&d->dev->i2c_adap, 0);
-		if (d->fe != NULL) {
-			if (dvb_attach(stv6110_attach, d->fe,
+		if (d->fe[0] != NULL) {
+			if (dvb_attach(stv6110_attach, d->fe[0],
 					&dw2104_stv6110_config,
 					&d->dev->i2c_adap)) {
-				d->fe->ops.set_voltage = dw210x_set_voltage;
+				d->fe[0]->ops.set_voltage = dw210x_set_voltage;
 				info("Attached STV0900+STV6110A!\n");
 				return 0;
 			}
@@ -1025,19 +1025,19 @@ static int dw2104_frontend_attach(struct dvb_usb_adapter *d)
 	}
 
 	if (demod_probe & 1) {
-		d->fe = dvb_attach(cx24116_attach, &dw2104_config,
+		d->fe[0] = dvb_attach(cx24116_attach, &dw2104_config,
 				&d->dev->i2c_adap);
-		if (d->fe != NULL) {
-			d->fe->ops.set_voltage = dw210x_set_voltage;
+		if (d->fe[0] != NULL) {
+			d->fe[0]->ops.set_voltage = dw210x_set_voltage;
 			info("Attached cx24116!\n");
 			return 0;
 		}
 	}
 
-	d->fe = dvb_attach(ds3000_attach, &dw2104_ds3000_config,
+	d->fe[0] = dvb_attach(ds3000_attach, &dw2104_ds3000_config,
 			&d->dev->i2c_adap);
-	if (d->fe != NULL) {
-		d->fe->ops.set_voltage = dw210x_set_voltage;
+	if (d->fe[0] != NULL) {
+		d->fe[0]->ops.set_voltage = dw210x_set_voltage;
 		info("Attached DS3000!\n");
 		return 0;
 	}
@@ -1053,22 +1053,22 @@ static int dw2102_frontend_attach(struct dvb_usb_adapter *d)
 {
 	if (dw2102_properties.i2c_algo == &dw2102_serit_i2c_algo) {
 		/*dw2102_properties.adapter->tuner_attach = NULL;*/
-		d->fe = dvb_attach(si21xx_attach, &serit_sp1511lhb_config,
+		d->fe[0] = dvb_attach(si21xx_attach, &serit_sp1511lhb_config,
 					&d->dev->i2c_adap);
-		if (d->fe != NULL) {
-			d->fe->ops.set_voltage = dw210x_set_voltage;
+		if (d->fe[0] != NULL) {
+			d->fe[0]->ops.set_voltage = dw210x_set_voltage;
 			info("Attached si21xx!\n");
 			return 0;
 		}
 	}
 
 	if (dw2102_properties.i2c_algo == &dw2102_earda_i2c_algo) {
-		d->fe = dvb_attach(stv0288_attach, &earda_config,
+		d->fe[0] = dvb_attach(stv0288_attach, &earda_config,
 					&d->dev->i2c_adap);
-		if (d->fe != NULL) {
-			if (dvb_attach(stb6000_attach, d->fe, 0x61,
+		if (d->fe[0] != NULL) {
+			if (dvb_attach(stb6000_attach, d->fe[0], 0x61,
 					&d->dev->i2c_adap)) {
-				d->fe->ops.set_voltage = dw210x_set_voltage;
+				d->fe[0]->ops.set_voltage = dw210x_set_voltage;
 				info("Attached stv0288!\n");
 				return 0;
 			}
@@ -1077,10 +1077,10 @@ static int dw2102_frontend_attach(struct dvb_usb_adapter *d)
 
 	if (dw2102_properties.i2c_algo == &dw2102_i2c_algo) {
 		/*dw2102_properties.adapter->tuner_attach = dw2102_tuner_attach;*/
-		d->fe = dvb_attach(stv0299_attach, &sharp_z0194a_config,
+		d->fe[0] = dvb_attach(stv0299_attach, &sharp_z0194a_config,
 					&d->dev->i2c_adap);
-		if (d->fe != NULL) {
-			d->fe->ops.set_voltage = dw210x_set_voltage;
+		if (d->fe[0] != NULL) {
+			d->fe[0]->ops.set_voltage = dw210x_set_voltage;
 			info("Attached stv0299!\n");
 			return 0;
 		}
@@ -1090,9 +1090,9 @@ static int dw2102_frontend_attach(struct dvb_usb_adapter *d)
 
 static int dw3101_frontend_attach(struct dvb_usb_adapter *d)
 {
-	d->fe = dvb_attach(tda10023_attach, &dw3101_tda10023_config,
+	d->fe[0] = dvb_attach(tda10023_attach, &dw3101_tda10023_config,
 				&d->dev->i2c_adap, 0x48);
-	if (d->fe != NULL) {
+	if (d->fe[0] != NULL) {
 		info("Attached tda10023!\n");
 		return 0;
 	}
@@ -1101,12 +1101,12 @@ static int dw3101_frontend_attach(struct dvb_usb_adapter *d)
 
 static int zl100313_frontend_attach(struct dvb_usb_adapter *d)
 {
-	d->fe = dvb_attach(mt312_attach, &zl313_config,
+	d->fe[0] = dvb_attach(mt312_attach, &zl313_config,
 			&d->dev->i2c_adap);
-	if (d->fe != NULL) {
-		if (dvb_attach(zl10039_attach, d->fe, 0x60,
+	if (d->fe[0] != NULL) {
+		if (dvb_attach(zl10039_attach, d->fe[0], 0x60,
 				&d->dev->i2c_adap)) {
-			d->fe->ops.set_voltage = dw210x_set_voltage;
+			d->fe[0]->ops.set_voltage = dw210x_set_voltage;
 			info("Attached zl100313+zl10039!\n");
 			return 0;
 		}
@@ -1119,16 +1119,16 @@ static int stv0288_frontend_attach(struct dvb_usb_adapter *d)
 {
 	u8 obuf[] = {7, 1};
 
-	d->fe = dvb_attach(stv0288_attach, &earda_config,
+	d->fe[0] = dvb_attach(stv0288_attach, &earda_config,
 			&d->dev->i2c_adap);
 
-	if (d->fe == NULL)
+	if (d->fe[0] == NULL)
 		return -EIO;
 
-	if (NULL == dvb_attach(stb6000_attach, d->fe, 0x61, &d->dev->i2c_adap))
+	if (NULL == dvb_attach(stb6000_attach, d->fe[0], 0x61, &d->dev->i2c_adap))
 		return -EIO;
 
-	d->fe->ops.set_voltage = dw210x_set_voltage;
+	d->fe[0]->ops.set_voltage = dw210x_set_voltage;
 
 	dw210x_op_rw(d->dev->udev, 0x8a, 0, 0, obuf, 2, DW210X_WRITE_MSG);
 
@@ -1143,14 +1143,14 @@ static int ds3000_frontend_attach(struct dvb_usb_adapter *d)
 	struct s6x0_state *st = (struct s6x0_state *)d->dev->priv;
 	u8 obuf[] = {7, 1};
 
-	d->fe = dvb_attach(ds3000_attach, &dw2104_ds3000_config,
+	d->fe[0] = dvb_attach(ds3000_attach, &dw2104_ds3000_config,
 			&d->dev->i2c_adap);
 
-	if (d->fe == NULL)
+	if (d->fe[0] == NULL)
 		return -EIO;
 
-	st->old_set_voltage = d->fe->ops.set_voltage;
-	d->fe->ops.set_voltage = s660_set_voltage;
+	st->old_set_voltage = d->fe[0]->ops.set_voltage;
+	d->fe[0]->ops.set_voltage = s660_set_voltage;
 
 	dw210x_op_rw(d->dev->udev, 0x8a, 0, 0, obuf, 2, DW210X_WRITE_MSG);
 
@@ -1163,12 +1163,12 @@ static int prof_7500_frontend_attach(struct dvb_usb_adapter *d)
 {
 	u8 obuf[] = {7, 1};
 
-	d->fe = dvb_attach(stv0900_attach, &prof_7500_stv0900_config,
+	d->fe[0] = dvb_attach(stv0900_attach, &prof_7500_stv0900_config,
 					&d->dev->i2c_adap, 0);
-	if (d->fe == NULL)
+	if (d->fe[0] == NULL)
 		return -EIO;
 
-	d->fe->ops.set_voltage = dw210x_set_voltage;
+	d->fe[0]->ops.set_voltage = dw210x_set_voltage;
 
 	dw210x_op_rw(d->dev->udev, 0x8a, 0, 0, obuf, 2, DW210X_WRITE_MSG);
 
@@ -1204,9 +1204,9 @@ static int su3000_frontend_attach(struct dvb_usb_adapter *d)
 	if (dvb_usb_generic_rw(d->dev, obuf, 1, ibuf, 1, 0) < 0)
 		err("command 0x51 transfer failed.");
 
-	d->fe = dvb_attach(ds3000_attach, &su3000_ds3000_config,
+	d->fe[0] = dvb_attach(ds3000_attach, &su3000_ds3000_config,
 					&d->dev->i2c_adap);
-	if (d->fe == NULL)
+	if (d->fe[0] == NULL)
 		return -EIO;
 
 	info("Attached DS3000!\n");
@@ -1216,14 +1216,14 @@ static int su3000_frontend_attach(struct dvb_usb_adapter *d)
 
 static int dw2102_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	dvb_attach(dvb_pll_attach, adap->fe, 0x60,
+	dvb_attach(dvb_pll_attach, adap->fe[0], 0x60,
 		&adap->dev->i2c_adap, DVB_PLL_OPERA1);
 	return 0;
 }
 
 static int dw3101_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	dvb_attach(dvb_pll_attach, adap->fe, 0x60,
+	dvb_attach(dvb_pll_attach, adap->fe[0], 0x60,
 		&adap->dev->i2c_adap, DVB_PLL_TUA6034);
 
 	return 0;

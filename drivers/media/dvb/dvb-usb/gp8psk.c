@@ -230,7 +230,7 @@ static int gp8psk_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 static int gp8psk_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	adap->fe = gp8psk_fe_attach(adap->dev);
+	adap->fe[0] = gp8psk_fe_attach(adap->dev);
 	return 0;
 }
 

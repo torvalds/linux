@@ -115,13 +115,13 @@ static struct zl10353_config dtv5100_zl10353_config = {
 
 static int dtv5100_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	adap->fe = dvb_attach(zl10353_attach, &dtv5100_zl10353_config,
+	adap->fe[0] = dvb_attach(zl10353_attach, &dtv5100_zl10353_config,
 			      &adap->dev->i2c_adap);
-	if (adap->fe == NULL)
+	if (adap->fe[0] == NULL)
 		return -EIO;
 
 	/* disable i2c gate, or it won't work... is this safe? */
-	adap->fe->ops.i2c_gate_ctrl = NULL;
+	adap->fe[0]->ops.i2c_gate_ctrl = NULL;
 
 	return 0;
 }
@@ -133,7 +133,7 @@ static struct qt1010_config dtv5100_qt1010_config = {
 static int dtv5100_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	return dvb_attach(qt1010_attach,
-			  adap->fe, &adap->dev->i2c_adap,
+			  adap->fe[0], &adap->dev->i2c_adap,
 			  &dtv5100_qt1010_config) == NULL ? -ENODEV : 0;
 }
 

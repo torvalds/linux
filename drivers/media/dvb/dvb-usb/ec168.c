@@ -200,9 +200,9 @@ static struct ec100_config ec168_ec100_config = {
 static int ec168_ec100_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb_info("%s:\n", __func__);
-	adap->fe = dvb_attach(ec100_attach, &ec168_ec100_config,
+	adap->fe[0] = dvb_attach(ec100_attach, &ec168_ec100_config,
 		&adap->dev->i2c_adap);
-	if (adap->fe == NULL)
+	if (adap->fe[0] == NULL)
 		return -ENODEV;
 
 	return 0;
@@ -228,7 +228,7 @@ static struct mxl5005s_config ec168_mxl5003s_config = {
 static int ec168_mxl5003s_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	deb_info("%s:\n", __func__);
-	return dvb_attach(mxl5005s_attach, adap->fe, &adap->dev->i2c_adap,
+	return dvb_attach(mxl5005s_attach, adap->fe[0], &adap->dev->i2c_adap,
 		&ec168_mxl5003s_config) == NULL ? -ENODEV : 0;
 }
 

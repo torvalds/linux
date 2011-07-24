@@ -186,14 +186,14 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 	}
 
 	/* re-assign sleep and wakeup functions */
-	if (adap->props.frontend_attach(adap) == 0 && adap->fe != NULL) {
-		adap->fe_init  = adap->fe->ops.init;  adap->fe->ops.init  = dvb_usb_fe_wakeup;
-		adap->fe_sleep = adap->fe->ops.sleep; adap->fe->ops.sleep = dvb_usb_fe_sleep;
+	if (adap->props.frontend_attach(adap) == 0 && adap->fe[0] != NULL) {
+		adap->fe_init  = adap->fe[0]->ops.init;  adap->fe[0]->ops.init  = dvb_usb_fe_wakeup;
+		adap->fe_sleep = adap->fe[0]->ops.sleep; adap->fe[0]->ops.sleep = dvb_usb_fe_sleep;
 
-		if (dvb_register_frontend(&adap->dvb_adap, adap->fe)) {
+		if (dvb_register_frontend(&adap->dvb_adap, adap->fe[0])) {
 			err("Frontend registration failed.");
-			dvb_frontend_detach(adap->fe);
-			adap->fe = NULL;
+			dvb_frontend_detach(adap->fe[0]);
+			adap->fe[0] = NULL;
 			return -ENODEV;
 		}
 
@@ -208,9 +208,9 @@ int dvb_usb_adapter_frontend_init(struct dvb_usb_adapter *adap)
 
 int dvb_usb_adapter_frontend_exit(struct dvb_usb_adapter *adap)
 {
-	if (adap->fe != NULL) {
-		dvb_unregister_frontend(adap->fe);
-		dvb_frontend_detach(adap->fe);
+	if (adap->fe[0] != NULL) {
+		dvb_unregister_frontend(adap->fe[0]);
+		dvb_frontend_detach(adap->fe[0]);
 	}
 	return 0;
 }

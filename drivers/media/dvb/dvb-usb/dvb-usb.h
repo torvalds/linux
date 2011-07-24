@@ -363,7 +363,7 @@ struct dvb_usb_adapter {
 	struct dmxdev        dmxdev;
 	struct dvb_demux     demux;
 	struct dvb_net       dvb_net;
-	struct dvb_frontend *fe;
+	struct dvb_frontend *fe[1];
 	int                  max_feed_count;
 
 	int (*fe_init)  (struct dvb_frontend *);

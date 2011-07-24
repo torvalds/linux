@@ -815,7 +815,7 @@ static int af9005_frontend_attach(struct dvb_usb_adapter *adap)
 			debug_dump(buf, 8, printk);
 		}
 	}
-	adap->fe = af9005_fe_attach(adap->dev);
+	adap->fe[0] = af9005_fe_attach(adap->dev);
 	return 0;
 }
 

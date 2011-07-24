@@ -263,10 +263,10 @@ static struct stv0299_config opera1_stv0299_config = {
 
 static int opera1_frontend_attach(struct dvb_usb_adapter *d)
 {
-	if ((d->fe =
+	if ((d->fe[0] =
 	     dvb_attach(stv0299_attach, &opera1_stv0299_config,
 			&d->dev->i2c_adap)) != NULL) {
-		d->fe->ops.set_voltage = opera1_set_voltage;
+		d->fe[0]->ops.set_voltage = opera1_set_voltage;
 		return 0;
 	}
 	info("not attached stv0299");
@@ -276,7 +276,7 @@ static int opera1_frontend_attach(struct dvb_usb_adapter *d)
 static int opera1_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(
-		dvb_pll_attach, adap->fe, 0xc0>>1,
+		dvb_pll_attach, adap->fe[0], 0xc0>>1,
 		&adap->dev->i2c_adap, DVB_PLL_OPERA1
 	);
 	return 0;

@@ -1111,10 +1111,10 @@ static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 	}
 
 	/* attach demodulator */
-	adap->fe = dvb_attach(af9013_attach, &af9015_af9013_config[adap->id],
+	adap->fe[0] = dvb_attach(af9013_attach, &af9015_af9013_config[adap->id],
 		&adap->dev->i2c_adap);
 
-	return adap->fe == NULL ? -ENODEV : 0;
+	return adap->fe[0] == NULL ? -ENODEV : 0;
 }
 
 static struct mt2060_config af9015_mt2060_config = {
@@ -1188,49 +1188,49 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 	switch (af9015_af9013_config[adap->id].tuner) {
 	case AF9013_TUNER_MT2060:
 	case AF9013_TUNER_MT2060_2:
-		ret = dvb_attach(mt2060_attach, adap->fe, &adap->dev->i2c_adap,
+		ret = dvb_attach(mt2060_attach, adap->fe[0], &adap->dev->i2c_adap,
 			&af9015_mt2060_config,
 			af9015_config.mt2060_if1[adap->id])
 			== NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_QT1010:
 	case AF9013_TUNER_QT1010A:
-		ret = dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap,
+		ret = dvb_attach(qt1010_attach, adap->fe[0], &adap->dev->i2c_adap,
 			&af9015_qt1010_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_TDA18271:
-		ret = dvb_attach(tda18271_attach, adap->fe, 0xc0,
+		ret = dvb_attach(tda18271_attach, adap->fe[0], 0xc0,
 			&adap->dev->i2c_adap,
 			&af9015_tda18271_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_TDA18218:
-		ret = dvb_attach(tda18218_attach, adap->fe,
+		ret = dvb_attach(tda18218_attach, adap->fe[0],
 			&adap->dev->i2c_adap,
 			&af9015_tda18218_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MXL5003D:
-		ret = dvb_attach(mxl5005s_attach, adap->fe,
+		ret = dvb_attach(mxl5005s_attach, adap->fe[0],
 			&adap->dev->i2c_adap,
 			&af9015_mxl5003_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MXL5005D:
 	case AF9013_TUNER_MXL5005R:
-		ret = dvb_attach(mxl5005s_attach, adap->fe,
+		ret = dvb_attach(mxl5005s_attach, adap->fe[0],
 			&adap->dev->i2c_adap,
 			&af9015_mxl5005_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_ENV77H11D5:
-		ret = dvb_attach(dvb_pll_attach, adap->fe, 0xc0,
+		ret = dvb_attach(dvb_pll_attach, adap->fe[0], 0xc0,
 			&adap->dev->i2c_adap,
 			DVB_PLL_TDA665X) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MC44S803:
-		ret = dvb_attach(mc44s803_attach, adap->fe,
+		ret = dvb_attach(mc44s803_attach, adap->fe[0],
 			&adap->dev->i2c_adap,
 			&af9015_mc44s803_config) == NULL ? -ENODEV : 0;
 		break;
 	case AF9013_TUNER_MXL5007T:
-		ret = dvb_attach(mxl5007t_attach, adap->fe,
+		ret = dvb_attach(mxl5007t_attach, adap->fe[0],
 			&adap->dev->i2c_adap,
 			0xc0, &af9015_mxl5007t_config) == NULL ? -ENODEV : 0;
 		break;

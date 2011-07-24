@@ -195,7 +195,7 @@ static int ttusb2_frontend_tda10086_attach(struct dvb_usb_adapter *adap)
 	if (usb_set_interface(adap->dev->udev,0,3) < 0)
 		err("set interface to alts=3 failed");
 
-	if ((adap->fe = dvb_attach(tda10086_attach, &tda10086_config, &adap->dev->i2c_adap)) == NULL) {
+	if ((adap->fe[0] = dvb_attach(tda10086_attach, &tda10086_config, &adap->dev->i2c_adap)) == NULL) {
 		deb_info("TDA10086 attach failed\n");
 		return -ENODEV;
 	}
@@ -207,7 +207,7 @@ static int ttusb2_frontend_tda10023_attach(struct dvb_usb_adapter *adap)
 {
 	if (usb_set_interface(adap->dev->udev, 0, 3) < 0)
 		err("set interface to alts=3 failed");
-	if ((adap->fe = dvb_attach(tda10023_attach, &tda10023_config, &adap->dev->i2c_adap, 0x48)) == NULL) {
+	if ((adap->fe[0] = dvb_attach(tda10023_attach, &tda10023_config, &adap->dev->i2c_adap, 0x48)) == NULL) {
 		deb_info("TDA10023 attach failed\n");
 		return -ENODEV;
 	}
@@ -216,7 +216,7 @@ static int ttusb2_frontend_tda10023_attach(struct dvb_usb_adapter *adap)
 
 static int ttusb2_tuner_tda827x_attach(struct dvb_usb_adapter *adap)
 {
-	if (dvb_attach(tda827x_attach, adap->fe, 0x61, &adap->dev->i2c_adap, NULL) == NULL) {
+	if (dvb_attach(tda827x_attach, adap->fe[0], 0x61, &adap->dev->i2c_adap, NULL) == NULL) {
 		printk(KERN_ERR "%s: No tda827x found!\n", __func__);
 		return -ENODEV;
 	}
@@ -225,12 +225,12 @@ static int ttusb2_tuner_tda827x_attach(struct dvb_usb_adapter *adap)
 
 static int ttusb2_tuner_tda826x_attach(struct dvb_usb_adapter *adap)
 {
-	if (dvb_attach(tda826x_attach, adap->fe, 0x60, &adap->dev->i2c_adap, 0) == NULL) {
+	if (dvb_attach(tda826x_attach, adap->fe[0], 0x60, &adap->dev->i2c_adap, 0) == NULL) {
 		deb_info("TDA8263 attach failed\n");
 		return -ENODEV;
 	}
 
-	if (dvb_attach(lnbp21_attach, adap->fe, &adap->dev->i2c_adap, 0, 0) == NULL) {
+	if (dvb_attach(lnbp21_attach, adap->fe[0], &adap->dev->i2c_adap, 0, 0) == NULL) {
 		deb_info("LNBP21 attach failed\n");
 		return -ENODEV;
 	}

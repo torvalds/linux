@@ -214,7 +214,7 @@ static int vp7045_frontend_attach(struct dvb_usb_adapter *adap)
 /*	Dump the EEPROM */
 /*	vp7045_read_eeprom(d,buf, 255, FX2_ID_ADDR); */
 
-	adap->fe = vp7045_fe_attach(adap->dev);
+	adap->fe[0] = vp7045_fe_attach(adap->dev);
 
 	return 0;
 }

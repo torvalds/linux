@@ -501,7 +501,7 @@ static int m920x_mt352_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__func__);
 
-	if ((adap->fe = dvb_attach(mt352_attach,
+	if ((adap->fe[0] = dvb_attach(mt352_attach,
 				   &m920x_mt352_config,
 				   &adap->dev->i2c_adap)) == NULL)
 		return -EIO;
@@ -513,7 +513,7 @@ static int m920x_tda10046_08_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__func__);
 
-	if ((adap->fe = dvb_attach(tda10046_attach,
+	if ((adap->fe[0] = dvb_attach(tda10046_attach,
 				   &m920x_tda10046_08_config,
 				   &adap->dev->i2c_adap)) == NULL)
 		return -EIO;
@@ -525,7 +525,7 @@ static int m920x_tda10046_0b_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__func__);
 
-	if ((adap->fe = dvb_attach(tda10046_attach,
+	if ((adap->fe[0] = dvb_attach(tda10046_attach,
 				   &m920x_tda10046_0b_config,
 				   &adap->dev->i2c_adap)) == NULL)
 		return -EIO;
@@ -537,7 +537,7 @@ static int m920x_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__func__);
 
-	if (dvb_attach(qt1010_attach, adap->fe, &adap->dev->i2c_adap, &m920x_qt1010_config) == NULL)
+	if (dvb_attach(qt1010_attach, adap->fe[0], &adap->dev->i2c_adap, &m920x_qt1010_config) == NULL)
 		return -ENODEV;
 
 	return 0;
@@ -547,7 +547,7 @@ static int m920x_tda8275_60_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__func__);
 
-	if (dvb_attach(tda827x_attach, adap->fe, 0x60, &adap->dev->i2c_adap, NULL) == NULL)
+	if (dvb_attach(tda827x_attach, adap->fe[0], 0x60, &adap->dev->i2c_adap, NULL) == NULL)
 		return -ENODEV;
 
 	return 0;
@@ -557,7 +557,7 @@ static int m920x_tda8275_61_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	deb("%s\n",__func__);
 
-	if (dvb_attach(tda827x_attach, adap->fe, 0x61, &adap->dev->i2c_adap, NULL) == NULL)
+	if (dvb_attach(tda827x_attach, adap->fe[0], 0x61, &adap->dev->i2c_adap, NULL) == NULL)
 		return -ENODEV;
 
 	return 0;
@@ -565,7 +565,7 @@ static int m920x_tda8275_61_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int m920x_fmd1216me_tuner_attach(struct dvb_usb_adapter *adap)
 {
-	dvb_attach(simple_tuner_attach, adap->fe,
+	dvb_attach(simple_tuner_attach, adap->fe[0],
 		   &adap->dev->i2c_adap, 0x61,
 		   TUNER_PHILIPS_FMD1216ME_MK3);
 	return 0;

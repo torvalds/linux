@@ -140,9 +140,9 @@ static struct zl10353_config au6610_zl10353_config = {
 
 static int au6610_zl10353_frontend_attach(struct dvb_usb_adapter *adap)
 {
-	adap->fe = dvb_attach(zl10353_attach, &au6610_zl10353_config,
+	adap->fe[0] = dvb_attach(zl10353_attach, &au6610_zl10353_config,
 		&adap->dev->i2c_adap);
-	if (adap->fe == NULL)
+	if (adap->fe[0] == NULL)
 		return -ENODEV;
 
 	return 0;
@@ -155,7 +155,7 @@ static struct qt1010_config au6610_qt1010_config = {
 static int au6610_qt1010_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	return dvb_attach(qt1010_attach,
-			  adap->fe, &adap->dev->i2c_adap,
+			  adap->fe[0], &adap->dev->i2c_adap,
 			  &au6610_qt1010_config) == NULL ? -ENODEV : 0;
 }
 

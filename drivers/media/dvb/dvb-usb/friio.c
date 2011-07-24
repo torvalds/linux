@@ -403,8 +403,8 @@ static int friio_frontend_attach(struct dvb_usb_adapter *adap)
 	if (friio_initialize(adap->dev) < 0)
 		return -EIO;
 
-	adap->fe = jdvbt90502_attach(adap->dev);
-	if (adap->fe == NULL)
+	adap->fe[0] = jdvbt90502_attach(adap->dev);
+	if (adap->fe[0] == NULL)
 		return -EIO;
 
 	return 0;
