@@ -105,6 +105,7 @@ static intercept_handler_t instruction_handlers[256] = {
 	[0xae] = kvm_s390_handle_sigp,
 	[0xb2] = kvm_s390_handle_b2,
 	[0xb7] = handle_lctl,
+	[0xe5] = kvm_s390_handle_e5,
 	[0xeb] = handle_lctlg,
 };
 
