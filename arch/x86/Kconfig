@@ -2089,7 +2089,8 @@ config OLPC_XO1_RTC
 
 config OLPC_XO1_SCI
 	bool "OLPC XO-1 SCI extras"
-	depends on OLPC && OLPC_XO1_PM && POWER_SUPPLY
+	depends on OLPC && OLPC_XO1_PM
+	select POWER_SUPPLY
 	select GPIO_CS5535
 	select MFD_CORE
 	---help---
@@ -2103,7 +2104,8 @@ config OLPC_XO1_SCI
 
 config OLPC_XO15_SCI
 	bool "OLPC XO-1.5 SCI extras"
-	depends on OLPC && ACPI && POWER_SUPPLY
+	depends on OLPC && ACPI
+	select POWER_SUPPLY
 	---help---
 	  Add support for SCI-based features of the OLPC XO-1.5 laptop:
 	   - EC-driven system wakeups
