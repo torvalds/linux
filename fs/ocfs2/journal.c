@@ -1811,6 +1811,20 @@ static inline unsigned long ocfs2_orphan_scan_timeout(void)
  * every slot, queuing a recovery of the slot on the ocfs2_wq thread. This
  * is done to catch any orphans that are left over in orphan directories.
  *
+ * It scans all slots, even ones that are in use. It does so to handle the
+ * case described below:
+ *
+ *   Node 1 has an inode it was using. The dentry went away due to memory
+ *   pressure.  Node 1 closes the inode, but it's on the free list. The node
+ *   has the open lock.
+ *   Node 2 unlinks the inode. It grabs the dentry lock to notify others,
+ *   but node 1 has no dentry and doesn't get the message. It trylocks the
+ *   open lock, sees that another node has a PR, and does nothing.
+ *   Later node 2 runs its orphan dir. It igets the inode, trylocks the
+ *   open lock, sees the PR still, and does nothing.
+ *   Basically, we have to trigger an orphan iput on node 1. The only way
+ *   for this to happen is if node 1 runs node 2's orphan dir.
+ *
  * ocfs2_queue_orphan_scan gets called every ORPHAN_SCAN_SCHEDULE_TIMEOUT
  * seconds.  It gets an EX lock on os_lockres and checks sequence number
  * stored in LVB. If the sequence number has changed, it means some other
