@@ -120,7 +120,7 @@ static int xo15_sci_add(struct acpi_device *device)
 
 	/* Enable wake-on-EC */
 	if (device->wakeup.flags.valid)
-		device_set_wakeup_enable(&device->dev, true);
+		device_init_wakeup(&device->dev, true);
 
 	return 0;
 }
