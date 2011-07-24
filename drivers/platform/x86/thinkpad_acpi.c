@@ -297,7 +297,7 @@ struct ibm_init_struct {
 	char param[32];
 
 	int (*init) (struct ibm_init_struct *);
-	mode_t base_procfs_mode;
+	umode_t base_procfs_mode;
 	struct ibm_struct *data;
 };
 
@@ -8542,7 +8542,7 @@ static int __init ibm_init(struct ibm_init_struct *iibm)
 		"%s installed\n", ibm->name);
 
 	if (ibm->read) {
-		mode_t mode = iibm->base_procfs_mode;
+		umode_t mode = iibm->base_procfs_mode;
 
 		if (!mode)
 			mode = S_IRUGO;
