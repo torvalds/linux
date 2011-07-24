@@ -362,40 +362,38 @@ static int dlm_is_node_recovered(struct dlm_ctxt *dlm, u8 node)
 }
 
 
-int dlm_wait_for_node_death(struct dlm_ctxt *dlm, u8 node, int timeout)
+void dlm_wait_for_node_death(struct dlm_ctxt *dlm, u8 node, int timeout)
 {
-	if (timeout) {
-		mlog(ML_NOTICE, "%s: waiting %dms for notification of "
-		     "death of node %u\n", dlm->name, timeout, node);
+	if (dlm_is_node_dead(dlm, node))
+		return;
+
+	printk(KERN_NOTICE "o2dlm: Waiting on the death of node %u in "
+	       "domain %s\n", node, dlm->name);
+
+	if (timeout)
 		wait_event_timeout(dlm->dlm_reco_thread_wq,
-			   dlm_is_node_dead(dlm, node),
-			   msecs_to_jiffies(timeout));
-	} else {
-		mlog(ML_NOTICE, "%s: waiting indefinitely for notification "
-		     "of death of node %u\n", dlm->name, node);
+				   dlm_is_node_dead(dlm, node),
+				   msecs_to_jiffies(timeout));
+	else
 		wait_event(dlm->dlm_reco_thread_wq,
 			   dlm_is_node_dead(dlm, node));
-	}
-	/* for now, return 0 */
-	return 0;
 }
 
-int dlm_wait_for_node_recovery(struct dlm_ctxt *dlm, u8 node, int timeout)
+void dlm_wait_for_node_recovery(struct dlm_ctxt *dlm, u8 node, int timeout)
 {
-	if (timeout) {
-		mlog(0, "%s: waiting %dms for notification of "
-		     "recovery of node %u\n", dlm->name, timeout, node);
+	if (dlm_is_node_recovered(dlm, node))
+		return;
+
+	printk(KERN_NOTICE "o2dlm: Waiting on the recovery of node %u in "
+	       "domain %s\n", node, dlm->name);
+
+	if (timeout)
 		wait_event_timeout(dlm->dlm_reco_thread_wq,
-			   dlm_is_node_recovered(dlm, node),
-			   msecs_to_jiffies(timeout));
-	} else {
-		mlog(0, "%s: waiting indefinitely for notification "
-		     "of recovery of node %u\n", dlm->name, node);
+				   dlm_is_node_recovered(dlm, node),
+				   msecs_to_jiffies(timeout));
+	else
 		wait_event(dlm->dlm_reco_thread_wq,
 			   dlm_is_node_recovered(dlm, node));
-	}
-	/* for now, return 0 */
-	return 0;
 }
 
 /* callers of the top-level api calls (dlmlock/dlmunlock) should
