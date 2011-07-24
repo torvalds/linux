@@ -618,7 +618,7 @@ EXPORT_SYMBOL_GPL(sysfs_add_file_to_group);
  *
  */
 int sysfs_chmod_file(struct kobject *kobj, const struct attribute *attr,
-		     mode_t mode)
+		     umode_t mode)
 {
 	struct sysfs_dirent *sd;
 	struct iattr newattrs;
