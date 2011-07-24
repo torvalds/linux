@@ -45,7 +45,7 @@ ENTRY(startup_continue)
 					# virtual and never return ...
 	.align	8
 .Lentry:.long	0x00080000,0x80000000 + _stext
-.Lctl:	.long	0x04b50002		# cr0: various things
+.Lctl:	.long	0x04b50000		# cr0: various things
 	.long	0			# cr1: primary space segment table
 	.long	.Lduct			# cr2: dispatchable unit control table
 	.long	0			# cr3: instruction authorization
