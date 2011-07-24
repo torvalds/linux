@@ -292,9 +292,11 @@ static int cmtp_session(void *arg)
 
 	init_waitqueue_entry(&wait, current);
 	add_wait_queue(sk_sleep(sk), &wait);
-	while (!kthread_should_stop()) {
+	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
 
+		if (kthread_should_stop())
+			break;
 		if (sk->sk_state != BT_CONNECTED)
 			break;
 
@@ -307,7 +309,7 @@ static int cmtp_session(void *arg)
 
 		schedule();
 	}
-	set_current_state(TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(sk), &wait);
 
 	down_write(&cmtp_session_sem);
