@@ -75,6 +75,9 @@
 #include <asm/tlb.h>
 #include <asm/irq_regs.h>
 #include <asm/mutex.h>
+#ifdef CONFIG_PARAVIRT
+#include <asm/paravirt.h>
+#endif
 
 #include "sched_cpupri.h"
 #include "workqueue_sched.h"
@@ -527,6 +530,12 @@ struct rq {
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
 	u64 prev_irq_time;
+#endif
+#ifdef CONFIG_PARAVIRT
+	u64 prev_steal_time;
+#endif
+#ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
+	u64 prev_steal_time_rq;
 #endif
 
 	/* calc_load related fields */
@@ -1921,10 +1930,28 @@ void account_system_vtime(struct task_struct *curr)
 }
 EXPORT_SYMBOL_GPL(account_system_vtime);
 
+#endif /* CONFIG_IRQ_TIME_ACCOUNTING */
+
+#ifdef CONFIG_PARAVIRT
+static inline u64 steal_ticks(u64 steal)
+{
+	if (unlikely(steal > NSEC_PER_SEC))
+		return div_u64(steal, TICK_NSEC);
+
+	return __iter_div_u64_rem(steal, TICK_NSEC, &steal);
+}
+#endif
+
 static void update_rq_clock_task(struct rq *rq, s64 delta)
 {
-	s64 irq_delta;
-
+/*
+ * In theory, the compile should just see 0 here, and optimize out the call
+ * to sched_rt_avg_update. But I don't trust it...
+ */
+#if defined(CONFIG_IRQ_TIME_ACCOUNTING) || defined(CONFIG_PARAVIRT_TIME_ACCOUNTING)
+	s64 steal = 0, irq_delta = 0;
+#endif
+#ifdef CONFIG_IRQ_TIME_ACCOUNTING
 	irq_delta = irq_time_read(cpu_of(rq)) - rq->prev_irq_time;
 
 	/*
@@ -1947,12 +1974,35 @@ static void update_rq_clock_task(struct rq *rq, s64 delta)
 
 	rq->prev_irq_time += irq_delta;
 	delta -= irq_delta;
+#endif
+#ifdef CONFIG_PARAVIRT_TIME_ACCOUNTING
+	if (static_branch((&paravirt_steal_rq_enabled))) {
+		u64 st;
+
+		steal = paravirt_steal_clock(cpu_of(rq));
+		steal -= rq->prev_steal_time_rq;
+
+		if (unlikely(steal > delta))
+			steal = delta;
+
+		st = steal_ticks(steal);
+		steal = st * TICK_NSEC;
+
+		rq->prev_steal_time_rq += steal;
+
+		delta -= steal;
+	}
+#endif
+
 	rq->clock_task += delta;
 
-	if (irq_delta && sched_feat(NONIRQ_POWER))
-		sched_rt_avg_update(rq, irq_delta);
+#if defined(CONFIG_IRQ_TIME_ACCOUNTING) || defined(CONFIG_PARAVIRT_TIME_ACCOUNTING)
+	if ((irq_delta + steal) && sched_feat(NONTASK_POWER))
+		sched_rt_avg_update(rq, irq_delta + steal);
+#endif
 }
 
+#ifdef CONFIG_IRQ_TIME_ACCOUNTING
 static int irqtime_account_hi_update(void)
 {
 	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
@@ -1987,12 +2037,7 @@ static int irqtime_account_si_update(void)
 
 #define sched_clock_irqtime	(0)
 
-static void update_rq_clock_task(struct rq *rq, s64 delta)
-{
-	rq->clock_task += delta;
-}
-
-#endif /* CONFIG_IRQ_TIME_ACCOUNTING */
+#endif
 
 #include "sched_idletask.c"
 #include "sched_fair.c"
@@ -3845,6 +3890,25 @@ void account_idle_time(cputime_t cputime)
 		cpustat->idle = cputime64_add(cpustat->idle, cputime64);
 }
 
+static __always_inline bool steal_account_process_tick(void)
+{
+#ifdef CONFIG_PARAVIRT
+	if (static_branch(&paravirt_steal_enabled)) {
+		u64 steal, st = 0;
+
+		steal = paravirt_steal_clock(smp_processor_id());
+		steal -= this_rq()->prev_steal_time;
+
+		st = steal_ticks(steal);
+		this_rq()->prev_steal_time += st * TICK_NSEC;
+
+		account_steal_time(st);
+		return st;
+	}
+#endif
+	return false;
+}
+
 #ifndef CONFIG_VIRT_CPU_ACCOUNTING
 
 #ifdef CONFIG_IRQ_TIME_ACCOUNTING
@@ -3875,6 +3939,9 @@ static void irqtime_account_process_tick(struct task_struct *p, int user_tick,
 	cputime_t one_jiffy_scaled = cputime_to_scaled(cputime_one_jiffy);
 	cputime64_t tmp = cputime_to_cputime64(cputime_one_jiffy);
 	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
+
+	if (steal_account_process_tick())
+		return;
 
 	if (irqtime_account_hi_update()) {
 		cpustat->irq = cputime64_add(cpustat->irq, tmp);
@@ -3928,6 +3995,9 @@ void account_process_tick(struct task_struct *p, int user_tick)
 		irqtime_account_process_tick(p, user_tick, rq);
 		return;
 	}
+
+	if (steal_account_process_tick())
+		return;
 
 	if (user_tick)
 		account_user_time(p, cputime_one_jiffy, one_jiffy_scaled);
