@@ -40,7 +40,7 @@ static struct req {
 	struct completion done;
 	int err;
 	const char *name;
-	mode_t mode;	/* 0 => delete */
+	umode_t mode;	/* 0 => delete */
 	struct device *dev;
 } *requests;
 

@@ -198,7 +198,7 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 	if (MAJOR(dev->devt)) {
 		const char *tmp;
 		const char *name;
-		mode_t mode = 0;
+		umode_t mode = 0;
 
 		add_uevent_var(env, "MAJOR=%u", MAJOR(dev->devt));
 		add_uevent_var(env, "MINOR=%u", MINOR(dev->devt));
@@ -1182,7 +1182,7 @@ static struct device *next_device(struct klist_iter *i)
  * freed by the caller.
  */
 const char *device_get_devnode(struct device *dev,
-			       mode_t *mode, const char **tmp)
+			       umode_t *mode, const char **tmp)
 {
 	char *s;
 
