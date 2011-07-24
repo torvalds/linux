@@ -185,8 +185,6 @@ static void dlm_purge_lockres(struct dlm_ctxt *dlm,
 		/* clear our bit from the master's refmap, ignore errors */
 		ret = dlm_drop_lockres_ref(dlm, res);
 		if (ret < 0) {
-			mlog(ML_ERROR, "%s: deref %.*s failed %d\n", dlm->name,
-			     res->lockname.len, res->lockname.name, ret);
 			if (!dlm_is_host_down(ret))
 				BUG();
 		}

@@ -319,27 +319,23 @@ static enum dlm_status dlm_send_remote_lock_request(struct dlm_ctxt *dlm,
 	tmpret = o2net_send_message(DLM_CREATE_LOCK_MSG, dlm->key, &create,
 				    sizeof(create), res->owner, &status);
 	if (tmpret >= 0) {
-		// successfully sent and received
-		ret = status;  // this is already a dlm_status
+		ret = status;
 		if (ret == DLM_REJECTED) {
-			mlog(ML_ERROR, "%s:%.*s: BUG.  this is a stale lockres "
-			     "no longer owned by %u.  that node is coming back "
-			     "up currently.\n", dlm->name, create.namelen,
+			mlog(ML_ERROR, "%s: res %.*s, Stale lockres no longer "
+			     "owned by node %u. That node is coming back up "
+			     "currently.\n", dlm->name, create.namelen,
 			     create.name, res->owner);
 			dlm_print_one_lock_resource(res);
 			BUG();
 		}
 	} else {
-		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
-		     "node %u\n", tmpret, DLM_CREATE_LOCK_MSG, dlm->key,
-		     res->owner);
-		if (dlm_is_host_down(tmpret)) {
+		mlog(ML_ERROR, "%s: res %.*s, Error %d send CREATE LOCK to "
+		     "node %u\n", dlm->name, create.namelen, create.name,
+		     tmpret, res->owner);
+		if (dlm_is_host_down(tmpret))
 			ret = DLM_RECOVERING;
-			mlog(0, "node %u died so returning DLM_RECOVERING "
-			     "from lock message!\n", res->owner);
-		} else {
+		else
 			ret = dlm_err_to_dlm_status(tmpret);
-		}
 	}
 
 	return ret;
