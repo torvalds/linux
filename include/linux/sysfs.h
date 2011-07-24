@@ -25,7 +25,7 @@ enum kobj_ns_type;
 
 struct attribute {
 	const char		*name;
-	mode_t			mode;
+	umode_t			mode;
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 	struct lock_class_key	*key;
 	struct lock_class_key	skey;
