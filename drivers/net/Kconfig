@@ -359,17 +359,6 @@ config ADAPTEC_STARFIRE
 	  To compile this driver as a module, choose M here: the module
 	  will be called starfire.  This is recommended.
 
-config FORCEDETH
-	tristate "nForce Ethernet support"
-	depends on NET_PCI && PCI
-	help
-	  If you have a network (Ethernet) controller of this type, say Y and
-	  read the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called forcedeth.
-
 config NET_POCKET
 	bool "Pocket and portable adapters"
 	depends on PARPORT
