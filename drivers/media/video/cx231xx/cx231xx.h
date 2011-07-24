@@ -43,7 +43,7 @@
 #include "cx231xx-conf-reg.h"
 
 #define DRIVER_NAME                     "cx231xx"
-#define PWR_SLEEP_INTERVAL              5
+#define PWR_SLEEP_INTERVAL              10
 
 /* I2C addresses for control block in Cx231xx */
 #define     AFE_DEVICE_ADDRESS		0x60
