@@ -379,19 +379,6 @@ config FEALNX
 	  Say Y here to support the Myson MTD-800 family of PCI-based Ethernet 
 	  cards. <http://www.myson.com.tw/>
 
-config R6040
-	tristate "RDC R6040 Fast Ethernet Adapter support"
-	depends on NET_PCI && PCI
-	select CRC32
-	select MII
-	select PHYLIB
-	help
-	  This is a driver for the R6040 Fast Ethernet MACs found in the
-	  the RDC R-321x System-on-chips.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called r6040. This is recommended.
-
 config NET_POCKET
 	bool "Pocket and portable adapters"
 	depends on PARPORT
