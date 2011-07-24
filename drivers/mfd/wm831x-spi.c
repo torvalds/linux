@@ -23,29 +23,12 @@
 
 static int __devinit wm831x_spi_probe(struct spi_device *spi)
 {
+	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct wm831x *wm831x;
 	enum wm831x_parent type;
 	int ret;
 
-	/* Currently SPI support for ID tables is unmerged, we're faking it */
-	if (strcmp(spi->modalias, "wm8310") == 0)
-		type = WM8310;
-	else if (strcmp(spi->modalias, "wm8311") == 0)
-		type = WM8311;
-	else if (strcmp(spi->modalias, "wm8312") == 0)
-		type = WM8312;
-	else if (strcmp(spi->modalias, "wm8320") == 0)
-		type = WM8320;
-	else if (strcmp(spi->modalias, "wm8321") == 0)
-		type = WM8321;
-	else if (strcmp(spi->modalias, "wm8325") == 0)
-		type = WM8325;
-	else if (strcmp(spi->modalias, "wm8326") == 0)
-		type = WM8326;
-	else {
-		dev_err(&spi->dev, "Unknown device type\n");
-		return -EINVAL;
-	}
+	type = (enum wm831x_parent)id->driver_data;
 
 	wm831x = kzalloc(sizeof(struct wm831x), GFP_KERNEL);
 	if (wm831x == NULL)
@@ -57,7 +40,7 @@ static int __devinit wm831x_spi_probe(struct spi_device *spi)
 	dev_set_drvdata(&spi->dev, wm831x);
 	wm831x->dev = &spi->dev;
 
-	wm831x->regmap = regmap_init_spi(wm831x->dev, &wm831x_regmap_config);
+	wm831x->regmap = regmap_init_spi(spi, &wm831x_regmap_config);
 	if (IS_ERR(wm831x->regmap)) {
 		ret = PTR_ERR(wm831x->regmap);
 		dev_err(wm831x->dev, "Failed to allocate register map: %d\n",
@@ -90,79 +73,26 @@ static const struct dev_pm_ops wm831x_spi_pm = {
 	.suspend = wm831x_spi_suspend,
 };
 
-static struct spi_driver wm8310_spi_driver = {
-	.driver = {
-		.name	= "wm8310",
-		.bus	= &spi_bus_type,
-		.owner	= THIS_MODULE,
-		.pm	= &wm831x_spi_pm,
-	},
-	.probe		= wm831x_spi_probe,
-	.remove		= __devexit_p(wm831x_spi_remove),
+static const struct spi_device_id wm831x_spi_ids[] = {
+	{ "wm8310", WM8310 },
+	{ "wm8311", WM8311 },
+	{ "wm8312", WM8312 },
+	{ "wm8320", WM8320 },
+	{ "wm8321", WM8321 },
+	{ "wm8325", WM8325 },
+	{ "wm8326", WM8326 },
+	{ },
 };
+MODULE_DEVICE_TABLE(spi, wm831x_spi_id);
 
-static struct spi_driver wm8311_spi_driver = {
+static struct spi_driver wm831x_spi_driver = {
 	.driver = {
-		.name	= "wm8311",
+		.name	= "wm831x",
 		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 		.pm	= &wm831x_spi_pm,
 	},
-	.probe		= wm831x_spi_probe,
-	.remove		= __devexit_p(wm831x_spi_remove),
-};
-
-static struct spi_driver wm8312_spi_driver = {
-	.driver = {
-		.name	= "wm8312",
-		.bus	= &spi_bus_type,
-		.owner	= THIS_MODULE,
-		.pm	= &wm831x_spi_pm,
-	},
-	.probe		= wm831x_spi_probe,
-	.remove		= __devexit_p(wm831x_spi_remove),
-};
-
-static struct spi_driver wm8320_spi_driver = {
-	.driver = {
-		.name	= "wm8320",
-		.bus	= &spi_bus_type,
-		.owner	= THIS_MODULE,
-		.pm	= &wm831x_spi_pm,
-	},
-	.probe		= wm831x_spi_probe,
-	.remove		= __devexit_p(wm831x_spi_remove),
-};
-
-static struct spi_driver wm8321_spi_driver = {
-	.driver = {
-		.name	= "wm8321",
-		.bus	= &spi_bus_type,
-		.owner	= THIS_MODULE,
-		.pm	= &wm831x_spi_pm,
-	},
-	.probe		= wm831x_spi_probe,
-	.remove		= __devexit_p(wm831x_spi_remove),
-};
-
-static struct spi_driver wm8325_spi_driver = {
-	.driver = {
-		.name	= "wm8325",
-		.bus	= &spi_bus_type,
-		.owner	= THIS_MODULE,
-		.pm	= &wm831x_spi_pm,
-	},
-	.probe		= wm831x_spi_probe,
-	.remove		= __devexit_p(wm831x_spi_remove),
-};
-
-static struct spi_driver wm8326_spi_driver = {
-	.driver = {
-		.name	= "wm8326",
-		.bus	= &spi_bus_type,
-		.owner	= THIS_MODULE,
-		.pm	= &wm831x_spi_pm,
-	},
+	.id_table	= wm831x_spi_ids,
 	.probe		= wm831x_spi_probe,
 	.remove		= __devexit_p(wm831x_spi_remove),
 };
@@ -171,33 +101,9 @@ static int __init wm831x_spi_init(void)
 {
 	int ret;
 
-	ret = spi_register_driver(&wm8310_spi_driver);
+	ret = spi_register_driver(&wm831x_spi_driver);
 	if (ret != 0)
-		pr_err("Failed to register WM8310 SPI driver: %d\n", ret);
-
-	ret = spi_register_driver(&wm8311_spi_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM8311 SPI driver: %d\n", ret);
-
-	ret = spi_register_driver(&wm8312_spi_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM8312 SPI driver: %d\n", ret);
-
-	ret = spi_register_driver(&wm8320_spi_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM8320 SPI driver: %d\n", ret);
-
-	ret = spi_register_driver(&wm8321_spi_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM8321 SPI driver: %d\n", ret);
-
-	ret = spi_register_driver(&wm8325_spi_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM8325 SPI driver: %d\n", ret);
-
-	ret = spi_register_driver(&wm8326_spi_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM8326 SPI driver: %d\n", ret);
+		pr_err("Failed to register WM831x SPI driver: %d\n", ret);
 
 	return 0;
 }
@@ -205,13 +111,7 @@ subsys_initcall(wm831x_spi_init);
 
 static void __exit wm831x_spi_exit(void)
 {
-	spi_unregister_driver(&wm8326_spi_driver);
-	spi_unregister_driver(&wm8325_spi_driver);
-	spi_unregister_driver(&wm8321_spi_driver);
-	spi_unregister_driver(&wm8320_spi_driver);
-	spi_unregister_driver(&wm8312_spi_driver);
-	spi_unregister_driver(&wm8311_spi_driver);
-	spi_unregister_driver(&wm8310_spi_driver);
+	spi_unregister_driver(&wm831x_spi_driver);
 }
 module_exit(wm831x_spi_exit);
 
