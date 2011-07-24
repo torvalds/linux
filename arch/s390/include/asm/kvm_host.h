@@ -174,6 +174,10 @@ struct kvm_s390_prefix_info {
 	__u32 address;
 };
 
+struct kvm_s390_emerg_info {
+	__u16 code;
+};
+
 struct kvm_s390_interrupt_info {
 	struct list_head list;
 	u64	type;
@@ -181,6 +185,7 @@ struct kvm_s390_interrupt_info {
 		struct kvm_s390_io_info io;
 		struct kvm_s390_ext_info ext;
 		struct kvm_s390_pgm_info pgm;
+		struct kvm_s390_emerg_info emerg;
 		struct kvm_s390_prefix_info prefix;
 	};
 };
