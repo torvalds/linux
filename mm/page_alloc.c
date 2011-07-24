@@ -1408,7 +1408,7 @@ static int should_fail_alloc_page(gfp_t gfp_mask, unsigned int order)
 
 static int __init fail_page_alloc_debugfs(void)
 {
-	mode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
+	umode_t mode = S_IFREG | S_IRUSR | S_IWUSR;
 	struct dentry *dir;
 
 	dir = fault_create_debugfs_attr("fail_page_alloc", NULL,

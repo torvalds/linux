@@ -2000,7 +2000,7 @@ static const struct file_operations interfaces_proc_fops = {
  */
 struct cxgb4vf_debugfs_entry {
 	const char *name;		/* name of debugfs node */
-	mode_t mode;			/* file system mode */
+	umode_t mode;			/* file system mode */
 	const struct file_operations *fops;
 };
 

@@ -1073,7 +1073,7 @@ static const struct file_operations dasd_stats_global_fops = {
 static void dasd_profile_init(struct dasd_profile *profile,
 			      struct dentry *base_dentry)
 {
-	mode_t mode;
+	umode_t mode;
 	struct dentry *pde;
 
 	if (!base_dentry)
@@ -1112,7 +1112,7 @@ static void dasd_statistics_removeroot(void)
 
 static void dasd_statistics_createroot(void)
 {
-	mode_t mode;
+	umode_t mode;
 	struct dentry *pde;
 
 	dasd_debugfs_root_entry = NULL;
