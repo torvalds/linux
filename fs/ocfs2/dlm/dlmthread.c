@@ -94,7 +94,13 @@ int __dlm_lockres_unused(struct dlm_lock_resource *res)
 {
 	int bit;
 
+	assert_spin_locked(&res->spinlock);
+
 	if (__dlm_lockres_has_locks(res))
+		return 0;
+
+	/* Locks are in the process of being created */
+	if (res->inflight_locks)
 		return 0;
 
 	if (!list_empty(&res->dirty) || res->state & DLM_LOCK_RES_DIRTY)
@@ -103,15 +109,11 @@ int __dlm_lockres_unused(struct dlm_lock_resource *res)
 	if (res->state & DLM_LOCK_RES_RECOVERING)
 		return 0;
 
+	/* Another node has this resource with this node as the master */
 	bit = find_next_bit(res->refmap, O2NM_MAX_NODES, 0);
 	if (bit < O2NM_MAX_NODES)
 		return 0;
 
-	/*
-	 * since the bit for dlm->node_num is not set, inflight_locks better
-	 * be zero
-	 */
-	BUG_ON(res->inflight_locks != 0);
 	return 1;
 }
 

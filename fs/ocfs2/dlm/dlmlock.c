@@ -183,10 +183,6 @@ static enum dlm_status dlmlock_master(struct dlm_ctxt *dlm,
 			kick_thread = 1;
 		}
 	}
-	/* reduce the inflight count, this may result in the lockres
-	 * being purged below during calc_usage */
-	if (lock->ml.node == dlm->node_num)
-		dlm_lockres_drop_inflight_ref(dlm, res);
 
 	spin_unlock(&res->spinlock);
 	wake_up(&res->wq);
@@ -736,6 +732,14 @@ retry_lock:
 				goto retry_lock;
 			}
 		}
+
+		/* Inflight taken in dlm_get_lock_resource() is dropped here */
+		spin_lock(&res->spinlock);
+		dlm_lockres_drop_inflight_ref(dlm, res);
+		spin_unlock(&res->spinlock);
+
+		dlm_lockres_calc_usage(dlm, res);
+		dlm_kick_thread(dlm, res);
 
 		if (status != DLM_NORMAL) {
 			lock->lksb->flags &= ~DLM_LKSB_GET_LVB;
