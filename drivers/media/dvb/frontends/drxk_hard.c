@@ -5382,18 +5382,16 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 		  s32 tunerFreqOffset)
 {
 	int status;
-	u8 parameterLen;
-	u16 setEnvParameters[5] = { 0, 0, 0, 0, 0 };
 	u16 setParamParameters[4] = { 0, 0, 0, 0 };
 	u16 cmdResult;
 
 	dprintk(1, "\n");
 	/*
-		STEP 1: reset demodulator
-		resets FEC DI and FEC RS
-		resets QAM block
-		resets SCU variables
-		*/
+	 * STEP 1: reset demodulator
+	 *	resets FEC DI and FEC RS
+	 *	resets QAM block
+	 *	resets SCU variables
+	 */
 	status = write16(state, FEC_DI_COMM_EXEC__A, FEC_DI_COMM_EXEC_STOP);
 	if (status < 0)
 		goto error;
@@ -5405,22 +5403,13 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 		goto error;
 
 	/*
-		STEP 2: configure demodulator
-		-set env
-		-set params; resets IQM,QAM,FEC HW; initializes some SCU variables
-		*/
+	 * STEP 2: configure demodulator
+	 *	-set params; resets IQM,QAM,FEC HW; initializes some
+	 *       SCU variables
+	 */
 	status = QAMSetSymbolrate(state);
 	if (status < 0)
 		goto error;
-
-	/* Env parameters */
-	setEnvParameters[2] = QAM_TOP_ANNEX_A;	/* Annex */
-	if (state->m_OperationMode == OM_QAM_ITU_C)
-		setEnvParameters[2] = QAM_TOP_ANNEX_C;	/* Annex */
-	setParamParameters[3] |= (QAM_MIRROR_AUTO_ON);
-	/* check for LOCKRANGE Extented */
-	/* setParamParameters[3] |= QAM_LOCKRANGE_NORMAL; */
-	parameterLen = 4;
 
 	/* Set params */
 	switch (state->param.u.qam.modulation) {
@@ -5448,30 +5437,37 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 		goto error;
 	setParamParameters[0] = state->m_Constellation;	/* constellation     */
 	setParamParameters[1] = DRXK_QAM_I12_J17;	/* interleave mode   */
+	if (state->m_OperationMode == OM_QAM_ITU_C)
+		setParamParameters[2] = QAM_TOP_ANNEX_C;
+	else
+		setParamParameters[2] = QAM_TOP_ANNEX_A;
+	setParamParameters[3] |= (QAM_MIRROR_AUTO_ON);
+	/* Env parameters */
+	/* check for LOCKRANGE Extented */
+	/* setParamParameters[3] |= QAM_LOCKRANGE_NORMAL; */
 
 	status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM, 4, setParamParameters, 1, &cmdResult);
 	if (status < 0) {
 		/* Fall-back to the simpler call */
-		setParamParameters[0] = QAM_TOP_ANNEX_A;
 		if (state->m_OperationMode == OM_QAM_ITU_C)
-			setEnvParameters[0] = QAM_TOP_ANNEX_C;	/* Annex */
+			setParamParameters[0] = QAM_TOP_ANNEX_C;
 		else
-			setEnvParameters[0] = 0;
-
-		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_ENV, 1, setEnvParameters, 1, &cmdResult);
-	if (status < 0)
-		goto error;
+			setParamParameters[0] = QAM_TOP_ANNEX_A;
+		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_ENV, 1, setParamParameters, 1, &cmdResult);
+		if (status < 0)
+			goto error;
 
 		setParamParameters[0] = state->m_Constellation; /* constellation     */
 		setParamParameters[1] = DRXK_QAM_I12_J17;       /* interleave mode   */
-
 		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM, 2, setParamParameters, 1, &cmdResult);
 	}
 	if (status < 0)
 		goto error;
 
-	/* STEP 3: enable the system in a mode where the ADC provides valid signal
-		setup constellation independent registers */
+	/*
+	 * STEP 3: enable the system in a mode where the ADC provides valid
+	 * signal setup constellation independent registers
+	 */
 #if 0
 	status = SetFrequency(channel, tunerFreqOffset));
 	if (status < 0)
