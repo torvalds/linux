@@ -33,6 +33,7 @@
 #include <linux/i2c-gpio.h>
 
 #include <asm/mach-types.h>
+#include <asm/suspend.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 

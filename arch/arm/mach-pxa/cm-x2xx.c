@@ -518,4 +518,7 @@ MACHINE_START(ARMCORE, "Compulab CM-X2XX")
 	.init_irq	= cmx2xx_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= cmx2xx_init,
+#ifdef CONFIG_PCI
+	.dma_zone_size	= SZ_64M,
+#endif
 MACHINE_END
