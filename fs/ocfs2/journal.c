@@ -1544,9 +1544,9 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 	/* we need to run complete recovery for offline orphan slots */
 	ocfs2_replay_map_set_state(osb, REPLAY_NEEDED);
 
-	mlog(ML_NOTICE, "Recovering node %d from slot %d on device (%u,%u)\n",
-	     node_num, slot_num,
-	     MAJOR(osb->sb->s_dev), MINOR(osb->sb->s_dev));
+	printk(KERN_NOTICE "ocfs2: Begin replay journal (node %d, slot %d) on "\
+	       "device (%u,%u)\n", node_num, slot_num, MAJOR(osb->sb->s_dev),
+	       MINOR(osb->sb->s_dev));
 
 	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters);
 
@@ -1601,6 +1601,9 @@ static int ocfs2_replay_journal(struct ocfs2_super *osb,
 
 	jbd2_journal_destroy(journal);
 
+	printk(KERN_NOTICE "ocfs2: End replay journal (node %d, slot %d) on "\
+	       "device (%u,%u)\n", node_num, slot_num, MAJOR(osb->sb->s_dev),
+	       MINOR(osb->sb->s_dev));
 done:
 	/* drop the lock on this nodes journal */
 	if (got_lock)

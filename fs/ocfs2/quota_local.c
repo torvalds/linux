@@ -404,7 +404,9 @@ struct ocfs2_quota_recovery *ocfs2_begin_quota_recovery(
 	int status = 0;
 	struct ocfs2_quota_recovery *rec;
 
-	mlog(ML_NOTICE, "Beginning quota recovery in slot %u\n", slot_num);
+	printk(KERN_NOTICE "ocfs2: Beginning quota recovery on device (%s) for "
+	       "slot %u\n", osb->dev_str, slot_num);
+
 	rec = ocfs2_alloc_quota_recovery();
 	if (!rec)
 		return ERR_PTR(-ENOMEM);
@@ -596,7 +598,9 @@ int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
 	struct inode *lqinode;
 	unsigned int flags;
 
-	mlog(ML_NOTICE, "Finishing quota recovery in slot %u\n", slot_num);
+	printk(KERN_NOTICE "ocfs2: Finishing quota recovery on device (%s) for "
+	       "slot %u\n", osb->dev_str, slot_num);
+
 	mutex_lock(&sb_dqopt(sb)->dqonoff_mutex);
 	for (type = 0; type < MAXQUOTAS; type++) {
 		if (list_empty(&(rec->r_list[type])))
@@ -612,8 +616,9 @@ int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
 		/* Someone else is holding the lock? Then he must be
 		 * doing the recovery. Just skip the file... */
 		if (status == -EAGAIN) {
-			mlog(ML_NOTICE, "skipping quota recovery for slot %d "
-			     "because quota file is locked.\n", slot_num);
+			printk(KERN_NOTICE "ocfs2: Skipping quota recovery on "
+			       "device (%s) for slot %d because quota file is "
+			       "locked.\n", osb->dev_str, slot_num);
 			status = 0;
 			goto out_put;
 		} else if (status < 0) {
