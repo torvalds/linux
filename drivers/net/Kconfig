@@ -274,23 +274,6 @@ config DM9000_FORCE_SIMPLE_PHY_POLL
 	  costly MII PHY reads. Note, this will not work if the chip is
 	  operating with an external PHY.
 
-config ENC28J60
-	tristate "ENC28J60 support"
-	depends on EXPERIMENTAL && SPI && NET_ETHERNET
-	select CRC32
-	---help---
-	  Support for the Microchip EN28J60 ethernet chip.
-
-	  To compile this driver as a module, choose M here. The module will be
-	  called enc28j60.
-
-config ENC28J60_WRITEVERIFY
-	bool "Enable write verify"
-	depends on ENC28J60
-	---help---
-	  Enable the verify after the buffer write useful for debugging purpose.
-	  If unsure, say N.
-
 config NET_PCI
 	bool "EISA, VLB, PCI and on board controllers"
 	depends on ISA || EISA || PCI
