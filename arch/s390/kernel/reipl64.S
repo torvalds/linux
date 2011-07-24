@@ -4,6 +4,7 @@
  *		 Denis Joseph Barrow,
  */
 
+#include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 
 #
@@ -11,8 +12,8 @@
 # Parameter: r2 = schid of reipl device
 #
 
-		.globl	do_reipl_asm
-do_reipl_asm:	basr	%r13,0
+ENTRY(do_reipl_asm)
+		basr	%r13,0
 .Lpg0:		lpswe	.Lnewpsw-.Lpg0(%r13)
 .Lpg1:		# do store status of all registers
 
