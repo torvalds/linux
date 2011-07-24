@@ -2279,6 +2279,7 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
+#ifdef CONFIG_PM
 static int iwlagn_send_patterns(struct iwl_priv *priv,
 				struct cfg80211_wowlan *wowlan)
 {
@@ -2320,6 +2321,7 @@ static int iwlagn_send_patterns(struct iwl_priv *priv,
 	kfree(pattern_cmd);
 	return err;
 }
+#endif
 
 static void iwlagn_mac_set_rekey_data(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
@@ -2352,6 +2354,7 @@ struct wowlan_key_data {
 	bool error, use_rsc_tsc, use_tkip;
 };
 
+#ifdef CONFIG_PM
 static void iwlagn_convert_p1k(u16 *p1k, __le16 *out)
 {
 	int i;
@@ -2739,6 +2742,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 	return 1;
 }
+#endif
 
 static void iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
@@ -3461,8 +3465,10 @@ struct ieee80211_ops iwlagn_hw_ops = {
 	.tx = iwlagn_mac_tx,
 	.start = iwlagn_mac_start,
 	.stop = iwlagn_mac_stop,
+#ifdef CONFIG_PM
 	.suspend = iwlagn_mac_suspend,
 	.resume = iwlagn_mac_resume,
+#endif
 	.add_interface = iwl_mac_add_interface,
 	.remove_interface = iwl_mac_remove_interface,
 	.change_interface = iwl_mac_change_interface,
