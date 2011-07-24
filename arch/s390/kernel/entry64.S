@@ -9,8 +9,8 @@
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
-#include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/linkage.h>
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/ptrace.h>
@@ -219,8 +219,7 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
  * Returns:
  *  gpr2 = prev
  */
-	.globl	__switch_to
-__switch_to:
+ENTRY(__switch_to)
 	lg	%r4,__THREAD_info(%r2)		# get thread_info of prev
 	lg	%r5,__THREAD_info(%r3)		# get thread_info of next
 	tm	__TI_flags+7(%r4),_TIF_MCCK_PENDING # machine check pending?
@@ -245,8 +244,7 @@ __critical_start:
  * are executed with interrupts enabled.
  */
 
-	.globl	system_call
-system_call:
+ENTRY(system_call)
 	stpt	__LC_SYNC_ENTER_TIMER
 sysc_saveall:
 	SAVE_ALL_SVC __LC_SVC_OLD_PSW,__LC_SAVE_AREA
@@ -408,8 +406,7 @@ sysc_tracenogo:
 #
 # a new process exits the kernel with ret_from_fork
 #
-	.globl	ret_from_fork
-ret_from_fork:
+ENTRY(ret_from_fork)
 	lg	%r13,__LC_SVC_NEW_PSW+8
 	lg	%r12,__LC_THREAD_INFO	# load pointer to thread_info struct
 	tm	SP_PSW+1(%r15),0x01	# forking a kernel thread ?
@@ -424,8 +421,7 @@ ret_from_fork:
 # kernel_execve function needs to deal with pt_regs that is not
 # at the usual place
 #
-	.globl	kernel_execve
-kernel_execve:
+ENTRY(kernel_execve)
 	stmg	%r12,%r15,96(%r15)
 	lgr	%r14,%r15
 	aghi	%r15,-SP_SIZE
@@ -455,8 +451,7 @@ kernel_execve:
  * Program check handler routine
  */
 
-	.globl	pgm_check_handler
-pgm_check_handler:
+ENTRY(pgm_check_handler)
 /*
  * First we need to check for a special case:
  * Single stepping an instruction that disables the PER event mask will
@@ -584,8 +579,7 @@ kernel_per:
 /*
  * IO interrupt handler routine
  */
-	.globl io_int_handler
-io_int_handler:
+ENTRY(io_int_handler)
 	stck	__LC_INT_CLOCK
 	stpt	__LC_ASYNC_ENTER_TIMER
 	SAVE_ALL_ASYNC __LC_IO_OLD_PSW,__LC_SAVE_AREA+40
@@ -719,8 +713,7 @@ io_notify_resume:
 /*
  * External interrupt handler routine
  */
-	.globl	ext_int_handler
-ext_int_handler:
+ENTRY(ext_int_handler)
 	stck	__LC_INT_CLOCK
 	stpt	__LC_ASYNC_ENTER_TIMER
 	SAVE_ALL_ASYNC __LC_EXT_OLD_PSW,__LC_SAVE_AREA+40
@@ -749,8 +742,7 @@ __critical_end:
 /*
  * Machine check handler routines
  */
-	.globl mcck_int_handler
-mcck_int_handler:
+ENTRY(mcck_int_handler)
 	stck	__LC_MCCK_CLOCK
 	la	%r1,4095		# revalidate r1
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# revalidate cpu timer
@@ -836,8 +828,7 @@ mcck_done:
  */
 #ifdef CONFIG_SMP
 	__CPUINIT
-	.globl restart_int_handler
-restart_int_handler:
+ENTRY(restart_int_handler)
 	basr	%r1,0
 restart_base:
 	spt	restart_vtime-restart_base(%r1)
@@ -864,8 +855,7 @@ restart_vtime:
 /*
  * If we do not run with SMP enabled, let the new CPU crash ...
  */
-	.globl restart_int_handler
-restart_int_handler:
+ENTRY(restart_int_handler)
 	basr	%r1,0
 restart_base:
 	lpswe	restart_crash-restart_base(%r1)
@@ -1055,8 +1045,7 @@ cleanup_io_restore_insn:
  * %r2 pointer to sie control block
  * %r3 guest register save area
  */
-	.globl	sie64a
-sie64a:
+ENTRY(sie64a)
 	stmg	%r6,%r14,__SF_GPRS(%r15)	# save kernel registers
 	stg	%r2,__SF_EMPTY(%r15)		# save control block pointer
 	stg	%r3,__SF_EMPTY+8(%r15)		# save guest register save area

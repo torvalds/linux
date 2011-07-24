@@ -11,13 +11,13 @@
  */
 
 #include <linux/init.h>
+#include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
 
 __HEAD
-	.globl	startup_continue
-startup_continue:
+ENTRY(startup_continue)
 	basr	%r13,0			# get base
 .LPG1:
 
@@ -78,8 +78,7 @@ startup_continue:
 .Lbase_cc:
 	.long	sched_clock_base_cc
 
-	.globl	_ehead
-_ehead:
+ENTRY(_ehead)
 
 #ifdef CONFIG_SHARED_KERNEL
 	.org	0x100000 - 0x11000	# head.o ends at 0x11000
@@ -88,8 +87,8 @@ _ehead:
 #
 # startup-code, running in absolute addressing mode
 #
-	.globl	_stext
-_stext:	basr	%r13,0			# get base
+ENTRY(_stext)
+	basr	%r13,0			# get base
 .LPG3:
 # check control registers
 	stctl	%c0,%c15,0(%r15)
