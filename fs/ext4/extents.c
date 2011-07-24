@@ -2019,7 +2019,7 @@ ext4_ext_put_gap_in_cache(struct inode *inode, struct ext4_ext_path *path,
 }
 
 /*
- * ext4_ext_in_cache()
+ * ext4_ext_check_cache()
  * Checks to see if the given block is in the cache.
  * If it is, the cached extent is stored in the given
  * cache extent pointer.  If the cached extent is a hole,
