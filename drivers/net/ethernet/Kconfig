@@ -23,6 +23,18 @@ source "drivers/net/ethernet/brocade/Kconfig"
 source "drivers/net/ethernet/chelsio/Kconfig"
 source "drivers/net/ethernet/cirrus/Kconfig"
 source "drivers/net/ethernet/cisco/Kconfig"
+
+config DNET
+	tristate "Dave ethernet support (DNET)"
+	depends on HAS_IOMEM
+	select PHYLIB
+	---help---
+	  The Dave ethernet interface (DNET) is found on Qong Board FPGA.
+	  Say Y to include support for the DNET chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called dnet.
+
 source "drivers/net/ethernet/dec/Kconfig"
 source "drivers/net/ethernet/dlink/Kconfig"
 source "drivers/net/ethernet/emulex/Kconfig"

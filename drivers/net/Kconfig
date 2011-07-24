@@ -309,17 +309,6 @@ config GRETH
 	help
 	  Say Y here if you want to use the Aeroflex Gaisler GRETH Ethernet MAC.
 
-config DNET
-	tristate "Dave ethernet support (DNET)"
-	depends on NET_ETHERNET && HAS_IOMEM
-	select PHYLIB
-	help
-	  The Dave ethernet interface (DNET) is found on Qong Board FPGA.
-	  Say Y to include support for the DNET chip.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called dnet.
-
 config NET_PCI
 	bool "EISA, VLB, PCI and on board controllers"
 	depends on ISA || EISA || PCI
