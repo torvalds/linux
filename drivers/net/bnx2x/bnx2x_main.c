@@ -8413,31 +8413,45 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 	if (!netif_running(bp->dev))
 		goto sp_rtnl_exit;
 
-	if (test_and_clear_bit(BNX2X_SP_RTNL_SETUP_TC, &bp->sp_rtnl_state))
-		bnx2x_setup_tc(bp->dev, bp->dcbx_port_params.ets.num_of_cos);
-
 	/* if stop on error is defined no recovery flows should be executed */
 #ifdef BNX2X_STOP_ON_ERROR
 	BNX2X_ERR("recovery flow called but STOP_ON_ERROR defined "
 		  "so reset not done to allow debug dump,\n"
 		  "you will need to reboot when done\n");
-	goto sp_rtnl_exit;
+	goto sp_rtnl_not_reset;
 #endif
 
 	if (unlikely(bp->recovery_state != BNX2X_RECOVERY_DONE)) {
 		/*
-		 * Clear TX_TIMEOUT bit as we are going to reset the function
-		 * anyway.
+		 * Clear all pending SP commands as we are going to reset the
+		 * function anyway.
 		 */
-		smp_mb__before_clear_bit();
-		clear_bit(BNX2X_SP_RTNL_TX_TIMEOUT, &bp->sp_rtnl_state);
-		smp_mb__after_clear_bit();
+		bp->sp_rtnl_state = 0;
+		smp_mb();
+
 		bnx2x_parity_recover(bp);
-	} else if (test_and_clear_bit(BNX2X_SP_RTNL_TX_TIMEOUT,
-				    &bp->sp_rtnl_state)){
+
+		goto sp_rtnl_exit;
+	}
+
+	if (test_and_clear_bit(BNX2X_SP_RTNL_TX_TIMEOUT, &bp->sp_rtnl_state)) {
+		/*
+		 * Clear all pending SP commands as we are going to reset the
+		 * function anyway.
+		 */
+		bp->sp_rtnl_state = 0;
+		smp_mb();
+
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
 		bnx2x_nic_load(bp, LOAD_NORMAL);
+
+		goto sp_rtnl_exit;
 	}
+#ifdef BNX2X_STOP_ON_ERROR
+sp_rtnl_not_reset:
+#endif
+	if (test_and_clear_bit(BNX2X_SP_RTNL_SETUP_TC, &bp->sp_rtnl_state))
+		bnx2x_setup_tc(bp->dev, bp->dcbx_port_params.ets.num_of_cos);
 
 sp_rtnl_exit:
 	rtnl_unlock();
