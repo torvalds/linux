@@ -211,6 +211,13 @@ static int _regmap_raw_write(struct regmap *map, unsigned int reg,
 	void *buf;
 	int ret = -ENOTSUPP;
 	size_t len;
+	int i;
+
+	/* Check for unwritable registers before we start */
+	if (map->writeable_reg)
+		for (i = 0; i < val_len / map->format.val_bytes; i++)
+			if (!map->writeable_reg(map->dev, reg + i))
+				return -EINVAL;
 
 	map->format.format_reg(map->work_buf, reg);
 
