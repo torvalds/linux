@@ -291,14 +291,6 @@ config ENC28J60_WRITEVERIFY
 	  Enable the verify after the buffer write useful for debugging purpose.
 	  If unsure, say N.
 
-config GRETH
-	tristate "Aeroflex Gaisler GRETH Ethernet MAC support"
-	depends on SPARC
-	select PHYLIB
-	select CRC32
-	help
-	  Say Y here if you want to use the Aeroflex Gaisler GRETH Ethernet MAC.
-
 config NET_PCI
 	bool "EISA, VLB, PCI and on board controllers"
 	depends on ISA || EISA || PCI
