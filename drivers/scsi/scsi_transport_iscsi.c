@@ -32,8 +32,6 @@
 #include <scsi/iscsi_if.h>
 #include <scsi/scsi_cmnd.h>
 
-#define ISCSI_SESSION_ATTRS 23
-#define ISCSI_CONN_ATTRS 13
 #define ISCSI_HOST_ATTRS 4
 
 #define ISCSI_TRANSPORT_VERSION "2.0-870"
@@ -79,7 +77,6 @@ struct iscsi_internal {
 	struct device_attribute *host_attrs[ISCSI_HOST_ATTRS + 1];
 	struct transport_container conn_cont;
 	struct transport_container session_cont;
-	struct device_attribute *session_attrs[ISCSI_SESSION_ATTRS + 1];
 };
 
 static atomic_t iscsi_session_nr; /* sysfs session id for next new session */
@@ -2114,7 +2111,6 @@ show_session_param_##param(struct device *dev,				\
 	iscsi_session_attr_show(param, perm)				\
 static ISCSI_CLASS_ATTR(sess, field, S_IRUGO, show_session_param_##param, \
 			NULL);
-
 iscsi_session_attr(targetname, ISCSI_PARAM_TARGET_NAME, 0);
 iscsi_session_attr(initial_r2t, ISCSI_PARAM_INITIAL_R2T_EN, 0);
 iscsi_session_attr(max_outstanding_r2t, ISCSI_PARAM_MAX_R2T, 0);
@@ -2191,6 +2187,100 @@ static ISCSI_CLASS_ATTR(priv_sess, field, S_IRUGO | S_IWUSR,		\
 			store_priv_session_##field)
 iscsi_priv_session_rw_attr(recovery_tmo, "%d");
 
+static struct attribute *iscsi_session_attrs[] = {
+	&dev_attr_sess_initial_r2t.attr,
+	&dev_attr_sess_max_outstanding_r2t.attr,
+	&dev_attr_sess_immediate_data.attr,
+	&dev_attr_sess_first_burst_len.attr,
+	&dev_attr_sess_max_burst_len.attr,
+	&dev_attr_sess_data_pdu_in_order.attr,
+	&dev_attr_sess_data_seq_in_order.attr,
+	&dev_attr_sess_erl.attr,
+	&dev_attr_sess_targetname.attr,
+	&dev_attr_sess_tpgt.attr,
+	&dev_attr_sess_password.attr,
+	&dev_attr_sess_password_in.attr,
+	&dev_attr_sess_username.attr,
+	&dev_attr_sess_username_in.attr,
+	&dev_attr_sess_fast_abort.attr,
+	&dev_attr_sess_abort_tmo.attr,
+	&dev_attr_sess_lu_reset_tmo.attr,
+	&dev_attr_sess_tgt_reset_tmo.attr,
+	&dev_attr_sess_ifacename.attr,
+	&dev_attr_sess_initiatorname.attr,
+	&dev_attr_sess_targetalias.attr,
+	&dev_attr_priv_sess_recovery_tmo.attr,
+	&dev_attr_priv_sess_state.attr,
+	NULL,
+};
+
+static mode_t iscsi_session_attr_is_visible(struct kobject *kobj,
+					    struct attribute *attr, int i)
+{
+	struct device *cdev = container_of(kobj, struct device, kobj);
+	struct iscsi_cls_session *session = transport_class_to_session(cdev);
+	struct iscsi_transport *t = session->transport;
+	int param;
+
+	if (attr == &dev_attr_sess_initial_r2t.attr)
+		param = ISCSI_PARAM_INITIAL_R2T_EN;
+	else if (attr == &dev_attr_sess_max_outstanding_r2t.attr)
+		param = ISCSI_PARAM_MAX_R2T;
+	else if (attr == &dev_attr_sess_immediate_data.attr)
+		param = ISCSI_PARAM_IMM_DATA_EN;
+	else if (attr == &dev_attr_sess_first_burst_len.attr)
+		param = ISCSI_PARAM_FIRST_BURST;
+	else if (attr == &dev_attr_sess_max_burst_len.attr)
+		param = ISCSI_PARAM_MAX_BURST;
+	else if (attr == &dev_attr_sess_data_pdu_in_order.attr)
+		param = ISCSI_PARAM_PDU_INORDER_EN;
+	else if (attr == &dev_attr_sess_data_seq_in_order.attr)
+		param = ISCSI_PARAM_DATASEQ_INORDER_EN;
+	else if (attr == &dev_attr_sess_erl.attr)
+		param = ISCSI_PARAM_ERL;
+	else if (attr == &dev_attr_sess_targetname.attr)
+		param = ISCSI_PARAM_TARGET_NAME;
+	else if (attr == &dev_attr_sess_tpgt.attr)
+		param = ISCSI_PARAM_TPGT;
+	else if (attr == &dev_attr_sess_password.attr)
+		param = ISCSI_PARAM_USERNAME;
+	else if (attr == &dev_attr_sess_password_in.attr)
+		param = ISCSI_PARAM_USERNAME_IN;
+	else if (attr == &dev_attr_sess_username.attr)
+		param = ISCSI_PARAM_PASSWORD;
+	else if (attr == &dev_attr_sess_username_in.attr)
+		param = ISCSI_PARAM_PASSWORD_IN;
+	else if (attr == &dev_attr_sess_fast_abort.attr)
+		param = ISCSI_PARAM_FAST_ABORT;
+	else if (attr == &dev_attr_sess_abort_tmo.attr)
+		param = ISCSI_PARAM_ABORT_TMO;
+	else if (attr == &dev_attr_sess_lu_reset_tmo.attr)
+		param = ISCSI_PARAM_LU_RESET_TMO;
+	else if (attr == &dev_attr_sess_tgt_reset_tmo.attr)
+		param = ISCSI_PARAM_TGT_RESET_TMO;
+	else if (attr == &dev_attr_sess_ifacename.attr)
+		param = ISCSI_PARAM_IFACE_NAME;
+	else if (attr == &dev_attr_sess_initiatorname.attr)
+		param = ISCSI_PARAM_INITIATOR_NAME;
+	else if (attr == &dev_attr_sess_targetalias.attr)
+		param = ISCSI_PARAM_TARGET_ALIAS;
+	else if (attr == &dev_attr_priv_sess_recovery_tmo.attr)
+		return S_IRUGO | S_IWUSR;
+	else if (attr == &dev_attr_priv_sess_state.attr)
+		return S_IRUGO;
+	else {
+		WARN_ONCE(1, "Invalid session attr");
+		return 0;
+	}
+
+	return t->attr_is_visible(ISCSI_PARAM, param);
+}
+
+static struct attribute_group iscsi_session_group = {
+	.attrs = iscsi_session_attrs,
+	.is_visible = iscsi_session_attr_is_visible,
+};
+
 /*
  * iSCSI host attrs
  */
@@ -2213,26 +2303,6 @@ iscsi_host_attr(netdev, ISCSI_HOST_PARAM_NETDEV_NAME);
 iscsi_host_attr(hwaddress, ISCSI_HOST_PARAM_HWADDRESS);
 iscsi_host_attr(ipaddress, ISCSI_HOST_PARAM_IPADDRESS);
 iscsi_host_attr(initiatorname, ISCSI_HOST_PARAM_INITIATOR_NAME);
-
-#define SETUP_PRIV_SESSION_RD_ATTR(field)				\
-do {									\
-	priv->session_attrs[count] = &dev_attr_priv_sess_##field; \
-	count++;							\
-} while (0)
-
-#define SETUP_PRIV_SESSION_RW_ATTR(field)				\
-do {									\
-	priv->session_attrs[count] = &dev_attr_priv_sess_##field;	\
-	count++;							\
-} while (0)
-
-#define SETUP_SESSION_RD_ATTR(field, param_flag)			\
-do {									\
-	if (tt->param_mask & param_flag) {				\
-		priv->session_attrs[count] = &dev_attr_sess_##field; \
-		count++;						\
-	}								\
-} while (0)
 
 #define SETUP_HOST_RD_ATTR(field, param_flag)				\
 do {									\
@@ -2360,38 +2430,10 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	transport_container_register(&priv->conn_cont);
 
 	/* session parameters */
-	priv->session_cont.ac.attrs = &priv->session_attrs[0];
 	priv->session_cont.ac.class = &iscsi_session_class.class;
 	priv->session_cont.ac.match = iscsi_session_match;
+	priv->session_cont.ac.grp = &iscsi_session_group;
 	transport_container_register(&priv->session_cont);
-
-	SETUP_SESSION_RD_ATTR(initial_r2t, ISCSI_INITIAL_R2T_EN);
-	SETUP_SESSION_RD_ATTR(max_outstanding_r2t, ISCSI_MAX_R2T);
-	SETUP_SESSION_RD_ATTR(immediate_data, ISCSI_IMM_DATA_EN);
-	SETUP_SESSION_RD_ATTR(first_burst_len, ISCSI_FIRST_BURST);
-	SETUP_SESSION_RD_ATTR(max_burst_len, ISCSI_MAX_BURST);
-	SETUP_SESSION_RD_ATTR(data_pdu_in_order, ISCSI_PDU_INORDER_EN);
-	SETUP_SESSION_RD_ATTR(data_seq_in_order, ISCSI_DATASEQ_INORDER_EN);
-	SETUP_SESSION_RD_ATTR(erl, ISCSI_ERL);
-	SETUP_SESSION_RD_ATTR(targetname, ISCSI_TARGET_NAME);
-	SETUP_SESSION_RD_ATTR(tpgt, ISCSI_TPGT);
-	SETUP_SESSION_RD_ATTR(password, ISCSI_USERNAME);
-	SETUP_SESSION_RD_ATTR(password_in, ISCSI_USERNAME_IN);
-	SETUP_SESSION_RD_ATTR(username, ISCSI_PASSWORD);
-	SETUP_SESSION_RD_ATTR(username_in, ISCSI_PASSWORD_IN);
-	SETUP_SESSION_RD_ATTR(fast_abort, ISCSI_FAST_ABORT);
-	SETUP_SESSION_RD_ATTR(abort_tmo, ISCSI_ABORT_TMO);
-	SETUP_SESSION_RD_ATTR(lu_reset_tmo,ISCSI_LU_RESET_TMO);
-	SETUP_SESSION_RD_ATTR(tgt_reset_tmo,ISCSI_TGT_RESET_TMO);
-	SETUP_SESSION_RD_ATTR(ifacename, ISCSI_IFACE_NAME);
-	SETUP_SESSION_RD_ATTR(initiatorname, ISCSI_INITIATOR_NAME);
-	SETUP_SESSION_RD_ATTR(targetalias, ISCSI_TARGET_ALIAS);
-	SETUP_PRIV_SESSION_RW_ATTR(recovery_tmo);
-	SETUP_PRIV_SESSION_RD_ATTR(state);
-
-	BUG_ON(count > ISCSI_SESSION_ATTRS);
-	priv->session_attrs[count] = NULL;
-	count = 0;
 
 	spin_lock_irqsave(&iscsi_transport_lock, flags);
 	list_add(&priv->list, &iscsi_transports);

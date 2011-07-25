@@ -86,7 +86,6 @@ struct iscsi_transport {
 	char *name;
 	unsigned int caps;
 	/* LLD sets this to indicate what values it can export to sysfs */
-	uint64_t param_mask;
 	uint64_t host_param_mask;
 	uint64_t iface_param_mask;
 
@@ -218,6 +217,9 @@ struct iscsi_cls_session {
 
 #define iscsi_dev_to_session(_dev) \
 	container_of(_dev, struct iscsi_cls_session, dev)
+
+#define transport_class_to_session(_cdev) \
+	iscsi_dev_to_session(_cdev->parent)
 
 #define iscsi_session_to_shost(_session) \
 	dev_to_shost(_session->dev.parent)

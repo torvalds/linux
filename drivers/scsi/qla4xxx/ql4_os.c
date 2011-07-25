@@ -138,8 +138,6 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.name			= DRIVER_NAME,
 	.caps			= CAP_FW_DB | CAP_SENDTARGETS_OFFLOAD |
 				  CAP_DATA_PATH_OFFLOAD,
-	.param_mask		= ISCSI_TARGET_NAME | ISCSI_TPGT |
-				  ISCSI_TARGET_ALIAS,
 	.host_param_mask	= ISCSI_HOST_HWADDRESS |
 				  ISCSI_HOST_IPADDRESS |
 				  ISCSI_HOST_INITIATOR_NAME,
@@ -173,6 +171,9 @@ static mode_t ql4_attr_is_visible(int param_type, int param)
 		switch (param) {
 		case ISCSI_PARAM_CONN_ADDRESS:
 		case ISCSI_PARAM_CONN_PORT:
+		case ISCSI_PARAM_TARGET_NAME:
+		case ISCSI_PARAM_TPGT:
+		case ISCSI_PARAM_TARGET_ALIAS:
 			return S_IRUGO;
 		default:
 			return 0;
