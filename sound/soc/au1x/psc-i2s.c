@@ -42,13 +42,13 @@
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
 #define I2SSTAT_BUSY(stype)	\
-	((stype) == PCM_TX ? PSC_I2SSTAT_TB : PSC_I2SSTAT_RB)
+	((stype) == SNDRV_PCM_STREAM_PLAYBACK ? PSC_I2SSTAT_TB : PSC_I2SSTAT_RB)
 #define I2SPCR_START(stype)	\
-	((stype) == PCM_TX ? PSC_I2SPCR_TS : PSC_I2SPCR_RS)
+	((stype) == SNDRV_PCM_STREAM_PLAYBACK ? PSC_I2SPCR_TS : PSC_I2SPCR_RS)
 #define I2SPCR_STOP(stype)	\
-	((stype) == PCM_TX ? PSC_I2SPCR_TP : PSC_I2SPCR_RP)
+	((stype) == SNDRV_PCM_STREAM_PLAYBACK ? PSC_I2SPCR_TP : PSC_I2SPCR_RP)
 #define I2SPCR_CLRFIFO(stype)	\
-	((stype) == PCM_TX ? PSC_I2SPCR_TC : PSC_I2SPCR_RC)
+	((stype) == SNDRV_PCM_STREAM_PLAYBACK ? PSC_I2SPCR_TC : PSC_I2SPCR_RC)
 
 
 static int au1xpsc_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
@@ -240,7 +240,7 @@ static int au1xpsc_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 			       struct snd_soc_dai *dai)
 {
 	struct au1xpsc_audio_data *pscdata = snd_soc_dai_get_drvdata(dai);
-	int ret, stype = SUBSTREAM_TYPE(substream);
+	int ret, stype = substream->stream;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -316,12 +316,12 @@ static int __devinit au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!r)
 		goto out2;
-	wd->dmaids[PCM_TX] = r->start;
+	wd->dmaids[SNDRV_PCM_STREAM_PLAYBACK] = r->start;
 
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!r)
 		goto out2;
-	wd->dmaids[PCM_RX] = r->start;
+	wd->dmaids[SNDRV_PCM_STREAM_CAPTURE] = r->start;
 
 	/* preserve PSC clock source set up by platform (dev.platform_data
 	 * is already occupied by soc layer)

@@ -41,14 +41,14 @@
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3BE)
 
 #define AC97PCR_START(stype)	\
-	((stype) == PCM_TX ? PSC_AC97PCR_TS : PSC_AC97PCR_RS)
+	((stype) == SNDRV_PCM_STREAM_PLAYBACK ? PSC_AC97PCR_TS : PSC_AC97PCR_RS)
 #define AC97PCR_STOP(stype)	\
-	((stype) == PCM_TX ? PSC_AC97PCR_TP : PSC_AC97PCR_RP)
+	((stype) == SNDRV_PCM_STREAM_PLAYBACK ? PSC_AC97PCR_TP : PSC_AC97PCR_RP)
 #define AC97PCR_CLRFIFO(stype)	\
-	((stype) == PCM_TX ? PSC_AC97PCR_TC : PSC_AC97PCR_RC)
+	((stype) == SNDRV_PCM_STREAM_PLAYBACK ? PSC_AC97PCR_TC : PSC_AC97PCR_RC)
 
 #define AC97STAT_BUSY(stype)	\
-	((stype) == PCM_TX ? PSC_AC97STAT_TB : PSC_AC97STAT_RB)
+	((stype) == SNDRV_PCM_STREAM_PLAYBACK ? PSC_AC97STAT_TB : PSC_AC97STAT_RB)
 
 /* instance data. There can be only one, MacLeod!!!! */
 static struct au1xpsc_audio_data *au1xpsc_ac97_workdata;
@@ -215,7 +215,7 @@ static int au1xpsc_ac97_hw_params(struct snd_pcm_substream *substream,
 {
 	struct au1xpsc_audio_data *pscdata = snd_soc_dai_get_drvdata(dai);
 	unsigned long r, ro, stat;
-	int chans, t, stype = SUBSTREAM_TYPE(substream);
+	int chans, t, stype = substream->stream;
 
 	chans = params_channels(params);
 
@@ -235,7 +235,7 @@ static int au1xpsc_ac97_hw_params(struct snd_pcm_substream *substream,
 		r |= PSC_AC97CFG_SET_LEN(params->msbits);
 
 		/* channels: enable slots for front L/R channel */
-		if (stype == PCM_TX) {
+		if (stype == SNDRV_PCM_STREAM_PLAYBACK) {
 			r &= ~PSC_AC97CFG_TXSLOT_MASK;
 			r |= PSC_AC97CFG_TXSLOT_ENA(3);
 			r |= PSC_AC97CFG_TXSLOT_ENA(4);
@@ -294,7 +294,7 @@ static int au1xpsc_ac97_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
 	struct au1xpsc_audio_data *pscdata = snd_soc_dai_get_drvdata(dai);
-	int ret, stype = SUBSTREAM_TYPE(substream);
+	int ret, stype = substream->stream;
 
 	ret = 0;
 
@@ -391,12 +391,12 @@ static int __devinit au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!r)
 		goto out2;
-	wd->dmaids[PCM_TX] = r->start;
+	wd->dmaids[SNDRV_PCM_STREAM_PLAYBACK] = r->start;
 
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!r)
 		goto out2;
-	wd->dmaids[PCM_RX] = r->start;
+	wd->dmaids[SNDRV_PCM_STREAM_CAPTURE] = r->start;
 
 	/* configuration: max dma trigger threshold, enable ac97 */
 	wd->cfg = PSC_AC97CFG_RT_FIFO8 | PSC_AC97CFG_TT_FIFO8 |

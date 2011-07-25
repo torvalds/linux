@@ -169,7 +169,7 @@ static int au1x_pcm_dbdma_realloc(struct au1xpsc_audio_dmadata *pcd,
 
 	au1x_pcm_dbdma_free(pcd);
 
-	if (stype == PCM_RX)
+	if (stype == SNDRV_PCM_STREAM_CAPTURE)
 		pcd->ddma_chan = au1xxx_dbdma_chan_alloc(pcd->ddma_id,
 					DSCR_CMD0_ALWAYS,
 					au1x_pcm_dmarx_cb, (void *)pcd);
@@ -198,7 +198,7 @@ static inline struct au1xpsc_audio_dmadata *to_dmadata(struct snd_pcm_substream 
 	struct snd_soc_pcm_runtime *rtd = ss->private_data;
 	struct au1xpsc_audio_dmadata *pcd =
 				snd_soc_platform_get_drvdata(rtd->platform);
-	return &pcd[SUBSTREAM_TYPE(ss)];
+	return &pcd[ss->stream];
 }
 
 static int au1xpsc_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -212,7 +212,7 @@ static int au1xpsc_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		goto out;
 
-	stype = SUBSTREAM_TYPE(substream);
+	stype = substream->stream;
 	pcd = to_dmadata(substream);
 
 	DBG("runtime->dma_area = 0x%08lx dma_addr_t = 0x%08lx dma_size = %d "
@@ -255,7 +255,7 @@ static int au1xpsc_pcm_prepare(struct snd_pcm_substream *substream)
 
 	au1xxx_dbdma_reset(pcd->ddma_chan);
 
-	if (SUBSTREAM_TYPE(substream) == PCM_RX) {
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		au1x_pcm_queue_rx(pcd);
 		au1x_pcm_queue_rx(pcd);
 	} else {
@@ -295,7 +295,7 @@ static int au1xpsc_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct au1xpsc_audio_dmadata *pcd = to_dmadata(substream);
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	int stype = SUBSTREAM_TYPE(substream), *dmaids;
+	int stype = substream->stream, *dmaids;
 
 	dmaids = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 	if (!dmaids)

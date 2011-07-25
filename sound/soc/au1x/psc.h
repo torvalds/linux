@@ -13,12 +13,6 @@
 #ifndef _AU1X_PCM_H
 #define _AU1X_PCM_H
 
-#define PCM_TX	0
-#define PCM_RX	1
-
-#define SUBSTREAM_TYPE(substream) \
-	((substream)->stream == SNDRV_PCM_STREAM_PLAYBACK ? PCM_TX : PCM_RX)
-
 struct au1xpsc_audio_data {
 	void __iomem *mmio;
 
