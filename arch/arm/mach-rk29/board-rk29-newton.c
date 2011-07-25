@@ -177,12 +177,14 @@ struct rk29_nand_platform_data rk29_nand_data = {
 *****************************************************************************************/
 #define FB_ID                       0
 #define FB_DISPLAY_ON_PIN           INVALID_GPIO// RK29_PIN6_PD0
-#define FB_LCD_STANDBY_PIN          INVALID_GPIO
+//#define FB_LCD_STANDBY_PIN          INVALID_GPIO
+#define FB_LCD_STANDBY_PIN          RK29_PIN6_PD1
 #define FB_LCD_CABC_EN_PIN          RK29_PIN6_PD2
 #define FB_MCU_FMK_PIN              INVALID_GPIO
 
 #define FB_DISPLAY_ON_VALUE         GPIO_HIGH
-#define FB_LCD_STANDBY_VALUE        GPIO_HIGH
+//#define FB_LCD_STANDBY_VALUE        GPIO_HIGH
+#define FB_LCD_STANDBY_VALUE        GPIO_LOW
 
 static int rk29_lcd_io_init(void)
 {
@@ -1227,8 +1229,8 @@ static struct rk29camera_platform_ioctl_cb  sensor_ioctl_cb = {
 #define PWM_MUX_MODE      GPIO1L_PWM0
 #define PWM_MUX_MODE_GPIO GPIO1L_GPIO1B5
 #define PWM_GPIO RK29_PIN1_PB5
-#define PWM_EFFECT_VALUE  1
-
+#define PWM_EFFECT_VALUE  0
+#define BACKLIGHT_MINVALUE 52
 #define LCD_DISP_ON_PIN
 
 #ifdef  LCD_DISP_ON_PIN
@@ -1276,7 +1278,8 @@ static int rk29_backlight_pwm_suspend(void)
 		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
 		return -1;
 	}
-	gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	gpio_direction_output(PWM_GPIO, GPIO_HIGH);
+	//gpio_direction_output(PWM_GPIO, GPIO_LOW);
    #ifdef  LCD_DISP_ON_PIN
     gpio_direction_output(BL_EN_PIN, 0);
     gpio_set_value(BL_EN_PIN, !BL_EN_VALUE);
@@ -1304,6 +1307,7 @@ struct rk29_bl_info rk29_bl_info = {
     .io_deinit = rk29_backlight_io_deinit,
     .pwm_suspend = rk29_backlight_pwm_suspend,
     .pwm_resume = rk29_backlight_pwm_resume,
+    .min_brightness = BACKLIGHT_MINVALUE,
 };
 #endif
 /*****************************************************************************************
