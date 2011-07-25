@@ -259,34 +259,6 @@ error:
 	return ret;
 }
 
-static int az6007_frontend_reset(struct dvb_usb_adapter *adap)
-{
-	struct usb_device *udev = adap->dev->udev;
-	int ret;
-
-	deb_info("az6007_frontend_reset adap=%p adap->dev=%p\n", adap, adap->dev);
-
-	/* reset demodulator */
-	ret = az6007_write(udev, FX2_SCON1, 1, 3, NULL, 0);
-	if (ret < 0)
-		goto error;
-	msleep(200);
-	ret = az6007_write(udev, FX2_SCON1, 0, 3, NULL, 0);
-	if (ret < 0)
-		goto error;
-	msleep(200);
-	ret = az6007_write(udev, FX2_SCON1, 1, 3, NULL, 0);
-	if (ret < 0)
-		goto error;
-	msleep(200);
-
-error:
-	if (ret < 0)
-		err("%s failed with error %d", __func__, ret);
-
-	return ret;
-}
-
 static int az6007_led_on_off(struct usb_interface *intf, int onoff)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
@@ -309,7 +281,6 @@ static int az6007_frontend_attach(struct dvb_usb_adapter *adap)
 	BUG_ON(!st);
 
 	az6007_frontend_poweron(adap);
-	az6007_frontend_reset(adap);
 
 	info("az6007: attaching demod drxk");
 	adap->fe = dvb_attach(drxk_attach, &terratec_h7_drxk,
