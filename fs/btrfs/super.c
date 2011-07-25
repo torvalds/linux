@@ -492,7 +492,6 @@ static struct dentry *get_default_root(struct super_block *sb,
 	struct btrfs_path *path;
 	struct btrfs_key location;
 	struct inode *inode;
-	struct dentry *dentry;
 	u64 dir_id;
 	int new = 0;
 
@@ -566,29 +565,7 @@ setup_root:
 		return dget(sb->s_root);
 	}
 
-	if (new) {
-		const struct qstr name = { .name = "/", .len = 1 };
-
-		/*
-		 * New inode, we need to make the dentry a sibling of s_root so
-		 * everything gets cleaned up properly on unmount.
-		 */
-		dentry = d_alloc(sb->s_root, &name);
-		if (!dentry) {
-			iput(inode);
-			return ERR_PTR(-ENOMEM);
-		}
-		d_splice_alias(inode, dentry);
-	} else {
-		/*
-		 * We found the inode in cache, just find a dentry for it and
-		 * put the reference to the inode we just got.
-		 */
-		dentry = d_find_alias(inode);
-		iput(inode);
-	}
-
-	return dentry;
+	return d_obtain_alias(inode);
 }
 
 static int btrfs_fill_super(struct super_block *sb,
