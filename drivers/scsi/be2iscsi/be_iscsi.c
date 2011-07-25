@@ -177,9 +177,8 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 {
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct beiscsi_conn *beiscsi_conn = conn->dd_data;
-	struct Scsi_Host *shost =
-		(struct Scsi_Host *)iscsi_session_to_shost(cls_session);
-	struct beiscsi_hba *phba = (struct beiscsi_hba *)iscsi_host_priv(shost);
+	struct Scsi_Host *shost = iscsi_session_to_shost(cls_session);
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	struct beiscsi_endpoint *beiscsi_ep;
 	struct iscsi_endpoint *ep;
 
@@ -290,7 +289,7 @@ int beiscsi_set_param(struct iscsi_cls_conn *cls_conn,
 int beiscsi_get_host_param(struct Scsi_Host *shost,
 			   enum iscsi_host_param param, char *buf)
 {
-	struct beiscsi_hba *phba = (struct beiscsi_hba *)iscsi_host_priv(shost);
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 	int status = 0;
 
 	SE_DEBUG(DBG_LVL_8, "In beiscsi_get_host_param, param= %d\n", param);
