@@ -116,7 +116,7 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 	return error;
 }
 
-static inline void set_default_inode_attr(struct inode * inode, mode_t mode)
+static inline void set_default_inode_attr(struct inode * inode, umode_t mode)
 {
 	inode->i_mode = mode;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
@@ -132,7 +132,7 @@ static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
 	inode->i_ctime = iattr->ia_ctime;
 }
 
-struct inode * configfs_new_inode(mode_t mode, struct configfs_dirent * sd)
+struct inode *configfs_new_inode(umode_t mode, struct configfs_dirent * sd)
 {
 	struct inode * inode = new_inode(configfs_sb);
 	if (inode) {
@@ -185,7 +185,7 @@ static void configfs_set_inode_lock_class(struct configfs_dirent *sd,
 
 #endif /* CONFIG_LOCKDEP */
 
-int configfs_create(struct dentry * dentry, int mode, int (*init)(struct inode *))
+int configfs_create(struct dentry * dentry, umode_t mode, int (*init)(struct inode *))
 {
 	int error = 0;
 	struct inode * inode = NULL;
