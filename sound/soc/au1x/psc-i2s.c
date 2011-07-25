@@ -257,7 +257,16 @@ static int au1xpsc_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	return ret;
 }
 
+static int au1xpsc_i2s_startup(struct snd_pcm_substream *substream,
+			       struct snd_soc_dai *dai)
+{
+	struct au1xpsc_audio_data *pscdata = snd_soc_dai_get_drvdata(dai);
+	snd_soc_dai_set_dma_data(dai, substream, &pscdata->dmaids[0]);
+	return 0;
+}
+
 static struct snd_soc_dai_ops au1xpsc_i2s_dai_ops = {
+	.startup	= au1xpsc_i2s_startup,
 	.trigger	= au1xpsc_i2s_trigger,
 	.hw_params	= au1xpsc_i2s_hw_params,
 	.set_fmt	= au1xpsc_i2s_set_fmt,
@@ -304,6 +313,16 @@ static int __devinit au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 	if (!wd->mmio)
 		goto out1;
 
+	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (!r)
+		goto out2;
+	wd->dmaids[PCM_TX] = r->start;
+
+	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+	if (!r)
+		goto out2;
+	wd->dmaids[PCM_RX] = r->start;
+
 	/* preserve PSC clock source set up by platform (dev.platform_data
 	 * is already occupied by soc layer)
 	 */
@@ -330,15 +349,11 @@ static int __devinit au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, wd);
 
 	ret = snd_soc_register_dai(&pdev->dev, &wd->dai_drv);
-	if (ret)
-		goto out1;
-
-	/* finally add the DMA device for this PSC */
-	wd->dmapd = au1xpsc_pcm_add(pdev);
-	if (wd->dmapd)
+	if (!ret)
 		return 0;
 
-	snd_soc_unregister_dai(&pdev->dev);
+out2:
+	iounmap(wd->mmio);
 out1:
 	release_mem_region(r->start, resource_size(r));
 out0:
@@ -350,9 +365,6 @@ static int __devexit au1xpsc_i2s_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *wd = platform_get_drvdata(pdev);
 	struct resource *r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	if (wd->dmapd)
-		au1xpsc_pcm_destroy(wd->dmapd);
 
 	snd_soc_unregister_dai(&pdev->dev);
 

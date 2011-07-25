@@ -434,12 +434,18 @@ static struct platform_device db1200_stac_dev = {
 	.id		= 1,	/* on PSC1 */
 };
 
+static struct platform_device db1200_audiodma_dev = {
+	.name		= "au1xpsc-pcm",
+	.id		= 1,	/* PSC ID */
+};
+
 static struct platform_device *db1200_devs[] __initdata = {
 	NULL,		/* PSC0, selected by S6.8 */
 	&db1200_ide_dev,
 	&db1200_eth_dev,
 	&db1200_rtc_dev,
 	&db1200_nand_dev,
+	&db1200_audiodma_dev,
 	&db1200_audio_dev,
 	&db1200_stac_dev,
 };

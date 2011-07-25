@@ -19,10 +19,6 @@
 #define SUBSTREAM_TYPE(substream) \
 	((substream)->stream == SNDRV_PCM_STREAM_PLAYBACK ? PCM_TX : PCM_RX)
 
-/* PSC/DBDMA helpers */
-extern struct platform_device *au1xpsc_pcm_add(struct platform_device *pdev);
-extern void au1xpsc_pcm_destroy(struct platform_device *dmapd);
-
 struct au1xpsc_audio_data {
 	void __iomem *mmio;
 
@@ -34,7 +30,6 @@ struct au1xpsc_audio_data {
 	unsigned long pm[2];
 	struct mutex lock;
 	int dmaids[2];
-	struct platform_device *dmapd;
 };
 
 /* easy access macros */

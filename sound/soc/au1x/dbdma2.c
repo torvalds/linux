@@ -293,6 +293,16 @@ au1xpsc_pcm_pointer(struct snd_pcm_substream *substream)
 
 static int au1xpsc_pcm_open(struct snd_pcm_substream *substream)
 {
+	struct au1xpsc_audio_dmadata *pcd = to_dmadata(substream);
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	int stype = SUBSTREAM_TYPE(substream), *dmaids;
+
+	dmaids = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
+	if (!dmaids)
+		return -ENODEV;	/* whoa, has ordering changed? */
+
+	pcd->ddma_id = dmaids[stype];
+
 	snd_soc_set_runtime_hwparams(substream, &au1xpsc_pcm_hardware);
 	return 0;
 }
@@ -340,36 +350,18 @@ struct snd_soc_platform_driver au1xpsc_soc_platform = {
 static int __devinit au1xpsc_pcm_drvprobe(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_dmadata *dmadata;
-	struct resource *r;
 	int ret;
 
 	dmadata = kzalloc(2 * sizeof(struct au1xpsc_audio_dmadata), GFP_KERNEL);
 	if (!dmadata)
 		return -ENOMEM;
 
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!r) {
-		ret = -ENODEV;
-		goto out1;
-	}
-	dmadata[PCM_TX].ddma_id = r->start;
-
-	/* RX DMA */
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-	if (!r) {
-		ret = -ENODEV;
-		goto out1;
-	}
-	dmadata[PCM_RX].ddma_id = r->start;
-
 	platform_set_drvdata(pdev, dmadata);
 
 	ret = snd_soc_register_platform(&pdev->dev, &au1xpsc_soc_platform);
-	if (!ret)
-		return ret;
+	if (ret)
+		kfree(dmadata);
 
-out1:
-	kfree(dmadata);
 	return ret;
 }
 
@@ -404,57 +396,6 @@ static void __exit au1xpsc_audio_dbdma_unload(void)
 
 module_init(au1xpsc_audio_dbdma_load);
 module_exit(au1xpsc_audio_dbdma_unload);
-
-
-struct platform_device *au1xpsc_pcm_add(struct platform_device *pdev)
-{
-	struct resource *res, *r;
-	struct platform_device *pd;
-	int id[2];
-	int ret;
-
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (!r)
-		return NULL;
-	id[0] = r->start;
-
-	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-	if (!r)
-		return NULL;
-	id[1] = r->start;
-
-	res = kzalloc(sizeof(struct resource) * 2, GFP_KERNEL);
-	if (!res)
-		return NULL;
-
-	res[0].start = res[0].end = id[0];
-	res[1].start = res[1].end = id[1];
-	res[0].flags = res[1].flags = IORESOURCE_DMA;
-
-	pd = platform_device_alloc("au1xpsc-pcm", pdev->id);
-	if (!pd)
-		goto out;
-
-	pd->resource = res;
-	pd->num_resources = 2;
-
-	ret = platform_device_add(pd);
-	if (!ret)
-		return pd;
-
-	platform_device_put(pd);
-out:
-	kfree(res);
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(au1xpsc_pcm_add);
-
-void au1xpsc_pcm_destroy(struct platform_device *dmapd)
-{
-	if (dmapd)
-		platform_device_unregister(dmapd);
-}
-EXPORT_SYMBOL_GPL(au1xpsc_pcm_destroy);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Au12x0/Au1550 PSC Audio DMA driver");

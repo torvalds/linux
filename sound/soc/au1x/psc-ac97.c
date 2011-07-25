@@ -324,12 +324,21 @@ static int au1xpsc_ac97_trigger(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static int au1xpsc_ac97_startup(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
+{
+	struct au1xpsc_audio_data *pscdata = snd_soc_dai_get_drvdata(dai);
+	snd_soc_dai_set_dma_data(dai, substream, &pscdata->dmaids[0]);
+	return 0;
+}
+
 static int au1xpsc_ac97_probe(struct snd_soc_dai *dai)
 {
 	return au1xpsc_ac97_workdata ? 0 : -ENODEV;
 }
 
 static struct snd_soc_dai_ops au1xpsc_ac97_dai_ops = {
+	.startup	= au1xpsc_ac97_startup,
 	.trigger	= au1xpsc_ac97_trigger,
 	.hw_params	= au1xpsc_ac97_hw_params,
 };
@@ -379,6 +388,16 @@ static int __devinit au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 	if (!wd->mmio)
 		goto out1;
 
+	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (!r)
+		goto out2;
+	wd->dmaids[PCM_TX] = r->start;
+
+	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+	if (!r)
+		goto out2;
+	wd->dmaids[PCM_RX] = r->start;
+
 	/* configuration: max dma trigger threshold, enable ac97 */
 	wd->cfg = PSC_AC97CFG_RT_FIFO8 | PSC_AC97CFG_TT_FIFO8 |
 		  PSC_AC97CFG_DE_ENABLE;
@@ -401,15 +420,13 @@ static int __devinit au1xpsc_ac97_drvprobe(struct platform_device *pdev)
 
 	ret = snd_soc_register_dai(&pdev->dev, &wd->dai_drv);
 	if (ret)
-		goto out1;
+		goto out2;
 
-	wd->dmapd = au1xpsc_pcm_add(pdev);
-	if (wd->dmapd) {
-		au1xpsc_ac97_workdata = wd;
-		return 0;
-	}
+	au1xpsc_ac97_workdata = wd;
+	return 0;
 
-	snd_soc_unregister_dai(&pdev->dev);
+out2:
+	iounmap(wd->mmio);
 out1:
 	release_mem_region(r->start, resource_size(r));
 out0:
@@ -421,9 +438,6 @@ static int __devexit au1xpsc_ac97_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *wd = platform_get_drvdata(pdev);
 	struct resource *r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	if (wd->dmapd)
-		au1xpsc_pcm_destroy(wd->dmapd);
 
 	snd_soc_unregister_dai(&pdev->dev);
 
