@@ -1018,7 +1018,7 @@ static void pnpacpi_encode_io(struct pnp_dev *dev,
 		io->minimum = p->start;
 		io->maximum = p->end;
 		io->alignment = 0;	/* Correct? */
-		io->address_length = p->end - p->start + 1;
+		io->address_length = resource_size(p);
 	} else {
 		io->minimum = 0;
 		io->address_length = 0;
@@ -1036,7 +1036,7 @@ static void pnpacpi_encode_fixed_io(struct pnp_dev *dev,
 
 	if (pnp_resource_enabled(p)) {
 		fixed_io->address = p->start;
-		fixed_io->address_length = p->end - p->start + 1;
+		fixed_io->address_length = resource_size(p);
 	} else {
 		fixed_io->address = 0;
 		fixed_io->address_length = 0;
@@ -1059,7 +1059,7 @@ static void pnpacpi_encode_mem24(struct pnp_dev *dev,
 		memory24->minimum = p->start;
 		memory24->maximum = p->end;
 		memory24->alignment = 0;
-		memory24->address_length = p->end - p->start + 1;
+		memory24->address_length = resource_size(p);
 	} else {
 		memory24->minimum = 0;
 		memory24->address_length = 0;
@@ -1083,7 +1083,7 @@ static void pnpacpi_encode_mem32(struct pnp_dev *dev,
 		memory32->minimum = p->start;
 		memory32->maximum = p->end;
 		memory32->alignment = 0;
-		memory32->address_length = p->end - p->start + 1;
+		memory32->address_length = resource_size(p);
 	} else {
 		memory32->minimum = 0;
 		memory32->alignment = 0;
@@ -1106,7 +1106,7 @@ static void pnpacpi_encode_fixed_mem32(struct pnp_dev *dev,
 		    p->flags & IORESOURCE_MEM_WRITEABLE ?
 		    ACPI_READ_WRITE_MEMORY : ACPI_READ_ONLY_MEMORY;
 		fixed_memory32->address = p->start;
-		fixed_memory32->address_length = p->end - p->start + 1;
+		fixed_memory32->address_length = resource_size(p);
 	} else {
 		fixed_memory32->address = 0;
 		fixed_memory32->address_length = 0;

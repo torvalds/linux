@@ -31,7 +31,6 @@
 #include "nouveau_grctx.h"
 #include "nouveau_dma.h"
 #include "nouveau_vm.h"
-#include "nouveau_ramht.h"
 #include "nv50_evo.h"
 
 struct nv50_graph_engine {

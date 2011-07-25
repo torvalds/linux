@@ -455,8 +455,7 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	s3c_rtc_mem = request_mem_region(res->start,
-					 res->end-res->start+1,
+	s3c_rtc_mem = request_mem_region(res->start, resource_size(res),
 					 pdev->name);
 
 	if (s3c_rtc_mem == NULL) {
@@ -465,7 +464,7 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 		goto err_nores;
 	}
 
-	s3c_rtc_base = ioremap(res->start, res->end - res->start + 1);
+	s3c_rtc_base = ioremap(res->start, resource_size(res));
 	if (s3c_rtc_base == NULL) {
 		dev_err(&pdev->dev, "failed ioremap()\n");
 		ret = -EINVAL;

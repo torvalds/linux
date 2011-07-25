@@ -6,7 +6,7 @@
  * Copyright (c) 2005 Stefano Brivio <st3@riseup.net>
  * Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
  * Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>
- * Copyright (c) 2005-2007 Michael Buesch <mbuesch@freenet.de>
+ * Copyright (c) 2005-2007 Michael Buesch <m@bues.ch>
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */

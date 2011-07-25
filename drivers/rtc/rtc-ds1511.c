@@ -490,7 +490,7 @@ ds1511_rtc_probe(struct platform_device *pdev)
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
-	pdata->size = res->end - res->start + 1;
+	pdata->size = resource_size(res);
 	if (!devm_request_mem_region(&pdev->dev, res->start, pdata->size,
 			pdev->name))
 		return -EBUSY;

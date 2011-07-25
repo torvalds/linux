@@ -578,8 +578,8 @@ static int __init gpio_probe(struct platform_device *pdev)
 	if (!memres)
 		goto err_no_resource;
 
-	if (request_mem_region(memres->start, memres->end - memres->start, "GPIO Controller")
-	    == NULL) {
+	if (!request_mem_region(memres->start, resource_size(memres),
+				"GPIO Controller")) {
 		err = -ENODEV;
 		goto err_no_ioregion;
 	}
@@ -637,7 +637,7 @@ static int __init gpio_probe(struct platform_device *pdev)
 		free_irq(gpio_ports[i].irq, &gpio_ports[i]);
 	iounmap(virtbase);
  err_no_ioremap:
-	release_mem_region(memres->start, memres->end - memres->start);
+	release_mem_region(memres->start, resource_size(memres));
  err_no_ioregion:
  err_no_resource:
 	clk_disable(clk);
@@ -657,7 +657,7 @@ static int __exit gpio_remove(struct platform_device *pdev)
 	for (i = 0 ; i < U300_GPIO_NUM_PORTS; i++)
 		free_irq(gpio_ports[i].irq, &gpio_ports[i]);
 	iounmap(virtbase);
-	release_mem_region(memres->start, memres->end - memres->start);
+	release_mem_region(memres->start, resource_size(memres));
 	clk_disable(clk);
 	clk_put(clk);
 	return 0;

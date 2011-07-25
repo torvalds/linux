@@ -265,7 +265,7 @@ static void __init ppc4xx_configure_pci_PMMs(struct pci_controller *hose,
 		if (ppc4xx_setup_one_pci_PMM(hose, reg,
 					     res->start,
 					     res->start - hose->pci_mem_offset,
-					     res->end + 1 - res->start,
+					     resource_size(res),
 					     res->flags,
 					     j) == 0) {
 			j++;
@@ -290,7 +290,7 @@ static void __init ppc4xx_configure_pci_PTMs(struct pci_controller *hose,
 					     void __iomem *reg,
 					     const struct resource *res)
 {
-	resource_size_t size = res->end - res->start + 1;
+	resource_size_t size = resource_size(res);
 	u32 sa;
 
 	/* Calculate window size */
@@ -349,7 +349,7 @@ static void __init ppc4xx_probe_pci_bridge(struct device_node *np)
 	bus_range = of_get_property(np, "bus-range", NULL);
 
 	/* Map registers */
-	reg = ioremap(rsrc_reg.start, rsrc_reg.end + 1 - rsrc_reg.start);
+	reg = ioremap(rsrc_reg.start, resource_size(&rsrc_reg));
 	if (reg == NULL) {
 		printk(KERN_ERR "%s: Can't map registers !", np->full_name);
 		goto fail;
@@ -465,7 +465,7 @@ static void __init ppc4xx_configure_pcix_POMs(struct pci_controller *hose,
 		if (ppc4xx_setup_one_pcix_POM(hose, reg,
 					      res->start,
 					      res->start - hose->pci_mem_offset,
-					      res->end + 1 - res->start,
+					      resource_size(res),
 					      res->flags,
 					      j) == 0) {
 			j++;
@@ -492,7 +492,7 @@ static void __init ppc4xx_configure_pcix_PIMs(struct pci_controller *hose,
 					      int big_pim,
 					      int enable_msi_hole)
 {
-	resource_size_t size = res->end - res->start + 1;
+	resource_size_t size = resource_size(res);
 	u32 sa;
 
 	/* RAM is always at 0 */
@@ -555,7 +555,7 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
 	bus_range = of_get_property(np, "bus-range", NULL);
 
 	/* Map registers */
-	reg = ioremap(rsrc_reg.start, rsrc_reg.end + 1 - rsrc_reg.start);
+	reg = ioremap(rsrc_reg.start, resource_size(&rsrc_reg));
 	if (reg == NULL) {
 		printk(KERN_ERR "%s: Can't map registers !", np->full_name);
 		goto fail;
@@ -1604,7 +1604,7 @@ static void __init ppc4xx_configure_pciex_POMs(struct ppc4xx_pciex_port *port,
 		if (ppc4xx_setup_one_pciex_POM(port, hose, mbase,
 					       res->start,
 					       res->start - hose->pci_mem_offset,
-					       res->end + 1 - res->start,
+					       resource_size(res),
 					       res->flags,
 					       j) == 0) {
 			j++;
@@ -1639,7 +1639,7 @@ static void __init ppc4xx_configure_pciex_PIMs(struct ppc4xx_pciex_port *port,
 					       void __iomem *mbase,
 					       struct resource *res)
 {
-	resource_size_t size = res->end - res->start + 1;
+	resource_size_t size = resource_size(res);
 	u64 sa;
 
 	if (port->endpoint) {

@@ -871,10 +871,11 @@ static int __devinit mpc52xx_fec_probe(struct platform_device *op)
 				"Error while parsing device node resource\n" );
 		goto err_netdev;
 	}
-	if ((mem.end - mem.start + 1) < sizeof(struct mpc52xx_fec)) {
+	if (resource_size(&mem) < sizeof(struct mpc52xx_fec)) {
 		printk(KERN_ERR DRIVER_NAME
-			" - invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
-			(unsigned long)(mem.end - mem.start + 1), sizeof(struct mpc52xx_fec));
+		       " - invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
+		       (unsigned long)resource_size(&mem),
+		       sizeof(struct mpc52xx_fec));
 		rv = -EINVAL;
 		goto err_netdev;
 	}

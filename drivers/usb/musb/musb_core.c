@@ -1955,7 +1955,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	 *   - initializes musb->xceiv, usually by otg_get_transceiver()
 	 *   - stops powering VBUS
 	 *
-	 * There are various transciever configurations.  Blackfin,
+	 * There are various transceiver configurations.  Blackfin,
 	 * DaVinci, TUSB60x0, and others integrate them.  OMAP3 uses
 	 * external/discrete ones in various flavors (twl4030 family,
 	 * isp1504, non-OTG, etc) mostly hooking up through ULPI.

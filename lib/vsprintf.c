@@ -1149,8 +1149,7 @@ qualifier:
  * %pi4 print an IPv4 address with leading zeros
  * %pI6 print an IPv6 address with colons
  * %pi6 print an IPv6 address without colons
- * %pI6c print an IPv6 address as specified by
- *   http://tools.ietf.org/html/draft-ietf-6man-text-addr-representation-00
+ * %pI6c print an IPv6 address as specified by RFC 5952
  * %pU[bBlL] print a UUID/GUID in big or little endian using lower or upper
  *   case.
  * %n is ignored

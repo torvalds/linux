@@ -272,7 +272,7 @@ static void usba_init_debugfs(struct usba_udc *udc)
 
 	regs_resource = platform_get_resource(udc->pdev, IORESOURCE_MEM,
 				CTRL_IOMEM_ID);
-	regs->d_inode->i_size = regs_resource->end - regs_resource->start + 1;
+	regs->d_inode->i_size = resource_size(regs_resource);
 	udc->debugfs_regs = regs;
 
 	usba_ep_init_debugfs(udc, to_usba_ep(udc->gadget.ep0));

@@ -77,7 +77,7 @@ static struct regulator_consumer_supply ab8500_vtvout_consumers[] = {
 static struct regulator_consumer_supply ab8500_vintcore_consumers[] = {
 	/* SoC core supply, no device */
 	REGULATOR_SUPPLY("v-intcore", NULL),
-	/* USB Transciever */
+	/* USB Transceiver */
 	REGULATOR_SUPPLY("vddulpivio18", "ab8500-usb.0"),
 };
 

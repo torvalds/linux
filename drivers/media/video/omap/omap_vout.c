@@ -129,7 +129,7 @@ module_param(debug, bool, S_IRUGO);
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 /* list of image formats supported by OMAP2 video pipelines */
-const static struct v4l2_fmtdesc omap_formats[] = {
+static const struct v4l2_fmtdesc omap_formats[] = {
 	{
 		/* Note:  V4L2 defines RGB565 as:
 		 *

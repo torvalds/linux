@@ -269,7 +269,7 @@
 #define LDO1_SEL_MASK					0xFC
 #define LDO3_SEL_MASK					0x7C
 #define LDO_MIN_VOLT					1000
-#define LDO_MAX_VOLT					3300;
+#define LDO_MAX_VOLT					3300
 
 
 /*Register VDIG1  (0x80) register.RegisterDescription */

@@ -906,7 +906,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	if (map) {
 		/* use a pre-allocated memory buffer */
 		info->fix.smem_start = map->start;
-		info->fix.smem_len = map->end - map->start + 1;
+		info->fix.smem_len = resource_size(map);
 		if (!request_mem_region(info->fix.smem_start,
 					info->fix.smem_len, pdev->name)) {
 			ret = -EBUSY;
@@ -932,7 +932,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 
 	/* LCDC registers */
 	info->fix.mmio_start = regs->start;
-	info->fix.mmio_len = regs->end - regs->start + 1;
+	info->fix.mmio_len = resource_size(regs);
 
 	if (!request_mem_region(info->fix.mmio_start,
 				info->fix.mmio_len, pdev->name)) {

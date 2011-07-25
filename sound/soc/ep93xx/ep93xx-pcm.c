@@ -5,7 +5,7 @@
  * Copyright (C) 2006 Applied Data Systems
  *
  * Rewritten for the SoC audio subsystem (Based on PXA2xx code):
- *   Copyright (c) 2008 Ryan Mallon <ryan@bluewatersys.com>
+ *   Copyright (c) 2008 Ryan Mallon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -352,6 +352,6 @@ static void __exit ep93xx_soc_platform_exit(void)
 module_init(ep93xx_soc_platform_init);
 module_exit(ep93xx_soc_platform_exit);
 
-MODULE_AUTHOR("Ryan Mallon <ryan@bluewatersys.com>");
+MODULE_AUTHOR("Ryan Mallon");
 MODULE_DESCRIPTION("EP93xx ALSA PCM interface");
 MODULE_LICENSE("GPL");

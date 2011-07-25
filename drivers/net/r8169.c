@@ -694,7 +694,7 @@ struct rtl8169_private {
 			size_t size;
 		} phy_action;
 	} *rtl_fw;
-#define RTL_FIRMWARE_UNKNOWN	ERR_PTR(-EAGAIN);
+#define RTL_FIRMWARE_UNKNOWN	ERR_PTR(-EAGAIN)
 };
 
 MODULE_AUTHOR("Realtek and the Linux r8169 crew <netdev@vger.kernel.org>");

@@ -64,7 +64,7 @@ static int __init setup_one_atmu(struct ccsr_pci __iomem *pci,
 {
 	resource_size_t pci_addr = res->start - offset;
 	resource_size_t phys_addr = res->start;
-	resource_size_t size = res->end - res->start + 1;
+	resource_size_t size = resource_size(res);
 	u32 flags = 0x80044000; /* enable & mem R/W */
 	unsigned int i;
 
@@ -108,7 +108,7 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 	char *name = hose->dn->full_name;
 
 	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
-		    (u64)rsrc->start, (u64)rsrc->end - (u64)rsrc->start + 1);
+		 (u64)rsrc->start, (u64)resource_size(rsrc));
 
 	if (of_device_is_compatible(hose->dn, "fsl,qoriq-pcie-v2.2")) {
 		win_idx = 2;
@@ -116,7 +116,7 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 		end_idx = 3;
 	}
 
-	pci = ioremap(rsrc->start, rsrc->end - rsrc->start + 1);
+	pci = ioremap(rsrc->start, resource_size(rsrc));
 	if (!pci) {
 	    dev_err(hose->parent, "Unable to map ATMU registers\n");
 	    return;
@@ -153,9 +153,9 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 		} else {
 			pr_debug("PCI IO resource start 0x%016llx, size 0x%016llx, "
 				 "phy base 0x%016llx.\n",
-				(u64)hose->io_resource.start,
-				(u64)hose->io_resource.end - (u64)hose->io_resource.start + 1,
-				(u64)hose->io_base_phys);
+				 (u64)hose->io_resource.start,
+				 (u64)resource_size(&hose->io_resource),
+				 (u64)hose->io_base_phys);
 			out_be32(&pci->pow[j].potar, (hose->io_resource.start >> 12));
 			out_be32(&pci->pow[j].potear, 0);
 			out_be32(&pci->pow[j].powbar, (hose->io_base_phys >> 12));

@@ -1822,7 +1822,7 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	}
 
 	priv->emac_base_phys = res->start + pdata->ctrl_reg_offset;
-	size = res->end - res->start + 1;
+	size = resource_size(res);
 	if (!request_mem_region(res->start, size, ndev->name)) {
 		dev_err(&pdev->dev, "failed request_mem_region() for regs\n");
 		rc = -ENXIO;
@@ -1927,7 +1927,7 @@ no_irq_res:
 	cpdma_ctlr_destroy(priv->dma);
 no_dma:
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 	iounmap(priv->remap_addr);
 
 probe_quit:
@@ -1961,7 +1961,7 @@ static int __devexit davinci_emac_remove(struct platform_device *pdev)
 		cpdma_chan_destroy(priv->rxchan);
 	cpdma_ctlr_destroy(priv->dma);
 
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 	unregister_netdev(ndev);
 	iounmap(priv->remap_addr);

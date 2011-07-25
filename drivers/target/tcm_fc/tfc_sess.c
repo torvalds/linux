@@ -46,10 +46,8 @@
 #include <target/target_core_device.h>
 #include <target/target_core_tpg.h>
 #include <target/target_core_configfs.h>
-#include <target/target_core_base.h>
 #include <target/configfs_macros.h>
 
-#include <scsi/libfc.h>
 #include "tcm_fc.h"
 
 static void ft_sess_delete_all(struct ft_tport *);

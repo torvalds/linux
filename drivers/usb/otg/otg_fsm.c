@@ -28,7 +28,6 @@
 #include <linux/usb.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg.h>
-#include <linux/types.h>
 
 #include "otg_fsm.h"
 

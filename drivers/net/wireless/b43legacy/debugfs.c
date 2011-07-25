@@ -4,7 +4,7 @@
 
   debugfs driver debugging code
 
-  Copyright (c) 2005-2007 Michael Buesch <mb@bu3sch.de>
+  Copyright (c) 2005-2007 Michael Buesch <m@bues.ch>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by

@@ -94,7 +94,7 @@ void pcibios_free_controller(struct pci_controller *phb)
 
 static resource_size_t pcibios_io_size(const struct pci_controller *hose)
 {
-	return hose->io_resource.end - hose->io_resource.start + 1;
+	return resource_size(&hose->io_resource);
 }
 
 int pcibios_vaddr_is_ioport(void __iomem *address)

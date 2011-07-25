@@ -662,7 +662,7 @@ static int __devinit pxa168fb_probe(struct platform_device *pdev)
 	info->fix.ypanstep = 0;
 	info->fix.ywrapstep = 0;
 	info->fix.mmio_start = res->start;
-	info->fix.mmio_len = res->end - res->start + 1;
+	info->fix.mmio_len = resource_size(res);
 	info->fix.accel = FB_ACCEL_NONE;
 	info->fbops = &pxa168fb_ops;
 	info->pseudo_palette = fbi->pseudo_palette;

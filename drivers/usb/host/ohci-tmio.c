@@ -208,13 +208,13 @@ static int __devinit ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 	}
 
 	hcd->rsrc_start = regs->start;
-	hcd->rsrc_len = regs->end - regs->start + 1;
+	hcd->rsrc_len = resource_size(regs);
 
 	tmio = hcd_to_tmio(hcd);
 
 	spin_lock_init(&tmio->lock);
 
-	tmio->ccr = ioremap(config->start, config->end - config->start + 1);
+	tmio->ccr = ioremap(config->start, resource_size(config));
 	if (!tmio->ccr) {
 		ret = -ENOMEM;
 		goto err_ioremap_ccr;
@@ -228,7 +228,7 @@ static int __devinit ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 
 	if (!dma_declare_coherent_memory(&dev->dev, sram->start,
 				sram->start,
-				sram->end - sram->start + 1,
+				resource_size(sram),
 				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE)) {
 		ret = -EBUSY;
 		goto err_dma_declare;

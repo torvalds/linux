@@ -4,7 +4,7 @@
 
   DMA ringbuffer and descriptor allocation/management
 
-  Copyright (c) 2005, 2006 Michael Buesch <mb@bu3sch.de>
+  Copyright (c) 2005, 2006 Michael Buesch <m@bues.ch>
 
   Some code in this file is derived from the b44.c driver
   Copyright (C) 2002 David S. Miller
