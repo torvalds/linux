@@ -434,6 +434,14 @@ struct qla_flt_region {
 #define ACB_STATE_VALID		0x05
 #define ACB_STATE_DISABLING	0x06
 
+/* FLASH offsets */
+#define FLASH_SEGMENT_IFCB	0x04000000
+
+#define FLASH_OPT_RMW_HOLD	0
+#define FLASH_OPT_RMW_INIT	1
+#define FLASH_OPT_COMMIT	2
+#define FLASH_OPT_RMW_COMMIT	3
+
 /*************************************************************************/
 
 /* Host Adapter Initialization Control Block (from host) */
@@ -473,6 +481,7 @@ struct addr_ctrl_blk {
 
 	uint16_t iscsi_opts;	/* 30-31 */
 	uint16_t ipv4_tcp_opts;	/* 32-33 */
+#define TCPOPT_DHCP_ENABLE		0x0200
 	uint16_t ipv4_ip_opts;	/* 34-35 */
 #define  IPOPT_IPv4_PROTOCOL_ENABLE	0x8000
 
@@ -572,6 +581,74 @@ struct addr_ctrl_blk {
 struct init_fw_ctrl_blk {
 	struct addr_ctrl_blk pri;
 /*	struct addr_ctrl_blk sec;*/
+};
+
+struct addr_ctrl_blk_def {
+	uint8_t reserved1[1];	/* 00 */
+	uint8_t control;	/* 01 */
+	uint8_t reserved2[11];	/* 02-0C */
+	uint8_t inst_num;	/* 0D */
+	uint8_t reserved3[34];	/* 0E-2F */
+	uint16_t iscsi_opts;	/* 30-31 */
+	uint16_t ipv4_tcp_opts;	/* 32-33 */
+	uint16_t ipv4_ip_opts;	/* 34-35 */
+	uint16_t iscsi_max_pdu_size;	/* 36-37 */
+	uint8_t ipv4_tos;	/* 38 */
+	uint8_t ipv4_ttl;	/* 39 */
+	uint8_t reserved4[2];	/* 3A-3B */
+	uint16_t def_timeout;	/* 3C-3D */
+	uint16_t iscsi_fburst_len;	/* 3E-3F */
+	uint8_t reserved5[4];	/* 40-43 */
+	uint16_t iscsi_max_outstnd_r2t;	/* 44-45 */
+	uint8_t reserved6[2];	/* 46-47 */
+	uint16_t ipv4_port;	/* 48-49 */
+	uint16_t iscsi_max_burst_len;	/* 4A-4B */
+	uint8_t reserved7[4];	/* 4C-4F */
+	uint8_t ipv4_addr[4];	/* 50-53 */
+	uint16_t ipv4_vlan_tag;	/* 54-55 */
+	uint8_t ipv4_addr_state;	/* 56 */
+	uint8_t ipv4_cacheid;	/* 57 */
+	uint8_t reserved8[8];	/* 58-5F */
+	uint8_t ipv4_subnet[4];	/* 60-63 */
+	uint8_t reserved9[12];	/* 64-6F */
+	uint8_t ipv4_gw_addr[4];	/* 70-73 */
+	uint8_t reserved10[84];	/* 74-C7 */
+	uint8_t abort_timer;	/* C8    */
+	uint8_t ipv4_tcp_wsf;	/* C9    */
+	uint8_t reserved11[10];	/* CA-D3 */
+	uint8_t ipv4_dhcp_vid_len;	/* D4 */
+	uint8_t ipv4_dhcp_vid[11];	/* D5-DF */
+	uint8_t reserved12[20];	/* E0-F3 */
+	uint8_t ipv4_dhcp_alt_cid_len;	/* F4 */
+	uint8_t ipv4_dhcp_alt_cid[11];	/* F5-FF */
+	uint8_t iscsi_name[224];	/* 100-1DF */
+	uint8_t reserved13[32];	/* 1E0-1FF */
+	uint32_t cookie;	/* 200-203 */
+	uint16_t ipv6_port;	/* 204-205 */
+	uint16_t ipv6_opts;	/* 206-207 */
+	uint16_t ipv6_addtl_opts;	/* 208-209 */
+	uint16_t ipv6_tcp_opts;		/* 20A-20B */
+	uint8_t ipv6_tcp_wsf;		/* 20C */
+	uint16_t ipv6_flow_lbl;		/* 20D-20F */
+	uint8_t ipv6_dflt_rtr_addr[16];	/* 210-21F */
+	uint16_t ipv6_vlan_tag;		/* 220-221 */
+	uint8_t ipv6_lnk_lcl_addr_state;	/* 222 */
+	uint8_t ipv6_addr0_state;	/* 223 */
+	uint8_t ipv6_addr1_state;	/* 224 */
+	uint8_t ipv6_dflt_rtr_state;	/* 225 */
+	uint8_t ipv6_traffic_class;	/* 226 */
+	uint8_t ipv6_hop_limit;		/* 227 */
+	uint8_t ipv6_if_id[8];		/* 228-22F */
+	uint8_t ipv6_addr0[16];		/* 230-23F */
+	uint8_t ipv6_addr1[16];		/* 240-24F */
+	uint32_t ipv6_nd_reach_time;	/* 250-253 */
+	uint32_t ipv6_nd_rexmit_timer;	/* 254-257 */
+	uint32_t ipv6_nd_stale_timeout;	/* 258-25B */
+	uint8_t ipv6_dup_addr_detect_count;	/* 25C */
+	uint8_t ipv6_cache_id;		/* 25D */
+	uint8_t reserved14[18];		/* 25E-26F */
+	uint32_t ipv6_gw_advrt_mtu;	/* 270-273 */
+	uint8_t reserved15[140];	/* 274-2FF */
 };
 
 /*************************************************************************/

@@ -52,7 +52,17 @@ int qla4xxx_get_fwddb_entry(struct scsi_qla_host *ha,
 
 int qla4xxx_set_ddb_entry(struct scsi_qla_host * ha, uint16_t fw_ddb_index,
 			  dma_addr_t fw_ddb_entry_dma);
-
+uint8_t qla4xxx_get_ifcb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
+			 uint32_t *mbox_sts, dma_addr_t init_fw_cb_dma);
+int qla4xxx_conn_close_sess_logout(struct scsi_qla_host *ha,
+				   uint16_t fw_ddb_index,
+				   uint16_t connection_id,
+				   uint16_t option);
+int qla4xxx_disable_acb(struct scsi_qla_host *ha);
+int qla4xxx_set_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
+		    uint32_t *mbox_sts, dma_addr_t acb_dma);
+int qla4xxx_get_acb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
+		    uint32_t *mbox_sts, dma_addr_t acb_dma);
 void qla4xxx_mark_device_missing(struct scsi_qla_host *ha,
 				 struct ddb_entry *ddb_entry);
 u16 rd_nvram_word(struct scsi_qla_host *ha, int offset);
@@ -75,7 +85,8 @@ void qla4xxx_dump_buffer(void *b, uint32_t size);
 int qla4xxx_send_marker_iocb(struct scsi_qla_host *ha,
 	struct ddb_entry *ddb_entry, int lun, uint16_t mrkr_mod);
 int qla4_is_relogin_allowed(struct scsi_qla_host *ha, uint32_t conn_err);
-
+int qla4xxx_set_flash(struct scsi_qla_host *ha, dma_addr_t dma_addr,
+		      uint32_t offset, uint32_t length, uint32_t options);
 int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		uint8_t outCount, uint32_t *mbx_cmd, uint32_t *mbx_sts);
 
@@ -95,6 +106,11 @@ void qla4xxx_wake_dpc(struct scsi_qla_host *ha);
 void qla4xxx_get_conn_event_log(struct scsi_qla_host *ha);
 void qla4xxx_mailbox_premature_completion(struct scsi_qla_host *ha);
 void qla4xxx_dump_registers(struct scsi_qla_host *ha);
+uint8_t qla4xxx_update_local_ifcb(struct scsi_qla_host *ha,
+				  uint32_t *mbox_cmd,
+				  uint32_t *mbox_sts,
+				  struct addr_ctrl_blk *init_fw_cb,
+				  dma_addr_t init_fw_cb_dma);
 
 void qla4_8xxx_pci_config(struct scsi_qla_host *);
 int qla4_8xxx_iospace_config(struct scsi_qla_host *ha);

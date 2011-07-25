@@ -80,6 +80,8 @@ static int qla4xxx_sess_get_param(struct iscsi_cls_session *sess,
 				  enum iscsi_param param, char *buf);
 static int qla4xxx_host_get_param(struct Scsi_Host *shost,
 				  enum iscsi_host_param param, char *buf);
+static int qla4xxx_iface_set_param(struct Scsi_Host *shost, char *data,
+				   int count);
 static void qla4xxx_recovery_timedout(struct iscsi_cls_session *session);
 static enum blk_eh_timer_return qla4xxx_eh_cmd_timed_out(struct scsi_cmnd *sc);
 
@@ -142,6 +144,7 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.get_conn_param		= qla4xxx_conn_get_param,
 	.get_session_param	= qla4xxx_sess_get_param,
 	.get_host_param		= qla4xxx_host_get_param,
+	.set_iface_param	= qla4xxx_iface_set_param,
 	.session_recovery_timedout = qla4xxx_recovery_timedout,
 };
 
@@ -200,6 +203,285 @@ static int qla4xxx_host_get_param(struct Scsi_Host *shost,
 	}
 
 	return len;
+}
+
+static void qla4xxx_set_ipv6(struct scsi_qla_host *ha,
+			     struct iscsi_iface_param_info *iface_param,
+			     struct addr_ctrl_blk *init_fw_cb)
+{
+	/*
+	 * iface_num 0 is valid for IPv6 Addr, linklocal, router, autocfg.
+	 * iface_num 1 is valid only for IPv6 Addr.
+	 */
+	switch (iface_param->param) {
+	case ISCSI_NET_PARAM_IPV6_ADDR:
+		if (iface_param->iface_num & 0x1)
+			/* IPv6 Addr 1 */
+			memcpy(init_fw_cb->ipv6_addr1, iface_param->value,
+			       sizeof(init_fw_cb->ipv6_addr1));
+		else
+			/* IPv6 Addr 0 */
+			memcpy(init_fw_cb->ipv6_addr0, iface_param->value,
+			       sizeof(init_fw_cb->ipv6_addr0));
+		break;
+	case ISCSI_NET_PARAM_IPV6_LINKLOCAL:
+		if (iface_param->iface_num & 0x1)
+			break;
+		memcpy(init_fw_cb->ipv6_if_id, &iface_param->value[8],
+		       sizeof(init_fw_cb->ipv6_if_id));
+		break;
+	case ISCSI_NET_PARAM_IPV6_ROUTER:
+		if (iface_param->iface_num & 0x1)
+			break;
+		memcpy(init_fw_cb->ipv6_dflt_rtr_addr, iface_param->value,
+		       sizeof(init_fw_cb->ipv6_dflt_rtr_addr));
+		break;
+	case ISCSI_NET_PARAM_IPV6_ADDR_AUTOCFG:
+		/* Autocfg applies to even interface */
+		if (iface_param->iface_num & 0x1)
+			break;
+
+		if (iface_param->value[0] == ISCSI_IPV6_AUTOCFG_DISABLE)
+			init_fw_cb->ipv6_addtl_opts &=
+				cpu_to_le16(
+				  ~IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE);
+		else if (iface_param->value[0] == ISCSI_IPV6_AUTOCFG_ND_ENABLE)
+			init_fw_cb->ipv6_addtl_opts |=
+				cpu_to_le16(
+				  IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE);
+		else
+			ql4_printk(KERN_ERR, ha, "Invalid autocfg setting for "
+				   "IPv6 addr\n");
+		break;
+	case ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG:
+		/* Autocfg applies to even interface */
+		if (iface_param->iface_num & 0x1)
+			break;
+
+		if (iface_param->value[0] ==
+		    ISCSI_IPV6_LINKLOCAL_AUTOCFG_ENABLE)
+			init_fw_cb->ipv6_addtl_opts |= cpu_to_le16(
+					IPV6_ADDOPT_AUTOCONFIG_LINK_LOCAL_ADDR);
+		else if (iface_param->value[0] ==
+			 ISCSI_IPV6_LINKLOCAL_AUTOCFG_DISABLE)
+			init_fw_cb->ipv6_addtl_opts &= cpu_to_le16(
+				       ~IPV6_ADDOPT_AUTOCONFIG_LINK_LOCAL_ADDR);
+		else
+			ql4_printk(KERN_ERR, ha, "Invalid autocfg setting for "
+				   "IPv6 linklocal addr\n");
+		break;
+	case ISCSI_NET_PARAM_IPV6_ROUTER_AUTOCFG:
+		/* Autocfg applies to even interface */
+		if (iface_param->iface_num & 0x1)
+			break;
+
+		if (iface_param->value[0] == ISCSI_IPV6_ROUTER_AUTOCFG_ENABLE)
+			memset(init_fw_cb->ipv6_dflt_rtr_addr, 0,
+			       sizeof(init_fw_cb->ipv6_dflt_rtr_addr));
+		break;
+	case ISCSI_NET_PARAM_IFACE_ENABLE:
+		if (iface_param->value[0] == ISCSI_IFACE_ENABLE)
+			init_fw_cb->ipv6_opts |=
+				cpu_to_le16(IPV6_OPT_IPV6_PROTOCOL_ENABLE);
+		else
+			init_fw_cb->ipv6_opts &=
+				cpu_to_le16(~IPV6_OPT_IPV6_PROTOCOL_ENABLE &
+					    0xFFFF);
+		break;
+	case ISCSI_NET_PARAM_VLAN_ID:
+		if (iface_param->len != sizeof(init_fw_cb->ipv6_vlan_tag))
+			break;
+		init_fw_cb->ipv6_vlan_tag = *(uint16_t *)iface_param->value;
+		break;
+	default:
+		ql4_printk(KERN_ERR, ha, "Unknown IPv6 param = %d\n",
+			   iface_param->param);
+		break;
+	}
+}
+
+static void qla4xxx_set_ipv4(struct scsi_qla_host *ha,
+			     struct iscsi_iface_param_info *iface_param,
+			     struct addr_ctrl_blk *init_fw_cb)
+{
+	switch (iface_param->param) {
+	case ISCSI_NET_PARAM_IPV4_ADDR:
+		memcpy(init_fw_cb->ipv4_addr, iface_param->value,
+		       sizeof(init_fw_cb->ipv4_addr));
+		break;
+	case ISCSI_NET_PARAM_IPV4_SUBNET:
+		memcpy(init_fw_cb->ipv4_subnet,	iface_param->value,
+		       sizeof(init_fw_cb->ipv4_subnet));
+		break;
+	case ISCSI_NET_PARAM_IPV4_GW:
+		memcpy(init_fw_cb->ipv4_gw_addr, iface_param->value,
+		       sizeof(init_fw_cb->ipv4_gw_addr));
+		break;
+	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
+		if (iface_param->value[0] == ISCSI_BOOTPROTO_DHCP)
+			init_fw_cb->ipv4_tcp_opts |=
+					cpu_to_le16(TCPOPT_DHCP_ENABLE);
+		else if (iface_param->value[0] == ISCSI_BOOTPROTO_STATIC)
+			init_fw_cb->ipv4_tcp_opts &=
+					cpu_to_le16(~TCPOPT_DHCP_ENABLE);
+		else
+			ql4_printk(KERN_ERR, ha, "Invalid IPv4 bootproto\n");
+		break;
+	case ISCSI_NET_PARAM_IFACE_ENABLE:
+		if (iface_param->value[0] == ISCSI_IFACE_ENABLE)
+			init_fw_cb->ipv4_ip_opts |=
+				cpu_to_le16(IPOPT_IPv4_PROTOCOL_ENABLE);
+		else
+			init_fw_cb->ipv4_ip_opts &=
+				cpu_to_le16(~IPOPT_IPv4_PROTOCOL_ENABLE &
+					    0xFFFF);
+		break;
+	case ISCSI_NET_PARAM_VLAN_ID:
+		if (iface_param->len != sizeof(init_fw_cb->ipv4_vlan_tag))
+			break;
+		init_fw_cb->ipv4_vlan_tag = *(uint16_t *)iface_param->value;
+		break;
+	default:
+		ql4_printk(KERN_ERR, ha, "Unknown IPv4 param = %d\n",
+			   iface_param->param);
+		break;
+	}
+}
+
+static void
+qla4xxx_initcb_to_acb(struct addr_ctrl_blk *init_fw_cb)
+{
+	struct addr_ctrl_blk_def *acb;
+	acb = (struct addr_ctrl_blk_def *)init_fw_cb;
+	memset(acb->reserved1, 0, sizeof(acb->reserved1));
+	memset(acb->reserved2, 0, sizeof(acb->reserved2));
+	memset(acb->reserved3, 0, sizeof(acb->reserved3));
+	memset(acb->reserved4, 0, sizeof(acb->reserved4));
+	memset(acb->reserved5, 0, sizeof(acb->reserved5));
+	memset(acb->reserved6, 0, sizeof(acb->reserved6));
+	memset(acb->reserved7, 0, sizeof(acb->reserved7));
+	memset(acb->reserved8, 0, sizeof(acb->reserved8));
+	memset(acb->reserved9, 0, sizeof(acb->reserved9));
+	memset(acb->reserved10, 0, sizeof(acb->reserved10));
+	memset(acb->reserved11, 0, sizeof(acb->reserved11));
+	memset(acb->reserved12, 0, sizeof(acb->reserved12));
+	memset(acb->reserved13, 0, sizeof(acb->reserved13));
+	memset(acb->reserved14, 0, sizeof(acb->reserved14));
+	memset(acb->reserved15, 0, sizeof(acb->reserved15));
+}
+
+static int
+qla4xxx_iface_set_param(struct Scsi_Host *shost, char *data, int count)
+{
+	struct scsi_qla_host *ha = to_qla_host(shost);
+	int rval = 0;
+	struct iscsi_iface_param_info *iface_param = NULL;
+	struct addr_ctrl_blk *init_fw_cb = NULL;
+	dma_addr_t init_fw_cb_dma;
+	uint32_t mbox_cmd[MBOX_REG_COUNT];
+	uint32_t mbox_sts[MBOX_REG_COUNT];
+	uint32_t total_param_count;
+	uint32_t length;
+
+	init_fw_cb = dma_alloc_coherent(&ha->pdev->dev,
+					sizeof(struct addr_ctrl_blk),
+					&init_fw_cb_dma, GFP_KERNEL);
+	if (!init_fw_cb) {
+		ql4_printk(KERN_ERR, ha, "%s: Unable to alloc init_cb\n",
+			   __func__);
+		return -ENOMEM;
+	}
+
+	memset(init_fw_cb, 0, sizeof(struct addr_ctrl_blk));
+	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
+	memset(&mbox_sts, 0, sizeof(mbox_sts));
+
+	if (qla4xxx_get_ifcb(ha, &mbox_cmd[0], &mbox_sts[0], init_fw_cb_dma)) {
+		ql4_printk(KERN_ERR, ha, "%s: get ifcb failed\n", __func__);
+		rval = -EIO;
+		goto exit_init_fw_cb;
+	}
+
+	total_param_count = count;
+	iface_param = (struct iscsi_iface_param_info *)data;
+
+	for ( ; total_param_count != 0; total_param_count--) {
+		length = iface_param->len;
+
+		if (iface_param->param_type != ISCSI_NET_PARAM)
+			continue;
+
+		switch (iface_param->iface_type) {
+		case ISCSI_IFACE_TYPE_IPV4:
+			switch (iface_param->iface_num) {
+			case 0:
+				qla4xxx_set_ipv4(ha, iface_param, init_fw_cb);
+				break;
+			default:
+				/* Cannot have more than one IPv4 interface */
+				ql4_printk(KERN_ERR, ha, "Invalid IPv4 iface "
+					   "number = %d\n",
+					   iface_param->iface_num);
+				break;
+			}
+			break;
+		case ISCSI_IFACE_TYPE_IPV6:
+			switch (iface_param->iface_num) {
+			case 0:
+			case 1:
+				qla4xxx_set_ipv6(ha, iface_param, init_fw_cb);
+				break;
+			default:
+				/* Cannot have more than two IPv6 interface */
+				ql4_printk(KERN_ERR, ha, "Invalid IPv6 iface "
+					   "number = %d\n",
+					   iface_param->iface_num);
+				break;
+			}
+			break;
+		default:
+			ql4_printk(KERN_ERR, ha, "Invalid iface type\n");
+			break;
+		}
+
+		iface_param = (struct iscsi_iface_param_info *)
+						((uint8_t *)iface_param +
+			    sizeof(struct iscsi_iface_param_info) + length);
+	}
+
+	init_fw_cb->cookie = cpu_to_le32(0x11BEAD5A);
+
+	rval = qla4xxx_set_flash(ha, init_fw_cb_dma, FLASH_SEGMENT_IFCB,
+				 sizeof(struct addr_ctrl_blk),
+				 FLASH_OPT_RMW_COMMIT);
+	if (rval != QLA_SUCCESS) {
+		ql4_printk(KERN_ERR, ha, "%s: set flash mbx failed\n",
+			   __func__);
+		rval = -EIO;
+		goto exit_init_fw_cb;
+	}
+
+	qla4xxx_disable_acb(ha);
+
+	qla4xxx_initcb_to_acb(init_fw_cb);
+
+	rval = qla4xxx_set_acb(ha, &mbox_cmd[0], &mbox_sts[0], init_fw_cb_dma);
+	if (rval != QLA_SUCCESS) {
+		ql4_printk(KERN_ERR, ha, "%s: set acb mbx failed\n",
+			   __func__);
+		rval = -EIO;
+		goto exit_init_fw_cb;
+	}
+
+	memset(init_fw_cb, 0, sizeof(struct addr_ctrl_blk));
+	qla4xxx_update_local_ifcb(ha, &mbox_cmd[0], &mbox_sts[0], init_fw_cb,
+				  init_fw_cb_dma);
+
+exit_init_fw_cb:
+	dma_free_coherent(&ha->pdev->dev, sizeof(struct addr_ctrl_blk),
+			  init_fw_cb, init_fw_cb_dma);
+
+	return rval;
 }
 
 static int qla4xxx_sess_get_param(struct iscsi_cls_session *sess,
