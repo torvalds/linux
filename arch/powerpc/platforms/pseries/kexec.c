@@ -39,17 +39,20 @@ static void pseries_kexec_cpu_down(int crash_shutdown, int secondary)
 		}
 
 		addr = __pa(get_slb_shadow());
-		if (unregister_slb_shadow(hard_smp_processor_id(), addr))
-			printk("SLB shadow buffer deregistration of "
-			       "cpu %u (hw_cpu_id %d) failed\n",
+		ret = unregister_slb_shadow(hard_smp_processor_id(), addr);
+		if (ret) {
+			pr_err("WARNING: SLB shadow buffer deregistration "
+			       "for cpu %d (hw %d) failed with %d\n",
 			       smp_processor_id(),
-			       hard_smp_processor_id());
+			       hard_smp_processor_id(), ret);
+		}
 
 		addr = __pa(get_lppaca());
-		if (unregister_vpa(hard_smp_processor_id(), addr)) {
-			printk("VPA deregistration of cpu %u (hw_cpu_id %d) "
-					"failed\n", smp_processor_id(),
-					hard_smp_processor_id());
+		ret = unregister_vpa(hard_smp_processor_id(), addr);
+		if (ret) {
+			pr_err("WARNING: VPA deregistration for cpu %d "
+			       "(hw %d) failed with %d\n", smp_processor_id(),
+			       hard_smp_processor_id(), ret);
 		}
 	}
 }
