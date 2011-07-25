@@ -85,7 +85,6 @@ static int ccid2_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 
 static void ccid2_change_l_ack_ratio(struct sock *sk, u32 val)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
 	u32 max_ratio = DIV_ROUND_UP(ccid2_hc_tx_sk(sk)->tx_cwnd, 2);
 
 	/*
@@ -98,14 +97,15 @@ static void ccid2_change_l_ack_ratio(struct sock *sk, u32 val)
 		DCCP_WARN("Limiting Ack Ratio (%u) to %u\n", val, max_ratio);
 		val = max_ratio;
 	}
-	if (val > DCCPF_ACK_RATIO_MAX)
-		val = DCCPF_ACK_RATIO_MAX;
+	dccp_feat_signal_nn_change(sk, DCCPF_ACK_RATIO,
+				   min_t(u32, val, DCCPF_ACK_RATIO_MAX));
+}
 
-	if (val == dp->dccps_l_ack_ratio)
-		return;
-
-	ccid2_pr_debug("changing local ack ratio to %u\n", val);
-	dp->dccps_l_ack_ratio = val;
+static void ccid2_change_l_seq_window(struct sock *sk, u64 val)
+{
+	dccp_feat_signal_nn_change(sk, DCCPF_SEQUENCE_WINDOW,
+				   clamp_val(val, DCCPF_SEQ_WMIN,
+						  DCCPF_SEQ_WMAX));
 }
 
 static void ccid2_hc_tx_rto_expire(unsigned long data)
@@ -405,17 +405,37 @@ static void ccid2_new_ack(struct sock *sk, struct ccid2_seq *seqp,
 			  unsigned int *maxincr)
 {
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
+	struct dccp_sock *dp = dccp_sk(sk);
+	int r_seq_used = hc->tx_cwnd / dp->dccps_l_ack_ratio;
 
-	if (hc->tx_cwnd < hc->tx_ssthresh) {
-		if (*maxincr > 0 && ++hc->tx_packets_acked == 2) {
+	if (hc->tx_cwnd < dp->dccps_l_seq_win &&
+	    r_seq_used < dp->dccps_r_seq_win) {
+		if (hc->tx_cwnd < hc->tx_ssthresh) {
+			if (*maxincr > 0 && ++hc->tx_packets_acked == 2) {
+				hc->tx_cwnd += 1;
+				*maxincr    -= 1;
+				hc->tx_packets_acked = 0;
+			}
+		} else if (++hc->tx_packets_acked >= hc->tx_cwnd) {
 			hc->tx_cwnd += 1;
-			*maxincr    -= 1;
 			hc->tx_packets_acked = 0;
 		}
-	} else if (++hc->tx_packets_acked >= hc->tx_cwnd) {
-			hc->tx_cwnd += 1;
-			hc->tx_packets_acked = 0;
 	}
+
+	/*
+	 * Adjust the local sequence window and the ack ratio to allow about
+	 * 5 times the number of packets in the network (RFC 4340 7.5.2)
+	 */
+	if (r_seq_used * CCID2_WIN_CHANGE_FACTOR >= dp->dccps_r_seq_win)
+		ccid2_change_l_ack_ratio(sk, dp->dccps_l_ack_ratio * 2);
+	else if (r_seq_used * CCID2_WIN_CHANGE_FACTOR < dp->dccps_r_seq_win/2)
+		ccid2_change_l_ack_ratio(sk, dp->dccps_l_ack_ratio / 2 ? : 1U);
+
+	if (hc->tx_cwnd * CCID2_WIN_CHANGE_FACTOR >= dp->dccps_l_seq_win)
+		ccid2_change_l_seq_window(sk, dp->dccps_l_seq_win * 2);
+	else if (hc->tx_cwnd * CCID2_WIN_CHANGE_FACTOR < dp->dccps_l_seq_win/2)
+		ccid2_change_l_seq_window(sk, dp->dccps_l_seq_win / 2);
+
 	/*
 	 * FIXME: RTT is sampled several times per acknowledgment (for each
 	 * entry in the Ack Vector), instead of once per Ack (as in TCP SACK).
