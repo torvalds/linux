@@ -52,7 +52,7 @@ struct intel_dp {
 	uint32_t color_range;
 	uint8_t link_bw;
 	uint8_t lane_count;
-	uint8_t dpcd[4];
+	uint8_t dpcd[8];
 	struct i2c_adapter adapter;
 	struct i2c_algo_dp_aux_data algo;
 	bool is_pch_edp;
@@ -770,6 +770,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	memset(intel_dp->link_configuration, 0, DP_LINK_CONFIGURATION_SIZE);
 	intel_dp->link_configuration[0] = intel_dp->link_bw;
 	intel_dp->link_configuration[1] = intel_dp->lane_count;
+	intel_dp->link_configuration[8] = DP_SET_ANSI_8B10B;
 
 	/*
 	 * Check for DPCD version > 1.1 and enhanced framing support
@@ -1597,10 +1598,22 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 }
 
 static enum drm_connector_status
+i915_dp_detect_common(struct intel_dp *intel_dp)
+{
+	enum drm_connector_status status = connector_status_disconnected;
+
+	if (intel_dp_aux_native_read_retry(intel_dp, 0x000, intel_dp->dpcd,
+					   sizeof (intel_dp->dpcd)) &&
+	    (intel_dp->dpcd[DP_DPCD_REV] != 0))
+		status = connector_status_connected;
+
+	return status;
+}
+
+static enum drm_connector_status
 ironlake_dp_detect(struct intel_dp *intel_dp)
 {
 	enum drm_connector_status status;
-	bool ret;
 
 	/* Can't disconnect eDP, but you can close the lid... */
 	if (is_edp(intel_dp)) {
@@ -1610,15 +1623,7 @@ ironlake_dp_detect(struct intel_dp *intel_dp)
 		return status;
 	}
 
-	status = connector_status_disconnected;
-	ret = intel_dp_aux_native_read_retry(intel_dp,
-					     0x000, intel_dp->dpcd,
-					     sizeof (intel_dp->dpcd));
-	if (ret && intel_dp->dpcd[DP_DPCD_REV] != 0)
-		status = connector_status_connected;
-	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", intel_dp->dpcd[0],
-		      intel_dp->dpcd[1], intel_dp->dpcd[2], intel_dp->dpcd[3]);
-	return status;
+	return i915_dp_detect_common(intel_dp);
 }
 
 static enum drm_connector_status
@@ -1626,7 +1631,6 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum drm_connector_status status;
 	uint32_t temp, bit;
 
 	switch (intel_dp->output_reg) {
@@ -1648,15 +1652,7 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 	if ((temp & bit) == 0)
 		return connector_status_disconnected;
 
-	status = connector_status_disconnected;
-	if (intel_dp_aux_native_read(intel_dp, 0x000, intel_dp->dpcd,
-				     sizeof (intel_dp->dpcd)) == sizeof (intel_dp->dpcd))
-	{
-		if (intel_dp->dpcd[DP_DPCD_REV] != 0)
-			status = connector_status_connected;
-	}
-
-	return status;
+	return i915_dp_detect_common(intel_dp);
 }
 
 /**
@@ -1674,11 +1670,18 @@ intel_dp_detect(struct drm_connector *connector, bool force)
 	struct edid *edid = NULL;
 
 	intel_dp->has_audio = false;
+	memset(intel_dp->dpcd, 0, sizeof(intel_dp->dpcd));
 
 	if (HAS_PCH_SPLIT(dev))
 		status = ironlake_dp_detect(intel_dp);
 	else
 		status = g4x_dp_detect(intel_dp);
+
+	DRM_DEBUG_KMS("DPCD: %02hx%02hx%02hx%02hx%02hx%02hx%02hx%02hx\n",
+		      intel_dp->dpcd[0], intel_dp->dpcd[1], intel_dp->dpcd[2],
+		      intel_dp->dpcd[3], intel_dp->dpcd[4], intel_dp->dpcd[5],
+		      intel_dp->dpcd[6], intel_dp->dpcd[7]);
+
 	if (status != connector_status_connected)
 		return status;
 
