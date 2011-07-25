@@ -362,6 +362,23 @@ static inline int atc_chan_is_enabled(struct at_dma_chan *atchan)
 	return !!(dma_readl(atdma, CHSR) & atchan->mask);
 }
 
+/**
+ * atc_chan_is_paused - test channel pause/resume status
+ * @atchan: channel we want to test status
+ */
+static inline int atc_chan_is_paused(struct at_dma_chan *atchan)
+{
+	return test_bit(ATC_IS_PAUSED, &atchan->status);
+}
+
+/**
+ * atc_chan_is_cyclic - test if given channel has cyclic property set
+ * @atchan: channel we want to test status
+ */
+static inline int atc_chan_is_cyclic(struct at_dma_chan *atchan)
+{
+	return test_bit(ATC_IS_CYCLIC, &atchan->status);
+}
 
 /**
  * set_desc_eol - set end-of-link to descriptor so it will end transfer
