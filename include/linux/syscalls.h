@@ -475,7 +475,7 @@ asmlinkage long sys_mincore(unsigned long start, size_t len,
 asmlinkage long sys_pivot_root(const char __user *new_root,
 				const char __user *put_old);
 asmlinkage long sys_chroot(const char __user *filename);
-asmlinkage long sys_mknod(const char __user *filename, int mode,
+asmlinkage long sys_mknod(const char __user *filename, umode_t mode,
 				unsigned dev);
 asmlinkage long sys_link(const char __user *oldname,
 				const char __user *newname);
@@ -755,7 +755,7 @@ asmlinkage long sys_spu_run(int fd, __u32 __user *unpc,
 asmlinkage long sys_spu_create(const char __user *name,
 		unsigned int flags, mode_t mode, int fd);
 
-asmlinkage long sys_mknodat(int dfd, const char __user * filename, int mode,
+asmlinkage long sys_mknodat(int dfd, const char __user * filename, umode_t mode,
 			    unsigned dev);
 asmlinkage long sys_mkdirat(int dfd, const char __user * pathname, int mode);
 asmlinkage long sys_unlinkat(int dfd, const char __user * pathname, int flag);
