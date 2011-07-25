@@ -38,6 +38,7 @@ struct iscsi_conn;
 struct iscsi_task;
 struct sockaddr;
 struct iscsi_iface;
+struct bsg_job;
 
 /**
  * struct iscsi_transport - iSCSI Transport template
@@ -141,8 +142,8 @@ struct iscsi_transport {
 				enum iscsi_param_type param_type,
 				int param, char *buf);
 	mode_t (*attr_is_visible)(int param_type, int param);
+	int (*bsg_request)(struct bsg_job *job);
 };
-
 
 /*
  * transport registration upcalls
@@ -227,7 +228,11 @@ struct iscsi_cls_session {
 struct iscsi_cls_host {
 	atomic_t nr_scans;
 	struct mutex mutex;
+	struct request_queue *bsg_q;
 };
+
+#define iscsi_job_to_shost(_job) \
+        dev_to_shost(_job->dev)
 
 extern void iscsi_host_for_each_session(struct Scsi_Host *shost,
 				void (*fn)(struct iscsi_cls_session *));

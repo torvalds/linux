@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
+#include <linux/bsg-lib.h>
 #include <net/tcp.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -31,6 +32,7 @@
 #include <scsi/scsi_transport_iscsi.h>
 #include <scsi/iscsi_if.h>
 #include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_bsg_iscsi.h>
 
 #define ISCSI_TRANSPORT_VERSION "2.0-870"
 
@@ -447,6 +449,99 @@ void iscsi_destroy_iface(struct iscsi_iface *iface)
 }
 EXPORT_SYMBOL_GPL(iscsi_destroy_iface);
 
+/*
+ * BSG support
+ */
+/**
+ * iscsi_bsg_host_dispatch - Dispatch command to LLD.
+ * @job: bsg job to be processed
+ */
+static int iscsi_bsg_host_dispatch(struct bsg_job *job)
+{
+	struct Scsi_Host *shost = iscsi_job_to_shost(job);
+	struct iscsi_bsg_request *req = job->request;
+	struct iscsi_bsg_reply *reply = job->reply;
+	struct iscsi_internal *i = to_iscsi_internal(shost->transportt);
+	int cmdlen = sizeof(uint32_t);	/* start with length of msgcode */
+	int ret;
+
+	/* check if we have the msgcode value at least */
+	if (job->request_len < sizeof(uint32_t)) {
+		ret = -ENOMSG;
+		goto fail_host_msg;
+	}
+
+	/* Validate the host command */
+	switch (req->msgcode) {
+	case ISCSI_BSG_HST_VENDOR:
+		cmdlen += sizeof(struct iscsi_bsg_host_vendor);
+		if ((shost->hostt->vendor_id == 0L) ||
+		    (req->rqst_data.h_vendor.vendor_id !=
+			shost->hostt->vendor_id)) {
+			ret = -ESRCH;
+			goto fail_host_msg;
+		}
+		break;
+	default:
+		ret = -EBADR;
+		goto fail_host_msg;
+	}
+
+	/* check if we really have all the request data needed */
+	if (job->request_len < cmdlen) {
+		ret = -ENOMSG;
+		goto fail_host_msg;
+	}
+
+	ret = i->iscsi_transport->bsg_request(job);
+	if (!ret)
+		return 0;
+
+fail_host_msg:
+	/* return the errno failure code as the only status */
+	BUG_ON(job->reply_len < sizeof(uint32_t));
+	reply->reply_payload_rcv_len = 0;
+	reply->result = ret;
+	job->reply_len = sizeof(uint32_t);
+	bsg_job_done(job, ret, 0);
+	return 0;
+}
+
+/**
+ * iscsi_bsg_host_add - Create and add the bsg hooks to receive requests
+ * @shost: shost for iscsi_host
+ * @cls_host: iscsi_cls_host adding the structures to
+ */
+static int
+iscsi_bsg_host_add(struct Scsi_Host *shost, struct iscsi_cls_host *ihost)
+{
+	struct device *dev = &shost->shost_gendev;
+	struct iscsi_internal *i = to_iscsi_internal(shost->transportt);
+	struct request_queue *q;
+	char bsg_name[20];
+	int ret;
+
+	if (!i->iscsi_transport->bsg_request)
+		return -ENOTSUPP;
+
+	snprintf(bsg_name, sizeof(bsg_name), "iscsi_host%d", shost->host_no);
+
+	q = __scsi_alloc_queue(shost, bsg_request_fn);
+	if (!q)
+		return -ENOMEM;
+
+	ret = bsg_setup_queue(dev, q, bsg_name, iscsi_bsg_host_dispatch, 0);
+	if (ret) {
+		shost_printk(KERN_ERR, shost, "bsg interface failed to "
+			     "initialize - no request queue\n");
+		blk_cleanup_queue(q);
+		return ret;
+	}
+
+	ihost->bsg_q = q;
+	return 0;
+}
+
 static int iscsi_setup_host(struct transport_container *tc, struct device *dev,
 			    struct device *cdev)
 {
@@ -456,13 +551,30 @@ static int iscsi_setup_host(struct transport_container *tc, struct device *dev,
 	memset(ihost, 0, sizeof(*ihost));
 	atomic_set(&ihost->nr_scans, 0);
 	mutex_init(&ihost->mutex);
+
+	iscsi_bsg_host_add(shost, ihost);
+	/* ignore any bsg add error - we just can't do sgio */
+
+	return 0;
+}
+
+static int iscsi_remove_host(struct transport_container *tc,
+			     struct device *dev, struct device *cdev)
+{
+	struct Scsi_Host *shost = dev_to_shost(dev);
+	struct iscsi_cls_host *ihost = shost->shost_data;
+
+	if (ihost->bsg_q) {
+		bsg_remove_queue(ihost->bsg_q);
+		blk_cleanup_queue(ihost->bsg_q);
+	}
 	return 0;
 }
 
 static DECLARE_TRANSPORT_CLASS(iscsi_host_class,
 			       "iscsi_host",
 			       iscsi_setup_host,
-			       NULL,
+			       iscsi_remove_host,
 			       NULL);
 
 static DECLARE_TRANSPORT_CLASS(iscsi_session_class,
