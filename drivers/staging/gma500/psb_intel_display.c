@@ -331,7 +331,7 @@ static bool psb_intel_find_best_PLL(struct drm_crtc *crtc, int target,
 void psb_intel_wait_for_vblank(struct drm_device *dev)
 {
 	/* Wait for 20ms, i.e. one cycle at 50hz. */
-	udelay(20000);
+	mdelay(20);
 }
 
 int psb_intel_pipe_set_base(struct drm_crtc *crtc,
