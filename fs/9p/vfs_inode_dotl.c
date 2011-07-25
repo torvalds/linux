@@ -153,7 +153,8 @@ static struct inode *v9fs_qid_iget_dotl(struct super_block *sb,
 	 * later.
 	 */
 	inode->i_ino = i_ino;
-	retval = v9fs_init_inode(v9ses, inode, st->st_mode);
+	retval = v9fs_init_inode(v9ses, inode,
+				 st->st_mode, new_decode_dev(st->st_rdev));
 	if (retval)
 		goto error;
 
@@ -414,7 +415,7 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 		 * inode with stat. We need to get an inode
 		 * so that we can set the acl with dentry
 		 */
-		inode = v9fs_get_inode(dir->i_sb, mode);
+		inode = v9fs_get_inode(dir->i_sb, mode, 0);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			goto error;
@@ -540,6 +541,7 @@ int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
 void
 v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode)
 {
+	mode_t mode;
 	struct v9fs_inode *v9inode = V9FS_I(inode);
 
 	if ((stat->st_result_mask & P9_STATS_BASIC) == P9_STATS_BASIC) {
@@ -552,11 +554,10 @@ v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode)
 		inode->i_uid = stat->st_uid;
 		inode->i_gid = stat->st_gid;
 		inode->i_nlink = stat->st_nlink;
-		inode->i_mode = stat->st_mode;
-		inode->i_rdev = new_decode_dev(stat->st_rdev);
 
-		if ((S_ISBLK(inode->i_mode)) || (S_ISCHR(inode->i_mode)))
-			init_special_inode(inode, inode->i_mode, inode->i_rdev);
+		mode = stat->st_mode & S_IALLUGO;
+		mode |= inode->i_mode & ~S_IALLUGO;
+		inode->i_mode = mode;
 
 		i_size_write(inode, stat->st_size);
 		inode->i_blocks = stat->st_blocks;
@@ -664,7 +665,7 @@ v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
 		fid = NULL;
 	} else {
 		/* Not in cached mode. No need to populate inode with stat */
-		inode = v9fs_get_inode(dir->i_sb, S_IFLNK);
+		inode = v9fs_get_inode(dir->i_sb, S_IFLNK, 0);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			goto error;
@@ -820,7 +821,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
 		 * Not in cached mode. No need to populate inode with stat.
 		 * socket syscall returns a fd, so we need instantiate
 		 */
-		inode = v9fs_get_inode(dir->i_sb, mode);
+		inode = v9fs_get_inode(dir->i_sb, mode, rdev);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			goto error;
@@ -886,6 +887,11 @@ int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode)
 	st = p9_client_getattr_dotl(fid, P9_STATS_ALL);
 	if (IS_ERR(st))
 		return PTR_ERR(st);
+	/*
+	 * Don't update inode if the file type is different
+	 */
+	if ((inode->i_mode & S_IFMT) != (st->st_mode & S_IFMT))
+		goto out;
 
 	spin_lock(&inode->i_lock);
 	/*
@@ -897,6 +903,7 @@ int v9fs_refresh_inode_dotl(struct p9_fid *fid, struct inode *inode)
 	if (v9ses->cache)
 		inode->i_size = i_size;
 	spin_unlock(&inode->i_lock);
+out:
 	kfree(st);
 	return 0;
 }
