@@ -3938,11 +3938,13 @@ static s32 wl_inform_bss(struct wl_priv *wl)
 	s32 i;
 
 	bss_list = wl->bss_list;
+#if 0
 	if (unlikely(bss_list->version != WL_BSS_INFO_VERSION)) {
 		WL_ERR(("Version %d != WL_BSS_INFO_VERSION\n",
 			bss_list->version));
 		return -EOPNOTSUPP;
 	}
+#endif
 	WL_DBG(("scanned AP count (%d)\n", bss_list->count));
 	bi = next_bss(bss_list, bi);
 	for_each_bss(bss_list, bi, i) {
