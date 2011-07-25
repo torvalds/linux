@@ -11,6 +11,7 @@
 #include <linux/lockdep.h>
 #include <linux/kobject_ns.h>
 #include <linux/fs.h>
+#include <linux/rbtree.h>
 
 struct sysfs_open_dirent;
 
@@ -21,6 +22,8 @@ struct sysfs_elem_dir {
 	struct sysfs_dirent	*children;
 
 	unsigned long		subdirs;
+
+	struct rb_root		name_tree;
 };
 
 struct sysfs_elem_symlink {
@@ -60,6 +63,8 @@ struct sysfs_dirent {
 	struct sysfs_dirent	*s_parent;
 	struct sysfs_dirent	*s_sibling;
 	const char		*s_name;
+
+	struct rb_node		name_node;
 
 	const void		*s_ns; /* namespace tag */
 	union {
