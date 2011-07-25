@@ -665,11 +665,22 @@ int dccp_feat_insert_opts(struct dccp_sock *dp, struct dccp_request_sock *dreq,
 			return -1;
 		if (pos->needs_mandatory && dccp_insert_option_mandatory(skb))
 			return -1;
-		/*
-		 * Enter CHANGING after transmitting the Change option (6.6.2).
-		 */
-		if (pos->state == FEAT_INITIALISING)
-			pos->state = FEAT_CHANGING;
+
+		if (skb->sk->sk_state == DCCP_OPEN &&
+		    (opt == DCCPO_CONFIRM_R || opt == DCCPO_CONFIRM_L)) {
+			/*
+			 * Confirms don't get retransmitted (6.6.3) once the
+			 * connection is in state OPEN
+			 */
+			dccp_feat_list_pop(pos);
+		} else {
+			/*
+			 * Enter CHANGING after transmitting the Change
+			 * option (6.6.2).
+			 */
+			if (pos->state == FEAT_INITIALISING)
+				pos->state = FEAT_CHANGING;
+		}
 	}
 	return 0;
 }
