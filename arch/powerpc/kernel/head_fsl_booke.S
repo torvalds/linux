@@ -63,17 +63,30 @@ _ENTRY(_start);
 	 * of abatron_pteptrs
 	 */
 	nop
-/*
- * Save parameters we are passed
- */
-	mr	r31,r3
-	mr	r30,r4
-	mr	r29,r5
-	mr	r28,r6
-	mr	r27,r7
-	li	r25,0		/* phys kernel start (low) */
-	li	r24,0		/* CPU number */
-	li	r23,0		/* phys kernel start (high) */
+
+	/* Translate device tree address to physical, save in r30/r31 */
+	mfmsr	r16
+	mfspr	r17,SPRN_PID
+	rlwinm	r17,r17,16,0x3fff0000	/* turn PID into MAS6[SPID] */
+	rlwimi	r17,r16,28,0x00000001	/* turn MSR[DS] into MAS6[SAS] */
+	mtspr	SPRN_MAS6,r17
+
+	tlbsx	0,r3			/* must succeed */
+
+	mfspr	r16,SPRN_MAS1
+	mfspr	r20,SPRN_MAS3
+	rlwinm	r17,r16,25,0x1f		/* r17 = log2(page size) */
+	li	r18,1024
+	slw	r18,r18,r17		/* r18 = page size */
+	addi	r18,r18,-1
+	and	r19,r3,r18		/* r19 = page offset */
+	andc	r31,r20,r18		/* r3 = page base */
+	or	r31,r31,r19		/* r3 = devtree phys addr */
+	mfspr	r30,SPRN_MAS7
+
+	li	r25,0			/* phys kernel start (low) */
+	li	r24,0			/* CPU number */
+	li	r23,0			/* phys kernel start (high) */
 
 /* We try to not make any assumptions about how the boot loader
  * setup or used the TLBs.  We invalidate all mappings from the
@@ -198,11 +211,8 @@ _ENTRY(__early_start)
 /*
  * Decide what sort of machine this is and initialize the MMU.
  */
-	mr	r3,r31
-	mr	r4,r30
-	mr	r5,r29
-	mr	r6,r28
-	mr	r7,r27
+	mr	r3,r30
+	mr	r4,r31
 	bl	machine_init
 	bl	MMU_init
 
