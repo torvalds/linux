@@ -2690,7 +2690,7 @@ int __init get_filesystem_list(char *buf);
 #define OPEN_FMODE(flag) ((__force fmode_t)(((flag + 1) & O_ACCMODE) | \
 					    (flag & __FMODE_NONOTIFY)))
 
-static inline int is_sxid(mode_t mode)
+static inline int is_sxid(umode_t mode)
 {
 	return (mode & S_ISUID) || ((mode & S_ISGID) && (mode & S_IXGRP));
 }
