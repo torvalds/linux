@@ -48,8 +48,8 @@
 #include <linux/mlx4/doorbell.h>
 
 #define DRV_NAME	"mlx4_core"
-#define DRV_VERSION	"0.01"
-#define DRV_RELDATE	"May 1, 2007"
+#define DRV_VERSION	"1.0"
+#define DRV_RELDATE	"July 14, 2011"
 
 enum {
 	MLX4_HCR_BASE		= 0x80680,
@@ -342,6 +342,7 @@ struct mlx4_priv {
 	struct mlx4_srq_table	srq_table;
 	struct mlx4_qp_table	qp_table;
 	struct mlx4_mcg_table	mcg_table;
+	struct mlx4_bitmap	counters_bitmap;
 
 	struct mlx4_catas_err	catas_err;
 

@@ -219,6 +219,8 @@ static const struct esdhc_platform_data mx25pdk_esdhc_pdata __initconst = {
 
 static void __init mx25pdk_init(void)
 {
+	imx25_soc_init();
+
 	mxc_iomux_v3_setup_multiple_pads(mx25pdk_pads,
 			ARRAY_SIZE(mx25pdk_pads));
 

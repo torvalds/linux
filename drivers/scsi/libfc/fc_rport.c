@@ -153,18 +153,6 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 }
 
 /**
- * fc_rport_free_rcu() - Free a remote port
- * @rcu: The rcu_head structure inside the remote port
- */
-static void fc_rport_free_rcu(struct rcu_head *rcu)
-{
-	struct fc_rport_priv *rdata;
-
-	rdata = container_of(rcu, struct fc_rport_priv, rcu);
-	kfree(rdata);
-}
-
-/**
  * fc_rport_destroy() - Free a remote port after last reference is released
  * @kref: The remote port's kref
  */
@@ -173,7 +161,7 @@ static void fc_rport_destroy(struct kref *kref)
 	struct fc_rport_priv *rdata;
 
 	rdata = container_of(kref, struct fc_rport_priv, kref);
-	call_rcu(&rdata->rcu, fc_rport_free_rcu);
+	kfree_rcu(rdata, rcu);
 }
 
 /**
@@ -801,6 +789,20 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 
 	switch (rdata->rp_state) {
 	case RPORT_ST_INIT:
+		/*
+		 * If received the FLOGI request on RPORT which is INIT state
+		 * (means not transition to FLOGI either fc_rport timeout
+		 * function didn;t trigger or this end hasn;t received
+		 * beacon yet from other end. In that case only, allow RPORT
+		 * state machine to continue, otherwise fall through which
+		 * causes the code to send reject response.
+		 * NOTE; Not checking for FIP->state such as VNMP_UP or
+		 * VNMP_CLAIM because if FIP state is not one of those,
+		 * RPORT wouldn;t have created and 'rport_lookup' would have
+		 * failed anyway in that case.
+		 */
+		if (lport->point_to_multipoint)
+			break;
 	case RPORT_ST_DELETE:
 		mutex_unlock(&rdata->rp_mutex);
 		rjt_data.reason = ELS_RJT_FIP;

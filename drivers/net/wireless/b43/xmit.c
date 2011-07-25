@@ -323,8 +323,7 @@ int b43_generate_txhdr(struct b43_wldev *dev,
 			/* we give the phase1key and iv16 here, the key is stored in
 			 * shm. With that the hardware can do phase 2 and encryption.
 			 */
-			ieee80211_get_tkip_key(info->control.hw_key, skb_frag,
-					IEEE80211_TKIP_P1_KEY, (u8*)phase1key);
+			ieee80211_get_tkip_p1k(info->control.hw_key, skb_frag, phase1key);
 			/* phase1key is in host endian. Copy to little-endian txhdr->iv. */
 			for (i = 0; i < 5; i++) {
 				txhdr->iv[i * 2 + 0] = phase1key[i];
@@ -547,7 +546,7 @@ static s8 b43_rssi_postprocess(struct b43_wldev *dev,
 			else
 				tmp -= 3;
 		} else {
-			if (dev->sdev->bus->sprom.
+			if (dev->dev->bus_sprom->
 			    boardflags_lo & B43_BFL_RSSI) {
 				if (in_rssi > 63)
 					in_rssi = 63;

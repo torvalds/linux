@@ -36,31 +36,4 @@
 #define gpio_to_irq(gpio)	(MXC_GPIO_IRQ_START + (gpio))
 #define irq_to_gpio(irq)	((irq) - MXC_GPIO_IRQ_START)
 
-struct mxc_gpio_port {
-	void __iomem *base;
-	int irq;
-	int irq_high;
-	int virtual_irq_start;
-	struct gpio_chip chip;
-	u32 both_edges;
-	spinlock_t lock;
-};
-
-#define DEFINE_IMX_GPIO_PORT_IRQ_HIGH(soc, _id, _hwid, _irq, _irq_high)	\
-	{								\
-		.chip.label = "gpio-" #_id,				\
-		.irq = _irq,						\
-		.irq_high = _irq_high,					\
-		.base = soc ## _IO_ADDRESS(				\
-				soc ## _GPIO ## _hwid ## _BASE_ADDR),	\
-		.virtual_irq_start = MXC_GPIO_IRQ_START + (_id) * 32,	\
-	}
-
-#define DEFINE_IMX_GPIO_PORT_IRQ(soc, _id, _hwid, _irq)			\
-	DEFINE_IMX_GPIO_PORT_IRQ_HIGH(soc, _id, _hwid, _irq, 0)
-#define DEFINE_IMX_GPIO_PORT(soc, _id, _hwid)				\
-	DEFINE_IMX_GPIO_PORT_IRQ(soc, _id, _hwid, 0)
-
-int mxc_gpio_init(struct mxc_gpio_port*, int);
-
 #endif

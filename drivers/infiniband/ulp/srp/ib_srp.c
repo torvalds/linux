@@ -2127,6 +2127,8 @@ static ssize_t srp_create_target(struct device *dev,
 		return -ENOMEM;
 
 	target_host->transportt  = ib_srp_transport_template;
+	target_host->max_channel = 0;
+	target_host->max_id      = 1;
 	target_host->max_lun     = SRP_MAX_LUN;
 	target_host->max_cmd_len = sizeof ((struct srp_cmd *) (void *) 0L)->cdb;
 

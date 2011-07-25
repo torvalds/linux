@@ -885,14 +885,6 @@ int pcibios_assign_resource(struct pci_dev *pdev, int resource)
 	return -ENXIO;
 }
 
-struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
-{
-	struct pcidev_cookie *pc = pdev->sysdata;
-
-	return pc->prom_node;
-}
-EXPORT_SYMBOL(pci_device_to_OF_node);
-
 /*
  * This probably belongs here rather than ioport.c because
  * we do not want this crud linked into SBus kernels.

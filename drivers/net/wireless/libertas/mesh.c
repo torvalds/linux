@@ -2,6 +2,7 @@
 
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
+#include <linux/hardirq.h>
 #include <linux/netdevice.h>
 #include <linux/if_ether.h>
 #include <linux/if_arp.h>

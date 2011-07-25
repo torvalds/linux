@@ -414,33 +414,34 @@ int dn_fib_semantic_match(int type, struct dn_fib_info *fi, const struct flowidn
 
 		res->fi = fi;
 
-		switch(type) {
-			case RTN_NAT:
-				DN_FIB_RES_RESET(*res);
+		switch (type) {
+		case RTN_NAT:
+			DN_FIB_RES_RESET(*res);
+			atomic_inc(&fi->fib_clntref);
+			return 0;
+		case RTN_UNICAST:
+		case RTN_LOCAL:
+			for_nexthops(fi) {
+				if (nh->nh_flags & RTNH_F_DEAD)
+					continue;
+				if (!fld->flowidn_oif ||
+				    fld->flowidn_oif == nh->nh_oif)
+					break;
+			}
+			if (nhsel < fi->fib_nhs) {
+				res->nh_sel = nhsel;
 				atomic_inc(&fi->fib_clntref);
 				return 0;
-			case RTN_UNICAST:
-			case RTN_LOCAL:
-				for_nexthops(fi) {
-					if (nh->nh_flags & RTNH_F_DEAD)
-						continue;
-					if (!fld->flowidn_oif ||
-					    fld->flowidn_oif == nh->nh_oif)
-						break;
-				}
-				if (nhsel < fi->fib_nhs) {
-					res->nh_sel = nhsel;
-					atomic_inc(&fi->fib_clntref);
-					return 0;
-				}
-				endfor_nexthops(fi);
-				res->fi = NULL;
-				return 1;
-			default:
-				if (net_ratelimit())
-					 printk("DECnet: impossible routing event : dn_fib_semantic_match type=%d\n", type);
-				res->fi = NULL;
-				return -EINVAL;
+			}
+			endfor_nexthops(fi);
+			res->fi = NULL;
+			return 1;
+		default:
+			if (net_ratelimit())
+				printk("DECnet: impossible routing event : dn_fib_semantic_match type=%d\n",
+				       type);
+			res->fi = NULL;
+			return -EINVAL;
 		}
 	}
 	return err;
@@ -647,20 +648,20 @@ static int dn_fib_dnaddr_event(struct notifier_block *this, unsigned long event,
 {
 	struct dn_ifaddr *ifa = (struct dn_ifaddr *)ptr;
 
-	switch(event) {
-		case NETDEV_UP:
-			dn_fib_add_ifaddr(ifa);
-			dn_fib_sync_up(ifa->ifa_dev->dev);
+	switch (event) {
+	case NETDEV_UP:
+		dn_fib_add_ifaddr(ifa);
+		dn_fib_sync_up(ifa->ifa_dev->dev);
+		dn_rt_cache_flush(-1);
+		break;
+	case NETDEV_DOWN:
+		dn_fib_del_ifaddr(ifa);
+		if (ifa->ifa_dev && ifa->ifa_dev->ifa_list == NULL) {
+			dn_fib_disable_addr(ifa->ifa_dev->dev, 1);
+		} else {
 			dn_rt_cache_flush(-1);
-			break;
-		case NETDEV_DOWN:
-			dn_fib_del_ifaddr(ifa);
-			if (ifa->ifa_dev && ifa->ifa_dev->ifa_list == NULL) {
-				dn_fib_disable_addr(ifa->ifa_dev->dev, 1);
-			} else {
-				dn_rt_cache_flush(-1);
-			}
-			break;
+		}
+		break;
 	}
 	return NOTIFY_DONE;
 }
@@ -763,8 +764,8 @@ void __init dn_fib_init(void)
 
 	register_dnaddr_notifier(&dn_fib_dnaddr_notifier);
 
-	rtnl_register(PF_DECnet, RTM_NEWROUTE, dn_fib_rtm_newroute, NULL);
-	rtnl_register(PF_DECnet, RTM_DELROUTE, dn_fib_rtm_delroute, NULL);
+	rtnl_register(PF_DECnet, RTM_NEWROUTE, dn_fib_rtm_newroute, NULL, NULL);
+	rtnl_register(PF_DECnet, RTM_DELROUTE, dn_fib_rtm_delroute, NULL, NULL);
 }
 
 

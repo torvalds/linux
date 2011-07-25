@@ -222,11 +222,17 @@ static int tegra_i2s_hw_params(struct snd_pcm_substream *substream,
 	if (i2sclock % (2 * srate))
 		reg |= TEGRA_I2S_TIMING_NON_SYM_ENABLE;
 
+	if (!i2s->clk_refs)
+		clk_enable(i2s->clk_i2s);
+
 	tegra_i2s_write(i2s, TEGRA_I2S_TIMING, reg);
 
 	tegra_i2s_write(i2s, TEGRA_I2S_FIFO_SCR,
 		TEGRA_I2S_FIFO_SCR_FIFO2_ATN_LVL_FOUR_SLOTS |
 		TEGRA_I2S_FIFO_SCR_FIFO1_ATN_LVL_FOUR_SLOTS);
+
+	if (!i2s->clk_refs)
+		clk_disable(i2s->clk_i2s);
 
 	return 0;
 }
@@ -348,7 +354,6 @@ struct snd_soc_dai_driver tegra_i2s_dai[] = {
 static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 {
 	struct tegra_i2s * i2s;
-	char clk_name[12]; /* tegra-i2s.0 */
 	struct resource *mem, *memregion, *dmareq;
 	int ret;
 
@@ -383,8 +388,7 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 	}
 	dev_set_drvdata(&pdev->dev, i2s);
 
-	snprintf(clk_name, sizeof(clk_name), DRV_NAME ".%d", pdev->id);
-	i2s->clk_i2s = clk_get_sys(clk_name, NULL);
+	i2s->clk_i2s = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(i2s->clk_i2s)) {
 		dev_err(&pdev->dev, "Can't retrieve i2s clock\n");
 		ret = PTR_ERR(i2s->clk_i2s);

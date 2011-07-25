@@ -159,7 +159,7 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 
 static void nfs_readpage_release(struct nfs_page *req)
 {
-	struct inode *d_inode = req->wb_context->path.dentry->d_inode;
+	struct inode *d_inode = req->wb_context->dentry->d_inode;
 
 	if (PageUptodate(req->wb_page))
 		nfs_readpage_to_fscache(d_inode, req->wb_page, 0);
@@ -167,8 +167,8 @@ static void nfs_readpage_release(struct nfs_page *req)
 	unlock_page(req->wb_page);
 
 	dprintk("NFS: read done (%s/%Ld %d@%Ld)\n",
-			req->wb_context->path.dentry->d_inode->i_sb->s_id,
-			(long long)NFS_FILEID(req->wb_context->path.dentry->d_inode),
+			req->wb_context->dentry->d_inode->i_sb->s_id,
+			(long long)NFS_FILEID(req->wb_context->dentry->d_inode),
 			req->wb_bytes,
 			(long long)req_offset(req));
 	nfs_release_request(req);
@@ -220,7 +220,7 @@ EXPORT_SYMBOL_GPL(nfs_initiate_read);
 static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 		unsigned int count, unsigned int offset)
 {
-	struct inode *inode = req->wb_context->path.dentry->d_inode;
+	struct inode *inode = req->wb_context->dentry->d_inode;
 
 	data->req	  = req;
 	data->inode	  = inode;
@@ -243,7 +243,7 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 static int nfs_do_read(struct nfs_read_data *data,
 		const struct rpc_call_ops *call_ops)
 {
-	struct inode *inode = data->args.context->path.dentry->d_inode;
+	struct inode *inode = data->args.context->dentry->d_inode;
 
 	return nfs_initiate_read(data, NFS_CLIENT(inode), call_ops);
 }

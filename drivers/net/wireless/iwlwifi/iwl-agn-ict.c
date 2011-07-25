@@ -44,7 +44,7 @@
 void iwl_free_isr_ict(struct iwl_priv *priv)
 {
 	if (priv->_agn.ict_tbl_vir) {
-		dma_free_coherent(&priv->pci_dev->dev,
+		dma_free_coherent(priv->bus.dev,
 				  (sizeof(u32) * ICT_COUNT) + PAGE_SIZE,
 				  priv->_agn.ict_tbl_vir,
 				  priv->_agn.ict_tbl_dma);
@@ -61,7 +61,7 @@ int iwl_alloc_isr_ict(struct iwl_priv *priv)
 
 	/* allocate shrared data table */
 	priv->_agn.ict_tbl_vir =
-		dma_alloc_coherent(&priv->pci_dev->dev,
+		dma_alloc_coherent(priv->bus.dev,
 				   (sizeof(u32) * ICT_COUNT) + PAGE_SIZE,
 				   &priv->_agn.ict_tbl_dma, GFP_KERNEL);
 	if (!priv->_agn.ict_tbl_vir)

@@ -177,6 +177,36 @@ static int siena_test_registers(struct efx_nic *efx)
  **************************************************************************
  */
 
+static enum reset_type siena_map_reset_reason(enum reset_type reason)
+{
+	return RESET_TYPE_ALL;
+}
+
+static int siena_map_reset_flags(u32 *flags)
+{
+	enum {
+		SIENA_RESET_PORT = (ETH_RESET_DMA | ETH_RESET_FILTER |
+				    ETH_RESET_OFFLOAD | ETH_RESET_MAC |
+				    ETH_RESET_PHY),
+		SIENA_RESET_MC = (SIENA_RESET_PORT |
+				  ETH_RESET_MGMT << ETH_RESET_SHARED_SHIFT),
+	};
+
+	if ((*flags & SIENA_RESET_MC) == SIENA_RESET_MC) {
+		*flags &= ~SIENA_RESET_MC;
+		return RESET_TYPE_WORLD;
+	}
+
+	if ((*flags & SIENA_RESET_PORT) == SIENA_RESET_PORT) {
+		*flags &= ~SIENA_RESET_PORT;
+		return RESET_TYPE_ALL;
+	}
+
+	/* no invisible reset implemented */
+
+	return -EINVAL;
+}
+
 static int siena_reset_hw(struct efx_nic *efx, enum reset_type method)
 {
 	int rc;
@@ -390,17 +420,16 @@ static void siena_remove_nic(struct efx_nic *efx)
 	efx->nic_data = NULL;
 }
 
-#define STATS_GENERATION_INVALID ((u64)(-1))
+#define STATS_GENERATION_INVALID ((__force __le64)(-1))
 
 static int siena_try_update_nic_stats(struct efx_nic *efx)
 {
-	u64 *dma_stats;
+	__le64 *dma_stats;
 	struct efx_mac_stats *mac_stats;
-	u64 generation_start;
-	u64 generation_end;
+	__le64 generation_start, generation_end;
 
 	mac_stats = &efx->mac_stats;
-	dma_stats = (u64 *)efx->stats_buffer.addr;
+	dma_stats = efx->stats_buffer.addr;
 
 	generation_end = dma_stats[MC_CMD_MAC_GENERATION_END];
 	if (generation_end == STATS_GENERATION_INVALID)
@@ -408,7 +437,7 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 	rmb();
 
 #define MAC_STAT(M, D) \
-	mac_stats->M = dma_stats[MC_CMD_MAC_ ## D]
+	mac_stats->M = le64_to_cpu(dma_stats[MC_CMD_MAC_ ## D])
 
 	MAC_STAT(tx_bytes, TX_BYTES);
 	MAC_STAT(tx_bad_bytes, TX_BAD_BYTES);
@@ -478,7 +507,8 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 	MAC_STAT(rx_internal_error, RX_INTERNAL_ERROR_PKTS);
 	mac_stats->rx_good_lt64 = 0;
 
-	efx->n_rx_nodesc_drop_cnt = dma_stats[MC_CMD_MAC_RX_NODESC_DROPS];
+	efx->n_rx_nodesc_drop_cnt =
+		le64_to_cpu(dma_stats[MC_CMD_MAC_RX_NODESC_DROPS]);
 
 #undef MAC_STAT
 
@@ -507,7 +537,7 @@ static void siena_update_nic_stats(struct efx_nic *efx)
 
 static void siena_start_nic_stats(struct efx_nic *efx)
 {
-	u64 *dma_stats = (u64 *)efx->stats_buffer.addr;
+	__le64 *dma_stats = efx->stats_buffer.addr;
 
 	dma_stats[MC_CMD_MAC_GENERATION_END] = STATS_GENERATION_INVALID;
 
@@ -605,6 +635,8 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.init = siena_init_nic,
 	.fini = efx_port_dummy_op_void,
 	.monitor = NULL,
+	.map_reset_reason = siena_map_reset_reason,
+	.map_reset_flags = siena_map_reset_flags,
 	.reset = siena_reset_hw,
 	.probe_port = siena_probe_port,
 	.remove_port = siena_remove_port,
@@ -641,5 +673,4 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.rx_dc_base = 0x68000,
 	.offload_features = (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			     NETIF_F_RXHASH | NETIF_F_NTUPLE),
-	.reset_world_flags = ETH_RESET_MGMT << ETH_RESET_SHARED_SHIFT,
 };

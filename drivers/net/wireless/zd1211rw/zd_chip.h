@@ -21,6 +21,8 @@
 #ifndef _ZD_CHIP_H
 #define _ZD_CHIP_H
 
+#include <net/mac80211.h>
+
 #include "zd_rf.h"
 #include "zd_usb.h"
 

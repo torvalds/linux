@@ -6394,16 +6394,11 @@ static void md_seq_stop(struct seq_file *seq, void *v)
 		mddev_put(mddev);
 }
 
-struct mdstat_info {
-	int event;
-};
-
 static int md_seq_show(struct seq_file *seq, void *v)
 {
 	mddev_t *mddev = v;
 	sector_t sectors;
 	mdk_rdev_t *rdev;
-	struct mdstat_info *mi = seq->private;
 	struct bitmap *bitmap;
 
 	if (v == (void*)1) {
@@ -6415,7 +6410,7 @@ static int md_seq_show(struct seq_file *seq, void *v)
 
 		spin_unlock(&pers_lock);
 		seq_printf(seq, "\n");
-		mi->event = atomic_read(&md_event_count);
+		seq->poll_event = atomic_read(&md_event_count);
 		return 0;
 	}
 	if (v == (void*)2) {
@@ -6527,26 +6522,21 @@ static const struct seq_operations md_seq_ops = {
 
 static int md_seq_open(struct inode *inode, struct file *file)
 {
+	struct seq_file *seq;
 	int error;
-	struct mdstat_info *mi = kmalloc(sizeof(*mi), GFP_KERNEL);
-	if (mi == NULL)
-		return -ENOMEM;
 
 	error = seq_open(file, &md_seq_ops);
 	if (error)
-		kfree(mi);
-	else {
-		struct seq_file *p = file->private_data;
-		p->private = mi;
-		mi->event = atomic_read(&md_event_count);
-	}
+		return error;
+
+	seq = file->private_data;
+	seq->poll_event = atomic_read(&md_event_count);
 	return error;
 }
 
 static unsigned int mdstat_poll(struct file *filp, poll_table *wait)
 {
-	struct seq_file *m = filp->private_data;
-	struct mdstat_info *mi = m->private;
+	struct seq_file *seq = filp->private_data;
 	int mask;
 
 	poll_wait(filp, &md_event_waiters, wait);
@@ -6554,7 +6544,7 @@ static unsigned int mdstat_poll(struct file *filp, poll_table *wait)
 	/* always allow read */
 	mask = POLLIN | POLLRDNORM;
 
-	if (mi->event != atomic_read(&md_event_count))
+	if (seq->poll_event != atomic_read(&md_event_count))
 		mask |= POLLERR | POLLPRI;
 	return mask;
 }
@@ -7088,6 +7078,7 @@ static int remove_and_add_spares(mddev_t *mddev)
 		list_for_each_entry(rdev, &mddev->disks, same_set) {
 			if (rdev->raid_disk >= 0 &&
 			    !test_bit(In_sync, &rdev->flags) &&
+			    !test_bit(Faulty, &rdev->flags) &&
 			    !test_bit(Blocked, &rdev->flags))
 				spares++;
 			if (rdev->raid_disk < 0

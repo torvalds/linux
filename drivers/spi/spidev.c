@@ -1,5 +1,5 @@
 /*
- * spidev.c -- simple synchronous userspace interface to SPI devices
+ * Simple synchronous userspace interface to SPI devices
  *
  * Copyright (C) 2006 SWAPP
  *	Andrea Paterniani <a.paterniani@swapp-eng.it>

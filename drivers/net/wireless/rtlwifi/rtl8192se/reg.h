@@ -248,12 +248,8 @@
 #define	PSTIME					0x02E0
 #define	TIMER0					0x02E4
 #define	TIMER1					0x02E8
-#define	GPIO_CTRL				0x02EC
-#define	GPIO_IN					0x02EC
-#define	GPIO_OUT				0x02ED
+#define	GPIO_IN_SE				0x02EC
 #define	GPIO_IO_SEL				0x02EE
-#define	GPIO_MOD				0x02EF
-#define	GPIO_INTCTRL				0x02F0
 #define	MAC_PINMUX_CFG				0x02F1
 #define	LEDCFG					0x02F2
 #define	PHY_REG					0x02F3

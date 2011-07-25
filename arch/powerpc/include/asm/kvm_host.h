@@ -25,15 +25,23 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/kvm_types.h>
+#include <linux/threads.h>
+#include <linux/spinlock.h>
 #include <linux/kvm_para.h>
+#include <linux/list.h>
+#include <linux/atomic.h>
 #include <asm/kvm_asm.h>
+#include <asm/processor.h>
 
-#define KVM_MAX_VCPUS 1
+#define KVM_MAX_VCPUS		NR_CPUS
+#define KVM_MAX_VCORES		NR_CPUS
 #define KVM_MEMORY_SLOTS 32
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
 
+#ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
+#endif
 
 /* We don't currently support large pages. */
 #define KVM_HPAGE_GFN_SHIFT(x)	0
@@ -56,6 +64,10 @@
 struct kvm;
 struct kvm_run;
 struct kvm_vcpu;
+
+struct lppaca;
+struct slb_shadow;
+struct dtl;
 
 struct kvm_vm_stat {
 	u32 remote_tlb_flush;
@@ -133,8 +145,73 @@ struct kvmppc_exit_timing {
 	};
 };
 
-struct kvm_arch {
+struct kvmppc_pginfo {
+	unsigned long pfn;
+	atomic_t refcnt;
 };
+
+struct kvmppc_spapr_tce_table {
+	struct list_head list;
+	struct kvm *kvm;
+	u64 liobn;
+	u32 window_size;
+	struct page *pages[0];
+};
+
+struct kvmppc_rma_info {
+	void		*base_virt;
+	unsigned long	 base_pfn;
+	unsigned long	 npages;
+	struct list_head list;
+	atomic_t 	 use_count;
+};
+
+struct kvm_arch {
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	unsigned long hpt_virt;
+	unsigned long ram_npages;
+	unsigned long ram_psize;
+	unsigned long ram_porder;
+	struct kvmppc_pginfo *ram_pginfo;
+	unsigned int lpid;
+	unsigned int host_lpid;
+	unsigned long host_lpcr;
+	unsigned long sdr1;
+	unsigned long host_sdr1;
+	int tlbie_lock;
+	int n_rma_pages;
+	unsigned long lpcr;
+	unsigned long rmor;
+	struct kvmppc_rma_info *rma;
+	struct list_head spapr_tce_tables;
+	unsigned short last_vcpu[NR_CPUS];
+	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
+#endif /* CONFIG_KVM_BOOK3S_64_HV */
+};
+
+/*
+ * Struct for a virtual core.
+ * Note: entry_exit_count combines an entry count in the bottom 8 bits
+ * and an exit count in the next 8 bits.  This is so that we can
+ * atomically increment the entry count iff the exit count is 0
+ * without taking the lock.
+ */
+struct kvmppc_vcore {
+	int n_runnable;
+	int n_blocked;
+	int num_threads;
+	int entry_exit_count;
+	int n_woken;
+	int nap_count;
+	u16 pcpu;
+	u8 vcore_running;
+	u8 in_guest;
+	struct list_head runnable_threads;
+	spinlock_t lock;
+};
+
+#define VCORE_ENTRY_COUNT(vc)	((vc)->entry_exit_count & 0xff)
+#define VCORE_EXIT_COUNT(vc)	((vc)->entry_exit_count >> 8)
 
 struct kvmppc_pte {
 	ulong eaddr;
@@ -163,16 +240,18 @@ struct kvmppc_mmu {
 	bool (*is_dcbz32)(struct kvm_vcpu *vcpu);
 };
 
-struct hpte_cache {
-	struct hlist_node list_pte;
-	struct hlist_node list_pte_long;
-	struct hlist_node list_vpte;
-	struct hlist_node list_vpte_long;
-	struct rcu_head rcu_head;
-	u64 host_va;
-	u64 pfn;
-	ulong slot;
-	struct kvmppc_pte pte;
+struct kvmppc_slb {
+	u64 esid;
+	u64 vsid;
+	u64 orige;
+	u64 origv;
+	bool valid	: 1;
+	bool Ks		: 1;
+	bool Kp		: 1;
+	bool nx		: 1;
+	bool large	: 1;	/* PTEs are 16MB */
+	bool tb		: 1;	/* 1TB segment */
+	bool class	: 1;
 };
 
 struct kvm_vcpu_arch {
@@ -187,6 +266,9 @@ struct kvm_vcpu_arch {
 	ulong highmem_handler;
 	ulong rmcall;
 	ulong host_paca_phys;
+	struct kvmppc_slb slb[64];
+	int slb_max;		/* 1 + index of last valid entry in slb[] */
+	int slb_nr;		/* total number of entries in SLB */
 	struct kvmppc_mmu mmu;
 #endif
 
@@ -195,13 +277,19 @@ struct kvm_vcpu_arch {
 	u64 fpr[32];
 	u64 fpscr;
 
+#ifdef CONFIG_SPE
+	ulong evr[32];
+	ulong spefscr;
+	ulong host_spefscr;
+	u64 acc;
+#endif
 #ifdef CONFIG_ALTIVEC
 	vector128 vr[32];
 	vector128 vscr;
 #endif
 
 #ifdef CONFIG_VSX
-	u64 vsr[32];
+	u64 vsr[64];
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S
@@ -209,22 +297,27 @@ struct kvm_vcpu_arch {
 	u32 qpr[32];
 #endif
 
-#ifdef CONFIG_BOOKE
 	ulong pc;
 	ulong ctr;
 	ulong lr;
 
 	ulong xer;
 	u32 cr;
-#endif
 
 #ifdef CONFIG_PPC_BOOK3S
-	ulong shadow_msr;
 	ulong hflags;
 	ulong guest_owned_ext;
+	ulong purr;
+	ulong spurr;
+	ulong dscr;
+	ulong amr;
+	ulong uamor;
+	u32 ctrl;
+	ulong dabr;
 #endif
 	u32 vrsave; /* also USPRG0 */
 	u32 mmucr;
+	ulong shadow_msr;
 	ulong sprg4;
 	ulong sprg5;
 	ulong sprg6;
@@ -249,6 +342,7 @@ struct kvm_vcpu_arch {
 	u32 pvr;
 
 	u32 shadow_pid;
+	u32 shadow_pid1;
 	u32 pid;
 	u32 swap_pid;
 
@@ -257,6 +351,9 @@ struct kvm_vcpu_arch {
 	u32 dbcr0;
 	u32 dbcr1;
 	u32 dbsr;
+
+	u64 mmcr[3];
+	u32 pmc[8];
 
 #ifdef CONFIG_KVM_EXIT_TIMING
 	struct mutex exit_timing_lock;
@@ -272,8 +369,12 @@ struct kvm_vcpu_arch {
 	struct dentry *debugfs_exit_timing;
 #endif
 
+#ifdef CONFIG_PPC_BOOK3S
+	ulong fault_dar;
+	u32 fault_dsisr;
+#endif
+
 #ifdef CONFIG_BOOKE
-	u32 last_inst;
 	ulong fault_dear;
 	ulong fault_esr;
 	ulong queued_dear;
@@ -288,25 +389,47 @@ struct kvm_vcpu_arch {
 	u8 dcr_is_write;
 	u8 osi_needed;
 	u8 osi_enabled;
+	u8 hcall_needed;
 
 	u32 cpr0_cfgaddr; /* holds the last set cpr0_cfgaddr */
 
 	struct hrtimer dec_timer;
 	struct tasklet_struct tasklet;
 	u64 dec_jiffies;
+	u64 dec_expires;
 	unsigned long pending_exceptions;
+	u16 last_cpu;
+	u8 ceded;
+	u8 prodded;
+	u32 last_inst;
+
+	struct lppaca *vpa;
+	struct slb_shadow *slb_shadow;
+	struct dtl *dtl;
+	struct dtl *dtl_end;
+
+	struct kvmppc_vcore *vcore;
+	int ret;
+	int trap;
+	int state;
+	int ptid;
+	wait_queue_head_t cpu_run;
+
 	struct kvm_vcpu_arch_shared *shared;
 	unsigned long magic_page_pa; /* phys addr to map the magic page to */
 	unsigned long magic_page_ea; /* effect. addr to map the magic page to */
 
-#ifdef CONFIG_PPC_BOOK3S
-	struct hlist_head hpte_hash_pte[HPTEG_HASH_NUM_PTE];
-	struct hlist_head hpte_hash_pte_long[HPTEG_HASH_NUM_PTE_LONG];
-	struct hlist_head hpte_hash_vpte[HPTEG_HASH_NUM_VPTE];
-	struct hlist_head hpte_hash_vpte_long[HPTEG_HASH_NUM_VPTE_LONG];
-	int hpte_cache_count;
-	spinlock_t mmu_lock;
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	struct kvm_vcpu_arch_shared shregs;
+
+	struct list_head run_list;
+	struct task_struct *run_task;
+	struct kvm_run *kvm_run;
 #endif
 };
+
+#define KVMPPC_VCPU_BUSY_IN_HOST	0
+#define KVMPPC_VCPU_BLOCKED		1
+#define KVMPPC_VCPU_RUNNABLE		2
 
 #endif /* __POWERPC_KVM_HOST_H__ */

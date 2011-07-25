@@ -243,6 +243,7 @@ void smp_send_reschedule(int cpu)
 	if (likely(smp_ops))
 		smp_ops->message_pass(cpu, PPC_MSG_RESCHEDULE);
 }
+EXPORT_SYMBOL_GPL(smp_send_reschedule);
 
 void arch_send_call_function_single_ipi(int cpu)
 {

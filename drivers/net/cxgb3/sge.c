@@ -2026,30 +2026,13 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	} else
 		skb_checksum_none_assert(skb);
-	skb_record_rx_queue(skb, qs - &adap->sge.qs[0]);
+	skb_record_rx_queue(skb, qs - &adap->sge.qs[pi->first_qset]);
 
-	if (unlikely(p->vlan_valid)) {
-		struct vlan_group *grp = pi->vlan_grp;
-
+	if (p->vlan_valid) {
 		qs->port_stats[SGE_PSTAT_VLANEX]++;
-		if (likely(grp))
-			if (lro)
-				vlan_gro_receive(&qs->napi, grp,
-						 ntohs(p->vlan), skb);
-			else {
-				if (unlikely(pi->iscsic.flags)) {
-					unsigned short vtag = ntohs(p->vlan) &
-								VLAN_VID_MASK;
-					skb->dev = vlan_group_get_device(grp,
-									 vtag);
-					cxgb3_process_iscsi_prov_pack(pi, skb);
-				}
-				__vlan_hwaccel_rx(skb, grp, ntohs(p->vlan),
-					  	  rq->polling);
-			}
-		else
-			dev_kfree_skb_any(skb);
-	} else if (rq->polling) {
+		__vlan_hwaccel_put_tag(skb, ntohs(p->vlan));
+	}
+	if (rq->polling) {
 		if (lro)
 			napi_gro_receive(&qs->napi, skb);
 		else {
@@ -2145,16 +2128,10 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	if (!complete)
 		return;
 
-	skb_record_rx_queue(skb, qs - &adap->sge.qs[0]);
+	skb_record_rx_queue(skb, qs - &adap->sge.qs[pi->first_qset]);
 
-	if (unlikely(cpl->vlan_valid)) {
-		struct vlan_group *grp = pi->vlan_grp;
-
-		if (likely(grp != NULL)) {
-			vlan_gro_frags(&qs->napi, grp, ntohs(cpl->vlan));
-			return;
-		}
-	}
+	if (cpl->vlan_valid)
+		__vlan_hwaccel_put_tag(skb, ntohs(cpl->vlan));
 	napi_gro_frags(&qs->napi);
 }
 

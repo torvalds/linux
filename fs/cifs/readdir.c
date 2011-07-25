@@ -796,7 +796,7 @@ int cifs_readdir(struct file *file, void *direntry, filldir_t filldir)
 		file->f_pos++;
 	case 1:
 		if (filldir(direntry, "..", 2, file->f_pos,
-		     file->f_path.dentry->d_parent->d_inode->i_ino, DT_DIR) < 0) {
+		     parent_ino(file->f_path.dentry), DT_DIR) < 0) {
 			cERROR(1, "Filldir for parent dir failed");
 			rc = -ENOMEM;
 			break;

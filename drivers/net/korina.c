@@ -504,12 +504,7 @@ static void korina_multicast_list(struct net_device *dev)
 			hash_table[i] = 0;
 
 		netdev_for_each_mc_addr(ha, dev) {
-			char *addrs = ha->addr;
-
-			if (!(*addrs & 1))
-				continue;
-
-			crc = ether_crc_le(6, addrs);
+			crc = ether_crc_le(6, ha->addr);
 			crc >>= 26;
 			hash_table[crc >> 4] |= 1 << (15 - (crc & 0xf));
 		}

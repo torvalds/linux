@@ -632,13 +632,8 @@ xfs_inode_item_unlock(
 	struct xfs_inode	*ip = iip->ili_inode;
 	unsigned short		lock_flags;
 
-	ASSERT(iip->ili_inode->i_itemp != NULL);
-	ASSERT(xfs_isilocked(iip->ili_inode, XFS_ILOCK_EXCL));
-
-	/*
-	 * Clear the transaction pointer in the inode.
-	 */
-	ip->i_transp = NULL;
+	ASSERT(ip->i_itemp != NULL);
+	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
 
 	/*
 	 * If the inode needed a separate buffer with which to log
@@ -664,8 +659,8 @@ xfs_inode_item_unlock(
 	lock_flags = iip->ili_lock_flags;
 	iip->ili_lock_flags = 0;
 	if (lock_flags) {
-		xfs_iunlock(iip->ili_inode, lock_flags);
-		IRELE(iip->ili_inode);
+		xfs_iunlock(ip, lock_flags);
+		IRELE(ip);
 	}
 }
 
@@ -681,15 +676,15 @@ xfs_inode_item_unlock(
  * where the cluster buffer may be unpinned before the inode is inserted into
  * the AIL during transaction committed processing. If the buffer is unpinned
  * before the inode item has been committed and inserted, then it is possible
- * for the buffer to be written and IO completions before the inode is inserted
+ * for the buffer to be written and IO completes before the inode is inserted
  * into the AIL. In that case, we'd be inserting a clean, stale inode into the
  * AIL which will never get removed. It will, however, get reclaimed which
  * triggers an assert in xfs_inode_free() complaining about freein an inode
  * still in the AIL.
  *
- * To avoid this, return a lower LSN than the one passed in so that the
- * transaction committed code will not move the inode forward in the AIL but
- * will still unpin it properly.
+ * To avoid this, just unpin the inode directly and return a LSN of -1 so the
+ * transaction committed code knows that it does not need to do any further
+ * processing on the item.
  */
 STATIC xfs_lsn_t
 xfs_inode_item_committed(
@@ -699,8 +694,10 @@ xfs_inode_item_committed(
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	struct xfs_inode	*ip = iip->ili_inode;
 
-	if (xfs_iflags_test(ip, XFS_ISTALE))
-		return lsn - 1;
+	if (xfs_iflags_test(ip, XFS_ISTALE)) {
+		xfs_inode_item_unpin(lip, 0);
+		return -1;
+	}
 	return lsn;
 }
 
@@ -877,7 +874,7 @@ xfs_iflush_done(
 	 * Scan the buffer IO completions for other inodes being completed and
 	 * attach them to the current inode log item.
 	 */
-	blip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
+	blip = bp->b_fspriv;
 	prev = NULL;
 	while (blip != NULL) {
 		if (lip->li_cb != xfs_iflush_done) {
@@ -889,7 +886,7 @@ xfs_iflush_done(
 		/* remove from list */
 		next = blip->li_bio_list;
 		if (!prev) {
-			XFS_BUF_SET_FSPRIVATE(bp, next);
+			bp->b_fspriv = next;
 		} else {
 			prev->li_bio_list = next;
 		}

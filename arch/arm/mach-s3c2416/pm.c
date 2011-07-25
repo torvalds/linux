@@ -24,10 +24,8 @@
 
 extern void s3c2412_sleep_enter(void);
 
-static void s3c2416_cpu_suspend(void)
+static int s3c2416_cpu_suspend(unsigned long arg)
 {
-	flush_cache_all();
-
 	/* enable wakeup sources regardless of battery state */
 	__raw_writel(S3C2443_PWRCFG_SLEEP, S3C2443_PWRCFG);
 
@@ -35,6 +33,8 @@ static void s3c2416_cpu_suspend(void)
 	__raw_writel(0x2BED, S3C2443_PWRMODE);
 
 	s3c2412_sleep_enter();
+
+	panic("sleep resumed to originator?");
 }
 
 static void s3c2416_pm_prepare(void)

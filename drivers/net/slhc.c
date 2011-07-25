@@ -297,7 +297,7 @@ slhc_compress(struct slcompress *comp, unsigned char *icp, int isize,
 		lcs = cs;
 		cs = cs->next;
 		comp->sls_o_searches++;
-	};
+	}
 	/*
 	 * Didn't find it -- re-use oldest cstate.  Send an
 	 * uncompressed packet that tells the other side what

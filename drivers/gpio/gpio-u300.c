@@ -1,11 +1,8 @@
 /*
- *
- * arch/arm/mach-u300/gpio.c
- *
+ * U300 GPIO module.
  *
  * Copyright (C) 2007-2009 ST-Ericsson AB
  * License terms: GNU General Public License (GPL) version 2
- * U300 GPIO module.
  * This can driver either of the two basic GPIO cores
  * available in the U300 platforms:
  * COH 901 335   - Used in DB3150 (U300 1.0) and DB3200 (U330 1.0)

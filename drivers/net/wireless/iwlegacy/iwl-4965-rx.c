@@ -151,81 +151,6 @@ static void iwl4965_accumulative_statistics(struct iwl_priv *priv,
 
 #define REG_RECALIB_PERIOD (60)
 
-/**
- * iwl4965_good_plcp_health - checks for plcp error.
- *
- * When the plcp error is exceeding the thresholds, reset the radio
- * to improve the throughput.
- */
-bool iwl4965_good_plcp_health(struct iwl_priv *priv,
-				struct iwl_rx_packet *pkt)
-{
-	bool rc = true;
-	int combined_plcp_delta;
-	unsigned int plcp_msec;
-	unsigned long plcp_received_jiffies;
-
-	if (priv->cfg->base_params->plcp_delta_threshold ==
-	    IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE) {
-		IWL_DEBUG_RADIO(priv, "plcp_err check disabled\n");
-		return rc;
-	}
-
-	/*
-	 * check for plcp_err and trigger radio reset if it exceeds
-	 * the plcp error threshold plcp_delta.
-	 */
-	plcp_received_jiffies = jiffies;
-	plcp_msec = jiffies_to_msecs((long) plcp_received_jiffies -
-					(long) priv->plcp_jiffies);
-	priv->plcp_jiffies = plcp_received_jiffies;
-	/*
-	 * check to make sure plcp_msec is not 0 to prevent division
-	 * by zero.
-	 */
-	if (plcp_msec) {
-		struct statistics_rx_phy *ofdm;
-		struct statistics_rx_ht_phy *ofdm_ht;
-
-		ofdm = &pkt->u.stats.rx.ofdm;
-		ofdm_ht = &pkt->u.stats.rx.ofdm_ht;
-		combined_plcp_delta =
-		    (le32_to_cpu(ofdm->plcp_err) -
-		    le32_to_cpu(priv->_4965.statistics.
-				rx.ofdm.plcp_err)) +
-		    (le32_to_cpu(ofdm_ht->plcp_err) -
-		    le32_to_cpu(priv->_4965.statistics.
-				rx.ofdm_ht.plcp_err));
-
-		if ((combined_plcp_delta > 0) &&
-		    ((combined_plcp_delta * 100) / plcp_msec) >
-			priv->cfg->base_params->plcp_delta_threshold) {
-			/*
-			 * if plcp_err exceed the threshold,
-			 * the following data is printed in csv format:
-			 *    Text: plcp_err exceeded %d,
-			 *    Received ofdm.plcp_err,
-			 *    Current ofdm.plcp_err,
-			 *    Received ofdm_ht.plcp_err,
-			 *    Current ofdm_ht.plcp_err,
-			 *    combined_plcp_delta,
-			 *    plcp_msec
-			 */
-			IWL_DEBUG_RADIO(priv, "plcp_err exceeded %u, "
-				"%u, %u, %u, %u, %d, %u mSecs\n",
-				priv->cfg->base_params->plcp_delta_threshold,
-				le32_to_cpu(ofdm->plcp_err),
-				le32_to_cpu(ofdm->plcp_err),
-				le32_to_cpu(ofdm_ht->plcp_err),
-				le32_to_cpu(ofdm_ht->plcp_err),
-				combined_plcp_delta, plcp_msec);
-
-			rc = false;
-		}
-	}
-	return rc;
-}
-
 void iwl4965_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb)
 {
@@ -248,8 +173,7 @@ void iwl4965_rx_statistics(struct iwl_priv *priv,
 	iwl4965_accumulative_statistics(priv, (__le32 *)&pkt->u.stats);
 #endif
 
-	iwl_legacy_recover_from_statistics(priv, pkt);
-
+	/* TODO: reading some of statistics is unneeded */
 	memcpy(&priv->_4965.statistics, &pkt->u.stats,
 		sizeof(priv->_4965.statistics));
 

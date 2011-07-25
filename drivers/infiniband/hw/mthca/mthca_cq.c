@@ -779,7 +779,6 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 	struct mthca_mailbox *mailbox;
 	struct mthca_cq_context *cq_context;
 	int err = -ENOMEM;
-	u8 status;
 
 	cq->ibcq.cqe  = nent - 1;
 	cq->is_kernel = !ctx;
@@ -847,16 +846,9 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 		cq_context->state_db = cpu_to_be32(cq->arm_db_index);
 	}
 
-	err = mthca_SW2HW_CQ(dev, mailbox, cq->cqn, &status);
+	err = mthca_SW2HW_CQ(dev, mailbox, cq->cqn);
 	if (err) {
 		mthca_warn(dev, "SW2HW_CQ failed (%d)\n", err);
-		goto err_out_free_mr;
-	}
-
-	if (status) {
-		mthca_warn(dev, "SW2HW_CQ returned status 0x%02x\n",
-			   status);
-		err = -EINVAL;
 		goto err_out_free_mr;
 	}
 
@@ -915,7 +907,6 @@ void mthca_free_cq(struct mthca_dev *dev,
 {
 	struct mthca_mailbox *mailbox;
 	int err;
-	u8 status;
 
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox)) {
@@ -923,11 +914,9 @@ void mthca_free_cq(struct mthca_dev *dev,
 		return;
 	}
 
-	err = mthca_HW2SW_CQ(dev, mailbox, cq->cqn, &status);
+	err = mthca_HW2SW_CQ(dev, mailbox, cq->cqn);
 	if (err)
 		mthca_warn(dev, "HW2SW_CQ failed (%d)\n", err);
-	else if (status)
-		mthca_warn(dev, "HW2SW_CQ returned status 0x%02x\n", status);
 
 	if (0) {
 		__be32 *ctx = mailbox->buf;

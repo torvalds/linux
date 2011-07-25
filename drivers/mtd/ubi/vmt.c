@@ -871,7 +871,7 @@ static int paranoid_check_volumes(struct ubi_device *ubi)
 {
 	int i, err = 0;
 
-	if (!(ubi_chk_flags & UBI_CHK_GEN))
+	if (!ubi->dbg->chk_gen)
 		return 0;
 
 	for (i = 0; i < ubi->vtbl_slots; i++) {

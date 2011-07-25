@@ -16,6 +16,8 @@
  *    SDL Inc. PPP/HDLC/CISCO driver
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/capability.h>
@@ -341,57 +343,57 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 	int i;
 
 	if (io < 0x200 || io > 0x3FF || (io % N2_IOPORTS) != 0) {
-		printk(KERN_ERR "n2: invalid I/O port value\n");
+		pr_err("invalid I/O port value\n");
 		return -ENODEV;
 	}
 
 	if (irq < 3 || irq > 15 || irq == 6) /* FIXME */ {
-		printk(KERN_ERR "n2: invalid IRQ value\n");
+		pr_err("invalid IRQ value\n");
 		return -ENODEV;
 	}
 
 	if (winbase < 0xA0000 || winbase > 0xFFFFF || (winbase & 0xFFF) != 0) {
-		printk(KERN_ERR "n2: invalid RAM value\n");
+		pr_err("invalid RAM value\n");
 		return -ENODEV;
 	}
 
 	card = kzalloc(sizeof(card_t), GFP_KERNEL);
 	if (card == NULL) {
-		printk(KERN_ERR "n2: unable to allocate memory\n");
+		pr_err("unable to allocate memory\n");
 		return -ENOBUFS;
 	}
 
 	card->ports[0].dev = alloc_hdlcdev(&card->ports[0]);
 	card->ports[1].dev = alloc_hdlcdev(&card->ports[1]);
 	if (!card->ports[0].dev || !card->ports[1].dev) {
-		printk(KERN_ERR "n2: unable to allocate memory\n");
+		pr_err("unable to allocate memory\n");
 		n2_destroy_card(card);
 		return -ENOMEM;
 	}
 
 	if (!request_region(io, N2_IOPORTS, devname)) {
-		printk(KERN_ERR "n2: I/O port region in use\n");
+		pr_err("I/O port region in use\n");
 		n2_destroy_card(card);
 		return -EBUSY;
 	}
 	card->io = io;
 
 	if (request_irq(irq, sca_intr, 0, devname, card)) {
-		printk(KERN_ERR "n2: could not allocate IRQ\n");
+		pr_err("could not allocate IRQ\n");
 		n2_destroy_card(card);
 		return -EBUSY;
 	}
 	card->irq = irq;
 
 	if (!request_mem_region(winbase, USE_WINDOWSIZE, devname)) {
-		printk(KERN_ERR "n2: could not request RAM window\n");
+		pr_err("could not request RAM window\n");
 		n2_destroy_card(card);
 		return -EBUSY;
 	}
 	card->phy_winbase = winbase;
 	card->winbase = ioremap(winbase, USE_WINDOWSIZE);
 	if (!card->winbase) {
-		printk(KERN_ERR "n2: ioremap() failed\n");
+		pr_err("ioremap() failed\n");
 		n2_destroy_card(card);
 		return -EFAULT;
 	}
@@ -413,7 +415,7 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 		break;
 
 	default:
-		printk(KERN_ERR "n2: invalid window size\n");
+		pr_err("invalid window size\n");
 		n2_destroy_card(card);
 		return -ENODEV;
 	}
@@ -433,12 +435,12 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 	card->buff_offset = (valid0 + valid1) * sizeof(pkt_desc) *
 		(card->tx_ring_buffers + card->rx_ring_buffers);
 
-	printk(KERN_INFO "n2: RISCom/N2 %u KB RAM, IRQ%u, "
-	       "using %u TX + %u RX packets rings\n", card->ram_size / 1024,
-	       card->irq, card->tx_ring_buffers, card->rx_ring_buffers);
+	pr_info("RISCom/N2 %u KB RAM, IRQ%u, using %u TX + %u RX packets rings\n",
+		card->ram_size / 1024, card->irq,
+		card->tx_ring_buffers, card->rx_ring_buffers);
 
 	if (card->tx_ring_buffers < 1) {
-		printk(KERN_ERR "n2: RAM test failed\n");
+		pr_err("RAM test failed\n");
 		n2_destroy_card(card);
 		return -EIO;
 	}
@@ -474,16 +476,14 @@ static int __init n2_run(unsigned long io, unsigned long irq,
 		port->card = card;
 
 		if (register_hdlc_device(dev)) {
-			printk(KERN_WARNING "n2: unable to register hdlc "
-			       "device\n");
+			pr_warn("unable to register hdlc device\n");
 			port->card = NULL;
 			n2_destroy_card(card);
 			return -ENOBUFS;
 		}
 		sca_init_port(port); /* Set up SCA memory */
 
-		printk(KERN_INFO "%s: RISCom/N2 node %d\n",
-		       dev->name, port->phy_node);
+		netdev_info(dev, "RISCom/N2 node %d\n", port->phy_node);
 	}
 
 	*new_card = card;
@@ -498,12 +498,12 @@ static int __init n2_init(void)
 {
 	if (hw==NULL) {
 #ifdef MODULE
-		printk(KERN_INFO "n2: no card initialized\n");
+		pr_info("no card initialized\n");
 #endif
 		return -EINVAL;	/* no parameters specified, abort */
 	}
 
-	printk(KERN_INFO "%s\n", version);
+	pr_info("%s\n", version);
 
 	do {
 		unsigned long io, irq, ram;
@@ -541,7 +541,7 @@ static int __init n2_init(void)
 			return first_card ? 0 : -EINVAL;
 	}while(*hw++ == ':');
 
-	printk(KERN_ERR "n2: invalid hardware parameters\n");
+	pr_err("invalid hardware parameters\n");
 	return first_card ? 0 : -EINVAL;
 }
 

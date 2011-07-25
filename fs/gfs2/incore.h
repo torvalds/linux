@@ -17,6 +17,7 @@
 #include <linux/buffer_head.h>
 #include <linux/rcupdate.h>
 #include <linux/rculist_bl.h>
+#include <linux/completion.h>
 
 #define DIO_WAIT	0x00000010
 #define DIO_METADATA	0x00000020
@@ -162,7 +163,6 @@ struct gfs2_glock_operations {
 	int (*go_dump)(struct seq_file *seq, const struct gfs2_glock *gl);
 	void (*go_callback) (struct gfs2_glock *gl);
 	const int go_type;
-	const unsigned long go_min_hold_time;
 	const unsigned long go_flags;
 #define GLOF_ASPACE 1
 };
@@ -220,6 +220,7 @@ struct gfs2_glock {
 
 	unsigned int gl_hash;
 	unsigned long gl_demote_time; /* time of first demote request */
+	long gl_hold_time;
 	struct list_head gl_holders;
 
 	const struct gfs2_glock_operations *gl_ops;
@@ -284,6 +285,7 @@ struct gfs2_inode {
 	u64 i_goal;	/* goal block for allocations */
 	struct rw_semaphore i_rw_mutex;
 	struct list_head i_trunc_list;
+	__be64 *i_hash_cache;
 	u32 i_entries;
 	u32 i_diskflags;
 	u8 i_height;
@@ -546,6 +548,7 @@ struct gfs2_sbd {
 	struct gfs2_glock *sd_trans_gl;
 	wait_queue_head_t sd_glock_wait;
 	atomic_t sd_glock_disposal;
+	struct completion sd_locking_init;
 
 	/* Inode Stuff */
 

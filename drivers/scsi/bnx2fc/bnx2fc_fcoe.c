@@ -21,7 +21,7 @@ DEFINE_PER_CPU(struct bnx2fc_percpu_s, bnx2fc_percpu);
 
 #define DRV_MODULE_NAME		"bnx2fc"
 #define DRV_MODULE_VERSION	BNX2FC_VERSION
-#define DRV_MODULE_RELDATE	"Mar 17, 2011"
+#define DRV_MODULE_RELDATE	"Jun 10, 2011"
 
 
 static char version[] __devinitdata =
@@ -612,7 +612,7 @@ static struct fc_host_statistics *bnx2fc_get_host_stats(struct Scsi_Host *shost)
 		BNX2FC_HBA_DBG(lport, "FW stat req timed out\n");
 		return bnx2fc_stats;
 	}
-	bnx2fc_stats->invalid_crc_count += fw_stats->rx_stat1.fc_crc_cnt;
+	bnx2fc_stats->invalid_crc_count += fw_stats->rx_stat2.fc_crc_cnt;
 	bnx2fc_stats->tx_frames += fw_stats->tx_stat.fcoe_tx_pkt_cnt;
 	bnx2fc_stats->tx_words += (fw_stats->tx_stat.fcoe_tx_byte_cnt) / 4;
 	bnx2fc_stats->rx_frames += fw_stats->rx_stat0.fcoe_rx_pkt_cnt;
@@ -678,6 +678,9 @@ static void bnx2fc_link_speed_update(struct fc_lport *lport)
 		switch (ethtool_cmd_speed(&ecmd)) {
 		case SPEED_1000:
 			lport->link_speed = FC_PORTSPEED_1GBIT;
+			break;
+		case SPEED_2500:
+			lport->link_speed = FC_PORTSPEED_2GBIT;
 			break;
 		case SPEED_10000:
 			lport->link_speed = FC_PORTSPEED_10GBIT;
@@ -767,16 +770,22 @@ static void bnx2fc_destroy_timer(unsigned long data)
  *
  * @context:	adapter structure pointer
  * @event:	event type
+ * @vlan_id:	vlan id - associated vlan id with this event
  *
  * Handles NETDEV_UP, NETDEV_DOWN, NETDEV_GOING_DOWN,NETDEV_CHANGE and
  * NETDEV_CHANGE_MTU events
  */
-static void bnx2fc_indicate_netevent(void *context, unsigned long event)
+static void bnx2fc_indicate_netevent(void *context, unsigned long event,
+				     u16 vlan_id)
 {
 	struct bnx2fc_hba *hba = (struct bnx2fc_hba *)context;
 	struct fc_lport *lport = hba->ctlr.lp;
 	struct fc_lport *vport;
 	u32 link_possible = 1;
+
+	/* Ignore vlans for now */
+	if (vlan_id != 0)
+		return;
 
 	if (!test_bit(BNX2FC_CREATE_DONE, &hba->init_done)) {
 		BNX2FC_MISC_DBG("driver not ready. event=%s %ld\n",
@@ -1225,6 +1234,7 @@ static int bnx2fc_interface_setup(struct bnx2fc_hba *hba,
 	hba->ctlr.get_src_addr = bnx2fc_get_src_mac;
 	set_bit(BNX2FC_CTLR_INIT_DONE, &hba->init_done);
 
+	INIT_LIST_HEAD(&hba->vports);
 	rc = bnx2fc_netdev_setup(hba);
 	if (rc)
 		goto setup_err;
@@ -1261,7 +1271,14 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 	struct fcoe_port	*port;
 	struct Scsi_Host	*shost;
 	struct fc_vport		*vport = dev_to_vport(parent);
+	struct bnx2fc_lport	*blport;
 	int			rc = 0;
+
+	blport = kzalloc(sizeof(struct bnx2fc_lport), GFP_KERNEL);
+	if (!blport) {
+		BNX2FC_HBA_DBG(hba->ctlr.lp, "Unable to alloc bnx2fc_lport\n");
+		return NULL;
+	}
 
 	/* Allocate Scsi_Host structure */
 	if (!npiv)
@@ -1271,7 +1288,7 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 
 	if (!lport) {
 		printk(KERN_ERR PFX "could not allocate scsi host structure\n");
-		return NULL;
+		goto free_blport;
 	}
 	shost = lport->host;
 	port = lport_priv(lport);
@@ -1327,12 +1344,20 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_hba *hba,
 	}
 
 	bnx2fc_interface_get(hba);
+
+	spin_lock_bh(&hba->hba_lock);
+	blport->lport = lport;
+	list_add_tail(&blport->list, &hba->vports);
+	spin_unlock_bh(&hba->hba_lock);
+
 	return lport;
 
 shost_err:
 	scsi_remove_host(shost);
 lp_config_err:
 	scsi_host_put(lport->host);
+free_blport:
+	kfree(blport);
 	return NULL;
 }
 
@@ -1348,6 +1373,7 @@ static void bnx2fc_if_destroy(struct fc_lport *lport)
 {
 	struct fcoe_port *port = lport_priv(lport);
 	struct bnx2fc_hba *hba = port->priv;
+	struct bnx2fc_lport *blport, *tmp;
 
 	BNX2FC_HBA_DBG(hba->ctlr.lp, "ENTERED bnx2fc_if_destroy\n");
 	/* Stop the transmit retry timer */
@@ -1371,6 +1397,15 @@ static void bnx2fc_if_destroy(struct fc_lport *lport)
 
 	/* Free memory used by statistical counters */
 	fc_lport_free_stats(lport);
+
+	spin_lock_bh(&hba->hba_lock);
+	list_for_each_entry_safe(blport, tmp, &hba->vports, list) {
+		if (blport->lport == lport) {
+			list_del(&blport->list);
+			kfree(blport);
+		}
+	}
+	spin_unlock_bh(&hba->hba_lock);
 
 	/* Release Scsi_Host */
 	scsi_host_put(lport->host);

@@ -29,6 +29,7 @@
 #define RT2X00_H
 
 #include <linux/bitops.h>
+#include <linux/interrupt.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
@@ -1276,6 +1277,7 @@ int rt2x00mac_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant);
 int rt2x00mac_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant);
 void rt2x00mac_get_ringparam(struct ieee80211_hw *hw,
 			     u32 *tx, u32 *tx_max, u32 *rx, u32 *rx_max);
+bool rt2x00mac_tx_frames_pending(struct ieee80211_hw *hw);
 
 /*
  * Driver allocation handlers.

@@ -231,6 +231,8 @@ static void __init visstrim_m10_board_init(void)
 {
 	int ret;
 
+	imx27_soc_init();
+
 	ret = mxc_gpio_setup_multiple_pins(visstrim_m10_pins,
 			ARRAY_SIZE(visstrim_m10_pins), "VISSTRIM_M10");
 	if (ret)

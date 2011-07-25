@@ -92,6 +92,13 @@ typedef int __bitwise suspend_state_t;
  *	@enter() and @wake(), even if any of them fails.  It is executed after
  *	a failing @prepare.
  *
+ * @suspend_again: Returns whether the system should suspend again (true) or
+ *	not (false). If the platform wants to poll sensors or execute some
+ *	code during suspended without invoking userspace and most of devices,
+ *	suspend_again callback is the place assuming that periodic-wakeup or
+ *	alarm-wakeup is already setup. This allows to execute some codes while
+ *	being kept suspended in the view of userland and devices.
+ *
  * @end: Called by the PM core right after resuming devices, to indicate to
  *	the platform that the system has returned to the working state or
  *	the transition to the sleep state has been aborted.
@@ -113,6 +120,7 @@ struct platform_suspend_ops {
 	int (*enter)(suspend_state_t state);
 	void (*wake)(void);
 	void (*finish)(void);
+	bool (*suspend_again)(void);
 	void (*end)(void);
 	void (*recover)(void);
 };

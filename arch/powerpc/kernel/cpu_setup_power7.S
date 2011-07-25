@@ -45,12 +45,12 @@ _GLOBAL(__restore_cpu_power7)
 	blr
 
 __init_hvmode_206:
-	/* Disable CPU_FTR_HVMODE_206 and exit if MSR:HV is not set */
+	/* Disable CPU_FTR_HVMODE and exit if MSR:HV is not set */
 	mfmsr	r3
 	rldicl.	r0,r3,4,63
 	bnelr
 	ld	r5,CPU_SPEC_FEATURES(r4)
-	LOAD_REG_IMMEDIATE(r6,CPU_FTR_HVMODE_206)
+	LOAD_REG_IMMEDIATE(r6,CPU_FTR_HVMODE)
 	xor	r5,r5,r6
 	std	r5,CPU_SPEC_FEATURES(r4)
 	blr
@@ -61,19 +61,23 @@ __init_LPCR:
 	 *   LPES = 0b01 (HSRR0/1 used for 0x500)
 	 *   PECE = 0b111
 	 *   DPFD = 4
+	 *   HDICE = 0
+	 *   VC = 0b100 (VPM0=1, VPM1=0, ISL=0)
+	 *   VRMASD = 0b10000 (L=1, LP=00)
 	 *
 	 * Other bits untouched for now
 	 */
 	mfspr	r3,SPRN_LPCR
-	ori	r3,r3,(LPCR_LPES0|LPCR_LPES1)
-	xori	r3,r3, LPCR_LPES0
+	li	r5,1
+	rldimi	r3,r5, LPCR_LPES_SH, 64-LPCR_LPES_SH-2
 	ori	r3,r3,(LPCR_PECE0|LPCR_PECE1|LPCR_PECE2)
-	li	r5,7
-	sldi	r5,r5,LPCR_DPFD_SH
-	andc	r3,r3,r5
 	li	r5,4
-	sldi	r5,r5,LPCR_DPFD_SH
-	or	r3,r3,r5
+	rldimi	r3,r5, LPCR_DPFD_SH, 64-LPCR_DPFD_SH-3
+	clrrdi	r3,r3,1		/* clear HDICE */
+	li	r5,4
+	rldimi	r3,r5, LPCR_VC_SH, 0
+	li	r5,0x10
+	rldimi	r3,r5, LPCR_VRMASD_SH, 64-LPCR_VRMASD_SH-5
 	mtspr	SPRN_LPCR,r3
 	isync
 	blr

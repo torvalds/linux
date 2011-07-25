@@ -1442,7 +1442,8 @@ static struct clk_lookup mx51_lookups[] = {
 	_REGISTER_CLOCK(NULL, "gpt_32k", gpt_32k_clk)
 	_REGISTER_CLOCK("imx51-ecspi.0", NULL, ecspi1_clk)
 	_REGISTER_CLOCK("imx51-ecspi.1", NULL, ecspi2_clk)
-	_REGISTER_CLOCK("imx51-cspi.0", NULL, cspi_clk)
+	/* i.mx51 has the i.mx35 type cspi */
+	_REGISTER_CLOCK("imx35-cspi.0", NULL, cspi_clk)
 	_REGISTER_CLOCK("sdhci-esdhc-imx.0", NULL, esdhc1_clk)
 	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_clk)
 	_REGISTER_CLOCK("sdhci-esdhc-imx.2", NULL, esdhc3_clk)
@@ -1471,9 +1472,11 @@ static struct clk_lookup mx53_lookups[] = {
 	_REGISTER_CLOCK("sdhci-esdhc-imx.1", NULL, esdhc2_mx53_clk)
 	_REGISTER_CLOCK("sdhci-esdhc-imx.2", NULL, esdhc3_mx53_clk)
 	_REGISTER_CLOCK("sdhci-esdhc-imx.3", NULL, esdhc4_mx53_clk)
-	_REGISTER_CLOCK("imx53-ecspi.0", NULL, ecspi1_clk)
-	_REGISTER_CLOCK("imx53-ecspi.1", NULL, ecspi2_clk)
-	_REGISTER_CLOCK("imx53-cspi.0", NULL, cspi_clk)
+	/* i.mx53 has the i.mx51 type ecspi */
+	_REGISTER_CLOCK("imx51-ecspi.0", NULL, ecspi1_clk)
+	_REGISTER_CLOCK("imx51-ecspi.1", NULL, ecspi2_clk)
+	/* i.mx53 has the i.mx25 type cspi */
+	_REGISTER_CLOCK("imx35-cspi.0", NULL, cspi_clk)
 	_REGISTER_CLOCK("imx2-wdt.0", NULL, dummy_clk)
 	_REGISTER_CLOCK("imx2-wdt.1", NULL, dummy_clk)
 };

@@ -77,7 +77,7 @@ int mlx4_reset(struct mlx4_dev *dev)
 		goto out;
 	}
 
-	pcie_cap = pci_find_capability(dev->pdev, PCI_CAP_ID_EXP);
+	pcie_cap = pci_pcie_cap(dev->pdev);
 
 	for (i = 0; i < 64; ++i) {
 		if (i == 22 || i == 23)

@@ -335,8 +335,8 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 		 * before going offchannel, or dis-association or delete BA will
 		 * happen by AP
 		 */
-		if (rtlpriv->mac80211.offchan_deley) {
-			rtlpriv->mac80211.offchan_deley = false;
+		if (rtlpriv->mac80211.offchan_delay) {
+			rtlpriv->mac80211.offchan_delay = false;
 			mdelay(50);
 		}
 		rtlphy->current_channel = wide_chan;
@@ -443,11 +443,11 @@ static int rtl_op_sta_add(struct ieee80211_hw *hw,
 			sta_entry->wireless_mode = WIRELESS_MODE_G;
 			if (sta->supp_rates[0] <= 0xf)
 				sta_entry->wireless_mode = WIRELESS_MODE_B;
-			if (sta->ht_cap.ht_supported == true)
+			if (sta->ht_cap.ht_supported)
 				sta_entry->wireless_mode = WIRELESS_MODE_N_24G;
 		} else if (rtlhal->current_bandtype == BAND_ON_5G) {
 			sta_entry->wireless_mode = WIRELESS_MODE_A;
-			if (sta->ht_cap.ht_supported == true)
+			if (sta->ht_cap.ht_supported)
 				sta_entry->wireless_mode = WIRELESS_MODE_N_24G;
 		}
 
@@ -650,7 +650,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		RT_TRACE(rtlpriv, COMP_MAC80211, DBG_TRACE,
 			 ("BSS_CHANGED_HT\n"));
 		rcu_read_lock();
-		sta = get_sta(hw, vif, (u8 *)bss_conf->bssid);
+		sta = get_sta(hw, vif, bss_conf->bssid);
 		if (sta) {
 			if (sta->ht_cap.ampdu_density >
 			    mac->current_ampdu_density)
@@ -685,7 +685,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 		rtlpriv->cfg->ops->set_network_type(hw, vif->type);
 
 		rcu_read_lock();
-		sta = get_sta(hw, vif, (u8 *)bss_conf->bssid);
+		sta = get_sta(hw, vif, bss_conf->bssid);
 		if (!sta) {
 			rcu_read_unlock();
 			goto out;

@@ -432,7 +432,7 @@ void __init orion_gpio_init(int gpio_base, int ngpio,
 	ct->regs.mask = ochip->mask_offset + GPIO_EDGE_MASK_OFF;
 	ct->regs.ack = GPIO_EDGE_CAUSE_OFF;
 	ct->type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
-	ct->chip.irq_ack = irq_gc_ack;
+	ct->chip.irq_ack = irq_gc_ack_clr_bit;
 	ct->chip.irq_mask = irq_gc_mask_clr_bit;
 	ct->chip.irq_unmask = irq_gc_mask_set_bit;
 	ct->chip.irq_set_type = gpio_irq_set_type;

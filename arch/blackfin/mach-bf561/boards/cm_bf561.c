@@ -60,29 +60,6 @@ static struct flash_platform_data bfin_spi_flash_data = {
 /* SPI flash chip (m25p64) */
 static struct bfin5xx_spi_chip spi_flash_chip_info = {
 	.enable_dma = 0,         /* use dma transfer with this chip*/
-	.bits_per_word = 8,
-};
-#endif
-
-#if defined(CONFIG_BFIN_SPI_ADC) || defined(CONFIG_BFIN_SPI_ADC_MODULE)
-/* SPI ADC chip */
-static struct bfin5xx_spi_chip spi_adc_chip_info = {
-	.enable_dma = 1,         /* use dma transfer with this chip*/
-	.bits_per_word = 16,
-};
-#endif
-
-#if defined(CONFIG_SND_BF5XX_SOC_AD183X) || defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
-static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
-	.enable_dma = 0,
-	.bits_per_word = 16,
-};
-#endif
-
-#if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
-static struct bfin5xx_spi_chip mmc_spi_chip_info = {
-	.enable_dma = 0,
-	.bits_per_word = 8,
 };
 #endif
 
@@ -100,24 +77,12 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_BFIN_SPI_ADC) || defined(CONFIG_BFIN_SPI_ADC_MODULE)
-	{
-		.modalias = "bfin_spi_adc", /* Name of spi_driver for this device */
-		.max_speed_hz = 6250000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0, /* Framework bus number */
-		.chip_select = 1, /* Framework chip select. */
-		.platform_data = NULL, /* No spi_driver specific config */
-		.controller_data = &spi_adc_chip_info,
-	},
-#endif
-
 #if defined(CONFIG_SND_BF5XX_SOC_AD183X) || defined(CONFIG_SND_BF5XX_SOC_AD183X_MODULE)
 	{
 		.modalias = "ad183x",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = 4,
-		.controller_data = &ad1836_spi_chip_info,
 	},
 #endif
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
@@ -126,7 +91,6 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = 1,
-		.controller_data = &mmc_spi_chip_info,
 		.mode = SPI_MODE_3,
 	},
 #endif
@@ -532,6 +496,24 @@ static struct platform_device *cm_bf561_devices[] __initdata = {
 #endif
 };
 
+static int __init net2272_init(void)
+{
+#if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
+	int ret;
+
+	ret = gpio_request(GPIO_PF46, "net2272");
+	if (ret)
+		return ret;
+
+	/* Reset USB Chip, PF46 */
+	gpio_direction_output(GPIO_PF46, 0);
+	mdelay(2);
+	gpio_set_value(GPIO_PF46, 1);
+#endif
+
+	return 0;
+}
+
 static int __init cm_bf561_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
@@ -543,6 +525,10 @@ static int __init cm_bf561_init(void)
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
 	irq_set_status_flags(PATA_INT, IRQ_NOAUTOEN);
 #endif
+
+	if (net2272_init())
+		pr_warning("unable to configure net2272; it probably won't work\n");
+
 	return 0;
 }
 

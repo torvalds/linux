@@ -34,12 +34,12 @@ static DEFINE_PCI_DEVICE_TABLE(ath5k_pci_id_table) = {
 	{ PCI_VDEVICE(3COM_2,  0x0013) }, /* 3com 5212 */
 	{ PCI_VDEVICE(3COM,    0x0013) }, /* 3com 3CRDAG675 5212 */
 	{ PCI_VDEVICE(ATHEROS, 0x1014) }, /* IBM minipci 5212 */
-	{ PCI_VDEVICE(ATHEROS, 0x0014) }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0015) }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0016) }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0017) }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0018) }, /* 5212 combatible */
-	{ PCI_VDEVICE(ATHEROS, 0x0019) }, /* 5212 combatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0014) }, /* 5212 compatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0015) }, /* 5212 compatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0016) }, /* 5212 compatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0017) }, /* 5212 compatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0018) }, /* 5212 compatible */
+	{ PCI_VDEVICE(ATHEROS, 0x0019) }, /* 5212 compatible */
 	{ PCI_VDEVICE(ATHEROS, 0x001a) }, /* 2413 Griffin-lite */
 	{ PCI_VDEVICE(ATHEROS, 0x001b) }, /* 5413 Eagle */
 	{ PCI_VDEVICE(ATHEROS, 0x001c) }, /* PCI-E cards */
@@ -234,7 +234,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 
 	mem = pci_iomap(pdev, 0, 0);
 	if (!mem) {
-		dev_err(&pdev->dev, "cannot remap PCI memory region\n") ;
+		dev_err(&pdev->dev, "cannot remap PCI memory region\n");
 		ret = -EIO;
 		goto err_reg;
 	}
@@ -297,7 +297,9 @@ ath5k_pci_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int ath5k_pci_suspend(struct device *dev)
 {
-	struct ath5k_softc *sc = pci_get_drvdata(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct ath5k_softc *sc = hw->priv;
 
 	ath5k_led_off(sc);
 	return 0;
@@ -306,7 +308,8 @@ static int ath5k_pci_suspend(struct device *dev)
 static int ath5k_pci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct ath5k_softc *sc = pci_get_drvdata(pdev);
+	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct ath5k_softc *sc = hw->priv;
 
 	/*
 	 * Suspend/Resume resets the PCI configuration space, so we have to

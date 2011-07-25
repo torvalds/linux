@@ -1129,7 +1129,7 @@ static int __devinit snd_via82xx_create(struct snd_card *card,
 	}
 	chip->port = pci_resource_start(pci, 0);
 	if (request_irq(pci->irq, snd_via82xx_interrupt, IRQF_SHARED,
-			card->driver, chip)) {
+			KBUILD_MODNAME, chip)) {
 		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_via82xx_free(chip);
 		return -EBUSY;
@@ -1224,7 +1224,7 @@ static void __devexit snd_via82xx_remove(struct pci_dev *pci)
 }
 
 static struct pci_driver driver = {
-	.name = "VIA 82xx Modem",
+	.name = KBUILD_MODNAME,
 	.id_table = snd_via82xx_modem_ids,
 	.probe = snd_via82xx_probe,
 	.remove = __devexit_p(snd_via82xx_remove),

@@ -622,12 +622,11 @@ int vmtruncate_range(struct inode *inode, loff_t offset, loff_t end)
 		return -ENOSYS;
 
 	mutex_lock(&inode->i_mutex);
-	down_write(&inode->i_alloc_sem);
+	inode_dio_wait(inode);
 	unmap_mapping_range(mapping, offset, (end - offset), 1);
 	inode->i_op->truncate_range(inode, offset, end);
 	/* unmap again to remove racily COWed private pages */
 	unmap_mapping_range(mapping, offset, (end - offset), 1);
-	up_write(&inode->i_alloc_sem);
 	mutex_unlock(&inode->i_mutex);
 
 	return 0;

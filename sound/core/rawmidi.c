@@ -92,16 +92,12 @@ static inline int snd_rawmidi_ready_append(struct snd_rawmidi_substream *substre
 	       (!substream->append || runtime->avail >= count);
 }
 
-static void snd_rawmidi_input_event_tasklet(unsigned long data)
+static void snd_rawmidi_input_event_work(struct work_struct *work)
 {
-	struct snd_rawmidi_substream *substream = (struct snd_rawmidi_substream *)data;
-	substream->runtime->event(substream);
-}
-
-static void snd_rawmidi_output_trigger_tasklet(unsigned long data)
-{
-	struct snd_rawmidi_substream *substream = (struct snd_rawmidi_substream *)data;
-	substream->ops->trigger(substream, 1);
+	struct snd_rawmidi_runtime *runtime =
+		container_of(work, struct snd_rawmidi_runtime, event_work);
+	if (runtime->event)
+		runtime->event(runtime->substream);
 }
 
 static int snd_rawmidi_runtime_create(struct snd_rawmidi_substream *substream)
@@ -110,16 +106,10 @@ static int snd_rawmidi_runtime_create(struct snd_rawmidi_substream *substream)
 
 	if ((runtime = kzalloc(sizeof(*runtime), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
+	runtime->substream = substream;
 	spin_lock_init(&runtime->lock);
 	init_waitqueue_head(&runtime->sleep);
-	if (substream->stream == SNDRV_RAWMIDI_STREAM_INPUT)
-		tasklet_init(&runtime->tasklet,
-			     snd_rawmidi_input_event_tasklet,
-			     (unsigned long)substream);
-	else
-		tasklet_init(&runtime->tasklet,
-			     snd_rawmidi_output_trigger_tasklet,
-			     (unsigned long)substream);
+	INIT_WORK(&runtime->event_work, snd_rawmidi_input_event_work);
 	runtime->event = NULL;
 	runtime->buffer_size = PAGE_SIZE;
 	runtime->avail_min = 1;
@@ -150,12 +140,7 @@ static inline void snd_rawmidi_output_trigger(struct snd_rawmidi_substream *subs
 {
 	if (!substream->opened)
 		return;
-	if (up) {
-		tasklet_schedule(&substream->runtime->tasklet);
-	} else {
-		tasklet_kill(&substream->runtime->tasklet);
-		substream->ops->trigger(substream, 0);
-	}
+	substream->ops->trigger(substream, up);
 }
 
 static void snd_rawmidi_input_trigger(struct snd_rawmidi_substream *substream, int up)
@@ -163,8 +148,8 @@ static void snd_rawmidi_input_trigger(struct snd_rawmidi_substream *substream, i
 	if (!substream->opened)
 		return;
 	substream->ops->trigger(substream, up);
-	if (!up && substream->runtime->event)
-		tasklet_kill(&substream->runtime->tasklet);
+	if (!up)
+		cancel_work_sync(&substream->runtime->event_work);
 }
 
 int snd_rawmidi_drop_output(struct snd_rawmidi_substream *substream)
@@ -641,10 +626,10 @@ int snd_rawmidi_output_params(struct snd_rawmidi_substream *substream,
 		return -EINVAL;
 	}
 	if (params->buffer_size != runtime->buffer_size) {
-		newbuf = kmalloc(params->buffer_size, GFP_KERNEL);
+		newbuf = krealloc(runtime->buffer, params->buffer_size,
+				  GFP_KERNEL);
 		if (!newbuf)
 			return -ENOMEM;
-		kfree(runtime->buffer);
 		runtime->buffer = newbuf;
 		runtime->buffer_size = params->buffer_size;
 		runtime->avail = runtime->buffer_size;
@@ -668,10 +653,10 @@ int snd_rawmidi_input_params(struct snd_rawmidi_substream *substream,
 		return -EINVAL;
 	}
 	if (params->buffer_size != runtime->buffer_size) {
-		newbuf = kmalloc(params->buffer_size, GFP_KERNEL);
+		newbuf = krealloc(runtime->buffer, params->buffer_size,
+				  GFP_KERNEL);
 		if (!newbuf)
 			return -ENOMEM;
-		kfree(runtime->buffer);
 		runtime->buffer = newbuf;
 		runtime->buffer_size = params->buffer_size;
 	}
@@ -926,7 +911,7 @@ int snd_rawmidi_receive(struct snd_rawmidi_substream *substream,
 	}
 	if (result > 0) {
 		if (runtime->event)
-			tasklet_schedule(&runtime->tasklet);
+			schedule_work(&runtime->event_work);
 		else if (snd_rawmidi_ready(substream))
 			wake_up(&runtime->sleep);
 	}

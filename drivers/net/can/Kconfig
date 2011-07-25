@@ -4,7 +4,6 @@ menu "CAN Device Drivers"
 config CAN_VCAN
 	tristate "Virtual Local CAN Interface (vcan)"
 	depends on CAN
-	default N
 	---help---
 	  Similar to the network loopback devices, vcan offers a
 	  virtual local CAN interface.
@@ -15,7 +14,6 @@ config CAN_VCAN
 config CAN_SLCAN
 	tristate "Serial / USB serial CAN Adaptors (slcan)"
 	depends on CAN
-	default N
 	---help---
 	  CAN driver for several 'low cost' CAN interfaces that are attached
 	  via serial lines or via USB-to-serial adapters using the LAWICEL
@@ -36,7 +34,7 @@ config CAN_SLCAN
 config CAN_DEV
 	tristate "Platform CAN drivers with Netlink support"
 	depends on CAN
-	default Y
+	default y
 	---help---
 	  Enables the common framework for platform CAN drivers with Netlink
 	  support. This is the standard library for CAN drivers.
@@ -45,7 +43,7 @@ config CAN_DEV
 config CAN_CALC_BITTIMING
 	bool "CAN bit-timing calculation"
 	depends on CAN_DEV
-	default Y
+	default y
 	---help---
 	  If enabled, CAN bit-timing parameters will be calculated for the
 	  bit-rate specified via Netlink argument "bitrate" when the device
@@ -58,9 +56,10 @@ config CAN_CALC_BITTIMING
 
 config CAN_AT91
 	tristate "Atmel AT91 onchip CAN controller"
-	depends on CAN_DEV && ARCH_AT91SAM9263
+	depends on CAN_DEV && (ARCH_AT91SAM9263 || ARCH_AT91SAM9X5)
 	---help---
-	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263.
+	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
+	  and AT91SAM9X5 processors.
 
 config CAN_TI_HECC
 	depends on CAN_DEV && ARCH_OMAP3
@@ -124,7 +123,6 @@ source "drivers/net/can/softing/Kconfig"
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
 	depends on CAN
-	default N
 	---help---
 	  Say Y here if you want the CAN device drivers to produce a bunch of
 	  debug messages to the system log.  Select this if you are having
