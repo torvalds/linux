@@ -632,6 +632,31 @@ iscsi_iser_ep_disconnect(struct iscsi_endpoint *ep)
 	iser_conn_terminate(ib_conn);
 }
 
+static mode_t iser_attr_is_visible(int param_type, int param)
+{
+	switch (param_type) {
+	case ISCSI_PARAM:
+		switch (param) {
+		case ISCSI_PARAM_MAX_RECV_DLENGTH:
+		case ISCSI_PARAM_MAX_XMIT_DLENGTH:
+		case ISCSI_PARAM_HDRDGST_EN:
+		case ISCSI_PARAM_DATADGST_EN:
+		case ISCSI_PARAM_CONN_ADDRESS:
+		case ISCSI_PARAM_CONN_PORT:
+		case ISCSI_PARAM_EXP_STATSN:
+		case ISCSI_PARAM_PERSISTENT_ADDRESS:
+		case ISCSI_PARAM_PERSISTENT_PORT:
+		case ISCSI_PARAM_PING_TMO:
+		case ISCSI_PARAM_RECV_TMO:
+			return S_IRUGO;
+		default:
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
 static struct scsi_host_template iscsi_iser_sht = {
 	.module                 = THIS_MODULE,
 	.name                   = "iSCSI Initiator over iSER, v." DRV_VER,
@@ -653,28 +678,18 @@ static struct iscsi_transport iscsi_iser_transport = {
 	.owner                  = THIS_MODULE,
 	.name                   = "iser",
 	.caps                   = CAP_RECOVERY_L0 | CAP_MULTI_R2T,
-	.param_mask		= ISCSI_MAX_RECV_DLENGTH |
-				  ISCSI_MAX_XMIT_DLENGTH |
-				  ISCSI_HDRDGST_EN |
-				  ISCSI_DATADGST_EN |
-				  ISCSI_INITIAL_R2T_EN |
+	.param_mask		= ISCSI_INITIAL_R2T_EN |
 				  ISCSI_MAX_R2T |
 				  ISCSI_IMM_DATA_EN |
 				  ISCSI_FIRST_BURST |
 				  ISCSI_MAX_BURST |
 				  ISCSI_PDU_INORDER_EN |
 				  ISCSI_DATASEQ_INORDER_EN |
-				  ISCSI_CONN_PORT |
-				  ISCSI_CONN_ADDRESS |
-				  ISCSI_EXP_STATSN |
-				  ISCSI_PERSISTENT_PORT |
-				  ISCSI_PERSISTENT_ADDRESS |
 				  ISCSI_TARGET_NAME | ISCSI_TPGT |
 				  ISCSI_USERNAME | ISCSI_PASSWORD |
 				  ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN |
 				  ISCSI_FAST_ABORT | ISCSI_ABORT_TMO |
 				  ISCSI_LU_RESET_TMO | ISCSI_TGT_RESET_TMO |
-				  ISCSI_PING_TMO | ISCSI_RECV_TMO |
 				  ISCSI_IFACE_NAME | ISCSI_INITIATOR_NAME,
 	.host_param_mask	= ISCSI_HOST_HWADDRESS |
 				  ISCSI_HOST_NETDEV_NAME |
@@ -686,6 +701,7 @@ static struct iscsi_transport iscsi_iser_transport = {
 	.create_conn            = iscsi_iser_conn_create,
 	.bind_conn              = iscsi_iser_conn_bind,
 	.destroy_conn           = iscsi_iser_conn_destroy,
+	.attr_is_visible	= iser_attr_is_visible,
 	.set_param              = iscsi_iser_set_param,
 	.get_conn_param		= iscsi_conn_get_param,
 	.get_ep_param		= iscsi_iser_get_ep_param,

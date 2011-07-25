@@ -100,6 +100,7 @@ static int qla4xxx_slave_alloc(struct scsi_device *device);
 static int qla4xxx_slave_configure(struct scsi_device *device);
 static void qla4xxx_slave_destroy(struct scsi_device *sdev);
 static void qla4xxx_scan_start(struct Scsi_Host *shost);
+static mode_t ql4_attr_is_visible(int param_type, int param);
 
 static struct qla4_8xxx_legacy_intr_set legacy_intr[] =
     QLA82XX_LEGACY_INTR_CONFIG;
@@ -137,8 +138,7 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.name			= DRIVER_NAME,
 	.caps			= CAP_FW_DB | CAP_SENDTARGETS_OFFLOAD |
 				  CAP_DATA_PATH_OFFLOAD,
-	.param_mask		= ISCSI_CONN_PORT | ISCSI_CONN_ADDRESS |
-				  ISCSI_TARGET_NAME | ISCSI_TPGT |
+	.param_mask		= ISCSI_TARGET_NAME | ISCSI_TPGT |
 				  ISCSI_TARGET_ALIAS,
 	.host_param_mask	= ISCSI_HOST_HWADDRESS |
 				  ISCSI_HOST_IPADDRESS |
@@ -155,6 +155,7 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 				  ISCSI_NET_IPV6_LINKLOCAL_AUTOCFG |
 				  ISCSI_NET_IFACE_ENABLE,
 	.tgt_dscvr		= qla4xxx_tgt_dscvr,
+	.attr_is_visible	= ql4_attr_is_visible,
 	.get_conn_param		= qla4xxx_conn_get_param,
 	.get_session_param	= qla4xxx_sess_get_param,
 	.get_host_param		= qla4xxx_host_get_param,
@@ -164,6 +165,22 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 };
 
 static struct scsi_transport_template *qla4xxx_scsi_transport;
+
+static mode_t ql4_attr_is_visible(int param_type, int param)
+{
+	switch (param_type) {
+	case ISCSI_PARAM:
+		switch (param) {
+		case ISCSI_PARAM_CONN_ADDRESS:
+		case ISCSI_PARAM_CONN_PORT:
+			return S_IRUGO;
+		default:
+			return 0;
+		}
+	}
+
+	return 0;
+}
 
 static int qla4xxx_get_iface_param(struct iscsi_iface *iface,
 				   enum iscsi_param_type param_type,

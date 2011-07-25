@@ -4364,10 +4364,7 @@ struct iscsi_transport beiscsi_iscsi_transport = {
 	.name = DRV_NAME,
 	.caps = CAP_RECOVERY_L0 | CAP_HDRDGST | CAP_TEXT_NEGO |
 		CAP_MULTI_R2T | CAP_DATADGST | CAP_DATA_PATH_OFFLOAD,
-	.param_mask = ISCSI_MAX_RECV_DLENGTH |
-		ISCSI_MAX_XMIT_DLENGTH |
-		ISCSI_HDRDGST_EN |
-		ISCSI_DATADGST_EN |
+	.param_mask =
 		ISCSI_INITIAL_R2T_EN |
 		ISCSI_MAX_R2T |
 		ISCSI_IMM_DATA_EN |
@@ -4376,17 +4373,11 @@ struct iscsi_transport beiscsi_iscsi_transport = {
 		ISCSI_PDU_INORDER_EN |
 		ISCSI_DATASEQ_INORDER_EN |
 		ISCSI_ERL |
-		ISCSI_CONN_PORT |
-		ISCSI_CONN_ADDRESS |
-		ISCSI_EXP_STATSN |
-		ISCSI_PERSISTENT_PORT |
-		ISCSI_PERSISTENT_ADDRESS |
 		ISCSI_TARGET_NAME | ISCSI_TPGT |
 		ISCSI_USERNAME | ISCSI_PASSWORD |
 		ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN |
 		ISCSI_FAST_ABORT | ISCSI_ABORT_TMO |
 		ISCSI_LU_RESET_TMO |
-		ISCSI_PING_TMO | ISCSI_RECV_TMO |
 		ISCSI_IFACE_NAME | ISCSI_INITIATOR_NAME,
 	.host_param_mask = ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
 				ISCSI_HOST_INITIATOR_NAME,
@@ -4395,6 +4386,7 @@ struct iscsi_transport beiscsi_iscsi_transport = {
 	.create_conn = beiscsi_conn_create,
 	.bind_conn = beiscsi_conn_bind,
 	.destroy_conn = iscsi_conn_teardown,
+	.attr_is_visible = be2iscsi_attr_is_visible,
 	.set_param = beiscsi_set_param,
 	.get_conn_param = iscsi_conn_get_param,
 	.get_session_param = iscsi_session_get_param,

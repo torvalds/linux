@@ -144,7 +144,9 @@ struct iscsi_transport {
 	int (*get_iface_param) (struct iscsi_iface *iface,
 				enum iscsi_param_type param_type,
 				int param, char *buf);
+	mode_t (*attr_is_visible)(int param_type, int param);
 };
+
 
 /*
  * transport registration upcalls
@@ -177,6 +179,9 @@ struct iscsi_cls_conn {
 
 #define iscsi_dev_to_conn(_dev) \
 	container_of(_dev, struct iscsi_cls_conn, dev)
+
+#define transport_class_to_conn(_cdev) \
+	iscsi_dev_to_conn(_cdev->parent)
 
 #define iscsi_conn_to_session(_conn) \
 	iscsi_dev_to_session(_conn->dev.parent)

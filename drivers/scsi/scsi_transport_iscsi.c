@@ -78,7 +78,6 @@ struct iscsi_internal {
 
 	struct device_attribute *host_attrs[ISCSI_HOST_ATTRS + 1];
 	struct transport_container conn_cont;
-	struct device_attribute *conn_attrs[ISCSI_CONN_ATTRS + 1];
 	struct transport_container session_cont;
 	struct device_attribute *session_attrs[ISCSI_SESSION_ATTRS + 1];
 };
@@ -2030,6 +2029,70 @@ static ISCSI_CLASS_ATTR(conn, field, S_IRUGO,				\
 iscsi_conn_ep_attr(address, ISCSI_PARAM_CONN_ADDRESS);
 iscsi_conn_ep_attr(port, ISCSI_PARAM_CONN_PORT);
 
+static struct attribute *iscsi_conn_attrs[] = {
+	&dev_attr_conn_max_recv_dlength.attr,
+	&dev_attr_conn_max_xmit_dlength.attr,
+	&dev_attr_conn_header_digest.attr,
+	&dev_attr_conn_data_digest.attr,
+	&dev_attr_conn_ifmarker.attr,
+	&dev_attr_conn_ofmarker.attr,
+	&dev_attr_conn_address.attr,
+	&dev_attr_conn_port.attr,
+	&dev_attr_conn_exp_statsn.attr,
+	&dev_attr_conn_persistent_address.attr,
+	&dev_attr_conn_persistent_port.attr,
+	&dev_attr_conn_ping_tmo.attr,
+	&dev_attr_conn_recv_tmo.attr,
+	NULL,
+};
+
+static mode_t iscsi_conn_attr_is_visible(struct kobject *kobj,
+					 struct attribute *attr, int i)
+{
+	struct device *cdev = container_of(kobj, struct device, kobj);
+	struct iscsi_cls_conn *conn = transport_class_to_conn(cdev);
+	struct iscsi_transport *t = conn->transport;
+	int param;
+
+	if (attr == &dev_attr_conn_max_recv_dlength.attr)
+		param = ISCSI_PARAM_MAX_RECV_DLENGTH;
+	else if (attr == &dev_attr_conn_max_xmit_dlength.attr)
+		param = ISCSI_PARAM_MAX_XMIT_DLENGTH;
+	else if (attr == &dev_attr_conn_header_digest.attr)
+		param = ISCSI_PARAM_HDRDGST_EN;
+	else if (attr == &dev_attr_conn_data_digest.attr)
+		param = ISCSI_PARAM_DATADGST_EN;
+	else if (attr == &dev_attr_conn_ifmarker.attr)
+		param = ISCSI_PARAM_IFMARKER_EN;
+	else if (attr == &dev_attr_conn_ofmarker.attr)
+		param = ISCSI_PARAM_OFMARKER_EN;
+	else if (attr == &dev_attr_conn_address.attr)
+		param = ISCSI_PARAM_CONN_ADDRESS;
+	else if (attr == &dev_attr_conn_port.attr)
+		param = ISCSI_PARAM_CONN_PORT;
+	else if (attr == &dev_attr_conn_exp_statsn.attr)
+		param = ISCSI_PARAM_EXP_STATSN;
+	else if (attr == &dev_attr_conn_persistent_address.attr)
+		param = ISCSI_PARAM_PERSISTENT_ADDRESS;
+	else if (attr == &dev_attr_conn_persistent_port.attr)
+		param = ISCSI_PARAM_PERSISTENT_PORT;
+	else if (attr == &dev_attr_conn_ping_tmo.attr)
+		param = ISCSI_PARAM_PING_TMO;
+	else if (attr == &dev_attr_conn_recv_tmo.attr)
+		param = ISCSI_PARAM_RECV_TMO;
+	else {
+		WARN_ONCE(1, "Invalid conn attr");
+		return 0;
+	}
+
+	return t->attr_is_visible(ISCSI_PARAM, param);
+}
+
+static struct attribute_group iscsi_conn_group = {
+	.attrs = iscsi_conn_attrs,
+	.is_visible = iscsi_conn_attr_is_visible,
+};
+
 /*
  * iSCSI session attrs
  */
@@ -2171,14 +2234,6 @@ do {									\
 	}								\
 } while (0)
 
-#define SETUP_CONN_RD_ATTR(field, param_flag)				\
-do {									\
-	if (tt->param_mask & param_flag) {				\
-		priv->conn_attrs[count] = &dev_attr_conn_##field; \
-		count++;						\
-	}								\
-} while (0)
-
 #define SETUP_HOST_RD_ATTR(field, param_flag)				\
 do {									\
 	if (tt->host_param_mask & param_flag) {				\
@@ -2299,28 +2354,10 @@ iscsi_register_transport(struct iscsi_transport *tt)
 	count = 0;
 
 	/* connection parameters */
-	priv->conn_cont.ac.attrs = &priv->conn_attrs[0];
 	priv->conn_cont.ac.class = &iscsi_connection_class.class;
 	priv->conn_cont.ac.match = iscsi_conn_match;
+	priv->conn_cont.ac.grp = &iscsi_conn_group;
 	transport_container_register(&priv->conn_cont);
-
-	SETUP_CONN_RD_ATTR(max_recv_dlength, ISCSI_MAX_RECV_DLENGTH);
-	SETUP_CONN_RD_ATTR(max_xmit_dlength, ISCSI_MAX_XMIT_DLENGTH);
-	SETUP_CONN_RD_ATTR(header_digest, ISCSI_HDRDGST_EN);
-	SETUP_CONN_RD_ATTR(data_digest, ISCSI_DATADGST_EN);
-	SETUP_CONN_RD_ATTR(ifmarker, ISCSI_IFMARKER_EN);
-	SETUP_CONN_RD_ATTR(ofmarker, ISCSI_OFMARKER_EN);
-	SETUP_CONN_RD_ATTR(address, ISCSI_CONN_ADDRESS);
-	SETUP_CONN_RD_ATTR(port, ISCSI_CONN_PORT);
-	SETUP_CONN_RD_ATTR(exp_statsn, ISCSI_EXP_STATSN);
-	SETUP_CONN_RD_ATTR(persistent_address, ISCSI_PERSISTENT_ADDRESS);
-	SETUP_CONN_RD_ATTR(persistent_port, ISCSI_PERSISTENT_PORT);
-	SETUP_CONN_RD_ATTR(ping_tmo, ISCSI_PING_TMO);
-	SETUP_CONN_RD_ATTR(recv_tmo, ISCSI_RECV_TMO);
-
-	BUG_ON(count > ISCSI_CONN_ATTRS);
-	priv->conn_attrs[count] = NULL;
-	count = 0;
 
 	/* session parameters */
 	priv->session_cont.ac.attrs = &priv->session_attrs[0];

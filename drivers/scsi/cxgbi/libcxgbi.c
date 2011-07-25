@@ -2566,6 +2566,32 @@ void cxgbi_iscsi_cleanup(struct iscsi_transport *itp,
 }
 EXPORT_SYMBOL_GPL(cxgbi_iscsi_cleanup);
 
+mode_t cxgbi_attr_is_visible(int param_type, int param)
+{
+	switch (param_type) {
+	case ISCSI_PARAM:
+		switch (param) {
+		case ISCSI_PARAM_MAX_RECV_DLENGTH:
+		case ISCSI_PARAM_MAX_XMIT_DLENGTH:
+		case ISCSI_PARAM_HDRDGST_EN:
+		case ISCSI_PARAM_DATADGST_EN:
+		case ISCSI_PARAM_CONN_ADDRESS:
+		case ISCSI_PARAM_CONN_PORT:
+		case ISCSI_PARAM_EXP_STATSN:
+		case ISCSI_PARAM_PERSISTENT_ADDRESS:
+		case ISCSI_PARAM_PERSISTENT_PORT:
+		case ISCSI_PARAM_PING_TMO:
+		case ISCSI_PARAM_RECV_TMO:
+			return S_IRUGO;
+		default:
+			return 0;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cxgbi_attr_is_visible);
+
 static int __init libcxgbi_init_module(void)
 {
 	sw_tag_idx_bits = (__ilog2_u32(ISCSI_ITT_MASK)) + 1;
