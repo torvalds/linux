@@ -141,17 +141,6 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.host_param_mask	= ISCSI_HOST_HWADDRESS |
 				  ISCSI_HOST_IPADDRESS |
 				  ISCSI_HOST_INITIATOR_NAME,
-	.iface_param_mask	= ISCSI_NET_IPV4_ADDR |
-				  ISCSI_NET_IPV4_SUBNET |
-				  ISCSI_NET_IPV4_GW |
-				  ISCSI_NET_IPV4_BOOTPROTO |
-				  ISCSI_NET_IFACE_ENABLE |
-				  ISCSI_NET_IPV6_LINKLOCAL |
-				  ISCSI_NET_IPV6_ADDR |
-				  ISCSI_NET_IPV6_ROUTER |
-				  ISCSI_NET_IPV6_ADDR_AUTOCFG |
-				  ISCSI_NET_IPV6_LINKLOCAL_AUTOCFG |
-				  ISCSI_NET_IFACE_ENABLE,
 	.tgt_dscvr		= qla4xxx_tgt_dscvr,
 	.attr_is_visible	= ql4_attr_is_visible,
 	.get_conn_param		= qla4xxx_conn_get_param,
@@ -174,6 +163,22 @@ static mode_t ql4_attr_is_visible(int param_type, int param)
 		case ISCSI_PARAM_TARGET_NAME:
 		case ISCSI_PARAM_TPGT:
 		case ISCSI_PARAM_TARGET_ALIAS:
+			return S_IRUGO;
+		default:
+			return 0;
+		}
+	case ISCSI_NET_PARAM:
+		switch (param) {
+		case ISCSI_NET_PARAM_IPV4_ADDR:
+		case ISCSI_NET_PARAM_IPV4_SUBNET:
+		case ISCSI_NET_PARAM_IPV4_GW:
+		case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
+		case ISCSI_NET_PARAM_IFACE_ENABLE:
+		case ISCSI_NET_PARAM_IPV6_LINKLOCAL:
+		case ISCSI_NET_PARAM_IPV6_ADDR:
+		case ISCSI_NET_PARAM_IPV6_ROUTER:
+		case ISCSI_NET_PARAM_IPV6_ADDR_AUTOCFG:
+		case ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG:
 			return S_IRUGO;
 		default:
 			return 0;

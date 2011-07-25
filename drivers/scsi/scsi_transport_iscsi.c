@@ -329,45 +329,42 @@ static mode_t iscsi_iface_attr_is_visible(struct kobject *kobj,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct iscsi_iface *iface = iscsi_dev_to_iface(dev);
 	struct iscsi_transport *t = iface->transport;
+	int param;
 
 	if (attr == &dev_attr_iface_enabled.attr)
-		return (t->iface_param_mask & ISCSI_NET_IFACE_ENABLE) ?
-								S_IRUGO : 0;
+		param = ISCSI_NET_PARAM_IFACE_ENABLE;
 	else if (attr == &dev_attr_iface_vlan.attr)
-		return (t->iface_param_mask & ISCSI_NET_VLAN_ID) ? S_IRUGO : 0;
-
-	if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4) {
+		param = ISCSI_NET_PARAM_VLAN_ID;
+	else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV4) {
 		if (attr == &dev_attr_ipv4_iface_ipaddress.attr)
-			return (t->iface_param_mask & ISCSI_NET_IPV4_ADDR) ?
-								S_IRUGO : 0;
+			param = ISCSI_NET_PARAM_IPV4_ADDR;
 		else if (attr == &dev_attr_ipv4_iface_gateway.attr)
-			return (t->iface_param_mask & ISCSI_NET_IPV4_GW) ?
-								S_IRUGO : 0;
+			param = ISCSI_NET_PARAM_IPV4_GW;
 		else if (attr == &dev_attr_ipv4_iface_subnet.attr)
-			return (t->iface_param_mask & ISCSI_NET_IPV4_SUBNET) ?
-								S_IRUGO : 0;
+			param = ISCSI_NET_PARAM_IPV4_SUBNET;
 		else if (attr == &dev_attr_ipv4_iface_bootproto.attr)
-			return (t->iface_param_mask & ISCSI_NET_IPV4_BOOTPROTO) ?
-								 S_IRUGO : 0;
+			param = ISCSI_NET_PARAM_IPV4_BOOTPROTO;
+		else
+			return 0;
 	} else if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6) {
 		if (attr == &dev_attr_ipv6_iface_ipaddress.attr)
-			return (t->iface_param_mask & ISCSI_NET_IPV6_ADDR) ?
-								S_IRUGO : 0;
+			param = ISCSI_NET_PARAM_IPV6_ADDR;
 		else if (attr == &dev_attr_ipv6_iface_link_local_addr.attr)
-			return (t->iface_param_mask & ISCSI_NET_IPV6_LINKLOCAL) ?
-								S_IRUGO : 0;
+			param = ISCSI_NET_PARAM_IPV6_LINKLOCAL;
 		else if (attr == &dev_attr_ipv6_iface_router_addr.attr)
-			return (t->iface_param_mask & ISCSI_NET_IPV6_ROUTER) ?
-								S_IRUGO : 0;
+			param = ISCSI_NET_PARAM_IPV6_ROUTER;
 		else if (attr == &dev_attr_ipv6_iface_ipaddr_autocfg.attr)
-			return (t->iface_param_mask & ISCSI_NET_IPV6_ADDR_AUTOCFG) ?
-								S_IRUGO : 0;
+			param = ISCSI_NET_PARAM_IPV6_ADDR_AUTOCFG;
 		else if (attr == &dev_attr_ipv6_iface_linklocal_autocfg.attr)
-			return (t->iface_param_mask & ISCSI_NET_IPV6_LINKLOCAL_AUTOCFG) ?
-								S_IRUGO : 0;
+			param = ISCSI_NET_PARAM_IPV6_LINKLOCAL_AUTOCFG;
+		else
+			return 0;
+	} else {
+		WARN_ONCE(1, "Invalid iface attr");
+		return 0;
 	}
 
-	return 0;
+	return t->attr_is_visible(ISCSI_NET_PARAM, param);
 }
 
 static struct attribute *iscsi_iface_attrs[] = {
