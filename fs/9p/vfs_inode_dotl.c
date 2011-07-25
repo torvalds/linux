@@ -281,10 +281,10 @@ v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int omode,
 		P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n", err);
 		goto error;
 	}
-	d_instantiate(dentry, inode);
 	err = v9fs_fid_add(dentry, fid);
 	if (err < 0)
 		goto error;
+	d_instantiate(dentry, inode);
 
 	/* Now set the ACL based on the default value */
 	v9fs_set_create_acl(dentry, &dacl, &pacl);
@@ -403,10 +403,10 @@ static int v9fs_vfs_mkdir_dotl(struct inode *dir,
 				err);
 			goto error;
 		}
-		d_instantiate(dentry, inode);
 		err = v9fs_fid_add(dentry, fid);
 		if (err < 0)
 			goto error;
+		d_instantiate(dentry, inode);
 		fid = NULL;
 	} else {
 		/*
@@ -657,10 +657,10 @@ v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
 					err);
 			goto error;
 		}
-		d_instantiate(dentry, inode);
 		err = v9fs_fid_add(dentry, fid);
 		if (err < 0)
 			goto error;
+		d_instantiate(dentry, inode);
 		fid = NULL;
 	} else {
 		/* Not in cached mode. No need to populate inode with stat */
@@ -810,10 +810,10 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int omode,
 				err);
 			goto error;
 		}
-		d_instantiate(dentry, inode);
 		err = v9fs_fid_add(dentry, fid);
 		if (err < 0)
 			goto error;
+		d_instantiate(dentry, inode);
 		fid = NULL;
 	} else {
 		/*

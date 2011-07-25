@@ -645,13 +645,11 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 		P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n", err);
 		goto error;
 	}
-	d_instantiate(dentry, inode);
 	err = v9fs_fid_add(dentry, fid);
 	if (err < 0)
 		goto error;
-
+	d_instantiate(dentry, inode);
 	return ofid;
-
 error:
 	if (ofid)
 		p9_client_clunk(ofid);
