@@ -236,38 +236,44 @@ qla4xxx_wait_for_ip_config(struct scsi_qla_host *ha)
 				    FW_ADDSTATE_DHCPv4_LEASE_ACQUIRED) == 0)) {
 			ipv4_wait = 1;
 		}
-		if (((ha->ipv6_addl_options &
-			    IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE) != 0) &&
-		    ((ha->ipv6_link_local_state == IP_ADDRSTATE_ACQUIRING) ||
-		     (ha->ipv6_addr0_state == IP_ADDRSTATE_ACQUIRING) ||
-		     (ha->ipv6_addr1_state == IP_ADDRSTATE_ACQUIRING))) {
+		if (((ha->ip_config.ipv6_addl_options &
+		      IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE) != 0) &&
+		    ((ha->ip_config.ipv6_link_local_state ==
+		      IP_ADDRSTATE_ACQUIRING) ||
+		     (ha->ip_config.ipv6_addr0_state ==
+		      IP_ADDRSTATE_ACQUIRING) ||
+		     (ha->ip_config.ipv6_addr1_state ==
+		      IP_ADDRSTATE_ACQUIRING))) {
 
 			ipv6_wait = 1;
 
-			if ((ha->ipv6_link_local_state ==
-						     IP_ADDRSTATE_PREFERRED) ||
-			    (ha->ipv6_addr0_state == IP_ADDRSTATE_PREFERRED) ||
-			    (ha->ipv6_addr1_state == IP_ADDRSTATE_PREFERRED)) {
+			if ((ha->ip_config.ipv6_link_local_state ==
+			     IP_ADDRSTATE_PREFERRED) ||
+			    (ha->ip_config.ipv6_addr0_state ==
+			     IP_ADDRSTATE_PREFERRED) ||
+			    (ha->ip_config.ipv6_addr1_state ==
+			     IP_ADDRSTATE_PREFERRED)) {
 				DEBUG2(printk(KERN_INFO "scsi%ld: %s: "
 					      "Preferred IP configured."
 					      " Don't wait!\n", ha->host_no,
 					      __func__));
 				ipv6_wait = 0;
 			}
-			if (memcmp(&ha->ipv6_default_router_addr, ip_address,
-				IPv6_ADDR_LEN) == 0) {
+			if (memcmp(&ha->ip_config.ipv6_default_router_addr,
+				   ip_address, IPv6_ADDR_LEN) == 0) {
 				DEBUG2(printk(KERN_INFO "scsi%ld: %s: "
 					      "No Router configured. "
 					      "Don't wait!\n", ha->host_no,
 					      __func__));
 				ipv6_wait = 0;
 			}
-			if ((ha->ipv6_default_router_state ==
-						IPV6_RTRSTATE_MANUAL) &&
-			    (ha->ipv6_link_local_state ==
-						IP_ADDRSTATE_TENTATIVE) &&
-			    (memcmp(&ha->ipv6_link_local_addr,
-				    &ha->ipv6_default_router_addr, 4) == 0)) {
+			if ((ha->ip_config.ipv6_default_router_state ==
+			     IPV6_RTRSTATE_MANUAL) &&
+			    (ha->ip_config.ipv6_link_local_state ==
+			     IP_ADDRSTATE_TENTATIVE) &&
+			    (memcmp(&ha->ip_config.ipv6_link_local_addr,
+			     &ha->ip_config.ipv6_default_router_addr, 4) ==
+			     0)) {
 				DEBUG2(printk("scsi%ld: %s: LinkLocal Router & "
 					"IP configured. Don't wait!\n",
 					ha->host_no, __func__));
@@ -279,11 +285,14 @@ qla4xxx_wait_for_ip_config(struct scsi_qla_host *ha)
 				      "IP(s) \"", ha->host_no, __func__));
 			if (ipv4_wait)
 				DEBUG2(printk("IPv4 "));
-			if (ha->ipv6_link_local_state == IP_ADDRSTATE_ACQUIRING)
+			if (ha->ip_config.ipv6_link_local_state ==
+			    IP_ADDRSTATE_ACQUIRING)
 				DEBUG2(printk("IPv6LinkLocal "));
-			if (ha->ipv6_addr0_state == IP_ADDRSTATE_ACQUIRING)
+			if (ha->ip_config.ipv6_addr0_state ==
+			    IP_ADDRSTATE_ACQUIRING)
 				DEBUG2(printk("IPv6Addr0 "));
-			if (ha->ipv6_addr1_state == IP_ADDRSTATE_ACQUIRING)
+			if (ha->ip_config.ipv6_addr1_state ==
+			    IP_ADDRSTATE_ACQUIRING)
 				DEBUG2(printk("IPv6Addr1 "));
 			DEBUG2(printk("\"\n"));
 		}
@@ -1297,8 +1306,8 @@ int qla4xxx_initialize_adapter(struct scsi_qla_host *ha,
 		goto exit_init_online;
 
 	/* Skip device discovery if ip and subnet is zero */
-	if (memcmp(ha->ip_address, ip_address, IP_ADDR_LEN) == 0 ||
-	    memcmp(ha->subnet_mask, ip_address, IP_ADDR_LEN) == 0)
+	if (memcmp(ha->ip_config.ip_address, ip_address, IP_ADDR_LEN) == 0 ||
+	    memcmp(ha->ip_config.subnet_mask, ip_address, IP_ADDR_LEN) == 0)
 		goto exit_init_online;
 
 	if (renew_ddb_list == PRESERVE_DDB_LIST) {

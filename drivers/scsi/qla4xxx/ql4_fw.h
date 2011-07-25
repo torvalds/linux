@@ -483,7 +483,7 @@ struct addr_ctrl_blk {
 	uint16_t ipv4_tcp_opts;	/* 32-33 */
 #define TCPOPT_DHCP_ENABLE		0x0200
 	uint16_t ipv4_ip_opts;	/* 34-35 */
-#define  IPOPT_IPv4_PROTOCOL_ENABLE	0x8000
+#define IPOPT_IPV4_PROTOCOL_ENABLE	0x8000
 
 	uint16_t iscsi_max_pdu_size;	/* 36-37 */
 	uint8_t ipv4_tos;	/* 38 */

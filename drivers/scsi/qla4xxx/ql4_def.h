@@ -357,6 +357,28 @@ struct isp_operations {
 	int (*get_sys_info) (struct scsi_qla_host *);
 };
 
+/*qla4xxx ipaddress configuration details */
+struct ipaddress_config {
+	uint16_t ipv4_options;
+	uint16_t tcp_options;
+	uint16_t ipv4_vlan_tag;
+	uint8_t ipv4_addr_state;
+	uint8_t ip_address[IP_ADDR_LEN];
+	uint8_t subnet_mask[IP_ADDR_LEN];
+	uint8_t gateway[IP_ADDR_LEN];
+	uint32_t ipv6_options;
+	uint32_t ipv6_addl_options;
+	uint8_t ipv6_link_local_state;
+	uint8_t ipv6_addr0_state;
+	uint8_t ipv6_addr1_state;
+	uint8_t ipv6_default_router_state;
+	uint16_t ipv6_vlan_tag;
+	struct in6_addr ipv6_link_local_addr;
+	struct in6_addr ipv6_addr0;
+	struct in6_addr ipv6_addr1;
+	struct in6_addr ipv6_default_router_addr;
+};
+
 /*
  * Linux Host Adapter structure
  */
@@ -451,10 +473,6 @@ struct scsi_qla_host {
 	/* --- From Init_FW --- */
 	/* init_cb_t *init_cb; */
 	uint16_t firmware_options;
-	uint16_t tcp_options;
-	uint8_t ip_address[IP_ADDR_LEN];
-	uint8_t subnet_mask[IP_ADDR_LEN];
-	uint8_t gateway[IP_ADDR_LEN];
 	uint8_t alias[32];
 	uint8_t name_string[256];
 	uint8_t heartbeat_interval;
@@ -533,22 +551,7 @@ struct scsi_qla_host {
 	/* Saved srb for status continuation entry processing */
 	struct srb *status_srb;
 
-	/* IPv6 support info from InitFW */
 	uint8_t acb_version;
-	uint8_t ipv4_addr_state;
-	uint16_t ipv4_options;
-
-	uint32_t resvd2;
-	uint32_t ipv6_options;
-	uint32_t ipv6_addl_options;
-	uint8_t ipv6_link_local_state;
-	uint8_t ipv6_addr0_state;
-	uint8_t ipv6_addr1_state;
-	uint8_t ipv6_default_router_state;
-	struct in6_addr ipv6_link_local_addr;
-	struct in6_addr ipv6_addr0;
-	struct in6_addr ipv6_addr1;
-	struct in6_addr ipv6_default_router_addr;
 
 	/* qla82xx specific fields */
 	struct device_reg_82xx  __iomem *qla4_8xxx_reg; /* Base I/O address */
@@ -584,6 +587,8 @@ struct scsi_qla_host {
 
 	struct completion mbx_intr_comp;
 
+	struct ipaddress_config ip_config;
+
 	/* --- From About Firmware --- */
 	uint16_t iscsi_major;
 	uint16_t iscsi_minor;
@@ -595,12 +600,13 @@ struct scsi_qla_host {
 
 static inline int is_ipv4_enabled(struct scsi_qla_host *ha)
 {
-	return ((ha->ipv4_options & IPOPT_IPv4_PROTOCOL_ENABLE) != 0);
+	return ((ha->ip_config.ipv4_options & IPOPT_IPV4_PROTOCOL_ENABLE) != 0);
 }
 
 static inline int is_ipv6_enabled(struct scsi_qla_host *ha)
 {
-	return ((ha->ipv6_options & IPV6_OPT_IPV6_PROTOCOL_ENABLE) != 0);
+	return ((ha->ip_config.ipv6_options &
+		IPV6_OPT_IPV6_PROTOCOL_ENABLE) != 0);
 }
 
 static inline int is_qla4010(struct scsi_qla_host *ha)

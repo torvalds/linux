@@ -191,9 +191,7 @@ static int qla4xxx_host_get_param(struct Scsi_Host *shost,
 		len = sysfs_format_mac(buf, ha->my_mac, MAC_ADDR_LEN);
 		break;
 	case ISCSI_HOST_PARAM_IPADDRESS:
-		len = sprintf(buf, "%d.%d.%d.%d\n", ha->ip_address[0],
-			      ha->ip_address[1], ha->ip_address[2],
-			      ha->ip_address[3]);
+		len = sprintf(buf, "%pI4\n", &ha->ip_config.ip_address);
 		break;
 	case ISCSI_HOST_PARAM_INITIATOR_NAME:
 		len = sprintf(buf, "%s\n", ha->name_string);
@@ -330,10 +328,10 @@ static void qla4xxx_set_ipv4(struct scsi_qla_host *ha,
 	case ISCSI_NET_PARAM_IFACE_ENABLE:
 		if (iface_param->value[0] == ISCSI_IFACE_ENABLE)
 			init_fw_cb->ipv4_ip_opts |=
-				cpu_to_le16(IPOPT_IPv4_PROTOCOL_ENABLE);
+				cpu_to_le16(IPOPT_IPV4_PROTOCOL_ENABLE);
 		else
 			init_fw_cb->ipv4_ip_opts &=
-				cpu_to_le16(~IPOPT_IPv4_PROTOCOL_ENABLE &
+				cpu_to_le16(~IPOPT_IPV4_PROTOCOL_ENABLE &
 					    0xFFFF);
 		break;
 	case ISCSI_NET_PARAM_VLAN_ID:

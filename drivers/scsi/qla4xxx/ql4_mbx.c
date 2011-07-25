@@ -327,39 +327,57 @@ qla4xxx_get_ifcb(struct scsi_qla_host *ha, uint32_t *mbox_cmd,
 
 static void
 qla4xxx_update_local_ip(struct scsi_qla_host *ha,
-			 struct addr_ctrl_blk  *init_fw_cb)
+			struct addr_ctrl_blk *init_fw_cb)
 {
+	ha->ip_config.tcp_options = le16_to_cpu(init_fw_cb->ipv4_tcp_opts);
+	ha->ip_config.ipv4_options = le16_to_cpu(init_fw_cb->ipv4_ip_opts);
+	ha->ip_config.ipv4_addr_state =
+				le16_to_cpu(init_fw_cb->ipv4_addr_state);
+
+	if (ha->acb_version == ACB_SUPPORTED) {
+		ha->ip_config.ipv6_options = le16_to_cpu(init_fw_cb->ipv6_opts);
+		ha->ip_config.ipv6_addl_options =
+				le16_to_cpu(init_fw_cb->ipv6_addtl_opts);
+	}
+
 	/* Save IPv4 Address Info */
-	memcpy(ha->ip_address, init_fw_cb->ipv4_addr,
-		min(sizeof(ha->ip_address), sizeof(init_fw_cb->ipv4_addr)));
-	memcpy(ha->subnet_mask, init_fw_cb->ipv4_subnet,
-		min(sizeof(ha->subnet_mask), sizeof(init_fw_cb->ipv4_subnet)));
-	memcpy(ha->gateway, init_fw_cb->ipv4_gw_addr,
-		min(sizeof(ha->gateway), sizeof(init_fw_cb->ipv4_gw_addr)));
+	memcpy(ha->ip_config.ip_address, init_fw_cb->ipv4_addr,
+	       min(sizeof(ha->ip_config.ip_address),
+		   sizeof(init_fw_cb->ipv4_addr)));
+	memcpy(ha->ip_config.subnet_mask, init_fw_cb->ipv4_subnet,
+	       min(sizeof(ha->ip_config.subnet_mask),
+		   sizeof(init_fw_cb->ipv4_subnet)));
+	memcpy(ha->ip_config.gateway, init_fw_cb->ipv4_gw_addr,
+	       min(sizeof(ha->ip_config.gateway),
+		   sizeof(init_fw_cb->ipv4_gw_addr)));
 
 	if (is_ipv6_enabled(ha)) {
 		/* Save IPv6 Address */
-		ha->ipv6_link_local_state = init_fw_cb->ipv6_lnk_lcl_addr_state;
-		ha->ipv6_addr0_state = init_fw_cb->ipv6_addr0_state;
-		ha->ipv6_addr1_state = init_fw_cb->ipv6_addr1_state;
-		ha->ipv6_default_router_state = init_fw_cb->ipv6_dflt_rtr_state;
-		ha->ipv6_link_local_addr.in6_u.u6_addr8[0] = 0xFE;
-		ha->ipv6_link_local_addr.in6_u.u6_addr8[1] = 0x80;
+		ha->ip_config.ipv6_link_local_state =
+			le16_to_cpu(init_fw_cb->ipv6_lnk_lcl_addr_state);
+		ha->ip_config.ipv6_addr0_state =
+				le16_to_cpu(init_fw_cb->ipv6_addr0_state);
+		ha->ip_config.ipv6_addr1_state =
+				le16_to_cpu(init_fw_cb->ipv6_addr1_state);
+		ha->ip_config.ipv6_default_router_state =
+				le16_to_cpu(init_fw_cb->ipv6_dflt_rtr_state);
+		ha->ip_config.ipv6_link_local_addr.in6_u.u6_addr8[0] = 0xFE;
+		ha->ip_config.ipv6_link_local_addr.in6_u.u6_addr8[1] = 0x80;
 
-		memcpy(&ha->ipv6_link_local_addr.in6_u.u6_addr8[8],
-			init_fw_cb->ipv6_if_id,
-			min(sizeof(ha->ipv6_link_local_addr)/2,
-			sizeof(init_fw_cb->ipv6_if_id)));
-		memcpy(&ha->ipv6_addr0, init_fw_cb->ipv6_addr0,
-			min(sizeof(ha->ipv6_addr0),
-			sizeof(init_fw_cb->ipv6_addr0)));
-		memcpy(&ha->ipv6_addr1, init_fw_cb->ipv6_addr1,
-			min(sizeof(ha->ipv6_addr1),
-			sizeof(init_fw_cb->ipv6_addr1)));
-		memcpy(&ha->ipv6_default_router_addr,
-			init_fw_cb->ipv6_dflt_rtr_addr,
-			min(sizeof(ha->ipv6_default_router_addr),
-			sizeof(init_fw_cb->ipv6_dflt_rtr_addr)));
+		memcpy(&ha->ip_config.ipv6_link_local_addr.in6_u.u6_addr8[8],
+		       init_fw_cb->ipv6_if_id,
+		       min(sizeof(ha->ip_config.ipv6_link_local_addr)/2,
+			   sizeof(init_fw_cb->ipv6_if_id)));
+		memcpy(&ha->ip_config.ipv6_addr0, init_fw_cb->ipv6_addr0,
+		       min(sizeof(ha->ip_config.ipv6_addr0),
+			   sizeof(init_fw_cb->ipv6_addr0)));
+		memcpy(&ha->ip_config.ipv6_addr1, init_fw_cb->ipv6_addr1,
+		       min(sizeof(ha->ip_config.ipv6_addr1),
+			   sizeof(init_fw_cb->ipv6_addr1)));
+		memcpy(&ha->ip_config.ipv6_default_router_addr,
+		       init_fw_cb->ipv6_dflt_rtr_addr,
+		       min(sizeof(ha->ip_config.ipv6_default_router_addr),
+			   sizeof(init_fw_cb->ipv6_dflt_rtr_addr)));
 	}
 }
 
@@ -383,9 +401,6 @@ qla4xxx_update_local_ifcb(struct scsi_qla_host *ha,
 	/* Save some info in adapter structure. */
 	ha->acb_version = init_fw_cb->acb_version;
 	ha->firmware_options = le16_to_cpu(init_fw_cb->fw_options);
-	ha->tcp_options = le16_to_cpu(init_fw_cb->ipv4_tcp_opts);
-	ha->ipv4_options = le16_to_cpu(init_fw_cb->ipv4_ip_opts);
-	ha->ipv4_addr_state = le16_to_cpu(init_fw_cb->ipv4_addr_state);
 	ha->heartbeat_interval = init_fw_cb->hb_interval;
 	memcpy(ha->name_string, init_fw_cb->iscsi_name,
 		min(sizeof(ha->name_string),
@@ -393,10 +408,6 @@ qla4xxx_update_local_ifcb(struct scsi_qla_host *ha,
 	/*memcpy(ha->alias, init_fw_cb->Alias,
 	       min(sizeof(ha->alias), sizeof(init_fw_cb->Alias)));*/
 
-	if (ha->acb_version == ACB_SUPPORTED) {
-		ha->ipv6_options = init_fw_cb->ipv6_opts;
-		ha->ipv6_addl_options = init_fw_cb->ipv6_addtl_opts;
-	}
 	qla4xxx_update_local_ip(ha, init_fw_cb);
 
 	return QLA_SUCCESS;
