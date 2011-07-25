@@ -45,30 +45,14 @@ static struct mips_hi16 *mips_hi16_list;
 static LIST_HEAD(dbe_list);
 static DEFINE_SPINLOCK(dbe_lock);
 
+#ifdef MODULE_START
 void *module_alloc(unsigned long size)
 {
-#ifdef MODULE_START
 	return __vmalloc_node_range(size, 1, MODULE_START, MODULE_END,
 				GFP_KERNEL, PAGE_KERNEL, -1,
 				__builtin_return_address(0));
-#else
-	if (size == 0)
-		return NULL;
-	return vmalloc(size);
+}
 #endif
-}
-
-/* Free memory returned from module_alloc */
-void module_free(struct module *mod, void *module_region)
-{
-	vfree(module_region);
-}
-
-int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
-			      char *secstrings, struct module *mod)
-{
-	return 0;
-}
 
 static int apply_r_mips_none(struct module *me, u32 *location, Elf_Addr v)
 {

@@ -284,7 +284,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->sysdata = node;
 	dev->dev.parent = bus->bridge;
 	dev->dev.bus = &pci_bus_type;
-	dev->dev.of_node = node;
+	dev->dev.of_node = of_node_get(node);
 	dev->devfn = devfn;
 	dev->multifunction = 0;		/* maybe a lie? */
 	set_pcie_port_type(dev);
@@ -1020,12 +1020,6 @@ void arch_teardown_msi_irq(unsigned int irq)
 		pbm->teardown_msi_irq(irq, pdev);
 }
 #endif /* !(CONFIG_PCI_MSI) */
-
-struct device_node *pci_device_to_OF_node(struct pci_dev *pdev)
-{
-	return pdev->dev.of_node;
-}
-EXPORT_SYMBOL(pci_device_to_OF_node);
 
 static void ali_sound_dma_hack(struct pci_dev *pdev, int set_bit)
 {

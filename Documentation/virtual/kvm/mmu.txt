@@ -165,6 +165,10 @@ Shadow pages contain the following information:
     Contains the value of efer.nxe for which the page is valid.
   role.cr0_wp:
     Contains the value of cr0.wp for which the page is valid.
+  role.smep_andnot_wp:
+    Contains the value of cr4.smep && !cr0.wp for which the page is valid
+    (pages for which this is true are different from other pages; see the
+    treatment of cr0.wp=0 below).
   gfn:
     Either the guest page table containing the translations shadowed by this
     page, or the base page frame for linear translations.  See role.direct.
@@ -316,6 +320,20 @@ on fault type:
   write access)
 
 (user write faults generate a #PF)
+
+In the first case there is an additional complication if CR4.SMEP is
+enabled: since we've turned the page into a kernel page, the kernel may now
+execute it.  We handle this by also setting spte.nx.  If we get a user
+fetch or read fault, we'll change spte.u=1 and spte.nx=gpte.nx back.
+
+To prevent an spte that was converted into a kernel page with cr0.wp=0
+from being written by the kernel after cr0.wp has changed to 1, we make
+the value of cr0.wp part of the page role.  This means that an spte created
+with one value of cr0.wp cannot be used when cr0.wp has a different value -
+it will simply be missed by the shadow page lookup code.  A similar issue
+exists when an spte created with cr0.wp=0 and cr4.smep=0 is used after
+changing cr4.smep to 1.  To avoid this, the value of !cr0.wp && cr4.smep
+is also made a part of the page role.
 
 Large pages
 ===========

@@ -58,35 +58,9 @@ int kvm_s390_inject_vcpu(struct kvm_vcpu *vcpu,
 int kvm_s390_inject_program_int(struct kvm_vcpu *vcpu, u16 code);
 int kvm_s390_inject_sigp_stop(struct kvm_vcpu *vcpu, int action);
 
-static inline long kvm_s390_vcpu_get_memsize(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.sie_block->gmslm
-		- vcpu->arch.sie_block->gmsor
-		- VIRTIODESCSPACE + 1ul;
-}
-
-static inline void kvm_s390_vcpu_set_mem(struct kvm_vcpu *vcpu)
-{
-	int idx;
-	struct kvm_memory_slot *mem;
-	struct kvm_memslots *memslots;
-
-	idx = srcu_read_lock(&vcpu->kvm->srcu);
-	memslots = kvm_memslots(vcpu->kvm);
-
-	mem = &memslots->memslots[0];
-
-	vcpu->arch.sie_block->gmsor = mem->userspace_addr;
-	vcpu->arch.sie_block->gmslm =
-		mem->userspace_addr +
-		(mem->npages << PAGE_SHIFT) +
-		VIRTIODESCSPACE - 1ul;
-
-	srcu_read_unlock(&vcpu->kvm->srcu, idx);
-}
-
 /* implemented in priv.c */
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu);
+int kvm_s390_handle_e5(struct kvm_vcpu *vcpu);
 
 /* implemented in sigp.c */
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);

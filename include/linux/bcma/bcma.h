@@ -6,6 +6,7 @@
 
 #include <linux/bcma/bcma_driver_chipcommon.h>
 #include <linux/bcma/bcma_driver_pci.h>
+#include <linux/ssb/ssb.h> /* SPROM sharing */
 
 #include "bcma_regs.h"
 
@@ -31,6 +32,12 @@ struct bcma_host_ops {
 	void (*write8)(struct bcma_device *core, u16 offset, u8 value);
 	void (*write16)(struct bcma_device *core, u16 offset, u16 value);
 	void (*write32)(struct bcma_device *core, u16 offset, u32 value);
+#ifdef CONFIG_BCMA_BLOCKIO
+	void (*block_read)(struct bcma_device *core, void *buffer,
+			   size_t count, u16 offset, u8 reg_width);
+	void (*block_write)(struct bcma_device *core, const void *buffer,
+			    size_t count, u16 offset, u8 reg_width);
+#endif
 	/* Agent ops */
 	u32 (*aread32)(struct bcma_device *core, u16 offset);
 	void (*awrite32)(struct bcma_device *core, u16 offset, u32 value);
@@ -117,6 +124,8 @@ struct bcma_device {
 	struct bcma_device_id id;
 
 	struct device dev;
+	struct device *dma_dev;
+	unsigned int irq;
 	bool dev_registered;
 
 	u8 core_index;
@@ -179,6 +188,10 @@ struct bcma_bus {
 
 	struct bcma_drv_cc drv_cc;
 	struct bcma_drv_pci drv_pci;
+
+	/* We decided to share SPROM struct with SSB as long as we do not need
+	 * any hacks for BCMA. This simplifies drivers code. */
+	struct ssb_sprom sprom;
 };
 
 extern inline u32 bcma_read8(struct bcma_device *core, u16 offset)
@@ -208,6 +221,18 @@ void bcma_write32(struct bcma_device *core, u16 offset, u32 value)
 {
 	core->bus->ops->write32(core, offset, value);
 }
+#ifdef CONFIG_BCMA_BLOCKIO
+extern inline void bcma_block_read(struct bcma_device *core, void *buffer,
+				   size_t count, u16 offset, u8 reg_width)
+{
+	core->bus->ops->block_read(core, buffer, count, offset, reg_width);
+}
+extern inline void bcma_block_write(struct bcma_device *core, const void *buffer,
+				    size_t count, u16 offset, u8 reg_width)
+{
+	core->bus->ops->block_write(core, buffer, count, offset, reg_width);
+}
+#endif
 extern inline u32 bcma_aread32(struct bcma_device *core, u16 offset)
 {
 	return core->bus->ops->aread32(core, offset);
@@ -219,6 +244,7 @@ void bcma_awrite32(struct bcma_device *core, u16 offset, u32 value)
 }
 
 extern bool bcma_core_is_enabled(struct bcma_device *core);
+extern void bcma_core_disable(struct bcma_device *core, u32 flags);
 extern int bcma_core_enable(struct bcma_device *core, u32 flags);
 
 #endif /* LINUX_BCMA_H_ */

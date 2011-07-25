@@ -29,15 +29,11 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_dir2_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_mount.h"
 #include "xfs_itable.h"
-#include "xfs_dir2_data.h"
-#include "xfs_dir2_leaf.h"
-#include "xfs_dir2_block.h"
 #include "xfs_inode_item.h"
 #include "xfs_extfree_item.h"
 #include "xfs_alloc.h"
@@ -94,6 +90,7 @@ xfs_bmap_add_attrfork_local(
  */
 STATIC int				/* error */
 xfs_bmap_add_extent_delay_real(
+	struct xfs_trans	*tp,	/* transaction pointer */
 	xfs_inode_t		*ip,	/* incore inode pointer */
 	xfs_extnum_t		*idx,	/* extent number to update/insert */
 	xfs_btree_cur_t		**curp,	/* if *curp is null, not a btree */
@@ -439,6 +436,7 @@ xfs_bmap_add_attrfork_local(
  */
 STATIC int				/* error */
 xfs_bmap_add_extent(
+	struct xfs_trans	*tp,	/* transaction pointer */
 	xfs_inode_t		*ip,	/* incore inode pointer */
 	xfs_extnum_t		*idx,	/* extent number to update/insert */
 	xfs_btree_cur_t		**curp,	/* if *curp is null, not a btree */
@@ -524,7 +522,7 @@ xfs_bmap_add_extent(
 				if (cur)
 					ASSERT(cur->bc_private.b.flags &
 						XFS_BTCUR_BPRV_WASDEL);
-				error = xfs_bmap_add_extent_delay_real(ip,
+				error = xfs_bmap_add_extent_delay_real(tp, ip,
 						idx, &cur, new, &da_new,
 						first, flist, &logflags);
 			} else {
@@ -561,7 +559,7 @@ xfs_bmap_add_extent(
 		int	tmp_logflags;	/* partial log flag return val */
 
 		ASSERT(cur == NULL);
-		error = xfs_bmap_extents_to_btree(ip->i_transp, ip, first,
+		error = xfs_bmap_extents_to_btree(tp, ip, first,
 			flist, &cur, da_old > 0, &tmp_logflags, whichfork);
 		logflags |= tmp_logflags;
 		if (error)
@@ -604,6 +602,7 @@ done:
  */
 STATIC int				/* error */
 xfs_bmap_add_extent_delay_real(
+	struct xfs_trans	*tp,	/* transaction pointer */
 	xfs_inode_t		*ip,	/* incore inode pointer */
 	xfs_extnum_t		*idx,	/* extent number to update/insert */
 	xfs_btree_cur_t		**curp,	/* if *curp is null, not a btree */
@@ -901,7 +900,7 @@ xfs_bmap_add_extent_delay_real(
 		}
 		if (ip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
 		    ip->i_d.di_nextents > ip->i_df.if_ext_max) {
-			error = xfs_bmap_extents_to_btree(ip->i_transp, ip,
+			error = xfs_bmap_extents_to_btree(tp, ip,
 					first, flist, &cur, 1, &tmp_rval,
 					XFS_DATA_FORK);
 			rval |= tmp_rval;
@@ -984,7 +983,7 @@ xfs_bmap_add_extent_delay_real(
 		}
 		if (ip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
 		    ip->i_d.di_nextents > ip->i_df.if_ext_max) {
-			error = xfs_bmap_extents_to_btree(ip->i_transp, ip,
+			error = xfs_bmap_extents_to_btree(tp, ip,
 				first, flist, &cur, 1, &tmp_rval,
 				XFS_DATA_FORK);
 			rval |= tmp_rval;
@@ -1052,7 +1051,7 @@ xfs_bmap_add_extent_delay_real(
 		}
 		if (ip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
 		    ip->i_d.di_nextents > ip->i_df.if_ext_max) {
-			error = xfs_bmap_extents_to_btree(ip->i_transp, ip,
+			error = xfs_bmap_extents_to_btree(tp, ip,
 					first, flist, &cur, 1, &tmp_rval,
 					XFS_DATA_FORK);
 			rval |= tmp_rval;
@@ -2871,8 +2870,8 @@ xfs_bmap_del_extent(
 			len = del->br_blockcount;
 			do_div(bno, mp->m_sb.sb_rextsize);
 			do_div(len, mp->m_sb.sb_rextsize);
-			if ((error = xfs_rtfree_extent(ip->i_transp, bno,
-					(xfs_extlen_t)len)))
+			error = xfs_rtfree_extent(tp, bno, (xfs_extlen_t)len);
+			if (error)
 				goto done;
 			do_fx = 0;
 			nblks = len * mp->m_sb.sb_rextsize;
@@ -4080,7 +4079,7 @@ xfs_bmap_sanity_check(
 {
 	struct xfs_btree_block  *block = XFS_BUF_TO_BLOCK(bp);
 
-	if (be32_to_cpu(block->bb_magic) != XFS_BMAP_MAGIC ||
+	if (block->bb_magic != cpu_to_be32(XFS_BMAP_MAGIC) ||
 	    be16_to_cpu(block->bb_level) != level ||
 	    be16_to_cpu(block->bb_numrecs) == 0 ||
 	    be16_to_cpu(block->bb_numrecs) > mp->m_bmap_dmxr[level != 0])
@@ -4662,7 +4661,7 @@ xfs_bmapi(
 				if (!wasdelay && (flags & XFS_BMAPI_PREALLOC))
 					got.br_state = XFS_EXT_UNWRITTEN;
 			}
-			error = xfs_bmap_add_extent(ip, &lastx, &cur, &got,
+			error = xfs_bmap_add_extent(tp, ip, &lastx, &cur, &got,
 				firstblock, flist, &tmp_logflags,
 				whichfork);
 			logflags |= tmp_logflags;
@@ -4763,7 +4762,7 @@ xfs_bmapi(
 			mval->br_state = (mval->br_state == XFS_EXT_UNWRITTEN)
 						? XFS_EXT_NORM
 						: XFS_EXT_UNWRITTEN;
-			error = xfs_bmap_add_extent(ip, &lastx, &cur, mval,
+			error = xfs_bmap_add_extent(tp, ip, &lastx, &cur, mval,
 				firstblock, flist, &tmp_logflags,
 				whichfork);
 			logflags |= tmp_logflags;
@@ -5117,7 +5116,7 @@ xfs_bunmapi(
 				del.br_blockcount = mod;
 			}
 			del.br_state = XFS_EXT_UNWRITTEN;
-			error = xfs_bmap_add_extent(ip, &lastx, &cur, &del,
+			error = xfs_bmap_add_extent(tp, ip, &lastx, &cur, &del,
 				firstblock, flist, &logflags,
 				XFS_DATA_FORK);
 			if (error)
@@ -5175,18 +5174,18 @@ xfs_bunmapi(
 				}
 				prev.br_state = XFS_EXT_UNWRITTEN;
 				lastx--;
-				error = xfs_bmap_add_extent(ip, &lastx, &cur,
-					&prev, firstblock, flist, &logflags,
-					XFS_DATA_FORK);
+				error = xfs_bmap_add_extent(tp, ip, &lastx,
+						&cur, &prev, firstblock, flist,
+						&logflags, XFS_DATA_FORK);
 				if (error)
 					goto error0;
 				goto nodelete;
 			} else {
 				ASSERT(del.br_state == XFS_EXT_NORM);
 				del.br_state = XFS_EXT_UNWRITTEN;
-				error = xfs_bmap_add_extent(ip, &lastx, &cur,
-					&del, firstblock, flist, &logflags,
-					XFS_DATA_FORK);
+				error = xfs_bmap_add_extent(tp, ip, &lastx,
+						&cur, &del, firstblock, flist,
+						&logflags, XFS_DATA_FORK);
 				if (error)
 					goto error0;
 				goto nodelete;

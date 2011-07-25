@@ -1203,7 +1203,9 @@
 #define EPROM_CMD_CONFIG			0x3
 #define EPROM_CMD_LOAD				1
 
+#define HWSET_MAX_SIZE				128
 #define	HWSET_MAX_SIZE_92S			HWSET_MAX_SIZE
+#define EFUSE_MAX_SECTION			16
 
 #define	WL_HWPDN_EN				BIT(0)
 

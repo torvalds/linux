@@ -64,6 +64,19 @@ struct mmc_ext_csd {
 	unsigned long long	enhanced_area_offset;	/* Units: Byte */
 	unsigned int		enhanced_area_size;	/* Units: KB */
 	unsigned int		boot_size;		/* in bytes */
+	u8			raw_partition_support;	/* 160 */
+	u8			raw_erased_mem_count;	/* 181 */
+	u8			raw_ext_csd_structure;	/* 194 */
+	u8			raw_card_type;		/* 196 */
+	u8			raw_s_a_timeout;		/* 217 */
+	u8			raw_hc_erase_gap_size;	/* 221 */
+	u8			raw_erase_timeout_mult;	/* 223 */
+	u8			raw_hc_erase_grp_size;	/* 224 */
+	u8			raw_sec_trim_mult;	/* 229 */
+	u8			raw_sec_erase_mult;	/* 230 */
+	u8			raw_sec_feature_support;/* 231 */
+	u8			raw_trim_mult;		/* 232 */
+	u8			raw_sectors[4];		/* 212 - 4 bytes */
 };
 
 struct sd_scr {
@@ -390,4 +403,4 @@ extern void mmc_unregister_driver(struct mmc_driver *);
 extern void mmc_fixup_device(struct mmc_card *card,
 			     const struct mmc_fixup *table);
 
-#endif
+#endif /* LINUX_MMC_CARD_H */

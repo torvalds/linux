@@ -40,6 +40,7 @@
 #include <linux/highmem.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
+#include <linux/cpu.h>
 #include <asm/pgtable.h>
 
 #include "ipath_kernel.h"
@@ -1684,17 +1685,19 @@ static int find_best_unit(struct file *fp,
 	 * information.  There may be some issues with dual core numbering
 	 * as well.  This needs more work prior to release.
 	 */
-	if (!cpumask_empty(&current->cpus_allowed) &&
-	    !cpumask_full(&current->cpus_allowed)) {
+	if (!cpumask_empty(tsk_cpus_allowed(current)) &&
+	    !cpumask_full(tsk_cpus_allowed(current))) {
 		int ncpus = num_online_cpus(), curcpu = -1, nset = 0;
-		for (i = 0; i < ncpus; i++)
-			if (cpumask_test_cpu(i, &current->cpus_allowed)) {
+		get_online_cpus();
+		for_each_online_cpu(i)
+			if (cpumask_test_cpu(i, tsk_cpus_allowed(current))) {
 				ipath_cdbg(PROC, "%s[%u] affinity set for "
 					   "cpu %d/%d\n", current->comm,
 					   current->pid, i, ncpus);
 				curcpu = i;
 				nset++;
 			}
+		put_online_cpus();
 		if (curcpu != -1 && nset != ncpus) {
 			if (npresent) {
 				prefunit = curcpu / (ncpus / npresent);

@@ -39,11 +39,6 @@ static inline void ath9k_hw_set_desc_link(struct ath_hw *ah, void *ds,
 	ath9k_hw_ops(ah)->set_desc_link(ds, link);
 }
 
-static inline void ath9k_hw_get_desc_link(struct ath_hw *ah, void *ds,
-					  u32 **link)
-{
-	ath9k_hw_ops(ah)->get_desc_link(ds, link);
-}
 static inline bool ath9k_hw_calibrate(struct ath_hw *ah,
 				      struct ath9k_channel *chan,
 				      u8 rxchainmask,

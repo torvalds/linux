@@ -84,7 +84,9 @@ static const char qlcnic_device_gstrings_stats[][ETH_GSTRING_LEN] = {
 static const char qlcnic_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Register_Test_on_offline",
 	"Link_Test_on_offline",
-	"Interrupt_Test_offline"
+	"Interrupt_Test_offline",
+	"Internal_Loopback_offline",
+	"External_Loopback_offline"
 };
 
 #define QLCNIC_TEST_LEN	ARRAY_SIZE(qlcnic_gstrings_test)
@@ -685,6 +687,129 @@ clear_it:
 	return ret;
 }
 
+#define QLCNIC_ILB_PKT_SIZE 64
+#define QLCNIC_NUM_ILB_PKT	16
+#define QLCNIC_ILB_MAX_RCV_LOOP 10
+
+static void qlcnic_create_loopback_buff(unsigned char *data, u8 mac[])
+{
+	unsigned char random_data[] = {0xa8, 0x06, 0x45, 0x00};
+
+	memset(data, 0x4e, QLCNIC_ILB_PKT_SIZE);
+
+	memcpy(data, mac, ETH_ALEN);
+	memcpy(data + ETH_ALEN, mac, ETH_ALEN);
+
+	memcpy(data + 2 * ETH_ALEN, random_data, sizeof(random_data));
+}
+
+int qlcnic_check_loopback_buff(unsigned char *data, u8 mac[])
+{
+	unsigned char buff[QLCNIC_ILB_PKT_SIZE];
+	qlcnic_create_loopback_buff(buff, mac);
+	return memcmp(data, buff, QLCNIC_ILB_PKT_SIZE);
+}
+
+static int qlcnic_do_lb_test(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
+	struct qlcnic_host_sds_ring *sds_ring = &recv_ctx->sds_rings[0];
+	struct sk_buff *skb;
+	int i, loop, cnt = 0;
+
+	for (i = 0; i < QLCNIC_NUM_ILB_PKT; i++) {
+		skb = dev_alloc_skb(QLCNIC_ILB_PKT_SIZE);
+		qlcnic_create_loopback_buff(skb->data, adapter->mac_addr);
+		skb_put(skb, QLCNIC_ILB_PKT_SIZE);
+
+		adapter->diag_cnt = 0;
+		qlcnic_xmit_frame(skb, adapter->netdev);
+
+		loop = 0;
+		do {
+			msleep(1);
+			qlcnic_process_rcv_ring_diag(sds_ring);
+			if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP)
+				break;
+		} while (!adapter->diag_cnt);
+
+		dev_kfree_skb_any(skb);
+
+		if (!adapter->diag_cnt)
+			dev_warn(&adapter->pdev->dev, "LB Test: %dth packet"
+				" not recevied\n", i + 1);
+		else
+			cnt++;
+	}
+	if (cnt != i) {
+		dev_warn(&adapter->pdev->dev, "LB Test failed\n");
+		return -1;
+	}
+	return 0;
+}
+
+static int qlcnic_loopback_test(struct net_device *netdev, u8 mode)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	int max_sds_rings = adapter->max_sds_rings;
+	struct qlcnic_host_sds_ring *sds_ring;
+	int loop = 0;
+	int ret;
+
+	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_MULTI_LOOPBACK)) {
+		netdev_info(netdev, "Firmware is not loopback test capable\n");
+		return -EOPNOTSUPP;
+	}
+
+	netdev_info(netdev, "%s loopback test in progress\n",
+		   mode == QLCNIC_ILB_MODE ? "internal" : "external");
+	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
+		netdev_warn(netdev, "Loopback test not supported for non "
+				"privilege function\n");
+		return 0;
+	}
+
+	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+		return -EBUSY;
+
+	ret = qlcnic_diag_alloc_res(netdev, QLCNIC_LOOPBACK_TEST);
+	if (ret)
+		goto clear_it;
+
+	sds_ring = &adapter->recv_ctx->sds_rings[0];
+
+	ret = qlcnic_set_lb_mode(adapter, mode);
+	if (ret)
+		goto free_res;
+
+	adapter->diag_cnt = 0;
+	do {
+		msleep(500);
+		qlcnic_process_rcv_ring_diag(sds_ring);
+		if (loop++ > QLCNIC_ILB_MAX_RCV_LOOP) {
+			netdev_info(netdev, "firmware didnt respond to loopback"
+				" configure request\n");
+			ret = -QLCNIC_FW_NOT_RESPOND;
+			goto free_res;
+		} else if (adapter->diag_cnt) {
+			ret = adapter->diag_cnt;
+			goto free_res;
+		}
+	} while (!QLCNIC_IS_LB_CONFIGURED(adapter->ahw->loopback_state));
+
+	ret = qlcnic_do_lb_test(adapter);
+
+	qlcnic_clear_lb_mode(adapter);
+
+ free_res:
+	qlcnic_diag_free_res(netdev, max_sds_rings);
+
+ clear_it:
+	adapter->max_sds_rings = max_sds_rings;
+	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	return ret;
+}
+
 static void
 qlcnic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 		     u64 *data)
@@ -704,7 +829,16 @@ qlcnic_diag_test(struct net_device *dev, struct ethtool_test *eth_test,
 		if (data[2])
 			eth_test->flags |= ETH_TEST_FL_FAILED;
 
+		data[3] = qlcnic_loopback_test(dev, QLCNIC_ILB_MODE);
+		if (data[3])
+			eth_test->flags |= ETH_TEST_FL_FAILED;
 
+		if (eth_test->flags & ETH_TEST_FL_EXTERNAL_LB) {
+			data[4] = qlcnic_loopback_test(dev, QLCNIC_ELB_MODE);
+			if (data[4])
+				eth_test->flags |= ETH_TEST_FL_FAILED;
+			eth_test->flags |= ETH_TEST_FL_EXTERNAL_LB_DONE;
+		}
 	}
 }
 
@@ -986,8 +1120,6 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 
-	if (qlcnic_api_lock(adapter))
-		return -EIO;
 	if (!fw_dump->clr) {
 		netdev_info(netdev, "Dump not available\n");
 		qlcnic_api_unlock(adapter);
@@ -996,7 +1128,7 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 	/* Copy template header first */
 	copy_sz = fw_dump->tmpl_hdr->size;
 	hdr_ptr = (u32 *) fw_dump->tmpl_hdr;
-	data = (u32 *) buffer;
+	data = buffer;
 	for (i = 0; i < copy_sz/sizeof(u32); i++)
 		*data++ = cpu_to_le32(*hdr_ptr++);
 
@@ -1009,7 +1141,6 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 	vfree(fw_dump->data);
 	fw_dump->data = NULL;
 	fw_dump->clr = 0;
-	qlcnic_api_unlock(adapter);
 
 	return 0;
 }
@@ -1022,8 +1153,27 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 
 	if (val->flag == QLCNIC_FORCE_FW_DUMP_KEY) {
+		if (!fw_dump->enable) {
+			netdev_info(netdev, "FW dump not enabled\n");
+			return ret;
+		}
+		if (fw_dump->clr) {
+			dev_info(&adapter->pdev->dev,
+			"Previous dump not cleared, not forcing dump\n");
+			return ret;
+		}
 		netdev_info(netdev, "Forcing a FW dump\n");
 		qlcnic_dev_request_reset(adapter);
+	} else if (val->flag == QLCNIC_DISABLE_FW_DUMP) {
+		if (fw_dump->enable) {
+			netdev_info(netdev, "Disabling FW dump\n");
+			fw_dump->enable = 0;
+		}
+	} else if (val->flag == QLCNIC_ENABLE_FW_DUMP) {
+		if (!fw_dump->enable && fw_dump->tmpl_hdr) {
+			netdev_info(netdev, "Enabling FW dump\n");
+			fw_dump->enable = 1;
+		}
 	} else {
 		if (val->flag > QLCNIC_DUMP_MASK_MAX ||
 			val->flag < QLCNIC_DUMP_MASK_MIN) {
@@ -1032,10 +1182,7 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 				ret = -EINVAL;
 				goto out;
 		}
-		if (qlcnic_api_lock(adapter))
-			return -EIO;
 		fw_dump->tmpl_hdr->drv_cap_mask = val->flag & 0xff;
-		qlcnic_api_unlock(adapter);
 		netdev_info(netdev, "Driver mask changed to: 0x%x\n",
 			fw_dump->tmpl_hdr->drv_cap_mask);
 	}

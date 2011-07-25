@@ -114,7 +114,7 @@ int nfs_set_page_tag_locked(struct nfs_page *req)
 	if (!nfs_lock_request_dontget(req))
 		return 0;
 	if (test_bit(PG_MAPPED, &req->wb_flags))
-		radix_tree_tag_set(&NFS_I(req->wb_context->path.dentry->d_inode)->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
+		radix_tree_tag_set(&NFS_I(req->wb_context->dentry->d_inode)->nfs_page_tree, req->wb_index, NFS_PAGE_TAG_LOCKED);
 	return 1;
 }
 
@@ -124,7 +124,7 @@ int nfs_set_page_tag_locked(struct nfs_page *req)
 void nfs_clear_page_tag_locked(struct nfs_page *req)
 {
 	if (test_bit(PG_MAPPED, &req->wb_flags)) {
-		struct inode *inode = req->wb_context->path.dentry->d_inode;
+		struct inode *inode = req->wb_context->dentry->d_inode;
 		struct nfs_inode *nfsi = NFS_I(inode);
 
 		spin_lock(&inode->i_lock);

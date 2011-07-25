@@ -83,7 +83,7 @@ int bnx2fc_send_rrq(struct bnx2fc_cmd *aborted_io_req)
 	rrq.rrq_cmd = ELS_RRQ;
 	hton24(rrq.rrq_s_id, sid);
 	rrq.rrq_ox_id = htons(aborted_io_req->xid);
-	rrq.rrq_rx_id = htons(aborted_io_req->task->rx_wr_tx_rd.rx_id);
+	rrq.rrq_rx_id = htons(aborted_io_req->task->rxwr_txrd.var_ctx.rx_id);
 
 retry_rrq:
 	rc = bnx2fc_initiate_els(tgt, ELS_RRQ, &rrq, sizeof(rrq),
@@ -417,12 +417,13 @@ void bnx2fc_process_els_compl(struct bnx2fc_cmd *els_req,
 
 	hdr = (u64 *)fc_hdr;
 	temp_hdr = (u64 *)
-		&task->cmn.general.cmd_info.mp_fc_frame.fc_hdr;
+		&task->rxwr_only.union_ctx.comp_info.mp_rsp.fc_hdr;
 	hdr[0] = cpu_to_be64(temp_hdr[0]);
 	hdr[1] = cpu_to_be64(temp_hdr[1]);
 	hdr[2] = cpu_to_be64(temp_hdr[2]);
 
-	mp_req->resp_len = task->rx_wr_only.sgl_ctx.mul_sges.cur_sge_off;
+	mp_req->resp_len =
+		task->rxwr_only.union_ctx.comp_info.mp_rsp.mp_payload_len;
 
 	/* Parse ELS response */
 	if ((els_req->cb_func) && (els_req->cb_arg)) {

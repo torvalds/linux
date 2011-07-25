@@ -53,23 +53,23 @@ static int adm1275_probe(struct i2c_client *client,
 	info->direct[PSC_VOLTAGE_IN] = true;
 	info->direct[PSC_VOLTAGE_OUT] = true;
 	info->direct[PSC_CURRENT_OUT] = true;
-	info->m[PSC_CURRENT_OUT] = 800;
+	info->m[PSC_CURRENT_OUT] = 807;
 	info->b[PSC_CURRENT_OUT] = 20475;
 	info->R[PSC_CURRENT_OUT] = -1;
 	info->func[0] = PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT;
 
 	if (config & ADM1275_VRANGE) {
-		info->m[PSC_VOLTAGE_IN] = 19045;
+		info->m[PSC_VOLTAGE_IN] = 19199;
 		info->b[PSC_VOLTAGE_IN] = 0;
 		info->R[PSC_VOLTAGE_IN] = -2;
-		info->m[PSC_VOLTAGE_OUT] = 19045;
+		info->m[PSC_VOLTAGE_OUT] = 19199;
 		info->b[PSC_VOLTAGE_OUT] = 0;
 		info->R[PSC_VOLTAGE_OUT] = -2;
 	} else {
-		info->m[PSC_VOLTAGE_IN] = 6666;
+		info->m[PSC_VOLTAGE_IN] = 6720;
 		info->b[PSC_VOLTAGE_IN] = 0;
 		info->R[PSC_VOLTAGE_IN] = -1;
-		info->m[PSC_VOLTAGE_OUT] = 6666;
+		info->m[PSC_VOLTAGE_OUT] = 6720;
 		info->b[PSC_VOLTAGE_OUT] = 0;
 		info->R[PSC_VOLTAGE_OUT] = -1;
 	}

@@ -23,8 +23,8 @@
 #ifndef _ATL1E_H_
 #define _ATL1E_H_
 
-#include <linux/version.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/module.h>
@@ -433,7 +433,6 @@ struct atl1e_rx_ring {
 struct atl1e_adapter {
 	struct net_device   *netdev;
 	struct pci_dev      *pdev;
-	struct vlan_group   *vlgrp;
 	struct napi_struct  napi;
 	struct mii_if_info  mii;    /* MII interface info */
 	struct atl1e_hw        hw;

@@ -161,7 +161,8 @@ FTRACE_ENTRY(kernel_stack, stack_entry,
 	TRACE_STACK,
 
 	F_STRUCT(
-		__array(	unsigned long,	caller, FTRACE_STACK_ENTRIES	)
+		__field(	int,		size	)
+		__dynamic_array(unsigned long,	caller	)
 	),
 
 	F_printk("\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n\t=> (%08lx)\n"

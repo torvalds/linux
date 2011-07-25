@@ -116,12 +116,6 @@ static inline void xfs_dqfunlock(xfs_dquot_t *dqp)
 				     (XFS_IS_UQUOTA_ON((d)->q_mount)) : \
 				     (XFS_IS_OQUOTA_ON((d)->q_mount))))
 
-#ifdef QUOTADEBUG
-extern void		xfs_qm_dqprint(xfs_dquot_t *);
-#else
-#define xfs_qm_dqprint(a)
-#endif
-
 extern void		xfs_qm_dqdestroy(xfs_dquot_t *);
 extern int		xfs_qm_dqflush(xfs_dquot_t *, uint);
 extern int		xfs_qm_dqpurge(xfs_dquot_t *);

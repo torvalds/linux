@@ -520,7 +520,7 @@ static void _rtl92cu_read_adapter_info(struct ieee80211_hw *hw)
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, ("Autoload OK\n"));
 		rtlefuse->autoload_failflag = false;
 	}
-	if (rtlefuse->autoload_failflag == true)
+	if (rtlefuse->autoload_failflag)
 		return;
 	for (i = 0; i < 6; i += 2) {
 		usvalue = *(u16 *)&hwinfo[EEPROM_MAC_ADDR + i];
@@ -1594,7 +1594,7 @@ static void _rtl92cu_set_check_bssid(struct ieee80211_hw *hw,
 	default:
 		break;
 	}
-	if (filterout_non_associated_bssid == true) {
+	if (filterout_non_associated_bssid) {
 		if (IS_NORMAL_CHIP(rtlhal->version)) {
 			switch (rtlphy->current_io_type) {
 			case IO_CMD_RESUME_DM_BY_SCAN:
@@ -2155,7 +2155,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HW_VAR_CORRECT_TSF:{
 			u8 btype_ibss = ((u8 *) (val))[0];
 
-			if (btype_ibss == true)
+			if (btype_ibss)
 				_rtl92cu_stop_tx_beacon(hw);
 			_rtl92cu_set_bcn_ctrl_reg(hw, 0, BIT(3));
 			rtl_write_dword(rtlpriv, REG_TSFTR, (u32)(mac->tsf &
@@ -2163,7 +2163,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 			rtl_write_dword(rtlpriv, REG_TSFTR + 4,
 					(u32)((mac->tsf >> 32) & 0xffffffff));
 			_rtl92cu_set_bcn_ctrl_reg(hw, BIT(3), 0);
-			if (btype_ibss == true)
+			if (btype_ibss)
 				_rtl92cu_resume_tx_beacon(hw);
 			break;
 		}

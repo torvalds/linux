@@ -126,9 +126,8 @@ static inline u8 iwl_tfd_get_num_tbs(struct iwl_tfd *tfd)
 }
 
 static void iwlagn_unmap_tfd(struct iwl_priv *priv, struct iwl_cmd_meta *meta,
-			     struct iwl_tfd *tfd, int dma_dir)
+			     struct iwl_tfd *tfd, enum dma_data_direction dma_dir)
 {
-	struct pci_dev *dev = priv->pci_dev;
 	int i;
 	int num_tbs;
 
@@ -143,14 +142,14 @@ static void iwlagn_unmap_tfd(struct iwl_priv *priv, struct iwl_cmd_meta *meta,
 
 	/* Unmap tx_cmd */
 	if (num_tbs)
-		pci_unmap_single(dev,
+		dma_unmap_single(priv->bus.dev,
 				dma_unmap_addr(meta, mapping),
 				dma_unmap_len(meta, len),
-				PCI_DMA_BIDIRECTIONAL);
+				DMA_BIDIRECTIONAL);
 
 	/* Unmap chunks, if any. */
 	for (i = 1; i < num_tbs; i++)
-		pci_unmap_single(dev, iwl_tfd_tb_get_addr(tfd, i),
+		dma_unmap_single(priv->bus.dev, iwl_tfd_tb_get_addr(tfd, i),
 				iwl_tfd_tb_get_len(tfd, i), dma_dir);
 }
 
@@ -158,28 +157,29 @@ static void iwlagn_unmap_tfd(struct iwl_priv *priv, struct iwl_cmd_meta *meta,
  * iwlagn_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
  * @priv - driver private data
  * @txq - tx queue
+ * @index - the index of the TFD to be freed
  *
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
-void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
+void iwlagn_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq,
+	int index)
 {
 	struct iwl_tfd *tfd_tmp = txq->tfds;
-	int index = txq->q.read_ptr;
 
 	iwlagn_unmap_tfd(priv, &txq->meta[index], &tfd_tmp[index],
-			 PCI_DMA_TODEVICE);
+			 DMA_TO_DEVICE);
 
 	/* free SKB */
 	if (txq->txb) {
 		struct sk_buff *skb;
 
-		skb = txq->txb[txq->q.read_ptr].skb;
+		skb = txq->txb[index].skb;
 
 		/* can be called from irqs-disabled context */
 		if (skb) {
 			dev_kfree_skb_any(skb);
-			txq->txb[txq->q.read_ptr].skb = NULL;
+			txq->txb[index].skb = NULL;
 		}
 	}
 }
@@ -221,140 +221,6 @@ int iwlagn_txq_attach_buf_to_tfd(struct iwl_priv *priv,
 	return 0;
 }
 
-/*
- * Tell nic where to find circular buffer of Tx Frame Descriptors for
- * given Tx queue, and enable the DMA channel used for that queue.
- *
- * supports up to 16 Tx queues in DRAM, mapped to up to 8 Tx DMA
- * channels supported in hardware.
- */
-static int iwlagn_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq)
-{
-	int txq_id = txq->q.id;
-
-	/* Circular buffer (TFD queue in DRAM) physical base address */
-	iwl_write_direct32(priv, FH_MEM_CBBC_QUEUE(txq_id),
-			     txq->q.dma_addr >> 8);
-
-	return 0;
-}
-
-/**
- * iwl_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
- */
-void iwl_tx_queue_unmap(struct iwl_priv *priv, int txq_id)
-{
-	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct iwl_queue *q = &txq->q;
-
-	if (q->n_bd == 0)
-		return;
-
-	 while (q->write_ptr != q->read_ptr) {
-		iwlagn_txq_free_tfd(priv, txq);
-		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
-	}
-}
-
-/**
- * iwl_tx_queue_free - Deallocate DMA queue.
- * @txq: Transmit queue to deallocate.
- *
- * Empty queue by removing and destroying all BD's.
- * Free all buffers.
- * 0-fill, but do not free "txq" descriptor structure.
- */
-void iwl_tx_queue_free(struct iwl_priv *priv, int txq_id)
-{
-	struct iwl_tx_queue *txq = &priv->txq[txq_id];
-	struct device *dev = &priv->pci_dev->dev;
-	int i;
-
-	iwl_tx_queue_unmap(priv, txq_id);
-
-	/* De-alloc array of command/tx buffers */
-	for (i = 0; i < TFD_TX_CMD_SLOTS; i++)
-		kfree(txq->cmd[i]);
-
-	/* De-alloc circular buffer of TFDs */
-	if (txq->q.n_bd)
-		dma_free_coherent(dev, priv->hw_params.tfd_size *
-				  txq->q.n_bd, txq->tfds, txq->q.dma_addr);
-
-	/* De-alloc array of per-TFD driver data */
-	kfree(txq->txb);
-	txq->txb = NULL;
-
-	/* deallocate arrays */
-	kfree(txq->cmd);
-	kfree(txq->meta);
-	txq->cmd = NULL;
-	txq->meta = NULL;
-
-	/* 0-fill queue descriptor structure */
-	memset(txq, 0, sizeof(*txq));
-}
-
-/**
- * iwl_cmd_queue_unmap - Unmap any remaining DMA mappings from command queue
- */
-void iwl_cmd_queue_unmap(struct iwl_priv *priv)
-{
-	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
-	struct iwl_queue *q = &txq->q;
-	int i;
-
-	if (q->n_bd == 0)
-		return;
-
-	while (q->read_ptr != q->write_ptr) {
-		i = get_cmd_index(q, q->read_ptr);
-
-		if (txq->meta[i].flags & CMD_MAPPED) {
-			iwlagn_unmap_tfd(priv, &txq->meta[i], &txq->tfds[i],
-					 PCI_DMA_BIDIRECTIONAL);
-			txq->meta[i].flags = 0;
-		}
-
-		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
-	}
-}
-
-/**
- * iwl_cmd_queue_free - Deallocate DMA queue.
- * @txq: Transmit queue to deallocate.
- *
- * Empty queue by removing and destroying all BD's.
- * Free all buffers.
- * 0-fill, but do not free "txq" descriptor structure.
- */
-void iwl_cmd_queue_free(struct iwl_priv *priv)
-{
-	struct iwl_tx_queue *txq = &priv->txq[priv->cmd_queue];
-	struct device *dev = &priv->pci_dev->dev;
-	int i;
-
-	iwl_cmd_queue_unmap(priv);
-
-	/* De-alloc array of command/tx buffers */
-	for (i = 0; i < TFD_CMD_SLOTS; i++)
-		kfree(txq->cmd[i]);
-
-	/* De-alloc circular buffer of TFDs */
-	if (txq->q.n_bd)
-		dma_free_coherent(dev, priv->hw_params.tfd_size * txq->q.n_bd,
-				  txq->tfds, txq->q.dma_addr);
-
-	/* deallocate arrays */
-	kfree(txq->cmd);
-	kfree(txq->meta);
-	txq->cmd = NULL;
-	txq->meta = NULL;
-
-	/* 0-fill queue descriptor structure */
-	memset(txq, 0, sizeof(*txq));
-}
-
 /*************** DMA-QUEUE-GENERAL-FUNCTIONS  *****
  * DMA services
  *
@@ -393,11 +259,10 @@ int iwl_queue_space(const struct iwl_queue *q)
 	return s;
 }
 
-
 /**
  * iwl_queue_init - Initialize queue's high/low-water and read/write indexes
  */
-static int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
+int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 			  int count, int slots_num, u32 id)
 {
 	q->n_bd = count;
@@ -425,124 +290,6 @@ static int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 	q->write_ptr = q->read_ptr = 0;
 
 	return 0;
-}
-
-/**
- * iwl_tx_queue_alloc - Alloc driver data and TFD CB for one Tx/cmd queue
- */
-static int iwl_tx_queue_alloc(struct iwl_priv *priv,
-			      struct iwl_tx_queue *txq, u32 id)
-{
-	struct device *dev = &priv->pci_dev->dev;
-	size_t tfd_sz = priv->hw_params.tfd_size * TFD_QUEUE_SIZE_MAX;
-
-	/* Driver private data, only for Tx (not command) queues,
-	 * not shared with device. */
-	if (id != priv->cmd_queue) {
-		txq->txb = kzalloc(sizeof(txq->txb[0]) *
-				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
-		if (!txq->txb) {
-			IWL_ERR(priv, "kmalloc for auxiliary BD "
-				  "structures failed\n");
-			goto error;
-		}
-	} else {
-		txq->txb = NULL;
-	}
-
-	/* Circular buffer of transmit frame descriptors (TFDs),
-	 * shared with device */
-	txq->tfds = dma_alloc_coherent(dev, tfd_sz, &txq->q.dma_addr,
-				       GFP_KERNEL);
-	if (!txq->tfds) {
-		IWL_ERR(priv, "pci_alloc_consistent(%zd) failed\n", tfd_sz);
-		goto error;
-	}
-	txq->q.id = id;
-
-	return 0;
-
- error:
-	kfree(txq->txb);
-	txq->txb = NULL;
-
-	return -ENOMEM;
-}
-
-/**
- * iwl_tx_queue_init - Allocate and initialize one tx/cmd queue
- */
-int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
-		      int slots_num, u32 txq_id)
-{
-	int i, len;
-	int ret;
-
-	txq->meta = kzalloc(sizeof(struct iwl_cmd_meta) * slots_num,
-			    GFP_KERNEL);
-	txq->cmd = kzalloc(sizeof(struct iwl_device_cmd *) * slots_num,
-			   GFP_KERNEL);
-
-	if (!txq->meta || !txq->cmd)
-		goto out_free_arrays;
-
-	len = sizeof(struct iwl_device_cmd);
-	for (i = 0; i < slots_num; i++) {
-		txq->cmd[i] = kmalloc(len, GFP_KERNEL);
-		if (!txq->cmd[i])
-			goto err;
-	}
-
-	/* Alloc driver data array and TFD circular buffer */
-	ret = iwl_tx_queue_alloc(priv, txq, txq_id);
-	if (ret)
-		goto err;
-
-	txq->need_update = 0;
-
-	/*
-	 * For the default queues 0-3, set up the swq_id
-	 * already -- all others need to get one later
-	 * (if they need one at all).
-	 */
-	if (txq_id < 4)
-		iwl_set_swq_id(txq, txq_id, txq_id);
-
-	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
-	 * iwl_queue_inc_wrap and iwl_queue_dec_wrap are broken. */
-	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
-
-	/* Initialize queue's high/low-water marks, and head/tail indexes */
-	ret = iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
-	if (ret)
-		return ret;
-
-	/* Tell device where to find queue */
-	iwlagn_tx_queue_init(priv, txq);
-
-	return 0;
-err:
-	for (i = 0; i < slots_num; i++)
-		kfree(txq->cmd[i]);
-out_free_arrays:
-	kfree(txq->meta);
-	kfree(txq->cmd);
-
-	return -ENOMEM;
-}
-
-void iwl_tx_queue_reset(struct iwl_priv *priv, struct iwl_tx_queue *txq,
-			int slots_num, u32 txq_id)
-{
-	memset(txq->meta, 0, sizeof(struct iwl_cmd_meta) * slots_num);
-
-	txq->need_update = 0;
-
-	/* Initialize queue's high/low-water marks, and head/tail indexes */
-	iwl_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
-
-	/* Tell device where to find queue */
-	iwlagn_tx_queue_init(priv, txq);
 }
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
@@ -578,6 +325,12 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	if (test_bit(STATUS_FW_ERROR, &priv->status)) {
 		IWL_WARN(priv, "fw recovery, no hcmd send\n");
+		return -EIO;
+	}
+
+	if ((priv->ucode_owner == IWL_OWNERSHIP_TM) &&
+	    !(cmd->flags & CMD_ON_DEMAND)) {
+		IWL_DEBUG_HC(priv, "tm own the uCode, no regular hcmd send\n");
 		return -EIO;
 	}
 
@@ -634,11 +387,6 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	out_cmd = txq->cmd[idx];
 	out_meta = &txq->meta[idx];
 
-	if (WARN_ON(out_meta->flags & CMD_MAPPED)) {
-		spin_unlock_irqrestore(&priv->hcmd_lock, flags);
-		return -ENOSPC;
-	}
-
 	memset(out_meta, 0, sizeof(*out_meta));	/* re-initialize to NULL */
 	if (cmd->flags & CMD_WANT_SKB)
 		out_meta->source = cmd;
@@ -671,9 +419,9 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 			le16_to_cpu(out_cmd->hdr.sequence), cmd_size,
 			q->write_ptr, idx, priv->cmd_queue);
 
-	phys_addr = pci_map_single(priv->pci_dev, &out_cmd->hdr,
-				   copy_size, PCI_DMA_BIDIRECTIONAL);
-	if (unlikely(pci_dma_mapping_error(priv->pci_dev, phys_addr))) {
+	phys_addr = dma_map_single(priv->bus.dev, &out_cmd->hdr, copy_size,
+				DMA_BIDIRECTIONAL);
+	if (unlikely(dma_mapping_error(priv->bus.dev, phys_addr))) {
 		idx = -ENOMEM;
 		goto out;
 	}
@@ -693,12 +441,12 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 			continue;
 		if (!(cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY))
 			continue;
-		phys_addr = pci_map_single(priv->pci_dev, (void *)cmd->data[i],
-					   cmd->len[i], PCI_DMA_BIDIRECTIONAL);
-		if (pci_dma_mapping_error(priv->pci_dev, phys_addr)) {
+		phys_addr = dma_map_single(priv->bus.dev, (void *)cmd->data[i],
+					   cmd->len[i], DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(priv->bus.dev, phys_addr)) {
 			iwlagn_unmap_tfd(priv, out_meta,
 					 &txq->tfds[q->write_ptr],
-					 PCI_DMA_BIDIRECTIONAL);
+					 DMA_BIDIRECTIONAL);
 			idx = -ENOMEM;
 			goto out;
 		}
@@ -712,7 +460,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 #endif
 	}
 
-	out_meta->flags = cmd->flags | CMD_MAPPED;
+	out_meta->flags = cmd->flags;
 
 	txq->need_update = 1;
 
@@ -748,9 +496,9 @@ static void iwl_hcmd_queue_reclaim(struct iwl_priv *priv, int txq_id, int idx)
 	int nfreed = 0;
 
 	if ((idx >= q->n_bd) || (iwl_queue_used(q, idx) == 0)) {
-		IWL_ERR(priv, "Read index for DMA queue txq id (%d), index %d, "
-			  "is out of range [0-%d] %d %d.\n", txq_id,
-			  idx, q->n_bd, q->write_ptr, q->read_ptr);
+		IWL_ERR(priv, "%s: Read index for DMA queue txq id (%d), "
+			  "index %d is out of range [0-%d] %d %d.\n", __func__,
+			  txq_id, idx, q->n_bd, q->write_ptr, q->read_ptr);
 		return;
 	}
 
@@ -802,7 +550,7 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	cmd = txq->cmd[cmd_index];
 	meta = &txq->meta[cmd_index];
 
-	iwlagn_unmap_tfd(priv, meta, &txq->tfds[index], PCI_DMA_BIDIRECTIONAL);
+	iwlagn_unmap_tfd(priv, meta, &txq->tfds[index], DMA_BIDIRECTIONAL);
 
 	/* Input error checking is done when commands are added to queue. */
 	if (meta->flags & CMD_WANT_SKB) {
@@ -822,7 +570,6 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 		wake_up_interruptible(&priv->wait_command_queue);
 	}
 
-	/* Mark as unmapped */
 	meta->flags = 0;
 
 	spin_unlock_irqrestore(&priv->hcmd_lock, flags);

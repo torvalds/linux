@@ -157,7 +157,7 @@ static unsigned int sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 		iph = ip_hdr(skb);
 		h = (__force u32)iph->daddr;
 		h2 = (__force u32)iph->saddr ^ iph->protocol;
-		if (iph->frag_off & htons(IP_MF | IP_OFFSET))
+		if (ip_is_fragment(iph))
 			break;
 		poff = proto_ports_offset(iph->protocol);
 		if (poff >= 0 &&

@@ -424,7 +424,7 @@ int lx_dsp_get_clock_frequency(struct lx6464es *chip, u32 *rfreq)
 	return ret;
 }
 
-int lx_dsp_get_mac(struct lx6464es *chip, u8 *mac_address)
+int lx_dsp_get_mac(struct lx6464es *chip)
 {
 	u32 macmsb, maclsb;
 
@@ -432,12 +432,12 @@ int lx_dsp_get_mac(struct lx6464es *chip, u8 *mac_address)
 	maclsb = lx_dsp_reg_read(chip, eReg_ADMACESLSB) & 0x00FFFFFF;
 
 	/* todo: endianess handling */
-	mac_address[5] = ((u8 *)(&maclsb))[0];
-	mac_address[4] = ((u8 *)(&maclsb))[1];
-	mac_address[3] = ((u8 *)(&maclsb))[2];
-	mac_address[2] = ((u8 *)(&macmsb))[0];
-	mac_address[1] = ((u8 *)(&macmsb))[1];
-	mac_address[0] = ((u8 *)(&macmsb))[2];
+	chip->mac_address[5] = ((u8 *)(&maclsb))[0];
+	chip->mac_address[4] = ((u8 *)(&maclsb))[1];
+	chip->mac_address[3] = ((u8 *)(&maclsb))[2];
+	chip->mac_address[2] = ((u8 *)(&macmsb))[0];
+	chip->mac_address[1] = ((u8 *)(&macmsb))[1];
+	chip->mac_address[0] = ((u8 *)(&macmsb))[2];
 
 	return 0;
 }

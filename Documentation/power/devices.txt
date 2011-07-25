@@ -506,8 +506,8 @@ routines.  Nevertheless, different callback pointers are used in case there is a
 situation where it actually matters.
 
 
-Device Power Domains
---------------------
+Device Power Management Domains
+-------------------------------
 Sometimes devices share reference clocks or other power resources.  In those
 cases it generally is not possible to put devices into low-power states
 individually.  Instead, a set of devices sharing a power resource can be put
@@ -516,8 +516,8 @@ power resource.  Of course, they also need to be put into the full-power state
 together, by turning the shared power resource on.  A set of devices with this
 property is often referred to as a power domain.
 
-Support for power domains is provided through the pwr_domain field of struct
-device.  This field is a pointer to an object of type struct dev_power_domain,
+Support for power domains is provided through the pm_domain field of struct
+device.  This field is a pointer to an object of type struct dev_pm_domain,
 defined in include/linux/pm.h, providing a set of power management callbacks
 analogous to the subsystem-level and device driver callbacks that are executed
 for the given device during all power transitions, instead of the respective
@@ -604,7 +604,7 @@ state temporarily, for example so that its system wakeup capability can be
 disabled.  This all depends on the hardware and the design of the subsystem and
 device driver in question.
 
-During system-wide resume from a sleep state it's best to put devices into the
-full-power state, as explained in Documentation/power/runtime_pm.txt.  Refer to
-that document for more information regarding this particular issue as well as
+During system-wide resume from a sleep state it's easiest to put devices into
+the full-power state, as explained in Documentation/power/runtime_pm.txt.  Refer
+to that document for more information regarding this particular issue as well as
 for information on the device runtime power management framework in general.

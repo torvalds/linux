@@ -229,10 +229,6 @@ static void ct_ca9x4_init_cpu_map(void)
 
 static void ct_ca9x4_smp_enable(unsigned int max_cpus)
 {
-	int i;
-	for (i = 0; i < max_cpus; i++)
-		set_cpu_present(i, true);
-
 	scu_enable(MMIO_P2V(A9_MPCORE_SCU));
 }
 #endif

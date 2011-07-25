@@ -1758,7 +1758,7 @@ extern int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 extern void ext4_htree_free_dir_info(struct dir_private_info *p);
 
 /* fsync.c */
-extern int ext4_sync_file(struct file *, int);
+extern int ext4_sync_file(struct file *, loff_t, loff_t, int);
 extern int ext4_flush_completed_IO(struct inode *);
 
 /* hash.c */

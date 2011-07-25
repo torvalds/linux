@@ -20,6 +20,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 
+#include <asm/io.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/common.h>
@@ -570,4 +571,5 @@ MACHINE_START(MITYOMAPL138, "MityDSP-L138/MityARM-1808")
 	.init_irq	= cp_intc_init,
 	.timer		= &davinci_timer,
 	.init_machine	= mityomapl138_init,
+	.dma_zone_size	= SZ_128M,
 MACHINE_END

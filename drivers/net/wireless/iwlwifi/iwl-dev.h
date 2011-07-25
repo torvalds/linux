@@ -31,6 +31,7 @@
 #ifndef __iwl_dev_h__
 #define __iwl_dev_h__
 
+#include <linux/interrupt.h>
 #include <linux/pci.h> /* for struct pci_device_id */
 #include <linux/kernel.h>
 #include <linux/wait.h>
@@ -47,6 +48,8 @@
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
+
+#define DRV_NAME        "iwlagn"
 
 struct iwl_tx_queue;
 
@@ -257,11 +260,9 @@ struct iwl_channel_info {
 
 enum {
 	CMD_SYNC = 0,
-	CMD_SIZE_NORMAL = 0,
-	CMD_NO_SKB = 0,
-	CMD_ASYNC = (1 << 1),
-	CMD_WANT_SKB = (1 << 2),
-	CMD_MAPPED = (1 << 3),
+	CMD_ASYNC = BIT(0),
+	CMD_WANT_SKB = BIT(1),
+	CMD_ON_DEMAND = BIT(2),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -294,6 +295,16 @@ enum iwl_hcmd_dataflag {
 	IWL_HCMD_DFL_NOCOPY	= BIT(0),
 };
 
+/**
+ * struct iwl_host_cmd - Host command to the uCode
+ * @data: array of chunks that composes the data of the host command
+ * @reply_page: pointer to the page that holds the response to the host command
+ * @callback:
+ * @flags: can be CMD_* note CMD_WANT_SKB is incompatible withe CMD_ASYNC
+ * @len: array of the lenths of the chunks in data
+ * @dataflags:
+ * @id: id of the host command
+ */
 struct iwl_host_cmd {
 	const void *data[IWL_MAX_CMD_TFDS];
 	unsigned long reply_page;
@@ -631,7 +642,6 @@ struct iwl_sensitivity_ranges {
 /**
  * struct iwl_hw_params
  * @max_txq_num: Max # Tx queues supported
- * @dma_chnl_num: Number of Tx DMA/FIFO channels
  * @scd_bc_tbls_size: size of scheduler byte count tables
  * @tfd_size: TFD size
  * @tx/rx_chains_num: Number of TX/RX chains
@@ -653,7 +663,6 @@ struct iwl_sensitivity_ranges {
  */
 struct iwl_hw_params {
 	u8 max_txq_num;
-	u8 dma_chnl_num;
 	u16 scd_bc_tbls_size;
 	u32 tfd_size;
 	u8  tx_chains_num;
@@ -663,7 +672,6 @@ struct iwl_hw_params {
 	u16 max_rxq_size;
 	u16 max_rxq_log;
 	u32 rx_page_order;
-	u32 rx_wrt_ptr_reg;
 	u8  max_stations;
 	u8  ht40_channel;
 	u8  max_beacon_itrvl;	/* in 1024 ms */
@@ -694,8 +702,6 @@ struct iwl_hw_params {
  ****************************************************************************/
 extern void iwl_update_chain_flags(struct iwl_priv *priv);
 extern const u8 iwl_bcast_addr[ETH_ALEN];
-extern int iwl_rxq_stop(struct iwl_priv *priv);
-extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
 extern int iwl_queue_space(const struct iwl_queue *q);
 static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 {
@@ -1168,14 +1174,100 @@ enum iwl_scan_type {
 	IWL_SCAN_OFFCH_TX,
 };
 
+enum iwlagn_ucode_type {
+	IWL_UCODE_NONE,
+	IWL_UCODE_REGULAR,
+	IWL_UCODE_INIT,
+	IWL_UCODE_WOWLAN,
+};
+
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 struct iwl_testmode_trace {
+	u32 buff_size;
+	u32 total_size;
+	u32 num_chunks;
 	u8 *cpu_addr;
 	u8 *trace_addr;
 	dma_addr_t dma_addr;
 	bool trace_enabled;
 };
 #endif
+
+struct iwl_bus;
+
+/**
+ * struct iwl_bus_ops - bus specific operations
+
+ * @get_pm_support: must returns true if the bus can go to sleep
+ * @apm_config: will be called during the config of the APM configuration
+ * @set_drv_data: set the priv pointer to the bus layer
+ * @get_dev: returns the device struct
+ * @get_irq: returns the irq number
+ * @get_hw_id: prints the hw_id in the provided buffer
+ * @write8: write a byte to register at offset ofs
+ * @write32: write a dword to register at offset ofs
+ * @wread32: read a dword at register at offset ofs
+ */
+struct iwl_bus_ops {
+	bool (*get_pm_support)(struct iwl_bus *bus);
+	void (*apm_config)(struct iwl_bus *bus);
+	void (*set_drv_data)(struct iwl_bus *bus, void *priv);
+	struct device *(*get_dev)(const struct iwl_bus *bus);
+	unsigned int (*get_irq)(const struct iwl_bus *bus);
+	void (*get_hw_id)(struct iwl_bus *bus, char buf[], int buf_len);
+	void (*write8)(struct iwl_bus *bus, u32 ofs, u8 val);
+	void (*write32)(struct iwl_bus *bus, u32 ofs, u32 val);
+	u32 (*read32)(struct iwl_bus *bus, u32 ofs);
+};
+
+struct iwl_bus {
+	/* pointer to bus specific struct */
+	void *bus_specific;
+
+	/* Common data to all buses */
+	struct iwl_priv *priv; /* driver's context */
+	struct device *dev;
+	struct iwl_bus_ops *ops;
+	unsigned int irq;
+};
+
+struct iwl_trans;
+
+/**
+ * struct iwl_trans_ops - transport specific operations
+
+ * @rx_init: inits the rx memory, allocate it if needed
+ * @rx_stop: stop the rx
+ * @rx_free: frees the rx memory
+ * @tx_init:inits the tx memory, allocate if needed
+ * @tx_stop: stop the tx
+ * @tx_free: frees the tx memory
+ * @send_cmd:send a host command
+ * @send_cmd_pdu:send a host command: flags can be CMD_*
+ */
+struct iwl_trans_ops {
+	int (*rx_init)(struct iwl_priv *priv);
+	int (*rx_stop)(struct iwl_priv *priv);
+	void (*rx_free)(struct iwl_priv *priv);
+
+	int (*tx_init)(struct iwl_priv *priv);
+	int (*tx_stop)(struct iwl_priv *priv);
+	void (*tx_free)(struct iwl_priv *priv);
+
+	int (*send_cmd)(struct iwl_priv *priv, struct iwl_host_cmd *cmd);
+
+	int (*send_cmd_pdu)(struct iwl_priv *priv, u8 id, u32 flags, u16 len,
+		     const void *data);
+};
+
+struct iwl_trans {
+	const struct iwl_trans_ops *ops;
+};
+
+/* uCode ownership */
+#define IWL_OWNERSHIP_DRIVER	0
+#define IWL_OWNERSHIP_TM	1
+
 struct iwl_priv {
 
 	/* ieee device used by generic ieee processing code */
@@ -1243,11 +1335,8 @@ struct iwl_priv {
 	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
 
-	/* basic pci-network driver stuff */
-	struct pci_dev *pci_dev;
-
-	/* pci hardware address support */
-	void __iomem *hw_base;
+	struct iwl_bus bus;	/* bus specific data */
+	struct iwl_trans trans;
 
 	/* microcode/device supports multiple contexts */
 	u8 valid_contexts;
@@ -1267,10 +1356,14 @@ struct iwl_priv {
 	int fw_index;			/* firmware we're trying to load */
 	u32 ucode_ver;			/* version of ucode, copy of
 					   iwl_ucode.ver */
+
+	/* uCode owner: default: IWL_OWNERSHIP_DRIVER */
+	u8 ucode_owner;
+
 	struct fw_img ucode_rt;
 	struct fw_img ucode_init;
 
-	enum iwlagn_ucode_subtype ucode_type;
+	enum iwlagn_ucode_type ucode_type;
 	u8 ucode_write_complete;	/* the image write is complete */
 	char firmware_name[25];
 
@@ -1442,6 +1535,9 @@ struct iwl_priv {
 	u16 dynamic_frag_thresh;
 	u8 bt_ci_compliance;
 	struct work_struct bt_traffic_change_work;
+	bool bt_enable_pspoll;
+	struct iwl_rxon_context *cur_rssi_ctx;
+	bool bt_is_sco;
 
 	struct iwl_hw_params hw_params;
 
@@ -1510,7 +1606,7 @@ struct iwl_priv {
 #ifdef CONFIG_IWLWIFI_DEVICE_SVTOOL
 	struct iwl_testmode_trace testmode_trace;
 #endif
-	u32 dbg_fixed_rate;
+	u32 tm_fixed_rate;
 
 }; /*iwl_priv */
 

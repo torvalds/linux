@@ -152,7 +152,7 @@ static int plip_hard_header(struct sk_buff *skb, struct net_device *dev,
                             unsigned short type, const void *daddr,
 			    const void *saddr, unsigned len);
 static int plip_hard_header_cache(const struct neighbour *neigh,
-                                  struct hh_cache *hh);
+                                  struct hh_cache *hh, __be16 type);
 static int plip_open(struct net_device *dev);
 static int plip_close(struct net_device *dev);
 static int plip_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
@@ -1026,11 +1026,11 @@ plip_hard_header(struct sk_buff *skb, struct net_device *dev,
 }
 
 static int plip_hard_header_cache(const struct neighbour *neigh,
-				  struct hh_cache *hh)
+				  struct hh_cache *hh, __be16 type)
 {
 	int ret;
 
-	ret = eth_header_cache(neigh, hh);
+	ret = eth_header_cache(neigh, hh, type);
 	if (ret == 0) {
 		struct ethhdr *eth;
 

@@ -10,6 +10,8 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 
+extern struct device mxc_aips_bus;
+
 struct platform_device *imx_add_platform_device_dmamask(
 		const char *name, int id,
 		const struct resource *res, unsigned int num_resources,

@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/firmware.h>
+#include <linux/interrupt.h>
 #include <net/mac80211.h>
 
 #include <proto/802.11.h>

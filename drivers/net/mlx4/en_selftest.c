@@ -159,7 +159,8 @@ retry_tx:
 				goto retry_tx;
 		}
 
-		if (priv->mdev->dev->caps.loopback_support){
+		if (priv->mdev->dev->caps.flags &
+					MLX4_DEV_CAP_FLAG_UC_LOOPBACK) {
 			buf[3] = mlx4_en_test_registers(priv);
 			buf[4] = mlx4_en_test_loopback(priv);
 		}

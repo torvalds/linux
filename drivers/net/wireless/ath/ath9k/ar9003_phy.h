@@ -332,6 +332,8 @@
 #define AR_PHY_CCA_MAX_GOOD_VAL_9300_2GHZ     -95
 #define AR_PHY_CCA_MAX_GOOD_VAL_9300_5GHZ     -100
 
+#define AR_PHY_CCA_NOM_VAL_9330_2GHZ          -118
+
 /*
  * AGC Field Definitions
  */
@@ -623,11 +625,11 @@
 #define AR_PHY_65NM_CH2_RXTX1       0x16900
 #define AR_PHY_65NM_CH2_RXTX2       0x16904
 
-#define AR_CH0_TOP2 (AR_SREV_9485(ah) ? 0x00016284 : 0x0001628c)
+#define AR_CH0_TOP2		(AR_SREV_9300(ah) ? 0x1628c : 0x16284)
 #define AR_CH0_TOP2_XPABIASLVL		0xf000
 #define AR_CH0_TOP2_XPABIASLVL_S	12
 
-#define AR_CH0_XTAL		(AR_SREV_9485(ah) ? 0x16290 : 0x16294)
+#define AR_CH0_XTAL		(AR_SREV_9300(ah) ? 0x16294 : 0x16290)
 #define AR_CH0_XTAL_CAPINDAC	0x7f000000
 #define AR_CH0_XTAL_CAPINDAC_S	24
 #define AR_CH0_XTAL_CAPOUTDAC	0x00fe0000
@@ -1118,6 +1120,9 @@
 #define AR_PHY_POWERTX_RATE8			(AR_SM_BASE + 0x1dc)
 #define AR_PHY_POWERTX_RATE8_POWERTXHT40_5	0x3F00
 #define AR_PHY_POWERTX_RATE8_POWERTXHT40_5_S	8
+
+#define AR_PHY_CL_TAB_CL_GAIN_MOD		0x1f
+#define AR_PHY_CL_TAB_CL_GAIN_MOD_S		0
 
 void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx);
 

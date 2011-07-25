@@ -195,7 +195,12 @@ static long vhost_test_run(struct vhost_test *n, int test)
 						    lockdep_is_held(&vq->mutex));
 		rcu_assign_pointer(vq->private_data, priv);
 
+		r = vhost_init_used(&n->vqs[index]);
+
 		mutex_unlock(&vq->mutex);
+
+		if (r)
+			goto err;
 
 		if (oldpriv) {
 			vhost_test_flush_vq(n, index);

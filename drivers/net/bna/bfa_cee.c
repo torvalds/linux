@@ -236,7 +236,7 @@ static void
 bfa_cee_hbfail(void *arg)
 {
 	struct bfa_cee *cee;
-	cee = (struct bfa_cee *) arg;
+	cee = arg;
 
 	if (cee->get_attr_pending == true) {
 		cee->get_attr_status = BFA_STATUS_FAILED;

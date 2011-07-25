@@ -1,7 +1,7 @@
 /*
  * GPIOLIB interface for BF538/9 PORT C, D, and E GPIOs
  *
- * Copyright 2009 Analog Devices Inc.
+ * Copyright 2009-2011 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -121,3 +121,38 @@ static int __init bf538_extgpio_setup(void)
 		gpiochip_add(&bf538_porte_chip);
 }
 arch_initcall(bf538_extgpio_setup);
+
+#ifdef CONFIG_PM
+static struct {
+	u16 data, dir, inen;
+} gpio_bank_saved[3];
+
+static void __iomem * const port_bases[3] = {
+	(void *)PORTCIO,
+	(void *)PORTDIO,
+	(void *)PORTEIO,
+};
+
+void bfin_special_gpio_pm_hibernate_suspend(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(port_bases); ++i) {
+		gpio_bank_saved[i].data = read_PORTIO(port_bases[i]);
+		gpio_bank_saved[i].inen = read_PORTIO_INEN(port_bases[i]);
+		gpio_bank_saved[i].dir = read_PORTIO_DIR(port_bases[i]);
+	}
+}
+
+void bfin_special_gpio_pm_hibernate_restore(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(port_bases); ++i) {
+		write_PORTIO_INEN(port_bases[i], gpio_bank_saved[i].inen);
+		write_PORTIO_SET(port_bases[i],
+			gpio_bank_saved[i].data & gpio_bank_saved[i].dir);
+		write_PORTIO_DIR(port_bases[i], gpio_bank_saved[i].dir);
+	}
+}
+#endif

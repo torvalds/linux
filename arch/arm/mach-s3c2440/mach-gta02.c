@@ -74,7 +74,6 @@
 #include <mach/fb.h>
 
 #include <mach/spi.h>
-#include <mach/spi-gpio.h>
 #include <plat/usb-control.h>
 #include <mach/regs-mem.h>
 #include <mach/hardware.h>

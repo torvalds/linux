@@ -913,7 +913,7 @@ struct dentry *exofs_get_parent(struct dentry *child)
 	unsigned long ino = exofs_parent_ino(child);
 
 	if (!ino)
-		return NULL;
+		return ERR_PTR(-ESTALE);
 
 	return d_obtain_alias(exofs_iget(child->d_inode->i_sb, ino));
 }

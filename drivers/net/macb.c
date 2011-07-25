@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/dma-mapping.h>
@@ -668,6 +669,8 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	entry = NEXT_TX(entry);
 	bp->tx_head = entry;
+
+	skb_tx_timestamp(skb);
 
 	macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TSTART));
 

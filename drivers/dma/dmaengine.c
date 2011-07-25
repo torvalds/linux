@@ -45,6 +45,7 @@
  * See Documentation/dmaengine.txt for more details
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>

@@ -39,6 +39,7 @@
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
 #include "iwl-sta.h"
+#include "iwl-trans.h"
 
 static inline u32 iwlagn_get_scd_ssn(struct iwlagn_tx_resp *tx_resp)
 {
@@ -408,9 +409,9 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 	unsigned long flags;
 
 	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
-		IWL_ERR(priv, "Read index for DMA queue txq_id (%d) index %d "
-			  "is out of range [0-%d] %d %d\n", txq_id,
-			  index, txq->q.n_bd, txq->q.write_ptr,
+		IWL_ERR(priv, "%s: Read index for DMA queue txq_id (%d) "
+			  "index %d is out of range [0-%d] %d %d\n", __func__,
+			  txq_id, index, txq->q.n_bd, txq->q.write_ptr,
 			  txq->q.read_ptr);
 		return;
 	}
@@ -438,7 +439,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 		if (tx_resp->bt_kill_count && tx_resp->frame_count == 1 &&
 		    priv->cfg->bt_params &&
 		    priv->cfg->bt_params->advanced_bt_coexist) {
-			IWL_WARN(priv, "receive reply tx with bt_kill\n");
+			IWL_DEBUG_COEX(priv, "receive reply tx with bt_kill\n");
 		}
 		iwlagn_tx_status_reply_tx(priv, agg, tx_resp, txq_id, index);
 
@@ -540,8 +541,8 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	else
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD;
 
-	return iwl_send_cmd_pdu(priv, tx_ant_cfg_cmd, sizeof(tx_power_cmd),
-				&tx_power_cmd);
+	return trans_send_cmd_pdu(priv, tx_ant_cfg_cmd, CMD_SYNC,
+			sizeof(tx_power_cmd), &tx_power_cmd);
 }
 
 void iwlagn_temperature(struct iwl_priv *priv)
@@ -610,8 +611,7 @@ static u32 eeprom_indirect_address(const struct iwl_priv *priv, u32 address)
 	return (address & ADDRESS_MSK) + (offset << 1);
 }
 
-const u8 *iwlagn_eeprom_query_addr(const struct iwl_priv *priv,
-					   size_t offset)
+const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset)
 {
 	u32 address = eeprom_indirect_address(priv, offset);
 	BUG_ON(address >= priv->cfg->base_params->eeprom_size);
@@ -622,40 +622,11 @@ struct iwl_mod_params iwlagn_mod_params = {
 	.amsdu_size_8K = 1,
 	.restart_fw = 1,
 	.plcp_check = true,
+	.bt_coex_active = true,
+	.no_sleep_autoadjust = true,
+	.power_level = IWL_POWER_INDEX_1,
 	/* the rest are 0 by default */
 };
-
-void iwlagn_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
-{
-	unsigned long flags;
-	int i;
-	spin_lock_irqsave(&rxq->lock, flags);
-	INIT_LIST_HEAD(&rxq->rx_free);
-	INIT_LIST_HEAD(&rxq->rx_used);
-	/* Fill the rx_used queue with _all_ of the Rx buffers */
-	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++) {
-		/* In the reset function, these buffers may have been allocated
-		 * to an SKB, so we need to unmap and free potential storage */
-		if (rxq->pool[i].page != NULL) {
-			pci_unmap_page(priv->pci_dev, rxq->pool[i].page_dma,
-				PAGE_SIZE << priv->hw_params.rx_page_order,
-				PCI_DMA_FROMDEVICE);
-			__iwl_free_pages(priv, rxq->pool[i].page);
-			rxq->pool[i].page = NULL;
-		}
-		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
-	}
-
-	for (i = 0; i < RX_QUEUE_SIZE; i++)
-		rxq->queue[i] = NULL;
-
-	/* Set us so that we have processed and used all buffers, but have
-	 * not restocked the Rx queue with fresh buffers */
-	rxq->read = rxq->write = 0;
-	rxq->write_actual = 0;
-	rxq->free_count = 0;
-	spin_unlock_irqrestore(&rxq->lock, flags);
-}
 
 int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 {
@@ -728,11 +699,10 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	struct iwl_rx_queue *rxq = &priv->rxq;
-	int ret;
 
 	/* nic_init */
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->cfg->ops->lib->apm_ops.init(priv);
+	iwl_apm_init(priv);
 
 	/* Set interrupt coalescing calibration timer to default (512 usecs) */
 	iwl_write8(priv, CSR_INT_COALESCING, IWL_HOST_INT_CALIB_TIMEOUT_DEF);
@@ -741,17 +711,10 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 
 	iwlagn_set_pwr_vmain(priv);
 
-	priv->cfg->ops->lib->apm_ops.config(priv);
+	priv->cfg->ops->lib->nic_config(priv);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
-	if (!rxq->bd) {
-		ret = iwl_rx_queue_alloc(priv);
-		if (ret) {
-			IWL_ERR(priv, "Unable to initialize Rx queue\n");
-			return -ENOMEM;
-		}
-	} else
-		iwlagn_rx_queue_reset(priv, rxq);
+	trans_rx_init(priv);
 
 	iwlagn_rx_replenish(priv);
 
@@ -765,12 +728,8 @@ int iwlagn_hw_nic_init(struct iwl_priv *priv)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Allocate or reset and init all Tx and Command queues */
-	if (!priv->txq) {
-		ret = iwlagn_txq_ctx_alloc(priv);
-		if (ret)
-			return ret;
-	} else
-		iwlagn_txq_ctx_reset(priv);
+	if (trans_tx_init(priv))
+		return -ENOMEM;
 
 	if (priv->cfg->base_params->shadow_reg_enable) {
 		/* enable shadow regs in HW */
@@ -911,9 +870,9 @@ void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority)
 		BUG_ON(rxb->page);
 		rxb->page = page;
 		/* Get physical address of the RB */
-		rxb->page_dma = pci_map_page(priv->pci_dev, page, 0,
+		rxb->page_dma = dma_map_page(priv->bus.dev, page, 0,
 				PAGE_SIZE << priv->hw_params.rx_page_order,
-				PCI_DMA_FROMDEVICE);
+				DMA_FROM_DEVICE);
 		/* dma address must be no more than 36 bits */
 		BUG_ON(rxb->page_dma & ~DMA_BIT_MASK(36));
 		/* and also 256 byte aligned! */
@@ -944,43 +903,6 @@ void iwlagn_rx_replenish_now(struct iwl_priv *priv)
 	iwlagn_rx_allocate(priv, GFP_ATOMIC);
 
 	iwlagn_rx_queue_restock(priv);
-}
-
-/* Assumes that the skb field of the buffers in 'pool' is kept accurate.
- * If an SKB has been detached, the POOL needs to have its SKB set to NULL
- * This free routine walks the list of POOL entries and if SKB is set to
- * non NULL it is unmapped and freed
- */
-void iwlagn_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
-{
-	int i;
-	for (i = 0; i < RX_QUEUE_SIZE + RX_FREE_BUFFERS; i++) {
-		if (rxq->pool[i].page != NULL) {
-			pci_unmap_page(priv->pci_dev, rxq->pool[i].page_dma,
-				PAGE_SIZE << priv->hw_params.rx_page_order,
-				PCI_DMA_FROMDEVICE);
-			__iwl_free_pages(priv, rxq->pool[i].page);
-			rxq->pool[i].page = NULL;
-		}
-	}
-
-	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			  rxq->bd_dma);
-	dma_free_coherent(&priv->pci_dev->dev, sizeof(struct iwl_rb_status),
-			  rxq->rb_stts, rxq->rb_stts_dma);
-	rxq->bd = NULL;
-	rxq->rb_stts  = NULL;
-}
-
-int iwlagn_rxq_stop(struct iwl_priv *priv)
-{
-
-	/* stop Rx DMA */
-	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-	iwl_poll_direct_bit(priv, FH_MEM_RSSR_RX_STATUS_REG,
-			    FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
-
-	return 0;
 }
 
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band)
@@ -1141,6 +1063,7 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_CMD,
 		.len = { sizeof(struct iwl_scan_cmd), },
+		.flags = CMD_SYNC,
 	};
 	struct iwl_scan_cmd *scan;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
@@ -1433,17 +1356,14 @@ int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	/* set scan bit here for PAN params */
 	set_bit(STATUS_SCAN_HW, &priv->status);
 
-	if (priv->cfg->ops->hcmd->set_pan_params) {
-		ret = priv->cfg->ops->hcmd->set_pan_params(priv);
-		if (ret)
-			return ret;
-	}
+	ret = iwlagn_set_pan_params(priv);
+	if (ret)
+		return ret;
 
-	ret = iwl_send_cmd_sync(priv, &cmd);
+	ret = trans_send_cmd(priv, &cmd);
 	if (ret) {
 		clear_bit(STATUS_SCAN_HW, &priv->status);
-		if (priv->cfg->ops->hcmd->set_pan_params)
-			priv->cfg->ops->hcmd->set_pan_params(priv);
+		iwlagn_set_pan_params(priv);
 	}
 
 	return ret;
@@ -1528,23 +1448,32 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 	might_sleep();
 
 	memset(&flush_cmd, 0, sizeof(flush_cmd));
-	flush_cmd.fifo_control = IWL_TX_FIFO_VO_MSK | IWL_TX_FIFO_VI_MSK |
-				 IWL_TX_FIFO_BE_MSK | IWL_TX_FIFO_BK_MSK;
-	if (priv->cfg->sku & IWL_SKU_N)
+	if (flush_control & BIT(IWL_RXON_CTX_BSS))
+		flush_cmd.fifo_control = IWL_SCD_VO_MSK | IWL_SCD_VI_MSK |
+				 IWL_SCD_BE_MSK | IWL_SCD_BK_MSK |
+				 IWL_SCD_MGMT_MSK;
+	if ((flush_control & BIT(IWL_RXON_CTX_PAN)) &&
+	    (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
+		flush_cmd.fifo_control |= IWL_PAN_SCD_VO_MSK |
+				IWL_PAN_SCD_VI_MSK | IWL_PAN_SCD_BE_MSK |
+				IWL_PAN_SCD_BK_MSK | IWL_PAN_SCD_MGMT_MSK |
+				IWL_PAN_SCD_MULTICAST_MSK;
+
+	if (priv->cfg->sku & EEPROM_SKU_CAP_11N_ENABLE)
 		flush_cmd.fifo_control |= IWL_AGG_TX_QUEUE_MSK;
 
 	IWL_DEBUG_INFO(priv, "fifo queue control: 0X%x\n",
 		       flush_cmd.fifo_control);
 	flush_cmd.flush_control = cpu_to_le16(flush_control);
 
-	return iwl_send_cmd(priv, &cmd);
+	return trans_send_cmd(priv, &cmd);
 }
 
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 {
 	mutex_lock(&priv->mutex);
 	ieee80211_stop_queues(priv->hw);
-	if (priv->cfg->ops->lib->txfifo_flush(priv, IWL_DROP_ALL)) {
+	if (iwlagn_txfifo_flush(priv, IWL_DROP_ALL)) {
 		IWL_ERR(priv, "flush request fail\n");
 		goto done;
 	}
@@ -1699,18 +1628,21 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	 * (might be in monitor mode), or the interface is in
 	 * IBSS mode (no proper uCode support for coex then).
 	 */
-	if (!bt_coex_active || priv->iw_mode == NL80211_IFTYPE_ADHOC) {
+	if (!iwlagn_mod_params.bt_coex_active ||
+	    priv->iw_mode == NL80211_IFTYPE_ADHOC) {
 		basic.flags = IWLAGN_BT_FLAG_COEX_MODE_DISABLED;
 	} else {
 		basic.flags = IWLAGN_BT_FLAG_COEX_MODE_3W <<
 					IWLAGN_BT_FLAG_COEX_MODE_SHIFT;
-		if (priv->cfg->bt_params &&
-		    priv->cfg->bt_params->bt_sco_disable)
+
+		if (!priv->bt_enable_pspoll)
 			basic.flags |= IWLAGN_BT_FLAG_SYNC_2_BT_DISABLE;
+		else
+			basic.flags &= ~IWLAGN_BT_FLAG_SYNC_2_BT_DISABLE;
 
 		if (priv->bt_ch_announce)
 			basic.flags |= IWLAGN_BT_FLAG_CHANNEL_INHIBITION;
-		IWL_DEBUG_INFO(priv, "BT coex flag: 0X%x\n", basic.flags);
+		IWL_DEBUG_COEX(priv, "BT coex flag: 0X%x\n", basic.flags);
 	}
 	priv->bt_enable_flag = basic.flags;
 	if (priv->bt_full_concurrent)
@@ -1720,7 +1652,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		memcpy(basic.bt3_lookup_table, iwlagn_def_3w_lookup,
 			sizeof(iwlagn_def_3w_lookup));
 
-	IWL_DEBUG_INFO(priv, "BT coex %s in %s mode\n",
+	IWL_DEBUG_COEX(priv, "BT coex %s in %s mode\n",
 		       basic.flags ? "active" : "disabled",
 		       priv->bt_full_concurrent ?
 		       "full concurrency" : "3-wire");
@@ -1728,17 +1660,95 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	if (priv->cfg->bt_params->bt_session_2) {
 		memcpy(&bt_cmd_2000.basic, &basic,
 			sizeof(basic));
-		ret = iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-			sizeof(bt_cmd_2000), &bt_cmd_2000);
+		ret = trans_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+			CMD_SYNC, sizeof(bt_cmd_2000), &bt_cmd_2000);
 	} else {
 		memcpy(&bt_cmd_6000.basic, &basic,
 			sizeof(basic));
-		ret = iwl_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-			sizeof(bt_cmd_6000), &bt_cmd_6000);
+		ret = trans_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+			CMD_SYNC, sizeof(bt_cmd_6000), &bt_cmd_6000);
 	}
 	if (ret)
 		IWL_ERR(priv, "failed to send BT Coex Config\n");
 
+}
+
+void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena)
+{
+	struct iwl_rxon_context *ctx, *found_ctx = NULL;
+	bool found_ap = false;
+
+	lockdep_assert_held(&priv->mutex);
+
+	/* Check whether AP or GO mode is active. */
+	if (rssi_ena) {
+		for_each_context(priv, ctx) {
+			if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_AP &&
+			    iwl_is_associated_ctx(ctx)) {
+				found_ap = true;
+				break;
+			}
+		}
+	}
+
+	/*
+	 * If disable was received or If GO/AP mode, disable RSSI
+	 * measurements.
+	 */
+	if (!rssi_ena || found_ap) {
+		if (priv->cur_rssi_ctx) {
+			ctx = priv->cur_rssi_ctx;
+			ieee80211_disable_rssi_reports(ctx->vif);
+			priv->cur_rssi_ctx = NULL;
+		}
+		return;
+	}
+
+	/*
+	 * If rssi measurements need to be enabled, consider all cases now.
+	 * Figure out how many contexts are active.
+	 */
+	for_each_context(priv, ctx) {
+		if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION &&
+		    iwl_is_associated_ctx(ctx)) {
+			found_ctx = ctx;
+			break;
+		}
+	}
+
+	/*
+	 * rssi monitor already enabled for the correct interface...nothing
+	 * to do.
+	 */
+	if (found_ctx == priv->cur_rssi_ctx)
+		return;
+
+	/*
+	 * Figure out if rssi monitor is currently enabled, and needs
+	 * to be changed. If rssi monitor is already enabled, disable
+	 * it first else just enable rssi measurements on the
+	 * interface found above.
+	 */
+	if (priv->cur_rssi_ctx) {
+		ctx = priv->cur_rssi_ctx;
+		if (ctx->vif)
+			ieee80211_disable_rssi_reports(ctx->vif);
+	}
+
+	priv->cur_rssi_ctx = found_ctx;
+
+	if (!found_ctx)
+		return;
+
+	ieee80211_enable_rssi_reports(found_ctx->vif,
+			IWLAGN_BT_PSP_MIN_RSSI_THRESHOLD,
+			IWLAGN_BT_PSP_MAX_RSSI_THRESHOLD);
+}
+
+static bool iwlagn_bt_traffic_is_sco(struct iwl_bt_uart_msg *uart_msg)
+{
+	return BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3 >>
+			BT_UART_MSG_FRAME3SCOESCO_POS;
 }
 
 static void iwlagn_bt_traffic_change_work(struct work_struct *work)
@@ -1758,7 +1768,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	 * coex profile notifications. Ignore that since only bad consequence
 	 * can be not matching debug print with actual state.
 	 */
-	IWL_DEBUG_INFO(priv, "BT traffic load changes: %d\n",
+	IWL_DEBUG_COEX(priv, "BT traffic load changes: %d\n",
 		       priv->bt_traffic_load);
 
 	switch (priv->bt_traffic_load) {
@@ -1793,23 +1803,43 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	if (test_bit(STATUS_SCAN_HW, &priv->status))
 		goto out;
 
-	if (priv->cfg->ops->lib->update_chain_flags)
-		priv->cfg->ops->lib->update_chain_flags(priv);
+	iwl_update_chain_flags(priv);
 
 	if (smps_request != -1) {
+		priv->current_ht_config.smps = smps_request;
 		for_each_context(priv, ctx) {
 			if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION)
 				ieee80211_request_smps(ctx->vif, smps_request);
 		}
 	}
+
+	/*
+	 * Dynamic PS poll related functionality. Adjust RSSI measurements if
+	 * necessary.
+	 */
+	iwlagn_bt_coex_rssi_monitor(priv);
 out:
 	mutex_unlock(&priv->mutex);
+}
+
+/*
+ * If BT sco traffic, and RSSI monitor is enabled, move measurements to the
+ * correct interface or disable it if this is the last interface to be
+ * removed.
+ */
+void iwlagn_bt_coex_rssi_monitor(struct iwl_priv *priv)
+{
+	if (priv->bt_is_sco &&
+	    priv->bt_traffic_load == IWL_BT_COEX_TRAFFIC_LOAD_CONTINUOUS)
+		iwlagn_bt_adjust_rssi_monitor(priv, true);
+	else
+		iwlagn_bt_adjust_rssi_monitor(priv, false);
 }
 
 static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 				struct iwl_bt_uart_msg *uart_msg)
 {
-	IWL_DEBUG_NOTIF(priv, "Message Type = 0x%X, SSN = 0x%X, "
+	IWL_DEBUG_COEX(priv, "Message Type = 0x%X, SSN = 0x%X, "
 			"Update Req = 0x%X",
 		(BT_UART_MSG_FRAME1MSGTYPE_MSK & uart_msg->frame1) >>
 			BT_UART_MSG_FRAME1MSGTYPE_POS,
@@ -1818,7 +1848,7 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 		(BT_UART_MSG_FRAME1UPDATEREQ_MSK & uart_msg->frame1) >>
 			BT_UART_MSG_FRAME1UPDATEREQ_POS);
 
-	IWL_DEBUG_NOTIF(priv, "Open connections = 0x%X, Traffic load = 0x%X, "
+	IWL_DEBUG_COEX(priv, "Open connections = 0x%X, Traffic load = 0x%X, "
 			"Chl_SeqN = 0x%X, In band = 0x%X",
 		(BT_UART_MSG_FRAME2OPENCONNECTIONS_MSK & uart_msg->frame2) >>
 			BT_UART_MSG_FRAME2OPENCONNECTIONS_POS,
@@ -1829,7 +1859,7 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 		(BT_UART_MSG_FRAME2INBAND_MSK & uart_msg->frame2) >>
 			BT_UART_MSG_FRAME2INBAND_POS);
 
-	IWL_DEBUG_NOTIF(priv, "SCO/eSCO = 0x%X, Sniff = 0x%X, A2DP = 0x%X, "
+	IWL_DEBUG_COEX(priv, "SCO/eSCO = 0x%X, Sniff = 0x%X, A2DP = 0x%X, "
 			"ACL = 0x%X, Master = 0x%X, OBEX = 0x%X",
 		(BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3) >>
 			BT_UART_MSG_FRAME3SCOESCO_POS,
@@ -1844,11 +1874,11 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 		(BT_UART_MSG_FRAME3OBEX_MSK & uart_msg->frame3) >>
 			BT_UART_MSG_FRAME3OBEX_POS);
 
-	IWL_DEBUG_NOTIF(priv, "Idle duration = 0x%X",
+	IWL_DEBUG_COEX(priv, "Idle duration = 0x%X",
 		(BT_UART_MSG_FRAME4IDLEDURATION_MSK & uart_msg->frame4) >>
 			BT_UART_MSG_FRAME4IDLEDURATION_POS);
 
-	IWL_DEBUG_NOTIF(priv, "Tx Activity = 0x%X, Rx Activity = 0x%X, "
+	IWL_DEBUG_COEX(priv, "Tx Activity = 0x%X, Rx Activity = 0x%X, "
 			"eSCO Retransmissions = 0x%X",
 		(BT_UART_MSG_FRAME5TXACTIVITY_MSK & uart_msg->frame5) >>
 			BT_UART_MSG_FRAME5TXACTIVITY_POS,
@@ -1857,13 +1887,13 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 		(BT_UART_MSG_FRAME5ESCORETRANSMIT_MSK & uart_msg->frame5) >>
 			BT_UART_MSG_FRAME5ESCORETRANSMIT_POS);
 
-	IWL_DEBUG_NOTIF(priv, "Sniff Interval = 0x%X, Discoverable = 0x%X",
+	IWL_DEBUG_COEX(priv, "Sniff Interval = 0x%X, Discoverable = 0x%X",
 		(BT_UART_MSG_FRAME6SNIFFINTERVAL_MSK & uart_msg->frame6) >>
 			BT_UART_MSG_FRAME6SNIFFINTERVAL_POS,
 		(BT_UART_MSG_FRAME6DISCOVERABLE_MSK & uart_msg->frame6) >>
 			BT_UART_MSG_FRAME6DISCOVERABLE_POS);
 
-	IWL_DEBUG_NOTIF(priv, "Sniff Activity = 0x%X, Page = "
+	IWL_DEBUG_COEX(priv, "Sniff Activity = 0x%X, Page = "
 			"0x%X, Inquiry = 0x%X, Connectable = 0x%X",
 		(BT_UART_MSG_FRAME7SNIFFACTIVITY_MSK & uart_msg->frame7) >>
 			BT_UART_MSG_FRAME7SNIFFACTIVITY_POS,
@@ -1913,14 +1943,16 @@ void iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 		return;
 	}
 
-	IWL_DEBUG_NOTIF(priv, "BT Coex notification:\n");
-	IWL_DEBUG_NOTIF(priv, "    status: %d\n", coex->bt_status);
-	IWL_DEBUG_NOTIF(priv, "    traffic load: %d\n", coex->bt_traffic_load);
-	IWL_DEBUG_NOTIF(priv, "    CI compliance: %d\n",
+	IWL_DEBUG_COEX(priv, "BT Coex notification:\n");
+	IWL_DEBUG_COEX(priv, "    status: %d\n", coex->bt_status);
+	IWL_DEBUG_COEX(priv, "    traffic load: %d\n", coex->bt_traffic_load);
+	IWL_DEBUG_COEX(priv, "    CI compliance: %d\n",
 			coex->bt_ci_compliance);
 	iwlagn_print_uartmsg(priv, uart_msg);
 
 	priv->last_bt_traffic_load = priv->bt_traffic_load;
+	priv->bt_is_sco = iwlagn_bt_traffic_is_sco(uart_msg);
+
 	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
 		if (priv->bt_status != coex->bt_status ||
 		    priv->last_bt_traffic_load != coex->bt_traffic_load) {
@@ -2314,7 +2346,8 @@ int iwlagn_start_device(struct iwl_priv *priv)
 {
 	int ret;
 
-	if (iwl_prepare_card_hw(priv)) {
+	if ((priv->cfg->sku & EEPROM_SKU_CAP_AMT_ENABLE) &&
+	     iwl_prepare_card_hw(priv)) {
 		IWL_WARN(priv, "Exit HW not ready\n");
 		return -EIO;
 	}
@@ -2379,13 +2412,14 @@ void iwlagn_stop_device(struct iwl_priv *priv)
 	 * already dead.
 	 */
 	if (test_bit(STATUS_DEVICE_ENABLED, &priv->status)) {
-                iwlagn_txq_ctx_stop(priv);
-                iwlagn_rxq_stop(priv);
+		trans_tx_stop(priv);
+		trans_rx_stop(priv);
 
-                /* Power-down device's busmaster DMA clocks */
-                iwl_write_prph(priv, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
-                udelay(5);
-        }
+		/* Power-down device's busmaster DMA clocks */
+		iwl_write_prph(priv, APMG_CLK_DIS_REG,
+			       APMG_CLK_VAL_DMA_CLK_RQT);
+		udelay(5);
+	}
 
 	/* Make sure (redundant) we've released our request to stay awake */
 	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);

@@ -33,6 +33,9 @@
 #else
 #include <asm/kvm_booke.h>
 #endif
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+#include <asm/paca.h>
+#endif
 
 enum emulation_result {
 	EMULATE_DONE,         /* no further processing */
@@ -42,6 +45,7 @@ enum emulation_result {
 	EMULATE_AGAIN,        /* something went wrong. go again */
 };
 
+extern int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
 extern int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
 extern char kvmppc_handlers_start[];
 extern unsigned long kvmppc_handler_len;
@@ -109,6 +113,27 @@ extern void kvmppc_booke_exit(void);
 
 extern void kvmppc_core_destroy_mmu(struct kvm_vcpu *vcpu);
 extern int kvmppc_kvm_pv(struct kvm_vcpu *vcpu);
+extern void kvmppc_map_magic(struct kvm_vcpu *vcpu);
+
+extern long kvmppc_alloc_hpt(struct kvm *kvm);
+extern void kvmppc_free_hpt(struct kvm *kvm);
+extern long kvmppc_prepare_vrma(struct kvm *kvm,
+				struct kvm_userspace_memory_region *mem);
+extern void kvmppc_map_vrma(struct kvm *kvm,
+			    struct kvm_userspace_memory_region *mem);
+extern int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu);
+extern long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
+				struct kvm_create_spapr_tce *args);
+extern long kvm_vm_ioctl_allocate_rma(struct kvm *kvm,
+				struct kvm_allocate_rma *rma);
+extern struct kvmppc_rma_info *kvm_alloc_rma(void);
+extern void kvm_release_rma(struct kvmppc_rma_info *ri);
+extern int kvmppc_core_init_vm(struct kvm *kvm);
+extern void kvmppc_core_destroy_vm(struct kvm *kvm);
+extern int kvmppc_core_prepare_memory_region(struct kvm *kvm,
+				struct kvm_userspace_memory_region *mem);
+extern void kvmppc_core_commit_memory_region(struct kvm *kvm,
+				struct kvm_userspace_memory_region *mem);
 
 /*
  * Cuts out inst bits with ordering according to spec.
@@ -150,5 +175,21 @@ void kvmppc_get_sregs_ivor(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 int kvmppc_set_sregs_ivor(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs);
 
 void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid);
+
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
+{
+	paca[cpu].kvm_hstate.xics_phys = addr;
+}
+
+extern void kvm_rma_init(void);
+
+#else
+static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
+{}
+
+static inline void kvm_rma_init(void)
+{}
+#endif
 
 #endif /* __POWERPC_KVM_PPC_H__ */

@@ -102,6 +102,14 @@
 #define P4_CONFIG_HT			(1ULL << P4_CONFIG_HT_SHIFT)
 
 /*
+ * If an event has alias it should be marked
+ * with a special bit. (Don't forget to check
+ * P4_PEBS_CONFIG_MASK and related bits on
+ * modification.)
+ */
+#define P4_CONFIG_ALIASABLE		(1 << 9)
+
+/*
  * The bits we allow to pass for RAW events
  */
 #define P4_CONFIG_MASK_ESCR		\
@@ -122,6 +130,31 @@
 #define P4_CONFIG_MASK				  	  \
 	(p4_config_pack_escr(P4_CONFIG_MASK_ESCR))	| \
 	(p4_config_pack_cccr(P4_CONFIG_MASK_CCCR))
+
+/*
+ * In case of event aliasing we need to preserve some
+ * caller bits, otherwise the mapping won't be complete.
+ */
+#define P4_CONFIG_EVENT_ALIAS_MASK			  \
+	(p4_config_pack_escr(P4_CONFIG_MASK_ESCR)	| \
+	 p4_config_pack_cccr(P4_CCCR_EDGE		| \
+			     P4_CCCR_THRESHOLD_MASK	| \
+			     P4_CCCR_COMPLEMENT		| \
+			     P4_CCCR_COMPARE))
+
+#define  P4_CONFIG_EVENT_ALIAS_IMMUTABLE_BITS		  \
+	((P4_CONFIG_HT)					| \
+	 p4_config_pack_escr(P4_ESCR_T0_OS		| \
+			     P4_ESCR_T0_USR		| \
+			     P4_ESCR_T1_OS		| \
+			     P4_ESCR_T1_USR)		| \
+	 p4_config_pack_cccr(P4_CCCR_OVF		| \
+			     P4_CCCR_CASCADE		| \
+			     P4_CCCR_FORCE_OVF		| \
+			     P4_CCCR_THREAD_ANY		| \
+			     P4_CCCR_OVF_PMI_T0		| \
+			     P4_CCCR_OVF_PMI_T1		| \
+			     P4_CONFIG_ALIASABLE))
 
 static inline bool p4_is_event_cascaded(u64 config)
 {

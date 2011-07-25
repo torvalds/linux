@@ -120,11 +120,10 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
  */
 static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
 					struct host_cmd_ds_command *resp,
-					void *data_buf)
+					struct mwifiex_ds_get_signal *signal)
 {
 	struct host_cmd_ds_802_11_rssi_info_rsp *rssi_info_rsp =
 		&resp->params.rssi_info_rsp;
-	struct mwifiex_ds_get_signal *signal;
 
 	priv->data_rssi_last = le16_to_cpu(rssi_info_rsp->data_rssi_last);
 	priv->data_nf_last = le16_to_cpu(rssi_info_rsp->data_nf_last);
@@ -139,9 +138,8 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
 	priv->bcn_nf_avg = le16_to_cpu(rssi_info_rsp->bcn_nf_avg);
 
 	/* Need to indicate IOCTL complete */
-	if (data_buf) {
-		signal = (struct mwifiex_ds_get_signal *) data_buf;
-		memset(signal, 0, sizeof(struct mwifiex_ds_get_signal));
+	if (signal) {
+		memset(signal, 0, sizeof(*signal));
 
 		signal->selector = ALL_RSSI_INFO_MASK;
 
@@ -185,7 +183,7 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
  */
 static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
 				       struct host_cmd_ds_command *resp,
-				       void *data_buf)
+				       u32 *data_buf)
 {
 	struct host_cmd_ds_802_11_snmp_mib *smib = &resp->params.smib;
 	u16 oid = le16_to_cpu(smib->oid);
@@ -198,7 +196,7 @@ static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
 	if (query_type == HostCmd_ACT_GEN_GET) {
 		ul_temp = le16_to_cpu(*((__le16 *) (smib->value)));
 		if (data_buf)
-			*(u32 *)data_buf = ul_temp;
+			*data_buf = ul_temp;
 		switch (oid) {
 		case FRAG_THRESH_I:
 			dev_dbg(priv->adapter->dev,
@@ -228,14 +226,12 @@ static int mwifiex_ret_802_11_snmp_mib(struct mwifiex_private *priv,
  */
 static int mwifiex_ret_get_log(struct mwifiex_private *priv,
 			       struct host_cmd_ds_command *resp,
-			       void *data_buf)
+			       struct mwifiex_ds_get_stats *stats)
 {
 	struct host_cmd_ds_802_11_get_log *get_log =
 		(struct host_cmd_ds_802_11_get_log *) &resp->params.get_log;
-	struct mwifiex_ds_get_stats *stats;
 
-	if (data_buf) {
-		stats = (struct mwifiex_ds_get_stats *) data_buf;
+	if (stats) {
 		stats->mcast_tx_frame = le32_to_cpu(get_log->mcast_tx_frame);
 		stats->failed = le32_to_cpu(get_log->failed);
 		stats->retry = le32_to_cpu(get_log->retry);
@@ -278,9 +274,8 @@ static int mwifiex_ret_get_log(struct mwifiex_private *priv,
  */
 static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 				   struct host_cmd_ds_command *resp,
-				   void *data_buf)
+				   struct mwifiex_rate_cfg *ds_rate)
 {
-	struct mwifiex_rate_cfg *ds_rate;
 	struct host_cmd_ds_tx_rate_cfg *rate_cfg = &resp->params.tx_rate_cfg;
 	struct mwifiex_rate_scope *rate_scope;
 	struct mwifiex_ie_types_header *head;
@@ -329,8 +324,7 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 					  HostCmd_CMD_802_11_TX_RATE_QUERY,
 					  HostCmd_ACT_GEN_GET, 0, NULL);
 
-	if (data_buf) {
-		ds_rate = (struct mwifiex_rate_cfg *) data_buf;
+	if (ds_rate) {
 		if (le16_to_cpu(rate_cfg->action) == HostCmd_ACT_GEN_GET) {
 			if (priv->is_data_rate_auto) {
 				ds_rate->is_rate_auto = 1;
@@ -413,8 +407,7 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
  * and saving the current Tx power level in driver.
  */
 static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
-				    struct host_cmd_ds_command *resp,
-				    void *data_buf)
+				    struct host_cmd_ds_command *resp)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct host_cmd_ds_txpwr_cfg *txp_cfg = &resp->params.txp_cfg;
@@ -631,7 +624,7 @@ static int mwifiex_ret_802_11d_domain_info(struct mwifiex_private *priv,
  */
 static int mwifiex_ret_802_11_rf_channel(struct mwifiex_private *priv,
 					 struct host_cmd_ds_command *resp,
-					 void *data_buf)
+					 u16 *data_buf)
 {
 	struct host_cmd_ds_802_11_rf_channel *rf_channel =
 		&resp->params.rf_channel;
@@ -644,8 +637,9 @@ static int mwifiex_ret_802_11_rf_channel(struct mwifiex_private *priv,
 		/* Update the channel again */
 		priv->curr_bss_params.bss_descriptor.channel = new_channel;
 	}
+
 	if (data_buf)
-		*((u16 *)data_buf) = new_channel;
+		*data_buf = new_channel;
 
 	return 0;
 }
@@ -658,13 +652,11 @@ static int mwifiex_ret_802_11_rf_channel(struct mwifiex_private *priv,
  */
 static int mwifiex_ret_ver_ext(struct mwifiex_private *priv,
 			       struct host_cmd_ds_command *resp,
-			       void *data_buf)
+			       struct host_cmd_ds_version_ext *version_ext)
 {
 	struct host_cmd_ds_version_ext *ver_ext = &resp->params.verext;
-	struct host_cmd_ds_version_ext *version_ext;
 
-	if (data_buf) {
-		version_ext = (struct host_cmd_ds_version_ext *)data_buf;
+	if (version_ext) {
 		version_ext->version_str_sel = ver_ext->version_str_sel;
 		memcpy(version_ext->version_str, ver_ext->version_str,
 		       sizeof(char) * 128);
@@ -686,8 +678,8 @@ static int mwifiex_ret_reg_access(u16 type, struct host_cmd_ds_command *resp,
 	struct mwifiex_ds_read_eeprom *eeprom;
 
 	if (data_buf) {
-		reg_rw = (struct mwifiex_ds_reg_rw *) data_buf;
-		eeprom = (struct mwifiex_ds_read_eeprom *) data_buf;
+		reg_rw = data_buf;
+		eeprom = data_buf;
 		switch (type) {
 		case HostCmd_CMD_MAC_REG_ACCESS:
 			{
@@ -825,13 +817,11 @@ static int mwifiex_ret_ibss_coalescing_status(struct mwifiex_private *priv,
  * This is a generic function, which calls command specific
  * response handlers based on the command ID.
  */
-int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
-				u16 cmdresp_no, void *cmd_buf)
+int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
+				struct host_cmd_ds_command *resp)
 {
 	int ret = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	struct host_cmd_ds_command *resp =
-		(struct host_cmd_ds_command *) cmd_buf;
 	void *data_buf = adapter->curr_cmd->data_buf;
 
 	/* If the command is not successful, cleanup and return failure */
@@ -865,7 +855,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv,
 			"info: CMD_RESP: BG_SCAN result is ready!\n");
 		break;
 	case HostCmd_CMD_TXPWR_CFG:
-		ret = mwifiex_ret_tx_power_cfg(priv, resp, data_buf);
+		ret = mwifiex_ret_tx_power_cfg(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_PS_MODE_ENH:
 		ret = mwifiex_ret_enh_power_mode(priv, resp, data_buf);

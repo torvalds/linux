@@ -146,8 +146,7 @@ static __wsum lro_tcp_data_csum(struct iphdr *iph, struct tcphdr *tcph, int len)
 }
 
 static void lro_init_desc(struct net_lro_desc *lro_desc, struct sk_buff *skb,
-			  struct iphdr *iph, struct tcphdr *tcph,
-			  u16 vlan_tag, struct vlan_group *vgrp)
+			  struct iphdr *iph, struct tcphdr *tcph)
 {
 	int nr_frags;
 	__be32 *ptr;
@@ -173,8 +172,6 @@ static void lro_init_desc(struct net_lro_desc *lro_desc, struct sk_buff *skb,
 	}
 
 	lro_desc->mss = tcp_data_len;
-	lro_desc->vgrp = vgrp;
-	lro_desc->vlan_tag = vlan_tag;
 	lro_desc->active = 1;
 
 	lro_desc->data_csum = lro_tcp_data_csum(iph, tcph,
@@ -309,29 +306,17 @@ static void lro_flush(struct net_lro_mgr *lro_mgr,
 
 	skb_shinfo(lro_desc->parent)->gso_size = lro_desc->mss;
 
-	if (lro_desc->vgrp) {
-		if (lro_mgr->features & LRO_F_NAPI)
-			vlan_hwaccel_receive_skb(lro_desc->parent,
-						 lro_desc->vgrp,
-						 lro_desc->vlan_tag);
-		else
-			vlan_hwaccel_rx(lro_desc->parent,
-					lro_desc->vgrp,
-					lro_desc->vlan_tag);
-
-	} else {
-		if (lro_mgr->features & LRO_F_NAPI)
-			netif_receive_skb(lro_desc->parent);
-		else
-			netif_rx(lro_desc->parent);
-	}
+	if (lro_mgr->features & LRO_F_NAPI)
+		netif_receive_skb(lro_desc->parent);
+	else
+		netif_rx(lro_desc->parent);
 
 	LRO_INC_STATS(lro_mgr, flushed);
 	lro_clear_desc(lro_desc);
 }
 
 static int __lro_proc_skb(struct net_lro_mgr *lro_mgr, struct sk_buff *skb,
-			  struct vlan_group *vgrp, u16 vlan_tag, void *priv)
+			  void *priv)
 {
 	struct net_lro_desc *lro_desc;
 	struct iphdr *iph;
@@ -360,7 +345,7 @@ static int __lro_proc_skb(struct net_lro_mgr *lro_mgr, struct sk_buff *skb,
 			goto out;
 
 		skb->ip_summed = lro_mgr->ip_summed_aggr;
-		lro_init_desc(lro_desc, skb, iph, tcph, vlan_tag, vgrp);
+		lro_init_desc(lro_desc, skb, iph, tcph);
 		LRO_INC_STATS(lro_mgr, aggregated);
 		return 0;
 	}
@@ -433,8 +418,7 @@ static struct sk_buff *lro_gen_skb(struct net_lro_mgr *lro_mgr,
 static struct sk_buff *__lro_proc_segment(struct net_lro_mgr *lro_mgr,
 					  struct skb_frag_struct *frags,
 					  int len, int true_size,
-					  struct vlan_group *vgrp,
-					  u16 vlan_tag, void *priv, __wsum sum)
+					  void *priv, __wsum sum)
 {
 	struct net_lro_desc *lro_desc;
 	struct iphdr *iph;
@@ -480,7 +464,7 @@ static struct sk_buff *__lro_proc_segment(struct net_lro_mgr *lro_mgr,
 		tcph = (void *)((u8 *)skb->data + vlan_hdr_len
 				+ IP_HDR_LEN(iph));
 
-		lro_init_desc(lro_desc, skb, iph, tcph, 0, NULL);
+		lro_init_desc(lro_desc, skb, iph, tcph);
 		LRO_INC_STATS(lro_mgr, aggregated);
 		return NULL;
 	}
@@ -514,7 +498,7 @@ void lro_receive_skb(struct net_lro_mgr *lro_mgr,
 		     struct sk_buff *skb,
 		     void *priv)
 {
-	if (__lro_proc_skb(lro_mgr, skb, NULL, 0, priv)) {
+	if (__lro_proc_skb(lro_mgr, skb, priv)) {
 		if (lro_mgr->features & LRO_F_NAPI)
 			netif_receive_skb(skb);
 		else
@@ -523,29 +507,13 @@ void lro_receive_skb(struct net_lro_mgr *lro_mgr,
 }
 EXPORT_SYMBOL(lro_receive_skb);
 
-void lro_vlan_hwaccel_receive_skb(struct net_lro_mgr *lro_mgr,
-				  struct sk_buff *skb,
-				  struct vlan_group *vgrp,
-				  u16 vlan_tag,
-				  void *priv)
-{
-	if (__lro_proc_skb(lro_mgr, skb, vgrp, vlan_tag, priv)) {
-		if (lro_mgr->features & LRO_F_NAPI)
-			vlan_hwaccel_receive_skb(skb, vgrp, vlan_tag);
-		else
-			vlan_hwaccel_rx(skb, vgrp, vlan_tag);
-	}
-}
-EXPORT_SYMBOL(lro_vlan_hwaccel_receive_skb);
-
 void lro_receive_frags(struct net_lro_mgr *lro_mgr,
 		       struct skb_frag_struct *frags,
 		       int len, int true_size, void *priv, __wsum sum)
 {
 	struct sk_buff *skb;
 
-	skb = __lro_proc_segment(lro_mgr, frags, len, true_size, NULL, 0,
-				 priv, sum);
+	skb = __lro_proc_segment(lro_mgr, frags, len, true_size, priv, sum);
 	if (!skb)
 		return;
 
@@ -555,26 +523,6 @@ void lro_receive_frags(struct net_lro_mgr *lro_mgr,
 		netif_rx(skb);
 }
 EXPORT_SYMBOL(lro_receive_frags);
-
-void lro_vlan_hwaccel_receive_frags(struct net_lro_mgr *lro_mgr,
-				    struct skb_frag_struct *frags,
-				    int len, int true_size,
-				    struct vlan_group *vgrp,
-				    u16 vlan_tag, void *priv, __wsum sum)
-{
-	struct sk_buff *skb;
-
-	skb = __lro_proc_segment(lro_mgr, frags, len, true_size, vgrp,
-				 vlan_tag, priv, sum);
-	if (!skb)
-		return;
-
-	if (lro_mgr->features & LRO_F_NAPI)
-		vlan_hwaccel_receive_skb(skb, vgrp, vlan_tag);
-	else
-		vlan_hwaccel_rx(skb, vgrp, vlan_tag);
-}
-EXPORT_SYMBOL(lro_vlan_hwaccel_receive_frags);
 
 void lro_flush_all(struct net_lro_mgr *lro_mgr)
 {
