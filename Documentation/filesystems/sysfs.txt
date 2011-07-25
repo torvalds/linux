@@ -70,7 +70,7 @@ An attribute definition is simply:
 struct attribute {
         char                    * name;
         struct module		*owner;
-        mode_t                  mode;
+        umode_t                 mode;
 };
 
 

@@ -518,7 +518,7 @@ out:
 }
 
 int sysfs_add_file_mode(struct sysfs_dirent *dir_sd,
-			const struct attribute *attr, int type, mode_t amode)
+			const struct attribute *attr, int type, umode_t amode)
 {
 	umode_t mode = (amode & S_IALLUGO) | S_IFREG;
 	struct sysfs_addrm_cxt acxt;
