@@ -835,7 +835,7 @@ int dma_init(void)
 
 	/* Create /proc/dma/channels and /proc/dma/devices */
 
-	gDmaDir = create_proc_entry("dma", S_IFDIR | S_IRUGO | S_IXUGO, NULL);
+	gDmaDir = proc_mkdir("dma", NULL);
 
 	if (gDmaDir == NULL) {
 		printk(KERN_ERR "Unable to create /proc/dma\n");
