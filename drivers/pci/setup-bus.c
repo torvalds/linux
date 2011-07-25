@@ -164,6 +164,7 @@ static void adjust_resources_sorted(struct resource_list_x *add_head,
 		idx = res - &list->dev->resource[0];
 		add_size=list->add_size;
 		if (!resource_size(res)) {
+			res->start = list->start;
 			res->end = res->start + add_size - 1;
 			if(pci_assign_resource(list->dev, idx))
 				reset_resource(res);
@@ -223,7 +224,7 @@ static void __assign_resources_sorted(struct resource_list *head,
 	/* Satisfy the must-have resource requests */
 	assign_requested_resources_sorted(head, fail_head);
 
-	/* Try to satisfy any additional nice-to-have resource
+	/* Try to satisfy any additional optional resource
 		requests */
 	if (add_head)
 		adjust_resources_sorted(add_head, head);
@@ -678,7 +679,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			if (add_head && i >= PCI_IOV_RESOURCES &&
 					i <= PCI_IOV_RESOURCE_END) {
 				r->end = r->start - 1;
-				add_to_list(add_head, dev, r, r_size, 1);
+				add_to_list(add_head, dev, r, r_size, 0/* dont' care */);
 				children_add_size += r_size;
 				continue;
 			}
@@ -743,7 +744,17 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	return 1;
 }
 
-static void pci_bus_size_cardbus(struct pci_bus *bus)
+unsigned long pci_cardbus_resource_alignment(struct resource *res)
+{
+	if (res->flags & IORESOURCE_IO)
+		return pci_cardbus_io_size;
+	if (res->flags & IORESOURCE_MEM)
+		return pci_cardbus_mem_size;
+	return 0;
+}
+
+static void pci_bus_size_cardbus(struct pci_bus *bus,
+			struct resource_list_x *add_head)
 {
 	struct pci_dev *bridge = bus->self;
 	struct resource *b_res = &bridge->resource[PCI_BRIDGE_RESOURCES];
@@ -754,12 +765,14 @@ static void pci_bus_size_cardbus(struct pci_bus *bus)
 	 * a fixed amount of bus space for CardBus bridges.
 	 */
 	b_res[0].start = 0;
-	b_res[0].end = pci_cardbus_io_size - 1;
 	b_res[0].flags |= IORESOURCE_IO | IORESOURCE_SIZEALIGN;
+	if (add_head)
+		add_to_list(add_head, bridge, b_res, pci_cardbus_io_size, 0 /* dont care */);
 
 	b_res[1].start = 0;
-	b_res[1].end = pci_cardbus_io_size - 1;
 	b_res[1].flags |= IORESOURCE_IO | IORESOURCE_SIZEALIGN;
+	if (add_head)
+		add_to_list(add_head, bridge, b_res+1, pci_cardbus_io_size, 0 /* dont care */);
 
 	/*
 	 * Check whether prefetchable memory is supported
@@ -779,17 +792,27 @@ static void pci_bus_size_cardbus(struct pci_bus *bus)
 	 */
 	if (ctrl & PCI_CB_BRIDGE_CTL_PREFETCH_MEM0) {
 		b_res[2].start = 0;
-		b_res[2].end = pci_cardbus_mem_size - 1;
 		b_res[2].flags |= IORESOURCE_MEM | IORESOURCE_PREFETCH | IORESOURCE_SIZEALIGN;
+		if (add_head)
+			add_to_list(add_head, bridge, b_res+2, pci_cardbus_mem_size, 0 /* dont care */);
 
 		b_res[3].start = 0;
-		b_res[3].end = pci_cardbus_mem_size - 1;
 		b_res[3].flags |= IORESOURCE_MEM | IORESOURCE_SIZEALIGN;
+		if (add_head)
+			add_to_list(add_head, bridge, b_res+3, pci_cardbus_mem_size, 0 /* dont care */);
 	} else {
 		b_res[3].start = 0;
-		b_res[3].end = pci_cardbus_mem_size * 2 - 1;
 		b_res[3].flags |= IORESOURCE_MEM | IORESOURCE_SIZEALIGN;
+		if (add_head)
+			add_to_list(add_head, bridge, b_res+3, pci_cardbus_mem_size * 2, 0 /* dont care */);
 	}
+
+	/* set the size of the resource to zero, so that the resource does not
+	 * get assigned during required-resource allocation cycle but gets assigned
+	 * during the optional-resource allocation cycle.
+ 	 */
+	b_res[0].start = b_res[1].start = b_res[2].start = b_res[3].start = 1;
+	b_res[0].end = b_res[1].end = b_res[2].end = b_res[3].end = 0;
 }
 
 void __ref __pci_bus_size_bridges(struct pci_bus *bus,
@@ -806,7 +829,7 @@ void __ref __pci_bus_size_bridges(struct pci_bus *bus,
 
 		switch (dev->class >> 8) {
 		case PCI_CLASS_BRIDGE_CARDBUS:
-			pci_bus_size_cardbus(b);
+			pci_bus_size_cardbus(b, add_head);
 			break;
 
 		case PCI_CLASS_BRIDGE_PCI:
