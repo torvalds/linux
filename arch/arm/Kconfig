@@ -608,6 +608,24 @@ config ARCH_TEGRA
 	  This enables support for NVIDIA Tegra based systems (Tegra APX,
 	  Tegra 6xx and Tegra 2 series).
 
+config ARCH_PICOXCELL
+	bool "Picochip picoXcell"
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_PATCH_PHYS_VIRT
+	select ARM_VIC
+	select CPU_V6K
+	select DW_APB_TIMER
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_GPIO
+	select HAVE_SCHED_CLOCK
+	select HAVE_TCM
+	select NO_IOPORT
+	select USE_OF
+	help
+	  This enables support for systems based on the Picochip picoXcell
+	  family of Femtocell devices.  The picoxcell support requires device tree
+	  for all boards.
+
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	select CPU_ARM926T
