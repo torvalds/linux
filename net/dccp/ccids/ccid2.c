@@ -411,7 +411,7 @@ static void ccid2_new_ack(struct sock *sk, struct ccid2_seq *seqp,
 	if (hc->tx_cwnd < dp->dccps_l_seq_win &&
 	    r_seq_used < dp->dccps_r_seq_win) {
 		if (hc->tx_cwnd < hc->tx_ssthresh) {
-			if (*maxincr > 0 && ++hc->tx_packets_acked == 2) {
+			if (*maxincr > 0 && ++hc->tx_packets_acked >= 2) {
 				hc->tx_cwnd += 1;
 				*maxincr    -= 1;
 				hc->tx_packets_acked = 0;
