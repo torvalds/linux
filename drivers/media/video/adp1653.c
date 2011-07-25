@@ -413,6 +413,10 @@ static int adp1653_probe(struct i2c_client *client,
 	struct adp1653_flash *flash;
 	int ret;
 
+	/* we couldn't work without platform data */
+	if (client->dev.platform_data == NULL)
+		return -ENODEV;
+
 	flash = kzalloc(sizeof(*flash), GFP_KERNEL);
 	if (flash == NULL)
 		return -ENOMEM;
