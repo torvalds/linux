@@ -588,6 +588,9 @@ struct scsi_qla_host {
 	struct completion mbx_intr_comp;
 
 	struct ipaddress_config ip_config;
+	struct iscsi_iface *iface_ipv4;
+	struct iscsi_iface *iface_ipv6_0;
+	struct iscsi_iface *iface_ipv6_1;
 
 	/* --- From About Firmware --- */
 	uint16_t iscsi_major;
