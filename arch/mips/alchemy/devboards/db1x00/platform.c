@@ -19,8 +19,11 @@
  */
 
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
+#include <asm/mach-au1x00/au1000.h>
+#include <asm/mach-au1x00/au1000_dma.h>
 #include <asm/mach-au1x00/au1xxx.h>
 #include <asm/mach-db1x00/bcsr.h>
 #include "../platform.h"
@@ -85,6 +88,45 @@
 #endif
 #endif
 
+static struct resource alchemy_ac97c_res[] = {
+	[0] = {
+		.start	= AU1000_AC97_PHYS_ADDR,
+		.end	= AU1000_AC97_PHYS_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= DMA_ID_AC97C_TX,
+		.end	= DMA_ID_AC97C_TX,
+		.flags	= IORESOURCE_DMA,
+	},
+	[2] = {
+		.start	= DMA_ID_AC97C_RX,
+		.end	= DMA_ID_AC97C_RX,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device alchemy_ac97c_dev = {
+	.name		= "alchemy-ac97c",
+	.id		= -1,
+	.resource	= alchemy_ac97c_res,
+	.num_resources	= ARRAY_SIZE(alchemy_ac97c_res),
+};
+
+static struct platform_device alchemy_ac97c_dma_dev = {
+	.name		= "alchemy-pcm-dma",
+	.id		= 0,
+};
+
+static struct platform_device db1x00_codec_dev = {
+	.name		= "ac97-codec",
+	.id		= -1,
+};
+
+static struct platform_device db1x00_audio_dev = {
+	.name		= "db1000-audio",
+};
+
 static int __init db1xxx_dev_init(void)
 {
 #ifdef DB1XXX_HAS_PCMCIA
@@ -113,6 +155,12 @@ static int __init db1xxx_dev_init(void)
 				    1);
 #endif
 	db1x_register_norflash(BOARD_FLASH_SIZE, BOARD_FLASH_WIDTH, F_SWAPPED);
+
+	platform_device_register(&db1x00_codec_dev);
+	platform_device_register(&alchemy_ac97c_dma_dev);
+	platform_device_register(&alchemy_ac97c_dev);
+	platform_device_register(&db1x00_audio_dev);
+
 	return 0;
 }
 device_initcall(db1xxx_dev_init);

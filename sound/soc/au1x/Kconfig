@@ -41,6 +41,15 @@ config SND_SOC_AU1XI2SC
 ##
 ## Boards
 ##
+config SND_SOC_DB1000
+	tristate "DB1000 Audio support"
+	depends on SND_SOC_AU1XAUDIO
+	select SND_SOC_AU1XAC97C
+	select SND_SOC_AC97_CODEC
+	help
+	  Select this option to enable AC97 audio on the early DB1x00 series
+	  of boards (DB1000/DB1500/DB1100).
+
 config SND_SOC_DB1200
 	tristate "DB1200 AC97+I2S audio support"
 	depends on SND_SOC_AU1XPSC
