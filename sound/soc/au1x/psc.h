@@ -1,7 +1,7 @@
 /*
- * Au12x0/Au1550 PSC ALSA ASoC audio support.
+ * Alchemy ALSA ASoC audio support.
  *
- * (c) 2007-2008 MSC Vertriebsges.m.b.H.,
+ * (c) 2007-2011 MSC Vertriebsges.m.b.H.,
  *	Manuel Lauss <manuel.lauss@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,13 @@
 #ifndef _AU1X_PCM_H
 #define _AU1X_PCM_H
 
-/* DBDMA helpers */
+#define PCM_TX	0
+#define PCM_RX	1
+
+#define SUBSTREAM_TYPE(substream) \
+	((substream)->stream == SNDRV_PCM_STREAM_PLAYBACK ? PCM_TX : PCM_RX)
+
+/* PSC/DBDMA helpers */
 extern struct platform_device *au1xpsc_pcm_add(struct platform_device *pdev);
 extern void au1xpsc_pcm_destroy(struct platform_device *dmapd);
 
@@ -27,14 +33,9 @@ struct au1xpsc_audio_data {
 
 	unsigned long pm[2];
 	struct mutex lock;
+	int dmaids[2];
 	struct platform_device *dmapd;
 };
-
-#define PCM_TX	0
-#define PCM_RX	1
-
-#define SUBSTREAM_TYPE(substream) \
-	((substream)->stream == SNDRV_PCM_STREAM_PLAYBACK ? PCM_TX : PCM_RX)
 
 /* easy access macros */
 #define PSC_CTRL(x)	((unsigned long)((x)->mmio) + PSC_CTRL_OFFSET)

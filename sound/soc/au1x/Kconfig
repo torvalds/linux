@@ -18,6 +18,25 @@ config SND_SOC_AU1XPSC_AC97
 	select SND_AC97_CODEC
 	select SND_SOC_AC97_BUS
 
+##
+## Au1000/1500/1100 DMA + AC97C/I2SC
+##
+config SND_SOC_AU1XAUDIO
+	tristate "SoC Audio for Au1000/Au1500/Au1100"
+	depends on MIPS_ALCHEMY
+	help
+	  This is a driver set for the AC97 unit and the
+	  old DMA controller as found on the Au1000/Au1500/Au1100 chips.
+
+config SND_SOC_AU1XAC97C
+	tristate
+	select AC97_BUS
+	select SND_AC97_CODEC
+	select SND_SOC_AC97_BUS
+
+config SND_SOC_AU1XI2SC
+	tristate
+
 
 ##
 ## Boards
