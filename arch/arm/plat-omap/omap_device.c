@@ -146,10 +146,10 @@ static int _omap_device_activate(struct omap_device *od, u8 ignore_lat)
 			odpl->activate_lat_worst = act_lat;
 			if (odpl->flags & OMAP_DEVICE_LATENCY_AUTO_ADJUST) {
 				odpl->activate_lat = act_lat;
-				dev_warn(&od->pdev.dev,
-					 "new worst case activate latency "
-					 "%d: %llu\n",
-					 od->pm_lat_level, act_lat);
+				dev_dbg(&od->pdev.dev,
+					"new worst case activate latency "
+					"%d: %llu\n",
+					od->pm_lat_level, act_lat);
 			} else
 				dev_warn(&od->pdev.dev,
 					 "activate latency %d "
@@ -213,10 +213,10 @@ static int _omap_device_deactivate(struct omap_device *od, u8 ignore_lat)
 			odpl->deactivate_lat_worst = deact_lat;
 			if (odpl->flags & OMAP_DEVICE_LATENCY_AUTO_ADJUST) {
 				odpl->deactivate_lat = deact_lat;
-				dev_warn(&od->pdev.dev,
-					 "new worst case deactivate latency "
-					 "%d: %llu\n",
-					 od->pm_lat_level, deact_lat);
+				dev_dbg(&od->pdev.dev,
+					"new worst case deactivate latency "
+					"%d: %llu\n",
+					od->pm_lat_level, deact_lat);
 			} else
 				dev_warn(&od->pdev.dev,
 					 "deactivate latency %d "
