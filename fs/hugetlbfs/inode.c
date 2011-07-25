@@ -447,8 +447,8 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
 	return 0;
 }
 
-static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid, 
-					gid_t gid, int mode, dev_t dev)
+static struct inode *hugetlbfs_get_root(struct super_block *sb,
+					struct hugetlbfs_config *config)
 {
 	struct inode *inode;
 
@@ -456,9 +456,31 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid,
 	if (inode) {
 		struct hugetlbfs_inode_info *info;
 		inode->i_ino = get_next_ino();
-		inode->i_mode = mode;
-		inode->i_uid = uid;
-		inode->i_gid = gid;
+		inode->i_mode = S_IFDIR | config->mode;
+		inode->i_uid = config->uid;
+		inode->i_gid = config->gid;
+		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+		info = HUGETLBFS_I(inode);
+		mpol_shared_policy_init(&info->policy, NULL);
+		inode->i_op = &hugetlbfs_dir_inode_operations;
+		inode->i_fop = &simple_dir_operations;
+		/* directory inodes start off with i_nlink == 2 (for "." entry) */
+		inc_nlink(inode);
+	}
+	return inode;
+}
+
+static struct inode *hugetlbfs_get_inode(struct super_block *sb,
+					struct inode *dir,
+					int mode, dev_t dev)
+{
+	struct inode *inode;
+
+	inode = new_inode(sb);
+	if (inode) {
+		struct hugetlbfs_inode_info *info;
+		inode->i_ino = get_next_ino();
+		inode_init_owner(inode, dir, mode);
 		inode->i_mapping->a_ops = &hugetlbfs_aops;
 		inode->i_mapping->backing_dev_info =&hugetlbfs_backing_dev_info;
 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
@@ -504,16 +526,8 @@ static int hugetlbfs_mknod(struct inode *dir,
 {
 	struct inode *inode;
 	int error = -ENOSPC;
-	gid_t gid;
 
-	if (dir->i_mode & S_ISGID) {
-		gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			mode |= S_ISGID;
-	} else {
-		gid = current_fsgid();
-	}
-	inode = hugetlbfs_get_inode(dir->i_sb, current_fsuid(), gid, mode, dev);
+	inode = hugetlbfs_get_inode(dir->i_sb, dir, mode, dev);
 	if (inode) {
 		dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 		d_instantiate(dentry, inode);
@@ -541,15 +555,8 @@ static int hugetlbfs_symlink(struct inode *dir,
 {
 	struct inode *inode;
 	int error = -ENOSPC;
-	gid_t gid;
 
-	if (dir->i_mode & S_ISGID)
-		gid = dir->i_gid;
-	else
-		gid = current_fsgid();
-
-	inode = hugetlbfs_get_inode(dir->i_sb, current_fsuid(),
-					gid, S_IFLNK|S_IRWXUGO, 0);
+	inode = hugetlbfs_get_inode(dir->i_sb, dir, S_IFLNK|S_IRWXUGO, 0);
 	if (inode) {
 		int l = strlen(symname)+1;
 		error = page_symlink(inode, symname, l);
@@ -857,8 +864,7 @@ hugetlbfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = HUGETLBFS_MAGIC;
 	sb->s_op = &hugetlbfs_ops;
 	sb->s_time_gran = 1;
-	inode = hugetlbfs_get_inode(sb, config.uid, config.gid,
-					S_IFDIR | config.mode, 0);
+	inode = hugetlbfs_get_root(sb, &config);
 	if (!inode)
 		goto out_free;
 
@@ -956,8 +962,7 @@ struct file *hugetlb_file_setup(const char *name, size_t size,
 
 	path.mnt = mntget(hugetlbfs_vfsmount);
 	error = -ENOSPC;
-	inode = hugetlbfs_get_inode(root->d_sb, current_fsuid(),
-				current_fsgid(), S_IFREG | S_IRWXUGO, 0);
+	inode = hugetlbfs_get_inode(root->d_sb, NULL, S_IFREG | S_IRWXUGO, 0);
 	if (!inode)
 		goto out_dentry;
 
