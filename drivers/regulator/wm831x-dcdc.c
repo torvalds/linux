@@ -267,23 +267,6 @@ static int wm831x_buckv_select_min_voltage(struct regulator_dev *rdev,
 	return vsel;
 }
 
-static int wm831x_buckv_select_max_voltage(struct regulator_dev *rdev,
-					   int min_uV, int max_uV)
-{
-	u16 vsel;
-
-	if (max_uV < 600000 || max_uV > 1800000)
-		return -EINVAL;
-
-	vsel = ((max_uV - 600000) / 12500) + 8;
-
-	if (wm831x_buckv_list_voltage(rdev, vsel) < min_uV ||
-	    wm831x_buckv_list_voltage(rdev, vsel) < max_uV)
-		return -EINVAL;
-
-	return vsel;
-}
-
 static int wm831x_buckv_set_dvs(struct regulator_dev *rdev, int state)
 {
 	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
@@ -338,27 +321,22 @@ static int wm831x_buckv_set_voltage(struct regulator_dev *rdev,
 	if (ret < 0)
 		return ret;
 
-	/* Set the high voltage as the DVS voltage.  This is optimised
-	 * for CPUfreq usage, most processors will keep the maximum
-	 * voltage constant and lower the minimum with the frequency. */
-	vsel = wm831x_buckv_select_max_voltage(rdev, min_uV, max_uV);
-	if (vsel < 0) {
-		/* This should never happen - at worst the same vsel
-		 * should be chosen */
-		WARN_ON(vsel < 0);
-		return 0;
+	/*
+	 * If this VSEL is higher than the last one we've seen then
+	 * remember it as the DVS VSEL.  This is optimised for CPUfreq
+	 * usage where we want to get to the highest voltage very
+	 * quickly.
+	 */
+	if (vsel > dcdc->dvs_vsel) {
+		ret = wm831x_set_bits(wm831x, dvs_reg,
+				      WM831X_DC1_DVS_VSEL_MASK,
+				      dcdc->dvs_vsel);
+		if (ret == 0)
+			dcdc->dvs_vsel = vsel;
+		else
+			dev_warn(wm831x->dev,
+				 "Failed to set DCDC DVS VSEL: %d\n", ret);
 	}
-
-	/* Don't bother if it's the same VSEL we're already using */
-	if (vsel == dcdc->on_vsel)
-		return 0;
-
-	ret = wm831x_set_bits(wm831x, dvs_reg, WM831X_DC1_DVS_VSEL_MASK, vsel);
-	if (ret == 0)
-		dcdc->dvs_vsel = vsel;
-	else
-		dev_warn(wm831x->dev, "Failed to set DCDC DVS VSEL: %d\n",
-			 ret);
 
 	return 0;
 }
