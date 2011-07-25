@@ -472,7 +472,7 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
 
 static struct inode *hugetlbfs_get_inode(struct super_block *sb,
 					struct inode *dir,
-					int mode, dev_t dev)
+					umode_t mode, dev_t dev)
 {
 	struct inode *inode;
 
