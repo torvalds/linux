@@ -151,6 +151,10 @@ void qla4_8xxx_need_qsnt_handler(struct scsi_qla_host *ha);
 void qla4_8xxx_clear_drv_active(struct scsi_qla_host *ha);
 void qla4_8xxx_set_drv_active(struct scsi_qla_host *ha);
 
+/* BSG Functions */
+int qla4xxx_bsg_request(struct bsg_job *bsg_job);
+int qla4xxx_process_vendor_specific(struct bsg_job *bsg_job);
+
 extern int ql4xextended_error_logging;
 extern int ql4xdontresethba;
 extern int ql4xenablemsix;

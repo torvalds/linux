@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 #include <linux/aer.h>
+#include <linux/bsg-lib.h>
 
 #include <net/tcp.h>
 #include <scsi/scsi.h>
@@ -33,6 +34,8 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_iscsi.h>
+#include <scsi/scsi_bsg_iscsi.h>
+#include <scsi/scsi_netlink.h>
 
 #include "ql4_dbg.h"
 #include "ql4_nx.h"
@@ -599,6 +602,11 @@ struct scsi_qla_host {
 	uint16_t bootload_minor;
 	uint16_t bootload_patch;
 	uint16_t bootload_build;
+
+	uint32_t flash_state;
+#define	QLFLASH_WAITING		0
+#define	QLFLASH_READING		1
+#define	QLFLASH_WRITING		2
 };
 
 static inline int is_ipv4_enabled(struct scsi_qla_host *ha)

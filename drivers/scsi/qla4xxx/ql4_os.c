@@ -131,6 +131,7 @@ static struct scsi_host_template qla4xxx_driver_template = {
 
 	.max_sectors		= 0xFFFF,
 	.shost_attrs		= qla4xxx_host_attrs,
+	.vendor_id		= SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_QLOGIC,
 };
 
 static struct iscsi_transport qla4xxx_iscsi_transport = {
@@ -146,6 +147,7 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.set_iface_param	= qla4xxx_iface_set_param,
 	.session_recovery_timedout = qla4xxx_recovery_timedout,
 	.get_iface_param	= qla4xxx_get_iface_param,
+	.bsg_request		= qla4xxx_bsg_request,
 };
 
 static struct scsi_transport_template *qla4xxx_scsi_transport;
