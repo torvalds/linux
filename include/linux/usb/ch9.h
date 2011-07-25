@@ -34,6 +34,7 @@
 #define __LINUX_USB_CH9_H
 
 #include <linux/types.h>	/* __u8 etc */
+#include <asm/byteorder.h>	/* le16_to_cpu */
 
 /*-------------------------------------------------------------------------*/
 
@@ -568,6 +569,17 @@ static inline int usb_endpoint_is_isoc_out(
 				const struct usb_endpoint_descriptor *epd)
 {
 	return usb_endpoint_xfer_isoc(epd) && usb_endpoint_dir_out(epd);
+}
+
+/**
+ * usb_endpoint_maxp - get endpoint's max packet size
+ * @epd: endpoint to be checked
+ *
+ * Returns @epd's max packet
+ */
+static inline int usb_endpoint_maxp(const struct usb_endpoint_descriptor *epd)
+{
+	return le16_to_cpu(epd->wMaxPacketSize);
 }
 
 /*-------------------------------------------------------------------------*/
