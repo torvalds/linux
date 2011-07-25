@@ -4961,29 +4961,19 @@ static int stac92xx_resume(struct hda_codec *codec)
 			stac_issue_unsol_event(codec,
 					       spec->autocfg.line_out_pins[0]);
 	}
-	/* sync mute LED */
-	if (spec->gpio_led)
-		hda_call_check_power_status(codec, 0x01);
 	return 0;
 }
 
-/*
- * using power check for controlling mute led of HP notebooks
- * check for mute state only on Speakers (nid = 0x10)
- *
- * For this feature CONFIG_SND_HDA_POWER_SAVE is needed, otherwise
- * the LED is NOT working properly !
- *
- * Changed name to reflect that it now works for any designated
- * model, not just HP HDX.
- */
-
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-static int stac92xx_hp_check_power_status(struct hda_codec *codec,
-					      hda_nid_t nid)
+/*
+ * For this feature CONFIG_SND_HDA_POWER_SAVE is needed
+ * as mute LED state is updated in check_power_status hook
+ */
+static int stac92xx_update_led_status(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	int i, muted = 1;
+	int i, num_ext_dacs, muted = 1;
+	hda_nid_t nid;
 
 	for (i = 0; i < spec->multiout.num_dacs; i++) {
 		nid = spec->multiout.dac_nids[i];
@@ -4991,6 +4981,22 @@ static int stac92xx_hp_check_power_status(struct hda_codec *codec,
 		      HDA_AMP_MUTE)) {
 			muted = 0; /* something heard */
 			break;
+		}
+	}
+	if (muted && spec->multiout.hp_nid)
+		if (!(snd_hda_codec_amp_read(codec,
+				spec->multiout.hp_nid, 0, HDA_OUTPUT, 0) &
+					HDA_AMP_MUTE)) {
+			muted = 0; /* HP is not muted */
+		}
+	num_ext_dacs = ARRAY_SIZE(spec->multiout.extra_out_nid);
+	for (i = 0; muted && i < num_ext_dacs; i++) {
+		nid = spec->multiout.extra_out_nid[i];
+		if (nid == 0)
+			break;
+		if (!(snd_hda_codec_amp_read(codec, nid, 0, HDA_OUTPUT, 0) &
+		      HDA_AMP_MUTE)) {
+			muted = 0; /* extra output is not muted */
 		}
 	}
 	if (muted)
@@ -5004,6 +5010,17 @@ static int stac92xx_hp_check_power_status(struct hda_codec *codec,
 	}
 
 	stac_gpio_set(codec, spec->gpio_mask, spec->gpio_dir, spec->gpio_data);
+	return 0;
+}
+
+/*
+ * use power check for controlling mute led of HP notebooks
+ */
+static int stac92xx_check_power_status(struct hda_codec *codec,
+					      hda_nid_t nid)
+{
+	stac92xx_update_led_status(codec);
+
 	return 0;
 }
 #endif
@@ -5543,7 +5560,7 @@ again:
 		spec->gpio_data |= spec->gpio_led;
 		/* register check_power_status callback. */
 		codec->patch_ops.check_power_status =
-			stac92xx_hp_check_power_status;
+			stac92xx_check_power_status;
 	}
 #endif	
 
@@ -5871,7 +5888,7 @@ again:
 		spec->gpio_data |= spec->gpio_led;
 		/* register check_power_status callback. */
 		codec->patch_ops.check_power_status =
-			stac92xx_hp_check_power_status;
+			stac92xx_check_power_status;
 	}
 #endif	
 
